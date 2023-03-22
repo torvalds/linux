@@ -59,8 +59,8 @@ static int gh_cpusys_vm_share_mem(struct gh_cpusys_vm_data *drv_data,
 	struct qcom_scm_vmperm src_vmlist[] = {{self, PERM_READ | PERM_WRITE | PERM_EXEC}};
 	struct qcom_scm_vmperm dst_vmlist[] = {{self, PERM_READ | PERM_WRITE},
 					       {peer, PERM_READ | PERM_WRITE}};
-	int srcvmids = BIT(src_vmlist[0].vmid);
-	int dstvmids = BIT(dst_vmlist[0].vmid) | BIT(dst_vmlist[1].vmid);
+	u64 srcvmids = BIT(src_vmlist[0].vmid);
+	u64 dstvmids = BIT(dst_vmlist[0].vmid) | BIT(dst_vmlist[1].vmid);
 	struct gh_acl_desc *acl;
 	struct gh_sgl_desc *sgl;
 	int ret;
@@ -91,7 +91,7 @@ static int gh_cpusys_vm_share_mem(struct gh_cpusys_vm_data *drv_data,
 	sgl->sgl_entries[0].ipa_base = drv_data->res.start;
 	sgl->sgl_entries[0].size = resource_size(&drv_data->res);
 
-	ret = gh_rm_mem_share(GH_RM_MEM_TYPE_NORMAL, 0, drv_data->label,
+	ret = ghd_rm_mem_share(GH_RM_MEM_TYPE_NORMAL, 0, drv_data->label,
 			acl, sgl, NULL, &drv_data->memparcel);
 	if (ret) {
 		dev_err(drv_data->dev, "%s: gh_rm_mem_share failed addr=%x size=%u err=%d\n",
@@ -126,10 +126,10 @@ static int gh_cpusys_vm_mem_rm_cb(struct notifier_block *nb, unsigned long cmd, 
 	    vm_status_payload->vm_status != GH_RM_VM_STATUS_RESET)
 		goto end;
 
-	if (gh_rm_get_vmid(drv_data->peer_name, &peer_vmid))
+	if (ghd_rm_get_vmid(drv_data->peer_name, &peer_vmid))
 		goto end;
 
-	if (gh_rm_get_vmid(GH_PRIMARY_VM, &self_vmid))
+	if (ghd_rm_get_vmid(GH_PRIMARY_VM, &self_vmid))
 		goto end;
 
 	if (peer_vmid != vm_status_payload->vmid)
