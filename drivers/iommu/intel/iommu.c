@@ -3760,8 +3760,8 @@ static ssize_t version_show(struct device *dev,
 {
 	struct intel_iommu *iommu = dev_to_intel_iommu(dev);
 	u32 ver = readl(iommu->reg + DMAR_VER_REG);
-	return sprintf(buf, "%d:%d\n",
-		       DMAR_VER_MAJOR(ver), DMAR_VER_MINOR(ver));
+	return sysfs_emit(buf, "%d:%d\n",
+			  DMAR_VER_MAJOR(ver), DMAR_VER_MINOR(ver));
 }
 static DEVICE_ATTR_RO(version);
 
@@ -3769,7 +3769,7 @@ static ssize_t address_show(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
 	struct intel_iommu *iommu = dev_to_intel_iommu(dev);
-	return sprintf(buf, "%llx\n", iommu->reg_phys);
+	return sysfs_emit(buf, "%llx\n", iommu->reg_phys);
 }
 static DEVICE_ATTR_RO(address);
 
@@ -3777,7 +3777,7 @@ static ssize_t cap_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
 	struct intel_iommu *iommu = dev_to_intel_iommu(dev);
-	return sprintf(buf, "%llx\n", iommu->cap);
+	return sysfs_emit(buf, "%llx\n", iommu->cap);
 }
 static DEVICE_ATTR_RO(cap);
 
@@ -3785,7 +3785,7 @@ static ssize_t ecap_show(struct device *dev,
 			 struct device_attribute *attr, char *buf)
 {
 	struct intel_iommu *iommu = dev_to_intel_iommu(dev);
-	return sprintf(buf, "%llx\n", iommu->ecap);
+	return sysfs_emit(buf, "%llx\n", iommu->ecap);
 }
 static DEVICE_ATTR_RO(ecap);
 
@@ -3793,7 +3793,7 @@ static ssize_t domains_supported_show(struct device *dev,
 				      struct device_attribute *attr, char *buf)
 {
 	struct intel_iommu *iommu = dev_to_intel_iommu(dev);
-	return sprintf(buf, "%ld\n", cap_ndoms(iommu->cap));
+	return sysfs_emit(buf, "%ld\n", cap_ndoms(iommu->cap));
 }
 static DEVICE_ATTR_RO(domains_supported);
 
@@ -3801,8 +3801,9 @@ static ssize_t domains_used_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
 	struct intel_iommu *iommu = dev_to_intel_iommu(dev);
-	return sprintf(buf, "%d\n", bitmap_weight(iommu->domain_ids,
-						  cap_ndoms(iommu->cap)));
+	return sysfs_emit(buf, "%d\n",
+			  bitmap_weight(iommu->domain_ids,
+					cap_ndoms(iommu->cap)));
 }
 static DEVICE_ATTR_RO(domains_used);
 

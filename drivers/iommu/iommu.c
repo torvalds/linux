@@ -616,7 +616,7 @@ static void iommu_group_remove_file(struct iommu_group *group,
 
 static ssize_t iommu_group_show_name(struct iommu_group *group, char *buf)
 {
-	return sprintf(buf, "%s\n", group->name);
+	return sysfs_emit(buf, "%s\n", group->name);
 }
 
 /**
@@ -729,52 +729,51 @@ static ssize_t iommu_group_show_resv_regions(struct iommu_group *group,
 {
 	struct iommu_resv_region *region, *next;
 	struct list_head group_resv_regions;
-	char *str = buf;
+	int offset = 0;
 
 	INIT_LIST_HEAD(&group_resv_regions);
 	iommu_get_group_resv_regions(group, &group_resv_regions);
 
 	list_for_each_entry_safe(region, next, &group_resv_regions, list) {
-		str += sprintf(str, "0x%016llx 0x%016llx %s\n",
-			       (long long int)region->start,
-			       (long long int)(region->start +
-						region->length - 1),
-			       iommu_group_resv_type_string[region->type]);
+		offset += sysfs_emit_at(buf, offset, "0x%016llx 0x%016llx %s\n",
+					(long long)region->start,
+					(long long)(region->start +
+						    region->length - 1),
+					iommu_group_resv_type_string[region->type]);
 		kfree(region);
 	}
 
-	return (str - buf);
+	return offset;
 }
 
 static ssize_t iommu_group_show_type(struct iommu_group *group,
 				     char *buf)
 {
-	char *type = "unknown\n";
+	char *type = "unknown";
 
 	mutex_lock(&group->mutex);
 	if (group->default_domain) {
 		switch (group->default_domain->type) {
 		case IOMMU_DOMAIN_BLOCKED:
-			type = "blocked\n";
+			type = "blocked";
 			break;
 		case IOMMU_DOMAIN_IDENTITY:
-			type = "identity\n";
+			type = "identity";
 			break;
 		case IOMMU_DOMAIN_UNMANAGED:
-			type = "unmanaged\n";
+			type = "unmanaged";
 			break;
 		case IOMMU_DOMAIN_DMA:
-			type = "DMA\n";
+			type = "DMA";
 			break;
 		case IOMMU_DOMAIN_DMA_FQ:
-			type = "DMA-FQ\n";
+			type = "DMA-FQ";
 			break;
 		}
 	}
 	mutex_unlock(&group->mutex);
-	strcpy(buf, type);
 
-	return strlen(type);
+	return sysfs_emit(buf, "%s\n", type);
 }
 
 static IOMMU_GROUP_ATTR(name, S_IRUGO, iommu_group_show_name, NULL);
