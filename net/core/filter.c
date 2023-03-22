@@ -4638,7 +4638,7 @@ static u64 __bpf_get_netns_cookie(struct sock *sk)
 {
 	const struct net *net = sk ? sock_net(sk) : &init_net;
 
-	return net->net_cookie;
+	return atomic64_read(&net->net_cookie);
 }
 
 BPF_CALL_1(bpf_get_netns_cookie_sock, struct sock *, ctx)

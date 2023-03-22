@@ -330,7 +330,7 @@ static __net_init int setup_net(struct net *net, struct user_namespace *user_ns)
 	refcount_set(&net->passive, 1);
 	get_random_bytes(&net->hash_mix, sizeof(u32));
 	preempt_disable();
-	net->net_cookie = gen_cookie_next(&net_cookie);
+	atomic64_set(&net->net_cookie, gen_cookie_next(&net_cookie));
 	preempt_enable();
 	net->dev_base_seq = 1;
 	net->user_ns = user_ns;

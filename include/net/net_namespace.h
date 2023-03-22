@@ -171,7 +171,7 @@ struct net {
 	struct netns_xfrm	xfrm;
 #endif
 
-	u64			net_cookie; /* written once */
+	atomic64_t		net_cookie; /* written once */
 
 #if IS_ENABLED(CONFIG_IP_VS)
 	struct netns_ipvs	*ipvs;
