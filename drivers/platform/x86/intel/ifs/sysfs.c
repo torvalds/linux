@@ -141,7 +141,7 @@ static ssize_t image_version_show(struct device *dev,
 static DEVICE_ATTR_RO(image_version);
 
 /* global scan sysfs attributes */
-static struct attribute *plat_ifs_attrs[] = {
+struct attribute *plat_ifs_attrs[] = {
 	&dev_attr_details.attr,
 	&dev_attr_status.attr,
 	&dev_attr_run_test.attr,
@@ -149,10 +149,3 @@ static struct attribute *plat_ifs_attrs[] = {
 	&dev_attr_image_version.attr,
 	NULL
 };
-
-ATTRIBUTE_GROUPS(plat_ifs);
-
-const struct attribute_group **ifs_get_groups(void)
-{
-	return plat_ifs_groups;
-}

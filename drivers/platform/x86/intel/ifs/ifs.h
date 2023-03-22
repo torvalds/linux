@@ -252,6 +252,6 @@ static inline const struct ifs_test_caps *ifs_get_test_caps(struct device *dev)
 extern bool *ifs_pkg_auth;
 int ifs_load_firmware(struct device *dev);
 int do_core_test(int cpu, struct device *dev);
-const struct attribute_group **ifs_get_groups(void);
+extern struct attribute *plat_ifs_attrs[];
 
 #endif

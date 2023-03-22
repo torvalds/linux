@@ -20,6 +20,8 @@ static const struct x86_cpu_id ifs_cpu_ids[] __initconst = {
 };
 MODULE_DEVICE_TABLE(x86cpu, ifs_cpu_ids);
 
+ATTRIBUTE_GROUPS(plat_ifs);
+
 bool *ifs_pkg_auth;
 
 static const struct ifs_test_caps scan_test = {
@@ -31,8 +33,8 @@ static struct ifs_device ifs_device = {
 	.test_caps = &scan_test,
 	.misc = {
 		.name = "intel_ifs_0",
-		.nodename = "intel_ifs/0",
 		.minor = MISC_DYNAMIC_MINOR,
+		.groups = plat_ifs_groups,
 	},
 };
 
@@ -54,8 +56,6 @@ static int __init ifs_init(void)
 
 	if (rdmsrl_safe(MSR_INTEGRITY_CAPS, &msrval))
 		return -ENODEV;
-
-	ifs_device.misc.groups = ifs_get_groups();
 
 	if (!(msrval & BIT(ifs_device.test_caps->integrity_cap_bit)))
 		return -ENODEV;
