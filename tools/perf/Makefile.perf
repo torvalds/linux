@@ -1072,7 +1072,11 @@ VMLINUX_BTF ?= $(abspath $(firstword $(wildcard $(VMLINUX_BTF_PATHS))))
 
 $(SKEL_OUT)/vmlinux.h: $(VMLINUX_BTF) $(BPFTOOL)
 ifeq ($(VMLINUX_H),)
-	$(QUIET_GEN)$(BPFTOOL) btf dump file $< format c > $@
+	$(QUIET_GEN)$(BPFTOOL) btf dump file $< format c > $@ || \
+	(echo "Failure to generate vmlinux.h needed for the recommended BPF skeleton support." && \
+	echo "To disable this use the build option NO_BPF_SKEL=1." && \
+	echo "Alternatively point at a pre-generated vmlinux.h with VMLINUX_H=<path>." && \
+	false)
 else
 	$(Q)cp "$(VMLINUX_H)" $@
 endif
