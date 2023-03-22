@@ -1919,18 +1919,6 @@ err:
 	return ret;
 }
 
-int bch2_trans_log_msg(struct btree_trans *trans, const char *fmt, ...)
-{
-	va_list args;
-	int ret;
-
-	va_start(args, fmt);
-	ret = __bch2_trans_log_msg(&trans->extra_journal_entries, fmt, args);
-	va_end(args);
-
-	return ret;
-}
-
 int bch2_fs_log_msg(struct bch_fs *c, const char *fmt, ...)
 {
 	va_list args;
