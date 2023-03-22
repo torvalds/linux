@@ -637,12 +637,16 @@ void rwnx_txq_vif_for_each_sta(struct rwnx_hw *rwnx_hw, struct rwnx_vif *rwnx_vi
         break;
     }
     case NL80211_IFTYPE_AP_VLAN:
-        rwnx_vif = rwnx_vif->ap_vlan.master;
     case NL80211_IFTYPE_AP:
     case NL80211_IFTYPE_MESH_POINT:
     case NL80211_IFTYPE_P2P_GO:
     {
         struct rwnx_sta *sta;
+
+	if (RWNX_VIF_TYPE(rwnx_vif) == NL80211_IFTYPE_AP_VLAN) {
+		rwnx_vif = rwnx_vif->ap_vlan.master;
+	}
+
         list_for_each_entry(sta, &rwnx_vif->ap.sta_list, list) {
             f(sta, reason, rwnx_hw);
         }

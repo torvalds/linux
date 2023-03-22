@@ -614,10 +614,14 @@ int rwnx_send_add_if(struct rwnx_hw *rwnx_hw, const unsigned char *mac,
     #ifdef CONFIG_RWNX_FULLMAC
     //case NL80211_IFTYPE_P2P_DEVICE:
     case NL80211_IFTYPE_P2P_CLIENT:
-        add_if_req_param->p2p = true;
         // no break
     #endif /* CONFIG_RWNX_FULLMAC */
     case NL80211_IFTYPE_STATION:
+    #ifdef CONFIG_RWNX_FULLMAC
+	if (iftype == NL80211_IFTYPE_P2P_CLIENT) {
+	    add_if_req_param->p2p = true;
+	}
+    #endif
         add_if_req_param->type = MM_STA;
         break;
 
@@ -627,10 +631,14 @@ int rwnx_send_add_if(struct rwnx_hw *rwnx_hw, const unsigned char *mac,
 
     #ifdef CONFIG_RWNX_FULLMAC
     case NL80211_IFTYPE_P2P_GO:
-        add_if_req_param->p2p = true;
         // no break
     #endif /* CONFIG_RWNX_FULLMAC */
     case NL80211_IFTYPE_AP:
+    #ifdef CONFIG_RWNX_FULLMAC
+	if (iftype == NL80211_IFTYPE_P2P_GO) {
+	    add_if_req_param->p2p = true;
+	}
+    #endif
         add_if_req_param->type = MM_AP;
         break;
     case NL80211_IFTYPE_MESH_POINT:

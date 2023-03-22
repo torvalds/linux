@@ -2778,14 +2778,16 @@ static struct rwnx_vif *rwnx_interface_add(struct rwnx_hw *rwnx_hw,
         vif->is_p2p_vif = 1;
         break;
     case NL80211_IFTYPE_MESH_POINT:
-        INIT_LIST_HEAD(&vif->ap.mpath_list);
-        INIT_LIST_HEAD(&vif->ap.proxy_list);
-        vif->ap.create_path = false;
-        vif->ap.generation = 0;
-        vif->ap.mesh_pm = NL80211_MESH_POWER_ACTIVE;
-        vif->ap.next_mesh_pm = NL80211_MESH_POWER_ACTIVE;
-        // no break
     case NL80211_IFTYPE_AP:
+	if (type == NL80211_IFTYPE_MESH_POINT) {
+	    INIT_LIST_HEAD(&vif->ap.mpath_list);
+            INIT_LIST_HEAD(&vif->ap.proxy_list);
+            vif->ap.create_path = false;
+            vif->ap.generation = 0; 
+            vif->ap.mesh_pm = NL80211_MESH_POWER_ACTIVE;
+            vif->ap.next_mesh_pm = NL80211_MESH_POWER_ACTIVE;
+	}
+
         INIT_LIST_HEAD(&vif->ap.sta_list);
         memset(&vif->ap.bcn, 0, sizeof(vif->ap.bcn));
         break;
@@ -3211,13 +3213,14 @@ static int rwnx_cfg80211_change_iface(struct wiphy *wiphy,
         vif->sta.external_auth = false;
         break;
     case NL80211_IFTYPE_MESH_POINT:
-        INIT_LIST_HEAD(&vif->ap.mpath_list);
-        INIT_LIST_HEAD(&vif->ap.proxy_list);
-        vif->ap.create_path = false;
-        vif->ap.generation = 0;
-        // no break
     case NL80211_IFTYPE_AP:
     case NL80211_IFTYPE_P2P_GO:
+	if (type == NL80211_IFTYPE_MESH_POINT) {
+		INIT_LIST_HEAD(&vif->ap.mpath_list);
+        	INIT_LIST_HEAD(&vif->ap.proxy_list);
+        	vif->ap.create_path = false;
+        	vif->ap.generation = 0; 	
+	}
         INIT_LIST_HEAD(&vif->ap.sta_list);
         memset(&vif->ap.bcn, 0, sizeof(vif->ap.bcn));
         break;
@@ -5138,10 +5141,12 @@ static int rwnx_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
     /* Check if provided VIF is an AP or a STA one */
     switch (RWNX_VIF_TYPE(rwnx_vif)) {
         case NL80211_IFTYPE_AP_VLAN:
-            rwnx_vif = rwnx_vif->ap_vlan.master;
         case NL80211_IFTYPE_AP:
         case NL80211_IFTYPE_P2P_GO:
         case NL80211_IFTYPE_MESH_POINT:
+	    if (RWNX_VIF_TYPE(rwnx_vif) == NL80211_IFTYPE_AP_VLAN) {
+	    	rwnx_vif = rwnx_vif->ap_vlan.master;
+	    }
             ap = true;
             break;
         case NL80211_IFTYPE_STATION:
@@ -5791,9 +5796,11 @@ static int rwnx_fill_station_info(struct rwnx_sta *sta, struct rwnx_vif *vif,
 		break;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
 	case FORMATMOD_HE_MU:
-		sinfo->rxrate.he_ru_alloc = rx_vect1->he.ru_size;
 	case FORMATMOD_HE_SU:
 	case FORMATMOD_HE_ER:
+		if (rx_vect1->format_mod == FORMATMOD_HE_MU) {
+			sinfo->rxrate.he_ru_alloc = rx_vect1->he.ru_size;
+		}
 		sinfo->rxrate.flags = RATE_INFO_FLAGS_HE_MCS;
 		sinfo->rxrate.mcs = rx_vect1->he.mcs;
 		sinfo->rxrate.he_gi = rx_vect1->he.gi_type;

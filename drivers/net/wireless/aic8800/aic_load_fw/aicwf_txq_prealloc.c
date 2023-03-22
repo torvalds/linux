@@ -13,7 +13,7 @@ struct prealloc_txq prealloc_txq;
 
 void *aicwf_prealloc_txq_alloc(size_t size)
 {
-    AICWFDBG(LOGINFO, "aicwf_prealloc_txq_alloc size %d \r\n", size);
+    AICWFDBG(LOGINFO, "aicwf_prealloc_txq_alloc size %zu \r\n", size);
     BUG_ON(size > MAX_TXQ_SIZE);
 
     //check prealloc_txq.size
