@@ -69,20 +69,20 @@ config ST_LIS2DS12_IIO_LIMIT_FIFO
 endif #IIO_ST_LIS2DS12
 
 config IIO_ST_LIS2DW12
-	tristate "STMicroelectronics LIS2DW12/IIS2DLPC Accelerometer Driver"
+	tristate "STMicroelectronics LIS2DW12/IIS2DLPC/AIS2IH Accelerometer Driver"
 	depends on (I2C || SPI)
 	select IIO_BUFFER
 	select IIO_KFIFO_BUF
 	select IIO_ST_LIS2DW12_I2C if (I2C)
 	select IIO_ST_LIS2DW12_SPI if (SPI)
 	help
-	  Say yes here to build support for the LIS2DW12 and IIS2DLPC accelerometer.
+	  Say yes here to build support for the LIS2DW12, IIS2DLPC and AIS2IH accelerometer.
 
 	  This driver can also be built as a module. If so, will be created
 	  these modules:
-	  - st_lisdw12 (core functions for the driver [it is mandatory]);
-	  - st_lisdw12_i2c (necessary for the I2C devices [optional*]);
-	  - st_lisdw12_spi (necessary for the SPI devices [optional*]);
+	  - st_lis2dw12 (core functions for the driver [it is mandatory]);
+	  - st_lis2dw12_i2c (necessary for the I2C devices [optional*]);
+	  - st_lis2dw12_spi (necessary for the SPI devices [optional*]);
 
 	  (*) one of these is necessary to do something.
 
