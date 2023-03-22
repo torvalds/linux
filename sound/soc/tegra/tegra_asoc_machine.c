@@ -203,7 +203,7 @@ int tegra_asoc_machine_init(struct snd_soc_pcm_runtime *rtd)
 					  "nvidia,coupled-mic-hp-det")) {
 			tegra_machine_mic_jack_gpio.desc = machine->gpiod_hp_det;
 			tegra_machine_mic_jack_gpio.jack_status_check = coupled_mic_hp_check;
-		};
+		}
 
 		err = snd_soc_jack_add_gpios(&tegra_machine_mic_jack, 1,
 					     &tegra_machine_mic_jack_gpio);
