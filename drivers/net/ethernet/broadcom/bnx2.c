@@ -3828,7 +3828,7 @@ load_rv2p_fw(struct bnx2 *bp, u32 rv2p_proc,
 	return 0;
 }
 
-static int
+static void
 load_cpu_fw(struct bnx2 *bp, const struct cpu_reg *cpu_reg,
 	    const struct bnx2_mips_fw_file_entry *fw_entry)
 {
@@ -3896,48 +3896,34 @@ load_cpu_fw(struct bnx2 *bp, const struct cpu_reg *cpu_reg,
 	val &= ~cpu_reg->mode_value_halt;
 	bnx2_reg_wr_ind(bp, cpu_reg->state, cpu_reg->state_value_clear);
 	bnx2_reg_wr_ind(bp, cpu_reg->mode, val);
-
-	return 0;
 }
 
-static int
+static void
 bnx2_init_cpus(struct bnx2 *bp)
 {
 	const struct bnx2_mips_fw_file *mips_fw =
 		(const struct bnx2_mips_fw_file *) bp->mips_firmware->data;
 	const struct bnx2_rv2p_fw_file *rv2p_fw =
 		(const struct bnx2_rv2p_fw_file *) bp->rv2p_firmware->data;
-	int rc;
 
 	/* Initialize the RV2P processor. */
 	load_rv2p_fw(bp, RV2P_PROC1, &rv2p_fw->proc1);
 	load_rv2p_fw(bp, RV2P_PROC2, &rv2p_fw->proc2);
 
 	/* Initialize the RX Processor. */
-	rc = load_cpu_fw(bp, &cpu_reg_rxp, &mips_fw->rxp);
-	if (rc)
-		goto init_cpu_err;
+	load_cpu_fw(bp, &cpu_reg_rxp, &mips_fw->rxp);
 
 	/* Initialize the TX Processor. */
-	rc = load_cpu_fw(bp, &cpu_reg_txp, &mips_fw->txp);
-	if (rc)
-		goto init_cpu_err;
+	load_cpu_fw(bp, &cpu_reg_txp, &mips_fw->txp);
 
 	/* Initialize the TX Patch-up Processor. */
-	rc = load_cpu_fw(bp, &cpu_reg_tpat, &mips_fw->tpat);
-	if (rc)
-		goto init_cpu_err;
+	load_cpu_fw(bp, &cpu_reg_tpat, &mips_fw->tpat);
 
 	/* Initialize the Completion Processor. */
-	rc = load_cpu_fw(bp, &cpu_reg_com, &mips_fw->com);
-	if (rc)
-		goto init_cpu_err;
+	load_cpu_fw(bp, &cpu_reg_com, &mips_fw->com);
 
 	/* Initialize the Command Processor. */
-	rc = load_cpu_fw(bp, &cpu_reg_cp, &mips_fw->cp);
-
-init_cpu_err:
-	return rc;
+	load_cpu_fw(bp, &cpu_reg_cp, &mips_fw->cp);
 }
 
 static void
@@ -4950,8 +4936,7 @@ bnx2_init_chip(struct bnx2 *bp)
 	} else
 		bnx2_init_context(bp);
 
-	if ((rc = bnx2_init_cpus(bp)) != 0)
-		return rc;
+	bnx2_init_cpus(bp);
 
 	bnx2_init_nvram(bp);
 
