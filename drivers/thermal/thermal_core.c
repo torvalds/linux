@@ -826,8 +826,6 @@ static void bind_cdev(struct thermal_cooling_device *cdev)
 	const struct thermal_zone_params *tzp;
 	struct thermal_zone_device *pos = NULL;
 
-	mutex_lock(&thermal_list_lock);
-
 	list_for_each_entry(pos, &thermal_tz_list, node) {
 		if (!pos->tzp && !pos->ops->bind)
 			continue;
@@ -854,8 +852,6 @@ static void bind_cdev(struct thermal_cooling_device *cdev)
 			       tzp->tbp[i].weight);
 		}
 	}
-
-	mutex_unlock(&thermal_list_lock);
 }
 
 /**
@@ -933,17 +929,17 @@ __thermal_cooling_device_register(struct device_node *np,
 
 	/* Add 'this' new cdev to the global cdev list */
 	mutex_lock(&thermal_list_lock);
+
 	list_add(&cdev->node, &thermal_cdev_list);
-	mutex_unlock(&thermal_list_lock);
 
 	/* Update binding information for 'this' new cdev */
 	bind_cdev(cdev);
 
-	mutex_lock(&thermal_list_lock);
 	list_for_each_entry(pos, &thermal_tz_list, node)
 		if (atomic_cmpxchg(&pos->need_update, 1, 0))
 			thermal_zone_device_update(pos,
 						   THERMAL_EVENT_UNSPECIFIED);
+
 	mutex_unlock(&thermal_list_lock);
 
 	return cdev;
