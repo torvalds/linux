@@ -989,7 +989,6 @@ static int rcar_gen2_enable(struct platform_device *pdev)
 		writel(0x04, dev->io_base + 0x600);
 	}
 
-
 	/* BBCR = 0b11 */
 	writel(0x03, dev->io_base + 0x500);
 	writel(0x0002FF02, dev->io_base + 0x508);
