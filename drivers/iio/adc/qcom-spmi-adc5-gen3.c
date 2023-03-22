@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/bitops.h>
@@ -583,7 +583,8 @@ static irqreturn_t adc5_gen3_isr(int irq, void *dev_id)
 			status, eoc_status, tm_status[0], tm_status[1]);
 
 	if (status & ADC5_GEN3_STATUS1_CONV_FAULT) {
-		pr_err("Unexpected conversion fault\n");
+		pr_err_ratelimited("Unexpected conversion fault, status:%#x, eoc_status:%#x\n",
+					status, eoc_status);
 		adc5_gen3_dump_regs_debug(adc);
 
 		val = ADC5_GEN3_CONV_ERR_CLR_REQ;
