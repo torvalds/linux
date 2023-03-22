@@ -166,8 +166,7 @@ static int erdma_cmdq_eq_init(struct erdma_dev *dev)
 	spin_lock_init(&eq->lock);
 	atomic64_set(&eq->event_num, 0);
 
-	eq->db_addr =
-		(u64 __iomem *)(dev->func_bar + ERDMA_REGS_CEQ_DB_BASE_REG);
+	eq->db = dev->func_bar + ERDMA_REGS_CEQ_DB_BASE_REG;
 	eq->db_record = (u64 *)(eq->qbuf + buf_size);
 
 	erdma_reg_write32(dev, ERDMA_REGS_CMDQ_EQ_ADDR_H_REG,
