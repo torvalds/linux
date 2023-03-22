@@ -57,6 +57,8 @@
 #include <linux/module.h>
 #include <linux/cma.h>
 #include <linux/dma-map-ops.h>
+#include <linux/sched/clock.h>
+#include <trace/hooks/cpufreq.h>
 #ifdef CONFIG_QCOM_MINIDUMP_PANIC_CPU_CONTEXT
 #include <trace/hooks/debug.h>
 #endif
@@ -168,6 +170,8 @@ static char *key_modules[10];
 module_param_array(key_modules, charp, &n_modump, 0644);
 #endif	/* CONFIG_MODULES */
 #endif
+
+#define FREQ_LOG_MAX	10
 
 static int register_stack_entry(struct md_region *ksp_entry, u64 sp, u64 size)
 {
@@ -1361,6 +1365,62 @@ static void md_register_module_data(void)
 	}
 	preempt_enable();
 }
+
+struct freq_log {
+	uint64_t ktime;
+	uint64_t freq;
+};
+
+struct freq_hist {
+	uint32_t idx;
+	struct freq_log log[FREQ_LOG_MAX];
+};
+
+static int max_cluster;
+static struct freq_hist *cpuclk_log;
+
+static void log_cpu_freq(void *unused,
+			struct cpufreq_policy *policy,
+			unsigned int *target_freq,
+			unsigned int old_target_freq)
+{
+	uint32_t index;
+	int cluster = topology_cluster_id(policy->cpu);
+
+	if (cluster > max_cluster)
+		return;
+	index = cpuclk_log[cluster].idx;
+	cpuclk_log[cluster].log[index].ktime = sched_clock();
+	cpuclk_log[cluster].log[index].freq = *target_freq;
+	cpuclk_log[cluster].idx = (index + 1) % FREQ_LOG_MAX;
+}
+
+static void register_cpufreq_log(void)
+{
+	int cpu;
+	struct md_region md_entry;
+	size_t freq_hist_sz;
+
+	for_each_possible_cpu(cpu) {
+		if (topology_cluster_id(cpu) > max_cluster)
+			max_cluster = topology_cluster_id(cpu);
+	}
+	freq_hist_sz = sizeof(struct freq_hist) * (max_cluster + 1);
+
+	cpuclk_log = kzalloc(freq_hist_sz, GFP_KERNEL);
+
+	strscpy(md_entry.name, "FREQ_LOG", sizeof(md_entry.name));
+	md_entry.virt_addr = (uintptr_t)cpuclk_log;
+	md_entry.phys_addr = virt_to_phys(cpuclk_log);
+	md_entry.size = freq_hist_sz;
+
+	if (msm_minidump_add_region(&md_entry) < 0)
+		pr_err("Failed to add pmsg in Minidump\n");
+
+	register_trace_android_vh_cpufreq_resolve_freq(log_cpu_freq, NULL);
+	register_trace_android_vh_cpufreq_fast_switch(log_cpu_freq, NULL);
+	register_trace_android_vh_cpufreq_target(log_cpu_freq, NULL);
+}
 #endif
 
 #ifdef CONFIG_QCOM_MINIDUMP_PSTORE
@@ -1466,6 +1526,7 @@ int msm_minidump_log_init(void)
 	md_register_trace_buf();
 #endif
 #ifdef CONFIG_QCOM_MINIDUMP_PANIC_DUMP
+	register_cpufreq_log();
 	md_register_module_data();
 	md_register_panic_data();
 	atomic_notifier_chain_register(&panic_notifier_list, &md_panic_blk);
