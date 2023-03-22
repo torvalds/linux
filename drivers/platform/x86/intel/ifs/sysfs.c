@@ -64,7 +64,6 @@ static ssize_t run_test_store(struct device *dev,
 			      struct device_attribute *attr,
 			      const char *buf, size_t count)
 {
-	struct ifs_data *ifsd = ifs_get_data(dev);
 	unsigned int cpu;
 	int rc;
 
@@ -75,10 +74,7 @@ static ssize_t run_test_store(struct device *dev,
 	if (down_interruptible(&ifs_sem))
 		return -EINTR;
 
-	if (!ifsd->loaded)
-		rc = -EPERM;
-	else
-		rc = do_core_test(cpu, dev);
+	rc = do_core_test(cpu, dev);
 
 	up(&ifs_sem);
 
@@ -147,5 +143,13 @@ struct attribute *plat_ifs_attrs[] = {
 	&dev_attr_run_test.attr,
 	&dev_attr_current_batch.attr,
 	&dev_attr_image_version.attr,
+	NULL
+};
+
+/* global array sysfs attributes */
+struct attribute *plat_ifs_array_attrs[] = {
+	&dev_attr_details.attr,
+	&dev_attr_status.attr,
+	&dev_attr_run_test.attr,
 	NULL
 };

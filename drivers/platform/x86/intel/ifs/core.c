@@ -22,6 +22,7 @@ static const struct x86_cpu_id ifs_cpu_ids[] __initconst = {
 MODULE_DEVICE_TABLE(x86cpu, ifs_cpu_ids);
 
 ATTRIBUTE_GROUPS(plat_ifs);
+ATTRIBUTE_GROUPS(plat_ifs_array);
 
 bool *ifs_pkg_auth;
 
@@ -49,6 +50,7 @@ static struct ifs_device ifs_devices[] = {
 		.misc = {
 			.name = "intel_ifs_1",
 			.minor = MISC_DYNAMIC_MINOR,
+			.groups = plat_ifs_array_groups,
 		},
 	},
 };

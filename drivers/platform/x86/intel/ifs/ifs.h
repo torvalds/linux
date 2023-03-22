@@ -256,5 +256,6 @@ extern bool *ifs_pkg_auth;
 int ifs_load_firmware(struct device *dev);
 int do_core_test(int cpu, struct device *dev);
 extern struct attribute *plat_ifs_attrs[];
+extern struct attribute *plat_ifs_array_attrs[];
 
 #endif
