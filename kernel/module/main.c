@@ -2281,8 +2281,8 @@ static int move_module(struct module *mod, struct load_info *info)
 		 * minted official memory area.
 		 */
 		shdr->sh_addr = (unsigned long)dest;
-		pr_debug("\t0x%lx %s\n",
-			 (long)shdr->sh_addr, info->secstrings + shdr->sh_name);
+		pr_debug("\t0x%lx 0x%.8lx %s\n", (long)shdr->sh_addr,
+			 (long)shdr->sh_size, info->secstrings + shdr->sh_name);
 	}
 
 	return 0;
