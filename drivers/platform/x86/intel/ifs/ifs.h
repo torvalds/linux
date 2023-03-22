@@ -137,6 +137,9 @@
 #define SCAN_TEST_PASS				1
 #define SCAN_TEST_FAIL				2
 
+#define IFS_TYPE_SAF			0
+#define IFS_TYPE_ARRAY_BIST		1
+
 /* MSR_SCAN_HASHES_STATUS bit fields */
 union ifs_scan_hashes_status {
 	u64	data;
