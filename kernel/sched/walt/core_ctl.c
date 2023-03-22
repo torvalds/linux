@@ -864,7 +864,6 @@ static int compute_cluster_nr_busy(int index)
 		cluster->active_cpus = get_active_cpu_count(cluster);
 		thres_idx = cluster->active_cpus ? cluster->active_cpus - 1 : 0;
 		list_for_each_entry(c, &cluster->lru, sib) {
-			bool old_is_busy = c->is_busy;
 
 			if (c->busy_pct >= cluster->busy_up_thres[thres_idx] ||
 			    sched_cpu_high_irqload(c->cpu))
@@ -872,7 +871,6 @@ static int compute_cluster_nr_busy(int index)
 			else if (c->busy_pct < cluster->busy_down_thres[thres_idx])
 				c->is_busy = false;
 
-			trace_core_ctl_set_busy(c->cpu, c->busy_pct, old_is_busy, c->is_busy);
 			nr_busy += c->is_busy;
 		}
 	}
@@ -919,9 +917,10 @@ static void update_running_avg(void)
 		cluster->nr_busy = compute_cluster_nr_busy(index);
 
 		trace_core_ctl_update_nr_need(cluster->first_cpu, nr_need,
-					nr_misfit_need,
-					cluster->nrrun, cluster->max_nr,
-					cluster->nr_assist);
+					nr_misfit_need, cluster->nrrun, cluster->max_nr,
+					cluster->strict_nrrun, nr_assist_need,
+					nr_misfit_assist_need, cluster->nr_assist,
+					cluster->nr_busy);
 
 		big_avg += cluster_real_big_tasks(index);
 	}
