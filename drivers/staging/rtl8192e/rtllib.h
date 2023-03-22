@@ -62,10 +62,8 @@
 #define IW_CUSTOM_MAX	256	/* In bytes */
 #endif
 
-#define queue_delayed_work_rsl(x, y, z) queue_delayed_work(x, y, z)
 #define INIT_DELAYED_WORK_RSL(x, y, z) INIT_DELAYED_WORK(x, y)
 
-#define queue_work_rsl(x, y) queue_work(x, y)
 #define INIT_WORK_RSL(x, y, z) INIT_WORK(x, y)
 
 #define container_of_work_rsl(x, y, z) container_of(x, y, z)
