@@ -71,7 +71,8 @@
 			 AMDGPU_REGS_NO_KIQ, ip##_HWIP)
 
 #define RREG32_SOC15_OFFSET(ip, inst, reg, offset) \
-	 __RREG32_SOC15_RLC__((adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg) + offset, 0, ip##_HWIP)
+	 __RREG32_SOC15_RLC__((adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + (reg)) + \
+			 (offset), 0, ip##_HWIP)
 
 #define WREG32_SOC15(ip, inst, reg, value) \
 	 __WREG32_SOC15_RLC__((adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg), \
