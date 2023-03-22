@@ -589,12 +589,16 @@ int saa7146_register_device(struct video_device *vfd, struct saa7146_dev *dev,
 	vfd->device_caps = V4L2_CAP_VIDEO_CAPTURE |
 			   V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
 	vfd->device_caps |= dev->ext_vv_data->capabilities;
-	if (type == VFL_TYPE_VIDEO)
+	if (type == VFL_TYPE_VIDEO) {
 		vfd->device_caps &=
 			~(V4L2_CAP_VBI_CAPTURE | V4L2_CAP_SLICED_VBI_OUTPUT);
-	else
-		vfd->device_caps &=
-			~(V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_AUDIO);
+	} else if (vfd->device_caps & V4L2_CAP_SLICED_VBI_OUTPUT) {
+		vfd->vfl_dir = VFL_DIR_TX;
+		vfd->device_caps &= ~(V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |
+				      V4L2_CAP_AUDIO | V4L2_CAP_TUNER);
+	} else {
+		vfd->device_caps &= ~V4L2_CAP_VIDEO_CAPTURE;
+	}
 	video_set_drvdata(vfd, dev);
 
 	err = video_register_device(vfd, type, -1);
