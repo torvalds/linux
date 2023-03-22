@@ -151,8 +151,7 @@ NAPI
 
 NAPI (Rx polling mode) is supported in the e100 driver.
 
-See https://wiki.linuxfoundation.org/networking/napi for more
-information on NAPI.
+See :ref:`Documentation/networking/napi.rst <napi>` for more information.
 
 Multiple Interfaces on Same Ethernet Broadcast Network
 ------------------------------------------------------

@@ -73,6 +73,7 @@ Contents:
    mpls-sysctl
    mptcp-sysctl
    multiqueue
+   napi
    netconsole
    netdev-features
    netdevices

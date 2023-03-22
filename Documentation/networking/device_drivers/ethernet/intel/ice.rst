@@ -817,10 +817,10 @@ NOTE:
 
 NAPI
 ----
-This driver supports NAPI (Rx polling mode).
-For more information on NAPI, see
-https://wiki.linuxfoundation.org/networking/napi
 
+This driver supports NAPI (Rx polling mode).
+
+See :ref:`Documentation/networking/napi.rst <napi>` for more information.
 
 MACVLAN
 -------
