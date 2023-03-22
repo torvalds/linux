@@ -386,27 +386,46 @@ int sdw_fill_msg(struct sdw_msg *msg, struct sdw_slave *slave,
  * Read/Write IO functions.
  */
 
+static int sdw_ntransfer_no_pm(struct sdw_slave *slave, u32 addr, u8 flags,
+			       size_t count, u8 *val)
+{
+	struct sdw_msg msg;
+	size_t size;
+	int ret;
+
+	while (count) {
+		// Only handle bytes up to next page boundary
+		size = min_t(size_t, count, (SDW_REGADDR + 1) - (addr & SDW_REGADDR));
+
+		ret = sdw_fill_msg(&msg, slave, addr, size, slave->dev_num, flags, val);
+		if (ret < 0)
+			return ret;
+
+		ret = sdw_transfer(slave->bus, &msg);
+		if (ret < 0 && !slave->is_mockup_device)
+			return ret;
+
+		addr += size;
+		val += size;
+		count -= size;
+	}
+
+	return 0;
+}
+
 /**
  * sdw_nread_no_pm() - Read "n" contiguous SDW Slave registers with no PM
  * @slave: SDW Slave
  * @addr: Register address
  * @count: length
  * @val: Buffer for values to be read
+ *
+ * Note that if the message crosses a page boundary each page will be
+ * transferred under a separate invocation of the msg_lock.
  */
 int sdw_nread_no_pm(struct sdw_slave *slave, u32 addr, size_t count, u8 *val)
 {
-	struct sdw_msg msg;
-	int ret;
-
-	ret = sdw_fill_msg(&msg, slave, addr, count,
-			   slave->dev_num, SDW_MSG_FLAG_READ, val);
-	if (ret < 0)
-		return ret;
-
-	ret = sdw_transfer(slave->bus, &msg);
-	if (slave->is_mockup_device)
-		ret = 0;
-	return ret;
+	return sdw_ntransfer_no_pm(slave, addr, SDW_MSG_FLAG_READ, count, val);
 }
 EXPORT_SYMBOL(sdw_nread_no_pm);
 
@@ -416,21 +435,13 @@ EXPORT_SYMBOL(sdw_nread_no_pm);
  * @addr: Register address
  * @count: length
  * @val: Buffer for values to be written
+ *
+ * Note that if the message crosses a page boundary each page will be
+ * transferred under a separate invocation of the msg_lock.
  */
 int sdw_nwrite_no_pm(struct sdw_slave *slave, u32 addr, size_t count, const u8 *val)
 {
-	struct sdw_msg msg;
-	int ret;
-
-	ret = sdw_fill_msg(&msg, slave, addr, count,
-			   slave->dev_num, SDW_MSG_FLAG_WRITE, (u8 *)val);
-	if (ret < 0)
-		return ret;
-
-	ret = sdw_transfer(slave->bus, &msg);
-	if (slave->is_mockup_device)
-		ret = 0;
-	return ret;
+	return sdw_ntransfer_no_pm(slave, addr, SDW_MSG_FLAG_WRITE, count, (u8 *)val);
 }
 EXPORT_SYMBOL(sdw_nwrite_no_pm);
 
@@ -566,6 +577,8 @@ EXPORT_SYMBOL(sdw_update);
  *
  * This version of the function will take a PM reference to the slave
  * device.
+ * Note that if the message crosses a page boundary each page will be
+ * transferred under a separate invocation of the msg_lock.
  */
 int sdw_nread(struct sdw_slave *slave, u32 addr, size_t count, u8 *val)
 {
@@ -593,6 +606,8 @@ EXPORT_SYMBOL(sdw_nread);
  *
  * This version of the function will take a PM reference to the slave
  * device.
+ * Note that if the message crosses a page boundary each page will be
+ * transferred under a separate invocation of the msg_lock.
  */
 int sdw_nwrite(struct sdw_slave *slave, u32 addr, size_t count, const u8 *val)
 {
