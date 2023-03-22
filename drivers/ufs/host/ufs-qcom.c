@@ -3954,7 +3954,7 @@ void ufs_qcom_print_hw_debug_reg_all(struct ufs_hba *hba,
 	print_fn(hba, reg, 19, "UFS_DBG_RD_REG_DFC ", priv);
 
 	reg = ufs_qcom_get_debug_reg_offset(host, UFS_DBG_RD_REG_TRLUT);
-	print_fn(hba, reg, 34, "UFS_DBG_RD_REG_TRLUT ", priv);
+	print_fn(hba, reg, 64, "UFS_DBG_RD_REG_TRLUT ", priv);
 
 	reg = ufs_qcom_get_debug_reg_offset(host, UFS_DBG_RD_REG_TMRLUT);
 	print_fn(hba, reg, 9, "UFS_DBG_RD_REG_TMRLUT ", priv);
