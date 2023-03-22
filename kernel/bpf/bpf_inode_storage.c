@@ -199,7 +199,7 @@ static int notsupp_get_next_key(struct bpf_map *map, void *key,
 
 static struct bpf_map *inode_storage_map_alloc(union bpf_attr *attr)
 {
-	return bpf_local_storage_map_alloc(attr, &inode_cache);
+	return bpf_local_storage_map_alloc(attr, &inode_cache, false);
 }
 
 static void inode_storage_map_free(struct bpf_map *map)

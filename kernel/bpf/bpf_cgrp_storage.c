@@ -149,7 +149,7 @@ static int notsupp_get_next_key(struct bpf_map *map, void *key, void *next_key)
 
 static struct bpf_map *cgroup_storage_map_alloc(union bpf_attr *attr)
 {
-	return bpf_local_storage_map_alloc(attr, &cgroup_cache);
+	return bpf_local_storage_map_alloc(attr, &cgroup_cache, true);
 }
 
 static void cgroup_storage_map_free(struct bpf_map *map)
