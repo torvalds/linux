@@ -2123,6 +2123,7 @@ static void sdma_v4_4_2_inst_query_ras_error_count(struct amdgpu_device *adev,
 						   void *ras_err_status)
 {
 	struct ras_err_data *err_data = (struct ras_err_data *)ras_err_status;
+	uint32_t sdma_dev_inst = GET_INST(SDMA0, sdma_inst);
 
 	/* sdma v4_4_2 doesn't support query ce counts */
 	amdgpu_ras_inst_query_ras_error_count(adev,
@@ -2130,7 +2131,7 @@ static void sdma_v4_4_2_inst_query_ras_error_count(struct amdgpu_device *adev,
 					ARRAY_SIZE(sdma_v4_2_2_ue_reg_list),
 					sdma_v4_4_2_ras_memory_list,
 					ARRAY_SIZE(sdma_v4_4_2_ras_memory_list),
-					sdma_inst,
+					sdma_dev_inst,
 					AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE,
 					&err_data->ue_count);
 }
@@ -2153,10 +2154,12 @@ static void sdma_v4_4_2_query_ras_error_count(struct amdgpu_device *adev,
 static void sdma_v4_4_2_inst_reset_ras_error_count(struct amdgpu_device *adev,
 						   uint32_t sdma_inst)
 {
+	uint32_t sdma_dev_inst = GET_INST(SDMA0, sdma_inst);
+
 	amdgpu_ras_inst_reset_ras_error_count(adev,
 					sdma_v4_2_2_ue_reg_list,
 					ARRAY_SIZE(sdma_v4_2_2_ue_reg_list),
-					sdma_inst);
+					sdma_dev_inst);
 }
 
 static void sdma_v4_4_2_reset_ras_error_count(struct amdgpu_device *adev)
