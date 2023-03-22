@@ -3263,7 +3263,7 @@ disable_pm:
 	return err;
 }
 
-static int tegra_dc_remove(struct platform_device *pdev)
+static void tegra_dc_remove(struct platform_device *pdev)
 {
 	struct tegra_dc *dc = platform_get_drvdata(pdev);
 
@@ -3272,8 +3272,6 @@ static int tegra_dc_remove(struct platform_device *pdev)
 	tegra_dc_rgb_remove(dc);
 
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 struct platform_driver tegra_dc_driver = {
@@ -3282,5 +3280,5 @@ struct platform_driver tegra_dc_driver = {
 		.of_match_table = tegra_dc_of_match,
 	},
 	.probe = tegra_dc_probe,
-	.remove = tegra_dc_remove,
+	.remove_new = tegra_dc_remove,
 };
