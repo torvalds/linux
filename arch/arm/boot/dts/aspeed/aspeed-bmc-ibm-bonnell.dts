@@ -232,18 +232,38 @@
 
 			cfam0_i2c10: i2c-bus@a {
 				reg = <10>;	/* OP3A */
+
+				eeprom@50 {
+					compatible = "atmel,at30tse004a";
+					reg = <0x50>;
+				};
 			};
 
 			cfam0_i2c11: i2c-bus@b {
 				reg = <11>;	/* OP3B */
+
+				eeprom@50 {
+					compatible = "atmel,at30tse004a";
+					reg = <0x50>;
+				};
 			};
 
 			cfam0_i2c12: i2c-bus@c {
 				reg = <12>;	/* OP4A */
+
+				eeprom@50 {
+					compatible = "atmel,at30tse004a";
+					reg = <0x50>;
+				};
 			};
 
 			cfam0_i2c13: i2c-bus@d {
 				reg = <13>;	/* OP4B */
+
+				eeprom@50 {
+					compatible = "atmel,at30tse004a";
+					reg = <0x50>;
+				};
 			};
 
 			cfam0_i2c14: i2c-bus@e {
