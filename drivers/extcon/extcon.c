@@ -1405,7 +1405,7 @@ struct extcon_dev *extcon_find_edev_by_node(struct device_node *node)
 
 	mutex_lock(&extcon_dev_list_lock);
 	list_for_each_entry(edev, &extcon_dev_list, entry)
-		if (edev->dev.parent && edev->dev.parent->of_node == node)
+		if (edev->dev.parent && device_match_of_node(edev->dev.parent, node))
 			goto out;
 	edev = ERR_PTR(-EPROBE_DEFER);
 out:
