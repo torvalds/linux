@@ -793,7 +793,6 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 			}
 			links[id].init = max_98390_spk_codec_init;
 			links[id].ops = &max_98390_ops;
-			links[id].dpcm_capture = 1;
 
 		} else {
 			max_98357a_dai_link(&links[id]);
