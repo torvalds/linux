@@ -235,8 +235,7 @@ static int sp_rtc_probe(struct platform_device *plat_dev)
 	if (!sp_rtc)
 		return -ENOMEM;
 
-	sp_rtc->res = platform_get_resource_byname(plat_dev, IORESOURCE_MEM, RTC_REG_NAME);
-	sp_rtc->reg_base = devm_ioremap_resource(&plat_dev->dev, sp_rtc->res);
+	sp_rtc->reg_base = devm_platform_ioremap_resource_byname(plat_dev, RTC_REG_NAME);
 	if (IS_ERR(sp_rtc->reg_base))
 		return dev_err_probe(&plat_dev->dev, PTR_ERR(sp_rtc->reg_base),
 					    "%s devm_ioremap_resource fail\n", RTC_REG_NAME);
