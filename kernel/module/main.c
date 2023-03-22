@@ -1567,10 +1567,10 @@ static void layout_sections(struct module *mod, struct load_info *info)
 	for (i = 0; i < info->hdr->e_shnum; i++)
 		info->sechdrs[i].sh_entsize = ~0UL;
 
-	pr_debug("Core section allocation order:\n");
+	pr_debug("Core section allocation order for %s:\n", mod->name);
 	__layout_sections(mod, info, false);
 
-	pr_debug("Init section allocation order:\n");
+	pr_debug("Init section allocation order for %s:\n", mod->name);
 	__layout_sections(mod, info, true);
 }
 
@@ -2249,7 +2249,7 @@ static int move_module(struct module *mod, struct load_info *info)
 	}
 
 	/* Transfer each section which specifies SHF_ALLOC */
-	pr_debug("final section addresses:\n");
+	pr_debug("Final section addresses for %s:\n", mod->name);
 	for (i = 0; i < info->hdr->e_shnum; i++) {
 		void *dest;
 		Elf_Shdr *shdr = &info->sechdrs[i];
