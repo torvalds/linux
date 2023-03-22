@@ -109,6 +109,8 @@ Finally, the vX.Y gets released, and the whole cycle starts over.
 netdev patch review
 -------------------
 
+.. _patch_status:
+
 Patch status
 ~~~~~~~~~~~~
 
@@ -142,6 +144,33 @@ listed on the project's patch list) the chances it was missed are close to zero.
 Asking the maintainer for status updates on your
 patch is a good way to ensure your patch is ignored or pushed to the
 bottom of the priority list.
+
+Changes requested
+~~~~~~~~~~~~~~~~~
+
+Patches :ref:`marked<patch_status>` as ``Changes Requested`` need
+to be revised. The new version should come with a change log,
+preferably including links to previous postings, for example::
+
+  [PATCH net-next v3] net: make cows go moo
+
+  Even users who don't drink milk appreciate hearing the cows go "moo".
+
+  The amount of mooing will depend on packet rate so should match
+  the diurnal cycle quite well.
+
+  Signed-of-by: Joe Defarmer <joe@barn.org>
+  ---
+  v3:
+    - add a note about time-of-day mooing fluctuation to the commit message
+  v2: https://lore.kernel.org/netdev/123themessageid@barn.org/
+    - fix missing argument in kernel doc for netif_is_bovine()
+    - fix memory leak in netdev_register_cow()
+  v1: https://lore.kernel.org/netdev/456getstheclicks@barn.org/
+
+The commit message should be revised to answer any questions reviewers
+had to ask in previous discussions. Occasionally the update of
+the commit message will be the only change in the new version.
 
 Partial resends
 ~~~~~~~~~~~~~~~
