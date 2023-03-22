@@ -217,8 +217,7 @@ void rtl92e_dm_init(struct net_device *dev)
 	if (IS_HARDWARE_TYPE_8192SE(dev))
 		_rtl92e_dm_init_wa_broadcom_iot(dev);
 
-	INIT_DELAYED_WORK_RSL(&priv->gpio_change_rf_wq,
-			      (void *)_rtl92e_dm_check_rf_ctrl_gpio, dev);
+	INIT_DELAYED_WORK(&priv->gpio_change_rf_wq, (void *)_rtl92e_dm_check_rf_ctrl_gpio);
 }
 
 void rtl92e_dm_deinit(struct net_device *dev)
