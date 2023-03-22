@@ -997,6 +997,8 @@ static int arcmsr_set_dma_mask(struct AdapterControlBlock *acb)
 		if (((acb->adapter_type == ACB_ADAPTER_TYPE_A) && !dma_mask_64) ||
 		    dma_set_mask(&pcidev->dev, DMA_BIT_MASK(64)))
 			goto	dma32;
+		if (acb->adapter_type <= ACB_ADAPTER_TYPE_B)
+			return 0;
 		if (dma_set_coherent_mask(&pcidev->dev, DMA_BIT_MASK(64)) ||
 		    dma_set_mask_and_coherent(&pcidev->dev, DMA_BIT_MASK(64))) {
 			printk("arcmsr: set DMA 64 mask failed\n");
