@@ -123,7 +123,7 @@ static inline bool kvm_exception_is_soft(unsigned int nr)
 
 static inline bool is_protmode(struct kvm_vcpu *vcpu)
 {
-	return kvm_read_cr0_bits(vcpu, X86_CR0_PE);
+	return kvm_is_cr0_bit_set(vcpu, X86_CR0_PE);
 }
 
 static inline int is_long_mode(struct kvm_vcpu *vcpu)
@@ -193,7 +193,7 @@ static inline bool is_pae_paging(struct kvm_vcpu *vcpu)
 
 static inline u8 vcpu_virt_addr_bits(struct kvm_vcpu *vcpu)
 {
-	return kvm_read_cr4_bits(vcpu, X86_CR4_LA57) ? 57 : 48;
+	return kvm_is_cr4_bit_set(vcpu, X86_CR4_LA57) ? 57 : 48;
 }
 
 static inline bool is_noncanonical_address(u64 la, struct kvm_vcpu *vcpu)

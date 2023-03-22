@@ -132,7 +132,7 @@ static inline unsigned long kvm_get_pcid(struct kvm_vcpu *vcpu, gpa_t cr3)
 {
 	BUILD_BUG_ON((X86_CR3_PCID_MASK & PAGE_MASK) != 0);
 
-	return kvm_read_cr4_bits(vcpu, X86_CR4_PCIDE)
+	return kvm_is_cr4_bit_set(vcpu, X86_CR4_PCIDE)
 	       ? cr3 & X86_CR3_PCID_MASK
 	       : 0;
 }
