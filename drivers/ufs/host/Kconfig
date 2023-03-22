@@ -48,7 +48,7 @@ config SCSI_UFS_CDNS_PLATFORM
 
 config SCSI_UFS_DWC_TC_PLATFORM
 	tristate "DesignWare platform support using a G210 Test Chip"
-	depends on SCSI_UFSHCD_PLATFORM
+	depends on OF && SCSI_UFSHCD_PLATFORM
 	help
 	  Synopsys Test Chip is a PHY for prototyping purposes.
 
@@ -57,8 +57,9 @@ config SCSI_UFS_DWC_TC_PLATFORM
 config SCSI_UFS_QCOM
 	tristate "QCOM specific hooks to UFS controller platform driver"
 	depends on SCSI_UFSHCD_PLATFORM && ARCH_QCOM
+	depends on GENERIC_MSI_IRQ
+	depends on RESET_CONTROLLER
 	select QCOM_SCM if SCSI_UFS_CRYPTO
-	select RESET_CONTROLLER
 	help
 	  This selects the QCOM specific additions to UFSHCD platform driver.
 	  UFS host on QCOM needs some vendor specific configuration before
@@ -123,4 +124,20 @@ config SCSI_UFS_EXYNOS
 	  UNIPRO layer, and associates with UFS-PHY driver.
 
 	  Select this if you have UFS host controller on Samsung Exynos SoC.
+	  If unsure, say N.
+
+config SCSI_UFS_VARIABLE_SG_ENTRY_SIZE
+	bool
+	default y if SCSI_UFS_CRYPTO
+
+config SCSI_UFS_SPRD
+	tristate "Unisoc specific hooks to UFS controller platform driver"
+	depends on SCSI_UFSHCD_PLATFORM && (ARCH_SPRD || COMPILE_TEST)
+	help
+	  This selects the Unisoc specific additions to UFSHCD platform driver.
+	  UFS host on Unisoc needs some vendor specific configuration before
+	  accessing the hardware which includes PHY configuration and vendor
+	  specific registers.
+
+	  Select this if you have UFS controller on Unisoc chipset.
 	  If unsure, say N.

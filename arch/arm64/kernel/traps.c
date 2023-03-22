@@ -46,6 +46,8 @@
 #include <asm/system_misc.h>
 #include <asm/sysreg.h>
 
+#include <trace/hooks/traps.h>
+
 static bool __kprobes __check_eq(unsigned long pstate)
 {
 	return (pstate & PSR_Z_BIT) != 0;
@@ -495,6 +497,7 @@ void do_undefinstr(struct pt_regs *regs, unsigned long esr)
 	if (call_undef_hook(regs) == 0)
 		return;
 
+	trace_android_rvh_do_undefinstr(regs, esr);
 	if (!user_mode(regs))
 		die("Oops - Undefined instruction", regs, esr);
 
@@ -509,6 +512,7 @@ void do_el0_bti(struct pt_regs *regs)
 
 void do_el1_bti(struct pt_regs *regs, unsigned long esr)
 {
+	trace_android_rvh_do_el1_bti(regs, esr);
 	die("Oops - BTI", regs, esr);
 }
 NOKPROBE_SYMBOL(do_el1_bti);
@@ -524,6 +528,7 @@ void do_el1_fpac(struct pt_regs *regs, unsigned long esr)
 	 * Unexpected FPAC exception in the kernel: kill the task before it
 	 * does any more harm.
 	 */
+	trace_android_rvh_do_el1_fpac(regs, esr);
 	die("Oops - FPAC", regs, esr);
 }
 NOKPROBE_SYMBOL(do_el1_fpac)
@@ -915,6 +920,8 @@ void __noreturn arm64_serror_panic(struct pt_regs *regs, unsigned long esr)
 
 	pr_crit("SError Interrupt on CPU%d, code 0x%016lx -- %s\n",
 		smp_processor_id(), esr, esr_get_class_string(esr));
+
+	trace_android_rvh_arm64_serror_panic(regs, esr);
 	if (regs)
 		__show_regs(regs);
 
@@ -1013,7 +1020,7 @@ static int cfi_handler(struct pt_regs *regs, unsigned long esr)
 
 	switch (report_cfi_failure(regs, regs->pc, &target, type)) {
 	case BUG_TRAP_TYPE_BUG:
-		die("Oops - CFI", regs, 0);
+		die("Oops - CFI", regs, esr);
 		break;
 
 	case BUG_TRAP_TYPE_WARN:

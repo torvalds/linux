@@ -1968,7 +1968,13 @@
   __sg_page_iter_next
 
 # required by ufs_qcom.ko
+  insert_resource
+  msi_first_desc
+  msi_next_desc
   phy_set_mode_ext
+  platform_msi_domain_alloc_irqs
+  platform_msi_domain_free_irqs
+  remove_resource
   ufshcd_dme_configure_adapt
   ufshcd_dme_get_attr
   ufshcd_dme_set_attr
@@ -1976,6 +1982,10 @@
   ufshcd_get_local_unipro_ver
   ufshcd_get_pwr_dev_param
   ufshcd_init_pwr_dev_param
+  ufshcd_mcq_config_esi
+  ufshcd_mcq_enable_esi
+  ufshcd_mcq_poll_cqe_nolock
+  ufshcd_mcq_write_cqis
   ufshcd_pltfrm_init
   ufshcd_pltfrm_shutdown
   ufshcd_remove
@@ -1983,8 +1993,11 @@
   ufshcd_runtime_resume
   ufshcd_runtime_suspend
   ufshcd_suspend_prepare
+  ufshcd_system_freeze
+  ufshcd_system_restore
   ufshcd_system_resume
   ufshcd_system_suspend
+  ufshcd_system_thaw
   ufshcd_uic_hibern8_enter
   ufshcd_uic_hibern8_exit
 

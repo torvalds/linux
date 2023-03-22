@@ -47,7 +47,7 @@ static inline void ufshcd_crypto_clear_prdt(struct ufs_hba *hba,
 		return;
 
 	memzero_explicit(lrbp->ucd_prdt_ptr,
-			 hba->sg_entry_size * scsi_sg_count(lrbp->cmd));
+			 ufshcd_sg_entry_size(hba) * scsi_sg_count(lrbp->cmd));
 }
 
 bool ufshcd_crypto_enable(struct ufs_hba *hba);

@@ -27,6 +27,8 @@
 #include <asm/irq_regs.h>
 #include <linux/kvm_para.h>
 
+#include <trace/hooks/softlockup.h>
+
 static DEFINE_MUTEX(watchdog_mutex);
 
 #if defined(CONFIG_HARDLOCKUP_DETECTOR) || defined(CONFIG_HAVE_NMI_WATCHDOG)
@@ -439,6 +441,7 @@ static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
 			clear_bit_unlock(0, &soft_lockup_nmi_warn);
 		}
 
+		trace_android_vh_watchdog_timer_softlockup(duration, regs, !!softlockup_panic);
 		add_taint(TAINT_SOFTLOCKUP, LOCKDEP_STILL_OK);
 		if (softlockup_panic)
 			panic("softlockup: hung tasks");

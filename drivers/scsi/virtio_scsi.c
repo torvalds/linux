@@ -347,8 +347,8 @@ static void virtscsi_rescan_hotunplug(struct virtio_scsi *vscsi)
 
 		memset(inq_result, 0, inq_result_len);
 
-		result = scsi_execute_req(sdev, scsi_cmd, DMA_FROM_DEVICE,
-					  inq_result, inquiry_len, NULL,
+		result = scsi_execute_cmd(sdev, scsi_cmd, REQ_OP_DRV_IN,
+					  inq_result, inquiry_len,
 					  SD_TIMEOUT, SD_MAX_RETRIES, NULL);
 
 		if (result == 0 && inq_result[0] >> 5) {
@@ -731,9 +731,9 @@ static void virtscsi_commit_rqs(struct Scsi_Host *shost, u16 hwq)
  * latencies might be higher than on bare metal.  Reset the timer
  * unconditionally to give the host a chance to perform EH.
  */
-static enum blk_eh_timer_return virtscsi_eh_timed_out(struct scsi_cmnd *scmnd)
+static enum scsi_timeout_action virtscsi_eh_timed_out(struct scsi_cmnd *scmnd)
 {
-	return BLK_EH_RESET_TIMER;
+	return SCSI_EH_RESET_TIMER;
 }
 
 static struct scsi_host_template virtscsi_host_template = {
