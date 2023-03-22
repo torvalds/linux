@@ -726,7 +726,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usbotg1>;
 	adp-disable;
-	ci-disable-lpm;
 	hnp-disable;
 	over-current-active-low;
 	power-active-high;
