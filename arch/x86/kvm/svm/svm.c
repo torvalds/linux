@@ -2869,28 +2869,6 @@ static int svm_set_vm_cr(struct kvm_vcpu *vcpu, u64 data)
 	return 0;
 }
 
-static int svm_set_msr_ia32_cmd(struct kvm_vcpu *vcpu, struct msr_data *msr,
-				bool guest_has_feat, u64 cmd,
-				int x86_feature_bit)
-{
-	struct vcpu_svm *svm = to_svm(vcpu);
-
-	if (!msr->host_initiated && !guest_has_feat)
-		return 1;
-
-	if (!(msr->data & ~cmd))
-		return 1;
-	if (!boot_cpu_has(x86_feature_bit))
-		return 1;
-	if (!msr->data)
-		return 0;
-
-	wrmsrl(msr->index, cmd);
-	set_msr_interception(vcpu, svm->msrpm, msr->index, 0, 1);
-
-	return 0;
-}
-
 static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -2965,14 +2943,19 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 		set_msr_interception(vcpu, svm->msrpm, MSR_IA32_SPEC_CTRL, 1, 1);
 		break;
 	case MSR_IA32_PRED_CMD:
-		r = svm_set_msr_ia32_cmd(vcpu, msr,
-					 guest_has_pred_cmd_msr(vcpu),
-					 PRED_CMD_IBPB, X86_FEATURE_IBPB);
-		break;
-	case MSR_IA32_FLUSH_CMD:
-		r = svm_set_msr_ia32_cmd(vcpu, msr,
-					 guest_cpuid_has(vcpu, X86_FEATURE_FLUSH_L1D),
-					 L1D_FLUSH, X86_FEATURE_FLUSH_L1D);
+		if (!msr->host_initiated &&
+		    !guest_has_pred_cmd_msr(vcpu))
+			return 1;
+
+		if (data & ~PRED_CMD_IBPB)
+			return 1;
+		if (!boot_cpu_has(X86_FEATURE_IBPB))
+			return 1;
+		if (!data)
+			break;
+
+		wrmsrl(MSR_IA32_PRED_CMD, PRED_CMD_IBPB);
+		set_msr_interception(vcpu, svm->msrpm, MSR_IA32_PRED_CMD, 0, 1);
 		break;
 	case MSR_AMD64_VIRT_SPEC_CTRL:
 		if (!msr->host_initiated &&

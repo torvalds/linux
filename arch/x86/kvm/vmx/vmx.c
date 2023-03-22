@@ -2133,39 +2133,6 @@ static u64 vmx_get_supported_debugctl(struct kvm_vcpu *vcpu, bool host_initiated
 	return debugctl;
 }
 
-static int vmx_set_msr_ia32_cmd(struct kvm_vcpu *vcpu,
-				struct msr_data *msr_info,
-				bool guest_has_feat, u64 cmd,
-				int x86_feature_bit)
-{
-	if (!msr_info->host_initiated && !guest_has_feat)
-		return 1;
-
-	if (!(msr_info->data & ~cmd))
-		return 1;
-	if (!boot_cpu_has(x86_feature_bit))
-		return 1;
-	if (!msr_info->data)
-		return 0;
-
-	wrmsrl(msr_info->index, cmd);
-
-	/*
-	 * For non-nested:
-	 * When it's written (to non-zero) for the first time, pass
-	 * it through.
-	 *
-	 * For nested:
-	 * The handling of the MSR bitmap for L2 guests is done in
-	 * nested_vmx_prepare_msr_bitmap. We should not touch the
-	 * vmcs02.msr_bitmap here since it gets completely overwritten
-	 * in the merging.
-	 */
-	vmx_disable_intercept_for_msr(vcpu, msr_info->index, MSR_TYPE_W);
-
-	return 0;
-}
-
 /*
  * Writes msr value into the appropriate "register".
  * Returns 0 on success, non-0 otherwise.
@@ -2319,16 +2286,31 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 			return 1;
 		goto find_uret_msr;
 	case MSR_IA32_PRED_CMD:
-		ret = vmx_set_msr_ia32_cmd(vcpu, msr_info,
-					   guest_has_pred_cmd_msr(vcpu),
-					   PRED_CMD_IBPB,
-					   X86_FEATURE_IBPB);
-		break;
-	case MSR_IA32_FLUSH_CMD:
-		ret = vmx_set_msr_ia32_cmd(vcpu, msr_info,
-					   guest_cpuid_has(vcpu, X86_FEATURE_FLUSH_L1D),
-					   L1D_FLUSH,
-					   X86_FEATURE_FLUSH_L1D);
+		if (!msr_info->host_initiated &&
+		    !guest_has_pred_cmd_msr(vcpu))
+			return 1;
+
+		if (data & ~PRED_CMD_IBPB)
+			return 1;
+		if (!boot_cpu_has(X86_FEATURE_IBPB))
+			return 1;
+		if (!data)
+			break;
+
+		wrmsrl(MSR_IA32_PRED_CMD, PRED_CMD_IBPB);
+
+		/*
+		 * For non-nested:
+		 * When it's written (to non-zero) for the first time, pass
+		 * it through.
+		 *
+		 * For nested:
+		 * The handling of the MSR bitmap for L2 guests is done in
+		 * nested_vmx_prepare_msr_bitmap. We should not touch the
+		 * vmcs02.msr_bitmap here since it gets completely overwritten
+		 * in the merging.
+		 */
+		vmx_disable_intercept_for_msr(vcpu, MSR_IA32_PRED_CMD, MSR_TYPE_W);
 		break;
 	case MSR_IA32_CR_PAT:
 		if (!kvm_pat_valid(data))
