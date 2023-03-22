@@ -96,8 +96,12 @@ irqfd_resampler_shutdown(struct kvm_kernel_irqfd *irqfd)
 	synchronize_srcu(&kvm->irq_srcu);
 
 	if (list_empty(&resampler->list)) {
-		list_del(&resampler->link);
+		list_del_rcu(&resampler->link);
 		kvm_unregister_irq_ack_notifier(kvm, &resampler->notifier);
+		/*
+		 * synchronize_srcu(&kvm->irq_srcu) already called
+		 * in kvm_unregister_irq_ack_notifier().
+		 */
 		kvm_set_irq(kvm, KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID,
 			    resampler->notifier.gsi, 0, false);
 		kfree(resampler);
@@ -369,7 +373,7 @@ kvm_irqfd_assign(struct kvm *kvm, struct kvm_irqfd *args)
 			resampler->notifier.irq_acked = irqfd_resampler_ack;
 			INIT_LIST_HEAD(&resampler->link);
 
-			list_add(&resampler->link, &kvm->irqfds.resampler_list);
+			list_add_rcu(&resampler->link, &kvm->irqfds.resampler_list);
 			kvm_register_irq_ack_notifier(kvm,
 						      &resampler->notifier);
 			irqfd->resampler = resampler;
