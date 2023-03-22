@@ -835,5 +835,6 @@ const struct sof_ipc_pcm_ops ipc4_pcm_ops = {
 	.dai_link_fixup = sof_ipc4_pcm_dai_link_fixup,
 	.pcm_setup = sof_ipc4_pcm_setup,
 	.pcm_free = sof_ipc4_pcm_free,
-	.delay = sof_ipc4_pcm_delay
+	.delay = sof_ipc4_pcm_delay,
+	.ipc_first_on_start = true
 };
