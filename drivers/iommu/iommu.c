@@ -2889,7 +2889,7 @@ static int iommu_change_dev_def_domain(struct iommu_group *group,
 	int ret, dev_def_dom;
 	struct device *dev;
 
-	mutex_lock(&group->mutex);
+	lockdep_assert_held(&group->mutex);
 
 	if (group->default_domain != group->domain) {
 		dev_err_ratelimited(prev_dev, "Group not assigned to default domain\n");
@@ -2978,28 +2978,15 @@ static int iommu_change_dev_def_domain(struct iommu_group *group,
 		goto free_new_domain;
 
 	group->domain = group->default_domain;
-
-	/*
-	 * Release the mutex here because ops->probe_finalize() call-back of
-	 * some vendor IOMMU drivers calls arm_iommu_attach_device() which
-	 * in-turn might call back into IOMMU core code, where it tries to take
-	 * group->mutex, resulting in a deadlock.
-	 */
-	mutex_unlock(&group->mutex);
-
-	/* Make sure dma_ops is appropriatley set */
-	iommu_group_do_probe_finalize(dev, group->default_domain);
 	iommu_domain_free(prev_dom);
+
 	return 0;
 
 free_new_domain:
 	iommu_domain_free(group->default_domain);
 	group->default_domain = prev_dom;
 	group->domain = prev_dom;
-
 out:
-	mutex_unlock(&group->mutex);
-
 	return ret;
 }
 
@@ -3089,7 +3076,19 @@ static ssize_t iommu_group_store_type(struct iommu_group *group,
 		goto out;
 	}
 
+	mutex_lock(&group->mutex);
 	ret = iommu_change_dev_def_domain(group, dev, req_type);
+	/*
+	 * Release the mutex here because ops->probe_finalize() call-back of
+	 * some vendor IOMMU drivers calls arm_iommu_attach_device() which
+	 * in-turn might call back into IOMMU core code, where it tries to take
+	 * group->mutex, resulting in a deadlock.
+	 */
+	mutex_unlock(&group->mutex);
+
+	/* Make sure dma_ops is appropriatley set */
+	if (!ret)
+		iommu_group_do_probe_finalize(dev, group->default_domain);
 	ret = ret ?: count;
 
 out:
