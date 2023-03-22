@@ -106,6 +106,30 @@ static int emit_flush_invalidate(u32 flag, u32 *dw, int i)
 	return i;
 }
 
+static int emit_pipe_invalidate(u32 mask_flags, u32 *dw, int i)
+{
+	u32 flags = PIPE_CONTROL_CS_STALL |
+		PIPE_CONTROL_COMMAND_CACHE_INVALIDATE |
+		PIPE_CONTROL_INSTRUCTION_CACHE_INVALIDATE |
+		PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE |
+		PIPE_CONTROL_VF_CACHE_INVALIDATE |
+		PIPE_CONTROL_CONST_CACHE_INVALIDATE |
+		PIPE_CONTROL_STATE_CACHE_INVALIDATE |
+		PIPE_CONTROL_QW_WRITE |
+		PIPE_CONTROL_STORE_DATA_INDEX;
+
+	flags &= ~mask_flags;
+
+	dw[i++] = GFX_OP_PIPE_CONTROL(6);
+	dw[i++] = flags;
+	dw[i++] = LRC_PPHWSP_SCRATCH_ADDR;
+	dw[i++] = 0;
+	dw[i++] = 0;
+	dw[i++] = 0;
+
+	return i;
+}
+
 #define MI_STORE_QWORD_IMM_GEN8_POSTED (MI_INSTR(0x20, 3) | (1 << 21))
 
 static int emit_store_imm_ppgtt_posted(u64 addr, u64 value,
@@ -212,8 +236,14 @@ static void __emit_job_gen12_render_compute(struct xe_sched_job *job,
 	struct xe_gt *gt = job->engine->gt;
 	struct xe_device *xe = gt_to_xe(gt);
 	bool pvc = xe->info.platform == XE_PVC;
+	u32 mask_flags = 0;
 
 	dw[i++] = preparser_disable(true);
+	if (pvc)
+		mask_flags = PIPE_CONTROL_3D_ARCH_FLAGS;
+	else if (job->engine->class == XE_ENGINE_CLASS_COMPUTE)
+		mask_flags = PIPE_CONTROL_3D_ENGINE_FLAGS;
+	i = emit_pipe_invalidate(mask_flags, dw, i);
 	/* Wa_1809175790 */
 	if (!xe->info.has_flat_ccs)
 		i = emit_aux_table_inv(gt, GEN12_CCS_AUX_INV.reg, dw, i);
