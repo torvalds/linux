@@ -44,6 +44,10 @@
 		ramdisk_c: ramdisk_c {
 			reg = <0x1cec000 (5 * 0x00100000)>;
 		};
+
+		rkisp1_thunderboot: rkisp1_thunderboot {
+			/* vicap capture for other camera */
+		};
 	};
 
 	thunder_boot_rkisp: thunder-boot-rkisp {
