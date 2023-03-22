@@ -645,8 +645,8 @@ static int bch2_journal_replay(struct bch_fs *c, u64 start_seq, u64 end_seq)
 	     journal_sort_seq_cmp, NULL);
 
 	if (keys->nr) {
-		ret = bch2_fs_log_msg(c, "Starting journal replay (%zu keys in entries %llu-%llu)",
-				      keys->nr, start_seq, end_seq);
+		ret = bch2_journal_log_msg(c, "Starting journal replay (%zu keys in entries %llu-%llu)",
+					   keys->nr, start_seq, end_seq);
 		if (ret)
 			goto err;
 	}
@@ -680,7 +680,7 @@ static int bch2_journal_replay(struct bch_fs *c, u64 start_seq, u64 end_seq)
 	ret = bch2_journal_error(j);
 
 	if (keys->nr && !ret)
-		bch2_fs_log_msg(c, "journal replay finished");
+		bch2_journal_log_msg(c, "journal replay finished");
 err:
 	kvfree(keys_sorted);
 	return ret;
@@ -1244,8 +1244,8 @@ use_clean:
 		journal_seq += 8;
 
 	if (blacklist_seq != journal_seq) {
-		ret =   bch2_fs_log_msg(c, "blacklisting entries %llu-%llu",
-					blacklist_seq, journal_seq) ?:
+		ret =   bch2_journal_log_msg(c, "blacklisting entries %llu-%llu",
+					     blacklist_seq, journal_seq) ?:
 			bch2_journal_seq_blacklist_add(c,
 					blacklist_seq, journal_seq);
 		if (ret) {
@@ -1254,14 +1254,14 @@ use_clean:
 		}
 	}
 
-	ret =   bch2_fs_log_msg(c, "starting journal at entry %llu, replaying %llu-%llu",
-				journal_seq, last_seq, blacklist_seq - 1) ?:
+	ret =   bch2_journal_log_msg(c, "starting journal at entry %llu, replaying %llu-%llu",
+				     journal_seq, last_seq, blacklist_seq - 1) ?:
 		bch2_fs_journal_start(&c->journal, journal_seq);
 	if (ret)
 		goto err;
 
 	if (c->opts.reconstruct_alloc)
-		bch2_fs_log_msg(c, "dropping alloc info");
+		bch2_journal_log_msg(c, "dropping alloc info");
 
 	/*
 	 * Skip past versions that might have possibly been used (as nonces),

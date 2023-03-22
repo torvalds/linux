@@ -1924,22 +1924,45 @@ err:
 	return ret;
 }
 
+static int
+__bch2_fs_log_msg(struct bch_fs *c, unsigned commit_flags, const char *fmt,
+		  va_list args)
+{
+	int ret;
+
+	if (!test_bit(JOURNAL_STARTED, &c->journal.flags)) {
+		ret = __bch2_trans_log_msg(&c->journal.early_journal_entries, fmt, args);
+	} else {
+		ret = bch2_trans_do(c, NULL, NULL,
+			BTREE_INSERT_LAZY_RW|commit_flags,
+			__bch2_trans_log_msg(&trans.extra_journal_entries, fmt, args));
+	}
+
+	return ret;
+}
+
 int bch2_fs_log_msg(struct bch_fs *c, const char *fmt, ...)
 {
 	va_list args;
 	int ret;
 
 	va_start(args, fmt);
-
-	if (!test_bit(JOURNAL_STARTED, &c->journal.flags)) {
-		ret = __bch2_trans_log_msg(&c->journal.early_journal_entries, fmt, args);
-	} else {
-		ret = bch2_trans_do(c, NULL, NULL, BTREE_INSERT_LAZY_RW,
-			__bch2_trans_log_msg(&trans.extra_journal_entries, fmt, args));
-	}
-
+	ret = __bch2_fs_log_msg(c, 0, fmt, args);
 	va_end(args);
-
 	return ret;
+}
 
+/*
+ * Use for logging messages during recovery to enable reserved space and avoid
+ * blocking.
+ */
+int bch2_journal_log_msg(struct bch_fs *c, const char *fmt, ...)
+{
+	va_list args;
+	int ret;
+
+	va_start(args, fmt);
+	ret = __bch2_fs_log_msg(c, JOURNAL_WATERMARK_reserved, fmt, args);
+	va_end(args);
+	return ret;
 }
