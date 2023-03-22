@@ -22,12 +22,37 @@ struct {
 	__type(value, struct storage);
 } sk_storage_map SEC(".maps");
 
+struct {
+	__uint(type, BPF_MAP_TYPE_TASK_STORAGE);
+	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__type(key, int);
+	__type(value, struct storage);
+} task_storage_map SEC(".maps");
+
 SEC("raw_tp/kmalloc")
 int BPF_PROG(kmalloc, unsigned long call_site, const void *ptr,
 	     size_t bytes_req, size_t bytes_alloc, gfp_t gfp_flags,
 	     int node)
 {
 	__sync_fetch_and_add(&kmalloc_cnts, 1);
+
+	return 0;
+}
+
+SEC("tp_btf/sched_process_fork")
+int BPF_PROG(fork, struct task_struct *parent, struct task_struct *child)
+{
+	struct storage *stg;
+
+	if (parent->tgid != bench_pid)
+		return 0;
+
+	stg = bpf_task_storage_get(&task_storage_map, child, NULL,
+				   BPF_LOCAL_STORAGE_GET_F_CREATE);
+	if (stg)
+		__sync_fetch_and_add(&create_cnts, 1);
+	else
+		__sync_fetch_and_add(&create_errs, 1);
 
 	return 0;
 }
