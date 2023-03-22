@@ -8903,6 +8903,8 @@ restart:
 	}
 
 	if (ctxt->have_exception) {
+		WARN_ON_ONCE(vcpu->mmio_needed && !vcpu->mmio_is_write);
+		vcpu->mmio_needed = false;
 		r = 1;
 		inject_emulated_exception(vcpu);
 	} else if (vcpu->arch.pio.count) {
