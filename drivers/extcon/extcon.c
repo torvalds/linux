@@ -370,12 +370,12 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 	struct extcon_dev *edev = dev_get_drvdata(dev);
 
 	if (edev->max_supported == 0)
-		return sprintf(buf, "%u\n", edev->state);
+		return sysfs_emit(buf, "%u\n", edev->state);
 
 	for (i = 0; i < edev->max_supported; i++) {
-		count += sprintf(buf + count, "%s=%d\n",
-				extcon_info[edev->supported_cable[i]].name,
-				 !!(edev->state & BIT(i)));
+		count += sysfs_emit_at(buf, count, "%s=%d\n",
+				       extcon_info[edev->supported_cable[i]].name,
+				       !!(edev->state & BIT(i)));
 	}
 
 	return count;
@@ -387,7 +387,7 @@ static ssize_t name_show(struct device *dev, struct device_attribute *attr,
 {
 	struct extcon_dev *edev = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%s\n", edev->name);
+	return sysfs_emit(buf, "%s\n", edev->name);
 }
 static DEVICE_ATTR_RO(name);
 
@@ -398,8 +398,8 @@ static ssize_t cable_name_show(struct device *dev,
 						  attr_name);
 	int i = cable->cable_index;
 
-	return sprintf(buf, "%s\n",
-			extcon_info[cable->edev->supported_cable[i]].name);
+	return sysfs_emit(buf, "%s\n",
+			  extcon_info[cable->edev->supported_cable[i]].name);
 }
 
 static ssize_t cable_state_show(struct device *dev,
@@ -410,8 +410,8 @@ static ssize_t cable_state_show(struct device *dev,
 
 	int i = cable->cable_index;
 
-	return sprintf(buf, "%d\n",
-		extcon_get_state(cable->edev, cable->edev->supported_cable[i]));
+	return sysfs_emit(buf, "%d\n",
+			  extcon_get_state(cable->edev, cable->edev->supported_cable[i]));
 }
 
 /**
