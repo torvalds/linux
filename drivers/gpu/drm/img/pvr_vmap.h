@@ -89,15 +89,22 @@ static inline void pvr_vunmap(void *pages,
 }
 #else
 extern void *riscv_vmap(struct page **pages, unsigned int count,
-	   unsigned long flags, pgprot_t prot);
+	   unsigned long flags, pgprot_t prot, int cached);
 static inline void *pvr_vmap(struct page **pages,
 			     unsigned int count,
 			     __maybe_unused unsigned long flags,
 			     pgprot_t prot)
 {
-	return riscv_vmap(pages, count, flags, prot);
+	return riscv_vmap(pages, count, flags, prot, 0);
 }
 
+static inline void *pvr_vmap_cached(struct page **pages,
+			     unsigned int count,
+			     __maybe_unused unsigned long flags,
+			     pgprot_t prot)
+{
+	return riscv_vmap(pages, count, flags, prot, 1);
+}
 
 static inline void pvr_vunmap(void *pages,
 			      __maybe_unused unsigned int count,

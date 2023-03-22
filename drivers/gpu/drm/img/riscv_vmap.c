@@ -23,10 +23,11 @@
 
 #define SYSPORT_MEM_PFN_OFFSET	 (0x400000000 >> PAGE_SHIFT)
 #define __mk_pte(page, prot)     pfn_pte(page_to_pfn(page) + SYSPORT_MEM_PFN_OFFSET, prot)
+#define __mk_pte_cached(page, prot)     pfn_pte(page_to_pfn(page), prot)
 
 static int vmap_pte_range(pmd_t *pmd, unsigned long addr,
 		unsigned long end, pgprot_t prot, struct page **pages, int *nr,
-		pgtbl_mod_mask *mask)
+		pgtbl_mod_mask *mask, int cached)
 {
 	pte_t *pte;
 
@@ -46,7 +47,10 @@ static int vmap_pte_range(pmd_t *pmd, unsigned long addr,
 		if (WARN_ON(!page))
 			return -ENOMEM;
 		/* Special processing for starfive RISC-V, pfn add an offset of 0x400000*/
-		set_pte_at(&init_mm, addr, pte, __mk_pte(page, prot));
+		if (cached)
+			set_pte_at(&init_mm, addr, pte, __mk_pte_cached(page, prot));
+		else
+			set_pte_at(&init_mm, addr, pte, __mk_pte(page, prot));
 		(*nr)++;
 	} while (pte++, addr += PAGE_SIZE, addr != end);
 	*mask |= PGTBL_PTE_MODIFIED;
@@ -55,7 +59,7 @@ static int vmap_pte_range(pmd_t *pmd, unsigned long addr,
 
 static int vmap_pmd_range(pud_t *pud, unsigned long addr,
 		unsigned long end, pgprot_t prot, struct page **pages, int *nr,
-		pgtbl_mod_mask *mask)
+		pgtbl_mod_mask *mask, int cached)
 {
 	pmd_t *pmd;
 	unsigned long next;
@@ -65,7 +69,8 @@ static int vmap_pmd_range(pud_t *pud, unsigned long addr,
 		return -ENOMEM;
 	do {
 		next = pmd_addr_end(addr, end);
-		if (vmap_pte_range(pmd, addr, next, prot, pages, nr, mask))
+		if (vmap_pte_range(pmd, addr, next, prot, pages, nr, mask,
+			cached))
 			return -ENOMEM;
 	} while (pmd++, addr = next, addr != end);
 	return 0;
@@ -73,7 +78,7 @@ static int vmap_pmd_range(pud_t *pud, unsigned long addr,
 
 static int vmap_pud_range(p4d_t *p4d, unsigned long addr,
 		unsigned long end, pgprot_t prot, struct page **pages, int *nr,
-		pgtbl_mod_mask *mask)
+		pgtbl_mod_mask *mask, int cached)
 {
 	pud_t *pud;
 	unsigned long next;
@@ -83,7 +88,8 @@ static int vmap_pud_range(p4d_t *p4d, unsigned long addr,
 		return -ENOMEM;
 	do {
 		next = pud_addr_end(addr, end);
-		if (vmap_pmd_range(pud, addr, next, prot, pages, nr, mask))
+		if (vmap_pmd_range(pud, addr, next, prot, pages, nr, mask,
+			cached))
 			return -ENOMEM;
 	} while (pud++, addr = next, addr != end);
 	return 0;
@@ -91,7 +97,7 @@ static int vmap_pud_range(p4d_t *p4d, unsigned long addr,
 
 static int vmap_p4d_range(pgd_t *pgd, unsigned long addr,
 		unsigned long end, pgprot_t prot, struct page **pages, int *nr,
-		pgtbl_mod_mask *mask)
+		pgtbl_mod_mask *mask, int cached)
 {
 	p4d_t *p4d;
 	unsigned long next;
@@ -101,14 +107,15 @@ static int vmap_p4d_range(pgd_t *pgd, unsigned long addr,
 		return -ENOMEM;
 	do {
 		next = p4d_addr_end(addr, end);
-		if (vmap_pud_range(p4d, addr, next, prot, pages, nr, mask))
+		if (vmap_pud_range(p4d, addr, next, prot, pages, nr, mask,
+			cached))
 			return -ENOMEM;
 	} while (p4d++, addr = next, addr != end);
 	return 0;
 }
 
 static int __map_kernel_range_noflush(unsigned long addr, unsigned long size,
-			     pgprot_t prot, struct page **pages)
+			     pgprot_t prot, struct page **pages, int cached)
 {
 	unsigned long start = addr;
 	unsigned long end = addr + size;
@@ -124,7 +131,8 @@ static int __map_kernel_range_noflush(unsigned long addr, unsigned long size,
 		next = pgd_addr_end(addr, end);
 		if (pgd_bad(*pgd))
 			mask |= PGTBL_PGD_MODIFIED;
-		err = vmap_p4d_range(pgd, addr, next, prot, pages, &nr, &mask);
+		err = vmap_p4d_range(pgd, addr, next, prot, pages, &nr, &mask,
+			cached);
 		if (err)
 			return err;
 	} while (pgd++, addr = next, addr != end);
@@ -136,17 +144,17 @@ static int __map_kernel_range_noflush(unsigned long addr, unsigned long size,
 }
 
 static int __map_kernel_range(unsigned long start, unsigned long size, pgprot_t prot,
-		struct page **pages)
+		struct page **pages, int cached)
 {
 	int ret;
 
-	ret = __map_kernel_range_noflush(start, size, prot, pages);
+	ret = __map_kernel_range_noflush(start, size, prot, pages, cached);
 	flush_cache_vmap(start, start + size);
 	return ret;
 }
 
 void *riscv_vmap(struct page **pages, unsigned int count,
-	   unsigned long flags, pgprot_t prot)
+	   unsigned long flags, pgprot_t prot, int cached)
 {
 	struct vm_struct *area;
 	unsigned long size;		/* In bytes */
@@ -162,7 +170,7 @@ void *riscv_vmap(struct page **pages, unsigned int count,
 		return NULL;
 
 	if (__map_kernel_range((unsigned long)area->addr, size, pgprot_nx(prot),
-			pages) < 0) {
+			pages, cached) < 0) {
 		vunmap(area->addr);
 		return NULL;
 	}
