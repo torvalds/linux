@@ -234,7 +234,7 @@ static int emit_nop_job(struct xe_gt *gt, struct xe_engine *e)
 	job = xe_bb_create_wa_job(e, bb, batch_ofs);
 	if (IS_ERR(job)) {
 		xe_bb_free(bb, NULL);
-		return PTR_ERR(bb);
+		return PTR_ERR(job);
 	}
 
 	xe_sched_job_arm(job);
@@ -285,7 +285,7 @@ static int emit_wa_job(struct xe_gt *gt, struct xe_engine *e)
 	job = xe_bb_create_wa_job(e, bb, batch_ofs);
 	if (IS_ERR(job)) {
 		xe_bb_free(bb, NULL);
-		return PTR_ERR(bb);
+		return PTR_ERR(job);
 	}
 
 	xe_sched_job_arm(job);
@@ -545,8 +545,10 @@ static int all_fw_domain_init(struct xe_gt *gt)
 
 	if (!xe_gt_is_media_type(gt)) {
 		gt->migrate = xe_migrate_init(gt);
-		if (IS_ERR(gt->migrate))
+		if (IS_ERR(gt->migrate)) {
+			err = PTR_ERR(gt->migrate);
 			goto err_force_wake;
+		}
 	} else {
 		gt->migrate = xe_find_full_gt(gt)->migrate;
 	}
