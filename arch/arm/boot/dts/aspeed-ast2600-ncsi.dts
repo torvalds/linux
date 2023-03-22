@@ -953,7 +953,7 @@ spd_ ## bus ## _ ## index: spd@addr,4cc5118 ## index ## 000 { \
  *   i3c-4: represent i3c4 controller, play the role as the slave device
  *   i3c-5: represent i3c5 controller, play the role as the master device
  *   5-7ec05034000: represent the slave device attached to the bus hosted by
- *                  i3c-5 controller.  In this case, 5-7ec05030000 maps to the
+ *                  i3c-5 controller.  In this case, 5-7ec05034000 maps to the
  *                  physical device i3c4.
  */
 &i3c4 {
