@@ -11,7 +11,7 @@ static void *get_next_valid_cqe(struct erdma_cq *cq)
 	__be32 *cqe = get_queue_entry(cq->kern_cq.qbuf, cq->kern_cq.ci,
 				      cq->depth, CQE_SHIFT);
 	u32 owner = FIELD_GET(ERDMA_CQE_HDR_OWNER_MASK,
-			      __be32_to_cpu(READ_ONCE(*cqe)));
+			      be32_to_cpu(READ_ONCE(*cqe)));
 
 	return owner ^ !!(cq->kern_cq.ci & cq->depth) ? cqe : NULL;
 }
