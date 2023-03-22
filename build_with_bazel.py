@@ -12,8 +12,6 @@ import shutil
 import sys
 import subprocess
 
-CPU = "aarch64"
-HOST_CROSSTOOL = "@bazel_tools//tools/cpp:toolchain"
 HOST_TARGETS = ["dtc"]
 DEFAULT_SKIP_LIST = ["abi", "test_mapping"]
 MSM_EXTENSIONS = "build/msm_kernel_extensions.bzl"
@@ -56,15 +54,6 @@ class BazelBuilder:
                 proc.wait()
             except OSError:
                 pass
-
-    @staticmethod
-    def get_cross_cli_opts(toolchain):
-        """Form cross toolchain Bazel options"""
-        return [
-            "--cpu={}".format(CPU),
-            "--crosstool_top={}".format(toolchain),
-            "--host_crosstool_top={}".format(HOST_CROSSTOOL),
-        ]
 
     def copy_abi_file(self):
         """Copy ABI STG file from msm-kernel to common"""
@@ -173,39 +162,6 @@ class BazelBuilder:
 
         return (cross_target_list, host_target_list)
 
-    def get_cross_toolchain(self):
-        """Query for a custom toolchain if one is defined"""
-        logging.info("Querying toolchains...")
-        query = 'filter("crosstool_suite", {}/...)'.format(self.kernel_dir)
-        cmdline = [
-            self.bazel_bin,
-            "query",
-            "--ui_event_filters=-info",
-            "--noshow_progress",
-            query,
-        ]
-
-        logging.debug('Running "%s"', " ".join(cmdline))
-
-        try:
-            query_cmd = subprocess.Popen(
-                cmdline, cwd=self.workspace, stdout=subprocess.PIPE
-            )
-            self.process_list.append(query_cmd)
-            toolchain = query_cmd.stdout.read().strip().decode("utf-8")
-        except Exception as e:
-            logging.error(e)
-            sys.exit(1)
-
-        self.process_list.remove(query_cmd)
-
-        if not toolchain:
-            logging.debug("no userspace cross toolchain found")
-            return None
-
-        logging.debug("using userspace cross toolchain %s", toolchain)
-        return toolchain
-
     def clean_legacy_generated_files(self):
         """Clean generated files from legacy build to avoid conflicts with Bazel"""
         for f in glob.glob("{}/msm-kernel/arch/arm64/configs/vendor/*_defconfig".format(self.workspace)):
@@ -220,22 +176,17 @@ class BazelBuilder:
                 if f.endswith(".pyc"):
                     os.remove(os.path.join(root, f))
 
-
     def bazel(
         self,
         bazel_subcommand,
         targets,
-        out_subdir="dist",
         extra_options=None,
-        us_cross_toolchain=None,
         bazel_target_opts=None,
     ):
         """Execute a bazel command"""
         cmdline = [self.bazel_bin, bazel_subcommand]
         if extra_options:
             cmdline.extend(extra_options)
-        if us_cross_toolchain:
-            cmdline.extend(self.get_cross_cli_opts(us_cross_toolchain))
         cmdline.extend(targets)
         if bazel_target_opts is not None:
             cmdline.extend(["--"] + bazel_target_opts)
@@ -254,44 +205,37 @@ class BazelBuilder:
 
         self.process_list.remove(build_proc)
 
-    def build_targets(
-        self, targets, out_subdir="dist", user_opts=None, us_cross_toolchain=None
-    ):
+    def build_targets(self, targets, user_opts=None):
         """Run "bazel build" on all targets in parallel"""
         if not targets:
             logging.warning("no targets to build")
-        self.bazel("build", targets, out_subdir, user_opts, us_cross_toolchain)
+        self.bazel("build", targets, extra_options=user_opts)
 
-    def run_targets(
-        self, targets, out_subdir="dist", user_opts=None, us_cross_toolchain=None
-    ):
+    def run_targets(self, targets, out_subdir="dist", user_opts=None):
         """Run "bazel run" on all targets in serial (since bazel run cannot have multiple targets)"""
         bto = []
         if self.out_dir:
             bto.extend(["--dist_dir", os.path.join(self.out_dir, out_subdir)])
         for target in targets:
-            self.bazel("run", [target], out_subdir, user_opts, us_cross_toolchain, bazel_target_opts=bto)
+            self.bazel("run", [target], extra_options=user_opts, bazel_target_opts=bto)
 
     def run_menuconfig(self):
         """Run menuconfig on all target-variant combos class is initialized with"""
         for t, v in self.target_list:
             self.bazel("run", ["//{}:{}_{}_config".format(self.kernel_dir, t, v)],
-                    out_subdir=None, bazel_target_opts=["menuconfig"])
+                    bazel_target_opts=["menuconfig"])
 
     def build(self):
         """Determine which targets to build, then build them"""
         cross_targets_to_build, host_targets_to_build = self.get_build_targets()
 
         logging.debug(
-            "Building the following %s targets:\n%s",
-            CPU,
+            "Building the following device targets:\n%s",
             "\n".join(cross_targets_to_build),
         )
         logging.debug(
             "Building the following host targets:\n%s", "\n".join(host_targets_to_build)
         )
-
-        us_cross_toolchain = self.get_cross_toolchain()
 
         if not cross_targets_to_build and not host_targets_to_build:
             logging.error("no targets to build")
@@ -303,21 +247,24 @@ class BazelBuilder:
         if self.skip_list:
             self.user_opts.extend(["--//msm-kernel:skip_{}=true".format(s) for s in self.skip_list])
 
-        logging.info("Building %s targets...", CPU)
+        self.user_opts.append("--config=android_arm64")
+
+        logging.info("Building device targets...")
         self.build_targets(
             cross_targets_to_build,
             user_opts=self.user_opts,
-            us_cross_toolchain=us_cross_toolchain,
         )
         self.run_targets(
             cross_targets_to_build,
             user_opts=self.user_opts,
-            us_cross_toolchain=us_cross_toolchain,
         )
+
+        # Replace the last option above (--config=android_arm64) with the host config
+        self.user_opts[-1] = "--config=hermetic_cc"
 
         logging.info("Building host targets...")
         self.build_targets(
-            host_targets_to_build, out_subdir="host", user_opts=self.user_opts
+            host_targets_to_build, user_opts=self.user_opts
         )
         self.run_targets(
             host_targets_to_build, out_subdir="host", user_opts=self.user_opts
