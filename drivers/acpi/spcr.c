@@ -110,12 +110,12 @@ int __init acpi_parse_spcr(bool enable_earlycon, bool enable_console)
 		u32 bit_width = table->serial_port.access_width;
 
 		if (bit_width > ACPI_ACCESS_BIT_MAX) {
-			pr_err("Unacceptable wide SPCR Access Width.  Defaulting to byte size\n");
+			pr_err(FW_BUG "Unacceptable wide SPCR Access Width. Defaulting to byte size\n");
 			bit_width = ACPI_ACCESS_BIT_DEFAULT;
 		}
 		switch (ACPI_ACCESS_BIT_WIDTH((bit_width))) {
 		default:
-			pr_err("Unexpected SPCR Access Width.  Defaulting to byte size\n");
+			pr_err(FW_BUG "Unexpected SPCR Access Width. Defaulting to byte size\n");
 			fallthrough;
 		case 8:
 			iotype = "mmio";
