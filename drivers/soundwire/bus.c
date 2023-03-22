@@ -384,9 +384,6 @@ int sdw_fill_msg(struct sdw_msg *msg, struct sdw_slave *slave,
 
 /*
  * Read/Write IO functions.
- * no_pm versions can only be called by the bus, e.g. while enumerating or
- * handling suspend-resume sequences.
- * all clients need to use the pm versions
  */
 
 int sdw_nread_no_pm(struct sdw_slave *slave, u32 addr, size_t count, u8 *val)
