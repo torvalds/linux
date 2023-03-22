@@ -127,6 +127,7 @@
 #include <linux/device.h>
 #include <linux/miscdevice.h>
 
+#define MSR_ARRAY_BIST				0x00000105
 #define MSR_COPY_SCAN_HASHES			0x000002c2
 #define MSR_SCAN_HASHES_STATUS			0x000002c3
 #define MSR_AUTHENTICATE_AND_COPY_CHUNK		0x000002c4
@@ -189,6 +190,17 @@ union ifs_status {
 		u32	rsvd2			:22;
 		u32	control_error		:1;
 		u32	signature_error		:1;
+	};
+};
+
+/* MSR_ARRAY_BIST bit fields */
+union ifs_array {
+	u64	data;
+	struct {
+		u32	array_bitmask;
+		u16	array_bank;
+		u16	rsvd			:15;
+		u16	ctrl_result		:1;
 	};
 };
 
