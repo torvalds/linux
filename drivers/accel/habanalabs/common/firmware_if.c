@@ -71,38 +71,59 @@ free_fw_ver:
 	return NULL;
 }
 
+/**
+ * extract_u32_until_given_char() - given a string of the format "<u32><char>*", extract the u32.
+ * @str: the given string
+ * @ver_num: the pointer to the extracted u32 to be returned to the caller.
+ * @given_char: the given char at the end of the u32 in the string
+ *
+ * Return: Upon success, return a pointer to the given_char in the string. Upon failure, return NULL
+ */
+static char *extract_u32_until_given_char(char *str, u32 *ver_num, char given_char)
+{
+	char num_str[8] = {}, *ch;
+
+	ch = strchrnul(str, given_char);
+	if (*ch == '\0' || ch == str || ch - str >= sizeof(num_str))
+		return NULL;
+
+	memcpy(num_str, str, ch - str);
+	if (kstrtou32(num_str, 10, ver_num))
+		return NULL;
+	return ch;
+}
+
+/**
+ * hl_get_preboot_major_minor() - extract the FW's version major, minor from the version string.
+ * @hdev: pointer to the hl_device
+ * @preboot_ver: the FW's version string
+ *
+ * preboot_ver is expected to be the format of <major>.<minor>.<sub minor>*, e.g: 42.0.1-sec-3
+ * The extracted version is set in the hdev fields: fw_inner_{major/minor}_ver.
+ *
+ * Return: 0 on success, negative error code for failure.
+ */
 static int hl_get_preboot_major_minor(struct hl_device *hdev, char *preboot_ver)
 {
-	char major[8], minor[8], *first_dot, *second_dot;
-	int rc;
-
-	first_dot = strnstr(preboot_ver, ".", 10);
-	if (first_dot) {
-		strscpy(major, preboot_ver, first_dot - preboot_ver + 1);
-		rc = kstrtou32(major, 10, &hdev->fw_major_version);
-	} else {
-		rc = -EINVAL;
+	preboot_ver = extract_u32_until_given_char(preboot_ver, &hdev->fw_major_version, '.');
+	if (!preboot_ver) {
+		dev_err(hdev->dev, "Error parsing preboot major version\n");
+		goto err_zero_ver;
 	}
 
-	if (rc) {
-		dev_err(hdev->dev, "Error %d parsing preboot major version\n", rc);
-		return rc;
+	preboot_ver++;
+
+	preboot_ver = extract_u32_until_given_char(preboot_ver, &hdev->fw_minor_version, '.');
+	if (!preboot_ver) {
+		dev_err(hdev->dev, "Error parsing preboot minor version\n");
+		goto err_zero_ver;
 	}
+	return 0;
 
-	/* skip the first dot */
-	first_dot++;
-
-	second_dot = strnstr(first_dot, ".", 10);
-	if (second_dot) {
-		strscpy(minor, first_dot, second_dot - first_dot + 1);
-		rc = kstrtou32(minor, 10, &hdev->fw_minor_version);
-	} else {
-		rc = -EINVAL;
-	}
-
-	if (rc)
-		dev_err(hdev->dev, "Error %d parsing preboot minor version\n", rc);
-	return rc;
+err_zero_ver:
+	hdev->fw_major_version = 0;
+	hdev->fw_minor_version = 0;
+	return -EINVAL;
 }
 
 static int hl_request_fw(struct hl_device *hdev,
