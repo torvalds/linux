@@ -1662,16 +1662,10 @@ mipi_free:
 static int tegra_dsi_remove(struct platform_device *pdev)
 {
 	struct tegra_dsi *dsi = platform_get_drvdata(pdev);
-	int err;
 
 	pm_runtime_disable(&pdev->dev);
 
-	err = host1x_client_unregister(&dsi->client);
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to unregister host1x client: %d\n",
-			err);
-		return err;
-	}
+	host1x_client_unregister(&dsi->client);
 
 	tegra_output_remove(&dsi->output);
 

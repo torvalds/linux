@@ -443,7 +443,7 @@ int __host1x_client_register(struct host1x_client *client);
 		__host1x_client_register(client);	\
 	})
 
-int host1x_client_unregister(struct host1x_client *client);
+void host1x_client_unregister(struct host1x_client *client);
 
 int host1x_client_suspend(struct host1x_client *client);
 int host1x_client_resume(struct host1x_client *client);

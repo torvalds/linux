@@ -3981,14 +3981,8 @@ put_aux:
 static int tegra_sor_remove(struct platform_device *pdev)
 {
 	struct tegra_sor *sor = platform_get_drvdata(pdev);
-	int err;
 
-	err = host1x_client_unregister(&sor->client);
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to unregister host1x client: %d\n",
-			err);
-		return err;
-	}
+	host1x_client_unregister(&sor->client);
 
 	pm_runtime_disable(&pdev->dev);
 

@@ -2041,14 +2041,8 @@ rpm_disable:
 static int tegra_vi_remove(struct platform_device *pdev)
 {
 	struct tegra_vi *vi = platform_get_drvdata(pdev);
-	int err;
 
-	err = host1x_client_unregister(&vi->client);
-	if (err < 0) {
-		dev_err(&pdev->dev,
-			"failed to unregister host1x client: %d\n", err);
-		return err;
-	}
+	host1x_client_unregister(&vi->client);
 
 	pm_runtime_disable(&pdev->dev);
 

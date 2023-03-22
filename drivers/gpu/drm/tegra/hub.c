@@ -1178,13 +1178,8 @@ static int tegra_display_hub_remove(struct platform_device *pdev)
 {
 	struct tegra_display_hub *hub = platform_get_drvdata(pdev);
 	unsigned int i;
-	int err;
 
-	err = host1x_client_unregister(&hub->client);
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to unregister host1x client: %d\n",
-			err);
-	}
+	host1x_client_unregister(&hub->client);
 
 	for (i = 0; i < hub->soc->num_wgrps; i++) {
 		struct tegra_windowgroup *wgrp = &hub->wgrps[i];
@@ -1194,7 +1189,7 @@ static int tegra_display_hub_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 
-	return err;
+	return 0;
 }
 
 static const struct tegra_display_hub_soc tegra186_display_hub = {
