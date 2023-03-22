@@ -4736,43 +4736,6 @@
 			the propagation of recent CPU-hotplug changes up
 			the rcu_node combining tree.
 
-	rcutree.use_softirq=	[KNL]
-			If set to zero, move all RCU_SOFTIRQ processing to
-			per-CPU rcuc kthreads.  Defaults to a non-zero
-			value, meaning that RCU_SOFTIRQ is used by default.
-			Specify rcutree.use_softirq=0 to use rcuc kthreads.
-
-			But note that CONFIG_PREEMPT_RT=y kernels disable
-			this kernel boot parameter, forcibly setting it
-			to zero.
-
-	rcutree.rcu_fanout_exact= [KNL]
-			Disable autobalancing of the rcu_node combining
-			tree.  This is used by rcutorture, and might
-			possibly be useful for architectures having high
-			cache-to-cache transfer latencies.
-
-	rcutree.rcu_fanout_leaf= [KNL]
-			Change the number of CPUs assigned to each
-			leaf rcu_node structure.  Useful for very
-			large systems, which will choose the value 64,
-			and for NUMA systems with large remote-access
-			latencies, which will choose a value aligned
-			with the appropriate hardware boundaries.
-
-	rcutree.rcu_min_cached_objs= [KNL]
-			Minimum number of objects which are cached and
-			maintained per one CPU. Object size is equal
-			to PAGE_SIZE. The cache allows to reduce the
-			pressure to page allocator, also it makes the
-			whole algorithm to behave better in low memory
-			condition.
-
-	rcutree.rcu_delay_page_cache_fill_msec= [KNL]
-			Set the page-cache refill delay (in milliseconds)
-			in response to low-memory conditions.  The range
-			of permitted values is in the range 0:100000.
-
 	rcutree.jiffies_till_first_fqs= [KNL]
 			Set delay from grace-period initialization to
 			first attempt to force quiescent states.
@@ -4811,21 +4774,6 @@
 			When RCU_NOCB_CPU is set, also adjust the
 			priority of NOCB callback kthreads.
 
-	rcutree.rcu_divisor= [KNL]
-			Set the shift-right count to use to compute
-			the callback-invocation batch limit bl from
-			the number of callbacks queued on this CPU.
-			The result will be bounded below by the value of
-			the rcutree.blimit kernel parameter.  Every bl
-			callbacks, the softirq handler will exit in
-			order to allow the CPU to do other work.
-
-			Please note that this callback-invocation batch
-			limit applies only to non-offloaded callback
-			invocation.  Offloaded callbacks are instead
-			invoked in the context of an rcuoc kthread, which
-			scheduler will preempt as it does any other task.
-
 	rcutree.nocb_nobypass_lim_per_jiffy= [KNL]
 			On callback-offloaded (rcu_nocbs) CPUs,
 			RCU reduces the lock contention that would
@@ -4838,14 +4786,6 @@
 			a single jiffy, RCU pre-queues the callbacks into
 			the ->nocb_bypass queue.  The definition of "too
 			many" is supplied by this kernel boot parameter.
-
-	rcutree.rcu_nocb_gp_stride= [KNL]
-			Set the number of NOCB callback kthreads in
-			each group, which defaults to the square root
-			of the number of CPUs.	Larger numbers reduce
-			the wakeup overhead on the global grace-period
-			kthread, but increases that same overhead on
-			each group's NOCB grace-period kthread.
 
 	rcutree.qhimark= [KNL]
 			Set threshold of queued RCU callbacks beyond which
@@ -4863,6 +4803,56 @@
 			Set to less than zero to make this be set based
 			on rcutree.qhimark at boot time and to zero to
 			disable more aggressive help enlistment.
+
+	rcutree.rcu_delay_page_cache_fill_msec= [KNL]
+			Set the page-cache refill delay (in milliseconds)
+			in response to low-memory conditions.  The range
+			of permitted values is in the range 0:100000.
+
+	rcutree.rcu_divisor= [KNL]
+			Set the shift-right count to use to compute
+			the callback-invocation batch limit bl from
+			the number of callbacks queued on this CPU.
+			The result will be bounded below by the value of
+			the rcutree.blimit kernel parameter.  Every bl
+			callbacks, the softirq handler will exit in
+			order to allow the CPU to do other work.
+
+			Please note that this callback-invocation batch
+			limit applies only to non-offloaded callback
+			invocation.  Offloaded callbacks are instead
+			invoked in the context of an rcuoc kthread, which
+			scheduler will preempt as it does any other task.
+
+	rcutree.rcu_fanout_exact= [KNL]
+			Disable autobalancing of the rcu_node combining
+			tree.  This is used by rcutorture, and might
+			possibly be useful for architectures having high
+			cache-to-cache transfer latencies.
+
+	rcutree.rcu_fanout_leaf= [KNL]
+			Change the number of CPUs assigned to each
+			leaf rcu_node structure.  Useful for very
+			large systems, which will choose the value 64,
+			and for NUMA systems with large remote-access
+			latencies, which will choose a value aligned
+			with the appropriate hardware boundaries.
+
+	rcutree.rcu_min_cached_objs= [KNL]
+			Minimum number of objects which are cached and
+			maintained per one CPU. Object size is equal
+			to PAGE_SIZE. The cache allows to reduce the
+			pressure to page allocator, also it makes the
+			whole algorithm to behave better in low memory
+			condition.
+
+	rcutree.rcu_nocb_gp_stride= [KNL]
+			Set the number of NOCB callback kthreads in
+			each group, which defaults to the square root
+			of the number of CPUs.	Larger numbers reduce
+			the wakeup overhead on the global grace-period
+			kthread, but increases that same overhead on
+			each group's NOCB grace-period kthread.
 
 	rcutree.rcu_kick_kthreads= [KNL]
 			Cause the grace-period kthread to get an extra
@@ -4884,6 +4874,16 @@
 			Commandeer a sysrq key to dump out Tree RCU's
 			rcu_node tree with an eye towards determining
 			why a new grace period has not yet started.
+
+	rcutree.use_softirq=	[KNL]
+			If set to zero, move all RCU_SOFTIRQ processing to
+			per-CPU rcuc kthreads.  Defaults to a non-zero
+			value, meaning that RCU_SOFTIRQ is used by default.
+			Specify rcutree.use_softirq=0 to use rcuc kthreads.
+
+			But note that CONFIG_PREEMPT_RT=y kernels disable
+			this kernel boot parameter, forcibly setting it
+			to zero.
 
 	rcuscale.gp_async= [KNL]
 			Measure performance of asynchronous
