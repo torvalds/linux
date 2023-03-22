@@ -84,13 +84,6 @@ ath10k_set_ring_byte(unsigned int offset,
 	return ((offset << addr_map->lsb) & addr_map->mask);
 }
 
-static inline unsigned int
-ath10k_get_ring_byte(unsigned int offset,
-		     struct ath10k_hw_ce_regs_addr_map *addr_map)
-{
-	return ((offset & addr_map->mask) >> (addr_map->lsb));
-}
-
 static inline u32 ath10k_ce_read32(struct ath10k *ar, u32 offset)
 {
 	struct ath10k_ce *ce = ath10k_ce_priv(ar);
