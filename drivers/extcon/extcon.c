@@ -1423,21 +1423,17 @@ out:
  */
 struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev, int index)
 {
-	struct device_node *node;
+	struct device_node *node, *np = dev_of_node(dev);
 	struct extcon_dev *edev;
 
-	if (!dev)
-		return ERR_PTR(-EINVAL);
-
-	if (!dev->of_node) {
+	if (!np) {
 		dev_dbg(dev, "device does not have a device node entry\n");
 		return ERR_PTR(-EINVAL);
 	}
 
-	node = of_parse_phandle(dev->of_node, "extcon", index);
+	node = of_parse_phandle(np, "extcon", index);
 	if (!node) {
-		dev_dbg(dev, "failed to get phandle in %pOF node\n",
-			dev->of_node);
+		dev_dbg(dev, "failed to get phandle in %pOF node\n", np);
 		return ERR_PTR(-ENODEV);
 	}
 
