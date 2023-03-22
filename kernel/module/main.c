@@ -1394,8 +1394,8 @@ static int simplify_symbols(struct module *mod, const struct load_info *info)
 
 		case SHN_ABS:
 			/* Don't need to do anything */
-			pr_debug("Absolute symbol: 0x%08lx\n",
-			       (long)sym[i].st_value);
+			pr_debug("Absolute symbol: 0x%08lx %s\n",
+				 (long)sym[i].st_value, name);
 			break;
 
 		case SHN_LIVEPATCH:
