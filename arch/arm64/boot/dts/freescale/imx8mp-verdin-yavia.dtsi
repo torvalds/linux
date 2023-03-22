@@ -183,7 +183,6 @@
 };
 
 &usb_dwc3_1 {
-	disable-over-current;
 	status = "okay";
 };
 
