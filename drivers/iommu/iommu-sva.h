@@ -5,7 +5,6 @@
 #ifndef _IOMMU_SVA_H
 #define _IOMMU_SVA_H
 
-#include <linux/ioasid.h>
 #include <linux/mm_types.h>
 
 /* I/O Page fault */

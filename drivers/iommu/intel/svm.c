@@ -16,7 +16,6 @@
 #include <linux/interrupt.h>
 #include <linux/mm_types.h>
 #include <linux/xarray.h>
-#include <linux/ioasid.h>
 #include <asm/page.h>
 #include <asm/fpu/api.h>
 
