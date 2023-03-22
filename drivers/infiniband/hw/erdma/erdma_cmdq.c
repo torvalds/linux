@@ -182,9 +182,8 @@ static int erdma_cmdq_eq_init(struct erdma_dev *dev)
 
 int erdma_cmdq_init(struct erdma_dev *dev)
 {
-	int err, i;
 	struct erdma_cmdq *cmdq = &dev->cmdq;
-	u32 sts, ctrl;
+	int err;
 
 	cmdq->max_outstandings = ERDMA_CMDQ_MAX_OUTSTANDING;
 	cmdq->use_event = false;
@@ -207,33 +206,9 @@ int erdma_cmdq_init(struct erdma_dev *dev)
 	if (err)
 		goto err_destroy_cq;
 
-	ctrl = FIELD_PREP(ERDMA_REG_DEV_CTRL_INIT_MASK, 1);
-	erdma_reg_write32(dev, ERDMA_REGS_DEV_CTRL_REG, ctrl);
-
-	for (i = 0; i < ERDMA_WAIT_DEV_DONE_CNT; i++) {
-		sts = erdma_reg_read32_filed(dev, ERDMA_REGS_DEV_ST_REG,
-					     ERDMA_REG_DEV_ST_INIT_DONE_MASK);
-		if (sts)
-			break;
-
-		msleep(ERDMA_REG_ACCESS_WAIT_MS);
-	}
-
-	if (i == ERDMA_WAIT_DEV_DONE_CNT) {
-		dev_err(&dev->pdev->dev, "wait init done failed.\n");
-		err = -ETIMEDOUT;
-		goto err_destroy_eq;
-	}
-
 	set_bit(ERDMA_CMDQ_STATE_OK_BIT, &cmdq->state);
 
 	return 0;
-
-err_destroy_eq:
-	dma_free_coherent(&dev->pdev->dev,
-			  (cmdq->eq.depth << EQE_SHIFT) +
-				  ERDMA_EXTRA_BUFFER_SIZE,
-			  cmdq->eq.qbuf, cmdq->eq.qbuf_dma_addr);
 
 err_destroy_cq:
 	dma_free_coherent(&dev->pdev->dev,
