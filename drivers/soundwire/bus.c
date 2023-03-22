@@ -386,6 +386,13 @@ int sdw_fill_msg(struct sdw_msg *msg, struct sdw_slave *slave,
  * Read/Write IO functions.
  */
 
+/**
+ * sdw_nread_no_pm() - Read "n" contiguous SDW Slave registers with no PM
+ * @slave: SDW Slave
+ * @addr: Register address
+ * @count: length
+ * @val: Buffer for values to be read
+ */
 int sdw_nread_no_pm(struct sdw_slave *slave, u32 addr, size_t count, u8 *val)
 {
 	struct sdw_msg msg;
@@ -403,6 +410,13 @@ int sdw_nread_no_pm(struct sdw_slave *slave, u32 addr, size_t count, u8 *val)
 }
 EXPORT_SYMBOL(sdw_nread_no_pm);
 
+/**
+ * sdw_nwrite_no_pm() - Write "n" contiguous SDW Slave registers with no PM
+ * @slave: SDW Slave
+ * @addr: Register address
+ * @count: length
+ * @val: Buffer for values to be written
+ */
 int sdw_nwrite_no_pm(struct sdw_slave *slave, u32 addr, size_t count, const u8 *val)
 {
 	struct sdw_msg msg;
@@ -420,6 +434,12 @@ int sdw_nwrite_no_pm(struct sdw_slave *slave, u32 addr, size_t count, const u8 *
 }
 EXPORT_SYMBOL(sdw_nwrite_no_pm);
 
+/**
+ * sdw_write_no_pm() - Write a SDW Slave register with no PM
+ * @slave: SDW Slave
+ * @addr: Register address
+ * @value: Register value
+ */
 int sdw_write_no_pm(struct sdw_slave *slave, u32 addr, u8 value)
 {
 	return sdw_nwrite_no_pm(slave, addr, 1, &value);
@@ -492,6 +512,11 @@ int sdw_bwrite_no_pm_unlocked(struct sdw_bus *bus, u16 dev_num, u32 addr, u8 val
 }
 EXPORT_SYMBOL(sdw_bwrite_no_pm_unlocked);
 
+/**
+ * sdw_read_no_pm() - Read a SDW Slave register with no PM
+ * @slave: SDW Slave
+ * @addr: Register address
+ */
 int sdw_read_no_pm(struct sdw_slave *slave, u32 addr)
 {
 	u8 buf;
@@ -538,6 +563,9 @@ EXPORT_SYMBOL(sdw_update);
  * @addr: Register address
  * @count: length
  * @val: Buffer for values to be read
+ *
+ * This version of the function will take a PM reference to the slave
+ * device.
  */
 int sdw_nread(struct sdw_slave *slave, u32 addr, size_t count, u8 *val)
 {
@@ -562,6 +590,9 @@ EXPORT_SYMBOL(sdw_nread);
  * @addr: Register address
  * @count: length
  * @val: Buffer for values to be written
+ *
+ * This version of the function will take a PM reference to the slave
+ * device.
  */
 int sdw_nwrite(struct sdw_slave *slave, u32 addr, size_t count, const u8 *val)
 {
@@ -584,6 +615,9 @@ EXPORT_SYMBOL(sdw_nwrite);
  * sdw_read() - Read a SDW Slave register
  * @slave: SDW Slave
  * @addr: Register address
+ *
+ * This version of the function will take a PM reference to the slave
+ * device.
  */
 int sdw_read(struct sdw_slave *slave, u32 addr)
 {
@@ -603,6 +637,9 @@ EXPORT_SYMBOL(sdw_read);
  * @slave: SDW Slave
  * @addr: Register address
  * @value: Register value
+ *
+ * This version of the function will take a PM reference to the slave
+ * device.
  */
 int sdw_write(struct sdw_slave *slave, u32 addr, u8 value)
 {
