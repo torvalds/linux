@@ -866,7 +866,7 @@ static inline void *lport_priv(const struct fc_lport *lport)
  * Returns: libfc lport
  */
 static inline struct fc_lport *
-libfc_host_alloc(struct scsi_host_template *sht, int priv_size)
+libfc_host_alloc(const struct scsi_host_template *sht, int priv_size)
 {
 	struct fc_lport *lport;
 	struct Scsi_Host *shost;
