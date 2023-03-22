@@ -536,7 +536,6 @@ static int wcnss_probe(struct platform_device *pdev)
 	const char *fw_name = WCNSS_FIRMWARE_NAME;
 	const struct wcnss_data *data;
 	struct qcom_wcnss *wcnss;
-	struct resource *res;
 	struct rproc *rproc;
 	void __iomem *mmio;
 	int ret;
@@ -574,8 +573,7 @@ static int wcnss_probe(struct platform_device *pdev)
 
 	mutex_init(&wcnss->iris_lock);
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pmu");
-	mmio = devm_ioremap_resource(&pdev->dev, res);
+	mmio = devm_platform_ioremap_resource_byname(pdev, "pmu");
 	if (IS_ERR(mmio)) {
 		ret = PTR_ERR(mmio);
 		goto free_rproc;
