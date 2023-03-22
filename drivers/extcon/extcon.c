@@ -230,10 +230,10 @@ struct extcon_cable {
 	union extcon_property_value jack_propval[EXTCON_PROP_JACK_CNT];
 	union extcon_property_value disp_propval[EXTCON_PROP_DISP_CNT];
 
-	unsigned long usb_bits[BITS_TO_LONGS(EXTCON_PROP_USB_CNT)];
-	unsigned long chg_bits[BITS_TO_LONGS(EXTCON_PROP_CHG_CNT)];
-	unsigned long jack_bits[BITS_TO_LONGS(EXTCON_PROP_JACK_CNT)];
-	unsigned long disp_bits[BITS_TO_LONGS(EXTCON_PROP_DISP_CNT)];
+	DECLARE_BITMAP(usb_bits, EXTCON_PROP_USB_CNT);
+	DECLARE_BITMAP(chg_bits, EXTCON_PROP_CHG_CNT);
+	DECLARE_BITMAP(jack_bits, EXTCON_PROP_JACK_CNT);
+	DECLARE_BITMAP(disp_bits, EXTCON_PROP_DISP_CNT);
 };
 
 static struct class *extcon_class;
