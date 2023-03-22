@@ -453,6 +453,46 @@ err_out:
 
 }
 
+/*
+ * Remove a device from a group's device list and return the group device
+ * if successful.
+ */
+static struct group_device *
+__iommu_group_remove_device(struct iommu_group *group, struct device *dev)
+{
+	struct group_device *device;
+
+	lockdep_assert_held(&group->mutex);
+	list_for_each_entry(device, &group->devices, list) {
+		if (device->dev == dev) {
+			list_del(&device->list);
+			return device;
+		}
+	}
+
+	return NULL;
+}
+
+/*
+ * Release a device from its group and decrements the iommu group reference
+ * count.
+ */
+static void __iommu_group_release_device(struct iommu_group *group,
+					 struct group_device *grp_dev)
+{
+	struct device *dev = grp_dev->dev;
+
+	sysfs_remove_link(group->devices_kobj, grp_dev->name);
+	sysfs_remove_link(&dev->kobj, "iommu_group");
+
+	trace_remove_device_from_group(group->id, dev);
+
+	kfree(grp_dev->name);
+	kfree(grp_dev);
+	dev->iommu_group = NULL;
+	kobject_put(group->devices_kobj);
+}
+
 void iommu_release_device(struct device *dev)
 {
 	const struct iommu_ops *ops;
@@ -1068,7 +1108,7 @@ EXPORT_SYMBOL_GPL(iommu_group_add_device);
 void iommu_group_remove_device(struct device *dev)
 {
 	struct iommu_group *group = dev->iommu_group;
-	struct group_device *tmp_device, *device = NULL;
+	struct group_device *device;
 
 	if (!group)
 		return;
@@ -1076,27 +1116,11 @@ void iommu_group_remove_device(struct device *dev)
 	dev_info(dev, "Removing from iommu group %d\n", group->id);
 
 	mutex_lock(&group->mutex);
-	list_for_each_entry(tmp_device, &group->devices, list) {
-		if (tmp_device->dev == dev) {
-			device = tmp_device;
-			list_del(&device->list);
-			break;
-		}
-	}
+	device = __iommu_group_remove_device(group, dev);
 	mutex_unlock(&group->mutex);
 
-	if (!device)
-		return;
-
-	sysfs_remove_link(group->devices_kobj, device->name);
-	sysfs_remove_link(&dev->kobj, "iommu_group");
-
-	trace_remove_device_from_group(group->id, dev);
-
-	kfree(device->name);
-	kfree(device);
-	dev->iommu_group = NULL;
-	kobject_put(group->devices_kobj);
+	if (device)
+		__iommu_group_release_device(group, device);
 }
 EXPORT_SYMBOL_GPL(iommu_group_remove_device);
 
