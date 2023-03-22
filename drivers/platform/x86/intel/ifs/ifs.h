@@ -197,9 +197,13 @@ union ifs_status {
 #define IFS_SW_TIMEOUT				0xFD
 #define IFS_SW_PARTIAL_COMPLETION		0xFE
 
+struct ifs_test_caps {
+	int	integrity_cap_bit;
+	int	test_num;
+};
+
 /**
  * struct ifs_data - attributes related to intel IFS driver
- * @integrity_cap_bit: MSR_INTEGRITY_CAPS bit enumerating this test
  * @loaded_version: stores the currently loaded ifs image version.
  * @loaded: If a valid test binary has been loaded into the memory
  * @loading_error: Error occurred on another CPU while loading image
@@ -207,10 +211,8 @@ union ifs_status {
  * @status: it holds simple status pass/fail/untested
  * @scan_details: opaque scan status code from h/w
  * @cur_batch: number indicating the currently loaded test file
- * @test_num: number indicating the test type
  */
 struct ifs_data {
-	int	integrity_cap_bit;
 	int	loaded_version;
 	bool	loaded;
 	bool	loading_error;
@@ -218,7 +220,6 @@ struct ifs_data {
 	int	status;
 	u64	scan_details;
 	u32	cur_batch;
-	int	test_num;
 };
 
 struct ifs_work {
@@ -227,7 +228,8 @@ struct ifs_work {
 };
 
 struct ifs_device {
-	struct ifs_data data;
+	const struct ifs_test_caps *test_caps;
+	struct ifs_data rw_data;
 	struct miscdevice misc;
 };
 
@@ -236,7 +238,15 @@ static inline struct ifs_data *ifs_get_data(struct device *dev)
 	struct miscdevice *m = dev_get_drvdata(dev);
 	struct ifs_device *d = container_of(m, struct ifs_device, misc);
 
-	return &d->data;
+	return &d->rw_data;
+}
+
+static inline const struct ifs_test_caps *ifs_get_test_caps(struct device *dev)
+{
+	struct miscdevice *m = dev_get_drvdata(dev);
+	struct ifs_device *d = container_of(m, struct ifs_device, misc);
+
+	return d->test_caps;
 }
 
 extern bool *ifs_pkg_auth;

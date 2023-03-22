@@ -257,13 +257,14 @@ static int image_sanity_check(struct device *dev, const struct microcode_header_
  */
 int ifs_load_firmware(struct device *dev)
 {
+	const struct ifs_test_caps *test = ifs_get_test_caps(dev);
 	struct ifs_data *ifsd = ifs_get_data(dev);
 	const struct firmware *fw;
 	char scan_path[64];
 	int ret = -EINVAL;
 
 	snprintf(scan_path, sizeof(scan_path), "intel/ifs_%d/%02x-%02x-%02x-%02x.scan",
-		 ifsd->test_num, boot_cpu_data.x86, boot_cpu_data.x86_model,
+		 test->test_num, boot_cpu_data.x86, boot_cpu_data.x86_model,
 		 boot_cpu_data.x86_stepping, ifsd->cur_batch);
 
 	ret = request_firmware_direct(&fw, scan_path, dev);

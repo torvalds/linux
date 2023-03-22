@@ -22,11 +22,13 @@ MODULE_DEVICE_TABLE(x86cpu, ifs_cpu_ids);
 
 bool *ifs_pkg_auth;
 
+static const struct ifs_test_caps scan_test = {
+	.integrity_cap_bit = MSR_INTEGRITY_CAPS_PERIODIC_BIST_BIT,
+	.test_num = 0,
+};
+
 static struct ifs_device ifs_device = {
-	.data = {
-		.integrity_cap_bit = MSR_INTEGRITY_CAPS_PERIODIC_BIST_BIT,
-		.test_num = 0,
-	},
+	.test_caps = &scan_test,
 	.misc = {
 		.name = "intel_ifs_0",
 		.nodename = "intel_ifs/0",
@@ -55,7 +57,7 @@ static int __init ifs_init(void)
 
 	ifs_device.misc.groups = ifs_get_groups();
 
-	if (!(msrval & BIT(ifs_device.data.integrity_cap_bit)))
+	if (!(msrval & BIT(ifs_device.test_caps->integrity_cap_bit)))
 		return -ENODEV;
 
 	ifs_pkg_auth = kmalloc_array(topology_max_packages(), sizeof(bool), GFP_KERNEL);
