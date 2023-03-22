@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 #include <linux/version.h>
 #include <linux/vmalloc.h>
 #include "aicbluetooth_cmds.h"

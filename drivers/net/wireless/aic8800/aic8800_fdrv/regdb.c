@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 #include <linux/nl80211.h>
 #include <net/cfg80211.h>
 #include <linux/version.h>

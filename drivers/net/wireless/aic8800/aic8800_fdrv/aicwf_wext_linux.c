@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 #include <linux/etherdevice.h>
 #include <linux/netdevice.h>
 #include <net/netlink.h>

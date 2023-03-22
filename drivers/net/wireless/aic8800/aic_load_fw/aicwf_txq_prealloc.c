@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 #include <linux/slab.h>
 #include "aicwf_debug.h"
 

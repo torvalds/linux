@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 #EXTRA_CFLAGS += $(USER_EXTRA_CFLAGS)
 #EXTRA_CFLAGS += -Wno-implicit-fallthrough
 

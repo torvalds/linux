@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 #include <linux/types.h>
 
 int aicwf_patch_table_load(struct rwnx_hw *rwnx_hw, char *filename);

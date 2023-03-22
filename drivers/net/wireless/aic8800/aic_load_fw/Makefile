@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 CONFIG_USB_SUPPORT =y
 CONFIG_RFTEST =y
 CONFIG_USB_BT =y

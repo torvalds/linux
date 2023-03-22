@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 #include "rwnx_main.h"
 #include "rwnx_msg_tx.h"
 #include "reg_access.h"
