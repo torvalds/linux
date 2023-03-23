@@ -889,9 +889,9 @@
  */
 #define JESD300_SPD_I2C_MODE(bus, index, addr) \
 spd_ ## bus ## _ ## index: spd@addr { \
-	compatible = "idt,spd"; \
+	compatible = "eeprom"; \
 	reg = <0x ## addr 0x0 0x0>; \
-};
+}
 
 #define JESD300_SPD_I3C_MODE(bus, index, addr) \
 spd_ ## bus ## _ ## index: spd@addr,4cc5118 ## index ## 000 { \
@@ -899,7 +899,7 @@ spd_ ## bus ## _ ## index: spd@addr,4cc5118 ## index ## 000 { \
 	assigned-address = <0x ## addr>; \
 	dcr = <0xda>; \
 	bcr = <0x6>; \
-};
+}
 
 &i3c0 {
 	status = "okay";
@@ -912,8 +912,8 @@ spd_ ## bus ## _ ## index: spd@addr,4cc5118 ## index ## 000 { \
 		bcr = <0x6>;
 	};
 
-	JESD300_SPD_I3C_MODE(0, 0, 50)
-	JESD300_SPD_I3C_MODE(0, 1, 51)
+	JESD300_SPD_I3C_MODE(0, 0, 50);
+	JESD300_SPD_I3C_MODE(0, 1, 51);
 };
 
 &i3c1 {
@@ -927,8 +927,8 @@ spd_ ## bus ## _ ## index: spd@addr,4cc5118 ## index ## 000 { \
 		bcr = <0x6>;
 	};
 
-	JESD300_SPD_I3C_MODE(1, 0, 50)
-	JESD300_SPD_I3C_MODE(1, 1, 51)
+	JESD300_SPD_I3C_MODE(1, 0, 50);
+	JESD300_SPD_I3C_MODE(1, 1, 51);
 };
 
 &i3c2 {
@@ -943,6 +943,9 @@ spd_ ## bus ## _ ## index: spd@addr,4cc5118 ## index ## 000 { \
 		reg = <0xf 0x0 0x00000000>;
 		address-width = <16>;
 	};
+
+	JESD300_SPD_I2C_MODE(2, 0, 52);
+	JESD300_SPD_I2C_MODE(2, 1, 53);
 };
 
 &i3c3 {
@@ -957,6 +960,9 @@ spd_ ## bus ## _ ## index: spd@addr,4cc5118 ## index ## 000 { \
 		reg = <0xf 0x0 0x00000000>;
 		address-width = <16>;
 	};
+
+	JESD300_SPD_I2C_MODE(3, 0, 52);
+	JESD300_SPD_I2C_MODE(3, 1, 53);
 };
 
 /*
