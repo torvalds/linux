@@ -74,9 +74,6 @@ static int mlx5_device_enable_sriov(struct mlx5_core_dev *dev, int num_vfs)
 	struct mlx5_core_sriov *sriov = &dev->priv.sriov;
 	int err, vf, num_msix_count;
 
-	if (!MLX5_ESWITCH_MANAGER(dev))
-		goto enable_vfs_hca;
-
 	err = mlx5_eswitch_enable(dev->priv.eswitch, num_vfs);
 	if (err) {
 		mlx5_core_warn(dev,
@@ -84,7 +81,6 @@ static int mlx5_device_enable_sriov(struct mlx5_core_dev *dev, int num_vfs)
 		return err;
 	}
 
-enable_vfs_hca:
 	num_msix_count = mlx5_get_default_msix_vec_count(dev, num_vfs);
 	for (vf = 0; vf < num_vfs; vf++) {
 		/* Notify the VF before its enablement to let it set
