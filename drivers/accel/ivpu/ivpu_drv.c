@@ -474,8 +474,8 @@ static int ivpu_dev_init(struct ivpu_device *vdev)
 
 	vdev->hw->ops = &ivpu_hw_mtl_ops;
 	vdev->platform = IVPU_PLATFORM_INVALID;
-	vdev->context_xa_limit.min = IVPU_GLOBAL_CONTEXT_MMU_SSID + 1;
-	vdev->context_xa_limit.max = IVPU_CONTEXT_LIMIT;
+	vdev->context_xa_limit.min = IVPU_USER_CONTEXT_MIN_SSID;
+	vdev->context_xa_limit.max = IVPU_USER_CONTEXT_MAX_SSID;
 	atomic64_set(&vdev->unique_id_counter, 0);
 	xa_init_flags(&vdev->context_xa, XA_FLAGS_ALLOC);
 	xa_init_flags(&vdev->submitted_jobs_xa, XA_FLAGS_ALLOC1);

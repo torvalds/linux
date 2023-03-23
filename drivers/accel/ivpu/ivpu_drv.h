@@ -25,7 +25,10 @@
 #define PCI_DEVICE_ID_MTL   0x7d1d
 
 #define IVPU_GLOBAL_CONTEXT_MMU_SSID 0
-#define IVPU_CONTEXT_LIMIT	     64
+/* SSID 1 is used by the VPU to represent invalid context */
+#define IVPU_USER_CONTEXT_MIN_SSID   2
+#define IVPU_USER_CONTEXT_MAX_SSID   (IVPU_USER_CONTEXT_MIN_SSID + 63)
+
 #define IVPU_NUM_ENGINES	     2
 
 #define IVPU_PLATFORM_SILICON 0
