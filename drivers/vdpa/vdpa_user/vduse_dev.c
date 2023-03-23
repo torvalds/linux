@@ -722,6 +722,14 @@ static int vduse_vdpa_set_vq_affinity(struct vdpa_device *vdpa, u16 idx,
 	return 0;
 }
 
+static const struct cpumask *
+vduse_vdpa_get_vq_affinity(struct vdpa_device *vdpa, u16 idx)
+{
+	struct vduse_dev *dev = vdpa_to_vduse(vdpa);
+
+	return &dev->vqs[idx]->irq_affinity;
+}
+
 static int vduse_vdpa_set_map(struct vdpa_device *vdpa,
 				unsigned int asid,
 				struct vhost_iotlb *iotlb)
@@ -773,6 +781,7 @@ static const struct vdpa_config_ops vduse_vdpa_config_ops = {
 	.set_config		= vduse_vdpa_set_config,
 	.get_generation		= vduse_vdpa_get_generation,
 	.set_vq_affinity	= vduse_vdpa_set_vq_affinity,
+	.get_vq_affinity	= vduse_vdpa_get_vq_affinity,
 	.reset			= vduse_vdpa_reset,
 	.set_map		= vduse_vdpa_set_map,
 	.free			= vduse_vdpa_free,
