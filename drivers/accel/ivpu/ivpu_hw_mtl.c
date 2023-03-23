@@ -403,11 +403,6 @@ static int ivpu_boot_host_ss_axi_enable(struct ivpu_device *vdev)
 	return ivpu_boot_host_ss_axi_drive(vdev, true);
 }
 
-static int ivpu_boot_host_ss_axi_disable(struct ivpu_device *vdev)
-{
-	return ivpu_boot_host_ss_axi_drive(vdev, false);
-}
-
 static int ivpu_boot_host_ss_top_noc_drive(struct ivpu_device *vdev, bool enable)
 {
 	int ret;
@@ -439,11 +434,6 @@ static int ivpu_boot_host_ss_top_noc_drive(struct ivpu_device *vdev, bool enable
 static int ivpu_boot_host_ss_top_noc_enable(struct ivpu_device *vdev)
 {
 	return ivpu_boot_host_ss_top_noc_drive(vdev, true);
-}
-
-static int ivpu_boot_host_ss_top_noc_disable(struct ivpu_device *vdev)
-{
-	return ivpu_boot_host_ss_top_noc_drive(vdev, false);
 }
 
 static void ivpu_boot_pwr_island_trickle_drive(struct ivpu_device *vdev, bool enable)
@@ -502,16 +492,6 @@ static void ivpu_boot_dpu_active_drive(struct ivpu_device *vdev, bool enable)
 		val = REG_CLR_FLD(MTL_VPU_HOST_SS_AON_DPU_ACTIVE, DPU_ACTIVE, val);
 
 	REGV_WR32(MTL_VPU_HOST_SS_AON_DPU_ACTIVE, val);
-}
-
-static int ivpu_boot_pwr_domain_disable(struct ivpu_device *vdev)
-{
-	ivpu_boot_dpu_active_drive(vdev, false);
-	ivpu_boot_pwr_island_isolation_drive(vdev, true);
-	ivpu_boot_pwr_island_trickle_drive(vdev, false);
-	ivpu_boot_pwr_island_drive(vdev, false);
-
-	return ivpu_boot_wait_for_pwr_island_status(vdev, 0x0);
 }
 
 static int ivpu_boot_pwr_domain_enable(struct ivpu_device *vdev)
@@ -797,21 +777,8 @@ static int ivpu_hw_mtl_power_down(struct ivpu_device *vdev)
 {
 	int ret = 0;
 
-	/* FPGA requires manual clearing of IP_Reset bit by enabling quiescent state */
-	if (ivpu_is_fpga(vdev)) {
-		if (ivpu_boot_host_ss_top_noc_disable(vdev)) {
-			ivpu_err(vdev, "Failed to disable TOP NOC\n");
-			ret = -EIO;
-		}
-
-		if (ivpu_boot_host_ss_axi_disable(vdev)) {
-			ivpu_err(vdev, "Failed to disable AXI\n");
-			ret = -EIO;
-		}
-	}
-
-	if (ivpu_boot_pwr_domain_disable(vdev)) {
-		ivpu_err(vdev, "Failed to disable power domain\n");
+	if (ivpu_hw_mtl_reset(vdev)) {
+		ivpu_err(vdev, "Failed to reset the VPU\n");
 		ret = -EIO;
 	}
 
