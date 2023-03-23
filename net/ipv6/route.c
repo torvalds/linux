@@ -293,7 +293,7 @@ static const struct fib6_info fib6_null_entry_template = {
 
 static const struct rt6_info ip6_null_entry_template = {
 	.dst = {
-		.__refcnt	= ATOMIC_INIT(1),
+		.__rcuref	= RCUREF_INIT(1),
 		.__use		= 1,
 		.obsolete	= DST_OBSOLETE_FORCE_CHK,
 		.error		= -ENETUNREACH,
@@ -307,7 +307,7 @@ static const struct rt6_info ip6_null_entry_template = {
 
 static const struct rt6_info ip6_prohibit_entry_template = {
 	.dst = {
-		.__refcnt	= ATOMIC_INIT(1),
+		.__rcuref	= RCUREF_INIT(1),
 		.__use		= 1,
 		.obsolete	= DST_OBSOLETE_FORCE_CHK,
 		.error		= -EACCES,
@@ -319,7 +319,7 @@ static const struct rt6_info ip6_prohibit_entry_template = {
 
 static const struct rt6_info ip6_blk_hole_entry_template = {
 	.dst = {
-		.__refcnt	= ATOMIC_INIT(1),
+		.__rcuref	= RCUREF_INIT(1),
 		.__use		= 1,
 		.obsolete	= DST_OBSOLETE_FORCE_CHK,
 		.error		= -EINVAL,
