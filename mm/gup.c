@@ -1645,7 +1645,7 @@ check_again:
 		 */
 		if (is_migrate_cma_page(head)) {
 			if (PageHuge(head)) {
-				if (!isolate_huge_page(head, &cma_page_list))
+				if (isolate_hugetlb(head, &cma_page_list))
 					isolation_error_count++;
 			} else {
 				if (!PageLRU(head) && drain_allow) {

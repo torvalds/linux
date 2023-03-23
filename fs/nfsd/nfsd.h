@@ -85,12 +85,11 @@ int		nfsd_get_nrthreads(int n, int *, struct net *);
 int		nfsd_set_nrthreads(int n, int *, struct net *);
 int		nfsd_pool_stats_open(struct inode *, struct file *);
 int		nfsd_pool_stats_release(struct inode *, struct file *);
+void		nfsd_shutdown_threads(struct net *net);
 
 void		nfsd_destroy(struct net *net);
 
 bool		i_am_nfsd(void);
-
-int get_nfsdfs(struct net *);
 
 struct nfsdfs_client {
 	struct kref cl_ref;

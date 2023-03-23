@@ -130,6 +130,56 @@ static void icmpv6_error_log(const struct sk_buff *skb,
 			       IPPROTO_ICMPV6, "%s", msg);
 }
 
+static noinline_for_stack int
+nf_conntrack_icmpv6_redirect(struct nf_conn *tmpl, struct sk_buff *skb,
+			     unsigned int dataoff,
+			     const struct nf_hook_state *state)
+{
+	u8 hl = ipv6_hdr(skb)->hop_limit;
+	union nf_inet_addr outer_daddr;
+	union {
+		struct nd_opt_hdr nd_opt;
+		struct rd_msg rd_msg;
+	} tmp;
+	const struct nd_opt_hdr *nd_opt;
+	const struct rd_msg *rd_msg;
+
+	rd_msg = skb_header_pointer(skb, dataoff, sizeof(*rd_msg), &tmp.rd_msg);
+	if (!rd_msg) {
+		icmpv6_error_log(skb, state, "short redirect");
+		return -NF_ACCEPT;
+	}
+
+	if (rd_msg->icmph.icmp6_code != 0)
+		return NF_ACCEPT;
+
+	if (hl != 255 || !(ipv6_addr_type(&ipv6_hdr(skb)->saddr) & IPV6_ADDR_LINKLOCAL)) {
+		icmpv6_error_log(skb, state, "invalid saddr or hoplimit for redirect");
+		return -NF_ACCEPT;
+	}
+
+	dataoff += sizeof(*rd_msg);
+
+	/* warning: rd_msg no longer usable after this call */
+	nd_opt = skb_header_pointer(skb, dataoff, sizeof(*nd_opt), &tmp.nd_opt);
+	if (!nd_opt || nd_opt->nd_opt_len == 0) {
+		icmpv6_error_log(skb, state, "redirect without options");
+		return -NF_ACCEPT;
+	}
+
+	/* We could call ndisc_parse_options(), but it would need
+	 * skb_linearize() and a bit more work.
+	 */
+	if (nd_opt->nd_opt_type != ND_OPT_REDIRECT_HDR)
+		return NF_ACCEPT;
+
+	memcpy(&outer_daddr.ip6, &ipv6_hdr(skb)->daddr,
+	       sizeof(outer_daddr.ip6));
+	dataoff += 8;
+	return nf_conntrack_inet_error(tmpl, skb, dataoff, state,
+				       IPPROTO_ICMPV6, &outer_daddr);
+}
+
 int nf_conntrack_icmpv6_error(struct nf_conn *tmpl,
 			      struct sk_buff *skb,
 			      unsigned int dataoff,
@@ -159,6 +209,9 @@ int nf_conntrack_icmpv6_error(struct nf_conn *tmpl,
 		nf_ct_set(skb, NULL, IP_CT_UNTRACKED);
 		return NF_ACCEPT;
 	}
+
+	if (icmp6h->icmp6_type == NDISC_REDIRECT)
+		return nf_conntrack_icmpv6_redirect(tmpl, skb, dataoff, state);
 
 	/* is not error message ? */
 	if (icmp6h->icmp6_type >= 128)

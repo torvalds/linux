@@ -1114,6 +1114,11 @@ skip:
 			return -ENOENT;
 		}
 
+		if (new && new->ops == &noqueue_qdisc_ops) {
+			NL_SET_ERR_MSG(extack, "Cannot assign noqueue to a class");
+			return -EINVAL;
+		}
+
 		err = cops->graft(parent, cl, new, &old, extack);
 		if (err)
 			return err;

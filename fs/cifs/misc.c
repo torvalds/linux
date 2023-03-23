@@ -974,8 +974,8 @@ cifs_free_hash(struct crypto_shash **shash, struct sdesc **sdesc)
  * Input: rqst - a smb_rqst, page - a page index for rqst
  * Output: *len - the length for this page, *offset - the offset for this page
  */
-void rqst_page_get_length(struct smb_rqst *rqst, unsigned int page,
-				unsigned int *len, unsigned int *offset)
+void rqst_page_get_length(const struct smb_rqst *rqst, unsigned int page,
+			  unsigned int *len, unsigned int *offset)
 {
 	*len = rqst->rq_pagesz;
 	*offset = (page == 0) ? rqst->rq_offset : 0;

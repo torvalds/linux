@@ -37,6 +37,8 @@
 
 &spi_0 {
 	cs-select = <0>;
+	pinctrl-0 = <&spi_0_pins>;
+	pinctrl-names = "default";
 	status = "okay";
 
 	m25p80@0 {

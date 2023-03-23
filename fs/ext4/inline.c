@@ -813,7 +813,7 @@ ext4_journalled_write_inline_data(struct inode *inode,
  *    clear the inode state safely.
  * 2. The inode has inline data, then we need to read the data, make it
  *    update and dirty so that ext4_da_writepages can handle it. We don't
- *    need to start the journal since the file's metatdata isn't changed now.
+ *    need to start the journal since the file's metadata isn't changed now.
  */
 static int ext4_da_convert_inline_data_to_extent(struct address_space *mapping,
 						 struct inode *inode,
