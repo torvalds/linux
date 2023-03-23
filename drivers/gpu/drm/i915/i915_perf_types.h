@@ -20,6 +20,7 @@
 #include "gt/intel_engine_types.h"
 #include "gt/intel_sseu.h"
 #include "i915_reg_defs.h"
+#include "intel_uncore.h"
 #include "intel_wakeref.h"
 
 struct drm_i915_private;
@@ -33,6 +34,7 @@ struct intel_engine_cs;
 
 enum {
 	PERF_GROUP_OAG = 0,
+	PERF_GROUP_OAM_SAMEDIA_0 = 0,
 
 	PERF_GROUP_MAX,
 	PERF_GROUP_INVALID = U32_MAX,
@@ -43,9 +45,27 @@ enum report_header {
 	HDR_64_BIT,
 };
 
+struct i915_perf_regs {
+	u32 base;
+	i915_reg_t oa_head_ptr;
+	i915_reg_t oa_tail_ptr;
+	i915_reg_t oa_buffer;
+	i915_reg_t oa_ctx_ctrl;
+	i915_reg_t oa_ctrl;
+	i915_reg_t oa_debug;
+	i915_reg_t oa_status;
+	u32 oa_ctrl_counter_format_shift;
+};
+
+enum oa_type {
+	TYPE_OAG,
+	TYPE_OAM,
+};
+
 struct i915_oa_format {
 	u32 format;
 	int size;
+	int type;
 	enum report_header header;
 };
 
@@ -416,6 +436,16 @@ struct i915_perf_group {
 	 * @num_engines: The number of engines using this OA unit.
 	 */
 	u32 num_engines;
+
+	/*
+	 * @regs: OA buffer register group for programming the OA unit.
+	 */
+	struct i915_perf_regs regs;
+
+	/*
+	 * @type: Type of OA unit - OAM, OAG etc.
+	 */
+	enum oa_type type;
 };
 
 struct i915_perf_gt {
