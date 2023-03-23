@@ -69,7 +69,8 @@ static struct compressed_bio *alloc_compressed_bio(struct btrfs_inode *inode,
 
 	bbio = btrfs_bio(bio_alloc_bioset(NULL, BTRFS_MAX_COMPRESSED_PAGES, op,
 					  GFP_NOFS, &btrfs_compressed_bioset));
-	btrfs_bio_init(bbio, inode, end_io, NULL);
+	btrfs_bio_init(bbio, inode->root->fs_info, end_io, NULL);
+	bbio->inode = inode;
 	bbio->file_offset = start;
 	return to_compressed_bio(bbio);
 }

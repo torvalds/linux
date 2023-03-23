@@ -1640,14 +1640,14 @@ bool btrfs_use_zone_append(struct btrfs_bio *bbio)
 {
 	u64 start = (bbio->bio.bi_iter.bi_sector << SECTOR_SHIFT);
 	struct btrfs_inode *inode = bbio->inode;
-	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	struct btrfs_fs_info *fs_info = bbio->fs_info;
 	struct btrfs_block_group *cache;
 	bool ret = false;
 
 	if (!btrfs_is_zoned(fs_info))
 		return false;
 
-	if (!is_data_inode(&inode->vfs_inode))
+	if (!inode || !is_data_inode(&inode->vfs_inode))
 		return false;
 
 	if (btrfs_op(&bbio->bio) != BTRFS_MAP_WRITE)

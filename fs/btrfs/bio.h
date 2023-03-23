@@ -30,7 +30,10 @@ typedef void (*btrfs_bio_end_io_t)(struct btrfs_bio *bbio);
  * passed to btrfs_submit_bio for mapping to the physical devices.
  */
 struct btrfs_bio {
-	/* Inode and offset into it that this I/O operates on. */
+	/*
+	 * Inode and offset into it that this I/O operates on.
+	 * Only set for data I/O.
+	 */
 	struct btrfs_inode *inode;
 	u64 file_offset;
 
@@ -58,6 +61,9 @@ struct btrfs_bio {
 	atomic_t pending_ios;
 	struct work_struct end_io_work;
 
+	/* File system that this I/O operates on. */
+	struct btrfs_fs_info *fs_info;
+
 	/*
 	 * This member must come last, bio_alloc_bioset will allocate enough
 	 * bytes for entire btrfs_bio but relies on bio being last.
@@ -73,10 +79,10 @@ static inline struct btrfs_bio *btrfs_bio(struct bio *bio)
 int __init btrfs_bioset_init(void);
 void __cold btrfs_bioset_exit(void);
 
-void btrfs_bio_init(struct btrfs_bio *bbio, struct btrfs_inode *inode,
+void btrfs_bio_init(struct btrfs_bio *bbio, struct btrfs_fs_info *fs_info,
 		    btrfs_bio_end_io_t end_io, void *private);
 struct btrfs_bio *btrfs_bio_alloc(unsigned int nr_vecs, blk_opf_t opf,
-				  struct btrfs_inode *inode,
+				  struct btrfs_fs_info *fs_info,
 				  btrfs_bio_end_io_t end_io, void *private);
 
 static inline void btrfs_bio_end_io(struct btrfs_bio *bbio, blk_status_t status)

@@ -31,11 +31,11 @@ struct btrfs_failed_bio {
  * Initialize a btrfs_bio structure.  This skips the embedded bio itself as it
  * is already initialized by the block layer.
  */
-void btrfs_bio_init(struct btrfs_bio *bbio, struct btrfs_inode *inode,
+void btrfs_bio_init(struct btrfs_bio *bbio, struct btrfs_fs_info *fs_info,
 		    btrfs_bio_end_io_t end_io, void *private)
 {
 	memset(bbio, 0, offsetof(struct btrfs_bio, bio));
-	bbio->inode = inode;
+	bbio->fs_info = fs_info;
 	bbio->end_io = end_io;
 	bbio->private = private;
 	atomic_set(&bbio->pending_ios, 1);
@@ -49,7 +49,7 @@ void btrfs_bio_init(struct btrfs_bio *bbio, struct btrfs_inode *inode,
  * a mempool.
  */
 struct btrfs_bio *btrfs_bio_alloc(unsigned int nr_vecs, blk_opf_t opf,
-				  struct btrfs_inode *inode,
+				  struct btrfs_fs_info *fs_info,
 				  btrfs_bio_end_io_t end_io, void *private)
 {
 	struct btrfs_bio *bbio;
@@ -57,7 +57,7 @@ struct btrfs_bio *btrfs_bio_alloc(unsigned int nr_vecs, blk_opf_t opf,
 
 	bio = bio_alloc_bioset(NULL, nr_vecs, opf, GFP_NOFS, &btrfs_bioset);
 	bbio = btrfs_bio(bio);
-	btrfs_bio_init(bbio, inode, end_io, private);
+	btrfs_bio_init(bbio, fs_info, end_io, private);
 	return bbio;
 }
 
@@ -92,8 +92,8 @@ static struct btrfs_bio *btrfs_split_bio(struct btrfs_fs_info *fs_info,
 				GFP_NOFS, &btrfs_clone_bioset);
 	}
 	bbio = btrfs_bio(bio);
-	btrfs_bio_init(bbio, orig_bbio->inode, NULL, orig_bbio);
-
+	btrfs_bio_init(bbio, fs_info, NULL, orig_bbio);
+	bbio->inode = orig_bbio->inode;
 	bbio->file_offset = orig_bbio->file_offset;
 	if (!(orig_bbio->bio.bi_opf & REQ_BTRFS_ONE_ORDERED))
 		orig_bbio->file_offset += map_length;
@@ -244,7 +244,8 @@ static struct btrfs_failed_bio *repair_one_sector(struct btrfs_bio *failed_bbio,
 	__bio_add_page(repair_bio, bv->bv_page, bv->bv_len, bv->bv_offset);
 
 	repair_bbio = btrfs_bio(repair_bio);
-	btrfs_bio_init(repair_bbio, failed_bbio->inode, NULL, fbio);
+	btrfs_bio_init(repair_bbio, fs_info, NULL, fbio);
+	repair_bbio->inode = failed_bbio->inode;
 	repair_bbio->file_offset = failed_bbio->file_offset + bio_offset;
 
 	mirror = next_repair_mirror(fbio, failed_bbio->mirror_num);
@@ -262,6 +263,9 @@ static void btrfs_check_read_bio(struct btrfs_bio *bbio, struct btrfs_device *de
 	blk_status_t status = bbio->bio.bi_status;
 	struct btrfs_failed_bio *fbio = NULL;
 	u32 offset = 0;
+
+	/* Read-repair requires the inode field to be set by the submitter. */
+	ASSERT(inode);
 
 	/*
 	 * Hand off repair bios to the repair code as there is no upper level
@@ -323,17 +327,17 @@ static void btrfs_end_bio_work(struct work_struct *work)
 	struct btrfs_bio *bbio = container_of(work, struct btrfs_bio, end_io_work);
 
 	/* Metadata reads are checked and repaired by the submitter. */
-	if (bbio->bio.bi_opf & REQ_META)
-		bbio->end_io(bbio);
-	else
+	if (bbio->inode && !(bbio->bio.bi_opf & REQ_META))
 		btrfs_check_read_bio(bbio, bbio->bio.bi_private);
+	else
+		bbio->end_io(bbio);
 }
 
 static void btrfs_simple_end_io(struct bio *bio)
 {
 	struct btrfs_bio *bbio = btrfs_bio(bio);
 	struct btrfs_device *dev = bio->bi_private;
-	struct btrfs_fs_info *fs_info = bbio->inode->root->fs_info;
+	struct btrfs_fs_info *fs_info = bbio->fs_info;
 
 	btrfs_bio_counter_dec(fs_info);
 
@@ -357,7 +361,8 @@ static void btrfs_raid56_end_io(struct bio *bio)
 
 	btrfs_bio_counter_dec(bioc->fs_info);
 	bbio->mirror_num = bioc->mirror_num;
-	if (bio_op(bio) == REQ_OP_READ && !(bbio->bio.bi_opf & REQ_META))
+	if (bio_op(bio) == REQ_OP_READ && bbio->inode &&
+	    !(bbio->bio.bi_opf & REQ_META))
 		btrfs_check_read_bio(bbio, NULL);
 	else
 		btrfs_orig_bbio_end_io(bbio);
@@ -583,7 +588,7 @@ static bool should_async_write(struct btrfs_bio *bbio)
 	 * in order.
 	 */
 	if (bbio->bio.bi_opf & REQ_META) {
-		struct btrfs_fs_info *fs_info = bbio->inode->root->fs_info;
+		struct btrfs_fs_info *fs_info = bbio->fs_info;
 
 		if (btrfs_is_zoned(fs_info))
 			return false;
@@ -603,7 +608,7 @@ static bool btrfs_wq_submit_bio(struct btrfs_bio *bbio,
 				struct btrfs_io_context *bioc,
 				struct btrfs_io_stripe *smap, int mirror_num)
 {
-	struct btrfs_fs_info *fs_info = bbio->inode->root->fs_info;
+	struct btrfs_fs_info *fs_info = bbio->fs_info;
 	struct async_submit_bio *async;
 
 	async = kmalloc(sizeof(*async), GFP_NOFS);
@@ -627,7 +632,7 @@ static bool btrfs_wq_submit_bio(struct btrfs_bio *bbio,
 static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 {
 	struct btrfs_inode *inode = bbio->inode;
-	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	struct btrfs_fs_info *fs_info = bbio->fs_info;
 	struct btrfs_bio *orig_bbio = bbio;
 	struct bio *bio = &bbio->bio;
 	u64 logical = bio->bi_iter.bi_sector << 9;
@@ -660,7 +665,7 @@ static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 	 * Save the iter for the end_io handler and preload the checksums for
 	 * data reads.
 	 */
-	if (bio_op(bio) == REQ_OP_READ && !(bio->bi_opf & REQ_META)) {
+	if (bio_op(bio) == REQ_OP_READ && inode && !(bio->bi_opf & REQ_META)) {
 		bbio->saved_iter = bio->bi_iter;
 		ret = btrfs_lookup_bio_sums(bbio);
 		if (ret)
@@ -680,7 +685,7 @@ static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 		 * Csum items for reloc roots have already been cloned at this
 		 * point, so they are handled as part of the no-checksum case.
 		 */
-		if (!(inode->flags & BTRFS_INODE_NODATASUM) &&
+		if (inode && !(inode->flags & BTRFS_INODE_NODATASUM) &&
 		    !test_bit(BTRFS_FS_STATE_NO_CSUMS, &fs_info->fs_state) &&
 		    !btrfs_is_data_reloc_root(inode->root)) {
 			if (should_async_write(bbio) &&
@@ -709,6 +714,9 @@ fail:
 
 void btrfs_submit_bio(struct btrfs_bio *bbio, int mirror_num)
 {
+	/* If bbio->inode is not populated, its file_offset must be 0. */
+	ASSERT(bbio->inode || bbio->file_offset == 0);
+
 	while (!btrfs_submit_chunk(bbio, mirror_num))
 		;
 }

@@ -7711,7 +7711,9 @@ static void btrfs_dio_submit_io(const struct iomap_iter *iter, struct bio *bio,
 		container_of(bbio, struct btrfs_dio_private, bbio);
 	struct btrfs_dio_data *dio_data = iter->private;
 
-	btrfs_bio_init(bbio, BTRFS_I(iter->inode), btrfs_dio_end_io, bio->bi_private);
+	btrfs_bio_init(bbio, BTRFS_I(iter->inode)->root->fs_info,
+		       btrfs_dio_end_io, bio->bi_private);
+	bbio->inode = BTRFS_I(iter->inode);
 	bbio->file_offset = file_offset;
 
 	dip->file_offset = file_offset;
@@ -9899,6 +9901,7 @@ int btrfs_encoded_read_regular_fill_pages(struct btrfs_inode *inode,
 					  u64 file_offset, u64 disk_bytenr,
 					  u64 disk_io_size, struct page **pages)
 {
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct btrfs_encoded_read_private priv = {
 		.pending = ATOMIC_INIT(1),
 	};
@@ -9907,9 +9910,10 @@ int btrfs_encoded_read_regular_fill_pages(struct btrfs_inode *inode,
 
 	init_waitqueue_head(&priv.wait);
 
-	bbio = btrfs_bio_alloc(BIO_MAX_VECS, REQ_OP_READ, inode,
-			      btrfs_encoded_read_endio, &priv);
+	bbio = btrfs_bio_alloc(BIO_MAX_VECS, REQ_OP_READ, fs_info,
+			       btrfs_encoded_read_endio, &priv);
 	bbio->bio.bi_iter.bi_sector = disk_bytenr >> SECTOR_SHIFT;
+	bbio->inode = inode;
 
 	do {
 		size_t bytes = min_t(u64, disk_io_size, PAGE_SIZE);
@@ -9918,9 +9922,10 @@ int btrfs_encoded_read_regular_fill_pages(struct btrfs_inode *inode,
 			atomic_inc(&priv.pending);
 			btrfs_submit_bio(bbio, 0);
 
-			bbio = btrfs_bio_alloc(BIO_MAX_VECS, REQ_OP_READ, inode,
+			bbio = btrfs_bio_alloc(BIO_MAX_VECS, REQ_OP_READ, fs_info,
 					       btrfs_encoded_read_endio, &priv);
 			bbio->bio.bi_iter.bi_sector = disk_bytenr >> SECTOR_SHIFT;
+			bbio->inode = inode;
 			continue;
 		}
 
