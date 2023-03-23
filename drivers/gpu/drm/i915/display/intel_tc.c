@@ -59,7 +59,6 @@ static enum intel_display_power_domain
 tc_phy_cold_off_domain(struct intel_tc_port *);
 static u32 tc_phy_hpd_live_status(struct intel_tc_port *tc);
 static bool tc_phy_is_ready(struct intel_tc_port *tc);
-static bool tc_phy_take_ownership(struct intel_tc_port *tc, bool take);
 static enum tc_port_mode tc_phy_get_current_mode(struct intel_tc_port *tc);
 
 static const char *tc_port_mode_name(enum tc_port_mode mode)
@@ -581,7 +580,7 @@ static bool icl_tc_phy_connect(struct intel_tc_port *tc,
 		return true;
 
 	if ((!tc_phy_is_ready(tc) ||
-	     !tc_phy_take_ownership(tc, true)) &&
+	     !icl_tc_phy_take_ownership(tc, true)) &&
 	    !drm_WARN_ON(&i915->drm, tc->mode == TC_PORT_LEGACY)) {
 		drm_dbg_kms(&i915->drm, "Port %s: can't take PHY ownership (ready %s)\n",
 			    tc->port_name,
@@ -596,7 +595,7 @@ static bool icl_tc_phy_connect(struct intel_tc_port *tc,
 	return true;
 
 out_release_phy:
-	tc_phy_take_ownership(tc, false);
+	icl_tc_phy_take_ownership(tc, false);
 out_unblock_tc_cold:
 	tc_cold_unblock(tc, fetch_and_zero(&tc->lock_wakeref));
 
@@ -612,7 +611,7 @@ static void icl_tc_phy_disconnect(struct intel_tc_port *tc)
 	switch (tc->mode) {
 	case TC_PORT_LEGACY:
 	case TC_PORT_DP_ALT:
-		tc_phy_take_ownership(tc, false);
+		icl_tc_phy_take_ownership(tc, false);
 		fallthrough;
 	case TC_PORT_TBT_ALT:
 		tc_cold_unblock(tc, fetch_and_zero(&tc->lock_wakeref));
@@ -769,6 +768,94 @@ static bool adlp_tc_phy_is_owned(struct intel_tc_port *tc)
 	return val & DDI_BUF_CTL_TC_PHY_OWNERSHIP;
 }
 
+static void adlp_tc_phy_get_hw_state(struct intel_tc_port *tc)
+{
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+	enum intel_display_power_domain port_power_domain =
+		tc_port_power_domain(tc);
+	intel_wakeref_t port_wakeref;
+
+	port_wakeref = intel_display_power_get(i915, port_power_domain);
+
+	tc->mode = tc_phy_get_current_mode(tc);
+	if (tc->mode != TC_PORT_DISCONNECTED)
+		tc->lock_wakeref = tc_cold_block(tc);
+
+	intel_display_power_put(i915, port_power_domain, port_wakeref);
+}
+
+static bool adlp_tc_phy_connect(struct intel_tc_port *tc, int required_lanes)
+{
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+	enum intel_display_power_domain port_power_domain =
+		tc_port_power_domain(tc);
+	intel_wakeref_t port_wakeref;
+
+	if (tc->mode == TC_PORT_TBT_ALT) {
+		tc->lock_wakeref = tc_cold_block(tc);
+		return true;
+	}
+
+	port_wakeref = intel_display_power_get(i915, port_power_domain);
+
+	if (!adlp_tc_phy_take_ownership(tc, true) &&
+	    !drm_WARN_ON(&i915->drm, tc->mode == TC_PORT_LEGACY)) {
+		drm_dbg_kms(&i915->drm, "Port %s: can't take PHY ownership\n",
+			    tc->port_name);
+		goto out_put_port_power;
+	}
+
+	if (!tc_phy_is_ready(tc) &&
+	    !drm_WARN_ON(&i915->drm, tc->mode == TC_PORT_LEGACY)) {
+		drm_dbg_kms(&i915->drm, "Port %s: PHY not ready\n",
+			    tc->port_name);
+		goto out_release_phy;
+	}
+
+	tc->lock_wakeref = tc_cold_block(tc);
+
+	if (!tc_phy_verify_legacy_or_dp_alt_mode(tc, required_lanes))
+		goto out_unblock_tc_cold;
+
+	intel_display_power_put(i915, port_power_domain, port_wakeref);
+
+	return true;
+
+out_unblock_tc_cold:
+	tc_cold_unblock(tc, fetch_and_zero(&tc->lock_wakeref));
+out_release_phy:
+	adlp_tc_phy_take_ownership(tc, false);
+out_put_port_power:
+	intel_display_power_put(i915, port_power_domain, port_wakeref);
+
+	return false;
+}
+
+static void adlp_tc_phy_disconnect(struct intel_tc_port *tc)
+{
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+	enum intel_display_power_domain port_power_domain =
+		tc_port_power_domain(tc);
+	intel_wakeref_t port_wakeref;
+
+	port_wakeref = intel_display_power_get(i915, port_power_domain);
+
+	tc_cold_unblock(tc, fetch_and_zero(&tc->lock_wakeref));
+
+	switch (tc->mode) {
+	case TC_PORT_LEGACY:
+	case TC_PORT_DP_ALT:
+		adlp_tc_phy_take_ownership(tc, false);
+		fallthrough;
+	case TC_PORT_TBT_ALT:
+		break;
+	default:
+		MISSING_CASE(tc->mode);
+	}
+
+	intel_display_power_put(i915, port_power_domain, port_wakeref);
+}
+
 static void adlp_tc_phy_init(struct intel_tc_port *tc)
 {
 	tc_phy_load_fia_params(tc, true);
@@ -779,9 +866,9 @@ static const struct intel_tc_phy_ops adlp_tc_phy_ops = {
 	.hpd_live_status = adlp_tc_phy_hpd_live_status,
 	.is_ready = adlp_tc_phy_is_ready,
 	.is_owned = adlp_tc_phy_is_owned,
-	.get_hw_state = icl_tc_phy_get_hw_state,
-	.connect = icl_tc_phy_connect,
-	.disconnect = icl_tc_phy_disconnect,
+	.get_hw_state = adlp_tc_phy_get_hw_state,
+	.connect = adlp_tc_phy_connect,
+	.disconnect = adlp_tc_phy_disconnect,
 	.init = adlp_tc_phy_init,
 };
 
@@ -821,16 +908,6 @@ static bool tc_phy_is_owned(struct intel_tc_port *tc)
 static void tc_phy_get_hw_state(struct intel_tc_port *tc)
 {
 	tc->phy_ops->get_hw_state(tc);
-}
-
-static bool tc_phy_take_ownership(struct intel_tc_port *tc, bool take)
-{
-	struct drm_i915_private *i915 = tc_to_i915(tc);
-
-	if (IS_ALDERLAKE_P(i915))
-		return adlp_tc_phy_take_ownership(tc, take);
-
-	return icl_tc_phy_take_ownership(tc, take);
 }
 
 static bool tc_phy_is_ready_and_owned(struct intel_tc_port *tc,
