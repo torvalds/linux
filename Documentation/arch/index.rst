@@ -22,7 +22,7 @@ implementation.
    ../powerpc/index
    ../riscv/index
    ../s390/index
-   ../sh/index
+   sh/index
    sparc/index
    x86/index
    xtensa/index
