@@ -106,6 +106,25 @@ static inline struct page_owner *get_page_owner(struct page_ext *page_ext)
 	return (void *)page_ext + page_owner_ops.offset;
 }
 
+depot_stack_handle_t get_page_owner_handle(struct page_ext *page_ext, unsigned long pfn)
+{
+	struct page_owner *page_owner;
+	depot_stack_handle_t handle;
+
+	if (!static_branch_unlikely(&page_owner_inited))
+		return 0;
+
+	page_owner = get_page_owner(page_ext);
+
+	/* skip handle for tail pages of higher order allocations */
+	if (!IS_ALIGNED(pfn, 1 << page_owner->order))
+		return 0;
+
+	handle = READ_ONCE(page_owner->handle);
+	return handle;
+}
+EXPORT_SYMBOL_NS_GPL(get_page_owner_handle, MINIDUMP);
+
 static noinline depot_stack_handle_t save_stack(gfp_t flags)
 {
 	unsigned long entries[PAGE_OWNER_STACK_DEPTH];
