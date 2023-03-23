@@ -2135,6 +2135,7 @@
 			mode-ums = <BOOT_UMS>;
 			mode-panic = <BOOT_PANIC>;
 			mode-watchdog = <BOOT_WATCHDOG>;
+			mode-quiescent = <BOOT_QUIESCENT>;
 		};
 	};
 
