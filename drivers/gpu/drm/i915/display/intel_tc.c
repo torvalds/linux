@@ -28,6 +28,7 @@ struct intel_tc_phy_ops {
 	u32 (*hpd_live_status)(struct intel_tc_port *tc);
 	bool (*is_ready)(struct intel_tc_port *tc);
 	bool (*is_owned)(struct intel_tc_port *tc);
+	void (*get_hw_state)(struct intel_tc_port *tc);
 };
 
 struct intel_tc_port {
@@ -51,6 +52,7 @@ struct intel_tc_port {
 static u32 tc_phy_hpd_live_status(struct intel_tc_port *tc);
 static bool tc_phy_is_ready(struct intel_tc_port *tc);
 static bool tc_phy_take_ownership(struct intel_tc_port *tc, bool take);
+static enum tc_port_mode tc_phy_get_current_mode(struct intel_tc_port *tc);
 
 static const char *tc_port_mode_name(enum tc_port_mode mode)
 {
@@ -407,6 +409,20 @@ static bool icl_tc_phy_is_owned(struct intel_tc_port *tc)
 	return val & DP_PHY_MODE_STATUS_NOT_SAFE(tc->phy_fia_idx);
 }
 
+static void icl_tc_phy_get_hw_state(struct intel_tc_port *tc)
+{
+	enum intel_display_power_domain domain;
+	intel_wakeref_t tc_cold_wref;
+
+	tc_cold_wref = tc_cold_block(tc, &domain);
+
+	tc->mode = tc_phy_get_current_mode(tc);
+	if (tc->mode != TC_PORT_DISCONNECTED)
+		tc->lock_wakeref = tc_cold_block(tc, &tc->lock_power_domain);
+
+	tc_cold_unblock(tc, domain, tc_cold_wref);
+}
+
 /*
  * This function implements the first part of the Connect Flow described by our
  * specification, Gen11 TypeC Programming chapter. The rest of the flow (reading
@@ -506,6 +522,7 @@ static const struct intel_tc_phy_ops icl_tc_phy_ops = {
 	.hpd_live_status = icl_tc_phy_hpd_live_status,
 	.is_ready = icl_tc_phy_is_ready,
 	.is_owned = icl_tc_phy_is_owned,
+	.get_hw_state = icl_tc_phy_get_hw_state,
 };
 
 /*
@@ -587,6 +604,7 @@ static const struct intel_tc_phy_ops adlp_tc_phy_ops = {
 	.hpd_live_status = adlp_tc_phy_hpd_live_status,
 	.is_ready = adlp_tc_phy_is_ready,
 	.is_owned = adlp_tc_phy_is_owned,
+	.get_hw_state = icl_tc_phy_get_hw_state,
 };
 
 /*
@@ -615,6 +633,11 @@ static bool tc_phy_is_ready(struct intel_tc_port *tc)
 static bool tc_phy_is_owned(struct intel_tc_port *tc)
 {
 	return tc->phy_ops->is_owned(tc);
+}
+
+static void tc_phy_get_hw_state(struct intel_tc_port *tc)
+{
+	tc->phy_ops->get_hw_state(tc);
 }
 
 static bool tc_phy_take_ownership(struct intel_tc_port *tc, bool take)
@@ -889,8 +912,6 @@ void intel_tc_port_init_mode(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	struct intel_tc_port *tc = to_tc_port(dig_port);
-	intel_wakeref_t tc_cold_wref;
-	enum intel_display_power_domain domain;
 	bool update_mode = false;
 
 	mutex_lock(&tc->lock);
@@ -899,17 +920,12 @@ void intel_tc_port_init_mode(struct intel_digital_port *dig_port)
 	drm_WARN_ON(&i915->drm, tc->lock_wakeref);
 	drm_WARN_ON(&i915->drm, tc->link_refcount);
 
-	tc_cold_wref = tc_cold_block(tc, &domain);
-
-	tc->mode = tc_phy_get_current_mode(tc);
+	tc_phy_get_hw_state(tc);
 	/*
 	 * Save the initial mode for the state check in
 	 * intel_tc_port_sanitize_mode().
 	 */
 	tc->init_mode = tc->mode;
-	if (tc->mode != TC_PORT_DISCONNECTED)
-		tc->lock_wakeref =
-			tc_cold_block(tc, &tc->lock_power_domain);
 
 	/*
 	 * The PHY needs to be connected for AUX to work during HW readout and
@@ -937,8 +953,6 @@ void intel_tc_port_init_mode(struct intel_digital_port *dig_port)
 
 	/* Prevent changing tc->mode until intel_tc_port_sanitize_mode() is called. */
 	__intel_tc_port_get_link(tc);
-
-	tc_cold_unblock(tc, domain, tc_cold_wref);
 
 	mutex_unlock(&tc->lock);
 }
