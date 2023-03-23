@@ -3,8 +3,6 @@
  * Copyright (c) 2022, 2023 Jianhua Lu <lujianhua000@gmail.com>
  */
 
-/dts-v1/;
-
 #include <dt-bindings/arm/qcom,ids.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 #include "sm8250.dtsi"
@@ -24,8 +22,6 @@
 /delete-node/ &xbl_aop_mem;
 
 / {
-	model = "Xiaomi Mi Pad 5 Pro";
-	compatible = "xiaomi,elish", "qcom,sm8250";
 	classis-type = "tablet";
 
 	/* required for bootloader to select correct board */
