@@ -50,18 +50,22 @@ static struct xe_device *uc_fw_to_xe(struct xe_uc_fw *uc_fw)
 	fw_def(DG1,          0, guc_def(dg1,  70, 5, 2)) \
 	fw_def(TIGERLAKE,    0, guc_def(tgl,  70, 5, 2))
 
-#define XE_HUC_FIRMWARE_DEFS(fw_def, huc_def) \
-	fw_def(DG1,          0, huc_def(dg1,  7, 9, 3)) \
-	fw_def(TIGERLAKE,    0, huc_def(tgl,  7, 9, 3))
+#define XE_HUC_FIRMWARE_DEFS(fw_def, huc_def, huc_ver) \
+	fw_def(DG1,          0, huc_def(dg1)) \
+	fw_def(TIGERLAKE,    0, huc_def(tgl))
+
+#define __MAKE_HUC_FW_PATH(prefix_, name_) \
+        "i915/" \
+        __stringify(prefix_) "_" name_ ".bin"
 
 #define __MAKE_UC_FW_PATH_MAJOR(prefix_, name_, major_) \
 	"i915/" \
 	__stringify(prefix_) "_" name_ "_" \
 	__stringify(major_) ".bin"
 
-#define __MAKE_UC_FW_PATH(prefix_, name_, major_, minor_, patch_) \
+#define __MAKE_UC_FW_PATH_FULL_VER(prefix_, name_, major_, minor_, patch_) \
         "i915/" \
-       __stringify(prefix_) name_ \
+       __stringify(prefix_) "_" name_ "_" \
        __stringify(major_) "." \
        __stringify(minor_) "." \
        __stringify(patch_) ".bin"
@@ -69,15 +73,19 @@ static struct xe_device *uc_fw_to_xe(struct xe_uc_fw *uc_fw)
 #define MAKE_GUC_FW_PATH(prefix_, major_, minor_, patch_) \
 	__MAKE_UC_FW_PATH_MAJOR(prefix_, "guc", major_)
 
-#define MAKE_HUC_FW_PATH(prefix_, major_, minor_, bld_num_) \
-	__MAKE_UC_FW_PATH(prefix_, "_huc_", major_, minor_, bld_num_)
+#define MAKE_HUC_FW_PATH(prefix_) \
+	__MAKE_HUC_FW_PATH(prefix_, "huc")
+
+#define MAKE_HUC_FW_PATH_FULL_VER(prefix_, major_, minor_, patch_) \
+	__MAKE_UC_FW_PATH_FULL_VER(prefix_, "huc", major_, minor_, patch_)
+
 
 /* All blobs need to be declared via MODULE_FIRMWARE() */
 #define XE_UC_MODULE_FW(platform_, revid_, uc_) \
 	MODULE_FIRMWARE(uc_);
 
 XE_GUC_FIRMWARE_DEFS(XE_UC_MODULE_FW, MAKE_GUC_FW_PATH)
-XE_HUC_FIRMWARE_DEFS(XE_UC_MODULE_FW, MAKE_HUC_FW_PATH)
+XE_HUC_FIRMWARE_DEFS(XE_UC_MODULE_FW, MAKE_HUC_FW_PATH, MAKE_HUC_FW_PATH_FULL_VER)
 
 /* The below structs and macros are used to iterate across the list of blobs */
 struct __packed uc_fw_blob {
@@ -93,9 +101,12 @@ struct __packed uc_fw_blob {
 	UC_FW_BLOB(major_, minor_, \
 		   MAKE_GUC_FW_PATH(prefix_, major_, minor_, patch_))
 
-#define HUC_FW_BLOB(prefix_, major_, minor_, bld_num_) \
+#define HUC_FW_BLOB(prefix_) \
+	UC_FW_BLOB(0, 0, MAKE_HUC_FW_PATH(prefix_))
+
+#define HUC_FW_VERSION_BLOB(prefix_, major_, minor_, bld_num_) \
 	UC_FW_BLOB(major_, minor_, \
-		   MAKE_HUC_FW_PATH(prefix_, major_, minor_, bld_num_))
+		   MAKE_HUC_FW_PATH_FULL_VER(prefix_, major_, minor_, bld_num_))
 
 struct __packed uc_fw_platform_requirement {
 	enum xe_platform p;
@@ -122,7 +133,7 @@ uc_fw_auto_select(struct xe_device *xe, struct xe_uc_fw *uc_fw)
 		XE_GUC_FIRMWARE_DEFS(MAKE_FW_LIST, GUC_FW_BLOB)
 	};
 	static const struct uc_fw_platform_requirement blobs_huc[] = {
-		XE_HUC_FIRMWARE_DEFS(MAKE_FW_LIST, HUC_FW_BLOB)
+		XE_HUC_FIRMWARE_DEFS(MAKE_FW_LIST, HUC_FW_BLOB, HUC_FW_VERSION_BLOB)
 	};
 	static const struct fw_blobs_by_type blobs_all[XE_UC_FW_NUM_TYPES] = {
 		[XE_UC_FW_TYPE_GUC] = { blobs_guc, ARRAY_SIZE(blobs_guc) },
@@ -299,15 +310,17 @@ int xe_uc_fw_init(struct xe_uc_fw *uc_fw)
 	uc_fw->minor_ver_found = FIELD_GET(CSS_SW_VERSION_UC_MINOR,
 					   css->sw_version);
 
-	if (uc_fw->major_ver_found != uc_fw->major_ver_wanted ||
-	    uc_fw->minor_ver_found < uc_fw->minor_ver_wanted) {
-		drm_notice(&xe->drm, "%s firmware %s: unexpected version: %u.%u != %u.%u\n",
-			   xe_uc_fw_type_repr(uc_fw->type), uc_fw->path,
-			   uc_fw->major_ver_found, uc_fw->minor_ver_found,
-			   uc_fw->major_ver_wanted, uc_fw->minor_ver_wanted);
-		if (!xe_uc_fw_is_overridden(uc_fw)) {
-			err = -ENOEXEC;
-			goto fail;
+	if (uc_fw->major_ver_wanted) {
+		if (uc_fw->major_ver_found != uc_fw->major_ver_wanted ||
+		    uc_fw->minor_ver_found < uc_fw->minor_ver_wanted) {
+			drm_notice(&xe->drm, "%s firmware %s: unexpected version: %u.%u != %u.%u\n",
+				   xe_uc_fw_type_repr(uc_fw->type), uc_fw->path,
+				   uc_fw->major_ver_found, uc_fw->minor_ver_found,
+				   uc_fw->major_ver_wanted, uc_fw->minor_ver_wanted);
+			if (!xe_uc_fw_is_overridden(uc_fw)) {
+				err = -ENOEXEC;
+				goto fail;
+			}
 		}
 	}
 
