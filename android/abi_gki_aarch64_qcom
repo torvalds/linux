@@ -838,6 +838,7 @@
   dma_buf_export
   dma_buf_fd
   dma_buf_get
+  dma_buf_get_each
   dma_buf_get_flags
   dma_buf_map_attachment
   dma_buf_put
@@ -1285,11 +1286,13 @@
   get_cpu_idle_time_us
   get_device
   get_device_system_crosststamp
+  get_each_object_track
   __get_free_pages
   get_governor_parent_kobj
   get_net_ns_by_fd
   get_net_ns_by_pid
   get_option
+  get_page_owner_handle
   get_pfnblock_flags_mask
   get_pid_task
   get_random_bytes
@@ -1297,6 +1300,7 @@
   get_random_u32
   __get_random_u32_below
   get_sg_io_hdr
+  get_slabinfo
   get_state_synchronize_rcu
   get_state_synchronize_srcu
   __get_task_comm
@@ -2368,6 +2372,8 @@
   out_of_line_wait_on_bit_timeout
   overflowuid
   page_endio
+  page_ext_get
+  page_ext_put
   page_is_ram
   page_mapping
   page_pool_alloc_pages
@@ -2437,6 +2443,7 @@
   pci_walk_bus
   pci_write_config_dword
   pci_write_config_word
+  pcpu_nr_pages
   __percpu_down_read
   percpu_down_write
   percpu_free_rwsem
@@ -3073,6 +3080,7 @@
   show_regs
   si_mem_available
   si_meminfo
+  si_swapinfo
   simple_attr_open
   simple_attr_read
   simple_attr_release
@@ -4037,6 +4045,7 @@
   vlan_vids_add_by_dev
   vlan_vids_del_by_dev
   vmalloc
+  vmalloc_nr_pages
   vmalloc_to_page
   vmalloc_to_pfn
   vmap
