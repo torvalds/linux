@@ -482,6 +482,8 @@ static bool icl_tc_phy_connect(struct intel_tc_port *tc,
 {
 	struct drm_i915_private *i915 = tc_to_i915(tc);
 
+	tc->lock_wakeref = tc_cold_block(tc, &tc->lock_power_domain);
+
 	if (tc->mode == TC_PORT_TBT_ALT)
 		return true;
 
@@ -491,7 +493,7 @@ static bool icl_tc_phy_connect(struct intel_tc_port *tc,
 		drm_dbg_kms(&i915->drm, "Port %s: can't take PHY ownership (ready %s)\n",
 			    tc->port_name,
 			    str_yes_no(tc_phy_is_ready(tc)));
-		return false;
+		goto out_unblock_tc_cold;
 	}
 
 
@@ -502,6 +504,10 @@ static bool icl_tc_phy_connect(struct intel_tc_port *tc,
 
 out_release_phy:
 	tc_phy_take_ownership(tc, false);
+out_unblock_tc_cold:
+	tc_cold_unblock(tc,
+			tc->lock_power_domain,
+			fetch_and_zero(&tc->lock_wakeref));
 
 	return false;
 }
@@ -518,6 +524,9 @@ static void icl_tc_phy_disconnect(struct intel_tc_port *tc)
 		tc_phy_take_ownership(tc, false);
 		fallthrough;
 	case TC_PORT_TBT_ALT:
+		tc_cold_unblock(tc,
+				tc->lock_power_domain,
+				fetch_and_zero(&tc->lock_wakeref));
 		break;
 	default:
 		MISSING_CASE(tc->mode);
@@ -888,32 +897,9 @@ static bool intel_tc_port_needs_reset(struct intel_tc_port *tc)
 static void intel_tc_port_update_mode(struct intel_tc_port *tc,
 				      int required_lanes, bool force_disconnect)
 {
-	enum intel_display_power_domain domain;
-	intel_wakeref_t wref;
-	bool needs_reset = force_disconnect;
-
-	if (!needs_reset) {
-		/* Get power domain required to check the hotplug live status. */
-		wref = tc_cold_block(tc, &domain);
-		needs_reset = intel_tc_port_needs_reset(tc);
-		tc_cold_unblock(tc, domain, wref);
-	}
-
-	if (!needs_reset)
-		return;
-
-	/* Get power domain required for resetting the mode. */
-	wref = tc_cold_block_in_mode(tc, TC_PORT_DISCONNECTED, &domain);
-
-	intel_tc_port_reset_mode(tc, required_lanes, force_disconnect);
-
-	/* Get power domain matching the new mode after reset. */
-	tc_cold_unblock(tc, tc->lock_power_domain,
-			fetch_and_zero(&tc->lock_wakeref));
-	if (tc->mode != TC_PORT_DISCONNECTED)
-		tc->lock_wakeref = tc_cold_block(tc, &tc->lock_power_domain);
-
-	tc_cold_unblock(tc, domain, wref);
+	if (force_disconnect ||
+	    intel_tc_port_needs_reset(tc))
+		intel_tc_port_reset_mode(tc, required_lanes, force_disconnect);
 }
 
 static void __intel_tc_port_get_link(struct intel_tc_port *tc)
@@ -1053,9 +1039,6 @@ void intel_tc_port_sanitize_mode(struct intel_digital_port *dig_port,
 				    tc_port_mode_name(tc->init_mode));
 		tc_phy_disconnect(tc);
 		__intel_tc_port_put_link(tc);
-
-		tc_cold_unblock(tc, tc->lock_power_domain,
-				fetch_and_zero(&tc->lock_wakeref));
 	}
 
 	drm_dbg_kms(&i915->drm, "Port %s: sanitize mode (%s)\n",
