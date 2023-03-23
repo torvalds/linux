@@ -459,6 +459,12 @@ void amdgpu_ucode_print_psp_hdr(const struct common_firmware_header *hdr)
 				DRM_DEBUG("psp_dbg_drv_size_bytes: %u\n",
 					  le32_to_cpu(desc->size_bytes));
 				break;
+			case PSP_FW_TYPE_PSP_RAS_DRV:
+				DRM_DEBUG("psp_ras_drv_version: %u\n",
+					  le32_to_cpu(desc->fw_version));
+				DRM_DEBUG("psp_ras_drv_size_bytes: %u\n",
+					  le32_to_cpu(desc->size_bytes));
+				break;
 			default:
 				DRM_DEBUG("Unsupported PSP fw type: %d\n", desc->fw_type);
 				break;
