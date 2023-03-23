@@ -2137,6 +2137,10 @@ This callback is also not mandatory. This callback is called when the
 emu10k1-fx and cs46xx need to track the current ``appl_ptr`` for the
 internal buffer, and this callback is useful only for such a purpose.
 
+The callback function may return 0 or a negative error. When the
+return value is ``-EPIPE``, PCM core treats as a buffer XRUN happens,
+and changes the state to ``SNDRV_PCM_STATE_XRUN`` automatically.
+
 This callback is atomic as default.
 
 page callback
