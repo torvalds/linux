@@ -2966,6 +2966,7 @@ udma_prep_slave_sg_triggered_tr(struct udma_chan *uc, struct scatterlist *sgl,
 	struct scatterlist *sgent;
 	struct cppi5_tr_type15_t *tr_req = NULL;
 	enum dma_slave_buswidth dev_width;
+	u32 csf = CPPI5_TR_CSF_SUPR_EVT;
 	u16 tr_cnt0, tr_cnt1;
 	dma_addr_t dev_addr;
 	struct udma_desc *d;
@@ -3036,6 +3037,7 @@ udma_prep_slave_sg_triggered_tr(struct udma_chan *uc, struct scatterlist *sgl,
 
 	if (uc->ud->match_data->type == DMA_TYPE_UDMA) {
 		asel = 0;
+		csf |= CPPI5_TR_CSF_EOL_ICNT0;
 	} else {
 		asel = (u64)uc->config.asel << K3_ADDRESS_ASEL_SHIFT;
 		dev_addr |= asel;
@@ -3059,7 +3061,7 @@ udma_prep_slave_sg_triggered_tr(struct udma_chan *uc, struct scatterlist *sgl,
 
 		cppi5_tr_init(&tr_req[tr_idx].flags, CPPI5_TR_TYPE15, false,
 			      true, CPPI5_TR_EVENT_SIZE_COMPLETION, 0);
-		cppi5_tr_csf_set(&tr_req[tr_idx].flags, CPPI5_TR_CSF_SUPR_EVT);
+		cppi5_tr_csf_set(&tr_req[tr_idx].flags, csf);
 		cppi5_tr_set_trigger(&tr_req[tr_idx].flags,
 				     uc->config.tr_trigger_type,
 				     CPPI5_TR_TRIGGER_TYPE_ICNT2_DEC, 0, 0);
@@ -3105,8 +3107,7 @@ udma_prep_slave_sg_triggered_tr(struct udma_chan *uc, struct scatterlist *sgl,
 			cppi5_tr_init(&tr_req[tr_idx].flags, CPPI5_TR_TYPE15,
 				      false, true,
 				      CPPI5_TR_EVENT_SIZE_COMPLETION, 0);
-			cppi5_tr_csf_set(&tr_req[tr_idx].flags,
-					 CPPI5_TR_CSF_SUPR_EVT);
+			cppi5_tr_csf_set(&tr_req[tr_idx].flags, csf);
 			cppi5_tr_set_trigger(&tr_req[tr_idx].flags,
 					     uc->config.tr_trigger_type,
 					     CPPI5_TR_TRIGGER_TYPE_ICNT2_DEC,
@@ -3150,8 +3151,7 @@ udma_prep_slave_sg_triggered_tr(struct udma_chan *uc, struct scatterlist *sgl,
 		d->residue += sg_len;
 	}
 
-	cppi5_tr_csf_set(&tr_req[tr_idx - 1].flags,
-			 CPPI5_TR_CSF_SUPR_EVT | CPPI5_TR_CSF_EOP);
+	cppi5_tr_csf_set(&tr_req[tr_idx - 1].flags, csf | CPPI5_TR_CSF_EOP);
 
 	return d;
 }
@@ -3680,6 +3680,7 @@ udma_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	int num_tr;
 	size_t tr_size = sizeof(struct cppi5_tr_type15_t);
 	u16 tr0_cnt0, tr0_cnt1, tr1_cnt0;
+	u32 csf = CPPI5_TR_CSF_SUPR_EVT;
 
 	if (uc->config.dir != DMA_MEM_TO_MEM) {
 		dev_err(chan->device->dev,
@@ -3710,13 +3711,15 @@ udma_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	if (uc->ud->match_data->type != DMA_TYPE_UDMA) {
 		src |= (u64)uc->ud->asel << K3_ADDRESS_ASEL_SHIFT;
 		dest |= (u64)uc->ud->asel << K3_ADDRESS_ASEL_SHIFT;
+	} else {
+		csf |= CPPI5_TR_CSF_EOL_ICNT0;
 	}
 
 	tr_req = d->hwdesc[0].tr_req_base;
 
 	cppi5_tr_init(&tr_req[0].flags, CPPI5_TR_TYPE15, false, true,
 		      CPPI5_TR_EVENT_SIZE_COMPLETION, 0);
-	cppi5_tr_csf_set(&tr_req[0].flags, CPPI5_TR_CSF_SUPR_EVT);
+	cppi5_tr_csf_set(&tr_req[0].flags, csf);
 
 	tr_req[0].addr = src;
 	tr_req[0].icnt0 = tr0_cnt0;
@@ -3735,7 +3738,7 @@ udma_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	if (num_tr == 2) {
 		cppi5_tr_init(&tr_req[1].flags, CPPI5_TR_TYPE15, false, true,
 			      CPPI5_TR_EVENT_SIZE_COMPLETION, 0);
-		cppi5_tr_csf_set(&tr_req[1].flags, CPPI5_TR_CSF_SUPR_EVT);
+		cppi5_tr_csf_set(&tr_req[1].flags, csf);
 
 		tr_req[1].addr = src + tr0_cnt1 * tr0_cnt0;
 		tr_req[1].icnt0 = tr1_cnt0;
@@ -3750,8 +3753,7 @@ udma_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 		tr_req[1].dicnt3 = 1;
 	}
 
-	cppi5_tr_csf_set(&tr_req[num_tr - 1].flags,
-			 CPPI5_TR_CSF_SUPR_EVT | CPPI5_TR_CSF_EOP);
+	cppi5_tr_csf_set(&tr_req[num_tr - 1].flags, csf | CPPI5_TR_CSF_EOP);
 
 	if (uc->config.metadata_size)
 		d->vd.tx.metadata_ops = &metadata_ops;
