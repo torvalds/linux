@@ -493,6 +493,8 @@ static void __bch2_fs_free(struct bch_fs *c)
 	kfree(c->journal_seq_blacklist_table);
 	kfree(c->unused_inode_hints);
 
+	if (c->write_ref_wq)
+		destroy_workqueue(c->write_ref_wq);
 	if (c->io_complete_wq)
 		destroy_workqueue(c->io_complete_wq);
 	if (c->copygc_wq)
@@ -787,6 +789,8 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 				WQ_FREEZABLE|WQ_MEM_RECLAIM|WQ_CPU_INTENSIVE, 1)) ||
 	    !(c->io_complete_wq = alloc_workqueue("bcachefs_io",
 				WQ_FREEZABLE|WQ_HIGHPRI|WQ_MEM_RECLAIM, 1)) ||
+	    !(c->write_ref_wq = alloc_workqueue("bcachefs_write_ref",
+				WQ_FREEZABLE, 0)) ||
 #ifndef BCH_WRITE_REF_DEBUG
 	    percpu_ref_init(&c->writes, bch2_writes_disabled,
 			    PERCPU_REF_INIT_DEAD, GFP_KERNEL) ||

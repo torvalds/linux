@@ -714,7 +714,7 @@ static void bch2_delete_dead_snapshots_work(struct work_struct *work)
 void bch2_delete_dead_snapshots_async(struct bch_fs *c)
 {
 	if (bch2_write_ref_tryget(c, BCH_WRITE_REF_delete_dead_snapshots) &&
-	    !queue_work(system_long_wq, &c->snapshot_delete_work))
+	    !queue_work(c->write_ref_wq, &c->snapshot_delete_work))
 		bch2_write_ref_put(c, BCH_WRITE_REF_delete_dead_snapshots);
 }
 
@@ -926,7 +926,7 @@ int bch2_subvolume_wait_for_pagecache_and_delete_hook(struct btree_trans *trans,
 	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_snapshot_delete_pagecache))
 		return -EROFS;
 
-	if (!queue_work(system_long_wq, &c->snapshot_wait_for_pagecache_and_delete_work))
+	if (!queue_work(c->write_ref_wq, &c->snapshot_wait_for_pagecache_and_delete_work))
 		bch2_write_ref_put(c, BCH_WRITE_REF_snapshot_delete_pagecache);
 	return 0;
 }

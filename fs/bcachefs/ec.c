@@ -826,7 +826,7 @@ static void ec_stripe_delete_work(struct work_struct *work)
 void bch2_do_stripe_deletes(struct bch_fs *c)
 {
 	if (bch2_write_ref_tryget(c, BCH_WRITE_REF_stripe_delete) &&
-	    !schedule_work(&c->ec_stripe_delete_work))
+	    !queue_work(c->write_ref_wq, &c->ec_stripe_delete_work))
 		bch2_write_ref_put(c, BCH_WRITE_REF_stripe_delete);
 }
 

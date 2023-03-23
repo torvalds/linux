@@ -1760,7 +1760,7 @@ static void bch2_do_discards_work(struct work_struct *work)
 void bch2_do_discards(struct bch_fs *c)
 {
 	if (bch2_write_ref_tryget(c, BCH_WRITE_REF_discard) &&
-	    !queue_work(system_long_wq, &c->discard_work))
+	    !queue_work(c->write_ref_wq, &c->discard_work))
 		bch2_write_ref_put(c, BCH_WRITE_REF_discard);
 }
 
@@ -1886,7 +1886,7 @@ err:
 void bch2_do_invalidates(struct bch_fs *c)
 {
 	if (bch2_write_ref_tryget(c, BCH_WRITE_REF_invalidate) &&
-	    !queue_work(system_long_wq, &c->invalidate_work))
+	    !queue_work(c->write_ref_wq, &c->invalidate_work))
 		bch2_write_ref_put(c, BCH_WRITE_REF_invalidate);
 }
 

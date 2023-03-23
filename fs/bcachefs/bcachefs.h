@@ -808,6 +808,12 @@ struct bch_fs {
 	struct workqueue_struct	*btree_io_complete_wq;
 	/* copygc needs its own workqueue for index updates.. */
 	struct workqueue_struct	*copygc_wq;
+	/*
+	 * Use a dedicated wq for write ref holder tasks. Required to avoid
+	 * dependency problems with other wq tasks that can block on ref
+	 * draining, such as read-only transition.
+	 */
+	struct workqueue_struct *write_ref_wq;
 
 	/* ALLOCATION */
 	struct bch_devs_mask	rw_devs[BCH_DATA_NR];
