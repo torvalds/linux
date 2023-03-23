@@ -449,7 +449,7 @@ static bool tc_phy_verify_legacy_or_dp_alt_mode(struct intel_tc_port *tc,
 	int max_lanes;
 
 	max_lanes = intel_tc_port_fia_max_lane_count(dig_port);
-	if (tc->legacy_port) {
+	if (tc->mode == TC_PORT_LEGACY) {
 		drm_WARN_ON(&i915->drm, max_lanes != 4);
 		return true;
 	}
@@ -485,16 +485,15 @@ static bool icl_tc_phy_connect(struct intel_tc_port *tc,
 	if (tc->mode == TC_PORT_TBT_ALT)
 		return true;
 
-	if (!tc_phy_is_ready(tc) &&
-	    !drm_WARN_ON(&i915->drm, tc->legacy_port)) {
-		drm_dbg_kms(&i915->drm, "Port %s: PHY not ready\n",
-			    tc->port_name);
+	if ((!tc_phy_is_ready(tc) ||
+	     !tc_phy_take_ownership(tc, true)) &&
+	    !drm_WARN_ON(&i915->drm, tc->mode == TC_PORT_LEGACY)) {
+		drm_dbg_kms(&i915->drm, "Port %s: can't take PHY ownership (ready %s)\n",
+			    tc->port_name,
+			    str_yes_no(tc_phy_is_ready(tc)));
 		return false;
 	}
 
-	if (!tc_phy_take_ownership(tc, true) &&
-	    !drm_WARN_ON(&i915->drm, tc->legacy_port))
-		return false;
 
 	if (!tc_phy_verify_legacy_or_dp_alt_mode(tc, required_lanes))
 		goto out_release_phy;
