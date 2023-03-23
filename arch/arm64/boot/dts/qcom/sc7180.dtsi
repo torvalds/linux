@@ -1543,8 +1543,13 @@
 				function = "qspi_cs";
 			};
 
-			qspi_data01: qspi-data01-state {
-				pins = "gpio64", "gpio65";
+			qspi_data0: qspi-data0-state {
+				pins = "gpio64";
+				function = "qspi_data";
+			};
+
+			qspi_data1: qspi-data1-state {
+				pins = "gpio65";
 				function = "qspi_data";
 			};
 
