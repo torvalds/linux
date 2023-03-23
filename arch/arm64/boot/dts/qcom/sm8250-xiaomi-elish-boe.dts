@@ -11,3 +11,8 @@
 	model = "Xiaomi Mi Pad 5 Pro (BOE)";
 	compatible = "xiaomi,elish", "qcom,sm8250";
 };
+
+&display_panel {
+	compatible = "xiaomi,elish-boe-nt36523";
+	status = "okay";
+};
