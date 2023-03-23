@@ -1183,6 +1183,49 @@ static inline void ext4_quota_off_umount(struct super_block *sb)
 }
 #endif
 
+static int ext4_percpu_param_init(struct ext4_sb_info *sbi)
+{
+	ext4_fsblk_t block;
+	int err;
+
+	block = ext4_count_free_clusters(sbi->s_sb);
+	ext4_free_blocks_count_set(sbi->s_es, EXT4_C2B(sbi, block));
+	err = percpu_counter_init(&sbi->s_freeclusters_counter, block,
+				  GFP_KERNEL);
+	if (!err) {
+		unsigned long freei = ext4_count_free_inodes(sbi->s_sb);
+		sbi->s_es->s_free_inodes_count = cpu_to_le32(freei);
+		err = percpu_counter_init(&sbi->s_freeinodes_counter, freei,
+					  GFP_KERNEL);
+	}
+	if (!err)
+		err = percpu_counter_init(&sbi->s_dirs_counter,
+					  ext4_count_dirs(sbi->s_sb), GFP_KERNEL);
+	if (!err)
+		err = percpu_counter_init(&sbi->s_dirtyclusters_counter, 0,
+					  GFP_KERNEL);
+	if (!err)
+		err = percpu_counter_init(&sbi->s_sra_exceeded_retry_limit, 0,
+					  GFP_KERNEL);
+	if (!err)
+		err = percpu_init_rwsem(&sbi->s_writepages_rwsem);
+
+	if (err)
+		ext4_msg(sbi->s_sb, KERN_ERR, "insufficient memory");
+
+	return err;
+}
+
+static void ext4_percpu_param_destroy(struct ext4_sb_info *sbi)
+{
+	percpu_counter_destroy(&sbi->s_freeclusters_counter);
+	percpu_counter_destroy(&sbi->s_freeinodes_counter);
+	percpu_counter_destroy(&sbi->s_dirs_counter);
+	percpu_counter_destroy(&sbi->s_dirtyclusters_counter);
+	percpu_counter_destroy(&sbi->s_sra_exceeded_retry_limit);
+	percpu_free_rwsem(&sbi->s_writepages_rwsem);
+}
+
 static void ext4_put_super(struct super_block *sb)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
@@ -1250,12 +1293,7 @@ static void ext4_put_super(struct super_block *sb)
 		kvfree(flex_groups);
 	}
 	rcu_read_unlock();
-	percpu_counter_destroy(&sbi->s_freeclusters_counter);
-	percpu_counter_destroy(&sbi->s_freeinodes_counter);
-	percpu_counter_destroy(&sbi->s_dirs_counter);
-	percpu_counter_destroy(&sbi->s_dirtyclusters_counter);
-	percpu_counter_destroy(&sbi->s_sra_exceeded_retry_limit);
-	percpu_free_rwsem(&sbi->s_writepages_rwsem);
+	ext4_percpu_param_destroy(sbi);
 #ifdef CONFIG_QUOTA
 	for (i = 0; i < EXT4_MAXQUOTAS; i++)
 		kfree(get_qf_name(sb, sbi, i));
@@ -5058,7 +5096,6 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 	struct ext4_super_block *es = NULL;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct flex_groups **flex_groups;
-	ext4_fsblk_t block;
 	ext4_fsblk_t logical_sb_block;
 	struct inode *root;
 	int ret = -ENOMEM;
@@ -5450,33 +5487,8 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 		sbi->s_journal->j_commit_callback =
 			ext4_journal_commit_callback;
 
-	block = ext4_count_free_clusters(sb);
-	ext4_free_blocks_count_set(sbi->s_es,
-				   EXT4_C2B(sbi, block));
-	err = percpu_counter_init(&sbi->s_freeclusters_counter, block,
-				  GFP_KERNEL);
-	if (!err) {
-		unsigned long freei = ext4_count_free_inodes(sb);
-		sbi->s_es->s_free_inodes_count = cpu_to_le32(freei);
-		err = percpu_counter_init(&sbi->s_freeinodes_counter, freei,
-					  GFP_KERNEL);
-	}
-	if (!err)
-		err = percpu_counter_init(&sbi->s_dirs_counter,
-					  ext4_count_dirs(sb), GFP_KERNEL);
-	if (!err)
-		err = percpu_counter_init(&sbi->s_dirtyclusters_counter, 0,
-					  GFP_KERNEL);
-	if (!err)
-		err = percpu_counter_init(&sbi->s_sra_exceeded_retry_limit, 0,
-					  GFP_KERNEL);
-	if (!err)
-		err = percpu_init_rwsem(&sbi->s_writepages_rwsem);
-
-	if (err) {
-		ext4_msg(sb, KERN_ERR, "insufficient memory");
+	if (ext4_percpu_param_init(sbi))
 		goto failed_mount6;
-	}
 
 	if (ext4_has_feature_flex_bg(sb))
 		if (!ext4_fill_flex_info(sb)) {
@@ -5566,12 +5578,7 @@ failed_mount6:
 		kvfree(flex_groups);
 	}
 	rcu_read_unlock();
-	percpu_counter_destroy(&sbi->s_freeclusters_counter);
-	percpu_counter_destroy(&sbi->s_freeinodes_counter);
-	percpu_counter_destroy(&sbi->s_dirs_counter);
-	percpu_counter_destroy(&sbi->s_dirtyclusters_counter);
-	percpu_counter_destroy(&sbi->s_sra_exceeded_retry_limit);
-	percpu_free_rwsem(&sbi->s_writepages_rwsem);
+	ext4_percpu_param_destroy(sbi);
 failed_mount5:
 	ext4_ext_release(sb);
 	ext4_release_system_zone(sb);
