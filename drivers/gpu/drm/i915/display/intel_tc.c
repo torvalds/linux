@@ -15,6 +15,28 @@
 #include "intel_mg_phy_regs.h"
 #include "intel_tc.h"
 
+enum tc_port_mode {
+	TC_PORT_DISCONNECTED,
+	TC_PORT_TBT_ALT,
+	TC_PORT_DP_ALT,
+	TC_PORT_LEGACY,
+};
+
+struct intel_tc_port {
+	struct intel_digital_port *dig_port;
+	struct mutex lock;	/* protects the TypeC port mode */
+	intel_wakeref_t lock_wakeref;
+	enum intel_display_power_domain lock_power_domain;
+	struct delayed_work disconnect_phy_work;
+	int link_refcount;
+	bool legacy_port:1;
+	char port_name[8];
+	enum tc_port_mode mode;
+	enum tc_port_mode init_mode;
+	enum phy_fia phy_fia;
+	u8 phy_fia_idx;
+};
+
 static u32 tc_phy_hpd_live_status(struct intel_tc_port *tc);
 static bool tc_phy_is_ready(struct intel_tc_port *tc);
 static bool tc_phy_take_ownership(struct intel_tc_port *tc, bool take);
@@ -36,7 +58,7 @@ static const char *tc_port_mode_name(enum tc_port_mode mode)
 
 static struct intel_tc_port *to_tc_port(struct intel_digital_port *dig_port)
 {
-	return &dig_port->tc;
+	return dig_port->tc;
 }
 
 static struct drm_i915_private *tc_to_i915(struct intel_tc_port *tc)
@@ -1158,16 +1180,21 @@ tc_port_load_fia_params(struct drm_i915_private *i915, struct intel_tc_port *tc)
 	}
 }
 
-void intel_tc_port_init(struct intel_digital_port *dig_port, bool is_legacy)
+int intel_tc_port_init(struct intel_digital_port *dig_port, bool is_legacy)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-	struct intel_tc_port *tc = to_tc_port(dig_port);
+	struct intel_tc_port *tc;
 	enum port port = dig_port->base.port;
 	enum tc_port tc_port = intel_port_to_tc(i915, port);
 
 	if (drm_WARN_ON(&i915->drm, tc_port == TC_PORT_NONE))
-		return;
+		return -EINVAL;
 
+	tc = kzalloc(sizeof(*tc), GFP_KERNEL);
+	if (!tc)
+		return -ENOMEM;
+
+	dig_port->tc = tc;
 	tc->dig_port = dig_port;
 
 	snprintf(tc->port_name, sizeof(tc->port_name),
@@ -1181,4 +1208,14 @@ void intel_tc_port_init(struct intel_digital_port *dig_port, bool is_legacy)
 	tc_port_load_fia_params(i915, tc);
 
 	intel_tc_port_init_mode(dig_port);
+
+	return 0;
+}
+
+void intel_tc_port_cleanup(struct intel_digital_port *dig_port)
+{
+	intel_tc_port_flush_work(dig_port);
+
+	kfree(dig_port->tc);
+	dig_port->tc = NULL;
 }

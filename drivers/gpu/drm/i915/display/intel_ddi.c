@@ -3843,7 +3843,7 @@ static void intel_ddi_encoder_destroy(struct drm_encoder *encoder)
 
 	intel_dp_encoder_flush_work(encoder);
 	if (intel_phy_is_tc(i915, phy))
-		intel_tc_port_flush_work(dig_port);
+		intel_tc_port_cleanup(dig_port);
 	intel_display_power_flush_work(i915);
 
 	drm_encoder_cleanup(encoder);
@@ -4284,7 +4284,7 @@ static void intel_ddi_encoder_shutdown(struct intel_encoder *encoder)
 	if (!intel_phy_is_tc(i915, phy))
 		return;
 
-	intel_tc_port_flush_work(dig_port);
+	intel_tc_port_cleanup(dig_port);
 }
 
 #define port_tc_name(port) ((port) - PORT_TC1 + '1')
@@ -4541,7 +4541,8 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 				    is_legacy ? "legacy" : "non-legacy");
 		}
 
-		intel_tc_port_init(dig_port, is_legacy);
+		if (intel_tc_port_init(dig_port, is_legacy) < 0)
+			goto err;
 
 		encoder->update_prepare = intel_ddi_update_prepare;
 		encoder->update_complete = intel_ddi_update_complete;

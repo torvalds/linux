@@ -54,13 +54,13 @@
 #include "intel_display_power.h"
 #include "intel_dpll_mgr.h"
 #include "intel_wm_types.h"
-#include "intel_tc.h"
 
 struct drm_printer;
 struct __intel_global_objs_state;
 struct intel_ddi_buf_trans;
 struct intel_fbc;
 struct intel_connector;
+struct intel_tc_port;
 
 /*
  * Display related stuff
@@ -1783,7 +1783,7 @@ struct intel_digital_port {
 	intel_wakeref_t ddi_io_wakeref;
 	intel_wakeref_t aux_wakeref;
 
-	struct intel_tc_port tc;
+	struct intel_tc_port *tc;
 
 	/* protects num_hdcp_streams reference count, hdcp_port_data and hdcp_auth_status */
 	struct mutex hdcp_mutex;
