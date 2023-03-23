@@ -320,6 +320,8 @@ static inline void __check_racy_pte_update(struct mm_struct *mm, pte_t *ptep,
 		     __func__, pte_val(old_pte), pte_val(pte));
 }
 
+#include <asm/android_erratum_pgtable.h>
+
 static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 				pte_t *ptep, pte_t pte)
 {
@@ -348,6 +350,7 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 
 	__check_racy_pte_update(mm, ptep, pte);
 
+	arm64_update_cacheable_aliases(ptep, pte);
 	set_pte(ptep, pte);
 }
 
@@ -531,6 +534,7 @@ static inline pmd_t pmd_mkdevmap(pmd_t pmd)
 static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 			      pmd_t *pmdp, pmd_t pmd)
 {
+	WARN_ON(prot_needs_stage2_update(__pgprot(pmd_val(pmd))));
 	page_table_check_pmd_set(mm, addr, pmdp, pmd);
 	return __set_pte_at(mm, addr, (pte_t *)pmdp, pmd_pte(pmd));
 }
@@ -538,6 +542,7 @@ static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 static inline void set_pud_at(struct mm_struct *mm, unsigned long addr,
 			      pud_t *pudp, pud_t pud)
 {
+	WARN_ON(prot_needs_stage2_update(__pgprot(pud_val(pud))));
 	page_table_check_pud_set(mm, addr, pudp, pud);
 	return __set_pte_at(mm, addr, (pte_t *)pudp, pud_pte(pud));
 }
@@ -933,7 +938,10 @@ static inline int pmdp_test_and_clear_young(struct vm_area_struct *vma,
 static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
 				       unsigned long address, pte_t *ptep)
 {
-	pte_t pte = __pte(xchg_relaxed(&pte_val(*ptep), 0));
+	pte_t pte;
+
+	arm64_update_cacheable_aliases(ptep, __pte(0));
+	pte = __pte(xchg_relaxed(&pte_val(*ptep), 0));
 
 	page_table_check_pte_clear(mm, address, pte);
 
