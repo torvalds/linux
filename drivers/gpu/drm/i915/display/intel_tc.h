@@ -9,9 +9,35 @@
 #include <linux/mutex.h>
 #include <linux/types.h>
 
+#include "intel_display.h"
+#include "intel_display_power.h"
+#include "intel_wakeref.h"
+
 struct intel_crtc_state;
 struct intel_digital_port;
 struct intel_encoder;
+
+enum tc_port_mode {
+	TC_PORT_DISCONNECTED,
+	TC_PORT_TBT_ALT,
+	TC_PORT_DP_ALT,
+	TC_PORT_LEGACY,
+};
+
+struct intel_tc_port {
+	struct intel_digital_port *dig_port;
+	struct mutex lock;	/* protects the TypeC port mode */
+	intel_wakeref_t lock_wakeref;
+	enum intel_display_power_domain lock_power_domain;
+	struct delayed_work disconnect_phy_work;
+	int link_refcount;
+	bool legacy_port:1;
+	char port_name[8];
+	enum tc_port_mode mode;
+	enum tc_port_mode init_mode;
+	enum phy_fia phy_fia;
+	u8 phy_fia_idx;
+};
 
 bool intel_tc_port_in_tbt_alt_mode(struct intel_digital_port *dig_port);
 bool intel_tc_port_in_dp_alt_mode(struct intel_digital_port *dig_port);
