@@ -422,6 +422,7 @@ static int __simple_for_each_link(struct asoc_simple_priv *priv,
 		}
 
 		of_node_put(codec);
+		of_node_put(plat);
 		node = of_get_next_child(top, node);
 	} while (!is_top && node);
 
