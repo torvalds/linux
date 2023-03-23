@@ -151,14 +151,10 @@ static void amd_guest_code(void)
  */
 static uint64_t run_vcpu_to_sync(struct kvm_vcpu *vcpu)
 {
-	struct kvm_run *run = vcpu->run;
 	struct ucall uc;
 
 	vcpu_run(vcpu);
-	TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
-		    "Exit_reason other than KVM_EXIT_IO: %u (%s)\n",
-		    run->exit_reason,
-		    exit_reason_str(run->exit_reason));
+	TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_IO);
 	get_ucall(vcpu, &uc);
 	TEST_ASSERT(uc.cmd == UCALL_SYNC,
 		    "Received ucall other than UCALL_SYNC: %lu", uc.cmd);

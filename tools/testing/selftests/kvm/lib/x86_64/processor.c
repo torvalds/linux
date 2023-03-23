@@ -1139,21 +1139,36 @@ const struct kvm_cpuid_entry2 *get_cpuid_entry(const struct kvm_cpuid2 *cpuid,
 	return NULL;
 }
 
+#define X86_HYPERCALL(inputs...)					\
+({									\
+	uint64_t r;							\
+									\
+	asm volatile("test %[use_vmmcall], %[use_vmmcall]\n\t"		\
+		     "jnz 1f\n\t"					\
+		     "vmcall\n\t"					\
+		     "jmp 2f\n\t"					\
+		     "1: vmmcall\n\t"					\
+		     "2:"						\
+		     : "=a"(r)						\
+		     : [use_vmmcall] "r" (host_cpu_is_amd), inputs);	\
+									\
+	r;								\
+})
+
 uint64_t kvm_hypercall(uint64_t nr, uint64_t a0, uint64_t a1, uint64_t a2,
 		       uint64_t a3)
 {
-	uint64_t r;
+	return X86_HYPERCALL("a"(nr), "b"(a0), "c"(a1), "d"(a2), "S"(a3));
+}
 
-	asm volatile("test %[use_vmmcall], %[use_vmmcall]\n\t"
-		     "jnz 1f\n\t"
-		     "vmcall\n\t"
-		     "jmp 2f\n\t"
-		     "1: vmmcall\n\t"
-		     "2:"
-		     : "=a"(r)
-		     : "a"(nr), "b"(a0), "c"(a1), "d"(a2), "S"(a3),
-		       [use_vmmcall] "r" (host_cpu_is_amd));
-	return r;
+uint64_t __xen_hypercall(uint64_t nr, uint64_t a0, void *a1)
+{
+	return X86_HYPERCALL("a"(nr), "D"(a0), "S"(a1));
+}
+
+void xen_hypercall(uint64_t nr, uint64_t a0, void *a1)
+{
+	GUEST_ASSERT(!__xen_hypercall(nr, a0, a1));
 }
 
 const struct kvm_cpuid2 *kvm_get_supported_hv_cpuid(void)

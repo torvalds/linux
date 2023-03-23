@@ -80,6 +80,7 @@ TEST_GEN_FILES += sctp_hello
 TEST_GEN_FILES += csum
 TEST_GEN_FILES += nat6to4.o
 TEST_GEN_FILES += ip_local_port_range
+TEST_GEN_FILES += bind_wildcard
 
 TEST_FILES := settings
 

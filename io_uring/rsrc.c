@@ -410,7 +410,7 @@ __cold static int io_rsrc_data_alloc(struct io_ring_ctx *ctx,
 				     unsigned nr, struct io_rsrc_data **pdata)
 {
 	struct io_rsrc_data *data;
-	int ret = -ENOMEM;
+	int ret = 0;
 	unsigned i;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
@@ -1235,7 +1235,13 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,
 			}
 		}
 		if (folio) {
-			folio_put_refs(folio, nr_pages - 1);
+			/*
+			 * The pages are bound to the folio, it doesn't
+			 * actually unpin them but drops all but one reference,
+			 * which is usually put down by io_buffer_unmap().
+			 * Note, needs a better helper.
+			 */
+			unpin_user_pages(&pages[1], nr_pages - 1);
 			nr_pages = 1;
 		}
 	}
