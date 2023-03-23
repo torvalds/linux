@@ -325,6 +325,15 @@ config COMMON_CLK_LOCHNAGAR
 	  This driver supports the clocking features of the Cirrus Logic
 	  Lochnagar audio development board.
 
+config COMMON_CLK_LOONGSON2
+	bool "Clock driver for Loongson-2 SoC"
+	depends on LOONGARCH || COMPILE_TEST
+	help
+          This driver provides support for clock controller on Loongson-2 SoC.
+          The clock controller can generates and supplies clock to various
+          peripherals within the SoC.
+          Say Y here to support Loongson-2 SoC clock driver.
+
 config COMMON_CLK_NXP
 	def_bool COMMON_CLK && (ARCH_LPC18XX || ARCH_LPC32XX)
 	select REGMAP_MMIO if ARCH_LPC32XX
