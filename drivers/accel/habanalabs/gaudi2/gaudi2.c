@@ -8884,7 +8884,7 @@ static void gaudi2_handle_access_error(struct hl_device *hdev, u64 mmu_base, boo
 
 	dev_err_ratelimited(hdev->dev, "%s access error on va 0x%llx\n",
 				is_pmmu ? "PMMU" : "HMMU", addr);
-	WREG32(mmu_base + MMU_OFFSET(mmDCORE0_HMMU0_MMU_ACCESS_ERROR_CAPTURE), 0);
+	WREG32(mmu_base + MMU_OFFSET(mmDCORE0_HMMU0_MMU_ACCESS_PAGE_ERROR_VALID), 0);
 }
 
 static int gaudi2_handle_mmu_spi_sei_generic(struct hl_device *hdev, u16 event_type,
