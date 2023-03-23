@@ -782,7 +782,7 @@ run_next:
 	else
 		dev->irq_ends_mask &= ~ISP_FRAME_MPFBC;
 	if ((dev->isp_ver == ISP_V30 &&
-	     rkisp_read(dev, ISP3X_BP_ENABLE, true) & ISP3X_BP_ENABLE) ||
+	     rkisp_read(dev, ISP3X_MI_BP_WR_CTRL, true) & ISP3X_BP_ENABLE) ||
 	    (dev->isp_ver == ISP_V32 &&
 	     rkisp_read(dev, ISP32_MI_WR_CTRL2_SHD, true) & ISP32_BP_EN_OUT_SHD))
 		dev->irq_ends_mask |= ISP_FRAME_BP;
