@@ -1890,7 +1890,8 @@ void bch2_do_invalidates(struct bch_fs *c)
 		bch2_write_ref_put(c, BCH_WRITE_REF_invalidate);
 }
 
-static int bch2_dev_freespace_init(struct bch_fs *c, struct bch_dev *ca)
+static int bch2_dev_freespace_init(struct bch_fs *c, struct bch_dev *ca,
+				   unsigned long *last_updated)
 {
 	struct btree_trans trans;
 	struct btree_iter iter;
@@ -1910,6 +1911,12 @@ static int bch2_dev_freespace_init(struct bch_fs *c, struct bch_dev *ca)
 	 * freespace/need_discard/need_gc_gens btrees as needed:
 	 */
 	while (1) {
+		if (*last_updated + HZ * 10 < jiffies) {
+			bch_info(ca, "%s: currently at %llu/%llu",
+				 __func__, iter.pos.offset, ca->mi.nbuckets);
+			*last_updated = jiffies;
+		}
+
 		bch2_trans_begin(&trans);
 
 		if (bkey_ge(iter.pos, end)) {
@@ -1989,6 +1996,7 @@ int bch2_fs_freespace_init(struct bch_fs *c)
 	unsigned i;
 	int ret = 0;
 	bool doing_init = false;
+	unsigned long last_updated = jiffies;
 
 	/*
 	 * We can crash during the device add path, so we need to check this on
@@ -2004,7 +2012,7 @@ int bch2_fs_freespace_init(struct bch_fs *c)
 			doing_init = true;
 		}
 
-		ret = bch2_dev_freespace_init(c, ca);
+		ret = bch2_dev_freespace_init(c, ca, &last_updated);
 		if (ret) {
 			percpu_ref_put(&ca->ref);
 			return ret;
