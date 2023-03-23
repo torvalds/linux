@@ -59,8 +59,8 @@
 #define PPCMODE_EPP_WORD	5
 #define PPCMODE_EPP_DWORD	6
 
-int mode_map[] = { PPCMODE_UNI_FW, PPCMODE_BI_FW, PPCMODE_EPP_BYTE,
-		   PPCMODE_EPP_WORD, PPCMODE_EPP_DWORD };
+static int mode_map[] = { PPCMODE_UNI_FW, PPCMODE_BI_FW, PPCMODE_EPP_BYTE,
+			  PPCMODE_EPP_WORD, PPCMODE_EPP_DWORD };
 
 static void bpck6_send_cmd(struct pi_adapter *pi, u8 cmd)
 {
