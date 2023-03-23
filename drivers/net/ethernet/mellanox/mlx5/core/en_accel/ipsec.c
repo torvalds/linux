@@ -308,6 +308,7 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x,
 	struct net_device *netdev = x->xso.real_dev;
 	struct mlx5e_ipsec *ipsec;
 	struct mlx5e_priv *priv;
+	gfp_t gfp;
 	int err;
 
 	priv = netdev_priv(netdev);
@@ -315,16 +316,20 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x,
 		return -EOPNOTSUPP;
 
 	ipsec = priv->ipsec;
-	err = mlx5e_xfrm_validate_state(priv->mdev, x, extack);
-	if (err)
-		return err;
-
-	sa_entry = kzalloc(sizeof(*sa_entry), GFP_KERNEL);
+	gfp = (x->xso.flags & XFRM_DEV_OFFLOAD_FLAG_ACQ) ? GFP_ATOMIC : GFP_KERNEL;
+	sa_entry = kzalloc(sizeof(*sa_entry), gfp);
 	if (!sa_entry)
 		return -ENOMEM;
 
 	sa_entry->x = x;
 	sa_entry->ipsec = ipsec;
+	/* Check if this SA is originated from acquire flow temporary SA */
+	if (x->xso.flags & XFRM_DEV_OFFLOAD_FLAG_ACQ)
+		goto out;
+
+	err = mlx5e_xfrm_validate_state(priv->mdev, x, extack);
+	if (err)
+		goto err_xfrm;
 
 	/* check esn */
 	mlx5e_ipsec_update_esn_state(sa_entry);
@@ -353,6 +358,7 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x,
 				mlx5e_ipsec_set_iv_esn : mlx5e_ipsec_set_iv;
 
 	INIT_WORK(&sa_entry->modify_work.work, _update_xfrm_state);
+out:
 	x->xso.offload_handle = (unsigned long)sa_entry;
 	return 0;
 
@@ -372,6 +378,9 @@ static void mlx5e_xfrm_del_state(struct xfrm_state *x)
 	struct mlx5e_ipsec *ipsec = sa_entry->ipsec;
 	struct mlx5e_ipsec_sa_entry *old;
 
+	if (x->xso.flags & XFRM_DEV_OFFLOAD_FLAG_ACQ)
+		return;
+
 	old = xa_erase_bh(&ipsec->sadb, sa_entry->ipsec_obj_id);
 	WARN_ON(old != sa_entry);
 }
@@ -380,9 +389,13 @@ static void mlx5e_xfrm_free_state(struct xfrm_state *x)
 {
 	struct mlx5e_ipsec_sa_entry *sa_entry = to_ipsec_sa_entry(x);
 
+	if (x->xso.flags & XFRM_DEV_OFFLOAD_FLAG_ACQ)
+		goto sa_entry_free;
+
 	cancel_work_sync(&sa_entry->modify_work.work);
 	mlx5e_accel_ipsec_fs_del_rule(sa_entry);
 	mlx5_ipsec_free_sa_ctx(sa_entry);
+sa_entry_free:
 	kfree(sa_entry);
 }
 
@@ -482,26 +495,26 @@ static void mlx5e_xfrm_advance_esn_state(struct xfrm_state *x)
 static void mlx5e_xfrm_update_curlft(struct xfrm_state *x)
 {
 	struct mlx5e_ipsec_sa_entry *sa_entry = to_ipsec_sa_entry(x);
-	int err;
+	struct mlx5e_ipsec_rule *ipsec_rule = &sa_entry->ipsec_rule;
+	u64 packets, bytes, lastuse;
 
-	lockdep_assert_held(&x->lock);
+	lockdep_assert(lockdep_is_held(&x->lock) ||
+		       lockdep_is_held(&dev_net(x->xso.real_dev)->xfrm.xfrm_cfg_mutex));
 
-	if (sa_entry->attrs.soft_packet_limit == XFRM_INF)
-		/* Limits are not configured, as soft limit
-		 * must be lowever than hard limit.
-		 */
+	if (x->xso.flags & XFRM_DEV_OFFLOAD_FLAG_ACQ)
 		return;
 
-	err = mlx5e_ipsec_aso_query(sa_entry, NULL);
-	if (err)
-		return;
-
-	mlx5e_ipsec_aso_update_curlft(sa_entry, &x->curlft.packets);
+	mlx5_fc_query_cached(ipsec_rule->fc, &bytes, &packets, &lastuse);
+	x->curlft.packets += packets;
+	x->curlft.bytes += bytes;
 }
 
-static int mlx5e_xfrm_validate_policy(struct xfrm_policy *x,
+static int mlx5e_xfrm_validate_policy(struct mlx5_core_dev *mdev,
+				      struct xfrm_policy *x,
 				      struct netlink_ext_ack *extack)
 {
+	struct xfrm_selector *sel = &x->selector;
+
 	if (x->type != XFRM_POLICY_TYPE_MAIN) {
 		NL_SET_ERR_MSG_MOD(extack, "Cannot offload non-main policy types");
 		return -EINVAL;
@@ -519,8 +532,9 @@ static int mlx5e_xfrm_validate_policy(struct xfrm_policy *x,
 		return -EINVAL;
 	}
 
-	if (!x->xfrm_vec[0].reqid) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot offload policy without reqid");
+	if (!x->xfrm_vec[0].reqid && sel->proto == IPPROTO_IP &&
+	    addr6_all_zero(sel->saddr.a6) && addr6_all_zero(sel->daddr.a6)) {
+		NL_SET_ERR_MSG_MOD(extack, "Unsupported policy with reqid 0 without at least one of upper protocol or ip addr(s) different than 0");
 		return -EINVAL;
 	}
 
@@ -529,10 +543,22 @@ static int mlx5e_xfrm_validate_policy(struct xfrm_policy *x,
 		return -EINVAL;
 	}
 
-	if (x->selector.proto != IPPROTO_IP &&
-	    (x->selector.proto != IPPROTO_UDP || x->xdo.dir != XFRM_DEV_OFFLOAD_OUT)) {
+	if (sel->proto != IPPROTO_IP &&
+	    (sel->proto != IPPROTO_UDP || x->xdo.dir != XFRM_DEV_OFFLOAD_OUT)) {
 		NL_SET_ERR_MSG_MOD(extack, "Device does not support upper protocol other than UDP, and only Tx direction");
 		return -EINVAL;
+	}
+
+	if (x->priority) {
+		if (!(mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_PRIO)) {
+			NL_SET_ERR_MSG_MOD(extack, "Device does not support policy priority");
+			return -EINVAL;
+		}
+
+		if (x->priority == U32_MAX) {
+			NL_SET_ERR_MSG_MOD(extack, "Device does not support requested policy priority");
+			return -EINVAL;
+		}
 	}
 
 	return 0;
@@ -560,6 +586,7 @@ mlx5e_ipsec_build_accel_pol_attrs(struct mlx5e_ipsec_pol_entry *pol_entry,
 	attrs->upspec.sport = ntohs(sel->sport);
 	attrs->upspec.sport_mask = ntohs(sel->sport_mask);
 	attrs->upspec.proto = sel->proto;
+	attrs->prio = x->priority;
 }
 
 static int mlx5e_xfrm_add_policy(struct xfrm_policy *x,
@@ -576,7 +603,7 @@ static int mlx5e_xfrm_add_policy(struct xfrm_policy *x,
 		return -EOPNOTSUPP;
 	}
 
-	err = mlx5e_xfrm_validate_policy(x, extack);
+	err = mlx5e_xfrm_validate_policy(priv->mdev, x, extack);
 	if (err)
 		return err;
 

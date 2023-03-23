@@ -36,11 +36,18 @@ u32 mlx5_ipsec_device_caps(struct mlx5_core_dev *mdev)
 	    MLX5_CAP_ETH(mdev, insert_trailer) && MLX5_CAP_ETH(mdev, swp))
 		caps |= MLX5_IPSEC_CAP_CRYPTO;
 
-	if (MLX5_CAP_IPSEC(mdev, ipsec_full_offload) &&
-	    MLX5_CAP_FLOWTABLE_NIC_TX(mdev, reformat_add_esp_trasport) &&
-	    MLX5_CAP_FLOWTABLE_NIC_RX(mdev, reformat_del_esp_trasport) &&
-	    MLX5_CAP_FLOWTABLE_NIC_RX(mdev, decap))
-		caps |= MLX5_IPSEC_CAP_PACKET_OFFLOAD;
+	if (MLX5_CAP_IPSEC(mdev, ipsec_full_offload)) {
+		if (MLX5_CAP_FLOWTABLE_NIC_TX(mdev,
+					      reformat_add_esp_trasport) &&
+		    MLX5_CAP_FLOWTABLE_NIC_RX(mdev,
+					      reformat_del_esp_trasport) &&
+		    MLX5_CAP_FLOWTABLE_NIC_RX(mdev, decap))
+			caps |= MLX5_IPSEC_CAP_PACKET_OFFLOAD;
+
+		if (MLX5_CAP_FLOWTABLE_NIC_TX(mdev, ignore_flow_level) &&
+		    MLX5_CAP_FLOWTABLE_NIC_RX(mdev, ignore_flow_level))
+			caps |= MLX5_IPSEC_CAP_PRIO;
+	}
 
 	if (mlx5_get_roce_state(mdev) &&
 	    MLX5_CAP_GEN_2(mdev, flow_table_type_2_type) & MLX5_FT_NIC_RX_2_NIC_RX_RDMA &&
@@ -481,19 +488,4 @@ int mlx5e_ipsec_aso_query(struct mlx5e_ipsec_sa_entry *sa_entry,
 	ret = mlx5_aso_poll_cq(aso->aso, false);
 	spin_unlock_bh(&aso->lock);
 	return ret;
-}
-
-void mlx5e_ipsec_aso_update_curlft(struct mlx5e_ipsec_sa_entry *sa_entry,
-				   u64 *packets)
-{
-	struct mlx5e_ipsec *ipsec = sa_entry->ipsec;
-	struct mlx5e_ipsec_aso *aso = ipsec->aso;
-	u64 hard_cnt;
-
-	hard_cnt = MLX5_GET(ipsec_aso, aso->ctx, remove_flow_pkt_cnt);
-	/* HW decresases the limit till it reaches zero to fire an avent.
-	 * We need to fix the calculations, so the returned count is a total
-	 * number of passed packets and not how much left.
-	 */
-	*packets = sa_entry->attrs.hard_packet_limit - hard_cnt;
 }

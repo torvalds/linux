@@ -94,6 +94,7 @@ enum mlx5_ipsec_cap {
 	MLX5_IPSEC_CAP_ESN		= 1 << 1,
 	MLX5_IPSEC_CAP_PACKET_OFFLOAD	= 1 << 2,
 	MLX5_IPSEC_CAP_ROCE             = 1 << 3,
+	MLX5_IPSEC_CAP_PRIO             = 1 << 4,
 };
 
 struct mlx5e_priv;
@@ -161,6 +162,7 @@ struct mlx5e_ipsec_rule {
 	struct mlx5_flow_handle *rule;
 	struct mlx5_modify_hdr *modify_hdr;
 	struct mlx5_pkt_reformat *pkt_reformat;
+	struct mlx5_fc *fc;
 };
 
 struct mlx5e_ipsec_modify_state_work {
@@ -198,6 +200,7 @@ struct mlx5_accel_pol_xfrm_attrs {
 	u8 type : 2;
 	u8 dir : 2;
 	u32 reqid;
+	u32 prio;
 };
 
 struct mlx5e_ipsec_pol_entry {
@@ -233,9 +236,6 @@ void mlx5e_ipsec_aso_cleanup(struct mlx5e_ipsec *ipsec);
 
 int mlx5e_ipsec_aso_query(struct mlx5e_ipsec_sa_entry *sa_entry,
 			  struct mlx5_wqe_aso_ctrl_seg *data);
-void mlx5e_ipsec_aso_update_curlft(struct mlx5e_ipsec_sa_entry *sa_entry,
-				   u64 *packets);
-
 void mlx5e_accel_ipsec_fs_read_stats(struct mlx5e_priv *priv,
 				     void *ipsec_stats);
 
@@ -251,6 +251,13 @@ static inline struct mlx5_core_dev *
 mlx5e_ipsec_pol2dev(struct mlx5e_ipsec_pol_entry *pol_entry)
 {
 	return pol_entry->ipsec->mdev;
+}
+
+static inline bool addr6_all_zero(__be32 *addr6)
+{
+	static const __be32 zaddr6[4] = {};
+
+	return !memcmp(addr6, zaddr6, sizeof(*zaddr6));
 }
 #else
 static inline void mlx5e_ipsec_init(struct mlx5e_priv *priv)

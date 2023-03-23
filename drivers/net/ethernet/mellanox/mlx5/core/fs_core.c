@@ -137,7 +137,7 @@
 #define LAG_MIN_LEVEL (OFFLOADS_MIN_LEVEL + KERNEL_RX_MACSEC_MIN_LEVEL + 1)
 
 #define KERNEL_TX_IPSEC_NUM_PRIOS  1
-#define KERNEL_TX_IPSEC_NUM_LEVELS 2
+#define KERNEL_TX_IPSEC_NUM_LEVELS 3
 #define KERNEL_TX_IPSEC_MIN_LEVEL        (KERNEL_TX_IPSEC_NUM_LEVELS)
 
 #define KERNEL_TX_MACSEC_NUM_PRIOS  1
@@ -1762,7 +1762,8 @@ static bool dest_is_valid(struct mlx5_flow_destination *dest,
 
 	if (ignore_level) {
 		if (ft->type != FS_FT_FDB &&
-		    ft->type != FS_FT_NIC_RX)
+		    ft->type != FS_FT_NIC_RX &&
+		    ft->type != FS_FT_NIC_TX)
 			return false;
 
 		if (dest->type == MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE &&
