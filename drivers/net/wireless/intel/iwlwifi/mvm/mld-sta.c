@@ -227,9 +227,14 @@ static int iwl_mvm_mld_disable_txq(struct iwl_mvm *mvm,
 				   struct ieee80211_sta *sta,
 				   u16 *queueptr, u8 tid)
 {
-	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	struct iwl_mvm_sta *mvmsta;
 	int queue = *queueptr;
 	int ret = 0;
+
+	if (!sta)
+		return -EINVAL;
+
+	mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
 	if (mvm->sta_remove_requires_queue_remove) {
 		u32 cmd_id = WIDE_ID(DATA_PATH_GROUP,
