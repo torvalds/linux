@@ -2,6 +2,7 @@ targets = [
     # keep sorted
     "kalama",
     "pineapple",
+    "blair",
 ]
 
 la_variants = [
