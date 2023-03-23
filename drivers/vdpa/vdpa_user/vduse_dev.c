@@ -37,8 +37,11 @@
 #define DRV_LICENSE  "GPL v2"
 
 #define VDUSE_DEV_MAX (1U << MINORBITS)
+#define VDUSE_MAX_BOUNCE_SIZE (1024 * 1024 * 1024)
+#define VDUSE_MIN_BOUNCE_SIZE (1024 * 1024)
 #define VDUSE_BOUNCE_SIZE (64 * 1024 * 1024)
-#define VDUSE_IOVA_SIZE (128 * 1024 * 1024)
+/* 128 MB reserved for virtqueue creation */
+#define VDUSE_IOVA_SIZE (VDUSE_MAX_BOUNCE_SIZE + 128 * 1024 * 1024)
 #define VDUSE_MSG_DEFAULT_TIMEOUT 30
 
 #define IRQ_UNBOUND -1
@@ -1715,8 +1718,48 @@ static ssize_t msg_timeout_store(struct device *device,
 
 static DEVICE_ATTR_RW(msg_timeout);
 
+static ssize_t bounce_size_show(struct device *device,
+				struct device_attribute *attr, char *buf)
+{
+	struct vduse_dev *dev = dev_get_drvdata(device);
+
+	return sysfs_emit(buf, "%u\n", dev->bounce_size);
+}
+
+static ssize_t bounce_size_store(struct device *device,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
+{
+	struct vduse_dev *dev = dev_get_drvdata(device);
+	unsigned int bounce_size;
+	int ret;
+
+	ret = -EPERM;
+	mutex_lock(&dev->domain_lock);
+	if (dev->domain)
+		goto unlock;
+
+	ret = kstrtouint(buf, 10, &bounce_size);
+	if (ret < 0)
+		goto unlock;
+
+	ret = -EINVAL;
+	if (bounce_size > VDUSE_MAX_BOUNCE_SIZE ||
+	    bounce_size < VDUSE_MIN_BOUNCE_SIZE)
+		goto unlock;
+
+	dev->bounce_size = bounce_size & PAGE_MASK;
+	ret = count;
+unlock:
+	mutex_unlock(&dev->domain_lock);
+	return ret;
+}
+
+static DEVICE_ATTR_RW(bounce_size);
+
 static struct attribute *vduse_dev_attrs[] = {
 	&dev_attr_msg_timeout.attr,
+	&dev_attr_bounce_size.attr,
 	NULL
 };
 
