@@ -1990,7 +1990,7 @@ static int sof_ipc4_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget
 		pipeline = swidget->private;
 
 		if (pipeline->use_chain_dma) {
-			dev_warn(sdev->dev, "use_chain_dma set for schduler %s",
+			dev_warn(sdev->dev, "use_chain_dma set for scheduler %s",
 				 swidget->widget->name);
 			return 0;
 		}
@@ -2149,7 +2149,7 @@ static int sof_ipc4_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget 
 		u32 header;
 
 		if (pipeline->use_chain_dma) {
-			dev_warn(sdev->dev, "use_chain_dma set for schduler %s",
+			dev_warn(sdev->dev, "use_chain_dma set for scheduler %s",
 				 swidget->widget->name);
 			mutex_unlock(&ipc4_data->pipeline_state_mutex);
 			return 0;
