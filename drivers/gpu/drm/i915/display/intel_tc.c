@@ -40,7 +40,9 @@ struct intel_tc_port {
 
 	struct mutex lock;	/* protects the TypeC port mode */
 	intel_wakeref_t lock_wakeref;
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
 	enum intel_display_power_domain lock_power_domain;
+#endif
 	struct delayed_work disconnect_phy_work;
 	int link_refcount;
 	bool legacy_port:1;
@@ -116,41 +118,58 @@ bool intel_tc_cold_requires_aux_pw(struct intel_digital_port *dig_port)
 }
 
 static enum intel_display_power_domain
-tc_cold_get_power_domain(struct intel_tc_port *tc, enum tc_port_mode mode)
+tc_phy_cold_off_domain(struct intel_tc_port *tc)
 {
 	struct drm_i915_private *i915 = tc_to_i915(tc);
 	struct intel_digital_port *dig_port = tc->dig_port;
 
-	if (mode == TC_PORT_TBT_ALT || !intel_tc_cold_requires_aux_pw(dig_port))
+	if (tc->mode == TC_PORT_TBT_ALT || !intel_tc_cold_requires_aux_pw(dig_port))
 		return POWER_DOMAIN_TC_COLD_OFF;
 
 	return intel_display_power_legacy_aux_domain(i915, dig_port->aux_ch);
 }
 
 static intel_wakeref_t
-tc_cold_block_in_mode(struct intel_tc_port *tc, enum tc_port_mode mode,
-		      enum intel_display_power_domain *domain)
+__tc_cold_block(struct intel_tc_port *tc, enum intel_display_power_domain *domain)
 {
 	struct drm_i915_private *i915 = tc_to_i915(tc);
 
-	*domain = tc_cold_get_power_domain(tc, mode);
+	*domain = tc_phy_cold_off_domain(tc);
 
 	return intel_display_power_get(i915, *domain);
 }
 
 static intel_wakeref_t
-tc_cold_block(struct intel_tc_port *tc, enum intel_display_power_domain *domain)
+tc_cold_block(struct intel_tc_port *tc)
 {
-	return tc_cold_block_in_mode(tc, tc->mode, domain);
+	enum intel_display_power_domain domain;
+	intel_wakeref_t wakeref;
+
+	wakeref = __tc_cold_block(tc, &domain);
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
+	tc->lock_power_domain = domain;
+#endif
+	return wakeref;
 }
 
 static void
-tc_cold_unblock(struct intel_tc_port *tc, enum intel_display_power_domain domain,
-		intel_wakeref_t wakeref)
+__tc_cold_unblock(struct intel_tc_port *tc, enum intel_display_power_domain domain,
+		  intel_wakeref_t wakeref)
 {
 	struct drm_i915_private *i915 = tc_to_i915(tc);
 
 	intel_display_power_put(i915, domain, wakeref);
+}
+
+static void
+tc_cold_unblock(struct intel_tc_port *tc, intel_wakeref_t wakeref)
+{
+	enum intel_display_power_domain domain = tc_phy_cold_off_domain(tc);
+
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
+	drm_WARN_ON(&tc_to_i915(tc)->drm, tc->lock_power_domain != domain);
+#endif
+	__tc_cold_unblock(tc, domain, wakeref);
 }
 
 static void
@@ -160,8 +179,7 @@ assert_tc_cold_blocked(struct intel_tc_port *tc)
 	bool enabled;
 
 	enabled = intel_display_power_is_enabled(i915,
-						 tc_cold_get_power_domain(tc,
-									  tc->mode));
+						 tc_phy_cold_off_domain(tc));
 	drm_WARN_ON(&i915->drm, !enabled);
 }
 
@@ -413,13 +431,13 @@ static void icl_tc_phy_get_hw_state(struct intel_tc_port *tc)
 	enum intel_display_power_domain domain;
 	intel_wakeref_t tc_cold_wref;
 
-	tc_cold_wref = tc_cold_block(tc, &domain);
+	tc_cold_wref = __tc_cold_block(tc, &domain);
 
 	tc->mode = tc_phy_get_current_mode(tc);
 	if (tc->mode != TC_PORT_DISCONNECTED)
-		tc->lock_wakeref = tc_cold_block(tc, &tc->lock_power_domain);
+		tc->lock_wakeref = tc_cold_block(tc);
 
-	tc_cold_unblock(tc, domain, tc_cold_wref);
+	__tc_cold_unblock(tc, domain, tc_cold_wref);
 }
 
 /*
@@ -474,7 +492,7 @@ static bool icl_tc_phy_connect(struct intel_tc_port *tc,
 {
 	struct drm_i915_private *i915 = tc_to_i915(tc);
 
-	tc->lock_wakeref = tc_cold_block(tc, &tc->lock_power_domain);
+	tc->lock_wakeref = tc_cold_block(tc);
 
 	if (tc->mode == TC_PORT_TBT_ALT)
 		return true;
@@ -497,9 +515,7 @@ static bool icl_tc_phy_connect(struct intel_tc_port *tc,
 out_release_phy:
 	tc_phy_take_ownership(tc, false);
 out_unblock_tc_cold:
-	tc_cold_unblock(tc,
-			tc->lock_power_domain,
-			fetch_and_zero(&tc->lock_wakeref));
+	tc_cold_unblock(tc, fetch_and_zero(&tc->lock_wakeref));
 
 	return false;
 }
@@ -516,9 +532,7 @@ static void icl_tc_phy_disconnect(struct intel_tc_port *tc)
 		tc_phy_take_ownership(tc, false);
 		fallthrough;
 	case TC_PORT_TBT_ALT:
-		tc_cold_unblock(tc,
-				tc->lock_power_domain,
-				fetch_and_zero(&tc->lock_wakeref));
+		tc_cold_unblock(tc, fetch_and_zero(&tc->lock_wakeref));
 		break;
 	default:
 		MISSING_CASE(tc->mode);
@@ -1177,7 +1191,6 @@ void intel_tc_port_put_link(struct intel_digital_port *dig_port)
 static bool
 tc_has_modular_fia(struct drm_i915_private *i915, struct intel_tc_port *tc)
 {
-	enum intel_display_power_domain domain;
 	intel_wakeref_t wakeref;
 	u32 val;
 
@@ -1185,9 +1198,9 @@ tc_has_modular_fia(struct drm_i915_private *i915, struct intel_tc_port *tc)
 		return false;
 
 	mutex_lock(&tc->lock);
-	wakeref = tc_cold_block(tc, &domain);
+	wakeref = tc_cold_block(tc);
 	val = intel_de_read(i915, PORT_TX_DFLEXDPSP(FIA1));
-	tc_cold_unblock(tc, domain, wakeref);
+	tc_cold_unblock(tc, wakeref);
 	mutex_unlock(&tc->lock);
 
 	drm_WARN_ON(&i915->drm, val == 0xffffffff);
