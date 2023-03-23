@@ -4718,6 +4718,25 @@ static int ext4_check_geometry(struct super_block *sb,
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	__u64 blocks_count;
+	int err;
+
+	if (le16_to_cpu(sbi->s_es->s_reserved_gdt_blocks) > (sb->s_blocksize / 4)) {
+		ext4_msg(sb, KERN_ERR,
+			 "Number of reserved GDT blocks insanely large: %d",
+			 le16_to_cpu(sbi->s_es->s_reserved_gdt_blocks));
+		return -EINVAL;
+	}
+	/*
+	 * Test whether we have more sectors than will fit in sector_t,
+	 * and whether the max offset is addressable by the page cache.
+	 */
+	err = generic_check_addressable(sb->s_blocksize_bits,
+					ext4_blocks_count(es));
+	if (err) {
+		ext4_msg(sb, KERN_ERR, "filesystem"
+			 " too large to mount safely on this system");
+		return err;
+	}
 
 	/* check blocks count against device size */
 	blocks_count = sb_bdev_nr_blocks(sb);
@@ -5174,13 +5193,6 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 	if (ext4_check_feature_compatibility(sb, es, silent))
 		goto failed_mount;
 
-	if (le16_to_cpu(sbi->s_es->s_reserved_gdt_blocks) > (sb->s_blocksize / 4)) {
-		ext4_msg(sb, KERN_ERR,
-			 "Number of reserved GDT blocks insanely large: %d",
-			 le16_to_cpu(sbi->s_es->s_reserved_gdt_blocks));
-		goto failed_mount;
-	}
-
 	if (sbi->s_daxdev) {
 		if (sb->s_blocksize == PAGE_SIZE)
 			set_bit(EXT4_FLAGS_BDEV_IS_DAX, &sbi->s_ext4_flags);
@@ -5251,18 +5263,6 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 
 	if (ext4_handle_clustersize(sb))
 		goto failed_mount;
-
-	/*
-	 * Test whether we have more sectors than will fit in sector_t,
-	 * and whether the max offset is addressable by the page cache.
-	 */
-	err = generic_check_addressable(sb->s_blocksize_bits,
-					ext4_blocks_count(es));
-	if (err) {
-		ext4_msg(sb, KERN_ERR, "filesystem"
-			 " too large to mount safely on this system");
-		goto failed_mount;
-	}
 
 	if (ext4_check_geometry(sb, es))
 		goto failed_mount;
