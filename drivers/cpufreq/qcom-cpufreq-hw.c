@@ -45,7 +45,6 @@ struct qcom_cpufreq_soc_data {
 
 struct qcom_cpufreq_data {
 	void __iomem *base;
-	struct resource *res;
 
 	/*
 	 * Mutex to synchronize between de-init sequence and re-starting LMh
@@ -592,16 +591,12 @@ static int qcom_cpufreq_hw_cpu_exit(struct cpufreq_policy *policy)
 {
 	struct device *cpu_dev = get_cpu_device(policy->cpu);
 	struct qcom_cpufreq_data *data = policy->driver_data;
-	struct resource *res = data->res;
-	void __iomem *base = data->base;
 
 	dev_pm_opp_remove_all_dynamic(cpu_dev);
 	dev_pm_opp_of_cpumask_remove_table(policy->related_cpus);
 	qcom_cpufreq_hw_lmh_exit(data);
 	kfree(policy->freq_table);
 	kfree(data);
-	iounmap(base);
-	release_mem_region(res->start, resource_size(res));
 
 	return 0;
 }
@@ -704,17 +699,15 @@ static int qcom_cpufreq_hw_driver_probe(struct platform_device *pdev)
 	for (i = 0; i < num_domains; i++) {
 		struct qcom_cpufreq_data *data = &qcom_cpufreq.data[i];
 		struct clk_init_data clk_init = {};
-		struct resource *res;
 		void __iomem *base;
 
-		base = devm_platform_get_and_ioremap_resource(pdev, i, &res);
+		base = devm_platform_ioremap_resource(pdev, i);
 		if (IS_ERR(base)) {
-			dev_err(dev, "Failed to map resource %pR\n", res);
+			dev_err(dev, "Failed to map resource index %d\n", i);
 			return PTR_ERR(base);
 		}
 
 		data->base = base;
-		data->res = res;
 
 		/* Register CPU clock for each frequency domain */
 		clk_init.name = kasprintf(GFP_KERNEL, "qcom_cpufreq%d", i);
