@@ -379,9 +379,9 @@ static int gt_fw_domain_init(struct xe_gt *gt)
 			goto err_force_wake;
 	}
 
-	/* Allow driver to load if uC init fails (likely missing firmware) */
 	err = xe_uc_init(&gt->uc);
-	XE_WARN_ON(err);
+	if (err)
+		goto err_force_wake;
 
 	err = xe_uc_init_hwconfig(&gt->uc);
 	if (err)

@@ -54,9 +54,6 @@ int xe_uc_init(struct xe_uc *uc)
 	return 0;
 
 err:
-	/* If any uC firmwares not found, fall back to execlists */
-	xe_device_guc_submission_disable(uc_to_xe(uc));
-
 	return ret;
 }
 
