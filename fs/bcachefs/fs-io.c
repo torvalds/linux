@@ -55,6 +55,41 @@ static inline loff_t folio_end_sector(struct folio *folio)
 	return folio_end_pos(folio) >> 9;
 }
 
+typedef DARRAY(struct folio *) folios;
+
+static int filemap_get_contig_folios_d(struct address_space *mapping,
+				       loff_t start, loff_t end,
+				       int fgp_flags, gfp_t gfp,
+				       folios *folios)
+{
+	struct folio *f;
+	loff_t pos = start;
+	int ret = 0;
+
+	while (pos < end) {
+		if ((u64) pos >= (u64) start + (1ULL << 20))
+			fgp_flags &= ~FGP_CREAT;
+
+		ret = darray_make_room_gfp(folios, 1, gfp & GFP_KERNEL);
+		if (ret)
+			break;
+
+		f = __filemap_get_folio(mapping, pos >> PAGE_SHIFT, fgp_flags, gfp);
+		if (!f)
+			break;
+
+		BUG_ON(folios->nr && folio_pos(f) != pos);
+
+		pos = folio_end_pos(f);
+		darray_push(folios, f);
+	}
+
+	if (!folios->nr && !ret && (fgp_flags & FGP_CREAT))
+		ret = -ENOMEM;
+
+	return folios->nr ? 0 : ret;
+}
+
 struct nocow_flush {
 	struct closure	*cl;
 	struct bch_dev	*ca;
@@ -1754,8 +1789,6 @@ int bch2_write_end(struct file *file, struct address_space *mapping,
 	return copied;
 }
 
-typedef DARRAY(struct folio *) folios;
-
 static noinline void folios_trunc(folios *folios, struct folio **fi)
 {
 	while (folios->data + folios->nr > fi) {
@@ -1784,33 +1817,16 @@ static int __bch2_buffered_write(struct bch_inode_info *inode,
 	bch2_folio_reservation_init(c, inode, &res);
 	darray_init(&folios);
 
-	f_pos = pos;
-	while (f_pos < end) {
-		unsigned fgp_flags = FGP_LOCK|FGP_WRITE|FGP_STABLE;
-
-		if ((u64) f_pos < (u64) pos + (1U << 20))
-			fgp_flags |= FGP_CREAT;
-
-		if (darray_make_room_gfp(&folios, 1,
-				mapping_gfp_mask(mapping) & GFP_KERNEL))
-			break;
-
-		f = __filemap_get_folio(mapping, f_pos >> PAGE_SHIFT,
-					fgp_flags, mapping_gfp_mask(mapping));
-		if (!f)
-			break;
-
-		BUG_ON(folios.nr && folio_pos(f) != f_pos);
-
-		f_pos = folio_end_pos(f);
-		darray_push(&folios, f);
-	}
-
-	end = min(end, f_pos);
-	if (end == pos) {
-		ret = -ENOMEM;
+	ret = filemap_get_contig_folios_d(mapping, pos, end,
+				   FGP_LOCK|FGP_WRITE|FGP_STABLE|FGP_CREAT,
+				   mapping_gfp_mask(mapping),
+				   &folios);
+	if (ret)
 		goto out;
-	}
+
+	BUG_ON(!folios.nr);
+
+	end = min(end, folio_end_pos(darray_last(folios)));
 
 	f = darray_first(folios);
 	if (pos != folio_pos(f) && !folio_test_uptodate(f)) {
