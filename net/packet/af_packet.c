@@ -2622,8 +2622,8 @@ static int tpacket_fill_skb(struct packet_sock *po, struct sk_buff *skb,
 		nr_frags = skb_shinfo(skb)->nr_frags;
 
 		if (unlikely(nr_frags >= MAX_SKB_FRAGS)) {
-			pr_err("Packet exceed the number of skb frags(%lu)\n",
-			       MAX_SKB_FRAGS);
+			pr_err("Packet exceed the number of skb frags(%u)\n",
+			       (unsigned int)MAX_SKB_FRAGS);
 			return -EFAULT;
 		}
 
