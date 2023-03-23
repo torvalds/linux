@@ -2587,9 +2587,10 @@ static ssize_t dw_dp_aux_transfer(struct drm_dp_aux *aux,
 	return ret;
 }
 
-static int dw_dp_bridge_mode_valid(struct drm_bridge *bridge,
-				   const struct drm_display_info *info,
-				   const struct drm_display_mode *mode)
+static enum drm_mode_status
+dw_dp_bridge_mode_valid(struct drm_bridge *bridge,
+			const struct drm_display_info *info,
+			const struct drm_display_mode *mode)
 {
 	struct dw_dp *dp = bridge_to_dp(bridge);
 	struct dw_dp_link *link = &dp->link;
