@@ -594,10 +594,9 @@ static DEFINE_MUTEX(pmc_reserve_mutex);
 #define PMC_FAILURE   2
 static void setup_pmc_cpu(void *flags)
 {
-	int err;
 	struct cpu_hw_sf *cpusf = this_cpu_ptr(&cpu_hw_sf);
+	int err = 0;
 
-	err = 0;
 	switch (*((int *) flags)) {
 	case PMC_INIT:
 		memset(cpusf, 0, sizeof(*cpusf));
@@ -606,22 +605,18 @@ static void setup_pmc_cpu(void *flags)
 			break;
 		cpusf->flags |= PMU_F_RESERVED;
 		err = sf_disable();
-		if (err)
-			pr_err("Switching off the sampling facility failed "
-			       "with rc %i\n", err);
 		break;
 	case PMC_RELEASE:
 		cpusf->flags &= ~PMU_F_RESERVED;
 		err = sf_disable();
-		if (err) {
-			pr_err("Switching off the sampling facility failed "
-			       "with rc %i\n", err);
-		} else
+		if (!err)
 			deallocate_buffers(cpusf);
 		break;
 	}
-	if (err)
+	if (err) {
 		*((int *) flags) |= PMC_FAILURE;
+		pr_err("Switching off the sampling facility failed with rc %i\n", err);
+	}
 }
 
 static void release_pmc_hardware(void)
