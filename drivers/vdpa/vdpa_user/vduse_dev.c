@@ -111,6 +111,8 @@ struct vduse_dev {
 	u32 vq_align;
 	struct vduse_umem *umem;
 	struct mutex mem_lock;
+	unsigned int bounce_size;
+	struct mutex domain_lock;
 };
 
 struct vduse_dev_msg {
@@ -425,7 +427,7 @@ static void vduse_dev_reset(struct vduse_dev *dev)
 	struct vduse_iova_domain *domain = dev->domain;
 
 	/* The coherent mappings are handled in vduse_dev_free_coherent() */
-	if (domain->bounce_map)
+	if (domain && domain->bounce_map)
 		vduse_domain_reset_bounce_map(domain);
 
 	down_write(&dev->rwsem);
@@ -993,6 +995,9 @@ static int vduse_dev_dereg_umem(struct vduse_dev *dev,
 		goto unlock;
 
 	ret = -EINVAL;
+	if (!dev->domain)
+		goto unlock;
+
 	if (dev->umem->iova != iova || size != dev->domain->bounce_size)
 		goto unlock;
 
@@ -1019,7 +1024,7 @@ static int vduse_dev_reg_umem(struct vduse_dev *dev,
 	unsigned long npages, lock_limit;
 	int ret;
 
-	if (!dev->domain->bounce_map ||
+	if (!dev->domain || !dev->domain->bounce_map ||
 	    size != dev->domain->bounce_size ||
 	    iova != 0 || uaddr & ~PAGE_MASK)
 		return -EINVAL;
@@ -1109,7 +1114,6 @@ static long vduse_dev_ioctl(struct file *file, unsigned int cmd,
 		struct vduse_iotlb_entry entry;
 		struct vhost_iotlb_map *map;
 		struct vdpa_map_file *map_file;
-		struct vduse_iova_domain *domain = dev->domain;
 		struct file *f = NULL;
 
 		ret = -EFAULT;
@@ -1120,8 +1124,13 @@ static long vduse_dev_ioctl(struct file *file, unsigned int cmd,
 		if (entry.start > entry.last)
 			break;
 
-		spin_lock(&domain->iotlb_lock);
-		map = vhost_iotlb_itree_first(domain->iotlb,
+		mutex_lock(&dev->domain_lock);
+		if (!dev->domain) {
+			mutex_unlock(&dev->domain_lock);
+			break;
+		}
+		spin_lock(&dev->domain->iotlb_lock);
+		map = vhost_iotlb_itree_first(dev->domain->iotlb,
 					      entry.start, entry.last);
 		if (map) {
 			map_file = (struct vdpa_map_file *)map->opaque;
@@ -1131,7 +1140,8 @@ static long vduse_dev_ioctl(struct file *file, unsigned int cmd,
 			entry.last = map->last;
 			entry.perm = map->perm;
 		}
-		spin_unlock(&domain->iotlb_lock);
+		spin_unlock(&dev->domain->iotlb_lock);
+		mutex_unlock(&dev->domain_lock);
 		ret = -EINVAL;
 		if (!f)
 			break;
@@ -1284,8 +1294,10 @@ static long vduse_dev_ioctl(struct file *file, unsigned int cmd,
 				 sizeof(umem.reserved)))
 			break;
 
+		mutex_lock(&dev->domain_lock);
 		ret = vduse_dev_reg_umem(dev, umem.iova,
 					 umem.uaddr, umem.size);
+		mutex_unlock(&dev->domain_lock);
 		break;
 	}
 	case VDUSE_IOTLB_DEREG_UMEM: {
@@ -1299,15 +1311,15 @@ static long vduse_dev_ioctl(struct file *file, unsigned int cmd,
 		if (!is_mem_zero((const char *)umem.reserved,
 				 sizeof(umem.reserved)))
 			break;
-
+		mutex_lock(&dev->domain_lock);
 		ret = vduse_dev_dereg_umem(dev, umem.iova,
 					   umem.size);
+		mutex_unlock(&dev->domain_lock);
 		break;
 	}
 	case VDUSE_IOTLB_GET_INFO: {
 		struct vduse_iova_info info;
 		struct vhost_iotlb_map *map;
-		struct vduse_iova_domain *domain = dev->domain;
 
 		ret = -EFAULT;
 		if (copy_from_user(&info, argp, sizeof(info)))
@@ -1321,18 +1333,24 @@ static long vduse_dev_ioctl(struct file *file, unsigned int cmd,
 				 sizeof(info.reserved)))
 			break;
 
-		spin_lock(&domain->iotlb_lock);
-		map = vhost_iotlb_itree_first(domain->iotlb,
+		mutex_lock(&dev->domain_lock);
+		if (!dev->domain) {
+			mutex_unlock(&dev->domain_lock);
+			break;
+		}
+		spin_lock(&dev->domain->iotlb_lock);
+		map = vhost_iotlb_itree_first(dev->domain->iotlb,
 					      info.start, info.last);
 		if (map) {
 			info.start = map->start;
 			info.last = map->last;
 			info.capability = 0;
-			if (domain->bounce_map && map->start == 0 &&
-			    map->last == domain->bounce_size - 1)
+			if (dev->domain->bounce_map && map->start == 0 &&
+			    map->last == dev->domain->bounce_size - 1)
 				info.capability |= VDUSE_IOVA_CAP_UMEM;
 		}
-		spin_unlock(&domain->iotlb_lock);
+		spin_unlock(&dev->domain->iotlb_lock);
+		mutex_unlock(&dev->domain_lock);
 		if (!map)
 			break;
 
@@ -1355,7 +1373,10 @@ static int vduse_dev_release(struct inode *inode, struct file *file)
 {
 	struct vduse_dev *dev = file->private_data;
 
-	vduse_dev_dereg_umem(dev, 0, dev->domain->bounce_size);
+	mutex_lock(&dev->domain_lock);
+	if (dev->domain)
+		vduse_dev_dereg_umem(dev, 0, dev->domain->bounce_size);
+	mutex_unlock(&dev->domain_lock);
 	spin_lock(&dev->msg_lock);
 	/* Make sure the inflight messages can processed after reconncection */
 	list_splice_init(&dev->recv_list, &dev->send_list);
@@ -1564,6 +1585,7 @@ static struct vduse_dev *vduse_dev_create(void)
 
 	mutex_init(&dev->lock);
 	mutex_init(&dev->mem_lock);
+	mutex_init(&dev->domain_lock);
 	spin_lock_init(&dev->msg_lock);
 	INIT_LIST_HEAD(&dev->send_list);
 	INIT_LIST_HEAD(&dev->recv_list);
@@ -1613,7 +1635,8 @@ static int vduse_destroy_dev(char *name)
 	idr_remove(&vduse_idr, dev->minor);
 	kvfree(dev->config);
 	vduse_dev_deinit_vqs(dev);
-	vduse_domain_destroy(dev->domain);
+	if (dev->domain)
+		vduse_domain_destroy(dev->domain);
 	kfree(dev->name);
 	vduse_dev_destroy(dev);
 	module_put(THIS_MODULE);
@@ -1722,11 +1745,7 @@ static int vduse_create_dev(struct vduse_dev_config *config,
 	if (!dev->name)
 		goto err_str;
 
-	dev->domain = vduse_domain_create(VDUSE_IOVA_SIZE - 1,
-					  VDUSE_BOUNCE_SIZE);
-	if (!dev->domain)
-		goto err_domain;
-
+	dev->bounce_size = VDUSE_BOUNCE_SIZE;
 	dev->config = config_buf;
 	dev->config_size = config->config_size;
 
@@ -1756,8 +1775,6 @@ err_vqs:
 err_dev:
 	idr_remove(&vduse_idr, dev->minor);
 err_idr:
-	vduse_domain_destroy(dev->domain);
-err_domain:
 	kfree(dev->name);
 err_str:
 	vduse_dev_destroy(dev);
@@ -1924,9 +1941,23 @@ static int vdpa_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
 	if (ret)
 		return ret;
 
+	mutex_lock(&dev->domain_lock);
+	if (!dev->domain)
+		dev->domain = vduse_domain_create(VDUSE_IOVA_SIZE - 1,
+						  dev->bounce_size);
+	mutex_unlock(&dev->domain_lock);
+	if (!dev->domain) {
+		put_device(&dev->vdev->vdpa.dev);
+		return -ENOMEM;
+	}
+
 	ret = _vdpa_register_device(&dev->vdev->vdpa, dev->vq_num);
 	if (ret) {
 		put_device(&dev->vdev->vdpa.dev);
+		mutex_lock(&dev->domain_lock);
+		vduse_domain_destroy(dev->domain);
+		dev->domain = NULL;
+		mutex_unlock(&dev->domain_lock);
 		return ret;
 	}
 
