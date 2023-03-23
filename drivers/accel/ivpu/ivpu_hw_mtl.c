@@ -29,7 +29,6 @@
 
 #define PLL_REF_CLK_FREQ	     (50 * 1000000)
 #define PLL_SIMULATION_FREQ	     (10 * 1000000)
-#define PLL_RATIO_TO_FREQ(x)	     ((x) * PLL_REF_CLK_FREQ)
 #define PLL_DEFAULT_EPP_VALUE	     0x80
 
 #define TIM_SAFE_ENABLE		     0xf1d0dead
@@ -789,6 +788,19 @@ static void ivpu_hw_mtl_wdt_disable(struct ivpu_device *vdev)
 	REGV_WR32(MTL_VPU_CPU_SS_TIM_GEN_CONFIG, val);
 }
 
+static u32 ivpu_hw_mtl_pll_to_freq(u32 ratio, u32 config)
+{
+	u32 pll_clock = PLL_REF_CLK_FREQ * ratio;
+	u32 cpu_clock;
+
+	if ((config & 0xff) == PLL_RATIO_4_3)
+		cpu_clock = pll_clock * 2 / 4;
+	else
+		cpu_clock = pll_clock * 2 / 5;
+
+	return cpu_clock;
+}
+
 /* Register indirect accesses */
 static u32 ivpu_hw_mtl_reg_pll_freq_get(struct ivpu_device *vdev)
 {
@@ -800,7 +812,7 @@ static u32 ivpu_hw_mtl_reg_pll_freq_get(struct ivpu_device *vdev)
 	if (!ivpu_is_silicon(vdev))
 		return PLL_SIMULATION_FREQ;
 
-	return PLL_RATIO_TO_FREQ(pll_curr_ratio);
+	return ivpu_hw_mtl_pll_to_freq(pll_curr_ratio, vdev->hw->config);
 }
 
 static u32 ivpu_hw_mtl_reg_telemetry_offset_get(struct ivpu_device *vdev)
