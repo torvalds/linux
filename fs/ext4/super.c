@@ -5113,6 +5113,55 @@ static void ext4_hash_info_init(struct super_block *sb)
 	}
 }
 
+static int ext4_block_group_meta_init(struct super_block *sb, int silent)
+{
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
+	struct ext4_super_block *es = sbi->s_es;
+	int has_huge_files;
+
+	has_huge_files = ext4_has_feature_huge_file(sb);
+	sbi->s_bitmap_maxbytes = ext4_max_bitmap_size(sb->s_blocksize_bits,
+						      has_huge_files);
+	sb->s_maxbytes = ext4_max_size(sb->s_blocksize_bits, has_huge_files);
+
+	sbi->s_desc_size = le16_to_cpu(es->s_desc_size);
+	if (ext4_has_feature_64bit(sb)) {
+		if (sbi->s_desc_size < EXT4_MIN_DESC_SIZE_64BIT ||
+		    sbi->s_desc_size > EXT4_MAX_DESC_SIZE ||
+		    !is_power_of_2(sbi->s_desc_size)) {
+			ext4_msg(sb, KERN_ERR,
+			       "unsupported descriptor size %lu",
+			       sbi->s_desc_size);
+			return -EINVAL;
+		}
+	} else
+		sbi->s_desc_size = EXT4_MIN_DESC_SIZE;
+
+	sbi->s_blocks_per_group = le32_to_cpu(es->s_blocks_per_group);
+	sbi->s_inodes_per_group = le32_to_cpu(es->s_inodes_per_group);
+
+	sbi->s_inodes_per_block = sb->s_blocksize / EXT4_INODE_SIZE(sb);
+	if (sbi->s_inodes_per_block == 0 || sbi->s_blocks_per_group == 0) {
+		if (!silent)
+			ext4_msg(sb, KERN_ERR, "VFS: Can't find ext4 filesystem");
+		return -EINVAL;
+	}
+	if (sbi->s_inodes_per_group < sbi->s_inodes_per_block ||
+	    sbi->s_inodes_per_group > sb->s_blocksize * 8) {
+		ext4_msg(sb, KERN_ERR, "invalid inodes per group: %lu\n",
+			 sbi->s_inodes_per_group);
+		return -EINVAL;
+	}
+	sbi->s_itb_per_group = sbi->s_inodes_per_group /
+					sbi->s_inodes_per_block;
+	sbi->s_desc_per_block = sb->s_blocksize / EXT4_DESC_SIZE(sb);
+	sbi->s_mount_state = le16_to_cpu(es->s_state) & ~EXT4_FC_REPLAY;
+	sbi->s_addr_per_block_bits = ilog2(EXT4_ADDR_PER_BLOCK(sb));
+	sbi->s_desc_per_block_bits = ilog2(EXT4_DESC_PER_BLOCK(sb));
+
+	return 0;
+}
+
 static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 {
 	struct ext4_super_block *es = NULL;
@@ -5121,7 +5170,7 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 	struct inode *root;
 	int ret = -ENOMEM;
 	unsigned int i;
-	int needs_recovery, has_huge_files;
+	int needs_recovery;
 	int err = 0;
 	ext4_group_t first_not_zeroed;
 	struct ext4_fs_context *ctx = fc->fs_private;
@@ -5219,45 +5268,8 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 		goto failed_mount;
 	}
 
-	has_huge_files = ext4_has_feature_huge_file(sb);
-	sbi->s_bitmap_maxbytes = ext4_max_bitmap_size(sb->s_blocksize_bits,
-						      has_huge_files);
-	sb->s_maxbytes = ext4_max_size(sb->s_blocksize_bits, has_huge_files);
-
-	sbi->s_desc_size = le16_to_cpu(es->s_desc_size);
-	if (ext4_has_feature_64bit(sb)) {
-		if (sbi->s_desc_size < EXT4_MIN_DESC_SIZE_64BIT ||
-		    sbi->s_desc_size > EXT4_MAX_DESC_SIZE ||
-		    !is_power_of_2(sbi->s_desc_size)) {
-			ext4_msg(sb, KERN_ERR,
-			       "unsupported descriptor size %lu",
-			       sbi->s_desc_size);
-			goto failed_mount;
-		}
-	} else
-		sbi->s_desc_size = EXT4_MIN_DESC_SIZE;
-
-	sbi->s_blocks_per_group = le32_to_cpu(es->s_blocks_per_group);
-	sbi->s_inodes_per_group = le32_to_cpu(es->s_inodes_per_group);
-
-	sbi->s_inodes_per_block = sb->s_blocksize / EXT4_INODE_SIZE(sb);
-	if (sbi->s_inodes_per_block == 0 || sbi->s_blocks_per_group == 0) {
-		if (!silent)
-			ext4_msg(sb, KERN_ERR, "VFS: Can't find ext4 filesystem");
+	if (ext4_block_group_meta_init(sb, silent))
 		goto failed_mount;
-	}
-	if (sbi->s_inodes_per_group < sbi->s_inodes_per_block ||
-	    sbi->s_inodes_per_group > sb->s_blocksize * 8) {
-		ext4_msg(sb, KERN_ERR, "invalid inodes per group: %lu\n",
-			 sbi->s_inodes_per_group);
-		goto failed_mount;
-	}
-	sbi->s_itb_per_group = sbi->s_inodes_per_group /
-					sbi->s_inodes_per_block;
-	sbi->s_desc_per_block = sb->s_blocksize / EXT4_DESC_SIZE(sb);
-	sbi->s_mount_state = le16_to_cpu(es->s_state) & ~EXT4_FC_REPLAY;
-	sbi->s_addr_per_block_bits = ilog2(EXT4_ADDR_PER_BLOCK(sb));
-	sbi->s_desc_per_block_bits = ilog2(EXT4_DESC_PER_BLOCK(sb));
 
 	ext4_hash_info_init(sb);
 
