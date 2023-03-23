@@ -23,6 +23,6 @@ implementation.
    ../riscv/index
    ../s390/index
    ../sh/index
-   ../sparc/index
+   sparc/index
    x86/index
    xtensa/index
