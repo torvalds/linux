@@ -4345,7 +4345,7 @@
 				function = "qspi_data";
 			};
 
-			qspi_data12: qspi-data12-pins {
+			qspi_data23: qspi-data23-pins {
 				pins = "gpio16", "gpio17";
 				function = "qspi_data";
 			};
