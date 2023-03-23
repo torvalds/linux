@@ -65,6 +65,8 @@ struct bpf_struct_ops_link {
 	struct bpf_map __rcu *map;
 };
 
+static DEFINE_MUTEX(update_mutex);
+
 #define VALUE_PREFIX "bpf_struct_ops_"
 #define VALUE_PREFIX_LEN (sizeof(VALUE_PREFIX) - 1)
 
@@ -664,7 +666,7 @@ static struct bpf_map *bpf_struct_ops_map_alloc(union bpf_attr *attr)
 	if (attr->value_size != vt->size)
 		return ERR_PTR(-EINVAL);
 
-	if (attr->map_flags & BPF_F_LINK && !st_ops->validate)
+	if (attr->map_flags & BPF_F_LINK && (!st_ops->validate || !st_ops->update))
 		return ERR_PTR(-EOPNOTSUPP);
 
 	t = st_ops->type;
@@ -810,10 +812,54 @@ static int bpf_struct_ops_map_link_fill_link_info(const struct bpf_link *link,
 	return 0;
 }
 
+static int bpf_struct_ops_map_link_update(struct bpf_link *link, struct bpf_map *new_map,
+					  struct bpf_map *expected_old_map)
+{
+	struct bpf_struct_ops_map *st_map, *old_st_map;
+	struct bpf_map *old_map;
+	struct bpf_struct_ops_link *st_link;
+	int err = 0;
+
+	st_link = container_of(link, struct bpf_struct_ops_link, link);
+	st_map = container_of(new_map, struct bpf_struct_ops_map, map);
+
+	if (!bpf_struct_ops_valid_to_reg(new_map))
+		return -EINVAL;
+
+	mutex_lock(&update_mutex);
+
+	old_map = rcu_dereference_protected(st_link->map, lockdep_is_held(&update_mutex));
+	if (expected_old_map && old_map != expected_old_map) {
+		err = -EPERM;
+		goto err_out;
+	}
+
+	old_st_map = container_of(old_map, struct bpf_struct_ops_map, map);
+	/* The new and old struct_ops must be the same type. */
+	if (st_map->st_ops != old_st_map->st_ops) {
+		err = -EINVAL;
+		goto err_out;
+	}
+
+	err = st_map->st_ops->update(st_map->kvalue.data, old_st_map->kvalue.data);
+	if (err)
+		goto err_out;
+
+	bpf_map_inc(new_map);
+	rcu_assign_pointer(st_link->map, new_map);
+	bpf_map_put(old_map);
+
+err_out:
+	mutex_unlock(&update_mutex);
+
+	return err;
+}
+
 static const struct bpf_link_ops bpf_struct_ops_map_lops = {
 	.dealloc = bpf_struct_ops_map_link_dealloc,
 	.show_fdinfo = bpf_struct_ops_map_link_show_fdinfo,
 	.fill_link_info = bpf_struct_ops_map_link_fill_link_info,
+	.update_map = bpf_struct_ops_map_link_update,
 };
 
 int bpf_struct_ops_link_create(union bpf_attr *attr)
