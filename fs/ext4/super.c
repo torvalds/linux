@@ -4713,7 +4713,7 @@ static int ext4_check_feature_compatibility(struct super_block *sb,
 	return 0;
 }
 
-static int ext4_geometry_check(struct super_block *sb,
+static int ext4_check_geometry(struct super_block *sb,
 			       struct ext4_super_block *es)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
@@ -4922,7 +4922,7 @@ out:
 	return -EINVAL;
 }
 
-static int ext4_journal_data_mode_check(struct super_block *sb)
+static int ext4_check_journal_data_mode(struct super_block *sb)
 {
 	if (test_opt(sb, DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA) {
 		printk_once(KERN_WARNING "EXT4-fs: Warning: mounting with "
@@ -5162,7 +5162,7 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 	if (ext4_encoding_init(sb, es))
 		goto failed_mount;
 
-	if (ext4_journal_data_mode_check(sb))
+	if (ext4_check_journal_data_mode(sb))
 		goto failed_mount;
 
 	sb->s_flags = (sb->s_flags & ~SB_POSIXACL) |
@@ -5264,7 +5264,7 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 		goto failed_mount;
 	}
 
-	if (ext4_geometry_check(sb, es))
+	if (ext4_check_geometry(sb, es))
 		goto failed_mount;
 
 	timer_setup(&sbi->s_err_report, print_daily_error_info, 0);
