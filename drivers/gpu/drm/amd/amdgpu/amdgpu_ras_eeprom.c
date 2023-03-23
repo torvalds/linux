@@ -205,15 +205,6 @@ static bool __get_eeprom_i2c_addr(struct amdgpu_device *adev,
 		return false;
 	}
 
-	switch (adev->ip_versions[MP1_HWIP][0]) {
-	case IP_VERSION(13, 0, 0):
-		control->i2c_address = EEPROM_I2C_MADDR_4;
-		break;
-
-	default:
-		break;
-	}
-
 	return true;
 }
 
