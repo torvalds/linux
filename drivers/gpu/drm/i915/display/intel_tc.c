@@ -15,6 +15,10 @@
 #include "intel_mg_phy_regs.h"
 #include "intel_tc.h"
 
+static u32 tc_port_live_status_mask(struct intel_digital_port *dig_port);
+static bool tc_phy_status_complete(struct intel_digital_port *dig_port);
+static bool tc_phy_take_ownership(struct intel_digital_port *dig_port, bool take);
+
 static const char *tc_port_mode_name(enum tc_port_mode mode)
 {
 	static const char * const names[] = {
@@ -256,6 +260,10 @@ static void tc_port_fixup_legacy_flag(struct intel_digital_port *dig_port,
 	dig_port->tc_legacy_port = !dig_port->tc_legacy_port;
 }
 
+/*
+ * ICL TC PHY handlers
+ * -------------------
+ */
 static u32 icl_tc_port_live_status_mask(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
@@ -287,44 +295,6 @@ static u32 icl_tc_port_live_status_mask(struct intel_digital_port *dig_port)
 	return mask;
 }
 
-static u32 adl_tc_port_live_status_mask(struct intel_digital_port *dig_port)
-{
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-	enum tc_port tc_port = intel_port_to_tc(i915, dig_port->base.port);
-	u32 isr_bit = i915->display.hotplug.pch_hpd[dig_port->base.hpd_pin];
-	u32 val, mask = 0;
-
-	/*
-	 * On ADL-P HW/FW will wake from TCCOLD to complete the read access of
-	 * registers in IOM. Note that this doesn't apply to PHY and FIA
-	 * registers.
-	 */
-	val = intel_de_read(i915, TCSS_DDI_STATUS(tc_port));
-	if (val & TCSS_DDI_STATUS_HPD_LIVE_STATUS_ALT)
-		mask |= BIT(TC_PORT_DP_ALT);
-	if (val & TCSS_DDI_STATUS_HPD_LIVE_STATUS_TBT)
-		mask |= BIT(TC_PORT_TBT_ALT);
-
-	if (intel_de_read(i915, SDEISR) & isr_bit)
-		mask |= BIT(TC_PORT_LEGACY);
-
-	/* The sink can be connected only in a single mode. */
-	if (!drm_WARN_ON(&i915->drm, hweight32(mask) > 1))
-		tc_port_fixup_legacy_flag(dig_port, mask);
-
-	return mask;
-}
-
-static u32 tc_port_live_status_mask(struct intel_digital_port *dig_port)
-{
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-
-	if (IS_ALDERLAKE_P(i915))
-		return adl_tc_port_live_status_mask(dig_port);
-
-	return icl_tc_port_live_status_mask(dig_port);
-}
-
 /*
  * Return the PHY status complete flag indicating that display can acquire the
  * PHY ownership. The IOM firmware sets this flag when a DP-alt or legacy sink
@@ -347,40 +317,6 @@ static bool icl_tc_phy_status_complete(struct intel_digital_port *dig_port)
 	}
 
 	return val & DP_PHY_MODE_STATUS_COMPLETED(dig_port->tc_phy_fia_idx);
-}
-
-/*
- * Return the PHY status complete flag indicating that display can acquire the
- * PHY ownership. The IOM firmware sets this flag when it's ready to switch
- * the ownership to display, regardless of what sink is connected (TBT-alt,
- * DP-alt, legacy or nothing). For TBT-alt sinks the PHY is owned by the TBT
- * subsystem and so switching the ownership to display is not required.
- */
-static bool adl_tc_phy_status_complete(struct intel_digital_port *dig_port)
-{
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-	enum tc_port tc_port = intel_port_to_tc(i915, dig_port->base.port);
-	u32 val;
-
-	val = intel_de_read(i915, TCSS_DDI_STATUS(tc_port));
-	if (val == 0xffffffff) {
-		drm_dbg_kms(&i915->drm,
-			    "Port %s: PHY in TCCOLD, assuming not complete\n",
-			    dig_port->tc_port_name);
-		return false;
-	}
-
-	return val & TCSS_DDI_STATUS_READY;
-}
-
-static bool tc_phy_status_complete(struct intel_digital_port *dig_port)
-{
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-
-	if (IS_ALDERLAKE_P(i915))
-		return adl_tc_phy_status_complete(dig_port);
-
-	return icl_tc_phy_status_complete(dig_port);
 }
 
 static bool icl_tc_phy_take_ownership(struct intel_digital_port *dig_port,
@@ -407,28 +343,6 @@ static bool icl_tc_phy_take_ownership(struct intel_digital_port *dig_port,
 	return true;
 }
 
-static bool adl_tc_phy_take_ownership(struct intel_digital_port *dig_port,
-				      bool take)
-{
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-	enum port port = dig_port->base.port;
-
-	intel_de_rmw(i915, DDI_BUF_CTL(port), DDI_BUF_CTL_TC_PHY_OWNERSHIP,
-		     take ? DDI_BUF_CTL_TC_PHY_OWNERSHIP : 0);
-
-	return true;
-}
-
-static bool tc_phy_take_ownership(struct intel_digital_port *dig_port, bool take)
-{
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-
-	if (IS_ALDERLAKE_P(i915))
-		return adl_tc_phy_take_ownership(dig_port, take);
-
-	return icl_tc_phy_take_ownership(dig_port, take);
-}
-
 static bool icl_tc_phy_is_owned(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
@@ -443,26 +357,6 @@ static bool icl_tc_phy_is_owned(struct intel_digital_port *dig_port)
 	}
 
 	return val & DP_PHY_MODE_STATUS_NOT_SAFE(dig_port->tc_phy_fia_idx);
-}
-
-static bool adl_tc_phy_is_owned(struct intel_digital_port *dig_port)
-{
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-	enum port port = dig_port->base.port;
-	u32 val;
-
-	val = intel_de_read(i915, DDI_BUF_CTL(port));
-	return val & DDI_BUF_CTL_TC_PHY_OWNERSHIP;
-}
-
-static bool tc_phy_is_owned(struct intel_digital_port *dig_port)
-{
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-
-	if (IS_ALDERLAKE_P(i915))
-		return adl_tc_phy_is_owned(dig_port);
-
-	return icl_tc_phy_is_owned(dig_port);
 }
 
 /*
@@ -557,6 +451,128 @@ static void icl_tc_phy_disconnect(struct intel_digital_port *dig_port)
 	default:
 		MISSING_CASE(dig_port->tc_mode);
 	}
+}
+
+/*
+ * ADLP TC PHY handlers
+ * --------------------
+ */
+static u32 adl_tc_port_live_status_mask(struct intel_digital_port *dig_port)
+{
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	enum tc_port tc_port = intel_port_to_tc(i915, dig_port->base.port);
+	u32 isr_bit = i915->display.hotplug.pch_hpd[dig_port->base.hpd_pin];
+	u32 val, mask = 0;
+
+	/*
+	 * On ADL-P HW/FW will wake from TCCOLD to complete the read access of
+	 * registers in IOM. Note that this doesn't apply to PHY and FIA
+	 * registers.
+	 */
+	val = intel_de_read(i915, TCSS_DDI_STATUS(tc_port));
+	if (val & TCSS_DDI_STATUS_HPD_LIVE_STATUS_ALT)
+		mask |= BIT(TC_PORT_DP_ALT);
+	if (val & TCSS_DDI_STATUS_HPD_LIVE_STATUS_TBT)
+		mask |= BIT(TC_PORT_TBT_ALT);
+
+	if (intel_de_read(i915, SDEISR) & isr_bit)
+		mask |= BIT(TC_PORT_LEGACY);
+
+	/* The sink can be connected only in a single mode. */
+	if (!drm_WARN_ON(&i915->drm, hweight32(mask) > 1))
+		tc_port_fixup_legacy_flag(dig_port, mask);
+
+	return mask;
+}
+
+/*
+ * Return the PHY status complete flag indicating that display can acquire the
+ * PHY ownership. The IOM firmware sets this flag when it's ready to switch
+ * the ownership to display, regardless of what sink is connected (TBT-alt,
+ * DP-alt, legacy or nothing). For TBT-alt sinks the PHY is owned by the TBT
+ * subsystem and so switching the ownership to display is not required.
+ */
+static bool adl_tc_phy_status_complete(struct intel_digital_port *dig_port)
+{
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	enum tc_port tc_port = intel_port_to_tc(i915, dig_port->base.port);
+	u32 val;
+
+	val = intel_de_read(i915, TCSS_DDI_STATUS(tc_port));
+	if (val == 0xffffffff) {
+		drm_dbg_kms(&i915->drm,
+			    "Port %s: PHY in TCCOLD, assuming not complete\n",
+			    dig_port->tc_port_name);
+		return false;
+	}
+
+	return val & TCSS_DDI_STATUS_READY;
+}
+
+static bool adl_tc_phy_take_ownership(struct intel_digital_port *dig_port,
+				      bool take)
+{
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	enum port port = dig_port->base.port;
+
+	intel_de_rmw(i915, DDI_BUF_CTL(port), DDI_BUF_CTL_TC_PHY_OWNERSHIP,
+		     take ? DDI_BUF_CTL_TC_PHY_OWNERSHIP : 0);
+
+	return true;
+}
+
+static bool adl_tc_phy_is_owned(struct intel_digital_port *dig_port)
+{
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	enum port port = dig_port->base.port;
+	u32 val;
+
+	val = intel_de_read(i915, DDI_BUF_CTL(port));
+	return val & DDI_BUF_CTL_TC_PHY_OWNERSHIP;
+}
+
+/*
+ * Generic TC PHY handlers
+ * -----------------------
+ */
+static u32 tc_port_live_status_mask(struct intel_digital_port *dig_port)
+{
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+
+	if (IS_ALDERLAKE_P(i915))
+		return adl_tc_port_live_status_mask(dig_port);
+
+	return icl_tc_port_live_status_mask(dig_port);
+}
+
+static bool tc_phy_status_complete(struct intel_digital_port *dig_port)
+{
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+
+	if (IS_ALDERLAKE_P(i915))
+		return adl_tc_phy_status_complete(dig_port);
+
+	return icl_tc_phy_status_complete(dig_port);
+}
+
+static bool tc_phy_is_owned(struct intel_digital_port *dig_port)
+{
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+
+	if (IS_ALDERLAKE_P(i915))
+		return adl_tc_phy_is_owned(dig_port);
+
+	return icl_tc_phy_is_owned(dig_port);
+}
+
+static bool tc_phy_take_ownership(struct intel_digital_port *dig_port, bool take)
+{
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+
+	if (IS_ALDERLAKE_P(i915))
+		return adl_tc_phy_take_ownership(dig_port, take);
+
+	return icl_tc_phy_take_ownership(dig_port, take);
 }
 
 static bool tc_phy_is_ready_and_owned(struct intel_digital_port *dig_port,
