@@ -441,8 +441,7 @@ static int xgene_msi_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, xgene_msi);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	xgene_msi->msi_regs = devm_ioremap_resource(&pdev->dev, res);
+	xgene_msi->msi_regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(xgene_msi->msi_regs)) {
 		rc = PTR_ERR(xgene_msi->msi_regs);
 		goto error;
