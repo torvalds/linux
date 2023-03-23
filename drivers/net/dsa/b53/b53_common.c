@@ -1240,8 +1240,12 @@ static void b53_adjust_63xx_rgmii(struct dsa_switch *ds, int port,
 		break;
 	}
 
-	if (port != dev->imp_port)
+	if (port != dev->imp_port) {
+		if (is63268(dev))
+			rgmii_ctrl |= RGMII_CTRL_MII_OVERRIDE;
+
 		rgmii_ctrl |= RGMII_CTRL_ENABLE_GMII;
+	}
 
 	b53_write8(dev, B53_CTRL_PAGE, off, rgmii_ctrl);
 
@@ -2455,6 +2459,19 @@ static const struct b53_chip_data b53_switch_chips[] = {
 	{
 		.chip_id = BCM63XX_DEVICE_ID,
 		.dev_name = "BCM63xx",
+		.vlans = 4096,
+		.enabled_ports = 0, /* pdata must provide them */
+		.arl_bins = 4,
+		.arl_buckets = 1024,
+		.imp_port = 8,
+		.vta_regs = B53_VTA_REGS_63XX,
+		.duplex_reg = B53_DUPLEX_STAT_63XX,
+		.jumbo_pm_reg = B53_JUMBO_PORT_MASK_63XX,
+		.jumbo_size_reg = B53_JUMBO_MAX_SIZE_63XX,
+	},
+	{
+		.chip_id = BCM63268_DEVICE_ID,
+		.dev_name = "BCM63268",
 		.vlans = 4096,
 		.enabled_ports = 0, /* pdata must provide them */
 		.arl_bins = 4,
