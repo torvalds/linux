@@ -51,6 +51,7 @@ static struct xe_device *uc_fw_to_xe(struct xe_uc_fw *uc_fw)
 	fw_def(TIGERLAKE,    0, guc_def(tgl,  70, 5, 2))
 
 #define XE_HUC_FIRMWARE_DEFS(fw_def, huc_def, huc_ver) \
+	fw_def(ALDERLAKE_S,  0, huc_def(tgl)) \
 	fw_def(DG1,          0, huc_def(dg1)) \
 	fw_def(TIGERLAKE,    0, huc_def(tgl))
 
