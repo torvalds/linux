@@ -2809,11 +2809,13 @@ static int ena_close(struct net_device *netdev)
 	return 0;
 }
 
-int ena_update_queue_sizes(struct ena_adapter *adapter,
-			   u32 new_tx_size,
-			   u32 new_rx_size)
+int ena_update_queue_params(struct ena_adapter *adapter,
+			    u32 new_tx_size,
+			    u32 new_rx_size,
+			    u32 new_llq_header_len)
 {
-	bool dev_was_up;
+	bool dev_was_up, large_llq_changed = false;
+	int rc = 0;
 
 	dev_was_up = test_bit(ENA_FLAG_DEV_UP, &adapter->flags);
 	ena_close(adapter->netdev);
@@ -2823,7 +2825,21 @@ int ena_update_queue_sizes(struct ena_adapter *adapter,
 			  0,
 			  adapter->xdp_num_queues +
 			  adapter->num_io_queues);
-	return dev_was_up ? ena_up(adapter) : 0;
+
+	large_llq_changed = adapter->ena_dev->tx_mem_queue_type ==
+			    ENA_ADMIN_PLACEMENT_POLICY_DEV;
+	large_llq_changed &=
+		new_llq_header_len != adapter->ena_dev->tx_max_header_size;
+
+	/* a check that the configuration is valid is done by caller */
+	if (large_llq_changed) {
+		adapter->large_llq_header_enabled = !adapter->large_llq_header_enabled;
+
+		ena_destroy_device(adapter, false);
+		rc = ena_restore_device(adapter);
+	}
+
+	return dev_was_up && !rc ? ena_up(adapter) : rc;
 }
 
 int ena_set_rx_copybreak(struct ena_adapter *adapter, u32 rx_copybreak)
