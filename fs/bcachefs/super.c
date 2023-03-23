@@ -1743,6 +1743,10 @@ int bch2_dev_online(struct bch_fs *c, const char *path)
 	bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
 
+	ret = bch2_fs_freespace_init(c);
+	if (ret)
+		bch_err(c, "device add error: error initializing free space: %s", bch2_err_str(ret));
+
 	up_write(&c->state_lock);
 	return 0;
 err:
