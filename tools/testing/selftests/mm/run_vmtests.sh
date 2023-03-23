@@ -237,7 +237,7 @@ if [ $VADDR64 -ne 0 ]; then
 	echo $prev_policy > /proc/sys/vm/overcommit_memory
 
 	# virtual address 128TB switch test
-	CATEGORY="hugevm" run_test ./va_128TBswitch.sh
+	CATEGORY="hugevm" run_test ./va_high_addr_switch.sh
 fi # VADDR64
 
 # vmalloc stability smoke test
