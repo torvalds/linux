@@ -104,6 +104,13 @@ properties:
 
   dma-coherent: true
 
+  nvmem-cell-names:
+    items:
+      - const: speed-bin
+
+  nvmem-cells:
+    maxItems: 1
+
 required:
   - compatible
   - reg
