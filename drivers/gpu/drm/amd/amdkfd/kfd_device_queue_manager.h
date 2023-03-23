@@ -37,6 +37,7 @@
 
 #define KFD_MES_PROCESS_QUANTUM		100000
 #define KFD_MES_GANG_QUANTUM		10000
+#define USE_DEFAULT_GRACE_PERIOD 0xffffffff
 
 struct device_process_node {
 	struct qcm_process_device *qpd;
@@ -259,6 +260,8 @@ struct device_queue_manager {
 
 	/* used for GFX 9.4.3 only */
 	uint32_t		current_logical_xcc_start;
+
+	uint32_t		wait_times;
 };
 
 void device_queue_manager_init_cik(
