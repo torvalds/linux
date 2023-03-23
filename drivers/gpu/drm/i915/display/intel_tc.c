@@ -26,6 +26,8 @@ struct intel_tc_port;
 
 struct intel_tc_phy_ops {
 	u32 (*hpd_live_status)(struct intel_tc_port *tc);
+	bool (*is_ready)(struct intel_tc_port *tc);
+	bool (*is_owned)(struct intel_tc_port *tc);
 };
 
 struct intel_tc_port {
@@ -502,6 +504,8 @@ static void icl_tc_phy_disconnect(struct intel_tc_port *tc)
 
 static const struct intel_tc_phy_ops icl_tc_phy_ops = {
 	.hpd_live_status = icl_tc_phy_hpd_live_status,
+	.is_ready = icl_tc_phy_is_ready,
+	.is_owned = icl_tc_phy_is_owned,
 };
 
 /*
@@ -581,6 +585,8 @@ static bool adlp_tc_phy_is_owned(struct intel_tc_port *tc)
 
 static const struct intel_tc_phy_ops adlp_tc_phy_ops = {
 	.hpd_live_status = adlp_tc_phy_hpd_live_status,
+	.is_ready = adlp_tc_phy_is_ready,
+	.is_owned = adlp_tc_phy_is_owned,
 };
 
 /*
@@ -603,22 +609,12 @@ static u32 tc_phy_hpd_live_status(struct intel_tc_port *tc)
 
 static bool tc_phy_is_ready(struct intel_tc_port *tc)
 {
-	struct drm_i915_private *i915 = tc_to_i915(tc);
-
-	if (IS_ALDERLAKE_P(i915))
-		return adlp_tc_phy_is_ready(tc);
-
-	return icl_tc_phy_is_ready(tc);
+	return tc->phy_ops->is_ready(tc);
 }
 
 static bool tc_phy_is_owned(struct intel_tc_port *tc)
 {
-	struct drm_i915_private *i915 = tc_to_i915(tc);
-
-	if (IS_ALDERLAKE_P(i915))
-		return adlp_tc_phy_is_owned(tc);
-
-	return icl_tc_phy_is_owned(tc);
+	return tc->phy_ops->is_owned(tc);
 }
 
 static bool tc_phy_take_ownership(struct intel_tc_port *tc, bool take)
