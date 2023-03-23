@@ -144,8 +144,8 @@
 		pinctrl-0 = <&mipi_refclk_out0>;
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
-		rockchip,camera-module-name = "408b170b9d8a";
-		rockchip,camera-module-lens-name = "40IRC-F10";
+		rockchip,camera-module-name = "CMK-OT1607-PV1";
+		rockchip,camera-module-lens-name = "50IRC-F16";
 		port {
 			os04a10_out: endpoint {
 				remote-endpoint = <&csi_dphy_input3>;
