@@ -434,40 +434,34 @@ static void icl_tc_phy_get_hw_state(struct intel_tc_port *tc)
  * connect and disconnect to cleanly transfer ownership with the controller and
  * set the type-C power state.
  */
-static void icl_tc_phy_connect(struct intel_tc_port *tc,
+static bool icl_tc_phy_connect(struct intel_tc_port *tc,
 			       int required_lanes)
 {
 	struct drm_i915_private *i915 = tc_to_i915(tc);
 	struct intel_digital_port *dig_port = tc->dig_port;
-	u32 live_status_mask;
 	int max_lanes;
+
+	if (tc->mode == TC_PORT_TBT_ALT)
+		return true;
 
 	if (!tc_phy_is_ready(tc) &&
 	    !drm_WARN_ON(&i915->drm, tc->legacy_port)) {
 		drm_dbg_kms(&i915->drm, "Port %s: PHY not ready\n",
 			    tc->port_name);
-		goto out_set_tbt_alt_mode;
-	}
-
-	live_status_mask = tc_phy_hpd_live_status(tc);
-	if (!(live_status_mask & (BIT(TC_PORT_DP_ALT) | BIT(TC_PORT_LEGACY))) &&
-	    !tc->legacy_port) {
-		drm_dbg_kms(&i915->drm, "Port %s: PHY ownership not required (live status %02x)\n",
-			    tc->port_name, live_status_mask);
-		goto out_set_tbt_alt_mode;
+		return false;
 	}
 
 	if (!tc_phy_take_ownership(tc, true) &&
 	    !drm_WARN_ON(&i915->drm, tc->legacy_port))
-		goto out_set_tbt_alt_mode;
+		return false;
 
 	max_lanes = intel_tc_port_fia_max_lane_count(dig_port);
 	if (tc->legacy_port) {
 		drm_WARN_ON(&i915->drm, max_lanes != 4);
-		tc->mode = TC_PORT_LEGACY;
-
-		return;
+		return true;
 	}
+
+	drm_WARN_ON(&i915->drm, tc->mode != TC_PORT_DP_ALT);
 
 	/*
 	 * Now we have to re-check the live state, in case the port recently
@@ -487,14 +481,12 @@ static void icl_tc_phy_connect(struct intel_tc_port *tc,
 		goto out_release_phy;
 	}
 
-	tc->mode = TC_PORT_DP_ALT;
-
-	return;
+	return true;
 
 out_release_phy:
 	tc_phy_take_ownership(tc, false);
-out_set_tbt_alt_mode:
-	tc->mode = TC_PORT_TBT_ALT;
+
+	return false;
 }
 
 /*
@@ -509,9 +501,6 @@ static void icl_tc_phy_disconnect(struct intel_tc_port *tc)
 		tc_phy_take_ownership(tc, false);
 		fallthrough;
 	case TC_PORT_TBT_ALT:
-		tc->mode = TC_PORT_DISCONNECTED;
-		fallthrough;
-	case TC_PORT_DISCONNECTED:
 		break;
 	default:
 		MISSING_CASE(tc->mode);
@@ -817,6 +806,30 @@ tc_phy_get_target_mode(struct intel_tc_port *tc)
 	return hpd_mask_to_target_mode(tc, live_status_mask);
 }
 
+static void tc_phy_connect(struct intel_tc_port *tc, int required_lanes)
+{
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+	bool connected;
+
+	tc->mode = tc_phy_get_target_mode(tc);
+
+	connected = icl_tc_phy_connect(tc, required_lanes);
+	if (!connected && tc->mode != default_tc_mode(tc)) {
+		tc->mode = default_tc_mode(tc);
+		connected = icl_tc_phy_connect(tc, required_lanes);
+	}
+
+	drm_WARN_ON(&i915->drm, !connected);
+}
+
+static void tc_phy_disconnect(struct intel_tc_port *tc)
+{
+	if (tc->mode != TC_PORT_DISCONNECTED) {
+		icl_tc_phy_disconnect(tc);
+		tc->mode = TC_PORT_DISCONNECTED;
+	}
+}
+
 static void intel_tc_port_reset_mode(struct intel_tc_port *tc,
 				     int required_lanes, bool force_disconnect)
 {
@@ -834,9 +847,9 @@ static void intel_tc_port_reset_mode(struct intel_tc_port *tc,
 		drm_WARN_ON(&i915->drm, aux_powered);
 	}
 
-	icl_tc_phy_disconnect(tc);
+	tc_phy_disconnect(tc);
 	if (!force_disconnect)
-		icl_tc_phy_connect(tc, required_lanes);
+		tc_phy_connect(tc, required_lanes);
 
 	drm_dbg_kms(&i915->drm, "Port %s: TC port mode reset (%s -> %s)\n",
 		    tc->port_name,
@@ -1015,7 +1028,7 @@ void intel_tc_port_sanitize_mode(struct intel_digital_port *dig_port,
 				    "Port %s: PHY left in %s mode on disabled port, disconnecting it\n",
 				    tc->port_name,
 				    tc_port_mode_name(tc->init_mode));
-		icl_tc_phy_disconnect(tc);
+		tc_phy_disconnect(tc);
 		__intel_tc_port_put_link(tc);
 
 		tc_cold_unblock(tc, tc->lock_power_domain,
