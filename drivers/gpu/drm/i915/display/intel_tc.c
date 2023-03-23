@@ -32,6 +32,7 @@ struct intel_tc_phy_ops {
 	void (*get_hw_state)(struct intel_tc_port *tc);
 	bool (*connect)(struct intel_tc_port *tc, int required_lanes);
 	void (*disconnect)(struct intel_tc_port *tc);
+	void (*init)(struct intel_tc_port *tc);
 };
 
 struct intel_tc_port {
@@ -370,6 +371,25 @@ static void tc_port_fixup_legacy_flag(struct intel_tc_port *tc,
 	tc->legacy_port = !tc->legacy_port;
 }
 
+static void tc_phy_load_fia_params(struct intel_tc_port *tc, bool modular_fia)
+{
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+	enum port port = tc->dig_port->base.port;
+	enum tc_port tc_port = intel_port_to_tc(i915, port);
+
+	/*
+	 * Each Modular FIA instance houses 2 TC ports. In SOC that has more
+	 * than two TC ports, there are multiple instances of Modular FIA.
+	 */
+	if (modular_fia) {
+		tc->phy_fia = tc_port / 2;
+		tc->phy_fia_idx = tc_port % 2;
+	} else {
+		tc->phy_fia = FIA1;
+		tc->phy_fia_idx = tc_port;
+	}
+}
+
 /*
  * ICL TC PHY handlers
  * -------------------
@@ -597,6 +617,11 @@ static void icl_tc_phy_disconnect(struct intel_tc_port *tc)
 	}
 }
 
+static void icl_tc_phy_init(struct intel_tc_port *tc)
+{
+	tc_phy_load_fia_params(tc, false);
+}
+
 static const struct intel_tc_phy_ops icl_tc_phy_ops = {
 	.cold_off_domain = icl_tc_phy_cold_off_domain,
 	.hpd_live_status = icl_tc_phy_hpd_live_status,
@@ -605,6 +630,7 @@ static const struct intel_tc_phy_ops icl_tc_phy_ops = {
 	.get_hw_state = icl_tc_phy_get_hw_state,
 	.connect = icl_tc_phy_connect,
 	.disconnect = icl_tc_phy_disconnect,
+	.init = icl_tc_phy_init,
 };
 
 /*
@@ -617,6 +643,20 @@ tgl_tc_phy_cold_off_domain(struct intel_tc_port *tc)
 	return POWER_DOMAIN_TC_COLD_OFF;
 }
 
+static void tgl_tc_phy_init(struct intel_tc_port *tc)
+{
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+	intel_wakeref_t wakeref;
+	u32 val;
+
+	with_intel_display_power(i915, tc_phy_cold_off_domain(tc), wakeref)
+		val = intel_de_read(i915, PORT_TX_DFLEXDPSP(FIA1));
+
+	drm_WARN_ON(&i915->drm, val == 0xffffffff);
+
+	tc_phy_load_fia_params(tc, val & MODULAR_FIA_MASK);
+}
+
 static const struct intel_tc_phy_ops tgl_tc_phy_ops = {
 	.cold_off_domain = tgl_tc_phy_cold_off_domain,
 	.hpd_live_status = icl_tc_phy_hpd_live_status,
@@ -625,6 +665,7 @@ static const struct intel_tc_phy_ops tgl_tc_phy_ops = {
 	.get_hw_state = icl_tc_phy_get_hw_state,
 	.connect = icl_tc_phy_connect,
 	.disconnect = icl_tc_phy_disconnect,
+	.init = tgl_tc_phy_init,
 };
 
 /*
@@ -720,6 +761,11 @@ static bool adlp_tc_phy_is_owned(struct intel_tc_port *tc)
 	return val & DDI_BUF_CTL_TC_PHY_OWNERSHIP;
 }
 
+static void adlp_tc_phy_init(struct intel_tc_port *tc)
+{
+	tc_phy_load_fia_params(tc, true);
+}
+
 static const struct intel_tc_phy_ops adlp_tc_phy_ops = {
 	.cold_off_domain = adlp_tc_phy_cold_off_domain,
 	.hpd_live_status = adlp_tc_phy_hpd_live_status,
@@ -728,6 +774,7 @@ static const struct intel_tc_phy_ops adlp_tc_phy_ops = {
 	.get_hw_state = icl_tc_phy_get_hw_state,
 	.connect = icl_tc_phy_connect,
 	.disconnect = icl_tc_phy_disconnect,
+	.init = adlp_tc_phy_init,
 };
 
 /*
@@ -970,6 +1017,13 @@ static void tc_phy_disconnect(struct intel_tc_port *tc)
 		tc->phy_ops->disconnect(tc);
 		tc->mode = TC_PORT_DISCONNECTED;
 	}
+}
+
+static void tc_phy_init(struct intel_tc_port *tc)
+{
+	mutex_lock(&tc->lock);
+	tc->phy_ops->init(tc);
+	mutex_unlock(&tc->lock);
 }
 
 static void intel_tc_port_reset_mode(struct intel_tc_port *tc,
@@ -1292,45 +1346,6 @@ void intel_tc_port_put_link(struct intel_digital_port *dig_port)
 	intel_tc_port_flush_work(dig_port);
 }
 
-static bool
-tc_has_modular_fia(struct drm_i915_private *i915, struct intel_tc_port *tc)
-{
-	intel_wakeref_t wakeref;
-	u32 val;
-
-	if (!INTEL_INFO(i915)->display.has_modular_fia)
-		return false;
-
-	mutex_lock(&tc->lock);
-	wakeref = tc_cold_block(tc);
-	val = intel_de_read(i915, PORT_TX_DFLEXDPSP(FIA1));
-	tc_cold_unblock(tc, wakeref);
-	mutex_unlock(&tc->lock);
-
-	drm_WARN_ON(&i915->drm, val == 0xffffffff);
-
-	return val & MODULAR_FIA_MASK;
-}
-
-static void
-tc_port_load_fia_params(struct drm_i915_private *i915, struct intel_tc_port *tc)
-{
-	enum port port = tc->dig_port->base.port;
-	enum tc_port tc_port = intel_port_to_tc(i915, port);
-
-	/*
-	 * Each Modular FIA instance houses 2 TC ports. In SOC that has more
-	 * than two TC ports, there are multiple instances of Modular FIA.
-	 */
-	if (tc_has_modular_fia(i915, tc)) {
-		tc->phy_fia = tc_port / 2;
-		tc->phy_fia_idx = tc_port % 2;
-	} else {
-		tc->phy_fia = FIA1;
-		tc->phy_fia_idx = tc_port;
-	}
-}
-
 int intel_tc_port_init(struct intel_digital_port *dig_port, bool is_legacy)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
@@ -1363,7 +1378,8 @@ int intel_tc_port_init(struct intel_digital_port *dig_port, bool is_legacy)
 	tc->legacy_port = is_legacy;
 	tc->mode = TC_PORT_DISCONNECTED;
 	tc->link_refcount = 0;
-	tc_port_load_fia_params(i915, tc);
+
+	tc_phy_init(tc);
 
 	intel_tc_port_init_mode(dig_port);
 
