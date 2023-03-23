@@ -688,22 +688,19 @@ static u32 adlp_tc_phy_hpd_live_status(struct intel_tc_port *tc)
 {
 	struct drm_i915_private *i915 = tc_to_i915(tc);
 	struct intel_digital_port *dig_port = tc->dig_port;
-	enum tc_port tc_port = intel_port_to_tc(i915, dig_port->base.port);
-	u32 isr_bit = i915->display.hotplug.pch_hpd[dig_port->base.hpd_pin];
-	u32 val, mask = 0;
+	enum hpd_pin hpd_pin = dig_port->base.hpd_pin;
+	u32 cpu_isr_bits = i915->display.hotplug.hpd[hpd_pin];
+	u32 pch_isr_bit = i915->display.hotplug.pch_hpd[hpd_pin];
+	u32 cpu_isr;
+	u32 mask = 0;
 
-	/*
-	 * On ADL-P HW/FW will wake from TCCOLD to complete the read access of
-	 * registers in IOM. Note that this doesn't apply to PHY and FIA
-	 * registers.
-	 */
-	val = intel_de_read(i915, TCSS_DDI_STATUS(tc_port));
-	if (val & TCSS_DDI_STATUS_HPD_LIVE_STATUS_ALT)
+	cpu_isr = intel_de_read(i915, GEN11_DE_HPD_ISR);
+	if (cpu_isr & (cpu_isr_bits & GEN11_DE_TC_HOTPLUG_MASK))
 		mask |= BIT(TC_PORT_DP_ALT);
-	if (val & TCSS_DDI_STATUS_HPD_LIVE_STATUS_TBT)
+	if (cpu_isr & (cpu_isr_bits & GEN11_DE_TBT_HOTPLUG_MASK))
 		mask |= BIT(TC_PORT_TBT_ALT);
 
-	if (intel_de_read(i915, SDEISR) & isr_bit)
+	if (intel_de_read(i915, SDEISR) & pch_isr_bit)
 		mask |= BIT(TC_PORT_LEGACY);
 
 	return mask;
