@@ -1396,6 +1396,7 @@ static const struct qmp_combo_offsets qmp_combo_offsets_v3 = {
 	.usb3_serdes	= 0x1000,
 	.usb3_pcs_misc	= 0x1a00,
 	.usb3_pcs	= 0x1c00,
+	.usb3_pcs_usb	= 0x1f00,
 	.dp_serdes	= 0x2000,
 	.dp_txa		= 0x2200,
 	.dp_txb		= 0x2600,
