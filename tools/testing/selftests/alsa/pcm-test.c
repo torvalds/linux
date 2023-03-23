@@ -499,17 +499,18 @@ __close:
 	}
 
 	if (!skip)
-		ksft_test_result(pass, "%s.%s.%d.%d.%d.%s%s%s\n",
+		ksft_test_result(pass, "%s.%s.%d.%d.%d.%s\n",
 				 test_class_name, test_name,
 				 data->card, data->device, data->subdevice,
-				 snd_pcm_stream_name(data->stream),
-				 msg[0] ? " " : "", msg);
+				 snd_pcm_stream_name(data->stream));
 	else
-		ksft_test_result_skip("%s.%s.%d.%d.%d.%s%s%s\n",
+		ksft_test_result_skip("%s.%s.%d.%d.%d.%s\n",
 				 test_class_name, test_name,
 				 data->card, data->device, data->subdevice,
-				 snd_pcm_stream_name(data->stream),
-				 msg[0] ? " " : "", msg);
+				 snd_pcm_stream_name(data->stream));
+
+	if (msg[0])
+		ksft_print_msg("%s\n", msg);
 
 	pthread_mutex_unlock(&results_lock);
 
