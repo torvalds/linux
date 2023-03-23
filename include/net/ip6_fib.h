@@ -217,9 +217,6 @@ struct rt6_info {
 	struct inet6_dev		*rt6i_idev;
 	u32				rt6i_flags;
 
-	struct list_head		rt6i_uncached;
-	struct uncached_list		*rt6i_uncached_list;
-
 	/* more non-fragment space at head required */
 	unsigned short			rt6i_nfheader_len;
 };

@@ -69,15 +69,28 @@ struct dst_entry {
 #endif
 	int			__use;
 	unsigned long		lastuse;
-	struct lwtunnel_state   *lwtstate;
 	struct rcu_head		rcu_head;
 	short			error;
 	short			__pad;
 	__u32			tclassid;
 #ifndef CONFIG_64BIT
+	struct lwtunnel_state   *lwtstate;
 	atomic_t		__refcnt;	/* 32-bit offset 64 */
 #endif
 	netdevice_tracker	dev_tracker;
+
+	/*
+	 * Used by rtable and rt6_info. Moves lwtstate into the next cache
+	 * line on 64bit so that lwtstate does not cause false sharing with
+	 * __refcnt under contention of __refcnt. This also puts the
+	 * frequently accessed members of rtable and rt6_info out of the
+	 * __refcnt cache line.
+	 */
+	struct list_head	rt_uncached;
+	struct uncached_list	*rt_uncached_list;
+#ifdef CONFIG_64BIT
+	struct lwtunnel_state   *lwtstate;
+#endif
 };
 
 struct dst_metrics {
