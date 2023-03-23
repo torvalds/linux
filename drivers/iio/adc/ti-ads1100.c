@@ -344,7 +344,7 @@ static int ads1100_probe(struct i2c_client *client)
 
 	ret = regulator_enable(data->reg_vdd);
 	if (ret < 0)
-		return dev_err_probe(dev, PTR_ERR(data->reg_vdd),
+		return dev_err_probe(dev, ret,
 				     "Failed to enable vdd regulator\n");
 
 	ret = devm_add_action_or_reset(dev, ads1100_reg_disable, data->reg_vdd);
