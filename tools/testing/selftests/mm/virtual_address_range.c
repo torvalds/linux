@@ -36,13 +36,15 @@
  * till it reaches 512TB. One with size 128TB and the
  * other being 384TB.
  *
- * On Arm64 the address space is 256TB and no high mappings
- * are supported so far.
+ * On Arm64 the address space is 256TB and support for
+ * high mappings up to 4PB virtual address space has
+ * been added.
  */
 
 #define NR_CHUNKS_128TB   ((128 * SZ_1TB) / MAP_CHUNK_SIZE) /* Number of chunks for 128TB */
 #define NR_CHUNKS_256TB   (NR_CHUNKS_128TB * 2UL)
 #define NR_CHUNKS_384TB   (NR_CHUNKS_128TB * 3UL)
+#define NR_CHUNKS_3840TB  (NR_CHUNKS_128TB * 30UL)
 
 #define ADDR_MARK_128TB  (1UL << 47) /* First address beyond 128TB */
 #define ADDR_MARK_256TB  (1UL << 48) /* First address beyond 256TB */
@@ -51,7 +53,7 @@
 #define HIGH_ADDR_MARK  ADDR_MARK_256TB
 #define HIGH_ADDR_SHIFT 49
 #define NR_CHUNKS_LOW   NR_CHUNKS_256TB
-#define NR_CHUNKS_HIGH  0
+#define NR_CHUNKS_HIGH  NR_CHUNKS_3840TB
 #else
 #define HIGH_ADDR_MARK  ADDR_MARK_128TB
 #define HIGH_ADDR_SHIFT 48
@@ -101,7 +103,7 @@ static int validate_lower_address_hint(void)
 int main(int argc, char *argv[])
 {
 	char *ptr[NR_CHUNKS_LOW];
-	char *hptr[NR_CHUNKS_HIGH];
+	char **hptr;
 	char *hint;
 	unsigned long i, lchunks, hchunks;
 
@@ -119,6 +121,9 @@ int main(int argc, char *argv[])
 			return 1;
 	}
 	lchunks = i;
+	hptr = (char **) calloc(NR_CHUNKS_HIGH, sizeof(char *));
+	if (hptr == NULL)
+		return 1;
 
 	for (i = 0; i < NR_CHUNKS_HIGH; i++) {
 		hint = hind_addr();
@@ -139,5 +144,6 @@ int main(int argc, char *argv[])
 	for (i = 0; i < hchunks; i++)
 		munmap(hptr[i], MAP_CHUNK_SIZE);
 
+	free(hptr);
 	return 0;
 }
