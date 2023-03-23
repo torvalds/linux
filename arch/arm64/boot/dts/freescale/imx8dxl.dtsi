@@ -130,8 +130,6 @@
 		clk: clock-controller {
 			compatible = "fsl,imx8dxl-clk", "fsl,scu-clk";
 			#clock-cells = <2>;
-			clocks = <&xtal32k &xtal24m>;
-			clock-names = "xtal_32KHz", "xtal_24Mhz";
 		};
 
 		scu_gpio: gpio {
