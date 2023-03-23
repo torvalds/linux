@@ -25,4 +25,4 @@ implementation.
    ../sh/index
    ../sparc/index
    x86/index
-   ../xtensa/index
+   xtensa/index
