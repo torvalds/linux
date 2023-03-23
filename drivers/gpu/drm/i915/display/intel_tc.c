@@ -298,6 +298,11 @@ static void tc_port_fixup_legacy_flag(struct intel_tc_port *tc,
 	struct drm_i915_private *i915 = tc_to_i915(tc);
 	u32 valid_hpd_mask;
 
+	drm_WARN_ON(&i915->drm, tc->mode != TC_PORT_DISCONNECTED);
+
+	if (hweight32(live_status_mask) != 1)
+		return;
+
 	if (tc->legacy_port)
 		valid_hpd_mask = BIT(TC_PORT_LEGACY);
 	else
@@ -625,8 +630,7 @@ static u32 tc_phy_hpd_live_status(struct intel_tc_port *tc)
 	mask = tc->phy_ops->hpd_live_status(tc);
 
 	/* The sink can be connected only in a single mode. */
-	if (!drm_WARN_ON_ONCE(&i915->drm, hweight32(mask) > 1))
-		tc_port_fixup_legacy_flag(tc, mask);
+	drm_WARN_ON_ONCE(&i915->drm, hweight32(mask) > 1);
 
 	return mask;
 }
@@ -826,9 +830,12 @@ tc_phy_get_target_mode(struct intel_tc_port *tc)
 static void tc_phy_connect(struct intel_tc_port *tc, int required_lanes)
 {
 	struct drm_i915_private *i915 = tc_to_i915(tc);
+	u32 live_status_mask = tc_phy_hpd_live_status(tc);
 	bool connected;
 
-	tc->mode = tc_phy_get_target_mode(tc);
+	tc_port_fixup_legacy_flag(tc, live_status_mask);
+
+	tc->mode = hpd_mask_to_target_mode(tc, live_status_mask);
 
 	connected = tc->phy_ops->connect(tc, required_lanes);
 	if (!connected && tc->mode != default_tc_mode(tc)) {
