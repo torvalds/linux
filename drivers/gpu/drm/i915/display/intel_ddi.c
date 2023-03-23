@@ -3061,39 +3061,6 @@ void intel_ddi_update_pipe(struct intel_atomic_state *state,
 }
 
 static void
-intel_ddi_update_prepare(struct intel_atomic_state *state,
-			 struct intel_encoder *encoder,
-			 struct intel_crtc *crtc)
-{
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
-	struct intel_crtc_state *crtc_state =
-		crtc ? intel_atomic_get_new_crtc_state(state, crtc) : NULL;
-	int required_lanes = crtc_state ? crtc_state->lane_count : 1;
-
-	drm_WARN_ON(state->base.dev, crtc && crtc->active);
-
-	intel_tc_port_get_link(enc_to_dig_port(encoder),
-		               required_lanes);
-	if (crtc_state && crtc_state->hw.active) {
-		struct intel_crtc *slave_crtc;
-
-		intel_update_active_dpll(state, crtc, encoder);
-
-		for_each_intel_crtc_in_pipe_mask(&i915->drm, slave_crtc,
-						 intel_crtc_bigjoiner_slave_pipes(crtc_state))
-			intel_update_active_dpll(state, slave_crtc, encoder);
-	}
-}
-
-static void
-intel_ddi_update_complete(struct intel_atomic_state *state,
-			  struct intel_encoder *encoder,
-			  struct intel_crtc *crtc)
-{
-	intel_tc_port_put_link(enc_to_dig_port(encoder));
-}
-
-static void
 intel_ddi_pre_pll_enable(struct intel_atomic_state *state,
 			 struct intel_encoder *encoder,
 			 const struct intel_crtc_state *crtc_state,
@@ -3104,8 +3071,19 @@ intel_ddi_pre_pll_enable(struct intel_atomic_state *state,
 	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
 	bool is_tc_port = intel_phy_is_tc(dev_priv, phy);
 
-	if (is_tc_port)
+	if (is_tc_port) {
+		struct intel_crtc *master_crtc =
+			to_intel_crtc(crtc_state->uapi.crtc);
+		struct intel_crtc *slave_crtc;
+
 		intel_tc_port_get_link(dig_port, crtc_state->lane_count);
+
+		intel_update_active_dpll(state, master_crtc, encoder);
+
+		for_each_intel_crtc_in_pipe_mask(&dev_priv->drm, slave_crtc,
+						 intel_crtc_bigjoiner_slave_pipes(crtc_state))
+			intel_update_active_dpll(state, slave_crtc, encoder);
+	}
 
 	main_link_aux_power_domain_get(dig_port, crtc_state);
 
@@ -4552,9 +4530,6 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 
 		if (intel_tc_port_init(dig_port, is_legacy) < 0)
 			goto err;
-
-		encoder->update_prepare = intel_ddi_update_prepare;
-		encoder->update_complete = intel_ddi_update_complete;
 	}
 
 	drm_WARN_ON(&dev_priv->drm, port > PORT_I);

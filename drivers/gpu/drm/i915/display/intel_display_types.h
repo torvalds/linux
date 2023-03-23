@@ -170,9 +170,6 @@ struct intel_encoder {
 	int (*compute_config_late)(struct intel_encoder *,
 				   struct intel_crtc_state *,
 				   struct drm_connector_state *);
-	void (*update_prepare)(struct intel_atomic_state *,
-			       struct intel_encoder *,
-			       struct intel_crtc *);
 	void (*pre_pll_enable)(struct intel_atomic_state *,
 			       struct intel_encoder *,
 			       const struct intel_crtc_state *,
@@ -185,9 +182,6 @@ struct intel_encoder {
 		       struct intel_encoder *,
 		       const struct intel_crtc_state *,
 		       const struct drm_connector_state *);
-	void (*update_complete)(struct intel_atomic_state *,
-				struct intel_encoder *,
-				struct intel_crtc *);
 	void (*disable)(struct intel_atomic_state *,
 			struct intel_encoder *,
 			const struct intel_crtc_state *,

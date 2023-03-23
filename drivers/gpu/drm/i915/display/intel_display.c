@@ -1320,36 +1320,11 @@ static void intel_crtc_disable_planes(struct intel_atomic_state *state,
 	intel_frontbuffer_flip(dev_priv, fb_bits);
 }
 
-/*
- * intel_connector_primary_encoder - get the primary encoder for a connector
- * @connector: connector for which to return the encoder
- *
- * Returns the primary encoder for a connector. There is a 1:1 mapping from
- * all connectors to their encoder, except for DP-MST connectors which have
- * both a virtual and a primary encoder. These DP-MST primary encoders can be
- * pointed to by as many DP-MST connectors as there are pipes.
- */
-static struct intel_encoder *
-intel_connector_primary_encoder(struct intel_connector *connector)
-{
-	struct intel_encoder *encoder;
-
-	if (connector->mst_port)
-		return &dp_to_dig_port(connector->mst_port)->base;
-
-	encoder = intel_attached_encoder(connector);
-	drm_WARN_ON(connector->base.dev, !encoder);
-
-	return encoder;
-}
-
 static void intel_encoders_update_prepare(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	struct intel_crtc_state *new_crtc_state, *old_crtc_state;
 	struct intel_crtc *crtc;
-	struct drm_connector_state *new_conn_state;
-	struct drm_connector *connector;
 	int i;
 
 	/*
@@ -1364,57 +1339,6 @@ static void intel_encoders_update_prepare(struct intel_atomic_state *state)
 			new_crtc_state->shared_dpll = old_crtc_state->shared_dpll;
 			new_crtc_state->dpll_hw_state = old_crtc_state->dpll_hw_state;
 		}
-	}
-
-	if (!state->modeset)
-		return;
-
-	for_each_new_connector_in_state(&state->base, connector, new_conn_state,
-					i) {
-		struct intel_connector *intel_connector;
-		struct intel_encoder *encoder;
-		struct intel_crtc *crtc;
-
-		if (!intel_connector_needs_modeset(state, connector))
-			continue;
-
-		intel_connector = to_intel_connector(connector);
-		encoder = intel_connector_primary_encoder(intel_connector);
-		if (!encoder->update_prepare)
-			continue;
-
-		crtc = new_conn_state->crtc ?
-			to_intel_crtc(new_conn_state->crtc) : NULL;
-		encoder->update_prepare(state, encoder, crtc);
-	}
-}
-
-static void intel_encoders_update_complete(struct intel_atomic_state *state)
-{
-	struct drm_connector_state *new_conn_state;
-	struct drm_connector *connector;
-	int i;
-
-	if (!state->modeset)
-		return;
-
-	for_each_new_connector_in_state(&state->base, connector, new_conn_state,
-					i) {
-		struct intel_connector *intel_connector;
-		struct intel_encoder *encoder;
-		struct intel_crtc *crtc;
-
-		if (!intel_connector_needs_modeset(state, connector))
-			continue;
-
-		intel_connector = to_intel_connector(connector);
-		encoder = intel_connector_primary_encoder(intel_connector);
-		if (!encoder->update_complete)
-			continue;
-
-		crtc = new_conn_state->crtc ?
-			to_intel_crtc(new_conn_state->crtc) : NULL;
-		encoder->update_complete(state, encoder, crtc);
 	}
 }
 
@@ -7444,8 +7368,6 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
 	dev_priv->display.funcs.display->commit_modeset_enables(state);
-
-	intel_encoders_update_complete(state);
 
 	if (state->modeset)
 		intel_set_cdclk_post_plane_update(state);
