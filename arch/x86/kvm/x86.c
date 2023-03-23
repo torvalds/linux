@@ -5213,9 +5213,9 @@ static int kvm_vcpu_ioctl_x86_set_vcpu_events(struct kvm_vcpu *vcpu,
 
 	vcpu->arch.nmi_injected = events->nmi.injected;
 	if (events->flags & KVM_VCPUEVENT_VALID_NMI_PENDING) {
-		vcpu->arch.nmi_pending = events->nmi.pending;
-		if (vcpu->arch.nmi_pending)
-			kvm_make_request(KVM_REQ_NMI, vcpu);
+		vcpu->arch.nmi_pending = 0;
+		atomic_set(&vcpu->arch.nmi_queued, events->nmi.pending);
+		kvm_make_request(KVM_REQ_NMI, vcpu);
 	}
 	static_call(kvm_x86_set_nmi_mask)(vcpu, events->nmi.masked);
 
