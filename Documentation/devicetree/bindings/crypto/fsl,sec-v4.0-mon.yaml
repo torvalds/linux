@@ -113,6 +113,12 @@ properties:
   snvs-lpgpr:
     $ref: /schemas/nvmem/snvs-lpgpr.yaml#
 
+  snvs-poweroff:
+    description:
+      The SNVS could drive signal to PMIC to turn off system power by setting
+      SNVS_LP LPCR register.
+    $ref: /schemas/power/reset/syscon-poweroff.yaml#
+
 required:
   - compatible
   - reg
