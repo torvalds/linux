@@ -7,6 +7,7 @@
 #define __IVPU_DRV_H__
 
 #include <drm/drm_device.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_mm.h>
 #include <drm/drm_print.h>

@@ -8,7 +8,6 @@
 #include <linux/pci.h>
 
 #include <drm/drm_accel.h>
-#include <drm/drm_drv.h>
 #include <drm/drm_file.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_ioctl.h>
@@ -118,6 +117,10 @@ static int ivpu_get_param_ioctl(struct drm_device *dev, void *data, struct drm_f
 	struct pci_dev *pdev = to_pci_dev(vdev->drm.dev);
 	struct drm_ivpu_param *args = data;
 	int ret = 0;
+	int idx;
+
+	if (!drm_dev_enter(dev, &idx))
+		return -ENODEV;
 
 	switch (args->param) {
 	case DRM_IVPU_PARAM_DEVICE_ID:
@@ -171,6 +174,7 @@ static int ivpu_get_param_ioctl(struct drm_device *dev, void *data, struct drm_f
 		break;
 	}
 
+	drm_dev_exit(idx);
 	return ret;
 }
 
@@ -622,7 +626,7 @@ static void ivpu_remove(struct pci_dev *pdev)
 {
 	struct ivpu_device *vdev = pci_get_drvdata(pdev);
 
-	drm_dev_unregister(&vdev->drm);
+	drm_dev_unplug(&vdev->drm);
 	ivpu_dev_fini(vdev);
 }
 
