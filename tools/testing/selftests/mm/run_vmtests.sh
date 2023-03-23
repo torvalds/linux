@@ -236,8 +236,16 @@ if [ $VADDR64 -ne 0 ]; then
 	CATEGORY="hugevm" run_test ./virtual_address_range
 	echo $prev_policy > /proc/sys/vm/overcommit_memory
 
-	# virtual address 128TB switch test
+	# va high address boundary switch test
+	ARCH_ARM64="arm64"
+	prev_nr_hugepages=$(cat /proc/sys/vm/nr_hugepages)
+	if [ "$ARCH" == "$ARCH_ARM64" ]; then
+		echo 6 > /proc/sys/vm/nr_hugepages
+	fi
 	CATEGORY="hugevm" run_test ./va_high_addr_switch.sh
+	if [ "$ARCH" == "$ARCH_ARM64" ]; then
+		echo $prev_nr_hugepages > /proc/sys/vm/nr_hugepages
+	fi
 fi # VADDR64
 
 # vmalloc stability smoke test
