@@ -270,6 +270,7 @@ struct beacon_data {
 	u16 cntdwn_counter_offsets[IEEE80211_MAX_CNTDWN_COUNTERS_NUM];
 	u8 cntdwn_current_counter;
 	struct cfg80211_mbssid_elems *mbssid_ies;
+	struct cfg80211_rnr_elems *rnr_ies;
 	struct rcu_head rcu_head;
 };
 
@@ -1186,19 +1187,33 @@ ieee80211_vif_get_shift(struct ieee80211_vif *vif)
 }
 
 static inline int
-ieee80211_get_mbssid_beacon_len(struct cfg80211_mbssid_elems *elems, u8 i)
+ieee80211_get_mbssid_beacon_len(struct cfg80211_mbssid_elems *elems,
+				struct cfg80211_rnr_elems *rnr_elems,
+				u8 i)
 {
 	int len = 0;
 
 	if (!elems || !elems->cnt || i > elems->cnt)
 		return 0;
 
-	if (i < elems->cnt)
-		return elems->elem[i].len;
+	if (i < elems->cnt) {
+		len = elems->elem[i].len;
+		if (rnr_elems) {
+			len += rnr_elems->elem[i].len;
+			for (i = elems->cnt; i < rnr_elems->cnt; i++)
+				len += rnr_elems->elem[i].len;
+		}
+		return len;
+	}
 
 	/* i == elems->cnt, calculate total length of all MBSSID elements */
 	for (i = 0; i < elems->cnt; i++)
 		len += elems->elem[i].len;
+
+	if (rnr_elems) {
+		for (i = 0; i < rnr_elems->cnt; i++)
+			len += rnr_elems->elem[i].len;
+	}
 
 	return len;
 }

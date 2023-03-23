@@ -5222,6 +5222,15 @@ ieee80211_beacon_add_mbssid(struct sk_buff *skb, struct beacon_data *beacon,
 	if (i < beacon->mbssid_ies->cnt) {
 		skb_put_data(skb, beacon->mbssid_ies->elem[i].data,
 			     beacon->mbssid_ies->elem[i].len);
+
+		if (beacon->rnr_ies && beacon->rnr_ies->cnt) {
+			skb_put_data(skb, beacon->rnr_ies->elem[i].data,
+				     beacon->rnr_ies->elem[i].len);
+
+			for (i = beacon->mbssid_ies->cnt; i < beacon->rnr_ies->cnt; i++)
+				skb_put_data(skb, beacon->rnr_ies->elem[i].data,
+					     beacon->rnr_ies->elem[i].len);
+		}
 		return;
 	}
 
@@ -5259,6 +5268,7 @@ ieee80211_beacon_get_ap(struct ieee80211_hw *hw,
 	 * tail length, maximum TIM length and multiple BSSID length
 	 */
 	mbssid_len = ieee80211_get_mbssid_beacon_len(beacon->mbssid_ies,
+						     beacon->rnr_ies,
 						     ema_index);
 
 	skb = dev_alloc_skb(local->tx_headroom + beacon->head_len +
