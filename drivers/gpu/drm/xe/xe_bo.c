@@ -79,6 +79,19 @@ mem_type_to_gt(struct xe_device *xe, u32 mem_type)
 	return xe_device_get_gt(xe, mem_type == XE_PL_STOLEN ? 0 : (mem_type - XE_PL_VRAM0));
 }
 
+/**
+ * xe_bo_to_gt() - Get a GT from a BO's memory location
+ * @bo: The buffer object
+ *
+ * Get a GT from a BO's memory location, should be called on BOs in VRAM only.
+ *
+ * Return: xe_gt object which is closest to the BO
+ */
+struct xe_gt *xe_bo_to_gt(struct xe_bo *bo)
+{
+	return mem_type_to_gt(xe_bo_device(bo), bo->ttm.resource->mem_type);
+}
+
 static void try_add_system(struct xe_bo *bo, struct ttm_place *places,
 			   u32 bo_flags, u32 *c)
 {
