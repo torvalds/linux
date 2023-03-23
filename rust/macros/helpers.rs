@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
-use proc_macro::{token_stream, TokenTree};
+use proc_macro::{token_stream, Group, TokenTree};
 
 pub(crate) fn try_ident(it: &mut token_stream::IntoIter) -> Option<String> {
     if let Some(TokenTree::Ident(ident)) = it.next() {
@@ -54,6 +54,14 @@ pub(crate) fn expect_string_ascii(it: &mut token_stream::IntoIter) -> String {
     let string = try_string(it).expect("Expected string");
     assert!(string.is_ascii(), "Expected ASCII string");
     string
+}
+
+pub(crate) fn expect_group(it: &mut token_stream::IntoIter) -> Group {
+    if let TokenTree::Group(group) = it.next().expect("Reached end of token stream for Group") {
+        group
+    } else {
+        panic!("Expected Group");
+    }
 }
 
 pub(crate) fn expect_end(it: &mut token_stream::IntoIter) {
