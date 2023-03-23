@@ -56,9 +56,9 @@ static struct page_pinner_buffer pp_buffer;
 
 static bool page_pinner_enabled;
 DEFINE_STATIC_KEY_FALSE(page_pinner_inited);
+EXPORT_SYMBOL_GPL(page_pinner_inited);
 
 DEFINE_STATIC_KEY_TRUE(failure_tracking);
-EXPORT_SYMBOL_GPL(failure_tracking);
 
 static depot_stack_handle_t failure_handle;
 
@@ -252,11 +252,15 @@ err:
 
 void __page_pinner_failure_detect(struct page *page)
 {
-	struct page_ext *page_ext = page_ext_get(page);
+	struct page_ext *page_ext;
 	struct page_pinner *page_pinner;
 	struct captured_pinner record;
 	u64 now;
 
+	if (!static_branch_unlikely(&failure_tracking))
+		return;
+
+	page_ext = page_ext_get(page);
 	if (unlikely(!page_ext))
 		return;
 
@@ -282,11 +286,15 @@ EXPORT_SYMBOL_GPL(__page_pinner_failure_detect);
 
 void __page_pinner_put_page(struct page *page)
 {
-	struct page_ext *page_ext = page_ext_get(page);
+	struct page_ext *page_ext;
 	struct page_pinner *page_pinner;
 	struct captured_pinner record;
 	u64 now, ts_usec;
 
+	if (!static_branch_unlikely(&failure_tracking))
+		return;
+
+	page_ext = page_ext_get(page);
 	if (unlikely(!page_ext))
 		return;
 
