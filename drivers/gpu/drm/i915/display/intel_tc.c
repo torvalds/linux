@@ -111,6 +111,46 @@ bool intel_tc_port_in_legacy_mode(struct intel_digital_port *dig_port)
 	return intel_tc_port_in_mode(dig_port, TC_PORT_LEGACY);
 }
 
+/*
+ * The display power domains used for TC ports depending on the
+ * platform and TC mode (legacy, DP-alt, TBT):
+ *
+ * POWER_DOMAIN_DISPLAY_CORE:
+ * --------------------------
+ * ADLP/all modes:
+ *   - TCSS/IOM access for PHY ready state.
+ * ADLP+/all modes:
+ *   - DE/north-,south-HPD ISR access for HPD live state.
+ *
+ * POWER_DOMAIN_PORT_DDI_LANES_<port>:
+ * -----------------------------------
+ * ICL+/all modes:
+ *   - DE/DDI_BUF access for port enabled state.
+ * ADLP/all modes:
+ *   - DE/DDI_BUF access for PHY owned state.
+ *
+ * POWER_DOMAIN_AUX_USBC<TC port index>:
+ * -------------------------------------
+ * ICL/legacy mode:
+ *   - TCSS/IOM,FIA access for PHY ready, owned and HPD live state
+ *   - TCSS/PHY: block TC-cold power state for using the PHY AUX and
+ *     main lanes.
+ * ADLP/legacy, DP-alt modes:
+ *   - TCSS/PHY: block TC-cold power state for using the PHY AUX and
+ *     main lanes.
+ *
+ * POWER_DOMAIN_TC_COLD_OFF:
+ * -------------------------
+ * TGL/legacy, DP-alt modes:
+ *   - TCSS/IOM,FIA access for PHY ready, owned and HPD live state
+ *   - TCSS/PHY: block TC-cold power state for using the PHY AUX and
+ *     main lanes.
+ *
+ * ICL, TGL, ADLP/TBT mode:
+ *   - TCSS/IOM,FIA access for HPD live state
+ *   - TCSS/TBT: block TC-cold power state for using the (TBT DP-IN)
+ *     AUX and main lanes.
+ */
 bool intel_tc_cold_requires_aux_pw(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
@@ -161,6 +201,15 @@ tc_cold_unblock(struct intel_tc_port *tc, intel_wakeref_t wakeref)
 	drm_WARN_ON(&tc_to_i915(tc)->drm, tc->lock_power_domain != domain);
 #endif
 	__tc_cold_unblock(tc, domain, wakeref);
+}
+
+static void
+assert_display_core_power_enabled(struct intel_tc_port *tc)
+{
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+
+	drm_WARN_ON(&i915->drm,
+		    !intel_display_power_is_enabled(i915, POWER_DOMAIN_DISPLAY_CORE));
 }
 
 static void
@@ -378,6 +427,8 @@ static bool icl_tc_phy_is_ready(struct intel_tc_port *tc)
 	struct drm_i915_private *i915 = tc_to_i915(tc);
 	u32 val;
 
+	assert_tc_cold_blocked(tc);
+
 	val = intel_de_read(i915, PORT_TX_DFLEXDPPMS(tc->phy_fia));
 	if (val == 0xffffffff) {
 		drm_dbg_kms(&i915->drm,
@@ -394,6 +445,8 @@ static bool icl_tc_phy_take_ownership(struct intel_tc_port *tc,
 {
 	struct drm_i915_private *i915 = tc_to_i915(tc);
 	u32 val;
+
+	assert_tc_cold_blocked(tc);
 
 	val = intel_de_read(i915, PORT_TX_DFLEXDPCSSS(tc->phy_fia));
 	if (val == 0xffffffff) {
@@ -417,6 +470,8 @@ static bool icl_tc_phy_is_owned(struct intel_tc_port *tc)
 {
 	struct drm_i915_private *i915 = tc_to_i915(tc);
 	u32 val;
+
+	assert_tc_cold_blocked(tc);
 
 	val = intel_de_read(i915, PORT_TX_DFLEXDPCSSS(tc->phy_fia));
 	if (val == 0xffffffff) {
@@ -626,6 +681,8 @@ static bool adlp_tc_phy_is_ready(struct intel_tc_port *tc)
 	enum tc_port tc_port = intel_port_to_tc(i915, tc->dig_port->base.port);
 	u32 val;
 
+	assert_display_core_power_enabled(tc);
+
 	val = intel_de_read(i915, TCSS_DDI_STATUS(tc_port));
 	if (val == 0xffffffff) {
 		drm_dbg_kms(&i915->drm,
@@ -643,6 +700,8 @@ static bool adlp_tc_phy_take_ownership(struct intel_tc_port *tc,
 	struct drm_i915_private *i915 = tc_to_i915(tc);
 	enum port port = tc->dig_port->base.port;
 
+	assert_tc_port_power_enabled(tc);
+
 	intel_de_rmw(i915, DDI_BUF_CTL(port), DDI_BUF_CTL_TC_PHY_OWNERSHIP,
 		     take ? DDI_BUF_CTL_TC_PHY_OWNERSHIP : 0);
 
@@ -654,6 +713,8 @@ static bool adlp_tc_phy_is_owned(struct intel_tc_port *tc)
 	struct drm_i915_private *i915 = tc_to_i915(tc);
 	enum port port = tc->dig_port->base.port;
 	u32 val;
+
+	assert_tc_port_power_enabled(tc);
 
 	val = intel_de_read(i915, DDI_BUF_CTL(port));
 	return val & DDI_BUF_CTL_TC_PHY_OWNERSHIP;
