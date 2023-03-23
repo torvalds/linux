@@ -4349,6 +4349,9 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 		VOP_GRF_SET(vop2, grf, grf_hdmi1_en, 0);
 	}
 
+	VOP_MODULE_SET(vop2, vp, dual_channel_en, 0);
+	VOP_MODULE_SET(vop2, vp, dual_channel_swap, 0);
+
 	vp->output_if = 0;
 
 	vop2_clk_set_parent_extend(vp, vcstate, false);
@@ -4382,6 +4385,7 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 	if (vcstate->splice_mode)
 		vop2->active_vp_mask &= ~BIT(splice_vp->id);
 	vcstate->splice_mode = false;
+	vcstate->output_flags = 0;
 	vp->splice_mode_right = false;
 	vp->loader_protect = false;
 	splice_vp->splice_mode_right = false;
