@@ -927,9 +927,8 @@ spd_ ## bus ## _ ## index: spd@addr,4cc5118 ## index ## 000 { \
 	jdec-spd;
 	/* Renesas IMX3102 multiplexer w/ thermal sensor */
 	i3cmux@f {
-		compatible = "renesas,imx3102";
+		compatible = "eeprom";
 		reg = <0xf 0x0 0x00000000>;
-		address-width = <16>;
 	};
 
 	JESD300_SPD_I2C_MODE(2, 0, 52);
@@ -944,9 +943,8 @@ spd_ ## bus ## _ ## index: spd@addr,4cc5118 ## index ## 000 { \
 	jdec-spd;
 	/* Renesas IMX3102 multiplexer w/ thermal sensor */
 	i3cmux@f {
-		compatible = "renesas,imx3102";
+		compatible = "eeprom";
 		reg = <0xf 0x0 0x00000000>;
-		address-width = <16>;
 	};
 
 	JESD300_SPD_I2C_MODE(3, 0, 52);
