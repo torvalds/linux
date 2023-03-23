@@ -64,6 +64,7 @@ struct qrtr_genpool_pipe {
 /**
  * qrtr_genpool_dev - qrtr genpool fifo transport structure
  * @ep: qrtr endpoint specific info.
+ * @ep_registered: tracks the registration state of the qrtr endpoint.
  * @dev: device from platform_device.
  * @label: label of the edge on the other side.
  * @ring: buf for reading from fifo.
@@ -76,11 +77,12 @@ struct qrtr_genpool_pipe {
  * @mbox_setup_chan: mailbox channel for setup.
  * @mbox_xfer_chan: mailbox channel for transfers.
  * @irq_setup: IRQ for signaling completion of fifo setup.
+ * @setup_work: worker to maintain shared memory between edges.
  * @irq_xfer: IRQ for incoming transfers.
- * @xfer_lock: spinlock for incoming transfers.
  */
 struct qrtr_genpool_dev {
 	struct qrtr_endpoint ep;
+	bool ep_registered;
 	struct device *dev;
 	const char *label;
 	struct qrtr_genpool_ring ring;
@@ -99,10 +101,10 @@ struct qrtr_genpool_dev {
 
 	int irq_setup;
 	char irq_setup_label[LABEL_SIZE];
+	struct work_struct setup_work;
 
 	int irq_xfer;
 	char irq_xfer_label[LABEL_SIZE];
-	spinlock_t xfer_lock; /* lock to protect incoming transfers */
 };
 
 static void qrtr_genpool_signal(struct qrtr_genpool_dev *qdev,
@@ -365,9 +367,6 @@ static void qrtr_genpool_read_frag(struct qrtr_genpool_dev *qdev)
 
 static void qrtr_genpool_read(struct qrtr_genpool_dev *qdev)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&qdev->xfer_lock, flags);
 	wake_up_all(&qdev->tx_avail_notify);
 
 	while (qrtr_genpool_rx_avail(&qdev->rx_pipe)) {
@@ -379,14 +378,36 @@ static void qrtr_genpool_read(struct qrtr_genpool_dev *qdev)
 		if (qrtr_genpool_get_read_notify(qdev))
 			qrtr_genpool_signal_xfer(qdev);
 	}
-	spin_unlock_irqrestore(&qdev->xfer_lock, flags);
+}
+
+static void qrtr_genpool_memory_free(struct qrtr_genpool_dev *qdev)
+{
+	if (!qdev->base)
+		return;
+
+	gen_pool_free(qdev->pool, (unsigned long)qdev->base, qdev->size);
+	qdev->base = NULL;
+	qdev->dma_addr = 0;
+	qdev->size = 0;
+}
+
+static int qrtr_genpool_memory_alloc(struct qrtr_genpool_dev *qdev)
+{
+	qdev->size = gen_pool_size(qdev->pool);
+	qdev->base = gen_pool_dma_alloc(qdev->pool, qdev->size, &qdev->dma_addr);
+	if (!qdev->base) {
+		dev_err(qdev->dev, "failed to dma alloc\n");
+		return -ENOMEM;
+	}
+
+	return 0;
 }
 
 static irqreturn_t qrtr_genpool_setup_intr(int irq, void *data)
 {
 	struct qrtr_genpool_dev *qdev = data;
 
-	qrtr_genpool_signal_setup(qdev);
+	schedule_work(&qdev->setup_work);
 
 	return IRQ_HANDLED;
 }
@@ -394,6 +415,9 @@ static irqreturn_t qrtr_genpool_setup_intr(int irq, void *data)
 static irqreturn_t qrtr_genpool_xfer_intr(int irq, void *data)
 {
 	struct qrtr_genpool_dev *qdev = data;
+
+	if (!qdev->base)
+		return IRQ_HANDLED;
 
 	qrtr_genpool_read(qdev);
 
@@ -425,7 +449,7 @@ static int qrtr_genpool_irq_init(struct qrtr_genpool_dev *qdev)
 
 	qdev->irq_xfer = irq;
 	snprintf(qdev->irq_xfer_label, LABEL_SIZE, "%s-xfer", qdev->label);
-	rc = devm_request_irq(dev, qdev->irq_xfer, qrtr_genpool_xfer_intr, IRQF_NO_AUTOEN,
+	rc = devm_request_irq(dev, qdev->irq_xfer, qrtr_genpool_xfer_intr, 0,
 			      qdev->irq_xfer_label, qdev);
 	if (rc) {
 		dev_err(dev, "failed to request xfer IRQ: %d\n", rc);
@@ -519,15 +543,40 @@ static int qrtr_genpool_memory_init(struct qrtr_genpool_dev *qdev)
 	if (!gen_pool_avail(qdev->pool))
 		return -EPROBE_DEFER;
 
-	qdev->size = gen_pool_size(qdev->pool);
-	qdev->base = gen_pool_dma_alloc(qdev->pool, qdev->size,
-					&qdev->dma_addr);
-	if (!qdev->base) {
-		dev_err(qdev->dev, "failed to dma alloc\n");
-		return -ENOMEM;
+	return 0;
+}
+
+static void qrtr_genpool_setup_work(struct work_struct *work)
+{
+	struct qrtr_genpool_dev *qdev = container_of(work, struct qrtr_genpool_dev, setup_work);
+	int rc;
+
+	disable_irq(qdev->irq_xfer);
+
+	if (qdev->ep_registered) {
+		qrtr_endpoint_unregister(&qdev->ep);
+		qdev->ep_registered = false;
 	}
 
-	return 0;
+	qrtr_genpool_memory_free(qdev);
+
+	rc = qrtr_genpool_memory_alloc(qdev);
+	if (rc)
+		return;
+
+	qrtr_genpool_fifo_init(qdev);
+
+	qdev->ep.xmit = qrtr_genpool_send;
+	rc = qrtr_endpoint_register(&qdev->ep, QRTR_EP_NET_ID_AUTO, false, NULL);
+	if (rc) {
+		dev_err(qdev->dev, "failed to register qrtr endpoint rc%d\n", rc);
+		return;
+	}
+	qdev->ep_registered = true;
+
+	enable_irq(qdev->irq_xfer);
+
+	qrtr_genpool_signal_setup(qdev);
 }
 
 /**
@@ -565,9 +614,8 @@ static int qrtr_genpool_probe(struct platform_device *pdev)
 	if (rc)
 		goto err;
 
-	qrtr_genpool_fifo_init(qdev);
 	init_waitqueue_head(&qdev->tx_avail_notify);
-	spin_lock_init(&qdev->xfer_lock);
+	INIT_WORK(&qdev->setup_work, qrtr_genpool_setup_work);
 
 	rc = qrtr_genpool_mbox_init(qdev);
 	if (rc)
@@ -576,19 +624,6 @@ static int qrtr_genpool_probe(struct platform_device *pdev)
 	rc = qrtr_genpool_irq_init(qdev);
 	if (rc)
 		goto err;
-
-	qrtr_genpool_signal_setup(qdev);
-
-	qdev->ep.xmit = qrtr_genpool_send;
-	rc = qrtr_endpoint_register(&qdev->ep, QRTR_EP_NET_ID_AUTO, false,
-				    NULL);
-	if (rc)
-		goto err;
-
-	enable_irq(qdev->irq_xfer);
-
-	if (qrtr_genpool_rx_avail(&qdev->rx_pipe))
-		qrtr_genpool_read(qdev);
 
 	return 0;
 
@@ -602,7 +637,11 @@ static int qrtr_genpool_remove(struct platform_device *pdev)
 {
 	struct qrtr_genpool_dev *qdev = platform_get_drvdata(pdev);
 
-	qrtr_endpoint_unregister(&qdev->ep);
+	cancel_work_sync(&qdev->setup_work);
+
+	if (qdev->ep_registered)
+		qrtr_endpoint_unregister(&qdev->ep);
+
 	vfree(qdev->ring.buf);
 
 	return 0;
