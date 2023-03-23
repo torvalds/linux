@@ -16,7 +16,7 @@
 #include "intel_tc.h"
 
 static u32 tc_port_live_status_mask(struct intel_digital_port *dig_port);
-static bool tc_phy_status_complete(struct intel_digital_port *dig_port);
+static bool tc_phy_is_ready(struct intel_digital_port *dig_port);
 static bool tc_phy_take_ownership(struct intel_digital_port *dig_port, bool take);
 
 static const char *tc_port_mode_name(enum tc_port_mode mode)
@@ -303,7 +303,7 @@ static u32 icl_tc_port_live_status_mask(struct intel_digital_port *dig_port)
  * owned by the TBT subsystem and so switching the ownership to display is not
  * required.
  */
-static bool icl_tc_phy_status_complete(struct intel_digital_port *dig_port)
+static bool icl_tc_phy_is_ready(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	u32 val;
@@ -311,7 +311,7 @@ static bool icl_tc_phy_status_complete(struct intel_digital_port *dig_port)
 	val = intel_de_read(i915, PORT_TX_DFLEXDPPMS(dig_port->tc_phy_fia));
 	if (val == 0xffffffff) {
 		drm_dbg_kms(&i915->drm,
-			    "Port %s: PHY in TCCOLD, assuming not complete\n",
+			    "Port %s: PHY in TCCOLD, assuming not ready\n",
 			    dig_port->tc_port_name);
 		return false;
 	}
@@ -377,7 +377,7 @@ static void icl_tc_phy_connect(struct intel_digital_port *dig_port,
 	u32 live_status_mask;
 	int max_lanes;
 
-	if (!tc_phy_status_complete(dig_port) &&
+	if (!tc_phy_is_ready(dig_port) &&
 	    !drm_WARN_ON(&i915->drm, dig_port->tc_legacy_port)) {
 		drm_dbg_kms(&i915->drm, "Port %s: PHY not ready\n",
 			    dig_port->tc_port_name);
@@ -492,7 +492,7 @@ static u32 adlp_tc_port_live_status_mask(struct intel_digital_port *dig_port)
  * DP-alt, legacy or nothing). For TBT-alt sinks the PHY is owned by the TBT
  * subsystem and so switching the ownership to display is not required.
  */
-static bool adlp_tc_phy_status_complete(struct intel_digital_port *dig_port)
+static bool adlp_tc_phy_is_ready(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	enum tc_port tc_port = intel_port_to_tc(i915, dig_port->base.port);
@@ -501,7 +501,7 @@ static bool adlp_tc_phy_status_complete(struct intel_digital_port *dig_port)
 	val = intel_de_read(i915, TCSS_DDI_STATUS(tc_port));
 	if (val == 0xffffffff) {
 		drm_dbg_kms(&i915->drm,
-			    "Port %s: PHY in TCCOLD, assuming not complete\n",
+			    "Port %s: PHY in TCCOLD, assuming not ready\n",
 			    dig_port->tc_port_name);
 		return false;
 	}
@@ -545,14 +545,14 @@ static u32 tc_port_live_status_mask(struct intel_digital_port *dig_port)
 	return icl_tc_port_live_status_mask(dig_port);
 }
 
-static bool tc_phy_status_complete(struct intel_digital_port *dig_port)
+static bool tc_phy_is_ready(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 
 	if (IS_ALDERLAKE_P(i915))
-		return adlp_tc_phy_status_complete(dig_port);
+		return adlp_tc_phy_is_ready(dig_port);
 
-	return icl_tc_phy_status_complete(dig_port);
+	return icl_tc_phy_is_ready(dig_port);
 }
 
 static bool tc_phy_is_owned(struct intel_digital_port *dig_port)
@@ -590,7 +590,7 @@ static bool tc_phy_is_connected(struct intel_digital_port *dig_port,
 {
 	struct intel_encoder *encoder = &dig_port->base;
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
-	bool phy_is_ready = tc_phy_status_complete(dig_port);
+	bool phy_is_ready = tc_phy_is_ready(dig_port);
 	bool phy_is_owned = tc_phy_is_owned(dig_port);
 	bool is_connected;
 
@@ -614,7 +614,7 @@ static void tc_phy_wait_for_ready(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 
-	if (wait_for(tc_phy_status_complete(dig_port), 100))
+	if (wait_for(tc_phy_is_ready(dig_port), 100))
 		drm_err(&i915->drm, "Port %s: timeout waiting for PHY ready\n",
 			dig_port->tc_port_name);
 }
@@ -694,7 +694,7 @@ intel_tc_port_get_current_mode(struct intel_digital_port *dig_port)
 	if (dig_port->tc_legacy_port)
 		tc_phy_wait_for_ready(dig_port);
 
-	phy_is_ready = tc_phy_status_complete(dig_port);
+	phy_is_ready = tc_phy_is_ready(dig_port);
 	phy_is_owned = tc_phy_is_owned(dig_port);
 
 	if (!tc_phy_is_ready_and_owned(dig_port, phy_is_ready, phy_is_owned)) {
