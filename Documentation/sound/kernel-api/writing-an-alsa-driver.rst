@@ -2215,6 +2215,12 @@ Typical code would be like:
               return IRQ_HANDLED;
       }
 
+Also, when the device can detect a buffer underrun/overrun, the driver
+can notify the XRUN status to the PCM core by calling
+:c:func:`snd_pcm_stop_xrun()`. This function stops the stream and sets
+the PCM state to ``SNDRV_PCM_STATE_XRUN``. Note that it must be called
+outside the PCM stream lock, hence it can't be called from the atomic
+callback.
 
 
 High frequency timer interrupts
@@ -2294,8 +2300,9 @@ mutexes or semaphores instead.
 As already seen, some pcm callbacks are atomic and some are not. For
 example, the ``hw_params`` callback is non-atomic, while ``trigger``
 callback is atomic. This means, the latter is called already in a
-spinlock held by the PCM middle layer. Please take this atomicity into
-account when you choose a locking scheme in the callbacks.
+spinlock held by the PCM middle layer, the PCM stream lock. Please
+take this atomicity into account when you choose a locking scheme in
+the callbacks.
 
 In the atomic callbacks, you cannot use functions which may call
 :c:func:`schedule()` or go to :c:func:`sleep()`. Semaphores and
@@ -2317,6 +2324,13 @@ after creating it. When this flag is set, mutex and rwsem are used internally
 in the PCM core instead of spin and rwlocks, so that you can call all PCM
 functions safely in a non-atomic
 context.
+
+Also, in some cases, you might need to call
+:c:func:`snd_pcm_period_elapsed()` in the atomic context (e.g. the
+period gets elapsed during ``ack`` or other callback). There is a
+variant that can be called inside the PCM stream lock
+:c:func:`snd_pcm_period_elapsed_under_stream_lock()` for that purpose,
+too.
 
 Constraints
 -----------
