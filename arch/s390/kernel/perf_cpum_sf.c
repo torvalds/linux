@@ -1021,8 +1021,7 @@ static void cpumsf_pmu_enable(struct pmu *pmu)
 	err = lsctl(&cpuhw->lsctl);
 	if (err) {
 		cpuhw->flags &= ~PMU_F_ENABLED;
-		pr_err("Loading sampling controls failed: op %i err %i\n",
-			1, err);
+		pr_err("Loading sampling controls failed: op 1 err %i\n", err);
 		return;
 	}
 
@@ -1056,8 +1055,7 @@ static void cpumsf_pmu_disable(struct pmu *pmu)
 
 	err = lsctl(&inactive);
 	if (err) {
-		pr_err("Loading sampling controls failed: op %i err %i\n",
-			2, err);
+		pr_err("Loading sampling controls failed: op 2 err %i\n", err);
 		return;
 	}
 
