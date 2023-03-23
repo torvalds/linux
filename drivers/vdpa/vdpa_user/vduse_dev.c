@@ -61,6 +61,7 @@ struct vduse_virtqueue {
 	struct work_struct kick;
 	int irq_effective_cpu;
 	struct cpumask irq_affinity;
+	struct kobject kobj;
 };
 
 struct vduse_dev;
@@ -1387,6 +1388,96 @@ static const struct file_operations vduse_dev_fops = {
 	.llseek		= noop_llseek,
 };
 
+static ssize_t irq_cb_affinity_show(struct vduse_virtqueue *vq, char *buf)
+{
+	return sprintf(buf, "%*pb\n", cpumask_pr_args(&vq->irq_affinity));
+}
+
+static ssize_t irq_cb_affinity_store(struct vduse_virtqueue *vq,
+				     const char *buf, size_t count)
+{
+	cpumask_var_t new_value;
+	int ret;
+
+	if (!zalloc_cpumask_var(&new_value, GFP_KERNEL))
+		return -ENOMEM;
+
+	ret = cpumask_parse(buf, new_value);
+	if (ret)
+		goto free_mask;
+
+	ret = -EINVAL;
+	if (!cpumask_intersects(new_value, cpu_online_mask))
+		goto free_mask;
+
+	cpumask_copy(&vq->irq_affinity, new_value);
+	ret = count;
+free_mask:
+	free_cpumask_var(new_value);
+	return ret;
+}
+
+struct vq_sysfs_entry {
+	struct attribute attr;
+	ssize_t (*show)(struct vduse_virtqueue *vq, char *buf);
+	ssize_t (*store)(struct vduse_virtqueue *vq, const char *buf,
+			 size_t count);
+};
+
+static struct vq_sysfs_entry irq_cb_affinity_attr = __ATTR_RW(irq_cb_affinity);
+
+static struct attribute *vq_attrs[] = {
+	&irq_cb_affinity_attr.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(vq);
+
+static ssize_t vq_attr_show(struct kobject *kobj, struct attribute *attr,
+			    char *buf)
+{
+	struct vduse_virtqueue *vq = container_of(kobj,
+					struct vduse_virtqueue, kobj);
+	struct vq_sysfs_entry *entry = container_of(attr,
+					struct vq_sysfs_entry, attr);
+
+	if (!entry->show)
+		return -EIO;
+
+	return entry->show(vq, buf);
+}
+
+static ssize_t vq_attr_store(struct kobject *kobj, struct attribute *attr,
+			     const char *buf, size_t count)
+{
+	struct vduse_virtqueue *vq = container_of(kobj,
+					struct vduse_virtqueue, kobj);
+	struct vq_sysfs_entry *entry = container_of(attr,
+					struct vq_sysfs_entry, attr);
+
+	if (!entry->store)
+		return -EIO;
+
+	return entry->store(vq, buf, count);
+}
+
+static const struct sysfs_ops vq_sysfs_ops = {
+	.show = vq_attr_show,
+	.store = vq_attr_store,
+};
+
+static void vq_release(struct kobject *kobj)
+{
+	struct vduse_virtqueue *vq = container_of(kobj,
+					struct vduse_virtqueue, kobj);
+	kfree(vq);
+}
+
+static const struct kobj_type vq_type = {
+	.release	= vq_release,
+	.sysfs_ops	= &vq_sysfs_ops,
+	.default_groups	= vq_groups,
+};
+
 static void vduse_dev_deinit_vqs(struct vduse_dev *dev)
 {
 	int i;
@@ -1395,13 +1486,13 @@ static void vduse_dev_deinit_vqs(struct vduse_dev *dev)
 		return;
 
 	for (i = 0; i < dev->vq_num; i++)
-		kfree(dev->vqs[i]);
+		kobject_put(&dev->vqs[i]->kobj);
 	kfree(dev->vqs);
 }
 
 static int vduse_dev_init_vqs(struct vduse_dev *dev, u32 vq_align, u32 vq_num)
 {
-	int i;
+	int ret, i;
 
 	dev->vq_align = vq_align;
 	dev->vq_num = vq_num;
@@ -1411,8 +1502,10 @@ static int vduse_dev_init_vqs(struct vduse_dev *dev, u32 vq_align, u32 vq_num)
 
 	for (i = 0; i < vq_num; i++) {
 		dev->vqs[i] = kzalloc(sizeof(*dev->vqs[i]), GFP_KERNEL);
-		if (!dev->vqs[i])
+		if (!dev->vqs[i]) {
+			ret = -ENOMEM;
 			goto err;
+		}
 
 		dev->vqs[i]->index = i;
 		dev->vqs[i]->irq_effective_cpu = IRQ_UNBOUND;
@@ -1421,15 +1514,23 @@ static int vduse_dev_init_vqs(struct vduse_dev *dev, u32 vq_align, u32 vq_num)
 		spin_lock_init(&dev->vqs[i]->kick_lock);
 		spin_lock_init(&dev->vqs[i]->irq_lock);
 		cpumask_setall(&dev->vqs[i]->irq_affinity);
+
+		kobject_init(&dev->vqs[i]->kobj, &vq_type);
+		ret = kobject_add(&dev->vqs[i]->kobj,
+				  &dev->dev->kobj, "vq%d", i);
+		if (ret) {
+			kfree(dev->vqs[i]);
+			goto err;
+		}
 	}
 
 	return 0;
 err:
 	while (i--)
-		kfree(dev->vqs[i]);
+		kobject_put(&dev->vqs[i]->kobj);
 	kfree(dev->vqs);
 	dev->vqs = NULL;
-	return -ENOMEM;
+	return ret;
 }
 
 static struct vduse_dev *vduse_dev_create(void)
@@ -1607,10 +1708,6 @@ static int vduse_create_dev(struct vduse_dev_config *config,
 	dev->config = config_buf;
 	dev->config_size = config->config_size;
 
-	ret = vduse_dev_init_vqs(dev, config->vq_align, config->vq_num);
-	if (ret)
-		goto err_vqs;
-
 	ret = idr_alloc(&vduse_idr, dev, 1, VDUSE_DEV_MAX, GFP_KERNEL);
 	if (ret < 0)
 		goto err_idr;
@@ -1624,14 +1721,19 @@ static int vduse_create_dev(struct vduse_dev_config *config,
 		ret = PTR_ERR(dev->dev);
 		goto err_dev;
 	}
+
+	ret = vduse_dev_init_vqs(dev, config->vq_align, config->vq_num);
+	if (ret)
+		goto err_vqs;
+
 	__module_get(THIS_MODULE);
 
 	return 0;
+err_vqs:
+	device_destroy(vduse_class, MKDEV(MAJOR(vduse_major), dev->minor));
 err_dev:
 	idr_remove(&vduse_idr, dev->minor);
 err_idr:
-	vduse_dev_deinit_vqs(dev);
-err_vqs:
 	vduse_domain_destroy(dev->domain);
 err_domain:
 	kfree(dev->name);
