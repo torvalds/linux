@@ -161,8 +161,30 @@ struct netlink_ext_ack {
 	}							\
 } while (0)
 
+#define NL_SET_ERR_MSG_ATTR_POL_FMT(extack, attr, pol, fmt, args...) do {	\
+	struct netlink_ext_ack *__extack = (extack);				\
+										\
+	if (!__extack)								\
+		break;								\
+										\
+	if (snprintf(__extack->_msg_buf, NETLINK_MAX_FMTMSG_LEN,		\
+		     "%s" fmt "%s", "", ##args, "") >=				\
+	    NETLINK_MAX_FMTMSG_LEN)						\
+		net_warn_ratelimited("%s" fmt "%s", "truncated extack: ",       \
+				     ##args, "\n");				\
+										\
+	do_trace_netlink_extack(__extack->_msg_buf);				\
+										\
+	__extack->_msg = __extack->_msg_buf;					\
+	__extack->bad_attr = (attr);						\
+	__extack->policy = (pol);						\
+} while (0)
+
 #define NL_SET_ERR_MSG_ATTR(extack, attr, msg)		\
 	NL_SET_ERR_MSG_ATTR_POL(extack, attr, NULL, msg)
+
+#define NL_SET_ERR_MSG_ATTR_FMT(extack, attr, msg, args...) \
+	NL_SET_ERR_MSG_ATTR_POL_FMT(extack, attr, NULL, msg, ##args)
 
 #define NL_SET_ERR_ATTR_MISS(extack, nest, type)  do {	\
 	struct netlink_ext_ack *__extack = (extack);	\
