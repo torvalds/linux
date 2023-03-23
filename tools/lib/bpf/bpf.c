@@ -794,11 +794,17 @@ int bpf_link_update(int link_fd, int new_prog_fd,
 	if (!OPTS_VALID(opts, bpf_link_update_opts))
 		return libbpf_err(-EINVAL);
 
+	if (OPTS_GET(opts, old_prog_fd, 0) && OPTS_GET(opts, old_map_fd, 0))
+		return libbpf_err(-EINVAL);
+
 	memset(&attr, 0, attr_sz);
 	attr.link_update.link_fd = link_fd;
 	attr.link_update.new_prog_fd = new_prog_fd;
 	attr.link_update.flags = OPTS_GET(opts, flags, 0);
-	attr.link_update.old_prog_fd = OPTS_GET(opts, old_prog_fd, 0);
+	if (OPTS_GET(opts, old_prog_fd, 0))
+		attr.link_update.old_prog_fd = OPTS_GET(opts, old_prog_fd, 0);
+	else if (OPTS_GET(opts, old_map_fd, 0))
+		attr.link_update.old_map_fd = OPTS_GET(opts, old_map_fd, 0);
 
 	ret = sys_bpf(BPF_LINK_UPDATE, &attr, attr_sz);
 	return libbpf_err_errno(ret);

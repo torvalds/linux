@@ -1303,8 +1303,10 @@ struct bpf_map *bpf_map_get_with_uref(u32 ufd)
 	return map;
 }
 
-/* map_idr_lock should have been held */
-static struct bpf_map *__bpf_map_inc_not_zero(struct bpf_map *map, bool uref)
+/* map_idr_lock should have been held or the map should have been
+ * protected by rcu read lock.
+ */
+struct bpf_map *__bpf_map_inc_not_zero(struct bpf_map *map, bool uref)
 {
 	int refold;
 
@@ -2823,16 +2825,19 @@ static void bpf_link_show_fdinfo(struct seq_file *m, struct file *filp)
 	const struct bpf_prog *prog = link->prog;
 	char prog_tag[sizeof(prog->tag) * 2 + 1] = { };
 
-	bin2hex(prog_tag, prog->tag, sizeof(prog->tag));
 	seq_printf(m,
 		   "link_type:\t%s\n"
-		   "link_id:\t%u\n"
-		   "prog_tag:\t%s\n"
-		   "prog_id:\t%u\n",
+		   "link_id:\t%u\n",
 		   bpf_link_type_strs[link->type],
-		   link->id,
-		   prog_tag,
-		   prog->aux->id);
+		   link->id);
+	if (prog) {
+		bin2hex(prog_tag, prog->tag, sizeof(prog->tag));
+		seq_printf(m,
+			   "prog_tag:\t%s\n"
+			   "prog_id:\t%u\n",
+			   prog_tag,
+			   prog->aux->id);
+	}
 	if (link->ops->show_fdinfo)
 		link->ops->show_fdinfo(link, m);
 }
@@ -4312,7 +4317,8 @@ static int bpf_link_get_info_by_fd(struct file *file,
 
 	info.type = link->type;
 	info.id = link->id;
-	info.prog_id = link->prog->aux->id;
+	if (link->prog)
+		info.prog_id = link->prog->aux->id;
 
 	if (link->ops->fill_link_info) {
 		err = link->ops->fill_link_info(link, &info);
@@ -4575,6 +4581,9 @@ static int link_create(union bpf_attr *attr, bpfptr_t uattr)
 	if (CHECK_ATTR(BPF_LINK_CREATE))
 		return -EINVAL;
 
+	if (attr->link_create.attach_type == BPF_STRUCT_OPS)
+		return bpf_struct_ops_link_create(attr);
+
 	prog = bpf_prog_get(attr->link_create.prog_fd);
 	if (IS_ERR(prog))
 		return PTR_ERR(prog);
@@ -4673,6 +4682,35 @@ out:
 	return ret;
 }
 
+static int link_update_map(struct bpf_link *link, union bpf_attr *attr)
+{
+	struct bpf_map *new_map, *old_map = NULL;
+	int ret;
+
+	new_map = bpf_map_get(attr->link_update.new_map_fd);
+	if (IS_ERR(new_map))
+		return -EINVAL;
+
+	if (attr->link_update.flags & BPF_F_REPLACE) {
+		old_map = bpf_map_get(attr->link_update.old_map_fd);
+		if (IS_ERR(old_map)) {
+			ret = -EINVAL;
+			goto out_put;
+		}
+	} else if (attr->link_update.old_map_fd) {
+		ret = -EINVAL;
+		goto out_put;
+	}
+
+	ret = link->ops->update_map(link, new_map, old_map);
+
+	if (old_map)
+		bpf_map_put(old_map);
+out_put:
+	bpf_map_put(new_map);
+	return ret;
+}
+
 #define BPF_LINK_UPDATE_LAST_FIELD link_update.old_prog_fd
 
 static int link_update(union bpf_attr *attr)
@@ -4692,6 +4730,11 @@ static int link_update(union bpf_attr *attr)
 	link = bpf_link_get_from_fd(attr->link_update.link_fd);
 	if (IS_ERR(link))
 		return PTR_ERR(link);
+
+	if (link->ops->update_map) {
+		ret = link_update_map(link, attr);
+		goto out_put_link;
+	}
 
 	new_prog = bpf_prog_get(attr->link_update.new_prog_fd);
 	if (IS_ERR(new_prog)) {
