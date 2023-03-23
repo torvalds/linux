@@ -336,8 +336,9 @@ struct bpf_link_update_opts {
 	size_t sz; /* size of this struct for forward/backward compatibility */
 	__u32 flags;	   /* extra flags */
 	__u32 old_prog_fd; /* expected old program FD */
+	__u32 old_map_fd;  /* expected old map FD */
 };
-#define bpf_link_update_opts__last_field old_prog_fd
+#define bpf_link_update_opts__last_field old_map_fd
 
 LIBBPF_API int bpf_link_update(int link_fd, int new_prog_fd,
 			       const struct bpf_link_update_opts *opts);
