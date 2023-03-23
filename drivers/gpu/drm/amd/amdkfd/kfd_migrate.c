@@ -1000,6 +1000,11 @@ int svm_migrate_init(struct amdgpu_device *adev)
 	if (!KFD_IS_SOC15(kfddev->dev))
 		return -EINVAL;
 
+	svm_range_set_max_pages(adev);
+
+	if (adev->gmc.is_app_apu)
+		return 0;
+
 	pgmap = &kfddev->pgmap;
 	memset(pgmap, 0, sizeof(*pgmap));
 
@@ -1041,8 +1046,6 @@ int svm_migrate_init(struct amdgpu_device *adev)
 		 SVM_HMM_PAGE_STRUCT_SIZE(size) >> 20);
 
 	amdgpu_amdkfd_reserve_system_mem(SVM_HMM_PAGE_STRUCT_SIZE(size));
-
-	svm_range_set_max_pages(adev);
 
 	pr_info("HMM registered %ldMB device memory\n", size >> 20);
 

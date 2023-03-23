@@ -1938,14 +1938,19 @@ void svm_range_set_max_pages(struct amdgpu_device *adev)
 {
 	uint64_t max_pages;
 	uint64_t pages, _pages;
+	uint64_t min_pages = 0;
+	int i;
 
-	/* 1/32 VRAM size in pages */
-	pages = adev->gmc.real_vram_size >> 17;
-	pages = clamp(pages, 1ULL << 9, 1ULL << 18);
-	pages = rounddown_pow_of_two(pages);
+	for (i = 0; i < adev->kfd.dev->num_nodes; i++) {
+		pages = KFD_XCP_MEMORY_SIZE(adev, adev->kfd.dev->nodes[i]->xcp->id) >> 17;
+		pages = clamp(pages, 1ULL << 9, 1ULL << 18);
+		pages = rounddown_pow_of_two(pages);
+		min_pages = min_not_zero(min_pages, pages);
+	}
+
 	do {
 		max_pages = READ_ONCE(max_svm_range_pages);
-		_pages = min_not_zero(max_pages, pages);
+		_pages = min_not_zero(max_pages, min_pages);
 	} while (cmpxchg(&max_svm_range_pages, max_pages, _pages) != max_pages);
 }
 

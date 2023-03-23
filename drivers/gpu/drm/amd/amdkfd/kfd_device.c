@@ -724,9 +724,6 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 
 	kfd_cwsr_init(kfd);
 
-	svm_migrate_init(kfd->adev);
-
-
 	dev_info(kfd_device, "Total number of KFD nodes to be created: %d\n",
 				kfd->num_nodes);
 
@@ -793,6 +790,8 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		}
 		kfd->nodes[i] = node;
 	}
+
+	svm_migrate_init(kfd->adev);
 
 	if (kfd_resume_iommu(kfd))
 		goto kfd_resume_iommu_error;
