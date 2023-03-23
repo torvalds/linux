@@ -875,6 +875,8 @@ struct dc_debug_options {
 	bool override_dispclk_programming;
 	bool disable_fpo_optimizations;
 	bool support_eDP1_5;
+	uint32_t fpo_vactive_margin_us;
+	bool disable_fpo_vactive;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;

@@ -726,6 +726,8 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.disable_unbounded_requesting = false,
 	.override_dispclk_programming = true,
 	.disable_fpo_optimizations = false,
+	.fpo_vactive_margin_us = 2000, // 2000us
+	.disable_fpo_vactive = true,
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
