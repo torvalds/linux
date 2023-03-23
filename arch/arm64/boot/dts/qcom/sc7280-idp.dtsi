@@ -636,16 +636,19 @@
 };
 
 &qspi_cs0 {
-	bias-disable;
+	bias-disable;		/* External pullup */
 };
 
 &qspi_clk {
-	bias-disable;
+	bias-pull-down;		/* No external pulls or external pulldown */
 };
 
-&qspi_data01 {
-	/* High-Z when no transfers; nice to park the lines */
-	bias-pull-up;
+&qspi_data0 {
+	bias-pull-down;		/* No external pulls or external pulldown */
+};
+
+&qspi_data1 {
+	bias-pull-down;		/* No external pulls or external pulldown */
 };
 
 &qup_uart5_tx {
