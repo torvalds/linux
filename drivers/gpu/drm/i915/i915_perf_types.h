@@ -38,9 +38,15 @@ enum {
 	PERF_GROUP_INVALID = U32_MAX,
 };
 
+enum report_header {
+	HDR_32_BIT = 0,
+	HDR_64_BIT,
+};
+
 struct i915_oa_format {
 	u32 format;
 	int size;
+	enum report_header header;
 };
 
 struct i915_oa_reg {
