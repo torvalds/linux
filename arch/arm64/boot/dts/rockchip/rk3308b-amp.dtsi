@@ -20,10 +20,13 @@
 		ranges;
 
 		/* remote amp core address */
-		amp_shmem_reserved: amp-shmem@2f00000 {
-			reg = <0x0 0x2f00000 0x0 0x100000>;
+		amp_reserved: amp@2e00000 {
+			reg = <0x0 0x2e00000 0x0 0x200000>;
 			no-map;
 		};
 	};
 };
 
+&cpu3 {
+	status = "disabled";
+};
