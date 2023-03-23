@@ -22,8 +22,17 @@ enum tc_port_mode {
 	TC_PORT_LEGACY,
 };
 
+struct intel_tc_port;
+
+struct intel_tc_phy_ops {
+	u32 (*hpd_live_status)(struct intel_tc_port *tc);
+};
+
 struct intel_tc_port {
 	struct intel_digital_port *dig_port;
+
+	const struct intel_tc_phy_ops *phy_ops;
+
 	struct mutex lock;	/* protects the TypeC port mode */
 	intel_wakeref_t lock_wakeref;
 	enum intel_display_power_domain lock_power_domain;
@@ -329,10 +338,6 @@ static u32 icl_tc_phy_hpd_live_status(struct intel_tc_port *tc)
 	if (intel_de_read(i915, SDEISR) & isr_bit)
 		mask |= BIT(TC_PORT_LEGACY);
 
-	/* The sink can be connected only in a single mode. */
-	if (!drm_WARN_ON_ONCE(&i915->drm, hweight32(mask) > 1))
-		tc_port_fixup_legacy_flag(tc, mask);
-
 	return mask;
 }
 
@@ -495,6 +500,10 @@ static void icl_tc_phy_disconnect(struct intel_tc_port *tc)
 	}
 }
 
+static const struct intel_tc_phy_ops icl_tc_phy_ops = {
+	.hpd_live_status = icl_tc_phy_hpd_live_status,
+};
+
 /*
  * ADLP TC PHY handlers
  * --------------------
@@ -520,10 +529,6 @@ static u32 adlp_tc_phy_hpd_live_status(struct intel_tc_port *tc)
 
 	if (intel_de_read(i915, SDEISR) & isr_bit)
 		mask |= BIT(TC_PORT_LEGACY);
-
-	/* The sink can be connected only in a single mode. */
-	if (!drm_WARN_ON(&i915->drm, hweight32(mask) > 1))
-		tc_port_fixup_legacy_flag(tc, mask);
 
 	return mask;
 }
@@ -574,6 +579,10 @@ static bool adlp_tc_phy_is_owned(struct intel_tc_port *tc)
 	return val & DDI_BUF_CTL_TC_PHY_OWNERSHIP;
 }
 
+static const struct intel_tc_phy_ops adlp_tc_phy_ops = {
+	.hpd_live_status = adlp_tc_phy_hpd_live_status,
+};
+
 /*
  * Generic TC PHY handlers
  * -----------------------
@@ -581,11 +590,15 @@ static bool adlp_tc_phy_is_owned(struct intel_tc_port *tc)
 static u32 tc_phy_hpd_live_status(struct intel_tc_port *tc)
 {
 	struct drm_i915_private *i915 = tc_to_i915(tc);
+	u32 mask;
 
-	if (IS_ALDERLAKE_P(i915))
-		return adlp_tc_phy_hpd_live_status(tc);
+	mask = tc->phy_ops->hpd_live_status(tc);
 
-	return icl_tc_phy_hpd_live_status(tc);
+	/* The sink can be connected only in a single mode. */
+	if (!drm_WARN_ON_ONCE(&i915->drm, hweight32(mask) > 1))
+		tc_port_fixup_legacy_flag(tc, mask);
+
+	return mask;
 }
 
 static bool tc_phy_is_ready(struct intel_tc_port *tc)
@@ -1196,6 +1209,11 @@ int intel_tc_port_init(struct intel_digital_port *dig_port, bool is_legacy)
 
 	dig_port->tc = tc;
 	tc->dig_port = dig_port;
+
+	if (DISPLAY_VER(i915) >= 13)
+		tc->phy_ops = &adlp_tc_phy_ops;
+	else
+		tc->phy_ops = &icl_tc_phy_ops;
 
 	snprintf(tc->port_name, sizeof(tc->port_name),
 		 "%c/TC#%d", port_name(port), tc_port + 1);
