@@ -15638,7 +15638,7 @@ S:	Maintained
 W:	http://openrisc.io
 T:	git https://github.com/openrisc/linux.git
 F:	Documentation/devicetree/bindings/openrisc/
-F:	Documentation/openrisc/
+F:	Documentation/arch/openrisc/
 F:	arch/openrisc/
 F:	drivers/irqchip/irq-ompic.c
 F:	drivers/irqchip/irq-or1k-*

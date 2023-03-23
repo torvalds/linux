@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-.. include:: ../disclaimer-zh_CN.rst
+.. include:: ../../disclaimer-zh_CN.rst
 
-:Original: Documentation/openrisc/index.rst
+:Original: Documentation/arch/openrisc/index.rst
 
 :翻译:
 

@@ -1,6 +1,6 @@
-.. include:: ../disclaimer-zh_CN.rst
+.. include:: ../../disclaimer-zh_CN.rst
 
-:Original: Documentation/openrisc/openrisc_port.rst
+:Original: Documentation/arch/openrisc/openrisc_port.rst
 
 :翻译:
 

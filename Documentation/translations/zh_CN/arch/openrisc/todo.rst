@@ -1,6 +1,6 @@
-.. include:: ../disclaimer-zh_CN.rst
+.. include:: ../../disclaimer-zh_CN.rst
 
-:Original: Documentation/openrisc/todo.rst
+:Original: Documentation/arch/openrisc/todo.rst
 
 :翻译:
 

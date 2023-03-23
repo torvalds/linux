@@ -11,7 +11,7 @@
    ../mips/index
    ../arm64/index
    ../riscv/index
-   ../openrisc/index
+   openrisc/index
    ../parisc/index
    ../loongarch/index
 
