@@ -1294,6 +1294,7 @@
   of_usb_host_tpl_support
   page_endio
   page_mapping
+  page_pinner_inited
   __page_pinner_migration_failed
   panic
   panic_notifier_list
