@@ -29,6 +29,8 @@ struct intel_tc_phy_ops {
 	bool (*is_ready)(struct intel_tc_port *tc);
 	bool (*is_owned)(struct intel_tc_port *tc);
 	void (*get_hw_state)(struct intel_tc_port *tc);
+	bool (*connect)(struct intel_tc_port *tc, int required_lanes);
+	void (*disconnect)(struct intel_tc_port *tc);
 };
 
 struct intel_tc_port {
@@ -523,6 +525,8 @@ static const struct intel_tc_phy_ops icl_tc_phy_ops = {
 	.is_ready = icl_tc_phy_is_ready,
 	.is_owned = icl_tc_phy_is_owned,
 	.get_hw_state = icl_tc_phy_get_hw_state,
+	.connect = icl_tc_phy_connect,
+	.disconnect = icl_tc_phy_disconnect,
 };
 
 /*
@@ -605,6 +609,8 @@ static const struct intel_tc_phy_ops adlp_tc_phy_ops = {
 	.is_ready = adlp_tc_phy_is_ready,
 	.is_owned = adlp_tc_phy_is_owned,
 	.get_hw_state = icl_tc_phy_get_hw_state,
+	.connect = icl_tc_phy_connect,
+	.disconnect = icl_tc_phy_disconnect,
 };
 
 /*
@@ -824,10 +830,10 @@ static void tc_phy_connect(struct intel_tc_port *tc, int required_lanes)
 
 	tc->mode = tc_phy_get_target_mode(tc);
 
-	connected = icl_tc_phy_connect(tc, required_lanes);
+	connected = tc->phy_ops->connect(tc, required_lanes);
 	if (!connected && tc->mode != default_tc_mode(tc)) {
 		tc->mode = default_tc_mode(tc);
-		connected = icl_tc_phy_connect(tc, required_lanes);
+		connected = tc->phy_ops->connect(tc, required_lanes);
 	}
 
 	drm_WARN_ON(&i915->drm, !connected);
@@ -836,7 +842,7 @@ static void tc_phy_connect(struct intel_tc_port *tc, int required_lanes)
 static void tc_phy_disconnect(struct intel_tc_port *tc)
 {
 	if (tc->mode != TC_PORT_DISCONNECTED) {
-		icl_tc_phy_disconnect(tc);
+		tc->phy_ops->disconnect(tc);
 		tc->mode = TC_PORT_DISCONNECTED;
 	}
 }
