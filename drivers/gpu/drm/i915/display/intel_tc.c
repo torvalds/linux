@@ -411,24 +411,29 @@ static u32 icl_tc_phy_hpd_live_status(struct intel_tc_port *tc)
 	struct drm_i915_private *i915 = tc_to_i915(tc);
 	struct intel_digital_port *dig_port = tc->dig_port;
 	u32 isr_bit = i915->display.hotplug.pch_hpd[dig_port->base.hpd_pin];
+	intel_wakeref_t wakeref;
+	u32 fia_isr;
+	u32 pch_isr;
 	u32 mask = 0;
-	u32 val;
 
-	val = intel_de_read(i915, PORT_TX_DFLEXDPSP(tc->phy_fia));
+	with_intel_display_power(i915, tc_phy_cold_off_domain(tc), wakeref) {
+		fia_isr = intel_de_read(i915, PORT_TX_DFLEXDPSP(tc->phy_fia));
+		pch_isr = intel_de_read(i915, SDEISR);
+	}
 
-	if (val == 0xffffffff) {
+	if (fia_isr == 0xffffffff) {
 		drm_dbg_kms(&i915->drm,
 			    "Port %s: PHY in TCCOLD, nothing connected\n",
 			    tc->port_name);
 		return mask;
 	}
 
-	if (val & TC_LIVE_STATE_TBT(tc->phy_fia_idx))
+	if (fia_isr & TC_LIVE_STATE_TBT(tc->phy_fia_idx))
 		mask |= BIT(TC_PORT_TBT_ALT);
-	if (val & TC_LIVE_STATE_TC(tc->phy_fia_idx))
+	if (fia_isr & TC_LIVE_STATE_TC(tc->phy_fia_idx))
 		mask |= BIT(TC_PORT_DP_ALT);
 
-	if (intel_de_read(i915, SDEISR) & isr_bit)
+	if (pch_isr & isr_bit)
 		mask |= BIT(TC_PORT_LEGACY);
 
 	return mask;
@@ -691,16 +696,22 @@ static u32 adlp_tc_phy_hpd_live_status(struct intel_tc_port *tc)
 	enum hpd_pin hpd_pin = dig_port->base.hpd_pin;
 	u32 cpu_isr_bits = i915->display.hotplug.hpd[hpd_pin];
 	u32 pch_isr_bit = i915->display.hotplug.pch_hpd[hpd_pin];
+	intel_wakeref_t wakeref;
 	u32 cpu_isr;
+	u32 pch_isr;
 	u32 mask = 0;
 
-	cpu_isr = intel_de_read(i915, GEN11_DE_HPD_ISR);
+	with_intel_display_power(i915, POWER_DOMAIN_DISPLAY_CORE, wakeref) {
+		cpu_isr = intel_de_read(i915, GEN11_DE_HPD_ISR);
+		pch_isr = intel_de_read(i915, SDEISR);
+	}
+
 	if (cpu_isr & (cpu_isr_bits & GEN11_DE_TC_HOTPLUG_MASK))
 		mask |= BIT(TC_PORT_DP_ALT);
 	if (cpu_isr & (cpu_isr_bits & GEN11_DE_TBT_HOTPLUG_MASK))
 		mask |= BIT(TC_PORT_TBT_ALT);
 
-	if (intel_de_read(i915, SDEISR) & pch_isr_bit)
+	if (pch_isr & pch_isr_bit)
 		mask |= BIT(TC_PORT_LEGACY);
 
 	return mask;
