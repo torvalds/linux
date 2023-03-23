@@ -923,6 +923,7 @@ static int xpcs_get_state_c73(struct dw_xpcs *xpcs,
 			      struct phylink_link_state *state,
 			      const struct xpcs_compat *compat)
 {
+	bool an_enabled;
 	int ret;
 
 	/* Link needs to be read first ... */
@@ -940,11 +941,13 @@ static int xpcs_get_state_c73(struct dw_xpcs *xpcs,
 		return xpcs_do_config(xpcs, state->interface, MLO_AN_INBAND, NULL);
 	}
 
-	if (state->an_enabled && xpcs_aneg_done_c73(xpcs, state, compat)) {
+	an_enabled = linkmode_test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
+				       state->advertising);
+	if (an_enabled && xpcs_aneg_done_c73(xpcs, state, compat)) {
 		state->an_complete = true;
 		xpcs_read_lpa_c73(xpcs, state);
 		xpcs_resolve_lpa_c73(xpcs, state);
-	} else if (state->an_enabled) {
+	} else if (an_enabled) {
 		state->link = 0;
 	} else if (state->link) {
 		xpcs_resolve_pma(xpcs, state);
@@ -999,7 +1002,8 @@ static int xpcs_get_state_c37_1000basex(struct dw_xpcs *xpcs,
 {
 	int lpa, bmsr;
 
-	if (state->an_enabled) {
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
+			      state->advertising)) {
 		/* Reset link state */
 		state->link = false;
 
