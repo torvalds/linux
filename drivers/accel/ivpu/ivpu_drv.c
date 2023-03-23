@@ -569,6 +569,8 @@ err_mmu_gctx_fini:
 	ivpu_mmu_global_context_fini(vdev);
 err_power_down:
 	ivpu_hw_power_down(vdev);
+	if (IVPU_WA(d3hot_after_power_off))
+		pci_set_power_state(to_pci_dev(vdev->drm.dev), PCI_D3hot);
 err_xa_destroy:
 	xa_destroy(&vdev->submitted_jobs_xa);
 	xa_destroy(&vdev->context_xa);
@@ -579,6 +581,8 @@ static void ivpu_dev_fini(struct ivpu_device *vdev)
 {
 	ivpu_pm_disable(vdev);
 	ivpu_shutdown(vdev);
+	if (IVPU_WA(d3hot_after_power_off))
+		pci_set_power_state(to_pci_dev(vdev->drm.dev), PCI_D3hot);
 	ivpu_job_done_thread_fini(vdev);
 	ivpu_pm_cancel_recovery(vdev);
 

@@ -74,6 +74,7 @@
 struct ivpu_wa_table {
 	bool punit_disabled;
 	bool clear_runtime_mem;
+	bool d3hot_after_power_off;
 };
 
 struct ivpu_hw_info;

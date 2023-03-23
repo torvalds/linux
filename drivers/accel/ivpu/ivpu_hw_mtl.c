@@ -101,6 +101,7 @@ static void ivpu_hw_wa_init(struct ivpu_device *vdev)
 {
 	vdev->wa.punit_disabled = ivpu_is_fpga(vdev);
 	vdev->wa.clear_runtime_mem = false;
+	vdev->wa.d3hot_after_power_off = true;
 }
 
 static void ivpu_hw_timeouts_init(struct ivpu_device *vdev)
