@@ -675,7 +675,6 @@ static int ism_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return 0;
 
 err_resource:
-	pci_clear_master(pdev);
 	pci_release_mem_regions(pdev);
 err_disable:
 	pci_disable_device(pdev);
@@ -738,7 +737,6 @@ static void ism_remove(struct pci_dev *pdev)
 	ism_dev_exit(ism);
 	mutex_unlock(&ism_dev_list.mutex);
 
-	pci_clear_master(pdev);
 	pci_release_mem_regions(pdev);
 	pci_disable_device(pdev);
 	device_del(&ism->dev);
