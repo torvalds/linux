@@ -1086,7 +1086,7 @@ void __ref memmap_init_zone_device(struct zone *zone,
 				     compound_nr_pages(altmap, pfns_per_compound));
 	}
 
-	pr_info("%s initialised %lu pages in %ums\n", __func__,
+	pr_debug("%s initialised %lu pages in %ums\n", __func__,
 		nr_pages, jiffies_to_msecs(jiffies - start));
 }
 #endif
