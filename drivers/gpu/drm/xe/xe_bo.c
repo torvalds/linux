@@ -999,8 +999,7 @@ struct xe_bo *__xe_bo_create_locked(struct xe_device *xe, struct xe_bo *bo,
 			return bo;
 	}
 
-	if (flags & (XE_BO_CREATE_VRAM0_BIT | XE_BO_CREATE_VRAM1_BIT |
-		     XE_BO_CREATE_STOLEN_BIT) &&
+	if (flags & (XE_BO_CREATE_VRAM_MASK | XE_BO_CREATE_STOLEN_BIT) &&
 	    !(flags & XE_BO_CREATE_IGNORE_MIN_PAGE_SIZE_BIT) &&
 	    xe->info.vram_flags & XE_VRAM_FLAGS_NEED64K) {
 		size = ALIGN(size, SZ_64K);
@@ -1064,8 +1063,7 @@ static int __xe_bo_fixed_placement(struct xe_device *xe,
 	place->fpfn = start >> PAGE_SHIFT;
 	place->lpfn = end >> PAGE_SHIFT;
 
-	switch (flags & (XE_BO_CREATE_STOLEN_BIT |
-		XE_BO_CREATE_VRAM0_BIT |XE_BO_CREATE_VRAM1_BIT)) {
+	switch (flags & (XE_BO_CREATE_STOLEN_BIT | XE_BO_CREATE_VRAM_MASK)) {
 	case XE_BO_CREATE_VRAM0_BIT:
 		place->mem_type = XE_PL_VRAM0;
 		break;
@@ -1771,7 +1769,7 @@ bool xe_bo_needs_ccs_pages(struct xe_bo *bo)
 {
 	return bo->ttm.type == ttm_bo_type_device &&
 		!(bo->flags & XE_BO_CREATE_SYSTEM_BIT) &&
-		(bo->flags & (XE_BO_CREATE_VRAM0_BIT | XE_BO_CREATE_VRAM1_BIT));
+		(bo->flags & XE_BO_CREATE_VRAM_MASK);
 }
 
 /**
