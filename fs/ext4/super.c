@@ -4641,6 +4641,8 @@ static int ext4_check_feature_compatibility(struct super_block *sb,
 					    struct ext4_super_block *es,
 					    int silent)
 {
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
+
 	if (le32_to_cpu(es->s_rev_level) == EXT4_GOOD_OLD_REV &&
 	    (ext4_has_compat_features(sb) ||
 	     ext4_has_ro_compat_features(sb) ||
@@ -4709,6 +4711,32 @@ static int ext4_check_feature_compatibility(struct super_block *sb,
 	 */
 	if (!ext4_feature_set_ok(sb, (sb_rdonly(sb))))
 		return -EINVAL;
+
+	if (sbi->s_daxdev) {
+		if (sb->s_blocksize == PAGE_SIZE)
+			set_bit(EXT4_FLAGS_BDEV_IS_DAX, &sbi->s_ext4_flags);
+		else
+			ext4_msg(sb, KERN_ERR, "unsupported blocksize for DAX\n");
+	}
+
+	if (sbi->s_mount_opt & EXT4_MOUNT_DAX_ALWAYS) {
+		if (ext4_has_feature_inline_data(sb)) {
+			ext4_msg(sb, KERN_ERR, "Cannot use DAX on a filesystem"
+					" that may contain inline data");
+			return -EINVAL;
+		}
+		if (!test_bit(EXT4_FLAGS_BDEV_IS_DAX, &sbi->s_ext4_flags)) {
+			ext4_msg(sb, KERN_ERR,
+				"DAX unsupported by block device.");
+			return -EINVAL;
+		}
+	}
+
+	if (ext4_has_feature_encrypt(sb) && es->s_encryption_level) {
+		ext4_msg(sb, KERN_ERR, "Unsupported encryption level %d",
+			 es->s_encryption_level);
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -5241,32 +5269,6 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 
 	if (ext4_check_feature_compatibility(sb, es, silent))
 		goto failed_mount;
-
-	if (sbi->s_daxdev) {
-		if (sb->s_blocksize == PAGE_SIZE)
-			set_bit(EXT4_FLAGS_BDEV_IS_DAX, &sbi->s_ext4_flags);
-		else
-			ext4_msg(sb, KERN_ERR, "unsupported blocksize for DAX\n");
-	}
-
-	if (sbi->s_mount_opt & EXT4_MOUNT_DAX_ALWAYS) {
-		if (ext4_has_feature_inline_data(sb)) {
-			ext4_msg(sb, KERN_ERR, "Cannot use DAX on a filesystem"
-					" that may contain inline data");
-			goto failed_mount;
-		}
-		if (!test_bit(EXT4_FLAGS_BDEV_IS_DAX, &sbi->s_ext4_flags)) {
-			ext4_msg(sb, KERN_ERR,
-				"DAX unsupported by block device.");
-			goto failed_mount;
-		}
-	}
-
-	if (ext4_has_feature_encrypt(sb) && es->s_encryption_level) {
-		ext4_msg(sb, KERN_ERR, "Unsupported encryption level %d",
-			 es->s_encryption_level);
-		goto failed_mount;
-	}
 
 	if (ext4_block_group_meta_init(sb, silent))
 		goto failed_mount;
