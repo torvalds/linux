@@ -150,14 +150,6 @@ tc_cold_unblock(struct intel_tc_port *tc, enum intel_display_power_domain domain
 {
 	struct drm_i915_private *i915 = tc_to_i915(tc);
 
-	/*
-	 * wakeref == -1, means some error happened saving save_depot_stack but
-	 * power should still be put down and 0 is a invalid save_depot_stack
-	 * id so can be used to skip it for non TC legacy ports.
-	 */
-	if (wakeref == 0)
-		return;
-
 	intel_display_power_put(i915, domain, wakeref);
 }
 
