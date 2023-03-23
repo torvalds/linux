@@ -1153,14 +1153,12 @@ ap_ts_i2c: &i2c14 {
 	bios_flash_wp_r_l: bios-flash-wp-r-l-state {
 		pins = "gpio128";
 		function = "gpio";
-		input-enable;
 		bias-disable;
 	};
 
 	ec_ap_int_l: ec-ap-int-l-state {
 	       pins = "gpio122";
 	       function = "gpio";
-	       input-enable;
 	       bias-pull-up;
 	};
 
@@ -1188,7 +1186,6 @@ ap_ts_i2c: &i2c14 {
 	h1_ap_int_odl: h1-ap-int-odl-state {
 		pins = "gpio129";
 		function = "gpio";
-		input-enable;
 		bias-pull-up;
 	};
 
