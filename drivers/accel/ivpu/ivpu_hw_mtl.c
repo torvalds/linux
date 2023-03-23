@@ -12,20 +12,20 @@
 #include "ivpu_mmu.h"
 #include "ivpu_pm.h"
 
-#define TILE_FUSE_ENABLE_BOTH	     0x0
-#define TILE_FUSE_ENABLE_UPPER	     0x1
-#define TILE_FUSE_ENABLE_LOWER	     0x2
-
-#define TILE_SKU_BOTH_MTL	     0x3630
-#define TILE_SKU_LOWER_MTL	     0x3631
-#define TILE_SKU_UPPER_MTL	     0x3632
+#define TILE_FUSE_ENABLE_BOTH        0x0
+#define TILE_SKU_BOTH_MTL            0x3630
 
 /* Work point configuration values */
-#define WP_CONFIG_1_TILE_5_3_RATIO   0x0101
-#define WP_CONFIG_1_TILE_4_3_RATIO   0x0102
-#define WP_CONFIG_2_TILE_5_3_RATIO   0x0201
-#define WP_CONFIG_2_TILE_4_3_RATIO   0x0202
-#define WP_CONFIG_0_TILE_PLL_OFF     0x0000
+#define CONFIG_1_TILE                0x01
+#define CONFIG_2_TILE                0x02
+#define PLL_RATIO_5_3                0x01
+#define PLL_RATIO_4_3                0x02
+#define WP_CONFIG(tile, ratio)       (((tile) << 8) | (ratio))
+#define WP_CONFIG_1_TILE_5_3_RATIO   WP_CONFIG(CONFIG_1_TILE, PLL_RATIO_5_3)
+#define WP_CONFIG_1_TILE_4_3_RATIO   WP_CONFIG(CONFIG_1_TILE, PLL_RATIO_4_3)
+#define WP_CONFIG_2_TILE_5_3_RATIO   WP_CONFIG(CONFIG_2_TILE, PLL_RATIO_5_3)
+#define WP_CONFIG_2_TILE_4_3_RATIO   WP_CONFIG(CONFIG_2_TILE, PLL_RATIO_4_3)
+#define WP_CONFIG_0_TILE_PLL_OFF     WP_CONFIG(0, 0)
 
 #define PLL_REF_CLK_FREQ	     (50 * 1000000)
 #define PLL_SIMULATION_FREQ	     (10 * 1000000)
@@ -219,7 +219,8 @@ static int ivpu_pll_drive(struct ivpu_device *vdev, bool enable)
 		config = 0;
 	}
 
-	ivpu_dbg(vdev, PM, "PLL workpoint request: %d Hz\n", PLL_RATIO_TO_FREQ(target_ratio));
+	ivpu_dbg(vdev, PM, "PLL workpoint request: config 0x%04x pll ratio 0x%x\n",
+		 config, target_ratio);
 
 	ret = ivpu_pll_cmd_send(vdev, hw->pll.min_ratio, hw->pll.max_ratio, target_ratio, config);
 	if (ret) {
@@ -610,34 +611,10 @@ static int ivpu_boot_d0i3_drive(struct ivpu_device *vdev, bool enable)
 static int ivpu_hw_mtl_info_init(struct ivpu_device *vdev)
 {
 	struct ivpu_hw_info *hw = vdev->hw;
-	u32 tile_fuse;
 
-	tile_fuse = REGB_RD32(MTL_BUTTRESS_TILE_FUSE);
-	if (!REG_TEST_FLD(MTL_BUTTRESS_TILE_FUSE, VALID, tile_fuse))
-		ivpu_warn(vdev, "Tile Fuse: Invalid (0x%x)\n", tile_fuse);
-
-	hw->tile_fuse = REG_GET_FLD(MTL_BUTTRESS_TILE_FUSE, SKU, tile_fuse);
-	switch (hw->tile_fuse) {
-	case TILE_FUSE_ENABLE_LOWER:
-		hw->sku = TILE_SKU_LOWER_MTL;
-		hw->config = WP_CONFIG_1_TILE_5_3_RATIO;
-		ivpu_dbg(vdev, MISC, "Tile Fuse: Enable Lower\n");
-		break;
-	case TILE_FUSE_ENABLE_UPPER:
-		hw->sku = TILE_SKU_UPPER_MTL;
-		hw->config = WP_CONFIG_1_TILE_4_3_RATIO;
-		ivpu_dbg(vdev, MISC, "Tile Fuse: Enable Upper\n");
-		break;
-	case TILE_FUSE_ENABLE_BOTH:
-		hw->sku = TILE_SKU_BOTH_MTL;
-		hw->config = WP_CONFIG_2_TILE_5_3_RATIO;
-		ivpu_dbg(vdev, MISC, "Tile Fuse: Enable Both\n");
-		break;
-	default:
-		hw->config = WP_CONFIG_0_TILE_PLL_OFF;
-		ivpu_dbg(vdev, MISC, "Tile Fuse: Disable\n");
-		break;
-	}
+	hw->tile_fuse = TILE_FUSE_ENABLE_BOTH;
+	hw->sku = TILE_SKU_BOTH_MTL;
+	hw->config = WP_CONFIG_2_TILE_4_3_RATIO;
 
 	ivpu_pll_init_frequency_ratios(vdev);
 
