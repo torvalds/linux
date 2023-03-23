@@ -356,6 +356,65 @@ static void i_sectors_acct(struct bch_fs *c, struct bch_inode_info *inode,
 
 /* stored in page->private: */
 
+#define BCH_FOLIO_SECTOR_STATE()	\
+	x(unallocated)			\
+	x(reserved)			\
+	x(dirty)			\
+	x(dirty_reserved)		\
+	x(allocated)
+
+enum bch_folio_sector_state {
+#define x(n)	SECTOR_##n,
+	BCH_FOLIO_SECTOR_STATE()
+#undef x
+};
+
+const char * const bch2_folio_sector_states[] = {
+#define x(n)	#n,
+	BCH_FOLIO_SECTOR_STATE()
+#undef x
+	NULL
+};
+
+static inline enum bch_folio_sector_state
+folio_sector_dirty(enum bch_folio_sector_state state)
+{
+	switch (state) {
+	case SECTOR_unallocated:
+		return SECTOR_dirty;
+	case SECTOR_reserved:
+		return SECTOR_dirty_reserved;
+	default:
+		return state;
+	}
+}
+
+static inline enum bch_folio_sector_state
+folio_sector_undirty(enum bch_folio_sector_state state)
+{
+	switch (state) {
+	case SECTOR_dirty:
+		return SECTOR_unallocated;
+	case SECTOR_dirty_reserved:
+		return SECTOR_reserved;
+	default:
+		return state;
+	}
+}
+
+static inline enum bch_folio_sector_state
+folio_sector_reserve(enum bch_folio_sector_state state)
+{
+	switch (state) {
+	case SECTOR_unallocated:
+		return SECTOR_reserved;
+	case SECTOR_dirty:
+		return SECTOR_dirty_reserved;
+	default:
+		return state;
+	}
+}
+
 struct bch_folio_sector {
 	/* Uncompressed, fully allocated replicas (or on disk reservation): */
 	unsigned		nr_replicas:4;
@@ -364,13 +423,7 @@ struct bch_folio_sector {
 	unsigned		replicas_reserved:4;
 
 	/* i_sectors: */
-	enum {
-		SECTOR_UNALLOCATED,
-		SECTOR_RESERVED,
-		SECTOR_DIRTY,
-		SECTOR_DIRTY_RESERVED,
-		SECTOR_ALLOCATED,
-	}			state:8;
+	enum bch_folio_sector_state state:8;
 };
 
 struct bch_folio {
@@ -383,6 +436,13 @@ struct bch_folio {
 	bool			uptodate;
 	struct bch_folio_sector	s[];
 };
+
+static inline void folio_sector_set(struct folio *folio,
+			     struct bch_folio *s,
+			     unsigned i, unsigned n)
+{
+	s->s[i].state = n;
+}
 
 static inline struct bch_folio *__bch2_folio(struct folio *folio)
 {
@@ -434,10 +494,10 @@ static struct bch_folio *bch2_folio_create(struct folio *folio, gfp_t gfp)
 static unsigned bkey_to_sector_state(struct bkey_s_c k)
 {
 	if (bkey_extent_is_reservation(k))
-		return SECTOR_RESERVED;
+		return SECTOR_reserved;
 	if (bkey_extent_is_allocation(k.k))
-		return SECTOR_ALLOCATED;
-	return SECTOR_UNALLOCATED;
+		return SECTOR_allocated;
+	return SECTOR_unallocated;
 }
 
 static void __bch2_folio_set(struct folio *folio,
@@ -454,7 +514,7 @@ static void __bch2_folio_set(struct folio *folio,
 
 	for (i = pg_offset; i < pg_offset + pg_len; i++) {
 		s->s[i].nr_replicas	= nr_ptrs;
-		s->s[i].state		= state;
+		folio_sector_set(folio, s, i, state);
 	}
 
 	if (i == sectors)
@@ -611,18 +671,10 @@ static void mark_pagecache_reserved(struct bch_inode_info *inode,
 
 			if (s) {
 				spin_lock(&s->lock);
-				for (j = folio_offset; j < folio_offset + folio_len; j++)
-					switch (s->s[j].state) {
-					case SECTOR_UNALLOCATED:
-						s->s[j].state = SECTOR_RESERVED;
-						break;
-					case SECTOR_DIRTY:
-						s->s[j].state = SECTOR_DIRTY_RESERVED;
-						i_sectors_delta--;
-						break;
-					default:
-						break;
-					}
+				for (j = folio_offset; j < folio_offset + folio_len; j++) {
+					i_sectors_delta -= s->s[j].state == SECTOR_dirty;
+					folio_sector_set(folio, s, j, folio_sector_reserve(s->s[j].state));
+				}
 				spin_unlock(&s->lock);
 			}
 
@@ -727,7 +779,7 @@ static int bch2_folio_reservation_get(struct bch_fs *c,
 	     i++) {
 		disk_sectors += sectors_to_reserve(&s->s[i],
 						res->disk.nr_replicas);
-		quota_sectors += s->s[i].state == SECTOR_UNALLOCATED;
+		quota_sectors += s->s[i].state == SECTOR_unallocated;
 	}
 
 	if (disk_sectors) {
@@ -771,17 +823,8 @@ static void bch2_clear_folio_bits(struct folio *folio)
 		disk_res.sectors += s->s[i].replicas_reserved;
 		s->s[i].replicas_reserved = 0;
 
-		switch (s->s[i].state) {
-		case SECTOR_DIRTY:
-			s->s[i].state = SECTOR_UNALLOCATED;
-			--dirty_sectors;
-			break;
-		case SECTOR_DIRTY_RESERVED:
-			s->s[i].state = SECTOR_RESERVED;
-			break;
-		default:
-			break;
-		}
+		dirty_sectors -= s->s[i].state == SECTOR_dirty;
+		folio_sector_set(folio, s, i, folio_sector_undirty(s->s[i].state));
 	}
 
 	bch2_disk_reservation_put(c, &disk_res);
@@ -820,17 +863,9 @@ static void bch2_set_folio_dirty(struct bch_fs *c,
 		s->s[i].replicas_reserved += sectors;
 		res->disk.sectors -= sectors;
 
-		switch (s->s[i].state) {
-		case SECTOR_UNALLOCATED:
-			s->s[i].state = SECTOR_DIRTY;
-			dirty_sectors++;
-			break;
-		case SECTOR_RESERVED:
-			s->s[i].state = SECTOR_DIRTY_RESERVED;
-			break;
-		default:
-			break;
-		}
+		dirty_sectors += s->s[i].state == SECTOR_unallocated;
+
+		folio_sector_set(folio, s, i, folio_sector_dirty(s->s[i].state));
 	}
 
 	spin_unlock(&s->lock);
@@ -1473,10 +1508,9 @@ do_io:
 	/* Before unlocking the page, get copy of reservations: */
 	spin_lock(&s->lock);
 	memcpy(w->tmp, s->s, sizeof(struct bch_folio_sector) * f_sectors);
-	spin_unlock(&s->lock);
 
 	for (i = 0; i < f_sectors; i++) {
-		if (s->s[i].state < SECTOR_DIRTY)
+		if (s->s[i].state < SECTOR_dirty)
 			continue;
 
 		nr_replicas_this_write =
@@ -1486,15 +1520,16 @@ do_io:
 	}
 
 	for (i = 0; i < f_sectors; i++) {
-		if (s->s[i].state < SECTOR_DIRTY)
+		if (s->s[i].state < SECTOR_dirty)
 			continue;
 
 		s->s[i].nr_replicas = w->opts.compression
 			? 0 : nr_replicas_this_write;
 
 		s->s[i].replicas_reserved = 0;
-		s->s[i].state = SECTOR_ALLOCATED;
+		folio_sector_set(folio, s, i, SECTOR_allocated);
 	}
+	spin_unlock(&s->lock);
 
 	BUG_ON(atomic_read(&s->write_count));
 	atomic_set(&s->write_count, 1);
@@ -1510,16 +1545,16 @@ do_io:
 		u64 sector;
 
 		while (offset < f_sectors &&
-		       w->tmp[offset].state < SECTOR_DIRTY)
+		       w->tmp[offset].state < SECTOR_dirty)
 			offset++;
 
 		if (offset == f_sectors)
 			break;
 
 		while (offset + sectors < f_sectors &&
-		       w->tmp[offset + sectors].state >= SECTOR_DIRTY) {
+		       w->tmp[offset + sectors].state >= SECTOR_dirty) {
 			reserved_sectors += w->tmp[offset + sectors].replicas_reserved;
-			dirty_sectors += w->tmp[offset + sectors].state == SECTOR_DIRTY;
+			dirty_sectors += w->tmp[offset + sectors].state == SECTOR_dirty;
 			sectors++;
 		}
 		BUG_ON(!sectors);
@@ -2760,9 +2795,9 @@ static int __bch2_truncate_folio(struct bch_inode_info *inode,
 	     i < round_down(end_offset, block_bytes(c)) >> 9;
 	     i++) {
 		s->s[i].nr_replicas	= 0;
-		if (s->s[i].state == SECTOR_DIRTY)
-			i_sectors_delta--;
-		s->s[i].state		= SECTOR_UNALLOCATED;
+
+		i_sectors_delta -= s->s[i].state == SECTOR_dirty;
+		folio_sector_set(folio, s, i, SECTOR_unallocated);
 	}
 
 	i_sectors_acct(c, inode, NULL, i_sectors_delta);
@@ -2773,7 +2808,7 @@ static int __bch2_truncate_folio(struct bch_inode_info *inode,
 	 * be responsible for the i_size update:
 	 */
 	ret = s->s[(min(inode->v.i_size, folio_end_pos(folio)) -
-		    folio_pos(folio) - 1) >> 9].state >= SECTOR_DIRTY;
+		    folio_pos(folio) - 1) >> 9].state >= SECTOR_dirty;
 
 	folio_zero_segment(folio, start_offset, end_offset);
 
@@ -3531,7 +3566,7 @@ static int folio_data_offset(struct folio *folio, unsigned offset)
 
 	if (s)
 		for (i = offset >> 9; i < sectors; i++)
-			if (s->s[i].state >= SECTOR_DIRTY)
+			if (s->s[i].state >= SECTOR_dirty)
 				return i << 9;
 
 	return -1;
@@ -3648,7 +3683,7 @@ static bool folio_hole_offset(struct address_space *mapping, loff_t *offset)
 	f_offset = *offset - folio_pos(folio);
 
 	for (i = f_offset >> 9; i < sectors; i++)
-		if (s->s[i].state < SECTOR_DIRTY) {
+		if (s->s[i].state < SECTOR_dirty) {
 			*offset = max(*offset, folio_pos(folio) + (i << 9));
 			goto unlock;
 		}
