@@ -1351,13 +1351,10 @@ EXPORT_SYMBOL(drm_gem_lru_move_tail);
  *
  * @lru: The LRU to scan
  * @nr_to_scan: The number of pages to try to reclaim
- * @remaining: The number of pages left to reclaim, should be initialized by caller
  * @shrink: Callback to try to shrink/reclaim the object.
  */
 unsigned long
-drm_gem_lru_scan(struct drm_gem_lru *lru,
-		 unsigned int nr_to_scan,
-		 unsigned long *remaining,
+drm_gem_lru_scan(struct drm_gem_lru *lru, unsigned nr_to_scan,
 		 bool (*shrink)(struct drm_gem_object *obj))
 {
 	struct drm_gem_lru still_in_lru;
@@ -1396,10 +1393,8 @@ drm_gem_lru_scan(struct drm_gem_lru *lru,
 		 * hit shrinker in response to trying to get backing pages
 		 * for this obj (ie. while it's lock is already held)
 		 */
-		if (!dma_resv_trylock(obj->resv)) {
-			*remaining += obj->size >> PAGE_SHIFT;
+		if (!dma_resv_trylock(obj->resv))
 			goto tail;
-		}
 
 		if (shrink(obj)) {
 			freed += obj->size >> PAGE_SHIFT;
