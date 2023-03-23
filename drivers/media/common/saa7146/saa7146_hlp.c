@@ -699,6 +699,22 @@ static void program_capture_engine(struct saa7146_dev *dev, int planar)
 	WRITE_RPS0(CMD_STOP);
 }
 
+/* disable clipping */
+static void saa7146_disable_clipping(struct saa7146_dev *dev)
+{
+	u32 clip_format	= saa7146_read(dev, CLIP_FORMAT_CTRL);
+
+	/* mask out relevant bits (=lower word)*/
+	clip_format &= MASK_W1;
+
+	/* upload clipping-registers*/
+	saa7146_write(dev, CLIP_FORMAT_CTRL, clip_format);
+	saa7146_write(dev, MC2, (MASK_05 | MASK_21));
+
+	/* disable video dma2 */
+	saa7146_write(dev, MC1, MASK_21);
+}
+
 void saa7146_set_capture(struct saa7146_dev *dev, struct saa7146_buf *buf, struct saa7146_buf *next)
 {
 	struct saa7146_format *sfmt = saa7146_format_by_fourcc(dev,buf->fmt->pixelformat);
@@ -716,6 +732,7 @@ void saa7146_set_capture(struct saa7146_dev *dev, struct saa7146_buf *buf, struc
 
 	saa7146_set_window(dev, buf->fmt->width, buf->fmt->height, buf->fmt->field);
 	saa7146_set_output_format(dev, sfmt->trans);
+	saa7146_disable_clipping(dev);
 
 	if ( vv->last_field == V4L2_FIELD_INTERLACED ) {
 	} else if ( vv->last_field == V4L2_FIELD_TOP ) {
