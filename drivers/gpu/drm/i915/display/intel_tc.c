@@ -1235,20 +1235,25 @@ bool intel_tc_port_connected_locked(struct intel_encoder *encoder)
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	struct intel_tc_port *tc = to_tc_port(dig_port);
+	u32 mask = ~0;
 
 	drm_WARN_ON(&i915->drm, !intel_tc_port_ref_held(dig_port));
 
-	return tc_phy_hpd_live_status(tc) & BIT(tc->mode);
+	if (tc->mode != TC_PORT_DISCONNECTED)
+		mask = BIT(tc->mode);
+
+	return tc_phy_hpd_live_status(tc) & mask;
 }
 
 bool intel_tc_port_connected(struct intel_encoder *encoder)
 {
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
+	struct intel_tc_port *tc = to_tc_port(dig_port);
 	bool is_connected;
 
-	intel_tc_port_lock(dig_port);
+	mutex_lock(&tc->lock);
 	is_connected = intel_tc_port_connected_locked(encoder);
-	intel_tc_port_unlock(dig_port);
+	mutex_unlock(&tc->lock);
 
 	return is_connected;
 }
