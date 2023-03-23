@@ -423,7 +423,7 @@ int __init qdio_setup_init(void)
 
 	/* Check for OSA/FCP thin interrupts (bit 67). */
 	DBF_EVENT("thinint:%1d",
-		  (css_general_characteristics.aif_osa) ? 1 : 0);
+		  (css_general_characteristics.aif_qdio) ? 1 : 0);
 
 	/* Check for QEBSM support in general (bit 58). */
 	DBF_EVENT("cssQEBSM:%1d", css_general_characteristics.qebsm);

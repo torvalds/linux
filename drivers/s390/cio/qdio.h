@@ -266,7 +266,7 @@ struct qdio_irq {
 
 #define is_thinint_irq(irq) \
 	(irq->qib.qfmt == QDIO_IQDIO_QFMT || \
-	 css_general_characteristics.aif_osa)
+	 css_general_characteristics.aif_qdio)
 
 #define qperf(__qdev, __attr)	((__qdev)->perf_stat.(__attr))
 
