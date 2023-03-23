@@ -887,7 +887,7 @@ static int adc_tm5_gen3_set_trip_temp(struct thermal_zone_device *tz,
 					int low_temp, int high_temp)
 {
 	struct adc5_channel_prop *prop = tz->devdata;
-	struct adc5_chip *adc = prop->chip;
+	struct adc5_chip *adc;
 	struct adc_tm_config tm_config;
 	int ret;
 
