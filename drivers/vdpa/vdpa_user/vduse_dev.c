@@ -459,6 +459,7 @@ static void vduse_dev_reset(struct vduse_dev *dev)
 		spin_lock(&vq->irq_lock);
 		vq->cb.callback = NULL;
 		vq->cb.private = NULL;
+		vq->cb.trigger = NULL;
 		spin_unlock(&vq->irq_lock);
 		flush_work(&vq->inject);
 		flush_work(&vq->kick);
@@ -524,6 +525,7 @@ static void vduse_vdpa_set_vq_cb(struct vdpa_device *vdpa, u16 idx,
 	spin_lock(&vq->irq_lock);
 	vq->cb.callback = cb->callback;
 	vq->cb.private = cb->private;
+	vq->cb.trigger = cb->trigger;
 	spin_unlock(&vq->irq_lock);
 }
 
@@ -941,6 +943,23 @@ static void vduse_vq_irq_inject(struct work_struct *work)
 	spin_unlock_irq(&vq->irq_lock);
 }
 
+static bool vduse_vq_signal_irqfd(struct vduse_virtqueue *vq)
+{
+	bool signal = false;
+
+	if (!vq->cb.trigger)
+		return false;
+
+	spin_lock_irq(&vq->irq_lock);
+	if (vq->ready && vq->cb.trigger) {
+		eventfd_signal(vq->cb.trigger, 1);
+		signal = true;
+	}
+	spin_unlock_irq(&vq->irq_lock);
+
+	return signal;
+}
+
 static int vduse_dev_queue_irq_work(struct vduse_dev *dev,
 				    struct work_struct *irq_work,
 				    int irq_effective_cpu)
@@ -1243,11 +1262,14 @@ static long vduse_dev_ioctl(struct file *file, unsigned int cmd,
 		if (index >= dev->vq_num)
 			break;
 
+		ret = 0;
 		index = array_index_nospec(index, dev->vq_num);
-
-		vduse_vq_update_effective_cpu(dev->vqs[index]);
-		ret = vduse_dev_queue_irq_work(dev, &dev->vqs[index]->inject,
-					dev->vqs[index]->irq_effective_cpu);
+		if (!vduse_vq_signal_irqfd(dev->vqs[index])) {
+			vduse_vq_update_effective_cpu(dev->vqs[index]);
+			ret = vduse_dev_queue_irq_work(dev,
+						&dev->vqs[index]->inject,
+						dev->vqs[index]->irq_effective_cpu);
+		}
 		break;
 	}
 	case VDUSE_IOTLB_REG_UMEM: {
