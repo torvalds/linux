@@ -268,8 +268,26 @@ out:
 static int gen6_hw_domain_reset(struct intel_gt *gt, u32 hw_domain_mask)
 {
 	struct intel_uncore *uncore = gt->uncore;
-	int loops = 2;
+	int loops;
 	int err;
+
+	/*
+	 * On some platforms, e.g. Jasperlake, we see that the engine register
+	 * state is not cleared until shortly after GDRST reports completion,
+	 * causing a failure as we try to immediately resume while the internal
+	 * state is still in flux. If we immediately repeat the reset, the
+	 * second reset appears to serialise with the first, and since it is a
+	 * no-op, the registers should retain their reset value. However, there
+	 * is still a concern that upon leaving the second reset, the internal
+	 * engine state is still in flux and not ready for resuming.
+	 *
+	 * Starting on MTL, there are some prep steps that we need to do when
+	 * resetting some engines that need to be applied every time we write to
+	 * GEN6_GDRST. As those are time consuming (tens of ms), we don't want
+	 * to perform that twice, so, since the Jasperlake issue hasn't been
+	 * observed on MTL, we avoid repeating the reset on newer platforms.
+	 */
+	loops = GRAPHICS_VER_FULL(gt->i915) < IP_VER(12, 70) ? 2 : 1;
 
 	/*
 	 * GEN6_GDRST is not in the gt power well, no need to check
@@ -279,20 +297,7 @@ static int gen6_hw_domain_reset(struct intel_gt *gt, u32 hw_domain_mask)
 	do {
 		intel_uncore_write_fw(uncore, GEN6_GDRST, hw_domain_mask);
 
-		/*
-		 * Wait for the device to ack the reset requests.
-		 *
-		 * On some platforms, e.g. Jasperlake, we see that the
-		 * engine register state is not cleared until shortly after
-		 * GDRST reports completion, causing a failure as we try
-		 * to immediately resume while the internal state is still
-		 * in flux. If we immediately repeat the reset, the second
-		 * reset appears to serialise with the first, and since
-		 * it is a no-op, the registers should retain their reset
-		 * value. However, there is still a concern that upon
-		 * leaving the second reset, the internal engine state
-		 * is still in flux and not ready for resuming.
-		 */
+		/* Wait for the device to ack the reset requests. */
 		err = __intel_wait_for_register_fw(uncore, GEN6_GDRST,
 						   hw_domain_mask, 0,
 						   2000, 0,
