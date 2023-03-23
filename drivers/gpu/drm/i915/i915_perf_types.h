@@ -17,6 +17,7 @@
 #include <linux/wait.h>
 #include <uapi/drm/i915_drm.h>
 
+#include "gt/intel_engine_types.h"
 #include "gt/intel_sseu.h"
 #include "i915_reg_defs.h"
 #include "intel_wakeref.h"
@@ -29,6 +30,13 @@ struct i915_perf;
 struct i915_vma;
 struct intel_context;
 struct intel_engine_cs;
+
+enum {
+	PERF_GROUP_OAG = 0,
+
+	PERF_GROUP_MAX,
+	PERF_GROUP_INVALID = U32_MAX,
+};
 
 struct i915_oa_format {
 	u32 format;
@@ -390,6 +398,20 @@ struct i915_oa_ops {
 	u32 (*oa_hw_tail_read)(struct i915_perf_stream *stream);
 };
 
+struct i915_perf_group {
+	/*
+	 * @exclusive_stream: The stream currently using the OA unit. This is
+	 * sometimes accessed outside a syscall associated to its file
+	 * descriptor.
+	 */
+	struct i915_perf_stream *exclusive_stream;
+
+	/*
+	 * @num_engines: The number of engines using this OA unit.
+	 */
+	u32 num_engines;
+};
+
 struct i915_perf_gt {
 	/*
 	 * Lock associated with anything below within this structure.
@@ -402,12 +424,15 @@ struct i915_perf_gt {
 	 */
 	struct intel_sseu sseu;
 
-	/*
-	 * @exclusive_stream: The stream currently using the OA unit. This is
-	 * sometimes accessed outside a syscall associated to its file
-	 * descriptor.
+	/**
+	 * @num_perf_groups: number of perf groups per gt.
 	 */
-	struct i915_perf_stream *exclusive_stream;
+	u32 num_perf_groups;
+
+	/*
+	 * @group: list of OA groups - one for each OA buffer.
+	 */
+	struct i915_perf_group *group;
 };
 
 struct i915_perf {

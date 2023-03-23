@@ -53,6 +53,8 @@ struct intel_gt;
 struct intel_ring;
 struct intel_uncore;
 struct intel_breadcrumbs;
+struct intel_engine_cs;
+struct i915_perf_group;
 
 typedef u32 intel_engine_mask_t;
 #define ALL_ENGINES ((intel_engine_mask_t)~0ul)
@@ -617,6 +619,14 @@ struct intel_engine_cs {
 	} props, defaults;
 
 	I915_SELFTEST_DECLARE(struct fault_attr reset_timeout);
+
+	/*
+	 * The perf group maps to one OA unit which controls one OA buffer. All
+	 * reports corresponding to this engine will be reported to this OA
+	 * buffer. An engine will map to a single OA unit, but a single OA unit
+	 * can generate reports for multiple engines.
+	 */
+	struct i915_perf_group *oa_group;
 };
 
 static inline bool
