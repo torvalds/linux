@@ -379,6 +379,7 @@ static int hexium_attach(struct saa7146_dev *dev, struct saa7146_pci_extension_d
 	/* the rest */
 	hexium->cur_input = 0;
 	hexium_init_done(dev);
+	hexium_set_input(hexium, 0);
 
 	return 0;
 }
