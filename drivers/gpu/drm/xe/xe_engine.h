@@ -54,5 +54,6 @@ int xe_engine_set_property_ioctl(struct drm_device *dev, void *data,
 				 struct drm_file *file);
 int xe_engine_get_property_ioctl(struct drm_device *dev, void *data,
 				 struct drm_file *file);
+enum xe_engine_priority xe_engine_device_get_max_priority(struct xe_device *xe);
 
 #endif

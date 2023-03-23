@@ -12,6 +12,7 @@
 
 #include "xe_bo.h"
 #include "xe_device.h"
+#include "xe_engine.h"
 #include "xe_ggtt.h"
 #include "xe_gt.h"
 #include "xe_guc_hwconfig.h"
@@ -194,6 +195,8 @@ static int query_config(struct xe_device *xe, struct drm_xe_device_query *query)
 	config->info[XE_QUERY_CONFIG_GT_COUNT] = xe->info.tile_count;
 	config->info[XE_QUERY_CONFIG_MEM_REGION_COUNT] =
 		hweight_long(xe->info.mem_region_mask);
+	config->info[XE_QUERY_CONFIG_MAX_ENGINE_PRIORITY] =
+		xe_engine_device_get_max_priority(xe);
 
 	if (copy_to_user(query_ptr, config, size)) {
 		kfree(config);

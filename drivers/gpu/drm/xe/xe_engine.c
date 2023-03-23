@@ -169,14 +169,20 @@ struct xe_engine *xe_engine_lookup(struct xe_file *xef, u32 id)
 	return e;
 }
 
+enum xe_engine_priority
+xe_engine_device_get_max_priority(struct xe_device *xe)
+{
+	return capable(CAP_SYS_NICE) ? XE_ENGINE_PRIORITY_HIGH :
+			               XE_ENGINE_PRIORITY_NORMAL;
+}
+
 static int engine_set_priority(struct xe_device *xe, struct xe_engine *e,
 			       u64 value, bool create)
 {
 	if (XE_IOCTL_ERR(xe, value > XE_ENGINE_PRIORITY_HIGH))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, value == XE_ENGINE_PRIORITY_HIGH &&
-			 !capable(CAP_SYS_NICE)))
+	if (XE_IOCTL_ERR(xe, value > xe_engine_device_get_max_priority(xe)))
 		return -EPERM;
 
 	return e->ops->set_priority(e, value);
