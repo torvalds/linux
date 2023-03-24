@@ -101,7 +101,7 @@
         "EventCode": "0x14",
         "EventName": "UNC_I_MISC0.2ND_ATOMIC_INSERT",
         "PerPkg": "1",
-        "PublicDescription": "UNC_I_MISC0.2ND_ATOMIC_INSERT",
+        "PublicDescription": "Counts Timeouts - Set 0 : Cache Inserts of Atomic Transactions as Secondary",
         "UMask": "0x10",
         "Unit": "IRP"
     },
@@ -110,7 +110,7 @@
         "EventCode": "0x14",
         "EventName": "UNC_I_MISC0.2ND_RD_INSERT",
         "PerPkg": "1",
-        "PublicDescription": "UNC_I_MISC0.2ND_RD_INSERT",
+        "PublicDescription": "Counts Timeouts - Set 0 : Cache Inserts of Read Transactions as Secondary",
         "UMask": "0x4",
         "Unit": "IRP"
     },
@@ -119,7 +119,7 @@
         "EventCode": "0x14",
         "EventName": "UNC_I_MISC0.2ND_WR_INSERT",
         "PerPkg": "1",
-        "PublicDescription": "UNC_I_MISC0.2ND_WR_INSERT",
+        "PublicDescription": "Counts Timeouts - Set 0 : Cache Inserts of Write Transactions as Secondary",
         "UMask": "0x8",
         "Unit": "IRP"
     },
@@ -128,7 +128,7 @@
         "EventCode": "0x14",
         "EventName": "UNC_I_MISC0.FAST_REJ",
         "PerPkg": "1",
-        "PublicDescription": "UNC_I_MISC0.FAST_REJ",
+        "PublicDescription": "Counts Timeouts - Set 0 : Fastpath Rejects",
         "UMask": "0x2",
         "Unit": "IRP"
     },
@@ -137,7 +137,7 @@
         "EventCode": "0x14",
         "EventName": "UNC_I_MISC0.FAST_REQ",
         "PerPkg": "1",
-        "PublicDescription": "UNC_I_MISC0.FAST_REQ",
+        "PublicDescription": "Counts Timeouts - Set 0 : Fastpath Requests",
         "UMask": "0x1",
         "Unit": "IRP"
     },
@@ -146,7 +146,7 @@
         "EventCode": "0x14",
         "EventName": "UNC_I_MISC0.FAST_XFER",
         "PerPkg": "1",
-        "PublicDescription": "UNC_I_MISC0.FAST_XFER",
+        "PublicDescription": "Counts Timeouts - Set 0 : Fastpath Transfers From Primary to Secondary",
         "UMask": "0x20",
         "Unit": "IRP"
     },
@@ -155,7 +155,7 @@
         "EventCode": "0x14",
         "EventName": "UNC_I_MISC0.PF_ACK_HINT",
         "PerPkg": "1",
-        "PublicDescription": "UNC_I_MISC0.PF_ACK_HINT",
+        "PublicDescription": "Counts Timeouts - Set 0 : Prefetch Ack Hints From Primary to Secondary",
         "UMask": "0x40",
         "Unit": "IRP"
     },
@@ -182,7 +182,7 @@
         "EventCode": "0x15",
         "EventName": "UNC_I_MISC1.LOST_FWD",
         "PerPkg": "1",
-        "PublicDescription": "UNC_I_MISC1.LOST_FWD",
+        "PublicDescription": "Misc Events - Set 1 : Lost Forward : Snoop pulled away ownership before a write was committed",
         "UMask": "0x10",
         "Unit": "IRP"
     },
@@ -325,7 +325,7 @@
         "EventCode": "0x17",
         "EventName": "UNC_I_SNOOP_RESP.HIT_ES",
         "PerPkg": "1",
-        "PublicDescription": "UNC_I_SNOOP_RESP.HIT_ES",
+        "PublicDescription": "Snoop Responses : Hit E or S",
         "UMask": "0x4",
         "Unit": "IRP"
     },
@@ -334,7 +334,7 @@
         "EventCode": "0x17",
         "EventName": "UNC_I_SNOOP_RESP.HIT_I",
         "PerPkg": "1",
-        "PublicDescription": "UNC_I_SNOOP_RESP.HIT_I",
+        "PublicDescription": "Snoop Responses : Hit I",
         "UMask": "0x2",
         "Unit": "IRP"
     },
@@ -343,7 +343,7 @@
         "EventCode": "0x17",
         "EventName": "UNC_I_SNOOP_RESP.HIT_M",
         "PerPkg": "1",
-        "PublicDescription": "UNC_I_SNOOP_RESP.HIT_M",
+        "PublicDescription": "Snoop Responses : Hit M",
         "UMask": "0x8",
         "Unit": "IRP"
     },
@@ -352,7 +352,7 @@
         "EventCode": "0x17",
         "EventName": "UNC_I_SNOOP_RESP.MISS",
         "PerPkg": "1",
-        "PublicDescription": "UNC_I_SNOOP_RESP.MISS",
+        "PublicDescription": "Snoop Responses : Miss",
         "UMask": "0x1",
         "Unit": "IRP"
     },
@@ -361,7 +361,7 @@
         "EventCode": "0x17",
         "EventName": "UNC_I_SNOOP_RESP.SNPCODE",
         "PerPkg": "1",
-        "PublicDescription": "UNC_I_SNOOP_RESP.SNPCODE",
+        "PublicDescription": "Snoop Responses : SnpCode",
         "UMask": "0x10",
         "Unit": "IRP"
     },
@@ -370,7 +370,7 @@
         "EventCode": "0x17",
         "EventName": "UNC_I_SNOOP_RESP.SNPDATA",
         "PerPkg": "1",
-        "PublicDescription": "UNC_I_SNOOP_RESP.SNPDATA",
+        "PublicDescription": "Snoop Responses : SnpData",
         "UMask": "0x20",
         "Unit": "IRP"
     },
@@ -379,7 +379,7 @@
         "EventCode": "0x17",
         "EventName": "UNC_I_SNOOP_RESP.SNPINV",
         "PerPkg": "1",
-        "PublicDescription": "UNC_I_SNOOP_RESP.SNPINV",
+        "PublicDescription": "Snoop Responses : SnpInv",
         "UMask": "0x40",
         "Unit": "IRP"
     },
@@ -474,7 +474,7 @@
         "EventCode": "0xD",
         "EventName": "UNC_I_TxR_REQUEST_OCCUPANCY",
         "PerPkg": "1",
-        "PublicDescription": "Accumultes the number of outstanding outbound requests from the IRP to the switch (towards the devices).  This can be used in conjuection with the allocations event in order to calculate average latency of outbound requests.",
+        "PublicDescription": "Accumulates the number of outstanding outbound requests from the IRP to the switch (towards the devices).  This can be used in conjunction with the allocations event in order to calculate average latency of outbound requests.",
         "Unit": "IRP"
     },
     {
@@ -1223,7 +1223,6 @@
         "EventCode": "0xB",
         "EventName": "UNC_R3_IOT_BACKPRESSURE.HUB",
         "PerPkg": "1",
-        "PublicDescription": "UNC_R3_IOT_BACKPRESSURE.HUB",
         "UMask": "0x2",
         "Unit": "R3QPI"
     },
@@ -1232,7 +1231,6 @@
         "EventCode": "0xB",
         "EventName": "UNC_R3_IOT_BACKPRESSURE.SAT",
         "PerPkg": "1",
-        "PublicDescription": "UNC_R3_IOT_BACKPRESSURE.SAT",
         "UMask": "0x1",
         "Unit": "R3QPI"
     },
@@ -2312,7 +2310,7 @@
         "EventCode": "0x33",
         "EventName": "UNC_R3_VNA_CREDITS_ACQUIRED.AD",
         "PerPkg": "1",
-        "PublicDescription": "Number of QPI VNA Credit acquisitions.  This event can be used in conjunction with the VNA In-Use Accumulator to calculate the average lifetime of a credit holder.  VNA credits are used by all message classes in order to communicate across QPI.  If a packet is unable to acquire credits, it will then attempt to use credts from the VN0 pool.  Note that a single packet may require multiple flit buffers (i.e. when data is being transfered).  Therefore, this event will increment by the number of credits acquired in each cycle.  Filtering based on message class is not provided.  One can count the number of packets transfered in a given message class using an qfclk event.; Filter for the Home (HOM) message class.  HOM is generally used to send requests, request responses, and snoop responses.",
+        "PublicDescription": "Number of QPI VNA Credit acquisitions.  This event can be used in conjunction with the VNA In-Use Accumulator to calculate the average lifetime of a credit holder.  VNA credits are used by all message classes in order to communicate across QPI.  If a packet is unable to acquire credits, it will then attempt to use credits from the VN0 pool.  Note that a single packet may require multiple flit buffers (i.e. when data is being transferred).  Therefore, this event will increment by the number of credits acquired in each cycle.  Filtering based on message class is not provided.  One can count the number of packets transferred in a given message class using an qfclk event.; Filter for the Home (HOM) message class.  HOM is generally used to send requests, request responses, and snoop responses.",
         "UMask": "0x1",
         "Unit": "R3QPI"
     },
@@ -2321,7 +2319,7 @@
         "EventCode": "0x33",
         "EventName": "UNC_R3_VNA_CREDITS_ACQUIRED.BL",
         "PerPkg": "1",
-        "PublicDescription": "Number of QPI VNA Credit acquisitions.  This event can be used in conjunction with the VNA In-Use Accumulator to calculate the average lifetime of a credit holder.  VNA credits are used by all message classes in order to communicate across QPI.  If a packet is unable to acquire credits, it will then attempt to use credts from the VN0 pool.  Note that a single packet may require multiple flit buffers (i.e. when data is being transfered).  Therefore, this event will increment by the number of credits acquired in each cycle.  Filtering based on message class is not provided.  One can count the number of packets transfered in a given message class using an qfclk event.; Filter for the Home (HOM) message class.  HOM is generally used to send requests, request responses, and snoop responses.",
+        "PublicDescription": "Number of QPI VNA Credit acquisitions.  This event can be used in conjunction with the VNA In-Use Accumulator to calculate the average lifetime of a credit holder.  VNA credits are used by all message classes in order to communicate across QPI.  If a packet is unable to acquire credits, it will then attempt to use credits from the VN0 pool.  Note that a single packet may require multiple flit buffers (i.e. when data is being transferred).  Therefore, this event will increment by the number of credits acquired in each cycle.  Filtering based on message class is not provided.  One can count the number of packets transferred in a given message class using an qfclk event.; Filter for the Home (HOM) message class.  HOM is generally used to send requests, request responses, and snoop responses.",
         "UMask": "0x4",
         "Unit": "R3QPI"
     },
@@ -2384,14 +2382,12 @@
         "EventCode": "0xA",
         "EventName": "UNC_S_BOUNCE_CONTROL",
         "PerPkg": "1",
-        "PublicDescription": "UNC_S_BOUNCE_CONTROL",
         "Unit": "SBO"
     },
     {
         "BriefDescription": "Uncore Clocks",
         "EventName": "UNC_S_CLOCKTICKS",
         "PerPkg": "1",
-        "PublicDescription": "UNC_S_CLOCKTICKS",
         "Unit": "SBO"
     },
     {
@@ -2596,7 +2592,6 @@
         "EventCode": "0x5",
         "EventName": "UNC_S_RING_BOUNCES.AD_CACHE",
         "PerPkg": "1",
-        "PublicDescription": "UNC_S_RING_BOUNCES.AD_CACHE",
         "UMask": "0x1",
         "Unit": "SBO"
     },
@@ -2605,7 +2600,6 @@
         "EventCode": "0x5",
         "EventName": "UNC_S_RING_BOUNCES.AK_CORE",
         "PerPkg": "1",
-        "PublicDescription": "UNC_S_RING_BOUNCES.AK_CORE",
         "UMask": "0x2",
         "Unit": "SBO"
     },
@@ -2614,7 +2608,6 @@
         "EventCode": "0x5",
         "EventName": "UNC_S_RING_BOUNCES.BL_CORE",
         "PerPkg": "1",
-        "PublicDescription": "UNC_S_RING_BOUNCES.BL_CORE",
         "UMask": "0x4",
         "Unit": "SBO"
     },
@@ -2623,7 +2616,6 @@
         "EventCode": "0x5",
         "EventName": "UNC_S_RING_BOUNCES.IV_CORE",
         "PerPkg": "1",
-        "PublicDescription": "UNC_S_RING_BOUNCES.IV_CORE",
         "UMask": "0x8",
         "Unit": "SBO"
     },
