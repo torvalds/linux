@@ -68,18 +68,16 @@ struct bio_post_read_ctx {
 
 static void __read_end_io(struct bio *bio)
 {
-	struct page *page;
-	struct bio_vec *bv;
-	struct bvec_iter_all iter_all;
+	struct folio_iter fi;
 
-	bio_for_each_segment_all(bv, bio, iter_all) {
-		page = bv->bv_page;
+	bio_for_each_folio_all(fi, bio) {
+		struct folio *folio = fi.folio;
 
 		if (bio->bi_status)
-			ClearPageUptodate(page);
+			folio_clear_uptodate(folio);
 		else
-			SetPageUptodate(page);
-		unlock_page(page);
+			folio_mark_uptodate(folio);
+		folio_unlock(folio);
 	}
 	if (bio->bi_private)
 		mempool_free(bio->bi_private, bio_post_read_ctx_pool);
