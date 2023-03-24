@@ -935,7 +935,7 @@ EXPORT_SYMBOL_GPL(device_get_dma_attr);
  * 'phy-connection-type', and return its index in phy_modes table, or errno in
  * error case.
  */
-int fwnode_get_phy_mode(struct fwnode_handle *fwnode)
+int fwnode_get_phy_mode(const struct fwnode_handle *fwnode)
 {
 	const char *pm;
 	int err, i;

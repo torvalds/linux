@@ -396,7 +396,7 @@ enum dev_dma_attr device_get_dma_attr(const struct device *dev);
 const void *device_get_match_data(const struct device *dev);
 
 int device_get_phy_mode(struct device *dev);
-int fwnode_get_phy_mode(struct fwnode_handle *fwnode);
+int fwnode_get_phy_mode(const struct fwnode_handle *fwnode);
 
 void __iomem *fwnode_iomap(struct fwnode_handle *fwnode, int index);
 
