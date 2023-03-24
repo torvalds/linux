@@ -1164,12 +1164,6 @@ config SYS_SUPPORTS_LITTLE_ENDIAN
 config MIPS_HUGE_TLB_SUPPORT
 	def_bool HUGETLB_PAGE || TRANSPARENT_HUGEPAGE
 
-config IRQ_MSP_SLP
-	bool
-
-config IRQ_MSP_CIC
-	bool
-
 config IRQ_TXX9
 	bool
 
