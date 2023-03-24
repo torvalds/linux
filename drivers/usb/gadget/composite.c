@@ -941,6 +941,9 @@ static void reset_config(struct usb_composite_dev *cdev)
 		if (f->disable)
 			f->disable(f);
 
+		/* Section 9.1.1.6, disable remote wakeup when device is reset */
+		f->func_wakeup_armed = false;
+
 		bitmap_zero(f->endpoints, 32);
 	}
 	cdev->config = NULL;
@@ -2006,9 +2009,20 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 		f = cdev->config->interface[intf];
 		if (!f)
 			break;
-		status = f->get_status ? f->get_status(f) : 0;
-		if (status < 0)
-			break;
+
+		if (f->get_status) {
+			status = f->get_status(f);
+			if (status < 0)
+				break;
+		} else {
+			/* Set D0 and D1 bits based on func wakeup capability */
+			if (f->config->bmAttributes & USB_CONFIG_ATT_WAKEUP) {
+				status |= USB_INTRF_STAT_FUNC_RW_CAP;
+				if (f->func_wakeup_armed)
+					status |= USB_INTRF_STAT_FUNC_RW;
+			}
+		}
+
 		put_unaligned_le16(status & 0x0000ffff, req->buf);
 		break;
 	/*
@@ -2030,8 +2044,44 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 			if (!f)
 				break;
 			value = 0;
-			if (f->func_suspend)
+			if (f->func_suspend) {
 				value = f->func_suspend(f, w_index >> 8);
+			/* SetFeature(FUNCTION_SUSPEND) */
+			} else if (ctrl->bRequest == USB_REQ_SET_FEATURE) {
+				if (!(f->config->bmAttributes &
+				      USB_CONFIG_ATT_WAKEUP) &&
+				     (w_index & USB_INTRF_FUNC_SUSPEND_RW))
+					break;
+
+				f->func_wakeup_armed = !!(w_index &
+							  USB_INTRF_FUNC_SUSPEND_RW);
+
+				if (w_index & USB_INTRF_FUNC_SUSPEND_LP) {
+					if (f->suspend && !f->func_suspended) {
+						f->suspend(f);
+						f->func_suspended = true;
+					}
+				/*
+				 * Handle cases where host sends function resume
+				 * through SetFeature(FUNCTION_SUSPEND) but low power
+				 * bit reset
+				 */
+				} else {
+					if (f->resume && f->func_suspended) {
+						f->resume(f);
+						f->func_suspended = false;
+					}
+				}
+			/* ClearFeature(FUNCTION_SUSPEND) */
+			} else if (ctrl->bRequest == USB_REQ_CLEAR_FEATURE) {
+				f->func_wakeup_armed = false;
+
+				if (f->resume && f->func_suspended) {
+					f->resume(f);
+					f->func_suspended = false;
+				}
+			}
+
 			if (value < 0) {
 				ERROR(cdev,
 				      "func_suspend() returned error %d\n",
@@ -2573,7 +2623,12 @@ void composite_resume(struct usb_gadget *gadget)
 		cdev->driver->resume(cdev);
 	if (cdev->config) {
 		list_for_each_entry(f, &cdev->config->functions, list) {
-			if (f->resume)
+			/*
+			 * Check for func_suspended flag to see if the function is
+			 * in USB3 FUNCTION_SUSPEND state. In this case resume is
+			 * done via FUNCTION_SUSPEND feature selector.
+			 */
+			if (f->resume && !f->func_suspended)
 				f->resume(f);
 		}
 
