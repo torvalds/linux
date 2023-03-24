@@ -168,6 +168,12 @@ def define_gen3auto():
 
     _gen3auto_consolidate_in_tree_modules = _gen3auto_in_tree_modules + [
         # keep sorted
+        "drivers/misc/lkdtm/lkdtm.ko",
+        "lib/test_user_copy.ko",
+        "kernel/rcu/rcutorture.ko",
+        "lib/atomic64_test.ko",
+        "kernel/locking/locktorture.ko",
+        "kernel/torture.ko",
     ]
 
     for variant in la_variants:
