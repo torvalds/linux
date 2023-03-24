@@ -3154,17 +3154,16 @@ out:
 
 static int ext4_read_folio(struct file *file, struct folio *folio)
 {
-	struct page *page = &folio->page;
 	int ret = -EAGAIN;
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 
-	trace_ext4_readpage(page);
+	trace_ext4_readpage(&folio->page);
 
 	if (ext4_has_inline_data(inode))
 		ret = ext4_readpage_inline(inode, folio);
 
 	if (ret == -EAGAIN)
-		return ext4_mpage_readpages(inode, NULL, page);
+		return ext4_mpage_readpages(inode, NULL, folio);
 
 	return ret;
 }
