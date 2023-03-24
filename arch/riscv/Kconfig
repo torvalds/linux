@@ -126,6 +126,7 @@ config RISCV
 	select OF_IRQ
 	select PCI_DOMAINS_GENERIC if PCI
 	select PCI_MSI if PCI
+	select RISCV_ALTERNATIVE if !XIP_KERNEL
 	select RISCV_INTC
 	select RISCV_TIMER if RISCV_SBI
 	select SIFIVE_PLIC
@@ -401,9 +402,8 @@ config RISCV_ISA_C
 config RISCV_ISA_SVPBMT
 	bool "SVPBMT extension support"
 	depends on 64BIT && MMU
-	depends on !XIP_KERNEL
+	depends on RISCV_ALTERNATIVE
 	default y
-	select RISCV_ALTERNATIVE
 	help
 	   Adds support to dynamically detect the presence of the SVPBMT
 	   ISA-extension (Supervisor-mode: page-based memory types) and
@@ -428,8 +428,8 @@ config TOOLCHAIN_HAS_ZBB
 config RISCV_ISA_ZBB
 	bool "Zbb extension support for bit manipulation instructions"
 	depends on TOOLCHAIN_HAS_ZBB
-	depends on !XIP_KERNEL && MMU
-	select RISCV_ALTERNATIVE
+	depends on MMU
+	depends on RISCV_ALTERNATIVE
 	default y
 	help
 	   Adds support to dynamically detect the presence of the ZBB
@@ -443,9 +443,9 @@ config RISCV_ISA_ZBB
 
 config RISCV_ISA_ZICBOM
 	bool "Zicbom extension support for non-coherent DMA operation"
-	depends on !XIP_KERNEL && MMU
+	depends on MMU
+	depends on RISCV_ALTERNATIVE
 	default y
-	select RISCV_ALTERNATIVE
 	select RISCV_DMA_NONCOHERENT
 	help
 	   Adds support to dynamically detect the presence of the ZICBOM

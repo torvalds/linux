@@ -2,8 +2,7 @@ menu "CPU errata selection"
 
 config ERRATA_SIFIVE
 	bool "SiFive errata"
-	depends on !XIP_KERNEL
-	select RISCV_ALTERNATIVE
+	depends on RISCV_ALTERNATIVE
 	help
 	  All SiFive errata Kconfig depend on this Kconfig. Disabling
 	  this Kconfig will disable all SiFive errata. Please say "Y"
@@ -35,8 +34,7 @@ config ERRATA_SIFIVE_CIP_1200
 
 config ERRATA_THEAD
 	bool "T-HEAD errata"
-	depends on !XIP_KERNEL
-	select RISCV_ALTERNATIVE
+	depends on RISCV_ALTERNATIVE
 	help
 	  All T-HEAD errata Kconfig depend on this Kconfig. Disabling
 	  this Kconfig will disable all T-HEAD errata. Please say "Y"
