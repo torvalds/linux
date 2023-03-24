@@ -94,8 +94,4 @@ struct rt1318_sdw_priv {
 	bool first_hw_init;
 };
 
-struct sdw_stream_data {
-	struct sdw_stream_runtime *sdw_stream;
-};
-
 #endif /* __RT1318_SDW_H__ */
