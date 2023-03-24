@@ -2139,39 +2139,39 @@
 		bt1120_pins: bt1120-pins {
 			rockchip,pins =
 				/* vo_lcdc_clk */
-				<4 RK_PB7 1 &pcfg_pull_none_drv_level_2>,
+				<4 RK_PB7 1 &pcfg_pull_none_drv_level_4>,
 				/* vo_lcdc_d3 */
-				<3 RK_PC4 1 &pcfg_pull_none_drv_level_2>,
+				<3 RK_PC4 1 &pcfg_pull_none_drv_level_3>,
 				/* vo_lcdc_d4 */
-				<3 RK_PC5 1 &pcfg_pull_none_drv_level_2>,
+				<3 RK_PC5 1 &pcfg_pull_none_drv_level_3>,
 				/* vo_lcdc_d5 */
-				<3 RK_PC6 1 &pcfg_pull_none_drv_level_2>,
+				<3 RK_PC6 1 &pcfg_pull_none_drv_level_3>,
 				/* vo_lcdc_d6 */
-				<3 RK_PC7 1 &pcfg_pull_none_drv_level_2>,
+				<3 RK_PC7 1 &pcfg_pull_none_drv_level_3>,
 				/* vo_lcdc_d7 */
-				<3 RK_PD0 1 &pcfg_pull_none_drv_level_2>,
+				<3 RK_PD0 1 &pcfg_pull_none_drv_level_3>,
 				/* vo_lcdc_d10 */
-				<3 RK_PD1 1 &pcfg_pull_none_drv_level_2>,
+				<3 RK_PD1 1 &pcfg_pull_none_drv_level_3>,
 				/* vo_lcdc_d11 */
-				<3 RK_PD2 1 &pcfg_pull_none_drv_level_2>,
+				<3 RK_PD2 1 &pcfg_pull_none_drv_level_3>,
 				/* vo_lcdc_d12 */
-				<3 RK_PD3 1 &pcfg_pull_none_drv_level_2>,
+				<3 RK_PD3 1 &pcfg_pull_none_drv_level_3>,
 				/* vo_lcdc_d13 */
-				<3 RK_PD4 1 &pcfg_pull_none_drv_level_2>,
+				<3 RK_PD4 1 &pcfg_pull_none_drv_level_3>,
 				/* vo_lcdc_d14 */
-				<3 RK_PD5 1 &pcfg_pull_none_drv_level_2>,
+				<3 RK_PD5 1 &pcfg_pull_none_drv_level_3>,
 				/* vo_lcdc_d15 */
-				<3 RK_PD6 1 &pcfg_pull_none_drv_level_2>,
+				<3 RK_PD6 1 &pcfg_pull_none_drv_level_3>,
 				/* vo_lcdc_d19 */
-				<3 RK_PD7 1 &pcfg_pull_none_drv_level_2>,
+				<3 RK_PD7 1 &pcfg_pull_none_drv_level_3>,
 				/* vo_lcdc_d20 */
-				<4 RK_PA0 1 &pcfg_pull_none_drv_level_2>,
+				<4 RK_PA0 1 &pcfg_pull_none_drv_level_3>,
 				/* vo_lcdc_d21 */
-				<4 RK_PA1 1 &pcfg_pull_none_drv_level_2>,
+				<4 RK_PA1 1 &pcfg_pull_none_drv_level_3>,
 				/* vo_lcdc_d22 */
-				<4 RK_PA2 1 &pcfg_pull_none_drv_level_2>,
+				<4 RK_PA2 1 &pcfg_pull_none_drv_level_3>,
 				/* vo_lcdc_d23 */
-				<4 RK_PA3 1 &pcfg_pull_none_drv_level_2>;
+				<4 RK_PA3 1 &pcfg_pull_none_drv_level_3>;
 		};
 
 		/omit-if-no-ref/
