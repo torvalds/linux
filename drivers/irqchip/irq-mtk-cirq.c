@@ -217,7 +217,7 @@ static void mtk_cirq_resume(void)
 {
 	u32 value;
 
-	/* flush recored interrupts, will send signals to parent controller */
+	/* flush recorded interrupts, will send signals to parent controller */
 	value = readl_relaxed(cirq_data->base + CIRQ_CONTROL);
 	writel_relaxed(value | CIRQ_FLUSH, cirq_data->base + CIRQ_CONTROL);
 
