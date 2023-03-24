@@ -211,9 +211,6 @@ int *fd_instr_count_percpu;
 struct timeval interval_tv = { 5, 0 };
 struct timespec interval_ts = { 5, 0 };
 
-/* Save original CPU model */
-unsigned int model_orig;
-
 unsigned int num_iterations;
 unsigned int header_iterations;
 unsigned int debug;
@@ -4046,14 +4043,7 @@ void check_tcc_offset(int model)
 
 	switch (model) {
 	case INTEL_FAM6_SKYLAKE_L:
-	case INTEL_FAM6_SKYLAKE:
-	case INTEL_FAM6_KABYLAKE_L:
-	case INTEL_FAM6_KABYLAKE:
-	case INTEL_FAM6_ICELAKE_L:
-	case INTEL_FAM6_ICELAKE:
-	case INTEL_FAM6_TIGERLAKE_L:
-	case INTEL_FAM6_TIGERLAKE:
-	case INTEL_FAM6_COMETLAKE:
+	case INTEL_FAM6_CANNONLAKE_L:
 		if (!get_msr(base_cpu, MSR_PLATFORM_INFO, &msr)) {
 			msr = (msr >> 30) & 1;
 			if (msr)
@@ -5573,10 +5563,9 @@ void process_cpuid()
 			edx_flags & (1 << 22) ? "ACPI-TM" : "-",
 			edx_flags & (1 << 28) ? "HT" : "-", edx_flags & (1 << 29) ? "TM" : "-");
 	}
-	if (genuine_intel) {
-		model_orig = model;
+
+	if (genuine_intel)
 		model = intel_model_duplicates(model);
-	}
 
 	if (!(edx_flags & (1 << 5)))
 		errx(1, "CPUID: no MSR");
@@ -5796,7 +5785,7 @@ void process_cpuid()
 	automatic_cstate_conversion_probe(family, model);
 	prewake_cstate_probe(family, model);
 
-	check_tcc_offset(model_orig);
+	check_tcc_offset(model);
 
 	if (!quiet)
 		dump_cstate_pstate_config_info(family, model);
