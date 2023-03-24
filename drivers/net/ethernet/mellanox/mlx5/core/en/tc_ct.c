@@ -920,6 +920,7 @@ mlx5_tc_ct_entry_replace_rule(struct mlx5_tc_ct_priv *ct_priv,
 	zone_rule->rule = rule;
 	mlx5_tc_ct_entry_destroy_mod_hdr(ct_priv, old_attr, zone_rule->mh);
 	zone_rule->mh = mh;
+	mlx5_put_label_mapping(ct_priv, old_attr->ct_attr.ct_labels_id);
 
 	kfree(old_attr);
 	kvfree(spec);
