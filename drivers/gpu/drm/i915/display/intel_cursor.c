@@ -21,7 +21,6 @@
 #include "intel_fb_pin.h"
 #include "intel_frontbuffer.h"
 #include "intel_psr.h"
-#include "intel_sprite.h"
 #include "skl_watermark.h"
 
 /* Cursor formats */

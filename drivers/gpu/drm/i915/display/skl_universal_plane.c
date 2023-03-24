@@ -17,7 +17,6 @@
 #include "intel_fb.h"
 #include "intel_fbc.h"
 #include "intel_psr.h"
-#include "intel_sprite.h"
 #include "skl_scaler.h"
 #include "skl_universal_plane.h"
 #include "skl_watermark.h"

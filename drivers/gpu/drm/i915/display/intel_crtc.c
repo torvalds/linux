@@ -212,7 +212,7 @@ static void intel_crtc_destroy(struct drm_crtc *_crtc)
 
 static int intel_crtc_late_register(struct drm_crtc *crtc)
 {
-	intel_crtc_debugfs_add(crtc);
+	intel_crtc_debugfs_add(to_intel_crtc(crtc));
 	return 0;
 }
 
@@ -685,6 +685,14 @@ void intel_pipe_update_end(struct intel_crtc_state *new_crtc_state)
 	 * vblank start instead of vmax vblank start.
 	 */
 	intel_vrr_send_push(new_crtc_state);
+
+	/*
+	 * Seamless M/N update may need to update frame timings.
+	 *
+	 * FIXME Should be synchronized with the start of vblank somehow...
+	 */
+	if (new_crtc_state->seamless_m_n && intel_crtc_needs_fastset(new_crtc_state))
+		intel_crtc_update_active_timings(new_crtc_state);
 
 	local_irq_enable();
 

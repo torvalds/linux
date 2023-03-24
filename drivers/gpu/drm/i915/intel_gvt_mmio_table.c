@@ -789,9 +789,9 @@ static int iterate_bdw_plus_mmio(struct intel_gvt_mmio_table_iter *iter)
 	MMIO_RING_D(RING_REG);
 #undef RING_REG
 
-	MMIO_D(PIPEMISC(PIPE_A));
-	MMIO_D(PIPEMISC(PIPE_B));
-	MMIO_D(PIPEMISC(PIPE_C));
+	MMIO_D(PIPE_MISC(PIPE_A));
+	MMIO_D(PIPE_MISC(PIPE_B));
+	MMIO_D(PIPE_MISC(PIPE_C));
 	MMIO_D(_MMIO(0x1c1d0));
 	MMIO_D(GEN6_MBCUNIT_SNPCR);
 	MMIO_D(GEN7_MISCCPCTL);
