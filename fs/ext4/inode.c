@@ -1392,6 +1392,7 @@ static int ext4_journalled_write_end(struct file *file,
 				     loff_t pos, unsigned len, unsigned copied,
 				     struct page *page, void *fsdata)
 {
+	struct folio *folio = page_folio(page);
 	handle_t *handle = ext4_journal_current_handle();
 	struct inode *inode = mapping->host;
 	loff_t old_size = inode->i_size;
@@ -1410,25 +1411,26 @@ static int ext4_journalled_write_end(struct file *file,
 	if (ext4_has_inline_data(inode))
 		return ext4_write_inline_data_end(inode, pos, len, copied, page);
 
-	if (unlikely(copied < len) && !PageUptodate(page)) {
+	if (unlikely(copied < len) && !folio_test_uptodate(folio)) {
 		copied = 0;
 		ext4_journalled_zero_new_buffers(handle, inode, page, from, to);
 	} else {
 		if (unlikely(copied < len))
 			ext4_journalled_zero_new_buffers(handle, inode, page,
 							 from + copied, to);
-		ret = ext4_walk_page_buffers(handle, inode, page_buffers(page),
+		ret = ext4_walk_page_buffers(handle, inode,
+					     folio_buffers(folio),
 					     from, from + copied, &partial,
 					     write_end_fn);
 		if (!partial)
-			SetPageUptodate(page);
+			folio_mark_uptodate(folio);
 	}
 	if (!verity)
 		size_changed = ext4_update_inode_size(inode, pos + copied);
 	ext4_set_inode_state(inode, EXT4_STATE_JDATA);
 	EXT4_I(inode)->i_datasync_tid = handle->h_transaction->t_tid;
-	unlock_page(page);
-	put_page(page);
+	folio_unlock(folio);
+	folio_put(folio);
 
 	if (old_size < pos && !verity)
 		pagecache_isize_extended(inode, old_size, pos);
