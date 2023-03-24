@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2010,2015,2019 The Linux Foundation. All rights reserved.
  * Copyright (C) 2015 Linaro Ltd.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/slab.h>
@@ -16,16 +17,6 @@
 #include "qcom_scm.h"
 
 static DEFINE_MUTEX(qcom_scm_lock);
-
-
-/**
- * struct arm_smccc_args
- * @args:	The array of values used in registers in smc instruction
- */
-struct arm_smccc_args {
-	unsigned long args[8];
-};
-
 
 /**
  * struct scm_legacy_command - one SCM command buffer
