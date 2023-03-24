@@ -386,7 +386,7 @@ static int get_key_from_ta(void)
 	ret = qseecom_send_command(app_handle, req, req_len, rsp, rsp_len);
 	if (!ret) {
 		memcpy(params->key_blob, rsp->wrapkey_rsp.wrapped_key_buffer,
-			rsp->wrapkey_rsp.wrapped_key_size);
+			WRAPPED_KEY_SIZE);
 		memcpy(key, rsp->wrapkey_rsp.key_buffer, AES256_KEY_SIZE);
 	}
 	return ret;
