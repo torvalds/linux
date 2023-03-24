@@ -2335,12 +2335,12 @@ static int ext4_da_writepages_trans_blocks(struct inode *inode)
 				MAX_WRITEPAGES_EXTENT_LEN + bpp - 1, bpp);
 }
 
-/* Return true if the page needs to be written as part of transaction commit */
-static bool ext4_page_nomap_can_writeout(struct page *page)
+/* Return true if the folio needs to be written as part of transaction commit */
+static bool ext4_folio_nomap_can_writeout(struct folio *folio)
 {
 	struct buffer_head *bh, *head;
 
-	bh = head = page_buffers(page);
+	bh = head = folio_buffers(folio);
 	do {
 		if (buffer_dirty(bh) && buffer_mapped(bh) && !buffer_delay(bh))
 			return true;
@@ -2533,7 +2533,7 @@ static int mpage_prepare_extent_to_map(struct mpage_da_data *mpd)
 			 * range operations before discarding the page cache.
 			 */
 			if (!mpd->can_map) {
-				if (ext4_page_nomap_can_writeout(&folio->page)) {
+				if (ext4_folio_nomap_can_writeout(folio)) {
 					WARN_ON_ONCE(sb->s_writers.frozen ==
 						     SB_FREEZE_COMPLETE);
 					err = mpage_submit_folio(mpd, folio);
