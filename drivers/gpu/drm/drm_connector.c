@@ -1452,7 +1452,7 @@ static const struct drm_prop_enum_list dp_colorspaces[] = {
  *
  * left margin, right margin, top margin, bottom margin:
  *	Add margins to the connector's viewport. This is typically used to
- *	mitigate underscan on TVs.
+ *	mitigate overscan on TVs.
  *
  *	The value is the size in pixels of the black border which will be
  *	added. The attached CRTC's content will be scaled to fill the whole

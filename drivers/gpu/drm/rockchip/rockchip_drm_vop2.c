@@ -2301,7 +2301,7 @@ static int vop2_create_crtcs(struct vop2 *vop2)
 	nvp = 0;
 	for (i = 0; i < vop2->registered_num_wins; i++) {
 		struct vop2_win *win = &vop2->win[i];
-		u32 possible_crtcs;
+		u32 possible_crtcs = 0;
 
 		if (vop2->data->soc_id == 3566) {
 			/*
@@ -2327,11 +2327,10 @@ static int vop2_create_crtcs(struct vop2 *vop2)
 				/* change the unused primary window to overlay window */
 				win->type = DRM_PLANE_TYPE_OVERLAY;
 			}
-		} else if (win->type == DRM_PLANE_TYPE_OVERLAY) {
-			possible_crtcs = (1 << nvps) - 1;
-		} else {
-			possible_crtcs = 0;
 		}
+
+		if (win->type == DRM_PLANE_TYPE_OVERLAY)
+			possible_crtcs = (1 << nvps) - 1;
 
 		ret = vop2_plane_init(vop2, win, possible_crtcs);
 		if (ret) {
@@ -2680,6 +2679,8 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	vop2->len = resource_size(res);
 
 	vop2->map = devm_regmap_init_mmio(dev, vop2->regs, &vop2_regmap_config);
+	if (IS_ERR(vop2->map))
+		return PTR_ERR(vop2->map);
 
 	ret = vop2_win_init(vop2);
 	if (ret)

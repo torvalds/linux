@@ -584,13 +584,11 @@ err:
 	return ret;
 }
 
-static int snd_dw_hdmi_remove(struct platform_device *pdev)
+static void snd_dw_hdmi_remove(struct platform_device *pdev)
 {
 	struct snd_dw_hdmi *dw = platform_get_drvdata(pdev);
 
 	snd_card_free(dw->card);
-
-	return 0;
 }
 
 #if defined(CONFIG_PM_SLEEP) && defined(IS_NOT_BROKEN)
@@ -625,7 +623,7 @@ static SIMPLE_DEV_PM_OPS(snd_dw_hdmi_pm, snd_dw_hdmi_suspend,
 
 static struct platform_driver snd_dw_hdmi_driver = {
 	.probe	= snd_dw_hdmi_probe,
-	.remove	= snd_dw_hdmi_remove,
+	.remove_new = snd_dw_hdmi_remove,
 	.driver	= {
 		.name = DRIVER_NAME,
 		.pm = PM_OPS,

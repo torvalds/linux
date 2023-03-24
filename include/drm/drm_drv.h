@@ -584,8 +584,6 @@ static inline bool drm_drv_uses_atomic_modeset(struct drm_device *dev)
 }
 
 
-int drm_dev_set_unique(struct drm_device *dev, const char *name);
-
 /* TODO: Inline drm_firmware_drivers_only() in all its callers. */
 static inline bool drm_firmware_drivers_only(void)
 {

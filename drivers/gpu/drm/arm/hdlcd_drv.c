@@ -100,7 +100,6 @@ static int hdlcd_load(struct drm_device *drm, unsigned long flags)
 {
 	struct hdlcd_drm_private *hdlcd = drm_to_hdlcd_priv(drm);
 	struct platform_device *pdev = to_platform_device(drm->dev);
-	struct resource *res;
 	u32 version;
 	int ret;
 
@@ -115,8 +114,7 @@ static int hdlcd_load(struct drm_device *drm, unsigned long flags)
 	atomic_set(&hdlcd->dma_end_count, 0);
 #endif
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	hdlcd->mmio = devm_ioremap_resource(drm->dev, res);
+	hdlcd->mmio = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(hdlcd->mmio)) {
 		DRM_ERROR("failed to map control registers area\n");
 		ret = PTR_ERR(hdlcd->mmio);

@@ -136,15 +136,8 @@ static int drm_fbdev_dma_helper_fb_probe(struct drm_fb_helper *fb_helper,
 		info->flags |= FBINFO_READS_FAST; /* signal caching */
 	info->screen_size = sizes->surface_height * fb->pitches[0];
 	info->screen_buffer = map.vaddr;
+	info->fix.smem_start = page_to_phys(virt_to_page(info->screen_buffer));
 	info->fix.smem_len = info->screen_size;
-
-#if IS_ENABLED(CONFIG_DRM_FBDEV_LEAK_PHYS_SMEM)
-	/*
-	 * Shamelessly leak the physical address to user-space.
-	 */
-	if (fb_helper->hint_leak_smem_start && !info->fix.smem_start)
-		info->fix.smem_start = page_to_phys(virt_to_page(info->screen_buffer));
-#endif
 
 	return 0;
 

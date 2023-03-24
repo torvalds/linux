@@ -347,13 +347,11 @@ static int fsl_ldb_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int fsl_ldb_remove(struct platform_device *pdev)
+static void fsl_ldb_remove(struct platform_device *pdev)
 {
 	struct fsl_ldb *fsl_ldb = platform_get_drvdata(pdev);
 
 	drm_bridge_remove(&fsl_ldb->bridge);
-
-	return 0;
 }
 
 static const struct of_device_id fsl_ldb_match[] = {
@@ -367,7 +365,7 @@ MODULE_DEVICE_TABLE(of, fsl_ldb_match);
 
 static struct platform_driver fsl_ldb_driver = {
 	.probe	= fsl_ldb_probe,
-	.remove	= fsl_ldb_remove,
+	.remove_new = fsl_ldb_remove,
 	.driver		= {
 		.name		= "fsl-ldb",
 		.of_match_table	= fsl_ldb_match,
