@@ -534,8 +534,7 @@ static int ext4_convert_inline_data_to_extent(struct address_space *mapping,
 	int ret, needed_blocks, no_expand;
 	handle_t *handle = NULL;
 	int retries = 0, sem_held = 0;
-	struct page *page = NULL;
-	unsigned int flags;
+	struct folio *folio = NULL;
 	unsigned from, to;
 	struct ext4_iloc iloc;
 
@@ -564,10 +563,9 @@ retry:
 
 	/* We cannot recurse into the filesystem as the transaction is already
 	 * started */
-	flags = memalloc_nofs_save();
-	page = grab_cache_page_write_begin(mapping, 0);
-	memalloc_nofs_restore(flags);
-	if (!page) {
+	folio = __filemap_get_folio(mapping, 0, FGP_WRITEBEGIN | FGP_NOFS,
+			mapping_gfp_mask(mapping));
+	if (!folio) {
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -582,8 +580,8 @@ retry:
 
 	from = 0;
 	to = ext4_get_inline_size(inode);
-	if (!PageUptodate(page)) {
-		ret = ext4_read_inline_page(inode, page);
+	if (!folio_test_uptodate(folio)) {
+		ret = ext4_read_inline_page(inode, &folio->page);
 		if (ret < 0)
 			goto out;
 	}
@@ -593,21 +591,21 @@ retry:
 		goto out;
 
 	if (ext4_should_dioread_nolock(inode)) {
-		ret = __block_write_begin(page, from, to,
+		ret = __block_write_begin(&folio->page, from, to,
 					  ext4_get_block_unwritten);
 	} else
-		ret = __block_write_begin(page, from, to, ext4_get_block);
+		ret = __block_write_begin(&folio->page, from, to, ext4_get_block);
 
 	if (!ret && ext4_should_journal_data(inode)) {
-		ret = ext4_walk_page_buffers(handle, inode, page_buffers(page),
-					     from, to, NULL,
-					     do_journal_get_write_access);
+		ret = ext4_walk_page_buffers(handle, inode,
+					     folio_buffers(folio), from, to,
+					     NULL, do_journal_get_write_access);
 	}
 
 	if (ret) {
-		unlock_page(page);
-		put_page(page);
-		page = NULL;
+		folio_unlock(folio);
+		folio_put(folio);
+		folio = NULL;
 		ext4_orphan_add(handle, inode);
 		ext4_write_unlock_xattr(inode, &no_expand);
 		sem_held = 0;
@@ -627,12 +625,12 @@ retry:
 	if (ret == -ENOSPC && ext4_should_retry_alloc(inode->i_sb, &retries))
 		goto retry;
 
-	if (page)
-		block_commit_write(page, from, to);
+	if (folio)
+		block_commit_write(&folio->page, from, to);
 out:
-	if (page) {
-		unlock_page(page);
-		put_page(page);
+	if (folio) {
+		folio_unlock(folio);
+		folio_put(folio);
 	}
 	if (sem_held)
 		ext4_write_unlock_xattr(inode, &no_expand);
