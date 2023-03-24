@@ -4689,12 +4689,12 @@ static int link_update_map(struct bpf_link *link, union bpf_attr *attr)
 
 	new_map = bpf_map_get(attr->link_update.new_map_fd);
 	if (IS_ERR(new_map))
-		return -EINVAL;
+		return PTR_ERR(new_map);
 
 	if (attr->link_update.flags & BPF_F_REPLACE) {
 		old_map = bpf_map_get(attr->link_update.old_map_fd);
 		if (IS_ERR(old_map)) {
-			ret = -EINVAL;
+			ret = PTR_ERR(old_map);
 			goto out_put;
 		}
 	} else if (attr->link_update.old_map_fd) {

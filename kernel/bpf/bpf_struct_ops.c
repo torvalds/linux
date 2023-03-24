@@ -871,8 +871,8 @@ int bpf_struct_ops_link_create(union bpf_attr *attr)
 	int err;
 
 	map = bpf_map_get(attr->link_create.map_fd);
-	if (!map)
-		return -EINVAL;
+	if (IS_ERR(map))
+		return PTR_ERR(map);
 
 	st_map = (struct bpf_struct_ops_map *)map;
 
