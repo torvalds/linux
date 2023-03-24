@@ -548,7 +548,7 @@ static inline unsigned long timeout_to_jiffies(const ktime_t *timeout)
 		remaining_jiffies = ktime_divns(rem, NSEC_PER_SEC / HZ);
 	}
 
-	return clamp(remaining_jiffies, 0LL, (s64)INT_MAX);
+	return clamp(remaining_jiffies, 1LL, (s64)INT_MAX);
 }
 
 /* Driver helpers */
