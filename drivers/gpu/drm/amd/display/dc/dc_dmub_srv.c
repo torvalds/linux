@@ -139,6 +139,15 @@ bool dc_dmub_srv_cmd_run_list(struct dc_dmub_srv *dc_dmub_srv, unsigned int coun
 		// Queue command
 		status = dmub_srv_cmd_queue(dmub, &cmd_list[i]);
 
+		if (status == DMUB_STATUS_QUEUE_FULL) {
+			/* Execute and wait for queue to become empty again. */
+			dmub_srv_cmd_execute(dmub);
+			dmub_srv_wait_for_idle(dmub, 100000);
+
+			/* Requeue the command. */
+			status = dmub_srv_cmd_queue(dmub, &cmd_list[i]);
+		}
+
 		if (status != DMUB_STATUS_OK) {
 			DC_ERROR("Error queueing DMUB command: status=%d\n", status);
 			dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
