@@ -2592,7 +2592,7 @@ static void call_direct_funcs(unsigned long ip, unsigned long pip,
 	arch_ftrace_set_direct_caller(fregs, addr);
 }
 
-struct ftrace_ops direct_ops = {
+static struct ftrace_ops direct_ops = {
 	.func		= call_direct_funcs,
 	.flags		= FTRACE_OPS_FL_DIRECT | FTRACE_OPS_FL_SAVE_REGS
 			  | FTRACE_OPS_FL_PERMANENT,

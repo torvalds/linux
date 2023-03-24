@@ -529,8 +529,8 @@ static void mlx5_devlink_hairpin_params_init_values(struct devlink *devlink)
 {
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 	union devlink_param_value value;
+	u32 link_speed = 0;
 	u64 link_speed64;
-	u32 link_speed;
 
 	/* set hairpin pair per each 50Gbs share of the link */
 	mlx5_port_max_linkspeed(dev, &link_speed);

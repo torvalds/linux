@@ -19157,9 +19157,7 @@ W:	http://www.brownhat.org/sis900.html
 F:	drivers/net/ethernet/sis/sis900.*
 
 SIS FRAMEBUFFER DRIVER
-M:	Thomas Winischhofer <thomas@winischhofer.net>
-S:	Maintained
-W:	http://www.winischhofer.net/linuxsisvga.shtml
+S:	Orphan
 F:	Documentation/fb/sisfb.rst
 F:	drivers/video/fbdev/sis/
 F:	include/video/sisfb.h
