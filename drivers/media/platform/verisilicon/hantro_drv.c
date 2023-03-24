@@ -972,7 +972,7 @@ static int hantro_probe(struct platform_device *pdev)
 			return PTR_ERR(vpu->clocks[0].clk);
 	}
 
-	vpu->resets = devm_reset_control_array_get(&pdev->dev, false, true);
+	vpu->resets = devm_reset_control_array_get_optional_exclusive(&pdev->dev);
 	if (IS_ERR(vpu->resets))
 		return PTR_ERR(vpu->resets);
 
