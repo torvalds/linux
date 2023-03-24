@@ -909,10 +909,9 @@ int ext4_da_write_inline_data_begin(struct address_space *mapping,
 {
 	int ret;
 	handle_t *handle;
-	struct page *page;
+	struct folio *folio;
 	struct ext4_iloc iloc;
 	int retries = 0;
-	unsigned int flags;
 
 	ret = ext4_get_inode_loc(inode, &iloc);
 	if (ret)
@@ -944,10 +943,9 @@ retry_journal:
 	 * We cannot recurse into the filesystem as the transaction
 	 * is already started.
 	 */
-	flags = memalloc_nofs_save();
-	page = grab_cache_page_write_begin(mapping, 0);
-	memalloc_nofs_restore(flags);
-	if (!page) {
+	folio = __filemap_get_folio(mapping, 0, FGP_WRITEBEGIN | FGP_NOFS,
+					mapping_gfp_mask(mapping));
+	if (!folio) {
 		ret = -ENOMEM;
 		goto out_journal;
 	}
@@ -958,8 +956,8 @@ retry_journal:
 		goto out_release_page;
 	}
 
-	if (!PageUptodate(page)) {
-		ret = ext4_read_inline_page(inode, page);
+	if (!folio_test_uptodate(folio)) {
+		ret = ext4_read_inline_page(inode, &folio->page);
 		if (ret < 0)
 			goto out_release_page;
 	}
@@ -969,13 +967,13 @@ retry_journal:
 		goto out_release_page;
 
 	up_read(&EXT4_I(inode)->xattr_sem);
-	*pagep = page;
+	*pagep = &folio->page;
 	brelse(iloc.bh);
 	return 1;
 out_release_page:
 	up_read(&EXT4_I(inode)->xattr_sem);
-	unlock_page(page);
-	put_page(page);
+	folio_unlock(folio);
+	folio_put(folio);
 out_journal:
 	ext4_journal_stop(handle);
 out:
