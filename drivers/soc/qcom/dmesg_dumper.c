@@ -25,6 +25,8 @@
 #define DDUMP_PROFS_NAME			"vmkmsg"
 #define DDUMP_WAIT_WAKEIRQ_TIMEOUT	msecs_to_jiffies(1000)
 
+static bool vm_status_ready;
+
 static void qcom_ddump_to_shm(struct kmsg_dumper *dumper,
 			  enum kmsg_dump_reason reason)
 {
@@ -213,10 +215,14 @@ static int qcom_ddump_rm_cb(struct notifier_block *nb, unsigned long cmd,
 			dev_err(qdd->dev, "Failed to share memory\n");
 			return NOTIFY_DONE;
 		}
+
+		vm_status_ready = true;
 	}
 
-	if (vm_status_payload->vm_status == GH_RM_VM_STATUS_RESET)
+	if (vm_status_payload->vm_status == GH_RM_VM_STATUS_RESET) {
 		qcom_ddump_unshare_mem(qdd, self_vmid, peer_vmid);
+		vm_status_ready = false;
+	}
 
 	return NOTIFY_DONE;
 }
@@ -265,6 +271,9 @@ static ssize_t qcom_ddump_vmkmsg_read(struct file *file, char __user *buf,
 	struct qcom_dmesg_dumper *qdd = pde_data(file_inode(file));
 	struct ddump_shm_hdr *hdr = qdd->base;
 	int ret;
+
+	if (!vm_status_ready)
+		return -ENODEV;
 
 	if (count < LOG_LINE_MAX) {
 		dev_err(qdd->dev, "user buffer size should greater than %d\n", LOG_LINE_MAX);
