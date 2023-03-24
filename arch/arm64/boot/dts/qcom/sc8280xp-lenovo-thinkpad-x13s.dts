@@ -370,6 +370,7 @@
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+			regulator-always-on;
 		};
 
 		vreg_s11b: smps11 {
@@ -377,6 +378,7 @@
 			regulator-min-microvolt = <1272000>;
 			regulator-max-microvolt = <1272000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+			regulator-always-on;
 		};
 
 		vreg_s12b: smps12 {
@@ -384,6 +386,7 @@
 			regulator-min-microvolt = <984000>;
 			regulator-max-microvolt = <984000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+			regulator-always-on;
 		};
 
 		vreg_l3b: ldo3 {
@@ -441,6 +444,7 @@
 			regulator-min-microvolt = <3008000>;
 			regulator-max-microvolt = <3960000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_AUTO>;
+			regulator-always-on;
 		};
 	};
 
@@ -772,75 +776,88 @@
 	pmic-die-temp@3 {
 		reg = <PMK8350_ADC7_DIE_TEMP>;
 		qcom,pre-scaling = <1 1>;
+		label = "pmk8350_die_temp";
 	};
 
 	xo-therm@44 {
 		reg = <PMK8350_ADC7_AMUX_THM1_100K_PU>;
 		qcom,hw-settle-time = <200>;
 		qcom,ratiometric;
+		label = "pmk8350_xo_therm";
 	};
 
 	pmic-die-temp@103 {
 		reg = <PM8350_ADC7_DIE_TEMP(1)>;
 		qcom,pre-scaling = <1 1>;
+		label = "pmc8280_1_die_temp";
 	};
 
 	sys-therm@144 {
 		reg = <PM8350_ADC7_AMUX_THM1_100K_PU(1)>;
 		qcom,hw-settle-time = <200>;
 		qcom,ratiometric;
+		label = "sys_therm1";
 	};
 
 	sys-therm@145 {
 		reg = <PM8350_ADC7_AMUX_THM2_100K_PU(1)>;
 		qcom,hw-settle-time = <200>;
 		qcom,ratiometric;
+		label = "sys_therm2";
 	};
 
 	sys-therm@146 {
 		reg = <PM8350_ADC7_AMUX_THM3_100K_PU(1)>;
 		qcom,hw-settle-time = <200>;
 		qcom,ratiometric;
+		label = "sys_therm3";
 	};
 
 	sys-therm@147 {
 		reg = <PM8350_ADC7_AMUX_THM4_100K_PU(1)>;
 		qcom,hw-settle-time = <200>;
 		qcom,ratiometric;
+		label = "sys_therm4";
 	};
 
 	pmic-die-temp@303 {
 		reg = <PM8350_ADC7_DIE_TEMP(3)>;
 		qcom,pre-scaling = <1 1>;
+		label = "pmc8280_2_die_temp";
 	};
 
 	sys-therm@344 {
 		reg = <PM8350_ADC7_AMUX_THM1_100K_PU(3)>;
 		qcom,hw-settle-time = <200>;
 		qcom,ratiometric;
+		label = "sys_therm5";
 	};
 
 	sys-therm@345 {
 		reg = <PM8350_ADC7_AMUX_THM2_100K_PU(3)>;
 		qcom,hw-settle-time = <200>;
 		qcom,ratiometric;
+		label = "sys_therm6";
 	};
 
 	sys-therm@346 {
 		reg = <PM8350_ADC7_AMUX_THM3_100K_PU(3)>;
 		qcom,hw-settle-time = <200>;
 		qcom,ratiometric;
+		label = "sys_therm7";
 	};
 
 	sys-therm@347 {
 		reg = <PM8350_ADC7_AMUX_THM4_100K_PU(3)>;
 		qcom,hw-settle-time = <200>;
 		qcom,ratiometric;
+		label = "sys_therm8";
 	};
 
 	pmic-die-temp@403 {
 		reg = <PMR735A_ADC7_DIE_TEMP>;
 		qcom,pre-scaling = <1 1>;
+		label = "pmr735a_die_temp";
 	};
 };
 
@@ -884,9 +901,9 @@
 		"VA DMIC0", "MIC BIAS1",
 		"VA DMIC1", "MIC BIAS1",
 		"VA DMIC2", "MIC BIAS3",
-		"TX DMIC0", "MIC BIAS1",
-		"TX DMIC1", "MIC BIAS2",
-		"TX DMIC2", "MIC BIAS3",
+		"VA DMIC0", "VA MIC BIAS1",
+		"VA DMIC1", "VA MIC BIAS1",
+		"VA DMIC2", "VA MIC BIAS3",
 		"TX SWR_ADC1", "ADC2_OUTPUT";
 
 	wcd-playback-dai-link {
@@ -937,7 +954,7 @@
 	va-dai-link {
 		link-name = "VA Capture";
 		cpu {
-			sound-dai = <&q6apmbedai TX_CODEC_DMA_TX_3>;
+			sound-dai = <&q6apmbedai VA_CODEC_DMA_TX_0>;
 		};
 
 		platform {
@@ -1062,7 +1079,7 @@
 
 	vdd-micb-supply = <&vreg_s10b>;
 
-	qcom,dmic-sample-rate = <600000>;
+	qcom,dmic-sample-rate = <4800000>;
 
 	status = "okay";
 };
