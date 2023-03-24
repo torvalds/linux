@@ -1591,4 +1591,13 @@ config REGULATOR_QTI_OCP_NOTIFIER
 	  providing a more graceful recovery mechanism than resetting the entire
 	  system.
 
+config VIRTIO_REGULATOR
+	tristate "Virtio regulator driver"
+	depends on VIRTIO
+	help
+	  This is the virtual regulator driver for virtio. It can be used on
+	  Qualcomm Technologies Inc. virtual machine. Virtio regulator can vote
+	  regulator for pass through peripheral devices via regulator backend in
+	  host.
+
 endif
