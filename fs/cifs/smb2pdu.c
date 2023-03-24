@@ -144,7 +144,7 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon,
 	       struct TCP_Server_Info *server)
 {
 	int rc = 0;
-	struct nls_table *nls_codepage;
+	struct nls_table *nls_codepage = NULL;
 	struct cifs_ses *ses;
 
 	/*
@@ -220,8 +220,6 @@ again:
 		 tcon->ses->chans_need_reconnect,
 		 tcon->need_reconnect);
 
-	nls_codepage = load_nls_default();
-
 	mutex_lock(&ses->session_mutex);
 	/*
 	 * Recheck after acquire mutex. If another thread is negotiating
@@ -240,6 +238,8 @@ again:
 		goto out;
 	}
 	spin_unlock(&server->srv_lock);
+
+	nls_codepage = load_nls_default();
 
 	/*
 	 * need to prevent multiple threads trying to simultaneously
