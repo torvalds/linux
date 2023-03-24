@@ -341,12 +341,6 @@ static int tb_retimer_add(struct tb_port *port, u8 index, u32 auth_status)
 		return ret;
 	}
 
-	if (vendor != PCI_VENDOR_ID_INTEL && vendor != 0x8087) {
-		tb_port_info(port, "retimer NVM format of vendor %#x is not supported\n",
-			     vendor);
-		return -EOPNOTSUPP;
-	}
-
 	/*
 	 * Check that it supports NVM operations. If not then don't add
 	 * the device at all.
