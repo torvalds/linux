@@ -728,6 +728,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.disable_fpo_optimizations = false,
 	.fpo_vactive_margin_us = 2000, // 2000us
 	.disable_fpo_vactive = true,
+	.disable_boot_optimizations = false,
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
