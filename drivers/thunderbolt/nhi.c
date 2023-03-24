@@ -1483,6 +1483,7 @@ static struct pci_device_id nhi_ids[] = {
 };
 
 MODULE_DEVICE_TABLE(pci, nhi_ids);
+MODULE_DESCRIPTION("Thunderbolt/USB4 core driver");
 MODULE_LICENSE("GPL");
 
 static struct pci_driver nhi_driver = {
