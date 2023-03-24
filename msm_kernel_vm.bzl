@@ -173,7 +173,6 @@ def _define_kernel_build(
         module_signing_key = ":signing_key",
         system_trusted_key = ":verity_cert.pem",
         abi_definition = None,
-        strip_modules = True,
         visibility = ["//visibility:public"],
     )
 
