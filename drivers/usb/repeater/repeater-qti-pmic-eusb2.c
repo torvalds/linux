@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/debugfs.h>
@@ -179,6 +179,19 @@ static void eusb2_repeater_update_seq(struct eusb2_repeater *er,
 
 static void eusb2_repeater_create_debugfs(struct eusb2_repeater *er)
 {
+	er->usb2_crossover = U8_MAX;
+	er->iusb2 = U8_MAX;
+	er->res_fsdif = U8_MAX;
+	er->hsdisc = U8_MAX;
+	er->squelch_u = U8_MAX;
+	er->usb2_slew = U8_MAX;
+	er->usb2_equ = U8_MAX;
+	er->usb2_preem = U8_MAX;
+	er->hs_comp_current = U8_MAX;
+	er->eusb_slew = U8_MAX;
+	er->eusb_equ = U8_MAX;
+	er->eusb_hs_comp_current = U8_MAX;
+
 	er->root = debugfs_create_dir(dev_name(er->ur.dev), NULL);
 	debugfs_create_x8("usb2_crossover", 0644, er->root,
 					&er->usb2_crossover);
@@ -311,51 +324,51 @@ static int eusb2_repeater_init(struct usb_repeater *ur)
 			er->param_override_seq_cnt);
 
 	/* override tune params using debugfs based values */
-	if (er->usb2_crossover && er->usb2_crossover <= 0x7)
+	if (er->usb2_crossover <= 0x7)
 		eusb2_repeater_masked_write(er, EUSB2_TUNE_USB2_CROSSOVER,
 			TUNE_USB2_CROSSOVER_MASK, er->usb2_crossover);
 
-	if (er->iusb2 && er->iusb2 <= 0xf)
+	if (er->iusb2 <= 0xf)
 		eusb2_repeater_masked_write(er, EUSB2_TUNE_IUSB2,
 			TUNE_IUSB2_MASK, er->iusb2);
 
-	if (er->res_fsdif && er->res_fsdif <= 0x7)
+	if (er->res_fsdif <= 0x7)
 		eusb2_repeater_masked_write(er, EUSB2_TUNE_RES_FSDIF,
 			TUNE_RES_FSIDF_MASK, er->res_fsdif);
 
-	if (er->hsdisc && er->hsdisc <= 0x7)
+	if (er->hsdisc <= 0x7)
 		eusb2_repeater_masked_write(er, EUSB2_TUNE_HSDISC,
 			TUNE_HSDISC_MASK, er->hsdisc);
 
-	if (er->squelch_u && er->squelch_u <= 0x7)
+	if (er->squelch_u <= 0x7)
 		eusb2_repeater_masked_write(er, EUSB2_TUNE_SQUELCH_U,
 			TUNE_SQELCH_U_MASK, er->squelch_u);
 
-	if (er->usb2_slew && er->usb2_slew <= 0x3)
+	if (er->usb2_slew <= 0x3)
 		eusb2_repeater_masked_write(er, EUSB2_TUNE_USB2_SLEW,
 			TUNE_USB2_SLEW_MASK, er->usb2_slew);
 
-	if (er->usb2_equ && er->usb2_equ <= 0x3)
+	if (er->usb2_equ <= 0x3)
 		eusb2_repeater_masked_write(er, EUSB2_TUNE_USB2_EQU,
 			TUNE_USB2_EQU_MASK, er->usb2_equ);
 
-	if (er->usb2_preem && er->usb2_preem <= 0x7)
+	if (er->usb2_preem <= 0x7)
 		eusb2_repeater_masked_write(er, EUSB2_TUNE_USB2_PREEM,
 			TUNE_USB2_PREEM_MASK, er->usb2_preem);
 
-	if (er->hs_comp_current && er->hs_comp_current <= 0x3)
+	if (er->hs_comp_current <= 0x3)
 		eusb2_repeater_masked_write(er, EUSB2_TUNE_USB2_HS_COMP_CUR,
 			TUNE_USB2_HS_COMP_CURRENT_MASK, er->hs_comp_current);
 
-	if (er->eusb_slew && er->eusb_slew <= 0x3)
+	if (er->eusb_slew <= 0x3)
 		eusb2_repeater_masked_write(er, EUSB2_TUNE_EUSB_SLEW,
 			TUNE_EUSB_SLEW_MASK, er->eusb_slew);
 
-	if (er->eusb_equ && er->eusb_equ <= 0x3)
+	if (er->eusb_equ <= 0x3)
 		eusb2_repeater_masked_write(er, EUSB2_TUNE_EUSB_EQU,
 			TUNE_EUSB_EQU_MASK, er->eusb_equ);
 
-	if (er->eusb_hs_comp_current && er->eusb_hs_comp_current <= 0x3)
+	if (er->eusb_hs_comp_current <= 0x3)
 		eusb2_repeater_masked_write(er, EUSB2_TUNE_EUSB_HS_COMP_CUR,
 			TUNE_EUSB_HS_COMP_CUR_MASK, er->eusb_hs_comp_current);
 	/*
