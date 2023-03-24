@@ -15,7 +15,6 @@
 struct vsock_loopback {
 	struct workqueue_struct *workqueue;
 
-	spinlock_t pkt_list_lock; /* protects pkt_list */
 	struct sk_buff_head pkt_queue;
 	struct work_struct pkt_work;
 };
@@ -32,9 +31,7 @@ static int vsock_loopback_send_pkt(struct sk_buff *skb)
 	struct vsock_loopback *vsock = &the_vsock_loopback;
 	int len = skb->len;
 
-	spin_lock_bh(&vsock->pkt_list_lock);
 	skb_queue_tail(&vsock->pkt_queue, skb);
-	spin_unlock_bh(&vsock->pkt_list_lock);
 
 	queue_work(vsock->workqueue, &vsock->pkt_work);
 
@@ -113,9 +110,9 @@ static void vsock_loopback_work(struct work_struct *work)
 
 	skb_queue_head_init(&pkts);
 
-	spin_lock_bh(&vsock->pkt_list_lock);
+	spin_lock_bh(&vsock->pkt_queue.lock);
 	skb_queue_splice_init(&vsock->pkt_queue, &pkts);
-	spin_unlock_bh(&vsock->pkt_list_lock);
+	spin_unlock_bh(&vsock->pkt_queue.lock);
 
 	while ((skb = __skb_dequeue(&pkts))) {
 		virtio_transport_deliver_tap_pkt(skb);
@@ -132,7 +129,6 @@ static int __init vsock_loopback_init(void)
 	if (!vsock->workqueue)
 		return -ENOMEM;
 
-	spin_lock_init(&vsock->pkt_list_lock);
 	skb_queue_head_init(&vsock->pkt_queue);
 	INIT_WORK(&vsock->pkt_work, vsock_loopback_work);
 
@@ -156,9 +152,7 @@ static void __exit vsock_loopback_exit(void)
 
 	flush_work(&vsock->pkt_work);
 
-	spin_lock_bh(&vsock->pkt_list_lock);
 	virtio_vsock_skb_queue_purge(&vsock->pkt_queue);
-	spin_unlock_bh(&vsock->pkt_list_lock);
 
 	destroy_workqueue(vsock->workqueue);
 }
