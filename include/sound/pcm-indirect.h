@@ -44,7 +44,7 @@ snd_pcm_indirect_playback_transfer(struct snd_pcm_substream *substream,
 		if (diff < -(snd_pcm_sframes_t) (runtime->boundary / 2))
 			diff += runtime->boundary;
 		if (diff < 0)
-			return -EINVAL;
+			return -EPIPE;
 		rec->sw_ready += (int)frames_to_bytes(runtime, diff);
 		rec->appl_ptr = appl_ptr;
 	}
@@ -83,6 +83,8 @@ snd_pcm_indirect_playback_pointer(struct snd_pcm_substream *substream,
 				  struct snd_pcm_indirect *rec, unsigned int ptr)
 {
 	int bytes = ptr - rec->hw_io;
+	int err;
+
 	if (bytes < 0)
 		bytes += rec->hw_buffer_size;
 	rec->hw_io = ptr;
@@ -90,8 +92,11 @@ snd_pcm_indirect_playback_pointer(struct snd_pcm_substream *substream,
 	rec->sw_io += bytes;
 	if (rec->sw_io >= rec->sw_buffer_size)
 		rec->sw_io -= rec->sw_buffer_size;
-	if (substream->ops->ack)
-		substream->ops->ack(substream);
+	if (substream->ops->ack) {
+		err = substream->ops->ack(substream);
+		if (err == -EPIPE)
+			return SNDRV_PCM_POS_XRUN;
+	}
 	return bytes_to_frames(substream->runtime, rec->sw_io);
 }
 
@@ -112,7 +117,7 @@ snd_pcm_indirect_capture_transfer(struct snd_pcm_substream *substream,
 		if (diff < -(snd_pcm_sframes_t) (runtime->boundary / 2))
 			diff += runtime->boundary;
 		if (diff < 0)
-			return -EINVAL;
+			return -EPIPE;
 		rec->sw_ready -= frames_to_bytes(runtime, diff);
 		rec->appl_ptr = appl_ptr;
 	}
@@ -152,6 +157,8 @@ snd_pcm_indirect_capture_pointer(struct snd_pcm_substream *substream,
 {
 	int qsize;
 	int bytes = ptr - rec->hw_io;
+	int err;
+
 	if (bytes < 0)
 		bytes += rec->hw_buffer_size;
 	rec->hw_io = ptr;
@@ -162,8 +169,11 @@ snd_pcm_indirect_capture_pointer(struct snd_pcm_substream *substream,
 	rec->sw_io += bytes;
 	if (rec->sw_io >= rec->sw_buffer_size)
 		rec->sw_io -= rec->sw_buffer_size;
-	if (substream->ops->ack)
-		substream->ops->ack(substream);
+	if (substream->ops->ack) {
+		err = substream->ops->ack(substream);
+		if (err == -EPIPE)
+			return SNDRV_PCM_POS_XRUN;
+	}
 	return bytes_to_frames(substream->runtime, rec->sw_io);
 }
 
