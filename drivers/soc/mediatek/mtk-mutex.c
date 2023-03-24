@@ -1008,11 +1008,8 @@ static int mtk_mutex_probe(struct platform_device *pdev)
 
 	if (!mtx->data->no_clk) {
 		mtx->clk = devm_clk_get(dev, NULL);
-		if (IS_ERR(mtx->clk)) {
-			if (PTR_ERR(mtx->clk) != -EPROBE_DEFER)
-				dev_err(dev, "Failed to get clock\n");
-			return PTR_ERR(mtx->clk);
-		}
+		if (IS_ERR(mtx->clk))
+			return dev_err_probe(dev, PTR_ERR(mtx->clk), "Failed to get clock\n");
 	}
 
 	mtx->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &regs);
