@@ -402,8 +402,8 @@ config RISCV_ISA_C
 config RISCV_ISA_SVNAPOT
 	bool "SVNAPOT extension support"
 	depends on 64BIT && MMU
+	depends on RISCV_ALTERNATIVE
 	default y
-	select RISCV_ALTERNATIVE
 	help
 	  Allow kernel to detect the SVNAPOT ISA-extension dynamically at boot
 	  time and enable its usage.
@@ -478,8 +478,8 @@ config RISCV_ISA_ZICBOM
 
 config RISCV_ISA_ZICBOZ
 	bool "Zicboz extension support for faster zeroing of memory"
-	depends on !XIP_KERNEL && MMU
-	select RISCV_ALTERNATIVE
+	depends on MMU
+	depends on RISCV_ALTERNATIVE
 	default y
 	help
 	   Enable the use of the ZICBOZ extension (cbo.zero instruction)
