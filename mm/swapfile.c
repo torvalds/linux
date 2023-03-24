@@ -3260,6 +3260,7 @@ void si_swapinfo(struct sysinfo *val)
 	val->totalswap = total_swap_pages + nr_to_be_unused;
 	spin_unlock(&swap_lock);
 }
+EXPORT_SYMBOL_NS_GPL(si_swapinfo, MINIDUMP);
 
 /*
  * Verify that a swap entry is valid and increment its swap map count.

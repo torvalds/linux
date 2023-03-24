@@ -1982,10 +1982,6 @@ static const struct dlm_proto_ops dlm_sctp_ops = {
 int dlm_lowcomms_start(void)
 {
 	int error = -EINVAL;
-	int i;
-
-	for (i = 0; i < CONN_HASH_SIZE; i++)
-		INIT_HLIST_HEAD(&connection_hash[i]);
 
 	init_local();
 	if (!dlm_local_count) {
@@ -1993,8 +1989,6 @@ int dlm_lowcomms_start(void)
 		log_print("no local IP address has been set");
 		goto fail;
 	}
-
-	INIT_WORK(&listen_con.rwork, process_listen_recv_socket);
 
 	error = work_start();
 	if (error)
@@ -2032,6 +2026,16 @@ fail_local:
 	deinit_local();
 fail:
 	return error;
+}
+
+void dlm_lowcomms_init(void)
+{
+	int i;
+
+	for (i = 0; i < CONN_HASH_SIZE; i++)
+		INIT_HLIST_HEAD(&connection_hash[i]);
+
+	INIT_WORK(&listen_con.rwork, process_listen_recv_socket);
 }
 
 void dlm_lowcomms_exit(void)

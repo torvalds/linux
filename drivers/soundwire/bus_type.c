@@ -105,19 +105,18 @@ static int sdw_drv_probe(struct device *dev)
 	if (ret)
 		return ret;
 
-	mutex_lock(&slave->sdw_dev_lock);
-
 	ret = drv->probe(slave, id);
 	if (ret) {
 		name = drv->name;
 		if (!name)
 			name = drv->driver.name;
-		mutex_unlock(&slave->sdw_dev_lock);
 
 		dev_err(dev, "Probe of %s failed: %d\n", name, ret);
 		dev_pm_domain_detach(dev, false);
 		return ret;
 	}
+
+	mutex_lock(&slave->sdw_dev_lock);
 
 	/* device is probed so let's read the properties now */
 	if (drv->ops && drv->ops->read_prop)
@@ -167,13 +166,11 @@ static int sdw_drv_remove(struct device *dev)
 	int ret = 0;
 
 	mutex_lock(&slave->sdw_dev_lock);
-
 	slave->probed = false;
+	mutex_unlock(&slave->sdw_dev_lock);
 
 	if (drv->remove)
 		ret = drv->remove(slave);
-
-	mutex_unlock(&slave->sdw_dev_lock);
 
 	dev_pm_domain_detach(dev, false);
 

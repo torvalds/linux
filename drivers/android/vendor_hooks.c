@@ -49,13 +49,13 @@
 #include <trace/hooks/timer.h>
 #include <trace/hooks/topology.h>
 #include <trace/hooks/hung_task.h>
-#include <trace/hooks/audio_usboffload.h>
 #include <trace/hooks/bug.h>
 #include <trace/hooks/softlockup.h>
 #include <trace/hooks/power.h>
 #include <trace/hooks/fault.h>
 #include <trace/hooks/traps.h>
 #include <trace/hooks/thermal.h>
+#include <trace/hooks/audio_usboffload.h>
 
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
@@ -161,11 +161,6 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_gic_set_affinity);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_gic_v3_affinity_init);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_check_uninterrupt_tasks);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_check_uninterrupt_tasks_done);
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_audio_usb_offload_vendor_set);
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_audio_usb_offload_ep_action);
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_audio_usb_offload_synctype);
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_audio_usb_offload_connect);
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_audio_usb_offload_disconnect);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_report_bug);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_watchdog_timer_softlockup);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_try_to_freeze_todo);
@@ -179,3 +174,6 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_do_el1_fpac);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_panic_unhandled);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_arm64_serror_panic);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_disable_thermal_cooling_stats);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_gic_resume);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_audio_usb_offload_connect);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_audio_usb_offload_disconnect);

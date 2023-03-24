@@ -12,18 +12,6 @@
 struct usb_interface;
 struct snd_usb_audio;
 
-DECLARE_HOOK(android_vh_audio_usb_offload_vendor_set,
-	TP_PROTO(void *arg),
-	TP_ARGS(arg));
-
-DECLARE_HOOK(android_vh_audio_usb_offload_ep_action,
-	TP_PROTO(void *arg, bool action),
-	TP_ARGS(arg, action));
-
-DECLARE_HOOK(android_vh_audio_usb_offload_synctype,
-	TP_PROTO(void *arg, int attr, bool *need_ignore),
-	TP_ARGS(arg, attr, need_ignore));
-
 DECLARE_HOOK(android_vh_audio_usb_offload_connect,
 	TP_PROTO(struct usb_interface *intf, struct snd_usb_audio *chip),
 	TP_ARGS(intf, chip));

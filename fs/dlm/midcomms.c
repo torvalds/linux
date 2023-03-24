@@ -132,6 +132,7 @@
  */
 #define DLM_DEBUG_FENCE_TERMINATION	0
 
+#include <trace/events/dlm.h>
 #include <net/tcp.h>
 
 #include "dlm_internal.h"
@@ -194,7 +195,7 @@ struct midcomms_node {
 };
 
 struct dlm_mhandle {
-	const struct dlm_header *inner_hd;
+	const union dlm_packet *inner_p;
 	struct midcomms_node *node;
 	struct dlm_opts *opts;
 	struct dlm_msg *msg;
@@ -405,6 +406,7 @@ static int dlm_send_fin(struct midcomms_node *node,
 	if (!mh)
 		return -ENOMEM;
 
+	set_bit(DLM_NODE_FLAG_STOP_TX, &node->flags);
 	mh->ack_rcv = ack_rcv;
 
 	m_header = (struct dlm_header *)ppc;
@@ -415,8 +417,7 @@ static int dlm_send_fin(struct midcomms_node *node,
 	m_header->h_cmd = DLM_FIN;
 
 	pr_debug("sending fin msg to node %d\n", node->nodeid);
-	dlm_midcomms_commit_mhandle(mh);
-	set_bit(DLM_NODE_FLAG_STOP_TX, &node->flags);
+	dlm_midcomms_commit_mhandle(mh, NULL, 0);
 
 	return 0;
 }
@@ -468,10 +469,24 @@ static void dlm_pas_fin_ack_rcv(struct midcomms_node *node)
 		spin_unlock(&node->state_lock);
 		log_print("%s: unexpected state: %d\n",
 			  __func__, node->state);
-		WARN_ON(1);
+		WARN_ON_ONCE(1);
 		return;
 	}
 	spin_unlock(&node->state_lock);
+}
+
+static void dlm_receive_buffer_3_2_trace(uint32_t seq, union dlm_packet *p)
+{
+	switch (p->header.h_cmd) {
+	case DLM_MSG:
+		trace_dlm_recv_message(seq, &p->message);
+		break;
+	case DLM_RCOM:
+		trace_dlm_recv_rcom(seq, &p->rcom);
+		break;
+	default:
+		break;
+	}
 }
 
 static void dlm_midcomms_receive_buffer(union dlm_packet *p,
@@ -527,13 +542,14 @@ static void dlm_midcomms_receive_buffer(union dlm_packet *p,
 				spin_unlock(&node->state_lock);
 				log_print("%s: unexpected state: %d\n",
 					  __func__, node->state);
-				WARN_ON(1);
+				WARN_ON_ONCE(1);
 				return;
 			}
 			spin_unlock(&node->state_lock);
 			break;
 		default:
-			WARN_ON(test_bit(DLM_NODE_FLAG_STOP_RX, &node->flags));
+			WARN_ON_ONCE(test_bit(DLM_NODE_FLAG_STOP_RX, &node->flags));
+			dlm_receive_buffer_3_2_trace(seq, p);
 			dlm_receive_buffer(p, node->nodeid);
 			set_bit(DLM_NODE_ULP_DELIVERED, &node->flags);
 			break;
@@ -748,7 +764,7 @@ static void dlm_midcomms_receive_buffer_3_2(union dlm_packet *p, int nodeid)
 			goto out;
 		}
 
-		WARN_ON(test_bit(DLM_NODE_FLAG_STOP_RX, &node->flags));
+		WARN_ON_ONCE(test_bit(DLM_NODE_FLAG_STOP_RX, &node->flags));
 		dlm_receive_buffer(p, nodeid);
 		break;
 	case DLM_OPTS:
@@ -1049,7 +1065,7 @@ static struct dlm_msg *dlm_midcomms_get_msg_3_2(struct dlm_mhandle *mh, int node
 	dlm_fill_opts_header(opts, len, mh->seq);
 
 	*ppc += sizeof(*opts);
-	mh->inner_hd = (const struct dlm_header *)*ppc;
+	mh->inner_p = (const union dlm_packet *)*ppc;
 	return msg;
 }
 
@@ -1073,7 +1089,7 @@ struct dlm_mhandle *dlm_midcomms_get_mhandle(int nodeid, int len,
 	}
 
 	/* this is a bug, however we going on and hope it will be resolved */
-	WARN_ON(test_bit(DLM_NODE_FLAG_STOP_TX, &node->flags));
+	WARN_ON_ONCE(test_bit(DLM_NODE_FLAG_STOP_TX, &node->flags));
 
 	mh = dlm_allocate_mhandle();
 	if (!mh)
@@ -1105,7 +1121,7 @@ struct dlm_mhandle *dlm_midcomms_get_mhandle(int nodeid, int len,
 		break;
 	default:
 		dlm_free_mhandle(mh);
-		WARN_ON(1);
+		WARN_ON_ONCE(1);
 		goto err;
 	}
 
@@ -1124,11 +1140,30 @@ err:
 }
 #endif
 
-static void dlm_midcomms_commit_msg_3_2(struct dlm_mhandle *mh)
+static void dlm_midcomms_commit_msg_3_2_trace(const struct dlm_mhandle *mh,
+					      const void *name, int namelen)
+{
+	switch (mh->inner_p->header.h_cmd) {
+	case DLM_MSG:
+		trace_dlm_send_message(mh->seq, &mh->inner_p->message,
+				       name, namelen);
+		break;
+	case DLM_RCOM:
+		trace_dlm_send_rcom(mh->seq, &mh->inner_p->rcom);
+		break;
+	default:
+		/* nothing to trace */
+		break;
+	}
+}
+
+static void dlm_midcomms_commit_msg_3_2(struct dlm_mhandle *mh,
+					const void *name, int namelen)
 {
 	/* nexthdr chain for fast lookup */
-	mh->opts->o_nextcmd = mh->inner_hd->h_cmd;
+	mh->opts->o_nextcmd = mh->inner_p->header.h_cmd;
 	mh->committed = true;
+	dlm_midcomms_commit_msg_3_2_trace(mh, name, namelen);
 	dlm_lowcomms_commit_msg(mh->msg);
 }
 
@@ -1136,8 +1171,10 @@ static void dlm_midcomms_commit_msg_3_2(struct dlm_mhandle *mh)
  * dlm_midcomms_get_mhandle
  */
 #ifndef __CHECKER__
-void dlm_midcomms_commit_mhandle(struct dlm_mhandle *mh)
+void dlm_midcomms_commit_mhandle(struct dlm_mhandle *mh,
+				 const void *name, int namelen)
 {
+
 	switch (mh->node->version) {
 	case DLM_VERSION_3_1:
 		srcu_read_unlock(&nodes_srcu, mh->idx);
@@ -1148,12 +1185,19 @@ void dlm_midcomms_commit_mhandle(struct dlm_mhandle *mh)
 		dlm_free_mhandle(mh);
 		break;
 	case DLM_VERSION_3_2:
-		dlm_midcomms_commit_msg_3_2(mh);
+		/* held rcu read lock here, because we sending the
+		 * dlm message out, when we do that we could receive
+		 * an ack back which releases the mhandle and we
+		 * get a use after free.
+		 */
+		rcu_read_lock();
+		dlm_midcomms_commit_msg_3_2(mh, name, namelen);
 		srcu_read_unlock(&nodes_srcu, mh->idx);
+		rcu_read_unlock();
 		break;
 	default:
 		srcu_read_unlock(&nodes_srcu, mh->idx);
-		WARN_ON(1);
+		WARN_ON_ONCE(1);
 		break;
 	}
 }
@@ -1161,12 +1205,27 @@ void dlm_midcomms_commit_mhandle(struct dlm_mhandle *mh)
 
 int dlm_midcomms_start(void)
 {
+	return dlm_lowcomms_start();
+}
+
+void dlm_midcomms_stop(void)
+{
+	dlm_lowcomms_stop();
+}
+
+void dlm_midcomms_init(void)
+{
 	int i;
 
 	for (i = 0; i < CONN_HASH_SIZE; i++)
 		INIT_HLIST_HEAD(&node_hash[i]);
 
-	return dlm_lowcomms_start();
+	dlm_lowcomms_init();
+}
+
+void dlm_midcomms_exit(void)
+{
+	dlm_lowcomms_exit();
 }
 
 static void dlm_act_fin_ack_rcv(struct midcomms_node *node)
@@ -1195,7 +1254,7 @@ static void dlm_act_fin_ack_rcv(struct midcomms_node *node)
 		spin_unlock(&node->state_lock);
 		log_print("%s: unexpected state: %d\n",
 			  __func__, node->state);
-		WARN_ON(1);
+		WARN_ON_ONCE(1);
 		return;
 	}
 	spin_unlock(&node->state_lock);
@@ -1307,7 +1366,8 @@ static void midcomms_node_release(struct rcu_head *rcu)
 {
 	struct midcomms_node *node = container_of(rcu, struct midcomms_node, rcu);
 
-	WARN_ON(atomic_read(&node->send_queue_cnt));
+	WARN_ON_ONCE(atomic_read(&node->send_queue_cnt));
+	dlm_send_queue_flush(node);
 	kfree(node);
 }
 
