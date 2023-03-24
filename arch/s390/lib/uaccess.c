@@ -27,7 +27,6 @@ void debug_user_asce(int exit)
 	      "kernel: %016llx user: %016llx\n",
 	      exit ? "exit" : "entry", cr1, cr7,
 	      S390_lowcore.kernel_asce, S390_lowcore.user_asce);
-
 }
 #endif /*CONFIG_DEBUG_ENTRY */
 
