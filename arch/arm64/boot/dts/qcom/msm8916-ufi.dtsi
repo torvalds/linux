@@ -92,9 +92,6 @@
 };
 
 &mpss {
-	pinctrl-0 = <&sim_ctrl_default>;
-	pinctrl-names = "default";
-
 	status = "okay";
 };
 
@@ -239,12 +236,5 @@
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
-	};
-
-	sim_ctrl_default: sim-ctrl-default-state {
-		function = "gpio";
-		drive-strength = <2>;
-		bias-disable;
-		output-low;
 	};
 };
