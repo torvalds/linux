@@ -336,8 +336,12 @@ class YnlFamily(SpecFamily):
             attr_payload = b''
         elif attr["type"] == 'u8':
             attr_payload = struct.pack("B", int(value))
+        elif attr["type"] == 'u16':
+            attr_payload = struct.pack("H", int(value))
         elif attr["type"] == 'u32':
             attr_payload = struct.pack("I", int(value))
+        elif attr["type"] == 'u64':
+            attr_payload = struct.pack("Q", int(value))
         elif attr["type"] == 'string':
             attr_payload = str(value).encode('ascii') + b'\x00'
         elif attr["type"] == 'binary':
@@ -373,6 +377,8 @@ class YnlFamily(SpecFamily):
                 decoded = subdict
             elif attr_spec['type'] == 'u8':
                 decoded = attr.as_u8()
+            elif attr_spec['type'] == 'u16':
+                decoded = attr.as_u16()
             elif attr_spec['type'] == 'u32':
                 decoded = attr.as_u32()
             elif attr_spec['type'] == 'u64':
