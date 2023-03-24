@@ -603,7 +603,7 @@
 	clock-frequency = <400000>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2c21_default>;
+	pinctrl-0 = <&i2c21_default>, <&tpad_default>;
 
 	status = "okay";
 
@@ -616,12 +616,7 @@
 		vdd-supply = <&vreg_misc_3p3>;
 		vddl-supply = <&vreg_s10b>;
 
-		pinctrl-names = "default";
-		pinctrl-0 = <&tpad_default>;
-
 		wakeup-source;
-
-		status = "disabled";
 	};
 
 	touchpad@2c {
@@ -632,9 +627,6 @@
 		interrupts-extended = <&tlmm 182 IRQ_TYPE_LEVEL_LOW>;
 		vdd-supply = <&vreg_misc_3p3>;
 		vddl-supply = <&vreg_s10b>;
-
-		pinctrl-names = "default";
-		pinctrl-0 = <&tpad_default>;
 
 		wakeup-source;
 	};
