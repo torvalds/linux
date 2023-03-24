@@ -46,7 +46,7 @@ static unsigned long raw_copy_from_user_key(void *to, const void __user *from,
 	asm volatile(
 		"	lr	0,%[spec]\n"
 		"0:	mvcos	0(%[to]),0(%[from]),%[size]\n"
-		"6:	jz	4f\n"
+		"1:	jz	5f\n"
 		"	algr	%[size],%[tmp1]\n"
 		"	slgr	%[from],%[tmp1]\n"
 		"	slgr	%[to],%[tmp1]\n"
@@ -55,13 +55,16 @@ static unsigned long raw_copy_from_user_key(void *to, const void __user *from,
 		"	nr	%[tmp2],%[tmp1]\n"	/* tmp2 = (from + 4095) & -4096 */
 		"	slgr	%[tmp2],%[from]\n"
 		"	clgr	%[size],%[tmp2]\n"	/* copy crosses next page boundary? */
-		"	jnh	5f\n"
+		"	jnh	6f\n"
 		"3:	mvcos	0(%[to]),0(%[from]),%[tmp2]\n"
-		"7:	slgr	%[size],%[tmp2]\n"
-		"	j	5f\n"
-		"4:	slgr	%[size],%[size]\n"
-		"5:\n"
-		EX_TABLE(0b,2b) EX_TABLE(3b,5b) EX_TABLE(6b,2b) EX_TABLE(7b,5b)
+		"4:	slgr	%[size],%[tmp2]\n"
+		"	j	6f\n"
+		"5:	slgr	%[size],%[size]\n"
+		"6:\n"
+		EX_TABLE(0b, 2b)
+		EX_TABLE(3b, 6b)
+		EX_TABLE(1b, 2b)
+		EX_TABLE(4b, 6b)
 		: [size] "+a" (size), [from] "+a" (from), [to] "+a" (to),
 		  [tmp1] "+a" (tmp1), [tmp2] "=a" (tmp2)
 		: [spec] "d" (spec.val)
@@ -107,7 +110,7 @@ static unsigned long raw_copy_to_user_key(void __user *to, const void *from,
 	asm volatile(
 		"	lr	0,%[spec]\n"
 		"0:	mvcos	0(%[to]),0(%[from]),%[size]\n"
-		"6:	jz	4f\n"
+		"1:	jz	5f\n"
 		"	algr	%[size],%[tmp1]\n"
 		"	slgr	%[to],%[tmp1]\n"
 		"	slgr	%[from],%[tmp1]\n"
@@ -116,13 +119,16 @@ static unsigned long raw_copy_to_user_key(void __user *to, const void *from,
 		"	nr	%[tmp2],%[tmp1]\n"	/* tmp2 = (to + 4095) & -4096 */
 		"	slgr	%[tmp2],%[to]\n"
 		"	clgr	%[size],%[tmp2]\n"	/* copy crosses next page boundary? */
-		"	jnh	5f\n"
+		"	jnh	6f\n"
 		"3:	mvcos	0(%[to]),0(%[from]),%[tmp2]\n"
-		"7:	slgr	%[size],%[tmp2]\n"
-		"	j	5f\n"
-		"4:	slgr	%[size],%[size]\n"
-		"5:\n"
-		EX_TABLE(0b,2b) EX_TABLE(3b,5b) EX_TABLE(6b,2b) EX_TABLE(7b,5b)
+		"4:	slgr	%[size],%[tmp2]\n"
+		"	j	6f\n"
+		"5:	slgr	%[size],%[size]\n"
+		"6:\n"
+		EX_TABLE(0b, 2b)
+		EX_TABLE(3b, 6b)
+		EX_TABLE(1b, 2b)
+		EX_TABLE(4b, 6b)
 		: [size] "+a" (size), [to] "+a" (to), [from] "+a" (from),
 		  [tmp1] "+a" (tmp1), [tmp2] "=a" (tmp2)
 		: [spec] "d" (spec.val)
@@ -159,7 +165,7 @@ unsigned long __clear_user(void __user *to, unsigned long size)
 	asm volatile(
 		"	lr	0,%[spec]\n"
 		"0:	mvcos	0(%[to]),0(%[zeropg]),%[size]\n"
-		"6:	jz	4f\n"
+		"1:	jz	5f\n"
 		"	algr	%[size],%[tmp1]\n"
 		"	slgr	%[to],%[tmp1]\n"
 		"	j	0b\n"
@@ -167,13 +173,16 @@ unsigned long __clear_user(void __user *to, unsigned long size)
 		"	nr	%[tmp2],%[tmp1]\n"	/* tmp2 = (to + 4095) & -4096 */
 		"	slgr	%[tmp2],%[to]\n"
 		"	clgr	%[size],%[tmp2]\n"	/* copy crosses next page boundary? */
-		"	jnh	5f\n"
+		"	jnh	6f\n"
 		"3:	mvcos	0(%[to]),0(%[zeropg]),%[tmp2]\n"
-		"7:	slgr	%[size],%[tmp2]\n"
-		"	j	5f\n"
-		"4:	slgr	%[size],%[size]\n"
-		"5:\n"
-		EX_TABLE(0b,2b) EX_TABLE(6b,2b) EX_TABLE(3b,5b) EX_TABLE(7b,5b)
+		"4:	slgr	%[size],%[tmp2]\n"
+		"	j	6f\n"
+		"5:	slgr	%[size],%[size]\n"
+		"6:\n"
+		EX_TABLE(0b, 2b)
+		EX_TABLE(1b, 2b)
+		EX_TABLE(3b, 6b)
+		EX_TABLE(4b, 6b)
 		: [size] "+&a" (size), [to] "+&a" (to),
 		  [tmp1] "+a" (tmp1), [tmp2] "=&a" (tmp2)
 		: [zeropg] "a" (empty_zero_page), [spec] "d" (spec.val)
