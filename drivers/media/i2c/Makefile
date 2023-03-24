@@ -180,6 +180,7 @@ obj-$(CONFIG_VIDEO_TECHPOINT) += techpoint/
 obj-$(CONFIG_VIDEO_THCV244)	+= thcv244.o
 obj-$(CONFIG_VIDEO_RK628)	+= rk628/
 obj-$(CONFIG_VIDEO_AR0230)	+= ar0230.o
+obj-$(CONFIG_VIDEO_AR0822)	+= ar0822.o
 obj-$(CONFIG_VIDEO_GC02M2)	+= gc02m2.o
 obj-$(CONFIG_VIDEO_GC08A3)	+= gc08a3.o
 obj-$(CONFIG_VIDEO_GC1084)	+= gc1084.o
