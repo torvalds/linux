@@ -2022,21 +2022,22 @@ static int mpage_process_page_bufs(struct mpage_da_data *mpd,
 }
 
 /*
- * mpage_process_page - update page buffers corresponding to changed extent and
- *		       may submit fully mapped page for IO
- *
- * @mpd		- description of extent to map, on return next extent to map
- * @m_lblk	- logical block mapping.
- * @m_pblk	- corresponding physical mapping.
- * @map_bh	- determines on return whether this page requires any further
+ * mpage_process_folio - update folio buffers corresponding to changed extent
+ *			 and may submit fully mapped page for IO
+ * @mpd: description of extent to map, on return next extent to map
+ * @folio: Contains these buffers.
+ * @m_lblk: logical block mapping.
+ * @m_pblk: corresponding physical mapping.
+ * @map_bh: determines on return whether this page requires any further
  *		  mapping or not.
- * Scan given page buffers corresponding to changed extent and update buffer
+ *
+ * Scan given folio buffers corresponding to changed extent and update buffer
  * state according to new extent state.
  * We map delalloc buffers to their physical location, clear unwritten bits.
- * If the given page is not fully mapped, we update @map to the next extent in
- * the given page that needs mapping & return @map_bh as true.
+ * If the given folio is not fully mapped, we update @mpd to the next extent in
+ * the given folio that needs mapping & return @map_bh as true.
  */
-static int mpage_process_page(struct mpage_da_data *mpd, struct page *page,
+static int mpage_process_folio(struct mpage_da_data *mpd, struct folio *folio,
 			      ext4_lblk_t *m_lblk, ext4_fsblk_t *m_pblk,
 			      bool *map_bh)
 {
@@ -2049,14 +2050,14 @@ static int mpage_process_page(struct mpage_da_data *mpd, struct page *page,
 	ssize_t io_end_size = 0;
 	struct ext4_io_end_vec *io_end_vec = ext4_last_io_end_vec(io_end);
 
-	bh = head = page_buffers(page);
+	bh = head = folio_buffers(folio);
 	do {
 		if (lblk < mpd->map.m_lblk)
 			continue;
 		if (lblk >= mpd->map.m_lblk + mpd->map.m_len) {
 			/*
 			 * Buffer after end of mapped extent.
-			 * Find next buffer in the page to map.
+			 * Find next buffer in the folio to map.
 			 */
 			mpd->map.m_len = 0;
 			mpd->map.m_flags = 0;
@@ -2129,9 +2130,9 @@ static int mpage_map_and_submit_buffers(struct mpage_da_data *mpd)
 		if (nr == 0)
 			break;
 		for (i = 0; i < nr; i++) {
-			struct page *page = &fbatch.folios[i]->page;
+			struct folio *folio = fbatch.folios[i];
 
-			err = mpage_process_page(mpd, page, &lblk, &pblock,
+			err = mpage_process_folio(mpd, folio, &lblk, &pblock,
 						 &map_bh);
 			/*
 			 * If map_bh is true, means page may require further bh
@@ -2141,10 +2142,10 @@ static int mpage_map_and_submit_buffers(struct mpage_da_data *mpd)
 			if (err < 0 || map_bh)
 				goto out;
 			/* Page fully mapped - let IO run! */
-			err = mpage_submit_page(mpd, page);
+			err = mpage_submit_page(mpd, &folio->page);
 			if (err < 0)
 				goto out;
-			mpage_page_done(mpd, page);
+			mpage_page_done(mpd, &folio->page);
 		}
 		folio_batch_release(&fbatch);
 	}
