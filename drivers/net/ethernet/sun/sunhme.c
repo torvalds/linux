@@ -2348,9 +2348,7 @@ static int find_eth_addr_in_vpd(void __iomem *rom_base, int len, int index, unsi
 		p += 6;
 
 		if (index == 0) {
-			int i;
-
-			for (i = 0; i < 6; i++)
+			for (int i = 0; i < 6; i++)
 				dev_addr[i] = readb(p + i);
 			return 1;
 		}
@@ -2362,9 +2360,10 @@ static int find_eth_addr_in_vpd(void __iomem *rom_base, int len, int index, unsi
 static void __maybe_unused get_hme_mac_nonsparc(struct pci_dev *pdev,
 						unsigned char *dev_addr)
 {
+	void __iomem *p;
 	size_t size;
-	void __iomem *p = pci_map_rom(pdev, &size);
 
+	p = pci_map_rom(pdev, &size);
 	if (p) {
 		int index = 0;
 		int found;
@@ -2386,7 +2385,7 @@ static void __maybe_unused get_hme_mac_nonsparc(struct pci_dev *pdev,
 	dev_addr[2] = 0x20;
 	get_random_bytes(&dev_addr[3], 3);
 }
-#endif /* !(CONFIG_SPARC) */
+#endif
 
 static void happy_meal_addr_init(struct happy_meal *hp,
 				 struct device_node *dp, int qfe_slot)
