@@ -35,8 +35,6 @@ properties:
 required:
   - compatible
   - reg
-  - interrupts
-  - interrupt-names
 
 additionalProperties: true
 
