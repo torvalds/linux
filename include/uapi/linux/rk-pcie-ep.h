@@ -54,9 +54,9 @@ struct pcie_ep_obj_info {
 	__u32 version;
 	__u8 reserved[0x1F8];
 
-	u32 irq_type_rc;					/* Generate in ep isr, valid only for rc, clear in rc */
+	__u32 irq_type_rc;					/* Generate in ep isr, valid only for rc, clear in rc */
 	struct pcie_ep_obj_irq_dma_status dma_status_rc;	/* Generate in ep isr, valid only for rc, clear in rc */
-	u32 irq_type_ep;					/* Generate in ep isr, valid only for ep, clear in ep */
+	__u32 irq_type_ep;					/* Generate in ep isr, valid only for ep, clear in ep */
 	struct pcie_ep_obj_irq_dma_status dma_status_ep;	/* Generate in ep isr, valid only for ep, clear in ep */
 	__u32 obj_irq_user_data;				/* OBJ_IRQ_USER userspace data */
 };
