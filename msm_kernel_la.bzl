@@ -146,7 +146,6 @@ def _define_kernel_build(
         build_config = ":{}_build_config".format(target),
         dtstree = dtstree,
         base_kernel = base_kernel,
-        strip_modules = True,
         kmi_symbol_list = "//msm-kernel:android/abi_gki_aarch64_qcom" if define_abi_targets else None,
         additional_kmi_symbol_lists = ["{}_all_kmi_symbol_lists".format(base_kernel)] if define_abi_targets else None,
         collect_unstripped_modules = define_abi_targets,
