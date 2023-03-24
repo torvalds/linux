@@ -22,9 +22,6 @@ It is mandatory to use `the list API <https://github.com/torvalds/linux/blob/mas
 implemented in the kernel.
 For details you can take a look at `the laboratory 2 <https://linux-kernel-labs.github.io/refs/heads/master/so2/lab2-kernel-api.html>`__.
 
-It is mandatory to start the implementation of the assignment from the code skeleton found in
-`list.c <https://github.com/linux-kernel-labs/linux/blob/master/tools/labs/templates/assignments/0-list/list.c>`__ file.
-
 The module exports a directory named :command:`list` to procfs. The directory contains two files:
 
 -   :command:`management`: with write-only access; is the interface for transmitting commands to the kernel module
@@ -54,7 +51,8 @@ The test script assumes that the kernel module is called `list.ko`.
 QuickStart
 ==========
 
-Start the implementation of the assignment from `this repository <https://gitlab.cs.pub.ro/so2/0-list>`__ following the instructions in the `README.md file <https://gitlab.cs.pub.ro/so2/0-list/-/blob/master/README.md>`__.
+It is mandatory to start the implementation of the assignment from the code skeleton found in the `list.c <https://gitlab.cs.pub.ro/so2/0-list/-/blob/master/src/list.c>`__ file.
+You should follow the instructions in the `README.md file <https://gitlab.cs.pub.ro/so2/0-list/-/blob/master/README.md>`__ of the `assignment's repo <https://gitlab.cs.pub.ro/so2/0-list>`__.
 
 Tips
 ----
