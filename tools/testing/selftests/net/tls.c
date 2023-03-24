@@ -1820,4 +1820,49 @@ TEST(tls_v6ops) {
 	close(sfd);
 }
 
+TEST(prequeue) {
+	struct tls_crypto_info_keys tls12;
+	char buf[20000], buf2[20000];
+	struct sockaddr_in addr;
+	int sfd, cfd, ret, fd;
+	socklen_t len;
+
+	len = sizeof(addr);
+	memrnd(buf, sizeof(buf));
+
+	tls_crypto_info_init(TLS_1_2_VERSION, TLS_CIPHER_AES_GCM_256, &tls12);
+
+	addr.sin_family = AF_INET;
+	addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	addr.sin_port = 0;
+
+	fd = socket(AF_INET, SOCK_STREAM, 0);
+	sfd = socket(AF_INET, SOCK_STREAM, 0);
+
+	ASSERT_EQ(bind(sfd, &addr, sizeof(addr)), 0);
+	ASSERT_EQ(listen(sfd, 10), 0);
+	ASSERT_EQ(getsockname(sfd, &addr, &len), 0);
+	ASSERT_EQ(connect(fd, &addr, sizeof(addr)), 0);
+	ASSERT_GE(cfd = accept(sfd, &addr, &len), 0);
+	close(sfd);
+
+	ret = setsockopt(fd, IPPROTO_TCP, TCP_ULP, "tls", sizeof("tls"));
+	if (ret) {
+		ASSERT_EQ(errno, ENOENT);
+		SKIP(return, "no TLS support");
+	}
+
+	ASSERT_EQ(setsockopt(fd, SOL_TLS, TLS_TX, &tls12, tls12.len), 0);
+	EXPECT_EQ(send(fd, buf, sizeof(buf), MSG_DONTWAIT), sizeof(buf));
+
+	ASSERT_EQ(setsockopt(cfd, IPPROTO_TCP, TCP_ULP, "tls", sizeof("tls")), 0);
+	ASSERT_EQ(setsockopt(cfd, SOL_TLS, TLS_RX, &tls12, tls12.len), 0);
+	EXPECT_EQ(recv(cfd, buf2, sizeof(buf2), MSG_WAITALL), sizeof(buf2));
+
+	EXPECT_EQ(memcmp(buf, buf2, sizeof(buf)), 0);
+
+	close(fd);
+	close(cfd);
+}
+
 TEST_HARNESS_MAIN
