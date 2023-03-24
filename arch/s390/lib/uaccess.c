@@ -44,25 +44,26 @@ static unsigned long raw_copy_from_user_key(void *to, const void __user *from,
 
 	tmp1 = -4096UL;
 	asm volatile(
-		"   lr	  0,%[spec]\n"
-		"0: mvcos 0(%2),0(%1),%0\n"
-		"6: jz    4f\n"
-		"1: algr  %0,%3\n"
-		"   slgr  %1,%3\n"
-		"   slgr  %2,%3\n"
-		"   j     0b\n"
-		"2: la    %4,4095(%1)\n"/* %4 = ptr + 4095 */
-		"   nr    %4,%3\n"	/* %4 = (ptr + 4095) & -4096 */
-		"   slgr  %4,%1\n"
-		"   clgr  %0,%4\n"	/* copy crosses next page boundary? */
-		"   jnh   5f\n"
-		"3: mvcos 0(%2),0(%1),%4\n"
-		"7: slgr  %0,%4\n"
-		"   j     5f\n"
-		"4: slgr  %0,%0\n"
+		"	lr	0,%[spec]\n"
+		"0:	mvcos	0(%[to]),0(%[from]),%[size]\n"
+		"6:	jz	4f\n"
+		"1:	algr	%[size],%[tmp1]\n"
+		"	slgr	%[from],%[tmp1]\n"
+		"	slgr	%[to],%[tmp1]\n"
+		"	j	0b\n"
+		"2:	la	%[tmp2],4095(%[from])\n"/* tmp2 = from + 4095 */
+		"	nr	%[tmp2],%[tmp1]\n"	/* tmp2 = (from + 4095) & -4096 */
+		"	slgr	%[tmp2],%[from]\n"
+		"	clgr	%[size],%[tmp2]\n"	/* copy crosses next page boundary? */
+		"	jnh	5f\n"
+		"3:	mvcos	0(%[to]),0(%[from]),%[tmp2]\n"
+		"7:	slgr	%[size],%[tmp2]\n"
+		"	j	5f\n"
+		"4:	slgr	%[size],%[size]\n"
 		"5:\n"
 		EX_TABLE(0b,2b) EX_TABLE(3b,5b) EX_TABLE(6b,2b) EX_TABLE(7b,5b)
-		: "+a" (size), "+a" (from), "+a" (to), "+a" (tmp1), "=a" (tmp2)
+		: [size] "+a" (size), [from] "+a" (from), [to] "+a" (to),
+		  [tmp1] "+a" (tmp1), [tmp2] "=a" (tmp2)
 		: [spec] "d" (spec.val)
 		: "cc", "memory", "0");
 	return size;
@@ -104,25 +105,26 @@ static unsigned long raw_copy_to_user_key(void __user *to, const void *from,
 
 	tmp1 = -4096UL;
 	asm volatile(
-		"   lr	  0,%[spec]\n"
-		"0: mvcos 0(%1),0(%2),%0\n"
-		"6: jz    4f\n"
-		"1: algr  %0,%3\n"
-		"   slgr  %1,%3\n"
-		"   slgr  %2,%3\n"
-		"   j     0b\n"
-		"2: la    %4,4095(%1)\n"/* %4 = ptr + 4095 */
-		"   nr    %4,%3\n"	/* %4 = (ptr + 4095) & -4096 */
-		"   slgr  %4,%1\n"
-		"   clgr  %0,%4\n"	/* copy crosses next page boundary? */
-		"   jnh   5f\n"
-		"3: mvcos 0(%1),0(%2),%4\n"
-		"7: slgr  %0,%4\n"
-		"   j     5f\n"
-		"4: slgr  %0,%0\n"
+		"	lr	0,%[spec]\n"
+		"0:	mvcos	0(%[to]),0(%[from]),%[size]\n"
+		"6:	jz	4f\n"
+		"1:	algr	%[size],%[tmp1]\n"
+		"	slgr	%[to],%[tmp1]\n"
+		"	slgr	%[from],%[tmp1]\n"
+		"	j	0b\n"
+		"2:	la	%[tmp2],4095(%[to])\n"	/* tmp2 = to + 4095 */
+		"	nr	%[tmp2],%[tmp1]\n"	/* tmp2 = (to + 4095) & -4096 */
+		"	slgr	%[tmp2],%[to]\n"
+		"	clgr	%[size],%[tmp2]\n"	/* copy crosses next page boundary? */
+		"	jnh	5f\n"
+		"3:	mvcos	0(%[to]),0(%[from]),%[tmp2]\n"
+		"7:	slgr	%[size],%[tmp2]\n"
+		"	j	5f\n"
+		"4:	slgr	%[size],%[size]\n"
 		"5:\n"
 		EX_TABLE(0b,2b) EX_TABLE(3b,5b) EX_TABLE(6b,2b) EX_TABLE(7b,5b)
-		: "+a" (size), "+a" (to), "+a" (from), "+a" (tmp1), "=a" (tmp2)
+		: [size] "+a" (size), [to] "+a" (to), [from] "+a" (from),
+		  [tmp1] "+a" (tmp1), [tmp2] "=a" (tmp2)
 		: [spec] "d" (spec.val)
 		: "cc", "memory", "0");
 	return size;
@@ -155,25 +157,26 @@ unsigned long __clear_user(void __user *to, unsigned long size)
 
 	tmp1 = -4096UL;
 	asm volatile(
-		"   lr	  0,%[spec]\n"
-		"0: mvcos 0(%1),0(%4),%0\n"
-		"6: jz	  4f\n"
-		"1: algr  %0,%2\n"
-		"   slgr  %1,%2\n"
-		"   j	  0b\n"
-		"2: la	  %3,4095(%1)\n"/* %4 = to + 4095 */
-		"   nr	  %3,%2\n"	/* %4 = (to + 4095) & -4096 */
-		"   slgr  %3,%1\n"
-		"   clgr  %0,%3\n"	/* copy crosses next page boundary? */
-		"   jnh	  5f\n"
-		"3: mvcos 0(%1),0(%4),%3\n"
-		"7: slgr  %0,%3\n"
-		"   j	  5f\n"
-		"4: slgr  %0,%0\n"
+		"	lr	0,%[spec]\n"
+		"0:	mvcos	0(%[to]),0(%[zeropg]),%[size]\n"
+		"6:	jz	4f\n"
+		"1:	algr	%[size],%[tmp1]\n"
+		"	slgr	%[to],%[tmp1]\n"
+		"	j	0b\n"
+		"2:	la	%[tmp2],4095(%[to])\n"	/* tmp2 = to + 4095 */
+		"	nr	%[tmp2],%[tmp1]\n"	/* tmp2 = (to + 4095) & -4096 */
+		"	slgr	%[tmp2],%[to]\n"
+		"	clgr	%[size],%[tmp2]\n"	/* copy crosses next page boundary? */
+		"	jnh	5f\n"
+		"3:	mvcos	0(%[to]),0(%[zeropg]),%[tmp2]\n"
+		"7:	slgr	%[size],%[tmp2]\n"
+		"	j	5f\n"
+		"4:	slgr	%[size],%[size]\n"
 		"5:\n"
 		EX_TABLE(0b,2b) EX_TABLE(6b,2b) EX_TABLE(3b,5b) EX_TABLE(7b,5b)
-		: "+&a" (size), "+&a" (to), "+a" (tmp1), "=&a" (tmp2)
-		: "a" (empty_zero_page), [spec] "d" (spec.val)
+		: [size] "+&a" (size), [to] "+&a" (to),
+		  [tmp1] "+a" (tmp1), [tmp2] "=&a" (tmp2)
+		: [zeropg] "a" (empty_zero_page), [spec] "d" (spec.val)
 		: "cc", "memory", "0");
 	return size;
 }
