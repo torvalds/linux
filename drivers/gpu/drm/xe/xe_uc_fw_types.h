@@ -78,6 +78,13 @@ struct xe_uc_fw {
 	const char *path;
 	/** @user_overridden: user provided path to uC firmware via modparam */
 	bool user_overridden;
+	/**
+	 * @full_ver_required: driver still under development and not ready
+	 * for backward-compatible firmware. To be used only for **new**
+	 * platforms, i.e. still under require_force_probe protection and not
+	 * supported by i915.
+	 */
+	bool full_ver_required;
 	/** @size: size of uC firmware including css header */
 	size_t size;
 

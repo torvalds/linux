@@ -17,6 +17,137 @@
 #include "xe_mmio.h"
 #include "xe_uc_fw.h"
 
+/*
+ * List of required GuC and HuC binaries per-platform. They must be ordered
+ * based on platform, from newer to older.
+ *
+ * Versioning follows the guidelines from
+ * Documentation/driver-api/firmware/firmware-usage-guidelines.rst. There is a
+ * distinction for platforms being officially supported by the driver or not.
+ * Platforms not available publicly or not yet officially supported by the
+ * driver (under force-probe), use the mmp_ver(): the firmware autoselect logic
+ * will select the firmware from disk with filename that matches the full
+ * "mpp version", i.e. major.minor.patch. mmp_ver() should only be used for
+ * this case.
+ *
+ * For platforms officially supported by the driver, the filename always only
+ * ever contains the major version (GuC) or no version at all (HuC).
+ *
+ * After loading the file, the driver parses the versions embedded in the blob.
+ * The major version needs to match a major version supported by the driver (if
+ * any). The minor version is also checked and a notice emitted to the log if
+ * the version found is smaller than the version wanted. This is done only for
+ * informational purposes so users may have a chance to upgrade, but the driver
+ * still loads and use the older firmware.
+ *
+ * Examples:
+ *
+ *	1) Platform officially supported by i915 - using Tigerlake as example.
+ *	   Driver loads the following firmware blobs from disk:
+ *
+ *		- i915/tgl_guc_<major>.bin
+ *		- i915/tgl_huc.bin
+ *
+ *	   <major> number for GuC is checked that it matches the version inside
+ *	   the blob. <minor> version is checked and if smaller than the expected
+ *	   an info message is emitted about that.
+ *
+ *	1) XE_<FUTUREINTELPLATFORM>, still under require_force_probe. Using
+ *	   "wipplat" as a short-name. Driver loads the following firmware blobs
+ *	   from disk:
+ *
+ *		- xe/wipplat_guc_<major>.<minor>.<patch>.bin
+ *		- xe/wipplat_huc_<major>.<minor>.<patch>.bin
+ *
+ *	   <major> and <minor> are checked that they match the version inside
+ *	   the blob. Both of them need to match exactly what the driver is
+ *	   expecting, otherwise it fails.
+ *
+ *	3) Platform officially supported by xe and out of force-probe. Using
+ *	   "plat" as a short-name. Except for the different directory, the
+ *	   behavior is the same as (1). Driver loads the following firmware
+ *	   blobs from disk:
+ *
+ *		- xe/plat_guc_<major>.bin
+ *		- xe/plat_huc.bin
+ *
+ *	   <major> number for GuC is checked that it matches the version inside
+ *	   the blob. <minor> version is checked and if smaller than the expected
+ *	   an info message is emitted about that.
+ *
+ * For the platforms already released with a major version, they should never be
+ * removed from the table. Instead new entries with newer versions may be added
+ * before them, so they take precedence.
+ *
+ * TODO: Currently there's no fallback on major version. That's because xe
+ * driver only supports the one major version of each firmware in the table.
+ * This needs to be fixed when the major version of GuC is updated.
+ */
+
+struct uc_fw_entry {
+	enum xe_platform platform;
+	struct {
+		const char *path;
+		u16 major;
+		u16 minor;
+		bool full_ver_required;
+	};
+};
+
+struct fw_blobs_by_type {
+	const struct uc_fw_entry *entries;
+	u32 count;
+};
+
+#define XE_GUC_FIRMWARE_DEFS(fw_def, mmp_ver, major_ver)			\
+	fw_def(METEORLAKE,	mmp_ver(  i915,	guc,	mtl,	70, 6, 4))	\
+	fw_def(PVC,		mmp_ver(  xe,	guc,	pvc,	70, 6, 4))	\
+	fw_def(DG2,		major_ver(i915,	guc,	dg2,	70, 5))		\
+	fw_def(DG1,		major_ver(i915,	guc,	dg1,	70, 5))		\
+	fw_def(ALDERLAKE_P,	major_ver(i915,	guc,	adlp,	70, 5))		\
+	fw_def(ALDERLAKE_S,	major_ver(i915,	guc,	tgl,	70, 5))		\
+	fw_def(TIGERLAKE,	major_ver(i915,	guc,	tgl,	70, 5))
+
+#define XE_HUC_FIRMWARE_DEFS(fw_def, mmp_ver, no_ver)				\
+	fw_def(ALDERLAKE_S,	no_ver(i915,	huc,	tgl))			\
+	fw_def(DG1,		no_ver(i915,	huc,	dg1))			\
+	fw_def(TIGERLAKE,	no_ver(i915,	huc,	tgl))
+
+#define MAKE_FW_PATH(dir__, uc__, shortname__, version__)			\
+	__stringify(dir__) "/" __stringify(shortname__) "_" __stringify(uc__) version__ ".bin"
+
+#define fw_filename_mmp_ver(dir_, uc_, shortname_, a, b, c)			\
+	MAKE_FW_PATH(dir_, uc_, shortname_, "_" __stringify(a ## . ## b ## . ## c))
+#define fw_filename_major_ver(dir_, uc_, shortname_, a, b)			\
+	MAKE_FW_PATH(dir_, uc_, shortname_, "_" __stringify(a))
+#define fw_filename_no_ver(dir_, uc_, shortname_)				\
+	MAKE_FW_PATH(dir_, uc_, shortname_, "")
+
+#define uc_fw_entry_mmp_ver(dir_, uc_, shortname_, a, b, c)			\
+	{ fw_filename_mmp_ver(dir_, uc_, shortname_, a, b, c),			\
+	  a, b, true }
+#define uc_fw_entry_major_ver(dir_, uc_, shortname_, a, b)			\
+	{ fw_filename_major_ver(dir_, uc_, shortname_, a, b),			\
+	  a, b }
+#define uc_fw_entry_no_ver(dir_, uc_, shortname_)				\
+	{ fw_filename_no_ver(dir_, uc_, shortname_),				\
+	  0, 0 }
+
+/* All blobs need to be declared via MODULE_FIRMWARE() */
+#define XE_UC_MODULE_FIRMWARE(platform__, fw_filename)				\
+	MODULE_FIRMWARE(fw_filename);
+
+#define XE_UC_FW_ENTRY(platform__, entry__)					\
+	{									\
+		.platform = XE_ ## platform__,					\
+		entry__,							\
+	},
+
+XE_GUC_FIRMWARE_DEFS(XE_UC_MODULE_FIRMWARE,					\
+		     fw_filename_mmp_ver, fw_filename_major_ver)
+XE_HUC_FIRMWARE_DEFS(XE_UC_MODULE_FIRMWARE,					\
+		     fw_filename_mmp_ver, fw_filename_no_ver)
+
 static struct xe_gt *
 __uc_fw_to_gt(struct xe_uc_fw *uc_fw, enum xe_uc_fw_type type)
 {
@@ -37,123 +168,38 @@ static struct xe_device *uc_fw_to_xe(struct xe_uc_fw *uc_fw)
 	return gt_to_xe(uc_fw_to_gt(uc_fw));
 }
 
-/*
- * List of required GuC and HuC binaries per-platform.
- * Must be ordered based on platform, from newer to older.
- */
-#define XE_GUC_FIRMWARE_DEFS(fw_def, guc_def) \
-	fw_def(METEORLAKE,   guc_def(mtl,  70, 5, 2)) \
-	fw_def(PVC,          guc_def(pvc,  70, 5, 2)) \
-	fw_def(DG2,          guc_def(dg2,  70, 5, 2)) \
-	fw_def(DG1,          guc_def(dg1,  70, 5, 2)) \
-	fw_def(ALDERLAKE_P,  guc_def(adlp,  70, 5, 2)) \
-	fw_def(ALDERLAKE_S,  guc_def(tgl,  70, 5, 2)) \
-	fw_def(TIGERLAKE,    guc_def(tgl,  70, 5, 2))
-
-#define XE_HUC_FIRMWARE_DEFS(fw_def, huc_def, huc_ver) \
-	fw_def(ALDERLAKE_S,	huc_def(tgl)) \
-	fw_def(DG1,		huc_def(dg1)) \
-	fw_def(TIGERLAKE,	huc_def(tgl))
-
-#define __MAKE_HUC_FW_PATH(prefix_, name_) \
-        "i915/" \
-        __stringify(prefix_) "_" name_ ".bin"
-
-#define __MAKE_UC_FW_PATH_MAJOR(prefix_, name_, major_) \
-	"i915/" \
-	__stringify(prefix_) "_" name_ "_" \
-	__stringify(major_) ".bin"
-
-#define __MAKE_UC_FW_PATH_FULL_VER(prefix_, name_, major_, minor_, patch_) \
-        "i915/" \
-       __stringify(prefix_) "_" name_ "_" \
-       __stringify(major_) "." \
-       __stringify(minor_) "." \
-       __stringify(patch_) ".bin"
-
-#define MAKE_GUC_FW_PATH(prefix_, major_, minor_, patch_) \
-	__MAKE_UC_FW_PATH_MAJOR(prefix_, "guc", major_)
-
-#define MAKE_HUC_FW_PATH(prefix_) \
-	__MAKE_HUC_FW_PATH(prefix_, "huc")
-
-#define MAKE_HUC_FW_PATH_FULL_VER(prefix_, major_, minor_, patch_) \
-	__MAKE_UC_FW_PATH_FULL_VER(prefix_, "huc", major_, minor_, patch_)
-
-
-/* All blobs need to be declared via MODULE_FIRMWARE() */
-#define XE_UC_MODULE_FW(platform_, uc_) \
-	MODULE_FIRMWARE(uc_);
-
-XE_GUC_FIRMWARE_DEFS(XE_UC_MODULE_FW, MAKE_GUC_FW_PATH)
-XE_HUC_FIRMWARE_DEFS(XE_UC_MODULE_FW, MAKE_HUC_FW_PATH, MAKE_HUC_FW_PATH_FULL_VER)
-
-/* The below structs and macros are used to iterate across the list of blobs */
-struct __packed uc_fw_blob {
-	u8 major;
-	u8 minor;
-	const char *path;
-};
-
-#define UC_FW_BLOB(major_, minor_, path_) \
-	{ .major = major_, .minor = minor_, .path = path_ }
-
-#define GUC_FW_BLOB(prefix_, major_, minor_, patch_) \
-	UC_FW_BLOB(major_, minor_, \
-		   MAKE_GUC_FW_PATH(prefix_, major_, minor_, patch_))
-
-#define HUC_FW_BLOB(prefix_) \
-	UC_FW_BLOB(0, 0, MAKE_HUC_FW_PATH(prefix_))
-
-#define HUC_FW_VERSION_BLOB(prefix_, major_, minor_, bld_num_) \
-	UC_FW_BLOB(major_, minor_, \
-		   MAKE_HUC_FW_PATH_FULL_VER(prefix_, major_, minor_, bld_num_))
-
-struct uc_fw_platform_requirement {
-	enum xe_platform p;
-	const struct uc_fw_blob blob;
-};
-
-#define MAKE_FW_LIST(platform_, uc_) \
-{ \
-	.p = XE_##platform_, \
-	.blob = uc_, \
-},
-
-struct fw_blobs_by_type {
-	const struct uc_fw_platform_requirement *blobs;
-	u32 count;
-};
-
 static void
 uc_fw_auto_select(struct xe_device *xe, struct xe_uc_fw *uc_fw)
 {
-	static const struct uc_fw_platform_requirement blobs_guc[] = {
-		XE_GUC_FIRMWARE_DEFS(MAKE_FW_LIST, GUC_FW_BLOB)
+	static const struct uc_fw_entry entries_guc[] = {
+		XE_GUC_FIRMWARE_DEFS(XE_UC_FW_ENTRY,
+				     uc_fw_entry_mmp_ver,
+				     uc_fw_entry_major_ver)
 	};
-	static const struct uc_fw_platform_requirement blobs_huc[] = {
-		XE_HUC_FIRMWARE_DEFS(MAKE_FW_LIST, HUC_FW_BLOB, HUC_FW_VERSION_BLOB)
+	static const struct uc_fw_entry entries_huc[] = {
+		XE_HUC_FIRMWARE_DEFS(XE_UC_FW_ENTRY,
+				     uc_fw_entry_mmp_ver,
+				     uc_fw_entry_no_ver)
 	};
 	static const struct fw_blobs_by_type blobs_all[XE_UC_FW_NUM_TYPES] = {
-		[XE_UC_FW_TYPE_GUC] = { blobs_guc, ARRAY_SIZE(blobs_guc) },
-		[XE_UC_FW_TYPE_HUC] = { blobs_huc, ARRAY_SIZE(blobs_huc) },
+		[XE_UC_FW_TYPE_GUC] = { entries_guc, ARRAY_SIZE(entries_guc) },
+		[XE_UC_FW_TYPE_HUC] = { entries_huc, ARRAY_SIZE(entries_huc) },
 	};
-	static const struct uc_fw_platform_requirement *fw_blobs;
+	static const struct uc_fw_entry *entries;
 	enum xe_platform p = xe->info.platform;
-	u32 fw_count;
+	u32 count;
 	int i;
 
 	XE_BUG_ON(uc_fw->type >= ARRAY_SIZE(blobs_all));
-	fw_blobs = blobs_all[uc_fw->type].blobs;
-	fw_count = blobs_all[uc_fw->type].count;
+	entries = blobs_all[uc_fw->type].entries;
+	count = blobs_all[uc_fw->type].count;
 
-	for (i = 0; i < fw_count && p <= fw_blobs[i].p; i++) {
-		if (p == fw_blobs[i].p) {
-			const struct uc_fw_blob *blob = &fw_blobs[i].blob;
-
-			uc_fw->path = blob->path;
-			uc_fw->major_ver_wanted = blob->major;
-			uc_fw->minor_ver_wanted = blob->minor;
+	for (i = 0; i < count && p <= entries[i].platform; i++) {
+		if (p == entries[i].platform) {
+			uc_fw->path = entries[i].path;
+			uc_fw->major_ver_wanted = entries[i].major;
+			uc_fw->minor_ver_wanted = entries[i].minor;
+			uc_fw->full_ver_required = entries[i].full_ver_required;
 			break;
 		}
 	}
@@ -225,6 +271,47 @@ static void guc_read_css_info(struct xe_uc_fw *uc_fw, struct uc_css_header *css)
 	}
 
 	uc_fw->private_data_size = css->private_data_size;
+}
+
+static int uc_fw_check_version_requirements(struct xe_uc_fw *uc_fw)
+{
+	struct xe_device *xe = uc_fw_to_xe(uc_fw);
+
+	/* Driver has no requirement on any version, any is good. */
+	if (!uc_fw->major_ver_wanted)
+		return 0;
+
+	/*
+	 * If full version is required, both major and minor should match.
+	 * Otherwise, at least the major version.
+	 */
+	if (uc_fw->major_ver_wanted != uc_fw->major_ver_found ||
+	    (uc_fw->full_ver_required &&
+	     uc_fw->minor_ver_wanted != uc_fw->minor_ver_found)) {
+		drm_notice(&xe->drm, "%s firmware %s: unexpected version: %u.%u != %u.%u\n",
+			   xe_uc_fw_type_repr(uc_fw->type), uc_fw->path,
+			   uc_fw->major_ver_found, uc_fw->minor_ver_found,
+			   uc_fw->major_ver_wanted, uc_fw->minor_ver_wanted);
+		goto fail;
+	}
+
+	if (uc_fw->minor_ver_wanted > uc_fw->minor_ver_found) {
+		drm_notice(&xe->drm, "%s firmware (%u.%u) is recommended, but only (%u.%u) was found in %s\n",
+			   xe_uc_fw_type_repr(uc_fw->type),
+			   uc_fw->major_ver_wanted, uc_fw->minor_ver_wanted,
+			   uc_fw->major_ver_found, uc_fw->minor_ver_found,
+			   uc_fw->path);
+		drm_info(&xe->drm, "Consider updating your linux-firmware pkg or downloading from %s\n",
+			 XE_UC_FIRMWARE_URL);
+	}
+
+	return 0;
+
+fail:
+	if (xe_uc_fw_is_overridden(uc_fw))
+		return 0;
+
+	return -ENOEXEC;
 }
 
 int xe_uc_fw_init(struct xe_uc_fw *uc_fw)
@@ -308,19 +395,9 @@ int xe_uc_fw_init(struct xe_uc_fw *uc_fw)
 	uc_fw->minor_ver_found = FIELD_GET(CSS_SW_VERSION_UC_MINOR,
 					   css->sw_version);
 
-	if (uc_fw->major_ver_wanted) {
-		if (uc_fw->major_ver_found != uc_fw->major_ver_wanted ||
-		    uc_fw->minor_ver_found < uc_fw->minor_ver_wanted) {
-			drm_notice(&xe->drm, "%s firmware %s: unexpected version: %u.%u != %u.%u\n",
-				   xe_uc_fw_type_repr(uc_fw->type), uc_fw->path,
-				   uc_fw->major_ver_found, uc_fw->minor_ver_found,
-				   uc_fw->major_ver_wanted, uc_fw->minor_ver_wanted);
-			if (!xe_uc_fw_is_overridden(uc_fw)) {
-				err = -ENOEXEC;
-				goto fail;
-			}
-		}
-	}
+	err = uc_fw_check_version_requirements(uc_fw);
+	if (err)
+		goto fail;
 
 	if (uc_fw->type == XE_UC_FW_TYPE_GUC)
 		guc_read_css_info(uc_fw, css);
