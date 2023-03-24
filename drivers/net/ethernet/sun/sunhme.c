@@ -2430,6 +2430,58 @@ static void happy_meal_addr_init(struct happy_meal *hp,
 	}
 }
 
+static int happy_meal_common_probe(struct happy_meal *hp,
+				   struct device_node *dp)
+{
+	struct net_device *dev = hp->dev;
+	int err;
+
+#ifdef CONFIG_SPARC
+	hp->hm_revision = of_getintprop_default(dp, "hm-rev", hp->hm_revision);
+#endif
+
+	/* Now enable the feature flags we can. */
+	if (hp->hm_revision == 0x20 || hp->hm_revision == 0x21)
+		hp->happy_flags |= HFLAG_20_21;
+	else if (hp->hm_revision != 0xa0)
+		hp->happy_flags |= HFLAG_NOT_A0;
+
+	hp->happy_block = dmam_alloc_coherent(hp->dma_dev, PAGE_SIZE,
+					      &hp->hblock_dvma, GFP_KERNEL);
+	if (!hp->happy_block)
+		return -ENOMEM;
+
+	/* Force check of the link first time we are brought up. */
+	hp->linkcheck = 0;
+
+	/* Force timer state to 'asleep' with count of zero. */
+	hp->timer_state = asleep;
+	hp->timer_ticks = 0;
+
+	timer_setup(&hp->happy_timer, happy_meal_timer, 0);
+
+	dev->netdev_ops = &hme_netdev_ops;
+	dev->watchdog_timeo = 5 * HZ;
+	dev->ethtool_ops = &hme_ethtool_ops;
+
+	/* Happy Meal can do it all... */
+	dev->hw_features = NETIF_F_SG | NETIF_F_HW_CSUM;
+	dev->features |= dev->hw_features | NETIF_F_RXCSUM;
+
+
+	/* Grrr, Happy Meal comes up by default not advertising
+	 * full duplex 100baseT capabilities, fix this.
+	 */
+	spin_lock_irq(&hp->happy_lock);
+	happy_meal_set_initial_advertisement(hp);
+	spin_unlock_irq(&hp->happy_lock);
+
+	err = devm_register_netdev(hp->dma_dev, dev);
+	if (err)
+		dev_err(hp->dma_dev, "Cannot register net device, aborting.\n");
+	return err;
+}
+
 #ifdef CONFIG_SBUS
 static int happy_meal_sbus_probe_one(struct platform_device *op, int is_qfe)
 {
@@ -2511,50 +2563,18 @@ static int happy_meal_sbus_probe_one(struct platform_device *op, int is_qfe)
 		goto err_out_clear_quattro;
 	}
 
-	hp->hm_revision = of_getintprop_default(dp, "hm-rev", 0xff);
-	if (hp->hm_revision == 0xff)
-		hp->hm_revision = 0xa0;
-
-	/* Now enable the feature flags we can. */
-	if (hp->hm_revision == 0x20 || hp->hm_revision == 0x21)
-		hp->happy_flags = HFLAG_20_21;
-	else if (hp->hm_revision != 0xa0)
-		hp->happy_flags = HFLAG_NOT_A0;
+	hp->hm_revision = 0xa0;
 
 	if (qp != NULL)
 		hp->happy_flags |= HFLAG_QUATTRO;
+
+	hp->irq = op->archdata.irqs[0];
 
 	/* Get the supported DVMA burst sizes from our Happy SBUS. */
 	hp->happy_bursts = of_getintprop_default(sbus_dp,
 						 "burst-sizes", 0x00);
 
-	hp->happy_block = dmam_alloc_coherent(&op->dev, PAGE_SIZE,
-					      &hp->hblock_dvma, GFP_KERNEL);
-	if (!hp->happy_block) {
-		err = -ENOMEM;
-		goto err_out_clear_quattro;
-	}
-
-	/* Force check of the link first time we are brought up. */
-	hp->linkcheck = 0;
-
-	/* Force timer state to 'asleep' with count of zero. */
-	hp->timer_state = asleep;
-	hp->timer_ticks = 0;
-
-	timer_setup(&hp->happy_timer, happy_meal_timer, 0);
-
-	dev->netdev_ops = &hme_netdev_ops;
-	dev->watchdog_timeo = 5*HZ;
-	dev->ethtool_ops = &hme_ethtool_ops;
-
-	/* Happy Meal can do it all... */
-	dev->hw_features = NETIF_F_SG | NETIF_F_HW_CSUM;
-	dev->features |= dev->hw_features | NETIF_F_RXCSUM;
-
-	hp->irq = op->archdata.irqs[0];
-
-#if defined(CONFIG_SBUS) && defined(CONFIG_PCI)
+#ifdef CONFIG_PCI
 	/* Hook up SBUS register/descriptor accessors. */
 	hp->read_desc32 = sbus_hme_read_desc32;
 	hp->write_txd = sbus_hme_write_txd;
@@ -2563,18 +2583,9 @@ static int happy_meal_sbus_probe_one(struct platform_device *op, int is_qfe)
 	hp->write32 = sbus_hme_write32;
 #endif
 
-	/* Grrr, Happy Meal comes up by default not advertising
-	 * full duplex 100baseT capabilities, fix this.
-	 */
-	spin_lock_irq(&hp->happy_lock);
-	happy_meal_set_initial_advertisement(hp);
-	spin_unlock_irq(&hp->happy_lock);
-
-	err = devm_register_netdev(&op->dev, dev);
-	if (err) {
-		dev_err(&op->dev, "Cannot register net device, aborting.\n");
+	err = happy_meal_common_probe(hp, dp);
+	if (err)
 		goto err_out_clear_quattro;
-	}
 
 	platform_set_drvdata(op, hp);
 
@@ -2689,20 +2700,10 @@ static int happy_meal_pci_probe(struct pci_dev *pdev,
 	hp->bigmacregs = (hpreg_base + 0x6000UL);
 	hp->tcvregs    = (hpreg_base + 0x7000UL);
 
-#ifdef CONFIG_SPARC
-	hp->hm_revision = of_getintprop_default(dp, "hm-rev", 0xff);
-	if (hp->hm_revision == 0xff)
+	if (IS_ENABLED(CONFIG_SPARC))
 		hp->hm_revision = 0xc0 | (pdev->revision & 0x0f);
-#else
-	/* works with this on non-sparc hosts */
-	hp->hm_revision = 0x20;
-#endif
-
-	/* Now enable the feature flags we can. */
-	if (hp->hm_revision == 0x20 || hp->hm_revision == 0x21)
-		hp->happy_flags = HFLAG_20_21;
-	else if (hp->hm_revision != 0xa0 && hp->hm_revision != 0xc0)
-		hp->happy_flags = HFLAG_NOT_A0;
+	else
+		hp->hm_revision = 0x20;
 
 	if (qp != NULL)
 		hp->happy_flags |= HFLAG_QUATTRO;
@@ -2714,30 +2715,9 @@ static int happy_meal_pci_probe(struct pci_dev *pdev,
 	/* Assume PCI happy meals can handle all burst sizes. */
 	hp->happy_bursts = DMA_BURSTBITS;
 #endif
-
-	hp->happy_block = dmam_alloc_coherent(&pdev->dev, PAGE_SIZE,
-					      &hp->hblock_dvma, GFP_KERNEL);
-	if (!hp->happy_block) {
-		err = -ENOMEM;
-		goto err_out_clear_quattro;
-	}
-
-	hp->linkcheck = 0;
-	hp->timer_state = asleep;
-	hp->timer_ticks = 0;
-
-	timer_setup(&hp->happy_timer, happy_meal_timer, 0);
-
 	hp->irq = pdev->irq;
-	dev->netdev_ops = &hme_netdev_ops;
-	dev->watchdog_timeo = 5*HZ;
-	dev->ethtool_ops = &hme_ethtool_ops;
 
-	/* Happy Meal can do it all... */
-	dev->hw_features = NETIF_F_SG | NETIF_F_HW_CSUM;
-	dev->features |= dev->hw_features | NETIF_F_RXCSUM;
-
-#if defined(CONFIG_SBUS) && defined(CONFIG_PCI)
+#ifdef CONFIG_SBUS
 	/* Hook up PCI register/descriptor accessors. */
 	hp->read_desc32 = pci_hme_read_desc32;
 	hp->write_txd = pci_hme_write_txd;
@@ -2746,18 +2726,9 @@ static int happy_meal_pci_probe(struct pci_dev *pdev,
 	hp->write32 = pci_hme_write32;
 #endif
 
-	/* Grrr, Happy Meal comes up by default not advertising
-	 * full duplex 100baseT capabilities, fix this.
-	 */
-	spin_lock_irq(&hp->happy_lock);
-	happy_meal_set_initial_advertisement(hp);
-	spin_unlock_irq(&hp->happy_lock);
-
-	err = devm_register_netdev(&pdev->dev, dev);
-	if (err) {
-		dev_err(&pdev->dev, "Cannot register net device, aborting.\n");
+	err = happy_meal_common_probe(hp, dp);
+	if (err)
 		goto err_out_clear_quattro;
-	}
 
 	pci_set_drvdata(pdev, hp);
 
