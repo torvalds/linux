@@ -69,7 +69,6 @@ endif # I3CDEV
 config I3C_AST_BRIDGE_IC
 	bool "Aspeed Bridge IC driver"
 	default y
-	select REGMAP_I3C
 	help
 	  Say y to enable Aspeed bridge IC device driver.
 

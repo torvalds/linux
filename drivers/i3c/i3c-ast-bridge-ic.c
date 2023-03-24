@@ -12,7 +12,6 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/sysfs.h>
-#include <linux/regmap.h>
 #include "internals.h"
 #include <linux/delay.h>
 #define MQ_MSGBUF_SIZE		256
@@ -30,8 +29,6 @@ struct mq_msg {
 };
 
 struct astbic {
-	struct regmap *regmap;
-
 	struct bin_attribute bin;
 	struct kernfs_node *kn;
 
