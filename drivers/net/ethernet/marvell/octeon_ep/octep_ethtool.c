@@ -150,7 +150,7 @@ octep_get_ethtool_stats(struct net_device *netdev,
 	rx_packets = 0;
 	rx_bytes = 0;
 
-	octep_get_if_stats(oct);
+	octep_ctrl_net_get_if_stats(oct);
 	iface_tx_stats = &oct->iface_tx_stats;
 	iface_rx_stats = &oct->iface_rx_stats;
 
@@ -283,7 +283,7 @@ static int octep_get_link_ksettings(struct net_device *netdev,
 	ethtool_link_ksettings_zero_link_mode(cmd, supported);
 	ethtool_link_ksettings_zero_link_mode(cmd, advertising);
 
-	octep_get_link_info(oct);
+	octep_ctrl_net_get_link_info(oct);
 
 	advertised_modes = oct->link_info.advertised_modes;
 	supported_modes = oct->link_info.supported_modes;
@@ -439,7 +439,7 @@ static int octep_set_link_ksettings(struct net_device *netdev,
 	link_info_new.speed = cmd->base.speed;
 	link_info_new.autoneg = autoneg;
 
-	err = octep_set_link_info(oct, &link_info_new);
+	err = octep_ctrl_net_set_link_info(oct, &link_info_new, true);
 	if (err)
 		return err;
 

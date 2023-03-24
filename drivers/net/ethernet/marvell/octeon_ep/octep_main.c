@@ -507,11 +507,8 @@ static int octep_open(struct net_device *netdev)
 	octep_napi_enable(oct);
 
 	oct->link_info.admin_up = 1;
-	octep_set_rx_state(oct, true);
-
-	ret = octep_get_link_status(oct);
-	if (!ret)
-		octep_set_link_status(oct, true);
+	octep_ctrl_net_set_rx_state(oct, true, false);
+	octep_ctrl_net_set_link_status(oct, true, false);
 	oct->poll_non_ioq_intr = false;
 
 	/* Enable the input and output queues for this Octeon device */
@@ -522,7 +519,7 @@ static int octep_open(struct net_device *netdev)
 
 	octep_oq_dbell_init(oct);
 
-	ret = octep_get_link_status(oct);
+	ret = octep_ctrl_net_get_link_status(oct);
 	if (ret > 0)
 		octep_link_up(netdev);
 
@@ -552,13 +549,13 @@ static int octep_stop(struct net_device *netdev)
 
 	netdev_info(netdev, "Stopping the device ...\n");
 
+	octep_ctrl_net_set_link_status(oct, false, false);
+	octep_ctrl_net_set_rx_state(oct, false, false);
+
 	/* Stop Tx from stack */
 	netif_tx_stop_all_queues(netdev);
 	netif_carrier_off(netdev);
 	netif_tx_disable(netdev);
-
-	octep_set_link_status(oct, false);
-	octep_set_rx_state(oct, false);
 
 	oct->link_info.admin_up = 0;
 	oct->link_info.oper_up = 0;
@@ -761,7 +758,9 @@ static void octep_get_stats64(struct net_device *netdev,
 	struct octep_device *oct = netdev_priv(netdev);
 	int q;
 
-	octep_get_if_stats(oct);
+	if (netif_running(netdev))
+		octep_ctrl_net_get_if_stats(oct);
+
 	tx_packets = 0;
 	tx_bytes = 0;
 	rx_packets = 0;
@@ -832,7 +831,7 @@ static int octep_set_mac(struct net_device *netdev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	err = octep_set_mac_addr(oct, addr->sa_data);
+	err = octep_ctrl_net_set_mac_addr(oct, addr->sa_data, true);
 	if (err)
 		return err;
 
@@ -852,7 +851,7 @@ static int octep_change_mtu(struct net_device *netdev, int new_mtu)
 	if (link_info->mtu == new_mtu)
 		return 0;
 
-	err = octep_set_mtu(oct, new_mtu);
+	err = octep_ctrl_net_set_mtu(oct, new_mtu, true);
 	if (!err) {
 		oct->link_info.mtu = new_mtu;
 		netdev->mtu = new_mtu;
@@ -904,34 +903,8 @@ static void octep_ctrl_mbox_task(struct work_struct *work)
 {
 	struct octep_device *oct = container_of(work, struct octep_device,
 						ctrl_mbox_task);
-	struct net_device *netdev = oct->netdev;
-	struct octep_ctrl_net_f2h_req req = {};
-	struct octep_ctrl_mbox_msg msg;
-	int ret = 0;
 
-	msg.msg = &req;
-	while (true) {
-		ret = octep_ctrl_mbox_recv(&oct->ctrl_mbox, &msg);
-		if (ret)
-			break;
-
-		switch (req.hdr.cmd) {
-		case OCTEP_CTRL_NET_F2H_CMD_LINK_STATUS:
-			if (netif_running(netdev)) {
-				if (req.link.state) {
-					dev_info(&oct->pdev->dev, "netif_carrier_on\n");
-					netif_carrier_on(netdev);
-				} else {
-					dev_info(&oct->pdev->dev, "netif_carrier_off\n");
-					netif_carrier_off(netdev);
-				}
-			}
-			break;
-		default:
-			pr_info("Unknown mbox req : %u\n", req.hdr.cmd);
-			break;
-		}
-	}
+	octep_ctrl_net_recv_fw_messages(oct);
 }
 
 static const char *octep_devid_to_str(struct octep_device *oct)
@@ -955,9 +928,8 @@ static const char *octep_devid_to_str(struct octep_device *oct)
  */
 int octep_device_setup(struct octep_device *oct)
 {
-	struct octep_ctrl_mbox *ctrl_mbox;
 	struct pci_dev *pdev = oct->pdev;
-	int i, ret;
+	int i;
 
 	/* allocate memory for oct->conf */
 	oct->conf = kzalloc(sizeof(*oct->conf), GFP_KERNEL);
@@ -992,20 +964,7 @@ int octep_device_setup(struct octep_device *oct)
 
 	oct->pkind = CFG_GET_IQ_PKIND(oct->conf);
 
-	/* Initialize control mbox */
-	ctrl_mbox = &oct->ctrl_mbox;
-	ctrl_mbox->barmem = CFG_GET_CTRL_MBOX_MEM_ADDR(oct->conf);
-	ret = octep_ctrl_mbox_init(ctrl_mbox);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to initialize control mbox\n");
-		goto unsupported_dev;
-	}
-	oct->ctrl_mbox_ifstats_offset = OCTEP_CTRL_MBOX_SZ(ctrl_mbox->h2fq.elem_sz,
-							   ctrl_mbox->h2fq.elem_cnt,
-							   ctrl_mbox->f2hq.elem_sz,
-							   ctrl_mbox->f2hq.elem_cnt);
-
-	return 0;
+	return octep_ctrl_net_init(oct);
 
 unsupported_dev:
 	for (i = 0; i < OCTEP_MMIO_REGIONS; i++)
@@ -1033,7 +992,7 @@ static void octep_device_cleanup(struct octep_device *oct)
 		oct->mbox[i] = NULL;
 	}
 
-	octep_ctrl_mbox_uninit(&oct->ctrl_mbox);
+	octep_ctrl_net_uninit(oct);
 
 	oct->hw_ops.soft_reset(oct);
 	for (i = 0; i < OCTEP_MMIO_REGIONS; i++) {
@@ -1143,7 +1102,8 @@ static int octep_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->max_mtu = OCTEP_MAX_MTU;
 	netdev->mtu = OCTEP_DEFAULT_MTU;
 
-	err = octep_get_mac_addr(octep_dev, octep_dev->mac_addr);
+	err = octep_ctrl_net_get_mac_addr(octep_dev,
+					  octep_dev->mac_addr);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to get mac address\n");
 		goto register_dev_err;

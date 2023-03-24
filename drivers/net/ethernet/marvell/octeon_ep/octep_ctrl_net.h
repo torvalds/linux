@@ -45,15 +45,18 @@ enum octep_ctrl_net_f2h_cmd {
 	OCTEP_CTRL_NET_F2H_CMD_LINK_STATUS,
 };
 
-struct octep_ctrl_net_req_hdr {
-	/* sender id */
-	u16 sender;
-	/* receiver id */
-	u16 receiver;
-	/* octep_ctrl_net_h2t_cmd */
-	u16 cmd;
-	/* reserved */
-	u16 rsvd0;
+union octep_ctrl_net_req_hdr {
+	u64 words[1];
+	struct {
+		/* sender id */
+		u16 sender;
+		/* receiver id */
+		u16 receiver;
+		/* octep_ctrl_net_h2t_cmd */
+		u16 cmd;
+		/* reserved */
+		u16 rsvd0;
+	} s;
 };
 
 /* get/set mtu request */
@@ -110,7 +113,7 @@ struct octep_ctrl_net_h2f_req_cmd_link_info {
 
 /* Host to fw request data */
 struct octep_ctrl_net_h2f_req {
-	struct octep_ctrl_net_req_hdr hdr;
+	union octep_ctrl_net_req_hdr hdr;
 	union {
 		struct octep_ctrl_net_h2f_req_cmd_mtu mtu;
 		struct octep_ctrl_net_h2f_req_cmd_mac mac;
@@ -121,15 +124,18 @@ struct octep_ctrl_net_h2f_req {
 	};
 } __packed;
 
-struct octep_ctrl_net_resp_hdr {
-	/* sender id */
-	u16 sender;
-	/* receiver id */
-	u16 receiver;
-	/* octep_ctrl_net_h2t_cmd */
-	u16 cmd;
-	/* octep_ctrl_net_reply */
-	u16 reply;
+union octep_ctrl_net_resp_hdr {
+	u64 words[1];
+	struct {
+		/* sender id */
+		u16 sender;
+		/* receiver id */
+		u16 receiver;
+		/* octep_ctrl_net_h2t_cmd */
+		u16 cmd;
+		/* octep_ctrl_net_reply */
+		u16 reply;
+	} s;
 };
 
 /* get mtu response */
@@ -152,7 +158,7 @@ struct octep_ctrl_net_h2f_resp_cmd_state {
 
 /* Host to fw response data */
 struct octep_ctrl_net_h2f_resp {
-	struct octep_ctrl_net_resp_hdr hdr;
+	union octep_ctrl_net_resp_hdr hdr;
 	union {
 		struct octep_ctrl_net_h2f_resp_cmd_mtu mtu;
 		struct octep_ctrl_net_h2f_resp_cmd_mac mac;
@@ -170,7 +176,7 @@ struct octep_ctrl_net_f2h_req_cmd_state {
 
 /* Fw to host request data */
 struct octep_ctrl_net_f2h_req {
-	struct octep_ctrl_net_req_hdr hdr;
+	union octep_ctrl_net_req_hdr hdr;
 	union {
 		struct octep_ctrl_net_f2h_req_cmd_state link;
 	};
@@ -178,56 +184,34 @@ struct octep_ctrl_net_f2h_req {
 
 /* Fw to host response data */
 struct octep_ctrl_net_f2h_resp {
-	struct octep_ctrl_net_resp_hdr hdr;
+	union octep_ctrl_net_resp_hdr hdr;
 };
 
-/* Size of host to fw octep_ctrl_mbox queue element */
-union octep_ctrl_net_h2f_data_sz {
+/* Max data size to be transferred over mbox */
+union octep_ctrl_net_max_data {
 	struct octep_ctrl_net_h2f_req h2f_req;
 	struct octep_ctrl_net_h2f_resp h2f_resp;
-};
-
-/* Size of fw to host octep_ctrl_mbox queue element */
-union octep_ctrl_net_f2h_data_sz {
 	struct octep_ctrl_net_f2h_req f2h_req;
 	struct octep_ctrl_net_f2h_resp f2h_resp;
 };
 
-/* size of host to fw data in words */
-#define OCTEP_CTRL_NET_H2F_DATA_SZW		((sizeof(union octep_ctrl_net_h2f_data_sz)) / \
-						 (sizeof(unsigned long)))
+struct octep_ctrl_net_wait_data {
+	struct list_head list;
+	int done;
+	struct octep_ctrl_mbox_msg msg;
+	union {
+		struct octep_ctrl_net_h2f_req req;
+		struct octep_ctrl_net_h2f_resp resp;
+	} data;
+};
 
-/* size of fw to host data in words */
-#define OCTEP_CTRL_NET_F2H_DATA_SZW		((sizeof(union octep_ctrl_net_f2h_data_sz)) / \
-						 (sizeof(unsigned long)))
-
-/* size in words of get/set mtu request */
-#define OCTEP_CTRL_NET_H2F_MTU_REQ_SZW			2
-/* size in words of get/set mac request */
-#define OCTEP_CTRL_NET_H2F_MAC_REQ_SZW			2
-/* size in words of get stats request */
-#define OCTEP_CTRL_NET_H2F_GET_STATS_REQ_SZW		2
-/* size in words of get/set state request */
-#define OCTEP_CTRL_NET_H2F_STATE_REQ_SZW		2
-/* size in words of get/set link info request */
-#define OCTEP_CTRL_NET_H2F_LINK_INFO_REQ_SZW		4
-
-/* size in words of get mtu response */
-#define OCTEP_CTRL_NET_H2F_GET_MTU_RESP_SZW		2
-/* size in words of set mtu response */
-#define OCTEP_CTRL_NET_H2F_SET_MTU_RESP_SZW		1
-/* size in words of get mac response */
-#define OCTEP_CTRL_NET_H2F_GET_MAC_RESP_SZW		2
-/* size in words of set mac response */
-#define OCTEP_CTRL_NET_H2F_SET_MAC_RESP_SZW		1
-/* size in words of get state request */
-#define OCTEP_CTRL_NET_H2F_GET_STATE_RESP_SZW		2
-/* size in words of set state request */
-#define OCTEP_CTRL_NET_H2F_SET_STATE_RESP_SZW		1
-/* size in words of get link info request */
-#define OCTEP_CTRL_NET_H2F_GET_LINK_INFO_RESP_SZW	4
-/* size in words of set link info request */
-#define OCTEP_CTRL_NET_H2F_SET_LINK_INFO_RESP_SZW	1
+/** Initialize data for ctrl net.
+ *
+ * @param oct: non-null pointer to struct octep_device.
+ *
+ * return value: 0 on success, -errno on error.
+ */
+int octep_ctrl_net_init(struct octep_device *oct);
 
 /** Get link status from firmware.
  *
@@ -235,21 +219,29 @@ union octep_ctrl_net_f2h_data_sz {
  *
  * return value: link status 0=down, 1=up.
  */
-int octep_get_link_status(struct octep_device *oct);
+int octep_ctrl_net_get_link_status(struct octep_device *oct);
 
 /** Set link status in firmware.
  *
  * @param oct: non-null pointer to struct octep_device.
  * @param up: boolean status.
+ * @param wait_for_response: poll for response.
+ *
+ * return value: 0 on success, -errno on failure
  */
-void octep_set_link_status(struct octep_device *oct, bool up);
+int octep_ctrl_net_set_link_status(struct octep_device *oct, bool up,
+				   bool wait_for_response);
 
 /** Set rx state in firmware.
  *
  * @param oct: non-null pointer to struct octep_device.
  * @param up: boolean status.
+ * @param wait_for_response: poll for response.
+ *
+ * return value: 0 on success, -errno on failure.
  */
-void octep_set_rx_state(struct octep_device *oct, bool up);
+int octep_ctrl_net_set_rx_state(struct octep_device *oct, bool up,
+				bool wait_for_response);
 
 /** Get mac address from firmware.
  *
@@ -258,21 +250,29 @@ void octep_set_rx_state(struct octep_device *oct, bool up);
  *
  * return value: 0 on success, -errno on failure.
  */
-int octep_get_mac_addr(struct octep_device *oct, u8 *addr);
+int octep_ctrl_net_get_mac_addr(struct octep_device *oct, u8 *addr);
 
 /** Set mac address in firmware.
  *
  * @param oct: non-null pointer to struct octep_device.
  * @param addr: non-null pointer to mac address.
+ * @param wait_for_response: poll for response.
+ *
+ * return value: 0 on success, -errno on failure.
  */
-int octep_set_mac_addr(struct octep_device *oct, u8 *addr);
+int octep_ctrl_net_set_mac_addr(struct octep_device *oct, u8 *addr,
+				bool wait_for_response);
 
 /** Set mtu in firmware.
  *
  * @param oct: non-null pointer to struct octep_device.
  * @param mtu: mtu.
+ * @param wait_for_response: poll for response.
+ *
+ * return value: 0 on success, -errno on failure.
  */
-int octep_set_mtu(struct octep_device *oct, int mtu);
+int octep_ctrl_net_set_mtu(struct octep_device *oct, int mtu,
+			   bool wait_for_response);
 
 /** Get interface statistics from firmware.
  *
@@ -280,7 +280,7 @@ int octep_set_mtu(struct octep_device *oct, int mtu);
  *
  * return value: 0 on success, -errno on failure.
  */
-int octep_get_if_stats(struct octep_device *oct);
+int octep_ctrl_net_get_if_stats(struct octep_device *oct);
 
 /** Get link info from firmware.
  *
@@ -288,12 +288,32 @@ int octep_get_if_stats(struct octep_device *oct);
  *
  * return value: 0 on success, -errno on failure.
  */
-int octep_get_link_info(struct octep_device *oct);
+int octep_ctrl_net_get_link_info(struct octep_device *oct);
 
 /** Set link info in firmware.
  *
  * @param oct: non-null pointer to struct octep_device.
+ * @param link_info: non-null pointer to struct octep_iface_link_info.
+ * @param wait_for_response: poll for response.
+ *
+ * return value: 0 on success, -errno on failure.
  */
-int octep_set_link_info(struct octep_device *oct, struct octep_iface_link_info *link_info);
+int octep_ctrl_net_set_link_info(struct octep_device *oct,
+				 struct octep_iface_link_info *link_info,
+				 bool wait_for_response);
+
+/** Poll for firmware messages and process them.
+ *
+ * @param oct: non-null pointer to struct octep_device.
+ */
+void octep_ctrl_net_recv_fw_messages(struct octep_device *oct);
+
+/** Uninitialize data for ctrl net.
+ *
+ * @param oct: non-null pointer to struct octep_device.
+ *
+ * return value: 0 on success, -errno on error.
+ */
+int octep_ctrl_net_uninit(struct octep_device *oct);
 
 #endif /* __OCTEP_CTRL_NET_H__ */
