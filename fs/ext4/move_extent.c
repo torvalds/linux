@@ -126,7 +126,6 @@ mext_folio_double_lock(struct inode *inode1, struct inode *inode2,
 {
 	struct address_space *mapping[2];
 	unsigned int flags;
-	unsigned fgp_flags = FGP_LOCK | FGP_WRITE | FGP_CREAT | FGP_STABLE;
 
 	BUG_ON(!inode1 || !inode2);
 	if (inode1 < inode2) {
@@ -139,14 +138,14 @@ mext_folio_double_lock(struct inode *inode1, struct inode *inode2,
 	}
 
 	flags = memalloc_nofs_save();
-	folio[0] = __filemap_get_folio(mapping[0], index1, fgp_flags,
+	folio[0] = __filemap_get_folio(mapping[0], index1, FGP_WRITEBEGIN,
 			mapping_gfp_mask(mapping[0]));
 	if (!folio[0]) {
 		memalloc_nofs_restore(flags);
 		return -ENOMEM;
 	}
 
-	folio[1] = __filemap_get_folio(mapping[1], index2, fgp_flags,
+	folio[1] = __filemap_get_folio(mapping[1], index2, FGP_WRITEBEGIN,
 			mapping_gfp_mask(mapping[1]));
 	memalloc_nofs_restore(flags);
 	if (!folio[1]) {
