@@ -6,6 +6,8 @@
 #ifndef __ARCH_X86_KVM_SVM_ONHYPERV_H__
 #define __ARCH_X86_KVM_SVM_ONHYPERV_H__
 
+#include <asm/mshyperv.h>
+
 #if IS_ENABLED(CONFIG_HYPERV)
 
 #include "kvm_onhyperv.h"
@@ -14,6 +16,14 @@
 static struct kvm_x86_ops svm_x86_ops;
 
 int svm_hv_enable_l2_tlb_flush(struct kvm_vcpu *vcpu);
+
+static inline bool svm_hv_is_enlightened_tlb_enabled(struct kvm_vcpu *vcpu)
+{
+	struct hv_vmcb_enlightenments *hve = &to_svm(vcpu)->vmcb->control.hv_enlightenments;
+
+	return ms_hyperv.nested_features & HV_X64_NESTED_ENLIGHTENED_TLB &&
+	       !!hve->hv_enlightenments_control.enlightened_npt_tlb;
+}
 
 static inline void svm_hv_init_vmcb(struct vmcb *vmcb)
 {
@@ -79,6 +89,11 @@ static inline void svm_hv_update_vp_id(struct vmcb *vmcb, struct kvm_vcpu *vcpu)
 	}
 }
 #else
+
+static inline bool svm_hv_is_enlightened_tlb_enabled(struct kvm_vcpu *vcpu)
+{
+	return false;
+}
 
 static inline void svm_hv_init_vmcb(struct vmcb *vmcb)
 {
