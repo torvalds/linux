@@ -2304,6 +2304,133 @@ static const struct net_device_ops hme_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
+#ifdef CONFIG_PCI
+static int is_quattro_p(struct pci_dev *pdev)
+{
+	struct pci_dev *busdev = pdev->bus->self;
+	struct pci_dev *this_pdev;
+	int n_hmes;
+
+	if (!busdev || busdev->vendor != PCI_VENDOR_ID_DEC ||
+	    busdev->device != PCI_DEVICE_ID_DEC_21153)
+		return 0;
+
+	n_hmes = 0;
+	list_for_each_entry(this_pdev, &pdev->bus->devices, bus_list) {
+		if (this_pdev->vendor == PCI_VENDOR_ID_SUN &&
+		    this_pdev->device == PCI_DEVICE_ID_SUN_HAPPYMEAL)
+			n_hmes++;
+	}
+
+	if (n_hmes != 4)
+		return 0;
+
+	return 1;
+}
+
+/* Fetch MAC address from vital product data of PCI ROM. */
+static int find_eth_addr_in_vpd(void __iomem *rom_base, int len, int index, unsigned char *dev_addr)
+{
+	int this_offset;
+
+	for (this_offset = 0x20; this_offset < len; this_offset++) {
+		void __iomem *p = rom_base + this_offset;
+
+		if (readb(p + 0) != 0x90 ||
+		    readb(p + 1) != 0x00 ||
+		    readb(p + 2) != 0x09 ||
+		    readb(p + 3) != 0x4e ||
+		    readb(p + 4) != 0x41 ||
+		    readb(p + 5) != 0x06)
+			continue;
+
+		this_offset += 6;
+		p += 6;
+
+		if (index == 0) {
+			int i;
+
+			for (i = 0; i < 6; i++)
+				dev_addr[i] = readb(p + i);
+			return 1;
+		}
+		index--;
+	}
+	return 0;
+}
+
+static void __maybe_unused get_hme_mac_nonsparc(struct pci_dev *pdev,
+						unsigned char *dev_addr)
+{
+	size_t size;
+	void __iomem *p = pci_map_rom(pdev, &size);
+
+	if (p) {
+		int index = 0;
+		int found;
+
+		if (is_quattro_p(pdev))
+			index = PCI_SLOT(pdev->devfn);
+
+		found = readb(p) == 0x55 &&
+			readb(p + 1) == 0xaa &&
+			find_eth_addr_in_vpd(p, (64 * 1024), index, dev_addr);
+		pci_unmap_rom(pdev, p);
+		if (found)
+			return;
+	}
+
+	/* Sun MAC prefix then 3 random bytes. */
+	dev_addr[0] = 0x08;
+	dev_addr[1] = 0x00;
+	dev_addr[2] = 0x20;
+	get_random_bytes(&dev_addr[3], 3);
+}
+#endif /* !(CONFIG_SPARC) */
+
+static void happy_meal_addr_init(struct happy_meal *hp,
+				 struct device_node *dp, int qfe_slot)
+{
+	int i;
+
+	for (i = 0; i < 6; i++) {
+		if (macaddr[i] != 0)
+			break;
+	}
+
+	if (i < 6) { /* a mac address was given */
+		u8 addr[ETH_ALEN];
+
+		for (i = 0; i < 6; i++)
+			addr[i] = macaddr[i];
+		eth_hw_addr_set(hp->dev, addr);
+		macaddr[5]++;
+	} else {
+#ifdef CONFIG_SPARC
+		const unsigned char *addr;
+		int len;
+
+		/* If user did not specify a MAC address specifically, use
+		 * the Quattro local-mac-address property...
+		 */
+		if (qfe_slot != -1) {
+			addr = of_get_property(dp, "local-mac-address", &len);
+			if (addr && len == 6) {
+				eth_hw_addr_set(hp->dev, addr);
+				return;
+			}
+		}
+
+		eth_hw_addr_set(hp->dev, idprom->id_ethaddr);
+#else
+		u8 addr[ETH_ALEN];
+
+		get_hme_mac_nonsparc(hp->happy_dev, addr);
+		eth_hw_addr_set(hp->dev, addr);
+#endif
+	}
+}
+
 #ifdef CONFIG_SBUS
 static int happy_meal_sbus_probe_one(struct platform_device *op, int is_qfe)
 {
@@ -2311,8 +2438,7 @@ static int happy_meal_sbus_probe_one(struct platform_device *op, int is_qfe)
 	struct quattro *qp = NULL;
 	struct happy_meal *hp;
 	struct net_device *dev;
-	int i, qfe_slot = -1;
-	u8 addr[ETH_ALEN];
+	int qfe_slot = -1;
 	int err;
 
 	sbus_dp = op->dev.parent->of_node;
@@ -2337,34 +2463,11 @@ static int happy_meal_sbus_probe_one(struct platform_device *op, int is_qfe)
 		return -ENOMEM;
 	SET_NETDEV_DEV(dev, &op->dev);
 
-	/* If user did not specify a MAC address specifically, use
-	 * the Quattro local-mac-address property...
-	 */
-	for (i = 0; i < 6; i++) {
-		if (macaddr[i] != 0)
-			break;
-	}
-	if (i < 6) { /* a mac address was given */
-		for (i = 0; i < 6; i++)
-			addr[i] = macaddr[i];
-		eth_hw_addr_set(dev, addr);
-		macaddr[5]++;
-	} else {
-		const unsigned char *addr;
-		int len;
-
-		addr = of_get_property(dp, "local-mac-address", &len);
-
-		if (qfe_slot != -1 && addr && len == ETH_ALEN)
-			eth_hw_addr_set(dev, addr);
-		else
-			eth_hw_addr_set(dev, idprom->id_ethaddr);
-	}
-
 	hp = netdev_priv(dev);
-
+	hp->dev = dev;
 	hp->happy_dev = op;
 	hp->dma_dev = &op->dev;
+	happy_meal_addr_init(hp, dp, qfe_slot);
 
 	spin_lock_init(&hp->happy_lock);
 
@@ -2442,7 +2545,6 @@ static int happy_meal_sbus_probe_one(struct platform_device *op, int is_qfe)
 
 	timer_setup(&hp->happy_timer, happy_meal_timer, 0);
 
-	hp->dev = dev;
 	dev->netdev_ops = &hme_netdev_ops;
 	dev->watchdog_timeo = 5*HZ;
 	dev->ethtool_ops = &hme_ethtool_ops;
@@ -2495,104 +2597,17 @@ err_out_clear_quattro:
 #endif
 
 #ifdef CONFIG_PCI
-#ifndef CONFIG_SPARC
-static int is_quattro_p(struct pci_dev *pdev)
-{
-	struct pci_dev *busdev = pdev->bus->self;
-	struct pci_dev *this_pdev;
-	int n_hmes;
-
-	if (busdev == NULL ||
-	    busdev->vendor != PCI_VENDOR_ID_DEC ||
-	    busdev->device != PCI_DEVICE_ID_DEC_21153)
-		return 0;
-
-	n_hmes = 0;
-	list_for_each_entry(this_pdev, &pdev->bus->devices, bus_list) {
-		if (this_pdev->vendor == PCI_VENDOR_ID_SUN &&
-		    this_pdev->device == PCI_DEVICE_ID_SUN_HAPPYMEAL)
-			n_hmes++;
-	}
-
-	if (n_hmes != 4)
-		return 0;
-
-	return 1;
-}
-
-/* Fetch MAC address from vital product data of PCI ROM. */
-static int find_eth_addr_in_vpd(void __iomem *rom_base, int len, int index, unsigned char *dev_addr)
-{
-	int this_offset;
-
-	for (this_offset = 0x20; this_offset < len; this_offset++) {
-		void __iomem *p = rom_base + this_offset;
-
-		if (readb(p + 0) != 0x90 ||
-		    readb(p + 1) != 0x00 ||
-		    readb(p + 2) != 0x09 ||
-		    readb(p + 3) != 0x4e ||
-		    readb(p + 4) != 0x41 ||
-		    readb(p + 5) != 0x06)
-			continue;
-
-		this_offset += 6;
-		p += 6;
-
-		if (index == 0) {
-			int i;
-
-			for (i = 0; i < 6; i++)
-				dev_addr[i] = readb(p + i);
-			return 1;
-		}
-		index--;
-	}
-	return 0;
-}
-
-static void get_hme_mac_nonsparc(struct pci_dev *pdev, unsigned char *dev_addr)
-{
-	size_t size;
-	void __iomem *p = pci_map_rom(pdev, &size);
-
-	if (p) {
-		int index = 0;
-		int found;
-
-		if (is_quattro_p(pdev))
-			index = PCI_SLOT(pdev->devfn);
-
-		found = readb(p) == 0x55 &&
-			readb(p + 1) == 0xaa &&
-			find_eth_addr_in_vpd(p, (64 * 1024), index, dev_addr);
-		pci_unmap_rom(pdev, p);
-		if (found)
-			return;
-	}
-
-	/* Sun MAC prefix then 3 random bytes. */
-	dev_addr[0] = 0x08;
-	dev_addr[1] = 0x00;
-	dev_addr[2] = 0x20;
-	get_random_bytes(&dev_addr[3], 3);
-}
-#endif /* !(CONFIG_SPARC) */
-
 static int happy_meal_pci_probe(struct pci_dev *pdev,
 				const struct pci_device_id *ent)
 {
+	struct device_node *dp = NULL;
 	struct quattro *qp = NULL;
-#ifdef CONFIG_SPARC
-	struct device_node *dp;
-#endif
 	struct happy_meal *hp;
 	struct net_device *dev;
 	void __iomem *hpreg_base;
 	struct resource *hpreg_res;
-	int i, qfe_slot = -1;
 	char prom_name[64];
-	u8 addr[ETH_ALEN];
+	int qfe_slot = -1;
 	int err = -ENODEV;
 
 	/* Now make sure pci_dev cookie is there. */
@@ -2634,7 +2649,7 @@ static int happy_meal_pci_probe(struct pci_dev *pdev,
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	hp = netdev_priv(dev);
-
+	hp->dev = dev;
 	hp->happy_dev = pdev;
 	hp->dma_dev = &pdev->dev;
 
@@ -2670,35 +2685,7 @@ static int happy_meal_pci_probe(struct pci_dev *pdev,
 		goto err_out_clear_quattro;
 	}
 
-	for (i = 0; i < 6; i++) {
-		if (macaddr[i] != 0)
-			break;
-	}
-	if (i < 6) { /* a mac address was given */
-		for (i = 0; i < 6; i++)
-			addr[i] = macaddr[i];
-		eth_hw_addr_set(dev, addr);
-		macaddr[5]++;
-	} else {
-#ifdef CONFIG_SPARC
-		const unsigned char *addr;
-		int len;
-
-		if (qfe_slot != -1 &&
-		    (addr = of_get_property(dp, "local-mac-address", &len))
-			!= NULL &&
-		    len == 6) {
-			eth_hw_addr_set(dev, addr);
-		} else {
-			eth_hw_addr_set(dev, idprom->id_ethaddr);
-		}
-#else
-		u8 addr[ETH_ALEN];
-
-		get_hme_mac_nonsparc(pdev, addr);
-		eth_hw_addr_set(dev, addr);
-#endif
-	}
+	happy_meal_addr_init(hp, dp, qfe_slot);
 
 	/* Layout registers. */
 	hp->gregs      = (hpreg_base + 0x0000UL);
@@ -2747,7 +2734,6 @@ static int happy_meal_pci_probe(struct pci_dev *pdev,
 	timer_setup(&hp->happy_timer, happy_meal_timer, 0);
 
 	hp->irq = pdev->irq;
-	hp->dev = dev;
 	dev->netdev_ops = &hme_netdev_ops;
 	dev->watchdog_timeo = 5*HZ;
 	dev->ethtool_ops = &hme_ethtool_ops;
