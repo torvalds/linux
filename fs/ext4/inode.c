@@ -2902,7 +2902,7 @@ static int ext4_da_write_begin(struct file *file, struct address_space *mapping,
 			       struct page **pagep, void **fsdata)
 {
 	int ret, retries = 0;
-	struct page *page;
+	struct folio *folio;
 	pgoff_t index;
 	struct inode *inode = mapping->host;
 
@@ -2929,22 +2929,23 @@ static int ext4_da_write_begin(struct file *file, struct address_space *mapping,
 	}
 
 retry:
-	page = grab_cache_page_write_begin(mapping, index);
-	if (!page)
+	folio = __filemap_get_folio(mapping, index, FGP_WRITEBEGIN,
+			mapping_gfp_mask(mapping));
+	if (!folio)
 		return -ENOMEM;
 
-	/* In case writeback began while the page was unlocked */
-	wait_for_stable_page(page);
+	/* In case writeback began while the folio was unlocked */
+	folio_wait_stable(folio);
 
 #ifdef CONFIG_FS_ENCRYPTION
-	ret = ext4_block_write_begin(page, pos, len,
+	ret = ext4_block_write_begin(&folio->page, pos, len,
 				     ext4_da_get_block_prep);
 #else
-	ret = __block_write_begin(page, pos, len, ext4_da_get_block_prep);
+	ret = __block_write_begin(&folio->page, pos, len, ext4_da_get_block_prep);
 #endif
 	if (ret < 0) {
-		unlock_page(page);
-		put_page(page);
+		folio_unlock(folio);
+		folio_put(folio);
 		/*
 		 * block_write_begin may have instantiated a few blocks
 		 * outside i_size.  Trim these off again. Don't need
@@ -2959,7 +2960,7 @@ retry:
 		return ret;
 	}
 
-	*pagep = page;
+	*pagep = &folio->page;
 	return ret;
 }
 
