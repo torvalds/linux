@@ -39,21 +39,21 @@ static struct xe_device *uc_fw_to_xe(struct xe_uc_fw *uc_fw)
 
 /*
  * List of required GuC and HuC binaries per-platform.
- * Must be ordered based on platform + revid, from newer to older.
+ * Must be ordered based on platform, from newer to older.
  */
 #define XE_GUC_FIRMWARE_DEFS(fw_def, guc_def) \
-	fw_def(METEORLAKE,   0, guc_def(mtl,  70, 5, 2)) \
-	fw_def(ALDERLAKE_P,  0, guc_def(adlp,  70, 5, 2)) \
-	fw_def(ALDERLAKE_S,  0, guc_def(tgl,  70, 5, 2)) \
-	fw_def(PVC,          0, guc_def(pvc,  70, 5, 2)) \
-	fw_def(DG2,          0, guc_def(dg2,  70, 5, 2)) \
-	fw_def(DG1,          0, guc_def(dg1,  70, 5, 2)) \
-	fw_def(TIGERLAKE,    0, guc_def(tgl,  70, 5, 2))
+	fw_def(METEORLAKE,   guc_def(mtl,  70, 5, 2)) \
+	fw_def(ALDERLAKE_P,  guc_def(adlp,  70, 5, 2)) \
+	fw_def(ALDERLAKE_S,  guc_def(tgl,  70, 5, 2)) \
+	fw_def(PVC,          guc_def(pvc,  70, 5, 2)) \
+	fw_def(DG2,          guc_def(dg2,  70, 5, 2)) \
+	fw_def(DG1,          guc_def(dg1,  70, 5, 2)) \
+	fw_def(TIGERLAKE,    guc_def(tgl,  70, 5, 2))
 
 #define XE_HUC_FIRMWARE_DEFS(fw_def, huc_def, huc_ver) \
-	fw_def(ALDERLAKE_S,  0, huc_def(tgl)) \
-	fw_def(DG1,          0, huc_def(dg1)) \
-	fw_def(TIGERLAKE,    0, huc_def(tgl))
+	fw_def(ALDERLAKE_S,	huc_def(tgl)) \
+	fw_def(DG1,		huc_def(dg1)) \
+	fw_def(TIGERLAKE,	huc_def(tgl))
 
 #define __MAKE_HUC_FW_PATH(prefix_, name_) \
         "i915/" \
@@ -82,7 +82,7 @@ static struct xe_device *uc_fw_to_xe(struct xe_uc_fw *uc_fw)
 
 
 /* All blobs need to be declared via MODULE_FIRMWARE() */
-#define XE_UC_MODULE_FW(platform_, revid_, uc_) \
+#define XE_UC_MODULE_FW(platform_, uc_) \
 	MODULE_FIRMWARE(uc_);
 
 XE_GUC_FIRMWARE_DEFS(XE_UC_MODULE_FW, MAKE_GUC_FW_PATH)
@@ -109,16 +109,14 @@ struct __packed uc_fw_blob {
 	UC_FW_BLOB(major_, minor_, \
 		   MAKE_HUC_FW_PATH_FULL_VER(prefix_, major_, minor_, bld_num_))
 
-struct __packed uc_fw_platform_requirement {
+struct uc_fw_platform_requirement {
 	enum xe_platform p;
-	u8 rev; /* first platform rev using this FW */
 	const struct uc_fw_blob blob;
 };
 
-#define MAKE_FW_LIST(platform_, revid_, uc_) \
+#define MAKE_FW_LIST(platform_, uc_) \
 { \
 	.p = XE_##platform_, \
-	.rev = revid_, \
 	.blob = uc_, \
 },
 
@@ -143,7 +141,6 @@ uc_fw_auto_select(struct xe_device *xe, struct xe_uc_fw *uc_fw)
 	static const struct uc_fw_platform_requirement *fw_blobs;
 	enum xe_platform p = xe->info.platform;
 	u32 fw_count;
-	u8 rev = xe->info.revid;
 	int i;
 
 	XE_BUG_ON(uc_fw->type >= ARRAY_SIZE(blobs_all));
@@ -151,7 +148,7 @@ uc_fw_auto_select(struct xe_device *xe, struct xe_uc_fw *uc_fw)
 	fw_count = blobs_all[uc_fw->type].count;
 
 	for (i = 0; i < fw_count && p <= fw_blobs[i].p; i++) {
-		if (p == fw_blobs[i].p && rev >= fw_blobs[i].rev) {
+		if (p == fw_blobs[i].p) {
 			const struct uc_fw_blob *blob = &fw_blobs[i].blob;
 
 			uc_fw->path = blob->path;
