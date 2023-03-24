@@ -507,8 +507,10 @@ static int octep_open(struct net_device *netdev)
 	octep_napi_enable(oct);
 
 	oct->link_info.admin_up = 1;
-	octep_ctrl_net_set_rx_state(oct, true, false);
-	octep_ctrl_net_set_link_status(oct, true, false);
+	octep_ctrl_net_set_rx_state(oct, OCTEP_CTRL_NET_INVALID_VFID, true,
+				    false);
+	octep_ctrl_net_set_link_status(oct, OCTEP_CTRL_NET_INVALID_VFID, true,
+				       false);
 	oct->poll_non_ioq_intr = false;
 
 	/* Enable the input and output queues for this Octeon device */
@@ -519,7 +521,7 @@ static int octep_open(struct net_device *netdev)
 
 	octep_oq_dbell_init(oct);
 
-	ret = octep_ctrl_net_get_link_status(oct);
+	ret = octep_ctrl_net_get_link_status(oct, OCTEP_CTRL_NET_INVALID_VFID);
 	if (ret > 0)
 		octep_link_up(netdev);
 
@@ -549,8 +551,10 @@ static int octep_stop(struct net_device *netdev)
 
 	netdev_info(netdev, "Stopping the device ...\n");
 
-	octep_ctrl_net_set_link_status(oct, false, false);
-	octep_ctrl_net_set_rx_state(oct, false, false);
+	octep_ctrl_net_set_link_status(oct, OCTEP_CTRL_NET_INVALID_VFID, false,
+				       false);
+	octep_ctrl_net_set_rx_state(oct, OCTEP_CTRL_NET_INVALID_VFID, false,
+				    false);
 
 	/* Stop Tx from stack */
 	netif_tx_stop_all_queues(netdev);
@@ -759,7 +763,7 @@ static void octep_get_stats64(struct net_device *netdev,
 	int q;
 
 	if (netif_running(netdev))
-		octep_ctrl_net_get_if_stats(oct);
+		octep_ctrl_net_get_if_stats(oct, OCTEP_CTRL_NET_INVALID_VFID);
 
 	tx_packets = 0;
 	tx_bytes = 0;
@@ -831,7 +835,8 @@ static int octep_set_mac(struct net_device *netdev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	err = octep_ctrl_net_set_mac_addr(oct, addr->sa_data, true);
+	err = octep_ctrl_net_set_mac_addr(oct, OCTEP_CTRL_NET_INVALID_VFID,
+					  addr->sa_data, true);
 	if (err)
 		return err;
 
@@ -851,7 +856,8 @@ static int octep_change_mtu(struct net_device *netdev, int new_mtu)
 	if (link_info->mtu == new_mtu)
 		return 0;
 
-	err = octep_ctrl_net_set_mtu(oct, new_mtu, true);
+	err = octep_ctrl_net_set_mtu(oct, OCTEP_CTRL_NET_INVALID_VFID, new_mtu,
+				     true);
 	if (!err) {
 		oct->link_info.mtu = new_mtu;
 		netdev->mtu = new_mtu;
@@ -1102,7 +1108,7 @@ static int octep_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->max_mtu = OCTEP_MAX_MTU;
 	netdev->mtu = OCTEP_DEFAULT_MTU;
 
-	err = octep_ctrl_net_get_mac_addr(octep_dev,
+	err = octep_ctrl_net_get_mac_addr(octep_dev, OCTEP_CTRL_NET_INVALID_VFID,
 					  octep_dev->mac_addr);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to get mac address\n");

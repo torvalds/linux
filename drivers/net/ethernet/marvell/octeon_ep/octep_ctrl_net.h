@@ -7,6 +7,8 @@
 #ifndef __OCTEP_CTRL_NET_H__
 #define __OCTEP_CTRL_NET_H__
 
+#define OCTEP_CTRL_NET_INVALID_VFID	(-1)
+
 /* Supported commands */
 enum octep_ctrl_net_cmd {
 	OCTEP_CTRL_NET_CMD_GET = 0,
@@ -216,89 +218,99 @@ int octep_ctrl_net_init(struct octep_device *oct);
 /** Get link status from firmware.
  *
  * @param oct: non-null pointer to struct octep_device.
+ * @param vfid: Index of virtual function.
  *
  * return value: link status 0=down, 1=up.
  */
-int octep_ctrl_net_get_link_status(struct octep_device *oct);
+int octep_ctrl_net_get_link_status(struct octep_device *oct, int vfid);
 
 /** Set link status in firmware.
  *
  * @param oct: non-null pointer to struct octep_device.
+ * @param vfid: Index of virtual function.
  * @param up: boolean status.
  * @param wait_for_response: poll for response.
  *
  * return value: 0 on success, -errno on failure
  */
-int octep_ctrl_net_set_link_status(struct octep_device *oct, bool up,
+int octep_ctrl_net_set_link_status(struct octep_device *oct, int vfid, bool up,
 				   bool wait_for_response);
 
 /** Set rx state in firmware.
  *
  * @param oct: non-null pointer to struct octep_device.
+ * @param vfid: Index of virtual function.
  * @param up: boolean status.
  * @param wait_for_response: poll for response.
  *
  * return value: 0 on success, -errno on failure.
  */
-int octep_ctrl_net_set_rx_state(struct octep_device *oct, bool up,
+int octep_ctrl_net_set_rx_state(struct octep_device *oct, int vfid, bool up,
 				bool wait_for_response);
 
 /** Get mac address from firmware.
  *
  * @param oct: non-null pointer to struct octep_device.
+ * @param vfid: Index of virtual function.
  * @param addr: non-null pointer to mac address.
  *
  * return value: 0 on success, -errno on failure.
  */
-int octep_ctrl_net_get_mac_addr(struct octep_device *oct, u8 *addr);
+int octep_ctrl_net_get_mac_addr(struct octep_device *oct, int vfid, u8 *addr);
 
 /** Set mac address in firmware.
  *
  * @param oct: non-null pointer to struct octep_device.
+ * @param vfid: Index of virtual function.
  * @param addr: non-null pointer to mac address.
  * @param wait_for_response: poll for response.
  *
  * return value: 0 on success, -errno on failure.
  */
-int octep_ctrl_net_set_mac_addr(struct octep_device *oct, u8 *addr,
+int octep_ctrl_net_set_mac_addr(struct octep_device *oct, int vfid, u8 *addr,
 				bool wait_for_response);
 
 /** Set mtu in firmware.
  *
  * @param oct: non-null pointer to struct octep_device.
+ * @param vfid: Index of virtual function.
  * @param mtu: mtu.
  * @param wait_for_response: poll for response.
  *
  * return value: 0 on success, -errno on failure.
  */
-int octep_ctrl_net_set_mtu(struct octep_device *oct, int mtu,
+int octep_ctrl_net_set_mtu(struct octep_device *oct, int vfid, int mtu,
 			   bool wait_for_response);
 
 /** Get interface statistics from firmware.
  *
  * @param oct: non-null pointer to struct octep_device.
+ * @param vfid: Index of virtual function.
  *
  * return value: 0 on success, -errno on failure.
  */
-int octep_ctrl_net_get_if_stats(struct octep_device *oct);
+int octep_ctrl_net_get_if_stats(struct octep_device *oct, int vfid);
 
 /** Get link info from firmware.
  *
  * @param oct: non-null pointer to struct octep_device.
+ * @param vfid: Index of virtual function.
  *
  * return value: 0 on success, -errno on failure.
  */
-int octep_ctrl_net_get_link_info(struct octep_device *oct);
+int octep_ctrl_net_get_link_info(struct octep_device *oct, int vfid);
 
 /** Set link info in firmware.
  *
  * @param oct: non-null pointer to struct octep_device.
+ * @param vfid: Index of virtual function.
  * @param link_info: non-null pointer to struct octep_iface_link_info.
  * @param wait_for_response: poll for response.
  *
  * return value: 0 on success, -errno on failure.
  */
 int octep_ctrl_net_set_link_info(struct octep_device *oct,
+				 int vfid,
 				 struct octep_iface_link_info *link_info,
 				 bool wait_for_response);
 
