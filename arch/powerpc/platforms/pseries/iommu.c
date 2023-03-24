@@ -479,7 +479,7 @@ static int tce_setrange_multi_pSeriesLP(unsigned long start_pfn,
 		 * Set up the page with TCE data, looping through and setting
 		 * the values.
 		 */
-		limit = min_t(long, num_tce, 4096/TCE_ENTRY_SIZE);
+		limit = min_t(long, num_tce, 4096 / TCE_ENTRY_SIZE);
 		dma_offset = next + be64_to_cpu(maprange->dma_base);
 
 		for (l = 0; l < limit; l++) {
