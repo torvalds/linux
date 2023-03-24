@@ -6075,7 +6075,7 @@ static int ext4_bh_unmapped(handle_t *handle, struct inode *inode,
 vm_fault_t ext4_page_mkwrite(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
-	struct page *page = vmf->page;
+	struct folio *folio = page_folio(vmf->page);
 	loff_t size;
 	unsigned long len;
 	int err;
@@ -6119,19 +6119,18 @@ vm_fault_t ext4_page_mkwrite(struct vm_fault *vmf)
 		goto out_ret;
 	}
 
-	lock_page(page);
+	folio_lock(folio);
 	size = i_size_read(inode);
 	/* Page got truncated from under us? */
-	if (page->mapping != mapping || page_offset(page) > size) {
-		unlock_page(page);
+	if (folio->mapping != mapping || folio_pos(folio) > size) {
+		folio_unlock(folio);
 		ret = VM_FAULT_NOPAGE;
 		goto out;
 	}
 
-	if (page->index == size >> PAGE_SHIFT)
-		len = size & ~PAGE_MASK;
-	else
-		len = PAGE_SIZE;
+	len = folio_size(folio);
+	if (folio_pos(folio) + len > size)
+		len = size - folio_pos(folio);
 	/*
 	 * Return if we have all the buffers mapped. This avoids the need to do
 	 * journal_start/journal_stop which can block and take a long time
@@ -6139,17 +6138,17 @@ vm_fault_t ext4_page_mkwrite(struct vm_fault *vmf)
 	 * This cannot be done for data journalling, as we have to add the
 	 * inode to the transaction's list to writeprotect pages on commit.
 	 */
-	if (page_has_buffers(page)) {
-		if (!ext4_walk_page_buffers(NULL, inode, page_buffers(page),
+	if (folio_buffers(folio)) {
+		if (!ext4_walk_page_buffers(NULL, inode, folio_buffers(folio),
 					    0, len, NULL,
 					    ext4_bh_unmapped)) {
 			/* Wait so that we don't change page under IO */
-			wait_for_stable_page(page);
+			folio_wait_stable(folio);
 			ret = VM_FAULT_LOCKED;
 			goto out;
 		}
 	}
-	unlock_page(page);
+	folio_unlock(folio);
 	/* OK, we need to fill the hole... */
 	if (ext4_should_dioread_nolock(inode))
 		get_block = ext4_get_block_unwritten;
@@ -6170,26 +6169,25 @@ retry_alloc:
 	if (!ext4_should_journal_data(inode)) {
 		err = block_page_mkwrite(vma, vmf, get_block);
 	} else {
-		lock_page(page);
+		folio_lock(folio);
 		size = i_size_read(inode);
 		/* Page got truncated from under us? */
-		if (page->mapping != mapping || page_offset(page) > size) {
+		if (folio->mapping != mapping || folio_pos(folio) > size) {
 			ret = VM_FAULT_NOPAGE;
 			goto out_error;
 		}
 
-		if (page->index == size >> PAGE_SHIFT)
-			len = size & ~PAGE_MASK;
-		else
-			len = PAGE_SIZE;
+		len = folio_size(folio);
+		if (folio_pos(folio) + len > size)
+			len = size - folio_pos(folio);
 
-		err = __block_write_begin(page, 0, len, ext4_get_block);
+		err = __block_write_begin(&folio->page, 0, len, ext4_get_block);
 		if (!err) {
 			ret = VM_FAULT_SIGBUS;
-			if (ext4_journal_page_buffers(handle, page, len))
+			if (ext4_journal_page_buffers(handle, &folio->page, len))
 				goto out_error;
 		} else {
-			unlock_page(page);
+			folio_unlock(folio);
 		}
 	}
 	ext4_journal_stop(handle);
@@ -6202,7 +6200,7 @@ out:
 	sb_end_pagefault(inode->i_sb);
 	return ret;
 out_error:
-	unlock_page(page);
+	folio_unlock(folio);
 	ext4_journal_stop(handle);
 	goto out;
 }
