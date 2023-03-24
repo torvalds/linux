@@ -756,5 +756,5 @@ module_exit(dma_test_exit);
 
 MODULE_AUTHOR("Isaac Hazan <isaac.hazan@intel.com>");
 MODULE_AUTHOR("Mika Westerberg <mika.westerberg@linux.intel.com>");
-MODULE_DESCRIPTION("DMA traffic test driver");
+MODULE_DESCRIPTION("Thunderbolt/USB4 DMA traffic test driver");
 MODULE_LICENSE("GPL v2");
