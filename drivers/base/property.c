@@ -648,7 +648,7 @@ EXPORT_SYMBOL_GPL(fwnode_get_next_parent);
  *
  * Return: a pointer to the device of the @fwnode's closest ancestor.
  */
-struct device *fwnode_get_next_parent_dev(struct fwnode_handle *fwnode)
+struct device *fwnode_get_next_parent_dev(const struct fwnode_handle *fwnode)
 {
 	struct fwnode_handle *parent;
 	struct device *dev;
@@ -718,7 +718,7 @@ EXPORT_SYMBOL_GPL(fwnode_get_nth_parent);
  *
  * Return: true if @ancestor is an ancestor of @child. Otherwise, returns false.
  */
-bool fwnode_is_ancestor_of(struct fwnode_handle *ancestor, struct fwnode_handle *child)
+bool fwnode_is_ancestor_of(const struct fwnode_handle *ancestor, const struct fwnode_handle *child)
 {
 	struct fwnode_handle *parent;
 
@@ -1235,7 +1235,7 @@ EXPORT_SYMBOL_GPL(fwnode_graph_get_endpoint_by_id);
  * If FWNODE_GRAPH_DEVICE_DISABLED flag is specified, also unconnected endpoints
  * and endpoints connected to disabled devices are counted.
  */
-unsigned int fwnode_graph_get_endpoint_count(struct fwnode_handle *fwnode,
+unsigned int fwnode_graph_get_endpoint_count(const struct fwnode_handle *fwnode,
 					     unsigned long flags)
 {
 	struct fwnode_handle *ep;
