@@ -110,11 +110,11 @@ struct bus_type {
 	bool need_parent_lock;
 };
 
-extern int __must_check bus_register(const struct bus_type *bus);
+int __must_check bus_register(const struct bus_type *bus);
 
-extern void bus_unregister(const struct bus_type *bus);
+void bus_unregister(const struct bus_type *bus);
 
-extern int __must_check bus_rescan_devices(const struct bus_type *bus);
+int __must_check bus_rescan_devices(const struct bus_type *bus);
 
 struct bus_attribute {
 	struct attribute	attr;
@@ -244,10 +244,8 @@ void bus_sort_breadthfirst(struct bus_type *bus,
  */
 struct notifier_block;
 
-extern int bus_register_notifier(const struct bus_type *bus,
-				 struct notifier_block *nb);
-extern int bus_unregister_notifier(const struct bus_type *bus,
-				   struct notifier_block *nb);
+int bus_register_notifier(const struct bus_type *bus, struct notifier_block *nb);
+int bus_unregister_notifier(const struct bus_type *bus, struct notifier_block *nb);
 
 /**
  * enum bus_notifier_event - Bus Notifier events that have happened
@@ -279,7 +277,7 @@ enum bus_notifier_event {
 	BUS_NOTIFY_DRIVER_NOT_BOUND,
 };
 
-extern struct kset *bus_get_kset(const struct bus_type *bus);
+struct kset *bus_get_kset(const struct bus_type *bus);
 struct device *bus_get_dev_root(const struct bus_type *bus);
 
 #endif
