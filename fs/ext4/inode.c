@@ -1139,7 +1139,7 @@ static int ext4_write_begin(struct file *file, struct address_space *mapping,
 	int ret, needed_blocks;
 	handle_t *handle;
 	int retries = 0;
-	struct page *page;
+	struct folio *folio;
 	pgoff_t index;
 	unsigned from, to;
 
@@ -1166,68 +1166,69 @@ static int ext4_write_begin(struct file *file, struct address_space *mapping,
 	}
 
 	/*
-	 * grab_cache_page_write_begin() can take a long time if the
-	 * system is thrashing due to memory pressure, or if the page
+	 * __filemap_get_folio() can take a long time if the
+	 * system is thrashing due to memory pressure, or if the folio
 	 * is being written back.  So grab it first before we start
 	 * the transaction handle.  This also allows us to allocate
-	 * the page (if needed) without using GFP_NOFS.
+	 * the folio (if needed) without using GFP_NOFS.
 	 */
 retry_grab:
-	page = grab_cache_page_write_begin(mapping, index);
-	if (!page)
+	folio = __filemap_get_folio(mapping, index, FGP_WRITEBEGIN,
+					mapping_gfp_mask(mapping));
+	if (!folio)
 		return -ENOMEM;
 	/*
 	 * The same as page allocation, we prealloc buffer heads before
 	 * starting the handle.
 	 */
-	if (!page_has_buffers(page))
-		create_empty_buffers(page, inode->i_sb->s_blocksize, 0);
+	if (!folio_buffers(folio))
+		create_empty_buffers(&folio->page, inode->i_sb->s_blocksize, 0);
 
-	unlock_page(page);
+	folio_unlock(folio);
 
 retry_journal:
 	handle = ext4_journal_start(inode, EXT4_HT_WRITE_PAGE, needed_blocks);
 	if (IS_ERR(handle)) {
-		put_page(page);
+		folio_put(folio);
 		return PTR_ERR(handle);
 	}
 
-	lock_page(page);
-	if (page->mapping != mapping) {
-		/* The page got truncated from under us */
-		unlock_page(page);
-		put_page(page);
+	folio_lock(folio);
+	if (folio->mapping != mapping) {
+		/* The folio got truncated from under us */
+		folio_unlock(folio);
+		folio_put(folio);
 		ext4_journal_stop(handle);
 		goto retry_grab;
 	}
-	/* In case writeback began while the page was unlocked */
-	wait_for_stable_page(page);
+	/* In case writeback began while the folio was unlocked */
+	folio_wait_stable(folio);
 
 #ifdef CONFIG_FS_ENCRYPTION
 	if (ext4_should_dioread_nolock(inode))
-		ret = ext4_block_write_begin(page, pos, len,
+		ret = ext4_block_write_begin(&folio->page, pos, len,
 					     ext4_get_block_unwritten);
 	else
-		ret = ext4_block_write_begin(page, pos, len,
+		ret = ext4_block_write_begin(&folio->page, pos, len,
 					     ext4_get_block);
 #else
 	if (ext4_should_dioread_nolock(inode))
-		ret = __block_write_begin(page, pos, len,
+		ret = __block_write_begin(&folio->page, pos, len,
 					  ext4_get_block_unwritten);
 	else
-		ret = __block_write_begin(page, pos, len, ext4_get_block);
+		ret = __block_write_begin(&folio->page, pos, len, ext4_get_block);
 #endif
 	if (!ret && ext4_should_journal_data(inode)) {
 		ret = ext4_walk_page_buffers(handle, inode,
-					     page_buffers(page), from, to, NULL,
-					     do_journal_get_write_access);
+					     folio_buffers(folio), from, to,
+					     NULL, do_journal_get_write_access);
 	}
 
 	if (ret) {
 		bool extended = (pos + len > inode->i_size) &&
 				!ext4_verity_in_progress(inode);
 
-		unlock_page(page);
+		folio_unlock(folio);
 		/*
 		 * __block_write_begin may have instantiated a few blocks
 		 * outside i_size.  Trim these off again. Don't need
@@ -1255,10 +1256,10 @@ retry_journal:
 		if (ret == -ENOSPC &&
 		    ext4_should_retry_alloc(inode->i_sb, &retries))
 			goto retry_journal;
-		put_page(page);
+		folio_put(folio);
 		return ret;
 	}
-	*pagep = page;
+	*pagep = &folio->page;
 	return ret;
 }
 
