@@ -133,12 +133,12 @@ int amdgpu_jpeg_dec_ring_test_ring(struct amdgpu_ring *ring)
 	RREG32(adev->jpeg.inst[ring->me].external.jpeg_pitch[ring->pipe]);
 
 	amdgpu_ring_write(ring, PACKET0(adev->jpeg.internal.jpeg_pitch[ring->pipe], 0));
-	amdgpu_ring_write(ring, 0xDEADBEEF);
+	amdgpu_ring_write(ring, 0xABADCAFE);
 	amdgpu_ring_commit(ring);
 
 	for (i = 0; i < adev->usec_timeout; i++) {
 		tmp = RREG32(adev->jpeg.inst[ring->me].external.jpeg_pitch[ring->pipe]);
-		if (tmp == 0xDEADBEEF)
+		if (tmp == 0xABADCAFE)
 			break;
 		udelay(1);
 	}
