@@ -392,6 +392,12 @@ static int hda_dsp_update_d0i3c_register(struct snd_sof_dev *sdev, u8 value)
 	snd_sof_dsp_update8(sdev, HDA_DSP_HDA_BAR, chip->d0i3_offset,
 			    SOF_HDA_VS_D0I3C_I3, value);
 
+	/*
+	 * The value written to the D0I3C::I3 bit may not be taken into account immediately.
+	 * A delay is recommended before checking if D0I3C::CIP is cleared
+	 */
+	usleep_range(30, 40);
+
 	/* Wait for cmd in progress to be cleared before exiting the function */
 	ret = hda_dsp_wait_d0i3c_done(sdev);
 	if (ret < 0) {
@@ -400,6 +406,12 @@ static int hda_dsp_update_d0i3c_register(struct snd_sof_dev *sdev, u8 value)
 	}
 
 	reg = snd_sof_dsp_read8(sdev, HDA_DSP_HDA_BAR, chip->d0i3_offset);
+	/* Confirm d0i3 state changed with paranoia check */
+	if ((reg ^ value) & SOF_HDA_VS_D0I3C_I3) {
+		dev_err(sdev->dev, "failed to update D0I3C!\n");
+		return -EIO;
+	}
+
 	trace_sof_intel_D0I3C_updated(sdev, reg);
 
 	return 0;

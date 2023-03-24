@@ -78,6 +78,7 @@ modules.order
 # RPM spec file (make rpm-pkg)
 #
 /*.spec
+/rpmbuild/
 
 #
 # Debian directory (make deb-pkg)

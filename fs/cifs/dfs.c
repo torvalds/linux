@@ -95,25 +95,31 @@ static int get_session(struct cifs_mount_ctx *mnt_ctx, const char *full_path)
 	ctx->leaf_fullpath = (char *)full_path;
 	rc = cifs_mount_get_session(mnt_ctx);
 	ctx->leaf_fullpath = NULL;
-	if (!rc) {
-		struct cifs_ses *ses = mnt_ctx->ses;
 
-		mutex_lock(&ses->session_mutex);
-		ses->dfs_root_ses = mnt_ctx->root_ses;
-		mutex_unlock(&ses->session_mutex);
-	}
 	return rc;
 }
 
-static void set_root_ses(struct cifs_mount_ctx *mnt_ctx)
+static int get_root_smb_session(struct cifs_mount_ctx *mnt_ctx)
 {
-	if (mnt_ctx->ses) {
+	struct smb3_fs_context *ctx = mnt_ctx->fs_ctx;
+	struct dfs_root_ses *root_ses;
+	struct cifs_ses *ses = mnt_ctx->ses;
+
+	if (ses) {
+		root_ses = kmalloc(sizeof(*root_ses), GFP_KERNEL);
+		if (!root_ses)
+			return -ENOMEM;
+
+		INIT_LIST_HEAD(&root_ses->list);
+
 		spin_lock(&cifs_tcp_ses_lock);
-		mnt_ctx->ses->ses_count++;
+		ses->ses_count++;
 		spin_unlock(&cifs_tcp_ses_lock);
-		dfs_cache_add_refsrv_session(&mnt_ctx->mount_id, mnt_ctx->ses);
+		root_ses->ses = ses;
+		list_add_tail(&root_ses->list, &mnt_ctx->dfs_ses_list);
 	}
-	mnt_ctx->root_ses = mnt_ctx->ses;
+	ctx->dfs_root_ses = ses;
+	return 0;
 }
 
 static int get_dfs_conn(struct cifs_mount_ctx *mnt_ctx, const char *ref_path, const char *full_path,
@@ -121,7 +127,8 @@ static int get_dfs_conn(struct cifs_mount_ctx *mnt_ctx, const char *ref_path, co
 {
 	struct smb3_fs_context *ctx = mnt_ctx->fs_ctx;
 	struct dfs_info3_param ref = {};
-	int rc;
+	bool is_refsrv = false;
+	int rc, rc2;
 
 	rc = dfs_cache_get_tgt_referral(ref_path + 1, tit, &ref);
 	if (rc)
@@ -136,8 +143,7 @@ static int get_dfs_conn(struct cifs_mount_ctx *mnt_ctx, const char *ref_path, co
 	if (rc)
 		goto out;
 
-	if (ref.flags & DFSREF_REFERRAL_SERVER)
-		set_root_ses(mnt_ctx);
+	is_refsrv = !!(ref.flags & DFSREF_REFERRAL_SERVER);
 
 	rc = -EREMOTE;
 	if (ref.flags & DFSREF_STORAGE_SERVER) {
@@ -146,11 +152,15 @@ static int get_dfs_conn(struct cifs_mount_ctx *mnt_ctx, const char *ref_path, co
 			goto out;
 
 		/* some servers may not advertise referral capability under ref.flags */
-		if (!(ref.flags & DFSREF_REFERRAL_SERVER) &&
-		    is_tcon_dfs(mnt_ctx->tcon))
-			set_root_ses(mnt_ctx);
+		is_refsrv |= is_tcon_dfs(mnt_ctx->tcon);
 
 		rc = cifs_is_path_remote(mnt_ctx);
+	}
+
+	if (rc == -EREMOTE && is_refsrv) {
+		rc2 = get_root_smb_session(mnt_ctx);
+		if (rc2)
+			rc = rc2;
 	}
 
 out:
@@ -165,6 +175,7 @@ static int __dfs_mount_share(struct cifs_mount_ctx *mnt_ctx)
 	char *ref_path = NULL, *full_path = NULL;
 	struct dfs_cache_tgt_iterator *tit;
 	struct TCP_Server_Info *server;
+	struct cifs_tcon *tcon;
 	char *origin_fullpath = NULL;
 	int num_links = 0;
 	int rc;
@@ -234,12 +245,22 @@ static int __dfs_mount_share(struct cifs_mount_ctx *mnt_ctx)
 
 	if (!rc) {
 		server = mnt_ctx->server;
+		tcon = mnt_ctx->tcon;
 
 		mutex_lock(&server->refpath_lock);
-		server->origin_fullpath = origin_fullpath;
-		server->current_fullpath = server->leaf_fullpath;
+		if (!server->origin_fullpath) {
+			server->origin_fullpath = origin_fullpath;
+			server->current_fullpath = server->leaf_fullpath;
+			origin_fullpath = NULL;
+		}
 		mutex_unlock(&server->refpath_lock);
-		origin_fullpath = NULL;
+
+		if (list_empty(&tcon->dfs_ses_list)) {
+			list_replace_init(&mnt_ctx->dfs_ses_list,
+					  &tcon->dfs_ses_list);
+		} else {
+			dfs_put_root_smb_sessions(&mnt_ctx->dfs_ses_list);
+		}
 	}
 
 out:
@@ -260,7 +281,7 @@ int dfs_mount_share(struct cifs_mount_ctx *mnt_ctx, bool *isdfs)
 	rc = get_session(mnt_ctx, NULL);
 	if (rc)
 		return rc;
-	mnt_ctx->root_ses = mnt_ctx->ses;
+	ctx->dfs_root_ses = mnt_ctx->ses;
 	/*
 	 * If called with 'nodfs' mount option, then skip DFS resolving.  Otherwise unconditionally
 	 * try to get an DFS referral (even cached) to determine whether it is an DFS mount.
@@ -280,7 +301,9 @@ int dfs_mount_share(struct cifs_mount_ctx *mnt_ctx, bool *isdfs)
 	}
 
 	*isdfs = true;
-	set_root_ses(mnt_ctx);
+	rc = get_root_smb_session(mnt_ctx);
+	if (rc)
+		return rc;
 
 	return __dfs_mount_share(mnt_ctx);
 }

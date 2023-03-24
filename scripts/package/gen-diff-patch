@@ -1,0 +1,44 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+
+diff_patch="${1}"
+untracked_patch="${2}"
+srctree=$(dirname $0)/../..
+
+rm -f ${diff_patch} ${untracked_patch}
+
+if ! ${srctree}/scripts/check-git; then
+	exit
+fi
+
+mkdir -p "$(dirname ${diff_patch})" "$(dirname ${untracked_patch})"
+
+git -C "${srctree}" diff HEAD > "${diff_patch}"
+
+if [ ! -s "${diff_patch}" ]; then
+	rm -f "${diff_patch}"
+	exit
+fi
+
+git -C ${srctree} status --porcelain --untracked-files=all |
+while read stat path
+do
+	if [ "${stat}" = '??' ]; then
+
+		if ! diff -u /dev/null "${srctree}/${path}" > .tmp_diff &&
+			! head -n1 .tmp_diff | grep -q "Binary files"; then
+			{
+				echo "--- /dev/null"
+				echo "+++ linux/$path"
+				cat .tmp_diff | tail -n +3
+			} >> ${untracked_patch}
+		fi
+	fi
+done
+
+rm -f .tmp_diff
+
+if [ ! -s "${diff_patch}" ]; then
+	rm -f "${diff_patch}"
+	exit
+fi

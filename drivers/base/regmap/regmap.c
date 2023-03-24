@@ -1676,6 +1676,12 @@ static void regmap_set_work_buf_flag_mask(struct regmap *map, int max_bytes,
 		buf[i] |= (mask >> (8 * i)) & 0xff;
 }
 
+static unsigned int regmap_reg_addr(struct regmap *map, unsigned int reg)
+{
+	reg += map->reg_base;
+	return reg >> map->format.reg_downshift;
+}
+
 static int _regmap_raw_write_impl(struct regmap *map, unsigned int reg,
 				  const void *val, size_t val_len, bool noinc)
 {
@@ -1753,8 +1759,7 @@ static int _regmap_raw_write_impl(struct regmap *map, unsigned int reg,
 			return ret;
 	}
 
-	reg += map->reg_base;
-	reg >>= map->format.reg_downshift;
+	reg = regmap_reg_addr(map, reg);
 	map->format.format_reg(map->work_buf, reg, map->reg_shift);
 	regmap_set_work_buf_flag_mask(map, map->format.reg_bytes,
 				      map->write_flag_mask);
@@ -1924,8 +1929,7 @@ static int _regmap_bus_formatted_write(void *context, unsigned int reg,
 			return ret;
 	}
 
-	reg += map->reg_base;
-	reg >>= map->format.reg_downshift;
+	reg = regmap_reg_addr(map, reg);
 	map->format.format_write(map, reg, val);
 
 	trace_regmap_hw_write_start(map, reg, 1);
@@ -1942,8 +1946,7 @@ static int _regmap_bus_reg_write(void *context, unsigned int reg,
 {
 	struct regmap *map = context;
 
-	reg += map->reg_base;
-	reg >>= map->format.reg_downshift;
+	reg = regmap_reg_addr(map, reg);
 	return map->bus->reg_write(map->bus_context, reg, val);
 }
 
@@ -2494,8 +2497,7 @@ static int _regmap_raw_multi_reg_write(struct regmap *map,
 		unsigned int reg = regs[i].reg;
 		unsigned int val = regs[i].def;
 		trace_regmap_hw_write_start(map, reg, 1);
-		reg += map->reg_base;
-		reg >>= map->format.reg_downshift;
+		reg = regmap_reg_addr(map, reg);
 		map->format.format_reg(u8, reg, map->reg_shift);
 		u8 += reg_bytes + pad_bytes;
 		map->format.format_val(u8, val, 0);
@@ -2821,8 +2823,7 @@ static int _regmap_raw_read(struct regmap *map, unsigned int reg, void *val,
 			return ret;
 	}
 
-	reg += map->reg_base;
-	reg >>= map->format.reg_downshift;
+	reg = regmap_reg_addr(map, reg);
 	map->format.format_reg(map->work_buf, reg, map->reg_shift);
 	regmap_set_work_buf_flag_mask(map, map->format.reg_bytes,
 				      map->read_flag_mask);
@@ -2842,8 +2843,7 @@ static int _regmap_bus_reg_read(void *context, unsigned int reg,
 {
 	struct regmap *map = context;
 
-	reg += map->reg_base;
-	reg >>= map->format.reg_downshift;
+	reg = regmap_reg_addr(map, reg);
 	return map->bus->reg_read(map->bus_context, reg, val);
 }
 
@@ -3235,8 +3235,7 @@ static int _regmap_update_bits(struct regmap *map, unsigned int reg,
 		*change = false;
 
 	if (regmap_volatile(map, reg) && map->reg_update_bits) {
-		reg += map->reg_base;
-		reg >>= map->format.reg_downshift;
+		reg = regmap_reg_addr(map, reg);
 		ret = map->reg_update_bits(map->bus_context, reg, mask, val);
 		if (ret == 0 && change)
 			*change = true;
