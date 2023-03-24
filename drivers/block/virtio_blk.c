@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
-//#define DEBUG
+/*
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ */
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/blkdev.h>
@@ -26,6 +28,13 @@
 
 /* The maximum number of sg elements that fit into a virtqueue */
 #define VIRTIO_BLK_MAX_SG_ELEMS 32768
+#if IS_ENABLED(CONFIG_QTI_CRYPTO_VIRTUALIZATION)
+/* ICE feature bits needs to be moved to uapi headers.*/
+/* support ice virtualization */
+#define VIRTIO_BLK_F_ICE        23
+/* support ice virtualization with iv (initialization vector) */
+#define VIRTIO_BLK_F_ICE_IV     22
+#endif
 
 #ifdef CONFIG_ARCH_NO_SG_CHAIN
 #define VIRTIO_BLK_INLINE_SG_CNT	0
@@ -85,8 +94,21 @@ struct virtio_blk {
 	struct virtio_blk_vq *vqs;
 };
 
+#if IS_ENABLED(CONFIG_QTI_CRYPTO_VIRTUALIZATION)
+struct virtio_blk_ice_info {
+	/*the key slot to use for inline crypto*/
+	u8  ice_slot;
+	u8  activate;
+	u16 reserved;
+	u32 reserved1;
+	u64 data_unit_num;
+} __packed;
+#endif
 struct virtblk_req {
 	struct virtio_blk_outhdr out_hdr;
+#if IS_ENABLED(CONFIG_QTI_CRYPTO_VIRTUALIZATION)
+	struct virtio_blk_ice_info ice_info;
+#endif
 	u8 status;
 	struct sg_table sg_table;
 	struct scatterlist sg[];
@@ -116,8 +138,24 @@ static int virtblk_add_req(struct virtqueue *vq, struct virtblk_req *vbr)
 {
 	struct scatterlist hdr, status, *sgs[3];
 	unsigned int num_out = 0, num_in = 0;
+#if IS_ENABLED(CONFIG_QTI_CRYPTO_VIRTUALIZATION)
+	size_t hdr_size;
 
+	/* Backend (HOST) expects to receive encryption info via extended
+	 * structure when ICE negotiation is successful which will be used
+	 * by backend ufs/sdhci host controller to program the descriptors
+	 * as per JEDEC standard. To enable encryption on data, Need to pass
+	 * required encryption info instead of zeros.
+	 */
+	memset(&(vbr->ice_info), 0, sizeof(vbr->ice_info));
+	hdr_size = virtio_has_feature(vq->vdev, VIRTIO_BLK_F_ICE_IV) ?
+						   sizeof(vbr->out_hdr) + sizeof(vbr->ice_info) :
+						   sizeof(vbr->out_hdr);
+	sg_init_one(&hdr, &vbr->out_hdr, hdr_size);
+#else
 	sg_init_one(&hdr, &vbr->out_hdr, sizeof(vbr->out_hdr));
+#endif
+
 	sgs[num_out++] = &hdr;
 
 	if (vbr->sg_table.nents) {
@@ -1263,6 +1301,9 @@ static unsigned int features[] = {
 	VIRTIO_BLK_F_FLUSH, VIRTIO_BLK_F_TOPOLOGY, VIRTIO_BLK_F_CONFIG_WCE,
 	VIRTIO_BLK_F_MQ, VIRTIO_BLK_F_DISCARD, VIRTIO_BLK_F_WRITE_ZEROES,
 	VIRTIO_BLK_F_SECURE_ERASE,
+#if IS_ENABLED(CONFIG_QTI_CRYPTO_VIRTUALIZATION)
+	VIRTIO_BLK_F_ICE, VIRTIO_BLK_F_ICE_IV,
+#endif
 };
 
 static struct virtio_driver virtio_blk = {
