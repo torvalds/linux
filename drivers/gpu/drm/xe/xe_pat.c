@@ -7,9 +7,10 @@
 
 #include "regs/xe_reg_defs.h"
 #include "xe_gt.h"
+#include "xe_gt_mcr.h"
 #include "xe_mmio.h"
 
-#define GEN12_PAT_INDEX(index)			_MMIO(0x4800 + (index) * 4)
+#define _PAT_INDEX(index)			(0x4800 + (index) * 4)
 
 #define GEN8_PPAT_WB			(3<<0)
 #define GEN8_PPAT_WT			(2<<0)
@@ -58,17 +59,39 @@ const u32 mtl_pat_table[] = {
 
 #define PROGRAM_PAT_UNICAST(gt, table) do { \
 	for (int i = 0; i < ARRAY_SIZE(table); i++) \
-		xe_mmio_write32(gt, GEN12_PAT_INDEX(i).reg, table[i]); \
+		xe_mmio_write32(gt, _PAT_INDEX(i), table[i]); \
+} while (0)
+
+#define PROGRAM_PAT_MCR(gt, table) do { \
+	for (int i = 0; i < ARRAY_SIZE(table); i++) \
+		xe_gt_mcr_multicast_write(gt, MCR_REG(_PAT_INDEX(i)), table[i]); \
 } while (0)
 
 void xe_pat_init(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 
-	if (xe->info.platform == XE_METEORLAKE)
-		PROGRAM_PAT_UNICAST(gt, mtl_pat_table);
-	else if (xe->info.platform == XE_PVC)
-		PROGRAM_PAT_UNICAST(gt, pvc_pat_table);
-	else
+	if (xe->info.platform == XE_METEORLAKE) {
+		if (xe_gt_is_media_type(gt))
+			PROGRAM_PAT_UNICAST(gt, mtl_pat_table);
+		else
+			PROGRAM_PAT_MCR(gt, mtl_pat_table);
+	} else if (xe->info.platform == XE_PVC) {
+		PROGRAM_PAT_MCR(gt, pvc_pat_table);
+	} else if (xe->info.platform == XE_DG2) {
+		PROGRAM_PAT_MCR(gt, pvc_pat_table);
+	} else if (GRAPHICS_VERx100(xe) <= 1210) {
 		PROGRAM_PAT_UNICAST(gt, tgl_pat_table);
+	} else {
+		/*
+		 * Going forward we expect to need new PAT settings for most
+		 * new platforms; failure to provide a new table can easily
+		 * lead to subtle, hard-to-debug problems.  If none of the
+		 * conditions above match the platform we're running on we'll
+		 * raise an error rather than trying to silently inherit the
+		 * most recent platform's behavior.
+		 */
+		drm_err(&xe->drm, "Missing PAT table for platform with graphics version %d.%2d!\n",
+			GRAPHICS_VER(xe), GRAPHICS_VERx100(xe) % 100);
+	}
 }
