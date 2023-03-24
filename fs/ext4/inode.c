@@ -3669,23 +3669,26 @@ static int __ext4_block_zero_page_range(handle_t *handle,
 	ext4_lblk_t iblock;
 	struct inode *inode = mapping->host;
 	struct buffer_head *bh;
-	struct page *page;
+	struct folio *folio;
 	int err = 0;
 
-	page = find_or_create_page(mapping, from >> PAGE_SHIFT,
-				   mapping_gfp_constraint(mapping, ~__GFP_FS));
-	if (!page)
+	folio = __filemap_get_folio(mapping, from >> PAGE_SHIFT,
+				    FGP_LOCK | FGP_ACCESSED | FGP_CREAT,
+				    mapping_gfp_constraint(mapping, ~__GFP_FS));
+	if (!folio)
 		return -ENOMEM;
 
 	blocksize = inode->i_sb->s_blocksize;
 
 	iblock = index << (PAGE_SHIFT - inode->i_sb->s_blocksize_bits);
 
-	if (!page_has_buffers(page))
-		create_empty_buffers(page, blocksize, 0);
+	bh = folio_buffers(folio);
+	if (!bh) {
+		create_empty_buffers(&folio->page, blocksize, 0);
+		bh = folio_buffers(folio);
+	}
 
 	/* Find the buffer that contains "offset" */
-	bh = page_buffers(page);
 	pos = blocksize;
 	while (offset >= pos) {
 		bh = bh->b_this_page;
@@ -3707,7 +3710,7 @@ static int __ext4_block_zero_page_range(handle_t *handle,
 	}
 
 	/* Ok, it's mapped. Make sure it's up-to-date */
-	if (PageUptodate(page))
+	if (folio_test_uptodate(folio))
 		set_buffer_uptodate(bh);
 
 	if (!buffer_uptodate(bh)) {
@@ -3717,7 +3720,7 @@ static int __ext4_block_zero_page_range(handle_t *handle,
 		if (fscrypt_inode_uses_fs_layer_crypto(inode)) {
 			/* We expect the key to be set. */
 			BUG_ON(!fscrypt_has_encryption_key(inode));
-			err = fscrypt_decrypt_pagecache_blocks(page_folio(page),
+			err = fscrypt_decrypt_pagecache_blocks(folio,
 							       blocksize,
 							       bh_offset(bh));
 			if (err) {
@@ -3733,7 +3736,7 @@ static int __ext4_block_zero_page_range(handle_t *handle,
 		if (err)
 			goto unlock;
 	}
-	zero_user(page, offset, length);
+	folio_zero_range(folio, offset, length);
 	BUFFER_TRACE(bh, "zeroed end of block");
 
 	if (ext4_should_journal_data(inode)) {
@@ -3747,8 +3750,8 @@ static int __ext4_block_zero_page_range(handle_t *handle,
 	}
 
 unlock:
-	unlock_page(page);
-	put_page(page);
+	folio_unlock(folio);
+	folio_put(folio);
 	return err;
 }
 
