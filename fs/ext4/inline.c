@@ -848,10 +848,11 @@ static int ext4_da_convert_inline_data_to_extent(struct address_space *mapping,
 						 void **fsdata)
 {
 	int ret = 0, inline_size;
-	struct page *page;
+	struct folio *folio;
 
-	page = grab_cache_page_write_begin(mapping, 0);
-	if (!page)
+	folio = __filemap_get_folio(mapping, 0, FGP_WRITEBEGIN,
+					mapping_gfp_mask(mapping));
+	if (!folio)
 		return -ENOMEM;
 
 	down_read(&EXT4_I(inode)->xattr_sem);
@@ -862,32 +863,32 @@ static int ext4_da_convert_inline_data_to_extent(struct address_space *mapping,
 
 	inline_size = ext4_get_inline_size(inode);
 
-	if (!PageUptodate(page)) {
-		ret = ext4_read_inline_page(inode, page);
+	if (!folio_test_uptodate(folio)) {
+		ret = ext4_read_inline_page(inode, &folio->page);
 		if (ret < 0)
 			goto out;
 	}
 
-	ret = __block_write_begin(page, 0, inline_size,
+	ret = __block_write_begin(&folio->page, 0, inline_size,
 				  ext4_da_get_block_prep);
 	if (ret) {
 		up_read(&EXT4_I(inode)->xattr_sem);
-		unlock_page(page);
-		put_page(page);
+		folio_unlock(folio);
+		folio_put(folio);
 		ext4_truncate_failed_write(inode);
 		return ret;
 	}
 
-	SetPageDirty(page);
-	SetPageUptodate(page);
+	folio_mark_dirty(folio);
+	folio_mark_uptodate(folio);
 	ext4_clear_inode_state(inode, EXT4_STATE_MAY_INLINE_DATA);
 	*fsdata = (void *)CONVERT_INLINE_DATA;
 
 out:
 	up_read(&EXT4_I(inode)->xattr_sem);
-	if (page) {
-		unlock_page(page);
-		put_page(page);
+	if (folio) {
+		folio_unlock(folio);
+		folio_put(folio);
 	}
 	return ret;
 }
