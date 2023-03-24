@@ -3045,6 +3045,7 @@
   ww_mutex_lock
   ww_mutex_unlock
   __xa_alloc
+  __xa_alloc_cyclic
   xa_destroy
   xa_erase
   xa_find

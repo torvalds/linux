@@ -1638,6 +1638,10 @@
   of_clk_add_hw_provider
   of_clk_hw_simple_get
 
+# required by clk-out.ko
+  __clk_hw_register_gate
+  of_clk_parent_fill
+
 # required by clk-rk628.ko
   devm_reset_controller_register
 
@@ -2705,6 +2709,7 @@
   snd_soc_dapm_new_widgets
 
 # required by snd-soc-rockchip-i2s-tdm.ko
+  clk_has_parent
   clk_is_match
   pm_runtime_forbid
   snd_pcm_stop_xrun

@@ -34,6 +34,7 @@
   __arch_copy_to_user
   arch_timer_read_counter
   arm64_const_caps_ready
+  arm64_noalias_setup_dma_ops
   arm64_use_ng_mappings
   __arm_smccc_hvc
   __arm_smccc_smc
@@ -1309,6 +1310,7 @@
   __netdev_alloc_skb
   netdev_err
   netdev_info
+  netdev_notice
   netdev_set_default_ethtool_ops
   netdev_warn
   netif_carrier_off
@@ -1399,6 +1401,7 @@
   of_get_next_child
   of_get_next_parent
   of_get_parent
+  of_get_pci_domain_nr
   of_get_phy_mode
   of_get_property
   of_get_regulator_init_data
@@ -1471,6 +1474,11 @@
   param_set_ulong
   pause_cpus
   pci_bus_type
+  pci_generic_config_read32
+  pci_generic_config_write32
+  pci_lock_rescan_remove
+  pci_pio_to_address
+  pci_unlock_rescan_remove
   PDE_DATA
   __per_cpu_offset
   perf_event_create_kernel_counter
@@ -2421,6 +2429,8 @@
   usb_add_hcd
   usb_add_phy_dev
   usb_assign_descriptors
+  usb_autopm_get_interface_async
+  usb_autopm_put_interface_async
   usb_composite_probe
   usb_composite_unregister
   usb_copy_descriptors
@@ -2430,6 +2440,8 @@
   usb_del_gadget_udc
   usb_deregister
   usb_disabled
+  usb_driver_set_configuration
+  usb_enable_lpm
   usb_ep_alloc_request
   usb_ep_autoconfig
   usb_ep_dequeue
@@ -2501,6 +2513,7 @@
   usb_remove_function
   usb_remove_hcd
   usb_remove_phy
+  usb_reset_device
   usb_role_switch_get
   usb_role_switch_get_drvdata
   usb_role_switch_get_role
@@ -2509,6 +2522,7 @@
   usb_role_switch_unregister
   usb_speed_string
   usb_string_id
+  usb_wait_anchor_empty_timeout
   __usecs_to_jiffies
   usleep_range
   uuid_null

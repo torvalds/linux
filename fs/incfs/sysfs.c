@@ -33,11 +33,13 @@ static struct kobj_attribute name##_attr = __ATTR_RO(name)
 DECLARE_FEATURE_FLAG(corefs);
 DECLARE_FEATURE_FLAG(zstd);
 DECLARE_FEATURE_FLAG(v2);
+DECLARE_FEATURE_FLAG(bugfix_throttling);
 
 static struct attribute *attributes[] = {
 	&corefs_attr.attr,
 	&zstd_attr.attr,
 	&v2_attr.attr,
+	&bugfix_throttling_attr.attr,
 	NULL,
 };
 

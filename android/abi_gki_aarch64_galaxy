@@ -574,6 +574,7 @@
   _snd_ctl_add_follower
   _snd_pcm_stream_lock_irqsave
   _totalram_pages
+  _trace_android_vh_record_pcpu_rwsem_starttime
   access_process_vm
   ack_all_badblocks
   activate_task

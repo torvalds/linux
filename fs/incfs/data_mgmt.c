@@ -3,7 +3,6 @@
  * Copyright 2019 Google LLC
  */
 #include <linux/crc32.h>
-#include <linux/delay.h>
 #include <linux/file.h>
 #include <linux/fsverity.h>
 #include <linux/gfp.h>
@@ -1104,25 +1103,10 @@ static void notify_pending_reads(struct mount_info *mi,
 	wake_up_all(&mi->mi_blocks_written_notif_wq);
 }
 
-static int usleep_interruptible(u32 us)
-{
-	/* See:
-	 * https://www.kernel.org/doc/Documentation/timers/timers-howto.txt
-	 * for explanation
-	 */
-	if (us < 10) {
-		udelay(us);
-		return 0;
-	} else if (us < 20000) {
-		usleep_range(us, us + us / 10);
-		return 0;
-	} else
-		return msleep_interruptible(us / 1000);
-}
-
 static int wait_for_data_block(struct data_file *df, int block_index,
 			       struct data_file_block *res_block,
-			       struct incfs_read_data_file_timeouts *timeouts)
+			       struct incfs_read_data_file_timeouts *timeouts,
+			       unsigned int *delayed_min_us)
 {
 	struct data_file_block block = {};
 	struct data_file_segment *segment = NULL;
@@ -1130,7 +1114,7 @@ static int wait_for_data_block(struct data_file *df, int block_index,
 	struct mount_info *mi = NULL;
 	int error;
 	int wait_res = 0;
-	unsigned int delayed_pending_us = 0, delayed_min_us = 0;
+	unsigned int delayed_pending_us = 0;
 	bool delayed_pending = false;
 
 	if (!df || !res_block)
@@ -1161,8 +1145,7 @@ static int wait_for_data_block(struct data_file *df, int block_index,
 	if (is_data_block_present(&block)) {
 		*res_block = block;
 		if (timeouts && timeouts->min_time_us) {
-			delayed_min_us = timeouts->min_time_us;
-			error = usleep_interruptible(delayed_min_us);
+			*delayed_min_us = timeouts->min_time_us;
 			goto out;
 		}
 		return 0;
@@ -1209,13 +1192,9 @@ static int wait_for_data_block(struct data_file *df, int block_index,
 	delayed_pending = true;
 	delayed_pending_us = timeouts->max_pending_time_us -
 				jiffies_to_usecs(wait_res);
-	if (timeouts->min_pending_time_us > delayed_pending_us) {
-		delayed_min_us = timeouts->min_pending_time_us -
+	if (timeouts->min_pending_time_us > delayed_pending_us)
+		*delayed_min_us = timeouts->min_pending_time_us -
 					     delayed_pending_us;
-		error = usleep_interruptible(delayed_min_us);
-		if (error)
-			return error;
-	}
 
 	error = down_read_killable(&segment->rwsem);
 	if (error)
@@ -1250,9 +1229,9 @@ out:
 			delayed_pending_us;
 	}
 
-	if (delayed_min_us) {
+	if (delayed_min_us && *delayed_min_us) {
 		mi->mi_reads_delayed_min++;
-		mi->mi_reads_delayed_min_us += delayed_min_us;
+		mi->mi_reads_delayed_min_us += *delayed_min_us;
 	}
 
 	return 0;
@@ -1282,7 +1261,8 @@ static int incfs_update_sysfs_error(struct file *file, int index, int result,
 
 ssize_t incfs_read_data_file_block(struct mem_range dst, struct file *f,
 			int index, struct mem_range tmp,
-			struct incfs_read_data_file_timeouts *timeouts)
+			struct incfs_read_data_file_timeouts *timeouts,
+			unsigned int *delayed_min_us)
 {
 	loff_t pos;
 	ssize_t result;
@@ -1301,7 +1281,8 @@ ssize_t incfs_read_data_file_block(struct mem_range dst, struct file *f,
 	mi = df->df_mount_info;
 	bfc = df->df_backing_file_context;
 
-	result = wait_for_data_block(df, index, &block, timeouts);
+	result = wait_for_data_block(df, index, &block, timeouts,
+				     delayed_min_us);
 	if (result < 0)
 		goto out;
 
@@ -1379,7 +1360,8 @@ ssize_t incfs_read_merkle_tree_blocks(struct mem_range dst,
 }
 
 int incfs_process_new_data_block(struct data_file *df,
-				 struct incfs_fill_block *block, u8 *data)
+				 struct incfs_fill_block *block, u8 *data,
+				 bool *complete)
 {
 	struct mount_info *mi = NULL;
 	struct backing_file_context *bfc = NULL;
@@ -1418,27 +1400,42 @@ int incfs_process_new_data_block(struct data_file *df,
 
 	if (error)
 		return error;
-	if (is_data_block_present(&existing_block)) {
+	if (is_data_block_present(&existing_block))
 		/* Block is already present, nothing to do here */
 		return 0;
-	}
 
 	error = down_write_killable(&segment->rwsem);
 	if (error)
 		return error;
 
-	error = mutex_lock_interruptible(&bfc->bc_mutex);
-	if (!error) {
-		error = incfs_write_data_block_to_backing_file(
-			bfc, range(data, block->data_len), block->block_index,
-			df->df_blockmap_off, flags);
-		mutex_unlock(&bfc->bc_mutex);
-	}
-	if (!error) {
-		notify_pending_reads(mi, segment, block->block_index);
-		atomic_inc(&df->df_data_blocks_written);
-	}
+	/* Recheck inside write lock */
+	error = get_data_file_block(df, block->block_index, &existing_block);
+	if (error)
+		goto out_up_write;
 
+	if (is_data_block_present(&existing_block))
+		goto out_up_write;
+
+	error = mutex_lock_interruptible(&bfc->bc_mutex);
+	if (error)
+		goto out_up_write;
+
+	error = incfs_write_data_block_to_backing_file(bfc,
+			range(data, block->data_len), block->block_index,
+			df->df_blockmap_off, flags);
+	if (error)
+		goto out_mutex_unlock;
+
+	if (atomic_inc_return(&df->df_data_blocks_written)
+			>= df->df_data_block_count)
+		*complete = true;
+
+out_mutex_unlock:
+	mutex_unlock(&bfc->bc_mutex);
+	if (!error)
+		notify_pending_reads(mi, segment, block->block_index);
+
+out_up_write:
 	up_write(&segment->rwsem);
 
 	if (error)

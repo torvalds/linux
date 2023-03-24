@@ -218,7 +218,7 @@ static int __alloc_and_insert_iova_range(struct iova_domain *iovad,
 
 	curr = __get_cached_rbnode(iovad, limit_pfn);
 	curr_iova = rb_entry(curr, struct iova, node);
-	low_pfn_new = curr_iova->pfn_hi + 1;
+	low_pfn_new = curr_iova->pfn_hi;
 
 retry:
 	do {
@@ -232,7 +232,7 @@ retry:
 	if (high_pfn < size || new_pfn < low_pfn) {
 		if (low_pfn == iovad->start_pfn && low_pfn_new < limit_pfn) {
 			high_pfn = limit_pfn;
-			low_pfn = low_pfn_new;
+			low_pfn = low_pfn_new + 1;
 			curr = &iovad->anchor.node;
 			curr_iova = rb_entry(curr, struct iova, node);
 			goto retry;
