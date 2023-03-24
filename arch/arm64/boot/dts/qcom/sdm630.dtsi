@@ -1450,25 +1450,6 @@
 					<0>;
 		};
 
-		dsi_opp_table: opp-table-dsi {
-			compatible = "operating-points-v2";
-
-			opp-131250000 {
-				opp-hz = /bits/ 64 <131250000>;
-				required-opps = <&rpmpd_opp_svs>;
-			};
-
-			opp-210000000 {
-				opp-hz = /bits/ 64 <210000000>;
-				required-opps = <&rpmpd_opp_svs_plus>;
-			};
-
-			opp-262500000 {
-				opp-hz = /bits/ 64 <262500000>;
-				required-opps = <&rpmpd_opp_nom>;
-			};
-		};
-
 		mdss: display-subsystem@c900000 {
 			compatible = "qcom,mdss";
 			reg = <0x0c900000 0x1000>,
@@ -1609,6 +1590,25 @@
 				phys = <&dsi0_phy>;
 
 				status = "disabled";
+
+				dsi_opp_table: opp-table {
+					compatible = "operating-points-v2";
+
+					opp-131250000 {
+						opp-hz = /bits/ 64 <131250000>;
+						required-opps = <&rpmpd_opp_svs>;
+					};
+
+					opp-210000000 {
+						opp-hz = /bits/ 64 <210000000>;
+						required-opps = <&rpmpd_opp_svs_plus>;
+					};
+
+					opp-262500000 {
+						opp-hz = /bits/ 64 <262500000>;
+						required-opps = <&rpmpd_opp_nom>;
+					};
+				};
 
 				ports {
 					#address-cells = <1>;
