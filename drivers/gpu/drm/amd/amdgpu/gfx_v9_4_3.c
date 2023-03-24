@@ -1256,21 +1256,20 @@ static int gfx_v9_4_3_xcc_rlc_resume(struct amdgpu_device *adev, int xcc_id)
 {
 	int r;
 
-	gfx_v9_4_3_xcc_rlc_stop(adev, xcc_id);
-
-	/* disable CG */
-	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_CGCG_CGLS_CTRL, 0);
-
-	gfx_v9_4_3_xcc_init_pg(adev, xcc_id);
-
 	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
+		gfx_v9_4_3_xcc_rlc_stop(adev, xcc_id);
 		/* legacy rlc firmware loading */
 		r = gfx_v9_4_3_xcc_rlc_load_microcode(adev, xcc_id);
 		if (r)
 			return r;
+		gfx_v9_4_3_xcc_rlc_start(adev, xcc_id);
 	}
 
-	gfx_v9_4_3_xcc_rlc_start(adev, xcc_id);
+	amdgpu_gfx_rlc_enter_safe_mode(adev, xcc_id);
+	/* disable CG */
+	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_CGCG_CGLS_CTRL, 0);
+	gfx_v9_4_3_xcc_init_pg(adev, xcc_id);
+	amdgpu_gfx_rlc_exit_safe_mode(adev, xcc_id);
 
 	return 0;
 }
@@ -1967,14 +1966,6 @@ static void gfx_v9_4_3_xcc_fini(struct amdgpu_device *adev, int xcc_id)
 
 	gfx_v9_4_3_xcc_kcq_fini_register(adev, xcc_id);
 	gfx_v9_4_3_xcc_cp_enable(adev, false, xcc_id);
-
-	/* Skip suspend with A+A reset */
-	if (adev->gmc.xgmi.connected_to_cpu && amdgpu_in_reset(adev)) {
-		dev_dbg(adev->dev, "Device in reset. Skipping RLC halt\n");
-		return;
-	}
-
-	gfx_v9_4_3_xcc_rlc_stop(adev, xcc_id);
 }
 
 static int gfx_v9_4_3_hw_init(void *handle)
