@@ -467,16 +467,16 @@ out:
 	return error;
 }
 
-static int ext4_read_inline_page(struct inode *inode, struct page *page)
+static int ext4_read_inline_folio(struct inode *inode, struct folio *folio)
 {
 	void *kaddr;
 	int ret = 0;
 	size_t len;
 	struct ext4_iloc iloc;
 
-	BUG_ON(!PageLocked(page));
+	BUG_ON(!folio_test_locked(folio));
 	BUG_ON(!ext4_has_inline_data(inode));
-	BUG_ON(page->index);
+	BUG_ON(folio->index);
 
 	if (!EXT4_I(inode)->i_inline_off) {
 		ext4_warning(inode->i_sb, "inode %lu doesn't have inline data.",
@@ -489,12 +489,13 @@ static int ext4_read_inline_page(struct inode *inode, struct page *page)
 		goto out;
 
 	len = min_t(size_t, ext4_get_inline_size(inode), i_size_read(inode));
-	kaddr = kmap_atomic(page);
+	BUG_ON(len > PAGE_SIZE);
+	kaddr = kmap_local_folio(folio, 0);
 	ret = ext4_read_inline_data(inode, kaddr, len, &iloc);
-	flush_dcache_page(page);
-	kunmap_atomic(kaddr);
-	zero_user_segment(page, len, PAGE_SIZE);
-	SetPageUptodate(page);
+	flush_dcache_folio(folio);
+	kunmap_local(kaddr);
+	folio_zero_segment(folio, len, folio_size(folio));
+	folio_mark_uptodate(folio);
 	brelse(iloc.bh);
 
 out:
@@ -516,7 +517,7 @@ int ext4_readpage_inline(struct inode *inode, struct folio *folio)
 	 * So for all the other pages, just set them uptodate.
 	 */
 	if (!folio->index)
-		ret = ext4_read_inline_page(inode, &folio->page);
+		ret = ext4_read_inline_folio(inode, folio);
 	else if (!folio_test_uptodate(folio)) {
 		folio_zero_segment(folio, 0, folio_size(folio));
 		folio_mark_uptodate(folio);
@@ -581,7 +582,7 @@ retry:
 	from = 0;
 	to = ext4_get_inline_size(inode);
 	if (!folio_test_uptodate(folio)) {
-		ret = ext4_read_inline_page(inode, &folio->page);
+		ret = ext4_read_inline_folio(inode, folio);
 		if (ret < 0)
 			goto out;
 	}
@@ -707,7 +708,7 @@ int ext4_try_to_write_inline_data(struct address_space *mapping,
 	}
 
 	if (!folio_test_uptodate(folio)) {
-		ret = ext4_read_inline_page(inode, &folio->page);
+		ret = ext4_read_inline_folio(inode, folio);
 		if (ret < 0) {
 			folio_unlock(folio);
 			folio_put(folio);
@@ -864,7 +865,7 @@ static int ext4_da_convert_inline_data_to_extent(struct address_space *mapping,
 	inline_size = ext4_get_inline_size(inode);
 
 	if (!folio_test_uptodate(folio)) {
-		ret = ext4_read_inline_page(inode, &folio->page);
+		ret = ext4_read_inline_folio(inode, folio);
 		if (ret < 0)
 			goto out;
 	}
@@ -957,7 +958,7 @@ retry_journal:
 	}
 
 	if (!folio_test_uptodate(folio)) {
-		ret = ext4_read_inline_page(inode, &folio->page);
+		ret = ext4_read_inline_folio(inode, folio);
 		if (ret < 0)
 			goto out_release_page;
 	}
