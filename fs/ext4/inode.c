@@ -3155,7 +3155,7 @@ static int ext4_read_folio(struct file *file, struct folio *folio)
 	trace_ext4_readpage(page);
 
 	if (ext4_has_inline_data(inode))
-		ret = ext4_readpage_inline(inode, page);
+		ret = ext4_readpage_inline(inode, folio);
 
 	if (ret == -EAGAIN)
 		return ext4_mpage_readpages(inode, NULL, page);

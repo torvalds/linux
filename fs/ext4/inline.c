@@ -501,7 +501,7 @@ out:
 	return ret;
 }
 
-int ext4_readpage_inline(struct inode *inode, struct page *page)
+int ext4_readpage_inline(struct inode *inode, struct folio *folio)
 {
 	int ret = 0;
 
@@ -515,16 +515,16 @@ int ext4_readpage_inline(struct inode *inode, struct page *page)
 	 * Current inline data can only exist in the 1st page,
 	 * So for all the other pages, just set them uptodate.
 	 */
-	if (!page->index)
-		ret = ext4_read_inline_page(inode, page);
-	else if (!PageUptodate(page)) {
-		zero_user_segment(page, 0, PAGE_SIZE);
-		SetPageUptodate(page);
+	if (!folio->index)
+		ret = ext4_read_inline_page(inode, &folio->page);
+	else if (!folio_test_uptodate(folio)) {
+		folio_zero_segment(folio, 0, folio_size(folio));
+		folio_mark_uptodate(folio);
 	}
 
 	up_read(&EXT4_I(inode)->xattr_sem);
 
-	unlock_page(page);
+	folio_unlock(folio);
 	return ret >= 0 ? 0 : ret;
 }
 
