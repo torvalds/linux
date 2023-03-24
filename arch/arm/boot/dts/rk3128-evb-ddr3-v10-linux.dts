@@ -83,37 +83,16 @@
 		reset-gpios = <&gpio1 RK_PB4 GPIO_ACTIVE_LOW>;
 	};
 
-	sound: sound {
+	codec_sound: codec-sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,format = "i2s";
 		simple-audio-card,name = "rockchip,rk312x-codec";
 		simple-audio-card,mclk-fs = <256>;
-		simple-audio-card,widgets =
-			"Headphone", "Headphone Jack";
-		simple-audio-card,routing =
-			"Headphone Jack", "HPOL",
-			"Headphone Jack", "HPOR";
-
-		simple-audio-card,dai-link@0 {
-			format = "i2s";
-			cpu {
-				sound-dai = <&i2s_8ch 0>;
-			};
-
-			codec {
-				sound-dai = <&codec>;
-			};
+		simple-audio-card,cpu {
+			sound-dai = <&i2s_8ch>;
 		};
-
-		simple-audio-card,dai-link@1 {
-			format = "i2s";
-			cpu {
-				sound-dai = <&i2s_8ch 1>;
-			};
-
-			codec {
-				sound-dai = <&hdmi>;
-			};
+		simple-audio-card,codec {
+			sound-dai = <&codec>;
 		};
 	};
 
@@ -123,16 +102,31 @@
 		#sound-dai-cells = <0>;
 	};
 
-	spdif_sound: spdif-sound {
+	media_sound: media-sound {
 		status = "okay";
 		compatible = "simple-audio-card";
-		simple-audio-card,name = "ROCKCHIP,SPDIF";
+		simple-audio-card,name = "rockchip,hdmi-spdif";
 		simple-audio-card,mclk-fs = <128>;
-		simple-audio-card,cpu {
-			sound-dai = <&spdif>;
+		simple-audio-card,dai-link@0 {
+			format = "spdif";
+			cpu {
+				sound-dai = <&spdif>;
+			};
+
+			codec {
+				sound-dai = <&spdif_out>;
+			};
 		};
-		simple-audio-card,codec {
-			sound-dai = <&spdif_out>;
+
+		simple-audio-card,dai-link@1 {
+			format = "spdif";
+			cpu {
+				sound-dai = <&spdif>;
+			};
+
+			codec {
+				sound-dai = <&hdmi>;
+			};
 		};
 	};
 
@@ -579,6 +573,7 @@
 };
 
 &hdmi {
+	rockchip,format = "spdif";
 	#sound-dai-cells = <0>;
 	status = "okay";
 };
