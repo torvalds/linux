@@ -62,8 +62,8 @@ static unsigned long raw_copy_from_user_key(void *to, const void __user *from,
 		"5:	slgr	%[size],%[size]\n"
 		"6:\n"
 		EX_TABLE(0b, 2b)
-		EX_TABLE(3b, 6b)
 		EX_TABLE(1b, 2b)
+		EX_TABLE(3b, 6b)
 		EX_TABLE(4b, 6b)
 		: [size] "+a" (size), [from] "+a" (from), [to] "+a" (to),
 		  [tmp1] "+a" (tmp1), [tmp2] "=a" (tmp2)
@@ -126,8 +126,8 @@ static unsigned long raw_copy_to_user_key(void __user *to, const void *from,
 		"5:	slgr	%[size],%[size]\n"
 		"6:\n"
 		EX_TABLE(0b, 2b)
-		EX_TABLE(3b, 6b)
 		EX_TABLE(1b, 2b)
+		EX_TABLE(3b, 6b)
 		EX_TABLE(4b, 6b)
 		: [size] "+a" (size), [to] "+a" (to), [from] "+a" (from),
 		  [tmp1] "+a" (tmp1), [tmp2] "=a" (tmp2)
