@@ -33,6 +33,7 @@
  *              avoid namespace conflicts
  * @class - pointer back to the struct class that this structure is associated
  *          with.
+ * @lock_key:	Lock class key for use by the lock validator
  *
  * This structure is the one that is the actual kobject allowing struct
  * bus_type/class to be statically allocated safely.  Nothing outside of the
