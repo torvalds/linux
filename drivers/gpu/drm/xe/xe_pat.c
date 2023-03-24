@@ -54,8 +54,8 @@ const u32 pvc_pat_table[] = {
 
 const u32 mtl_pat_table[] = {
 	[0] = MTL_PAT_0_WB,
-	[1] = MTL_PAT_1_WT | MTL_2_COH_1W,
-	[2] = MTL_PAT_3_UC | MTL_2_COH_1W,
+	[1] = MTL_PAT_1_WT,
+	[2] = MTL_PAT_3_UC,
 	[3] = MTL_PAT_0_WB | MTL_2_COH_1W,
 	[4] = MTL_PAT_0_WB | MTL_3_COH_2W,
 };
