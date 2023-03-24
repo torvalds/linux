@@ -3516,6 +3516,8 @@ static void geni_serial_write_term_regs(struct uart_port *uport, u32 loopback,
 		u32 tx_trans_cfg, u32 tx_parity_cfg, u32 rx_trans_cfg,
 		u32 rx_parity_cfg, u32 bits_per_char, u32 stop_bit_len)
 {
+	struct msm_geni_serial_port *msm_port = GET_DEV_PORT(uport);
+
 	geni_write_reg(loopback, uport->membase, SE_UART_LOOPBACK_CFG);
 	geni_write_reg(tx_trans_cfg, uport->membase,
 							SE_UART_TX_TRANS_CFG);
@@ -3531,6 +3533,8 @@ static void geni_serial_write_term_regs(struct uart_port *uport, u32 loopback,
 							SE_UART_RX_WORD_LEN);
 	geni_write_reg(stop_bit_len, uport->membase,
 						SE_UART_TX_STOP_BIT_LEN);
+	geni_se_config_packing(&msm_port->se, bits_per_char, 4, false, true, false);
+	geni_se_config_packing(&msm_port->se, bits_per_char, 4, false, false, true);
 }
 
 static void msm_geni_serial_termios_cfg(struct uart_port *uport,
