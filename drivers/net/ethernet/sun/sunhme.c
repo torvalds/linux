@@ -2313,29 +2313,28 @@ static int happy_meal_sbus_probe_one(struct platform_device *op, int is_qfe)
 	struct net_device *dev;
 	int i, qfe_slot = -1;
 	u8 addr[ETH_ALEN];
-	int err = -ENODEV;
+	int err;
 
 	sbus_dp = op->dev.parent->of_node;
 
 	/* We can match PCI devices too, do not accept those here. */
 	if (!of_node_name_eq(sbus_dp, "sbus") && !of_node_name_eq(sbus_dp, "sbi"))
-		return err;
+		return -ENODEV;
 
 	if (is_qfe) {
 		qp = quattro_sbus_find(op);
 		if (qp == NULL)
-			goto err_out;
+			return -ENODEV;
 		for (qfe_slot = 0; qfe_slot < 4; qfe_slot++)
 			if (qp->happy_meals[qfe_slot] == NULL)
 				break;
 		if (qfe_slot == 4)
-			goto err_out;
+			return -ENODEV;
 	}
 
-	err = -ENOMEM;
-	dev = alloc_etherdev(sizeof(struct happy_meal));
+	dev = devm_alloc_etherdev(&op->dev, sizeof(struct happy_meal));
 	if (!dev)
-		goto err_out;
+		return -ENOMEM;
 	SET_NETDEV_DEV(dev, &op->dev);
 
 	/* If user did not specify a MAC address specifically, use
@@ -2369,46 +2368,45 @@ static int happy_meal_sbus_probe_one(struct platform_device *op, int is_qfe)
 
 	spin_lock_init(&hp->happy_lock);
 
-	err = -ENODEV;
 	if (qp != NULL) {
 		hp->qfe_parent = qp;
 		hp->qfe_ent = qfe_slot;
 		qp->happy_meals[qfe_slot] = dev;
 	}
 
-	hp->gregs = of_ioremap(&op->resource[0], 0,
-			       GREG_REG_SIZE, "HME Global Regs");
-	if (!hp->gregs) {
+	hp->gregs = devm_platform_ioremap_resource(op, 0);
+	if (IS_ERR(hp->gregs)) {
 		dev_err(&op->dev, "Cannot map global registers.\n");
-		goto err_out_free_netdev;
+		err = PTR_ERR(hp->gregs);
+		goto err_out_clear_quattro;
 	}
 
-	hp->etxregs = of_ioremap(&op->resource[1], 0,
-				 ETX_REG_SIZE, "HME TX Regs");
-	if (!hp->etxregs) {
+	hp->etxregs = devm_platform_ioremap_resource(op, 1);
+	if (IS_ERR(hp->etxregs)) {
 		dev_err(&op->dev, "Cannot map MAC TX registers.\n");
-		goto err_out_iounmap;
+		err = PTR_ERR(hp->etxregs);
+		goto err_out_clear_quattro;
 	}
 
-	hp->erxregs = of_ioremap(&op->resource[2], 0,
-				 ERX_REG_SIZE, "HME RX Regs");
-	if (!hp->erxregs) {
+	hp->erxregs = devm_platform_ioremap_resource(op, 2);
+	if (IS_ERR(hp->erxregs)) {
 		dev_err(&op->dev, "Cannot map MAC RX registers.\n");
-		goto err_out_iounmap;
+		err = PTR_ERR(hp->erxregs);
+		goto err_out_clear_quattro;
 	}
 
-	hp->bigmacregs = of_ioremap(&op->resource[3], 0,
-				    BMAC_REG_SIZE, "HME BIGMAC Regs");
-	if (!hp->bigmacregs) {
+	hp->bigmacregs = devm_platform_ioremap_resource(op, 3);
+	if (IS_ERR(hp->bigmacregs)) {
 		dev_err(&op->dev, "Cannot map BIGMAC registers.\n");
-		goto err_out_iounmap;
+		err = PTR_ERR(hp->bigmacregs);
+		goto err_out_clear_quattro;
 	}
 
-	hp->tcvregs = of_ioremap(&op->resource[4], 0,
-				 TCVR_REG_SIZE, "HME Tranceiver Regs");
-	if (!hp->tcvregs) {
+	hp->tcvregs = devm_platform_ioremap_resource(op, 4);
+	if (IS_ERR(hp->tcvregs)) {
 		dev_err(&op->dev, "Cannot map TCVR registers.\n");
-		goto err_out_iounmap;
+		err = PTR_ERR(hp->tcvregs);
+		goto err_out_clear_quattro;
 	}
 
 	hp->hm_revision = of_getintprop_default(dp, "hm-rev", 0xff);
@@ -2428,13 +2426,12 @@ static int happy_meal_sbus_probe_one(struct platform_device *op, int is_qfe)
 	hp->happy_bursts = of_getintprop_default(sbus_dp,
 						 "burst-sizes", 0x00);
 
-	hp->happy_block = dma_alloc_coherent(hp->dma_dev,
-					     PAGE_SIZE,
-					     &hp->hblock_dvma,
-					     GFP_ATOMIC);
-	err = -ENOMEM;
-	if (!hp->happy_block)
-		goto err_out_iounmap;
+	hp->happy_block = dmam_alloc_coherent(&op->dev, PAGE_SIZE,
+					      &hp->hblock_dvma, GFP_KERNEL);
+	if (!hp->happy_block) {
+		err = -ENOMEM;
+		goto err_out_clear_quattro;
+	}
 
 	/* Force check of the link first time we are brought up. */
 	hp->linkcheck = 0;
@@ -2472,10 +2469,10 @@ static int happy_meal_sbus_probe_one(struct platform_device *op, int is_qfe)
 	happy_meal_set_initial_advertisement(hp);
 	spin_unlock_irq(&hp->happy_lock);
 
-	err = register_netdev(hp->dev);
+	err = devm_register_netdev(&op->dev, dev);
 	if (err) {
 		dev_err(&op->dev, "Cannot register net device, aborting.\n");
-		goto err_out_free_coherent;
+		goto err_out_clear_quattro;
 	}
 
 	platform_set_drvdata(op, hp);
@@ -2490,31 +2487,9 @@ static int happy_meal_sbus_probe_one(struct platform_device *op, int is_qfe)
 
 	return 0;
 
-err_out_free_coherent:
-	dma_free_coherent(hp->dma_dev,
-			  PAGE_SIZE,
-			  hp->happy_block,
-			  hp->hblock_dvma);
-
-err_out_iounmap:
-	if (hp->gregs)
-		of_iounmap(&op->resource[0], hp->gregs, GREG_REG_SIZE);
-	if (hp->etxregs)
-		of_iounmap(&op->resource[1], hp->etxregs, ETX_REG_SIZE);
-	if (hp->erxregs)
-		of_iounmap(&op->resource[2], hp->erxregs, ERX_REG_SIZE);
-	if (hp->bigmacregs)
-		of_iounmap(&op->resource[3], hp->bigmacregs, BMAC_REG_SIZE);
-	if (hp->tcvregs)
-		of_iounmap(&op->resource[4], hp->tcvregs, TCVR_REG_SIZE);
-
+err_out_clear_quattro:
 	if (qp)
 		qp->happy_meals[qfe_slot] = NULL;
-
-err_out_free_netdev:
-	free_netdev(dev);
-
-err_out:
 	return err;
 }
 #endif
@@ -2891,28 +2866,6 @@ static int hme_sbus_probe(struct platform_device *op)
 	return happy_meal_sbus_probe_one(op, is_qfe);
 }
 
-static int hme_sbus_remove(struct platform_device *op)
-{
-	struct happy_meal *hp = platform_get_drvdata(op);
-	struct net_device *net_dev = hp->dev;
-
-	unregister_netdev(net_dev);
-
-	of_iounmap(&op->resource[0], hp->gregs, GREG_REG_SIZE);
-	of_iounmap(&op->resource[1], hp->etxregs, ETX_REG_SIZE);
-	of_iounmap(&op->resource[2], hp->erxregs, ERX_REG_SIZE);
-	of_iounmap(&op->resource[3], hp->bigmacregs, BMAC_REG_SIZE);
-	of_iounmap(&op->resource[4], hp->tcvregs, TCVR_REG_SIZE);
-	dma_free_coherent(hp->dma_dev,
-			  PAGE_SIZE,
-			  hp->happy_block,
-			  hp->hblock_dvma);
-
-	free_netdev(net_dev);
-
-	return 0;
-}
-
 static const struct of_device_id hme_sbus_match[] = {
 	{
 		.name = "SUNW,hme",
@@ -2936,7 +2889,6 @@ static struct platform_driver hme_sbus_driver = {
 		.of_match_table = hme_sbus_match,
 	},
 	.probe		= hme_sbus_probe,
-	.remove		= hme_sbus_remove,
 };
 
 static int __init happy_meal_sbus_init(void)
