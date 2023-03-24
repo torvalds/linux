@@ -985,32 +985,6 @@ static void happy_meal_get_counters(struct happy_meal *hp, void __iomem *bregs)
 	hme_write32(hp, bregs + BMAC_LTCTR, 0);
 }
 
-/* hp->happy_lock must be held */
-static void happy_meal_poll_stop(struct happy_meal *hp, void __iomem *tregs)
-{
-	/* If polling disabled or not polling already, nothing to do. */
-	if ((hp->happy_flags & (HFLAG_POLLENABLE | HFLAG_POLL)) !=
-	   (HFLAG_POLLENABLE | HFLAG_POLL)) {
-		ASD("not polling, return\n");
-		return;
-	}
-
-	/* Shut up the MIF. */
-	ASD("were polling, mif ints off, polling off\n");
-	hme_write32(hp, tregs + TCVR_IMASK, 0xffff);
-
-	/* Turn off polling. */
-	hme_write32(hp, tregs + TCVR_CFG,
-		    hme_read32(hp, tregs + TCVR_CFG) & ~(TCV_CFG_PENABLE));
-
-	/* We are no longer polling. */
-	hp->happy_flags &= ~(HFLAG_POLL);
-
-	/* Let the bits set. */
-	udelay(200);
-	ASD("done\n");
-}
-
 /* Only Sun can take such nice parts and fuck up the programming interface
  * like this.  Good job guys...
  */
@@ -1115,57 +1089,26 @@ static int happy_meal_tcvr_reset(struct happy_meal *hp, void __iomem *tregs)
 static void happy_meal_transceiver_check(struct happy_meal *hp, void __iomem *tregs)
 {
 	unsigned long tconfig = hme_read32(hp, tregs + TCVR_CFG);
+	u32 reread = hme_read32(hp, tregs + TCVR_CFG);
 
 	ASD("tcfg=%08lx\n", tconfig);
-	if (hp->happy_flags & HFLAG_POLL) {
-		/* If we are polling, we must stop to get the transceiver type. */
-		if (hp->tcvr_type == internal) {
-			if (tconfig & TCV_CFG_MDIO1) {
-				happy_meal_poll_stop(hp, tregs);
-				hp->paddr = TCV_PADDR_ETX;
-				hp->tcvr_type = external;
-				tconfig &= ~(TCV_CFG_PENABLE);
-				tconfig |= TCV_CFG_PSELECT;
-				hme_write32(hp, tregs + TCVR_CFG, tconfig);
-				ASD("poll stop, internal->external\n");
-			}
-		} else {
-			if (hp->tcvr_type == external) {
-				if (!(hme_read32(hp, tregs + TCVR_STATUS) >> 16)) {
-					happy_meal_poll_stop(hp, tregs);
-					hp->paddr = TCV_PADDR_ITX;
-					hp->tcvr_type = internal;
-					hme_write32(hp, tregs + TCVR_CFG,
-						    hme_read32(hp, tregs + TCVR_CFG) &
-						    ~(TCV_CFG_PSELECT));
-					ASD("poll stop, external->internal\n");
-				}
-			} else {
-				ASD("polling, none\n");
-			}
-		}
+	if (reread & TCV_CFG_MDIO1) {
+		hme_write32(hp, tregs + TCVR_CFG, tconfig | TCV_CFG_PSELECT);
+		hp->paddr = TCV_PADDR_ETX;
+		hp->tcvr_type = external;
+		ASD("not polling, external\n");
 	} else {
-		u32 reread = hme_read32(hp, tregs + TCVR_CFG);
-
-		/* Else we can just work off of the MDIO bits. */
-		if (reread & TCV_CFG_MDIO1) {
-			hme_write32(hp, tregs + TCVR_CFG, tconfig | TCV_CFG_PSELECT);
-			hp->paddr = TCV_PADDR_ETX;
-			hp->tcvr_type = external;
-			ASD("not polling, external\n");
+		if (reread & TCV_CFG_MDIO0) {
+			hme_write32(hp, tregs + TCVR_CFG,
+				    tconfig & ~(TCV_CFG_PSELECT));
+			hp->paddr = TCV_PADDR_ITX;
+			hp->tcvr_type = internal;
+			ASD("not polling, internal\n");
 		} else {
-			if (reread & TCV_CFG_MDIO0) {
-				hme_write32(hp, tregs + TCVR_CFG,
-					    tconfig & ~(TCV_CFG_PSELECT));
-				hp->paddr = TCV_PADDR_ITX;
-				hp->tcvr_type = internal;
-				ASD("not polling, internal\n");
-			} else {
-				netdev_err(hp->dev,
-					   "Transceiver and a coke please.");
-				hp->tcvr_type = none; /* Grrr... */
-				ASD("not polling, none\n");
-			}
+			netdev_err(hp->dev,
+				   "Transceiver and a coke please.");
+			hp->tcvr_type = none; /* Grrr... */
+			ASD("not polling, none\n");
 		}
 	}
 }
@@ -1334,10 +1277,6 @@ static int happy_meal_init(struct happy_meal *hp)
 		happy_meal_get_counters(hp, bregs);
 	}
 
-	/* Stop polling. */
-	HMD("to happy_meal_poll_stop\n");
-	happy_meal_poll_stop(hp, tregs);
-
 	/* Stop transmitter and receiver. */
 	HMD("to happy_meal_stop\n");
 	happy_meal_stop(hp, gregs);
@@ -1345,11 +1284,6 @@ static int happy_meal_init(struct happy_meal *hp)
 	/* Alloc and reset the tx/rx descriptor chains. */
 	HMD("to happy_meal_init_rings\n");
 	happy_meal_init_rings(hp);
-
-	/* Shut up the MIF. */
-	HMD("Disable all MIF irqs (old[%08x])\n",
-	    hme_read32(hp, tregs + TCVR_IMASK));
-	hme_write32(hp, tregs + TCVR_IMASK, 0xffff);
 
 	/* See if we can enable the MIF frame on this card to speak to the DP83840. */
 	if (hp->happy_flags & HFLAG_FENABLE) {
@@ -1605,7 +1539,6 @@ static void happy_meal_set_initial_advertisement(struct happy_meal *hp)
 	void __iomem *gregs	= hp->gregs;
 
 	happy_meal_stop(hp, gregs);
-	hme_write32(hp, tregs + TCVR_IMASK, 0xffff);
 	if (hp->happy_flags & HFLAG_FENABLE)
 		hme_write32(hp, tregs + TCVR_CFG,
 			    hme_read32(hp, tregs + TCVR_CFG) & ~(TCV_CFG_BENABLE));
@@ -1760,34 +1693,6 @@ static int happy_meal_is_not_so_happy(struct happy_meal *hp, u32 status)
 		return 1;
 	}
 	return 0;
-}
-
-/* hp->happy_lock must be held */
-static void happy_meal_mif_interrupt(struct happy_meal *hp)
-{
-	void __iomem *tregs = hp->tcvregs;
-
-	netdev_info(hp->dev, "Link status change.\n");
-	hp->sw_bmcr = happy_meal_tcvr_read(hp, tregs, MII_BMCR);
-	hp->sw_lpa = happy_meal_tcvr_read(hp, tregs, MII_LPA);
-
-	/* Use the fastest transmission protocol possible. */
-	if (hp->sw_lpa & LPA_100FULL) {
-		netdev_info(hp->dev, "Switching to 100Mbps at full duplex.\n");
-		hp->sw_bmcr |= (BMCR_FULLDPLX | BMCR_SPEED100);
-	} else if (hp->sw_lpa & LPA_100HALF) {
-		netdev_info(hp->dev, "Switching to 100MBps at half duplex.\n");
-		hp->sw_bmcr |= BMCR_SPEED100;
-	} else if (hp->sw_lpa & LPA_10FULL) {
-		netdev_info(hp->dev, "Switching to 10MBps at full duplex.\n");
-		hp->sw_bmcr |= BMCR_FULLDPLX;
-	} else {
-		netdev_info(hp->dev, "Using 10Mbps at half duplex.\n");
-	}
-	happy_meal_tcvr_write(hp, tregs, MII_BMCR, hp->sw_bmcr);
-
-	/* Finally stop polling and shut up the MIF. */
-	happy_meal_poll_stop(hp, tregs);
 }
 
 /* hp->happy_lock must be held */
@@ -1973,9 +1878,6 @@ static irqreturn_t happy_meal_interrupt(int irq, void *dev_id)
 			goto out;
 	}
 
-	if (happy_status & GREG_STAT_MIFIRQ)
-		happy_meal_mif_interrupt(hp);
-
 	if (happy_status & GREG_STAT_TXALL)
 		happy_meal_tx(hp);
 
@@ -2003,7 +1905,6 @@ static irqreturn_t quattro_sbus_interrupt(int irq, void *cookie)
 		HMD("status=%08x\n", happy_status);
 
 		if (!(happy_status & (GREG_STAT_ERRORS |
-				      GREG_STAT_MIFIRQ |
 				      GREG_STAT_TXALL |
 				      GREG_STAT_RXTOHOST)))
 			continue;
@@ -2013,9 +1914,6 @@ static irqreturn_t quattro_sbus_interrupt(int irq, void *cookie)
 		if (happy_status & GREG_STAT_ERRORS)
 			if (happy_meal_is_not_so_happy(hp, happy_status))
 				goto next;
-
-		if (happy_status & GREG_STAT_MIFIRQ)
-			happy_meal_mif_interrupt(hp);
 
 		if (happy_status & GREG_STAT_TXALL)
 			happy_meal_tx(hp);
