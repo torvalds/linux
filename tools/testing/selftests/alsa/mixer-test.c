@@ -458,6 +458,48 @@ static void test_ctl_name(struct ctl_data *ctl)
 			 ctl->card->card, ctl->elem);
 }
 
+static void show_values(struct ctl_data *ctl, snd_ctl_elem_value_t *orig_val,
+			snd_ctl_elem_value_t *read_val)
+{
+	long long orig_int, read_int;
+	int i;
+
+	for (i = 0; i < snd_ctl_elem_info_get_count(ctl->info); i++) {
+		switch (snd_ctl_elem_info_get_type(ctl->info)) {
+		case SND_CTL_ELEM_TYPE_BOOLEAN:
+			orig_int = snd_ctl_elem_value_get_boolean(orig_val, i);
+			read_int = snd_ctl_elem_value_get_boolean(read_val, i);
+			break;
+
+		case SND_CTL_ELEM_TYPE_INTEGER:
+			orig_int = snd_ctl_elem_value_get_integer(orig_val, i);
+			read_int = snd_ctl_elem_value_get_integer(read_val, i);
+			break;
+
+		case SND_CTL_ELEM_TYPE_INTEGER64:
+			orig_int = snd_ctl_elem_value_get_integer64(orig_val,
+								    i);
+			read_int = snd_ctl_elem_value_get_integer64(read_val,
+								    i);
+			break;
+
+		case SND_CTL_ELEM_TYPE_ENUMERATED:
+			orig_int = snd_ctl_elem_value_get_enumerated(orig_val,
+								     i);
+			read_int = snd_ctl_elem_value_get_enumerated(read_val,
+								     i);
+			break;
+
+		default:
+			return;
+		}
+
+		ksft_print_msg("%s.%d orig %lld read %lld, is_volatile %d\n",
+			       ctl->name, i, orig_int, read_int,
+			       snd_ctl_elem_info_is_volatile(ctl->info));
+	}
+}
+
 static bool show_mismatch(struct ctl_data *ctl, int index,
 			  snd_ctl_elem_value_t *read_val,
 			  snd_ctl_elem_value_t *expected_val)
@@ -597,12 +639,14 @@ static int write_and_verify(struct ctl_data *ctl,
 			if (err < 1) {
 				ksft_print_msg("No event generated for %s\n",
 					       ctl->name);
+				show_values(ctl, initial_val, read_val);
 				ctl->event_missing++;
 			}
 		} else {
 			if (err != 0) {
 				ksft_print_msg("Spurious event generated for %s\n",
 					       ctl->name);
+				show_values(ctl, initial_val, read_val);
 				ctl->event_spurious++;
 			}
 		}
