@@ -5413,7 +5413,7 @@ unsigned int intel_model_duplicates(unsigned int model)
 	switch (model) {
 	case INTEL_FAM6_NEHALEM_EP:	/* Core i7, Xeon 5500 series - Bloomfield, Gainstown NHM-EP */
 	case INTEL_FAM6_NEHALEM:	/* Core i7 and i5 Processor - Clarksfield, Lynnfield, Jasper Forest */
-	case 0x1F:		/* Core i7 and i5 Processor - Nehalem */
+	case INTEL_FAM6_NEHALEM_G:	/* Core i7 and i5 Processor - Nehalem */
 	case INTEL_FAM6_WESTMERE:	/* Westmere Client - Clarkdale, Arrandale */
 	case INTEL_FAM6_WESTMERE_EP:	/* Westmere EP - Gulftown */
 		return INTEL_FAM6_NEHALEM;
