@@ -69,7 +69,6 @@
 #define GEN12_VE1_AUX_INV			_MMIO(0x42b8)
 #define   AUX_INV				REG_BIT(0)
 
-#define GEN12_PAT_INDEX(index)			_MMIO(0x4800 + (index) * 4)
 #define XEHP_TILE0_ADDR_RANGE			MCR_REG(0x4900)
 #define XEHP_FLAT_CCS_BASE_ADDR			MCR_REG(0x4910)
 
