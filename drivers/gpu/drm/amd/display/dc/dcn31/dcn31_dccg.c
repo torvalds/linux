@@ -360,6 +360,15 @@ void dccg31_disable_dscclk(struct dccg *dccg, int inst)
 				DSCCLK2_DTO_PHASE, 0,
 				DSCCLK2_DTO_MODULO, 1);
 		break;
+	case 3:
+		if (REG(DSCCLK3_DTO_PARAM)) {
+			REG_UPDATE(DSCCLK_DTO_CTRL,
+					DSCCLK3_DTO_ENABLE, 1);
+			REG_UPDATE_2(DSCCLK3_DTO_PARAM,
+					DSCCLK3_DTO_PHASE, 0,
+					DSCCLK3_DTO_MODULO, 1);
+		}
+		break;
 	default:
 		BREAK_TO_DEBUGGER();
 		return;
@@ -394,6 +403,15 @@ void dccg31_enable_dscclk(struct dccg *dccg, int inst)
 				DSCCLK2_DTO_MODULO, 0);
 		REG_UPDATE(DSCCLK_DTO_CTRL,
 				DSCCLK2_DTO_ENABLE, 0);
+		break;
+	case 3:
+		if (REG(DSCCLK3_DTO_PARAM)) {
+			REG_UPDATE(DSCCLK_DTO_CTRL,
+					DSCCLK3_DTO_ENABLE, 0);
+			REG_UPDATE_2(DSCCLK3_DTO_PARAM,
+					DSCCLK3_DTO_PHASE, 0,
+					DSCCLK3_DTO_MODULO, 0);
+		}
 		break;
 	default:
 		BREAK_TO_DEBUGGER();
