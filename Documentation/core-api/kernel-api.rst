@@ -223,7 +223,7 @@ Module Support
 Module Loading
 --------------
 
-.. kernel-doc:: kernel/kmod.c
+.. kernel-doc:: kernel/module/kmod.c
    :export:
 
 Inter Module support
