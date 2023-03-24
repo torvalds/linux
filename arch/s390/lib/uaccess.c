@@ -34,7 +34,7 @@ void debug_user_asce(int exit)
 static unsigned long raw_copy_from_user_key(void *to, const void __user *from,
 					    unsigned long size, unsigned long key)
 {
-	unsigned long val, rem;
+	unsigned long rem;
 	union oac spec = {
 		.oac2.key = key,
 		.oac2.as = PSW_BITS_AS_SECONDARY,
@@ -42,7 +42,6 @@ static unsigned long raw_copy_from_user_key(void *to, const void __user *from,
 		.oac2.a = 1,
 	};
 
-	val = -4096UL;
 	asm volatile(
 		"	lr	0,%[spec]\n"
 		"0:	mvcos	0(%[to]),0(%[from]),%[size]\n"
@@ -65,9 +64,8 @@ static unsigned long raw_copy_from_user_key(void *to, const void __user *from,
 		EX_TABLE(1b, 2b)
 		EX_TABLE(3b, 6b)
 		EX_TABLE(4b, 6b)
-		: [size] "+a" (size), [from] "+a" (from), [to] "+a" (to),
-		  [val] "+a" (val), [rem] "=a" (rem)
-		: [spec] "d" (spec.val)
+		: [size] "+&a" (size), [from] "+&a" (from), [to] "+&a" (to), [rem] "=&a" (rem)
+		: [val] "a" (-4096UL), [spec] "d" (spec.val)
 		: "cc", "memory", "0");
 	return size;
 }
@@ -98,7 +96,7 @@ EXPORT_SYMBOL(_copy_from_user_key);
 static unsigned long raw_copy_to_user_key(void __user *to, const void *from,
 					  unsigned long size, unsigned long key)
 {
-	unsigned long val, rem;
+	unsigned long rem;
 	union oac spec = {
 		.oac1.key = key,
 		.oac1.as = PSW_BITS_AS_SECONDARY,
@@ -106,7 +104,6 @@ static unsigned long raw_copy_to_user_key(void __user *to, const void *from,
 		.oac1.a = 1,
 	};
 
-	val = -4096UL;
 	asm volatile(
 		"	lr	0,%[spec]\n"
 		"0:	mvcos	0(%[to]),0(%[from]),%[size]\n"
@@ -129,9 +126,8 @@ static unsigned long raw_copy_to_user_key(void __user *to, const void *from,
 		EX_TABLE(1b, 2b)
 		EX_TABLE(3b, 6b)
 		EX_TABLE(4b, 6b)
-		: [size] "+a" (size), [to] "+a" (to), [from] "+a" (from),
-		  [val] "+a" (val), [rem] "=a" (rem)
-		: [spec] "d" (spec.val)
+		: [size] "+&a" (size), [to] "+&a" (to), [from] "+&a" (from), [rem] "=&a" (rem)
+		: [val] "a" (-4096UL), [spec] "d" (spec.val)
 		: "cc", "memory", "0");
 	return size;
 }
@@ -155,13 +151,12 @@ EXPORT_SYMBOL(_copy_to_user_key);
 
 unsigned long __clear_user(void __user *to, unsigned long size)
 {
-	unsigned long val, rem;
+	unsigned long rem;
 	union oac spec = {
 		.oac1.as = PSW_BITS_AS_SECONDARY,
 		.oac1.a = 1,
 	};
 
-	val = -4096UL;
 	asm volatile(
 		"	lr	0,%[spec]\n"
 		"0:	mvcos	0(%[to]),0(%[zeropg]),%[size]\n"
@@ -183,9 +178,8 @@ unsigned long __clear_user(void __user *to, unsigned long size)
 		EX_TABLE(1b, 2b)
 		EX_TABLE(3b, 6b)
 		EX_TABLE(4b, 6b)
-		: [size] "+&a" (size), [to] "+&a" (to),
-		  [val] "+a" (val), [rem] "=&a" (rem)
-		: [zeropg] "a" (empty_zero_page), [spec] "d" (spec.val)
+		: [size] "+&a" (size), [to] "+&a" (to), [rem] "=&a" (rem)
+		: [val] "a" (-4096UL), [zeropg] "a" (empty_zero_page), [spec] "d" (spec.val)
 		: "cc", "memory", "0");
 	return size;
 }
