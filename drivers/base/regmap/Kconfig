@@ -9,11 +9,6 @@ config REGMAP
 	select MDIO_BUS if REGMAP_MDIO
 	bool
 
-config REGCACHE_COMPRESSED
-	select LZO_COMPRESS
-	select LZO_DECOMPRESS
-	bool
-
 config REGMAP_AC97
 	tristate
 
