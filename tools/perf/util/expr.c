@@ -14,6 +14,7 @@
 #include "util/hashmap.h"
 #include "smt.h"
 #include "tsc.h"
+#include <api/fs/fs.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/zalloc.h>
@@ -400,6 +401,20 @@ double arch_get_tsc_freq(void)
 }
 #endif
 
+static double has_pmem(void)
+{
+	static bool has_pmem, cached;
+	const char *sysfs = sysfs__mountpoint();
+	char path[PATH_MAX];
+
+	if (!cached) {
+		snprintf(path, sizeof(path), "%s/firmware/acpi/tables/NFIT", sysfs);
+		has_pmem = access(path, F_OK) == 0;
+		cached = true;
+	}
+	return has_pmem ? 1.0 : 0.0;
+}
+
 double expr__get_literal(const char *literal, const struct expr_scanner_ctx *ctx)
 {
 	const struct cpu_topology *topology;
@@ -447,6 +462,10 @@ double expr__get_literal(const char *literal, const struct expr_scanner_ctx *ctx
 	}
 	if (!strcmp("#slots", literal)) {
 		result = perf_pmu__cpu_slots_per_cycle();
+		goto out;
+	}
+	if (!strcmp("#has_pmem", literal)) {
+		result = has_pmem();
 		goto out;
 	}
 
