@@ -593,7 +593,7 @@ static void sfp_upstream_clear(struct sfp_bus *bus)
  *	- %-ENOMEM if we failed to allocate the bus.
  *	- an error from the upstream's connect_phy() method.
  */
-struct sfp_bus *sfp_bus_find_fwnode(struct fwnode_handle *fwnode)
+struct sfp_bus *sfp_bus_find_fwnode(const struct fwnode_handle *fwnode)
 {
 	struct fwnode_reference_args ref;
 	struct sfp_bus *bus;
