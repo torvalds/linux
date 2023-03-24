@@ -263,6 +263,12 @@ static int __init acpi_processor_driver_init(void)
 	if (acpi_disabled)
 		return 0;
 
+	if (!cpufreq_register_notifier(&acpi_processor_notifier_block,
+				       CPUFREQ_POLICY_NOTIFIER)) {
+		acpi_processor_cpufreq_init = true;
+		acpi_processor_ignore_ppc_init();
+	}
+
 	result = driver_register(&acpi_processor_driver);
 	if (result < 0)
 		return result;
@@ -275,12 +281,6 @@ static int __init acpi_processor_driver_init(void)
 	hp_online = result;
 	cpuhp_setup_state_nocalls(CPUHP_ACPI_CPUDRV_DEAD, "acpi/cpu-drv:dead",
 				  NULL, acpi_soft_cpu_dead);
-
-	if (!cpufreq_register_notifier(&acpi_processor_notifier_block,
-				       CPUFREQ_POLICY_NOTIFIER)) {
-		acpi_processor_cpufreq_init = true;
-		acpi_processor_ignore_ppc_init();
-	}
 
 	acpi_processor_throttling_init();
 	return 0;
