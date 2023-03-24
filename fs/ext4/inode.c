@@ -1359,24 +1359,24 @@ static int ext4_write_end(struct file *file,
  */
 static void ext4_journalled_zero_new_buffers(handle_t *handle,
 					    struct inode *inode,
-					    struct page *page,
+					    struct folio *folio,
 					    unsigned from, unsigned to)
 {
 	unsigned int block_start = 0, block_end;
 	struct buffer_head *head, *bh;
 
-	bh = head = page_buffers(page);
+	bh = head = folio_buffers(folio);
 	do {
 		block_end = block_start + bh->b_size;
 		if (buffer_new(bh)) {
 			if (block_end > from && block_start < to) {
-				if (!PageUptodate(page)) {
+				if (!folio_test_uptodate(folio)) {
 					unsigned start, size;
 
 					start = max(from, block_start);
 					size = min(to, block_end) - start;
 
-					zero_user(page, start, size);
+					folio_zero_range(folio, start, size);
 					write_end_fn(handle, inode, bh);
 				}
 				clear_buffer_new(bh);
@@ -1413,10 +1413,11 @@ static int ext4_journalled_write_end(struct file *file,
 
 	if (unlikely(copied < len) && !folio_test_uptodate(folio)) {
 		copied = 0;
-		ext4_journalled_zero_new_buffers(handle, inode, page, from, to);
+		ext4_journalled_zero_new_buffers(handle, inode, folio,
+						 from, to);
 	} else {
 		if (unlikely(copied < len))
-			ext4_journalled_zero_new_buffers(handle, inode, page,
+			ext4_journalled_zero_new_buffers(handle, inode, folio,
 							 from + copied, to);
 		ret = ext4_walk_page_buffers(handle, inode,
 					     folio_buffers(folio),
