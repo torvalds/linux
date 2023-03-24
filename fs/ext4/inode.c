@@ -1885,8 +1885,8 @@ static int mpage_submit_folio(struct mpage_da_data *mpd, struct folio *folio)
 	 * write-protects our page in page tables and the page cannot get
 	 * written to again until we release folio lock. So only after
 	 * folio_clear_dirty_for_io() we are safe to sample i_size for
-	 * ext4_bio_write_page() to zero-out tail of the written page. We rely
-	 * on the barrier provided by TestClearPageDirty in
+	 * ext4_bio_write_folio() to zero-out tail of the written page. We rely
+	 * on the barrier provided by folio_test_clear_dirty() in
 	 * folio_clear_dirty_for_io() to make sure i_size is really sampled only
 	 * after page tables are updated.
 	 */
@@ -1895,7 +1895,7 @@ static int mpage_submit_folio(struct mpage_da_data *mpd, struct folio *folio)
 	if (folio_pos(folio) + len > size &&
 	    !ext4_verity_in_progress(mpd->inode))
 		len = size & ~PAGE_MASK;
-	err = ext4_bio_write_page(&mpd->io_submit, &folio->page, len);
+	err = ext4_bio_write_folio(&mpd->io_submit, folio, len);
 	if (!err)
 		mpd->wbc->nr_to_write--;
 
