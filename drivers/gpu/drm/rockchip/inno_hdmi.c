@@ -656,7 +656,9 @@ static struct drm_connector_helper_funcs inno_hdmi_connector_helper_funcs = {
 };
 
 static int
-inno_hdmi_audio_config_set(struct inno_hdmi *hdmi, struct audio_info *audio)
+inno_hdmi_audio_config_set(struct inno_hdmi *hdmi,
+			   struct hdmi_codec_daifmt *daifmt,
+			   struct audio_info *audio)
 {
 	int rate, N, channel;
 
@@ -704,14 +706,19 @@ inno_hdmi_audio_config_set(struct inno_hdmi *hdmi, struct audio_info *audio)
 		return -ENOENT;
 	}
 
-	/* Set_audio source I2S */
-	hdmi_writeb(hdmi, HDMI_AUDIO_CTRL1, 0x01);
+	if (daifmt->fmt == HDMI_SPDIF) {
+		/* set_audio source SPDIF */
+		hdmi_writeb(hdmi, HDMI_AUDIO_CTRL1, 0x09);
+	} else {
+		/* set_audio source I2S */
+		hdmi_writeb(hdmi, HDMI_AUDIO_CTRL1, 0x01);
+	}
 	hdmi_writeb(hdmi, AUDIO_SAMPLE_RATE, rate);
 	hdmi_writeb(hdmi, AUDIO_I2S_MODE, v_I2S_MODE(I2S_STANDARD) |
 		    v_I2S_CHANNEL(channel));
 
 	hdmi_writeb(hdmi, AUDIO_I2S_MAP, 0x00);
-	hdmi_writeb(hdmi, AUDIO_I2S_SWAPS_SPDIF, 0);
+	hdmi_writeb(hdmi, AUDIO_I2S_SWAPS_SPDIF, rate);
 
 	/* Set N value */
 	hdmi_writeb(hdmi, AUDIO_N_H, (N >> 16) & 0x0F);
@@ -762,12 +769,14 @@ static int inno_hdmi_audio_hw_params(struct device *dev, void *d,
 	switch (daifmt->fmt) {
 	case HDMI_I2S:
 		break;
+	case HDMI_SPDIF:
+		break;
 	default:
 		dev_err(dev, "%s: Invalid format %d\n", __func__, daifmt->fmt);
 		return -EINVAL;
 	}
 
-	return inno_hdmi_audio_config_set(hdmi, &audio);
+	return inno_hdmi_audio_config_set(hdmi, daifmt, &audio);
 }
 
 static void inno_hdmi_audio_shutdown(struct device *dev, void *d)
@@ -828,11 +837,21 @@ static const struct hdmi_codec_ops audio_codec_ops = {
 static int inno_hdmi_audio_codec_init(struct inno_hdmi *hdmi,
 				      struct device *dev)
 {
+	const char *str = "i2s";
 	struct hdmi_codec_pdata codec_data = {
 		.i2s = 1,
+		.spdif = 0,
 		.ops = &audio_codec_ops,
 		.max_i2s_channels = 8,
 	};
+
+	if (device_property_read_string(dev, "rockchip,format", &str))
+		dev_warn(dev, "can not get rockchip,format\n");
+
+	if (strstr(str, "spdif")) {
+		codec_data.i2s = 0;
+		codec_data.spdif = 1;
+	}
 
 	hdmi->audio_enable = false;
 	hdmi->audio_pdev = platform_device_register_data(
