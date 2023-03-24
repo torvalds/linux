@@ -153,10 +153,6 @@ static int vkms_plane_atomic_check(struct drm_plane *plane,
 	if (ret != 0)
 		return ret;
 
-	/* for now primary plane must be visible and full screen */
-	if (!new_plane_state->visible && !can_position)
-		return -EINVAL;
-
 	return 0;
 }
 
