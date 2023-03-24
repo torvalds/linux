@@ -317,7 +317,7 @@ int tb_switch_clx_enable(struct tb_switch *sw, unsigned int clx)
 	struct tb_port *up, *down;
 	int ret;
 
-	if (!clx)
+	if (!clx || sw->clx == clx)
 		return 0;
 
 	if (!validate_mask(clx))

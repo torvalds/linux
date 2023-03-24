@@ -240,8 +240,11 @@ static void tb_discover_dp_resources(struct tb *tb)
 	}
 }
 
+/* Enables CL states up to host router */
 static int tb_enable_clx(struct tb_switch *sw)
 {
+	struct tb_cm *tcm = tb_priv(sw->tb);
+	const struct tb_tunnel *tunnel;
 	int ret;
 
 	/*
@@ -251,8 +254,25 @@ static int tb_enable_clx(struct tb_switch *sw)
 	 * this in the future to cover the whole topology if it turns
 	 * out to be beneficial.
 	 */
+	while (sw && sw->config.depth > 1)
+		sw = tb_switch_parent(sw);
+
+	if (!sw)
+		return 0;
+
 	if (sw->config.depth != 1)
 		return 0;
+
+	/*
+	 * If we are re-enabling then check if there is an active DMA
+	 * tunnel and in that case bail out.
+	 */
+	list_for_each_entry(tunnel, &tcm->tunnel_list, list) {
+		if (tb_tunnel_is_dma(tunnel)) {
+			if (tb_tunnel_port_on_path(tunnel, tb_upstream_port(sw)))
+				return 0;
+		}
+	}
 
 	/*
 	 * CL0s and CL1 are enabled and supported together.
@@ -260,6 +280,16 @@ static int tb_enable_clx(struct tb_switch *sw)
 	 */
 	ret = tb_switch_clx_enable(sw, TB_CL0S | TB_CL1);
 	return ret == -EOPNOTSUPP ? 0 : ret;
+}
+
+/* Disables CL states up to the host router */
+static void tb_disable_clx(struct tb_switch *sw)
+{
+	do {
+		if (tb_switch_clx_disable(sw) < 0)
+			tb_sw_warn(sw, "failed to disable CL states\n");
+		sw = tb_switch_parent(sw);
+	} while (sw);
 }
 
 static int tb_increase_switch_tmu_accuracy(struct device *dev, void *data)
@@ -1470,30 +1500,45 @@ static int tb_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd,
 	struct tb_port *nhi_port, *dst_port;
 	struct tb_tunnel *tunnel;
 	struct tb_switch *sw;
+	int ret;
 
 	sw = tb_to_switch(xd->dev.parent);
 	dst_port = tb_port_at(xd->route, sw);
 	nhi_port = tb_switch_find_port(tb->root_switch, TB_TYPE_NHI);
 
 	mutex_lock(&tb->lock);
+
+	/*
+	 * When tunneling DMA paths the link should not enter CL states
+	 * so disable them now.
+	 */
+	tb_disable_clx(sw);
+
 	tunnel = tb_tunnel_alloc_dma(tb, nhi_port, dst_port, transmit_path,
 				     transmit_ring, receive_path, receive_ring);
 	if (!tunnel) {
-		mutex_unlock(&tb->lock);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err_clx;
 	}
 
 	if (tb_tunnel_activate(tunnel)) {
 		tb_port_info(nhi_port,
 			     "DMA tunnel activation failed, aborting\n");
-		tb_tunnel_free(tunnel);
-		mutex_unlock(&tb->lock);
-		return -EIO;
+		ret = -EIO;
+		goto err_free;
 	}
 
 	list_add_tail(&tunnel->list, &tcm->tunnel_list);
 	mutex_unlock(&tb->lock);
 	return 0;
+
+err_free:
+	tb_tunnel_free(tunnel);
+err_clx:
+	tb_enable_clx(sw);
+	mutex_unlock(&tb->lock);
+
+	return ret;
 }
 
 static void __tb_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd,
@@ -1519,6 +1564,13 @@ static void __tb_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd,
 					receive_path, receive_ring))
 			tb_deactivate_and_free_tunnel(tunnel);
 	}
+
+	/*
+	 * Try to re-enable CL states now, it is OK if this fails
+	 * because we may still have another DMA tunnel active through
+	 * the same host router USB4 downstream port.
+	 */
+	tb_enable_clx(sw);
 }
 
 static int tb_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd,
