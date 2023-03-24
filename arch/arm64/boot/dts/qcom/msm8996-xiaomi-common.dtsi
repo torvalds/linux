@@ -12,8 +12,6 @@
 
 / {
 	clocks {
-		compatible = "simple-bus";
-
 		divclk1_cdc: divclk1 {
 			compatible = "gpio-gate-clock";
 			clocks = <&rpmcc RPM_SMD_DIV_CLK1>;
