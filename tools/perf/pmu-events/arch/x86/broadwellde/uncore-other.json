@@ -101,6 +101,7 @@
         "EventCode": "0x14",
         "EventName": "UNC_I_MISC0.2ND_ATOMIC_INSERT",
         "PerPkg": "1",
+        "PublicDescription": "Counts Timeouts - Set 0 : Cache Inserts of Atomic Transactions as Secondary",
         "UMask": "0x10",
         "Unit": "IRP"
     },
@@ -109,6 +110,7 @@
         "EventCode": "0x14",
         "EventName": "UNC_I_MISC0.2ND_RD_INSERT",
         "PerPkg": "1",
+        "PublicDescription": "Counts Timeouts - Set 0 : Cache Inserts of Read Transactions as Secondary",
         "UMask": "0x4",
         "Unit": "IRP"
     },
@@ -117,6 +119,7 @@
         "EventCode": "0x14",
         "EventName": "UNC_I_MISC0.2ND_WR_INSERT",
         "PerPkg": "1",
+        "PublicDescription": "Counts Timeouts - Set 0 : Cache Inserts of Write Transactions as Secondary",
         "UMask": "0x8",
         "Unit": "IRP"
     },
@@ -125,6 +128,7 @@
         "EventCode": "0x14",
         "EventName": "UNC_I_MISC0.FAST_REJ",
         "PerPkg": "1",
+        "PublicDescription": "Counts Timeouts - Set 0 : Fastpath Rejects",
         "UMask": "0x2",
         "Unit": "IRP"
     },
@@ -133,6 +137,7 @@
         "EventCode": "0x14",
         "EventName": "UNC_I_MISC0.FAST_REQ",
         "PerPkg": "1",
+        "PublicDescription": "Counts Timeouts - Set 0 : Fastpath Requests",
         "UMask": "0x1",
         "Unit": "IRP"
     },
@@ -141,6 +146,7 @@
         "EventCode": "0x14",
         "EventName": "UNC_I_MISC0.FAST_XFER",
         "PerPkg": "1",
+        "PublicDescription": "Counts Timeouts - Set 0 : Fastpath Transfers From Primary to Secondary",
         "UMask": "0x20",
         "Unit": "IRP"
     },
@@ -149,6 +155,7 @@
         "EventCode": "0x14",
         "EventName": "UNC_I_MISC0.PF_ACK_HINT",
         "PerPkg": "1",
+        "PublicDescription": "Counts Timeouts - Set 0 : Prefetch Ack Hints From Primary to Secondary",
         "UMask": "0x40",
         "Unit": "IRP"
     },
@@ -175,6 +182,7 @@
         "EventCode": "0x15",
         "EventName": "UNC_I_MISC1.LOST_FWD",
         "PerPkg": "1",
+        "PublicDescription": "Misc Events - Set 1 : Lost Forward : Snoop pulled away ownership before a write was committed",
         "UMask": "0x10",
         "Unit": "IRP"
     },
@@ -241,6 +249,7 @@
         "Unit": "IRP"
     },
     {
+        "BriefDescription": "UNC_I_RxR_BL_DRS_CYCLES_FULL",
         "EventCode": "0x4",
         "EventName": "UNC_I_RxR_BL_DRS_CYCLES_FULL",
         "PerPkg": "1",
@@ -256,6 +265,7 @@
         "Unit": "IRP"
     },
     {
+        "BriefDescription": "UNC_I_RxR_BL_DRS_OCCUPANCY",
         "EventCode": "0x7",
         "EventName": "UNC_I_RxR_BL_DRS_OCCUPANCY",
         "PerPkg": "1",
@@ -263,6 +273,7 @@
         "Unit": "IRP"
     },
     {
+        "BriefDescription": "UNC_I_RxR_BL_NCB_CYCLES_FULL",
         "EventCode": "0x5",
         "EventName": "UNC_I_RxR_BL_NCB_CYCLES_FULL",
         "PerPkg": "1",
@@ -278,6 +289,7 @@
         "Unit": "IRP"
     },
     {
+        "BriefDescription": "UNC_I_RxR_BL_NCB_OCCUPANCY",
         "EventCode": "0x8",
         "EventName": "UNC_I_RxR_BL_NCB_OCCUPANCY",
         "PerPkg": "1",
@@ -285,6 +297,7 @@
         "Unit": "IRP"
     },
     {
+        "BriefDescription": "UNC_I_RxR_BL_NCS_CYCLES_FULL",
         "EventCode": "0x6",
         "EventName": "UNC_I_RxR_BL_NCS_CYCLES_FULL",
         "PerPkg": "1",
@@ -300,6 +313,7 @@
         "Unit": "IRP"
     },
     {
+        "BriefDescription": "UNC_I_RxR_BL_NCS_OCCUPANCY",
         "EventCode": "0x9",
         "EventName": "UNC_I_RxR_BL_NCS_OCCUPANCY",
         "PerPkg": "1",
@@ -311,6 +325,7 @@
         "EventCode": "0x17",
         "EventName": "UNC_I_SNOOP_RESP.HIT_ES",
         "PerPkg": "1",
+        "PublicDescription": "Snoop Responses : Hit E or S",
         "UMask": "0x4",
         "Unit": "IRP"
     },
@@ -319,6 +334,7 @@
         "EventCode": "0x17",
         "EventName": "UNC_I_SNOOP_RESP.HIT_I",
         "PerPkg": "1",
+        "PublicDescription": "Snoop Responses : Hit I",
         "UMask": "0x2",
         "Unit": "IRP"
     },
@@ -327,6 +343,7 @@
         "EventCode": "0x17",
         "EventName": "UNC_I_SNOOP_RESP.HIT_M",
         "PerPkg": "1",
+        "PublicDescription": "Snoop Responses : Hit M",
         "UMask": "0x8",
         "Unit": "IRP"
     },
@@ -335,6 +352,7 @@
         "EventCode": "0x17",
         "EventName": "UNC_I_SNOOP_RESP.MISS",
         "PerPkg": "1",
+        "PublicDescription": "Snoop Responses : Miss",
         "UMask": "0x1",
         "Unit": "IRP"
     },
@@ -343,6 +361,7 @@
         "EventCode": "0x17",
         "EventName": "UNC_I_SNOOP_RESP.SNPCODE",
         "PerPkg": "1",
+        "PublicDescription": "Snoop Responses : SnpCode",
         "UMask": "0x10",
         "Unit": "IRP"
     },
@@ -351,6 +370,7 @@
         "EventCode": "0x17",
         "EventName": "UNC_I_SNOOP_RESP.SNPDATA",
         "PerPkg": "1",
+        "PublicDescription": "Snoop Responses : SnpData",
         "UMask": "0x20",
         "Unit": "IRP"
     },
@@ -359,6 +379,7 @@
         "EventCode": "0x17",
         "EventName": "UNC_I_SNOOP_RESP.SNPINV",
         "PerPkg": "1",
+        "PublicDescription": "Snoop Responses : SnpInv",
         "UMask": "0x40",
         "Unit": "IRP"
     },
@@ -453,7 +474,7 @@
         "EventCode": "0xD",
         "EventName": "UNC_I_TxR_REQUEST_OCCUPANCY",
         "PerPkg": "1",
-        "PublicDescription": "Accumultes the number of outstanding outbound requests from the IRP to the switch (towards the devices).  This can be used in conjuection with the allocations event in order to calculate average latency of outbound requests.",
+        "PublicDescription": "Accumulates the number of outstanding outbound requests from the IRP to the switch (towards the devices).  This can be used in conjunction with the allocations event in order to calculate average latency of outbound requests.",
         "Unit": "IRP"
     },
     {
@@ -465,6 +486,7 @@
         "Unit": "R2PCIe"
     },
     {
+        "BriefDescription": "UNC_R2_IIO_CREDIT.ISOCH_QPI0",
         "EventCode": "0x2D",
         "EventName": "UNC_R2_IIO_CREDIT.ISOCH_QPI0",
         "PerPkg": "1",
@@ -472,6 +494,7 @@
         "Unit": "R2PCIe"
     },
     {
+        "BriefDescription": "UNC_R2_IIO_CREDIT.ISOCH_QPI1",
         "EventCode": "0x2D",
         "EventName": "UNC_R2_IIO_CREDIT.ISOCH_QPI1",
         "PerPkg": "1",
@@ -479,6 +502,7 @@
         "Unit": "R2PCIe"
     },
     {
+        "BriefDescription": "UNC_R2_IIO_CREDIT.PRQ_QPI0",
         "EventCode": "0x2D",
         "EventName": "UNC_R2_IIO_CREDIT.PRQ_QPI0",
         "PerPkg": "1",
@@ -486,6 +510,7 @@
         "Unit": "R2PCIe"
     },
     {
+        "BriefDescription": "UNC_R2_IIO_CREDIT.PRQ_QPI1",
         "EventCode": "0x2D",
         "EventName": "UNC_R2_IIO_CREDIT.PRQ_QPI1",
         "PerPkg": "1",

@@ -8,7 +8,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Cycles a demand request was blocked due to Fill Buffers inavailability.",
+        "BriefDescription": "Cycles a demand request was blocked due to Fill Buffers unavailability.",
         "CounterMask": "1",
         "EventCode": "0x48",
         "EventName": "L1D_PEND_MISS.FB_FULL",
@@ -16,7 +16,7 @@
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "L1D miss oustandings duration in cycles",
+        "BriefDescription": "L1D miss outstandings duration in cycles",
         "EventCode": "0x48",
         "EventName": "L1D_PEND_MISS.PENDING",
         "PublicDescription": "This event counts duration of L1D miss outstanding, that is each cycle number of Fill Buffers (FB) outstanding required by Demand Reads. FB either is held by demand loads, or it is held by non-demand loads and gets hit at least once by demand. The valid outstanding interval is defined until the FB deallocation by one of the following ways: from FB allocation, if FB is allocated by demand; from the demand Hit FB, if it is allocated by hardware or software prefetch.\nNote: In the L1D, a Demand Read contains cacheable or noncacheable demand loads, including ones causing cache-line splits and reads due to page walks resulted from any request type.",
@@ -139,7 +139,7 @@
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.CODE_RD_HIT",
         "SampleAfterValue": "200003",
-        "UMask": "0x44"
+        "UMask": "0xc4"
     },
     {
         "BriefDescription": "L2 cache misses when fetching instructions.",
@@ -152,9 +152,9 @@
         "BriefDescription": "Demand Data Read requests that hit L2 cache",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.DEMAND_DATA_RD_HIT",
-        "PublicDescription": "This event counts the number of demand Data Read requests that hit L2 cache. Only not rejected loads are counted.",
+        "PublicDescription": "Counts the number of demand Data Read requests, initiated by load instructions, that hit L2 cache.",
         "SampleAfterValue": "200003",
-        "UMask": "0x41"
+        "UMask": "0xc1"
     },
     {
         "BriefDescription": "Demand Data Read miss L2, no rejects",
@@ -170,7 +170,7 @@
         "EventName": "L2_RQSTS.L2_PF_HIT",
         "PublicDescription": "This event counts the number of requests from the L2 hardware prefetchers that hit L2 cache. L3 prefetch new types.",
         "SampleAfterValue": "200003",
-        "UMask": "0x50"
+        "UMask": "0xd0"
     },
     {
         "BriefDescription": "L2 prefetch requests that miss L2 cache",
@@ -199,7 +199,7 @@
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.RFO_HIT",
         "SampleAfterValue": "200003",
-        "UMask": "0x42"
+        "UMask": "0xc2"
     },
     {
         "BriefDescription": "RFO requests that miss L2 cache.",
@@ -297,61 +297,62 @@
         "UMask": "0x4f"
     },
     {
-        "BriefDescription": "Retired load uops which data sources were L3 and cross-core snoop hits in on-pkg core cache. (Precise Event - PEBS)",
+        "BriefDescription": "Retired load uops which data sources were L3 and cross-core snoop hits in on-pkg core cache.",
         "Data_LA": "1",
         "Errata": "BDM100",
         "EventCode": "0xD2",
         "EventName": "MEM_LOAD_UOPS_L3_HIT_RETIRED.XSNP_HIT",
         "PEBS": "1",
-        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were L3 hit and a cross-core snoop hit in the on-pkg core cache.",
+        "PublicDescription": "This event counts retired load uops which data sources were L3 hit and a cross-core snoop hit in the on-pkg core cache.",
         "SampleAfterValue": "20011",
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Retired load uops which data sources were HitM responses from shared L3. (Precise Event - PEBS)",
+        "BriefDescription": "Retired load uops which data sources were HitM responses from shared L3.",
         "Data_LA": "1",
         "Errata": "BDM100",
         "EventCode": "0xD2",
         "EventName": "MEM_LOAD_UOPS_L3_HIT_RETIRED.XSNP_HITM",
         "PEBS": "1",
-        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were HitM responses from a core on same socket (shared L3).",
+        "PublicDescription": "This event counts retired load uops which data sources were HitM responses from a core on same socket (shared L3).",
         "SampleAfterValue": "20011",
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "Retired load uops which data sources were L3 hit and cross-core snoop missed in on-pkg core cache. (Precise Event - PEBS)",
+        "BriefDescription": "Retired load uops which data sources were L3 hit and cross-core snoop missed in on-pkg core cache.",
         "Data_LA": "1",
         "Errata": "BDM100",
         "EventCode": "0xD2",
         "EventName": "MEM_LOAD_UOPS_L3_HIT_RETIRED.XSNP_MISS",
         "PEBS": "1",
-        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were L3 Hit and a cross-core snoop missed in the on-pkg core cache.",
+        "PublicDescription": "This event counts retired load uops which data sources were L3 Hit and a cross-core snoop missed in the on-pkg core cache.",
         "SampleAfterValue": "20011",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Retired load uops which data sources were hits in L3 without snoops required. (Precise Event - PEBS)",
+        "BriefDescription": "Retired load uops which data sources were hits in L3 without snoops required.",
         "Data_LA": "1",
         "Errata": "BDM100",
         "EventCode": "0xD2",
         "EventName": "MEM_LOAD_UOPS_L3_HIT_RETIRED.XSNP_NONE",
         "PEBS": "1",
-        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were hits in the last-level (L3) cache without snoops required.",
+        "PublicDescription": "This event counts retired load uops which data sources were hits in the last-level (L3) cache without snoops required.",
         "SampleAfterValue": "100003",
         "UMask": "0x8"
     },
     {
+        "BriefDescription": "Data from local DRAM either Snoop not needed or Snoop Miss (RspI)",
         "Data_LA": "1",
         "Errata": "BDE70, BDM100",
         "EventCode": "0xD3",
         "EventName": "MEM_LOAD_UOPS_L3_MISS_RETIRED.LOCAL_DRAM",
         "PEBS": "1",
-        "PublicDescription": "This event counts retired load uops where the data came from local DRAM. This does not include hardware prefetches. This is a precise event.",
+        "PublicDescription": "Retired load uop whose Data Source was: local DRAM either Snoop not needed or Snoop Miss (RspI).",
         "SampleAfterValue": "100007",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Retired load uop whose Data Source was: remote DRAM either Snoop not needed or Snoop Miss (RspI) (Precise Event)",
+        "BriefDescription": "Retired load uop whose Data Source was: remote DRAM either Snoop not needed or Snoop Miss (RspI)",
         "Data_LA": "1",
         "Errata": "BDE70",
         "EventCode": "0xD3",
@@ -361,7 +362,7 @@
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "Retired load uop whose Data Source was: forwarded from remote cache (Precise Event)",
+        "BriefDescription": "Retired load uop whose Data Source was: forwarded from remote cache",
         "Data_LA": "1",
         "Errata": "BDE70",
         "EventCode": "0xD3",
@@ -371,7 +372,7 @@
         "UMask": "0x20"
     },
     {
-        "BriefDescription": "Retired load uop whose Data Source was: Remote cache HITM (Precise Event)",
+        "BriefDescription": "Retired load uop whose Data Source was: Remote cache HITM",
         "Data_LA": "1",
         "Errata": "BDE70",
         "EventCode": "0xD3",
@@ -381,69 +382,69 @@
         "UMask": "0x10"
     },
     {
-        "BriefDescription": "Retired load uops which data sources were load uops missed L1 but hit FB due to preceding miss to the same cache line with data not ready. (Precise Event - PEBS)",
+        "BriefDescription": "Retired load uops which data sources were load uops missed L1 but hit FB due to preceding miss to the same cache line with data not ready.",
         "Data_LA": "1",
         "EventCode": "0xD1",
         "EventName": "MEM_LOAD_UOPS_RETIRED.HIT_LFB",
         "PEBS": "1",
-        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were load uops missed L1 but hit a fill buffer due to a preceding miss to the same cache line with the data not ready.\nNote: Only two data-sources of L1/FB are applicable for AVX-256bit  even though the corresponding AVX load could be serviced by a deeper level in the memory hierarchy. Data source is reported for the Low-half load.",
+        "PublicDescription": "This event counts retired load uops which data sources were load uops missed L1 but hit a fill buffer due to a preceding miss to the same cache line with the data not ready.\nNote: Only two data-sources of L1/FB are applicable for AVX-256bit  even though the corresponding AVX load could be serviced by a deeper level in the memory hierarchy. Data source is reported for the Low-half load.",
         "SampleAfterValue": "100003",
         "UMask": "0x40"
     },
     {
-        "BriefDescription": "Retired load uops with L1 cache hits as data sources. (Precise Event - PEBS)",
+        "BriefDescription": "Retired load uops with L1 cache hits as data sources.",
         "Data_LA": "1",
         "EventCode": "0xD1",
         "EventName": "MEM_LOAD_UOPS_RETIRED.L1_HIT",
         "PEBS": "1",
-        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data source were hits in the nearest-level (L1) cache.\nNote: Only two data-sources of L1/FB are applicable for AVX-256bit  even though the corresponding AVX load could be serviced by a deeper level in the memory hierarchy. Data source is reported for the Low-half load. This event also counts SW prefetches independent of the actual data source.",
+        "PublicDescription": "This event counts retired load uops which data sources were hits in the nearest-level (L1) cache.\nNote: Only two data-sources of L1/FB are applicable for AVX-256bit  even though the corresponding AVX load could be serviced by a deeper level in the memory hierarchy. Data source is reported for the Low-half load. This event also counts SW prefetches independent of the actual data source.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Retired load uops misses in L1 cache as data sources. Uses PEBS.",
+        "BriefDescription": "Retired load uops misses in L1 cache as data sources.",
         "Data_LA": "1",
         "EventCode": "0xD1",
         "EventName": "MEM_LOAD_UOPS_RETIRED.L1_MISS",
         "PEBS": "1",
-        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were misses in the nearest-level (L1) cache. Counting excludes unknown and UC data source.",
+        "PublicDescription": "This event counts retired load uops which data sources were misses in the nearest-level (L1) cache. Counting excludes unknown and UC data source.",
         "SampleAfterValue": "100003",
         "UMask": "0x8"
     },
     {
-        "BriefDescription": "Retired load uops with L2 cache hits as data sources. (Precise Event - PEBS)",
+        "BriefDescription": "Retired load uops with L2 cache hits as data sources.",
         "Data_LA": "1",
         "Errata": "BDM35",
         "EventCode": "0xD1",
         "EventName": "MEM_LOAD_UOPS_RETIRED.L2_HIT",
         "PEBS": "1",
-        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were hits in the mid-level (L2) cache.",
+        "PublicDescription": "This event counts retired load uops which data sources were hits in the mid-level (L2) cache.",
         "SampleAfterValue": "100003",
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Retired load uops with L2 cache misses as data sources. Uses PEBS.",
+        "BriefDescription": "Miss in mid-level (L2) cache. Excludes Unknown data-source.",
         "Data_LA": "1",
         "EventCode": "0xD1",
         "EventName": "MEM_LOAD_UOPS_RETIRED.L2_MISS",
         "PEBS": "1",
-        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were misses in the mid-level (L2) cache. Counting excludes unknown and UC data source.",
+        "PublicDescription": "This event counts retired load uops which data sources were misses in the mid-level (L2) cache. Counting excludes unknown and UC data source.",
         "SampleAfterValue": "50021",
         "UMask": "0x10"
     },
     {
-        "BriefDescription": "Hit in last-level (L3) cache. Excludes Unknown data-source. (Precise Event - PEBS)",
+        "BriefDescription": "Retired load uops which data sources were data hits in L3 without snoops required.",
         "Data_LA": "1",
         "Errata": "BDM100",
         "EventCode": "0xD1",
         "EventName": "MEM_LOAD_UOPS_RETIRED.L3_HIT",
         "PEBS": "1",
-        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were data hits in the last-level (L3) cache without snoops required.",
+        "PublicDescription": "This event counts retired load uops which data sources were data hits in the last-level (L3) cache without snoops required.",
         "SampleAfterValue": "50021",
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "Miss in last-level (L3) cache. Excludes Unknown data-source. (Precise Event - PEBS).",
+        "BriefDescription": "Miss in last-level (L3) cache. Excludes Unknown data-source.",
         "Data_LA": "1",
         "Errata": "BDM100, BDE70",
         "EventCode": "0xD1",
@@ -453,73 +454,73 @@
         "UMask": "0x20"
     },
     {
-        "BriefDescription": "All retired load uops. (Precise Event - PEBS)",
+        "BriefDescription": "Retired load uops.",
         "Data_LA": "1",
         "EventCode": "0xD0",
         "EventName": "MEM_UOPS_RETIRED.ALL_LOADS",
         "PEBS": "1",
-        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts load uops retired to the architected path with a filter on bits 0 and 1 applied.\nNote: This event ?ounts AVX-256bit load/store double-pump memory uops as a single uop at retirement. This event also counts SW prefetches.",
+        "PublicDescription": "Counts all retired load uops. This event accounts for SW prefetch uops of PREFETCHNTA or PREFETCHT0/1/2 or PREFETCHW.",
         "SampleAfterValue": "2000003",
         "UMask": "0x81"
     },
     {
-        "BriefDescription": "Retired store uops that split across a cacheline boundary. (Precise Event - PEBS)",
+        "BriefDescription": "Retired store uops.",
         "Data_LA": "1",
         "EventCode": "0xD0",
         "EventName": "MEM_UOPS_RETIRED.ALL_STORES",
         "PEBS": "1",
-        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts store uops retired to the architected path with a filter on bits 0 and 1 applied.\nNote: This event ?ounts AVX-256bit load/store double-pump memory uops as a single uop at retirement.",
+        "PublicDescription": "Counts all retired store uops.",
         "SampleAfterValue": "2000003",
         "UMask": "0x82"
     },
     {
-        "BriefDescription": "Retired load uops with locked access. (Precise Event - PEBS)",
+        "BriefDescription": "Retired load uops with locked access.",
         "Data_LA": "1",
         "Errata": "BDM35",
         "EventCode": "0xD0",
         "EventName": "MEM_UOPS_RETIRED.LOCK_LOADS",
         "PEBS": "1",
-        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts load uops with locked access retired to the architected path.",
+        "PublicDescription": "This event counts load uops with locked access retired to the architected path.",
         "SampleAfterValue": "100007",
         "UMask": "0x21"
     },
     {
-        "BriefDescription": "Retired load uops that split across a cacheline boundary.(Precise Event - PEBS)",
+        "BriefDescription": "Retired load uops that split across a cacheline boundary.",
         "Data_LA": "1",
         "EventCode": "0xD0",
         "EventName": "MEM_UOPS_RETIRED.SPLIT_LOADS",
         "PEBS": "1",
-        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts line-splitted load uops retired to the architected path. A line split is across 64B cache-line which includes a page split (4K).",
+        "PublicDescription": "This event counts line-splitted load uops retired to the architected path. A line split is across 64B cache-line which includes a page split (4K).",
         "SampleAfterValue": "100003",
         "UMask": "0x41"
     },
     {
-        "BriefDescription": "Retired store uops that split across a cacheline boundary. (Precise Event - PEBS)",
+        "BriefDescription": "Retired store uops that split across a cacheline boundary.",
         "Data_LA": "1",
         "EventCode": "0xD0",
         "EventName": "MEM_UOPS_RETIRED.SPLIT_STORES",
         "PEBS": "1",
-        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts line-splitted store uops retired to the architected path. A line split is across 64B cache-line which includes a page split (4K).",
+        "PublicDescription": "This event counts line-splitted store uops retired to the architected path. A line split is across 64B cache-line which includes a page split (4K).",
         "SampleAfterValue": "100003",
         "UMask": "0x42"
     },
     {
-        "BriefDescription": "Retired load uops that miss the STLB. (Precise Event - PEBS)",
+        "BriefDescription": "Retired load uops that miss the STLB.",
         "Data_LA": "1",
         "EventCode": "0xD0",
         "EventName": "MEM_UOPS_RETIRED.STLB_MISS_LOADS",
         "PEBS": "1",
-        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts load uops with true STLB miss retired to the architected path. True STLB miss is an uop triggering page walk that gets completed without blocks, and later gets retired. This page walk can end up with or without a fault.",
+        "PublicDescription": "This event counts load uops with true STLB miss retired to the architected path. True STLB miss is an uop triggering page walk that gets completed without blocks, and later gets retired. This page walk can end up with or without a fault.",
         "SampleAfterValue": "100003",
         "UMask": "0x11"
     },
     {
-        "BriefDescription": "Retired store uops that miss the STLB. (Precise Event - PEBS)",
+        "BriefDescription": "Retired store uops that miss the STLB.",
         "Data_LA": "1",
         "EventCode": "0xD0",
         "EventName": "MEM_UOPS_RETIRED.STLB_MISS_STORES",
         "PEBS": "1",
-        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts store uops true STLB miss retired to the architected path. True STLB miss is an uop triggering page walk that gets completed without blocks, and later gets retired. This page walk can end up with or without a fault.",
+        "PublicDescription": "This event counts store uops with true STLB miss retired to the architected path. True STLB miss is an uop triggering page walk that gets completed without blocks, and later gets retired. This page walk can end up with or without a fault.",
         "SampleAfterValue": "100003",
         "UMask": "0x12"
     },
@@ -532,10 +533,18 @@
         "UMask": "0x8"
     },
     {
-        "BriefDescription": "Cacheable and noncachaeble code read requests",
+        "BriefDescription": "Any memory transaction that reached the SQ.",
+        "EventCode": "0xb0",
+        "EventName": "OFFCORE_REQUESTS.ALL_REQUESTS",
+        "PublicDescription": "This event counts memory transactions reached the super queue including requests initiated by the core, all L3 prefetches, page walks, and so on.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x80"
+    },
+    {
+        "BriefDescription": "Cacheable and non-cacheable code read requests",
         "EventCode": "0xB0",
         "EventName": "OFFCORE_REQUESTS.DEMAND_CODE_RD",
-        "PublicDescription": "This event counts both cacheable and noncachaeble code read requests.",
+        "PublicDescription": "This event counts both cacheable and non-cacheable code read requests.",
         "SampleAfterValue": "100003",
         "UMask": "0x2"
     },
