@@ -82,8 +82,9 @@ struct class_dev_iter {
 
 extern struct kobject *sysfs_dev_block_kobj;
 extern struct kobject *sysfs_dev_char_kobj;
-extern int __must_check class_register(struct class *class);
-extern void class_unregister(struct class *class);
+
+int __must_check class_register(struct class *class);
+void class_unregister(struct class *class);
 
 struct class_compat;
 struct class_compat *class_compat_register(const char *name);
@@ -93,19 +94,15 @@ int class_compat_create_link(struct class_compat *cls, struct device *dev,
 void class_compat_remove_link(struct class_compat *cls, struct device *dev,
 			      struct device *device_link);
 
-extern void class_dev_iter_init(struct class_dev_iter *iter,
-				const struct class *class,
-				const struct device *start,
-				const struct device_type *type);
-extern struct device *class_dev_iter_next(struct class_dev_iter *iter);
-extern void class_dev_iter_exit(struct class_dev_iter *iter);
+void class_dev_iter_init(struct class_dev_iter *iter, const struct class *class,
+			 const struct device *start, const struct device_type *type);
+struct device *class_dev_iter_next(struct class_dev_iter *iter);
+void class_dev_iter_exit(struct class_dev_iter *iter);
 
-extern int class_for_each_device(const struct class *class, const struct device *start,
-				 void *data,
-				 int (*fn)(struct device *dev, void *data));
-extern struct device *class_find_device(const struct class *class,
-					const struct device *start, const void *data,
-					int (*match)(struct device *, const void *));
+int class_for_each_device(const struct class *class, const struct device *start, void *data,
+			  int (*fn)(struct device *dev, void *data));
+struct device *class_find_device(const struct class *class, const struct device *start,
+				 const void *data, int (*match)(struct device *, const void *));
 
 /**
  * class_find_device_by_name - device iterator for locating a particular device
@@ -191,12 +188,10 @@ struct class_attribute {
 #define CLASS_ATTR_WO(_name) \
 	struct class_attribute class_attr_##_name = __ATTR_WO(_name)
 
-extern int __must_check class_create_file_ns(const struct class *class,
-					     const struct class_attribute *attr,
-					     const void *ns);
-extern void class_remove_file_ns(const struct class *class,
-				 const struct class_attribute *attr,
-				 const void *ns);
+int __must_check class_create_file_ns(const struct class *class, const struct class_attribute *attr,
+				      const void *ns);
+void class_remove_file_ns(const struct class *class, const struct class_attribute *attr,
+			  const void *ns);
 
 static inline int __must_check class_create_file(const struct class *class,
 						 const struct class_attribute *attr)
@@ -223,8 +218,7 @@ struct class_attribute_string {
 	struct class_attribute_string class_attr_##_name = \
 		_CLASS_ATTR_STRING(_name, _mode, _str)
 
-extern ssize_t show_class_attr_string(struct class *class, struct class_attribute *attr,
-                        char *buf);
+ssize_t show_class_attr_string(struct class *class, struct class_attribute *attr, char *buf);
 
 struct class_interface {
 	struct list_head	node;
@@ -234,10 +228,10 @@ struct class_interface {
 	void (*remove_dev)	(struct device *, struct class_interface *);
 };
 
-extern int __must_check class_interface_register(struct class_interface *);
-extern void class_interface_unregister(struct class_interface *);
+int __must_check class_interface_register(struct class_interface *);
+void class_interface_unregister(struct class_interface *);
 
-extern struct class * __must_check class_create(const char *name);
-extern void class_destroy(struct class *cls);
+struct class * __must_check class_create(const char *name);
+void class_destroy(struct class *cls);
 
 #endif	/* _DEVICE_CLASS_H_ */
