@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt)	"core_ctl: " fmt
@@ -39,7 +39,6 @@ struct cluster_data {
 	unsigned int		task_thres;
 	unsigned int		max_nr;
 	unsigned int		nr_assist;
-	unsigned int		nr_assist_thresh;
 	s64			need_ts;
 	struct list_head	lru;
 	bool			enable;
@@ -170,25 +169,6 @@ static ssize_t store_task_thres(struct cluster_data *state,
 	return count;
 }
 
-static ssize_t show_nr_assist_thresh(const struct cluster_data *state,
-								char *buf)
-{
-	return scnprintf(buf, PAGE_SIZE, "%u\n", state->nr_assist_thresh);
-}
-
-static ssize_t store_nr_assist_thresh(struct cluster_data *state,
-				const char *buf, size_t count)
-{
-	unsigned int val;
-
-	if (sscanf(buf, "%u\n", &val) != 1)
-		return -EINVAL;
-
-	state->nr_assist_thresh = val;
-	apply_need(state);
-
-	return count;
-}
 
 static ssize_t show_offline_delay_ms(const struct cluster_data *state,
 				     char *buf)
@@ -551,7 +531,6 @@ core_ctl_attr_rw(offline_delay_ms);
 core_ctl_attr_rw(busy_up_thres);
 core_ctl_attr_rw(busy_down_thres);
 core_ctl_attr_rw(task_thres);
-core_ctl_attr_rw(nr_assist_thresh);
 core_ctl_attr_ro(need_cpus);
 core_ctl_attr_ro(active_cpus);
 core_ctl_attr_ro(global_state);
@@ -569,7 +548,6 @@ static struct attribute *default_attrs[] = {
 	&busy_up_thres.attr,
 	&busy_down_thres.attr,
 	&task_thres.attr,
-	&nr_assist_thresh.attr,
 	&enable.attr,
 	&need_cpus.attr,
 	&active_cpus.attr,
@@ -927,8 +905,7 @@ static unsigned int apply_task_need(const struct cluster_data *cluster,
 	 * resume as many cores as the previous cluster
 	 * needs assistance with.
 	 */
-	if (cluster->nr_assist >= cluster->nr_assist_thresh)
-		new_need = new_need + cluster->nr_assist;
+	new_need = new_need + cluster->nr_assist;
 
 	/* only resume more cores if there are tasks to run */
 	if (cluster->nrrun > new_need)
@@ -1540,7 +1517,6 @@ static int cluster_init(const struct cpumask *mask)
 	cluster->need_cpus = cluster->num_cpus;
 	cluster->offline_delay_ms = 100;
 	cluster->task_thres = UINT_MAX;
-	cluster->nr_assist_thresh = UINT_MAX;
 	cluster->nrrun = cluster->num_cpus;
 	cluster->enable = false;
 	cluster->nr_not_preferred_cpus = 0;
