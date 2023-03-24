@@ -42,7 +42,9 @@
   device_unregister
   _dev_info
   __devm_alloc_percpu
+  devm_bitmap_zalloc
   devm_gen_pool_create
+  devm_gpiod_get_index
   devm_ioremap
   devm_ioremap_wc
   devm_kfree
@@ -55,6 +57,7 @@
   dma_alloc_attrs
   dma_free_attrs
   down_write
+  emergency_restart
   file_ra_state_init
   file_write_and_wait_range
   _find_next_bit
@@ -77,8 +80,10 @@
   get_zeroed_page
   gic_nonsecure_priorities
   gpiochip_find
+  gpiod_cansleep
   gpiod_get_raw_value
   gpio_to_desc
+  i2c_bit_add_numbered_bus
   I_BDEV
   init_task
   init_timer_key
@@ -305,3 +310,6 @@
   vmalloc
   vsnprintf
   wake_up_process
+  watchdog_init_timeout
+  watchdog_register_device
+  watchdog_unregister_device
