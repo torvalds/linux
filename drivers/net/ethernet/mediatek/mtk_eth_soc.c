@@ -763,8 +763,6 @@ static void mtk_mac_link_up(struct phylink_config *config,
 		break;
 	}
 
-	mtk_set_queue_speed(mac->hw, mac->id, speed);
-
 	/* Configure duplex */
 	if (duplex == DUPLEX_FULL)
 		mcr |= MAC_MCR_FORCE_DPX;
