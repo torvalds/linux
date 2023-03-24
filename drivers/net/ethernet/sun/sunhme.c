@@ -1870,6 +1870,8 @@ static irqreturn_t happy_meal_interrupt(int irq, void *dev_id)
 	u32 happy_status       = hme_read32(hp, hp->gregs + GREG_STAT);
 
 	HMD("status=%08x\n", happy_status);
+	if (!happy_status)
+		return IRQ_NONE;
 
 	spin_lock(&hp->happy_lock);
 
@@ -1891,62 +1893,16 @@ out:
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_SBUS
-static irqreturn_t quattro_sbus_interrupt(int irq, void *cookie)
-{
-	struct quattro *qp = (struct quattro *) cookie;
-	int i;
-
-	for (i = 0; i < 4; i++) {
-		struct net_device *dev = qp->happy_meals[i];
-		struct happy_meal *hp  = netdev_priv(dev);
-		u32 happy_status       = hme_read32(hp, hp->gregs + GREG_STAT);
-
-		HMD("status=%08x\n", happy_status);
-
-		if (!(happy_status & (GREG_STAT_ERRORS |
-				      GREG_STAT_TXALL |
-				      GREG_STAT_RXTOHOST)))
-			continue;
-
-		spin_lock(&hp->happy_lock);
-
-		if (happy_status & GREG_STAT_ERRORS)
-			if (happy_meal_is_not_so_happy(hp, happy_status))
-				goto next;
-
-		if (happy_status & GREG_STAT_TXALL)
-			happy_meal_tx(hp);
-
-		if (happy_status & GREG_STAT_RXTOHOST)
-			happy_meal_rx(hp, dev);
-
-	next:
-		spin_unlock(&hp->happy_lock);
-	}
-	HMD("done\n");
-
-	return IRQ_HANDLED;
-}
-#endif
-
 static int happy_meal_open(struct net_device *dev)
 {
 	struct happy_meal *hp = netdev_priv(dev);
 	int res;
 
-	/* On SBUS Quattro QFE cards, all hme interrupts are concentrated
-	 * into a single source which we register handling at probe time.
-	 */
-	if ((hp->happy_flags & (HFLAG_QUATTRO|HFLAG_PCI)) != HFLAG_QUATTRO) {
-		res = request_irq(hp->irq, happy_meal_interrupt, IRQF_SHARED,
-				  dev->name, dev);
-		if (res) {
-			HMD("EAGAIN\n");
-			netdev_err(dev, "Can't order irq %d to go.\n", hp->irq);
-
-			return -EAGAIN;
-		}
+	res = request_irq(hp->irq, happy_meal_interrupt, IRQF_SHARED,
+			  dev->name, dev);
+	if (res) {
+		netdev_err(dev, "Can't order irq %d to go.\n", hp->irq);
+		return res;
 	}
 
 	HMD("to happy_meal_init\n");
@@ -1955,7 +1911,7 @@ static int happy_meal_open(struct net_device *dev)
 	res = happy_meal_init(hp);
 	spin_unlock_irq(&hp->happy_lock);
 
-	if (res && ((hp->happy_flags & (HFLAG_QUATTRO|HFLAG_PCI)) != HFLAG_QUATTRO))
+	if (res)
 		free_irq(hp->irq, dev);
 	return res;
 }
@@ -1973,12 +1929,7 @@ static int happy_meal_close(struct net_device *dev)
 
 	spin_unlock_irq(&hp->happy_lock);
 
-	/* On Quattro QFE cards, all hme interrupts are concentrated
-	 * into a single source which we register handling at probe
-	 * time and never unregister.
-	 */
-	if ((hp->happy_flags & (HFLAG_QUATTRO|HFLAG_PCI)) != HFLAG_QUATTRO)
-		free_irq(hp->irq, dev);
+	free_irq(hp->irq, dev);
 
 	return 0;
 }
@@ -2310,59 +2261,6 @@ static struct quattro *quattro_sbus_find(struct platform_device *child)
 
 	platform_set_drvdata(op, qp);
 	return qp;
-}
-
-/* After all quattro cards have been probed, we call these functions
- * to register the IRQ handlers for the cards that have been
- * successfully probed and skip the cards that failed to initialize
- */
-static int __init quattro_sbus_register_irqs(void)
-{
-	struct quattro *qp;
-
-	for (qp = qfe_sbus_list; qp != NULL; qp = qp->next) {
-		struct platform_device *op = qp->quattro_dev;
-		int err, qfe_slot, skip = 0;
-
-		for (qfe_slot = 0; qfe_slot < 4; qfe_slot++) {
-			if (!qp->happy_meals[qfe_slot])
-				skip = 1;
-		}
-		if (skip)
-			continue;
-
-		err = request_irq(op->archdata.irqs[0],
-				  quattro_sbus_interrupt,
-				  IRQF_SHARED, "Quattro",
-				  qp);
-		if (err != 0) {
-			dev_err(&op->dev,
-				"Quattro HME: IRQ registration error %d.\n",
-				err);
-			return err;
-		}
-	}
-
-	return 0;
-}
-
-static void quattro_sbus_free_irqs(void)
-{
-	struct quattro *qp;
-
-	for (qp = qfe_sbus_list; qp != NULL; qp = qp->next) {
-		struct platform_device *op = qp->quattro_dev;
-		int qfe_slot, skip = 0;
-
-		for (qfe_slot = 0; qfe_slot < 4; qfe_slot++) {
-			if (!qp->happy_meals[qfe_slot])
-				skip = 1;
-		}
-		if (skip)
-			continue;
-
-		free_irq(op->archdata.irqs[0], qp);
-	}
 }
 #endif /* CONFIG_SBUS */
 
@@ -3005,8 +2903,6 @@ static int hme_sbus_remove(struct platform_device *op)
 
 	unregister_netdev(net_dev);
 
-	/* XXX qfe parent interrupt... */
-
 	of_iounmap(&op->resource[0], hp->gregs, GREG_REG_SIZE);
 	of_iounmap(&op->resource[1], hp->etxregs, ETX_REG_SIZE);
 	of_iounmap(&op->resource[2], hp->erxregs, ERX_REG_SIZE);
@@ -3050,19 +2946,12 @@ static struct platform_driver hme_sbus_driver = {
 
 static int __init happy_meal_sbus_init(void)
 {
-	int err;
-
-	err = platform_driver_register(&hme_sbus_driver);
-	if (!err)
-		err = quattro_sbus_register_irqs();
-
-	return err;
+	return platform_driver_register(&hme_sbus_driver);
 }
 
 static void happy_meal_sbus_exit(void)
 {
 	platform_driver_unregister(&hme_sbus_driver);
-	quattro_sbus_free_irqs();
 
 	while (qfe_sbus_list) {
 		struct quattro *qfe = qfe_sbus_list;
