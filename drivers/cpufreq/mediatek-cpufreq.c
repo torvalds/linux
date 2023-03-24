@@ -420,7 +420,7 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 		ret = PTR_ERR(info->inter_clk);
 		dev_err_probe(cpu_dev, ret,
 			      "cpu%d: failed to get intermediate clk\n", cpu);
-		goto out_free_resources;
+		goto out_free_mux_clock;
 	}
 
 	info->proc_reg = regulator_get_optional(cpu_dev, "proc");
@@ -428,13 +428,13 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 		ret = PTR_ERR(info->proc_reg);
 		dev_err_probe(cpu_dev, ret,
 			      "cpu%d: failed to get proc regulator\n", cpu);
-		goto out_free_resources;
+		goto out_free_inter_clock;
 	}
 
 	ret = regulator_enable(info->proc_reg);
 	if (ret) {
 		dev_warn(cpu_dev, "cpu%d: failed to enable vproc\n", cpu);
-		goto out_free_resources;
+		goto out_free_proc_reg;
 	}
 
 	/* Both presence and absence of sram regulator are valid cases. */
@@ -442,14 +442,14 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 	if (IS_ERR(info->sram_reg)) {
 		ret = PTR_ERR(info->sram_reg);
 		if (ret == -EPROBE_DEFER)
-			goto out_free_resources;
+			goto out_disable_proc_reg;
 
 		info->sram_reg = NULL;
 	} else {
 		ret = regulator_enable(info->sram_reg);
 		if (ret) {
 			dev_warn(cpu_dev, "cpu%d: failed to enable vsram\n", cpu);
-			goto out_free_resources;
+			goto out_free_sram_reg;
 		}
 	}
 
@@ -458,13 +458,13 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 	if (ret) {
 		dev_err(cpu_dev,
 			"cpu%d: failed to get OPP-sharing information\n", cpu);
-		goto out_free_resources;
+		goto out_disable_sram_reg;
 	}
 
 	ret = dev_pm_opp_of_cpumask_add_table(&info->cpus);
 	if (ret) {
 		dev_warn(cpu_dev, "cpu%d: no OPP table\n", cpu);
-		goto out_free_resources;
+		goto out_disable_sram_reg;
 	}
 
 	ret = clk_prepare_enable(info->cpu_clk);
@@ -533,43 +533,41 @@ out_disable_mux_clock:
 out_free_opp_table:
 	dev_pm_opp_of_cpumask_remove_table(&info->cpus);
 
-out_free_resources:
-	if (regulator_is_enabled(info->proc_reg))
-		regulator_disable(info->proc_reg);
-	if (info->sram_reg && regulator_is_enabled(info->sram_reg))
+out_disable_sram_reg:
+	if (info->sram_reg)
 		regulator_disable(info->sram_reg);
 
-	if (!IS_ERR(info->proc_reg))
-		regulator_put(info->proc_reg);
-	if (!IS_ERR(info->sram_reg))
+out_free_sram_reg:
+	if (info->sram_reg)
 		regulator_put(info->sram_reg);
-	if (!IS_ERR(info->cpu_clk))
-		clk_put(info->cpu_clk);
-	if (!IS_ERR(info->inter_clk))
-		clk_put(info->inter_clk);
+
+out_disable_proc_reg:
+	regulator_disable(info->proc_reg);
+
+out_free_proc_reg:
+	regulator_put(info->proc_reg);
+
+out_free_inter_clock:
+	clk_put(info->inter_clk);
+
+out_free_mux_clock:
+	clk_put(info->cpu_clk);
 
 	return ret;
 }
 
 static void mtk_cpu_dvfs_info_release(struct mtk_cpu_dvfs_info *info)
 {
-	if (!IS_ERR(info->proc_reg)) {
-		regulator_disable(info->proc_reg);
-		regulator_put(info->proc_reg);
-	}
-	if (!IS_ERR(info->sram_reg)) {
+	regulator_disable(info->proc_reg);
+	regulator_put(info->proc_reg);
+	if (info->sram_reg) {
 		regulator_disable(info->sram_reg);
 		regulator_put(info->sram_reg);
 	}
-	if (!IS_ERR(info->cpu_clk)) {
-		clk_disable_unprepare(info->cpu_clk);
-		clk_put(info->cpu_clk);
-	}
-	if (!IS_ERR(info->inter_clk)) {
-		clk_disable_unprepare(info->inter_clk);
-		clk_put(info->inter_clk);
-	}
-
+	clk_disable_unprepare(info->cpu_clk);
+	clk_put(info->cpu_clk);
+	clk_disable_unprepare(info->inter_clk);
+	clk_put(info->inter_clk);
 	dev_pm_opp_of_cpumask_remove_table(&info->cpus);
 	dev_pm_opp_unregister_notifier(info->cpu_dev, &info->opp_nb);
 }
