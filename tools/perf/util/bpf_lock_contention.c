@@ -249,7 +249,7 @@ static const char *lock_contention_get_name(struct lock_contention *con,
 int lock_contention_read(struct lock_contention *con)
 {
 	int fd, stack, err = 0;
-	struct contention_key *prev_key, key;
+	struct contention_key *prev_key, key = {};
 	struct contention_data data = {};
 	struct lock_stat *st = NULL;
 	struct machine *machine = con->machine;
