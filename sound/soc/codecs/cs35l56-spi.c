@@ -29,7 +29,6 @@ static int cs35l56_spi_probe(struct spi_device *spi)
 	if (IS_ERR(cs35l56->regmap)) {
 		ret = PTR_ERR(cs35l56->regmap);
 		return dev_err_probe(&spi->dev, ret, "Failed to allocate register map\n");
-		return ret;
 	}
 
 	cs35l56->dev = &spi->dev;
