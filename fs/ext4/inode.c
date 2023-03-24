@@ -1869,34 +1869,33 @@ static void mpage_page_done(struct mpage_da_data *mpd, struct page *page)
 	unlock_page(page);
 }
 
-static int mpage_submit_page(struct mpage_da_data *mpd, struct page *page)
+static int mpage_submit_folio(struct mpage_da_data *mpd, struct folio *folio)
 {
-	int len;
+	size_t len;
 	loff_t size;
 	int err;
 
-	BUG_ON(page->index != mpd->first_page);
-	clear_page_dirty_for_io(page);
+	BUG_ON(folio->index != mpd->first_page);
+	folio_clear_dirty_for_io(folio);
 	/*
 	 * We have to be very careful here!  Nothing protects writeback path
 	 * against i_size changes and the page can be writeably mapped into
 	 * page tables. So an application can be growing i_size and writing
-	 * data through mmap while writeback runs. clear_page_dirty_for_io()
+	 * data through mmap while writeback runs. folio_clear_dirty_for_io()
 	 * write-protects our page in page tables and the page cannot get
-	 * written to again until we release page lock. So only after
-	 * clear_page_dirty_for_io() we are safe to sample i_size for
+	 * written to again until we release folio lock. So only after
+	 * folio_clear_dirty_for_io() we are safe to sample i_size for
 	 * ext4_bio_write_page() to zero-out tail of the written page. We rely
 	 * on the barrier provided by TestClearPageDirty in
-	 * clear_page_dirty_for_io() to make sure i_size is really sampled only
+	 * folio_clear_dirty_for_io() to make sure i_size is really sampled only
 	 * after page tables are updated.
 	 */
 	size = i_size_read(mpd->inode);
-	if (page->index == size >> PAGE_SHIFT &&
+	len = folio_size(folio);
+	if (folio_pos(folio) + len > size &&
 	    !ext4_verity_in_progress(mpd->inode))
 		len = size & ~PAGE_MASK;
-	else
-		len = PAGE_SIZE;
-	err = ext4_bio_write_page(&mpd->io_submit, page, len);
+	err = ext4_bio_write_page(&mpd->io_submit, &folio->page, len);
 	if (!err)
 		mpd->wbc->nr_to_write--;
 
@@ -2009,7 +2008,7 @@ static int mpage_process_page_bufs(struct mpage_da_data *mpd,
 	} while (lblk++, (bh = bh->b_this_page) != head);
 	/* So far everything mapped? Submit the page for IO. */
 	if (mpd->map.m_len == 0) {
-		err = mpage_submit_page(mpd, head->b_page);
+		err = mpage_submit_folio(mpd, head->b_folio);
 		if (err < 0)
 			return err;
 		mpage_page_done(mpd, head->b_page);
@@ -2142,7 +2141,7 @@ static int mpage_map_and_submit_buffers(struct mpage_da_data *mpd)
 			if (err < 0 || map_bh)
 				goto out;
 			/* Page fully mapped - let IO run! */
-			err = mpage_submit_page(mpd, &folio->page);
+			err = mpage_submit_folio(mpd, folio);
 			if (err < 0)
 				goto out;
 			mpage_page_done(mpd, &folio->page);
@@ -2532,12 +2531,12 @@ static int mpage_prepare_extent_to_map(struct mpage_da_data *mpd)
 				if (ext4_page_nomap_can_writeout(&folio->page)) {
 					WARN_ON_ONCE(sb->s_writers.frozen ==
 						     SB_FREEZE_COMPLETE);
-					err = mpage_submit_page(mpd, &folio->page);
+					err = mpage_submit_folio(mpd, folio);
 					if (err < 0)
 						goto out;
 				}
 				/* Pending dirtying of journalled data? */
-				if (PageChecked(&folio->page)) {
+				if (folio_test_checked(folio)) {
 					WARN_ON_ONCE(sb->s_writers.frozen >=
 						     SB_FREEZE_FS);
 					err = mpage_journal_page_buffers(handle,
