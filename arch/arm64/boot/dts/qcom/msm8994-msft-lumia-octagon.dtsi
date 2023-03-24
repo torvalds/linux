@@ -46,8 +46,6 @@
 	};
 
 	clocks {
-		compatible = "simple-bus";
-
 		divclk4: divclk4 {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
