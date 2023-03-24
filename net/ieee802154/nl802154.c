@@ -1417,6 +1417,11 @@ static int nl802154_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 	}
 
+	if (wpan_phy->flags & WPAN_PHY_FLAG_DATAGRAMS_ONLY) {
+		NL_SET_ERR_MSG(info->extack, "PHY only supports datagrams");
+		return -EOPNOTSUPP;
+	}
+
 	request = kzalloc(sizeof(*request), GFP_KERNEL);
 	if (!request)
 		return -ENOMEM;
@@ -1582,6 +1587,11 @@ nl802154_send_beacons(struct sk_buff *skb, struct genl_info *info)
 	if (wpan_dev->pan_id == cpu_to_le16(IEEE802154_PANID_BROADCAST)) {
 		NL_SET_ERR_MSG(info->extack, "Device is not part of any PAN");
 		return -EPERM;
+	}
+
+	if (wpan_phy->flags & WPAN_PHY_FLAG_DATAGRAMS_ONLY) {
+		NL_SET_ERR_MSG(info->extack, "PHY only supports datagrams");
+		return -EOPNOTSUPP;
 	}
 
 	request = kzalloc(sizeof(*request), GFP_KERNEL);
