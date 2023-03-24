@@ -126,7 +126,6 @@ static const struct xpad_device {
 	char *name;
 	u8 mapping;
 	u8 xtype;
-	u8 packet_type;
 } xpad_device[] = {
 	{ 0x0079, 0x18d4, "GPD Win 2 X-Box Controller", 0, XTYPE_XBOX360 },
 	{ 0x03eb, 0xff01, "Wooting One (Legacy)", 0, XTYPE_XBOX360 },
