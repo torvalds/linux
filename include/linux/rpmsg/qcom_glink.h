@@ -42,7 +42,6 @@ qcom_glink_smem_register(struct device *parent,
 }
 
 static inline void qcom_glink_smem_unregister(struct qcom_glink *glink) {}
-static inline void qcom_glink_ssr_notify(const char *ssr_name) {}
 static inline void qcom_glink_early_ssr_notify(void *data) {}
 
 int qcom_glink_smem_start(struct qcom_glink *glink)
