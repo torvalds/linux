@@ -10,7 +10,9 @@
 #include "xe_gt_mcr.h"
 #include "xe_mmio.h"
 
-#define _PAT_INDEX(index)			(0x4800 + (index) * 4)
+#define _PAT_INDEX(index)			_PICK_EVEN_2RANGES(index, 8, \
+								   0x4800, 0x4804, \
+								   0x4848, 0x484c)
 
 #define MTL_L4_POLICY_MASK			REG_GENMASK(3, 2)
 #define MTL_PAT_3_UC				REG_FIELD_PREP(MTL_L4_POLICY_MASK, 3)
