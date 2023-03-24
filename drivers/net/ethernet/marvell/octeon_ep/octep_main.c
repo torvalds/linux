@@ -902,6 +902,37 @@ static void octep_intr_poll_task(struct work_struct *work)
 }
 
 /**
+ * octep_hb_timeout_task - work queue task to check firmware heartbeat.
+ *
+ * @work: pointer to hb work_struct
+ *
+ * Check for heartbeat miss count. Uninitialize oct device if miss count
+ * exceeds configured max heartbeat miss count.
+ *
+ **/
+static void octep_hb_timeout_task(struct work_struct *work)
+{
+	struct octep_device *oct = container_of(work, struct octep_device,
+						hb_task.work);
+
+	int miss_cnt;
+
+	miss_cnt = atomic_inc_return(&oct->hb_miss_cnt);
+	if (miss_cnt < oct->conf->max_hb_miss_cnt) {
+		queue_delayed_work(octep_wq, &oct->hb_task,
+				   msecs_to_jiffies(oct->conf->hb_interval * 1000));
+		return;
+	}
+
+	dev_err(&oct->pdev->dev, "Missed %u heartbeats. Uninitializing\n",
+		miss_cnt);
+	rtnl_lock();
+	if (netif_running(oct->netdev))
+		octep_stop(oct->netdev);
+	rtnl_unlock();
+}
+
+/**
  * octep_ctrl_mbox_task - work queue task to handle ctrl mbox messages.
  *
  * @work: pointer to ctrl mbox work_struct
@@ -938,7 +969,7 @@ static const char *octep_devid_to_str(struct octep_device *oct)
 int octep_device_setup(struct octep_device *oct)
 {
 	struct pci_dev *pdev = oct->pdev;
-	int i;
+	int i, ret;
 
 	/* allocate memory for oct->conf */
 	oct->conf = kzalloc(sizeof(*oct->conf), GFP_KERNEL);
@@ -973,7 +1004,15 @@ int octep_device_setup(struct octep_device *oct)
 
 	oct->pkind = CFG_GET_IQ_PKIND(oct->conf);
 
-	return octep_ctrl_net_init(oct);
+	ret = octep_ctrl_net_init(oct);
+	if (ret)
+		return ret;
+
+	atomic_set(&oct->hb_miss_cnt, 0);
+	INIT_DELAYED_WORK(&oct->hb_task, octep_hb_timeout_task);
+	queue_delayed_work(octep_wq, &oct->hb_task,
+			   msecs_to_jiffies(oct->conf->hb_interval * 1000));
+	return 0;
 
 unsupported_dev:
 	for (i = 0; i < OCTEP_MMIO_REGIONS; i++)
@@ -1002,6 +1041,7 @@ static void octep_device_cleanup(struct octep_device *oct)
 	}
 
 	octep_ctrl_net_uninit(oct);
+	cancel_delayed_work_sync(&oct->hb_task);
 
 	oct->hw_ops.soft_reset(oct);
 	for (i = 0; i < OCTEP_MMIO_REGIONS; i++) {
