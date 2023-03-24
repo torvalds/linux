@@ -1543,7 +1543,7 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 	if (IS_ERR(thermal->regs))
 		return PTR_ERR(thermal->regs);
 
-	thermal->reset = devm_reset_control_array_get(&pdev->dev, false, false);
+	thermal->reset = devm_reset_control_array_get_exclusive(&pdev->dev);
 	if (IS_ERR(thermal->reset))
 		return dev_err_probe(&pdev->dev, PTR_ERR(thermal->reset),
 				     "failed to get tsadc reset.\n");
