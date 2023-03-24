@@ -1863,10 +1863,10 @@ int ext4_da_get_block_prep(struct inode *inode, sector_t iblock,
 	return 0;
 }
 
-static void mpage_page_done(struct mpage_da_data *mpd, struct page *page)
+static void mpage_folio_done(struct mpage_da_data *mpd, struct folio *folio)
 {
-	mpd->first_page++;
-	unlock_page(page);
+	mpd->first_page += folio_nr_pages(folio);
+	folio_unlock(folio);
 }
 
 static int mpage_submit_folio(struct mpage_da_data *mpd, struct folio *folio)
@@ -2011,7 +2011,7 @@ static int mpage_process_page_bufs(struct mpage_da_data *mpd,
 		err = mpage_submit_folio(mpd, head->b_folio);
 		if (err < 0)
 			return err;
-		mpage_page_done(mpd, head->b_page);
+		mpage_folio_done(mpd, head->b_folio);
 	}
 	if (lblk >= blocks) {
 		mpd->scanned_until_end = 1;
@@ -2144,7 +2144,7 @@ static int mpage_map_and_submit_buffers(struct mpage_da_data *mpd)
 			err = mpage_submit_folio(mpd, folio);
 			if (err < 0)
 				goto out;
-			mpage_page_done(mpd, &folio->page);
+			mpage_folio_done(mpd, folio);
 		}
 		folio_batch_release(&fbatch);
 	}
@@ -2544,7 +2544,7 @@ static int mpage_prepare_extent_to_map(struct mpage_da_data *mpd)
 					if (err < 0)
 						goto out;
 				}
-				mpage_page_done(mpd, &folio->page);
+				mpage_folio_done(mpd, folio);
 			} else {
 				/* Add all dirty buffers to mpd */
 				lblk = ((ext4_lblk_t)folio->index) <<
