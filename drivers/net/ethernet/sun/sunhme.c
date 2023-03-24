@@ -2622,29 +2622,25 @@ static int happy_meal_pci_probe(struct pci_dev *pdev,
 
 	err = pcim_enable_device(pdev);
 	if (err)
-		goto err_out;
+		return err;
 	pci_set_master(pdev);
 
 	if (!strcmp(prom_name, "SUNW,qfe") || !strcmp(prom_name, "qfe")) {
 		qp = quattro_pci_find(pdev);
-		if (IS_ERR(qp)) {
-			err = PTR_ERR(qp);
-			goto err_out;
-		}
+		if (IS_ERR(qp))
+			return PTR_ERR(qp);
 
 		for (qfe_slot = 0; qfe_slot < 4; qfe_slot++)
 			if (!qp->happy_meals[qfe_slot])
 				break;
 
 		if (qfe_slot == 4)
-			goto err_out;
+			return -ENODEV;
 	}
 
 	dev = devm_alloc_etherdev(&pdev->dev, sizeof(struct happy_meal));
-	if (!dev) {
-		err = -ENOMEM;
-		goto err_out;
-	}
+	if (!dev)
+		return -ENOMEM;
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	hp = netdev_priv(dev);
@@ -2792,8 +2788,6 @@ static int happy_meal_pci_probe(struct pci_dev *pdev,
 err_out_clear_quattro:
 	if (qp != NULL)
 		qp->happy_meals[qfe_slot] = NULL;
-
-err_out:
 	return err;
 }
 
