@@ -4,10 +4,10 @@
 #ifndef _RKISP_ISP_PARAM_H
 #define _RKISP_ISP_PARAM_H
 
-#include <linux/rkisp1-config.h>
-#include <linux/rkisp2-config.h>
-#include <linux/rkisp3-config.h>
-#include <linux/rkisp32-config.h>
+#include <linux/rk-isp1-config.h>
+#include <linux/rk-isp2-config.h>
+#include <linux/rk-isp3-config.h>
+#include <linux/rk-isp32-config.h>
 #include <linux/rk-preisp.h>
 #include "common.h"
 

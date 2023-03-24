@@ -24,7 +24,7 @@
 #include <linux/of_platform.h>
 #include <linux/types.h>
 #include <linux/rk-preisp.h>
-#include <linux/rkisp1-config.h>
+#include <linux/rk-isp1-config.h>
 #include <linux/rk-camera-module.h>
 #include "rk1608_dphy.h"
 #include <linux/compat.h>

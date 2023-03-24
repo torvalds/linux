@@ -4,12 +4,12 @@
  * Copyright (C) 2022 Rockchip Electronics Co., Ltd.
  */
 
-#ifndef _UAPI_RKISP32_CONFIG_H
-#define _UAPI_RKISP32_CONFIG_H
+#ifndef _UAPI_RK_ISP32_CONFIG_H
+#define _UAPI_RK_ISP32_CONFIG_H
 
 #include <linux/types.h>
 #include <linux/v4l2-controls.h>
-#include <linux/rkisp3-config.h>
+#include <linux/rk-isp3-config.h>
 
 #define RKISP_CMD_GET_TB_HEAD_V32 \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 12, struct rkisp32_thunderboot_resmem_head)
@@ -1524,4 +1524,4 @@ struct rkisp32_lite_stat_buffer {
 	u32 frame_id;
 	u32 params_id;
 } __attribute__ ((packed));
-#endif /* _UAPI_RKISP32_CONFIG_H */
+#endif /* _UAPI_RK_ISP32_CONFIG_H */

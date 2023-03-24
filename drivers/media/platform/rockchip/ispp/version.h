@@ -4,7 +4,7 @@
 #ifndef _RKISPP_VERSION_H
 #define _RKISPP_VERSION_H
 #include <linux/version.h>
-#include <linux/rkispp-config.h>
+#include <linux/rk-ispp-config.h>
 
 /*
  * RKISPP DRIVER VERSION NOTE

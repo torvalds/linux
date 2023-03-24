@@ -7,7 +7,7 @@
 #include <media/videobuf2-vmalloc.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-mc.h>
-#include <linux/rkisp1-config.h>
+#include <linux/rk-isp1-config.h>
 #include <uapi/linux/rk-video-format.h>
 #include "dev.h"
 #include "regs.h"

@@ -4,7 +4,7 @@
 #ifndef _RKCIF_LUMA_H
 #define _RKCIF_LUMA_H
 
-#include <linux/rkisp1-config.h>
+#include <linux/rk-isp1-config.h>
 #include <linux/interrupt.h>
 #include <linux/kfifo.h>
 #include "dev.h"

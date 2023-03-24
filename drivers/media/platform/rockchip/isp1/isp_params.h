@@ -35,7 +35,7 @@
 #ifndef _RKISP1_ISP_H
 #define _RKISP1_ISP_H
 
-#include <linux/rkisp1-config.h>
+#include <linux/rk-isp1-config.h>
 #include <linux/rk-preisp.h>
 #include "common.h"
 

@@ -4,12 +4,12 @@
  * Copyright (C) 2021 Rockchip Electronics Co., Ltd.
  */
 
-#ifndef _UAPI_RKISP3_CONFIG_H
-#define _UAPI_RKISP3_CONFIG_H
+#ifndef _UAPI_RK_ISP3_CONFIG_H
+#define _UAPI_RK_ISP3_CONFIG_H
 
 #include <linux/types.h>
 #include <linux/v4l2-controls.h>
-#include <linux/rkisp21-config.h>
+#include <linux/rk-isp21-config.h>
 
 #define ISP3X_MODULE_DPCC		ISP2X_MODULE_DPCC
 #define ISP3X_MODULE_BLS		ISP2X_MODULE_BLS
@@ -1074,4 +1074,4 @@ struct rkisp3x_isp_stat_buffer {
 	struct isp3x_stat params;
 } __attribute__ ((packed));
 
-#endif /* _UAPI_RKISP3_CONFIG_H */
+#endif /* _UAPI_RK_ISP3_CONFIG_H */

@@ -4,8 +4,8 @@
  * Copyright (C) 2017 Rockchip Electronics Co., Ltd.
  */
 
-#ifndef _UAPI_RKISP2_CONFIG_H
-#define _UAPI_RKISP2_CONFIG_H
+#ifndef _UAPI_RK_ISP2_CONFIG_H
+#define _UAPI_RK_ISP2_CONFIG_H
 
 #include <linux/types.h>
 #include <linux/v4l2-controls.h>
@@ -2003,4 +2003,4 @@ struct rkisp_thunderboot_shmem {
 	s32 shm_fd;
 } __attribute__ ((packed));
 
-#endif /* _UAPI_RKISP2_CONFIG_H */
+#endif /* _UAPI_RK_ISP2_CONFIG_H */

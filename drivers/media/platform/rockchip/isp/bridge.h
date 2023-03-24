@@ -5,7 +5,7 @@
 #define _RKISP_BRIDGE_H
 
 #include "linux/platform_device.h"
-#include <linux/rkisp1-config.h>
+#include <linux/rk-isp1-config.h>
 #include "isp_ispp.h"
 
 #define BRIDGE_DEV_NAME DRIVER_NAME "-bridge-ispp"

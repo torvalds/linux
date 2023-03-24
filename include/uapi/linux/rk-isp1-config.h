@@ -4,12 +4,12 @@
  * Copyright (C) 2017 Rockchip Electronics Co., Ltd.
  */
 
-#ifndef _UAPI_RKISP1_CONFIG_H
-#define _UAPI_RKISP1_CONFIG_H
+#ifndef _UAPI_RK_ISP1_CONFIG_H
+#define _UAPI_RK_ISP1_CONFIG_H
 
 #include <linux/types.h>
 #include <linux/v4l2-controls.h>
-#include "rkisp21-config.h"
+#include "rk-isp21-config.h"
 
 #define CIFISP_MODULE_DPCC			(1 << 0)
 #define CIFISP_MODULE_BLS			(1 << 1)
@@ -869,4 +869,4 @@ struct rkisp1_stat_buffer {
 	struct cifisp_stat params;
 } __attribute__ ((packed));
 
-#endif /* _UAPI_RKISP1_CONFIG_H */
+#endif /* _UAPI_RK_ISP1_CONFIG_H */

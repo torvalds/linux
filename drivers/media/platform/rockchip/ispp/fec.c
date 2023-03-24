@@ -9,7 +9,7 @@
 #include <media/videobuf2-dma-contig.h>
 #include <media/videobuf2-v4l2.h>
 #include <linux/pm_runtime.h>
-#include <linux/rkispp-config.h>
+#include <linux/rk-ispp-config.h>
 #include <uapi/linux/rk-video-format.h>
 
 #include "hw.h"

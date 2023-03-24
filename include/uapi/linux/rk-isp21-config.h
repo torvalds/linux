@@ -4,12 +4,12 @@
  * Copyright (C) 2020 Rockchip Electronics Co., Ltd.
  */
 
-#ifndef _UAPI_RKISP21_CONFIG_H
-#define _UAPI_RKISP21_CONFIG_H
+#ifndef _UAPI_RK_ISP21_CONFIG_H
+#define _UAPI_RK_ISP21_CONFIG_H
 
 #include <linux/types.h>
 #include <linux/v4l2-controls.h>
-#include <linux/rkisp2-config.h>
+#include <linux/rk-isp2-config.h>
 
 #define ISP2X_MODULE_BAYNR			BIT_ULL(36)
 #define ISP2X_MODULE_BAY3D			BIT_ULL(37)
@@ -809,4 +809,4 @@ struct rkisp_isp21_stat_buffer {
 	struct isp21_stat params;
 } __attribute__ ((packed));
 
-#endif /* _UAPI_RKISP21_CONFIG_H */
+#endif /* _UAPI_RK_ISP21_CONFIG_H */

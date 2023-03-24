@@ -4,7 +4,7 @@
 #ifndef _RKISPP_STATS_H
 #define _RKISPP_STATS_H
 
-#include <linux/rkispp-config.h>
+#include <linux/rk-ispp-config.h>
 #include <linux/interrupt.h>
 #include <linux/kfifo.h>
 #include "common.h"

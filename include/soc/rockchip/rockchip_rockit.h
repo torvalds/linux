@@ -6,7 +6,7 @@
 #define __SOC_ROCKCHIP_ROCKIT_H
 
 #include <linux/dma-buf.h>
-#include <linux/rkisp2-config.h>
+#include <linux/rk-isp2-config.h>
 
 #define ROCKIT_BUF_NUM_MAX	5
 #define ROCKIT_ISP_NUM_MAX	3

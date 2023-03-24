@@ -4,7 +4,7 @@
 #ifndef _RKISP_TB_HELPER_H
 #define _RKISP_TB_HELPER_H
 
-#include <linux/rkisp1-config.h>
+#include <linux/rk-isp1-config.h>
 
 enum rkisp_tb_state {
 	RKISP_TB_RUN = 0,

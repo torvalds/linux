@@ -4,7 +4,7 @@
 #ifndef _RKISP_VERSION_H
 #define _RKISP_VERSION_H
 #include <linux/version.h>
-#include <linux/rkisp21-config.h>
+#include <linux/rk-isp21-config.h>
 
 /*
  * RKISP DRIVER VERSION NOTE

@@ -13,7 +13,7 @@
 #include <media/v4l2-subdev.h>
 #include <media/videobuf2-dma-contig.h>
 #include <media/videobuf2-dma-sg.h>
-#include <linux/rkisp1-config.h>
+#include <linux/rk-isp1-config.h>
 #include <uapi/linux/rk-video-format.h>
 
 #include "dev.h"

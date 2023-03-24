@@ -5,7 +5,7 @@
 #define _RKISPP_PARAMS_H
 
 #include <linux/fec-config.h>
-#include <linux/rkispp-config.h>
+#include <linux/rk-ispp-config.h>
 #include "common.h"
 
 enum rkispp_paramvdev_id {

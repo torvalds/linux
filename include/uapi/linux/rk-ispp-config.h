@@ -3,8 +3,8 @@
  * Copyright (C) 2019 Rockchip Electronics Co., Ltd.
  */
 
-#ifndef _UAPI_RKISPP_CONFIG_H
-#define _UAPI_RKISPP_CONFIG_H
+#ifndef _UAPI_RK_ISPP_CONFIG_H
+#define _UAPI_RK_ISPP_CONFIG_H
 
 #include <linux/types.h>
 #include <linux/v4l2-controls.h>
