@@ -82,17 +82,8 @@ struct class_dev_iter {
 
 extern struct kobject *sysfs_dev_block_kobj;
 extern struct kobject *sysfs_dev_char_kobj;
-extern int __must_check __class_register(struct class *class,
-					 struct lock_class_key *key);
+extern int __must_check class_register(struct class *class);
 extern void class_unregister(struct class *class);
-
-/* This is a #define to keep the compiler from merging different
- * instances of the __key variable */
-#define class_register(class)			\
-({						\
-	static struct lock_class_key __key;	\
-	__class_register(class, &__key);	\
-})
 
 struct class_compat;
 struct class_compat *class_compat_register(const char *name);
@@ -246,30 +237,7 @@ struct class_interface {
 extern int __must_check class_interface_register(struct class_interface *);
 extern void class_interface_unregister(struct class_interface *);
 
-extern struct class * __must_check __class_create(const char *name,
-						  struct lock_class_key *key);
+extern struct class * __must_check class_create(const char *name);
 extern void class_destroy(struct class *cls);
-
-/* This is a #define to keep the compiler from merging different
- * instances of the __key variable */
-
-/**
- * class_create - create a struct class structure
- * @name: pointer to a string for the name of this class.
- *
- * This is used to create a struct class pointer that can then be used
- * in calls to device_create().
- *
- * Returns &struct class pointer on success, or ERR_PTR() on error.
- *
- * Note, the pointer created here is to be destroyed when finished by
- * making a call to class_destroy().
- */
-#define class_create(name)			\
-({						\
-	static struct lock_class_key __key;	\
-	__class_create(name, &__key);		\
-})
-
 
 #endif	/* _DEVICE_CLASS_H_ */

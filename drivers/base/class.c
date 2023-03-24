@@ -154,9 +154,10 @@ static void class_remove_groups(struct class *cls,
 	return sysfs_remove_groups(&cls->p->subsys.kobj, groups);
 }
 
-int __class_register(struct class *cls, struct lock_class_key *key)
+int class_register(struct class *cls)
 {
 	struct subsys_private *cp;
+	struct lock_class_key *key;
 	int error;
 
 	pr_debug("device class '%s': registering\n", cls->name);
@@ -167,6 +168,8 @@ int __class_register(struct class *cls, struct lock_class_key *key)
 	klist_init(&cp->klist_devices, klist_class_dev_get, klist_class_dev_put);
 	INIT_LIST_HEAD(&cp->interfaces);
 	kset_init(&cp->glue_dirs);
+	key = &cp->lock_key;
+	lockdep_register_key(key);
 	__mutex_init(&cp->mutex, "subsys mutex", key);
 	error = kobject_set_name(&cp->subsys.kobj, "%s", cls->name);
 	if (error) {
@@ -201,7 +204,7 @@ err_out:
 	cls->p = NULL;
 	return error;
 }
-EXPORT_SYMBOL_GPL(__class_register);
+EXPORT_SYMBOL_GPL(class_register);
 
 void class_unregister(struct class *cls)
 {
@@ -218,7 +221,7 @@ static void class_create_release(struct class *cls)
 }
 
 /**
- * __class_create - create a struct class structure
+ * class_create - create a struct class structure
  * @name: pointer to a string for the name of this class.
  * @key: the lock_class_key for this class; used by mutex lock debugging
  *
@@ -230,7 +233,7 @@ static void class_create_release(struct class *cls)
  * Note, the pointer created here is to be destroyed when finished by
  * making a call to class_destroy().
  */
-struct class *__class_create(const char *name, struct lock_class_key *key)
+struct class *class_create(const char *name)
 {
 	struct class *cls;
 	int retval;
@@ -244,7 +247,7 @@ struct class *__class_create(const char *name, struct lock_class_key *key)
 	cls->name = name;
 	cls->class_release = class_create_release;
 
-	retval = __class_register(cls, key);
+	retval = class_register(cls);
 	if (retval)
 		goto error;
 
@@ -254,7 +257,7 @@ error:
 	kfree(cls);
 	return ERR_PTR(retval);
 }
-EXPORT_SYMBOL_GPL(__class_create);
+EXPORT_SYMBOL_GPL(class_create);
 
 /**
  * class_destroy - destroys a struct class structure
