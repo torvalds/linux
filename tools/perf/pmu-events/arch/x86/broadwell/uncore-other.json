@@ -8,7 +8,7 @@
         "Unit": "ARB"
     },
     {
-        "BriefDescription": "Each cycle count number of all Core outgoing valid entries. Such entry is defined as valid from it's allocation till first of IDI0 or DRS0 messages is sent out. Accounts for Coherent and non-coherent traffic.",
+        "BriefDescription": "Each cycle counts number of all Core outgoing valid entries. Such entry is defined as valid from its allocation till first of IDI0 or DRS0 messages is sent out. Accounts for Coherent and non-coherent traffic.",
         "EventCode": "0x80",
         "EventName": "UNC_ARB_TRK_OCCUPANCY.ALL",
         "PerPkg": "1",
