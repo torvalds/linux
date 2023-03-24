@@ -2850,7 +2850,7 @@ ieee80211_rx_mesh_data(struct ieee80211_sub_if_data *sdata, struct sta_info *sta
 		hdrlen += ETH_ALEN;
 	else
 		fwd_skb->protocol = htons(fwd_skb->len - hdrlen);
-	skb_set_network_header(fwd_skb, hdrlen);
+	skb_set_network_header(fwd_skb, hdrlen + 2);
 
 	info = IEEE80211_SKB_CB(fwd_skb);
 	memset(info, 0, sizeof(*info));
