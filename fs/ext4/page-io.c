@@ -99,30 +99,30 @@ static void buffer_io_error(struct buffer_head *bh)
 
 static void ext4_finish_bio(struct bio *bio)
 {
-	struct bio_vec *bvec;
-	struct bvec_iter_all iter_all;
+	struct folio_iter fi;
 
-	bio_for_each_segment_all(bvec, bio, iter_all) {
-		struct page *page = bvec->bv_page;
-		struct page *bounce_page = NULL;
+	bio_for_each_folio_all(fi, bio) {
+		struct folio *folio = fi.folio;
+		struct folio *io_folio = NULL;
 		struct buffer_head *bh, *head;
-		unsigned bio_start = bvec->bv_offset;
-		unsigned bio_end = bio_start + bvec->bv_len;
+		size_t bio_start = fi.offset;
+		size_t bio_end = bio_start + fi.length;
 		unsigned under_io = 0;
 		unsigned long flags;
 
-		if (fscrypt_is_bounce_page(page)) {
-			bounce_page = page;
-			page = fscrypt_pagecache_page(bounce_page);
+		if (fscrypt_is_bounce_folio(folio)) {
+			io_folio = folio;
+			folio = fscrypt_pagecache_folio(folio);
 		}
 
 		if (bio->bi_status) {
-			SetPageError(page);
-			mapping_set_error(page->mapping, -EIO);
+			int err = blk_status_to_errno(bio->bi_status);
+			folio_set_error(folio);
+			mapping_set_error(folio->mapping, err);
 		}
-		bh = head = page_buffers(page);
+		bh = head = folio_buffers(folio);
 		/*
-		 * We check all buffers in the page under b_uptodate_lock
+		 * We check all buffers in the folio under b_uptodate_lock
 		 * to avoid races with other end io clearing async_write flags
 		 */
 		spin_lock_irqsave(&head->b_uptodate_lock, flags);
@@ -141,8 +141,8 @@ static void ext4_finish_bio(struct bio *bio)
 		} while ((bh = bh->b_this_page) != head);
 		spin_unlock_irqrestore(&head->b_uptodate_lock, flags);
 		if (!under_io) {
-			fscrypt_free_bounce_page(bounce_page);
-			end_page_writeback(page);
+			fscrypt_free_bounce_page(&io_folio->page);
+			folio_end_writeback(folio);
 		}
 	}
 }
