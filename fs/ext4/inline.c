@@ -732,20 +732,21 @@ convert:
 int ext4_write_inline_data_end(struct inode *inode, loff_t pos, unsigned len,
 			       unsigned copied, struct page *page)
 {
+	struct folio *folio = page_folio(page);
 	handle_t *handle = ext4_journal_current_handle();
 	int no_expand;
 	void *kaddr;
 	struct ext4_iloc iloc;
 	int ret = 0, ret2;
 
-	if (unlikely(copied < len) && !PageUptodate(page))
+	if (unlikely(copied < len) && !folio_test_uptodate(folio))
 		copied = 0;
 
 	if (likely(copied)) {
 		ret = ext4_get_inode_loc(inode, &iloc);
 		if (ret) {
-			unlock_page(page);
-			put_page(page);
+			folio_unlock(folio);
+			folio_put(folio);
 			ext4_std_error(inode->i_sb, ret);
 			goto out;
 		}
@@ -759,30 +760,30 @@ int ext4_write_inline_data_end(struct inode *inode, loff_t pos, unsigned len,
 		 */
 		(void) ext4_find_inline_data_nolock(inode);
 
-		kaddr = kmap_atomic(page);
+		kaddr = kmap_local_folio(folio, 0);
 		ext4_write_inline_data(inode, &iloc, kaddr, pos, copied);
-		kunmap_atomic(kaddr);
-		SetPageUptodate(page);
-		/* clear page dirty so that writepages wouldn't work for us. */
-		ClearPageDirty(page);
+		kunmap_local(kaddr);
+		folio_mark_uptodate(folio);
+		/* clear dirty flag so that writepages wouldn't work for us. */
+		folio_clear_dirty(folio);
 
 		ext4_write_unlock_xattr(inode, &no_expand);
 		brelse(iloc.bh);
 
 		/*
-		 * It's important to update i_size while still holding page
+		 * It's important to update i_size while still holding folio
 		 * lock: page writeout could otherwise come in and zero
 		 * beyond i_size.
 		 */
 		ext4_update_inode_size(inode, pos + copied);
 	}
-	unlock_page(page);
-	put_page(page);
+	folio_unlock(folio);
+	folio_put(folio);
 
 	/*
-	 * Don't mark the inode dirty under page lock. First, it unnecessarily
-	 * makes the holding time of page lock longer. Second, it forces lock
-	 * ordering of page lock and transaction start for journaling
+	 * Don't mark the inode dirty under folio lock. First, it unnecessarily
+	 * makes the holding time of folio lock longer. Second, it forces lock
+	 * ordering of folio lock and transaction start for journaling
 	 * filesystems.
 	 */
 	if (likely(copied))
