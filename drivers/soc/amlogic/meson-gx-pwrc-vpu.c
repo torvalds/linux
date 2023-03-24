@@ -308,11 +308,9 @@ static int meson_gx_pwrc_vpu_probe(struct platform_device *pdev)
 	}
 
 	rstc = devm_reset_control_array_get_exclusive(&pdev->dev);
-	if (IS_ERR(rstc)) {
-		if (PTR_ERR(rstc) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "failed to get reset lines\n");
-		return PTR_ERR(rstc);
-	}
+	if (IS_ERR(rstc))
+		return dev_err_probe(&pdev->dev, PTR_ERR(rstc),
+				     "failed to get reset lines\n");
 
 	vpu_clk = devm_clk_get(&pdev->dev, "vpu");
 	if (IS_ERR(vpu_clk)) {
