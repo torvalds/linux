@@ -93,3 +93,4 @@ obj-$(CONFIG_QCOM_PANEL_EVENT_NOTIFIER) += panel_event_notifier.o
 obj-$(CONFIG_QCOM_DEBUG_SYMBOL) += debug_symbol.o
 obj-$(CONFIG_QCOM_VM_DMESG_DUMPER) += dmesg_dumper.o
 obj-$(CONFIG_QCOM_VM_ALIVE_LOG_ENCRYPT) += dmesg_dumper_crypto.o
+obj-$(CONFIG_RENAME_DEVICES) += rename_devices.o

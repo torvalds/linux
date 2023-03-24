@@ -979,4 +979,14 @@ config QCOM_PANEL_EVENT_NOTIFIER
 	  can use these notifications for power saving or align its operations
 	  with display panel power state.
 
+config RENAME_DEVICES
+	tristate "Rename  block and network device names"
+	depends on VIRTIO_BLK
+	default n
+	help
+	  This option is to rename the block and network devices names
+	  which is needed during android verified boot process and it
+	  also maps to physical partition names on gvm side which help
+	  identify the block and network devices.
+
 endmenu
