@@ -3538,7 +3538,7 @@ static void ath11k_mac_op_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_FTM_RESPONDER &&
 	    arvif->ftm_responder != info->ftm_responder &&
-	    ar->ab->hw_params.ftm_responder &&
+	    test_bit(WMI_TLV_SERVICE_RTT, ar->ab->wmi_ab.svc_map) &&
 	    (vif->type == NL80211_IFTYPE_AP ||
 	     vif->type == NL80211_IFTYPE_MESH_POINT)) {
 		arvif->ftm_responder = info->ftm_responder;
@@ -9234,7 +9234,7 @@ static int __ath11k_mac_register(struct ath11k *ar)
 	wiphy_ext_feature_set(ar->hw->wiphy,
 			      NL80211_EXT_FEATURE_SET_SCAN_DWELL);
 
-	if (ab->hw_params.ftm_responder)
+	if (test_bit(WMI_TLV_SERVICE_RTT, ar->ab->wmi_ab.svc_map))
 		wiphy_ext_feature_set(ar->hw->wiphy,
 				      NL80211_EXT_FEATURE_ENABLE_FTM_RESPONDER);
 
