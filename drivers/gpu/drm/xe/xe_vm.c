@@ -1427,6 +1427,13 @@ void xe_vm_close_and_put(struct xe_vm *vm)
 	XE_WARN_ON(!list_empty(&vm->extobj.list));
 	up_write(&vm->lock);
 
+	mutex_lock(&xe->usm.lock);
+	if (vm->flags & XE_VM_FLAG_FAULT_MODE)
+		xe->usm.num_vm_in_fault_mode--;
+	else if (!(vm->flags & XE_VM_FLAG_MIGRATION))
+		xe->usm.num_vm_in_non_fault_mode--;
+	mutex_unlock(&xe->usm.lock);
+
 	xe_vm_put(vm);
 }
 
@@ -1469,18 +1476,10 @@ static void vm_destroy_work_func(struct work_struct *w)
 	}
 	xe_vm_unlock(vm, &ww);
 
-	mutex_lock(&xe->usm.lock);
-	if (vm->flags & XE_VM_FLAG_FAULT_MODE)
-		xe->usm.num_vm_in_fault_mode--;
-	else if (!(vm->flags & XE_VM_FLAG_MIGRATION))
-		xe->usm.num_vm_in_non_fault_mode--;
-	mutex_unlock(&xe->usm.lock);
-
 	trace_xe_vm_free(vm);
 	dma_fence_put(vm->rebind_fence);
 	dma_resv_fini(&vm->resv);
 	kfree(vm);
-
 }
 
 void xe_vm_free(struct kref *ref)
