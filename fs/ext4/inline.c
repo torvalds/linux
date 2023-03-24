@@ -653,8 +653,7 @@ int ext4_try_to_write_inline_data(struct address_space *mapping,
 {
 	int ret;
 	handle_t *handle;
-	unsigned int flags;
-	struct page *page;
+	struct folio *folio;
 	struct ext4_iloc iloc;
 
 	if (pos + len > ext4_get_max_inline_size(inode))
@@ -691,28 +690,27 @@ int ext4_try_to_write_inline_data(struct address_space *mapping,
 	if (ret)
 		goto out;
 
-	flags = memalloc_nofs_save();
-	page = grab_cache_page_write_begin(mapping, 0);
-	memalloc_nofs_restore(flags);
-	if (!page) {
+	folio = __filemap_get_folio(mapping, 0, FGP_WRITEBEGIN | FGP_NOFS,
+					mapping_gfp_mask(mapping));
+	if (!folio) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	*pagep = page;
+	*pagep = &folio->page;
 	down_read(&EXT4_I(inode)->xattr_sem);
 	if (!ext4_has_inline_data(inode)) {
 		ret = 0;
-		unlock_page(page);
-		put_page(page);
+		folio_unlock(folio);
+		folio_put(folio);
 		goto out_up_read;
 	}
 
-	if (!PageUptodate(page)) {
-		ret = ext4_read_inline_page(inode, page);
+	if (!folio_test_uptodate(folio)) {
+		ret = ext4_read_inline_page(inode, &folio->page);
 		if (ret < 0) {
-			unlock_page(page);
-			put_page(page);
+			folio_unlock(folio);
+			folio_put(folio);
 			goto out_up_read;
 		}
 	}
