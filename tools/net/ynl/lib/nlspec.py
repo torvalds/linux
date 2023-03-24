@@ -90,8 +90,8 @@ class SpecEnumEntry(SpecElement):
     def raw_value(self):
         return self.value
 
-    def user_value(self):
-        if self.enum_set['type'] == 'flags':
+    def user_value(self, as_flags=None):
+        if self.enum_set['type'] == 'flags' or as_flags:
             return 1 << self.value
         else:
             return self.value
@@ -136,10 +136,10 @@ class SpecEnumSet(SpecElement):
                 return True
         return False
 
-    def get_mask(self):
+    def get_mask(self, as_flags=None):
         mask = 0
         for e in self.entries.values():
-            mask += e.user_value()
+            mask += e.user_value(as_flags)
         return mask
 
 

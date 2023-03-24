@@ -254,7 +254,8 @@ class TypeScalar(Type):
     def _attr_policy(self, policy):
         if 'flags-mask' in self.checks or self.is_bitfield:
             if self.is_bitfield:
-                mask = self.family.consts[self.attr['enum']].get_mask()
+                enum = self.family.consts[self.attr['enum']]
+                mask = enum.get_mask(as_flags=True)
             else:
                 flags = self.family.consts[self.checks['flags-mask']]
                 flag_cnt = len(flags['entries'])
