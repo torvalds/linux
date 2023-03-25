@@ -849,10 +849,6 @@ static void _rtl92e_set_bw_mode_work_item(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u8 regBwOpMode;
 
-	if (priv->rf_chip == RF_PSEUDO_11N) {
-		priv->set_bw_mode_in_progress = false;
-		return;
-	}
 	if (!priv->up) {
 		netdev_err(dev, "%s(): Driver is not initialized\n", __func__);
 		return;
@@ -918,25 +914,7 @@ static void _rtl92e_set_bw_mode_work_item(struct net_device *dev)
 
 	}
 
-	switch (priv->rf_chip) {
-	case RF_8225:
-		break;
-
-	case RF_8256:
-		rtl92e_set_bandwidth(dev, priv->current_chnl_bw);
-		break;
-
-	case RF_8258:
-		break;
-
-	case RF_PSEUDO_11N:
-		break;
-
-	default:
-		netdev_info(dev, "%s(): Unknown RFChipID: %d\n", __func__,
-			    priv->rf_chip);
-		break;
-	}
+	rtl92e_set_bandwidth(dev, priv->current_chnl_bw);
 
 	atomic_dec(&(priv->rtllib->atm_swbw));
 	priv->set_bw_mode_in_progress = false;
