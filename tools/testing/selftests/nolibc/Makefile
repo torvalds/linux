@@ -77,8 +77,9 @@ Q=@
 endif
 
 CFLAGS_s390 = -m64
-CFLAGS  ?= -Os -fno-ident -fno-asynchronous-unwind-tables $(CFLAGS_$(ARCH))
-CFLAGS  += $(call cc-option,-fno-stack-protector)
+CFLAGS  ?= -Os -fno-ident -fno-asynchronous-unwind-tables \
+		$(call cc-option,-fno-stack-protector) \
+		$(CFLAGS_STKP_$(ARCH)) $(CFLAGS_$(ARCH))
 LDFLAGS := -s
 
 help:
