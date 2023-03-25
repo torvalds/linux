@@ -532,7 +532,7 @@ static void _rtl92e_dm_tx_power_tracking_callback_tssi(struct net_device *dev)
 	priv->rtllib->bdynamic_txpower_enable = false;
 
 	powerlevelOFDM24G = priv->pwr_track >> 24;
-	RF_Type = priv->rf_type;
+	RF_Type = RF_1T2R;
 	Value = (RF_Type<<8) | powerlevelOFDM24G;
 
 	for (j = 0; j <= 30; j++) {

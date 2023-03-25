@@ -289,7 +289,6 @@ struct r8192_priv {
 	enum nic_t card_8192;
 	u8 card_8192_version;
 
-	u8 rf_type;
 	u8 ic_cut;
 	char nick[IW_ESSID_MAX_SIZE + 1];
 	u8 check_roaming_cnt;

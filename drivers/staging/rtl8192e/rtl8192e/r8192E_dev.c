@@ -343,8 +343,6 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 	else
 		priv->tx_pwr_data_read_from_eeprom = false;
 
-	priv->rf_type = RF_1T2R;
-
 	if (priv->card_8192_version > VERSION_8190_BD) {
 		if (!priv->autoload_fail_flag) {
 			tempval = (rtl92e_eeprom_read(dev,
