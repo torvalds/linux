@@ -18,6 +18,7 @@
 #include "verifier_div0.skel.h"
 #include "verifier_div_overflow.skel.h"
 #include "verifier_helper_access_var_len.skel.h"
+#include "verifier_helper_packet_access.skel.h"
 
 __maybe_unused
 static void run_tests_aux(const char *skel_name, skel_elf_bytes_fn elf_bytes_factory)
@@ -58,3 +59,4 @@ void test_verifier_direct_stack_access_wraparound(void) { RUN(verifier_direct_st
 void test_verifier_div0(void)                 { RUN(verifier_div0); }
 void test_verifier_div_overflow(void)         { RUN(verifier_div_overflow); }
 void test_verifier_helper_access_var_len(void) { RUN(verifier_helper_access_var_len); }
+void test_verifier_helper_packet_access(void) { RUN(verifier_helper_packet_access); }
