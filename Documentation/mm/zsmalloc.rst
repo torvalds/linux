@@ -68,6 +68,8 @@ pages_used
 	the number of pages allocated for the class
 pages_per_zspage
 	the number of 0-order pages to make a zspage
+freeable
+	the approximate number of pages class compaction can free
 
 We assign a zspage to ZS_ALMOST_EMPTY fullness group when n <= N / f, where
 
