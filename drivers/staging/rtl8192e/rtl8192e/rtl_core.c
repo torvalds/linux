@@ -595,23 +595,9 @@ static void _rtl92e_refresh_support_rate(struct r8192_priv *priv)
 
 static u8 _rtl92e_get_supported_wireless_mode(struct net_device *dev)
 {
-	struct r8192_priv *priv = rtllib_priv(dev);
 	u8 ret = 0;
 
-	switch (priv->rf_chip) {
-	case RF_8225:
-	case RF_8256:
-	case RF_6052:
-	case RF_PSEUDO_11N:
-		ret = (WIRELESS_MODE_N_24G | WIRELESS_MODE_G | WIRELESS_MODE_B);
-		break;
-	case RF_8258:
-		ret = (WIRELESS_MODE_A | WIRELESS_MODE_N_5G);
-		break;
-	default:
-		ret = WIRELESS_MODE_B;
-		break;
-	}
+	ret = (WIRELESS_MODE_N_24G | WIRELESS_MODE_G | WIRELESS_MODE_B);
 	return ret;
 }
 
