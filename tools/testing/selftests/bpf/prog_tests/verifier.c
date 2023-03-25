@@ -13,6 +13,7 @@
 #include "verifier_cgroup_skb.skel.h"
 #include "verifier_cgroup_storage.skel.h"
 #include "verifier_const_or.skel.h"
+#include "verifier_ctx_sk_msg.skel.h"
 
 __maybe_unused
 static void run_tests_aux(const char *skel_name, skel_elf_bytes_fn elf_bytes_factory)
@@ -48,3 +49,4 @@ void test_verifier_cgroup_inv_retcode(void)   { RUN(verifier_cgroup_inv_retcode)
 void test_verifier_cgroup_skb(void)           { RUN(verifier_cgroup_skb); }
 void test_verifier_cgroup_storage(void)       { RUN(verifier_cgroup_storage); }
 void test_verifier_const_or(void)             { RUN(verifier_const_or); }
+void test_verifier_ctx_sk_msg(void)           { RUN(verifier_ctx_sk_msg); }
