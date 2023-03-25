@@ -504,24 +504,42 @@ unlock:
 	rcu_read_unlock();
 }
 
+/**
+ * android_rvh_set_cpus_allowed_by_task: disallow cpus that are halted
+ *
+ * NOTES: may be called if migration is disabled for the task
+ *        if per-cpu-kthread, must not deliberately return an invalid cpu
+ *        if !per-cpu-kthread, may return an invalid cpu (reject dest_cpu)
+ *        must not change cpu in in_exec 32bit task case
+ */
 static void android_rvh_set_cpus_allowed_by_task(void *unused,
 						 const struct cpumask *cpu_valid_mask,
 						 const struct cpumask *new_mask,
 						 struct task_struct *p,
 						 unsigned int *dest_cpu)
 {
-	cpumask_t allowed_cpus;
-
 	if (unlikely(walt_disabled))
 		return;
 
+	/* allow kthreads to change affinity regardless of halt status of dest_cpu */
+	if (p->flags & PF_KTHREAD)
+		return;
+
 	if (cpu_halted(*dest_cpu) && !p->migration_disabled) {
+		cpumask_t allowed_cpus;
+
+		if (unlikely(is_compat_thread(task_thread_info(p)) && p->in_execve))
+			return;
+
 		/* remove halted cpus from the valid mask, and store locally */
 		cpumask_andnot(&allowed_cpus, cpu_valid_mask, cpu_halt_mask);
 		*dest_cpu = cpumask_any_and_distribute(&allowed_cpus, new_mask);
 	}
 }
 
+/**
+ * android_rvh_rto_next-cpu: disallow halted cpus for irq workfunctions
+ */
 static void android_rvh_rto_next_cpu(void *unused, int rto_cpu, struct cpumask *rto_mask, int *cpu)
 {
 	cpumask_t allowed_cpus;
@@ -538,6 +556,8 @@ static void android_rvh_rto_next_cpu(void *unused, int rto_cpu, struct cpumask *
 
 /**
  * android_rvh_is_cpu_allowed: disallow cpus that are halted
+ *
+ * NOTE: this function will not be called if migration is disabled for the task.
  */
 static void android_rvh_is_cpu_allowed(void *unused, struct task_struct *p, int cpu, bool *allowed)
 {
