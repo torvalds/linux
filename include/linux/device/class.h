@@ -83,7 +83,7 @@ struct class_dev_iter {
 extern struct kobject *sysfs_dev_block_kobj;
 
 int __must_check class_register(struct class *class);
-void class_unregister(struct class *class);
+void class_unregister(const struct class *class);
 
 struct class_compat;
 struct class_compat *class_compat_register(const char *name);
@@ -231,6 +231,6 @@ int __must_check class_interface_register(struct class_interface *);
 void class_interface_unregister(struct class_interface *);
 
 struct class * __must_check class_create(const char *name);
-void class_destroy(struct class *cls);
+void class_destroy(const struct class *cls);
 
 #endif	/* _DEVICE_CLASS_H_ */

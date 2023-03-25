@@ -142,13 +142,13 @@ static void klist_class_dev_put(struct klist_node *n)
 	put_device(dev);
 }
 
-static int class_add_groups(struct class *cls,
+static int class_add_groups(const struct class *cls,
 			    const struct attribute_group **groups)
 {
 	return sysfs_create_groups(&cls->p->subsys.kobj, groups);
 }
 
-static void class_remove_groups(struct class *cls,
+static void class_remove_groups(const struct class *cls,
 				const struct attribute_group **groups)
 {
 	return sysfs_remove_groups(&cls->p->subsys.kobj, groups);
@@ -206,7 +206,7 @@ err_out:
 }
 EXPORT_SYMBOL_GPL(class_register);
 
-void class_unregister(struct class *cls)
+void class_unregister(const struct class *cls)
 {
 	pr_debug("device class '%s': unregistering\n", cls->name);
 	class_remove_groups(cls, cls->class_groups);
@@ -265,7 +265,7 @@ EXPORT_SYMBOL_GPL(class_create);
  * Note, the pointer to be destroyed must have been created with a call
  * to class_create().
  */
-void class_destroy(struct class *cls)
+void class_destroy(const struct class *cls)
 {
 	if (IS_ERR_OR_NULL(cls))
 		return;
