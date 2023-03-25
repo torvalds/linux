@@ -238,6 +238,7 @@ def define_pineapple():
         "drivers/virt/gunyah/gh_rm_drv.ko",
         "drivers/virt/gunyah/gh_virt_wdt.ko",
         "drivers/virt/gunyah/gunyah.ko",
+        "kernel/msm_sysstats.ko",
         "kernel/sched/walt/sched-walt.ko",
         "kernel/trace/qcom_ipc_logging.ko",
         "net/qrtr/qrtr.ko",
