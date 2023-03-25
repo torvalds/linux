@@ -232,8 +232,11 @@ void run_subtest(struct test_loader *tester,
 
 		/* if we can't derive test specification, go to the next test */
 		err = parse_test_spec(tester, obj, prog, &spec);
-		if (!ASSERT_OK(err, "parse_test_spec"))
+		if (err) {
+			PRINT_FAIL("Can't parse test spec for program '%s'\n",
+				   bpf_program__name(prog));
 			continue;
+		}
 
 		tobj = bpf_object__open_mem(obj_bytes, obj_byte_cnt, &open_opts);
 		if (!ASSERT_OK_PTR(tobj, "obj_open_mem")) /* shouldn't happen */
