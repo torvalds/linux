@@ -1813,6 +1813,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	sp -= STACK_SWITCH_FRAME_SIZE;
 	((unsigned long *)sp)[0] = sp + STACK_SWITCH_FRAME_SIZE;
 	kregs = (struct pt_regs *)(sp + STACK_SWITCH_FRAME_REGS);
+	kregs->nip = ppc_function_entry(f);
 	p->thread.ksp = sp;
 
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
@@ -1845,17 +1846,6 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 
 	p->thread.tidr = 0;
 #endif
-	/*
-	 * Run with the current AMR value of the kernel
-	 */
-#ifdef CONFIG_PPC_PKEY
-	if (mmu_has_feature(MMU_FTR_BOOK3S_KUAP))
-		kregs->amr = AMR_KUAP_BLOCKED;
-
-	if (mmu_has_feature(MMU_FTR_BOOK3S_KUEP))
-		kregs->iamr = AMR_KUEP_BLOCKED;
-#endif
-	kregs->nip = ppc_function_entry(f);
 	return 0;
 }
 
