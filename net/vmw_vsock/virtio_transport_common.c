@@ -196,7 +196,8 @@ static int virtio_transport_send_pkt_info(struct vsock_sock *vsk,
 	const struct virtio_transport *t_ops;
 	struct virtio_vsock_sock *vvs;
 	u32 pkt_len = info->pkt_len;
-	struct sk_buff *skb;
+	u32 rest_len;
+	int ret;
 
 	info->type = virtio_transport_get_type(sk_vsock(vsk));
 
@@ -216,10 +217,6 @@ static int virtio_transport_send_pkt_info(struct vsock_sock *vsk,
 
 	vvs = vsk->trans;
 
-	/* we can send less than pkt_len bytes */
-	if (pkt_len > VIRTIO_VSOCK_MAX_PKT_BUF_SIZE)
-		pkt_len = VIRTIO_VSOCK_MAX_PKT_BUF_SIZE;
-
 	/* virtio_transport_get_credit might return less than pkt_len credit */
 	pkt_len = virtio_transport_get_credit(vvs, pkt_len);
 
@@ -227,17 +224,49 @@ static int virtio_transport_send_pkt_info(struct vsock_sock *vsk,
 	if (pkt_len == 0 && info->op == VIRTIO_VSOCK_OP_RW)
 		return pkt_len;
 
-	skb = virtio_transport_alloc_skb(info, pkt_len,
-					 src_cid, src_port,
-					 dst_cid, dst_port);
-	if (!skb) {
-		virtio_transport_put_credit(vvs, pkt_len);
-		return -ENOMEM;
-	}
+	rest_len = pkt_len;
 
-	virtio_transport_inc_tx_pkt(vvs, skb);
+	do {
+		struct sk_buff *skb;
+		size_t skb_len;
 
-	return t_ops->send_pkt(skb);
+		skb_len = min_t(u32, VIRTIO_VSOCK_MAX_PKT_BUF_SIZE, rest_len);
+
+		skb = virtio_transport_alloc_skb(info, skb_len,
+						 src_cid, src_port,
+						 dst_cid, dst_port);
+		if (!skb) {
+			ret = -ENOMEM;
+			break;
+		}
+
+		virtio_transport_inc_tx_pkt(vvs, skb);
+
+		ret = t_ops->send_pkt(skb);
+		if (ret < 0)
+			break;
+
+		/* Both virtio and vhost 'send_pkt()' returns 'skb_len',
+		 * but for reliability use 'ret' instead of 'skb_len'.
+		 * Also if partial send happens (e.g. 'ret' != 'skb_len')
+		 * somehow, we break this loop, but account such returned
+		 * value in 'virtio_transport_put_credit()'.
+		 */
+		rest_len -= ret;
+
+		if (WARN_ONCE(ret != skb_len,
+			      "'send_pkt()' returns %i, but %zu expected\n",
+			      ret, skb_len))
+			break;
+	} while (rest_len);
+
+	virtio_transport_put_credit(vvs, rest_len);
+
+	/* Return number of bytes, if any data has been sent. */
+	if (rest_len != pkt_len)
+		ret = pkt_len - rest_len;
+
+	return ret;
 }
 
 static bool virtio_transport_inc_rx_pkt(struct virtio_vsock_sock *vvs,
