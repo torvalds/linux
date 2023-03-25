@@ -1741,7 +1741,8 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	struct pt_regs *kregs; /* Switch frame regs */
 	extern void ret_from_fork(void);
 	extern void ret_from_fork_scv(void);
-	extern void ret_from_kernel_thread(void);
+	extern void ret_from_kernel_user_thread(void);
+	extern void start_kernel_thread(void);
 	void (*f)(void);
 	unsigned long sp = (unsigned long)task_stack_page(p) + THREAD_SIZE;
 	struct thread_info *ti = task_thread_info(p);
@@ -1758,7 +1759,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 		sp -= STACK_FRAME_MIN_SIZE;
 		((unsigned long *)sp)[0] = 0;
 
-		f = ret_from_kernel_thread;
+		f = start_kernel_thread;
 		p->thread.regs = NULL;	/* no user register state */
 		clear_tsk_compat_task(p);
 	} else {
@@ -1784,7 +1785,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 			childregs->softe = IRQS_ENABLED;
 #endif
 			ti->flags |= _TIF_RESTOREALL;
-			f = ret_from_kernel_thread;
+			f = ret_from_kernel_user_thread;
 		} else {
 			struct pt_regs *regs = current_pt_regs();
 			unsigned long clone_flags = args->flags;

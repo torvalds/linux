@@ -739,7 +739,7 @@ _GLOBAL(ret_from_fork)
 	li	r3,0	/* fork() return value */
 	b	.Lsyscall_exit
 
-_GLOBAL(ret_from_kernel_thread)
+_GLOBAL(ret_from_kernel_user_thread)
 	bl	schedule_tail
 	mtctr	r14
 	mr	r3,r15
@@ -749,3 +749,19 @@ _GLOBAL(ret_from_kernel_thread)
 	bctrl
 	li	r3,0
 	b	.Lsyscall_exit
+
+_GLOBAL(start_kernel_thread)
+	bl	schedule_tail
+	mtctr	r14
+	mr	r3,r15
+#ifdef CONFIG_PPC64_ELF_ABI_V2
+	mr	r12,r14
+#endif
+	bctrl
+	/*
+	 * This must not return. We actually want to BUG here, not WARN,
+	 * because BUG will exit the process which is what the kernel thread
+	 * should have done, which may give some hope of continuing.
+	 */
+100:	trap
+	EMIT_BUG_ENTRY 100b,__FILE__,__LINE__,0
