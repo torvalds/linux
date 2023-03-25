@@ -977,7 +977,6 @@
 				snps,hird-threshold = /bits/ 8 <0x00>;
 
 				maximum-speed = "high-speed";
-				phy_mode = "utmi";
 			};
 		};
 
