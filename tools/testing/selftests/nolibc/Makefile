@@ -79,6 +79,7 @@ endif
 CFLAGS_STACKPROTECTOR = -DNOLIBC_STACKPROTECTOR \
 			$(call cc-option,-mstack-protector-guard=global) \
 			$(call cc-option,-fstack-protector-all)
+CFLAGS_STKP_i386 = $(CFLAGS_STACKPROTECTOR)
 CFLAGS_s390 = -m64
 CFLAGS  ?= -Os -fno-ident -fno-asynchronous-unwind-tables \
 		$(call cc-option,-fno-stack-protector) \
