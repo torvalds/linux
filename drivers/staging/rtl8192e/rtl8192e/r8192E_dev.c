@@ -432,8 +432,6 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 
 	rtl92e_init_adaptive_rate(dev);
 
-	priv->rf_chip = RF_8256;
-
 	if (priv->reg_chnl_plan == 0xf)
 		priv->chnl_plan = priv->eeprom_chnl_plan;
 	else

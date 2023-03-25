@@ -129,15 +129,6 @@ enum dcmg_txcmd_op {
 	TXCMD_XXXX_CTRL,
 };
 
-enum rt_rf_type_819xu {
-	RF_TYPE_MIN = 0,
-	RF_8225,
-	RF_8256,
-	RF_8258,
-	RF_6052 = 4,
-	RF_PSEUDO_11N = 5,
-};
-
 enum rt_customer_id {
 	RT_CID_DEFAULT	  = 0,
 	RT_CID_819x_CAMEO       = 6,
@@ -221,7 +212,6 @@ struct r8192_priv {
 
 	enum rt_customer_id customer_id;
 
-	enum rt_rf_type_819xu rf_chip;
 	enum ht_channel_width current_chnl_bw;
 	struct bb_reg_definition phy_reg_def[4];
 	struct rate_adaptive rate_adaptive;
