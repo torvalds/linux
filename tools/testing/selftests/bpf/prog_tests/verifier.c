@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: GPL-2.0-only
+
+#include <test_progs.h>
+
+#include "cap_helpers.h"
+
+__maybe_unused
+static void run_tests_aux(const char *skel_name, skel_elf_bytes_fn elf_bytes_factory)
+{
+	struct test_loader tester = {};
+	__u64 old_caps;
+	int err;
+
+	/* test_verifier tests are executed w/o CAP_SYS_ADMIN, do the same here */
+	err = cap_disable_effective(1ULL << CAP_SYS_ADMIN, &old_caps);
+	if (err) {
+		PRINT_FAIL("failed to drop CAP_SYS_ADMIN: %i, %s\n", err, strerror(err));
+		return;
+	}
+
+	test_loader__run_subtests(&tester, skel_name, elf_bytes_factory);
+	test_loader_fini(&tester);
+
+	err = cap_enable_effective(old_caps, NULL);
+	if (err)
+		PRINT_FAIL("failed to restore CAP_SYS_ADMIN: %i, %s\n", err, strerror(err));
+}
+
+#define RUN(skel) run_tests_aux(#skel, skel##__elf_bytes)
