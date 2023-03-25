@@ -51,6 +51,7 @@ struct qcom_scm_desc {
 	u32 arginfo;
 	u64 args[MAX_QCOM_SCM_ARGS];
 	u32 owner;
+	bool multicall_allowed;
 };
 
 /**
@@ -67,10 +68,16 @@ enum qcom_scm_call_type {
 	QCOM_SCM_CALL_NORETRY,
 };
 
+enum qcom_scm_wq_feature {
+	QCOM_SCM_SINGLE_SMC_ALLOW,
+	QCOM_SCM_MULTI_SMC_WHITE_LIST_ALLOW, /* Release global lock for certain allowed SMC calls */
+};
+
 struct qcom_scm;
 extern struct completion *qcom_scm_lookup_wq(struct qcom_scm *scm, u32 wq_ctx);
 extern void scm_waitq_flag_handler(struct completion *wq, u32 flags);
 extern int scm_get_wq_ctx(u32 *wq_ctx, u32 *flags, u32 *more_pending);
+extern bool qcom_scm_multi_call_allow(struct device *dev, bool multicall_allowed);
 
 #define SCM_SMC_FNID(s, c)	((((s) & 0xFF) << 8) | ((c) & 0xFF))
 extern int __scm_smc_call(struct device *dev, const struct qcom_scm_desc *desc,
@@ -199,7 +206,7 @@ extern int scm_legacy_call(struct device *dev, const struct qcom_scm_desc *desc,
 #define QCOM_SCM_WAITQ_ACK			0x01
 #define QCOM_SCM_WAITQ_RESUME			0x02
 #define QCOM_SCM_WAITQ_GET_WQ_CTX		0x03
-
+#define QCOM_SCM_GET_WQ_QUEUE_INFO		0x04
 #define QCOM_SCM_SVC_TSENS			0x1E
 #define QCOM_SCM_TSENS_INIT_ID			0x5
 

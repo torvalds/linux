@@ -114,7 +114,7 @@ int scm_get_wq_ctx(u32 *wq_ctx, u32 *flags, u32 *more_pending)
 }
 
 static int scm_smc_do_quirk(struct device *dev, struct arm_smccc_args *smc,
-			    struct arm_smccc_res *res)
+		    struct arm_smccc_res *res, const bool multi_smc_call)
 {
 	struct completion *wq = NULL;
 	struct qcom_scm *qscm;
@@ -141,11 +141,17 @@ static int scm_smc_do_quirk(struct device *dev, struct arm_smccc_args *smc,
 			}
 
 			if (res->a0 == QCOM_SCM_WAITQ_SLEEP) {
+				if (multi_smc_call)
+					mutex_unlock(&qcom_scm_lock);
 				wait_for_completion(wq);
+				if (multi_smc_call)
+					mutex_lock(&qcom_scm_lock);
 				fill_wq_resume_args(smc, smc_call_ctx);
 				wq = NULL;
 				continue;
 			} else {
+				/* Currently it is not supported by a firmware */
+				WARN_ON_ONCE(1);
 				fill_wq_wake_ack_args(smc, smc_call_ctx);
 				continue;
 			}
@@ -170,9 +176,11 @@ static int scm_smc_do_quirk(struct device *dev, struct arm_smccc_args *smc,
 
 static int __scm_smc_do(struct device *dev, struct arm_smccc_args *smc,
 			 struct arm_smccc_res *res,
-			 enum qcom_scm_call_type call_type)
+			 enum qcom_scm_call_type call_type,
+			 bool multicall_allowed)
 {
 	int ret, retry_count = 0;
+	bool multi_smc_call = qcom_scm_multi_call_allow(dev, multicall_allowed);
 
 	if (call_type == QCOM_SCM_CALL_ATOMIC) {
 		__scm_smc_do_quirk(smc, res);
@@ -181,7 +189,7 @@ static int __scm_smc_do(struct device *dev, struct arm_smccc_args *smc,
 
 	do {
 		mutex_lock(&qcom_scm_lock);
-		ret = scm_smc_do_quirk(dev, smc, res);
+		ret = scm_smc_do_quirk(dev, smc, res, multi_smc_call);
 		mutex_unlock(&qcom_scm_lock);
 		if (ret)
 			return ret;
@@ -268,7 +276,7 @@ int __scm_smc_call(struct device *dev, const struct qcom_scm_desc *desc,
 		smc.args[SCM_SMC_LAST_REG_IDX] = shm.paddr;
 	}
 
-	ret = __scm_smc_do(dev, &smc, &smc_res, call_type);
+	ret = __scm_smc_do(dev, &smc, &smc_res, call_type, desc->multicall_allowed);
 	/* ret error check follows shm cleanup */
 
 	if (shm.vaddr) {
