@@ -667,6 +667,63 @@ int run_stdlib(int min, int max)
 	return ret;
 }
 
+#if defined(__clang__)
+__attribute__((optnone))
+#elif defined(__GNUC__)
+__attribute__((optimize("O0")))
+#endif
+static int smash_stack(void)
+{
+	char buf[100];
+
+	for (size_t i = 0; i < 200; i++)
+		buf[i] = 'P';
+
+	return 1;
+}
+
+static int run_protection(int min, int max)
+{
+	pid_t pid;
+	int llen = 0, status;
+
+	llen += printf("0 -fstackprotector ");
+
+#if !defined(NOLIBC_STACKPROTECTOR)
+	llen += printf("not supported");
+	pad_spc(llen, 64, "[SKIPPED]\n");
+	return 0;
+#endif
+
+	pid = -1;
+	pid = fork();
+
+	switch (pid) {
+	case -1:
+		llen += printf("fork()");
+		pad_spc(llen, 64, "[FAIL]\n");
+		return 1;
+
+	case 0:
+		close(STDOUT_FILENO);
+		close(STDERR_FILENO);
+
+		smash_stack();
+		return 1;
+
+	default:
+		pid = waitpid(pid, &status, 0);
+
+		if (pid == -1 || !WIFSIGNALED(status) || WTERMSIG(status) != SIGABRT) {
+			llen += printf("waitpid()");
+			pad_spc(llen, 64, "[FAIL]\n");
+			return 1;
+		}
+		pad_spc(llen, 64, " [OK]\n");
+		return 0;
+	}
+}
+
 /* prepare what needs to be prepared for pid 1 (stdio, /dev, /proc, etc) */
 int prepare(void)
 {
@@ -719,8 +776,9 @@ int prepare(void)
 /* This is the definition of known test names, with their functions */
 static const struct test test_names[] = {
 	/* add new tests here */
-	{ .name = "syscall",   .func = run_syscall  },
-	{ .name = "stdlib",    .func = run_stdlib   },
+	{ .name = "syscall",    .func = run_syscall    },
+	{ .name = "stdlib",     .func = run_stdlib     },
+	{ .name = "protection", .func = run_protection },
 	{ 0 }
 };
 
