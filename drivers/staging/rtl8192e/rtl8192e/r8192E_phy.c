@@ -14,24 +14,6 @@
 
 #include "table.h"
 
-static u32 RF_CHANNEL_TABLE_ZEBRA[] = {
-	0,
-	0x085c,
-	0x08dc,
-	0x095c,
-	0x09dc,
-	0x0a5c,
-	0x0adc,
-	0x0b5c,
-	0x0bdc,
-	0x0c5c,
-	0x0cdc,
-	0x0d5c,
-	0x0ddc,
-	0x0e5c,
-	0x0f72,
-};
-
 /*************************Define local function prototype**********************/
 
 static u32 _rtl92e_phy_rf_fw_read(struct net_device *dev,
@@ -608,58 +590,25 @@ static u8 _rtl92e_phy_switch_channel_step(struct net_device *dev, u8 channel,
 						  0, 0, 0);
 
 		RfDependCmdCnt = 0;
-		switch (priv->rf_chip) {
-		case RF_8225:
-			if (!(channel >= 1 && channel <= 14)) {
-				netdev_err(dev,
-					   "Invalid channel requested for 8225: %d\n",
-					   channel);
-				return false;
-			}
-			_rtl92e_phy_set_sw_chnl_cmd_array(dev,
-							  ieee->RfDependCmd,
-							  RfDependCmdCnt++,
-							  MAX_RFDEPENDCMD_CNT,
-							  CmdID_RF_WriteReg,
-							  rZebra1_Channel,
-							  RF_CHANNEL_TABLE_ZEBRA[channel],
-							  10);
-			_rtl92e_phy_set_sw_chnl_cmd_array(dev,
-							  ieee->RfDependCmd,
-							  RfDependCmdCnt++,
-							  MAX_RFDEPENDCMD_CNT,
-							  CmdID_End, 0, 0, 0);
-			break;
 
-		case RF_8256:
-			if (!(channel >= 1 && channel <= 14)) {
-				netdev_err(dev,
-					   "Invalid channel requested for 8256: %d\n",
-					   channel);
-				return false;
-			}
-			_rtl92e_phy_set_sw_chnl_cmd_array(dev,
-							  ieee->RfDependCmd,
-							  RfDependCmdCnt++,
-							  MAX_RFDEPENDCMD_CNT,
-							  CmdID_RF_WriteReg,
-							  rZebra1_Channel,
-							  channel, 10);
-			_rtl92e_phy_set_sw_chnl_cmd_array(dev,
-							  ieee->RfDependCmd,
-							  RfDependCmdCnt++,
-							  MAX_RFDEPENDCMD_CNT,
-							  CmdID_End, 0, 0, 0);
-			break;
-
-		case RF_8258:
-			break;
-
-		default:
-			netdev_warn(dev, "Unknown RF Chip ID\n");
+		if (!(channel >= 1 && channel <= 14)) {
+			netdev_err(dev,
+				   "Invalid channel requested for 8256: %d\n",
+				   channel);
 			return false;
 		}
-
+		_rtl92e_phy_set_sw_chnl_cmd_array(dev,
+						  ieee->RfDependCmd,
+						  RfDependCmdCnt++,
+						  MAX_RFDEPENDCMD_CNT,
+						  CmdID_RF_WriteReg,
+						  rZebra1_Channel,
+						  channel, 10);
+		_rtl92e_phy_set_sw_chnl_cmd_array(dev,
+						  ieee->RfDependCmd,
+						  RfDependCmdCnt++,
+						  MAX_RFDEPENDCMD_CNT,
+						  CmdID_End, 0, 0, 0);
 
 		do {
 			switch (*stage) {
