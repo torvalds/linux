@@ -61,8 +61,6 @@
 #define HAL_HW_PCI_REVISION_ID_8192PCIE		0x01
 #define HAL_HW_PCI_REVISION_ID_8192SE	0x10
 
-#define RTL819X_DEFAULT_RF_TYPE		RF_1T2R
-
 #define RTLLIB_WATCH_DOG_TIME		2000
 
 #define MAX_DEV_ADDR_SIZE		8  /*support till 64 bit bus width OS*/
