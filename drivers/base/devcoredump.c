@@ -167,7 +167,7 @@ static int devcd_free(struct device *dev, void *data)
 	return 0;
 }
 
-static ssize_t disabled_show(struct class *class, struct class_attribute *attr,
+static ssize_t disabled_show(const struct class *class, const struct class_attribute *attr,
 			     char *buf)
 {
 	return sysfs_emit(buf, "%d\n", devcd_disabled);
@@ -197,7 +197,7 @@ static ssize_t disabled_show(struct class *class, struct class_attribute *attr,
  * so, above situation would not occur.
  */
 
-static ssize_t disabled_store(struct class *class, struct class_attribute *attr,
+static ssize_t disabled_store(const struct class *class, const struct class_attribute *attr,
 			      const char *buf, size_t count)
 {
 	long tmp = simple_strtol(buf, NULL, 10);

@@ -174,10 +174,10 @@ static inline struct device *class_find_device_by_acpi_dev(const struct class *c
 
 struct class_attribute {
 	struct attribute attr;
-	ssize_t (*show)(struct class *class, struct class_attribute *attr,
+	ssize_t (*show)(const struct class *class, const struct class_attribute *attr,
 			char *buf);
-	ssize_t (*store)(struct class *class, struct class_attribute *attr,
-			const char *buf, size_t count);
+	ssize_t (*store)(const struct class *class, const struct class_attribute *attr,
+			 const char *buf, size_t count);
 };
 
 #define CLASS_ATTR_RW(_name) \
@@ -217,7 +217,8 @@ struct class_attribute_string {
 	struct class_attribute_string class_attr_##_name = \
 		_CLASS_ATTR_STRING(_name, _mode, _str)
 
-ssize_t show_class_attr_string(struct class *class, struct class_attribute *attr, char *buf);
+ssize_t show_class_attr_string(const struct class *class, const struct class_attribute *attr,
+			       char *buf);
 
 struct class_interface {
 	struct list_head	node;

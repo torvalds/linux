@@ -1229,8 +1229,8 @@ static char *umad_devnode(const struct device *dev, umode_t *mode)
 	return kasprintf(GFP_KERNEL, "infiniband/%s", dev_name(dev));
 }
 
-static ssize_t abi_version_show(struct class *class,
-				struct class_attribute *attr, char *buf)
+static ssize_t abi_version_show(const struct class *class,
+				const struct class_attribute *attr, char *buf)
 {
 	return sysfs_emit(buf, "%d\n", IB_USER_MAD_ABI_VERSION);
 }
