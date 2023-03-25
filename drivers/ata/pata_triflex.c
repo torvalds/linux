@@ -160,7 +160,7 @@ static void triflex_bmdma_stop(struct ata_queued_cmd *qc)
 	triflex_load_timing(qc->ap, qc->dev, qc->dev->pio_mode);
 }
 
-static struct scsi_host_template triflex_sht = {
+static const struct scsi_host_template triflex_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

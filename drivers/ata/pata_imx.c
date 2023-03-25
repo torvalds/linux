@@ -97,7 +97,7 @@ static void pata_imx_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	__raw_writel(val, priv->host_regs + PATA_IMX_ATA_CONTROL);
 }
 
-static struct scsi_host_template pata_imx_sht = {
+static const struct scsi_host_template pata_imx_sht = {
 	ATA_PIO_SHT(DRV_NAME),
 };
 

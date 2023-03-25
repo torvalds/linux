@@ -3282,7 +3282,7 @@ static void hisi_sas_map_queues(struct Scsi_Host *shost)
 	}
 }
 
-static struct scsi_host_template sht_v3_hw = {
+static const struct scsi_host_template sht_v3_hw = {
 	.name			= DRV_NAME,
 	.proc_name		= DRV_NAME,
 	.module			= THIS_MODULE,
