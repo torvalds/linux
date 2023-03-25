@@ -615,9 +615,6 @@ bpf_kfunc_call_memb_acquire(void)
 
 __bpf_kfunc void bpf_kfunc_call_test_release(struct prog_test_ref_kfunc *p)
 {
-	if (!p)
-		return;
-
 	refcount_dec(&p->cnt);
 }
 

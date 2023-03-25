@@ -2089,9 +2089,6 @@ __bpf_kfunc struct task_struct *bpf_task_kptr_get(struct task_struct **pp)
  */
 __bpf_kfunc void bpf_task_release(struct task_struct *p)
 {
-	if (!p)
-		return;
-
 	put_task_struct(p);
 }
 
@@ -2148,9 +2145,6 @@ __bpf_kfunc struct cgroup *bpf_cgroup_kptr_get(struct cgroup **cgrpp)
  */
 __bpf_kfunc void bpf_cgroup_release(struct cgroup *cgrp)
 {
-	if (!cgrp)
-		return;
-
 	cgroup_put(cgrp);
 }
 

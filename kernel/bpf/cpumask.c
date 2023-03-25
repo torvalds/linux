@@ -102,9 +102,6 @@ static void cpumask_free_cb(struct rcu_head *head)
  */
 __bpf_kfunc void bpf_cpumask_release(struct bpf_cpumask *cpumask)
 {
-	if (!cpumask)
-		return;
-
 	if (refcount_dec_and_test(&cpumask->usage))
 		call_rcu(&cpumask->rcu, cpumask_free_cb);
 }
