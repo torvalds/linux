@@ -1745,7 +1745,6 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	extern void start_kernel_thread(void);
 	void (*f)(void);
 	unsigned long sp = (unsigned long)task_stack_page(p) + THREAD_SIZE;
-	struct thread_info *ti = task_thread_info(p);
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	int i;
 #endif
@@ -1784,7 +1783,6 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 #ifdef CONFIG_PPC64
 			childregs->softe = IRQS_ENABLED;
 #endif
-			ti->flags |= _TIF_RESTOREALL;
 			f = ret_from_kernel_user_thread;
 		} else {
 			struct pt_regs *regs = current_pt_regs();

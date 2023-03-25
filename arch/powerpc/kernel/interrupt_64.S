@@ -748,6 +748,11 @@ _GLOBAL(ret_from_kernel_user_thread)
 #endif
 	bctrl
 	li	r3,0
+	/*
+	 * It does not matter whether this returns via the scv or sc path
+	 * because it returns as execve() and therefore has no calling ABI
+	 * (i.e., it sets registers according to the exec()ed entry point).
+	 */
 	b	.Lsyscall_exit
 
 _GLOBAL(start_kernel_thread)
