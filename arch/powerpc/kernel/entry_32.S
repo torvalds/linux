@@ -183,7 +183,7 @@ syscall_exit_finish:
 ret_from_fork:
 	REST_NVGPRS(r1)
 	bl	schedule_tail
-	li	r3,0
+	li	r3,0	/* fork() return value */
 	b	ret_from_syscall
 
 	.globl	ret_from_kernel_thread

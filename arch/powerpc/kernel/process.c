@@ -1784,9 +1784,6 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 			childregs->gpr[1] = usp;
 		((unsigned long *)sp)[0] = childregs->gpr[1];
 		p->thread.regs = childregs;
-		/* 64s sets this in ret_from_fork */
-		if (!IS_ENABLED(CONFIG_PPC_BOOK3S_64))
-			childregs->gpr[3] = 0;  /* Result from fork() */
 		if (clone_flags & CLONE_SETTLS) {
 			if (!is_32bit_task())
 				childregs->gpr[13] = tls;
