@@ -66,24 +66,6 @@ done:
 	return sp;
 }
 
-static const struct class *class_get(const struct class *class)
-{
-	struct subsys_private *sp = class_to_subsys(class);
-
-	if (sp)
-		return class;
-	return NULL;
-}
-
-static void class_put(const struct class *class)
-{
-	struct subsys_private *sp = class_to_subsys(class);
-
-	/* two puts are required as the call to bus_to_subsys incremented it again */
-	subsys_put(sp);
-	subsys_put(sp);
-}
-
 static ssize_t class_attr_show(struct kobject *kobj, struct attribute *attr,
 			       char *buf)
 {
@@ -148,13 +130,15 @@ static const struct kobj_type class_ktype = {
 int class_create_file_ns(const struct class *cls, const struct class_attribute *attr,
 			 const void *ns)
 {
+	struct subsys_private *sp = class_to_subsys(cls);
 	int error;
 
-	if (cls)
-		error = sysfs_create_file_ns(&cls->p->subsys.kobj,
-					     &attr->attr, ns);
-	else
-		error = -EINVAL;
+	if (!sp)
+		return -EINVAL;
+
+	error = sysfs_create_file_ns(&sp->subsys.kobj, &attr->attr, ns);
+	subsys_put(sp);
+
 	return error;
 }
 EXPORT_SYMBOL_GPL(class_create_file_ns);
@@ -162,8 +146,13 @@ EXPORT_SYMBOL_GPL(class_create_file_ns);
 void class_remove_file_ns(const struct class *cls, const struct class_attribute *attr,
 			  const void *ns)
 {
-	if (cls)
-		sysfs_remove_file_ns(&cls->p->subsys.kobj, &attr->attr, ns);
+	struct subsys_private *sp = class_to_subsys(cls);
+
+	if (!sp)
+		return;
+
+	sysfs_remove_file_ns(&sp->subsys.kobj, &attr->attr, ns);
+	subsys_put(sp);
 }
 EXPORT_SYMBOL_GPL(class_remove_file_ns);
 
@@ -185,18 +174,6 @@ static void klist_class_dev_put(struct klist_node *n)
 	struct device *dev = klist_class_to_dev(n);
 
 	put_device(dev);
-}
-
-static int class_add_groups(const struct class *cls,
-			    const struct attribute_group **groups)
-{
-	return sysfs_create_groups(&cls->p->subsys.kobj, groups);
-}
-
-static void class_remove_groups(const struct class *cls,
-				const struct attribute_group **groups)
-{
-	return sysfs_remove_groups(&cls->p->subsys.kobj, groups);
 }
 
 int class_register(struct class *cls)
@@ -235,8 +212,7 @@ int class_register(struct class *cls)
 	if (error)
 		goto err_out;
 
-	error = class_add_groups(class_get(cls), cls->class_groups);
-	class_put(cls);
+	error = sysfs_create_groups(&cp->subsys.kobj, cls->class_groups);
 	if (error) {
 		kobject_del(&cp->subsys.kobj);
 		kfree_const(cp->subsys.kobj.name);
@@ -253,9 +229,16 @@ EXPORT_SYMBOL_GPL(class_register);
 
 void class_unregister(const struct class *cls)
 {
+	struct subsys_private *sp = class_to_subsys(cls);
+
+	if (!sp)
+		return;
+
 	pr_debug("device class '%s': unregistering\n", cls->name);
-	class_remove_groups(cls, cls->class_groups);
-	kset_unregister(&cls->p->subsys);
+
+	sysfs_remove_groups(&sp->subsys.kobj, cls->class_groups);
+	kset_unregister(&sp->subsys);
+	subsys_put(sp);
 }
 EXPORT_SYMBOL_GPL(class_unregister);
 
@@ -334,11 +317,15 @@ EXPORT_SYMBOL_GPL(class_destroy);
 void class_dev_iter_init(struct class_dev_iter *iter, const struct class *class,
 			 const struct device *start, const struct device_type *type)
 {
+	struct subsys_private *sp = class_to_subsys(class);
 	struct klist_node *start_knode = NULL;
+
+	if (!sp)
+		return;
 
 	if (start)
 		start_knode = &start->p->knode_class;
-	klist_iter_init_node(&class->p->klist_devices, &iter->ki, start_knode);
+	klist_iter_init_node(&sp->klist_devices, &iter->ki, start_knode);
 	iter->type = type;
 }
 EXPORT_SYMBOL_GPL(class_dev_iter_init);
@@ -405,13 +392,14 @@ EXPORT_SYMBOL_GPL(class_dev_iter_exit);
 int class_for_each_device(const struct class *class, const struct device *start,
 			  void *data, int (*fn)(struct device *, void *))
 {
+	struct subsys_private *sp = class_to_subsys(class);
 	struct class_dev_iter iter;
 	struct device *dev;
 	int error = 0;
 
 	if (!class)
 		return -EINVAL;
-	if (!class->p) {
+	if (!sp) {
 		WARN(1, "%s called for class '%s' before it was initialized",
 		     __func__, class->name);
 		return -EINVAL;
@@ -424,6 +412,7 @@ int class_for_each_device(const struct class *class, const struct device *start,
 			break;
 	}
 	class_dev_iter_exit(&iter);
+	subsys_put(sp);
 
 	return error;
 }
@@ -453,12 +442,13 @@ struct device *class_find_device(const struct class *class, const struct device 
 				 const void *data,
 				 int (*match)(struct device *, const void *))
 {
+	struct subsys_private *sp = class_to_subsys(class);
 	struct class_dev_iter iter;
 	struct device *dev;
 
 	if (!class)
 		return NULL;
-	if (!class->p) {
+	if (!sp) {
 		WARN(1, "%s called for class '%s' before it was initialized",
 		     __func__, class->name);
 		return NULL;
@@ -472,6 +462,7 @@ struct device *class_find_device(const struct class *class, const struct device 
 		}
 	}
 	class_dev_iter_exit(&iter);
+	subsys_put(sp);
 
 	return dev;
 }
@@ -479,6 +470,7 @@ EXPORT_SYMBOL_GPL(class_find_device);
 
 int class_interface_register(struct class_interface *class_intf)
 {
+	struct subsys_private *sp;
 	const struct class *parent;
 	struct class_dev_iter iter;
 	struct device *dev;
@@ -486,19 +478,25 @@ int class_interface_register(struct class_interface *class_intf)
 	if (!class_intf || !class_intf->class)
 		return -ENODEV;
 
-	parent = class_get(class_intf->class);
-	if (!parent)
+	parent = class_intf->class;
+	sp = class_to_subsys(parent);
+	if (!sp)
 		return -EINVAL;
 
-	mutex_lock(&parent->p->mutex);
-	list_add_tail(&class_intf->node, &parent->p->interfaces);
+	/*
+	 * Reference in sp is now incremented and will be dropped when
+	 * the interface is removed in the call to class_interface_unregister()
+	 */
+
+	mutex_lock(&sp->mutex);
+	list_add_tail(&class_intf->node, &sp->interfaces);
 	if (class_intf->add_dev) {
 		class_dev_iter_init(&iter, parent, NULL, NULL);
 		while ((dev = class_dev_iter_next(&iter)))
 			class_intf->add_dev(dev, class_intf);
 		class_dev_iter_exit(&iter);
 	}
-	mutex_unlock(&parent->p->mutex);
+	mutex_unlock(&sp->mutex);
 
 	return 0;
 }
@@ -506,6 +504,7 @@ EXPORT_SYMBOL_GPL(class_interface_register);
 
 void class_interface_unregister(struct class_interface *class_intf)
 {
+	struct subsys_private *sp;
 	struct class *parent = class_intf->class;
 	struct class_dev_iter iter;
 	struct device *dev;
@@ -513,7 +512,11 @@ void class_interface_unregister(struct class_interface *class_intf)
 	if (!parent)
 		return;
 
-	mutex_lock(&parent->p->mutex);
+	sp = class_to_subsys(parent);
+	if (!sp)
+		return;
+
+	mutex_lock(&sp->mutex);
 	list_del_init(&class_intf->node);
 	if (class_intf->remove_dev) {
 		class_dev_iter_init(&iter, parent, NULL, NULL);
@@ -521,9 +524,15 @@ void class_interface_unregister(struct class_interface *class_intf)
 			class_intf->remove_dev(dev, class_intf);
 		class_dev_iter_exit(&iter);
 	}
-	mutex_unlock(&parent->p->mutex);
+	mutex_unlock(&sp->mutex);
 
-	class_put(parent);
+	/*
+	 * Decrement the reference count twice, once for the class_to_subsys()
+	 * call in the start of this function, and the second one from the
+	 * reference increment in class_interface_register()
+	 */
+	subsys_put(sp);
+	subsys_put(sp);
 }
 EXPORT_SYMBOL_GPL(class_interface_unregister);
 
