@@ -53,6 +53,7 @@ def define_pineapple():
         "drivers/hwtracing/coresight/coresight-tpdm.ko",
         "drivers/hwtracing/coresight/coresight-trace-noc.ko",
         "drivers/hwtracing/stm/stm_console.ko",
+        "drivers/hwtracing/stm/stm_heartbeat.ko",
         "drivers/hwtracing/stm/stm_core.ko",
         "drivers/hwtracing/stm/stm_ftrace.ko",
         "drivers/hwtracing/stm/stm_p_ost.ko",
