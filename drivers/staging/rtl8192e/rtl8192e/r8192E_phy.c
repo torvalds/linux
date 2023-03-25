@@ -1040,129 +1040,95 @@ static bool _rtl92e_set_rf_power_state(struct net_device *dev,
 		return false;
 	priv->set_rf_pwr_state_in_progress = true;
 
-	switch (priv->rf_chip) {
-	case RF_8256:
-		switch (rf_power_state) {
-		case rf_on:
-			if ((priv->rtllib->rf_power_state == rf_off) &&
-			     RT_IN_PS_LEVEL(psc, RT_RF_OFF_LEVL_HALT_NIC)) {
-				bool rtstatus;
-				u32 InitilizeCount = 3;
+	switch (rf_power_state) {
+	case rf_on:
+		if ((priv->rtllib->rf_power_state == rf_off) &&
+		     RT_IN_PS_LEVEL(psc, RT_RF_OFF_LEVL_HALT_NIC)) {
+			bool rtstatus;
+			u32 InitilizeCount = 3;
 
-				do {
-					InitilizeCount--;
-					rtstatus = rtl92e_enable_nic(dev);
-				} while (!rtstatus && (InitilizeCount > 0));
-
-				if (!rtstatus) {
-					netdev_err(dev,
-						   "%s(): Failed to initialize Adapter.\n",
-						   __func__);
-					priv->set_rf_pwr_state_in_progress = false;
-					return false;
-				}
-
-				RT_CLEAR_PS_LEVEL(psc,
-						  RT_RF_OFF_LEVL_HALT_NIC);
-			} else {
-				rtl92e_writeb(dev, ANAPAR, 0x37);
-				mdelay(1);
-				rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1,
-						 0x4, 0x1);
-				priv->hw_rf_off_action = 0;
-
-				rtl92e_set_bb_reg(dev, rFPGA0_XA_RFInterfaceOE,
-						  BIT4, 0x1);
-				rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter4,
-						  0x300, 0x3);
-				rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1,
-						  0x18, 0x3);
-				rtl92e_set_bb_reg(dev, rOFDM0_TRxPathEnable,
-						  0x3, 0x3);
-				rtl92e_set_bb_reg(dev, rOFDM1_TRxPathEnable,
-						  0x3, 0x3);
-				rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1,
-						  0x60, 0x3);
-
+			do {
+				InitilizeCount--;
+				rtstatus = rtl92e_enable_nic(dev);
+			} while (!rtstatus && (InitilizeCount > 0));
+			if (!rtstatus) {
+				netdev_err(dev,
+					   "%s(): Failed to initialize Adapter.\n",
+					   __func__);
+				priv->set_rf_pwr_state_in_progress = false;
+				return false;
 			}
-
-			break;
-
-		case rf_sleep:
-			if (priv->rtllib->rf_power_state == rf_off)
-				break;
-
-
-			for (QueueID = 0, i = 0; QueueID < MAX_TX_QUEUE; ) {
-				ring = &priv->tx_ring[QueueID];
-
-				if (skb_queue_len(&ring->queue) == 0) {
-					QueueID++;
-					continue;
-				} else {
-					udelay(10);
-					i++;
-				}
-
-				if (i >= MAX_DOZE_WAITING_TIMES_9x)
-					break;
-			}
-			rtl92e_set_rf_off(dev);
-			break;
-
-		case rf_off:
-			for (QueueID = 0, i = 0; QueueID < MAX_TX_QUEUE; ) {
-				ring = &priv->tx_ring[QueueID];
-
-				if (skb_queue_len(&ring->queue) == 0) {
-					QueueID++;
-					continue;
-				} else {
-					udelay(10);
-					i++;
-				}
-
-				if (i >= MAX_DOZE_WAITING_TIMES_9x)
-					break;
-			}
-
-			if (psc->RegRfPsLevel & RT_RF_OFF_LEVL_HALT_NIC &&
-			    !RT_IN_PS_LEVEL(psc, RT_RF_OFF_LEVL_HALT_NIC)) {
-				rtl92e_disable_nic(dev);
-				RT_SET_PS_LEVEL(psc, RT_RF_OFF_LEVL_HALT_NIC);
-			} else if (!(psc->RegRfPsLevel &
-				   RT_RF_OFF_LEVL_HALT_NIC)) {
-				rtl92e_set_rf_off(dev);
-			}
-
-			break;
-
-		default:
-			bResult = false;
-			netdev_warn(dev,
-				    "%s(): Unknown state requested: 0x%X.\n",
-				    __func__, rf_power_state);
-			break;
+			RT_CLEAR_PS_LEVEL(psc,
+					  RT_RF_OFF_LEVL_HALT_NIC);
+		} else {
+			rtl92e_writeb(dev, ANAPAR, 0x37);
+			mdelay(1);
+			rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1,
+					 0x4, 0x1);
+			priv->hw_rf_off_action = 0;
+			rtl92e_set_bb_reg(dev, rFPGA0_XA_RFInterfaceOE,
+					  BIT4, 0x1);
+			rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter4,
+					  0x300, 0x3);
+			rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1,
+					  0x18, 0x3);
+			rtl92e_set_bb_reg(dev, rOFDM0_TRxPathEnable,
+					  0x3, 0x3);
+			rtl92e_set_bb_reg(dev, rOFDM1_TRxPathEnable,
+					  0x3, 0x3);
+			rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1,
+					  0x60, 0x3);
 		}
-
 		break;
-
+	case rf_sleep:
+		if (priv->rtllib->rf_power_state == rf_off)
+			break;
+		for (QueueID = 0, i = 0; QueueID < MAX_TX_QUEUE; ) {
+			ring = &priv->tx_ring[QueueID];
+			if (skb_queue_len(&ring->queue) == 0) {
+				QueueID++;
+				continue;
+			} else {
+				udelay(10);
+				i++;
+			}
+			if (i >= MAX_DOZE_WAITING_TIMES_9x)
+				break;
+		}
+		rtl92e_set_rf_off(dev);
+		break;
+	case rf_off:
+		for (QueueID = 0, i = 0; QueueID < MAX_TX_QUEUE; ) {
+			ring = &priv->tx_ring[QueueID];
+			if (skb_queue_len(&ring->queue) == 0) {
+				QueueID++;
+				continue;
+			} else {
+				udelay(10);
+				i++;
+			}
+			if (i >= MAX_DOZE_WAITING_TIMES_9x)
+				break;
+		}
+		if (psc->RegRfPsLevel & RT_RF_OFF_LEVL_HALT_NIC &&
+		    !RT_IN_PS_LEVEL(psc, RT_RF_OFF_LEVL_HALT_NIC)) {
+			rtl92e_disable_nic(dev);
+			RT_SET_PS_LEVEL(psc, RT_RF_OFF_LEVL_HALT_NIC);
+		} else if (!(psc->RegRfPsLevel &
+			   RT_RF_OFF_LEVL_HALT_NIC)) {
+			rtl92e_set_rf_off(dev);
+		}
+		break;
 	default:
-		netdev_warn(dev, "%s(): Unknown RF type\n", __func__);
+		bResult = false;
+		netdev_warn(dev,
+			    "%s(): Unknown state requested: 0x%X.\n",
+			    __func__, rf_power_state);
 		break;
 	}
 
 	if (bResult) {
 		priv->rtllib->rf_power_state = rf_power_state;
-
-		switch (priv->rf_chip) {
-		case RF_8256:
-			break;
-
-		default:
-			netdev_warn(dev, "%s(): Unknown RF type\n", __func__);
-			break;
-		}
 	}
 
 	priv->set_rf_pwr_state_in_progress = false;
