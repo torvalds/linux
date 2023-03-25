@@ -3548,7 +3548,7 @@ static int adv76xx_probe(struct i2c_client *client)
 	v4l2_ctrl_new_std(hdl, &adv76xx_ctrl_ops,
 			V4L2_CID_SATURATION, 0, 255, 1, 128);
 	v4l2_ctrl_new_std(hdl, &adv76xx_ctrl_ops,
-			V4L2_CID_HUE, 0, 128, 1, 0);
+			V4L2_CID_HUE, 0, 255, 1, 0);
 	ctrl = v4l2_ctrl_new_std_menu(hdl, &adv76xx_ctrl_ops,
 			V4L2_CID_DV_RX_IT_CONTENT_TYPE, V4L2_DV_IT_CONTENT_TYPE_NO_ITC,
 			0, V4L2_DV_IT_CONTENT_TYPE_NO_ITC);
