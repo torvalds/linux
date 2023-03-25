@@ -209,14 +209,3 @@ int dialog_checklist(const char *title, const char *prompt, int height,
 		     int width, int list_height);
 int dialog_inputbox(const char *title, const char *prompt, int height,
 		    int width, const char *init);
-
-/*
- * This is the base for fictitious keys, which activate
- * the buttons.
- *
- * Mouse-generated keys are the following:
- *   -- the first 32 are used as numbers, in addition to '0'-'9'
- *   -- the lowercase are used to signal mouse-enter events (M_EVENT + 'o')
- *   -- uppercase chars are used to invoke the button (M_EVENT + 'O')
- */
-#define M_EVENT (KEY_MAX+1)
