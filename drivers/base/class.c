@@ -20,7 +20,69 @@
 #include <linux/mutex.h>
 #include "base.h"
 
+/* /sys/class */
+static struct kset *class_kset;
+
 #define to_class_attr(_attr) container_of(_attr, struct class_attribute, attr)
+
+/**
+ * class_to_subsys - Turn a struct class into a struct subsys_private
+ *
+ * @class: pointer to the struct bus_type to look up
+ *
+ * The driver core internals need to work on the subsys_private structure, not
+ * the external struct class pointer.  This function walks the list of
+ * registered classes in the system and finds the matching one and returns the
+ * internal struct subsys_private that relates to that class.
+ *
+ * Note, the reference count of the return value is INCREMENTED if it is not
+ * NULL.  A call to subsys_put() must be done when finished with the pointer in
+ * order for it to be properly freed.
+ */
+static struct subsys_private *class_to_subsys(const struct class *class)
+{
+	struct subsys_private *sp = NULL;
+	struct kobject *kobj;
+
+	if (!class || !class_kset)
+		return NULL;
+
+	spin_lock(&class_kset->list_lock);
+
+	if (list_empty(&class_kset->list))
+		goto done;
+
+	list_for_each_entry(kobj, &class_kset->list, entry) {
+		struct kset *kset = container_of(kobj, struct kset, kobj);
+
+		sp = container_of_const(kset, struct subsys_private, subsys);
+		if (sp->class == class)
+			goto done;
+	}
+	sp = NULL;
+done:
+	sp = subsys_get(sp);
+	spin_unlock(&class_kset->list_lock);
+	return sp;
+}
+
+static const struct class *class_get(const struct class *class)
+{
+	struct subsys_private *sp = class_to_subsys(class);
+
+	if (sp)
+		return class;
+	return NULL;
+}
+
+static void class_put(const struct class *class)
+{
+	struct subsys_private *sp = class_to_subsys(class);
+
+	/* two puts are required as the call to bus_to_subsys incremented it again */
+	subsys_put(sp);
+	subsys_put(sp);
+}
 
 static ssize_t class_attr_show(struct kobject *kobj, struct attribute *attr,
 			       char *buf)
@@ -83,10 +145,6 @@ static const struct kobj_type class_ktype = {
 	.child_ns_type	= class_child_ns_type,
 };
 
-/* Hotplug events for classes go to the class subsys */
-static struct kset *class_kset;
-
-
 int class_create_file_ns(const struct class *cls, const struct class_attribute *attr,
 			 const void *ns)
 {
@@ -108,19 +166,6 @@ void class_remove_file_ns(const struct class *cls, const struct class_attribute 
 		sysfs_remove_file_ns(&cls->p->subsys.kobj, &attr->attr, ns);
 }
 EXPORT_SYMBOL_GPL(class_remove_file_ns);
-
-static struct class *class_get(struct class *cls)
-{
-	if (cls)
-		kset_get(&cls->p->subsys);
-	return cls;
-}
-
-static void class_put(struct class *cls)
-{
-	if (cls)
-		kset_put(&cls->p->subsys);
-}
 
 static struct device *klist_class_to_dev(struct klist_node *n)
 {
@@ -434,7 +479,7 @@ EXPORT_SYMBOL_GPL(class_find_device);
 
 int class_interface_register(struct class_interface *class_intf)
 {
-	struct class *parent;
+	const struct class *parent;
 	struct class_dev_iter iter;
 	struct device *dev;
 
