@@ -728,14 +728,14 @@ DEFINE_FIXED_SYMBOL(__end_soft_masked, text)
 #ifdef CONFIG_PPC_BOOK3S
 _GLOBAL(ret_from_fork_scv)
 	bl	schedule_tail
-	REST_NVGPRS(r1)
+	HANDLER_RESTORE_NVGPRS()
 	li	r3,0	/* fork() return value */
 	b	.Lsyscall_vectored_common_exit
 #endif
 
 _GLOBAL(ret_from_fork)
 	bl	schedule_tail
-	REST_NVGPRS(r1)
+	HANDLER_RESTORE_NVGPRS()
 	li	r3,0	/* fork() return value */
 	b	.Lsyscall_exit
 
