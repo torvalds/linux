@@ -1828,8 +1828,8 @@ void dm_bufio_client_destroy(struct dm_bufio_client *c)
 
 	mutex_unlock(&dm_bufio_clients_lock);
 
-	BUG_ON(!RB_EMPTY_ROOT(&c->buffer_tree));
-	BUG_ON(c->need_reserved_buffers);
+	WARN_ON(!RB_EMPTY_ROOT(&c->buffer_tree));
+	WARN_ON(c->need_reserved_buffers);
 
 	while (!list_empty(&c->reserved_buffers)) {
 		struct dm_buffer *b = list_entry(c->reserved_buffers.next,
@@ -1843,7 +1843,7 @@ void dm_bufio_client_destroy(struct dm_bufio_client *c)
 			DMERR("leaked buffer count %d: %ld", i, c->n_buffers[i]);
 
 	for (i = 0; i < LIST_SIZE; i++)
-		BUG_ON(c->n_buffers[i]);
+		WARN_ON(c->n_buffers[i]);
 
 	kmem_cache_destroy(c->slab_cache);
 	kmem_cache_destroy(c->slab_buffer);
@@ -2082,7 +2082,7 @@ static void __exit dm_bufio_exit(void)
 		bug = 1;
 	}
 
-	BUG_ON(bug);
+	WARN_ON(bug); /* leaks are not worth crashing the system */
 }
 
 module_init(dm_bufio_init)
