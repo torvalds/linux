@@ -75,6 +75,8 @@ properties:
       - qcom,pm8550ve-rpmh-regulators
       - qcom,pm8550vs-rpmh-regulators
       - qcom,pm8998-rpmh-regulators
+      - qcom,pmc8180-rpmh-regulators
+      - qcom,pmc8180c-rpmh-regulators
       - qcom,pmg1110-rpmh-regulators
       - qcom,pmi8998-rpmh-regulators
       - qcom,pmm8155au-rpmh-regulators
@@ -232,6 +234,7 @@ allOf:
         compatible:
           enum:
             - qcom,pm8150-rpmh-regulators
+            - qcom,pmc8180-rpmh-regulators
             - qcom,pmm8155au-rpmh-regulators
     then:
       properties:
@@ -249,6 +252,7 @@ allOf:
         compatible:
           enum:
             - qcom,pm8150l-rpmh-regulators
+            - qcom,pmc8180c-rpmh-regulators
     then:
       properties:
         vdd-bob-supply:
