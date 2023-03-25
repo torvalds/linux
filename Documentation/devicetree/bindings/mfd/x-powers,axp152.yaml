@@ -47,9 +47,8 @@ allOf:
               - x-powers,axp209
 
     then:
-      not:
-        required:
-          - x-powers,drive-vbus-en
+      properties:
+        x-powers,drive-vbus-en: false
 
   - if:
       not:
@@ -59,14 +58,9 @@ allOf:
               const: x-powers,axp806
 
     then:
-      allOf:
-        - not:
-            required:
-              - x-powers,self-working-mode
-
-        - not:
-            required:
-              - x-powers,master-mode
+      properties:
+        x-powers,self-working-mode: false
+        x-powers,master-mode: false
 
   - if:
       not:
