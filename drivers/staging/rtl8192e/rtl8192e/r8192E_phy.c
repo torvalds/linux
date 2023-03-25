@@ -281,14 +281,11 @@ static void _rtl92e_phy_config_bb(struct net_device *dev, u8 ConfigType)
 	u32 *Rtl819XPHY_REGArray_Table = NULL;
 	u32 *Rtl819XAGCTAB_Array_Table = NULL;
 	u16 AGCTAB_ArrayLen, PHY_REGArrayLen = 0;
-	struct r8192_priv *priv = rtllib_priv(dev);
 
 	AGCTAB_ArrayLen = RTL8192E_AGCTAB_ARR_LEN;
 	Rtl819XAGCTAB_Array_Table = RTL8192E_AGCTAB_ARR;
-	if (priv->rf_type == RF_1T2R) {
-		PHY_REGArrayLen = RTL8192E_PHY_REG_1T2R_ARR_LEN;
-		Rtl819XPHY_REGArray_Table = RTL8192E_PHY_REG_1T2R_ARR;
-	}
+	PHY_REGArrayLen = RTL8192E_PHY_REG_1T2R_ARR_LEN;
+	Rtl819XPHY_REGArray_Table = RTL8192E_PHY_REG_1T2R_ARR;
 
 	if (ConfigType == BB_CONFIG_PHY_REG) {
 		for (i = 0; i < PHY_REGArrayLen; i += 2) {

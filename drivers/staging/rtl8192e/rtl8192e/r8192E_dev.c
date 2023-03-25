@@ -540,8 +540,7 @@ static void _rtl92e_hwconfig(struct net_device *dev)
 		u32 ratr_value;
 
 		ratr_value = regRATR;
-		if (priv->rf_type == RF_1T2R)
-			ratr_value &= ~(RATE_ALL_OFDM_2SS);
+		ratr_value &= ~(RATE_ALL_OFDM_2SS);
 		rtl92e_writel(dev, RATR0, ratr_value);
 		rtl92e_writeb(dev, UFWP, 1);
 	}
@@ -1886,14 +1885,10 @@ void rtl92e_update_ratr_table(struct net_device *dev)
 		break;
 	case IEEE_N_24G:
 	case IEEE_N_5G:
-		if (ieee->ht_info->peer_mimo_ps == 0) {
+		if (ieee->ht_info->peer_mimo_ps == 0)
 			ratr_value &= 0x0007F007;
-		} else {
-			if (priv->rf_type == RF_1T2R)
-				ratr_value &= 0x000FF007;
-			else
-				ratr_value &= 0x0F81F007;
-		}
+		else
+			ratr_value &= 0x000FF007;
 		break;
 	default:
 		break;

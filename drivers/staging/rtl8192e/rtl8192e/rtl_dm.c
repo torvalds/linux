@@ -272,18 +272,13 @@ void rtl92e_init_adaptive_rate(struct net_device *dev)
 		pra->ping_rssi_enable = 0;
 	pra->ping_rssi_thresh_for_ra = 15;
 
-
-	if (priv->rf_type == RF_1T2R) {
-		pra->upper_rssi_threshold_ratr		=	0x000fc000;
-		pra->middle_rssi_threshold_ratr		=	0x000ff000;
-		pra->low_rssi_threshold_ratr		=	0x000ff001;
-		pra->low_rssi_threshold_ratr_40M	=	0x000ff005;
-		pra->low_rssi_threshold_ratr_20M	=	0x000ff001;
-		pra->ping_rssi_ratr	=	0x0000000d;
-	}
-
+	pra->upper_rssi_threshold_ratr		=	0x000fc000;
+	pra->middle_rssi_threshold_ratr		=	0x000ff000;
+	pra->low_rssi_threshold_ratr		=	0x000ff001;
+	pra->low_rssi_threshold_ratr_40M	=	0x000ff005;
+	pra->low_rssi_threshold_ratr_20M	=	0x000ff001;
+	pra->ping_rssi_ratr	=	0x0000000d;
 }
-
 
 static void _rtl92e_dm_check_rate_adaptive(struct net_device *dev)
 {
@@ -383,8 +378,7 @@ static void _rtl92e_dm_check_rate_adaptive(struct net_device *dev)
 			u32 ratr_value;
 
 			ratr_value = targetRATR;
-			if (priv->rf_type == RF_1T2R)
-				ratr_value &= ~(RATE_ALL_OFDM_2SS);
+			ratr_value &= ~(RATE_ALL_OFDM_2SS);
 			rtl92e_writel(dev, RATR0, ratr_value);
 			rtl92e_writeb(dev, UFWP, 1);
 
@@ -981,8 +975,7 @@ void rtl92e_dm_restore_state(struct net_device *dev)
 	      priv->rtllib->mode == WIRELESS_MODE_N_5G))
 		return;
 	ratr_value = reg_ratr;
-	if (priv->rf_type == RF_1T2R)
-		ratr_value &= ~(RATE_ALL_OFDM_2SS);
+	ratr_value &= ~(RATE_ALL_OFDM_2SS);
 	rtl92e_writel(dev, RATR0, ratr_value);
 	rtl92e_writeb(dev, UFWP, 1);
 	if (priv->tx_pwr_tracking_init && priv->btxpower_tracking)
