@@ -895,13 +895,6 @@ static short _rtl92e_get_channel_map(struct net_device *dev)
 
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if ((priv->rf_chip != RF_8225) && (priv->rf_chip != RF_8256) &&
-						(priv->rf_chip != RF_6052)) {
-		netdev_err(dev, "%s: unknown rf chip, can't set channel map\n",
-			   __func__);
-		return -1;
-	}
-
 	if (priv->chnl_plan >= COUNTRY_CODE_MAX) {
 		netdev_info(dev,
 			    "rtl819x_init:Error channel plan! Set to default.\n");
