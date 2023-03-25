@@ -179,9 +179,10 @@ both are orthogonal to each other.
 ---------------------
 
 The KF_RELEASE flag is used to indicate that the kfunc releases the pointer
-passed in to it. There can be only one referenced pointer that can be passed in.
-All copies of the pointer being released are invalidated as a result of invoking
-kfunc with this flag.
+passed in to it. There can be only one referenced pointer that can be passed
+in. All copies of the pointer being released are invalidated as a result of
+invoking kfunc with this flag. KF_RELEASE kfuncs automatically receive the
+protection afforded by the KF_TRUSTED_ARGS flag described below.
 
 2.4.4 KF_KPTR_GET flag
 ----------------------

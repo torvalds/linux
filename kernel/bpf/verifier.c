@@ -9307,7 +9307,7 @@ static bool is_kfunc_release(struct bpf_kfunc_call_arg_meta *meta)
 
 static bool is_kfunc_trusted_args(struct bpf_kfunc_call_arg_meta *meta)
 {
-	return meta->kfunc_flags & KF_TRUSTED_ARGS;
+	return (meta->kfunc_flags & KF_TRUSTED_ARGS) || is_kfunc_release(meta);
 }
 
 static bool is_kfunc_sleepable(struct bpf_kfunc_call_arg_meta *meta)

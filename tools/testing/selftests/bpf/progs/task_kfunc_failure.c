@@ -206,7 +206,7 @@ int BPF_PROG(task_kfunc_get_unreleased, struct task_struct *task, u64 clone_flag
 }
 
 SEC("tp_btf/task_newtask")
-__failure __msg("arg#0 is untrusted_ptr_or_null_ expected ptr_ or socket")
+__failure __msg("Possibly NULL pointer passed to trusted arg0")
 int BPF_PROG(task_kfunc_release_untrusted, struct task_struct *task, u64 clone_flags)
 {
 	struct __tasks_kfunc_map_value *v;
@@ -234,7 +234,7 @@ int BPF_PROG(task_kfunc_release_fp, struct task_struct *task, u64 clone_flags)
 }
 
 SEC("tp_btf/task_newtask")
-__failure __msg("arg#0 is ptr_or_null_ expected ptr_ or socket")
+__failure __msg("Possibly NULL pointer passed to trusted arg0")
 int BPF_PROG(task_kfunc_release_null, struct task_struct *task, u64 clone_flags)
 {
 	struct __tasks_kfunc_map_value local, *v;
@@ -277,7 +277,7 @@ int BPF_PROG(task_kfunc_release_unacquired, struct task_struct *task, u64 clone_
 }
 
 SEC("tp_btf/task_newtask")
-__failure __msg("arg#0 is ptr_or_null_ expected ptr_ or socket")
+__failure __msg("Possibly NULL pointer passed to trusted arg0")
 int BPF_PROG(task_kfunc_from_pid_no_null_check, struct task_struct *task, u64 clone_flags)
 {
 	struct task_struct *acquired;

@@ -401,8 +401,6 @@ __bpf_kfunc struct nf_conn *bpf_ct_insert_entry(struct nf_conn___init *nfct_i)
  */
 __bpf_kfunc void bpf_ct_release(struct nf_conn *nfct)
 {
-	if (!nfct)
-		return;
 	nf_ct_put(nfct);
 }
 

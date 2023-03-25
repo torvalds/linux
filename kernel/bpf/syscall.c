@@ -677,6 +677,9 @@ void bpf_obj_free_fields(const struct btf_record *rec, void *obj)
 			break;
 		case BPF_KPTR_REF:
 			xchgd_field = (void *)xchg((unsigned long *)field_ptr, 0);
+			if (!xchgd_field)
+				break;
+
 			if (!btf_is_kernel(field->kptr.btf)) {
 				pointee_struct_meta = btf_find_struct_meta(field->kptr.btf,
 									   field->kptr.btf_id);
