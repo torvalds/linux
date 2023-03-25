@@ -129,24 +129,22 @@ static void _rtl92e_phy_rf_write(struct net_device *dev,
 	struct bb_reg_definition *pPhyReg = &priv->phy_reg_def[eRFPath];
 
 	Offset &= 0x3f;
-	if (priv->rf_chip == RF_8256) {
-		rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter4, 0xf00, 0x0);
 
-		if (Offset >= 31) {
-			priv->rf_reg_0value[eRFPath] |= 0x140;
-			rtl92e_set_bb_reg(dev, pPhyReg->rf3wireOffset,
-					  bMaskDWord,
-					  (priv->rf_reg_0value[eRFPath] << 16));
-			NewOffset = Offset - 30;
-		} else if (Offset >= 16) {
-			priv->rf_reg_0value[eRFPath] |= 0x100;
-			priv->rf_reg_0value[eRFPath] &= (~0x40);
-			rtl92e_set_bb_reg(dev, pPhyReg->rf3wireOffset,
-					  bMaskDWord,
-					  (priv->rf_reg_0value[eRFPath] << 16));
-			NewOffset = Offset - 15;
-		} else
-			NewOffset = Offset;
+	rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter4, 0xf00, 0x0);
+
+	if (Offset >= 31) {
+		priv->rf_reg_0value[eRFPath] |= 0x140;
+		rtl92e_set_bb_reg(dev, pPhyReg->rf3wireOffset,
+				  bMaskDWord,
+				  (priv->rf_reg_0value[eRFPath] << 16));
+		NewOffset = Offset - 30;
+	} else if (Offset >= 16) {
+		priv->rf_reg_0value[eRFPath] |= 0x100;
+		priv->rf_reg_0value[eRFPath] &= (~0x40);
+		rtl92e_set_bb_reg(dev, pPhyReg->rf3wireOffset,
+				  bMaskDWord,
+				  (priv->rf_reg_0value[eRFPath] << 16));
+		NewOffset = Offset - 15;
 	} else {
 		NewOffset = Offset;
 	}
@@ -158,15 +156,13 @@ static void _rtl92e_phy_rf_write(struct net_device *dev,
 	if (Offset == 0x0)
 		priv->rf_reg_0value[eRFPath] = Data;
 
-	if (priv->rf_chip == RF_8256) {
-		if (Offset != 0) {
-			priv->rf_reg_0value[eRFPath] &= 0xebf;
-			rtl92e_set_bb_reg(dev, pPhyReg->rf3wireOffset,
-					  bMaskDWord,
-					  (priv->rf_reg_0value[eRFPath] << 16));
-		}
-		rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter4, 0x300, 0x3);
+	if (Offset != 0) {
+		priv->rf_reg_0value[eRFPath] &= 0xebf;
+		rtl92e_set_bb_reg(dev, pPhyReg->rf3wireOffset,
+				  bMaskDWord,
+				  (priv->rf_reg_0value[eRFPath] << 16));
 	}
+	rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter4, 0x300, 0x3);
 }
 
 void rtl92e_set_rf_reg(struct net_device *dev, enum rf90_radio_path eRFPath,
