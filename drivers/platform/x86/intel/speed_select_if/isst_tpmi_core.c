@@ -1399,8 +1399,10 @@ int tpmi_sst_init(void)
 	isst_common.sst_inst = kcalloc(topology_max_packages(),
 				       sizeof(*isst_common.sst_inst),
 				       GFP_KERNEL);
-	if (!isst_common.sst_inst)
-		return -ENOMEM;
+	if (!isst_common.sst_inst) {
+		ret = -ENOMEM;
+		goto init_done;
+	}
 
 	memset(&cb, 0, sizeof(cb));
 	cb.cmd_size = sizeof(struct isst_if_io_reg);
