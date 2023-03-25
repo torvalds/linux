@@ -606,6 +606,11 @@ bpf_kfunc_call_test_acquire(unsigned long *scalar_ptr)
 	return &prog_test_struct;
 }
 
+__bpf_kfunc void bpf_kfunc_call_test_offset(struct prog_test_ref_kfunc *p)
+{
+	WARN_ON_ONCE(1);
+}
+
 __bpf_kfunc struct prog_test_member *
 bpf_kfunc_call_memb_acquire(void)
 {
@@ -800,6 +805,7 @@ BTF_ID_FLAGS(func, bpf_kfunc_call_test_mem_len_fail2)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test_ref, KF_TRUSTED_ARGS | KF_RCU)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test_destructive, KF_DESTRUCTIVE)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test_static_unused_arg)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_offset)
 BTF_SET8_END(test_sk_check_kfunc_ids)
 
 static void *bpf_test_init(const union bpf_attr *kattr, u32 user_size,

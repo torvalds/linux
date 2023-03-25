@@ -206,7 +206,7 @@ int BPF_PROG(cgrp_kfunc_get_unreleased, struct cgroup *cgrp, const char *path)
 }
 
 SEC("tp_btf/cgroup_mkdir")
-__failure __msg("expects refcounted")
+__failure __msg("Possibly NULL pointer passed to trusted arg0")
 int BPF_PROG(cgrp_kfunc_release_untrusted, struct cgroup *cgrp, const char *path)
 {
 	struct __cgrps_kfunc_map_value *v;
@@ -234,7 +234,7 @@ int BPF_PROG(cgrp_kfunc_release_fp, struct cgroup *cgrp, const char *path)
 }
 
 SEC("tp_btf/cgroup_mkdir")
-__failure __msg("arg#0 is ptr_or_null_ expected ptr_ or socket")
+__failure __msg("Possibly NULL pointer passed to trusted arg0")
 int BPF_PROG(cgrp_kfunc_release_null, struct cgroup *cgrp, const char *path)
 {
 	struct __cgrps_kfunc_map_value local, *v;
