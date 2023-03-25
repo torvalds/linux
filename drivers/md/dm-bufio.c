@@ -378,8 +378,10 @@ static void adjust_total_allocated(struct dm_buffer *b, bool unlink)
  */
 static void __cache_size_refresh(void)
 {
-	BUG_ON(!mutex_is_locked(&dm_bufio_clients_lock));
-	BUG_ON(dm_bufio_client_count < 0);
+	if (WARN_ON(!mutex_is_locked(&dm_bufio_clients_lock)))
+		return;
+	if (WARN_ON(dm_bufio_client_count < 0))
+		return;
 
 	dm_bufio_cache_size_latch = READ_ONCE(dm_bufio_cache_size);
 
@@ -1536,7 +1538,8 @@ static void drop_buffers(struct dm_bufio_client *c)
 	int i;
 	bool warned = false;
 
-	BUG_ON(dm_bufio_in_request());
+	if (WARN_ON(dm_bufio_in_request()))
+		return; /* should never happen */
 
 	/*
 	 * An optimization so that the buffers are not written one-by-one.
@@ -1556,7 +1559,7 @@ static void drop_buffers(struct dm_bufio_client *c)
 			      (unsigned long long)b->block, b->hold_count, i);
 #ifdef CONFIG_DM_DEBUG_BLOCK_STACK_TRACING
 			stack_trace_print(b->stack_entries, b->stack_len, 1);
-			/* mark unclaimed to avoid BUG_ON below */
+			/* mark unclaimed to avoid WARN_ON below */
 			b->hold_count = 0;
 #endif
 		}
@@ -1567,7 +1570,7 @@ static void drop_buffers(struct dm_bufio_client *c)
 #endif
 
 	for (i = 0; i < LIST_SIZE; i++)
-		BUG_ON(!list_empty(&c->lru[i]));
+		WARN_ON(!list_empty(&c->lru[i]));
 
 	dm_bufio_unlock(c);
 }
