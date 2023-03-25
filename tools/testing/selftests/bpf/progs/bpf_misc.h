@@ -30,6 +30,15 @@
  * __failure         Expect program load failure in privileged mode.
  * __failure_unpriv  Expect program load failure in unprivileged mode.
  *
+ * __retval          Execute the program using BPF_PROG_TEST_RUN command,
+ *                   expect return value to match passed parameter:
+ *                   - a decimal number
+ *                   - a hexadecimal number, when starts from 0x
+ *                   - literal INT_MIN
+ *                   - literal POINTER_VALUE (see definition below)
+ *                   - literal TEST_DATA_LEN (see definition below)
+ * __retval_unpriv   Same, but load program in unprivileged mode.
+ *
  * __description     Text to be used instead of a program name for display
  *                   and filtering purposes.
  *
@@ -54,6 +63,8 @@
 #define __success_unpriv	__attribute__((btf_decl_tag("comment:test_expect_success_unpriv")))
 #define __log_level(lvl)	__attribute__((btf_decl_tag("comment:test_log_level="#lvl)))
 #define __flag(flag)		__attribute__((btf_decl_tag("comment:test_prog_flags="#flag)))
+#define __retval(val)		__attribute__((btf_decl_tag("comment:test_retval="#val)))
+#define __retval_unpriv(val)	__attribute__((btf_decl_tag("comment:test_retval_unpriv="#val)))
 
 /* Convenience macro for use with 'asm volatile' blocks */
 #define __naked __attribute__((naked))
@@ -64,6 +75,10 @@
 #define __imm_addr(name) [name]"i"(&name)
 #define __imm_ptr(name) [name]"p"(&name)
 #define __imm_insn(name, expr) [name]"i"(*(long *)&(expr))
+
+/* Magic constants used with __retval() */
+#define POINTER_VALUE	0xcafe4all
+#define TEST_DATA_LEN	64
 
 #if defined(__TARGET_ARCH_x86)
 #define SYSCALL_WRAPPER 1

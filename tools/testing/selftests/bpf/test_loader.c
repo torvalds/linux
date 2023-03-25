@@ -23,6 +23,12 @@
 #define TEST_TAG_LOG_LEVEL_PFX "comment:test_log_level="
 #define TEST_TAG_PROG_FLAGS_PFX "comment:test_prog_flags="
 #define TEST_TAG_DESCRIPTION_PFX "comment:test_description="
+#define TEST_TAG_RETVAL_PFX "comment:test_retval="
+#define TEST_TAG_RETVAL_PFX_UNPRIV "comment:test_retval_unpriv="
+
+/* Warning: duplicated in bpf_misc.h */
+#define POINTER_VALUE	0xcafe4all
+#define TEST_DATA_LEN	64
 
 #ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 #define EFFICIENT_UNALIGNED_ACCESS 1
@@ -42,6 +48,8 @@ struct test_subspec {
 	bool expect_failure;
 	const char **expect_msgs;
 	size_t expect_msg_cnt;
+	int retval;
+	bool execute;
 };
 
 struct test_spec {
@@ -96,6 +104,46 @@ static int push_msg(const char *msg, struct test_subspec *subspec)
 	return 0;
 }
 
+static int parse_int(const char *str, int *val, const char *name)
+{
+	char *end;
+	long tmp;
+
+	errno = 0;
+	if (str_has_pfx(str, "0x"))
+		tmp = strtol(str + 2, &end, 16);
+	else
+		tmp = strtol(str, &end, 10);
+	if (errno || end[0] != '\0') {
+		PRINT_FAIL("failed to parse %s from '%s'\n", name, str);
+		return -EINVAL;
+	}
+	*val = tmp;
+	return 0;
+}
+
+static int parse_retval(const char *str, int *val, const char *name)
+{
+	struct {
+		char *name;
+		int val;
+	} named_values[] = {
+		{ "INT_MIN"      , INT_MIN },
+		{ "POINTER_VALUE", POINTER_VALUE },
+		{ "TEST_DATA_LEN", TEST_DATA_LEN },
+	};
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(named_values); ++i) {
+		if (strcmp(str, named_values[i].name) != 0)
+			continue;
+		*val = named_values[i].val;
+		return 0;
+	}
+
+	return parse_int(str, val, name);
+}
+
 /* Uses btf_decl_tag attributes to describe the expected test
  * behavior, see bpf_misc.h for detailed description of each attribute
  * and attribute combinations.
@@ -107,6 +155,7 @@ static int parse_test_spec(struct test_loader *tester,
 {
 	const char *description = NULL;
 	bool has_unpriv_result = false;
+	bool has_unpriv_retval = false;
 	int func_id, i, err = 0;
 	struct btf *btf;
 
@@ -129,7 +178,7 @@ static int parse_test_spec(struct test_loader *tester,
 	for (i = 1; i < btf__type_cnt(btf); i++) {
 		const char *s, *val, *msg;
 		const struct btf_type *t;
-		char *e;
+		int tmp;
 
 		t = btf__type_by_id(btf, i);
 		if (!btf_is_decl_tag(t))
@@ -167,15 +216,26 @@ static int parse_test_spec(struct test_loader *tester,
 			if (err)
 				goto cleanup;
 			spec->mode_mask |= UNPRIV;
+		} else if (str_has_pfx(s, TEST_TAG_RETVAL_PFX)) {
+			val = s + sizeof(TEST_TAG_RETVAL_PFX) - 1;
+			err = parse_retval(val, &spec->priv.retval, "__retval");
+			if (err)
+				goto cleanup;
+			spec->priv.execute = true;
+			spec->mode_mask |= PRIV;
+		} else if (str_has_pfx(s, TEST_TAG_RETVAL_PFX_UNPRIV)) {
+			val = s + sizeof(TEST_TAG_RETVAL_PFX_UNPRIV) - 1;
+			err = parse_retval(val, &spec->unpriv.retval, "__retval_unpriv");
+			if (err)
+				goto cleanup;
+			spec->mode_mask |= UNPRIV;
+			spec->unpriv.execute = true;
+			has_unpriv_retval = true;
 		} else if (str_has_pfx(s, TEST_TAG_LOG_LEVEL_PFX)) {
 			val = s + sizeof(TEST_TAG_LOG_LEVEL_PFX) - 1;
-			errno = 0;
-			spec->log_level = strtol(val, &e, 0);
-			if (errno || e[0] != '\0') {
-				PRINT_FAIL("failed to parse test log level from '%s'\n", s);
-				err = -EINVAL;
+			err = parse_int(val, &spec->log_level, "test log level");
+			if (err)
 				goto cleanup;
-			}
 		} else if (str_has_pfx(s, TEST_TAG_PROG_FLAGS_PFX)) {
 			val = s + sizeof(TEST_TAG_PROG_FLAGS_PFX) - 1;
 			if (strcmp(val, "BPF_F_STRICT_ALIGNMENT") == 0) {
@@ -191,14 +251,10 @@ static int parse_test_spec(struct test_loader *tester,
 			} else if (strcmp(val, "BPF_F_XDP_HAS_FRAGS") == 0) {
 				spec->prog_flags |= BPF_F_XDP_HAS_FRAGS;
 			} else /* assume numeric value */ {
-				errno = 0;
-				spec->prog_flags |= strtol(val, &e, 0);
-				if (errno || e[0] != '\0') {
-					PRINT_FAIL("failed to parse test prog flags from '%s'\n",
-						   val);
-					err = -EINVAL;
+				err = parse_int(val, &tmp, "test prog flags");
+				if (err)
 					goto cleanup;
-				}
+				spec->prog_flags |= tmp;
 			}
 		}
 	}
@@ -238,6 +294,11 @@ static int parse_test_spec(struct test_loader *tester,
 	if (spec->mode_mask & (PRIV | UNPRIV)) {
 		if (!has_unpriv_result)
 			spec->unpriv.expect_failure = spec->priv.expect_failure;
+
+		if (!has_unpriv_retval) {
+			spec->unpriv.retval = spec->priv.retval;
+			spec->unpriv.execute = spec->priv.execute;
+		}
 
 		if (!spec->unpriv.expect_msgs) {
 			size_t sz = spec->priv.expect_msg_cnt * sizeof(void *);
@@ -402,6 +463,51 @@ static bool is_unpriv_capable_map(struct bpf_map *map)
 	}
 }
 
+static int do_prog_test_run(int fd_prog, int *retval)
+{
+	__u8 tmp_out[TEST_DATA_LEN << 2] = {};
+	__u8 tmp_in[TEST_DATA_LEN] = {};
+	int err, saved_errno;
+	LIBBPF_OPTS(bpf_test_run_opts, topts,
+		.data_in = tmp_in,
+		.data_size_in = sizeof(tmp_in),
+		.data_out = tmp_out,
+		.data_size_out = sizeof(tmp_out),
+		.repeat = 1,
+	);
+
+	err = bpf_prog_test_run_opts(fd_prog, &topts);
+	saved_errno = errno;
+
+	if (err) {
+		PRINT_FAIL("FAIL: Unexpected bpf_prog_test_run error: %d (%s) ",
+			   saved_errno, strerror(saved_errno));
+		return err;
+	}
+
+	ASSERT_OK(0, "bpf_prog_test_run");
+	*retval = topts.retval;
+
+	return 0;
+}
+
+static bool should_do_test_run(struct test_spec *spec, struct test_subspec *subspec)
+{
+	if (!subspec->execute)
+		return false;
+
+	if (subspec->expect_failure)
+		return false;
+
+	if ((spec->prog_flags & BPF_F_ANY_ALIGNMENT) && !EFFICIENT_UNALIGNED_ACCESS) {
+		if (env.verbosity != VERBOSE_NONE)
+			printf("alignment prevents execution\n");
+		return false;
+	}
+
+	return true;
+}
+
 /* this function is forced noinline and has short generic name to look better
  * in test_progs output (in case of a failure)
  */
@@ -418,6 +524,7 @@ void run_subtest(struct test_loader *tester,
 	struct bpf_program *tprog;
 	struct bpf_object *tobj;
 	struct bpf_map *map;
+	int retval;
 	int err;
 
 	if (!test__start_subtest(subspec->name))
@@ -475,6 +582,20 @@ void run_subtest(struct test_loader *tester,
 
 	emit_verifier_log(tester->log_buf, false /*force*/);
 	validate_case(tester, subspec, tobj, tprog, err);
+
+	if (should_do_test_run(spec, subspec)) {
+		/* For some reason test_verifier executes programs
+		 * with all capabilities restored. Do the same here.
+		 */
+		if (!restore_capabilities(&caps))
+			goto tobj_cleanup;
+
+		do_prog_test_run(bpf_program__fd(tprog), &retval);
+		if (retval != subspec->retval && subspec->retval != POINTER_VALUE) {
+			PRINT_FAIL("Unexpected retval: %d != %d\n", retval, subspec->retval);
+			goto tobj_cleanup;
+		}
+	}
 
 tobj_cleanup:
 	bpf_object__close(tobj);
