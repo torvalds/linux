@@ -74,11 +74,6 @@
 #define MB_DEFAULT_GROUP_PREALLOC	512
 
 /*
- * maximum length of inode prealloc list
- */
-#define MB_DEFAULT_MAX_INODE_PREALLOC	512
-
-/*
  * Number of groups to search linearly before performing group scanning
  * optimization.
  */
