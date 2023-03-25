@@ -9,3 +9,4 @@ obj-$(CONFIG_QCOM_BWMON) += bwmon.o
 obj-$(CONFIG_QTI_PMU_SCMI_CLIENT) += pmu_scmi.o
 obj-$(CONFIG_QTI_C1DCVS_SCMI_CLIENT) += c1dcvs_scmi.o
 obj-$(CONFIG_QTI_HW_MEMLAT_SCMI_CLIENT)	+= memlat_scmi.o
+obj-$(CONFIG_QTI_QCOM_SCMI_CLIENT)	+= qcom_scmi_client.o

@@ -76,7 +76,18 @@ config QTI_PMU_SCMI_CLIENT
 
 	  This driver delivers the pmu vendor protocol handle to interface
 	  driver, and interface driver will use this handle to communicate with
-	  rimps.
+	  cpucp.
+
+config QTI_QCOM_SCMI_CLIENT
+	tristate "Qualcomm Technologies Inc. SCMI client driver"
+	depends on QTI_SCMI_VENDOR_PROTOCOL
+	default n
+	help
+	  SCMI client driver registers for Qcom vendor protocol.
+
+	  This driver delivers the qcom vendor protocol handle to interface
+	  driver, and interface driver will use this handle to communicate with
+	  cpucp.
 
 config QTI_C1DCVS_SCMI_CLIENT
 	tristate "Qualcomm Technologies Inc. SCMI client driver for cpudcvs"

@@ -143,7 +143,18 @@ config QTI_SCMI_PMU_PROTOCOL
 	  This protocol provides interface to communicate with micro controller
 	  which maintains the PMU configuration for multiple clients.
 
-	  This driver defines the comands or message ID's used for this
+	  This driver defines the commands or message ID's used for this
+	  communication and also exposes the ops used by clients.
+
+config QTI_SCMI_VENDOR_PROTOCOL
+	tristate "Qualcomm Technologies, Inc. Qcom SCMI vendor Protocol"
+	depends on ARM || ARM64 || COMPILE_TEST
+	depends on ARM_SCMI_PROTOCOL && QCOM_CPUCP
+	help
+	  System Control and Management Interface (SCMI) Qcom vendor protocol.
+	  This protocol provides interface to communicate with micro controller.
+
+	  This driver defines the commands or message ID's used for this
 	  communication and also exposes the ops used by clients.
 
 config QTI_SCMI_C1DCVS_PROTOCOL
