@@ -177,3 +177,13 @@ config QTI_SDPM_CLOCK_MONITOR
 	    rate into the SDPM CSR register. This driver will receive the clock
 	    list and the CSR details from devicetree.
 
+config QTI_THERMAL_MINIDUMP
+	tristate "QTI Thermal minidump driver"
+	depends on THERMAL && QCOM_MINIDUMP
+	help
+	   This will enable the Thermal minidump function, the sensor
+	   temperature data of the adc driver and the tsensor driver will
+	   be saved to the minidump in real time. When the system crashes,
+	   the saved temperature data will help analyze the reason for the
+	   system crash.
+
