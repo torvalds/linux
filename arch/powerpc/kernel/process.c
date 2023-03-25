@@ -1812,11 +1812,6 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 				f = ret_from_fork;
 		}
 
-#ifdef CONFIG_PPC64
-		if (cpu_has_feature(CPU_FTR_HAS_PPR))
-			childregs->ppr = DEFAULT_PPR;
-#endif
-
 		childregs->msr &= ~(MSR_FP|MSR_VEC|MSR_VSX);
 		p->thread.regs = childregs;
 	}
