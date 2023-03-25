@@ -58,6 +58,7 @@ TARGETS += nsfs
 TARGETS += pidfd
 TARGETS += pid_namespace
 TARGETS += powerpc
+TARGETS += prctl
 TARGETS += proc
 TARGETS += pstore
 TARGETS += ptrace
