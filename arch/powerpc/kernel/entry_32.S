@@ -188,7 +188,6 @@ ret_from_fork:
 
 	.globl	ret_from_kernel_thread
 ret_from_kernel_thread:
-	REST_NVGPRS(r1)
 	bl	schedule_tail
 	mtctr	r14
 	mr	r3,r15

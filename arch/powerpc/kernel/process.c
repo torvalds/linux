@@ -1765,14 +1765,10 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 		((unsigned long *)sp)[0] = 0;
 		memset(childregs, 0, sizeof(struct pt_regs));
 		childregs->gpr[1] = sp + STACK_USER_INT_FRAME_SIZE;
-		/* function */
-		if (args->fn)
-			childregs->gpr[14] = ppc_function_entry((void *)args->fn);
 #ifdef CONFIG_PPC64
 		clear_tsk_thread_flag(p, TIF_32BIT);
 		childregs->softe = IRQS_ENABLED;
 #endif
-		childregs->gpr[15] = (unsigned long)args->fn_arg;
 		p->thread.regs = NULL;	/* no user register state */
 		ti->flags |= _TIF_RESTOREALL;
 		f = ret_from_kernel_thread;
@@ -1811,6 +1807,15 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	((unsigned long *)sp)[0] = sp + STACK_SWITCH_FRAME_SIZE;
 	kregs = (struct pt_regs *)(sp + STACK_SWITCH_FRAME_REGS);
 	kregs->nip = ppc_function_entry(f);
+	if (unlikely(args->fn)) {
+		/*
+		 * Put kthread fn, arg parameters in non-volatile GPRs in the
+		 * switch frame so they are loaded by _switch before it returns
+		 * to ret_from_kernel_thread.
+		 */
+		kregs->gpr[14] = ppc_function_entry((void *)args->fn);
+		kregs->gpr[15] = (unsigned long)args->fn_arg;
+	}
 	p->thread.ksp = sp;
 
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
