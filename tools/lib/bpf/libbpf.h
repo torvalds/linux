@@ -101,6 +101,8 @@ typedef int (*libbpf_print_fn_t)(enum libbpf_print_level level,
  * be used for libbpf warnings and informational messages.
  * @param fn The log print function. If NULL, libbpf won't print anything.
  * @return Pointer to old print function.
+ *
+ * This function is thread-safe.
  */
 LIBBPF_API libbpf_print_fn_t libbpf_set_print(libbpf_print_fn_t fn);
 
