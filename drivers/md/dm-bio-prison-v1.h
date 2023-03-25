@@ -84,6 +84,11 @@ int dm_get_cell(struct dm_bio_prison *prison,
 		struct dm_bio_prison_cell **cell_result);
 
 /*
+ * Returns false if key is beyond BIO_PRISON_MAX_RANGE or spans a boundary.
+ */
+bool dm_cell_key_has_valid_range(struct dm_cell_key *key);
+
+/*
  * An atomic op that combines retrieving or creating a cell, and adding a
  * bio to it.
  *

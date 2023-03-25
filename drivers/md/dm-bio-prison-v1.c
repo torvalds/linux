@@ -120,12 +120,17 @@ static unsigned lock_nr(struct dm_cell_key *key)
 	return (key->block_begin >> BIO_PRISON_MAX_RANGE_SHIFT) & LOCK_MASK;
 }
 
-static void check_range(struct dm_cell_key *key)
+bool dm_cell_key_has_valid_range(struct dm_cell_key *key)
 {
-	BUG_ON(key->block_end - key->block_begin > BIO_PRISON_MAX_RANGE);
-	BUG_ON((key->block_begin >> BIO_PRISON_MAX_RANGE_SHIFT) !=
-	       ((key->block_end - 1) >> BIO_PRISON_MAX_RANGE_SHIFT));
+	if (WARN_ON_ONCE(key->block_end - key->block_begin > BIO_PRISON_MAX_RANGE))
+		return false;
+	if (WARN_ON_ONCE((key->block_begin >> BIO_PRISON_MAX_RANGE_SHIFT) !=
+			 (key->block_end - 1) >> BIO_PRISON_MAX_RANGE_SHIFT))
+		return false;
+
+	return true;
 }
+EXPORT_SYMBOL(dm_cell_key_has_valid_range);
 
 static int __bio_detain(struct rb_root *root,
 			struct dm_cell_key *key,
@@ -172,7 +177,6 @@ static int bio_detain(struct dm_bio_prison *prison,
 {
 	int r;
 	unsigned l = lock_nr(key);
-	check_range(key);
 
 	spin_lock_irq(&prison->regions[l].lock);
 	r = __bio_detain(&prison->regions[l].cell, key, inmate, cell_prealloc, cell_result);

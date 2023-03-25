@@ -118,25 +118,27 @@ enum lock_space {
 	PHYSICAL
 };
 
-static void build_key(struct dm_thin_device *td, enum lock_space ls,
+static bool build_key(struct dm_thin_device *td, enum lock_space ls,
 		      dm_block_t b, dm_block_t e, struct dm_cell_key *key)
 {
 	key->virtual = (ls == VIRTUAL);
 	key->dev = dm_thin_dev_id(td);
 	key->block_begin = b;
 	key->block_end = e;
+
+	return dm_cell_key_has_valid_range(key);
 }
 
 static void build_data_key(struct dm_thin_device *td, dm_block_t b,
 			   struct dm_cell_key *key)
 {
-	build_key(td, PHYSICAL, b, b + 1llu, key);
+	(void) build_key(td, PHYSICAL, b, b + 1llu, key);
 }
 
 static void build_virtual_key(struct dm_thin_device *td, dm_block_t b,
 			      struct dm_cell_key *key)
 {
-	build_key(td, VIRTUAL, b, b + 1llu, key);
+	(void) build_key(td, VIRTUAL, b, b + 1llu, key);
 }
 
 /*----------------------------------------------------------------*/
@@ -1702,7 +1704,8 @@ static void break_up_discard_bio(struct thin_c *tc, dm_block_t begin, dm_block_t
 				<< BIO_PRISON_MAX_RANGE_SHIFT;
 			len = min_t(sector_t, data_end - data_begin, next_boundary - data_begin);
 
-			build_key(tc->td, PHYSICAL, data_begin, data_begin + len, &data_key);
+			/* This key is certainly within range given the above splitting */
+			(void) build_key(tc->td, PHYSICAL, data_begin, data_begin + len, &data_key);
 			if (bio_detain(tc->pool, &data_key, NULL, &data_cell)) {
 				/* contention, we'll give up with this range */
 				data_begin += len;
@@ -1778,8 +1781,13 @@ static void process_discard_bio(struct thin_c *tc, struct bio *bio)
 		return;
 	}
 
-	build_key(tc->td, VIRTUAL, begin, end, &virt_key);
-	if (bio_detain(tc->pool, &virt_key, bio, &virt_cell))
+	if (unlikely(!build_key(tc->td, VIRTUAL, begin, end, &virt_key))) {
+		DMERR_LIMIT("Discard doesn't respect bio prison limits");
+		bio_endio(bio);
+		return;
+	}
+
+	if (bio_detain(tc->pool, &virt_key, bio, &virt_cell)) {
 		/*
 		 * Potential starvation issue: We're relying on the
 		 * fs/application being well behaved, and not trying to
@@ -1788,6 +1796,7 @@ static void process_discard_bio(struct thin_c *tc, struct bio *bio)
 		 * cell will never be granted.
 		 */
 		return;
+	}
 
 	tc->pool->process_discard_cell(tc, virt_cell);
 }
