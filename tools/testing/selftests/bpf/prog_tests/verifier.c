@@ -4,6 +4,7 @@
 
 #include "cap_helpers.h"
 #include "verifier_and.skel.h"
+#include "verifier_array_access.skel.h"
 
 __maybe_unused
 static void run_tests_aux(const char *skel_name, skel_elf_bytes_fn elf_bytes_factory)
@@ -30,3 +31,4 @@ static void run_tests_aux(const char *skel_name, skel_elf_bytes_fn elf_bytes_fac
 #define RUN(skel) run_tests_aux(#skel, skel##__elf_bytes)
 
 void test_verifier_and(void)                  { RUN(verifier_and); }
+void test_verifier_array_access(void)         { RUN(verifier_array_access); }
