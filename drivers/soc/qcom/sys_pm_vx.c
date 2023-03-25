@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  *
  */
 
@@ -39,6 +39,7 @@
 #define VX_FLAG_SHIFT_FLUSH_THRESH	24
 
 #define DEFAULT_DEBUG_TIME (10 * 1000)
+#define DEFAULT_TIMER (5000)
 
 #define read_word(base, itr) ({					\
 		u32 v;						\
@@ -76,7 +77,7 @@ struct vx_log {
 
 struct vx_platform_data {
 	void __iomem *base;
-	struct dentry *vx_file;
+	struct dentry *vx_dir;
 	size_t ndrv;
 	const char **drvs;
 	struct mutex lock;
@@ -85,8 +86,12 @@ struct vx_platform_data {
 	ktime_t resume_time;
 	bool debug_enable;
 	u32 detect_time_ms;
+	u32 timer_ms;
 	bool monitor_enable;
+	bool debug_dump_enable;
 };
+
+static struct vx_platform_data *g_pd;
 
 static const char * const drv_names_kalama[] = {
 	"TZ", "HYP", "HLOS", "L3", "SECPROC", "AUDIO", "AOP", "DEBUG",
@@ -135,6 +140,36 @@ static ssize_t debug_time_ms_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(debug_time_ms);
 
+static ssize_t set_timer_ms_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct vx_platform_data *pd = dev_get_drvdata(dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", pd->timer_ms);
+}
+
+static ssize_t set_timer_ms_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct vx_platform_data *pd = dev_get_drvdata(dev);
+	int val;
+
+	if (kstrtos32(buf, 0, &val))
+		return -EINVAL;
+
+	if (val <= 0) {
+		pr_err("timer ms should be greater than zero\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&pd->lock);
+	pd->timer_ms = val;
+	mutex_unlock(&pd->lock);
+
+	return count;
+}
+static DEVICE_ATTR_RW(set_timer_ms);
+
 static ssize_t debug_enable_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
@@ -166,6 +201,25 @@ static ssize_t debug_enable_store(struct device *dev,
 	return count;
 }
 static DEVICE_ATTR_RW(debug_enable);
+
+static void trigger_dump(struct vx_platform_data *pd)
+{
+	int ret = 0;
+	char buf[MAX_QMP_MSG_SIZE] = {};
+
+	if (!pd->debug_dump_enable)
+		return;
+
+	mutex_lock(&pd->lock);
+	scnprintf(buf, sizeof(buf),
+			"{class: crash_dump, res: do_crash_dump, tmr: %d}", pd->timer_ms);
+
+	ret = qmp_send(pd->qmp, buf, sizeof(buf));
+	if (ret)
+		pr_err("Error sending qmp message: %d\n", ret);
+
+	mutex_unlock(&pd->lock);
+}
 
 static void sys_pm_vx_send_msg(struct vx_platform_data *pd, bool enable)
 {
@@ -263,8 +317,10 @@ static void vx_check_drv(struct vx_platform_data *pd)
 		for (j = 0; j < log.loglines; j++) {
 			if (log.data[j].drv_vx[i] == 0)
 				break;
-			if (j == log.loglines - 1)
+			if (j == log.loglines - 1) {
 				pr_warn("DRV: %s has blocked power collapse\n", pd->drvs[i]);
+				trigger_dump(pd);
+			}
 		}
 	}
 
@@ -358,18 +414,56 @@ static const struct file_operations sys_pm_vx_fops = {
 	.release = single_release,
 };
 
-static int vx_create_debug_nodes(struct vx_platform_data *pd)
+static int trigger_dump_enable_get(void *data, u64 *val)
 {
-	struct dentry *pf;
+	struct vx_platform_data *pd = data;
 
-	pf = debugfs_create_file("sys_pm_violators", 0400, NULL,
-				 pd, &sys_pm_vx_fops);
-	if (!pf)
-		return -EINVAL;
-
-	pd->vx_file = pf;
+	mutex_lock(&pd->lock);
+	*val = (u64)pd->debug_dump_enable;
+	mutex_unlock(&pd->lock);
 
 	return 0;
+}
+
+static int trigger_dump_enable_set(void *data, u64 val)
+{
+	struct vx_platform_data *pd = data;
+
+	mutex_lock(&pd->lock);
+	pd->debug_dump_enable = (bool)val;
+	mutex_unlock(&pd->lock);
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(trigger_dump_enable_fops,
+			trigger_dump_enable_get,
+			trigger_dump_enable_set,
+			"%lld\n");
+
+void trigger_dump_enable(void)
+{
+	mutex_lock(&g_pd->lock);
+	g_pd->debug_dump_enable = true;
+	mutex_unlock(&g_pd->lock);
+}
+EXPORT_SYMBOL(trigger_dump_enable);
+
+void trigger_dump_disable(void)
+{
+	mutex_lock(&g_pd->lock);
+	g_pd->debug_dump_enable = false;
+	mutex_unlock(&g_pd->lock);
+}
+EXPORT_SYMBOL(trigger_dump_disable);
+
+static void vx_create_debug_nodes(struct dentry *root, struct vx_platform_data *pd)
+{
+	debugfs_create_file("sys_pm_violators", 0400, root,
+				 pd, &sys_pm_vx_fops);
+
+	debugfs_create_file("trigger_dump", 0600, root,
+				 pd, &trigger_dump_enable_fops);
 }
 
 static const struct of_device_id drv_match_table[] = {
@@ -387,7 +481,7 @@ static int vx_probe(struct platform_device *pdev)
 	const char **drvs;
 	int i, ret;
 
-	pd = devm_kzalloc(&pdev->dev, sizeof(*pd), GFP_KERNEL);
+	g_pd = pd = devm_kzalloc(&pdev->dev, sizeof(*pd), GFP_KERNEL);
 	if (!pd)
 		return -ENOMEM;
 
@@ -409,9 +503,11 @@ static int vx_probe(struct platform_device *pdev)
 	pd->ndrv = i;
 	pd->drvs = drvs;
 
-	ret = vx_create_debug_nodes(pd);
-	if (ret)
-		return ret;
+	pd->vx_dir = debugfs_create_dir("sys_pm_vx", NULL);
+	if (!pd->vx_dir)
+		return -EINVAL;
+
+	vx_create_debug_nodes(pd->vx_dir, pd);
 
 	ret = device_create_file(&pdev->dev, &dev_attr_debug_time_ms);
 	if (ret) {
@@ -425,6 +521,12 @@ static int vx_probe(struct platform_device *pdev)
 		goto fail_create_debug_enable;
 	}
 
+	ret = device_create_file(&pdev->dev, &dev_attr_set_timer_ms);
+	if (ret) {
+		dev_err(&pdev->dev, "failed: create sys pm vx sysfs set timer_ms entry\n");
+		goto fail_create_set_timer;
+	}
+
 	pd->qmp = qmp_get(&pdev->dev);
 	if (IS_ERR(pd->qmp)) {
 		ret = PTR_ERR(pd->qmp);
@@ -433,19 +535,23 @@ static int vx_probe(struct platform_device *pdev)
 
 	mutex_init(&pd->lock);
 	pd->detect_time_ms = DEFAULT_DEBUG_TIME;
+	pd->timer_ms = DEFAULT_TIMER;
 	pd->debug_enable = false;
 	pd->monitor_enable = false;
+	pd->debug_dump_enable = false;
 
 	platform_set_drvdata(pdev, pd);
 
 	return 0;
 
 fail_get_qmp:
+	device_remove_file(&pdev->dev, &dev_attr_set_timer_ms);
+fail_create_set_timer:
 	device_remove_file(&pdev->dev, &dev_attr_debug_enable);
 fail_create_debug_enable:
 	device_remove_file(&pdev->dev, &dev_attr_debug_time_ms);
 fail_create_debug_time:
-	debugfs_remove(pd->vx_file);
+	debugfs_remove_recursive(pd->vx_dir);
 	return ret;
 }
 
@@ -453,9 +559,10 @@ static int vx_remove(struct platform_device *pdev)
 {
 	struct vx_platform_data *pd = platform_get_drvdata(pdev);
 
-	debugfs_remove(pd->vx_file);
+	debugfs_remove_recursive(pd->vx_dir);
 	device_remove_file(&pdev->dev, &dev_attr_debug_time_ms);
 	device_remove_file(&pdev->dev, &dev_attr_debug_enable);
+	device_remove_file(&pdev->dev, &dev_attr_set_timer_ms);
 	qmp_put(pd->qmp);
 	subsystem_sleep_debug_enable(false);
 
