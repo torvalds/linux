@@ -717,7 +717,7 @@ int prepare(void)
 }
 
 /* This is the definition of known test names, with their functions */
-static struct test test_names[] = {
+static const struct test test_names[] = {
 	/* add new tests here */
 	{ .name = "syscall",   .func = run_syscall  },
 	{ .name = "stdlib",    .func = run_stdlib   },
