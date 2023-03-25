@@ -491,25 +491,10 @@ void rtl92e_set_tx_power(struct net_device *dev, u8 channel)
 
 bool rtl92e_config_phy(struct net_device *dev)
 {
-	struct r8192_priv *priv = rtllib_priv(dev);
 	bool rtStatus = true;
 
-	switch (priv->rf_chip) {
-	case RF_8225:
-		break;
-	case RF_8256:
-		rtStatus = rtl92e_config_rf(dev);
-		break;
+	rtStatus = rtl92e_config_rf(dev);
 
-	case RF_8258:
-		break;
-	case RF_PSEUDO_11N:
-		break;
-
-	default:
-		netdev_err(dev, "Invalid RF Chip ID.\n");
-		break;
-	}
 	return rtStatus;
 }
 
