@@ -421,6 +421,70 @@ static inline void cache_write_unlock(struct dm_buffer_cache *bc, sector_t block
 	up_write(&bc->trees[cache_index(block)].lock);
 }
 
+/*
+ * Sometimes we want to repeatedly get and drop locks as part of an iteration.
+ * This struct helps avoid redundant drop and gets of the same lock.
+ */
+struct lock_history {
+	struct dm_buffer_cache *cache;
+	bool write;
+	unsigned int previous;
+};
+
+static void lh_init(struct lock_history *lh, struct dm_buffer_cache *cache, bool write)
+{
+	lh->cache = cache;
+	lh->write = write;
+	lh->previous = NR_LOCKS;  /* indicates no previous */
+}
+
+static void __lh_lock(struct lock_history *lh, unsigned int index)
+{
+	if (lh->write)
+		down_write(&lh->cache->trees[index].lock);
+	else
+		down_read(&lh->cache->trees[index].lock);
+}
+
+static void __lh_unlock(struct lock_history *lh, unsigned int index)
+{
+	if (lh->write)
+		up_write(&lh->cache->trees[index].lock);
+	else
+		up_read(&lh->cache->trees[index].lock);
+}
+
+/*
+ * Make sure you call this since it will unlock the final lock.
+ */
+static void lh_exit(struct lock_history *lh)
+{
+	if (lh->previous != NR_LOCKS) {
+		__lh_unlock(lh, lh->previous);
+		lh->previous = NR_LOCKS;
+	}
+}
+
+/*
+ * Named 'next' because there is no corresponding
+ * 'up/unlock' call since it's done automatically.
+ */
+static void lh_next(struct lock_history *lh, sector_t b)
+{
+	unsigned int index = cache_index(b);
+
+	if (lh->previous != NR_LOCKS) {
+		if (lh->previous != index) {
+			__lh_unlock(lh, lh->previous);
+			__lh_lock(lh, index);
+			lh->previous = index;
+		}
+	} else {
+		__lh_lock(lh, index);
+		lh->previous = index;
+	}
+}
+
 static inline struct dm_buffer *le_to_buffer(struct lru_entry *le)
 {
 	return container_of(le, struct dm_buffer, lru);
@@ -550,6 +614,7 @@ typedef enum evict_result (*b_predicate)(struct dm_buffer *, void *);
  * predicate the hold_count of the selected buffer will be zero.
  */
 struct evict_wrapper {
+	struct lock_history *lh;
 	b_predicate pred;
 	void *context;
 };
@@ -563,16 +628,19 @@ static enum evict_result __evict_pred(struct lru_entry *le, void *context)
 	struct evict_wrapper *w = context;
 	struct dm_buffer *b = le_to_buffer(le);
 
+	lh_next(w->lh, b->block);
+
 	if (atomic_read(&b->hold_count))
 		return ER_DONT_EVICT;
 
 	return w->pred(b, w->context);
 }
 
-static struct dm_buffer *cache_evict(struct dm_buffer_cache *bc, int list_mode,
-				     b_predicate pred, void *context)
+static struct dm_buffer *__cache_evict(struct dm_buffer_cache *bc, int list_mode,
+				       b_predicate pred, void *context,
+				       struct lock_history *lh)
 {
-	struct evict_wrapper w = {.pred = pred, .context = context};
+	struct evict_wrapper w = {.lh = lh, .pred = pred, .context = context};
 	struct lru_entry *le;
 	struct dm_buffer *b;
 
@@ -583,6 +651,19 @@ static struct dm_buffer *cache_evict(struct dm_buffer_cache *bc, int list_mode,
 	b = le_to_buffer(le);
 	/* __evict_pred will have locked the appropriate tree. */
 	rb_erase(&b->node, &bc->trees[cache_index(b->block)].root);
+
+	return b;
+}
+
+static struct dm_buffer *cache_evict(struct dm_buffer_cache *bc, int list_mode,
+				     b_predicate pred, void *context)
+{
+	struct dm_buffer *b;
+	struct lock_history lh;
+
+	lh_init(&lh, bc, true);
+	b = __cache_evict(bc, list_mode, pred, context, &lh);
+	lh_exit(&lh);
 
 	return b;
 }
@@ -609,12 +690,12 @@ static void cache_mark(struct dm_buffer_cache *bc, struct dm_buffer *b, int list
  * Runs through the lru associated with 'old_mode', if the predicate matches then
  * it moves them to 'new_mode'.  Not threadsafe.
  */
-static void cache_mark_many(struct dm_buffer_cache *bc, int old_mode, int new_mode,
-			    b_predicate pred, void *context)
+static void __cache_mark_many(struct dm_buffer_cache *bc, int old_mode, int new_mode,
+			      b_predicate pred, void *context, struct lock_history *lh)
 {
 	struct lru_entry *le;
 	struct dm_buffer *b;
-	struct evict_wrapper w = {.pred = pred, .context = context};
+	struct evict_wrapper w = {.lh = lh, .pred = pred, .context = context};
 
 	while (true) {
 		le = lru_evict(&bc->lru[old_mode], __evict_pred, &w);
@@ -625,6 +706,16 @@ static void cache_mark_many(struct dm_buffer_cache *bc, int old_mode, int new_mo
 		b->list_mode = new_mode;
 		lru_insert(&bc->lru[b->list_mode], &b->lru);
 	}
+}
+
+static void cache_mark_many(struct dm_buffer_cache *bc, int old_mode, int new_mode,
+			    b_predicate pred, void *context)
+{
+	struct lock_history lh;
+
+	lh_init(&lh, bc, true);
+	__cache_mark_many(bc, old_mode, new_mode, pred, context, &lh);
+	lh_exit(&lh);
 }
 
 /*--------------*/
@@ -645,8 +736,8 @@ enum it_action {
 
 typedef enum it_action (*iter_fn)(struct dm_buffer *b, void *context);
 
-static void cache_iterate(struct dm_buffer_cache *bc, int list_mode,
-			  iter_fn fn, void *context)
+static void __cache_iterate(struct dm_buffer_cache *bc, int list_mode,
+			    iter_fn fn, void *context, struct lock_history *lh)
 {
 	struct lru *lru = &bc->lru[list_mode];
 	struct lru_entry *le, *first;
@@ -657,6 +748,8 @@ static void cache_iterate(struct dm_buffer_cache *bc, int list_mode,
 	first = le = to_le(lru->cursor);
 	do {
 		struct dm_buffer *b = le_to_buffer(le);
+
+		lh_next(lh, b->block);
 
 		switch (fn(b, context)) {
 		case IT_NEXT:
@@ -669,6 +762,16 @@ static void cache_iterate(struct dm_buffer_cache *bc, int list_mode,
 
 		le = to_le(le->list.next);
 	} while (le != first);
+}
+
+static void cache_iterate(struct dm_buffer_cache *bc, int list_mode,
+			  iter_fn fn, void *context)
+{
+	struct lock_history lh;
+
+	lh_init(&lh, bc, false);
+	__cache_iterate(bc, list_mode, fn, context, &lh);
+	lh_exit(&lh);
 }
 
 /*--------------*/
