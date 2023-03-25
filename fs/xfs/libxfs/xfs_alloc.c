@@ -3045,6 +3045,8 @@ xfs_alloc_read_agf(
 		pag->pagf_refcount_level = be32_to_cpu(agf->agf_refcount_level);
 		if (xfs_agfl_needs_reset(pag->pag_mount, agf))
 			set_bit(XFS_AGSTATE_AGFL_NEEDS_RESET, &pag->pag_opstate);
+		else
+			clear_bit(XFS_AGSTATE_AGFL_NEEDS_RESET, &pag->pag_opstate);
 
 		/*
 		 * Update the in-core allocbt counter. Filter out the rmapbt
@@ -3411,7 +3413,7 @@ xfs_alloc_vextent_start_ag(
 	args->agno = NULLAGNUMBER;
 	args->agbno = NULLAGBLOCK;
 
-	trace_xfs_alloc_vextent_first_ag(args);
+	trace_xfs_alloc_vextent_start_ag(args);
 
 	error = xfs_alloc_vextent_check_args(args, target, &minimum_agno);
 	if (error) {
@@ -3464,7 +3466,7 @@ xfs_alloc_vextent_first_ag(
 	args->agno = NULLAGNUMBER;
 	args->agbno = NULLAGBLOCK;
 
-	trace_xfs_alloc_vextent_start_ag(args);
+	trace_xfs_alloc_vextent_first_ag(args);
 
 	error = xfs_alloc_vextent_check_args(args, target, &minimum_agno);
 	if (error) {
@@ -3498,7 +3500,7 @@ xfs_alloc_vextent_exact_bno(
 	args->agno = XFS_FSB_TO_AGNO(mp, target);
 	args->agbno = XFS_FSB_TO_AGBNO(mp, target);
 
-	trace_xfs_alloc_vextent_near_bno(args);
+	trace_xfs_alloc_vextent_exact_bno(args);
 
 	error = xfs_alloc_vextent_check_args(args, target, &minimum_agno);
 	if (error) {
@@ -3536,7 +3538,7 @@ xfs_alloc_vextent_near_bno(
 	args->agno = XFS_FSB_TO_AGNO(mp, target);
 	args->agbno = XFS_FSB_TO_AGBNO(mp, target);
 
-	trace_xfs_alloc_vextent_exact_bno(args);
+	trace_xfs_alloc_vextent_near_bno(args);
 
 	error = xfs_alloc_vextent_check_args(args, target, &minimum_agno);
 	if (error) {

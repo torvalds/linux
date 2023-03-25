@@ -1090,9 +1090,12 @@ xfs_buffered_write_iomap_begin(
 		 */
 		if (xfs_has_allocsize(mp))
 			prealloc_blocks = mp->m_allocsize_blocks;
-		else
+		else if (allocfork == XFS_DATA_FORK)
 			prealloc_blocks = xfs_iomap_prealloc_size(ip, allocfork,
 						offset, count, &icur);
+		else
+			prealloc_blocks = xfs_iomap_prealloc_size(ip, allocfork,
+						offset, count, &ccur);
 		if (prealloc_blocks) {
 			xfs_extlen_t	align;
 			xfs_off_t	end_offset;
