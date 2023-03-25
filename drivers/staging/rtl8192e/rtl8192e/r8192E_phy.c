@@ -542,21 +542,8 @@ static void _rtl92e_set_tx_power_level(struct net_device *dev, u8 channel)
 	u8	powerlevel = priv->tx_pwr_level_cck[channel - 1];
 	u8	powerlevelOFDM24G = priv->tx_pwr_level_ofdm_24g[channel - 1];
 
-	switch (priv->rf_chip) {
-	case RF_8225:
-		break;
-
-	case RF_8256:
-		rtl92e_set_cck_tx_power(dev, powerlevel);
-		rtl92e_set_ofdm_tx_power(dev, powerlevelOFDM24G);
-		break;
-
-	case RF_8258:
-		break;
-	default:
-		netdev_warn(dev, "%s(): Invalid RF Chip ID\n", __func__);
-		break;
-	}
+	rtl92e_set_cck_tx_power(dev, powerlevel);
+	rtl92e_set_ofdm_tx_power(dev, powerlevelOFDM24G);
 }
 
 static u8 _rtl92e_phy_set_sw_chnl_cmd_array(struct net_device *dev,
