@@ -306,4 +306,23 @@ static inline unsigned int regcache_get_index_by_order(const struct regmap *map,
 	return reg >> map->reg_stride_order;
 }
 
+struct regmap_ram_data {
+	unsigned int *vals;  /* Allocatd by caller */
+	bool *read;
+	bool *written;
+};
+
+/*
+ * Create a test register map with data stored in RAM, not intended
+ * for practical use.
+ */
+struct regmap *__regmap_init_ram(const struct regmap_config *config,
+				 struct regmap_ram_data *data,
+				 struct lock_class_key *lock_key,
+				 const char *lock_name);
+
+#define regmap_init_ram(config, data)					\
+	__regmap_lockdep_wrapper(__regmap_init_ram, #config, config, data)
+
+
 #endif
