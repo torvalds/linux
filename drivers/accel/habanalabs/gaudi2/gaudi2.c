@@ -9510,19 +9510,18 @@ static void gaudi2_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_ent
 		break;
 
 	case GAUDI2_EVENT_ARC_AXI_ERROR_RESPONSE_0:
-		reset_flags |= HL_DRV_RESET_FW_FATAL_ERR;
 		error_count = gaudi2_handle_arc_farm_sei_err(hdev, event_type);
-		event_mask |= HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
+		event_mask |= HL_NOTIFIER_EVENT_USER_ENGINE_ERR;
 		break;
 
 	case GAUDI2_EVENT_CPU_AXI_ERR_RSP:
 		error_count = gaudi2_handle_cpu_sei_err(hdev, event_type);
-		event_mask |= HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
+		reset_flags |= HL_DRV_RESET_FW_FATAL_ERR;
+		event_mask |= HL_NOTIFIER_EVENT_CRITICL_FW_ERR;
 		break;
 
 	case GAUDI2_EVENT_PDMA_CH0_AXI_ERR_RSP:
 	case GAUDI2_EVENT_PDMA_CH1_AXI_ERR_RSP:
-		reset_flags |= HL_DRV_RESET_FW_FATAL_ERR;
 		error_count = gaudi2_handle_qm_sei_err(hdev, event_type, true, &event_mask);
 		event_mask |= HL_NOTIFIER_EVENT_USER_ENGINE_ERR;
 		break;
@@ -9709,12 +9708,14 @@ static void gaudi2_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_ent
 
 	case GAUDI2_EVENT_PCIE_DRAIN_COMPLETE:
 		error_count = gaudi2_handle_pcie_drain(hdev, &eq_entry->pcie_drain_ind_data);
+		reset_flags |= HL_DRV_RESET_FW_FATAL_ERR;
 		event_mask |= HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
 		break;
 
 	case GAUDI2_EVENT_PSOC59_RPM_ERROR_OR_DRAIN:
 		error_count = gaudi2_handle_psoc_drain(hdev,
 				le64_to_cpu(eq_entry->intr_cause.intr_cause_data));
+		reset_flags |= HL_DRV_RESET_FW_FATAL_ERR;
 		event_mask |= HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
 		break;
 
@@ -9743,6 +9744,7 @@ static void gaudi2_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_ent
 		break;
 	case GAUDI2_EVENT_PSOC_AXI_ERR_RSP:
 		error_count = GAUDI2_NA_EVENT_CAUSE;
+		reset_flags |= HL_DRV_RESET_FW_FATAL_ERR;
 		event_mask |= HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
 		break;
 	case GAUDI2_EVENT_PSOC_PRSTN_FALL:
@@ -9756,6 +9758,7 @@ static void gaudi2_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_ent
 		break;
 	case GAUDI2_EVENT_PCIE_FATAL_ERR:
 		error_count = GAUDI2_NA_EVENT_CAUSE;
+		reset_flags |= HL_DRV_RESET_FW_FATAL_ERR;
 		event_mask |= HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
 		break;
 	case GAUDI2_EVENT_TPC0_BMON_SPMU:
@@ -9823,6 +9826,7 @@ static void gaudi2_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_ent
 	case GAUDI2_EVENT_CPU_PKT_QUEUE_OUT_SYNC:
 		gaudi2_print_out_of_sync_info(hdev, event_type, &eq_entry->pkt_sync_err);
 		error_count = GAUDI2_NA_EVENT_CAUSE;
+		reset_flags |= HL_DRV_RESET_FW_FATAL_ERR;
 		event_mask |= HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
 		break;
 
@@ -9864,6 +9868,7 @@ static void gaudi2_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_ent
 	case GAUDI2_EVENT_CPU_PKT_SANITY_FAILED:
 		gaudi2_print_cpu_pkt_failure_info(hdev, event_type, &eq_entry->pkt_sync_err);
 		error_count = GAUDI2_NA_EVENT_CAUSE;
+		reset_flags |= HL_DRV_RESET_FW_FATAL_ERR;
 		event_mask |= HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
 		break;
 
