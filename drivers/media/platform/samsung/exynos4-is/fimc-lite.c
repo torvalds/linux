@@ -1595,7 +1595,7 @@ static int fimc_lite_suspend(struct device *dev)
 }
 #endif /* CONFIG_PM_SLEEP */
 
-static int fimc_lite_remove(struct platform_device *pdev)
+static void fimc_lite_remove(struct platform_device *pdev)
 {
 	struct fimc_lite *fimc = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
@@ -1610,7 +1610,6 @@ static int fimc_lite_remove(struct platform_device *pdev)
 	fimc_lite_clk_put(fimc);
 
 	dev_info(dev, "Driver unloaded\n");
-	return 0;
 }
 
 static const struct dev_pm_ops fimc_lite_pm_ops = {
@@ -1656,7 +1655,7 @@ MODULE_DEVICE_TABLE(of, flite_of_match);
 
 static struct platform_driver fimc_lite_driver = {
 	.probe		= fimc_lite_probe,
-	.remove		= fimc_lite_remove,
+	.remove_new	= fimc_lite_remove,
 	.driver = {
 		.of_match_table = flite_of_match,
 		.name		= FIMC_LITE_DRV_NAME,
