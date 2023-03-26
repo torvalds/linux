@@ -1904,7 +1904,7 @@ err_clk:
 	return ret;
 }
 
-static int pxp_remove(struct platform_device *pdev)
+static void pxp_remove(struct platform_device *pdev)
 {
 	struct pxp_dev *dev = platform_get_drvdata(pdev);
 
@@ -1922,8 +1922,6 @@ static int pxp_remove(struct platform_device *pdev)
 	video_unregister_device(&dev->vfd);
 	v4l2_m2m_release(dev->m2m_dev);
 	v4l2_device_unregister(&dev->v4l2_dev);
-
-	return 0;
 }
 
 static const struct pxp_pdata pxp_imx6ull_pdata = {
@@ -1943,7 +1941,7 @@ MODULE_DEVICE_TABLE(of, pxp_dt_ids);
 
 static struct platform_driver pxp_driver = {
 	.probe		= pxp_probe,
-	.remove		= pxp_remove,
+	.remove_new	= pxp_remove,
 	.driver		= {
 		.name	= MEM2MEM_NAME,
 		.of_match_table = pxp_dt_ids,
