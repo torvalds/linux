@@ -1003,7 +1003,7 @@ static void mmc_set_bus_speed(struct mmc_card *card)
  * If the bus width is changed successfully, return the selected width value.
  * Zero is returned instead of error value if the wide width is not supported.
  */
-static int mmc_select_bus_width(struct mmc_card *card)
+int mmc_select_bus_width(struct mmc_card *card)
 {
 	static unsigned ext_csd_bits[] = {
 		EXT_CSD_BUS_WIDTH_8,
@@ -1068,11 +1068,12 @@ static int mmc_select_bus_width(struct mmc_card *card)
 
 	return err;
 }
+EXPORT_SYMBOL_GPL(mmc_select_bus_width);
 
 /*
  * Switch to the high-speed mode
  */
-static int mmc_select_hs(struct mmc_card *card)
+int mmc_select_hs(struct mmc_card *card)
 {
 	int err;
 
@@ -1086,11 +1087,12 @@ static int mmc_select_hs(struct mmc_card *card)
 
 	return err;
 }
+EXPORT_SYMBOL_GPL(mmc_select_hs);
 
 /*
  * Activate wide bus and DDR if supported.
  */
-static int mmc_select_hs_ddr(struct mmc_card *card)
+int mmc_select_hs_ddr(struct mmc_card *card)
 {
 	struct mmc_host *host = card->host;
 	u32 bus_width, ext_csd_bits;
@@ -1159,8 +1161,9 @@ static int mmc_select_hs_ddr(struct mmc_card *card)
 
 	return err;
 }
+EXPORT_SYMBOL_GPL(mmc_select_hs_ddr);
 
-static int mmc_select_hs400(struct mmc_card *card)
+int mmc_select_hs400(struct mmc_card *card)
 {
 	struct mmc_host *host = card->host;
 	unsigned int max_dtr;
@@ -1254,6 +1257,7 @@ out_err:
 	       __func__, err);
 	return err;
 }
+EXPORT_SYMBOL_GPL(mmc_select_hs400);
 
 int mmc_hs200_to_hs400(struct mmc_card *card)
 {
@@ -1534,7 +1538,7 @@ err:
 /*
  * Activate High Speed, HS200 or HS400ES mode if supported.
  */
-static int mmc_select_timing(struct mmc_card *card)
+int mmc_select_timing(struct mmc_card *card)
 {
 	int err = 0;
 
@@ -1569,12 +1573,13 @@ bus_speed:
 	mmc_set_bus_speed(card);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mmc_select_timing);
 
 /*
  * Execute tuning sequence to seek the proper bus operating
  * conditions for HS200 and HS400, which sends CMD21 to the device.
  */
-static int mmc_hs200_tuning(struct mmc_card *card)
+int mmc_hs200_tuning(struct mmc_card *card)
 {
 	struct mmc_host *host = card->host;
 
@@ -1589,6 +1594,7 @@ static int mmc_hs200_tuning(struct mmc_card *card)
 
 	return mmc_execute_tuning(card);
 }
+EXPORT_SYMBOL_GPL(mmc_hs200_tuning);
 
 /*
  * Handle the detection and initialisation of a card.
