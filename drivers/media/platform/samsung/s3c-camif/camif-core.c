@@ -507,7 +507,7 @@ err_sd:
 	return ret;
 }
 
-static int s3c_camif_remove(struct platform_device *pdev)
+static void s3c_camif_remove(struct platform_device *pdev)
 {
 	struct camif_dev *camif = platform_get_drvdata(pdev);
 	struct s3c_camif_plat_data *pdata = &camif->pdata;
@@ -521,8 +521,6 @@ static int s3c_camif_remove(struct platform_device *pdev)
 	camif_clk_put(camif);
 	s3c_camif_unregister_subdev(camif);
 	pdata->gpio_put();
-
-	return 0;
 }
 
 static int s3c_camif_runtime_resume(struct device *dev)
@@ -623,7 +621,7 @@ static const struct dev_pm_ops s3c_camif_pm_ops = {
 
 static struct platform_driver s3c_camif_driver = {
 	.probe		= s3c_camif_probe,
-	.remove		= s3c_camif_remove,
+	.remove_new	= s3c_camif_remove,
 	.id_table	= s3c_camif_driver_ids,
 	.driver = {
 		.name	= S3C_CAMIF_DRIVER_NAME,
