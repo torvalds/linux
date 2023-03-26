@@ -287,14 +287,13 @@ out:
 	return ret;
 }
 
-static int mmpcam_remove(struct platform_device *pdev)
+static void mmpcam_remove(struct platform_device *pdev)
 {
 	struct mmp_camera *cam = platform_get_drvdata(pdev);
 	struct mcam_camera *mcam = &cam->mcam;
 
 	mccic_shutdown(mcam);
 	pm_runtime_force_suspend(mcam->dev);
-	return 0;
 }
 
 /*
@@ -360,7 +359,7 @@ MODULE_DEVICE_TABLE(of, mmpcam_of_match);
 
 static struct platform_driver mmpcam_driver = {
 	.probe		= mmpcam_probe,
-	.remove		= mmpcam_remove,
+	.remove_new	= mmpcam_remove,
 	.driver = {
 		.name	= "mmp-camera",
 		.of_match_table = of_match_ptr(mmpcam_of_match),
