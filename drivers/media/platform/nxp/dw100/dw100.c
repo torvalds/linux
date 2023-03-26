@@ -1631,7 +1631,7 @@ err_pm:
 	return ret;
 }
 
-static int dw100_remove(struct platform_device *pdev)
+static void dw100_remove(struct platform_device *pdev)
 {
 	struct dw100_device *dw_dev = platform_get_drvdata(pdev);
 
@@ -1647,8 +1647,6 @@ static int dw100_remove(struct platform_device *pdev)
 	mutex_destroy(dw_dev->vfd.lock);
 	v4l2_m2m_release(dw_dev->m2m_dev);
 	v4l2_device_unregister(&dw_dev->v4l2_dev);
-
-	return 0;
 }
 
 static int __maybe_unused dw100_runtime_suspend(struct device *dev)
@@ -1690,7 +1688,7 @@ MODULE_DEVICE_TABLE(of, dw100_dt_ids);
 
 static struct platform_driver dw100_driver = {
 	.probe		= dw100_probe,
-	.remove		= dw100_remove,
+	.remove_new	= dw100_remove,
 	.driver		= {
 		.name	= DRV_NAME,
 		.pm = &dw100_pm,
