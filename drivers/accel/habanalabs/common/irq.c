@@ -489,7 +489,7 @@ irqreturn_t hl_irq_handler_dec_abnrm(int irq, void *arg)
 {
 	struct hl_dec *dec = arg;
 
-	schedule_work(&dec->completion_abnrm_work);
+	schedule_work(&dec->abnrm_intr_work);
 
 	return IRQ_HANDLED;
 }

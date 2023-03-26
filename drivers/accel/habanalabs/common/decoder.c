@@ -43,22 +43,24 @@ static void dec_print_abnrm_intr_source(struct hl_device *hdev, u32 irq_status)
 		intr_source[2], intr_source[3], intr_source[4], intr_source[5]);
 }
 
-static void dec_error_intr_work(struct hl_device *hdev, u32 base_addr, u32 core_id)
+static void dec_abnrm_intr_work(struct work_struct *work)
 {
+	struct hl_dec *dec = container_of(work, struct hl_dec, abnrm_intr_work);
+	struct hl_device *hdev = dec->hdev;
 	bool reset_required = false;
 	u32 irq_status, event_mask;
 
-	irq_status = RREG32(base_addr + VCMD_IRQ_STATUS_OFFSET);
+	irq_status = RREG32(dec->base_addr + VCMD_IRQ_STATUS_OFFSET);
 
-	dev_err(hdev->dev, "Decoder abnormal interrupt %#x, core %d\n", irq_status, core_id);
+	dev_err(hdev->dev, "Decoder abnormal interrupt %#x, core %d\n", irq_status, dec->core_id);
 
 	dec_print_abnrm_intr_source(hdev, irq_status);
 
 	/* Clear the interrupt */
-	WREG32(base_addr + VCMD_IRQ_STATUS_OFFSET, irq_status);
+	WREG32(dec->base_addr + VCMD_IRQ_STATUS_OFFSET, irq_status);
 
 	/* Flush the interrupt clear */
-	RREG32(base_addr + VCMD_IRQ_STATUS_OFFSET);
+	RREG32(dec->base_addr + VCMD_IRQ_STATUS_OFFSET);
 
 	if (irq_status & VCMD_IRQ_STATUS_TIMEOUT_MASK) {
 		reset_required = true;
@@ -75,14 +77,6 @@ static void dec_error_intr_work(struct hl_device *hdev, u32 base_addr, u32 core_
 	} else {
 		hl_notifier_event_send_all(hdev, event_mask);
 	}
-}
-
-static void dec_completion_abnrm(struct work_struct *work)
-{
-	struct hl_dec *dec = container_of(work, struct hl_dec, completion_abnrm_work);
-	struct hl_device *hdev = dec->hdev;
-
-	dec_error_intr_work(hdev, dec->base_addr, dec->core_id);
 }
 
 void hl_dec_fini(struct hl_device *hdev)
@@ -108,7 +102,7 @@ int hl_dec_init(struct hl_device *hdev)
 		dec = hdev->dec + j;
 
 		dec->hdev = hdev;
-		INIT_WORK(&dec->completion_abnrm_work, dec_completion_abnrm);
+		INIT_WORK(&dec->abnrm_intr_work, dec_abnrm_intr_work);
 		dec->core_id = j;
 		dec->base_addr = hdev->asic_funcs->get_dec_base_addr(hdev, j);
 		if (!dec->base_addr) {

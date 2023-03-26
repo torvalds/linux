@@ -1211,15 +1211,15 @@ struct hl_eq {
 /**
  * struct hl_dec - describes a decoder sw instance.
  * @hdev: pointer to the device structure.
- * @completion_abnrm_work: workqueue object to run when decoder generates an error interrupt
+ * @abnrm_intr_work: workqueue work item to run when decoder generates an error interrupt.
  * @core_id: ID of the decoder.
  * @base_addr: base address of the decoder.
  */
 struct hl_dec {
-	struct hl_device		*hdev;
-	struct work_struct		completion_abnrm_work;
-	u32				core_id;
-	u32				base_addr;
+	struct hl_device	*hdev;
+	struct work_struct	abnrm_intr_work;
+	u32			core_id;
+	u32			base_addr;
 };
 
 /**
