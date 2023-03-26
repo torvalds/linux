@@ -1774,7 +1774,7 @@ err_vdev_release:
 	return ret;
 }
 
-static int vdec_remove(struct platform_device *pdev)
+static void vdec_remove(struct platform_device *pdev)
 {
 	struct venus_core *core = dev_get_drvdata(pdev->dev.parent);
 
@@ -1783,8 +1783,6 @@ static int vdec_remove(struct platform_device *pdev)
 
 	if (core->pm_ops->vdec_put)
 		core->pm_ops->vdec_put(core->dev_dec);
-
-	return 0;
 }
 
 static __maybe_unused int vdec_runtime_suspend(struct device *dev)
@@ -1825,7 +1823,7 @@ MODULE_DEVICE_TABLE(of, vdec_dt_match);
 
 static struct platform_driver qcom_venus_dec_driver = {
 	.probe = vdec_probe,
-	.remove = vdec_remove,
+	.remove_new = vdec_remove,
 	.driver = {
 		.name = "qcom-venus-decoder",
 		.of_match_table = vdec_dt_match,
