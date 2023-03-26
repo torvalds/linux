@@ -538,7 +538,7 @@ err_put_rpm:
 	return ret;
 }
 
-static int vpif_remove(struct platform_device *pdev)
+static void vpif_remove(struct platform_device *pdev)
 {
 	struct vpif_data *data = platform_get_drvdata(pdev);
 
@@ -551,8 +551,6 @@ static int vpif_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	kfree(data);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -592,7 +590,7 @@ static struct platform_driver vpif_driver = {
 		.name	= VPIF_DRIVER_NAME,
 		.pm	= vpif_pm_ops,
 	},
-	.remove = vpif_remove,
+	.remove_new = vpif_remove,
 	.probe = vpif_probe,
 };
 
