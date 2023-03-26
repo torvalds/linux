@@ -232,9 +232,6 @@
 		vddpos-supply = <&lab>;
 		vddneg-supply = <&ibb>;
 
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		backlight = <&pmi8998_wled>;
 		reset-gpios = <&tlmm 6 GPIO_ACTIVE_LOW>;
 
