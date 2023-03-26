@@ -1574,7 +1574,7 @@ error_mutex:
 	return ret;
 }
 
-static int rcsi2_remove(struct platform_device *pdev)
+static void rcsi2_remove(struct platform_device *pdev)
 {
 	struct rcar_csi2 *priv = platform_get_drvdata(pdev);
 
@@ -1585,12 +1585,10 @@ static int rcsi2_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	mutex_destroy(&priv->lock);
-
-	return 0;
 }
 
 static struct platform_driver rcar_csi2_pdrv = {
-	.remove	= rcsi2_remove,
+	.remove_new = rcsi2_remove,
 	.probe	= rcsi2_probe,
 	.driver	= {
 		.name	= "rcar-csi2",
