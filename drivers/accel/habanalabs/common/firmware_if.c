@@ -1278,7 +1278,7 @@ void hl_fw_ask_halt_machine_without_linux(struct hl_device *hdev)
 	/* Stop device CPU to make sure nothing bad happens */
 	if (hdev->asic_prop.dynamic_fw_load) {
 		rc = hl_fw_dynamic_send_protocol_cmd(hdev, &hdev->fw_loader,
-				COMMS_GOTO_WFE, 0, true,
+				COMMS_GOTO_WFE, 0, false,
 				hdev->fw_loader.cpu_timeout);
 		if (rc)
 			dev_err(hdev->dev, "Failed sending COMMS_GOTO_WFE\n");
