@@ -448,7 +448,7 @@ static int venus_remove(struct platform_device *pdev)
 	mutex_destroy(&core->lock);
 	venus_dbgfs_deinit(core);
 
-	return ret;
+	return 0;
 }
 
 static void venus_core_shutdown(struct platform_device *pdev)
