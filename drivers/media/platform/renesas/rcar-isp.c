@@ -500,7 +500,7 @@ error_mutex:
 	return ret;
 }
 
-static int risp_remove(struct platform_device *pdev)
+static void risp_remove(struct platform_device *pdev)
 {
 	struct rcar_isp *isp = platform_get_drvdata(pdev);
 
@@ -512,8 +512,6 @@ static int risp_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	mutex_destroy(&isp->lock);
-
-	return 0;
 }
 
 static struct platform_driver rcar_isp_driver = {
@@ -522,7 +520,7 @@ static struct platform_driver rcar_isp_driver = {
 		.of_match_table = risp_of_id_table,
 	},
 	.probe = risp_probe,
-	.remove = risp_remove,
+	.remove_new = risp_remove,
 };
 
 module_platform_driver(rcar_isp_driver);
