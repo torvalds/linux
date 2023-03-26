@@ -977,7 +977,7 @@ done:
 	return ret;
 }
 
-static int vsp1_remove(struct platform_device *pdev)
+static void vsp1_remove(struct platform_device *pdev)
 {
 	struct vsp1_device *vsp1 = platform_get_drvdata(pdev);
 
@@ -985,8 +985,6 @@ static int vsp1_remove(struct platform_device *pdev)
 	rcar_fcp_put(vsp1->fcp);
 
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct of_device_id vsp1_of_match[] = {
@@ -999,7 +997,7 @@ MODULE_DEVICE_TABLE(of, vsp1_of_match);
 
 static struct platform_driver vsp1_platform_driver = {
 	.probe		= vsp1_probe,
-	.remove		= vsp1_remove,
+	.remove_new	= vsp1_remove,
 	.driver		= {
 		.name	= "vsp1",
 		.pm	= &vsp1_pm_ops,
