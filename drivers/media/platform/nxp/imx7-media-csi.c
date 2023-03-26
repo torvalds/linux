@@ -2278,7 +2278,7 @@ err_media_cleanup:
 	return ret;
 }
 
-static int imx7_csi_remove(struct platform_device *pdev)
+static void imx7_csi_remove(struct platform_device *pdev)
 {
 	struct imx7_csi *csi = platform_get_drvdata(pdev);
 
@@ -2287,8 +2287,6 @@ static int imx7_csi_remove(struct platform_device *pdev)
 	v4l2_async_nf_unregister(&csi->notifier);
 	v4l2_async_nf_cleanup(&csi->notifier);
 	v4l2_async_unregister_subdev(&csi->sd);
-
-	return 0;
 }
 
 static const struct of_device_id imx7_csi_of_match[] = {
@@ -2301,7 +2299,7 @@ MODULE_DEVICE_TABLE(of, imx7_csi_of_match);
 
 static struct platform_driver imx7_csi_driver = {
 	.probe = imx7_csi_probe,
-	.remove = imx7_csi_remove,
+	.remove_new = imx7_csi_remove,
 	.driver = {
 		.of_match_table = imx7_csi_of_match,
 		.name = "imx7-csi",
