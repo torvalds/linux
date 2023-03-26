@@ -332,7 +332,7 @@ out_probe_adapter:
 	return ret;
 }
 
-static int cros_ec_cec_remove(struct platform_device *pdev)
+static void cros_ec_cec_remove(struct platform_device *pdev)
 {
 	struct cros_ec_cec *cros_ec_cec = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
@@ -352,13 +352,11 @@ static int cros_ec_cec_remove(struct platform_device *pdev)
 	cec_notifier_cec_adap_unregister(cros_ec_cec->notify,
 					 cros_ec_cec->adap);
 	cec_unregister_adapter(cros_ec_cec->adap);
-
-	return 0;
 }
 
 static struct platform_driver cros_ec_cec_driver = {
 	.probe = cros_ec_cec_probe,
-	.remove  = cros_ec_cec_remove,
+	.remove_new = cros_ec_cec_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.pm = &cros_ec_cec_pm_ops,
