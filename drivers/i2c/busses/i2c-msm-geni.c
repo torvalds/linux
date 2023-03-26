@@ -410,10 +410,21 @@ static int do_pending_cancel(struct geni_i2c_dev *gi2c)
 
 	geni_ios = geni_read_reg(gi2c->base, SE_GENI_IOS);
 	if ((geni_ios & 0x3) != 0x3) {
-		I2C_LOG_DBG(gi2c->ipcl, true, gi2c->dev,
-			"%s: Can't do pending cancel, IOS bad state: 0x%x\n",
-			__func__, geni_ios);
-		return -EINVAL;
+		/* Try to restore IOS with FORCE_DEFAULT */
+		GENI_SE_ERR(gi2c->ipcl, true, gi2c->dev,
+			    "%s: IOS:0x%x, bad state\n", __func__, geni_ios);
+
+		geni_write_reg(FORCE_DEFAULT,
+			       gi2c->base, GENI_FORCE_DEFAULT_REG);
+		geni_ios = geni_read_reg(gi2c->base, SE_GENI_IOS);
+		if ((geni_ios & 0x3) != 0x3) {
+			GENI_SE_ERR(gi2c->ipcl, true, gi2c->dev,
+				    "%s: IOS:0x%x, Fix from Slave side\n",
+				    __func__, geni_ios);
+			return -EINVAL;
+		}
+		GENI_SE_ERR(gi2c->ipcl, true, gi2c->dev,
+			    "%s: IOS:0x%x restored properly\n", __func__, geni_ios);
 	}
 
 	if (gi2c->se_mode == GSI_ONLY) {
