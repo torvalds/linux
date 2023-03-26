@@ -1433,19 +1433,17 @@ static int rcar_drif_probe(struct platform_device *pdev)
 }
 
 /* DRIF channel remove */
-static int rcar_drif_remove(struct platform_device *pdev)
+static void rcar_drif_remove(struct platform_device *pdev)
 {
 	struct rcar_drif *ch = platform_get_drvdata(pdev);
 	struct rcar_drif_sdr *sdr = ch->sdr;
 
 	/* Channel 0 will be the SDR instance */
 	if (ch->num)
-		return 0;
+		return;
 
 	/* SDR instance */
 	rcar_drif_sdr_remove(sdr);
-
-	return 0;
 }
 
 /* FIXME: Implement suspend/resume support */
@@ -1476,7 +1474,7 @@ static struct platform_driver rcar_drif_driver = {
 		.pm = &rcar_drif_pm_ops,
 		},
 	.probe = rcar_drif_probe,
-	.remove = rcar_drif_remove,
+	.remove_new = rcar_drif_remove,
 };
 
 module_platform_driver(rcar_drif_driver);
