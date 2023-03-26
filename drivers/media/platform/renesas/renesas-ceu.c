@@ -1709,7 +1709,7 @@ error_free_ceudev:
 	return ret;
 }
 
-static int ceu_remove(struct platform_device *pdev)
+static void ceu_remove(struct platform_device *pdev)
 {
 	struct ceu_device *ceudev = platform_get_drvdata(pdev);
 
@@ -1722,8 +1722,6 @@ static int ceu_remove(struct platform_device *pdev)
 	v4l2_device_unregister(&ceudev->v4l2_dev);
 
 	video_unregister_device(&ceudev->vdev);
-
-	return 0;
 }
 
 static const struct dev_pm_ops ceu_pm_ops = {
@@ -1739,7 +1737,7 @@ static struct platform_driver ceu_driver = {
 		.of_match_table = of_match_ptr(ceu_of_match),
 	},
 	.probe		= ceu_probe,
-	.remove		= ceu_remove,
+	.remove_new	= ceu_remove,
 };
 
 module_platform_driver(ceu_driver);
