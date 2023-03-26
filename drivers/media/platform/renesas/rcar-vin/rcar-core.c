@@ -1442,7 +1442,7 @@ static int rcar_vin_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rcar_vin_remove(struct platform_device *pdev)
+static void rcar_vin_remove(struct platform_device *pdev)
 {
 	struct rvin_dev *vin = platform_get_drvdata(pdev);
 
@@ -1458,8 +1458,6 @@ static int rcar_vin_remove(struct platform_device *pdev)
 		rvin_parallel_cleanup(vin);
 
 	rvin_dma_unregister(vin);
-
-	return 0;
 }
 
 static SIMPLE_DEV_PM_OPS(rvin_pm_ops, rvin_suspend, rvin_resume);
@@ -1472,7 +1470,7 @@ static struct platform_driver rcar_vin_driver = {
 		.of_match_table = rvin_of_id_table,
 	},
 	.probe = rcar_vin_probe,
-	.remove = rcar_vin_remove,
+	.remove_new = rcar_vin_remove,
 };
 
 module_platform_driver(rcar_vin_driver);
