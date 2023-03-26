@@ -481,7 +481,7 @@ static int video_mux_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int video_mux_remove(struct platform_device *pdev)
+static void video_mux_remove(struct platform_device *pdev)
 {
 	struct video_mux *vmux = platform_get_drvdata(pdev);
 	struct v4l2_subdev *sd = &vmux->subdev;
@@ -490,8 +490,6 @@ static int video_mux_remove(struct platform_device *pdev)
 	v4l2_async_nf_cleanup(&vmux->notifier);
 	v4l2_async_unregister_subdev(sd);
 	media_entity_cleanup(&sd->entity);
-
-	return 0;
 }
 
 static const struct of_device_id video_mux_dt_ids[] = {
@@ -502,7 +500,7 @@ MODULE_DEVICE_TABLE(of, video_mux_dt_ids);
 
 static struct platform_driver video_mux_driver = {
 	.probe		= video_mux_probe,
-	.remove		= video_mux_remove,
+	.remove_new	= video_mux_remove,
 	.driver		= {
 		.of_match_table = video_mux_dt_ids,
 		.name = "video-mux",
