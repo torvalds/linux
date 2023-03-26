@@ -387,7 +387,7 @@ static int vimc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int vimc_remove(struct platform_device *pdev)
+static void vimc_remove(struct platform_device *pdev)
 {
 	struct vimc_device *vimc = platform_get_drvdata(pdev);
 
@@ -397,8 +397,6 @@ static int vimc_remove(struct platform_device *pdev)
 	media_device_unregister(&vimc->mdev);
 	v4l2_device_unregister(&vimc->v4l2_dev);
 	v4l2_device_put(&vimc->v4l2_dev);
-
-	return 0;
 }
 
 static void vimc_dev_release(struct device *dev)
@@ -412,7 +410,7 @@ static struct platform_device vimc_pdev = {
 
 static struct platform_driver vimc_pdrv = {
 	.probe		= vimc_probe,
-	.remove		= vimc_remove,
+	.remove_new	= vimc_remove,
 	.driver		= {
 		.name	= VIMC_PDEV_NAME,
 	},
