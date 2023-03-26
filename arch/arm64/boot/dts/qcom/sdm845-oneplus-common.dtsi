@@ -347,8 +347,6 @@
 	display_panel: panel@0 {
 		status = "disabled";
 
-		#address-cells = <1>;
-		#size-cells = <0>;
 		reg = <0>;
 
 		vddio-supply = <&vreg_l14a_1p88>;
