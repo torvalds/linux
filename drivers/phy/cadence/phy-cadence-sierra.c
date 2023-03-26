@@ -371,8 +371,8 @@ struct cdns_sierra_phy {
 	u32 num_lanes;
 	bool autoconf;
 	int already_configured;
-	struct clk_onecell_data clk_data;
-	struct clk *output_clks[CDNS_SIERRA_OUTPUT_CLOCKS];
+	struct clk *pll_clks[SIERRA_NUM_CMN_PLLC];
+	struct clk_hw_onecell_data clk_data;
 };
 
 static int cdns_regmap_write(void *context, unsigned int reg, unsigned int val)
@@ -726,6 +726,7 @@ static int cdns_sierra_pll_mux_register(struct cdns_sierra_phy *sp,
 	unsigned int num_parents;
 	char clk_name[100];
 	struct clk *clk;
+	int ret;
 	int i;
 
 	mux = devm_kzalloc(dev, sizeof(*mux), GFP_KERNEL);
@@ -761,11 +762,14 @@ static int cdns_sierra_pll_mux_register(struct cdns_sierra_phy *sp,
 	mux->termen_field = termen_field;
 	mux->hw.init = init;
 
-	clk = devm_clk_register(dev, &mux->hw);
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
+	ret = devm_clk_hw_register(dev, &mux->hw);
+	if (ret)
+		return ret;
 
-	sp->output_clks[clk_index] = clk;
+	sp->clk_data.hws[clk_index] = &mux->hw;
+
+	sp->pll_clks[clk_index] = devm_clk_hw_get_clk(dev, &mux->hw,
+						      clk_names[clk_index]);
 
 	return 0;
 }
@@ -838,7 +842,7 @@ static int cdns_sierra_derived_refclk_register(struct cdns_sierra_phy *sp)
 	struct clk_init_data *init;
 	struct regmap *regmap;
 	char clk_name[100];
-	struct clk *clk;
+	int ret;
 
 	derived_refclk = devm_kzalloc(dev, sizeof(*derived_refclk), GFP_KERNEL);
 	if (!derived_refclk)
@@ -871,11 +875,11 @@ static int cdns_sierra_derived_refclk_register(struct cdns_sierra_phy *sp)
 
 	derived_refclk->hw.init = init;
 
-	clk = devm_clk_register(dev, &derived_refclk->hw);
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
+	ret = devm_clk_hw_register(dev, &derived_refclk->hw);
+	if (ret)
+		return ret;
 
-	sp->output_clks[CDNS_SIERRA_DERIVED_REFCLK] = clk;
+	sp->clk_data.hws[CDNS_SIERRA_DERIVED_REFCLK] = &derived_refclk->hw;
 
 	return 0;
 }
@@ -906,9 +910,9 @@ static int cdns_sierra_clk_register(struct cdns_sierra_phy *sp)
 		return ret;
 	}
 
-	sp->clk_data.clks = sp->output_clks;
-	sp->clk_data.clk_num = CDNS_SIERRA_OUTPUT_CLOCKS;
-	ret = of_clk_add_provider(node, of_clk_src_onecell_get, &sp->clk_data);
+	sp->clk_data.num = CDNS_SIERRA_OUTPUT_CLOCKS;
+	ret = of_clk_add_hw_provider(node, of_clk_hw_onecell_get,
+				     &sp->clk_data);
 	if (ret)
 		dev_err(dev, "Failed to add clock provider: %s\n", node->name);
 
@@ -1190,26 +1194,26 @@ static int cdns_sierra_phy_enable_clocks(struct cdns_sierra_phy *sp)
 {
 	int ret;
 
-	ret = clk_prepare_enable(sp->output_clks[CDNS_SIERRA_PLL_CMNLC]);
+	ret = clk_prepare_enable(sp->pll_clks[CDNS_SIERRA_PLL_CMNLC]);
 	if (ret)
 		return ret;
 
-	ret = clk_prepare_enable(sp->output_clks[CDNS_SIERRA_PLL_CMNLC1]);
+	ret = clk_prepare_enable(sp->pll_clks[CDNS_SIERRA_PLL_CMNLC1]);
 	if (ret)
 		goto err_pll_cmnlc1;
 
 	return 0;
 
 err_pll_cmnlc1:
-	clk_disable_unprepare(sp->output_clks[CDNS_SIERRA_PLL_CMNLC]);
+	clk_disable_unprepare(sp->pll_clks[CDNS_SIERRA_PLL_CMNLC]);
 
 	return ret;
 }
 
 static void cdns_sierra_phy_disable_clocks(struct cdns_sierra_phy *sp)
 {
-	clk_disable_unprepare(sp->output_clks[CDNS_SIERRA_PLL_CMNLC1]);
-	clk_disable_unprepare(sp->output_clks[CDNS_SIERRA_PLL_CMNLC]);
+	clk_disable_unprepare(sp->pll_clks[CDNS_SIERRA_PLL_CMNLC1]);
+	clk_disable_unprepare(sp->pll_clks[CDNS_SIERRA_PLL_CMNLC]);
 	if (!sp->already_configured)
 		clk_disable_unprepare(sp->input_clks[PHY_CLK]);
 }
@@ -1370,7 +1374,9 @@ static int cdns_sierra_phy_probe(struct platform_device *pdev)
 	if (!data)
 		return -EINVAL;
 
-	sp = devm_kzalloc(dev, sizeof(*sp), GFP_KERNEL);
+	sp = devm_kzalloc(dev, struct_size(sp, clk_data.hws,
+					   CDNS_SIERRA_OUTPUT_CLOCKS),
+			  GFP_KERNEL);
 	if (!sp)
 		return -ENOMEM;
 	dev_set_drvdata(dev, sp);
