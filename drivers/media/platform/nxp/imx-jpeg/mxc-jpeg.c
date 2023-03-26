@@ -2627,7 +2627,7 @@ static const struct dev_pm_ops	mxc_jpeg_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(mxc_jpeg_suspend, mxc_jpeg_resume)
 };
 
-static int mxc_jpeg_remove(struct platform_device *pdev)
+static void mxc_jpeg_remove(struct platform_device *pdev)
 {
 	unsigned int slot;
 	struct mxc_jpeg_dev *jpeg = platform_get_drvdata(pdev);
@@ -2640,15 +2640,13 @@ static int mxc_jpeg_remove(struct platform_device *pdev)
 	v4l2_m2m_release(jpeg->m2m_dev);
 	v4l2_device_unregister(&jpeg->v4l2_dev);
 	mxc_jpeg_detach_pm_domains(jpeg);
-
-	return 0;
 }
 
 MODULE_DEVICE_TABLE(of, mxc_jpeg_match);
 
 static struct platform_driver mxc_jpeg_driver = {
 	.probe = mxc_jpeg_probe,
-	.remove = mxc_jpeg_remove,
+	.remove_new = mxc_jpeg_remove,
 	.driver = {
 		.name = "mxc-jpeg",
 		.of_match_table = mxc_jpeg_match,
