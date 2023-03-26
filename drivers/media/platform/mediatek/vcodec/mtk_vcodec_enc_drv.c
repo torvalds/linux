@@ -451,7 +451,7 @@ static const struct of_device_id mtk_vcodec_enc_match[] = {
 };
 MODULE_DEVICE_TABLE(of, mtk_vcodec_enc_match);
 
-static int mtk_vcodec_enc_remove(struct platform_device *pdev)
+static void mtk_vcodec_enc_remove(struct platform_device *pdev)
 {
 	struct mtk_vcodec_dev *dev = platform_get_drvdata(pdev);
 
@@ -466,12 +466,11 @@ static int mtk_vcodec_enc_remove(struct platform_device *pdev)
 	v4l2_device_unregister(&dev->v4l2_dev);
 	pm_runtime_disable(dev->pm.dev);
 	mtk_vcodec_fw_release(dev->fw_handler);
-	return 0;
 }
 
 static struct platform_driver mtk_vcodec_enc_driver = {
 	.probe	= mtk_vcodec_probe,
-	.remove	= mtk_vcodec_enc_remove,
+	.remove_new = mtk_vcodec_enc_remove,
 	.driver	= {
 		.name	= MTK_VCODEC_ENC_NAME,
 		.of_match_table = mtk_vcodec_enc_match,
