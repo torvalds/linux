@@ -243,27 +243,29 @@ Jump instructions
 otherwise identical operations.
 The 'code' field encodes the operation as below:
 
-========  =====  =========================  ============
-code      value  description                notes
-========  =====  =========================  ============
-BPF_JA    0x00   PC += off                  BPF_JMP only
-BPF_JEQ   0x10   PC += off if dst == src
-BPF_JGT   0x20   PC += off if dst > src     unsigned
-BPF_JGE   0x30   PC += off if dst >= src    unsigned
-BPF_JSET  0x40   PC += off if dst & src
-BPF_JNE   0x50   PC += off if dst != src
-BPF_JSGT  0x60   PC += off if dst > src     signed
-BPF_JSGE  0x70   PC += off if dst >= src    signed
-BPF_CALL  0x80   function call              see `Helper functions`_
-BPF_EXIT  0x90   function / program return  BPF_JMP only
-BPF_JLT   0xa0   PC += off if dst < src     unsigned
-BPF_JLE   0xb0   PC += off if dst <= src    unsigned
-BPF_JSLT  0xc0   PC += off if dst < src     signed
-BPF_JSLE  0xd0   PC += off if dst <= src    signed
-========  =====  =========================  ============
+========  =====  ===  ===========================================  =========================================
+code      value  src  description                                  notes
+========  =====  ===  ===========================================  =========================================
+BPF_JA    0x0    0x0  PC += offset                                 BPF_JMP only
+BPF_JEQ   0x1    any  PC += offset if dst == src
+BPF_JGT   0x2    any  PC += offset if dst > src                    unsigned
+BPF_JGE   0x3    any  PC += offset if dst >= src                   unsigned
+BPF_JSET  0x4    any  PC += offset if dst & src
+BPF_JNE   0x5    any  PC += offset if dst != src
+BPF_JSGT  0x6    any  PC += offset if dst > src                    signed
+BPF_JSGE  0x7    any  PC += offset if dst >= src                   signed
+BPF_CALL  0x8    0x0  call helper function by address              see `Helper functions`_
+BPF_CALL  0x8    0x1  call PC += offset                            see `Program-local functions`_
+BPF_CALL  0x8    0x2  call helper function by BTF ID               see `Helper functions`_
+BPF_EXIT  0x9    0x0  return                                       BPF_JMP only
+BPF_JLT   0xa    any  PC += offset if dst < src                    unsigned
+BPF_JLE   0xb    any  PC += offset if dst <= src                   unsigned
+BPF_JSLT  0xc    any  PC += offset if dst < src                    signed
+BPF_JSLE  0xd    any  PC += offset if dst <= src                   signed
+========  =====  ===  ===========================================  =========================================
 
 The eBPF program needs to store the return value into register R0 before doing a
-BPF_EXIT.
+``BPF_EXIT``.
 
 Example:
 
@@ -277,9 +279,22 @@ Helper functions
 ~~~~~~~~~~~~~~~~
 
 Helper functions are a concept whereby BPF programs can call into a
-set of function calls exposed by the runtime.  Each helper
-function is identified by an integer used in a ``BPF_CALL`` instruction.
-The available helper functions may differ for each program type.
+set of function calls exposed by the underlying platform.
+
+Historically, each helper function was identified by an address
+encoded in the imm field.  The available helper functions may differ
+for each program type, but address values are unique across all program types.
+
+Platforms that support the BPF Type Format (BTF) support identifying
+a helper function by a BTF ID encoded in the imm field, where the BTF ID
+identifies the helper name and type.
+
+Program-local functions
+~~~~~~~~~~~~~~~~~~~~~~~
+Program-local functions are functions exposed by the same BPF program as the
+caller, and are referenced by offset from the call instruction, similar to
+``BPF_JA``.  A ``BPF_EXIT`` within the program-local function will return to
+the caller.
 
 Load and store instructions
 ===========================
