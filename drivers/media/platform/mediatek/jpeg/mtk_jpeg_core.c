@@ -1815,7 +1815,7 @@ err_m2m_init:
 	return ret;
 }
 
-static int mtk_jpeg_remove(struct platform_device *pdev)
+static void mtk_jpeg_remove(struct platform_device *pdev)
 {
 	struct mtk_jpeg_dev *jpeg = platform_get_drvdata(pdev);
 
@@ -1823,8 +1823,6 @@ static int mtk_jpeg_remove(struct platform_device *pdev)
 	video_unregister_device(jpeg->vdev);
 	v4l2_m2m_release(jpeg->m2m_dev);
 	v4l2_device_unregister(&jpeg->v4l2_dev);
-
-	return 0;
 }
 
 static __maybe_unused int mtk_jpeg_pm_suspend(struct device *dev)
@@ -1958,7 +1956,7 @@ MODULE_DEVICE_TABLE(of, mtk_jpeg_match);
 
 static struct platform_driver mtk_jpeg_driver = {
 	.probe = mtk_jpeg_probe,
-	.remove = mtk_jpeg_remove,
+	.remove_new = mtk_jpeg_remove,
 	.driver = {
 		.name           = MTK_JPEG_NAME,
 		.of_match_table = of_match_ptr(mtk_jpeg_match),
