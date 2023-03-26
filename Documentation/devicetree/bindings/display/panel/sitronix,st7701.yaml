@@ -42,7 +42,9 @@ properties:
   IOVCC-supply:
     description: I/O system regulator
 
+  port: true
   reset-gpios: true
+  rotation: true
 
   backlight: true
 
@@ -51,6 +53,7 @@ required:
   - reg
   - VCC-supply
   - IOVCC-supply
+  - port
   - reset-gpios
 
 additionalProperties: false
@@ -70,5 +73,11 @@ examples:
             IOVCC-supply = <&reg_dldo2>;
             reset-gpios = <&pio 3 24 GPIO_ACTIVE_HIGH>; /* LCD-RST: PD24 */
             backlight = <&backlight>;
+
+            port {
+                mipi_in_panel: endpoint {
+                    remote-endpoint = <&mipi_out_panel>;
+                };
+            };
         };
     };
