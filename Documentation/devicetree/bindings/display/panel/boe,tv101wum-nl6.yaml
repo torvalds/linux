@@ -55,6 +55,7 @@ properties:
     description: phandle of the backlight device attached to the panel
 
   port: true
+  rotation: true
 
 required:
   - compatible
