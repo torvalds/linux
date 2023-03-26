@@ -290,6 +290,9 @@ static int gpr_set(struct task_struct *target, const struct user_regset *regset,
 static int ppr_get(struct task_struct *target, const struct user_regset *regset,
 		   struct membuf to)
 {
+	if (!target->thread.regs)
+		return -EINVAL;
+
 	return membuf_write(&to, &target->thread.regs->ppr, sizeof(u64));
 }
 
@@ -297,6 +300,9 @@ static int ppr_set(struct task_struct *target, const struct user_regset *regset,
 		   unsigned int pos, unsigned int count, const void *kbuf,
 		   const void __user *ubuf)
 {
+	if (!target->thread.regs)
+		return -EINVAL;
+
 	return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 				  &target->thread.regs->ppr, 0, sizeof(u64));
 }
