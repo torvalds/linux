@@ -2769,14 +2769,6 @@ ieee80211_rx_mesh_data(struct ieee80211_sub_if_data *sdata, struct sta_info *sta
 	if (sdata->crypto_tx_tailroom_needed_cnt)
 		tailroom = IEEE80211_ENCRYPT_TAILROOM;
 
-	if (!--mesh_hdr->ttl) {
-		if (multicast)
-			goto rx_accept;
-
-		IEEE80211_IFSTA_MESH_CTR_INC(ifmsh, dropped_frames_ttl);
-		return RX_DROP_MONITOR;
-	}
-
 	if (mesh_hdr->flags & MESH_FLAGS_AE) {
 		struct mesh_path *mppath;
 		char *proxied_addr;
@@ -2806,6 +2798,14 @@ ieee80211_rx_mesh_data(struct ieee80211_sub_if_data *sdata, struct sta_info *sta
 	/* Frame has reached destination.  Don't forward */
 	if (ether_addr_equal(sdata->vif.addr, eth->h_dest))
 		goto rx_accept;
+
+	if (!--mesh_hdr->ttl) {
+		if (multicast)
+			goto rx_accept;
+
+		IEEE80211_IFSTA_MESH_CTR_INC(ifmsh, dropped_frames_ttl);
+		return RX_DROP_MONITOR;
+	}
 
 	if (!ifmsh->mshcfg.dot11MeshForwarding) {
 		if (is_multicast_ether_addr(eth->h_dest))
