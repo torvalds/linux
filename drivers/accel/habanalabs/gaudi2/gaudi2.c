@@ -2888,6 +2888,10 @@ static int gaudi2_cpucp_info_get(struct hl_device *hdev)
 	hdev->tpc_binning = le64_to_cpu(prop->cpucp_info.tpc_binning_mask);
 	hdev->decoder_binning = lower_32_bits(le64_to_cpu(prop->cpucp_info.decoder_binning_mask));
 
+	dev_dbg(hdev->dev, "Read binning masks: tpc: 0x%llx, dram: 0x%llx, edma: 0x%x, dec: 0x%x\n",
+			hdev->tpc_binning, hdev->dram_binning, hdev->edma_binning,
+			hdev->decoder_binning);
+
 	/*
 	 * at this point the DRAM parameters need to be updated according to data obtained
 	 * from the FW
