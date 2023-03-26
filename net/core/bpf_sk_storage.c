@@ -68,7 +68,7 @@ static void bpf_sk_storage_map_free(struct bpf_map *map)
 
 static struct bpf_map *bpf_sk_storage_map_alloc(union bpf_attr *attr)
 {
-	return bpf_local_storage_map_alloc(attr, &sk_cache);
+	return bpf_local_storage_map_alloc(attr, &sk_cache, false);
 }
 
 static int notsupp_get_next_key(struct bpf_map *map, void *key,

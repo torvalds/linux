@@ -23,7 +23,7 @@ struct storage {
 /* Fork and exec the provided rm binary and return the exit code of the
  * forked process and its pid.
  */
-static int run_self_unlink(int *monitored_pid, const char *rm_path)
+static int run_self_unlink(struct local_storage *skel, const char *rm_path)
 {
 	int child_pid, child_status, ret;
 	int null_fd;
@@ -35,7 +35,7 @@ static int run_self_unlink(int *monitored_pid, const char *rm_path)
 		dup2(null_fd, STDERR_FILENO);
 		close(null_fd);
 
-		*monitored_pid = getpid();
+		skel->bss->monitored_pid = getpid();
 		/* Use the copied /usr/bin/rm to delete itself
 		 * /tmp/copy_of_rm /tmp/copy_of_rm.
 		 */
@@ -44,6 +44,7 @@ static int run_self_unlink(int *monitored_pid, const char *rm_path)
 			exit(errno);
 	} else if (child_pid > 0) {
 		waitpid(child_pid, &child_status, 0);
+		ASSERT_EQ(skel->data->task_storage_result, 0, "task_storage_result");
 		return WEXITSTATUS(child_status);
 	}
 
@@ -133,7 +134,7 @@ void test_test_local_storage(void)
 	 * unlink its executable. This operation should be denied by the loaded
 	 * LSM program.
 	 */
-	err = run_self_unlink(&skel->bss->monitored_pid, tmp_exec_path);
+	err = run_self_unlink(skel, tmp_exec_path);
 	if (!ASSERT_EQ(err, EPERM, "run_self_unlink"))
 		goto close_prog_rmdir;
 
