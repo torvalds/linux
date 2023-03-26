@@ -416,14 +416,56 @@ and loaded back to ``R0``.
 -----------------------------
 
 Instructions with the ``BPF_IMM`` 'mode' modifier use the wide instruction
-encoding for an extra imm64 value.
+encoding defined in `Instruction encoding`_, and use the 'src' field of the
+basic instruction to hold an opcode subtype.
 
-There is currently only one such instruction.
+The following table defines a set of ``BPF_IMM | BPF_DW | BPF_LD`` instructions
+with opcode subtypes in the 'src' field, using new terms such as "map"
+defined further below:
 
-``BPF_LD | BPF_DW | BPF_IMM`` means::
+=========================  ======  ===  =========================================  ===========  ==============
+opcode construction        opcode  src  pseudocode                                 imm type     dst type
+=========================  ======  ===  =========================================  ===========  ==============
+BPF_IMM | BPF_DW | BPF_LD  0x18    0x0  dst = imm64                                integer      integer
+BPF_IMM | BPF_DW | BPF_LD  0x18    0x1  dst = map_by_fd(imm)                       map fd       map
+BPF_IMM | BPF_DW | BPF_LD  0x18    0x2  dst = map_val(map_by_fd(imm)) + next_imm   map fd       data pointer
+BPF_IMM | BPF_DW | BPF_LD  0x18    0x3  dst = var_addr(imm)                        variable id  data pointer
+BPF_IMM | BPF_DW | BPF_LD  0x18    0x4  dst = code_addr(imm)                       integer      code pointer
+BPF_IMM | BPF_DW | BPF_LD  0x18    0x5  dst = map_by_idx(imm)                      map index    map
+BPF_IMM | BPF_DW | BPF_LD  0x18    0x6  dst = map_val(map_by_idx(imm)) + next_imm  map index    data pointer
+=========================  ======  ===  =========================================  ===========  ==============
 
-  dst = imm64
+where
 
+* map_by_fd(imm) means to convert a 32-bit file descriptor into an address of a map (see `Maps`_)
+* map_by_idx(imm) means to convert a 32-bit index into an address of a map
+* map_val(map) gets the address of the first value in a given map
+* var_addr(imm) gets the address of a platform variable (see `Platform Variables`_) with a given id
+* code_addr(imm) gets the address of the instruction at a specified relative offset in number of (64-bit) instructions
+* the 'imm type' can be used by disassemblers for display
+* the 'dst type' can be used for verification and JIT compilation purposes
+
+Maps
+~~~~
+
+Maps are shared memory regions accessible by eBPF programs on some platforms.
+A map can have various semantics as defined in a separate document, and may or
+may not have a single contiguous memory region, but the 'map_val(map)' is
+currently only defined for maps that do have a single contiguous memory region.
+
+Each map can have a file descriptor (fd) if supported by the platform, where
+'map_by_fd(imm)' means to get the map with the specified file descriptor. Each
+BPF program can also be defined to use a set of maps associated with the
+program at load time, and 'map_by_idx(imm)' means to get the map with the given
+index in the set associated with the BPF program containing the instruction.
+
+Platform Variables
+~~~~~~~~~~~~~~~~~~
+
+Platform variables are memory regions, identified by integer ids, exposed by
+the runtime and accessible by BPF programs on some platforms.  The
+'var_addr(imm)' operation means to get the address of the memory region
+identified by the given id.
 
 Legacy BPF Packet access instructions
 -------------------------------------

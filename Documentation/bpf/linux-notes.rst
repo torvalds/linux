@@ -20,6 +20,28 @@ integer would be read from a specified register, is not currently supported
 by the verifier.  Any programs with this instruction will fail to load
 until such support is added.
 
+Maps
+====
+
+Linux only supports the 'map_val(map)' operation on array maps with a single element.
+
+Linux uses an fd_array to store maps associated with a BPF program. Thus,
+map_by_idx(imm) uses the fd at that index in the array.
+
+Variables
+=========
+
+The following 64-bit immediate instruction specifies that a variable address,
+which corresponds to some integer stored in the 'imm' field, should be loaded:
+
+=========================  ======  ===  =========================================  ===========  ==============
+opcode construction        opcode  src  pseudocode                                 imm type     dst type
+=========================  ======  ===  =========================================  ===========  ==============
+BPF_IMM | BPF_DW | BPF_LD  0x18    0x3  dst = var_addr(imm)                        variable id  data pointer
+=========================  ======  ===  =========================================  ===========  ==============
+
+On Linux, this integer is a BTF ID.
+
 Legacy BPF Packet access instructions
 =====================================
 
