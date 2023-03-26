@@ -1296,7 +1296,7 @@ out_free:
 	return ret;
 }
 
-static int viacam_remove(struct platform_device *pdev)
+static void viacam_remove(struct platform_device *pdev)
 {
 	struct via_camera *cam = via_cam_info;
 	struct viafb_dev *viadev = pdev->dev.platform_data;
@@ -1311,7 +1311,6 @@ static int viacam_remove(struct platform_device *pdev)
 	v4l2_ctrl_handler_free(&cam->ctrl_handler);
 	kfree(cam);
 	via_cam_info = NULL;
-	return 0;
 }
 
 static struct platform_driver viacam_driver = {
@@ -1319,7 +1318,7 @@ static struct platform_driver viacam_driver = {
 		.name = "viafb-camera",
 	},
 	.probe = viacam_probe,
-	.remove = viacam_remove,
+	.remove_new = viacam_remove,
 };
 
 module_platform_driver(viacam_driver);
