@@ -354,14 +354,9 @@
 
 			backlight = <&pm8350c_pwm_backlight>;
 
-			ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				port@0 {
-					reg = <0>;
-					edp_panel_in: endpoint {
-						remote-endpoint = <&mdss_edp_out>;
-					};
+			port {
+				edp_panel_in: endpoint {
+					remote-endpoint = <&mdss_edp_out>;
 				};
 			};
 		};
