@@ -693,7 +693,7 @@ put_clk_gate:
 	return ret;
 }
 
-static int dma2d_remove(struct platform_device *pdev)
+static void dma2d_remove(struct platform_device *pdev)
 {
 	struct dma2d_dev *dev = platform_get_drvdata(pdev);
 
@@ -704,8 +704,6 @@ static int dma2d_remove(struct platform_device *pdev)
 	vb2_dma_contig_clear_max_seg_size(&pdev->dev);
 	clk_unprepare(dev->gate);
 	clk_put(dev->gate);
-
-	return 0;
 }
 
 static const struct of_device_id stm32_dma2d_match[] = {
@@ -719,7 +717,7 @@ MODULE_DEVICE_TABLE(of, stm32_dma2d_match);
 
 static struct platform_driver dma2d_pdrv = {
 	.probe		= dma2d_probe,
-	.remove		= dma2d_remove,
+	.remove_new	= dma2d_remove,
 	.driver		= {
 		.name = DMA2D_NAME,
 		.of_match_table = stm32_dma2d_match,
