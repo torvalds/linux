@@ -9,6 +9,13 @@ config REGMAP
 	select MDIO_BUS if REGMAP_MDIO
 	bool
 
+config REGMAP_KUNIT
+	tristate "KUnit tests for regmap"
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	select REGMAP
+	select REGMAP_RAM
+
 config REGMAP_AC97
 	tristate
 
