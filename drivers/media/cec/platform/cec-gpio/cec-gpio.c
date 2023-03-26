@@ -269,13 +269,12 @@ del_adap:
 	return ret;
 }
 
-static int cec_gpio_remove(struct platform_device *pdev)
+static void cec_gpio_remove(struct platform_device *pdev)
 {
 	struct cec_gpio *cec = platform_get_drvdata(pdev);
 
 	cec_notifier_cec_adap_unregister(cec->notifier, cec->adap);
 	cec_unregister_adapter(cec->adap);
-	return 0;
 }
 
 static const struct of_device_id cec_gpio_match[] = {
@@ -288,7 +287,7 @@ MODULE_DEVICE_TABLE(of, cec_gpio_match);
 
 static struct platform_driver cec_gpio_pdrv = {
 	.probe	= cec_gpio_probe,
-	.remove = cec_gpio_remove,
+	.remove_new = cec_gpio_remove,
 	.driver = {
 		.name		= "cec-gpio",
 		.of_match_table	= cec_gpio_match,
