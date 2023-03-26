@@ -2021,7 +2021,7 @@ static int vivid_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int vivid_remove(struct platform_device *pdev)
+static void vivid_remove(struct platform_device *pdev)
 {
 	struct vivid_dev *dev;
 	unsigned int i, j;
@@ -2101,7 +2101,6 @@ static int vivid_remove(struct platform_device *pdev)
 		v4l2_device_put(&dev->v4l2_dev);
 		vivid_devs[i] = NULL;
 	}
-	return 0;
 }
 
 static void vivid_pdev_release(struct device *dev)
@@ -2115,7 +2114,7 @@ static struct platform_device vivid_pdev = {
 
 static struct platform_driver vivid_pdrv = {
 	.probe		= vivid_probe,
-	.remove		= vivid_remove,
+	.remove_new	= vivid_remove,
 	.driver		= {
 		.name	= "vivid",
 	},
