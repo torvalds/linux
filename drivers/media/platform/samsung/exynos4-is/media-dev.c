@@ -1532,12 +1532,12 @@ err_md:
 	return ret;
 }
 
-static int fimc_md_remove(struct platform_device *pdev)
+static void fimc_md_remove(struct platform_device *pdev)
 {
 	struct fimc_md *fmd = platform_get_drvdata(pdev);
 
 	if (!fmd)
-		return 0;
+		return;
 
 	fimc_md_unregister_clk_provider(fmd);
 	v4l2_async_nf_unregister(&fmd->subdev_notifier);
@@ -1550,8 +1550,6 @@ static int fimc_md_remove(struct platform_device *pdev)
 	media_device_unregister(&fmd->media_dev);
 	media_device_cleanup(&fmd->media_dev);
 	fimc_md_put_clocks(fmd);
-
-	return 0;
 }
 
 static const struct platform_device_id fimc_driver_ids[] __always_unused = {
@@ -1568,7 +1566,7 @@ MODULE_DEVICE_TABLE(of, fimc_md_of_match);
 
 static struct platform_driver fimc_md_driver = {
 	.probe		= fimc_md_probe,
-	.remove		= fimc_md_remove,
+	.remove_new	= fimc_md_remove,
 	.driver = {
 		.of_match_table = of_match_ptr(fimc_md_of_match),
 		.name		= "s5p-fimc-md",
