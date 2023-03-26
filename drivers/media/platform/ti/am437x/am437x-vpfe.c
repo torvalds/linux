@@ -2483,7 +2483,7 @@ probe_out_cleanup:
 /*
  * vpfe_remove : It un-register device from V4L2 driver
  */
-static int vpfe_remove(struct platform_device *pdev)
+static void vpfe_remove(struct platform_device *pdev)
 {
 	struct vpfe_device *vpfe = platform_get_drvdata(pdev);
 
@@ -2493,8 +2493,6 @@ static int vpfe_remove(struct platform_device *pdev)
 	v4l2_async_nf_cleanup(&vpfe->notifier);
 	v4l2_device_unregister(&vpfe->v4l2_dev);
 	video_unregister_device(&vpfe->video_dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -2625,7 +2623,7 @@ MODULE_DEVICE_TABLE(of, vpfe_of_match);
 
 static struct platform_driver vpfe_driver = {
 	.probe		= vpfe_probe,
-	.remove		= vpfe_remove,
+	.remove_new	= vpfe_remove,
 	.driver = {
 		.name	= VPFE_MODULE_NAME,
 		.pm	= &vpfe_pm_ops,
