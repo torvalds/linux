@@ -915,7 +915,7 @@ static int fimc_is_suspend(struct device *dev)
 }
 #endif /* CONFIG_PM_SLEEP */
 
-static int fimc_is_remove(struct platform_device *pdev)
+static void fimc_is_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct fimc_is *is = dev_get_drvdata(dev);
@@ -932,8 +932,6 @@ static int fimc_is_remove(struct platform_device *pdev)
 	fimc_is_debugfs_remove(is);
 	release_firmware(is->fw.f_w);
 	fimc_is_free_cpu_memory(is);
-
-	return 0;
 }
 
 static const struct of_device_id fimc_is_of_match[] = {
@@ -950,7 +948,7 @@ static const struct dev_pm_ops fimc_is_pm_ops = {
 
 static struct platform_driver fimc_is_driver = {
 	.probe		= fimc_is_probe,
-	.remove		= fimc_is_remove,
+	.remove_new	= fimc_is_remove,
 	.driver = {
 		.of_match_table	= fimc_is_of_match,
 		.name		= FIMC_IS_DRV_NAME,
