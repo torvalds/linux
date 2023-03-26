@@ -420,7 +420,7 @@ exit_clkdisable_clk:
 	return ret;
 }
 
-static int mtk_ir_remove(struct platform_device *pdev)
+static void mtk_ir_remove(struct platform_device *pdev)
 {
 	struct mtk_ir *ir = platform_get_drvdata(pdev);
 
@@ -434,13 +434,11 @@ static int mtk_ir_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(ir->bus);
 	clk_disable_unprepare(ir->clk);
-
-	return 0;
 }
 
 static struct platform_driver mtk_ir_driver = {
 	.probe          = mtk_ir_probe,
-	.remove         = mtk_ir_remove,
+	.remove_new     = mtk_ir_remove,
 	.driver = {
 		.name = MTK_IR_DEV,
 		.of_match_table = mtk_ir_match,
