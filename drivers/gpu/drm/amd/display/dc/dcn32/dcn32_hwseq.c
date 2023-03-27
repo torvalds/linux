@@ -721,6 +721,9 @@ static void dcn32_initialize_min_clocks(struct dc *dc)
 	clocks->socclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].socclk_mhz * 1000;
 	clocks->dramclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].memclk_mhz * 1000;
 	clocks->dppclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].dppclk_mhz * 1000;
+	clocks->ref_dtbclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].dtbclk_mhz * 1000;
+	clocks->fclk_p_state_change_support = true;
+	clocks->p_state_change_support = true;
 	if (dc->debug.disable_boot_optimizations) {
 		clocks->dispclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].dispclk_mhz * 1000;
 	} else {
@@ -730,9 +733,6 @@ static void dcn32_initialize_min_clocks(struct dc *dc)
 		 * freq to ensure that the timing is valid and unchanged.
 		 */
 		clocks->dispclk_khz = dc->clk_mgr->funcs->get_dispclk_from_dentist(dc->clk_mgr);
-		clocks->ref_dtbclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].dtbclk_mhz * 1000;
-		clocks->fclk_p_state_change_support = true;
-		clocks->p_state_change_support = true;
 	}
 
 	dc->clk_mgr->funcs->update_clocks(
