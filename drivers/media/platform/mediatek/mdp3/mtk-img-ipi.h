@@ -8,19 +8,13 @@
 #ifndef __MTK_IMG_IPI_H__
 #define __MTK_IMG_IPI_H__
 
-#include <linux/types.h>
+#include "mtk-mdp3-type.h"
 
 /*
  * ISP-MDP generic input information
  * MD5 of the target SCP blob:
  *     6da52bdcf4bf76a0983b313e1d4745d6
  */
-
-#define IMG_MAX_HW_INPUTS	3
-
-#define IMG_MAX_HW_OUTPUTS	4
-
-#define IMG_MAX_PLANES		3
 
 #define IMG_IPI_INIT    1
 #define IMG_IPI_DEINIT  2
@@ -70,17 +64,6 @@ struct img_image_buffer {
 } __packed;
 
 #define IMG_SUBPIXEL_SHIFT	20
-
-struct img_crop {
-	s32 left;
-	s32 top;
-	u32 width;
-	u32 height;
-	u32 left_subpix;
-	u32 top_subpix;
-	u32 width_subpix;
-	u32 height_subpix;
-} __packed;
 
 #define IMG_CTRL_FLAG_HFLIP	BIT(0)
 #define IMG_CTRL_FLAG_DITHER	BIT(1)
@@ -144,20 +127,6 @@ struct img_comp_frame {
 	struct img_crop crop;
 	u32 in_total_width;
 	u32 out_total_width;
-} __packed;
-
-struct img_region {
-	s32 left;
-	s32 right;
-	s32 top;
-	s32 bottom;
-} __packed;
-
-struct img_offset {
-	s32 left;
-	s32 top;
-	u32 left_subpix;
-	u32 top_subpix;
 } __packed;
 
 struct img_comp_subfrm {
@@ -265,19 +234,6 @@ struct img_compparam {
 		struct mdp_wdma_data wdma;
 		struct isp_data isp;
 	};
-} __packed;
-
-#define IMG_MAX_COMPONENTS	20
-
-struct img_mux {
-	u32 reg;
-	u32 value;
-	u32 subsys_id;
-} __packed;
-
-struct img_mmsys_ctrl {
-	struct img_mux sets[IMG_MAX_COMPONENTS * 2];
-	u32 num_sets;
 } __packed;
 
 struct img_config {
