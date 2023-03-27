@@ -4086,6 +4086,8 @@ static void write_dev_flush(struct btrfs_device *device)
 {
 	struct bio *bio = &device->flush_bio;
 
+	device->last_flush_error = BLK_STS_OK;
+
 #ifndef CONFIG_BTRFS_FS_CHECK_INTEGRITY
 	/*
 	 * When a disk has write caching disabled, we skip submission of a bio
@@ -4125,6 +4127,11 @@ static blk_status_t wait_dev_flush(struct btrfs_device *device)
 	clear_bit(BTRFS_DEV_STATE_FLUSH_SENT, &device->dev_state);
 	wait_for_completion_io(&device->flush_wait);
 
+	if (bio->bi_status) {
+		device->last_flush_error = bio->bi_status;
+		btrfs_dev_stat_inc_and_print(device, BTRFS_DEV_STAT_FLUSH_ERRS);
+	}
+
 	return bio->bi_status;
 }
 
@@ -4159,7 +4166,6 @@ static int barrier_all_devices(struct btrfs_fs_info *info)
 			continue;
 
 		write_dev_flush(dev);
-		dev->last_flush_error = BLK_STS_OK;
 	}
 
 	/* wait for all the barriers */
@@ -4175,12 +4181,8 @@ static int barrier_all_devices(struct btrfs_fs_info *info)
 			continue;
 
 		ret = wait_dev_flush(dev);
-		if (ret) {
-			dev->last_flush_error = ret;
-			btrfs_dev_stat_inc_and_print(dev,
-					BTRFS_DEV_STAT_FLUSH_ERRS);
+		if (ret)
 			errors_wait++;
-		}
 	}
 
 	if (errors_wait) {
