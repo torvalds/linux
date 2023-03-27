@@ -380,7 +380,6 @@ struct dm_buffer {
  */
 
 #define NR_LOCKS 64
-#define LOCKS_MASK (NR_LOCKS - 1)
 
 struct buffer_tree {
 	struct rw_semaphore lock;
@@ -388,37 +387,38 @@ struct buffer_tree {
 } ____cacheline_aligned_in_smp;
 
 struct dm_buffer_cache {
+	struct lru lru[LIST_SIZE];
 	/*
 	 * We spread entries across multiple trees to reduce contention
 	 * on the locks.
 	 */
+	unsigned int num_locks;
 	struct buffer_tree trees[NR_LOCKS];
-	struct lru lru[LIST_SIZE];
 };
 
-static inline unsigned int cache_index(sector_t block)
+static inline unsigned int cache_index(sector_t block, unsigned int num_locks)
 {
-	return block & LOCKS_MASK;
+	return block & (num_locks - 1);
 }
 
 static inline void cache_read_lock(struct dm_buffer_cache *bc, sector_t block)
 {
-	down_read(&bc->trees[cache_index(block)].lock);
+	down_read(&bc->trees[cache_index(block, bc->num_locks)].lock);
 }
 
 static inline void cache_read_unlock(struct dm_buffer_cache *bc, sector_t block)
 {
-	up_read(&bc->trees[cache_index(block)].lock);
+	up_read(&bc->trees[cache_index(block, bc->num_locks)].lock);
 }
 
 static inline void cache_write_lock(struct dm_buffer_cache *bc, sector_t block)
 {
-	down_write(&bc->trees[cache_index(block)].lock);
+	down_write(&bc->trees[cache_index(block, bc->num_locks)].lock);
 }
 
 static inline void cache_write_unlock(struct dm_buffer_cache *bc, sector_t block)
 {
-	up_write(&bc->trees[cache_index(block)].lock);
+	up_write(&bc->trees[cache_index(block, bc->num_locks)].lock);
 }
 
 /*
@@ -429,13 +429,15 @@ struct lock_history {
 	struct dm_buffer_cache *cache;
 	bool write;
 	unsigned int previous;
+	unsigned int no_previous;
 };
 
 static void lh_init(struct lock_history *lh, struct dm_buffer_cache *cache, bool write)
 {
 	lh->cache = cache;
 	lh->write = write;
-	lh->previous = NR_LOCKS;  /* indicates no previous */
+	lh->no_previous = cache->num_locks;
+	lh->previous = lh->no_previous;
 }
 
 static void __lh_lock(struct lock_history *lh, unsigned int index)
@@ -459,9 +461,9 @@ static void __lh_unlock(struct lock_history *lh, unsigned int index)
  */
 static void lh_exit(struct lock_history *lh)
 {
-	if (lh->previous != NR_LOCKS) {
+	if (lh->previous != lh->no_previous) {
 		__lh_unlock(lh, lh->previous);
-		lh->previous = NR_LOCKS;
+		lh->previous = lh->no_previous;
 	}
 }
 
@@ -471,9 +473,9 @@ static void lh_exit(struct lock_history *lh)
  */
 static void lh_next(struct lock_history *lh, sector_t b)
 {
-	unsigned int index = cache_index(b);
+	unsigned int index = cache_index(b, lh->no_previous); /* no_previous is num_locks */
 
-	if (lh->previous != NR_LOCKS) {
+	if (lh->previous != lh->no_previous) {
 		if (lh->previous != index) {
 			__lh_unlock(lh, lh->previous);
 			__lh_lock(lh, index);
@@ -500,11 +502,13 @@ static struct dm_buffer *list_to_buffer(struct list_head *l)
 	return le_to_buffer(le);
 }
 
-static void cache_init(struct dm_buffer_cache *bc)
+static void cache_init(struct dm_buffer_cache *bc, unsigned int num_locks)
 {
 	unsigned int i;
 
-	for (i = 0; i < NR_LOCKS; i++) {
+	bc->num_locks = num_locks;
+
+	for (i = 0; i < bc->num_locks; i++) {
 		init_rwsem(&bc->trees[i].lock);
 		bc->trees[i].root = RB_ROOT;
 	}
@@ -517,7 +521,7 @@ static void cache_destroy(struct dm_buffer_cache *bc)
 {
 	unsigned int i;
 
-	for (i = 0; i < NR_LOCKS; i++)
+	for (i = 0; i < bc->num_locks; i++)
 		WARN_ON_ONCE(!RB_EMPTY_ROOT(&bc->trees[i].root));
 
 	lru_destroy(&bc->lru[LIST_CLEAN]);
@@ -576,7 +580,7 @@ static struct dm_buffer *cache_get(struct dm_buffer_cache *bc, sector_t block)
 	struct dm_buffer *b;
 
 	cache_read_lock(bc, block);
-	b = __cache_get(&bc->trees[cache_index(block)].root, block);
+	b = __cache_get(&bc->trees[cache_index(block, bc->num_locks)].root, block);
 	if (b) {
 		lru_reference(&b->lru);
 		__cache_inc_buffer(b);
@@ -650,7 +654,7 @@ static struct dm_buffer *__cache_evict(struct dm_buffer_cache *bc, int list_mode
 
 	b = le_to_buffer(le);
 	/* __evict_pred will have locked the appropriate tree. */
-	rb_erase(&b->node, &bc->trees[cache_index(b->block)].root);
+	rb_erase(&b->node, &bc->trees[cache_index(b->block, bc->num_locks)].root);
 
 	return b;
 }
@@ -816,7 +820,7 @@ static bool cache_insert(struct dm_buffer_cache *bc, struct dm_buffer *b)
 
 	cache_write_lock(bc, b->block);
 	BUG_ON(atomic_read(&b->hold_count) != 1);
-	r = __cache_insert(&bc->trees[cache_index(b->block)].root, b);
+	r = __cache_insert(&bc->trees[cache_index(b->block, bc->num_locks)].root, b);
 	if (r)
 		lru_insert(&bc->lru[b->list_mode], &b->lru);
 	cache_write_unlock(bc, b->block);
@@ -842,7 +846,7 @@ static bool cache_remove(struct dm_buffer_cache *bc, struct dm_buffer *b)
 		r = false;
 	} else {
 		r = true;
-		rb_erase(&b->node, &bc->trees[cache_index(b->block)].root);
+		rb_erase(&b->node, &bc->trees[cache_index(b->block, bc->num_locks)].root);
 		lru_remove(&bc->lru[b->list_mode], &b->lru);
 	}
 
@@ -911,7 +915,7 @@ static void cache_remove_range(struct dm_buffer_cache *bc,
 {
 	unsigned int i;
 
-	for (i = 0; i < NR_LOCKS; i++) {
+	for (i = 0; i < bc->num_locks; i++) {
 		down_write(&bc->trees[i].lock);
 		__remove_range(bc, &bc->trees[i].root, begin, end, pred, release);
 		up_write(&bc->trees[i].lock);
@@ -2432,7 +2436,7 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 		r = -ENOMEM;
 		goto bad_client;
 	}
-	cache_init(&c->cache);
+	cache_init(&c->cache, NR_LOCKS);
 
 	c->bdev = bdev;
 	c->block_size = block_size;
