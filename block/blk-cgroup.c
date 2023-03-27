@@ -198,10 +198,10 @@ static void blkg_async_bio_workfn(struct work_struct *work)
 	bool need_plug = false;
 
 	/* as long as there are pending bios, @blkg can't go away */
-	spin_lock_bh(&blkg->async_bio_lock);
+	spin_lock(&blkg->async_bio_lock);
 	bio_list_merge(&bios, &blkg->async_bios);
 	bio_list_init(&blkg->async_bios);
-	spin_unlock_bh(&blkg->async_bio_lock);
+	spin_unlock(&blkg->async_bio_lock);
 
 	/* start plug only when bio_list contains at least 2 bios */
 	if (bios.head && bios.head->bi_next) {
@@ -1699,9 +1699,9 @@ void blkcg_punt_bio_submit(struct bio *bio)
 	struct blkcg_gq *blkg = bio->bi_blkg;
 
 	if (blkg->parent) {
-		spin_lock_bh(&blkg->async_bio_lock);
+		spin_lock(&blkg->async_bio_lock);
 		bio_list_add(&blkg->async_bios, bio);
-		spin_unlock_bh(&blkg->async_bio_lock);
+		spin_unlock(&blkg->async_bio_lock);
 		queue_work(blkcg_punt_bio_wq, &blkg->async_bio_work);
 	} else {
 		/* never bounce for the root cgroup */
