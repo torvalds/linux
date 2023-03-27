@@ -20,6 +20,7 @@
 #include <linux/completion.h>
 #include <linux/kobject.h>
 #include <linux/refcount.h>
+#include <linux/log2.h>
 
 #include "dm-stats.h"
 
@@ -227,5 +228,14 @@ void dm_free_md_mempools(struct dm_md_mempools *pools);
  * Various helpers
  */
 unsigned int dm_get_reserved_bio_based_ios(void);
+
+#define DM_HASH_LOCKS_MAX 64
+
+static inline unsigned int dm_num_hash_locks(void)
+{
+	unsigned int num_locks = roundup_pow_of_two(num_online_cpus());
+
+	return min_t(unsigned int, num_locks, DM_HASH_LOCKS_MAX);
+}
 
 #endif
