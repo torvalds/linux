@@ -241,6 +241,7 @@ static int efx_mae_get_basic_caps(struct efx_nic *efx, struct mae_caps *caps)
 	if (outlen < sizeof(outbuf))
 		return -EIO;
 	caps->match_field_count = MCDI_DWORD(outbuf, MAE_GET_CAPS_OUT_MATCH_FIELD_COUNT);
+	caps->encap_types = MCDI_DWORD(outbuf, MAE_GET_CAPS_OUT_ENCAP_TYPES_SUPPORTED);
 	caps->action_prios = MCDI_DWORD(outbuf, MAE_GET_CAPS_OUT_ACTION_PRIOS);
 	return 0;
 }
@@ -507,6 +508,25 @@ int efx_mae_check_encap_match_caps(struct efx_nic *efx, bool ipv6,
 }
 #undef CHECK
 
+int efx_mae_check_encap_type_supported(struct efx_nic *efx, enum efx_encap_type typ)
+{
+	unsigned int bit;
+
+	switch (typ & EFX_ENCAP_TYPES_MASK) {
+	case EFX_ENCAP_TYPE_VXLAN:
+		bit = MC_CMD_MAE_GET_CAPS_OUT_ENCAP_TYPE_VXLAN_LBN;
+		break;
+	case EFX_ENCAP_TYPE_GENEVE:
+		bit = MC_CMD_MAE_GET_CAPS_OUT_ENCAP_TYPE_GENEVE_LBN;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+	if (efx->tc->caps->encap_types & BIT(bit))
+		return 0;
+	return -EOPNOTSUPP;
+}
+
 int efx_mae_allocate_counter(struct efx_nic *efx, struct efx_tc_counter *cnt)
 {
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_MAE_COUNTER_ALLOC_OUT_LEN(1));
@@ -766,9 +786,10 @@ int efx_mae_alloc_action_set(struct efx_nic *efx, struct efx_tc_action_set *act)
 	size_t outlen;
 	int rc;
 
-	MCDI_POPULATE_DWORD_2(inbuf, MAE_ACTION_SET_ALLOC_IN_FLAGS,
+	MCDI_POPULATE_DWORD_3(inbuf, MAE_ACTION_SET_ALLOC_IN_FLAGS,
 			      MAE_ACTION_SET_ALLOC_IN_VLAN_PUSH, act->vlan_push,
-			      MAE_ACTION_SET_ALLOC_IN_VLAN_POP, act->vlan_pop);
+			      MAE_ACTION_SET_ALLOC_IN_VLAN_POP, act->vlan_pop,
+			      MAE_ACTION_SET_ALLOC_IN_DECAP, act->decap);
 
 	MCDI_SET_DWORD(inbuf, MAE_ACTION_SET_ALLOC_IN_SRC_MAC_ID,
 		       MC_CMD_MAE_MAC_ADDR_ALLOC_OUT_MAC_ID_NULL);

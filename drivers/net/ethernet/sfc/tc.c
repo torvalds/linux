@@ -10,11 +10,23 @@
  */
 
 #include <net/pkt_cls.h>
+#include <net/vxlan.h>
+#include <net/geneve.h>
 #include "tc.h"
 #include "tc_bindings.h"
 #include "mae.h"
 #include "ef100_rep.h"
 #include "efx.h"
+
+static enum efx_encap_type efx_tc_indr_netdev_type(struct net_device *net_dev)
+{
+	if (netif_is_vxlan(net_dev))
+		return EFX_ENCAP_TYPE_VXLAN;
+	if (netif_is_geneve(net_dev))
+		return EFX_ENCAP_TYPE_GENEVE;
+
+	return EFX_ENCAP_TYPE_NONE;
+}
 
 #define EFX_EFV_PF	NULL
 /* Look up the representor information (efv) for a device.
@@ -41,6 +53,20 @@ static struct efx_rep *efx_tc_flower_lookup_efv(struct efx_nic *efx,
 	if (efv->parent != efx)
 		return ERR_PTR(-EOPNOTSUPP);
 	return efv;
+}
+
+/* Convert a driver-internal vport ID into an internal device (PF or VF) */
+static s64 efx_tc_flower_internal_mport(struct efx_nic *efx, struct efx_rep *efv)
+{
+	u32 mport;
+
+	if (IS_ERR(efv))
+		return PTR_ERR(efv);
+	if (!efv) /* device is PF (us) */
+		efx_mae_mport_uplink(efx, &mport);
+	else /* device is repr */
+		efx_mae_mport_mport(efx, efv->mport, &mport);
+	return mport;
 }
 
 /* Convert a driver-internal vport ID into an external device (wire or VF) */
@@ -104,15 +130,6 @@ static void efx_tc_free_action_set_list(struct efx_nic *efx,
 	list_for_each_entry_safe(act, next, &acts->list, list)
 		efx_tc_free_action_set(efx, act, true);
 	/* Don't kfree, as acts is embedded inside a struct efx_tc_flow_rule */
-}
-
-static void efx_tc_delete_rule(struct efx_nic *efx, struct efx_tc_flow_rule *rule)
-{
-	efx_mae_delete_rule(efx, rule->fw_id);
-
-	/* Release entries in subsidiary tables */
-	efx_tc_free_action_set_list(efx, &rule->acts, true);
-	rule->fw_id = MC_CMD_MAE_ACTION_RULE_INSERT_OUT_ACTION_RULE_ID_NULL;
 }
 
 static void efx_tc_flow_free(void *ptr, void *arg)
@@ -346,7 +363,6 @@ static int efx_tc_flower_parse_match(struct efx_nic *efx,
 	return 0;
 }
 
-__always_unused
 static int efx_tc_flower_record_encap_match(struct efx_nic *efx,
 					    struct efx_tc_match *match,
 					    enum efx_encap_type type,
@@ -462,7 +478,6 @@ fail:
 	return rc;
 }
 
-__always_unused
 static void efx_tc_flower_release_encap_match(struct efx_nic *efx,
 					      struct efx_tc_encap_match *encap)
 {
@@ -484,8 +499,35 @@ static void efx_tc_flower_release_encap_match(struct efx_nic *efx,
 	kfree(encap);
 }
 
+static void efx_tc_delete_rule(struct efx_nic *efx, struct efx_tc_flow_rule *rule)
+{
+	efx_mae_delete_rule(efx, rule->fw_id);
+
+	/* Release entries in subsidiary tables */
+	efx_tc_free_action_set_list(efx, &rule->acts, true);
+	if (rule->match.encap)
+		efx_tc_flower_release_encap_match(efx, rule->match.encap);
+	rule->fw_id = MC_CMD_MAE_ACTION_RULE_INSERT_OUT_ACTION_RULE_ID_NULL;
+}
+
+static const char *efx_tc_encap_type_name(enum efx_encap_type typ)
+{
+	switch (typ) {
+	case EFX_ENCAP_TYPE_NONE:
+		return "none";
+	case EFX_ENCAP_TYPE_VXLAN:
+		return "vxlan";
+	case EFX_ENCAP_TYPE_GENEVE:
+		return "geneve";
+	default:
+		pr_warn_once("Unknown efx_encap_type %d encountered\n", typ);
+		return "unknown";
+	}
+}
+
 /* For details of action order constraints refer to SF-123102-TC-1§12.6.1 */
 enum efx_tc_action_order {
+	EFX_TC_AO_DECAP,
 	EFX_TC_AO_VLAN_POP,
 	EFX_TC_AO_VLAN_PUSH,
 	EFX_TC_AO_COUNT,
@@ -496,6 +538,10 @@ static bool efx_tc_flower_action_order_ok(const struct efx_tc_action_set *act,
 					  enum efx_tc_action_order new)
 {
 	switch (new) {
+	case EFX_TC_AO_DECAP:
+		if (act->decap)
+			return false;
+		fallthrough;
 	case EFX_TC_AO_VLAN_POP:
 		if (act->vlan_pop >= 2)
 			return false;
@@ -523,6 +569,286 @@ static bool efx_tc_flower_action_order_ok(const struct efx_tc_action_set *act,
 	}
 }
 
+static int efx_tc_flower_replace_foreign(struct efx_nic *efx,
+					 struct net_device *net_dev,
+					 struct flow_cls_offload *tc)
+{
+	struct flow_rule *fr = flow_cls_offload_flow_rule(tc);
+	struct netlink_ext_ack *extack = tc->common.extack;
+	struct efx_tc_flow_rule *rule = NULL, *old = NULL;
+	struct efx_tc_action_set *act = NULL;
+	bool found = false, uplinked = false;
+	const struct flow_action_entry *fa;
+	struct efx_tc_match match;
+	struct efx_rep *to_efv;
+	s64 rc;
+	int i;
+
+	/* Parse match */
+	memset(&match, 0, sizeof(match));
+	rc = efx_tc_flower_parse_match(efx, fr, &match, NULL);
+	if (rc)
+		return rc;
+	/* The rule as given to us doesn't specify a source netdevice.
+	 * But, determining whether packets from a VF should match it is
+	 * complicated, so leave those to the software slowpath: qualify
+	 * the filter with source m-port == wire.
+	 */
+	rc = efx_tc_flower_external_mport(efx, EFX_EFV_PF);
+	if (rc < 0) {
+		NL_SET_ERR_MSG_MOD(extack, "Failed to identify ingress m-port for foreign filter");
+		return rc;
+	}
+	match.value.ingress_port = rc;
+	match.mask.ingress_port = ~0;
+
+	if (tc->common.chain_index) {
+		NL_SET_ERR_MSG_MOD(extack, "No support for nonzero chain_index");
+		return -EOPNOTSUPP;
+	}
+	match.mask.recirc_id = 0xff;
+
+	flow_action_for_each(i, fa, &fr->action) {
+		switch (fa->id) {
+		case FLOW_ACTION_REDIRECT:
+		case FLOW_ACTION_MIRRED: /* mirred means mirror here */
+			to_efv = efx_tc_flower_lookup_efv(efx, fa->dev);
+			if (IS_ERR(to_efv))
+				continue;
+			found = true;
+			break;
+		default:
+			break;
+		}
+	}
+	if (!found) { /* We don't care. */
+		netif_dbg(efx, drv, efx->net_dev,
+			  "Ignoring foreign filter that doesn't egdev us\n");
+		rc = -EOPNOTSUPP;
+		goto release;
+	}
+
+	rc = efx_mae_match_check_caps(efx, &match.mask, NULL);
+	if (rc)
+		goto release;
+
+	if (efx_tc_match_is_encap(&match.mask)) {
+		enum efx_encap_type type;
+
+		type = efx_tc_indr_netdev_type(net_dev);
+		if (type == EFX_ENCAP_TYPE_NONE) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Egress encap match on unsupported tunnel device");
+			rc = -EOPNOTSUPP;
+			goto release;
+		}
+
+		rc = efx_mae_check_encap_type_supported(efx, type);
+		if (rc) {
+			NL_SET_ERR_MSG_FMT_MOD(extack,
+					       "Firmware reports no support for %s encap match",
+					       efx_tc_encap_type_name(type));
+			goto release;
+		}
+
+		rc = efx_tc_flower_record_encap_match(efx, &match, type,
+						      extack);
+		if (rc)
+			goto release;
+	} else {
+		/* This is not a tunnel decap rule, ignore it */
+		netif_dbg(efx, drv, efx->net_dev,
+			  "Ignoring foreign filter without encap match\n");
+		rc = -EOPNOTSUPP;
+		goto release;
+	}
+
+	rule = kzalloc(sizeof(*rule), GFP_USER);
+	if (!rule) {
+		rc = -ENOMEM;
+		goto release;
+	}
+	INIT_LIST_HEAD(&rule->acts.list);
+	rule->cookie = tc->cookie;
+	old = rhashtable_lookup_get_insert_fast(&efx->tc->match_action_ht,
+						&rule->linkage,
+						efx_tc_match_action_ht_params);
+	if (old) {
+		netif_dbg(efx, drv, efx->net_dev,
+			  "Ignoring already-offloaded rule (cookie %lx)\n",
+			  tc->cookie);
+		rc = -EEXIST;
+		goto release;
+	}
+
+	act = kzalloc(sizeof(*act), GFP_USER);
+	if (!act) {
+		rc = -ENOMEM;
+		goto release;
+	}
+
+	/* Parse actions.  For foreign rules we only support decap & redirect.
+	 * See corresponding code in efx_tc_flower_replace() for theory of
+	 * operation & how 'act' cursor is used.
+	 */
+	flow_action_for_each(i, fa, &fr->action) {
+		struct efx_tc_action_set save;
+
+		switch (fa->id) {
+		case FLOW_ACTION_REDIRECT:
+		case FLOW_ACTION_MIRRED:
+			/* See corresponding code in efx_tc_flower_replace() for
+			 * long explanations of what's going on here.
+			 */
+			save = *act;
+			if (fa->hw_stats) {
+				struct efx_tc_counter_index *ctr;
+
+				if (!(fa->hw_stats & FLOW_ACTION_HW_STATS_DELAYED)) {
+					NL_SET_ERR_MSG_FMT_MOD(extack,
+							       "hw_stats_type %u not supported (only 'delayed')",
+							       fa->hw_stats);
+					rc = -EOPNOTSUPP;
+					goto release;
+				}
+				if (!efx_tc_flower_action_order_ok(act, EFX_TC_AO_COUNT)) {
+					rc = -EOPNOTSUPP;
+					goto release;
+				}
+
+				ctr = efx_tc_flower_get_counter_index(efx,
+								      tc->cookie,
+								      EFX_TC_COUNTER_TYPE_AR);
+				if (IS_ERR(ctr)) {
+					rc = PTR_ERR(ctr);
+					NL_SET_ERR_MSG_MOD(extack, "Failed to obtain a counter");
+					goto release;
+				}
+				act->count = ctr;
+			}
+
+			if (!efx_tc_flower_action_order_ok(act, EFX_TC_AO_DELIVER)) {
+				/* can't happen */
+				rc = -EOPNOTSUPP;
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Deliver action violates action order (can't happen)");
+				goto release;
+			}
+			to_efv = efx_tc_flower_lookup_efv(efx, fa->dev);
+			/* PF implies egdev is us, in which case we really
+			 * want to deliver to the uplink (because this is an
+			 * ingress filter).  If we don't recognise the egdev
+			 * at all, then we'd better trap so SW can handle it.
+			 */
+			if (IS_ERR(to_efv))
+				to_efv = EFX_EFV_PF;
+			if (to_efv == EFX_EFV_PF) {
+				if (uplinked)
+					break;
+				uplinked = true;
+			}
+			rc = efx_tc_flower_internal_mport(efx, to_efv);
+			if (rc < 0) {
+				NL_SET_ERR_MSG_MOD(extack, "Failed to identify egress m-port");
+				goto release;
+			}
+			act->dest_mport = rc;
+			act->deliver = 1;
+			rc = efx_mae_alloc_action_set(efx, act);
+			if (rc) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Failed to write action set to hw (mirred)");
+				goto release;
+			}
+			list_add_tail(&act->list, &rule->acts.list);
+			act = NULL;
+			if (fa->id == FLOW_ACTION_REDIRECT)
+				break; /* end of the line */
+			/* Mirror, so continue on with saved act */
+			act = kzalloc(sizeof(*act), GFP_USER);
+			if (!act) {
+				rc = -ENOMEM;
+				goto release;
+			}
+			*act = save;
+			break;
+		case FLOW_ACTION_TUNNEL_DECAP:
+			if (!efx_tc_flower_action_order_ok(act, EFX_TC_AO_DECAP)) {
+				rc = -EINVAL;
+				NL_SET_ERR_MSG_MOD(extack, "Decap action violates action order");
+				goto release;
+			}
+			act->decap = 1;
+			/* If we previously delivered/trapped to uplink, now
+			 * that we've decapped we'll want another copy if we
+			 * try to deliver/trap to uplink again.
+			 */
+			uplinked = false;
+			break;
+		default:
+			NL_SET_ERR_MSG_FMT_MOD(extack, "Unhandled action %u",
+					       fa->id);
+			rc = -EOPNOTSUPP;
+			goto release;
+		}
+	}
+
+	if (act) {
+		if (!uplinked) {
+			/* Not shot/redirected, so deliver to default dest (which is
+			 * the uplink, as this is an ingress filter)
+			 */
+			efx_mae_mport_uplink(efx, &act->dest_mport);
+			act->deliver = 1;
+		}
+		rc = efx_mae_alloc_action_set(efx, act);
+		if (rc) {
+			NL_SET_ERR_MSG_MOD(extack, "Failed to write action set to hw (deliver)");
+			goto release;
+		}
+		list_add_tail(&act->list, &rule->acts.list);
+		act = NULL; /* Prevent double-free in error path */
+	}
+
+	rule->match = match;
+
+	netif_dbg(efx, drv, efx->net_dev,
+		  "Successfully parsed foreign filter (cookie %lx)\n",
+		  tc->cookie);
+
+	rc = efx_mae_alloc_action_set_list(efx, &rule->acts);
+	if (rc) {
+		NL_SET_ERR_MSG_MOD(extack, "Failed to write action set list to hw");
+		goto release;
+	}
+	rc = efx_mae_insert_rule(efx, &rule->match, EFX_TC_PRIO_TC,
+				 rule->acts.fw_id, &rule->fw_id);
+	if (rc) {
+		NL_SET_ERR_MSG_MOD(extack, "Failed to insert rule in hw");
+		goto release_acts;
+	}
+	return 0;
+
+release_acts:
+	efx_mae_free_action_set_list(efx, &rule->acts);
+release:
+	/* We failed to insert the rule, so free up any entries we created in
+	 * subsidiary tables.
+	 */
+	if (act)
+		efx_tc_free_action_set(efx, act, false);
+	if (rule) {
+		rhashtable_remove_fast(&efx->tc->match_action_ht,
+				       &rule->linkage,
+				       efx_tc_match_action_ht_params);
+		efx_tc_free_action_set_list(efx, &rule->acts, false);
+	}
+	kfree(rule);
+	if (match.encap)
+		efx_tc_flower_release_encap_match(efx, match.encap);
+	return rc;
+}
+
 static int efx_tc_flower_replace(struct efx_nic *efx,
 				 struct net_device *net_dev,
 				 struct flow_cls_offload *tc,
@@ -547,10 +873,8 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 
 	from_efv = efx_tc_flower_lookup_efv(efx, net_dev);
 	if (IS_ERR(from_efv)) {
-		/* Might be a tunnel decap rule from an indirect block.
-		 * Support for those not implemented yet.
-		 */
-		return -EOPNOTSUPP;
+		/* Not from our PF or representors, so probably a tunnel dev */
+		return efx_tc_flower_replace_foreign(efx, net_dev, tc);
 	}
 
 	if (efv != from_efv) {
