@@ -953,17 +953,6 @@ bool blk_update_request(struct request *req, blk_status_t error,
 }
 EXPORT_SYMBOL_GPL(blk_update_request);
 
-static void __blk_account_io_done(struct request *req, u64 now)
-{
-	const int sgrp = op_stat_group(req_op(req));
-
-	part_stat_lock();
-	update_io_ticks(req->part, jiffies, true);
-	part_stat_inc(req->part, ios[sgrp]);
-	part_stat_add(req->part, nsecs[sgrp], now - req->start_time_ns);
-	part_stat_unlock();
-}
-
 static inline void blk_account_io_done(struct request *req, u64 now)
 {
 	/*
@@ -972,8 +961,15 @@ static inline void blk_account_io_done(struct request *req, u64 now)
 	 * containing request is enough.
 	 */
 	if (blk_do_io_stat(req) && req->part &&
-	    !(req->rq_flags & RQF_FLUSH_SEQ))
-		__blk_account_io_done(req, now);
+	    !(req->rq_flags & RQF_FLUSH_SEQ)) {
+		const int sgrp = op_stat_group(req_op(req));
+
+		part_stat_lock();
+		update_io_ticks(req->part, jiffies, true);
+		part_stat_inc(req->part, ios[sgrp]);
+		part_stat_add(req->part, nsecs[sgrp], now - req->start_time_ns);
+		part_stat_unlock();
+	}
 }
 
 static inline void blk_account_io_start(struct request *req)
