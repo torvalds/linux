@@ -193,6 +193,11 @@ static int efx_tc_flower_parse_match(struct efx_nic *efx,
 	      BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_PORTS) |
+	      BIT(FLOW_DISSECTOR_KEY_ENC_KEYID) |
+	      BIT(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) |
+	      BIT(FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS) |
+	      BIT(FLOW_DISSECTOR_KEY_ENC_PORTS) |
+	      BIT(FLOW_DISSECTOR_KEY_ENC_CONTROL) |
 	      BIT(FLOW_DISSECTOR_KEY_TCP) |
 	      BIT(FLOW_DISSECTOR_KEY_IP))) {
 		NL_SET_ERR_MSG_FMT_MOD(extack, "Unsupported flower keys %#x",
@@ -280,6 +285,57 @@ static int efx_tc_flower_parse_match(struct efx_nic *efx,
 	MAP_KEY_AND_MASK(PORTS, ports, src, l4_sport);
 	MAP_KEY_AND_MASK(PORTS, ports, dst, l4_dport);
 	MAP_KEY_AND_MASK(TCP, tcp, flags, tcp_flags);
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_CONTROL)) {
+		struct flow_match_control fm;
+
+		flow_rule_match_enc_control(rule, &fm);
+		if (fm.mask->flags) {
+			NL_SET_ERR_MSG_FMT_MOD(extack, "Unsupported match on enc_control.flags %#x",
+					       fm.mask->flags);
+			return -EOPNOTSUPP;
+		}
+		if (!IS_ALL_ONES(fm.mask->addr_type)) {
+			NL_SET_ERR_MSG_FMT_MOD(extack, "Unsupported enc addr_type mask %u (key %u)",
+					       fm.mask->addr_type,
+					       fm.key->addr_type);
+			return -EOPNOTSUPP;
+		}
+		switch (fm.key->addr_type) {
+		case FLOW_DISSECTOR_KEY_IPV4_ADDRS:
+			MAP_ENC_KEY_AND_MASK(IPV4_ADDRS, ipv4_addrs, enc_ipv4_addrs,
+					     src, enc_src_ip);
+			MAP_ENC_KEY_AND_MASK(IPV4_ADDRS, ipv4_addrs, enc_ipv4_addrs,
+					     dst, enc_dst_ip);
+			break;
+#ifdef CONFIG_IPV6
+		case FLOW_DISSECTOR_KEY_IPV6_ADDRS:
+			MAP_ENC_KEY_AND_MASK(IPV6_ADDRS, ipv6_addrs, enc_ipv6_addrs,
+					     src, enc_src_ip6);
+			MAP_ENC_KEY_AND_MASK(IPV6_ADDRS, ipv6_addrs, enc_ipv6_addrs,
+					     dst, enc_dst_ip6);
+			break;
+#endif
+		default:
+			NL_SET_ERR_MSG_FMT_MOD(extack,
+					       "Unsupported enc addr_type %u (supported are IPv4, IPv6)",
+					       fm.key->addr_type);
+			return -EOPNOTSUPP;
+		}
+		MAP_ENC_KEY_AND_MASK(IP, ip, enc_ip, tos, enc_ip_tos);
+		MAP_ENC_KEY_AND_MASK(IP, ip, enc_ip, ttl, enc_ip_ttl);
+		MAP_ENC_KEY_AND_MASK(PORTS, ports, enc_ports, src, enc_sport);
+		MAP_ENC_KEY_AND_MASK(PORTS, ports, enc_ports, dst, enc_dport);
+		MAP_ENC_KEY_AND_MASK(KEYID, enc_keyid, enc_keyid, keyid, enc_keyid);
+	} else if (dissector->used_keys &
+		   (BIT(FLOW_DISSECTOR_KEY_ENC_KEYID) |
+		    BIT(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) |
+		    BIT(FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS) |
+		    BIT(FLOW_DISSECTOR_KEY_ENC_IP) |
+		    BIT(FLOW_DISSECTOR_KEY_ENC_PORTS))) {
+		NL_SET_ERR_MSG_FMT_MOD(extack, "Flower enc keys require enc_control (keys: %#x)",
+				       dissector->used_keys);
+		return -EOPNOTSUPP;
+	}
 
 	return 0;
 }
@@ -373,6 +429,11 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 	rc = efx_tc_flower_parse_match(efx, fr, &match, extack);
 	if (rc)
 		return rc;
+	if (efx_tc_match_is_encap(&match.mask)) {
+		NL_SET_ERR_MSG_MOD(extack, "Ingress enc_key matches not supported");
+		rc = -EOPNOTSUPP;
+		goto release;
+	}
 
 	if (tc->common.chain_index) {
 		NL_SET_ERR_MSG_MOD(extack, "No support for nonzero chain_index");
