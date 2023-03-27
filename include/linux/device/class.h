@@ -81,7 +81,6 @@ struct class_dev_iter {
 };
 
 extern struct kobject *sysfs_dev_block_kobj;
-extern struct kobject *sysfs_dev_char_kobj;
 
 int __must_check class_register(struct class *class);
 void class_unregister(struct class *class);

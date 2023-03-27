@@ -189,6 +189,9 @@ const char *device_get_devnode(const struct device *dev, umode_t *mode,
 extern struct kset *devices_kset;
 void devices_kset_move_last(struct device *dev);
 
+/* /sys/dev/char directory */
+extern struct kobject *sysfs_dev_char_kobj;
+
 #if defined(CONFIG_MODULES) && defined(CONFIG_SYSFS)
 void module_add_driver(struct module *mod, struct device_driver *drv);
 void module_remove_driver(struct device_driver *drv);
