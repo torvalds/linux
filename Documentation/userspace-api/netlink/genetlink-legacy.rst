@@ -234,6 +234,20 @@ specify a sub-type.
           type: binary
           struct: vport-stats
 
+C Arrays
+--------
+
+Legacy families also use ``binary`` attributes to encapsulate C arrays. The
+``sub-type`` is used to identify the type of scalar to extract.
+
+.. code-block:: yaml
+
+  attributes:
+    -
+      name: ports
+      type: binary
+      sub-type: u32
+
 Multi-message DO
 ----------------
 
