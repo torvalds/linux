@@ -70,6 +70,7 @@ struct efx_tc_encap_match {
 	__be32 src_ip, dst_ip;
 	struct in6_addr src_ip6, dst_ip6;
 	__be16 udp_dport;
+	enum efx_encap_type tun_type;
 	u32 fw_id; /* index of this entry in firmware encap match table */
 };
 

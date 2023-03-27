@@ -94,6 +94,11 @@ int efx_mae_alloc_action_set_list(struct efx_nic *efx,
 int efx_mae_free_action_set_list(struct efx_nic *efx,
 				 struct efx_tc_action_set_list *acts);
 
+int efx_mae_register_encap_match(struct efx_nic *efx,
+				 struct efx_tc_encap_match *encap);
+int efx_mae_unregister_encap_match(struct efx_nic *efx,
+				   struct efx_tc_encap_match *encap);
+
 int efx_mae_insert_rule(struct efx_nic *efx, const struct efx_tc_match *match,
 			u32 prio, u32 acts_id, u32 *id);
 int efx_mae_delete_rule(struct efx_nic *efx, u32 id);
