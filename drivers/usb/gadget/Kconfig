@@ -234,6 +234,9 @@ config USB_F_QDSS
 config USB_F_GSI
 	tristate
 
+config USB_F_DIAG
+	tristate
+
 config USB_F_FS_IPC_LOGGING
         tristate "Enable IPC logging for FunctionFS via f_fs_ipc_log"
 	depends on IPC_LOGGING
@@ -584,6 +587,16 @@ config USB_CONFIGFS_F_GSI
 	  over GSI. This driver provides USB RMNET/RNDIS/ECM/MBIM/DPL
 	  related functionalities using GSI hardware accelerated data
 	  path and control path.
+
+config USB_CONFIGFS_F_DIAG
+	tristate "USB Diag function"
+	select USB_F_DIAG
+	depends on USB_CONFIGFS
+	help
+	  Diag function driver enables support for diagnostics service over USB.
+	  Diagnostics application running on Host receives  stream of log data
+	  over USB. Applications can also send commands to diagnostics client
+	  running on device.
 
 source "drivers/usb/gadget/legacy/Kconfig"
 
