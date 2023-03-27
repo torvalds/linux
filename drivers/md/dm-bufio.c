@@ -21,6 +21,8 @@
 #include <linux/stacktrace.h>
 #include <linux/jump_label.h>
 
+#include "dm.h"
+
 #define DM_MSG_PREFIX "bufio"
 
 /*
@@ -379,8 +381,6 @@ struct dm_buffer {
  * only enough to ensure get/put are threadsafe.
  */
 
-#define NR_LOCKS 64
-
 struct buffer_tree {
 	struct rw_semaphore lock;
 	struct rb_root root;
@@ -393,7 +393,7 @@ struct dm_buffer_cache {
 	 * on the locks.
 	 */
 	unsigned int num_locks;
-	struct buffer_tree trees[NR_LOCKS];
+	struct buffer_tree trees[];
 };
 
 static inline unsigned int cache_index(sector_t block, unsigned int num_locks)
@@ -976,7 +976,7 @@ struct dm_bufio_client {
 	 */
 	unsigned long oldest_buffer;
 
-	struct dm_buffer_cache cache;
+	struct dm_buffer_cache cache; /* must be last member */
 };
 
 static DEFINE_STATIC_KEY_FALSE(no_sleep_enabled);
@@ -2422,6 +2422,7 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 					       unsigned int flags)
 {
 	int r;
+	unsigned int num_locks;
 	struct dm_bufio_client *c;
 	char slab_name[27];
 
@@ -2431,12 +2432,13 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 		goto bad_client;
 	}
 
-	c = kzalloc(sizeof(*c), GFP_KERNEL);
+	num_locks = dm_num_hash_locks();
+	c = kzalloc(sizeof(*c) + (num_locks * sizeof(struct buffer_tree)), GFP_KERNEL);
 	if (!c) {
 		r = -ENOMEM;
 		goto bad_client;
 	}
-	cache_init(&c->cache, NR_LOCKS);
+	cache_init(&c->cache, num_locks);
 
 	c->bdev = bdev;
 	c->block_size = block_size;
