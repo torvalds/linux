@@ -263,16 +263,17 @@ class SpecOperation(SpecElement):
     Information about a single Netlink operation.
 
     Attributes:
-        value       numerical ID when serialized, None if req/rsp values differ
+        value           numerical ID when serialized, None if req/rsp values differ
 
-        req_value   numerical ID when serialized, user -> kernel
-        rsp_value   numerical ID when serialized, user <- kernel
-        is_call     bool, whether the operation is a call
-        is_async    bool, whether the operation is a notification
-        is_resv     bool, whether the operation does not exist (it's just a reserved ID)
-        attr_set    attribute set name
+        req_value       numerical ID when serialized, user -> kernel
+        rsp_value       numerical ID when serialized, user <- kernel
+        is_call         bool, whether the operation is a call
+        is_async        bool, whether the operation is a notification
+        is_resv         bool, whether the operation does not exist (it's just a reserved ID)
+        attr_set        attribute set name
+        fixed_header    string, optional name of fixed header struct
 
-        yaml        raw spec as loaded from the spec file
+        yaml            raw spec as loaded from the spec file
     """
     def __init__(self, family, yaml, req_value, rsp_value):
         super().__init__(family, yaml)
@@ -284,6 +285,7 @@ class SpecOperation(SpecElement):
         self.is_call = 'do' in yaml or 'dump' in yaml
         self.is_async = 'notify' in yaml or 'event' in yaml
         self.is_resv = not self.is_async and not self.is_call
+        self.fixed_header = self.yaml.get('fixed-header', family.fixed_header)
 
         # Added by resolve:
         self.attr_set = None
@@ -324,6 +326,7 @@ class SpecFamily(SpecElement):
         msgs_by_value  dict of all messages (indexed by name)
         ops        dict of all valid requests / responses
         consts     dict of all constants/enums
+        fixed_header  string, optional name of family default fixed header struct
     """
     def __init__(self, spec_path, schema_path=None):
         with open(spec_path, "r") as stream:
@@ -397,6 +400,7 @@ class SpecFamily(SpecElement):
         self._resolution_list.append(elem)
 
     def _dictify_ops_unified(self):
+        self.fixed_header = self.yaml['operations'].get('fixed-header')
         val = 1
         for elem in self.yaml['operations']['list']:
             if 'value' in elem:
@@ -408,6 +412,7 @@ class SpecFamily(SpecElement):
             self.msgs[op.name] = op
 
     def _dictify_ops_directional(self):
+        self.fixed_header = self.yaml['operations'].get('fixed-header')
         req_val = rsp_val = 1
         for elem in self.yaml['operations']['list']:
             if 'notify' in elem:
