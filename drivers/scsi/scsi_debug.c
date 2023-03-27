@@ -7511,123 +7511,124 @@ static void sdebug_map_queues(struct Scsi_Host *shost)
 	}
 }
 
+struct sdebug_blk_mq_poll_data {
+	unsigned int queue_num;
+	int *num_entries;
+};
+
+/*
+ * We don't handle aborted commands here, but it does not seem possible to have
+ * aborted polled commands from schedule_resp()
+ */
+static bool sdebug_blk_mq_poll_iter(struct request *rq, void *opaque)
+{
+	struct sdebug_blk_mq_poll_data *data = opaque;
+	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
+	struct sdebug_scsi_cmd *sdsc = scsi_cmd_priv(cmd);
+	struct sdebug_defer *sd_dp;
+	u32 unique_tag = blk_mq_unique_tag(rq);
+	u16 hwq = blk_mq_unique_tag_to_hwq(unique_tag);
+	struct sdebug_queued_cmd *sqcp;
+	struct sdebug_queue *sqp;
+	unsigned long flags;
+	int queue_num = data->queue_num;
+	bool retiring = false;
+	int qc_idx;
+	ktime_t time;
+
+	/* We're only interested in one queue for this iteration */
+	if (hwq != queue_num)
+		return true;
+
+	/* Subsequent checks would fail if this failed, but check anyway */
+	if (!test_bit(SCMD_STATE_INFLIGHT, &cmd->state))
+		return true;
+
+	time = ktime_get_boottime();
+
+	spin_lock_irqsave(&sdsc->lock, flags);
+	sqcp = TO_QUEUED_CMD(cmd);
+	if (!sqcp) {
+		spin_unlock_irqrestore(&sdsc->lock, flags);
+		return true;
+	}
+
+	sqp = sdebug_q_arr + queue_num;
+	sd_dp = &sqcp->sd_dp;
+
+	if (READ_ONCE(sd_dp->defer_t) != SDEB_DEFER_POLL) {
+		spin_unlock_irqrestore(&sdsc->lock, flags);
+		return true;
+	}
+
+	if (time < sd_dp->cmpl_ts) {
+		spin_unlock_irqrestore(&sdsc->lock, flags);
+		return true;
+	}
+
+	if (unlikely(atomic_read(&retired_max_queue) > 0))
+		retiring = true;
+
+	qc_idx = sd_dp->sqa_idx;
+	sqp->qc_arr[qc_idx] = NULL;
+	if (unlikely(!test_and_clear_bit(qc_idx, sqp->in_use_bm))) {
+		spin_unlock_irqrestore(&sdsc->lock, flags);
+		pr_err("Unexpected completion sqp %p queue_num=%d qc_idx=%u\n",
+			sqp, queue_num, qc_idx);
+		sdebug_free_queued_cmd(sqcp);
+		return true;
+	}
+
+	if (unlikely(retiring)) {	/* user has reduced max_queue */
+		int k, retval = atomic_read(&retired_max_queue);
+
+		if (qc_idx >= retval) {
+			pr_err("index %d too large\n", retval);
+			spin_unlock_irqrestore(&sdsc->lock, flags);
+			sdebug_free_queued_cmd(sqcp);
+			return true;
+		}
+
+		k = find_last_bit(sqp->in_use_bm, retval);
+		if ((k < sdebug_max_queue) || (k == retval))
+			atomic_set(&retired_max_queue, 0);
+		else
+			atomic_set(&retired_max_queue, k + 1);
+	}
+
+	ASSIGN_QUEUED_CMD(cmd, NULL);
+	spin_unlock_irqrestore(&sdsc->lock, flags);
+
+	if (sdebug_statistics) {
+		atomic_inc(&sdebug_completions);
+		if (raw_smp_processor_id() != sd_dp->issuing_cpu)
+			atomic_inc(&sdebug_miss_cpus);
+	}
+
+	sdebug_free_queued_cmd(sqcp);
+
+	scsi_done(cmd); /* callback to mid level */
+	(*data->num_entries)++;
+	return true;
+}
+
 static int sdebug_blk_mq_poll(struct Scsi_Host *shost, unsigned int queue_num)
 {
-	bool first;
-	bool retiring = false;
 	int num_entries = 0;
-	unsigned int qc_idx = 0;
 	unsigned long iflags;
-	ktime_t kt_from_boot = ktime_get_boottime();
 	struct sdebug_queue *sqp;
-	struct sdebug_queued_cmd *sqcp;
-	struct scsi_cmnd *scp;
-	struct sdebug_defer *sd_dp;
-
+	struct sdebug_blk_mq_poll_data data = {
+		.queue_num = queue_num,
+		.num_entries = &num_entries,
+	};
 	sqp = sdebug_q_arr + queue_num;
 
 	spin_lock_irqsave(&sqp->qc_lock, iflags);
 
-	qc_idx = find_first_bit(sqp->in_use_bm, sdebug_max_queue);
-	if (qc_idx >= sdebug_max_queue)
-		goto unlock;
+	blk_mq_tagset_busy_iter(&shost->tag_set, sdebug_blk_mq_poll_iter,
+				&data);
 
-	for (first = true; first || qc_idx + 1 < sdebug_max_queue; )   {
-		unsigned long flags;
-		struct sdebug_scsi_cmd *sdsc;
-		if (first) {
-			first = false;
-			if (!test_bit(qc_idx, sqp->in_use_bm))
-				continue;
-		} else {
-			qc_idx = find_next_bit(sqp->in_use_bm, sdebug_max_queue, qc_idx + 1);
-		}
-		if (qc_idx >= sdebug_max_queue)
-			break;
-
-		sqcp = sqp->qc_arr[qc_idx];
-		if (!sqcp) {
-			pr_err("sqcp is NULL, queue_num=%d, qc_idx=%u from %s\n",
-			       queue_num, qc_idx, __func__);
-			break;
-		}
-		sd_dp = &sqcp->sd_dp;
-
-		scp = sqcp->scmd;
-		if (unlikely(scp == NULL)) {
-			pr_err("scp is NULL, queue_num=%d, qc_idx=%u from %s\n",
-			       queue_num, qc_idx, __func__);
-			break;
-		}
-		sdsc = scsi_cmd_priv(scp);
-		spin_lock_irqsave(&sdsc->lock, flags);
-		if (READ_ONCE(sd_dp->defer_t) == SDEB_DEFER_POLL) {
-			struct sdebug_queued_cmd *_sqcp = TO_QUEUED_CMD(scp);
-
-			if (_sqcp != sqcp) {
-				pr_err("inconsistent queued cmd tag=%#x\n",
-				       blk_mq_unique_tag(scsi_cmd_to_rq(scp)));
-				spin_unlock_irqrestore(&sdsc->lock, flags);
-				continue;
-			}
-
-			if (kt_from_boot < sd_dp->cmpl_ts) {
-				spin_unlock_irqrestore(&sdsc->lock, flags);
-				continue;
-			}
-
-		} else		/* ignoring non REQ_POLLED requests */ {
-			spin_unlock_irqrestore(&sdsc->lock, flags);
-			continue;
-		}
-		if (unlikely(atomic_read(&retired_max_queue) > 0))
-			retiring = true;
-
-		if (unlikely(!test_and_clear_bit(qc_idx, sqp->in_use_bm))) {
-			spin_unlock_irqrestore(&sdsc->lock, flags);
-			pr_err("Unexpected completion sqp %p queue_num=%d qc_idx=%u from %s\n",
-				sqp, queue_num, qc_idx, __func__);
-			sdebug_free_queued_cmd(sqcp);
-			break;
-		}
-		sqp->qc_arr[qc_idx] = NULL;
-		if (unlikely(retiring)) {	/* user has reduced max_queue */
-			int k, retval;
-
-			retval = atomic_read(&retired_max_queue);
-			if (qc_idx >= retval) {
-				pr_err("index %d too large\n", retval);
-				spin_unlock_irqrestore(&sdsc->lock, flags);
-				sdebug_free_queued_cmd(sqcp);
-				break;
-			}
-			k = find_last_bit(sqp->in_use_bm, retval);
-			if ((k < sdebug_max_queue) || (k == retval))
-				atomic_set(&retired_max_queue, 0);
-			else
-				atomic_set(&retired_max_queue, k + 1);
-		}
-		spin_unlock_irqrestore(&sdsc->lock, flags);
-		spin_unlock_irqrestore(&sqp->qc_lock, iflags);
-
-		if (sdebug_statistics) {
-			atomic_inc(&sdebug_completions);
-			if (raw_smp_processor_id() != sd_dp->issuing_cpu)
-				atomic_inc(&sdebug_miss_cpus);
-		}
-
-		sdebug_free_queued_cmd(sqcp);
-
-		scsi_done(scp); /* callback to mid level */
-		num_entries++;
-		spin_lock_irqsave(&sqp->qc_lock, iflags);
-		if (find_first_bit(sqp->in_use_bm, sdebug_max_queue) >= sdebug_max_queue)
-			break;
-	}
-
-unlock:
 	spin_unlock_irqrestore(&sqp->qc_lock, iflags);
-
 	if (num_entries > 0)
 		atomic_add(num_entries, &sdeb_mq_poll_count);
 	return num_entries;
