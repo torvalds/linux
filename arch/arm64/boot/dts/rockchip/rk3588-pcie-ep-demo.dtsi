@@ -81,8 +81,11 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
-		dma_trans: dma-trans@3c000000 {
-			reg = <0x0 0x3c000000 0x0 0x04000000>;
+		bar0_region: bar0-region@3c000000 {
+			reg = <0x0 0x3c000000 0x0 0x00400000>;
+		};
+		bar2_region: bar2-region@40000000 {
+			reg = <0x0 0x40000000 0x0 0x04000000>;
 		};
 	};
 
@@ -428,7 +431,8 @@
 
 &pcie3x4 {
 	compatible = "rockchip,rk3588-pcie-std-ep";
-	memory-region = <&dma_trans>;
+	memory-region = <&bar0_region>, <&bar2_region>;
+	memory-region-names = "bar0", "bar2";
 	status = "okay";
 };
 
