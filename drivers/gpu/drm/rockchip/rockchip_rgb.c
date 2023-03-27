@@ -138,6 +138,7 @@ struct rockchip_rgb {
 	struct regmap *grf;
 	bool data_sync_bypass;
 	bool is_mcu_panel;
+	bool phy_enabled;
 	const struct rockchip_rgb_funcs *funcs;
 	struct rockchip_drm_sub_dev sub_dev;
 };
@@ -222,8 +223,10 @@ static void rockchip_rgb_encoder_enable(struct drm_encoder *encoder)
 	if (rgb->funcs && rgb->funcs->enable)
 		rgb->funcs->enable(rgb);
 
-	if (rgb->phy)
+	if (rgb->phy && !rgb->phy_enabled) {
 		phy_power_on(rgb->phy);
+		rgb->phy_enabled = true;
+	}
 
 	if (rgb->panel) {
 		drm_panel_prepare(rgb->panel);
@@ -240,8 +243,10 @@ static void rockchip_rgb_encoder_disable(struct drm_encoder *encoder)
 		drm_panel_unprepare(rgb->panel);
 	}
 
-	if (rgb->phy)
+	if (rgb->phy && rgb->phy_enabled) {
 		phy_power_off(rgb->phy);
+		rgb->phy_enabled = false;
+	}
 
 	if (rgb->funcs && rgb->funcs->disable)
 		rgb->funcs->disable(rgb);
@@ -329,6 +334,20 @@ static int rockchip_rgb_encoder_loader_protect(struct drm_encoder *encoder,
 
 	if (rgb->panel)
 		panel_simple_loader_protect(rgb->panel);
+
+	if (on) {
+		phy_init(rgb->phy);
+		if (rgb->phy) {
+			rgb->phy->power_count++;
+			rgb->phy_enabled = true;
+		}
+	} else {
+		phy_exit(rgb->phy);
+		if (rgb->phy) {
+			rgb->phy->power_count--;
+			rgb->phy_enabled = false;
+		}
+	}
 
 	return 0;
 }
