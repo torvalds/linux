@@ -4116,13 +4116,14 @@ static void write_dev_flush(struct btrfs_device *device)
 
 /*
  * If the flush bio has been submitted by write_dev_flush, wait for it.
+ * Return true for any error, and false otherwise.
  */
-static blk_status_t wait_dev_flush(struct btrfs_device *device)
+static bool wait_dev_flush(struct btrfs_device *device)
 {
 	struct bio *bio = &device->flush_bio;
 
 	if (!test_bit(BTRFS_DEV_STATE_FLUSH_SENT, &device->dev_state))
-		return BLK_STS_OK;
+		return false;
 
 	clear_bit(BTRFS_DEV_STATE_FLUSH_SENT, &device->dev_state);
 	wait_for_completion_io(&device->flush_wait);
@@ -4130,9 +4131,10 @@ static blk_status_t wait_dev_flush(struct btrfs_device *device)
 	if (bio->bi_status) {
 		device->last_flush_error = bio->bi_status;
 		btrfs_dev_stat_inc_and_print(device, BTRFS_DEV_STAT_FLUSH_ERRS);
+		return true;
 	}
 
-	return bio->bi_status;
+	return false;
 }
 
 /*
@@ -4144,7 +4146,6 @@ static int barrier_all_devices(struct btrfs_fs_info *info)
 	struct list_head *head;
 	struct btrfs_device *dev;
 	int errors_wait = 0;
-	blk_status_t ret;
 
 	lockdep_assert_held(&info->fs_devices->device_list_mutex);
 	/* send down all the barriers */
@@ -4173,8 +4174,7 @@ static int barrier_all_devices(struct btrfs_fs_info *info)
 		    !test_bit(BTRFS_DEV_STATE_WRITEABLE, &dev->dev_state))
 			continue;
 
-		ret = wait_dev_flush(dev);
-		if (ret)
+		if (wait_dev_flush(dev))
 			errors_wait++;
 	}
 
