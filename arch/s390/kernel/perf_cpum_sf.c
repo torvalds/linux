@@ -1663,9 +1663,6 @@ static void hw_collect_aux(struct cpu_hw_sf *cpuhw)
 			pr_err("The AUX buffer with %lu pages for the "
 			       "diagnostic-sampling mode is full\n",
 				num_sdb);
-			debug_sprintf_event(sfdbg, 1,
-					    "%s: AUX buffer used up\n",
-					    __func__);
 			break;
 		}
 		if (WARN_ON_ONCE(!aux))
