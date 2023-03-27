@@ -598,25 +598,8 @@ void rtl92e_set_wireless_mode(struct net_device *dev, u8 wireless_mode)
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u8 support_mode = (WIRELESS_MODE_N_24G | WIRELESS_MODE_G | WIRELESS_MODE_B);
 
-	if ((wireless_mode == WIRELESS_MODE_AUTO) ||
-	    ((wireless_mode & support_mode) == 0)) {
-		if (support_mode & WIRELESS_MODE_N_24G) {
-			wireless_mode = WIRELESS_MODE_N_24G;
-		} else if (support_mode & WIRELESS_MODE_N_5G) {
-			wireless_mode = WIRELESS_MODE_N_5G;
-		} else if ((support_mode & WIRELESS_MODE_A)) {
-			wireless_mode = WIRELESS_MODE_A;
-		} else if ((support_mode & WIRELESS_MODE_G)) {
-			wireless_mode = WIRELESS_MODE_G;
-		} else if ((support_mode & WIRELESS_MODE_B)) {
-			wireless_mode = WIRELESS_MODE_B;
-		} else {
-			netdev_info(dev,
-				    "%s(): Unsupported mode requested. Fallback to 802.11b\n",
-				    __func__);
-			wireless_mode = WIRELESS_MODE_B;
-		}
-	}
+	if ((wireless_mode == WIRELESS_MODE_AUTO) || ((wireless_mode & support_mode) == 0))
+		wireless_mode = WIRELESS_MODE_N_24G;
 
 	if ((wireless_mode & (WIRELESS_MODE_B | WIRELESS_MODE_G)) ==
 	    (WIRELESS_MODE_G | WIRELESS_MODE_B))
