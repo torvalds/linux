@@ -86,6 +86,7 @@
 
 /* AM65_CPSW_P0_REG_CTL */
 #define AM65_CPSW_P0_REG_CTL_RX_CHECKSUM_EN	BIT(0)
+#define AM65_CPSW_P0_REG_CTL_RX_REMAP_VLAN	BIT(16)
 
 /* AM65_CPSW_PORT_REG_PRI_CTL */
 #define AM65_CPSW_PORT_REG_PRI_CTL_RX_PTYPE_RROBIN	BIT(8)
@@ -385,8 +386,8 @@ static int am65_cpsw_nuss_common_open(struct am65_cpsw_common *common)
 	/* set base flow_id */
 	writel(common->rx_flow_id_base,
 	       host_p->port_base + AM65_CPSW_PORT0_REG_FLOW_ID_OFFSET);
-	/* en tx crc offload */
-	writel(AM65_CPSW_P0_REG_CTL_RX_CHECKSUM_EN, host_p->port_base + AM65_CPSW_P0_REG_CTL);
+	writel(AM65_CPSW_P0_REG_CTL_RX_CHECKSUM_EN | AM65_CPSW_P0_REG_CTL_RX_REMAP_VLAN,
+	       host_p->port_base + AM65_CPSW_P0_REG_CTL);
 
 	am65_cpsw_nuss_set_p0_ptype(common);
 
