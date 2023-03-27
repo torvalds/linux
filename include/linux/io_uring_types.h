@@ -367,6 +367,11 @@ struct io_ring_ctx {
 	unsigned			evfd_last_cq_tail;
 };
 
+struct io_tw_state {
+	/* ->uring_lock is taken, callbacks can use io_tw_lock to lock it */
+	bool locked;
+};
+
 enum {
 	REQ_F_FIXED_FILE_BIT	= IOSQE_FIXED_FILE_BIT,
 	REQ_F_IO_DRAIN_BIT	= IOSQE_IO_DRAIN_BIT,
@@ -473,7 +478,7 @@ enum {
 	REQ_F_HASH_LOCKED	= BIT(REQ_F_HASH_LOCKED_BIT),
 };
 
-typedef void (*io_req_tw_func_t)(struct io_kiocb *req, bool *locked);
+typedef void (*io_req_tw_func_t)(struct io_kiocb *req, struct io_tw_state *ts);
 
 struct io_task_work {
 	struct llist_node		node;

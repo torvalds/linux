@@ -101,9 +101,9 @@ __cold void io_flush_timeouts(struct io_ring_ctx *ctx)
 	spin_unlock_irq(&ctx->timeout_lock);
 }
 
-static void io_req_tw_fail_links(struct io_kiocb *link, bool *locked)
+static void io_req_tw_fail_links(struct io_kiocb *link, struct io_tw_state *ts)
 {
-	io_tw_lock(link->ctx, locked);
+	io_tw_lock(link->ctx, ts);
 	while (link) {
 		struct io_kiocb *nxt = link->link;
 		long res = -ECANCELED;
@@ -112,7 +112,7 @@ static void io_req_tw_fail_links(struct io_kiocb *link, bool *locked)
 			res = link->cqe.res;
 		link->link = NULL;
 		io_req_set_res(link, res, 0);
-		io_req_task_complete(link, locked);
+		io_req_task_complete(link, ts);
 		link = nxt;
 	}
 }
@@ -265,9 +265,9 @@ int io_timeout_cancel(struct io_ring_ctx *ctx, struct io_cancel_data *cd)
 	return 0;
 }
 
-static void io_req_task_link_timeout(struct io_kiocb *req, bool *locked)
+static void io_req_task_link_timeout(struct io_kiocb *req, struct io_tw_state *ts)
 {
-	unsigned issue_flags = *locked ? 0 : IO_URING_F_UNLOCKED;
+	unsigned issue_flags = ts->locked ? 0 : IO_URING_F_UNLOCKED;
 	struct io_timeout *timeout = io_kiocb_to_cmd(req, struct io_timeout);
 	struct io_kiocb *prev = timeout->prev;
 	int ret = -ENOENT;
@@ -282,11 +282,11 @@ static void io_req_task_link_timeout(struct io_kiocb *req, bool *locked)
 			ret = io_try_cancel(req->task->io_uring, &cd, issue_flags);
 		}
 		io_req_set_res(req, ret ?: -ETIME, 0);
-		io_req_task_complete(req, locked);
+		io_req_task_complete(req, ts);
 		io_put_req(prev);
 	} else {
 		io_req_set_res(req, -ETIME, 0);
-		io_req_task_complete(req, locked);
+		io_req_task_complete(req, ts);
 	}
 }
 

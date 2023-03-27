@@ -9,7 +9,7 @@
 #include "notif.h"
 #include "rsrc.h"
 
-static void io_notif_complete_tw_ext(struct io_kiocb *notif, bool *locked)
+static void io_notif_complete_tw_ext(struct io_kiocb *notif, struct io_tw_state *ts)
 {
 	struct io_notif_data *nd = io_notif_to_data(notif);
 	struct io_ring_ctx *ctx = notif->ctx;
@@ -21,7 +21,7 @@ static void io_notif_complete_tw_ext(struct io_kiocb *notif, bool *locked)
 		__io_unaccount_mem(ctx->user, nd->account_pages);
 		nd->account_pages = 0;
 	}
-	io_req_task_complete(notif, locked);
+	io_req_task_complete(notif, ts);
 }
 
 static void io_tx_ubuf_callback(struct sk_buff *skb, struct ubuf_info *uarg,
