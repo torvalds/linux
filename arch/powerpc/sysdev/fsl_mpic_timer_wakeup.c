@@ -117,7 +117,7 @@ static struct device_attribute mpic_attributes = __ATTR(timer_wakeup, 0644,
 static int __init fsl_wakeup_sys_init(void)
 {
 	struct device *dev_root;
-	int ret;
+	int ret = -EINVAL;
 
 	fsl_wakeup = kzalloc(sizeof(struct fsl_mpic_timer_wakeup), GFP_KERNEL);
 	if (!fsl_wakeup)
