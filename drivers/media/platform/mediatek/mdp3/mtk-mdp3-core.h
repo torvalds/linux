@@ -56,6 +56,7 @@ struct mtk_mdp_driver_data {
 	const u32 *mdp_mutex_table_idx;
 	const struct mdp_comp_data *comp_data;
 	unsigned int comp_data_len;
+	const struct of_device_id *mdp_sub_comp_dt_ids;
 };
 
 struct mdp_dev {
