@@ -762,7 +762,6 @@ static int sdebug_max_luns = DEF_MAX_LUNS;
 static int sdebug_max_queue = SDEBUG_CANQUEUE;	/* per submit queue */
 static unsigned int sdebug_medium_error_start = OPT_MEDIUM_ERR_ADDR;
 static int sdebug_medium_error_count = OPT_MEDIUM_ERR_NUM;
-static atomic_t retired_max_queue;	/* if > 0 then was prior max_queue */
 static int sdebug_ndelay = DEF_NDELAY;	/* if > 0 then unit is nanoseconds */
 static int sdebug_no_lun_0 = DEF_NO_LUN_0;
 static int sdebug_no_uld;
@@ -4928,7 +4927,6 @@ static void sdebug_q_cmd_complete(struct sdebug_defer *sd_dp)
 {
 	struct sdebug_queued_cmd *sqcp = container_of(sd_dp, struct sdebug_queued_cmd, sd_dp);
 	int qc_idx;
-	int retiring = 0;
 	unsigned long flags, iflags;
 	struct scsi_cmnd *scp = sqcp->scmd;
 	struct sdebug_scsi_cmd *sdsc;
@@ -4959,32 +4957,12 @@ static void sdebug_q_cmd_complete(struct sdebug_defer *sd_dp)
 		sd_dp->aborted = false;
 	ASSIGN_QUEUED_CMD(scp, NULL);
 
-	if (unlikely(atomic_read(&retired_max_queue) > 0))
-		retiring = 1;
-
 	sqp->qc_arr[qc_idx] = NULL;
 	if (unlikely(!test_and_clear_bit(qc_idx, sqp->in_use_bm))) {
 		spin_unlock_irqrestore(&sdsc->lock, flags);
 		spin_unlock_irqrestore(&sqp->qc_lock, iflags);
 		pr_err("Unexpected completion qc_idx=%d\n", qc_idx);
 		goto out;
-	}
-
-	if (unlikely(retiring)) {	/* user has reduced max_queue */
-		int k, retval;
-
-		retval = atomic_read(&retired_max_queue);
-		if (qc_idx >= retval) {
-			spin_unlock_irqrestore(&sdsc->lock, flags);
-			spin_unlock_irqrestore(&sqp->qc_lock, iflags);
-			pr_err("index %d too large\n", retval);
-			goto out;
-		}
-		k = find_last_bit(sqp->in_use_bm, retval);
-		if ((k < sdebug_max_queue) || (k == retval))
-			atomic_set(&retired_max_queue, 0);
-		else
-			atomic_set(&retired_max_queue, k + 1);
 	}
 
 	spin_unlock_irqrestore(&sdsc->lock, flags);
@@ -6431,29 +6409,18 @@ static ssize_t max_queue_show(struct device_driver *ddp, char *buf)
 static ssize_t max_queue_store(struct device_driver *ddp, const char *buf,
 			       size_t count)
 {
-	int j, n, k, a;
-	struct sdebug_queue *sqp;
+	int n;
 
 	if ((count > 0) && (1 == sscanf(buf, "%d", &n)) && (n > 0) &&
 	    (n <= SDEBUG_CANQUEUE) &&
 	    (sdebug_host_max_queue == 0)) {
 		mutex_lock(&sdebug_host_list_mutex);
-		block_unblock_all_queues(true);
-		k = 0;
-		for (j = 0, sqp = sdebug_q_arr; j < submit_queues;
-		     ++j, ++sqp) {
-			a = find_last_bit(sqp->in_use_bm, SDEBUG_CANQUEUE);
-			if (a > k)
-				k = a;
-		}
-		sdebug_max_queue = n;
-		if (k == SDEBUG_CANQUEUE)
-			atomic_set(&retired_max_queue, 0);
-		else if (k >= n)
-			atomic_set(&retired_max_queue, k + 1);
+
+		/* We may only change sdebug_max_queue when we have no shosts */
+		if (list_empty(&sdebug_host_list))
+			sdebug_max_queue = n;
 		else
-			atomic_set(&retired_max_queue, 0);
-		block_unblock_all_queues(false);
+			count = -EBUSY;
 		mutex_unlock(&sdebug_host_list_mutex);
 		return count;
 	}
@@ -6882,7 +6849,6 @@ static int __init scsi_debug_init(void)
 
 	ramdisk_lck_a[0] = &atomic_rw;
 	ramdisk_lck_a[1] = &atomic_rw2;
-	atomic_set(&retired_max_queue, 0);
 
 	if (sdebug_ndelay >= 1000 * 1000 * 1000) {
 		pr_warn("ndelay must be less than 1 second, ignored\n");
@@ -7520,7 +7486,6 @@ static bool sdebug_blk_mq_poll_iter(struct request *rq, void *opaque)
 	struct sdebug_queue *sqp;
 	unsigned long flags;
 	int queue_num = data->queue_num;
-	bool retiring = false;
 	int qc_idx;
 	ktime_t time;
 
@@ -7554,9 +7519,6 @@ static bool sdebug_blk_mq_poll_iter(struct request *rq, void *opaque)
 		return true;
 	}
 
-	if (unlikely(atomic_read(&retired_max_queue) > 0))
-		retiring = true;
-
 	qc_idx = sd_dp->sqa_idx;
 	sqp->qc_arr[qc_idx] = NULL;
 	if (unlikely(!test_and_clear_bit(qc_idx, sqp->in_use_bm))) {
@@ -7565,23 +7527,6 @@ static bool sdebug_blk_mq_poll_iter(struct request *rq, void *opaque)
 			sqp, queue_num, qc_idx);
 		sdebug_free_queued_cmd(sqcp);
 		return true;
-	}
-
-	if (unlikely(retiring)) {	/* user has reduced max_queue */
-		int k, retval = atomic_read(&retired_max_queue);
-
-		if (qc_idx >= retval) {
-			pr_err("index %d too large\n", retval);
-			spin_unlock_irqrestore(&sdsc->lock, flags);
-			sdebug_free_queued_cmd(sqcp);
-			return true;
-		}
-
-		k = find_last_bit(sqp->in_use_bm, retval);
-		if ((k < sdebug_max_queue) || (k == retval))
-			atomic_set(&retired_max_queue, 0);
-		else
-			atomic_set(&retired_max_queue, k + 1);
 	}
 
 	ASSIGN_QUEUED_CMD(cmd, NULL);
