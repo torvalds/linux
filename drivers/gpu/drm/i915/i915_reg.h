@@ -1397,7 +1397,8 @@
 #define IVB_FBC_RT_BASE_UPPER		_MMIO(0x7024)
 
 #define IPS_CTL		_MMIO(0x43408)
-#define   IPS_ENABLE	(1 << 31)
+#define   IPS_ENABLE		REG_BIT(31)
+#define   IPS_FALSE_COLOR	REG_BIT(4)
 
 #define MSG_FBC_REND_STATE(fbc_id)	_MMIO_PIPE((fbc_id), 0x50380, 0x50384)
 #define   FBC_REND_NUKE			REG_BIT(2)

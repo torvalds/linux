@@ -419,6 +419,10 @@ struct intel_display {
 	} hti;
 
 	struct {
+		bool false_color;
+	} ips;
+
+	struct {
 		struct i915_power_domains domains;
 
 		/* Shadow for DISPLAY_PHY_CONTROL which can't be safely read */
