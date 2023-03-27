@@ -2613,6 +2613,20 @@ static const struct b53_chip_data b53_switch_chips[] = {
 		.jumbo_pm_reg = B53_JUMBO_PORT_MASK,
 		.jumbo_size_reg = B53_JUMBO_MAX_SIZE,
 	},
+	{
+		.chip_id = BCM53134_DEVICE_ID,
+		.dev_name = "BCM53134",
+		.vlans = 4096,
+		.enabled_ports = 0x12f,
+		.imp_port = 8,
+		.cpu_port = B53_CPU_PORT,
+		.vta_regs = B53_VTA_REGS,
+		.arl_bins = 4,
+		.arl_buckets = 1024,
+		.duplex_reg = B53_DUPLEX_STAT_GE,
+		.jumbo_pm_reg = B53_JUMBO_PORT_MASK,
+		.jumbo_size_reg = B53_JUMBO_MAX_SIZE,
+	},
 };
 
 static int b53_switch_init(struct b53_device *dev)
@@ -2790,6 +2804,7 @@ int b53_switch_detect(struct b53_device *dev)
 		case BCM53012_DEVICE_ID:
 		case BCM53018_DEVICE_ID:
 		case BCM53019_DEVICE_ID:
+		case BCM53134_DEVICE_ID:
 			dev->chip_id = id32;
 			break;
 		default:
