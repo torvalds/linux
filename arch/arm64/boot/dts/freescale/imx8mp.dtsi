@@ -409,6 +409,30 @@
 				status = "disabled";
 			};
 
+			gpt1: timer@302d0000 {
+				compatible = "fsl,imx8mp-gpt", "fsl,imx6dl-gpt";
+				reg = <0x302d0000 0x10000>;
+				interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX8MP_CLK_GPT1_ROOT>, <&clk IMX8MP_CLK_GPT1>;
+				clock-names = "ipg", "per";
+			};
+
+			gpt2: timer@302e0000 {
+				compatible = "fsl,imx8mp-gpt", "fsl,imx6dl-gpt";
+				reg = <0x302e0000 0x10000>;
+				interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX8MP_CLK_GPT2_ROOT>, <&clk IMX8MP_CLK_GPT2>;
+				clock-names = "ipg", "per";
+			};
+
+			gpt3: timer@302f0000 {
+				compatible = "fsl,imx8mp-gpt", "fsl,imx6dl-gpt";
+				reg = <0x302f0000 0x10000>;
+				interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX8MP_CLK_GPT3_ROOT>, <&clk IMX8MP_CLK_GPT3>;
+				clock-names = "ipg", "per";
+			};
+
 			iomuxc: pinctrl@30330000 {
 				compatible = "fsl,imx8mp-iomuxc";
 				reg = <0x30330000 0x10000>;
@@ -721,6 +745,30 @@
 				interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&osc_24m>;
 				clock-names = "per";
+			};
+
+			gpt6: timer@306e0000 {
+				compatible = "fsl,imx8mp-gpt", "fsl,imx6dl-gpt";
+				reg = <0x306e0000 0x10000>;
+				interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX8MP_CLK_GPT6_ROOT>, <&clk IMX8MP_CLK_GPT6>;
+				clock-names = "ipg", "per";
+			};
+
+			gpt5: timer@306f0000 {
+				compatible = "fsl,imx8mp-gpt", "fsl,imx6dl-gpt";
+				reg = <0x306f0000 0x10000>;
+				interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX8MP_CLK_GPT5_ROOT>, <&clk IMX8MP_CLK_GPT5>;
+				clock-names = "ipg", "per";
+			};
+
+			gpt4: timer@30700000 {
+				compatible = "fsl,imx8mp-gpt", "fsl,imx6dl-gpt";
+				reg = <0x30700000 0x10000>;
+				interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX8MP_CLK_GPT4_ROOT>, <&clk IMX8MP_CLK_GPT4>;
+				clock-names = "ipg", "per";
 			};
 		};
 
