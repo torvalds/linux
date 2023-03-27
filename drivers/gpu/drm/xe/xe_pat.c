@@ -32,7 +32,7 @@
 #define TGL_PAT_WC				REG_FIELD_PREP(TGL_MEM_TYPE_MASK, 1)
 #define TGL_PAT_UC				REG_FIELD_PREP(TGL_MEM_TYPE_MASK, 0)
 
-const u32 tgl_pat_table[] = {
+static const u32 tgl_pat_table[] = {
 	[0] = TGL_PAT_WB,
 	[1] = TGL_PAT_WC,
 	[2] = TGL_PAT_WT,
@@ -43,7 +43,7 @@ const u32 tgl_pat_table[] = {
 	[7] = TGL_PAT_WB,
 };
 
-const u32 pvc_pat_table[] = {
+static const u32 pvc_pat_table[] = {
 	[0] = TGL_PAT_UC,
 	[1] = TGL_PAT_WC,
 	[2] = TGL_PAT_WT,
@@ -54,7 +54,7 @@ const u32 pvc_pat_table[] = {
 	[7] = PVC_PAT_CLOS(2) | TGL_PAT_WB,
 };
 
-const u32 mtl_pat_table[] = {
+static const u32 mtl_pat_table[] = {
 	[0] = MTL_PAT_0_WB,
 	[1] = MTL_PAT_1_WT,
 	[2] = MTL_PAT_3_UC,
