@@ -25,6 +25,7 @@ ENTRY(startup_continue)
 	larl	%r14,init_task
 	stg	%r14,__LC_CURRENT
 	larl	%r15,init_thread_union+STACK_INIT_OFFSET
+	stg	%r15,__LC_KERNEL_STACK
 	brasl	%r14,sclp_early_adjust_va	# allow sclp_early_printk
 	brasl	%r14,startup_init		# s390 specific early init
 	brasl	%r14,start_kernel		# common init code
