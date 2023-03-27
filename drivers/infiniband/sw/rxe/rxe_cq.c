@@ -39,21 +39,6 @@ err1:
 	return -EINVAL;
 }
 
-static void rxe_send_complete(struct tasklet_struct *t)
-{
-	struct rxe_cq *cq = from_tasklet(cq, t, comp_task);
-	unsigned long flags;
-
-	spin_lock_irqsave(&cq->cq_lock, flags);
-	if (cq->is_dying) {
-		spin_unlock_irqrestore(&cq->cq_lock, flags);
-		return;
-	}
-	spin_unlock_irqrestore(&cq->cq_lock, flags);
-
-	cq->ibcq.comp_handler(&cq->ibcq, cq->ibcq.cq_context);
-}
-
 int rxe_cq_from_init(struct rxe_dev *rxe, struct rxe_cq *cq, int cqe,
 		     int comp_vector, struct ib_udata *udata,
 		     struct rxe_create_cq_resp __user *uresp)
@@ -79,10 +64,6 @@ int rxe_cq_from_init(struct rxe_dev *rxe, struct rxe_cq *cq, int cqe,
 
 	cq->is_user = uresp;
 
-	cq->is_dying = false;
-
-	tasklet_setup(&cq->comp_task, rxe_send_complete);
-
 	spin_lock_init(&cq->cq_lock);
 	cq->ibcq.cqe = cqe;
 	return 0;
@@ -103,6 +84,7 @@ int rxe_cq_resize_queue(struct rxe_cq *cq, int cqe,
 	return err;
 }
 
+/* caller holds reference to cq */
 int rxe_cq_post(struct rxe_cq *cq, struct rxe_cqe *cqe, int solicited)
 {
 	struct ib_event ev;
@@ -136,19 +118,11 @@ int rxe_cq_post(struct rxe_cq *cq, struct rxe_cqe *cqe, int solicited)
 	if ((cq->notify == IB_CQ_NEXT_COMP) ||
 	    (cq->notify == IB_CQ_SOLICITED && solicited)) {
 		cq->notify = 0;
-		tasklet_schedule(&cq->comp_task);
+
+		cq->ibcq.comp_handler(&cq->ibcq, cq->ibcq.cq_context);
 	}
 
 	return 0;
-}
-
-void rxe_cq_disable(struct rxe_cq *cq)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&cq->cq_lock, flags);
-	cq->is_dying = true;
-	spin_unlock_irqrestore(&cq->cq_lock, flags);
 }
 
 void rxe_cq_cleanup(struct rxe_pool_elem *elem)

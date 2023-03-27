@@ -1178,8 +1178,6 @@ static int rxe_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 		goto err_out;
 	}
 
-	rxe_cq_disable(cq);
-
 	err = rxe_cleanup(cq);
 	if (err)
 		rxe_err_cq(cq, "cleanup failed, err = %d", err);
