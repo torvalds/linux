@@ -41,6 +41,9 @@ config BLK_RQ_ALLOC_TIME
 config BLK_CGROUP_RWSTAT
 	bool
 
+config BLK_CGROUP_PUNT_BIO
+	bool
+
 config BLK_DEV_BSG_COMMON
 	tristate
 
