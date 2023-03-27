@@ -497,7 +497,7 @@ static int int3400_thermal_get_temp(struct thermal_zone_device *thermal,
 static int int3400_thermal_change_mode(struct thermal_zone_device *thermal,
 				       enum thermal_device_mode mode)
 {
-	struct int3400_thermal_priv *priv = thermal->devdata;
+	struct int3400_thermal_priv *priv = thermal_zone_device_priv(thermal);
 	int result = 0;
 
 	if (!priv)
