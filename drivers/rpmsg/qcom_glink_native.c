@@ -16,6 +16,7 @@
 #include <linux/rpmsg.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
+#include <linux/wait.h>
 #include <linux/workqueue.h>
 #include <linux/mailbox_client.h>
 
@@ -145,7 +146,7 @@ enum {
  * @open_req:	completed once open-request has been received
  * @intent_req_lock: Synchronises multiple intent requests
  * @intent_req_result: Result of intent request
- * @intent_req_comp: Completion for intent_req signalling
+ * @intent_req_wq: wait queue for intent_req signalling
  */
 struct glink_channel {
 	struct rpmsg_endpoint ept;
@@ -175,8 +176,8 @@ struct glink_channel {
 	struct completion open_req;
 
 	struct mutex intent_req_lock;
-	bool intent_req_result;
-	struct completion intent_req_comp;
+	int intent_req_result;
+	wait_queue_head_t intent_req_wq;
 };
 
 #define to_glink_channel(_ept) container_of(_ept, struct glink_channel, ept)
@@ -221,7 +222,7 @@ static struct glink_channel *qcom_glink_alloc_channel(struct qcom_glink *glink,
 
 	init_completion(&channel->open_req);
 	init_completion(&channel->open_ack);
-	init_completion(&channel->intent_req_comp);
+	init_waitqueue_head(&channel->intent_req_wq);
 
 	INIT_LIST_HEAD(&channel->done_intents);
 	INIT_WORK(&channel->intent_work, qcom_glink_rx_done_work);
@@ -420,13 +421,13 @@ static void qcom_glink_handle_intent_req_ack(struct qcom_glink *glink,
 	}
 
 	channel->intent_req_result = granted;
-	complete(&channel->intent_req_comp);
+	wake_up_all(&channel->intent_req_wq);
 }
 
 static void qcom_glink_intent_req_abort(struct glink_channel *channel)
 {
 	channel->intent_req_result = 0;
-	complete(&channel->intent_req_comp);
+	wake_up_all(&channel->intent_req_wq);
 }
 
 /**
@@ -1271,7 +1272,7 @@ static int qcom_glink_request_intent(struct qcom_glink *glink,
 
 	mutex_lock(&channel->intent_req_lock);
 
-	reinit_completion(&channel->intent_req_comp);
+	WRITE_ONCE(channel->intent_req_result, -1);
 
 	cmd.id = GLINK_CMD_RX_INTENT_REQ;
 	cmd.cid = channel->lcid;
@@ -1281,12 +1282,14 @@ static int qcom_glink_request_intent(struct qcom_glink *glink,
 	if (ret)
 		goto unlock;
 
-	ret = wait_for_completion_timeout(&channel->intent_req_comp, 10 * HZ);
+	ret = wait_event_timeout(channel->intent_req_wq,
+				 READ_ONCE(channel->intent_req_result) >= 0,
+				 10 * HZ);
 	if (!ret) {
 		dev_err(glink->dev, "intent request timed out\n");
 		ret = -ETIMEDOUT;
 	} else {
-		ret = channel->intent_req_result ? 0 : -ECANCELED;
+		ret = READ_ONCE(channel->intent_req_result) ? 0 : -ECANCELED;
 	}
 
 unlock:
