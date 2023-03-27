@@ -728,8 +728,7 @@ static int orion_spi_probe(struct platform_device *pdev)
 		master->max_speed_hz = devdata->max_hz;
 	master->min_speed_hz = DIV_ROUND_UP(tclk_hz, devdata->max_divisor);
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	spi->base = devm_ioremap_resource(&pdev->dev, r);
+	spi->base = devm_platform_get_and_ioremap_resource(pdev, 0, &r);
 	if (IS_ERR(spi->base)) {
 		status = PTR_ERR(spi->base);
 		goto out_rel_axi_clk;
