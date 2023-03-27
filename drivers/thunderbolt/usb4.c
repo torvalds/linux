@@ -851,7 +851,7 @@ bool usb4_switch_query_dp_resource(struct tb_switch *sw, struct tb_port *in)
 	 */
 	if (ret == -EOPNOTSUPP)
 		return true;
-	else if (ret)
+	if (ret)
 		return false;
 
 	return !status;
@@ -877,7 +877,7 @@ int usb4_switch_alloc_dp_resource(struct tb_switch *sw, struct tb_port *in)
 			     &status);
 	if (ret == -EOPNOTSUPP)
 		return 0;
-	else if (ret)
+	if (ret)
 		return ret;
 
 	return status ? -EBUSY : 0;
@@ -900,7 +900,7 @@ int usb4_switch_dealloc_dp_resource(struct tb_switch *sw, struct tb_port *in)
 			     &status);
 	if (ret == -EOPNOTSUPP)
 		return 0;
-	else if (ret)
+	if (ret)
 		return ret;
 
 	return status ? -EIO : 0;
