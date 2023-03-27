@@ -624,5 +624,17 @@
 			clock-names = "source", "hclk";
 			status = "disabled";
 		};
+
+		vdecsys: clock-controller@16000000 {
+			compatible = "mediatek,mt6795-vdecsys";
+			reg = <0 0x16000000 0 0x1000>;
+			#clock-cells = <1>;
+		};
+
+		vencsys: clock-controller@18000000 {
+			compatible = "mediatek,mt6795-vencsys";
+			reg = <0 0x18000000 0 0x1000>;
+			#clock-cells = <1>;
+		};
 	};
 };
