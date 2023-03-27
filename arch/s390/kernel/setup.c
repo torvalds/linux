@@ -386,17 +386,6 @@ void __init arch_call_rest_init(void)
 	rest_init();
 }
 
-int __init arch_early_irq_init(void)
-{
-	unsigned long stack;
-
-	stack = __get_free_pages(GFP_KERNEL, THREAD_SIZE_ORDER);
-	if (!stack)
-		panic("Couldn't allocate async stack");
-	S390_lowcore.async_stack = stack + STACK_INIT_OFFSET;
-	return 0;
-}
-
 static unsigned long __init stack_alloc_early(void)
 {
 	unsigned long stack;
@@ -453,6 +442,7 @@ static void __init setup_lowcore(void)
 	 */
 	restart_stack = (void *)(stack_alloc_early() + STACK_INIT_OFFSET);
 	lc->mcck_stack = stack_alloc_early() + STACK_INIT_OFFSET;
+	lc->async_stack = stack_alloc_early() + STACK_INIT_OFFSET;
 	lc->nodat_stack = stack_alloc_early() + STACK_INIT_OFFSET;
 	lc->kernel_stack = S390_lowcore.kernel_stack;
 	/*
