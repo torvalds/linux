@@ -17,7 +17,6 @@
 /*----------------------------------------------------------------*/
 
 #define NR_LOCKS 64
-#define LOCK_MASK (NR_LOCKS - 1)
 #define MIN_CELLS 1024
 
 struct prison_region {
@@ -26,8 +25,9 @@ struct prison_region {
 } ____cacheline_aligned_in_smp;
 
 struct dm_bio_prison {
-	struct prison_region regions[NR_LOCKS];
 	mempool_t cell_pool;
+	unsigned int num_locks;
+	struct prison_region regions[NR_LOCKS];
 };
 
 static struct kmem_cache *_cell_cache;
@@ -46,8 +46,9 @@ struct dm_bio_prison *dm_bio_prison_create(void)
 
 	if (!prison)
 		return NULL;
+	prison->num_locks = NR_LOCKS;
 
-	for (i = 0; i < NR_LOCKS; i++) {
+	for (i = 0; i < prison->num_locks; i++) {
 		spin_lock_init(&prison->regions[i].lock);
 		prison->regions[i].cell = RB_ROOT;
 	}
@@ -115,9 +116,9 @@ static int cmp_keys(struct dm_cell_key *lhs,
 	return 0;
 }
 
-static unsigned lock_nr(struct dm_cell_key *key)
+static unsigned lock_nr(struct dm_cell_key *key, unsigned int num_locks)
 {
-	return (key->block_begin >> BIO_PRISON_MAX_RANGE_SHIFT) & LOCK_MASK;
+	return (key->block_begin >> BIO_PRISON_MAX_RANGE_SHIFT) & (num_locks - 1);
 }
 
 bool dm_cell_key_has_valid_range(struct dm_cell_key *key)
@@ -176,7 +177,7 @@ static int bio_detain(struct dm_bio_prison *prison,
 		      struct dm_bio_prison_cell **cell_result)
 {
 	int r;
-	unsigned l = lock_nr(key);
+	unsigned l = lock_nr(key, prison->num_locks);
 
 	spin_lock_irq(&prison->regions[l].lock);
 	r = __bio_detain(&prison->regions[l].cell, key, inmate, cell_prealloc, cell_result);
@@ -224,7 +225,7 @@ void dm_cell_release(struct dm_bio_prison *prison,
 		     struct dm_bio_prison_cell *cell,
 		     struct bio_list *bios)
 {
-	unsigned l = lock_nr(&cell->key);
+	unsigned l = lock_nr(&cell->key, prison->num_locks);
 
 	spin_lock_irq(&prison->regions[l].lock);
 	__cell_release(&prison->regions[l].cell, cell, bios);
@@ -247,7 +248,7 @@ void dm_cell_release_no_holder(struct dm_bio_prison *prison,
 			       struct dm_bio_prison_cell *cell,
 			       struct bio_list *inmates)
 {
-	unsigned l = lock_nr(&cell->key);
+	unsigned l = lock_nr(&cell->key, prison->num_locks);
 	unsigned long flags;
 
 	spin_lock_irqsave(&prison->regions[l].lock, flags);
@@ -277,7 +278,7 @@ void dm_cell_visit_release(struct dm_bio_prison *prison,
 			   void *context,
 			   struct dm_bio_prison_cell *cell)
 {
-	unsigned l = lock_nr(&cell->key);
+	unsigned l = lock_nr(&cell->key, prison->num_locks);
 	spin_lock_irq(&prison->regions[l].lock);
 	visit_fn(context, cell);
 	rb_erase(&cell->node, &prison->regions[l].cell);
@@ -301,7 +302,7 @@ int dm_cell_promote_or_release(struct dm_bio_prison *prison,
 			       struct dm_bio_prison_cell *cell)
 {
 	int r;
-	unsigned l = lock_nr(&cell->key);
+	unsigned l = lock_nr(&cell->key, prison->num_locks);
 
 	spin_lock_irq(&prison->regions[l].lock);
 	r = __promote_or_release(&prison->regions[l].cell, cell);
