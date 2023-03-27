@@ -210,6 +210,7 @@
 		wifi_chip_type = "ap6354";
 		sdio_vref = <1800>;
 		WIFI,host_wake_irq = <&gpio0 3 GPIO_ACTIVE_HIGH>; /* GPIO0_a3 */
+		WIFI,poweren_gpio = <&gpio0 10 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 
