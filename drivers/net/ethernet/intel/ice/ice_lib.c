@@ -291,6 +291,7 @@ static void ice_vsi_delete_from_hw(struct ice_vsi *vsi)
 	struct ice_vsi_ctx *ctxt;
 	int status;
 
+	ice_fltr_remove_all(vsi);
 	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
 	if (!ctxt)
 		return;
@@ -2126,7 +2127,7 @@ int ice_vsi_cfg_xdp_txqs(struct ice_vsi *vsi)
 	ice_for_each_rxq(vsi, i)
 		ice_tx_xsk_pool(vsi, i);
 
-	return ret;
+	return 0;
 }
 
 /**
@@ -2693,12 +2694,14 @@ ice_vsi_cfg_def(struct ice_vsi *vsi, struct ice_vsi_cfg_params *params)
 		return ret;
 
 	/* allocate memory for Tx/Rx ring stat pointers */
-	if (ice_vsi_alloc_stat_arrays(vsi))
+	ret = ice_vsi_alloc_stat_arrays(vsi);
+	if (ret)
 		goto unroll_vsi_alloc;
 
 	ice_alloc_fd_res(vsi);
 
-	if (ice_vsi_get_qs(vsi)) {
+	ret = ice_vsi_get_qs(vsi);
+	if (ret) {
 		dev_err(dev, "Failed to allocate queues. vsi->idx = %d\n",
 			vsi->idx);
 		goto unroll_vsi_alloc_stat;
@@ -2811,6 +2814,7 @@ ice_vsi_cfg_def(struct ice_vsi *vsi, struct ice_vsi_cfg_params *params)
 		break;
 	default:
 		/* clean up the resources and exit */
+		ret = -EINVAL;
 		goto unroll_vsi_init;
 	}
 
@@ -2889,7 +2893,6 @@ void ice_vsi_decfg(struct ice_vsi *vsi)
 	    !test_bit(ICE_FLAG_FW_LLDP_AGENT, pf->flags))
 		ice_cfg_sw_lldp(vsi, false, false);
 
-	ice_fltr_remove_all(vsi);
 	ice_rm_vsi_lan_cfg(vsi->port_info, vsi->idx);
 	err = ice_rm_vsi_rdma_cfg(vsi->port_info, vsi->idx);
 	if (err)
@@ -3508,10 +3511,10 @@ int ice_vsi_rebuild(struct ice_vsi *vsi, u32 vsi_flags)
 		if (vsi_flags & ICE_VSI_FLAG_INIT) {
 			ret = -EIO;
 			goto err_vsi_cfg_tc_lan;
-		} else {
-			kfree(coalesce);
-			return ice_schedule_reset(pf, ICE_RESET_PFR);
 		}
+
+		kfree(coalesce);
+		return ice_schedule_reset(pf, ICE_RESET_PFR);
 	}
 
 	ice_vsi_realloc_stat_arrays(vsi, prev_txq, prev_rxq);
@@ -3759,7 +3762,7 @@ int ice_vsi_cfg_tc(struct ice_vsi *vsi, u8 ena_tc)
 	dev = ice_pf_to_dev(pf);
 	if (vsi->tc_cfg.ena_tc == ena_tc &&
 	    vsi->mqprio_qopt.mode != TC_MQPRIO_MODE_CHANNEL)
-		return ret;
+		return 0;
 
 	ice_for_each_traffic_class(i) {
 		/* build bitmap of enabled TCs */

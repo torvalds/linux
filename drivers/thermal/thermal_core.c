@@ -613,6 +613,7 @@ int thermal_zone_bind_cooling_device(struct thermal_zone_device *tz,
 	struct thermal_instance *pos;
 	struct thermal_zone_device *pos1;
 	struct thermal_cooling_device *pos2;
+	bool upper_no_limit;
 	int result;
 
 	if (trip >= tz->num_trips || trip < 0)
@@ -632,7 +633,13 @@ int thermal_zone_bind_cooling_device(struct thermal_zone_device *tz,
 
 	/* lower default 0, upper default max_state */
 	lower = lower == THERMAL_NO_LIMIT ? 0 : lower;
-	upper = upper == THERMAL_NO_LIMIT ? cdev->max_state : upper;
+
+	if (upper == THERMAL_NO_LIMIT) {
+		upper = cdev->max_state;
+		upper_no_limit = true;
+	} else {
+		upper_no_limit = false;
+	}
 
 	if (lower > upper || upper > cdev->max_state)
 		return -EINVAL;
@@ -644,6 +651,7 @@ int thermal_zone_bind_cooling_device(struct thermal_zone_device *tz,
 	dev->cdev = cdev;
 	dev->trip = trip;
 	dev->upper = upper;
+	dev->upper_no_limit = upper_no_limit;
 	dev->lower = lower;
 	dev->target = THERMAL_NO_TARGET;
 	dev->weight = weight;
@@ -1045,6 +1053,91 @@ devm_thermal_of_cooling_device_register(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(devm_thermal_of_cooling_device_register);
 
+static bool thermal_cooling_device_present(struct thermal_cooling_device *cdev)
+{
+	struct thermal_cooling_device *pos = NULL;
+
+	list_for_each_entry(pos, &thermal_cdev_list, node) {
+		if (pos == cdev)
+			return true;
+	}
+
+	return false;
+}
+
+/**
+ * thermal_cooling_device_update - Update a cooling device object
+ * @cdev: Target cooling device.
+ *
+ * Update @cdev to reflect a change of the underlying hardware or platform.
+ *
+ * Must be called when the maximum cooling state of @cdev becomes invalid and so
+ * its .get_max_state() callback needs to be run to produce the new maximum
+ * cooling state value.
+ */
+void thermal_cooling_device_update(struct thermal_cooling_device *cdev)
+{
+	struct thermal_instance *ti;
+	unsigned long state;
+
+	if (IS_ERR_OR_NULL(cdev))
+		return;
+
+	/*
+	 * Hold thermal_list_lock throughout the update to prevent the device
+	 * from going away while being updated.
+	 */
+	mutex_lock(&thermal_list_lock);
+
+	if (!thermal_cooling_device_present(cdev))
+		goto unlock_list;
+
+	/*
+	 * Update under the cdev lock to prevent the state from being set beyond
+	 * the new limit concurrently.
+	 */
+	mutex_lock(&cdev->lock);
+
+	if (cdev->ops->get_max_state(cdev, &cdev->max_state))
+		goto unlock;
+
+	thermal_cooling_device_stats_reinit(cdev);
+
+	list_for_each_entry(ti, &cdev->thermal_instances, cdev_node) {
+		if (ti->upper == cdev->max_state)
+			continue;
+
+		if (ti->upper < cdev->max_state) {
+			if (ti->upper_no_limit)
+				ti->upper = cdev->max_state;
+
+			continue;
+		}
+
+		ti->upper = cdev->max_state;
+		if (ti->lower > ti->upper)
+			ti->lower = ti->upper;
+
+		if (ti->target == THERMAL_NO_TARGET)
+			continue;
+
+		if (ti->target > ti->upper)
+			ti->target = ti->upper;
+	}
+
+	if (cdev->ops->get_cur_state(cdev, &state) || state > cdev->max_state)
+		goto unlock;
+
+	thermal_cooling_device_stats_update(cdev, state);
+
+unlock:
+	mutex_unlock(&cdev->lock);
+
+unlock_list:
+	mutex_unlock(&thermal_list_lock);
+}
+EXPORT_SYMBOL_GPL(thermal_cooling_device_update);
+
 static void __unbind(struct thermal_zone_device *tz, int mask,
 		     struct thermal_cooling_device *cdev)
 {
@@ -1067,20 +1160,17 @@ void thermal_cooling_device_unregister(struct thermal_cooling_device *cdev)
 	int i;
 	const struct thermal_zone_params *tzp;
 	struct thermal_zone_device *tz;
-	struct thermal_cooling_device *pos = NULL;
 
 	if (!cdev)
 		return;
 
 	mutex_lock(&thermal_list_lock);
-	list_for_each_entry(pos, &thermal_cdev_list, node)
-		if (pos == cdev)
-			break;
-	if (pos != cdev) {
-		/* thermal cooling device not found */
+
+	if (!thermal_cooling_device_present(cdev)) {
 		mutex_unlock(&thermal_list_lock);
 		return;
 	}
+
 	list_del(&cdev->node);
 
 	/* Unbind all thermal zones associated with 'this' cdev */
@@ -1309,7 +1399,7 @@ thermal_zone_device_register_with_trips(const char *type, struct thermal_trip *t
 		struct thermal_trip trip;
 
 		result = thermal_zone_get_trip(tz, count, &trip);
-		if (result)
+		if (result || !trip.temperature)
 			set_bit(count, &tz->trips_disabled);
 	}
 
