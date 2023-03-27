@@ -1054,14 +1054,18 @@ static int submit_one_async_extent(struct btrfs_inode *inode,
 	extent_clear_unlock_delalloc(inode, start, end,
 			NULL, EXTENT_LOCKED | EXTENT_DELALLOC,
 			PAGE_UNLOCK | PAGE_START_WRITEBACK);
+
+	if (async_chunk->blkcg_css)
+		kthread_associate_blkcg(async_chunk->blkcg_css);
 	btrfs_submit_compressed_write(inode, start,	/* file_offset */
 			    async_extent->ram_size,	/* num_bytes */
 			    ins.objectid,		/* disk_bytenr */
 			    ins.offset,			/* compressed_len */
 			    async_extent->pages,	/* compressed_pages */
 			    async_extent->nr_pages,
-			    async_chunk->write_flags,
-			    async_chunk->blkcg_css, true);
+			    async_chunk->write_flags, true);
+	if (async_chunk->blkcg_css)
+		kthread_associate_blkcg(NULL);
 	*alloc_hint = ins.objectid + ins.offset;
 	kfree(async_extent);
 	return ret;
@@ -1613,6 +1617,7 @@ static int cow_file_range_async(struct btrfs_inode *inode,
 		if (blkcg_css != blkcg_root_css) {
 			css_get(blkcg_css);
 			async_chunk[i].blkcg_css = blkcg_css;
+			async_chunk[i].write_flags |= REQ_CGROUP_PUNT;
 		} else {
 			async_chunk[i].blkcg_css = NULL;
 		}
@@ -10348,8 +10353,7 @@ ssize_t btrfs_do_encoded_write(struct kiocb *iocb, struct iov_iter *from,
 	btrfs_delalloc_release_extents(inode, num_bytes);
 
 	btrfs_submit_compressed_write(inode, start, num_bytes, ins.objectid,
-					  ins.offset, pages, nr_pages, 0, NULL,
-					  false);
+					  ins.offset, pages, nr_pages, 0, false);
 	ret = orig_count;
 	goto out;
 

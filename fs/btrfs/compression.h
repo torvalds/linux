@@ -92,7 +92,6 @@ void btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 				  struct page **compressed_pages,
 				  unsigned int nr_pages,
 				  blk_opf_t write_flags,
-				  struct cgroup_subsys_state *blkcg_css,
 				  bool writeback);
 void btrfs_submit_compressed_read(struct btrfs_bio *bbio, int mirror_num);
 

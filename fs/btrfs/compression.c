@@ -286,7 +286,6 @@ void btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 				 struct page **compressed_pages,
 				 unsigned int nr_pages,
 				 blk_opf_t write_flags,
-				 struct cgroup_subsys_state *blkcg_css,
 				 bool writeback)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
@@ -295,10 +294,6 @@ void btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 	ASSERT(IS_ALIGNED(start, fs_info->sectorsize) &&
 	       IS_ALIGNED(len, fs_info->sectorsize));
 
-	if (blkcg_css) {
-		kthread_associate_blkcg(blkcg_css);
-		write_flags |= REQ_CGROUP_PUNT;
-	}
 	write_flags |= REQ_BTRFS_ONE_ORDERED;
 
 	cb = alloc_compressed_bio(inode, start, REQ_OP_WRITE | write_flags,
@@ -314,9 +309,6 @@ void btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 	btrfs_add_compressed_bio_pages(cb);
 
 	btrfs_submit_bio(&cb->bbio, 0);
-
-	if (blkcg_css)
-		kthread_associate_blkcg(NULL);
 }
 
 /*
