@@ -408,6 +408,9 @@ static struct hns3_dbg_cap_info hns3_dbg_cap[] = {
 	}, {
 		.name = "support lane num",
 		.cap_bit = HNAE3_DEV_SUPPORT_LANE_NUM_B,
+	}, {
+		.name = "support wake on lan",
+		.cap_bit = HNAE3_DEV_SUPPORT_WOL_B,
 	}
 };
 
