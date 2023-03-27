@@ -624,12 +624,11 @@ void rtl92e_set_wireless_mode(struct net_device *dev, u8 wireless_mode)
 
 	priv->rtllib->mode = wireless_mode;
 
-	if ((wireless_mode == WIRELESS_MODE_N_24G) ||
-	    (wireless_mode == WIRELESS_MODE_N_5G)) {
+	if (wireless_mode == WIRELESS_MODE_N_24G)
 		priv->rtllib->ht_info->enable_ht = 1;
-	} else {
+	else
 		priv->rtllib->ht_info->enable_ht = 0;
-	}
+
 	_rtl92e_refresh_support_rate(priv);
 }
 
