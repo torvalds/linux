@@ -364,7 +364,7 @@ static int s32_pmx_get_groups(struct pinctrl_dev *pctldev,
 	const struct s32_pinctrl_soc_info *info = ipctl->info;
 
 	*groups = info->functions[selector].groups;
-	*num_groups = info->functions[selector].num_groups;
+	*num_groups = info->functions[selector].ngroups;
 
 	return 0;
 }
@@ -785,8 +785,9 @@ static int s32_pinctrl_parse_functions(struct device_node *np,
 					u32 index)
 {
 	struct device_node *child;
-	struct s32_pmx_func *func;
+	struct pinfunction *func;
 	struct s32_pin_group *grp;
+	const char **groups;
 	u32 i = 0;
 	int ret = 0;
 
@@ -796,24 +797,27 @@ static int s32_pinctrl_parse_functions(struct device_node *np,
 
 	/* Initialise function */
 	func->name = np->name;
-	func->num_groups = of_get_child_count(np);
-	if (func->num_groups == 0) {
+	func->ngroups = of_get_child_count(np);
+	if (func->ngroups == 0) {
 		dev_err(info->dev, "no groups defined in %pOF\n", np);
 		return -EINVAL;
 	}
-	func->groups = devm_kcalloc(info->dev, func->num_groups,
+
+	groups = devm_kcalloc(info->dev, func->ngroups,
 				    sizeof(*func->groups), GFP_KERNEL);
-	if (!func->groups)
+	if (!groups)
 		return -ENOMEM;
 
 	for_each_child_of_node(np, child) {
-		func->groups[i] = child->name;
+		groups[i] = child->name;
 		grp = &info->groups[info->grp_index++];
 		ret = s32_pinctrl_parse_groups(child, grp, info);
 		if (ret)
 			return ret;
 		i++;
 	}
+
+	func->groups = groups;
 
 	return 0;
 }

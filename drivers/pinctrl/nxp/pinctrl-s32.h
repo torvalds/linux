@@ -25,18 +25,6 @@ struct s32_pin_group {
 };
 
 /**
- * struct s32_pmx_func - describes S32 pinmux functions
- * @name: the name of this specific function
- * @groups: corresponding pin groups
- * @num_groups: the number of groups
- */
-struct s32_pmx_func {
-	const char *name;
-	const char **groups;
-	unsigned int num_groups;
-};
-
-/**
  * struct s32_pin_range - pin ID range for each memory region.
  * @start: start pin ID
  * @end: end pin ID
@@ -52,7 +40,7 @@ struct s32_pinctrl_soc_info {
 	unsigned int npins;
 	struct s32_pin_group *groups;
 	unsigned int ngroups;
-	struct s32_pmx_func *functions;
+	struct pinfunction *functions;
 	unsigned int nfunctions;
 	unsigned int grp_index;
 	const struct s32_pin_range *mem_pin_ranges;
