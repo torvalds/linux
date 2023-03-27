@@ -209,8 +209,8 @@ static inline struct apple_nvme *queue_to_apple_nvme(struct apple_nvme_queue *q)
 {
 	if (q->is_adminq)
 		return container_of(q, struct apple_nvme, adminq);
-	else
-		return container_of(q, struct apple_nvme, ioq);
+
+	return container_of(q, struct apple_nvme, ioq);
 }
 
 static unsigned int apple_nvme_queue_depth(struct apple_nvme_queue *q)
