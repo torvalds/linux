@@ -2,7 +2,7 @@
 Assignment 1 - Kprobe based tracer
 ==================================
 
--  Deadline: :command:`Tuesday, 5 April 2022, 23:00`
+-  Deadline: :command:`Monday, 10 April 2023, 23:00`
 
 Assignment's Objectives
 =======================
@@ -47,7 +47,7 @@ will be used, with major `10` and minor `42`. It will expose an ``ioctl`` interf
 * the second argument is the PID of the process for which the monitoring request will be executed
 
 In order to create a char device with major `10` you will need to use the `miscdevice <https://elixir.bootlin.com/linux/latest/source/include/linux/miscdevice.h>`__ interface in the kernel.
-Definitions of related macros can be found in the `tracer.h header <http://elf.cs.pub.ro/so2/res/teme/tracer.h>`__.
+Definitions of related macros can be found in the `tracer.h header <https://gitlab.cs.pub.ro/so2/1-tracer/-/blob/master/src/tracer.h>`__.
 
 Since the ``kmalloc`` function is inline for instrumenting the allocated amount of memory, the ``__kmalloc``
 function will be inspected as follows:
@@ -104,16 +104,20 @@ Testing
 In order to simplify the assignment evaluation process, but also to reduce the mistakes of the submitted assignments,
 the assignment evaluation will be done automatically with the help of a
 `test script <https://github.com/linux-kernel-labs/linux/blob/master/tools/labs/templates/assignments/1-tracer/checker/_checker>`__ called `_checker`.
-The test script assumes that the kernel module is called `tracer`.
+The test script assumes that the kernel module is called `tracer.ko`.
+
+QuickStart
+==========
+
+It is mandatory to start the implementation of the assignment from the code skeleton found in the `src <https://gitlab.cs.pub.ro/so2/1-tracer/-/tree/master/src>`__ directory.
+There is only one header in the skeleton called `tracer.h <https://gitlab.cs.pub.ro/so2/1-tracer/-/blob/master/src/tracer.h>`__.
+You will provide the rest of the implementation. You can add as many `*.c`` sources and additional `*.h`` headers.
+You should also provide a Kbuild file that will compile the kernel module called `tracer.ko`.
+Follow the instructions in the `README.md file <https://gitlab.cs.pub.ro/so2/1-tracer/-/blob/master/README.md>`__ of the `assignment's repo <https://gitlab.cs.pub.ro/so2/1-tracer>`__.
+
 
 Tips
 ----
-
-Create the skeleton by running the command below:
-
-.. code-block:: console
-
-    $ LABS=assignments/1-tracer make skels
 
 To increase your chances of getting the highest grade, read and follow the Linux kernel
 coding style described in the `Coding Style document <https://elixir.bootlin.com/linux/v4.19.19/source/Documentation/process/coding-style.rst>`__.
@@ -157,10 +161,10 @@ and if the assigment does not pass all the tests, the grade may decrease more th
 Submitting the assigment
 ------------------------
 
-The assignment archive will be submitted to vmchecker, according to the rules on the
-`rules page <https://ocw.cs.pub.ro/courses/so2/reguli-notare#reguli_de_trimitere_a_temelor>`__.
+The assignment will be graded automatically using the `vmchecker-next <https://github.com/systems-cs-pub-ro/vmchecker-next/wiki/Student-Handbook>`__ infrastructure.
+The submission will be made on moodle on the `course's page <https://curs.upb.ro/2022/course/view.php?id=5121>`__ to the related assignment.
+You will find the submission details in the `README.md file <https://gitlab.cs.pub.ro/so2/1-tracer/-/blob/master/README.md>`__ of the `repo <https://gitlab.cs.pub.ro/so2/1-tracer>`__.
 
-From the vmchecker interface choose the `Kprobe Based Tracer` option for this assigment.
 
 Resources
 =========
@@ -169,11 +173,10 @@ Resources
 * `samples/kprobes/ <https://elixir.bootlin.com/linux/latest/source/samples/kprobes>`__ - some examples of using ``kprobes`` from Linux kernel sources.
 
 We recommend that you use gitlab to store your homework. Follow the directions in
-`README <https://github.com/systems-cs-pub-ro/so2-assignments/blob/master/README.md>`__
-and on the dedicated `git wiki page <https://ocw.cs.pub.ro/courses/so2/teme/folosire-gitlab>`__.
+`README <https://gitlab.cs.pub.ro/so2/1-tracer/-/blob/master/README.md>`__.
 
 Questions
 =========
 
 For questions about the topic, you can consult the mailing `list archives <http://cursuri.cs.pub.ro/pipermail/so2/>`__
-or send an e-mail (you must be `registered <http://cursuri.cs.pub.ro/cgi-bin/mailman/listinfo/so2>`__).
+or you can write a question on the dedicated Teams channel.
