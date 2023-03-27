@@ -32,6 +32,57 @@
 	status = "okay";
 };
 
+&pmm8654au_0_gpios {
+	gpio-line-names = "DS_EN",
+			  "POFF_COMPLETE",
+			  "UFS0_VER_ID",
+			  "FAST_POFF",
+			  "DBU1_PON_DONE",
+			  "AOSS_SLEEP",
+			  "CAM_DES0_EN",
+			  "CAM_DES1_EN",
+			  "CAM_DES2_EN",
+			  "CAM_DES3_EN",
+			  "UEFI",
+			  "ANALOG_PON_OPT";
+};
+
+&pmm8654au_1_gpios {
+	gpio-line-names = "PMIC_C_ID0",
+			  "PMIC_C_ID1",
+			  "UFS1_VER_ID",
+			  "IPA_PWR",
+			  "",
+			  "WLAN_DBU4_EN",
+			  "WLAN_EN",
+			  "BT_EN",
+			  "USB2_PWR_EN",
+			  "USB2_FAULT";
+};
+
+&pmm8654au_2_gpios {
+	gpio-line-names = "PMIC_E_ID0",
+			  "PMIC_E_ID1",
+			  "USB0_PWR_EN",
+			  "USB0_FAULT",
+			  "SENSOR_IRQ_1",
+			  "SENSOR_IRQ_2",
+			  "SENSOR_RST",
+			  "SGMIIO0_RST",
+			  "SGMIIO1_RST",
+			  "USB1_PWR_ENABLE",
+			  "USB1_FAULT",
+			  "VMON_SPX8";
+};
+
+&pmm8654au_3_gpios {
+	gpio-line-names = "PMIC_G_ID0",
+			  "PMIC_G_ID1",
+			  "GNSS_RST",
+			  "GNSS_EN",
+			  "GNSS_BOOT_MODE";
+};
+
 &qupv3_id_1 {
 	status = "okay";
 };
