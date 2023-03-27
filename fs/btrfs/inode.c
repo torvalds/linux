@@ -945,10 +945,9 @@ static int submit_uncompressed_range(struct btrfs_inode *inode,
 	ret = cow_file_range(inode, locked_page, start, end, &page_started,
 			     &nr_written, 0, NULL);
 	/* Inline extent inserted, page gets unlocked and everything is done */
-	if (page_started) {
-		ret = 0;
-		goto out;
-	}
+	if (page_started)
+		return 0;
+
 	if (ret < 0) {
 		btrfs_cleanup_ordered_extents(inode, locked_page, start, end - start + 1);
 		if (locked_page) {
@@ -962,14 +961,11 @@ static int submit_uncompressed_range(struct btrfs_inode *inode,
 			end_extent_writepage(locked_page, ret, page_start, page_end);
 			unlock_page(locked_page);
 		}
-		goto out;
+		return ret;
 	}
 
-	ret = extent_write_locked_range(&inode->vfs_inode, start, end);
 	/* All pages will be unlocked, including @locked_page */
-out:
-	kfree(async_extent);
-	return ret;
+	return extent_write_locked_range(&inode->vfs_inode, start, end);
 }
 
 static int submit_one_async_extent(struct btrfs_inode *inode,
@@ -1001,8 +997,10 @@ static int submit_one_async_extent(struct btrfs_inode *inode,
 	lock_extent(io_tree, start, end, NULL);
 
 	/* We have fall back to uncompressed write */
-	if (!async_extent->pages)
-		return submit_uncompressed_range(inode, async_extent, locked_page);
+	if (!async_extent->pages) {
+		ret = submit_uncompressed_range(inode, async_extent, locked_page);
+		goto done;
+	}
 
 	ret = btrfs_reserve_extent(root, async_extent->ram_size,
 				   async_extent->compressed_size,
@@ -1067,6 +1065,7 @@ static int submit_one_async_extent(struct btrfs_inode *inode,
 	if (async_chunk->blkcg_css)
 		kthread_associate_blkcg(NULL);
 	*alloc_hint = ins.objectid + ins.offset;
+done:
 	kfree(async_extent);
 	return ret;
 
@@ -1081,8 +1080,7 @@ out_free:
 				     PAGE_UNLOCK | PAGE_START_WRITEBACK |
 				     PAGE_END_WRITEBACK | PAGE_SET_ERROR);
 	free_async_extent_pages(async_extent);
-	kfree(async_extent);
-	return ret;
+	goto done;
 }
 
 /*
