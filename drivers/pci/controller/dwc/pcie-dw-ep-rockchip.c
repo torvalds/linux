@@ -105,6 +105,8 @@
 
 #define PCIE_EP_OBJ_INFO_DRV_VERSION	0x00000001
 
+#define PCIE_BAR_MAX_NUM		6
+
 struct rockchip_pcie {
 	struct dw_pcie			pci;
 	void __iomem			*apb_base;
@@ -119,10 +121,10 @@ struct rockchip_pcie {
 	u32				num_ib_windows;
 	u32				num_ob_windows;
 	phys_addr_t			*outbound_addr;
-	u8				bar_to_atu[6];
-	dma_addr_t			ib_target_address;
-	u32				ib_target_size;
-	void				*ib_target_base;
+	u8				bar_to_atu[PCIE_BAR_MAX_NUM];
+	dma_addr_t			ib_target_address[PCIE_BAR_MAX_NUM];
+	u32				ib_target_size[PCIE_BAR_MAX_NUM];
+	void				*ib_target_base[PCIE_BAR_MAX_NUM];
 	struct dma_trx_obj		*dma_obj;
 	struct fasync_struct		*async;
 	phys_addr_t			dbi_base_physical;
@@ -193,6 +195,8 @@ static int rockchip_pcie_resource_get(struct platform_device *pdev,
 	struct resource *dbi_base;
 	struct device_node *mem;
 	struct resource reg;
+	char name[8];
+	int i, idx;
 
 	dbi_base = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						"pcie-dbi");
@@ -259,26 +263,41 @@ static int rockchip_pcie_resource_get(struct platform_device *pdev,
 
 	rockchip->outbound_addr = addr;
 
-	mem = of_parse_phandle(np, "memory-region", 0);
-	if (!mem) {
-		dev_err(dev, "missing \"memory-region\" property\n");
-		return -ENODEV;
+	for (i = 0; i < PCIE_BAR_MAX_NUM; i++) {
+		snprintf(name, sizeof(name), "bar%d", i);
+		idx = of_property_match_string(np, "memory-region-names", name);
+		if (idx < 0)
+			continue;
+
+		mem = of_parse_phandle(np, "memory-region", idx);
+		if (!mem) {
+			dev_err(dev, "missing \"memory-region\" %s property\n", name);
+			return -ENODEV;
+		}
+
+		ret = of_address_to_resource(mem, 0, &reg);
+		if (ret < 0) {
+			dev_err(dev, "missing \"reg\" %s property\n", name);
+			return -ENODEV;
+		}
+
+		rockchip->ib_target_address[i] = reg.start;
+		rockchip->ib_target_size[i] = resource_size(&reg);
+		rockchip->ib_target_base[i] = rockchip_pcie_map_kernel(reg.start,
+							resource_size(&reg));
+		dev_info(dev, "%s: assigned [0x%llx-%llx]\n", name, rockchip->ib_target_address[i],
+			rockchip->ib_target_address[i] + rockchip->ib_target_size[i] - 1);
 	}
 
-	ret = of_address_to_resource(mem, 0, &reg);
-	if (ret < 0) {
-		dev_err(dev, "missing \"reg\" property\n");
+	if (rockchip->ib_target_size[0]) {
+		rockchip->obj_info = (struct pcie_ep_obj_info *)rockchip->ib_target_base[0];
+		memset_io(rockchip->obj_info, 0, sizeof(struct pcie_ep_obj_info));
+		rockchip->obj_info->magic = PCIE_EP_OBJ_INFO_MAGIC;
+		rockchip->obj_info->version = PCIE_EP_OBJ_INFO_DRV_VERSION;
+	} else {
+		dev_err(dev, "missing bar0 memory region\n");
 		return -ENODEV;
 	}
-
-	rockchip->ib_target_address = reg.start;
-	rockchip->ib_target_size = resource_size(&reg);
-	rockchip->ib_target_base = rockchip_pcie_map_kernel(reg.start,
-						resource_size(&reg));
-	rockchip->obj_info = (struct pcie_ep_obj_info *)rockchip->ib_target_base;
-	memset_io(rockchip->obj_info, 0, sizeof(struct pcie_ep_obj_info));
-	rockchip->obj_info->magic = PCIE_EP_OBJ_INFO_MAGIC;
-	rockchip->obj_info->version = PCIE_EP_OBJ_INFO_DRV_VERSION;
 
 	return 0;
 }
@@ -493,7 +512,7 @@ static void rockchip_pcie_resize_bar(struct rockchip_pcie *rockchip)
 
 	resbar_base = rockchip_pci_find_resbar_capability(rockchip);
 
-	/* Resize BAR0 4M 32bits, BAR2 64M 64bits-pref */
+	/* Resize BAR0 4M 32bits, BAR2 64M 64bits-pref, BAR4 1MB 32bits */
 	bar = BAR_0;
 	dw_pcie_writel_dbi(pci, resbar_base + 0x4 + bar * 0x8, 0xfffff0);
 	dw_pcie_writel_dbi(pci, resbar_base + 0x8 + bar * 0x8, 0x2c0);
@@ -510,7 +529,7 @@ static void rockchip_pcie_resize_bar(struct rockchip_pcie *rockchip)
 	dw_pcie_writel_dbi(pci, resbar_base + 0x8 + bar * 0x8, 0xc0);
 	rockchip_pcie_ep_set_bar_flag(rockchip, bar, PCI_BASE_ADDRESS_MEM_TYPE_32);
 
-	/* Disable BAR1 BAR4 BAR5*/
+	/* Disable BAR1 BAR5*/
 	bar = BAR_1;
 	dw_pcie_writel_dbi(pci, PCIE_TYPE0_HDR_DBI2_OFFSET + 0x10 + bar * 4, 0);
 	bar = BAR_5;
@@ -525,14 +544,13 @@ static void rockchip_pcie_init_id(struct rockchip_pcie *rockchip)
 	dw_pcie_writew_dbi(pci, PCI_CLASS_DEVICE, 0x0580);
 }
 
-static int rockchip_pcie_ep_set_bar(struct rockchip_pcie *rockchip)
+static int rockchip_pcie_ep_set_bar(struct rockchip_pcie *rockchip, enum pci_barno bar,
+				    dma_addr_t cpu_addr)
 {
 	int ret;
 	u32 free_win;
 	struct dw_pcie *pci = &rockchip->pci;
-	enum pci_barno bar;
 	enum dw_pcie_as_type as_type;
-	dma_addr_t cpu_addr;
 
 	free_win = find_first_zero_bit(rockchip->ib_window_map,
 				       rockchip->num_ib_windows);
@@ -542,8 +560,6 @@ static int rockchip_pcie_ep_set_bar(struct rockchip_pcie *rockchip)
 	}
 
 	as_type = DW_PCIE_AS_MEM;
-	bar = BAR_0;
-	cpu_addr = rockchip->ib_target_address;
 
 	ret = dw_pcie_prog_inbound_atu(pci, 0, free_win, bar, cpu_addr, as_type);
 	if (ret < 0) {
@@ -555,7 +571,6 @@ static int rockchip_pcie_ep_set_bar(struct rockchip_pcie *rockchip)
 	set_bit(free_win, rockchip->ib_window_map);
 
 	return 0;
-
 }
 
 static void rockchip_pcie_fast_link_setup(struct rockchip_pcie *rockchip)
@@ -977,7 +992,7 @@ static long pcie_ep_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 		rockchip_pcie_raise_msi_irq(rockchip, PCIe_CLIENT_MSI_OBJ_IRQ);
 		break;
 	case PCIE_EP_GET_USER_INFO:
-		msg.bar0_phys_addr = rockchip->ib_target_address;
+		msg.bar0_phys_addr = rockchip->ib_target_address[0];
 
 		ret = copy_to_user(uarg, &msg, sizeof(msg));
 		if (ret) {
@@ -1021,11 +1036,18 @@ static int pcie_ep_mmap(struct file *file, struct vm_area_struct *vma)
 		addr = rockchip->dbi_base_physical;
 		break;
 	case PCIE_EP_MMAP_RESOURCE_BAR0:
-		if (size > rockchip->ib_target_size) {
+		if (size > rockchip->ib_target_size[0]) {
 			dev_warn(rockchip->pci.dev, "bar0 mmap size is out of limitation\n");
 			return -EINVAL;
 		}
-		addr = rockchip->ib_target_address;
+		addr = rockchip->ib_target_address[0];
+		break;
+	case PCIE_EP_MMAP_RESOURCE_BAR2:
+		if (size > rockchip->ib_target_size[2]) {
+			dev_warn(rockchip->pci.dev, "bar2 mmap size is out of limitation\n");
+			return -EINVAL;
+		}
+		addr = rockchip->ib_target_address[2];
 		break;
 	default:
 		dev_err(rockchip->pci.dev, "cur mmap_res %d is unsurreport\n", rockchip->cur_mmap_res);
@@ -1071,13 +1093,13 @@ static int rockchip_pcie_add_misc(struct rockchip_pcie *rockchip)
 
 	ret = misc_register(&pcie_dev->dev);
 	if (ret) {
-		pr_err("pcie: failed to register misc device.\n");
+		dev_err(rockchip->pci.dev, "pcie: failed to register misc device.\n");
 		return ret;
 	}
 
 	pcie_dev->pcie = rockchip;
 
-	pr_info("register misc device pcie-dev\n");
+	dev_info(rockchip->pci.dev, "register misc device pcie_ep\n");
 
 	return 0;
 }
@@ -1087,7 +1109,7 @@ static int rockchip_pcie_ep_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rockchip_pcie *rockchip;
 	int ret;
-	int retry;
+	int retry, i;
 
 	rockchip = devm_kzalloc(dev, sizeof(*rockchip), GFP_KERNEL);
 	if (!rockchip)
@@ -1123,8 +1145,10 @@ static int rockchip_pcie_ep_probe(struct platform_device *pdev)
 		goto disable_regulator;
 
 	if (dw_pcie_link_up(&rockchip->pci)) {
-		pr_info("%s, %d, already linkup\n", __func__, __LINE__);
+		dev_info(dev, "already linkup\n");
 		goto already_linkup;
+	} else {
+		dev_info(dev, "initial\n");
 	}
 
 	ret = rockchip_pcie_phy_init(rockchip);
@@ -1173,7 +1197,9 @@ static int rockchip_pcie_ep_probe(struct platform_device *pdev)
 
 already_linkup:
 	rockchip->pci.iatu_unroll_enabled = rockchip_pcie_iatu_unroll_enabled(&rockchip->pci);
-	rockchip_pcie_ep_set_bar(rockchip);
+	for (i = 0; i < PCIE_BAR_MAX_NUM; i++)
+		if (rockchip->ib_target_size[i])
+			rockchip_pcie_ep_set_bar(rockchip, i, rockchip->ib_target_address[i]);
 
 	ret = rockchip_pcie_init_dma_trx(rockchip);
 	if (ret) {
