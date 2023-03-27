@@ -5497,6 +5497,8 @@ static void block_unblock_all_queues(bool block)
 	int j;
 	struct sdebug_queue *sqp;
 
+	lockdep_assert_held(&sdebug_host_list_mutex);
+
 	for (j = 0, sqp = sdebug_q_arr; j < submit_queues; ++j, ++sqp)
 		atomic_set(&sqp->blocked, (int)block);
 }
@@ -5511,10 +5513,13 @@ static void tweak_cmnd_count(void)
 	modulo = abs(sdebug_every_nth);
 	if (modulo < 2)
 		return;
+
+	mutex_lock(&sdebug_host_list_mutex);
 	block_unblock_all_queues(true);
 	count = atomic_read(&sdebug_cmnd_count);
 	atomic_set(&sdebug_cmnd_count, (count / modulo) * modulo);
 	block_unblock_all_queues(false);
+	mutex_unlock(&sdebug_host_list_mutex);
 }
 
 static void clear_queue_stats(void)
@@ -6036,6 +6041,7 @@ static ssize_t delay_store(struct device_driver *ddp, const char *buf,
 			int j, k;
 			struct sdebug_queue *sqp;
 
+			mutex_lock(&sdebug_host_list_mutex);
 			block_unblock_all_queues(true);
 			for (j = 0, sqp = sdebug_q_arr; j < submit_queues;
 			     ++j, ++sqp) {
@@ -6051,6 +6057,7 @@ static ssize_t delay_store(struct device_driver *ddp, const char *buf,
 				sdebug_ndelay = 0;
 			}
 			block_unblock_all_queues(false);
+			mutex_unlock(&sdebug_host_list_mutex);
 		}
 		return res;
 	}
@@ -6076,6 +6083,7 @@ static ssize_t ndelay_store(struct device_driver *ddp, const char *buf,
 			int j, k;
 			struct sdebug_queue *sqp;
 
+			mutex_lock(&sdebug_host_list_mutex);
 			block_unblock_all_queues(true);
 			for (j = 0, sqp = sdebug_q_arr; j < submit_queues;
 			     ++j, ++sqp) {
@@ -6092,6 +6100,7 @@ static ssize_t ndelay_store(struct device_driver *ddp, const char *buf,
 							: DEF_JDELAY;
 			}
 			block_unblock_all_queues(false);
+			mutex_unlock(&sdebug_host_list_mutex);
 		}
 		return res;
 	}
@@ -6405,6 +6414,7 @@ static ssize_t max_queue_store(struct device_driver *ddp, const char *buf,
 	if ((count > 0) && (1 == sscanf(buf, "%d", &n)) && (n > 0) &&
 	    (n <= SDEBUG_CANQUEUE) &&
 	    (sdebug_host_max_queue == 0)) {
+		mutex_lock(&sdebug_host_list_mutex);
 		block_unblock_all_queues(true);
 		k = 0;
 		for (j = 0, sqp = sdebug_q_arr; j < submit_queues;
@@ -6421,6 +6431,7 @@ static ssize_t max_queue_store(struct device_driver *ddp, const char *buf,
 		else
 			atomic_set(&retired_max_queue, 0);
 		block_unblock_all_queues(false);
+		mutex_unlock(&sdebug_host_list_mutex);
 		return count;
 	}
 	return -EINVAL;
@@ -7352,7 +7363,9 @@ static int sdebug_change_qdepth(struct scsi_device *sdev, int qdepth)
 	if (!devip)
 		return	-ENODEV;
 
+	mutex_lock(&sdebug_host_list_mutex);
 	block_unblock_all_queues(true);
+
 	if (qdepth > SDEBUG_CANQUEUE) {
 		qdepth = SDEBUG_CANQUEUE;
 		pr_warn("%s: requested qdepth [%d] exceeds canqueue [%d], trim\n", __func__,
@@ -7363,9 +7376,12 @@ static int sdebug_change_qdepth(struct scsi_device *sdev, int qdepth)
 	if (qdepth != sdev->queue_depth)
 		scsi_change_queue_depth(sdev, qdepth);
 
+	block_unblock_all_queues(false);
+	mutex_unlock(&sdebug_host_list_mutex);
+
 	if (SDEBUG_OPT_Q_NOISE & sdebug_opts)
 		sdev_printk(KERN_INFO, sdev, "%s: qdepth=%d\n", __func__, qdepth);
-	block_unblock_all_queues(false);
+
 	return sdev->queue_depth;
 }
 
