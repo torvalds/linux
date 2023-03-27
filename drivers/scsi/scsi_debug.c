@@ -6062,16 +6062,15 @@ static ssize_t delay_store(struct device_driver *ddp, const char *buf,
 	if (count > 0 && sscanf(buf, "%d", &jdelay) == 1) {
 		res = count;
 		if (sdebug_jdelay != jdelay) {
-			int j, k;
-			struct sdebug_queue *sqp;
+			struct sdebug_host_info *sdhp;
 
 			mutex_lock(&sdebug_host_list_mutex);
 			block_unblock_all_queues(true);
-			for (j = 0, sqp = sdebug_q_arr; j < submit_queues;
-			     ++j, ++sqp) {
-				k = find_first_bit(sqp->in_use_bm,
-						   sdebug_max_queue);
-				if (k != sdebug_max_queue) {
+
+			list_for_each_entry(sdhp, &sdebug_host_list, host_list) {
+				struct Scsi_Host *shost = sdhp->shost;
+
+				if (scsi_host_busy(shost)) {
 					res = -EBUSY;   /* queued commands */
 					break;
 				}
@@ -6104,20 +6103,20 @@ static ssize_t ndelay_store(struct device_driver *ddp, const char *buf,
 	    (ndelay >= 0) && (ndelay < (1000 * 1000 * 1000))) {
 		res = count;
 		if (sdebug_ndelay != ndelay) {
-			int j, k;
-			struct sdebug_queue *sqp;
+			struct sdebug_host_info *sdhp;
 
 			mutex_lock(&sdebug_host_list_mutex);
 			block_unblock_all_queues(true);
-			for (j = 0, sqp = sdebug_q_arr; j < submit_queues;
-			     ++j, ++sqp) {
-				k = find_first_bit(sqp->in_use_bm,
-						   sdebug_max_queue);
-				if (k != sdebug_max_queue) {
+
+			list_for_each_entry(sdhp, &sdebug_host_list, host_list) {
+				struct Scsi_Host *shost = sdhp->shost;
+
+				if (scsi_host_busy(shost)) {
 					res = -EBUSY;   /* queued commands */
 					break;
 				}
 			}
+
 			if (res > 0) {
 				sdebug_ndelay = ndelay;
 				sdebug_jdelay = ndelay  ? JDELAY_OVERRIDDEN
