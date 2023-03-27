@@ -541,8 +541,7 @@ static int sprd_adi_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, ctlr);
 	sadi = spi_controller_get_devdata(ctlr);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	sadi->base = devm_ioremap_resource(&pdev->dev, res);
+	sadi->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(sadi->base)) {
 		ret = PTR_ERR(sadi->base);
 		goto put_ctlr;
