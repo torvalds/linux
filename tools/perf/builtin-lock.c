@@ -1323,10 +1323,10 @@ static void print_bad_events(int bad, int total)
 	for (i = 0; i < BROKEN_MAX; i++)
 		broken += bad_hist[i];
 
-	if (quiet || (broken == 0 && verbose <= 0))
+	if (quiet || total == 0 || (broken == 0 && verbose <= 0))
 		return;
 
-	pr_info("\n=== output for debug===\n\n");
+	pr_info("\n=== output for debug ===\n\n");
 	pr_info("bad: %d, total: %d\n", bad, total);
 	pr_info("bad rate: %.2f %%\n", (double)bad / (double)total * 100);
 	pr_info("histogram of events caused bad sequence\n");
