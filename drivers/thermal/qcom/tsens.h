@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2015, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __QCOM_TSENS_H__
@@ -597,6 +597,9 @@ struct tsens_priv {
 	struct dentry			*debug;
 	void				*ipc_log;
 	void				*ipc_log1;
+
+	/* add for save tsens data into minidump */
+	struct minidump_data		*tsens_md;
 
 	struct tsens_sensor		sensor[];
 };
