@@ -189,17 +189,4 @@ static __always_inline unsigned long get_stack_pointer(struct task_struct *task,
 	(rettype)r2;							\
 })
 
-#define call_on_stack_noreturn(fn, stack)				\
-({									\
-	void (*__fn)(void) = fn;					\
-									\
-	asm volatile(							\
-		"	la	15,0(%[_stack])\n"			\
-		"	xc	%[_bc](8,15),%[_bc](15)\n"		\
-		"	brasl	14,%[_fn]\n"				\
-		::[_bc] "i" (offsetof(struct stack_frame, back_chain)),	\
-		  [_stack] "a" (stack), [_fn] "X" (__fn));		\
-	BUG();								\
-})
-
 #endif /* _ASM_S390_STACKTRACE_H */
