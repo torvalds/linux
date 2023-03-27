@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __QCOM_IOMMU_UTIL_H
@@ -61,6 +61,8 @@
 /* Non secure unprivileged Data read operation */
 #define IOMMU_TRANS_DEFAULT	(0U)
 
+typedef void (*fault_handler_irq_t)(struct iommu_domain *, void *);
+
 struct iommu_pgtbl_info {
 	void *ops;
 };
@@ -96,6 +98,8 @@ struct qcom_iommu_ops {
 	int (*get_asid_nr)(struct iommu_domain *domain);
 	int (*set_secure_vmid)(struct iommu_domain *domain, enum vmid vmid);
 	int (*set_fault_model)(struct iommu_domain *domain, int fault_model);
+	void (*set_fault_handler_irq)(struct iommu_domain *domain,
+			fault_handler_irq_t handler_irq, void *token);
 	int (*enable_s1_translation)(struct iommu_domain *domain);
 	int (*get_mappings_configuration)(struct iommu_domain *domain);
 	struct iommu_ops iommu_ops;
@@ -131,6 +135,9 @@ int qcom_iommu_get_asid_nr(struct iommu_domain *domain);
 int qcom_iommu_set_secure_vmid(struct iommu_domain *domain, enum vmid vmid);
 
 int qcom_iommu_set_fault_model(struct iommu_domain *domain, int fault_model);
+
+int qcom_iommu_set_fault_handler_irq(struct iommu_domain *domain,
+		fault_handler_irq_t handler_irq, void *token);
 
 int qcom_iommu_enable_s1_translation(struct iommu_domain *domain);
 

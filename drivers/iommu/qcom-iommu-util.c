@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/dma-mapping-fast.h>
@@ -388,6 +388,24 @@ int qcom_iommu_set_fault_model(struct iommu_domain *domain, int fault_model)
 	return ops->set_fault_model(domain, fault_model);
 }
 EXPORT_SYMBOL(qcom_iommu_set_fault_model);
+
+/*
+ * Sets the client function which gets called during non-threaded irq
+ * fault handler when registered.
+ */
+int qcom_iommu_set_fault_handler_irq(struct iommu_domain *domain,
+	fault_handler_irq_t handler_irq, void *token)
+{
+	struct qcom_iommu_ops *ops = to_qcom_iommu_ops(domain->ops);
+
+	if (unlikely(ops->set_fault_handler_irq == NULL))
+		return -EINVAL;
+
+	ops->set_fault_handler_irq(domain, handler_irq, token);
+
+	return 0;
+}
+EXPORT_SYMBOL(qcom_iommu_set_fault_handler_irq);
 
 int qcom_iommu_enable_s1_translation(struct iommu_domain *domain)
 {

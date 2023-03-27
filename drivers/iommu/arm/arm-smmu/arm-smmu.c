@@ -14,7 +14,7 @@
  *	- Context fault reporting
  *	- Extended Stream ID (16 bit)
  *
- * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) "arm-smmu: " fmt
@@ -1261,6 +1261,18 @@ static int arm_smmu_alloc_context_bank(struct arm_smmu_domain *smmu_domain,
 				smmu_domain);
 }
 
+static irqreturn_t arm_smmu_context_fault_irq(int irq, void *dev)
+{
+	struct iommu_domain *domain = dev;
+	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
+
+	/* call the handler that is requested in non-thread irq context */
+	if (smmu_domain->fault_handler_irq)
+		smmu_domain->fault_handler_irq(domain, smmu_domain->handler_irq_token);
+
+	return IRQ_WAKE_THREAD;
+}
+
 static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 					struct arm_smmu_device *smmu,
 					struct device *dev)
@@ -1498,7 +1510,7 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 	else
 		context_fault = arm_smmu_context_fault;
 
-	ret = devm_request_threaded_irq(smmu->dev, irq, NULL,
+	ret = devm_request_threaded_irq(smmu->dev, irq, arm_smmu_context_fault_irq,
 			context_fault, IRQF_ONESHOT | IRQF_SHARED,
 			"arm-smmu-context-fault", domain);
 	if (ret < 0) {
@@ -2723,6 +2735,15 @@ static int arm_smmu_set_fault_model(struct iommu_domain *domain, int fault_model
 	return ret;
 }
 
+static void arm_smmu_set_fault_handler_irq(struct iommu_domain *domain,
+		fault_handler_irq_t handler_irq, void *token)
+{
+	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
+
+	smmu_domain->fault_handler_irq = handler_irq;
+	smmu_domain->handler_irq_token = token;
+}
+
 static int arm_smmu_enable_s1_translation(struct iommu_domain *domain)
 {
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
@@ -2783,6 +2804,7 @@ static struct qcom_iommu_ops arm_smmu_ops = {
 	.get_asid_nr			= arm_smmu_get_asid_nr,
 	.set_secure_vmid		= arm_smmu_set_secure_vmid,
 	.set_fault_model		= arm_smmu_set_fault_model,
+	.set_fault_handler_irq		= arm_smmu_set_fault_handler_irq,
 	.enable_s1_translation		= arm_smmu_enable_s1_translation,
 	.get_mappings_configuration	= arm_smmu_get_mappings_configuration,
 
