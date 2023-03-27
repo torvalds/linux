@@ -34,7 +34,7 @@ select:
     - compatible
 
 allOf:
-  - $ref: "ahci-common.yaml#"
+  - $ref: ahci-common.yaml#
 
 properties:
   compatible:
