@@ -61,9 +61,10 @@ MODULE_PARM_DESC(so_priority, "nvmet tcp socket optimize priority: Default 0");
  * using advanced interrupt moderation techniques.
  */
 static int idle_poll_period_usecs;
-module_param(idle_poll_period_usecs, int, 0644);
+device_param_cb(idle_poll_period_usecs, &set_param_ops,
+		&idle_poll_period_usecs, 0644);
 MODULE_PARM_DESC(idle_poll_period_usecs,
-		"nvmet tcp io_work poll till idle time period in usecs");
+		"nvmet tcp io_work poll till idle time period in usecs: Default 0");
 
 #define NVMET_TCP_RECV_BUDGET		8
 #define NVMET_TCP_SEND_BUDGET		8
