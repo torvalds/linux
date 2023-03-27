@@ -250,7 +250,7 @@ static void null_free_device_storage(struct nullb_device *dev, bool is_cache);
 
 static inline struct nullb_device *to_nullb_device(struct config_item *item)
 {
-	return item ? container_of(item, struct nullb_device, item) : NULL;
+	return item ? container_of(to_config_group(item), struct nullb_device, group) : NULL;
 }
 
 static inline ssize_t nullb_device_uint_attr_show(unsigned int val, char *page)
@@ -593,8 +593,29 @@ static const struct config_item_type nullb_device_type = {
 	.ct_owner	= THIS_MODULE,
 };
 
+#ifdef CONFIG_BLK_DEV_NULL_BLK_FAULT_INJECTION
+
+static void nullb_add_fault_config(struct nullb_device *dev)
+{
+	fault_config_init(&dev->timeout_config, "timeout_inject");
+	fault_config_init(&dev->requeue_config, "requeue_inject");
+	fault_config_init(&dev->init_hctx_fault_config, "init_hctx_fault_inject");
+
+	configfs_add_default_group(&dev->timeout_config.group, &dev->group);
+	configfs_add_default_group(&dev->requeue_config.group, &dev->group);
+	configfs_add_default_group(&dev->init_hctx_fault_config.group, &dev->group);
+}
+
+#else
+
+static void nullb_add_fault_config(struct nullb_device *dev)
+{
+}
+
+#endif
+
 static struct
-config_item *nullb_group_make_item(struct config_group *group, const char *name)
+config_group *nullb_group_make_group(struct config_group *group, const char *name)
 {
 	struct nullb_device *dev;
 
@@ -605,9 +626,10 @@ config_item *nullb_group_make_item(struct config_group *group, const char *name)
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 
-	config_item_init_type_name(&dev->item, name, &nullb_device_type);
+	config_group_init_type_name(&dev->group, name, &nullb_device_type);
+	nullb_add_fault_config(dev);
 
-	return &dev->item;
+	return &dev->group;
 }
 
 static void
@@ -645,7 +667,7 @@ static struct configfs_attribute *nullb_group_attrs[] = {
 };
 
 static struct configfs_group_operations nullb_group_ops = {
-	.make_item	= nullb_group_make_item,
+	.make_group	= nullb_group_make_group,
 	.drop_item	= nullb_group_drop_item,
 };
 
@@ -676,6 +698,13 @@ static struct nullb_device *null_alloc_dev(void)
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return NULL;
+
+#ifdef CONFIG_BLK_DEV_NULL_BLK_FAULT_INJECTION
+	dev->timeout_config.attr = null_timeout_attr;
+	dev->requeue_config.attr = null_requeue_attr;
+	dev->init_hctx_fault_config.attr = null_init_hctx_attr;
+#endif
+
 	INIT_RADIX_TREE(&dev->data, GFP_ATOMIC);
 	INIT_RADIX_TREE(&dev->cache, GFP_ATOMIC);
 	if (badblocks_init(&dev->badblocks, 0)) {
@@ -1515,23 +1544,47 @@ static void null_submit_bio(struct bio *bio)
 	null_handle_cmd(alloc_cmd(nq, bio), sector, nr_sectors, bio_op(bio));
 }
 
+#ifdef CONFIG_BLK_DEV_NULL_BLK_FAULT_INJECTION
+
 static bool should_timeout_request(struct request *rq)
 {
-#ifdef CONFIG_BLK_DEV_NULL_BLK_FAULT_INJECTION
-	if (g_timeout_str[0])
-		return should_fail(&null_timeout_attr, 1);
-#endif
+	struct nullb_cmd *cmd = blk_mq_rq_to_pdu(rq);
+	struct nullb_device *dev = cmd->nq->dev;
+
+	return should_fail(&dev->timeout_config.attr, 1);
+}
+
+static bool should_requeue_request(struct request *rq)
+{
+	struct nullb_cmd *cmd = blk_mq_rq_to_pdu(rq);
+	struct nullb_device *dev = cmd->nq->dev;
+
+	return should_fail(&dev->requeue_config.attr, 1);
+}
+
+static bool should_init_hctx_fail(struct nullb_device *dev)
+{
+	return should_fail(&dev->init_hctx_fault_config.attr, 1);
+}
+
+#else
+
+static bool should_timeout_request(struct request *rq)
+{
 	return false;
 }
 
 static bool should_requeue_request(struct request *rq)
 {
-#ifdef CONFIG_BLK_DEV_NULL_BLK_FAULT_INJECTION
-	if (g_requeue_str[0])
-		return should_fail(&null_requeue_attr, 1);
-#endif
 	return false;
 }
+
+static bool should_init_hctx_fail(struct nullb_device *dev)
+{
+	return false;
+}
+
+#endif
 
 static void null_map_queues(struct blk_mq_tag_set *set)
 {
@@ -1729,10 +1782,8 @@ static int null_init_hctx(struct blk_mq_hw_ctx *hctx, void *driver_data,
 	struct nullb *nullb = hctx->queue->queuedata;
 	struct nullb_queue *nq;
 
-#ifdef CONFIG_BLK_DEV_NULL_BLK_FAULT_INJECTION
-	if (g_init_hctx_str[0] && should_fail(&null_init_hctx_attr, 1))
+	if (should_init_hctx_fail(nullb->dev))
 		return -EFAULT;
-#endif
 
 	nq = &nullb->queues[hctx_idx];
 	hctx->driver_data = nq;
@@ -2052,9 +2103,6 @@ static int null_add_dev(struct nullb_device *dev)
 		if (rv)
 			goto out_cleanup_queues;
 
-		if (!null_setup_fault())
-			goto out_cleanup_tags;
-
 		nullb->tag_set->timeout = 5 * HZ;
 		nullb->disk = blk_mq_alloc_disk(nullb->tag_set, nullb);
 		if (IS_ERR(nullb->disk)) {
@@ -2116,10 +2164,10 @@ static int null_add_dev(struct nullb_device *dev)
 
 	null_config_discard(nullb);
 
-	if (config_item_name(&dev->item)) {
+	if (config_item_name(&dev->group.cg_item)) {
 		/* Use configfs dir name as the device name */
 		snprintf(nullb->disk_name, sizeof(nullb->disk_name),
-			 "%s", config_item_name(&dev->item));
+			 "%s", config_item_name(&dev->group.cg_item));
 	} else {
 		sprintf(nullb->disk_name, "nullb%d", nullb->index);
 	}
@@ -2218,6 +2266,9 @@ static int __init null_init(void)
 		pr_err("invalid home_node value\n");
 		g_home_node = NUMA_NO_NODE;
 	}
+
+	if (!null_setup_fault())
+		return -EINVAL;
 
 	if (g_queue_mode == NULL_Q_RQ) {
 		pr_err("legacy IO path is no longer available\n");
