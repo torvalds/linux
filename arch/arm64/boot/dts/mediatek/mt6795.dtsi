@@ -310,6 +310,12 @@
 			clock-names = "clk13m";
 		};
 
+		apmixedsys: syscon@10209000 {
+			compatible = "mediatek,mt6795-apmixedsys", "syscon";
+			reg = <0 0x10209000 0 0x1000>;
+			#clock-cells = <1>;
+		};
+
 		fhctl: clock-controller@10209f00 {
 			compatible = "mediatek,mt6795-fhctl";
 			reg = <0 0x10209f00 0 0x100>;
