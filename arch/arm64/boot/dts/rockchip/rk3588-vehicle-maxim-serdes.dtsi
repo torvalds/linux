@@ -251,10 +251,10 @@
 		pinctrl {
 			compatible = "maxim,max96755f-pinctrl";
 
-			i2c2_max96755f_panel_max96752f_pins: panel-max96752f-pins {
+			i2c2_max96755f_panel_pins: panel-pins {
 				bl-pwm {
 					pins = "gpio18";
-					function = "GPIO_TX_4";
+					function = "GPIO_TX_0";
 				};
 			};
 		};
@@ -297,8 +297,8 @@
 				compatible = "maxim,deserializer-panel";
 				reg = <0x48>;
 				backlight = <&i2c2_max96755f_backlight>;
-				pinctrl-names = "max96752f";
-				pinctrl-0 = <&i2c2_max96755f_panel_max96752f_pins>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&i2c2_max96755f_panel_pins>;
 
 				port {
 					i2c2_max96755f_panel_in: endpoint {
@@ -326,10 +326,10 @@
 		pinctrl {
 			compatible = "maxim,max96745-pinctrl";
 
-			i2c3_max96745_panel_max96752f_pins: panel-max96752f-pins {
+			i2c3_max96745_panel_pins: panel-pins {
 				bl-pwm {
 					pins = "gpio0";
-					function = "GPIO_TX_A_4";
+					function = "GPIO_TX_A_0";
 				};
 			};
 		};
@@ -370,8 +370,8 @@
 				compatible = "maxim,deserializer-panel";
 				reg = <0x48>;
 				backlight = <&i2c3_max96745_backlight>;
-				pinctrl-names = "max96752f";
-				pinctrl-0 = <&i2c3_max96745_panel_max96752f_pins>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&i2c3_max96745_panel_pins>;
 
 				port {
 					i2c3_max96745_panel_in: endpoint {
@@ -398,10 +398,10 @@
 		pinctrl {
 			compatible = "maxim,max96745-pinctrl";
 
-			i2c5_max96745_panel_max96752f_pins: panel-max96752f-pins {
+			i2c5_max96745_panel_pins: panel-pins {
 				bl-pwm {
 					pins = "gpio0";
-					function = "GPIO_TX_A_4";
+					function = "GPIO_TX_A_0";
 				};
 			};
 		};
@@ -442,8 +442,8 @@
 				compatible = "maxim,deserializer-panel";
 				reg = <0x48>;
 				backlight = <&i2c5_max96745_backlight>;
-				pinctrl-names = "max96752f";
-				pinctrl-0 = <&i2c5_max96745_panel_max96752f_pins>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&i2c5_max96745_panel_pins>;
 
 				port {
 					i2c5_max96745_panel_in: endpoint {
@@ -471,10 +471,10 @@
 		pinctrl {
 			compatible = "maxim,max96755f-pinctrl";
 
-			i2c6_max96755f_panel_max96752f_pins: panel-0-pins {
+			i2c6_max96755f_panel_pins: panel-pins {
 				bl-pwm {
 					pins = "gpio18";
-					function = "GPIO_TX_4";
+					function = "GPIO_TX_0";
 				};
 			};
 		};
@@ -517,8 +517,8 @@
 				compatible = "maxim,deserializer-panel";
 				reg = <0x48>;
 				backlight = <&i2c6_max96755f_backlight>;
-				pinctrl-names = "max96752f";
-				pinctrl-0 = <&i2c6_max96755f_panel_max96752f_pins>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&i2c6_max96755f_panel_pins>;
 
 				port {
 					i2c6_max96755f_panel_in: endpoint {
@@ -546,10 +546,10 @@
 		pinctrl {
 			compatible = "maxim,max96745-pinctrl";
 
-			i2c7_max96745_panel_max96752f_pins: panel-max96752f-pins {
+			i2c7_max96745_panel_pins: panel-pins {
 				bl-pwm {
 					pins = "gpio0";
-					function = "GPIO_TX_A_4";
+					function = "GPIO_TX_A_0";
 				};
 			};
 		};
@@ -590,8 +590,8 @@
 				compatible = "maxim,deserializer-panel";
 				reg = <0x48>;
 				backlight = <&i2c7_max96745_backlight>;
-				pinctrl-names = "max96752f";
-				pinctrl-0 = <&i2c7_max96745_panel_max96752f_pins>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&i2c7_max96745_panel_pins>;
 
 				port {
 					i2c7_max96745_panel_in: endpoint {
@@ -619,10 +619,10 @@
 		pinctrl {
 			compatible = "maxim,max96745-pinctrl";
 
-			i2c8_max96745_panel_max96752f_pins: panel-max96752f-pins {
+			i2c8_max96745_panel_pins: panel-pins {
 				bl-pwm {
 					pins = "gpio0";
-					function = "GPIO_TX_A_4";
+					function = "GPIO_TX_A_0";
 				};
 			};
 		};
@@ -663,8 +663,8 @@
 				compatible = "maxim,deserializer-panel";
 				reg = <0x48>;
 				backlight = <&i2c8_max96745_backlight>;
-				pinctrl-names = "max96752f";
-				pinctrl-0 = <&i2c8_max96745_panel_max96752f_pins>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&i2c8_max96745_panel_pins>;
 
 				port {
 					i2c8_max96745_panel_in: endpoint {
