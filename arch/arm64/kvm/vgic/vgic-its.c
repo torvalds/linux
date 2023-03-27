@@ -2045,6 +2045,13 @@ static int vgic_its_attr_regs_access(struct kvm_device *dev,
 
 	mutex_lock(&dev->kvm->lock);
 
+	if (!lock_all_vcpus(dev->kvm)) {
+		mutex_unlock(&dev->kvm->lock);
+		return -EBUSY;
+	}
+
+	mutex_lock(&dev->kvm->arch.config_lock);
+
 	if (IS_VGIC_ADDR_UNDEF(its->vgic_its_base)) {
 		ret = -ENXIO;
 		goto out;
@@ -2055,11 +2062,6 @@ static int vgic_its_attr_regs_access(struct kvm_device *dev,
 				       offset);
 	if (!region) {
 		ret = -ENXIO;
-		goto out;
-	}
-
-	if (!lock_all_vcpus(dev->kvm)) {
-		ret = -EBUSY;
 		goto out;
 	}
 
@@ -2076,8 +2078,9 @@ static int vgic_its_attr_regs_access(struct kvm_device *dev,
 	} else {
 		*reg = region->its_read(dev->kvm, its, addr, len);
 	}
-	unlock_all_vcpus(dev->kvm);
 out:
+	mutex_unlock(&dev->kvm->arch.config_lock);
+	unlock_all_vcpus(dev->kvm);
 	mutex_unlock(&dev->kvm->lock);
 	return ret;
 }
@@ -2757,6 +2760,8 @@ static int vgic_its_ctrl(struct kvm *kvm, struct vgic_its *its, u64 attr)
 		return -EBUSY;
 	}
 
+	mutex_lock(&kvm->arch.config_lock);
+
 	switch (attr) {
 	case KVM_DEV_ARM_ITS_CTRL_RESET:
 		vgic_its_reset(kvm, its);
@@ -2769,6 +2774,7 @@ static int vgic_its_ctrl(struct kvm *kvm, struct vgic_its *its, u64 attr)
 		break;
 	}
 
+	mutex_unlock(&kvm->arch.config_lock);
 	unlock_all_vcpus(kvm);
 	mutex_unlock(&its->its_lock);
 	mutex_unlock(&kvm->lock);
