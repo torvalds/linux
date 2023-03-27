@@ -146,6 +146,7 @@ enum {
  * @open_req:	completed once open-request has been received
  * @intent_req_lock: Synchronises multiple intent requests
  * @intent_req_result: Result of intent request
+ * @intent_received: flag indicating that an intent has been received
  * @intent_req_wq: wait queue for intent_req signalling
  */
 struct glink_channel {
@@ -177,6 +178,7 @@ struct glink_channel {
 
 	struct mutex intent_req_lock;
 	int intent_req_result;
+	bool intent_received;
 	wait_queue_head_t intent_req_wq;
 };
 
@@ -420,13 +422,13 @@ static void qcom_glink_handle_intent_req_ack(struct qcom_glink *glink,
 		return;
 	}
 
-	channel->intent_req_result = granted;
+	WRITE_ONCE(channel->intent_req_result, granted);
 	wake_up_all(&channel->intent_req_wq);
 }
 
 static void qcom_glink_intent_req_abort(struct glink_channel *channel)
 {
-	channel->intent_req_result = 0;
+	WRITE_ONCE(channel->intent_req_result, 0);
 	wake_up_all(&channel->intent_req_wq);
 }
 
@@ -757,6 +759,11 @@ static void qcom_glink_handle_rx_done(struct qcom_glink *glink,
 		kfree(intent);
 	}
 	spin_unlock_irqrestore(&channel->intent_lock, flags);
+
+	if (reuse) {
+		WRITE_ONCE(channel->intent_received, true);
+		wake_up_all(&channel->intent_req_wq);
+	}
 }
 
 /**
@@ -993,6 +1000,9 @@ static void qcom_glink_handle_intent(struct qcom_glink *glink,
 		if (ret < 0)
 			dev_err(glink->dev, "failed to store remote intent\n");
 	}
+
+	WRITE_ONCE(channel->intent_received, true);
+	wake_up_all(&channel->intent_req_wq);
 
 	kfree(msg);
 	qcom_glink_rx_advance(glink, ALIGN(msglen, 8));
@@ -1273,6 +1283,7 @@ static int qcom_glink_request_intent(struct qcom_glink *glink,
 	mutex_lock(&channel->intent_req_lock);
 
 	WRITE_ONCE(channel->intent_req_result, -1);
+	WRITE_ONCE(channel->intent_received, false);
 
 	cmd.id = GLINK_CMD_RX_INTENT_REQ;
 	cmd.cid = channel->lcid;
@@ -1283,7 +1294,8 @@ static int qcom_glink_request_intent(struct qcom_glink *glink,
 		goto unlock;
 
 	ret = wait_event_timeout(channel->intent_req_wq,
-				 READ_ONCE(channel->intent_req_result) >= 0,
+				 READ_ONCE(channel->intent_req_result) >= 0 &&
+				 READ_ONCE(channel->intent_received),
 				 10 * HZ);
 	if (!ret) {
 		dev_err(glink->dev, "intent request timed out\n");
