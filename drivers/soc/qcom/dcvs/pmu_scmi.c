@@ -19,7 +19,7 @@ static int scmi_pmu_probe(struct scmi_device *sdev)
 	if (!sdev)
 		return -ENODEV;
 
-	return rimps_pmu_init(sdev);
+	return cpucp_pmu_init(sdev);
 }
 
 static const struct scmi_device_id scmi_id_table[] = {

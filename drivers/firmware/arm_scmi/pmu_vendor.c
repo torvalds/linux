@@ -5,6 +5,7 @@
  */
 
 #include <linux/scmi_pmu.h>
+#include <soc/qcom/pmu_lib.h>
 #include "common.h"
 
 enum scmi_c1dcvs_protocol_cmd {

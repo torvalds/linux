@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _QCOM_PMU_H
@@ -8,11 +9,26 @@
 
 #include <linux/kernel.h>
 #include <linux/scmi_protocol.h>
+#if !IS_ENABLED(CONFIG_QTI_SCMI_VENDOR_PROTOCOL)
 #include <linux/scmi_pmu.h>
+#endif
 
 /* (1) ccntr + (6) evcntr + (1) llcc */
 #define QCOM_PMU_MAX_EVS	8
 #define INVALID_PMU_HW_IDX	0xFF
+
+enum cpucp_ev_idx {
+	CPU_CYC_EVT = 0,
+	CNT_CYC_EVT,
+	INST_RETIRED_EVT,
+	STALL_BACKEND_EVT,
+	L2D_CACHE_REFILL_EVT,
+	L2D_WB_EVT,
+	L3_CACHE_REFILL_EVT,
+	L3_ACCESS_EVT,
+	LLCC_CACHE_REFILL_EVT,
+	MAX_CPUCP_EVT,
+};
 
 struct cpucp_hlos_map {
 	bool			shared;
@@ -48,7 +64,7 @@ int qcom_pmu_read_all(int cpu, struct qcom_pmu_data *data);
 int qcom_pmu_read_all_local(struct qcom_pmu_data *data);
 int qcom_pmu_idle_register(struct qcom_pmu_notif_node *idle_node);
 int qcom_pmu_idle_unregister(struct qcom_pmu_notif_node *idle_node);
-int rimps_pmu_init(struct scmi_device *sdev);
+int cpucp_pmu_init(struct scmi_device *sdev);
 #else
 static inline int qcom_pmu_event_supported(u32 event_id, int cpu)
 {

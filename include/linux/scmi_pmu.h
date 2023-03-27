@@ -17,18 +17,6 @@
 #define SCMI_PMU_PROTOCOL    0x86
 #define MAX_NUM_CPUS		8
 
-enum cpucp_ev_idx {
-	CPU_CYC_EVT = 0,
-	CNT_CYC_EVT,
-	INST_RETIRED_EVT,
-	STALL_BACKEND_EVT,
-	L2D_CACHE_REFILL_EVT,
-	L2D_WB_EVT,
-	L3_CACHE_REFILL_EVT,
-	L3_ACCESS_EVT,
-	LLCC_CACHE_REFILL_EVT,
-	MAX_CPUCP_EVT,
-};
 
 struct scmi_protocol_handle;
 

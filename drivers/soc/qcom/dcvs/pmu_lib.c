@@ -36,6 +36,22 @@
 #define INVALID_ID	0xFF
 static void __iomem *pmu_base;
 
+#if IS_ENABLED(CONFIG_QTI_SCMI_VENDOR_PROTOCOL)
+#include <linux/qcom_scmi_vendor.h>
+#define MAX_NUM_CPUS		8
+#define PMUMAP_ALGO_STR 0x504D554D4150 /* "PMUMAP" */
+
+enum scmi_c1dcvs_protocol_cmd {
+	SET_PMU_MAP = 11,
+	SET_ENABLE_TRACE,
+	SET_ENABLE_CACHING,
+};
+
+struct pmu_map_msg {
+	uint8_t hw_cntrs[MAX_NUM_CPUS][MAX_CPUCP_EVT];
+};
+#endif
+
 struct cpucp_pmu_ctrs {
 	u32 evctrs[MAX_CPUCP_EVT];
 	u32 valid;
@@ -70,7 +86,11 @@ static bool qcom_pmu_inited;
 static bool pmu_long_counter;
 static int cpuhp_state;
 static struct scmi_protocol_handle *ph;
+#if IS_ENABLED(CONFIG_QTI_SCMI_VENDOR_PROTOCOL)
+static const struct qcom_scmi_vendor_ops *ops;
+#else
 static const struct scmi_pmu_vendor_ops *ops;
+#endif
 static LIST_HEAD(idle_notif_list);
 static DEFINE_SPINLOCK(idle_list_lock);
 static struct cpucp_hlos_map cpucp_map[MAX_CPUCP_EVT];
@@ -456,12 +476,16 @@ static int events_caching_enable(void)
 
 	if (!qcom_pmu_inited)
 		return -EPROBE_DEFER;
-
 	if (!ops || !pmu_base)
 		return ret;
-
+#if IS_ENABLED(CONFIG_QTI_SCMI_VENDOR_PROTOCOL)
+	ret = ops->set_param(ph, &enable, PMUMAP_ALGO_STR,
+		SET_ENABLE_CACHING, sizeof(enable));
+#else
 	ret = ops->set_cache_enable(ph, &enable);
-
+#endif
+	if (ret < 0)
+		pr_err("failed to set cache enable tunable :%d\n", ret);
 	return ret;
 }
 
@@ -469,12 +493,14 @@ static int configure_cpucp_map(cpumask_t mask)
 {
 	struct event_data *event;
 	int i, cpu, ret = 0, cid;
-	u8 pmu_map[MAX_NUM_CPUS][MAX_CPUCP_EVT];
+	uint8_t pmu_map[MAX_NUM_CPUS][MAX_CPUCP_EVT];
 	struct cpu_data *cpu_data;
-
+#if IS_ENABLED(CONFIG_QTI_SCMI_VENDOR_PROTOCOL)
+	int j;
+	struct pmu_map_msg msg;
+#endif
 	if (!qcom_pmu_inited)
 		return -EPROBE_DEFER;
-
 	if (!ops)
 		return ret;
 
@@ -496,8 +522,17 @@ static int configure_cpucp_map(cpumask_t mask)
 			pmu_map[cpu][cid] = event->pevent->hw.idx;
 		}
 	}
-
+#if IS_ENABLED(CONFIG_QTI_SCMI_VENDOR_PROTOCOL)
+	for (i = 0; i < MAX_NUM_CPUS; i++) {
+		for (j = 0; j < MAX_CPUCP_EVT; j++)
+			msg.hw_cntrs[i][j] = pmu_map[i][j];
+	}
+	ret = ops->set_param(ph, &msg, PMUMAP_ALGO_STR, SET_PMU_MAP, sizeof(msg));
+#else
 	ret = ops->set_pmu_map(ph, pmu_map);
+#endif
+	if (ret < 0)
+		pr_err("failed to set pmu map :%d\n", ret);
 
 	return ret;
 }
@@ -874,14 +909,18 @@ static void load_pmu_counters(void)
 	pr_info("Enabled all perf counters\n");
 }
 
-int rimps_pmu_init(struct scmi_device *sdev)
+int cpucp_pmu_init(struct scmi_device *sdev)
 {
 	int ret = 0;
 
 	if (!sdev || !sdev->handle)
 		return -EINVAL;
 
+#if IS_ENABLED(CONFIG_QTI_SCMI_VENDOR_PROTOCOL)
+	ops = sdev->handle->devm_protocol_get(sdev, QCOM_SCMI_VENDOR_PROTOCOL, &ph);
+#else
 	ops = sdev->handle->devm_protocol_get(sdev, SCMI_PMU_PROTOCOL, &ph);
+#endif
 	if (!ops)
 		return -EINVAL;
 
@@ -901,7 +940,7 @@ int rimps_pmu_init(struct scmi_device *sdev)
 
 	return ret;
 }
-EXPORT_SYMBOL(rimps_pmu_init);
+EXPORT_SYMBOL(cpucp_pmu_init);
 
 static int configure_pmu_event(u32 event_id, int amu_id, int cid, int cpu)
 {
@@ -1039,9 +1078,15 @@ static ssize_t store_enable_trace(struct kobject *kobj,
 	if (ret < 0)
 		return ret;
 
+#if IS_ENABLED(CONFIG_QTI_SCMI_VENDOR_PROTOCOL)
+	ret = ops->set_param(ph, &var, PMUMAP_ALGO_STR, SET_ENABLE_TRACE, sizeof(var));
+#else
 	ret = ops->set_enable_trace(ph, &var);
-	if (ret < 0)
+#endif
+	if (ret < 0) {
+		pr_err("failed to set enable_trace tunable: %d\n", ret);
 		return ret;
+	}
 
 	pmu_enable_trace = var;
 
@@ -1099,7 +1144,18 @@ static int qcom_pmu_driver_probe(struct platform_device *pdev)
 	unsigned int cpu;
 	struct cpu_data *cpu_data;
 	struct resource res;
+#if IS_ENABLED(CONFIG_QTI_SCMI_VENDOR_PROTOCOL)
+	int cpucp_ret = 0;
+	struct scmi_device *scmi_dev;
 
+	scmi_dev = get_qcom_scmi_device();
+	if (IS_ERR(scmi_dev)) {
+		ret = PTR_ERR(scmi_dev);
+		if (ret == -EPROBE_DEFER)
+			return ret;
+		dev_err(dev, "Error getting scmi_dev ret = %d\n", ret);
+	}
+#endif
 	if (!pmu_base) {
 		idx = of_property_match_string(dev->of_node, "reg-names", "pmu-base");
 		if (idx < 0) {
@@ -1155,6 +1211,13 @@ skip_pmu:
 	}
 
 	qcom_pmu_inited = true;
+#if IS_ENABLED(CONFIG_QTI_SCMI_VENDOR_PROTOCOL)
+	if (!IS_ERR(scmi_dev)) {
+		cpucp_ret = cpucp_pmu_init(scmi_dev);
+		if (cpucp_ret < 0)
+			dev_err(dev, "Err during cpucp_pmu_init ret = %d\n", cpucp_ret);
+	}
+#endif
 	return ret;
 }
 
@@ -1182,5 +1245,8 @@ static struct platform_driver qcom_pmu_driver = {
 };
 module_platform_driver(qcom_pmu_driver);
 
+#if IS_ENABLED(CONFIG_QTI_SCMI_VENDOR_PROTOCOL)
+MODULE_SOFTDEP("pre: qcom_scmi_client");
+#endif
 MODULE_DESCRIPTION("QCOM PMU Driver");
 MODULE_LICENSE("GPL");

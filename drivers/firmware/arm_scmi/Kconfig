@@ -169,17 +169,6 @@ config QTI_SCMI_C1DCVS_PROTOCOL
 	  This driver defines the comands or message ID's used for this
 	  communication and also exposes the ops used by clients.
 
-config QTI_SCMI_MEMLAT_PROTOCOL
-	tristate "Qualcomm Technologies, Inc. SCMI MEMLAT vendor Protocol"
-	depends on ARM || ARM64 || COMPILE_TEST
-	depends on ARM_SCMI_PROTOCOL && QCOM_CPUCP
-	help
-	  System Control and Management Interface (SCMI) memlat vendor protocol.
-	  This protocol provides interface to communicate with micro controller
-	  which is executing the hw memlat governor. This driver defines the
-	  commands or message ID's used for this communication and also exposes
-	  the ops used by clients.
-
 endif #ARM_SCMI_PROTOCOL
 
 config ARM_SCMI_POWER_DOMAIN
