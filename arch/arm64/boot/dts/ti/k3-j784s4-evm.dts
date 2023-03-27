@@ -21,6 +21,7 @@
 
 	aliases {
 		serial2 = &main_uart8;
+		mmc0 = &main_sdhci0;
 		mmc1 = &main_sdhci1;
 		i2c0 = &main_i2c0;
 	};
@@ -205,6 +206,14 @@
 				  "ENET1_I2CMUX_SEL", "ENET1_EXP_SPARE2", "ENET2_EXP_RESETZ",
 				  "USER_INPUT1", "USER_LED1", "USER_LED2";
 	};
+};
+
+&main_sdhci0 {
+	/* eMMC */
+	status = "okay";
+	non-removable;
+	ti,driver-strength-ohm = <50>;
+	disable-wp;
 };
 
 &main_sdhci1 {
