@@ -214,6 +214,44 @@ class SpecAttrSet(SpecElement):
         return self.attrs.items()
 
 
+class SpecStructMember(SpecElement):
+    """Struct member attribute
+
+    Represents a single struct member attribute.
+
+    Attributes:
+        type    string, type of the member attribute
+    """
+    def __init__(self, family, yaml):
+        super().__init__(family, yaml)
+        self.type = yaml['type']
+
+
+class SpecStruct(SpecElement):
+    """Netlink struct type
+
+    Represents a C struct definition.
+
+    Attributes:
+        members   ordered list of struct members
+    """
+    def __init__(self, family, yaml):
+        super().__init__(family, yaml)
+
+        self.members = []
+        for member in yaml.get('members', []):
+            self.members.append(self.new_member(family, member))
+
+    def new_member(self, family, elem):
+        return SpecStructMember(family, elem)
+
+    def __iter__(self):
+        yield from self.members
+
+    def items(self):
+        return self.members.items()
+
+
 class SpecOperation(SpecElement):
     """Netlink Operation
 
@@ -344,6 +382,9 @@ class SpecFamily(SpecElement):
     def new_attr_set(self, elem):
         return SpecAttrSet(self, elem)
 
+    def new_struct(self, elem):
+        return SpecStruct(self, elem)
+
     def new_operation(self, elem, req_val, rsp_val):
         return SpecOperation(self, elem, req_val, rsp_val)
 
@@ -399,6 +440,8 @@ class SpecFamily(SpecElement):
         for elem in definitions:
             if elem['type'] == 'enum' or elem['type'] == 'flags':
                 self.consts[elem['name']] = self.new_enum(elem)
+            elif elem['type'] == 'struct':
+                self.consts[elem['name']] = self.new_struct(elem)
             else:
                 self.consts[elem['name']] = elem
 
