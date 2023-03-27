@@ -230,14 +230,15 @@ int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 
 	mutex_lock(&vcpu->kvm->lock);
 	ret = kvm_set_vm_width(vcpu);
-	if (!ret) {
-		reset_state = vcpu->arch.reset_state;
-		WRITE_ONCE(vcpu->arch.reset_state.reset, false);
-	}
 	mutex_unlock(&vcpu->kvm->lock);
 
 	if (ret)
 		return ret;
+
+	spin_lock(&vcpu->arch.mp_state_lock);
+	reset_state = vcpu->arch.reset_state;
+	vcpu->arch.reset_state.reset = false;
+	spin_unlock(&vcpu->arch.mp_state_lock);
 
 	/* Reset PMU outside of the non-preemptible section */
 	kvm_pmu_vcpu_reset(vcpu);

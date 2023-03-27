@@ -509,6 +509,7 @@ struct kvm_vcpu_arch {
 
 	/* vcpu power state */
 	struct kvm_mp_state mp_state;
+	spinlock_t mp_state_lock;
 
 	union {
 		/* Cache some mmu pages needed inside spinlock regions */
