@@ -1910,10 +1910,9 @@ struct net_device *alloc_rtllib(int sizeof_priv);
 
 /* rtllib_tx.c */
 
-int rtllib_encrypt_fragment(
-	struct rtllib_device *ieee,
-	struct sk_buff *frag,
-	int hdr_len);
+int rtllib_encrypt_fragment(struct rtllib_device *ieee,
+			    struct sk_buff *frag,
+			    int hdr_len);
 
 netdev_tx_t rtllib_xmit(struct sk_buff *skb,  struct net_device *dev);
 void rtllib_txb_free(struct rtllib_txb *txb);
