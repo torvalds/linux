@@ -2890,7 +2890,7 @@ static int __init octeon_irq_init_ciu3(struct device_node *ciu_node,
 	if (WARN_ON(ret))
 		return ret;
 
-	ciu3_info->ciu3_addr = base_addr = phys_to_virt(res.start);
+	ciu3_info->ciu3_addr = base_addr = (u64)phys_to_virt(res.start);
 	ciu3_info->node = node;
 
 	consts.u64 = cvmx_read_csr(base_addr + CIU3_CONST);
