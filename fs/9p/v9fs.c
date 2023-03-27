@@ -66,40 +66,30 @@ static const match_table_t tokens = {
 	{Opt_err, NULL}
 };
 
-static const char *const v9fs_cache_modes[nr__p9_cache_modes] = {
-	[CACHE_NONE]		= "none",
-	[CACHE_READAHEAD]	= "readahead",
-	[CACHE_WRITEBACK]	= "writeback",
-	[CACHE_MMAP]		= "mmap",
-	[CACHE_LOOSE]		= "loose",
-	[CACHE_FSCACHE]		= "fscache",
-};
-
 /* Interpret mount options for cache mode */
 static int get_cache_mode(char *s)
 {
 	int version = -EINVAL;
 
 	if (!strcmp(s, "loose")) {
-		version = CACHE_LOOSE;
+		version = CACHE_SC_LOOSE;
 		p9_debug(P9_DEBUG_9P, "Cache mode: loose\n");
 	} else if (!strcmp(s, "fscache")) {
-		version = CACHE_FSCACHE;
+		version = CACHE_SC_FSCACHE;
 		p9_debug(P9_DEBUG_9P, "Cache mode: fscache\n");
 	} else if (!strcmp(s, "mmap")) {
-		version = CACHE_MMAP;
+		version = CACHE_SC_MMAP;
 		p9_debug(P9_DEBUG_9P, "Cache mode: mmap\n");
-	} else if (!strcmp(s, "writeback")) {
-		version = CACHE_WRITEBACK;
-		p9_debug(P9_DEBUG_9P, "Cache mode: writeback\n");
 	} else if (!strcmp(s, "readahead")) {
-		version = CACHE_READAHEAD;
+		version = CACHE_SC_READAHEAD;
 		p9_debug(P9_DEBUG_9P, "Cache mode: readahead\n");
 	} else if (!strcmp(s, "none")) {
-		version = CACHE_NONE;
+		version = CACHE_SC_NONE;
 		p9_debug(P9_DEBUG_9P, "Cache mode: none\n");
-	} else
-		pr_info("Unknown Cache mode %s\n", s);
+	} else if (kstrtoint(s, 0, &version) != 0) {
+		version = -EINVAL;
+		pr_info("Unknown Cache mode or invalid value %s\n", s);
+	}
 	return version;
 }
 
@@ -127,9 +117,9 @@ int v9fs_show_options(struct seq_file *m, struct dentry *root)
 	if (v9ses->nodev)
 		seq_puts(m, ",nodevmap");
 	if (v9ses->cache)
-		seq_printf(m, ",cache=%s", v9fs_cache_modes[v9ses->cache]);
+		seq_printf(m, ",cache=%x", v9ses->cache);
 #ifdef CONFIG_9P_FSCACHE
-	if (v9ses->cachetag && v9ses->cache == CACHE_FSCACHE)
+	if (v9ses->cachetag && (v9ses->cache & CACHE_FSCACHE))
 		seq_printf(m, ",cachetag=%s", v9ses->cachetag);
 #endif
 
@@ -481,7 +471,7 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 
 #ifdef CONFIG_9P_FSCACHE
 	/* register the session for caching */
-	if (v9ses->cache == CACHE_FSCACHE) {
+	if (v9ses->cache & CACHE_FSCACHE) {
 		rc = v9fs_cache_session_get_cookie(v9ses, dev_name);
 		if (rc < 0)
 			goto err_clnt;

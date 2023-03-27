@@ -136,7 +136,7 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 	if (retval)
 		goto release_sb;
 
-	if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE)
+	if (v9ses->cache & (CACHE_META|CACHE_LOOSE))
 		sb->s_d_op = &v9fs_cached_dentry_operations;
 	else
 		sb->s_d_op = &v9fs_dentry_operations;
@@ -277,7 +277,7 @@ static int v9fs_drop_inode(struct inode *inode)
 	struct v9fs_session_info *v9ses;
 
 	v9ses = v9fs_inode2v9ses(inode);
-	if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE)
+	if (v9ses->cache & (CACHE_META|CACHE_LOOSE))
 		return generic_drop_inode(inode);
 	/*
 	 * in case of non cached mode always drop the

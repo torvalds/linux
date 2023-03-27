@@ -41,13 +41,11 @@ static const struct vm_operations_struct v9fs_mmap_file_vm_ops;
 int v9fs_file_open(struct inode *inode, struct file *file)
 {
 	int err;
-	struct v9fs_inode *v9inode;
 	struct v9fs_session_info *v9ses;
 	struct p9_fid *fid;
 	int omode;
 
 	p9_debug(P9_DEBUG_VFS, "inode: %p file: %p\n", inode, file);
-	v9inode = V9FS_I(inode);
 	v9ses = v9fs_inode2v9ses(inode);
 	if (v9fs_proto_dotl(v9ses))
 		omode = v9fs_open_to_dotl_flags(file->f_flags);
@@ -60,7 +58,7 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 		if (IS_ERR(fid))
 			return PTR_ERR(fid);
 
-		if ((v9ses->cache >= CACHE_WRITEBACK) && (omode & P9_OWRITE)) {
+		if ((v9ses->cache & CACHE_WRITEBACK) && (omode & P9_OWRITE)) {
 			int writeback_omode = (omode & ~P9_OWRITE) | P9_ORDWR;
 
 			p9_debug(P9_DEBUG_CACHE, "write-only file with writeback enabled, try opening O_RDWR\n");
@@ -85,8 +83,8 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 	}
 
 #ifdef CONFIG_9P_FSCACHE
-	if (v9ses->cache == CACHE_FSCACHE)
-		fscache_use_cookie(v9fs_inode_cookie(v9inode),
+	if (v9ses->cache & CACHE_FSCACHE)
+		fscache_use_cookie(v9fs_inode_cookie(V9FS_I(inode)),
 				   file->f_mode & FMODE_WRITE);
 #endif
 	v9fs_fid_add_modes(fid, v9ses->flags, v9ses->cache, file->f_flags);
@@ -485,7 +483,7 @@ v9fs_file_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	p9_debug(P9_DEBUG_MMAP, "filp :%p\n", filp);
 
-	if (v9ses->cache < CACHE_MMAP) {
+	if (!(v9ses->cache & CACHE_WRITEBACK)) {
 		p9_debug(P9_DEBUG_CACHE, "(no mmap mode)");
 		if (vma->vm_flags & VM_MAYSHARE)
 			return -ENODEV;
