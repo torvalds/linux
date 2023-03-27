@@ -270,11 +270,9 @@ void hsw_ips_get_config(struct intel_crtc_state *crtc_state)
 
 static int hsw_ips_debugfs_status_show(struct seq_file *m, void *unused)
 {
-	struct drm_i915_private *i915 = m->private;
+	struct intel_crtc *crtc = m->private;
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	intel_wakeref_t wakeref;
-
-	if (!HAS_IPS(i915))
-		return -ENODEV;
 
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
@@ -297,10 +295,11 @@ static int hsw_ips_debugfs_status_show(struct seq_file *m, void *unused)
 
 DEFINE_SHOW_ATTRIBUTE(hsw_ips_debugfs_status);
 
-void hsw_ips_debugfs_register(struct drm_i915_private *i915)
+void hsw_ips_crtc_debugfs_add(struct intel_crtc *crtc)
 {
-	struct drm_minor *minor = i915->drm.primary;
+	if (!hsw_crtc_supports_ips(crtc))
+		return;
 
-	debugfs_create_file("i915_ips_status", 0444, minor->debugfs_root,
-			    i915, &hsw_ips_debugfs_status_fops);
+	debugfs_create_file("i915_ips_status", 0444, crtc->base.debugfs_entry,
+			    crtc, &hsw_ips_debugfs_status_fops);
 }
