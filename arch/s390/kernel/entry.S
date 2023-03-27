@@ -150,6 +150,12 @@ _LPP_OFFSET	= __LC_LPP
 	.endm
 #endif
 
+	.macro STACKLEAK_ERASE
+#ifdef CONFIG_GCC_PLUGIN_STACKLEAK
+	brasl	%r14,stackleak_erase_on_task_stack
+#endif
+	.endm
+
 	GEN_BR_THUNK %r14
 
 	.section .kprobes.text, "ax"
@@ -300,6 +306,7 @@ ENTRY(system_call)
 	MBEAR	%r2
 	lgr	%r3,%r14
 	brasl	%r14,__do_syscall
+	STACKLEAK_ERASE
 	lctlg	%c1,%c1,__LC_USER_ASCE
 	mvc	__LC_RETURN_PSW(16),STACK_FRAME_OVERHEAD+__PT_PSW(%r15)
 	BPON
@@ -315,6 +322,7 @@ ENDPROC(system_call)
 ENTRY(ret_from_fork)
 	lgr	%r3,%r11
 	brasl	%r14,__ret_from_fork
+	STACKLEAK_ERASE
 	lctlg	%c1,%c1,__LC_USER_ASCE
 	mvc	__LC_RETURN_PSW(16),STACK_FRAME_OVERHEAD+__PT_PSW(%r15)
 	BPON
@@ -375,6 +383,7 @@ ENTRY(pgm_check_handler)
 	brasl	%r14,__do_pgm_check
 	tmhh	%r8,0x0001		# returning to user space?
 	jno	.Lpgm_exit_kernel
+	STACKLEAK_ERASE
 	lctlg	%c1,%c1,__LC_USER_ASCE
 	BPON
 	stpt	__LC_EXIT_TIMER
@@ -440,6 +449,7 @@ ENTRY(\name)
 	mvc	__LC_RETURN_PSW(16),__PT_PSW(%r11)
 	tmhh	%r8,0x0001		# returning to user ?
 	jno	2f
+	STACKLEAK_ERASE
 	lctlg	%c1,%c1,__LC_USER_ASCE
 	BPON
 	stpt	__LC_EXIT_TIMER
