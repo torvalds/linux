@@ -665,6 +665,12 @@ static bool smbchg_otg_is_present(struct smbchg_chip *chip)
 	u16 usb_id;
 	int ret;
 
+	if (chip->smbchg_lite) {
+		ret = regmap_read(chip->regmap, chip->base + SMBCHG_OTG_RT_STS, &value);
+		dev_vdbg(chip->dev, "0x%04x read on RT_STS\n", value);
+		return !!(value & BIT(2));
+	}
+
 	/* Check ID pin */
 	ret = regmap_bulk_read(chip->regmap,
 			       chip->base + SMBCHG_USB_CHGPTH_USBID_MSB, &value,
@@ -1573,6 +1579,8 @@ static int smbchg_probe(struct platform_device *pdev)
 			"Battery info missing maximum constant charge current\n");
 		return -EINVAL;
 	}
+
+	chip->smbchg_lite = of_property_read_bool(chip->dev->of_node, "smbchg-lite");
 
 	/* Initialize extcon */
 	chip->edev = devm_extcon_dev_allocate(chip->dev, smbchg_extcon_cable);

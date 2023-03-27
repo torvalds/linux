@@ -251,6 +251,8 @@ struct smbchg_chip {
 	struct work_struct otg_reset_work;
 
 	const struct smbchg_data *data;
+
+	bool smbchg_lite;
 };
 
 struct smbchg_irq {
