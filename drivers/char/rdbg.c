@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
- * ​​​​Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * ​​​​Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/cdev.h>
@@ -115,6 +115,7 @@ struct rdbg_data {
 	struct smq    producer_smrb;
 	struct smq    consumer_smrb;
 	struct mutex  write_mutex;
+	int smp2p_data[32];
 };
 
 struct rdbg_device {
@@ -125,8 +126,6 @@ struct rdbg_device {
 	struct rdbg_data *rdbg_data;
 };
 
-
-int registers[32] = {0};
 static struct rdbg_device g_rdbg_instance = {
 	.class = NULL,
 	.dev_no = 0,
@@ -730,11 +729,10 @@ static void send_interrupt_to_subsystem(struct rdbg_data *rdbgdata)
 {
 	unsigned int offset = rdbgdata->gpio_out_offset;
 	unsigned int val;
-
-	val = (registers[offset]) ^ (BIT(rdbgdata->out.smem_bit+offset));
+	val = (rdbgdata->smp2p_data[offset]) ^ (BIT(rdbgdata->out.smem_bit+offset));
 	qcom_smem_state_update_bits(rdbgdata->out.smem_state,
-				BIT(rdbgdata->out.smem_bit+offset), val);
-	registers[offset] = val;
+			BIT(rdbgdata->out.smem_bit+offset), val);
+	rdbgdata->smp2p_data[offset] = val;
 	rdbgdata->gpio_out_offset = (offset + 1) % 32;
 }
 
@@ -809,6 +807,16 @@ static int rdbg_open(struct inode *inode, struct file *filp)
 	rdbgdata->smem_addr = qcom_smem_get(QCOM_SMEM_HOST_ANY,
 			      proc_info[device_id].smem_buffer_addr,
 			      &(rdbgdata->smem_size));
+
+	if (IS_ERR(rdbgdata->smem_addr)) {
+		pr_err("rdbg: Can't retrieve data from common SMEM region.\n"
+				"Retrieving data from device specific partition.\n");
+		if (PTR_ERR(rdbgdata->smem_addr) == -ENOENT) {
+			rdbgdata->smem_addr = qcom_smem_get(device_id,
+					proc_info[device_id].smem_buffer_addr,
+					&(rdbgdata->smem_size));
+		}
+	}
 	if (!rdbgdata->smem_addr) {
 		dev_err(rdbgdata->device, "%s: Could not allocate smem memory\n",
 			__func__);
