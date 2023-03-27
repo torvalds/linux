@@ -3621,7 +3621,7 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 		if (!digit
 		    || (base == 16 && !isxdigit(digit))
 		    || (base == 10 && !isdigit(digit))
-		    || (base == 8 && (!isdigit(digit) || digit > '7'))
+		    || (base == 8 && !isodigit(digit))
 		    || (base == 0 && !isdigit(digit)))
 			break;
 
