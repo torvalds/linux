@@ -106,6 +106,7 @@ struct rockchip_lvds {
 	enum lvds_format format;
 	bool data_swap;
 	bool dual_channel;
+	bool phy_enabled;
 	enum drm_lvds_dual_link_pixels pixel_order;
 
 	struct rockchip_lvds *primary;
@@ -282,7 +283,10 @@ static void rockchip_lvds_enable(struct rockchip_lvds *lvds)
 		return;
 	}
 
-	phy_power_on(lvds->phy);
+	if (lvds->phy && !lvds->phy_enabled) {
+		phy_power_on(lvds->phy);
+		lvds->phy_enabled = true;
+	}
 
 	if (lvds->secondary)
 		rockchip_lvds_enable(lvds->secondary);
@@ -293,7 +297,10 @@ static void rockchip_lvds_disable(struct rockchip_lvds *lvds)
 	if (lvds->funcs->disable)
 		lvds->funcs->disable(lvds);
 
-	phy_power_off(lvds->phy);
+	if (lvds->phy && lvds->phy_enabled) {
+		phy_power_off(lvds->phy);
+		lvds->phy_enabled = false;
+	}
 
 	if (lvds->secondary)
 		rockchip_lvds_disable(lvds->secondary);
@@ -328,6 +335,21 @@ static int rockchip_lvds_encoder_loader_protect(struct drm_encoder *encoder,
 
 	if (lvds->panel)
 		panel_simple_loader_protect(lvds->panel);
+
+
+	if (on) {
+		phy_init(lvds->phy);
+		if (lvds->phy) {
+			lvds->phy->power_count++;
+			lvds->phy_enabled = true;
+		}
+	} else {
+		phy_exit(lvds->phy);
+		if (lvds->phy) {
+			lvds->phy->power_count--;
+			lvds->phy_enabled = false;
+		}
+	}
 
 	return 0;
 }
