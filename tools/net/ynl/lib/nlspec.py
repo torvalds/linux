@@ -149,8 +149,10 @@ class SpecAttr(SpecElement):
     Represents a single attribute type within an attr space.
 
     Attributes:
-        value      numerical ID when serialized
-        attr_set   Attribute Set containing this attr
+        value         numerical ID when serialized
+        attr_set      Attribute Set containing this attr
+        is_multi      bool, attr may repeat multiple times
+        sub_type      string, name of sub type
     """
     def __init__(self, family, attr_set, yaml, value):
         super().__init__(family, yaml)
@@ -158,6 +160,7 @@ class SpecAttr(SpecElement):
         self.value = value
         self.attr_set = attr_set
         self.is_multi = yaml.get('multi-attr', False)
+        self.sub_type = yaml.get('sub-type')
 
 
 class SpecAttrSet(SpecElement):
