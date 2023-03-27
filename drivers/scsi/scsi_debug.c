@@ -1063,18 +1063,15 @@ static void all_config_cdb_len(void)
 
 static void clear_luns_changed_on_target(struct sdebug_dev_info *devip)
 {
-	struct sdebug_host_info *sdhp;
+	struct sdebug_host_info *sdhp = devip->sdbg_host;
 	struct sdebug_dev_info *dp;
 
-	spin_lock(&sdebug_host_list_lock);
-	list_for_each_entry(sdhp, &sdebug_host_list, host_list) {
-		list_for_each_entry(dp, &sdhp->dev_info_list, dev_list) {
-			if ((devip->sdbg_host == dp->sdbg_host) &&
-			    (devip->target == dp->target))
-				clear_bit(SDEBUG_UA_LUNS_CHANGED, dp->uas_bm);
+	list_for_each_entry(dp, &sdhp->dev_info_list, dev_list) {
+		if ((devip->sdbg_host == dp->sdbg_host) &&
+		    (devip->target == dp->target)) {
+			clear_bit(SDEBUG_UA_LUNS_CHANGED, dp->uas_bm);
 		}
 	}
-	spin_unlock(&sdebug_host_list_lock);
 }
 
 static int make_ua(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
