@@ -2682,6 +2682,8 @@ static int __bch2_truncate_page(struct bch_inode_info *inode,
 			goto unlock;
 	}
 
+	BUG_ON(!s->uptodate);
+
 	if (index != start >> PAGE_SHIFT)
 		start_offset = 0;
 	if (index != end >> PAGE_SHIFT)
