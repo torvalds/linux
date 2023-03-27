@@ -359,7 +359,6 @@ struct sdebug_queue {
 	struct sdebug_queued_cmd qc_arr[SDEBUG_CANQUEUE];
 	unsigned long in_use_bm[SDEBUG_CANQUEUE_WORDS];
 	spinlock_t qc_lock;
-	atomic_t blocked;	/* to temporarily stop more being queued */
 };
 
 static atomic_t sdebug_cmnd_count;   /* number of incoming commands */
@@ -5494,13 +5493,18 @@ static void sdebug_build_parts(unsigned char *ramp, unsigned long store_size)
 
 static void block_unblock_all_queues(bool block)
 {
-	int j;
-	struct sdebug_queue *sqp;
+	struct sdebug_host_info *sdhp;
 
 	lockdep_assert_held(&sdebug_host_list_mutex);
 
-	for (j = 0, sqp = sdebug_q_arr; j < submit_queues; ++j, ++sqp)
-		atomic_set(&sqp->blocked, (int)block);
+	list_for_each_entry(sdhp, &sdebug_host_list, host_list) {
+		struct Scsi_Host *shost = sdhp->shost;
+
+		if (block)
+			scsi_block_requests(shost);
+		else
+			scsi_unblock_requests(shost);
+	}
 }
 
 /* Adjust (by rounding down) the sdebug_cmnd_count so abs(every_nth)-1
@@ -5572,10 +5576,6 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 
 	sqp = get_queue(cmnd);
 	spin_lock_irqsave(&sqp->qc_lock, iflags);
-	if (unlikely(atomic_read(&sqp->blocked))) {
-		spin_unlock_irqrestore(&sqp->qc_lock, iflags);
-		return SCSI_MLQUEUE_HOST_BUSY;
-	}
 
 	if (unlikely(sdebug_every_nth && (SDEBUG_OPT_RARE_TSF & sdebug_opts) &&
 		     (scsi_result == 0))) {
