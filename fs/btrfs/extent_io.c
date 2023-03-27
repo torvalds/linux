@@ -2533,13 +2533,13 @@ int extent_write_locked_range(struct inode *inode, u64 start, u64 end)
 		.sync_mode	= WB_SYNC_ALL,
 		.range_start	= start,
 		.range_end	= end + 1,
-		/* We're called from an async helper function */
-		.punt_to_cgroup	= 1,
 		.no_cgroup_owner = 1,
 	};
 	struct btrfs_bio_ctrl bio_ctrl = {
 		.wbc = &wbc_writepages,
-		.opf = REQ_OP_WRITE | wbc_to_write_flags(&wbc_writepages),
+		/* We're called from an async helper function */
+		.opf = REQ_OP_WRITE | REQ_CGROUP_PUNT |
+			wbc_to_write_flags(&wbc_writepages),
 		.extent_locked = 1,
 	};
 
