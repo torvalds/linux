@@ -16,7 +16,6 @@
 #include <linux/types.h>
 
 struct device;
-struct net_device;
 
 enum dev_prop_type {
 	DEV_PROP_U8,
