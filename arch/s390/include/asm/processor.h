@@ -226,6 +226,13 @@ static __always_inline unsigned long __current_stack_pointer(void)
 	return sp;
 }
 
+static __always_inline bool on_thread_stack(void)
+{
+	unsigned long ksp = S390_lowcore.kernel_stack;
+
+	return !((ksp ^ current_stack_pointer) & ~(THREAD_SIZE - 1));
+}
+
 static __always_inline unsigned short stap(void)
 {
 	unsigned short cpu_address;
