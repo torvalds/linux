@@ -40,10 +40,6 @@ struct sh_pfc_pinctrl {
 
 	struct pinctrl_pin_desc *pins;
 	struct sh_pfc_pin_config *configs;
-
-	const char *func_prop_name;
-	const char *groups_prop_name;
-	const char *pins_prop_name;
 };
 
 static int sh_pfc_get_groups_count(struct pinctrl_dev *pctldev)
@@ -120,27 +116,10 @@ static int sh_pfc_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	const char *pin;
 	int ret;
 
-	/* Support both the old Renesas-specific properties and the new standard
-	 * properties. Mixing old and new properties isn't allowed, neither
-	 * inside a subnode nor across subnodes.
-	 */
-	if (!pmx->func_prop_name) {
-		if (of_find_property(np, "groups", NULL) ||
-		    of_find_property(np, "pins", NULL)) {
-			pmx->func_prop_name = "function";
-			pmx->groups_prop_name = "groups";
-			pmx->pins_prop_name = "pins";
-		} else {
-			pmx->func_prop_name = "renesas,function";
-			pmx->groups_prop_name = "renesas,groups";
-			pmx->pins_prop_name = "renesas,pins";
-		}
-	}
-
 	/* Parse the function and configuration properties. At least a function
 	 * or one configuration must be specified.
 	 */
-	ret = of_property_read_string(np, pmx->func_prop_name, &function);
+	ret = of_property_read_string(np, "function", &function);
 	if (ret < 0 && ret != -EINVAL) {
 		dev_err(dev, "Invalid function in DT\n");
 		return ret;
@@ -158,7 +137,7 @@ static int sh_pfc_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	}
 
 	/* Count the number of pins and groups and reallocate mappings. */
-	ret = of_property_count_strings(np, pmx->pins_prop_name);
+	ret = of_property_count_strings(np, "pins");
 	if (ret == -EINVAL) {
 		num_pins = 0;
 	} else if (ret < 0) {
@@ -168,7 +147,7 @@ static int sh_pfc_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		num_pins = ret;
 	}
 
-	ret = of_property_count_strings(np, pmx->groups_prop_name);
+	ret = of_property_count_strings(np, "groups");
 	if (ret == -EINVAL) {
 		num_groups = 0;
 	} else if (ret < 0) {
@@ -199,7 +178,7 @@ static int sh_pfc_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	*num_maps = nmaps;
 
 	/* Iterate over pins and groups and create the mappings. */
-	of_property_for_each_string(np, pmx->groups_prop_name, prop, group) {
+	of_property_for_each_string(np, "groups", prop, group) {
 		if (function) {
 			maps[idx].type = PIN_MAP_TYPE_MUX_GROUP;
 			maps[idx].data.mux.group = group;
@@ -223,7 +202,7 @@ static int sh_pfc_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		goto done;
 	}
 
-	of_property_for_each_string(np, pmx->pins_prop_name, prop, pin) {
+	of_property_for_each_string(np, "pins", prop, pin) {
 		ret = sh_pfc_map_add_config(&maps[idx], pin,
 					    PIN_MAP_TYPE_CONFIGS_PIN,
 					    configs, num_configs);
