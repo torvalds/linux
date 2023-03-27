@@ -33,7 +33,6 @@ struct mdp_m2m_ctx {
 	struct v4l2_ctrl_handler	ctrl_handler;
 	struct mdp_m2m_ctrls		ctrls;
 	struct v4l2_m2m_ctx		*m2m_ctx;
-	struct mdp_vpu_ctx		vpu;
 	u32				frame_count[MDP_M2M_MAX];
 
 	struct mdp_frameparam		curr_param;

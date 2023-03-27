@@ -11,8 +11,8 @@
 
 /*
  * ISP-MDP generic output information
- * MD5 of the target SCP blob:
- *     6da52bdcf4bf76a0983b313e1d4745d6
+ * MD5 of the target SCP prebuild:
+ *     2d995ddb5c3b0cf26e96d6a823481886
  */
 
 #define IMG_MAX_SUBFRAMES_8183      14

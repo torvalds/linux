@@ -87,14 +87,14 @@ static void mdp_m2m_device_run(void *priv)
 	dst_vb = v4l2_m2m_next_dst_buf(ctx->m2m_ctx);
 	mdp_set_dst_config(&param.outputs[0], frame, &dst_vb->vb2_buf);
 
-	ret = mdp_vpu_process(&ctx->vpu, &param);
+	ret = mdp_vpu_process(&ctx->mdp_dev->vpu, &param);
 	if (ret) {
 		dev_err(&ctx->mdp_dev->pdev->dev,
 			"VPU MDP process failed: %d\n", ret);
 		goto worker_end;
 	}
 
-	task.config = ctx->vpu.config;
+	task.config = ctx->mdp_dev->vpu.config;
 	task.param = &param;
 	task.composes[0] = &frame->compose;
 	task.cmdq_cb = NULL;
@@ -150,11 +150,6 @@ static int mdp_m2m_start_streaming(struct vb2_queue *q, unsigned int count)
 
 	if (!mdp_m2m_ctx_is_state_set(ctx, MDP_VPU_INIT)) {
 		ret = mdp_vpu_get_locked(ctx->mdp_dev);
-		if (ret)
-			return ret;
-
-		ret = mdp_vpu_ctx_init(&ctx->vpu, &ctx->mdp_dev->vpu,
-				       MDP_DEV_M2M);
 		if (ret) {
 			dev_err(&ctx->mdp_dev->pdev->dev,
 				"VPU init failed %d\n", ret);
@@ -641,10 +636,8 @@ static int mdp_m2m_release(struct file *file)
 
 	mutex_lock(&mdp->m2m_lock);
 	v4l2_m2m_ctx_release(ctx->m2m_ctx);
-	if (mdp_m2m_ctx_is_state_set(ctx, MDP_VPU_INIT)) {
-		mdp_vpu_ctx_deinit(&ctx->vpu);
+	if (mdp_m2m_ctx_is_state_set(ctx, MDP_VPU_INIT))
 		mdp_vpu_put_locked(mdp);
-	}
 
 	v4l2_ctrl_handler_free(&ctx->ctrl_handler);
 	v4l2_fh_del(&ctx->fh);
