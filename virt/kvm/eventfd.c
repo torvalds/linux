@@ -889,9 +889,9 @@ static int kvm_assign_ioeventfd_idx(struct kvm *kvm,
 
 unlock_fail:
 	mutex_unlock(&kvm->slots_lock);
+	kfree(p);
 
 fail:
-	kfree(p);
 	eventfd_ctx_put(eventfd);
 
 	return ret;
