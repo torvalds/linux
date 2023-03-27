@@ -341,8 +341,6 @@ struct sdebug_defer {
 	struct hrtimer hrt;
 	struct execute_work ew;
 	ktime_t cmpl_ts;/* time since boot to complete this cmd */
-	int sqa_idx;	/* index of sdebug_queue array */
-	int hc_idx;	/* hostwide tag index */
 	int issuing_cpu;
 	bool aborted;	/* true when blk_abort_request() already called */
 	enum sdeb_defer_type defer_t;
@@ -358,12 +356,6 @@ struct sdebug_queued_cmd {
 
 struct sdebug_scsi_cmd {
 	spinlock_t   lock;
-};
-
-struct sdebug_queue {
-	struct sdebug_queued_cmd *qc_arr[SDEBUG_CANQUEUE];
-	unsigned long in_use_bm[SDEBUG_CANQUEUE_WORDS];
-	spinlock_t qc_lock;
 };
 
 static atomic_t sdebug_cmnd_count;   /* number of incoming commands */
@@ -848,7 +840,6 @@ static int sdeb_zbc_nr_conv = DEF_ZBC_NR_CONV_ZONES;
 
 static int submit_queues = DEF_SUBMIT_QUEUES;  /* > 1 for multi-queue (mq) */
 static int poll_queues; /* iouring iopoll interface.*/
-static struct sdebug_queue *sdebug_q_arr;  /* ptr to array of submit queues */
 
 static DEFINE_RWLOCK(atomic_rw);
 static DEFINE_RWLOCK(atomic_rw2);
@@ -4903,20 +4894,6 @@ fini:
 	return res;
 }
 
-static struct sdebug_queue *get_queue(struct scsi_cmnd *cmnd)
-{
-	u16 hwq;
-	u32 tag = blk_mq_unique_tag(scsi_cmd_to_rq(cmnd));
-
-	hwq = blk_mq_unique_tag_to_hwq(tag);
-
-	pr_debug("tag=%#x, hwq=%d\n", tag, hwq);
-	if (WARN_ON_ONCE(hwq >= submit_queues))
-		hwq = 0;
-
-	return sdebug_q_arr + hwq;
-}
-
 static u32 get_tag(struct scsi_cmnd *cmnd)
 {
 	return blk_mq_unique_tag(scsi_cmd_to_rq(cmnd));
@@ -4926,47 +4903,30 @@ static u32 get_tag(struct scsi_cmnd *cmnd)
 static void sdebug_q_cmd_complete(struct sdebug_defer *sd_dp)
 {
 	struct sdebug_queued_cmd *sqcp = container_of(sd_dp, struct sdebug_queued_cmd, sd_dp);
-	int qc_idx;
-	unsigned long flags, iflags;
+	unsigned long flags;
 	struct scsi_cmnd *scp = sqcp->scmd;
 	struct sdebug_scsi_cmd *sdsc;
 	bool aborted;
-	struct sdebug_queue *sqp;
 
-	qc_idx = sd_dp->sqa_idx;
 	if (sdebug_statistics) {
 		atomic_inc(&sdebug_completions);
 		if (raw_smp_processor_id() != sd_dp->issuing_cpu)
 			atomic_inc(&sdebug_miss_cpus);
 	}
+
 	if (!scp) {
 		pr_err("scmd=NULL\n");
 		goto out;
 	}
-	if (unlikely((qc_idx < 0) || (qc_idx >= SDEBUG_CANQUEUE))) {
-		pr_err("wild qc_idx=%d\n", qc_idx);
-		goto out;
-	}
 
 	sdsc = scsi_cmd_priv(scp);
-	sqp = get_queue(scp);
-	spin_lock_irqsave(&sqp->qc_lock, iflags);
 	spin_lock_irqsave(&sdsc->lock, flags);
 	aborted = sd_dp->aborted;
 	if (unlikely(aborted))
 		sd_dp->aborted = false;
 	ASSIGN_QUEUED_CMD(scp, NULL);
 
-	sqp->qc_arr[qc_idx] = NULL;
-	if (unlikely(!test_and_clear_bit(qc_idx, sqp->in_use_bm))) {
-		spin_unlock_irqrestore(&sdsc->lock, flags);
-		spin_unlock_irqrestore(&sqp->qc_lock, iflags);
-		pr_err("Unexpected completion qc_idx=%d\n", qc_idx);
-		goto out;
-	}
-
 	spin_unlock_irqrestore(&sdsc->lock, flags);
-	spin_unlock_irqrestore(&sqp->qc_lock, iflags);
 
 	if (aborted) {
 		pr_info("bypassing scsi_done() due to aborted cmd, kicking-off EH\n");
@@ -5255,21 +5215,18 @@ static bool stop_qc_helper(struct sdebug_defer *sd_dp,
 }
 
 
-static bool scsi_debug_stop_cmnd(struct scsi_cmnd *cmnd, int *sqa_idx)
+static bool scsi_debug_stop_cmnd(struct scsi_cmnd *cmnd)
 {
 	enum sdeb_defer_type l_defer_t;
-	struct sdebug_queued_cmd *sqcp;
 	struct sdebug_defer *sd_dp;
 	struct sdebug_scsi_cmd *sdsc = scsi_cmd_priv(cmnd);
+	struct sdebug_queued_cmd *sqcp = TO_QUEUED_CMD(cmnd);
 
 	lockdep_assert_held(&sdsc->lock);
 
-	sqcp = TO_QUEUED_CMD(cmnd);
 	if (!sqcp)
 		return false;
 	sd_dp = &sqcp->sd_dp;
-	if (sqa_idx)
-		*sqa_idx = sd_dp->sqa_idx;
 	l_defer_t = READ_ONCE(sd_dp->defer_t);
 	ASSIGN_QUEUED_CMD(cmnd, NULL);
 
@@ -5285,21 +5242,12 @@ static bool scsi_debug_stop_cmnd(struct scsi_cmnd *cmnd, int *sqa_idx)
 static bool scsi_debug_abort_cmnd(struct scsi_cmnd *cmnd)
 {
 	struct sdebug_scsi_cmd *sdsc = scsi_cmd_priv(cmnd);
-	struct sdebug_queue *sqp = get_queue(cmnd);
-	unsigned long flags, iflags;
-	int k = -1;
+	unsigned long flags;
 	bool res;
 
 	spin_lock_irqsave(&sdsc->lock, flags);
-	res = scsi_debug_stop_cmnd(cmnd, &k);
+	res = scsi_debug_stop_cmnd(cmnd);
 	spin_unlock_irqrestore(&sdsc->lock, flags);
-
-	if (k >= 0) {
-		spin_lock_irqsave(&sqp->qc_lock, iflags);
-		clear_bit(k, sqp->in_use_bm);
-		sqp->qc_arr[k] = NULL;
-		spin_unlock_irqrestore(&sqp->qc_lock, iflags);
-	}
 
 	return res;
 }
@@ -5559,7 +5507,6 @@ static struct sdebug_queued_cmd *sdebug_alloc_queued_cmd(struct scsi_cmnd *scmd)
 	INIT_WORK(&sd_dp->ew.work, sdebug_q_cmd_wq_complete);
 
 	sqcp->scmd = scmd;
-	sd_dp->sqa_idx = -1;
 
 	return sqcp;
 }
@@ -5578,13 +5525,11 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 	struct request *rq = scsi_cmd_to_rq(cmnd);
 	bool polled = rq->cmd_flags & REQ_POLLED;
 	struct sdebug_scsi_cmd *sdsc = scsi_cmd_priv(cmnd);
-	unsigned long iflags, flags;
+	unsigned long flags;
 	u64 ns_from_boot = 0;
-	struct sdebug_queue *sqp;
 	struct sdebug_queued_cmd *sqcp;
 	struct scsi_device *sdp;
 	struct sdebug_defer *sd_dp;
-	int k;
 
 	if (unlikely(devip == NULL)) {
 		if (scsi_result == 0)
@@ -5596,8 +5541,6 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 	if (delta_jiff == 0)
 		goto respond_in_thread;
 
-	sqp = get_queue(cmnd);
-	spin_lock_irqsave(&sqp->qc_lock, iflags);
 
 	if (unlikely(sdebug_every_nth && (SDEBUG_OPT_RARE_TSF & sdebug_opts) &&
 		     (scsi_result == 0))) {
@@ -5616,33 +5559,12 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 		}
 	}
 
-	k = find_first_zero_bit(sqp->in_use_bm, sdebug_max_queue);
-	if (unlikely(k >= sdebug_max_queue)) {
-		spin_unlock_irqrestore(&sqp->qc_lock, iflags);
-		if (scsi_result)
-			goto respond_in_thread;
-		scsi_result = device_qfull_result;
-		if (SDEBUG_OPT_Q_NOISE & sdebug_opts)
-			sdev_printk(KERN_INFO, sdp, "%s: max_queue=%d exceeded: TASK SET FULL\n",
-				    __func__, sdebug_max_queue);
-		goto respond_in_thread;
-	}
-	set_bit(k, sqp->in_use_bm);
-
 	sqcp = sdebug_alloc_queued_cmd(cmnd);
 	if (!sqcp) {
-		clear_bit(k, sqp->in_use_bm);
-		spin_unlock_irqrestore(&sqp->qc_lock, iflags);
+		pr_err("%s no alloc\n", __func__);
 		return SCSI_MLQUEUE_HOST_BUSY;
 	}
 	sd_dp = &sqcp->sd_dp;
-	sd_dp->sqa_idx = k;
-	sqp->qc_arr[k] = sqcp;
-	spin_unlock_irqrestore(&sqp->qc_lock, iflags);
-
-	/* Set the hostwide tag */
-	if (sdebug_host_max_queue)
-		sd_dp->hc_idx = get_tag(cmnd);
 
 	if (polled)
 		ns_from_boot = ktime_get_boottime_ns();
@@ -5689,10 +5611,6 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 				u64 d = ktime_get_boottime_ns() - ns_from_boot;
 
 				if (kt <= d) {	/* elapsed duration >= kt */
-					spin_lock_irqsave(&sqp->qc_lock, iflags);
-					sqp->qc_arr[k] = NULL;
-					clear_bit(k, sqp->in_use_bm);
-					spin_unlock_irqrestore(&sqp->qc_lock, iflags);
 					/* call scsi_done() from this thread */
 					sdebug_free_queued_cmd(sqcp);
 					scsi_done(cmnd);
@@ -5950,14 +5868,39 @@ static int scsi_debug_write_info(struct Scsi_Host *host, char *buffer,
 	return length;
 }
 
+struct sdebug_submit_queue_data {
+	int *first;
+	int *last;
+	int queue_num;
+};
+
+static bool sdebug_submit_queue_iter(struct request *rq, void *opaque)
+{
+	struct sdebug_submit_queue_data *data = opaque;
+	u32 unique_tag = blk_mq_unique_tag(rq);
+	u16 hwq = blk_mq_unique_tag_to_hwq(unique_tag);
+	u16 tag = blk_mq_unique_tag_to_tag(unique_tag);
+	int queue_num = data->queue_num;
+
+	if (hwq != queue_num)
+		return true;
+
+	/* Rely on iter'ing in ascending tag order */
+	if (*data->first == -1)
+		*data->first = *data->last = tag;
+	else
+		*data->last = tag;
+
+	return true;
+}
+
 /* Output seen with 'cat /proc/scsi/scsi_debug/<host_id>'. It will be the
  * same for each scsi_debug host (if more than one). Some of the counters
  * output are not atomics so might be inaccurate in a busy system. */
 static int scsi_debug_show_info(struct seq_file *m, struct Scsi_Host *host)
 {
-	int f, j, l;
-	struct sdebug_queue *sqp;
 	struct sdebug_host_info *sdhp;
+	int j;
 
 	seq_printf(m, "scsi_debug adapter driver, version %s [%s]\n",
 		   SDEBUG_VERSION, sdebug_version_date);
@@ -5985,11 +5928,17 @@ static int scsi_debug_show_info(struct seq_file *m, struct Scsi_Host *host)
 		   atomic_read(&sdeb_mq_poll_count));
 
 	seq_printf(m, "submit_queues=%d\n", submit_queues);
-	for (j = 0, sqp = sdebug_q_arr; j < submit_queues; ++j, ++sqp) {
+	for (j = 0; j < submit_queues; ++j) {
+		int f = -1, l = -1;
+		struct sdebug_submit_queue_data data = {
+			.queue_num = j,
+			.first = &f,
+			.last = &l,
+		};
 		seq_printf(m, "  queue %d:\n", j);
-		f = find_first_bit(sqp->in_use_bm, sdebug_max_queue);
-		if (f != sdebug_max_queue) {
-			l = find_last_bit(sqp->in_use_bm, sdebug_max_queue);
+		blk_mq_tagset_busy_iter(&host->tag_set, sdebug_submit_queue_iter,
+					&data);
+		if (f >= 0) {
 			seq_printf(m, "    in_use_bm BUSY: %s: %d,%d\n",
 				   "first,last bits", f, l);
 		}
@@ -6944,13 +6893,6 @@ static int __init scsi_debug_init(void)
 			sdebug_max_queue);
 	}
 
-	sdebug_q_arr = kcalloc(submit_queues, sizeof(struct sdebug_queue),
-			       GFP_KERNEL);
-	if (sdebug_q_arr == NULL)
-		return -ENOMEM;
-	for (k = 0; k < submit_queues; ++k)
-		spin_lock_init(&sdebug_q_arr[k].qc_lock);
-
 	/*
 	 * check for host managed zoned block device specified with
 	 * ptype=0x14 or zbc=XXX.
@@ -6959,10 +6901,8 @@ static int __init scsi_debug_init(void)
 		sdeb_zbc_model = BLK_ZONED_HM;
 	} else if (sdeb_zbc_model_s && *sdeb_zbc_model_s) {
 		k = sdeb_zbc_model_str(sdeb_zbc_model_s);
-		if (k < 0) {
-			ret = k;
-			goto free_q_arr;
-		}
+		if (k < 0)
+			return k;
 		sdeb_zbc_model = k;
 		switch (sdeb_zbc_model) {
 		case BLK_ZONED_NONE:
@@ -6974,8 +6914,7 @@ static int __init scsi_debug_init(void)
 			break;
 		default:
 			pr_err("Invalid ZBC model\n");
-			ret = -EINVAL;
-			goto free_q_arr;
+			return -EINVAL;
 		}
 	}
 	if (sdeb_zbc_model != BLK_ZONED_NONE) {
@@ -7022,17 +6961,14 @@ static int __init scsi_debug_init(void)
 		    sdebug_unmap_granularity <=
 		    sdebug_unmap_alignment) {
 			pr_err("ERR: unmap_granularity <= unmap_alignment\n");
-			ret = -EINVAL;
-			goto free_q_arr;
+			return -EINVAL;
 		}
 	}
 	xa_init_flags(per_store_ap, XA_FLAGS_ALLOC | XA_FLAGS_LOCK_IRQ);
 	if (want_store) {
 		idx = sdebug_add_store();
-		if (idx < 0) {
-			ret = idx;
-			goto free_q_arr;
-		}
+		if (idx < 0)
+			return idx;
 	}
 
 	pseudo_primary = root_device_register("pseudo_0");
@@ -7089,8 +7025,6 @@ dev_unreg:
 	root_device_unregister(pseudo_primary);
 free_vm:
 	sdebug_erase_store(idx, NULL);
-free_q_arr:
-	kfree(sdebug_q_arr);
 	return ret;
 }
 
@@ -7107,7 +7041,6 @@ static void __exit scsi_debug_exit(void)
 
 	sdebug_erase_all_stores(false);
 	xa_destroy(per_store_ap);
-	kfree(sdebug_q_arr);
 }
 
 device_initcall(scsi_debug_init);
@@ -7483,10 +7416,8 @@ static bool sdebug_blk_mq_poll_iter(struct request *rq, void *opaque)
 	u32 unique_tag = blk_mq_unique_tag(rq);
 	u16 hwq = blk_mq_unique_tag_to_hwq(unique_tag);
 	struct sdebug_queued_cmd *sqcp;
-	struct sdebug_queue *sqp;
 	unsigned long flags;
 	int queue_num = data->queue_num;
-	int qc_idx;
 	ktime_t time;
 
 	/* We're only interested in one queue for this iteration */
@@ -7506,9 +7437,7 @@ static bool sdebug_blk_mq_poll_iter(struct request *rq, void *opaque)
 		return true;
 	}
 
-	sqp = sdebug_q_arr + queue_num;
 	sd_dp = &sqcp->sd_dp;
-
 	if (READ_ONCE(sd_dp->defer_t) != SDEB_DEFER_POLL) {
 		spin_unlock_irqrestore(&sdsc->lock, flags);
 		return true;
@@ -7516,16 +7445,6 @@ static bool sdebug_blk_mq_poll_iter(struct request *rq, void *opaque)
 
 	if (time < sd_dp->cmpl_ts) {
 		spin_unlock_irqrestore(&sdsc->lock, flags);
-		return true;
-	}
-
-	qc_idx = sd_dp->sqa_idx;
-	sqp->qc_arr[qc_idx] = NULL;
-	if (unlikely(!test_and_clear_bit(qc_idx, sqp->in_use_bm))) {
-		spin_unlock_irqrestore(&sdsc->lock, flags);
-		pr_err("Unexpected completion sqp %p queue_num=%d qc_idx=%u\n",
-			sqp, queue_num, qc_idx);
-		sdebug_free_queued_cmd(sqcp);
 		return true;
 	}
 
@@ -7548,20 +7467,14 @@ static bool sdebug_blk_mq_poll_iter(struct request *rq, void *opaque)
 static int sdebug_blk_mq_poll(struct Scsi_Host *shost, unsigned int queue_num)
 {
 	int num_entries = 0;
-	unsigned long iflags;
-	struct sdebug_queue *sqp;
 	struct sdebug_blk_mq_poll_data data = {
 		.queue_num = queue_num,
 		.num_entries = &num_entries,
 	};
-	sqp = sdebug_q_arr + queue_num;
-
-	spin_lock_irqsave(&sqp->qc_lock, iflags);
 
 	blk_mq_tagset_busy_iter(&shost->tag_set, sdebug_blk_mq_poll_iter,
 				&data);
 
-	spin_unlock_irqrestore(&sqp->qc_lock, iflags);
 	if (num_entries > 0)
 		atomic_add(num_entries, &sdeb_mq_poll_count);
 	return num_entries;
