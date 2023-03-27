@@ -8,6 +8,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/mediatek,mt6795-clk.h>
 #include <dt-bindings/pinctrl/mt6795-pinfunc.h>
+#include <dt-bindings/power/mt6795-power.h>
 #include <dt-bindings/reset/mediatek,mt6795-resets.h>
 
 / {
@@ -262,6 +263,84 @@
 			reg = <0 0x10003000 0 0x1000>;
 			#clock-cells = <1>;
 			#reset-cells = <1>;
+		};
+
+		scpsys: syscon@10006000 {
+			compatible = "syscon", "simple-mfd";
+			reg = <0 0x10006000 0 0x1000>;
+			#power-domain-cells = <1>;
+
+			/* System Power Manager */
+			spm: power-controller {
+				compatible = "mediatek,mt6795-power-controller";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				#power-domain-cells = <1>;
+
+				/* power domains of the SoC */
+				power-domain@MT6795_POWER_DOMAIN_VDEC {
+					reg = <MT6795_POWER_DOMAIN_VDEC>;
+					clocks = <&topckgen CLK_TOP_MM_SEL>;
+					clock-names = "mm";
+					#power-domain-cells = <0>;
+				};
+				power-domain@MT6795_POWER_DOMAIN_VENC {
+					reg = <MT6795_POWER_DOMAIN_VENC>;
+					clocks = <&topckgen CLK_TOP_MM_SEL>,
+						 <&topckgen CLK_TOP_VENC_SEL>;
+					clock-names = "mm", "venc";
+					#power-domain-cells = <0>;
+				};
+				power-domain@MT6795_POWER_DOMAIN_ISP {
+					reg = <MT6795_POWER_DOMAIN_ISP>;
+					clocks = <&topckgen CLK_TOP_MM_SEL>;
+					clock-names = "mm";
+					#power-domain-cells = <0>;
+				};
+
+				power-domain@MT6795_POWER_DOMAIN_MM {
+					reg = <MT6795_POWER_DOMAIN_MM>;
+					clocks = <&topckgen CLK_TOP_MM_SEL>;
+					clock-names = "mm";
+					#power-domain-cells = <0>;
+					mediatek,infracfg = <&infracfg>;
+				};
+
+				power-domain@MT6795_POWER_DOMAIN_MJC {
+					reg = <MT6795_POWER_DOMAIN_MJC>;
+					clocks = <&topckgen CLK_TOP_MM_SEL>,
+						 <&topckgen CLK_TOP_MJC_SEL>;
+					clock-names = "mm", "mjc";
+					#power-domain-cells = <0>;
+				};
+
+				power-domain@MT6795_POWER_DOMAIN_AUDIO {
+					reg = <MT6795_POWER_DOMAIN_AUDIO>;
+					#power-domain-cells = <0>;
+				};
+
+				mfg_async: power-domain@MT6795_POWER_DOMAIN_MFG_ASYNC {
+					reg = <MT6795_POWER_DOMAIN_MFG_ASYNC>;
+					clocks = <&clk26m>;
+					clock-names = "mfg";
+					#address-cells = <1>;
+					#size-cells = <0>;
+					#power-domain-cells = <1>;
+
+					power-domain@MT6795_POWER_DOMAIN_MFG_2D {
+						reg = <MT6795_POWER_DOMAIN_MFG_2D>;
+						#address-cells = <1>;
+						#size-cells = <0>;
+						#power-domain-cells = <1>;
+
+						power-domain@MT6795_POWER_DOMAIN_MFG {
+							reg = <MT6795_POWER_DOMAIN_MFG>;
+							#power-domain-cells = <0>;
+							mediatek,infracfg = <&infracfg>;
+						};
+					};
+				};
+			};
 		};
 
 		pio: pinctrl@10005000 {
