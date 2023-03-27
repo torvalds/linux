@@ -415,11 +415,7 @@ static void __io_worker_busy(struct io_wq *wq, struct io_worker *worker)
 }
 
 /*
- * No work, worker going to sleep. Move to freelist, and unuse mm if we
- * have one attached. Dropping the mm may potentially sleep, so we drop
- * the lock in that case and return success. Since the caller has to
- * retry the loop in that case (we changed task state), we don't regrab
- * the lock if we return success.
+ * No work, worker going to sleep. Move to freelist.
  */
 static void __io_worker_idle(struct io_wq *wq, struct io_worker *worker)
 	__must_hold(wq->lock)
