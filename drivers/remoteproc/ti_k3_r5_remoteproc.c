@@ -852,38 +852,33 @@ static int k3_r5_rproc_configure(struct k3_r5_rproc *kproc)
 	dev_dbg(dev, "boot_vector = 0x%llx, cfg = 0x%x ctrl = 0x%x stat = 0x%x\n",
 		boot_vec, cfg, ctrl, stat);
 
-	/* check if only Single-CPU mode is supported on applicable SoCs */
-	if (cluster->soc_data->single_cpu_mode) {
-		single_cpu =
-			!!(stat & PROC_BOOT_STATUS_FLAG_R5_SINGLECORE_ONLY);
-		if (single_cpu && cluster->mode == CLUSTER_MODE_SPLIT) {
-			dev_err(cluster->dev, "split-mode not permitted, force configuring for single-cpu mode\n");
-			cluster->mode = CLUSTER_MODE_SINGLECPU;
-		}
-		goto config;
+	single_cpu = !!(stat & PROC_BOOT_STATUS_FLAG_R5_SINGLECORE_ONLY);
+	lockstep_en = !!(stat & PROC_BOOT_STATUS_FLAG_R5_LOCKSTEP_PERMITTED);
+
+	/* Override to single CPU mode if set in status flag */
+	if (single_cpu && cluster->mode == CLUSTER_MODE_SPLIT) {
+		dev_err(cluster->dev, "split-mode not permitted, force configuring for single-cpu mode\n");
+		cluster->mode = CLUSTER_MODE_SINGLECPU;
 	}
 
-	/* check conventional LockStep vs Split mode configuration */
-	lockstep_en = !!(stat & PROC_BOOT_STATUS_FLAG_R5_LOCKSTEP_PERMITTED);
+	/* Override to split mode if lockstep enable bit is not set in status flag */
 	if (!lockstep_en && cluster->mode == CLUSTER_MODE_LOCKSTEP) {
 		dev_err(cluster->dev, "lockstep mode not permitted, force configuring for split-mode\n");
 		cluster->mode = CLUSTER_MODE_SPLIT;
 	}
 
-config:
 	/* always enable ARM mode and set boot vector to 0 */
 	boot_vec = 0x0;
 	if (core == core0) {
 		clr_cfg = PROC_BOOT_CFG_FLAG_R5_TEINIT;
-		if (cluster->soc_data->single_cpu_mode) {
-			/*
-			 * Single-CPU configuration bit can only be configured
-			 * on Core0 and system firmware will NACK any requests
-			 * with the bit configured, so program it only on
-			 * permitted cores
-			 */
-			if (cluster->mode == CLUSTER_MODE_SINGLECPU)
-				set_cfg = PROC_BOOT_CFG_FLAG_R5_SINGLE_CORE;
+		/*
+		 * Single-CPU configuration bit can only be configured
+		 * on Core0 and system firmware will NACK any requests
+		 * with the bit configured, so program it only on
+		 * permitted cores
+		 */
+		if (cluster->mode == CLUSTER_MODE_SINGLECPU) {
+			set_cfg = PROC_BOOT_CFG_FLAG_R5_SINGLE_CORE;
 		} else {
 			/*
 			 * LockStep configuration bit is Read-only on Split-mode
@@ -1108,12 +1103,12 @@ static int k3_r5_rproc_configure_mode(struct k3_r5_rproc *kproc)
 	struct k3_r5_cluster *cluster = kproc->cluster;
 	struct k3_r5_core *core = kproc->core;
 	struct device *cdev = core->dev;
-	bool r_state = false, c_state = false;
+	bool r_state = false, c_state = false, lockstep_en = false, single_cpu = false;
 	u32 ctrl = 0, cfg = 0, stat = 0, halted = 0;
 	u64 boot_vec = 0;
 	u32 atcm_enable, btcm_enable, loczrama;
 	struct k3_r5_core *core0;
-	enum cluster_mode mode;
+	enum cluster_mode mode = cluster->mode;
 	int ret;
 
 	core0 = list_first_entry(&cluster->cores, struct k3_r5_core, elem);
@@ -1147,13 +1142,14 @@ static int k3_r5_rproc_configure_mode(struct k3_r5_rproc *kproc)
 	atcm_enable = cfg & PROC_BOOT_CFG_FLAG_R5_ATCM_EN ?  1 : 0;
 	btcm_enable = cfg & PROC_BOOT_CFG_FLAG_R5_BTCM_EN ?  1 : 0;
 	loczrama = cfg & PROC_BOOT_CFG_FLAG_R5_TCM_RSTBASE ?  1 : 0;
-	if (cluster->soc_data->single_cpu_mode) {
-		mode = cfg & PROC_BOOT_CFG_FLAG_R5_SINGLE_CORE ?
-				CLUSTER_MODE_SINGLECPU : CLUSTER_MODE_SPLIT;
-	} else {
-		mode = cfg & PROC_BOOT_CFG_FLAG_R5_LOCKSTEP ?
-				CLUSTER_MODE_LOCKSTEP : CLUSTER_MODE_SPLIT;
-	}
+	single_cpu = cfg & PROC_BOOT_CFG_FLAG_R5_SINGLE_CORE ? 1 : 0;
+	lockstep_en = cfg & PROC_BOOT_CFG_FLAG_R5_LOCKSTEP ? 1 : 0;
+
+	if (single_cpu)
+		mode = CLUSTER_MODE_SINGLECPU;
+	if (lockstep_en)
+		mode = CLUSTER_MODE_LOCKSTEP;
+
 	halted = ctrl & PROC_BOOT_CTRL_FLAG_R5_CORE_HALT;
 
 	/*
@@ -1700,12 +1696,6 @@ static int k3_r5_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	cluster->dev = dev;
-	/*
-	 * default to most common efuse configurations - Split-mode on AM64x
-	 * and LockStep-mode on all others
-	 */
-	cluster->mode = data->single_cpu_mode ?
-				CLUSTER_MODE_SPLIT : CLUSTER_MODE_LOCKSTEP;
 	cluster->soc_data = data;
 	INIT_LIST_HEAD(&cluster->cores);
 
@@ -1714,6 +1704,20 @@ static int k3_r5_probe(struct platform_device *pdev)
 		dev_err(dev, "invalid format for ti,cluster-mode, ret = %d\n",
 			ret);
 		return ret;
+	}
+
+	if (ret == -EINVAL) {
+		/*
+		 * default to most common efuse configurations - Split-mode on AM64x
+		 * and LockStep-mode on all others
+		 */
+		cluster->mode = data->single_cpu_mode ?
+					CLUSTER_MODE_SPLIT : CLUSTER_MODE_LOCKSTEP;
+	}
+
+	if (cluster->mode == CLUSTER_MODE_SINGLECPU && !data->single_cpu_mode) {
+		dev_err(dev, "Cluster mode = %d is not supported on this SoC\n", cluster->mode);
+		return -EINVAL;
 	}
 
 	num_cores = of_get_available_child_count(np);
