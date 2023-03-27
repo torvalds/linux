@@ -16,6 +16,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/gpio/consumer.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/irqchip/chained_irq.h>
@@ -166,6 +167,7 @@ struct plda_pcie {
 	struct pinctrl *pinctrl;
 	struct pinctrl_state *perst_state_def;
 	struct pinctrl_state *perst_state_active;
+	struct gpio_desc *power_gpio;
 };
 
 static inline void plda_writel(struct plda_pcie *pcie, const u32 value,
@@ -767,6 +769,12 @@ int plda_pinctrl_init(struct plda_pcie *pcie)
 		return -EINVAL;
 	}
 
+	pcie->power_gpio = devm_gpiod_get_optional(dev, "power", GPIOD_OUT_LOW);
+	if (IS_ERR_OR_NULL(pcie->power_gpio)) {
+		dev_warn(dev, "Failed to get power-gpio, but maybe it's always on.\n");
+		pcie->power_gpio = NULL;
+	}
+
 	return 0;
 }
 
@@ -775,6 +783,9 @@ static void plda_pcie_hw_init(struct plda_pcie *pcie)
 	unsigned int value;
 	int i, ret;
 	struct device *dev = &pcie->pdev->dev;
+
+	if (pcie->power_gpio)
+		gpiod_set_value_cansleep(pcie->power_gpio, 1);
 
 	if (pcie->perst_state_active) {
 		ret = pinctrl_select_state(pcie->pinctrl, pcie->perst_state_active);
@@ -979,6 +990,9 @@ exit:
 	return ret;
 
 release:
+	if (pcie->power_gpio)
+		gpiod_set_value_cansleep(pcie->power_gpio, 0);
+
 	plda_clk_rst_deinit(pcie);
 
 	pm_runtime_put_sync(&pdev->dev);
