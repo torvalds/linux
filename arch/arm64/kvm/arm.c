@@ -155,6 +155,16 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	if (type & ~KVM_VM_TYPE_MASK)
 		return -EINVAL;
 
+	mutex_init(&kvm->arch.config_lock);
+
+#ifdef CONFIG_LOCKDEP
+	/* Clue in lockdep that the config_lock must be taken inside kvm->lock */
+	mutex_lock(&kvm->lock);
+	mutex_lock(&kvm->arch.config_lock);
+	mutex_unlock(&kvm->arch.config_lock);
+	mutex_unlock(&kvm->lock);
+#endif
+
 	ret = kvm_share_hyp(kvm, kvm + 1);
 	if (ret)
 		return ret;
@@ -424,6 +434,14 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 	int err;
 
 	spin_lock_init(&vcpu->arch.mp_state_lock);
+
+#ifdef CONFIG_LOCKDEP
+	/* Inform lockdep that the config_lock is acquired after vcpu->mutex */
+	mutex_lock(&vcpu->mutex);
+	mutex_lock(&vcpu->kvm->arch.config_lock);
+	mutex_unlock(&vcpu->kvm->arch.config_lock);
+	mutex_unlock(&vcpu->mutex);
+#endif
 
 	/* Force users to call KVM_ARM_VCPU_INIT */
 	vcpu->arch.target = -1;
