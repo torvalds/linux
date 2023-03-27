@@ -400,6 +400,13 @@ static const struct mdp_limit mt8183_mdp_def_limit = {
 	.v_scale_down_max = 128,
 };
 
+static const struct mdp_pipe_info mt8183_pipe_info[] = {
+	[MDP_PIPE_WPEI] = {MDP_PIPE_WPEI, 0},
+	[MDP_PIPE_WPEI2] = {MDP_PIPE_WPEI2, 1},
+	[MDP_PIPE_IMGI] = {MDP_PIPE_IMGI, 2},
+	[MDP_PIPE_RDMA0] = {MDP_PIPE_RDMA0, 3}
+};
+
 const struct mtk_mdp_driver_data mt8183_mdp_driver_data = {
 	.mdp_probe_infra = mt8183_mdp_probe_infra,
 	.mdp_cfg = &mt8183_plat_cfg,
@@ -410,6 +417,8 @@ const struct mtk_mdp_driver_data mt8183_mdp_driver_data = {
 	.format = mt8183_formats,
 	.format_len = ARRAY_SIZE(mt8183_formats),
 	.def_limit = &mt8183_mdp_def_limit,
+	.pipe_info = mt8183_pipe_info,
+	.pipe_info_len = ARRAY_SIZE(mt8183_pipe_info),
 };
 
 s32 mdp_cfg_get_id_inner(struct mdp_dev *mdp_dev, enum mtk_mdp_comp_id id)

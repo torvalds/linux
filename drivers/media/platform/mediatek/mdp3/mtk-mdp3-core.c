@@ -153,7 +153,7 @@ static int mdp_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct mdp_dev *mdp;
 	struct platform_device *mm_pdev;
-	int ret, i;
+	int ret, i, mutex_id;
 
 	mdp = kzalloc(sizeof(*mdp), GFP_KERNEL);
 	if (!mdp) {
@@ -176,10 +176,13 @@ static int mdp_probe(struct platform_device *pdev)
 		ret = -ENODEV;
 		goto err_destroy_device;
 	}
-	for (i = 0; i < MDP_PIPE_MAX; i++) {
-		mdp->mdp_mutex[i] = mtk_mutex_get(&mm_pdev->dev);
-		if (IS_ERR(mdp->mdp_mutex[i])) {
-			ret = PTR_ERR(mdp->mdp_mutex[i]);
+	for (i = 0; i < mdp->mdp_data->pipe_info_len; i++) {
+		mutex_id = mdp->mdp_data->pipe_info[i].mutex_id;
+		if (!IS_ERR_OR_NULL(mdp->mdp_mutex[mutex_id]))
+			continue;
+		mdp->mdp_mutex[mutex_id] = mtk_mutex_get(&mm_pdev->dev);
+		if (IS_ERR(mdp->mdp_mutex[mutex_id])) {
+			ret = PTR_ERR(mdp->mdp_mutex[mutex_id]);
 			goto err_free_mutex;
 		}
 	}
@@ -259,7 +262,7 @@ err_destroy_job_wq:
 err_deinit_comp:
 	mdp_comp_destroy(mdp);
 err_free_mutex:
-	for (i = 0; i < MDP_PIPE_MAX; i++)
+	for (i = 0; i < mdp->mdp_data->pipe_info_len; i++)
 		if (!IS_ERR_OR_NULL(mdp->mdp_mutex[i]))
 			mtk_mutex_put(mdp->mdp_mutex[i]);
 err_destroy_device:
