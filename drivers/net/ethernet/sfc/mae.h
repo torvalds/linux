@@ -72,6 +72,7 @@ struct mae_caps {
 	u32 match_field_count;
 	u32 action_prios;
 	u8 action_rule_fields[MAE_NUM_FIELDS];
+	u8 outer_rule_fields[MAE_NUM_FIELDS];
 };
 
 int efx_mae_get_caps(struct efx_nic *efx, struct mae_caps *caps);
@@ -79,6 +80,8 @@ int efx_mae_get_caps(struct efx_nic *efx, struct mae_caps *caps);
 int efx_mae_match_check_caps(struct efx_nic *efx,
 			     const struct efx_tc_match_fields *mask,
 			     struct netlink_ext_ack *extack);
+int efx_mae_check_encap_match_caps(struct efx_nic *efx, bool ipv6,
+				   struct netlink_ext_ack *extack);
 
 int efx_mae_allocate_counter(struct efx_nic *efx, struct efx_tc_counter *cnt);
 int efx_mae_free_counter(struct efx_nic *efx, struct efx_tc_counter *cnt);

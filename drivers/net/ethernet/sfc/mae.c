@@ -254,13 +254,23 @@ static int efx_mae_get_rule_fields(struct efx_nic *efx, u32 cmd,
 	size_t outlen;
 	int rc, i;
 
+	/* AR and OR caps MCDIs have identical layout, so we are using the
+	 * same code for both.
+	 */
+	BUILD_BUG_ON(MC_CMD_MAE_GET_AR_CAPS_OUT_LEN(MAE_NUM_FIELDS) <
+		     MC_CMD_MAE_GET_OR_CAPS_OUT_LEN(MAE_NUM_FIELDS));
 	BUILD_BUG_ON(MC_CMD_MAE_GET_AR_CAPS_IN_LEN);
+	BUILD_BUG_ON(MC_CMD_MAE_GET_OR_CAPS_IN_LEN);
 
 	rc = efx_mcdi_rpc(efx, cmd, NULL, 0, outbuf, sizeof(outbuf), &outlen);
 	if (rc)
 		return rc;
+	BUILD_BUG_ON(MC_CMD_MAE_GET_AR_CAPS_OUT_COUNT_OFST !=
+		     MC_CMD_MAE_GET_OR_CAPS_OUT_COUNT_OFST);
 	count = MCDI_DWORD(outbuf, MAE_GET_AR_CAPS_OUT_COUNT);
 	memset(field_support, MAE_FIELD_UNSUPPORTED, MAE_NUM_FIELDS);
+	BUILD_BUG_ON(MC_CMD_MAE_GET_AR_CAPS_OUT_FIELD_FLAGS_OFST !=
+		     MC_CMD_MAE_GET_OR_CAPS_OUT_FIELD_FLAGS_OFST);
 	caps = _MCDI_DWORD(outbuf, MAE_GET_AR_CAPS_OUT_FIELD_FLAGS);
 	/* We're only interested in the support status enum, not any other
 	 * flags, so just extract that from each entry.
@@ -278,8 +288,12 @@ int efx_mae_get_caps(struct efx_nic *efx, struct mae_caps *caps)
 	rc = efx_mae_get_basic_caps(efx, caps);
 	if (rc)
 		return rc;
-	return efx_mae_get_rule_fields(efx, MC_CMD_MAE_GET_AR_CAPS,
-				       caps->action_rule_fields);
+	rc = efx_mae_get_rule_fields(efx, MC_CMD_MAE_GET_AR_CAPS,
+				     caps->action_rule_fields);
+	if (rc)
+		return rc;
+	return efx_mae_get_rule_fields(efx, MC_CMD_MAE_GET_OR_CAPS,
+				       caps->outer_rule_fields);
 }
 
 /* Bit twiddling:
@@ -432,9 +446,65 @@ int efx_mae_match_check_caps(struct efx_nic *efx,
 	    CHECK_BIT(IP_FIRST_FRAG, ip_firstfrag) ||
 	    CHECK(RECIRC_ID, recirc_id))
 		return rc;
+	/* Matches on outer fields are done in a separate hardware table,
+	 * the Outer Rule table.  Thus the Action Rule merely does an
+	 * exact match on Outer Rule ID if any outer field matches are
+	 * present.  The exception is the VNI/VSID (enc_keyid), which is
+	 * available to the Action Rule match iff the Outer Rule matched
+	 * (and thus identified the encap protocol to use to extract it).
+	 */
+	if (efx_tc_match_is_encap(mask)) {
+		rc = efx_mae_match_check_cap_typ(
+				supported_fields[MAE_FIELD_OUTER_RULE_ID],
+				MASK_ONES);
+		if (rc) {
+			NL_SET_ERR_MSG_MOD(extack, "No support for encap rule ID matches");
+			return rc;
+		}
+		if (CHECK(ENC_VNET_ID, enc_keyid))
+			return rc;
+	} else if (mask->enc_keyid) {
+		NL_SET_ERR_MSG_MOD(extack, "Match on enc_keyid requires other encap fields");
+		return -EINVAL;
+	}
 	return 0;
 }
 #undef CHECK_BIT
+#undef CHECK
+
+#define CHECK(_mcdi)	({						       \
+	rc = efx_mae_match_check_cap_typ(supported_fields[MAE_FIELD_ ## _mcdi],\
+					 MASK_ONES);			       \
+	if (rc)								       \
+		NL_SET_ERR_MSG_FMT_MOD(extack,				       \
+				       "No support for field %s", #_mcdi);     \
+	rc;								       \
+})
+/* Checks that the fields needed for encap-rule matches are supported by the
+ * MAE.  All the fields are exact-match.
+ */
+int efx_mae_check_encap_match_caps(struct efx_nic *efx, bool ipv6,
+				   struct netlink_ext_ack *extack)
+{
+	u8 *supported_fields = efx->tc->caps->outer_rule_fields;
+	int rc;
+
+	if (CHECK(ENC_ETHER_TYPE))
+		return rc;
+	if (ipv6) {
+		if (CHECK(ENC_SRC_IP6) ||
+		    CHECK(ENC_DST_IP6))
+			return rc;
+	} else {
+		if (CHECK(ENC_SRC_IP4) ||
+		    CHECK(ENC_DST_IP4))
+			return rc;
+	}
+	if (CHECK(ENC_L4_DPORT) ||
+	    CHECK(ENC_IP_PROTO))
+		return rc;
+	return 0;
+}
 #undef CHECK
 
 int efx_mae_allocate_counter(struct efx_nic *efx, struct efx_tc_counter *cnt)
@@ -941,6 +1011,29 @@ static int efx_mae_populate_match_criteria(MCDI_DECLARE_STRUCT_PTR(match_crit),
 				match->value.tcp_flags);
 	MCDI_STRUCT_SET_WORD_BE(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_TCP_FLAGS_BE_MASK,
 				match->mask.tcp_flags);
+	/* enc-keys are handled indirectly, through encap_match ID */
+	if (match->encap) {
+		MCDI_STRUCT_SET_DWORD(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_OUTER_RULE_ID,
+				      match->encap->fw_id);
+		MCDI_STRUCT_SET_DWORD(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_OUTER_RULE_ID_MASK,
+				      U32_MAX);
+		/* enc_keyid (VNI/VSID) is not part of the encap_match */
+		MCDI_STRUCT_SET_DWORD_BE(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_ENC_VNET_ID_BE,
+					 match->value.enc_keyid);
+		MCDI_STRUCT_SET_DWORD_BE(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_ENC_VNET_ID_BE_MASK,
+					 match->mask.enc_keyid);
+	} else if (WARN_ON_ONCE(match->mask.enc_src_ip) ||
+		   WARN_ON_ONCE(match->mask.enc_dst_ip) ||
+		   WARN_ON_ONCE(!ipv6_addr_any(&match->mask.enc_src_ip6)) ||
+		   WARN_ON_ONCE(!ipv6_addr_any(&match->mask.enc_dst_ip6)) ||
+		   WARN_ON_ONCE(match->mask.enc_ip_tos) ||
+		   WARN_ON_ONCE(match->mask.enc_ip_ttl) ||
+		   WARN_ON_ONCE(match->mask.enc_sport) ||
+		   WARN_ON_ONCE(match->mask.enc_dport) ||
+		   WARN_ON_ONCE(match->mask.enc_keyid)) {
+		/* No enc-keys should appear in a rule without an encap_match */
+		return -EOPNOTSUPP;
+	}
 	return 0;
 }
 

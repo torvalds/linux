@@ -48,11 +48,35 @@ struct efx_tc_match_fields {
 	/* L4 */
 	__be16 l4_sport, l4_dport; /* Ports (UDP, TCP) */
 	__be16 tcp_flags;
+	/* Encap.  The following are *outer* fields.  Note that there are no
+	 * outer eth (L2) fields; this is because TC doesn't have them.
+	 */
+	__be32 enc_src_ip, enc_dst_ip;
+	struct in6_addr enc_src_ip6, enc_dst_ip6;
+	u8 enc_ip_tos, enc_ip_ttl;
+	__be16 enc_sport, enc_dport;
+	__be32 enc_keyid; /* e.g. VNI, VSID */
+};
+
+static inline bool efx_tc_match_is_encap(const struct efx_tc_match_fields *mask)
+{
+	return mask->enc_src_ip || mask->enc_dst_ip ||
+	       !ipv6_addr_any(&mask->enc_src_ip6) ||
+	       !ipv6_addr_any(&mask->enc_dst_ip6) || mask->enc_ip_tos ||
+	       mask->enc_ip_ttl || mask->enc_sport || mask->enc_dport;
+}
+
+struct efx_tc_encap_match {
+	__be32 src_ip, dst_ip;
+	struct in6_addr src_ip6, dst_ip6;
+	__be16 udp_dport;
+	u32 fw_id; /* index of this entry in firmware encap match table */
 };
 
 struct efx_tc_match {
 	struct efx_tc_match_fields value;
 	struct efx_tc_match_fields mask;
+	struct efx_tc_encap_match *encap;
 };
 
 struct efx_tc_action_set_list {
