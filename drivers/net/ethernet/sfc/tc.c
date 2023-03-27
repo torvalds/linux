@@ -57,6 +57,12 @@ static s64 efx_tc_flower_external_mport(struct efx_nic *efx, struct efx_rep *efv
 	return mport;
 }
 
+static const struct rhashtable_params efx_tc_encap_match_ht_params = {
+	.key_len	= offsetof(struct efx_tc_encap_match, linkage),
+	.key_offset	= 0,
+	.head_offset	= offsetof(struct efx_tc_encap_match, linkage),
+};
+
 static const struct rhashtable_params efx_tc_match_action_ht_params = {
 	.key_len	= sizeof(unsigned long),
 	.key_offset	= offsetof(struct efx_tc_flow_rule, cookie),
@@ -338,6 +344,144 @@ static int efx_tc_flower_parse_match(struct efx_nic *efx,
 	}
 
 	return 0;
+}
+
+__always_unused
+static int efx_tc_flower_record_encap_match(struct efx_nic *efx,
+					    struct efx_tc_match *match,
+					    enum efx_encap_type type,
+					    struct netlink_ext_ack *extack)
+{
+	struct efx_tc_encap_match *encap, *old;
+	bool ipv6 = false;
+	int rc;
+
+	/* We require that the socket-defining fields (IP addrs and UDP dest
+	 * port) are present and exact-match.  Other fields are currently not
+	 * allowed.  This meets what OVS will ask for, and means that we don't
+	 * need to handle difficult checks for overlapping matches as could
+	 * come up if we allowed masks or varying sets of match fields.
+	 */
+	if (match->mask.enc_dst_ip | match->mask.enc_src_ip) {
+		if (!IS_ALL_ONES(match->mask.enc_dst_ip)) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Egress encap match is not exact on dst IP address");
+			return -EOPNOTSUPP;
+		}
+		if (!IS_ALL_ONES(match->mask.enc_src_ip)) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Egress encap match is not exact on src IP address");
+			return -EOPNOTSUPP;
+		}
+#ifdef CONFIG_IPV6
+		if (!ipv6_addr_any(&match->mask.enc_dst_ip6) ||
+		    !ipv6_addr_any(&match->mask.enc_src_ip6)) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Egress encap match on both IPv4 and IPv6, don't understand");
+			return -EOPNOTSUPP;
+		}
+	} else {
+		ipv6 = true;
+		if (!efx_ipv6_addr_all_ones(&match->mask.enc_dst_ip6)) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Egress encap match is not exact on dst IP address");
+			return -EOPNOTSUPP;
+		}
+		if (!efx_ipv6_addr_all_ones(&match->mask.enc_src_ip6)) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Egress encap match is not exact on src IP address");
+			return -EOPNOTSUPP;
+		}
+#endif
+	}
+	if (!IS_ALL_ONES(match->mask.enc_dport)) {
+		NL_SET_ERR_MSG_MOD(extack, "Egress encap match is not exact on dst UDP port");
+		return -EOPNOTSUPP;
+	}
+	if (match->mask.enc_sport) {
+		NL_SET_ERR_MSG_MOD(extack, "Egress encap match on src UDP port not supported");
+		return -EOPNOTSUPP;
+	}
+	if (match->mask.enc_ip_tos) {
+		NL_SET_ERR_MSG_MOD(extack, "Egress encap match on IP ToS not supported");
+		return -EOPNOTSUPP;
+	}
+	if (match->mask.enc_ip_ttl) {
+		NL_SET_ERR_MSG_MOD(extack, "Egress encap match on IP TTL not supported");
+		return -EOPNOTSUPP;
+	}
+
+	rc = efx_mae_check_encap_match_caps(efx, ipv6, extack);
+	if (rc) {
+		NL_SET_ERR_MSG_FMT_MOD(extack, "MAE hw reports no support for IPv%d encap matches",
+				       ipv6 ? 6 : 4);
+		return -EOPNOTSUPP;
+	}
+
+	encap = kzalloc(sizeof(*encap), GFP_USER);
+	if (!encap)
+		return -ENOMEM;
+	encap->src_ip = match->value.enc_src_ip;
+	encap->dst_ip = match->value.enc_dst_ip;
+#ifdef CONFIG_IPV6
+	encap->src_ip6 = match->value.enc_src_ip6;
+	encap->dst_ip6 = match->value.enc_dst_ip6;
+#endif
+	encap->udp_dport = match->value.enc_dport;
+	encap->tun_type = type;
+	old = rhashtable_lookup_get_insert_fast(&efx->tc->encap_match_ht,
+						&encap->linkage,
+						efx_tc_encap_match_ht_params);
+	if (old) {
+		/* don't need our new entry */
+		kfree(encap);
+		if (old->tun_type != type) {
+			NL_SET_ERR_MSG_FMT_MOD(extack,
+					       "Egress encap match with conflicting tun_type %u != %u",
+					       old->tun_type, type);
+			return -EEXIST;
+		}
+		if (!refcount_inc_not_zero(&old->ref))
+			return -EAGAIN;
+		/* existing entry found */
+		encap = old;
+	} else {
+		rc = efx_mae_register_encap_match(efx, encap);
+		if (rc) {
+			NL_SET_ERR_MSG_MOD(extack, "Failed to record egress encap match in HW");
+			goto fail;
+		}
+		refcount_set(&encap->ref, 1);
+	}
+	match->encap = encap;
+	return 0;
+fail:
+	rhashtable_remove_fast(&efx->tc->encap_match_ht, &encap->linkage,
+			       efx_tc_encap_match_ht_params);
+	kfree(encap);
+	return rc;
+}
+
+__always_unused
+static void efx_tc_flower_release_encap_match(struct efx_nic *efx,
+					      struct efx_tc_encap_match *encap)
+{
+	int rc;
+
+	if (!refcount_dec_and_test(&encap->ref))
+		return; /* still in use */
+
+	rc = efx_mae_unregister_encap_match(efx, encap);
+	if (rc)
+		/* Display message but carry on and remove entry from our
+		 * SW tables, because there's not much we can do about it.
+		 */
+		netif_err(efx, drv, efx->net_dev,
+			  "Failed to release encap match %#x, rc %d\n",
+			  encap->fw_id, rc);
+	rhashtable_remove_fast(&efx->tc->encap_match_ht, &encap->linkage,
+			       efx_tc_encap_match_ht_params);
+	kfree(encap);
 }
 
 /* For details of action order constraints refer to SF-123102-TC-1§12.6.1 */
@@ -974,6 +1118,18 @@ void efx_fini_tc(struct efx_nic *efx)
 	efx->tc->up = false;
 }
 
+/* At teardown time, all TC filter rules (and thus all resources they created)
+ * should already have been removed.  If we find any in our hashtables, make a
+ * cursory attempt to clean up the software side.
+ */
+static void efx_tc_encap_match_free(void *ptr, void *__unused)
+{
+	struct efx_tc_encap_match *encap = ptr;
+
+	WARN_ON(refcount_read(&encap->ref));
+	kfree(encap);
+}
+
 int efx_init_struct_tc(struct efx_nic *efx)
 {
 	int rc;
@@ -996,6 +1152,9 @@ int efx_init_struct_tc(struct efx_nic *efx)
 	rc = efx_tc_init_counters(efx);
 	if (rc < 0)
 		goto fail_counters;
+	rc = rhashtable_init(&efx->tc->encap_match_ht, &efx_tc_encap_match_ht_params);
+	if (rc < 0)
+		goto fail_encap_match_ht;
 	rc = rhashtable_init(&efx->tc->match_action_ht, &efx_tc_match_action_ht_params);
 	if (rc < 0)
 		goto fail_match_action_ht;
@@ -1008,6 +1167,8 @@ int efx_init_struct_tc(struct efx_nic *efx)
 	efx->extra_channel_type[EFX_EXTRA_CHANNEL_TC] = &efx_tc_channel_type;
 	return 0;
 fail_match_action_ht:
+	rhashtable_destroy(&efx->tc->encap_match_ht);
+fail_encap_match_ht:
 	efx_tc_destroy_counters(efx);
 fail_counters:
 	mutex_destroy(&efx->tc->mutex);
@@ -1030,6 +1191,8 @@ void efx_fini_struct_tc(struct efx_nic *efx)
 			     MC_CMD_MAE_ACTION_RULE_INSERT_OUT_ACTION_RULE_ID_NULL);
 	rhashtable_free_and_destroy(&efx->tc->match_action_ht, efx_tc_flow_free,
 				    efx);
+	rhashtable_free_and_destroy(&efx->tc->encap_match_ht,
+				    efx_tc_encap_match_free, NULL);
 	efx_tc_fini_counters(efx);
 	mutex_unlock(&efx->tc->mutex);
 	mutex_destroy(&efx->tc->mutex);
