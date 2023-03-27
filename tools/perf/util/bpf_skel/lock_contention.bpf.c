@@ -124,7 +124,9 @@ int lock_owner;
 int aggr_mode;
 
 /* error stat */
-int lost;
+int task_fail;
+int stack_fail;
+int time_fail;
 
 static inline int can_record(u64 *ctx)
 {
@@ -283,7 +285,7 @@ int contention_begin(u64 *ctx)
 		bpf_map_update_elem(&tstamp, &pid, &zero, BPF_ANY);
 		pelem = bpf_map_lookup_elem(&tstamp, &pid);
 		if (pelem == NULL) {
-			lost++;
+			__sync_fetch_and_add(&task_fail, 1);
 			return 0;
 		}
 	}
@@ -296,7 +298,7 @@ int contention_begin(u64 *ctx)
 		pelem->stack_id = bpf_get_stackid(ctx, &stacks,
 						  BPF_F_FAST_STACK_CMP | stack_skip);
 		if (pelem->stack_id < 0)
-			lost++;
+			__sync_fetch_and_add(&stack_fail, 1);
 	} else if (aggr_mode == LOCK_AGGR_TASK) {
 		struct task_struct *task;
 
@@ -340,6 +342,11 @@ int contention_end(u64 *ctx)
 		return 0;
 
 	duration = bpf_ktime_get_ns() - pelem->timestamp;
+	if ((__s64)duration < 0) {
+		bpf_map_delete_elem(&tstamp, &pid);
+		__sync_fetch_and_add(&time_fail, 1);
+		return 0;
+	}
 
 	switch (aggr_mode) {
 	case LOCK_AGGR_CALLER:

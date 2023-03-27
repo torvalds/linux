@@ -1619,6 +1619,24 @@ static void sort_contention_result(void)
 	sort_result();
 }
 
+static void print_bpf_events(int total, struct lock_contention_fails *fails)
+{
+	/* Output for debug, this have to be removed */
+	int broken = fails->task + fails->stack + fails->time;
+
+	if (quiet || total == 0 || (broken == 0 && verbose <= 0))
+		return;
+
+	total += broken;
+	pr_info("\n=== output for debug ===\n\n");
+	pr_info("bad: %d, total: %d\n", broken, total);
+	pr_info("bad rate: %.2f %%\n", (double)broken / (double)total * 100);
+
+	pr_info("histogram of failure reasons\n");
+	pr_info(" %10s: %d\n", "task", fails->task);
+	pr_info(" %10s: %d\n", "stack", fails->stack);
+	pr_info(" %10s: %d\n", "time", fails->time);
+}
 static void print_contention_result(struct lock_contention *con)
 {
 	struct lock_stat *st;
@@ -1646,8 +1664,6 @@ static void print_contention_result(struct lock_contention *con)
 	}
 
 	bad = total = printed = 0;
-	if (use_bpf)
-		bad = bad_hist[BROKEN_CONTENDED];
 
 	while ((st = pop_from_result())) {
 		struct thread *t;
@@ -1704,7 +1720,10 @@ static void print_contention_result(struct lock_contention *con)
 			break;
 	}
 
-	print_bad_events(bad, total);
+	if (use_bpf)
+		print_bpf_events(total, &con->fails);
+	else
+		print_bad_events(bad, total);
 }
 
 static bool force;
@@ -1931,9 +1950,6 @@ static int __cmd_contention(int argc, const char **argv)
 
 		lock_contention_stop();
 		lock_contention_read(&con);
-
-		/* abuse bad hist stats for lost entries */
-		bad_hist[BROKEN_CONTENDED] = con.lost;
 	} else {
 		err = perf_session__process_events(session);
 		if (err)

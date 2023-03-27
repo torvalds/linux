@@ -122,14 +122,20 @@ struct evlist;
 struct machine;
 struct target;
 
+struct lock_contention_fails {
+	int task;
+	int stack;
+	int time;
+};
+
 struct lock_contention {
 	struct evlist *evlist;
 	struct target *target;
 	struct machine *machine;
 	struct hlist_head *result;
 	struct lock_filter *filters;
+	struct lock_contention_fails fails;
 	unsigned long map_nr_entries;
-	int lost;
 	int max_stack;
 	int stack_skip;
 	int aggr_mode;

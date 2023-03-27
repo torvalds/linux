@@ -259,7 +259,9 @@ int lock_contention_read(struct lock_contention *con)
 	fd = bpf_map__fd(skel->maps.lock_stat);
 	stack = bpf_map__fd(skel->maps.stacks);
 
-	con->lost = skel->bss->lost;
+	con->fails.task = skel->bss->task_fail;
+	con->fails.stack = skel->bss->stack_fail;
+	con->fails.time = skel->bss->time_fail;
 
 	stack_trace = zalloc(stack_size);
 	if (stack_trace == NULL)
