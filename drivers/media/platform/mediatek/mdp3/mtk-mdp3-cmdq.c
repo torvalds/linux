@@ -48,7 +48,7 @@ static int mdp_path_subfrm_require(const struct mdp_path *path,
 	int id, index;
 
 	/* Decide which mutex to use based on the current pipeline */
-	switch (path->comps[0].comp->id) {
+	switch (path->comps[0].comp->public_id) {
 	case MDP_COMP_RDMA0:
 		*mutex_id = MDP_PIPE_RDMA0;
 		break;
@@ -71,7 +71,7 @@ static int mdp_path_subfrm_require(const struct mdp_path *path,
 		ctx = &path->comps[index];
 		if (is_output_disabled(ctx->param, count))
 			continue;
-		id = ctx->comp->id;
+		id = ctx->comp->public_id;
 		mtk_mutex_write_mod(mutex[*mutex_id],
 				    data->mdp_mutex_table_idx[id], false);
 	}

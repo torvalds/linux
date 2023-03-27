@@ -8,6 +8,7 @@
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
 #include <linux/pm_runtime.h>
+#include "mtk-mdp3-cfg.h"
 #include "mtk-mdp3-comp.h"
 #include "mtk-mdp3-core.h"
 #include "mtk-mdp3-regs.h"
@@ -32,12 +33,18 @@ __get_plat_cfg(const struct mdp_comp_ctx *ctx)
 static s64 get_comp_flag(const struct mdp_comp_ctx *ctx)
 {
 	const struct mdp_platform_config *mdp_cfg = __get_plat_cfg(ctx);
+	u32 rdma0, rsz1;
+
+	rdma0 = mdp_cfg_get_id_inner(ctx->comp->mdp_dev, MDP_COMP_RDMA0);
+	rsz1 = mdp_cfg_get_id_inner(ctx->comp->mdp_dev, MDP_COMP_RSZ1);
+	if (!rdma0 || !rsz1)
+		return MDP_COMP_NONE;
 
 	if (mdp_cfg && mdp_cfg->rdma_rsz1_sram_sharing)
-		if (ctx->comp->id == MDP_COMP_RDMA0)
-			return BIT(MDP_COMP_RDMA0) | BIT(MDP_COMP_RSZ1);
+		if (ctx->comp->inner_id == rdma0)
+			return BIT(rdma0) | BIT(rsz1);
 
-	return BIT(ctx->comp->id);
+	return BIT(ctx->comp->inner_id);
 }
 
 static int init_rdma(struct mdp_comp_ctx *ctx, struct mdp_cmdq_cmd *cmd)
@@ -45,12 +52,17 @@ static int init_rdma(struct mdp_comp_ctx *ctx, struct mdp_cmdq_cmd *cmd)
 	const struct mdp_platform_config *mdp_cfg = __get_plat_cfg(ctx);
 	phys_addr_t base = ctx->comp->reg_base;
 	u8 subsys_id = ctx->comp->subsys_id;
+	s32 rdma0;
+
+	rdma0 = mdp_cfg_get_id_inner(ctx->comp->mdp_dev, MDP_COMP_RDMA0);
+	if (!rdma0)
+		return -EINVAL;
 
 	if (mdp_cfg && mdp_cfg->rdma_support_10bit) {
 		struct mdp_comp *prz1 = ctx->comp->mdp_dev->comp[MDP_COMP_RSZ1];
 
 		/* Disable RSZ1 */
-		if (ctx->comp->id == MDP_COMP_RDMA0 && prz1)
+		if (ctx->comp->inner_id == rdma0 && prz1)
 			MM_REG_WRITE(cmd, subsys_id, prz1->reg_base, PRZ_ENABLE,
 				     0x0, BIT(0));
 	}
@@ -578,32 +590,6 @@ static const struct mdp_comp_ops *mdp_comp_ops[MDP_COMP_TYPE_COUNT] = {
 	[MDP_COMP_TYPE_CCORR] =		&ccorr_ops,
 };
 
-struct mdp_comp_match {
-	enum mdp_comp_type	type;
-	u32			alias_id;
-};
-
-static const struct mdp_comp_match mdp_comp_matches[MDP_MAX_COMP_COUNT] = {
-	[MDP_COMP_WPEI] =	{ MDP_COMP_TYPE_WPEI, 0 },
-	[MDP_COMP_WPEO] =	{ MDP_COMP_TYPE_EXTO, 2 },
-	[MDP_COMP_WPEI2] =	{ MDP_COMP_TYPE_WPEI, 1 },
-	[MDP_COMP_WPEO2] =	{ MDP_COMP_TYPE_EXTO, 3 },
-	[MDP_COMP_ISP_IMGI] =	{ MDP_COMP_TYPE_IMGI, 0 },
-	[MDP_COMP_ISP_IMGO] =	{ MDP_COMP_TYPE_EXTO, 0 },
-	[MDP_COMP_ISP_IMG2O] =	{ MDP_COMP_TYPE_EXTO, 1 },
-
-	[MDP_COMP_CAMIN] =	{ MDP_COMP_TYPE_DL_PATH, 0 },
-	[MDP_COMP_CAMIN2] =	{ MDP_COMP_TYPE_DL_PATH, 1 },
-	[MDP_COMP_RDMA0] =	{ MDP_COMP_TYPE_RDMA, 0 },
-	[MDP_COMP_CCORR0] =	{ MDP_COMP_TYPE_CCORR, 0 },
-	[MDP_COMP_RSZ0] =	{ MDP_COMP_TYPE_RSZ, 0 },
-	[MDP_COMP_RSZ1] =	{ MDP_COMP_TYPE_RSZ, 1 },
-	[MDP_COMP_PATH0_SOUT] =	{ MDP_COMP_TYPE_PATH, 0 },
-	[MDP_COMP_PATH1_SOUT] =	{ MDP_COMP_TYPE_PATH, 1 },
-	[MDP_COMP_WROT0] =	{ MDP_COMP_TYPE_WROT, 0 },
-	[MDP_COMP_WDMA] =	{ MDP_COMP_TYPE_WDMA, 0 },
-};
-
 static const struct of_device_id mdp_comp_dt_ids[] = {
 	{
 		.compatible = "mediatek,mt8183-mdp3-rdma",
@@ -635,21 +621,6 @@ static const struct of_device_id mdp_sub_comp_dt_ids[] = {
 	{}
 };
 
-/* Used to describe the item order in MDP property */
-struct mdp_comp_info {
-	u32	clk_num;
-	u32	clk_ofst;
-	u32	dts_reg_ofst;
-};
-
-static const struct mdp_comp_info mdp_comp_dt_info[MDP_MAX_COMP_COUNT] = {
-	[MDP_COMP_RDMA0]	= {2, 0, 0},
-	[MDP_COMP_RSZ0]		= {1, 0, 0},
-	[MDP_COMP_WROT0]	= {1, 0, 0},
-	[MDP_COMP_WDMA]		= {1, 0, 0},
-	[MDP_COMP_CCORR0]	= {1, 0, 0},
-};
-
 static inline bool is_dma_capable(const enum mdp_comp_type type)
 {
 	return (type == MDP_COMP_TYPE_RDMA ||
@@ -666,13 +637,13 @@ static inline bool is_bypass_gce_event(const enum mdp_comp_type type)
 	return (type == MDP_COMP_TYPE_PATH);
 }
 
-static int mdp_comp_get_id(enum mdp_comp_type type, int alias_id)
+static int mdp_comp_get_id(struct mdp_dev *mdp, enum mdp_comp_type type, u32 alias_id)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(mdp_comp_matches); i++)
-		if (mdp_comp_matches[i].type == type &&
-		    mdp_comp_matches[i].alias_id == alias_id)
+	for (i = 0; i < mdp->mdp_data->comp_data_len; i++)
+		if (mdp->mdp_data->comp_data[i].match.type == type &&
+		    mdp->mdp_data->comp_data[i].match.alias_id == alias_id)
 			return i;
 	return -ENODEV;
 }
@@ -686,7 +657,7 @@ int mdp_comp_clock_on(struct device *dev, struct mdp_comp *comp)
 		if (ret < 0) {
 			dev_err(dev,
 				"Failed to get power, err %d. type:%d id:%d\n",
-				ret, comp->type, comp->id);
+				ret, comp->type, comp->inner_id);
 			return ret;
 		}
 	}
@@ -698,7 +669,7 @@ int mdp_comp_clock_on(struct device *dev, struct mdp_comp *comp)
 		if (ret) {
 			dev_err(dev,
 				"Failed to enable clk %d. type:%d id:%d\n",
-				i, comp->type, comp->id);
+				i, comp->type, comp->inner_id);
 			goto err_revert;
 		}
 	}
@@ -752,8 +723,8 @@ void mdp_comp_clocks_off(struct device *dev, struct mdp_comp *comps, int num)
 		mdp_comp_clock_off(dev, &comps[i]);
 }
 
-static int mdp_get_subsys_id(struct device *dev, struct device_node *node,
-			     struct mdp_comp *comp)
+static int mdp_get_subsys_id(struct mdp_dev *mdp, struct device *dev,
+			     struct device_node *node, struct mdp_comp *comp)
 {
 	struct platform_device *comp_pdev;
 	struct cmdq_client_reg  cmdq_reg;
@@ -766,12 +737,12 @@ static int mdp_get_subsys_id(struct device *dev, struct device_node *node,
 	comp_pdev = of_find_device_by_node(node);
 
 	if (!comp_pdev) {
-		dev_err(dev, "get comp_pdev fail! comp id=%d type=%d\n",
-			comp->id, comp->type);
+		dev_err(dev, "get comp_pdev fail! comp public id=%d, inner id=%d, type=%d\n",
+			comp->public_id, comp->inner_id, comp->type);
 		return -ENODEV;
 	}
 
-	index = mdp_comp_dt_info[comp->id].dts_reg_ofst;
+	index = mdp->mdp_data->comp_data[comp->public_id].info.dts_reg_ofst;
 	ret = cmdq_dev_get_client_reg(&comp_pdev->dev, &cmdq_reg, index);
 	if (ret != 0) {
 		dev_err(&comp_pdev->dev, "cmdq_dev_get_subsys fail!\n");
@@ -789,8 +760,9 @@ static void __mdp_comp_init(struct mdp_dev *mdp, struct device_node *node,
 {
 	struct resource res;
 	phys_addr_t base;
-	int index = mdp_comp_dt_info[comp->id].dts_reg_ofst;
+	int index;
 
+	index = mdp->mdp_data->comp_data[comp->public_id].info.dts_reg_ofst;
 	if (of_address_to_resource(node, index, &res) < 0)
 		base = 0L;
 	else
@@ -815,14 +787,15 @@ static int mdp_comp_init(struct mdp_dev *mdp, struct device_node *node,
 		return -EINVAL;
 	}
 
-	comp->id = id;
-	comp->type = mdp_comp_matches[id].type;
-	comp->alias_id = mdp_comp_matches[id].alias_id;
+	comp->public_id = id;
+	comp->type = mdp->mdp_data->comp_data[id].match.type;
+	comp->inner_id = mdp->mdp_data->comp_data[id].match.inner_id;
+	comp->alias_id = mdp->mdp_data->comp_data[id].match.alias_id;
 	comp->ops = mdp_comp_ops[comp->type];
 	__mdp_comp_init(mdp, node, comp);
 
-	clk_num = mdp_comp_dt_info[id].clk_num;
-	clk_ofst = mdp_comp_dt_info[id].clk_ofst;
+	clk_num = mdp->mdp_data->comp_data[id].info.clk_num;
+	clk_ofst = mdp->mdp_data->comp_data[id].info.clk_ofst;
 
 	for (i = 0; i < clk_num; i++) {
 		comp->clks[i] = of_clk_get(node, i + clk_ofst);
@@ -830,7 +803,7 @@ static int mdp_comp_init(struct mdp_dev *mdp, struct device_node *node,
 			break;
 	}
 
-	mdp_get_subsys_id(dev, node, comp);
+	mdp_get_subsys_id(mdp, dev, node, comp);
 
 	/* Set GCE SOF event */
 	if (is_bypass_gce_event(comp->type) ||
@@ -888,8 +861,8 @@ static struct mdp_comp *mdp_comp_create(struct mdp_dev *mdp,
 	mdp->comp[id] = comp;
 	mdp->comp[id]->mdp_dev = mdp;
 
-	dev_dbg(dev, "%s type:%d alias:%d id:%d base:%#x regs:%p\n",
-		dev->of_node->name, comp->type, comp->alias_id, id,
+	dev_dbg(dev, "%s type:%d alias:%d public id:%d inner id:%d base:%#x regs:%p\n",
+		dev->of_node->name, comp->type, comp->alias_id, id, comp->inner_id,
 		(u32)comp->reg_base, comp->regs);
 	return comp;
 }
@@ -918,7 +891,7 @@ static int mdp_comp_sub_create(struct mdp_dev *mdp)
 
 		type = (enum mdp_comp_type)(uintptr_t)of_id->data;
 		alias_id = mdp_comp_alias_id[type];
-		id = mdp_comp_get_id(type, alias_id);
+		id = mdp_comp_get_id(mdp, type, alias_id);
 		if (id < 0) {
 			dev_err(dev,
 				"Fail to get sub comp. id: type %d alias %d\n",
@@ -978,7 +951,7 @@ int mdp_comp_config(struct mdp_dev *mdp)
 
 		type = (enum mdp_comp_type)(uintptr_t)of_id->data;
 		alias_id = mdp_comp_alias_id[type];
-		id = mdp_comp_get_id(type, alias_id);
+		id = mdp_comp_get_id(mdp, type, alias_id);
 		if (id < 0) {
 			dev_err(dev,
 				"Fail to get component id: type %d alias %d\n",
@@ -1026,16 +999,18 @@ int mdp_comp_ctx_config(struct mdp_dev *mdp, struct mdp_comp_ctx *ctx,
 			const struct img_ipi_frameparam *frame)
 {
 	struct device *dev = &mdp->pdev->dev;
+	enum mtk_mdp_comp_id public_id = MDP_COMP_NONE;
 	int i;
 
-	if (param->type < 0 || param->type >= MDP_MAX_COMP_COUNT) {
-		dev_err(dev, "Invalid component id %d", param->type);
+	public_id = mdp_cfg_get_id_public(mdp, param->type);
+	if (public_id < 0) {
+		dev_err(dev, "Invalid component id %d", public_id);
 		return -EINVAL;
 	}
 
-	ctx->comp = mdp->comp[param->type];
+	ctx->comp = mdp->comp[public_id];
 	if (!ctx->comp) {
-		dev_err(dev, "Uninit component id %d", param->type);
+		dev_err(dev, "Uninit component inner id %d", param->type);
 		return -EINVAL;
 	}
 
