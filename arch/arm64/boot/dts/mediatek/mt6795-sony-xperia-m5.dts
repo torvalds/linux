@@ -99,6 +99,14 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c3_pins>;
 	status = "okay";
+
+	proximity@48 {
+		compatible = "sensortek,stk3310";
+		reg = <0x48>;
+		interrupts-extended = <&pio 8 IRQ_TYPE_EDGE_FALLING>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&proximity_pins>;
+	};
 };
 
 &pio {
@@ -112,6 +120,14 @@
 		pins-rst {
 			pinmux = <PINMUX_GPIO102__FUNC_GPIO102>;
 			output-high;
+		};
+	};
+
+	proximity_pins: proximity-pins {
+		pins-irq {
+			pinmux = <PINMUX_GPIO8__FUNC_GPIO8>;
+			bias-pull-up;
+			input-enable;
 		};
 	};
 
