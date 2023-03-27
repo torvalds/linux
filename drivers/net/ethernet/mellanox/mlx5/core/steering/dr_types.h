@@ -28,6 +28,8 @@
 #define mlx5dr_dbg(dmn, arg...) mlx5_core_dbg((dmn)->mdev, ##arg)
 
 struct mlx5dr_ptrn_mgr;
+struct mlx5dr_arg_mgr;
+struct mlx5dr_arg_obj;
 
 static inline bool dr_is_flex_parser_0_id(u8 parser_id)
 {
@@ -941,6 +943,7 @@ struct mlx5dr_domain {
 	struct kmem_cache *chunks_kmem_cache;
 	struct kmem_cache *htbls_kmem_cache;
 	struct mlx5dr_ptrn_mgr *ptrn_mgr;
+	struct mlx5dr_arg_mgr *arg_mgr;
 	struct mlx5dr_send_ring *send_ring;
 	struct mlx5dr_domain_info info;
 	struct xarray csum_fts_xa;
@@ -1014,6 +1017,13 @@ struct mlx5dr_ptrn_obj {
 	u32 index;
 	refcount_t refcount;
 	struct list_head list;
+};
+
+struct mlx5dr_arg_obj {
+	u32 obj_id;
+	u32 obj_offset;
+	struct list_head list_node;
+	u32 log_chunk_size;
 };
 
 struct mlx5dr_action_rewrite {
@@ -1566,5 +1576,13 @@ struct mlx5dr_ptrn_obj *mlx5dr_ptrn_cache_get_pattern(struct mlx5dr_ptrn_mgr *mg
 						      u16 num_of_actions, u8 *data);
 void mlx5dr_ptrn_cache_put_pattern(struct mlx5dr_ptrn_mgr *mgr,
 				   struct mlx5dr_ptrn_obj *pattern);
+struct mlx5dr_arg_mgr *mlx5dr_arg_mgr_create(struct mlx5dr_domain *dmn);
+void mlx5dr_arg_mgr_destroy(struct mlx5dr_arg_mgr *mgr);
+struct mlx5dr_arg_obj *mlx5dr_arg_get_obj(struct mlx5dr_arg_mgr *mgr,
+					  u16 num_of_actions,
+					  u8 *data);
+void mlx5dr_arg_put_obj(struct mlx5dr_arg_mgr *mgr,
+			struct mlx5dr_arg_obj *arg_obj);
+u32 mlx5dr_arg_get_obj_id(struct mlx5dr_arg_obj *arg_obj);
 
 #endif  /* _DR_TYPES_H_ */
