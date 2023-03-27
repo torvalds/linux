@@ -468,15 +468,6 @@ void rtl92e_set_tx_power(struct net_device *dev, u8 channel)
 	rtl92e_set_ofdm_tx_power(dev, powerlevelOFDM24G);
 }
 
-bool rtl92e_config_phy(struct net_device *dev)
-{
-	bool rtStatus = true;
-
-	rtStatus = rtl92e_config_rf(dev);
-
-	return rtStatus;
-}
-
 u8 rtl92e_config_rf_path(struct net_device *dev, enum rf90_radio_path eRFPath)
 {
 

@@ -691,7 +691,7 @@ start:
 	}
 
 	if (priv->rst_progress == RESET_TYPE_NORESET) {
-		rtStatus = rtl92e_config_phy(dev);
+		rtStatus = rtl92e_config_rf(dev);
 		if (!rtStatus) {
 			netdev_info(dev, "RF Config failed\n");
 			return rtStatus;
