@@ -4135,13 +4135,6 @@ static blk_status_t wait_dev_flush(struct btrfs_device *device)
 	return bio->bi_status;
 }
 
-static int check_barrier_error(struct btrfs_fs_info *fs_info)
-{
-	if (!btrfs_check_rw_degradable(fs_info, NULL))
-		return -EIO;
-	return 0;
-}
-
 /*
  * send an empty flush down to each device in parallel,
  * then wait for them
@@ -4185,14 +4178,13 @@ static int barrier_all_devices(struct btrfs_fs_info *info)
 			errors_wait++;
 	}
 
-	if (errors_wait) {
-		/*
-		 * At some point we need the status of all disks
-		 * to arrive at the volume status. So error checking
-		 * is being pushed to a separate loop.
-		 */
-		return check_barrier_error(info);
-	}
+	/*
+	 * Checks last_flush_error of disks in order to determine the device
+	 * state.
+	 */
+	if (errors_wait && !btrfs_check_rw_degradable(info, NULL))
+		return -EIO;
+
 	return 0;
 }
 
