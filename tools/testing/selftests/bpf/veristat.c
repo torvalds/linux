@@ -135,6 +135,7 @@ static struct env {
 	char **filenames;
 	int filename_cnt;
 	bool verbose;
+	bool debug;
 	bool quiet;
 	int log_level;
 	enum resfmt out_fmt;
@@ -169,7 +170,7 @@ static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va
 {
 	if (!env.verbose)
 		return 0;
-	if (level == LIBBPF_DEBUG /* && !env.verbose */)
+	if (level == LIBBPF_DEBUG  && !env.debug)
 		return 0;
 	return vfprintf(stderr, format, args);
 }
@@ -186,6 +187,7 @@ static const struct argp_option opts[] = {
 	{ NULL, 'h', NULL, OPTION_HIDDEN, "Show the full help" },
 	{ "verbose", 'v', NULL, 0, "Verbose mode" },
 	{ "log-level", 'l', "LEVEL", 0, "Verifier log level (default 0 for normal mode, 1 for verbose mode)" },
+	{ "debug", 'd', NULL, 0, "Debug mode (turns on libbpf debug logging)" },
 	{ "quiet", 'q', NULL, 0, "Quiet mode" },
 	{ "emit", 'e', "SPEC", 0, "Specify stats to be emitted" },
 	{ "sort", 's', "SPEC", 0, "Specify sort order" },
@@ -210,6 +212,10 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		argp_state_help(state, stderr, ARGP_HELP_STD_HELP);
 		break;
 	case 'v':
+		env.verbose = true;
+		break;
+	case 'd':
+		env.debug = true;
 		env.verbose = true;
 		break;
 	case 'q':
