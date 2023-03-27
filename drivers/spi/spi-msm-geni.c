@@ -1301,20 +1301,15 @@ static int spi_geni_mas_setup(struct spi_master *spi)
 		if (mas->master_cross_connect)
 			spi_master_setup(mas);
 	}
-	geni_se_init(&mas->spi_rsc, 0x0, (mas->tx_fifo_depth - 2));
-	mas->tx_fifo_depth = geni_se_get_tx_fifo_depth(&mas->spi_rsc);
-	mas->rx_fifo_depth = geni_se_get_rx_fifo_depth(&mas->spi_rsc);
-	mas->tx_fifo_width = geni_se_get_tx_fifo_width(&mas->spi_rsc);
 
 	mas->oversampling = 1;
-	/* Transmit an entire FIFO worth of data per IRQ */
-	mas->tx_wm = 1;
 
 	mas->gsi_mode =
 		(geni_read_reg(mas->base, GENI_IF_DISABLE_RO) &
 					FIFO_IF_DISABLE);
 
 	if (mas->gsi_mode) {
+		SPI_LOG_DBG(mas->ipc, false, mas->dev, "%s:GSI mode\n", __func__);
 		mas->tx = dma_request_slave_channel(mas->dev, "tx");
 		if (IS_ERR_OR_NULL(mas->tx)) {
 			dev_info(mas->dev, "Failed to get tx DMA ch %ld\n",
@@ -1378,6 +1373,13 @@ static int spi_geni_mas_setup(struct spi_master *spi)
 			mas->rx = NULL;
 			goto setup_ipc;
 		}
+	} else {
+		mas->tx_fifo_depth = geni_se_get_tx_fifo_depth(&mas->spi_rsc);
+		mas->rx_fifo_depth = geni_se_get_rx_fifo_depth(&mas->spi_rsc);
+		mas->tx_fifo_width = geni_se_get_tx_fifo_width(&mas->spi_rsc);
+		geni_se_init(&mas->spi_rsc, 0x0, (mas->tx_fifo_depth - 2));
+		/* Transmit an entire FIFO worth of data per IRQ */
+		mas->tx_wm = 1;
 	}
 setup_ipc:
 	dev_info(mas->dev, "tx_fifo %d rx_fifo %d tx_width %d\n",
