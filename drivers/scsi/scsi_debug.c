@@ -5580,7 +5580,7 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 		int num_in_q = scsi_device_busy(sdp);
 		int qdepth = cmnd->device->queue_depth;
 
-		if ((num_in_q == (qdepth - 1)) &&
+		if ((num_in_q == qdepth) &&
 		    (atomic_inc_return(&sdebug_a_tsf) >=
 		     abs(sdebug_every_nth))) {
 			atomic_set(&sdebug_a_tsf, 0);
