@@ -581,8 +581,7 @@ static void _rtl92e_refresh_support_rate(struct r8192_priv *priv)
 {
 	struct rtllib_device *ieee = priv->rtllib;
 
-	if (ieee->mode == WIRELESS_MODE_N_24G ||
-	    ieee->mode == WIRELESS_MODE_N_5G) {
+	if (ieee->mode == WIRELESS_MODE_N_24G) {
 		memcpy(ieee->reg_dot11ht_oper_rate_set,
 		       ieee->reg_ht_supp_rate_set, 16);
 		memcpy(ieee->reg_dot11tx_ht_oper_rate_set,

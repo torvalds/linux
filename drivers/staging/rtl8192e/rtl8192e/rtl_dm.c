@@ -296,8 +296,7 @@ static void _rtl92e_dm_check_rate_adaptive(struct net_device *dev)
 	if (pra->rate_adaptive_disabled)
 		return;
 
-	if (!(priv->rtllib->mode == WIRELESS_MODE_N_24G ||
-	    priv->rtllib->mode == WIRELESS_MODE_N_5G))
+	if (priv->rtllib->mode != WIRELESS_MODE_N_24G)
 		return;
 
 	if (priv->rtllib->state == RTLLIB_LINKED) {
@@ -971,8 +970,7 @@ void rtl92e_dm_restore_state(struct net_device *dev)
 
 	if (priv->rate_adaptive.rate_adaptive_disabled)
 		return;
-	if (!(priv->rtllib->mode == WIRELESS_MODE_N_24G ||
-	      priv->rtllib->mode == WIRELESS_MODE_N_5G))
+	if (priv->rtllib->mode != WIRELESS_MODE_N_24G)
 		return;
 	ratr_value = reg_ratr;
 	ratr_value &= ~(RATE_ALL_OFDM_2SS);
