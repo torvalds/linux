@@ -3057,7 +3057,7 @@ EXPORT_SYMBOL_GPL(device_phy_find_device);
  * and "phy-device" are not supported in ACPI. DT supports all the three
  * named references to the phy node.
  */
-struct fwnode_handle *fwnode_get_phy_node(struct fwnode_handle *fwnode)
+struct fwnode_handle *fwnode_get_phy_node(const struct fwnode_handle *fwnode)
 {
 	struct fwnode_handle *phy_node;
 
