@@ -65,10 +65,10 @@ LZ4_RAMDISK=%d
 [ -z "$$DT_OVERLAY_SUPPORT" ] && DT_OVERLAY_SUPPORT=1
 
 if [ "$$KERNEL_CMDLINE_CONSOLE_AUTO" != "0" ]; then
-    KERNEL_VENDOR_CMDLINE+=' console=ttyMSM0,115200n8 earlycon=qcom_geni,0x00a9C000 qcom_geni_serial.con_enabled=1 '
+    KERNEL_VENDOR_CMDLINE+=' earlycon=%s '
 fi
 
-KERNEL_VENDOR_CMDLINE+=' bootconfig '
+KERNEL_VENDOR_CMDLINE+=' %s '
 VENDOR_BOOTCONFIG+='androidboot.first_stage_console=1 androidboot.hardware=qcom_kp'
 EOF
     """ % (
@@ -80,6 +80,8 @@ EOF
         boot_image_opts.page_size,
         boot_image_opts.super_image_size,
         int(boot_image_opts.lz4_ramdisk),
+        boot_image_opts.earlycon_addr,
+        " ".join(boot_image_opts.kernel_vendor_cmdline_extras),
     )
 
     # Generate the build config
