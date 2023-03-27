@@ -184,10 +184,17 @@ Handling misapplied patches
 
 Occasionally a patch series gets applied before receiving critical feedback,
 or the wrong version of a series gets applied.
-There is no revert possible, once it is pushed out, it stays like that.
+
+Making the patch disappear once it is pushed out is not possible, the commit
+history in netdev trees is immutable.
 Please send incremental versions on top of what has been merged in order to fix
 the patches the way they would look like if your latest patch series was to be
 merged.
+
+In cases where full revert is needed the revert has to be submitted
+as a patch to the list with a commit message explaining the technical
+problems with the reverted commit. Reverts should be used as a last resort,
+when original change is completely wrong; incremental fixes are preferred.
 
 Stable tree
 ~~~~~~~~~~~
