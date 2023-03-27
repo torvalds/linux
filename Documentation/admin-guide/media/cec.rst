@@ -55,6 +55,15 @@ Miscellaneous:
   you can control the CEC line through this driver. This supports error
   injection as well.
 
+- cec-gpio and Allwinner A10 (or any other driver that uses the CEC pin
+  framework to drive the CEC pin directly): the CEC pin framework uses
+  high-resolution timers. These timers are affected by NTP daemons that
+  speed up or slow down the clock to sync with the official time. The
+  chronyd server will by default increase or decrease the clock by
+  1/12th. This will cause the CEC timings to go out of spec. To fix this,
+  add a 'maxslewrate 40000' line to chronyd.conf. This limits the clock
+  frequency change to 1/25th, which keeps the CEC timings within spec.
+
 
 Utilities
 =========
