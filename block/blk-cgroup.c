@@ -1688,24 +1688,27 @@ out_unlock:
 }
 EXPORT_SYMBOL_GPL(blkcg_policy_unregister);
 
-bool __blkcg_punt_bio_submit(struct bio *bio)
+/*
+ * When a shared kthread issues a bio for a cgroup, doing so synchronously can
+ * lead to priority inversions as the kthread can be trapped waiting for that
+ * cgroup.  Use this helper instead of submit_bio to punt the actual issuing to
+ * a dedicated per-blkcg work item to avoid such priority inversions.
+ */
+void blkcg_punt_bio_submit(struct bio *bio)
 {
 	struct blkcg_gq *blkg = bio->bi_blkg;
 
-	/* consume the flag first */
-	bio->bi_opf &= ~REQ_CGROUP_PUNT;
-
-	/* never bounce for the root cgroup */
-	if (!blkg->parent)
-		return false;
-
-	spin_lock_bh(&blkg->async_bio_lock);
-	bio_list_add(&blkg->async_bios, bio);
-	spin_unlock_bh(&blkg->async_bio_lock);
-
-	queue_work(blkcg_punt_bio_wq, &blkg->async_bio_work);
-	return true;
+	if (blkg->parent) {
+		spin_lock_bh(&blkg->async_bio_lock);
+		bio_list_add(&blkg->async_bios, bio);
+		spin_unlock_bh(&blkg->async_bio_lock);
+		queue_work(blkcg_punt_bio_wq, &blkg->async_bio_work);
+	} else {
+		/* never bounce for the root cgroup */
+		submit_bio(bio);
+	}
 }
+EXPORT_SYMBOL_GPL(blkcg_punt_bio_submit);
 
 /*
  * Scale the accumulated delay based on how long it has been since we updated

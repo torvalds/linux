@@ -435,7 +435,11 @@ static void btrfs_submit_dev_bio(struct btrfs_device *dev, struct bio *bio)
 		dev->devid, bio->bi_iter.bi_size);
 
 	btrfsic_check_bio(bio);
-	submit_bio(bio);
+
+	if (bio->bi_opf & REQ_BTRFS_CGROUP_PUNT)
+		blkcg_punt_bio_submit(bio);
+	else
+		submit_bio(bio);
 }
 
 static void btrfs_submit_mirrored_bio(struct btrfs_io_context *bioc, int dev_nr)
@@ -551,10 +555,10 @@ static void run_one_async_done(struct btrfs_work *work)
 
 	/*
 	 * All of the bios that pass through here are from async helpers.
-	 * Use REQ_CGROUP_PUNT to issue them from the owning cgroup's context.
-	 * This changes nothing when cgroups aren't in use.
+	 * Use REQ_BTRFS_CGROUP_PUNT to issue them from the owning cgroup's
+	 * context.  This changes nothing when cgroups aren't in use.
 	 */
-	bio->bi_opf |= REQ_CGROUP_PUNT;
+	bio->bi_opf |= REQ_BTRFS_CGROUP_PUNT;
 	__btrfs_submit_bio(bio, async->bioc, &async->smap, async->mirror_num);
 }
 
