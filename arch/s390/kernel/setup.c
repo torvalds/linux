@@ -380,6 +380,12 @@ void stack_free(unsigned long stack)
 #endif
 }
 
+void __init arch_call_rest_init(void)
+{
+	smp_reinit_ipl_cpu();
+	rest_init();
+}
+
 int __init arch_early_irq_init(void)
 {
 	unsigned long stack;
@@ -391,28 +397,21 @@ int __init arch_early_irq_init(void)
 	return 0;
 }
 
-void __init arch_call_rest_init(void)
+static unsigned long __init stack_alloc_early(void)
 {
 	unsigned long stack;
 
-	smp_reinit_ipl_cpu();
-	stack = stack_alloc();
-	if (!stack)
-		panic("Couldn't allocate kernel stack");
-	current->stack = (void *) stack;
-#ifdef CONFIG_VMAP_STACK
-	current->stack_vm_area = (void *) stack;
-#endif
-	set_task_stack_end_magic(current);
-	stack += STACK_INIT_OFFSET;
-	S390_lowcore.kernel_stack = stack;
-	call_on_stack_noreturn(rest_init, stack);
+	stack = (unsigned long)memblock_alloc(THREAD_SIZE, THREAD_SIZE);
+	if (!stack) {
+		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
+		      __func__, THREAD_SIZE, THREAD_SIZE);
+	}
+	return stack;
 }
 
 static void __init setup_lowcore(void)
 {
 	struct lowcore *lc, *abs_lc;
-	unsigned long mcck_stack;
 
 	/*
 	 * Setup lowcore for boot cpu
@@ -436,7 +435,6 @@ static void __init setup_lowcore(void)
 	lc->io_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
 	lc->io_new_psw.addr = (unsigned long) io_int_handler;
 	lc->clock_comparator = clock_comparator_max;
-	lc->nodat_stack = ((unsigned long)&init_thread_union) + STACK_INIT_OFFSET;
 	lc->current_task = (unsigned long)&init_task;
 	lc->lpp = LPP_MAGIC;
 	lc->machine_flags = S390_lowcore.machine_flags;
@@ -449,17 +447,14 @@ static void __init setup_lowcore(void)
 	lc->steal_timer = S390_lowcore.steal_timer;
 	lc->last_update_timer = S390_lowcore.last_update_timer;
 	lc->last_update_clock = S390_lowcore.last_update_clock;
-
 	/*
 	 * Allocate the global restart stack which is the same for
-	 * all CPUs in cast *one* of them does a PSW restart.
+	 * all CPUs in case *one* of them does a PSW restart.
 	 */
-	restart_stack = memblock_alloc(THREAD_SIZE, THREAD_SIZE);
-	if (!restart_stack)
-		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
-		      __func__, THREAD_SIZE, THREAD_SIZE);
-	restart_stack += STACK_INIT_OFFSET;
-
+	restart_stack = (void *)(stack_alloc_early() + STACK_INIT_OFFSET);
+	lc->mcck_stack = stack_alloc_early() + STACK_INIT_OFFSET;
+	lc->nodat_stack = stack_alloc_early() + STACK_INIT_OFFSET;
+	lc->kernel_stack = S390_lowcore.kernel_stack;
 	/*
 	 * Set up PSW restart to call ipl.c:do_restart(). Copy the relevant
 	 * restart data to the absolute zero lowcore. This is necessary if
@@ -470,13 +465,6 @@ static void __init setup_lowcore(void)
 	lc->restart_data = 0;
 	lc->restart_source = -1U;
 	__ctl_store(lc->cregs_save_area, 0, 15);
-
-	mcck_stack = (unsigned long)memblock_alloc(THREAD_SIZE, THREAD_SIZE);
-	if (!mcck_stack)
-		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
-		      __func__, THREAD_SIZE, THREAD_SIZE);
-	lc->mcck_stack = mcck_stack + STACK_INIT_OFFSET;
-
 	lc->spinlock_lockval = arch_spin_lockval(0);
 	lc->spinlock_index = 0;
 	arch_spin_lock_setup(0);

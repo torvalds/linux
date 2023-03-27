@@ -1295,7 +1295,7 @@ int __init smp_reinit_ipl_cpu(void)
 
 	free_pages(lc_ipl->async_stack - STACK_INIT_OFFSET, THREAD_SIZE_ORDER);
 	memblock_free_late(__pa(lc_ipl->mcck_stack - STACK_INIT_OFFSET), THREAD_SIZE);
+	memblock_free_late(__pa(lc_ipl->nodat_stack - STACK_INIT_OFFSET), THREAD_SIZE);
 	memblock_free_late(__pa(lc_ipl), sizeof(*lc_ipl));
-
 	return 0;
 }
