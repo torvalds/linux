@@ -2441,6 +2441,8 @@ static int sh_eth_open(struct net_device *ndev)
 
 	netif_start_queue(ndev);
 
+	mdp->is_opened = 1;
+
 	return ret;
 
 out_free_irq:
@@ -2563,7 +2565,7 @@ static struct net_device_stats *sh_eth_get_stats(struct net_device *ndev)
 	if (mdp->cd->no_tx_cntrs)
 		return &ndev->stats;
 
-	if (!netif_running(ndev))
+	if (!mdp->is_opened)
 		return &ndev->stats;
 
 	sh_eth_update_stat(ndev, &ndev->stats.tx_dropped, TROCR);
@@ -2611,6 +2613,8 @@ static int sh_eth_close(struct net_device *ndev)
 
 	/* Free all the skbuffs in the Rx queue and the DMA buffer. */
 	sh_eth_ring_free(ndev);
+
+	mdp->is_opened = 0;
 
 	pm_runtime_put(&mdp->pdev->dev);
 
