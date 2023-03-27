@@ -627,6 +627,7 @@ void bch2_verify_bucket_evacuated(struct btree_trans *trans, struct bpos bucket,
 	struct printbuf buf = PRINTBUF;
 	struct bch_backpointer bp;
 	u64 bp_offset = 0;
+	unsigned nr_bps = 0;
 	int ret;
 
 	bch2_trans_begin(trans);
@@ -688,6 +689,10 @@ failed_to_evacuate:
 		prt_newline(&buf);
 		bch2_bkey_val_to_text(&buf, c, k);
 		bch2_trans_iter_exit(trans, &iter);
+
+		if (++nr_bps > 10)
+			break;
+		bp_offset++;
 	}
 
 	bch2_print_string_as_lines(KERN_ERR, buf.buf);
