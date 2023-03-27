@@ -710,8 +710,7 @@ static int pic32_spi_hw_probe(struct platform_device *pdev,
 	struct resource *mem;
 	int ret;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pic32s->regs = devm_ioremap_resource(&pdev->dev, mem);
+	pic32s->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &mem);
 	if (IS_ERR(pic32s->regs))
 		return PTR_ERR(pic32s->regs);
 
