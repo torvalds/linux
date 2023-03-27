@@ -959,8 +959,8 @@ EXPORT_SYMBOL_GPL(snd_soc_remove_pcm_runtime);
  * topology component. And machine drivers can still define static
  * DAI links in dai_link array.
  */
-int snd_soc_add_pcm_runtime(struct snd_soc_card *card,
-			    struct snd_soc_dai_link *dai_link)
+static int snd_soc_add_pcm_runtime(struct snd_soc_card *card,
+				   struct snd_soc_dai_link *dai_link)
 {
 	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_dai_link_component *codec, *platform, *cpu;
@@ -1027,7 +1027,21 @@ _err_defer:
 	snd_soc_remove_pcm_runtime(card, rtd);
 	return -EPROBE_DEFER;
 }
-EXPORT_SYMBOL_GPL(snd_soc_add_pcm_runtime);
+
+int snd_soc_add_pcm_runtimes(struct snd_soc_card *card,
+			     struct snd_soc_dai_link *dai_link,
+			     int num_dai_link)
+{
+	for (int i = 0; i < num_dai_link; i++) {
+		int ret = snd_soc_add_pcm_runtime(card, dai_link + i);
+
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_add_pcm_runtimes);
 
 static void snd_soc_runtime_get_dai_fmt(struct snd_soc_pcm_runtime *rtd)
 {
@@ -1921,8 +1935,7 @@ static int snd_soc_bind_card(struct snd_soc_card *card)
 {
 	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_component *component;
-	struct snd_soc_dai_link *dai_link;
-	int ret, i;
+	int ret;
 
 	mutex_lock(&client_mutex);
 	mutex_lock_nested(&card->mutex, SND_SOC_CARD_CLASS_INIT);
@@ -1939,11 +1952,9 @@ static int snd_soc_bind_card(struct snd_soc_card *card)
 
 	/* add predefined DAI links to the list */
 	card->num_rtd = 0;
-	for_each_card_prelinks(card, i, dai_link) {
-		ret = snd_soc_add_pcm_runtime(card, dai_link);
-		if (ret < 0)
-			goto probe_end;
-	}
+	ret = snd_soc_add_pcm_runtimes(card, card->dai_link, card->num_links);
+	if (ret < 0)
+		goto probe_end;
 
 	/* card bind complete so register a sound card */
 	ret = snd_card_new(card->dev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
