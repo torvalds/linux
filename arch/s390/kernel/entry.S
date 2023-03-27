@@ -29,10 +29,6 @@
 #include <asm/export.h>
 #include <asm/nospec-insn.h>
 
-STACK_SHIFT = PAGE_SHIFT + THREAD_SIZE_ORDER
-STACK_SIZE  = 1 << STACK_SHIFT
-STACK_INIT = STACK_SIZE - STACK_FRAME_OVERHEAD - __PT_SIZE
-
 _LPP_OFFSET	= __LC_LPP
 
 	.macro STBEAR address
@@ -53,7 +49,7 @@ _LPP_OFFSET	= __LC_LPP
 
 	.macro	CHECK_STACK savearea
 #ifdef CONFIG_CHECK_STACK
-	tml	%r15,STACK_SIZE - CONFIG_STACK_GUARD
+	tml	%r15,THREAD_SIZE - CONFIG_STACK_GUARD
 	lghi	%r14,\savearea
 	jz	stack_overflow
 #endif
@@ -62,8 +58,8 @@ _LPP_OFFSET	= __LC_LPP
 	.macro	CHECK_VMAP_STACK savearea,oklabel
 #ifdef CONFIG_VMAP_STACK
 	lgr	%r14,%r15
-	nill	%r14,0x10000 - STACK_SIZE
-	oill	%r14,STACK_INIT
+	nill	%r14,0x10000 - THREAD_SIZE
+	oill	%r14,STACK_INIT_OFFSET
 	clg	%r14,__LC_KERNEL_STACK
 	je	\oklabel
 	clg	%r14,__LC_ASYNC_STACK
@@ -179,7 +175,7 @@ ENTRY(__switch_to)
 	stmg	%r6,%r15,__SF_GPRS(%r15)	# store gprs of prev task
 	lghi	%r4,__TASK_stack
 	lghi	%r1,__TASK_thread
-	llill	%r5,STACK_INIT
+	llill	%r5,STACK_INIT_OFFSET
 	stg	%r15,__THREAD_ksp(%r1,%r2)	# store kernel stack of prev
 	lg	%r15,0(%r4,%r3)			# start of kernel stack of next
 	agr	%r15,%r5			# end of kernel stack of next

@@ -9,6 +9,9 @@
 #define _ASM_THREAD_INFO_H
 
 #include <linux/bits.h>
+#ifndef ASM_OFFSETS_C
+#include <asm/asm-offsets.h>
+#endif
 
 /*
  * General size of kernel stacks
@@ -21,12 +24,11 @@
 #define BOOT_STACK_SIZE (PAGE_SIZE << 2)
 #define THREAD_SIZE (PAGE_SIZE << THREAD_SIZE_ORDER)
 
+#define STACK_INIT_OFFSET (THREAD_SIZE - STACK_FRAME_OVERHEAD - __PT_SIZE)
+
 #ifndef __ASSEMBLY__
 #include <asm/lowcore.h>
 #include <asm/page.h>
-
-#define STACK_INIT_OFFSET \
-	(THREAD_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs))
 
 /*
  * low level task data that entry.S needs immediate access to
