@@ -102,6 +102,17 @@ class NlAttr:
         format, _ = self.type_formats[type]
         return list({ x[0] for x in struct.iter_unpack(format, self.raw) })
 
+    def as_struct(self, members):
+        value = dict()
+        offset = 0
+        for m in members:
+            # TODO: handle non-scalar members
+            format, size = self.type_formats[m.type]
+            decoded = struct.unpack_from(format, self.raw, offset)
+            offset += size
+            value[m.name] = decoded[0]
+        return value
+
     def __repr__(self):
         return f"[type:{self.type} len:{self._len}] {self.raw}"
 
@@ -377,7 +388,9 @@ class YnlFamily(SpecFamily):
         rsp[attr_spec['name']] = value
 
     def _decode_binary(self, attr, attr_spec):
-        if attr_spec.sub_type:
+        if attr_spec.struct_name:
+            decoded = attr.as_struct(self.consts[attr_spec.struct_name])
+        elif attr_spec.sub_type:
             decoded = attr.as_c_array(attr_spec.sub_type)
         else:
             decoded = attr.as_bin()

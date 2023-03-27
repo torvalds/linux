@@ -152,6 +152,7 @@ class SpecAttr(SpecElement):
         value         numerical ID when serialized
         attr_set      Attribute Set containing this attr
         is_multi      bool, attr may repeat multiple times
+        struct_name   string, name of struct definition
         sub_type      string, name of sub type
     """
     def __init__(self, family, attr_set, yaml, value):
@@ -160,6 +161,7 @@ class SpecAttr(SpecElement):
         self.value = value
         self.attr_set = attr_set
         self.is_multi = yaml.get('multi-attr', False)
+        self.struct_name = yaml.get('struct')
         self.sub_type = yaml.get('sub-type')
 
 
