@@ -67,8 +67,6 @@ struct rz_dmac_chan {
 	struct rz_dmac_desc *desc;
 	int descs_allocated;
 
-	enum dma_slave_buswidth src_word_size;
-	enum dma_slave_buswidth dst_word_size;
 	dma_addr_t src_per_address;
 	dma_addr_t dst_per_address;
 
@@ -603,9 +601,7 @@ static int rz_dmac_config(struct dma_chan *chan,
 	u32 val;
 
 	channel->src_per_address = config->src_addr;
-	channel->src_word_size = config->src_addr_width;
 	channel->dst_per_address = config->dst_addr;
-	channel->dst_word_size = config->dst_addr_width;
 
 	val = rz_dmac_ds_to_val_mapping(config->dst_addr_width);
 	if (val == CHCFG_DS_INVALID)
