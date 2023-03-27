@@ -696,15 +696,6 @@ u8 rtl92e_set_channel(struct net_device *dev, u8 channel)
 
 
 	switch (priv->rtllib->mode) {
-	case WIRELESS_MODE_A:
-	case WIRELESS_MODE_N_5G:
-		if (channel <= 14) {
-			netdev_warn(dev,
-				    "Channel %d not available in 802.11a.\n",
-				    channel);
-			return false;
-		}
-		break;
 	case WIRELESS_MODE_B:
 		if (channel > 14) {
 			netdev_warn(dev,
