@@ -926,6 +926,8 @@ static void bch2_set_folio_dirty(struct bch_fs *c,
 	WARN_ON((u64) folio_pos(folio) + offset + len >
 		round_up((u64) i_size_read(&inode->v), block_bytes(c)));
 
+	BUG_ON(!s->uptodate);
+
 	spin_lock(&s->lock);
 
 	for (i = round_down(offset, block_bytes(c)) >> 9;
@@ -2853,7 +2855,11 @@ static int __bch2_truncate_folio(struct bch_inode_info *inode,
 			goto unlock;
 	}
 
-	BUG_ON(!s->uptodate);
+	if (!s->uptodate) {
+		ret = bch2_folio_set(c, inode_inum(inode), &folio, 1);
+		if (ret)
+			goto unlock;
+	}
 
 	for (i = round_up(start_offset, block_bytes(c)) >> 9;
 	     i < round_down(end_offset, block_bytes(c)) >> 9;
