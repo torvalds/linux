@@ -57,8 +57,6 @@ static void v9fs_issue_read(struct netfs_io_subrequest *subreq)
  */
 static int v9fs_init_request(struct netfs_io_request *rreq, struct file *file)
 {
-	struct inode *inode = file_inode(file);
-	struct v9fs_inode *v9inode = V9FS_I(inode);
 	struct p9_fid *fid = file->private_data;
 
 	BUG_ON(!fid);
@@ -66,11 +64,8 @@ static int v9fs_init_request(struct netfs_io_request *rreq, struct file *file)
 	/* we might need to read from a fid that was opened write-only
 	 * for read-modify-write of page cache, use the writeback fid
 	 * for that */
-	if (rreq->origin == NETFS_READ_FOR_WRITE &&
-			(fid->mode & O_ACCMODE) == O_WRONLY) {
-		fid = v9inode->writeback_fid;
-		BUG_ON(!fid);
-	}
+	WARN_ON(rreq->origin == NETFS_READ_FOR_WRITE &&
+			!(fid->mode & P9_ORDWR));
 
 	p9_fid_get(fid);
 	rreq->netfs_priv = fid;
@@ -164,6 +159,7 @@ static int v9fs_vfs_write_folio_locked(struct folio *folio)
 	loff_t i_size = i_size_read(inode);
 	struct iov_iter from;
 	size_t len = folio_size(folio);
+	struct p9_fid *writeback_fid;
 	int err;
 
 	if (start >= i_size)
@@ -173,13 +169,17 @@ static int v9fs_vfs_write_folio_locked(struct folio *folio)
 
 	iov_iter_xarray(&from, ITER_SOURCE, &folio_mapping(folio)->i_pages, start, len);
 
-	/* We should have writeback_fid always set */
-	BUG_ON(!v9inode->writeback_fid);
+	writeback_fid = v9fs_fid_find_inode(inode, true, INVALID_UID, true);
+	if (!writeback_fid) {
+		WARN_ONCE(1, "folio expected an open fid inode->i_private=%p\n",
+			inode->i_private);
+		return -EINVAL;
+	}
 
 	folio_wait_fscache(folio);
 	folio_start_writeback(folio);
 
-	p9_client_write(v9inode->writeback_fid, start, &from, &err);
+	p9_client_write(writeback_fid, start, &from, &err);
 
 	if (err == 0 &&
 	    fscache_cookie_enabled(cookie) &&
@@ -192,6 +192,8 @@ static int v9fs_vfs_write_folio_locked(struct folio *folio)
 	}
 
 	folio_end_writeback(folio);
+	p9_fid_put(writeback_fid);
+
 	return err;
 }
 

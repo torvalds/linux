@@ -118,7 +118,6 @@ struct v9fs_inode {
 	struct netfs_inode netfs; /* Netfslib context and vfs inode */
 	struct p9_qid qid;
 	unsigned int cache_validity;
-	struct p9_fid *writeback_fid;
 	struct mutex v_mutex;
 };
 
