@@ -66,7 +66,7 @@ static const struct rhashtable_params efx_tc_match_action_ht_params = {
 static void efx_tc_free_action_set(struct efx_nic *efx,
 				   struct efx_tc_action_set *act, bool in_hw)
 {
-	/* Failure paths calling this on the 'running action' set in_hw=false,
+	/* Failure paths calling this on the 'cursor' action set in_hw=false,
 	 * because if the alloc had succeeded we'd've put it in acts.list and
 	 * not still have it in act.
 	 */
@@ -407,6 +407,30 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 		goto release;
 	}
 
+	/**
+	 * DOC: TC action translation
+	 *
+	 * Actions in TC are sequential and cumulative, with delivery actions
+	 * potentially anywhere in the order.  The EF100 MAE, however, takes
+	 * an 'action set list' consisting of 'action sets', each of which is
+	 * applied to the _original_ packet, and consists of a set of optional
+	 * actions in a fixed order with delivery at the end.
+	 * To translate between these two models, we maintain a 'cursor', @act,
+	 * which describes the cumulative effect of all the packet-mutating
+	 * actions encountered so far; on handling a delivery (mirred or drop)
+	 * action, once the action-set has been inserted into hardware, we
+	 * append @act to the action-set list (@rule->acts); if this is a pipe
+	 * action (mirred mirror) we then allocate a new @act with a copy of
+	 * the cursor state _before_ the delivery action, otherwise we set @act
+	 * to %NULL.
+	 * This ensures that every allocated action-set is either attached to
+	 * @rule->acts or pointed to by @act (and never both), and that only
+	 * those action-sets in @rule->acts exist in hardware.  Consequently,
+	 * in the failure path, @act only needs to be freed in memory, whereas
+	 * for @rule->acts we remove each action-set from hardware before
+	 * freeing it (efx_tc_free_action_set_list()), even if the action-set
+	 * list itself is not in hardware.
+	 */
 	flow_action_for_each(i, fa, &fr->action) {
 		struct efx_tc_action_set save;
 		u16 tci;
