@@ -5326,40 +5326,29 @@ static bool scsi_debug_abort_cmnd(struct scsi_cmnd *cmnd)
 	return res;
 }
 
+/*
+ * All we can do is set the cmnd as internally aborted and wait for it to
+ * finish. We cannot call scsi_done() as normal completion path may do that.
+ */
+static bool sdebug_stop_cmnd(struct request *rq, void *data)
+{
+	scsi_debug_abort_cmnd(blk_mq_rq_to_pdu(rq));
+
+	return true;
+}
+
 /* Deletes (stops) timers or work queues of all queued commands */
 static void stop_all_queued(void)
 {
-	unsigned long iflags, flags;
-	int j, k;
-	struct sdebug_queue *sqp;
+	struct sdebug_host_info *sdhp;
 
-	for (j = 0, sqp = sdebug_q_arr; j < submit_queues; ++j, ++sqp) {
-		spin_lock_irqsave(&sqp->qc_lock, iflags);
-		for (k = 0; k < SDEBUG_CANQUEUE; ++k) {
-			if (test_bit(k, sqp->in_use_bm)) {
-				struct sdebug_queued_cmd *sqcp = sqp->qc_arr[k];
-				struct sdebug_scsi_cmd *sdsc;
-				struct scsi_cmnd *scmd;
+	mutex_lock(&sdebug_host_list_mutex);
+	list_for_each_entry(sdhp, &sdebug_host_list, host_list) {
+		struct Scsi_Host *shost = sdhp->shost;
 
-				if (!sqcp)
-					continue;
-				scmd = sqcp->scmd;
-				if (!scmd)
-					continue;
-				sdsc = scsi_cmd_priv(scmd);
-				spin_lock_irqsave(&sdsc->lock, flags);
-				if (TO_QUEUED_CMD(scmd) != sqcp) {
-					spin_unlock_irqrestore(&sdsc->lock, flags);
-					continue;
-				}
-				scsi_debug_stop_cmnd(scmd, NULL);
-				spin_unlock_irqrestore(&sdsc->lock, flags);
-				sqp->qc_arr[k] = NULL;
-				clear_bit(k, sqp->in_use_bm);
-			}
-		}
-		spin_unlock_irqrestore(&sqp->qc_lock, iflags);
+		blk_mq_tagset_busy_iter(&shost->tag_set, sdebug_stop_cmnd, NULL);
 	}
+	mutex_unlock(&sdebug_host_list_mutex);
 }
 
 static int scsi_debug_abort(struct scsi_cmnd *SCpnt)
