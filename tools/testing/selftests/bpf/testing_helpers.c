@@ -195,7 +195,7 @@ int bpf_prog_test_load(const char *file, enum bpf_prog_type type,
 		goto err_out;
 	}
 
-	if (type != BPF_PROG_TYPE_UNSPEC)
+	if (type != BPF_PROG_TYPE_UNSPEC && bpf_program__type(prog) != type)
 		bpf_program__set_type(prog, type);
 
 	flags = bpf_program__flags(prog) | BPF_F_TEST_RND_HI32;
