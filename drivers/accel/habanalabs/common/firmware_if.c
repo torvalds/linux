@@ -1368,8 +1368,10 @@ void hl_fw_ask_hard_reset_without_linux(struct hl_device *hdev)
 
 void hl_fw_ask_halt_machine_without_linux(struct hl_device *hdev)
 {
-	struct static_fw_load_mgr *static_loader =
-			&hdev->fw_loader.static_loader;
+	struct fw_load_mgr *fw_loader = &hdev->fw_loader;
+	u32 status, cpu_boot_status_reg, cpu_timeout;
+	struct static_fw_load_mgr *static_loader;
+	struct pre_fw_load_props *pre_fw_load;
 	int rc;
 
 	if (hdev->device_cpu_is_halted)
@@ -1377,12 +1379,28 @@ void hl_fw_ask_halt_machine_without_linux(struct hl_device *hdev)
 
 	/* Stop device CPU to make sure nothing bad happens */
 	if (hdev->asic_prop.dynamic_fw_load) {
+		pre_fw_load = &fw_loader->pre_fw_load;
+		cpu_timeout = fw_loader->cpu_timeout;
+		cpu_boot_status_reg = pre_fw_load->cpu_boot_status_reg;
+
 		rc = hl_fw_dynamic_send_protocol_cmd(hdev, &hdev->fw_loader,
-				COMMS_GOTO_WFE, 0, false,
-				hdev->fw_loader.cpu_timeout);
-		if (rc)
+				COMMS_GOTO_WFE, 0, false, cpu_timeout);
+		if (rc) {
 			dev_err(hdev->dev, "Failed sending COMMS_GOTO_WFE\n");
+		} else {
+			rc = hl_poll_timeout(
+				hdev,
+				cpu_boot_status_reg,
+				status,
+				status == CPU_BOOT_STATUS_IN_WFE,
+				hdev->fw_poll_interval_usec,
+				cpu_timeout);
+			if (rc)
+				dev_err(hdev->dev, "Current status=%u. Timed-out updating to WFE\n",
+						status);
+		}
 	} else {
+		static_loader = &hdev->fw_loader.static_loader;
 		WREG32(static_loader->kmd_msg_to_cpu_reg, KMD_MSG_GOTO_WFE);
 		msleep(static_loader->cpu_reset_wait_msec);
 
