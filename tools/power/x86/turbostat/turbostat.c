@@ -3792,8 +3792,6 @@ int has_slv_msrs(unsigned int family, unsigned int model)
 
 	switch (model) {
 	case INTEL_FAM6_ATOM_SILVERMONT:
-	case INTEL_FAM6_ATOM_SILVERMONT_MID:
-	case INTEL_FAM6_ATOM_AIRMONT_MID:
 		return 1;
 	}
 	return 0;
