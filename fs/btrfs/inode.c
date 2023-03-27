@@ -983,6 +983,9 @@ static int submit_one_async_extent(struct btrfs_inode *inode,
 	u64 start = async_extent->start;
 	u64 end = async_extent->start + async_extent->ram_size - 1;
 
+	if (async_chunk->blkcg_css)
+		kthread_associate_blkcg(async_chunk->blkcg_css);
+
 	/*
 	 * If async_chunk->locked_page is in the async_extent range, we need to
 	 * handle it.
@@ -1053,8 +1056,6 @@ static int submit_one_async_extent(struct btrfs_inode *inode,
 			NULL, EXTENT_LOCKED | EXTENT_DELALLOC,
 			PAGE_UNLOCK | PAGE_START_WRITEBACK);
 
-	if (async_chunk->blkcg_css)
-		kthread_associate_blkcg(async_chunk->blkcg_css);
 	btrfs_submit_compressed_write(inode, start,	/* file_offset */
 			    async_extent->ram_size,	/* num_bytes */
 			    ins.objectid,		/* disk_bytenr */
@@ -1062,10 +1063,10 @@ static int submit_one_async_extent(struct btrfs_inode *inode,
 			    async_extent->pages,	/* compressed_pages */
 			    async_extent->nr_pages,
 			    async_chunk->write_flags, true);
-	if (async_chunk->blkcg_css)
-		kthread_associate_blkcg(NULL);
 	*alloc_hint = ins.objectid + ins.offset;
 done:
+	if (async_chunk->blkcg_css)
+		kthread_associate_blkcg(NULL);
 	kfree(async_extent);
 	return ret;
 
