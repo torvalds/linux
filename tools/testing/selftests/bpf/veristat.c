@@ -15,6 +15,7 @@
 #include <sys/sysinfo.h>
 #include <sys/stat.h>
 #include <bpf/libbpf.h>
+#include <bpf/btf.h>
 #include <libelf.h>
 #include <gelf.h>
 #include <float.h>
@@ -778,7 +779,62 @@ static int parse_verif_log(char * const buf, size_t buf_sz, struct verif_stats *
 	return 0;
 }
 
-static void fixup_obj(struct bpf_object *obj)
+static int guess_prog_type_by_ctx_name(const char *ctx_name,
+				       enum bpf_prog_type *prog_type,
+				       enum bpf_attach_type *attach_type)
+{
+	/* We need to guess program type based on its declared context type.
+	 * This guess can't be perfect as many different program types might
+	 * share the same context type.  So we can only hope to reasonably
+	 * well guess this and get lucky.
+	 *
+	 * Just in case, we support both UAPI-side type names and
+	 * kernel-internal names.
+	 */
+	static struct {
+		const char *uapi_name;
+		const char *kern_name;
+		enum bpf_prog_type prog_type;
+		enum bpf_attach_type attach_type;
+	} ctx_map[] = {
+		/* __sk_buff is most ambiguous, for now we assume cgroup_skb */
+		{ "__sk_buff", "sk_buff", BPF_PROG_TYPE_CGROUP_SKB, BPF_CGROUP_INET_INGRESS },
+		{ "bpf_sock", "sock", BPF_PROG_TYPE_CGROUP_SOCK, BPF_CGROUP_INET4_POST_BIND },
+		{ "bpf_sock_addr", "bpf_sock_addr_kern",  BPF_PROG_TYPE_CGROUP_SOCK_ADDR, BPF_CGROUP_INET4_BIND },
+		{ "bpf_sock_ops", "bpf_sock_ops_kern", BPF_PROG_TYPE_SOCK_OPS, BPF_CGROUP_SOCK_OPS },
+		{ "sk_msg_md", "sk_msg", BPF_PROG_TYPE_SK_MSG, BPF_SK_MSG_VERDICT },
+		{ "bpf_cgroup_dev_ctx", "bpf_cgroup_dev_ctx", BPF_PROG_TYPE_CGROUP_DEVICE, BPF_CGROUP_DEVICE },
+		{ "bpf_sysctl", "bpf_sysctl_kern", BPF_PROG_TYPE_CGROUP_SYSCTL, BPF_CGROUP_SYSCTL },
+		{ "bpf_sockopt", "bpf_sockopt_kern", BPF_PROG_TYPE_CGROUP_SOCKOPT, BPF_CGROUP_SETSOCKOPT },
+		{ "sk_reuseport_md", "sk_reuseport_kern", BPF_PROG_TYPE_SK_REUSEPORT, BPF_SK_REUSEPORT_SELECT_OR_MIGRATE },
+		{ "bpf_sk_lookup", "bpf_sk_lookup_kern", BPF_PROG_TYPE_SK_LOOKUP, BPF_SK_LOOKUP },
+		{ "xdp_md", "xdp_buff", BPF_PROG_TYPE_XDP, BPF_XDP },
+		/* tracing types with no expected attach type */
+		{ "bpf_user_pt_regs_t", "pt_regs", BPF_PROG_TYPE_KPROBE },
+		{ "bpf_perf_event_data", "bpf_perf_event_data_kern", BPF_PROG_TYPE_PERF_EVENT },
+		/* raw_tp programs use u64[] from kernel side, we don't want
+		 * to match on that, probably; so NULL for kern-side type
+		 */
+		{ "bpf_raw_tracepoint_args", NULL, BPF_PROG_TYPE_RAW_TRACEPOINT },
+	};
+	int i;
+
+	if (!ctx_name)
+		return -EINVAL;
+
+	for (i = 0; i < ARRAY_SIZE(ctx_map); i++) {
+		if (strcmp(ctx_map[i].uapi_name, ctx_name) == 0 ||
+		    (ctx_map[i].kern_name && strcmp(ctx_map[i].kern_name, ctx_name) == 0)) {
+			*prog_type = ctx_map[i].prog_type;
+			*attach_type = ctx_map[i].attach_type;
+			return 0;
+		}
+	}
+
+	return -ESRCH;
+}
+
+static void fixup_obj(struct bpf_object *obj, struct bpf_program *prog, const char *filename)
 {
 	struct bpf_map *map;
 
@@ -798,18 +854,75 @@ static void fixup_obj(struct bpf_object *obj)
 				bpf_map__set_max_entries(map, 1);
 		}
 	}
+
+	/* SEC(freplace) programs can't be loaded with veristat as is,
+	 * but we can try guessing their target program's expected type by
+	 * looking at the type of program's first argument and substituting
+	 * corresponding program type
+	 */
+	if (bpf_program__type(prog) == BPF_PROG_TYPE_EXT) {
+		const struct btf *btf = bpf_object__btf(obj);
+		const char *prog_name = bpf_program__name(prog);
+		enum bpf_prog_type prog_type;
+		enum bpf_attach_type attach_type;
+		const struct btf_type *t;
+		const char *ctx_name;
+		int id;
+
+		if (!btf)
+			goto skip_freplace_fixup;
+
+		id = btf__find_by_name_kind(btf, prog_name, BTF_KIND_FUNC);
+		t = btf__type_by_id(btf, id);
+		t = btf__type_by_id(btf, t->type);
+		if (!btf_is_func_proto(t) || btf_vlen(t) != 1)
+			goto skip_freplace_fixup;
+
+		/* context argument is a pointer to a struct/typedef */
+		t = btf__type_by_id(btf, btf_params(t)[0].type);
+		while (t && btf_is_mod(t))
+			t = btf__type_by_id(btf, t->type);
+		if (!t || !btf_is_ptr(t))
+			goto skip_freplace_fixup;
+		t = btf__type_by_id(btf, t->type);
+		while (t && btf_is_mod(t))
+			t = btf__type_by_id(btf, t->type);
+		if (!t)
+			goto skip_freplace_fixup;
+
+		ctx_name = btf__name_by_offset(btf, t->name_off);
+
+		if (guess_prog_type_by_ctx_name(ctx_name, &prog_type, &attach_type) == 0) {
+			bpf_program__set_type(prog, prog_type);
+			bpf_program__set_expected_attach_type(prog, attach_type);
+
+			if (!env.quiet) {
+				printf("Using guessed program type '%s' for %s/%s...\n",
+					libbpf_bpf_prog_type_str(prog_type),
+					filename, prog_name);
+			}
+		} else {
+			if (!env.quiet) {
+				printf("Failed to guess program type for freplace program with context type name '%s' for %s/%s. Consider using canonical type names to help veristat...\n",
+					ctx_name, filename, prog_name);
+			}
+		}
+	}
+skip_freplace_fixup:
+	return;
 }
 
 static int process_prog(const char *filename, struct bpf_object *obj, struct bpf_program *prog)
 {
 	const char *prog_name = bpf_program__name(prog);
+	const char *base_filename = basename(filename);
 	size_t buf_sz = sizeof(verif_log_buf);
 	char *buf = verif_log_buf;
 	struct verif_stats *stats;
 	int err = 0;
 	void *tmp;
 
-	if (!should_process_file_prog(basename(filename), bpf_program__name(prog))) {
+	if (!should_process_file_prog(base_filename, bpf_program__name(prog))) {
 		env.progs_skipped++;
 		return 0;
 	}
@@ -835,12 +948,12 @@ static int process_prog(const char *filename, struct bpf_object *obj, struct bpf
 	verif_log_buf[0] = '\0';
 
 	/* increase chances of successful BPF object loading */
-	fixup_obj(obj);
+	fixup_obj(obj, prog, base_filename);
 
 	err = bpf_object__load(obj);
 	env.progs_processed++;
 
-	stats->file_name = strdup(basename(filename));
+	stats->file_name = strdup(base_filename);
 	stats->prog_name = strdup(bpf_program__name(prog));
 	stats->stats[VERDICT] = err == 0; /* 1 - success, 0 - failure */
 	parse_verif_log(buf, buf_sz, stats);
