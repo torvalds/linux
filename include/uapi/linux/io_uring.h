@@ -571,19 +571,6 @@ struct io_uring_rsrc_update2 {
 	__u32 resv2;
 };
 
-struct io_uring_notification_slot {
-	__u64 tag;
-	__u64 resv[3];
-};
-
-struct io_uring_notification_register {
-	__u32 nr_slots;
-	__u32 resv;
-	__u64 resv2;
-	__u64 data;
-	__u64 resv3;
-};
-
 /* Skip updating fd indexes set to this value in the fd table */
 #define IORING_REGISTER_FILES_SKIP	(-2)
 
