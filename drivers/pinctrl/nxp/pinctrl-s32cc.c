@@ -474,10 +474,37 @@ static int s32_get_slew_regval(int arg)
 	return -EINVAL;
 }
 
-static int s32_get_pin_conf(enum pin_config_param param, u32 arg,
-			    unsigned int *mask, unsigned int *config)
+static inline void s32_pin_set_pull(enum pin_config_param param,
+				   unsigned int *mask, unsigned int *config)
 {
+	switch (param) {
+	case PIN_CONFIG_BIAS_DISABLE:
+	case PIN_CONFIG_BIAS_HIGH_IMPEDANCE:
+		*config &= ~(S32_MSCR_PUS | S32_MSCR_PUE);
+		break;
+	case PIN_CONFIG_BIAS_PULL_UP:
+		*config |= S32_MSCR_PUS | S32_MSCR_PUE;
+		break;
+	case PIN_CONFIG_BIAS_PULL_DOWN:
+		*config &= ~S32_MSCR_PUS;
+		*config |= S32_MSCR_PUE;
+		break;
+	default:
+		return;
+	}
+
+	*mask |= S32_MSCR_PUS | S32_MSCR_PUE;
+}
+
+static int s32_parse_pincfg(unsigned long pincfg, unsigned int *mask,
+			    unsigned int *config)
+{
+	enum pin_config_param param;
+	u32 arg;
 	int ret;
+
+	param = pinconf_to_config_param(pincfg);
+	arg = pinconf_to_config_argument(pincfg);
 
 	switch (param) {
 	/* All pins are persistent over suspend */
@@ -508,26 +535,15 @@ static int s32_get_pin_conf(enum pin_config_param param, u32 arg,
 		*config |= S32_MSCR_SRE((u32)ret);
 		*mask |= S32_MSCR_SRE(~0);
 		break;
+	case PIN_CONFIG_BIAS_DISABLE:
 	case PIN_CONFIG_BIAS_PULL_UP:
-		if (arg)
-			*config |= S32_MSCR_PUS;
-		else
-			*config &= ~S32_MSCR_PUS;
-		fallthrough;
 	case PIN_CONFIG_BIAS_PULL_DOWN:
-		if (arg)
-			*config |= S32_MSCR_PUE;
-		else
-			*config &= ~S32_MSCR_PUE;
-		*mask |= S32_MSCR_PUE | S32_MSCR_PUS;
+		s32_pin_set_pull(param, mask, config);
 		break;
 	case PIN_CONFIG_BIAS_HIGH_IMPEDANCE:
 		*config &= ~(S32_MSCR_ODE | S32_MSCR_OBE | S32_MSCR_IBE);
 		*mask |= S32_MSCR_ODE | S32_MSCR_OBE | S32_MSCR_IBE;
-		fallthrough;
-	case PIN_CONFIG_BIAS_DISABLE:
-		*config &= ~(S32_MSCR_PUS | S32_MSCR_PUE);
-		*mask |= S32_MSCR_PUS | S32_MSCR_PUE;
+		s32_pin_set_pull(param, mask, config);
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -553,9 +569,7 @@ static int s32_pinconf_mscr_update(struct pinctrl_dev *pctldev,
 		pin_get_name(pctldev, pin_id), num_configs);
 
 	for (i = 0; i < num_configs; i++) {
-		ret = s32_get_pin_conf(pinconf_to_config_param(configs[i]),
-				       pinconf_to_config_argument(configs[i]),
-				       &mask, &config);
+		ret = s32_parse_pincfg(configs[i], &mask, &config);
 		if (ret)
 			return ret;
 	}
