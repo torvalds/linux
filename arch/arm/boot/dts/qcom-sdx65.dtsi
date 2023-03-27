@@ -224,16 +224,15 @@
 				     "qcom,usb-snps-hs-7nm-phy";
 			reg = <0xff4000 0x120>;
 			#phy-cells = <0>;
-			status = "disabled";
 			clocks = <&rpmhcc RPMH_CXO_CLK>;
 			clock-names = "ref";
 			resets = <&gcc GCC_QUSB2PHY_BCR>;
+			status = "disabled";
 		};
 
 		usb_qmpphy: phy@ff6000 {
 			compatible = "qcom,sdx65-qmp-usb3-uni-phy";
 			reg = <0x00ff6000 0x1c8>;
-			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
@@ -246,6 +245,8 @@
 			resets = <&gcc GCC_USB3PHY_PHY_BCR>,
 				 <&gcc GCC_USB3_PHY_BCR>;
 			reset-names = "phy", "common";
+
+			status = "disabled";
 
 			usb_ssphy: phy@ff6200 {
 				reg = <0x00ff6e00 0x160>,
@@ -394,7 +395,6 @@
 		usb: usb@a6f8800 {
 			compatible = "qcom,sdx65-dwc3", "qcom,dwc3";
 			reg = <0x0a6f8800 0x400>;
-			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
@@ -423,6 +423,8 @@
 			power-domains = <&gcc USB30_GDSC>;
 
 			resets = <&gcc GCC_USB30_BCR>;
+
+			status = "disabled";
 
 			usb_dwc3: usb@a600000 {
 				compatible = "snps,dwc3";
