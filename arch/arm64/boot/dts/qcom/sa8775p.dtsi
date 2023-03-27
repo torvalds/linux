@@ -440,7 +440,7 @@
 
 		gcc: clock-controller@100000 {
 			compatible = "qcom,sa8775p-gcc";
-			reg = <0x0 0x100000 0x0 0xc7018>;
+			reg = <0x0 0x00100000 0x0 0xc7018>;
 			#clock-cells = <1>;
 			#reset-cells = <1>;
 			#power-domain-cells = <1>;
@@ -464,7 +464,7 @@
 
 		ipcc: mailbox@408000 {
 			compatible = "qcom,sa8775p-ipcc", "qcom,ipcc";
-			reg = <0x0 0x408000 0x0 0x1000>;
+			reg = <0x0 0x00408000 0x0 0x1000>;
 			interrupts = <GIC_SPI 229 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-controller;
 			#interrupt-cells = <3>;
@@ -473,7 +473,7 @@
 
 		qupv3_id_1: geniqup@ac0000 {
 			compatible = "qcom,geni-se-qup";
-			reg = <0x0 0xac0000 0x0 0x6000>;
+			reg = <0x0 0x00ac0000 0x0 0x6000>;
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges;
@@ -485,7 +485,7 @@
 
 			uart10: serial@a8c000 {
 				compatible = "qcom,geni-uart";
-				reg = <0x0 0xa8c000 0x0 0x4000>;
+				reg = <0x0 0x00a8c000 0x0 0x4000>;
 				interrupts = <GIC_SPI 356 IRQ_TYPE_LEVEL_HIGH>;
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP1_S3_CLK>;
@@ -735,7 +735,7 @@
 
 		tcsr_mutex: hwlock@1f40000 {
 			compatible = "qcom,tcsr-mutex";
-			reg = <0x0 0x1f40000 0x0 0x20000>;
+			reg = <0x0 0x01f40000 0x0 0x20000>;
 			#hwlock-cells = <1>;
 		};
 
@@ -754,7 +754,7 @@
 
 		tlmm: pinctrl@f000000 {
 			compatible = "qcom,sa8775p-tlmm";
-			reg = <0x0 0xf000000 0x0 0x1000000>;
+			reg = <0x0 0x0f000000 0x0 0x1000000>;
 			interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-controller;
 			#gpio-cells = <2>;
