@@ -353,8 +353,11 @@ struct mdp_frameparam {
 	enum v4l2_quantization		quant;
 };
 
-int mdp_enum_fmt_mplane(struct v4l2_fmtdesc *f);
-const struct mdp_format *mdp_try_fmt_mplane(struct v4l2_format *f,
+struct mdp_dev;
+
+int mdp_enum_fmt_mplane(struct mdp_dev *mdp, struct v4l2_fmtdesc *f);
+const struct mdp_format *mdp_try_fmt_mplane(struct mdp_dev *mdp,
+					    struct v4l2_format *f,
 					    struct mdp_frameparam *param,
 					    u32 ctx_id);
 enum mdp_ycbcr_profile mdp_map_ycbcr_prof_mplane(struct v4l2_format *f,
@@ -368,6 +371,6 @@ void mdp_set_src_config(struct img_input *in,
 			struct mdp_frame *frame, struct vb2_buffer *vb);
 void mdp_set_dst_config(struct img_output *out,
 			struct mdp_frame *frame, struct vb2_buffer *vb);
-int mdp_frameparam_init(struct mdp_frameparam *param);
+int mdp_frameparam_init(struct mdp_dev *mdp, struct mdp_frameparam *param);
 
 #endif  /* __MTK_MDP3_REGS_H__ */
