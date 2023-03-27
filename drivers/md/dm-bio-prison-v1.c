@@ -16,7 +16,6 @@
 
 /*----------------------------------------------------------------*/
 
-#define NR_LOCKS 64
 #define MIN_CELLS 1024
 
 struct prison_region {
@@ -27,7 +26,7 @@ struct prison_region {
 struct dm_bio_prison {
 	mempool_t cell_pool;
 	unsigned int num_locks;
-	struct prison_region regions[NR_LOCKS];
+	struct prison_region regions[];
 };
 
 static struct kmem_cache *_cell_cache;
@@ -41,12 +40,14 @@ static struct kmem_cache *_cell_cache;
 struct dm_bio_prison *dm_bio_prison_create(void)
 {
 	int ret;
-	unsigned i;
-	struct dm_bio_prison *prison = kzalloc(sizeof(*prison), GFP_KERNEL);
+	unsigned int i, num_locks;
+	struct dm_bio_prison *prison;
 
+	num_locks = dm_num_hash_locks();
+	prison = kzalloc(struct_size(prison, regions, num_locks), GFP_KERNEL);
 	if (!prison)
 		return NULL;
-	prison->num_locks = NR_LOCKS;
+	prison->num_locks = num_locks;
 
 	for (i = 0; i < prison->num_locks; i++) {
 		spin_lock_init(&prison->regions[i].lock);
