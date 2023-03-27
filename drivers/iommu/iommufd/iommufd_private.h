@@ -211,10 +211,10 @@ struct iommufd_ioas {
 	struct list_head hwpt_list;
 };
 
-static inline struct iommufd_ioas *iommufd_get_ioas(struct iommufd_ucmd *ucmd,
+static inline struct iommufd_ioas *iommufd_get_ioas(struct iommufd_ctx *ictx,
 						    u32 id)
 {
-	return container_of(iommufd_get_object(ucmd->ictx, id,
+	return container_of(iommufd_get_object(ictx, id,
 					       IOMMUFD_OBJ_IOAS),
 			    struct iommufd_ioas, obj);
 }

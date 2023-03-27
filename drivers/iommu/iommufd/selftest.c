@@ -75,7 +75,7 @@ void iommufd_test_syz_conv_iova_id(struct iommufd_ucmd *ucmd,
 		return;
 	*flags &= ~(u32)MOCK_FLAGS_ACCESS_SYZ;
 
-	ioas = iommufd_get_ioas(ucmd, ioas_id);
+	ioas = iommufd_get_ioas(ucmd->ictx, ioas_id);
 	if (IS_ERR(ioas))
 		return;
 	*iova = iommufd_test_syz_conv_iova(&ioas->iopt, iova);
@@ -279,7 +279,7 @@ static int iommufd_test_mock_domain(struct iommufd_ucmd *ucmd,
 	struct iommufd_ioas *ioas;
 	int rc;
 
-	ioas = iommufd_get_ioas(ucmd, cmd->id);
+	ioas = iommufd_get_ioas(ucmd->ictx, cmd->id);
 	if (IS_ERR(ioas))
 		return PTR_ERR(ioas);
 
@@ -322,7 +322,7 @@ static int iommufd_test_add_reserved(struct iommufd_ucmd *ucmd,
 	struct iommufd_ioas *ioas;
 	int rc;
 
-	ioas = iommufd_get_ioas(ucmd, mockpt_id);
+	ioas = iommufd_get_ioas(ucmd->ictx, mockpt_id);
 	if (IS_ERR(ioas))
 		return PTR_ERR(ioas);
 	down_write(&ioas->iopt.iova_rwsem);
