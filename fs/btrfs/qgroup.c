@@ -1549,8 +1549,7 @@ out:
 	return ret;
 }
 
-int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans, u64 src,
-			      u64 dst)
+int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans, u64 src, u64 dst)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_qgroup *parent;
@@ -3018,6 +3017,47 @@ int btrfs_run_qgroups(struct btrfs_trans_handle *trans)
 	return ret;
 }
 
+static int qgroup_auto_inherit(struct btrfs_fs_info *fs_info,
+			       u64 inode_rootid,
+			       struct btrfs_qgroup_inherit **inherit)
+{
+	int i = 0;
+	u64 num_qgroups = 0;
+	struct btrfs_qgroup *inode_qg;
+	struct btrfs_qgroup_list *qg_list;
+	struct btrfs_qgroup_inherit *res;
+	size_t struct_sz;
+	u64 *qgids;
+
+	if (*inherit)
+		return -EEXIST;
+
+	inode_qg = find_qgroup_rb(fs_info, inode_rootid);
+	if (!inode_qg)
+		return -ENOENT;
+
+	num_qgroups = list_count_nodes(&inode_qg->groups);
+
+	if (!num_qgroups)
+		return 0;
+
+	struct_sz = struct_size(res, qgroups, num_qgroups);
+	if (struct_sz == SIZE_MAX)
+		return -ERANGE;
+
+	res = kzalloc(struct_sz, GFP_NOFS);
+	if (!res)
+		return -ENOMEM;
+	res->num_qgroups = num_qgroups;
+	qgids = res->qgroups;
+
+	list_for_each_entry(qg_list, &inode_qg->groups, next_group)
+		qgids[i] = qg_list->group->qgroupid;
+
+	*inherit = res;
+	return 0;
+}
+
 /*
  * Copy the accounting information between qgroups. This is necessary
  * when a snapshot or a subvolume is created. Throwing an error will
@@ -3025,7 +3065,8 @@ int btrfs_run_qgroups(struct btrfs_trans_handle *trans)
  * when a readonly fs is a reasonable outcome.
  */
 int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans, u64 srcid,
-			 u64 objectid, struct btrfs_qgroup_inherit *inherit)
+			 u64 objectid, u64 inode_rootid,
+			 struct btrfs_qgroup_inherit *inherit)
 {
 	int ret = 0;
 	int i;
@@ -3037,6 +3078,7 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans, u64 srcid,
 	struct btrfs_qgroup *dstgroup;
 	struct btrfs_qgroup *prealloc;
 	struct btrfs_qgroup_list **qlist_prealloc = NULL;
+	bool free_inherit = false;
 	bool need_rescan = false;
 	u32 level_size = 0;
 	u64 nums;
@@ -3071,6 +3113,13 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans, u64 srcid,
 	if (!quota_root) {
 		ret = -EINVAL;
 		goto out;
+	}
+
+	if (btrfs_qgroup_mode(fs_info) == BTRFS_QGROUP_MODE_SIMPLE && !inherit) {
+		ret = qgroup_auto_inherit(fs_info, inode_rootid, &inherit);
+		if (ret)
+			goto out;
+		free_inherit = true;
 	}
 
 	if (inherit) {
@@ -3256,6 +3305,8 @@ out:
 			kfree(qlist_prealloc[i]);
 		kfree(qlist_prealloc);
 	}
+	if (free_inherit)
+		kfree(inherit);
 	kfree(prealloc);
 	return ret;
 }
