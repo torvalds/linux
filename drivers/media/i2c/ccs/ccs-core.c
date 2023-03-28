@@ -796,13 +796,23 @@ static const struct v4l2_ctrl_ops ccs_ctrl_ops = {
 static int ccs_init_controls(struct ccs_sensor *sensor)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
+	struct v4l2_fwnode_device_properties props;
 	int rval;
 
-	rval = v4l2_ctrl_handler_init(&sensor->pixel_array->ctrl_handler, 17);
+	rval = v4l2_ctrl_handler_init(&sensor->pixel_array->ctrl_handler, 19);
 	if (rval)
 		return rval;
 
 	sensor->pixel_array->ctrl_handler.lock = &sensor->mutex;
+
+	rval = v4l2_fwnode_device_parse(&client->dev, &props);
+	if (rval)
+		return rval;
+
+	rval = v4l2_ctrl_new_fwnode_properties(&sensor->pixel_array->ctrl_handler,
+					       &ccs_ctrl_ops, &props);
+	if (rval)
+		return rval;
 
 	switch (CCS_LIM(sensor, ANALOG_GAIN_CAPABILITY)) {
 	case CCS_ANALOG_GAIN_CAPABILITY_GLOBAL: {
