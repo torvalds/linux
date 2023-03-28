@@ -4258,6 +4258,52 @@ static int iwl_mvm_send_aux_roc_cmd(struct iwl_mvm *mvm,
 	return res;
 }
 
+static int iwl_mvm_add_aux_sta_for_hs20(struct iwl_mvm *mvm, u32 lmac_id)
+{
+	int ret = 0;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	if (!fw_has_capa(&mvm->fw->ucode_capa,
+			 IWL_UCODE_TLV_CAPA_HOTSPOT_SUPPORT)) {
+		IWL_ERR(mvm, "hotspot not supported\n");
+		return -EINVAL;
+	}
+
+	if (iwl_fw_lookup_cmd_ver(mvm->fw, ADD_STA, 0) >= 12) {
+		ret = iwl_mvm_add_aux_sta(mvm, lmac_id);
+		WARN(ret, "Failed to allocate aux station");
+	}
+
+	return ret;
+}
+
+static int iwl_mvm_roc_switch_binding(struct iwl_mvm *mvm,
+				      struct ieee80211_vif *vif,
+				      struct iwl_mvm_phy_ctxt *new_phy_ctxt)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	int ret = 0;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	/* Unbind the P2P_DEVICE from the current PHY context,
+	 * and if the PHY context is not used remove it.
+	 */
+	ret = iwl_mvm_binding_remove_vif(mvm, vif);
+	if (WARN(ret, "Failed unbinding P2P_DEVICE\n"))
+		return ret;
+
+	iwl_mvm_phy_ctxt_unref(mvm, mvmvif->deflink.phy_ctxt);
+
+	/* Bind the P2P_DEVICE to the current PHY Context */
+	mvmvif->deflink.phy_ctxt = new_phy_ctxt;
+
+	ret = iwl_mvm_binding_add_vif(mvm, vif);
+	WARN(ret, "Failed binding P2P_DEVICE\n");
+	return ret;
+}
+
 static int iwl_mvm_roc(struct ieee80211_hw *hw,
 		       struct ieee80211_vif *vif,
 		       struct ieee80211_channel *channel,
@@ -4270,6 +4316,7 @@ static int iwl_mvm_roc(struct ieee80211_hw *hw,
 	struct iwl_mvm_phy_ctxt *phy_ctxt;
 	bool band_change_removal;
 	int ret, i;
+	u32 lmac_id;
 
 	IWL_DEBUG_MAC80211(mvm, "enter (%d, %d, %d)\n", channel->hw_value,
 			   duration, type);
@@ -4284,25 +4331,13 @@ static int iwl_mvm_roc(struct ieee80211_hw *hw,
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
-		if (fw_has_capa(&mvm->fw->ucode_capa,
-				IWL_UCODE_TLV_CAPA_HOTSPOT_SUPPORT)) {
-			/* Use aux roc framework (HS20) */
-			if (iwl_fw_lookup_cmd_ver(mvm->fw, ADD_STA, 0) >= 12) {
-				u32 lmac_id;
+		lmac_id = iwl_mvm_get_lmac_id(mvm->fw, channel->band);
 
-				lmac_id = iwl_mvm_get_lmac_id(mvm->fw,
-							      channel->band);
-				ret = iwl_mvm_add_aux_sta(mvm, lmac_id);
-				if (WARN(ret,
-					 "Failed to allocate aux station"))
-					goto out_unlock;
-			}
+		/* Use aux roc framework (HS20) */
+		ret = iwl_mvm_add_aux_sta_for_hs20(mvm, lmac_id);
+		if (!ret)
 			ret = iwl_mvm_send_aux_roc_cmd(mvm, channel,
 						       vif, duration);
-			goto out_unlock;
-		}
-		IWL_ERR(mvm, "hotspot not supported\n");
-		ret = -EINVAL;
 		goto out_unlock;
 	case NL80211_IFTYPE_P2P_DEVICE:
 		/* handle below */
@@ -4319,21 +4354,8 @@ static int iwl_mvm_roc(struct ieee80211_hw *hw,
 			continue;
 
 		if (phy_ctxt->ref && channel == phy_ctxt->channel) {
-			/*
-			 * Unbind the P2P_DEVICE from the current PHY context,
-			 * and if the PHY context is not used remove it.
-			 */
-			ret = iwl_mvm_binding_remove_vif(mvm, vif);
-			if (WARN(ret, "Failed unbinding P2P_DEVICE\n"))
-				goto out_unlock;
-
-			iwl_mvm_phy_ctxt_unref(mvm, mvmvif->deflink.phy_ctxt);
-
-			/* Bind the P2P_DEVICE to the current PHY Context */
-			mvmvif->deflink.phy_ctxt = phy_ctxt;
-
-			ret = iwl_mvm_binding_add_vif(mvm, vif);
-			if (WARN(ret, "Failed binding P2P_DEVICE\n"))
+			ret = iwl_mvm_roc_switch_binding(mvm, vif, phy_ctxt);
+			if (ret)
 				goto out_unlock;
 
 			iwl_mvm_phy_ctxt_ref(mvm, mvmvif->deflink.phy_ctxt);
@@ -4386,18 +4408,8 @@ static int iwl_mvm_roc(struct ieee80211_hw *hw,
 			goto out_unlock;
 		}
 
-		/* Unbind the P2P_DEVICE from the current PHY context */
-		ret = iwl_mvm_binding_remove_vif(mvm, vif);
-		if (WARN(ret, "Failed unbinding P2P_DEVICE\n"))
-			goto out_unlock;
-
-		iwl_mvm_phy_ctxt_unref(mvm, mvmvif->deflink.phy_ctxt);
-
-		/* Bind the P2P_DEVICE to the new allocated PHY context */
-		mvmvif->deflink.phy_ctxt = phy_ctxt;
-
-		ret = iwl_mvm_binding_add_vif(mvm, vif);
-		if (WARN(ret, "Failed binding P2P_DEVICE\n"))
+		ret = iwl_mvm_roc_switch_binding(mvm, vif, phy_ctxt);
+		if (ret)
 			goto out_unlock;
 
 		iwl_mvm_phy_ctxt_ref(mvm, mvmvif->deflink.phy_ctxt);
