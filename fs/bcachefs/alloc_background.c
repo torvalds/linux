@@ -962,10 +962,17 @@ struct bkey_s_c bch2_get_key_or_hole(struct btree_iter *iter, struct bpos end, s
 		struct bpos next;
 
 		bch2_trans_copy_iter(&iter2, iter);
-		k = bch2_btree_iter_peek_upto(&iter2,
-				bkey_min(bkey_min(end,
-						  iter->path->l[0].b->key.k.p),
-						  POS(iter->pos.inode, iter->pos.offset + U32_MAX - 1)));
+
+		if (!bpos_eq(iter->path->l[0].b->key.k.p, SPOS_MAX))
+			end = bkey_min(end, bpos_nosnap_successor(iter->path->l[0].b->key.k.p));
+
+		end = bkey_min(end, POS(iter->pos.inode, iter->pos.offset + U32_MAX - 1));
+
+		/*
+		 * btree node min/max is a closed interval, upto takes a half
+		 * open interval:
+		 */
+		k = bch2_btree_iter_peek_upto(&iter2, end);
 		next = iter2.pos;
 		bch2_trans_iter_exit(iter->trans, &iter2);
 
