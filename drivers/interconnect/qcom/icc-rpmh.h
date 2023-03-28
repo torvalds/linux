@@ -10,6 +10,8 @@
 #include <linux/regmap.h>
 #include <linux/platform_device.h>
 
+#include <soc/qcom/crm.h>
+
 #define to_qcom_provider(_provider) \
 	container_of(_provider, struct qcom_icc_provider, provider)
 
@@ -56,6 +58,14 @@ struct bcm_db {
 #define MAX_BCMS		64
 #define MAX_BCM_PER_NODE	3
 #define MAX_VCD			10
+
+struct qcom_icc_crm_voter {
+	const char *name;
+	const struct device *dev;
+	enum crm_drv_type client_type;
+	u32 client_idx;
+	u32 pwr_states;
+};
 
 /**
  * struct qcom_icc_node - Qualcomm specific interconnect nodes
@@ -140,6 +150,7 @@ struct qcom_icc_bcm {
 	struct list_head list;
 	struct list_head ws_list;
 	int voter_idx;
+	u8 crm_node;
 	size_t num_nodes;
 	struct qcom_icc_node *nodes[];
 };

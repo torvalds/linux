@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __DT_BINDINGS_INTERCONNECT_QCOM_PINEAPPLE_H
@@ -175,5 +175,23 @@
 #define SLAVE_LLCC_CAM_IFE_2				4513
 #define SLAVE_MNOC_HF_MEM_NOC_CAM_IFE_2				4514
 #define SLAVE_MNOC_SF_MEM_NOC_CAM_IFE_2				4515
+#define MASTER_IPA_CORE_PCIE_CRM_HW_0				5000
+#define MASTER_LLCC_PCIE_CRM_HW_0				5001
+#define MASTER_ANOC_PCIE_GEM_NOC_PCIE_CRM_HW_0				5002
+#define MASTER_PCIE_0_PCIE_CRM_HW_0				5003
+#define MASTER_PCIE_1_PCIE_CRM_HW_0				5004
+#define SLAVE_EBI1_PCIE_CRM_HW_0				5512
+#define SLAVE_IPA_CORE_PCIE_CRM_HW_0				5513
+#define SLAVE_LLCC_PCIE_CRM_HW_0				5514
+#define SLAVE_ANOC_PCIE_GEM_NOC_PCIE_CRM_HW_0				5515
+#define MASTER_IPA_CORE_PCIE_CRM_HW_1				6000
+#define MASTER_LLCC_PCIE_CRM_HW_1				6001
+#define MASTER_ANOC_PCIE_GEM_NOC_PCIE_CRM_HW_1				6002
+#define MASTER_PCIE_0_PCIE_CRM_HW_1				6003
+#define MASTER_PCIE_1_PCIE_CRM_HW_1				6004
+#define SLAVE_EBI1_PCIE_CRM_HW_1				6512
+#define SLAVE_IPA_CORE_PCIE_CRM_HW_1				6513
+#define SLAVE_LLCC_PCIE_CRM_HW_1				6514
+#define SLAVE_ANOC_PCIE_GEM_NOC_PCIE_CRM_HW_1				6515
 
 #endif
