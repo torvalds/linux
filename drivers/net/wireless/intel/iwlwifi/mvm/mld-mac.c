@@ -102,9 +102,7 @@ static int iwl_mvm_mld_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 		cmd.client.ctwin =
 			iwl_mvm_mac_ctxt_cmd_p2p_sta_get_oppps_ctwin(mvm, vif);
 
-	/* FIXME: assume for now that DTIM period is the same for all links */
-	if (vif->cfg.assoc && vif->bss_conf.dtim_period &&
-	    !force_assoc_off) {
+	if (vif->cfg.assoc && !force_assoc_off) {
 		struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
 		cmd.client.is_assoc = cpu_to_le32(1);
