@@ -535,6 +535,7 @@ config TI_PRUSS_INTC
 config RISCV_INTC
 	bool
 	depends on RISCV
+	select IRQ_DOMAIN_HIERARCHY
 
 config SIFIVE_PLIC
 	bool
