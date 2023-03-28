@@ -4310,6 +4310,20 @@ static int iwl_mvm_roc(struct ieee80211_hw *hw,
 		       int duration,
 		       enum ieee80211_roc_type type)
 {
+	struct iwl_mvm_roc_ops ops = {
+		.add_aux_sta_for_hs20 = iwl_mvm_add_aux_sta_for_hs20,
+		.switch_phy_ctxt = iwl_mvm_roc_switch_binding,
+	};
+
+	return iwl_mvm_roc_common(hw, vif, channel, duration, type, &ops);
+}
+
+/* Execute the common part for MLD and non-MLD modes */
+int iwl_mvm_roc_common(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		       struct ieee80211_channel *channel, int duration,
+		       enum ieee80211_roc_type type,
+		       struct iwl_mvm_roc_ops *ops)
+{
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct cfg80211_chan_def chandef;
@@ -4334,7 +4348,7 @@ static int iwl_mvm_roc(struct ieee80211_hw *hw,
 		lmac_id = iwl_mvm_get_lmac_id(mvm->fw, channel->band);
 
 		/* Use aux roc framework (HS20) */
-		ret = iwl_mvm_add_aux_sta_for_hs20(mvm, lmac_id);
+		ret = ops->add_aux_sta_for_hs20(mvm, lmac_id);
 		if (!ret)
 			ret = iwl_mvm_send_aux_roc_cmd(mvm, channel,
 						       vif, duration);
@@ -4354,7 +4368,7 @@ static int iwl_mvm_roc(struct ieee80211_hw *hw,
 			continue;
 
 		if (phy_ctxt->ref && channel == phy_ctxt->channel) {
-			ret = iwl_mvm_roc_switch_binding(mvm, vif, phy_ctxt);
+			ret = ops->switch_phy_ctxt(mvm, vif, phy_ctxt);
 			if (ret)
 				goto out_unlock;
 
@@ -4408,7 +4422,7 @@ static int iwl_mvm_roc(struct ieee80211_hw *hw,
 			goto out_unlock;
 		}
 
-		ret = iwl_mvm_roc_switch_binding(mvm, vif, phy_ctxt);
+		ret = ops->switch_phy_ctxt(mvm, vif, phy_ctxt);
 		if (ret)
 			goto out_unlock;
 
@@ -4425,8 +4439,8 @@ out_unlock:
 	return ret;
 }
 
-static int iwl_mvm_cancel_roc(struct ieee80211_hw *hw,
-			      struct ieee80211_vif *vif)
+int iwl_mvm_cancel_roc(struct ieee80211_hw *hw,
+		       struct ieee80211_vif *vif)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 

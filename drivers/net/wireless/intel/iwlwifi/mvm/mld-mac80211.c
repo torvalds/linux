@@ -592,10 +592,53 @@ iwl_mvm_mld_mac_conf_tx(struct ieee80211_hw *hw,
 	return 0;
 }
 
+static int iwl_mvm_link_switch_phy_ctx(struct iwl_mvm *mvm,
+				       struct ieee80211_vif *vif,
+				       struct iwl_mvm_phy_ctxt *new_phy_ctxt)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	int ret = 0;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	/* Inorder to change the phy_ctx of a link, the link needs to be
+	 * inactive. Therefore, first deactivate the link, then change its
+	 * phy_ctx, and then activate it again.
+	 */
+	ret = iwl_mvm_link_changed(mvm, vif, LINK_CONTEXT_MODIFY_ACTIVE, false);
+	if (WARN(ret, "Failed to deactivate link\n"))
+		return ret;
+
+	iwl_mvm_phy_ctxt_unref(mvm, mvmvif->deflink.phy_ctxt);
+
+	mvmvif->deflink.phy_ctxt = new_phy_ctxt;
+
+	ret = iwl_mvm_link_changed(mvm, vif, 0, false);
+	if (WARN(ret, "Failed to deactivate link\n"))
+		return ret;
+
+	ret = iwl_mvm_link_changed(mvm, vif, LINK_CONTEXT_MODIFY_ACTIVE, true);
+	WARN(ret, "Failed binding P2P_DEVICE\n");
+	return ret;
+}
+
+static int iwl_mvm_mld_roc(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			   struct ieee80211_channel *channel, int duration,
+			   enum ieee80211_roc_type type)
+{
+	struct iwl_mvm_roc_ops ops = {
+		.add_aux_sta_for_hs20 = iwl_mvm_mld_add_aux_sta,
+		.switch_phy_ctxt = iwl_mvm_link_switch_phy_ctx,
+	};
+
+	return iwl_mvm_roc_common(hw, vif, channel, duration, type, &ops);
+}
 const struct ieee80211_ops iwl_mvm_mld_hw_ops = {
 	.add_interface = iwl_mvm_mld_mac_add_interface,
 	.remove_interface = iwl_mvm_mld_mac_remove_interface,
 	.config_iface_filter = iwl_mvm_mld_config_iface_filter,
+	.remain_on_channel = iwl_mvm_mld_roc,
+	.cancel_remain_on_channel = iwl_mvm_cancel_roc,
 	.assign_vif_chanctx = iwl_mvm_mld_assign_vif_chanctx,
 	.unassign_vif_chanctx = iwl_mvm_mld_unassign_vif_chanctx,
 	.switch_vif_chanctx = iwl_mvm_mld_switch_vif_chanctx,

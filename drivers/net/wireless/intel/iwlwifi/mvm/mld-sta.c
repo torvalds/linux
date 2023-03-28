@@ -75,6 +75,24 @@ static int iwl_mvm_mld_rm_sta_from_fw(struct iwl_mvm *mvm, u32 sta_id)
 	return 0;
 }
 
+static int iwl_mvm_add_aux_sta_to_fw(struct iwl_mvm *mvm,
+				     struct iwl_mvm_int_sta *sta,
+				     u32 lmac_id)
+{
+	int ret;
+
+	struct iwl_mvm_aux_sta_cmd cmd = {
+		.sta_id = cpu_to_le32(sta->sta_id),
+		.lmac_id = cpu_to_le32(lmac_id),
+	};
+
+	ret = iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(MAC_CONF_GROUP, AUX_STA_CMD),
+				   0, sizeof(cmd), &cmd);
+	if (ret)
+		IWL_ERR(mvm, "Failed to send AUX_STA_CMD\n");
+	return ret;
+}
+
 /*
  * Adds an internal sta to the FW table with its queues
  */
@@ -91,7 +109,10 @@ static int iwl_mvm_mld_add_int_sta_with_queue(struct iwl_mvm *mvm,
 	if (WARN_ON_ONCE(sta->sta_id == IWL_MVM_INVALID_STA))
 		return -ENOSPC;
 
-	ret = iwl_mvm_mld_add_int_sta_to_fw(mvm, sta, addr, phy_id);
+	if (sta->type == STATION_TYPE_AUX)
+		ret = iwl_mvm_add_aux_sta_to_fw(mvm, sta, phy_id);
+	else
+		ret = iwl_mvm_mld_add_int_sta_to_fw(mvm, sta, addr, phy_id);
 	if (ret)
 		return ret;
 
@@ -224,6 +245,19 @@ int iwl_mvm_mld_add_snif_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 				       IWL_MAX_TID_COUNT, NULL);
 }
 
+int iwl_mvm_mld_add_aux_sta(struct iwl_mvm *mvm, u32 lmac_id)
+{
+	lockdep_assert_held(&mvm->mutex);
+
+	/* In CDB NICs we need to specify which lmac to use for aux activity
+	 * using the phy_id argument place to send lmac_id to the function
+	 */
+	return iwl_mvm_mld_add_int_sta(mvm, &mvm->aux_sta, &mvm->aux_queue,
+				       NL80211_IFTYPE_UNSPECIFIED,
+				       STATION_TYPE_AUX, lmac_id, NULL,
+				       IWL_MAX_TID_COUNT, NULL);
+}
+
 static int iwl_mvm_mld_disable_txq(struct iwl_mvm *mvm,
 				   struct ieee80211_sta *sta,
 				   u16 *queueptr, u8 tid)
@@ -330,6 +364,14 @@ int iwl_mvm_mld_rm_snif_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	return iwl_mvm_mld_rm_int_sta(mvm, &mvm->snif_sta, false,
 				      IWL_MAX_TID_COUNT, &mvm->snif_queue);
+}
+
+int iwl_mvm_mld_rm_aux_sta(struct iwl_mvm *mvm)
+{
+	lockdep_assert_held(&mvm->mutex);
+
+	return iwl_mvm_mld_rm_int_sta(mvm, &mvm->aux_sta, false,
+				      IWL_MAX_TID_COUNT, &mvm->aux_queue);
 }
 
 /* send a cfg sta command to add/update a sta in firmware */

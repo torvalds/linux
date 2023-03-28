@@ -95,6 +95,11 @@ void iwl_mvm_roc_done_wk(struct work_struct *wk)
 		/* do the same in case of hot spot 2.0 */
 		iwl_mvm_flush_sta(mvm, &mvm->aux_sta, true);
 
+		if (mvm->mld_api_is_used) {
+			iwl_mvm_mld_rm_aux_sta(mvm);
+			goto out_unlock;
+		}
+
 		/* In newer version of this command an aux station is added only
 		 * in cases of dedicated tx queue and need to be removed in end
 		 * of use */
@@ -102,6 +107,7 @@ void iwl_mvm_roc_done_wk(struct work_struct *wk)
 			iwl_mvm_rm_aux_sta(mvm);
 	}
 
+out_unlock:
 	mutex_unlock(&mvm->mutex);
 }
 

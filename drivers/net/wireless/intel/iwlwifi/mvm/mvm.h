@@ -1827,6 +1827,32 @@ void iwl_mvm_bss_info_changed_station_assoc(struct iwl_mvm *mvm,
 					    struct ieee80211_vif *vif,
 					    u64 changes);
 
+/* ROC */
+/**
+ * struct iwl_mvm_roc_ops - callbacks for the remain_on_channel()
+ *
+ * Since the only difference between both MLD and
+ * non-MLD versions of remain_on_channel() is these function calls,
+ * each version will send its specific function calls to
+ * %iwl_mvm_roc_common().
+ *
+ * @add_aux_sta_for_hs20: pointer to the function that adds an aux sta
+ *	for Hot Spot 2.0
+ * @switch_phy_ctxt: pointer to the function that switches a vif from one
+ *	phy_ctx to another
+ */
+struct iwl_mvm_roc_ops {
+	int (*add_aux_sta_for_hs20)(struct iwl_mvm *mvm, u32 lmac_id);
+	int (*switch_phy_ctxt)(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			       struct iwl_mvm_phy_ctxt *new_phy_ctxt);
+};
+
+int iwl_mvm_roc_common(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		       struct ieee80211_channel *channel, int duration,
+		       enum ieee80211_roc_type type,
+		       struct iwl_mvm_roc_ops *ops);
+int iwl_mvm_cancel_roc(struct ieee80211_hw *hw,
+		       struct ieee80211_vif *vif);
 /*Session Protection */
 void iwl_mvm_protect_assoc(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			   u32 duration_override);
