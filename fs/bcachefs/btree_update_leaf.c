@@ -1426,10 +1426,15 @@ int bch2_trans_update_extent(struct btree_trans *trans,
 			update->k.p = k.k->p;
 			update->k.p.snapshot = insert->k.p.snapshot;
 
-			if (insert->k.p.snapshot != k.k->p.snapshot ||
-			    (btree_type_has_snapshots(btree_id) &&
-			     need_whiteout_for_snapshot(trans, btree_id, update->k.p)))
+			if (insert->k.p.snapshot != k.k->p.snapshot) {
 				update->k.type = KEY_TYPE_whiteout;
+			} else if (btree_type_has_snapshots(btree_id)) {
+				ret = need_whiteout_for_snapshot(trans, btree_id, update->k.p);
+				if (ret < 0)
+					goto err;
+				if (ret)
+					update->k.type = KEY_TYPE_whiteout;
+			}
 
 			ret = bch2_btree_insert_nonextent(trans, btree_id, update,
 						  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE|flags);
