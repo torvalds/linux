@@ -355,7 +355,8 @@ static inline void iov_iter_ubuf(struct iov_iter *i, unsigned int direction,
 		.user_backed = true,
 		.data_source = direction,
 		.ubuf = buf,
-		.count = count
+		.count = count,
+		.nr_segs = 1
 	};
 }
 /* Flags for iov_iter_get/extract_pages*() */
