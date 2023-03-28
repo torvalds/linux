@@ -14,6 +14,7 @@
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 
@@ -457,6 +458,33 @@ static const struct {
 	},
 };
 
+static int cs_dsp_coeff_base_reg(struct cs_dsp_coeff_ctl *ctl, unsigned int *reg,
+				 unsigned int off);
+
+static int cs_dsp_debugfs_read_controls_show(struct seq_file *s, void *ignored)
+{
+	struct cs_dsp *dsp = s->private;
+	struct cs_dsp_coeff_ctl *ctl;
+	unsigned int reg;
+
+	list_for_each_entry(ctl, &dsp->ctl_list, list) {
+		cs_dsp_coeff_base_reg(ctl, &reg, 0);
+		seq_printf(s, "%22.*s: %#8zx %s:%08x %#8x %s %#8x %#4x %c%c%c%c %s %s\n",
+			   ctl->subname_len, ctl->subname, ctl->len,
+			   cs_dsp_mem_region_name(ctl->alg_region.type),
+			   ctl->offset, reg, ctl->fw_name, ctl->alg_region.alg, ctl->type,
+			   ctl->flags & WMFW_CTL_FLAG_VOLATILE ? 'V' : '-',
+			   ctl->flags & WMFW_CTL_FLAG_SYS ? 'S' : '-',
+			   ctl->flags & WMFW_CTL_FLAG_READABLE ? 'R' : '-',
+			   ctl->flags & WMFW_CTL_FLAG_WRITEABLE ? 'W' : '-',
+			   ctl->enabled ? "enabled" : "disabled",
+			   ctl->set ? "dirty" : "clean");
+	}
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(cs_dsp_debugfs_read_controls);
+
 /**
  * cs_dsp_init_debugfs() - Create and populate DSP representation in debugfs
  * @dsp: pointer to DSP structure
@@ -478,6 +506,9 @@ void cs_dsp_init_debugfs(struct cs_dsp *dsp, struct dentry *debugfs_root)
 	for (i = 0; i < ARRAY_SIZE(cs_dsp_debugfs_fops); ++i)
 		debugfs_create_file(cs_dsp_debugfs_fops[i].name, 0444, root,
 				    dsp, &cs_dsp_debugfs_fops[i].fops);
+
+	debugfs_create_file("controls", 0444, root, dsp,
+			    &cs_dsp_debugfs_read_controls_fops);
 
 	dsp->debugfs_root = root;
 }
