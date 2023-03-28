@@ -1155,6 +1155,7 @@ struct iwl_mvm {
 	unsigned long last_reset_or_resume_time_jiffies;
 
 	bool sta_remove_requires_queue_remove;
+	bool mld_api_is_used;
 
 	bool pldr_sync;
 
