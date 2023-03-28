@@ -3159,10 +3159,28 @@ static int pmbus_regulator_register(struct pmbus_data *data)
 
 	return 0;
 }
+
+static int pmbus_regulator_notify(struct pmbus_data *data, int page, int event)
+{
+		int j;
+
+		for (j = 0; j < data->info->num_regulators; j++) {
+			if (page == rdev_get_id(data->rdevs[j])) {
+				regulator_notifier_call_chain(data->rdevs[j], event, NULL);
+				break;
+			}
+		}
+		return 0;
+}
 #else
 static int pmbus_regulator_register(struct pmbus_data *data)
 {
 	return 0;
+}
+
+static int pmbus_regulator_notify(struct pmbus_data *data, int page, int event)
+{
+		return 0;
 }
 #endif
 
@@ -3178,8 +3196,12 @@ static irqreturn_t pmbus_fault_handler(int irq, void *pdata)
 
 	int i, status, event;
 	mutex_lock(&data->update_lock);
-	for (i = 0; i < data->info->pages; i++)
+	for (i = 0; i < data->info->pages; i++) {
 		_pmbus_get_flags(data, i, &status, &event, true);
+
+		if (event)
+			pmbus_regulator_notify(data, i, event);
+	}
 
 	pmbus_clear_faults(client);
 	mutex_unlock(&data->update_lock);
