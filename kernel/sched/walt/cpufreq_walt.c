@@ -310,18 +310,11 @@ static void waltgov_walt_adjust(struct waltgov_cpu *wg_cpu, unsigned long cpu_ut
 	bool is_migration = wg_cpu->flags & WALT_CPUFREQ_IC_MIGRATION;
 	bool is_rtg_boost = wg_cpu->walt_load.rtgb_active;
 	bool is_hiload;
-	bool big_task_rotation = wg_cpu->walt_load.big_task_rotation;
 	bool employ_ed_boost = wg_cpu->walt_load.ed_active && sysctl_ed_boost_pct;
 	unsigned long pl = wg_cpu->walt_load.pl;
 
-	if (employ_ed_boost) {
-		cpu_util = mult_frac(cpu_util, 100 + sysctl_ed_boost_pct, 100);
-		max_and_reason(util, cpu_util, wg_cpu, CPUFREQ_REASON_EARLY_DET);
-	}
-
 	if (is_rtg_boost)
 		max_and_reason(util, wg_policy->rtg_boost_util, wg_cpu, CPUFREQ_REASON_RTG_BOOST);
-
 
 	is_hiload = (cpu_util >= mult_frac(wg_policy->avg_cap,
 					   wg_policy->tunables->hispeed_load,
@@ -344,9 +337,6 @@ static void waltgov_walt_adjust(struct waltgov_cpu *wg_cpu, unsigned long cpu_ut
 
 	if (employ_ed_boost)
 		wg_cpu->reasons |= CPUFREQ_REASON_EARLY_DET;
-
-	if (big_task_rotation)
-		max_and_reason(util, *max, wg_cpu, CPUFREQ_REASON_BTR);
 }
 
 static inline unsigned long target_util(struct waltgov_policy *wg_policy,

@@ -66,7 +66,6 @@ struct walt_cpu_load {
 	bool		rtgb_active;
 	u64		ws;
 	bool		ed_active;
-	bool		big_task_rotation;
 };
 
 #define DECLARE_BITMAP_ARRAY(name, nr, bits) \
