@@ -36,6 +36,7 @@ static int iwl_mvm_mld_mac_add_interface(struct ieee80211_hw *hw,
 	mvmvif->features |= hw->netdev_features;
 
 	/* the first link always points to the default one */
+	mvmvif->deflink.fw_link_id = IWL_MVM_FW_LINK_ID_INVALID;
 	mvmvif->link[0] = &mvmvif->deflink;
 
 	ret = iwl_mvm_mld_mac_ctxt_add(mvm, vif);

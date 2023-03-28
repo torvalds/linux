@@ -197,8 +197,8 @@ int iwl_mvm_mld_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	return iwl_mvm_mld_add_int_sta(mvm, bsta, queue,
 				       ieee80211_vif_type_p2p(vif),
 				       STATION_TYPE_BCAST_MGMT,
-				       mvmvif->id, baddr, IWL_MAX_TID_COUNT,
-				       &wdg_timeout);
+				       mvm_link->fw_link_id, baddr,
+				       IWL_MAX_TID_COUNT, &wdg_timeout);
 }
 
 /* Allocate a new station entry for the broadcast station to the given vif,
@@ -232,7 +232,8 @@ int iwl_mvm_mld_add_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	return iwl_mvm_mld_add_int_sta(mvm, msta, &mvm_link->cab_queue,
 				       vif->type, STATION_TYPE_MCAST,
-				       mvmvif->id, maddr, 0, &timeout);
+				       mvm_link->fw_link_id, maddr, 0,
+				       &timeout);
 }
 
 /* Allocate a new station entry for the sniffer station to the given vif,
@@ -242,13 +243,15 @@ int iwl_mvm_mld_add_snif_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			     struct ieee80211_bss_conf *link_conf)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_vif_link_info *mvm_link =
+		mvmvif->link[link_conf->link_id];
 
 	lockdep_assert_held(&mvm->mutex);
 
 	return iwl_mvm_mld_add_int_sta(mvm, &mvm->snif_sta, &mvm->snif_queue,
 				       vif->type, STATION_TYPE_BCAST_MGMT,
-				       mvmvif->id, NULL, IWL_MAX_TID_COUNT,
-				       NULL);
+				       mvm_link->fw_link_id, NULL,
+				       IWL_MAX_TID_COUNT, NULL);
 }
 
 int iwl_mvm_mld_add_aux_sta(struct iwl_mvm *mvm, u32 lmac_id)
@@ -380,14 +383,22 @@ static int iwl_mvm_mld_cfg_sta(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			       struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_vif *mvm_vif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_sta_cfg_cmd cmd = {
 		.sta_id = cpu_to_le32(mvm_sta->deflink.sta_id),
-		.link_id = cpu_to_le32(mvmvif->id),
 		.station_type = cpu_to_le32(mvm_sta->sta_type),
 		.mfp = cpu_to_le32(sta->mfp),
 	};
+	/* FIXME: use proper link_id */
+	unsigned int link_id = 0;
+	struct iwl_mvm_vif_link_info *link_info = mvm_vif->link[link_id];
 	u32 agg_size = 0, mpdu_dens = 0;
+
+	/* when adding sta, link should exist in FW */
+	if (WARN_ON(link_info->fw_link_id == IWL_MVM_FW_LINK_ID_INVALID))
+		return -EINVAL;
+
+	cmd.link_id = cpu_to_le32(link_info->fw_link_id);
 
 	/* For now the link addr is the same as the mld addr */
 	memcpy(&cmd.peer_mld_address, sta->addr, ETH_ALEN);

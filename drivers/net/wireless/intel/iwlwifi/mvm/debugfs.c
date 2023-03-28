@@ -1442,7 +1442,11 @@ static int _iwl_dbgfs_inject_beacon_ie(struct iwl_mvm *mvm, char *bin, int len)
 			cpu_to_le16(iwl_mvm_mac_ctxt_get_beacon_flags(mvm->fw,
 								      rate));
 		beacon_cmd.byte_cnt = cpu_to_le16((u16)beacon->len);
-		beacon_cmd.link_id = cpu_to_le32((u32)mvmvif->id);
+		if (iwl_fw_lookup_cmd_ver(mvm->fw, BEACON_TEMPLATE_CMD, 0) > 12)
+			beacon_cmd.link_id =
+				cpu_to_le32(mvmvif->link[link_id]->fw_link_id);
+		else
+			beacon_cmd.link_id = cpu_to_le32((u32)mvmvif->id);
 
 		iwl_mvm_mac_ctxt_set_tim(mvm, &beacon_cmd.tim_idx,
 					 &beacon_cmd.tim_size,

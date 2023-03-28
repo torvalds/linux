@@ -1573,6 +1573,8 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	for (i = 0; i < mvm->fw->ucode_capa.num_stations; i++)
 		RCU_INIT_POINTER(mvm->fw_id_to_mac_id[i], NULL);
 
+	memset(&mvm->fw_link_ids_map, 0, sizeof(mvm->fw_link_ids_map));
+
 	mvm->tdls_cs.peer.sta_id = IWL_MVM_INVALID_STA;
 
 	/* reset quota debouncing buffer - 0xff will yield invalid data */

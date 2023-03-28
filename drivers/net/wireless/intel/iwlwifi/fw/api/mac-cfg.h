@@ -483,6 +483,12 @@ struct iwl_link_config_cmd {
 	__le32 reserved1[8];
 } __packed; /* LINK_CONTEXT_CONFIG_CMD_API_S_VER_1 */
 
+/* Currently FW supports link ids in the range 0-3 and can have
+ * at most two active links for each vif.
+ */
+#define IWL_MVM_FW_MAX_ACTIVE_LINKS_NUM 2
+#define IWL_MVM_FW_MAX_LINK_ID 3
+
 /**
  * enum iwl_fw_sta_type - FW station types
  * @STATION_TYPE_PEER: represents a peer - AP in BSS, a TDLS sta, a client in

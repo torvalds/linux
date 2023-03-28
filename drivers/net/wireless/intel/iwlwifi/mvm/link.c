@@ -1,8 +1,33 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022 - 2023 Intel Corporation
  */
 #include "mvm.h"
+
+static u32 iwl_mvm_get_free_fw_link_id(struct iwl_mvm *mvm,
+				       struct iwl_mvm_vif *mvm_vif)
+{
+	u32 link_id;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	link_id = ffz(mvm->fw_link_ids_map);
+
+	/* this case can happen if there're deactivated but not removed links */
+	if (link_id > IWL_MVM_FW_MAX_LINK_ID)
+		return IWL_MVM_FW_LINK_ID_INVALID;
+
+	mvm->fw_link_ids_map |= BIT(link_id);
+	return link_id;
+}
+
+static void iwl_mvm_release_fw_link_id(struct iwl_mvm *mvm, u32 link_id)
+{
+	lockdep_assert_held(&mvm->mutex);
+
+	if (!WARN_ON(link_id > IWL_MVM_FW_MAX_LINK_ID))
+		mvm->fw_link_ids_map &= ~BIT(link_id);
+}
 
 static int iwl_mvm_link_cmd_send(struct iwl_mvm *mvm,
 				 struct iwl_link_config_cmd *cmd,
@@ -25,11 +50,19 @@ int iwl_mvm_add_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	unsigned int link_id = link_conf->link_id;
+	struct iwl_mvm_vif_link_info *link_info = mvmvif->link[link_id];
 	struct iwl_link_config_cmd cmd = {};
 	struct iwl_mvm_phy_ctxt *phyctxt;
 
-	if (WARN_ON_ONCE(!mvmvif->link[link_id]))
+	if (WARN_ON_ONCE(!link_info))
 		return -EINVAL;
+
+	if (link_info->fw_link_id == IWL_MVM_FW_LINK_ID_INVALID) {
+		link_info->fw_link_id = iwl_mvm_get_free_fw_link_id(mvm,
+								    mvmvif);
+		if (link_info->fw_link_id == IWL_MVM_FW_LINK_ID_INVALID)
+			return -EINVAL;
+	}
 
 	/* Update SF - Disable if needed. if this fails, SF might still be on
 	 * while many macs are bound, which is forbidden - so fail the binding.
@@ -37,11 +70,10 @@ int iwl_mvm_add_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (iwl_mvm_sf_update(mvm, vif, false))
 		return -EINVAL;
 
-	/* FIXME: add proper link id allocation */
-	cmd.link_id = cpu_to_le32(mvmvif->id);
+	cmd.link_id = cpu_to_le32(link_info->fw_link_id);
 	cmd.mac_id = cpu_to_le32(mvmvif->id);
 	/* P2P-Device already has a valid PHY context during add */
-	phyctxt = mvmvif->link[link_id]->phy_ctxt;
+	phyctxt = link_info->phy_ctxt;
 	if (phyctxt)
 		cmd.phy_id = cpu_to_le32(phyctxt->id);
 	else
@@ -61,20 +93,27 @@ int iwl_mvm_link_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	unsigned int link_id = link_conf->link_id;
+	struct iwl_mvm_vif_link_info *link_info = mvmvif->link[link_id];
 	struct iwl_mvm_phy_ctxt *phyctxt;
 	struct iwl_link_config_cmd cmd = {};
 	u32 ht_flag, flags = 0, flags_mask = 0;
+	int ret;
 
-	if (WARN_ON_ONCE(!mvmvif->link[link_id]))
+	if (WARN_ON_ONCE(!link_info ||
+			 link_info->fw_link_id == IWL_MVM_FW_LINK_ID_INVALID))
 		return -EINVAL;
 
-	/* FIXME: add proper link id allocation */
-	cmd.link_id = cpu_to_le32(mvmvif->id);
+	/* cannot activate third link */
+	if (!link_info->active && active &&
+	    mvmvif->fw_active_links_num >= IWL_MVM_FW_MAX_ACTIVE_LINKS_NUM)
+		return -EINVAL;
+
+	cmd.link_id = cpu_to_le32(link_info->fw_link_id);
 
 	/* The phy_id, link address and listen_lmac can be modified only until
 	 * the link becomes active, otherwise they will be ignored.
 	 */
-	phyctxt = mvmvif->link[link_id]->phy_ctxt;
+	phyctxt = link_info->phy_ctxt;
 	if (phyctxt)
 		cmd.phy_id = cpu_to_le32(phyctxt->id);
 	else
@@ -151,7 +190,7 @@ int iwl_mvm_link_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	cmd.frame_time_rts_th = cpu_to_le16(link_conf->frame_time_rts_th);
 
 	/* Block 26-tone RU OFDMA transmissions */
-	if (mvmvif->deflink.he_ru_2mhz_block) {
+	if (link_info->he_ru_2mhz_block) {
 		flags |= LINK_FLG_RU_2MHZ_BLOCK;
 		flags_mask |= LINK_FLG_RU_2MHZ_BLOCK;
 	}
@@ -167,18 +206,40 @@ send_cmd:
 	cmd.flags = cpu_to_le32(flags);
 	cmd.flags_mask = cpu_to_le32(flags_mask);
 
-	return iwl_mvm_link_cmd_send(mvm, &cmd, FW_CTXT_ACTION_MODIFY);
+	ret = iwl_mvm_link_cmd_send(mvm, &cmd, FW_CTXT_ACTION_MODIFY);
+	if (!ret) {
+		/* the FW is updated, so now it's possible to update the
+		 * activation status. If activating a link, it was already
+		 * checked above that we didn't reach the FW limit.
+		 */
+		if (link_info->active && !active)
+			mvmvif->fw_active_links_num--;
+		else if (!link_info->active && active)
+			mvmvif->fw_active_links_num++;
+
+		link_info->active = active;
+	}
+
+	return ret;
 }
 
 int iwl_mvm_remove_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			struct ieee80211_bss_conf *link_conf)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	unsigned int link_id = link_conf->link_id;
+	struct iwl_mvm_vif_link_info *link_info = mvmvif->link[link_id];
 	struct iwl_link_config_cmd cmd = {};
 	int ret;
 
-	/* FIXME: add proper link id allocation */
-	cmd.link_id = cpu_to_le32(mvmvif->id);
+	if (WARN_ON(!link_info ||
+		    link_info->fw_link_id == IWL_MVM_FW_LINK_ID_INVALID))
+		return -EINVAL;
+
+	cmd.link_id = cpu_to_le32(link_info->fw_link_id);
+	iwl_mvm_release_fw_link_id(mvm, link_info->fw_link_id);
+	link_info->fw_link_id = IWL_MVM_FW_LINK_ID_INVALID;
+
 	ret = iwl_mvm_link_cmd_send(mvm, &cmd, FW_CTXT_ACTION_REMOVE);
 
 	if (!ret)

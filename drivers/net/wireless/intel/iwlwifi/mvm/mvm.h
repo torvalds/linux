@@ -73,6 +73,9 @@
 /* offchannel queue towards mac80211 */
 #define IWL_MVM_OFFCHANNEL_QUEUE 0
 
+/* invalid value for FW link id */
+#define IWL_MVM_FW_LINK_ID_INVALID 0xff
+
 extern const struct ieee80211_ops iwl_mvm_hw_ops;
 extern const struct ieee80211_ops iwl_mvm_mld_hw_ops;
 
@@ -283,6 +286,7 @@ struct iwl_probe_resp_data {
 /**
  * struct iwl_mvm_vif_link_info - per link data in Virtual Interface
  * @ap_sta_id: the sta_id of the AP - valid only if VIF type is STA
+ * @fw_link_id: the id of the link according to the FW API
  * @bssid: BSSID for this (client) interface
  * @bcast_sta: station used for broadcast packets. Used by the following
  *	vifs: P2P_DEVICE, GO and AP.
@@ -299,6 +303,7 @@ struct iwl_probe_resp_data {
 struct iwl_mvm_vif_link_info {
 	u8 bssid[ETH_ALEN];
 	u8 ap_sta_id;
+	u8 fw_link_id;
 
 	struct iwl_mvm_int_sta bcast_sta;
 	struct iwl_mvm_int_sta mcast_sta;
@@ -312,6 +317,7 @@ struct iwl_mvm_vif_link_info {
 	struct iwl_probe_resp_data __rcu *probe_resp_data;
 
 	bool he_ru_2mhz_block;
+	bool active;
 
 	u16 cab_queue;
 	/* Assigned while mac80211 has the link in a channel context,
@@ -349,6 +355,7 @@ struct iwl_mvm_vif_link_info {
  * @csa_failed: CSA failed to schedule time event, report an error later
  * @csa_bcn_pending: indicates that we are waiting for a beacon on a new channel
  * @features: hw features active for this vif
+ * @fw_active_links_num: the number of activated links
  */
 struct iwl_mvm_vif {
 	struct iwl_mvm *mvm;
@@ -431,6 +438,8 @@ struct iwl_mvm_vif {
 	struct {
 		struct ieee80211_key_conf __rcu *keys[2];
 	} bcn_prot;
+
+	u32 fw_active_links_num;
 
 	struct iwl_mvm_vif_link_info deflink;
 	struct iwl_mvm_vif_link_info *link[IEEE80211_MLD_MAX_NUM_LINKS];
@@ -896,6 +905,7 @@ struct iwl_mvm {
 	/* data related to data path */
 	struct iwl_rx_phy_info last_phy_info;
 	struct ieee80211_sta __rcu *fw_id_to_mac_id[IWL_MVM_STATION_COUNT_MAX];
+	unsigned long fw_link_ids_map;
 	u8 rx_ba_sessions;
 
 	/* configured by mac80211 */
