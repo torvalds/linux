@@ -589,24 +589,14 @@ int iwl_mvm_mld_rm_sta_id(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	return ret;
 }
 
-static void iwl_mvm_mld_sta_modify_disable_tx(struct iwl_mvm *mvm,
-					      struct ieee80211_sta *sta,
-					      bool disable)
+void iwl_mvm_mld_sta_modify_disable_tx(struct iwl_mvm *mvm,
+				       struct iwl_mvm_sta *mvmsta,
+				       bool disable)
 {
-	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_sta_disable_tx_cmd cmd;
 	int ret;
 
-	spin_lock_bh(&mvm_sta->lock);
-
-	if (mvm_sta->disable_tx == disable) {
-		spin_unlock_bh(&mvm_sta->lock);
-		return;
-	}
-
-	mvm_sta->disable_tx = disable;
-
-	cmd.sta_id = cpu_to_le32(mvm_sta->deflink.sta_id);
+	cmd.sta_id = cpu_to_le32(mvmsta->deflink.sta_id);
 	cmd.disable = cpu_to_le32(disable);
 
 	ret = iwl_mvm_send_cmd_pdu(mvm,
@@ -616,6 +606,22 @@ static void iwl_mvm_mld_sta_modify_disable_tx(struct iwl_mvm *mvm,
 		IWL_ERR(mvm,
 			"Failed to send STA_DISABLE_TX_CMD command (%d)\n",
 			ret);
+}
+
+void iwl_mvm_mld_sta_modify_disable_tx_ap(struct iwl_mvm *mvm,
+					  struct ieee80211_sta *sta,
+					  bool disable)
+{
+	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
+
+	spin_lock_bh(&mvm_sta->lock);
+
+	if (mvm_sta->disable_tx == disable) {
+		spin_unlock_bh(&mvm_sta->lock);
+		return;
+	}
+
+	iwl_mvm_mld_sta_modify_disable_tx(mvm, mvm_sta, disable);
 
 	spin_unlock_bh(&mvm_sta->lock);
 }
@@ -641,7 +647,7 @@ void iwl_mvm_mld_modify_all_sta_disable_tx(struct iwl_mvm *mvm,
 		    FW_CMD_ID_AND_COLOR(mvmvif->id, mvmvif->color))
 			continue;
 
-		iwl_mvm_mld_sta_modify_disable_tx(mvm, sta, disable);
+		iwl_mvm_mld_sta_modify_disable_tx(mvm, mvm_sta, disable);
 	}
 
 	rcu_read_unlock();

@@ -4030,7 +4030,8 @@ void iwl_mvm_rx_eosp_notif(struct iwl_mvm *mvm,
 }
 
 void iwl_mvm_sta_modify_disable_tx(struct iwl_mvm *mvm,
-				   struct iwl_mvm_sta *mvmsta, bool disable)
+				   struct iwl_mvm_sta *mvmsta,
+				   bool disable)
 {
 	struct iwl_mvm_add_sta_cmd cmd = {
 		.add_modify = STA_MODE_MODIFY,
@@ -4040,6 +4041,11 @@ void iwl_mvm_sta_modify_disable_tx(struct iwl_mvm *mvm,
 		.mac_id_n_color = cpu_to_le32(mvmsta->mac_id_n_color),
 	};
 	int ret;
+
+	if (mvm->mld_api_is_used) {
+		iwl_mvm_mld_sta_modify_disable_tx(mvm, mvmsta, disable);
+		return;
+	}
 
 	ret = iwl_mvm_send_cmd_pdu(mvm, ADD_STA, CMD_ASYNC,
 				   iwl_mvm_add_sta_cmd_size(mvm), &cmd);
@@ -4052,6 +4058,11 @@ void iwl_mvm_sta_modify_disable_tx_ap(struct iwl_mvm *mvm,
 				      bool disable)
 {
 	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
+
+	if (mvm->mld_api_is_used) {
+		iwl_mvm_mld_sta_modify_disable_tx_ap(mvm, sta, disable);
+		return;
+	}
 
 	spin_lock_bh(&mvm_sta->lock);
 
@@ -4102,6 +4113,11 @@ void iwl_mvm_modify_all_sta_disable_tx(struct iwl_mvm *mvm,
 	struct ieee80211_sta *sta;
 	struct iwl_mvm_sta *mvm_sta;
 	int i;
+
+	if (mvm->mld_api_is_used) {
+		iwl_mvm_mld_modify_all_sta_disable_tx(mvm, mvmvif, disable);
+		return;
+	}
 
 	rcu_read_lock();
 

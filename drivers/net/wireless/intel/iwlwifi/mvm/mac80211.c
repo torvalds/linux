@@ -4762,6 +4762,9 @@ bool __iwl_mvm_unassign_vif_chanctx_common(struct iwl_mvm *mvm,
 
 		mvmvif->csa_countdown = false;
 
+		/* Set CS bit on all the stations */
+		iwl_mvm_modify_all_sta_disable_tx(mvm, mvmvif, true);
+
 		/* Save blocked iface, the timeout is set on the next beacon */
 		rcu_assign_pointer(mvm->csa_tx_blocked_vif, vif);
 
@@ -4787,9 +4790,6 @@ static void __iwl_mvm_unassign_vif_chanctx(struct iwl_mvm *mvm,
 	if (vif->type == NL80211_IFTYPE_MONITOR)
 		iwl_mvm_rm_snif_sta(mvm, vif);
 
-	if (vif->type == NL80211_IFTYPE_AP)
-		/* Set CS bit on all the stations */
-		iwl_mvm_modify_all_sta_disable_tx(mvm, mvmvif, true);
 
 	if (vif->type == NL80211_IFTYPE_STATION && switching_chanctx) {
 		disabled_vif = vif;
