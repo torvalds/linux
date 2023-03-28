@@ -270,7 +270,7 @@ struct btrfs_ordered_extent *btrfs_alloc_ordered_extent(
  */
 int btrfs_add_ordered_extent(struct btrfs_inode *inode, u64 file_offset,
 			     u64 num_bytes, u64 ram_bytes, u64 disk_bytenr,
-			     u64 disk_num_bytes, u64 offset, unsigned flags,
+			     u64 disk_num_bytes, u64 offset, unsigned long flags,
 			     int compress_type)
 {
 	struct btrfs_ordered_extent *ordered;
