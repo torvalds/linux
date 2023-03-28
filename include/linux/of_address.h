@@ -72,6 +72,8 @@ void __iomem *of_io_request_and_map(struct device_node *device,
 extern const __be32 *__of_get_address(struct device_node *dev, int index, int bar_no,
 				      u64 *size, unsigned int *flags);
 
+int of_property_read_reg(struct device_node *np, int idx, u64 *addr, u64 *size);
+
 extern int of_pci_range_parser_init(struct of_pci_range_parser *parser,
 			struct device_node *node);
 extern int of_pci_dma_range_parser_init(struct of_pci_range_parser *parser,
@@ -104,6 +106,11 @@ static inline const __be32 *__of_get_address(struct device_node *dev, int index,
 					     u64 *size, unsigned int *flags)
 {
 	return NULL;
+}
+
+static inline int of_property_read_reg(struct device_node *np, int idx, u64 *addr, u64 *size)
+{
+	return -ENOSYS;
 }
 
 static inline int of_pci_range_parser_init(struct of_pci_range_parser *parser,

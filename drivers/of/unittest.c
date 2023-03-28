@@ -1134,6 +1134,27 @@ static void __init of_unittest_bus_3cell_ranges(void)
 	of_node_put(np);
 }
 
+static void __init of_unittest_reg(void)
+{
+	struct device_node *np;
+	int ret;
+	u64 addr, size;
+
+	np = of_find_node_by_path("/testcase-data/address-tests/bus@80000000/device@1000");
+	if (!np) {
+		pr_err("missing testcase data\n");
+		return;
+	}
+
+	ret = of_property_read_reg(np, 0, &addr, &size);
+	unittest(!ret, "of_property_read_reg(%pOF) returned error %d\n",
+		np, ret);
+	unittest(addr == 0x1000, "of_property_read_reg(%pOF) untranslated address (%llx) incorrect\n",
+		np, addr);
+
+	of_node_put(np);
+}
+
 static void __init of_unittest_parse_interrupts(void)
 {
 	struct device_node *np;
@@ -3772,6 +3793,7 @@ static int __init of_unittest(void)
 	of_unittest_pci_dma_ranges();
 	of_unittest_bus_ranges();
 	of_unittest_bus_3cell_ranges();
+	of_unittest_reg();
 	of_unittest_match_node();
 	of_unittest_platform_populate();
 	of_unittest_overlay();

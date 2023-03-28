@@ -760,6 +760,29 @@ const __be32 *__of_get_address(struct device_node *dev, int index, int bar_no,
 }
 EXPORT_SYMBOL(__of_get_address);
 
+/**
+ * of_property_read_reg - Retrieve the specified "reg" entry index without translating
+ * @np: device tree node for which to retrieve "reg" from
+ * @idx: "reg" entry index to read
+ * @addr: return value for the untranslated address
+ * @size: return value for the entry size
+ *
+ * Returns -EINVAL if "reg" is not found. Returns 0 on success with addr and
+ * size values filled in.
+ */
+int of_property_read_reg(struct device_node *np, int idx, u64 *addr, u64 *size)
+{
+	const __be32 *prop = of_get_address(np, idx, size, NULL);
+
+	if (!prop)
+		return -EINVAL;
+
+	*addr = of_read_number(prop, of_n_addr_cells(np));
+
+	return 0;
+}
+EXPORT_SYMBOL(of_property_read_reg);
+
 static int parser_init(struct of_pci_range_parser *parser,
 			struct device_node *node, const char *name)
 {
