@@ -1014,7 +1014,7 @@ static void __init of_unittest_bus_ranges(void)
 	struct of_range range;
 	struct of_range_parser parser;
 	struct resource res;
-	int ret, i = 0;
+	int ret, count, i = 0;
 
 	np = of_find_node_by_path("/testcase-data/address-tests");
 	if (!np) {
@@ -1039,6 +1039,11 @@ static void __init of_unittest_bus_ranges(void)
 	unittest(resource_size(&res) == 0x20000000,
 		"of_range_to_resource wrong resource start address on node %pOF res=%pR\n",
 		np, &res);
+
+	count = of_range_count(&parser);
+	unittest(count == 2,
+		"of_range_count wrong size on node %pOF count=%d\n",
+		np, count);
 
 	/*
 	 * Get the "ranges" from the device tree

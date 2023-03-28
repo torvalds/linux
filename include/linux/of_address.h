@@ -35,6 +35,22 @@ struct of_pci_range {
 	for (; of_pci_range_parser_one(parser, range);)
 #define for_each_of_range for_each_of_pci_range
 
+/*
+ * of_range_count - Get the number of "ranges" or "dma-ranges" entries
+ * @parser:	Parser state initialized by of_range_parser_init()
+ *
+ * Returns the number of entries or 0 if none.
+ *
+ * Note that calling this within or after the for_each_of_range() iterator will
+ * be inaccurate giving the number of entries remaining.
+ */
+static inline int of_range_count(const struct of_range_parser *parser)
+{
+	if (!parser || !parser->node || !parser->range || parser->range == parser->end)
+		return 0;
+	return (parser->end - parser->range) / (parser->na + parser->pna + parser->ns);
+}
+
 /* Translate a DMA address from device space to CPU space */
 extern u64 of_translate_dma_address(struct device_node *dev,
 				    const __be32 *in_addr);
