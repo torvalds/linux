@@ -407,7 +407,8 @@ static inline void btrfs_inode_split_flags(u64 inode_item_flags,
 
 int btrfs_check_sector_csum(struct btrfs_fs_info *fs_info, struct page *page,
 			    u32 pgoff, u8 *csum, const u8 * const csum_expected);
-blk_status_t btrfs_extract_ordered_extent(struct btrfs_bio *bbio);
+int btrfs_extract_ordered_extent(struct btrfs_bio *bbio,
+				 struct btrfs_ordered_extent *ordered);
 bool btrfs_data_csum_ok(struct btrfs_bio *bbio, struct btrfs_device *dev,
 			u32 bio_offset, struct bio_vec *bv);
 noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,

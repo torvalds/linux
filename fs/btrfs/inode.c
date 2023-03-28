@@ -2601,37 +2601,27 @@ out_free_pre:
 	return ret;
 }
 
-blk_status_t btrfs_extract_ordered_extent(struct btrfs_bio *bbio)
+int btrfs_extract_ordered_extent(struct btrfs_bio *bbio,
+				 struct btrfs_ordered_extent *ordered)
 {
 	u64 start = (u64)bbio->bio.bi_iter.bi_sector << SECTOR_SHIFT;
 	u64 len = bbio->bio.bi_iter.bi_size;
 	struct btrfs_inode *inode = bbio->inode;
-	struct btrfs_ordered_extent *ordered;
-	u64 ordered_len;
+	u64 ordered_len = ordered->num_bytes;
 	int ret = 0;
 
-	ordered = btrfs_lookup_ordered_extent(inode, bbio->file_offset);
-	if (WARN_ON_ONCE(!ordered))
-		return BLK_STS_IOERR;
-	ordered_len = ordered->num_bytes;
-
 	/* Must always be called for the beginning of an ordered extent. */
-	if (WARN_ON_ONCE(start != ordered->disk_bytenr)) {
-		ret = -EINVAL;
-		goto out;
-	}
+	if (WARN_ON_ONCE(start != ordered->disk_bytenr))
+		return -EINVAL;
 
 	/* No need to split if the ordered extent covers the entire bio. */
 	if (ordered->disk_num_bytes == len)
-		goto out;
+		return 0;
 
 	ret = btrfs_split_ordered_extent(ordered, len);
 	if (ret)
-		goto out;
-	ret = split_extent_map(inode, bbio->file_offset, ordered_len, len);
-out:
-	btrfs_put_ordered_extent(ordered);
-	return errno_to_blk_status(ret);
+		return ret;
+	return split_extent_map(inode, bbio->file_offset, ordered_len, len);
 }
 
 /*
