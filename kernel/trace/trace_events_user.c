@@ -22,8 +22,9 @@
 #include <linux/highmem.h>
 #include <linux/init.h>
 #include <linux/user_events.h>
-#include "trace.h"
 #include "trace_dynevent.h"
+#include "trace_output.h"
+#include "trace.h"
 
 #define USER_EVENTS_PREFIX_LEN (sizeof(USER_EVENTS_PREFIX)-1)
 
@@ -1198,11 +1199,7 @@ static enum print_line_t user_event_print_trace(struct trace_iterator *iter,
 						int flags,
 						struct trace_event *event)
 {
-	/* Unsafe to try to decode user provided print_fmt, use hex */
-	trace_print_hex_dump_seq(&iter->seq, "", DUMP_PREFIX_OFFSET, 16,
-				 1, iter->ent, iter->ent_size, true);
-
-	return trace_handle_return(&iter->seq);
+	return print_event_fields(iter, event);
 }
 
 static struct trace_event_functions user_event_funcs = {
