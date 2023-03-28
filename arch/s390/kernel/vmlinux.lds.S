@@ -14,6 +14,8 @@
 #define BSS_FIRST_SECTIONS *(.bss..swapper_pg_dir) \
 			   *(.bss..invalid_pg_dir)
 
+#define RO_EXCEPTION_TABLE_ALIGN	16
+
 /* Handle ro_after_init data on our own. */
 #define RO_AFTER_INIT_DATA
 
@@ -66,7 +68,6 @@ SECTIONS
 		 *(.data..ro_after_init)
 		JUMP_TABLE_DATA
 	} :data
-	EXCEPTION_TABLE(16)
 	. = ALIGN(PAGE_SIZE);
 	__end_ro_after_init = .;
 
