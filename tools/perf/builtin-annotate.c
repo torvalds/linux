@@ -517,6 +517,7 @@ int cmd_annotate(int argc, const char **argv)
 	struct itrace_synth_opts itrace_synth_opts = {
 		.set = 0,
 	};
+	const char *disassembler_style = NULL, *objdump_path = NULL;
 	struct option options[] = {
 	OPT_STRING('i', "input", &input_name, "file",
 		    "input file name"),
@@ -561,13 +562,13 @@ int cmd_annotate(int argc, const char **argv)
 		    "Interleave source code with assembly code (default)"),
 	OPT_BOOLEAN(0, "asm-raw", &annotate.opts.show_asm_raw,
 		    "Display raw encoding of assembly instructions (default)"),
-	OPT_STRING('M', "disassembler-style", &annotate.opts.disassembler_style, "disassembler style",
+	OPT_STRING('M', "disassembler-style", &disassembler_style, "disassembler style",
 		   "Specify disassembler style (e.g. -M intel for intel syntax)"),
 	OPT_STRING(0, "prefix", &annotate.opts.prefix, "prefix",
 		    "Add prefix to source file path names in programs (with --prefix-strip)"),
 	OPT_STRING(0, "prefix-strip", &annotate.opts.prefix_strip, "N",
 		    "Strip first N entries of source file path name in programs (with --prefix)"),
-	OPT_STRING(0, "objdump", &annotate.opts.objdump_path, "path",
+	OPT_STRING(0, "objdump", &objdump_path, "path",
 		   "objdump binary to use for disassembly and annotations"),
 	OPT_BOOLEAN(0, "demangle", &symbol_conf.demangle,
 		    "Enable symbol demangling"),
@@ -616,6 +617,17 @@ int cmd_annotate(int argc, const char **argv)
 			usage_with_options(annotate_usage, options);
 
 		annotate.sym_hist_filter = argv[0];
+	}
+
+	if (disassembler_style) {
+		annotate.opts.disassembler_style = strdup(disassembler_style);
+		if (!annotate.opts.disassembler_style)
+			return -ENOMEM;
+	}
+	if (objdump_path) {
+		annotate.opts.objdump_path = strdup(objdump_path);
+		if (!annotate.opts.objdump_path)
+			return -ENOMEM;
 	}
 
 	if (annotate_check_args(&annotate.opts) < 0)

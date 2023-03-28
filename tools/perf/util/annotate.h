@@ -94,8 +94,8 @@ struct annotation_options {
 	int  min_pcnt;
 	int  max_lines;
 	int  context;
-	const char *objdump_path;
-	const char *disassembler_style;
+	char *objdump_path;
+	char *disassembler_style;
 	const char *prefix;
 	const char *prefix_strip;
 	unsigned int percent_type;

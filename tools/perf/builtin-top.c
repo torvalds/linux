@@ -1439,6 +1439,7 @@ int cmd_top(int argc, const char **argv)
 	};
 	struct record_opts *opts = &top.record_opts;
 	struct target *target = &opts->target;
+	const char *disassembler_style = NULL, *objdump_path = NULL;
 	const struct option options[] = {
 	OPT_CALLBACK('e', "event", &top.evlist, "event",
 		     "event selector. use 'perf list' to list available events",
@@ -1524,9 +1525,9 @@ int cmd_top(int argc, const char **argv)
 	OPT_BOOLEAN(0, "demangle-kernel", &symbol_conf.demangle_kernel,
 		    "Enable kernel symbol demangling"),
 	OPT_BOOLEAN(0, "no-bpf-event", &top.record_opts.no_bpf_event, "do not record bpf events"),
-	OPT_STRING(0, "objdump", &top.annotation_opts.objdump_path, "path",
+	OPT_STRING(0, "objdump", &objdump_path, "path",
 		    "objdump binary to use for disassembly and annotations"),
-	OPT_STRING('M', "disassembler-style", &top.annotation_opts.disassembler_style, "disassembler style",
+	OPT_STRING('M', "disassembler-style", &disassembler_style, "disassembler style",
 		   "Specify disassembler style (e.g. -M intel for intel syntax)"),
 	OPT_STRING(0, "prefix", &top.annotation_opts.prefix, "prefix",
 		    "Add prefix to source file path names in programs (with --prefix-strip)"),
@@ -1617,6 +1618,18 @@ int cmd_top(int argc, const char **argv)
 	argc = parse_options(argc, argv, options, top_usage, 0);
 	if (argc)
 		usage_with_options(top_usage, options);
+
+	if (disassembler_style) {
+		top.annotation_opts.disassembler_style = strdup(disassembler_style);
+		if (!top.annotation_opts.disassembler_style)
+			return -ENOMEM;
+	}
+	if (objdump_path) {
+		top.annotation_opts.objdump_path = strdup(objdump_path);
+		if (!top.annotation_opts.objdump_path)
+			return -ENOMEM;
+	}
+
 
 	status = symbol__validate_sym_arguments();
 	if (status)

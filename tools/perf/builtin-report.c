@@ -1226,6 +1226,7 @@ int cmd_report(int argc, const char **argv)
 	};
 	char *sort_order_help = sort_help("sort by key(s):");
 	char *field_order_help = sort_help("output field(s): overhead period sample ");
+	const char *disassembler_style = NULL, *objdump_path = NULL;
 	const struct option options[] = {
 	OPT_STRING('i', "input", &input_name, "file",
 		    "input file name"),
@@ -1322,7 +1323,7 @@ int cmd_report(int argc, const char **argv)
 		    "Interleave source code with assembly code (default)"),
 	OPT_BOOLEAN(0, "asm-raw", &report.annotation_opts.show_asm_raw,
 		    "Display raw encoding of assembly instructions (default)"),
-	OPT_STRING('M', "disassembler-style", &report.annotation_opts.disassembler_style, "disassembler style",
+	OPT_STRING('M', "disassembler-style", &disassembler_style, "disassembler style",
 		   "Specify disassembler style (e.g. -M intel for intel syntax)"),
 	OPT_STRING(0, "prefix", &report.annotation_opts.prefix, "prefix",
 		    "Add prefix to source file path names in programs (with --prefix-strip)"),
@@ -1341,7 +1342,7 @@ int cmd_report(int argc, const char **argv)
 		    parse_branch_mode),
 	OPT_BOOLEAN(0, "branch-history", &branch_call_mode,
 		    "add last branch records to call history"),
-	OPT_STRING(0, "objdump", &report.annotation_opts.objdump_path, "path",
+	OPT_STRING(0, "objdump", &objdump_path, "path",
 		   "objdump binary to use for disassembly and annotations"),
 	OPT_BOOLEAN(0, "demangle", &symbol_conf.demangle,
 		    "Disable symbol demangling"),
@@ -1417,6 +1418,17 @@ int cmd_report(int argc, const char **argv)
 			usage_with_options(report_usage, options);
 
 		report.symbol_filter_str = argv[0];
+	}
+
+	if (disassembler_style) {
+		report.annotation_opts.disassembler_style = strdup(disassembler_style);
+		if (!report.annotation_opts.disassembler_style)
+			return -ENOMEM;
+	}
+	if (objdump_path) {
+		report.annotation_opts.objdump_path = strdup(objdump_path);
+		if (!report.annotation_opts.objdump_path)
+			return -ENOMEM;
 	}
 
 	if (annotate_check_args(&report.annotation_opts) < 0) {
