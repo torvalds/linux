@@ -170,6 +170,7 @@ def _define_kernel_dist(target, msm_target, variant):
     """
 
     dist_dir = get_out_dir(msm_target, variant) + "/dist"
+    le_target = msm_target.split("-")[0];
 
     msm_dist_targets = [
         # do not sort
@@ -177,7 +178,7 @@ def _define_kernel_dist(target, msm_target, variant):
         ":{}_images".format(target),
         ":{}_merged_kernel_uapi_headers".format(target),
         ":{}_build_config".format(target),
-        ":{}_dummy_files".format(msm_target),
+        ":{}_dummy_files".format(le_target),
     ]
 
     copy_to_dist_dir(
@@ -234,7 +235,7 @@ def define_msm_le(
     # Enforce format of "//msm-kernel:target-foo_variant-bar" (underscore is the delimeter
     # between target and variant)
     target = msm_target.replace("_", "-") + "_" + variant.replace("_", "-")
-    le_target = msm_target.split(".")[0];
+    le_target = msm_target.split("-")[0];
 
     dtb_list = get_dtb_list(le_target)
     dtbo_list = get_dtbo_list(le_target)
@@ -271,10 +272,10 @@ def define_msm_le(
         boot_image_outs = ["boot.img"],
     )
 
-    _define_kernel_dist(target, le_target, variant)
+    _define_kernel_dist(target, msm_target, variant)
 
-    define_abl_dist(target, le_target, variant)
+    define_abl_dist(target, msm_target, variant)
 
-    define_dtc_dist(target, le_target, variant)
+    define_dtc_dist(target, msm_target, variant)
 
     define_extras(target, flavor = "allyes")
