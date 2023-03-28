@@ -2646,27 +2646,9 @@ blk_status_t btrfs_extract_ordered_extent(struct btrfs_bio *bbio)
 	if (ordered->disk_num_bytes == len)
 		goto out;
 
-	/* We cannot split once end_bio'd ordered extent */
-	if (WARN_ON_ONCE(ordered->bytes_left != ordered->disk_num_bytes)) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	/* We cannot split a compressed ordered extent */
-	if (WARN_ON_ONCE(ordered->disk_num_bytes != ordered->num_bytes)) {
-		ret = -EINVAL;
-		goto out;
-	}
-
 	ordered_end = ordered->disk_bytenr + ordered->disk_num_bytes;
 	/* bio must be in one ordered extent */
 	if (WARN_ON_ONCE(start < ordered->disk_bytenr || end > ordered_end)) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	/* Checksum list should be empty */
-	if (WARN_ON_ONCE(!list_empty(&ordered->list))) {
 		ret = -EINVAL;
 		goto out;
 	}

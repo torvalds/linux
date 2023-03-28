@@ -1149,6 +1149,16 @@ int btrfs_split_ordered_extent(struct btrfs_ordered_extent *ordered, u64 pre,
 
 	trace_btrfs_ordered_extent_split(BTRFS_I(inode), ordered);
 
+	/* We cannot split once ordered extent is past end_bio. */
+	if (WARN_ON_ONCE(ordered->bytes_left != ordered->disk_num_bytes))
+		return -EINVAL;
+	/* We cannot split a compressed ordered extent. */
+	if (WARN_ON_ONCE(ordered->disk_num_bytes != ordered->num_bytes))
+		return -EINVAL;
+	/* Checksum list should be empty. */
+	if (WARN_ON_ONCE(!list_empty(&ordered->list)))
+		return -EINVAL;
+
 	spin_lock_irq(&tree->lock);
 	/* Remove from tree once */
 	node = &ordered->rb_node;
