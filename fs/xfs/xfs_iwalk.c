@@ -275,7 +275,7 @@ xfs_iwalk_ag_start(
 
 	/* Set up a fresh cursor and empty the inobt cache. */
 	iwag->nr_recs = 0;
-	error = xfs_inobt_cur(mp, tp, pag, XFS_BTNUM_INO, curpp, agi_bpp);
+	error = xfs_inobt_cur(pag, tp, XFS_BTNUM_INO, curpp, agi_bpp);
 	if (error)
 		return error;
 
@@ -390,7 +390,7 @@ xfs_iwalk_run_callbacks(
 	}
 
 	/* ...and recreate the cursor just past where we left off. */
-	error = xfs_inobt_cur(mp, iwag->tp, iwag->pag, XFS_BTNUM_INO, curpp,
+	error = xfs_inobt_cur(iwag->pag, iwag->tp, XFS_BTNUM_INO, curpp,
 			agi_bpp);
 	if (error)
 		return error;
@@ -591,7 +591,7 @@ xfs_iwalk(
 	}
 
 	if (iwag.pag)
-		xfs_perag_put(pag);
+		xfs_perag_rele(pag);
 	xfs_iwalk_free(&iwag);
 	return error;
 }
@@ -683,7 +683,7 @@ xfs_iwalk_threaded(
 			break;
 	}
 	if (pag)
-		xfs_perag_put(pag);
+		xfs_perag_rele(pag);
 	if (polled)
 		xfs_pwork_poll(&pctl);
 	return xfs_pwork_destroy(&pctl);
@@ -776,7 +776,7 @@ xfs_inobt_walk(
 	}
 
 	if (iwag.pag)
-		xfs_perag_put(pag);
+		xfs_perag_rele(pag);
 	xfs_iwalk_free(&iwag);
 	return error;
 }

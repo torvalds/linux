@@ -1119,7 +1119,6 @@ static void dmz_status(struct dm_target *ti, status_type_t type,
 		*result = '\0';
 		break;
 	}
-	return;
 }
 
 static int dmz_message(struct dm_target *ti, unsigned int argc, char **argv,

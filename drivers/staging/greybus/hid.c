@@ -381,7 +381,7 @@ static int gb_hid_power(struct hid_device *hid, int lvl)
 }
 
 /* HID structure to pass callbacks */
-static struct hid_ll_driver gb_hid_ll_driver = {
+static const struct hid_ll_driver gb_hid_ll_driver = {
 	.parse = gb_hid_parse,
 	.start = gb_hid_start,
 	.stop = gb_hid_stop,

@@ -173,23 +173,6 @@ static struct s3c64xx_pm_domain *s3c64xx_pm_domains[] = {
 	&s3c64xx_pm_f,
 };
 
-#ifdef CONFIG_S3C_PM_DEBUG_LED_SMDK
-void s3c_pm_debug_smdkled(u32 set, u32 clear)
-{
-	unsigned long flags;
-	int i;
-
-	local_irq_save(flags);
-	for (i = 0; i < 4; i++) {
-		if (clear & (1 << i))
-			gpio_set_value(S3C64XX_GPN(12 + i), 0);
-		if (set & (1 << i))
-			gpio_set_value(S3C64XX_GPN(12 + i), 1);
-	}
-	local_irq_restore(flags);
-}
-#endif
-
 #ifdef CONFIG_PM_SLEEP
 static struct sleep_save core_save[] = {
 	SAVE_ITEM(S3C64XX_MEM0DRVCON),
@@ -224,8 +207,6 @@ void s3c_pm_restore_core(void)
 {
 	__raw_writel(0, S3C64XX_EINT_MASK);
 
-	s3c_pm_debug_smdkled(1 << 2, 0);
-
 	s3c_pm_do_restore_core(core_save, ARRAY_SIZE(core_save));
 	s3c_pm_do_restore(misc_save, ARRAY_SIZE(misc_save));
 }
@@ -257,9 +238,6 @@ static int s3c64xx_cpu_suspend(unsigned long arg)
 
 	__raw_writel(__raw_readl(S3C64XX_WAKEUP_STAT),
 		     S3C64XX_WAKEUP_STAT);
-
-	/* set the LED state to 0110 over sleep */
-	s3c_pm_debug_smdkled(3 << 1, 0xf);
 
 	/* issue the standby signal into the pm unit. Note, we
 	 * issue a write-buffer drain just in case */
@@ -305,56 +283,6 @@ static void s3c64xx_pm_prepare(void)
 	__raw_writel(__raw_readl(S3C64XX_WAKEUP_STAT), S3C64XX_WAKEUP_STAT);
 }
 
-#ifdef CONFIG_SAMSUNG_PM_DEBUG
-void s3c_pm_arch_update_uart(void __iomem *regs, struct pm_uart_save *save)
-{
-	u32 ucon;
-	u32 ucon_clk
-	u32 save_clk;
-	u32 new_ucon;
-	u32 delta;
-
-	if (!soc_is_s3c64xx())
-		return;
-
-	ucon = __raw_readl(regs + S3C2410_UCON);
-	ucon_clk = ucon & S3C6400_UCON_CLKMASK;
-	sav_clk = save->ucon & S3C6400_UCON_CLKMASK;
-
-	/* S3C64XX UART blocks only support level interrupts, so ensure that
-	 * when we restore unused UART blocks we force the level interrupt
-	 * settings. */
-	save->ucon |= S3C2410_UCON_TXILEVEL | S3C2410_UCON_RXILEVEL;
-
-	/* We have a constraint on changing the clock type of the UART
-	 * between UCLKx and PCLK, so ensure that when we restore UCON
-	 * that the CLK field is correctly modified if the bootloader
-	 * has changed anything.
-	 */
-	if (ucon_clk != save_clk) {
-		new_ucon = save->ucon;
-		delta = ucon_clk ^ save_clk;
-
-		/* change from UCLKx => wrong PCLK,
-		 * either UCLK can be tested for by a bit-test
-		 * with UCLK0 */
-		if (ucon_clk & S3C6400_UCON_UCLK0 &&
-		    !(save_clk & S3C6400_UCON_UCLK0) &&
-		    delta & S3C6400_UCON_PCLK2) {
-			new_ucon &= ~S3C6400_UCON_UCLK0;
-		} else if (delta == S3C6400_UCON_PCLK2) {
-			/* as an precaution, don't change from
-			 * PCLK2 => PCLK or vice-versa */
-			new_ucon ^= S3C6400_UCON_PCLK2;
-		}
-
-		S3C_PMDBG("ucon change %04x => %04x (save=%04x)\n",
-			  ucon, new_ucon, save->ucon);
-		save->ucon = new_ucon;
-	}
-}
-#endif
-
 int __init s3c64xx_pm_init(void)
 {
 	int i;
@@ -383,17 +311,6 @@ static __init int s3c64xx_pm_initcall(void)
 
 	pm_cpu_prep = s3c64xx_pm_prepare;
 	pm_cpu_sleep = s3c64xx_cpu_suspend;
-
-#ifdef CONFIG_S3C_PM_DEBUG_LED_SMDK
-	gpio_request(S3C64XX_GPN(12), "DEBUG_LED0");
-	gpio_request(S3C64XX_GPN(13), "DEBUG_LED1");
-	gpio_request(S3C64XX_GPN(14), "DEBUG_LED2");
-	gpio_request(S3C64XX_GPN(15), "DEBUG_LED3");
-	gpio_direction_output(S3C64XX_GPN(12), 0);
-	gpio_direction_output(S3C64XX_GPN(13), 0);
-	gpio_direction_output(S3C64XX_GPN(14), 0);
-	gpio_direction_output(S3C64XX_GPN(15), 0);
-#endif
 
 	return 0;
 }

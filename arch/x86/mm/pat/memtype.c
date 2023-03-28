@@ -159,10 +159,10 @@ static inline void set_page_memtype(struct page *pg,
 		break;
 	}
 
+	old_flags = READ_ONCE(pg->flags);
 	do {
-		old_flags = pg->flags;
 		new_flags = (old_flags & _PGMT_CLEAR_MASK) | memtype_flags;
-	} while (cmpxchg(&pg->flags, old_flags, new_flags) != old_flags);
+	} while (!try_cmpxchg(&pg->flags, &old_flags, new_flags));
 }
 #else
 static inline enum page_cache_mode get_page_memtype(struct page *pg)
@@ -999,7 +999,7 @@ int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
 
 		ret = reserve_pfn_range(paddr, size, prot, 0);
 		if (ret == 0 && vma)
-			vma->vm_flags |= VM_PAT;
+			vm_flags_set(vma, VM_PAT);
 		return ret;
 	}
 
@@ -1045,7 +1045,7 @@ void track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot, pfn_t pfn)
  * can be for the entire vma (in which case pfn, size are zero).
  */
 void untrack_pfn(struct vm_area_struct *vma, unsigned long pfn,
-		 unsigned long size)
+		 unsigned long size, bool mm_wr_locked)
 {
 	resource_size_t paddr;
 	unsigned long prot;
@@ -1064,8 +1064,12 @@ void untrack_pfn(struct vm_area_struct *vma, unsigned long pfn,
 		size = vma->vm_end - vma->vm_start;
 	}
 	free_pfn_range(paddr, size);
-	if (vma)
-		vma->vm_flags &= ~VM_PAT;
+	if (vma) {
+		if (mm_wr_locked)
+			vm_flags_clear(vma, VM_PAT);
+		else
+			__vm_flags_mod(vma, 0, VM_PAT);
+	}
 }
 
 /*
@@ -1075,7 +1079,7 @@ void untrack_pfn(struct vm_area_struct *vma, unsigned long pfn,
  */
 void untrack_pfn_moved(struct vm_area_struct *vma)
 {
-	vma->vm_flags &= ~VM_PAT;
+	vm_flags_clear(vma, VM_PAT);
 }
 
 pgprot_t pgprot_writecombine(pgprot_t prot)

@@ -688,7 +688,20 @@ int btf__align_of(const struct btf *btf, __u32 id)
 			if (align <= 0)
 				return libbpf_err(align);
 			max_align = max(max_align, align);
+
+			/* if field offset isn't aligned according to field
+			 * type's alignment, then struct must be packed
+			 */
+			if (btf_member_bitfield_size(t, i) == 0 &&
+			    (m->offset % (8 * align)) != 0)
+				return 1;
 		}
+
+		/* if struct/union size isn't a multiple of its alignment,
+		 * then struct must be packed
+		 */
+		if ((t->size % max_align) != 0)
+			return 1;
 
 		return max_align;
 	}
@@ -990,7 +1003,8 @@ static struct btf *btf_parse_elf(const char *path, struct btf *base_btf,
 	err = 0;
 
 	if (!btf_data) {
-		err = -ENOENT;
+		pr_warn("failed to find '%s' ELF section in %s\n", BTF_ELF_SEC, path);
+		err = -ENODATA;
 		goto done;
 	}
 	btf = btf_new(btf_data->d_buf, btf_data->d_size, base_btf);
@@ -1336,9 +1350,9 @@ struct btf *btf_get_from_fd(int btf_fd, struct btf *base_btf)
 	void *ptr;
 	int err;
 
-	/* we won't know btf_size until we call bpf_obj_get_info_by_fd(). so
+	/* we won't know btf_size until we call bpf_btf_get_info_by_fd(). so
 	 * let's start with a sane default - 4KiB here - and resize it only if
-	 * bpf_obj_get_info_by_fd() needs a bigger buffer.
+	 * bpf_btf_get_info_by_fd() needs a bigger buffer.
 	 */
 	last_size = 4096;
 	ptr = malloc(last_size);
@@ -1348,7 +1362,7 @@ struct btf *btf_get_from_fd(int btf_fd, struct btf *base_btf)
 	memset(&btf_info, 0, sizeof(btf_info));
 	btf_info.btf = ptr_to_u64(ptr);
 	btf_info.btf_size = last_size;
-	err = bpf_obj_get_info_by_fd(btf_fd, &btf_info, &len);
+	err = bpf_btf_get_info_by_fd(btf_fd, &btf_info, &len);
 
 	if (!err && btf_info.btf_size > last_size) {
 		void *temp_ptr;
@@ -1366,7 +1380,7 @@ struct btf *btf_get_from_fd(int btf_fd, struct btf *base_btf)
 		btf_info.btf = ptr_to_u64(ptr);
 		btf_info.btf_size = last_size;
 
-		err = bpf_obj_get_info_by_fd(btf_fd, &btf_info, &len);
+		err = bpf_btf_get_info_by_fd(btf_fd, &btf_info, &len);
 	}
 
 	if (err || btf_info.btf_size > last_size) {

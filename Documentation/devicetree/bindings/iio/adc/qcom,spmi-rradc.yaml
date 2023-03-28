@@ -40,12 +40,12 @@ additionalProperties: false
 examples:
   - |
     pmic {
-      #address-cells = <1>;
-      #size-cells = <0>;
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-      pmic_rradc: adc@4500 {
-          compatible = "qcom,pmi8998-rradc";
-          reg = <0x4500>;
-          #io-channel-cells  = <1>;
-      };
+        pmic_rradc: adc@4500 {
+            compatible = "qcom,pmi8998-rradc";
+            reg = <0x4500>;
+            #io-channel-cells  = <1>;
+        };
     };

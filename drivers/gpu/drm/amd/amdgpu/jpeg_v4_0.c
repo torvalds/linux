@@ -113,6 +113,10 @@ static int jpeg_v4_0_sw_init(void *handle)
 	adev->jpeg.internal.jpeg_pitch = regUVD_JPEG_PITCH_INTERNAL_OFFSET;
 	adev->jpeg.inst->external.jpeg_pitch = SOC15_REG_OFFSET(JPEG, 0, regUVD_JPEG_PITCH);
 
+	r = amdgpu_jpeg_ras_sw_init(adev);
+	if (r)
+		return r;
+
 	return 0;
 }
 
@@ -685,6 +689,4 @@ static void jpeg_v4_0_set_ras_funcs(struct amdgpu_device *adev)
 	default:
 		break;
 	}
-
-	jpeg_set_ras_funcs(adev);
 }

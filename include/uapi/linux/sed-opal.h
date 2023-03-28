@@ -144,6 +144,7 @@ struct opal_read_write_table {
 #define OPAL_FL_LOCKED			0x00000008
 #define OPAL_FL_MBR_ENABLED		0x00000010
 #define OPAL_FL_MBR_DONE		0x00000020
+#define OPAL_FL_SUM_SUPPORTED		0x00000040
 
 struct opal_status {
 	__u32 flags;

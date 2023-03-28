@@ -12,6 +12,17 @@ enum btrfs_disk_cache_state {
 	BTRFS_DC_SETUP,
 };
 
+enum btrfs_block_group_size_class {
+	/* Unset */
+	BTRFS_BG_SZ_NONE,
+	/* 0 < size <= 128K */
+	BTRFS_BG_SZ_SMALL,
+	/* 128K < size <= 8M */
+	BTRFS_BG_SZ_MEDIUM,
+	/* 8M < size < BG_LENGTH */
+	BTRFS_BG_SZ_LARGE,
+};
+
 /*
  * This describes the state of the block_group for async discard.  This is due
  * to the two pass nature of it where extent discarding is prioritized over
@@ -233,6 +244,7 @@ struct btrfs_block_group {
 	struct list_head active_bg_list;
 	struct work_struct zone_finish_work;
 	struct extent_buffer *last_eb;
+	enum btrfs_block_group_size_class size_class;
 };
 
 static inline u64 btrfs_block_group_end(struct btrfs_block_group *block_group)
@@ -302,7 +314,8 @@ int btrfs_setup_space_cache(struct btrfs_trans_handle *trans);
 int btrfs_update_block_group(struct btrfs_trans_handle *trans,
 			     u64 bytenr, u64 num_bytes, bool alloc);
 int btrfs_add_reserved_bytes(struct btrfs_block_group *cache,
-			     u64 ram_bytes, u64 num_bytes, int delalloc);
+			     u64 ram_bytes, u64 num_bytes, int delalloc,
+			     bool force_wrong_size_class);
 void btrfs_free_reserved_bytes(struct btrfs_block_group *cache,
 			       u64 num_bytes, int delalloc);
 int btrfs_chunk_alloc(struct btrfs_trans_handle *trans, u64 flags,
@@ -315,8 +328,7 @@ u64 btrfs_get_alloc_profile(struct btrfs_fs_info *fs_info, u64 orig_flags);
 void btrfs_put_block_group_cache(struct btrfs_fs_info *info);
 int btrfs_free_block_groups(struct btrfs_fs_info *info);
 int btrfs_rmap_block(struct btrfs_fs_info *fs_info, u64 chunk_start,
-		       struct block_device *bdev, u64 physical, u64 **logical,
-		       int *naddrs, int *stripe_len);
+		     u64 physical, u64 **logical, int *naddrs, int *stripe_len);
 
 static inline u64 btrfs_data_alloc_profile(struct btrfs_fs_info *fs_info)
 {
@@ -345,5 +357,11 @@ void btrfs_unfreeze_block_group(struct btrfs_block_group *cache);
 
 bool btrfs_inc_block_group_swap_extents(struct btrfs_block_group *bg);
 void btrfs_dec_block_group_swap_extents(struct btrfs_block_group *bg, int amount);
+
+enum btrfs_block_group_size_class btrfs_calc_block_group_size_class(u64 size);
+int btrfs_use_block_group_size_class(struct btrfs_block_group *bg,
+				     enum btrfs_block_group_size_class size_class,
+				     bool force_wrong_size_class);
+bool btrfs_block_group_should_use_size_class(struct btrfs_block_group *bg);
 
 #endif /* BTRFS_BLOCK_GROUP_H */

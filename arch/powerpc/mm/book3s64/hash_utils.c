@@ -1012,7 +1012,7 @@ static void __init hash_init_partition_table(phys_addr_t hash_table,
 
 void hpt_clear_stress(void);
 static struct timer_list stress_hpt_timer;
-void stress_hpt_timer_fn(struct timer_list *timer)
+static void stress_hpt_timer_fn(struct timer_list *timer)
 {
 	int next_cpu;
 
@@ -1051,7 +1051,8 @@ static void __init htab_initialize(void)
 		static_branch_enable(&stress_hpt_key);
 		// Too early to use nr_cpu_ids, so use NR_CPUS
 		tmp = memblock_phys_alloc_range(sizeof(struct stress_hpt_struct) * NR_CPUS,
-						0, 0, MEMBLOCK_ALLOC_ANYWHERE);
+						__alignof__(struct stress_hpt_struct),
+						0, MEMBLOCK_ALLOC_ANYWHERE);
 		memset((void *)tmp, 0xff, sizeof(struct stress_hpt_struct) * NR_CPUS);
 		stress_hpt_struct = __va(tmp);
 

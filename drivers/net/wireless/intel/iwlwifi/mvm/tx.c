@@ -1107,8 +1107,8 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 	spin_lock(&mvmsta->lock);
 
 	/* nullfunc frames should go to the MGMT queue regardless of QOS,
-	 * the condition of !ieee80211_is_qos_nullfunc(fc) keeps the default
-	 * assignment of MGMT TID
+	 * the conditions of !ieee80211_is_qos_nullfunc(fc) and
+	 * !ieee80211_is_data_qos(fc) keep the default assignment of MGMT TID
 	 */
 	if (ieee80211_is_data_qos(fc) && !ieee80211_is_qos_nullfunc(fc)) {
 		tid = ieee80211_get_tid(hdr);
@@ -1133,7 +1133,8 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 			/* update the tx_cmd hdr as it was already copied */
 			tx_cmd->hdr->seq_ctrl = hdr->seq_ctrl;
 		}
-	} else if (ieee80211_is_data(fc) && !ieee80211_is_data_qos(fc)) {
+	} else if (ieee80211_is_data(fc) && !ieee80211_is_data_qos(fc) &&
+		   !ieee80211_is_nullfunc(fc)) {
 		tid = IWL_TID_NON_QOS;
 	}
 

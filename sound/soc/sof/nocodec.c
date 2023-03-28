@@ -103,14 +103,8 @@ static int sof_nocodec_probe(struct platform_device *pdev)
 	return devm_snd_soc_register_card(&pdev->dev, card);
 }
 
-static int sof_nocodec_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static struct platform_driver sof_nocodec_audio = {
 	.probe = sof_nocodec_probe,
-	.remove = sof_nocodec_remove,
 	.driver = {
 		.name = "sof-nocodec",
 		.pm = &snd_soc_pm_ops,

@@ -608,7 +608,7 @@ static int ivpu_boot_d0i3_drive(struct ivpu_device *vdev, bool enable)
 
 	ret = REGB_POLL_FLD(MTL_BUTTRESS_VPU_D0I3_CONTROL, INPROGRESS, 0, TIMEOUT_US);
 	if (ret) {
-		ivpu_err(vdev, "Failed to sync before D0i3 tansition: %d\n", ret);
+		ivpu_err(vdev, "Failed to sync before D0i3 transition: %d\n", ret);
 		return ret;
 	}
 
@@ -621,7 +621,7 @@ static int ivpu_boot_d0i3_drive(struct ivpu_device *vdev, bool enable)
 
 	ret = REGB_POLL_FLD(MTL_BUTTRESS_VPU_D0I3_CONTROL, INPROGRESS, 0, TIMEOUT_US);
 	if (ret)
-		ivpu_err(vdev, "Failed to sync after D0i3 tansition: %d\n", ret);
+		ivpu_err(vdev, "Failed to sync after D0i3 transition: %d\n", ret);
 
 	return ret;
 }

@@ -187,6 +187,16 @@ static struct rpmhpd nsp = {
 	.res_name = "nsp.lvl",
 };
 
+static struct rpmhpd nsp0 = {
+	.pd = { .name = "nsp0", },
+	.res_name = "nsp0.lvl",
+};
+
+static struct rpmhpd nsp1 = {
+	.pd = { .name = "nsp1", },
+	.res_name = "nsp1.lvl",
+};
+
 static struct rpmhpd qphy = {
 	.pd = { .name = "qphy", },
 	.res_name = "qphy.lvl",
@@ -210,6 +220,29 @@ static struct rpmhpd *sa8540p_rpmhpds[] = {
 static const struct rpmhpd_desc sa8540p_desc = {
 	.rpmhpds = sa8540p_rpmhpds,
 	.num_pds = ARRAY_SIZE(sa8540p_rpmhpds),
+};
+
+/* SA8775P RPMH power domains */
+static struct rpmhpd *sa8775p_rpmhpds[] = {
+	[SA8775P_CX] = &cx,
+	[SA8775P_CX_AO] = &cx_ao,
+	[SA8775P_EBI] = &ebi,
+	[SA8775P_GFX] = &gfx,
+	[SA8775P_LCX] = &lcx,
+	[SA8775P_LMX] = &lmx,
+	[SA8775P_MMCX] = &mmcx,
+	[SA8775P_MMCX_AO] = &mmcx_ao,
+	[SA8775P_MXC] = &mxc,
+	[SA8775P_MXC_AO] = &mxc_ao,
+	[SA8775P_MX] = &mx,
+	[SA8775P_MX_AO] = &mx_ao,
+	[SA8775P_NSP0] = &nsp0,
+	[SA8775P_NSP1] = &nsp1,
+};
+
+static const struct rpmhpd_desc sa8775p_desc = {
+	.rpmhpds = sa8775p_rpmhpds,
+	.num_pds = ARRAY_SIZE(sa8775p_rpmhpds),
 };
 
 /* SDM670 RPMH powerdomains */
@@ -487,6 +520,7 @@ static const struct rpmhpd_desc sc8280xp_desc = {
 static const struct of_device_id rpmhpd_match_table[] = {
 	{ .compatible = "qcom,qdu1000-rpmhpd", .data = &qdu1000_desc },
 	{ .compatible = "qcom,sa8540p-rpmhpd", .data = &sa8540p_desc },
+	{ .compatible = "qcom,sa8775p-rpmhpd", .data = &sa8775p_desc },
 	{ .compatible = "qcom,sc7180-rpmhpd", .data = &sc7180_desc },
 	{ .compatible = "qcom,sc7280-rpmhpd", .data = &sc7280_desc },
 	{ .compatible = "qcom,sc8180x-rpmhpd", .data = &sc8180x_desc },

@@ -39,7 +39,7 @@ properties:
     maxItems: 1
 
   poc-supply:
-    description: Regulator providing Power over Coax to the cameras
+    description: Regulator providing Power over Coax to all the ports
 
   enable-gpios:
     description: GPIO connected to the \#PWDN pin with inverted polarity
@@ -49,6 +49,21 @@ properties:
 
   '#gpio-cells':
     const: 2
+
+  maxim,bus-width:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [ 24, 27, 32 ]
+    description: |
+      The GMSL serial data bus width. This setting is normally controlled by
+      the BWS pin, but may be overridden with this property. The value must
+      match the configuration of the remote serializers.
+
+  maxim,i2c-remote-bus-hz:
+    enum: [ 8470, 28300, 84700, 105000, 173000, 339000, 533000, 837000 ]
+    default: 105000
+    description: |
+      The I2C clock frequency for the remote I2C buses. The value must match
+      the configuration of the remote serializers.
 
   maxim,reverse-channel-microvolt:
     minimum: 30000
@@ -182,21 +197,36 @@ properties:
 
             additionalProperties: false
 
+patternProperties:
+  "^port[0-3]-poc-supply$":
+    description: Regulator providing Power over Coax for a particular port
+
 required:
   - compatible
   - reg
   - ports
   - i2c-mux
 
-# If 'maxim,gpio-poc' is present, then 'poc-supply' and 'gpio-controller'
-# are not allowed.
-if:
-  required:
-    - maxim,gpio-poc
-then:
-  properties:
-    poc-supply: false
-    gpio-controller: false
+allOf:
+  # Only one way of specifying power supplies is allowed: 'maxim,gpio-poc',
+  # 'poc-supply' or per-port poc-supply. Additionally, if 'maxim,gpio-poc' is
+  # present, then 'gpio-controller' isn't allowed.
+  - if:
+      required:
+        - maxim,gpio-poc
+    then:
+      properties:
+        poc-supply: false
+        gpio-controller: false
+      patternProperties:
+        "^port[0-3]-poc-supply$": false
+
+  - if:
+      required:
+        - poc-supply
+    then:
+      patternProperties:
+        "^port[0-3]-poc-supply$": false
 
 additionalProperties: false
 
@@ -219,6 +249,7 @@ examples:
             gpio-controller;
             #gpio-cells = <2>;
 
+            maxim,i2c-remote-bus-hz = <339000>;
             maxim,reverse-channel-microvolt = <170000>;
 
             ports {

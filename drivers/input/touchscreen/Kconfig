@@ -490,18 +490,6 @@ config TOUCHSCREEN_IPROC
 	  To compile this driver as a module, choose M here: the
 	  module will be called bcm_iproc_tsc.
 
-config TOUCHSCREEN_S3C2410
-	tristate "Samsung S3C2410/generic touchscreen input driver"
-	depends on ARCH_S3C24XX || SAMSUNG_DEV_TS
-	depends on S3C_ADC
-	help
-	  Say Y here if you have the s3c2410 touchscreen.
-
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called s3c2410_ts.
-
 config TOUCHSCREEN_S6SY761
 	tristate "Samsung S6SY761 Touchscreen driver"
 	depends on I2C
@@ -839,22 +827,6 @@ config TOUCHSCREEN_TI_AM335X_TSC
 	  To compile this driver as a module, choose M here: the
 	  module will be called ti_am335x_tsc.
 
-config TOUCHSCREEN_UCB1400
-	tristate "Philips UCB1400 touchscreen"
-	depends on AC97_BUS
-	depends on UCB1400_CORE
-	help
-	  This enables support for the Philips UCB1400 touchscreen interface.
-	  The UCB1400 is an AC97 audio codec.  The touchscreen interface
-	  will be initialized only after the ALSA subsystem has been
-	  brought up and the UCB1400 detected.  You therefore have to
-	  configure ALSA support as well (either built-in or modular,
-	  independently of whether this driver is itself built-in or
-	  modular) for this driver to work.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ucb1400_ts.
-
 config TOUCHSCREEN_PIXCIR
 	tristate "PIXCIR I2C touchscreens"
 	depends on I2C
@@ -939,20 +911,6 @@ config TOUCHSCREEN_WM97XX_MAINSTONE
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called mainstone-wm97xx.
-
-config TOUCHSCREEN_WM97XX_ZYLONITE
-	tristate "Zylonite accelerated touch"
-	depends on TOUCHSCREEN_WM97XX && MACH_ZYLONITE
-	depends on SND_PXA2XX_LIB_AC97
-	select TOUCHSCREEN_WM9713
-	help
-	  Say Y here for support for streaming mode with the touchscreen
-	  on Zylonite systems.
-
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called zylonite-wm97xx.
 
 config TOUCHSCREEN_USB_COMPOSITE
 	tristate "USB Touchscreen Driver"

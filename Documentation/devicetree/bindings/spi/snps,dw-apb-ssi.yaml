@@ -10,7 +10,7 @@ maintainers:
   - Mark Brown <broonie@kernel.org>
 
 allOf:
-  - $ref: "spi-controller.yaml#"
+  - $ref: spi-controller.yaml#
   - if:
       properties:
         compatible:

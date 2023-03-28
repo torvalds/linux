@@ -88,6 +88,7 @@ int nf_conntrack_udp_packet(struct nf_conn *ct,
 			    const struct nf_hook_state *state)
 {
 	unsigned int *timeouts;
+	unsigned long status;
 
 	if (udp_error(skb, dataoff, state))
 		return -NF_ACCEPT;
@@ -96,26 +97,27 @@ int nf_conntrack_udp_packet(struct nf_conn *ct,
 	if (!timeouts)
 		timeouts = udp_get_timeouts(nf_ct_net(ct));
 
-	if (!nf_ct_is_confirmed(ct))
+	status = READ_ONCE(ct->status);
+	if ((status & IPS_CONFIRMED) == 0)
 		ct->proto.udp.stream_ts = 2 * HZ + jiffies;
 
 	/* If we've seen traffic both ways, this is some kind of UDP
 	 * stream. Set Assured.
 	 */
-	if (test_bit(IPS_SEEN_REPLY_BIT, &ct->status)) {
+	if (status & IPS_SEEN_REPLY) {
 		unsigned long extra = timeouts[UDP_CT_UNREPLIED];
 		bool stream = false;
 
 		/* Still active after two seconds? Extend timeout. */
 		if (time_after(jiffies, ct->proto.udp.stream_ts)) {
 			extra = timeouts[UDP_CT_REPLIED];
-			stream = true;
+			stream = (status & IPS_ASSURED) == 0;
 		}
 
 		nf_ct_refresh_acct(ct, ctinfo, skb, extra);
 
 		/* never set ASSURED for IPS_NAT_CLASH, they time out soon */
-		if (unlikely((ct->status & IPS_NAT_CLASH)))
+		if (unlikely((status & IPS_NAT_CLASH)))
 			return NF_ACCEPT;
 
 		/* Also, more likely to be important, and not a probe */

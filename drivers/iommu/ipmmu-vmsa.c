@@ -299,18 +299,6 @@ static void ipmmu_utlb_enable(struct ipmmu_vmsa_domain *domain,
 	mmu->utlb_ctx[utlb] = domain->context_id;
 }
 
-/*
- * Disable MMU translation for the microTLB.
- */
-static void ipmmu_utlb_disable(struct ipmmu_vmsa_domain *domain,
-			       unsigned int utlb)
-{
-	struct ipmmu_vmsa_device *mmu = domain->mmu;
-
-	ipmmu_imuctr_write(mmu, utlb, 0);
-	mmu->utlb_ctx[utlb] = IPMMU_CTX_INVALID;
-}
-
 static void ipmmu_tlb_flush_all(void *cookie)
 {
 	struct ipmmu_vmsa_domain *domain = cookie;
@@ -643,21 +631,6 @@ static int ipmmu_attach_device(struct iommu_domain *io_domain,
 	return 0;
 }
 
-static void ipmmu_detach_device(struct iommu_domain *io_domain,
-				struct device *dev)
-{
-	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
-	struct ipmmu_vmsa_domain *domain = to_vmsa_domain(io_domain);
-	unsigned int i;
-
-	for (i = 0; i < fwspec->num_ids; ++i)
-		ipmmu_utlb_disable(domain, fwspec->ids[i]);
-
-	/*
-	 * TODO: Optimize by disabling the context when no device is attached.
-	 */
-}
-
 static int ipmmu_map(struct iommu_domain *io_domain, unsigned long iova,
 		     phys_addr_t paddr, size_t pgsize, size_t pgcount,
 		     int prot, gfp_t gfp, size_t *mapped)
@@ -876,7 +849,6 @@ static const struct iommu_ops ipmmu_ops = {
 	.of_xlate = ipmmu_of_xlate,
 	.default_domain_ops = &(const struct iommu_domain_ops) {
 		.attach_dev	= ipmmu_attach_device,
-		.detach_dev	= ipmmu_detach_device,
 		.map_pages	= ipmmu_map,
 		.unmap_pages	= ipmmu_unmap,
 		.flush_iotlb_all = ipmmu_flush_iotlb_all,

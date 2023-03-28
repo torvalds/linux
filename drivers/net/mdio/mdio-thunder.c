@@ -93,8 +93,10 @@ static int thunder_mdiobus_pci_probe(struct pci_dev *pdev,
 		bus->mii_bus->name = KBUILD_MODNAME;
 		snprintf(bus->mii_bus->id, MII_BUS_ID_SIZE, "%llx", r.start);
 		bus->mii_bus->parent = &pdev->dev;
-		bus->mii_bus->read = cavium_mdiobus_read;
-		bus->mii_bus->write = cavium_mdiobus_write;
+		bus->mii_bus->read = cavium_mdiobus_read_c22;
+		bus->mii_bus->write = cavium_mdiobus_write_c22;
+		bus->mii_bus->read_c45 = cavium_mdiobus_read_c45;
+		bus->mii_bus->write_c45 = cavium_mdiobus_write_c45;
 
 		err = of_mdiobus_register(bus->mii_bus, node);
 		if (err)

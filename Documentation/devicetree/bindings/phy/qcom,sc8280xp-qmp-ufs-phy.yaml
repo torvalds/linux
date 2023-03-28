@@ -17,6 +17,8 @@ properties:
   compatible:
     enum:
       - qcom,sc8280xp-qmp-ufs-phy
+      - qcom,sm6125-qmp-ufs-phy
+      - qcom,sm8550-qmp-ufs-phy
 
   reg:
     maxItems: 1
@@ -42,6 +44,9 @@ properties:
   vdda-phy-supply: true
 
   vdda-pll-supply: true
+
+  "#clock-cells":
+    const: 1
 
   "#phy-cells":
     const: 0

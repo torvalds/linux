@@ -1741,6 +1741,8 @@ static struct net_device *xennet_create_dev(struct xenbus_device *dev)
          * negotiate with the backend regarding supported features.
          */
 	netdev->features |= netdev->hw_features;
+	netdev->xdp_features = NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
+			       NETDEV_XDP_ACT_NDO_XMIT;
 
 	netdev->ethtool_ops = &xennet_ethtool_ops;
 	netdev->min_mtu = ETH_MIN_MTU;
@@ -2646,7 +2648,7 @@ static void xennet_bus_close(struct xenbus_device *dev)
 	} while (!ret);
 }
 
-static int xennet_remove(struct xenbus_device *dev)
+static void xennet_remove(struct xenbus_device *dev)
 {
 	struct netfront_info *info = dev_get_drvdata(&dev->dev);
 
@@ -2662,8 +2664,6 @@ static int xennet_remove(struct xenbus_device *dev)
 		rtnl_unlock();
 	}
 	xennet_free_netdev(info->netdev);
-
-	return 0;
 }
 
 static const struct xenbus_device_id netfront_ids[] = {

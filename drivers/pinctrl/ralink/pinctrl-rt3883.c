@@ -39,9 +39,9 @@
 #define RT3883_GPIO_MODE_LNA_G_GPIO	0x3
 #define RT3883_GPIO_MODE_LNA_G		_RT3883_GPIO_MODE_LNA_G(RT3883_GPIO_MODE_LNA_G_MASK)
 
-static struct ralink_pmx_func i2c_func[] =  { FUNC("i2c", 0, 1, 2) };
-static struct ralink_pmx_func spi_func[] = { FUNC("spi", 0, 3, 4) };
-static struct ralink_pmx_func uartf_func[] = {
+static struct ralink_pmx_func i2c_grp[] =  { FUNC("i2c", 0, 1, 2) };
+static struct ralink_pmx_func spi_grp[] = { FUNC("spi", 0, 3, 4) };
+static struct ralink_pmx_func uartf_grp[] = {
 	FUNC("uartf", RT3883_GPIO_MODE_UARTF, 7, 8),
 	FUNC("pcm uartf", RT3883_GPIO_MODE_PCM_UARTF, 7, 8),
 	FUNC("pcm i2s", RT3883_GPIO_MODE_PCM_I2S, 7, 8),
@@ -50,34 +50,34 @@ static struct ralink_pmx_func uartf_func[] = {
 	FUNC("gpio uartf", RT3883_GPIO_MODE_GPIO_UARTF, 7, 4),
 	FUNC("gpio i2s", RT3883_GPIO_MODE_GPIO_I2S, 7, 4),
 };
-static struct ralink_pmx_func uartlite_func[] = { FUNC("uartlite", 0, 15, 2) };
-static struct ralink_pmx_func jtag_func[] = { FUNC("jtag", 0, 17, 5) };
-static struct ralink_pmx_func mdio_func[] = { FUNC("mdio", 0, 22, 2) };
-static struct ralink_pmx_func lna_a_func[] = { FUNC("lna a", 0, 32, 3) };
-static struct ralink_pmx_func lna_g_func[] = { FUNC("lna g", 0, 35, 3) };
-static struct ralink_pmx_func pci_func[] = {
+static struct ralink_pmx_func uartlite_grp[] = { FUNC("uartlite", 0, 15, 2) };
+static struct ralink_pmx_func jtag_grp[] = { FUNC("jtag", 0, 17, 5) };
+static struct ralink_pmx_func mdio_grp[] = { FUNC("mdio", 0, 22, 2) };
+static struct ralink_pmx_func lna_a_grp[] = { FUNC("lna a", 0, 32, 3) };
+static struct ralink_pmx_func lna_g_grp[] = { FUNC("lna g", 0, 35, 3) };
+static struct ralink_pmx_func pci_grp[] = {
 	FUNC("pci-dev", 0, 40, 32),
 	FUNC("pci-host2", 1, 40, 32),
 	FUNC("pci-host1", 2, 40, 32),
 	FUNC("pci-fnc", 3, 40, 32)
 };
-static struct ralink_pmx_func ge1_func[] = { FUNC("ge1", 0, 72, 12) };
-static struct ralink_pmx_func ge2_func[] = { FUNC("ge2", 0, 84, 12) };
+static struct ralink_pmx_func ge1_grp[] = { FUNC("ge1", 0, 72, 12) };
+static struct ralink_pmx_func ge2_grp[] = { FUNC("ge2", 0, 84, 12) };
 
 static struct ralink_pmx_group rt3883_pinmux_data[] = {
-	GRP("i2c", i2c_func, 1, RT3883_GPIO_MODE_I2C),
-	GRP("spi", spi_func, 1, RT3883_GPIO_MODE_SPI),
-	GRP("uartf", uartf_func, RT3883_GPIO_MODE_UART0_MASK,
+	GRP("i2c", i2c_grp, 1, RT3883_GPIO_MODE_I2C),
+	GRP("spi", spi_grp, 1, RT3883_GPIO_MODE_SPI),
+	GRP("uartf", uartf_grp, RT3883_GPIO_MODE_UART0_MASK,
 		RT3883_GPIO_MODE_UART0_SHIFT),
-	GRP("uartlite", uartlite_func, 1, RT3883_GPIO_MODE_UART1),
-	GRP("jtag", jtag_func, 1, RT3883_GPIO_MODE_JTAG),
-	GRP("mdio", mdio_func, 1, RT3883_GPIO_MODE_MDIO),
-	GRP("lna a", lna_a_func, 1, RT3883_GPIO_MODE_LNA_A),
-	GRP("lna g", lna_g_func, 1, RT3883_GPIO_MODE_LNA_G),
-	GRP("pci", pci_func, RT3883_GPIO_MODE_PCI_MASK,
+	GRP("uartlite", uartlite_grp, 1, RT3883_GPIO_MODE_UART1),
+	GRP("jtag", jtag_grp, 1, RT3883_GPIO_MODE_JTAG),
+	GRP("mdio", mdio_grp, 1, RT3883_GPIO_MODE_MDIO),
+	GRP("lna a", lna_a_grp, 1, RT3883_GPIO_MODE_LNA_A),
+	GRP("lna g", lna_g_grp, 1, RT3883_GPIO_MODE_LNA_G),
+	GRP("pci", pci_grp, RT3883_GPIO_MODE_PCI_MASK,
 		RT3883_GPIO_MODE_PCI_SHIFT),
-	GRP("ge1", ge1_func, 1, RT3883_GPIO_MODE_GE1),
-	GRP("ge2", ge2_func, 1, RT3883_GPIO_MODE_GE2),
+	GRP("ge1", ge1_grp, 1, RT3883_GPIO_MODE_GE1),
+	GRP("ge2", ge2_grp, 1, RT3883_GPIO_MODE_GE2),
 	{ 0 }
 };
 

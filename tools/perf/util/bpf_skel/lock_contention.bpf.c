@@ -10,6 +10,14 @@
 /* default buffer size */
 #define MAX_ENTRIES  10240
 
+/* lock contention flags from include/trace/events/lock.h */
+#define LCB_F_SPIN	(1U << 0)
+#define LCB_F_READ	(1U << 1)
+#define LCB_F_WRITE	(1U << 2)
+#define LCB_F_RT	(1U << 3)
+#define LCB_F_PERCPU	(1U << 4)
+#define LCB_F_MUTEX	(1U << 5)
+
 struct tstamp_data {
 	__u64 timestamp;
 	__u64 lock;
@@ -76,13 +84,23 @@ struct {
 	__uint(max_entries, 1);
 } addr_filter SEC(".maps");
 
+struct rw_semaphore___old {
+	struct task_struct *owner;
+} __attribute__((preserve_access_index));
+
+struct rw_semaphore___new {
+	atomic_long_t owner;
+} __attribute__((preserve_access_index));
+
 /* control flags */
 int enabled;
 int has_cpu;
 int has_task;
 int has_type;
 int has_addr;
+int needs_callstack;
 int stack_skip;
+int lock_owner;
 
 /* determine the key of lock stat */
 int aggr_mode;
@@ -131,17 +149,59 @@ static inline int can_record(u64 *ctx)
 	return 1;
 }
 
-static inline void update_task_data(__u32 pid)
+static inline int update_task_data(struct task_struct *task)
 {
 	struct contention_task_data *p;
+	int pid, err;
+
+	err = bpf_core_read(&pid, sizeof(pid), &task->pid);
+	if (err)
+		return -1;
 
 	p = bpf_map_lookup_elem(&task_data, &pid);
 	if (p == NULL) {
-		struct contention_task_data data;
+		struct contention_task_data data = {};
 
-		bpf_get_current_comm(data.comm, sizeof(data.comm));
+		BPF_CORE_READ_STR_INTO(&data.comm, task, comm);
 		bpf_map_update_elem(&task_data, &pid, &data, BPF_NOEXIST);
 	}
+
+	return 0;
+}
+
+#ifndef __has_builtin
+# define __has_builtin(x) 0
+#endif
+
+static inline struct task_struct *get_lock_owner(__u64 lock, __u32 flags)
+{
+	struct task_struct *task;
+	__u64 owner = 0;
+
+	if (flags & LCB_F_MUTEX) {
+		struct mutex *mutex = (void *)lock;
+		owner = BPF_CORE_READ(mutex, owner.counter);
+	} else if (flags == LCB_F_READ || flags == LCB_F_WRITE) {
+#if __has_builtin(bpf_core_type_matches)
+		if (bpf_core_type_matches(struct rw_semaphore___old)) {
+			struct rw_semaphore___old *rwsem = (void *)lock;
+			owner = (unsigned long)BPF_CORE_READ(rwsem, owner);
+		} else if (bpf_core_type_matches(struct rw_semaphore___new)) {
+			struct rw_semaphore___new *rwsem = (void *)lock;
+			owner = BPF_CORE_READ(rwsem, owner.counter);
+		}
+#else
+		/* assume new struct */
+		struct rw_semaphore *rwsem = (void *)lock;
+		owner = BPF_CORE_READ(rwsem, owner.counter);
+#endif
+	}
+
+	if (!owner)
+		return NULL;
+
+	task = (void *)(owner & ~7UL);
+	return task;
 }
 
 SEC("tp_btf/contention_begin")
@@ -173,11 +233,31 @@ int contention_begin(u64 *ctx)
 	pelem->lock = (__u64)ctx[0];
 	pelem->flags = (__u32)ctx[1];
 
-	if (aggr_mode == LOCK_AGGR_CALLER) {
+	if (needs_callstack) {
 		pelem->stack_id = bpf_get_stackid(ctx, &stacks,
 						  BPF_F_FAST_STACK_CMP | stack_skip);
 		if (pelem->stack_id < 0)
 			lost++;
+	} else if (aggr_mode == LOCK_AGGR_TASK) {
+		struct task_struct *task;
+
+		if (lock_owner) {
+			task = get_lock_owner(pelem->lock, pelem->flags);
+
+			/* The flags is not used anymore.  Pass the owner pid. */
+			if (task)
+				pelem->flags = BPF_CORE_READ(task, pid);
+			else
+				pelem->flags = -1U;
+
+		} else {
+			task = bpf_get_current_task_btf();
+		}
+
+		if (task) {
+			if (update_task_data(task) < 0 && lock_owner)
+				pelem->flags = -1U;
+		}
 	}
 
 	return 0;
@@ -188,7 +268,7 @@ int contention_end(u64 *ctx)
 {
 	__u32 pid;
 	struct tstamp_data *pelem;
-	struct contention_key key;
+	struct contention_key key = {};
 	struct contention_data *data;
 	__u64 duration;
 
@@ -204,14 +284,20 @@ int contention_end(u64 *ctx)
 
 	switch (aggr_mode) {
 	case LOCK_AGGR_CALLER:
-		key.aggr_key = pelem->stack_id;
+		key.stack_id = pelem->stack_id;
 		break;
 	case LOCK_AGGR_TASK:
-		key.aggr_key = pid;
-		update_task_data(pid);
+		if (lock_owner)
+			key.pid = pelem->flags;
+		else
+			key.pid = pid;
+		if (needs_callstack)
+			key.stack_id = pelem->stack_id;
 		break;
 	case LOCK_AGGR_ADDR:
-		key.aggr_key = pelem->lock;
+		key.lock_addr = pelem->lock;
+		if (needs_callstack)
+			key.stack_id = pelem->stack_id;
 		break;
 	default:
 		/* should not happen */

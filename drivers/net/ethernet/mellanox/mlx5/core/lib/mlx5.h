@@ -79,26 +79,9 @@ struct mlx5_pme_stats {
 void mlx5_get_pme_stats(struct mlx5_core_dev *dev, struct mlx5_pme_stats *stats);
 int mlx5_notifier_call_chain(struct mlx5_events *events, unsigned int event, void *data);
 
-/* Crypto */
-enum {
-	MLX5_ACCEL_OBJ_TLS_KEY = MLX5_GENERAL_OBJECT_TYPE_ENCRYPTION_KEY_TYPE_TLS,
-	MLX5_ACCEL_OBJ_IPSEC_KEY = MLX5_GENERAL_OBJECT_TYPE_ENCRYPTION_KEY_TYPE_IPSEC,
-	MLX5_ACCEL_OBJ_MACSEC_KEY = MLX5_GENERAL_OBJECT_TYPE_ENCRYPTION_KEY_TYPE_MACSEC,
-};
-
-int mlx5_create_encryption_key(struct mlx5_core_dev *mdev,
-			       void *key, u32 sz_bytes,
-			       u32 key_type, u32 *p_key_id);
-void mlx5_destroy_encryption_key(struct mlx5_core_dev *mdev, u32 key_id);
-
 static inline struct net *mlx5_core_net(struct mlx5_core_dev *dev)
 {
 	return devlink_net(priv_to_devlink(dev));
-}
-
-static inline void mlx5_uplink_netdev_set(struct mlx5_core_dev *mdev, struct net_device *netdev)
-{
-	mdev->mlx5e_res.uplink_netdev = netdev;
 }
 
 static inline struct net_device *mlx5_uplink_netdev_get(struct mlx5_core_dev *mdev)

@@ -5,8 +5,8 @@
 #include <asm/assembler.h>
 #endif
 
-#define __ALIGN		.align 2
-#define __ALIGN_STR	".align 2"
+#define __ALIGN		.balign CONFIG_FUNCTION_ALIGNMENT
+#define __ALIGN_STR	".balign " #CONFIG_FUNCTION_ALIGNMENT
 
 /*
  * When using in-kernel BTI we need to ensure that PCS-conformant

@@ -81,7 +81,7 @@ axg_tdmout_get_tdm_stream(struct snd_soc_dapm_widget *w)
 	if (!be)
 		return NULL;
 
-	return be->playback_dma_data;
+	return snd_soc_dai_dma_data_get_playback(be);
 }
 
 static void axg_tdmout_enable(struct regmap *map)

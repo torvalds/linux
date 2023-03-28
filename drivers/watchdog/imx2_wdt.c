@@ -27,6 +27,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/watchdog.h>
@@ -35,6 +36,7 @@
 
 #define IMX2_WDT_WCR		0x00		/* Control Register */
 #define IMX2_WDT_WCR_WT		(0xFF << 8)	/* -> Watchdog Timeout Field */
+#define IMX2_WDT_WCR_WDW	BIT(7)		/* -> Watchdog disable for WAIT */
 #define IMX2_WDT_WCR_WDA	BIT(5)		/* -> External Reset WDOG_B */
 #define IMX2_WDT_WCR_SRS	BIT(4)		/* -> Software Reset Signal */
 #define IMX2_WDT_WCR_WRE	BIT(3)		/* -> WDOG Reset Enable */
@@ -60,13 +62,19 @@
 
 #define WDOG_SEC_TO_COUNT(s)	((s * 2 - 1) << 8)
 
+struct imx2_wdt_data {
+	bool wdw_supported;
+};
+
 struct imx2_wdt_device {
 	struct clk *clk;
 	struct regmap *regmap;
 	struct watchdog_device wdog;
+	const struct imx2_wdt_data *data;
 	bool ext_reset;
 	bool clk_is_on;
 	bool no_ping;
+	bool sleep_wait;
 };
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
@@ -129,6 +137,9 @@ static inline void imx2_wdt_setup(struct watchdog_device *wdog)
 
 	/* Suspend timer in low power mode, write once-only */
 	val |= IMX2_WDT_WCR_WDZST;
+	/* Suspend timer in low power WAIT mode, write once-only */
+	if (wdev->sleep_wait)
+		val |= IMX2_WDT_WCR_WDW;
 	/* Strip the old watchdog Time-Out value */
 	val &= ~IMX2_WDT_WCR_WT;
 	/* Generate internal chip-level reset if WDOG times out */
@@ -292,6 +303,8 @@ static int __init imx2_wdt_probe(struct platform_device *pdev)
 	wdog->max_hw_heartbeat_ms = IMX2_WDT_MAX_TIME * 1000;
 	wdog->parent		= dev;
 
+	wdev->data = of_device_get_match_data(dev);
+
 	ret = platform_get_irq(pdev, 0);
 	if (ret > 0)
 		if (!devm_request_irq(dev, ret, imx2_wdt_isr, 0,
@@ -313,9 +326,18 @@ static int __init imx2_wdt_probe(struct platform_device *pdev)
 
 	wdev->ext_reset = of_property_read_bool(dev->of_node,
 						"fsl,ext-reset-output");
+
+	if (of_property_read_bool(dev->of_node, "fsl,suspend-in-wait")) {
+		if (!wdev->data->wdw_supported) {
+			dev_err(dev, "suspend-in-wait not supported\n");
+			return -EINVAL;
+		}
+		wdev->sleep_wait = true;
+	}
+
 	/*
 	 * The i.MX7D doesn't support low power mode, so we need to ping the watchdog
-	 * during suspend.
+	 * during suspend. Interaction with "fsl,suspend-in-wait" is unknown!
 	 */
 	wdev->no_ping = !of_device_is_compatible(dev->of_node, "fsl,imx7d-wdt");
 	platform_set_drvdata(pdev, wdog);
@@ -417,9 +439,36 @@ static int __maybe_unused imx2_wdt_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(imx2_wdt_pm_ops, imx2_wdt_suspend,
 			 imx2_wdt_resume);
 
+struct imx2_wdt_data imx_wdt = {
+	.wdw_supported = true,
+};
+
+struct imx2_wdt_data imx_wdt_legacy = {
+	.wdw_supported = false,
+};
+
 static const struct of_device_id imx2_wdt_dt_ids[] = {
-	{ .compatible = "fsl,imx21-wdt", },
-	{ .compatible = "fsl,imx7d-wdt", },
+	{ .compatible = "fsl,imx21-wdt", .data = &imx_wdt_legacy },
+	{ .compatible = "fsl,imx25-wdt", .data = &imx_wdt },
+	{ .compatible = "fsl,imx27-wdt", .data = &imx_wdt_legacy },
+	{ .compatible = "fsl,imx31-wdt", .data = &imx_wdt_legacy },
+	{ .compatible = "fsl,imx35-wdt", .data = &imx_wdt },
+	{ .compatible = "fsl,imx50-wdt", .data = &imx_wdt },
+	{ .compatible = "fsl,imx51-wdt", .data = &imx_wdt },
+	{ .compatible = "fsl,imx53-wdt", .data = &imx_wdt },
+	{ .compatible = "fsl,imx6q-wdt", .data = &imx_wdt },
+	{ .compatible = "fsl,imx6sl-wdt", .data = &imx_wdt },
+	{ .compatible = "fsl,imx6sll-wdt", .data = &imx_wdt },
+	{ .compatible = "fsl,imx6sx-wdt", .data = &imx_wdt },
+	{ .compatible = "fsl,imx6ul-wdt", .data = &imx_wdt },
+	{ .compatible = "fsl,imx7d-wdt", .data = &imx_wdt },
+	{ .compatible = "fsl,imx8mm-wdt", .data = &imx_wdt },
+	{ .compatible = "fsl,imx8mn-wdt", .data = &imx_wdt },
+	{ .compatible = "fsl,imx8mp-wdt", .data = &imx_wdt },
+	{ .compatible = "fsl,imx8mq-wdt", .data = &imx_wdt },
+	{ .compatible = "fsl,ls1012a-wdt", .data = &imx_wdt_legacy },
+	{ .compatible = "fsl,ls1043a-wdt", .data = &imx_wdt_legacy },
+	{ .compatible = "fsl,vf610-wdt", .data = &imx_wdt },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, imx2_wdt_dt_ids);

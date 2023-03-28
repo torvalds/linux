@@ -497,7 +497,7 @@ static int newport_blank(struct vc_data *c, int blank, int mode_switch)
 	return 1;
 }
 
-static int newport_set_font(int unit, struct console_font *op)
+static int newport_set_font(int unit, struct console_font *op, unsigned int vpitch)
 {
 	int w = op->width;
 	int h = op->height;
@@ -507,7 +507,7 @@ static int newport_set_font(int unit, struct console_font *op)
 
 	/* ladis: when I grow up, there will be a day... and more sizes will
 	 * be supported ;-) */
-	if ((w != 8) || (h != 16)
+	if ((w != 8) || (h != 16) || (vpitch != 32)
 	    || (op->charcount != 256 && op->charcount != 512))
 		return -EINVAL;
 
@@ -569,9 +569,10 @@ static int newport_font_default(struct vc_data *vc, struct console_font *op, cha
 	return newport_set_def_font(vc->vc_num, op);
 }
 
-static int newport_font_set(struct vc_data *vc, struct console_font *font, unsigned flags)
+static int newport_font_set(struct vc_data *vc, struct console_font *font,
+			    unsigned int vpitch, unsigned int flags)
 {
-	return newport_set_font(vc->vc_num, font);
+	return newport_set_font(vc->vc_num, font, vpitch);
 }
 
 static bool newport_scroll(struct vc_data *vc, unsigned int t, unsigned int b,

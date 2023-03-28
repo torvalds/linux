@@ -49,6 +49,19 @@ struct ap_queue_status {
 	unsigned int _pad2		: 16;
 };
 
+/*
+ * AP queue status reg union to access the reg1
+ * register with the lower 32 bits comprising the
+ * ap queue status.
+ */
+union ap_queue_status_reg {
+	unsigned long value;
+	struct {
+		u32 _pad;
+		struct ap_queue_status status;
+	};
+};
+
 /**
  * ap_intructions_available() - Test if AP instructions are available.
  *
@@ -82,7 +95,7 @@ static inline bool ap_instructions_available(void)
  */
 static inline struct ap_queue_status ap_tapq(ap_qid_t qid, unsigned long *info)
 {
-	struct ap_queue_status reg1;
+	union ap_queue_status_reg reg1;
 	unsigned long reg2;
 
 	asm volatile(
@@ -91,12 +104,12 @@ static inline struct ap_queue_status ap_tapq(ap_qid_t qid, unsigned long *info)
 		"	.insn	rre,0xb2af0000,0,0\n"	/* PQAP(TAPQ) */
 		"	lgr	%[reg1],1\n"		/* gr1 (status) into reg1 */
 		"	lgr	%[reg2],2\n"		/* gr2 into reg2 */
-		: [reg1] "=&d" (reg1), [reg2] "=&d" (reg2)
+		: [reg1] "=&d" (reg1.value), [reg2] "=&d" (reg2)
 		: [qid] "d" (qid)
 		: "cc", "0", "1", "2");
 	if (info)
 		*info = reg2;
-	return reg1;
+	return reg1.status;
 }
 
 /**
@@ -125,16 +138,16 @@ static inline struct ap_queue_status ap_test_queue(ap_qid_t qid,
 static inline struct ap_queue_status ap_rapq(ap_qid_t qid)
 {
 	unsigned long reg0 = qid | (1UL << 24);  /* fc 1UL is RAPQ */
-	struct ap_queue_status reg1;
+	union ap_queue_status_reg reg1;
 
 	asm volatile(
 		"	lgr	0,%[reg0]\n"		/* qid arg into gr0 */
 		"	.insn	rre,0xb2af0000,0,0\n"	/* PQAP(RAPQ) */
 		"	lgr	%[reg1],1\n"		/* gr1 (status) into reg1 */
-		: [reg1] "=&d" (reg1)
+		: [reg1] "=&d" (reg1.value)
 		: [reg0] "d" (reg0)
 		: "cc", "0", "1");
-	return reg1;
+	return reg1.status;
 }
 
 /**
@@ -146,16 +159,16 @@ static inline struct ap_queue_status ap_rapq(ap_qid_t qid)
 static inline struct ap_queue_status ap_zapq(ap_qid_t qid)
 {
 	unsigned long reg0 = qid | (2UL << 24);  /* fc 2UL is ZAPQ */
-	struct ap_queue_status reg1;
+	union ap_queue_status_reg reg1;
 
 	asm volatile(
 		"	lgr	0,%[reg0]\n"		/* qid arg into gr0 */
 		"	.insn	rre,0xb2af0000,0,0\n"	/* PQAP(ZAPQ) */
 		"	lgr	%[reg1],1\n"		/* gr1 (status) into reg1 */
-		: [reg1] "=&d" (reg1)
+		: [reg1] "=&d" (reg1.value)
 		: [reg0] "d" (reg0)
 		: "cc", "0", "1");
-	return reg1;
+	return reg1.status;
 }
 
 /**
@@ -209,18 +222,21 @@ static inline int ap_qci(struct ap_config_info *config)
  * parameter to the PQAP(AQIC) instruction. For details please
  * see the AR documentation.
  */
-struct ap_qirq_ctrl {
-	unsigned int _res1 : 8;
-	unsigned int zone  : 8;	/* zone info */
-	unsigned int ir    : 1;	/* ir flag: enable (1) or disable (0) irq */
-	unsigned int _res2 : 4;
-	unsigned int gisc  : 3;	/* guest isc field */
-	unsigned int _res3 : 6;
-	unsigned int gf    : 2;	/* gisa format */
-	unsigned int _res4 : 1;
-	unsigned int gisa  : 27;	/* gisa origin */
-	unsigned int _res5 : 1;
-	unsigned int isc   : 3;	/* irq sub class */
+union ap_qirq_ctrl {
+	unsigned long value;
+	struct {
+		unsigned int	   : 8;
+		unsigned int zone  : 8;	/* zone info */
+		unsigned int ir	   : 1;	/* ir flag: enable (1) or disable (0) irq */
+		unsigned int	   : 4;
+		unsigned int gisc  : 3;	/* guest isc field */
+		unsigned int	   : 6;
+		unsigned int gf	   : 2;	/* gisa format */
+		unsigned int	   : 1;
+		unsigned int gisa  : 27;	/* gisa origin */
+		unsigned int	   : 1;
+		unsigned int isc   : 3;	/* irq sub class */
+	};
 };
 
 /**
@@ -232,18 +248,14 @@ struct ap_qirq_ctrl {
  * Returns AP queue status.
  */
 static inline struct ap_queue_status ap_aqic(ap_qid_t qid,
-					     struct ap_qirq_ctrl qirqctrl,
+					     union ap_qirq_ctrl qirqctrl,
 					     phys_addr_t pa_ind)
 {
 	unsigned long reg0 = qid | (3UL << 24);  /* fc 3UL is AQIC */
-	union {
-		unsigned long value;
-		struct ap_qirq_ctrl qirqctrl;
-		struct ap_queue_status status;
-	} reg1;
+	union ap_queue_status_reg reg1;
 	unsigned long reg2 = pa_ind;
 
-	reg1.qirqctrl = qirqctrl;
+	reg1.value = qirqctrl.value;
 
 	asm volatile(
 		"	lgr	0,%[reg0]\n"		/* qid param into gr0 */
@@ -251,9 +263,9 @@ static inline struct ap_queue_status ap_aqic(ap_qid_t qid,
 		"	lgr	2,%[reg2]\n"		/* ni addr into gr2 */
 		"	.insn	rre,0xb2af0000,0,0\n"	/* PQAP(AQIC) */
 		"	lgr	%[reg1],1\n"		/* gr1 (status) into reg1 */
-		: [reg1] "+&d" (reg1)
+		: [reg1] "+&d" (reg1.value)
 		: [reg0] "d" (reg0), [reg2] "d" (reg2)
-		: "cc", "0", "1", "2");
+		: "cc", "memory", "0", "1", "2");
 
 	return reg1.status;
 }
@@ -288,10 +300,7 @@ static inline struct ap_queue_status ap_qact(ap_qid_t qid, int ifbit,
 					     union ap_qact_ap_info *apinfo)
 {
 	unsigned long reg0 = qid | (5UL << 24) | ((ifbit & 0x01) << 22);
-	union {
-		unsigned long value;
-		struct ap_queue_status status;
-	} reg1;
+	union ap_queue_status_reg reg1;
 	unsigned long reg2;
 
 	reg1.value = apinfo->val;
@@ -302,7 +311,7 @@ static inline struct ap_queue_status ap_qact(ap_qid_t qid, int ifbit,
 		"	.insn	rre,0xb2af0000,0,0\n"	/* PQAP(QACT) */
 		"	lgr	%[reg1],1\n"		/* gr1 (status) into reg1 */
 		"	lgr	%[reg2],2\n"		/* qact out info into reg2 */
-		: [reg1] "+&d" (reg1), [reg2] "=&d" (reg2)
+		: [reg1] "+&d" (reg1.value), [reg2] "=&d" (reg2)
 		: [reg0] "d" (reg0)
 		: "cc", "0", "1", "2");
 	apinfo->val = reg2;
@@ -327,7 +336,7 @@ static inline struct ap_queue_status ap_nqap(ap_qid_t qid,
 {
 	unsigned long reg0 = qid | 0x40000000UL;  /* 0x4... is last msg part */
 	union register_pair nqap_r1, nqap_r2;
-	struct ap_queue_status reg1;
+	union ap_queue_status_reg reg1;
 
 	nqap_r1.even = (unsigned int)(psmid >> 32);
 	nqap_r1.odd  = psmid & 0xffffffff;
@@ -339,11 +348,11 @@ static inline struct ap_queue_status ap_nqap(ap_qid_t qid,
 		"0:	.insn	rre,0xb2ad0000,%[nqap_r1],%[nqap_r2]\n"
 		"	brc	2,0b\n"       /* handle partial completion */
 		"	lgr	%[reg1],1\n"  /* gr1 (status) into reg1 */
-		: [reg0] "+&d" (reg0), [reg1] "=&d" (reg1),
+		: [reg0] "+&d" (reg0), [reg1] "=&d" (reg1.value),
 		  [nqap_r2] "+&d" (nqap_r2.pair)
 		: [nqap_r1] "d" (nqap_r1.pair)
 		: "cc", "memory", "0", "1");
-	return reg1;
+	return reg1.status;
 }
 
 /**
@@ -383,7 +392,7 @@ static inline struct ap_queue_status ap_dqap(ap_qid_t qid,
 					     unsigned long *resgr0)
 {
 	unsigned long reg0 = resgr0 && *resgr0 ? *resgr0 : qid | 0x80000000UL;
-	struct ap_queue_status reg1;
+	union ap_queue_status_reg reg1;
 	unsigned long reg2;
 	union register_pair rp1, rp2;
 
@@ -402,8 +411,9 @@ static inline struct ap_queue_status ap_dqap(ap_qid_t qid,
 		"2:	lgr	%[reg0],0\n"   /* gr0 (qid + info) into reg0 */
 		"	lgr	%[reg1],1\n"   /* gr1 (status) into reg1 */
 		"	lgr	%[reg2],2\n"   /* gr2 (res length) into reg2 */
-		: [reg0] "+&d" (reg0), [reg1] "=&d" (reg1), [reg2] "=&d" (reg2),
-		  [rp1] "+&d" (rp1.pair), [rp2] "+&d" (rp2.pair)
+		: [reg0] "+&d" (reg0), [reg1] "=&d" (reg1.value),
+		  [reg2] "=&d" (reg2), [rp1] "+&d" (rp1.pair),
+		  [rp2] "+&d" (rp2.pair)
 		:
 		: "cc", "memory", "0", "1", "2");
 
@@ -415,7 +425,7 @@ static inline struct ap_queue_status ap_dqap(ap_qid_t qid,
 		 * Signal the caller that this dqap is only partially received
 		 * with a special status response code 0xFF and *resgr0 updated
 		 */
-		reg1.response_code = 0xFF;
+		reg1.status.response_code = 0xFF;
 		if (resgr0)
 			*resgr0 = reg0;
 	} else {
@@ -424,7 +434,7 @@ static inline struct ap_queue_status ap_dqap(ap_qid_t qid,
 			*resgr0 = 0;
 	}
 
-	return reg1;
+	return reg1.status;
 }
 
 /*

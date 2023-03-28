@@ -503,10 +503,9 @@ out:
 	return err;
 }
 
-static void dh_safe_prime_complete_req(struct crypto_async_request *dh_req,
-				       int err)
+static void dh_safe_prime_complete_req(void *data, int err)
 {
-	struct kpp_request *req = dh_req->data;
+	struct kpp_request *req = data;
 
 	kpp_request_complete(req, err);
 }

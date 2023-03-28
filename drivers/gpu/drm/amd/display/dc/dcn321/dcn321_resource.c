@@ -60,7 +60,6 @@
 #include "dcn31/dcn31_hpo_dp_stream_encoder.h"
 #include "dcn31/dcn31_hpo_dp_link_encoder.h"
 #include "dcn32/dcn32_hpo_dp_link_encoder.h"
-#include "dc_link_dp.h"
 #include "dcn31/dcn31_apg.h"
 #include "dcn31/dcn31_dio_link_encoder.h"
 #include "dcn32/dcn32_dio_link_encoder.h"
@@ -656,8 +655,6 @@ static const struct resource_caps res_cap_dcn321 = {
 
 static const struct dc_plane_cap plane_cap = {
 	.type = DC_PLANE_TYPE_DCN_UNIVERSAL,
-	.blends_with_above = true,
-	.blends_with_below = true,
 	.per_pixel_alpha = true,
 
 	.pixel_format_support = {
@@ -725,6 +722,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.alloc_extra_way_for_cursor = true,
 	.min_prefetch_in_strobe_ns = 60000, // 60us
 	.disable_unbounded_requesting = false,
+	.override_dispclk_programming = true,
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
@@ -1492,8 +1490,11 @@ static void dcn321_resource_destruct(struct dcn321_resource_pool *pool)
 	if (pool->base.dccg != NULL)
 		dcn_dccg_destroy(&pool->base.dccg);
 
-	if (pool->base.oem_device != NULL)
-		link_destroy_ddc_service(&pool->base.oem_device);
+	if (pool->base.oem_device != NULL) {
+		struct dc *dc = pool->base.oem_device->ctx->dc;
+
+		dc->link_srv->destroy_ddc_service(&pool->base.oem_device);
+	}
 }
 
 
@@ -1703,12 +1704,18 @@ static bool dcn321_resource_construct(
 	dc->caps.max_cursor_size = 64;
 	dc->caps.min_horizontal_blanking_period = 80;
 	dc->caps.dmdata_alloc_size = 2048;
-	dc->caps.mall_size_per_mem_channel = 0;
+	dc->caps.mall_size_per_mem_channel = 4;
 	dc->caps.mall_size_total = 0;
 	dc->caps.cursor_cache_size = dc->caps.max_cursor_size * dc->caps.max_cursor_size * 8;
 	dc->caps.cache_line_size = 64;
 	dc->caps.cache_num_ways = 16;
-	dc->caps.max_cab_allocation_bytes = 33554432; // 32MB = 1024 * 1024 * 32
+
+	/* Calculate the available MALL space */
+	dc->caps.max_cab_allocation_bytes = dcn32_calc_num_avail_chans_for_mall(
+		dc, dc->ctx->dc_bios->vram_info.num_chans) *
+		dc->caps.mall_size_per_mem_channel * 1024 * 1024;
+	dc->caps.mall_size_total = dc->caps.max_cab_allocation_bytes;
+
 	dc->caps.subvp_fw_processing_delay_us = 15;
 	dc->caps.subvp_drr_max_vblank_margin_us = 40;
 	dc->caps.subvp_prefetch_end_to_mall_start_us = 15;
@@ -1991,7 +1998,7 @@ static bool dcn321_resource_construct(
 		ddc_init_data.id.id = dc->ctx->dc_bios->fw_info.oem_i2c_obj_id;
 		ddc_init_data.id.enum_id = 0;
 		ddc_init_data.id.type = OBJECT_TYPE_GENERIC;
-		pool->base.oem_device = link_create_ddc_service(&ddc_init_data);
+		pool->base.oem_device = dc->link_srv->create_ddc_service(&ddc_init_data);
 	} else {
 		pool->base.oem_device = NULL;
 	}

@@ -14,7 +14,7 @@ description:
   file and the Rockchip specific extensions.
 
 allOf:
-  - $ref: "synopsys-dw-mshc-common.yaml#"
+  - $ref: synopsys-dw-mshc-common.yaml#
 
 maintainers:
   - Heiko Stuebner <heiko@sntech.de>
@@ -39,6 +39,7 @@ properties:
               - rockchip,rk3368-dw-mshc
               - rockchip,rk3399-dw-mshc
               - rockchip,rk3568-dw-mshc
+              - rockchip,rk3588-dw-mshc
               - rockchip,rv1108-dw-mshc
               - rockchip,rv1126-dw-mshc
           - const: rockchip,rk3288-dw-mshc

@@ -1186,7 +1186,7 @@ EXPORT_SYMBOL_GPL(af_alg_free_resources);
 
 /**
  * af_alg_async_cb - AIO callback handler
- * @_req: async request info
+ * @data: async request completion data
  * @err: if non-zero, error result to be returned via ki_complete();
  *       otherwise return the AIO output length via ki_complete().
  *
@@ -1196,9 +1196,9 @@ EXPORT_SYMBOL_GPL(af_alg_free_resources);
  * The number of bytes to be generated with the AIO operation must be set
  * in areq->outlen before the AIO callback handler is invoked.
  */
-void af_alg_async_cb(struct crypto_async_request *_req, int err)
+void af_alg_async_cb(void *data, int err)
 {
-	struct af_alg_async_req *areq = _req->data;
+	struct af_alg_async_req *areq = data;
 	struct sock *sk = areq->sk;
 	struct kiocb *iocb = areq->iocb;
 	unsigned int resultlen;

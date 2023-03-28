@@ -160,8 +160,7 @@ static struct aa_perms *compute_fperms(struct aa_dfa *dfa)
 	if (!table)
 		return NULL;
 
-	/* zero init so skip the trap state (state == 0) */
-	for (state = 1; state < state_count; state++) {
+	for (state = 0; state < state_count; state++) {
 		table[state * 2] = compute_fperms_user(dfa, state);
 		table[state * 2 + 1] = compute_fperms_other(dfa, state);
 	}

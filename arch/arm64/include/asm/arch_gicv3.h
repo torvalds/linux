@@ -190,5 +190,10 @@ static inline void gic_arch_enable_irqs(void)
 	asm volatile ("msr daifclr, #3" : : : "memory");
 }
 
+static inline bool gic_has_relaxed_pmr_sync(void)
+{
+	return cpus_have_cap(ARM64_HAS_GIC_PRIO_RELAXED_SYNC);
+}
+
 #endif /* __ASSEMBLY__ */
 #endif /* __ASM_ARCH_GICV3_H */

@@ -8,7 +8,7 @@
 #ifdef CONFIG_JFS_POSIX_ACL
 
 struct posix_acl *jfs_get_acl(struct inode *inode, int type, bool rcu);
-int jfs_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
+int jfs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		struct posix_acl *acl, int type);
 int jfs_init_acl(tid_t, struct inode *, struct inode *);
 

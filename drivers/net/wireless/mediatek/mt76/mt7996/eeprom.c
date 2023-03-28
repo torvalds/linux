@@ -65,20 +65,48 @@ static int mt7996_eeprom_load(struct mt7996_dev *dev)
 	} else {
 		u8 free_block_num;
 		u32 block_num, i;
+		u32 eeprom_blk_size = MT7996_EEPROM_BLOCK_SIZE;
 
-		/* TODO: check free block event */
-		mt7996_mcu_get_eeprom_free_block(dev, &free_block_num);
-		/* efuse info not enough */
+		ret = mt7996_mcu_get_eeprom_free_block(dev, &free_block_num);
+		if (ret < 0)
+			return ret;
+
+		/* efuse info isn't enough */
 		if (free_block_num >= 59)
 			return -EINVAL;
 
 		/* read eeprom data from efuse */
-		block_num = DIV_ROUND_UP(MT7996_EEPROM_SIZE, MT7996_EEPROM_BLOCK_SIZE);
-		for (i = 0; i < block_num; i++)
-			mt7996_mcu_get_eeprom(dev, i * MT7996_EEPROM_BLOCK_SIZE);
+		block_num = DIV_ROUND_UP(MT7996_EEPROM_SIZE, eeprom_blk_size);
+		for (i = 0; i < block_num; i++) {
+			ret = mt7996_mcu_get_eeprom(dev, i * eeprom_blk_size);
+			if (ret < 0)
+				return ret;
+		}
 	}
 
 	return mt7996_check_eeprom(dev);
+}
+
+static int mt7996_eeprom_parse_efuse_hw_cap(struct mt7996_dev *dev)
+{
+#define MODE_HE_ONLY		BIT(0)
+#define WTBL_SIZE_GROUP		GENMASK(31, 28)
+	u32 cap = 0;
+	int ret;
+
+	ret = mt7996_mcu_get_chip_config(dev, &cap);
+	if (ret)
+		return ret;
+
+	if (cap) {
+		dev->has_eht = !(cap & MODE_HE_ONLY);
+		dev->wtbl_size_group = u32_get_bits(cap, WTBL_SIZE_GROUP);
+	}
+
+	if (dev->wtbl_size_group < 2 || dev->wtbl_size_group > 4)
+		dev->wtbl_size_group = 2; /* set default */
+
+	return 0;
 }
 
 static int mt7996_eeprom_parse_band_config(struct mt7996_phy *phy)
@@ -127,6 +155,7 @@ int mt7996_eeprom_parse_hw_cap(struct mt7996_dev *dev, struct mt7996_phy *phy)
 	u8 path, nss, band_idx = phy->mt76->band_idx;
 	u8 *eeprom = dev->mt76.eeprom.data;
 	struct mt76_phy *mphy = phy->mt76;
+	int ret;
 
 	switch (band_idx) {
 	case MT_BAND1:
@@ -160,6 +189,10 @@ int mt7996_eeprom_parse_hw_cap(struct mt7996_dev *dev, struct mt7996_phy *phy)
 	if (band_idx < MT_BAND2)
 		dev->chainshift[band_idx + 1] = dev->chainshift[band_idx] +
 						hweight16(mphy->chainmask);
+
+	ret = mt7996_eeprom_parse_efuse_hw_cap(dev);
+	if (ret)
+		return ret;
 
 	return mt7996_eeprom_parse_band_config(phy);
 }

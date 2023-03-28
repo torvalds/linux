@@ -420,9 +420,11 @@ static inline void flush_pending(
 	z_streamp strm
 )
 {
+    unsigned len;
     deflate_state *s = (deflate_state *) strm->state;
-    unsigned len = s->pending;
 
+    bi_flush(s);
+    len = s->pending;
     if (len > strm->avail_out) len = strm->avail_out;
     if (len == 0) return;
 

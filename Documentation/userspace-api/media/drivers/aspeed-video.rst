@@ -23,7 +23,7 @@ proprietary mode.
 
 More details on the ASPEED video hardware operations can be found in
 *chapter 6.2.16 KVM Video Driver* of SDK_User_Guide which available on
-AspeedTech-BMC/openbmc/releases.
+`github <https://github.com/AspeedTech-BMC/openbmc/releases/>`__.
 
 The ASPEED video driver implements the following driver-specific control:
 

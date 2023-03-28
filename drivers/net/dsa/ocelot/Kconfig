@@ -1,4 +1,34 @@
 # SPDX-License-Identifier: GPL-2.0-only
+config NET_DSA_MSCC_FELIX_DSA_LIB
+	tristate
+	help
+	  This is an umbrella module for all network switches that are
+	  register-compatible with Ocelot and that perform I/O to their host
+	  CPU through an NPI (Node Processor Interface) Ethernet port.
+	  Its name comes from the first hardware chip to make use of it
+	  (VSC9959), code named Felix.
+
+config NET_DSA_MSCC_OCELOT_EXT
+	tristate "Ocelot External Ethernet switch support"
+	depends on NET_DSA && SPI
+	depends on NET_VENDOR_MICROSEMI
+	depends on PTP_1588_CLOCK_OPTIONAL
+	select MDIO_MSCC_MIIM
+	select MFD_OCELOT
+	select MSCC_OCELOT_SWITCH_LIB
+	select NET_DSA_MSCC_FELIX_DSA_LIB
+	select NET_DSA_TAG_OCELOT_8021Q
+	select NET_DSA_TAG_OCELOT
+	help
+	  This driver supports the VSC7511, VSC7512, VSC7513 and VSC7514 chips
+	  when controlled through SPI.
+
+	  The Ocelot switch family is a set of multi-port networking chips. All
+	  of these chips have the ability to be controlled externally through
+	  SPI or PCIe interfaces.
+
+	  Say "Y" here to enable external control to these chips.
+
 config NET_DSA_MSCC_FELIX
 	tristate "Ocelot / Felix Ethernet switch support"
 	depends on NET_DSA && PCI
@@ -8,6 +38,7 @@ config NET_DSA_MSCC_FELIX
 	depends on PTP_1588_CLOCK_OPTIONAL
 	depends on NET_SCH_TAPRIO || NET_SCH_TAPRIO=n
 	select MSCC_OCELOT_SWITCH_LIB
+	select NET_DSA_MSCC_FELIX_DSA_LIB
 	select NET_DSA_TAG_OCELOT_8021Q
 	select NET_DSA_TAG_OCELOT
 	select FSL_ENETC_MDIO
@@ -24,6 +55,7 @@ config NET_DSA_MSCC_SEVILLE
 	depends on PTP_1588_CLOCK_OPTIONAL
 	select MDIO_MSCC_MIIM
 	select MSCC_OCELOT_SWITCH_LIB
+	select NET_DSA_MSCC_FELIX_DSA_LIB
 	select NET_DSA_TAG_OCELOT_8021Q
 	select NET_DSA_TAG_OCELOT
 	select PCS_LYNX

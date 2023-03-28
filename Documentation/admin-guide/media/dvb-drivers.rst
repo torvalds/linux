@@ -13,4 +13,3 @@ Digital TV driver-specific documentation
 	opera-firmware
 	technisat
 	ttusb-dec
-	zr364xx

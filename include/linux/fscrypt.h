@@ -257,8 +257,8 @@ int fscrypt_encrypt_block_inplace(const struct inode *inode, struct page *page,
 				  unsigned int len, unsigned int offs,
 				  u64 lblk_num, gfp_t gfp_flags);
 
-int fscrypt_decrypt_pagecache_blocks(struct page *page, unsigned int len,
-				     unsigned int offs);
+int fscrypt_decrypt_pagecache_blocks(struct folio *folio, size_t len,
+				     size_t offs);
 int fscrypt_decrypt_block_inplace(const struct inode *inode, struct page *page,
 				  unsigned int len, unsigned int offs,
 				  u64 lblk_num);
@@ -309,8 +309,6 @@ fscrypt_free_dummy_policy(struct fscrypt_dummy_policy *dummy_policy)
 /* keyring.c */
 void fscrypt_destroy_keyring(struct super_block *sb);
 int fscrypt_ioctl_add_key(struct file *filp, void __user *arg);
-int fscrypt_add_test_dummy_key(struct super_block *sb,
-			       const struct fscrypt_dummy_policy *dummy_policy);
 int fscrypt_ioctl_remove_key(struct file *filp, void __user *arg);
 int fscrypt_ioctl_remove_key_all_users(struct file *filp, void __user *arg);
 int fscrypt_ioctl_get_key_status(struct file *filp, void __user *arg);
@@ -422,9 +420,8 @@ static inline int fscrypt_encrypt_block_inplace(const struct inode *inode,
 	return -EOPNOTSUPP;
 }
 
-static inline int fscrypt_decrypt_pagecache_blocks(struct page *page,
-						   unsigned int len,
-						   unsigned int offs)
+static inline int fscrypt_decrypt_pagecache_blocks(struct folio *folio,
+						   size_t len, size_t offs)
 {
 	return -EOPNOTSUPP;
 }
@@ -528,13 +525,6 @@ static inline void fscrypt_destroy_keyring(struct super_block *sb)
 static inline int fscrypt_ioctl_add_key(struct file *filp, void __user *arg)
 {
 	return -EOPNOTSUPP;
-}
-
-static inline int
-fscrypt_add_test_dummy_key(struct super_block *sb,
-			   const struct fscrypt_dummy_policy *dummy_policy)
-{
-	return 0;
 }
 
 static inline int fscrypt_ioctl_remove_key(struct file *filp, void __user *arg)

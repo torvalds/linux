@@ -424,6 +424,7 @@ int mlx5_blocking_notifier_register(struct mlx5_core_dev *dev, struct notifier_b
 
 	return blocking_notifier_chain_register(&events->sw_nh, nb);
 }
+EXPORT_SYMBOL(mlx5_blocking_notifier_register);
 
 int mlx5_blocking_notifier_unregister(struct mlx5_core_dev *dev, struct notifier_block *nb)
 {
@@ -431,6 +432,7 @@ int mlx5_blocking_notifier_unregister(struct mlx5_core_dev *dev, struct notifier
 
 	return blocking_notifier_chain_unregister(&events->sw_nh, nb);
 }
+EXPORT_SYMBOL(mlx5_blocking_notifier_unregister);
 
 int mlx5_blocking_notifier_call_chain(struct mlx5_core_dev *dev, unsigned int event,
 				      void *data)

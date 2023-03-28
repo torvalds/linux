@@ -33,7 +33,7 @@ examples:
      pm8150b {
         #address-cells = <1>;
         #size-cells = <0>;
-        pm8150b_vbus: dcdc@1100 {
+        pm8150b_vbus: usb-vbus-regulator@1100 {
             compatible = "qcom,pm8150b-vbus-reg";
             reg = <0x1100>;
         };

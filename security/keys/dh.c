@@ -64,22 +64,6 @@ static void dh_free_data(struct dh *dh)
 	kfree_sensitive(dh->g);
 }
 
-struct dh_completion {
-	struct completion completion;
-	int err;
-};
-
-static void dh_crypto_done(struct crypto_async_request *req, int err)
-{
-	struct dh_completion *compl = req->data;
-
-	if (err == -EINPROGRESS)
-		return;
-
-	compl->err = err;
-	complete(&compl->completion);
-}
-
 static int kdf_alloc(struct crypto_shash **hash, char *hashname)
 {
 	struct crypto_shash *tfm;
@@ -146,7 +130,7 @@ long __keyctl_dh_compute(struct keyctl_dh_params __user *params,
 	struct keyctl_dh_params pcopy;
 	struct dh dh_inputs;
 	struct scatterlist outsg;
-	struct dh_completion compl;
+	DECLARE_CRYPTO_WAIT(compl);
 	struct crypto_kpp *tfm;
 	struct kpp_request *req;
 	uint8_t *secret;
@@ -266,22 +250,18 @@ long __keyctl_dh_compute(struct keyctl_dh_params __user *params,
 
 	kpp_request_set_input(req, NULL, 0);
 	kpp_request_set_output(req, &outsg, outlen);
-	init_completion(&compl.completion);
 	kpp_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG |
 				 CRYPTO_TFM_REQ_MAY_SLEEP,
-				 dh_crypto_done, &compl);
+				 crypto_req_done, &compl);
 
 	/*
 	 * For DH, generate_public_key and generate_shared_secret are
 	 * the same calculation
 	 */
 	ret = crypto_kpp_generate_public_key(req);
-	if (ret == -EINPROGRESS) {
-		wait_for_completion(&compl.completion);
-		ret = compl.err;
-		if (ret)
-			goto out6;
-	}
+	ret = crypto_wait_req(ret, &compl);
+	if (ret)
+		goto out6;
 
 	if (kdfcopy) {
 		/*

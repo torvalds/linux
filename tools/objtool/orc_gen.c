@@ -27,6 +27,7 @@ static int init_orc_entry(struct orc_entry *orc, struct cfi_state *cfi,
 	}
 
 	orc->end = cfi->end;
+	orc->signal = cfi->signal;
 
 	if (cfi->cfa.base == CFI_UNDEFINED) {
 		orc->sp_reg = ORC_REG_UNDEFINED;

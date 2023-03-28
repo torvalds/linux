@@ -4,6 +4,8 @@
  * Copyright (c) 2017 Jesper Dangaard Brouer, Red Hat Inc.
  */
 #include <linux/bpf.h>
+#include <linux/btf.h>
+#include <linux/btf_ids.h>
 #include <linux/filter.h>
 #include <linux/types.h>
 #include <linux/mm.h>
@@ -602,8 +604,7 @@ EXPORT_SYMBOL_GPL(xdp_warn);
 
 int xdp_alloc_skb_bulk(void **skbs, int n_skb, gfp_t gfp)
 {
-	n_skb = kmem_cache_alloc_bulk(skbuff_head_cache, gfp,
-				      n_skb, skbs);
+	n_skb = kmem_cache_alloc_bulk(skbuff_cache, gfp, n_skb, skbs);
 	if (unlikely(!n_skb))
 		return -ENOMEM;
 
@@ -672,7 +673,7 @@ struct sk_buff *xdp_build_skb_from_frame(struct xdp_frame *xdpf,
 {
 	struct sk_buff *skb;
 
-	skb = kmem_cache_alloc(skbuff_head_cache, GFP_ATOMIC);
+	skb = kmem_cache_alloc(skbuff_cache, GFP_ATOMIC);
 	if (unlikely(!skb))
 		return NULL;
 
@@ -709,3 +710,84 @@ struct xdp_frame *xdpf_clone(struct xdp_frame *xdpf)
 
 	return nxdpf;
 }
+
+__diag_push();
+__diag_ignore_all("-Wmissing-prototypes",
+		  "Global functions as their definitions will be in vmlinux BTF");
+
+/**
+ * bpf_xdp_metadata_rx_timestamp - Read XDP frame RX timestamp.
+ * @ctx: XDP context pointer.
+ * @timestamp: Return value pointer.
+ *
+ * Returns 0 on success or ``-errno`` on error.
+ */
+__bpf_kfunc int bpf_xdp_metadata_rx_timestamp(const struct xdp_md *ctx, u64 *timestamp)
+{
+	return -EOPNOTSUPP;
+}
+
+/**
+ * bpf_xdp_metadata_rx_hash - Read XDP frame RX hash.
+ * @ctx: XDP context pointer.
+ * @hash: Return value pointer.
+ *
+ * Returns 0 on success or ``-errno`` on error.
+ */
+__bpf_kfunc int bpf_xdp_metadata_rx_hash(const struct xdp_md *ctx, u32 *hash)
+{
+	return -EOPNOTSUPP;
+}
+
+__diag_pop();
+
+BTF_SET8_START(xdp_metadata_kfunc_ids)
+#define XDP_METADATA_KFUNC(_, name) BTF_ID_FLAGS(func, name, 0)
+XDP_METADATA_KFUNC_xxx
+#undef XDP_METADATA_KFUNC
+BTF_SET8_END(xdp_metadata_kfunc_ids)
+
+static const struct btf_kfunc_id_set xdp_metadata_kfunc_set = {
+	.owner = THIS_MODULE,
+	.set   = &xdp_metadata_kfunc_ids,
+};
+
+BTF_ID_LIST(xdp_metadata_kfunc_ids_unsorted)
+#define XDP_METADATA_KFUNC(name, str) BTF_ID(func, str)
+XDP_METADATA_KFUNC_xxx
+#undef XDP_METADATA_KFUNC
+
+u32 bpf_xdp_metadata_kfunc_id(int id)
+{
+	/* xdp_metadata_kfunc_ids is sorted and can't be used */
+	return xdp_metadata_kfunc_ids_unsorted[id];
+}
+
+bool bpf_dev_bound_kfunc_id(u32 btf_id)
+{
+	return btf_id_set8_contains(&xdp_metadata_kfunc_ids, btf_id);
+}
+
+static int __init xdp_metadata_init(void)
+{
+	return register_btf_kfunc_id_set(BPF_PROG_TYPE_XDP, &xdp_metadata_kfunc_set);
+}
+late_initcall(xdp_metadata_init);
+
+void xdp_features_set_redirect_target(struct net_device *dev, bool support_sg)
+{
+	dev->xdp_features |= NETDEV_XDP_ACT_NDO_XMIT;
+	if (support_sg)
+		dev->xdp_features |= NETDEV_XDP_ACT_NDO_XMIT_SG;
+
+	call_netdevice_notifiers(NETDEV_XDP_FEAT_CHANGE, dev);
+}
+EXPORT_SYMBOL_GPL(xdp_features_set_redirect_target);
+
+void xdp_features_clear_redirect_target(struct net_device *dev)
+{
+	dev->xdp_features &= ~(NETDEV_XDP_ACT_NDO_XMIT |
+			       NETDEV_XDP_ACT_NDO_XMIT_SG);
+	call_netdevice_notifiers(NETDEV_XDP_FEAT_CHANGE, dev);
+}
+EXPORT_SYMBOL_GPL(xdp_features_clear_redirect_target);

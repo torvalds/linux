@@ -131,16 +131,15 @@ static acpi_status sar_get_device_mode(struct platform_device *device)
 	acpi_status status = AE_OK;
 	union acpi_object *out;
 	u32 rev = 0;
-	int value;
 
-	out = acpi_evaluate_dsm(context->handle, &context->guid, rev,
-				COMMAND_ID_DEV_MODE, NULL);
-	if (get_int_value(out, &value)) {
+	out = acpi_evaluate_dsm_typed(context->handle, &context->guid, rev,
+				      COMMAND_ID_DEV_MODE, NULL, ACPI_TYPE_INTEGER);
+	if (!out) {
 		dev_err(&device->dev, "DSM cmd:%d Failed to retrieve value\n", COMMAND_ID_DEV_MODE);
 		status = AE_ERROR;
 		goto dev_mode_error;
 	}
-	context->sar_data.device_mode = value;
+	context->sar_data.device_mode = out->integer.value;
 	update_sar_data(context);
 	sysfs_notify(&device->dev.kobj, NULL, SYSFS_DATANAME);
 
@@ -221,11 +220,11 @@ static void sar_get_data(int reg, struct wwan_sar_context *context)
 
 	req.type = ACPI_TYPE_INTEGER;
 	req.integer.value = reg;
-	out = acpi_evaluate_dsm(context->handle, &context->guid, rev,
-				COMMAND_ID_CONFIG_TABLE, &req);
+	out = acpi_evaluate_dsm_typed(context->handle, &context->guid, rev,
+				      COMMAND_ID_CONFIG_TABLE, &req, ACPI_TYPE_PACKAGE);
 	if (!out)
 		return;
-	if (out->type == ACPI_TYPE_PACKAGE && out->package.count >= 3 &&
+	if (out->package.count >= 3 &&
 	    out->package.elements[0].type == ACPI_TYPE_INTEGER &&
 	    out->package.elements[1].type == ACPI_TYPE_INTEGER &&
 	    out->package.elements[2].type == ACPI_TYPE_PACKAGE &&

@@ -493,7 +493,7 @@ static void bfq_active_insert(struct bfq_service_tree *st,
 	bfq_update_active_tree(node);
 
 	if (bfqq)
-		list_add(&bfqq->bfqq_list, &bfqq->bfqd->active_list);
+		list_add(&bfqq->bfqq_list, &bfqq->bfqd->active_list[bfqq->actuator_idx]);
 
 	bfq_inc_active_entities(entity);
 }

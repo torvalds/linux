@@ -10,7 +10,7 @@
 #include <linux/platform_device.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
-#include <linux/qcom_scm.h>
+#include <linux/firmware/qcom/qcom_scm.h>
 
 #define LMH_NODE_DCVS			0x44435653
 #define LMH_CLUSTER0_NODE_ID		0x6370302D

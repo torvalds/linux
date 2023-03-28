@@ -519,3 +519,58 @@ void mod_build_hf_vsif_infopacket(const struct dc_stream_state *stream,
 		info_packet->valid = true;
 }
 
+void mod_build_adaptive_sync_infopacket(const struct dc_stream_state *stream,
+		enum adaptive_sync_type asType,
+		const struct AS_Df_params *param,
+		struct dc_info_packet *info_packet)
+{
+	info_packet->valid = false;
+
+	memset(info_packet, 0, sizeof(struct dc_info_packet));
+
+	switch (asType) {
+	case ADAPTIVE_SYNC_TYPE_DP:
+		if (stream != NULL)
+			mod_build_adaptive_sync_infopacket_v2(stream, param, info_packet);
+		break;
+	case FREESYNC_TYPE_PCON_IN_WHITELIST:
+		mod_build_adaptive_sync_infopacket_v1(info_packet);
+		break;
+	case ADAPTIVE_SYNC_TYPE_NONE:
+	case FREESYNC_TYPE_PCON_NOT_IN_WHITELIST:
+	default:
+		break;
+	}
+}
+
+void mod_build_adaptive_sync_infopacket_v1(struct dc_info_packet *info_packet)
+{
+	info_packet->valid = true;
+	// HEADER {HB0, HB1, HB2, HB3} = {00, Type, Version, Length}
+	info_packet->hb0 = 0x00;
+	info_packet->hb1 = 0x22;
+	info_packet->hb2 = AS_SDP_VER_1;
+	info_packet->hb3 = 0x00;
+}
+
+void mod_build_adaptive_sync_infopacket_v2(const struct dc_stream_state *stream,
+		const struct AS_Df_params *param,
+		struct dc_info_packet *info_packet)
+{
+	info_packet->valid = true;
+	// HEADER {HB0, HB1, HB2, HB3} = {00, Type, Version, Length}
+	info_packet->hb0 = 0x00;
+	info_packet->hb1 = 0x22;
+	info_packet->hb2 = AS_SDP_VER_2;
+	info_packet->hb3 = AS_DP_SDP_LENGTH;
+
+	//Payload
+	info_packet->sb[0] = param->supportMode; //1: AVT; 0: FAVT
+	info_packet->sb[1] = (stream->timing.v_total & 0x00FF);
+	info_packet->sb[2] = (stream->timing.v_total & 0xFF00) >> 8;
+	//info_packet->sb[3] = 0x00; Target RR, not use fot AVT
+	info_packet->sb[4] = (param->increase.support << 6 | param->decrease.support << 7);
+	info_packet->sb[5] = param->increase.frame_duration_hex;
+	info_packet->sb[6] = param->decrease.frame_duration_hex;
+}
+

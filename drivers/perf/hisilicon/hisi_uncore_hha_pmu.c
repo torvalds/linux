@@ -519,7 +519,7 @@ static int hisi_hha_pmu_probe(struct platform_device *pdev)
 
 	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "hisi_sccl%u_hha%u",
 			      hha_pmu->sccl_id, hha_pmu->index_id);
-	hisi_pmu_init(&hha_pmu->pmu, name, hha_pmu->pmu_events.attr_groups, THIS_MODULE);
+	hisi_pmu_init(hha_pmu, name, THIS_MODULE);
 
 	ret = perf_pmu_register(&hha_pmu->pmu, name, -1);
 	if (ret) {

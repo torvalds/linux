@@ -250,10 +250,11 @@ static void ibmvnic_set_affinity(struct ibmvnic_adapter *adapter)
 	struct ibmvnic_sub_crq_queue **rxqs = adapter->rx_scrq;
 	struct ibmvnic_sub_crq_queue **txqs = adapter->tx_scrq;
 	struct ibmvnic_sub_crq_queue *queue;
-	int num_rxqs = adapter->num_active_rx_scrqs;
-	int num_txqs = adapter->num_active_tx_scrqs;
+	int num_rxqs = adapter->num_active_rx_scrqs, i_rxqs = 0;
+	int num_txqs = adapter->num_active_tx_scrqs, i_txqs = 0;
 	int total_queues, stride, stragglers, i;
 	unsigned int num_cpu, cpu;
+	bool is_rx_queue;
 	int rc = 0;
 
 	netdev_dbg(adapter->netdev, "%s: Setting irq affinity hints", __func__);
@@ -273,30 +274,32 @@ static void ibmvnic_set_affinity(struct ibmvnic_adapter *adapter)
 	/* next available cpu to assign irq to */
 	cpu = cpumask_next(-1, cpu_online_mask);
 
-	for (i = 0; i < num_txqs; i++) {
-		queue = txqs[i];
+	for (i = 0; i < total_queues; i++) {
+		is_rx_queue = false;
+		/* balance core load by alternating rx and tx assignments
+		 * ex: TX0 -> RX0 -> TX1 -> RX1 etc.
+		 */
+		if ((i % 2 == 1 && i_rxqs < num_rxqs) || i_txqs == num_txqs) {
+			queue = rxqs[i_rxqs++];
+			is_rx_queue = true;
+		} else {
+			queue = txqs[i_txqs++];
+		}
+
 		rc = ibmvnic_set_queue_affinity(queue, &cpu, &stragglers,
 						stride);
 		if (rc)
 			goto out;
 
-		if (!queue)
+		if (!queue || is_rx_queue)
 			continue;
 
 		rc = __netif_set_xps_queue(adapter->netdev,
 					   cpumask_bits(queue->affinity_mask),
-					   i, XPS_CPUS);
+					   i_txqs - 1, XPS_CPUS);
 		if (rc)
 			netdev_warn(adapter->netdev, "%s: Set XPS on queue %d failed, rc = %d.\n",
-				    __func__, i, rc);
-	}
-
-	for (i = 0; i < num_rxqs; i++) {
-		queue = rxqs[i];
-		rc = ibmvnic_set_queue_affinity(queue, &cpu, &stragglers,
-						stride);
-		if (rc)
-			goto out;
+				    __func__, i_txqs - 1, rc);
 	}
 
 out:

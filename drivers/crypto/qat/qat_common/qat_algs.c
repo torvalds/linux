@@ -435,8 +435,8 @@ static void qat_alg_skcipher_init_com(struct qat_alg_skcipher_ctx *ctx,
 	} else if (aes_v2_capable && mode == ICP_QAT_HW_CIPHER_CTR_MODE) {
 		ICP_QAT_FW_LA_SLICE_TYPE_SET(header->serv_specif_flags,
 					     ICP_QAT_FW_LA_USE_UCS_SLICE_TYPE);
-		keylen = round_up(keylen, 16);
 		memcpy(cd->ucs_aes.key, key, keylen);
+		keylen = round_up(keylen, 16);
 	} else {
 		memcpy(cd->aes.key, key, keylen);
 	}
@@ -676,7 +676,7 @@ static void qat_aead_alg_callback(struct icp_qat_fw_la_resp *qat_resp,
 	qat_bl_free_bufl(inst->accel_dev, &qat_req->buf);
 	if (unlikely(qat_res != ICP_QAT_FW_COMN_STATUS_FLAG_OK))
 		res = -EBADMSG;
-	areq->base.complete(&areq->base, res);
+	aead_request_complete(areq, res);
 }
 
 static void qat_alg_update_iv_ctr_mode(struct qat_crypto_request *qat_req)
@@ -752,7 +752,7 @@ static void qat_skcipher_alg_callback(struct icp_qat_fw_la_resp *qat_resp,
 
 	memcpy(sreq->iv, qat_req->iv, AES_BLOCK_SIZE);
 
-	sreq->base.complete(&sreq->base, res);
+	skcipher_request_complete(sreq, res);
 }
 
 void qat_alg_callback(void *resp)

@@ -15,8 +15,6 @@
 #include "../../../util/pmu.h"
 #include "../../../util/fncache.h"
 
-#define TEMPLATE_ALIAS	"%s/bus/event_source/devices/%s/alias"
-
 struct pmu_alias {
 	char *name;
 	char *alias;
@@ -72,17 +70,13 @@ static int setup_pmu_alias_list(void)
 	char path[PATH_MAX];
 	DIR *dir;
 	struct dirent *dent;
-	const char *sysfs = sysfs__mountpoint();
 	struct pmu_alias *pmu_alias;
 	char buf[MAX_PMU_NAME_LEN];
 	FILE *file;
 	int ret = -ENOMEM;
 
-	if (!sysfs)
+	if (!perf_pmu__event_source_devices_scnprintf(path, sizeof(path)))
 		return -1;
-
-	snprintf(path, PATH_MAX,
-		 "%s" EVENT_SOURCE_DEVICE_PATH, sysfs);
 
 	dir = opendir(path);
 	if (!dir)
@@ -93,9 +87,7 @@ static int setup_pmu_alias_list(void)
 		    !strcmp(dent->d_name, ".."))
 			continue;
 
-		snprintf(path, PATH_MAX,
-			 TEMPLATE_ALIAS, sysfs, dent->d_name);
-
+		perf_pmu__pathname_scnprintf(path, sizeof(path), dent->d_name, "alias");
 		if (!file_available(path))
 			continue;
 

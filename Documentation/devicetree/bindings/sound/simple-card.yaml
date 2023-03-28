@@ -205,6 +205,8 @@ patternProperties:
     $ref: "#/definitions/dai"
   "^simple-audio-card,codec(@[0-9a-f]+)?$":
     $ref: "#/definitions/dai"
+  "^simple-audio-card,plat(@[0-9a-f]+)?$":
+    $ref: "#/definitions/dai"
 
   "^simple-audio-card,dai-link(@[0-9a-f]+)?$":
     description: |
@@ -215,6 +217,10 @@ patternProperties:
       reg:
         maxItems: 1
 
+      "#address-cells":
+        const: 1
+      "#size-cells":
+        const: 0
       # common properties
       frame-master:
         $ref: "#/definitions/frame-master"
@@ -244,9 +250,9 @@ patternProperties:
         maxItems: 1
 
     patternProperties:
-      "^cpu(@[0-9a-f]+)?":
+      "^cpu(-[0-9]+)?$":
         $ref: "#/definitions/dai"
-      "^codec(@[0-9a-f]+)?":
+      "^codec(-[0-9]+)?$":
         $ref: "#/definitions/dai"
     additionalProperties: false
 
@@ -462,16 +468,16 @@ examples:
 
             convert-channels = <8>; /* TDM Split */
 
-            sndcpu1: cpu0 {
+            sndcpu1: cpu-0 {
                 sound-dai = <&rcar_sound 1>;
             };
-            cpu1 {
+            cpu-1 {
                 sound-dai = <&rcar_sound 2>;
             };
-            cpu2 {
+            cpu-2 {
                 sound-dai = <&rcar_sound 3>;
             };
-            cpu3 {
+            cpu-3 {
                 sound-dai = <&rcar_sound 4>;
             };
             codec {

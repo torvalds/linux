@@ -1055,6 +1055,9 @@ static struct phylink_pcs *memac_pcs_create(struct device_node *mac_node,
 		return ERR_PTR(-EPROBE_DEFER);
 
 	pcs = lynx_pcs_create(mdiodev);
+	if (!pcs)
+		mdio_device_free(mdiodev);
+
 	return pcs;
 }
 
@@ -1152,13 +1155,12 @@ int memac_initialization(struct mac_device *mac_dev,
 	else
 		memac->sgmii_pcs = pcs;
 
-	memac->serdes = devm_of_phy_get(mac_dev->dev, mac_node, "serdes");
-	err = PTR_ERR(memac->serdes);
-	if (err == -ENODEV || err == -ENOSYS) {
+	memac->serdes = devm_of_phy_optional_get(mac_dev->dev, mac_node,
+						 "serdes");
+	if (!memac->serdes) {
 		dev_dbg(mac_dev->dev, "could not get (optional) serdes\n");
-		memac->serdes = NULL;
 	} else if (IS_ERR(memac->serdes)) {
-		dev_err_probe(mac_dev->dev, err, "could not get serdes\n");
+		err = PTR_ERR(memac->serdes);
 		goto _return_fm_mac_free;
 	}
 

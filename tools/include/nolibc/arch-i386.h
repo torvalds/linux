@@ -7,18 +7,6 @@
 #ifndef _NOLIBC_ARCH_I386_H
 #define _NOLIBC_ARCH_I386_H
 
-/* O_* macros for fcntl/open are architecture-specific */
-#define O_RDONLY            0
-#define O_WRONLY            1
-#define O_RDWR              2
-#define O_CREAT          0x40
-#define O_EXCL           0x80
-#define O_NOCTTY        0x100
-#define O_TRUNC         0x200
-#define O_APPEND        0x400
-#define O_NONBLOCK      0x800
-#define O_DIRECTORY   0x10000
-
 /* The struct returned by the stat() syscall, 32-bit only, the syscall returns
  * exactly 56 bytes (stops before the unused array).
  */
@@ -190,6 +178,9 @@ struct sys_stat_struct {
 	_eax;							\
 })
 
+char **environ __attribute__((weak));
+const unsigned long *_auxv __attribute__((weak));
+
 /* startup code */
 /*
  * i386 System V ABI mandates:
@@ -197,23 +188,32 @@ struct sys_stat_struct {
  * 2) The deepest stack frame should be set to zero
  *
  */
-__asm__ (".section .text\n"
-    ".weak _start\n"
-    "_start:\n"
-    "pop %eax\n"                // argc   (first arg, %eax)
-    "mov %esp, %ebx\n"          // argv[] (second arg, %ebx)
-    "lea 4(%ebx,%eax,4),%ecx\n" // then a NULL then envp (third arg, %ecx)
-    "xor %ebp, %ebp\n"          // zero the stack frame
-    "and $-16, %esp\n"          // x86 ABI : esp must be 16-byte aligned before
-    "sub $4, %esp\n"            // the call instruction (args are aligned)
-    "push %ecx\n"               // push all registers on the stack so that we
-    "push %ebx\n"               // support both regparm and plain stack modes
-    "push %eax\n"
-    "call main\n"               // main() returns the status code in %eax
-    "mov %eax, %ebx\n"          // retrieve exit code (32-bit int)
-    "movl $1, %eax\n"           // NR_exit == 1
-    "int $0x80\n"               // exit now
-    "hlt\n"                     // ensure it does not
-    "");
+void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) _start(void)
+{
+	__asm__ volatile (
+		"pop %eax\n"                // argc   (first arg, %eax)
+		"mov %esp, %ebx\n"          // argv[] (second arg, %ebx)
+		"lea 4(%ebx,%eax,4),%ecx\n" // then a NULL then envp (third arg, %ecx)
+		"mov %ecx, environ\n"       // save environ
+		"xor %ebp, %ebp\n"          // zero the stack frame
+		"mov %ecx, %edx\n"          // search for auxv (follows NULL after last env)
+		"0:\n"
+		"add $4, %edx\n"            // search for auxv using edx, it follows the
+		"cmp -4(%edx), %ebp\n"      // ... NULL after last env (ebp is zero here)
+		"jnz 0b\n"
+		"mov %edx, _auxv\n"         // save it into _auxv
+		"and $-16, %esp\n"          // x86 ABI : esp must be 16-byte aligned before
+		"sub $4, %esp\n"            // the call instruction (args are aligned)
+		"push %ecx\n"               // push all registers on the stack so that we
+		"push %ebx\n"               // support both regparm and plain stack modes
+		"push %eax\n"
+		"call main\n"               // main() returns the status code in %eax
+		"mov %eax, %ebx\n"          // retrieve exit code (32-bit int)
+		"movl $1, %eax\n"           // NR_exit == 1
+		"int $0x80\n"               // exit now
+		"hlt\n"                     // ensure it does not
+	);
+	__builtin_unreachable();
+}
 
 #endif // _NOLIBC_ARCH_I386_H

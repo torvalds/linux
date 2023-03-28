@@ -343,14 +343,12 @@ static ssize_t nfs_direct_read_schedule_iovec(struct nfs_direct_req *dreq,
 			struct nfs_page *req;
 			unsigned int req_len = min_t(size_t, bytes, PAGE_SIZE - pgbase);
 			/* XXX do we need to do the eof zeroing found in async_filler? */
-			req = nfs_create_request(dreq->ctx, pagevec[i],
-						 pgbase, req_len);
+			req = nfs_page_create_from_page(dreq->ctx, pagevec[i],
+							pgbase, pos, req_len);
 			if (IS_ERR(req)) {
 				result = PTR_ERR(req);
 				break;
 			}
-			req->wb_index = pos >> PAGE_SHIFT;
-			req->wb_offset = pos & ~PAGE_MASK;
 			if (!nfs_pageio_add_request(&desc, req)) {
 				result = desc.pg_error;
 				nfs_release_request(req);
@@ -802,8 +800,8 @@ static ssize_t nfs_direct_write_schedule_iovec(struct nfs_direct_req *dreq,
 			struct nfs_page *req;
 			unsigned int req_len = min_t(size_t, bytes, PAGE_SIZE - pgbase);
 
-			req = nfs_create_request(dreq->ctx, pagevec[i],
-						 pgbase, req_len);
+			req = nfs_page_create_from_page(dreq->ctx, pagevec[i],
+							pgbase, pos, req_len);
 			if (IS_ERR(req)) {
 				result = PTR_ERR(req);
 				break;
@@ -816,8 +814,6 @@ static ssize_t nfs_direct_write_schedule_iovec(struct nfs_direct_req *dreq,
 			}
 
 			nfs_lock_request(req);
-			req->wb_index = pos >> PAGE_SHIFT;
-			req->wb_offset = pos & ~PAGE_MASK;
 			if (!nfs_pageio_add_request(&desc, req)) {
 				result = desc.pg_error;
 				nfs_unlock_and_release_request(req);

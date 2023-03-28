@@ -28,6 +28,7 @@ enum rtw89_debug_mask {
 	RTW89_DBG_STATE = BIT(17),
 	RTW89_DBG_WOW = BIT(18),
 	RTW89_DBG_UL_TB = BIT(19),
+	RTW89_DBG_CHAN = BIT(20),
 
 	RTW89_DBG_UNEXP = BIT(31),
 };

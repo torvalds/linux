@@ -10,7 +10,7 @@ maintainers:
   - Shawn Guo <shawnguo@kernel.org>
 
 allOf:
-  - $ref: "/schemas/spi/spi-controller.yaml#"
+  - $ref: /schemas/spi/spi-controller.yaml#
 
 properties:
   compatible:

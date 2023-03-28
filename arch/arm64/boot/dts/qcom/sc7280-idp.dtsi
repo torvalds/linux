@@ -19,6 +19,7 @@
 	aliases {
 		bluetooth0 = &bluetooth;
 		serial1 = &uart7;
+		wifi0 = &wifi;
 	};
 
 	max98360a: audio-codec-0 {
@@ -112,12 +113,8 @@
 			"TX SWR_DMIC6", "DMIC7_OUTPUT",
 			"TX SWR_DMIC7", "DMIC8_OUTPUT";
 
-		qcom,msm-mbhc-hphl-swh = <1>;
-		qcom,msm-mbhc-gnd-swh = <1>;
-
 		#address-cells = <1>;
 		#size-cells = <0>;
-		#sound-dai-cells = <0>;
 
 		dai-link@0 {
 			link-name = "MAX98360A";
@@ -374,11 +371,6 @@
 
 &gpi_dma1 {
 	status = "okay";
-};
-
-&ipa {
-	status = "okay";
-	modem-init;
 };
 
 &lpass_cpu {
@@ -736,6 +728,7 @@
 &tlmm {
 	amp_en: amp-en-state {
 		pins = "gpio63";
+		function = "gpio";
 		bias-pull-down;
 		drive-strength = <2>;
 	};

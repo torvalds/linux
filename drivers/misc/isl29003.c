@@ -186,7 +186,7 @@ static ssize_t isl29003_show_range(struct device *dev,
 {
 	struct i2c_client *client = to_i2c_client(dev);
 
-	return sprintf(buf, "%i\n", isl29003_get_range(client));
+	return sysfs_emit(buf, "%i\n", isl29003_get_range(client));
 }
 
 static ssize_t isl29003_store_range(struct device *dev,
@@ -222,7 +222,7 @@ static ssize_t isl29003_show_resolution(struct device *dev,
 {
 	struct i2c_client *client = to_i2c_client(dev);
 
-	return sprintf(buf, "%d\n", isl29003_get_resolution(client));
+	return sysfs_emit(buf, "%d\n", isl29003_get_resolution(client));
 }
 
 static ssize_t isl29003_store_resolution(struct device *dev,
@@ -256,7 +256,7 @@ static ssize_t isl29003_show_mode(struct device *dev,
 {
 	struct i2c_client *client = to_i2c_client(dev);
 
-	return sprintf(buf, "%d\n", isl29003_get_mode(client));
+	return sysfs_emit(buf, "%d\n", isl29003_get_mode(client));
 }
 
 static ssize_t isl29003_store_mode(struct device *dev,
@@ -291,7 +291,7 @@ static ssize_t isl29003_show_power_state(struct device *dev,
 {
 	struct i2c_client *client = to_i2c_client(dev);
 
-	return sprintf(buf, "%d\n", isl29003_get_power_state(client));
+	return sysfs_emit(buf, "%d\n", isl29003_get_power_state(client));
 }
 
 static ssize_t isl29003_store_power_state(struct device *dev,
@@ -327,7 +327,7 @@ static ssize_t isl29003_show_lux(struct device *dev,
 	if (!isl29003_get_power_state(client))
 		return -EBUSY;
 
-	return sprintf(buf, "%d\n", isl29003_get_adc_value(client));
+	return sysfs_emit(buf, "%d\n", isl29003_get_adc_value(client));
 }
 
 static DEVICE_ATTR(lux, S_IRUGO, isl29003_show_lux, NULL);

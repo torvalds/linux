@@ -768,8 +768,6 @@
 #define gem_readl_n(port, reg, idx)		(port)->macb_reg_readl((port), GEM_##reg + idx * 4)
 #define gem_writel_n(port, reg, idx, value)	(port)->macb_reg_writel((port), GEM_##reg + idx * 4, (value))
 
-#define PTP_TS_BUFFER_SIZE		128 /* must be power of 2 */
-
 /* Conditional GEM/MACB macros.  These perform the operation to the correct
  * register dependent on whether the device is a GEM or a MACB.  For registers
  * and bitfields that are common across both devices, use macb_{read,write}l
@@ -818,11 +816,6 @@ struct macb_dma_desc_64 {
 struct macb_dma_desc_ptp {
 	u32	ts_1;
 	u32	ts_2;
-};
-
-struct gem_tx_ts {
-	struct sk_buff *skb;
-	struct macb_dma_desc_ptp desc_ptp;
 };
 #endif
 
@@ -1224,12 +1217,6 @@ struct macb_queue {
 	void			*rx_buffers;
 	struct napi_struct	napi_rx;
 	struct queue_stats stats;
-
-#ifdef CONFIG_MACB_USE_HWSTAMP
-	struct work_struct	tx_ts_task;
-	unsigned int		tx_ts_head, tx_ts_tail;
-	struct gem_tx_ts	tx_timestamps[PTP_TS_BUFFER_SIZE];
-#endif
 };
 
 struct ethtool_rx_fs_item {
@@ -1340,14 +1327,14 @@ enum macb_bd_control {
 
 void gem_ptp_init(struct net_device *ndev);
 void gem_ptp_remove(struct net_device *ndev);
-int gem_ptp_txstamp(struct macb_queue *queue, struct sk_buff *skb, struct macb_dma_desc *des);
+void gem_ptp_txstamp(struct macb *bp, struct sk_buff *skb, struct macb_dma_desc *desc);
 void gem_ptp_rxstamp(struct macb *bp, struct sk_buff *skb, struct macb_dma_desc *desc);
-static inline int gem_ptp_do_txstamp(struct macb_queue *queue, struct sk_buff *skb, struct macb_dma_desc *desc)
+static inline void gem_ptp_do_txstamp(struct macb *bp, struct sk_buff *skb, struct macb_dma_desc *desc)
 {
-	if (queue->bp->tstamp_config.tx_type == TSTAMP_DISABLED)
-		return -ENOTSUPP;
+	if (bp->tstamp_config.tx_type == TSTAMP_DISABLED)
+		return;
 
-	return gem_ptp_txstamp(queue, skb, desc);
+	gem_ptp_txstamp(bp, skb, desc);
 }
 
 static inline void gem_ptp_do_rxstamp(struct macb *bp, struct sk_buff *skb, struct macb_dma_desc *desc)
@@ -1363,11 +1350,7 @@ int gem_set_hwtst(struct net_device *dev, struct ifreq *ifr, int cmd);
 static inline void gem_ptp_init(struct net_device *ndev) { }
 static inline void gem_ptp_remove(struct net_device *ndev) { }
 
-static inline int gem_ptp_do_txstamp(struct macb_queue *queue, struct sk_buff *skb, struct macb_dma_desc *desc)
-{
-	return -1;
-}
-
+static inline void gem_ptp_do_txstamp(struct macb *bp, struct sk_buff *skb, struct macb_dma_desc *desc) { }
 static inline void gem_ptp_do_rxstamp(struct macb *bp, struct sk_buff *skb, struct macb_dma_desc *desc) { }
 #endif
 

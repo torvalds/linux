@@ -216,7 +216,7 @@
 					clock-names = "KMIREFCLK", "apb_pclk";
 				};
 
-				v2m_serial0: uart@9000 {
+				v2m_serial0: serial@9000 {
 					compatible = "arm,pl011", "arm,primecell";
 					reg = <0x09000 0x1000>;
 					interrupts = <5>;
@@ -224,7 +224,7 @@
 					clock-names = "uartclk", "apb_pclk";
 				};
 
-				v2m_serial1: uart@a000 {
+				v2m_serial1: serial@a000 {
 					compatible = "arm,pl011", "arm,primecell";
 					reg = <0x0a000 0x1000>;
 					interrupts = <6>;
@@ -232,7 +232,7 @@
 					clock-names = "uartclk", "apb_pclk";
 				};
 
-				v2m_serial2: uart@b000 {
+				v2m_serial2: serial@b000 {
 					compatible = "arm,pl011", "arm,primecell";
 					reg = <0x0b000 0x1000>;
 					interrupts = <7>;
@@ -240,7 +240,7 @@
 					clock-names = "uartclk", "apb_pclk";
 				};
 
-				v2m_serial3: uart@c000 {
+				v2m_serial3: serial@c000 {
 					compatible = "arm,pl011", "arm,primecell";
 					reg = <0x0c000 0x1000>;
 					interrupts = <8>;

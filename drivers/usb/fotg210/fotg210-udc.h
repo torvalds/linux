@@ -58,6 +58,8 @@
 
 /* Device Mask of Interrupt Group Register (0x130) */
 #define FOTG210_DMIGR		0x130
+#define DMIGR_MINT_G2		(1 << 2)
+#define DMIGR_MINT_G1		(1 << 1)
 #define DMIGR_MINT_G0		(1 << 0)
 
 /* Device Mask of Interrupt Source Group 0(0x134) */
@@ -231,11 +233,11 @@ struct fotg210_ep {
 struct fotg210_udc {
 	spinlock_t		lock; /* protect the struct */
 	void __iomem		*reg;
-	struct clk		*pclk;
 
 	unsigned long		irq_trigger;
 
 	struct device			*dev;
+	struct fotg210			*fotg;
 	struct usb_phy			*phy;
 	struct usb_gadget		gadget;
 	struct usb_gadget_driver	*driver;

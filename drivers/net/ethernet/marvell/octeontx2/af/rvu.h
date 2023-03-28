@@ -108,6 +108,8 @@ struct rvu_block {
 	u64  lfreset_reg;
 	unsigned char name[NAME_SIZE];
 	struct rvu *rvu;
+	u64 cpt_flt_eng_map[3];
+	u64 cpt_rcvrd_eng_map[3];
 };
 
 struct nix_mcast {
@@ -459,6 +461,7 @@ struct rvu {
 	struct rvu_pfvf		*pf;
 	struct rvu_pfvf		*hwvf;
 	struct mutex		rsrc_lock; /* Serialize resource alloc/free */
+	struct mutex		alias_lock; /* Serialize bar2 alias access */
 	int			vfs; /* Number of VFs attached to RVU */
 	int			nix_blkaddr[MAX_NIX_BLKS];
 
@@ -510,6 +513,7 @@ struct rvu {
 	struct ptp		*ptp;
 
 	int			mcs_blk_cnt;
+	int			cpt_pf_num;
 
 #ifdef CONFIG_DEBUG_FS
 	struct rvu_debugfs	rvu_dbg;
@@ -524,6 +528,8 @@ struct rvu {
 	struct list_head	mcs_intrq_head;
 	/* mcs interrupt queue lock */
 	spinlock_t		mcs_intrq_lock;
+	/* CPT interrupt lock */
+	spinlock_t		cpt_intr_lock;
 };
 
 static inline void rvu_write64(struct rvu *rvu, u64 block, u64 offset, u64 val)
@@ -544,6 +550,17 @@ static inline void rvupf_write64(struct rvu *rvu, u64 offset, u64 val)
 static inline u64 rvupf_read64(struct rvu *rvu, u64 offset)
 {
 	return readq(rvu->pfreg_base + offset);
+}
+
+static inline void rvu_bar2_sel_write64(struct rvu *rvu, u64 block, u64 offset, u64 val)
+{
+	/* HW requires read back of RVU_AF_BAR2_SEL register to make sure completion of
+	 * write operation.
+	 */
+	rvu_write64(rvu, block, offset, val);
+	rvu_read64(rvu, block, offset);
+	/* Barrier to ensure read completes before accessing LF registers */
+	mb();
 }
 
 /* Silicon revisions */
@@ -865,10 +882,17 @@ void rvu_cpt_unregister_interrupts(struct rvu *rvu);
 int rvu_cpt_lf_teardown(struct rvu *rvu, u16 pcifunc, int blkaddr, int lf,
 			int slot);
 int rvu_cpt_ctx_flush(struct rvu *rvu, u16 pcifunc);
+int rvu_cpt_init(struct rvu *rvu);
+
+#define NDC_AF_BANK_MASK       GENMASK_ULL(7, 0)
+#define NDC_AF_BANK_LINE_MASK  GENMASK_ULL(31, 16)
 
 /* CN10K RVU */
 int rvu_set_channels_base(struct rvu *rvu);
 void rvu_program_channels(struct rvu *rvu);
+
+/* CN10K NIX */
+void rvu_nix_block_cn10k_init(struct rvu *rvu, struct nix_hw *nix_hw);
 
 /* CN10K RVU - LMT*/
 void rvu_reset_lmt_map_tbl(struct rvu *rvu, u16 pcifunc);
@@ -880,6 +904,8 @@ void rvu_dbg_exit(struct rvu *rvu);
 static inline void rvu_dbg_init(struct rvu *rvu) {}
 static inline void rvu_dbg_exit(struct rvu *rvu) {}
 #endif
+
+int rvu_ndc_fix_locked_cacheline(struct rvu *rvu, int blkaddr);
 
 /* RVU Switch */
 void rvu_switch_enable(struct rvu *rvu);

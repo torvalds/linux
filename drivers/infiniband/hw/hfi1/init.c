@@ -464,7 +464,7 @@ bail:
  *
  * This wrapper is the free function that matches hfi1_create_ctxtdata().
  * When a context is done being used (kernel or user), this function is called
- * for the "final" put to match the kref init from hf1i_create_ctxtdata().
+ * for the "final" put to match the kref init from hfi1_create_ctxtdata().
  * Other users of the context do a get/put sequence to make sure that the
  * structure isn't removed while in use.
  */

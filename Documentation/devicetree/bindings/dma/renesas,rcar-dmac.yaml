@@ -10,7 +10,7 @@ maintainers:
   - Yoshihiro Shimoda <yoshihiro.shimoda.uh@renesas.com>
 
 allOf:
-  - $ref: "dma-controller.yaml#"
+  - $ref: dma-controller.yaml#
 
 properties:
   compatible:

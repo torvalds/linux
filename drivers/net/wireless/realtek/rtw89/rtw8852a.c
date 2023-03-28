@@ -1035,7 +1035,7 @@ static void rtw8852a_spur_elimination(struct rtw89_dev *rtwdev, u8 central_ch)
 				       0x210);
 		rtw89_phy_write32_mask(rtwdev, R_P1_NBIIDX, B_P1_NBIIDX_VAL,
 				       0x210);
-		rtw89_phy_write32_mask(rtwdev, R_SEG0CSI, 0xfff, 0x7c0);
+		rtw89_phy_write32_mask(rtwdev, R_SEG0CSI, B_SEG0CSI_IDX, 0x7c0);
 		rtw89_phy_write32_mask(rtwdev, R_P0_NBIIDX,
 				       B_P0_NBIIDX_NOTCH_EN, 0x1);
 		rtw89_phy_write32_mask(rtwdev, R_P1_NBIIDX,
@@ -1047,7 +1047,7 @@ static void rtw8852a_spur_elimination(struct rtw89_dev *rtwdev, u8 central_ch)
 				       0x210);
 		rtw89_phy_write32_mask(rtwdev, R_P1_NBIIDX, B_P1_NBIIDX_VAL,
 				       0x210);
-		rtw89_phy_write32_mask(rtwdev, R_SEG0CSI, 0xfff, 0x40);
+		rtw89_phy_write32_mask(rtwdev, R_SEG0CSI, B_SEG0CSI_IDX, 0x40);
 		rtw89_phy_write32_mask(rtwdev, R_P0_NBIIDX,
 				       B_P0_NBIIDX_NOTCH_EN, 0x1);
 		rtw89_phy_write32_mask(rtwdev, R_P1_NBIIDX,
@@ -1059,7 +1059,7 @@ static void rtw8852a_spur_elimination(struct rtw89_dev *rtwdev, u8 central_ch)
 				       0x2d0);
 		rtw89_phy_write32_mask(rtwdev, R_P1_NBIIDX, B_P1_NBIIDX_VAL,
 				       0x2d0);
-		rtw89_phy_write32_mask(rtwdev, R_SEG0CSI, 0xfff, 0x740);
+		rtw89_phy_write32_mask(rtwdev, R_SEG0CSI, B_SEG0CSI_IDX, 0x740);
 		rtw89_phy_write32_mask(rtwdev, R_P0_NBIIDX,
 				       B_P0_NBIIDX_NOTCH_EN, 0x1);
 		rtw89_phy_write32_mask(rtwdev, R_P1_NBIIDX,
@@ -1878,8 +1878,12 @@ static
 void rtw8852a_btc_update_bt_cnt(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
+	const struct rtw89_btc_ver *ver = btc->ver;
 	struct rtw89_btc_cx *cx = &btc->cx;
 	u32 val;
+
+	if (ver->fcxbtcrpt != 1)
+		return;
 
 	val = rtw89_read32(rtwdev, R_AX_BT_STAST_HIGH);
 	cx->cnt_bt[BTC_BCNT_HIPRI_TX] = FIELD_GET(B_AX_STATIS_BT_HI_TX_MASK, val);
@@ -2051,6 +2055,7 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.chip_id		= RTL8852A,
 	.ops			= &rtw8852a_chip_ops,
 	.fw_name		= "rtw89/rtw8852a_fw.bin",
+	.try_ce_fw		= false,
 	.fifo_size		= 458752,
 	.dle_scc_rsvd_size	= 0,
 	.max_amsdu_limit	= 3500,
@@ -2106,20 +2111,6 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.btcx_desired		= 0x7,
 	.scbd			= 0x1,
 	.mailbox		= 0x1,
-	.btc_fwinfo_buf		= 1024,
-
-	.fcxbtcrpt_ver		= 1,
-	.fcxtdma_ver		= 1,
-	.fcxslots_ver		= 1,
-	.fcxcysta_ver		= 2,
-	.fcxstep_ver		= 2,
-	.fcxnullsta_ver		= 1,
-	.fcxmreg_ver		= 1,
-	.fcxgpiodbg_ver		= 1,
-	.fcxbtver_ver		= 1,
-	.fcxbtscan_ver		= 1,
-	.fcxbtafh_ver		= 1,
-	.fcxbtdevinfo_ver	= 1,
 
 	.afh_guard_ch		= 6,
 	.wl_rssi_thres		= rtw89_btc_8852a_wl_rssi_thres,
@@ -2149,6 +2140,7 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.dcfo_comp_sft		= 3,
 	.imr_info		= &rtw8852a_imr_info,
 	.rrsr_cfgs		= &rtw8852a_rrsr_cfgs,
+	.bss_clr_map_reg	= R_BSS_CLR_MAP,
 	.dma_ch_mask		= 0,
 #ifdef CONFIG_PM
 	.wowlan_stub		= &rtw_wowlan_stub_8852a,

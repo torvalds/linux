@@ -60,36 +60,18 @@ establish the integrity of the Linux kernel itself.
 PGP tools
 =========
 
-Use GnuPG v2
-------------
+Use GnuPG 2.2 or later
+----------------------
 
 Your distro should already have GnuPG installed by default, you just
-need to verify that you are using version 2.x and not the legacy 1.4
-release -- many distributions still package both, with the default
-``gpg`` command invoking GnuPG v.1. To check, run::
+need to verify that you are using a reasonably recent version of it.
+To check, run::
 
     $ gpg --version | head -n1
 
-If you see ``gpg (GnuPG) 1.4.x``, then you are using GnuPG v.1. Try the
-``gpg2`` command (if you don't have it, you may need to install the
-gnupg2 package)::
-
-    $ gpg2 --version | head -n1
-
-If you see ``gpg (GnuPG) 2.x.x``, then you are good to go. This guide
-will assume you have the version 2.2 of GnuPG (or later). If you are
-using version 2.0 of GnuPG, then some of the commands in this guide will
-not work, and you should consider installing the latest 2.2 version of
-GnuPG. Versions of gnupg-2.1.11 and later should be compatible for the
-purposes of this guide as well.
-
-If you have both ``gpg`` and ``gpg2`` commands, you should make sure you
-are always using GnuPG v2, not the legacy version. You can enforce this
-by setting the appropriate alias::
-
-    $ alias gpg=gpg2
-
-You can put that in your ``.bashrc`` to make sure it's always the case.
+If you have version 2.2 or above, then you are good to go. If you have a
+version that is prior than 2.2, then some commands from this guide may
+not work.
 
 Configure gpg-agent options
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -150,9 +132,9 @@ PGP defines four capabilities that a key can have:
 The key with the **[C]** capability is often called the "master" key,
 but this terminology is misleading because it implies that the Certify
 key can be used in place of any of other subkey on the same chain (like
-a physical "master key" can be used to open the locks made for other
-keys). Since this is not the case, this guide will refer to it as "the
-Certify key" to avoid any ambiguity.
+a physical "master key" can be used to open locks made for other keys).
+Since this is not the case, this guide will refer to it as "the Certify
+key" to avoid any ambiguity.
 
 It is critical to fully understand the following:
 
@@ -186,10 +168,10 @@ If you used the default parameters when generating your key, then that
 is what you will have. You can verify by running ``gpg --list-secret-keys``,
 for example::
 
-    sec   rsa2048 2018-01-23 [SC] [expires: 2020-01-23]
+    sec   ed25519 2022-12-20 [SC] [expires: 2024-12-19]
           000000000000000000000000AAAABBBBCCCCDDDD
     uid           [ultimate] Alice Dev <adev@kernel.org>
-    ssb   rsa2048 2018-01-23 [E] [expires: 2020-01-23]
+    ssb   cv25519 2022-12-20 [E] [expires: 2024-12-19]
 
 The long line under the ``sec`` entry is your key fingerprint --
 whenever you see ``[fpr]`` in the examples below, that 40-character
@@ -219,18 +201,9 @@ separate signing subkey::
 
 .. note:: ECC support in GnuPG
 
-    GnuPG 2.1 and later has full support for Elliptic Curve
-    Cryptography, with ability to combine ECC subkeys with traditional
-    RSA keys. The main upside of ECC cryptography is that it is much
-    faster computationally and creates much smaller signatures when
-    compared byte for byte with 2048+ bit RSA keys. Unless you plan on
-    using a smartcard device that does not support ECC operations, we
-    recommend that you create an ECC signing subkey for your kernel
-    work.
-
-    Note, that if you plan to use a hardware device that does not
+    Note, that if you intend to use a hardware token that does not
     support ED25519 ECC keys, you should choose "nistp256" instead or
-    "ed25519."
+    "ed25519." See the section below on recommended hardware devices.
 
 
 Back up your Certify key for disaster recovery
@@ -336,13 +309,13 @@ First, identify the keygrip of your Certify key::
 
 The output will be something like this::
 
-    pub   rsa2048 2018-01-24 [SC] [expires: 2020-01-24]
+    pub   ed25519 2022-12-20 [SC] [expires: 2022-12-19]
           000000000000000000000000AAAABBBBCCCCDDDD
           Keygrip = 1111000000000000000000000000000000000000
     uid           [ultimate] Alice Dev <adev@kernel.org>
-    sub   rsa2048 2018-01-24 [E] [expires: 2020-01-24]
+    sub   cv25519 2022-12-20 [E] [expires: 2022-12-19]
           Keygrip = 2222000000000000000000000000000000000000
-    sub   ed25519 2018-01-24 [S]
+    sub   ed25519 2022-12-20 [S]
           Keygrip = 3333000000000000000000000000000000000000
 
 Find the keygrip entry that is beneath the ``pub`` line (right under the
@@ -365,14 +338,14 @@ Now, if you issue the ``--list-secret-keys`` command, it will show that
 the Certify key is missing (the ``#`` indicates it is not available)::
 
     $ gpg --list-secret-keys
-    sec#  rsa2048 2018-01-24 [SC] [expires: 2020-01-24]
+    sec#  ed25519 2022-12-20 [SC] [expires: 2024-12-19]
           000000000000000000000000AAAABBBBCCCCDDDD
     uid           [ultimate] Alice Dev <adev@kernel.org>
-    ssb   rsa2048 2018-01-24 [E] [expires: 2020-01-24]
-    ssb   ed25519 2018-01-24 [S]
+    ssb   cv25519 2022-12-20 [E] [expires: 2024-12-19]
+    ssb   ed25519 2022-12-20 [S]
 
 You should also remove any ``secring.gpg`` files in the ``~/.gnupg``
-directory, which are left over from earlier versions of GnuPG.
+directory, which may be left over from previous versions of GnuPG.
 
 If you don't have the "private-keys-v1.d" directory
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -437,8 +410,7 @@ functionality. There are several options available:
   U2F, among others, and now finally supports NISTP and ED25519 ECC
   keys.
 
-`LWN has a good review`_ of some of the above models, as well as several
-others. Your choice will depend on cost, shipping availability in your
+Your choice will depend on cost, shipping availability in your
 geographical region, and open/proprietary hardware considerations.
 
 .. note::
@@ -451,7 +423,6 @@ geographical region, and open/proprietary hardware considerations.
 .. _`Nitrokey Pro 2`: https://shop.nitrokey.com/shop/product/nkpr2-nitrokey-pro-2-3
 .. _`Yubikey 5`: https://www.yubico.com/products/yubikey-5-overview/
 .. _Gnuk: https://www.fsij.org/doc-gnuk/
-.. _`LWN has a good review`: https://lwn.net/Articles/736231/
 .. _`qualify for a free Nitrokey Start`: https://www.kernel.org/nitrokey-digital-tokens-for-kernel-developers.html
 
 Configure your smartcard device
@@ -509,11 +480,11 @@ passphrase and the admin PIN of the card for most operations::
 
     Secret subkeys are available.
 
-    pub  rsa2048/AAAABBBBCCCCDDDD
-         created: 2018-01-23  expires: 2020-01-23  usage: SC
+    pub  ed25519/AAAABBBBCCCCDDDD
+         created: 2022-12-20  expires: 2024-12-19  usage: SC
          trust: ultimate      validity: ultimate
-    ssb  rsa2048/1111222233334444
-         created: 2018-01-23  expires: never       usage: E
+    ssb  cv25519/1111222233334444
+         created: 2022-12-20  expires: never       usage: E
     ssb  ed25519/5555666677778888
          created: 2017-12-07  expires: never       usage: S
     [ultimate] (1). Alice Dev <adev@kernel.org>
@@ -577,11 +548,11 @@ If you perform ``--list-secret-keys`` now, you will see a subtle
 difference in the output::
 
     $ gpg --list-secret-keys
-    sec#  rsa2048 2018-01-24 [SC] [expires: 2020-01-24]
+    sec#  ed25519 2022-12-20 [SC] [expires: 2024-12-19]
           000000000000000000000000AAAABBBBCCCCDDDD
     uid           [ultimate] Alice Dev <adev@kernel.org>
-    ssb>  rsa2048 2018-01-24 [E] [expires: 2020-01-24]
-    ssb>  ed25519 2018-01-24 [S]
+    ssb>  cv25519 2022-12-20 [E] [expires: 2024-12-19]
+    ssb>  ed25519 2022-12-20 [S]
 
 The ``>`` in the ``ssb>`` output indicates that the subkey is only
 available on the smartcard. If you go back into your secret keys
@@ -644,7 +615,7 @@ run::
 You can also use a specific date if that is easier to remember (e.g.
 your birthday, January 1st, or Canada Day)::
 
-    $ gpg --quick-set-expire [fpr] 2020-07-01
+    $ gpg --quick-set-expire [fpr] 2025-07-01
 
 Remember to send the updated key back to keyservers::
 
@@ -707,12 +678,6 @@ should be used (``[fpr]`` is the fingerprint of your key)::
 
     $ git config --global user.signingKey [fpr]
 
-**IMPORTANT**: If you have a distinct ``gpg2`` command, then you should
-tell git to always use it instead of the legacy ``gpg`` from version 1::
-
-    $ git config --global gpg.program gpg2
-    $ git config --global gpgv.program gpgv2
-
 How to work with signed tags
 ----------------------------
 
@@ -750,13 +715,6 @@ The merge message will contain something like this::
 If you are verifying someone else's git tag, then you will need to
 import their PGP key. Please refer to the
 ":ref:`verify_identities`" section below.
-
-.. note::
-
-    If you get "``gpg: Can't check signature: unknown pubkey
-    algorithm``" error, you need to tell git to use gpgv2 for
-    verification, so it properly processes signatures made by ECC keys.
-    See instructions at the start of this section.
 
 Configure git to always sign annotated tags
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

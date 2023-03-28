@@ -674,6 +674,7 @@
 			reg = <0 0x5000000 0 0x800000>;
 			#iommu-cells = <1>;
 			stream-match-mask = <0x7C00>;
+			dma-coherent;
 			#global-interrupts = <12>;
 				     // global secure fault
 			interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,

@@ -740,12 +740,21 @@ void css_schedule_eval_all(void)
 	spin_unlock_irqrestore(&slow_subchannel_lock, flags);
 }
 
-static int __unset_registered(struct device *dev, void *data)
+static int __unset_validpath(struct device *dev, void *data)
 {
 	struct idset *set = data;
 	struct subchannel *sch = to_subchannel(dev);
+	struct pmcw *pmcw = &sch->schib.pmcw;
 
-	idset_sch_del(set, sch->schid);
+	/* Here we want to make sure that we are considering only those subchannels
+	 * which do not have an operational device attached to it. This can be found
+	 * with the help of PAM and POM values of pmcw. OPM provides the information
+	 * about any path which is currently vary-off, so that we should not consider.
+	 */
+	if (sch->st == SUBCHANNEL_TYPE_IO &&
+	    (sch->opm & pmcw->pam & pmcw->pom))
+		idset_sch_del(set, sch->schid);
+
 	return 0;
 }
 
@@ -774,8 +783,8 @@ void css_schedule_eval_cond(enum css_eval_cond cond, unsigned long delay)
 	}
 	idset_fill(set);
 	switch (cond) {
-	case CSS_EVAL_UNREG:
-		bus_for_each_dev(&css_bus_type, NULL, set, __unset_registered);
+	case CSS_EVAL_NO_PATH:
+		bus_for_each_dev(&css_bus_type, NULL, set, __unset_validpath);
 		break;
 	case CSS_EVAL_NOT_ONLINE:
 		bus_for_each_dev(&css_bus_type, NULL, set, __unset_online);
@@ -798,11 +807,11 @@ void css_wait_for_slow_path(void)
 	flush_workqueue(cio_work_q);
 }
 
-/* Schedule reprobing of all unregistered subchannels. */
+/* Schedule reprobing of all subchannels with no valid operational path. */
 void css_schedule_reprobe(void)
 {
 	/* Schedule with a delay to allow merging of subsequent calls. */
-	css_schedule_eval_cond(CSS_EVAL_UNREG, 1 * HZ);
+	css_schedule_eval_cond(CSS_EVAL_NO_PATH, 1 * HZ);
 }
 EXPORT_SYMBOL_GPL(css_schedule_reprobe);
 
@@ -1402,9 +1411,9 @@ static void css_shutdown(struct device *dev)
 		sch->driver->shutdown(sch);
 }
 
-static int css_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int css_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct subchannel *sch = to_subchannel(dev);
+	const struct subchannel *sch = to_subchannel(dev);
 	int ret;
 
 	ret = add_uevent_var(env, "ST=%01X", sch->st);

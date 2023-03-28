@@ -1217,9 +1217,7 @@ static int mana_gd_setup_irqs(struct pci_dev *pdev)
 	unsigned int max_queues_per_port = num_online_cpus();
 	struct gdma_context *gc = pci_get_drvdata(pdev);
 	struct gdma_irq_context *gic;
-	unsigned int max_irqs;
-	u16 *cpus;
-	cpumask_var_t req_mask;
+	unsigned int max_irqs, cpu;
 	int nvec, irq;
 	int err, i = 0, j;
 
@@ -1240,39 +1238,31 @@ static int mana_gd_setup_irqs(struct pci_dev *pdev)
 		goto free_irq_vector;
 	}
 
-	if (!zalloc_cpumask_var(&req_mask, GFP_KERNEL)) {
-		err = -ENOMEM;
-		goto free_irq;
-	}
-
-	cpus = kcalloc(nvec, sizeof(*cpus), GFP_KERNEL);
-	if (!cpus) {
-		err = -ENOMEM;
-		goto free_mask;
-	}
-	for (i = 0; i < nvec; i++)
-		cpus[i] = cpumask_local_spread(i, gc->numa_node);
-
 	for (i = 0; i < nvec; i++) {
-		cpumask_set_cpu(cpus[i], req_mask);
 		gic = &gc->irq_contexts[i];
 		gic->handler = NULL;
 		gic->arg = NULL;
 
+		if (!i)
+			snprintf(gic->name, MANA_IRQ_NAME_SZ, "mana_hwc@pci:%s",
+				 pci_name(pdev));
+		else
+			snprintf(gic->name, MANA_IRQ_NAME_SZ, "mana_q%d@pci:%s",
+				 i - 1, pci_name(pdev));
+
 		irq = pci_irq_vector(pdev, i);
 		if (irq < 0) {
 			err = irq;
-			goto free_mask;
+			goto free_irq;
 		}
 
-		err = request_irq(irq, mana_gd_intr, 0, "mana_intr", gic);
+		err = request_irq(irq, mana_gd_intr, 0, gic->name, gic);
 		if (err)
-			goto free_mask;
-		irq_set_affinity_and_hint(irq, req_mask);
-		cpumask_clear(req_mask);
+			goto free_irq;
+
+		cpu = cpumask_local_spread(i, gc->numa_node);
+		irq_set_affinity_and_hint(irq, cpumask_of(cpu));
 	}
-	free_cpumask_var(req_mask);
-	kfree(cpus);
 
 	err = mana_gd_alloc_res_map(nvec, &gc->msix_resource);
 	if (err)
@@ -1283,13 +1273,12 @@ static int mana_gd_setup_irqs(struct pci_dev *pdev)
 
 	return 0;
 
-free_mask:
-	free_cpumask_var(req_mask);
-	kfree(cpus);
 free_irq:
 	for (j = i - 1; j >= 0; j--) {
 		irq = pci_irq_vector(pdev, j);
 		gic = &gc->irq_contexts[j];
+
+		irq_update_affinity_hint(irq, NULL);
 		free_irq(irq, gic);
 	}
 
@@ -1317,6 +1306,9 @@ static void mana_gd_remove_irqs(struct pci_dev *pdev)
 			continue;
 
 		gic = &gc->irq_contexts[i];
+
+		/* Need to clear the hint before free_irq */
+		irq_update_affinity_hint(irq, NULL);
 		free_irq(irq, gic);
 	}
 

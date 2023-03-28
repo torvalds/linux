@@ -412,6 +412,7 @@ static void fetch_socbb_params(struct display_mode_lib *mode_lib)
 		soc->urgent_latency_adjustment_fabric_clock_component_us;
 	mode_lib->vba.UrgentLatencyAdjustmentFabricClockReference =
 		soc->urgent_latency_adjustment_fabric_clock_reference_mhz;
+	mode_lib->vba.MaxVRatioPre = soc->max_vratio_pre;
 }
 
 static void fetch_ip_params(struct display_mode_lib *mode_lib)

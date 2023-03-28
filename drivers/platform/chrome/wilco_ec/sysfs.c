@@ -119,8 +119,7 @@ static ssize_t get_info(struct device *dev, char *buf, enum get_ec_info_op op)
 	if (ret < 0)
 		return ret;
 
-	return scnprintf(buf, PAGE_SIZE, "%.*s\n", (int)sizeof(resp.value),
-			 (char *)&resp.value);
+	return sysfs_emit(buf, "%.*s\n", (int)sizeof(resp.value), (char *)&resp.value);
 }
 
 static ssize_t version_show(struct device *dev, struct device_attribute *attr,

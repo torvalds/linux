@@ -163,7 +163,7 @@ static void __init sclp_early_console_detect(struct init_sccb *sccb)
 		sclp.has_linemode = 1;
 }
 
-void __init sclp_early_adjust_va(void)
+void __init __no_sanitize_address sclp_early_adjust_va(void)
 {
 	sclp_early_sccb = __va((unsigned long)sclp_early_sccb);
 }

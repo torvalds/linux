@@ -270,7 +270,7 @@ static int at91wdt_remove(struct platform_device *pdev)
 	misc_deregister(&at91wdt_miscdev);
 	at91wdt_miscdev.parent = NULL;
 
-	return res;
+	return 0;
 }
 
 static void at91wdt_shutdown(struct platform_device *pdev)

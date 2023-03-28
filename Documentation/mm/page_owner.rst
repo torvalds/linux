@@ -1,5 +1,3 @@
-.. _page_owner:
-
 ==================================================
 page owner: Tracking about who allocated each page
 ==================================================
@@ -52,7 +50,7 @@ pages are investigated and marked as allocated in initialization phase.
 Although it doesn't mean that they have the right owner information,
 at least, we can tell whether the page is allocated or not,
 more accurately. On 2GB memory x86-64 VM box, 13343 early allocated pages
-are catched and marked, although they are mostly allocated from struct
+are caught and marked, although they are mostly allocated from struct
 page extension feature. Anyway, after that, no page is left in
 un-tracking state.
 
@@ -61,7 +59,7 @@ Usage
 
 1) Build user-space helper::
 
-	cd tools/vm
+	cd tools/mm
 	make page_owner_sort
 
 2) Enable page owner: add "page_owner=on" to boot cmdline.
@@ -178,7 +176,7 @@ STANDARD FORMAT SPECIFIERS
 	at		alloc_ts	timestamp of the page when it was allocated
 	ator		allocator	memory allocator for pages
 
-  For --curl option:
+  For --cull option:
 
 	KEY		LONG		DESCRIPTION
 	p		pid		process ID

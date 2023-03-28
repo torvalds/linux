@@ -15,11 +15,20 @@
 #include <stdbool.h>
 #include <errno.h>
 #include <assert.h>
+#include <pthread.h>
 
 #include "../kselftest.h"
 #include "alsa-local.h"
 
 typedef struct timespec timestamp_t;
+
+struct card_data {
+	int card;
+	pthread_t thread;
+	struct card_data *next;
+};
+
+struct card_data *card_list = NULL;
 
 struct pcm_data {
 	snd_pcm_t *handle;
@@ -31,19 +40,19 @@ struct pcm_data {
 	struct pcm_data *next;
 };
 
-int num_pcms = 0;
 struct pcm_data *pcm_list = NULL;
 
 int num_missing = 0;
 struct pcm_data *pcm_missing = NULL;
 
-struct time_test_def {
-	const char *cfg_prefix;
-	const char *format;
-	long rate;
-	long channels;
-	long period_size;
-	long buffer_size;
+snd_config_t *default_pcm_config;
+
+/* Lock while reporting results since kselftest doesn't */
+pthread_mutex_t results_lock = PTHREAD_MUTEX_INITIALIZER;
+
+enum test_class {
+	TEST_CLASS_DEFAULT,
+	TEST_CLASS_SYSTEM,
 };
 
 void timestamp_now(timestamp_t *tstamp)
@@ -146,6 +155,7 @@ static void find_pcms(void)
 	snd_ctl_t *handle;
 	snd_pcm_info_t *pcm_info;
 	snd_config_t *config, *card_config, *pcm_config;
+	struct card_data *card_data;
 
 	snd_pcm_info_alloca(&pcm_info);
 
@@ -166,6 +176,13 @@ static void find_pcms(void)
 		}
 
 		card_config = conf_by_card(card);
+
+		card_data = calloc(1, sizeof(*card_data));
+		if (!card_data)
+			ksft_exit_fail_msg("Out of memory\n");
+		card_data->card = card;
+		card_data->next = card_list;
+		card_list = card_data;
 
 		dev = -1;
 		while (1) {
@@ -209,7 +226,6 @@ static void find_pcms(void)
 					pcm_data->pcm_config = conf_get_subtree(card_config, key, NULL);
 					pcm_data->next = pcm_list;
 					pcm_list = pcm_data;
-					num_pcms++;
 				}
 			}
 		}
@@ -228,45 +244,64 @@ static void find_pcms(void)
 	snd_config_delete(config);
 }
 
-static void test_pcm_time1(struct pcm_data *data,
-			   const struct time_test_def *test)
+static void test_pcm_time(struct pcm_data *data, enum test_class class,
+			  const char *test_name, snd_config_t *pcm_cfg)
 {
 	char name[64], key[128], msg[256];
 	const char *cs;
 	int i, err;
 	snd_pcm_t *handle = NULL;
 	snd_pcm_access_t access = SND_PCM_ACCESS_RW_INTERLEAVED;
-	snd_pcm_format_t format;
+	snd_pcm_format_t format, old_format;
+	const char *alt_formats[8];
 	unsigned char *samples = NULL;
 	snd_pcm_sframes_t frames;
 	long long ms;
 	long rate, channels, period_size, buffer_size;
-	unsigned int rchannels;
 	unsigned int rrate;
 	snd_pcm_uframes_t rperiod_size, rbuffer_size, start_threshold;
 	timestamp_t tstamp;
-	bool pass = false, automatic = true;
+	bool pass = false;
 	snd_pcm_hw_params_t *hw_params;
 	snd_pcm_sw_params_t *sw_params;
-	bool skip = false;
+	const char *test_class_name;
+	bool skip = true;
+	const char *desc;
+
+	switch (class) {
+	case TEST_CLASS_DEFAULT:
+		test_class_name = "default";
+		break;
+	case TEST_CLASS_SYSTEM:
+		test_class_name = "system";
+		break;
+	default:
+		ksft_exit_fail_msg("Unknown test class %d\n", class);
+		break;
+	}
+
+	desc = conf_get_string(pcm_cfg, "description", NULL, NULL);
+	if (desc)
+		ksft_print_msg("%s.%s.%d.%d.%d.%s - %s\n",
+			       test_class_name, test_name,
+			       data->card, data->device, data->subdevice,
+			       snd_pcm_stream_name(data->stream),
+			       desc);
+
 
 	snd_pcm_hw_params_alloca(&hw_params);
 	snd_pcm_sw_params_alloca(&sw_params);
 
-	cs = conf_get_string(data->pcm_config, test->cfg_prefix, "format", test->format);
+	cs = conf_get_string(pcm_cfg, "format", NULL, "S16_LE");
 	format = snd_pcm_format_value(cs);
 	if (format == SND_PCM_FORMAT_UNKNOWN)
 		ksft_exit_fail_msg("Wrong format '%s'\n", cs);
-	rate = conf_get_long(data->pcm_config, test->cfg_prefix, "rate", test->rate);
-	channels = conf_get_long(data->pcm_config, test->cfg_prefix, "channels", test->channels);
-	period_size = conf_get_long(data->pcm_config, test->cfg_prefix, "period_size", test->period_size);
-	buffer_size = conf_get_long(data->pcm_config, test->cfg_prefix, "buffer_size", test->buffer_size);
-
-	automatic = strcmp(test->format, snd_pcm_format_name(format)) == 0 &&
-			test->rate == rate &&
-			test->channels == channels &&
-			test->period_size == period_size &&
-			test->buffer_size == buffer_size;
+	conf_get_string_array(pcm_cfg, "alt_formats", NULL,
+				alt_formats, ARRAY_SIZE(alt_formats), NULL);
+	rate = conf_get_long(pcm_cfg, "rate", NULL, 48000);
+	channels = conf_get_long(pcm_cfg, "channels", NULL, 2);
+	period_size = conf_get_long(pcm_cfg, "period_size", NULL, 4096);
+	buffer_size = conf_get_long(pcm_cfg, "buffer_size", NULL, 16384);
 
 	samples = malloc((rate * channels * snd_pcm_format_physical_width(format)) / 8);
 	if (!samples)
@@ -296,30 +331,37 @@ static void test_pcm_time1(struct pcm_data *data,
 					   snd_pcm_access_name(access), snd_strerror(err));
 		goto __close;
 	}
+	i = -1;
 __format:
 	err = snd_pcm_hw_params_set_format(handle, hw_params, format);
 	if (err < 0) {
-		if (automatic && format == SND_PCM_FORMAT_S16_LE) {
-			format = SND_PCM_FORMAT_S32_LE;
-			ksft_print_msg("%s.%d.%d.%d.%s.%s format S16_LE -> S32_LE\n",
-					 test->cfg_prefix,
-					 data->card, data->device, data->subdevice,
-					 snd_pcm_stream_name(data->stream),
-					 snd_pcm_access_name(access));
+		i++;
+		if (i < ARRAY_SIZE(alt_formats) && alt_formats[i]) {
+			old_format = format;
+			format = snd_pcm_format_value(alt_formats[i]);
+			if (format != SND_PCM_FORMAT_UNKNOWN) {
+				ksft_print_msg("%s.%d.%d.%d.%s.%s format %s -> %s\n",
+						 test_name,
+						 data->card, data->device, data->subdevice,
+						 snd_pcm_stream_name(data->stream),
+						 snd_pcm_access_name(access),
+						 snd_pcm_format_name(old_format),
+						 snd_pcm_format_name(format));
+				samples = realloc(samples, (rate * channels *
+							    snd_pcm_format_physical_width(format)) / 8);
+				if (!samples)
+					ksft_exit_fail_msg("Out of memory\n");
+				snd_pcm_format_set_silence(format, samples, rate * channels);
+				goto __format;
+			}
 		}
 		snprintf(msg, sizeof(msg), "snd_pcm_hw_params_set_format %s: %s",
 					   snd_pcm_format_name(format), snd_strerror(err));
 		goto __close;
 	}
-	rchannels = channels;
-	err = snd_pcm_hw_params_set_channels_near(handle, hw_params, &rchannels);
+	err = snd_pcm_hw_params_set_channels(handle, hw_params, channels);
 	if (err < 0) {
 		snprintf(msg, sizeof(msg), "snd_pcm_hw_params_set_channels %ld: %s", channels, snd_strerror(err));
-		goto __close;
-	}
-	if (rchannels != channels) {
-		snprintf(msg, sizeof(msg), "channels unsupported %ld != %ld", channels, rchannels);
-		skip = true;
 		goto __close;
 	}
 	rrate = rate;
@@ -329,8 +371,7 @@ __format:
 		goto __close;
 	}
 	if (rrate != rate) {
-		snprintf(msg, sizeof(msg), "rate unsupported %ld != %ld", rate, rrate);
-		skip = true;
+		snprintf(msg, sizeof(msg), "rate mismatch %ld != %ld", rate, rrate);
 		goto __close;
 	}
 	rperiod_size = period_size;
@@ -377,8 +418,8 @@ __format:
 		goto __close;
 	}
 
-	ksft_print_msg("%s.%d.%d.%d.%s hw_params.%s.%s.%ld.%ld.%ld.%ld sw_params.%ld\n",
-			 test->cfg_prefix,
+	ksft_print_msg("%s.%s.%d.%d.%d.%s hw_params.%s.%s.%ld.%ld.%ld.%ld sw_params.%ld\n",
+		         test_class_name, test_name,
 			 data->card, data->device, data->subdevice,
 			 snd_pcm_stream_name(data->stream),
 			 snd_pcm_access_name(access),
@@ -386,6 +427,9 @@ __format:
 			 (long)rate, (long)channels,
 			 (long)rperiod_size, (long)rbuffer_size,
 			 (long)start_threshold);
+
+	/* Set all the params, actually run the test */
+	skip = false;
 
 	timestamp_now(&tstamp);
 	for (i = 0; i < 4; i++) {
@@ -426,48 +470,120 @@ __format:
 	msg[0] = '\0';
 	pass = true;
 __close:
-	if (!skip) {
-		ksft_test_result(pass, "%s.%d.%d.%d.%s%s%s\n",
-				 test->cfg_prefix,
+	pthread_mutex_lock(&results_lock);
+
+	switch (class) {
+	case TEST_CLASS_SYSTEM:
+		test_class_name = "system";
+		/*
+		 * Anything specified as specific to this system
+		 * should always be supported.
+		 */
+		ksft_test_result(!skip, "%s.%s.%d.%d.%d.%s.params\n",
+				 test_class_name, test_name,
+				 data->card, data->device, data->subdevice,
+				 snd_pcm_stream_name(data->stream));
+		break;
+	default:
+		break;
+	}
+
+	if (!skip)
+		ksft_test_result(pass, "%s.%s.%d.%d.%d.%s%s%s\n",
+				 test_class_name, test_name,
 				 data->card, data->device, data->subdevice,
 				 snd_pcm_stream_name(data->stream),
 				 msg[0] ? " " : "", msg);
-	} else {
-		ksft_test_result_skip("%s.%d.%d.%d.%s%s%s\n",
-				      test->cfg_prefix,
-				      data->card, data->device,
-				      data->subdevice,
-				      snd_pcm_stream_name(data->stream),
-				      msg[0] ? " " : "", msg);
-	}
+	else
+		ksft_test_result_skip("%s.%s.%d.%d.%d.%s%s%s\n",
+				 test_class_name, test_name,
+				 data->card, data->device, data->subdevice,
+				 snd_pcm_stream_name(data->stream),
+				 msg[0] ? " " : "", msg);
+
+	pthread_mutex_unlock(&results_lock);
+
 	free(samples);
 	if (handle)
 		snd_pcm_close(handle);
 }
 
-static const struct time_test_def time_tests[] = {
-	/* name          format     rate   chan  period  buffer */
-	{ "8k.1.big",    "S16_LE",   8000, 2,     8000,   32000 },
-	{ "8k.2.big",    "S16_LE",   8000, 2,     8000,   32000 },
-	{ "44k1.2.big",  "S16_LE",  44100, 2,    22050,  192000 },
-	{ "48k.2.small", "S16_LE",  48000, 2,      512,    4096 },
-	{ "48k.2.big",   "S16_LE",  48000, 2,    24000,  192000 },
-	{ "48k.6.big",   "S16_LE",  48000, 6,    48000,  576000 },
-	{ "96k.2.big",   "S16_LE",  96000, 2,    48000,  192000 },
-};
+void run_time_tests(struct pcm_data *pcm, enum test_class class,
+		    snd_config_t *cfg)
+{
+	const char *test_name, *test_type;
+	snd_config_t *pcm_cfg;
+	snd_config_iterator_t i, next;
+
+	if (!cfg)
+		return;
+
+	cfg = conf_get_subtree(cfg, "test", NULL);
+	if (cfg == NULL)
+		return;
+
+	snd_config_for_each(i, next, cfg) {
+		pcm_cfg = snd_config_iterator_entry(i);
+		if (snd_config_get_id(pcm_cfg, &test_name) < 0)
+			ksft_exit_fail_msg("snd_config_get_id\n");
+		test_type = conf_get_string(pcm_cfg, "type", NULL, "time");
+		if (strcmp(test_type, "time") == 0)
+			test_pcm_time(pcm, class, test_name, pcm_cfg);
+		else
+			ksft_exit_fail_msg("unknown test type '%s'\n", test_type);
+	}
+}
+
+void *card_thread(void *data)
+{
+	struct card_data *card = data;
+	struct pcm_data *pcm;
+
+	for (pcm = pcm_list; pcm != NULL; pcm = pcm->next) {
+		if (pcm->card != card->card)
+			continue;
+
+		run_time_tests(pcm, TEST_CLASS_DEFAULT, default_pcm_config);
+		run_time_tests(pcm, TEST_CLASS_SYSTEM, pcm->pcm_config);
+	}
+
+	return 0;
+}
 
 int main(void)
 {
+	struct card_data *card;
 	struct pcm_data *pcm;
-	int i;
+	snd_config_t *global_config, *cfg, *pcm_cfg;
+	int num_pcm_tests = 0, num_tests, num_std_pcm_tests;
+	int ret;
+	void *thread_ret;
 
 	ksft_print_header();
+
+	global_config = conf_load_from_file("pcm-test.conf");
+	default_pcm_config = conf_get_subtree(global_config, "pcm", NULL);
+	if (default_pcm_config == NULL)
+		ksft_exit_fail_msg("default pcm test configuration (pcm compound) is missing\n");
 
 	conf_load();
 
 	find_pcms();
 
-	ksft_set_plan(num_missing + num_pcms * ARRAY_SIZE(time_tests));
+	num_std_pcm_tests = conf_get_count(default_pcm_config, "test", NULL);
+
+	for (pcm = pcm_list; pcm != NULL; pcm = pcm->next) {
+		num_pcm_tests += num_std_pcm_tests;
+		cfg = pcm->pcm_config;
+		if (cfg == NULL)
+			continue;
+		/* Setting params is reported as a separate test */
+		num_tests = conf_get_count(cfg, "test", NULL) * 2;
+		if (num_tests > 0)
+			num_pcm_tests += num_tests;
+	}
+
+	ksft_set_plan(num_missing + num_pcm_tests);
 
 	for (pcm = pcm_missing; pcm != NULL; pcm = pcm->next) {
 		ksft_test_result(false, "test.missing.%d.%d.%d.%s\n",
@@ -475,12 +591,25 @@ int main(void)
 				 snd_pcm_stream_name(pcm->stream));
 	}
 
-	for (pcm = pcm_list; pcm != NULL; pcm = pcm->next) {
-		for (i = 0; i < ARRAY_SIZE(time_tests); i++) {
-			test_pcm_time1(pcm, &time_tests[i]);
+	for (card = card_list; card != NULL; card = card->next) {
+		ret = pthread_create(&card->thread, NULL, card_thread, card);
+		if (ret != 0) {
+			ksft_exit_fail_msg("Failed to create card %d thread: %d (%s)\n",
+					   card->card, ret,
+					   strerror(errno));
 		}
 	}
 
+	for (card = card_list; card != NULL; card = card->next) {
+		ret = pthread_join(card->thread, &thread_ret);
+		if (ret != 0) {
+			ksft_exit_fail_msg("Failed to join card %d thread: %d (%s)\n",
+					   card->card, ret,
+					   strerror(errno));
+		}
+	}
+
+	snd_config_delete(global_config);
 	conf_free();
 
 	ksft_exit_pass();

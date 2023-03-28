@@ -92,7 +92,7 @@
 
 		button-vol-down {
 			label = "Volume down";
-			gpios = <&pm8998_gpio 5 GPIO_ACTIVE_LOW>;
+			gpios = <&pm8998_gpios 5 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEDOWN>;
 			debounce-interval = <15>;
 			wakeup-source;
@@ -100,7 +100,7 @@
 
 		button-vol-up {
 			label = "Volume up";
-			gpios = <&pm8998_gpio 6 GPIO_ACTIVE_LOW>;
+			gpios = <&pm8998_gpios 6 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
 			debounce-interval = <15>;
 			wakeup-source;
@@ -269,7 +269,7 @@
 	};
 };
 
-&pm8998_gpio {
+&pm8998_gpios {
 	vol_keys_default: vol-keys-state {
 		pins = "gpio5", "gpio6";
 		function = "normal";

@@ -1,5 +1,3 @@
-.. _shrinker_debugfs:
-
 ==========================
 Shrinker Debugfs Interface
 ==========================

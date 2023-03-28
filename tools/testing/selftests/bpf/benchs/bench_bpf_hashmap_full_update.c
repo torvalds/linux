@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2022 Bytedance */
 
-#include <argp.h>
 #include "bench.h"
 #include "bpf_hashmap_full_update_bench.skel.h"
 #include "bpf_util.h"
@@ -68,7 +67,7 @@ static void setup(void)
 		bpf_map_update_elem(map_fd, &i, &i, BPF_ANY);
 }
 
-void hashmap_report_final(struct bench_res res[], int res_cnt)
+static void hashmap_report_final(struct bench_res res[], int res_cnt)
 {
 	unsigned int nr_cpus = bpf_num_possible_cpus();
 	int i;
@@ -85,7 +84,7 @@ void hashmap_report_final(struct bench_res res[], int res_cnt)
 }
 
 const struct bench bench_bpf_hashmap_full_update = {
-	.name = "bpf-hashmap-ful-update",
+	.name = "bpf-hashmap-full-update",
 	.validate = validate,
 	.setup = setup,
 	.producer_thread = producer,

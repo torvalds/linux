@@ -1308,6 +1308,14 @@ struct journal_s
 				    struct buffer_head *bh,
 				    enum passtype pass, int off,
 				    tid_t expected_commit_id);
+
+	/**
+	 * @j_bmap:
+	 *
+	 * Bmap function that should be used instead of the generic
+	 * VFS bmap function.
+	 */
+	int (*j_bmap)(struct journal_s *journal, sector_t *block);
 };
 
 #define jbd2_might_wait_for_commit(j) \
@@ -1570,8 +1578,6 @@ extern int	   jbd2_journal_inode_ranged_write(handle_t *handle,
 extern int	   jbd2_journal_inode_ranged_wait(handle_t *handle,
 			struct jbd2_inode *inode, loff_t start_byte,
 			loff_t length);
-extern int	   jbd2_journal_submit_inode_data_buffers(
-			struct jbd2_inode *jinode);
 extern int	   jbd2_journal_finish_inode_data_buffers(
 			struct jbd2_inode *jinode);
 extern int	   jbd2_journal_begin_ordered_truncate(journal_t *journal,

@@ -8,4 +8,4 @@ if [ -z $kthread_pid ]; then
 	exit 1
 fi
 
-./bench --nr_procs 15000 --kthread_pid $kthread_pid -d 600 --quiet 1 local-storage-tasks-trace
+./bench --nr_procs 15000 --kthread_pid $kthread_pid -d 600 --quiet local-storage-tasks-trace

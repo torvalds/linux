@@ -448,7 +448,7 @@ struct cpufreq_driver {
 #define CPUFREQ_NO_AUTO_DYNAMIC_SWITCHING	BIT(6)
 
 int cpufreq_register_driver(struct cpufreq_driver *driver_data);
-int cpufreq_unregister_driver(struct cpufreq_driver *driver_data);
+void cpufreq_unregister_driver(struct cpufreq_driver *driver_data);
 
 bool cpufreq_driver_test_flags(u16 flags);
 const char *cpufreq_get_current_driver(void);

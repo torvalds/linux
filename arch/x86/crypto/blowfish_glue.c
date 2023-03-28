@@ -16,26 +16,28 @@
 #include <linux/module.h>
 #include <linux/types.h>
 
+#include "ecb_cbc_helpers.h"
+
 /* regular block cipher functions */
-asmlinkage void __blowfish_enc_blk(struct bf_ctx *ctx, u8 *dst, const u8 *src,
-				   bool xor);
+asmlinkage void blowfish_enc_blk(struct bf_ctx *ctx, u8 *dst, const u8 *src);
 asmlinkage void blowfish_dec_blk(struct bf_ctx *ctx, u8 *dst, const u8 *src);
 
 /* 4-way parallel cipher functions */
-asmlinkage void __blowfish_enc_blk_4way(struct bf_ctx *ctx, u8 *dst,
-					const u8 *src, bool xor);
-asmlinkage void blowfish_dec_blk_4way(struct bf_ctx *ctx, u8 *dst,
+asmlinkage void blowfish_enc_blk_4way(struct bf_ctx *ctx, u8 *dst,
 				      const u8 *src);
+asmlinkage void __blowfish_dec_blk_4way(struct bf_ctx *ctx, u8 *dst,
+					const u8 *src, bool cbc);
 
-static inline void blowfish_enc_blk(struct bf_ctx *ctx, u8 *dst, const u8 *src)
+static inline void blowfish_dec_ecb_4way(struct bf_ctx *ctx, u8 *dst,
+					     const u8 *src)
 {
-	__blowfish_enc_blk(ctx, dst, src, false);
+	return __blowfish_dec_blk_4way(ctx, dst, src, false);
 }
 
-static inline void blowfish_enc_blk_4way(struct bf_ctx *ctx, u8 *dst,
-					 const u8 *src)
+static inline void blowfish_dec_cbc_4way(struct bf_ctx *ctx, u8 *dst,
+					     const u8 *src)
 {
-	__blowfish_enc_blk_4way(ctx, dst, src, false);
+	return __blowfish_dec_blk_4way(ctx, dst, src, true);
 }
 
 static void blowfish_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
@@ -54,183 +56,35 @@ static int blowfish_setkey_skcipher(struct crypto_skcipher *tfm,
 	return blowfish_setkey(&tfm->base, key, keylen);
 }
 
-static int ecb_crypt(struct skcipher_request *req,
-		     void (*fn)(struct bf_ctx *, u8 *, const u8 *),
-		     void (*fn_4way)(struct bf_ctx *, u8 *, const u8 *))
-{
-	unsigned int bsize = BF_BLOCK_SIZE;
-	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
-	struct bf_ctx *ctx = crypto_skcipher_ctx(tfm);
-	struct skcipher_walk walk;
-	unsigned int nbytes;
-	int err;
-
-	err = skcipher_walk_virt(&walk, req, false);
-
-	while ((nbytes = walk.nbytes)) {
-		u8 *wsrc = walk.src.virt.addr;
-		u8 *wdst = walk.dst.virt.addr;
-
-		/* Process four block batch */
-		if (nbytes >= bsize * 4) {
-			do {
-				fn_4way(ctx, wdst, wsrc);
-
-				wsrc += bsize * 4;
-				wdst += bsize * 4;
-				nbytes -= bsize * 4;
-			} while (nbytes >= bsize * 4);
-
-			if (nbytes < bsize)
-				goto done;
-		}
-
-		/* Handle leftovers */
-		do {
-			fn(ctx, wdst, wsrc);
-
-			wsrc += bsize;
-			wdst += bsize;
-			nbytes -= bsize;
-		} while (nbytes >= bsize);
-
-done:
-		err = skcipher_walk_done(&walk, nbytes);
-	}
-
-	return err;
-}
-
 static int ecb_encrypt(struct skcipher_request *req)
 {
-	return ecb_crypt(req, blowfish_enc_blk, blowfish_enc_blk_4way);
+	ECB_WALK_START(req, BF_BLOCK_SIZE, -1);
+	ECB_BLOCK(4, blowfish_enc_blk_4way);
+	ECB_BLOCK(1, blowfish_enc_blk);
+	ECB_WALK_END();
 }
 
 static int ecb_decrypt(struct skcipher_request *req)
 {
-	return ecb_crypt(req, blowfish_dec_blk, blowfish_dec_blk_4way);
-}
-
-static unsigned int __cbc_encrypt(struct bf_ctx *ctx,
-				  struct skcipher_walk *walk)
-{
-	unsigned int bsize = BF_BLOCK_SIZE;
-	unsigned int nbytes = walk->nbytes;
-	u64 *src = (u64 *)walk->src.virt.addr;
-	u64 *dst = (u64 *)walk->dst.virt.addr;
-	u64 *iv = (u64 *)walk->iv;
-
-	do {
-		*dst = *src ^ *iv;
-		blowfish_enc_blk(ctx, (u8 *)dst, (u8 *)dst);
-		iv = dst;
-
-		src += 1;
-		dst += 1;
-		nbytes -= bsize;
-	} while (nbytes >= bsize);
-
-	*(u64 *)walk->iv = *iv;
-	return nbytes;
+	ECB_WALK_START(req, BF_BLOCK_SIZE, -1);
+	ECB_BLOCK(4, blowfish_dec_ecb_4way);
+	ECB_BLOCK(1, blowfish_dec_blk);
+	ECB_WALK_END();
 }
 
 static int cbc_encrypt(struct skcipher_request *req)
 {
-	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
-	struct bf_ctx *ctx = crypto_skcipher_ctx(tfm);
-	struct skcipher_walk walk;
-	unsigned int nbytes;
-	int err;
-
-	err = skcipher_walk_virt(&walk, req, false);
-
-	while (walk.nbytes) {
-		nbytes = __cbc_encrypt(ctx, &walk);
-		err = skcipher_walk_done(&walk, nbytes);
-	}
-
-	return err;
-}
-
-static unsigned int __cbc_decrypt(struct bf_ctx *ctx,
-				  struct skcipher_walk *walk)
-{
-	unsigned int bsize = BF_BLOCK_SIZE;
-	unsigned int nbytes = walk->nbytes;
-	u64 *src = (u64 *)walk->src.virt.addr;
-	u64 *dst = (u64 *)walk->dst.virt.addr;
-	u64 ivs[4 - 1];
-	u64 last_iv;
-
-	/* Start of the last block. */
-	src += nbytes / bsize - 1;
-	dst += nbytes / bsize - 1;
-
-	last_iv = *src;
-
-	/* Process four block batch */
-	if (nbytes >= bsize * 4) {
-		do {
-			nbytes -= bsize * 4 - bsize;
-			src -= 4 - 1;
-			dst -= 4 - 1;
-
-			ivs[0] = src[0];
-			ivs[1] = src[1];
-			ivs[2] = src[2];
-
-			blowfish_dec_blk_4way(ctx, (u8 *)dst, (u8 *)src);
-
-			dst[1] ^= ivs[0];
-			dst[2] ^= ivs[1];
-			dst[3] ^= ivs[2];
-
-			nbytes -= bsize;
-			if (nbytes < bsize)
-				goto done;
-
-			*dst ^= *(src - 1);
-			src -= 1;
-			dst -= 1;
-		} while (nbytes >= bsize * 4);
-	}
-
-	/* Handle leftovers */
-	for (;;) {
-		blowfish_dec_blk(ctx, (u8 *)dst, (u8 *)src);
-
-		nbytes -= bsize;
-		if (nbytes < bsize)
-			break;
-
-		*dst ^= *(src - 1);
-		src -= 1;
-		dst -= 1;
-	}
-
-done:
-	*dst ^= *(u64 *)walk->iv;
-	*(u64 *)walk->iv = last_iv;
-
-	return nbytes;
+	CBC_WALK_START(req, BF_BLOCK_SIZE, -1);
+	CBC_ENC_BLOCK(blowfish_enc_blk);
+	CBC_WALK_END();
 }
 
 static int cbc_decrypt(struct skcipher_request *req)
 {
-	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
-	struct bf_ctx *ctx = crypto_skcipher_ctx(tfm);
-	struct skcipher_walk walk;
-	unsigned int nbytes;
-	int err;
-
-	err = skcipher_walk_virt(&walk, req, false);
-
-	while (walk.nbytes) {
-		nbytes = __cbc_decrypt(ctx, &walk);
-		err = skcipher_walk_done(&walk, nbytes);
-	}
-
-	return err;
+	CBC_WALK_START(req, BF_BLOCK_SIZE, -1);
+	CBC_DEC_BLOCK(4, blowfish_dec_cbc_4way);
+	CBC_DEC_BLOCK(1, blowfish_dec_blk);
+	CBC_WALK_END();
 }
 
 static struct crypto_alg bf_cipher_alg = {

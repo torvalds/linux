@@ -82,7 +82,7 @@ int ocfs2_fileattr_get(struct dentry *dentry, struct fileattr *fa)
 	return status;
 }
 
-int ocfs2_fileattr_set(struct user_namespace *mnt_userns,
+int ocfs2_fileattr_set(struct mnt_idmap *idmap,
 		       struct dentry *dentry, struct fileattr *fa)
 {
 	struct inode *inode = d_inode(dentry);

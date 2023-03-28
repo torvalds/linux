@@ -180,6 +180,7 @@
 #include <linux/compiler.h>
 #include <linux/mmdebug.h>
 #include <linux/types.h>
+#include <asm/boot.h>
 #include <asm/bug.h>
 
 #if VA_BITS > 48
@@ -201,6 +202,16 @@ extern u64			kimage_voffset;
 static inline unsigned long kaslr_offset(void)
 {
 	return kimage_vaddr - KIMAGE_VADDR;
+}
+
+static inline bool kaslr_enabled(void)
+{
+	/*
+	 * The KASLR offset modulo MIN_KIMG_ALIGN is taken from the physical
+	 * placement of the image rather than from the seed, so a displacement
+	 * of less than MIN_KIMG_ALIGN means that no seed was provided.
+	 */
+	return kaslr_offset() >= MIN_KIMG_ALIGN;
 }
 
 /*

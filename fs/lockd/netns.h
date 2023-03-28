@@ -3,6 +3,7 @@
 #define __LOCKD_NETNS_H__
 
 #include <linux/fs.h>
+#include <linux/filelock.h>
 #include <net/netns/generic.h>
 
 struct lockd_net {

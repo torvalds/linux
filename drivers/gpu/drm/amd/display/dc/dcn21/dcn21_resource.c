@@ -609,8 +609,6 @@ static const struct resource_caps res_cap_rn_FPGA_2pipe_dsc = {
 
 static const struct dc_plane_cap plane_cap = {
 	.type = DC_PLANE_TYPE_DCN_UNIVERSAL,
-	.blends_with_above = true,
-	.blends_with_below = true,
 	.per_pixel_alpha = true,
 
 	.pixel_format_support = {
@@ -642,7 +640,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.clock_trace = true,
 		.disable_pplib_clock_request = true,
 		.min_disp_clk_khz = 100000,
-		.pipe_split_policy = MPC_SPLIT_AVOID_MULT_DISP,
+		.pipe_split_policy = MPC_SPLIT_DYNAMIC,
 		.force_single_disp_pipe_split = false,
 		.disable_dcc = DCC_ENABLE,
 		.vsr_support = true,
@@ -1393,15 +1391,13 @@ static uint32_t read_pipe_fuses(struct dc_context *ctx)
 
 static enum dc_status dcn21_patch_unknown_plane_state(struct dc_plane_state *plane_state)
 {
-	enum dc_status result = DC_OK;
-
 	if (plane_state->ctx->dc->debug.disable_dcc == DCC_ENABLE) {
 		plane_state->dcc.enable = 1;
 		/* align to our worst case block width */
 		plane_state->dcc.meta_pitch = ((plane_state->src_rect.width + 1023) / 1024) * 1024;
 	}
-	result = dcn20_patch_unknown_plane_state(plane_state);
-	return result;
+
+	return dcn20_patch_unknown_plane_state(plane_state);
 }
 
 static const struct resource_funcs dcn21_res_pool_funcs = {

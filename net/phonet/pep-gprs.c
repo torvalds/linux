@@ -19,6 +19,8 @@
 #include <net/tcp_states.h>
 #include <net/phonet/gprs.h>
 
+#include <trace/events/sock.h>
+
 #define GPRS_DEFAULT_MTU 1400
 
 struct gprs_dev {
@@ -137,6 +139,8 @@ static void gprs_data_ready(struct sock *sk)
 {
 	struct gprs_dev *gp = sk->sk_user_data;
 	struct sk_buff *skb;
+
+	trace_sk_data_ready(sk);
 
 	while ((skb = pep_read(sk)) != NULL) {
 		skb_orphan(skb);

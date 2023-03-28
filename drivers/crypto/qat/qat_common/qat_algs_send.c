@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
 /* Copyright(c) 2022 Intel Corporation */
+#include <crypto/algapi.h>
 #include "adf_transport.h"
 #include "qat_algs_send.h"
 #include "qat_crypto.h"
@@ -34,7 +35,7 @@ void qat_alg_send_backlog(struct qat_instance_backlog *backlog)
 			break;
 		}
 		list_del(&req->list);
-		req->base->complete(req->base, -EINPROGRESS);
+		crypto_request_complete(req->base, -EINPROGRESS);
 	}
 	spin_unlock_bh(&backlog->lock);
 }

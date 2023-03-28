@@ -125,7 +125,7 @@ static int dump_config_tree(snd_config_t *top)
 	snd_output_close(out);
 }
 
-static snd_config_t *load(const char *filename)
+snd_config_t *conf_load_from_file(const char *filename)
 {
 	snd_config_t *dst;
 	snd_input_t *input;
@@ -235,7 +235,7 @@ static bool test_filename1(int card, const char *filename, const char *sysfs_car
 	snd_config_t *config, *sysfs_config, *card_config, *sysfs_card_config, *node;
 	snd_config_iterator_t i, next;
 
-	config = load(filename);
+	config = conf_load_from_file(filename);
 	if (snd_config_search(config, "sysfs", &sysfs_config) ||
 	    snd_config_get_type(sysfs_config) != SND_CONFIG_TYPE_COMPOUND)
 		ksft_exit_fail_msg("Missing global sysfs block in filename %s\n", filename);
@@ -445,4 +445,26 @@ int conf_get_bool(snd_config_t *root, const char *key1, const char *key2, int de
 	if (ret < 0)
 		ksft_exit_fail_msg("key '%s'.'%s' is not an bool\n", key1, key2);
 	return !!ret;
+}
+
+void conf_get_string_array(snd_config_t *root, const char *key1, const char *key2,
+			   const char **array, int array_size, const char *def)
+{
+	snd_config_t *cfg;
+	char buf[16];
+	int ret, index;
+
+	ret = conf_get_by_keys(root, key1, key2, &cfg);
+	if (ret == -ENOENT)
+		cfg = NULL;
+	else if (ret < 0)
+		ksft_exit_fail_msg("key '%s'.'%s' search error: %s\n", key1, key2, snd_strerror(ret));
+	for (index = 0; index < array_size; index++) {
+		if (cfg == NULL) {
+			array[index] = def;
+		} else {
+			sprintf(buf, "%i", index);
+			array[index] = conf_get_string(cfg, buf, NULL, def);
+		}
+	}
 }

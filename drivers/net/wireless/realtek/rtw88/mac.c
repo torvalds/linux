@@ -217,10 +217,10 @@ static int rtw_pwr_seq_parser(struct rtw_dev *rtwdev,
 	cut_mask = cut_version_to_mask(cut);
 	switch (rtw_hci_type(rtwdev)) {
 	case RTW_HCI_TYPE_PCIE:
-		intf_mask = BIT(2);
+		intf_mask = RTW_PWR_INTF_PCI_MSK;
 		break;
 	case RTW_HCI_TYPE_USB:
-		intf_mask = BIT(1);
+		intf_mask = RTW_PWR_INTF_USB_MSK;
 		break;
 	default:
 		return -EINVAL;
@@ -272,6 +272,11 @@ static int rtw_mac_power_switch(struct rtw_dev *rtwdev, bool pwr_on)
 	pwr_seq = pwr_on ? chip->pwr_on_seq : chip->pwr_off_seq;
 	if (rtw_pwr_seq_parser(rtwdev, pwr_seq))
 		return -EINVAL;
+
+	if (pwr_on)
+		set_bit(RTW_FLAG_POWERON, rtwdev->flags);
+	else
+		clear_bit(RTW_FLAG_POWERON, rtwdev->flags);
 
 	return 0;
 }
@@ -335,6 +340,11 @@ int rtw_mac_power_on(struct rtw_dev *rtwdev)
 	ret = rtw_mac_power_switch(rtwdev, true);
 	if (ret == -EALREADY) {
 		rtw_mac_power_switch(rtwdev, false);
+
+		ret = rtw_mac_pre_system_cfg(rtwdev);
+		if (ret)
+			goto err;
+
 		ret = rtw_mac_power_switch(rtwdev, true);
 		if (ret)
 			goto err;

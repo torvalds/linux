@@ -94,6 +94,7 @@
 //Resets
 #define PPSMC_MSG_PrepareMp1ForUnload            0x2E
 #define PPSMC_MSG_Mode1Reset                     0x2F
+#define PPSMC_MSG_Mode2Reset					 0x4F
 
 //Set SystemVirtual DramAddrHigh
 #define PPSMC_MSG_SetSystemVirtualDramAddrHigh   0x30

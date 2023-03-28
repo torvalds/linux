@@ -139,3 +139,6 @@
 		u64 ____val = (u64)(value);		\
 		(u32) do_div(____val, NSEC_PER_SEC);	\
 	})
+
+#undef __get_buf
+#define __get_buf(len)		trace_seq_acquire(p, (len))

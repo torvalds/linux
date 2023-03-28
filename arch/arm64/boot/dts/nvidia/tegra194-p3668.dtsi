@@ -121,6 +121,24 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&max20024_default>;
 
+				fps {
+					fps0 {
+						maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN0>;
+						maxim,shutdown-fps-time-period-us = <640>;
+					};
+
+					fps1 {
+						maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN1>;
+						maxim,shutdown-fps-time-period-us = <640>;
+						maxim,device-state-on-disabled-event = <MAX77620_FPS_INACTIVE_STATE_SLEEP>;
+					};
+
+					fps2 {
+						maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN0>;
+						maxim,shutdown-fps-time-period-us = <640>;
+					};
+				};
+
 				max20024_default: pinmux {
 					gpio0 {
 						pins = "gpio0";
@@ -161,24 +179,6 @@
 						pins = "gpio7";
 						function = "gpio";
 						drive-push-pull = <0>;
-					};
-				};
-
-				fps {
-					fps0 {
-						maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN0>;
-						maxim,shutdown-fps-time-period-us = <640>;
-					};
-
-					fps1 {
-						maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN1>;
-						maxim,shutdown-fps-time-period-us = <640>;
-						maxim,device-state-on-disabled-event = <MAX77620_FPS_INACTIVE_STATE_SLEEP>;
-					};
-
-					fps2 {
-						maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN0>;
-						maxim,shutdown-fps-time-period-us = <640>;
 					};
 				};
 

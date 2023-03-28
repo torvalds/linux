@@ -402,8 +402,8 @@ static void ff800_finish_session(struct snd_ff *ff)
 // address.
 // A write transaction to clear registered higher 4 bytes of destination address
 // has an effect to suppress asynchronous transaction from device.
-static void ff800_handle_midi_msg(struct snd_ff *ff, unsigned int offset,
-				  __le32 *buf, size_t length)
+static void ff800_handle_midi_msg(struct snd_ff *ff, unsigned int offset, const __le32 *buf,
+				  size_t length, u32 tstamp)
 {
 	int i;
 
@@ -418,7 +418,7 @@ static void ff800_handle_midi_msg(struct snd_ff *ff, unsigned int offset,
 }
 
 const struct snd_ff_protocol snd_ff_protocol_ff800 = {
-	.handle_midi_msg	= ff800_handle_midi_msg,
+	.handle_msg		= ff800_handle_midi_msg,
 	.fill_midi_msg		= former_fill_midi_msg,
 	.get_clock		= former_get_clock,
 	.switch_fetching_mode	= former_switch_fetching_mode,
@@ -534,6 +534,35 @@ static void ff400_finish_session(struct snd_ff *ff)
 			   FF400_ISOC_COMM_STOP, &reg, sizeof(reg), 0);
 }
 
+static void parse_midi_msg(struct snd_ff *ff, u32 quad, unsigned int port)
+{
+	struct snd_rawmidi_substream *substream = READ_ONCE(ff->tx_midi_substreams[port]);
+
+	if (substream != NULL) {
+		u8 byte = (quad >> (16 * port)) & 0x000000ff;
+
+		snd_rawmidi_receive(substream, &byte, 1);
+	}
+}
+
+#define FF400_QUEUE_SIZE	32
+
+struct ff400_msg_parser {
+	struct {
+		u32 msg;
+		u32 tstamp;
+	} msgs[FF400_QUEUE_SIZE];
+	size_t push_pos;
+	size_t pull_pos;
+};
+
+static bool ff400_has_msg(struct snd_ff *ff)
+{
+	struct ff400_msg_parser *parser = ff->msg_parser;
+
+	return (parser->push_pos != parser->pull_pos);
+}
+
 // For Fireface 400, lower 4 bytes of destination address is configured by bit
 // flag in quadlet register (little endian) at 0x'0000'801'0051c. Drivers can
 // select one of 4 options:
@@ -553,46 +582,147 @@ static void ff400_finish_session(struct snd_ff *ff)
 // input attenuation. This driver allocates destination address with '0000'0000
 // in its lower offset and expects userspace application to configure the
 // register for it.
-static void ff400_handle_midi_msg(struct snd_ff *ff, unsigned int offset,
-				  __le32 *buf, size_t length)
+
+// When the message is for signal level operation, the upper 4 bits in MSB expresses the pair of
+// stereo physical port.
+// - 0: Microphone input 0/1
+// - 1: Line input 0/1
+// - [2-4]: Line output 0-5
+// - 5: Headphone output 0/1
+// - 6: S/PDIF output 0/1
+// - [7-10]: ADAT output 0-7
+//
+// The value of signal level can be detected by mask of 0x00fffc00. For signal level of microphone
+// input:
+//
+// - 0:    0.0 dB
+// - 10: +10.0 dB
+// - 11: +11.0 dB
+// - 12: +12.0 dB
+// - ...
+// - 63: +63.0 dB:
+// - 64: +64.0 dB:
+// - 65: +65.0 dB:
+//
+// For signal level of line input:
+//
+// - 0:  0.0 dB
+// - 1: +0.5 dB
+// - 2: +1.0 dB
+// - 3: +1.5 dB
+// - ...
+// - 34: +17.0 dB:
+// - 35: +17.5 dB:
+// - 36: +18.0 dB:
+//
+// For signal level of any type of output:
+//
+// - 63: -infinite
+// - 62: -58.0 dB
+// - 61: -56.0 dB
+// - 60: -54.0 dB
+// - 59: -53.0 dB
+// - 58: -52.0 dB
+// - ...
+// - 7: -1.0 dB
+// - 6:  0.0 dB
+// - 5: +1.0 dB
+// - ...
+// - 2: +4.0 dB
+// - 1: +5.0 dB
+// - 0: +6.0 dB
+//
+// When the message is not for signal level operation, it's for MIDI bytes. When matching to
+// FF400_MSG_FLAG_IS_MIDI_PORT_0, one MIDI byte can be detected by mask of 0x000000ff. When
+// matching to FF400_MSG_FLAG_IS_MIDI_PORT_1, one MIDI byte can be detected by mask of 0x00ff0000.
+#define FF400_MSG_FLAG_IS_SIGNAL_LEVEL		0x04000000
+#define  FF400_MSG_FLAG_IS_RIGHT_CHANNEL	0x08000000
+#define  FF400_MSG_FLAG_IS_STEREO_PAIRED	0x02000000
+#define  FF400_MSG_MASK_STEREO_PAIR		0xf0000000
+#define  FF400_MSG_MASK_SIGNAL_LEVEL		0x00fffc00
+#define FF400_MSG_FLAG_IS_MIDI_PORT_0		0x00000100
+#define  FF400_MSG_MASK_MIDI_PORT_0		0x000000ff
+#define FF400_MSG_FLAG_IS_MIDI_PORT_1		0x01000000
+#define  FF400_MSG_MASK_MIDI_PORT_1		0x00ff0000
+
+static void ff400_handle_msg(struct snd_ff *ff, unsigned int offset, const __le32 *buf,
+			     size_t length, u32 tstamp)
 {
+	bool need_hwdep_wake_up = false;
 	int i;
 
 	for (i = 0; i < length / 4; i++) {
 		u32 quad = le32_to_cpu(buf[i]);
-		u8 byte;
-		unsigned int index;
-		struct snd_rawmidi_substream *substream;
 
-		/* Message in first port. */
-		/*
-		 * This value may represent the index of this unit when the same
-		 * units are on the same IEEE 1394 bus. This driver doesn't use
-		 * it.
-		 */
-		index = (quad >> 8) & 0xff;
-		if (index > 0) {
-			substream = READ_ONCE(ff->tx_midi_substreams[0]);
-			if (substream != NULL) {
-				byte = quad & 0xff;
-				snd_rawmidi_receive(substream, &byte, 1);
-			}
-		}
+		if (quad & FF400_MSG_FLAG_IS_SIGNAL_LEVEL) {
+			struct ff400_msg_parser *parser = ff->msg_parser;
 
-		/* Message in second port. */
-		index = (quad >> 24) & 0xff;
-		if (index > 0) {
-			substream = READ_ONCE(ff->tx_midi_substreams[1]);
-			if (substream != NULL) {
-				byte = (quad >> 16) & 0xff;
-				snd_rawmidi_receive(substream, &byte, 1);
-			}
+			parser->msgs[parser->push_pos].msg = quad;
+			parser->msgs[parser->push_pos].tstamp = tstamp;
+			++parser->push_pos;
+			if (parser->push_pos >= FF400_QUEUE_SIZE)
+				parser->push_pos = 0;
+
+			need_hwdep_wake_up = true;
+		} else if (quad & FF400_MSG_FLAG_IS_MIDI_PORT_0) {
+			parse_midi_msg(ff, quad, 0);
+		} else if (quad & FF400_MSG_FLAG_IS_MIDI_PORT_1) {
+			parse_midi_msg(ff, quad, 1);
 		}
 	}
+
+	if (need_hwdep_wake_up)
+		wake_up(&ff->hwdep_wait);
+}
+
+static long ff400_copy_msg_to_user(struct snd_ff *ff, char __user *buf, long count)
+{
+	struct snd_firewire_event_ff400_message ev = {
+		.type = SNDRV_FIREWIRE_EVENT_FF400_MESSAGE,
+		.message_count = 0,
+	};
+	struct ff400_msg_parser *parser = ff->msg_parser;
+	long consumed = 0;
+	long ret = 0;
+
+	if (count < sizeof(ev) || parser->pull_pos == parser->push_pos)
+		return 0;
+
+	count -= sizeof(ev);
+	consumed += sizeof(ev);
+
+	while (count >= sizeof(*parser->msgs) && parser->pull_pos != parser->push_pos) {
+		spin_unlock_irq(&ff->lock);
+		if (copy_to_user(buf + consumed, parser->msgs + parser->pull_pos,
+				 sizeof(*parser->msgs)))
+			ret = -EFAULT;
+		spin_lock_irq(&ff->lock);
+		if (ret)
+			return ret;
+
+		++parser->pull_pos;
+		if (parser->pull_pos >= FF400_QUEUE_SIZE)
+			parser->pull_pos = 0;
+		++ev.message_count;
+		count -= sizeof(*parser->msgs);
+		consumed += sizeof(*parser->msgs);
+	}
+
+	spin_unlock_irq(&ff->lock);
+	if (copy_to_user(buf, &ev, sizeof(ev)))
+		ret = -EFAULT;
+	spin_lock_irq(&ff->lock);
+	if (ret)
+		return ret;
+
+	return consumed;
 }
 
 const struct snd_ff_protocol snd_ff_protocol_ff400 = {
-	.handle_midi_msg	= ff400_handle_midi_msg,
+	.msg_parser_size	= sizeof(struct ff400_msg_parser),
+	.has_msg		= ff400_has_msg,
+	.copy_msg_to_user	= ff400_copy_msg_to_user,
+	.handle_msg		= ff400_handle_msg,
 	.fill_midi_msg		= former_fill_midi_msg,
 	.get_clock		= former_get_clock,
 	.switch_fetching_mode	= former_switch_fetching_mode,

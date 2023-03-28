@@ -5065,7 +5065,7 @@ static int cgroup_may_write(const struct cgroup *cgrp, struct super_block *sb)
 	if (!inode)
 		return -ENOMEM;
 
-	ret = inode_permission(&init_user_ns, inode, MAY_WRITE);
+	ret = inode_permission(&nop_mnt_idmap, inode, MAY_WRITE);
 	iput(inode);
 	return ret;
 }

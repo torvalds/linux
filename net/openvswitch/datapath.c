@@ -1004,14 +1004,14 @@ static int ovs_flow_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	key = kzalloc(sizeof(*key), GFP_KERNEL);
 	if (!key) {
 		error = -ENOMEM;
-		goto err_kfree_key;
+		goto err_kfree_flow;
 	}
 
 	ovs_match_init(&match, key, false, &mask);
 	error = ovs_nla_get_match(net, &match, a[OVS_FLOW_ATTR_KEY],
 				  a[OVS_FLOW_ATTR_MASK], log);
 	if (error)
-		goto err_kfree_flow;
+		goto err_kfree_key;
 
 	ovs_flow_mask_key(&new_flow->key, key, true, &mask);
 
@@ -1019,14 +1019,14 @@ static int ovs_flow_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	error = ovs_nla_get_identifier(&new_flow->id, a[OVS_FLOW_ATTR_UFID],
 				       key, log);
 	if (error)
-		goto err_kfree_flow;
+		goto err_kfree_key;
 
 	/* Validate actions. */
 	error = ovs_nla_copy_actions(net, a[OVS_FLOW_ATTR_ACTIONS],
 				     &new_flow->key, &acts, log);
 	if (error) {
 		OVS_NLERR(log, "Flow actions may not be safe on all matching packets.");
-		goto err_kfree_flow;
+		goto err_kfree_key;
 	}
 
 	reply = ovs_flow_cmd_alloc_info(acts, &new_flow->id, info, false,
@@ -1126,10 +1126,10 @@ err_unlock_ovs:
 	kfree_skb(reply);
 err_kfree_acts:
 	ovs_nla_free_flow_actions(acts);
-err_kfree_flow:
-	ovs_flow_free(new_flow, false);
 err_kfree_key:
 	kfree(key);
+err_kfree_flow:
+	ovs_flow_free(new_flow, false);
 error:
 	return error;
 }
@@ -1861,7 +1861,7 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	vport->upcall_stats = netdev_alloc_pcpu_stats(struct vport_upcall_stats_percpu);
 	if (!vport->upcall_stats) {
 		err = -ENOMEM;
-		goto err_destroy_portids;
+		goto err_destroy_vport;
 	}
 
 	err = ovs_dp_cmd_fill_info(dp, reply, info->snd_portid,
@@ -1876,6 +1876,8 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	ovs_notify(&dp_datapath_genl_family, reply, info);
 	return 0;
 
+err_destroy_vport:
+	ovs_dp_detach_port(vport);
 err_destroy_portids:
 	kfree(rcu_dereference_raw(dp->upcall_portids));
 err_unlock_and_destroy_meters:
@@ -2323,7 +2325,7 @@ restart:
 	vport->upcall_stats = netdev_alloc_pcpu_stats(struct vport_upcall_stats_percpu);
 	if (!vport->upcall_stats) {
 		err = -ENOMEM;
-		goto exit_unlock_free;
+		goto exit_unlock_free_vport;
 	}
 
 	err = ovs_vport_cmd_fill_info(vport, reply, genl_info_net(info),
@@ -2343,6 +2345,8 @@ restart:
 	ovs_notify(&dp_vport_genl_family, reply, info);
 	return 0;
 
+exit_unlock_free_vport:
+	ovs_dp_detach_port(vport);
 exit_unlock_free:
 	ovs_unlock();
 	kfree_skb(reply);

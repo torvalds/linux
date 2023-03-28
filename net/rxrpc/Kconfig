@@ -36,6 +36,15 @@ config AF_RXRPC_INJECT_LOSS
 	  Say Y here to inject packet loss by discarding some received and some
 	  transmitted packets.
 
+config AF_RXRPC_INJECT_RX_DELAY
+	bool "Inject delay into packet reception"
+	depends on SYSCTL
+	help
+	  Say Y here to inject a delay into packet reception, allowing an
+	  extended RTT time to be modelled.  The delay can be configured using
+	  /proc/sys/net/rxrpc/rxrpc_inject_rx_delay, setting a number of
+	  milliseconds up to 0.5s (note that the granularity is actually in
+	  jiffies).
 
 config AF_RXRPC_DEBUG
 	bool "RxRPC dynamic debugging"

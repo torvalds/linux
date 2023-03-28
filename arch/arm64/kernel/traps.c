@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/kexec.h>
 #include <linux/delay.h>
+#include <linux/efi.h>
 #include <linux/init.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/debug.h>
@@ -26,6 +27,7 @@
 #include <linux/syscalls.h>
 #include <linux/mm_types.h>
 #include <linux/kasan.h>
+#include <linux/ubsan.h>
 #include <linux/cfi.h>
 
 #include <asm/atomic.h>
@@ -33,6 +35,7 @@
 #include <asm/cpufeature.h>
 #include <asm/daifflags.h>
 #include <asm/debug-monitors.h>
+#include <asm/efi.h>
 #include <asm/esr.h>
 #include <asm/exception.h>
 #include <asm/extable.h>
@@ -162,10 +165,8 @@ static void dump_kernel_instr(const char *lvl, struct pt_regs *regs)
 
 		if (!bad)
 			p += sprintf(p, i == 0 ? "(%08x) " : "%08x ", val);
-		else {
-			p += sprintf(p, "bad PC value");
-			break;
-		}
+		else
+			p += sprintf(p, i == 0 ? "(????????) " : "???????? ");
 	}
 
 	printk("%sCode: %s\n", lvl, str);
@@ -492,6 +493,10 @@ void do_el0_bti(struct pt_regs *regs)
 
 void do_el1_bti(struct pt_regs *regs, unsigned long esr)
 {
+	if (efi_runtime_fixup_exception(regs, "BTI violation")) {
+		regs->pstate &= ~PSR_BTYPE_MASK;
+		return;
+	}
 	die("Oops - BTI", regs, esr);
 }
 
@@ -992,7 +997,7 @@ static int cfi_handler(struct pt_regs *regs, unsigned long esr)
 
 	switch (report_cfi_failure(regs, regs->pc, &target, type)) {
 	case BUG_TRAP_TYPE_BUG:
-		die("Oops - CFI", regs, 0);
+		die("Oops - CFI", regs, esr);
 		break;
 
 	case BUG_TRAP_TYPE_WARN:
@@ -1074,6 +1079,19 @@ static struct break_hook kasan_break_hook = {
 };
 #endif
 
+#ifdef CONFIG_UBSAN_TRAP
+static int ubsan_handler(struct pt_regs *regs, unsigned long esr)
+{
+	die(report_ubsan_failure(regs, esr & UBSAN_BRK_MASK), regs, esr);
+	return DBG_HOOK_HANDLED;
+}
+
+static struct break_hook ubsan_break_hook = {
+	.fn	= ubsan_handler,
+	.imm	= UBSAN_BRK_IMM,
+	.mask	= UBSAN_BRK_MASK,
+};
+#endif
 
 #define esr_comment(esr) ((esr) & ESR_ELx_BRK64_ISS_COMMENT_MASK)
 
@@ -1092,6 +1110,10 @@ int __init early_brk64(unsigned long addr, unsigned long esr,
 	if ((esr_comment(esr) & ~KASAN_BRK_MASK) == KASAN_BRK_IMM)
 		return kasan_handler(regs, esr) != DBG_HOOK_HANDLED;
 #endif
+#ifdef CONFIG_UBSAN_TRAP
+	if ((esr_comment(esr) & ~UBSAN_BRK_MASK) == UBSAN_BRK_IMM)
+		return ubsan_handler(regs, esr) != DBG_HOOK_HANDLED;
+#endif
 	return bug_handler(regs, esr) != DBG_HOOK_HANDLED;
 }
 
@@ -1104,6 +1126,9 @@ void __init trap_init(void)
 	register_kernel_break_hook(&fault_break_hook);
 #ifdef CONFIG_KASAN_SW_TAGS
 	register_kernel_break_hook(&kasan_break_hook);
+#endif
+#ifdef CONFIG_UBSAN_TRAP
+	register_kernel_break_hook(&ubsan_break_hook);
 #endif
 	debug_traps_init();
 }

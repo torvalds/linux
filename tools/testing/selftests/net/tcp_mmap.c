@@ -137,7 +137,8 @@ static void *mmap_large_buffer(size_t need, size_t *allocated)
 	if (buffer == (void *)-1) {
 		sz = need;
 		buffer = mmap(NULL, sz, PROT_READ | PROT_WRITE,
-			      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+			      MAP_PRIVATE | MAP_ANONYMOUS | MAP_POPULATE,
+			      -1, 0);
 		if (buffer != (void *)-1)
 			fprintf(stderr, "MAP_HUGETLB attempt failed, look at /sys/kernel/mm/hugepages for optimal performance\n");
 	}

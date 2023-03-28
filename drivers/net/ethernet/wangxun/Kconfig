@@ -18,6 +18,7 @@ if NET_VENDOR_WANGXUN
 
 config LIBWX
 	tristate
+	select PAGE_POOL
 	help
 	Common library for Wangxun(R) Ethernet drivers.
 
@@ -25,6 +26,7 @@ config NGBE
 	tristate "Wangxun(R) GbE PCI Express adapters support"
 	depends on PCI
 	select LIBWX
+	select PHYLIB
 	help
 	  This driver supports Wangxun(R) GbE PCI Express family of
 	  adapters.

@@ -104,31 +104,31 @@
 
 		serial_0: serial@12c00000 {
 			compatible = "samsung,exynos4210-uart";
-			reg = <0x12C00000 0x100>;
+			reg = <0x12c00000 0x100>;
 			interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		serial_1: serial@12c10000 {
 			compatible = "samsung,exynos4210-uart";
-			reg = <0x12C10000 0x100>;
+			reg = <0x12c10000 0x100>;
 			interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		serial_2: serial@12c20000 {
 			compatible = "samsung,exynos4210-uart";
-			reg = <0x12C20000 0x100>;
+			reg = <0x12c20000 0x100>;
 			interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		serial_3: serial@12c30000 {
 			compatible = "samsung,exynos4210-uart";
-			reg = <0x12C30000 0x100>;
+			reg = <0x12c30000 0x100>;
 			interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		i2c_0: i2c@12c60000 {
 			compatible = "samsung,s3c2440-i2c";
-			reg = <0x12C60000 0x100>;
+			reg = <0x12c60000 0x100>;
 			interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -138,7 +138,7 @@
 
 		i2c_1: i2c@12c70000 {
 			compatible = "samsung,s3c2440-i2c";
-			reg = <0x12C70000 0x100>;
+			reg = <0x12c70000 0x100>;
 			interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -148,7 +148,7 @@
 
 		i2c_2: i2c@12c80000 {
 			compatible = "samsung,s3c2440-i2c";
-			reg = <0x12C80000 0x100>;
+			reg = <0x12c80000 0x100>;
 			interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -158,7 +158,7 @@
 
 		i2c_3: i2c@12c90000 {
 			compatible = "samsung,s3c2440-i2c";
-			reg = <0x12C90000 0x100>;
+			reg = <0x12c90000 0x100>;
 			interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -168,7 +168,7 @@
 
 		pwm: pwm@12dd0000 {
 			compatible = "samsung,exynos4210-pwm";
-			reg = <0x12DD0000 0x100>;
+			reg = <0x12dd0000 0x100>;
 			interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>,
@@ -180,7 +180,7 @@
 
 		rtc: rtc@101e0000 {
 			compatible = "samsung,s3c6410-rtc";
-			reg = <0x101E0000 0x100>;
+			reg = <0x101e0000 0x100>;
 			interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
@@ -198,7 +198,7 @@
 
 		dp: dp-controller@145b0000 {
 			compatible = "samsung,exynos5-dp";
-			reg = <0x145B0000 0x1000>;
+			reg = <0x145b0000 0x1000>;
 			interrupts = <10 3>;
 			interrupt-parent = <&combiner>;
 			status = "disabled";

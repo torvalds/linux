@@ -88,8 +88,8 @@ int subsys_virtual_register(struct bus_type *subsys,
 struct device_type {
 	const char *name;
 	const struct attribute_group **groups;
-	int (*uevent)(struct device *dev, struct kobj_uevent_env *env);
-	char *(*devnode)(struct device *dev, umode_t *mode,
+	int (*uevent)(const struct device *dev, struct kobj_uevent_env *env);
+	char *(*devnode)(const struct device *dev, umode_t *mode,
 			 kuid_t *uid, kgid_t *gid);
 	void (*release)(struct device *dev);
 
@@ -328,6 +328,7 @@ enum device_link_state {
 #define DL_FLAG_MANAGED			BIT(6)
 #define DL_FLAG_SYNC_STATE_ONLY		BIT(7)
 #define DL_FLAG_INFERRED		BIT(8)
+#define DL_FLAG_CYCLE			BIT(9)
 
 /**
  * enum dl_dev_state - Device driver presence tracking information.
@@ -907,8 +908,6 @@ int device_rename(struct device *dev, const char *new_name);
 int device_move(struct device *dev, struct device *new_parent,
 		enum dpm_order dpm_order);
 int device_change_owner(struct device *dev, kuid_t kuid, kgid_t kgid);
-const char *device_get_devnode(struct device *dev, umode_t *mode, kuid_t *uid,
-			       kgid_t *gid, const char **tmp);
 int device_is_dependent(struct device *dev, void *target);
 
 static inline bool device_supports_offline(struct device *dev)

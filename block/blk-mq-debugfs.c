@@ -813,9 +813,9 @@ static const char *rq_qos_id_to_name(enum rq_qos_id id)
 
 void blk_mq_debugfs_unregister_rqos(struct rq_qos *rqos)
 {
-	lockdep_assert_held(&rqos->q->debugfs_mutex);
+	lockdep_assert_held(&rqos->disk->queue->debugfs_mutex);
 
-	if (!rqos->q->debugfs_dir)
+	if (!rqos->disk->queue->debugfs_dir)
 		return;
 	debugfs_remove_recursive(rqos->debugfs_dir);
 	rqos->debugfs_dir = NULL;
@@ -823,7 +823,7 @@ void blk_mq_debugfs_unregister_rqos(struct rq_qos *rqos)
 
 void blk_mq_debugfs_register_rqos(struct rq_qos *rqos)
 {
-	struct request_queue *q = rqos->q;
+	struct request_queue *q = rqos->disk->queue;
 	const char *dir_name = rq_qos_id_to_name(rqos->id);
 
 	lockdep_assert_held(&q->debugfs_mutex);
@@ -835,9 +835,7 @@ void blk_mq_debugfs_register_rqos(struct rq_qos *rqos)
 		q->rqos_debugfs_dir = debugfs_create_dir("rqos",
 							 q->debugfs_dir);
 
-	rqos->debugfs_dir = debugfs_create_dir(dir_name,
-					       rqos->q->rqos_debugfs_dir);
-
+	rqos->debugfs_dir = debugfs_create_dir(dir_name, q->rqos_debugfs_dir);
 	debugfs_create_files(rqos->debugfs_dir, rqos, rqos->ops->debugfs_attrs);
 }
 

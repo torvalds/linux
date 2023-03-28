@@ -136,17 +136,17 @@ static const struct drm_fb_helper_funcs msm_fb_helper_funcs = {
 struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
-	struct msm_fbdev *fbdev = NULL;
+	struct msm_fbdev *fbdev;
 	struct drm_fb_helper *helper;
 	int ret;
 
 	fbdev = kzalloc(sizeof(*fbdev), GFP_KERNEL);
 	if (!fbdev)
-		goto fail;
+		return NULL;
 
 	helper = &fbdev->base;
 
-	drm_fb_helper_prepare(dev, helper, &msm_fb_helper_funcs);
+	drm_fb_helper_prepare(dev, helper, 32, &msm_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(dev, helper);
 	if (ret) {
@@ -159,7 +159,7 @@ struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev)
 	if (ret)
 		goto fini;
 
-	ret = drm_fb_helper_initial_config(helper, 32);
+	ret = drm_fb_helper_initial_config(helper);
 	if (ret)
 		goto fini;
 
@@ -170,6 +170,7 @@ struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev)
 fini:
 	drm_fb_helper_fini(helper);
 fail:
+	drm_fb_helper_unprepare(helper);
 	kfree(fbdev);
 	return NULL;
 }
@@ -196,6 +197,7 @@ void msm_fbdev_free(struct drm_device *dev)
 		drm_framebuffer_remove(fbdev->fb);
 	}
 
+	drm_fb_helper_unprepare(helper);
 	kfree(fbdev);
 
 	priv->fbdev = NULL;

@@ -156,6 +156,11 @@ static inline bool kvm_mmu_page_ad_need_write_protect(struct kvm_mmu_page *sp)
 	return kvm_x86_ops.cpu_dirty_log_size && sp->role.guest_mode;
 }
 
+static inline gfn_t gfn_round_for_level(gfn_t gfn, int level)
+{
+	return gfn & -KVM_PAGES_PER_HPAGE(level);
+}
+
 int mmu_try_to_unsync_pages(struct kvm *kvm, const struct kvm_memory_slot *slot,
 			    gfn_t gfn, bool can_unsync, bool prefetch);
 
@@ -164,8 +169,17 @@ void kvm_mmu_gfn_allow_lpage(const struct kvm_memory_slot *slot, gfn_t gfn);
 bool kvm_mmu_slot_gfn_write_protect(struct kvm *kvm,
 				    struct kvm_memory_slot *slot, u64 gfn,
 				    int min_level);
+
 void kvm_flush_remote_tlbs_with_address(struct kvm *kvm,
 					u64 start_gfn, u64 pages);
+
+/* Flush the given page (huge or not) of guest memory. */
+static inline void kvm_flush_remote_tlbs_gfn(struct kvm *kvm, gfn_t gfn, int level)
+{
+	kvm_flush_remote_tlbs_with_address(kvm, gfn_round_for_level(gfn, level),
+					   KVM_PAGES_PER_HPAGE(level));
+}
+
 unsigned int pte_list_count(struct kvm_rmap_head *rmap_head);
 
 extern int nx_huge_pages;
@@ -199,7 +213,7 @@ struct kvm_page_fault {
 
 	/*
 	 * Maximum page size that can be created for this fault; input to
-	 * FNAME(fetch), __direct_map and kvm_tdp_mmu_map.
+	 * FNAME(fetch), direct_map() and kvm_tdp_mmu_map().
 	 */
 	u8 max_level;
 
@@ -222,6 +236,7 @@ struct kvm_page_fault {
 	struct kvm_memory_slot *slot;
 
 	/* Outputs of kvm_faultin_pfn.  */
+	unsigned long mmu_seq;
 	kvm_pfn_t pfn;
 	hva_t hva;
 	bool map_writable;
@@ -278,6 +293,11 @@ static inline int kvm_mmu_do_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 		.goal_level = PG_LEVEL_4K,
 	};
 	int r;
+
+	if (vcpu->arch.mmu->root_role.direct) {
+		fault.gfn = fault.addr >> PAGE_SHIFT;
+		fault.slot = kvm_vcpu_gfn_to_memslot(vcpu, fault.gfn);
+	}
 
 	/*
 	 * Async #PF "faults", a.k.a. prefetch faults, are not faults from the

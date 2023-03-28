@@ -6,7 +6,6 @@
 #include "misc.h"
 
 struct extent_changeset;
-struct io_failure_record;
 
 /* Bits for the extent state */
 enum {

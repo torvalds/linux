@@ -12,6 +12,7 @@
 #include "i915_memcpy.h"
 #include "intel_guc_capture.h"
 #include "intel_guc_log.h"
+#include "intel_guc_print.h"
 
 #if defined(CONFIG_DRM_I915_DEBUG_GUC)
 #define GUC_LOG_DEFAULT_CRASH_BUFFER_SIZE	SZ_2M
@@ -39,7 +40,6 @@ struct guc_log_section {
 static void _guc_log_init_sizes(struct intel_guc_log *log)
 {
 	struct intel_guc *guc = log_to_guc(log);
-	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
 	static const struct guc_log_section sections[GUC_LOG_SECTIONS_LIMIT] = {
 		{
 			GUC_LOG_CRASH_MASK >> GUC_LOG_CRASH_SHIFT,
@@ -82,12 +82,12 @@ static void _guc_log_init_sizes(struct intel_guc_log *log)
 		}
 
 		if (!IS_ALIGNED(log->sizes[i].bytes, log->sizes[i].units))
-			drm_err(&i915->drm, "Mis-aligned GuC log %s size: 0x%X vs 0x%X!",
+			guc_err(guc, "Mis-aligned log %s size: 0x%X vs 0x%X!\n",
 				sections[i].name, log->sizes[i].bytes, log->sizes[i].units);
 		log->sizes[i].count = log->sizes[i].bytes / log->sizes[i].units;
 
 		if (!log->sizes[i].count) {
-			drm_err(&i915->drm, "Zero GuC log %s size!", sections[i].name);
+			guc_err(guc, "Zero log %s size!\n", sections[i].name);
 		} else {
 			/* Size is +1 unit */
 			log->sizes[i].count--;
@@ -95,14 +95,14 @@ static void _guc_log_init_sizes(struct intel_guc_log *log)
 
 		/* Clip to field size */
 		if (log->sizes[i].count > sections[i].max) {
-			drm_err(&i915->drm, "GuC log %s size too large: %d vs %d!",
+			guc_err(guc, "log %s size too large: %d vs %d!\n",
 				sections[i].name, log->sizes[i].count + 1, sections[i].max + 1);
 			log->sizes[i].count = sections[i].max;
 		}
 	}
 
 	if (log->sizes[GUC_LOG_SECTIONS_CRASH].units != log->sizes[GUC_LOG_SECTIONS_DEBUG].units) {
-		drm_err(&i915->drm, "Unit mis-match for GuC log crash and debug sections: %d vs %d!",
+		guc_err(guc, "Unit mismatch for crash and debug sections: %d vs %d!\n",
 			log->sizes[GUC_LOG_SECTIONS_CRASH].units,
 			log->sizes[GUC_LOG_SECTIONS_DEBUG].units);
 		log->sizes[GUC_LOG_SECTIONS_CRASH].units = log->sizes[GUC_LOG_SECTIONS_DEBUG].units;
@@ -333,8 +333,7 @@ bool intel_guc_check_log_buf_overflow(struct intel_guc_log *log,
 			log->stats[type].sampled_overflow += 16;
 		}
 
-		dev_notice_ratelimited(guc_to_gt(log_to_guc(log))->i915->drm.dev,
-				       "GuC log buffer overflow\n");
+		guc_notice_ratelimited(log_to_guc(log), "log buffer overflow\n");
 	}
 
 	return overflow;
@@ -374,6 +373,7 @@ size_t intel_guc_get_log_buffer_offset(struct intel_guc_log *log,
 
 static void _guc_log_copy_debuglogs_for_relay(struct intel_guc_log *log)
 {
+	struct intel_guc *guc = log_to_guc(log);
 	unsigned int buffer_size, read_offset, write_offset, bytes_to_copy, full_cnt;
 	struct guc_log_buffer_state *log_buf_state, *log_buf_snapshot_state;
 	struct guc_log_buffer_state log_buf_state_local;
@@ -383,7 +383,7 @@ static void _guc_log_copy_debuglogs_for_relay(struct intel_guc_log *log)
 
 	mutex_lock(&log->relay.lock);
 
-	if (WARN_ON(!intel_guc_log_relay_created(log)))
+	if (guc_WARN_ON(guc, !intel_guc_log_relay_created(log)))
 		goto out_unlock;
 
 	/* Get the pointer to shared GuC log buffer */
@@ -398,7 +398,7 @@ static void _guc_log_copy_debuglogs_for_relay(struct intel_guc_log *log)
 		 * Used rate limited to avoid deluge of messages, logs might be
 		 * getting consumed by User at a slow rate.
 		 */
-		DRM_ERROR_RATELIMITED("no sub-buffer to copy general logs\n");
+		guc_err_ratelimited(guc, "no sub-buffer to copy general logs\n");
 		log->relay.full_count++;
 
 		goto out_unlock;
@@ -451,7 +451,7 @@ static void _guc_log_copy_debuglogs_for_relay(struct intel_guc_log *log)
 			write_offset = buffer_size;
 		} else if (unlikely((read_offset > buffer_size) ||
 				    (write_offset > buffer_size))) {
-			DRM_ERROR("invalid log buffer state\n");
+			guc_err(guc, "invalid log buffer state\n");
 			/* copy whole buffer as offsets are unreliable */
 			read_offset = 0;
 			write_offset = buffer_size;
@@ -520,7 +520,7 @@ void intel_guc_log_init_early(struct intel_guc_log *log)
 static int guc_log_relay_create(struct intel_guc_log *log)
 {
 	struct intel_guc *guc = log_to_guc(log);
-	struct drm_i915_private *dev_priv = guc_to_gt(guc)->i915;
+	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
 	struct rchan *guc_log_relay_chan;
 	size_t n_subbufs, subbuf_size;
 	int ret;
@@ -543,11 +543,11 @@ static int guc_log_relay_create(struct intel_guc_log *log)
 	n_subbufs = 8;
 
 	guc_log_relay_chan = relay_open("guc_log",
-					dev_priv->drm.primary->debugfs_root,
+					i915->drm.primary->debugfs_root,
 					subbuf_size, n_subbufs,
-					&relay_callbacks, dev_priv);
+					&relay_callbacks, i915);
 	if (!guc_log_relay_chan) {
-		DRM_ERROR("Couldn't create relay chan for GuC logging\n");
+		guc_err(guc, "Couldn't create relay channel for logging\n");
 
 		ret = -ENOMEM;
 		return ret;
@@ -570,7 +570,7 @@ static void guc_log_relay_destroy(struct intel_guc_log *log)
 static void guc_log_copy_debuglogs_for_relay(struct intel_guc_log *log)
 {
 	struct intel_guc *guc = log_to_guc(log);
-	struct drm_i915_private *dev_priv = guc_to_gt(guc)->i915;
+	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
 	intel_wakeref_t wakeref;
 
 	_guc_log_copy_debuglogs_for_relay(log);
@@ -579,7 +579,7 @@ static void guc_log_copy_debuglogs_for_relay(struct intel_guc_log *log)
 	 * Generally device is expected to be active only at this
 	 * time, so get/put should be really quick.
 	 */
-	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref)
+	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
 		guc_action_flush_log_complete(guc);
 }
 
@@ -596,9 +596,8 @@ static u32 __get_default_log_level(struct intel_guc_log *log)
 	}
 
 	if (i915->params.guc_log_level > GUC_LOG_LEVEL_MAX) {
-		DRM_WARN("Incompatible option detected: %s=%d, %s!\n",
-			 "guc_log_level", i915->params.guc_log_level,
-			 "verbosity too high");
+		guc_warn(guc, "Log verbosity param out of range: %d > %d!\n",
+			 i915->params.guc_log_level, GUC_LOG_LEVEL_MAX);
 		return (IS_ENABLED(CONFIG_DRM_I915_DEBUG) ||
 			IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)) ?
 			GUC_LOG_LEVEL_MAX : GUC_LOG_LEVEL_DISABLED;
@@ -641,15 +640,15 @@ int intel_guc_log_create(struct intel_guc_log *log)
 	log->buf_addr = vaddr;
 
 	log->level = __get_default_log_level(log);
-	DRM_DEBUG_DRIVER("guc_log_level=%d (%s, verbose:%s, verbosity:%d)\n",
-			 log->level, str_enabled_disabled(log->level),
-			 str_yes_no(GUC_LOG_LEVEL_IS_VERBOSE(log->level)),
-			 GUC_LOG_LEVEL_TO_VERBOSITY(log->level));
+	guc_dbg(guc, "guc_log_level=%d (%s, verbose:%s, verbosity:%d)\n",
+		log->level, str_enabled_disabled(log->level),
+		str_yes_no(GUC_LOG_LEVEL_IS_VERBOSE(log->level)),
+		GUC_LOG_LEVEL_TO_VERBOSITY(log->level));
 
 	return 0;
 
 err:
-	DRM_ERROR("Failed to allocate or map GuC log buffer. %d\n", ret);
+	guc_err(guc, "Failed to allocate or map log buffer %pe\n", ERR_PTR(ret));
 	return ret;
 }
 
@@ -662,7 +661,7 @@ void intel_guc_log_destroy(struct intel_guc_log *log)
 int intel_guc_log_set_level(struct intel_guc_log *log, u32 level)
 {
 	struct intel_guc *guc = log_to_guc(log);
-	struct drm_i915_private *dev_priv = guc_to_gt(guc)->i915;
+	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
 	intel_wakeref_t wakeref;
 	int ret = 0;
 
@@ -676,25 +675,25 @@ int intel_guc_log_set_level(struct intel_guc_log *log, u32 level)
 	if (level < GUC_LOG_LEVEL_DISABLED || level > GUC_LOG_LEVEL_MAX)
 		return -EINVAL;
 
-	mutex_lock(&dev_priv->drm.struct_mutex);
+	mutex_lock(&i915->drm.struct_mutex);
 
 	if (log->level == level)
 		goto out_unlock;
 
-	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref)
+	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
 		ret = guc_action_control_log(guc,
 					     GUC_LOG_LEVEL_IS_VERBOSE(level),
 					     GUC_LOG_LEVEL_IS_ENABLED(level),
 					     GUC_LOG_LEVEL_TO_VERBOSITY(level));
 	if (ret) {
-		DRM_DEBUG_DRIVER("guc_log_control action failed %d\n", ret);
+		guc_dbg(guc, "guc_log_control action failed %pe\n", ERR_PTR(ret));
 		goto out_unlock;
 	}
 
 	log->level = level;
 
 out_unlock:
-	mutex_unlock(&dev_priv->drm.struct_mutex);
+	mutex_unlock(&i915->drm.struct_mutex);
 
 	return ret;
 }
@@ -905,7 +904,7 @@ int intel_guc_log_dump(struct intel_guc_log *log, struct drm_printer *p,
 
 	map = i915_gem_object_pin_map_unlocked(obj, I915_MAP_WC);
 	if (IS_ERR(map)) {
-		DRM_DEBUG("Failed to pin object\n");
+		guc_dbg(guc, "Failed to pin log object: %pe\n", map);
 		drm_puts(p, "(log data unaccessible)\n");
 		free_page((unsigned long)page);
 		return PTR_ERR(map);

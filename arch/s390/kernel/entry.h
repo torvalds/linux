@@ -73,6 +73,5 @@ extern struct exception_table_entry _stop_amode31_ex_table[];
 #define __amode31_data __section(".amode31.data")
 #define __amode31_ref __section(".amode31.refs")
 extern long _start_amode31_refs[], _end_amode31_refs[];
-extern unsigned long __amode31_base;
 
 #endif /* _ENTRY_H */

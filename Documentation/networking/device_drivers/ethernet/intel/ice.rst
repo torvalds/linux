@@ -819,7 +819,7 @@ NAPI
 ----
 This driver supports NAPI (Rx polling mode).
 For more information on NAPI, see
-https://www.linuxfoundation.org/collaborate/workgroups/networking/napi
+https://wiki.linuxfoundation.org/networking/napi
 
 
 MACVLAN
@@ -901,15 +901,17 @@ To enable/disable UDP Segmentation Offload, issue the following command::
 
   # ethtool -K <ethX> tx-udp-segmentation [off|on]
 
+
 GNSS module
 -----------
-Allows user to read messages from the GNSS module and write supported commands.
-If the module is physically present, driver creates 2 TTYs for each supported
-device in /dev, ttyGNSS_<device>:<function>_0 and _1. First one (_0) is RW and
-the second one is RO.
-The protocol of write commands is dependent on the GNSS module as the driver
-writes raw bytes from the TTY to the GNSS i2c. Please refer to the module
-documentation for details.
+Requires kernel compiled with CONFIG_GNSS=y or CONFIG_GNSS=m.
+Allows user to read messages from the GNSS hardware module and write supported
+commands. If the module is physically present, a GNSS device is spawned:
+``/dev/gnss<id>``.
+The protocol of write command is dependent on the GNSS hardware module as the
+driver writes raw bytes by the GNSS object to the receiver through i2c. Please
+refer to the hardware GNSS module documentation for configuration details.
+
 
 Performance Optimization
 ========================

@@ -19,7 +19,7 @@
   * features get enabled upstream.
   */
 
-gpu_opp_table_3_0: gpu-opp-table-30 {
+gpu_opp_table_3_0: opp-table-gpu30 {
 	compatible = "operating-points-v2";
 
 	opp-624000000 {

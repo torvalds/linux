@@ -478,15 +478,15 @@ xchk_ag_btcur_init(
 	/* Set up a inobt cursor for cross-referencing. */
 	if (sa->agi_bp &&
 	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_INO)) {
-		sa->ino_cur = xfs_inobt_init_cursor(mp, sc->tp, sa->agi_bp,
-				sa->pag, XFS_BTNUM_INO);
+		sa->ino_cur = xfs_inobt_init_cursor(sa->pag, sc->tp, sa->agi_bp,
+				XFS_BTNUM_INO);
 	}
 
 	/* Set up a finobt cursor for cross-referencing. */
 	if (sa->agi_bp && xfs_has_finobt(mp) &&
 	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_FINO)) {
-		sa->fino_cur = xfs_inobt_init_cursor(mp, sc->tp, sa->agi_bp,
-				sa->pag, XFS_BTNUM_FINO);
+		sa->fino_cur = xfs_inobt_init_cursor(sa->pag, sc->tp, sa->agi_bp,
+				XFS_BTNUM_FINO);
 	}
 
 	/* Set up a rmapbt cursor for cross-referencing. */
@@ -636,6 +636,7 @@ xchk_get_inode(
 {
 	struct xfs_imap		imap;
 	struct xfs_mount	*mp = sc->mp;
+	struct xfs_perag	*pag;
 	struct xfs_inode	*ip_in = XFS_I(file_inode(sc->file));
 	struct xfs_inode	*ip = NULL;
 	int			error;
@@ -671,10 +672,14 @@ xchk_get_inode(
 		 * Otherwise, we really couldn't find it so tell userspace
 		 * that it no longer exists.
 		 */
-		error = xfs_imap(sc->mp, sc->tp, sc->sm->sm_ino, &imap,
-				XFS_IGET_UNTRUSTED | XFS_IGET_DONTCACHE);
-		if (error)
-			return -ENOENT;
+		pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, sc->sm->sm_ino));
+		if (pag) {
+			error = xfs_imap(pag, sc->tp, sc->sm->sm_ino, &imap,
+					XFS_IGET_UNTRUSTED | XFS_IGET_DONTCACHE);
+			xfs_perag_put(pag);
+			if (error)
+				return -ENOENT;
+		}
 		error = -EFSCORRUPTED;
 		fallthrough;
 	default:

@@ -484,11 +484,6 @@ static int wl1273_platform_probe(struct platform_device *pdev)
 				      &wl1273_dai, 1);
 }
 
-static int wl1273_platform_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 MODULE_ALIAS("platform:wl1273-codec");
 
 static struct platform_driver wl1273_platform_driver = {
@@ -496,7 +491,6 @@ static struct platform_driver wl1273_platform_driver = {
 		.name	= "wl1273-codec",
 	},
 	.probe		= wl1273_platform_probe,
-	.remove		= wl1273_platform_remove,
 };
 
 module_platform_driver(wl1273_platform_driver);

@@ -7,6 +7,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/bitops.h>
+#include <linux/intel_tcc.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
@@ -44,32 +45,6 @@
 
 /* DTS0 and DTS 1 */
 #define SOC_MAX_DTS_SENSORS		2
-
-static int get_tj_max(u32 *tj_max)
-{
-	u32 eax, edx;
-	u32 val;
-	int err;
-
-	err = rdmsr_safe(MSR_IA32_TEMPERATURE_TARGET, &eax, &edx);
-	if (err)
-		goto err_ret;
-	else {
-		val = (eax >> 16) & 0xff;
-		if (val)
-			*tj_max = val * 1000;
-		else {
-			err = -EINVAL;
-			goto err_ret;
-		}
-	}
-
-	return 0;
-err_ret:
-	*tj_max = 0;
-
-	return err;
-}
 
 static int sys_get_trip_temp(struct thermal_zone_device *tzd, int trip,
 			     int *temp)
@@ -405,7 +380,7 @@ struct intel_soc_dts_sensors *intel_soc_dts_iosf_init(
 {
 	struct intel_soc_dts_sensors *sensors;
 	bool notification;
-	u32 tj_max;
+	int tj_max;
 	int ret;
 	int i;
 
@@ -415,8 +390,9 @@ struct intel_soc_dts_sensors *intel_soc_dts_iosf_init(
 	if (!trip_count || read_only_trip_count > trip_count)
 		return ERR_PTR(-EINVAL);
 
-	if (get_tj_max(&tj_max))
-		return ERR_PTR(-EINVAL);
+	tj_max = intel_tcc_get_tjmax(-1);
+	if (tj_max < 0)
+		return ERR_PTR(tj_max);
 
 	sensors = kzalloc(sizeof(*sensors), GFP_KERNEL);
 	if (!sensors)
@@ -475,4 +451,5 @@ void intel_soc_dts_iosf_exit(struct intel_soc_dts_sensors *sensors)
 }
 EXPORT_SYMBOL_GPL(intel_soc_dts_iosf_exit);
 
+MODULE_IMPORT_NS(INTEL_TCC);
 MODULE_LICENSE("GPL v2");

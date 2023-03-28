@@ -70,7 +70,6 @@ struct enetc_ring_stats {
 	unsigned int xdp_tx_drops;
 	unsigned int xdp_redirect;
 	unsigned int xdp_redirect_failures;
-	unsigned int xdp_redirect_sg;
 	unsigned int recycles;
 	unsigned int recycle_failures;
 	unsigned int win_drop;
@@ -85,6 +84,23 @@ struct enetc_xdp_data {
 #define ENETC_RX_RING_DEFAULT_SIZE	2048
 #define ENETC_TX_RING_DEFAULT_SIZE	2048
 #define ENETC_DEFAULT_TX_WORK		(ENETC_TX_RING_DEFAULT_SIZE / 2)
+
+struct enetc_bdr_resource {
+	/* Input arguments saved for teardown */
+	struct device *dev; /* for DMA mapping */
+	size_t bd_count;
+	size_t bd_size;
+
+	/* Resource proper */
+	void *bd_base; /* points to Rx or Tx BD ring */
+	dma_addr_t bd_dma_base;
+	union {
+		struct enetc_tx_swbd *tx_swbd;
+		struct enetc_rx_swbd *rx_swbd;
+	};
+	char *tso_headers;
+	dma_addr_t tso_headers_dma;
+};
 
 struct enetc_bdr {
 	struct device *dev; /* for DMA mapping */
@@ -213,8 +229,9 @@ enum enetc_errata {
 	ENETC_ERR_UCMCSWP	= BIT(1),
 };
 
-#define ENETC_SI_F_QBV BIT(0)
-#define ENETC_SI_F_PSFP BIT(1)
+#define ENETC_SI_F_PSFP BIT(0)
+#define ENETC_SI_F_QBV  BIT(1)
+#define ENETC_SI_F_QBU  BIT(2)
 
 /* PCI IEP device data */
 struct enetc_si {
@@ -297,7 +314,6 @@ struct psfp_cap {
 };
 
 #define ENETC_F_TX_TSTAMP_MASK	0xff
-/* TODO: more hardware offloads */
 enum enetc_active_offloads {
 	/* 8 bits reserved for TX timestamp types (hwtstamp_tx_types) */
 	ENETC_F_TX_TSTAMP		= BIT(0),
@@ -306,6 +322,7 @@ enum enetc_active_offloads {
 	ENETC_F_RX_TSTAMP		= BIT(8),
 	ENETC_F_QBV			= BIT(9),
 	ENETC_F_QCI			= BIT(10),
+	ENETC_F_QBU			= BIT(11),
 };
 
 enum enetc_flags_bit {
@@ -345,10 +362,15 @@ struct enetc_ndev_priv {
 	struct enetc_bdr **xdp_tx_ring;
 	struct enetc_bdr *tx_ring[16];
 	struct enetc_bdr *rx_ring[16];
+	const struct enetc_bdr_resource *tx_res;
+	const struct enetc_bdr_resource *rx_res;
 
 	struct enetc_cls_rule *cls_rules;
 
 	struct psfp_cap psfp_cap;
+
+	/* Minimum number of TX queues required by the network stack */
+	unsigned int min_num_stack_tx_queues;
 
 	struct phylink *phylink;
 	int ic_mode;
@@ -360,6 +382,11 @@ struct enetc_ndev_priv {
 
 	struct work_struct	tx_onestep_tstamp;
 	struct sk_buff_head	tx_skbs;
+
+	/* Serialize access to MAC Merge state between ethtool requests
+	 * and link state updates
+	 */
+	struct mutex		mm_lock;
 };
 
 /* Messaging */
@@ -378,6 +405,8 @@ struct enetc_msg_cmd_set_primary_mac {
 extern int enetc_phc_index;
 
 /* SI common */
+u32 enetc_port_mac_rd(struct enetc_si *si, u32 reg);
+void enetc_port_mac_wr(struct enetc_si *si, u32 reg, u32 val);
 int enetc_pci_probe(struct pci_dev *pdev, const char *name, int sizeof_priv);
 void enetc_pci_remove(struct pci_dev *pdev);
 int enetc_alloc_msix(struct enetc_ndev_priv *priv);
@@ -397,12 +426,13 @@ struct net_device_stats *enetc_get_stats(struct net_device *ndev);
 void enetc_set_features(struct net_device *ndev, netdev_features_t features);
 int enetc_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd);
 int enetc_setup_tc_mqprio(struct net_device *ndev, void *type_data);
-int enetc_setup_bpf(struct net_device *dev, struct netdev_bpf *xdp);
+int enetc_setup_bpf(struct net_device *ndev, struct netdev_bpf *bpf);
 int enetc_xdp_xmit(struct net_device *ndev, int num_frames,
 		   struct xdp_frame **frames, u32 flags);
 
 /* ethtool */
 void enetc_set_ethtool_ops(struct net_device *ndev);
+void enetc_mm_link_state_update(struct enetc_ndev_priv *priv, bool link);
 
 /* control buffer descriptor ring (CBDR) */
 int enetc_setup_cbdr(struct device *dev, struct enetc_hw *hw, int bd_count,

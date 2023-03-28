@@ -781,9 +781,6 @@ static int a5psw_mdio_read(struct mii_bus *bus, int phy_id, int phy_reg)
 	u32 cmd, status;
 	int ret;
 
-	if (phy_reg & MII_ADDR_C45)
-		return -EOPNOTSUPP;
-
 	cmd = A5PSW_MDIO_COMMAND_READ;
 	cmd |= FIELD_PREP(A5PSW_MDIO_COMMAND_REG_ADDR, phy_reg);
 	cmd |= FIELD_PREP(A5PSW_MDIO_COMMAND_PHY_ADDR, phy_id);
@@ -808,9 +805,6 @@ static int a5psw_mdio_write(struct mii_bus *bus, int phy_id, int phy_reg,
 {
 	struct a5psw *a5psw = bus->priv;
 	u32 cmd;
-
-	if (phy_reg & MII_ADDR_C45)
-		return -EOPNOTSUPP;
 
 	cmd = FIELD_PREP(A5PSW_MDIO_COMMAND_REG_ADDR, phy_reg);
 	cmd |= FIELD_PREP(A5PSW_MDIO_COMMAND_PHY_ADDR, phy_id);

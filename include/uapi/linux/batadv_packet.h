@@ -26,6 +26,7 @@
  * @BATADV_CODED: network coded packets
  * @BATADV_ELP: echo location packets for B.A.T.M.A.N. V
  * @BATADV_OGM2: originator messages for B.A.T.M.A.N. V
+ * @BATADV_MCAST: multicast packet with multiple destination addresses
  *
  * @BATADV_UNICAST: unicast packets carrying unicast payload traffic
  * @BATADV_UNICAST_FRAG: unicast packets carrying a fragment of the original
@@ -42,6 +43,7 @@ enum batadv_packettype {
 	BATADV_CODED            = 0x02,
 	BATADV_ELP		= 0x03,
 	BATADV_OGM2		= 0x04,
+	BATADV_MCAST            = 0x05,
 	/* 0x40 - 0x7f: unicast */
 #define BATADV_UNICAST_MIN     0x40
 	BATADV_UNICAST          = 0x40,

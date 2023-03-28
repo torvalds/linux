@@ -1259,7 +1259,7 @@ TEST_F(iommufd_mock_domain, user_copy)
 
 	test_cmd_destroy_access_pages(
 		access_cmd.id, access_cmd.access_pages.out_access_pages_id);
-	test_cmd_destroy_access(access_cmd.id) test_ioctl_destroy(ioas_id);
+	test_cmd_destroy_access(access_cmd.id);
 
 	test_ioctl_destroy(ioas_id);
 }

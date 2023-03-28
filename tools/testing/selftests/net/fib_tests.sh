@@ -9,7 +9,7 @@ ret=0
 ksft_skip=4
 
 # all tests in this script. Can be overridden with -t option
-TESTS="unregister down carrier nexthop suppress ipv6_rt ipv4_rt ipv6_addr_metric ipv4_addr_metric ipv6_route_metrics ipv4_route_metrics ipv4_route_v6_gw rp_filter ipv4_del_addr ipv4_mangle ipv6_mangle ipv4_bcast_neigh"
+TESTS="unregister down carrier nexthop suppress ipv6_notify ipv4_notify ipv6_rt ipv4_rt ipv6_addr_metric ipv4_addr_metric ipv6_route_metrics ipv4_route_metrics ipv4_route_v6_gw rp_filter ipv4_del_addr ipv4_mangle ipv6_mangle ipv4_bcast_neigh"
 
 VERBOSE=0
 PAUSE_ON_FAIL=no
@@ -653,6 +653,98 @@ fib_nexthop_test()
 	$IP link del red
 	) 2>/dev/null
 	cleanup
+}
+
+fib6_notify_test()
+{
+	setup
+
+	echo
+	echo "Fib6 info length calculation in route notify test"
+	set -e
+
+	for i in 10 20 30 40 50 60 70;
+	do
+		$IP link add dummy_$i type dummy
+		$IP link set dev dummy_$i up
+		$IP -6 address add 2001:$i::1/64 dev dummy_$i
+	done
+
+	$NS_EXEC ip monitor route &> errors.txt &
+	sleep 2
+
+	$IP -6 route add 2001::/64 \
+                nexthop via 2001:10::2 dev dummy_10 \
+                nexthop encap ip6 dst 2002::20 via 2001:20::2 dev dummy_20 \
+                nexthop encap ip6 dst 2002::30 via 2001:30::2 dev dummy_30 \
+                nexthop encap ip6 dst 2002::40 via 2001:40::2 dev dummy_40 \
+                nexthop encap ip6 dst 2002::50 via 2001:50::2 dev dummy_50 \
+                nexthop encap ip6 dst 2002::60 via 2001:60::2 dev dummy_60 \
+                nexthop encap ip6 dst 2002::70 via 2001:70::2 dev dummy_70
+
+	set +e
+
+	err=`cat errors.txt |grep "Message too long"`
+	if [ -z "$err" ];then
+		ret=0
+	else
+		ret=1
+	fi
+
+	log_test $ret 0 "ipv6 route add notify"
+
+	{ kill %% && wait %%; } 2>/dev/null
+
+	#rm errors.txt
+
+	cleanup &> /dev/null
+}
+
+
+fib_notify_test()
+{
+	setup
+
+	echo
+	echo "Fib4 info length calculation in route notify test"
+
+	set -e
+
+	for i in 10 20 30 40 50 60 70;
+	do
+		$IP link add dummy_$i type dummy
+		$IP link set dev dummy_$i up
+		$IP address add 20.20.$i.2/24 dev dummy_$i
+	done
+
+	$NS_EXEC ip monitor route &> errors.txt &
+	sleep 2
+
+        $IP route add 10.0.0.0/24 \
+                nexthop via 20.20.10.1 dev dummy_10 \
+                nexthop encap ip dst 192.168.10.20 via 20.20.20.1 dev dummy_20 \
+                nexthop encap ip dst 192.168.10.30 via 20.20.30.1 dev dummy_30 \
+                nexthop encap ip dst 192.168.10.40 via 20.20.40.1 dev dummy_40 \
+                nexthop encap ip dst 192.168.10.50 via 20.20.50.1 dev dummy_50 \
+                nexthop encap ip dst 192.168.10.60 via 20.20.60.1 dev dummy_60 \
+                nexthop encap ip dst 192.168.10.70 via 20.20.70.1 dev dummy_70
+
+	set +e
+
+	err=`cat errors.txt |grep "Message too long"`
+	if [ -z "$err" ];then
+		ret=0
+	else
+		ret=1
+	fi
+
+	log_test $ret 0 "ipv4 route add notify"
+
+	{ kill %% && wait %%; } 2>/dev/null
+
+	rm  errors.txt
+
+	cleanup &> /dev/null
 }
 
 fib_suppress_test()
@@ -2065,6 +2157,8 @@ EOF
 ################################################################################
 # main
 
+trap cleanup EXIT
+
 while getopts :t:pPhv o
 do
 	case $o in
@@ -2109,6 +2203,8 @@ do
 	fib_carrier_test|carrier)	fib_carrier_test;;
 	fib_rp_filter_test|rp_filter)	fib_rp_filter_test;;
 	fib_nexthop_test|nexthop)	fib_nexthop_test;;
+	fib_notify_test|ipv4_notify)	fib_notify_test;;
+	fib6_notify_test|ipv6_notify)	fib6_notify_test;;
 	fib_suppress_test|suppress)	fib_suppress_test;;
 	ipv6_route_test|ipv6_rt)	ipv6_route_test;;
 	ipv4_route_test|ipv4_rt)	ipv4_route_test;;

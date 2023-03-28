@@ -51,6 +51,9 @@ struct io_poll_table {
 
 #define IO_WQE_F_DOUBLE		1
 
+static int io_poll_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
+			void *key);
+
 static inline struct io_kiocb *wqe_to_req(struct wait_queue_entry *wqe)
 {
 	unsigned long priv = (unsigned long)wqe->private;
@@ -164,15 +167,14 @@ static void io_poll_tw_hash_eject(struct io_kiocb *req, bool *locked)
 	}
 }
 
-static void io_init_poll_iocb(struct io_poll *poll, __poll_t events,
-			      wait_queue_func_t wake_func)
+static void io_init_poll_iocb(struct io_poll *poll, __poll_t events)
 {
 	poll->head = NULL;
 #define IO_POLL_UNMASK	(EPOLLERR|EPOLLHUP|EPOLLNVAL|EPOLLRDHUP)
 	/* mask in events that we always want/need */
 	poll->events = events | IO_POLL_UNMASK;
 	INIT_LIST_HEAD(&poll->wait.entry);
-	init_waitqueue_func_entry(&poll->wait, wake_func);
+	init_waitqueue_func_entry(&poll->wait, io_poll_wake);
 }
 
 static inline void io_poll_remove_entry(struct io_poll *poll)
@@ -223,21 +225,22 @@ enum {
 	IOU_POLL_DONE = 0,
 	IOU_POLL_NO_ACTION = 1,
 	IOU_POLL_REMOVE_POLL_USE_RES = 2,
+	IOU_POLL_REISSUE = 3,
 };
 
 /*
  * All poll tw should go through this. Checks for poll events, manages
  * references, does rewait, etc.
  *
- * Returns a negative error on failure. IOU_POLL_NO_ACTION when no action require,
- * which is either spurious wakeup or multishot CQE is served.
- * IOU_POLL_DONE when it's done with the request, then the mask is stored in req->cqe.res.
- * IOU_POLL_REMOVE_POLL_USE_RES indicates to remove multishot poll and that the result
- * is stored in req->cqe.
+ * Returns a negative error on failure. IOU_POLL_NO_ACTION when no action
+ * require, which is either spurious wakeup or multishot CQE is served.
+ * IOU_POLL_DONE when it's done with the request, then the mask is stored in
+ * req->cqe.res. IOU_POLL_REMOVE_POLL_USE_RES indicates to remove multishot
+ * poll and that the result is stored in req->cqe.
  */
 static int io_poll_check_events(struct io_kiocb *req, bool *locked)
 {
-	int v, ret;
+	int v;
 
 	/* req->task == current here, checking PF_EXITING is safe */
 	if (unlikely(req->task->flags & PF_EXITING))
@@ -276,10 +279,19 @@ static int io_poll_check_events(struct io_kiocb *req, bool *locked)
 		if (!req->cqe.res) {
 			struct poll_table_struct pt = { ._key = req->apoll_events };
 			req->cqe.res = vfs_poll(req->file, &pt) & req->apoll_events;
+			/*
+			 * We got woken with a mask, but someone else got to
+			 * it first. The above vfs_poll() doesn't add us back
+			 * to the waitqueue, so if we get nothing back, we
+			 * should be safe and attempt a reissue.
+			 */
+			if (unlikely(!req->cqe.res)) {
+				/* Multishot armed need not reissue */
+				if (!(req->apoll_events & EPOLLONESHOT))
+					continue;
+				return IOU_POLL_REISSUE;
+			}
 		}
-
-		if ((unlikely(!req->cqe.res)))
-			continue;
 		if (req->apoll_events & EPOLLONESHOT)
 			return IOU_POLL_DONE;
 
@@ -294,7 +306,7 @@ static int io_poll_check_events(struct io_kiocb *req, bool *locked)
 				return IOU_POLL_REMOVE_POLL_USE_RES;
 			}
 		} else {
-			ret = io_poll_issue(req, locked);
+			int ret = io_poll_issue(req, locked);
 			if (ret == IOU_STOP_MULTISHOT)
 				return IOU_POLL_REMOVE_POLL_USE_RES;
 			if (ret < 0)
@@ -330,6 +342,9 @@ static void io_poll_task_func(struct io_kiocb *req, bool *locked)
 
 			poll = io_kiocb_to_cmd(req, struct io_poll);
 			req->cqe.res = mangle_poll(req->cqe.res & poll->events);
+		} else if (ret == IOU_POLL_REISSUE) {
+			io_req_task_submit(req, locked);
+			return;
 		} else if (ret != IOU_POLL_REMOVE_POLL_USE_RES) {
 			req->cqe.res = ret;
 			req_set_fail(req);
@@ -342,7 +357,7 @@ static void io_poll_task_func(struct io_kiocb *req, bool *locked)
 
 		if (ret == IOU_POLL_REMOVE_POLL_USE_RES)
 			io_req_task_complete(req, locked);
-		else if (ret == IOU_POLL_DONE)
+		else if (ret == IOU_POLL_DONE || ret == IOU_POLL_REISSUE)
 			io_req_task_submit(req, locked);
 		else
 			io_req_defer_failed(req, ret);
@@ -495,7 +510,7 @@ static void __io_queue_proc(struct io_poll *poll, struct io_poll_table *pt,
 
 		/* mark as double wq entry */
 		wqe_private |= IO_WQE_F_DOUBLE;
-		io_init_poll_iocb(poll, first->events, first->wait.func);
+		io_init_poll_iocb(poll, first->events);
 		if (!io_poll_double_prepare(req)) {
 			/* the request is completing, just back off */
 			kfree(poll);
@@ -533,6 +548,14 @@ static bool io_poll_can_finish_inline(struct io_kiocb *req,
 	return pt->owning || io_poll_get_ownership(req);
 }
 
+static void io_poll_add_hash(struct io_kiocb *req)
+{
+	if (req->flags & REQ_F_HASH_LOCKED)
+		io_poll_req_insert_locked(req);
+	else
+		io_poll_req_insert(req);
+}
+
 /*
  * Returns 0 when it's handed over for polling. The caller owns the requests if
  * it returns non-zero, but otherwise should not touch it. Negative values
@@ -548,7 +571,7 @@ static int __io_arm_poll_handler(struct io_kiocb *req,
 
 	INIT_HLIST_NODE(&req->hash_node);
 	req->work.cancel_seq = atomic_read(&ctx->cancel_seq);
-	io_init_poll_iocb(poll, mask, io_poll_wake);
+	io_init_poll_iocb(poll, mask);
 	poll->file = req->file;
 	req->apoll_events = poll->events;
 
@@ -591,18 +614,17 @@ static int __io_arm_poll_handler(struct io_kiocb *req,
 
 	if (mask &&
 	   ((poll->events & (EPOLLET|EPOLLONESHOT)) == (EPOLLET|EPOLLONESHOT))) {
-		if (!io_poll_can_finish_inline(req, ipt))
+		if (!io_poll_can_finish_inline(req, ipt)) {
+			io_poll_add_hash(req);
 			return 0;
+		}
 		io_poll_remove_entries(req);
 		ipt->result_mask = mask;
 		/* no one else has access to the req, forget about the ref */
 		return 1;
 	}
 
-	if (req->flags & REQ_F_HASH_LOCKED)
-		io_poll_req_insert_locked(req);
-	else
-		io_poll_req_insert(req);
+	io_poll_add_hash(req);
 
 	if (mask && (poll->events & EPOLLET) &&
 	    io_poll_can_finish_inline(req, ipt)) {
@@ -630,6 +652,14 @@ static void io_async_queue_proc(struct file *file, struct wait_queue_head *head,
 	__io_queue_proc(&apoll->poll, pt, head, &apoll->double_poll);
 }
 
+/*
+ * We can't reliably detect loops in repeated poll triggers and issue
+ * subsequently failing. But rather than fail these immediately, allow a
+ * certain amount of retries before we give up. Given that this condition
+ * should _rarely_ trigger even once, we should be fine with a larger value.
+ */
+#define APOLL_MAX_RETRY		128
+
 static struct async_poll *io_req_alloc_apoll(struct io_kiocb *req,
 					     unsigned issue_flags)
 {
@@ -645,20 +675,24 @@ static struct async_poll *io_req_alloc_apoll(struct io_kiocb *req,
 		if (entry == NULL)
 			goto alloc_apoll;
 		apoll = container_of(entry, struct async_poll, cache);
+		apoll->poll.retries = APOLL_MAX_RETRY;
 	} else {
 alloc_apoll:
 		apoll = kmalloc(sizeof(*apoll), GFP_ATOMIC);
 		if (unlikely(!apoll))
 			return NULL;
+		apoll->poll.retries = APOLL_MAX_RETRY;
 	}
 	apoll->double_poll = NULL;
 	req->apoll = apoll;
+	if (unlikely(!--apoll->poll.retries))
+		return NULL;
 	return apoll;
 }
 
 int io_arm_poll_handler(struct io_kiocb *req, unsigned issue_flags)
 {
-	const struct io_op_def *def = &io_op_defs[req->opcode];
+	const struct io_issue_def *def = &io_issue_defs[req->opcode];
 	struct async_poll *apoll;
 	struct io_poll_table ipt;
 	__poll_t mask = POLLPRI | POLLERR | EPOLLET;
@@ -673,8 +707,6 @@ int io_arm_poll_handler(struct io_kiocb *req, unsigned issue_flags)
 	if (!def->pollin && !def->pollout)
 		return IO_APOLL_ABORTED;
 	if (!file_can_poll(req->file))
-		return IO_APOLL_ABORTED;
-	if ((req->flags & (REQ_F_POLLED|REQ_F_PARTIAL_IO)) == REQ_F_POLLED)
 		return IO_APOLL_ABORTED;
 	if (!(req->flags & REQ_F_APOLL_MULTISHOT))
 		mask |= EPOLLONESHOT;

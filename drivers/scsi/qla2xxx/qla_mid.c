@@ -52,7 +52,7 @@ qla24xx_allocate_vp_id(scsi_qla_host_t *vha)
 	spin_unlock_irqrestore(&ha->vport_slock, flags);
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-	qlt_update_vp_map(vha, SET_VP_IDX);
+	qla_update_vp_map(vha, SET_VP_IDX);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	mutex_unlock(&ha->vport_lock);
@@ -80,7 +80,7 @@ qla24xx_deallocate_vp_id(scsi_qla_host_t *vha)
 		spin_lock_irqsave(&ha->vport_slock, flags);
 		if (atomic_read(&vha->vref_count) == 0) {
 			list_del(&vha->list);
-			qlt_update_vp_map(vha, RESET_VP_IDX);
+			qla_update_vp_map(vha, RESET_VP_IDX);
 			bailout = 1;
 		}
 		spin_unlock_irqrestore(&ha->vport_slock, flags);
@@ -95,7 +95,7 @@ qla24xx_deallocate_vp_id(scsi_qla_host_t *vha)
 			"vha->vref_count=%u timeout\n", vha->vref_count.counter);
 		spin_lock_irqsave(&ha->vport_slock, flags);
 		list_del(&vha->list);
-		qlt_update_vp_map(vha, RESET_VP_IDX);
+		qla_update_vp_map(vha, RESET_VP_IDX);
 		spin_unlock_irqrestore(&ha->vport_slock, flags);
 	}
 
@@ -187,7 +187,7 @@ qla24xx_disable_vp(scsi_qla_host_t *vha)
 
 	/* Remove port id from vp target map */
 	spin_lock_irqsave(&vha->hw->hardware_lock, flags);
-	qlt_update_vp_map(vha, RESET_AL_PA);
+	qla_update_vp_map(vha, RESET_AL_PA);
 	spin_unlock_irqrestore(&vha->hw->hardware_lock, flags);
 
 	qla2x00_mark_vp_devices_dead(vha);
@@ -382,15 +382,6 @@ qla2x00_do_dpc_vp(scsi_qla_host_t *vha)
 			qla24xx_process_purex_list(&vha->purex_list);
 			clear_bit(PROCESS_PUREX_IOCB, &vha->dpc_flags);
 		}
-	}
-
-	if (test_bit(FCPORT_UPDATE_NEEDED, &vha->dpc_flags)) {
-		ql_dbg(ql_dbg_dpc, vha, 0x4016,
-		    "FCPort update scheduled.\n");
-		qla2x00_update_fcports(vha);
-		clear_bit(FCPORT_UPDATE_NEEDED, &vha->dpc_flags);
-		ql_dbg(ql_dbg_dpc, vha, 0x4017,
-		    "FCPort update end.\n");
 	}
 
 	if (test_bit(RELOGIN_NEEDED, &vha->dpc_flags) &&
@@ -1013,4 +1004,289 @@ done:
 	/* ref: INIT */
 	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 	return rval;
+}
+
+struct scsi_qla_host *qla_find_host_by_vp_idx(struct scsi_qla_host *vha, uint16_t vp_idx)
+{
+	struct qla_hw_data *ha = vha->hw;
+
+	if (vha->vp_idx == vp_idx)
+		return vha;
+
+	BUG_ON(ha->vp_map == NULL);
+	if (likely(test_bit(vp_idx, ha->vp_idx_map)))
+		return ha->vp_map[vp_idx].vha;
+
+	return NULL;
+}
+
+/* vport_slock to be held by the caller */
+void
+qla_update_vp_map(struct scsi_qla_host *vha, int cmd)
+{
+	void *slot;
+	u32 key;
+	int rc;
+
+	if (!vha->hw->vp_map)
+		return;
+
+	key = vha->d_id.b24;
+
+	switch (cmd) {
+	case SET_VP_IDX:
+		vha->hw->vp_map[vha->vp_idx].vha = vha;
+		break;
+	case SET_AL_PA:
+		slot = btree_lookup32(&vha->hw->host_map, key);
+		if (!slot) {
+			ql_dbg(ql_dbg_disc, vha, 0xf018,
+			    "Save vha in host_map %p %06x\n", vha, key);
+			rc = btree_insert32(&vha->hw->host_map,
+			    key, vha, GFP_ATOMIC);
+			if (rc)
+				ql_log(ql_log_info, vha, 0xd03e,
+				    "Unable to insert s_id into host_map: %06x\n",
+				    key);
+			return;
+		}
+		ql_dbg(ql_dbg_disc, vha, 0xf019,
+		    "replace existing vha in host_map %p %06x\n", vha, key);
+		btree_update32(&vha->hw->host_map, key, vha);
+		break;
+	case RESET_VP_IDX:
+		vha->hw->vp_map[vha->vp_idx].vha = NULL;
+		break;
+	case RESET_AL_PA:
+		ql_dbg(ql_dbg_disc, vha, 0xf01a,
+		    "clear vha in host_map %p %06x\n", vha, key);
+		slot = btree_lookup32(&vha->hw->host_map, key);
+		if (slot)
+			btree_remove32(&vha->hw->host_map, key);
+		vha->d_id.b24 = 0;
+		break;
+	}
+}
+
+void qla_update_host_map(struct scsi_qla_host *vha, port_id_t id)
+{
+
+	if (!vha->d_id.b24) {
+		vha->d_id = id;
+		qla_update_vp_map(vha, SET_AL_PA);
+	} else if (vha->d_id.b24 != id.b24) {
+		qla_update_vp_map(vha, RESET_AL_PA);
+		vha->d_id = id;
+		qla_update_vp_map(vha, SET_AL_PA);
+	}
+}
+
+int qla_create_buf_pool(struct scsi_qla_host *vha, struct qla_qpair *qp)
+{
+	int sz;
+
+	qp->buf_pool.num_bufs = qp->req->length;
+
+	sz = BITS_TO_LONGS(qp->req->length);
+	qp->buf_pool.buf_map   = kcalloc(sz, sizeof(long), GFP_KERNEL);
+	if (!qp->buf_pool.buf_map) {
+		ql_log(ql_log_warn, vha, 0x0186,
+		    "Failed to allocate buf_map(%zd).\n", sz * sizeof(unsigned long));
+		return -ENOMEM;
+	}
+	sz = qp->req->length * sizeof(void *);
+	qp->buf_pool.buf_array = kcalloc(qp->req->length, sizeof(void *), GFP_KERNEL);
+	if (!qp->buf_pool.buf_array) {
+		ql_log(ql_log_warn, vha, 0x0186,
+		    "Failed to allocate buf_array(%d).\n", sz);
+		kfree(qp->buf_pool.buf_map);
+		return -ENOMEM;
+	}
+	sz = qp->req->length * sizeof(dma_addr_t);
+	qp->buf_pool.dma_array = kcalloc(qp->req->length, sizeof(dma_addr_t), GFP_KERNEL);
+	if (!qp->buf_pool.dma_array) {
+		ql_log(ql_log_warn, vha, 0x0186,
+		    "Failed to allocate dma_array(%d).\n", sz);
+		kfree(qp->buf_pool.buf_map);
+		kfree(qp->buf_pool.buf_array);
+		return -ENOMEM;
+	}
+	set_bit(0, qp->buf_pool.buf_map);
+	return 0;
+}
+
+void qla_free_buf_pool(struct qla_qpair *qp)
+{
+	int i;
+	struct qla_hw_data *ha = qp->vha->hw;
+
+	for (i = 0; i < qp->buf_pool.num_bufs; i++) {
+		if (qp->buf_pool.buf_array[i] && qp->buf_pool.dma_array[i])
+			dma_pool_free(ha->fcp_cmnd_dma_pool, qp->buf_pool.buf_array[i],
+			    qp->buf_pool.dma_array[i]);
+		qp->buf_pool.buf_array[i] = NULL;
+		qp->buf_pool.dma_array[i] = 0;
+	}
+
+	kfree(qp->buf_pool.dma_array);
+	kfree(qp->buf_pool.buf_array);
+	kfree(qp->buf_pool.buf_map);
+}
+
+/* it is assume qp->qp_lock is held at this point */
+int qla_get_buf(struct scsi_qla_host *vha, struct qla_qpair *qp, struct qla_buf_dsc *dsc)
+{
+	u16 tag, i = 0;
+	void *buf;
+	dma_addr_t buf_dma;
+	struct qla_hw_data *ha = vha->hw;
+
+	dsc->tag = TAG_FREED;
+again:
+	tag = find_first_zero_bit(qp->buf_pool.buf_map, qp->buf_pool.num_bufs);
+	if (tag >= qp->buf_pool.num_bufs) {
+		ql_dbg(ql_dbg_io, vha, 0x00e2,
+		    "qp(%d) ran out of buf resource.\n", qp->id);
+		return  -EIO;
+	}
+	if (tag == 0) {
+		set_bit(0, qp->buf_pool.buf_map);
+		i++;
+		if (i == 5) {
+			ql_dbg(ql_dbg_io, vha, 0x00e3,
+			    "qp(%d) unable to get tag.\n", qp->id);
+			return -EIO;
+		}
+		goto again;
+	}
+
+	if (!qp->buf_pool.buf_array[tag]) {
+		buf = dma_pool_zalloc(ha->fcp_cmnd_dma_pool, GFP_ATOMIC, &buf_dma);
+		if (!buf) {
+			ql_log(ql_log_fatal, vha, 0x13b1,
+			    "Failed to allocate buf.\n");
+			return -ENOMEM;
+		}
+
+		dsc->buf = qp->buf_pool.buf_array[tag] = buf;
+		dsc->buf_dma = qp->buf_pool.dma_array[tag] = buf_dma;
+		qp->buf_pool.num_alloc++;
+	} else {
+		dsc->buf = qp->buf_pool.buf_array[tag];
+		dsc->buf_dma = qp->buf_pool.dma_array[tag];
+		memset(dsc->buf, 0, FCP_CMND_DMA_POOL_SIZE);
+	}
+
+	qp->buf_pool.num_active++;
+	if (qp->buf_pool.num_active > qp->buf_pool.max_used)
+		qp->buf_pool.max_used = qp->buf_pool.num_active;
+
+	dsc->tag = tag;
+	set_bit(tag, qp->buf_pool.buf_map);
+	return 0;
+}
+
+static void qla_trim_buf(struct qla_qpair *qp, u16 trim)
+{
+	int i, j;
+	struct qla_hw_data *ha = qp->vha->hw;
+
+	if (!trim)
+		return;
+
+	for (i = 0; i < trim; i++) {
+		j = qp->buf_pool.num_alloc - 1;
+		if (test_bit(j, qp->buf_pool.buf_map)) {
+			ql_dbg(ql_dbg_io + ql_dbg_verbose, qp->vha, 0x300b,
+			       "QP id(%d): trim active buf[%d]. Remain %d bufs\n",
+			       qp->id, j, qp->buf_pool.num_alloc);
+			return;
+		}
+
+		if (qp->buf_pool.buf_array[j]) {
+			dma_pool_free(ha->fcp_cmnd_dma_pool, qp->buf_pool.buf_array[j],
+				      qp->buf_pool.dma_array[j]);
+			qp->buf_pool.buf_array[j] = NULL;
+			qp->buf_pool.dma_array[j] = 0;
+		}
+		qp->buf_pool.num_alloc--;
+		if (!qp->buf_pool.num_alloc)
+			break;
+	}
+	ql_dbg(ql_dbg_io + ql_dbg_verbose, qp->vha, 0x3010,
+	       "QP id(%d): trimmed %d bufs. Remain %d bufs\n",
+	       qp->id, trim, qp->buf_pool.num_alloc);
+}
+
+static void __qla_adjust_buf(struct qla_qpair *qp)
+{
+	u32 trim;
+
+	qp->buf_pool.take_snapshot = 0;
+	qp->buf_pool.prev_max = qp->buf_pool.max_used;
+	qp->buf_pool.max_used = qp->buf_pool.num_active;
+
+	if (qp->buf_pool.prev_max > qp->buf_pool.max_used &&
+	    qp->buf_pool.num_alloc > qp->buf_pool.max_used) {
+		/* down trend */
+		trim = qp->buf_pool.num_alloc - qp->buf_pool.max_used;
+		trim  = (trim * 10) / 100;
+		trim = trim ? trim : 1;
+		qla_trim_buf(qp, trim);
+	} else if (!qp->buf_pool.prev_max  && !qp->buf_pool.max_used) {
+		/* 2 periods of no io */
+		qla_trim_buf(qp, qp->buf_pool.num_alloc);
+	}
+}
+
+/* it is assume qp->qp_lock is held at this point */
+void qla_put_buf(struct qla_qpair *qp, struct qla_buf_dsc *dsc)
+{
+	if (dsc->tag == TAG_FREED)
+		return;
+	lockdep_assert_held(qp->qp_lock_ptr);
+
+	clear_bit(dsc->tag, qp->buf_pool.buf_map);
+	qp->buf_pool.num_active--;
+	dsc->tag = TAG_FREED;
+
+	if (qp->buf_pool.take_snapshot)
+		__qla_adjust_buf(qp);
+}
+
+#define EXPIRE (60 * HZ)
+void qla_adjust_buf(struct scsi_qla_host *vha)
+{
+	unsigned long flags;
+	int i;
+	struct qla_qpair *qp;
+
+	if (vha->vp_idx)
+		return;
+
+	if (!vha->buf_expired) {
+		vha->buf_expired = jiffies + EXPIRE;
+		return;
+	}
+	if (time_before(jiffies, vha->buf_expired))
+		return;
+
+	vha->buf_expired = jiffies + EXPIRE;
+
+	for (i = 0; i < vha->hw->num_qpairs; i++) {
+		qp = vha->hw->queue_pair_map[i];
+		if (!qp)
+			continue;
+		if (!qp->buf_pool.num_alloc)
+			continue;
+
+		if (qp->buf_pool.take_snapshot) {
+			/* no io has gone through in the last EXPIRE period */
+			spin_lock_irqsave(qp->qp_lock_ptr, flags);
+			__qla_adjust_buf(qp);
+			spin_unlock_irqrestore(qp->qp_lock_ptr, flags);
+		} else {
+			qp->buf_pool.take_snapshot = 1;
+		}
+	}
 }

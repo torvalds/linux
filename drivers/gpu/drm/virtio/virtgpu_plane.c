@@ -390,5 +390,9 @@ struct drm_plane *virtio_gpu_plane_init(struct virtio_gpu_device *vgdev,
 		return plane;
 
 	drm_plane_helper_add(plane, funcs);
+
+	if (type == DRM_PLANE_TYPE_PRIMARY)
+		drm_plane_enable_fb_damage_clips(plane);
+
 	return plane;
 }

@@ -170,7 +170,7 @@ static int zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 		(struct zfcp_adapter *) scsi_host->hostdata[0];
 	struct zfcp_fsf_req *old_req, *abrt_req;
 	unsigned long flags;
-	unsigned long old_reqid = (unsigned long) scpnt->host_scribble;
+	u64 old_reqid = (u64) scpnt->host_scribble;
 	int retval = SUCCESS, ret;
 	int retry = 3;
 	char *dbf_tag;

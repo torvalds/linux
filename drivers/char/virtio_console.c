@@ -1666,9 +1666,8 @@ static void handle_control_message(struct virtio_device *vdev,
 				"Not enough space to store port name\n");
 			break;
 		}
-		strncpy(port->name, buf->buf + buf->offset + sizeof(*cpkt),
-			name_size - 1);
-		port->name[name_size - 1] = 0;
+		strscpy(port->name, buf->buf + buf->offset + sizeof(*cpkt),
+			name_size);
 
 		/*
 		 * Since we only have one sysfs attribute, 'name',

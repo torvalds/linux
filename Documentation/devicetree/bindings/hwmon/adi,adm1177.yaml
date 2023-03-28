@@ -52,16 +52,16 @@ examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/interrupt-controller/irq.h>
-    i2c0 {
+    i2c {
         #address-cells = <1>;
         #size-cells = <0>;
 
         pwmon@5a {
-                compatible = "adi,adm1177";
-                reg = <0x5a>;
-                shunt-resistor-micro-ohms = <50000>; /* 50 mOhm */
-                adi,shutdown-threshold-microamp = <1059000>; /* 1.059 A */
-                adi,vrange-high-enable;
+            compatible = "adi,adm1177";
+            reg = <0x5a>;
+            shunt-resistor-micro-ohms = <50000>; /* 50 mOhm */
+            adi,shutdown-threshold-microamp = <1059000>; /* 1.059 A */
+            adi,vrange-high-enable;
         };
     };
 ...

@@ -65,7 +65,7 @@ int cachefiles_set_object_xattr(struct cachefiles_object *object)
 
 	ret = cachefiles_inject_write_error();
 	if (ret == 0)
-		ret = vfs_setxattr(&init_user_ns, dentry, cachefiles_xattr_cache,
+		ret = vfs_setxattr(&nop_mnt_idmap, dentry, cachefiles_xattr_cache,
 				   buf, sizeof(struct cachefiles_xattr) + len, 0);
 	if (ret < 0) {
 		trace_cachefiles_vfs_error(object, file_inode(file), ret,
@@ -108,7 +108,7 @@ int cachefiles_check_auxdata(struct cachefiles_object *object, struct file *file
 
 	xlen = cachefiles_inject_read_error();
 	if (xlen == 0)
-		xlen = vfs_getxattr(&init_user_ns, dentry, cachefiles_xattr_cache, buf, tlen);
+		xlen = vfs_getxattr(&nop_mnt_idmap, dentry, cachefiles_xattr_cache, buf, tlen);
 	if (xlen != tlen) {
 		if (xlen < 0)
 			trace_cachefiles_vfs_error(object, file_inode(file), xlen,
@@ -150,7 +150,7 @@ int cachefiles_remove_object_xattr(struct cachefiles_cache *cache,
 
 	ret = cachefiles_inject_remove_error();
 	if (ret == 0)
-		ret = vfs_removexattr(&init_user_ns, dentry, cachefiles_xattr_cache);
+		ret = vfs_removexattr(&nop_mnt_idmap, dentry, cachefiles_xattr_cache);
 	if (ret < 0) {
 		trace_cachefiles_vfs_error(object, d_inode(dentry), ret,
 					   cachefiles_trace_remxattr_error);
@@ -207,7 +207,7 @@ bool cachefiles_set_volume_xattr(struct cachefiles_volume *volume)
 
 	ret = cachefiles_inject_write_error();
 	if (ret == 0)
-		ret = vfs_setxattr(&init_user_ns, dentry, cachefiles_xattr_cache,
+		ret = vfs_setxattr(&nop_mnt_idmap, dentry, cachefiles_xattr_cache,
 				   buf, len, 0);
 	if (ret < 0) {
 		trace_cachefiles_vfs_error(NULL, d_inode(dentry), ret,
@@ -249,7 +249,7 @@ int cachefiles_check_volume_xattr(struct cachefiles_volume *volume)
 
 	xlen = cachefiles_inject_read_error();
 	if (xlen == 0)
-		xlen = vfs_getxattr(&init_user_ns, dentry, cachefiles_xattr_cache, buf, len);
+		xlen = vfs_getxattr(&nop_mnt_idmap, dentry, cachefiles_xattr_cache, buf, len);
 	if (xlen != len) {
 		if (xlen < 0) {
 			trace_cachefiles_vfs_error(NULL, d_inode(dentry), xlen,

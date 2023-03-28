@@ -1387,7 +1387,7 @@ struct ext4_super_block {
 	__le32	s_first_meta_bg;	/* First metablock block group */
 	__le32	s_mkfs_time;		/* When the filesystem was created */
 	__le32	s_jnl_blocks[17];	/* Backup of the journal inode */
-	/* 64bit support valid if EXT4_FEATURE_COMPAT_64BIT */
+	/* 64bit support valid if EXT4_FEATURE_INCOMPAT_64BIT */
 /*150*/	__le32	s_blocks_count_hi;	/* Blocks count */
 	__le32	s_r_blocks_count_hi;	/* Reserved blocks count */
 	__le32	s_free_blocks_count_hi;	/* Free blocks count */
@@ -1529,6 +1529,7 @@ struct ext4_sb_info {
 	unsigned int s_mount_opt2;
 	unsigned long s_mount_flags;
 	unsigned int s_def_mount_opt;
+	unsigned int s_def_mount_opt2;
 	ext4_fsblk_t s_sb_block;
 	atomic64_t s_resv_clusters;
 	kuid_t s_resuid;
@@ -2845,7 +2846,7 @@ extern int ext4fs_dirhash(const struct inode *dir, const char *name, int len,
 
 /* ialloc.c */
 extern int ext4_mark_inode_used(struct super_block *sb, int ino);
-extern struct inode *__ext4_new_inode(struct user_namespace *, handle_t *,
+extern struct inode *__ext4_new_inode(struct mnt_idmap *, handle_t *,
 				      struct inode *, umode_t,
 				      const struct qstr *qstr, __u32 goal,
 				      uid_t *owner, __u32 i_flags,
@@ -2853,11 +2854,11 @@ extern struct inode *__ext4_new_inode(struct user_namespace *, handle_t *,
 				      int nblocks);
 
 #define ext4_new_inode(handle, dir, mode, qstr, goal, owner, i_flags)          \
-	__ext4_new_inode(&init_user_ns, (handle), (dir), (mode), (qstr),       \
+	__ext4_new_inode(&nop_mnt_idmap, (handle), (dir), (mode), (qstr),      \
 			 (goal), (owner), i_flags, 0, 0, 0)
-#define ext4_new_inode_start_handle(mnt_userns, dir, mode, qstr, goal, owner, \
+#define ext4_new_inode_start_handle(idmap, dir, mode, qstr, goal, owner, \
 				    type, nblocks)		    \
-	__ext4_new_inode((mnt_userns), NULL, (dir), (mode), (qstr), (goal), (owner), \
+	__ext4_new_inode((idmap), NULL, (dir), (mode), (qstr), (goal), (owner), \
 			 0, (type), __LINE__, (nblocks))
 
 
@@ -2976,14 +2977,14 @@ extern struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
 	__ext4_iget((sb), (ino), (flags), __func__, __LINE__)
 
 extern int  ext4_write_inode(struct inode *, struct writeback_control *);
-extern int  ext4_setattr(struct user_namespace *, struct dentry *,
+extern int  ext4_setattr(struct mnt_idmap *, struct dentry *,
 			 struct iattr *);
 extern u32  ext4_dio_alignment(struct inode *inode);
-extern int  ext4_getattr(struct user_namespace *, const struct path *,
+extern int  ext4_getattr(struct mnt_idmap *, const struct path *,
 			 struct kstat *, u32, unsigned int);
 extern void ext4_evict_inode(struct inode *);
 extern void ext4_clear_inode(struct inode *);
-extern int  ext4_file_getattr(struct user_namespace *, const struct path *,
+extern int  ext4_file_getattr(struct mnt_idmap *, const struct path *,
 			      struct kstat *, u32, unsigned int);
 extern int  ext4_sync_inode(handle_t *, struct inode *);
 extern void ext4_dirty_inode(struct inode *, int);
@@ -3024,7 +3025,7 @@ extern int ext4_ind_remove_space(handle_t *handle, struct inode *inode,
 /* ioctl.c */
 extern long ext4_ioctl(struct file *, unsigned int, unsigned long);
 extern long ext4_compat_ioctl(struct file *, unsigned int, unsigned long);
-int ext4_fileattr_set(struct user_namespace *mnt_userns,
+int ext4_fileattr_set(struct mnt_idmap *idmap,
 		      struct dentry *dentry, struct fileattr *fa);
 int ext4_fileattr_get(struct dentry *dentry, struct fileattr *fa);
 extern void ext4_reset_inode_seed(struct inode *inode);

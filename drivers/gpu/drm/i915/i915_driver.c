@@ -483,13 +483,17 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto err_ggtt;
 
-	ret = intel_memory_regions_hw_probe(dev_priv);
+	/*
+	 * Make sure we probe lmem before we probe stolen-lmem. The BAR size
+	 * might be different due to bar resizing.
+	 */
+	ret = intel_gt_tiles_init(dev_priv);
 	if (ret)
 		goto err_ggtt;
 
-	ret = intel_gt_tiles_init(dev_priv);
+	ret = intel_memory_regions_hw_probe(dev_priv);
 	if (ret)
-		goto err_mem_regions;
+		goto err_ggtt;
 
 	ret = i915_ggtt_enable_hw(dev_priv);
 	if (ret) {
@@ -938,8 +942,7 @@ static void i915_driver_lastclose(struct drm_device *dev)
 
 	intel_fbdev_restore_mode(i915);
 
-	if (HAS_DISPLAY(i915))
-		vga_switcheroo_process_delayed_switch();
+	vga_switcheroo_process_delayed_switch();
 }
 
 static void i915_driver_postclose(struct drm_device *dev, struct drm_file *file)

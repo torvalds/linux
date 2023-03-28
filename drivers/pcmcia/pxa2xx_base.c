@@ -206,13 +206,7 @@ pxa2xx_pcmcia_frequency_change(struct soc_pcmcia_socket *skt,
 
 void pxa2xx_configure_sockets(struct device *dev, struct pcmcia_low_level *ops)
 {
-	int nr = 1;
-
-	if ((ops->first + ops->nr) > 1 ||
-	    machine_is_viper() || machine_is_arcom_zeus())
-		nr = 2;
-
-	pxa_smemc_set_pcmcia_socket(nr);
+	pxa_smemc_set_pcmcia_socket(1);
 }
 EXPORT_SYMBOL(pxa2xx_configure_sockets);
 

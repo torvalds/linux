@@ -73,6 +73,14 @@
 #define KF_RCU          (1 << 7) /* kfunc only takes rcu pointer arguments */
 
 /*
+ * Tag marking a kernel function as a kfunc. This is meant to minimize the
+ * amount of copy-paste that kfunc authors have to include for correctness so
+ * as to avoid issues such as the compiler inlining or eliding either a static
+ * kfunc, or a global kfunc in an LTO build.
+ */
+#define __bpf_kfunc __used noinline
+
+/*
  * Return the name of the passed struct, if exists, or halt the build if for
  * example the structure gets renamed. In this way, developers have to revisit
  * the code using that structure name, and update it accordingly.
@@ -236,6 +244,16 @@ static inline bool btf_type_is_small_int(const struct btf_type *t)
 	return btf_type_is_int(t) && t->size <= sizeof(u64);
 }
 
+static inline u8 btf_int_encoding(const struct btf_type *t)
+{
+	return BTF_INT_ENCODING(*(u32 *)(t + 1));
+}
+
+static inline bool btf_type_is_signed_int(const struct btf_type *t)
+{
+	return btf_type_is_int(t) && (btf_int_encoding(t) & BTF_INT_SIGNED);
+}
+
 static inline bool btf_type_is_enum(const struct btf_type *t)
 {
 	return BTF_INFO_KIND(t->info) == BTF_KIND_ENUM;
@@ -304,11 +322,6 @@ static inline bool btf_is_ptr(const struct btf_type *t)
 static inline u8 btf_int_offset(const struct btf_type *t)
 {
 	return BTF_INT_OFFSET(*(u32 *)(t + 1));
-}
-
-static inline u8 btf_int_encoding(const struct btf_type *t)
-{
-	return BTF_INT_ENCODING(*(u32 *)(t + 1));
 }
 
 static inline bool btf_type_is_scalar(const struct btf_type *t)

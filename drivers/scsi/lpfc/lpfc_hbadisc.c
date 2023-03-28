@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2023 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -1129,21 +1129,6 @@ lpfc_cleanup_rpis(struct lpfc_vport *vport, int remove)
 	struct lpfc_nodelist *ndlp, *next_ndlp;
 
 	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
-		if (ndlp->nlp_state == NLP_STE_UNUSED_NODE) {
-			/* It's possible the FLOGI to the fabric node never
-			 * successfully completed and never registered with the
-			 * transport.  In this case there is no way to clean up
-			 * the node.
-			 */
-			if (ndlp->nlp_DID == Fabric_DID) {
-				if (ndlp->nlp_prev_state ==
-				    NLP_STE_UNUSED_NODE &&
-				    !ndlp->fc4_xpt_flags)
-					lpfc_nlp_put(ndlp);
-			}
-			continue;
-		}
-
 		if ((phba->sli3_options & LPFC_SLI3_VPORT_TEARDOWN) ||
 		    ((vport->port_type == LPFC_NPIV_PORT) &&
 		     ((ndlp->nlp_DID == NameServer_DID) ||
@@ -2474,7 +2459,7 @@ static void lpfc_sli4_fcf_pri_list_del(struct lpfc_hba *phba,
  * @phba: pointer to lpfc hba data structure.
  * @fcf_index: the index of the fcf record to update
  * This routine acquires the hbalock and then set the LPFC_FCF_FLOGI_FAILED
- * flag so the the round robin slection for the particular priority level
+ * flag so the round robin selection for the particular priority level
  * will try a different fcf record that does not have this bit set.
  * If the fcf record is re-read for any reason this flag is cleared brfore
  * adding it to the priority list.

@@ -93,7 +93,7 @@ enum st_lsm6dsx_hw_id {
 		.endianness = IIO_LE,					\
 	},								\
 	.event_spec = &st_lsm6dsx_event,				\
-	.ext_info = st_lsm6dsx_accel_ext_info,				\
+	.ext_info = st_lsm6dsx_ext_info,				\
 	.num_event_specs = 1,						\
 }
 
@@ -113,6 +113,7 @@ enum st_lsm6dsx_hw_id {
 		.storagebits = 16,					\
 		.endianness = IIO_LE,					\
 	},								\
+	.ext_info = st_lsm6dsx_ext_info,				\
 }
 
 struct st_lsm6dsx_reg {
@@ -528,7 +529,7 @@ st_lsm6dsx_device_set_enable(struct st_lsm6dsx_sensor *sensor, bool enable)
 }
 
 static const
-struct iio_chan_spec_ext_info __maybe_unused st_lsm6dsx_accel_ext_info[] = {
+struct iio_chan_spec_ext_info __maybe_unused st_lsm6dsx_ext_info[] = {
 	IIO_MOUNT_MATRIX(IIO_SHARED_BY_ALL, st_lsm6dsx_get_mount_matrix),
 	{ }
 };

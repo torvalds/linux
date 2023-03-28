@@ -28,6 +28,7 @@ properties:
     items:
       - enum:
           - densitron,dmt028vghmcmi-1a
+          - elida,kd50t048a
           - techstar,ts8550b
       - const: sitronix,st7701
 

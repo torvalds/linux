@@ -307,7 +307,7 @@ int ksmbd_populate_dot_dotdot_entries(struct ksmbd_work *work, int info_level,
 {
 	int i, rc = 0;
 	struct ksmbd_conn *conn = work->conn;
-	struct user_namespace *user_ns = file_mnt_user_ns(dir->filp);
+	struct mnt_idmap *idmap = file_mnt_idmap(dir->filp);
 
 	for (i = 0; i < 2; i++) {
 		struct kstat kstat;
@@ -333,7 +333,7 @@ int ksmbd_populate_dot_dotdot_entries(struct ksmbd_work *work, int info_level,
 
 			ksmbd_kstat.kstat = &kstat;
 			ksmbd_vfs_fill_dentry_attrs(work,
-						    user_ns,
+						    idmap,
 						    dentry,
 						    &ksmbd_kstat);
 			rc = fn(conn, info_level, d_info, &ksmbd_kstat);

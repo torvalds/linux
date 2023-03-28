@@ -264,7 +264,7 @@ xfs_ag_resv_init(
 		if (error)
 			goto out;
 
-		error = xfs_finobt_calc_reserves(mp, tp, pag, &ask, &used);
+		error = xfs_finobt_calc_reserves(pag, tp, &ask, &used);
 		if (error)
 			goto out;
 

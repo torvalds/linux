@@ -38,100 +38,55 @@
 #include "udf_i.h"
 #include "udf_sb.h"
 
-static void __udf_adinicb_readpage(struct page *page)
+static vm_fault_t udf_page_mkwrite(struct vm_fault *vmf)
 {
-	struct inode *inode = page->mapping->host;
-	char *kaddr;
-	struct udf_inode_info *iinfo = UDF_I(inode);
-	loff_t isize = i_size_read(inode);
+	struct vm_area_struct *vma = vmf->vma;
+	struct inode *inode = file_inode(vma->vm_file);
+	struct address_space *mapping = inode->i_mapping;
+	struct page *page = vmf->page;
+	loff_t size;
+	unsigned int end;
+	vm_fault_t ret = VM_FAULT_LOCKED;
+	int err;
 
-	/*
-	 * We have to be careful here as truncate can change i_size under us.
-	 * So just sample it once and use the same value everywhere.
-	 */
-	kaddr = kmap_atomic(page);
-	memcpy(kaddr, iinfo->i_data + iinfo->i_lenEAttr, isize);
-	memset(kaddr + isize, 0, PAGE_SIZE - isize);
-	flush_dcache_page(page);
-	SetPageUptodate(page);
-	kunmap_atomic(kaddr);
-}
-
-static int udf_adinicb_read_folio(struct file *file, struct folio *folio)
-{
-	BUG_ON(!folio_test_locked(folio));
-	__udf_adinicb_readpage(&folio->page);
-	folio_unlock(folio);
-
-	return 0;
-}
-
-static int udf_adinicb_writepage(struct page *page,
-				 struct writeback_control *wbc)
-{
-	struct inode *inode = page->mapping->host;
-	char *kaddr;
-	struct udf_inode_info *iinfo = UDF_I(inode);
-
-	BUG_ON(!PageLocked(page));
-
-	kaddr = kmap_atomic(page);
-	memcpy(iinfo->i_data + iinfo->i_lenEAttr, kaddr, i_size_read(inode));
-	SetPageUptodate(page);
-	kunmap_atomic(kaddr);
-	mark_inode_dirty(inode);
-	unlock_page(page);
-
-	return 0;
-}
-
-static int udf_adinicb_write_begin(struct file *file,
-			struct address_space *mapping, loff_t pos,
-			unsigned len, struct page **pagep,
-			void **fsdata)
-{
-	struct page *page;
-
-	if (WARN_ON_ONCE(pos >= PAGE_SIZE))
-		return -EIO;
-	page = grab_cache_page_write_begin(mapping, 0);
-	if (!page)
-		return -ENOMEM;
-	*pagep = page;
-
-	if (!PageUptodate(page))
-		__udf_adinicb_readpage(page);
-	return 0;
-}
-
-static ssize_t udf_adinicb_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
-{
-	/* Fallback to buffered I/O. */
-	return 0;
-}
-
-static int udf_adinicb_write_end(struct file *file, struct address_space *mapping,
-				 loff_t pos, unsigned len, unsigned copied,
-				 struct page *page, void *fsdata)
-{
-	struct inode *inode = page->mapping->host;
-	loff_t last_pos = pos + copied;
-	if (last_pos > inode->i_size)
-		i_size_write(inode, last_pos);
+	sb_start_pagefault(inode->i_sb);
+	file_update_time(vma->vm_file);
+	filemap_invalidate_lock_shared(mapping);
+	lock_page(page);
+	size = i_size_read(inode);
+	if (page->mapping != inode->i_mapping || page_offset(page) >= size) {
+		unlock_page(page);
+		ret = VM_FAULT_NOPAGE;
+		goto out_unlock;
+	}
+	/* Space is already allocated for in-ICB file */
+	if (UDF_I(inode)->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB)
+		goto out_dirty;
+	if (page->index == size >> PAGE_SHIFT)
+		end = size & ~PAGE_MASK;
+	else
+		end = PAGE_SIZE;
+	err = __block_write_begin(page, 0, end, udf_get_block);
+	if (!err)
+		err = block_commit_write(page, 0, end);
+	if (err < 0) {
+		unlock_page(page);
+		ret = block_page_mkwrite_return(err);
+		goto out_unlock;
+	}
+out_dirty:
 	set_page_dirty(page);
-	unlock_page(page);
-	put_page(page);
-	return copied;
+	wait_for_stable_page(page);
+out_unlock:
+	filemap_invalidate_unlock_shared(mapping);
+	sb_end_pagefault(inode->i_sb);
+	return ret;
 }
 
-const struct address_space_operations udf_adinicb_aops = {
-	.dirty_folio	= block_dirty_folio,
-	.invalidate_folio = block_invalidate_folio,
-	.read_folio	= udf_adinicb_read_folio,
-	.writepage	= udf_adinicb_writepage,
-	.write_begin	= udf_adinicb_write_begin,
-	.write_end	= udf_adinicb_write_end,
-	.direct_IO	= udf_adinicb_direct_IO,
+static const struct vm_operations_struct udf_file_vm_ops = {
+	.fault		= filemap_fault,
+	.map_pages	= filemap_map_pages,
+	.page_mkwrite	= udf_page_mkwrite,
 };
 
 static ssize_t udf_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
@@ -140,7 +95,6 @@ static ssize_t udf_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
 	struct udf_inode_info *iinfo = UDF_I(inode);
-	int err;
 
 	inode_lock(inode);
 
@@ -148,27 +102,23 @@ static ssize_t udf_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (retval <= 0)
 		goto out;
 
-	down_write(&iinfo->i_data_sem);
-	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
-		loff_t end = iocb->ki_pos + iov_iter_count(from);
-
-		if (inode->i_sb->s_blocksize <
-				(udf_file_entry_alloc_offset(inode) + end)) {
-			err = udf_expand_file_adinicb(inode);
-			if (err) {
-				inode_unlock(inode);
-				udf_debug("udf_expand_adinicb: err=%d\n", err);
-				return err;
-			}
-		} else {
-			iinfo->i_lenAlloc = max(end, inode->i_size);
-			up_write(&iinfo->i_data_sem);
-		}
-	} else
-		up_write(&iinfo->i_data_sem);
+	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB &&
+	    inode->i_sb->s_blocksize < (udf_file_entry_alloc_offset(inode) +
+				 iocb->ki_pos + iov_iter_count(from))) {
+		filemap_invalidate_lock(inode->i_mapping);
+		retval = udf_expand_file_adinicb(inode);
+		filemap_invalidate_unlock(inode->i_mapping);
+		if (retval)
+			goto out;
+	}
 
 	retval = __generic_file_write_iter(iocb, from);
 out:
+	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB && retval > 0) {
+		down_write(&iinfo->i_data_sem);
+		iinfo->i_lenAlloc = inode->i_size;
+		up_write(&iinfo->i_data_sem);
+	}
 	inode_unlock(inode);
 
 	if (retval > 0) {
@@ -243,11 +193,19 @@ static int udf_release_file(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+static int udf_file_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	file_accessed(file);
+	vma->vm_ops = &udf_file_vm_ops;
+
+	return 0;
+}
+
 const struct file_operations udf_file_operations = {
 	.read_iter		= generic_file_read_iter,
 	.unlocked_ioctl		= udf_ioctl,
 	.open			= generic_file_open,
-	.mmap			= generic_file_mmap,
+	.mmap			= udf_file_mmap,
 	.write_iter		= udf_file_write_iter,
 	.release		= udf_release_file,
 	.fsync			= generic_file_fsync,
@@ -256,14 +214,14 @@ const struct file_operations udf_file_operations = {
 	.llseek			= generic_file_llseek,
 };
 
-static int udf_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+static int udf_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		       struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
 	struct super_block *sb = inode->i_sb;
 	int error;
 
-	error = setattr_prepare(&init_user_ns, dentry, attr);
+	error = setattr_prepare(&nop_mnt_idmap, dentry, attr);
 	if (error)
 		return error;
 
@@ -286,7 +244,7 @@ static int udf_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 	if (attr->ia_valid & ATTR_MODE)
 		udf_update_extra_perms(inode, attr->ia_mode);
 
-	setattr_copy(&init_user_ns, inode, attr);
+	setattr_copy(&nop_mnt_idmap, inode, attr);
 	mark_inode_dirty(inode);
 	return 0;
 }

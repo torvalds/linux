@@ -54,6 +54,14 @@ static const char * const nvme_admin_ops[] = {
 	[nvme_admin_get_lba_status] = "Get LBA Status",
 };
 
+static const char * const nvme_fabrics_ops[] = {
+	[nvme_fabrics_type_property_set] = "Property Set",
+	[nvme_fabrics_type_property_get] = "Property Get",
+	[nvme_fabrics_type_connect] = "Connect",
+	[nvme_fabrics_type_auth_send] = "Authentication Send",
+	[nvme_fabrics_type_auth_receive] = "Authentication Receive",
+};
+
 static const char * const nvme_statuses[] = {
 	[NVME_SC_SUCCESS] = "Success",
 	[NVME_SC_INVALID_OPCODE] = "Invalid Command Opcode",
@@ -185,3 +193,11 @@ const unsigned char *nvme_get_admin_opcode_str(u8 opcode)
 		return nvme_admin_ops[opcode];
 	return "Unknown";
 }
+EXPORT_SYMBOL_GPL(nvme_get_admin_opcode_str);
+
+const unsigned char *nvme_get_fabrics_opcode_str(u8 opcode) {
+	if (opcode < ARRAY_SIZE(nvme_fabrics_ops) && nvme_fabrics_ops[opcode])
+		return nvme_fabrics_ops[opcode];
+	return "Unknown";
+}
+EXPORT_SYMBOL_GPL(nvme_get_fabrics_opcode_str);

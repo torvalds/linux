@@ -53,6 +53,7 @@
 
 #include <drm/drm_print.h>
 #include <drm/drm_gem.h>
+#include <drm/drm_syncobj.h>
 #include <drm/gpu_scheduler.h>
 #include <drm/spsc_queue.h>
 
@@ -719,6 +720,34 @@ int drm_sched_job_add_dependency(struct drm_sched_job *job,
 EXPORT_SYMBOL(drm_sched_job_add_dependency);
 
 /**
+ * drm_sched_job_add_syncobj_dependency - adds a syncobj's fence as a job dependency
+ * @job: scheduler job to add the dependencies to
+ * @file_private: drm file private pointer
+ * @handle: syncobj handle to lookup
+ * @point: timeline point
+ *
+ * This adds the fence matching the given syncobj to @job.
+ *
+ * Returns:
+ * 0 on success, or an error on failing to expand the array.
+ */
+int drm_sched_job_add_syncobj_dependency(struct drm_sched_job *job,
+					 struct drm_file *file,
+					 u32 handle,
+					 u32 point)
+{
+	struct dma_fence *fence;
+	int ret;
+
+	ret = drm_syncobj_find_fence(file, handle, point, 0, &fence);
+	if (ret)
+		return ret;
+
+	return drm_sched_job_add_dependency(job, fence);
+}
+EXPORT_SYMBOL(drm_sched_job_add_syncobj_dependency);
+
+/**
  * drm_sched_job_add_resv_dependencies - add all fences from the resv to the job
  * @job: scheduler job to add the dependencies to
  * @resv: the dma_resv object to get the fences from
@@ -905,6 +934,12 @@ drm_sched_get_cleanup_job(struct drm_gpu_scheduler *sched)
 	}
 
 	spin_unlock(&sched->job_list_lock);
+
+	if (job) {
+		job->entity->elapsed_ns += ktime_to_ns(
+			ktime_sub(job->s_fence->finished.timestamp,
+				  job->s_fence->scheduled.timestamp));
+	}
 
 	return job;
 }

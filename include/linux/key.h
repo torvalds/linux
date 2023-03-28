@@ -386,6 +386,14 @@ extern int wait_for_key_construction(struct key *key, bool intr);
 
 extern int key_validate(const struct key *key);
 
+extern key_ref_t key_create(key_ref_t keyring,
+			    const char *type,
+			    const char *description,
+			    const void *payload,
+			    size_t plen,
+			    key_perm_t perm,
+			    unsigned long flags);
+
 extern key_ref_t key_create_or_update(key_ref_t keyring,
 				      const char *type,
 				      const char *description,

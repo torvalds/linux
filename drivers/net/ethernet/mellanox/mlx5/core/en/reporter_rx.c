@@ -459,7 +459,11 @@ static int mlx5e_rx_reporter_diagnose(struct devlink_health_reporter *reporter,
 		goto unlock;
 
 	for (i = 0; i < priv->channels.num; i++) {
-		struct mlx5e_rq *rq = &priv->channels.c[i]->rq;
+		struct mlx5e_channel *c = priv->channels.c[i];
+		struct mlx5e_rq *rq;
+
+		rq = test_bit(MLX5E_CHANNEL_STATE_XSK, c->state) ?
+			&c->xskrq : &c->rq;
 
 		err = mlx5e_rx_reporter_build_diagnose_output(rq, fmsg);
 		if (err)
@@ -732,10 +736,10 @@ static const struct devlink_health_reporter_ops mlx5_rx_reporter_ops = {
 
 void mlx5e_reporter_rx_create(struct mlx5e_priv *priv)
 {
-	struct devlink_port *dl_port = mlx5e_devlink_get_dl_port(priv);
 	struct devlink_health_reporter *reporter;
 
-	reporter = devlink_port_health_reporter_create(dl_port, &mlx5_rx_reporter_ops,
+	reporter = devlink_port_health_reporter_create(priv->netdev->devlink_port,
+						       &mlx5_rx_reporter_ops,
 						       MLX5E_REPORTER_RX_GRACEFUL_PERIOD, priv);
 	if (IS_ERR(reporter)) {
 		netdev_warn(priv->netdev, "Failed to create rx reporter, err = %ld\n",
@@ -750,6 +754,6 @@ void mlx5e_reporter_rx_destroy(struct mlx5e_priv *priv)
 	if (!priv->rx_reporter)
 		return;
 
-	devlink_port_health_reporter_destroy(priv->rx_reporter);
+	devlink_health_reporter_destroy(priv->rx_reporter);
 	priv->rx_reporter = NULL;
 }

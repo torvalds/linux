@@ -228,6 +228,8 @@ void flow_action_cookie_destroy(struct flow_action_cookie *cookie);
 struct flow_action_entry {
 	enum flow_action_id		id;
 	u32				hw_index;
+	unsigned long			cookie;
+	u64				miss_cookie;
 	enum flow_action_hw_stats	hw_stats;
 	action_destr			destructor;
 	void				*destructor_priv;
@@ -320,7 +322,7 @@ struct flow_action_entry {
 			u16		sid;
 		} pppoe;
 	};
-	struct flow_action_cookie *cookie; /* user defined action cookie */
+	struct flow_action_cookie *user_cookie; /* user defined action cookie */
 };
 
 struct flow_action {
@@ -593,6 +595,7 @@ struct flow_cls_common_offload {
 struct flow_cls_offload {
 	struct flow_cls_common_offload common;
 	enum flow_cls_command command;
+	bool use_act_stats;
 	unsigned long cookie;
 	struct flow_rule *rule;
 	struct flow_stats stats;
@@ -610,6 +613,7 @@ struct flow_offload_action {
 	enum offload_act_command  command;
 	enum flow_action_id id;
 	u32 index;
+	unsigned long cookie;
 	struct flow_stats stats;
 	struct flow_action action;
 };

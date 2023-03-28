@@ -10,6 +10,7 @@ struct device;
 
 struct ipa;
 struct ipa_power_data;
+enum ipa_irq_id;
 
 /* IPA device power management function block */
 extern const struct dev_pm_ops ipa_pm_ops;
@@ -46,6 +47,17 @@ void ipa_power_modem_queue_active(struct ipa *ipa);
  * @enable:	Whether retention should be enabled or disabled
  */
 void ipa_power_retention(struct ipa *ipa, bool enable);
+
+/**
+ * ipa_power_suspend_handler() - Handler for SUSPEND IPA interrupts
+ * @ipa:	IPA pointer
+ * @irq_id:	IPA interrupt ID (unused)
+ *
+ * If an RX endpoint is suspended, and the IPA has a packet destined for
+ * that endpoint, the IPA generates a SUSPEND interrupt to inform the AP
+ * that it should resume the endpoint.
+ */
+void ipa_power_suspend_handler(struct ipa *ipa, enum ipa_irq_id irq_id);
 
 /**
  * ipa_power_setup() - Set up IPA power management

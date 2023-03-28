@@ -22,7 +22,6 @@
 extern u64 __ua_limit;
 
 #define __UA_ADDR	".dword"
-#define __UA_LA		"la.abs"
 #define __UA_LIMIT	__ua_limit
 
 /*

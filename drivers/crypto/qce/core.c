@@ -107,7 +107,7 @@ static int qce_handle_queue(struct qce_device *qce,
 
 	if (backlog) {
 		spin_lock_bh(&qce->lock);
-		backlog->complete(backlog, -EINPROGRESS);
+		crypto_request_complete(backlog, -EINPROGRESS);
 		spin_unlock_bh(&qce->lock);
 	}
 
@@ -132,7 +132,7 @@ static void qce_tasklet_req_done(unsigned long data)
 	spin_unlock_irqrestore(&qce->lock, flags);
 
 	if (req)
-		req->complete(req, qce->result);
+		crypto_request_complete(req, qce->result);
 
 	qce_handle_queue(qce, NULL);
 }

@@ -16,6 +16,7 @@
 #include <linux/dma-mapping.h>
 
 #include "blk.h"
+#include "blk-rq-qos.h"
 #include "blk-wbt.h"
 
 void blk_queue_rq_timeout(struct request_queue *q, unsigned int timeout)
@@ -40,7 +41,7 @@ void blk_set_default_limits(struct queue_limits *lim)
 	lim->virt_boundary_mask = 0;
 	lim->max_segment_size = BLK_MAX_SEGMENT_SIZE;
 	lim->max_sectors = lim->max_hw_sectors = BLK_SAFE_MAX_SECTORS;
-	lim->max_dev_sectors = 0;
+	lim->max_user_sectors = lim->max_dev_sectors = 0;
 	lim->chunk_sectors = 0;
 	lim->max_write_zeroes_sectors = 0;
 	lim->max_zone_append_sectors = 0;
@@ -135,7 +136,12 @@ void blk_queue_max_hw_sectors(struct request_queue *q, unsigned int max_hw_secto
 	limits->max_hw_sectors = max_hw_sectors;
 
 	max_sectors = min_not_zero(max_hw_sectors, limits->max_dev_sectors);
-	max_sectors = min_t(unsigned int, max_sectors, BLK_DEF_MAX_SECTORS);
+
+	if (limits->max_user_sectors)
+		max_sectors = min(max_sectors, limits->max_user_sectors);
+	else
+		max_sectors = min(max_sectors, BLK_DEF_MAX_SECTORS);
+
 	max_sectors = round_down(max_sectors,
 				 limits->logical_block_size >> SECTOR_SHIFT);
 	limits->max_sectors = max_sectors;

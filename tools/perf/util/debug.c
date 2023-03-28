@@ -19,11 +19,18 @@
 #include "debug.h"
 #include "print_binary.h"
 #include "target.h"
+#include "trace-event.h"
 #include "ui/helpline.h"
 #include "ui/ui.h"
 #include "util/parse-sublevel-options.h"
 
 #include <linux/ctype.h>
+
+#ifdef HAVE_LIBTRACEEVENT
+#include <traceevent/event-parse.h>
+#else
+#define LIBTRACEEVENT_VERSION 0
+#endif
 
 int verbose;
 int debug_peo_args;
@@ -228,6 +235,14 @@ int perf_debug_option(const char *str)
 	/* Allow only verbose value in range (0, 10), otherwise set 0. */
 	verbose = (verbose < 0) || (verbose > 10) ? 0 : verbose;
 
+#if LIBTRACEEVENT_VERSION >= MAKE_LIBTRACEEVENT_VERSION(1, 3, 0)
+	if (verbose == 1)
+		tep_set_loglevel(TEP_LOG_INFO);
+	else if (verbose == 2)
+		tep_set_loglevel(TEP_LOG_DEBUG);
+	else if (verbose >= 3)
+		tep_set_loglevel(TEP_LOG_ALL);
+#endif
 	return 0;
 }
 

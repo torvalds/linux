@@ -288,8 +288,7 @@ struct smbd_mr {
 	struct list_head	list;
 	enum mr_state		state;
 	struct ib_mr		*mr;
-	struct scatterlist	*sgl;
-	int			sgl_count;
+	struct sg_table		sgt;
 	enum dma_data_direction	dir;
 	union {
 		struct ib_reg_wr	wr;
@@ -302,8 +301,8 @@ struct smbd_mr {
 
 /* Interfaces to register and deregister MR for RDMA read/write */
 struct smbd_mr *smbd_register_mr(
-	struct smbd_connection *info, struct page *pages[], int num_pages,
-	int offset, int tailsz, bool writing, bool need_invalidate);
+	struct smbd_connection *info, struct iov_iter *iter,
+	bool writing, bool need_invalidate);
 int smbd_deregister_mr(struct smbd_mr *mr);
 
 #else

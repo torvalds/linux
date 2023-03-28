@@ -46,6 +46,7 @@
 #include <linux/net.h>
 #include <linux/export.h>
 #include <net/tcp.h>
+#include <trace/events/sock.h>
 
 #include <linux/uaccess.h>
 
@@ -584,6 +585,8 @@ static void o2net_data_ready(struct sock *sk)
 {
 	void (*ready)(struct sock *sk);
 	struct o2net_sock_container *sc;
+
+	trace_sk_data_ready(sk);
 
 	read_lock_bh(&sk->sk_callback_lock);
 	sc = sk->sk_user_data;
@@ -1930,6 +1933,8 @@ static void o2net_accept_many(struct work_struct *work)
 static void o2net_listen_data_ready(struct sock *sk)
 {
 	void (*ready)(struct sock *sk);
+
+	trace_sk_data_ready(sk);
 
 	read_lock_bh(&sk->sk_callback_lock);
 	ready = sk->sk_user_data;

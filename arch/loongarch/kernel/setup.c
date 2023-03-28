@@ -234,11 +234,14 @@ static void __init arch_reserve_vmcore(void)
 #endif
 }
 
+/* 2MB alignment for crash kernel regions */
+#define CRASH_ALIGN	SZ_2M
+#define CRASH_ADDR_MAX	SZ_4G
+
 static void __init arch_parse_crashkernel(void)
 {
 #ifdef CONFIG_KEXEC
 	int ret;
-	unsigned long long start;
 	unsigned long long total_mem;
 	unsigned long long crash_base, crash_size;
 
@@ -247,8 +250,13 @@ static void __init arch_parse_crashkernel(void)
 	if (ret < 0 || crash_size <= 0)
 		return;
 
-	start = memblock_phys_alloc_range(crash_size, 1, crash_base, crash_base + crash_size);
-	if (start != crash_base) {
+	if (crash_base <= 0) {
+		crash_base = memblock_phys_alloc_range(crash_size, CRASH_ALIGN, CRASH_ALIGN, CRASH_ADDR_MAX);
+		if (!crash_base) {
+			pr_warn("crashkernel reservation failed - No suitable area found.\n");
+			return;
+		}
+	} else if (!memblock_phys_alloc_range(crash_size, CRASH_ALIGN, crash_base, crash_base + crash_size)) {
 		pr_warn("Invalid memory region reserved for crash kernel\n");
 		return;
 	}

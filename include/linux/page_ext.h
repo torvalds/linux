@@ -7,15 +7,35 @@
 #include <linux/stackdepot.h>
 
 struct pglist_data;
+
+/**
+ * struct page_ext_operations - per page_ext client operations
+ * @offset: Offset to the client's data within page_ext. Offset is returned to
+ *          the client by page_ext_init.
+ * @size: The size of the client data within page_ext.
+ * @need: Function that returns true if client requires page_ext.
+ * @init: (optional) Called to initialize client once page_exts are allocated.
+ * @need_shared_flags: True when client is using shared page_ext->flags
+ *                     field.
+ *
+ * Each Page Extension client must define page_ext_operations in
+ * page_ext_ops array.
+ */
 struct page_ext_operations {
 	size_t offset;
 	size_t size;
 	bool (*need)(void);
 	void (*init)(void);
+	bool need_shared_flags;
 };
+
+extern bool deferred_struct_pages;
 
 #ifdef CONFIG_PAGE_EXTENSION
 
+/*
+ * The page_ext_flags users must set need_shared_flags to true.
+ */
 enum page_ext_flags {
 	PAGE_EXT_OWNER,
 	PAGE_EXT_OWNER_ALLOCATED,

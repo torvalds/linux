@@ -61,9 +61,6 @@ static int spl2sw_mii_read(struct mii_bus *bus, int addr, int regnum)
 {
 	struct spl2sw_common *comm = bus->priv;
 
-	if (regnum & MII_ADDR_C45)
-		return -EOPNOTSUPP;
-
 	return spl2sw_mdio_access(comm, SPL2SW_MDIO_READ_CMD, addr, regnum, 0);
 }
 
@@ -71,9 +68,6 @@ static int spl2sw_mii_write(struct mii_bus *bus, int addr, int regnum, u16 val)
 {
 	struct spl2sw_common *comm = bus->priv;
 	int ret;
-
-	if (regnum & MII_ADDR_C45)
-		return -EOPNOTSUPP;
 
 	ret = spl2sw_mdio_access(comm, SPL2SW_MDIO_WRITE_CMD, addr, regnum, val);
 	if (ret < 0)

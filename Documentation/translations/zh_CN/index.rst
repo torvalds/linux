@@ -133,6 +133,15 @@ TODOList:
 
    staging/index
 
+术语表
+------
+
+.. toctree::
+   :maxdepth: 1
+
+   glossary
+
+
 索引和表格
 ----------
 

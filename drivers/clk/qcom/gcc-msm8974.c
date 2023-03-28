@@ -2110,7 +2110,7 @@ static struct clk_branch gcc_sdcc1_cdccal_sleep_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_sdcc1_cdccal_sleep_clk",
 			.parent_data = (const struct clk_parent_data[]){
-				{ .fw_name = "sleep_clk", .name = "sleep_clk_src" }
+				{ .fw_name = "sleep_clk", .name = "sleep_clk" }
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -2275,7 +2275,7 @@ static struct clk_branch gcc_usb2a_phy_sleep_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_usb2a_phy_sleep_clk",
 			.parent_data = &(const struct clk_parent_data){
-				.fw_name = "sleep_clk", .name = "sleep_clk_src",
+				.fw_name = "sleep_clk", .name = "sleep_clk",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -2291,7 +2291,7 @@ static struct clk_branch gcc_usb2b_phy_sleep_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_usb2b_phy_sleep_clk",
 			.parent_data = &(const struct clk_parent_data){
-				.fw_name = "sleep_clk", .name = "sleep_clk_src",
+				.fw_name = "sleep_clk", .name = "sleep_clk",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -2341,7 +2341,7 @@ static struct clk_branch gcc_usb30_sleep_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_usb30_sleep_clk",
 			.parent_data = &(const struct clk_parent_data){
-				.fw_name = "sleep_clk", .name = "sleep_clk_src",
+				.fw_name = "sleep_clk", .name = "sleep_clk",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -2440,7 +2440,7 @@ static struct clk_branch gcc_usb_hsic_io_cal_sleep_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_usb_hsic_io_cal_sleep_clk",
 			.parent_data = &(const struct clk_parent_data){
-				.fw_name = "sleep_clk", .name = "sleep_clk_src",
+				.fw_name = "sleep_clk", .name = "sleep_clk",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,

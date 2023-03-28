@@ -1075,11 +1075,6 @@ static int gbaudio_codec_probe(struct platform_device *pdev)
 			gbaudio_dai, ARRAY_SIZE(gbaudio_dai));
 }
 
-static int gbaudio_codec_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static const struct of_device_id greybus_asoc_machine_of_match[]  = {
 	{ .compatible = "toshiba,apb-dummy-codec", },
 	{},
@@ -1094,7 +1089,6 @@ static struct platform_driver gbaudio_codec_driver = {
 		.of_match_table = greybus_asoc_machine_of_match,
 	},
 	.probe = gbaudio_codec_probe,
-	.remove = gbaudio_codec_remove,
 };
 module_platform_driver(gbaudio_codec_driver);
 

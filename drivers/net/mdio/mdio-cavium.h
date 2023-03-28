@@ -114,5 +114,10 @@ static inline u64 oct_mdio_readq(void __iomem *addr)
 #define oct_mdio_readq(addr)		readq(addr)
 #endif
 
-int cavium_mdiobus_read(struct mii_bus *bus, int phy_id, int regnum);
-int cavium_mdiobus_write(struct mii_bus *bus, int phy_id, int regnum, u16 val);
+int cavium_mdiobus_read_c22(struct mii_bus *bus, int phy_id, int regnum);
+int cavium_mdiobus_write_c22(struct mii_bus *bus, int phy_id, int regnum,
+			     u16 val);
+int cavium_mdiobus_read_c45(struct mii_bus *bus, int phy_id, int devad,
+			    int regnum);
+int cavium_mdiobus_write_c45(struct mii_bus *bus, int phy_id, int devad,
+			     int regnum, u16 val);

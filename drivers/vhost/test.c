@@ -333,13 +333,10 @@ static long vhost_test_ioctl(struct file *f, unsigned int ioctl,
 			return -EFAULT;
 		return 0;
 	case VHOST_SET_FEATURES:
-		printk(KERN_ERR "1\n");
 		if (copy_from_user(&features, featurep, sizeof features))
 			return -EFAULT;
-		printk(KERN_ERR "2\n");
 		if (features & ~VHOST_FEATURES)
 			return -EOPNOTSUPP;
-		printk(KERN_ERR "3\n");
 		return vhost_test_set_features(n, features);
 	case VHOST_RESET_OWNER:
 		return vhost_test_reset_owner(n);

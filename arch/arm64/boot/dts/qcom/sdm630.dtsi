@@ -678,7 +678,7 @@
 
 		mnoc: interconnect@1745000 {
 			compatible = "qcom,sdm660-mnoc";
-			reg = <0x01745000 0xA010>;
+			reg = <0x01745000 0xa010>;
 			#interconnect-cells = <1>;
 			clock-names = "bus", "bus_a", "iface";
 			clocks = <&rpmcc RPM_SMD_MMSSNOC_AXI_CLK>,
@@ -1044,43 +1044,43 @@
 					opp-hz = /bits/ 64 <775000000>;
 					opp-level = <RPM_SMD_LEVEL_TURBO>;
 					opp-peak-kBps = <5412000>;
-					opp-supported-hw = <0xA2>;
+					opp-supported-hw = <0xa2>;
 				};
 				opp-647000000 {
 					opp-hz = /bits/ 64 <647000000>;
 					opp-level = <RPM_SMD_LEVEL_NOM_PLUS>;
 					opp-peak-kBps = <4068000>;
-					opp-supported-hw = <0xFF>;
+					opp-supported-hw = <0xff>;
 				};
 				opp-588000000 {
 					opp-hz = /bits/ 64 <588000000>;
 					opp-level = <RPM_SMD_LEVEL_NOM>;
 					opp-peak-kBps = <3072000>;
-					opp-supported-hw = <0xFF>;
+					opp-supported-hw = <0xff>;
 				};
 				opp-465000000 {
 					opp-hz = /bits/ 64 <465000000>;
 					opp-level = <RPM_SMD_LEVEL_SVS_PLUS>;
 					opp-peak-kBps = <2724000>;
-					opp-supported-hw = <0xFF>;
+					opp-supported-hw = <0xff>;
 				};
 				opp-370000000 {
 					opp-hz = /bits/ 64 <370000000>;
 					opp-level = <RPM_SMD_LEVEL_SVS>;
 					opp-peak-kBps = <2188000>;
-					opp-supported-hw = <0xFF>;
+					opp-supported-hw = <0xff>;
 				};
 				opp-240000000 {
 					opp-hz = /bits/ 64 <240000000>;
 					opp-level = <RPM_SMD_LEVEL_LOW_SVS>;
 					opp-peak-kBps = <1648000>;
-					opp-supported-hw = <0xFF>;
+					opp-supported-hw = <0xff>;
 				};
 				opp-160000000 {
 					opp-hz = /bits/ 64 <160000000>;
 					opp-level = <RPM_SMD_LEVEL_MIN_SVS>;
 					opp-peak-kBps = <1200000>;
-					opp-supported-hw = <0xFF>;
+					opp-supported-hw = <0xff>;
 				};
 			};
 		};
@@ -1470,7 +1470,7 @@
 			};
 		};
 
-		mdss: mdss@c900000 {
+		mdss: display-subsystem@c900000 {
 			compatible = "qcom,mdss";
 			reg = <0x0c900000 0x1000>,
 			      <0x0c9b0000 0x1040>;
@@ -1497,8 +1497,8 @@
 			ranges;
 			status = "disabled";
 
-			mdp: mdp@c901000 {
-				compatible = "qcom,mdp5";
+			mdp: display-controller@c901000 {
+				compatible = "qcom,sdm630-mdp5", "qcom,mdp5";
 				reg = <0x0c901000 0x89000>;
 				reg-names = "mdp_phys";
 
@@ -1572,7 +1572,8 @@
 			};
 
 			dsi0: dsi@c994000 {
-				compatible = "qcom,mdss-dsi-ctrl";
+				compatible = "qcom,sdm660-dsi-ctrl",
+					     "qcom,mdss-dsi-ctrl";
 				reg = <0x0c994000 0x400>;
 				reg-names = "dsi_ctrl";
 
@@ -2409,7 +2410,7 @@
 					type = "passive";
 				};
 
-				cpu0_crit: cpu_crit {
+				cpu0_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -2430,7 +2431,7 @@
 					type = "passive";
 				};
 
-				cpu1_crit: cpu_crit {
+				cpu1_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -2451,7 +2452,7 @@
 					type = "passive";
 				};
 
-				cpu2_crit: cpu_crit {
+				cpu2_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -2472,7 +2473,7 @@
 					type = "passive";
 				};
 
-				cpu3_crit: cpu_crit {
+				cpu3_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -2499,7 +2500,7 @@
 					type = "passive";
 				};
 
-				pwr_cluster_crit: cpu_crit {
+				pwr_cluster_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";

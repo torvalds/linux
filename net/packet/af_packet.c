@@ -1335,8 +1335,6 @@ static void packet_sock_destruct(struct sock *sk)
 		pr_err("Attempt to release alive packet socket: %p\n", sk);
 		return;
 	}
-
-	sk_refcnt_debug_dec(sk);
 }
 
 static bool fanout_flow_is_huge(struct packet_sock *po, struct sk_buff *skb)
@@ -2296,6 +2294,8 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 	else if (skb->pkt_type != PACKET_OUTGOING &&
 		 skb_csum_unnecessary(skb))
 		status |= TP_STATUS_CSUM_VALID;
+	if (skb_is_gso(skb) && skb_is_gso_tcp(skb))
+		status |= TP_STATUS_GSO_TCP;
 
 	if (snaplen > res)
 		snaplen = res;
@@ -3172,7 +3172,6 @@ static int packet_release(struct socket *sock)
 
 	skb_queue_purge(&sk->sk_receive_queue);
 	packet_free_pending(po);
-	sk_refcnt_debug_release(sk);
 
 	sock_put(sk);
 	return 0;
@@ -3362,7 +3361,6 @@ static int packet_create(struct net *net, struct socket *sock, int protocol,
 	packet_cached_dev_reset(po);
 
 	sk->sk_destruct = packet_sock_destruct;
-	sk_refcnt_debug_inc(sk);
 
 	/*
 	 *	Attach a protocol block
@@ -3522,6 +3520,8 @@ static int packet_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 		else if (skb->pkt_type != PACKET_OUTGOING &&
 			 skb_csum_unnecessary(skb))
 			aux.tp_status |= TP_STATUS_CSUM_VALID;
+		if (skb_is_gso(skb) && skb_is_gso_tcp(skb))
+			aux.tp_status |= TP_STATUS_GSO_TCP;
 
 		aux.tp_len = origlen;
 		aux.tp_snaplen = skb->len;

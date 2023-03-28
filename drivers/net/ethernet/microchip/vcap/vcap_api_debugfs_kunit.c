@@ -221,13 +221,6 @@ static int vcap_test_port_info(struct net_device *ndev,
 	return 0;
 }
 
-static int vcap_test_enable(struct net_device *ndev,
-			    struct vcap_admin *admin,
-			    bool enable)
-{
-	return 0;
-}
-
 static struct vcap_operations test_callbacks = {
 	.validate_keyset = test_val_keyset,
 	.add_default_fields = test_add_def_fields,
@@ -238,7 +231,6 @@ static struct vcap_operations test_callbacks = {
 	.update = test_cache_update,
 	.move = test_cache_move,
 	.port_info = vcap_test_port_info,
-	.enable = vcap_test_enable,
 };
 
 static struct vcap_control test_vctrl = {
@@ -253,6 +245,8 @@ static void vcap_test_api_init(struct vcap_admin *admin)
 	INIT_LIST_HEAD(&test_vctrl.list);
 	INIT_LIST_HEAD(&admin->list);
 	INIT_LIST_HEAD(&admin->rules);
+	INIT_LIST_HEAD(&admin->enabled);
+	mutex_init(&admin->lock);
 	list_add_tail(&admin->list, &test_vctrl.list);
 	memset(test_updateaddr, 0, sizeof(test_updateaddr));
 	test_updateaddridx = 0;
@@ -393,8 +387,9 @@ static const char * const test_admin_info_expect[] = {
 	"default_cnt: 73\n",
 	"require_cnt_dis: 0\n",
 	"version: 1\n",
-	"vtype: 2\n",
+	"vtype: 3\n",
 	"vinst: 0\n",
+	"ingress: 1\n",
 	"first_cid: 10000\n",
 	"last_cid: 19999\n",
 	"lookups: 4\n",
@@ -413,6 +408,7 @@ static void vcap_api_show_admin_test(struct kunit *test)
 		.last_valid_addr = 3071,
 		.first_valid_addr = 0,
 		.last_used_addr = 794,
+		.ingress = true,
 	};
 	struct vcap_output_print out = {
 		.prf = (void *)test_prf,
@@ -439,8 +435,9 @@ static const char * const test_admin_expect[] = {
 	"default_cnt: 73\n",
 	"require_cnt_dis: 0\n",
 	"version: 1\n",
-	"vtype: 2\n",
+	"vtype: 3\n",
 	"vinst: 0\n",
+	"ingress: 1\n",
 	"first_cid: 8000000\n",
 	"last_cid: 8199999\n",
 	"lookups: 4\n",
@@ -452,6 +449,7 @@ static const char * const test_admin_expect[] = {
 	"  chain_id: 0\n",
 	"  user: 0\n",
 	"  priority: 0\n",
+	"  state: permanent\n",
 	"  keysets: VCAP_KFS_MAC_ETYPE\n",
 	"  keyset_sw: 6\n",
 	"  keyset_sw_regs: 2\n",
@@ -501,6 +499,7 @@ static void vcap_api_show_admin_rule_test(struct kunit *test)
 		.last_valid_addr = 3071,
 		.first_valid_addr = 0,
 		.last_used_addr = 794,
+		.ingress = true,
 		.cache = {
 			.keystream = keydata,
 			.maskstream = mskdata,

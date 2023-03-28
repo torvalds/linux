@@ -165,7 +165,7 @@ Multiple io_pagetable-s, through their iopt_area-s, can share a single
 iopt_pages which avoids multi-pinning and double accounting of page
 consumption.
 
-iommufd_ioas is sharable between subsystems, e.g. VFIO and VDPA, as long as
+iommufd_ioas is shareable between subsystems, e.g. VFIO and VDPA, as long as
 devices managed by different subsystems are bound to a same iommufd.
 
 IOMMUFD User API

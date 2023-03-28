@@ -531,9 +531,11 @@ int hisi_uncore_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
 }
 EXPORT_SYMBOL_GPL(hisi_uncore_pmu_offline_cpu);
 
-void hisi_pmu_init(struct pmu *pmu, const char *name,
-		const struct attribute_group **attr_groups, struct module *module)
+void hisi_pmu_init(struct hisi_pmu *hisi_pmu, const char *name,
+		   struct module *module)
 {
+	struct pmu *pmu = &hisi_pmu->pmu;
+
 	pmu->name               = name;
 	pmu->module             = module;
 	pmu->task_ctx_nr        = perf_invalid_context;
@@ -545,7 +547,8 @@ void hisi_pmu_init(struct pmu *pmu, const char *name,
 	pmu->start              = hisi_uncore_pmu_start;
 	pmu->stop               = hisi_uncore_pmu_stop;
 	pmu->read               = hisi_uncore_pmu_read;
-	pmu->attr_groups        = attr_groups;
+	pmu->attr_groups        = hisi_pmu->pmu_events.attr_groups;
+	pmu->capabilities       = PERF_PMU_CAP_NO_EXCLUDE;
 }
 EXPORT_SYMBOL_GPL(hisi_pmu_init);
 

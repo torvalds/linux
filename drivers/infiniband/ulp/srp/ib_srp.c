@@ -699,7 +699,7 @@ static void srp_free_ch_ib(struct srp_target_port *target,
 
 static void srp_path_rec_completion(int status,
 				    struct sa_path_rec *pathrec,
-				    int num_paths, void *ch_ptr)
+				    unsigned int num_paths, void *ch_ptr)
 {
 	struct srp_rdma_ch *ch = ch_ptr;
 	struct srp_target_port *target = ch->target;

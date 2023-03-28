@@ -1430,7 +1430,7 @@ int dtsec_initialization(struct mac_device *mac_dev,
 	dtsec->dtsec_drv_param->tx_pad_crc = true;
 
 	phy_node = of_parse_phandle(mac_node, "tbi-handle", 0);
-	if (!phy_node || of_device_is_available(phy_node)) {
+	if (!phy_node || !of_device_is_available(phy_node)) {
 		of_node_put(phy_node);
 		err = -EINVAL;
 		dev_err_probe(mac_dev->dev, err,

@@ -41,7 +41,7 @@ static int __init kaslr_init(void)
 		return 0;
 	}
 
-	if (!kaslr_offset()) {
+	if (!kaslr_enabled()) {
 		pr_warn("KASLR disabled due to lack of seed\n");
 		return 0;
 	}

@@ -419,6 +419,12 @@ static struct fuse_file *fuse_priv_ioctl_prepare(struct inode *inode)
 	struct fuse_mount *fm = get_fuse_mount(inode);
 	bool isdir = S_ISDIR(inode->i_mode);
 
+	if (!fuse_allow_current_process(fm->fc))
+		return ERR_PTR(-EACCES);
+
+	if (fuse_is_bad(inode))
+		return ERR_PTR(-EIO);
+
 	if (!S_ISREG(inode->i_mode) && !isdir)
 		return ERR_PTR(-ENOTTY);
 
@@ -467,7 +473,7 @@ cleanup:
 	return err;
 }
 
-int fuse_fileattr_set(struct user_namespace *mnt_userns,
+int fuse_fileattr_set(struct mnt_idmap *idmap,
 		      struct dentry *dentry, struct fileattr *fa)
 {
 	struct inode *inode = d_inode(dentry);

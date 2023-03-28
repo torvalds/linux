@@ -19,7 +19,6 @@
 #include <linux/of_fdt.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
-#include <linux/pda_power.h>
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
 #include <linux/slab.h>

@@ -3145,7 +3145,7 @@ static bool has_cap_mac_admin(bool audit)
 	return true;
 }
 
-static int selinux_inode_setxattr(struct user_namespace *mnt_userns,
+static int selinux_inode_setxattr(struct mnt_idmap *idmap,
 				  struct dentry *dentry, const char *name,
 				  const void *value, size_t size, int flags)
 {
@@ -3167,13 +3167,13 @@ static int selinux_inode_setxattr(struct user_namespace *mnt_userns,
 	}
 
 	if (!selinux_initialized(&selinux_state))
-		return (inode_owner_or_capable(mnt_userns, inode) ? 0 : -EPERM);
+		return (inode_owner_or_capable(idmap, inode) ? 0 : -EPERM);
 
 	sbsec = selinux_superblock(inode->i_sb);
 	if (!(sbsec->flags & SBLABEL_MNT))
 		return -EOPNOTSUPP;
 
-	if (!inode_owner_or_capable(mnt_userns, inode))
+	if (!inode_owner_or_capable(idmap, inode))
 		return -EPERM;
 
 	ad.type = LSM_AUDIT_DATA_DENTRY;
@@ -3240,20 +3240,20 @@ static int selinux_inode_setxattr(struct user_namespace *mnt_userns,
 			    &ad);
 }
 
-static int selinux_inode_set_acl(struct user_namespace *mnt_userns,
+static int selinux_inode_set_acl(struct mnt_idmap *idmap,
 				 struct dentry *dentry, const char *acl_name,
 				 struct posix_acl *kacl)
 {
 	return dentry_has_perm(current_cred(), dentry, FILE__SETATTR);
 }
 
-static int selinux_inode_get_acl(struct user_namespace *mnt_userns,
+static int selinux_inode_get_acl(struct mnt_idmap *idmap,
 				 struct dentry *dentry, const char *acl_name)
 {
 	return dentry_has_perm(current_cred(), dentry, FILE__GETATTR);
 }
 
-static int selinux_inode_remove_acl(struct user_namespace *mnt_userns,
+static int selinux_inode_remove_acl(struct mnt_idmap *idmap,
 				    struct dentry *dentry, const char *acl_name)
 {
 	return dentry_has_perm(current_cred(), dentry, FILE__SETATTR);
@@ -3313,11 +3313,11 @@ static int selinux_inode_listxattr(struct dentry *dentry)
 	return dentry_has_perm(cred, dentry, FILE__GETATTR);
 }
 
-static int selinux_inode_removexattr(struct user_namespace *mnt_userns,
+static int selinux_inode_removexattr(struct mnt_idmap *idmap,
 				     struct dentry *dentry, const char *name)
 {
 	if (strcmp(name, XATTR_NAME_SELINUX)) {
-		int rc = cap_inode_removexattr(mnt_userns, dentry, name);
+		int rc = cap_inode_removexattr(idmap, dentry, name);
 		if (rc)
 			return rc;
 
@@ -3383,7 +3383,7 @@ static int selinux_path_notify(const struct path *path, u64 mask,
  *
  * Permission check is handled by selinux_inode_getxattr hook.
  */
-static int selinux_inode_getsecurity(struct user_namespace *mnt_userns,
+static int selinux_inode_getsecurity(struct mnt_idmap *idmap,
 				     struct inode *inode, const char *name,
 				     void **buffer, bool alloc)
 {
@@ -6588,14 +6588,14 @@ static int selinux_inode_notifysecctx(struct inode *inode, void *ctx, u32 ctxlen
  */
 static int selinux_inode_setsecctx(struct dentry *dentry, void *ctx, u32 ctxlen)
 {
-	return __vfs_setxattr_noperm(&init_user_ns, dentry, XATTR_NAME_SELINUX,
+	return __vfs_setxattr_noperm(&nop_mnt_idmap, dentry, XATTR_NAME_SELINUX,
 				     ctx, ctxlen, 0);
 }
 
 static int selinux_inode_getsecctx(struct inode *inode, void **ctx, u32 *ctxlen)
 {
 	int len = 0;
-	len = selinux_inode_getsecurity(&init_user_ns, inode,
+	len = selinux_inode_getsecurity(&nop_mnt_idmap, inode,
 					XATTR_SELINUX_SUFFIX, ctx, true);
 	if (len < 0)
 		return len;

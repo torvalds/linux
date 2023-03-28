@@ -51,6 +51,7 @@ properties:
               - fsl,imx8mm-fec
               - fsl,imx8mn-fec
               - fsl,imx8mp-fec
+              - fsl,imx93-fec
           - const: fsl,imx8mq-fec
           - const: fsl,imx6sx-fec
       - items:

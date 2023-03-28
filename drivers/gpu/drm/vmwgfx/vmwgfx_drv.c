@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright 2009-2022 VMware, Inc., Palo Alto, CA., USA
+ * Copyright 2009-2023 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -28,9 +28,10 @@
 
 #include "vmwgfx_drv.h"
 
+#include "vmwgfx_bo.h"
+#include "vmwgfx_binding.h"
 #include "vmwgfx_devcaps.h"
 #include "vmwgfx_mksstat.h"
-#include "vmwgfx_binding.h"
 #include "ttm_object.h"
 
 #include <drm/drm_aperture.h>
@@ -386,27 +387,32 @@ static void vmw_print_sm_type(struct vmw_private *dev_priv)
 static int vmw_dummy_query_bo_create(struct vmw_private *dev_priv)
 {
 	int ret;
-	struct vmw_buffer_object *vbo;
+	struct vmw_bo *vbo;
 	struct ttm_bo_kmap_obj map;
 	volatile SVGA3dQueryResult *result;
 	bool dummy;
+	struct vmw_bo_params bo_params = {
+		.domain = VMW_BO_DOMAIN_SYS,
+		.busy_domain = VMW_BO_DOMAIN_SYS,
+		.bo_type = ttm_bo_type_kernel,
+		.size = PAGE_SIZE,
+		.pin = true
+	};
 
 	/*
 	 * Create the vbo as pinned, so that a tryreserve will
 	 * immediately succeed. This is because we're the only
 	 * user of the bo currently.
 	 */
-	ret = vmw_bo_create(dev_priv, PAGE_SIZE,
-			    &vmw_sys_placement, false, true,
-			    &vmw_bo_bo_free, &vbo);
+	ret = vmw_bo_create(dev_priv, &bo_params, &vbo);
 	if (unlikely(ret != 0))
 		return ret;
 
-	ret = ttm_bo_reserve(&vbo->base, false, true, NULL);
+	ret = ttm_bo_reserve(&vbo->tbo, false, true, NULL);
 	BUG_ON(ret != 0);
 	vmw_bo_pin_reserved(vbo, true);
 
-	ret = ttm_bo_kmap(&vbo->base, 0, 1, &map);
+	ret = ttm_bo_kmap(&vbo->tbo, 0, 1, &map);
 	if (likely(ret == 0)) {
 		result = ttm_kmap_obj_virtual(&map, &dummy);
 		result->totalSize = sizeof(*result);
@@ -415,7 +421,7 @@ static int vmw_dummy_query_bo_create(struct vmw_private *dev_priv)
 		ttm_bo_kunmap(&map);
 	}
 	vmw_bo_pin_reserved(vbo, false);
-	ttm_bo_unreserve(&vbo->base);
+	ttm_bo_unreserve(&vbo->tbo);
 
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Dummy query buffer map failed.\n");
@@ -1565,7 +1571,7 @@ static const struct file_operations vmwgfx_driver_fops = {
 	.open = drm_open,
 	.release = drm_release,
 	.unlocked_ioctl = vmw_unlocked_ioctl,
-	.mmap = vmw_mmap,
+	.mmap = drm_gem_mmap,
 	.poll = drm_poll,
 	.read = drm_read,
 #if defined(CONFIG_COMPAT)

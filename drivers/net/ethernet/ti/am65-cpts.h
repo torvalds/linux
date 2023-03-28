@@ -18,6 +18,7 @@ struct am65_cpts_estf_cfg {
 };
 
 #if IS_ENABLED(CONFIG_TI_K3_AM65_CPTS)
+void am65_cpts_release(struct am65_cpts *cpts);
 struct am65_cpts *am65_cpts_create(struct device *dev, void __iomem *regs,
 				   struct device_node *node);
 int am65_cpts_phc_index(struct am65_cpts *cpts);
@@ -31,6 +32,10 @@ void am65_cpts_estf_disable(struct am65_cpts *cpts, int idx);
 void am65_cpts_suspend(struct am65_cpts *cpts);
 void am65_cpts_resume(struct am65_cpts *cpts);
 #else
+static inline void am65_cpts_release(struct am65_cpts *cpts)
+{
+}
+
 static inline struct am65_cpts *am65_cpts_create(struct device *dev,
 						 void __iomem *regs,
 						 struct device_node *node)

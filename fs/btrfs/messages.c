@@ -293,36 +293,6 @@ void __cold btrfs_err_32bit_limit(struct btrfs_fs_info *fs_info)
 #endif
 
 /*
- * We only mark the transaction aborted and then set the file system read-only.
- * This will prevent new transactions from starting or trying to join this
- * one.
- *
- * This means that error recovery at the call site is limited to freeing
- * any local memory allocations and passing the error code up without
- * further cleanup. The transaction should complete as it normally would
- * in the call path but will return -EIO.
- *
- * We'll complete the cleanup in btrfs_end_transaction and
- * btrfs_commit_transaction.
- */
-__cold
-void __btrfs_abort_transaction(struct btrfs_trans_handle *trans,
-			       const char *function,
-			       unsigned int line, int errno, bool first_hit)
-{
-	struct btrfs_fs_info *fs_info = trans->fs_info;
-
-	WRITE_ONCE(trans->aborted, errno);
-	WRITE_ONCE(trans->transaction->aborted, errno);
-	if (first_hit && errno == -ENOSPC)
-		btrfs_dump_space_info_for_trans_abort(fs_info);
-	/* Wake up anybody who may be waiting on this transaction */
-	wake_up(&fs_info->transaction_wait);
-	wake_up(&fs_info->transaction_blocked_wait);
-	__btrfs_handle_fs_error(fs_info, function, line, errno, NULL);
-}
-
-/*
  * __btrfs_panic decodes unexpected, fatal errors from the caller, issues an
  * alert, and either panics or BUGs, depending on mount options.
  */

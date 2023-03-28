@@ -67,10 +67,7 @@ static ssize_t smo8800_misc_read(struct file *file, char __user *buf,
 
 	retval = 1;
 
-	if (data < 255)
-		byte_data = data;
-	else
-		byte_data = 255;
+	byte_data = min_t(u32, data, 255);
 
 	if (put_user(byte_data, buf))
 		retval = -EFAULT;

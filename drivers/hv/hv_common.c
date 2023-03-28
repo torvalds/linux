@@ -25,16 +25,19 @@
 #include <asm/mshyperv.h>
 
 /*
- * hv_root_partition and ms_hyperv are defined here with other Hyper-V
- * specific globals so they are shared across all architectures and are
+ * hv_root_partition, ms_hyperv and hv_nested are defined here with other
+ * Hyper-V specific globals so they are shared across all architectures and are
  * built only when CONFIG_HYPERV is defined.  But on x86,
  * ms_hyperv_init_platform() is built even when CONFIG_HYPERV is not
- * defined, and it uses these two variables.  So mark them as __weak
+ * defined, and it uses these three variables.  So mark them as __weak
  * here, allowing for an overriding definition in the module containing
  * ms_hyperv_init_platform().
  */
 bool __weak hv_root_partition;
 EXPORT_SYMBOL_GPL(hv_root_partition);
+
+bool __weak hv_nested;
+EXPORT_SYMBOL_GPL(hv_nested);
 
 struct ms_hyperv_info __weak ms_hyperv;
 EXPORT_SYMBOL_GPL(ms_hyperv);

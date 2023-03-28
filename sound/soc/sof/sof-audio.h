@@ -42,6 +42,7 @@
 #define WIDGET_IS_DAI(id) ((id) == snd_soc_dapm_dai_in || (id) == snd_soc_dapm_dai_out)
 #define WIDGET_IS_AIF(id) ((id) == snd_soc_dapm_aif_in || (id) == snd_soc_dapm_aif_out)
 #define WIDGET_IS_AIF_OR_DAI(id) (WIDGET_IS_DAI(id) || WIDGET_IS_AIF(id))
+#define WIDGET_IS_COPIER(id) (WIDGET_IS_AIF_OR_DAI(id) || (id) == snd_soc_dapm_buffer)
 
 #define SOF_DAI_CLK_INTEL_SSP_MCLK	0
 #define SOF_DAI_CLK_INTEL_SSP_BCLK	1
@@ -85,6 +86,7 @@ struct snd_sof_widget;
 struct snd_sof_route;
 struct snd_sof_control;
 struct snd_sof_dai;
+struct snd_sof_pcm;
 
 struct snd_sof_dai_config_data {
 	int dai_index;
@@ -97,6 +99,11 @@ struct snd_sof_dai_config_data {
  * @hw_free: Function pointer for hw_free
  * @trigger: Function pointer for trigger
  * @dai_link_fixup: Function pointer for DAI link fixup
+ * @pcm_setup: Function pointer for IPC-specific PCM set up that can be used for allocating
+ *	       additional memory in the SOF PCM stream structure
+ * @pcm_free: Function pointer for PCM free that can be used for freeing any
+ *	       additional memory in the SOF PCM stream structure
+ * @delay: Function pointer for pcm delay calculation
  */
 struct sof_ipc_pcm_ops {
 	int (*hw_params)(struct snd_soc_component *component, struct snd_pcm_substream *substream,
@@ -106,6 +113,10 @@ struct sof_ipc_pcm_ops {
 	int (*trigger)(struct snd_soc_component *component,  struct snd_pcm_substream *substream,
 		       int cmd);
 	int (*dai_link_fixup)(struct snd_soc_pcm_runtime *rtd, struct snd_pcm_hw_params *params);
+	int (*pcm_setup)(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm);
+	void (*pcm_free)(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm);
+	snd_pcm_sframes_t (*delay)(struct snd_soc_component *component,
+				   struct snd_pcm_substream *substream);
 };
 
 /**
@@ -166,7 +177,7 @@ struct sof_ipc_tplg_widget_ops {
  *	    initialized to 0.
  * @control: Pointer to the IPC-specific ops for topology kcontrol IO
  * @route_setup: Function pointer for setting up pipeline connections
- * @route_free: Optional op for freeing pipeline connections.
+ * @route_free: Function pointer for freeing pipeline connections.
  * @token_list: List of all tokens supported by the IPC version. The size of the token_list
  *		array should be SOF_TOKEN_COUNT. The unused elements in the array will be
  *		initialized to 0.
@@ -179,7 +190,10 @@ struct sof_ipc_tplg_widget_ops {
  * @dai_get_clk: Function pointer for getting the DAI clock setting
  * @set_up_all_pipelines: Function pointer for setting up all topology pipelines
  * @tear_down_all_pipelines: Function pointer for tearing down all topology pipelines
- * @parse_manifest: Optional function pointer for ipc4 specific parsing of topology manifest
+ * @parse_manifest: Function pointer for ipc4 specific parsing of topology manifest
+ * @link_setup: Function pointer for IPC-specific DAI link set up
+ *
+ * Note: function pointers (ops) are optional
  */
 struct sof_ipc_tplg_ops {
 	const struct sof_ipc_tplg_widget_ops *widget;
@@ -199,6 +213,7 @@ struct sof_ipc_tplg_ops {
 	int (*tear_down_all_pipelines)(struct snd_sof_dev *sdev, bool verify);
 	int (*parse_manifest)(struct snd_soc_component *scomp, int index,
 			      struct snd_soc_tplg_manifest *man);
+	int (*link_setup)(struct snd_sof_dev *sdev, struct snd_soc_dai_link *link);
 };
 
 /** struct snd_sof_tuple - Tuple info
@@ -274,6 +289,16 @@ struct sof_token_info {
 	int count;
 };
 
+/**
+ * struct snd_sof_pcm_stream_pipeline_list - List of pipelines associated with a PCM stream
+ * @count: number of pipeline widgets in the @pipe_widgets array
+ * @pipelines: array of pipelines
+ */
+struct snd_sof_pcm_stream_pipeline_list {
+	u32 count;
+	struct snd_sof_pipeline **pipelines;
+};
+
 /* PCM stream, mapped to FW component  */
 struct snd_sof_pcm_stream {
 	u32 comp_id;
@@ -289,6 +314,10 @@ struct snd_sof_pcm_stream {
 	 * active or not while suspending the stream
 	 */
 	bool suspend_ignored;
+	struct snd_sof_pcm_stream_pipeline_list pipeline_list;
+
+	/* used by IPC implementation and core does not touch it */
+	void *private;
 };
 
 /* ALSA SOF PCM device */
@@ -361,16 +390,20 @@ struct snd_sof_widget {
 	int comp_id;
 	int pipeline_id;
 	/*
-	 * complete flag is used to indicate that pipeline set up is complete for scheduler type
-	 * widgets. It is unused for all other widget types.
-	 */
-	int complete;
-	/*
 	 * the prepared flag is used to indicate that a widget has been prepared for getting set
 	 * up in the DSP.
 	 */
 	bool prepared;
-	int use_count; /* use_count will be protected by the PCM mutex held by the core */
+
+	struct mutex setup_mutex; /* to protect the swidget setup and free operations */
+
+	/*
+	 * use_count is protected by the PCM mutex held by the core and the
+	 * setup_mutex against non stream domain races (kcontrol access for
+	 * example)
+	 */
+	int use_count;
+
 	int core;
 	int id; /* id is the DAPM widget type */
 	/*
@@ -391,7 +424,7 @@ struct snd_sof_widget {
 
 	struct snd_soc_dapm_widget *widget;
 	struct list_head list;	/* list in sdev widget list */
-	struct snd_sof_widget *pipe_widget;
+	struct snd_sof_pipeline *spipe;
 	void *module_info;
 
 	const guid_t uuid;
@@ -427,6 +460,22 @@ struct snd_sof_widget {
 	struct ida sink_queue_ida;
 
 	void *private;		/* core does not touch this */
+};
+
+/** struct snd_sof_pipeline - ASoC SOF pipeline
+ * @pipe_widget: Pointer to the pipeline widget
+ * @started_count: Count of number of PCM's that have started this pipeline
+ * @paused_count: Count of number of PCM's that have started and have currently paused this
+		  pipeline
+ * @complete: flag used to indicate that pipeline set up is complete.
+ * @list: List item in sdev pipeline_list
+ */
+struct snd_sof_pipeline {
+	struct snd_sof_widget *pipe_widget;
+	int started_count;
+	int paused_count;
+	int complete;
+	struct list_head list;
 };
 
 /* ASoC SOF DAPM route */

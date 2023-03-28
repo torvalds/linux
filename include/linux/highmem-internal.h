@@ -152,7 +152,10 @@ static inline void totalhigh_pages_add(long count)
 static inline bool is_kmap_addr(const void *x)
 {
 	unsigned long addr = (unsigned long)x;
-	return addr >= PKMAP_ADDR(0) && addr < PKMAP_ADDR(LAST_PKMAP);
+
+	return (addr >= PKMAP_ADDR(0) && addr < PKMAP_ADDR(LAST_PKMAP)) ||
+		(addr >= __fix_to_virt(FIX_KMAP_END) &&
+		 addr < __fix_to_virt(FIX_KMAP_BEGIN));
 }
 #else /* CONFIG_HIGHMEM */
 
@@ -200,7 +203,7 @@ static inline void *kmap_local_pfn(unsigned long pfn)
 static inline void __kunmap_local(const void *addr)
 {
 #ifdef ARCH_HAS_FLUSH_ON_KUNMAP
-	kunmap_flush_on_unmap(addr);
+	kunmap_flush_on_unmap(PTR_ALIGN_DOWN(addr, PAGE_SIZE));
 #endif
 }
 
@@ -227,7 +230,7 @@ static inline void *kmap_atomic_pfn(unsigned long pfn)
 static inline void __kunmap_atomic(const void *addr)
 {
 #ifdef ARCH_HAS_FLUSH_ON_KUNMAP
-	kunmap_flush_on_unmap(addr);
+	kunmap_flush_on_unmap(PTR_ALIGN_DOWN(addr, PAGE_SIZE));
 #endif
 	pagefault_enable();
 	if (IS_ENABLED(CONFIG_PREEMPT_RT))

@@ -138,4 +138,4 @@ Driver-specific Traps
      - Drops packets with zero (0) IPV4 source address.
    * - ``met_red``
      - ``drop``
-     - Drops non-conforming packets (dropped by Ingress policer, metering drop), e.g. packet rate exceeded configured bandwith.
+     - Drops non-conforming packets (dropped by Ingress policer, metering drop), e.g. packet rate exceeded configured bandwidth.

@@ -216,7 +216,7 @@ affs_write_inode(struct inode *inode, struct writeback_control *wbc)
 }
 
 int
-affs_notify_change(struct user_namespace *mnt_userns, struct dentry *dentry,
+affs_notify_change(struct mnt_idmap *idmap, struct dentry *dentry,
 		   struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
@@ -224,7 +224,7 @@ affs_notify_change(struct user_namespace *mnt_userns, struct dentry *dentry,
 
 	pr_debug("notify_change(%lu,0x%x)\n", inode->i_ino, attr->ia_valid);
 
-	error = setattr_prepare(&init_user_ns, dentry, attr);
+	error = setattr_prepare(&nop_mnt_idmap, dentry, attr);
 	if (error)
 		goto out;
 
@@ -250,7 +250,7 @@ affs_notify_change(struct user_namespace *mnt_userns, struct dentry *dentry,
 		affs_truncate(inode);
 	}
 
-	setattr_copy(&init_user_ns, inode, attr);
+	setattr_copy(&nop_mnt_idmap, inode, attr);
 	mark_inode_dirty(inode);
 
 	if (attr->ia_valid & ATTR_MODE)

@@ -40,7 +40,6 @@
 #include "pxa27x.h"
 #include "pxa27x-udc.h"
 #include "reset.h"
-#include <linux/platform_data/irda-pxaficp.h>
 #include <linux/platform_data/mmc-pxamci.h>
 #include <linux/platform_data/usb-ohci-pxa27x.h>
 #include <linux/platform_data/video-pxafb.h>
@@ -688,27 +687,6 @@ static inline void spitz_uhc_init(void) {}
 #endif
 
 /******************************************************************************
- * IrDA
- ******************************************************************************/
-#if defined(CONFIG_PXA_FICP) || defined(CONFIG_PXA_FICP_MODULE)
-static struct pxaficp_platform_data spitz_ficp_platform_data = {
-	.transceiver_cap	= IR_SIRMODE | IR_OFF,
-};
-
-static void __init spitz_irda_init(void)
-{
-	if (machine_is_akita())
-		spitz_ficp_platform_data.gpio_pwdown = AKITA_GPIO_IR_ON;
-	else
-		spitz_ficp_platform_data.gpio_pwdown = SPITZ_GPIO_IR_ON;
-
-	pxa_set_ficp_info(&spitz_ficp_platform_data);
-}
-#else
-static inline void spitz_irda_init(void) {}
-#endif
-
-/******************************************************************************
  * Framebuffer
  ******************************************************************************/
 #if defined(CONFIG_FB_PXA) || defined(CONFIG_FB_PXA_MODULE)
@@ -1042,7 +1020,6 @@ static void __init spitz_init(void)
 	spitz_leds_init();
 	spitz_mmc_init();
 	spitz_pcmcia_init();
-	spitz_irda_init();
 	spitz_uhc_init();
 	spitz_lcd_init();
 	spitz_nor_init();

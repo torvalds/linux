@@ -66,6 +66,8 @@
 #include "key_gen.h"
 #include "caamhash_desc.h"
 #include <crypto/engine.h>
+#include <linux/dma-mapping.h>
+#include <linux/kernel.h>
 
 #define CAAM_CRA_PRIORITY		3000
 
@@ -365,7 +367,7 @@ static int hash_digest_key(struct caam_hash_ctx *ctx, u32 *keylen, u8 *key,
 	dma_addr_t key_dma;
 	int ret;
 
-	desc = kmalloc(CAAM_CMD_SZ * 8 + CAAM_PTR_SZ * 2, GFP_KERNEL | GFP_DMA);
+	desc = kmalloc(CAAM_CMD_SZ * 8 + CAAM_PTR_SZ * 2, GFP_KERNEL);
 	if (!desc) {
 		dev_err(jrdev, "unable to allocate key input memory\n");
 		return -ENOMEM;
@@ -432,7 +434,13 @@ static int ahash_setkey(struct crypto_ahash *ahash,
 	dev_dbg(jrdev, "keylen %d\n", keylen);
 
 	if (keylen > blocksize) {
-		hashed_key = kmemdup(key, keylen, GFP_KERNEL | GFP_DMA);
+		unsigned int aligned_len =
+			ALIGN(keylen, dma_get_cache_alignment());
+
+		if (aligned_len < keylen)
+			return -EOVERFLOW;
+
+		hashed_key = kmemdup(key, keylen, GFP_KERNEL);
 		if (!hashed_key)
 			return -ENOMEM;
 		ret = hash_digest_key(ctx, &keylen, hashed_key, digestsize);
@@ -606,7 +614,7 @@ static inline void ahash_done_cpy(struct device *jrdev, u32 *desc, u32 err,
 	 * by CAAM, not crypto engine.
 	 */
 	if (!has_bklog)
-		req->base.complete(&req->base, ecode);
+		ahash_request_complete(req, ecode);
 	else
 		crypto_finalize_hash_request(jrp->engine, req, ecode);
 }
@@ -668,7 +676,7 @@ static inline void ahash_done_switch(struct device *jrdev, u32 *desc, u32 err,
 	 * by CAAM, not crypto engine.
 	 */
 	if (!has_bklog)
-		req->base.complete(&req->base, ecode);
+		ahash_request_complete(req, ecode);
 	else
 		crypto_finalize_hash_request(jrp->engine, req, ecode);
 
@@ -702,7 +710,7 @@ static struct ahash_edesc *ahash_edesc_alloc(struct ahash_request *req,
 	struct ahash_edesc *edesc;
 	unsigned int sg_size = sg_num * sizeof(struct sec4_sg_entry);
 
-	edesc = kzalloc(sizeof(*edesc) + sg_size, GFP_DMA | flags);
+	edesc = kzalloc(sizeof(*edesc) + sg_size, flags);
 	if (!edesc) {
 		dev_err(ctx->jrdev, "could not allocate extended descriptor\n");
 		return NULL;

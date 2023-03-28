@@ -72,6 +72,7 @@ use core::ptr::{self, NonNull};
 use core::slice::{self, SliceIndex};
 
 use crate::alloc::{Allocator, Global};
+#[cfg(not(no_borrow))]
 use crate::borrow::{Cow, ToOwned};
 use crate::boxed::Box;
 use crate::collections::TryReserveError;
@@ -94,6 +95,7 @@ pub use self::drain::Drain;
 
 mod drain;
 
+#[cfg(not(no_borrow))]
 #[cfg(not(no_global_oom_handling))]
 mod cow;
 
@@ -3103,6 +3105,7 @@ impl<T, const N: usize> From<[T; N]> for Vec<T> {
     }
 }
 
+#[cfg(not(no_borrow))]
 #[stable(feature = "vec_from_cow_slice", since = "1.14.0")]
 impl<'a, T> From<Cow<'a, [T]>> for Vec<T>
 where

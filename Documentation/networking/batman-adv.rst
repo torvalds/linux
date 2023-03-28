@@ -159,7 +159,7 @@ Please send us comments, experiences, questions, anything :)
 IRC:
   #batadv on ircs://irc.hackint.org/
 Mailing-list:
-  b.a.t.m.a.n@open-mesh.org (optional subscription at
+  b.a.t.m.a.n@lists.open-mesh.org (optional subscription at
   https://lists.open-mesh.org/mailman3/postorius/lists/b.a.t.m.a.n.lists.open-mesh.org/)
 
 You can also contact the Authors:

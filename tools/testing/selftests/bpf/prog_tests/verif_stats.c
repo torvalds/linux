@@ -16,8 +16,9 @@ void test_verif_stats(void)
 	if (!ASSERT_OK_PTR(skel, "trace_vprintk__open_and_load"))
 		goto cleanup;
 
-	err = bpf_obj_get_info_by_fd(skel->progs.sys_enter.prog_fd, &info, &len);
-	if (!ASSERT_OK(err, "bpf_obj_get_info_by_fd"))
+	err = bpf_prog_get_info_by_fd(skel->progs.sys_enter.prog_fd,
+				      &info, &len);
+	if (!ASSERT_OK(err, "bpf_prog_get_info_by_fd"))
 		goto cleanup;
 
 	if (!ASSERT_GT(info.verified_insns, 0, "verified_insns"))

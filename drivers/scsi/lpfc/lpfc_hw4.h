@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2023 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.  *
  * Copyright (C) 2009-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -4201,6 +4201,8 @@ struct lpfc_acqe_fc_la {
 #define LPFC_FC_LA_TYPE_MDS_LOOPBACK	0x5
 #define LPFC_FC_LA_TYPE_UNEXP_WWPN	0x6
 #define LPFC_FC_LA_TYPE_TRUNKING_EVENT  0x7
+#define LPFC_FC_LA_TYPE_ACTIVATE_FAIL		0x8
+#define LPFC_FC_LA_TYPE_LINK_RESET_PRTCL_EVT	0x9
 #define lpfc_acqe_fc_la_port_type_SHIFT		6
 #define lpfc_acqe_fc_la_port_type_MASK		0x00000003
 #define lpfc_acqe_fc_la_port_type_WORD		word0
@@ -4242,6 +4244,9 @@ struct lpfc_acqe_fc_la {
 #define lpfc_acqe_fc_la_fault_SHIFT		0
 #define lpfc_acqe_fc_la_fault_MASK		0x000000FF
 #define lpfc_acqe_fc_la_fault_WORD		word1
+#define lpfc_acqe_fc_la_link_status_SHIFT	8
+#define lpfc_acqe_fc_la_link_status_MASK	0x0000007F
+#define lpfc_acqe_fc_la_link_status_WORD	word1
 #define lpfc_acqe_fc_la_trunk_fault_SHIFT		0
 #define lpfc_acqe_fc_la_trunk_fault_MASK		0x0000000F
 #define lpfc_acqe_fc_la_trunk_fault_WORD		word1

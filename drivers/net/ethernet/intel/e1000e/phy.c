@@ -2,6 +2,7 @@
 /* Copyright(c) 1999 - 2018 Intel Corporation. */
 
 #include "e1000.h"
+#include <linux/ethtool.h>
 
 static s32 e1000_wait_autoneg(struct e1000_hw *hw);
 static s32 e1000_access_phy_wakeup_reg_bm(struct e1000_hw *hw, u32 offset,
@@ -1011,6 +1012,8 @@ static s32 e1000_phy_setup_autoneg(struct e1000_hw *hw)
 		 */
 		mii_autoneg_adv_reg &=
 		    ~(ADVERTISE_PAUSE_ASYM | ADVERTISE_PAUSE_CAP);
+		phy->autoneg_advertised &=
+		    ~(ADVERTISED_Pause | ADVERTISED_Asym_Pause);
 		break;
 	case e1000_fc_rx_pause:
 		/* Rx Flow control is enabled, and Tx Flow control is
@@ -1024,6 +1027,8 @@ static s32 e1000_phy_setup_autoneg(struct e1000_hw *hw)
 		 */
 		mii_autoneg_adv_reg |=
 		    (ADVERTISE_PAUSE_ASYM | ADVERTISE_PAUSE_CAP);
+		phy->autoneg_advertised |=
+		    (ADVERTISED_Pause | ADVERTISED_Asym_Pause);
 		break;
 	case e1000_fc_tx_pause:
 		/* Tx Flow control is enabled, and Rx Flow control is
@@ -1031,6 +1036,8 @@ static s32 e1000_phy_setup_autoneg(struct e1000_hw *hw)
 		 */
 		mii_autoneg_adv_reg |= ADVERTISE_PAUSE_ASYM;
 		mii_autoneg_adv_reg &= ~ADVERTISE_PAUSE_CAP;
+		phy->autoneg_advertised |= ADVERTISED_Asym_Pause;
+		phy->autoneg_advertised &= ~ADVERTISED_Pause;
 		break;
 	case e1000_fc_full:
 		/* Flow control (both Rx and Tx) is enabled by a software
@@ -1038,6 +1045,8 @@ static s32 e1000_phy_setup_autoneg(struct e1000_hw *hw)
 		 */
 		mii_autoneg_adv_reg |=
 		    (ADVERTISE_PAUSE_ASYM | ADVERTISE_PAUSE_CAP);
+		phy->autoneg_advertised |=
+		    (ADVERTISED_Pause | ADVERTISED_Asym_Pause);
 		break;
 	default:
 		e_dbg("Flow control param set incorrectly\n");

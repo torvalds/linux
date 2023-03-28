@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/maxlinear,gpy2xx.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MaxLinear GPY2xx PHY
+
+maintainers:
+  - Andrew Lunn <andrew@lunn.ch>
+  - Michael Walle <michael@walle.cc>
+
+allOf:
+  - $ref: ethernet-phy.yaml#
+
+properties:
+  maxlinear,use-broken-interrupts:
+    description: |
+      Interrupts are broken on some GPY2xx PHYs in that they keep the
+      interrupt line asserted even after the interrupt status register is
+      cleared. Thus it is blocking the interrupt line which is usually bad
+      for shared lines. By default interrupts are disabled for this PHY and
+      polling mode is used. If one can live with the consequences, this
+      property can be used to enable interrupt handling.
+
+      Affected PHYs (as far as known) are GPY215B and GPY215C.
+    type: boolean
+
+dependencies:
+  maxlinear,use-broken-interrupts: [ interrupts ]
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    ethernet {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        ethernet-phy@0 {
+            reg = <0>;
+            interrupts-extended = <&intc 0>;
+            maxlinear,use-broken-interrupts;
+        };
+    };
+
+...

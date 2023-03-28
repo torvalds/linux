@@ -859,6 +859,12 @@ static u32 get_supported_settings(struct hci_dev *hdev)
 	    hdev->set_bdaddr)
 		settings |= MGMT_SETTING_CONFIGURATION;
 
+	if (cis_central_capable(hdev))
+		settings |= MGMT_SETTING_CIS_CENTRAL;
+
+	if (cis_peripheral_capable(hdev))
+		settings |= MGMT_SETTING_CIS_PERIPHERAL;
+
 	settings |= MGMT_SETTING_PHY_CONFIGURATION;
 
 	return settings;
@@ -931,6 +937,12 @@ static u32 get_current_settings(struct hci_dev *hdev)
 
 	if (hci_dev_test_flag(hdev, HCI_WIDEBAND_SPEECH_ENABLED))
 		settings |= MGMT_SETTING_WIDEBAND_SPEECH;
+
+	if (cis_central_capable(hdev))
+		settings |= MGMT_SETTING_CIS_CENTRAL;
+
+	if (cis_peripheral_capable(hdev))
+		settings |= MGMT_SETTING_CIS_PERIPHERAL;
 
 	return settings;
 }

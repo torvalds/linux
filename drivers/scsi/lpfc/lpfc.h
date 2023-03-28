@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2023 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -1592,8 +1592,6 @@ struct lpfc_hba {
 	struct timer_list cpuhp_poll_timer;
 	struct list_head poll_list;	/* slowpath eq polling list */
 #define LPFC_POLL_HB	1		/* slowpath heartbeat */
-#define LPFC_POLL_FASTPATH	0	/* called from fastpath */
-#define LPFC_POLL_SLOWPATH	1	/* called from slowpath */
 
 	char os_host_name[MAXHOSTNAMELEN];
 

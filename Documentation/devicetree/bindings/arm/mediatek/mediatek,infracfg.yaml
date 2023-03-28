@@ -28,6 +28,7 @@ properties:
               - mediatek,mt6797-infracfg
               - mediatek,mt7622-infracfg
               - mediatek,mt7629-infracfg
+              - mediatek,mt7981-infracfg
               - mediatek,mt7986-infracfg
               - mediatek,mt8135-infracfg
               - mediatek,mt8167-infracfg

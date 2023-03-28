@@ -16,8 +16,7 @@ struct print_callbacks {
 			const char *scale_unit,
 			bool deprecated, const char *event_type_desc,
 			const char *desc, const char *long_desc,
-			const char *encoding_desc,
-			const char *metric_name, const char *metric_expr);
+			const char *encoding_desc);
 	void (*print_metric)(void *print_state,
 			const char *group,
 			const char *name,

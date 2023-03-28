@@ -14,9 +14,10 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
-#include <linux/qcom_scm.h>
+#include <linux/firmware/qcom/qcom_scm.h>
 
 #define QCOM_RMTFS_MEM_DEV_MAX	(MINORMASK + 1)
+#define NUM_MAX_VMIDS		2
 
 static dev_t qcom_rmtfs_mem_major;
 
@@ -171,12 +172,12 @@ static void qcom_rmtfs_mem_release_device(struct device *dev)
 static int qcom_rmtfs_mem_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
-	struct qcom_scm_vmperm perms[2];
+	struct qcom_scm_vmperm perms[NUM_MAX_VMIDS + 1];
 	struct reserved_mem *rmem;
 	struct qcom_rmtfs_mem *rmtfs_mem;
 	u32 client_id;
-	u32 vmid;
-	int ret;
+	u32 num_vmids, vmid[NUM_MAX_VMIDS];
+	int ret, i;
 
 	rmem = of_reserved_mem_lookup(node);
 	if (!rmem) {
@@ -226,7 +227,18 @@ static int qcom_rmtfs_mem_probe(struct platform_device *pdev)
 		goto put_device;
 	}
 
-	ret = of_property_read_u32(node, "qcom,vmid", &vmid);
+	num_vmids = of_property_count_u32_elems(node, "qcom,vmid");
+	if (num_vmids < 0) {
+		dev_err(&pdev->dev, "failed to count qcom,vmid elements: %d\n", ret);
+		goto remove_cdev;
+	} else if (num_vmids > NUM_MAX_VMIDS) {
+		dev_warn(&pdev->dev,
+			 "too many VMIDs (%d) specified! Only mapping first %d entries\n",
+			 num_vmids, NUM_MAX_VMIDS);
+		num_vmids = NUM_MAX_VMIDS;
+	}
+
+	ret = of_property_read_u32_array(node, "qcom,vmid", vmid, num_vmids);
 	if (ret < 0 && ret != -EINVAL) {
 		dev_err(&pdev->dev, "failed to parse qcom,vmid\n");
 		goto remove_cdev;
@@ -238,12 +250,15 @@ static int qcom_rmtfs_mem_probe(struct platform_device *pdev)
 
 		perms[0].vmid = QCOM_SCM_VMID_HLOS;
 		perms[0].perm = QCOM_SCM_PERM_RW;
-		perms[1].vmid = vmid;
-		perms[1].perm = QCOM_SCM_PERM_RW;
+
+		for (i = 0; i < num_vmids; i++) {
+			perms[i + 1].vmid = vmid[i];
+			perms[i + 1].perm = QCOM_SCM_PERM_RW;
+		}
 
 		rmtfs_mem->perms = BIT(QCOM_SCM_VMID_HLOS);
 		ret = qcom_scm_assign_mem(rmtfs_mem->addr, rmtfs_mem->size,
-					  &rmtfs_mem->perms, perms, 2);
+					  &rmtfs_mem->perms, perms, num_vmids + 1);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "assign memory failed\n");
 			goto remove_cdev;

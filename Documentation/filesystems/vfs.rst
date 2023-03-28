@@ -421,31 +421,31 @@ As of kernel 2.6.22, the following members are defined:
 .. code-block:: c
 
 	struct inode_operations {
-		int (*create) (struct user_namespace *, struct inode *,struct dentry *, umode_t, bool);
+		int (*create) (struct mnt_idmap *, struct inode *,struct dentry *, umode_t, bool);
 		struct dentry * (*lookup) (struct inode *,struct dentry *, unsigned int);
 		int (*link) (struct dentry *,struct inode *,struct dentry *);
 		int (*unlink) (struct inode *,struct dentry *);
-		int (*symlink) (struct user_namespace *, struct inode *,struct dentry *,const char *);
-		int (*mkdir) (struct user_namespace *, struct inode *,struct dentry *,umode_t);
+		int (*symlink) (struct mnt_idmap *, struct inode *,struct dentry *,const char *);
+		int (*mkdir) (struct mnt_idmap *, struct inode *,struct dentry *,umode_t);
 		int (*rmdir) (struct inode *,struct dentry *);
-		int (*mknod) (struct user_namespace *, struct inode *,struct dentry *,umode_t,dev_t);
-		int (*rename) (struct user_namespace *, struct inode *, struct dentry *,
+		int (*mknod) (struct mnt_idmap *, struct inode *,struct dentry *,umode_t,dev_t);
+		int (*rename) (struct mnt_idmap *, struct inode *, struct dentry *,
 			       struct inode *, struct dentry *, unsigned int);
 		int (*readlink) (struct dentry *, char __user *,int);
 		const char *(*get_link) (struct dentry *, struct inode *,
 					 struct delayed_call *);
-		int (*permission) (struct user_namespace *, struct inode *, int);
+		int (*permission) (struct mnt_idmap *, struct inode *, int);
 		struct posix_acl * (*get_inode_acl)(struct inode *, int, bool);
-		int (*setattr) (struct user_namespace *, struct dentry *, struct iattr *);
-		int (*getattr) (struct user_namespace *, const struct path *, struct kstat *, u32, unsigned int);
+		int (*setattr) (struct mnt_idmap *, struct dentry *, struct iattr *);
+		int (*getattr) (struct mnt_idmap *, const struct path *, struct kstat *, u32, unsigned int);
 		ssize_t (*listxattr) (struct dentry *, char *, size_t);
 		void (*update_time)(struct inode *, struct timespec *, int);
 		int (*atomic_open)(struct inode *, struct dentry *, struct file *,
 				   unsigned open_flag, umode_t create_mode);
-		int (*tmpfile) (struct user_namespace *, struct inode *, struct file *, umode_t);
-		struct posix_acl * (*get_acl)(struct user_namespace *, struct dentry *, int);
-	        int (*set_acl)(struct user_namespace *, struct dentry *, struct posix_acl *, int);
-		int (*fileattr_set)(struct user_namespace *mnt_userns,
+		int (*tmpfile) (struct mnt_idmap *, struct inode *, struct file *, umode_t);
+		struct posix_acl * (*get_acl)(struct mnt_idmap *, struct dentry *, int);
+	        int (*set_acl)(struct mnt_idmap *, struct dentry *, struct posix_acl *, int);
+		int (*fileattr_set)(struct mnt_idmap *idmap,
 				    struct dentry *dentry, struct fileattr *fa);
 		int (*fileattr_get)(struct dentry *dentry, struct fileattr *fa);
 	};

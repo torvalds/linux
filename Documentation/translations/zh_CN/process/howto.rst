@@ -254,7 +254,7 @@ Linux-next 集成测试树
         https://git.kernel.org/?p=linux/kernel/git/next/linux-next.git
 
 通过这种方式，Linux-next 对下一个合并阶段将进入主线内核的内容给出了一个概要
-展望。非常欢冒险的测试者运行测试Linux-next。
+展望。非常欢迎冒险的测试者运行测试Linux-next。
 
 多个主要版本的稳定版内核树
 -----------------------------------

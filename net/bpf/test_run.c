@@ -97,8 +97,11 @@ reset:
 struct xdp_page_head {
 	struct xdp_buff orig_ctx;
 	struct xdp_buff ctx;
-	struct xdp_frame frm;
-	u8 data[];
+	union {
+		/* ::data_hard_start starts here */
+		DECLARE_FLEX_ARRAY(struct xdp_frame, frame);
+		DECLARE_FLEX_ARRAY(u8, data);
+	};
 };
 
 struct xdp_test_data {
@@ -113,6 +116,10 @@ struct xdp_test_data {
 	u32 frame_cnt;
 };
 
+/* tools/testing/selftests/bpf/prog_tests/xdp_do_redirect.c:%MAX_PKT_SIZE
+ * must be updated accordingly this gets changed, otherwise BPF selftests
+ * will fail.
+ */
 #define TEST_XDP_FRAME_SIZE (PAGE_SIZE - sizeof(struct xdp_page_head))
 #define TEST_XDP_MAX_BATCH 256
 
@@ -132,8 +139,8 @@ static void xdp_test_run_init_page(struct page *page, void *arg)
 	headroom -= meta_len;
 
 	new_ctx = &head->ctx;
-	frm = &head->frm;
-	data = &head->data;
+	frm = head->frame;
+	data = head->data;
 	memcpy(data + headroom, orig_ctx->data_meta, frm_len);
 
 	xdp_init_buff(new_ctx, TEST_XDP_FRAME_SIZE, &xdp->rxq);
@@ -223,7 +230,7 @@ static void reset_ctx(struct xdp_page_head *head)
 	head->ctx.data = head->orig_ctx.data;
 	head->ctx.data_meta = head->orig_ctx.data_meta;
 	head->ctx.data_end = head->orig_ctx.data_end;
-	xdp_update_frame_from_buff(&head->ctx, &head->frm);
+	xdp_update_frame_from_buff(&head->ctx, head->frame);
 }
 
 static int xdp_recv_frames(struct xdp_frame **frames, int nframes,
@@ -234,7 +241,7 @@ static int xdp_recv_frames(struct xdp_frame **frames, int nframes,
 	int i, n;
 	LIST_HEAD(list);
 
-	n = kmem_cache_alloc_bulk(skbuff_head_cache, gfp, nframes, (void **)skbs);
+	n = kmem_cache_alloc_bulk(skbuff_cache, gfp, nframes, (void **)skbs);
 	if (unlikely(n == 0)) {
 		for (i = 0; i < nframes; i++)
 			xdp_return_frame(frames[i]);
@@ -285,7 +292,7 @@ static int xdp_test_run_batch(struct xdp_test_data *xdp, struct bpf_prog *prog,
 		head = phys_to_virt(page_to_phys(page));
 		reset_ctx(head);
 		ctx = &head->ctx;
-		frm = &head->frm;
+		frm = head->frame;
 		xdp->frame_cnt++;
 
 		act = bpf_prog_run_xdp(prog, ctx);
@@ -396,10 +403,12 @@ static int bpf_test_run(struct bpf_prog *prog, void *ctx, u32 repeat,
 	old_ctx = bpf_set_run_ctx(&run_ctx.run_ctx);
 	do {
 		run_ctx.prog_item = &item;
+		local_bh_disable();
 		if (xdp)
 			*retval = bpf_prog_run_xdp(prog, ctx);
 		else
 			*retval = bpf_prog_run(prog, ctx);
+		local_bh_enable();
 	} while (bpf_test_timer_continue(&t, 1, repeat, &ret, time));
 	bpf_reset_run_ctx(old_ctx);
 	bpf_test_timer_leave(&t);
@@ -484,7 +493,7 @@ out:
 __diag_push();
 __diag_ignore_all("-Wmissing-prototypes",
 		  "Global functions as their definitions will be in vmlinux BTF");
-int noinline bpf_fentry_test1(int a)
+__bpf_kfunc int bpf_fentry_test1(int a)
 {
 	return a + 1;
 }
@@ -529,25 +538,33 @@ int noinline bpf_fentry_test8(struct bpf_fentry_test_t *arg)
 	return (long)arg->a;
 }
 
-int noinline bpf_modify_return_test(int a, int *b)
+__bpf_kfunc int bpf_modify_return_test(int a, int *b)
 {
 	*b += 1;
 	return a + *b;
 }
 
-u64 noinline bpf_kfunc_call_test1(struct sock *sk, u32 a, u64 b, u32 c, u64 d)
+__bpf_kfunc u64 bpf_kfunc_call_test1(struct sock *sk, u32 a, u64 b, u32 c, u64 d)
 {
 	return a + b + c + d;
 }
 
-int noinline bpf_kfunc_call_test2(struct sock *sk, u32 a, u32 b)
+__bpf_kfunc int bpf_kfunc_call_test2(struct sock *sk, u32 a, u32 b)
 {
 	return a + b;
 }
 
-struct sock * noinline bpf_kfunc_call_test3(struct sock *sk)
+__bpf_kfunc struct sock *bpf_kfunc_call_test3(struct sock *sk)
 {
 	return sk;
+}
+
+long noinline bpf_kfunc_call_test4(signed char a, short b, int c, long d)
+{
+	/* Provoke the compiler to assume that the caller has sign-extended a,
+	 * b and c on platforms where this is required (e.g. s390x).
+	 */
+	return (long)a + (long)b + (long)c + d;
 }
 
 struct prog_test_member1 {
@@ -574,21 +591,21 @@ static struct prog_test_ref_kfunc prog_test_struct = {
 	.cnt = REFCOUNT_INIT(1),
 };
 
-noinline struct prog_test_ref_kfunc *
+__bpf_kfunc struct prog_test_ref_kfunc *
 bpf_kfunc_call_test_acquire(unsigned long *scalar_ptr)
 {
 	refcount_inc(&prog_test_struct.cnt);
 	return &prog_test_struct;
 }
 
-noinline struct prog_test_member *
+__bpf_kfunc struct prog_test_member *
 bpf_kfunc_call_memb_acquire(void)
 {
 	WARN_ON_ONCE(1);
 	return NULL;
 }
 
-noinline void bpf_kfunc_call_test_release(struct prog_test_ref_kfunc *p)
+__bpf_kfunc void bpf_kfunc_call_test_release(struct prog_test_ref_kfunc *p)
 {
 	if (!p)
 		return;
@@ -596,11 +613,11 @@ noinline void bpf_kfunc_call_test_release(struct prog_test_ref_kfunc *p)
 	refcount_dec(&p->cnt);
 }
 
-noinline void bpf_kfunc_call_memb_release(struct prog_test_member *p)
+__bpf_kfunc void bpf_kfunc_call_memb_release(struct prog_test_member *p)
 {
 }
 
-noinline void bpf_kfunc_call_memb1_release(struct prog_test_member1 *p)
+__bpf_kfunc void bpf_kfunc_call_memb1_release(struct prog_test_member1 *p)
 {
 	WARN_ON_ONCE(1);
 }
@@ -613,12 +630,14 @@ static int *__bpf_kfunc_call_test_get_mem(struct prog_test_ref_kfunc *p, const i
 	return (int *)p;
 }
 
-noinline int *bpf_kfunc_call_test_get_rdwr_mem(struct prog_test_ref_kfunc *p, const int rdwr_buf_size)
+__bpf_kfunc int *bpf_kfunc_call_test_get_rdwr_mem(struct prog_test_ref_kfunc *p,
+						  const int rdwr_buf_size)
 {
 	return __bpf_kfunc_call_test_get_mem(p, rdwr_buf_size);
 }
 
-noinline int *bpf_kfunc_call_test_get_rdonly_mem(struct prog_test_ref_kfunc *p, const int rdonly_buf_size)
+__bpf_kfunc int *bpf_kfunc_call_test_get_rdonly_mem(struct prog_test_ref_kfunc *p,
+						    const int rdonly_buf_size)
 {
 	return __bpf_kfunc_call_test_get_mem(p, rdonly_buf_size);
 }
@@ -628,16 +647,17 @@ noinline int *bpf_kfunc_call_test_get_rdonly_mem(struct prog_test_ref_kfunc *p, 
  * Acquire functions must return struct pointers, so these ones are
  * failing.
  */
-noinline int *bpf_kfunc_call_test_acq_rdonly_mem(struct prog_test_ref_kfunc *p, const int rdonly_buf_size)
+__bpf_kfunc int *bpf_kfunc_call_test_acq_rdonly_mem(struct prog_test_ref_kfunc *p,
+						    const int rdonly_buf_size)
 {
 	return __bpf_kfunc_call_test_get_mem(p, rdonly_buf_size);
 }
 
-noinline void bpf_kfunc_call_int_mem_release(int *p)
+__bpf_kfunc void bpf_kfunc_call_int_mem_release(int *p)
 {
 }
 
-noinline struct prog_test_ref_kfunc *
+__bpf_kfunc struct prog_test_ref_kfunc *
 bpf_kfunc_call_test_kptr_get(struct prog_test_ref_kfunc **pp, int a, int b)
 {
 	struct prog_test_ref_kfunc *p = READ_ONCE(*pp);
@@ -686,48 +706,53 @@ struct prog_test_fail3 {
 	char arr2[];
 };
 
-noinline void bpf_kfunc_call_test_pass_ctx(struct __sk_buff *skb)
+__bpf_kfunc void bpf_kfunc_call_test_pass_ctx(struct __sk_buff *skb)
 {
 }
 
-noinline void bpf_kfunc_call_test_pass1(struct prog_test_pass1 *p)
+__bpf_kfunc void bpf_kfunc_call_test_pass1(struct prog_test_pass1 *p)
 {
 }
 
-noinline void bpf_kfunc_call_test_pass2(struct prog_test_pass2 *p)
+__bpf_kfunc void bpf_kfunc_call_test_pass2(struct prog_test_pass2 *p)
 {
 }
 
-noinline void bpf_kfunc_call_test_fail1(struct prog_test_fail1 *p)
+__bpf_kfunc void bpf_kfunc_call_test_fail1(struct prog_test_fail1 *p)
 {
 }
 
-noinline void bpf_kfunc_call_test_fail2(struct prog_test_fail2 *p)
+__bpf_kfunc void bpf_kfunc_call_test_fail2(struct prog_test_fail2 *p)
 {
 }
 
-noinline void bpf_kfunc_call_test_fail3(struct prog_test_fail3 *p)
+__bpf_kfunc void bpf_kfunc_call_test_fail3(struct prog_test_fail3 *p)
 {
 }
 
-noinline void bpf_kfunc_call_test_mem_len_pass1(void *mem, int mem__sz)
+__bpf_kfunc void bpf_kfunc_call_test_mem_len_pass1(void *mem, int mem__sz)
 {
 }
 
-noinline void bpf_kfunc_call_test_mem_len_fail1(void *mem, int len)
+__bpf_kfunc void bpf_kfunc_call_test_mem_len_fail1(void *mem, int len)
 {
 }
 
-noinline void bpf_kfunc_call_test_mem_len_fail2(u64 *mem, int len)
+__bpf_kfunc void bpf_kfunc_call_test_mem_len_fail2(u64 *mem, int len)
 {
 }
 
-noinline void bpf_kfunc_call_test_ref(struct prog_test_ref_kfunc *p)
+__bpf_kfunc void bpf_kfunc_call_test_ref(struct prog_test_ref_kfunc *p)
 {
 }
 
-noinline void bpf_kfunc_call_test_destructive(void)
+__bpf_kfunc void bpf_kfunc_call_test_destructive(void)
 {
+}
+
+__bpf_kfunc static u32 bpf_kfunc_call_test_static_unused_arg(u32 arg, u32 unused)
+{
+	return arg;
 }
 
 __diag_pop();
@@ -746,6 +771,7 @@ BTF_SET8_START(test_sk_check_kfunc_ids)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test1)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test2)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test3)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test4)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test_acquire, KF_ACQUIRE | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_kfunc_call_memb_acquire, KF_ACQUIRE | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test_release, KF_RELEASE)
@@ -767,6 +793,7 @@ BTF_ID_FLAGS(func, bpf_kfunc_call_test_mem_len_fail1)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test_mem_len_fail2)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test_ref, KF_TRUSTED_ARGS)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test_destructive, KF_DESTRUCTIVE)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_static_unused_arg)
 BTF_SET8_END(test_sk_check_kfunc_ids)
 
 static void *bpf_test_init(const union bpf_attr *kattr, u32 user_size,
@@ -1298,6 +1325,9 @@ int bpf_prog_test_run_xdp(struct bpf_prog *prog, const union bpf_attr *kattr,
 		return -EINVAL;
 
 	if (kattr->test.flags & ~BPF_F_TEST_XDP_LIVE_FRAMES)
+		return -EINVAL;
+
+	if (bpf_prog_is_dev_bound(prog->aux))
 		return -EINVAL;
 
 	if (do_live) {

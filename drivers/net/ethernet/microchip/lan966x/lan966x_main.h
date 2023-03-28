@@ -3,6 +3,7 @@
 #ifndef __LAN966X_MAIN_H__
 #define __LAN966X_MAIN_H__
 
+#include <linux/debugfs.h>
 #include <linux/etherdevice.h>
 #include <linux/if_vlan.h>
 #include <linux/jiffies.h>
@@ -13,6 +14,9 @@
 #include <net/pkt_cls.h>
 #include <net/pkt_sched.h>
 #include <net/switchdev.h>
+
+#include <vcap_api.h>
+#include <vcap_api_client.h>
 
 #include "lan966x_regs.h"
 #include "lan966x_ifh.h"
@@ -126,6 +130,13 @@ enum LAN966X_PORT_MASK_MODE {
 	LAN966X_PMM_REPLACE,
 	LAN966X_PMM_FORWARDING,
 	LAN966X_PMM_REDIRECT,
+};
+
+enum vcap_is2_port_sel_ipv6 {
+	VCAP_IS2_PS_IPV6_TCPUDP_OTHER,
+	VCAP_IS2_PS_IPV6_STD,
+	VCAP_IS2_PS_IPV6_IP4_TCPUDP_IP4_OTHER,
+	VCAP_IS2_PS_IPV6_MAC_ETYPE,
 };
 
 struct lan966x_port;
@@ -315,6 +326,9 @@ struct lan966x {
 
 	/* vcap */
 	struct vcap_control *vcap_ctrl;
+
+	/* debugfs */
+	struct dentry *debugfs_root;
 };
 
 struct lan966x_port_config {
@@ -332,7 +346,6 @@ struct lan966x_port_tc {
 	unsigned long police_id;
 	unsigned long ingress_mirror_id;
 	unsigned long egress_mirror_id;
-	unsigned long goto_id;
 	struct flow_stats police_stat;
 	struct flow_stats mirror_stat;
 };
@@ -602,12 +615,25 @@ static inline bool lan966x_xdp_port_present(struct lan966x_port *port)
 
 int lan966x_vcap_init(struct lan966x *lan966x);
 void lan966x_vcap_deinit(struct lan966x *lan966x);
+#if defined(CONFIG_DEBUG_FS)
+int lan966x_vcap_port_info(struct net_device *dev,
+			   struct vcap_admin *admin,
+			   struct vcap_output_print *out);
+#else
+static inline int lan966x_vcap_port_info(struct net_device *dev,
+					 struct vcap_admin *admin,
+					 struct vcap_output_print *out)
+{
+	return 0;
+}
+#endif
 
 int lan966x_tc_flower(struct lan966x_port *port,
-		      struct flow_cls_offload *f);
+		      struct flow_cls_offload *f,
+		      bool ingress);
 
 int lan966x_goto_port_add(struct lan966x_port *port,
-			  struct flow_action_entry *act,
+			  int from_cid, int to_cid,
 			  unsigned long goto_id,
 			  struct netlink_ext_ack *extack);
 int lan966x_goto_port_del(struct lan966x_port *port,

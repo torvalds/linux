@@ -1705,7 +1705,7 @@ static void hifn_process_ready(struct skcipher_request *req, int error)
 		hifn_cipher_walk_exit(&rctx->walk);
 	}
 
-	req->base.complete(&req->base, error);
+	skcipher_request_complete(req, error);
 }
 
 static void hifn_clear_rings(struct hifn_device *dev, int error)
@@ -2054,7 +2054,7 @@ static int hifn_process_queue(struct hifn_device *dev)
 			break;
 
 		if (backlog)
-			backlog->complete(backlog, -EINPROGRESS);
+			crypto_request_complete(backlog, -EINPROGRESS);
 
 		req = skcipher_request_cast(async_req);
 

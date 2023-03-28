@@ -245,20 +245,18 @@
 	pinctrl-0 = <&pinctrl_pcie0>;
 	reset-gpio = <&gpio1 9 GPIO_ACTIVE_LOW>;
 	clocks = <&clk IMX8MQ_CLK_PCIE1_ROOT>,
-		 <&clk IMX8MQ_CLK_PCIE1_AUX>,
+		 <&pcie0_refclk>,
 		 <&clk IMX8MQ_CLK_PCIE1_PHY>,
-		 <&pcie0_refclk>;
-	clock-names = "pcie", "pcie_aux", "pcie_phy", "pcie_bus";
+		 <&clk IMX8MQ_CLK_PCIE1_AUX>;
 	status = "okay";
 };
 
 /* Intel Ethernet Controller I210/I211 */
 &pcie1 {
 	clocks = <&clk IMX8MQ_CLK_PCIE2_ROOT>,
-		 <&clk IMX8MQ_CLK_PCIE2_AUX>,
+		 <&pcie1_refclk>,
 		 <&clk IMX8MQ_CLK_PCIE2_PHY>,
-		 <&pcie1_refclk>;
-	clock-names = "pcie", "pcie_aux", "pcie_phy", "pcie_bus";
+		 <&clk IMX8MQ_CLK_PCIE2_AUX>;
 	fsl,max-link-speed = <1>;
 	status = "okay";
 };

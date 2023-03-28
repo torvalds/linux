@@ -82,6 +82,18 @@
 	pintctrl-names = "default";
 	pinctrl-0 = <&i2c2m1_xfer>;
 	status = "okay";
+
+	touch@1a {
+		compatible = "hynitron,cst340";
+		reg = <0x1a>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <RK_PB1 IRQ_TYPE_EDGE_FALLING>;
+		pinctrl-0 = <&touch_rst>;
+		pinctrl-names = "default";
+		reset-gpios = <&gpio4 RK_PA6 GPIO_ACTIVE_LOW>;
+		touchscreen-size-x = <640>;
+		touchscreen-size-y = <480>;
+	};
 };
 
 &pinctrl {

@@ -216,6 +216,7 @@ struct mlxreg_core_platform_data {
  * @mask_low: low aggregation interrupt common mask;
  * @deferred_nr: I2C adapter number must be exist prior probing execution;
  * @shift_nr: I2C adapter numbers must be incremented by this value;
+ * @addr: mapped resource address;
  * @handle: handle to be passed by callback;
  * @completion_notify: callback to notify when platform driver probing is done;
  */
@@ -230,6 +231,7 @@ struct mlxreg_core_hotplug_platform_data {
 	u32 mask_low;
 	int deferred_nr;
 	int shift_nr;
+	void __iomem *addr;
 	void *handle;
 	int (*completion_notify)(void *handle, int id);
 };

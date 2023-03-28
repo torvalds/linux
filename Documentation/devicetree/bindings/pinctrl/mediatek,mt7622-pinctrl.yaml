@@ -61,11 +61,11 @@ then:
     - "#interrupt-cells"
 
 patternProperties:
-  '-[0-9]+$':
+  '-pins(-[a-z]+)?$':
     type: object
     additionalProperties: false
     patternProperties:
-      'mux':
+      '^mux(-|$)':
         type: object
         additionalProperties: false
         description: |
@@ -244,7 +244,7 @@ patternProperties:
                 groups:
                   enum: [wf0_2g, wf0_5g]
 
-      'conf':
+      '^conf(-|$)':
         type: object
         additionalProperties: false
         description: |
@@ -348,7 +348,7 @@ examples:
           gpio-controller;
           #gpio-cells = <2>;
 
-          pinctrl_eth_default: eth-0 {
+          pinctrl_eth_default: eth-pins {
             mux-mdio {
               groups = "mdc_mdio";
               function = "eth";

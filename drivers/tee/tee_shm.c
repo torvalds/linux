@@ -11,6 +11,7 @@
 #include <linux/tee_drv.h>
 #include <linux/uaccess.h>
 #include <linux/uio.h>
+#include <linux/highmem.h>
 #include "tee_private.h"
 
 static void shm_put_kernel_pages(struct page **pages, size_t page_count)
@@ -24,38 +25,20 @@ static void shm_put_kernel_pages(struct page **pages, size_t page_count)
 static int shm_get_kernel_pages(unsigned long start, size_t page_count,
 				struct page **pages)
 {
+	struct page *page;
 	size_t n;
-	int rc;
 
-	if (is_vmalloc_addr((void *)start)) {
-		struct page *page;
+	if (WARN_ON_ONCE(is_vmalloc_addr((void *)start) ||
+			 is_kmap_addr((void *)start)))
+		return -EINVAL;
 
-		for (n = 0; n < page_count; n++) {
-			page = vmalloc_to_page((void *)(start + PAGE_SIZE * n));
-			if (!page)
-				return -ENOMEM;
-
-			get_page(page);
-			pages[n] = page;
-		}
-		rc = page_count;
-	} else {
-		struct kvec *kiov;
-
-		kiov = kcalloc(page_count, sizeof(*kiov), GFP_KERNEL);
-		if (!kiov)
-			return -ENOMEM;
-
-		for (n = 0; n < page_count; n++) {
-			kiov[n].iov_base = (void *)(start + n * PAGE_SIZE);
-			kiov[n].iov_len = PAGE_SIZE;
-		}
-
-		rc = get_kernel_pages(kiov, page_count, 0, pages);
-		kfree(kiov);
+	page = virt_to_page(start);
+	for (n = 0; n < page_count; n++) {
+		pages[n] = page + n;
+		get_page(pages[n]);
 	}
 
-	return rc;
+	return page_count;
 }
 
 static void release_registered_pages(struct tee_shm *shm)

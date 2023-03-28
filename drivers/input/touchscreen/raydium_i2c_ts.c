@@ -1197,7 +1197,7 @@ static int raydium_i2c_probe(struct i2c_client *client)
 	return 0;
 }
 
-static void __maybe_unused raydium_enter_sleep(struct i2c_client *client)
+static void raydium_enter_sleep(struct i2c_client *client)
 {
 	static const u8 sleep_cmd[] = { 0x5A, 0xff, 0x00, 0x0f };
 	int error;
@@ -1209,7 +1209,7 @@ static void __maybe_unused raydium_enter_sleep(struct i2c_client *client)
 			"sleep command failed: %d\n", error);
 }
 
-static int __maybe_unused raydium_i2c_suspend(struct device *dev)
+static int raydium_i2c_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct raydium_data *ts = i2c_get_clientdata(client);
@@ -1229,7 +1229,7 @@ static int __maybe_unused raydium_i2c_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused raydium_i2c_resume(struct device *dev)
+static int raydium_i2c_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct raydium_data *ts = i2c_get_clientdata(client);
@@ -1246,8 +1246,8 @@ static int __maybe_unused raydium_i2c_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(raydium_i2c_pm_ops,
-			 raydium_i2c_suspend, raydium_i2c_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(raydium_i2c_pm_ops,
+				raydium_i2c_suspend, raydium_i2c_resume);
 
 static const struct i2c_device_id raydium_i2c_id[] = {
 	{ "raydium_i2c", 0 },
@@ -1277,7 +1277,7 @@ static struct i2c_driver raydium_i2c_driver = {
 	.id_table = raydium_i2c_id,
 	.driver = {
 		.name = "raydium_ts",
-		.pm = &raydium_i2c_pm_ops,
+		.pm = pm_sleep_ptr(&raydium_i2c_pm_ops),
 		.acpi_match_table = ACPI_PTR(raydium_acpi_id),
 		.of_match_table = of_match_ptr(raydium_of_match),
 	},

@@ -160,12 +160,8 @@ __secondary_hold:
 	std	r24,(ABS_ADDR(__secondary_hold_acknowledge, first_256B))(0)
 	sync
 
-	li	r26,0
-#ifdef CONFIG_PPC_BOOK3E_64
-	tovirt(r26,r26)
-#endif
 	/* All secondary cpus wait here until told to start. */
-100:	ld	r12,(ABS_ADDR(__secondary_hold_spinloop, first_256B))(r26)
+100:	ld	r12,(ABS_ADDR(__secondary_hold_spinloop, first_256B))(0)
 	cmpdi	0,r12,0
 	beq	100b
 
@@ -475,8 +471,31 @@ SYM_FUNC_START_LOCAL(__mmu_off)
 	rfid
 	b	.	/* prevent speculative execution */
 SYM_FUNC_END(__mmu_off)
-#endif
 
+SYM_FUNC_START_LOCAL(start_initialization_book3s)
+	mflr	r25
+
+	/* Setup some critical 970 SPRs before switching MMU off */
+	mfspr	r0,SPRN_PVR
+	srwi	r0,r0,16
+	cmpwi	r0,0x39		/* 970 */
+	beq	1f
+	cmpwi	r0,0x3c		/* 970FX */
+	beq	1f
+	cmpwi	r0,0x44		/* 970MP */
+	beq	1f
+	cmpwi	r0,0x45		/* 970GX */
+	bne	2f
+1:	bl	__cpu_preinit_ppc970
+2:
+
+	/* Switch off MMU if not already off */
+	bl	__mmu_off
+
+	mtlr	r25
+	blr
+SYM_FUNC_END(start_initialization_book3s)
+#endif
 
 /*
  * Here is our main kernel entry point. We support currently 2 kind of entries
@@ -523,26 +542,10 @@ __start_initialization_multiplatform:
 
 #ifdef CONFIG_PPC_BOOK3E_64
 	bl	start_initialization_book3e
-	b	__after_prom_start
 #else
-	/* Setup some critical 970 SPRs before switching MMU off */
-	mfspr	r0,SPRN_PVR
-	srwi	r0,r0,16
-	cmpwi	r0,0x39		/* 970 */
-	beq	1f
-	cmpwi	r0,0x3c		/* 970FX */
-	beq	1f
-	cmpwi	r0,0x44		/* 970MP */
-	beq	1f
-	cmpwi	r0,0x45		/* 970GX */
-	bne	2f
-1:	bl	__cpu_preinit_ppc970
-2:
-
-	/* Switch off MMU if not already off */
-	bl	__mmu_off
-	b	__after_prom_start
+	bl	start_initialization_book3s
 #endif /* CONFIG_PPC_BOOK3E_64 */
+	b	__after_prom_start
 
 __REF
 __boot_from_prom:

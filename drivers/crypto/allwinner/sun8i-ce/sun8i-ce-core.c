@@ -118,6 +118,7 @@ static const struct ce_variant ce_d1_variant = {
 		{ "bus", 0, 200000000 },
 		{ "mod", 300000000, 0 },
 		{ "ram", 0, 400000000 },
+		{ "trng", 0, 0 },
 		},
 	.esr = ESR_D1,
 	.prng = CE_ALG_PRNG,

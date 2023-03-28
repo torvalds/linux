@@ -195,14 +195,17 @@ struct drm_fb_helper {
 	 */
 	int preferred_bpp;
 
+#ifdef CONFIG_FB_DEFERRED_IO
 	/**
-	 * @hint_leak_smem_start:
+	 * @fbdefio:
 	 *
-	 * Hint to the fbdev emulation to store the framebuffer's physical
-	 * address in struct &fb_info.fix.smem_start. If the hint is unset,
-	 * the smem_start field should always be cleared to zero.
+	 * Temporary storage for the driver's FB deferred I/O handler. If the
+	 * driver uses the DRM fbdev emulation layer, this is set by the core
+	 * to a generic deferred I/O handler if a driver is preferring to use
+	 * a shadow buffer.
 	 */
-	bool hint_leak_smem_start;
+	struct fb_deferred_io fbdefio;
+#endif
 };
 
 static inline struct drm_fb_helper *
@@ -229,7 +232,9 @@ drm_fb_helper_from_client(struct drm_client_dev *client)
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 void drm_fb_helper_prepare(struct drm_device *dev, struct drm_fb_helper *helper,
+			   unsigned int preferred_bpp,
 			   const struct drm_fb_helper_funcs *funcs);
+void drm_fb_helper_unprepare(struct drm_fb_helper *fb_helper);
 int drm_fb_helper_init(struct drm_device *dev, struct drm_fb_helper *helper);
 void drm_fb_helper_fini(struct drm_fb_helper *helper);
 int drm_fb_helper_blank(int blank, struct fb_info *info);
@@ -242,6 +247,7 @@ int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 int drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper);
 
 struct fb_info *drm_fb_helper_alloc_info(struct drm_fb_helper *fb_helper);
+void drm_fb_helper_release_info(struct drm_fb_helper *fb_helper);
 void drm_fb_helper_unregister_info(struct drm_fb_helper *fb_helper);
 void drm_fb_helper_fill_info(struct fb_info *info,
 			     struct drm_fb_helper *fb_helper,
@@ -283,7 +289,7 @@ int drm_fb_helper_ioctl(struct fb_info *info, unsigned int cmd,
 			unsigned long arg);
 
 int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper);
-int drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel);
+int drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper);
 int drm_fb_helper_debug_enter(struct fb_info *info);
 int drm_fb_helper_debug_leave(struct fb_info *info);
 
@@ -291,8 +297,13 @@ void drm_fb_helper_lastclose(struct drm_device *dev);
 void drm_fb_helper_output_poll_changed(struct drm_device *dev);
 #else
 static inline void drm_fb_helper_prepare(struct drm_device *dev,
-					struct drm_fb_helper *helper,
-					const struct drm_fb_helper_funcs *funcs)
+					 struct drm_fb_helper *helper,
+					 unsigned int preferred_bpp,
+					 const struct drm_fb_helper_funcs *funcs)
+{
+}
+
+static inline void drm_fb_helper_unprepare(struct drm_fb_helper *fb_helper)
 {
 }
 
@@ -344,6 +355,10 @@ static inline struct fb_info *
 drm_fb_helper_alloc_info(struct drm_fb_helper *fb_helper)
 {
 	return NULL;
+}
+
+static inline void drm_fb_helper_release_info(struct drm_fb_helper *fb_helper)
+{
 }
 
 static inline void drm_fb_helper_unregister_info(struct drm_fb_helper *fb_helper)
@@ -450,8 +465,7 @@ static inline int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 	return 0;
 }
 
-static inline int drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper,
-					       int bpp_sel)
+static inline int drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper)
 {
 	return 0;
 }

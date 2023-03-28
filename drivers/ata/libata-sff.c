@@ -1377,14 +1377,10 @@ EXPORT_SYMBOL_GPL(ata_sff_qc_issue);
  *
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
- *
- *	RETURNS:
- *	true indicating that result TF is successfully filled.
  */
-bool ata_sff_qc_fill_rtf(struct ata_queued_cmd *qc)
+void ata_sff_qc_fill_rtf(struct ata_queued_cmd *qc)
 {
 	qc->ap->ops->sff_tf_read(qc->ap, &qc->result_tf);
-	return true;
 }
 EXPORT_SYMBOL_GPL(ata_sff_qc_fill_rtf);
 
@@ -2073,7 +2069,7 @@ void ata_sff_error_handler(struct ata_port *ap)
 	unsigned long flags;
 
 	qc = __ata_qc_from_tag(ap, ap->link.active_tag);
-	if (qc && !(qc->flags & ATA_QCFLAG_FAILED))
+	if (qc && !(qc->flags & ATA_QCFLAG_EH))
 		qc = NULL;
 
 	spin_lock_irqsave(ap->lock, flags);
@@ -2796,7 +2792,7 @@ void ata_bmdma_error_handler(struct ata_port *ap)
 	bool thaw = false;
 
 	qc = __ata_qc_from_tag(ap, ap->link.active_tag);
-	if (qc && !(qc->flags & ATA_QCFLAG_FAILED))
+	if (qc && !(qc->flags & ATA_QCFLAG_EH))
 		qc = NULL;
 
 	/* reset PIO HSM and stop DMA engine */

@@ -51,7 +51,7 @@ examples:
         #address-cells = <1>;
         #size-cells = <0>;
 
-        fsa4480@42 {
+        typec-mux@42 {
           compatible = "fcs,fsa4480";
           reg = <0x42>;
 

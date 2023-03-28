@@ -31,7 +31,7 @@ additionalProperties: false
 
 examples:
   - |
-      iio-hwmon {
-          compatible = "iio-hwmon";
-          io-channels = <&adc 1>, <&adc 2>;
-      };
+    iio-hwmon {
+        compatible = "iio-hwmon";
+        io-channels = <&adc 1>, <&adc 2>;
+    };

@@ -400,8 +400,9 @@ static int ivpu_direct_job_submission(struct ivpu_job *job)
 	if (ret)
 		goto err_xa_erase;
 
-	ivpu_dbg(vdev, JOB, "Job submitted: id %3u ctx %2d engine %d next %d\n",
-		 job->job_id, file_priv->ctx.id, job->engine_idx, cmdq->jobq->header.tail);
+	ivpu_dbg(vdev, JOB, "Job submitted: id %3u addr 0x%llx ctx %2d engine %d next %d\n",
+		 job->job_id, job->cmd_buf_vpu_addr, file_priv->ctx.id,
+		 job->engine_idx, cmdq->jobq->header.tail);
 
 	if (ivpu_test_mode == IVPU_TEST_MODE_NULL_HW) {
 		ivpu_job_done(vdev, job->job_id, VPU_JSM_STATUS_SUCCESS);

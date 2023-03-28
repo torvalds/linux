@@ -177,15 +177,16 @@ static void mmhub_v3_0_init_system_aperture_regs(struct amdgpu_device *adev)
 	 * these regs, and they will be programed at host.
 	 * so skip programing these regs.
 	 */
-	/* Disable AGP. */
+	/* Program the AGP BAR */
 	WREG32_SOC15(MMHUB, 0, regMMMC_VM_AGP_BASE, 0);
-	WREG32_SOC15(MMHUB, 0, regMMMC_VM_AGP_TOP, 0);
-	WREG32_SOC15(MMHUB, 0, regMMMC_VM_AGP_BOT, 0x00FFFFFF);
+	WREG32_SOC15(MMHUB, 0, regMMMC_VM_AGP_BOT, adev->gmc.agp_start >> 24);
+	WREG32_SOC15(MMHUB, 0, regMMMC_VM_AGP_TOP, adev->gmc.agp_end >> 24);
+
 	/* Program the system aperture low logical page number. */
 	WREG32_SOC15(MMHUB, 0, regMMMC_VM_SYSTEM_APERTURE_LOW_ADDR,
-		     adev->gmc.vram_start >> 18);
+		     min(adev->gmc.fb_start, adev->gmc.agp_start) >> 18);
 	WREG32_SOC15(MMHUB, 0, regMMMC_VM_SYSTEM_APERTURE_HIGH_ADDR,
-		     adev->gmc.vram_end >> 18);
+		     max(adev->gmc.fb_end, adev->gmc.agp_end) >> 18);
 
 	/* Set default page address. */
 	value = adev->mem_scratch.gpu_addr - adev->gmc.vram_start +
@@ -515,6 +516,9 @@ static void mmhub_v3_0_init(struct amdgpu_device *adev)
 
 	hub->vm_l2_bank_select_reserved_cid2 =
 		SOC15_REG_OFFSET(MMHUB, 0, regMMVM_L2_BANK_SELECT_RESERVED_CID2);
+
+	hub->vm_contexts_disable =
+		SOC15_REG_OFFSET(MMHUB, 0, regMMVM_CONTEXTS_DISABLE);
 
 	hub->vmhub_funcs = &mmhub_v3_0_vmhub_funcs;
 }

@@ -81,3 +81,23 @@ int pmd_free_pte_page(pmd_t *pmd, unsigned long addr)
 }
 
 #endif /* CONFIG_HAVE_ARCH_HUGE_VMAP */
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
+					unsigned long address, pmd_t *pmdp)
+{
+	pmd_t pmd = pmdp_huge_get_and_clear(vma->vm_mm, address, pmdp);
+
+	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+	VM_BUG_ON(pmd_trans_huge(*pmdp));
+	/*
+	 * When leaf PTE entries (regular pages) are collapsed into a leaf
+	 * PMD entry (huge page), a valid non-leaf PTE is converted into a
+	 * valid leaf PTE at the level 1 page table.  Since the sfence.vma
+	 * forms that specify an address only apply to leaf PTEs, we need a
+	 * global flush here.  collapse_huge_page() assumes these flushes are
+	 * eager, so just do the fence here.
+	 */
+	flush_tlb_mm(vma->vm_mm);
+	return pmd;
+}
+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */

@@ -24,6 +24,9 @@ properties:
       - fsl,imx8mq-pcie
       - fsl,imx8mm-pcie
       - fsl,imx8mp-pcie
+      - fsl,imx8mm-pcie-ep
+      - fsl,imx8mq-pcie-ep
+      - fsl,imx8mp-pcie-ep
 
   reg:
     items:

@@ -14,6 +14,7 @@
 #include "mtk_disp_drv.h"
 #include "mtk_drm_crtc.h"
 #include "mtk_drm_ddp_comp.h"
+#include "mtk_drm_drv.h"
 
 #define DISP_AAL_EN				0x0000
 #define AAL_EN						BIT(0)

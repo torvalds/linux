@@ -47,7 +47,7 @@ int cfg80211_mgd_wext_connect(struct cfg80211_registered_device *rdev,
 		ck = kmemdup(wdev->wext.keys, sizeof(*ck), GFP_KERNEL);
 		if (!ck)
 			return -ENOMEM;
-		for (i = 0; i < CFG80211_MAX_WEP_KEYS; i++)
+		for (i = 0; i < 4; i++)
 			ck->params[i].key = ck->data[i];
 	}
 

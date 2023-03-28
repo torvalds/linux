@@ -725,18 +725,18 @@
 		pinctrl-0 = <&pinctrl_led_gpio_default>;
 		status = "okay"; /* conflict with pwm0 */
 
-		red {
+		led-red {
 			label = "red";
 			gpios = <&pioA PIN_PB6 GPIO_ACTIVE_LOW>;
 		};
 
 
-		green {
+		led-green {
 			label = "green";
 			gpios = <&pioA PIN_PB5 GPIO_ACTIVE_LOW>;
 		};
 
-		blue {
+		led-blue {
 			label = "blue";
 			gpios = <&pioA PIN_PB0 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "heartbeat";

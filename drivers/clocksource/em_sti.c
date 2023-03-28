@@ -333,11 +333,6 @@ static int em_sti_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int em_sti_remove(struct platform_device *pdev)
-{
-	return -EBUSY; /* cannot unregister clockevent and clocksource */
-}
-
 static const struct of_device_id em_sti_dt_ids[] = {
 	{ .compatible = "renesas,em-sti", },
 	{},
@@ -346,10 +341,10 @@ MODULE_DEVICE_TABLE(of, em_sti_dt_ids);
 
 static struct platform_driver em_sti_device_driver = {
 	.probe		= em_sti_probe,
-	.remove		= em_sti_remove,
 	.driver		= {
 		.name	= "em_sti",
 		.of_match_table = em_sti_dt_ids,
+		.suppress_bind_attrs = true,
 	}
 };
 

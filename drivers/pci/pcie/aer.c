@@ -184,6 +184,9 @@ static int disable_ecrc_checking(struct pci_dev *dev)
  */
 void pcie_set_ecrc_checking(struct pci_dev *dev)
 {
+	if (!pcie_aer_is_native(dev))
+		return;
+
 	switch (ecrc_policy) {
 	case ECRC_POLICY_DEFAULT:
 		return;
@@ -1224,42 +1227,6 @@ static irqreturn_t aer_irq(int irq, void *context)
 	return IRQ_WAKE_THREAD;
 }
 
-static int set_device_error_reporting(struct pci_dev *dev, void *data)
-{
-	bool enable = *((bool *)data);
-	int type = pci_pcie_type(dev);
-
-	if ((type == PCI_EXP_TYPE_ROOT_PORT) ||
-	    (type == PCI_EXP_TYPE_RC_EC) ||
-	    (type == PCI_EXP_TYPE_UPSTREAM) ||
-	    (type == PCI_EXP_TYPE_DOWNSTREAM)) {
-		if (enable)
-			pci_enable_pcie_error_reporting(dev);
-		else
-			pci_disable_pcie_error_reporting(dev);
-	}
-
-	return 0;
-}
-
-/**
- * set_downstream_devices_error_reporting - enable/disable the error reporting  bits on the root port and its downstream ports.
- * @dev: pointer to root port's pci_dev data structure
- * @enable: true = enable error reporting, false = disable error reporting.
- */
-static void set_downstream_devices_error_reporting(struct pci_dev *dev,
-						   bool enable)
-{
-	set_device_error_reporting(dev, &enable);
-
-	if (pci_pcie_type(dev) == PCI_EXP_TYPE_RC_EC)
-		pcie_walk_rcec(dev, set_device_error_reporting, &enable);
-	else if (dev->subordinate)
-		pci_walk_bus(dev->subordinate, set_device_error_reporting,
-			     &enable);
-
-}
-
 /**
  * aer_enable_rootport - enable Root Port's interrupts when receiving messages
  * @rpc: pointer to a Root Port data structure
@@ -1289,12 +1256,6 @@ static void aer_enable_rootport(struct aer_rpc *rpc)
 	pci_read_config_dword(pdev, aer + PCI_ERR_UNCOR_STATUS, &reg32);
 	pci_write_config_dword(pdev, aer + PCI_ERR_UNCOR_STATUS, reg32);
 
-	/*
-	 * Enable error reporting for the root port device and downstream port
-	 * devices.
-	 */
-	set_downstream_devices_error_reporting(pdev, true);
-
 	/* Enable Root Port's interrupt in response to error messages */
 	pci_read_config_dword(pdev, aer + PCI_ERR_ROOT_COMMAND, &reg32);
 	reg32 |= ROOT_PORT_INTR_ON_MESG_MASK;
@@ -1312,12 +1273,6 @@ static void aer_disable_rootport(struct aer_rpc *rpc)
 	struct pci_dev *pdev = rpc->rpd;
 	int aer = pdev->aer_cap;
 	u32 reg32;
-
-	/*
-	 * Disable error reporting for the root port device and downstream port
-	 * devices.
-	 */
-	set_downstream_devices_error_reporting(pdev, false);
 
 	/* Disable Root's interrupt in response to error messages */
 	pci_read_config_dword(pdev, aer + PCI_ERR_ROOT_COMMAND, &reg32);

@@ -12,8 +12,8 @@
 #include <errno.h>
 #include <fcntl.h>
 
+#include <linux/tdx-guest.h>
 #include "../kselftest_harness.h"
-#include "../../../../include/uapi/linux/tdx-guest.h"
 
 #define TDX_GUEST_DEVNAME "/dev/tdx_guest"
 #define HEX_DUMP_SIZE 8

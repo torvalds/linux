@@ -32,6 +32,7 @@ struct am65_cpsw_slave_data {
 	struct device_node		*phy_node;
 	phy_interface_t			phy_if;
 	struct phy			*ifphy;
+	struct phy			*serdes_phy;
 	bool				rx_pause;
 	bool				tx_pause;
 	u8				mac_addr[ETH_ALEN];
@@ -90,6 +91,7 @@ struct am65_cpsw_rx_chn {
 };
 
 #define AM65_CPSW_QUIRK_I2027_NO_TX_CSUM BIT(0)
+#define AM64_CPSW_QUIRK_DMA_RX_TDOWN_IRQ BIT(1)
 
 struct am65_cpsw_pdata {
 	u32	quirks;

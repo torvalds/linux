@@ -14,6 +14,21 @@ int devkmsg_sysctl_set_loglvl(struct ctl_table *table, int write,
 
 #ifdef CONFIG_PRINTK
 
+#ifdef CONFIG_PRINTK_CALLER
+#define PRINTK_PREFIX_MAX	48
+#else
+#define PRINTK_PREFIX_MAX	32
+#endif
+
+/*
+ * the maximum size of a formatted record (i.e. with prefix added
+ * per line and dropped messages or in extended message format)
+ */
+#define PRINTK_MESSAGE_MAX	2048
+
+/* the maximum size allowed to be reserved for a record */
+#define PRINTKRB_RECORD_MAX	1024
+
 /* Flags for a single printk record. */
 enum printk_info_flags {
 	LOG_NEWLINE	= 2,	/* text ended with a newline */
@@ -48,6 +63,10 @@ u16 printk_parse_prefix(const char *text, int *level,
 			enum printk_info_flags *flags);
 #else
 
+#define PRINTK_PREFIX_MAX	0
+#define PRINTK_MESSAGE_MAX	0
+#define PRINTKRB_RECORD_MAX	0
+
 /*
  * In !PRINTK builds we still export console_sem
  * semaphore and some of console functions (console_unlock()/etc.), so
@@ -58,3 +77,29 @@ u16 printk_parse_prefix(const char *text, int *level,
 
 static inline bool printk_percpu_data_ready(void) { return false; }
 #endif /* CONFIG_PRINTK */
+
+/**
+ * struct printk_buffers - Buffers to read/format/output printk messages.
+ * @outbuf:	After formatting, contains text to output.
+ * @scratchbuf:	Used as temporary ringbuffer reading and string-print space.
+ */
+struct printk_buffers {
+	char	outbuf[PRINTK_MESSAGE_MAX];
+	char	scratchbuf[PRINTKRB_RECORD_MAX];
+};
+
+/**
+ * struct printk_message - Container for a prepared printk message.
+ * @pbufs:	printk buffers used to prepare the message.
+ * @outbuf_len:	The length of prepared text in @pbufs->outbuf to output. This
+ *		does not count the terminator. A value of 0 means there is
+ *		nothing to output and this record should be skipped.
+ * @seq:	The sequence number of the record used for @pbufs->outbuf.
+ * @dropped:	The number of dropped records from reading @seq.
+ */
+struct printk_message {
+	struct printk_buffers	*pbufs;
+	unsigned int		outbuf_len;
+	u64			seq;
+	unsigned long		dropped;
+};

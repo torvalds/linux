@@ -164,7 +164,7 @@ static int drivetemp_scsi_command(struct drivetemp_data *st,
 				 u8 lba_low, u8 lba_mid, u8 lba_high)
 {
 	u8 scsi_cmd[MAX_COMMAND_SIZE];
-	int data_dir;
+	enum req_op op;
 
 	memset(scsi_cmd, 0, sizeof(scsi_cmd));
 	scsi_cmd[0] = ATA_16;
@@ -175,7 +175,7 @@ static int drivetemp_scsi_command(struct drivetemp_data *st,
 		 * field.
 		 */
 		scsi_cmd[2] = 0x06;
-		data_dir = DMA_TO_DEVICE;
+		op = REQ_OP_DRV_OUT;
 	} else {
 		scsi_cmd[1] = (4 << 1);	/* PIO Data-in */
 		/*
@@ -183,7 +183,7 @@ static int drivetemp_scsi_command(struct drivetemp_data *st,
 		 * field.
 		 */
 		scsi_cmd[2] = 0x0e;
-		data_dir = DMA_FROM_DEVICE;
+		op = REQ_OP_DRV_IN;
 	}
 	scsi_cmd[4] = feature;
 	scsi_cmd[6] = 1;	/* 1 sector */
@@ -192,9 +192,8 @@ static int drivetemp_scsi_command(struct drivetemp_data *st,
 	scsi_cmd[12] = lba_high;
 	scsi_cmd[14] = ata_command;
 
-	return scsi_execute_req(st->sdev, scsi_cmd, data_dir,
-				st->smartdata, ATA_SECT_SIZE, NULL, HZ, 5,
-				NULL);
+	return scsi_execute_cmd(st->sdev, scsi_cmd, op, st->smartdata,
+				ATA_SECT_SIZE, HZ, 5, NULL);
 }
 
 static int drivetemp_ata_command(struct drivetemp_data *st, u8 feature,

@@ -8,15 +8,14 @@ config SND_PXA2XX_SOC
 	  the PXA2xx AC97, I2S or SSP interface. You will also need
 	  to select the audio interfaces to support below.
 
-config SND_MMP_SOC
-	bool
-	select MMP_SRAM
-
 config SND_PXA2XX_AC97
 	tristate
 
 config SND_PXA2XX_SOC_AC97
-	tristate
+	tristate "SoC AC97 support for PXA2xx"
+	depends on SND_PXA2XX_SOC
+	depends on AC97_BUS=n
+	default y
 	select AC97_BUS_NEW
 	select SND_PXA2XX_LIB
 	select SND_PXA2XX_LIB_AC97
@@ -41,15 +40,6 @@ config SND_MMP_SOC_SSPA
 	  Say Y if you want to add support for codecs attached to
 	  the MMP SSPA interface.
 
-config SND_PXA2XX_SOC_CORGI
-	tristate "SoC Audio support for Sharp Zaurus SL-C7x0"
-	depends on SND_PXA2XX_SOC && PXA_SHARP_C7xx && I2C
-	select SND_PXA2XX_SOC_I2S
-	select SND_SOC_WM8731_I2C
-	help
-	  Say Y if you want to add support for SoC audio on Sharp
-	  Zaurus SL-C7x0 models (Corgi, Shepherd, Husky).
-
 config SND_PXA2XX_SOC_SPITZ
 	tristate "SoC Audio support for Sharp Zaurus SL-Cxx00"
 	depends on SND_PXA2XX_SOC && PXA_SHARP_Cxx00 && I2C
@@ -59,101 +49,6 @@ config SND_PXA2XX_SOC_SPITZ
 	  Say Y if you want to add support for SoC audio on Sharp
 	  Zaurus SL-Cxx00 models (Spitz, Borzoi and Akita).
 
-config SND_PXA2XX_SOC_Z2
-	tristate "SoC Audio support for Zipit Z2"
-	depends on SND_PXA2XX_SOC && MACH_ZIPIT2 && I2C
-	select SND_PXA2XX_SOC_I2S
-	select SND_SOC_WM8750
-	help
-	  Say Y if you want to add support for SoC audio on Zipit Z2.
-
-config SND_PXA2XX_SOC_POODLE
-	tristate "SoC Audio support for Poodle"
-	depends on SND_PXA2XX_SOC && MACH_POODLE && I2C
-	select SND_PXA2XX_SOC_I2S
-	select SND_SOC_WM8731_I2C
-	help
-	  Say Y if you want to add support for SoC audio on Sharp
-	  Zaurus SL-5600 model (Poodle).
-
-config SND_PXA2XX_SOC_TOSA
-	tristate "SoC AC97 Audio support for Tosa"
-	depends on SND_PXA2XX_SOC && MACH_TOSA
-	depends on MFD_TC6393XB
-	depends on AC97_BUS=n
-	select REGMAP
-	select AC97_BUS_NEW
-	select AC97_BUS_COMPAT
-	select SND_PXA2XX_SOC_AC97
-	select SND_SOC_WM9712
-	help
-	  Say Y if you want to add support for SoC audio on Sharp
-	  Zaurus SL-C6000x models (Tosa).
-
-config SND_PXA2XX_SOC_E740
-	tristate "SoC AC97 Audio support for e740"
-	depends on SND_PXA2XX_SOC && MACH_E740
-	depends on AC97_BUS=n
-	select REGMAP
-	select AC97_BUS_NEW
-	select AC97_BUS_COMPAT
-	select SND_SOC_WM9705
-	select SND_PXA2XX_SOC_AC97
-	help
-	  Say Y if you want to add support for SoC audio on the
-	  toshiba e740 PDA
-
-config SND_PXA2XX_SOC_E750
-	tristate "SoC AC97 Audio support for e750"
-	depends on SND_PXA2XX_SOC && MACH_E750
-	depends on AC97_BUS=n
-	select REGMAP
-	select SND_SOC_WM9705
-	select SND_PXA2XX_SOC_AC97
-	help
-	  Say Y if you want to add support for SoC audio on the
-	  toshiba e750 PDA
-
-config SND_PXA2XX_SOC_E800
-	tristate "SoC AC97 Audio support for e800"
-	depends on SND_PXA2XX_SOC && MACH_E800
-	depends on AC97_BUS=n
-	select REGMAP
-	select SND_SOC_WM9712
-	select AC97_BUS_NEW
-	select AC97_BUS_COMPAT
-	select SND_PXA2XX_SOC_AC97
-	help
-	  Say Y if you want to add support for SoC audio on the
-	  Toshiba e800 PDA
-
-config SND_PXA2XX_SOC_EM_X270
-	tristate "SoC Audio support for CompuLab CM-X300"
-	depends on SND_PXA2XX_SOC && MACH_CM_X300
-	depends on AC97_BUS=n
-	select REGMAP
-	select AC97_BUS_NEW
-	select AC97_BUS_COMPAT
-	select SND_PXA2XX_SOC_AC97
-	select SND_SOC_WM9712
-	help
-	  Say Y if you want to add support for SoC audio on
-	  CompuLab EM-x270, eXeda and CM-X300 machines.
-
-config SND_PXA2XX_SOC_PALM27X
-	bool "SoC Audio support for Palm T|X, T5, E2 and LifeDrive"
-	depends on SND_PXA2XX_SOC && (MACH_PALMLD || MACH_PALMTX || \
-			MACH_PALMT5 || MACH_PALMTE2)
-	depends on AC97_BUS=n
-	select REGMAP
-	select AC97_BUS_NEW
-	select AC97_BUS_COMPAT
-	select SND_PXA2XX_SOC_AC97
-	select SND_SOC_WM9712
-	help
-	  Say Y if you want to add support for SoC audio on
-	  Palm T|X, T5, E2 or LifeDrive handheld computer.
-
 config SND_PXA910_SOC
 	tristate "SoC Audio for Marvell PXA910 chip"
 	depends on ARCH_MMP && SND
@@ -161,71 +56,3 @@ config SND_PXA910_SOC
 	help
 	  Say Y if you want to add support for SoC audio on the
 	  Marvell PXA910 reference platform.
-
-config SND_SOC_TTC_DKB
-	tristate "SoC Audio support for TTC DKB"
-	depends on SND_PXA910_SOC && MACH_TTC_DKB && I2C=y
-	select PXA_SSP
-	select SND_PXA_SOC_SSP
-	select SND_MMP_SOC
-	select MFD_88PM860X
-	select SND_SOC_88PM860X
-	help
-	  Say Y if you want to add support for SoC audio on TTC DKB
-
-
-config SND_SOC_ZYLONITE
-	tristate "SoC Audio support for Marvell Zylonite"
-	depends on SND_PXA2XX_SOC && MACH_ZYLONITE
-	depends on AC97_BUS=n
-	select AC97_BUS_NEW
-	select AC97_BUS_COMPAT
-	select SND_PXA2XX_SOC_AC97
-	select REGMAP
-	select SND_PXA_SOC_SSP
-	select SND_SOC_WM9713
-	help
-	  Say Y if you want to add support for SoC audio on the
-	  Marvell Zylonite reference platform.
-
-config SND_PXA2XX_SOC_HX4700
-	tristate "SoC Audio support for HP iPAQ hx4700"
-	depends on SND_PXA2XX_SOC && MACH_H4700 && I2C
-	select SND_PXA2XX_SOC_I2S
-	select SND_SOC_AK4641
-	help
-	  Say Y if you want to add support for SoC audio on the
-	  HP iPAQ hx4700.
-
-config SND_PXA2XX_SOC_MAGICIAN
-	tristate "SoC Audio support for HTC Magician"
-	depends on SND_PXA2XX_SOC && MACH_MAGICIAN && I2C
-	select SND_PXA2XX_SOC_I2S
-	select SND_PXA_SOC_SSP
-	select SND_SOC_UDA1380
-	help
-	  Say Y if you want to add support for SoC audio on the
-	  HTC Magician.
-
-config SND_PXA2XX_SOC_MIOA701
-	tristate "SoC Audio support for MIO A701"
-	depends on SND_PXA2XX_SOC && MACH_MIOA701
-	depends on AC97_BUS=n
-	select REGMAP
-	select AC97_BUS_NEW
-	select AC97_BUS_COMPAT
-	select SND_PXA2XX_SOC_AC97
-	select SND_SOC_WM9713
-	help
-	  Say Y if you want to add support for SoC audio on the
-	  MIO A701.
-
-config SND_MMP_SOC_BROWNSTONE
-	tristate "SoC Audio support for Marvell Brownstone"
-	depends on SND_MMP_SOC_SSPA && MACH_BROWNSTONE && I2C
-	select SND_MMP_SOC
-	select MFD_WM8994
-	select SND_SOC_WM8994
-	help
-	  Say Y if you want to add support for SoC audio on the
-	  Marvell Brownstone reference platform.

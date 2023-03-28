@@ -473,6 +473,17 @@ out:
 		return count;
 	}
 
+	if (!strcmp(a->attr.name, "discard_io_aware_gran")) {
+		if (t > MAX_PLIST_NUM)
+			return -EINVAL;
+		if (!f2fs_block_unit_discard(sbi))
+			return -EINVAL;
+		if (t == *ui)
+			return count;
+		*ui = t;
+		return count;
+	}
+
 	if (!strcmp(a->attr.name, "discard_granularity")) {
 		if (t == 0 || t > MAX_PLIST_NUM)
 			return -EINVAL;
@@ -511,7 +522,7 @@ out:
 		} else if (t == 1) {
 			sbi->gc_mode = GC_URGENT_HIGH;
 			if (sbi->gc_thread) {
-				sbi->gc_thread->gc_wake = 1;
+				sbi->gc_thread->gc_wake = true;
 				wake_up_interruptible_all(
 					&sbi->gc_thread->gc_wait_queue_head);
 				wake_up_discard_thread(sbi, true);
@@ -521,7 +532,7 @@ out:
 		} else if (t == 3) {
 			sbi->gc_mode = GC_URGENT_MID;
 			if (sbi->gc_thread) {
-				sbi->gc_thread->gc_wake = 1;
+				sbi->gc_thread->gc_wake = true;
 				wake_up_interruptible_all(
 					&sbi->gc_thread->gc_wait_queue_head);
 			}
@@ -678,11 +689,29 @@ out:
 	}
 
 	if (!strcmp(a->attr.name, "warm_data_age_threshold")) {
-		if (t == 0 || t <= sbi->hot_data_age_threshold)
+		if (t <= sbi->hot_data_age_threshold)
 			return -EINVAL;
 		if (t == *ui)
 			return count;
 		*ui = (unsigned int)t;
+		return count;
+	}
+
+	if (!strcmp(a->attr.name, "last_age_weight")) {
+		if (t > 100)
+			return -EINVAL;
+		if (t == *ui)
+			return count;
+		*ui = (unsigned int)t;
+		return count;
+	}
+
+	if (!strcmp(a->attr.name, "ipu_policy")) {
+		if (t >= BIT(F2FS_IPU_MAX))
+			return -EINVAL;
+		if (t && f2fs_lfs_mode(sbi))
+			return -EINVAL;
+		SM_I(sbi)->ipu_policy = (unsigned int)t;
 		return count;
 	}
 
@@ -825,6 +854,7 @@ F2FS_RW_ATTR(DCC_INFO, discard_cmd_control, max_discard_request, max_discard_req
 F2FS_RW_ATTR(DCC_INFO, discard_cmd_control, min_discard_issue_time, min_discard_issue_time);
 F2FS_RW_ATTR(DCC_INFO, discard_cmd_control, mid_discard_issue_time, mid_discard_issue_time);
 F2FS_RW_ATTR(DCC_INFO, discard_cmd_control, max_discard_issue_time, max_discard_issue_time);
+F2FS_RW_ATTR(DCC_INFO, discard_cmd_control, discard_io_aware_gran, discard_io_aware_gran);
 F2FS_RW_ATTR(DCC_INFO, discard_cmd_control, discard_urgent_util, discard_urgent_util);
 F2FS_RW_ATTR(DCC_INFO, discard_cmd_control, discard_granularity, discard_granularity);
 F2FS_RW_ATTR(DCC_INFO, discard_cmd_control, max_ordered_discard, max_ordered_discard);
@@ -944,6 +974,7 @@ F2FS_RW_ATTR(F2FS_SBI, f2fs_sb_info, revoked_atomic_block, revoked_atomic_block)
 /* For block age extent cache */
 F2FS_RW_ATTR(F2FS_SBI, f2fs_sb_info, hot_data_age_threshold, hot_data_age_threshold);
 F2FS_RW_ATTR(F2FS_SBI, f2fs_sb_info, warm_data_age_threshold, warm_data_age_threshold);
+F2FS_RW_ATTR(F2FS_SBI, f2fs_sb_info, last_age_weight, last_age_weight);
 
 #define ATTR_LIST(name) (&f2fs_attr_##name.attr)
 static struct attribute *f2fs_attrs[] = {
@@ -960,6 +991,7 @@ static struct attribute *f2fs_attrs[] = {
 	ATTR_LIST(min_discard_issue_time),
 	ATTR_LIST(mid_discard_issue_time),
 	ATTR_LIST(max_discard_issue_time),
+	ATTR_LIST(discard_io_aware_gran),
 	ATTR_LIST(discard_urgent_util),
 	ATTR_LIST(discard_granularity),
 	ATTR_LIST(max_ordered_discard),
@@ -1042,6 +1074,7 @@ static struct attribute *f2fs_attrs[] = {
 	ATTR_LIST(revoked_atomic_block),
 	ATTR_LIST(hot_data_age_threshold),
 	ATTR_LIST(warm_data_age_threshold),
+	ATTR_LIST(last_age_weight),
 	NULL,
 };
 ATTRIBUTE_GROUPS(f2fs);
@@ -1129,13 +1162,13 @@ static const struct sysfs_ops f2fs_attr_ops = {
 	.store	= f2fs_attr_store,
 };
 
-static struct kobj_type f2fs_sb_ktype = {
+static const struct kobj_type f2fs_sb_ktype = {
 	.default_groups = f2fs_groups,
 	.sysfs_ops	= &f2fs_attr_ops,
 	.release	= f2fs_sb_release,
 };
 
-static struct kobj_type f2fs_ktype = {
+static const struct kobj_type f2fs_ktype = {
 	.sysfs_ops	= &f2fs_attr_ops,
 };
 
@@ -1143,7 +1176,7 @@ static struct kset f2fs_kset = {
 	.kobj	= {.ktype = &f2fs_ktype},
 };
 
-static struct kobj_type f2fs_feat_ktype = {
+static const struct kobj_type f2fs_feat_ktype = {
 	.default_groups = f2fs_feat_groups,
 	.sysfs_ops	= &f2fs_attr_ops,
 };
@@ -1184,7 +1217,7 @@ static const struct sysfs_ops f2fs_stat_attr_ops = {
 	.store	= f2fs_stat_attr_store,
 };
 
-static struct kobj_type f2fs_stat_ktype = {
+static const struct kobj_type f2fs_stat_ktype = {
 	.default_groups = f2fs_stat_groups,
 	.sysfs_ops	= &f2fs_stat_attr_ops,
 	.release	= f2fs_stat_kobj_release,
@@ -1211,7 +1244,7 @@ static const struct sysfs_ops f2fs_feature_list_attr_ops = {
 	.show	= f2fs_sb_feat_attr_show,
 };
 
-static struct kobj_type f2fs_feature_list_ktype = {
+static const struct kobj_type f2fs_feature_list_ktype = {
 	.default_groups = f2fs_sb_feat_groups,
 	.sysfs_ops	= &f2fs_feature_list_attr_ops,
 	.release	= f2fs_feature_list_kobj_release,

@@ -222,14 +222,14 @@ err:
 }
 
 /**
- * binderfs_ctl_ioctl - handle binder device node allocation requests
+ * binder_ctl_ioctl - handle binder device node allocation requests
  *
  * The request handler for the binder-control device. All requests operate on
  * the binderfs mount the binder-control device resides in:
  * - BINDER_CTL_ADD
  *   Allocate a new binder device.
  *
- * Return: 0 on success, negative errno on failure
+ * Return: %0 on success, negative errno on failure.
  */
 static long binder_ctl_ioctl(struct file *file, unsigned int cmd,
 			     unsigned long arg)
@@ -352,7 +352,7 @@ static inline bool is_binderfs_control_device(const struct dentry *dentry)
 	return info->control_dentry == dentry;
 }
 
-static int binderfs_rename(struct user_namespace *mnt_userns,
+static int binderfs_rename(struct mnt_idmap *idmap,
 			   struct inode *old_dir, struct dentry *old_dentry,
 			   struct inode *new_dir, struct dentry *new_dentry,
 			   unsigned int flags)
@@ -361,7 +361,7 @@ static int binderfs_rename(struct user_namespace *mnt_userns,
 	    is_binderfs_control_device(new_dentry))
 		return -EPERM;
 
-	return simple_rename(&init_user_ns, old_dir, old_dentry, new_dir,
+	return simple_rename(idmap, old_dir, old_dentry, new_dir,
 			     new_dentry, flags);
 }
 

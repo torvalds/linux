@@ -274,8 +274,6 @@ static struct ttm_tt *i915_ttm_tt_create(struct ttm_buffer_object *bo,
 {
 	struct drm_i915_private *i915 = container_of(bo->bdev, typeof(*i915),
 						     bdev);
-	struct ttm_resource_manager *man =
-		ttm_manager_type(bo->bdev, bo->resource->mem_type);
 	struct drm_i915_gem_object *obj = i915_ttm_to_gem(bo);
 	unsigned long ccs_pages = 0;
 	enum ttm_caching caching;
@@ -289,8 +287,8 @@ static struct ttm_tt *i915_ttm_tt_create(struct ttm_buffer_object *bo,
 	if (!i915_tt)
 		return NULL;
 
-	if (obj->flags & I915_BO_ALLOC_CPU_CLEAR &&
-	    man->use_tt)
+	if (obj->flags & I915_BO_ALLOC_CPU_CLEAR && (!bo->resource ||
+	    ttm_manager_type(bo->bdev, bo->resource->mem_type)->use_tt))
 		page_flags |= TTM_TT_FLAG_ZERO_ALLOC;
 
 	caching = i915_ttm_select_tt_caching(obj);
@@ -474,7 +472,7 @@ static int i915_ttm_shrink(struct drm_i915_gem_object *obj, unsigned int flags)
 	struct ttm_placement place = {};
 	int ret;
 
-	if (!bo->ttm || bo->resource->mem_type != TTM_PL_SYSTEM)
+	if (!bo->ttm || i915_ttm_cpu_maps_iomem(bo->resource))
 		return 0;
 
 	GEM_BUG_ON(!i915_tt->is_shmem);
@@ -513,7 +511,13 @@ static void i915_ttm_delete_mem_notify(struct ttm_buffer_object *bo)
 {
 	struct drm_i915_gem_object *obj = i915_ttm_to_gem(bo);
 
-	if (bo->resource && !i915_ttm_is_ghost_object(bo)) {
+	/*
+	 * This gets called twice by ttm, so long as we have a ttm resource or
+	 * ttm_tt then we can still safely call this. Due to pipeline-gutting,
+	 * we maybe have NULL bo->resource, but in that case we should always
+	 * have a ttm alive (like if the pages are swapped out).
+	 */
+	if ((bo->resource || bo->ttm) && !i915_ttm_is_ghost_object(bo)) {
 		__i915_gem_object_pages_fini(obj);
 		i915_ttm_free_cached_io_rsgt(obj);
 	}
@@ -1058,7 +1062,27 @@ static vm_fault_t vm_fault_ttm(struct vm_fault *vmf)
 		return VM_FAULT_SIGBUS;
 	}
 
-	if (!i915_ttm_resource_mappable(bo->resource)) {
+	/*
+	 * This must be swapped out with shmem ttm_tt (pipeline-gutting).
+	 * Calling ttm_bo_validate() here with TTM_PL_SYSTEM should only go as
+	 * far as far doing a ttm_bo_move_null(), which should skip all the
+	 * other junk.
+	 */
+	if (!bo->resource) {
+		struct ttm_operation_ctx ctx = {
+			.interruptible = true,
+			.no_wait_gpu = true, /* should be idle already */
+		};
+		int err;
+
+		GEM_BUG_ON(!bo->ttm || !(bo->ttm->page_flags & TTM_TT_FLAG_SWAPPED));
+
+		err = ttm_bo_validate(bo, i915_ttm_sys_placement(), &ctx);
+		if (err) {
+			dma_resv_unlock(bo->base.resv);
+			return VM_FAULT_SIGBUS;
+		}
+	} else if (!i915_ttm_resource_mappable(bo->resource)) {
 		int err = -ENODEV;
 		int i;
 

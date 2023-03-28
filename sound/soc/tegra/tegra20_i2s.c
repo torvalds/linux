@@ -256,8 +256,8 @@ static int tegra20_i2s_probe(struct snd_soc_dai *dai)
 {
 	struct tegra20_i2s *i2s = snd_soc_dai_get_drvdata(dai);
 
-	dai->capture_dma_data = &i2s->capture_dma_data;
-	dai->playback_dma_data = &i2s->playback_dma_data;
+	snd_soc_dai_init_dma_data(dai,	&i2s->playback_dma_data,
+					&i2s->capture_dma_data);
 
 	return 0;
 }

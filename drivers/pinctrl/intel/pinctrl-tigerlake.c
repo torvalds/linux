@@ -15,13 +15,17 @@
 
 #include "pinctrl-intel.h"
 
-#define TGL_PAD_OWN		0x020
+#define TGL_LP_PAD_OWN		0x020
 #define TGL_LP_PADCFGLOCK	0x080
-#define TGL_H_PADCFGLOCK	0x090
 #define TGL_LP_HOSTSW_OWN	0x0b0
+#define TGL_LP_GPI_IS		0x100
+#define TGL_LP_GPI_IE		0x120
+
+#define TGL_H_PAD_OWN		0x020
+#define TGL_H_PADCFGLOCK	0x090
 #define TGL_H_HOSTSW_OWN	0x0c0
-#define TGL_GPI_IS		0x100
-#define TGL_GPI_IE		0x120
+#define TGL_H_GPI_IS		0x100
+#define TGL_H_GPI_IE		0x120
 
 #define TGL_GPP(r, s, e, g)				\
 	{						\
@@ -31,25 +35,11 @@
 		.gpio_base = (g),			\
 	}
 
-#define TGL_COMMUNITY(b, s, e, g, v)				\
-	{							\
-		.barno = (b),					\
-		.padown_offset = TGL_PAD_OWN,			\
-		.padcfglock_offset = TGL_##v##_PADCFGLOCK,	\
-		.hostown_offset = TGL_##v##_HOSTSW_OWN,		\
-		.is_offset = TGL_GPI_IS,			\
-		.ie_offset = TGL_GPI_IE,			\
-		.pin_base = (s),				\
-		.npins = ((e) - (s) + 1),			\
-		.gpps = (g),					\
-		.ngpps = ARRAY_SIZE(g),				\
-	}
-
 #define TGL_LP_COMMUNITY(b, s, e, g)			\
-	TGL_COMMUNITY(b, s, e, g, LP)
+	INTEL_COMMUNITY_GPPS(b, s, e, g, TGL_LP)
 
 #define TGL_H_COMMUNITY(b, s, e, g)			\
-	TGL_COMMUNITY(b, s, e, g, H)
+	INTEL_COMMUNITY_GPPS(b, s, e, g, TGL_H)
 
 /* Tiger Lake-LP */
 static const struct pinctrl_pin_desc tgllp_pins[] = {

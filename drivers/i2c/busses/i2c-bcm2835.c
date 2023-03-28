@@ -407,7 +407,6 @@ static const struct i2c_adapter_quirks bcm2835_i2c_quirks = {
 static int bcm2835_i2c_probe(struct platform_device *pdev)
 {
 	struct bcm2835_i2c_dev *i2c_dev;
-	struct resource *mem;
 	int ret;
 	struct i2c_adapter *adap;
 	struct clk *mclk;
@@ -420,8 +419,7 @@ static int bcm2835_i2c_probe(struct platform_device *pdev)
 	i2c_dev->dev = &pdev->dev;
 	init_completion(&i2c_dev->completion);
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	i2c_dev->regs = devm_ioremap_resource(&pdev->dev, mem);
+	i2c_dev->regs = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(i2c_dev->regs))
 		return PTR_ERR(i2c_dev->regs);
 

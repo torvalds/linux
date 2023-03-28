@@ -89,4 +89,6 @@ const char *get_branch_type(struct branch_entry *e);
 void branch_type_stat_display(FILE *fp, struct branch_type_stat *st);
 int branch_type_str(struct branch_type_stat *st, char *bf, int bfsize);
 
+const char *branch_spec_desc(int spec);
+
 #endif /* _PERF_BRANCH_H */

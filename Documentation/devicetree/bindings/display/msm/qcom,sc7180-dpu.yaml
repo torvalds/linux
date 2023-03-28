@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/msm/qcom,sc7180-dpu.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Display DPU dt properties for SC7180 target
+title: Qualcomm Display DPU on SC7180
 
 maintainers:
   - Krishna Manikandan <quic_mkrishn@quicinc.com>
@@ -13,8 +13,7 @@ $ref: /schemas/display/msm/dpu-common.yaml#
 
 properties:
   compatible:
-    items:
-      - const: qcom,sc7180-dpu
+    const: qcom,sc7180-dpu
 
   reg:
     items:
@@ -43,6 +42,13 @@ properties:
       - const: lut
       - const: core
       - const: vsync
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - clocks
+  - clock-names
 
 unevaluatedProperties: false
 

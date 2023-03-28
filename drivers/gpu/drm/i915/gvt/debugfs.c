@@ -147,9 +147,25 @@ vgpu_scan_nonprivbb_set(void *data, u64 val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(vgpu_scan_nonprivbb_fops,
-			vgpu_scan_nonprivbb_get, vgpu_scan_nonprivbb_set,
-			"0x%llx\n");
+DEFINE_DEBUGFS_ATTRIBUTE(vgpu_scan_nonprivbb_fops,
+			 vgpu_scan_nonprivbb_get, vgpu_scan_nonprivbb_set,
+			 "0x%llx\n");
+
+static int vgpu_status_get(void *data, u64 *val)
+{
+	struct intel_vgpu *vgpu = (struct intel_vgpu *)data;
+
+	*val = 0;
+
+	if (test_bit(INTEL_VGPU_STATUS_ATTACHED, vgpu->status))
+		*val |= (1 << INTEL_VGPU_STATUS_ATTACHED);
+	if (test_bit(INTEL_VGPU_STATUS_ACTIVE, vgpu->status))
+		*val |= (1 << INTEL_VGPU_STATUS_ACTIVE);
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(vgpu_status_fops, vgpu_status_get, NULL, "0x%llx\n");
 
 /**
  * intel_gvt_debugfs_add_vgpu - register debugfs entries for a vGPU
@@ -162,11 +178,12 @@ void intel_gvt_debugfs_add_vgpu(struct intel_vgpu *vgpu)
 	snprintf(name, 16, "vgpu%d", vgpu->id);
 	vgpu->debugfs = debugfs_create_dir(name, vgpu->gvt->debugfs_root);
 
-	debugfs_create_bool("active", 0444, vgpu->debugfs, &vgpu->active);
 	debugfs_create_file("mmio_diff", 0444, vgpu->debugfs, vgpu,
 			    &vgpu_mmio_diff_fops);
-	debugfs_create_file("scan_nonprivbb", 0644, vgpu->debugfs, vgpu,
-			    &vgpu_scan_nonprivbb_fops);
+	debugfs_create_file_unsafe("scan_nonprivbb", 0644, vgpu->debugfs, vgpu,
+				   &vgpu_scan_nonprivbb_fops);
+	debugfs_create_file_unsafe("status", 0644, vgpu->debugfs, vgpu,
+				   &vgpu_status_fops);
 }
 
 /**
@@ -175,8 +192,13 @@ void intel_gvt_debugfs_add_vgpu(struct intel_vgpu *vgpu)
  */
 void intel_gvt_debugfs_remove_vgpu(struct intel_vgpu *vgpu)
 {
-	debugfs_remove_recursive(vgpu->debugfs);
-	vgpu->debugfs = NULL;
+	struct intel_gvt *gvt = vgpu->gvt;
+	struct drm_minor *minor = gvt->gt->i915->drm.primary;
+
+	if (minor->debugfs_root && gvt->debugfs_root) {
+		debugfs_remove_recursive(vgpu->debugfs);
+		vgpu->debugfs = NULL;
+	}
 }
 
 /**
@@ -199,6 +221,10 @@ void intel_gvt_debugfs_init(struct intel_gvt *gvt)
  */
 void intel_gvt_debugfs_clean(struct intel_gvt *gvt)
 {
-	debugfs_remove_recursive(gvt->debugfs_root);
-	gvt->debugfs_root = NULL;
+	struct drm_minor *minor = gvt->gt->i915->drm.primary;
+
+	if (minor->debugfs_root) {
+		debugfs_remove_recursive(gvt->debugfs_root);
+		gvt->debugfs_root = NULL;
+	}
 }

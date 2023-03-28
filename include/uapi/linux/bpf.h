@@ -1156,6 +1156,11 @@ enum bpf_link_type {
  */
 #define BPF_F_XDP_HAS_FRAGS	(1U << 5)
 
+/* If BPF_F_XDP_DEV_BOUND_ONLY is used in BPF_PROG_LOAD command, the loaded
+ * program becomes device-bound but can access XDP metadata.
+ */
+#define BPF_F_XDP_DEV_BOUND_ONLY	(1U << 6)
+
 /* link_create.kprobe_multi.flags used in LINK_CREATE command for
  * BPF_TRACE_KPROBE_MULTI attach type to create return probe.
  */
@@ -2001,6 +2006,9 @@ union bpf_attr {
  * 			sending the packet. This flag was added for GRE
  * 			encapsulation, but might be used with other protocols
  * 			as well in the future.
+ * 		**BPF_F_NO_TUNNEL_KEY**
+ * 			Add a flag to tunnel metadata indicating that no tunnel
+ * 			key should be set in the resulting tunnel header.
  *
  * 		Here is a typical usage on the transmit path:
  *
@@ -2644,6 +2652,11 @@ union bpf_attr {
  *		  Use with BPF_F_ADJ_ROOM_ENCAP_L2 flag to further specify the
  *		  L2 type as Ethernet.
  *
+ *		* **BPF_F_ADJ_ROOM_DECAP_L3_IPV4**,
+ *		  **BPF_F_ADJ_ROOM_DECAP_L3_IPV6**:
+ *		  Indicate the new IP header version after decapsulating the outer
+ *		  IP header. Used when the inner and outer IP versions are different.
+ *
  * 		A call to this helper is susceptible to change the underlying
  * 		packet buffer. Therefore, at load time, all checks on pointers
  * 		previously done by the verifier are invalidated and must be
@@ -2788,7 +2801,7 @@ union bpf_attr {
  *
  * long bpf_perf_prog_read_value(struct bpf_perf_event_data *ctx, struct bpf_perf_event_value *buf, u32 buf_size)
  * 	Description
- * 		For en eBPF program attached to a perf event, retrieve the
+ * 		For an eBPF program attached to a perf event, retrieve the
  * 		value of the event counter associated to *ctx* and store it in
  * 		the structure pointed by *buf* and of size *buf_size*. Enabled
  * 		and running times are also stored in the structure (see
@@ -3121,6 +3134,11 @@ union bpf_attr {
  *		**BPF_FIB_LOOKUP_OUTPUT**
  *			Perform lookup from an egress perspective (default is
  *			ingress).
+ *		**BPF_FIB_LOOKUP_SKIP_NEIGH**
+ *			Skip the neighbour table lookup. *params*->dmac
+ *			and *params*->smac will not be set as output. A common
+ *			use case is to call **bpf_redirect_neigh**\ () after
+ *			doing **bpf_fib_lookup**\ ().
  *
  *		*ctx* is either **struct xdp_md** for XDP programs or
  *		**struct sk_buff** tc cls_act programs.
@@ -5764,6 +5782,7 @@ enum {
 	BPF_F_ZERO_CSUM_TX		= (1ULL << 1),
 	BPF_F_DONT_FRAGMENT		= (1ULL << 2),
 	BPF_F_SEQ_NUMBER		= (1ULL << 3),
+	BPF_F_NO_TUNNEL_KEY		= (1ULL << 4),
 };
 
 /* BPF_FUNC_skb_get_tunnel_key flags. */
@@ -5803,6 +5822,8 @@ enum {
 	BPF_F_ADJ_ROOM_ENCAP_L4_UDP	= (1ULL << 4),
 	BPF_F_ADJ_ROOM_NO_CSUM_RESET	= (1ULL << 5),
 	BPF_F_ADJ_ROOM_ENCAP_L2_ETH	= (1ULL << 6),
+	BPF_F_ADJ_ROOM_DECAP_L3_IPV4	= (1ULL << 7),
+	BPF_F_ADJ_ROOM_DECAP_L3_IPV6	= (1ULL << 8),
 };
 
 enum {
@@ -6734,6 +6755,7 @@ struct bpf_raw_tracepoint_args {
 enum {
 	BPF_FIB_LOOKUP_DIRECT  = (1U << 0),
 	BPF_FIB_LOOKUP_OUTPUT  = (1U << 1),
+	BPF_FIB_LOOKUP_SKIP_NEIGH = (1U << 2),
 };
 
 enum {
@@ -6897,6 +6919,17 @@ struct bpf_list_head {
 } __attribute__((aligned(8)));
 
 struct bpf_list_node {
+	__u64 :64;
+	__u64 :64;
+} __attribute__((aligned(8)));
+
+struct bpf_rb_root {
+	__u64 :64;
+	__u64 :64;
+} __attribute__((aligned(8)));
+
+struct bpf_rb_node {
+	__u64 :64;
 	__u64 :64;
 	__u64 :64;
 } __attribute__((aligned(8)));

@@ -14,6 +14,7 @@
 #include <linux/irqreturn.h>
 #include <linux/netdevice.h>
 #include <linux/irq.h>
+#include <linux/phy.h>
 
 /* The silicon design supports a maximum RX ring size of
  * 32K entries. Based on current testing this maximum size
@@ -67,6 +68,29 @@ struct mlxbf_gige_stats {
 	u64 rx_filter_discard_pkts;
 };
 
+struct mlxbf_gige_reg_param {
+	u32 mask;
+	u32 shift;
+};
+
+struct mlxbf_gige_mdio_gw {
+	u32 gw_address;
+	u32 read_data_address;
+	struct mlxbf_gige_reg_param busy;
+	struct mlxbf_gige_reg_param write_data;
+	struct mlxbf_gige_reg_param read_data;
+	struct mlxbf_gige_reg_param devad;
+	struct mlxbf_gige_reg_param partad;
+	struct mlxbf_gige_reg_param opcode;
+	struct mlxbf_gige_reg_param st1;
+};
+
+struct mlxbf_gige_link_cfg {
+	void (*set_phy_link_mode)(struct phy_device *phydev);
+	void (*adjust_link)(struct net_device *netdev);
+	phy_interface_t phy_mode;
+};
+
 struct mlxbf_gige {
 	void __iomem *base;
 	void __iomem *llu_base;
@@ -102,6 +126,9 @@ struct mlxbf_gige {
 	u8 valid_polarity;
 	struct napi_struct napi;
 	struct mlxbf_gige_stats stats;
+	u8 hw_version;
+	struct mlxbf_gige_mdio_gw *mdio_gw;
+	int prev_speed;
 };
 
 /* Rx Work Queue Element definitions */

@@ -445,13 +445,18 @@ static int pcf8523_probe(struct i2c_client *client)
 	clear_bit(RTC_FEATURE_UPDATE_INTERRUPT, rtc->features);
 
 	if (client->irq > 0) {
+		unsigned long irqflags = IRQF_TRIGGER_LOW;
+
+		if (dev_fwnode(&client->dev))
+			irqflags = 0;
+
 		err = regmap_write(pcf8523->regmap, PCF8523_TMR_CLKOUT_CTRL, 0x38);
 		if (err < 0)
 			return err;
 
 		err = devm_request_threaded_irq(&client->dev, client->irq,
 						NULL, pcf8523_irq,
-						IRQF_SHARED | IRQF_ONESHOT | IRQF_TRIGGER_LOW,
+						IRQF_SHARED | IRQF_ONESHOT | irqflags,
 						dev_name(&rtc->dev), pcf8523);
 		if (err)
 			return err;

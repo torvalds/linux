@@ -643,9 +643,9 @@ int crypto_has_alg(const char *name, u32 type, u32 mask)
 }
 EXPORT_SYMBOL_GPL(crypto_has_alg);
 
-void crypto_req_done(struct crypto_async_request *req, int err)
+void crypto_req_done(void *data, int err)
 {
-	struct crypto_wait *wait = req->data;
+	struct crypto_wait *wait = data;
 
 	if (err == -EINPROGRESS)
 		return;

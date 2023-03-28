@@ -85,7 +85,8 @@ struct ica_rsa_modexpo_crt {
 struct CPRBX {
 	__u16	     cprb_len;		/* CPRB length	      220	 */
 	__u8	     cprb_ver_id;	/* CPRB version id.   0x02	 */
-	__u8	     _pad_000[3];	/* Alignment pad bytes		 */
+	__u8	     ctfm;		/* Command Type Filtering Mask	 */
+	__u8	     pad_000[2];	/* Alignment pad bytes		 */
 	__u8	     func_id[2];	/* function id	      0x5432	 */
 	__u8	     cprb_flags[4];	/* Flags			 */
 	__u32	     req_parml;		/* request parameter buffer len	 */

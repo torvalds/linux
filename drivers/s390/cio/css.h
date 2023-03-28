@@ -38,7 +38,7 @@
  * Conditions used to specify which subchannels need evaluation
  */
 enum css_eval_cond {
-	CSS_EVAL_UNREG,		/* unregistered subchannels */
+	CSS_EVAL_NO_PATH,		/* Subchannels with no operational paths */
 	CSS_EVAL_NOT_ONLINE	/* sch without an online-device */
 };
 

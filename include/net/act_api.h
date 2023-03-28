@@ -39,7 +39,7 @@ struct tc_action {
 	struct gnet_stats_basic_sync __percpu *cpu_bstats;
 	struct gnet_stats_basic_sync __percpu *cpu_bstats_hw;
 	struct gnet_stats_queue __percpu *cpu_qstats;
-	struct tc_cookie	__rcu *act_cookie;
+	struct tc_cookie	__rcu *user_cookie;
 	struct tcf_chain	__rcu *goto_chain;
 	u32			tcfa_flags;
 	u8			hw_stats;

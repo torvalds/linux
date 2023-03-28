@@ -182,7 +182,7 @@ struct timing_generator_funcs {
 
 	bool (*enable_crtc)(struct timing_generator *tg);
 	bool (*disable_crtc)(struct timing_generator *tg);
-#ifdef CONFIG_DRM_AMD_DC_DCN
+#ifdef CONFIG_DRM_AMD_DC_FP
 	void (*phantom_crtc_post_enable)(struct timing_generator *tg);
 #endif
 	void (*disable_phantom_crtc)(struct timing_generator *tg);
@@ -331,6 +331,7 @@ struct timing_generator_funcs {
 			uint32_t vtotal_change_limit);
 
 	void (*init_odm)(struct timing_generator *tg);
+	void (*wait_drr_doublebuffer_pending_clear)(struct timing_generator *tg);
 };
 
 #endif

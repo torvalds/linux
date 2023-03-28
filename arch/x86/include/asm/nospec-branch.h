@@ -261,7 +261,7 @@
 .macro FILL_RETURN_BUFFER reg:req nr:req ftr:req ftr2=ALT_NOT(X86_FEATURE_ALWAYS)
 	ALTERNATIVE_2 "jmp .Lskip_rsb_\@", \
 		__stringify(__FILL_RETURN_BUFFER(\reg,\nr)), \ftr, \
-		__stringify(__FILL_ONE_RETURN), \ftr2
+		__stringify(nop;nop;__FILL_ONE_RETURN), \ftr2
 
 .Lskip_rsb_\@:
 .endm
@@ -564,7 +564,7 @@ static __always_inline void mds_user_clear_cpu_buffers(void)
  *
  * Clear CPU buffers if the corresponding static key is enabled
  */
-static inline void mds_idle_clear_cpu_buffers(void)
+static __always_inline void mds_idle_clear_cpu_buffers(void)
 {
 	if (static_branch_likely(&mds_idle_clear))
 		mds_clear_cpu_buffers();

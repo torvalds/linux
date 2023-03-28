@@ -452,20 +452,6 @@ static void intel_pstate_init_acpi_perf_limits(struct cpufreq_policy *policy)
 			 (u32) cpu->acpi_perf_data.states[i].control);
 	}
 
-	/*
-	 * The _PSS table doesn't contain whole turbo frequency range.
-	 * This just contains +1 MHZ above the max non turbo frequency,
-	 * with control value corresponding to max turbo ratio. But
-	 * when cpufreq set policy is called, it will call with this
-	 * max frequency, which will cause a reduced performance as
-	 * this driver uses real max turbo frequency as the max
-	 * frequency. So correct this frequency in _PSS table to
-	 * correct max turbo frequency based on the turbo state.
-	 * Also need to convert to MHz as _PSS freq is in MHz.
-	 */
-	if (!global.turbo_disabled)
-		cpu->acpi_perf_data.states[0].core_frequency =
-					policy->cpuinfo.max_freq / 1000;
 	cpu->valid_pss_table = true;
 	pr_debug("_PPC limits will be enforced\n");
 
@@ -3372,6 +3358,7 @@ static const struct x86_cpu_id intel_epp_balance_perf[] = {
 	 * AlderLake Mobile CPUs.
 	 */
 	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE_L, 102),
+	X86_MATCH_INTEL_FAM6_MODEL(SAPPHIRERAPIDS_X, 32),
 	{}
 };
 
@@ -3530,4 +3517,3 @@ early_param("intel_pstate", intel_pstate_setup);
 
 MODULE_AUTHOR("Dirk Brandewie <dirk.j.brandewie@intel.com>");
 MODULE_DESCRIPTION("'intel_pstate' - P state driver Intel Core processors");
-MODULE_LICENSE("GPL");

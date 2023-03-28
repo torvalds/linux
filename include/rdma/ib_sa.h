@@ -414,7 +414,7 @@ int ib_sa_path_rec_get(struct ib_sa_client *client, struct ib_device *device,
 		       ib_sa_comp_mask comp_mask, unsigned long timeout_ms,
 		       gfp_t gfp_mask,
 		       void (*callback)(int status, struct sa_path_rec *resp,
-					int num_prs, void *context),
+					unsigned int num_prs, void *context),
 		       void *context, struct ib_sa_query **query);
 
 struct ib_sa_multicast {

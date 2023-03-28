@@ -93,6 +93,7 @@ union ieee_phy_param_set {
 #define TLV_TYPE_TSFTIMESTAMP	    (PROPRIETARY_TLV_BASE_ID + 19)
 #define TLV_TYPE_RSSI_HIGH          (PROPRIETARY_TLV_BASE_ID + 22)
 #define TLV_TYPE_SNR_HIGH           (PROPRIETARY_TLV_BASE_ID + 23)
+#define TLV_TYPE_WPS_ENROLLEE       (PROPRIETARY_TLV_BASE_ID + 27)
 #define TLV_TYPE_AUTH_TYPE          (PROPRIETARY_TLV_BASE_ID + 31)
 #define TLV_TYPE_MESH_ID            (PROPRIETARY_TLV_BASE_ID + 37)
 #define TLV_TYPE_OLD_MESH_ID        (PROPRIETARY_TLV_BASE_ID + 291)
@@ -105,23 +106,23 @@ struct mrvl_ie_header {
 
 struct mrvl_ie_data {
 	struct mrvl_ie_header header;
-	u8 Data[1];
+	u8 data[];
 } __packed;
 
 struct mrvl_ie_rates_param_set {
 	struct mrvl_ie_header header;
-	u8 rates[1];
+	u8 rates[];
 } __packed;
 
 struct mrvl_ie_ssid_param_set {
 	struct mrvl_ie_header header;
-	u8 ssid[1];
+	u8 ssid[];
 } __packed;
 
 struct mrvl_ie_wildcard_ssid_param_set {
 	struct mrvl_ie_header header;
-	u8 MaxSsidlength;
-	u8 ssid[1];
+	u8 maxssidlength;
+	u8 ssid[];
 } __packed;
 
 struct chanscanmode {
@@ -146,7 +147,7 @@ struct chanscanparamset {
 
 struct mrvl_ie_chanlist_param_set {
 	struct mrvl_ie_header header;
-	struct chanscanparamset chanscanparam[1];
+	struct chanscanparamset chanscanparam[];
 } __packed;
 
 struct mrvl_ie_cf_param_set {
@@ -164,12 +165,12 @@ struct mrvl_ie_ds_param_set {
 
 struct mrvl_ie_rsn_param_set {
 	struct mrvl_ie_header header;
-	u8 rsnie[1];
+	u8 rsnie[];
 } __packed;
 
 struct mrvl_ie_tsf_timestamp {
 	struct mrvl_ie_header header;
-	__le64 tsftable[1];
+	__le64 tsftable[];
 } __packed;
 
 /* v9 and later firmware only */
@@ -220,7 +221,7 @@ struct led_pin {
 
 struct mrvl_ie_ledgpio {
 	struct mrvl_ie_header header;
-	struct led_pin ledpin[1];
+	struct led_pin ledpin[];
 } __packed;
 
 struct led_bhv {
@@ -233,7 +234,7 @@ struct led_bhv {
 
 struct mrvl_ie_ledbhv {
 	struct mrvl_ie_header header;
-	struct led_bhv ledbhv[1];
+	struct led_bhv ledbhv[];
 } __packed;
 
 /*

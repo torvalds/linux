@@ -15,6 +15,7 @@
 #include <linux/time.h>
 #include <linux/random.h>
 #include <linux/delay.h>
+#include <linux/writeback.h>
 
 #include <cluster/masklog.h>
 
@@ -841,6 +842,19 @@ bail:
 	return status;
 }
 
+static int ocfs2_journal_submit_inode_data_buffers(struct jbd2_inode *jinode)
+{
+	struct address_space *mapping = jinode->i_vfs_inode->i_mapping;
+	struct writeback_control wbc = {
+		.sync_mode =  WB_SYNC_ALL,
+		.nr_to_write = mapping->nrpages * 2,
+		.range_start = jinode->i_dirty_start,
+		.range_end = jinode->i_dirty_end,
+	};
+
+	return filemap_fdatawrite_wbc(mapping, &wbc);
+}
+
 int ocfs2_journal_init(struct ocfs2_super *osb, int *dirty)
 {
 	int status = -1;
@@ -910,7 +924,7 @@ int ocfs2_journal_init(struct ocfs2_super *osb, int *dirty)
 
 	journal->j_journal = j_journal;
 	journal->j_journal->j_submit_inode_data_buffers =
-		jbd2_journal_submit_inode_data_buffers;
+		ocfs2_journal_submit_inode_data_buffers;
 	journal->j_journal->j_finish_inode_data_buffers =
 		jbd2_journal_finish_inode_data_buffers;
 	journal->j_inode = inode;

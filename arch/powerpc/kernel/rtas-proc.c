@@ -287,9 +287,9 @@ static ssize_t ppc_rtas_poweron_write(struct file *file,
 
 	rtc_time64_to_tm(nowtime, &tm);
 
-	error = rtas_call(rtas_token("set-time-for-power-on"), 7, 1, NULL, 
-			tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
-			tm.tm_hour, tm.tm_min, tm.tm_sec, 0 /* nano */);
+	error = rtas_call(rtas_function_token(RTAS_FN_SET_TIME_FOR_POWER_ON), 7, 1, NULL,
+			  tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+			  tm.tm_hour, tm.tm_min, tm.tm_sec, 0 /* nano */);
 	if (error)
 		printk(KERN_WARNING "error: setting poweron time returned: %s\n", 
 				ppc_rtas_process_error(error));
@@ -350,9 +350,9 @@ static ssize_t ppc_rtas_clock_write(struct file *file,
 		return error;
 
 	rtc_time64_to_tm(nowtime, &tm);
-	error = rtas_call(rtas_token("set-time-of-day"), 7, 1, NULL, 
-			tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
-			tm.tm_hour, tm.tm_min, tm.tm_sec, 0);
+	error = rtas_call(rtas_function_token(RTAS_FN_SET_TIME_OF_DAY), 7, 1, NULL,
+			  tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+			  tm.tm_hour, tm.tm_min, tm.tm_sec, 0);
 	if (error)
 		printk(KERN_WARNING "error: setting the clock returned: %s\n", 
 				ppc_rtas_process_error(error));
@@ -362,7 +362,7 @@ static ssize_t ppc_rtas_clock_write(struct file *file,
 static int ppc_rtas_clock_show(struct seq_file *m, void *v)
 {
 	int ret[8];
-	int error = rtas_call(rtas_token("get-time-of-day"), 0, 8, ret);
+	int error = rtas_call(rtas_function_token(RTAS_FN_GET_TIME_OF_DAY), 0, 8, ret);
 
 	if (error) {
 		printk(KERN_WARNING "error: reading the clock returned: %s\n", 
@@ -385,7 +385,7 @@ static int ppc_rtas_sensors_show(struct seq_file *m, void *v)
 {
 	int i,j;
 	int state, error;
-	int get_sensor_state = rtas_token("get-sensor-state");
+	int get_sensor_state = rtas_function_token(RTAS_FN_GET_SENSOR_STATE);
 
 	seq_printf(m, "RTAS (RunTime Abstraction Services) Sensor Information\n");
 	seq_printf(m, "Sensor\t\tValue\t\tCondition\tLocation\n");
@@ -708,8 +708,8 @@ static ssize_t ppc_rtas_tone_freq_write(struct file *file,
 		return error;
 
 	rtas_tone_frequency = freq; /* save it for later */
-	error = rtas_call(rtas_token("set-indicator"), 3, 1, NULL,
-			TONE_FREQUENCY, 0, freq);
+	error = rtas_call(rtas_function_token(RTAS_FN_SET_INDICATOR), 3, 1, NULL,
+			  TONE_FREQUENCY, 0, freq);
 	if (error)
 		printk(KERN_WARNING "error: setting tone frequency returned: %s\n", 
 				ppc_rtas_process_error(error));
@@ -736,8 +736,8 @@ static ssize_t ppc_rtas_tone_volume_write(struct file *file,
 		volume = 100;
 	
         rtas_tone_volume = volume; /* save it for later */
-	error = rtas_call(rtas_token("set-indicator"), 3, 1, NULL,
-			TONE_VOLUME, 0, volume);
+	error = rtas_call(rtas_function_token(RTAS_FN_SET_INDICATOR), 3, 1, NULL,
+			  TONE_VOLUME, 0, volume);
 	if (error)
 		printk(KERN_WARNING "error: setting tone volume returned: %s\n", 
 				ppc_rtas_process_error(error));

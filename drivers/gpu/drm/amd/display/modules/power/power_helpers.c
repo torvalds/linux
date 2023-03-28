@@ -678,13 +678,8 @@ bool dmub_init_abm_config(struct resource_pool *res_pool,
 	bool result = false;
 	uint32_t i, j = 0;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	if (res_pool->abm == NULL && res_pool->multiple_abms[inst] == NULL)
 		return false;
-#else
-	if (res_pool->abm == NULL)
-		return false;
-#endif
 
 	memset(&ram_table, 0, sizeof(ram_table));
 	memset(&config, 0, sizeof(config));
@@ -737,12 +732,10 @@ bool dmub_init_abm_config(struct resource_pool *res_pool,
 
 	config.min_abm_backlight = ram_table.min_abm_backlight;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	if (res_pool->multiple_abms[inst]) {
 		result = res_pool->multiple_abms[inst]->funcs->init_abm_config(
 			res_pool->multiple_abms[inst], (char *)(&config), sizeof(struct abm_config_table), inst);
 	} else
-#endif
 		result = res_pool->abm->funcs->init_abm_config(
 			res_pool->abm, (char *)(&config), sizeof(struct abm_config_table), 0);
 
@@ -917,13 +910,14 @@ bool mod_power_only_edp(const struct dc_state *context, const struct dc_stream_s
 	return context && context->stream_count == 1 && dc_is_embedded_signal(stream->signal);
 }
 
-bool psr_su_set_y_granularity(struct dc *dc, struct dc_link *link,
+bool psr_su_set_dsc_slice_height(struct dc *dc, struct dc_link *link,
 			      struct dc_stream_state *stream,
 			      struct psr_config *config)
 {
 	uint16_t pic_height;
-	uint8_t slice_height;
+	uint16_t slice_height;
 
+	config->dsc_slice_height = 0;
 	if ((link->connector_signal & SIGNAL_TYPE_EDP) &&
 	    (!dc->caps.edp_dsc_support ||
 	    link->panel_config.dsc.disable_dsc_edp ||
@@ -934,6 +928,7 @@ bool psr_su_set_y_granularity(struct dc *dc, struct dc_link *link,
 	pic_height = stream->timing.v_addressable +
 		stream->timing.v_border_top + stream->timing.v_border_bottom;
 	slice_height = pic_height / stream->timing.dsc_cfg.num_slices_v;
+	config->dsc_slice_height = slice_height;
 
 	if (slice_height) {
 		if (config->su_y_granularity &&
@@ -941,8 +936,6 @@ bool psr_su_set_y_granularity(struct dc *dc, struct dc_link *link,
 			ASSERT(0);
 			return false;
 		}
-
-		config->su_y_granularity = slice_height;
 	}
 
 	return true;

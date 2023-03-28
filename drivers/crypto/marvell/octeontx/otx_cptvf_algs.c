@@ -138,7 +138,7 @@ static void otx_cpt_aead_callback(int status, void *arg1, void *arg2)
 
 complete:
 	if (areq)
-		areq->complete(areq, status);
+		crypto_request_complete(areq, status);
 }
 
 static void output_iv_copyback(struct crypto_async_request *areq)
@@ -188,7 +188,7 @@ static void otx_cpt_skcipher_callback(int status, void *arg1, void *arg2)
 			pdev = cpt_info->pdev;
 			do_request_cleanup(pdev, cpt_info);
 		}
-		areq->complete(areq, status);
+		crypto_request_complete(areq, status);
 	}
 }
 
@@ -398,7 +398,7 @@ static int otx_cpt_skcipher_xts_setkey(struct crypto_skcipher *tfm,
 	const u8 *key1 = key;
 	int ret;
 
-	ret = xts_check_key(crypto_skcipher_tfm(tfm), key, keylen);
+	ret = xts_verify_key(tfm, key, keylen);
 	if (ret)
 		return ret;
 	ctx->key_len = keylen;

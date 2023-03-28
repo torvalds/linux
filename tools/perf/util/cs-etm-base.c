@@ -36,7 +36,22 @@ static const char * const cs_etmv4_priv_fmts[] = {
 	[CS_ETMV4_TRCIDR2]	= "	TRCIDR2			       %llx\n",
 	[CS_ETMV4_TRCIDR8]	= "	TRCIDR8			       %llx\n",
 	[CS_ETMV4_TRCAUTHSTATUS] = "	TRCAUTHSTATUS		       %llx\n",
-	[CS_ETE_TRCDEVARCH]	= "	TRCDEVARCH                     %llx\n"
+	[CS_ETMV4_TS_SOURCE]	= "	TS_SOURCE		       %lld\n",
+};
+
+static const char * const cs_ete_priv_fmts[] = {
+	[CS_ETM_MAGIC]		= "	Magic number		       %llx\n",
+	[CS_ETM_CPU]		= "	CPU			       %lld\n",
+	[CS_ETM_NR_TRC_PARAMS]	= "	NR_TRC_PARAMS		       %llx\n",
+	[CS_ETE_TRCCONFIGR]	= "	TRCCONFIGR		       %llx\n",
+	[CS_ETE_TRCTRACEIDR]	= "	TRCTRACEIDR		       %llx\n",
+	[CS_ETE_TRCIDR0]	= "	TRCIDR0			       %llx\n",
+	[CS_ETE_TRCIDR1]	= "	TRCIDR1			       %llx\n",
+	[CS_ETE_TRCIDR2]	= "	TRCIDR2			       %llx\n",
+	[CS_ETE_TRCIDR8]	= "	TRCIDR8			       %llx\n",
+	[CS_ETE_TRCAUTHSTATUS]	= "	TRCAUTHSTATUS		       %llx\n",
+	[CS_ETE_TRCDEVARCH]	= "	TRCDEVARCH                     %llx\n",
+	[CS_ETE_TS_SOURCE]	= "	TS_SOURCE                      %lld\n",
 };
 
 static const char * const param_unk_fmt =
@@ -96,18 +111,21 @@ static int cs_etm__print_cpu_metadata_v1(u64 *val, int *offset)
 			else
 				fprintf(stdout, cs_etm_priv_fmts[j], val[i]);
 		}
-	} else if (magic == __perf_cs_etmv4_magic || magic == __perf_cs_ete_magic) {
-		/*
-		 * ETE and ETMv4 can be printed in the same block because the number of parameters
-		 * is saved and they share the list of parameter names. ETE is also only supported
-		 * in V1 files.
-		 */
+	} else if (magic == __perf_cs_etmv4_magic) {
+		for (j = 0; j < total_params; j++, i++) {
+			/* if newer record - could be excess params */
+			if (j >= CS_ETMV4_PRIV_MAX)
+				fprintf(stdout, param_unk_fmt, j, val[i]);
+			else
+				fprintf(stdout, cs_etmv4_priv_fmts[j], val[i]);
+		}
+	} else if (magic == __perf_cs_ete_magic) {
 		for (j = 0; j < total_params; j++, i++) {
 			/* if newer record - could be excess params */
 			if (j >= CS_ETE_PRIV_MAX)
 				fprintf(stdout, param_unk_fmt, j, val[i]);
 			else
-				fprintf(stdout, cs_etmv4_priv_fmts[j], val[i]);
+				fprintf(stdout, cs_ete_priv_fmts[j], val[i]);
 		}
 	} else {
 		/* failure - note bad magic value and error out */

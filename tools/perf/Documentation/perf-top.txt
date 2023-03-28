@@ -334,7 +334,7 @@ use '-e e1 -e e2 -G foo,foo' or just use '-e e1 -e e2 -G foo'.
 	callgraph. The option must be used with --call-graph lbr recording.
 	Disabled by default. In common cases with call stack overflows,
 	it can recreate better call stacks than the default lbr call stack
-	output. But this approach is not full proof. There can be cases
+	output. But this approach is not foolproof. There can be cases
 	where it creates incorrect call stacks from incorrect matches.
 	The known limitations include exception handing such as
 	setjmp/longjmp will have calls/returns not match.

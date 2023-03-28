@@ -639,6 +639,7 @@ extern int  fb_deferred_io_init(struct fb_info *info);
 extern void fb_deferred_io_open(struct fb_info *info,
 				struct inode *inode,
 				struct file *file);
+extern void fb_deferred_io_release(struct fb_info *info);
 extern void fb_deferred_io_cleanup(struct fb_info *info);
 extern int fb_deferred_io_fsync(struct file *file, loff_t start,
 				loff_t end, int datasync);
@@ -764,7 +765,6 @@ struct dmt_videomode {
 	const struct fb_videomode *mode;
 };
 
-extern const char *fb_mode_option;
 extern const struct fb_videomode vesa_modes[];
 extern const struct dmt_videomode dmt_modes[];
 

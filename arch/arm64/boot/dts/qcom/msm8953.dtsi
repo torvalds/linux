@@ -42,13 +42,6 @@
 			capacity-dmips-mhz = <1024>;
 			next-level-cache = <&L2_0>;
 			#cooling-cells = <2>;
-
-			l1-icache {
-				compatible = "cache";
-			};
-			l1-dcache {
-				compatible = "cache";
-			};
 		};
 
 		CPU1: cpu@1 {
@@ -59,13 +52,6 @@
 			capacity-dmips-mhz = <1024>;
 			next-level-cache = <&L2_0>;
 			#cooling-cells = <2>;
-
-			l1-icache {
-				compatible = "cache";
-			};
-			l1-dcache {
-				compatible = "cache";
-			};
 		};
 
 		CPU2: cpu@2 {
@@ -76,13 +62,6 @@
 			capacity-dmips-mhz = <1024>;
 			next-level-cache = <&L2_0>;
 			#cooling-cells = <2>;
-
-			l1-icache {
-				compatible = "cache";
-			};
-			l1-dcache {
-				compatible = "cache";
-			};
 		};
 
 		CPU3: cpu@3 {
@@ -93,13 +72,6 @@
 			capacity-dmips-mhz = <1024>;
 			next-level-cache = <&L2_0>;
 			#cooling-cells = <2>;
-
-			l1-icache {
-				compatible = "cache";
-			};
-			l1-dcache {
-				compatible = "cache";
-			};
 		};
 
 		CPU4: cpu@100 {
@@ -110,13 +82,6 @@
 			capacity-dmips-mhz = <1024>;
 			next-level-cache = <&L2_1>;
 			#cooling-cells = <2>;
-
-			l1-icache {
-				compatible = "cache";
-			};
-			l1-dcache {
-				compatible = "cache";
-			};
 		};
 
 		CPU5: cpu@101 {
@@ -127,13 +92,6 @@
 			capacity-dmips-mhz = <1024>;
 			next-level-cache = <&L2_1>;
 			#cooling-cells = <2>;
-
-			l1-icache {
-				compatible = "cache";
-			};
-			l1-dcache {
-				compatible = "cache";
-			};
 		};
 
 		CPU6: cpu@102 {
@@ -144,13 +102,6 @@
 			capacity-dmips-mhz = <1024>;
 			next-level-cache = <&L2_1>;
 			#cooling-cells = <2>;
-
-			l1-icache {
-				compatible = "cache";
-			};
-			l1-dcache {
-				compatible = "cache";
-			};
 		};
 
 		CPU7: cpu@103 {
@@ -161,13 +112,6 @@
 			capacity-dmips-mhz = <1024>;
 			next-level-cache = <&L2_1>;
 			#cooling-cells = <2>;
-
-			l1-icache {
-				compatible = "cache";
-			};
-			l1-dcache {
-				compatible = "cache";
-			};
 		};
 
 		cpu-map {
@@ -202,12 +146,12 @@
 			};
 		};
 
-		L2_0: l2-cache_0 {
+		L2_0: l2-cache-0 {
 			compatible = "cache";
 			cache-level = <2>;
 		};
 
-		L2_1: l2-cache_1 {
+		L2_1: l2-cache-1 {
 			compatible = "cache";
 			cache-level = <2>;
 		};
@@ -245,18 +189,18 @@
 		#size-cells = <2>;
 		ranges;
 
-		zap_shader_region: memory@81800000 {
+		zap_shader_region: zap@81800000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0x81800000 0x0 0x2000>;
 			no-map;
 		};
 
-		memory@85b00000 {
+		qseecom_mem: qseecom@85b00000 {
 			reg = <0x0 0x85b00000 0x0 0x800000>;
 			no-map;
 		};
 
-		smem_mem: memory@86300000 {
+		smem_mem: smem@86300000 {
 			compatible = "qcom,smem";
 			reg = <0x0 0x86300000 0x0 0x100000>;
 			qcom,rpm-msg-ram = <&rpm_msg_ram>;
@@ -264,47 +208,47 @@
 			no-map;
 		};
 
-		memory@86400000 {
+		reserved@86400000 {
 			reg = <0x0 0x86400000 0x0 0x400000>;
 			no-map;
 		};
 
-		mpss_mem: memory@86c00000 {
+		mpss_mem: mpss@86c00000 {
 			reg = <0x0 0x86c00000 0x0 0x6a00000>;
 			no-map;
 		};
 
-		adsp_fw_mem: memory@8d600000 {
+		adsp_fw_mem: adsp@8d600000 {
 			reg = <0x0 0x8d600000 0x0 0x1100000>;
 			no-map;
 		};
 
-		wcnss_fw_mem: memory@8e700000 {
+		wcnss_fw_mem: wcnss@8e700000 {
 			reg = <0x0 0x8e700000 0x0 0x700000>;
 			no-map;
 		};
 
-		memory@90000000 {
+		dfps_data_mem: dfps-data@90000000 {
 			reg = <0 0x90000000 0 0x1000>;
 			no-map;
 		};
 
-		memory@90001000 {
+		cont_splash_mem: cont-splash@90001000 {
 			reg = <0x0 0x90001000 0x0 0x13ff000>;
 			no-map;
 		};
 
-		venus_mem: memory@91400000 {
+		venus_mem: venus@91400000 {
 			reg = <0x0 0x91400000 0x0 0x700000>;
 			no-map;
 		};
 
-		mba_mem: memory@92000000 {
+		mba_mem: mba@92000000 {
 			reg = <0x0 0x92000000 0x0 0x100000>;
 			no-map;
 		};
 
-		memory@f2d00000 {
+		rmtfs@f2d00000 {
 			compatible = "qcom,rmtfs-mem";
 			reg = <0x0 0xf2d00000 0x0 0x180000>;
 			no-map;
@@ -455,7 +399,7 @@
 			reg = <0x1000000 0x300000>;
 			interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-controller;
-			gpio-ranges = <&tlmm 0 0 155>;
+			gpio-ranges = <&tlmm 0 0 142>;
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
@@ -726,7 +670,7 @@
 			reg = <0x193f044 0x4>;
 		};
 
-		mdss: mdss@1a00000 {
+		mdss: display-subsystem@1a00000 {
 			compatible = "qcom,mdss";
 
 			reg = <0x1a00000 0x1000>,
@@ -755,7 +699,7 @@
 
 			status = "disabled";
 
-			mdp: mdp@1a01000 {
+			mdp: display-controller@1a01000 {
 				compatible = "qcom,msm8953-mdp5", "qcom,mdp5";
 				reg = <0x1a01000 0x89000>;
 				reg-names = "mdp_phys";
@@ -797,7 +741,7 @@
 			};
 
 			dsi0: dsi@1a94000 {
-				compatible = "qcom,mdss-dsi-ctrl";
+				compatible = "qcom,msm8953-dsi-ctrl", "qcom,mdss-dsi-ctrl";
 				reg = <0x1a94000 0x400>;
 				reg-names = "dsi_ctrl";
 
@@ -867,7 +811,7 @@
 			};
 
 			dsi1: dsi@1a96000 {
-				compatible = "qcom,mdss-dsi-ctrl";
+				compatible = "qcom,msm8953-dsi-ctrl", "qcom,mdss-dsi-ctrl";
 				reg = <0x1a96000 0x400>;
 				reg-names = "dsi_ctrl";
 

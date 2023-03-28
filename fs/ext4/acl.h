@@ -56,7 +56,7 @@ static inline int ext4_acl_count(size_t size)
 
 /* acl.c */
 struct posix_acl *ext4_get_acl(struct inode *inode, int type, bool rcu);
-int ext4_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
+int ext4_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		 struct posix_acl *acl, int type);
 extern int ext4_init_acl(handle_t *, struct inode *, struct inode *);
 

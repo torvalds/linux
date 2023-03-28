@@ -125,13 +125,7 @@ struct intel_v4l2_subdev_id {
 	enum atomisp_camera_port    port;
 };
 
-struct intel_v4l2_subdev_i2c_board_info {
-	struct i2c_board_info board_info;
-	int i2c_adapter_id;
-};
-
 struct intel_v4l2_subdev_table {
-	struct intel_v4l2_subdev_i2c_board_info v4l2_subdev;
 	enum intel_v4l2_subdev_type type;
 	enum atomisp_camera_port port;
 	struct v4l2_subdev *subdev;
@@ -210,7 +204,6 @@ struct camera_mipi_info {
 	unsigned int                    num_lanes;
 	enum atomisp_input_format       input_format;
 	enum atomisp_bayer_order        raw_bayer_order;
-	struct atomisp_sensor_mode_data data;
 	enum atomisp_input_format       metadata_format;
 	u32                             metadata_width;
 	u32                             metadata_height;
@@ -218,6 +211,10 @@ struct camera_mipi_info {
 };
 
 const struct atomisp_platform_data *atomisp_get_platform_data(void);
+int atomisp_register_sensor_no_gmin(struct v4l2_subdev *subdev, u32 lanes,
+				    enum atomisp_input_format format,
+				    enum atomisp_bayer_order bayer_order);
+void atomisp_unregister_subdev(struct v4l2_subdev *subdev);
 
 /* API from old platform_camera.h, new CPUID implementation */
 #define __IS_SOC(x) (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL && \

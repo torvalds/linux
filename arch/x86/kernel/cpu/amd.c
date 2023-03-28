@@ -880,6 +880,15 @@ void init_spectral_chicken(struct cpuinfo_x86 *c)
 		}
 	}
 #endif
+	/*
+	 * Work around Erratum 1386.  The XSAVES instruction malfunctions in
+	 * certain circumstances on Zen1/2 uarch, and not all parts have had
+	 * updated microcode at the time of writing (March 2023).
+	 *
+	 * Affected parts all have no supervisor XSAVE states, meaning that
+	 * the XSAVEC instruction (which works fine) is equivalent.
+	 */
+	clear_cpu_cap(c, X86_FEATURE_XSAVES);
 }
 
 static void init_amd_zn(struct cpuinfo_x86 *c)
@@ -956,7 +965,7 @@ static void init_amd(struct cpuinfo_x86 *c)
 
 	init_amd_cacheinfo(c);
 
-	if (cpu_has(c, X86_FEATURE_XMM2)) {
+	if (!cpu_has(c, X86_FEATURE_LFENCE_RDTSC) && cpu_has(c, X86_FEATURE_XMM2)) {
 		/*
 		 * Use LFENCE for execution serialization.  On families which
 		 * don't have that MSR, LFENCE is already serializing.
@@ -1158,24 +1167,43 @@ static bool cpu_has_amd_erratum(struct cpuinfo_x86 *cpu, const int *erratum)
 	return false;
 }
 
-void set_dr_addr_mask(unsigned long mask, int dr)
+static DEFINE_PER_CPU_READ_MOSTLY(unsigned long[4], amd_dr_addr_mask);
+
+static unsigned int amd_msr_dr_addr_masks[] = {
+	MSR_F16H_DR0_ADDR_MASK,
+	MSR_F16H_DR1_ADDR_MASK,
+	MSR_F16H_DR1_ADDR_MASK + 1,
+	MSR_F16H_DR1_ADDR_MASK + 2
+};
+
+void amd_set_dr_addr_mask(unsigned long mask, unsigned int dr)
 {
-	if (!boot_cpu_has(X86_FEATURE_BPEXT))
+	int cpu = smp_processor_id();
+
+	if (!cpu_feature_enabled(X86_FEATURE_BPEXT))
 		return;
 
-	switch (dr) {
-	case 0:
-		wrmsr(MSR_F16H_DR0_ADDR_MASK, mask, 0);
-		break;
-	case 1:
-	case 2:
-	case 3:
-		wrmsr(MSR_F16H_DR1_ADDR_MASK - 1 + dr, mask, 0);
-		break;
-	default:
-		break;
-	}
+	if (WARN_ON_ONCE(dr >= ARRAY_SIZE(amd_msr_dr_addr_masks)))
+		return;
+
+	if (per_cpu(amd_dr_addr_mask, cpu)[dr] == mask)
+		return;
+
+	wrmsr(amd_msr_dr_addr_masks[dr], mask, 0);
+	per_cpu(amd_dr_addr_mask, cpu)[dr] = mask;
 }
+
+unsigned long amd_get_dr_addr_mask(unsigned int dr)
+{
+	if (!cpu_feature_enabled(X86_FEATURE_BPEXT))
+		return 0;
+
+	if (WARN_ON_ONCE(dr >= ARRAY_SIZE(amd_msr_dr_addr_masks)))
+		return 0;
+
+	return per_cpu(amd_dr_addr_mask[dr], smp_processor_id());
+}
+EXPORT_SYMBOL_GPL(amd_get_dr_addr_mask);
 
 u32 amd_get_highest_perf(void)
 {

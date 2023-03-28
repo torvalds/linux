@@ -195,8 +195,8 @@ static void check_bpf_link_info(const struct bpf_program *prog)
 		return;
 
 	info_len = sizeof(info);
-	err = bpf_obj_get_info_by_fd(bpf_link__fd(link), &info, &info_len);
-	ASSERT_OK(err, "bpf_obj_get_info_by_fd");
+	err = bpf_link_get_info_by_fd(bpf_link__fd(link), &info, &info_len);
+	ASSERT_OK(err, "bpf_link_get_info_by_fd");
 	ASSERT_EQ(info.iter.task.tid, getpid(), "check_task_tid");
 
 	bpf_link__destroy(link);
@@ -684,13 +684,13 @@ static void test_overflow(bool test_e2big_overflow, bool ret1)
 
 	/* setup filtering map_id in bpf program */
 	map_info_len = sizeof(map_info);
-	err = bpf_obj_get_info_by_fd(map1_fd, &map_info, &map_info_len);
+	err = bpf_map_get_info_by_fd(map1_fd, &map_info, &map_info_len);
 	if (CHECK(err, "get_map_info", "get map info failed: %s\n",
 		  strerror(errno)))
 		goto free_map2;
 	skel->bss->map1_id = map_info.id;
 
-	err = bpf_obj_get_info_by_fd(map2_fd, &map_info, &map_info_len);
+	err = bpf_map_get_info_by_fd(map2_fd, &map_info, &map_info_len);
 	if (CHECK(err, "get_map_info", "get map info failed: %s\n",
 		  strerror(errno)))
 		goto free_map2;
@@ -1465,6 +1465,77 @@ out:
 	bpf_iter_task_vma__destroy(skel);
 }
 
+static void test_task_vma_dead_task(void)
+{
+	struct bpf_iter_task_vma *skel;
+	int wstatus, child_pid = -1;
+	time_t start_tm, cur_tm;
+	int err, iter_fd = -1;
+	int wait_sec = 3;
+
+	skel = bpf_iter_task_vma__open();
+	if (!ASSERT_OK_PTR(skel, "bpf_iter_task_vma__open"))
+		return;
+
+	skel->bss->pid = getpid();
+
+	err = bpf_iter_task_vma__load(skel);
+	if (!ASSERT_OK(err, "bpf_iter_task_vma__load"))
+		goto out;
+
+	skel->links.proc_maps = bpf_program__attach_iter(
+		skel->progs.proc_maps, NULL);
+
+	if (!ASSERT_OK_PTR(skel->links.proc_maps, "bpf_program__attach_iter")) {
+		skel->links.proc_maps = NULL;
+		goto out;
+	}
+
+	start_tm = time(NULL);
+	cur_tm = start_tm;
+
+	child_pid = fork();
+	if (child_pid == 0) {
+		/* Fork short-lived processes in the background. */
+		while (cur_tm < start_tm + wait_sec) {
+			system("echo > /dev/null");
+			cur_tm = time(NULL);
+		}
+		exit(0);
+	}
+
+	if (!ASSERT_GE(child_pid, 0, "fork_child"))
+		goto out;
+
+	while (cur_tm < start_tm + wait_sec) {
+		iter_fd = bpf_iter_create(bpf_link__fd(skel->links.proc_maps));
+		if (!ASSERT_GE(iter_fd, 0, "create_iter"))
+			goto out;
+
+		/* Drain all data from iter_fd. */
+		while (cur_tm < start_tm + wait_sec) {
+			err = read_fd_into_buffer(iter_fd, task_vma_output, CMP_BUFFER_SIZE);
+			if (!ASSERT_GE(err, 0, "read_iter_fd"))
+				goto out;
+
+			cur_tm = time(NULL);
+
+			if (err == 0)
+				break;
+		}
+
+		close(iter_fd);
+		iter_fd = -1;
+	}
+
+	check_bpf_link_info(skel->progs.proc_maps);
+
+out:
+	waitpid(child_pid, &wstatus, 0);
+	close(iter_fd);
+	bpf_iter_task_vma__destroy(skel);
+}
+
 void test_bpf_sockmap_map_iter_fd(void)
 {
 	struct bpf_iter_sockmap *skel;
@@ -1586,6 +1657,8 @@ void test_bpf_iter(void)
 		test_task_file();
 	if (test__start_subtest("task_vma"))
 		test_task_vma();
+	if (test__start_subtest("task_vma_dead_task"))
+		test_task_vma_dead_task();
 	if (test__start_subtest("task_btf"))
 		test_task_btf();
 	if (test__start_subtest("tcp4"))

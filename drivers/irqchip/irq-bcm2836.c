@@ -268,10 +268,7 @@ static void __init bcm2836_arm_irqchip_smp_init(void)
 	ipi_domain->flags |= IRQ_DOMAIN_FLAG_IPI_SINGLE;
 	irq_domain_update_bus_token(ipi_domain, DOMAIN_BUS_IPI);
 
-	base_ipi = __irq_domain_alloc_irqs(ipi_domain, -1, BITS_PER_MBOX,
-					   NUMA_NO_NODE, NULL,
-					   false, NULL);
-
+	base_ipi = irq_domain_alloc_irqs(ipi_domain, BITS_PER_MBOX, NUMA_NO_NODE, NULL);
 	if (WARN_ON(!base_ipi))
 		return;
 

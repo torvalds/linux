@@ -120,7 +120,6 @@
 };
 
 &cpu0_thermal {
-	thermal-sensors = <&tmu_cpu0 0>;
 	polling-delay-passive = <0>;
 	polling-delay = <0>;
 
@@ -164,8 +163,7 @@
 };
 
 &hsi2c_4 {
-	samsung,i2c-sda-delay = <100>;
-	samsung,i2c-max-bus-freq = <400000>;
+	clock-frequency = <400000>;
 	status = "okay";
 
 	usb3503: usb-hub@8 {

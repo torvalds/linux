@@ -75,6 +75,10 @@ int mlx5_ec_init(struct mlx5_core_dev *dev)
 	if (!mlx5_core_is_ecpf(dev))
 		return 0;
 
+	/* Management PF don't have a peer PF */
+	if (mlx5_core_is_management_pf(dev))
+		return 0;
+
 	return mlx5_host_pf_init(dev);
 }
 
@@ -85,9 +89,17 @@ void mlx5_ec_cleanup(struct mlx5_core_dev *dev)
 	if (!mlx5_core_is_ecpf(dev))
 		return;
 
+	/* Management PF don't have a peer PF */
+	if (mlx5_core_is_management_pf(dev))
+		return;
+
 	mlx5_host_pf_cleanup(dev);
 
-	err = mlx5_wait_for_pages(dev, &dev->priv.host_pf_pages);
+	err = mlx5_wait_for_pages(dev, &dev->priv.page_counters[MLX5_HOST_PF]);
 	if (err)
 		mlx5_core_warn(dev, "Timeout reclaiming external host PF pages err(%d)\n", err);
+
+	err = mlx5_wait_for_pages(dev, &dev->priv.page_counters[MLX5_VF]);
+	if (err)
+		mlx5_core_warn(dev, "Timeout reclaiming external host VFs pages err(%d)\n", err);
 }

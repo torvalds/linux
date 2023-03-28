@@ -292,22 +292,12 @@ static void wake_tx_push_queue(struct ieee80211_local *local,
 			       struct ieee80211_sub_if_data *sdata,
 			       struct ieee80211_txq *queue)
 {
-	int q = sdata->vif.hw_queue[queue->ac];
 	struct ieee80211_tx_control control = {
 		.sta = queue->sta,
 	};
 	struct sk_buff *skb;
-	unsigned long flags;
-	bool q_stopped;
 
 	while (1) {
-		spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
-		q_stopped = local->queue_stop_reasons[q];
-		spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
-
-		if (q_stopped)
-			break;
-
 		skb = ieee80211_tx_dequeue(&local->hw, queue);
 		if (!skb)
 			break;
@@ -347,8 +337,6 @@ static void __ieee80211_wake_txqs(struct ieee80211_sub_if_data *sdata, int ac)
 	local_bh_disable();
 	spin_lock(&fq->lock);
 
-	sdata->vif.txqs_stopped[ac] = false;
-
 	if (!test_bit(SDATA_STATE_RUNNING, &sdata->state))
 		goto out;
 
@@ -370,7 +358,7 @@ static void __ieee80211_wake_txqs(struct ieee80211_sub_if_data *sdata, int ac)
 			if (ac != txq->ac)
 				continue;
 
-			if (!test_and_clear_bit(IEEE80211_TXQ_STOP_NETIF_TX,
+			if (!test_and_clear_bit(IEEE80211_TXQ_DIRTY,
 						&txqi->flags))
 				continue;
 
@@ -385,7 +373,7 @@ static void __ieee80211_wake_txqs(struct ieee80211_sub_if_data *sdata, int ac)
 
 	txqi = to_txq_info(vif->txq);
 
-	if (!test_and_clear_bit(IEEE80211_TXQ_STOP_NETIF_TX, &txqi->flags) ||
+	if (!test_and_clear_bit(IEEE80211_TXQ_DIRTY, &txqi->flags) ||
 	    (ps && atomic_read(&ps->num_sta_ps)) || ac != vif->txq->ac)
 		goto out;
 
@@ -517,8 +505,6 @@ static void __ieee80211_stop_queue(struct ieee80211_hw *hw, int queue,
 				   bool refcounted)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
-	struct ieee80211_sub_if_data *sdata;
-	int n_acs = IEEE80211_NUM_ACS;
 
 	trace_stop_queue(local, queue, reason);
 
@@ -530,29 +516,7 @@ static void __ieee80211_stop_queue(struct ieee80211_hw *hw, int queue,
 	else
 		local->q_stop_reasons[queue][reason]++;
 
-	if (__test_and_set_bit(reason, &local->queue_stop_reasons[queue]))
-		return;
-
-	if (local->hw.queues < IEEE80211_NUM_ACS)
-		n_acs = 1;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-		int ac;
-
-		if (!sdata->dev)
-			continue;
-
-		for (ac = 0; ac < n_acs; ac++) {
-			if (sdata->vif.hw_queue[ac] == queue ||
-			    sdata->vif.cab_queue == queue) {
-				spin_lock(&local->fq.lock);
-				sdata->vif.txqs_stopped[ac] = true;
-				spin_unlock(&local->fq.lock);
-			}
-		}
-	}
-	rcu_read_unlock();
+	set_bit(reason, &local->queue_stop_reasons[queue]);
 }
 
 void ieee80211_stop_queue_by_reason(struct ieee80211_hw *hw, int queue,
@@ -867,19 +831,6 @@ static void __iterate_stations(struct ieee80211_local *local,
 		iterator(data, &sta->sta);
 	}
 }
-
-void ieee80211_iterate_stations(struct ieee80211_hw *hw,
-				void (*iterator)(void *data,
-						 struct ieee80211_sta *sta),
-				void *data)
-{
-	struct ieee80211_local *local = hw_to_local(hw);
-
-	mutex_lock(&local->sta_mtx);
-	__iterate_stations(local, iterator, data);
-	mutex_unlock(&local->sta_mtx);
-}
-EXPORT_SYMBOL_GPL(ieee80211_iterate_stations);
 
 void ieee80211_iterate_stations_atomic(struct ieee80211_hw *hw,
 			void (*iterator)(void *data,
@@ -4069,6 +4020,19 @@ u64 ieee80211_calculate_rx_timestamp(struct ieee80211_local *local,
 
 	/* Fill cfg80211 rate info */
 	switch (status->encoding) {
+	case RX_ENC_EHT:
+		ri.flags |= RATE_INFO_FLAGS_EHT_MCS;
+		ri.mcs = status->rate_idx;
+		ri.nss = status->nss;
+		ri.eht_ru_alloc = status->eht.ru;
+		if (status->enc_flags & RX_ENC_FLAG_SHORT_GI)
+			ri.flags |= RATE_INFO_FLAGS_SHORT_GI;
+		/* TODO/FIXME: is this right? handle other PPDUs */
+		if (status->flag & RX_FLAG_MACTIME_PLCP_START) {
+			mpdu_offset += 2;
+			ts += 36;
+		}
+		break;
 	case RX_ENC_HE:
 		ri.flags |= RATE_INFO_FLAGS_HE_MCS;
 		ri.mcs = status->rate_idx;

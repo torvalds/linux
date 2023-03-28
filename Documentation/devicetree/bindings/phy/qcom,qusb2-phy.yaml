@@ -82,81 +82,74 @@ properties:
       Phandle to TCSR syscon register region.
     $ref: /schemas/types.yaml#/definitions/phandle
 
-if:
-  properties:
-    compatible:
-      contains:
-        const: qcom,qusb2-v2-phy
-then:
-  properties:
-    qcom,imp-res-offset-value:
-      description:
-        It is a 6 bit value that specifies offset to be
-        added to PHY refgen RESCODE via IMP_CTRL1 register. It is a PHY
-        tuning parameter that may vary for different boards of same SOC.
-      $ref: /schemas/types.yaml#/definitions/uint32
-      minimum: 0
-      maximum: 63
-      default: 0
+  qcom,imp-res-offset-value:
+    description:
+      It is a 6 bit value that specifies offset to be
+      added to PHY refgen RESCODE via IMP_CTRL1 register. It is a PHY
+      tuning parameter that may vary for different boards of same SOC.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 63
+    default: 0
 
-    qcom,bias-ctrl-value:
-      description:
-        It is a 6 bit value that specifies bias-ctrl-value. It is a PHY
-        tuning parameter that may vary for different boards of same SOC.
-      $ref: /schemas/types.yaml#/definitions/uint32
-      minimum: 0
-      maximum: 63
-      default: 32
+  qcom,bias-ctrl-value:
+    description:
+      It is a 6 bit value that specifies bias-ctrl-value. It is a PHY
+      tuning parameter that may vary for different boards of same SOC.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 63
+    default: 32
 
-    qcom,charge-ctrl-value:
-      description:
-        It is a 2 bit value that specifies charge-ctrl-value. It is a PHY
-        tuning parameter that may vary for different boards of same SOC.
-      $ref: /schemas/types.yaml#/definitions/uint32
-      minimum: 0
-      maximum: 3
-      default: 0
+  qcom,charge-ctrl-value:
+    description:
+      It is a 2 bit value that specifies charge-ctrl-value. It is a PHY
+      tuning parameter that may vary for different boards of same SOC.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 3
+    default: 0
 
-    qcom,hstx-trim-value:
-      description:
-        It is a 4 bit value that specifies tuning for HSTX
-        output current.
-        Possible range is - 15mA to 24mA (stepsize of 600 uA).
-        See dt-bindings/phy/phy-qcom-qusb2.h for applicable values.
-      $ref: /schemas/types.yaml#/definitions/uint32
-      minimum: 0
-      maximum: 15
-      default: 3
+  qcom,hstx-trim-value:
+    description:
+      It is a 4 bit value that specifies tuning for HSTX
+      output current.
+      Possible range is - 15mA to 24mA (stepsize of 600 uA).
+      See dt-bindings/phy/phy-qcom-qusb2.h for applicable values.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 15
+    default: 3
 
-    qcom,preemphasis-level:
-      description:
-        It is a 2 bit value that specifies pre-emphasis level.
-        Possible range is 0 to 15% (stepsize of 5%).
-        See dt-bindings/phy/phy-qcom-qusb2.h for applicable values.
-      $ref: /schemas/types.yaml#/definitions/uint32
-      minimum: 0
-      maximum: 3
-      default: 2
+  qcom,preemphasis-level:
+    description:
+      It is a 2 bit value that specifies pre-emphasis level.
+      Possible range is 0 to 15% (stepsize of 5%).
+      See dt-bindings/phy/phy-qcom-qusb2.h for applicable values.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 3
+    default: 2
 
-    qcom,preemphasis-width:
-      description:
-        It is a 1 bit value that specifies how long the HSTX
-        pre-emphasis (specified using qcom,preemphasis-level) must be in
-        effect. Duration could be half-bit of full-bit.
-        See dt-bindings/phy/phy-qcom-qusb2.h for applicable values.
-      $ref: /schemas/types.yaml#/definitions/uint32
-      minimum: 0
-      maximum: 1
-      default: 0
+  qcom,preemphasis-width:
+    description:
+      It is a 1 bit value that specifies how long the HSTX
+      pre-emphasis (specified using qcom,preemphasis-level) must be in
+      effect. Duration could be half-bit of full-bit.
+      See dt-bindings/phy/phy-qcom-qusb2.h for applicable values.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 1
+    default: 0
 
-    qcom,hsdisc-trim-value:
-      description:
-        It is a 2 bit value tuning parameter that control disconnect
-        threshold and may vary for different boards of same SOC.
-      $ref: /schemas/types.yaml#/definitions/uint32
-      minimum: 0
-      maximum: 3
-      default: 0
+  qcom,hsdisc-trim-value:
+    description:
+      It is a 2 bit value tuning parameter that control disconnect
+      threshold and may vary for different boards of same SOC.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 3
+    default: 0
 
 required:
   - compatible
@@ -168,6 +161,23 @@ required:
   - vdda-pll-supply
   - vdda-phy-dpdm-supply
   - resets
+
+allOf:
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              const: qcom,qusb2-v2-phy
+    then:
+      properties:
+        qcom,imp-res-offset-value: false
+        qcom,bias-ctrl-value: false
+        qcom,charge-ctrl-value: false
+        qcom,hstx-trim-value: false
+        qcom,preemphasis-level: false
+        qcom,preemphasis-width: false
+        qcom,hsdisc-trim-value: false
 
 additionalProperties: false
 

@@ -40,13 +40,6 @@ config SND_SOC_DAVINCI_MCASP
 	  - Keystone devices
 	  - K3 devices (am654, j721e)
 
-config SND_SOC_DAVINCI_VCIF
-	tristate "daVinci Voice Interface (VCIF) support"
-	depends on ARCH_DAVINCI || COMPILE_TEST
-	select SND_SOC_TI_EDMA_PCM
-	help
-	  Say Y or M here if you want audio support via daVinci VCIF.
-
 config SND_SOC_OMAP_DMIC
 	tristate "Digital Microphone Module (DMIC) support"
 	depends on ARCH_OMAP4 || SOC_OMAP5 || COMPILE_TEST && COMMON_CLK
@@ -177,14 +170,6 @@ config SND_SOC_OMAP_OSK5912
 config SND_SOC_DAVINCI_EVM
 	tristate "SoC Audio support for DaVinci EVMs"
 	depends on ARCH_DAVINCI && I2C
-	select SND_SOC_DAVINCI_ASP if MACH_DAVINCI_DM355_EVM
-	select SND_SOC_DAVINCI_ASP if SND_SOC_DM365_AIC3X_CODEC
-	select SND_SOC_DAVINCI_VCIF if SND_SOC_DM365_VOICE_CODEC
-	select SND_SOC_DAVINCI_ASP if MACH_DAVINCI_EVM # DM6446
-	select SND_SOC_DAVINCI_MCASP if MACH_DAVINCI_DM6467_EVM
-	select SND_SOC_SPDIF if MACH_DAVINCI_DM6467_EVM
-	select SND_SOC_DAVINCI_MCASP if MACH_DAVINCI_DA830_EVM
-	select SND_SOC_DAVINCI_MCASP if MACH_DAVINCI_DA850_EVM
 	select SND_SOC_TLV320AIC3X
 	help
 	  Say Y if you want to add support for SoC audio on the following TI
@@ -195,31 +180,6 @@ config SND_SOC_DAVINCI_EVM
 	  - DM6447
 	  - DM830
 	  - DM850
-
-choice
-	prompt "DM365 codec select"
-	depends on SND_SOC_DAVINCI_EVM
-	depends on MACH_DAVINCI_DM365_EVM
-
-config SND_SOC_DM365_AIC3X_CODEC
-	bool "Audio Codec - AIC3101"
-	help
-	  Say Y if you want to add support for AIC3101 audio codec
-
-config SND_SOC_DM365_VOICE_CODEC
-	bool "Voice Codec - CQ93VC"
-	help
-	  Say Y if you want to add support for SoC On-chip voice codec
-endchoice
-
-config SND_SOC_DM365_SELECT_VOICE_CODECS
-	def_tristate y
-	depends on SND_SOC_DM365_VOICE_CODEC && SND_SOC
-	select MFD_DAVINCI_VOICECODEC
-	select SND_SOC_CQ0093VC
-	help
-	  The is an internal symbol needed to ensure that the codec
-	  and MFD driver can be built as loadable modules if necessary.
 
 config SND_SOC_J721E_EVM
 	tristate "SoC Audio support for j721e EVM"

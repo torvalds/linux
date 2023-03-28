@@ -20,6 +20,8 @@
 #include <linux/spi/spi.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
+#include <linux/spi/spi-mem.h>
+#include <linux/mtd/spi-nor.h>
 #include <linux/reset.h>
 #include <linux/pm_runtime.h>
 
@@ -57,6 +59,7 @@
 #define PINGPONG_CMD_SS_SHIFT			12
 
 #define HSSPI_PINGPONG_STATUS_REG(x)		(0x84 + (x) * 0x40)
+#define HSSPI_PINGPONG_STATUS_SRC_BUSY		BIT(1)
 
 #define HSSPI_PROFILE_CLK_CTRL_REG(x)		(0x100 + (x) * 0x20)
 #define CLK_CTRL_FREQ_CTRL_MASK			0x0000ffff
@@ -92,15 +95,42 @@
 
 #define HSSPI_MAX_PREPEND_LEN			15
 
-#define HSSPI_MAX_SYNC_CLOCK			30000000
+/*
+ * Some chip require 30MHz but other require 25MHz. Use smaller value to cover
+ * both cases.
+ */
+#define HSSPI_MAX_SYNC_CLOCK			25000000
 
 #define HSSPI_SPI_MAX_CS			8
 #define HSSPI_BUS_NUM				1 /* 0 is legacy SPI */
+#define HSSPI_POLL_STATUS_TIMEOUT_MS	100
+
+#define HSSPI_WAIT_MODE_POLLING		0
+#define HSSPI_WAIT_MODE_INTR		1
+#define HSSPI_WAIT_MODE_MAX			HSSPI_WAIT_MODE_INTR
+
+/*
+ * Default transfer mode is auto. If the msg is prependable, use the prepend
+ * mode.  If not, falls back to use the dummy cs workaround mode but limit the
+ * clock to 25MHz to make sure it works in all board design.
+ */
+#define HSSPI_XFER_MODE_AUTO		0
+#define HSSPI_XFER_MODE_PREPEND		1
+#define HSSPI_XFER_MODE_DUMMYCS		2
+#define HSSPI_XFER_MODE_MAX			HSSPI_XFER_MODE_DUMMYCS
+
+#define bcm63xx_prepend_printk_on_checkfail(bs, fmt, ...)	\
+do {										\
+	if (bs->xfer_mode == HSSPI_XFER_MODE_AUTO)				\
+		dev_dbg(&bs->pdev->dev, fmt, ##__VA_ARGS__);		\
+	else if (bs->xfer_mode == HSSPI_XFER_MODE_PREPEND)		\
+		dev_err(&bs->pdev->dev, fmt, ##__VA_ARGS__);		\
+} while (0)
 
 struct bcm63xx_hsspi {
 	struct completion done;
 	struct mutex bus_mutex;
-
+	struct mutex msg_mutex;
 	struct platform_device *pdev;
 	struct clk *clk;
 	struct clk *pll_clk;
@@ -109,7 +139,288 @@ struct bcm63xx_hsspi {
 
 	u32 speed_hz;
 	u8 cs_polarity;
+	u32 wait_mode;
+	u32 xfer_mode;
+	u32 prepend_cnt;
+	u8 *prepend_buf;
 };
+
+static ssize_t wait_mode_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	struct spi_controller *ctrl = dev_get_drvdata(dev);
+	struct bcm63xx_hsspi *bs = spi_master_get_devdata(ctrl);
+
+	return sprintf(buf, "%d\n", bs->wait_mode);
+}
+
+static ssize_t wait_mode_store(struct device *dev, struct device_attribute *attr,
+			  const char *buf, size_t count)
+{
+	struct spi_controller *ctrl = dev_get_drvdata(dev);
+	struct bcm63xx_hsspi *bs = spi_master_get_devdata(ctrl);
+	u32 val;
+
+	if (kstrtou32(buf, 10, &val))
+		return -EINVAL;
+
+	if (val > HSSPI_WAIT_MODE_MAX) {
+		dev_warn(dev, "invalid wait mode %u\n", val);
+		return -EINVAL;
+	}
+
+	mutex_lock(&bs->msg_mutex);
+	bs->wait_mode = val;
+	/* clear interrupt status to avoid spurious int on next transfer */
+	if (val == HSSPI_WAIT_MODE_INTR)
+		__raw_writel(HSSPI_INT_CLEAR_ALL, bs->regs + HSSPI_INT_STATUS_REG);
+	mutex_unlock(&bs->msg_mutex);
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(wait_mode);
+
+static ssize_t xfer_mode_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	struct spi_controller *ctrl = dev_get_drvdata(dev);
+	struct bcm63xx_hsspi *bs = spi_master_get_devdata(ctrl);
+
+	return sprintf(buf, "%d\n", bs->xfer_mode);
+}
+
+static ssize_t xfer_mode_store(struct device *dev, struct device_attribute *attr,
+			  const char *buf, size_t count)
+{
+	struct spi_controller *ctrl = dev_get_drvdata(dev);
+	struct bcm63xx_hsspi *bs = spi_master_get_devdata(ctrl);
+	u32 val;
+
+	if (kstrtou32(buf, 10, &val))
+		return -EINVAL;
+
+	if (val > HSSPI_XFER_MODE_MAX) {
+		dev_warn(dev, "invalid xfer mode %u\n", val);
+		return -EINVAL;
+	}
+
+	mutex_lock(&bs->msg_mutex);
+	bs->xfer_mode = val;
+	mutex_unlock(&bs->msg_mutex);
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(xfer_mode);
+
+static struct attribute *bcm63xx_hsspi_attrs[] = {
+	&dev_attr_wait_mode.attr,
+	&dev_attr_xfer_mode.attr,
+	NULL,
+};
+
+static const struct attribute_group bcm63xx_hsspi_group = {
+	.attrs = bcm63xx_hsspi_attrs,
+};
+
+static void bcm63xx_hsspi_set_clk(struct bcm63xx_hsspi *bs,
+				  struct spi_device *spi, int hz);
+
+static size_t bcm63xx_hsspi_max_message_size(struct spi_device *spi)
+{
+	return HSSPI_BUFFER_LEN - HSSPI_OPCODE_LEN;
+}
+
+static int bcm63xx_hsspi_wait_cmd(struct bcm63xx_hsspi *bs)
+{
+	unsigned long limit;
+	u32 reg = 0;
+	int rc = 0;
+
+	if (bs->wait_mode == HSSPI_WAIT_MODE_INTR) {
+		if (wait_for_completion_timeout(&bs->done, HZ) == 0)
+			rc = 1;
+	} else {
+		/* polling mode checks for status busy bit */
+		limit = jiffies + msecs_to_jiffies(HSSPI_POLL_STATUS_TIMEOUT_MS);
+
+		while (!time_after(jiffies, limit)) {
+			reg = __raw_readl(bs->regs + HSSPI_PINGPONG_STATUS_REG(0));
+			if (reg & HSSPI_PINGPONG_STATUS_SRC_BUSY)
+				cpu_relax();
+			else
+				break;
+		}
+		if (reg & HSSPI_PINGPONG_STATUS_SRC_BUSY)
+			rc = 1;
+	}
+
+	if (rc)
+		dev_err(&bs->pdev->dev, "transfer timed out!\n");
+
+	return rc;
+}
+
+static bool bcm63xx_prepare_prepend_transfer(struct spi_master *master,
+					  struct spi_message *msg,
+					  struct spi_transfer *t_prepend)
+{
+
+	struct bcm63xx_hsspi *bs = spi_master_get_devdata(master);
+	bool tx_only = false;
+	struct spi_transfer *t;
+
+	/*
+	 * Multiple transfers within a message may be combined into one transfer
+	 * to the controller using its prepend feature. A SPI message is prependable
+	 * only if the following are all true:
+	 *   1. One or more half duplex write transfer in single bit mode
+	 *   2. Optional full duplex read/write at the end
+	 *   3. No delay and cs_change between transfers
+	 */
+	bs->prepend_cnt = 0;
+	list_for_each_entry(t, &msg->transfers, transfer_list) {
+		if ((spi_delay_to_ns(&t->delay, t) > 0) || t->cs_change) {
+			bcm63xx_prepend_printk_on_checkfail(bs,
+				 "Delay or cs change not supported in prepend mode!\n");
+			return false;
+		}
+
+		tx_only = false;
+		if (t->tx_buf && !t->rx_buf) {
+			tx_only = true;
+			if (bs->prepend_cnt + t->len >
+				(HSSPI_BUFFER_LEN - HSSPI_OPCODE_LEN)) {
+				bcm63xx_prepend_printk_on_checkfail(bs,
+					 "exceed max buf len, abort prepending transfers!\n");
+				return false;
+			}
+
+			if (t->tx_nbits > SPI_NBITS_SINGLE &&
+				!list_is_last(&t->transfer_list, &msg->transfers)) {
+				bcm63xx_prepend_printk_on_checkfail(bs,
+					 "multi-bit prepend buf not supported!\n");
+				return false;
+			}
+
+			if (t->tx_nbits == SPI_NBITS_SINGLE) {
+				memcpy(bs->prepend_buf + bs->prepend_cnt, t->tx_buf, t->len);
+				bs->prepend_cnt += t->len;
+			}
+		} else {
+			if (!list_is_last(&t->transfer_list, &msg->transfers)) {
+				bcm63xx_prepend_printk_on_checkfail(bs,
+					 "rx/tx_rx transfer not supported when it is not last one!\n");
+				return false;
+			}
+		}
+
+		if (list_is_last(&t->transfer_list, &msg->transfers)) {
+			memcpy(t_prepend, t, sizeof(struct spi_transfer));
+
+			if (tx_only && t->tx_nbits == SPI_NBITS_SINGLE) {
+				/*
+				 * if the last one is also a single bit tx only transfer, merge
+				 * all of them into one single tx transfer
+				 */
+				t_prepend->len = bs->prepend_cnt;
+				t_prepend->tx_buf = bs->prepend_buf;
+				bs->prepend_cnt = 0;
+			} else {
+				/*
+				 * if the last one is not a tx only transfer or dual tx xfer, all
+				 * the previous transfers are sent through prepend bytes and
+				 * make sure it does not exceed the max prepend len
+				 */
+				if (bs->prepend_cnt > HSSPI_MAX_PREPEND_LEN) {
+					bcm63xx_prepend_printk_on_checkfail(bs,
+						"exceed max prepend len, abort prepending transfers!\n");
+					return false;
+				}
+			}
+		}
+	}
+
+	return true;
+}
+
+static int bcm63xx_hsspi_do_prepend_txrx(struct spi_device *spi,
+					 struct spi_transfer *t)
+{
+	struct bcm63xx_hsspi *bs = spi_master_get_devdata(spi->master);
+	unsigned int chip_select = spi->chip_select;
+	u16 opcode = 0, val;
+	const u8 *tx = t->tx_buf;
+	u8 *rx = t->rx_buf;
+	u32 reg = 0;
+
+	/*
+	 * shouldn't happen as we set the max_message_size in the probe.
+	 * but check it again in case some driver does not honor the max size
+	 */
+	if (t->len + bs->prepend_cnt > (HSSPI_BUFFER_LEN - HSSPI_OPCODE_LEN)) {
+		dev_warn(&bs->pdev->dev,
+			 "Prepend message large than fifo size len %d prepend %d\n",
+			 t->len, bs->prepend_cnt);
+		return -EINVAL;
+	}
+
+	bcm63xx_hsspi_set_clk(bs, spi, t->speed_hz);
+
+	if (tx && rx)
+		opcode = HSSPI_OP_READ_WRITE;
+	else if (tx)
+		opcode = HSSPI_OP_WRITE;
+	else if (rx)
+		opcode = HSSPI_OP_READ;
+
+	if ((opcode == HSSPI_OP_READ && t->rx_nbits == SPI_NBITS_DUAL) ||
+	    (opcode == HSSPI_OP_WRITE && t->tx_nbits == SPI_NBITS_DUAL)) {
+		opcode |= HSSPI_OP_MULTIBIT;
+
+		if (t->rx_nbits == SPI_NBITS_DUAL) {
+			reg |= 1 << MODE_CTRL_MULTIDATA_RD_SIZE_SHIFT;
+			reg |= bs->prepend_cnt << MODE_CTRL_MULTIDATA_RD_STRT_SHIFT;
+		}
+		if (t->tx_nbits == SPI_NBITS_DUAL) {
+			reg |= 1 << MODE_CTRL_MULTIDATA_WR_SIZE_SHIFT;
+			reg |= bs->prepend_cnt << MODE_CTRL_MULTIDATA_WR_STRT_SHIFT;
+		}
+	}
+
+	reg |= bs->prepend_cnt << MODE_CTRL_PREPENDBYTE_CNT_SHIFT;
+	__raw_writel(reg | 0xff,
+		     bs->regs + HSSPI_PROFILE_MODE_CTRL_REG(chip_select));
+
+	reinit_completion(&bs->done);
+	if (bs->prepend_cnt)
+		memcpy_toio(bs->fifo + HSSPI_OPCODE_LEN, bs->prepend_buf,
+			    bs->prepend_cnt);
+	if (tx)
+		memcpy_toio(bs->fifo + HSSPI_OPCODE_LEN + bs->prepend_cnt, tx,
+			    t->len);
+
+	*(__be16 *)(&val) = cpu_to_be16(opcode | t->len);
+	__raw_writew(val, bs->fifo);
+	/* enable interrupt */
+	if (bs->wait_mode == HSSPI_WAIT_MODE_INTR)
+		__raw_writel(HSSPI_PINGx_CMD_DONE(0), bs->regs + HSSPI_INT_MASK_REG);
+
+	/* start the transfer */
+	reg = chip_select << PINGPONG_CMD_SS_SHIFT |
+	    chip_select << PINGPONG_CMD_PROFILE_SHIFT |
+	    PINGPONG_COMMAND_START_NOW;
+	__raw_writel(reg, bs->regs + HSSPI_PINGPONG_COMMAND_REG(0));
+
+	if (bcm63xx_hsspi_wait_cmd(bs))
+		return -ETIMEDOUT;
+
+	if (rx)
+		memcpy_fromio(rx, bs->fifo, t->len);
+
+	return 0;
+}
 
 static void bcm63xx_hsspi_set_cs(struct bcm63xx_hsspi *bs, unsigned int cs,
 				 bool active)
@@ -158,14 +469,16 @@ static int bcm63xx_hsspi_do_txrx(struct spi_device *spi, struct spi_transfer *t)
 {
 	struct bcm63xx_hsspi *bs = spi_master_get_devdata(spi->master);
 	unsigned int chip_select = spi->chip_select;
-	u16 opcode = 0;
+	u16 opcode = 0, val;
 	int pending = t->len;
 	int step_size = HSSPI_BUFFER_LEN;
 	const u8 *tx = t->tx_buf;
 	u8 *rx = t->rx_buf;
+	u32 reg = 0;
 
 	bcm63xx_hsspi_set_clk(bs, spi, t->speed_hz);
-	bcm63xx_hsspi_set_cs(bs, spi->chip_select, true);
+	if (!t->cs_off)
+		bcm63xx_hsspi_set_cs(bs, spi->chip_select, true);
 
 	if (tx && rx)
 		opcode = HSSPI_OP_READ_WRITE;
@@ -178,11 +491,16 @@ static int bcm63xx_hsspi_do_txrx(struct spi_device *spi, struct spi_transfer *t)
 		step_size -= HSSPI_OPCODE_LEN;
 
 	if ((opcode == HSSPI_OP_READ && t->rx_nbits == SPI_NBITS_DUAL) ||
-	    (opcode == HSSPI_OP_WRITE && t->tx_nbits == SPI_NBITS_DUAL))
+	    (opcode == HSSPI_OP_WRITE && t->tx_nbits == SPI_NBITS_DUAL)) {
 		opcode |= HSSPI_OP_MULTIBIT;
 
-	__raw_writel(1 << MODE_CTRL_MULTIDATA_WR_SIZE_SHIFT |
-		     1 << MODE_CTRL_MULTIDATA_RD_SIZE_SHIFT | 0xff,
+		if (t->rx_nbits == SPI_NBITS_DUAL)
+			reg |= 1 << MODE_CTRL_MULTIDATA_RD_SIZE_SHIFT;
+		if (t->tx_nbits == SPI_NBITS_DUAL)
+			reg |= 1 << MODE_CTRL_MULTIDATA_WR_SIZE_SHIFT;
+	}
+
+	__raw_writel(reg | 0xff,
 		     bs->regs + HSSPI_PROFILE_MODE_CTRL_REG(chip_select));
 
 	while (pending > 0) {
@@ -194,22 +512,21 @@ static int bcm63xx_hsspi_do_txrx(struct spi_device *spi, struct spi_transfer *t)
 			tx += curr_step;
 		}
 
-		__raw_writew(opcode | curr_step, bs->fifo);
+		*(__be16 *)(&val) = cpu_to_be16(opcode | curr_step);
+		__raw_writew(val, bs->fifo);
 
 		/* enable interrupt */
-		__raw_writel(HSSPI_PINGx_CMD_DONE(0),
-			     bs->regs + HSSPI_INT_MASK_REG);
+		if (bs->wait_mode == HSSPI_WAIT_MODE_INTR)
+			__raw_writel(HSSPI_PINGx_CMD_DONE(0),
+				     bs->regs + HSSPI_INT_MASK_REG);
 
-		/* start the transfer */
-		__raw_writel(!chip_select << PINGPONG_CMD_SS_SHIFT |
-			     chip_select << PINGPONG_CMD_PROFILE_SHIFT |
-			     PINGPONG_COMMAND_START_NOW,
-			     bs->regs + HSSPI_PINGPONG_COMMAND_REG(0));
+		reg =  !chip_select << PINGPONG_CMD_SS_SHIFT |
+			    chip_select << PINGPONG_CMD_PROFILE_SHIFT |
+			    PINGPONG_COMMAND_START_NOW;
+		__raw_writel(reg, bs->regs + HSSPI_PINGPONG_COMMAND_REG(0));
 
-		if (wait_for_completion_timeout(&bs->done, HZ) == 0) {
-			dev_err(&bs->pdev->dev, "transfer timed out!\n");
+		if (bcm63xx_hsspi_wait_cmd(bs))
 			return -ETIMEDOUT;
-		}
 
 		if (rx) {
 			memcpy_fromio(rx, bs->fifo, curr_step);
@@ -259,17 +576,17 @@ static int bcm63xx_hsspi_setup(struct spi_device *spi)
 	return 0;
 }
 
-static int bcm63xx_hsspi_transfer_one(struct spi_master *master,
+static int bcm63xx_hsspi_do_dummy_cs_txrx(struct spi_device *spi,
 				      struct spi_message *msg)
 {
-	struct bcm63xx_hsspi *bs = spi_master_get_devdata(master);
-	struct spi_transfer *t;
-	struct spi_device *spi = msg->spi;
+	struct bcm63xx_hsspi *bs = spi_master_get_devdata(spi->master);
 	int status = -EINVAL;
 	int dummy_cs;
-	u32 reg;
+	bool keep_cs = false;
+	struct spi_transfer *t;
 
-	/* This controller does not support keeping CS active during idle.
+	/*
+	 * This controller does not support keeping CS active during idle.
 	 * To work around this, we use the following ugly hack:
 	 *
 	 * a. Invert the target chip select's polarity so it will be active.
@@ -287,6 +604,21 @@ static int bcm63xx_hsspi_transfer_one(struct spi_master *master,
 	bcm63xx_hsspi_set_cs(bs, dummy_cs, true);
 
 	list_for_each_entry(t, &msg->transfers, transfer_list) {
+		/*
+		 * We are here because one of reasons below:
+		 * a. Message is not prependable and in default auto xfer mode. This mean
+		 *    we fallback to dummy cs mode at maximum 25MHz safe clock rate.
+		 * b. User set to use the dummy cs mode.
+		 */
+		if (bs->xfer_mode == HSSPI_XFER_MODE_AUTO) {
+			if (t->speed_hz > HSSPI_MAX_SYNC_CLOCK) {
+				t->speed_hz = HSSPI_MAX_SYNC_CLOCK;
+				dev_warn_once(&bs->pdev->dev,
+					"Force to dummy cs mode. Reduce the speed to %dHz",
+					t->speed_hz);
+			}
+		}
+
 		status = bcm63xx_hsspi_do_txrx(spi, t);
 		if (status)
 			break;
@@ -295,22 +627,84 @@ static int bcm63xx_hsspi_transfer_one(struct spi_master *master,
 
 		spi_transfer_delay_exec(t);
 
-		if (t->cs_change)
-			bcm63xx_hsspi_set_cs(bs, spi->chip_select, false);
+		/* use existing cs change logic from spi_transfer_one_message */
+		if (t->cs_change) {
+			if (list_is_last(&t->transfer_list, &msg->transfers)) {
+				keep_cs = true;
+			} else {
+				if (!t->cs_off)
+					bcm63xx_hsspi_set_cs(bs, spi->chip_select, false);
+
+				spi_transfer_cs_change_delay_exec(msg, t);
+
+				if (!list_next_entry(t, transfer_list)->cs_off)
+					bcm63xx_hsspi_set_cs(bs, spi->chip_select, true);
+			}
+		} else if (!list_is_last(&t->transfer_list, &msg->transfers) &&
+			   t->cs_off != list_next_entry(t, transfer_list)->cs_off) {
+			bcm63xx_hsspi_set_cs(bs, spi->chip_select, t->cs_off);
+		}
 	}
 
-	mutex_lock(&bs->bus_mutex);
-	reg = __raw_readl(bs->regs + HSSPI_GLOBAL_CTRL_REG);
-	reg &= ~GLOBAL_CTRL_CS_POLARITY_MASK;
-	reg |= bs->cs_polarity;
-	__raw_writel(reg, bs->regs + HSSPI_GLOBAL_CTRL_REG);
-	mutex_unlock(&bs->bus_mutex);
+	bcm63xx_hsspi_set_cs(bs, dummy_cs, false);
+	if (status || !keep_cs)
+		bcm63xx_hsspi_set_cs(bs, spi->chip_select, false);
 
+	return status;
+}
+
+static int bcm63xx_hsspi_transfer_one(struct spi_master *master,
+				      struct spi_message *msg)
+{
+	struct bcm63xx_hsspi *bs = spi_master_get_devdata(master);
+	struct spi_device *spi = msg->spi;
+	int status = -EINVAL;
+	bool prependable = false;
+	struct spi_transfer t_prepend;
+
+	mutex_lock(&bs->msg_mutex);
+
+	if (bs->xfer_mode != HSSPI_XFER_MODE_DUMMYCS)
+		prependable = bcm63xx_prepare_prepend_transfer(master, msg, &t_prepend);
+
+	if (prependable) {
+		status = bcm63xx_hsspi_do_prepend_txrx(spi, &t_prepend);
+		msg->actual_length = (t_prepend.len + bs->prepend_cnt);
+	} else {
+		if (bs->xfer_mode == HSSPI_XFER_MODE_PREPEND) {
+			dev_err(&bs->pdev->dev,
+				"User sets prepend mode but msg not prependable! Abort transfer\n");
+			status = -EINVAL;
+		} else
+			status = bcm63xx_hsspi_do_dummy_cs_txrx(spi, msg);
+	}
+
+	mutex_unlock(&bs->msg_mutex);
 	msg->status = status;
 	spi_finalize_current_message(master);
 
 	return 0;
 }
+
+static bool bcm63xx_hsspi_mem_supports_op(struct spi_mem *mem,
+			    const struct spi_mem_op *op)
+{
+	if (!spi_mem_default_supports_op(mem, op))
+		return false;
+
+	/* Controller doesn't support spi mem dual io mode */
+	if ((op->cmd.opcode == SPINOR_OP_READ_1_2_2) ||
+		(op->cmd.opcode == SPINOR_OP_READ_1_2_2_4B) ||
+		(op->cmd.opcode == SPINOR_OP_READ_1_2_2_DTR) ||
+		(op->cmd.opcode == SPINOR_OP_READ_1_2_2_DTR_4B))
+		return false;
+
+	return true;
+}
+
+static const struct spi_controller_mem_ops bcm63xx_hsspi_mem_ops = {
+	.supports_op = bcm63xx_hsspi_mem_supports_op,
+};
 
 static irqreturn_t bcm63xx_hsspi_interrupt(int irq, void *dev_id)
 {
@@ -398,10 +792,18 @@ static int bcm63xx_hsspi_probe(struct platform_device *pdev)
 	bs->regs = regs;
 	bs->speed_hz = rate;
 	bs->fifo = (u8 __iomem *)(bs->regs + HSSPI_FIFO_REG(0));
+	bs->wait_mode = HSSPI_WAIT_MODE_POLLING;
+	bs->prepend_buf = devm_kzalloc(dev, HSSPI_BUFFER_LEN, GFP_KERNEL);
+	if (!bs->prepend_buf) {
+		ret = -ENOMEM;
+		goto out_put_master;
+	}
 
 	mutex_init(&bs->bus_mutex);
+	mutex_init(&bs->msg_mutex);
 	init_completion(&bs->done);
 
+	master->mem_ops = &bcm63xx_hsspi_mem_ops;
 	master->dev.of_node = dev->of_node;
 	if (!dev->of_node)
 		master->bus_num = HSSPI_BUS_NUM;
@@ -415,6 +817,9 @@ static int bcm63xx_hsspi_probe(struct platform_device *pdev)
 	master->num_chipselect = num_cs;
 	master->setup = bcm63xx_hsspi_setup;
 	master->transfer_one_message = bcm63xx_hsspi_transfer_one;
+	master->max_transfer_size = bcm63xx_hsspi_max_message_size;
+	master->max_message_size = bcm63xx_hsspi_max_message_size;
+
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH |
 			    SPI_RX_DUAL | SPI_TX_DUAL;
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
@@ -434,21 +839,33 @@ static int bcm63xx_hsspi_probe(struct platform_device *pdev)
 	__raw_writel(reg | GLOBAL_CTRL_CLK_GATE_SSOFF,
 		     bs->regs + HSSPI_GLOBAL_CTRL_REG);
 
-	ret = devm_request_irq(dev, irq, bcm63xx_hsspi_interrupt, IRQF_SHARED,
-			       pdev->name, bs);
+	if (irq > 0) {
+		ret = devm_request_irq(dev, irq, bcm63xx_hsspi_interrupt, IRQF_SHARED,
+				       pdev->name, bs);
 
-	if (ret)
-		goto out_put_master;
+		if (ret)
+			goto out_put_master;
+	}
 
 	pm_runtime_enable(&pdev->dev);
+
+	ret = sysfs_create_group(&pdev->dev.kobj, &bcm63xx_hsspi_group);
+	if (ret) {
+		dev_err(&pdev->dev, "couldn't register sysfs group\n");
+		goto out_pm_disable;
+	}
 
 	/* register and we are done */
 	ret = devm_spi_register_master(dev, master);
 	if (ret)
-		goto out_pm_disable;
+		goto out_sysgroup_disable;
+
+	dev_info(dev, "Broadcom 63XX High Speed SPI Controller driver");
 
 	return 0;
 
+out_sysgroup_disable:
+	sysfs_remove_group(&pdev->dev.kobj, &bcm63xx_hsspi_group);
 out_pm_disable:
 	pm_runtime_disable(&pdev->dev);
 out_put_master:
@@ -470,6 +887,7 @@ static int bcm63xx_hsspi_remove(struct platform_device *pdev)
 	__raw_writel(0, bs->regs + HSSPI_INT_MASK_REG);
 	clk_disable_unprepare(bs->pll_clk);
 	clk_disable_unprepare(bs->clk);
+	sysfs_remove_group(&pdev->dev.kobj, &bcm63xx_hsspi_group);
 
 	return 0;
 }
@@ -516,6 +934,7 @@ static SIMPLE_DEV_PM_OPS(bcm63xx_hsspi_pm_ops, bcm63xx_hsspi_suspend,
 
 static const struct of_device_id bcm63xx_hsspi_of_match[] = {
 	{ .compatible = "brcm,bcm6328-hsspi", },
+	{ .compatible = "brcm,bcmbca-hsspi-v1.0", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, bcm63xx_hsspi_of_match);

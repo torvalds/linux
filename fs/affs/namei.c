@@ -242,7 +242,7 @@ affs_unlink(struct inode *dir, struct dentry *dentry)
 }
 
 int
-affs_create(struct user_namespace *mnt_userns, struct inode *dir,
+affs_create(struct mnt_idmap *idmap, struct inode *dir,
 	    struct dentry *dentry, umode_t mode, bool excl)
 {
 	struct super_block *sb = dir->i_sb;
@@ -274,7 +274,7 @@ affs_create(struct user_namespace *mnt_userns, struct inode *dir,
 }
 
 int
-affs_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
+affs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	   struct dentry *dentry, umode_t mode)
 {
 	struct inode		*inode;
@@ -313,7 +313,7 @@ affs_rmdir(struct inode *dir, struct dentry *dentry)
 }
 
 int
-affs_symlink(struct user_namespace *mnt_userns, struct inode *dir,
+affs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 	     struct dentry *dentry, const char *symname)
 {
 	struct super_block	*sb = dir->i_sb;
@@ -503,7 +503,7 @@ done:
 	return retval;
 }
 
-int affs_rename2(struct user_namespace *mnt_userns, struct inode *old_dir,
+int affs_rename2(struct mnt_idmap *idmap, struct inode *old_dir,
 		 struct dentry *old_dentry, struct inode *new_dir,
 		 struct dentry *new_dentry, unsigned int flags)
 {

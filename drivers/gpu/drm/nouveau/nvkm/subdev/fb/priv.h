@@ -83,10 +83,11 @@ int gm200_fb_init_page(struct nvkm_fb *);
 void gp100_fb_init_remapper(struct nvkm_fb *);
 void gp100_fb_init_unkn(struct nvkm_fb *);
 
-int gp102_fb_new_(const struct nvkm_fb_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
-		  struct nvkm_fb **);
+int gp102_fb_oneinit(struct nvkm_fb *);
 bool gp102_fb_vpr_scrub_required(struct nvkm_fb *);
 int gp102_fb_vpr_scrub(struct nvkm_fb *);
 
 int gv100_fb_init_page(struct nvkm_fb *);
+
+bool tu102_fb_vpr_scrub_required(struct nvkm_fb *);
 #endif

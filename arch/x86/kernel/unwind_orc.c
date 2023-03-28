@@ -484,6 +484,8 @@ bool unwind_next_frame(struct unwind_state *state)
 		goto the_end;
 	}
 
+	state->signal = orc->signal;
+
 	/* Find the previous frame's stack: */
 	switch (orc->sp_reg) {
 	case ORC_REG_SP:
@@ -563,7 +565,6 @@ bool unwind_next_frame(struct unwind_state *state)
 		state->sp = sp;
 		state->regs = NULL;
 		state->prev_regs = NULL;
-		state->signal = false;
 		break;
 
 	case UNWIND_HINT_TYPE_REGS:
@@ -587,7 +588,6 @@ bool unwind_next_frame(struct unwind_state *state)
 		state->regs = (struct pt_regs *)sp;
 		state->prev_regs = NULL;
 		state->full_regs = true;
-		state->signal = true;
 		break;
 
 	case UNWIND_HINT_TYPE_REGS_PARTIAL:
@@ -604,7 +604,6 @@ bool unwind_next_frame(struct unwind_state *state)
 			state->prev_regs = state->regs;
 		state->regs = (void *)sp - IRET_FRAME_OFFSET;
 		state->full_regs = false;
-		state->signal = true;
 		break;
 
 	default:

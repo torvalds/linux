@@ -251,7 +251,7 @@ static void output_pgtable_bits_defines(void)
 }
 
 #ifdef CONFIG_NUMA
-static unsigned long pcpu_handlers[NR_CPUS];
+unsigned long pcpu_handlers[NR_CPUS];
 #endif
 extern long exception_handlers[VECSIZE * 128 / sizeof(long)];
 

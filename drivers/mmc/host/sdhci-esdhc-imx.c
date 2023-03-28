@@ -107,6 +107,7 @@
 #define ESDHC_TUNING_START_TAP_DEFAULT	0x1
 #define ESDHC_TUNING_START_TAP_MASK	0x7f
 #define ESDHC_TUNING_CMD_CRC_CHECK_DISABLE	(1 << 7)
+#define ESDHC_TUNING_STEP_DEFAULT	0x1
 #define ESDHC_TUNING_STEP_MASK		0x00070000
 #define ESDHC_TUNING_STEP_SHIFT		16
 
@@ -337,6 +338,16 @@ struct pltfm_imx_data {
 	struct clk *clk_ahb;
 	struct clk *clk_per;
 	unsigned int actual_clock;
+
+	/*
+	 * USDHC has one limition, require the SDIO device a different
+	 * register setting. Driver has to recognize card type during
+	 * the card init, but at this stage, mmc_host->card is not
+	 * available. So involve this field to save the card type
+	 * during card init through usdhc_init_card().
+	 */
+	unsigned int init_card_type;
+
 	enum {
 		NO_CMD_PENDING,      /* no multiblock command pending */
 		MULTIBLK_IN_PROCESS, /* exact multiblock cmd in process */
@@ -429,9 +440,12 @@ static inline void esdhc_wait_for_card_clock_gate_off(struct sdhci_host *host)
 }
 
 /* Enable the auto tuning circuit to check the CMD line and BUS line */
-static inline void usdhc_auto_tuning_mode_sel(struct sdhci_host *host)
+static inline void usdhc_auto_tuning_mode_sel_and_en(struct sdhci_host *host)
 {
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct pltfm_imx_data *imx_data = sdhci_pltfm_priv(pltfm_host);
 	u32 buswidth, auto_tune_buswidth;
+	u32 reg;
 
 	buswidth = USDHC_GET_BUSWIDTH(readl(host->ioaddr + SDHCI_HOST_CONTROL));
 
@@ -447,9 +461,27 @@ static inline void usdhc_auto_tuning_mode_sel(struct sdhci_host *host)
 		break;
 	}
 
+	/*
+	 * For USDHC, auto tuning circuit can not handle the async sdio
+	 * device interrupt correctly. When sdio device use 4 data lines,
+	 * async sdio interrupt will use the shared DAT[1], if enable auto
+	 * tuning circuit check these 4 data lines, include the DAT[1],
+	 * this circuit will detect this interrupt, take this as a data on
+	 * DAT[1], and adjust the delay cell wrongly.
+	 * This is the hardware design limitation, to avoid this, for sdio
+	 * device, config the auto tuning circuit only check DAT[0] and CMD
+	 * line.
+	 */
+	if (imx_data->init_card_type == MMC_TYPE_SDIO)
+		auto_tune_buswidth = ESDHC_VEND_SPEC2_AUTO_TUNE_1BIT_EN;
+
 	esdhc_clrset_le(host, ESDHC_VEND_SPEC2_AUTO_TUNE_MODE_MASK,
 			auto_tune_buswidth | ESDHC_VEND_SPEC2_AUTO_TUNE_CMD_EN,
 			ESDHC_VEND_SPEC2);
+
+	reg = readl(host->ioaddr + ESDHC_MIX_CTRL);
+	reg |= ESDHC_MIX_CTRL_AUTO_TUNE_EN;
+	writel(reg, host->ioaddr + ESDHC_MIX_CTRL);
 }
 
 static u32 esdhc_readl_le(struct sdhci_host *host, int reg)
@@ -681,14 +713,11 @@ static void esdhc_writew_le(struct sdhci_host *host, u16 val, int reg)
 			} else {
 				v &= ~ESDHC_MIX_CTRL_SMPCLK_SEL;
 				m &= ~ESDHC_MIX_CTRL_FBCLK_SEL;
-				m &= ~ESDHC_MIX_CTRL_AUTO_TUNE_EN;
 			}
 
 			if (val & SDHCI_CTRL_EXEC_TUNING) {
 				v |= ESDHC_MIX_CTRL_EXE_TUNE;
 				m |= ESDHC_MIX_CTRL_FBCLK_SEL;
-				m |= ESDHC_MIX_CTRL_AUTO_TUNE_EN;
-				usdhc_auto_tuning_mode_sel(host);
 			} else {
 				v &= ~ESDHC_MIX_CTRL_EXE_TUNE;
 			}
@@ -1022,13 +1051,15 @@ static void esdhc_reset_tuning(struct sdhci_host *host)
 
 	/* Reset the tuning circuit */
 	if (esdhc_is_usdhc(imx_data)) {
+		ctrl = readl(host->ioaddr + ESDHC_MIX_CTRL);
+		ctrl &= ~ESDHC_MIX_CTRL_AUTO_TUNE_EN;
 		if (imx_data->socdata->flags & ESDHC_FLAG_MAN_TUNING) {
-			ctrl = readl(host->ioaddr + ESDHC_MIX_CTRL);
 			ctrl &= ~ESDHC_MIX_CTRL_SMPCLK_SEL;
 			ctrl &= ~ESDHC_MIX_CTRL_FBCLK_SEL;
 			writel(ctrl, host->ioaddr + ESDHC_MIX_CTRL);
 			writel(0, host->ioaddr + ESDHC_TUNE_CTRL_STATUS);
 		} else if (imx_data->socdata->flags & ESDHC_FLAG_STD_TUNING) {
+			writel(ctrl, host->ioaddr + ESDHC_MIX_CTRL);
 			ctrl = readl(host->ioaddr + SDHCI_AUTO_CMD_STATUS);
 			ctrl &= ~ESDHC_MIX_CTRL_SMPCLK_SEL;
 			ctrl &= ~ESDHC_MIX_CTRL_EXE_TUNE;
@@ -1051,9 +1082,19 @@ static void esdhc_reset_tuning(struct sdhci_host *host)
 	}
 }
 
+static void usdhc_init_card(struct mmc_host *mmc, struct mmc_card *card)
+{
+	struct sdhci_host *host = mmc_priv(mmc);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct pltfm_imx_data *imx_data = sdhci_pltfm_priv(pltfm_host);
+
+	imx_data->init_card_type = card->type;
+}
+
 static int usdhc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 {
 	struct sdhci_host *host = mmc_priv(mmc);
+	int err;
 
 	/*
 	 * i.MX uSDHC internally already uses a fixed optimized timing for
@@ -1068,7 +1109,12 @@ static int usdhc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	 * correct delay cell.
 	 */
 	esdhc_reset_tuning(host);
-	return sdhci_execute_tuning(mmc, opcode);
+	err = sdhci_execute_tuning(mmc, opcode);
+	/* If tuning done, enable auto tuning */
+	if (!err && !host->tuning_err)
+		usdhc_auto_tuning_mode_sel_and_en(host);
+
+	return err;
 }
 
 static void esdhc_prepare_tuning(struct sdhci_host *host, u32 val)
@@ -1102,11 +1148,8 @@ static void esdhc_post_tuning(struct sdhci_host *host)
 {
 	u32 reg;
 
-	usdhc_auto_tuning_mode_sel(host);
-
 	reg = readl(host->ioaddr + ESDHC_MIX_CTRL);
 	reg &= ~ESDHC_MIX_CTRL_EXE_TUNE;
-	reg |= ESDHC_MIX_CTRL_AUTO_TUNE_EN;
 	writel(reg, host->ioaddr + ESDHC_MIX_CTRL);
 }
 
@@ -1368,7 +1411,7 @@ static void sdhci_esdhc_imx_hwinit(struct sdhci_host *host)
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct pltfm_imx_data *imx_data = sdhci_pltfm_priv(pltfm_host);
 	struct cqhci_host *cq_host = host->mmc->cqe_private;
-	int tmp;
+	u32 tmp;
 
 	if (esdhc_is_usdhc(imx_data)) {
 		/*
@@ -1423,16 +1466,23 @@ static void sdhci_esdhc_imx_hwinit(struct sdhci_host *host)
 
 		if (imx_data->socdata->flags & ESDHC_FLAG_STD_TUNING) {
 			tmp = readl(host->ioaddr + ESDHC_TUNING_CTRL);
-			tmp |= ESDHC_STD_TUNING_EN |
-				ESDHC_TUNING_START_TAP_DEFAULT;
-			if (imx_data->boarddata.tuning_start_tap) {
-				tmp &= ~ESDHC_TUNING_START_TAP_MASK;
+			tmp |= ESDHC_STD_TUNING_EN;
+
+			/*
+			 * ROM code or bootloader may config the start tap
+			 * and step, unmask them first.
+			 */
+			tmp &= ~(ESDHC_TUNING_START_TAP_MASK | ESDHC_TUNING_STEP_MASK);
+			if (imx_data->boarddata.tuning_start_tap)
 				tmp |= imx_data->boarddata.tuning_start_tap;
-			}
+			else
+				tmp |= ESDHC_TUNING_START_TAP_DEFAULT;
 
 			if (imx_data->boarddata.tuning_step) {
-				tmp &= ~ESDHC_TUNING_STEP_MASK;
 				tmp |= imx_data->boarddata.tuning_step
+					<< ESDHC_TUNING_STEP_SHIFT;
+			} else {
+				tmp |= ESDHC_TUNING_STEP_DEFAULT
 					<< ESDHC_TUNING_STEP_SHIFT;
 			}
 
@@ -1666,6 +1716,12 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 		 * to replace the standard one in sdhci_ops.
 		 */
 		host->mmc_host_ops.execute_tuning = usdhc_execute_tuning;
+
+		/*
+		 * Link usdhc specific mmc_host_ops init card function,
+		 * to distinguish the card type.
+		 */
+		host->mmc_host_ops.init_card = usdhc_init_card;
 	}
 
 	err = sdhci_esdhc_imx_probe_dt(pdev, host, imx_data);

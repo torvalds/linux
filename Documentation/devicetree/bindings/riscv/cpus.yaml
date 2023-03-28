@@ -83,7 +83,7 @@ properties:
       insensitive, letters in the riscv,isa string must be all
       lowercase to simplify parsing.
     $ref: "/schemas/types.yaml#/definitions/string"
-    pattern: ^rv(?:64|32)imaf?d?q?c?b?v?k?h?(?:_[hsxz](?:[a-z])+)*$
+    pattern: ^rv(?:64|32)imaf?d?q?c?b?k?j?p?v?h?(?:[hsxz](?:[a-z])+)?(?:_[hsxz](?:[a-z])+)*$
 
   # RISC-V requires 'timebase-frequency' in /cpus, so disallow it here
   timebase-frequency: false
@@ -113,6 +113,12 @@ properties:
     description: |
       List of phandles to idle state nodes supported
       by this hart (see ./idle-states.yaml).
+
+  capacity-dmips-mhz:
+    description:
+      u32 value representing CPU capacity (see ../cpu/cpu-capacity.txt) in
+      DMIPS/MHz, relative to highest capacity-dmips-mhz
+      in the system.
 
 required:
   - riscv,isa

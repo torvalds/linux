@@ -108,7 +108,7 @@ properties:
 
   msi-controller:
     description:
-      Only present if the Message Based Interrupt functionnality is
+      Only present if the Message Based Interrupt functionality is
       being exposed by the HW, and the mbi-ranges property present.
 
   mbi-ranges:

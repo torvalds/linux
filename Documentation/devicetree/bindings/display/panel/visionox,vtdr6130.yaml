@@ -16,6 +16,10 @@ properties:
   compatible:
     const: visionox,vtdr6130
 
+  reg:
+    maxItems: 1
+    description: DSI virtual channel
+
   vddio-supply: true
   vci-supply: true
   vdd-supply: true
@@ -26,6 +30,7 @@ additionalProperties: false
 
 required:
   - compatible
+  - reg
   - vddio-supply
   - vci-supply
   - vdd-supply
@@ -35,18 +40,23 @@ required:
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
-    panel {
-        compatible = "visionox,vtdr6130";
+    dsi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        panel@0 {
+            compatible = "visionox,vtdr6130";
+            reg = <0>;
 
-        vddio-supply = <&vreg_l12b_1p8>;
-        vci-supply = <&vreg_l13b_3p0>;
-        vdd-supply = <&vreg_l11b_1p2>;
+            vddio-supply = <&vreg_l12b_1p8>;
+            vci-supply = <&vreg_l13b_3p0>;
+            vdd-supply = <&vreg_l11b_1p2>;
 
-        reset-gpios = <&tlmm 133 GPIO_ACTIVE_LOW>;
+            reset-gpios = <&tlmm 133 GPIO_ACTIVE_LOW>;
 
-        port {
-            panel0_in: endpoint {
-                remote-endpoint = <&dsi0_out>;
+            port {
+                panel0_in: endpoint {
+                    remote-endpoint = <&dsi0_out>;
+                };
             };
         };
     };

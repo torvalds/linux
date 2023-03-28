@@ -20,6 +20,7 @@ that goes into great technical depth about the BPF Architecture.
    syscall_api
    helpers
    kfuncs
+   cpumasks
    programs
    maps
    bpf_prog_run

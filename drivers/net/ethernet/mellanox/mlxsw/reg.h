@@ -10009,6 +10009,18 @@ MLXSW_REG_DEFINE(mgir, MLXSW_REG_MGIR_ID, MLXSW_REG_MGIR_LEN);
  */
 MLXSW_ITEM32(reg, mgir, hw_info_device_hw_revision, 0x0, 16, 16);
 
+/* reg_mgir_fw_info_latency_tlv
+ * When set, latency-TLV is supported.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mgir, fw_info_latency_tlv, 0x20, 29, 1);
+
+/* reg_mgir_fw_info_string_tlv
+ * When set, string-TLV is supported.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mgir, fw_info_string_tlv, 0x20, 28, 1);
+
 #define MLXSW_REG_MGIR_FW_INFO_PSID_SIZE 16
 
 /* reg_mgir_fw_info_psid

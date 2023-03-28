@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 .. _it_linux_doc:
 
 ===================
@@ -67,75 +69,68 @@ I miglioramenti alla documentazione sono sempre i benvenuti; per cui,
 se vuoi aiutare, iscriviti alla lista di discussione linux-doc presso
 vger.kernel.org.
 
-Documentazione sulla licenza dei sorgenti
------------------------------------------
+Lavorare con la comunità di sviluppo
+------------------------------------
 
-I seguenti documenti descrivono la licenza usata nei sorgenti del kernel Linux
-(GPLv2), come licenziare i singoli file; inoltre troverete i riferimenti al
-testo integrale della licenza.
+Le guide fondamentali per l'interazione con la comunità di sviluppo del kernel e
+su come vedere il proprio lavoro integrato.
 
-* :ref:`it_kernel_licensing`
+.. toctree::
+   :maxdepth: 1
+
+   process/development-process
+   process/submitting-patches
+   Code of conduct <process/code-of-conduct>
+   All development-process docs <process/index>
+
+
+Manuali sull'API interna
+------------------------
+
+Di seguito una serie di manuali per gli sviluppatori che hanno bisogno di
+interfacciarsi con il resto del kernel.
+
+.. toctree::
+   :maxdepth: 1
+
+   core-api/index
+
+Strumenti e processi per lo sviluppo
+------------------------------------
+
+Di seguito una serie di manuali contenenti informazioni utili a tutti gli
+sviluppatori del kernel.
+
+.. toctree::
+   :maxdepth: 1
+
+   process/license-rules
+   doc-guide/index
+   kernel-hacking/index
 
 Documentazione per gli utenti
 -----------------------------
 
-I seguenti manuali sono scritti per gli *utenti* del kernel - ovvero,
-coloro che cercano di farlo funzionare in modo ottimale su un dato sistema
+Di seguito una serie di manuali per gli *utenti* del kernel - ovvero coloro che
+stanno cercando di farlo funzionare al meglio per un dato sistema, ma anche
+coloro che stanno sviluppando applicazioni che sfruttano l'API verso lo
+spazio-utente.
 
-.. warning::
+Consultate anche `Linux man pages <https://www.kernel.org/doc/man-pages/>`_, che
+vengono mantenuti separatamente dalla documentazione del kernel Linux
 
-    TODO ancora da tradurre
-
-Documentazione per gli sviluppatori di applicazioni
----------------------------------------------------
-
-Il manuale delle API verso lo spazio utente è una collezione di documenti
-che descrivono le interfacce del kernel viste dagli sviluppatori
-di applicazioni.
-
-.. warning::
-
-    TODO ancora da tradurre
-
-
-Introduzione allo sviluppo del kernel
--------------------------------------
-
-Questi manuali contengono informazioni su come contribuire allo sviluppo
-del kernel.
-Attorno al kernel Linux gira una comunità molto grande con migliaia di
-sviluppatori che contribuiscono ogni anno. Come in ogni grande comunità,
-sapere come le cose vengono fatte renderà il processo di integrazione delle
-vostre modifiche molto più semplice
-
-.. toctree::
-   :maxdepth: 2
-
-   process/index
-   doc-guide/index
-   kernel-hacking/index
-
-Documentazione della API del kernel
+Documentazione relativa ai firmware
 -----------------------------------
+Di seguito informazioni sulle aspettative del kernel circa i firmware.
 
-Questi manuali forniscono dettagli su come funzionano i sottosistemi del
-kernel dal punto di vista degli sviluppatori del kernel. Molte delle
-informazioni contenute in questi manuali sono prese direttamente dai
-file sorgenti, informazioni aggiuntive vengono aggiunte solo se necessarie
-(o almeno ci proviamo — probabilmente *non* tutto quello che è davvero
-necessario).
-
-.. toctree::
-   :maxdepth: 2
-
-   core-api/index
 
 Documentazione specifica per architettura
 -----------------------------------------
 
-Questi manuali forniscono dettagli di programmazione per le diverse
-implementazioni d'architettura.
 
-.. warning::
+Documentazione varia
+--------------------
 
-    TODO ancora da tradurre
+Ci sono documenti che sono difficili da inserire nell'attuale organizzazione
+della documentazione; altri hanno bisogno di essere migliorati e/o convertiti
+nel formato *ReStructured Text*; altri sono semplicamente troppo vecchi.

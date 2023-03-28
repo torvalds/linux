@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2006-2009 Red Hat, Inc.
  *
@@ -108,9 +109,8 @@ static int fill_pkg(struct cn_msg *msg, struct dm_ulog_request *tfr)
 			if (pkg->error != -EAGAIN)
 				*(pkg->data_size) = 0;
 		} else if (tfr->data_size > *(pkg->data_size)) {
-			DMERR("Insufficient space to receive package [%u] "
-			      "(%u vs %zu)", tfr->request_type,
-			      tfr->data_size, *(pkg->data_size));
+			DMERR("Insufficient space to receive package [%u] (%u vs %zu)",
+			      tfr->request_type, tfr->data_size, *(pkg->data_size));
 
 			*(pkg->data_size) = 0;
 			pkg->error = -ENOSPC;
@@ -142,7 +142,7 @@ static void cn_ulog_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
 		fill_pkg(msg, NULL);
 	else if (msg->len < sizeof(*tfr))
 		DMERR("Incomplete message received (expected %u, got %u): [%u]",
-		      (unsigned)sizeof(*tfr), msg->len, msg->seq);
+		      (unsigned int)sizeof(*tfr), msg->len, msg->seq);
 	else
 		fill_pkg(NULL, tfr);
 	spin_unlock(&receiving_list_lock);

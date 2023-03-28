@@ -1220,8 +1220,7 @@ static int ams_init_module(struct iio_dev *indio_dev,
 	int num_channels = 0;
 	int ret;
 
-	if (fwnode_property_match_string(fwnode, "compatible",
-					 "xlnx,zynqmp-ams-ps") == 0) {
+	if (fwnode_device_is_compatible(fwnode, "xlnx,zynqmp-ams-ps")) {
 		ams->ps_base = fwnode_iomap(fwnode, 0);
 		if (!ams->ps_base)
 			return -ENXIO;
@@ -1232,8 +1231,7 @@ static int ams_init_module(struct iio_dev *indio_dev,
 		/* add PS channels to iio device channels */
 		memcpy(channels, ams_ps_channels, sizeof(ams_ps_channels));
 		num_channels = ARRAY_SIZE(ams_ps_channels);
-	} else if (fwnode_property_match_string(fwnode, "compatible",
-						"xlnx,zynqmp-ams-pl") == 0) {
+	} else if (fwnode_device_is_compatible(fwnode, "xlnx,zynqmp-ams-pl")) {
 		ams->pl_base = fwnode_iomap(fwnode, 0);
 		if (!ams->pl_base)
 			return -ENXIO;
@@ -1247,8 +1245,7 @@ static int ams_init_module(struct iio_dev *indio_dev,
 		num_channels += AMS_PL_MAX_FIXED_CHANNEL;
 		num_channels = ams_get_ext_chan(fwnode, channels,
 						num_channels);
-	} else if (fwnode_property_match_string(fwnode, "compatible",
-						"xlnx,zynqmp-ams") == 0) {
+	} else if (fwnode_device_is_compatible(fwnode, "xlnx,zynqmp-ams")) {
 		/* add AMS channels to iio device channels */
 		memcpy(channels, ams_ctrl_channels, sizeof(ams_ctrl_channels));
 		num_channels += ARRAY_SIZE(ams_ctrl_channels);
@@ -1329,7 +1326,7 @@ static int ams_parse_firmware(struct iio_dev *indio_dev)
 
 	dev_channels = devm_krealloc(dev, ams_channels, dev_size, GFP_KERNEL);
 	if (!dev_channels)
-		ret = -ENOMEM;
+		return -ENOMEM;
 
 	indio_dev->channels = dev_channels;
 	indio_dev->num_channels = num_channels;

@@ -135,8 +135,8 @@
 					0xa101 0x0100 0x8100 0x0100 0x0100
 					0x0100>;
 
-			wlf,ldo1ena = <&gpf3 4 GPIO_ACTIVE_HIGH>;
-			wlf,ldo2ena = <&gpf3 4 GPIO_ACTIVE_HIGH>;
+			wlf,ldo1ena-gpios = <&gpf3 4 GPIO_ACTIVE_HIGH>;
+			wlf,ldo2ena-gpios = <&gpf3 4 GPIO_ACTIVE_HIGH>;
 
 			wlf,lineout1-se;
 			wlf,lineout2-se;

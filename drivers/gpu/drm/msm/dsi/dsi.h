@@ -118,6 +118,8 @@ int dsi_link_clk_enable_6g(struct msm_dsi_host *msm_host);
 int dsi_link_clk_enable_v2(struct msm_dsi_host *msm_host);
 void dsi_link_clk_disable_6g(struct msm_dsi_host *msm_host);
 void dsi_link_clk_disable_v2(struct msm_dsi_host *msm_host);
+unsigned long dsi_byte_clk_get_rate(struct mipi_dsi_host *host, bool is_bonded_dsi,
+				    const struct drm_display_mode *mode);
 int dsi_tx_buf_alloc_6g(struct msm_dsi_host *msm_host, int size);
 int dsi_tx_buf_alloc_v2(struct msm_dsi_host *msm_host, int size);
 void *dsi_tx_buf_get_6g(struct msm_dsi_host *msm_host);
@@ -139,6 +141,7 @@ struct msm_dsi_phy_shared_timings {
 	u32 clk_post;
 	u32 clk_pre;
 	bool clk_pre_inc_by_2;
+	bool byte_intf_clk_div_2;
 };
 
 struct msm_dsi_phy_clk_request {

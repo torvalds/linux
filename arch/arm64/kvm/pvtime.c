@@ -19,7 +19,7 @@ void kvm_update_stolen_time(struct kvm_vcpu *vcpu)
 	u64 steal = 0;
 	int idx;
 
-	if (base == GPA_INVALID)
+	if (base == INVALID_GPA)
 		return;
 
 	idx = srcu_read_lock(&kvm->srcu);
@@ -40,7 +40,7 @@ long kvm_hypercall_pv_features(struct kvm_vcpu *vcpu)
 	switch (feature) {
 	case ARM_SMCCC_HV_PV_TIME_FEATURES:
 	case ARM_SMCCC_HV_PV_TIME_ST:
-		if (vcpu->arch.steal.base != GPA_INVALID)
+		if (vcpu->arch.steal.base != INVALID_GPA)
 			val = SMCCC_RET_SUCCESS;
 		break;
 	}
@@ -54,7 +54,7 @@ gpa_t kvm_init_stolen_time(struct kvm_vcpu *vcpu)
 	struct kvm *kvm = vcpu->kvm;
 	u64 base = vcpu->arch.steal.base;
 
-	if (base == GPA_INVALID)
+	if (base == INVALID_GPA)
 		return base;
 
 	/*
@@ -89,7 +89,7 @@ int kvm_arm_pvtime_set_attr(struct kvm_vcpu *vcpu,
 		return -EFAULT;
 	if (!IS_ALIGNED(ipa, 64))
 		return -EINVAL;
-	if (vcpu->arch.steal.base != GPA_INVALID)
+	if (vcpu->arch.steal.base != INVALID_GPA)
 		return -EEXIST;
 
 	/* Check the address is in a valid memslot */

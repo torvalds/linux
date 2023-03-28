@@ -172,7 +172,7 @@ config PINCTRL_DA9062
 
 config PINCTRL_DIGICOLOR
 	bool
-	depends on OF && (ARCH_DIGICOLOR || COMPILE_TEST)
+	depends on ARCH_DIGICOLOR || COMPILE_TEST
 	select PINMUX
 	select GENERIC_PINCONF
 

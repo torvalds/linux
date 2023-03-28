@@ -37,77 +37,104 @@ qca8k_split_addr(u32 regaddr, u16 *r1, u16 *r2, u16 *page)
 }
 
 static int
-qca8k_set_lo(struct qca8k_priv *priv, int phy_id, u32 regnum, u16 lo)
+qca8k_mii_write_lo(struct mii_bus *bus, int phy_id, u32 regnum, u32 val)
 {
-	u16 *cached_lo = &priv->mdio_cache.lo;
-	struct mii_bus *bus = priv->bus;
 	int ret;
+	u16 lo;
 
-	if (lo == *cached_lo)
-		return 0;
-
+	lo = val & 0xffff;
 	ret = bus->write(bus, phy_id, regnum, lo);
 	if (ret < 0)
 		dev_err_ratelimited(&bus->dev,
 				    "failed to write qca8k 32bit lo register\n");
 
-	*cached_lo = lo;
-	return 0;
+	return ret;
 }
 
 static int
-qca8k_set_hi(struct qca8k_priv *priv, int phy_id, u32 regnum, u16 hi)
+qca8k_mii_write_hi(struct mii_bus *bus, int phy_id, u32 regnum, u32 val)
 {
-	u16 *cached_hi = &priv->mdio_cache.hi;
-	struct mii_bus *bus = priv->bus;
 	int ret;
+	u16 hi;
 
-	if (hi == *cached_hi)
-		return 0;
-
+	hi = (u16)(val >> 16);
 	ret = bus->write(bus, phy_id, regnum, hi);
 	if (ret < 0)
 		dev_err_ratelimited(&bus->dev,
 				    "failed to write qca8k 32bit hi register\n");
 
-	*cached_hi = hi;
+	return ret;
+}
+
+static int
+qca8k_mii_read_lo(struct mii_bus *bus, int phy_id, u32 regnum, u32 *val)
+{
+	int ret;
+
+	ret = bus->read(bus, phy_id, regnum);
+	if (ret < 0)
+		goto err;
+
+	*val = ret & 0xffff;
 	return 0;
+
+err:
+	dev_err_ratelimited(&bus->dev,
+			    "failed to read qca8k 32bit lo register\n");
+	*val = 0;
+
+	return ret;
+}
+
+static int
+qca8k_mii_read_hi(struct mii_bus *bus, int phy_id, u32 regnum, u32 *val)
+{
+	int ret;
+
+	ret = bus->read(bus, phy_id, regnum);
+	if (ret < 0)
+		goto err;
+
+	*val = ret << 16;
+	return 0;
+
+err:
+	dev_err_ratelimited(&bus->dev,
+			    "failed to read qca8k 32bit hi register\n");
+	*val = 0;
+
+	return ret;
 }
 
 static int
 qca8k_mii_read32(struct mii_bus *bus, int phy_id, u32 regnum, u32 *val)
 {
+	u32 hi, lo;
 	int ret;
 
-	ret = bus->read(bus, phy_id, regnum);
-	if (ret >= 0) {
-		*val = ret;
-		ret = bus->read(bus, phy_id, regnum + 1);
-		*val |= ret << 16;
-	}
+	*val = 0;
 
-	if (ret < 0) {
-		dev_err_ratelimited(&bus->dev,
-				    "failed to read qca8k 32bit register\n");
-		*val = 0;
-		return ret;
-	}
+	ret = qca8k_mii_read_lo(bus, phy_id, regnum, &lo);
+	if (ret < 0)
+		goto err;
 
-	return 0;
+	ret = qca8k_mii_read_hi(bus, phy_id, regnum + 1, &hi);
+	if (ret < 0)
+		goto err;
+
+	*val = lo | hi;
+
+err:
+	return ret;
 }
 
 static void
-qca8k_mii_write32(struct qca8k_priv *priv, int phy_id, u32 regnum, u32 val)
+qca8k_mii_write32(struct mii_bus *bus, int phy_id, u32 regnum, u32 val)
 {
-	u16 lo, hi;
-	int ret;
+	if (qca8k_mii_write_lo(bus, phy_id, regnum, val) < 0)
+		return;
 
-	lo = val & 0xffff;
-	hi = (u16)(val >> 16);
-
-	ret = qca8k_set_lo(priv, phy_id, regnum, lo);
-	if (ret >= 0)
-		ret = qca8k_set_hi(priv, phy_id, regnum + 1, hi);
+	qca8k_mii_write_hi(bus, phy_id, regnum + 1, val);
 }
 
 static int
@@ -146,7 +173,16 @@ static void qca8k_rw_reg_ack_handler(struct dsa_switch *ds, struct sk_buff *skb)
 
 	command = get_unaligned_le32(&mgmt_ethhdr->command);
 	cmd = FIELD_GET(QCA_HDR_MGMT_CMD, command);
+
 	len = FIELD_GET(QCA_HDR_MGMT_LENGTH, command);
+	/* Special case for len of 15 as this is the max value for len and needs to
+	 * be increased before converting it from word to dword.
+	 */
+	if (len == 15)
+		len++;
+
+	/* We can ignore odd value, we always round up them in the alloc function. */
+	len *= sizeof(u16);
 
 	/* Make sure the seq match the requested packet */
 	if (get_unaligned_le32(&mgmt_ethhdr->seq) == mgmt_eth_data->seq)
@@ -193,17 +229,33 @@ static struct sk_buff *qca8k_alloc_mdio_header(enum mdio_cmd cmd, u32 reg, u32 *
 	if (!skb)
 		return NULL;
 
-	/* Max value for len reg is 15 (0xf) but the switch actually return 16 byte
-	 * Actually for some reason the steps are:
-	 * 0: nothing
-	 * 1-4: first 4 byte
-	 * 5-6: first 12 byte
-	 * 7-15: all 16 byte
+	/* Hdr mgmt length value is in step of word size.
+	 * As an example to process 4 byte of data the correct length to set is 2.
+	 * To process 8 byte 4, 12 byte 6, 16 byte 8...
+	 *
+	 * Odd values will always return the next size on the ack packet.
+	 * (length of 3 (6 byte) will always return 8 bytes of data)
+	 *
+	 * This means that a value of 15 (0xf) actually means reading/writing 32 bytes
+	 * of data.
+	 *
+	 * To correctly calculate the length we devide the requested len by word and
+	 * round up.
+	 * On the ack function we can skip the odd check as we already handle the
+	 * case here.
 	 */
-	if (len == 16)
-		real_len = 15;
-	else
-		real_len = len;
+	real_len = DIV_ROUND_UP(len, sizeof(u16));
+
+	/* We check if the result len is odd and we round up another time to
+	 * the next size. (length of 3 will be increased to 4 as switch will always
+	 * return 8 bytes)
+	 */
+	if (real_len % sizeof(u16) != 0)
+		real_len++;
+
+	/* Max reg value is 0xf(15) but switch will always return the next size (32 byte) */
+	if (real_len == 16)
+		real_len--;
 
 	skb_reset_mac_header(skb);
 	skb_set_network_header(skb, skb->len);
@@ -373,15 +425,11 @@ qca8k_regmap_update_bits_eth(struct qca8k_priv *priv, u32 reg, u32 mask, u32 wri
 }
 
 static int
-qca8k_regmap_read(void *ctx, uint32_t reg, uint32_t *val)
+qca8k_read_mii(struct qca8k_priv *priv, uint32_t reg, uint32_t *val)
 {
-	struct qca8k_priv *priv = (struct qca8k_priv *)ctx;
 	struct mii_bus *bus = priv->bus;
 	u16 r1, r2, page;
 	int ret;
-
-	if (!qca8k_read_eth(priv, reg, val, sizeof(*val)))
-		return 0;
 
 	qca8k_split_addr(reg, &r1, &r2, &page);
 
@@ -399,15 +447,11 @@ exit:
 }
 
 static int
-qca8k_regmap_write(void *ctx, uint32_t reg, uint32_t val)
+qca8k_write_mii(struct qca8k_priv *priv, uint32_t reg, uint32_t val)
 {
-	struct qca8k_priv *priv = (struct qca8k_priv *)ctx;
 	struct mii_bus *bus = priv->bus;
 	u16 r1, r2, page;
 	int ret;
-
-	if (!qca8k_write_eth(priv, reg, &val, sizeof(val)))
-		return 0;
 
 	qca8k_split_addr(reg, &r1, &r2, &page);
 
@@ -417,7 +461,7 @@ qca8k_regmap_write(void *ctx, uint32_t reg, uint32_t val)
 	if (ret < 0)
 		goto exit;
 
-	qca8k_mii_write32(priv, 0x10 | r2, r1, val);
+	qca8k_mii_write32(bus, 0x10 | r2, r1, val);
 
 exit:
 	mutex_unlock(&bus->mdio_lock);
@@ -425,16 +469,13 @@ exit:
 }
 
 static int
-qca8k_regmap_update_bits(void *ctx, uint32_t reg, uint32_t mask, uint32_t write_val)
+qca8k_regmap_update_bits_mii(struct qca8k_priv *priv, uint32_t reg,
+			     uint32_t mask, uint32_t write_val)
 {
-	struct qca8k_priv *priv = (struct qca8k_priv *)ctx;
 	struct mii_bus *bus = priv->bus;
 	u16 r1, r2, page;
 	u32 val;
 	int ret;
-
-	if (!qca8k_regmap_update_bits_eth(priv, reg, mask, write_val))
-		return 0;
 
 	qca8k_split_addr(reg, &r1, &r2, &page);
 
@@ -450,7 +491,7 @@ qca8k_regmap_update_bits(void *ctx, uint32_t reg, uint32_t mask, uint32_t write_
 
 	val &= ~mask;
 	val |= write_val;
-	qca8k_mii_write32(priv, 0x10 | r2, r1, val);
+	qca8k_mii_write32(bus, 0x10 | r2, r1, val);
 
 exit:
 	mutex_unlock(&bus->mdio_lock);
@@ -458,17 +499,84 @@ exit:
 	return ret;
 }
 
+static int
+qca8k_bulk_read(void *ctx, const void *reg_buf, size_t reg_len,
+		void *val_buf, size_t val_len)
+{
+	int i, count = val_len / sizeof(u32), ret;
+	u32 reg = *(u32 *)reg_buf & U16_MAX;
+	struct qca8k_priv *priv = ctx;
+
+	if (priv->mgmt_master &&
+	    !qca8k_read_eth(priv, reg, val_buf, val_len))
+		return 0;
+
+	/* loop count times and increment reg of 4 */
+	for (i = 0; i < count; i++, reg += sizeof(u32)) {
+		ret = qca8k_read_mii(priv, reg, val_buf + i);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int
+qca8k_bulk_gather_write(void *ctx, const void *reg_buf, size_t reg_len,
+			const void *val_buf, size_t val_len)
+{
+	int i, count = val_len / sizeof(u32), ret;
+	u32 reg = *(u32 *)reg_buf & U16_MAX;
+	struct qca8k_priv *priv = ctx;
+	u32 *val = (u32 *)val_buf;
+
+	if (priv->mgmt_master &&
+	    !qca8k_write_eth(priv, reg, val, val_len))
+		return 0;
+
+	/* loop count times, increment reg of 4 and increment val ptr to
+	 * the next value
+	 */
+	for (i = 0; i < count; i++, reg += sizeof(u32), val++) {
+		ret = qca8k_write_mii(priv, reg, *val);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int
+qca8k_bulk_write(void *ctx, const void *data, size_t bytes)
+{
+	return qca8k_bulk_gather_write(ctx, data, sizeof(u16), data + sizeof(u16),
+				       bytes - sizeof(u16));
+}
+
+static int
+qca8k_regmap_update_bits(void *ctx, uint32_t reg, uint32_t mask, uint32_t write_val)
+{
+	struct qca8k_priv *priv = ctx;
+
+	if (!qca8k_regmap_update_bits_eth(priv, reg, mask, write_val))
+		return 0;
+
+	return qca8k_regmap_update_bits_mii(priv, reg, mask, write_val);
+}
+
 static struct regmap_config qca8k_regmap_config = {
 	.reg_bits = 16,
 	.val_bits = 32,
 	.reg_stride = 4,
 	.max_register = 0x16ac, /* end MIB - Port6 range */
-	.reg_read = qca8k_regmap_read,
-	.reg_write = qca8k_regmap_write,
+	.read = qca8k_bulk_read,
+	.write = qca8k_bulk_write,
 	.reg_update_bits = qca8k_regmap_update_bits,
 	.rd_table = &qca8k_readable_table,
 	.disable_locking = true, /* Locking is handled by qca8k read/write */
 	.cache_type = REGCACHE_NONE, /* Explicitly disable CACHE */
+	.max_raw_read = 32, /* mgmt eth can read/write up to 8 registers at time */
+	.max_raw_write = 32,
 };
 
 static int
@@ -688,9 +796,9 @@ qca8k_mdio_busy_wait(struct mii_bus *bus, u32 reg, u32 mask)
 
 	qca8k_split_addr(reg, &r1, &r2, &page);
 
-	ret = read_poll_timeout(qca8k_mii_read32, ret1, !(val & mask), 0,
+	ret = read_poll_timeout(qca8k_mii_read_hi, ret1, !(val & mask), 0,
 				QCA8K_BUSY_WAIT_TIMEOUT * USEC_PER_MSEC, false,
-				bus, 0x10 | r2, r1, &val);
+				bus, 0x10 | r2, r1 + 1, &val);
 
 	/* Check if qca8k_read has failed for a different reason
 	 * before returnting -ETIMEDOUT
@@ -725,14 +833,14 @@ qca8k_mdio_write(struct qca8k_priv *priv, int phy, int regnum, u16 data)
 	if (ret)
 		goto exit;
 
-	qca8k_mii_write32(priv, 0x10 | r2, r1, val);
+	qca8k_mii_write32(bus, 0x10 | r2, r1, val);
 
 	ret = qca8k_mdio_busy_wait(bus, QCA8K_MDIO_MASTER_CTRL,
 				   QCA8K_MDIO_MASTER_BUSY);
 
 exit:
 	/* even if the busy_wait timeouts try to clear the MASTER_EN */
-	qca8k_mii_write32(priv, 0x10 | r2, r1, 0);
+	qca8k_mii_write_hi(bus, 0x10 | r2, r1 + 1, 0);
 
 	mutex_unlock(&bus->mdio_lock);
 
@@ -762,18 +870,18 @@ qca8k_mdio_read(struct qca8k_priv *priv, int phy, int regnum)
 	if (ret)
 		goto exit;
 
-	qca8k_mii_write32(priv, 0x10 | r2, r1, val);
+	qca8k_mii_write_hi(bus, 0x10 | r2, r1 + 1, val);
 
 	ret = qca8k_mdio_busy_wait(bus, QCA8K_MDIO_MASTER_CTRL,
 				   QCA8K_MDIO_MASTER_BUSY);
 	if (ret)
 		goto exit;
 
-	ret = qca8k_mii_read32(bus, 0x10 | r2, r1, &val);
+	ret = qca8k_mii_read_lo(bus, 0x10 | r2, r1, &val);
 
 exit:
 	/* even if the busy_wait timeouts try to clear the MASTER_EN */
-	qca8k_mii_write32(priv, 0x10 | r2, r1, 0);
+	qca8k_mii_write_hi(bus, 0x10 | r2, r1 + 1, 0);
 
 	mutex_unlock(&bus->mdio_lock);
 
@@ -1943,8 +2051,6 @@ qca8k_sw_probe(struct mdio_device *mdiodev)
 	}
 
 	priv->mdio_cache.page = 0xffff;
-	priv->mdio_cache.lo = 0xffff;
-	priv->mdio_cache.hi = 0xffff;
 
 	/* Check the detected switch id */
 	ret = qca8k_read_switch_id(priv);
@@ -2039,8 +2145,6 @@ static SIMPLE_DEV_PM_OPS(qca8k_pm_ops,
 
 static const struct qca8k_info_ops qca8xxx_ops = {
 	.autocast_mib = qca8k_get_ethtool_stats_eth,
-	.read_eth = qca8k_read_eth,
-	.write_eth = qca8k_write_eth,
 };
 
 static const struct qca8k_match_data qca8327 = {

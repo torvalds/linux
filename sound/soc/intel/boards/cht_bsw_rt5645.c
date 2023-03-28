@@ -581,9 +581,9 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 	if (adev) {
 		snprintf(cht_rt5645_codec_name, sizeof(cht_rt5645_codec_name),
 			 "i2c-%s", acpi_dev_name(adev));
-		put_device(&adev->dev);
 		cht_dailink[dai_index].codecs->name = cht_rt5645_codec_name;
 	}
+	acpi_dev_put(adev);
 
 	/*
 	 * swap SSP0 if bytcr is detected

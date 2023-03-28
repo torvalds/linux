@@ -125,7 +125,7 @@ void udf_discard_prealloc(struct inode *inode)
 	struct kernel_lb_addr eloc;
 	uint32_t elen;
 	uint64_t lbcount = 0;
-	int8_t etype = -1, netype;
+	int8_t etype = -1;
 	struct udf_inode_info *iinfo = UDF_I(inode);
 	int bsize = 1 << inode->i_blkbits;
 
@@ -136,7 +136,7 @@ void udf_discard_prealloc(struct inode *inode)
 	epos.block = iinfo->i_location;
 
 	/* Find the last extent in the file */
-	while ((netype = udf_next_aext(inode, &epos, &eloc, &elen, 0)) != -1) {
+	while (udf_next_aext(inode, &epos, &eloc, &elen, 0) != -1) {
 		brelse(prev_epos.bh);
 		prev_epos = epos;
 		if (prev_epos.bh)
@@ -240,7 +240,7 @@ int udf_truncate_extents(struct inode *inode)
 			brelse(epos.bh);
 			epos.offset = sizeof(struct allocExtDesc);
 			epos.block = eloc;
-			epos.bh = udf_tread(sb,
+			epos.bh = sb_bread(sb,
 					udf_get_lb_pblock(sb, &eloc, 0));
 			/* Error reading indirect block? */
 			if (!epos.bh)

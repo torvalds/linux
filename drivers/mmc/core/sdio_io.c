@@ -766,7 +766,7 @@ EXPORT_SYMBOL_GPL(sdio_retune_crc_disable);
  *	sdio_retune_crc_enable - re-enable retuning on CRC errors
  *	@func: SDIO function attached to host
  *
- *	This is the compement to sdio_retune_crc_disable().
+ *	This is the complement to sdio_retune_crc_disable().
  */
 void sdio_retune_crc_enable(struct sdio_func *func)
 {

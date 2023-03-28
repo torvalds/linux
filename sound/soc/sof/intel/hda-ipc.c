@@ -67,6 +67,32 @@ int hda_dsp_ipc_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 	return 0;
 }
 
+static inline bool hda_dsp_ipc4_pm_msg(u32 primary)
+{
+	/* pm setting is only supported by module msg */
+	if (SOF_IPC4_MSG_IS_MODULE_MSG(primary) != SOF_IPC4_MODULE_MSG)
+		return false;
+
+	if (SOF_IPC4_MSG_TYPE_GET(primary) == SOF_IPC4_MOD_SET_DX ||
+	    SOF_IPC4_MSG_TYPE_GET(primary) == SOF_IPC4_MOD_SET_D0IX)
+		return true;
+
+	return false;
+}
+
+void hda_dsp_ipc4_schedule_d0i3_work(struct sof_intel_hda_dev *hdev,
+				     struct snd_sof_ipc_msg *msg)
+{
+	struct sof_ipc4_msg *msg_data = msg->msg_data;
+
+	/* Schedule a delayed work for d0i3 entry after sending non-pm ipc msg */
+	if (hda_dsp_ipc4_pm_msg(msg_data->primary))
+		return;
+
+	mod_delayed_work(system_wq, &hdev->d0i3_work,
+			 msecs_to_jiffies(SOF_HDA_D0I3_WORK_DELAY_MS));
+}
+
 int hda_dsp_ipc4_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 {
 	struct sof_intel_hda_dev *hdev = sdev->pdata->hw_pdata;
@@ -87,6 +113,8 @@ int hda_dsp_ipc4_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 	snd_sof_dsp_write(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCIE, msg_data->extension);
 	snd_sof_dsp_write(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCI,
 			  msg_data->primary | HDA_DSP_REG_HIPCI_BUSY);
+
+	hda_dsp_ipc4_schedule_d0i3_work(hdev, msg);
 
 	return 0;
 }
@@ -361,12 +389,13 @@ int hda_dsp_ipc_get_window_offset(struct snd_sof_dev *sdev, u32 id)
 }
 
 int hda_ipc_msg_data(struct snd_sof_dev *sdev,
-		     struct snd_pcm_substream *substream,
+		     struct snd_sof_pcm_stream *sps,
 		     void *p, size_t sz)
 {
-	if (!substream || !sdev->stream_box.size) {
+	if (!sps || !sdev->stream_box.size) {
 		sof_mailbox_read(sdev, sdev->dsp_box.offset, p, sz);
 	} else {
+		struct snd_pcm_substream *substream = sps->substream;
 		struct hdac_stream *hstream = substream->runtime->private_data;
 		struct sof_intel_hda_stream *hda_stream;
 
@@ -385,9 +414,10 @@ int hda_ipc_msg_data(struct snd_sof_dev *sdev,
 }
 
 int hda_set_stream_data_offset(struct snd_sof_dev *sdev,
-			       struct snd_pcm_substream *substream,
+			       struct snd_sof_pcm_stream *sps,
 			       size_t posn_offset)
 {
+	struct snd_pcm_substream *substream = sps->substream;
 	struct hdac_stream *hstream = substream->runtime->private_data;
 	struct sof_intel_hda_stream *hda_stream;
 

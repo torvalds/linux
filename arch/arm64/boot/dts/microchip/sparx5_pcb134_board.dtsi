@@ -538,7 +538,7 @@
 };
 
 &mdio3 {
-	status = "ok";
+	status = "okay";
 	phy64: ethernet-phy@64 {
 		reg = <28>;
 	};

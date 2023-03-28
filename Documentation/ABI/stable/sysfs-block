@@ -432,7 +432,8 @@ Contact:	linux-block@vger.kernel.org
 Description:
 		[RW] This is the maximum number of kilobytes that the block
 		layer will allow for a filesystem request. Must be smaller than
-		or equal to the maximum size allowed by the hardware.
+		or equal to the maximum size allowed by the hardware. Write 0
+		to use default kernel settings.
 
 
 What:		/sys/block/<disk>/queue/max_segment_size
@@ -702,6 +703,15 @@ Description:
 		However, since drive-managed zoned block devices do not support
 		zone commands, they will be treated as regular block devices and
 		zoned will report "none".
+
+
+What:		/sys/block/<disk>/hidden
+Date:		March 2023
+Contact:	linux-block@vger.kernel.org
+Description:
+		[RO] the block device is hidden. it doesn’t produce events, and
+		can’t be opened from userspace or using blkdev_get*.
+		Used for the underlying components of multipath devices.
 
 
 What:		/sys/block/<disk>/stat

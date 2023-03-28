@@ -13,6 +13,7 @@
 #include <linux/dfl.h>
 #include <linux/fpga-dfl.h>
 #include <linux/module.h>
+#include <linux/overflow.h>
 #include <linux/uaccess.h>
 
 #include "dfl.h"
@@ -45,7 +46,7 @@ static const char *dfl_pdata_key_strings[DFL_ID_MAX] = {
 };
 
 /**
- * dfl_dev_info - dfl feature device information.
+ * struct dfl_dev_info - dfl feature device information.
  * @name: name string of the feature platform device.
  * @dfh_id: id value in Device Feature Header (DFH) register by DFL spec.
  * @id: idr id of the feature dev.
@@ -67,7 +68,7 @@ static struct dfl_dev_info dfl_devs[] = {
 };
 
 /**
- * dfl_chardev_info - chardev information of dfl feature device
+ * struct dfl_chardev_info - chardev information of dfl feature device
  * @name: nmae string of the char device.
  * @devt: devt of the char device.
  */
@@ -293,9 +294,9 @@ static void dfl_bus_remove(struct device *dev)
 		ddrv->remove(ddev);
 }
 
-static int dfl_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int dfl_bus_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct dfl_device *ddev = to_dfl_dev(dev);
+	const struct dfl_device *ddev = to_dfl_dev(dev);
 
 	return add_uevent_var(env, "MODALIAS=dfl:t%04Xf%04X",
 			      ddev->type, ddev->feature_id);
@@ -342,6 +343,8 @@ static void release_dfl_dev(struct device *dev)
 	if (ddev->mmio_res.parent)
 		release_resource(&ddev->mmio_res);
 
+	kfree(ddev->params);
+
 	ida_free(&dfl_device_ida, ddev->id);
 	kfree(ddev->irqs);
 	kfree(ddev);
@@ -380,7 +383,16 @@ dfl_dev_add(struct dfl_feature_platform_data *pdata,
 	ddev->type = feature_dev_id_type(pdev);
 	ddev->feature_id = feature->id;
 	ddev->revision = feature->revision;
+	ddev->dfh_version = feature->dfh_version;
 	ddev->cdev = pdata->dfl_cdev;
+	if (feature->param_size) {
+		ddev->params = kmemdup(feature->params, feature->param_size, GFP_KERNEL);
+		if (!ddev->params) {
+			ret = -ENOMEM;
+			goto put_dev;
+		}
+		ddev->param_size = feature->param_size;
+	}
 
 	/* add mmio resource */
 	parent_res = &pdev->resource[feature->resource_index];
@@ -708,20 +720,27 @@ struct build_feature_devs_info {
  * struct dfl_feature_info - sub feature info collected during feature dev build
  *
  * @fid: id of this sub feature.
+ * @revision: revision of this sub feature
+ * @dfh_version: version of Device Feature Header (DFH)
  * @mmio_res: mmio resource of this sub feature.
  * @ioaddr: mapped base address of mmio resource.
  * @node: node in sub_features linked list.
  * @irq_base: start of irq index in this sub feature.
  * @nr_irqs: number of irqs of this sub feature.
+ * @param_size: size DFH parameters.
+ * @params: DFH parameter data.
  */
 struct dfl_feature_info {
 	u16 fid;
 	u8 revision;
+	u8 dfh_version;
 	struct resource mmio_res;
 	void __iomem *ioaddr;
 	struct list_head node;
 	unsigned int irq_base;
 	unsigned int nr_irqs;
+	unsigned int param_size;
+	u64 params[];
 };
 
 static void dfl_fpga_cdev_add_port_dev(struct dfl_fpga_cdev *cdev,
@@ -797,7 +816,17 @@ static int build_info_commit_dev(struct build_feature_devs_info *binfo)
 		feature->dev = fdev;
 		feature->id = finfo->fid;
 		feature->revision = finfo->revision;
+		feature->dfh_version = finfo->dfh_version;
 
+		if (finfo->param_size) {
+			feature->params = devm_kmemdup(binfo->dev,
+						       finfo->params, finfo->param_size,
+						       GFP_KERNEL);
+			if (!feature->params)
+				return -ENOMEM;
+
+			feature->param_size = finfo->param_size;
+		}
 		/*
 		 * the FIU header feature has some fundamental functions (sriov
 		 * set, port enable/disable) needed for the dfl bus device and
@@ -934,56 +963,115 @@ static u16 feature_id(u64 value)
 	return 0;
 }
 
+static u64 *find_param(u64 *params, resource_size_t max, int param_id)
+{
+	u64 *end = params + max / sizeof(u64);
+	u64 v, next;
+
+	while (params < end) {
+		v = *params;
+		if (param_id == FIELD_GET(DFHv1_PARAM_HDR_ID, v))
+			return params;
+
+		if (FIELD_GET(DFHv1_PARAM_HDR_NEXT_EOP, v))
+			break;
+
+		next = FIELD_GET(DFHv1_PARAM_HDR_NEXT_OFFSET, v);
+		params += next;
+	}
+
+	return NULL;
+}
+
+/**
+ * dfh_find_param() - find parameter block for the given parameter id
+ * @dfl_dev: dfl device
+ * @param_id: id of dfl parameter
+ * @psize: destination to store size of parameter data in bytes
+ *
+ * Return: pointer to start of parameter data, PTR_ERR otherwise.
+ */
+void *dfh_find_param(struct dfl_device *dfl_dev, int param_id, size_t *psize)
+{
+	u64 *phdr = find_param(dfl_dev->params, dfl_dev->param_size, param_id);
+
+	if (!phdr)
+		return ERR_PTR(-ENOENT);
+
+	if (psize)
+		*psize = (FIELD_GET(DFHv1_PARAM_HDR_NEXT_OFFSET, *phdr) - 1) * sizeof(u64);
+
+	return phdr + 1;
+}
+EXPORT_SYMBOL_GPL(dfh_find_param);
+
 static int parse_feature_irqs(struct build_feature_devs_info *binfo,
-			      resource_size_t ofst, u16 fid,
-			      unsigned int *irq_base, unsigned int *nr_irqs)
+			      resource_size_t ofst, struct dfl_feature_info *finfo)
 {
 	void __iomem *base = binfo->ioaddr + ofst;
 	unsigned int i, ibase, inr = 0;
+	void *params = finfo->params;
 	enum dfl_id_type type;
+	u16 fid = finfo->fid;
 	int virq;
+	u64 *p;
 	u64 v;
 
-	type = feature_dev_id_type(binfo->feature_dev);
+	switch (finfo->dfh_version) {
+	case 0:
+		/*
+		 * DFHv0 only provides MMIO resource information for each feature
+		 * in the DFL header.  There is no generic interrupt information.
+		 * Instead, features with interrupt functionality provide
+		 * the information in feature specific registers.
+		 */
+		type = feature_dev_id_type(binfo->feature_dev);
+		if (type == PORT_ID) {
+			switch (fid) {
+			case PORT_FEATURE_ID_UINT:
+				v = readq(base + PORT_UINT_CAP);
+				ibase = FIELD_GET(PORT_UINT_CAP_FST_VECT, v);
+				inr = FIELD_GET(PORT_UINT_CAP_INT_NUM, v);
+				break;
+			case PORT_FEATURE_ID_ERROR:
+				v = readq(base + PORT_ERROR_CAP);
+				ibase = FIELD_GET(PORT_ERROR_CAP_INT_VECT, v);
+				inr = FIELD_GET(PORT_ERROR_CAP_SUPP_INT, v);
+				break;
+			}
+		} else if (type == FME_ID) {
+			switch (fid) {
+			case FME_FEATURE_ID_GLOBAL_ERR:
+				v = readq(base + FME_ERROR_CAP);
+				ibase = FIELD_GET(FME_ERROR_CAP_INT_VECT, v);
+				inr = FIELD_GET(FME_ERROR_CAP_SUPP_INT, v);
+				break;
+			}
+		}
+		break;
 
-	/*
-	 * Ideally DFL framework should only read info from DFL header, but
-	 * current version DFL only provides mmio resources information for
-	 * each feature in DFL Header, no field for interrupt resources.
-	 * Interrupt resource information is provided by specific mmio
-	 * registers of each private feature which supports interrupt. So in
-	 * order to parse and assign irq resources, DFL framework has to look
-	 * into specific capability registers of these private features.
-	 *
-	 * Once future DFL version supports generic interrupt resource
-	 * information in common DFL headers, the generic interrupt parsing
-	 * code will be added. But in order to be compatible to old version
-	 * DFL, the driver may still fall back to these quirks.
-	 */
-	if (type == PORT_ID) {
-		switch (fid) {
-		case PORT_FEATURE_ID_UINT:
-			v = readq(base + PORT_UINT_CAP);
-			ibase = FIELD_GET(PORT_UINT_CAP_FST_VECT, v);
-			inr = FIELD_GET(PORT_UINT_CAP_INT_NUM, v);
+	case 1:
+		/*
+		 * DFHv1 provides interrupt resource information in DFHv1
+		 * parameter blocks.
+		 */
+		p = find_param(params, finfo->param_size, DFHv1_PARAM_ID_MSI_X);
+		if (!p)
 			break;
-		case PORT_FEATURE_ID_ERROR:
-			v = readq(base + PORT_ERROR_CAP);
-			ibase = FIELD_GET(PORT_ERROR_CAP_INT_VECT, v);
-			inr = FIELD_GET(PORT_ERROR_CAP_SUPP_INT, v);
-			break;
-		}
-	} else if (type == FME_ID) {
-		if (fid == FME_FEATURE_ID_GLOBAL_ERR) {
-			v = readq(base + FME_ERROR_CAP);
-			ibase = FIELD_GET(FME_ERROR_CAP_INT_VECT, v);
-			inr = FIELD_GET(FME_ERROR_CAP_SUPP_INT, v);
-		}
+
+		p++;
+		ibase = FIELD_GET(DFHv1_PARAM_MSI_X_STARTV, *p);
+		inr = FIELD_GET(DFHv1_PARAM_MSI_X_NUMV, *p);
+		break;
+
+	default:
+		dev_warn(binfo->dev, "unexpected DFH version %d\n", finfo->dfh_version);
+		break;
 	}
 
 	if (!inr) {
-		*irq_base = 0;
-		*nr_irqs = 0;
+		finfo->irq_base = 0;
+		finfo->nr_irqs = 0;
 		return 0;
 	}
 
@@ -1006,10 +1094,35 @@ static int parse_feature_irqs(struct build_feature_devs_info *binfo,
 		}
 	}
 
-	*irq_base = ibase;
-	*nr_irqs = inr;
+	finfo->irq_base = ibase;
+	finfo->nr_irqs = inr;
 
 	return 0;
+}
+
+static int dfh_get_param_size(void __iomem *dfh_base, resource_size_t max)
+{
+	int size = 0;
+	u64 v, next;
+
+	if (!FIELD_GET(DFHv1_CSR_SIZE_GRP_HAS_PARAMS,
+		       readq(dfh_base + DFHv1_CSR_SIZE_GRP)))
+		return 0;
+
+	while (size + DFHv1_PARAM_HDR < max) {
+		v = readq(dfh_base + DFHv1_PARAM_HDR + size);
+
+		next = FIELD_GET(DFHv1_PARAM_HDR_NEXT_OFFSET, v);
+		if (!next)
+			return -EINVAL;
+
+		size += next * sizeof(u64);
+
+		if (FIELD_GET(DFHv1_PARAM_HDR_NEXT_EOP, v))
+			return size;
+	}
+
+	return -ENOENT;
 }
 
 /*
@@ -1023,39 +1136,69 @@ static int
 create_feature_instance(struct build_feature_devs_info *binfo,
 			resource_size_t ofst, resource_size_t size, u16 fid)
 {
-	unsigned int irq_base, nr_irqs;
 	struct dfl_feature_info *finfo;
+	resource_size_t start, end;
+	int dfh_psize = 0;
 	u8 revision = 0;
+	u64 v, addr_off;
+	u8 dfh_ver = 0;
 	int ret;
-	u64 v;
 
 	if (fid != FEATURE_ID_AFU) {
 		v = readq(binfo->ioaddr + ofst);
 		revision = FIELD_GET(DFH_REVISION, v);
-
+		dfh_ver = FIELD_GET(DFH_VERSION, v);
 		/* read feature size and id if inputs are invalid */
 		size = size ? size : feature_size(v);
 		fid = fid ? fid : feature_id(v);
+		if (dfh_ver == 1) {
+			dfh_psize = dfh_get_param_size(binfo->ioaddr + ofst, size);
+			if (dfh_psize < 0) {
+				dev_err(binfo->dev,
+					"failed to read size of DFHv1 parameters %d\n",
+					dfh_psize);
+				return dfh_psize;
+			}
+			dev_dbg(binfo->dev, "dfhv1_psize %d\n", dfh_psize);
+		}
 	}
 
 	if (binfo->len - ofst < size)
 		return -EINVAL;
 
-	ret = parse_feature_irqs(binfo, ofst, fid, &irq_base, &nr_irqs);
-	if (ret)
-		return ret;
-
-	finfo = kzalloc(sizeof(*finfo), GFP_KERNEL);
+	finfo = kzalloc(struct_size(finfo, params, dfh_psize / sizeof(u64)), GFP_KERNEL);
 	if (!finfo)
 		return -ENOMEM;
 
+	memcpy_fromio(finfo->params, binfo->ioaddr + ofst + DFHv1_PARAM_HDR, dfh_psize);
+	finfo->param_size = dfh_psize;
+
 	finfo->fid = fid;
 	finfo->revision = revision;
-	finfo->mmio_res.start = binfo->start + ofst;
-	finfo->mmio_res.end = finfo->mmio_res.start + size - 1;
+	finfo->dfh_version = dfh_ver;
+	if (dfh_ver == 1) {
+		v = readq(binfo->ioaddr + ofst + DFHv1_CSR_ADDR);
+		addr_off = FIELD_GET(DFHv1_CSR_ADDR_MASK, v);
+		if (FIELD_GET(DFHv1_CSR_ADDR_REL, v))
+			start = addr_off << 1;
+		else
+			start = binfo->start + ofst + addr_off;
+
+		v = readq(binfo->ioaddr + ofst + DFHv1_CSR_SIZE_GRP);
+		end = start + FIELD_GET(DFHv1_CSR_SIZE_GRP_SIZE, v) - 1;
+	} else {
+		start = binfo->start + ofst;
+		end = start + size - 1;
+	}
 	finfo->mmio_res.flags = IORESOURCE_MEM;
-	finfo->irq_base = irq_base;
-	finfo->nr_irqs = nr_irqs;
+	finfo->mmio_res.start = start;
+	finfo->mmio_res.end = end;
+
+	ret = parse_feature_irqs(binfo, ofst, finfo);
+	if (ret) {
+		kfree(finfo);
+		return ret;
+	}
 
 	list_add_tail(&finfo->node, &binfo->sub_features);
 	binfo->feature_num++;

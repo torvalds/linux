@@ -141,12 +141,27 @@ struct iwl_prph_scratch_uefi_cfg {
 } __packed; /* PERIPH_SCRATCH_UEFI_CFG_S */
 
 /*
+ * struct iwl_prph_scratch_step_cfg - prph scratch step configuration
+ * @mbx_addr_0: [0:7] revision,
+ *		[8:15] cnvi_to_cnvr length,
+ *		[16:23] cnvr_to_cnvi channel length,
+ *		[24:31] radio1 reserved
+ * @mbx_addr_1: [0:7] radio2 reserved
+ */
+
+struct iwl_prph_scratch_step_cfg {
+	__le32 mbx_addr_0;
+	__le32 mbx_addr_1;
+} __packed;
+
+/*
  * struct iwl_prph_scratch_ctrl_cfg - prph scratch ctrl and config
  * @version: version information of context info and HW
  * @control: control flags of FH configurations
  * @pnvm_cfg: ror configuration
  * @hwm_cfg: hwm configuration
  * @rbd_cfg: default RX queue configuration
+ * @step_cfg: step configuration
  */
 struct iwl_prph_scratch_ctrl_cfg {
 	struct iwl_prph_scratch_version version;
@@ -155,6 +170,7 @@ struct iwl_prph_scratch_ctrl_cfg {
 	struct iwl_prph_scratch_hwm_cfg hwm_cfg;
 	struct iwl_prph_scratch_rbd_cfg rbd_cfg;
 	struct iwl_prph_scratch_uefi_cfg reduce_power_cfg;
+	struct iwl_prph_scratch_step_cfg step_cfg;
 } __packed; /* PERIPH_SCRATCH_CTRL_CFG_S */
 
 /*
@@ -165,7 +181,7 @@ struct iwl_prph_scratch_ctrl_cfg {
  */
 struct iwl_prph_scratch {
 	struct iwl_prph_scratch_ctrl_cfg ctrl_cfg;
-	__le32 reserved[12];
+	__le32 reserved[10];
 	struct iwl_context_info_dram dram;
 } __packed; /* PERIPH_SCRATCH_S */
 
@@ -265,5 +281,6 @@ int iwl_trans_pcie_ctx_info_gen3_set_pnvm(struct iwl_trans *trans,
 					  const void *data, u32 len);
 int iwl_trans_pcie_ctx_info_gen3_set_reduce_power(struct iwl_trans *trans,
 						  const void *data, u32 len);
-
+int iwl_trans_pcie_ctx_info_gen3_set_step(struct iwl_trans *trans,
+					  u32 mbx_addr_0_step, u32 mbx_addr_1_step);
 #endif /* __iwl_context_info_file_gen3_h__ */

@@ -297,7 +297,7 @@ static __poll_t comp_poll(struct file *filp, poll_table *wait)
 	return mask;
 }
 
-/**
+/*
  * Initialization of struct file_operations
  */
 static const struct file_operations channel_fops = {
@@ -404,8 +404,9 @@ static int comp_tx_completion(struct most_interface *iface, int channel_id)
  * @channel_id: channel index/ID
  * @cfg: pointer to actual channel configuration
  * @name: name of the device to be created
+ * @args: pointer to array of component parameters (from configfs)
  *
- * This allocates achannel object and creates the device node in /dev
+ * This allocates a channel object and creates the device node in /dev
  *
  * Returns 0 on success or error code otherwise.
  */

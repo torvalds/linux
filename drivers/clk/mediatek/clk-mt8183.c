@@ -613,21 +613,6 @@ static const char * const apll_i2s5_parents[] = {
 	"aud_2_sel"
 };
 
-static struct mtk_composite top_aud_muxes[] = {
-	MUX(CLK_TOP_MUX_APLL_I2S0, "apll_i2s0_sel", apll_i2s0_parents,
-		0x320, 8, 1),
-	MUX(CLK_TOP_MUX_APLL_I2S1, "apll_i2s1_sel", apll_i2s1_parents,
-		0x320, 9, 1),
-	MUX(CLK_TOP_MUX_APLL_I2S2, "apll_i2s2_sel", apll_i2s2_parents,
-		0x320, 10, 1),
-	MUX(CLK_TOP_MUX_APLL_I2S3, "apll_i2s3_sel", apll_i2s3_parents,
-		0x320, 11, 1),
-	MUX(CLK_TOP_MUX_APLL_I2S4, "apll_i2s4_sel", apll_i2s4_parents,
-		0x320, 12, 1),
-	MUX(CLK_TOP_MUX_APLL_I2S5, "apll_i2s5_sel", apll_i2s5_parents,
-		0x328, 20, 1),
-};
-
 static const char * const mcu_mp0_parents[] = {
 	"clk26m",
 	"armpll_ll",
@@ -658,7 +643,19 @@ static struct mtk_composite mcu_muxes[] = {
 	MUX(CLK_MCU_BUS_SEL, "mcu_bus_sel", mcu_bus_parents, 0x7C0, 9, 2),
 };
 
-static struct mtk_composite top_aud_divs[] = {
+static struct mtk_composite top_aud_comp[] = {
+	MUX(CLK_TOP_MUX_APLL_I2S0, "apll_i2s0_sel", apll_i2s0_parents,
+		0x320, 8, 1),
+	MUX(CLK_TOP_MUX_APLL_I2S1, "apll_i2s1_sel", apll_i2s1_parents,
+		0x320, 9, 1),
+	MUX(CLK_TOP_MUX_APLL_I2S2, "apll_i2s2_sel", apll_i2s2_parents,
+		0x320, 10, 1),
+	MUX(CLK_TOP_MUX_APLL_I2S3, "apll_i2s3_sel", apll_i2s3_parents,
+		0x320, 11, 1),
+	MUX(CLK_TOP_MUX_APLL_I2S4, "apll_i2s4_sel", apll_i2s4_parents,
+		0x320, 12, 1),
+	MUX(CLK_TOP_MUX_APLL_I2S5, "apll_i2s5_sel", apll_i2s5_parents,
+		0x328, 20, 1),
 	DIV_GATE(CLK_TOP_APLL12_DIV0, "apll12_div0", "apll_i2s0_sel",
 		0x320, 2, 0x324, 8, 0),
 	DIV_GATE(CLK_TOP_APLL12_DIV1, "apll12_div1", "apll_i2s1_sel",
@@ -1100,8 +1097,8 @@ static int clk_mt8183_apmixed_probe(struct platform_device *pdev)
 
 	mtk_clk_register_plls(node, plls, ARRAY_SIZE(plls), clk_data);
 
-	mtk_clk_register_gates(node, apmixed_clks, ARRAY_SIZE(apmixed_clks),
-		clk_data);
+	mtk_clk_register_gates(&pdev->dev, node, apmixed_clks,
+			       ARRAY_SIZE(apmixed_clks), clk_data);
 
 	return of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
 }
@@ -1166,17 +1163,16 @@ static int clk_mt8183_top_probe(struct platform_device *pdev)
 
 	mtk_clk_register_factors(top_divs, ARRAY_SIZE(top_divs), top_clk_data);
 
-	mtk_clk_register_muxes(top_muxes, ARRAY_SIZE(top_muxes),
-		node, &mt8183_clk_lock, top_clk_data);
+	mtk_clk_register_muxes(&pdev->dev, top_muxes,
+			       ARRAY_SIZE(top_muxes), node,
+			       &mt8183_clk_lock, top_clk_data);
 
-	mtk_clk_register_composites(top_aud_muxes, ARRAY_SIZE(top_aud_muxes),
-		base, &mt8183_clk_lock, top_clk_data);
+	mtk_clk_register_composites(&pdev->dev, top_aud_comp,
+				    ARRAY_SIZE(top_aud_comp), base,
+				    &mt8183_clk_lock, top_clk_data);
 
-	mtk_clk_register_composites(top_aud_divs, ARRAY_SIZE(top_aud_divs),
-		base, &mt8183_clk_lock, top_clk_data);
-
-	mtk_clk_register_gates(node, top_clks, ARRAY_SIZE(top_clks),
-		top_clk_data);
+	mtk_clk_register_gates(&pdev->dev, node, top_clks,
+			       ARRAY_SIZE(top_clks), top_clk_data);
 
 	ret = clk_mt8183_reg_mfg_mux_notifier(&pdev->dev,
 					      top_clk_data->hws[CLK_TOP_MUX_MFG]->clk);
@@ -1185,43 +1181,6 @@ static int clk_mt8183_top_probe(struct platform_device *pdev)
 
 	return of_clk_add_hw_provider(node, of_clk_hw_onecell_get,
 				      top_clk_data);
-}
-
-static int clk_mt8183_infra_probe(struct platform_device *pdev)
-{
-	struct clk_hw_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
-	int r;
-
-	clk_data = mtk_alloc_clk_data(CLK_INFRA_NR_CLK);
-
-	mtk_clk_register_gates(node, infra_clks, ARRAY_SIZE(infra_clks),
-		clk_data);
-
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
-	if (r) {
-		dev_err(&pdev->dev,
-			"%s(): could not register clock provider: %d\n",
-			__func__, r);
-		return r;
-	}
-
-	mtk_register_reset_controller_with_dev(&pdev->dev, &clk_rst_desc);
-
-	return r;
-}
-
-static int clk_mt8183_peri_probe(struct platform_device *pdev)
-{
-	struct clk_hw_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
-
-	clk_data = mtk_alloc_clk_data(CLK_PERI_NR_CLK);
-
-	mtk_clk_register_gates(node, peri_clks, ARRAY_SIZE(peri_clks),
-			       clk_data);
-
-	return of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
 }
 
 static int clk_mt8183_mcu_probe(struct platform_device *pdev)
@@ -1236,8 +1195,9 @@ static int clk_mt8183_mcu_probe(struct platform_device *pdev)
 
 	clk_data = mtk_alloc_clk_data(CLK_MCU_NR_CLK);
 
-	mtk_clk_register_composites(mcu_muxes, ARRAY_SIZE(mcu_muxes), base,
-			&mt8183_clk_lock, clk_data);
+	mtk_clk_register_composites(&pdev->dev, mcu_muxes,
+				    ARRAY_SIZE(mcu_muxes), base,
+				    &mt8183_clk_lock, clk_data);
 
 	return of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
 }
@@ -1249,12 +1209,6 @@ static const struct of_device_id of_match_clk_mt8183[] = {
 	}, {
 		.compatible = "mediatek,mt8183-topckgen",
 		.data = clk_mt8183_top_probe,
-	}, {
-		.compatible = "mediatek,mt8183-infracfg",
-		.data = clk_mt8183_infra_probe,
-	}, {
-		.compatible = "mediatek,mt8183-pericfg",
-		.data = clk_mt8183_peri_probe,
 	}, {
 		.compatible = "mediatek,mt8183-mcucfg",
 		.data = clk_mt8183_mcu_probe,
@@ -1281,6 +1235,32 @@ static int clk_mt8183_probe(struct platform_device *pdev)
 	return r;
 }
 
+static const struct mtk_clk_desc infra_desc = {
+	.clks = infra_clks,
+	.num_clks = ARRAY_SIZE(infra_clks),
+	.rst_desc = &clk_rst_desc,
+};
+
+static const struct mtk_clk_desc peri_desc = {
+	.clks = peri_clks,
+	.num_clks = ARRAY_SIZE(peri_clks),
+};
+
+static const struct of_device_id of_match_clk_mt8183_simple[] = {
+	{ .compatible = "mediatek,mt8183-infracfg", .data = &infra_desc },
+	{ .compatible = "mediatek,mt8183-pericfg", .data = &peri_desc, },
+	{ /* sentinel */ }
+};
+
+static struct platform_driver clk_mt8183_simple_drv = {
+	.probe = mtk_clk_simple_probe,
+	.remove = mtk_clk_simple_remove,
+	.driver = {
+		.name = "clk-mt8183-simple",
+		.of_match_table = of_match_clk_mt8183_simple,
+	},
+};
+
 static struct platform_driver clk_mt8183_drv = {
 	.probe = clk_mt8183_probe,
 	.driver = {
@@ -1291,7 +1271,11 @@ static struct platform_driver clk_mt8183_drv = {
 
 static int __init clk_mt8183_init(void)
 {
-	return platform_driver_register(&clk_mt8183_drv);
+	int ret = platform_driver_register(&clk_mt8183_drv);
+
+	if (ret)
+		return ret;
+	return platform_driver_register(&clk_mt8183_simple_drv);
 }
 
 arch_initcall(clk_mt8183_init);

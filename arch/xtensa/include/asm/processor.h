@@ -154,11 +154,6 @@ struct thread_struct {
 	unsigned long ra; /* kernel's a0: return address and window call size */
 	unsigned long sp; /* kernel's a1: stack pointer */
 
-	/* struct xtensa_cpuinfo info; */
-
-	unsigned long bad_vaddr; /* last user fault */
-	unsigned long bad_uaddr; /* last kernel fault accessing user space */
-	unsigned long error_code;
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	struct perf_event *ptrace_bp[XCHAL_NUM_IBREAK];
 	struct perf_event *ptrace_wp[XCHAL_NUM_DBREAK];
@@ -176,10 +171,6 @@ struct thread_struct {
 {									\
 	ra:		0, 						\
 	sp:		sizeof(init_stack) + (long) &init_stack,	\
-	/*info:		{0}, */						\
-	bad_vaddr:	0,						\
-	bad_uaddr:	0,						\
-	error_code:	0,						\
 }
 
 

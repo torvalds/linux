@@ -944,6 +944,7 @@ ATTRIBUTE_GROUPS(ps_device);
 
 static int dualsense_get_calibration_data(struct dualsense *ds)
 {
+	struct hid_device *hdev = ds->base.hdev;
 	short gyro_pitch_bias, gyro_pitch_plus, gyro_pitch_minus;
 	short gyro_yaw_bias, gyro_yaw_plus, gyro_yaw_minus;
 	short gyro_roll_bias, gyro_roll_plus, gyro_roll_minus;
@@ -954,6 +955,7 @@ static int dualsense_get_calibration_data(struct dualsense *ds)
 	int speed_2x;
 	int range_2g;
 	int ret = 0;
+	int i;
 	uint8_t *buf;
 
 	buf = kzalloc(DS_FEATURE_REPORT_CALIBRATION_SIZE, GFP_KERNEL);
@@ -991,19 +993,37 @@ static int dualsense_get_calibration_data(struct dualsense *ds)
 	 */
 	speed_2x = (gyro_speed_plus + gyro_speed_minus);
 	ds->gyro_calib_data[0].abs_code = ABS_RX;
-	ds->gyro_calib_data[0].bias = gyro_pitch_bias;
+	ds->gyro_calib_data[0].bias = 0;
 	ds->gyro_calib_data[0].sens_numer = speed_2x*DS_GYRO_RES_PER_DEG_S;
-	ds->gyro_calib_data[0].sens_denom = gyro_pitch_plus - gyro_pitch_minus;
+	ds->gyro_calib_data[0].sens_denom = abs(gyro_pitch_plus - gyro_pitch_bias) +
+			abs(gyro_pitch_minus - gyro_pitch_bias);
 
 	ds->gyro_calib_data[1].abs_code = ABS_RY;
-	ds->gyro_calib_data[1].bias = gyro_yaw_bias;
+	ds->gyro_calib_data[1].bias = 0;
 	ds->gyro_calib_data[1].sens_numer = speed_2x*DS_GYRO_RES_PER_DEG_S;
-	ds->gyro_calib_data[1].sens_denom = gyro_yaw_plus - gyro_yaw_minus;
+	ds->gyro_calib_data[1].sens_denom = abs(gyro_yaw_plus - gyro_yaw_bias) +
+			abs(gyro_yaw_minus - gyro_yaw_bias);
 
 	ds->gyro_calib_data[2].abs_code = ABS_RZ;
-	ds->gyro_calib_data[2].bias = gyro_roll_bias;
+	ds->gyro_calib_data[2].bias = 0;
 	ds->gyro_calib_data[2].sens_numer = speed_2x*DS_GYRO_RES_PER_DEG_S;
-	ds->gyro_calib_data[2].sens_denom = gyro_roll_plus - gyro_roll_minus;
+	ds->gyro_calib_data[2].sens_denom = abs(gyro_roll_plus - gyro_roll_bias) +
+			abs(gyro_roll_minus - gyro_roll_bias);
+
+	/*
+	 * Sanity check gyro calibration data. This is needed to prevent crashes
+	 * during report handling of virtual, clone or broken devices not implementing
+	 * calibration data properly.
+	 */
+	for (i = 0; i < ARRAY_SIZE(ds->gyro_calib_data); i++) {
+		if (ds->gyro_calib_data[i].sens_denom == 0) {
+			hid_warn(hdev, "Invalid gyro calibration data for axis (%d), disabling calibration.",
+					ds->gyro_calib_data[i].abs_code);
+			ds->gyro_calib_data[i].bias = 0;
+			ds->gyro_calib_data[i].sens_numer = DS_GYRO_RANGE;
+			ds->gyro_calib_data[i].sens_denom = S16_MAX;
+		}
+	}
 
 	/*
 	 * Set accelerometer calibration and normalization parameters.
@@ -1026,6 +1046,21 @@ static int dualsense_get_calibration_data(struct dualsense *ds)
 	ds->accel_calib_data[2].bias = acc_z_plus - range_2g / 2;
 	ds->accel_calib_data[2].sens_numer = 2*DS_ACC_RES_PER_G;
 	ds->accel_calib_data[2].sens_denom = range_2g;
+
+	/*
+	 * Sanity check accelerometer calibration data. This is needed to prevent crashes
+	 * during report handling of virtual, clone or broken devices not implementing calibration
+	 * data properly.
+	 */
+	for (i = 0; i < ARRAY_SIZE(ds->accel_calib_data); i++) {
+		if (ds->accel_calib_data[i].sens_denom == 0) {
+			hid_warn(hdev, "Invalid accelerometer calibration data for axis (%d), disabling calibration.",
+					ds->accel_calib_data[i].abs_code);
+			ds->accel_calib_data[i].bias = 0;
+			ds->accel_calib_data[i].sens_numer = DS_ACC_RANGE;
+			ds->accel_calib_data[i].sens_denom = S16_MAX;
+		}
+	}
 
 err_free:
 	kfree(buf);
@@ -1356,8 +1391,7 @@ static int dualsense_parse_report(struct ps_device *ps_dev, struct hid_report *r
 	for (i = 0; i < ARRAY_SIZE(ds_report->gyro); i++) {
 		int raw_data = (short)le16_to_cpu(ds_report->gyro[i]);
 		int calib_data = mult_frac(ds->gyro_calib_data[i].sens_numer,
-					   raw_data - ds->gyro_calib_data[i].bias,
-					   ds->gyro_calib_data[i].sens_denom);
+					   raw_data, ds->gyro_calib_data[i].sens_denom);
 
 		input_report_abs(ds->sensors, ds->gyro_calib_data[i].abs_code, calib_data);
 	}
@@ -1737,6 +1771,7 @@ static int dualshock4_get_calibration_data(struct dualshock4 *ds4)
 	int speed_2x;
 	int range_2g;
 	int ret = 0;
+	int i;
 	uint8_t *buf;
 
 	if (ds4->base.hdev->bus == BUS_USB) {
@@ -1759,11 +1794,10 @@ static int dualshock4_get_calibration_data(struct dualshock4 *ds4)
 				if (retries < 2) {
 					hid_warn(hdev, "Retrying DualShock 4 get calibration report (0x02) request\n");
 					continue;
-				} else {
-					ret = -EILSEQ;
-					goto err_free;
 				}
+
 				hid_err(hdev, "Failed to retrieve DualShock4 calibration info: %d\n", ret);
+				ret = -EILSEQ;
 				goto err_free;
 			} else {
 				break;
@@ -1816,19 +1850,37 @@ static int dualshock4_get_calibration_data(struct dualshock4 *ds4)
 	 */
 	speed_2x = (gyro_speed_plus + gyro_speed_minus);
 	ds4->gyro_calib_data[0].abs_code = ABS_RX;
-	ds4->gyro_calib_data[0].bias = gyro_pitch_bias;
+	ds4->gyro_calib_data[0].bias = 0;
 	ds4->gyro_calib_data[0].sens_numer = speed_2x*DS4_GYRO_RES_PER_DEG_S;
-	ds4->gyro_calib_data[0].sens_denom = gyro_pitch_plus - gyro_pitch_minus;
+	ds4->gyro_calib_data[0].sens_denom = abs(gyro_pitch_plus - gyro_pitch_bias) +
+			abs(gyro_pitch_minus - gyro_pitch_bias);
 
 	ds4->gyro_calib_data[1].abs_code = ABS_RY;
-	ds4->gyro_calib_data[1].bias = gyro_yaw_bias;
+	ds4->gyro_calib_data[1].bias = 0;
 	ds4->gyro_calib_data[1].sens_numer = speed_2x*DS4_GYRO_RES_PER_DEG_S;
-	ds4->gyro_calib_data[1].sens_denom = gyro_yaw_plus - gyro_yaw_minus;
+	ds4->gyro_calib_data[1].sens_denom = abs(gyro_yaw_plus - gyro_yaw_bias) +
+			abs(gyro_yaw_minus - gyro_yaw_bias);
 
 	ds4->gyro_calib_data[2].abs_code = ABS_RZ;
-	ds4->gyro_calib_data[2].bias = gyro_roll_bias;
+	ds4->gyro_calib_data[2].bias = 0;
 	ds4->gyro_calib_data[2].sens_numer = speed_2x*DS4_GYRO_RES_PER_DEG_S;
-	ds4->gyro_calib_data[2].sens_denom = gyro_roll_plus - gyro_roll_minus;
+	ds4->gyro_calib_data[2].sens_denom = abs(gyro_roll_plus - gyro_roll_bias) +
+			abs(gyro_roll_minus - gyro_roll_bias);
+
+	/*
+	 * Sanity check gyro calibration data. This is needed to prevent crashes
+	 * during report handling of virtual, clone or broken devices not implementing
+	 * calibration data properly.
+	 */
+	for (i = 0; i < ARRAY_SIZE(ds4->gyro_calib_data); i++) {
+		if (ds4->gyro_calib_data[i].sens_denom == 0) {
+			hid_warn(hdev, "Invalid gyro calibration data for axis (%d), disabling calibration.",
+					ds4->gyro_calib_data[i].abs_code);
+			ds4->gyro_calib_data[i].bias = 0;
+			ds4->gyro_calib_data[i].sens_numer = DS4_GYRO_RANGE;
+			ds4->gyro_calib_data[i].sens_denom = S16_MAX;
+		}
+	}
 
 	/*
 	 * Set accelerometer calibration and normalization parameters.
@@ -1851,6 +1903,21 @@ static int dualshock4_get_calibration_data(struct dualshock4 *ds4)
 	ds4->accel_calib_data[2].bias = acc_z_plus - range_2g / 2;
 	ds4->accel_calib_data[2].sens_numer = 2*DS4_ACC_RES_PER_G;
 	ds4->accel_calib_data[2].sens_denom = range_2g;
+
+	/*
+	 * Sanity check accelerometer calibration data. This is needed to prevent crashes
+	 * during report handling of virtual, clone or broken devices not implementing calibration
+	 * data properly.
+	 */
+	for (i = 0; i < ARRAY_SIZE(ds4->accel_calib_data); i++) {
+		if (ds4->accel_calib_data[i].sens_denom == 0) {
+			hid_warn(hdev, "Invalid accelerometer calibration data for axis (%d), disabling calibration.",
+					ds4->accel_calib_data[i].abs_code);
+			ds4->accel_calib_data[i].bias = 0;
+			ds4->accel_calib_data[i].sens_numer = DS4_ACC_RANGE;
+			ds4->accel_calib_data[i].sens_denom = S16_MAX;
+		}
+	}
 
 err_free:
 	kfree(buf);
@@ -2179,8 +2246,7 @@ static int dualshock4_parse_report(struct ps_device *ps_dev, struct hid_report *
 	for (i = 0; i < ARRAY_SIZE(ds4_report->gyro); i++) {
 		int raw_data = (short)le16_to_cpu(ds4_report->gyro[i]);
 		int calib_data = mult_frac(ds4->gyro_calib_data[i].sens_numer,
-					   raw_data - ds4->gyro_calib_data[i].bias,
-					   ds4->gyro_calib_data[i].sens_denom);
+					   raw_data, ds4->gyro_calib_data[i].sens_denom);
 
 		input_report_abs(ds4->sensors, ds4->gyro_calib_data[i].abs_code, calib_data);
 	}

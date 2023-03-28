@@ -1393,7 +1393,7 @@ static struct talitos_edesc *talitos_edesc_alloc(struct device *dev,
 		alloc_len += sizeof(struct talitos_desc);
 	alloc_len += ivsize;
 
-	edesc = kmalloc(alloc_len, GFP_DMA | flags);
+	edesc = kmalloc(ALIGN(alloc_len, dma_get_cache_alignment()), flags);
 	if (!edesc)
 		return ERR_PTR(-ENOMEM);
 	if (ivsize) {
@@ -1560,7 +1560,7 @@ static void skcipher_done(struct device *dev,
 
 	kfree(edesc);
 
-	areq->base.complete(&areq->base, err);
+	skcipher_request_complete(areq, err);
 }
 
 static int common_nonsnoop(struct talitos_edesc *edesc,
@@ -1759,7 +1759,7 @@ static void ahash_done(struct device *dev,
 
 	kfree(edesc);
 
-	areq->base.complete(&areq->base, err);
+	ahash_request_complete(areq, err);
 }
 
 /*

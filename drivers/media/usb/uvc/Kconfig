@@ -3,6 +3,7 @@ config USB_VIDEO_CLASS
 	tristate "USB Video Class (UVC)"
 	depends on VIDEO_DEV
 	select VIDEOBUF2_VMALLOC
+	select UVC_COMMON
 	help
 	  Support for the USB Video Class (UVC).  Currently only video
 	  input devices, such as webcams, are supported.

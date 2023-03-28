@@ -42,6 +42,8 @@
 #define ACPI_BATTERY_STATE_CHARGING	0x2
 #define ACPI_BATTERY_STATE_CRITICAL	0x4
 
+#define MAX_STRING_LENGTH	64
+
 MODULE_AUTHOR("Paul Diefenbaugh");
 MODULE_AUTHOR("Alexey Starikovskiy <astarikovskiy@suse.de>");
 MODULE_DESCRIPTION("ACPI Battery Driver");
@@ -118,10 +120,10 @@ struct acpi_battery {
 	int capacity_granularity_1;
 	int capacity_granularity_2;
 	int alarm;
-	char model_number[32];
-	char serial_number[32];
-	char type[32];
-	char oem_info[32];
+	char model_number[MAX_STRING_LENGTH];
+	char serial_number[MAX_STRING_LENGTH];
+	char type[MAX_STRING_LENGTH];
+	char oem_info[MAX_STRING_LENGTH];
 	int state;
 	int power_unit;
 	unsigned long flags;
@@ -437,16 +439,25 @@ static int extract_package(struct acpi_battery *battery,
 		element = &package->package.elements[i];
 		if (offsets[i].mode) {
 			u8 *ptr = (u8 *)battery + offsets[i].offset;
+			u32 len = MAX_STRING_LENGTH;
 
-			if (element->type == ACPI_TYPE_STRING ||
-			    element->type == ACPI_TYPE_BUFFER)
-				strncpy(ptr, element->string.pointer, 32);
-			else if (element->type == ACPI_TYPE_INTEGER) {
-				strncpy(ptr, (u8 *)&element->integer.value,
-					sizeof(u64));
-				ptr[sizeof(u64)] = 0;
-			} else
+			switch (element->type) {
+			case ACPI_TYPE_BUFFER:
+				if (len > element->buffer.length + 1)
+					len = element->buffer.length + 1;
+
+				fallthrough;
+			case ACPI_TYPE_STRING:
+				strscpy(ptr, element->string.pointer, len);
+
+				break;
+			case ACPI_TYPE_INTEGER:
+				strscpy(ptr, (u8 *)&element->integer.value, sizeof(u64) + 1);
+
+				break;
+			default:
 				*ptr = 0; /* don't have value */
+			}
 		} else {
 			int *x = (int *)((u8 *)battery + offsets[i].offset);
 			*x = (element->type == ACPI_TYPE_INTEGER) ?

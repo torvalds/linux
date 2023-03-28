@@ -834,8 +834,8 @@ static void rt5682s_jack_detect_handler(struct work_struct *work)
 	struct snd_soc_dapm_context *dapm;
 	int val, btn_type;
 
-	if (!rt5682s->component || !rt5682s->component->card ||
-	    !rt5682s->component->card->instantiated) {
+	if (!rt5682s->component ||
+	    !snd_soc_card_is_instantiated(rt5682s->component->card)) {
 		/* card not yet ready, try later */
 		mod_delayed_work(system_power_efficient_wq,
 				 &rt5682s->jack_detect_work, msecs_to_jiffies(15));
@@ -2895,6 +2895,9 @@ static int rt5682s_suspend(struct snd_soc_component *component)
 {
 	struct rt5682s_priv *rt5682s = snd_soc_component_get_drvdata(component);
 
+	if (rt5682s->irq)
+		disable_irq(rt5682s->irq);
+
 	cancel_delayed_work_sync(&rt5682s->jack_detect_work);
 	cancel_delayed_work_sync(&rt5682s->jd_check_work);
 
@@ -2918,6 +2921,9 @@ static int rt5682s_resume(struct snd_soc_component *component)
 		mod_delayed_work(system_power_efficient_wq,
 			&rt5682s->jack_detect_work, msecs_to_jiffies(0));
 	}
+
+	if (rt5682s->irq)
+		enable_irq(rt5682s->irq);
 
 	return 0;
 }
@@ -3259,7 +3265,9 @@ static int rt5682s_i2c_probe(struct i2c_client *i2c)
 		ret = devm_request_threaded_irq(&i2c->dev, i2c->irq, NULL, rt5682s_irq,
 			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 			"rt5682s", rt5682s);
-		if (ret)
+		if (!ret)
+			rt5682s->irq = i2c->irq;
+		else
 			dev_err(&i2c->dev, "Failed to reguest IRQ: %d\n", ret);
 	}
 

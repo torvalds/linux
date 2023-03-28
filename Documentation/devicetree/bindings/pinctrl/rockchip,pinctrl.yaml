@@ -76,15 +76,13 @@ allOf:
 required:
   - compatible
   - rockchip,grf
-  - "#address-cells"
-  - "#size-cells"
-  - ranges
 
 patternProperties:
   "gpio@[0-9a-f]+$":
     type: object
 
     $ref: "/schemas/gpio/rockchip,gpio-bank.yaml#"
+    deprecated: true
 
     unevaluatedProperties: false
 

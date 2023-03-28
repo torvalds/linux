@@ -549,7 +549,7 @@ static void skl_copy_copier_caps(struct skl_module_cfg *mconfig,
 	if (mconfig->formats_config[SKL_PARAM_INIT].caps_size == 0)
 		return;
 
-	memcpy(cpr_mconfig->gtw_cfg.config_data,
+	memcpy(&cpr_mconfig->gtw_cfg.config_data,
 			mconfig->formats_config[SKL_PARAM_INIT].caps,
 			mconfig->formats_config[SKL_PARAM_INIT].caps_size);
 

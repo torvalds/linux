@@ -233,13 +233,12 @@ static int mbi_allocate_domains(struct irq_domain *parent)
 	struct irq_domain *nexus_domain, *pci_domain, *plat_domain;
 	int err;
 
-	nexus_domain = irq_domain_create_tree(parent->fwnode,
-					      &mbi_domain_ops, NULL);
+	nexus_domain = irq_domain_create_hierarchy(parent, 0, 0, parent->fwnode,
+						   &mbi_domain_ops, NULL);
 	if (!nexus_domain)
 		return -ENOMEM;
 
 	irq_domain_update_bus_token(nexus_domain, DOMAIN_BUS_NEXUS);
-	nexus_domain->parent = parent;
 
 	err = mbi_allocate_pci_domain(nexus_domain, &pci_domain);
 

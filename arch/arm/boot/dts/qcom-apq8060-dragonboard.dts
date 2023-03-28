@@ -435,15 +435,13 @@
 
 &pm8058_mpps {
 	dragon_cm3605_mpps: cm3605-mpps-state {
-		mpp5 {
-			pins = "mpp5";
-			function = "analog";
-			input-enable;
-			bias-high-impedance;
-			/* Let's use channel 5 */
-			qcom,amux-route = <PMIC_MPP_AMUX_ROUTE_CH5>;
-			power-source = <PM8058_GPIO_S3>;
-		};
+		pins = "mpp5";
+		function = "analog";
+		input-enable;
+		bias-high-impedance;
+		/* Let's use channel 5 */
+		qcom,amux-route = <PMIC_MPP_AMUX_ROUTE_CH5>;
+		power-source = <PM8058_GPIO_S3>;
 	};
 };
 

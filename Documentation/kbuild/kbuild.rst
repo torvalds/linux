@@ -278,6 +278,13 @@ To get all available archs you can also specify all. E.g.::
 
     $ make ALLSOURCE_ARCHS=all tags
 
+IGNORE_DIRS
+-----------
+For tags/TAGS/cscope targets, you can choose which directories won't
+be included in the databases, separated by blank space. E.g.::
+
+    $ make IGNORE_DIRS="drivers/gpu/drm/radeon tools" cscope
+
 KBUILD_BUILD_TIMESTAMP
 ----------------------
 Setting this to a date string overrides the timestamp used in the

@@ -179,7 +179,7 @@ static void test_unpriv_bpf_disabled_negative(struct test_unpriv_bpf_disabled *s
 	ASSERT_EQ(bpf_prog_get_next_id(prog_id, &next), -EPERM, "prog_get_next_id_fails");
 	ASSERT_EQ(bpf_prog_get_next_id(0, &next), -EPERM, "prog_get_next_id_fails");
 
-	if (ASSERT_OK(bpf_obj_get_info_by_fd(map_fds[0], &map_info, &map_info_len),
+	if (ASSERT_OK(bpf_map_get_info_by_fd(map_fds[0], &map_info, &map_info_len),
 		      "obj_get_info_by_fd")) {
 		ASSERT_EQ(bpf_map_get_fd_by_id(map_info.id), -EPERM, "map_get_fd_by_id_fails");
 		ASSERT_EQ(bpf_map_get_next_id(map_info.id, &next), -EPERM,
@@ -187,8 +187,8 @@ static void test_unpriv_bpf_disabled_negative(struct test_unpriv_bpf_disabled *s
 	}
 	ASSERT_EQ(bpf_map_get_next_id(0, &next), -EPERM, "map_get_next_id_fails");
 
-	if (ASSERT_OK(bpf_obj_get_info_by_fd(bpf_link__fd(skel->links.sys_nanosleep_enter),
-					     &link_info, &link_info_len),
+	if (ASSERT_OK(bpf_link_get_info_by_fd(bpf_link__fd(skel->links.sys_nanosleep_enter),
+					      &link_info, &link_info_len),
 		      "obj_get_info_by_fd")) {
 		ASSERT_EQ(bpf_link_get_fd_by_id(link_info.id), -EPERM, "link_get_fd_by_id_fails");
 		ASSERT_EQ(bpf_link_get_next_id(link_info.id, &next), -EPERM,
@@ -269,7 +269,7 @@ void test_unpriv_bpf_disabled(void)
 	}
 
 	prog_fd = bpf_program__fd(skel->progs.sys_nanosleep_enter);
-	ASSERT_OK(bpf_obj_get_info_by_fd(prog_fd, &prog_info, &prog_info_len),
+	ASSERT_OK(bpf_prog_get_info_by_fd(prog_fd, &prog_info, &prog_info_len),
 		  "obj_get_info_by_fd");
 	prog_id = prog_info.id;
 	ASSERT_GT(prog_id, 0, "valid_prog_id");

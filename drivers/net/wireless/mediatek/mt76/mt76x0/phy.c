@@ -642,7 +642,12 @@ mt76x0_phy_get_target_power(struct mt76x02_dev *dev, u8 tx_mode,
 		if (tx_rate > 9)
 			return -EINVAL;
 
-		*target_power = cur_power + dev->rate_power.vht[tx_rate];
+		*target_power = cur_power;
+		if (tx_rate > 7)
+			*target_power += dev->rate_power.vht[tx_rate - 8];
+		else
+			*target_power += dev->rate_power.ht[tx_rate];
+
 		*target_pa_power = mt76x0_phy_get_rf_pa_mode(dev, 1, tx_rate);
 		break;
 	default:

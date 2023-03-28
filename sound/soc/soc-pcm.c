@@ -1012,6 +1012,7 @@ static int __soc_pcm_hw_params(struct snd_soc_pcm_runtime *rtd,
 
 	for_each_rtd_codec_dais(rtd, i, codec_dai) {
 		struct snd_pcm_hw_params codec_params;
+		unsigned int tdm_mask = snd_soc_dai_tdm_mask_get(codec_dai, substream->stream);
 
 		/*
 		 * Skip CODECs which don't support the current stream type,
@@ -1034,15 +1035,8 @@ static int __soc_pcm_hw_params(struct snd_soc_pcm_runtime *rtd,
 		codec_params = *params;
 
 		/* fixup params based on TDM slot masks */
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
-		    codec_dai->tx_mask)
-			soc_pcm_codec_params_fixup(&codec_params,
-						   codec_dai->tx_mask);
-
-		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE &&
-		    codec_dai->rx_mask)
-			soc_pcm_codec_params_fixup(&codec_params,
-						   codec_dai->rx_mask);
+		if (tdm_mask)
+			soc_pcm_codec_params_fixup(&codec_params, tdm_mask);
 
 		ret = snd_soc_dai_hw_params(codec_dai, substream,
 					    &codec_params);
@@ -1094,22 +1088,39 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 static int soc_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	int ret = -EINVAL, _ret = 0;
+	struct snd_soc_component *component;
+	int ret = -EINVAL, _ret = 0, start_dma_last = 0, i;
 	int rollback = 0;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		/* Do we need to start dma last? */
+		for_each_rtd_components(rtd, i, component) {
+			if (component->driver->start_dma_last) {
+				start_dma_last = 1;
+				break;
+			}
+		}
+
 		ret = snd_soc_link_trigger(substream, cmd, 0);
 		if (ret < 0)
 			goto start_err;
 
-		ret = snd_soc_pcm_component_trigger(substream, cmd, 0);
-		if (ret < 0)
-			goto start_err;
+		if (start_dma_last) {
+			ret = snd_soc_pcm_dai_trigger(substream, cmd, 0);
+			if (ret < 0)
+				goto start_err;
 
-		ret = snd_soc_pcm_dai_trigger(substream, cmd, 0);
+			ret = snd_soc_pcm_component_trigger(substream, cmd, 0);
+		} else {
+			ret = snd_soc_pcm_component_trigger(substream, cmd, 0);
+			if (ret < 0)
+				goto start_err;
+
+			ret = snd_soc_pcm_dai_trigger(substream, cmd, 0);
+		}
 start_err:
 		if (ret < 0)
 			rollback = 1;
@@ -1337,7 +1348,7 @@ static struct snd_soc_pcm_runtime *dpcm_get_be(struct snd_soc_card *card,
 	return NULL;
 }
 
-static int widget_in_list(struct snd_soc_dapm_widget_list *list,
+int widget_in_list(struct snd_soc_dapm_widget_list *list,
 		struct snd_soc_dapm_widget *widget)
 {
 	struct snd_soc_dapm_widget *w;
@@ -1349,6 +1360,7 @@ static int widget_in_list(struct snd_soc_dapm_widget_list *list,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(widget_in_list);
 
 bool dpcm_end_walk_at_be(struct snd_soc_dapm_widget *widget, enum snd_soc_dapm_direction dir)
 {

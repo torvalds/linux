@@ -711,9 +711,9 @@ __ATTRIBUTE_GROUPS(vmbus_bus);
  * representation of the device guid (each byte of the guid will be
  * represented with two hex characters.
  */
-static int vmbus_uevent(struct device *device, struct kobj_uevent_env *env)
+static int vmbus_uevent(const struct device *device, struct kobj_uevent_env *env)
 {
-	struct hv_device *dev = device_to_hv_device(device);
+	const struct hv_device *dev = device_to_hv_device(device);
 	const char *format = "MODALIAS=vmbus:%*phN";
 
 	return add_uevent_var(env, format, UUID_SIZE, &dev->dev_type);
@@ -2744,7 +2744,7 @@ static int __init hv_acpi_init(void)
 	if (!hv_is_hyperv_initialized())
 		return -ENODEV;
 
-	if (hv_root_partition)
+	if (hv_root_partition && !hv_nested)
 		return 0;
 
 	/*

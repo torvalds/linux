@@ -312,7 +312,7 @@ static int io_sq_thread(void *data)
 	do_exit(0);
 }
 
-int io_sqpoll_wait_sq(struct io_ring_ctx *ctx)
+void io_sqpoll_wait_sq(struct io_ring_ctx *ctx)
 {
 	DEFINE_WAIT(wait);
 
@@ -327,7 +327,6 @@ int io_sqpoll_wait_sq(struct io_ring_ctx *ctx)
 	} while (!signal_pending(current));
 
 	finish_wait(&ctx->sqo_sq_wait, &wait);
-	return 0;
 }
 
 __cold int io_sq_offload_create(struct io_ring_ctx *ctx,

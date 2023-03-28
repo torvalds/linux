@@ -680,6 +680,7 @@ static bool ice_ptp_tx_tstamp(struct ice_ptp_tx *tx)
 	struct ice_pf *pf;
 	struct ice_hw *hw;
 	u64 tstamp_ready;
+	bool link_up;
 	int err;
 	u8 idx;
 
@@ -695,11 +696,14 @@ static bool ice_ptp_tx_tstamp(struct ice_ptp_tx *tx)
 	if (err)
 		return false;
 
+	/* Drop packets if the link went down */
+	link_up = ptp_port->link_up;
+
 	for_each_set_bit(idx, tx->in_use, tx->len) {
 		struct skb_shared_hwtstamps shhwtstamps = {};
 		u8 phy_idx = idx + tx->offset;
 		u64 raw_tstamp = 0, tstamp;
-		bool drop_ts = false;
+		bool drop_ts = !link_up;
 		struct sk_buff *skb;
 
 		/* Drop packets which have waited for more than 2 seconds */
@@ -728,7 +732,7 @@ static bool ice_ptp_tx_tstamp(struct ice_ptp_tx *tx)
 		ice_trace(tx_tstamp_fw_req, tx->tstamps[idx].skb, idx);
 
 		err = ice_read_phy_tstamp(hw, tx->block, phy_idx, &raw_tstamp);
-		if (err)
+		if (err && !drop_ts)
 			continue;
 
 		ice_trace(tx_tstamp_fw_done, tx->tstamps[idx].skb, idx);
@@ -1770,6 +1774,38 @@ ice_ptp_gpio_enable_e810(struct ptp_clock_info *info,
 }
 
 /**
+ * ice_ptp_gpio_enable_e823 - Enable/disable ancillary features of PHC
+ * @info: the driver's PTP info structure
+ * @rq: The requested feature to change
+ * @on: Enable/disable flag
+ */
+static int ice_ptp_gpio_enable_e823(struct ptp_clock_info *info,
+				    struct ptp_clock_request *rq, int on)
+{
+	struct ice_pf *pf = ptp_info_to_pf(info);
+	struct ice_perout_channel clk_cfg = {0};
+	int err;
+
+	switch (rq->type) {
+	case PTP_CLK_REQ_PPS:
+		clk_cfg.gpio_pin = PPS_PIN_INDEX;
+		clk_cfg.period = NSEC_PER_SEC;
+		clk_cfg.ena = !!on;
+
+		err = ice_ptp_cfg_clkout(pf, PPS_CLK_GEN_CHAN, &clk_cfg, true);
+		break;
+	case PTP_CLK_REQ_EXTTS:
+		err = ice_ptp_cfg_extts(pf, !!on, rq->extts.index,
+					TIME_SYNC_PIN_INDEX, rq->extts.flags);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return err;
+}
+
+/**
  * ice_ptp_gettimex64 - Get the time of the clock
  * @info: the driver's PTP info structure
  * @ts: timespec64 structure to hold the current time value
@@ -2221,6 +2257,19 @@ ice_ptp_setup_pins_e810(struct ice_pf *pf, struct ptp_clock_info *info)
 }
 
 /**
+ * ice_ptp_setup_pins_e823 - Setup PTP pins in sysfs
+ * @pf: pointer to the PF instance
+ * @info: PTP clock capabilities
+ */
+static void
+ice_ptp_setup_pins_e823(struct ice_pf *pf, struct ptp_clock_info *info)
+{
+	info->pps = 1;
+	info->n_per_out = 0;
+	info->n_ext_ts = 1;
+}
+
+/**
  * ice_ptp_set_funcs_e822 - Set specialized functions for E822 support
  * @pf: Board private structure
  * @info: PTP info to fill
@@ -2258,6 +2307,23 @@ ice_ptp_set_funcs_e810(struct ice_pf *pf, struct ptp_clock_info *info)
 }
 
 /**
+ * ice_ptp_set_funcs_e823 - Set specialized functions for E823 support
+ * @pf: Board private structure
+ * @info: PTP info to fill
+ *
+ * Assign functions to the PTP capabiltiies structure for E823 devices.
+ * Functions which operate across all device families should be set directly
+ * in ice_ptp_set_caps. Only add functions here which are distinct for e823
+ * devices.
+ */
+static void
+ice_ptp_set_funcs_e823(struct ice_pf *pf, struct ptp_clock_info *info)
+{
+	info->enable = ice_ptp_gpio_enable_e823;
+	ice_ptp_setup_pins_e823(pf, info);
+}
+
+/**
  * ice_ptp_set_caps - Set PTP capabilities
  * @pf: Board private structure
  */
@@ -2269,7 +2335,7 @@ static void ice_ptp_set_caps(struct ice_pf *pf)
 	snprintf(info->name, sizeof(info->name) - 1, "%s-%s-clk",
 		 dev_driver_string(dev), dev_name(dev));
 	info->owner = THIS_MODULE;
-	info->max_adj = 999999999;
+	info->max_adj = 100000000;
 	info->adjtime = ice_ptp_adjtime;
 	info->adjfine = ice_ptp_adjfine;
 	info->gettimex64 = ice_ptp_gettimex64;
@@ -2277,6 +2343,8 @@ static void ice_ptp_set_caps(struct ice_pf *pf)
 
 	if (ice_is_e810(&pf->hw))
 		ice_ptp_set_funcs_e810(pf, info);
+	else if (ice_is_e823(&pf->hw))
+		ice_ptp_set_funcs_e823(pf, info);
 	else
 		ice_ptp_set_funcs_e822(pf, info);
 }

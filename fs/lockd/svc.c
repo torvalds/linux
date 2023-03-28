@@ -496,7 +496,7 @@ static struct ctl_table nlm_sysctls[] = {
 	{
 		.procname	= "nsm_use_hostnames",
 		.data		= &nsm_use_hostnames,
-		.maxlen		= sizeof(int),
+		.maxlen		= sizeof(bool),
 		.mode		= 0644,
 		.proc_handler	= proc_dobool,
 	},
@@ -685,17 +685,16 @@ module_exit(exit_nlm);
 /**
  * nlmsvc_dispatch - Process an NLM Request
  * @rqstp: incoming request
- * @statp: pointer to location of accept_stat field in RPC Reply buffer
  *
  * Return values:
  *  %0: Processing complete; do not send a Reply
  *  %1: Processing complete; send Reply in rqstp->rq_res
  */
-static int nlmsvc_dispatch(struct svc_rqst *rqstp, __be32 *statp)
+static int nlmsvc_dispatch(struct svc_rqst *rqstp)
 {
 	const struct svc_procedure *procp = rqstp->rq_procinfo;
+	__be32 *statp = rqstp->rq_accept_statp;
 
-	svcxdr_init_decode(rqstp);
 	if (!procp->pc_decode(rqstp, &rqstp->rq_arg_stream))
 		goto out_decode_err;
 
@@ -705,7 +704,6 @@ static int nlmsvc_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 	if (*statp != rpc_success)
 		return 1;
 
-	svcxdr_init_encode(rqstp);
 	if (!procp->pc_encode(rqstp, &rqstp->rq_res_stream))
 		goto out_encode_err;
 
@@ -723,7 +721,7 @@ out_encode_err:
 /*
  * Define NLM program and procedures
  */
-static unsigned int nlmsvc_version1_count[17];
+static DEFINE_PER_CPU_ALIGNED(unsigned long, nlmsvc_version1_count[17]);
 static const struct svc_version	nlmsvc_version1 = {
 	.vs_vers	= 1,
 	.vs_nproc	= 17,
@@ -732,26 +730,31 @@ static const struct svc_version	nlmsvc_version1 = {
 	.vs_dispatch	= nlmsvc_dispatch,
 	.vs_xdrsize	= NLMSVC_XDRSIZE,
 };
-static unsigned int nlmsvc_version3_count[24];
+
+static DEFINE_PER_CPU_ALIGNED(unsigned long,
+			      nlmsvc_version3_count[ARRAY_SIZE(nlmsvc_procedures)]);
 static const struct svc_version	nlmsvc_version3 = {
 	.vs_vers	= 3,
-	.vs_nproc	= 24,
+	.vs_nproc	= ARRAY_SIZE(nlmsvc_procedures),
 	.vs_proc	= nlmsvc_procedures,
 	.vs_count	= nlmsvc_version3_count,
 	.vs_dispatch	= nlmsvc_dispatch,
 	.vs_xdrsize	= NLMSVC_XDRSIZE,
 };
+
 #ifdef CONFIG_LOCKD_V4
-static unsigned int nlmsvc_version4_count[24];
+static DEFINE_PER_CPU_ALIGNED(unsigned long,
+			      nlmsvc_version4_count[ARRAY_SIZE(nlmsvc_procedures4)]);
 static const struct svc_version	nlmsvc_version4 = {
 	.vs_vers	= 4,
-	.vs_nproc	= 24,
+	.vs_nproc	= ARRAY_SIZE(nlmsvc_procedures4),
 	.vs_proc	= nlmsvc_procedures4,
 	.vs_count	= nlmsvc_version4_count,
 	.vs_dispatch	= nlmsvc_dispatch,
 	.vs_xdrsize	= NLMSVC_XDRSIZE,
 };
 #endif
+
 static const struct svc_version *nlmsvc_version[] = {
 	[1] = &nlmsvc_version1,
 	[3] = &nlmsvc_version3,

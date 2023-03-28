@@ -223,6 +223,12 @@ bcm47xx_buttons_linksys_e2000v1[] __initconst = {
 };
 
 static const struct gpio_keys_button
+bcm47xx_buttons_linksys_e2500v3[] __initconst = {
+	BCM47XX_GPIO_KEY(9, KEY_WPS_BUTTON),
+	BCM47XX_GPIO_KEY(10, KEY_RESTART),
+};
+
+static const struct gpio_keys_button
 bcm47xx_buttons_linksys_e3000v1[] __initconst = {
 	BCM47XX_GPIO_KEY(4, KEY_WPS_BUTTON),
 	BCM47XX_GPIO_KEY(6, KEY_RESTART),
@@ -616,6 +622,9 @@ int __init bcm47xx_buttons_register(void)
 		break;
 	case BCM47XX_BOARD_LINKSYS_E2000V1:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_linksys_e2000v1);
+		break;
+	case BCM47XX_BOARD_LINKSYS_E2500V3:
+		err = bcm47xx_copy_bdata(bcm47xx_buttons_linksys_e2500v3);
 		break;
 	case BCM47XX_BOARD_LINKSYS_E3000V1:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_linksys_e3000v1);

@@ -37,7 +37,7 @@ static void scmdev_remove(struct device *dev)
 		scmdrv->remove(scmdev);
 }
 
-static int scmdev_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int scmdev_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
 	return add_uevent_var(env, "MODALIAS=scm:scmdev");
 }

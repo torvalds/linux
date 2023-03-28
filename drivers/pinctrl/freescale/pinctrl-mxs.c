@@ -269,9 +269,9 @@ static int mxs_pinconf_group_set(struct pinctrl_dev *pctldev,
 	for (n = 0; n < num_configs; n++) {
 		config = configs[n];
 
-		ma = CONFIG_TO_MA(config);
-		vol = CONFIG_TO_VOL(config);
-		pull = CONFIG_TO_PULL(config);
+		ma = PIN_CONFIG_TO_MA(config);
+		vol = PIN_CONFIG_TO_VOL(config);
+		pull = PIN_CONFIG_TO_PULL(config);
 
 		for (i = 0; i < g->npins; i++) {
 			bank = PINID_TO_BANK(g->pins[i]);

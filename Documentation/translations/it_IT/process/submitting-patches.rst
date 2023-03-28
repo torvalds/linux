@@ -340,7 +340,7 @@ Assicuratevi di dire ai revisori quali cambiamenti state facendo e di
 ringraziarli per il loro tempo.  Revisionare codice è un lavoro faticoso e che
 richiede molto tempo, e a volte i revisori diventano burberi. Tuttavia, anche in
 questo caso, rispondete con educazione e concentratevi sul problema che hanno
-evidenziato. Quando inviate una version successiva ricordatevi di aggiungere un
+evidenziato. Quando inviate una versione successiva ricordatevi di aggiungere un
 ``patch changelog`` alla email di intestazione o ad ogni singola patch spiegando
 le differenze rispetto a sottomissioni precedenti (vedere
 :ref:`it_the_canonical_patch_format`).

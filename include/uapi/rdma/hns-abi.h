@@ -87,10 +87,14 @@ struct hns_roce_ib_create_qp_resp {
 
 enum {
 	HNS_ROCE_EXSGE_FLAGS = 1 << 0,
+	HNS_ROCE_RQ_INLINE_FLAGS = 1 << 1,
+	HNS_ROCE_CQE_INLINE_FLAGS = 1 << 2,
 };
 
 enum {
 	HNS_ROCE_RSP_EXSGE_FLAGS = 1 << 0,
+	HNS_ROCE_RSP_RQ_INLINE_FLAGS = 1 << 1,
+	HNS_ROCE_RSP_CQE_INLINE_FLAGS = 1 << 2,
 };
 
 struct hns_roce_ib_alloc_ucontext_resp {

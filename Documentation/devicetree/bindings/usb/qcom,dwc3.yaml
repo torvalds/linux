@@ -58,6 +58,9 @@ properties:
     description: specifies a phandle to PM domain provider node
     maxItems: 1
 
+  required-opps:
+    maxItems: 1
+
   clocks:
     description: |
       Several clocks are used, depending on the variant. Typical ones are::

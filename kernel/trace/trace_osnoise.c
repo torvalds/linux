@@ -147,9 +147,8 @@ static void osnoise_unregister_instance(struct trace_array *tr)
 	 * register/unregister serialization is provided by trace's
 	 * trace_types_lock.
 	 */
-	lockdep_assert_held(&trace_types_lock);
-
-	list_for_each_entry_rcu(inst, &osnoise_instances, list) {
+	list_for_each_entry_rcu(inst, &osnoise_instances, list,
+				lockdep_is_held(&trace_types_lock)) {
 		if (inst->tr == tr) {
 			list_del_rcu(&inst->list);
 			found = 1;
@@ -1540,7 +1539,7 @@ static void osnoise_sleep(void)
 	wake_time = ktime_add_us(ktime_get(), interval);
 	__set_current_state(TASK_INTERRUPTIBLE);
 
-	while (schedule_hrtimeout_range(&wake_time, 0, HRTIMER_MODE_ABS)) {
+	while (schedule_hrtimeout(&wake_time, HRTIMER_MODE_ABS)) {
 		if (kthread_should_stop())
 			break;
 	}

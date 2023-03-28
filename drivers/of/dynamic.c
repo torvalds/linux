@@ -329,10 +329,30 @@ void of_node_release(struct kobject *kobj)
 {
 	struct device_node *node = kobj_to_device_node(kobj);
 
+	/*
+	 * can not use '"%pOF", node' in pr_err() calls from this function
+	 * because an of_node_get(node) when refcount is already zero
+	 * will result in an error and a stack dump
+	 */
+
 	/* We should never be releasing nodes that haven't been detached. */
 	if (!of_node_check_flag(node, OF_DETACHED)) {
-		pr_err("ERROR: Bad of_node_put() on %pOF\n", node);
-		dump_stack();
+
+		pr_err("ERROR: %s() detected bad of_node_put() on %pOF/%s\n",
+			__func__, node->parent, node->full_name);
+
+		/*
+		 * of unittests will test this path.  Do not print the stack
+		 * trace when the error is caused by unittest so that we do
+		 * not display what a normal developer might reasonably
+		 * consider a real bug.
+		 */
+		if (!IS_ENABLED(CONFIG_OF_UNITTEST) ||
+		    strcmp(node->parent->full_name, "testcase-data")) {
+			dump_stack();
+			pr_err("ERROR: next of_node_put() on this node will result in a kobject warning 'refcount_t: underflow; use-after-free.'\n");
+		}
+
 		return;
 	}
 	if (!of_node_check_flag(node, OF_DYNAMIC))
@@ -356,6 +376,10 @@ void of_node_release(struct kobject *kobj)
 			pr_err("ERROR: %s(), unexpected properties in %pOF\n",
 			       __func__, node);
 	}
+
+	if (node->child)
+		pr_err("ERROR: %s() unexpected children for %pOF/%s\n",
+			__func__, node->parent, node->full_name);
 
 	property_list_free(node->properties);
 	property_list_free(node->deadprops);
@@ -419,7 +443,8 @@ struct property *__of_prop_dup(const struct property *prop, gfp_t allocflags)
  * another node.  The node data are dynamically allocated and all the node
  * flags have the OF_DYNAMIC & OF_DETACHED bits set.
  *
- * Return: The newly allocated node or NULL on out of memory error.
+ * Return: The newly allocated node or NULL on out of memory error.  Use
+ * of_node_put() on it when done to free the memory allocated for it.
  */
 struct device_node *__of_node_dup(const struct device_node *np,
 				  const char *full_name)

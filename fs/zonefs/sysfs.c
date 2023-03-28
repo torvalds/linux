@@ -79,7 +79,7 @@ static const struct sysfs_ops zonefs_sysfs_attr_ops = {
 	.show	= zonefs_sysfs_attr_show,
 };
 
-static struct kobj_type zonefs_sb_ktype = {
+static const struct kobj_type zonefs_sb_ktype = {
 	.default_groups = zonefs_sysfs_groups,
 	.sysfs_ops	= &zonefs_sysfs_attr_ops,
 	.release	= zonefs_sysfs_sb_release,

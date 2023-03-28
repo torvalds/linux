@@ -72,7 +72,7 @@ static int (*nx842_powernv_exec)(const unsigned char *in,
 				unsigned int inlen, unsigned char *out,
 				unsigned int *outlenp, void *workmem, int fc);
 
-/**
+/*
  * setup_indirect_dde - Setup an indirect DDE
  *
  * The DDE is setup with the DDE count, byte count, and address of
@@ -89,7 +89,7 @@ static void setup_indirect_dde(struct data_descriptor_entry *dde,
 	dde->address = cpu_to_be64(nx842_get_pa(ddl));
 }
 
-/**
+/*
  * setup_direct_dde - Setup single DDE from buffer
  *
  * The DDE is setup with the buffer and length.  The buffer must be properly
@@ -111,7 +111,7 @@ static unsigned int setup_direct_dde(struct data_descriptor_entry *dde,
 	return l;
 }
 
-/**
+/*
  * setup_ddl - Setup DDL from buffer
  *
  * Returns:
@@ -181,9 +181,6 @@ static int setup_ddl(struct data_descriptor_entry *dde,
 	CSB_ERR(csb, msg " at %lx", ##__VA_ARGS__,		\
 		(unsigned long)be64_to_cpu((csb)->address))
 
-/**
- * wait_for_csb
- */
 static int wait_for_csb(struct nx842_workmem *wmem,
 			struct coprocessor_status_block *csb)
 {
@@ -632,8 +629,8 @@ static int nx842_exec_vas(const unsigned char *in, unsigned int inlen,
  * @inlen: input buffer size
  * @out: output buffer pointer
  * @outlenp: output buffer size pointer
- * @workmem: working memory buffer pointer, size determined by
- *           nx842_powernv_driver.workmem_size
+ * @wmem: working memory buffer pointer, size determined by
+ *        nx842_powernv_driver.workmem_size
  *
  * Returns: see @nx842_powernv_exec()
  */

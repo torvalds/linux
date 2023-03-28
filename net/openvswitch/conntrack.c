@@ -9,6 +9,7 @@
 #include <linux/udp.h>
 #include <linux/sctp.h>
 #include <linux/static_key.h>
+#include <linux/string_helpers.h>
 #include <net/ip.h>
 #include <net/genetlink.h>
 #include <net/netfilter/nf_conntrack_core.h>
@@ -434,52 +435,21 @@ static int ovs_ct_set_labels(struct nf_conn *ct, struct sw_flow_key *key,
 	return 0;
 }
 
-/* Returns 0 on success, -EINPROGRESS if 'skb' is stolen, or other nonzero
- * value if 'skb' is freed.
- */
-static int handle_fragments(struct net *net, struct sw_flow_key *key,
-			    u16 zone, struct sk_buff *skb)
+static int ovs_ct_handle_fragments(struct net *net, struct sw_flow_key *key,
+				   u16 zone, int family, struct sk_buff *skb)
 {
 	struct ovs_skb_cb ovs_cb = *OVS_CB(skb);
 	int err;
 
-	if (key->eth.type == htons(ETH_P_IP)) {
-		enum ip_defrag_users user = IP_DEFRAG_CONNTRACK_IN + zone;
-
-		memset(IPCB(skb), 0, sizeof(struct inet_skb_parm));
-		err = ip_defrag(net, skb, user);
-		if (err)
-			return err;
-
-		ovs_cb.mru = IPCB(skb)->frag_max_size;
-#if IS_ENABLED(CONFIG_NF_DEFRAG_IPV6)
-	} else if (key->eth.type == htons(ETH_P_IPV6)) {
-		enum ip6_defrag_users user = IP6_DEFRAG_CONNTRACK_IN + zone;
-
-		memset(IP6CB(skb), 0, sizeof(struct inet6_skb_parm));
-		err = nf_ct_frag6_gather(net, skb, user);
-		if (err) {
-			if (err != -EINPROGRESS)
-				kfree_skb(skb);
-			return err;
-		}
-
-		key->ip.proto = ipv6_hdr(skb)->nexthdr;
-		ovs_cb.mru = IP6CB(skb)->frag_max_size;
-#endif
-	} else {
-		kfree_skb(skb);
-		return -EPFNOSUPPORT;
-	}
+	err = nf_ct_handle_fragments(net, skb, zone, family, &key->ip.proto, &ovs_cb.mru);
+	if (err)
+		return err;
 
 	/* The key extracted from the fragment that completed this datagram
 	 * likely didn't have an L4 header, so regenerate it.
 	 */
 	ovs_flow_key_update_l3l4(skb, key);
-
 	key->ip.frag = OVS_FRAG_TYPE_NONE;
-	skb_clear_hash(skb);
-	skb->ignore_df = 1;
 	*OVS_CB(skb) = ovs_cb;
 
 	return 0;
@@ -1090,36 +1060,6 @@ static int ovs_ct_commit(struct net *net, struct sw_flow_key *key,
 	return 0;
 }
 
-/* Trim the skb to the length specified by the IP/IPv6 header,
- * removing any trailing lower-layer padding. This prepares the skb
- * for higher-layer processing that assumes skb->len excludes padding
- * (such as nf_ip_checksum). The caller needs to pull the skb to the
- * network header, and ensure ip_hdr/ipv6_hdr points to valid data.
- */
-static int ovs_skb_network_trim(struct sk_buff *skb)
-{
-	unsigned int len;
-	int err;
-
-	switch (skb->protocol) {
-	case htons(ETH_P_IP):
-		len = ntohs(ip_hdr(skb)->tot_len);
-		break;
-	case htons(ETH_P_IPV6):
-		len = sizeof(struct ipv6hdr)
-			+ ntohs(ipv6_hdr(skb)->payload_len);
-		break;
-	default:
-		len = skb->len;
-	}
-
-	err = pskb_trim_rcsum(skb, len);
-	if (err)
-		kfree_skb(skb);
-
-	return err;
-}
-
 /* Returns 0 on success, -EINPROGRESS if 'skb' is stolen, or other nonzero
  * value if 'skb' is freed.
  */
@@ -1134,12 +1074,15 @@ int ovs_ct_execute(struct net *net, struct sk_buff *skb,
 	nh_ofs = skb_network_offset(skb);
 	skb_pull_rcsum(skb, nh_ofs);
 
-	err = ovs_skb_network_trim(skb);
-	if (err)
+	err = nf_ct_skb_network_trim(skb, info->family);
+	if (err) {
+		kfree_skb(skb);
 		return err;
+	}
 
 	if (key->ip.frag != OVS_FRAG_TYPE_NONE) {
-		err = handle_fragments(net, key, info->zone.id, skb);
+		err = ovs_ct_handle_fragments(net, key, info->zone.id,
+					      info->family, skb);
 		if (err)
 			return err;
 	}
@@ -1383,7 +1326,7 @@ static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
 #endif
 		case OVS_CT_ATTR_HELPER:
 			*helper = nla_data(a);
-			if (!memchr(*helper, '\0', nla_len(a))) {
+			if (!string_is_terminated(*helper, nla_len(a))) {
 				OVS_NLERR(log, "Invalid conntrack helper");
 				return -EINVAL;
 			}
@@ -1404,7 +1347,7 @@ static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
 #ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 		case OVS_CT_ATTR_TIMEOUT:
 			memcpy(info->timeout, nla_data(a), nla_len(a));
-			if (!memchr(info->timeout, '\0', nla_len(a))) {
+			if (!string_is_terminated(info->timeout, nla_len(a))) {
 				OVS_NLERR(log, "Invalid conntrack timeout");
 				return -EINVAL;
 			}

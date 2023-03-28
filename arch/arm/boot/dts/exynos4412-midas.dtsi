@@ -33,7 +33,7 @@
 
 	firmware@204f000 {
 		compatible = "samsung,secure-firmware";
-		reg = <0x0204F000 0x1000>;
+		reg = <0x0204f000 0x1000>;
 	};
 
 	fixed-rate-clocks {
@@ -273,9 +273,16 @@
 			interrupts = <5 IRQ_TYPE_LEVEL_HIGH>;
 			reg = <0x39>;
 
-			port {
-				mhl_to_hdmi: endpoint {
-					remote-endpoint = <&hdmi_to_mhl>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					mhl_to_hdmi: endpoint {
+						remote-endpoint = <&hdmi_to_mhl>;
+					};
 				};
 			};
 		};
@@ -646,8 +653,8 @@
 		CPVDD-supply = <&vbatt_reg>;
 		SPKVDD1-supply = <&vbatt_reg>;
 		SPKVDD2-supply = <&vbatt_reg>;
-		wlf,ldo1ena = <&gpj0 4 0>;
-		wlf,ldo2ena = <&gpj0 4 0>;
+		wlf,ldo1ena-gpios = <&gpj0 4 GPIO_ACTIVE_HIGH>;
+		wlf,ldo2ena-gpios = <&gpj0 4 GPIO_ACTIVE_HIGH>;
 	};
 };
 

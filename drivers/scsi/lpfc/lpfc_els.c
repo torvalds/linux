@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2023 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -1123,6 +1123,9 @@ stop_rr_fcf_flogi:
 	if (sp->cmn.priority_tagging)
 		vport->phba->pport->vmid_flag |= (LPFC_VMID_ISSUE_QFPA |
 						  LPFC_VMID_TYPE_PRIO);
+	/* reinitialize the VMID datastructure before returning */
+	if (lpfc_is_vmid_enabled(phba))
+		lpfc_reinit_vmid(vport);
 
 	/*
 	 * Address a timing race with dev_loss.  If dev_loss is active on
@@ -2373,14 +2376,29 @@ lpfc_cmpl_els_prli(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		/* PRLI failed */
 		lpfc_printf_vlog(vport, mode, loglevel,
 				 "2754 PRLI failure DID:%06X Status:x%x/x%x, "
-				 "data: x%x\n",
+				 "data: x%x x%x\n",
 				 ndlp->nlp_DID, ulp_status,
-				 ulp_word4, ndlp->fc4_prli_sent);
+				 ulp_word4, ndlp->nlp_state,
+				 ndlp->fc4_prli_sent);
 
 		/* Do not call DSM for lpfc_els_abort'ed ELS cmds */
 		if (!lpfc_error_lost_link(ulp_status, ulp_word4))
 			lpfc_disc_state_machine(vport, ndlp, cmdiocb,
 						NLP_EVT_CMPL_PRLI);
+
+		/* The following condition catches an inflight transition
+		 * mismatch typically caused by an RSCN. Skip any
+		 * processing to allow recovery.
+		 */
+		if (ndlp->nlp_state >= NLP_STE_PLOGI_ISSUE &&
+		    ndlp->nlp_state <= NLP_STE_REG_LOGIN_ISSUE) {
+			lpfc_printf_vlog(vport, KERN_WARNING, LOG_NODE,
+					 "2784 PRLI cmpl: state mismatch "
+					 "DID x%06x nstate x%x nflag x%x\n",
+					 ndlp->nlp_DID, ndlp->nlp_state,
+					 ndlp->nlp_flag);
+				goto out;
+		}
 
 		/*
 		 * For P2P topology, retain the node so that PLOGI can be
@@ -4673,6 +4691,15 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				/* the nameserver fails */
 				maxretry = 0;
 				delay = 100;
+			} else if (cmd == ELS_CMD_PRLI &&
+				   ndlp->nlp_state != NLP_STE_PRLI_ISSUE) {
+				/* State-command disagreement.  The PRLI was
+				 * failed with an invalid rpi meaning there
+				 * some unexpected state change.  Don't retry.
+				 */
+				maxretry = 0;
+				retry = 0;
+				break;
 			}
 			retry = 1;
 			break;
@@ -8859,7 +8886,7 @@ reject_out:
  * @rrq: Pointer to the rrq struct.
  *
  * Build a ELS RRQ command and send it to the target. If the issue_iocb is
- * Successful the the completion handler will clear the RRQ.
+ * successful, the completion handler will clear the RRQ.
  *
  * Return codes
  *   0 - Successfully sent rrq els iocb.
@@ -10260,7 +10287,7 @@ lpfc_els_rcv_fpin(struct lpfc_vport *vport, void *p, u32 fpin_length)
 		/* Send every descriptor individually to the upper layer */
 		if (deliver)
 			fc_host_fpin_rcv(lpfc_shost_from_vport(vport),
-					 fpin_length, (char *)fpin);
+					 fpin_length, (char *)fpin, 0);
 		desc_cnt++;
 	}
 }

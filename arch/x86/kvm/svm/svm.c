@@ -1,4 +1,4 @@
-#define pr_fmt(fmt) "SVM: " fmt
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kvm_host.h>
 
@@ -519,21 +519,37 @@ static void svm_init_osvw(struct kvm_vcpu *vcpu)
 		vcpu->arch.osvw.status |= 1;
 }
 
-static int has_svm(void)
+static bool kvm_is_svm_supported(void)
 {
+	int cpu = raw_smp_processor_id();
 	const char *msg;
+	u64 vm_cr;
 
 	if (!cpu_has_svm(&msg)) {
-		printk(KERN_INFO "has_svm: %s\n", msg);
-		return 0;
+		pr_err("SVM not supported by CPU %d, %s\n", cpu, msg);
+		return false;
 	}
 
 	if (cc_platform_has(CC_ATTR_GUEST_MEM_ENCRYPT)) {
 		pr_info("KVM is unsupported when running as an SEV guest\n");
-		return 0;
+		return false;
 	}
 
-	return 1;
+	rdmsrl(MSR_VM_CR, vm_cr);
+	if (vm_cr & (1 << SVM_VM_CR_SVM_DISABLE)) {
+		pr_err("SVM disabled (by BIOS) in MSR_VM_CR on CPU %d\n", cpu);
+		return false;
+	}
+
+	return true;
+}
+
+static int svm_check_processor_compat(void)
+{
+	if (!kvm_is_svm_supported())
+		return -EIO;
+
+	return 0;
 }
 
 void __svm_write_tsc_multiplier(u64 multiplier)
@@ -572,10 +588,6 @@ static int svm_hardware_enable(void)
 	if (efer & EFER_SVME)
 		return -EBUSY;
 
-	if (!has_svm()) {
-		pr_err("%s: err EOPNOTSUPP on %d\n", __func__, me);
-		return -EINVAL;
-	}
 	sd = per_cpu_ptr(&svm_data, me);
 	sd->asid_generation = 1;
 	sd->max_asid = cpuid_ebx(SVM_CPUID_FUNC) - 1;
@@ -813,7 +825,7 @@ void svm_set_x2apic_msr_interception(struct vcpu_svm *svm, bool intercept)
 	if (intercept == svm->x2avic_msrs_intercepted)
 		return;
 
-	if (avic_mode != AVIC_MODE_X2 ||
+	if (!x2avic_enabled ||
 	    !apic_x2apic_mode(svm->vcpu.arch.apic))
 		return;
 
@@ -1325,6 +1337,9 @@ static void __svm_vcpu_reset(struct kvm_vcpu *vcpu)
 	svm_init_osvw(vcpu);
 	vcpu->arch.microcode_version = 0x01000065;
 	svm->tsc_ratio_msr = kvm_caps.default_tsc_scaling_ratio;
+
+	svm->nmi_masked = false;
+	svm->awaiting_iret_completion = false;
 
 	if (sev_es_guest(vcpu->kvm))
 		sev_es_vcpu_reset(svm);
@@ -2076,7 +2091,7 @@ static void svm_handle_mce(struct kvm_vcpu *vcpu)
 		 * Erratum 383 triggered. Guest state is corrupt so kill the
 		 * guest.
 		 */
-		pr_err("KVM: Guest triggered AMD Erratum 383\n");
+		pr_err("Guest triggered AMD Erratum 383\n");
 
 		kvm_make_request(KVM_REQ_TRIPLE_FAULT, vcpu);
 
@@ -2470,7 +2485,7 @@ static int iret_interception(struct kvm_vcpu *vcpu)
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	++vcpu->stat.nmi_window_exits;
-	vcpu->arch.hflags |= HF_IRET_MASK;
+	svm->awaiting_iret_completion = true;
 	if (!sev_es_guest(vcpu->kvm)) {
 		svm_clr_intercept(svm, INTERCEPT_IRET);
 		svm->nmi_iret_rip = kvm_rip_read(vcpu);
@@ -3003,8 +3018,7 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 		break;
 	case MSR_IA32_DEBUGCTLMSR:
 		if (!lbrv) {
-			vcpu_unimpl(vcpu, "%s: MSR_IA32_DEBUGCTL 0x%llx, nop\n",
-				    __func__, data);
+			kvm_pr_unimpl_wrmsr(vcpu, ecx, data);
 			break;
 		}
 		if (data & DEBUGCTL_RESERVED_BITS)
@@ -3033,7 +3047,7 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 	case MSR_VM_CR:
 		return svm_set_vm_cr(vcpu, data);
 	case MSR_VM_IGNNE:
-		vcpu_unimpl(vcpu, "unimplemented wrmsr: 0x%x data 0x%llx\n", ecx, data);
+		kvm_pr_unimpl_wrmsr(vcpu, ecx, data);
 		break;
 	case MSR_AMD64_DE_CFG: {
 		struct kvm_msr_entry msr_entry;
@@ -3466,7 +3480,7 @@ static void svm_inject_nmi(struct kvm_vcpu *vcpu)
 	if (svm->nmi_l1_to_l2)
 		return;
 
-	vcpu->arch.hflags |= HF_NMI_MASK;
+	svm->nmi_masked = true;
 	if (!sev_es_guest(vcpu->kvm))
 		svm_set_intercept(svm, INTERCEPT_IRET);
 	++vcpu->stat.nmi_injections;
@@ -3571,7 +3585,6 @@ bool svm_nmi_blocked(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct vmcb *vmcb = svm->vmcb;
-	bool ret;
 
 	if (!gif_set(svm))
 		return true;
@@ -3579,10 +3592,8 @@ bool svm_nmi_blocked(struct kvm_vcpu *vcpu)
 	if (is_guest_mode(vcpu) && nested_exit_on_nmi(svm))
 		return false;
 
-	ret = (vmcb->control.int_state & SVM_INTERRUPT_SHADOW_MASK) ||
-	      (vcpu->arch.hflags & HF_NMI_MASK);
-
-	return ret;
+	return (vmcb->control.int_state & SVM_INTERRUPT_SHADOW_MASK) ||
+	       svm->nmi_masked;
 }
 
 static int svm_nmi_allowed(struct kvm_vcpu *vcpu, bool for_injection)
@@ -3602,7 +3613,7 @@ static int svm_nmi_allowed(struct kvm_vcpu *vcpu, bool for_injection)
 
 static bool svm_get_nmi_mask(struct kvm_vcpu *vcpu)
 {
-	return !!(vcpu->arch.hflags & HF_NMI_MASK);
+	return to_svm(vcpu)->nmi_masked;
 }
 
 static void svm_set_nmi_mask(struct kvm_vcpu *vcpu, bool masked)
@@ -3610,11 +3621,11 @@ static void svm_set_nmi_mask(struct kvm_vcpu *vcpu, bool masked)
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	if (masked) {
-		vcpu->arch.hflags |= HF_NMI_MASK;
+		svm->nmi_masked = true;
 		if (!sev_es_guest(vcpu->kvm))
 			svm_set_intercept(svm, INTERCEPT_IRET);
 	} else {
-		vcpu->arch.hflags &= ~HF_NMI_MASK;
+		svm->nmi_masked = false;
 		if (!sev_es_guest(vcpu->kvm))
 			svm_clr_intercept(svm, INTERCEPT_IRET);
 	}
@@ -3700,7 +3711,7 @@ static void svm_enable_nmi_window(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	if ((vcpu->arch.hflags & (HF_NMI_MASK | HF_IRET_MASK)) == HF_NMI_MASK)
+	if (svm->nmi_masked && !svm->awaiting_iret_completion)
 		return; /* IRET will cause a vm exit */
 
 	if (!gif_set(svm)) {
@@ -3824,10 +3835,11 @@ static void svm_complete_interrupts(struct kvm_vcpu *vcpu)
 	 * If we've made progress since setting HF_IRET_MASK, we've
 	 * executed an IRET and can allow NMI injection.
 	 */
-	if ((vcpu->arch.hflags & HF_IRET_MASK) &&
+	if (svm->awaiting_iret_completion &&
 	    (sev_es_guest(vcpu->kvm) ||
 	     kvm_rip_read(vcpu) != svm->nmi_iret_rip)) {
-		vcpu->arch.hflags &= ~(HF_NMI_MASK | HF_IRET_MASK);
+		svm->awaiting_iret_completion = false;
+		svm->nmi_masked = false;
 		kvm_make_request(KVM_REQ_EVENT, vcpu);
 	}
 
@@ -4076,17 +4088,6 @@ static void svm_load_mmu_pgd(struct kvm_vcpu *vcpu, hpa_t root_hpa,
 	vmcb_mark_dirty(svm->vmcb, VMCB_CR);
 }
 
-static int is_disabled(void)
-{
-	u64 vm_cr;
-
-	rdmsrl(MSR_VM_CR, vm_cr);
-	if (vm_cr & (1 << SVM_VM_CR_SVM_DISABLE))
-		return 1;
-
-	return 0;
-}
-
 static void
 svm_patch_hypercall(struct kvm_vcpu *vcpu, unsigned char *hypercall)
 {
@@ -4096,11 +4097,6 @@ svm_patch_hypercall(struct kvm_vcpu *vcpu, unsigned char *hypercall)
 	hypercall[0] = 0x0f;
 	hypercall[1] = 0x01;
 	hypercall[2] = 0xd9;
-}
-
-static int __init svm_check_processor_compat(void)
-{
-	return 0;
 }
 
 /*
@@ -4629,7 +4625,7 @@ static bool svm_can_emulate_instruction(struct kvm_vcpu *vcpu, int emul_type,
 	smap = cr4 & X86_CR4_SMAP;
 	is_user = svm_get_cpl(vcpu) == 3;
 	if (smap && (!smep || is_user)) {
-		pr_err_ratelimited("KVM: SEV Guest triggered AMD Erratum 1096\n");
+		pr_err_ratelimited("SEV Guest triggered AMD Erratum 1096\n");
 
 		/*
 		 * If the fault occurred in userspace, arbitrarily inject #GP
@@ -4701,7 +4697,9 @@ static int svm_vm_init(struct kvm *kvm)
 }
 
 static struct kvm_x86_ops svm_x86_ops __initdata = {
-	.name = "kvm_amd",
+	.name = KBUILD_MODNAME,
+
+	.check_processor_compatibility = svm_check_processor_compat,
 
 	.hardware_unsetup = svm_hardware_unsetup,
 	.hardware_enable = svm_hardware_enable,
@@ -4771,10 +4769,10 @@ static struct kvm_x86_ops svm_x86_ops __initdata = {
 	.enable_nmi_window = svm_enable_nmi_window,
 	.enable_irq_window = svm_enable_irq_window,
 	.update_cr8_intercept = svm_update_cr8_intercept,
-	.set_virtual_apic_mode = avic_set_virtual_apic_mode,
+	.set_virtual_apic_mode = avic_refresh_virtual_apic_mode,
 	.refresh_apicv_exec_ctrl = avic_refresh_apicv_exec_ctrl,
-	.check_apicv_inhibit_reasons = avic_check_apicv_inhibit_reasons,
 	.apicv_post_state_restore = avic_apicv_post_state_restore,
+	.required_apicv_inhibits = AVIC_REQUIRED_APICV_INHIBITS,
 
 	.get_exit_info = svm_get_exit_info,
 
@@ -4969,6 +4967,9 @@ static __init int svm_hardware_setup(void)
 
 	tsc_aux_uret_slot = kvm_add_user_return_msr(MSR_TSC_AUX);
 
+	if (boot_cpu_has(X86_FEATURE_AUTOIBRS))
+		kvm_enable_efer_bits(EFER_AUTOIBRS);
+
 	/* Check for pause filtering support */
 	if (!boot_cpu_has(X86_FEATURE_PAUSEFILTER)) {
 		pause_filter_count = 0;
@@ -4978,7 +4979,7 @@ static __init int svm_hardware_setup(void)
 	}
 
 	if (nested) {
-		printk(KERN_INFO "kvm: Nested Virtualization enabled\n");
+		pr_info("Nested Virtualization enabled\n");
 		kvm_enable_efer_bits(EFER_SVME | EFER_LMSLE);
 	}
 
@@ -4996,7 +4997,7 @@ static __init int svm_hardware_setup(void)
 	/* Force VM NPT level equal to the host's paging level */
 	kvm_configure_mmu(npt_enabled, get_npt_level(),
 			  get_npt_level(), PG_LEVEL_1G);
-	pr_info("kvm: Nested Paging %sabled\n", npt_enabled ? "en" : "dis");
+	pr_info("Nested Paging %sabled\n", npt_enabled ? "en" : "dis");
 
 	/* Setup shadow_me_value and shadow_me_mask */
 	kvm_mmu_set_me_spte_mask(sme_me_mask, sme_me_mask);
@@ -5022,12 +5023,14 @@ static __init int svm_hardware_setup(void)
 			nrips = false;
 	}
 
-	enable_apicv = avic = avic && avic_hardware_setup(&svm_x86_ops);
+	enable_apicv = avic = avic && avic_hardware_setup();
 
 	if (!enable_apicv) {
 		svm_x86_ops.vcpu_blocking = NULL;
 		svm_x86_ops.vcpu_unblocking = NULL;
 		svm_x86_ops.vcpu_get_apicv_inhibit_reasons = NULL;
+	} else if (!x2avic_enabled) {
+		svm_x86_ops.allow_apicv_in_x2apic_without_x2apic_virtualization = true;
 	}
 
 	if (vls) {
@@ -5086,10 +5089,7 @@ err:
 
 
 static struct kvm_x86_init_ops svm_init_ops __initdata = {
-	.cpu_has_kvm_support = has_svm,
-	.disabled_by_bios = is_disabled,
 	.hardware_setup = svm_hardware_setup,
-	.check_processor_compatibility = svm_check_processor_compat,
 
 	.runtime_ops = &svm_x86_ops,
 	.pmu_ops = &amd_pmu_ops,
@@ -5097,15 +5097,37 @@ static struct kvm_x86_init_ops svm_init_ops __initdata = {
 
 static int __init svm_init(void)
 {
+	int r;
+
 	__unused_size_checks();
 
-	return kvm_init(&svm_init_ops, sizeof(struct vcpu_svm),
-			__alignof__(struct vcpu_svm), THIS_MODULE);
+	if (!kvm_is_svm_supported())
+		return -EOPNOTSUPP;
+
+	r = kvm_x86_vendor_init(&svm_init_ops);
+	if (r)
+		return r;
+
+	/*
+	 * Common KVM initialization _must_ come last, after this, /dev/kvm is
+	 * exposed to userspace!
+	 */
+	r = kvm_init(sizeof(struct vcpu_svm), __alignof__(struct vcpu_svm),
+		     THIS_MODULE);
+	if (r)
+		goto err_kvm_init;
+
+	return 0;
+
+err_kvm_init:
+	kvm_x86_vendor_exit();
+	return r;
 }
 
 static void __exit svm_exit(void)
 {
 	kvm_exit();
+	kvm_x86_vendor_exit();
 }
 
 module_init(svm_init)

@@ -481,13 +481,13 @@ void hfsplus_inode_write_fork(struct inode *inode,
 			      struct hfsplus_fork_raw *fork);
 int hfsplus_cat_read_inode(struct inode *inode, struct hfs_find_data *fd);
 int hfsplus_cat_write_inode(struct inode *inode);
-int hfsplus_getattr(struct user_namespace *mnt_userns, const struct path *path,
+int hfsplus_getattr(struct mnt_idmap *idmap, const struct path *path,
 		    struct kstat *stat, u32 request_mask,
 		    unsigned int query_flags);
 int hfsplus_file_fsync(struct file *file, loff_t start, loff_t end,
 		       int datasync);
 int hfsplus_fileattr_get(struct dentry *dentry, struct fileattr *fa);
-int hfsplus_fileattr_set(struct user_namespace *mnt_userns,
+int hfsplus_fileattr_set(struct mnt_idmap *idmap,
 			 struct dentry *dentry, struct fileattr *fa);
 
 /* ioctl.c */

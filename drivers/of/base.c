@@ -1884,8 +1884,7 @@ static void of_alias_add(struct alias_prop *ap, struct device_node *np,
 {
 	ap->np = np;
 	ap->id = id;
-	strncpy(ap->stem, stem, stem_len);
-	ap->stem[stem_len] = 0;
+	strscpy(ap->stem, stem, stem_len + 1);
 	list_add_tail(&ap->link, &aliases_lookup);
 	pr_debug("adding DT alias:%s: stem=%s id=%i node=%pOF\n",
 		 ap->alias, ap->stem, ap->id, np);

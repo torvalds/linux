@@ -1,6 +1,8 @@
-========================================
-The Linux driver implementer's API guide
-========================================
+.. SPDX-License-Identifier: GPL-2.0
+
+==============================
+Driver implementer's API guide
+==============================
 
 The kernel offers a wide variety of interfaces to support the development
 of device drivers.  This document is an only somewhat organized collection
@@ -106,6 +108,7 @@ available subsections can be seen below.
    vfio-mediated-device
    vfio
    vfio-pci-device-specific-driver-acceptance
+   virtio/index
    xilinx/index
    xillybus
    zorro

@@ -1,0 +1,101 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/nxp,bbnsm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP Battery-Backed Non-Secure Module
+
+maintainers:
+  - Jacky Bai <ping.bai@nxp.com>
+
+description: |
+  NXP BBNSM serves as non-volatile logic and storage for the system.
+  it Intergrates RTC & ON/OFF control.
+  The RTC can retain its state and continues counting even when the
+  main chip is power down. A time alarm is generated once the most
+  significant 32 bits of the real-time counter match the value in the
+  Time Alarm register.
+  The ON/OFF logic inside the BBNSM allows for connecting directly to
+  a PMIC or other voltage regulator device. both smart PMIC mode and
+  Dumb PMIC mode supported.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - nxp,imx93-bbnsm
+      - const: syscon
+      - const: simple-mfd
+
+  reg:
+    maxItems: 1
+
+  rtc:
+    type: object
+    $ref: /schemas/rtc/rtc.yaml#
+
+    properties:
+      compatible:
+        enum:
+          - nxp,imx93-bbnsm-rtc
+
+      interrupts:
+        maxItems: 1
+
+      start-year: true
+
+    required:
+      - compatible
+      - interrupts
+
+    additionalProperties: false
+
+  pwrkey:
+    type: object
+    $ref: /schemas/input/input.yaml#
+
+    properties:
+      compatible:
+        enum:
+          - nxp,imx93-bbnsm-pwrkey
+
+      interrupts:
+        maxItems: 1
+
+      linux,code: true
+
+    required:
+      - compatible
+      - interrupts
+
+    additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - rtc
+  - pwrkey
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/input/linux-event-codes.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    bbnsm: bbnsm@44440000 {
+        compatible = "nxp,imx93-bbnsm", "syscon", "simple-mfd";
+        reg = <0x44440000 0x10000>;
+
+        bbnsm_rtc: rtc {
+            compatible = "nxp,imx93-bbnsm-rtc";
+            interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
+        };
+
+        bbnsm_pwrkey: pwrkey {
+            compatible = "nxp,imx93-bbnsm-pwrkey";
+            interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
+            linux,code = <KEY_POWER>;
+        };
+    };

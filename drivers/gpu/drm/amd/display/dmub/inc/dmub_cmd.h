@@ -162,6 +162,7 @@ extern "C" {
 #define dmub_udelay(microseconds) udelay(microseconds)
 #endif
 
+#pragma pack(push, 1)
 /**
  * union dmub_addr - DMUB physical/virtual 64-bit address.
  */
@@ -172,6 +173,7 @@ union dmub_addr {
 	} u; /*<< Low/high bit access */
 	uint64_t quad_part; /*<< 64 bit address */
 };
+#pragma pack(pop)
 
 /**
  * Dirty rect definition.
@@ -408,8 +410,8 @@ union dmub_fw_boot_options {
 		uint32_t usb4_cm_version: 1; /**< 1 CM support */
 		uint32_t dpia_hpd_int_enable_supported: 1; /* 1 if dpia hpd int enable supported */
 		uint32_t usb4_dpia_bw_alloc_supported: 1; /* 1 if USB4 dpia BW allocation supported */
-
-		uint32_t reserved : 15; /**< reserved */
+		uint32_t disable_clk_ds: 1; /* 1 if disallow dispclk_ds and dppclk_ds*/
+		uint32_t reserved : 14; /**< reserved */
 	} bits; /**< boot bits */
 	uint32_t all; /**< 32-bit access to bits */
 };
@@ -457,6 +459,10 @@ enum dmub_cmd_vbios_type {
 	 * Query DP alt status on a transmitter.
 	 */
 	DMUB_CMD__VBIOS_TRANSMITTER_QUERY_DP_ALT  = 26,
+	/**
+	 * Controls domain power gating
+	 */
+	DMUB_CMD__VBIOS_DOMAIN_CONTROL = 28,
 };
 
 //==============================================================================
@@ -1214,6 +1220,23 @@ struct dmub_rb_cmd_dig1_transmitter_control {
 };
 
 /**
+ * struct dmub_rb_cmd_domain_control_data - Data for DOMAIN power control
+ */
+struct dmub_rb_cmd_domain_control_data {
+	uint8_t inst : 6; /**< DOMAIN instance to control */
+	uint8_t power_gate : 1; /**< 1=power gate, 0=power up */
+	uint8_t reserved[3]; /**< Reserved for future use */
+};
+
+/**
+ * struct dmub_rb_cmd_domain_control - Controls DOMAIN power gating
+ */
+struct dmub_rb_cmd_domain_control {
+	struct dmub_cmd_header header; /**< header */
+	struct dmub_rb_cmd_domain_control_data data; /**< payload */
+};
+
+/**
  * DPIA tunnel command parameters.
  */
 struct dmub_cmd_dig_dpia_control_data {
@@ -1948,7 +1971,7 @@ struct dmub_cmd_psr_copy_settings_data {
 	uint8_t cmd_version;
 	/**
 	 * Panel Instance.
-	 * Panel isntance to identify which psr_state to use
+	 * Panel instance to identify which psr_state to use
 	 * Currently the support is only for 0 or 1
 	 */
 	uint8_t panel_inst;
@@ -1968,6 +1991,14 @@ struct dmub_cmd_psr_copy_settings_data {
 	 * Explicit padding to 2 byte boundary.
 	 */
 	uint8_t pad3;
+	/**
+	 * DSC Slice height.
+	 */
+	uint16_t dsc_slice_height;
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint16_t pad;
 };
 
 /**
@@ -1998,7 +2029,7 @@ struct dmub_cmd_psr_set_level_data {
 	uint8_t cmd_version;
 	/**
 	 * Panel Instance.
-	 * Panel isntance to identify which psr_state to use
+	 * Panel instance to identify which psr_state to use
 	 * Currently the support is only for 0 or 1
 	 */
 	uint8_t panel_inst;
@@ -2025,7 +2056,7 @@ struct dmub_rb_cmd_psr_enable_data {
 	uint8_t cmd_version;
 	/**
 	 * Panel Instance.
-	 * Panel isntance to identify which psr_state to use
+	 * Panel instance to identify which psr_state to use
 	 * Currently the support is only for 0 or 1
 	 */
 	uint8_t panel_inst;
@@ -2069,7 +2100,7 @@ struct dmub_cmd_psr_set_version_data {
 	uint8_t cmd_version;
 	/**
 	 * Panel Instance.
-	 * Panel isntance to identify which psr_state to use
+	 * Panel instance to identify which psr_state to use
 	 * Currently the support is only for 0 or 1
 	 */
 	uint8_t panel_inst;
@@ -2100,7 +2131,7 @@ struct dmub_cmd_psr_force_static_data {
 	uint8_t cmd_version;
 	/**
 	 * Panel Instance.
-	 * Panel isntance to identify which psr_state to use
+	 * Panel instance to identify which psr_state to use
 	 * Currently the support is only for 0 or 1
 	 */
 	uint8_t panel_inst;
@@ -2175,7 +2206,7 @@ struct dmub_cmd_update_dirty_rect_data {
 	uint8_t cmd_version;
 	/**
 	 * Panel Instance.
-	 * Panel isntance to identify which psr_state to use
+	 * Panel instance to identify which psr_state to use
 	 * Currently the support is only for 0 or 1
 	 */
 	uint8_t panel_inst;
@@ -2313,7 +2344,7 @@ struct dmub_cmd_update_cursor_payload0 {
 	uint8_t cmd_version;
 	/**
 	 * Panel Instance.
-	 * Panel isntance to identify which psr_state to use
+	 * Panel instance to identify which psr_state to use
 	 * Currently the support is only for 0 or 1
 	 */
 	uint8_t panel_inst;
@@ -2360,7 +2391,7 @@ struct dmub_cmd_psr_set_vtotal_data {
 	uint8_t cmd_version;
 	/**
 	 * Panel Instance.
-	 * Panel isntance to identify which psr_state to use
+	 * Panel instance to identify which psr_state to use
 	 * Currently the support is only for 0 or 1
 	 */
 	uint8_t panel_inst;
@@ -2398,7 +2429,7 @@ struct dmub_cmd_psr_set_power_opt_data {
 	uint8_t cmd_version;
 	/**
 	 * Panel Instance.
-	 * Panel isntance to identify which psr_state to use
+	 * Panel instance to identify which psr_state to use
 	 * Currently the support is only for 0 or 1
 	 */
 	uint8_t panel_inst;
@@ -3112,7 +3143,7 @@ struct dmub_rb_cmd_panel_cntl {
 struct dmub_cmd_lvtma_control_data {
 	uint8_t uc_pwr_action; /**< LVTMA_ACTION */
 	uint8_t bypass_panel_control_wait;
-	uint8_t reserved_0[2];
+	uint8_t reserved_0[2]; /**< For future use */
 	uint8_t panel_inst; /**< LVTMA control instance */
 	uint8_t reserved_1[3]; /**< For future use */
 };
@@ -3314,6 +3345,10 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__VBIOS_DIG1_TRANSMITTER_CONTROL command.
 	 */
 	struct dmub_rb_cmd_dig1_transmitter_control dig1_transmitter_control;
+	/**
+	 * Definition of a DMUB_CMD__VBIOS_DOMAIN_CONTROL command.
+	 */
+	struct dmub_rb_cmd_domain_control domain_control;
 	/**
 	 * Definition of a DMUB_CMD__PSR_SET_VERSION command.
 	 */

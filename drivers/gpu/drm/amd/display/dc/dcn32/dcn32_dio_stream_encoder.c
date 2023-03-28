@@ -29,7 +29,7 @@
 #include "dcn32_dio_stream_encoder.h"
 #include "reg_helper.h"
 #include "hw_shared.h"
-#include "dc_link_dp.h"
+#include "link.h"
 #include "dpcd_defs.h"
 
 #define DC_LOGGER \
@@ -211,10 +211,8 @@ static void enc32_stream_encoder_hdmi_set_stream_attribute(
 		HDMI_GC_SEND, 1,
 		HDMI_NULL_SEND, 1);
 
-#if defined(CONFIG_DRM_AMD_DC_HDCP)
 	/* Disable Audio Content Protection packet transmission */
 	REG_UPDATE(HDMI_VBI_PACKET_CONTROL, HDMI_ACP_SEND, 0);
-#endif
 
 	/* following belongs to audio */
 	/* Enable Audio InfoFrame packet transmission. */
@@ -373,7 +371,7 @@ static void enc32_stream_encoder_dp_unblank(
 
 	REG_UPDATE(DP_VID_STREAM_CNTL, DP_VID_STREAM_ENABLE, true);
 
-	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_ENABLE_DP_VID_STREAM);
+	link->dc->link_srv->dp_trace_source_sequence(link, DPCD_SOURCE_SEQ_AFTER_ENABLE_DP_VID_STREAM);
 }
 
 /* Set DSC-related configuration.
@@ -463,6 +461,8 @@ static const struct stream_encoder_funcs dcn32_str_enc_funcs = {
 		enc3_stream_encoder_update_hdmi_info_packets,
 	.stop_hdmi_info_packets =
 		enc3_stream_encoder_stop_hdmi_info_packets,
+	.update_dp_info_packets_sdp_line_num =
+		enc3_stream_encoder_update_dp_info_packets_sdp_line_num,
 	.update_dp_info_packets =
 		enc3_stream_encoder_update_dp_info_packets,
 	.stop_dp_info_packets =

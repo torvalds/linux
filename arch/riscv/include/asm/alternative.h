@@ -23,17 +23,25 @@
 #define RISCV_ALTERNATIVES_MODULE	1 /* alternatives applied during module-init */
 #define RISCV_ALTERNATIVES_EARLY_BOOT	2 /* alternatives applied before mmu start */
 
+/* add the relative offset to the address of the offset to get the absolute address */
+#define __ALT_PTR(a, f)			((void *)&(a)->f + (a)->f)
+#define ALT_OLD_PTR(a)			__ALT_PTR(a, old_offset)
+#define ALT_ALT_PTR(a)			__ALT_PTR(a, alt_offset)
+
 void __init apply_boot_alternatives(void);
 void __init apply_early_boot_alternatives(void);
 void apply_module_alternatives(void *start, size_t length);
 
+void riscv_alternative_fix_offsets(void *alt_ptr, unsigned int len,
+				   int patch_offset);
+
 struct alt_entry {
-	void *old_ptr;		 /* address of original instruciton or data  */
-	void *alt_ptr;		 /* address of replacement instruction or data */
-	unsigned long vendor_id; /* cpu vendor id */
-	unsigned long alt_len;   /* The replacement size */
-	unsigned int errata_id;  /* The errata id */
-} __packed;
+	s32 old_offset;		/* offset relative to original instruction or data  */
+	s32 alt_offset;		/* offset relative to replacement instruction or data */
+	u16 vendor_id;		/* cpu vendor id */
+	u16 alt_len;		/* The replacement size */
+	u32 errata_id;		/* The errata id */
+};
 
 struct errata_checkfunc_id {
 	unsigned long vendor_id;

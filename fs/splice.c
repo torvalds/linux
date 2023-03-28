@@ -282,6 +282,99 @@ void splice_shrink_spd(struct splice_pipe_desc *spd)
 	kfree(spd->partial);
 }
 
+/*
+ * Splice data from an O_DIRECT file into pages and then add them to the output
+ * pipe.
+ */
+ssize_t direct_splice_read(struct file *in, loff_t *ppos,
+			   struct pipe_inode_info *pipe,
+			   size_t len, unsigned int flags)
+{
+	struct iov_iter to;
+	struct bio_vec *bv;
+	struct kiocb kiocb;
+	struct page **pages;
+	ssize_t ret;
+	size_t used, npages, chunk, remain, reclaim;
+	int i;
+
+	/* Work out how much data we can actually add into the pipe */
+	used = pipe_occupancy(pipe->head, pipe->tail);
+	npages = max_t(ssize_t, pipe->max_usage - used, 0);
+	len = min_t(size_t, len, npages * PAGE_SIZE);
+	npages = DIV_ROUND_UP(len, PAGE_SIZE);
+
+	bv = kzalloc(array_size(npages, sizeof(bv[0])) +
+		     array_size(npages, sizeof(struct page *)), GFP_KERNEL);
+	if (!bv)
+		return -ENOMEM;
+
+	pages = (void *)(bv + npages);
+	npages = alloc_pages_bulk_array(GFP_USER, npages, pages);
+	if (!npages) {
+		kfree(bv);
+		return -ENOMEM;
+	}
+
+	remain = len = min_t(size_t, len, npages * PAGE_SIZE);
+
+	for (i = 0; i < npages; i++) {
+		chunk = min_t(size_t, PAGE_SIZE, remain);
+		bv[i].bv_page = pages[i];
+		bv[i].bv_offset = 0;
+		bv[i].bv_len = chunk;
+		remain -= chunk;
+	}
+
+	/* Do the I/O */
+	iov_iter_bvec(&to, ITER_DEST, bv, npages, len);
+	init_sync_kiocb(&kiocb, in);
+	kiocb.ki_pos = *ppos;
+	ret = call_read_iter(in, &kiocb, &to);
+
+	reclaim = npages * PAGE_SIZE;
+	remain = 0;
+	if (ret > 0) {
+		reclaim -= ret;
+		remain = ret;
+		*ppos = kiocb.ki_pos;
+		file_accessed(in);
+	} else if (ret < 0) {
+		/*
+		 * callers of ->splice_read() expect -EAGAIN on
+		 * "can't put anything in there", rather than -EFAULT.
+		 */
+		if (ret == -EFAULT)
+			ret = -EAGAIN;
+	}
+
+	/* Free any pages that didn't get touched at all. */
+	reclaim /= PAGE_SIZE;
+	if (reclaim) {
+		npages -= reclaim;
+		release_pages(pages + npages, reclaim);
+	}
+
+	/* Push the remaining pages into the pipe. */
+	for (i = 0; i < npages; i++) {
+		struct pipe_buffer *buf = pipe_head_buf(pipe);
+
+		chunk = min_t(size_t, remain, PAGE_SIZE);
+		*buf = (struct pipe_buffer) {
+			.ops	= &default_pipe_buf_ops,
+			.page	= bv[i].bv_page,
+			.offset	= 0,
+			.len	= chunk,
+		};
+		pipe->head++;
+		remain -= chunk;
+	}
+
+	kfree(bv);
+	return ret;
+}
+EXPORT_SYMBOL(direct_splice_read);
+
 /**
  * generic_file_splice_read - splice data from file to a pipe
  * @in:		file to splice from
@@ -675,9 +768,8 @@ iter_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 				goto done;
 			}
 
-			array[n].bv_page = buf->page;
-			array[n].bv_len = this_len;
-			array[n].bv_offset = buf->offset;
+			bvec_set_page(&array[n], buf->page, this_len,
+				      buf->offset);
 			left -= this_len;
 			n++;
 		}
@@ -845,7 +937,6 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 	/*
 	 * Do the splice.
 	 */
-	ret = 0;
 	bytes = 0;
 	len = sd->total_len;
 	flags = sd->flags;

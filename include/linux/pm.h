@@ -379,9 +379,13 @@ const struct dev_pm_ops name = { \
 	const struct dev_pm_ops name;					\
 	__EXPORT_SYMBOL(name, sec, ns);					\
 	const struct dev_pm_ops name
+#define EXPORT_PM_FN_GPL(name)		EXPORT_SYMBOL_GPL(name)
+#define EXPORT_PM_FN_NS_GPL(name, ns)	EXPORT_SYMBOL_NS_GPL(name, ns)
 #else
 #define _EXPORT_DEV_PM_OPS(name, sec, ns)				\
 	static __maybe_unused const struct dev_pm_ops __static_##name
+#define EXPORT_PM_FN_GPL(name)
+#define EXPORT_PM_FN_NS_GPL(name, ns)
 #endif
 
 #define EXPORT_DEV_PM_OPS(name) _EXPORT_DEV_PM_OPS(name, "", "")

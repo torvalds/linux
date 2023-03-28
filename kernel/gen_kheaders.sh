@@ -7,12 +7,14 @@ set -e
 sfile="$(readlink -f "$0")"
 outdir="$(pwd)"
 tarfile=$1
-cpio_dir=$outdir/$tarfile.tmp
+cpio_dir=$outdir/${tarfile%/*}/.tmp_cpio_dir
 
 dir_list="
 include/
 arch/$SRCARCH/include/
 "
+
+type cpio > /dev/null
 
 # Support incremental builds by skipping archive generation
 # if timestamps of files being archived are not changed.

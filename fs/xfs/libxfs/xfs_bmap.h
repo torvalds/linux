@@ -12,6 +12,7 @@ struct xfs_ifork;
 struct xfs_inode;
 struct xfs_mount;
 struct xfs_trans;
+struct xfs_alloc_arg;
 
 /*
  * Argument structure for xfs_bmap_alloc.
@@ -168,6 +169,8 @@ static inline bool xfs_bmap_is_written_extent(struct xfs_bmbt_irec *irec)
 #define xfs_valid_startblock(ip, startblock) \
 	((startblock) != 0 || XFS_IS_REALTIME_INODE(ip))
 
+int	xfs_bmap_longest_free_extent(struct xfs_perag *pag,
+		struct xfs_trans *tp, xfs_extlen_t *blen);
 void	xfs_trim_extent(struct xfs_bmbt_irec *irec, xfs_fileoff_t bno,
 		xfs_filblks_t len);
 unsigned int xfs_bmap_compute_attr_offset(struct xfs_mount *mp);
@@ -220,6 +223,10 @@ int	xfs_bmap_add_extent_unwritten_real(struct xfs_trans *tp,
 		struct xfs_inode *ip, int whichfork,
 		struct xfs_iext_cursor *icur, struct xfs_btree_cur **curp,
 		struct xfs_bmbt_irec *new, int *logflagsp);
+xfs_extlen_t xfs_bmapi_minleft(struct xfs_trans *tp, struct xfs_inode *ip,
+		int fork);
+int	xfs_bmap_btalloc_low_space(struct xfs_bmalloca *ap,
+		struct xfs_alloc_arg *args);
 
 enum xfs_bmap_intent_type {
 	XFS_BMAP_MAP = 1,
@@ -234,10 +241,7 @@ struct xfs_bmap_intent {
 	struct xfs_bmbt_irec			bi_bmap;
 };
 
-int	xfs_bmap_finish_one(struct xfs_trans *tp, struct xfs_inode *ip,
-		enum xfs_bmap_intent_type type, int whichfork,
-		xfs_fileoff_t startoff, xfs_fsblock_t startblock,
-		xfs_filblks_t *blockcount, xfs_exntst_t state);
+int	xfs_bmap_finish_one(struct xfs_trans *tp, struct xfs_bmap_intent *bi);
 void	xfs_bmap_map_extent(struct xfs_trans *tp, struct xfs_inode *ip,
 		struct xfs_bmbt_irec *imap);
 void	xfs_bmap_unmap_extent(struct xfs_trans *tp, struct xfs_inode *ip,

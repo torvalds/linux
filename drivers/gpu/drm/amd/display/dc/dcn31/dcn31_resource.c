@@ -827,8 +827,6 @@ static const struct resource_caps res_cap_dcn31 = {
 
 static const struct dc_plane_cap plane_cap = {
 	.type = DC_PLANE_TYPE_DCN_UNIVERSAL,
-	.blends_with_above = true,
-	.blends_with_below = true,
 	.per_pixel_alpha = true,
 
 	.pixel_format_support = {
@@ -1795,7 +1793,7 @@ bool dcn31_validate_bandwidth(struct dc *dc,
 	BW_VAL_TRACE_COUNT();
 
 	DC_FP_START();
-	out = dcn30_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, fast_validate);
+	out = dcn30_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, fast_validate, true);
 	DC_FP_END();
 
 	// Disable fast_validate to set min dcfclk in alculate_wm_and_dlg

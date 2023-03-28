@@ -51,9 +51,9 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_snvs_gpiokeys>;
 
-		wakeup {
+		key-wakeup {
 			debounce-interval = <10>;
-			gpios = <&gpio5 1 GPIO_ACTIVE_HIGH>; /* SODIMM 45 */
+			gpios = <&gpio5 1 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>; /* SODIMM 45 */
 			label = "Wake-Up";
 			linux,code = <KEY_WAKEUP>;
 			wakeup-source;

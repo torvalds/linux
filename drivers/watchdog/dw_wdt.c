@@ -663,6 +663,7 @@ static int dw_wdt_drv_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dw_wdt);
 
 	watchdog_set_restart_priority(wdd, 128);
+	watchdog_stop_on_reboot(wdd);
 
 	ret = watchdog_register_device(wdd);
 	if (ret)

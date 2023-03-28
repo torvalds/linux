@@ -106,7 +106,7 @@ enum orangefs_vfs_op_states {
 extern const struct xattr_handler *orangefs_xattr_handlers[];
 
 extern struct posix_acl *orangefs_get_acl(struct inode *inode, int type, bool rcu);
-extern int orangefs_set_acl(struct user_namespace *mnt_userns,
+extern int orangefs_set_acl(struct mnt_idmap *idmap,
 			    struct dentry *dentry, struct posix_acl *acl,
 			    int type);
 int __orangefs_set_acl(struct inode *inode, struct posix_acl *acl, int type);
@@ -362,12 +362,12 @@ struct inode *orangefs_new_inode(struct super_block *sb,
 
 int __orangefs_setattr(struct inode *, struct iattr *);
 int __orangefs_setattr_mode(struct dentry *dentry, struct iattr *iattr);
-int orangefs_setattr(struct user_namespace *, struct dentry *, struct iattr *);
+int orangefs_setattr(struct mnt_idmap *, struct dentry *, struct iattr *);
 
-int orangefs_getattr(struct user_namespace *mnt_userns, const struct path *path,
+int orangefs_getattr(struct mnt_idmap *idmap, const struct path *path,
 		     struct kstat *stat, u32 request_mask, unsigned int flags);
 
-int orangefs_permission(struct user_namespace *mnt_userns,
+int orangefs_permission(struct mnt_idmap *idmap,
 			struct inode *inode, int mask);
 
 int orangefs_update_time(struct inode *, struct timespec64 *, int);

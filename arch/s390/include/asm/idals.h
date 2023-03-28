@@ -23,6 +23,9 @@
 #define IDA_SIZE_LOG 12 /* 11 for 2k , 12 for 4k */
 #define IDA_BLOCK_SIZE (1L<<IDA_SIZE_LOG)
 
+#define IDA_2K_SIZE_LOG 11
+#define IDA_2K_BLOCK_SIZE (1L << IDA_2K_SIZE_LOG)
+
 /*
  * Test if an address/length pair needs an idal list.
  */
@@ -40,6 +43,15 @@ static inline unsigned int idal_nr_words(void *vaddr, unsigned int length)
 {
 	return ((__pa(vaddr) & (IDA_BLOCK_SIZE-1)) + length +
 		(IDA_BLOCK_SIZE-1)) >> IDA_SIZE_LOG;
+}
+
+/*
+ * Return the number of 2K IDA words needed for an address/length pair.
+ */
+static inline unsigned int idal_2k_nr_words(void *vaddr, unsigned int length)
+{
+	return ((__pa(vaddr) & (IDA_2K_BLOCK_SIZE - 1)) + length +
+		(IDA_2K_BLOCK_SIZE - 1)) >> IDA_2K_SIZE_LOG;
 }
 
 /*

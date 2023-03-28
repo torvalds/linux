@@ -37,7 +37,7 @@
  * in branch_stack variable.
  */
 #define BS_EXPECTED_BE	0xa000d00000000000
-#define BS_EXPECTED_LE	0xd5000000
+#define BS_EXPECTED_LE	0x1aa00000000
 #define FLAG(s)	s->branch_stack->entries[i].flags
 
 static bool samples_same(const struct perf_sample *s1,

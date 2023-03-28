@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2023 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -11270,6 +11270,30 @@ lpfc_sli4_calc_ring(struct lpfc_hba *phba, struct lpfc_iocbq *piocb)
 	}
 }
 
+inline void lpfc_sli4_poll_eq(struct lpfc_queue *eq)
+{
+	struct lpfc_hba *phba = eq->phba;
+
+	/*
+	 * Unlocking an irq is one of the entry point to check
+	 * for re-schedule, but we are good for io submission
+	 * path as midlayer does a get_cpu to glue us in. Flush
+	 * out the invalidate queue so we can see the updated
+	 * value for flag.
+	 */
+	smp_rmb();
+
+	if (READ_ONCE(eq->mode) == LPFC_EQ_POLL)
+		/* We will not likely get the completion for the caller
+		 * during this iteration but i guess that's fine.
+		 * Future io's coming on this eq should be able to
+		 * pick it up.  As for the case of single io's, they
+		 * will be handled through a sched from polling timer
+		 * function which is currently triggered every 1msec.
+		 */
+		lpfc_sli4_process_eq(phba, eq, LPFC_QUEUE_NOARM);
+}
+
 /**
  * lpfc_sli_issue_iocb - Wrapper function for __lpfc_sli_issue_iocb
  * @phba: Pointer to HBA context object.
@@ -11309,7 +11333,7 @@ lpfc_sli_issue_iocb(struct lpfc_hba *phba, uint32_t ring_number,
 		rc = __lpfc_sli_issue_iocb(phba, ring_number, piocb, flag);
 		spin_unlock_irqrestore(&pring->ring_lock, iflags);
 
-		lpfc_sli4_poll_eq(eq, LPFC_POLL_FASTPATH);
+		lpfc_sli4_poll_eq(eq);
 	} else {
 		/* For now, SLI2/3 will still use hbalock */
 		spin_lock_irqsave(&phba->hbalock, iflags);
@@ -15625,44 +15649,16 @@ void lpfc_sli4_poll_hbtimer(struct timer_list *t)
 {
 	struct lpfc_hba *phba = from_timer(phba, t, cpuhp_poll_timer);
 	struct lpfc_queue *eq;
-	int i = 0;
 
 	rcu_read_lock();
 
 	list_for_each_entry_rcu(eq, &phba->poll_list, _poll_list)
-		i += lpfc_sli4_poll_eq(eq, LPFC_POLL_SLOWPATH);
+		lpfc_sli4_poll_eq(eq);
 	if (!list_empty(&phba->poll_list))
 		mod_timer(&phba->cpuhp_poll_timer,
 			  jiffies + msecs_to_jiffies(LPFC_POLL_HB));
 
 	rcu_read_unlock();
-}
-
-inline int lpfc_sli4_poll_eq(struct lpfc_queue *eq, uint8_t path)
-{
-	struct lpfc_hba *phba = eq->phba;
-	int i = 0;
-
-	/*
-	 * Unlocking an irq is one of the entry point to check
-	 * for re-schedule, but we are good for io submission
-	 * path as midlayer does a get_cpu to glue us in. Flush
-	 * out the invalidate queue so we can see the updated
-	 * value for flag.
-	 */
-	smp_rmb();
-
-	if (READ_ONCE(eq->mode) == LPFC_EQ_POLL)
-		/* We will not likely get the completion for the caller
-		 * during this iteration but i guess that's fine.
-		 * Future io's coming on this eq should be able to
-		 * pick it up.  As for the case of single io's, they
-		 * will be handled through a sched from polling timer
-		 * function which is currently triggered every 1msec.
-		 */
-		i = lpfc_sli4_process_eq(phba, eq, LPFC_QUEUE_NOARM);
-
-	return i;
 }
 
 static inline void lpfc_sli4_add_to_poll_list(struct lpfc_queue *eq)
@@ -20808,7 +20804,7 @@ lpfc_log_fw_write_cmpl(struct lpfc_hba *phba, u32 shdr_status,
  * the offset after the write object mailbox has completed. @size is used to
  * determine the end of the object and whether the eof bit should be set.
  *
- * Return 0 is successful and offset will contain the the new offset to use
+ * Return 0 is successful and offset will contain the new offset to use
  * for the next write.
  * Return negative value for error cases.
  **/
@@ -20819,6 +20815,7 @@ lpfc_wr_object(struct lpfc_hba *phba, struct list_head *dmabuf_list,
 	struct lpfc_mbx_wr_object *wr_object;
 	LPFC_MBOXQ_t *mbox;
 	int rc = 0, i = 0;
+	int mbox_status = 0;
 	uint32_t shdr_status, shdr_add_status, shdr_add_status_2;
 	uint32_t shdr_change_status = 0, shdr_csf = 0;
 	uint32_t mbox_tmo;
@@ -20864,11 +20861,15 @@ lpfc_wr_object(struct lpfc_hba *phba, struct list_head *dmabuf_list,
 	wr_object->u.request.bde_count = i;
 	bf_set(lpfc_wr_object_write_length, &wr_object->u.request, written);
 	if (!phba->sli4_hba.intr_enable)
-		rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
+		mbox_status = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
 	else {
 		mbox_tmo = lpfc_mbox_tmo_val(phba, mbox);
-		rc = lpfc_sli_issue_mbox_wait(phba, mbox, mbox_tmo);
+		mbox_status = lpfc_sli_issue_mbox_wait(phba, mbox, mbox_tmo);
 	}
+
+	/* The mbox status needs to be maintained to detect MBOX_TIMEOUT. */
+	rc = mbox_status;
+
 	/* The IOCTL status is embedded in the mailbox subheader. */
 	shdr_status = bf_get(lpfc_mbox_hdr_status,
 			     &wr_object->header.cfg_shdr.response);
@@ -20883,10 +20884,6 @@ lpfc_wr_object(struct lpfc_hba *phba, struct list_head *dmabuf_list,
 				  &wr_object->u.response);
 	}
 
-	if (!phba->sli4_hba.intr_enable)
-		mempool_free(mbox, phba->mbox_mem_pool);
-	else if (rc != MBX_TIMEOUT)
-		mempool_free(mbox, phba->mbox_mem_pool);
 	if (shdr_status || shdr_add_status || shdr_add_status_2 || rc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3025 Write Object mailbox failed with "
@@ -20904,6 +20901,12 @@ lpfc_wr_object(struct lpfc_hba *phba, struct list_head *dmabuf_list,
 		lpfc_log_fw_write_cmpl(phba, shdr_status, shdr_add_status,
 				       shdr_add_status_2, shdr_change_status,
 				       shdr_csf);
+
+	if (!phba->sli4_hba.intr_enable)
+		mempool_free(mbox, phba->mbox_mem_pool);
+	else if (mbox_status != MBX_TIMEOUT)
+		mempool_free(mbox, phba->mbox_mem_pool);
+
 	return rc;
 }
 
@@ -21276,7 +21279,7 @@ lpfc_sli4_issue_wqe(struct lpfc_hba *phba, struct lpfc_sli4_hdw_queue *qp,
 		lpfc_sli_ringtxcmpl_put(phba, pring, pwqe);
 		spin_unlock_irqrestore(&pring->ring_lock, iflags);
 
-		lpfc_sli4_poll_eq(qp->hba_eq, LPFC_POLL_FASTPATH);
+		lpfc_sli4_poll_eq(qp->hba_eq);
 		return 0;
 	}
 
@@ -21298,7 +21301,7 @@ lpfc_sli4_issue_wqe(struct lpfc_hba *phba, struct lpfc_sli4_hdw_queue *qp,
 		lpfc_sli_ringtxcmpl_put(phba, pring, pwqe);
 		spin_unlock_irqrestore(&pring->ring_lock, iflags);
 
-		lpfc_sli4_poll_eq(qp->hba_eq, LPFC_POLL_FASTPATH);
+		lpfc_sli4_poll_eq(qp->hba_eq);
 		return 0;
 	}
 
@@ -21328,7 +21331,7 @@ lpfc_sli4_issue_wqe(struct lpfc_hba *phba, struct lpfc_sli4_hdw_queue *qp,
 		lpfc_sli_ringtxcmpl_put(phba, pring, pwqe);
 		spin_unlock_irqrestore(&pring->ring_lock, iflags);
 
-		lpfc_sli4_poll_eq(qp->hba_eq, LPFC_POLL_FASTPATH);
+		lpfc_sli4_poll_eq(qp->hba_eq);
 		return 0;
 	}
 	return WQE_ERROR;
@@ -21896,20 +21899,20 @@ lpfc_get_io_buf_from_private_pool(struct lpfc_hba *phba,
 static struct lpfc_io_buf *
 lpfc_get_io_buf_from_expedite_pool(struct lpfc_hba *phba)
 {
-	struct lpfc_io_buf *lpfc_ncmd;
+	struct lpfc_io_buf *lpfc_ncmd = NULL, *iter;
 	struct lpfc_io_buf *lpfc_ncmd_next;
 	unsigned long iflag;
 	struct lpfc_epd_pool *epd_pool;
 
 	epd_pool = &phba->epd_pool;
-	lpfc_ncmd = NULL;
 
 	spin_lock_irqsave(&epd_pool->lock, iflag);
 	if (epd_pool->count > 0) {
-		list_for_each_entry_safe(lpfc_ncmd, lpfc_ncmd_next,
+		list_for_each_entry_safe(iter, lpfc_ncmd_next,
 					 &epd_pool->list, list) {
-			list_del(&lpfc_ncmd->list);
+			list_del(&iter->list);
 			epd_pool->count--;
+			lpfc_ncmd = iter;
 			break;
 		}
 	}
@@ -22105,10 +22108,6 @@ lpfc_read_object(struct lpfc_hba *phba, char *rdobject, uint32_t *datap,
 	union lpfc_sli4_cfg_shdr *shdr;
 	struct lpfc_dmabuf *pcmd;
 	u32 rd_object_name[LPFC_MBX_OBJECT_NAME_LEN_DW] = {0};
-
-	/* sanity check on queue memory */
-	if (!datap)
-		return -ENODEV;
 
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mbox)

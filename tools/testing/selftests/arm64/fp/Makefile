@@ -3,7 +3,7 @@
 # A proper top_srcdir is needed by KSFT(lib.mk)
 top_srcdir = $(realpath ../../../../../)
 
-CFLAGS += -I$(top_srcdir)/usr/include/
+CFLAGS += $(KHDR_INCLUDES)
 
 TEST_GEN_PROGS := fp-stress \
 	sve-ptrace sve-probe-vls \
@@ -14,6 +14,8 @@ TEST_GEN_PROGS_EXTENDED := fp-pidbench fpsimd-test \
 	sve-test \
 	ssve-test \
 	za-test \
+	zt-ptrace \
+	zt-test \
 	vlset
 TEST_PROGS_EXTENDED := fpsimd-stress sve-stress ssve-stress za-stress
 
@@ -40,6 +42,9 @@ $(OUTPUT)/za-fork: za-fork.c $(OUTPUT)/za-fork-asm.o
 		-static -ffreestanding -Wall $^ -o $@
 $(OUTPUT)/za-ptrace: za-ptrace.c
 $(OUTPUT)/za-test: za-test.S $(OUTPUT)/asm-utils.o
+	$(CC) -nostdlib $^ -o $@
+$(OUTPUT)/zt-ptrace: zt-ptrace.c
+$(OUTPUT)/zt-test: zt-test.S $(OUTPUT)/asm-utils.o
 	$(CC) -nostdlib $^ -o $@
 
 include ../../lib.mk

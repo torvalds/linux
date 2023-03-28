@@ -34,9 +34,6 @@ static int mvusb_mdio_read(struct mii_bus *mdio, int dev, int reg)
 	struct mvusb_mdio *mvusb = mdio->priv;
 	int err, alen;
 
-	if (dev & MII_ADDR_C45)
-		return -EOPNOTSUPP;
-
 	mvusb->buf[MVUSB_CMD_ADDR] = cpu_to_le16(0xa400 | (dev << 5) | reg);
 
 	err = usb_bulk_msg(mvusb->udev, usb_sndbulkpipe(mvusb->udev, 2),
@@ -56,9 +53,6 @@ static int mvusb_mdio_write(struct mii_bus *mdio, int dev, int reg, u16 val)
 {
 	struct mvusb_mdio *mvusb = mdio->priv;
 	int alen;
-
-	if (dev & MII_ADDR_C45)
-		return -EOPNOTSUPP;
 
 	mvusb->buf[MVUSB_CMD_ADDR] = cpu_to_le16(0x8000 | (dev << 5) | reg);
 	mvusb->buf[MVUSB_CMD_VAL]  = cpu_to_le16(val);

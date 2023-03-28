@@ -15,21 +15,27 @@ rdfpcr(void)
 {
 	unsigned long tmp, ret;
 
+	preempt_disable();
+	if (current_thread_info()->status & TS_SAVED_FP) {
+		ret = current_thread_info()->fp[31];
+	} else {
 #if defined(CONFIG_ALPHA_EV6) || defined(CONFIG_ALPHA_EV67)
-	__asm__ __volatile__ (
-		"ftoit $f0,%0\n\t"
-		"mf_fpcr $f0\n\t"
-		"ftoit $f0,%1\n\t"
-		"itoft %0,$f0"
-		: "=r"(tmp), "=r"(ret));
+		__asm__ __volatile__ (
+			"ftoit $f0,%0\n\t"
+			"mf_fpcr $f0\n\t"
+			"ftoit $f0,%1\n\t"
+			"itoft %0,$f0"
+			: "=r"(tmp), "=r"(ret));
 #else
-	__asm__ __volatile__ (
-		"stt $f0,%0\n\t"
-		"mf_fpcr $f0\n\t"
-		"stt $f0,%1\n\t"
-		"ldt $f0,%0"
-		: "=m"(tmp), "=m"(ret));
+		__asm__ __volatile__ (
+			"stt $f0,%0\n\t"
+			"mf_fpcr $f0\n\t"
+			"stt $f0,%1\n\t"
+			"ldt $f0,%0"
+			: "=m"(tmp), "=m"(ret));
 #endif
+	}
+	preempt_enable();
 
 	return ret;
 }
@@ -39,21 +45,28 @@ wrfpcr(unsigned long val)
 {
 	unsigned long tmp;
 
+	preempt_disable();
+	if (current_thread_info()->status & TS_SAVED_FP) {
+		current_thread_info()->status |= TS_RESTORE_FP;
+		current_thread_info()->fp[31] = val;
+	} else {
 #if defined(CONFIG_ALPHA_EV6) || defined(CONFIG_ALPHA_EV67)
-	__asm__ __volatile__ (
-		"ftoit $f0,%0\n\t"
-		"itoft %1,$f0\n\t"
-		"mt_fpcr $f0\n\t"
-		"itoft %0,$f0"
-		: "=&r"(tmp) : "r"(val));
+		__asm__ __volatile__ (
+			"ftoit $f0,%0\n\t"
+			"itoft %1,$f0\n\t"
+			"mt_fpcr $f0\n\t"
+			"itoft %0,$f0"
+			: "=&r"(tmp) : "r"(val));
 #else
-	__asm__ __volatile__ (
-		"stt $f0,%0\n\t"
-		"ldt $f0,%1\n\t"
-		"mt_fpcr $f0\n\t"
-		"ldt $f0,%0"
-		: "=m"(tmp) : "m"(val));
+		__asm__ __volatile__ (
+			"stt $f0,%0\n\t"
+			"ldt $f0,%1\n\t"
+			"mt_fpcr $f0\n\t"
+			"ldt $f0,%0"
+			: "=m"(tmp) : "m"(val));
 #endif
+	}
+	preempt_enable();
 }
 
 static inline unsigned long

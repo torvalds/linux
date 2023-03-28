@@ -617,6 +617,10 @@ struct nfp_net_dp {
  * @vnic_no_name:	For non-port PF vNIC make ndo_get_phys_port_name return
  *			-EOPNOTSUPP to keep backwards compatibility (set by app)
  * @port:		Pointer to nfp_port structure if vNIC is a port
+ * @mbox_amsg:		Asynchronously processed message via mailbox
+ * @mbox_amsg.lock:	Protect message list
+ * @mbox_amsg.list:	List of message to process
+ * @mbox_amsg.work:	Work to process message asynchronously
  * @app_priv:		APP private data for this vNIC
  */
 struct nfp_net {
@@ -718,8 +722,24 @@ struct nfp_net {
 
 	struct nfp_port *port;
 
+	struct {
+		spinlock_t lock;
+		struct list_head list;
+		struct work_struct work;
+	} mbox_amsg;
+
 	void *app_priv;
 };
+
+struct nfp_mbox_amsg_entry {
+	struct list_head list;
+	int (*cfg)(struct nfp_net *nn, struct nfp_mbox_amsg_entry *entry);
+	u32 cmd;
+	char msg[];
+};
+
+int nfp_net_sched_mbox_amsg_work(struct nfp_net *nn, u32 cmd, const void *data, size_t len,
+				 int (*cb)(struct nfp_net *, struct nfp_mbox_amsg_entry *));
 
 /* Functions to read/write from/to a BAR
  * Performs any endian conversion necessary.

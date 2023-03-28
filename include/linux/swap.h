@@ -401,8 +401,8 @@ extern void lru_add_drain(void);
 extern void lru_add_drain_cpu(int cpu);
 extern void lru_add_drain_cpu_zone(struct zone *zone);
 extern void lru_add_drain_all(void);
-extern void deactivate_page(struct page *page);
-extern void mark_page_lazyfree(struct page *page);
+void folio_deactivate(struct folio *folio);
+void folio_mark_lazyfree(struct folio *folio);
 extern void swap_setup(void);
 
 extern void lru_cache_add_inactive_or_unevictable(struct page *page,
@@ -418,8 +418,7 @@ extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
 extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
 						  unsigned long nr_pages,
 						  gfp_t gfp_mask,
-						  unsigned int reclaim_options,
-						  nodemask_t *nodemask);
+						  unsigned int reclaim_options);
 extern unsigned long mem_cgroup_shrink_node(struct mem_cgroup *mem,
 						gfp_t gfp_mask, bool noswap,
 						pg_data_t *pgdat,

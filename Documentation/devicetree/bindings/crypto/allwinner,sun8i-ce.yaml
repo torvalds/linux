@@ -14,6 +14,7 @@ properties:
     enum:
       - allwinner,sun8i-h3-crypto
       - allwinner,sun8i-r40-crypto
+      - allwinner,sun20i-d1-crypto
       - allwinner,sun50i-a64-crypto
       - allwinner,sun50i-h5-crypto
       - allwinner,sun50i-h6-crypto
@@ -29,6 +30,7 @@ properties:
       - description: Bus clock
       - description: Module clock
       - description: MBus clock
+      - description: TRNG clock (RC oscillator)
     minItems: 2
 
   clock-names:
@@ -36,6 +38,7 @@ properties:
       - const: bus
       - const: mod
       - const: ram
+      - const: trng
     minItems: 2
 
   resets:
@@ -44,19 +47,33 @@ properties:
 if:
   properties:
     compatible:
-      const: allwinner,sun50i-h6-crypto
+      enum:
+        - allwinner,sun20i-d1-crypto
 then:
   properties:
     clocks:
-      minItems: 3
+      minItems: 4
     clock-names:
-      minItems: 3
+      minItems: 4
 else:
-  properties:
-    clocks:
-      maxItems: 2
-    clock-names:
-      maxItems: 2
+  if:
+    properties:
+      compatible:
+        const: allwinner,sun50i-h6-crypto
+  then:
+    properties:
+      clocks:
+        minItems: 3
+        maxItems: 3
+      clock-names:
+        minItems: 3
+        maxItems: 3
+  else:
+    properties:
+      clocks:
+        maxItems: 2
+      clock-names:
+        maxItems: 2
 
 required:
   - compatible

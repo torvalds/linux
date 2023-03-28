@@ -51,8 +51,6 @@ int pxa_pm_enter(suspend_state_t state)
 		/* if invalid, display message and wait for a hardware reset */
 		if (checksum != sleep_save_checksum) {
 
-			lubbock_set_hexled(0xbadbadc5);
-
 			while (1)
 				pxa_cpu_pm_fns->enter(state);
 		}

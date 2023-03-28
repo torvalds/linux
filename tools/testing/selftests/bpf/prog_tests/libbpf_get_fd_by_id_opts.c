@@ -29,9 +29,9 @@ void test_libbpf_get_fd_by_id_opts(void)
 	if (!ASSERT_OK(ret, "test_libbpf_get_fd_by_id_opts__attach"))
 		goto close_prog;
 
-	ret = bpf_obj_get_info_by_fd(bpf_map__fd(skel->maps.data_input),
+	ret = bpf_map_get_info_by_fd(bpf_map__fd(skel->maps.data_input),
 				     &info_m, &len);
-	if (!ASSERT_OK(ret, "bpf_obj_get_info_by_fd"))
+	if (!ASSERT_OK(ret, "bpf_map_get_info_by_fd"))
 		goto close_prog;
 
 	fd = bpf_map_get_fd_by_id(info_m.id);

@@ -68,7 +68,7 @@ int amdgpu_umc_page_retirement_mca(struct amdgpu_device *adev,
 	if (amdgpu_bad_page_threshold != 0) {
 		amdgpu_ras_add_bad_pages(adev, err_data.err_addr,
 						err_data.err_addr_cnt);
-		amdgpu_ras_save_bad_pages(adev);
+		amdgpu_ras_save_bad_pages(adev, NULL);
 	}
 
 out:
@@ -147,7 +147,7 @@ static int amdgpu_umc_do_page_retirement(struct amdgpu_device *adev,
 			err_data->err_addr_cnt) {
 			amdgpu_ras_add_bad_pages(adev, err_data->err_addr,
 						err_data->err_addr_cnt);
-			amdgpu_ras_save_bad_pages(adev);
+			amdgpu_ras_save_bad_pages(adev, &(err_data->ue_count));
 
 			amdgpu_dpm_send_hbm_bad_pages_num(adev, con->eeprom_control.ras_num_recs);
 
@@ -206,6 +206,36 @@ int amdgpu_umc_process_ras_data_cb(struct amdgpu_device *adev,
 		struct amdgpu_iv_entry *entry)
 {
 	return amdgpu_umc_do_page_retirement(adev, ras_error_status, entry, true);
+}
+
+int amdgpu_umc_ras_sw_init(struct amdgpu_device *adev)
+{
+	int err;
+	struct amdgpu_umc_ras *ras;
+
+	if (!adev->umc.ras)
+		return 0;
+
+	ras = adev->umc.ras;
+
+	err = amdgpu_ras_register_ras_block(adev, &ras->ras_block);
+	if (err) {
+		dev_err(adev->dev, "Failed to register umc ras block!\n");
+		return err;
+	}
+
+	strcpy(adev->umc.ras->ras_block.ras_comm.name, "umc");
+	ras->ras_block.ras_comm.block = AMDGPU_RAS_BLOCK__UMC;
+	ras->ras_block.ras_comm.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
+	adev->umc.ras_if = &ras->ras_block.ras_comm;
+
+	if (!ras->ras_block.ras_late_init)
+		ras->ras_block.ras_late_init = amdgpu_umc_ras_late_init;
+
+	if (ras->ras_block.ras_cb)
+		ras->ras_block.ras_cb = amdgpu_umc_process_ras_data_cb;
+
+	return 0;
 }
 
 int amdgpu_umc_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block)

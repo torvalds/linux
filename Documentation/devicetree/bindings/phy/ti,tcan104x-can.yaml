@@ -15,6 +15,7 @@ properties:
 
   compatible:
     enum:
+      - nxp,tjr1443
       - ti,tcan1042
       - ti,tcan1043
 

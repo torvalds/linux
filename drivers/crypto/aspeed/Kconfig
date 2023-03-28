@@ -46,3 +46,14 @@ config CRYPTO_DEV_ASPEED_HACE_CRYPTO
 	  crypto driver.
 	  Supports AES/DES symmetric-key encryption and decryption
 	  with ECB/CBC/CFB/OFB/CTR options.
+
+config CRYPTO_DEV_ASPEED_ACRY
+	bool "Enable Aspeed ACRY RSA Engine"
+	depends on CRYPTO_DEV_ASPEED
+	select CRYPTO_ENGINE
+	select CRYPTO_RSA
+	help
+	  Select here to enable Aspeed ECC/RSA Engine (ACRY)
+	  RSA driver.
+	  Supports 256 bits to 4096 bits RSA encryption/decryption
+	  and signature/verification.

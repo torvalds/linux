@@ -7,6 +7,47 @@
 #include "ice.h"
 #include "ice_vlan.h"
 
+/* Flags used for VSI configuration and rebuild */
+#define ICE_VSI_FLAG_INIT	BIT(0)
+#define ICE_VSI_FLAG_NO_INIT	0
+
+/**
+ * struct ice_vsi_cfg_params - VSI configuration parameters
+ * @pi: pointer to the port_info instance for the VSI
+ * @ch: pointer to the channel structure for the VSI, may be NULL
+ * @vf: pointer to the VF associated with this VSI, may be NULL
+ * @type: the type of VSI to configure
+ * @flags: VSI flags used for rebuild and configuration
+ *
+ * Parameter structure used when configuring a new VSI.
+ */
+struct ice_vsi_cfg_params {
+	struct ice_port_info *pi;
+	struct ice_channel *ch;
+	struct ice_vf *vf;
+	enum ice_vsi_type type;
+	u32 flags;
+};
+
+/**
+ * ice_vsi_to_params - Get parameters for an existing VSI
+ * @vsi: the VSI to get parameters for
+ *
+ * Fill a parameter structure for reconfiguring a VSI with its current
+ * parameters, such as during a rebuild operation.
+ */
+static inline struct ice_vsi_cfg_params ice_vsi_to_params(struct ice_vsi *vsi)
+{
+	struct ice_vsi_cfg_params params = {};
+
+	params.pi = vsi->port_info;
+	params.ch = vsi->ch;
+	params.vf = vsi->vf;
+	params.type = vsi->type;
+
+	return params;
+}
+
 const char *ice_vsi_type_str(enum ice_vsi_type vsi_type);
 
 bool ice_pf_state_is_nominal(struct ice_pf *pf);
@@ -42,7 +83,6 @@ void ice_cfg_sw_lldp(struct ice_vsi *vsi, bool tx, bool create);
 int ice_set_link(struct ice_vsi *vsi, bool ena);
 
 void ice_vsi_delete(struct ice_vsi *vsi);
-int ice_vsi_clear(struct ice_vsi *vsi);
 
 int ice_vsi_cfg_tc(struct ice_vsi *vsi, u8 ena_tc);
 
@@ -51,9 +91,7 @@ int ice_vsi_cfg_rss_lut_key(struct ice_vsi *vsi);
 void ice_vsi_cfg_netdev_tc(struct ice_vsi *vsi, u8 ena_tc);
 
 struct ice_vsi *
-ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
-	      enum ice_vsi_type vsi_type, struct ice_vf *vf,
-	      struct ice_channel *ch);
+ice_vsi_setup(struct ice_pf *pf, struct ice_vsi_cfg_params *params);
 
 void ice_napi_del(struct ice_vsi *vsi);
 
@@ -63,6 +101,7 @@ void ice_vsi_close(struct ice_vsi *vsi);
 
 int ice_ena_vsi(struct ice_vsi *vsi, bool locked);
 
+void ice_vsi_decfg(struct ice_vsi *vsi);
 void ice_dis_vsi(struct ice_vsi *vsi, bool locked);
 
 int ice_free_res(struct ice_res_tracker *res, u16 index, u16 id);
@@ -70,7 +109,8 @@ int ice_free_res(struct ice_res_tracker *res, u16 index, u16 id);
 int
 ice_get_res(struct ice_pf *pf, struct ice_res_tracker *res, u16 needed, u16 id);
 
-int ice_vsi_rebuild(struct ice_vsi *vsi, bool init_vsi);
+int ice_vsi_rebuild(struct ice_vsi *vsi, u32 vsi_flags);
+int ice_vsi_cfg(struct ice_vsi *vsi, struct ice_vsi_cfg_params *params);
 
 bool ice_is_reset_in_progress(unsigned long *state);
 int ice_wait_for_reset(struct ice_pf *pf, unsigned long timeout);

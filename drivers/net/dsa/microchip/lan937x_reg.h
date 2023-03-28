@@ -185,6 +185,9 @@
 
 #define P_PRIO_CTRL			REG_PORT_MRI_PRIO_CTRL
 
+/* 9 - Shaping */
+#define REG_PORT_MTI_CREDIT_INCREMENT	0x091C
+
 /* The port number as per the datasheet */
 #define RGMII_2_PORT_NUM		5
 #define RGMII_1_PORT_NUM		6

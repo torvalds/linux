@@ -386,6 +386,15 @@ LIBBPF_API int bpf_link_get_fd_by_id(__u32 id);
 LIBBPF_API int bpf_link_get_fd_by_id_opts(__u32 id,
 				const struct bpf_get_fd_by_id_opts *opts);
 LIBBPF_API int bpf_obj_get_info_by_fd(int bpf_fd, void *info, __u32 *info_len);
+/* Type-safe variants of bpf_obj_get_info_by_fd(). The callers still needs to
+ * pass info_len, which should normally be
+ * sizeof(struct bpf_{prog,map,btf,link}_info), in order to be compatible with
+ * different libbpf and kernel versions.
+ */
+LIBBPF_API int bpf_prog_get_info_by_fd(int prog_fd, struct bpf_prog_info *info, __u32 *info_len);
+LIBBPF_API int bpf_map_get_info_by_fd(int map_fd, struct bpf_map_info *info, __u32 *info_len);
+LIBBPF_API int bpf_btf_get_info_by_fd(int btf_fd, struct bpf_btf_info *info, __u32 *info_len);
+LIBBPF_API int bpf_link_get_info_by_fd(int link_fd, struct bpf_link_info *info, __u32 *info_len);
 
 struct bpf_prog_query_opts {
 	size_t sz; /* size of this struct for forward/backward compatibility */

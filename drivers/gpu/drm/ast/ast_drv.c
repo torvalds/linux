@@ -105,7 +105,7 @@ static int ast_remove_conflicting_framebuffers(struct pci_dev *pdev)
 
 static int ast_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	struct ast_private *ast;
+	struct ast_device *ast;
 	struct drm_device *dev;
 	int ret;
 

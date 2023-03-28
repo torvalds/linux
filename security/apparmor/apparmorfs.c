@@ -1793,7 +1793,7 @@ fail2:
 	return error;
 }
 
-static int ns_mkdir_op(struct user_namespace *mnt_userns, struct inode *dir,
+static int ns_mkdir_op(struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, umode_t mode)
 {
 	struct aa_ns *ns, *parent;

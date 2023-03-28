@@ -8,8 +8,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: SiFive Composable Cache Controller
 
 maintainers:
-  - Sagar Kadam <sagar.kadam@sifive.com>
-  - Paul Walmsley  <paul.walmsley@sifive.com>
+  - Paul Walmsley <paul.walmsley@sifive.com>
 
 description:
   The SiFive Composable Cache Controller is used to provide access to fast copies
@@ -37,6 +36,10 @@ properties:
               - sifive,ccache0
               - sifive,fu540-c000-ccache
               - sifive,fu740-c000-ccache
+          - const: cache
+      - items:
+          - const: starfive,jh7110-ccache
+          - const: sifive,ccache0
           - const: cache
       - items:
           - const: microchip,mpfs-ccache
@@ -85,6 +88,7 @@ allOf:
           contains:
             enum:
               - sifive,fu740-c000-ccache
+              - starfive,jh7110-ccache
               - microchip,mpfs-ccache
 
     then:
@@ -105,7 +109,9 @@ allOf:
       properties:
         compatible:
           contains:
-            const: sifive,fu740-c000-ccache
+            enum:
+              - sifive,fu740-c000-ccache
+              - starfive,jh7110-ccache
 
     then:
       properties:

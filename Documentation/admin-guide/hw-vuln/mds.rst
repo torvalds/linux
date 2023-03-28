@@ -64,8 +64,8 @@ architecture section: :ref:`Documentation/x86/mds.rst <mds>`.
 Attack scenarios
 ----------------
 
-Attacks against the MDS vulnerabilities can be mounted from malicious non
-priviledged user space applications running on hosts or guest. Malicious
+Attacks against the MDS vulnerabilities can be mounted from malicious non-
+privileged user space applications running on hosts or guest. Malicious
 guest OSes can obviously mount attacks as well.
 
 Contrary to other speculation based vulnerabilities the MDS vulnerability

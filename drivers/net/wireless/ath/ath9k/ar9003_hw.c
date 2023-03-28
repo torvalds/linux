@@ -1032,8 +1032,8 @@ static void ar9003_hw_configpcipowersave(struct ath_hw *ah,
 	/* Nothing to do on restore for 11N */
 	if (!power_off /* !restore */) {
 		/* set bit 19 to allow forcing of pcie core into L1 state */
-		REG_SET_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
-		REG_WRITE(ah, AR_WA, ah->WARegVal);
+		REG_SET_BIT(ah, AR_PCIE_PM_CTRL(ah), AR_PCIE_PM_CTRL_ENA);
+		REG_WRITE(ah, AR_WA(ah), ah->WARegVal);
 	}
 
 	/*

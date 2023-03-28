@@ -328,11 +328,11 @@ static int scmi_optee_link_supplier(struct device *dev)
 	return 0;
 }
 
-static bool scmi_optee_chan_available(struct device *dev, int idx)
+static bool scmi_optee_chan_available(struct device_node *of_node, int idx)
 {
 	u32 channel_id;
 
-	return !of_property_read_u32_index(dev->of_node, "linaro,optee-channel-id",
+	return !of_property_read_u32_index(of_node, "linaro,optee-channel-id",
 					   idx, &channel_id);
 }
 
@@ -480,8 +480,6 @@ static int scmi_optee_chan_free(int id, void *p, void *data)
 
 	cinfo->transport_info = NULL;
 	channel->cinfo = NULL;
-
-	scmi_free_channel(cinfo, data, id);
 
 	return 0;
 }

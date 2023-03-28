@@ -197,10 +197,7 @@ struct mipi_dsi_device {
 
 #define MIPI_DSI_MODULE_PREFIX "mipi-dsi:"
 
-static inline struct mipi_dsi_device *to_mipi_dsi_device(struct device *dev)
-{
-	return container_of(dev, struct mipi_dsi_device, dev);
-}
+#define to_mipi_dsi_device(__dev)	container_of_const(__dev, struct mipi_dsi_device, dev)
 
 /**
  * mipi_dsi_pixel_format_to_bpp - obtain the number of bits per pixel for any

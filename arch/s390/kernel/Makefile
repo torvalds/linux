@@ -58,6 +58,7 @@ obj-$(CONFIG_EARLY_PRINTK)	+= early_printk.o
 obj-$(CONFIG_KPROBES)		+= kprobes.o
 obj-$(CONFIG_KPROBES)		+= kprobes_insn_page.o
 obj-$(CONFIG_KPROBES)		+= mcount.o
+obj-$(CONFIG_RETHOOK)		+= rethook.o
 obj-$(CONFIG_FUNCTION_TRACER)	+= ftrace.o
 obj-$(CONFIG_FUNCTION_TRACER)	+= mcount.o
 obj-$(CONFIG_CRASH_DUMP)	+= crash_dump.o
@@ -69,7 +70,7 @@ obj-$(CONFIG_KEXEC_FILE)	+= kexec_elf.o
 
 obj-$(CONFIG_IMA_SECURE_AND_OR_TRUSTED_BOOT)	+= ima_arch.o
 
-obj-$(CONFIG_PERF_EVENTS)	+= perf_event.o perf_cpum_cf_common.o
+obj-$(CONFIG_PERF_EVENTS)	+= perf_event.o
 obj-$(CONFIG_PERF_EVENTS)	+= perf_cpum_cf.o perf_cpum_sf.o
 obj-$(CONFIG_PERF_EVENTS)	+= perf_cpum_cf_events.o perf_regs.o
 obj-$(CONFIG_PERF_EVENTS)	+= perf_pai_crypto.o perf_pai_ext.o

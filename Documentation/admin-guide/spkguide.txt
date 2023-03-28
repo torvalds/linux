@@ -1105,8 +1105,8 @@ speakup load
 Alternatively, you can add the above line to your file
 ~/.bashrc or ~/.bash_profile.
 
-If your system administrator ran himself the script, all the users will be able
-to change from English to the language choosed by root and do directly
+If your system administrator himself ran the script, all the users will be able
+to change from English to the language chosen by root and do directly
 speakupconf load (or add this to the ~/.bashrc or
 ~/.bash_profile file). If there are several languages to handle, the
 administrator (or every user) will have to run the first steps until speakupconf

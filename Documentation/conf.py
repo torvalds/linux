@@ -31,6 +31,12 @@ def have_command(cmd):
 # Get Sphinx version
 major, minor, patch = sphinx.version_info[:3]
 
+#
+# Warn about older versions that we don't want to support for much
+# longer.
+#
+if (major < 2) or (major == 2 and minor < 4):
+    print('WARNING: support for Sphinx < 2.4 will be removed soon.')
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -110,6 +116,9 @@ if major >= 3:
 
             # include/linux/linkage.h:
             "asmlinkage",
+
+            # include/linux/btf.h
+            "__bpf_kfunc",
         ]
 
 else:
@@ -147,7 +156,7 @@ else:
     math_renderer = 'mathjax'
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = ['sphinx/templates']
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
@@ -322,6 +331,7 @@ if  html_theme == 'alabaster':
         'description': get_cline_version(),
         'page_width': '65em',
         'sidebar_width': '15em',
+        'fixed_sidebar': 'true',
         'font_size': 'inherit',
         'font_family': 'serif',
     }
@@ -339,7 +349,11 @@ html_use_smartypants = False
 
 # Custom sidebar templates, maps document names to template names.
 # Note that the RTD theme ignores this
-html_sidebars = { '**': ["about.html", 'searchbox.html', 'localtoc.html', 'sourcelink.html']}
+html_sidebars = { '**': ['searchbox.html', 'kernel-toc.html', 'sourcelink.html']}
+
+# about.html is available for alabaster theme. Add it at the front.
+if html_theme == 'alabaster':
+    html_sidebars['**'].insert(0, 'about.html')
 
 # Output file base name for HTML help builder.
 htmlhelp_basename = 'TheLinuxKerneldoc'

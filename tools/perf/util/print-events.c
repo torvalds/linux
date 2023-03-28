@@ -101,9 +101,7 @@ void print_tracepoint_events(const struct print_callbacks *print_cb, void *print
 					"Tracepoint event",
 					/*desc=*/NULL,
 					/*long_desc=*/NULL,
-					/*encoding_desc=*/NULL,
-					/*metric_name=*/NULL,
-					/*metric_expr=*/NULL);
+					/*encoding_desc=*/NULL);
 		}
 		free(dir_path);
 		free(evt_namelist);
@@ -195,9 +193,7 @@ void print_sdt_events(const struct print_callbacks *print_cb, void *print_state)
 				"SDT event",
 				/*desc=*/NULL,
 				/*long_desc=*/NULL,
-				/*encoding_desc=*/NULL,
-				/*metric_name=*/NULL,
-				/*metric_expr=*/NULL);
+				/*encoding_desc=*/NULL);
 
 		free(evt_name);
 	}
@@ -255,9 +251,7 @@ int print_hwcache_events(const struct print_callbacks *print_cb, void *print_sta
 				event_type_descriptors[PERF_TYPE_HW_CACHE],
 				/*desc=*/NULL,
 				/*long_desc=*/NULL,
-				/*encoding_desc=*/NULL,
-				/*metric_name=*/NULL,
-				/*metric_expr=*/NULL);
+				/*encoding_desc=*/NULL);
 	}
 	strlist__delete(evt_name_list);
 	return 0;
@@ -277,9 +271,7 @@ void print_tool_events(const struct print_callbacks *print_cb, void *print_state
 				"Tool event",
 				/*desc=*/NULL,
 				/*long_desc=*/NULL,
-				/*encoding_desc=*/NULL,
-				/*metric_name=*/NULL,
-				/*metric_expr=*/NULL);
+				/*encoding_desc=*/NULL);
 	}
 }
 
@@ -331,9 +323,7 @@ void print_symbol_events(const struct print_callbacks *print_cb, void *print_sta
 				event_type_descriptors[type],
 				/*desc=*/NULL,
 				/*long_desc=*/NULL,
-				/*encoding_desc=*/NULL,
-				/*metric_name=*/NULL,
-				/*metric_expr=*/NULL);
+				/*encoding_desc=*/NULL);
 	}
 	strlist__delete(evt_name_list);
 }
@@ -364,9 +354,7 @@ void print_events(const struct print_callbacks *print_cb, void *print_state)
 			event_type_descriptors[PERF_TYPE_RAW],
 			/*desc=*/NULL,
 			/*long_desc=*/NULL,
-			/*encoding_desc=*/NULL,
-			/*metric_name=*/NULL,
-			/*metric_expr=*/NULL);
+			/*encoding_desc=*/NULL);
 
 	print_cb->print_event(print_state,
 			/*topic=*/NULL,
@@ -378,9 +366,7 @@ void print_events(const struct print_callbacks *print_cb, void *print_state)
 			event_type_descriptors[PERF_TYPE_RAW],
 			"(see 'man perf-list' on how to encode it)",
 			/*long_desc=*/NULL,
-			/*encoding_desc=*/NULL,
-			/*metric_name=*/NULL,
-			/*metric_expr=*/NULL);
+			/*encoding_desc=*/NULL);
 
 	print_cb->print_event(print_state,
 			/*topic=*/NULL,
@@ -392,9 +378,7 @@ void print_events(const struct print_callbacks *print_cb, void *print_state)
 			event_type_descriptors[PERF_TYPE_BREAKPOINT],
 			/*desc=*/NULL,
 			/*long_desc=*/NULL,
-			/*encoding_desc=*/NULL,
-			/*metric_name=*/NULL,
-			/*metric_expr=*/NULL);
+			/*encoding_desc=*/NULL);
 
 	print_tracepoint_events(print_cb, print_state);
 

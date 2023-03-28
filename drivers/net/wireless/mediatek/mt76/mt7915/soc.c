@@ -278,6 +278,7 @@ static int mt7986_wmac_coninfra_setup(struct mt7915_dev *dev)
 		return -EINVAL;
 
 	rmem = of_reserved_mem_lookup(np);
+	of_node_put(np);
 	if (!rmem)
 		return -EINVAL;
 
@@ -881,6 +882,8 @@ static int mt7986_wmac_top_wfsys_wakeup(struct mt7915_dev *dev, bool enable)
 static int mt7986_wmac_wm_enable(struct mt7915_dev *dev, bool enable)
 {
 	u32 cur;
+
+	mt76_wr(dev, MT_CONNINFRA_SKU_DEC_ADDR, 0);
 
 	mt76_rmw_field(dev, MT7986_TOP_WM_RESET,
 		       MT7986_TOP_WM_RESET_MASK, enable);

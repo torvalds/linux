@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/maxim,max20411.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Maxim Integrated MAX20411 Step-Down DC-DC Converter
+
+maintainers:
+  - Bjorn Andersson <andersson@kernel.org>
+
+description:
+  The MAX20411 is a high-efficiency, DC-DC step-down converter. It provides
+  configurable output voltage in the range of 0.5V to 1.275V, configurable over
+  I2C.
+
+allOf:
+  - $ref: regulator.yaml#
+
+properties:
+  compatible:
+    const: maxim,max20411
+
+  reg:
+    maxItems: 1
+
+  enable-gpios:
+    description: GPIO connected to the EN pin, active high
+
+  vdd-supply:
+    description: Input supply for the device (VDD pin, 3.0V to 5.5V)
+
+required:
+  - compatible
+  - reg
+  - enable-gpios
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        regulator@39 {
+            compatible = "maxim,max20411";
+            reg = <0x39>;
+
+            enable-gpios = <&gpio 2 GPIO_ACTIVE_HIGH>;
+
+            regulator-min-microvolt = <800000>;
+            regulator-max-microvolt = <1000000>;
+        };
+    };
+...

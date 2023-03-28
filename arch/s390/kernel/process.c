@@ -147,8 +147,8 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	if (unlikely(args->fn)) {
 		/* kernel thread */
 		memset(&frame->childregs, 0, sizeof(struct pt_regs));
-		frame->childregs.psw.mask = PSW_KERNEL_BITS | PSW_MASK_DAT |
-				PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
+		frame->childregs.psw.mask = PSW_KERNEL_BITS | PSW_MASK_IO |
+					    PSW_MASK_EXT | PSW_MASK_MCHECK;
 		frame->childregs.psw.addr =
 				(unsigned long)__ret_from_fork;
 		frame->childregs.gprs[9] = (unsigned long)args->fn;

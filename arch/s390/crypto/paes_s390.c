@@ -474,7 +474,7 @@ static int xts_paes_set_key(struct crypto_skcipher *tfm, const u8 *in_key,
 		return rc;
 
 	/*
-	 * xts_check_key verifies the key length is not odd and makes
+	 * xts_verify_key verifies the key length is not odd and makes
 	 * sure that the two keys are not the same. This can be done
 	 * on the two protected keys as well
 	 */

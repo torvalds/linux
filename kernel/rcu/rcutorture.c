@@ -399,7 +399,7 @@ static int torture_readlock_not_held(void)
 	return rcu_read_lock_bh_held() || rcu_read_lock_sched_held();
 }
 
-static int rcu_torture_read_lock(void) __acquires(RCU)
+static int rcu_torture_read_lock(void)
 {
 	rcu_read_lock();
 	return 0;
@@ -441,7 +441,7 @@ rcu_read_delay(struct torture_random_state *rrsp, struct rt_read_seg *rtrsp)
 	}
 }
 
-static void rcu_torture_read_unlock(int idx) __releases(RCU)
+static void rcu_torture_read_unlock(int idx)
 {
 	rcu_read_unlock();
 }
@@ -625,7 +625,7 @@ static struct srcu_struct srcu_ctld;
 static struct srcu_struct *srcu_ctlp = &srcu_ctl;
 static struct rcu_torture_ops srcud_ops;
 
-static int srcu_torture_read_lock(void) __acquires(srcu_ctlp)
+static int srcu_torture_read_lock(void)
 {
 	if (cur_ops == &srcud_ops)
 		return srcu_read_lock_nmisafe(srcu_ctlp);
@@ -652,7 +652,7 @@ srcu_read_delay(struct torture_random_state *rrsp, struct rt_read_seg *rtrsp)
 	}
 }
 
-static void srcu_torture_read_unlock(int idx) __releases(srcu_ctlp)
+static void srcu_torture_read_unlock(int idx)
 {
 	if (cur_ops == &srcud_ops)
 		srcu_read_unlock_nmisafe(srcu_ctlp, idx);
@@ -814,13 +814,13 @@ static void synchronize_rcu_trivial(void)
 	}
 }
 
-static int rcu_torture_read_lock_trivial(void) __acquires(RCU)
+static int rcu_torture_read_lock_trivial(void)
 {
 	preempt_disable();
 	return 0;
 }
 
-static void rcu_torture_read_unlock_trivial(int idx) __releases(RCU)
+static void rcu_torture_read_unlock_trivial(int idx)
 {
 	preempt_enable();
 }

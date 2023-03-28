@@ -436,9 +436,9 @@ fwnode_graph_get_endpoint_by_id(const struct fwnode_handle *fwnode,
 unsigned int fwnode_graph_get_endpoint_count(struct fwnode_handle *fwnode,
 					     unsigned long flags);
 
-#define fwnode_graph_for_each_endpoint(fwnode, child)			\
-	for (child = NULL;						\
-	     (child = fwnode_graph_get_next_endpoint(fwnode, child)); )
+#define fwnode_graph_for_each_endpoint(fwnode, child)				\
+	for (child = fwnode_graph_get_next_endpoint(fwnode, NULL); child;	\
+	     child = fwnode_graph_get_next_endpoint(fwnode, child))
 
 int fwnode_graph_parse_endpoint(const struct fwnode_handle *fwnode,
 				struct fwnode_endpoint *endpoint);
@@ -485,9 +485,6 @@ struct fwnode_handle *software_node_fwnode(const struct software_node *node);
 const struct software_node *
 software_node_find_by_name(const struct software_node *parent,
 			   const char *name);
-
-int software_node_register_nodes(const struct software_node *nodes);
-void software_node_unregister_nodes(const struct software_node *nodes);
 
 int software_node_register_node_group(const struct software_node **node_group);
 void software_node_unregister_node_group(const struct software_node **node_group);

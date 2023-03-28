@@ -519,7 +519,7 @@ static ssize_t batt_impedance_compensation_show(struct device *dev,
 		return ret;
 
 	rval = (rval >> 4) * 10;
-	return sprintf(buf, "%d mohm\n", rval);
+	return sysfs_emit(buf, "%d mohm\n", rval);
 }
 
 static ssize_t batt_impedance_compensation_store(struct device *dev,

@@ -190,7 +190,7 @@ static int avs_probe_compr_trigger(struct snd_compr_stream *cstream, int cmd,
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 	case SNDRV_PCM_TRIGGER_RESUME:
 		spin_lock_irqsave(&bus->reg_lock, cookie);
-		snd_hdac_stream_start(hdac_stream(host_stream), true);
+		snd_hdac_stream_start(hdac_stream(host_stream));
 		spin_unlock_irqrestore(&bus->reg_lock, cookie);
 		break;
 
@@ -277,31 +277,8 @@ static struct snd_soc_dai_driver probe_cpu_dais[] = {
 },
 };
 
-static int avs_probe_component_probe(struct snd_soc_component *component)
-{
-	struct avs_soc_component *acomp = to_avs_soc_component(component);
-	struct avs_dev *adev = to_avs_dev(component->dev);
-
-	mutex_lock(&adev->comp_list_mutex);
-	list_add_tail(&acomp->node, &adev->comp_list);
-	mutex_unlock(&adev->comp_list_mutex);
-	return 0;
-}
-
-static void avs_probe_component_remove(struct snd_soc_component *component)
-{
-	struct avs_soc_component *acomp = to_avs_soc_component(component);
-	struct avs_dev *adev = to_avs_dev(component->dev);
-
-	mutex_lock(&adev->comp_list_mutex);
-	list_del(&acomp->node);
-	mutex_unlock(&adev->comp_list_mutex);
-}
-
 static const struct snd_soc_component_driver avs_probe_component_driver = {
 	.name			= "avs-probe-compr",
-	.probe			= avs_probe_component_probe,
-	.remove			= avs_probe_component_remove,
 	.compress_ops		= &avs_probe_compress_ops,
 	.module_get_upon_open	= 1, /* increment refcount when a stream is opened */
 };

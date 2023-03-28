@@ -285,6 +285,15 @@ void cfg80211_conn_work(struct work_struct *work)
 	wiphy_unlock(&rdev->wiphy);
 }
 
+static void cfg80211_step_auth_next(struct cfg80211_conn *conn,
+				    struct cfg80211_bss *bss)
+{
+	memcpy(conn->bssid, bss->bssid, ETH_ALEN);
+	conn->params.bssid = conn->bssid;
+	conn->params.channel = bss->channel;
+	conn->state = CFG80211_CONN_AUTHENTICATE_NEXT;
+}
+
 /* Returned bss is reference counted and must be cleaned up appropriately. */
 static struct cfg80211_bss *cfg80211_get_conn_bss(struct wireless_dev *wdev)
 {
@@ -302,10 +311,7 @@ static struct cfg80211_bss *cfg80211_get_conn_bss(struct wireless_dev *wdev)
 	if (!bss)
 		return NULL;
 
-	memcpy(wdev->conn->bssid, bss->bssid, ETH_ALEN);
-	wdev->conn->params.bssid = wdev->conn->bssid;
-	wdev->conn->params.channel = bss->channel;
-	wdev->conn->state = CFG80211_CONN_AUTHENTICATE_NEXT;
+	cfg80211_step_auth_next(wdev->conn, bss);
 	schedule_work(&rdev->conn_work);
 
 	return bss;
@@ -597,7 +603,12 @@ static int cfg80211_sme_connect(struct wireless_dev *wdev,
 	wdev->conn->params.ssid_len = wdev->u.client.ssid_len;
 
 	/* see if we have the bss already */
-	bss = cfg80211_get_conn_bss(wdev);
+	bss = cfg80211_get_bss(wdev->wiphy, wdev->conn->params.channel,
+			       wdev->conn->params.bssid,
+			       wdev->conn->params.ssid,
+			       wdev->conn->params.ssid_len,
+			       wdev->conn_bss_type,
+			       IEEE80211_PRIVACY(wdev->conn->params.privacy));
 
 	if (prev_bssid) {
 		memcpy(wdev->conn->prev_bssid, prev_bssid, ETH_ALEN);
@@ -608,6 +619,7 @@ static int cfg80211_sme_connect(struct wireless_dev *wdev,
 	if (bss) {
 		enum nl80211_timeout_reason treason;
 
+		cfg80211_step_auth_next(wdev->conn, bss);
 		err = cfg80211_conn_do_work(wdev, &treason);
 		cfg80211_put_bss(wdev->wiphy, bss);
 	} else {
@@ -724,6 +736,7 @@ void __cfg80211_connect_result(struct net_device *dev,
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	const struct element *country_elem = NULL;
+	const struct element *ssid;
 	const u8 *country_data;
 	u8 country_datalen;
 #ifdef CONFIG_CFG80211_WEXT
@@ -855,8 +868,7 @@ void __cfg80211_connect_result(struct net_device *dev,
 			       ETH_ALEN);
 	}
 
-	if (!(wdev->wiphy->flags & WIPHY_FLAG_HAS_STATIC_WEP))
-		cfg80211_upload_connect_keys(wdev);
+	cfg80211_upload_connect_keys(wdev);
 
 	rcu_read_lock();
 	for_each_valid_link(cr, link) {
@@ -882,6 +894,22 @@ void __cfg80211_connect_result(struct net_device *dev,
 				   cr->links[link].bss->channel->band,
 				   country_data, country_datalen);
 	kfree(country_data);
+
+	if (!wdev->u.client.ssid_len) {
+		rcu_read_lock();
+		for_each_valid_link(cr, link) {
+			ssid = ieee80211_bss_get_elem(cr->links[link].bss,
+						      WLAN_EID_SSID);
+
+			if (!ssid || !ssid->datalen)
+				continue;
+
+			memcpy(wdev->u.client.ssid, ssid->data, ssid->datalen);
+			wdev->u.client.ssid_len = ssid->datalen;
+			break;
+		}
+		rcu_read_unlock();
+	}
 
 	return;
 out:
@@ -1462,12 +1490,16 @@ int cfg80211_connect(struct cfg80211_registered_device *rdev,
 				connect->crypto.ciphers_pairwise[0] = cipher;
 			}
 		}
-
-		connect->crypto.wep_keys = connkeys->params;
-		connect->crypto.wep_tx_key = connkeys->def;
 	} else {
 		if (WARN_ON(connkeys))
 			return -EINVAL;
+
+		/* connect can point to wdev->wext.connect which
+		 * can hold key data from a previous connection
+		 */
+		connect->key = NULL;
+		connect->key_len = 0;
+		connect->key_idx = 0;
 	}
 
 	wdev->connect_keys = connkeys;

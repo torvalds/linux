@@ -23,6 +23,7 @@ SYM_FUNC_START(memset)
 	ALTERNATIVE	"b __memset_generic", \
 			"b __memset_fast", CPU_FEATURE_UAL
 SYM_FUNC_END(memset)
+_ASM_NOKPROBE(memset)
 
 EXPORT_SYMBOL(memset)
 
@@ -45,6 +46,7 @@ SYM_FUNC_START(__memset_generic)
 2:	move	a0, a3
 	jr	ra
 SYM_FUNC_END(__memset_generic)
+_ASM_NOKPROBE(__memset_generic)
 
 /*
  * void *__memset_fast(void *s, int c, size_t n)
@@ -89,3 +91,4 @@ SYM_FUNC_START(__memset_fast)
 3:	move	a0, a3
 	jr	ra
 SYM_FUNC_END(__memset_fast)
+_ASM_NOKPROBE(__memset_fast)

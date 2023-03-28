@@ -458,13 +458,14 @@ static void __mxser_stop_tx(struct mxser_port *info)
 	outb(info->IER, info->ioaddr + UART_IER);
 }
 
-static int mxser_carrier_raised(struct tty_port *port)
+static bool mxser_carrier_raised(struct tty_port *port)
 {
 	struct mxser_port *mp = container_of(port, struct mxser_port, port);
-	return (inb(mp->ioaddr + UART_MSR) & UART_MSR_DCD)?1:0;
+
+	return inb(mp->ioaddr + UART_MSR) & UART_MSR_DCD;
 }
 
-static void mxser_dtr_rts(struct tty_port *port, int on)
+static void mxser_dtr_rts(struct tty_port *port, bool active)
 {
 	struct mxser_port *mp = container_of(port, struct mxser_port, port);
 	unsigned long flags;
@@ -472,7 +473,7 @@ static void mxser_dtr_rts(struct tty_port *port, int on)
 
 	spin_lock_irqsave(&mp->slock, flags);
 	mcr = inb(mp->ioaddr + UART_MCR);
-	if (on)
+	if (active)
 		mcr |= UART_MCR_DTR | UART_MCR_RTS;
 	else
 		mcr &= ~(UART_MCR_DTR | UART_MCR_RTS);
@@ -1063,7 +1064,7 @@ static int mxser_set_serial_info(struct tty_struct *tty,
 	} else {
 		retval = mxser_activate(port, tty);
 		if (retval == 0)
-			tty_port_set_initialized(port, 1);
+			tty_port_set_initialized(port, true);
 	}
 	mutex_unlock(&port->mutex);
 	return retval;

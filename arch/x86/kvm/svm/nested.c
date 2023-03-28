@@ -12,7 +12,7 @@
  *   Avi Kivity   <avi@qumranet.com>
  */
 
-#define pr_fmt(fmt) "SVM: " fmt
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kvm_types.h>
 #include <linux/kvm_host.h>
@@ -138,15 +138,13 @@ void recalc_intercepts(struct vcpu_svm *svm)
 		c->intercepts[i] = h->intercepts[i];
 
 	if (g->int_ctl & V_INTR_MASKING_MASK) {
-		/* We only want the cr8 intercept bits of L1 */
-		vmcb_clr_intercept(c, INTERCEPT_CR8_READ);
-		vmcb_clr_intercept(c, INTERCEPT_CR8_WRITE);
-
 		/*
-		 * Once running L2 with HF_VINTR_MASK, EFLAGS.IF does not
-		 * affect any interrupt we may want to inject; therefore,
-		 * interrupt window vmexits are irrelevant to L0.
+		 * Once running L2 with HF_VINTR_MASK, EFLAGS.IF and CR8
+		 * does not affect any interrupt we may want to inject;
+		 * therefore, writes to CR8 are irrelevant to L0, as are
+		 * interrupt window vmexits.
 		 */
+		vmcb_clr_intercept(c, INTERCEPT_CR8_WRITE);
 		vmcb_clr_intercept(c, INTERCEPT_VINTR);
 	}
 
@@ -1010,7 +1008,6 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 		vmcb12->control.next_rip  = vmcb02->control.next_rip;
 
 	vmcb12->control.int_ctl           = svm->nested.ctl.int_ctl;
-	vmcb12->control.tlb_ctl           = svm->nested.ctl.tlb_ctl;
 	vmcb12->control.event_inj         = svm->nested.ctl.event_inj;
 	vmcb12->control.event_inj_err     = svm->nested.ctl.event_inj_err;
 
@@ -1106,7 +1103,7 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	 * to benefit from it right away.
 	 */
 	if (kvm_apicv_activated(vcpu->kvm))
-		kvm_vcpu_update_apicv(vcpu);
+		__kvm_vcpu_update_apicv(vcpu);
 
 	return 0;
 }

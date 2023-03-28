@@ -725,7 +725,7 @@ int amdgpu_gfx_ras_sw_init(struct amdgpu_device *adev)
 
 	/* If not define special ras_late_init function, use gfx default ras_late_init */
 	if (!ras->ras_block.ras_late_init)
-		ras->ras_block.ras_late_init = amdgpu_ras_block_late_init;
+		ras->ras_block.ras_late_init = amdgpu_gfx_ras_late_init;
 
 	/* If not defined special ras_cb function, use default ras_cb */
 	if (!ras->ras_block.ras_cb)

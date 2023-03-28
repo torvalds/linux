@@ -140,7 +140,7 @@ The direct mapping covers all memory in the system up to the highest
 memory address (this means in some cases it can also include PCI memory
 holes).
 
-We map EFI runtime services in the 'efi_pgd' PGD in a 64Gb large virtual
+We map EFI runtime services in the 'efi_pgd' PGD in a 64GB large virtual
 memory window (this size is arbitrary, it can be raised later if needed).
 The mappings are not part of any other kernel PGD and are only available
 during EFI runtime calls.

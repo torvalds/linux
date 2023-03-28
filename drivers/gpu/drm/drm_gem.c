@@ -336,13 +336,6 @@ out:
 }
 EXPORT_SYMBOL_GPL(drm_gem_dumb_map_offset);
 
-int drm_gem_dumb_destroy(struct drm_file *file,
-			 struct drm_device *dev,
-			 u32 handle)
-{
-	return drm_gem_handle_delete(file, handle);
-}
-
 /**
  * drm_gem_handle_create_tail - internal functions to create a handle
  * @file_priv: drm file-private structure to register the handle for
@@ -1060,7 +1053,7 @@ int drm_gem_mmap_obj(struct drm_gem_object *obj, unsigned long obj_size,
 			goto err_drm_gem_object_put;
 		}
 
-		vma->vm_flags |= VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP;
+		vm_flags_set(vma, VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP);
 		vma->vm_page_prot = pgprot_writecombine(vm_get_page_prot(vma->vm_flags));
 		vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
 	}
@@ -1466,3 +1459,21 @@ tail:
 	return freed;
 }
 EXPORT_SYMBOL(drm_gem_lru_scan);
+
+/**
+ * drm_gem_evict - helper to evict backing pages for a GEM object
+ * @obj: obj in question
+ */
+int drm_gem_evict(struct drm_gem_object *obj)
+{
+	dma_resv_assert_held(obj->resv);
+
+	if (!dma_resv_test_signaled(obj->resv, DMA_RESV_USAGE_READ))
+		return -EBUSY;
+
+	if (obj->funcs->evict)
+		return obj->funcs->evict(obj);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_gem_evict);

@@ -11,7 +11,7 @@ struct clk_hw_onecell_data;
 struct device_node;
 struct mtk_composite;
 
-int mtk_clk_register_cpumuxes(struct device_node *node,
+int mtk_clk_register_cpumuxes(struct device *dev, struct device_node *node,
 			      const struct mtk_composite *clks, int num,
 			      struct clk_hw_onecell_data *clk_data);
 

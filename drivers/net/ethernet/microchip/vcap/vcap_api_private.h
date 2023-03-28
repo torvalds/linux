@@ -13,6 +13,12 @@
 
 #define to_intrule(rule) container_of((rule), struct vcap_rule_internal, data)
 
+enum vcap_rule_state {
+	VCAP_RS_PERMANENT, /* the rule is always stored in HW */
+	VCAP_RS_ENABLED, /* enabled in HW but can be disabled */
+	VCAP_RS_DISABLED, /* disabled (stored in SW) and can be enabled */
+};
+
 /* Private VCAP API rule data */
 struct vcap_rule_internal {
 	struct vcap_rule data; /* provided by the client */
@@ -29,6 +35,7 @@ struct vcap_rule_internal {
 	u32 addr; /* address in the VCAP at insertion */
 	u32 counter_id; /* counter id (if a dedicated counter is available) */
 	struct vcap_counter counter; /* last read counter value */
+	enum vcap_rule_state state;  /* rule storage state */
 };
 
 /* Bit iterator for the VCAP cache streams */
@@ -43,8 +50,6 @@ struct vcap_stream_iter {
 
 /* Check that the control has a valid set of callbacks */
 int vcap_api_check(struct vcap_control *ctrl);
-/* Make a shallow copy of the rule without the fields */
-struct vcap_rule_internal *vcap_dup_rule(struct vcap_rule_internal *ri);
 /* Erase the VCAP cache area used or encoding and decoding */
 void vcap_erase_cache(struct vcap_rule_internal *ri);
 
@@ -109,5 +114,11 @@ int vcap_addr_keysets(struct vcap_control *vctrl, struct net_device *ndev,
 int vcap_find_keystream_keysets(struct vcap_control *vctrl, enum vcap_type vt,
 				u32 *keystream, u32 *mskstream, bool mask,
 				int sw_max, struct vcap_keyset_list *kslist);
+
+/* Get the keysets that matches the rule key type/mask */
+int vcap_rule_get_keysets(struct vcap_rule_internal *ri,
+			  struct vcap_keyset_list *matches);
+/* Decode a rule from the VCAP cache and return a copy */
+struct vcap_rule *vcap_decode_rule(struct vcap_rule_internal *elem);
 
 #endif /* __VCAP_API_PRIVATE__ */

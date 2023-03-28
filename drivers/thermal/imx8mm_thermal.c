@@ -17,7 +17,6 @@
 #include <linux/slab.h>
 #include <linux/thermal.h>
 
-#include "thermal_core.h"
 #include "thermal_hwmon.h"
 
 #define TER			0x0	/* TMU enable */

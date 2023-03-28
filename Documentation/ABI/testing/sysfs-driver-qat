@@ -1,6 +1,6 @@
 What:		/sys/bus/pci/devices/<BDF>/qat/state
 Date:		June 2022
-KernelVersion:	5.20
+KernelVersion:	6.0
 Contact:	qat-linux@intel.com
 Description:	(RW) Reports the current state of the QAT device. Write to
 		the file to start or stop the device.
@@ -18,7 +18,7 @@ Description:	(RW) Reports the current state of the QAT device. Write to
 
 What:		/sys/bus/pci/devices/<BDF>/qat/cfg_services
 Date:		June 2022
-KernelVersion:	5.20
+KernelVersion:	6.0
 Contact:	qat-linux@intel.com
 Description:	(RW) Reports the current configuration of the QAT device.
 		Write to the file to change the configured services.

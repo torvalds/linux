@@ -6,11 +6,13 @@
 #include <linux/string_helpers.h>
 
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_print.h"
 #include "gt/intel_reset.h"
 #include "intel_gsc_fw.h"
 #include "intel_gsc_uc.h"
 #include "intel_guc.h"
 #include "intel_guc_ads.h"
+#include "intel_guc_print.h"
 #include "intel_guc_submission.h"
 #include "gt/intel_rps.h"
 #include "intel_uc.h"
@@ -67,29 +69,29 @@ static int __intel_uc_reset_hw(struct intel_uc *uc)
 
 	ret = intel_reset_guc(gt);
 	if (ret) {
-		DRM_ERROR("Failed to reset GuC, ret = %d\n", ret);
+		gt_err(gt, "Failed to reset GuC, ret = %d\n", ret);
 		return ret;
 	}
 
 	guc_status = intel_uncore_read(gt->uncore, GUC_STATUS);
-	WARN(!(guc_status & GS_MIA_IN_RESET),
-	     "GuC status: 0x%x, MIA core expected to be in reset\n",
-	     guc_status);
+	gt_WARN(gt, !(guc_status & GS_MIA_IN_RESET),
+		"GuC status: 0x%x, MIA core expected to be in reset\n",
+		guc_status);
 
 	return ret;
 }
 
 static void __confirm_options(struct intel_uc *uc)
 {
-	struct drm_i915_private *i915 = uc_to_gt(uc)->i915;
+	struct intel_gt *gt = uc_to_gt(uc);
+	struct drm_i915_private *i915 = gt->i915;
 
-	drm_dbg(&i915->drm,
-		"enable_guc=%d (guc:%s submission:%s huc:%s slpc:%s)\n",
-		i915->params.enable_guc,
-		str_yes_no(intel_uc_wants_guc(uc)),
-		str_yes_no(intel_uc_wants_guc_submission(uc)),
-		str_yes_no(intel_uc_wants_huc(uc)),
-		str_yes_no(intel_uc_wants_guc_slpc(uc)));
+	gt_dbg(gt, "enable_guc=%d (guc:%s submission:%s huc:%s slpc:%s)\n",
+	       i915->params.enable_guc,
+	       str_yes_no(intel_uc_wants_guc(uc)),
+	       str_yes_no(intel_uc_wants_guc_submission(uc)),
+	       str_yes_no(intel_uc_wants_huc(uc)),
+	       str_yes_no(intel_uc_wants_guc_slpc(uc)));
 
 	if (i915->params.enable_guc == 0) {
 		GEM_BUG_ON(intel_uc_wants_guc(uc));
@@ -100,26 +102,22 @@ static void __confirm_options(struct intel_uc *uc)
 	}
 
 	if (!intel_uc_supports_guc(uc))
-		drm_info(&i915->drm,
-			 "Incompatible option enable_guc=%d - %s\n",
-			 i915->params.enable_guc, "GuC is not supported!");
+		gt_info(gt,  "Incompatible option enable_guc=%d - %s\n",
+			i915->params.enable_guc, "GuC is not supported!");
 
 	if (i915->params.enable_guc & ENABLE_GUC_LOAD_HUC &&
 	    !intel_uc_supports_huc(uc))
-		drm_info(&i915->drm,
-			 "Incompatible option enable_guc=%d - %s\n",
-			 i915->params.enable_guc, "HuC is not supported!");
+		gt_info(gt, "Incompatible option enable_guc=%d - %s\n",
+			i915->params.enable_guc, "HuC is not supported!");
 
 	if (i915->params.enable_guc & ENABLE_GUC_SUBMISSION &&
 	    !intel_uc_supports_guc_submission(uc))
-		drm_info(&i915->drm,
-			 "Incompatible option enable_guc=%d - %s\n",
-			 i915->params.enable_guc, "GuC submission is N/A");
+		gt_info(gt, "Incompatible option enable_guc=%d - %s\n",
+			i915->params.enable_guc, "GuC submission is N/A");
 
 	if (i915->params.enable_guc & ~ENABLE_GUC_MASK)
-		drm_info(&i915->drm,
-			 "Incompatible option enable_guc=%d - %s\n",
-			 i915->params.enable_guc, "undocumented flag");
+		gt_info(gt, "Incompatible option enable_guc=%d - %s\n",
+			i915->params.enable_guc, "undocumented flag");
 }
 
 void intel_uc_init_early(struct intel_uc *uc)
@@ -141,6 +139,7 @@ void intel_uc_init_early(struct intel_uc *uc)
 void intel_uc_init_late(struct intel_uc *uc)
 {
 	intel_guc_init_late(&uc->guc);
+	intel_gsc_uc_load_start(&uc->gsc);
 }
 
 void intel_uc_driver_late_release(struct intel_uc *uc)
@@ -252,15 +251,13 @@ static int guc_enable_communication(struct intel_guc *guc)
 	intel_guc_ct_event_handler(&guc->ct);
 	spin_unlock_irq(gt->irq_lock);
 
-	drm_dbg(&i915->drm, "GuC communication enabled\n");
+	guc_dbg(guc, "communication enabled\n");
 
 	return 0;
 }
 
 static void guc_disable_communication(struct intel_guc *guc)
 {
-	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
-
 	/*
 	 * Events generated during or after CT disable are logged by guc in
 	 * via mmio. Make sure the register is clear before disabling CT since
@@ -280,11 +277,12 @@ static void guc_disable_communication(struct intel_guc *guc)
 	 */
 	guc_get_mmio_msg(guc);
 
-	drm_dbg(&i915->drm, "GuC communication disabled\n");
+	guc_dbg(guc, "communication disabled\n");
 }
 
 static void __uc_fetch_firmwares(struct intel_uc *uc)
 {
+	struct intel_gt *gt = uc_to_gt(uc);
 	int err;
 
 	GEM_BUG_ON(!intel_uc_wants_guc(uc));
@@ -293,15 +291,13 @@ static void __uc_fetch_firmwares(struct intel_uc *uc)
 	if (err) {
 		/* Make sure we transition out of transient "SELECTED" state */
 		if (intel_uc_wants_huc(uc)) {
-			drm_dbg(&uc_to_gt(uc)->i915->drm,
-				"Failed to fetch GuC: %d disabling HuC\n", err);
+			gt_dbg(gt, "Failed to fetch GuC fw (%pe) disabling HuC\n", ERR_PTR(err));
 			intel_uc_fw_change_status(&uc->huc.fw,
 						  INTEL_UC_FIRMWARE_ERROR);
 		}
 
 		if (intel_uc_wants_gsc_uc(uc)) {
-			drm_dbg(&uc_to_gt(uc)->i915->drm,
-				"Failed to fetch GuC: %d disabling GSC\n", err);
+			gt_dbg(gt, "Failed to fetch GuC fw (%pe) disabling GSC\n", ERR_PTR(err));
 			intel_uc_fw_change_status(&uc->gsc.fw,
 						  INTEL_UC_FIRMWARE_ERROR);
 		}
@@ -382,7 +378,7 @@ static int uc_init_wopcm(struct intel_uc *uc)
 	int err;
 
 	if (unlikely(!base || !size)) {
-		i915_probe_error(gt->i915, "Unsuccessful WOPCM partitioning\n");
+		gt_probe_error(gt, "Unsuccessful WOPCM partitioning\n");
 		return -E2BIG;
 	}
 
@@ -413,13 +409,13 @@ static int uc_init_wopcm(struct intel_uc *uc)
 	return 0;
 
 err_out:
-	i915_probe_error(gt->i915, "Failed to init uC WOPCM registers!\n");
-	i915_probe_error(gt->i915, "%s(%#x)=%#x\n", "DMA_GUC_WOPCM_OFFSET",
-			 i915_mmio_reg_offset(DMA_GUC_WOPCM_OFFSET),
-			 intel_uncore_read(uncore, DMA_GUC_WOPCM_OFFSET));
-	i915_probe_error(gt->i915, "%s(%#x)=%#x\n", "GUC_WOPCM_SIZE",
-			 i915_mmio_reg_offset(GUC_WOPCM_SIZE),
-			 intel_uncore_read(uncore, GUC_WOPCM_SIZE));
+	gt_probe_error(gt, "Failed to init uC WOPCM registers!\n");
+	gt_probe_error(gt, "%s(%#x)=%#x\n", "DMA_GUC_WOPCM_OFFSET",
+		       i915_mmio_reg_offset(DMA_GUC_WOPCM_OFFSET),
+		       intel_uncore_read(uncore, DMA_GUC_WOPCM_OFFSET));
+	gt_probe_error(gt, "%s(%#x)=%#x\n", "GUC_WOPCM_SIZE",
+		       i915_mmio_reg_offset(GUC_WOPCM_SIZE),
+		       intel_uncore_read(uncore, GUC_WOPCM_SIZE));
 
 	return err;
 }
@@ -449,20 +445,19 @@ static int __uc_check_hw(struct intel_uc *uc)
 	return 0;
 }
 
-static void print_fw_ver(struct intel_uc *uc, struct intel_uc_fw *fw)
+static void print_fw_ver(struct intel_gt *gt, struct intel_uc_fw *fw)
 {
-	struct drm_i915_private *i915 = uc_to_gt(uc)->i915;
-
-	drm_info(&i915->drm, "%s firmware %s version %u.%u.%u\n",
-		 intel_uc_fw_type_repr(fw->type), fw->file_selected.path,
-		 fw->file_selected.ver.major,
-		 fw->file_selected.ver.minor,
-		 fw->file_selected.ver.patch);
+	gt_info(gt, "%s firmware %s version %u.%u.%u\n",
+		intel_uc_fw_type_repr(fw->type), fw->file_selected.path,
+		fw->file_selected.ver.major,
+		fw->file_selected.ver.minor,
+		fw->file_selected.ver.patch);
 }
 
 static int __uc_init_hw(struct intel_uc *uc)
 {
-	struct drm_i915_private *i915 = uc_to_gt(uc)->i915;
+	struct intel_gt *gt = uc_to_gt(uc);
+	struct drm_i915_private *i915 = gt->i915;
 	struct intel_guc *guc = &uc->guc;
 	struct intel_huc *huc = &uc->huc;
 	int ret, attempts;
@@ -470,10 +465,10 @@ static int __uc_init_hw(struct intel_uc *uc)
 	GEM_BUG_ON(!intel_uc_supports_guc(uc));
 	GEM_BUG_ON(!intel_uc_wants_guc(uc));
 
-	print_fw_ver(uc, &guc->fw);
+	print_fw_ver(gt, &guc->fw);
 
 	if (intel_uc_uses_huc(uc))
-		print_fw_ver(uc, &huc->fw);
+		print_fw_ver(gt, &huc->fw);
 
 	if (!intel_uc_fw_is_loadable(&guc->fw)) {
 		ret = __uc_check_hw(uc) ||
@@ -514,8 +509,8 @@ static int __uc_init_hw(struct intel_uc *uc)
 		if (ret == 0)
 			break;
 
-		DRM_DEBUG_DRIVER("GuC fw load failed: %d; will reset and "
-				 "retry %d more time(s)\n", ret, attempts);
+		gt_dbg(gt, "GuC fw load failed (%pe) will reset and retry %d more time(s)\n",
+		       ERR_PTR(ret), attempts);
 	}
 
 	/* Did we succeded or run out of retries? */
@@ -537,8 +532,11 @@ static int __uc_init_hw(struct intel_uc *uc)
 	else
 		intel_huc_auth(huc);
 
-	if (intel_uc_uses_guc_submission(uc))
-		intel_guc_submission_enable(guc);
+	if (intel_uc_uses_guc_submission(uc)) {
+		ret = intel_guc_submission_enable(guc);
+		if (ret)
+			goto err_log_capture;
+	}
 
 	if (intel_uc_uses_guc_slpc(uc)) {
 		ret = intel_guc_slpc_enable(&guc->slpc);
@@ -549,12 +547,8 @@ static int __uc_init_hw(struct intel_uc *uc)
 		intel_rps_lower_unslice(&uc_to_gt(uc)->rps);
 	}
 
-	intel_gsc_uc_load_start(&uc->gsc);
-
-	drm_info(&i915->drm, "GuC submission %s\n",
-		 str_enabled_disabled(intel_uc_uses_guc_submission(uc)));
-	drm_info(&i915->drm, "GuC SLPC %s\n",
-		 str_enabled_disabled(intel_uc_uses_guc_slpc(uc)));
+	guc_info(guc, "submission %s\n", str_enabled_disabled(intel_uc_uses_guc_submission(uc)));
+	guc_info(guc, "SLPC %s\n", str_enabled_disabled(intel_uc_uses_guc_slpc(uc)));
 
 	return 0;
 
@@ -572,12 +566,12 @@ err_out:
 	__uc_sanitize(uc);
 
 	if (!ret) {
-		drm_notice(&i915->drm, "GuC is uninitialized\n");
+		gt_notice(gt, "GuC is uninitialized\n");
 		/* We want to run without GuC submission */
 		return 0;
 	}
 
-	i915_probe_error(i915, "GuC initialization failed %d\n", ret);
+	gt_probe_error(gt, "GuC initialization failed %pe\n", ERR_PTR(ret));
 
 	/* We want to keep KMS alive */
 	return -EIO;
@@ -680,7 +674,7 @@ void intel_uc_suspend(struct intel_uc *uc)
 	int err;
 
 	/* flush the GSC worker */
-	intel_gsc_uc_suspend(&uc->gsc);
+	intel_gsc_uc_flush_work(&uc->gsc);
 
 	if (!intel_guc_is_ready(guc)) {
 		guc->interrupts.enabled = false;
@@ -690,7 +684,7 @@ void intel_uc_suspend(struct intel_uc *uc)
 	with_intel_runtime_pm(&uc_to_gt(uc)->i915->runtime_pm, wakeref) {
 		err = intel_guc_suspend(guc);
 		if (err)
-			DRM_DEBUG_DRIVER("Failed to suspend GuC, err=%d", err);
+			guc_dbg(guc, "Failed to suspend, %pe", ERR_PTR(err));
 	}
 }
 
@@ -718,9 +712,11 @@ static int __uc_resume(struct intel_uc *uc, bool enable_communication)
 
 	err = intel_guc_resume(guc);
 	if (err) {
-		DRM_DEBUG_DRIVER("Failed to resume GuC, err=%d", err);
+		guc_dbg(guc, "Failed to resume, %pe", ERR_PTR(err));
 		return err;
 	}
+
+	intel_gsc_uc_resume(&uc->gsc);
 
 	return 0;
 }

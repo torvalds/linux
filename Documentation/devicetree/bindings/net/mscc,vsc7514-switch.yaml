@@ -18,14 +18,52 @@ description: |
   packets using CPU. Additionally, PTP is supported as well as FDMA for faster
   packet extraction/injection.
 
-properties:
-  $nodename:
-    pattern: "^switch@[0-9a-f]+$"
+allOf:
+  - if:
+      properties:
+        compatible:
+          const: mscc,vsc7514-switch
+    then:
+      $ref: ethernet-switch.yaml#
+      required:
+        - interrupts
+        - interrupt-names
+      properties:
+        reg:
+          minItems: 21
+        reg-names:
+          minItems: 21
+        ethernet-ports:
+          patternProperties:
+            "^port@[0-9a-f]+$":
+              $ref: ethernet-switch-port.yaml#
+              unevaluatedProperties: false
 
+  - if:
+      properties:
+        compatible:
+          const: mscc,vsc7512-switch
+    then:
+      $ref: /schemas/net/dsa/dsa.yaml#
+      properties:
+        reg:
+          maxItems: 20
+        reg-names:
+          maxItems: 20
+        ethernet-ports:
+          patternProperties:
+            "^port@[0-9a-f]+$":
+              $ref: /schemas/net/dsa/dsa-port.yaml#
+              unevaluatedProperties: false
+
+properties:
   compatible:
-    const: mscc,vsc7514-switch
+    enum:
+      - mscc,vsc7512-switch
+      - mscc,vsc7514-switch
 
   reg:
+    minItems: 20
     items:
       - description: system target
       - description: rewriter target
@@ -50,6 +88,7 @@ properties:
       - description: fdma target
 
   reg-names:
+    minItems: 20
     items:
       - const: sys
       - const: rew
@@ -87,59 +126,16 @@ properties:
       - const: xtr
       - const: fdma
 
-  ethernet-ports:
-    type: object
-
-    properties:
-      '#address-cells':
-        const: 1
-      '#size-cells':
-        const: 0
-
-    additionalProperties: false
-
-    patternProperties:
-      "^port@[0-9a-f]+$":
-        type: object
-        description: Ethernet ports handled by the switch
-
-        $ref: ethernet-controller.yaml#
-
-        unevaluatedProperties: false
-
-        properties:
-          reg:
-            description: Switch port number
-
-          phy-handle: true
-
-          phy-mode: true
-
-          fixed-link: true
-
-          mac-address: true
-
-        required:
-          - reg
-          - phy-mode
-
-        oneOf:
-          - required:
-              - phy-handle
-          - required:
-              - fixed-link
-
 required:
   - compatible
   - reg
   - reg-names
-  - interrupts
-  - interrupt-names
   - ethernet-ports
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
+  # VSC7514 (Switchdev)
   - |
     switch@1010000 {
       compatible = "mscc,vsc7514-switch";
@@ -187,5 +183,51 @@ examples:
         };
       };
     };
+  # VSC7512 (DSA)
+  - |
+    ethernet-switch@1{
+      compatible = "mscc,vsc7512-switch";
+      reg = <0x71010000 0x10000>,
+            <0x71030000 0x10000>,
+            <0x71080000 0x100>,
+            <0x710e0000 0x10000>,
+            <0x711e0000 0x100>,
+            <0x711f0000 0x100>,
+            <0x71200000 0x100>,
+            <0x71210000 0x100>,
+            <0x71220000 0x100>,
+            <0x71230000 0x100>,
+            <0x71240000 0x100>,
+            <0x71250000 0x100>,
+            <0x71260000 0x100>,
+            <0x71270000 0x100>,
+            <0x71280000 0x100>,
+            <0x71800000 0x80000>,
+            <0x71880000 0x10000>,
+            <0x71040000 0x10000>,
+            <0x71050000 0x10000>,
+            <0x71060000 0x10000>;
+            reg-names = "sys", "rew", "qs", "ptp", "port0", "port1",
+            "port2", "port3", "port4", "port5", "port6",
+            "port7", "port8", "port9", "port10", "qsys",
+            "ana", "s0", "s1", "s2";
+
+            ethernet-ports {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+           port@0 {
+            reg = <0>;
+            ethernet = <&mac_sw>;
+            phy-handle = <&phy0>;
+            phy-mode = "internal";
+          };
+          port@1 {
+            reg = <1>;
+            phy-handle = <&phy1>;
+            phy-mode = "internal";
+          };
+        };
+      };
 
 ...

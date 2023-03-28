@@ -76,7 +76,7 @@ bool rtl92e_send_cmd_pkt(struct net_device *dev, u32 type, const void *data,
 
 	} while (frag_offset < len);
 
-	rtl92e_writeb(dev, TPPoll, TPPoll_CQ);
+	rtl92e_writeb(dev, TP_POLL, TP_POLL_CQ);
 Failed:
 	return rt_status;
 }

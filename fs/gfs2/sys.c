@@ -87,6 +87,7 @@ static ssize_t status_show(struct gfs2_sbd *sdp, char *buf)
 		     "Withdraw In Prog:         %d\n"
 		     "Remote Withdraw:          %d\n"
 		     "Withdraw Recovery:        %d\n"
+		     "Deactivating:             %d\n"
 		     "sd_log_error:             %d\n"
 		     "sd_log_flush_lock:        %d\n"
 		     "sd_log_num_revoke:        %u\n"
@@ -115,6 +116,7 @@ static ssize_t status_show(struct gfs2_sbd *sdp, char *buf)
 		     test_bit(SDF_WITHDRAW_IN_PROG, &f),
 		     test_bit(SDF_REMOTE_WITHDRAW, &f),
 		     test_bit(SDF_WITHDRAW_RECOVERY, &f),
+		     test_bit(SDF_DEACTIVATING, &f),
 		     sdp->sd_log_error,
 		     rwsem_is_locked(&sdp->sd_log_flush_lock),
 		     sdp->sd_log_num_revoke,
@@ -767,10 +769,10 @@ void gfs2_sys_fs_del(struct gfs2_sbd *sdp)
 	wait_for_completion(&sdp->sd_kobj_unregister);
 }
 
-static int gfs2_uevent(struct kobject *kobj, struct kobj_uevent_env *env)
+static int gfs2_uevent(const struct kobject *kobj, struct kobj_uevent_env *env)
 {
-	struct gfs2_sbd *sdp = container_of(kobj, struct gfs2_sbd, sd_kobj);
-	struct super_block *s = sdp->sd_vfs;
+	const struct gfs2_sbd *sdp = container_of(kobj, struct gfs2_sbd, sd_kobj);
+	const struct super_block *s = sdp->sd_vfs;
 
 	add_uevent_var(env, "LOCKTABLE=%s", sdp->sd_table_name);
 	add_uevent_var(env, "LOCKPROTO=%s", sdp->sd_proto_name);

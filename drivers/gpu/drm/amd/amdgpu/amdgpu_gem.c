@@ -258,7 +258,7 @@ static int amdgpu_gem_object_mmap(struct drm_gem_object *obj, struct vm_area_str
 	 */
 	if (is_cow_mapping(vma->vm_flags) &&
 	    !(vma->vm_flags & VM_ACCESS_FLAGS))
-		vma->vm_flags &= ~VM_MAYWRITE;
+		vm_flags_clear(vma, VM_MAYWRITE);
 
 	return drm_gem_ttm_mmap(obj, vma);
 }
@@ -969,7 +969,7 @@ static int amdgpu_debugfs_gem_info_show(struct seq_file *m, void *unused)
 		 * Therefore, we need to protect this ->comm access using RCU.
 		 */
 		rcu_read_lock();
-		task = pid_task(file->pid, PIDTYPE_PID);
+		task = pid_task(file->pid, PIDTYPE_TGID);
 		seq_printf(m, "pid %8d command %s:\n", pid_nr(file->pid),
 			   task ? task->comm : "<unknown>");
 		rcu_read_unlock();

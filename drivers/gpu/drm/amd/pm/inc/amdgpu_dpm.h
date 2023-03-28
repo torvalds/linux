@@ -369,6 +369,9 @@ struct amdgpu_pm {
 int amdgpu_dpm_read_sensor(struct amdgpu_device *adev, enum amd_pp_sensors sensor,
 			   void *data, uint32_t *size);
 
+int amdgpu_dpm_get_apu_thermal_limit(struct amdgpu_device *adev, uint32_t *limit);
+int amdgpu_dpm_set_apu_thermal_limit(struct amdgpu_device *adev, uint32_t limit);
+
 int amdgpu_dpm_set_powergating_by_smu(struct amdgpu_device *adev,
 				      uint32_t block_type, bool gate);
 
@@ -386,6 +389,7 @@ int amdgpu_dpm_switch_power_profile(struct amdgpu_device *adev,
 int amdgpu_dpm_baco_reset(struct amdgpu_device *adev);
 
 int amdgpu_dpm_mode2_reset(struct amdgpu_device *adev);
+int amdgpu_dpm_enable_gfx_features(struct amdgpu_device *adev);
 
 bool amdgpu_dpm_is_baco_supported(struct amdgpu_device *adev);
 

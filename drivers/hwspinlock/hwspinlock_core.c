@@ -367,7 +367,7 @@ int of_hwspin_lock_get_id(struct device_node *np, int index)
 			continue;
 		}
 
-		if (hwlock->bank->dev->of_node == args.np) {
+		if (device_match_of_node(hwlock->bank->dev, args.np)) {
 			ret = 0;
 			break;
 		}

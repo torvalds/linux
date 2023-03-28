@@ -116,6 +116,7 @@ static irqreturn_t acp63_irq_handler(int irq, void *dev_id)
 	struct acp63_dev_data *adata;
 	struct pdm_dev_data *ps_pdm_data;
 	u32 val;
+	u16 pdev_index;
 
 	adata = dev_id;
 	if (!adata)
@@ -123,7 +124,8 @@ static irqreturn_t acp63_irq_handler(int irq, void *dev_id)
 
 	val = acp63_readl(adata->acp63_base + ACP_EXTERNAL_INTR_STAT);
 	if (val & BIT(PDM_DMA_STAT)) {
-		ps_pdm_data = dev_get_drvdata(&adata->pdev[0]->dev);
+		pdev_index = adata->pdm_dev_index;
+		ps_pdm_data = dev_get_drvdata(&adata->pdev[pdev_index]->dev);
 		acp63_writel(BIT(PDM_DMA_STAT), adata->acp63_base + ACP_EXTERNAL_INTR_STAT);
 		if (ps_pdm_data->capture_stream)
 			snd_pcm_period_elapsed(ps_pdm_data->capture_stream);
@@ -132,17 +134,124 @@ static irqreturn_t acp63_irq_handler(int irq, void *dev_id)
 	return IRQ_NONE;
 }
 
+static void get_acp63_device_config(u32 config, struct pci_dev *pci,
+				    struct acp63_dev_data *acp_data)
+{
+	struct acpi_device *dmic_dev;
+	const union acpi_object *obj;
+	bool is_dmic_dev = false;
+
+	dmic_dev = acpi_find_child_device(ACPI_COMPANION(&pci->dev), ACP63_DMIC_ADDR, 0);
+	if (dmic_dev) {
+		if (!acpi_dev_get_property(dmic_dev, "acp-audio-device-type",
+					   ACPI_TYPE_INTEGER, &obj) &&
+					   obj->integer.value == ACP_DMIC_DEV)
+			is_dmic_dev = true;
+	}
+
+	switch (config) {
+	case ACP_CONFIG_0:
+	case ACP_CONFIG_1:
+	case ACP_CONFIG_2:
+	case ACP_CONFIG_3:
+	case ACP_CONFIG_9:
+	case ACP_CONFIG_15:
+		dev_dbg(&pci->dev, "Audio Mode %d\n", config);
+		break;
+	default:
+		if (is_dmic_dev) {
+			acp_data->pdev_mask = ACP63_PDM_DEV_MASK;
+			acp_data->pdev_count = ACP63_PDM_MODE_DEVS;
+		}
+		break;
+	}
+}
+
+static void acp63_fill_platform_dev_info(struct platform_device_info *pdevinfo,
+					 struct device *parent,
+					 struct fwnode_handle *fw_node,
+					 char *name, unsigned int id,
+					 const struct resource *res,
+					 unsigned int num_res,
+					 const void *data,
+					 size_t size_data)
+{
+	pdevinfo->name = name;
+	pdevinfo->id = id;
+	pdevinfo->parent = parent;
+	pdevinfo->num_res = num_res;
+	pdevinfo->res = res;
+	pdevinfo->data = data;
+	pdevinfo->size_data = size_data;
+	pdevinfo->fwnode = fw_node;
+}
+
+static int create_acp63_platform_devs(struct pci_dev *pci, struct acp63_dev_data *adata, u32 addr)
+{
+	struct platform_device_info pdevinfo[ACP63_DEVS];
+	struct device *parent;
+	int index;
+	int ret;
+
+	parent = &pci->dev;
+	dev_dbg(&pci->dev,
+		"%s pdev_mask:0x%x pdev_count:0x%x\n", __func__, adata->pdev_mask,
+		adata->pdev_count);
+	if (adata->pdev_mask) {
+		adata->res = devm_kzalloc(&pci->dev, sizeof(struct resource), GFP_KERNEL);
+		if (!adata->res) {
+			ret = -ENOMEM;
+			goto de_init;
+		}
+		adata->res->flags = IORESOURCE_MEM;
+		adata->res->start = addr;
+		adata->res->end = addr + (ACP63_REG_END - ACP63_REG_START);
+		memset(&pdevinfo, 0, sizeof(pdevinfo));
+	}
+
+	switch (adata->pdev_mask) {
+	case ACP63_PDM_DEV_MASK:
+		adata->pdm_dev_index  = 0;
+		acp63_fill_platform_dev_info(&pdevinfo[0], parent, NULL, "acp_ps_pdm_dma",
+					     0, adata->res, 1, &adata->acp_lock,
+					     sizeof(adata->acp_lock));
+		acp63_fill_platform_dev_info(&pdevinfo[1], parent, NULL, "dmic-codec",
+					     0, NULL, 0, NULL, 0);
+		acp63_fill_platform_dev_info(&pdevinfo[2], parent, NULL, "acp_ps_mach",
+					     0, NULL, 0, NULL, 0);
+		break;
+	default:
+		dev_dbg(&pci->dev, "No PDM devices found\n");
+		return 0;
+	}
+
+	for (index = 0; index < adata->pdev_count; index++) {
+		adata->pdev[index] = platform_device_register_full(&pdevinfo[index]);
+		if (IS_ERR(adata->pdev[index])) {
+			dev_err(&pci->dev,
+				"cannot register %s device\n", pdevinfo[index].name);
+			ret = PTR_ERR(adata->pdev[index]);
+			goto unregister_devs;
+		}
+	}
+	return 0;
+unregister_devs:
+	for (--index; index >= 0; index--)
+		platform_device_unregister(adata->pdev[index]);
+de_init:
+	if (acp63_deinit(adata->acp63_base, &pci->dev))
+		dev_err(&pci->dev, "ACP de-init failed\n");
+	return ret;
+}
+
 static int snd_acp63_probe(struct pci_dev *pci,
 			   const struct pci_device_id *pci_id)
 {
 	struct acp63_dev_data *adata;
-	struct platform_device_info pdevinfo[ACP63_DEVS];
-	int index, ret;
-	int val = 0x00;
-	struct acpi_device *adev;
-	const union acpi_object *obj;
 	u32 addr;
-	unsigned int irqflags;
+	u32 irqflags;
+	int val;
+	int ret;
 
 	irqflags = IRQF_SHARED;
 	/* Pink Sardine device check */
@@ -179,86 +288,28 @@ static int snd_acp63_probe(struct pci_dev *pci,
 	}
 	pci_set_master(pci);
 	pci_set_drvdata(pci, adata);
+	mutex_init(&adata->acp_lock);
 	ret = acp63_init(adata->acp63_base, &pci->dev);
 	if (ret)
 		goto release_regions;
+	ret = devm_request_irq(&pci->dev, pci->irq, acp63_irq_handler,
+			       irqflags, "ACP_PCI_IRQ", adata);
+	if (ret) {
+		dev_err(&pci->dev, "ACP PCI IRQ request failed\n");
+		goto de_init;
+	}
 	val = acp63_readl(adata->acp63_base + ACP_PIN_CONFIG);
-	switch (val) {
-	case ACP_CONFIG_0:
-	case ACP_CONFIG_1:
-	case ACP_CONFIG_2:
-	case ACP_CONFIG_3:
-	case ACP_CONFIG_9:
-	case ACP_CONFIG_15:
-		dev_info(&pci->dev, "Audio Mode %d\n", val);
-		break;
-	default:
-
-		/* Checking DMIC hardware*/
-		adev = acpi_find_child_device(ACPI_COMPANION(&pci->dev), 0x02, 0);
-
-		if (!adev)
-			break;
-
-		if (!acpi_dev_get_property(adev, "acp-audio-device-type",
-					   ACPI_TYPE_INTEGER, &obj) &&
-					   obj->integer.value == 2) {
-			adata->res = devm_kzalloc(&pci->dev, sizeof(struct resource), GFP_KERNEL);
-			if (!adata->res) {
-				ret = -ENOMEM;
-				goto de_init;
-			}
-
-			adata->res->name = "acp_iomem";
-			adata->res->flags = IORESOURCE_MEM;
-			adata->res->start = addr;
-			adata->res->end = addr + (ACP63_REG_END - ACP63_REG_START);
-			adata->acp63_audio_mode = ACP63_PDM_MODE;
-
-			memset(&pdevinfo, 0, sizeof(pdevinfo));
-			pdevinfo[0].name = "acp_ps_pdm_dma";
-			pdevinfo[0].id = 0;
-			pdevinfo[0].parent = &pci->dev;
-			pdevinfo[0].num_res = 1;
-			pdevinfo[0].res = adata->res;
-
-			pdevinfo[1].name = "dmic-codec";
-			pdevinfo[1].id = 0;
-			pdevinfo[1].parent = &pci->dev;
-
-			pdevinfo[2].name = "acp_ps_mach";
-			pdevinfo[2].id = 0;
-			pdevinfo[2].parent = &pci->dev;
-
-			for (index = 0; index < ACP63_DEVS; index++) {
-				adata->pdev[index] =
-					platform_device_register_full(&pdevinfo[index]);
-
-				if (IS_ERR(adata->pdev[index])) {
-					dev_err(&pci->dev,
-						"cannot register %s device\n",
-						 pdevinfo[index].name);
-					ret = PTR_ERR(adata->pdev[index]);
-					goto unregister_devs;
-				}
-				ret = devm_request_irq(&pci->dev, pci->irq, acp63_irq_handler,
-						       irqflags, "ACP_PCI_IRQ", adata);
-				if (ret) {
-					dev_err(&pci->dev, "ACP PCI IRQ request failed\n");
-					goto unregister_devs;
-				}
-			}
-		}
-		break;
+	get_acp63_device_config(val, pci, adata);
+	ret = create_acp63_platform_devs(pci, adata, addr);
+	if (ret < 0) {
+		dev_err(&pci->dev, "ACP platform devices creation failed\n");
+		goto de_init;
 	}
 	pm_runtime_set_autosuspend_delay(&pci->dev, ACP_SUSPEND_DELAY_MS);
 	pm_runtime_use_autosuspend(&pci->dev);
 	pm_runtime_put_noidle(&pci->dev);
 	pm_runtime_allow(&pci->dev);
 	return 0;
-unregister_devs:
-	for (--index; index >= 0; index--)
-		platform_device_unregister(adata->pdev[index]);
 de_init:
 	if (acp63_deinit(adata->acp63_base, &pci->dev))
 		dev_err(&pci->dev, "ACP de-init failed\n");
@@ -305,10 +356,8 @@ static void snd_acp63_remove(struct pci_dev *pci)
 	int ret, index;
 
 	adata = pci_get_drvdata(pci);
-	if (adata->acp63_audio_mode == ACP63_PDM_MODE) {
-		for (index = 0; index < ACP63_DEVS; index++)
-			platform_device_unregister(adata->pdev[index]);
-	}
+	for (index = 0; index < adata->pdev_count; index++)
+		platform_device_unregister(adata->pdev[index]);
 	ret = acp63_deinit(adata->acp63_base, &pci->dev);
 	if (ret)
 		dev_err(&pci->dev, "ACP de-init failed\n");

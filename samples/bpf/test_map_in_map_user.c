@@ -38,7 +38,7 @@ static void check_map_id(int inner_map_fd, int map_in_map_fd, uint32_t key)
 	uint32_t info_len = sizeof(info);
 	int ret, id;
 
-	ret = bpf_obj_get_info_by_fd(inner_map_fd, &info, &info_len);
+	ret = bpf_map_get_info_by_fd(inner_map_fd, &info, &info_len);
 	assert(!ret);
 
 	ret = bpf_map_lookup_elem(map_in_map_fd, &key, &id);
@@ -120,7 +120,7 @@ int main(int argc, char **argv)
 	struct bpf_object *obj;
 	char filename[256];
 
-	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
+	snprintf(filename, sizeof(filename), "%s.bpf.o", argv[0]);
 	obj = bpf_object__open_file(filename, NULL);
 	if (libbpf_get_error(obj)) {
 		fprintf(stderr, "ERROR: opening BPF object file failed\n");

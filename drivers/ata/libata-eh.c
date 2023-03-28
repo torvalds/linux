@@ -565,17 +565,23 @@ void ata_scsi_cmd_error_handler(struct Scsi_Host *host, struct ata_port *ap,
 {
 	int i;
 	unsigned long flags;
+	struct scsi_cmnd *scmd, *tmp;
+	int nr_timedout = 0;
 
 	/* make sure sff pio task is not running */
 	ata_sff_flush_pio_task(ap);
 
+	if (!ap->ops->error_handler)
+		return;
+
 	/* synchronize with host lock and sort out timeouts */
 
-	/* For new EH, all qcs are finished in one of three ways -
+	/*
+	 * For new EH, all qcs are finished in one of three ways -
 	 * normal completion, error completion, and SCSI timeout.
 	 * Both completions can race against SCSI timeout.  When normal
 	 * completion wins, the qc never reaches EH.  When error
-	 * completion wins, the qc has ATA_QCFLAG_FAILED set.
+	 * completion wins, the qc has ATA_QCFLAG_EH set.
 	 *
 	 * When SCSI timeout wins, things are a bit more complex.
 	 * Normal or error completion can occur after the timeout but
@@ -584,64 +590,61 @@ void ata_scsi_cmd_error_handler(struct Scsi_Host *host, struct ata_port *ap,
 	 * timed out iff its associated qc is active and not failed.
 	 */
 	spin_lock_irqsave(ap->lock, flags);
-	if (ap->ops->error_handler) {
-		struct scsi_cmnd *scmd, *tmp;
-		int nr_timedout = 0;
 
-		/* This must occur under the ap->lock as we don't want
-		   a polled recovery to race the real interrupt handler
+	/*
+	 * This must occur under the ap->lock as we don't want
+	 * a polled recovery to race the real interrupt handler
+	 *
+	 * The lost_interrupt handler checks for any completed but
+	 * non-notified command and completes much like an IRQ handler.
+	 *
+	 * We then fall into the error recovery code which will treat
+	 * this as if normal completion won the race
+	 */
+	if (ap->ops->lost_interrupt)
+		ap->ops->lost_interrupt(ap);
 
-		   The lost_interrupt handler checks for any completed but
-		   non-notified command and completes much like an IRQ handler.
+	list_for_each_entry_safe(scmd, tmp, eh_work_q, eh_entry) {
+		struct ata_queued_cmd *qc;
 
-		   We then fall into the error recovery code which will treat
-		   this as if normal completion won the race */
-
-		if (ap->ops->lost_interrupt)
-			ap->ops->lost_interrupt(ap);
-
-		list_for_each_entry_safe(scmd, tmp, eh_work_q, eh_entry) {
-			struct ata_queued_cmd *qc;
-
-			ata_qc_for_each_raw(ap, qc, i) {
-				if (qc->flags & ATA_QCFLAG_ACTIVE &&
-				    qc->scsicmd == scmd)
-					break;
-			}
-
-			if (i < ATA_MAX_QUEUE) {
-				/* the scmd has an associated qc */
-				if (!(qc->flags & ATA_QCFLAG_FAILED)) {
-					/* which hasn't failed yet, timeout */
-					qc->err_mask |= AC_ERR_TIMEOUT;
-					qc->flags |= ATA_QCFLAG_FAILED;
-					nr_timedout++;
-				}
-			} else {
-				/* Normal completion occurred after
-				 * SCSI timeout but before this point.
-				 * Successfully complete it.
-				 */
-				scmd->retries = scmd->allowed;
-				scsi_eh_finish_cmd(scmd, &ap->eh_done_q);
-			}
+		ata_qc_for_each_raw(ap, qc, i) {
+			if (qc->flags & ATA_QCFLAG_ACTIVE &&
+			    qc->scsicmd == scmd)
+				break;
 		}
 
-		/* If we have timed out qcs.  They belong to EH from
-		 * this point but the state of the controller is
-		 * unknown.  Freeze the port to make sure the IRQ
-		 * handler doesn't diddle with those qcs.  This must
-		 * be done atomically w.r.t. setting QCFLAG_FAILED.
-		 */
-		if (nr_timedout)
-			__ata_port_freeze(ap);
-
-
-		/* initialize eh_tries */
-		ap->eh_tries = ATA_EH_MAX_TRIES;
+		if (i < ATA_MAX_QUEUE) {
+			/* the scmd has an associated qc */
+			if (!(qc->flags & ATA_QCFLAG_EH)) {
+				/* which hasn't failed yet, timeout */
+				qc->err_mask |= AC_ERR_TIMEOUT;
+				qc->flags |= ATA_QCFLAG_EH;
+				nr_timedout++;
+			}
+		} else {
+			/* Normal completion occurred after
+			 * SCSI timeout but before this point.
+			 * Successfully complete it.
+			 */
+			scmd->retries = scmd->allowed;
+			scsi_eh_finish_cmd(scmd, &ap->eh_done_q);
+		}
 	}
-	spin_unlock_irqrestore(ap->lock, flags);
 
+	/*
+	 * If we have timed out qcs.  They belong to EH from
+	 * this point but the state of the controller is
+	 * unknown.  Freeze the port to make sure the IRQ
+	 * handler doesn't diddle with those qcs.  This must
+	 * be done atomically w.r.t. setting ATA_QCFLAG_EH.
+	 */
+	if (nr_timedout)
+		__ata_port_freeze(ap);
+
+	/* initialize eh_tries */
+	ap->eh_tries = ATA_EH_MAX_TRIES;
+
+	spin_unlock_irqrestore(ap->lock, flags);
 }
 EXPORT_SYMBOL(ata_scsi_cmd_error_handler);
 
@@ -911,12 +914,12 @@ void ata_qc_schedule_eh(struct ata_queued_cmd *qc)
 
 	WARN_ON(!ap->ops->error_handler);
 
-	qc->flags |= ATA_QCFLAG_FAILED;
+	qc->flags |= ATA_QCFLAG_EH;
 	ata_eh_set_pending(ap, 1);
 
 	/* The following will fail if timeout has already expired.
 	 * ata_scsi_error() takes care of such scmds on EH entry.
-	 * Note that ATA_QCFLAG_FAILED is unconditionally set after
+	 * Note that ATA_QCFLAG_EH is unconditionally set after
 	 * this function completes.
 	 */
 	blk_abort_request(scsi_cmd_to_rq(qc->scsicmd));
@@ -994,7 +997,7 @@ static int ata_do_link_abort(struct ata_port *ap, struct ata_link *link)
 	/* include internal tag in iteration */
 	ata_qc_for_each_with_internal(ap, qc, tag) {
 		if (qc && (!link || qc->dev->link == link)) {
-			qc->flags |= ATA_QCFLAG_FAILED;
+			qc->flags |= ATA_QCFLAG_EH;
 			ata_qc_complete(qc);
 			nr_aborted++;
 		}
@@ -1954,7 +1957,7 @@ static void ata_eh_link_autopsy(struct ata_link *link)
 	all_err_mask |= ehc->i.err_mask;
 
 	ata_qc_for_each_raw(ap, qc, tag) {
-		if (!(qc->flags & ATA_QCFLAG_FAILED) ||
+		if (!(qc->flags & ATA_QCFLAG_EH) ||
 		    qc->flags & ATA_QCFLAG_RETRY ||
 		    ata_dev_phys_link(qc->dev) != link)
 			continue;
@@ -2232,7 +2235,7 @@ static void ata_eh_link_report(struct ata_link *link)
 		desc = ehc->i.desc;
 
 	ata_qc_for_each_raw(ap, qc, tag) {
-		if (!(qc->flags & ATA_QCFLAG_FAILED) ||
+		if (!(qc->flags & ATA_QCFLAG_EH) ||
 		    ata_dev_phys_link(qc->dev) != link ||
 		    ((qc->flags & ATA_QCFLAG_QUIET) &&
 		     qc->err_mask == AC_ERR_DEV))
@@ -2298,7 +2301,7 @@ static void ata_eh_link_report(struct ata_link *link)
 		char data_buf[20] = "";
 		char cdb_buf[70] = "";
 
-		if (!(qc->flags & ATA_QCFLAG_FAILED) ||
+		if (!(qc->flags & ATA_QCFLAG_EH) ||
 		    ata_dev_phys_link(qc->dev) != link || !qc->err_mask)
 			continue;
 
@@ -3802,7 +3805,7 @@ void ata_eh_finish(struct ata_port *ap)
 
 	/* retry or finish qcs */
 	ata_qc_for_each_raw(ap, qc, tag) {
-		if (!(qc->flags & ATA_QCFLAG_FAILED))
+		if (!(qc->flags & ATA_QCFLAG_EH))
 			continue;
 
 		if (qc->err_mask) {

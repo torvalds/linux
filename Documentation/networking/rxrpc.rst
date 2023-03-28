@@ -880,8 +880,8 @@ The kernel interface functions are as follows:
 
      notify_end_rx can be NULL or it can be used to specify a function to be
      called when the call changes state to end the Tx phase.  This function is
-     called with the call-state spinlock held to prevent any reply or final ACK
-     from being delivered first.
+     called with a spinlock held to prevent the last DATA packet from being
+     transmitted until the function returns.
 
  (#) Receive data from a call::
 
@@ -1069,7 +1069,7 @@ The kernel interface functions are as follows:
      This value can be used to determine if the remote client has been
      restarted as it shouldn't change otherwise.
 
- (#) Set the maxmimum lifespan on a call::
+ (#) Set the maximum lifespan on a call::
 
 	void rxrpc_kernel_set_max_life(struct socket *sock,
 				       struct rxrpc_call *call,

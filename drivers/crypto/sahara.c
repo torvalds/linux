@@ -1049,7 +1049,7 @@ static int sahara_queue_manage(void *data)
 		spin_unlock_bh(&dev->queue_spinlock);
 
 		if (backlog)
-			backlog->complete(backlog, -EINPROGRESS);
+			crypto_request_complete(backlog, -EINPROGRESS);
 
 		if (async_req) {
 			if (crypto_tfm_alg_type(async_req->tfm) ==
@@ -1065,7 +1065,7 @@ static int sahara_queue_manage(void *data)
 				ret = sahara_aes_process(req);
 			}
 
-			async_req->complete(async_req, ret);
+			crypto_request_complete(async_req, ret);
 
 			continue;
 		}

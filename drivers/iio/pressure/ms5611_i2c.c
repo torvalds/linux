@@ -105,11 +105,6 @@ static int ms5611_i2c_probe(struct i2c_client *client)
 	return ms5611_probe(indio_dev, &client->dev, id->name, id->driver_data);
 }
 
-static void ms5611_i2c_remove(struct i2c_client *client)
-{
-	ms5611_remove(i2c_get_clientdata(client));
-}
-
 static const struct of_device_id ms5611_i2c_matches[] = {
 	{ .compatible = "meas,ms5611" },
 	{ .compatible = "meas,ms5607" },
@@ -131,7 +126,6 @@ static struct i2c_driver ms5611_driver = {
 	},
 	.id_table = ms5611_id,
 	.probe_new = ms5611_i2c_probe,
-	.remove = ms5611_i2c_remove,
 };
 module_i2c_driver(ms5611_driver);
 

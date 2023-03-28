@@ -62,6 +62,7 @@ struct io_sr_msg {
 	u16				flags;
 	/* initialised and used only by !msg send variants */
 	u16				addr_len;
+	u16				buf_group;
 	void __user			*addr;
 	/* used only for send zerocopy */
 	struct io_kiocb 		*notif;
@@ -89,6 +90,7 @@ int io_shutdown_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		return -EINVAL;
 
 	shutdown->how = READ_ONCE(sqe->len);
+	req->flags |= REQ_F_FORCE_ASYNC;
 	return 0;
 }
 
@@ -98,8 +100,7 @@ int io_shutdown(struct io_kiocb *req, unsigned int issue_flags)
 	struct socket *sock;
 	int ret;
 
-	if (issue_flags & IO_URING_F_NONBLOCK)
-		return -EAGAIN;
+	WARN_ON_ONCE(issue_flags & IO_URING_F_NONBLOCK);
 
 	sock = sock_from_file(req->file);
 	if (unlikely(!sock))
@@ -181,7 +182,7 @@ static int io_setup_async_msg(struct io_kiocb *req,
 	if (async_msg->msg.msg_name)
 		async_msg->msg.msg_name = &async_msg->addr;
 	/* if were using fast_iov, set it to the new one */
-	if (!kmsg->free_iov) {
+	if (iter_is_iovec(&kmsg->msg.msg_iter) && !kmsg->free_iov) {
 		size_t fast_idx = kmsg->msg.msg_iter.iov - kmsg->fast_iov;
 		async_msg->msg.msg_iter.iov = &async_msg->fast_iov[fast_idx];
 	}
@@ -344,7 +345,6 @@ int io_send(struct io_kiocb *req, unsigned int issue_flags)
 	struct sockaddr_storage __address;
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
 	struct msghdr msg;
-	struct iovec iov;
 	struct socket *sock;
 	unsigned flags;
 	int min_ret = 0;
@@ -378,7 +378,7 @@ int io_send(struct io_kiocb *req, unsigned int issue_flags)
 	if (unlikely(!sock))
 		return -ENOTSOCK;
 
-	ret = import_single_range(ITER_SOURCE, sr->buf, sr->len, &iov, &msg.msg_iter);
+	ret = import_ubuf(ITER_SOURCE, sr->buf, sr->len, &msg.msg_iter);
 	if (unlikely(ret))
 		return ret;
 
@@ -567,7 +567,7 @@ int io_recvmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	sr->flags = READ_ONCE(sqe->ioprio);
 	if (sr->flags & ~(RECVMSG_FLAGS))
 		return -EINVAL;
-	sr->msg_flags = READ_ONCE(sqe->msg_flags) | MSG_NOSIGNAL;
+	sr->msg_flags = READ_ONCE(sqe->msg_flags);
 	if (sr->msg_flags & MSG_DONTWAIT)
 		req->flags |= REQ_F_NOWAIT;
 	if (sr->msg_flags & MSG_ERRQUEUE)
@@ -580,6 +580,15 @@ int io_recvmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		if (req->opcode == IORING_OP_RECV && sr->len)
 			return -EINVAL;
 		req->flags |= REQ_F_APOLL_MULTISHOT;
+		/*
+		 * Store the buffer group for this multishot receive separately,
+		 * as if we end up doing an io-wq based issue that selects a
+		 * buffer, it has to be committed immediately and that will
+		 * clear ->buf_list. This means we lose the link to the buffer
+		 * list, and the eventual buffer put on completion then cannot
+		 * restore it.
+		 */
+		sr->buf_group = req->buf_index;
 	}
 
 #ifdef CONFIG_COMPAT
@@ -596,6 +605,7 @@ static inline void io_recv_prep_retry(struct io_kiocb *req)
 
 	sr->done_io = 0;
 	sr->len = 0; /* get from the provided buffer */
+	req->buf_index = sr->buf_group;
 }
 
 /*
@@ -764,10 +774,7 @@ retry_multishot:
 			}
 		}
 
-		kmsg->fast_iov[0].iov_base = buf;
-		kmsg->fast_iov[0].iov_len = len;
-		iov_iter_init(&kmsg->msg.msg_iter, ITER_DEST, kmsg->fast_iov, 1,
-				len);
+		iov_iter_ubuf(&kmsg->msg.msg_iter, ITER_DEST, buf, len);
 	}
 
 	flags = sr->msg_flags;
@@ -835,7 +842,6 @@ int io_recv(struct io_kiocb *req, unsigned int issue_flags)
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
 	struct msghdr msg;
 	struct socket *sock;
-	struct iovec iov;
 	unsigned int cflags;
 	unsigned flags;
 	int ret, min_ret = 0;
@@ -863,7 +869,7 @@ retry_multishot:
 		sr->buf = buf;
 	}
 
-	ret = import_single_range(ITER_DEST, sr->buf, len, &iov, &msg.msg_iter);
+	ret = import_ubuf(ITER_DEST, sr->buf, len, &msg.msg_iter);
 	if (unlikely(ret))
 		goto out_free;
 
@@ -1074,7 +1080,6 @@ int io_send_zc(struct io_kiocb *req, unsigned int issue_flags)
 	struct sockaddr_storage __address;
 	struct io_sr_msg *zc = io_kiocb_to_cmd(req, struct io_sr_msg);
 	struct msghdr msg;
-	struct iovec iov;
 	struct socket *sock;
 	unsigned msg_flags;
 	int ret, min_ret = 0;
@@ -1116,8 +1121,7 @@ int io_send_zc(struct io_kiocb *req, unsigned int issue_flags)
 		msg.sg_from_iter = io_sg_from_iter;
 	} else {
 		io_notif_set_extended(zc->notif);
-		ret = import_single_range(ITER_SOURCE, zc->buf, zc->len, &iov,
-					  &msg.msg_iter);
+		ret = import_ubuf(ITER_SOURCE, zc->buf, zc->len, &msg.msg_iter);
 		if (unlikely(ret))
 			return ret;
 		ret = io_notif_account_mem(zc->notif, zc->len);

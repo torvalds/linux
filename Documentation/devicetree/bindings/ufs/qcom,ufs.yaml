@@ -33,6 +33,7 @@ properties:
           - qcom,sm8250-ufshc
           - qcom,sm8350-ufshc
           - qcom,sm8450-ufshc
+          - qcom,sm8550-ufshc
       - const: qcom,ufshc
       - const: jedec,ufs-2.0
 
@@ -43,6 +44,8 @@ properties:
   clock-names:
     minItems: 8
     maxItems: 11
+
+  dma-coherent: true
 
   interconnects:
     minItems: 2
@@ -70,6 +73,9 @@ properties:
   reg:
     minItems: 1
     maxItems: 2
+
+  required-opps:
+    maxItems: 1
 
   resets:
     maxItems: 1
@@ -103,6 +109,7 @@ allOf:
               - qcom,sm8250-ufshc
               - qcom,sm8350-ufshc
               - qcom,sm8450-ufshc
+              - qcom,sm8550-ufshc
     then:
       properties:
         clocks:

@@ -12,6 +12,7 @@
 #include "rmnet_config.h"
 #include "rmnet_map.h"
 #include "rmnet_private.h"
+#include "rmnet_vnd.h"
 
 #define RMNET_MAP_DEAGGR_SPACING  64
 #define RMNET_MAP_DEAGGR_HEADROOM (RMNET_MAP_DEAGGR_SPACING / 2)
@@ -517,4 +518,194 @@ int rmnet_map_process_next_hdr_packet(struct sk_buff *skb,
 	skb_pull(skb, sizeof(*next_hdr));
 
 	return 0;
+}
+
+#define RMNET_AGG_BYPASS_TIME_NSEC 10000000L
+
+static void reset_aggr_params(struct rmnet_port *port)
+{
+	port->skbagg_head = NULL;
+	port->agg_count = 0;
+	port->agg_state = 0;
+	memset(&port->agg_time, 0, sizeof(struct timespec64));
+}
+
+static void rmnet_send_skb(struct rmnet_port *port, struct sk_buff *skb)
+{
+	if (skb_needs_linearize(skb, port->dev->features)) {
+		if (unlikely(__skb_linearize(skb))) {
+			struct rmnet_priv *priv;
+
+			priv = netdev_priv(port->rmnet_dev);
+			this_cpu_inc(priv->pcpu_stats->stats.tx_drops);
+			dev_kfree_skb_any(skb);
+			return;
+		}
+	}
+
+	dev_queue_xmit(skb);
+}
+
+static void rmnet_map_flush_tx_packet_work(struct work_struct *work)
+{
+	struct sk_buff *skb = NULL;
+	struct rmnet_port *port;
+
+	port = container_of(work, struct rmnet_port, agg_wq);
+
+	spin_lock_bh(&port->agg_lock);
+	if (likely(port->agg_state == -EINPROGRESS)) {
+		/* Buffer may have already been shipped out */
+		if (likely(port->skbagg_head)) {
+			skb = port->skbagg_head;
+			reset_aggr_params(port);
+		}
+		port->agg_state = 0;
+	}
+
+	spin_unlock_bh(&port->agg_lock);
+	if (skb)
+		rmnet_send_skb(port, skb);
+}
+
+static enum hrtimer_restart rmnet_map_flush_tx_packet_queue(struct hrtimer *t)
+{
+	struct rmnet_port *port;
+
+	port = container_of(t, struct rmnet_port, hrtimer);
+
+	schedule_work(&port->agg_wq);
+
+	return HRTIMER_NORESTART;
+}
+
+unsigned int rmnet_map_tx_aggregate(struct sk_buff *skb, struct rmnet_port *port,
+				    struct net_device *orig_dev)
+{
+	struct timespec64 diff, last;
+	unsigned int len = skb->len;
+	struct sk_buff *agg_skb;
+	int size;
+
+	spin_lock_bh(&port->agg_lock);
+	memcpy(&last, &port->agg_last, sizeof(struct timespec64));
+	ktime_get_real_ts64(&port->agg_last);
+
+	if (!port->skbagg_head) {
+		/* Check to see if we should agg first. If the traffic is very
+		 * sparse, don't aggregate.
+		 */
+new_packet:
+		diff = timespec64_sub(port->agg_last, last);
+		size = port->egress_agg_params.bytes - skb->len;
+
+		if (size < 0) {
+			/* dropped */
+			spin_unlock_bh(&port->agg_lock);
+			return 0;
+		}
+
+		if (diff.tv_sec > 0 || diff.tv_nsec > RMNET_AGG_BYPASS_TIME_NSEC ||
+		    size == 0)
+			goto no_aggr;
+
+		port->skbagg_head = skb_copy_expand(skb, 0, size, GFP_ATOMIC);
+		if (!port->skbagg_head)
+			goto no_aggr;
+
+		dev_kfree_skb_any(skb);
+		port->skbagg_head->protocol = htons(ETH_P_MAP);
+		port->agg_count = 1;
+		ktime_get_real_ts64(&port->agg_time);
+		skb_frag_list_init(port->skbagg_head);
+		goto schedule;
+	}
+	diff = timespec64_sub(port->agg_last, port->agg_time);
+	size = port->egress_agg_params.bytes - port->skbagg_head->len;
+
+	if (skb->len > size) {
+		agg_skb = port->skbagg_head;
+		reset_aggr_params(port);
+		spin_unlock_bh(&port->agg_lock);
+		hrtimer_cancel(&port->hrtimer);
+		rmnet_send_skb(port, agg_skb);
+		spin_lock_bh(&port->agg_lock);
+		goto new_packet;
+	}
+
+	if (skb_has_frag_list(port->skbagg_head))
+		port->skbagg_tail->next = skb;
+	else
+		skb_shinfo(port->skbagg_head)->frag_list = skb;
+
+	port->skbagg_head->len += skb->len;
+	port->skbagg_head->data_len += skb->len;
+	port->skbagg_head->truesize += skb->truesize;
+	port->skbagg_tail = skb;
+	port->agg_count++;
+
+	if (diff.tv_sec > 0 || diff.tv_nsec > port->egress_agg_params.time_nsec ||
+	    port->agg_count >= port->egress_agg_params.count ||
+	    port->skbagg_head->len == port->egress_agg_params.bytes) {
+		agg_skb = port->skbagg_head;
+		reset_aggr_params(port);
+		spin_unlock_bh(&port->agg_lock);
+		hrtimer_cancel(&port->hrtimer);
+		rmnet_send_skb(port, agg_skb);
+		return len;
+	}
+
+schedule:
+	if (!hrtimer_active(&port->hrtimer) && port->agg_state != -EINPROGRESS) {
+		port->agg_state = -EINPROGRESS;
+		hrtimer_start(&port->hrtimer,
+			      ns_to_ktime(port->egress_agg_params.time_nsec),
+			      HRTIMER_MODE_REL);
+	}
+	spin_unlock_bh(&port->agg_lock);
+
+	return len;
+
+no_aggr:
+	spin_unlock_bh(&port->agg_lock);
+	skb->protocol = htons(ETH_P_MAP);
+	dev_queue_xmit(skb);
+
+	return len;
+}
+
+void rmnet_map_update_ul_agg_config(struct rmnet_port *port, u32 size,
+				    u32 count, u32 time)
+{
+	spin_lock_bh(&port->agg_lock);
+	port->egress_agg_params.bytes = size;
+	WRITE_ONCE(port->egress_agg_params.count, count);
+	port->egress_agg_params.time_nsec = time * NSEC_PER_USEC;
+	spin_unlock_bh(&port->agg_lock);
+}
+
+void rmnet_map_tx_aggregate_init(struct rmnet_port *port)
+{
+	hrtimer_init(&port->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	port->hrtimer.function = rmnet_map_flush_tx_packet_queue;
+	spin_lock_init(&port->agg_lock);
+	rmnet_map_update_ul_agg_config(port, 4096, 1, 800);
+	INIT_WORK(&port->agg_wq, rmnet_map_flush_tx_packet_work);
+}
+
+void rmnet_map_tx_aggregate_exit(struct rmnet_port *port)
+{
+	hrtimer_cancel(&port->hrtimer);
+	cancel_work_sync(&port->agg_wq);
+
+	spin_lock_bh(&port->agg_lock);
+	if (port->agg_state == -EINPROGRESS) {
+		if (port->skbagg_head) {
+			dev_kfree_skb_any(port->skbagg_head);
+			reset_aggr_params(port);
+		}
+
+		port->agg_state = 0;
+	}
+	spin_unlock_bh(&port->agg_lock);
 }

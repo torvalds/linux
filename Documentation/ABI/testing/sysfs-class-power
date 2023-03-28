@@ -437,7 +437,8 @@ What:		/sys/class/power_supply/<supply_name>/present
 Date:		May 2007
 Contact:	linux-pm@vger.kernel.org
 Description:
-		Reports whether a battery is present or not in the system.
+		Reports whether a battery is present or not in the system. If the
+		property does not exist, the battery is considered to be present.
 
 		Access: Read
 

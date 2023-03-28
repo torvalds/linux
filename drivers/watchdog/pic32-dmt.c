@@ -164,11 +164,6 @@ static struct watchdog_device pic32_dmt_wdd = {
 	.ops		= &pic32_dmt_fops,
 };
 
-static void pic32_clk_disable_unprepare(void *data)
-{
-	clk_disable_unprepare(data);
-}
-
 static int pic32_dmt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -184,19 +179,11 @@ static int pic32_dmt_probe(struct platform_device *pdev)
 	if (IS_ERR(dmt->regs))
 		return PTR_ERR(dmt->regs);
 
-	dmt->clk = devm_clk_get(dev, NULL);
+	dmt->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(dmt->clk)) {
 		dev_err(dev, "clk not found\n");
 		return PTR_ERR(dmt->clk);
 	}
-
-	ret = clk_prepare_enable(dmt->clk);
-	if (ret)
-		return ret;
-	ret = devm_add_action_or_reset(dev, pic32_clk_disable_unprepare,
-				       dmt->clk);
-	if (ret)
-		return ret;
 
 	wdd->timeout = pic32_dmt_get_timeout_secs(dmt);
 	if (!wdd->timeout) {

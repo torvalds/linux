@@ -4,7 +4,7 @@
  * instructions. This file contains accelerated part of ghash
  * implementation. More information about PCLMULQDQ can be found at:
  *
- * http://software.intel.com/en-us/articles/carry-less-multiplication-and-its-usage-for-computing-the-gcm-mode/
+ * https://www.intel.com/content/dam/develop/external/us/en/documents/clmul-wp-rev-2-02-2014-04-20.pdf
  *
  * Copyright (c) 2009 Intel Corp.
  *   Author: Huang Ying <ying.huang@intel.com>
@@ -88,7 +88,7 @@ SYM_FUNC_START_LOCAL(__clmul_gf128mul_ble)
 	RET
 SYM_FUNC_END(__clmul_gf128mul_ble)
 
-/* void clmul_ghash_mul(char *dst, const u128 *shash) */
+/* void clmul_ghash_mul(char *dst, const le128 *shash) */
 SYM_FUNC_START(clmul_ghash_mul)
 	FRAME_BEGIN
 	movups (%rdi), DATA
@@ -104,7 +104,7 @@ SYM_FUNC_END(clmul_ghash_mul)
 
 /*
  * void clmul_ghash_update(char *dst, const char *src, unsigned int srclen,
- *			   const u128 *shash);
+ *			   const le128 *shash);
  */
 SYM_FUNC_START(clmul_ghash_update)
 	FRAME_BEGIN

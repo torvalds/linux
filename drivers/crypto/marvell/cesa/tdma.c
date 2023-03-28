@@ -168,7 +168,7 @@ int mv_cesa_tdma_process(struct mv_cesa_engine *engine, u32 status)
 									req);
 
 			if (backlog)
-				backlog->complete(backlog, -EINPROGRESS);
+				crypto_request_complete(backlog, -EINPROGRESS);
 		}
 
 		if (res || tdma->cur_dma == tdma_cur)

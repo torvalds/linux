@@ -165,7 +165,7 @@ err_hv_set_drv_data:
 	return ret;
 }
 
-static int hyperv_vmbus_remove(struct hv_device *hdev)
+static void hyperv_vmbus_remove(struct hv_device *hdev)
 {
 	struct drm_device *dev = hv_get_drvdata(hdev);
 	struct hyperv_drm_device *hv = to_hv(dev);
@@ -176,8 +176,6 @@ static int hyperv_vmbus_remove(struct hv_device *hdev)
 	hv_set_drvdata(hdev, NULL);
 
 	vmbus_free_mmio(hv->mem->start, hv->fb_size);
-
-	return 0;
 }
 
 static int hyperv_vmbus_suspend(struct hv_device *hdev)

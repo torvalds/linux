@@ -44,13 +44,16 @@ unsigned int vclocks_used __read_mostly;
 unsigned int __read_mostly vdso64_enabled = 1;
 #endif
 
-void __init init_vdso_image(const struct vdso_image *image)
+int __init init_vdso_image(const struct vdso_image *image)
 {
+	BUILD_BUG_ON(VDSO_CLOCKMODE_MAX >= 32);
 	BUG_ON(image->size % PAGE_SIZE != 0);
 
 	apply_alternatives((struct alt_instr *)(image->data + image->alt),
 			   (struct alt_instr *)(image->data + image->alt +
 						image->alt_len));
+
+	return 0;
 }
 
 static const struct vm_special_mapping vvar_mapping;
@@ -113,10 +116,8 @@ int vdso_join_timens(struct task_struct *task, struct time_namespace *ns)
 
 	mmap_read_lock(mm);
 	for_each_vma(vmi, vma) {
-		unsigned long size = vma->vm_end - vma->vm_start;
-
 		if (vma_is_special_mapping(vma, &vvar_mapping))
-			zap_page_range(vma, vma->vm_start, size);
+			zap_vma_pages(vma);
 	}
 	mmap_read_unlock(mm);
 
@@ -418,18 +419,4 @@ static __init int vdso_setup(char *s)
 	return 1;
 }
 __setup("vdso=", vdso_setup);
-
-static int __init init_vdso(void)
-{
-	BUILD_BUG_ON(VDSO_CLOCKMODE_MAX >= 32);
-
-	init_vdso_image(&vdso_image_64);
-
-#ifdef CONFIG_X86_X32_ABI
-	init_vdso_image(&vdso_image_x32);
-#endif
-
-	return 0;
-}
-subsys_initcall(init_vdso);
 #endif /* CONFIG_X86_64 */

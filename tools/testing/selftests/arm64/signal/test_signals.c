@@ -12,12 +12,10 @@
 #include "test_signals.h"
 #include "test_signals_utils.h"
 
-struct tdescr *current;
+struct tdescr *current = &tde;
 
 int main(int argc, char *argv[])
 {
-	current = &tde;
-
 	ksft_print_msg("%s :: %s\n", current->name, current->descr);
 	if (test_setup(current) && test_init(current)) {
 		test_run(current);

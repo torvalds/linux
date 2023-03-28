@@ -82,8 +82,7 @@ properties:
   iommus:
     maxItems: 1
 
-  operating-points-v2:
-    $ref: "/schemas/types.yaml#/definitions/phandle"
+  operating-points-v2: true
 
   power-domains:
     items:
@@ -100,53 +99,53 @@ properties:
 
       The DQS trim values are only used on controllers which support HS400
       timing. Only SDMMC4 on Tegra210 and Tegra186 supports HS400.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   nvidia,default-trim:
     description: Specify the default outbound clock trimmer value.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   nvidia,dqs-trim:
     description: Specify DQS trim value for HS400 timing.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   nvidia,pad-autocal-pull-down-offset-1v8:
     description: Specify drive strength calibration offsets for 1.8 V
       signaling modes.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   nvidia,pad-autocal-pull-down-offset-1v8-timeout:
     description: Specify drive strength used as a fallback in case the
       automatic calibration times out on a 1.8 V signaling mode.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   nvidia,pad-autocal-pull-down-offset-3v3:
     description: Specify drive strength calibration offsets for 3.3 V
       signaling modes.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   nvidia,pad-autocal-pull-down-offset-3v3-timeout:
     description: Specify drive strength used as a fallback in case the
       automatic calibration times out on a 3.3 V signaling mode.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   nvidia,pad-autocal-pull-down-offset-sdr104:
     description: Specify drive strength calibration offsets for SDR104 mode.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   nvidia,pad-autocal-pull-down-offset-hs400:
     description: Specify drive strength calibration offsets for HS400 mode.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   nvidia,pad-autocal-pull-up-offset-1v8:
     description: Specify drive strength calibration offsets for 1.8 V
       signaling modes.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   nvidia,pad-autocal-pull-up-offset-1v8-timeout:
     description: Specify drive strength used as a fallback in case the
       automatic calibration times out on a 1.8 V signaling mode.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   nvidia,pad-autocal-pull-up-offset-3v3:
     description: Specify drive strength calibration offsets for 3.3 V
@@ -158,25 +157,25 @@ properties:
       refer to the reference manual of the SoC for correct values. The SDR104
       and HS400 timing specific values are used in corresponding modes if
       specified.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   nvidia,pad-autocal-pull-up-offset-3v3-timeout:
     description: Specify drive strength used as a fallback in case the
       automatic calibration times out on a 3.3 V signaling mode.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   nvidia,pad-autocal-pull-up-offset-sdr104:
     description: Specify drive strength calibration offsets for SDR104 mode.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   nvidia,pad-autocal-pull-up-offset-hs400:
     description: Specify drive strength calibration offsets for HS400 mode.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   nvidia,only-1-8v:
     description: The presence of this property indicates that the controller
       operates at a 1.8 V fixed I/O voltage.
-    $ref: "/schemas/types.yaml#/definitions/flag"
+    $ref: /schemas/types.yaml#/definitions/flag
 
 required:
   - compatible
@@ -187,7 +186,7 @@ required:
   - reset-names
 
 allOf:
-  - $ref: "mmc-controller.yaml"
+  - $ref: mmc-controller.yaml
   - if:
       properties:
         compatible:

@@ -507,7 +507,7 @@ static int ice_vc_get_vf_res_msg(struct ice_vf *vf, u8 *msg)
 	vfres->vsi_res[0].vsi_type = VIRTCHNL_VSI_SRIOV;
 	vfres->vsi_res[0].num_queue_pairs = vsi->num_txq;
 	ether_addr_copy(vfres->vsi_res[0].default_mac_addr,
-			vf->hw_lan_addr.addr);
+			vf->hw_lan_addr);
 
 	/* match guest capabilities */
 	vf->driver_caps = vfres->vf_cap_flags;
@@ -1802,10 +1802,10 @@ ice_vfhw_mac_add(struct ice_vf *vf, struct virtchnl_ether_addr *vc_ether_addr)
 	 * was correctly specified over VIRTCHNL
 	 */
 	if ((ice_is_vc_addr_legacy(vc_ether_addr) &&
-	     is_zero_ether_addr(vf->hw_lan_addr.addr)) ||
+	     is_zero_ether_addr(vf->hw_lan_addr)) ||
 	    ice_is_vc_addr_primary(vc_ether_addr)) {
-		ether_addr_copy(vf->dev_lan_addr.addr, mac_addr);
-		ether_addr_copy(vf->hw_lan_addr.addr, mac_addr);
+		ether_addr_copy(vf->dev_lan_addr, mac_addr);
+		ether_addr_copy(vf->hw_lan_addr, mac_addr);
 	}
 
 	/* hardware and device MACs are already set, but its possible that the
@@ -1836,7 +1836,7 @@ ice_vc_add_mac_addr(struct ice_vf *vf, struct ice_vsi *vsi,
 	int ret;
 
 	/* device MAC already added */
-	if (ether_addr_equal(mac_addr, vf->dev_lan_addr.addr))
+	if (ether_addr_equal(mac_addr, vf->dev_lan_addr))
 		return 0;
 
 	if (is_unicast_ether_addr(mac_addr) && !ice_can_vf_change_mac(vf)) {
@@ -1891,8 +1891,8 @@ ice_update_legacy_cached_mac(struct ice_vf *vf,
 	    ice_is_legacy_umac_expired(&vf->legacy_last_added_umac))
 		return;
 
-	ether_addr_copy(vf->dev_lan_addr.addr, vf->legacy_last_added_umac.addr);
-	ether_addr_copy(vf->hw_lan_addr.addr, vf->legacy_last_added_umac.addr);
+	ether_addr_copy(vf->dev_lan_addr, vf->legacy_last_added_umac.addr);
+	ether_addr_copy(vf->hw_lan_addr, vf->legacy_last_added_umac.addr);
 }
 
 /**
@@ -1906,15 +1906,15 @@ ice_vfhw_mac_del(struct ice_vf *vf, struct virtchnl_ether_addr *vc_ether_addr)
 	u8 *mac_addr = vc_ether_addr->addr;
 
 	if (!is_valid_ether_addr(mac_addr) ||
-	    !ether_addr_equal(vf->dev_lan_addr.addr, mac_addr))
+	    !ether_addr_equal(vf->dev_lan_addr, mac_addr))
 		return;
 
 	/* allow the device MAC to be repopulated in the add flow and don't
-	 * clear the hardware MAC (i.e. hw_lan_addr.addr) here as that is meant
+	 * clear the hardware MAC (i.e. hw_lan_addr) here as that is meant
 	 * to be persistent on VM reboot and across driver unload/load, which
 	 * won't work if we clear the hardware MAC here
 	 */
-	eth_zero_addr(vf->dev_lan_addr.addr);
+	eth_zero_addr(vf->dev_lan_addr);
 
 	ice_update_legacy_cached_mac(vf, vc_ether_addr);
 }
@@ -1934,7 +1934,7 @@ ice_vc_del_mac_addr(struct ice_vf *vf, struct ice_vsi *vsi,
 	int status;
 
 	if (!ice_can_vf_change_mac(vf) &&
-	    ether_addr_equal(vf->dev_lan_addr.addr, mac_addr))
+	    ether_addr_equal(vf->dev_lan_addr, mac_addr))
 		return 0;
 
 	status = ice_fltr_remove_mac(vsi, mac_addr, ICE_FWD_TO_VSI);
@@ -3733,7 +3733,7 @@ static int ice_vc_repr_add_mac(struct ice_vf *vf, u8 *msg)
 		int result;
 
 		if (!is_unicast_ether_addr(mac_addr) ||
-		    ether_addr_equal(mac_addr, vf->hw_lan_addr.addr))
+		    ether_addr_equal(mac_addr, vf->hw_lan_addr))
 			continue;
 
 		if (vf->pf_set_mac) {

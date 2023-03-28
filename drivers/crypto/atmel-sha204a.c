@@ -93,11 +93,10 @@ static int atmel_sha204a_rng_read(struct hwrng *rng, void *data, size_t max,
 
 static int atmel_sha204a_probe(struct i2c_client *client)
 {
-	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct atmel_i2c_client_priv *i2c_priv;
 	int ret;
 
-	ret = atmel_i2c_probe(client, id);
+	ret = atmel_i2c_probe(client);
 	if (ret)
 		return ret;
 

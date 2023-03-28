@@ -72,7 +72,7 @@
 
 	sound {
 		compatible = "audio-graph-card";
-		label = "STM32MP1-DK";
+		label = "STM32MP15-DK";
 		routing =
 			"Playback" , "MCLK",
 			"Capture" , "MCLK",
@@ -501,8 +501,6 @@
 	sai2a: audio-controller@4400b004 {
 		#clock-cells = <0>;
 		dma-names = "tx";
-		clocks = <&rcc SAI2_K>;
-		clock-names = "sai_ck";
 		status = "okay";
 
 		sai2a_port: port {

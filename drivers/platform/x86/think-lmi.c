@@ -317,8 +317,8 @@ static int tlmi_get_pwd_settings(struct tlmi_pwdcfg *pwdcfg)
 		return -EIO;
 	}
 
-	copy_size = obj->buffer.length < sizeof(struct tlmi_pwdcfg) ?
-		obj->buffer.length : sizeof(struct tlmi_pwdcfg);
+	copy_size = min_t(size_t, obj->buffer.length, sizeof(struct tlmi_pwdcfg));
+
 	memcpy(pwdcfg, obj->buffer.pointer, copy_size);
 	kfree(obj);
 
@@ -1089,12 +1089,12 @@ static void tlmi_pwd_setting_release(struct kobject *kobj)
 	kfree(setting);
 }
 
-static struct kobj_type tlmi_attr_setting_ktype = {
+static const struct kobj_type tlmi_attr_setting_ktype = {
 	.release        = &tlmi_attr_setting_release,
 	.sysfs_ops	= &tlmi_kobj_sysfs_ops,
 };
 
-static struct kobj_type tlmi_pwd_setting_ktype = {
+static const struct kobj_type tlmi_pwd_setting_ktype = {
 	.release        = &tlmi_pwd_setting_release,
 	.sysfs_ops	= &tlmi_kobj_sysfs_ops,
 };

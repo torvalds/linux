@@ -315,7 +315,7 @@ Some of the interface modes are described below:
     only the port id, but also so-called "extensions". The only documented
     extension so-far in the specification is the inclusion of timestamps, for
     PTP-enabled PHYs. This mode isn't compatible with QSGMII, but offers the
-    same capabilities in terms of link speed and negociation.
+    same capabilities in terms of link speed and negotiation.
 
 ``PHY_INTERFACE_MODE_1000BASEKX``
     This is 1000BASE-X as defined by IEEE 802.3 Clause 36 with Clause 73

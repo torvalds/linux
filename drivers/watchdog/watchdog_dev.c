@@ -35,6 +35,7 @@
 #include <linux/init.h>		/* For __init/__exit/... */
 #include <linux/hrtimer.h>	/* For hrtimers */
 #include <linux/kernel.h>	/* For printk/panic/... */
+#include <linux/kstrtox.h>	/* For kstrto* */
 #include <linux/kthread.h>	/* For kthread_work */
 #include <linux/miscdevice.h>	/* For handling misc devices */
 #include <linux/module.h>	/* For module stuff/... */
@@ -546,6 +547,24 @@ static ssize_t pretimeout_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(pretimeout);
 
+static ssize_t options_show(struct device *dev, struct device_attribute *attr,
+			    char *buf)
+{
+	struct watchdog_device *wdd = dev_get_drvdata(dev);
+
+	return sysfs_emit(buf, "0x%x\n", wdd->info->options);
+}
+static DEVICE_ATTR_RO(options);
+
+static ssize_t fw_version_show(struct device *dev, struct device_attribute *attr,
+			       char *buf)
+{
+	struct watchdog_device *wdd = dev_get_drvdata(dev);
+
+	return sysfs_emit(buf, "%d\n", wdd->info->firmware_version);
+}
+static DEVICE_ATTR_RO(fw_version);
+
 static ssize_t identity_show(struct device *dev, struct device_attribute *attr,
 				char *buf)
 {
@@ -617,6 +636,8 @@ static umode_t wdt_is_visible(struct kobject *kobj, struct attribute *attr,
 }
 static struct attribute *wdt_attrs[] = {
 	&dev_attr_state.attr,
+	&dev_attr_options.attr,
+	&dev_attr_fw_version.attr,
 	&dev_attr_identity.attr,
 	&dev_attr_timeout.attr,
 	&dev_attr_min_timeout.attr,
@@ -1061,8 +1082,8 @@ static int watchdog_cdev_register(struct watchdog_device *wdd)
 		if (wdd->id == 0) {
 			misc_deregister(&watchdog_miscdev);
 			old_wd_data = NULL;
-			put_device(&wd_data->dev);
 		}
+		put_device(&wd_data->dev);
 		return err;
 	}
 

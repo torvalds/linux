@@ -795,7 +795,6 @@ void snd_hda_codec_cleanup_for_unbind(struct hda_codec *codec)
 	snd_array_free(&codec->cvt_setups);
 	snd_array_free(&codec->spdif_out);
 	snd_array_free(&codec->verbs);
-	codec->preset = NULL;
 	codec->follower_dig_outs = NULL;
 	codec->spdif_status_reset = 0;
 	snd_array_free(&codec->mixers);
@@ -928,7 +927,6 @@ snd_hda_codec_device_init(struct hda_bus *bus, unsigned int codec_addr,
 	codec->depop_delay = -1;
 	codec->fixup_id = HDA_FIXUP_ID_NOT_SET;
 	codec->core.dev.release = snd_hda_codec_dev_release;
-	codec->core.exec_verb = codec_exec_verb;
 	codec->core.type = HDA_DEV_LEGACY;
 
 	mutex_init(&codec->spdif_mutex);
@@ -999,6 +997,7 @@ int snd_hda_codec_device_new(struct hda_bus *bus, struct snd_card *card,
 	if (snd_BUG_ON(codec_addr > HDA_MAX_CODEC_ADDRESS))
 		return -EINVAL;
 
+	codec->core.exec_verb = codec_exec_verb;
 	codec->card = card;
 	codec->addr = codec_addr;
 
@@ -3390,7 +3389,12 @@ int snd_hda_add_new_ctls(struct hda_codec *codec,
 			kctl = snd_ctl_new1(knew, codec);
 			if (!kctl)
 				return -ENOMEM;
-			if (addr > 0)
+			/* Do not use the id.device field for MIXER elements.
+			 * This field is for real device numbers (like PCM) but codecs
+			 * are hidden components from the user space view (unrelated
+			 * to the mixer element identification).
+			 */
+			if (addr > 0 && codec->ctl_dev_id)
 				kctl->id.device = addr;
 			if (idx > 0)
 				kctl->id.index = idx;
@@ -3401,9 +3405,11 @@ int snd_hda_add_new_ctls(struct hda_codec *codec,
 			 * the codec addr; if it still fails (or it's the
 			 * primary codec), then try another control index
 			 */
-			if (!addr && codec->core.addr)
+			if (!addr && codec->core.addr) {
 				addr = codec->core.addr;
-			else if (!idx && !knew->index) {
+				if (!codec->ctl_dev_id)
+					idx += 10 * addr;
+			} else if (!idx && !knew->index) {
 				idx = find_empty_mixer_ctl_idx(codec,
 							       knew->name, 0);
 				if (idx <= 0)

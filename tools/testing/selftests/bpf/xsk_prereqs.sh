@@ -55,21 +55,13 @@ test_exit()
 
 clear_configs()
 {
-	if [ $(ip netns show | grep $3 &>/dev/null; echo $?;) == 0 ]; then
-		[ $(ip netns exec $3 ip link show $2 &>/dev/null; echo $?;) == 0 ] &&
-			{ ip netns exec $3 ip link del $2; }
-		ip netns del $3
-	fi
-	#Once we delete a veth pair node, the entire veth pair is removed,
-	#this is just to be cautious just incase the NS does not exist then
-	#veth node inside NS won't get removed so we explicitly remove it
 	[ $(ip link show $1 &>/dev/null; echo $?;) == 0 ] &&
 		{ ip link del $1; }
 }
 
 cleanup_exit()
 {
-	clear_configs $1 $2 $3
+	clear_configs $1 $2
 }
 
 validate_ip_utility()
@@ -83,7 +75,7 @@ exec_xskxceiver()
 	        ARGS+="-b "
 	fi
 
-	./${XSKOBJ} -i ${VETH0} -i ${VETH1},${NS1} ${ARGS}
+	./${XSKOBJ} -i ${VETH0} -i ${VETH1} ${ARGS}
 
 	retval=$?
 	test_status $retval "${TEST_NAME}"

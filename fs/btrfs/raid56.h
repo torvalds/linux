@@ -65,7 +65,7 @@ struct btrfs_raid_bio {
 	/* Number of data stripes (no p/q) */
 	u8 nr_data;
 
-	/* Numer of all stripes (including P/Q) */
+	/* Number of all stripes (including P/Q) */
 	u8 real_stripes;
 
 	/* How many pages there are for each stripe */
@@ -132,7 +132,7 @@ struct btrfs_raid_bio {
 
 	/*
 	 * Checksum buffer if the rbio is for data.  The buffer should cover
-	 * all data sectors (exlcuding P/Q sectors).
+	 * all data sectors (excluding P/Q sectors).
 	 */
 	u8 *csum_buf;
 

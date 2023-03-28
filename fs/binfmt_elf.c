@@ -46,6 +46,7 @@
 #include <linux/cred.h>
 #include <linux/dax.h>
 #include <linux/uaccess.h>
+#include <linux/rseq.h>
 #include <asm/param.h>
 #include <asm/page.h>
 
@@ -288,6 +289,10 @@ create_elf_tables(struct linux_binprm *bprm, const struct elfhdr *exec,
 	if (bprm->have_execfd) {
 		NEW_AUX_ENT(AT_EXECFD, bprm->execfd);
 	}
+#ifdef CONFIG_RSEQ
+	NEW_AUX_ENT(AT_RSEQ_FEATURE_SIZE, offsetof(struct rseq, end));
+	NEW_AUX_ENT(AT_RSEQ_ALIGN, __alignof__(struct rseq));
+#endif
 #undef NEW_AUX_ENT
 	/* AT_NULL is zero; clear the rest too */
 	memset(elf_info, 0, (char *)mm->saved_auxv +
@@ -2034,7 +2039,7 @@ static int elf_core_dump(struct coredump_params *cprm)
 	 * The number of segs are recored into ELF header as 16bit value.
 	 * Please check DEFAULT_MAX_MAP_COUNT definition when you modify here.
 	 */
-	segs = cprm->vma_count + elf_core_extra_phdrs();
+	segs = cprm->vma_count + elf_core_extra_phdrs(cprm);
 
 	/* for notes section */
 	segs++;
@@ -2074,7 +2079,7 @@ static int elf_core_dump(struct coredump_params *cprm)
 	dataoff = offset = roundup(offset, ELF_EXEC_PAGESIZE);
 
 	offset += cprm->vma_data_size;
-	offset += elf_core_extra_data_size();
+	offset += elf_core_extra_data_size(cprm);
 	e_shoff = offset;
 
 	if (e_phnum == PN_XNUM) {

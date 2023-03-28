@@ -4,7 +4,7 @@
  */
 
 #include <linux/of_device.h>
-#include <linux/qcom_scm.h>
+#include <linux/firmware/qcom/qcom_scm.h>
 #include <linux/ratelimit.h>
 
 #include "arm-smmu.h"

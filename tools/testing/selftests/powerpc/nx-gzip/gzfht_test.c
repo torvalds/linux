@@ -143,54 +143,6 @@ int gzip_header_blank(char *buf)
 	return i;
 }
 
-/* Caller must free the allocated buffer return nonzero on error. */
-int read_alloc_input_file(char *fname, char **buf, size_t *bufsize)
-{
-	struct stat statbuf;
-	FILE *fp;
-	char *p;
-	size_t num_bytes;
-
-	if (stat(fname, &statbuf)) {
-		perror(fname);
-		return(-1);
-	}
-	fp = fopen(fname, "r");
-	if (fp == NULL) {
-		perror(fname);
-		return(-1);
-	}
-	assert(NULL != (p = (char *) malloc(statbuf.st_size)));
-	num_bytes = fread(p, 1, statbuf.st_size, fp);
-	if (ferror(fp) || (num_bytes != statbuf.st_size)) {
-		perror(fname);
-		return(-1);
-	}
-	*buf = p;
-	*bufsize = num_bytes;
-	return 0;
-}
-
-/* Returns nonzero on error */
-int write_output_file(char *fname, char *buf, size_t bufsize)
-{
-	FILE *fp;
-	size_t num_bytes;
-
-	fp = fopen(fname, "w");
-	if (fp == NULL) {
-		perror(fname);
-		return(-1);
-	}
-	num_bytes = fwrite(buf, 1, bufsize, fp);
-	if (ferror(fp) || (num_bytes != bufsize)) {
-		perror(fname);
-		return(-1);
-	}
-	fclose(fp);
-	return 0;
-}
-
 /*
  * Z_SYNC_FLUSH as described in zlib.h.
  * Returns number of appended bytes
@@ -257,7 +209,7 @@ int compress_file(int argc, char **argv, void *handle)
 		fprintf(stderr, "usage: %s <fname>\n", argv[0]);
 		exit(-1);
 	}
-	if (read_alloc_input_file(argv[1], &inbuf, &inlen))
+	if (read_file_alloc(argv[1], &inbuf, &inlen))
 		exit(-1);
 	fprintf(stderr, "file %s read, %ld bytes\n", argv[1], inlen);
 
@@ -399,7 +351,7 @@ int compress_file(int argc, char **argv, void *handle)
 	assert(FNAME_MAX > (strlen(argv[1]) + strlen(FEXT)));
 	strcpy(outname, argv[1]);
 	strcat(outname, FEXT);
-	if (write_output_file(outname, outbuf, dsttotlen)) {
+	if (write_file(outname, outbuf, dsttotlen)) {
 		fprintf(stderr, "write error: %s\n", outname);
 		exit(-1);
 	}

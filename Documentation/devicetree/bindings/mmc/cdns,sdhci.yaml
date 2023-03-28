@@ -29,6 +29,9 @@ properties:
   clocks:
     maxItems: 1
 
+  resets:
+    maxItems: 1
+
   # PHY DLL input delays:
   # They are used to delay the data valid window, and align the window to
   # sampling clock. The delay starts from 5ns (for delay parameter equal to 0)
@@ -36,43 +39,43 @@ properties:
 
   cdns,phy-input-delay-sd-highspeed:
     description: Value of the delay in the input path for SD high-speed timing
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 0x1f
 
   cdns,phy-input-delay-legacy:
     description: Value of the delay in the input path for legacy timing
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 0x1f
 
   cdns,phy-input-delay-sd-uhs-sdr12:
     description: Value of the delay in the input path for SD UHS SDR12 timing
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 0x1f
 
   cdns,phy-input-delay-sd-uhs-sdr25:
     description: Value of the delay in the input path for SD UHS SDR25 timing
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 0x1f
 
   cdns,phy-input-delay-sd-uhs-sdr50:
     description: Value of the delay in the input path for SD UHS SDR50 timing
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 0x1f
 
   cdns,phy-input-delay-sd-uhs-ddr50:
     description: Value of the delay in the input path for SD UHS DDR50 timing
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 0x1f
 
   cdns,phy-input-delay-mmc-highspeed:
     description: Value of the delay in the input path for MMC high-speed timing
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 0x1f
 
@@ -83,7 +86,7 @@ properties:
   # Each delay property represents the fraction of the clock period.
   # The approximate delay value will be
   # (<delay property value>/128)*sdmclk_clock_period.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 0x1f
 
@@ -91,7 +94,7 @@ properties:
     description: |
       Value of the delay introduced on the sdclk output for all modes except
       HS200, HS400 and HS400_ES.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 0x7f
 
@@ -99,7 +102,7 @@ properties:
     description: |
       Value of the delay introduced on the sdclk output for HS200, HS400 and
       HS400_ES speed modes.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 0x7f
 
@@ -107,7 +110,7 @@ properties:
     description: |
       Value of the delay introduced on the dat_strobe input used in
       HS400 / HS400_ES speed modes.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 0x7f
 

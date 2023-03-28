@@ -164,7 +164,6 @@ struct vc4_hdmi {
 	struct clk *cec_clock;
 	struct clk *pixel_clock;
 	struct clk *hsm_clock;
-	struct clk *hsm_rpm_clock;
 	struct clk *audio_clock;
 	struct clk *pixel_bvb_clock;
 

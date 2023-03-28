@@ -25,13 +25,8 @@ static struct platform_device omap_i2c_devices[1] = {
 
 static void __init omap1_i2c_mux_pins(int bus_id)
 {
-	if (cpu_is_omap7xx()) {
-		omap_cfg_reg(I2C_7XX_SDA);
-		omap_cfg_reg(I2C_7XX_SCL);
-	} else {
-		omap_cfg_reg(I2C_SDA);
-		omap_cfg_reg(I2C_SCL);
-	}
+	omap_cfg_reg(I2C_SDA);
+	omap_cfg_reg(I2C_SCL);
 }
 
 int __init omap_i2c_add_bus(struct omap_i2c_bus_platform_data *pdata,
@@ -68,10 +63,7 @@ int __init omap_i2c_add_bus(struct omap_i2c_bus_platform_data *pdata,
 
 	/* how the cpu bus is wired up differs for 7xx only */
 
-	if (cpu_is_omap7xx())
-		pdata->flags |= OMAP_I2C_FLAG_BUS_SHIFT_1;
-	else
-		pdata->flags |= OMAP_I2C_FLAG_BUS_SHIFT_2;
+	pdata->flags |= OMAP_I2C_FLAG_BUS_SHIFT_2;
 
 	pdev->dev.platform_data = pdata;
 

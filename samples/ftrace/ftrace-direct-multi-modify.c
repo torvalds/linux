@@ -3,7 +3,6 @@
 #include <linux/kthread.h>
 #include <linux/ftrace.h>
 #include <asm/asm-offsets.h>
-#include <asm/nospec-branch.h>
 
 extern void my_direct_func1(unsigned long ip);
 extern void my_direct_func2(unsigned long ip);
@@ -24,6 +23,7 @@ extern void my_tramp2(void *);
 #ifdef CONFIG_X86_64
 
 #include <asm/ibt.h>
+#include <asm/nospec-branch.h>
 
 asm (
 "	.pushsection    .text, \"ax\", @progbits\n"
@@ -152,6 +152,7 @@ static void __exit ftrace_direct_multi_exit(void)
 {
 	kthread_stop(simple_tsk);
 	unregister_ftrace_direct_multi(&direct, my_tramp);
+	ftrace_free_filter(&direct);
 }
 
 module_init(ftrace_direct_multi_init);

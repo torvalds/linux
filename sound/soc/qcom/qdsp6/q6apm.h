@@ -145,4 +145,6 @@ struct audioreach_module *q6apm_find_module_by_mid(struct q6apm_graph *graph,
 void q6apm_set_fe_dai_ops(struct snd_soc_dai_driver *dai_drv);
 int q6apm_graph_get_rx_shmem_module_iid(struct q6apm_graph *graph);
 
+bool q6apm_is_adsp_ready(void);
+
 #endif /* __APM_GRAPH_ */

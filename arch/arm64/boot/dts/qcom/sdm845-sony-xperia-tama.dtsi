@@ -4,6 +4,7 @@
  */
 
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 #include "sdm845.dtsi"
 #include "pm8005.dtsi"
@@ -17,14 +18,43 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		/* Neither Camera Focus, nor Camera Shutter seem to work... */
+		pinctrl-0 = <&focus_n &snapshot_n &vol_down_n &vol_up_n>;
+		pinctrl-names = "default";
 
-		key-vol-down {
-			label = "volume_down";
-			gpios = <&pm8998_gpio 5 GPIO_ACTIVE_LOW>;
+		key-camera-focus {
+			label = "Camera Focus";
+			gpios = <&pm8998_gpios 2 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_CAMERA_FOCUS>;
+			debounce-interval = <15>;
+			linux,can-disable;
+			wakeup-source;
+		};
+
+		key-camera-snapshot {
+			label = "Camera Snapshot";
+			gpios = <&pm8998_gpios 7 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_CAMERA>;
+			debounce-interval = <15>;
+			linux,can-disable;
+			wakeup-source;
+		};
+
+		key-volume-down {
+			label = "Volume Down";
+			gpios = <&pm8998_gpios 5 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEDOWN>;
 			debounce-interval = <15>;
-			gpio-key,wakeup;
+			linux,can-disable;
+			wakeup-source;
+		};
+
+		key-volume-up {
+			label = "Volume Up";
+			gpios = <&pm8998_gpios 6 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEUP>;
+			debounce-interval = <15>;
+			linux,can-disable;
+			wakeup-source;
 		};
 	};
 
@@ -69,7 +99,7 @@
 };
 
 &apps_rsc {
-	pm8998-rpmh-regulators {
+	regulators-0 {
 		compatible = "qcom,pm8998-rpmh-regulators";
 		qcom,pmic-id = "a";
 
@@ -299,7 +329,7 @@
 		};
 	};
 
-	pmi8998-rpmh-regulators {
+	regulators-1 {
 		compatible = "qcom,pmi8998-rpmh-regulators";
 		qcom,pmic-id = "b";
 
@@ -310,7 +340,7 @@
 		};
 	};
 
-	pm8005-rpmh-regulators {
+	regulators-2 {
 		compatible = "qcom,pm8005-rpmh-regulators";
 		qcom,pmic-id = "c";
 
@@ -358,6 +388,40 @@
 	/* AMS TCS3490 RGB+IR color sensor @ 72 */
 };
 
+&pm8998_gpios {
+	focus_n: focus-n-state {
+		pins = "gpio2";
+		function = PMIC_GPIO_FUNC_NORMAL;
+		power-source = <0>;
+		bias-pull-up;
+		input-enable;
+	};
+
+	vol_down_n: vol-down-n-state {
+		pins = "gpio5";
+		function = PMIC_GPIO_FUNC_NORMAL;
+		power-source = <0>;
+		bias-pull-up;
+		input-enable;
+	};
+
+	vol_up_n: vol-up-n-state {
+		pins = "gpio6";
+		function = PMIC_GPIO_FUNC_NORMAL;
+		power-source = <0>;
+		bias-pull-up;
+		input-enable;
+	};
+
+	snapshot_n: snapshot-n-state {
+		pins = "gpio7";
+		function = PMIC_GPIO_FUNC_NORMAL;
+		power-source = <0>;
+		bias-pull-up;
+		input-enable;
+	};
+};
+
 &qupv3_id_0 {
 	status = "okay";
 };
@@ -383,19 +447,19 @@
 	gpio-reserved-ranges = <0 4>, <81 4>;
 
 	sdc2_default_state: sdc2-default-state {
-		clk {
+		clk-pins {
 			pins = "sdc2_clk";
 			drive-strength = <16>;
 			bias-disable;
 		};
 
-		cmd {
+		cmd-pins {
 			pins = "sdc2_cmd";
 			drive-strength = <10>;
 			bias-pull-up;
 		};
 
-		data {
+		data-pins {
 			pins = "sdc2_data";
 			drive-strength = <10>;
 			bias-pull-up;

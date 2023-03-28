@@ -12,6 +12,7 @@
 #include <linux/mutex.h>
 #include <linux/phy.h>
 #include <linux/polynomial.h>
+#include <linux/property.h>
 #include <linux/netdevice.h>
 
 /* PHY ID */
@@ -291,6 +292,10 @@ static int gpy_probe(struct phy_device *phydev)
 		return -ENOMEM;
 	phydev->priv = priv;
 	mutex_init(&priv->mbox_lock);
+
+	if (gpy_has_broken_mdint(phydev) &&
+	    !device_property_present(dev, "maxlinear,use-broken-interrupts"))
+		phydev->dev_flags |= PHY_F_NO_IRQ;
 
 	fw_version = phy_read(phydev, PHY_FWV);
 	if (fw_version < 0)

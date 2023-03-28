@@ -537,7 +537,7 @@ static bool btf_is_kernel_module(__u32 btf_id)
 	len = sizeof(btf_info);
 	btf_info.name = ptr_to_u64(btf_name);
 	btf_info.name_len = sizeof(btf_name);
-	err = bpf_obj_get_info_by_fd(btf_fd, &btf_info, &len);
+	err = bpf_btf_get_info_by_fd(btf_fd, &btf_info, &len);
 	close(btf_fd);
 	if (err) {
 		p_err("can't get BTF (ID %u) object info: %s", btf_id, strerror(errno));
@@ -606,7 +606,7 @@ static int do_dump(int argc, char **argv)
 		if (fd < 0)
 			return -1;
 
-		err = bpf_obj_get_info_by_fd(fd, &info, &len);
+		err = bpf_prog_get_info_by_fd(fd, &info, &len);
 		if (err) {
 			p_err("can't get prog info: %s", strerror(errno));
 			goto done;
@@ -789,7 +789,10 @@ build_btf_type_table(struct hashmap *tab, enum bpf_obj_type type,
 		}
 
 		memset(info, 0, *len);
-		err = bpf_obj_get_info_by_fd(fd, info, len);
+		if (type == BPF_OBJ_PROG)
+			err = bpf_prog_get_info_by_fd(fd, info, len);
+		else
+			err = bpf_map_get_info_by_fd(fd, info, len);
 		close(fd);
 		if (err) {
 			p_err("can't get %s info: %s", names[type],
@@ -931,7 +934,7 @@ show_btf(int fd, struct hashmap *btf_prog_table,
 	int err;
 
 	memset(&info, 0, sizeof(info));
-	err = bpf_obj_get_info_by_fd(fd, &info, &len);
+	err = bpf_btf_get_info_by_fd(fd, &info, &len);
 	if (err) {
 		p_err("can't get BTF object info: %s", strerror(errno));
 		return -1;
@@ -943,7 +946,7 @@ show_btf(int fd, struct hashmap *btf_prog_table,
 		info.name = ptr_to_u64(name);
 		len = sizeof(info);
 
-		err = bpf_obj_get_info_by_fd(fd, &info, &len);
+		err = bpf_btf_get_info_by_fd(fd, &info, &len);
 		if (err) {
 			p_err("can't get BTF object info: %s", strerror(errno));
 			return -1;

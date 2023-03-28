@@ -42,11 +42,7 @@ static inline unsigned long xip_omap_mpu_timer_read(int nr)
  * (see linux/mtd/xip.h)
  */
 
-#ifdef CONFIG_MACH_OMAP_PERSEUS2
-#define xip_elapsed_since(x)	(signed)((~xip_omap_mpu_timer_read(0) - (x)) / 7)
-#else
 #define xip_elapsed_since(x)	(signed)((~xip_omap_mpu_timer_read(0) - (x)) / 6)
-#endif
 
 /*
  * xip_cpu_idle() is used when waiting for a delay equal or larger than

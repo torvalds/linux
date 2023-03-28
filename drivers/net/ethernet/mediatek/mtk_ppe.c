@@ -615,8 +615,7 @@ mtk_foe_entry_commit_subflow(struct mtk_ppe *ppe, struct mtk_flow_entry *entry,
 	u32 ib1_mask = mtk_get_ib1_pkt_type_mask(ppe->eth) | MTK_FOE_IB1_UDP;
 	int type;
 
-	flow_info = kzalloc(offsetof(struct mtk_flow_entry, l2_data.end),
-			    GFP_ATOMIC);
+	flow_info = kzalloc(sizeof(*flow_info), GFP_ATOMIC);
 	if (!flow_info)
 		return;
 
@@ -728,6 +727,33 @@ int mtk_foe_entry_idle_time(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
 	mtk_flow_entry_update(ppe, entry);
 
 	return __mtk_foe_entry_idle_time(ppe, entry->data.ib1);
+}
+
+int mtk_ppe_prepare_reset(struct mtk_ppe *ppe)
+{
+	if (!ppe)
+		return -EINVAL;
+
+	/* disable KA */
+	ppe_clear(ppe, MTK_PPE_TB_CFG, MTK_PPE_TB_CFG_KEEPALIVE);
+	ppe_clear(ppe, MTK_PPE_BIND_LMT1, MTK_PPE_NTU_KEEPALIVE);
+	ppe_w32(ppe, MTK_PPE_KEEPALIVE, 0);
+	usleep_range(10000, 11000);
+
+	/* set KA timer to maximum */
+	ppe_set(ppe, MTK_PPE_BIND_LMT1, MTK_PPE_NTU_KEEPALIVE);
+	ppe_w32(ppe, MTK_PPE_KEEPALIVE, 0xffffffff);
+
+	/* set KA tick select */
+	ppe_set(ppe, MTK_PPE_TB_CFG, MTK_PPE_TB_TICK_SEL);
+	ppe_set(ppe, MTK_PPE_TB_CFG, MTK_PPE_TB_CFG_KEEPALIVE);
+	usleep_range(10000, 11000);
+
+	/* disable scan mode */
+	ppe_clear(ppe, MTK_PPE_TB_CFG, MTK_PPE_TB_CFG_SCAN_MODE);
+	usleep_range(10000, 11000);
+
+	return mtk_ppe_wait_busy(ppe);
 }
 
 struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base,

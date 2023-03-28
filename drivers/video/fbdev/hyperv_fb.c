@@ -1234,8 +1234,7 @@ error1:
 	return ret;
 }
 
-
-static int hvfb_remove(struct hv_device *hdev)
+static void hvfb_remove(struct hv_device *hdev)
 {
 	struct fb_info *info = hv_get_drvdata(hdev);
 	struct hvfb_par *par = info->par;
@@ -1256,8 +1255,6 @@ static int hvfb_remove(struct hv_device *hdev)
 
 	hvfb_putmem(hdev, info);
 	framebuffer_release(info);
-
-	return 0;
 }
 
 static int hvfb_suspend(struct hv_device *hdev)

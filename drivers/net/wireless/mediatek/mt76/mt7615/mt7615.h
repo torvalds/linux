@@ -376,6 +376,12 @@ int mt7615_mmio_probe(struct device *pdev, void __iomem *mem_base,
 		      int irq, const u32 *map);
 u32 mt7615_reg_map(struct mt7615_dev *dev, u32 addr);
 
+u32 mt7615_reg_map(struct mt7615_dev *dev, u32 addr);
+int mt7615_led_set_blink(struct led_classdev *led_cdev,
+			 unsigned long *delay_on,
+			 unsigned long *delay_off);
+void mt7615_led_set_brightness(struct led_classdev *led_cdev,
+			       enum led_brightness brightness);
 void mt7615_init_device(struct mt7615_dev *dev);
 int mt7615_register_device(struct mt7615_dev *dev);
 void mt7615_unregister_device(struct mt7615_dev *dev);

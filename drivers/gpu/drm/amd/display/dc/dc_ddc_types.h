@@ -178,6 +178,9 @@ enum display_dongle_type {
 	DISPLAY_DONGLE_DP_HDMI_MISMATCHED_DONGLE,
 };
 
+#define DC_MAX_EDID_BUFFER_SIZE 2048
+#define DC_EDID_BLOCK_SIZE 128
+
 struct ddc_service {
 	struct ddc *ddc_pin;
 	struct ddc_flags flags;

@@ -79,23 +79,6 @@ static void btrfs_free_csum_hash(struct btrfs_fs_info *fs_info)
 }
 
 /*
- * async submit bios are used to offload expensive checksumming
- * onto the worker threads.  They checksum file and metadata bios
- * just before they are sent down the IO stack.
- */
-struct async_submit_bio {
-	struct btrfs_inode *inode;
-	struct bio *bio;
-	enum btrfs_wq_submit_cmd submit_cmd;
-	int mirror_num;
-
-	/* Optional parameter for used by direct io */
-	u64 dio_file_offset;
-	struct btrfs_work work;
-	blk_status_t status;
-};
-
-/*
  * Compute the csum of a btree block and store the result to provided buffer.
  */
 static void csum_tree_block(struct extent_buffer *buf, u8 *result)
@@ -367,7 +350,14 @@ error:
 	btrfs_print_tree(eb, 0);
 	btrfs_err(fs_info, "block=%llu write time tree block corruption detected",
 		  eb->start);
-	WARN_ON(IS_ENABLED(CONFIG_BTRFS_DEBUG));
+	/*
+	 * Be noisy if this is an extent buffer from a log tree. We don't abort
+	 * a transaction in case there's a bad log tree extent buffer, we just
+	 * fallback to a transaction commit. Still we want to know when there is
+	 * a bad log tree extent buffer, as that may signal a bug somewhere.
+	 */
+	WARN_ON(IS_ENABLED(CONFIG_BTRFS_DEBUG) ||
+		btrfs_header_owner(eb) == BTRFS_TREE_LOG_OBJECTID);
 	return ret;
 }
 
@@ -446,6 +436,22 @@ static int csum_dirty_buffer(struct btrfs_fs_info *fs_info, struct bio_vec *bvec
 		return -EUCLEAN;
 
 	return csum_one_extent_buffer(eb);
+}
+
+blk_status_t btree_csum_one_bio(struct btrfs_bio *bbio)
+{
+	struct btrfs_fs_info *fs_info = bbio->inode->root->fs_info;
+	struct bvec_iter iter;
+	struct bio_vec bv;
+	int ret = 0;
+
+	bio_for_each_segment(bv, &bbio->bio, iter) {
+		ret = csum_dirty_buffer(fs_info, &bv);
+		if (ret)
+			break;
+	}
+
+	return errno_to_blk_status(ret);
 }
 
 static int check_tree_block_fsid(struct extent_buffer *eb)
@@ -530,6 +536,9 @@ static int validate_extent_buffer(struct extent_buffer *eb,
 	}
 
 	if (found_level != check->level) {
+		btrfs_err(fs_info,
+		"level verify failed on logical %llu mirror %u wanted %u found %u",
+			  eb->start, eb->read_mirror, check->level, found_level);
 		ret = -EIO;
 		goto out;
 	}
@@ -688,172 +697,6 @@ err:
 	free_extent_buffer(eb);
 
 	return ret;
-}
-
-static void run_one_async_start(struct btrfs_work *work)
-{
-	struct async_submit_bio *async;
-	blk_status_t ret;
-
-	async = container_of(work, struct  async_submit_bio, work);
-	switch (async->submit_cmd) {
-	case WQ_SUBMIT_METADATA:
-		ret = btree_submit_bio_start(async->bio);
-		break;
-	case WQ_SUBMIT_DATA:
-		ret = btrfs_submit_bio_start(async->inode, async->bio);
-		break;
-	case WQ_SUBMIT_DATA_DIO:
-		ret = btrfs_submit_bio_start_direct_io(async->inode,
-				async->bio, async->dio_file_offset);
-		break;
-	}
-	if (ret)
-		async->status = ret;
-}
-
-/*
- * In order to insert checksums into the metadata in large chunks, we wait
- * until bio submission time.   All the pages in the bio are checksummed and
- * sums are attached onto the ordered extent record.
- *
- * At IO completion time the csums attached on the ordered extent record are
- * inserted into the tree.
- */
-static void run_one_async_done(struct btrfs_work *work)
-{
-	struct async_submit_bio *async =
-		container_of(work, struct  async_submit_bio, work);
-	struct btrfs_inode *inode = async->inode;
-	struct btrfs_bio *bbio = btrfs_bio(async->bio);
-
-	/* If an error occurred we just want to clean up the bio and move on */
-	if (async->status) {
-		btrfs_bio_end_io(bbio, async->status);
-		return;
-	}
-
-	/*
-	 * All of the bios that pass through here are from async helpers.
-	 * Use REQ_CGROUP_PUNT to issue them from the owning cgroup's context.
-	 * This changes nothing when cgroups aren't in use.
-	 */
-	async->bio->bi_opf |= REQ_CGROUP_PUNT;
-	btrfs_submit_bio(inode->root->fs_info, async->bio, async->mirror_num);
-}
-
-static void run_one_async_free(struct btrfs_work *work)
-{
-	struct async_submit_bio *async;
-
-	async = container_of(work, struct  async_submit_bio, work);
-	kfree(async);
-}
-
-/*
- * Submit bio to an async queue.
- *
- * Retrun:
- * - true if the work has been succesfuly submitted
- * - false in case of error
- */
-bool btrfs_wq_submit_bio(struct btrfs_inode *inode, struct bio *bio, int mirror_num,
-			 u64 dio_file_offset, enum btrfs_wq_submit_cmd cmd)
-{
-	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	struct async_submit_bio *async;
-
-	async = kmalloc(sizeof(*async), GFP_NOFS);
-	if (!async)
-		return false;
-
-	async->inode = inode;
-	async->bio = bio;
-	async->mirror_num = mirror_num;
-	async->submit_cmd = cmd;
-
-	btrfs_init_work(&async->work, run_one_async_start, run_one_async_done,
-			run_one_async_free);
-
-	async->dio_file_offset = dio_file_offset;
-
-	async->status = 0;
-
-	if (op_is_sync(bio->bi_opf))
-		btrfs_queue_work(fs_info->hipri_workers, &async->work);
-	else
-		btrfs_queue_work(fs_info->workers, &async->work);
-	return true;
-}
-
-static blk_status_t btree_csum_one_bio(struct bio *bio)
-{
-	struct bio_vec *bvec;
-	struct btrfs_root *root;
-	int ret = 0;
-	struct bvec_iter_all iter_all;
-
-	ASSERT(!bio_flagged(bio, BIO_CLONED));
-	bio_for_each_segment_all(bvec, bio, iter_all) {
-		root = BTRFS_I(bvec->bv_page->mapping->host)->root;
-		ret = csum_dirty_buffer(root->fs_info, bvec);
-		if (ret)
-			break;
-	}
-
-	return errno_to_blk_status(ret);
-}
-
-blk_status_t btree_submit_bio_start(struct bio *bio)
-{
-	/*
-	 * when we're called for a write, we're already in the async
-	 * submission context.  Just jump into btrfs_submit_bio.
-	 */
-	return btree_csum_one_bio(bio);
-}
-
-static bool should_async_write(struct btrfs_fs_info *fs_info,
-			     struct btrfs_inode *bi)
-{
-	if (btrfs_is_zoned(fs_info))
-		return false;
-	if (atomic_read(&bi->sync_writers))
-		return false;
-	if (test_bit(BTRFS_FS_CSUM_IMPL_FAST, &fs_info->flags))
-		return false;
-	return true;
-}
-
-void btrfs_submit_metadata_bio(struct btrfs_inode *inode, struct bio *bio, int mirror_num)
-{
-	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	struct btrfs_bio *bbio = btrfs_bio(bio);
-	blk_status_t ret;
-
-	bio->bi_opf |= REQ_META;
-	bbio->is_metadata = 1;
-
-	if (btrfs_op(bio) != BTRFS_MAP_WRITE) {
-		btrfs_submit_bio(fs_info, bio, mirror_num);
-		return;
-	}
-
-	/*
-	 * Kthread helpers are used to submit writes so that checksumming can
-	 * happen in parallel across all CPUs.
-	 */
-	if (should_async_write(fs_info, inode) &&
-	    btrfs_wq_submit_bio(inode, bio, mirror_num, 0, WQ_SUBMIT_METADATA))
-		return;
-
-	ret = btree_csum_one_bio(bio);
-	if (ret) {
-		btrfs_bio_end_io(bbio, ret);
-		return;
-	}
-
-	btrfs_submit_bio(fs_info, bio, mirror_num);
 }
 
 #ifdef CONFIG_MIGRATION
@@ -1023,22 +866,6 @@ struct extent_buffer *read_tree_block(struct btrfs_fs_info *fs_info, u64 bytenr,
 	}
 	return buf;
 
-}
-
-void btrfs_clean_tree_block(struct extent_buffer *buf)
-{
-	struct btrfs_fs_info *fs_info = buf->fs_info;
-	if (btrfs_header_generation(buf) ==
-	    fs_info->running_transaction->transid) {
-		btrfs_assert_tree_write_locked(buf);
-
-		if (test_and_clear_bit(EXTENT_BUFFER_DIRTY, &buf->bflags)) {
-			percpu_counter_add_batch(&fs_info->dirty_metadata_bytes,
-						 -buf->len,
-						 fs_info->dirty_metadata_batch);
-			clear_extent_buffer_dirty(buf);
-		}
-	}
 }
 
 static void __setup_root(struct btrfs_root *root, struct btrfs_fs_info *fs_info,
@@ -1899,6 +1726,9 @@ static int cleaner_kthread(void *arg)
 			mutex_unlock(&fs_info->cleaner_mutex);
 			goto sleep;
 		}
+
+		if (test_and_clear_bit(BTRFS_FS_FEATURE_CHANGED, &fs_info->flags))
+			btrfs_sysfs_feature_update(fs_info);
 
 		btrfs_run_delayed_iputs(fs_info);
 
@@ -3381,6 +3211,8 @@ out:
 /*
  * Do various sanity and dependency checks of different features.
  *
+ * @is_rw_mount:	If the mount is read-write.
+ *
  * This is the place for less strict checks (like for subpage or artificial
  * feature dependencies).
  *
@@ -3391,7 +3223,7 @@ out:
  * (space cache related) can modify on-disk format like free space tree and
  * screw up certain feature dependencies.
  */
-int btrfs_check_features(struct btrfs_fs_info *fs_info, struct super_block *sb)
+int btrfs_check_features(struct btrfs_fs_info *fs_info, bool is_rw_mount)
 {
 	struct btrfs_super_block *disk_super = fs_info->super_copy;
 	u64 incompat = btrfs_super_incompat_flags(disk_super);
@@ -3430,7 +3262,7 @@ int btrfs_check_features(struct btrfs_fs_info *fs_info, struct super_block *sb)
 	if (btrfs_super_nodesize(disk_super) > PAGE_SIZE)
 		incompat |= BTRFS_FEATURE_INCOMPAT_BIG_METADATA;
 
-	if (compat_ro_unsupp && !sb_rdonly(sb)) {
+	if (compat_ro_unsupp && is_rw_mount) {
 		btrfs_err(fs_info,
 	"cannot mount read-write because of unknown compat_ro features (0x%llx)",
 		       compat_ro);
@@ -3633,7 +3465,7 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 		goto fail_alloc;
 	}
 
-	ret = btrfs_check_features(fs_info, sb);
+	ret = btrfs_check_features(fs_info, !sb_rdonly(sb));
 	if (ret < 0) {
 		err = ret;
 		goto fail_alloc;
@@ -5147,11 +4979,12 @@ static int btrfs_destroy_marked_extents(struct btrfs_fs_info *fs_info,
 			start += fs_info->nodesize;
 			if (!eb)
 				continue;
-			wait_on_extent_buffer_writeback(eb);
 
-			if (test_and_clear_bit(EXTENT_BUFFER_DIRTY,
-					       &eb->bflags))
-				clear_extent_buffer_dirty(eb);
+			btrfs_tree_lock(eb);
+			wait_on_extent_buffer_writeback(eb);
+			btrfs_clear_buffer_dirty(NULL, eb);
+			btrfs_tree_unlock(eb);
+
 			free_extent_buffer_stale(eb);
 		}
 	}

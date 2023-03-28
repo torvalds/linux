@@ -211,7 +211,6 @@ struct mtk_wed_wo_queue {
 	struct mtk_wed_wo_queue_regs regs;
 
 	struct page_frag_cache cache;
-	spinlock_t lock;
 
 	struct mtk_wed_wo_queue_desc *desc;
 	dma_addr_t desc_dma;

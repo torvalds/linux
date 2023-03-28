@@ -19,6 +19,12 @@ properties:
   reg:
     maxItems: 1
 
+  mediatek,sysctl:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      phandle to system controller 'sysc' syscon node which
+      controls system registers
+
 required:
   - compatible
   - reg
@@ -30,4 +36,5 @@ examples:
     watchdog@100 {
       compatible = "mediatek,mt7621-wdt";
       reg = <0x100 0x100>;
+      mediatek,sysctl = <&sysc>;
     };

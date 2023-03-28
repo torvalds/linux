@@ -44,6 +44,7 @@ modpost-args =										\
 	$(if $(CONFIG_MODVERSIONS),-m)							\
 	$(if $(CONFIG_MODULE_SRCVERSION_ALL),-a)					\
 	$(if $(CONFIG_SECTION_MISMATCH_WARN_ONLY),,-E)					\
+	$(if $(KBUILD_MODPOST_WARN),-w)							\
 	$(if $(KBUILD_NSDEPS),-d $(MODULES_NSDEPS))					\
 	$(if $(CONFIG_MODULE_ALLOW_MISSING_NAMESPACE_IMPORTS)$(KBUILD_NSDEPS),-N)	\
 	-o $@
@@ -53,10 +54,6 @@ modpost-deps := $(MODPOST)
 # 'make -i -k' ignores compile errors, and builds as many modules as possible.
 ifneq ($(findstring i,$(filter-out --%,$(MAKEFLAGS))),)
 modpost-args += -n
-endif
-
-ifneq ($(KBUILD_MODPOST_WARN)$(missing-input),)
-modpost-args += -w
 endif
 
 # Read out modules.order to pass in modpost.
@@ -129,7 +126,9 @@ quiet_cmd_modpost = MODPOST $@
 	$(if $(missing-input), \
 		echo >&2 "WARNING: $(missing-input) is missing."; \
 		echo >&2 "         Modules may not have dependencies or modversions."; \
-		echo >&2 "         You may get many unresolved symbol warnings.";) \
+		echo >&2 "         You may get many unresolved symbol errors."; \
+		echo >&2 "         You can set KBUILD_MODPOST_WARN=1 to turn errors into warning"; \
+		echo >&2 "         if you want to proceed at your own risk.";) \
 	$(MODPOST) $(modpost-args)
 
 targets += $(output-symdump)

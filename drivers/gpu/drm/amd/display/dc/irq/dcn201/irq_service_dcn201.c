@@ -37,7 +37,7 @@
 #include "soc15_hw_ip.h"
 #include "ivsrcid/dcn/irqsrcs_dcn_1_0.h"
 
-enum dc_irq_source to_dal_irq_source_dcn201(
+static enum dc_irq_source to_dal_irq_source_dcn201(
 		struct irq_service *irq_service,
 		uint32_t src_id,
 		uint32_t ext_id)

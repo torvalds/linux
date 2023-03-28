@@ -121,6 +121,7 @@ static void osnoise_hist_update_multiple(struct osnoise_tool *tool, int cpu,
 {
 	struct osnoise_hist_params *params = tool->params;
 	struct osnoise_hist_data *data = tool->data;
+	unsigned long long total_duration;
 	int entries = data->entries;
 	int bucket;
 	int *hist;
@@ -131,10 +132,12 @@ static void osnoise_hist_update_multiple(struct osnoise_tool *tool, int cpu,
 	if (data->bucket_size)
 		bucket = duration / data->bucket_size;
 
+	total_duration = duration * count;
+
 	hist = data->hist[cpu].samples;
 	data->hist[cpu].count += count;
 	update_min(&data->hist[cpu].min_sample, &duration);
-	update_sum(&data->hist[cpu].sum_sample, &duration);
+	update_sum(&data->hist[cpu].sum_sample, &total_duration);
 	update_max(&data->hist[cpu].max_sample, &duration);
 
 	if (bucket < entries)
@@ -332,8 +335,8 @@ osnoise_print_summary(struct osnoise_hist_params *params,
 			continue;
 
 		if (data->hist[cpu].count)
-			trace_seq_printf(trace->seq, "%9llu ",
-					data->hist[cpu].sum_sample / data->hist[cpu].count);
+			trace_seq_printf(trace->seq, "%9.2f ",
+				((double) data->hist[cpu].sum_sample) / data->hist[cpu].count);
 		else
 			trace_seq_printf(trace->seq, "        - ");
 	}

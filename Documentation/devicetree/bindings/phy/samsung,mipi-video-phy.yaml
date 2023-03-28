@@ -35,15 +35,18 @@ properties:
 
   syscon:
     $ref: /schemas/types.yaml#/definitions/phandle
+    deprecated: true
     description:
       Phandle to PMU system controller interface, valid only for
-      samsung,s5pv210-mipi-video-phy and samsung,exynos5420-mipi-video-phy.
+      samsung,s5pv210-mipi-video-phy and samsung,exynos5420-mipi-video-phy (if
+      not a child of PMU).
 
   samsung,pmu-syscon:
     $ref: /schemas/types.yaml#/definitions/phandle
+    deprecated: true
     description:
       Phandle to PMU system controller interface, valid for
-      samsung,exynos5433-mipi-video-phy.
+      samsung,exynos5433-mipi-video-phy (if not a child of PMU).
 
   samsung,disp-sysreg:
     $ref: /schemas/types.yaml#/definitions/phandle
@@ -81,13 +84,10 @@ allOf:
         samsung,disp-sysreg: false
         samsung,cam0-sysreg: false
         samsung,cam1-sysreg: false
-      required:
-        - syscon
     else:
       properties:
         syscon: false
       required:
-        - samsung,pmu-syscon
         - samsung,disp-sysreg
         - samsung,cam0-sysreg
         - samsung,cam1-sysreg
@@ -99,7 +99,6 @@ examples:
     phy {
         compatible = "samsung,exynos5433-mipi-video-phy";
         #phy-cells = <1>;
-        samsung,pmu-syscon = <&pmu_system_controller>;
         samsung,cam0-sysreg = <&syscon_cam0>;
         samsung,cam1-sysreg = <&syscon_cam1>;
         samsung,disp-sysreg = <&syscon_disp>;

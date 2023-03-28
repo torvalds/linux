@@ -196,6 +196,8 @@ properties:
     maxItems: 2
 
   operating-points-v2: true
+  opp-table:
+    type: object
 
   samsung,data-clock-ratio:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -227,6 +229,31 @@ examples:
         operating-points-v2 = <&bus_dmc_opp_table>;
         devfreq-events = <&ppmu_dmc0_3>, <&ppmu_dmc1_3>;
         vdd-supply = <&buck1_reg>;
+
+        bus_dmc_opp_table: opp-table {
+            compatible = "operating-points-v2";
+
+            opp-50000000 {
+                opp-hz = /bits/ 64 <50000000>;
+                opp-microvolt = <800000>;
+            };
+            opp-100000000 {
+                opp-hz = /bits/ 64 <100000000>;
+                opp-microvolt = <800000>;
+            };
+            opp-134000000 {
+                opp-hz = /bits/ 64 <134000000>;
+                opp-microvolt = <800000>;
+            };
+            opp-200000000 {
+                opp-hz = /bits/ 64 <200000000>;
+                opp-microvolt = <825000>;
+            };
+            opp-400000000 {
+                opp-hz = /bits/ 64 <400000000>;
+                opp-microvolt = <875000>;
+            };
+        };
     };
 
     ppmu_dmc0: ppmu@106a0000 {

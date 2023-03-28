@@ -240,13 +240,14 @@ int bpf_jit_emit_func_call_rel(u32 *image, struct codegen_context *ctx, u64 func
 	 * load the callee's address, but this may optimize the number of
 	 * instructions required based on the nature of the address.
 	 *
-	 * Since we don't want the number of instructions emitted to change,
+	 * Since we don't want the number of instructions emitted to increase,
 	 * we pad the optimized PPC_LI64() call with NOPs to guarantee that
 	 * we always have a five-instruction sequence, which is the maximum
 	 * that PPC_LI64() can emit.
 	 */
-	for (i = ctx->idx - ctx_idx; i < 5; i++)
-		EMIT(PPC_RAW_NOP());
+	if (!image)
+		for (i = ctx->idx - ctx_idx; i < 5; i++)
+			EMIT(PPC_RAW_NOP());
 
 	EMIT(PPC_RAW_MTCTR(_R12));
 	EMIT(PPC_RAW_BCTRL());
@@ -343,7 +344,7 @@ asm (
 
 /* Assemble the body code between the prologue & epilogue */
 int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, struct codegen_context *ctx,
-		       u32 *addrs, int pass)
+		       u32 *addrs, int pass, bool extra_pass)
 {
 	enum stf_barrier_type stf_barrier = stf_barrier_type_get();
 	const struct bpf_insn *insn = fp->insnsi;
@@ -938,8 +939,9 @@ emit_clear:
 			tmp_idx = ctx->idx;
 			PPC_LI64(dst_reg, imm64);
 			/* padding to allow full 5 instructions for later patching */
-			for (j = ctx->idx - tmp_idx; j < 5; j++)
-				EMIT(PPC_RAW_NOP());
+			if (!image)
+				for (j = ctx->idx - tmp_idx; j < 5; j++)
+					EMIT(PPC_RAW_NOP());
 			/* Adjust for two bpf instructions */
 			addrs[++i] = ctx->idx * 4;
 			break;
@@ -967,7 +969,7 @@ emit_clear:
 		case BPF_JMP | BPF_CALL:
 			ctx->seen |= SEEN_FUNC;
 
-			ret = bpf_jit_get_func_addr(fp, &insn[i], false,
+			ret = bpf_jit_get_func_addr(fp, &insn[i], extra_pass,
 						    &func_addr, &func_addr_fixed);
 			if (ret < 0)
 				return ret;

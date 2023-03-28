@@ -4,7 +4,7 @@
 #include "vcap_api_client.h"
 
 int lan966x_goto_port_add(struct lan966x_port *port,
-			  struct flow_action_entry *act,
+			  int from_cid, int to_cid,
 			  unsigned long goto_id,
 			  struct netlink_ext_ack *extack)
 {
@@ -12,7 +12,7 @@ int lan966x_goto_port_add(struct lan966x_port *port,
 	int err;
 
 	err = vcap_enable_lookups(lan966x->vcap_ctrl, port->dev,
-				  act->chain_index, goto_id,
+				  from_cid, to_cid, goto_id,
 				  true);
 	if (err == -EFAULT) {
 		NL_SET_ERR_MSG_MOD(extack, "Unsupported goto chain");
@@ -29,8 +29,6 @@ int lan966x_goto_port_add(struct lan966x_port *port,
 		return err;
 	}
 
-	port->tc.goto_id = goto_id;
-
 	return 0;
 }
 
@@ -41,14 +39,12 @@ int lan966x_goto_port_del(struct lan966x_port *port,
 	struct lan966x *lan966x = port->lan966x;
 	int err;
 
-	err = vcap_enable_lookups(lan966x->vcap_ctrl, port->dev, 0,
+	err = vcap_enable_lookups(lan966x->vcap_ctrl, port->dev, 0, 0,
 				  goto_id, false);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack, "Could not disable VCAP lookups");
 		return err;
 	}
-
-	port->tc.goto_id = 0;
 
 	return 0;
 }

@@ -138,8 +138,10 @@ int gfs2_make_fs_rw(struct gfs2_sbd *sdp)
 		return -EIO;
 
 	error = gfs2_find_jhead(sdp->sd_jdesc, &head, false);
-	if (error || gfs2_withdrawn(sdp))
+	if (error) {
+		gfs2_consist(sdp);
 		return error;
+	}
 
 	if (!(head.lh_flags & GFS2_LOG_HEAD_UNMOUNT)) {
 		gfs2_consist(sdp);
@@ -151,7 +153,9 @@ int gfs2_make_fs_rw(struct gfs2_sbd *sdp)
 	gfs2_log_pointers_init(sdp, head.lh_blkno);
 
 	error = gfs2_quota_init(sdp);
-	if (!error && !gfs2_withdrawn(sdp))
+	if (!error && gfs2_withdrawn(sdp))
+		error = -EIO;
+	if (!error)
 		set_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
 	return error;
 }
@@ -529,7 +533,9 @@ void gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 {
 	int log_write_allowed = test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
 
-	gfs2_flush_delete_work(sdp);
+	if (!test_bit(SDF_DEACTIVATING, &sdp->sd_flags))
+		gfs2_flush_delete_work(sdp);
+
 	if (!log_write_allowed && current == sdp->sd_quotad_process)
 		fs_warn(sdp, "The quotad daemon is withdrawing.\n");
 	else if (sdp->sd_quotad_process)
@@ -933,6 +939,7 @@ static int gfs2_statfs(struct dentry *dentry, struct kstatfs *buf)
 static int gfs2_drop_inode(struct inode *inode)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
 
 	if (inode->i_nlink &&
 	    gfs2_holder_initialized(&ip->i_iopen_gh)) {
@@ -952,10 +959,16 @@ static int gfs2_drop_inode(struct inode *inode)
 		struct gfs2_glock *gl = ip->i_iopen_gh.gh_gl;
 
 		gfs2_glock_hold(gl);
-		if (!gfs2_queue_delete_work(gl, 0))
+		if (!gfs2_queue_try_to_evict(gl))
 			gfs2_glock_queue_put(gl);
 		return 0;
 	}
+
+	/*
+	 * No longer cache inodes when trying to evict them all.
+	 */
+	if (test_bit(SDF_EVICTING, &sdp->sd_flags))
+		return 1;
 
 	return generic_drop_inode(inode);
 }
@@ -1175,15 +1188,23 @@ static bool gfs2_upgrade_iopen_glock(struct inode *inode)
 	gfs2_glock_dq_wait(gh);
 
 	/*
-	 * If there are no other lock holders, we'll get the lock immediately.
+	 * If there are no other lock holders, we will immediately get
+	 * exclusive access to the iopen glock here.
+	 *
 	 * Otherwise, the other nodes holding the lock will be notified about
-	 * our locking request.  If they don't have the inode open, they'll
-	 * evict the cached inode and release the lock.  Otherwise, if they
-	 * poke the inode glock, we'll take this as an indication that they
-	 * still need the iopen glock and that they'll take care of deleting
-	 * the inode when they're done.  As a last resort, if another node
-	 * keeps holding the iopen glock without showing any activity on the
-	 * inode glock, we'll eventually time out.
+	 * our locking request.  If they do not have the inode open, they are
+	 * expected to evict the cached inode and release the lock, allowing us
+	 * to proceed.
+	 *
+	 * Otherwise, if they cannot evict the inode, they are expected to poke
+	 * the inode glock (note: not the iopen glock).  We will notice that
+	 * and stop waiting for the iopen glock immediately.  The other node(s)
+	 * are then expected to take care of deleting the inode when they no
+	 * longer use it.
+	 *
+	 * As a last resort, if another node keeps holding the iopen glock
+	 * without showing any activity on the inode glock, we will eventually
+	 * time out and fail the iopen glock upgrade.
 	 *
 	 * Note that we're passing the LM_FLAG_TRY_1CB flag to the first
 	 * locking request as an optimization to notify lock holders as soon as
@@ -1401,10 +1422,8 @@ static void gfs2_evict_inode(struct inode *inode)
 	if (gfs2_rs_active(&ip->i_res))
 		gfs2_rs_deltree(&ip->i_res);
 
-	if (gfs2_holder_initialized(&gh)) {
-		glock_clear_object(ip->i_gl, ip);
+	if (gfs2_holder_initialized(&gh))
 		gfs2_glock_dq_uninit(&gh);
-	}
 	if (ret && ret != GLR_TRYFAILED && ret != -EROFS)
 		fs_warn(sdp, "gfs2_evict_inode: %d\n", ret);
 out:

@@ -146,3 +146,53 @@ stable_node_dups
 
 比值 ``pages_sharing/pages_shared`` 的最大值受限制于 ``max_page_sharing``
 的设定。要想增加该比值，则相应地要增加 ``max_page_sharing`` 的值。
+
+监测KSM的收益
+=============
+
+KSM可以通过合并相同的页面来节省内存，但也会消耗额外的内存，因为它需要生成一些rmap_items
+来保存每个扫描页面的简要rmap信息。其中有些页面可能会被合并，但有些页面在被检查几次
+后可能无法被合并，这些都是无益的内存消耗。
+
+1) 如何确定KSM在全系统范围内是节省内存还是消耗内存？这里有一个简单的近似计算方法供参考::
+
+       general_profit =~ pages_sharing * sizeof(page) - (all_rmap_items) *
+                         sizeof(rmap_item);
+
+   其中all_rmap_items可以通过对 ``pages_sharing`` 、 ``pages_shared`` 、 ``pages_unshared``
+   和 ``pages_volatile`` 的求和而轻松获得。
+
+2) 单一进程中KSM的收益也可以通过以下近似的计算得到::
+
+       process_profit =~ ksm_merging_pages * sizeof(page) -
+                         ksm_rmap_items * sizeof(rmap_item).
+
+   其中ksm_merging_pages显示在 ``/proc/<pid>/`` 目录下，而ksm_rmap_items
+   显示在 ``/proc/<pid>/ksm_stat`` 。
+
+从应用的角度来看， ``ksm_rmap_items`` 和 ``ksm_merging_pages`` 的高比例意
+味着不好的madvise-applied策略，所以开发者或管理员必须重新考虑如何改变madvis策
+略。举个例子供参考，一个页面的大小通常是4K，而rmap_item的大小在32位CPU架构上分
+别是32B，在64位CPU架构上是64B。所以如果 ``ksm_rmap_items/ksm_merging_pages``
+的比例在64位CPU上超过64，或者在32位CPU上超过128，那么应用程序的madvise策略应
+该被放弃，因为ksm收益大约为零或负值。
+
+监控KSM事件
+===========
+
+在/proc/vmstat中有一些计数器，可以用来监控KSM事件。KSM可能有助于节省内存，这是
+一种权衡，因为它可能会在KSM COW或复制中的交换上遭受延迟。这些事件可以帮助用户评估
+是否或如何使用KSM。例如，如果cow_ksm增加得太快，用户可以减少madvise(, , MADV_MERGEABLE)
+的范围。
+
+cow_ksm
+        在每次KSM页面触发写时拷贝（COW）时都会被递增，当用户试图写入KSM页面时，
+        我们必须做一个拷贝。
+
+ksm_swpin_copy
+        在换入时，每次KSM页被复制时都会被递增。请注意，KSM页在换入时可能会被复
+        制，因为do_swap_page()不能做所有的锁，而需要重组一个跨anon_vma的KSM页。
+
+--
+Izik Eidus,
+Hugh Dickins, 2009年11月17日。

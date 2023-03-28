@@ -69,6 +69,8 @@ patternProperties:
     description: Annapurna Labs
   "^alcatel,.*":
     description: Alcatel
+  "^aldec,.*":
+    description: Aldec, Inc.
   "^alfa-network,.*":
     description: ALFA Network Inc.
   "^allegro,.*":
@@ -264,6 +266,8 @@ patternProperties:
     description: Cirrus Logic, Inc.
   "^cisco,.*":
     description: Cisco Systems, Inc.
+  "^clockwork,.*":
+    description: Clockwork Tech LLC
   "^cloos,.*":
     description: Carl Cloos Schweisstechnik GmbH.
   "^cloudengines,.*":
@@ -374,6 +378,8 @@ patternProperties:
     description: EBV Elektronik
   "^eckelmann,.*":
     description: Eckelmann AG
+  "^edgeble,.*":
+    description: Edgeble AI Technologies Pvt. Ltd.
   "^edimax,.*":
     description: EDIMAX Technology Co., Ltd
   "^edt,.*":
@@ -396,6 +402,8 @@ patternProperties:
     description: Elimo Engineering Ltd.
   "^elpida,.*":
     description: Elpida Memory, Inc.
+  "^embedfire,.*":
+    description: Dongguan EmbedFire Electronic Technology Co., Ltd.
   "^embest,.*":
     description: Shenzhen Embest Technology Co., Ltd.
   "^emlid,.*":
@@ -512,6 +520,8 @@ patternProperties:
     description: Shenzhen Huiding Technology Co., Ltd.
   "^google,.*":
     description: Google, Inc.
+  "^gplus,.*":
+    description: GPLUS
   "^grinn,.*":
     description: Grinn
   "^grmn,.*":
@@ -635,6 +645,8 @@ patternProperties:
     description: Inverse Path
   "^iom,.*":
     description: Iomega Corporation
+  "^irondevice,.*":
+    description: Iron Device Corporation
   "^isee,.*":
     description: ISEE 2007 S.L.
   "^isil,.*":
@@ -729,6 +741,8 @@ patternProperties:
     description: Lichee Pi
   "^linaro,.*":
     description: Linaro Limited
+  "^lineartechnology,.*":
+    description: Linear Technology
   "^linksprite,.*":
     description: LinkSprite Technologies, Inc.
   "^linksys,.*":
@@ -775,6 +789,8 @@ patternProperties:
     description: MaxBotix Inc.
   "^maxim,.*":
     description: Maxim Integrated Products
+  "^maxlinear,.*":
+    description: MaxLinear Inc.
   "^mbvl,.*":
     description: Mobiveil Inc.
   "^mcube,.*":
@@ -845,6 +861,8 @@ patternProperties:
     description: Moortec Semiconductor Ltd.
   "^mosaixtech,.*":
     description: Mosaix Technologies, Inc.
+  "^motorcomm,.*":
+    description: MotorComm, Inc.
   "^motorola,.*":
     description: Motorola, Inc.
   "^moxa,.*":
@@ -1025,6 +1043,8 @@ patternProperties:
     description: PocketBook International SA
   "^polaroid,.*":
     description: Polaroid Corporation
+  "^polyhex,.*":
+    description: Polyhex Technology Co. Ltd.
   "^portwell,.*":
     description: Portwell Inc.
   "^poslab,.*":
@@ -1246,6 +1266,8 @@ patternProperties:
     description: Starry Electronic Technology (ShenZhen) Co., LTD
   "^startek,.*":
     description: Startek
+  "^starterkit,.*":
+    description: Starterkit
   "^ste,.*":
     description: ST-Ericsson
     deprecated: true
@@ -1319,6 +1341,8 @@ patternProperties:
     description: thingy.jp
   "^thundercomm,.*":
     description: Thundercomm Technology Co., Ltd.
+  "^thwc,.*":
+    description: Shenzhen Tong Heng Wei Chuang Technology Co., Ltd.
   "^ti,.*":
     description: Texas Instruments
   "^tianma,.*":
@@ -1372,6 +1396,8 @@ patternProperties:
     description: uCRobotics
   "^udoo,.*":
     description: Udoo
+  "^ufispace,.*":
+    description: Ufi Space Co., Ltd.
   "^ugoos,.*":
     description: Ugoos Industrial Co., Ltd.
   "^uniwest,.*":
@@ -1398,6 +1424,8 @@ patternProperties:
     description: Vertexcom Technologies, Inc.
   "^via,.*":
     description: VIA Technologies, Inc.
+  "^vialab,.*":
+    description: VIA Labs, Inc.
   "^vicor,.*":
     description: Vicor Corporation
   "^videostrong,.*":
@@ -1444,6 +1472,8 @@ patternProperties:
     description: Shenzhen whwave Electronics, Inc.
   "^wi2wi,.*":
     description: Wi2Wi, Inc.
+  "^widora,.*":
+    description: Beijing Widora Technology Co., Ltd.
   "^wiligear,.*":
     description: Wiligear, Ltd.
   "^willsemi,.*":

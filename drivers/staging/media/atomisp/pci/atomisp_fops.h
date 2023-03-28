@@ -31,8 +31,7 @@ unsigned int atomisp_sub_dev_users(struct atomisp_sub_device *asd);
 
 int atomisp_qbuffers_to_css(struct atomisp_sub_device *asd);
 
+extern const struct vb2_ops atomisp_vb2_ops;
 extern const struct v4l2_file_operations atomisp_fops;
-
-extern bool defer_fw_load;
 
 #endif /* __ATOMISP_FOPS_H__ */

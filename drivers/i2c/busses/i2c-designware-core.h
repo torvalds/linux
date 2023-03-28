@@ -37,6 +37,7 @@
 #define DW_IC_CON_STOP_DET_IFADDRESSED		BIT(7)
 #define DW_IC_CON_TX_EMPTY_CTRL			BIT(8)
 #define DW_IC_CON_RX_FIFO_FULL_HLD_CTRL		BIT(9)
+#define DW_IC_CON_BUS_CLEAR_CTRL		BIT(11)
 
 #define DW_IC_DATA_CMD_DAT			GENMASK(7, 0)
 
@@ -264,7 +265,7 @@ struct dw_i2c_dev {
 	u8			*rx_buf;
 	int			msg_err;
 	unsigned int		status;
-	u32			abort_source;
+	unsigned int		abort_source;
 	int			irq;
 	u32			flags;
 	struct i2c_adapter	adapter;
@@ -320,7 +321,7 @@ int i2c_dw_init_regmap(struct dw_i2c_dev *dev);
 u32 i2c_dw_scl_hcnt(u32 ic_clk, u32 tSYMBOL, u32 tf, int cond, int offset);
 u32 i2c_dw_scl_lcnt(u32 ic_clk, u32 tLOW, u32 tf, int offset);
 int i2c_dw_set_sda_hold(struct dw_i2c_dev *dev);
-unsigned long i2c_dw_clk_rate(struct dw_i2c_dev *dev);
+u32 i2c_dw_clk_rate(struct dw_i2c_dev *dev);
 int i2c_dw_prepare_clk(struct dw_i2c_dev *dev, bool prepare);
 int i2c_dw_acquire_lock(struct dw_i2c_dev *dev);
 void i2c_dw_release_lock(struct dw_i2c_dev *dev);

@@ -532,7 +532,7 @@ static int imx8qm_ldb_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int imx8qm_ldb_remove(struct platform_device *pdev)
+static void imx8qm_ldb_remove(struct platform_device *pdev)
 {
 	struct imx8qm_ldb *imx8qm_ldb = platform_get_drvdata(pdev);
 	struct ldb *ldb = &imx8qm_ldb->base;
@@ -540,8 +540,6 @@ static int imx8qm_ldb_remove(struct platform_device *pdev)
 	ldb_remove_bridge_helper(ldb);
 
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static int __maybe_unused imx8qm_ldb_runtime_suspend(struct device *dev)
@@ -573,7 +571,7 @@ MODULE_DEVICE_TABLE(of, imx8qm_ldb_dt_ids);
 
 static struct platform_driver imx8qm_ldb_driver = {
 	.probe	= imx8qm_ldb_probe,
-	.remove = imx8qm_ldb_remove,
+	.remove_new = imx8qm_ldb_remove,
 	.driver	= {
 		.pm = &imx8qm_ldb_pm_ops,
 		.name = DRIVER_NAME,

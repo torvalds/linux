@@ -34,6 +34,7 @@ typedef __u32			xfs_nlink_t;
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/file.h>
+#include <linux/filelock.h>
 #include <linux/swap.h>
 #include <linux/errno.h>
 #include <linux/sched/signal.h>

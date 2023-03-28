@@ -255,7 +255,7 @@ xfs_perag_set_inode_tag(
 		break;
 	}
 
-	trace_xfs_perag_set_inode_tag(mp, pag->pag_agno, tag, _RET_IP_);
+	trace_xfs_perag_set_inode_tag(pag, _RET_IP_);
 }
 
 /* Clear a tag on both the AG incore inode tree and the AG radix tree. */
@@ -289,7 +289,7 @@ xfs_perag_clear_inode_tag(
 	radix_tree_tag_clear(&mp->m_perag_tree, pag->pag_agno, tag);
 	spin_unlock(&mp->m_perag_lock);
 
-	trace_xfs_perag_clear_inode_tag(mp, pag->pag_agno, tag, _RET_IP_);
+	trace_xfs_perag_clear_inode_tag(pag, _RET_IP_);
 }
 
 /*
@@ -586,7 +586,7 @@ xfs_iget_cache_miss(
 	if (!ip)
 		return -ENOMEM;
 
-	error = xfs_imap(mp, tp, ip->i_ino, &ip->i_imap, flags);
+	error = xfs_imap(pag, tp, ip->i_ino, &ip->i_imap, flags);
 	if (error)
 		goto out_destroy;
 
@@ -1767,7 +1767,7 @@ xfs_icwalk(
 		if (error) {
 			last_error = error;
 			if (error == -EFSCORRUPTED) {
-				xfs_perag_put(pag);
+				xfs_perag_rele(pag);
 				break;
 			}
 		}
@@ -1853,11 +1853,19 @@ xfs_inodegc_worker(
 						struct xfs_inodegc, work);
 	struct llist_node	*node = llist_del_all(&gc->list);
 	struct xfs_inode	*ip, *n;
+	unsigned int		nofs_flag;
 
 	WRITE_ONCE(gc->items, 0);
 
 	if (!node)
 		return;
+
+	/*
+	 * We can allocate memory here while doing writeback on behalf of
+	 * memory reclaim.  To avoid memory allocation deadlocks set the
+	 * task-wide nofs context for the following operations.
+	 */
+	nofs_flag = memalloc_nofs_save();
 
 	ip = llist_entry(node, struct xfs_inode, i_gclist);
 	trace_xfs_inodegc_worker(ip->i_mount, READ_ONCE(gc->shrinker_hits));
@@ -1867,6 +1875,8 @@ xfs_inodegc_worker(
 		xfs_iflags_set(ip, XFS_INACTIVATING);
 		xfs_inodegc_inactivate(ip);
 	}
+
+	memalloc_nofs_restore(nofs_flag);
 }
 
 /*

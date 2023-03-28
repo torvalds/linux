@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/sched/signal.h>
 #include <net/sock.h>
+#include <trace/events/sock.h>
 #include <scsi/iscsi_proto.h>
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
@@ -384,6 +385,7 @@ static void iscsi_target_sk_data_ready(struct sock *sk)
 	struct iscsit_conn *conn = sk->sk_user_data;
 	bool rc;
 
+	trace_sk_data_ready(sk);
 	pr_debug("Entering iscsi_target_sk_data_ready: conn: %p\n", conn);
 
 	write_lock_bh(&sk->sk_callback_lock);

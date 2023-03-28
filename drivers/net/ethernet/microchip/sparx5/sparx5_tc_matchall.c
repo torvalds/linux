@@ -31,6 +31,7 @@ static int sparx5_tc_matchall_replace(struct net_device *ndev,
 	switch (action->id) {
 	case FLOW_ACTION_GOTO:
 		err = vcap_enable_lookups(sparx5->vcap_ctrl, ndev,
+					  tmo->common.chain_index,
 					  action->chain_index, tmo->cookie,
 					  true);
 		if (err == -EFAULT) {
@@ -41,6 +42,11 @@ static int sparx5_tc_matchall_replace(struct net_device *ndev,
 		if (err == -EADDRINUSE) {
 			NL_SET_ERR_MSG_MOD(tmo->common.extack,
 					   "VCAP already enabled");
+			return -EOPNOTSUPP;
+		}
+		if (err == -EADDRNOTAVAIL) {
+			NL_SET_ERR_MSG_MOD(tmo->common.extack,
+					   "Already matching this chain");
 			return -EOPNOTSUPP;
 		}
 		if (err) {
@@ -66,8 +72,8 @@ static int sparx5_tc_matchall_destroy(struct net_device *ndev,
 
 	sparx5 = port->sparx5;
 	if (!tmo->rule && tmo->cookie) {
-		err = vcap_enable_lookups(sparx5->vcap_ctrl, ndev, 0,
-					  tmo->cookie, false);
+		err = vcap_enable_lookups(sparx5->vcap_ctrl, ndev,
+					  0, 0, tmo->cookie, false);
 		if (err)
 			return err;
 		return 0;
@@ -80,12 +86,6 @@ int sparx5_tc_matchall(struct net_device *ndev,
 		       struct tc_cls_matchall_offload *tmo,
 		       bool ingress)
 {
-	if (!tc_cls_can_offload_and_chain0(ndev, &tmo->common)) {
-		NL_SET_ERR_MSG_MOD(tmo->common.extack,
-				   "Only chain zero is supported");
-		return -EOPNOTSUPP;
-	}
-
 	switch (tmo->command) {
 	case TC_CLSMATCHALL_REPLACE:
 		return sparx5_tc_matchall_replace(ndev, tmo, ingress);

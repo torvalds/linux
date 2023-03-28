@@ -21,7 +21,6 @@
 #include "tc.h"
 #include "mux.h"
 
-#include "omap7xx.h"
 #include "hardware.h"
 #include "common.h"
 #include "clock.h"
@@ -63,8 +62,6 @@ static void omap_init_rtc(void)
 static inline void omap_init_rtc(void) {}
 #endif
 
-static inline void omap_init_mbox(void) { }
-
 /*-------------------------------------------------------------------------*/
 
 #if IS_ENABLED(CONFIG_MMC_OMAP)
@@ -73,22 +70,16 @@ static inline void omap1_mmc_mux(struct omap_mmc_platform_data *mmc_controller,
 			int controller_nr)
 {
 	if (controller_nr == 0) {
-		if (cpu_is_omap7xx()) {
-			omap_cfg_reg(MMC_7XX_CMD);
-			omap_cfg_reg(MMC_7XX_CLK);
-			omap_cfg_reg(MMC_7XX_DAT0);
-		} else {
-			omap_cfg_reg(MMC_CMD);
-			omap_cfg_reg(MMC_CLK);
-			omap_cfg_reg(MMC_DAT0);
-		}
+		omap_cfg_reg(MMC_CMD);
+		omap_cfg_reg(MMC_CLK);
+		omap_cfg_reg(MMC_DAT0);
 
 		if (cpu_is_omap1710()) {
 			omap_cfg_reg(M15_1710_MMC_CLKI);
 			omap_cfg_reg(P19_1710_MMC_CMDDIR);
 			omap_cfg_reg(P20_1710_MMC_DATDIR0);
 		}
-		if (mmc_controller->slots[0].wires == 4 && !cpu_is_omap7xx()) {
+		if (mmc_controller->slots[0].wires == 4) {
 			omap_cfg_reg(MMC_DAT1);
 			/* NOTE: DAT2 can be on W10 (here) or M15 */
 			if (!mmc_controller->slots[0].nomux)
@@ -154,8 +145,6 @@ static int __init omap_mmc_add(const char *name, int id, unsigned long base,
 	res[3].name = "tx";
 	res[3].flags = IORESOURCE_DMA;
 
-	if (cpu_is_omap7xx())
-		data->slots[0].features = MMC_OMAP7XX;
 	if (cpu_is_omap15xx())
 		data->slots[0].features = MMC_OMAP15XX;
 	if (cpu_is_omap16xx())
@@ -223,43 +212,6 @@ void __init omap1_init_mmc(struct omap_mmc_platform_data **mmc_data,
 #endif
 
 /*-------------------------------------------------------------------------*/
-
-/* OMAP7xx SPI support */
-#if IS_ENABLED(CONFIG_SPI_OMAP_100K)
-
-struct platform_device omap_spi1 = {
-	.name           = "omap1_spi100k",
-	.id             = 1,
-};
-
-struct platform_device omap_spi2 = {
-	.name           = "omap1_spi100k",
-	.id             = 2,
-};
-
-static void omap_init_spi100k(void)
-{
-	if (!cpu_is_omap7xx())
-		return;
-
-	omap_spi1.dev.platform_data = ioremap(OMAP7XX_SPI1_BASE, 0x7ff);
-	if (omap_spi1.dev.platform_data)
-		platform_device_register(&omap_spi1);
-
-	omap_spi2.dev.platform_data = ioremap(OMAP7XX_SPI2_BASE, 0x7ff);
-	if (omap_spi2.dev.platform_data)
-		platform_device_register(&omap_spi2);
-}
-
-#else
-static inline void omap_init_spi100k(void)
-{
-}
-#endif
-
-/*-------------------------------------------------------------------------*/
-
-static inline void omap_init_sti(void) {}
 
 /* Numbering for the SPI-capable controllers when used for SPI:
  * spi		= 1
@@ -363,10 +315,7 @@ static int __init omap1_init_devices(void)
 	 * in alphabetical order so they're easier to sort through.
 	 */
 
-	omap_init_mbox();
 	omap_init_rtc();
-	omap_init_spi100k();
-	omap_init_sti();
 	omap_init_uwire();
 	omap1_init_rng();
 

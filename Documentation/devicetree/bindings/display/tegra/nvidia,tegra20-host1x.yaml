@@ -90,8 +90,7 @@ properties:
     items:
       - const: dma-mem # read
 
-  operating-points-v2:
-    $ref: "/schemas/types.yaml#/definitions/phandle"
+  operating-points-v2: true
 
   power-domains:
     items:

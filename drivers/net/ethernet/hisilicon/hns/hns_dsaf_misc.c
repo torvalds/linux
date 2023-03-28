@@ -554,11 +554,11 @@ static phy_interface_t hns_mac_get_phy_if_acpi(struct hns_mac_cb *mac_cb)
 	argv4.package.count = 1;
 	argv4.package.elements = &obj_args;
 
-	obj = acpi_evaluate_dsm(ACPI_HANDLE(mac_cb->dev),
-				&hns_dsaf_acpi_dsm_guid, 0,
-				HNS_OP_GET_PORT_TYPE_FUNC, &argv4);
-
-	if (!obj || obj->type != ACPI_TYPE_INTEGER)
+	obj = acpi_evaluate_dsm_typed(ACPI_HANDLE(mac_cb->dev),
+				      &hns_dsaf_acpi_dsm_guid, 0,
+				      HNS_OP_GET_PORT_TYPE_FUNC, &argv4,
+				      ACPI_TYPE_INTEGER);
+	if (!obj)
 		return phy_if;
 
 	phy_if = obj->integer.value ?
@@ -601,11 +601,11 @@ static int hns_mac_get_sfp_prsnt_acpi(struct hns_mac_cb *mac_cb, int *sfp_prsnt)
 	argv4.package.count = 1;
 	argv4.package.elements = &obj_args;
 
-	obj = acpi_evaluate_dsm(ACPI_HANDLE(mac_cb->dev),
-				&hns_dsaf_acpi_dsm_guid, 0,
-				HNS_OP_GET_SFP_STAT_FUNC, &argv4);
-
-	if (!obj || obj->type != ACPI_TYPE_INTEGER)
+	obj = acpi_evaluate_dsm_typed(ACPI_HANDLE(mac_cb->dev),
+				      &hns_dsaf_acpi_dsm_guid, 0,
+				      HNS_OP_GET_SFP_STAT_FUNC, &argv4,
+				      ACPI_TYPE_INTEGER);
+	if (!obj)
 		return -ENODEV;
 
 	*sfp_prsnt = obj->integer.value;

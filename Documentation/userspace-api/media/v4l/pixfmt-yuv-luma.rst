@@ -14,7 +14,7 @@ are often referred to as greyscale formats.
    - In all the tables that follow, bit 7 is the most significant bit in a byte.
    - Formats are described with the minimum number of pixels needed to create a
      byte-aligned repeating pattern. `...` indicates repetition of the pattern.
-   - Y'\ :sub:`x`\ [9:2] denotes bits 9 to 2 of the Y' value for pixel at colum
+   - Y'\ :sub:`x`\ [9:2] denotes bits 9 to 2 of the Y' value for pixel at column
      `x`.
    - `0` denotes padding bits set to 0.
 

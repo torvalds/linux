@@ -720,21 +720,6 @@ netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
-void mlx5e_sq_xmit_simple(struct mlx5e_txqsq *sq, struct sk_buff *skb, bool xmit_more)
-{
-	struct mlx5e_tx_wqe_attr wqe_attr;
-	struct mlx5e_tx_attr attr;
-	struct mlx5e_tx_wqe *wqe;
-	u16 pi;
-
-	mlx5e_sq_xmit_prepare(sq, skb, NULL, &attr);
-	mlx5e_sq_calc_wqe_attr(skb, &attr, &wqe_attr);
-	pi = mlx5e_txqsq_get_next_pi(sq, wqe_attr.num_wqebbs);
-	wqe = MLX5E_TX_FETCH_WQE(sq, pi);
-	mlx5e_txwqe_build_eseg_csum(sq, skb, NULL, &wqe->eth);
-	mlx5e_sq_xmit_wqe(sq, skb, &attr, &wqe_attr, wqe, pi, xmit_more);
-}
-
 static void mlx5e_tx_wi_dma_unmap(struct mlx5e_txqsq *sq, struct mlx5e_tx_wqe_info *wi,
 				  u32 *dma_fifo_cc)
 {

@@ -459,7 +459,7 @@ static int __file_path_perm(const char *op, struct aa_label *label,
 {
 	struct aa_profile *profile;
 	struct aa_perms perms = {};
-	vfsuid_t vfsuid = i_uid_into_vfsuid(file_mnt_user_ns(file),
+	vfsuid_t vfsuid = i_uid_into_vfsuid(file_mnt_idmap(file),
 					    file_inode(file));
 	struct path_cond cond = {
 		.uid = vfsuid_into_kuid(vfsuid),

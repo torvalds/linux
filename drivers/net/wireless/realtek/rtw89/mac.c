@@ -623,7 +623,8 @@ static void rtw89_mac_dump_err_status(struct rtw89_dev *rtwdev,
 	if (err != MAC_AX_ERR_L1_ERR_DMAC &&
 	    err != MAC_AX_ERR_L0_PROMOTE_TO_L1 &&
 	    err != MAC_AX_ERR_L0_ERR_CMAC0 &&
-	    err != MAC_AX_ERR_L0_ERR_CMAC1)
+	    err != MAC_AX_ERR_L0_ERR_CMAC1 &&
+	    err != MAC_AX_ERR_RXI300)
 		return;
 
 	rtw89_info(rtwdev, "--->\nerr=0x%x\n", err);
@@ -663,6 +664,8 @@ u32 rtw89_mac_get_err_status(struct rtw89_dev *rtwdev)
 		err = MAC_AX_ERR_CPU_EXCEPTION;
 	else if (err_scnr == RTW89_WCPU_ASSERTION)
 		err = MAC_AX_ERR_ASSERTION;
+	else if (err_scnr == RTW89_RXI300_ERROR)
+		err = MAC_AX_ERR_RXI300;
 
 	rtw89_fw_st_dbg_dump(rtwdev);
 	rtw89_mac_dump_err_status(rtwdev, err);
@@ -3411,6 +3414,11 @@ int rtw89_mac_enable_cpu(struct rtw89_dev *rtwdev, u8 boot_reason, bool dlfw)
 		val |= B_AX_WCPU_FWDL_EN;
 
 	rtw89_write32(rtwdev, R_AX_WCPU_FW_CTRL, val);
+
+	if (rtwdev->chip->chip_id == RTL8852B)
+		rtw89_write32_mask(rtwdev, R_AX_SEC_CTRL,
+				   B_AX_SEC_IDMEM_SIZE_CONFIG_MASK, 0x2);
+
 	rtw89_write16_mask(rtwdev, R_AX_BOOT_REASON, B_AX_BOOT_REASON_MASK,
 			   boot_reason);
 	rtw89_write32_set(rtwdev, R_AX_PLATFORM_ENABLE, B_AX_WCPU_EN);
@@ -3918,25 +3926,36 @@ static void rtw89_mac_port_cfg_tbtt_shift(struct rtw89_dev *rtwdev,
 				B_AX_TBTT_SHIFT_OFST_MASK, val);
 }
 
-static void rtw89_mac_port_tsf_sync(struct rtw89_dev *rtwdev,
-				    struct rtw89_vif *rtwvif,
-				    struct rtw89_vif *rtwvif_src, u8 offset,
-				    int *n_offset)
+void rtw89_mac_port_tsf_sync(struct rtw89_dev *rtwdev,
+			     struct rtw89_vif *rtwvif,
+			     struct rtw89_vif *rtwvif_src,
+			     u16 offset_tu)
 {
 	u32 val, reg;
 
-	if (rtwvif->net_type != RTW89_NET_TYPE_AP_MODE || rtwvif == rtwvif_src)
-		return;
-
-	/* adjust offset randomly to avoid beacon conflict */
-	offset = offset - offset / 4 + get_random_u32() % (offset / 2);
-	val = RTW89_PORT_OFFSET_MS_TO_32US((*n_offset)++, offset);
+	val = RTW89_PORT_OFFSET_TU_TO_32US(offset_tu);
 	reg = rtw89_mac_reg_by_idx(R_AX_PORT0_TSF_SYNC + rtwvif->port * 4,
 				   rtwvif->mac_idx);
 
 	rtw89_write32_mask(rtwdev, reg, B_AX_SYNC_PORT_SRC, rtwvif_src->port);
 	rtw89_write32_mask(rtwdev, reg, B_AX_SYNC_PORT_OFFSET_VAL, val);
 	rtw89_write32_set(rtwdev, reg, B_AX_SYNC_NOW);
+}
+
+static void rtw89_mac_port_tsf_sync_rand(struct rtw89_dev *rtwdev,
+					 struct rtw89_vif *rtwvif,
+					 struct rtw89_vif *rtwvif_src,
+					 u8 offset, int *n_offset)
+{
+	if (rtwvif->net_type != RTW89_NET_TYPE_AP_MODE || rtwvif == rtwvif_src)
+		return;
+
+	/* adjust offset randomly to avoid beacon conflict */
+	offset = offset - offset / 4 + get_random_u32() % (offset / 2);
+	rtw89_mac_port_tsf_sync(rtwdev, rtwvif, rtwvif_src,
+				(*n_offset) * offset);
+
+	(*n_offset)++;
 }
 
 static void rtw89_mac_port_tsf_resync_all(struct rtw89_dev *rtwdev)
@@ -3958,7 +3977,7 @@ static void rtw89_mac_port_tsf_resync_all(struct rtw89_dev *rtwdev)
 	offset /= (vif_aps + 1);
 
 	rtw89_for_each_rtwvif(rtwdev, tmp)
-		rtw89_mac_port_tsf_sync(rtwdev, tmp, src, offset, &n_offset);
+		rtw89_mac_port_tsf_sync_rand(rtwdev, tmp, src, offset, &n_offset);
 }
 
 int rtw89_mac_vif_init(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
@@ -4046,6 +4065,24 @@ int rtw89_mac_port_update(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 	rtw89_mac_port_tsf_resync_all(rtwdev);
 	fsleep(BCN_ERLY_SET_DLY);
 	rtw89_mac_port_cfg_bcn_early(rtwdev, rtwvif);
+
+	return 0;
+}
+
+int rtw89_mac_port_get_tsf(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+			   u64 *tsf)
+{
+	const struct rtw89_port_reg *p = &rtw_port_base;
+	u32 tsf_low, tsf_high;
+	int ret;
+
+	ret = rtw89_mac_check_mac_en(rtwdev, rtwvif->mac_idx, RTW89_CMAC_SEL);
+	if (ret)
+		return ret;
+
+	tsf_low = rtw89_read32_port(rtwdev, rtwvif, p->tsftr_l);
+	tsf_high = rtw89_read32_port(rtwdev, rtwvif, p->tsftr_h);
+	*tsf = (u64)tsf_high << 32 | tsf_low;
 
 	return 0;
 }
@@ -4263,12 +4300,12 @@ rtw89_mac_c2h_mcc_rcv_ack(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len
 	case H2C_FUNC_MCC_SET_DURATION:
 		break;
 	default:
-		rtw89_debug(rtwdev, RTW89_DBG_FW,
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
 			    "invalid MCC C2H RCV ACK: func %d\n", func);
 		return;
 	}
 
-	rtw89_debug(rtwdev, RTW89_DBG_FW,
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
 		    "MCC C2H RCV ACK: group %d, func %d\n", group, func);
 }
 
@@ -4296,12 +4333,12 @@ rtw89_mac_c2h_mcc_req_ack(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len
 	case H2C_FUNC_DEL_MCC_GROUP:
 	case H2C_FUNC_RESET_MCC_GROUP:
 	default:
-		rtw89_debug(rtwdev, RTW89_DBG_FW,
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
 			    "invalid MCC C2H REQ ACK: func %d\n", func);
 		return;
 	}
 
-	rtw89_debug(rtwdev, RTW89_DBG_FW,
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
 		    "MCC C2H REQ ACK: group %d, func %d, return code %d\n",
 		    group, func, retcode);
 
@@ -4328,6 +4365,11 @@ rtw89_mac_c2h_mcc_tsf_rpt(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len
 	rpt->tsf_x_high = RTW89_GET_MAC_C2H_MCC_TSF_RPT_TSF_HIGH_X(c2h->data);
 	rpt->tsf_y_low = RTW89_GET_MAC_C2H_MCC_TSF_RPT_TSF_LOW_Y(c2h->data);
 	rpt->tsf_y_high = RTW89_GET_MAC_C2H_MCC_TSF_RPT_TSF_HIGH_Y(c2h->data);
+
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+		    "MCC C2H TSF RPT: macid %d> %llu, macid %d> %llu\n",
+		    rpt->macid_x, (u64)rpt->tsf_x_high << 32 | rpt->tsf_x_low,
+		    rpt->macid_y, (u64)rpt->tsf_y_high << 32 | rpt->tsf_y_low);
 
 	cond = RTW89_MCC_WAIT_COND(group, H2C_FUNC_MCC_REQ_TSF);
 	rtw89_complete_cond(&rtwdev->mcc.wait, cond, &data);
@@ -4386,14 +4428,14 @@ rtw89_mac_c2h_mcc_status_rpt(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 
 		rsp = false;
 		break;
 	default:
-		rtw89_debug(rtwdev, RTW89_DBG_FW,
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
 			    "invalid MCC C2H STS RPT: status %d\n", status);
 		return;
 	}
 
-	rtw89_debug(rtwdev, RTW89_DBG_FW,
-		    "MCC C2H STS RPT: group %d, macid %d, status %d, tsf {%d, %d}\n",
-		     group, macid, status, tsf_low, tsf_high);
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+		    "MCC C2H STS RPT: group %d, macid %d, status %d, tsf %llu\n",
+		     group, macid, status, (u64)tsf_high << 32 | tsf_low);
 
 	if (!rsp)
 		return;
@@ -4512,7 +4554,7 @@ EXPORT_SYMBOL(rtw89_mac_get_txpwr_cr);
 int rtw89_mac_cfg_ppdu_status(struct rtw89_dev *rtwdev, u8 mac_idx, bool enable)
 {
 	u32 reg = rtw89_mac_reg_by_idx(R_AX_PPDU_STAT, mac_idx);
-	int ret = 0;
+	int ret;
 
 	ret = rtw89_mac_check_mac_en(rtwdev, mac_idx, RTW89_CMAC_SEL);
 	if (ret)
@@ -4520,7 +4562,7 @@ int rtw89_mac_cfg_ppdu_status(struct rtw89_dev *rtwdev, u8 mac_idx, bool enable)
 
 	if (!enable) {
 		rtw89_write32_clr(rtwdev, reg, B_AX_PPDU_STAT_RPT_EN);
-		return ret;
+		return 0;
 	}
 
 	rtw89_write32(rtwdev, reg, B_AX_PPDU_STAT_RPT_EN |
@@ -4530,7 +4572,7 @@ int rtw89_mac_cfg_ppdu_status(struct rtw89_dev *rtwdev, u8 mac_idx, bool enable)
 	rtw89_write32_mask(rtwdev, R_AX_HW_RPT_FWD, B_AX_FWD_PPDU_STAT_MASK,
 			   RTW89_PRPT_DEST_HOST);
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(rtw89_mac_cfg_ppdu_status);
 
@@ -4865,9 +4907,16 @@ EXPORT_SYMBOL(rtw89_mac_cfg_ctrl_path_v1);
 
 bool rtw89_mac_get_ctrl_path(struct rtw89_dev *rtwdev)
 {
-	u8 val = rtw89_read8(rtwdev, R_AX_SYS_SDIO_CTRL + 3);
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	u8 val = 0;
 
-	return FIELD_GET(B_AX_LTE_MUX_CTRL_PATH >> 24, val);
+	if (chip->chip_id == RTL8852C)
+		return false;
+	else if (chip->chip_id == RTL8852A || chip->chip_id == RTL8852B)
+		val = rtw89_read8_mask(rtwdev, R_AX_SYS_SDIO_CTRL + 3,
+				       B_AX_LTE_MUX_CTRL_PATH >> 24);
+
+	return !!val;
 }
 
 u16 rtw89_mac_get_plt_cnt(struct rtw89_dev *rtwdev, u8 band)

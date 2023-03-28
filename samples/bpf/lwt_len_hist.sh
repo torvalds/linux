@@ -4,7 +4,7 @@
 NS1=lwt_ns1
 VETH0=tst_lwt1a
 VETH1=tst_lwt1b
-
+BPF_PROG=lwt_len_hist.bpf.o
 TRACE_ROOT=/sys/kernel/debug/tracing
 
 function cleanup {
@@ -30,7 +30,7 @@ ip netns exec $NS1 netserver
 
 echo 1 > ${TRACE_ROOT}/tracing_on
 cp /dev/null ${TRACE_ROOT}/trace
-ip route add 192.168.253.2/32 encap bpf out obj lwt_len_hist_kern.o section len_hist dev $VETH0
+ip route add 192.168.253.2/32 encap bpf out obj $BPF_PROG section len_hist dev $VETH0
 netperf -H 192.168.253.2 -t TCP_STREAM
 cat ${TRACE_ROOT}/trace | grep -v '^#'
 ./lwt_len_hist

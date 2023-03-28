@@ -160,6 +160,8 @@ enum PP_SMC_POWER_PROFILE {
 	PP_SMC_POWER_PROFILE_COMPUTE      = 0x5,
 	PP_SMC_POWER_PROFILE_CUSTOM       = 0x6,
 	PP_SMC_POWER_PROFILE_WINDOW3D     = 0x7,
+	PP_SMC_POWER_PROFILE_CAPPED	  = 0x8,
+	PP_SMC_POWER_PROFILE_UNCAPPED	  = 0x9,
 	PP_SMC_POWER_PROFILE_COUNT,
 };
 
@@ -331,6 +333,8 @@ struct amd_pm_funcs {
 	int (*get_mclk_od)(void *handle);
 	int (*set_mclk_od)(void *handle, uint32_t value);
 	int (*read_sensor)(void *handle, int idx, void *value, int *size);
+	int (*get_apu_thermal_limit)(void *handle, uint32_t *limit);
+	int (*set_apu_thermal_limit)(void *handle, uint32_t limit);
 	enum amd_dpm_forced_level (*get_performance_level)(void *handle);
 	enum amd_pm_state_type (*get_current_power_state)(void *handle);
 	int (*get_fan_speed_rpm)(void *handle, uint32_t *rpm);
@@ -397,6 +401,7 @@ struct amd_pm_funcs {
 	int (*get_ppfeature_status)(void *handle, char *buf);
 	int (*set_ppfeature_status)(void *handle, uint64_t ppfeature_masks);
 	int (*asic_reset_mode_2)(void *handle);
+	int (*asic_reset_enable_gfx_features)(void *handle);
 	int (*set_df_cstate)(void *handle, enum pp_df_cstate state);
 	int (*set_xgmi_pstate)(void *handle, uint32_t pstate);
 	ssize_t (*get_gpu_metrics)(void *handle, void **table);

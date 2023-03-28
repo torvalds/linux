@@ -183,7 +183,7 @@ struct aspeed_sham_ctx {
 	struct aspeed_hace_dev		*hace_dev;
 	unsigned long			flags;	/* hmac flag */
 
-	struct aspeed_sha_hmac_ctx	base[0];
+	struct aspeed_sha_hmac_ctx	base[];
 };
 
 struct aspeed_sham_reqctx {

@@ -800,7 +800,7 @@ static void ath9k_hw_set_def_power_cal_table(struct ath_hw *ah,
 		numPiers = AR5416_NUM_5G_CAL_PIERS;
 	}
 
-	if (OLC_FOR_AR9280_20_LATER && IS_CHAN_2GHZ(chan)) {
+	if (OLC_FOR_AR9280_20_LATER(ah) && IS_CHAN_2GHZ(chan)) {
 		pRawDataset = pEepData->calPierData2G[0];
 		ah->initPDADC = ((struct calDataPerFreqOpLoop *)
 				 pRawDataset)->vpdPdg[0][0];
@@ -841,7 +841,7 @@ static void ath9k_hw_set_def_power_cal_table(struct ath_hw *ah,
 				pRawDataset = pEepData->calPierData5G[i];
 
 
-			if (OLC_FOR_AR9280_20_LATER) {
+			if (OLC_FOR_AR9280_20_LATER(ah)) {
 				u8 pcdacIdx;
 				u8 txPower;
 
@@ -869,7 +869,7 @@ static void ath9k_hw_set_def_power_cal_table(struct ath_hw *ah,
 
 			ENABLE_REGWRITE_BUFFER(ah);
 
-			if (OLC_FOR_AR9280_20_LATER) {
+			if (OLC_FOR_AR9280_20_LATER(ah)) {
 				REG_WRITE(ah,
 					AR_PHY_TPCRG5 + regChainOffset,
 					SM(0x6,
@@ -1203,7 +1203,7 @@ static void ath9k_hw_def_set_txpower(struct ath_hw *ah,
 		  | ATH9K_POW_SM(ratesArray[rate24mb], 0));
 
 	if (IS_CHAN_2GHZ(chan)) {
-		if (OLC_FOR_AR9280_20_LATER) {
+		if (OLC_FOR_AR9280_20_LATER(ah)) {
 			cck_ofdm_delta = 2;
 			REG_WRITE(ah, AR_PHY_POWER_TX_RATE3,
 				ATH9K_POW_SM(RT_AR_DELTA(rate2s), 24)
@@ -1259,7 +1259,7 @@ static void ath9k_hw_def_set_txpower(struct ath_hw *ah,
 					 ht40PowerIncForPdadc, 8)
 			  | ATH9K_POW_SM(ratesArray[rateHt40_4] +
 					 ht40PowerIncForPdadc, 0));
-		if (OLC_FOR_AR9280_20_LATER) {
+		if (OLC_FOR_AR9280_20_LATER(ah)) {
 			REG_WRITE(ah, AR_PHY_POWER_TX_RATE9,
 				ATH9K_POW_SM(ratesArray[rateExtOfdm], 24)
 				| ATH9K_POW_SM(RT_AR_DELTA(rateExtCck), 16)

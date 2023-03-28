@@ -1472,6 +1472,7 @@ struct rt5682s_priv {
 	int pll_comb;
 
 	int jack_type;
+	unsigned int irq;
 	int irq_work_delay_time;
 	int wclk_enabled;
 };

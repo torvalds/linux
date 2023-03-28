@@ -1884,7 +1884,7 @@ mpt3sas_enable_diag_buffer(struct MPT3SAS_ADAPTER *ioc, u8 bits_to_register)
 			    diag_register.requested_buffer_size>>10);
 		else if (ioc->diag_buffer_status[MPI2_DIAG_BUF_TYPE_TRACE]
 		    & MPT3_DIAG_BUFFER_IS_REGISTERED) {
-			ioc_err(ioc, "Trace buffer memory %d KB allocated\n",
+			ioc_info(ioc, "Trace buffer memory %d KB allocated\n",
 			    diag_register.requested_buffer_size>>10);
 			if (ioc->hba_mpi_version_belonged != MPI2_VERSION)
 				ioc->diag_buffer_status[

@@ -57,7 +57,7 @@ static int gc_thread_func(void *data)
 
 		/* give it a try one time */
 		if (gc_th->gc_wake)
-			gc_th->gc_wake = 0;
+			gc_th->gc_wake = false;
 
 		if (try_to_freeze()) {
 			stat_other_skip_bggc_count(sbi);
@@ -72,11 +72,9 @@ static int gc_thread_func(void *data)
 			continue;
 		}
 
-		if (time_to_inject(sbi, FAULT_CHECKPOINT)) {
-			f2fs_show_injection_info(sbi, FAULT_CHECKPOINT);
+		if (time_to_inject(sbi, FAULT_CHECKPOINT))
 			f2fs_stop_checkpoint(sbi, false,
 					STOP_CP_REASON_FAULT_INJECT);
-		}
 
 		if (!sb_start_write_trylock(sbi->sb)) {
 			stat_other_skip_bggc_count(sbi);
@@ -185,7 +183,7 @@ int f2fs_start_gc_thread(struct f2fs_sb_info *sbi)
 	gc_th->max_sleep_time = DEF_GC_THREAD_MAX_SLEEP_TIME;
 	gc_th->no_gc_sleep_time = DEF_GC_THREAD_NOGC_SLEEP_TIME;
 
-	gc_th->gc_wake = 0;
+	gc_th->gc_wake = false;
 
 	sbi->gc_thread = gc_th;
 	init_waitqueue_head(&sbi->gc_thread->gc_wait_queue_head);
@@ -1150,7 +1148,6 @@ static int ra_data_block(struct inode *inode, pgoff_t index)
 	struct address_space *mapping = inode->i_mapping;
 	struct dnode_of_data dn;
 	struct page *page;
-	struct extent_info ei = {0, };
 	struct f2fs_io_info fio = {
 		.sbi = sbi,
 		.ino = inode->i_ino,
@@ -1159,8 +1156,8 @@ static int ra_data_block(struct inode *inode, pgoff_t index)
 		.op = REQ_OP_READ,
 		.op_flags = 0,
 		.encrypted_page = NULL,
-		.in_list = false,
-		.retry = false,
+		.in_list = 0,
+		.retry = 0,
 	};
 	int err;
 
@@ -1168,8 +1165,8 @@ static int ra_data_block(struct inode *inode, pgoff_t index)
 	if (!page)
 		return -ENOMEM;
 
-	if (f2fs_lookup_read_extent_cache(inode, index, &ei)) {
-		dn.data_blkaddr = ei.blk + index - ei.fofs;
+	if (f2fs_lookup_read_extent_cache_block(inode, index,
+						&dn.data_blkaddr)) {
 		if (unlikely(!f2fs_is_valid_blkaddr(sbi, dn.data_blkaddr,
 						DATA_GENERIC_ENHANCE_READ))) {
 			err = -EFSCORRUPTED;
@@ -1248,8 +1245,8 @@ static int move_data_block(struct inode *inode, block_t bidx,
 		.op = REQ_OP_READ,
 		.op_flags = 0,
 		.encrypted_page = NULL,
-		.in_list = false,
-		.retry = false,
+		.in_list = 0,
+		.retry = 0,
 	};
 	struct dnode_of_data dn;
 	struct f2fs_summary sum;
@@ -1365,7 +1362,6 @@ static int move_data_block(struct inode *inode, block_t bidx,
 		dec_page_count(fio.sbi, F2FS_DIRTY_META);
 
 	set_page_writeback(fio.encrypted_page);
-	ClearPageError(page);
 
 	fio.op = REQ_OP_WRITE;
 	fio.op_flags = REQ_SYNC;

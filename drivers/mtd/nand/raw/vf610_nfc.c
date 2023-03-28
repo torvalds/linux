@@ -206,7 +206,7 @@ static inline bool vf610_nfc_kernel_is_little_endian(void)
 #endif
 }
 
-/**
+/*
  * Read accessor for internal SRAM buffer
  * @dst: destination address in regular memory
  * @src: source address in SRAM buffer
@@ -241,7 +241,7 @@ static inline void vf610_nfc_rd_from_sram(void *dst, const void __iomem *src,
 	}
 }
 
-/**
+/*
  * Write accessor for internal SRAM buffer
  * @dst: destination address in SRAM buffer
  * @src: source address in regular memory

@@ -638,7 +638,7 @@ static int do_show_subset(int argc, char **argv)
 	if (json_output && nb_fds > 1)
 		jsonw_start_array(json_wtr);	/* root array */
 	for (i = 0; i < nb_fds; i++) {
-		err = bpf_obj_get_info_by_fd(fds[i], &info, &len);
+		err = bpf_map_get_info_by_fd(fds[i], &info, &len);
 		if (err) {
 			p_err("can't get map info: %s",
 			      strerror(errno));
@@ -708,7 +708,7 @@ static int do_show(int argc, char **argv)
 			break;
 		}
 
-		err = bpf_obj_get_info_by_fd(fd, &info, &len);
+		err = bpf_map_get_info_by_fd(fd, &info, &len);
 		if (err) {
 			p_err("can't get map info: %s", strerror(errno));
 			close(fd);
@@ -764,7 +764,7 @@ static int maps_have_btf(int *fds, int nb_fds)
 	int err, i;
 
 	for (i = 0; i < nb_fds; i++) {
-		err = bpf_obj_get_info_by_fd(fds[i], &info, &len);
+		err = bpf_map_get_info_by_fd(fds[i], &info, &len);
 		if (err) {
 			p_err("can't get map info: %s", strerror(errno));
 			return -1;
@@ -925,7 +925,7 @@ static int do_dump(int argc, char **argv)
 	if (wtr && nb_fds > 1)
 		jsonw_start_array(wtr);	/* root array */
 	for (i = 0; i < nb_fds; i++) {
-		if (bpf_obj_get_info_by_fd(fds[i], &info, &len)) {
+		if (bpf_map_get_info_by_fd(fds[i], &info, &len)) {
 			p_err("can't get map info: %s", strerror(errno));
 			break;
 		}

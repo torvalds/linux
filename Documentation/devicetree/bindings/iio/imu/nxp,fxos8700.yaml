@@ -49,33 +49,33 @@ examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/interrupt-controller/irq.h>
-    i2c0 {
+    i2c {
         #address-cells = <1>;
         #size-cells = <0>;
 
         fxos8700@1e {
-          compatible = "nxp,fxos8700";
-          reg = <0x1e>;
+            compatible = "nxp,fxos8700";
+            reg = <0x1e>;
 
-          interrupt-parent = <&gpio2>;
-          interrupts = <7 IRQ_TYPE_EDGE_RISING>;
-          interrupt-names = "INT1";
+            interrupt-parent = <&gpio2>;
+            interrupts = <7 IRQ_TYPE_EDGE_RISING>;
+            interrupt-names = "INT1";
         };
     };
   - |
     #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/interrupt-controller/irq.h>
-    spi0 {
+    spi {
         #address-cells = <1>;
         #size-cells = <0>;
 
         fxos8700@0 {
-          compatible = "nxp,fxos8700";
-          reg = <0>;
+            compatible = "nxp,fxos8700";
+            reg = <0>;
 
-          spi-max-frequency = <1000000>;
-          interrupt-parent = <&gpio1>;
-          interrupts = <7 IRQ_TYPE_EDGE_RISING>;
-          interrupt-names = "INT2";
+            spi-max-frequency = <1000000>;
+            interrupt-parent = <&gpio1>;
+            interrupts = <7 IRQ_TYPE_EDGE_RISING>;
+            interrupt-names = "INT2";
         };
     };

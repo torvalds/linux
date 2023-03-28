@@ -70,7 +70,7 @@
 	leds {
 		compatible = "gpio-leds";
 
-		status {
+		led-0 {
 			label = "chip-pro:white:status";
 			gpios = <&axp_gpio 2 GPIO_ACTIVE_HIGH>;
 			default-state = "on";

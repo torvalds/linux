@@ -453,7 +453,7 @@ unsigned char tty_get_char_size(unsigned int cflag);
 unsigned char tty_get_frame_size(unsigned int cflag);
 
 void tty_termios_copy_hw(struct ktermios *new, const struct ktermios *old);
-int tty_termios_hw_change(const struct ktermios *a, const struct ktermios *b);
+bool tty_termios_hw_change(const struct ktermios *a, const struct ktermios *b);
 int tty_set_termios(struct tty_struct *tty, struct ktermios *kt);
 
 void tty_wakeup(struct tty_struct *tty);

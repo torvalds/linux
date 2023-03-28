@@ -9,6 +9,7 @@ config PCI_MVEBU
 	depends on MVEBU_MBUS
 	depends on ARM
 	depends on OF
+	depends on BROKEN
 	select PCI_BRIDGE_EMUL
 	help
 	 Add support for Marvell EBU PCIe controller. This PCIe controller
@@ -258,7 +259,7 @@ config PCIE_MEDIATEK_GEN3
 	  MediaTek SoCs.
 
 config VMD
-	depends on PCI_MSI && X86_64 && SRCU && !UML
+	depends on PCI_MSI && X86_64 && !UML
 	tristate "Intel Volume Management Device Driver"
 	help
 	  Adds support for the Intel Volume Management Device (VMD). VMD is a
@@ -285,7 +286,7 @@ config PCIE_BRCMSTB
 
 config PCI_HYPERV_INTERFACE
 	tristate "Hyper-V PCI Interface"
-	depends on ((X86 && X86_64) || ARM64) && HYPERV && PCI_MSI && PCI_MSI
+	depends on ((X86 && X86_64) || ARM64) && HYPERV && PCI_MSI
 	help
 	  The Hyper-V PCI Interface is a helper driver allows other drivers to
 	  have a common interface with the Hyper-V PCI frontend driver.

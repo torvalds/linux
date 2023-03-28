@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2011 Red Hat, Inc.
  *
@@ -111,7 +112,7 @@ void dm_tm_dec_range(struct dm_transaction_manager *tm, dm_block_t b, dm_block_t
  */
 typedef void (*dm_tm_run_fn)(struct dm_transaction_manager *, dm_block_t, dm_block_t);
 void dm_tm_with_runs(struct dm_transaction_manager *tm,
-		     const __le64 *value_le, unsigned count, dm_tm_run_fn fn);
+		     const __le64 *value_le, unsigned int count, dm_tm_run_fn fn);
 
 int dm_tm_ref(struct dm_transaction_manager *tm, dm_block_t b, uint32_t *result);
 

@@ -715,6 +715,7 @@ struct drm_amdgpu_cs_chunk_data {
 #define AMDGPU_IDS_FLAGS_FUSION         0x1
 #define AMDGPU_IDS_FLAGS_PREEMPTION     0x2
 #define AMDGPU_IDS_FLAGS_TMZ            0x4
+#define AMDGPU_IDS_FLAGS_CONFORMANT_TRUNC_COORD 0x8
 
 /* indicate if acceleration can be working */
 #define AMDGPU_INFO_ACCEL_WORKING		0x00
@@ -1115,6 +1116,16 @@ struct drm_amdgpu_info_device {
 	__u64 tcc_disabled_mask;
 	__u64 min_engine_clock;
 	__u64 min_memory_clock;
+	/* The following fields are only set on gfx11+, older chips set 0. */
+	__u32 tcp_cache_size;       /* AKA GL0, VMEM cache */
+	__u32 num_sqc_per_wgp;
+	__u32 sqc_data_cache_size;  /* AKA SMEM cache */
+	__u32 sqc_inst_cache_size;
+	__u32 gl1c_cache_size;
+	__u32 gl2c_cache_size;
+	__u64 mall_size;            /* AKA infinity cache */
+	/* high 32 bits of the rb pipes mask */
+	__u32 enabled_rb_pipes_mask_hi;
 };
 
 struct drm_amdgpu_info_hw_ip {

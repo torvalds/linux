@@ -35,7 +35,7 @@
 
 #endif
 
-#if defined(__GNUC__) && !defined(__INTEL_COMPILER)
+#if defined(__GNUC__)
 #include "acgccex.h"
 
 #elif defined(_MSC_VER)

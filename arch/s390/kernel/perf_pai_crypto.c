@@ -362,9 +362,7 @@ static int paicrypt_push_sample(void)
 	if (event->attr.sample_type & PERF_SAMPLE_RAW) {
 		raw.frag.size = rawsize;
 		raw.frag.data = cpump->save;
-		raw.size = raw.frag.size;
-		data.raw = &raw;
-		data.sample_flags |= PERF_SAMPLE_RAW;
+		perf_sample_save_raw_data(&data, &raw);
 	}
 
 	overflow = perf_event_overflow(event, &data, &regs);

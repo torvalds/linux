@@ -11,6 +11,7 @@
 #define LOCKD_XDR_H
 
 #include <linux/fs.h>
+#include <linux/filelock.h>
 #include <linux/nfs.h>
 #include <linux/sunrpc/xdr.h>
 

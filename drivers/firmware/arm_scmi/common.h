@@ -27,6 +27,48 @@
 #include "protocols.h"
 #include "notify.h"
 
+#define SCMI_MAX_CHANNELS		256
+
+#define SCMI_MAX_RESPONSE_TIMEOUT	(2 * MSEC_PER_SEC)
+
+enum scmi_error_codes {
+	SCMI_SUCCESS = 0,	/* Success */
+	SCMI_ERR_SUPPORT = -1,	/* Not supported */
+	SCMI_ERR_PARAMS = -2,	/* Invalid Parameters */
+	SCMI_ERR_ACCESS = -3,	/* Invalid access/permission denied */
+	SCMI_ERR_ENTRY = -4,	/* Not found */
+	SCMI_ERR_RANGE = -5,	/* Value out of range */
+	SCMI_ERR_BUSY = -6,	/* Device busy */
+	SCMI_ERR_COMMS = -7,	/* Communication Error */
+	SCMI_ERR_GENERIC = -8,	/* Generic Error */
+	SCMI_ERR_HARDWARE = -9,	/* Hardware Error */
+	SCMI_ERR_PROTOCOL = -10,/* Protocol Error */
+};
+
+static const int scmi_linux_errmap[] = {
+	/* better than switch case as long as return value is continuous */
+	0,			/* SCMI_SUCCESS */
+	-EOPNOTSUPP,		/* SCMI_ERR_SUPPORT */
+	-EINVAL,		/* SCMI_ERR_PARAM */
+	-EACCES,		/* SCMI_ERR_ACCESS */
+	-ENOENT,		/* SCMI_ERR_ENTRY */
+	-ERANGE,		/* SCMI_ERR_RANGE */
+	-EBUSY,			/* SCMI_ERR_BUSY */
+	-ECOMM,			/* SCMI_ERR_COMMS */
+	-EIO,			/* SCMI_ERR_GENERIC */
+	-EREMOTEIO,		/* SCMI_ERR_HARDWARE */
+	-EPROTO,		/* SCMI_ERR_PROTOCOL */
+};
+
+static inline int scmi_to_linux_errno(int errno)
+{
+	int err_idx = -errno;
+
+	if (err_idx >= SCMI_SUCCESS && err_idx < ARRAY_SIZE(scmi_linux_errmap))
+		return scmi_linux_errmap[err_idx];
+	return -EIO;
+}
+
 #define MSG_ID_MASK		GENMASK(7, 0)
 #define MSG_XTRACT_ID(hdr)	FIELD_GET(MSG_ID_MASK, (hdr))
 #define MSG_TYPE_MASK		GENMASK(9, 8)
@@ -96,18 +138,19 @@ static inline void unpack_scmi_header(u32 msg_hdr, struct scmi_msg_hdr *hdr)
 
 struct scmi_revision_info *
 scmi_revision_area_get(const struct scmi_protocol_handle *ph);
-int scmi_handle_put(const struct scmi_handle *handle);
-void scmi_device_link_add(struct device *consumer, struct device *supplier);
-struct scmi_handle *scmi_handle_get(struct device *dev);
-void scmi_set_handle(struct scmi_device *scmi_dev);
 void scmi_setup_protocol_implemented(const struct scmi_protocol_handle *ph,
 				     u8 *prot_imp);
 
-int __init scmi_bus_init(void);
-void __exit scmi_bus_exit(void);
+extern struct bus_type scmi_bus_type;
 
-const struct scmi_protocol *scmi_protocol_get(int protocol_id);
-void scmi_protocol_put(int protocol_id);
+#define SCMI_BUS_NOTIFY_DEVICE_REQUEST		0
+#define SCMI_BUS_NOTIFY_DEVICE_UNREQUEST	1
+extern struct blocking_notifier_head scmi_requested_devices_nh;
+
+struct scmi_device *scmi_device_create(struct device_node *np,
+				       struct device *parent, int protocol,
+				       const char *name);
+void scmi_device_destroy(struct device *parent, int protocol, const char *name);
 
 int scmi_protocol_acquire(const struct scmi_handle *handle, u8 protocol_id);
 void scmi_protocol_release(const struct scmi_handle *handle, u8 protocol_id);
@@ -116,6 +159,8 @@ void scmi_protocol_release(const struct scmi_handle *handle, u8 protocol_id);
 /**
  * struct scmi_chan_info - Structure representing a SCMI channel information
  *
+ * @id: An identifier for this channel: this matches the protocol number
+ *      used to initialize this channel
  * @dev: Reference to device in the SCMI hierarchy corresponding to this
  *	 channel
  * @rx_timeout_ms: The configured RX timeout in milliseconds.
@@ -127,6 +172,7 @@ void scmi_protocol_release(const struct scmi_handle *handle, u8 protocol_id);
  * @transport_info: Transport layer related information
  */
 struct scmi_chan_info {
+	int id;
 	struct device *dev;
 	unsigned int rx_timeout_ms;
 	struct scmi_handle *handle;
@@ -153,7 +199,7 @@ struct scmi_chan_info {
  */
 struct scmi_transport_ops {
 	int (*link_supplier)(struct device *dev);
-	bool (*chan_available)(struct device *dev, int idx);
+	bool (*chan_available)(struct device_node *of_node, int idx);
 	int (*chan_setup)(struct scmi_chan_info *cinfo, struct device *dev,
 			  bool tx);
 	int (*chan_free)(int id, void *p, void *data);
@@ -169,11 +215,6 @@ struct scmi_transport_ops {
 	void (*clear_channel)(struct scmi_chan_info *cinfo);
 	bool (*poll_done)(struct scmi_chan_info *cinfo, struct scmi_xfer *xfer);
 };
-
-int scmi_protocol_device_request(const struct scmi_device_id *id_table);
-void scmi_protocol_device_unrequest(const struct scmi_device_id *id_table);
-struct scmi_device *scmi_child_dev_find(struct device *parent,
-					int prot_id, const char *name);
 
 /**
  * struct scmi_desc - Description of SoC integration
@@ -215,6 +256,36 @@ struct scmi_desc {
 	const bool atomic_enabled;
 };
 
+static inline bool is_polling_required(struct scmi_chan_info *cinfo,
+				       const struct scmi_desc *desc)
+{
+	return cinfo->no_completion_irq || desc->force_polling;
+}
+
+static inline bool is_transport_polling_capable(const struct scmi_desc *desc)
+{
+	return desc->ops->poll_done || desc->sync_cmds_completed_on_ret;
+}
+
+static inline bool is_polling_enabled(struct scmi_chan_info *cinfo,
+				      const struct scmi_desc *desc)
+{
+	return is_polling_required(cinfo, desc) &&
+		is_transport_polling_capable(desc);
+}
+
+void scmi_xfer_raw_put(const struct scmi_handle *handle,
+		       struct scmi_xfer *xfer);
+struct scmi_xfer *scmi_xfer_raw_get(const struct scmi_handle *handle);
+struct scmi_chan_info *
+scmi_xfer_raw_channel_get(const struct scmi_handle *handle, u8 protocol_id);
+
+int scmi_xfer_raw_inflight_register(const struct scmi_handle *handle,
+				    struct scmi_xfer *xfer);
+
+int scmi_xfer_raw_wait_for_message_response(struct scmi_chan_info *cinfo,
+					    struct scmi_xfer *xfer,
+					    unsigned int timeout_ms);
 #ifdef CONFIG_ARM_SCMI_TRANSPORT_MAILBOX
 extern const struct scmi_desc scmi_mailbox_desc;
 #endif
@@ -229,7 +300,6 @@ extern const struct scmi_desc scmi_optee_desc;
 #endif
 
 void scmi_rx_callback(struct scmi_chan_info *cinfo, u32 msg_hdr, void *priv);
-void scmi_free_channel(struct scmi_chan_info *cinfo, struct idr *idr, int id);
 
 /* shmem related declarations */
 struct scmi_shared_mem;

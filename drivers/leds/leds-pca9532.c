@@ -50,8 +50,7 @@ struct pca9532_data {
 	u8 psc[2];
 };
 
-static int pca9532_probe(struct i2c_client *client,
-	const struct i2c_device_id *id);
+static int pca9532_probe(struct i2c_client *client);
 static void pca9532_remove(struct i2c_client *client);
 
 enum {
@@ -103,7 +102,7 @@ static struct i2c_driver pca9532_driver = {
 		.name = "leds-pca953x",
 		.of_match_table = of_match_ptr(of_pca9532_leds_match),
 	},
-	.probe = pca9532_probe,
+	.probe_new = pca9532_probe,
 	.remove = pca9532_remove,
 	.id_table = pca9532_id,
 };
@@ -504,9 +503,9 @@ pca9532_of_populate_pdata(struct device *dev, struct device_node *np)
 	return pdata;
 }
 
-static int pca9532_probe(struct i2c_client *client,
-	const struct i2c_device_id *id)
+static int pca9532_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	int devid;
 	struct pca9532_data *data = i2c_get_clientdata(client);
 	struct pca9532_platform_data *pca9532_pdata =

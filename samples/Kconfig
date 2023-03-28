@@ -46,6 +46,13 @@ config SAMPLE_FTRACE_DIRECT_MULTI
 	  that hooks to wake_up_process and schedule, and prints
 	  the function addresses.
 
+config SAMPLE_FTRACE_OPS
+	tristate "Build custom ftrace ops example"
+	depends on FUNCTION_TRACER
+	help
+	  This builds an ftrace ops example that hooks two functions and
+	  measures the time taken to invoke one function a number of times.
+
 config SAMPLE_TRACE_ARRAY
         tristate "Build sample module for kernel access to Ftrace instancess"
 	depends on EVENT_TRACING && m
@@ -184,23 +191,25 @@ config SAMPLE_UHID
 	  Build UHID sample program.
 
 config SAMPLE_VFIO_MDEV_MTTY
-	tristate "Build VFIO mtty example mediated device sample code -- loadable modules only"
-	depends on VFIO_MDEV && m
+	tristate "Build VFIO mtty example mediated device sample code"
+	depends on VFIO
+	select VFIO_MDEV
 	help
 	  Build a virtual tty sample driver for use as a VFIO
 	  mediated device
 
 config SAMPLE_VFIO_MDEV_MDPY
-	tristate "Build VFIO mdpy example mediated device sample code -- loadable modules only"
-	depends on VFIO_MDEV && m
+	tristate "Build VFIO mdpy example mediated device sample code"
+	depends on VFIO
+	select VFIO_MDEV
 	help
 	  Build a virtual display sample driver for use as a VFIO
 	  mediated device.  It is a simple framebuffer and supports
 	  the region display interface (VFIO_GFX_PLANE_TYPE_REGION).
 
 config SAMPLE_VFIO_MDEV_MDPY_FB
-	tristate "Build VFIO mdpy example guest fbdev driver -- loadable module only"
-	depends on FB && m
+	tristate "Build VFIO mdpy example guest fbdev driver"
+	depends on FB
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -208,8 +217,9 @@ config SAMPLE_VFIO_MDEV_MDPY_FB
 	  Guest fbdev driver for the virtual display sample driver.
 
 config SAMPLE_VFIO_MDEV_MBOCHS
-	tristate "Build VFIO mdpy example mediated device sample code -- loadable modules only"
-	depends on VFIO_MDEV && m
+	tristate "Build VFIO mbochs example mediated device sample code"
+	depends on VFIO
+	select VFIO_MDEV
 	select DMA_SHARED_BUFFER
 	help
 	  Build a virtual display sample driver for use as a VFIO

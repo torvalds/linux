@@ -11,8 +11,8 @@
    32 33 34 35 36  ... 50 51 52 53 54 55 56 57 58 59 60 61 62 63
    RPN......................  0  0 U0 U1 U2 U3 UX SX UW SW UR SR
 
-   - PRESENT *must* be in the bottom three bits because swap cache
-     entries use the top 29 bits.
+   - PRESENT *must* be in the bottom two bits because swap PTEs use
+     the top 30 bits.
 
 */
 

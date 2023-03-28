@@ -492,10 +492,12 @@ bool dir_is_empty(struct inode *dir);
 extern const struct file_operations ntfs_dir_operations;
 
 /* Globals from file.c */
-int ntfs_getattr(struct user_namespace *mnt_userns, const struct path *path,
+int ntfs_getattr(struct mnt_idmap *idmap, const struct path *path,
 		 struct kstat *stat, u32 request_mask, u32 flags);
-int ntfs3_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+int ntfs3_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		  struct iattr *attr);
+void ntfs_sparse_cluster(struct inode *inode, struct page *page0, CLST vcn,
+			 CLST len);
 int ntfs_file_open(struct inode *inode, struct file *file);
 int ntfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		__u64 start, __u64 len);
@@ -706,7 +708,7 @@ int ntfs_sync_inode(struct inode *inode);
 int ntfs_flush_inodes(struct super_block *sb, struct inode *i1,
 		      struct inode *i2);
 int inode_write_data(struct inode *inode, const void *data, size_t bytes);
-struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
+struct inode *ntfs_create_inode(struct mnt_idmap *idmap,
 				struct inode *dir, struct dentry *dentry,
 				const struct cpu_str *uni, umode_t mode,
 				dev_t dev, const char *symname, u32 size,
@@ -857,17 +859,17 @@ unsigned long ntfs_names_hash(const u16 *name, size_t len, const u16 *upcase,
 /* globals from xattr.c */
 #ifdef CONFIG_NTFS3_FS_POSIX_ACL
 struct posix_acl *ntfs_get_acl(struct inode *inode, int type, bool rcu);
-int ntfs_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
+int ntfs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		 struct posix_acl *acl, int type);
-int ntfs_init_acl(struct user_namespace *mnt_userns, struct inode *inode,
+int ntfs_init_acl(struct mnt_idmap *idmap, struct inode *inode,
 		  struct inode *dir);
 #else
 #define ntfs_get_acl NULL
 #define ntfs_set_acl NULL
 #endif
 
-int ntfs_acl_chmod(struct user_namespace *mnt_userns, struct dentry *dentry);
-int ntfs_permission(struct user_namespace *mnt_userns, struct inode *inode,
+int ntfs_acl_chmod(struct mnt_idmap *idmap, struct dentry *dentry);
+int ntfs_permission(struct mnt_idmap *idmap, struct inode *inode,
 		    int mask);
 ssize_t ntfs_listxattr(struct dentry *dentry, char *buffer, size_t size);
 extern const struct xattr_handler *ntfs_xattr_handlers[];

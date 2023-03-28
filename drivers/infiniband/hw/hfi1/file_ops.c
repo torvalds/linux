@@ -306,6 +306,17 @@ static ssize_t hfi1_write_iter(struct kiocb *kiocb, struct iov_iter *from)
 	return reqs;
 }
 
+static inline void mmap_cdbg(u16 ctxt, u8 subctxt, u8 type, u8 mapio, u8 vmf,
+			     u64 memaddr, void *memvirt, dma_addr_t memdma,
+			     ssize_t memlen, struct vm_area_struct *vma)
+{
+	hfi1_cdbg(PROC,
+		  "%u:%u type:%u io/vf/dma:%d/%d/%d, addr:0x%llx, len:%lu(%lu), flags:0x%lx",
+		  ctxt, subctxt, type, mapio, vmf, !!memdma,
+		  memaddr ?: (u64)memvirt, memlen,
+		  vma->vm_end - vma->vm_start, vma->vm_flags);
+}
+
 static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 {
 	struct hfi1_filedata *fd = fp->private_data;
@@ -315,6 +326,7 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 	u64 token = vma->vm_pgoff << PAGE_SHIFT,
 		memaddr = 0;
 	void *memvirt = NULL;
+	dma_addr_t memdma = 0;
 	u8 subctxt, mapio = 0, vmf = 0, type;
 	ssize_t memlen = 0;
 	int ret = 0;
@@ -334,6 +346,11 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 		goto done;
 	}
 
+	/*
+	 * vm_pgoff is used as a buffer selector cookie.  Always mmap from
+	 * the beginning.
+	 */ 
+	vma->vm_pgoff = 0;
 	flags = vma->vm_flags;
 
 	switch (type) {
@@ -355,7 +372,8 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 		mapio = 1;
 		break;
-	case PIO_CRED:
+	case PIO_CRED: {
+		u64 cr_page_offset;
 		if (flags & VM_WRITE) {
 			ret = -EPERM;
 			goto done;
@@ -365,10 +383,11 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 		 * second or third page allocated for credit returns (if number
 		 * of enabled contexts > 64 and 128 respectively).
 		 */
-		memvirt = dd->cr_base[uctxt->numa_id].va;
-		memaddr = virt_to_phys(memvirt) +
-			(((u64)uctxt->sc->hw_free -
-			  (u64)dd->cr_base[uctxt->numa_id].va) & PAGE_MASK);
+		cr_page_offset = ((u64)uctxt->sc->hw_free -
+			  	     (u64)dd->cr_base[uctxt->numa_id].va) &
+				   PAGE_MASK;
+		memvirt = dd->cr_base[uctxt->numa_id].va + cr_page_offset;
+		memdma = dd->cr_base[uctxt->numa_id].dma + cr_page_offset;
 		memlen = PAGE_SIZE;
 		flags &= ~VM_MAYWRITE;
 		flags |= VM_DONTCOPY | VM_DONTEXPAND;
@@ -378,14 +397,16 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 		 * memory been flagged as non-cached?
 		 */
 		/* vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot); */
-		mapio = 1;
 		break;
+	}
 	case RCV_HDRQ:
 		memlen = rcvhdrq_size(uctxt);
 		memvirt = uctxt->rcvhdrq;
+		memdma = uctxt->rcvhdrq_dma;
 		break;
 	case RCV_EGRBUF: {
-		unsigned long addr;
+		unsigned long vm_start_save;
+		unsigned long vm_end_save;
 		int i;
 		/*
 		 * The RcvEgr buffer need to be handled differently
@@ -403,25 +424,35 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 			ret = -EPERM;
 			goto done;
 		}
-		vma->vm_flags &= ~VM_MAYWRITE;
-		addr = vma->vm_start;
+		vm_flags_clear(vma, VM_MAYWRITE);
+		/*
+		 * Mmap multiple separate allocations into a single vma.  From
+		 * here, dma_mmap_coherent() calls dma_direct_mmap(), which
+		 * requires the mmap to exactly fill the vma starting at
+		 * vma_start.  Adjust the vma start and end for each eager
+		 * buffer segment mapped.  Restore the originals when done.
+		 */
+		vm_start_save = vma->vm_start;
+		vm_end_save = vma->vm_end;
+		vma->vm_end = vma->vm_start;
 		for (i = 0 ; i < uctxt->egrbufs.numbufs; i++) {
 			memlen = uctxt->egrbufs.buffers[i].len;
 			memvirt = uctxt->egrbufs.buffers[i].addr;
-			ret = remap_pfn_range(
-				vma, addr,
-				/*
-				 * virt_to_pfn() does the same, but
-				 * it's not available on x86_64
-				 * when CONFIG_MMU is enabled.
-				 */
-				PFN_DOWN(__pa(memvirt)),
-				memlen,
-				vma->vm_page_prot);
-			if (ret < 0)
+			memdma = uctxt->egrbufs.buffers[i].dma;
+			vma->vm_end += memlen;
+			mmap_cdbg(ctxt, subctxt, type, mapio, vmf, memaddr,
+				  memvirt, memdma, memlen, vma);
+			ret = dma_mmap_coherent(&dd->pcidev->dev, vma,
+						memvirt, memdma, memlen);
+			if (ret < 0) {
+				vma->vm_start = vm_start_save;
+				vma->vm_end = vm_end_save;
 				goto done;
-			addr += memlen;
+			}
+			vma->vm_start += memlen;
 		}
+		vma->vm_start = vm_start_save;
+		vma->vm_end = vm_end_save;
 		ret = 0;
 		goto done;
 	}
@@ -481,6 +512,7 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 		}
 		memlen = PAGE_SIZE;
 		memvirt = (void *)hfi1_rcvhdrtail_kvaddr(uctxt);
+		memdma = uctxt->rcvhdrqtailaddr_dma;
 		flags &= ~VM_MAYWRITE;
 		break;
 	case SUBCTXT_UREGS:
@@ -528,15 +560,16 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 		goto done;
 	}
 
-	vma->vm_flags = flags;
-	hfi1_cdbg(PROC,
-		  "%u:%u type:%u io/vf:%d/%d, addr:0x%llx, len:%lu(%lu), flags:0x%lx\n",
-		    ctxt, subctxt, type, mapio, vmf, memaddr, memlen,
-		    vma->vm_end - vma->vm_start, vma->vm_flags);
+	vm_flags_reset(vma, flags);
+	mmap_cdbg(ctxt, subctxt, type, mapio, vmf, memaddr, memvirt, memdma, 
+		  memlen, vma);
 	if (vmf) {
 		vma->vm_pgoff = PFN_DOWN(memaddr);
 		vma->vm_ops = &vm_ops;
 		ret = 0;
+	} else if (memdma) {
+		ret = dma_mmap_coherent(&dd->pcidev->dev, vma,
+					memvirt, memdma, memlen);
 	} else if (mapio) {
 		ret = io_remap_pfn_range(vma, vma->vm_start,
 					 PFN_DOWN(memaddr),
@@ -1318,12 +1351,15 @@ static int user_exp_rcv_setup(struct hfi1_filedata *fd, unsigned long arg,
 		addr = arg + offsetof(struct hfi1_tid_info, tidcnt);
 		if (copy_to_user((void __user *)addr, &tinfo.tidcnt,
 				 sizeof(tinfo.tidcnt)))
-			return -EFAULT;
+			ret = -EFAULT;
 
 		addr = arg + offsetof(struct hfi1_tid_info, length);
-		if (copy_to_user((void __user *)addr, &tinfo.length,
+		if (!ret && copy_to_user((void __user *)addr, &tinfo.length,
 				 sizeof(tinfo.length)))
 			ret = -EFAULT;
+
+		if (ret)
+			hfi1_user_exp_rcv_invalid(fd, &tinfo);
 	}
 
 	return ret;

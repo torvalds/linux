@@ -1,5 +1,3 @@
-.. _numa:
-
 Started Nov 1999 by Kanoj Sarcar <kanoj@sgi.com>
 
 =============
@@ -64,7 +62,7 @@ In addition, for some architectures, again x86 is an example, Linux supports
 the emulation of additional nodes.  For NUMA emulation, linux will carve up
 the existing nodes--or the system memory for non-NUMA platforms--into multiple
 nodes.  Each emulated node will manage a fraction of the underlying cells'
-physical memory.  NUMA emluation is useful for testing NUMA kernel and
+physical memory.  NUMA emulation is useful for testing NUMA kernel and
 application features on non-NUMA platforms, and as a sort of memory resource
 management mechanism when used together with cpusets.
 [see Documentation/admin-guide/cgroup-v1/cpusets.rst]
@@ -110,7 +108,7 @@ to improve NUMA locality using various CPU affinity command line interfaces,
 such as taskset(1) and numactl(1), and program interfaces such as
 sched_setaffinity(2).  Further, one can modify the kernel's default local
 allocation behavior using Linux NUMA memory policy. [see
-:ref:`Documentation/admin-guide/mm/numa_memory_policy.rst <numa_memory_policy>`].
+Documentation/admin-guide/mm/numa_memory_policy.rst].
 
 System administrators can restrict the CPUs and nodes' memories that a non-
 privileged user can specify in the scheduling or NUMA commands and functions

@@ -187,16 +187,6 @@ static int wm97xx_acc_startup(struct wm97xx *wm)
 		 "mainstone accelerated touchscreen driver, %d samples/sec\n",
 		 cinfo[sp_idx].speed);
 
-	/* IRQ driven touchscreen is used on Palm hardware */
-	if (machine_is_palmt5() || machine_is_palmtx() || machine_is_palmld()) {
-		pen_int = 1;
-		/* There is some obscure mutant of WM9712 interbred with WM9713
-		 * used on Palm HW */
-		wm->variant = WM97xx_WM1613;
-	} else if (machine_is_zylonite()) {
-		pen_int = 1;
-	}
-
 	if (pen_int) {
 		gpiod_irq = gpiod_get(wm->dev, "touch", GPIOD_IN);
 		if (IS_ERR(gpiod_irq))

@@ -216,7 +216,7 @@ struct fc_bsg_host_vendor {
  */
 struct fc_bsg_host_vendor_reply {
 	/* start of vendor response area */
-	__u32 vendor_rsp[0];
+	__DECLARE_FLEX_ARRAY(__u32, vendor_rsp);
 };
 
 

@@ -582,12 +582,10 @@ static void hda_tegra_probe_work(struct work_struct *work)
 
 static int hda_tegra_remove(struct platform_device *pdev)
 {
-	int ret;
-
-	ret = snd_card_free(dev_get_drvdata(&pdev->dev));
+	snd_card_free(dev_get_drvdata(&pdev->dev));
 	pm_runtime_disable(&pdev->dev);
 
-	return ret;
+	return 0;
 }
 
 static void hda_tegra_shutdown(struct platform_device *pdev)

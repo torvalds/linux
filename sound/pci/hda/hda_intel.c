@@ -50,6 +50,7 @@
 #include <sound/intel-dsp-config.h>
 #include <linux/vgaarb.h>
 #include <linux/vga_switcheroo.h>
+#include <linux/apple-gmux.h>
 #include <linux/firmware.h>
 #include <sound/hda_codec.h>
 #include "hda_controller.h"
@@ -119,6 +120,7 @@ static bool beep_mode[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] =
 					CONFIG_SND_HDA_INPUT_BEEP_MODE};
 #endif
 static bool dmic_detect = 1;
+static bool ctl_dev_id = IS_ENABLED(CONFIG_SND_HDA_CTL_DEV_ID) ? 1 : 0;
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for Intel HD audio interface.");
@@ -157,6 +159,8 @@ module_param(dmic_detect, bool, 0444);
 MODULE_PARM_DESC(dmic_detect, "Allow DSP driver selection (bypass this driver) "
 			     "(0=off, 1=on) (default=1); "
 		 "deprecated, use snd-intel-dspcfg.dsp_driver option instead");
+module_param(ctl_dev_id, bool, 0444);
+MODULE_PARM_DESC(ctl_dev_id, "Use control device identifier (based on codec address).");
 
 #ifdef CONFIG_PM
 static int param_set_xint(const char *val, const struct kernel_param *kp);
@@ -1463,7 +1467,7 @@ static struct pci_dev *get_bound_vga(struct pci_dev *pci)
 				 * vgaswitcheroo.
 				 */
 				if (((p->class >> 16) == PCI_BASE_CLASS_DISPLAY) &&
-				    atpx_present())
+				    (atpx_present() || apple_gmux_detect(NULL, NULL)))
 					return p;
 				pci_dev_put(p);
 			}
@@ -2277,6 +2281,8 @@ static int azx_probe_continue(struct azx *chip)
 #ifdef CONFIG_SND_HDA_INPUT_BEEP
 	chip->beep_mode = beep_mode[dev];
 #endif
+
+	chip->ctl_dev_id = ctl_dev_id;
 
 	/* create codec instances */
 	if (bus->codec_mask) {

@@ -51,6 +51,7 @@ enum mlx5_flow_destination_type {
 	MLX5_FLOW_DESTINATION_TYPE_COUNTER,
 	MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE_NUM,
 	MLX5_FLOW_DESTINATION_TYPE_RANGE,
+	MLX5_FLOW_DESTINATION_TYPE_TABLE_TYPE,
 };
 
 enum {
@@ -102,6 +103,8 @@ enum mlx5_flow_namespace_type {
 	MLX5_FLOW_NAMESPACE_PORT_SEL,
 	MLX5_FLOW_NAMESPACE_RDMA_RX_COUNTERS,
 	MLX5_FLOW_NAMESPACE_RDMA_TX_COUNTERS,
+	MLX5_FLOW_NAMESPACE_RDMA_RX_IPSEC,
+	MLX5_FLOW_NAMESPACE_RDMA_TX_IPSEC,
 };
 
 enum {
@@ -296,6 +299,8 @@ void mlx5_fc_destroy(struct mlx5_core_dev *dev, struct mlx5_fc *counter);
 u64 mlx5_fc_query_lastuse(struct mlx5_fc *counter);
 void mlx5_fc_query_cached(struct mlx5_fc *counter,
 			  u64 *bytes, u64 *packets, u64 *lastuse);
+void mlx5_fc_query_cached_raw(struct mlx5_fc *counter,
+			      u64 *bytes, u64 *packets, u64 *lastuse);
 int mlx5_fc_query(struct mlx5_core_dev *dev, struct mlx5_fc *counter,
 		  u64 *packets, u64 *bytes);
 u32 mlx5_fc_id(struct mlx5_fc *counter);

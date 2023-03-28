@@ -5563,7 +5563,7 @@ static int light_sysfs_set(struct led_classdev *led_cdev,
 
 static enum led_brightness light_sysfs_get(struct led_classdev *led_cdev)
 {
-	return (light_get_status() == 1) ? LED_FULL : LED_OFF;
+	return (light_get_status() == 1) ? LED_ON : LED_OFF;
 }
 
 static struct tpacpi_led_classdev tpacpi_led_thinklight = {
@@ -10311,9 +10311,11 @@ static DEFINE_MUTEX(dytc_mutex);
 static int dytc_capabilities;
 static bool dytc_mmc_get_available;
 
-static int convert_dytc_to_profile(int dytcmode, enum platform_profile_option *profile)
+static int convert_dytc_to_profile(int funcmode, int dytcmode,
+		enum platform_profile_option *profile)
 {
-	if (dytc_capabilities & BIT(DYTC_FC_MMC)) {
+	switch (funcmode) {
+	case DYTC_FUNCTION_MMC:
 		switch (dytcmode) {
 		case DYTC_MODE_MMC_LOWPOWER:
 			*profile = PLATFORM_PROFILE_LOW_POWER;
@@ -10329,8 +10331,7 @@ static int convert_dytc_to_profile(int dytcmode, enum platform_profile_option *p
 			return -EINVAL;
 		}
 		return 0;
-	}
-	if (dytc_capabilities & BIT(DYTC_FC_PSC)) {
+	case DYTC_FUNCTION_PSC:
 		switch (dytcmode) {
 		case DYTC_MODE_PSC_LOWPOWER:
 			*profile = PLATFORM_PROFILE_LOW_POWER;
@@ -10344,6 +10345,14 @@ static int convert_dytc_to_profile(int dytcmode, enum platform_profile_option *p
 		default: /* Unknown mode */
 			return -EINVAL;
 		}
+		return 0;
+	case DYTC_FUNCTION_AMT:
+		/* For now return balanced. It's the closest we have to 'auto' */
+		*profile =  PLATFORM_PROFILE_BALANCED;
+		return 0;
+	default:
+		/* Unknown function */
+		return -EOPNOTSUPP;
 	}
 	return 0;
 }
@@ -10487,11 +10496,11 @@ static int dytc_profile_set(struct platform_profile_handler *pprof,
 			if (err)
 				goto unlock;
 		}
-	}
-	if (dytc_capabilities & BIT(DYTC_FC_PSC)) {
+	} else if (dytc_capabilities & BIT(DYTC_FC_PSC)) {
 		err = dytc_command(DYTC_SET_COMMAND(DYTC_FUNCTION_PSC, perfmode, 1), &output);
 		if (err)
 			goto unlock;
+
 		/* system supports AMT, activate it when on balanced */
 		if (dytc_capabilities & BIT(DYTC_FC_AMT))
 			dytc_control_amt(profile == PLATFORM_PROFILE_BALANCED);
@@ -10507,7 +10516,7 @@ static void dytc_profile_refresh(void)
 {
 	enum platform_profile_option profile;
 	int output, err = 0;
-	int perfmode;
+	int perfmode, funcmode;
 
 	mutex_lock(&dytc_mutex);
 	if (dytc_capabilities & BIT(DYTC_FC_MMC)) {
@@ -10515,15 +10524,18 @@ static void dytc_profile_refresh(void)
 			err = dytc_command(DYTC_CMD_MMC_GET, &output);
 		else
 			err = dytc_cql_command(DYTC_CMD_GET, &output);
-	} else if (dytc_capabilities & BIT(DYTC_FC_PSC))
+		funcmode = DYTC_FUNCTION_MMC;
+	} else if (dytc_capabilities & BIT(DYTC_FC_PSC)) {
 		err = dytc_command(DYTC_CMD_GET, &output);
-
+		/* Check if we are PSC mode, or have AMT enabled */
+		funcmode = (output >> DYTC_GET_FUNCTION_BIT) & 0xF;
+	}
 	mutex_unlock(&dytc_mutex);
 	if (err)
 		return;
 
 	perfmode = (output >> DYTC_GET_MODE_BIT) & 0xF;
-	convert_dytc_to_profile(perfmode, &profile);
+	convert_dytc_to_profile(funcmode, perfmode, &profile);
 	if (profile != dytc_current_profile) {
 		dytc_current_profile = profile;
 		platform_profile_notify();

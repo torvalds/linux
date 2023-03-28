@@ -166,8 +166,7 @@ int nand_onfi_detect(struct nand_chip *chip)
 	if (!pbuf)
 		return -ENOMEM;
 
-	if (!nand_has_exec_op(chip) ||
-	    !nand_read_data_op(chip, &pbuf[0], sizeof(*pbuf), true, true))
+	if (!nand_has_exec_op(chip) || chip->controller->supported_op.data_only_read)
 		use_datain = true;
 
 	for (i = 0; i < ONFI_PARAM_PAGES; i++) {

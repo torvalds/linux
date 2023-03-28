@@ -296,6 +296,7 @@ config ICE
 	default n
 	depends on PCI_MSI
 	depends on PTP_1588_CLOCK_OPTIONAL
+	depends on GNSS || GNSS = n
 	select AUXILIARY_BUS
 	select DIMLIB
 	select NET_DEVLINK

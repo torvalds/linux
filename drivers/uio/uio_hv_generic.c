@@ -355,20 +355,19 @@ fail_free_ring:
 	return ret;
 }
 
-static int
+static void
 hv_uio_remove(struct hv_device *dev)
 {
 	struct hv_uio_private_data *pdata = hv_get_drvdata(dev);
 
 	if (!pdata)
-		return 0;
+		return;
 
 	sysfs_remove_bin_file(&dev->channel->kobj, &ring_buffer_bin_attr);
 	uio_unregister_device(&pdata->info);
 	hv_uio_cleanup(dev, pdata);
 
 	vmbus_free_ring(dev->channel);
-	return 0;
 }
 
 static struct hv_driver hv_uio_drv = {

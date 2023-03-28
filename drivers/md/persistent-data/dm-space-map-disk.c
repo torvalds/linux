@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2011 Red Hat, Inc.
  *
@@ -48,6 +49,7 @@ static int sm_disk_extend(struct dm_space_map *sm, dm_block_t extra_blocks)
 static int sm_disk_get_nr_blocks(struct dm_space_map *sm, dm_block_t *count)
 {
 	struct sm_disk *smd = container_of(sm, struct sm_disk, sm);
+
 	*count = smd->old_ll.nr_blocks;
 
 	return 0;
@@ -56,6 +58,7 @@ static int sm_disk_get_nr_blocks(struct dm_space_map *sm, dm_block_t *count)
 static int sm_disk_get_nr_free(struct dm_space_map *sm, dm_block_t *count)
 {
 	struct sm_disk *smd = container_of(sm, struct sm_disk, sm);
+
 	*count = (smd->old_ll.nr_blocks - smd->old_ll.nr_allocated) - smd->nr_allocated_this_transaction;
 
 	return 0;
@@ -65,6 +68,7 @@ static int sm_disk_get_count(struct dm_space_map *sm, dm_block_t b,
 			     uint32_t *result)
 {
 	struct sm_disk *smd = container_of(sm, struct sm_disk, sm);
+
 	return sm_ll_lookup(&smd->ll, b, result);
 }
 
@@ -91,9 +95,8 @@ static int sm_disk_set_count(struct dm_space_map *sm, dm_block_t b,
 	struct sm_disk *smd = container_of(sm, struct sm_disk, sm);
 
 	r = sm_ll_insert(&smd->ll, b, count, &nr_allocations);
-	if (!r) {
+	if (!r)
 		smd->nr_allocated_this_transaction += nr_allocations;
-	}
 
 	return r;
 }
@@ -134,22 +137,20 @@ static int sm_disk_new_block(struct dm_space_map *sm, dm_block_t *b)
 	 * Any block we allocate has to be free in both the old and current ll.
 	 */
 	r = sm_ll_find_common_free_block(&smd->old_ll, &smd->ll, smd->begin, smd->ll.nr_blocks, b);
-	if (r == -ENOSPC) {
+	if (r == -ENOSPC)
 		/*
 		 * There's no free block between smd->begin and the end of the metadata device.
 		 * We search before smd->begin in case something has been freed.
 		 */
 		r = sm_ll_find_common_free_block(&smd->old_ll, &smd->ll, 0, smd->begin, b);
-	}
 
 	if (r)
 		return r;
 
 	smd->begin = *b + 1;
 	r = sm_ll_inc(&smd->ll, *b, *b + 1, &nr_allocations);
-	if (!r) {
+	if (!r)
 		smd->nr_allocated_this_transaction += nr_allocations;
-	}
 
 	return r;
 }

@@ -18,6 +18,20 @@ int vfio_iommufd_bind(struct vfio_device *vdev, struct iommufd_ctx *ictx)
 
 	lockdep_assert_held(&vdev->dev_set->lock);
 
+	if (vfio_device_is_noiommu(vdev)) {
+		if (!capable(CAP_SYS_RAWIO))
+			return -EPERM;
+
+		/*
+		 * Require no compat ioas to be assigned to proceed. The basic
+		 * statement is that the user cannot have done something that
+		 * implies they expected translation to exist
+		 */
+		if (!iommufd_vfio_compat_ioas_get_id(ictx, &ioas_id))
+			return -EPERM;
+		return 0;
+	}
+
 	/*
 	 * If the driver doesn't provide this op then it means the device does
 	 * not do DMA at all. So nothing to do.
@@ -29,7 +43,7 @@ int vfio_iommufd_bind(struct vfio_device *vdev, struct iommufd_ctx *ictx)
 	if (ret)
 		return ret;
 
-	ret = iommufd_vfio_compat_ioas_id(ictx, &ioas_id);
+	ret = iommufd_vfio_compat_ioas_get_id(ictx, &ioas_id);
 	if (ret)
 		goto err_unbind;
 	ret = vdev->ops->attach_ioas(vdev, &ioas_id);
@@ -51,6 +65,9 @@ err_unbind:
 void vfio_iommufd_unbind(struct vfio_device *vdev)
 {
 	lockdep_assert_held(&vdev->dev_set->lock);
+
+	if (vfio_device_is_noiommu(vdev))
+		return;
 
 	if (vdev->ops->unbind_iommufd)
 		vdev->ops->unbind_iommufd(vdev);

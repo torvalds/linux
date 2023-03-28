@@ -146,7 +146,6 @@ struct devlink_port {
 	   initialized:1;
 	struct delayed_work type_warn_dw;
 	struct list_head reporter_list;
-	struct mutex reporters_lock; /* Protects reporter_list */
 
 	struct devlink_rate *devlink_rate;
 	struct devlink_linecard *linecard;
@@ -490,6 +489,10 @@ struct devlink_param_item {
 	const struct devlink_param *param;
 	union devlink_param_value driverinit_value;
 	bool driverinit_value_valid;
+	union devlink_param_value driverinit_value_new; /* Not reachable
+							 * until reload.
+							 */
+	bool driverinit_value_new_valid;
 };
 
 enum devlink_param_generic_id {
@@ -1646,7 +1649,9 @@ static inline struct devlink *devlink_alloc(const struct devlink_ops *ops,
 {
 	return devlink_alloc_ns(ops, priv_size, &init_net, dev);
 }
-void devlink_set_features(struct devlink *devlink, u64 features);
+
+int devl_register(struct devlink *devlink);
+void devl_unregister(struct devlink *devlink);
 void devlink_register(struct devlink *devlink);
 void devlink_unregister(struct devlink *devlink);
 void devlink_free(struct devlink *devlink);
@@ -1685,9 +1690,9 @@ void devl_rate_nodes_destroy(struct devlink *devlink);
 void devlink_port_linecard_set(struct devlink_port *devlink_port,
 			       struct devlink_linecard *linecard);
 struct devlink_linecard *
-devlink_linecard_create(struct devlink *devlink, unsigned int linecard_index,
-			const struct devlink_linecard_ops *ops, void *priv);
-void devlink_linecard_destroy(struct devlink_linecard *linecard);
+devl_linecard_create(struct devlink *devlink, unsigned int linecard_index,
+		     const struct devlink_linecard_ops *ops, void *priv);
+void devl_linecard_destroy(struct devlink_linecard *linecard);
 void devlink_linecard_provision_set(struct devlink_linecard *linecard,
 				    const char *type);
 void devlink_linecard_provision_clear(struct devlink_linecard *linecard);
@@ -1766,21 +1771,23 @@ void devl_resource_occ_get_unregister(struct devlink *devlink,
 
 void devlink_resource_occ_get_unregister(struct devlink *devlink,
 					 u64 resource_id);
+int devl_params_register(struct devlink *devlink,
+			 const struct devlink_param *params,
+			 size_t params_count);
 int devlink_params_register(struct devlink *devlink,
+			    const struct devlink_param *params,
+			    size_t params_count);
+void devl_params_unregister(struct devlink *devlink,
 			    const struct devlink_param *params,
 			    size_t params_count);
 void devlink_params_unregister(struct devlink *devlink,
 			       const struct devlink_param *params,
 			       size_t params_count);
-int devlink_param_register(struct devlink *devlink,
-			   const struct devlink_param *param);
-void devlink_param_unregister(struct devlink *devlink,
-			      const struct devlink_param *param);
-int devlink_param_driverinit_value_get(struct devlink *devlink, u32 param_id,
-				       union devlink_param_value *init_val);
-int devlink_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
-				       union devlink_param_value init_val);
-void devlink_param_value_changed(struct devlink *devlink, u32 param_id);
+int devl_param_driverinit_value_get(struct devlink *devlink, u32 param_id,
+				    union devlink_param_value *val);
+void devl_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
+				     union devlink_param_value init_val);
+void devl_param_value_changed(struct devlink *devlink, u32 param_id);
 struct devlink_region *devl_region_create(struct devlink *devlink,
 					  const struct devlink_region_ops *ops,
 					  u32 region_max_snapshots,
@@ -1863,20 +1870,30 @@ int devlink_fmsg_binary_pair_put(struct devlink_fmsg *fmsg, const char *name,
 				 const void *value, u32 value_len);
 
 struct devlink_health_reporter *
-devlink_health_reporter_create(struct devlink *devlink,
-			       const struct devlink_health_reporter_ops *ops,
-			       u64 graceful_period, void *priv);
+devl_port_health_reporter_create(struct devlink_port *port,
+				 const struct devlink_health_reporter_ops *ops,
+				 u64 graceful_period, void *priv);
 
 struct devlink_health_reporter *
 devlink_port_health_reporter_create(struct devlink_port *port,
 				    const struct devlink_health_reporter_ops *ops,
 				    u64 graceful_period, void *priv);
 
-void
-devlink_health_reporter_destroy(struct devlink_health_reporter *reporter);
+struct devlink_health_reporter *
+devl_health_reporter_create(struct devlink *devlink,
+			    const struct devlink_health_reporter_ops *ops,
+			    u64 graceful_period, void *priv);
+
+struct devlink_health_reporter *
+devlink_health_reporter_create(struct devlink *devlink,
+			       const struct devlink_health_reporter_ops *ops,
+			       u64 graceful_period, void *priv);
 
 void
-devlink_port_health_reporter_destroy(struct devlink_health_reporter *reporter);
+devl_health_reporter_destroy(struct devlink_health_reporter *reporter);
+
+void
+devlink_health_reporter_destroy(struct devlink_health_reporter *reporter);
 
 void *
 devlink_health_reporter_priv(struct devlink_health_reporter *reporter);

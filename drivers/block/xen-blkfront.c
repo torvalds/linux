@@ -2467,7 +2467,7 @@ static void blkback_changed(struct xenbus_device *dev,
 	}
 }
 
-static int blkfront_remove(struct xenbus_device *xbdev)
+static void blkfront_remove(struct xenbus_device *xbdev)
 {
 	struct blkfront_info *info = dev_get_drvdata(&xbdev->dev);
 
@@ -2488,7 +2488,6 @@ static int blkfront_remove(struct xenbus_device *xbdev)
 	}
 
 	kfree(info);
-	return 0;
 }
 
 static int blkfront_is_ready(struct xenbus_device *dev)

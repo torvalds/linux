@@ -10,6 +10,8 @@
 #include <linux/slab.h>
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
+#define RXRPC_TRACE_ONLY_DEFINE_ENUMS
+#include <trace/events/rxrpc.h>
 
 MODULE_DESCRIPTION("rxperf test server (afs)");
 MODULE_AUTHOR("Red Hat, Inc.");
@@ -307,12 +309,14 @@ static void rxperf_deliver_to_call(struct work_struct *work)
 		case -EOPNOTSUPP:
 			abort_code = RXGEN_OPCODE;
 			rxrpc_kernel_abort_call(rxperf_socket, call->rxcall,
-						abort_code, ret, "GOP");
+						abort_code, ret,
+						rxperf_abort_op_not_supported);
 			goto call_complete;
 		case -ENOTSUPP:
 			abort_code = RX_USER_ABORT;
 			rxrpc_kernel_abort_call(rxperf_socket, call->rxcall,
-						abort_code, ret, "GUA");
+						abort_code, ret,
+						rxperf_abort_op_not_supported);
 			goto call_complete;
 		case -EIO:
 			pr_err("Call %u in bad state %u\n",
@@ -324,11 +328,13 @@ static void rxperf_deliver_to_call(struct work_struct *work)
 		case -ENOMEM:
 		case -EFAULT:
 			rxrpc_kernel_abort_call(rxperf_socket, call->rxcall,
-						RXGEN_SS_UNMARSHAL, ret, "GUM");
+						RXGEN_SS_UNMARSHAL, ret,
+						rxperf_abort_unmarshal_error);
 			goto call_complete;
 		default:
 			rxrpc_kernel_abort_call(rxperf_socket, call->rxcall,
-						RX_CALL_DEAD, ret, "GER");
+						RX_CALL_DEAD, ret,
+						rxperf_abort_general_error);
 			goto call_complete;
 		}
 	}
@@ -487,7 +493,7 @@ static int rxperf_deliver_request(struct rxperf_call *call)
 static int rxperf_process_call(struct rxperf_call *call)
 {
 	struct msghdr msg = {};
-	struct bio_vec bv[1];
+	struct bio_vec bv;
 	struct kvec iov[1];
 	ssize_t n;
 	size_t reply_len = call->reply_len, len;
@@ -497,10 +503,8 @@ static int rxperf_process_call(struct rxperf_call *call)
 
 	while (reply_len > 0) {
 		len = min_t(size_t, reply_len, PAGE_SIZE);
-		bv[0].bv_page	= ZERO_PAGE(0);
-		bv[0].bv_offset	= 0;
-		bv[0].bv_len	= len;
-		iov_iter_bvec(&msg.msg_iter, WRITE, bv, 1, len);
+		bvec_set_page(&bv, ZERO_PAGE(0), len, 0);
+		iov_iter_bvec(&msg.msg_iter, WRITE, &bv, 1, len);
 		msg.msg_flags = MSG_MORE;
 		n = rxrpc_kernel_send_data(rxperf_socket, call->rxcall, &msg,
 					   len, rxperf_notify_end_reply_tx);
@@ -523,7 +527,8 @@ static int rxperf_process_call(struct rxperf_call *call)
 
 	if (n == -ENOMEM)
 		rxrpc_kernel_abort_call(rxperf_socket, call->rxcall,
-					RXGEN_SS_MARSHAL, -ENOMEM, "GOM");
+					RXGEN_SS_MARSHAL, -ENOMEM,
+					rxperf_abort_oom);
 	return n;
 }
 

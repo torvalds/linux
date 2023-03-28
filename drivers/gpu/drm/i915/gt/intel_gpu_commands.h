@@ -394,6 +394,7 @@
 #define MI_LOAD_URB_MEM         MI_INSTR(0x2C, 0)
 #define MI_STORE_URB_MEM        MI_INSTR(0x2D, 0)
 #define MI_CONDITIONAL_BATCH_BUFFER_END MI_INSTR(0x36, 0)
+#define  MI_DO_COMPARE		REG_BIT(21)
 
 #define STATE_BASE_ADDRESS \
 	((0x3 << 29) | (0x0 << 27) | (0x1 << 24) | (0x1 << 16))

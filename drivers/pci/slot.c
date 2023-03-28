@@ -98,7 +98,7 @@ static struct attribute *pci_slot_default_attrs[] = {
 };
 ATTRIBUTE_GROUPS(pci_slot_default);
 
-static struct kobj_type pci_slot_ktype = {
+static const struct kobj_type pci_slot_ktype = {
 	.sysfs_ops = &pci_slot_sysfs_ops,
 	.release = &pci_slot_release,
 	.default_groups = pci_slot_default_groups,

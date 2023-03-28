@@ -39,7 +39,7 @@ ice_aq_send_msg_to_vf(struct ice_hw *hw, u16 vfid, u32 v_opcode, u32 v_retval,
 	return ice_sq_send_cmd(hw, &hw->mailboxq, &desc, msg, msglen, cd);
 }
 
-static const u32 ice_legacy_aq_to_vc_speed[15] = {
+static const u32 ice_legacy_aq_to_vc_speed[] = {
 	VIRTCHNL_LINK_SPEED_100MB,	/* BIT(0) */
 	VIRTCHNL_LINK_SPEED_100MB,
 	VIRTCHNL_LINK_SPEED_1GB,
@@ -51,10 +51,6 @@ static const u32 ice_legacy_aq_to_vc_speed[15] = {
 	VIRTCHNL_LINK_SPEED_40GB,
 	VIRTCHNL_LINK_SPEED_40GB,
 	VIRTCHNL_LINK_SPEED_40GB,
-	VIRTCHNL_LINK_SPEED_UNKNOWN,
-	VIRTCHNL_LINK_SPEED_UNKNOWN,
-	VIRTCHNL_LINK_SPEED_UNKNOWN,
-	VIRTCHNL_LINK_SPEED_UNKNOWN	/* BIT(14) */
 };
 
 /**
@@ -71,21 +67,20 @@ static const u32 ice_legacy_aq_to_vc_speed[15] = {
  */
 u32 ice_conv_link_speed_to_virtchnl(bool adv_link_support, u16 link_speed)
 {
-	u32 speed;
+	/* convert a BIT() value into an array index */
+	u32 index = fls(link_speed) - 1;
 
-	if (adv_link_support) {
-		/* convert a BIT() value into an array index */
-		speed = ice_get_link_speed(fls(link_speed) - 1);
-	} else {
+	if (adv_link_support)
+		return ice_get_link_speed(index);
+	else if (index < ARRAY_SIZE(ice_legacy_aq_to_vc_speed))
 		/* Virtchnl speeds are not defined for every speed supported in
 		 * the hardware. To maintain compatibility with older AVF
 		 * drivers, while reporting the speed the new speed values are
 		 * resolved to the closest known virtchnl speeds
 		 */
-		speed = ice_legacy_aq_to_vc_speed[fls(link_speed) - 1];
-	}
+		return ice_legacy_aq_to_vc_speed[index];
 
-	return speed;
+	return VIRTCHNL_LINK_SPEED_UNKNOWN;
 }
 
 /* The mailbox overflow detection algorithm helps to check if there

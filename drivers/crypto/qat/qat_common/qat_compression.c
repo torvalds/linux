@@ -72,7 +72,7 @@ struct qat_compression_instance *qat_compression_get_instance_node(int node)
 	}
 
 	if (!accel_dev) {
-		pr_info("QAT: Could not find a device on node %d\n", node);
+		pr_debug_ratelimited("QAT: Could not find a device on node %d\n", node);
 		/* Get any started device */
 		list_for_each(itr, adf_devmgr_get_head()) {
 			struct adf_accel_dev *tmp_dev;

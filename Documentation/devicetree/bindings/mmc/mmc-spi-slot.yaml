@@ -10,7 +10,7 @@ maintainers:
   - Ulf Hansson <ulf.hansson@linaro.org>
 
 allOf:
-  - $ref: "mmc-controller.yaml"
+  - $ref: mmc-controller.yaml
   - $ref: /schemas/spi/spi-peripheral-props.yaml
 
 description: |

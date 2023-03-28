@@ -156,7 +156,7 @@ NOKPROBE_SYMBOL(s390_handle_damage);
  * Main machine check handler function. Will be called with interrupts disabled
  * and machine checks enabled.
  */
-void __s390_handle_mcck(void)
+void s390_handle_mcck(void)
 {
 	struct mcck_struct mcck;
 
@@ -192,23 +192,16 @@ void __s390_handle_mcck(void)
 	if (mcck.stp_queue)
 		stp_queue_work();
 	if (mcck.kill_task) {
-		local_irq_enable();
 		printk(KERN_EMERG "mcck: Terminating task because of machine "
 		       "malfunction (code 0x%016lx).\n", mcck.mcck_code);
 		printk(KERN_EMERG "mcck: task: %s, pid: %d.\n",
 		       current->comm, current->pid);
-		make_task_dead(SIGSEGV);
+		if (is_global_init(current))
+			panic("mcck: Attempting to kill init!\n");
+		do_send_sig_info(SIGKILL, SEND_SIG_PRIV, current, PIDTYPE_PID);
 	}
 }
 
-void noinstr s390_handle_mcck(struct pt_regs *regs)
-{
-	trace_hardirqs_off();
-	pai_kernel_enter(regs);
-	__s390_handle_mcck();
-	pai_kernel_exit(regs);
-	trace_hardirqs_on();
-}
 /*
  * returns 0 if register contents could be validated
  * returns 1 otherwise
@@ -346,8 +339,7 @@ static void notrace s390_backup_mcck_info(struct pt_regs *regs)
 	struct sie_page *sie_page;
 
 	/* r14 contains the sie block, which was set in sie64a */
-	struct kvm_s390_sie_block *sie_block =
-			(struct kvm_s390_sie_block *) regs->gprs[14];
+	struct kvm_s390_sie_block *sie_block = phys_to_virt(regs->gprs[14]);
 
 	if (sie_block == NULL)
 		/* Something's seriously wrong, stop system. */
@@ -374,7 +366,7 @@ NOKPROBE_SYMBOL(s390_backup_mcck_info);
 /*
  * machine check handler.
  */
-int notrace s390_do_machine_check(struct pt_regs *regs)
+void notrace s390_do_machine_check(struct pt_regs *regs)
 {
 	static int ipd_count;
 	static DEFINE_SPINLOCK(ipd_lock);
@@ -504,16 +496,10 @@ int notrace s390_do_machine_check(struct pt_regs *regs)
 	}
 	clear_cpu_flag(CIF_MCCK_GUEST);
 
-	if (user_mode(regs) && mcck_pending) {
-		irqentry_nmi_exit(regs, irq_state);
-		return 1;
-	}
-
 	if (mcck_pending)
 		schedule_mcck_handler();
 
 	irqentry_nmi_exit(regs, irq_state);
-	return 0;
 }
 NOKPROBE_SYMBOL(s390_do_machine_check);
 

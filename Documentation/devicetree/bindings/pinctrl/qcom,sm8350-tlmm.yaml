@@ -22,11 +22,20 @@ properties:
   reg:
     maxItems: 1
 
-  interrupts: true
+  interrupts:
+    maxItems: 1
+
   interrupt-controller: true
   "#interrupt-cells": true
   gpio-controller: true
-  gpio-reserved-ranges: true
+
+  gpio-reserved-ranges:
+    minItems: 1
+    maxItems: 102
+
+  gpio-line-names:
+    maxItems: 203
+
   "#gpio-cells": true
   gpio-ranges: true
   wakeup-parent: true
@@ -61,7 +70,7 @@ $defs:
           subnode.
         items:
           oneOf:
-            - pattern: "^gpio([0-9]|[1-9][0-9]|1[0-9][0-9]|20[0-3])$"
+            - pattern: "^gpio([0-9]|[1-9][0-9]|1[0-9][0-9]|20[0-2])$"
             - enum: [ sdc1_clk, sdc1_cmd, sdc1_data, sdc2_clk, sdc2_cmd, sdc2_data ]
         minItems: 1
         maxItems: 36
@@ -100,6 +109,7 @@ $defs:
       bias-pull-down: true
       bias-pull-up: true
       drive-strength: true
+      input-disable: true
       input-enable: true
       output-high: true
       output-low: true
@@ -120,7 +130,7 @@ examples:
         #gpio-cells = <2>;
         interrupt-controller;
         #interrupt-cells = <2>;
-        gpio-ranges = <&tlmm 0 0 203>;
+        gpio-ranges = <&tlmm 0 0 204>; /* GPIOs + ufs_reset */
 
         gpio-wo-subnode-state {
             pins = "gpio1";

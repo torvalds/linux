@@ -26,19 +26,9 @@ properties:
   reg:
     maxItems: 1
 
-  clocks:
-    items:
-      - description: Module clock
-      - description: DSI bus clock for either AHB and APB
-      - description: Pixel clock for the DPI/RGB input
-    minItems: 2
+  clocks: true
 
-  clock-names:
-    items:
-      - const: ref
-      - const: pclk
-      - const: px_clk
-    minItems: 2
+  clock-names: true
 
   resets:
     maxItems: 1

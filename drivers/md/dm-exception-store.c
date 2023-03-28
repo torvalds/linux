@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2001-2002 Sistina Software (UK) Limited.
  * Copyright (C) 2006-2008 Red Hat GmbH
@@ -142,7 +143,7 @@ EXPORT_SYMBOL(dm_exception_store_type_unregister);
 static int set_chunk_size(struct dm_exception_store *store,
 			  const char *chunk_size_arg, char **error)
 {
-	unsigned chunk_size;
+	unsigned int chunk_size;
 
 	if (kstrtouint(chunk_size_arg, 10, &chunk_size)) {
 		*error = "Invalid chunk size";
@@ -158,7 +159,7 @@ static int set_chunk_size(struct dm_exception_store *store,
 }
 
 int dm_exception_store_set_chunk_size(struct dm_exception_store *store,
-				      unsigned chunk_size,
+				      unsigned int chunk_size,
 				      char **error)
 {
 	/* Check chunk_size is a power of 2 */
@@ -190,7 +191,7 @@ int dm_exception_store_set_chunk_size(struct dm_exception_store *store,
 
 int dm_exception_store_create(struct dm_target *ti, int argc, char **argv,
 			      struct dm_snapshot *snap,
-			      unsigned *args_used,
+			      unsigned int *args_used,
 			      struct dm_exception_store **store)
 {
 	int r = 0;

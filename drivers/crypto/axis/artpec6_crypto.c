@@ -1621,7 +1621,7 @@ artpec6_crypto_xts_set_key(struct crypto_skcipher *cipher, const u8 *key,
 		crypto_skcipher_ctx(cipher);
 	int ret;
 
-	ret = xts_check_key(&cipher->base, key, keylen);
+	ret = xts_verify_key(cipher, key, keylen);
 	if (ret)
 		return ret;
 
@@ -2143,13 +2143,13 @@ static void artpec6_crypto_task(unsigned long data)
 
 	list_for_each_entry_safe(req, n, &complete_in_progress,
 				 complete_in_progress) {
-		req->req->complete(req->req, -EINPROGRESS);
+		crypto_request_complete(req->req, -EINPROGRESS);
 	}
 }
 
 static void artpec6_crypto_complete_crypto(struct crypto_async_request *req)
 {
-	req->complete(req, 0);
+	crypto_request_complete(req, 0);
 }
 
 static void
@@ -2161,7 +2161,7 @@ artpec6_crypto_complete_cbc_decrypt(struct crypto_async_request *req)
 	scatterwalk_map_and_copy(cipher_req->iv, cipher_req->src,
 				 cipher_req->cryptlen - AES_BLOCK_SIZE,
 				 AES_BLOCK_SIZE, 0);
-	req->complete(req, 0);
+	skcipher_request_complete(cipher_req, 0);
 }
 
 static void
@@ -2173,7 +2173,7 @@ artpec6_crypto_complete_cbc_encrypt(struct crypto_async_request *req)
 	scatterwalk_map_and_copy(cipher_req->iv, cipher_req->dst,
 				 cipher_req->cryptlen - AES_BLOCK_SIZE,
 				 AES_BLOCK_SIZE, 0);
-	req->complete(req, 0);
+	skcipher_request_complete(cipher_req, 0);
 }
 
 static void artpec6_crypto_complete_aead(struct crypto_async_request *req)
@@ -2211,12 +2211,12 @@ static void artpec6_crypto_complete_aead(struct crypto_async_request *req)
 		}
 	}
 
-	req->complete(req, result);
+	aead_request_complete(areq, result);
 }
 
 static void artpec6_crypto_complete_hash(struct crypto_async_request *req)
 {
-	req->complete(req, 0);
+	crypto_request_complete(req, 0);
 }
 
 

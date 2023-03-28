@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config MT76_CORE
 	tristate
+	select PAGE_POOL
 
 config MT76_LEDS
 	bool

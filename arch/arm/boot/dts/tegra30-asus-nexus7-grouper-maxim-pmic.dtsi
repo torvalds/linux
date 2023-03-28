@@ -22,13 +22,6 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&max77620_default>;
 
-			max77620_default: pinmux {
-				gpio4 {
-					pins = "gpio4";
-					function = "32k-out1";
-				};
-			};
-
 			cpu-pwr-req-hog {
 				gpio-hog;
 				gpios = <6 GPIO_ACTIVE_HIGH>;
@@ -46,6 +39,13 @@
 
 				fps2 {
 					maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN0>;
+				};
+			};
+
+			max77620_default: pinmux {
+				gpio4 {
+					pins = "gpio4";
+					function = "32k-out1";
 				};
 			};
 

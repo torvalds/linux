@@ -322,7 +322,7 @@ static bool symbol_equal(long key1, long key2, void *ctx __maybe_unused)
 	return strcmp((const char *) key1, (const char *) key2) == 0;
 }
 
-static int get_syms(char ***symsp, size_t *cntp)
+static int get_syms(char ***symsp, size_t *cntp, bool kernel)
 {
 	size_t cap = 0, cnt = 0, i;
 	char *name = NULL, **syms = NULL;
@@ -349,8 +349,9 @@ static int get_syms(char ***symsp, size_t *cntp)
 	}
 
 	while (fgets(buf, sizeof(buf), f)) {
-		/* skip modules */
-		if (strchr(buf, '['))
+		if (kernel && strchr(buf, '['))
+			continue;
+		if (!kernel && !strchr(buf, '['))
 			continue;
 
 		free(name);
@@ -404,7 +405,7 @@ error:
 	return err;
 }
 
-void serial_test_kprobe_multi_bench_attach(void)
+static void test_kprobe_multi_bench_attach(bool kernel)
 {
 	LIBBPF_OPTS(bpf_kprobe_multi_opts, opts);
 	struct kprobe_multi_empty *skel = NULL;
@@ -415,7 +416,7 @@ void serial_test_kprobe_multi_bench_attach(void)
 	char **syms = NULL;
 	size_t cnt = 0, i;
 
-	if (!ASSERT_OK(get_syms(&syms, &cnt), "get_syms"))
+	if (!ASSERT_OK(get_syms(&syms, &cnt, kernel), "get_syms"))
 		return;
 
 	skel = kprobe_multi_empty__open_and_load();
@@ -451,6 +452,14 @@ cleanup:
 			free(syms[i]);
 		free(syms);
 	}
+}
+
+void serial_test_kprobe_multi_bench_attach(void)
+{
+	if (test__start_subtest("kernel"))
+		test_kprobe_multi_bench_attach(true);
+	if (test__start_subtest("modules"))
+		test_kprobe_multi_bench_attach(false);
 }
 
 void test_kprobe_multi_test(void)

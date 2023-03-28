@@ -63,6 +63,19 @@ ENTRY(_diag210_amode31)
 ENDPROC(_diag210_amode31)
 
 /*
+ * int diag8c(struct diag8c *addr, struct ccw_dev_id *devno, size_t len)
+*/
+ENTRY(_diag8c_amode31)
+	llgf	%r3,0(%r3)
+	sam31
+	diag	%r2,%r4,0x8c
+.Ldiag8c_ex:
+	sam64
+	lgfr	%r2,%r3
+	BR_EX_AMODE31_r14
+	EX_TABLE_AMODE31(.Ldiag8c_ex, .Ldiag8c_ex)
+ENDPROC(_diag8c_amode31)
+/*
  * int _diag26c_amode31(void *req, void *resp, enum diag26c_sc subcode)
  */
 ENTRY(_diag26c_amode31)

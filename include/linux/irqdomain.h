@@ -125,6 +125,8 @@ struct irq_domain_chip_generic;
  *		core code.
  * @flags:	Per irq_domain flags
  * @mapcount:	The number of mapped interrupts
+ * @mutex:	Domain lock, hierarchical domains use root domain's lock
+ * @root:	Pointer to root domain, or containing structure if non-hierarchical
  *
  * Optional elements:
  * @fwnode:	Pointer to firmware node associated with the irq_domain. Pretty easy
@@ -143,7 +145,6 @@ struct irq_domain_chip_generic;
  * Revmap data, used internally by the irq domain code:
  * @revmap_size:	Size of the linear map table @revmap[]
  * @revmap_tree:	Radix map tree for hwirqs that don't fit in the linear map
- * @revmap_mutex:	Lock for the revmap
  * @revmap:		Linear table of irq_data pointers
  */
 struct irq_domain {
@@ -153,6 +154,8 @@ struct irq_domain {
 	void				*host_data;
 	unsigned int			flags;
 	unsigned int			mapcount;
+	struct mutex			mutex;
+	struct irq_domain		*root;
 
 	/* Optional data */
 	struct fwnode_handle		*fwnode;
@@ -171,7 +174,6 @@ struct irq_domain {
 	irq_hw_number_t			hwirq_max;
 	unsigned int			revmap_size;
 	struct radix_tree_root		revmap_tree;
-	struct mutex			revmap_mutex;
 	struct irq_data __rcu		*revmap[];
 };
 
@@ -192,8 +194,10 @@ enum {
 	/* Irq domain implements MSIs */
 	IRQ_DOMAIN_FLAG_MSI		= (1 << 4),
 
-	/* Irq domain implements MSI remapping */
-	IRQ_DOMAIN_FLAG_MSI_REMAP	= (1 << 5),
+	/*
+	 * Irq domain implements isolated MSI, see msi_device_has_isolated_msi()
+	 */
+	IRQ_DOMAIN_FLAG_ISOLATED_MSI	= (1 << 5),
 
 	/* Irq domain doesn't translate anything */
 	IRQ_DOMAIN_FLAG_NO_MAP		= (1 << 6),
@@ -276,7 +280,6 @@ struct irq_domain *irq_domain_create_legacy(struct fwnode_handle *fwnode,
 					    void *host_data);
 extern struct irq_domain *irq_find_matching_fwspec(struct irq_fwspec *fwspec,
 						   enum irq_domain_bus_token bus_token);
-extern bool irq_domain_check_msi_remap(void);
 extern void irq_set_default_host(struct irq_domain *host);
 extern struct irq_domain *irq_get_default_host(void);
 extern int irq_domain_alloc_descs(int virq, unsigned int nr_irqs,
@@ -559,13 +562,6 @@ static inline bool irq_domain_is_msi(struct irq_domain *domain)
 	return domain->flags & IRQ_DOMAIN_FLAG_MSI;
 }
 
-static inline bool irq_domain_is_msi_remap(struct irq_domain *domain)
-{
-	return domain->flags & IRQ_DOMAIN_FLAG_MSI_REMAP;
-}
-
-extern bool irq_domain_hierarchical_is_msi_remap(struct irq_domain *domain);
-
 static inline bool irq_domain_is_msi_parent(struct irq_domain *domain)
 {
 	return domain->flags & IRQ_DOMAIN_FLAG_MSI_PARENT;
@@ -611,17 +607,6 @@ static inline bool irq_domain_is_msi(struct irq_domain *domain)
 	return false;
 }
 
-static inline bool irq_domain_is_msi_remap(struct irq_domain *domain)
-{
-	return false;
-}
-
-static inline bool
-irq_domain_hierarchical_is_msi_remap(struct irq_domain *domain)
-{
-	return false;
-}
-
 static inline bool irq_domain_is_msi_parent(struct irq_domain *domain)
 {
 	return false;
@@ -640,10 +625,6 @@ static inline struct irq_domain *irq_find_matching_fwnode(
 	struct fwnode_handle *fwnode, enum irq_domain_bus_token bus_token)
 {
 	return NULL;
-}
-static inline bool irq_domain_check_msi_remap(void)
-{
-	return false;
 }
 #endif /* !CONFIG_IRQ_DOMAIN */
 

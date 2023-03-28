@@ -182,6 +182,12 @@ static int ftmac100_start_hw(struct ftmac100 *priv)
 	if (netdev->mtu > ETH_DATA_LEN)
 		maccr |= FTMAC100_MACCR_RX_FTL;
 
+	/* Add other bits as needed */
+	if (netdev->flags & IFF_PROMISC)
+		maccr |= FTMAC100_MACCR_RCV_ALL;
+	if (netdev->flags & IFF_ALLMULTI)
+		maccr |= FTMAC100_MACCR_RX_MULTIPKT;
+
 	iowrite32(maccr, priv->base + FTMAC100_OFFSET_MACCR);
 	return 0;
 }

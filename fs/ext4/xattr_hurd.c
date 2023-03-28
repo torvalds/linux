@@ -32,7 +32,7 @@ ext4_xattr_hurd_get(const struct xattr_handler *handler,
 
 static int
 ext4_xattr_hurd_set(const struct xattr_handler *handler,
-		    struct user_namespace *mnt_userns,
+		    struct mnt_idmap *idmap,
 		    struct dentry *unused, struct inode *inode,
 		    const char *name, const void *value,
 		    size_t size, int flags)

@@ -1819,20 +1819,20 @@ TRACE_EVENT(svc_stats_latency,
 
 #define show_svc_xprt_flags(flags)					\
 	__print_flags(flags, "|",					\
-		{ (1UL << XPT_BUSY),		"XPT_BUSY"},		\
-		{ (1UL << XPT_CONN),		"XPT_CONN"},		\
-		{ (1UL << XPT_CLOSE),		"XPT_CLOSE"},		\
-		{ (1UL << XPT_DATA),		"XPT_DATA"},		\
-		{ (1UL << XPT_TEMP),		"XPT_TEMP"},		\
-		{ (1UL << XPT_DEAD),		"XPT_DEAD"},		\
-		{ (1UL << XPT_CHNGBUF),		"XPT_CHNGBUF"},		\
-		{ (1UL << XPT_DEFERRED),	"XPT_DEFERRED"},	\
-		{ (1UL << XPT_OLD),		"XPT_OLD"},		\
-		{ (1UL << XPT_LISTENER),	"XPT_LISTENER"},	\
-		{ (1UL << XPT_CACHE_AUTH),	"XPT_CACHE_AUTH"},	\
-		{ (1UL << XPT_LOCAL),		"XPT_LOCAL"},		\
-		{ (1UL << XPT_KILL_TEMP),	"XPT_KILL_TEMP"},	\
-		{ (1UL << XPT_CONG_CTRL),	"XPT_CONG_CTRL"})
+		{ BIT(XPT_BUSY),		"BUSY" },		\
+		{ BIT(XPT_CONN),		"CONN" },		\
+		{ BIT(XPT_CLOSE),		"CLOSE" },		\
+		{ BIT(XPT_DATA),		"DATA" },		\
+		{ BIT(XPT_TEMP),		"TEMP" },		\
+		{ BIT(XPT_DEAD),		"DEAD" },		\
+		{ BIT(XPT_CHNGBUF),		"CHNGBUF" },		\
+		{ BIT(XPT_DEFERRED),		"DEFERRED" },		\
+		{ BIT(XPT_OLD),			"OLD" },		\
+		{ BIT(XPT_LISTENER),		"LISTENER" },		\
+		{ BIT(XPT_CACHE_AUTH),		"CACHE_AUTH" },		\
+		{ BIT(XPT_LOCAL),		"LOCAL" },		\
+		{ BIT(XPT_KILL_TEMP),		"KILL_TEMP" },		\
+		{ BIT(XPT_CONG_CTRL),		"CONG_CTRL" })
 
 TRACE_EVENT(svc_xprt_create_err,
 	TP_PROTO(

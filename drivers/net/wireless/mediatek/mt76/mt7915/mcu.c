@@ -232,8 +232,11 @@ mt7915_mcu_rx_csa_notify(struct mt7915_dev *dev, struct sk_buff *skb)
 
 	c = (struct mt7915_mcu_csa_notify *)skb->data;
 
+	if (c->band_idx > MT_BAND1)
+		return;
+
 	if ((c->band_idx && !dev->phy.mt76->band_idx) &&
-	     dev->mt76.phys[MT_BAND1])
+	    dev->mt76.phys[MT_BAND1])
 		mphy = dev->mt76.phys[MT_BAND1];
 
 	ieee80211_iterate_active_interfaces_atomic(mphy->hw,
@@ -252,8 +255,11 @@ mt7915_mcu_rx_thermal_notify(struct mt7915_dev *dev, struct sk_buff *skb)
 	if (t->ctrl.ctrl_id != THERMAL_PROTECT_ENABLE)
 		return;
 
+	if (t->ctrl.band_idx > MT_BAND1)
+		return;
+
 	if ((t->ctrl.band_idx && !dev->phy.mt76->band_idx) &&
-	     dev->mt76.phys[MT_BAND1])
+	    dev->mt76.phys[MT_BAND1])
 		mphy = dev->mt76.phys[MT_BAND1];
 
 	phy = (struct mt7915_phy *)mphy->priv;
@@ -268,8 +274,11 @@ mt7915_mcu_rx_radar_detected(struct mt7915_dev *dev, struct sk_buff *skb)
 
 	r = (struct mt7915_mcu_rdd_report *)skb->data;
 
+	if (r->band_idx > MT_BAND1)
+		return;
+
 	if ((r->band_idx && !dev->phy.mt76->band_idx) &&
-	     dev->mt76.phys[MT_BAND1])
+	    dev->mt76.phys[MT_BAND1])
 		mphy = dev->mt76.phys[MT_BAND1];
 
 	if (r->band_idx == MT_RX_SEL2)
@@ -326,7 +335,11 @@ mt7915_mcu_rx_bcc_notify(struct mt7915_dev *dev, struct sk_buff *skb)
 
 	b = (struct mt7915_mcu_bcc_notify *)skb->data;
 
-	if ((b->band_idx && !dev->phy.mt76->band_idx) && dev->mt76.phys[MT_BAND1])
+	if (b->band_idx > MT_BAND1)
+		return;
+
+	if ((b->band_idx && !dev->phy.mt76->band_idx) &&
+	    dev->mt76.phys[MT_BAND1])
 		mphy = dev->mt76.phys[MT_BAND1];
 
 	ieee80211_iterate_active_interfaces_atomic(mphy->hw,
@@ -2104,7 +2117,7 @@ static int mt7915_load_firmware(struct mt7915_dev *dev)
 	/* make sure fw is download state */
 	if (mt7915_firmware_state(dev, false)) {
 		/* restart firmware once */
-		__mt76_mcu_restart(&dev->mt76);
+		mt76_connac_mcu_restart(&dev->mt76);
 		ret = mt7915_firmware_state(dev, false);
 		if (ret) {
 			dev_err(dev->mt76.dev,
@@ -2278,6 +2291,53 @@ mt7915_mcu_init_rx_airtime(struct mt7915_dev *dev)
 				 sizeof(req), true);
 }
 
+static int mt7915_red_set_watermark(struct mt7915_dev *dev)
+{
+#define RED_GLOBAL_TOKEN_WATERMARK 2
+	struct {
+		__le32 args[3];
+		u8 cmd;
+		u8 version;
+		u8 __rsv1[4];
+		__le16 len;
+		__le16 high_mark;
+		__le16 low_mark;
+		u8 __rsv2[12];
+	} __packed req = {
+		.args[0] = cpu_to_le32(MCU_WA_PARAM_RED_SETTING),
+		.cmd = RED_GLOBAL_TOKEN_WATERMARK,
+		.len = cpu_to_le16(sizeof(req) - sizeof(req.args)),
+		.high_mark = cpu_to_le16(MT7915_HW_TOKEN_SIZE - 256),
+		.low_mark = cpu_to_le16(MT7915_HW_TOKEN_SIZE - 256 - 1536),
+	};
+
+	return mt76_mcu_send_msg(&dev->mt76, MCU_WA_PARAM_CMD(SET), &req,
+				 sizeof(req), false);
+}
+
+static int mt7915_mcu_set_red(struct mt7915_dev *dev, bool enabled)
+{
+#define RED_DISABLE		0
+#define RED_BY_WA_ENABLE	2
+	int ret;
+	u32 red_type = enabled ? RED_BY_WA_ENABLE : RED_DISABLE;
+	__le32 req = cpu_to_le32(red_type);
+
+	if (enabled) {
+		ret = mt7915_red_set_watermark(dev);
+		if (ret < 0)
+			return ret;
+	}
+
+	ret = mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(RED_ENABLE), &req,
+				sizeof(req), false);
+	if (ret < 0)
+		return ret;
+
+	return mt7915_mcu_wa_cmd(dev, MCU_WA_PARAM_CMD(SET),
+				 MCU_WA_PARAM_RED, enabled, 0);
+}
+
 int mt7915_mcu_init_firmware(struct mt7915_dev *dev)
 {
 	int ret;
@@ -2326,8 +2386,7 @@ int mt7915_mcu_init_firmware(struct mt7915_dev *dev)
 	if (ret)
 		return ret;
 
-	return mt7915_mcu_wa_cmd(dev, MCU_WA_PARAM_CMD(SET),
-				 MCU_WA_PARAM_RED, 0, 0);
+	return mt7915_mcu_set_red(dev, mtk_wed_device_active(&dev->mt76.mmio.wed));
 }
 
 int mt7915_mcu_init(struct mt7915_dev *dev)
@@ -2336,7 +2395,6 @@ int mt7915_mcu_init(struct mt7915_dev *dev)
 		.headroom = sizeof(struct mt76_connac2_mcu_txd),
 		.mcu_skb_send_msg = mt7915_mcu_send_message,
 		.mcu_parse_response = mt7915_mcu_parse_response,
-		.mcu_restart = mt76_connac_mcu_restart,
 	};
 
 	dev->mt76.mcu_ops = &mt7915_mcu_ops;
@@ -2346,16 +2404,17 @@ int mt7915_mcu_init(struct mt7915_dev *dev)
 
 void mt7915_mcu_exit(struct mt7915_dev *dev)
 {
-	__mt76_mcu_restart(&dev->mt76);
+	mt76_connac_mcu_restart(&dev->mt76);
 	if (mt7915_firmware_state(dev, false)) {
 		dev_err(dev->mt76.dev, "Failed to exit mcu\n");
-		return;
+		goto out;
 	}
 
 	mt76_wr(dev, MT_TOP_LPCR_HOST_BAND(0), MT_TOP_LPCR_HOST_FW_OWN);
 	if (dev->hif2)
 		mt76_wr(dev, MT_TOP_LPCR_HOST_BAND(1),
 			MT_TOP_LPCR_HOST_FW_OWN);
+out:
 	skb_queue_purge(&dev->mt76.mcu.res_q);
 }
 
@@ -2792,8 +2851,9 @@ int mt7915_mcu_get_eeprom(struct mt7915_dev *dev, u32 offset)
 	int ret;
 	u8 *buf;
 
-	ret = mt76_mcu_send_and_get_msg(&dev->mt76, MCU_EXT_QUERY(EFUSE_ACCESS), &req,
-				sizeof(req), true, &skb);
+	ret = mt76_mcu_send_and_get_msg(&dev->mt76,
+					MCU_EXT_QUERY(EFUSE_ACCESS),
+					&req, sizeof(req), true, &skb);
 	if (ret)
 		return ret;
 
@@ -2818,8 +2878,9 @@ int mt7915_mcu_get_eeprom_free_block(struct mt7915_dev *dev, u8 *block_num)
 	struct sk_buff *skb;
 	int ret;
 
-	ret = mt76_mcu_send_and_get_msg(&dev->mt76, MCU_EXT_QUERY(EFUSE_FREE_BLOCK), &req,
-					sizeof(req), true, &skb);
+	ret = mt76_mcu_send_and_get_msg(&dev->mt76,
+					MCU_EXT_QUERY(EFUSE_FREE_BLOCK),
+					&req, sizeof(req), true, &skb);
 	if (ret)
 		return ret;
 
@@ -2974,38 +3035,42 @@ int mt7915_mcu_apply_tx_dpd(struct mt7915_phy *phy)
 
 int mt7915_mcu_get_chan_mib_info(struct mt7915_phy *phy, bool chan_switch)
 {
-	/* strict order */
-	static const u32 offs[] = {
-		MIB_NON_WIFI_TIME,
-		MIB_TX_TIME,
-		MIB_RX_TIME,
-		MIB_OBSS_AIRTIME,
-		MIB_TXOP_INIT_COUNT,
-		/* v2 */
-		MIB_NON_WIFI_TIME_V2,
-		MIB_TX_TIME_V2,
-		MIB_RX_TIME_V2,
-		MIB_OBSS_AIRTIME_V2
-	};
 	struct mt76_channel_state *state = phy->mt76->chan_state;
 	struct mt76_channel_state *state_ts = &phy->state_ts;
 	struct mt7915_dev *dev = phy->dev;
 	struct mt7915_mcu_mib *res, req[5];
 	struct sk_buff *skb;
-	int i, ret, start = 0, ofs = 20;
+	static const u32 *offs;
+	int i, ret, len, offs_cc;
 	u64 cc_tx;
 
-	if (!is_mt7915(&dev->mt76)) {
-		start = 5;
-		ofs = 0;
+	/* strict order */
+	if (is_mt7915(&dev->mt76)) {
+		static const u32 chip_offs[] = {
+			MIB_NON_WIFI_TIME,
+			MIB_TX_TIME,
+			MIB_RX_TIME,
+			MIB_OBSS_AIRTIME,
+			MIB_TXOP_INIT_COUNT,
+		};
+		len = ARRAY_SIZE(chip_offs);
+		offs = chip_offs;
+		offs_cc = 20;
+	} else {
+		static const u32 chip_offs[] = {
+			MIB_NON_WIFI_TIME_V2,
+			MIB_TX_TIME_V2,
+			MIB_RX_TIME_V2,
+			MIB_OBSS_AIRTIME_V2
+		};
+		len = ARRAY_SIZE(chip_offs);
+		offs = chip_offs;
+		offs_cc = 0;
 	}
 
-	for (i = 0; i < 5; i++) {
+	for (i = 0; i < len; i++) {
 		req[i].band = cpu_to_le32(phy->mt76->band_idx);
-		req[i].offs = cpu_to_le32(offs[i + start]);
-
-		if (!is_mt7915(&dev->mt76) && i == 3)
-			break;
+		req[i].offs = cpu_to_le32(offs[i]);
 	}
 
 	ret = mt76_mcu_send_and_get_msg(&dev->mt76, MCU_EXT_CMD(GET_MIB_INFO),
@@ -3013,7 +3078,7 @@ int mt7915_mcu_get_chan_mib_info(struct mt7915_phy *phy, bool chan_switch)
 	if (ret)
 		return ret;
 
-	res = (struct mt7915_mcu_mib *)(skb->data + ofs);
+	res = (struct mt7915_mcu_mib *)(skb->data + offs_cc);
 
 #define __res_u64(s) le64_to_cpu(res[s].data)
 	/* subtract Tx backoff time from Tx duration */
@@ -3060,6 +3125,29 @@ int mt7915_mcu_get_temperature(struct mt7915_phy *phy)
 int mt7915_mcu_set_thermal_throttling(struct mt7915_phy *phy, u8 state)
 {
 	struct mt7915_dev *dev = phy->dev;
+	struct mt7915_mcu_thermal_ctrl req = {
+		.band_idx = phy->mt76->band_idx,
+		.ctrl_id = THERMAL_PROTECT_DUTY_CONFIG,
+	};
+	int level, ret;
+
+	/* set duty cycle and level */
+	for (level = 0; level < 4; level++) {
+		req.duty.duty_level = level;
+		req.duty.duty_cycle = state;
+		state /= 2;
+
+		ret = mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(THERMAL_PROT),
+					&req, sizeof(req), false);
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+
+int mt7915_mcu_set_thermal_protect(struct mt7915_phy *phy)
+{
+	struct mt7915_dev *dev = phy->dev;
 	struct {
 		struct mt7915_mcu_thermal_ctrl ctrl;
 
@@ -3070,29 +3158,18 @@ int mt7915_mcu_set_thermal_throttling(struct mt7915_phy *phy, u8 state)
 	} __packed req = {
 		.ctrl = {
 			.band_idx = phy->mt76->band_idx,
+			.type.protect_type = 1,
+			.type.trigger_type = 1,
 		},
 	};
-	int level;
+	int ret;
 
-	if (!state) {
-		req.ctrl.ctrl_id = THERMAL_PROTECT_DISABLE;
-		goto out;
-	}
+	req.ctrl.ctrl_id = THERMAL_PROTECT_DISABLE;
+	ret = mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(THERMAL_PROT),
+				&req, sizeof(req.ctrl), false);
 
-	/* set duty cycle and level */
-	for (level = 0; level < 4; level++) {
-		int ret;
-
-		req.ctrl.ctrl_id = THERMAL_PROTECT_DUTY_CONFIG;
-		req.ctrl.duty.duty_level = level;
-		req.ctrl.duty.duty_cycle = state;
-		state /= 2;
-
-		ret = mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(THERMAL_PROT),
-					&req, sizeof(req.ctrl), false);
-		if (ret)
-			return ret;
-	}
+	if (ret)
+		return ret;
 
 	/* set high-temperature trigger threshold */
 	req.ctrl.ctrl_id = THERMAL_PROTECT_ENABLE;
@@ -3100,10 +3177,6 @@ int mt7915_mcu_set_thermal_throttling(struct mt7915_phy *phy, u8 state)
 	req.restore_temp = cpu_to_le32(phy->throttle_temp[0] - 10);
 	req.trigger_temp = cpu_to_le32(phy->throttle_temp[1]);
 	req.sustain_time = cpu_to_le16(10);
-
-out:
-	req.ctrl.type.protect_type = 1;
-	req.ctrl.type.trigger_type = 1;
 
 	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(THERMAL_PROT),
 				 &req, sizeof(req), false);

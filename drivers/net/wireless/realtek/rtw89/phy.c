@@ -367,6 +367,7 @@ static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
 	}
 
 	ra->bw_cap = bw_mode;
+	ra->er_cap = rtwsta->er_cap;
 	ra->mode_ctrl = mode;
 	ra->macid = rtwsta->mac_id;
 	ra->stbc_cap = stbc_en;
@@ -2041,6 +2042,7 @@ void rtw89_phy_set_txpwr_byrate(struct rtw89_dev *rtwdev,
 				const struct rtw89_chan *chan,
 				enum rtw89_phy_idx phy_idx)
 {
+	u8 max_nss_num = rtwdev->chip->rf_path_num;
 	static const u8 rs[] = {
 		RTW89_RS_CCK,
 		RTW89_RS_OFDM,
@@ -2063,7 +2065,7 @@ void rtw89_phy_set_txpwr_byrate(struct rtw89_dev *rtwdev,
 	BUILD_BUG_ON(rtw89_rs_idx_max[RTW89_RS_HEDCM] % 4);
 
 	addr = R_AX_PWR_BY_RATE;
-	for (cur.nss = 0; cur.nss <= RTW89_NSS_2; cur.nss++) {
+	for (cur.nss = 0; cur.nss < max_nss_num; cur.nss++) {
 		for (i = 0; i < ARRAY_SIZE(rs); i++) {
 			if (cur.nss >= rtw89_rs_nss_max[rs[i]])
 				continue;
@@ -2126,6 +2128,7 @@ void rtw89_phy_set_txpwr_limit(struct rtw89_dev *rtwdev,
 			       const struct rtw89_chan *chan,
 			       enum rtw89_phy_idx phy_idx)
 {
+	u8 max_ntx_num = rtwdev->chip->rf_path_num;
 	struct rtw89_txpwr_limit lmt;
 	u8 ch = chan->channel;
 	u8 bw = chan->band_width;
@@ -2140,7 +2143,7 @@ void rtw89_phy_set_txpwr_limit(struct rtw89_dev *rtwdev,
 		     RTW89_TXPWR_LMT_PAGE_SIZE);
 
 	addr = R_AX_PWR_LMT;
-	for (i = 0; i < RTW89_NTX_NUM; i++) {
+	for (i = 0; i < max_ntx_num; i++) {
 		rtw89_phy_fill_txpwr_limit(rtwdev, chan, &lmt, i);
 
 		ptr = (s8 *)&lmt;
@@ -2161,6 +2164,7 @@ void rtw89_phy_set_txpwr_limit_ru(struct rtw89_dev *rtwdev,
 				  const struct rtw89_chan *chan,
 				  enum rtw89_phy_idx phy_idx)
 {
+	u8 max_ntx_num = rtwdev->chip->rf_path_num;
 	struct rtw89_txpwr_limit_ru lmt_ru;
 	u8 ch = chan->channel;
 	u8 bw = chan->band_width;
@@ -2175,7 +2179,7 @@ void rtw89_phy_set_txpwr_limit_ru(struct rtw89_dev *rtwdev,
 		     RTW89_TXPWR_LMT_RU_PAGE_SIZE);
 
 	addr = R_AX_PWR_RU_LMT;
-	for (i = 0; i < RTW89_NTX_NUM; i++) {
+	for (i = 0; i < max_ntx_num; i++) {
 		rtw89_phy_fill_txpwr_limit_ru(rtwdev, chan, &lmt_ru, i);
 
 		ptr = (s8 *)&lmt_ru;
@@ -4116,6 +4120,7 @@ void rtw89_phy_dm_init(struct rtw89_dev *rtwdev)
 
 void rtw89_phy_set_bss_color(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	enum rtw89_phy_idx phy_idx = RTW89_PHY_0;
 	u8 bss_color;
 
@@ -4124,11 +4129,11 @@ void rtw89_phy_set_bss_color(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif
 
 	bss_color = vif->bss_conf.he_bss_color.color;
 
-	rtw89_phy_write32_idx(rtwdev, R_BSS_CLR_MAP, B_BSS_CLR_MAP_VLD0, 0x1,
+	rtw89_phy_write32_idx(rtwdev, chip->bss_clr_map_reg, B_BSS_CLR_MAP_VLD0, 0x1,
 			      phy_idx);
-	rtw89_phy_write32_idx(rtwdev, R_BSS_CLR_MAP, B_BSS_CLR_MAP_TGT, bss_color,
-			      phy_idx);
-	rtw89_phy_write32_idx(rtwdev, R_BSS_CLR_MAP, B_BSS_CLR_MAP_STAID,
+	rtw89_phy_write32_idx(rtwdev, chip->bss_clr_map_reg, B_BSS_CLR_MAP_TGT,
+			      bss_color, phy_idx);
+	rtw89_phy_write32_idx(rtwdev, chip->bss_clr_map_reg, B_BSS_CLR_MAP_STAID,
 			      vif->cfg.aid, phy_idx);
 }
 

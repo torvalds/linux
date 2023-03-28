@@ -822,7 +822,7 @@ int batadv_dat_init(struct batadv_priv *bat_priv)
 	batadv_dat_start_timer(bat_priv);
 
 	batadv_tvlv_handler_register(bat_priv, batadv_dat_tvlv_ogm_handler_v1,
-				     NULL, BATADV_TVLV_DAT, 1,
+				     NULL, NULL, BATADV_TVLV_DAT, 1,
 				     BATADV_TVLV_HANDLER_OGM_CIFNOTFND);
 	batadv_dat_tvlv_container_update(bat_priv);
 	return 0;

@@ -386,7 +386,7 @@ out:
 
 static int rtl8192cu_load_firmware(struct rtl8xxxu_priv *priv)
 {
-	char *fw_name;
+	const char *fw_name;
 	int ret;
 
 	if (!priv->vendor_umc)
@@ -404,7 +404,6 @@ static int rtl8192cu_load_firmware(struct rtl8xxxu_priv *priv)
 static int rtl8192cu_parse_efuse(struct rtl8xxxu_priv *priv)
 {
 	struct rtl8192cu_efuse *efuse = &priv->efuse_wifi.efuse8192;
-	int i;
 
 	if (efuse->rtl_id != cpu_to_le16(0x8129))
 		return -EINVAL;
@@ -457,15 +456,6 @@ static int rtl8192cu_parse_efuse(struct rtl8xxxu_priv *priv)
 		priv->power_base = &rtl8188r_power_base;
 	}
 
-	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_EFUSE) {
-		unsigned char *raw = priv->efuse_wifi.raw;
-
-		dev_info(&priv->udev->dev,
-			 "%s: dumping efuse (0x%02zx bytes):\n",
-			 __func__, sizeof(struct rtl8192cu_efuse));
-		for (i = 0; i < sizeof(struct rtl8192cu_efuse); i += 8)
-			dev_info(&priv->udev->dev, "%02x: %8ph\n", i, &raw[i]);
-	}
 	return 0;
 }
 
@@ -619,6 +609,7 @@ struct rtl8xxxu_fileops rtl8192cu_fops = {
 	.set_tx_power = rtl8xxxu_gen1_set_tx_power,
 	.update_rate_mask = rtl8xxxu_update_rate_mask,
 	.report_connect = rtl8xxxu_gen1_report_connect,
+	.report_rssi = rtl8xxxu_gen1_report_rssi,
 	.fill_txdesc = rtl8xxxu_fill_txdesc_v1,
 	.cck_rssi = rtl8723a_cck_rssi,
 	.writeN_block_size = 128,

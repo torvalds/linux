@@ -15,6 +15,7 @@
  /* want to reuse a stale file handle and only the caller knows the file info */
 
 #include <linux/fs.h>
+#include <linux/filelock.h>
 #include <linux/kernel.h>
 #include <linux/vfs.h>
 #include <linux/slab.h>
@@ -24,6 +25,7 @@
 #include <linux/task_io_accounting_ops.h>
 #include <linux/uaccess.h>
 #include "cifspdu.h"
+#include "cifsfs.h"
 #include "cifsglob.h"
 #include "cifsacl.h"
 #include "cifsproto.h"
@@ -70,7 +72,6 @@ cifs_reconnect_tcon(struct cifs_tcon *tcon, int smb_command)
 	struct cifs_ses *ses;
 	struct TCP_Server_Info *server;
 	struct nls_table *nls_codepage;
-	int retries;
 
 	/*
 	 * SMBs NegProt, SessSetup, uLogoff do not have tcon yet so check for
@@ -100,45 +101,9 @@ cifs_reconnect_tcon(struct cifs_tcon *tcon, int smb_command)
 	}
 	spin_unlock(&tcon->tc_lock);
 
-	retries = server->nr_targets;
-
-	/*
-	 * Give demultiplex thread up to 10 seconds to each target available for
-	 * reconnect -- should be greater than cifs socket timeout which is 7
-	 * seconds.
-	 */
-	while (server->tcpStatus == CifsNeedReconnect) {
-		rc = wait_event_interruptible_timeout(server->response_q,
-						      (server->tcpStatus != CifsNeedReconnect),
-						      10 * HZ);
-		if (rc < 0) {
-			cifs_dbg(FYI, "%s: aborting reconnect due to a received signal by the process\n",
-				 __func__);
-			return -ERESTARTSYS;
-		}
-
-		/* are we still trying to reconnect? */
-		spin_lock(&server->srv_lock);
-		if (server->tcpStatus != CifsNeedReconnect) {
-			spin_unlock(&server->srv_lock);
-			break;
-		}
-		spin_unlock(&server->srv_lock);
-
-		if (retries && --retries)
-			continue;
-
-		/*
-		 * on "soft" mounts we wait once. Hard mounts keep
-		 * retrying until process is killed or server comes
-		 * back on-line
-		 */
-		if (!tcon->retry) {
-			cifs_dbg(FYI, "gave up waiting on reconnect in smb_init\n");
-			return -EHOSTDOWN;
-		}
-		retries = server->nr_targets;
-	}
+	rc = cifs_wait_for_server_reconnect(server, tcon->retry);
+	if (rc)
+		return rc;
 
 	spin_lock(&ses->chan_lock);
 	if (!cifs_chan_needs_reconnect(ses, server) && !tcon->need_reconnect) {
@@ -1294,11 +1259,8 @@ cifs_readv_callback(struct mid_q_entry *mid)
 	struct TCP_Server_Info *server = tcon->ses->server;
 	struct smb_rqst rqst = { .rq_iov = rdata->iov,
 				 .rq_nvec = 2,
-				 .rq_pages = rdata->pages,
-				 .rq_offset = rdata->page_offset,
-				 .rq_npages = rdata->nr_pages,
-				 .rq_pagesz = rdata->pagesz,
-				 .rq_tailsz = rdata->tailsz };
+				 .rq_iter_size = iov_iter_count(&rdata->iter),
+				 .rq_iter = rdata->iter };
 	struct cifs_credits credits = { .value = 1, .instance = 0 };
 
 	cifs_dbg(FYI, "%s: mid=%llu state=%d result=%d bytes=%u\n",
@@ -1737,11 +1699,8 @@ cifs_async_writev(struct cifs_writedata *wdata,
 
 	rqst.rq_iov = iov;
 	rqst.rq_nvec = 2;
-	rqst.rq_pages = wdata->pages;
-	rqst.rq_offset = wdata->page_offset;
-	rqst.rq_npages = wdata->nr_pages;
-	rqst.rq_pagesz = wdata->pagesz;
-	rqst.rq_tailsz = wdata->tailsz;
+	rqst.rq_iter = wdata->iter;
+	rqst.rq_iter_size = iov_iter_count(&wdata->iter);
 
 	cifs_dbg(FYI, "async write at %llu %u bytes\n",
 		 wdata->offset, wdata->bytes);
@@ -5372,14 +5331,15 @@ CIFSSMBSetPathInfoFB(const unsigned int xid, struct cifs_tcon *tcon,
 	struct cifs_fid fid;
 	int rc;
 
-	oparms.tcon = tcon;
-	oparms.cifs_sb = cifs_sb;
-	oparms.desired_access = GENERIC_WRITE;
-	oparms.create_options = cifs_create_options(cifs_sb, 0);
-	oparms.disposition = FILE_OPEN;
-	oparms.path = fileName;
-	oparms.fid = &fid;
-	oparms.reconnect = false;
+	oparms = (struct cifs_open_parms) {
+		.tcon = tcon,
+		.cifs_sb = cifs_sb,
+		.desired_access = GENERIC_WRITE,
+		.create_options = cifs_create_options(cifs_sb, 0),
+		.disposition = FILE_OPEN,
+		.path = fileName,
+		.fid = &fid,
+	};
 
 	rc = CIFS_open(xid, &oparms, &oplock, NULL);
 	if (rc)
@@ -5786,7 +5746,7 @@ QAllEAsRetry:
 
 	/* account for ea list len */
 	list_len -= 4;
-	temp_fea = ea_response_data->list;
+	temp_fea = &ea_response_data->list;
 	temp_ptr = (char *)temp_fea;
 	while (list_len > 0) {
 		unsigned int name_len;
@@ -5901,7 +5861,7 @@ SetEARetry:
 	else
 		name_len = strnlen(ea_name, 255);
 
-	count = sizeof(*parm_data) + ea_value_len + name_len;
+	count = sizeof(*parm_data) + 1 + ea_value_len + name_len;
 	pSMB->MaxParameterCount = cpu_to_le16(2);
 	/* BB find max SMB PDU from sess */
 	pSMB->MaxDataCount = cpu_to_le16(1000);
@@ -5925,14 +5885,14 @@ SetEARetry:
 	byte_count = 3 /* pad */  + params + count;
 	pSMB->DataCount = cpu_to_le16(count);
 	parm_data->list_len = cpu_to_le32(count);
-	parm_data->list[0].EA_flags = 0;
+	parm_data->list.EA_flags = 0;
 	/* we checked above that name len is less than 255 */
-	parm_data->list[0].name_len = (__u8)name_len;
+	parm_data->list.name_len = (__u8)name_len;
 	/* EA names are always ASCII */
 	if (ea_name)
-		strncpy(parm_data->list[0].name, ea_name, name_len);
-	parm_data->list[0].name[name_len] = 0;
-	parm_data->list[0].value_len = cpu_to_le16(ea_value_len);
+		strncpy(parm_data->list.name, ea_name, name_len);
+	parm_data->list.name[name_len] = '\0';
+	parm_data->list.value_len = cpu_to_le16(ea_value_len);
 	/* caller ensures that ea_value_len is less than 64K but
 	we need to ensure that it fits within the smb */
 
@@ -5940,7 +5900,7 @@ SetEARetry:
 	     negotiated SMB buffer size BB */
 	/* if (ea_value_len > buffer_size - 512 (enough for header)) */
 	if (ea_value_len)
-		memcpy(parm_data->list[0].name+name_len+1,
+		memcpy(parm_data->list.name + name_len + 1,
 		       ea_value, ea_value_len);
 
 	pSMB->TotalDataCount = pSMB->DataCount;

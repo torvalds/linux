@@ -94,7 +94,7 @@ static inline void *skcipher_instance_ctx(struct skcipher_instance *inst)
 
 static inline void skcipher_request_complete(struct skcipher_request *req, int err)
 {
-	req->base.complete(&req->base, err);
+	crypto_request_complete(&req->base, err);
 }
 
 int crypto_grab_skcipher(struct crypto_skcipher_spawn *spawn,

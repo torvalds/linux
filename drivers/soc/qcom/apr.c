@@ -387,9 +387,9 @@ static void apr_device_remove(struct device *dev)
 	spin_unlock(&apr->svcs_lock);
 }
 
-static int apr_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int apr_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct apr_device *adev = to_apr_device(dev);
+	const struct apr_device *adev = to_apr_device(dev);
 	int ret;
 
 	ret = of_device_uevent_modalias(dev, env);
@@ -461,9 +461,10 @@ static int apr_add_device(struct device *dev, struct device_node *np,
 		goto out;
 	}
 
+	/* Protection domain is optional, it does not exist on older platforms */
 	ret = of_property_read_string_index(np, "qcom,protection-domain",
 					    1, &adev->service_path);
-	if (ret < 0) {
+	if (ret < 0 && ret != -EINVAL) {
 		dev_err(dev, "Failed to read second value of qcom,protection-domain\n");
 		goto out;
 	}

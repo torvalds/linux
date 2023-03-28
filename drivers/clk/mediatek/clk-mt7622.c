@@ -646,14 +646,15 @@ static int mtk_topckgen_init(struct platform_device *pdev)
 	mtk_clk_register_factors(top_divs, ARRAY_SIZE(top_divs),
 				 clk_data);
 
-	mtk_clk_register_composites(top_muxes, ARRAY_SIZE(top_muxes),
-				    base, &mt7622_clk_lock, clk_data);
+	mtk_clk_register_composites(&pdev->dev, top_muxes,
+				    ARRAY_SIZE(top_muxes), base,
+				    &mt7622_clk_lock, clk_data);
 
 	mtk_clk_register_dividers(top_adj_divs, ARRAY_SIZE(top_adj_divs),
 				  base, &mt7622_clk_lock, clk_data);
 
-	mtk_clk_register_gates(node, top_clks, ARRAY_SIZE(top_clks),
-			       clk_data);
+	mtk_clk_register_gates(&pdev->dev, node, top_clks,
+			       ARRAY_SIZE(top_clks), clk_data);
 
 	clk_prepare_enable(clk_data->hws[CLK_TOP_AXI_SEL]->clk);
 	clk_prepare_enable(clk_data->hws[CLK_TOP_MEM_SEL]->clk);
@@ -670,11 +671,11 @@ static int mtk_infrasys_init(struct platform_device *pdev)
 
 	clk_data = mtk_alloc_clk_data(CLK_INFRA_NR_CLK);
 
-	mtk_clk_register_gates(node, infra_clks, ARRAY_SIZE(infra_clks),
-			       clk_data);
+	mtk_clk_register_gates(&pdev->dev, node, infra_clks,
+			       ARRAY_SIZE(infra_clks), clk_data);
 
-	mtk_clk_register_cpumuxes(node, infra_muxes, ARRAY_SIZE(infra_muxes),
-				  clk_data);
+	mtk_clk_register_cpumuxes(&pdev->dev, node, infra_muxes,
+				  ARRAY_SIZE(infra_muxes), clk_data);
 
 	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get,
 				   clk_data);
@@ -698,7 +699,7 @@ static int mtk_apmixedsys_init(struct platform_device *pdev)
 	mtk_clk_register_plls(node, plls, ARRAY_SIZE(plls),
 			      clk_data);
 
-	mtk_clk_register_gates(node, apmixed_clks,
+	mtk_clk_register_gates(&pdev->dev, node, apmixed_clks,
 			       ARRAY_SIZE(apmixed_clks), clk_data);
 
 	clk_prepare_enable(clk_data->hws[CLK_APMIXED_ARMPLL]->clk);
@@ -720,10 +721,11 @@ static int mtk_pericfg_init(struct platform_device *pdev)
 
 	clk_data = mtk_alloc_clk_data(CLK_PERI_NR_CLK);
 
-	mtk_clk_register_gates(node, peri_clks, ARRAY_SIZE(peri_clks),
-			       clk_data);
+	mtk_clk_register_gates(&pdev->dev, node, peri_clks,
+			       ARRAY_SIZE(peri_clks), clk_data);
 
-	mtk_clk_register_composites(peri_muxes, ARRAY_SIZE(peri_muxes), base,
+	mtk_clk_register_composites(&pdev->dev, peri_muxes,
+				    ARRAY_SIZE(peri_muxes), base,
 				    &mt7622_clk_lock, clk_data);
 
 	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);

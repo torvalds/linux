@@ -5,7 +5,6 @@
  * Copyright (C) 2022 STMicroelectronics SA
  */
 
-#include <asm-generic/unaligned.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
@@ -15,6 +14,9 @@
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <linux/units.h>
+
+#include <asm/unaligned.h>
+
 #include <media/mipi-csi2.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>

@@ -248,7 +248,7 @@ const void *of_device_get_match_data(const struct device *dev)
 }
 EXPORT_SYMBOL(of_device_get_match_data);
 
-static ssize_t of_device_get_modalias(struct device *dev, char *str, ssize_t len)
+static ssize_t of_device_get_modalias(const struct device *dev, char *str, ssize_t len)
 {
 	const char *compat;
 	char *c;
@@ -256,7 +256,7 @@ static ssize_t of_device_get_modalias(struct device *dev, char *str, ssize_t len
 	ssize_t csize;
 	ssize_t tsize;
 
-	if ((!dev) || (!dev->of_node))
+	if ((!dev) || (!dev->of_node) || dev->of_node_reused)
 		return -ENODEV;
 
 	/* Name & Type */
@@ -372,11 +372,11 @@ void of_device_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	mutex_unlock(&of_mutex);
 }
 
-int of_device_uevent_modalias(struct device *dev, struct kobj_uevent_env *env)
+int of_device_uevent_modalias(const struct device *dev, struct kobj_uevent_env *env)
 {
 	int sl;
 
-	if ((!dev) || (!dev->of_node))
+	if ((!dev) || (!dev->of_node) || dev->of_node_reused)
 		return -ENODEV;
 
 	/* Devicetree modalias is tricky, we add it in 2 steps */
@@ -385,6 +385,8 @@ int of_device_uevent_modalias(struct device *dev, struct kobj_uevent_env *env)
 
 	sl = of_device_get_modalias(dev, &env->buf[env->buflen-1],
 				    sizeof(env->buf) - env->buflen);
+	if (sl < 0)
+		return sl;
 	if (sl >= (sizeof(env->buf) - env->buflen))
 		return -ENOMEM;
 	env->buflen += sl;

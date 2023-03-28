@@ -11,7 +11,7 @@ Overview
 --------
 
 The DPAA2 MAC / PHY support consists of a set of APIs that help DPAA2 network
-drivers (dpaa2-eth, dpaa2-ethsw) interract with the PHY library.
+drivers (dpaa2-eth, dpaa2-ethsw) interact with the PHY library.
 
 DPAA2 Software Architecture
 ---------------------------

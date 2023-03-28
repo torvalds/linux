@@ -273,9 +273,9 @@ static struct attribute *i3c_device_attrs[] = {
 };
 ATTRIBUTE_GROUPS(i3c_device);
 
-static int i3c_device_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int i3c_device_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct i3c_device *i3cdev = dev_to_i3cdev(dev);
+	const struct i3c_device *i3cdev = dev_to_i3cdev(dev);
 	struct i3c_device_info devinfo;
 	u16 manuf, part, ext;
 
@@ -1438,6 +1438,7 @@ static int i3c_master_early_i3c_dev_add(struct i3c_master_controller *master,
 {
 	struct i3c_device_info info = {
 		.static_addr = boardinfo->static_addr,
+		.pid = boardinfo->pid,
 	};
 	struct i3c_dev_desc *i3cdev;
 	int ret;

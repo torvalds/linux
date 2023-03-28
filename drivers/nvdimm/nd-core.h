@@ -82,14 +82,14 @@ static inline void nvdimm_security_overwrite_query(struct work_struct *work)
 }
 #endif
 
-bool is_nvdimm(struct device *dev);
-bool is_nd_pmem(struct device *dev);
-bool is_nd_volatile(struct device *dev);
-static inline bool is_nd_region(struct device *dev)
+bool is_nvdimm(const struct device *dev);
+bool is_nd_pmem(const struct device *dev);
+bool is_nd_volatile(const struct device *dev);
+static inline bool is_nd_region(const struct device *dev)
 {
 	return is_nd_pmem(dev) || is_nd_volatile(dev);
 }
-static inline bool is_memory(struct device *dev)
+static inline bool is_memory(const struct device *dev)
 {
 	return is_nd_pmem(dev) || is_nd_volatile(dev);
 }
@@ -107,6 +107,7 @@ int nvdimm_bus_create_ndctl(struct nvdimm_bus *nvdimm_bus);
 void nvdimm_bus_destroy_ndctl(struct nvdimm_bus *nvdimm_bus);
 void nd_synchronize(void);
 void nd_device_register(struct device *dev);
+void nd_device_register_sync(struct device *dev);
 struct nd_label_id;
 char *nd_label_gen_id(struct nd_label_id *label_id, const uuid_t *uuid,
 		      u32 flags);

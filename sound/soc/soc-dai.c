@@ -267,6 +267,11 @@ int snd_soc_dai_set_tdm_slot(struct snd_soc_dai *dai,
 			     int slots, int slot_width)
 {
 	int ret = -ENOTSUPP;
+	int stream;
+	unsigned int *tdm_mask[] = {
+		&tx_mask,
+		&rx_mask,
+	};
 
 	if (dai->driver->ops &&
 	    dai->driver->ops->xlate_tdm_slot_mask)
@@ -275,8 +280,8 @@ int snd_soc_dai_set_tdm_slot(struct snd_soc_dai *dai,
 	else
 		snd_soc_xlate_tdm_slot_mask(slots, &tx_mask, &rx_mask);
 
-	dai->tx_mask = tx_mask;
-	dai->rx_mask = rx_mask;
+	for_each_pcm_streams(stream)
+		snd_soc_dai_tdm_mask_set(dai, stream, *tdm_mask[stream]);
 
 	if (dai->driver->ops &&
 	    dai->driver->ops->set_tdm_slot)
@@ -509,7 +514,7 @@ void snd_soc_dai_action(struct snd_soc_dai *dai,
 			int stream, int action)
 {
 	/* see snd_soc_dai_stream_active() */
-	dai->stream_active[stream]	+= action;
+	dai->stream[stream].active	+= action;
 
 	/* see snd_soc_component_active() */
 	dai->component->active		+= action;
@@ -522,7 +527,7 @@ int snd_soc_dai_active(struct snd_soc_dai *dai)
 
 	active = 0;
 	for_each_pcm_streams(stream)
-		active += dai->stream_active[stream];
+		active += dai->stream[stream].active;
 
 	return active;
 }

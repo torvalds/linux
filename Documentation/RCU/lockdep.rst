@@ -69,9 +69,8 @@ checking of rcu_dereference() primitives:
 		value of the pointer itself, for example, against NULL.
 
 The rcu_dereference_check() check expression can be any boolean
-expression, but would normally include a lockdep expression.  However,
-any boolean expression can be used.  For a moderately ornate example,
-consider the following::
+expression, but would normally include a lockdep expression.  For a
+moderately ornate example, consider the following::
 
 	file = rcu_dereference_check(fdt->fd[fd],
 				     lockdep_is_held(&files->file_lock) ||
@@ -97,10 +96,10 @@ code, it could instead be written as follows::
 					 atomic_read(&files->count) == 1);
 
 This would verify cases #2 and #3 above, and furthermore lockdep would
-complain if this was used in an RCU read-side critical section unless one
-of these two cases held.  Because rcu_dereference_protected() omits all
-barriers and compiler constraints, it generates better code than do the
-other flavors of rcu_dereference().  On the other hand, it is illegal
+complain even if this was used in an RCU read-side critical section unless
+one of these two cases held.  Because rcu_dereference_protected() omits
+all barriers and compiler constraints, it generates better code than do
+the other flavors of rcu_dereference().  On the other hand, it is illegal
 to use rcu_dereference_protected() if either the RCU-protected pointer
 or the RCU-protected data that it points to can change concurrently.
 

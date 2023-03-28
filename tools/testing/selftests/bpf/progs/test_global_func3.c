@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
+#include "bpf_misc.h"
 
 __attribute__ ((noinline))
 int f1(struct __sk_buff *skb)
@@ -46,20 +47,15 @@ int f7(struct __sk_buff *skb)
 	return f6(skb);
 }
 
-#ifndef NO_FN8
 __attribute__ ((noinline))
 int f8(struct __sk_buff *skb)
 {
 	return f7(skb);
 }
-#endif
 
 SEC("tc")
-int test_cls(struct __sk_buff *skb)
+__failure __msg("the call stack of 8 frames")
+int global_func3(struct __sk_buff *skb)
 {
-#ifndef NO_FN8
 	return f8(skb);
-#else
-	return f7(skb);
-#endif
 }

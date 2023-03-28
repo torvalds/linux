@@ -31,12 +31,6 @@ struct module;
 struct device_node;
 struct gpio_desc;
 
-/* caller holds gpio_lock *OR* gpio is marked as requested */
-static inline struct gpio_chip *gpio_to_chip(unsigned gpio)
-{
-	return gpiod_to_chip(gpio_to_desc(gpio));
-}
-
 /* Always use the library code for GPIO management calls,
  * or when sleeping may be involved.
  */
@@ -101,12 +95,6 @@ extern void gpio_free_array(const struct gpio *array, size_t num);
 static inline int gpio_export(unsigned gpio, bool direction_may_change)
 {
 	return gpiod_export(gpio_to_desc(gpio), direction_may_change);
-}
-
-static inline int gpio_export_link(struct device *dev, const char *name,
-				   unsigned gpio)
-{
-	return gpiod_export_link(dev, name, gpio_to_desc(gpio));
 }
 
 static inline void gpio_unexport(unsigned gpio)

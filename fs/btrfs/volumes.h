@@ -53,21 +53,6 @@ enum btrfs_raid_types {
 	BTRFS_NR_RAID_TYPES
 };
 
-struct btrfs_io_geometry {
-	/* remaining bytes before crossing a stripe */
-	u64 len;
-	/* offset of logical address in chunk */
-	u64 offset;
-	/* length of single IO stripe */
-	u32 stripe_len;
-	/* offset of address in stripe */
-	u32 stripe_offset;
-	/* number of stripe where address falls */
-	u64 stripe_nr;
-	/* offset of raid56 stripe into the chunk */
-	u64 raid56_stripe_offset;
-};
-
 /*
  * Use sequence counter to get consistent device stat data on
  * 32-bit processors.
@@ -545,9 +530,6 @@ int __btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 struct btrfs_discard_stripe *btrfs_map_discard(struct btrfs_fs_info *fs_info,
 					       u64 logical, u64 *length_ret,
 					       u32 *num_stripes);
-int btrfs_get_io_geometry(struct btrfs_fs_info *fs_info, struct extent_map *map,
-			  enum btrfs_map_op op, u64 logical,
-			  struct btrfs_io_geometry *io_geom);
 int btrfs_read_sys_array(struct btrfs_fs_info *fs_info);
 int btrfs_read_chunk_tree(struct btrfs_fs_info *fs_info);
 struct btrfs_block_group *btrfs_create_chunk(struct btrfs_trans_handle *trans,

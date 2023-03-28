@@ -2398,15 +2398,15 @@ int write_cache_pages(struct address_space *mapping,
 	int ret = 0;
 	int done = 0;
 	int error;
-	struct pagevec pvec;
-	int nr_pages;
+	struct folio_batch fbatch;
+	int nr_folios;
 	pgoff_t index;
 	pgoff_t end;		/* Inclusive */
 	pgoff_t done_index;
 	int range_whole = 0;
 	xa_mark_t tag;
 
-	pagevec_init(&pvec);
+	folio_batch_init(&fbatch);
 	if (wbc->range_cyclic) {
 		index = mapping->writeback_index; /* prev offset */
 		end = -1;
@@ -2426,17 +2426,18 @@ int write_cache_pages(struct address_space *mapping,
 	while (!done && (index <= end)) {
 		int i;
 
-		nr_pages = pagevec_lookup_range_tag(&pvec, mapping, &index, end,
-				tag);
-		if (nr_pages == 0)
+		nr_folios = filemap_get_folios_tag(mapping, &index, end,
+				tag, &fbatch);
+
+		if (nr_folios == 0)
 			break;
 
-		for (i = 0; i < nr_pages; i++) {
-			struct page *page = pvec.pages[i];
+		for (i = 0; i < nr_folios; i++) {
+			struct folio *folio = fbatch.folios[i];
 
-			done_index = page->index;
+			done_index = folio->index;
 
-			lock_page(page);
+			folio_lock(folio);
 
 			/*
 			 * Page truncated or invalidated. We can freely skip it
@@ -2446,30 +2447,30 @@ int write_cache_pages(struct address_space *mapping,
 			 * even if there is now a new, dirty page at the same
 			 * pagecache address.
 			 */
-			if (unlikely(page->mapping != mapping)) {
+			if (unlikely(folio->mapping != mapping)) {
 continue_unlock:
-				unlock_page(page);
+				folio_unlock(folio);
 				continue;
 			}
 
-			if (!PageDirty(page)) {
+			if (!folio_test_dirty(folio)) {
 				/* someone wrote it for us */
 				goto continue_unlock;
 			}
 
-			if (PageWriteback(page)) {
+			if (folio_test_writeback(folio)) {
 				if (wbc->sync_mode != WB_SYNC_NONE)
-					wait_on_page_writeback(page);
+					folio_wait_writeback(folio);
 				else
 					goto continue_unlock;
 			}
 
-			BUG_ON(PageWriteback(page));
-			if (!clear_page_dirty_for_io(page))
+			BUG_ON(folio_test_writeback(folio));
+			if (!folio_clear_dirty_for_io(folio))
 				goto continue_unlock;
 
 			trace_wbc_writepage(wbc, inode_to_bdi(mapping->host));
-			error = (*writepage)(page, wbc, data);
+			error = writepage(folio, wbc, data);
 			if (unlikely(error)) {
 				/*
 				 * Handle errors according to the type of
@@ -2484,11 +2485,12 @@ continue_unlock:
 				 * the first error.
 				 */
 				if (error == AOP_WRITEPAGE_ACTIVATE) {
-					unlock_page(page);
+					folio_unlock(folio);
 					error = 0;
 				} else if (wbc->sync_mode != WB_SYNC_ALL) {
 					ret = error;
-					done_index = page->index + 1;
+					done_index = folio->index +
+						folio_nr_pages(folio);
 					done = 1;
 					break;
 				}
@@ -2508,7 +2510,7 @@ continue_unlock:
 				break;
 			}
 		}
-		pagevec_release(&pvec);
+		folio_batch_release(&fbatch);
 		cond_resched();
 	}
 
@@ -2526,46 +2528,14 @@ continue_unlock:
 }
 EXPORT_SYMBOL(write_cache_pages);
 
-/*
- * Function used by generic_writepages to call the real writepage
- * function and set the mapping flags on error
- */
-static int __writepage(struct page *page, struct writeback_control *wbc,
-		       void *data)
+static int writepage_cb(struct folio *folio, struct writeback_control *wbc,
+		void *data)
 {
 	struct address_space *mapping = data;
-	int ret = mapping->a_ops->writepage(page, wbc);
+	int ret = mapping->a_ops->writepage(&folio->page, wbc);
 	mapping_set_error(mapping, ret);
 	return ret;
 }
-
-/**
- * generic_writepages - walk the list of dirty pages of the given address space and writepage() all of them.
- * @mapping: address space structure to write
- * @wbc: subtract the number of written pages from *@wbc->nr_to_write
- *
- * This is a library function, which implements the writepages()
- * address_space_operation.
- *
- * Return: %0 on success, negative error code otherwise
- */
-int generic_writepages(struct address_space *mapping,
-		       struct writeback_control *wbc)
-{
-	struct blk_plug plug;
-	int ret;
-
-	/* deal with chardevs and other special file */
-	if (!mapping->a_ops->writepage)
-		return 0;
-
-	blk_start_plug(&plug);
-	ret = write_cache_pages(mapping, wbc, __writepage, mapping);
-	blk_finish_plug(&plug);
-	return ret;
-}
-
-EXPORT_SYMBOL(generic_writepages);
 
 int do_writepages(struct address_space *mapping, struct writeback_control *wbc)
 {
@@ -2577,11 +2547,20 @@ int do_writepages(struct address_space *mapping, struct writeback_control *wbc)
 	wb = inode_to_wb_wbc(mapping->host, wbc);
 	wb_bandwidth_estimate_start(wb);
 	while (1) {
-		if (mapping->a_ops->writepages)
+		if (mapping->a_ops->writepages) {
 			ret = mapping->a_ops->writepages(mapping, wbc);
-		else
-			ret = generic_writepages(mapping, wbc);
-		if ((ret != -ENOMEM) || (wbc->sync_mode != WB_SYNC_ALL))
+		} else if (mapping->a_ops->writepage) {
+			struct blk_plug plug;
+
+			blk_start_plug(&plug);
+			ret = write_cache_pages(mapping, wbc, writepage_cb,
+						mapping);
+			blk_finish_plug(&plug);
+		} else {
+			/* deal with chardevs and other special files */
+			ret = 0;
+		}
+		if (ret != -ENOMEM || wbc->sync_mode != WB_SYNC_ALL)
 			break;
 
 		/*
@@ -2673,7 +2652,7 @@ static void folio_account_dirtied(struct folio *folio,
 		struct bdi_writeback *wb;
 		long nr = folio_nr_pages(folio);
 
-		inode_attach_wb(inode, &folio->page);
+		inode_attach_wb(inode, folio);
 		wb = inode_to_wb(inode);
 
 		__lruvec_stat_mod_folio(folio, NR_FILE_DIRTY, nr);
@@ -2713,7 +2692,7 @@ void folio_account_cleaned(struct folio *folio, struct bdi_writeback *wb)
  *
  * The caller must hold lock_page_memcg().  Most callers have the folio
  * locked.  A few have the folio blocked from truncation through other
- * means (eg zap_page_range() has it mapped and is holding the page table
+ * means (eg zap_vma_pages() has it mapped and is holding the page table
  * lock).  This can also be called from mark_buffer_dirty(), which I
  * cannot prove is always protected against truncate.
  */
@@ -2846,11 +2825,11 @@ bool folio_mark_dirty(struct folio *folio)
 
 	if (likely(mapping)) {
 		/*
-		 * readahead/lru_deactivate_page could remain
+		 * readahead/folio_deactivate could remain
 		 * PG_readahead/PG_reclaim due to race with folio_end_writeback
 		 * About readahead, if the folio is written, the flags would be
 		 * reset. So no problem.
-		 * About lru_deactivate_page, if the folio is redirtied,
+		 * About folio_deactivate, if the folio is redirtied,
 		 * the flag will be reset. So no problem. but if the
 		 * folio is used by readahead it will confuse readahead
 		 * and make it restart the size rampup process. But it's

@@ -17,12 +17,6 @@ enum vchiq_reason {
 	VCHIQ_BULK_RECEIVE_ABORTED    /* service, -, bulk_userdata */
 };
 
-enum vchiq_status {
-	VCHIQ_ERROR   = -1,
-	VCHIQ_SUCCESS = 0,
-	VCHIQ_RETRY   = 1
-};
-
 enum vchiq_bulk_mode {
 	VCHIQ_BULK_MODE_CALLBACK,
 	VCHIQ_BULK_MODE_BLOCKING,
@@ -57,11 +51,11 @@ struct vchiq_instance;
 
 struct vchiq_service_base {
 	int fourcc;
-	enum vchiq_status (*callback)(struct vchiq_instance *instance,
-				      enum vchiq_reason reason,
-				      struct vchiq_header *header,
-				      unsigned int handle,
-				      void *bulk_userdata);
+	int (*callback)(struct vchiq_instance *instance,
+			enum vchiq_reason reason,
+			struct vchiq_header *header,
+			unsigned int handle,
+			void *bulk_userdata);
 	void *userdata;
 };
 
@@ -74,11 +68,11 @@ struct vchiq_completion_data_kernel {
 
 struct vchiq_service_params_kernel {
 	int fourcc;
-	enum vchiq_status (*callback)(struct vchiq_instance *instance,
-				      enum vchiq_reason reason,
-				      struct vchiq_header *header,
-				      unsigned int handle,
-				      void *bulk_userdata);
+	int (*callback)(struct vchiq_instance *instance,
+			enum vchiq_reason reason,
+			struct vchiq_header *header,
+			unsigned int handle,
+			void *bulk_userdata);
 	void *userdata;
 	short version;       /* Increment for non-trivial changes */
 	short version_min;   /* Update for incompatible changes */
@@ -86,33 +80,32 @@ struct vchiq_service_params_kernel {
 
 struct vchiq_instance;
 
-extern enum vchiq_status vchiq_initialise(struct vchiq_instance **pinstance);
-extern enum vchiq_status vchiq_shutdown(struct vchiq_instance *instance);
-extern enum vchiq_status vchiq_connect(struct vchiq_instance *instance);
-extern enum vchiq_status vchiq_open_service(struct vchiq_instance *instance,
-	const struct vchiq_service_params_kernel *params,
-	unsigned int *pservice);
-extern enum vchiq_status vchiq_close_service(struct vchiq_instance *instance,
-					     unsigned int service);
-extern enum vchiq_status vchiq_use_service(struct vchiq_instance *instance, unsigned int service);
-extern enum vchiq_status vchiq_release_service(struct vchiq_instance *instance,
-					       unsigned int service);
+extern int vchiq_initialise(struct vchiq_instance **pinstance);
+extern int vchiq_shutdown(struct vchiq_instance *instance);
+extern int vchiq_connect(struct vchiq_instance *instance);
+extern int vchiq_open_service(struct vchiq_instance *instance,
+			      const struct vchiq_service_params_kernel *params,
+			      unsigned int *pservice);
+extern int vchiq_close_service(struct vchiq_instance *instance,
+			       unsigned int service);
+extern int vchiq_use_service(struct vchiq_instance *instance, unsigned int service);
+extern int vchiq_release_service(struct vchiq_instance *instance,
+				 unsigned int service);
 extern void vchiq_msg_queue_push(struct vchiq_instance *instance, unsigned int handle,
 				 struct vchiq_header *header);
 extern void vchiq_release_message(struct vchiq_instance *instance, unsigned int service,
 				  struct vchiq_header *header);
 extern int vchiq_queue_kernel_message(struct vchiq_instance *instance, unsigned int handle,
 				      void *data, unsigned int size);
-extern enum vchiq_status vchiq_bulk_transmit(struct vchiq_instance *instance, unsigned int service,
-					     const void *data, unsigned int size, void *userdata,
-					     enum vchiq_bulk_mode mode);
-extern enum vchiq_status vchiq_bulk_receive(struct vchiq_instance *instance, unsigned int service,
-					    void *data, unsigned int size, void *userdata,
-					    enum vchiq_bulk_mode mode);
+extern int vchiq_bulk_transmit(struct vchiq_instance *instance, unsigned int service,
+			       const void *data, unsigned int size, void *userdata,
+			       enum vchiq_bulk_mode mode);
+extern int vchiq_bulk_receive(struct vchiq_instance *instance, unsigned int service,
+			      void *data, unsigned int size, void *userdata,
+			      enum vchiq_bulk_mode mode);
 extern void *vchiq_get_service_userdata(struct vchiq_instance *instance, unsigned int service);
-extern enum vchiq_status vchiq_get_peer_version(struct vchiq_instance *instance,
-						unsigned int handle,
-						short *peer_version);
+extern int vchiq_get_peer_version(struct vchiq_instance *instance, unsigned int handle,
+				  short *peer_version);
 extern struct vchiq_header *vchiq_msg_hold(struct vchiq_instance *instance, unsigned int handle);
 
 #endif /* VCHIQ_H */

@@ -36,7 +36,7 @@
 #include <linux/mlx5/device.h>
 #include <linux/mlx5/driver.h>
 
-#define MLX5_INVALID_LKEY	0x100
+#define MLX5_TERMINATE_SCATTER_LIST_LKEY cpu_to_be32(0x100)
 /* UMR (3 WQE_BB's) + SIG (3 WQE_BB's) + PSV (mem) + PSV (wire) */
 #define MLX5_SIG_WQE_SIZE	(MLX5_SEND_WQE_BB * 8)
 #define MLX5_DIF_SIZE		8

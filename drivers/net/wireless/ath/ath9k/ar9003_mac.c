@@ -193,16 +193,16 @@ static bool ar9003_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked,
 	if (ath9k_hw_mci_is_enabled(ah))
 		async_mask |= AR_INTR_ASYNC_MASK_MCI;
 
-	async_cause = REG_READ(ah, AR_INTR_ASYNC_CAUSE);
+	async_cause = REG_READ(ah, AR_INTR_ASYNC_CAUSE(ah));
 
 	if (async_cause & async_mask) {
-		if ((REG_READ(ah, AR_RTC_STATUS) & AR_RTC_STATUS_M)
+		if ((REG_READ(ah, AR_RTC_STATUS(ah)) & AR_RTC_STATUS_M(ah))
 				== AR_RTC_STATUS_ON)
 			isr = REG_READ(ah, AR_ISR);
 	}
 
 
-	sync_cause = REG_READ(ah, AR_INTR_SYNC_CAUSE) & AR_INTR_SYNC_DEFAULT;
+	sync_cause = REG_READ(ah, AR_INTR_SYNC_CAUSE(ah)) & AR_INTR_SYNC_DEFAULT;
 
 	*masked = 0;
 
@@ -280,7 +280,7 @@ static bool ar9003_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked,
 			u32 s5;
 
 			if (pCap->hw_caps & ATH9K_HW_CAP_RAC_SUPPORTED)
-				s5 = REG_READ(ah, AR_ISR_S5_S);
+				s5 = REG_READ(ah, AR_ISR_S5_S(ah));
 			else
 				s5 = REG_READ(ah, AR_ISR_S5);
 
@@ -345,8 +345,8 @@ static bool ar9003_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked,
 			ath_dbg(common, INTERRUPT,
 				"AR_INTR_SYNC_LOCAL_TIMEOUT\n");
 
-		REG_WRITE(ah, AR_INTR_SYNC_CAUSE_CLR, sync_cause);
-		(void) REG_READ(ah, AR_INTR_SYNC_CAUSE_CLR);
+		REG_WRITE(ah, AR_INTR_SYNC_CAUSE_CLR(ah), sync_cause);
+		(void) REG_READ(ah, AR_INTR_SYNC_CAUSE_CLR(ah));
 
 	}
 	return true;

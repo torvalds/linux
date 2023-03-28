@@ -267,9 +267,9 @@ int mt76_connac_init_tx_queues(struct mt76_phy *phy, int idx, int n_desc,
 }
 EXPORT_SYMBOL_GPL(mt76_connac_init_tx_queues);
 
-static u16
-mt76_connac2_mac_tx_rate_val(struct mt76_phy *mphy, struct ieee80211_vif *vif,
-			     bool beacon, bool mcast)
+u16 mt76_connac2_mac_tx_rate_val(struct mt76_phy *mphy,
+				 struct ieee80211_vif *vif,
+				 bool beacon, bool mcast)
 {
 	u8 mode = 0, band = mphy->chandef.chan->band;
 	int rateidx = 0, mcast_rate;
@@ -319,6 +319,7 @@ out:
 	return FIELD_PREP(MT_TX_RATE_IDX, rateidx) |
 	       FIELD_PREP(MT_TX_RATE_MODE, mode);
 }
+EXPORT_SYMBOL_GPL(mt76_connac2_mac_tx_rate_val);
 
 static void
 mt76_connac2_mac_write_txwi_8023(__le32 *txwi, struct sk_buff *skb,
@@ -930,7 +931,7 @@ int mt76_connac2_reverse_frag0_hdr_trans(struct ieee80211_vif *vif,
 		ether_addr_copy(hdr.addr4, eth_hdr->h_source);
 		break;
 	default:
-		break;
+		return -EINVAL;
 	}
 
 	skb_pull(skb, hdr_offset + sizeof(struct ethhdr) - 2);

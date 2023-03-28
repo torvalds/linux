@@ -81,6 +81,12 @@
 			reg = <0x0 0x94400000 0x0 0x200000>;
 			no-map;
 		};
+
+		mdata_mem: mpss-metadata {
+			alloc-ranges = <0x0 0xa0000000 0x0 0x20000000>;
+			size = <0x0 0x4000>;
+			no-map;
+		};
 	};
 
 	aliases {
@@ -432,7 +438,7 @@
 };
 
 &apps_rsc {
-	pm6150-rpmh-regulators {
+	regulators-0 {
 		compatible = "qcom,pm6150-rpmh-regulators";
 		qcom,pmic-id = "a";
 
@@ -545,7 +551,7 @@
 		};
 	};
 
-	pm6150l-rpmh-regulators {
+	regulators-1 {
 		compatible = "qcom,pm6150l-rpmh-regulators";
 		qcom,pmic-id = "c";
 
@@ -788,18 +794,18 @@ hp_i2c: &i2c9 {
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	mi2s@0 {
+	dai-link@0 {
 		reg = <MI2S_PRIMARY>;
 		qcom,playback-sd-lines = <1>;
 		qcom,capture-sd-lines = <0>;
 	};
 
-	secondary_mi2s: mi2s@1 {
+	secondary_mi2s: dai-link@1 {
 		reg = <MI2S_SECONDARY>;
 		qcom,playback-sd-lines = <0>;
 	};
 
-	hdmi@5 {
+	dai-link@5 {
 		reg = <LPASS_DP_RX>;
 	};
 };
@@ -816,7 +822,11 @@ hp_i2c: &i2c9 {
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&dp_hot_plug_det>;
+};
+
+&mdss_dp_out {
 	data-lanes = <0 1>;
+	link-frequencies = /bits/ 64 <1620000000 2700000000 5400000000>;
 };
 
 &pm6150_adc {
@@ -853,12 +863,30 @@ hp_i2c: &i2c9 {
 &remoteproc_mpss {
 	status = "okay";
 	compatible = "qcom,sc7180-mss-pil";
+	reg = <0 0x04080000 0 0x4040>, <0 0x04180000 0 0x48>;
+	reg-names = "qdsp6", "rmb";
+
+	clocks = <&gcc GCC_MSS_CFG_AHB_CLK>,
+		 <&gcc GCC_MSS_Q6_MEMNOC_AXI_CLK>,
+		 <&gcc GCC_MSS_NAV_AXI_CLK>,
+		 <&gcc GCC_MSS_SNOC_AXI_CLK>,
+		 <&gcc GCC_MSS_MFAB_AXIS_CLK>,
+		 <&rpmhcc RPMH_CXO_CLK>;
+	clock-names = "iface", "bus", "nav", "snoc_axi", "mnoc_axi", "xo";
+
 	iommus = <&apps_smmu 0x461 0x0>, <&apps_smmu 0x444 0x3>;
-	memory-region = <&mba_mem &mpss_mem>;
+	memory-region = <&mba_mem>, <&mpss_mem>, <&mdata_mem>;
 
 	/* This gets overridden for SKUs with LTE support. */
 	firmware-name = "qcom/sc7180-trogdor/modem-nolte/mba.mbn",
 			"qcom/sc7180-trogdor/modem-nolte/qdsp6sw.mbn";
+
+	resets = <&aoss_reset AOSS_CC_MSS_RESTART>,
+		 <&pdc_reset PDC_MODEM_SYNC_RESET>;
+	reset-names = "mss_restart", "pdc_reset";
+
+	qcom,halt-regs = <&tcsr_regs_1 0x3000 0x5000 0x4000>;
+	qcom,spare-regs = <&tcsr_regs_2 0xb3e4>;
 };
 
 &sdhc_1 {
@@ -1141,11 +1169,11 @@ ap_spi_fp: &spi10 {
 
 /* PINCTRL - board-specific pinctrl */
 
-&pm6150_gpio {
+&pm6150_gpios {
 	status = "disabled"; /* No GPIOs are connected */
 };
 
-&pm6150l_gpio {
+&pm6150l_gpios {
 	gpio-line-names = "AP_SUSPEND",
 			  "",
 			  "",
@@ -1376,7 +1404,15 @@ ap_spi_fp: &spi10 {
 		pins = "gpio8";
 		function = "gpio";
 		bias-disable;
-		drive-strength = <2>;
+
+		/*
+		 * The reset GPIO to the touchscreen takes almost 2ms to drop
+		 * at the default drive strength. When we bump it up to 8mA it
+		 * falls in under 500us. We want this to be fast since the Elan
+		 * datasheet (and any drivers written based on it) talk about using
+		 * a 500 us reset pulse.
+		 */
+		drive-strength = <8>;
 	};
 
 	sdc1_on: sdc1-on-state {

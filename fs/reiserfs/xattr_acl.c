@@ -18,7 +18,7 @@ static int __reiserfs_set_acl(struct reiserfs_transaction_handle *th,
 
 
 int
-reiserfs_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
+reiserfs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		 struct posix_acl *acl, int type)
 {
 	int error, error2;
@@ -42,7 +42,7 @@ reiserfs_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
 	reiserfs_write_unlock(inode->i_sb);
 	if (error == 0) {
 		if (type == ACL_TYPE_ACCESS && acl) {
-			error = posix_acl_update_mode(&init_user_ns, inode,
+			error = posix_acl_update_mode(&nop_mnt_idmap, inode,
 						      &mode, &acl);
 			if (error)
 				goto unlock;
@@ -407,5 +407,5 @@ int reiserfs_acl_chmod(struct dentry *dentry)
 	    !reiserfs_posixacl(inode->i_sb))
 		return 0;
 
-	return posix_acl_chmod(&init_user_ns, dentry, inode->i_mode);
+	return posix_acl_chmod(&nop_mnt_idmap, dentry, inode->i_mode);
 }

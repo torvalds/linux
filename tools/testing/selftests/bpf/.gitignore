@@ -36,6 +36,7 @@ test_cpp
 *.lskel.h
 /no_alu32
 /bpf_gcc
+/host-tools
 /tools
 /runqslower
 /bench
@@ -46,3 +47,5 @@ test_cpp
 xskxceiver
 xdp_redirect_multi
 xdp_synproxy
+xdp_hw_metadata
+xdp_features

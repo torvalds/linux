@@ -138,6 +138,7 @@ mt76_find_power_limits_node(struct mt76_dev *dev)
 {
 	struct device_node *np = dev->dev->of_node;
 	const char *const region_names[] = {
+		[NL80211_DFS_UNSET] = "ww",
 		[NL80211_DFS_ETSI] = "etsi",
 		[NL80211_DFS_FCC] = "fcc",
 		[NL80211_DFS_JP] = "jp",

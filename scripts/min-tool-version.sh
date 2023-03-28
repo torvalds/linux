@@ -19,10 +19,6 @@ binutils)
 gcc)
 	echo 5.1.0
 	;;
-icc)
-	# temporary
-	echo 16.0.3
-	;;
 llvm)
 	if [ "$SRCARCH" = s390 ]; then
 		echo 15.0.0

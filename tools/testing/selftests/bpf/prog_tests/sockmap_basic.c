@@ -299,9 +299,9 @@ static __u32 query_prog_id(int prog_fd)
 	__u32 info_len = sizeof(info);
 	int err;
 
-	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
-	if (!ASSERT_OK(err, "bpf_obj_get_info_by_fd") ||
-	    !ASSERT_EQ(info_len, sizeof(info), "bpf_obj_get_info_by_fd"))
+	err = bpf_prog_get_info_by_fd(prog_fd, &info, &info_len);
+	if (!ASSERT_OK(err, "bpf_prog_get_info_by_fd") ||
+	    !ASSERT_EQ(info_len, sizeof(info), "bpf_prog_get_info_by_fd"))
 		return 0;
 
 	return info.id;

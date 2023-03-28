@@ -394,6 +394,8 @@ int kern_sync_rcu(void);
 int trigger_module_test_read(int read_sz);
 int trigger_module_test_write(int write_sz);
 int write_sysctl(const char *sysctl, const char *value);
+int get_bpf_max_tramp_links_from(struct btf *btf);
+int get_bpf_max_tramp_links(void);
 
 #ifdef __x86_64__
 #define SYS_NANOSLEEP_KPROBE_NAME "__x64_sys_nanosleep"

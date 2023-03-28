@@ -48,7 +48,7 @@ static int __init early_page_owner_param(char *buf)
 	int ret = kstrtobool(buf, &page_owner_enabled);
 
 	if (page_owner_enabled)
-		stack_depot_want_early_init();
+		stack_depot_request_early_init();
 
 	return ret;
 }
@@ -99,6 +99,7 @@ struct page_ext_operations page_owner_ops = {
 	.size = sizeof(struct page_owner),
 	.need = need_page_owner,
 	.init = init_page_owner,
+	.need_shared_flags = true,
 };
 
 static inline struct page_owner *get_page_owner(struct page_ext *page_ext)
@@ -162,6 +163,7 @@ static inline void __set_page_owner_handle(struct page_ext *page_ext,
 {
 	struct page_owner *page_owner;
 	int i;
+	u64 ts_nsec = local_clock();
 
 	for (i = 0; i < (1 << order); i++) {
 		page_owner = get_page_owner(page_ext);
@@ -171,7 +173,7 @@ static inline void __set_page_owner_handle(struct page_ext *page_ext,
 		page_owner->last_migrate_reason = -1;
 		page_owner->pid = current->pid;
 		page_owner->tgid = current->tgid;
-		page_owner->ts_nsec = local_clock();
+		page_owner->ts_nsec = ts_nsec;
 		strscpy(page_owner->comm, current->comm,
 			sizeof(page_owner->comm));
 		__set_bit(PAGE_EXT_OWNER, &page_ext->flags);

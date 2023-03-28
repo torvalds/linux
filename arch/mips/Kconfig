@@ -445,6 +445,7 @@ config LANTIQ
 	select IRQ_MIPS_CPU
 	select CEVT_R4K
 	select CSRC_R4K
+	select NO_EXCEPT_FILL
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_HAS_CPU_MIPS32_R2
 	select SYS_SUPPORTS_BIG_ENDIAN
@@ -609,7 +610,6 @@ config RALINK
 	select DMA_NONCOHERENT
 	select IRQ_MIPS_CPU
 	select USE_OF
-	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_HAS_CPU_MIPS32_R2
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
@@ -1078,11 +1078,6 @@ config FW_CFE
 
 config ARCH_SUPPORTS_UPROBES
 	bool
-
-config DMA_PERDEV_COHERENT
-	bool
-	select ARCH_HAS_SETUP_DMA_OPS
-	select DMA_NONCOHERENT
 
 config DMA_NONCOHERENT
 	bool
@@ -3204,6 +3199,10 @@ config MIPS32_N32
 config CC_HAS_MNO_BRANCH_LIKELY
 	def_bool y
 	depends on $(cc-option,-mno-branch-likely)
+
+# https://github.com/llvm/llvm-project/issues/61045
+config CC_HAS_BROKEN_INLINE_COMPAT_BRANCH
+	def_bool y if CC_IS_CLANG
 
 menu "Power management options"
 

@@ -110,15 +110,33 @@ void __init free_bootmem_cpumask_var(cpumask_var_t mask)
 #endif
 
 /**
- * cpumask_local_spread - select the i'th cpu with local numa cpu's first
+ * cpumask_local_spread - select the i'th cpu based on NUMA distances
  * @i: index number
  * @node: local numa_node
  *
- * This function selects an online CPU according to a numa aware policy;
- * local cpus are returned first, followed by non-local ones, then it
- * wraps around.
+ * Returns online CPU according to a numa aware policy; local cpus are returned
+ * first, followed by non-local ones, then it wraps around.
  *
- * It's not very efficient, but useful for setup.
+ * For those who wants to enumerate all CPUs based on their NUMA distances,
+ * i.e. call this function in a loop, like:
+ *
+ * for (i = 0; i < num_online_cpus(); i++) {
+ *	cpu = cpumask_local_spread(i, node);
+ *	do_something(cpu);
+ * }
+ *
+ * There's a better alternative based on for_each()-like iterators:
+ *
+ *	for_each_numa_hop_mask(mask, node) {
+ *		for_each_cpu_andnot(cpu, mask, prev)
+ *			do_something(cpu);
+ *		prev = mask;
+ *	}
+ *
+ * It's simpler and more verbose than above. Complexity of iterator-based
+ * enumeration is O(sched_domains_numa_levels * nr_cpu_ids), while
+ * cpumask_local_spread() when called for each cpu is
+ * O(sched_domains_numa_levels * nr_cpu_ids * log(nr_cpu_ids)).
  */
 unsigned int cpumask_local_spread(unsigned int i, int node)
 {
@@ -127,24 +145,12 @@ unsigned int cpumask_local_spread(unsigned int i, int node)
 	/* Wrap: we always want a cpu. */
 	i %= num_online_cpus();
 
-	if (node == NUMA_NO_NODE) {
-		cpu = cpumask_nth(i, cpu_online_mask);
-		if (cpu < nr_cpu_ids)
-			return cpu;
-	} else {
-		/* NUMA first. */
-		cpu = cpumask_nth_and(i, cpu_online_mask, cpumask_of_node(node));
-		if (cpu < nr_cpu_ids)
-			return cpu;
+	cpu = (node == NUMA_NO_NODE) ?
+		cpumask_nth(i, cpu_online_mask) :
+		sched_numa_find_nth_cpu(cpu_online_mask, i, node);
 
-		i -= cpumask_weight_and(cpu_online_mask, cpumask_of_node(node));
-
-		/* Skip NUMA nodes, done above. */
-		cpu = cpumask_nth_andnot(i, cpu_online_mask, cpumask_of_node(node));
-		if (cpu < nr_cpu_ids)
-			return cpu;
-	}
-	BUG();
+	WARN_ON(cpu >= nr_cpu_ids);
+	return cpu;
 }
 EXPORT_SYMBOL(cpumask_local_spread);
 

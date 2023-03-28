@@ -236,8 +236,8 @@ enum i2c_driver_flags {
 /**
  * struct i2c_driver - represent an I2C device driver
  * @class: What kind of i2c device we instantiate (for detect)
- * @probe: Callback for device binding - soon to be deprecated
- * @probe_new: New callback for device binding
+ * @probe: Callback for device binding
+ * @probe_new: Transitional callback for device binding - do not use
  * @remove: Callback for device unbinding
  * @shutdown: Callback for device shutdown
  * @alert: Alert callback, for example for the SMBus alert protocol
@@ -272,14 +272,18 @@ enum i2c_driver_flags {
 struct i2c_driver {
 	unsigned int class;
 
+	union {
 	/* Standard driver model interfaces */
-	int (*probe)(struct i2c_client *client, const struct i2c_device_id *id);
+		int (*probe)(struct i2c_client *client);
+		/*
+		 * Legacy callback that was part of a conversion of .probe().
+		 * Today it has the same semantic as .probe(). Don't use for new
+		 * code.
+		 */
+		int (*probe_new)(struct i2c_client *client);
+	};
 	void (*remove)(struct i2c_client *client);
 
-	/* New driver model interface to aid the seamless removal of the
-	 * current probe()'s, more commonly unused than used second parameter.
-	 */
-	int (*probe_new)(struct i2c_client *client);
 
 	/* driver model interfaces that don't relate to enumeration  */
 	void (*shutdown)(struct i2c_client *client);
@@ -965,15 +969,33 @@ int i2c_handle_smbus_host_notify(struct i2c_adapter *adap, unsigned short addr);
 
 #endif /* I2C */
 
-#if IS_ENABLED(CONFIG_OF)
 /* must call put_device() when done with returned i2c_client device */
-struct i2c_client *of_find_i2c_device_by_node(struct device_node *node);
+struct i2c_client *i2c_find_device_by_fwnode(struct fwnode_handle *fwnode);
 
 /* must call put_device() when done with returned i2c_adapter device */
-struct i2c_adapter *of_find_i2c_adapter_by_node(struct device_node *node);
+struct i2c_adapter *i2c_find_adapter_by_fwnode(struct fwnode_handle *fwnode);
 
 /* must call i2c_put_adapter() when done with returned i2c_adapter device */
-struct i2c_adapter *of_get_i2c_adapter_by_node(struct device_node *node);
+struct i2c_adapter *i2c_get_adapter_by_fwnode(struct fwnode_handle *fwnode);
+
+#if IS_ENABLED(CONFIG_OF)
+/* must call put_device() when done with returned i2c_client device */
+static inline struct i2c_client *of_find_i2c_device_by_node(struct device_node *node)
+{
+	return i2c_find_device_by_fwnode(of_fwnode_handle(node));
+}
+
+/* must call put_device() when done with returned i2c_adapter device */
+static inline struct i2c_adapter *of_find_i2c_adapter_by_node(struct device_node *node)
+{
+	return i2c_find_adapter_by_fwnode(of_fwnode_handle(node));
+}
+
+/* must call i2c_put_adapter() when done with returned i2c_adapter device */
+static inline struct i2c_adapter *of_get_i2c_adapter_by_node(struct device_node *node)
+{
+	return i2c_get_adapter_by_fwnode(of_fwnode_handle(node));
+}
 
 const struct of_device_id
 *i2c_of_match_device(const struct of_device_id *matches,

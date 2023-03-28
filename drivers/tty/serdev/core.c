@@ -42,7 +42,7 @@ static struct attribute *serdev_device_attrs[] = {
 };
 ATTRIBUTE_GROUPS(serdev_device);
 
-static int serdev_device_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int serdev_device_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
 	int rc;
 

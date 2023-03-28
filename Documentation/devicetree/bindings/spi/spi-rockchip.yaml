@@ -11,7 +11,7 @@ description:
   as flash and display controllers using the SPI communication interface.
 
 allOf:
-  - $ref: "spi-controller.yaml#"
+  - $ref: spi-controller.yaml#
 
 maintainers:
   - Heiko Stuebner <heiko@sntech.de>

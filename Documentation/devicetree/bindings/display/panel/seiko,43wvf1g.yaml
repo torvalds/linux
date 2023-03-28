@@ -25,6 +25,8 @@ properties:
   avdd-supply:
     description: 5v analog regulator
 
+  enable-gpios: true
+
 required:
   - compatible
   - dvdd-supply

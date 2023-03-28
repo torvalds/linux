@@ -435,10 +435,6 @@ int acpi_ffh_address_space_arch_setup(void *handler_ctxt, void **region_ctxt)
 	enum arm_smccc_conduit conduit;
 	struct acpi_ffh_data *ffh_ctxt;
 
-	ffh_ctxt = kzalloc(sizeof(*ffh_ctxt), GFP_KERNEL);
-	if (!ffh_ctxt)
-		return -ENOMEM;
-
 	if (arm_smccc_get_version() < ARM_SMCCC_VERSION_1_2)
 		return -EOPNOTSUPP;
 
@@ -447,6 +443,10 @@ int acpi_ffh_address_space_arch_setup(void *handler_ctxt, void **region_ctxt)
 		pr_err("%s: invalid SMCCC conduit\n", __func__);
 		return -EOPNOTSUPP;
 	}
+
+	ffh_ctxt = kzalloc(sizeof(*ffh_ctxt), GFP_KERNEL);
+	if (!ffh_ctxt)
+		return -ENOMEM;
 
 	if (conduit == SMCCC_CONDUIT_SMC) {
 		ffh_ctxt->invoke_ffh_fn = __arm_smccc_smc;

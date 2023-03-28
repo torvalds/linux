@@ -128,6 +128,8 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
 void mtk_wed_exit(void);
 int mtk_wed_flow_add(int index);
 void mtk_wed_flow_remove(int index);
+void mtk_wed_fe_reset(void);
+void mtk_wed_fe_reset_complete(void);
 #else
 static inline void
 mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
@@ -147,6 +149,13 @@ static inline void mtk_wed_flow_remove(int index)
 {
 }
 
+static inline void mtk_wed_fe_reset(void)
+{
+}
+
+static inline void mtk_wed_fe_reset_complete(void)
+{
+}
 #endif
 
 #ifdef CONFIG_DEBUG_FS
