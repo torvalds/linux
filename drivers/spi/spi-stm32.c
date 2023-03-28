@@ -1780,8 +1780,7 @@ static int stm32_spi_probe(struct platform_device *pdev)
 		of_match_device(pdev->dev.driver->of_match_table,
 				&pdev->dev)->data;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	spi->base = devm_ioremap_resource(&pdev->dev, res);
+	spi->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(spi->base))
 		return PTR_ERR(spi->base);
 
