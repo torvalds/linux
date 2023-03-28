@@ -69,6 +69,7 @@ static void intel_crtc_disable_noatomic(struct intel_crtc *crtc,
 	}
 
 	state->acquire_ctx = ctx;
+	to_intel_atomic_state(state)->internal = true;
 
 	/* Everything's already locked, -EDEADLK can't happen. */
 	temp_crtc_state = intel_atomic_get_crtc_state(state, crtc);

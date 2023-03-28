@@ -643,6 +643,9 @@ struct intel_atomic_state {
 	struct __intel_global_objs_state *global_objs;
 	int num_global_objs;
 
+	/* Internal commit, as opposed to userspace/client initiated one */
+	bool internal;
+
 	bool dpll_set, modeset;
 
 	struct intel_shared_dpll_state shared_dpll[I915_NUM_PLLS];

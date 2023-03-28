@@ -4137,7 +4137,10 @@ found:
 	}
 
 	state->acquire_ctx = ctx;
+	to_intel_atomic_state(state)->internal = true;
+
 	restore_state->acquire_ctx = ctx;
+	to_intel_atomic_state(restore_state)->internal = true;
 
 	connector_state = drm_atomic_get_connector_state(state, connector);
 	if (IS_ERR(connector_state)) {
@@ -6585,6 +6588,13 @@ int intel_atomic_check(struct drm_device *dev,
 
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
+		/*
+		 * crtc's state no longer considered to be inherited
+		 * after the first userspace/client initiated commit.
+		 */
+		if (!state->internal)
+			new_crtc_state->inherited = false;
+
 		if (new_crtc_state->inherited != old_crtc_state->inherited)
 			new_crtc_state->uapi.mode_changed = true;
 
@@ -8285,9 +8295,10 @@ static int intel_initial_commit(struct drm_device *dev)
 
 	drm_modeset_acquire_init(&ctx, 0);
 
-retry:
 	state->acquire_ctx = &ctx;
+	to_intel_atomic_state(state)->internal = true;
 
+retry:
 	for_each_intel_crtc(dev, crtc) {
 		struct intel_crtc_state *crtc_state =
 			intel_atomic_get_crtc_state(state, crtc);
@@ -8299,15 +8310,6 @@ retry:
 
 		if (crtc_state->hw.active) {
 			struct intel_encoder *encoder;
-
-			/*
-			 * We've not yet detected sink capabilities
-			 * (audio,infoframes,etc.) and thus we don't want to
-			 * force a full state recomputation yet. We want that to
-			 * happen only for the first real commit from userspace.
-			 * So preserve the inherited flag for the time being.
-			 */
-			crtc_state->inherited = true;
 
 			ret = drm_atomic_add_affected_planes(state, &crtc->base);
 			if (ret)

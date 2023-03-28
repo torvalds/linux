@@ -265,7 +265,6 @@ intel_crtc_duplicate_state(struct drm_crtc *crtc)
 	crtc_state->update_wm_post = false;
 	crtc_state->fifo_changed = false;
 	crtc_state->preload_luts = false;
-	crtc_state->inherited = false;
 	crtc_state->wm.need_postvbl_update = false;
 	crtc_state->do_async_flip = false;
 	crtc_state->fb_bits = 0;
@@ -598,6 +597,8 @@ void intel_atomic_state_clear(struct drm_atomic_state *s)
 
 	drm_atomic_state_default_clear(&state->base);
 	intel_atomic_clear_global_state(state);
+
+	/* state->internal not reset on purpose */
 
 	state->dpll_set = state->modeset = false;
 }
