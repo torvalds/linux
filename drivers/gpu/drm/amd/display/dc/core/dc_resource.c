@@ -69,6 +69,9 @@
 #include "../dcn32/dcn32_resource.h"
 #include "../dcn321/dcn321_resource.h"
 
+#define VISUAL_CONFIRM_RECT_HEIGHT_DEFAULT 3
+#define VISUAL_CONFIRM_RECT_HEIGHT_MIN 1
+#define VISUAL_CONFIRM_RECT_HEIGHT_MAX 10
 
 #define DC_LOGGER_INIT(logger)
 
@@ -808,6 +811,8 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx)
 	struct rect surf_clip = plane_state->clip_rect;
 	bool split_tb = stream->view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM;
 	int split_count, split_idx;
+	struct dpp *dpp = pipe_ctx->plane_res.dpp;
+	unsigned short visual_confirm_rect_height = VISUAL_CONFIRM_RECT_HEIGHT_DEFAULT;
 
 	calculate_split_count_and_index(pipe_ctx, &split_count, &split_idx);
 	if (stream->view_format == VIEW_3D_FORMAT_SIDE_BY_SIDE)
@@ -875,6 +880,23 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx)
 			} else
 				data->recout.width = data->h_active - data->recout.x;
 		}
+	}
+
+	/* Check bounds to ensure the VC bar height was set to a sane value */
+	if (dpp != NULL) {
+		if ((dpp->ctx->dc->debug.visual_confirm_rect_height >= VISUAL_CONFIRM_RECT_HEIGHT_MIN) &&
+			(dpp->ctx->dc->debug.visual_confirm_rect_height <= VISUAL_CONFIRM_RECT_HEIGHT_MAX)) {
+			visual_confirm_rect_height = dpp->ctx->dc->debug.visual_confirm_rect_height;
+		}
+
+		if (dpp->ctx->dc->debug.visual_confirm !=
+		    VISUAL_CONFIRM_DISABLE)
+			data->recout.height = data->recout.height -
+				2 * ((pipe_ctx->prev_odm_pipe ||
+				      (pipe_ctx->top_pipe &&
+				      pipe_ctx->top_pipe->plane_state ==
+				      pipe_ctx->plane_state)) +
+				     visual_confirm_rect_height);
 	}
 }
 

@@ -4304,7 +4304,8 @@ static bool full_update_required(struct dc_surface_update *srf_updates,
 				srf_updates[i].in_transfer_func ||
 				srf_updates[i].func_shaper ||
 				srf_updates[i].lut3d_func ||
-				srf_updates[i].blend_tf))
+				srf_updates[i].blend_tf ||
+				srf_updates[i].surface->force_full_update))
 			return true;
 	}
 
