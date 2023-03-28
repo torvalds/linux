@@ -102,6 +102,9 @@ struct user_event_enabler {
 /* Bit 6 is for faulting status of enablement */
 #define ENABLE_VAL_FAULTING_BIT 6
 
+/* Bit 7 is for freeing status of enablement */
+#define ENABLE_VAL_FREEING_BIT 7
+
 /* Only duplicate the bit value */
 #define ENABLE_VAL_DUP_MASK ENABLE_VAL_BIT_MASK
 
@@ -301,6 +304,12 @@ static void user_event_enabler_fault_fixup(struct work_struct *work)
 	/* Prevent state changes from racing */
 	mutex_lock(&event_mutex);
 
+	/* User asked for enabler to be removed during fault */
+	if (test_bit(ENABLE_VAL_FREEING_BIT, ENABLE_BITOPS(enabler))) {
+		user_event_enabler_destroy(enabler);
+		goto out;
+	}
+
 	/*
 	 * If we managed to get the page, re-issue the write. We do not
 	 * want to get into a possible infinite loop, which is why we only
@@ -315,7 +324,7 @@ static void user_event_enabler_fault_fixup(struct work_struct *work)
 		user_event_enabler_write(mm, enabler, true);
 		mmap_read_unlock(mm->mm);
 	}
-
+out:
 	mutex_unlock(&event_mutex);
 
 	/* In all cases we no longer need the mm or fault */
@@ -370,7 +379,8 @@ static int user_event_enabler_write(struct user_event_mm *mm,
 	if (refcount_read(&mm->tasks) == 0)
 		return -ENOENT;
 
-	if (unlikely(test_bit(ENABLE_VAL_FAULTING_BIT, ENABLE_BITOPS(enabler))))
+	if (unlikely(test_bit(ENABLE_VAL_FAULTING_BIT, ENABLE_BITOPS(enabler)) ||
+		     test_bit(ENABLE_VAL_FREEING_BIT, ENABLE_BITOPS(enabler))))
 		return -EBUSY;
 
 	ret = pin_user_pages_remote(mm->mm, uaddr, 1, FOLL_WRITE | FOLL_NOFAULT,
@@ -427,6 +437,10 @@ static bool user_event_enabler_dup(struct user_event_enabler *orig,
 				   struct user_event_mm *mm)
 {
 	struct user_event_enabler *enabler;
+
+	/* Skip pending frees */
+	if (unlikely(test_bit(ENABLE_VAL_FREEING_BIT, ENABLE_BITOPS(orig))))
+		return true;
 
 	enabler = kzalloc(sizeof(*enabler), GFP_NOWAIT);
 
@@ -2086,6 +2100,79 @@ static long user_events_ioctl_del(struct user_event_file_info *info,
 	return ret;
 }
 
+static long user_unreg_get(struct user_unreg __user *ureg,
+			   struct user_unreg *kreg)
+{
+	u32 size;
+	long ret;
+
+	ret = get_user(size, &ureg->size);
+
+	if (ret)
+		return ret;
+
+	if (size > PAGE_SIZE)
+		return -E2BIG;
+
+	if (size < offsetofend(struct user_unreg, disable_addr))
+		return -EINVAL;
+
+	ret = copy_struct_from_user(kreg, sizeof(*kreg), ureg, size);
+
+	/* Ensure no reserved values, since we don't support any yet */
+	if (kreg->__reserved || kreg->__reserved2)
+		return -EINVAL;
+
+	return ret;
+}
+
+/*
+ * Unregisters an enablement address/bit within a task/user mm.
+ */
+static long user_events_ioctl_unreg(unsigned long uarg)
+{
+	struct user_unreg __user *ureg = (struct user_unreg __user *)uarg;
+	struct user_event_mm *mm = current->user_event_mm;
+	struct user_event_enabler *enabler, *next;
+	struct user_unreg reg;
+	long ret;
+
+	ret = user_unreg_get(ureg, &reg);
+
+	if (ret)
+		return ret;
+
+	if (!mm)
+		return -ENOENT;
+
+	ret = -ENOENT;
+
+	/*
+	 * Flags freeing and faulting are used to indicate if the enabler is in
+	 * use at all. When faulting is set a page-fault is occurring asyncly.
+	 * During async fault if freeing is set, the enabler will be destroyed.
+	 * If no async fault is happening, we can destroy it now since we hold
+	 * the event_mutex during these checks.
+	 */
+	mutex_lock(&event_mutex);
+
+	list_for_each_entry_safe(enabler, next, &mm->enablers, link)
+		if (enabler->addr == reg.disable_addr &&
+		    (enabler->values & ENABLE_VAL_BIT_MASK) == reg.disable_bit) {
+			set_bit(ENABLE_VAL_FREEING_BIT, ENABLE_BITOPS(enabler));
+
+			if (!test_bit(ENABLE_VAL_FAULTING_BIT, ENABLE_BITOPS(enabler)))
+				user_event_enabler_destroy(enabler);
+
+			/* Removed at least one */
+			ret = 0;
+		}
+
+	mutex_unlock(&event_mutex);
+
+	return ret;
+}
+
 /*
  * Handles the ioctl from user mode to register or alter operations.
  */
@@ -2106,6 +2193,12 @@ static long user_events_ioctl(struct file *file, unsigned int cmd,
 	case DIAG_IOCSDEL:
 		mutex_lock(&group->reg_mutex);
 		ret = user_events_ioctl_del(info, uarg);
+		mutex_unlock(&group->reg_mutex);
+		break;
+
+	case DIAG_IOCSUNREG:
+		mutex_lock(&group->reg_mutex);
+		ret = user_events_ioctl_unreg(uarg);
 		mutex_unlock(&group->reg_mutex);
 		break;
 	}

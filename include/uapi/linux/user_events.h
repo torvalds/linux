@@ -46,6 +46,27 @@ struct user_reg {
 	__u32 write_index;
 } __attribute__((__packed__));
 
+/*
+ * Describes an event unregister, callers must set the size, address and bit.
+ * This structure is passed to the DIAG_IOCSUNREG ioctl to disable bit updates.
+ */
+struct user_unreg {
+	/* Input: Size of the user_unreg structure being used */
+	__u32 size;
+
+	/* Input: Bit to unregister */
+	__u8 disable_bit;
+
+	/* Input: Reserved, set to 0 */
+	__u8 __reserved;
+
+	/* Input: Reserved, set to 0 */
+	__u16 __reserved2;
+
+	/* Input: Address to unregister */
+	__u64 disable_addr;
+} __attribute__((__packed__));
+
 #define DIAG_IOC_MAGIC '*'
 
 /* Request to register a user_event */
@@ -53,5 +74,8 @@ struct user_reg {
 
 /* Request to delete a user_event */
 #define DIAG_IOCSDEL _IOW(DIAG_IOC_MAGIC, 1, char *)
+
+/* Requests to unregister a user_event */
+#define DIAG_IOCSUNREG _IOW(DIAG_IOC_MAGIC, 2, struct user_unreg*)
 
 #endif /* _UAPI_LINUX_USER_EVENTS_H */
