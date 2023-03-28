@@ -54,9 +54,7 @@ static int iwl_mvm_mld_mac_add_interface(struct ieee80211_hw *hw,
 		if (ret)
 			goto out_unref_phy;
 
-		ret = iwl_mvm_link_changed(mvm, vif,
-					   LINK_CONTEXT_MODIFY_ACTIVE |
-					   LINK_CONTEXT_MODIFY_RATES_INFO,
+		ret = iwl_mvm_link_changed(mvm, vif, LINK_CONTEXT_MODIFY_ACTIVE,
 					   true);
 		if (ret)
 			goto out_remove_link;
@@ -162,7 +160,8 @@ static int __iwl_mvm_mld_assign_vif_chanctx(struct iwl_mvm *mvm,
 	ret = iwl_mvm_add_link(mvm, vif);
 	if (ret)
 		goto out;
-	ret = iwl_mvm_link_changed(mvm, vif, LINK_CONTEXT_MODIFY_ACTIVE,
+	ret = iwl_mvm_link_changed(mvm, vif, LINK_CONTEXT_MODIFY_ACTIVE |
+				   LINK_CONTEXT_MODIFY_RATES_INFO,
 				   true);
 	if (ret)
 		goto out_remove_link;
@@ -270,7 +269,7 @@ static int iwl_mvm_mld_start_ap_ibss(struct ieee80211_hw *hw,
 	if (ret)
 		goto out_remove_mac;
 
-	ret = iwl_mvm_link_changed(mvm, vif, LINK_CONTEXT_MODIFY_ACTIVE,
+	ret = iwl_mvm_link_changed(mvm, vif, LINK_CONTEXT_MODIFY_ALL,
 				   true);
 	if (ret)
 		goto out_remove_link;
