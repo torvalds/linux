@@ -1841,9 +1841,11 @@ iwl_mvm_bss_info_changed_common(struct ieee80211_hw *hw,
 				struct ieee80211_bss_conf *bss_conf,
 				struct iwl_mvm_bss_info_changed_ops *callbacks,
 				u64 changes);
-void iwl_mvm_bss_info_changed_station_common(struct iwl_mvm *mvm,
-					     struct ieee80211_vif *vif,
-					     u64 changes);
+void
+iwl_mvm_bss_info_changed_station_common(struct iwl_mvm *mvm,
+					struct ieee80211_vif *vif,
+					struct ieee80211_bss_conf *link_conf,
+					u64 changes);
 void iwl_mvm_bss_info_changed_station_assoc(struct iwl_mvm *mvm,
 					    struct ieee80211_vif *vif,
 					    u64 changes);
@@ -2057,10 +2059,17 @@ int iwl_mvm_disable_beacon_filter(struct iwl_mvm *mvm,
 /* SMPS */
 void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 				enum iwl_mvm_smps_type_request req_type,
-				enum ieee80211_smps_mode smps_request);
+				enum ieee80211_smps_mode smps_request,
+				unsigned int link_id);
+void
+iwl_mvm_update_smps_on_active_links(struct iwl_mvm *mvm,
+				    struct ieee80211_vif *vif,
+				    enum iwl_mvm_smps_type_request req_type,
+				    enum ieee80211_smps_mode smps_request);
 bool iwl_mvm_rx_diversity_allowed(struct iwl_mvm *mvm,
 				  struct iwl_mvm_phy_ctxt *ctxt);
-void iwl_mvm_apply_fw_smps_request(struct ieee80211_vif *vif);
+void iwl_mvm_update_link_smps(struct ieee80211_vif *vif,
+			      struct ieee80211_bss_conf *link_conf);
 
 /* Low latency */
 int iwl_mvm_update_low_latency(struct iwl_mvm *mvm, struct ieee80211_vif *vif,

@@ -516,7 +516,7 @@ iwl_mvm_mld_bss_info_changed_station(struct iwl_mvm *mvm,
 			if (vif->p2p) {
 				iwl_mvm_update_smps(mvm, vif,
 						    IWL_MVM_SMPS_REQ_PROT,
-						    IEEE80211_SMPS_DYNAMIC);
+						    IEEE80211_SMPS_DYNAMIC, 0);
 			}
 		} else if (mvmvif->deflink.ap_sta_id != IWL_MVM_INVALID_STA) {
 			iwl_mvm_mei_host_disassociated(mvm);
@@ -557,7 +557,7 @@ iwl_mvm_mld_bss_info_changed_station(struct iwl_mvm *mvm,
 		iwl_mvm_bss_info_changed_station_assoc(mvm, vif, changes);
 	}
 
-	iwl_mvm_bss_info_changed_station_common(mvm, vif, changes);
+	iwl_mvm_bss_info_changed_station_common(mvm, vif, &vif->bss_conf, changes);
 }
 
 static void

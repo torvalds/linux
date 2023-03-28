@@ -272,13 +272,15 @@ int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq)
  * @vif: Pointer to the ieee80211_vif structure
  * @req_type: The part of the driver who call for a change.
  * @smps_request: The request to change the SMPS mode.
+ * @link_id: for MLO link_id, otherwise 0 (deflink)
  *
  * Get a requst to change the SMPS mode,
  * and change it according to all other requests in the driver.
  */
 void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			 enum iwl_mvm_smps_type_request req_type,
-			 enum ieee80211_smps_mode smps_request)
+			 enum ieee80211_smps_mode smps_request,
+			 unsigned int link_id)
 {
 	struct iwl_mvm_vif *mvmvif;
 	enum ieee80211_smps_mode smps_mode = IEEE80211_SMPS_AUTOMATIC;
@@ -294,17 +296,34 @@ void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		return;
 
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	mvmvif->deflink.smps_requests[req_type] = smps_request;
+	mvmvif->link[link_id]->smps_requests[req_type] = smps_request;
 	for (i = 0; i < NUM_IWL_MVM_SMPS_REQ; i++) {
-		if (mvmvif->deflink.smps_requests[i] == IEEE80211_SMPS_STATIC) {
+		if (mvmvif->link[link_id]->smps_requests[i] ==
+		    IEEE80211_SMPS_STATIC) {
 			smps_mode = IEEE80211_SMPS_STATIC;
 			break;
 		}
-		if (mvmvif->deflink.smps_requests[i] == IEEE80211_SMPS_DYNAMIC)
+		if (mvmvif->link[link_id]->smps_requests[i] ==
+		    IEEE80211_SMPS_DYNAMIC)
 			smps_mode = IEEE80211_SMPS_DYNAMIC;
 	}
 
-	ieee80211_request_smps(vif, 0, smps_mode);
+	ieee80211_request_smps(vif, link_id, smps_mode);
+}
+
+void iwl_mvm_update_smps_on_active_links(struct iwl_mvm *mvm,
+					 struct ieee80211_vif *vif,
+					 enum iwl_mvm_smps_type_request req_type,
+					 enum ieee80211_smps_mode smps_request)
+{
+	struct ieee80211_bss_conf *link_conf;
+	unsigned int link_id;
+
+	rcu_read_lock();
+	for_each_vif_active_link(vif, link_conf, link_id)
+		iwl_mvm_update_smps(mvm, vif, req_type, smps_request,
+				    link_id);
+	rcu_read_unlock();
 }
 
 static bool iwl_wait_stats_complete(struct iwl_notif_wait_data *notif_wait,

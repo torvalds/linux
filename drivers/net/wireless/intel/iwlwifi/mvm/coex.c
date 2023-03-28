@@ -291,7 +291,7 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 		if (vif->type == NL80211_IFTYPE_STATION) {
 			/* ... relax constraints and disable rssi events */
 			iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_BT_COEX,
-					    smps_mode);
+					    smps_mode, 0);
 			iwl_mvm_bt_coex_reduced_txp(mvm,
 						    mvmvif->deflink.ap_sta_id,
 						    false);
@@ -325,7 +325,7 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 
 	if (vif->type == NL80211_IFTYPE_STATION)
 		iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_BT_COEX,
-				    smps_mode);
+				    smps_mode, 0);
 
 	/* low latency is always primary */
 	if (iwl_mvm_vif_low_latency(mvmvif)) {

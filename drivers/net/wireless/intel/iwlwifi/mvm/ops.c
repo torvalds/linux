@@ -209,24 +209,37 @@ static void iwl_mvm_rx_monitor_notif(struct iwl_mvm *mvm,
 	ieee80211_disconnect(vif, true);
 }
 
-void iwl_mvm_apply_fw_smps_request(struct ieee80211_vif *vif)
+void iwl_mvm_update_link_smps(struct ieee80211_vif *vif,
+			      struct ieee80211_bss_conf *link_conf)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm *mvm = mvmvif->mvm;
 	enum ieee80211_smps_mode mode = IEEE80211_SMPS_AUTOMATIC;
 
+	if (!link_conf)
+		return;
+
 	if (mvm->fw_static_smps_request &&
-	    vif->bss_conf.chandef.width == NL80211_CHAN_WIDTH_160 &&
-	    vif->bss_conf.he_support)
+	    link_conf->chandef.width == NL80211_CHAN_WIDTH_160 &&
+	    link_conf->he_support)
 		mode = IEEE80211_SMPS_STATIC;
 
-	iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_FW, mode);
+	iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_FW, mode,
+			    link_conf->link_id);
 }
 
 static void iwl_mvm_intf_dual_chain_req(void *data, u8 *mac,
 					struct ieee80211_vif *vif)
 {
-	iwl_mvm_apply_fw_smps_request(vif);
+	struct ieee80211_bss_conf *link_conf;
+	unsigned int link_id;
+
+	rcu_read_lock();
+
+	for_each_vif_active_link(vif, link_conf, link_id)
+		iwl_mvm_update_link_smps(vif, link_conf);
+
+	rcu_read_unlock();
 }
 
 static void iwl_mvm_rx_thermal_dual_chain_req(struct iwl_mvm *mvm,
