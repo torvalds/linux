@@ -78,7 +78,7 @@ static int iwl_mvm_mld_mac_add_interface(struct ieee80211_hw *hw,
 		if (ret)
 			goto out_remove_link;
 
-		ret = iwl_mvm_mld_add_bcast_sta(mvm, vif);
+		ret = iwl_mvm_mld_add_bcast_sta(mvm, vif, &vif->bss_conf);
 		if (ret)
 			goto out_remove_link;
 
@@ -194,7 +194,9 @@ static void iwl_mvm_mld_mac_remove_interface(struct ieee80211_hw *hw,
 
 	if (vif->type == NL80211_IFTYPE_P2P_DEVICE) {
 		mvm->p2p_device_vif = NULL;
-		iwl_mvm_mld_rm_bcast_sta(mvm, vif);
+
+		/* P2P device uses only one link */
+		iwl_mvm_mld_rm_bcast_sta(mvm, vif, &vif->bss_conf);
 		/* Link needs to be deactivated before removal */
 		iwl_mvm_link_changed(mvm, vif, &vif->bss_conf,
 				     LINK_CONTEXT_MODIFY_ACTIVE, false);
@@ -255,7 +257,8 @@ static int __iwl_mvm_mld_assign_vif_chanctx(struct iwl_mvm *mvm,
 	iwl_mvm_power_update_mac(mvm);
 
 	if (vif->type == NL80211_IFTYPE_MONITOR) {
-		ret = iwl_mvm_mld_add_snif_sta(mvm, vif);
+		ret = iwl_mvm_mld_add_snif_sta(mvm, vif,
+					       &vif->bss_conf);
 		if (ret)
 			goto deactivate;
 	}
@@ -348,14 +351,14 @@ static int iwl_mvm_mld_start_ap_ibss(struct ieee80211_hw *hw,
 	if (ret)
 		goto out_unlock;
 
-	ret = iwl_mvm_mld_add_mcast_sta(mvm, vif);
+	ret = iwl_mvm_mld_add_mcast_sta(mvm, vif, link_conf);
 	if (ret)
 		goto out_unlock;
 
 	/* Send the bcast station. At this stage the TBTT and DTIM time
 	 * events are added and applied to the scheduler
 	 */
-	ret = iwl_mvm_mld_add_bcast_sta(mvm, vif);
+	ret = iwl_mvm_mld_add_bcast_sta(mvm, vif, link_conf);
 	if (ret)
 		goto out_rm_mcast;
 
@@ -379,9 +382,9 @@ static int iwl_mvm_mld_start_ap_ibss(struct ieee80211_hw *hw,
 out_failed:
 	iwl_mvm_power_update_mac(mvm);
 	mvmvif->ap_ibss_active = false;
-	iwl_mvm_mld_rm_bcast_sta(mvm, vif);
+	iwl_mvm_mld_rm_bcast_sta(mvm, vif, link_conf);
 out_rm_mcast:
-	iwl_mvm_mld_rm_mcast_sta(mvm, vif);
+	iwl_mvm_mld_rm_mcast_sta(mvm, vif, link_conf);
 out_unlock:
 	mutex_unlock(&mvm->mutex);
 	return ret;
@@ -416,8 +419,8 @@ static void iwl_mvm_mld_stop_ap_ibss(struct ieee80211_hw *hw,
 
 	iwl_mvm_ftm_responder_clear(mvm, vif);
 
-	iwl_mvm_mld_rm_bcast_sta(mvm, vif);
-	iwl_mvm_mld_rm_mcast_sta(mvm, vif);
+	iwl_mvm_mld_rm_bcast_sta(mvm, vif, link_conf);
+	iwl_mvm_mld_rm_mcast_sta(mvm, vif, link_conf);
 
 	iwl_mvm_power_update_mac(mvm);
 	mutex_unlock(&mvm->mutex);

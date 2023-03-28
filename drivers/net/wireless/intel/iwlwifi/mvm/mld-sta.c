@@ -166,10 +166,13 @@ static int iwl_mvm_mld_add_int_sta(struct iwl_mvm *mvm,
  * and send it to the FW.
  * Note that each P2P mac should have its own broadcast station.
  */
-int iwl_mvm_mld_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+int iwl_mvm_mld_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			      struct ieee80211_bss_conf *link_conf)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_mvm_int_sta *bsta = &mvmvif->deflink.bcast_sta;
+	struct iwl_mvm_vif_link_info *mvm_link =
+		mvmvif->link[link_conf->link_id];
+	struct iwl_mvm_int_sta *bsta = &mvm_link->bcast_sta;
 	static const u8 _baddr[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 	const u8 *baddr = _baddr;
 	unsigned int wdg_timeout =
@@ -179,7 +182,7 @@ int iwl_mvm_mld_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	lockdep_assert_held(&mvm->mutex);
 
 	if (vif->type == NL80211_IFTYPE_ADHOC)
-		baddr = vif->bss_conf.bssid;
+		baddr = link_conf->bssid;
 
 	if (vif->type == NL80211_IFTYPE_AP ||
 	    vif->type == NL80211_IFTYPE_ADHOC) {
@@ -202,10 +205,13 @@ int iwl_mvm_mld_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
  * and send it to the FW.
  * Note that each AP/GO mac should have its own multicast station.
  */
-int iwl_mvm_mld_add_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+int iwl_mvm_mld_add_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			      struct ieee80211_bss_conf *link_conf)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_mvm_int_sta *msta = &mvmvif->deflink.mcast_sta;
+	struct iwl_mvm_vif_link_info *mvm_link =
+		mvmvif->link[link_conf->link_id];
+	struct iwl_mvm_int_sta *msta = &mvm_link->mcast_sta;
 	static const u8 _maddr[] = {0x03, 0x00, 0x00, 0x00, 0x00, 0x00};
 	const u8 *maddr = _maddr;
 	unsigned int timeout = iwl_mvm_get_wd_timeout(mvm, vif, false, false);
@@ -222,9 +228,9 @@ int iwl_mvm_mld_add_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	 * changes in mac80211 layer.
 	 */
 	if (vif->type == NL80211_IFTYPE_ADHOC)
-		mvmvif->deflink.cab_queue = IWL_MVM_DQA_GCAST_QUEUE;
+		mvm_link->cab_queue = IWL_MVM_DQA_GCAST_QUEUE;
 
-	return iwl_mvm_mld_add_int_sta(mvm, msta, &mvmvif->deflink.cab_queue,
+	return iwl_mvm_mld_add_int_sta(mvm, msta, &mvm_link->cab_queue,
 				       vif->type, STATION_TYPE_MCAST,
 				       mvmvif->id, maddr, 0, &timeout);
 }
@@ -232,7 +238,8 @@ int iwl_mvm_mld_add_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 /* Allocate a new station entry for the sniffer station to the given vif,
  * and send it to the FW.
  */
-int iwl_mvm_mld_add_snif_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+int iwl_mvm_mld_add_snif_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			     struct ieee80211_bss_conf *link_conf)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
@@ -310,9 +317,11 @@ static int iwl_mvm_mld_rm_int_sta(struct iwl_mvm *mvm,
 	return ret;
 }
 
-int iwl_mvm_mld_rm_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+int iwl_mvm_mld_rm_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			     struct ieee80211_bss_conf *link_conf)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_vif_link_info *link = mvmvif->link[link_conf->link_id];
 	u16 *queueptr;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -331,22 +340,23 @@ int iwl_mvm_mld_rm_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		return -EINVAL;
 	}
 
-	return iwl_mvm_mld_rm_int_sta(mvm, &mvmvif->deflink.bcast_sta, true,
-				      IWL_MAX_TID_COUNT, queueptr);
+	return iwl_mvm_mld_rm_int_sta(mvm, &link->bcast_sta,
+				      true, IWL_MAX_TID_COUNT, queueptr);
 }
 
 /* Send the FW a request to remove the station from it's internal data
  * structures, and in addition remove it from the local data structure.
  */
-int iwl_mvm_mld_rm_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+int iwl_mvm_mld_rm_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			     struct ieee80211_bss_conf *link_conf)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_vif_link_info *link = mvmvif->link[link_conf->link_id];
 
 	lockdep_assert_held(&mvm->mutex);
 
-	return iwl_mvm_mld_rm_int_sta(mvm, &mvmvif->deflink.mcast_sta, true,
-				      0,
-				      &mvmvif->deflink.cab_queue);
+	return iwl_mvm_mld_rm_int_sta(mvm, &link->mcast_sta, true, 0,
+				      &link->cab_queue);
 }
 
 int iwl_mvm_mld_rm_snif_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
