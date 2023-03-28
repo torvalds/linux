@@ -190,6 +190,12 @@ config ROCKCHIP_MTD_VENDOR_STORAGE
 	help
 	  Say y here to enable rockchip mtd vendor storage support.
 
+config ROCKCHIP_RAM_VENDOR_STORAGE
+	tristate "Rockchip ram vendor storage support"
+	depends on ROCKCHIP_VENDOR_STORAGE
+	help
+	  Say y here to enable rockchip ram vendor storage support.
+
 config ROCKCHIP_VENDOR_STORAGE_UPDATE_LOADER
 	bool "Rockchip vendor storage update loader support"
 	default n

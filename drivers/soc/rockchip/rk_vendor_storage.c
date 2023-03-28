@@ -11,8 +11,8 @@
 #include <linux/module.h>
 #include <linux/soc/rockchip/rk_vendor_storage.h>
 
-int (*_vendor_read)(u32 id, void *pbuf, u32 size) = NULL;
-int (*_vendor_write)(u32 id, void *pbuf, u32 size) = NULL;
+static int (*_vendor_read)(u32 id, void *pbuf, u32 size);
+static int (*_vendor_write)(u32 id, void *pbuf, u32 size);
 
 int rk_vendor_read(u32 id, void *pbuf, u32 size)
 {
@@ -32,18 +32,16 @@ EXPORT_SYMBOL(rk_vendor_write);
 
 int rk_vendor_register(void *read, void *write)
 {
-	if (!_vendor_read) {
-		_vendor_read = read;
-		_vendor_write =  write;
-		return 0;
-	}
-	return -1;
+	_vendor_read = read;
+	_vendor_write =  write;
+
+	return 0;
 }
 EXPORT_SYMBOL(rk_vendor_register);
 
 bool is_rk_vendor_ready(void)
 {
-	if (_vendor_read && _vendor_write)
+	if (_vendor_read)
 		return true;
 	return false;
 }
