@@ -2646,17 +2646,11 @@ blk_status_t btrfs_extract_ordered_extent(struct btrfs_bio *bbio)
 		goto out;
 	}
 
-	/* The bio must be entirely covered by the ordered extent. */
-	if (WARN_ON_ONCE(len > ordered_len)) {
-		ret = -EINVAL;
-		goto out;
-	}
-
 	/* No need to split if the ordered extent covers the entire bio. */
 	if (ordered->disk_num_bytes == len)
 		goto out;
 
-	ret = btrfs_split_ordered_extent(ordered, len, 0);
+	ret = btrfs_split_ordered_extent(ordered, len);
 	if (ret)
 		goto out;
 	ret = split_zoned_em(inode, bbio->file_offset, ordered_len, len, 0);

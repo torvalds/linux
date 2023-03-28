@@ -1138,17 +1138,22 @@ static int clone_ordered_extent(struct btrfs_ordered_extent *ordered, u64 pos,
 					ordered->compress_type);
 }
 
-int btrfs_split_ordered_extent(struct btrfs_ordered_extent *ordered, u64 pre,
-				u64 post)
+/* Split out a new ordered extent for this first @len bytes of @ordered. */
+int btrfs_split_ordered_extent(struct btrfs_ordered_extent *ordered, u64 len)
 {
 	struct inode *inode = ordered->inode;
 	struct btrfs_ordered_inode_tree *tree = &BTRFS_I(inode)->ordered_tree;
-	struct rb_node *node;
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	int ret = 0;
+	struct rb_node *node;
 
 	trace_btrfs_ordered_extent_split(BTRFS_I(inode), ordered);
 
+	/*
+	 * The entire bio must be covered by the ordered extent, but we can't
+	 * reduce the original extent to a zero length either.
+	 */
+	if (WARN_ON_ONCE(len >= ordered->num_bytes))
+		return -EINVAL;
 	/* We cannot split once ordered extent is past end_bio. */
 	if (WARN_ON_ONCE(ordered->bytes_left != ordered->disk_num_bytes))
 		return -EINVAL;
@@ -1167,11 +1172,11 @@ int btrfs_split_ordered_extent(struct btrfs_ordered_extent *ordered, u64 pre,
 	if (tree->last == node)
 		tree->last = NULL;
 
-	ordered->file_offset += pre;
-	ordered->disk_bytenr += pre;
-	ordered->num_bytes -= (pre + post);
-	ordered->disk_num_bytes -= (pre + post);
-	ordered->bytes_left -= (pre + post);
+	ordered->file_offset += len;
+	ordered->disk_bytenr += len;
+	ordered->num_bytes -= len;
+	ordered->disk_num_bytes -= len;
+	ordered->bytes_left -= len;
 
 	/* Re-insert the node */
 	node = tree_insert(&tree->tree, ordered->file_offset, &ordered->rb_node);
@@ -1182,13 +1187,7 @@ int btrfs_split_ordered_extent(struct btrfs_ordered_extent *ordered, u64 pre,
 
 	spin_unlock_irq(&tree->lock);
 
-	if (pre)
-		ret = clone_ordered_extent(ordered, 0, pre);
-	if (ret == 0 && post)
-		ret = clone_ordered_extent(ordered, pre + ordered->disk_num_bytes,
-					   post);
-
-	return ret;
+	return clone_ordered_extent(ordered, 0, len);
 }
 
 int __init ordered_data_init(void)
