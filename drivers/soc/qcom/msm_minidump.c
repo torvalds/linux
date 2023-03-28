@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) "Minidump: " fmt
@@ -359,9 +359,9 @@ static void md_rm_add_work(struct md_region *entry)
 		num_regions--;
 		pr_err("Failed to register minidump entry:%s ret:%d\n",
 		       entry->name, slot_num);
+		msm_minidump_clear_headers(entry);
 		goto out;
 	}
-	md_add_elf_header(entry);
 
 out:
 	spin_unlock_irqrestore(&mdt_lock, flags);
@@ -369,8 +369,7 @@ out:
 
 static void md_rm_remove_work(struct md_region *entry)
 {
-	int entryno, ret, slot_num;
-	unsigned long flags;
+	int ret, slot_num;
 
 	slot_num = gh_rm_minidump_get_slot_from_name(0, entry->name,
 						     strlen(entry->name));
@@ -387,20 +386,6 @@ static void md_rm_remove_work(struct md_region *entry)
 		return;
 	}
 
-	spin_lock_irqsave(&mdt_lock, flags);
-	entryno = md_elf_entry_number(entry);
-	if (entryno < 0) {
-		printk_deferred(
-			"Remove entry:%s failed, minidump table is corrupt\n",
-			entry->name);
-	}
-	ret = msm_minidump_clear_headers(entry);
-	if (ret)
-		goto out;
-	num_regions--;
-
-out:
-	spin_unlock_irqrestore(&mdt_lock, flags);
 }
 
 static void minidump_rm_work(struct work_struct *work)
@@ -643,6 +628,7 @@ int msm_minidump_add_region(const struct md_region *entry)
 			goto out;
 		}
 		ret = md_rm_add_region(entry);
+		md_add_elf_header(entry);
 		if (ret)
 			goto out;
 	} else {
@@ -669,22 +655,30 @@ EXPORT_SYMBOL(msm_minidump_add_region);
 
 static int md_rm_remove_region(const struct md_region *entry)
 {
-	int entryno;
+	int ret;
 	struct md_rm_request *rm_work;
 
-	entryno = md_elf_entry_number(entry);
-	if (entryno < 0) {
+	ret = md_elf_entry_number(entry);
+	if (ret < 0) {
 		printk_deferred("Not able to find the entry %s in table\n",
 				entry->name);
-		return entryno;
+		return ret;
 	}
 	rm_work = kzalloc(sizeof(*rm_work), GFP_ATOMIC);
 	if (!rm_work)
 		return -ENOMEM;
+	ret = msm_minidump_clear_headers(entry);
+	if (ret) {
+		printk_deferred("Fail to remove entry %s in elf header\n",
+				entry->name);
+		kfree(rm_work);
+		return ret;
+	}
 	rm_work->work_cmd = MINIDUMP_REMOVE;
 	rm_work->entry = *entry;
 	INIT_WORK(&rm_work->work, minidump_rm_work);
 	queue_work(minidump_rm_wq, &rm_work->work);
+	num_regions--;
 
 	return 0;
 }
@@ -997,6 +991,7 @@ static int msm_minidump_driver_probe(struct platform_device *pdev)
 			rm_region->work_cmd = MINIDUMP_ADD;
 			INIT_WORK(&rm_region->work, minidump_rm_work);
 			queue_work(minidump_rm_wq, &rm_region->work);
+			md_add_elf_header(&pending_region->entry);
 		} else {
 			/* Add pending entry to minidump table and ss toc */
 			minidump_table->entry[region_number] =
