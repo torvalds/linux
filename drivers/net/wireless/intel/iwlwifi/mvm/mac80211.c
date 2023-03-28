@@ -1278,8 +1278,8 @@ struct iwl_mvm_phy_ctxt *iwl_mvm_get_free_phy_ctxt(struct iwl_mvm *mvm)
 	return NULL;
 }
 
-static int iwl_mvm_set_tx_power(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-				s16 tx_power)
+int iwl_mvm_set_tx_power(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			 s16 tx_power)
 {
 	u32 cmd_id = REDUCE_TX_POWER_CMD;
 	int len;

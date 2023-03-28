@@ -553,8 +553,7 @@ static void iwl_mvm_power_ps_disabled_iterator(void *_data, u8* mac,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	bool *disable_ps = _data;
 
-	if (mvmvif->deflink.phy_ctxt &&
-	    mvmvif->deflink.phy_ctxt->id < NUM_PHY_CTX)
+	if (iwl_mvm_vif_is_active(mvmvif))
 		*disable_ps |= mvmvif->ps_disabled;
 }
 
@@ -563,10 +562,12 @@ static void iwl_mvm_power_get_vifs_iterator(void *_data, u8 *mac,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_power_vifs *power_iterator = _data;
-	bool active = mvmvif->deflink.phy_ctxt && mvmvif->deflink.phy_ctxt->id < NUM_PHY_CTX;
+	bool active;
 
 	if (!mvmvif->uploaded)
 		return;
+
+	active = iwl_mvm_vif_is_active(mvmvif);
 
 	switch (ieee80211_vif_type_p2p(vif)) {
 	case NL80211_IFTYPE_P2P_DEVICE:
@@ -651,11 +652,12 @@ static void iwl_mvm_power_set_pm(struct iwl_mvm *mvm,
 	}
 
 	if (vifs->bss_active && vifs->p2p_active)
-		client_same_channel = (bss_mvmvif->deflink.phy_ctxt->id ==
-				       p2p_mvmvif->deflink.phy_ctxt->id);
+		client_same_channel =
+			iwl_mvm_have_links_same_channel(bss_mvmvif, p2p_mvmvif);
+
 	if (vifs->bss_active && vifs->ap_active)
-		ap_same_channel = (bss_mvmvif->deflink.phy_ctxt->id ==
-				   ap_mvmvif->deflink.phy_ctxt->id);
+		ap_same_channel =
+			iwl_mvm_have_links_same_channel(bss_mvmvif, ap_mvmvif);
 
 	/* clients are not stand alone: enable PM if DCM */
 	if (!(client_same_channel || ap_same_channel)) {

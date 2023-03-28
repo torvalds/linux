@@ -2599,4 +2599,10 @@ int iwl_mvm_start_pmsr(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       struct cfg80211_pmsr_request *request);
 void iwl_mvm_abort_pmsr(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			struct cfg80211_pmsr_request *request);
+
+bool iwl_mvm_have_links_same_channel(struct iwl_mvm_vif *vif1,
+				     struct iwl_mvm_vif *vif2);
+bool iwl_mvm_vif_is_active(struct iwl_mvm_vif *mvmvif);
+int iwl_mvm_set_tx_power(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			 s16 tx_power);
 #endif /* __IWL_MVM_H__ */
