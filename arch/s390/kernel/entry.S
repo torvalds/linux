@@ -489,14 +489,13 @@ ENTRY(mcck_int_handler)
 	la	%r1,4095		# validate r1
 	spt	__LC_CPU_TIMER_SAVE_AREA-4095(%r1)	# validate cpu timer
 	LBEAR	__LC_LAST_BREAK_SAVE_AREA-4095(%r1)		# validate bear
-	lmg	%r0,%r15,__LC_GPREGS_SAVE_AREA-4095(%r1)# validate gprs
+	lmg	%r0,%r15,__LC_GPREGS_SAVE_AREA		# validate gprs
 	lmg	%r8,%r9,__LC_MCK_OLD_PSW
 	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_SYSTEM_DAMAGE
 	jo	.Lmcck_panic		# yes -> rest of mcck code invalid
 	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_CR_VALID
 	jno	.Lmcck_panic		# control registers invalid -> panic
-	la	%r14,4095
-	lctlg	%c0,%c15,__LC_CREGS_SAVE_AREA-4095(%r14) # validate ctl regs
+	lctlg	%c0,%c15,__LC_CREGS_SAVE_AREA		# validate ctl regs
 	ptlb
 	lghi	%r14,__LC_CPU_TIMER_SAVE_AREA
 	mvc	__LC_MCCK_ENTER_TIMER(8),0(%r14)
@@ -594,8 +593,7 @@ ENTRY(restart_int_handler)
 	stg	%r15,__LC_SAVE_AREA_RESTART
 	TSTMSK	__LC_RESTART_FLAGS,RESTART_FLAG_CTLREGS,4
 	jz	0f
-	la	%r15,4095
-	lctlg	%c0,%c15,__LC_CREGS_SAVE_AREA-4095(%r15)
+	lctlg	%c0,%c15,__LC_CREGS_SAVE_AREA
 0:	larl	%r15,.Lstosm_tmp
 	stosm	0(%r15),0x04			# turn dat on, keep irqs off
 	lg	%r15,__LC_RESTART_STACK
