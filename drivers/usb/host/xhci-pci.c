@@ -728,7 +728,6 @@ static void xhci_pci_remove(struct pci_dev *dev)
 	usb_hcd_pci_remove(dev);
 }
 
-#ifdef CONFIG_PM
 /*
  * In some Intel xHCI controllers, in order to get D3 working,
  * through a vendor specific SSIC CONFIG register at offset 0x883c,
@@ -927,7 +926,6 @@ static void xhci_pci_shutdown(struct usb_hcd *hcd)
 	if (xhci->quirks & XHCI_SPURIOUS_WAKEUP)
 		pci_set_power_state(pdev, PCI_D3hot);
 }
-#endif /* CONFIG_PM */
 
 /*-------------------------------------------------------------------------*/
 
@@ -970,9 +968,7 @@ static struct pci_driver xhci_pci_driver = {
 
 	.shutdown = 	usb_hcd_pci_shutdown,
 	.driver = {
-#ifdef CONFIG_PM
-		.pm = &usb_hcd_pci_pm_ops,
-#endif
+		.pm = pm_ptr(&usb_hcd_pci_pm_ops),
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
@@ -980,12 +976,10 @@ static struct pci_driver xhci_pci_driver = {
 static int __init xhci_pci_init(void)
 {
 	xhci_init_driver(&xhci_pci_hc_driver, &xhci_pci_overrides);
-#ifdef CONFIG_PM
-	xhci_pci_hc_driver.pci_suspend = xhci_pci_suspend;
-	xhci_pci_hc_driver.pci_resume = xhci_pci_resume;
-	xhci_pci_hc_driver.pci_poweroff_late = xhci_pci_poweroff_late;
-	xhci_pci_hc_driver.shutdown = xhci_pci_shutdown;
-#endif
+	xhci_pci_hc_driver.pci_suspend = pm_ptr(xhci_pci_suspend);
+	xhci_pci_hc_driver.pci_resume = pm_ptr(xhci_pci_resume);
+	xhci_pci_hc_driver.pci_poweroff_late = pm_ptr(xhci_pci_poweroff_late);
+	xhci_pci_hc_driver.shutdown = pm_ptr(xhci_pci_shutdown);
 	xhci_pci_hc_driver.stop = xhci_pci_stop;
 	return pci_register_driver(&xhci_pci_driver);
 }
