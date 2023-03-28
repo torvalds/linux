@@ -26,6 +26,9 @@
 #define FW_RATIO_MIN		1
 #define MAXBURST_PER_FIFO	8
 
+#define DEFAULT_FS		48000
+#define QUIRK_ALWAYS_ON		BIT(0)
+
 enum fpw_mode {
 	FPW_ONE_BCLK_WIDTH,
 	FPW_ONE_SLOT_WIDTH,
@@ -44,6 +47,7 @@ struct rk_sai_dev {
 	struct snd_pcm_substream *substreams[SNDRV_PCM_STREAM_LAST + 1];
 	unsigned int tx_lanes;
 	unsigned int rx_lanes;
+	unsigned int quirks;
 	enum fpw_mode fpw;
 	int  fw_ratio;
 	bool has_capture;
@@ -51,6 +55,16 @@ struct rk_sai_dev {
 	bool is_master_mode;
 	bool is_tdm;
 	bool is_clk_auto;
+};
+
+static const struct sai_of_quirks {
+	char *quirk;
+	int id;
+} of_quirks[] = {
+	{
+		.quirk = "rockchip,always-on",
+		.id = QUIRK_ALWAYS_ON,
+	},
 };
 
 static int sai_runtime_suspend(struct device *dev)
@@ -1154,6 +1168,50 @@ static irqreturn_t rockchip_sai_isr(int irq, void *devid)
 	return IRQ_HANDLED;
 }
 
+static int rockchip_sai_keep_clk_always_on(struct rk_sai_dev *sai)
+{
+	unsigned int mclk_rate, bclk_rate, div_bclk;
+
+	sai->is_master_mode = true;
+
+	/* init I2S fmt default */
+	rockchip_sai_fmt_create(sai, SND_SOC_DAIFMT_I2S);
+
+	regmap_update_bits(sai->regmap, SAI_FSCR,
+			   SAI_FSCR_FW_MASK |
+			   SAI_FSCR_FPW_MASK,
+			   SAI_FSCR_FW(64) |
+			   SAI_FSCR_FPW(32));
+
+	mclk_rate = clk_get_rate(sai->mclk);
+	bclk_rate = DEFAULT_FS * 64;
+	div_bclk = DIV_ROUND_CLOSEST(mclk_rate, bclk_rate);
+
+	regmap_update_bits(sai->regmap, SAI_CKR, SAI_CKR_MDIV_MASK,
+			   SAI_CKR_MDIV(div_bclk));
+
+	pm_runtime_forbid(sai->dev);
+
+	dev_info(sai->dev, "CLK-ALWAYS-ON: mclk: %d, bclk: %d, fsync: %d\n",
+		 mclk_rate, bclk_rate, DEFAULT_FS);
+
+	return 0;
+}
+
+static int rockchip_sai_parse_quirks(struct rk_sai_dev *sai)
+{
+	int ret = 0, i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(of_quirks); i++)
+		if (device_property_read_bool(sai->dev, of_quirks[i].quirk))
+			sai->quirks |= of_quirks[i].id;
+
+	if (sai->quirks & QUIRK_ALWAYS_ON)
+		ret = rockchip_sai_keep_clk_always_on(sai);
+
+	return ret;
+}
+
 static int rockchip_sai_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
@@ -1211,6 +1269,10 @@ static int rockchip_sai_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to get hclk\n");
 		return PTR_ERR(sai->hclk);
 	}
+
+	ret = rockchip_sai_parse_quirks(sai);
+	if (ret)
+		return ret;
 
 	pm_runtime_enable(&pdev->dev);
 	if (!pm_runtime_enabled(&pdev->dev)) {
