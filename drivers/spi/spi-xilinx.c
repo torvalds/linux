@@ -440,8 +440,7 @@ static int xilinx_spi_probe(struct platform_device *pdev)
 	xspi->bitbang.txrx_bufs = xilinx_spi_txrx_bufs;
 	init_completion(&xspi->done);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	xspi->regs = devm_ioremap_resource(&pdev->dev, res);
+	xspi->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(xspi->regs))
 		return PTR_ERR(xspi->regs);
 
