@@ -53,17 +53,13 @@
 };
 
 &pcie0 {
-	pinctrl-names = "perst-default", "perst-active";
-	pinctrl-0 = <&pcie0_perst_default>;
-	pinctrl-1 = <&pcie0_perst_active>;
-	power-gpio = <&gpio 32 GPIO_ACTIVE_HIGH>;
+	power-gpios = <&gpio 32 GPIO_ACTIVE_HIGH>;
+	reset-gpios = <&gpio 26 GPIO_ACTIVE_LOW>;
 	status = "disabled";
 };
 
 &pcie1 {
-	pinctrl-names = "perst-default", "perst-active";
-	pinctrl-0 = <&pcie1_perst_default>;
-	pinctrl-1 = <&pcie1_perst_active>;
-	power-gpio = <&gpio 21 GPIO_ACTIVE_HIGH>;
+	power-gpios = <&gpio 21 GPIO_ACTIVE_HIGH>;
+	reset-gpios = <&gpio 28 GPIO_ACTIVE_LOW>;
 	status = "disabled";
 };

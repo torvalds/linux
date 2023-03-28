@@ -52,12 +52,12 @@
 #define PLDA_EP_ENABLE			0
 #define PLDA_RP_ENABLE			1
 
-#define PLDA_LINK_UP			1
-#define PLDA_LINK_DOWN			0
-
 #define IDS_REVISION_ID			0x02
 #define IDS_PCI_TO_PCI_BRIDGE		0x060400
 #define IDS_CLASS_CODE_SHIFT		8
+
+#define PLDA_LINK_UP			1
+#define PLDA_LINK_DOWN			0
 
 #define PLDA_DATA_LINK_ACTIVE		BIT(5)
 #define PREF_MEM_WIN_64_SUPPORT		BIT(3)
@@ -164,10 +164,8 @@ struct plda_pcie {
 	struct clk_bulk_data *clks;
 	int num_clks;
 	int atr_table_num;
-	struct pinctrl *pinctrl;
-	struct pinctrl_state *perst_state_def;
-	struct pinctrl_state *perst_state_active;
 	struct gpio_desc *power_gpio;
+	struct gpio_desc *reset_gpio;
 };
 
 static inline void plda_writel(struct plda_pcie *pcie, const u32 value,
@@ -598,7 +596,7 @@ static int plda_pcie_parse_dt(struct plda_pcie *pcie)
 	}
 
 	pcie->config_base = devm_ioremap_resource(&pdev->dev, pcie->cfg_res);
-	if (IS_ERR(pcie->config_base)){
+	if (IS_ERR(pcie->config_base)) {
 		dev_err(&pdev->dev, "Failed to map config memory\n");
 		return PTR_ERR(pcie->config_base);
 	}
@@ -745,27 +743,13 @@ static void plda_clk_rst_deinit(struct plda_pcie *pcie)
 	clk_bulk_disable_unprepare(pcie->num_clks, pcie->clks);
 }
 
-int plda_pinctrl_init(struct plda_pcie *pcie)
+int plda_gpio_init(struct plda_pcie *pcie)
 {
 	struct device *dev = &pcie->pdev->dev;
 
-	pcie->pinctrl = devm_pinctrl_get(dev);
-	if (IS_ERR_OR_NULL(pcie->pinctrl)) {
-		dev_err(dev, "Getting pinctrl handle failed\n");
-		return -EINVAL;
-	}
-
-	pcie->perst_state_def
-		= pinctrl_lookup_state(pcie->pinctrl, "perst-default");
-	if (IS_ERR_OR_NULL(pcie->perst_state_def)) {
-		dev_err(dev, "Failed to get the perst-default pinctrl handle\n");
-		return -EINVAL;
-	}
-
-	pcie->perst_state_active
-		= pinctrl_lookup_state(pcie->pinctrl, "perst-active");
-	if (IS_ERR_OR_NULL(pcie->perst_state_active)) {
-		dev_err(dev, "Failed to get the perst-active pinctrl handle\n");
+	pcie->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR_OR_NULL(pcie->reset_gpio)) {
+		dev_warn(dev, "Failed to get reset-gpio.\n");
 		return -EINVAL;
 	}
 
@@ -787,11 +771,8 @@ static void plda_pcie_hw_init(struct plda_pcie *pcie)
 	if (pcie->power_gpio)
 		gpiod_set_value_cansleep(pcie->power_gpio, 1);
 
-	if (pcie->perst_state_active) {
-		ret = pinctrl_select_state(pcie->pinctrl, pcie->perst_state_active);
-		if (ret)
-			dev_err(dev, "Cannot set reset pin to low\n");
-	}
+	if (pcie->reset_gpio)
+		gpiod_set_value_cansleep(pcie->reset_gpio, 1);
 
 	/* Disable physical functions except #0 */
 	for (i = 1; i < PLDA_FUNC_NUM; i++) {
@@ -864,11 +845,9 @@ static void plda_pcie_hw_init(struct plda_pcie *pcie)
 
 	/* Ensure that PERST has been asserted for at least 100 ms */
 	msleep(300);
-	if (pcie->perst_state_def) {
-		ret = pinctrl_select_state(pcie->pinctrl, pcie->perst_state_def);
-		if (ret)
-			dev_err(dev, "Cannot set reset pin to high\n");
-	}
+	if (pcie->reset_gpio)
+		gpiod_set_value_cansleep(pcie->reset_gpio, 0);
+
 }
 
 static int plda_pcie_is_link_up(struct plda_pcie *pcie)
@@ -920,9 +899,9 @@ static int plda_pcie_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, pcie);
 
-	plda_pinctrl_init(pcie);
+	ret = plda_gpio_init(pcie);
 	if (ret) {
-		dev_err(&pdev->dev, "Init pinctrl failed\n");
+		dev_err(&pdev->dev, "Init gpio failed\n");
 		return ret;
 	}
 
