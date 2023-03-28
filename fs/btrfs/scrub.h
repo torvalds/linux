@@ -13,4 +13,9 @@ int btrfs_scrub_cancel_dev(struct btrfs_device *dev);
 int btrfs_scrub_progress(struct btrfs_fs_info *fs_info, u64 devid,
 			 struct btrfs_scrub_progress *progress);
 
+/* Temporary declaration, would be deleted later. */
+int scrub_raid56_parity(struct scrub_ctx *sctx, struct map_lookup *map,
+			struct btrfs_device *sdev, u64 logic_start,
+			u64 logic_end);
+
 #endif

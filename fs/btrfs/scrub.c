@@ -98,6 +98,13 @@ enum scrub_stripe_flags {
 
 	/* Set when the read-repair is finished. */
 	SCRUB_STRIPE_FLAG_REPAIR_DONE,
+
+	/*
+	 * Set for data stripes if it's triggered from P/Q stripe.
+	 * During such scrub, we should not report errors in data stripes, nor
+	 * update the accounting.
+	 */
+	SCRUB_STRIPE_FLAG_NO_REPORT,
 };
 
 #define SCRUB_STRIPE_PAGES		(BTRFS_STRIPE_LEN / PAGE_SIZE)
@@ -279,6 +286,7 @@ struct scrub_parity {
 struct scrub_ctx {
 	struct scrub_bio	*bios[SCRUB_BIOS_PER_SCTX];
 	struct scrub_stripe	stripes[SCRUB_STRIPES_PER_SCTX];
+	struct scrub_stripe	*raid56_data_stripes;
 	struct btrfs_fs_info	*fs_info;
 	int			first_free;
 	int			curr;
@@ -2490,6 +2498,9 @@ static void scrub_stripe_report_errors(struct scrub_ctx *sctx,
 	int nr_repaired_sectors = 0;
 	int sector_nr;
 
+	if (test_bit(SCRUB_STRIPE_FLAG_NO_REPORT, &stripe->state))
+		return;
+
 	/*
 	 * Init needed infos for error reporting.
 	 *
@@ -3799,11 +3810,8 @@ static int scrub_raid56_data_stripe_for_parity(struct scrub_ctx *sctx,
 	return ret;
 }
 
-static noinline_for_stack int scrub_raid56_parity(struct scrub_ctx *sctx,
-						  struct map_lookup *map,
-						  struct btrfs_device *sdev,
-						  u64 logic_start,
-						  u64 logic_end)
+int scrub_raid56_parity(struct scrub_ctx *sctx, struct map_lookup *map,
+			struct btrfs_device *sdev, u64 logic_start, u64 logic_end)
 {
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
 	struct btrfs_path *path;
@@ -4171,6 +4179,11 @@ static void flush_scrub_stripes(struct scrub_ctx *sctx)
 	sctx->cur_stripe = 0;
 }
 
+static void raid56_scrub_wait_endio(struct bio *bio)
+{
+	complete(bio->bi_private);
+}
+
 static int queue_scrub_stripe(struct scrub_ctx *sctx, struct btrfs_block_group *bg,
 			      struct btrfs_device *dev, int mirror_num,
 			      u64 logical, u32 length, u64 physical)
@@ -4193,6 +4206,165 @@ static int queue_scrub_stripe(struct scrub_ctx *sctx, struct btrfs_block_group *
 		return ret;
 	sctx->cur_stripe++;
 	return 0;
+}
+
+static int scrub_raid56_parity_stripe(struct scrub_ctx *sctx,
+				      struct btrfs_device *scrub_dev,
+				      struct btrfs_block_group *bg,
+				      struct map_lookup *map,
+				      u64 full_stripe_start)
+{
+	DECLARE_COMPLETION_ONSTACK(io_done);
+	struct btrfs_fs_info *fs_info = sctx->fs_info;
+	struct btrfs_raid_bio *rbio;
+	struct btrfs_io_context *bioc = NULL;
+	struct bio *bio;
+	struct scrub_stripe *stripe;
+	bool all_empty = true;
+	const int data_stripes = nr_data_stripes(map);
+	unsigned long extent_bitmap = 0;
+	u64 length = data_stripes << BTRFS_STRIPE_LEN_SHIFT;
+	int ret;
+
+	ASSERT(sctx->raid56_data_stripes);
+
+	for (int i = 0; i < data_stripes; i++) {
+		int stripe_index;
+		int rot;
+		u64 physical;
+
+		stripe = &sctx->raid56_data_stripes[i];
+		rot = div_u64(full_stripe_start - bg->start,
+			      data_stripes) >> BTRFS_STRIPE_LEN_SHIFT;
+		stripe_index = (i + rot) % map->num_stripes;
+		physical = map->stripes[stripe_index].physical +
+			   (rot << BTRFS_STRIPE_LEN_SHIFT);
+
+		scrub_reset_stripe(stripe);
+		set_bit(SCRUB_STRIPE_FLAG_NO_REPORT, &stripe->state);
+		ret = scrub_find_fill_first_stripe(bg,
+				map->stripes[stripe_index].dev, physical, 1,
+				full_stripe_start + (i << BTRFS_STRIPE_LEN_SHIFT),
+				BTRFS_STRIPE_LEN, stripe);
+		if (ret < 0)
+			goto out;
+		/*
+		 * No extent in this data stripe, need to manually mark them
+		 * initialized to make later read submission happy.
+		 */
+		if (ret > 0) {
+			stripe->logical = full_stripe_start +
+					  (i << BTRFS_STRIPE_LEN_SHIFT);
+			stripe->dev = map->stripes[stripe_index].dev;
+			stripe->mirror_num = 1;
+			set_bit(SCRUB_STRIPE_FLAG_INITIALIZED, &stripe->state);
+		}
+	}
+
+	/* Check if all data stripes are empty. */
+	for (int i = 0; i < data_stripes; i++) {
+		stripe = &sctx->raid56_data_stripes[i];
+		if (!bitmap_empty(&stripe->extent_sector_bitmap, stripe->nr_sectors)) {
+			all_empty = false;
+			break;
+		}
+	}
+	if (all_empty) {
+		ret = 0;
+		goto out;
+	}
+
+	for (int i = 0; i < data_stripes; i++) {
+		stripe = &sctx->raid56_data_stripes[i];
+		scrub_submit_initial_read(sctx, stripe);
+	}
+	for (int i = 0; i < data_stripes; i++) {
+		stripe = &sctx->raid56_data_stripes[i];
+
+		wait_event(stripe->repair_wait,
+			   test_bit(SCRUB_STRIPE_FLAG_REPAIR_DONE, &stripe->state));
+	}
+	/* For now, no zoned support for RAID56. */
+	ASSERT(!btrfs_is_zoned(sctx->fs_info));
+
+	/* Writeback for the repaired sectors. */
+	for (int i = 0; i < data_stripes; i++) {
+		unsigned long repaired;
+
+		stripe = &sctx->raid56_data_stripes[i];
+
+		bitmap_andnot(&repaired, &stripe->init_error_bitmap,
+			      &stripe->error_bitmap, stripe->nr_sectors);
+		scrub_write_sectors(sctx, stripe, repaired, false);
+	}
+
+	/* Wait for the above writebacks to finish. */
+	for (int i = 0; i < data_stripes; i++) {
+		stripe = &sctx->raid56_data_stripes[i];
+
+		wait_scrub_stripe_io(stripe);
+	}
+
+	/*
+	 * Now all data stripes are properly verified. Check if we have any
+	 * unrepaired, if so abort immediately or we could further corrupt the
+	 * P/Q stripes.
+	 *
+	 * During the loop, also populate extent_bitmap.
+	 */
+	for (int i = 0; i < data_stripes; i++) {
+		unsigned long error;
+
+		stripe = &sctx->raid56_data_stripes[i];
+
+		/*
+		 * We should only check the errors where there is an extent.
+		 * As we may hit an empty data stripe while it's missing.
+		 */
+		bitmap_and(&error, &stripe->error_bitmap,
+			   &stripe->extent_sector_bitmap, stripe->nr_sectors);
+		if (!bitmap_empty(&error, stripe->nr_sectors)) {
+			btrfs_err(fs_info,
+"unrepaired sectors detected, full stripe %llu data stripe %u errors %*pbl",
+				  full_stripe_start, i, stripe->nr_sectors,
+				  &error);
+			ret = -EIO;
+			goto out;
+		}
+		bitmap_or(&extent_bitmap, &extent_bitmap,
+			  &stripe->extent_sector_bitmap, stripe->nr_sectors);
+	}
+
+	/* Now we can check and regenerate the P/Q stripe. */
+	bio = bio_alloc(NULL, 1, REQ_OP_READ, GFP_NOFS);
+	bio->bi_iter.bi_sector = full_stripe_start >> SECTOR_SHIFT;
+	bio->bi_private = &io_done;
+	bio->bi_end_io = raid56_scrub_wait_endio;
+
+	btrfs_bio_counter_inc_blocked(fs_info);
+	ret = btrfs_map_sblock(fs_info, BTRFS_MAP_WRITE, full_stripe_start,
+			       &length, &bioc);
+	if (ret < 0) {
+		btrfs_put_bioc(bioc);
+		btrfs_bio_counter_dec(fs_info);
+		goto out;
+	}
+	rbio = raid56_parity_alloc_scrub_rbio(bio, bioc, scrub_dev, &extent_bitmap,
+				BTRFS_STRIPE_LEN >> fs_info->sectorsize_bits);
+	btrfs_put_bioc(bioc);
+	if (!rbio) {
+		ret = -ENOMEM;
+		btrfs_bio_counter_dec(fs_info);
+		goto out;
+	}
+	raid56_parity_submit_scrub_rbio(rbio);
+	wait_for_completion_io(&io_done);
+	ret = blk_status_to_errno(bio->bi_status);
+	bio_put(bio);
+	btrfs_bio_counter_dec(fs_info);
+
+out:
+	return ret;
 }
 
 /*
@@ -4368,7 +4540,6 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	/* Offset inside the chunk */
 	u64 offset;
 	u64 stripe_logical;
-	u64 stripe_end;
 	int stop_loop = 0;
 
 	wait_event(sctx->list_wait,
@@ -4383,6 +4554,26 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 		sctx->flush_all_writes = true;
 	}
 
+	/* Prepare the extra data stripes used by RAID56. */
+	if (profile & BTRFS_BLOCK_GROUP_RAID56_MASK) {
+		ASSERT(sctx->raid56_data_stripes == NULL);
+
+		sctx->raid56_data_stripes = kcalloc(nr_data_stripes(map),
+						    sizeof(struct scrub_stripe),
+						    GFP_KERNEL);
+		if (!sctx->raid56_data_stripes) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		for (int i = 0; i < nr_data_stripes(map); i++) {
+			ret = init_scrub_stripe(fs_info,
+						&sctx->raid56_data_stripes[i]);
+			if (ret < 0)
+				goto out;
+			sctx->raid56_data_stripes[i].bg = bg;
+			sctx->raid56_data_stripes[i].sctx = sctx;
+		}
+	}
 	/*
 	 * There used to be a big double loop to handle all profiles using the
 	 * same routine, which grows larger and more gross over time.
@@ -4436,10 +4627,8 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 		if (ret) {
 			/* it is parity strip */
 			stripe_logical += chunk_logical;
-			stripe_end = stripe_logical + increment;
-			ret = scrub_raid56_parity(sctx, map, scrub_dev,
-						  stripe_logical,
-						  stripe_end);
+			ret = scrub_raid56_parity_stripe(sctx, scrub_dev, bg,
+							 map, stripe_logical);
 			if (ret)
 				goto out;
 			goto next;
@@ -4477,6 +4666,12 @@ out:
 	scrub_wr_submit(sctx);
 	mutex_unlock(&sctx->wr_lock);
 	flush_scrub_stripes(sctx);
+	if (sctx->raid56_data_stripes) {
+		for (int i = 0; i < nr_data_stripes(map); i++)
+			release_scrub_stripe(&sctx->raid56_data_stripes[i]);
+		kfree(sctx->raid56_data_stripes);
+		sctx->raid56_data_stripes = NULL;
+	}
 
 	if (sctx->is_dev_replace && ret >= 0) {
 		int ret2;
