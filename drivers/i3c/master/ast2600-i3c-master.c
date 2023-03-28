@@ -463,6 +463,21 @@ static u8 even_parity(u8 p)
 #define SCL_OUT_SW_MODE_VAL		BIT(21)
 #define SCL_SW_MODE_OE			BIT(20)
 
+static void aspeed_i3c_isolate_scl_sda(struct aspeed_i3c_master *master, bool iso)
+{
+	if (iso) {
+		regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+				  SCL_IN_SW_MODE_VAL | SDA_IN_SW_MODE_VAL,
+				  SCL_IN_SW_MODE_VAL | SDA_IN_SW_MODE_VAL);
+		regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+				  SCL_IN_SW_MODE_EN | SDA_IN_SW_MODE_EN,
+				  SCL_IN_SW_MODE_EN | SDA_IN_SW_MODE_EN);
+	} else {
+		regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+				  SCL_IN_SW_MODE_EN | SDA_IN_SW_MODE_EN, 0);
+	}
+}
+
 static void aspeed_i3c_toggle_scl_in(struct aspeed_i3c_master *master, u32 times)
 {
 	regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
@@ -1262,7 +1277,7 @@ static int aspeed_i3c_master_bus_init(struct i3c_master_controller *m)
 	struct aspeed_i3c_master *master = to_aspeed_i3c_master(m);
 	struct i3c_bus *bus = i3c_master_get_bus(m);
 	struct i3c_device_info info = { };
-	u32 thld_ctrl;
+	u32 thld_ctrl, wait_enable_us;
 	int ret;
 
 	aspeed_i3c_master_set_role(master);
@@ -1344,7 +1359,19 @@ static int aspeed_i3c_master_bus_init(struct i3c_master_controller *m)
 		   DEV_CTRL_HOT_JOIN_NACK |
 		   DEV_CRTL_IBI_PAYLOAD_EN);
 
+	if (master->secondary)
+		aspeed_i3c_isolate_scl_sda(master, true);
 	aspeed_i3c_master_enable(master);
+	if (master->secondary) {
+		wait_enable_us =
+			DIV_ROUND_UP(master->timing.core_period *
+					     FIELD_GET(GENMASK(31, 16),
+						       readl(master->regs +
+							     BUS_FREE_TIMING)),
+				     NSEC_PER_USEC);
+		udelay(wait_enable_us);
+		aspeed_i3c_isolate_scl_sda(master, false);
+	}
 
 	/* workaround for aspeed slave devices.  The aspeed slave devices need
 	 * for a dummy ccc and resume before accessing. Hide this workarond here
