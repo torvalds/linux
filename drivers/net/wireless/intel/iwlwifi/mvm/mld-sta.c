@@ -22,7 +22,7 @@ static int iwl_mvm_mld_send_sta_cmd(struct iwl_mvm *mvm,
 static int iwl_mvm_mld_add_int_sta_to_fw(struct iwl_mvm *mvm,
 					 struct iwl_mvm_int_sta *sta,
 					 const u8 *addr,
-					 u16 phy_id)
+					 u16 mac_id)
 {
 	struct iwl_mvm_sta_cfg_cmd cmd;
 
@@ -31,7 +31,7 @@ static int iwl_mvm_mld_add_int_sta_to_fw(struct iwl_mvm *mvm,
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.sta_id = cpu_to_le32((u8)sta->sta_id);
 
-	cmd.link_id = cpu_to_le32(phy_id);
+	cmd.link_id = cpu_to_le32(mac_id);
 
 	cmd.station_type = cpu_to_le32(sta->type);
 
@@ -98,7 +98,7 @@ static int iwl_mvm_add_aux_sta_to_fw(struct iwl_mvm *mvm,
  */
 static int iwl_mvm_mld_add_int_sta_with_queue(struct iwl_mvm *mvm,
 					      struct iwl_mvm_int_sta *sta,
-					      const u8 *addr, int phy_id,
+					      const u8 *addr, int mac_id,
 					      u16 *queue, u8 tid,
 					      unsigned int *_wdg_timeout)
 {
@@ -110,9 +110,9 @@ static int iwl_mvm_mld_add_int_sta_with_queue(struct iwl_mvm *mvm,
 		return -ENOSPC;
 
 	if (sta->type == STATION_TYPE_AUX)
-		ret = iwl_mvm_add_aux_sta_to_fw(mvm, sta, phy_id);
+		ret = iwl_mvm_add_aux_sta_to_fw(mvm, sta, mac_id);
 	else
-		ret = iwl_mvm_mld_add_int_sta_to_fw(mvm, sta, addr, phy_id);
+		ret = iwl_mvm_mld_add_int_sta_to_fw(mvm, sta, addr, mac_id);
 	if (ret)
 		return ret;
 
@@ -139,7 +139,7 @@ static int iwl_mvm_mld_add_int_sta(struct iwl_mvm *mvm,
 				   struct iwl_mvm_int_sta *int_sta, u16 *queue,
 				   enum nl80211_iftype iftype,
 				   enum iwl_fw_sta_type sta_type,
-				   int phy_id, const u8 *addr, u8 tid,
+				   int mac_id, const u8 *addr, u8 tid,
 				   unsigned int *wdg_timeout)
 {
 	int ret;
@@ -152,7 +152,7 @@ static int iwl_mvm_mld_add_int_sta(struct iwl_mvm *mvm,
 	if (ret)
 		return ret;
 
-	ret = iwl_mvm_mld_add_int_sta_with_queue(mvm, int_sta, addr, phy_id,
+	ret = iwl_mvm_mld_add_int_sta_with_queue(mvm, int_sta, addr, mac_id,
 						 queue, tid, wdg_timeout);
 	if (ret) {
 		iwl_mvm_dealloc_int_sta(mvm, int_sta);
@@ -194,8 +194,8 @@ int iwl_mvm_mld_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	return iwl_mvm_mld_add_int_sta(mvm, bsta, queue,
 				       ieee80211_vif_type_p2p(vif),
 				       STATION_TYPE_BCAST_MGMT,
-				       mvmvif->deflink.phy_ctxt->id, baddr,
-				       IWL_MAX_TID_COUNT, &wdg_timeout);
+				       mvmvif->id, baddr, IWL_MAX_TID_COUNT,
+				       &wdg_timeout);
 }
 
 /* Allocate a new station entry for the broadcast station to the given vif,
@@ -226,8 +226,7 @@ int iwl_mvm_mld_add_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	return iwl_mvm_mld_add_int_sta(mvm, msta, &mvmvif->deflink.cab_queue,
 				       vif->type, STATION_TYPE_MCAST,
-				       mvmvif->deflink.phy_ctxt->id, maddr, 0,
-				       &timeout);
+				       mvmvif->id, maddr, 0, &timeout);
 }
 
 /* Allocate a new station entry for the sniffer station to the given vif,
@@ -241,8 +240,8 @@ int iwl_mvm_mld_add_snif_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	return iwl_mvm_mld_add_int_sta(mvm, &mvm->snif_sta, &mvm->snif_queue,
 				       vif->type, STATION_TYPE_BCAST_MGMT,
-				       mvmvif->deflink.phy_ctxt->id, NULL,
-				       IWL_MAX_TID_COUNT, NULL);
+				       mvmvif->id, NULL, IWL_MAX_TID_COUNT,
+				       NULL);
 }
 
 int iwl_mvm_mld_add_aux_sta(struct iwl_mvm *mvm, u32 lmac_id)
@@ -250,7 +249,7 @@ int iwl_mvm_mld_add_aux_sta(struct iwl_mvm *mvm, u32 lmac_id)
 	lockdep_assert_held(&mvm->mutex);
 
 	/* In CDB NICs we need to specify which lmac to use for aux activity
-	 * using the phy_id argument place to send lmac_id to the function
+	 * using the mac_id argument place to send lmac_id to the function
 	 */
 	return iwl_mvm_mld_add_int_sta(mvm, &mvm->aux_sta, &mvm->aux_queue,
 				       NL80211_IFTYPE_UNSPECIFIED,
@@ -368,12 +367,13 @@ int iwl_mvm_mld_rm_aux_sta(struct iwl_mvm *mvm)
 
 /* send a cfg sta command to add/update a sta in firmware */
 static int iwl_mvm_mld_cfg_sta(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
-			       struct ieee80211_vif *vif, u16 phy_id)
+			       struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_sta_cfg_cmd cmd = {
 		.sta_id = cpu_to_le32(mvm_sta->deflink.sta_id),
-		.link_id = cpu_to_le32(phy_id),
+		.link_id = cpu_to_le32(mvmvif->id),
 		.station_type = cpu_to_le32(mvm_sta->sta_type),
 		.mfp = cpu_to_le32(sta->mfp),
 	};
@@ -472,7 +472,7 @@ int iwl_mvm_mld_add_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		 */
 		ret = iwl_mvm_mld_add_int_sta_to_fw(mvm, &tmp_sta,
 						    vif->bss_conf.bssid,
-						    mvmvif->deflink.phy_ctxt->id);
+						    mvmvif->id);
 		if (ret)
 			return ret;
 
@@ -482,7 +482,7 @@ int iwl_mvm_mld_add_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 				       STATION_TYPE_PEER);
 	}
 
-	ret = iwl_mvm_mld_cfg_sta(mvm, sta, vif, mvmvif->deflink.phy_ctxt->id);
+	ret = iwl_mvm_mld_cfg_sta(mvm, sta, vif);
 	if (ret)
 		return ret;
 
@@ -503,11 +503,9 @@ int iwl_mvm_mld_add_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 int iwl_mvm_mld_update_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta)
 {
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-
 	lockdep_assert_held(&mvm->mutex);
 
-	return iwl_mvm_mld_cfg_sta(mvm, sta, vif, mvmvif->deflink.phy_ctxt->id);
+	return iwl_mvm_mld_cfg_sta(mvm, sta, vif);
 }
 
 static void iwl_mvm_mld_disable_sta_queues(struct iwl_mvm *mvm,

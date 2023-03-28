@@ -383,11 +383,14 @@ enum iwl_link_ctx_protection_flags {
  * @LINK_FLG_RU_2MHZ_BLOCK: indicates that 26-tone RU OFDMA transmission are
  *      not allowed (as there are OBSS that might classify such transmissions as
  *      radar pulses).
+ * @LINK_FLG_NDP_FEEDBACK_ENABLED: mark support for NDP feedback and change
+ *	of threshold
  */
 enum iwl_link_ctx_flags {
 	LINK_FLG_BSS_COLOR_DIS		= BIT(0),
 	LINK_FLG_MU_EDCA_CW		= BIT(1),
 	LINK_FLG_RU_2MHZ_BLOCK		= BIT(2),
+	LINK_FLG_NDP_FEEDBACK_ENABLED	= BIT(3),
 }; /* LINK_CONTEXT_FLAG_E_VER_1 */
 
 /**
@@ -423,13 +426,9 @@ enum iwl_link_ctx_flags {
  * @rand_alloc_ecwmax: random CWmax = 2**ECWmax-1
  * @ndp_fdbk_buff_th_exp: set exponent for the NDP feedback buffered threshold
  * @trig_based_txf: MU EDCA Parameter set for the trigger based traffic queues
- * @dtim_time: DTIM arrival time in system time
- * @dtim_tsf: DTIM arrival time in TSF
- * @assoc_beacon_arrive_time: TSF of first beacon after association
  * @bi: beacon interval in TU, applicable only when associated
  * @dtim_interval: DTIM interval in TU.
  *	Relevant only for GO, otherwise this is offloaded.
- * @beacon_template: beacon template ID. For GO only
  * @puncture_mask: puncture mask for EHT
  * @frame_time_rts_th: HE duration RTS threshold, in units of 32us
  * @flags: a combination from &enum iwl_link_ctx_flags
@@ -440,6 +439,9 @@ enum iwl_link_ctx_flags {
  * @bssid_index: index of the associated VAP
  * @bss_color: 11ax AP ID that is used in the HE SIG-A to mark inter BSS frame
  * @reserved: alignment
+ * @ibss_bssid_addr: bssid for ibss
+ * @reserved_for_ibss_bssid_addr: reserved
+ * @reserved1: reserved for future use
  */
 struct iwl_link_config_cmd {
 	__le32 action;
@@ -464,12 +466,8 @@ struct iwl_link_config_cmd {
 	u8 rand_alloc_ecwmax;
 	u8 ndp_fdbk_buff_th_exp;
 	struct iwl_he_backoff_conf trig_based_txf[AC_NUM];
-	__le32 dtim_time;
-	__le64 dtim_tsf;
-	__le32 assoc_beacon_arrive_time;
 	__le32 bi;
 	__le32 dtim_interval;
-	__le32 beacon_template;
 	__le16 puncture_mask;
 	__le16 frame_time_rts_th;
 	__le32 flags;
@@ -480,6 +478,9 @@ struct iwl_link_config_cmd {
 	u8 bssid_index;
 	u8 bss_color;
 	u8 reserved[2];
+	u8 ibss_bssid_addr[6];
+	__le16 reserved_for_ibss_bssid_addr;
+	__le32 reserved1[8];
 } __packed; /* LINK_CONTEXT_CONFIG_CMD_API_S_VER_1 */
 
 /**
