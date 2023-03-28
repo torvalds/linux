@@ -2621,6 +2621,14 @@ int btrfs_extract_ordered_extent(struct btrfs_bio *bbio,
 	ret = btrfs_split_ordered_extent(ordered, len);
 	if (ret)
 		return ret;
+
+	/*
+	 * Don't split the extent_map for NOCOW extents, as we're writing into
+	 * a pre-existing one.
+	 */
+	if (test_bit(BTRFS_ORDERED_NOCOW, &ordered->flags))
+		return 0;
+
 	return split_extent_map(inode, bbio->file_offset, ordered_len, len);
 }
 
