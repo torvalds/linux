@@ -57,10 +57,4 @@ examples:
             clocks = <&codec_clk>;
         };
     };
-
-    codec_clk: clock {
-        compatible = "fixed-clock";
-        #clock-cells = <0>;
-        clock-frequency = <12288000>;
-    };
 ...
