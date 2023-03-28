@@ -1789,6 +1789,48 @@ bool iwl_mvm_start_ap_ibss_common(struct ieee80211_hw *hw,
 void iwl_mvm_stop_ap_ibss_common(struct iwl_mvm *mvm,
 				 struct ieee80211_vif *vif);
 
+/* BSS Info */
+/**
+ * struct iwl_mvm_bss_info_changed_ops - callbacks for the bss_info_changed()
+ *
+ * Since the only difference between both MLD and
+ * non-MLD versions of bss_info_changed() is these function calls,
+ * each version will send its specific function calls to
+ * %iwl_mvm_bss_info_changed_common().
+ *
+ * @bss_info_changed_sta: pointer to the function that handles changes
+ *	in bss_info in sta mode
+ * @bss_info_changed_ap_ibss: pointer to the function that handles changes
+ *	in bss_info in ap and ibss modes
+ */
+struct iwl_mvm_bss_info_changed_ops {
+	void (*bss_info_changed_sta)(struct iwl_mvm *mvm,
+				     struct ieee80211_vif *vif,
+				     struct ieee80211_bss_conf *bss_conf,
+				     u64 changes);
+	void (*bss_info_changed_ap_ibss)(struct iwl_mvm *mvm,
+					 struct ieee80211_vif *vif,
+					 struct ieee80211_bss_conf *bss_conf,
+					 u64 changes);
+};
+
+void
+iwl_mvm_bss_info_changed_common(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif,
+				struct ieee80211_bss_conf *bss_conf,
+				struct iwl_mvm_bss_info_changed_ops *callbacks,
+				u64 changes);
+void iwl_mvm_bss_info_changed_station_common(struct iwl_mvm *mvm,
+					     struct ieee80211_vif *vif,
+					     u64 changes);
+void iwl_mvm_bss_info_changed_station_assoc(struct iwl_mvm *mvm,
+					    struct ieee80211_vif *vif,
+					    u64 changes);
+
+/*Session Protection */
+void iwl_mvm_protect_assoc(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			   u32 duration_override);
+
 /* Quota management */
 static inline size_t iwl_mvm_quota_cmd_size(struct iwl_mvm *mvm)
 {
@@ -2232,6 +2274,37 @@ static inline u8 iwl_mvm_phy_band_from_nl80211(enum nl80211_band band)
 void iwl_mvm_channel_switch_disconnect_wk(struct work_struct *wk);
 
 /* Channel Context */
+/**
+ * struct iwl_mvm_switch_vif_chanctx_ops - callbacks for switch_vif_chanctx()
+ *
+ * Since the only difference between both MLD and
+ * non-MLD versions of switch_vif_chanctx() is these function calls,
+ * each version will send its specific function calls to
+ * %iwl_mvm_switch_vif_chanctx_common().
+ *
+ * @__assign_vif_chanctx: pointer to the function that assigns a chanctx to
+ *	a given vif
+ * @__unassign_vif_chanctx: pointer to the function that unassigns a chanctx to
+ *	a given vif
+ */
+struct iwl_mvm_switch_vif_chanctx_ops {
+	int (*__assign_vif_chanctx)(struct iwl_mvm *mvm,
+				    struct ieee80211_vif *vif,
+				    struct ieee80211_chanctx_conf *ctx,
+				    bool switching_chanctx);
+	void (*__unassign_vif_chanctx)(struct iwl_mvm *mvm,
+				       struct ieee80211_vif *vif,
+				       struct ieee80211_chanctx_conf *ctx,
+				       bool switching_chanctx);
+};
+
+int
+iwl_mvm_switch_vif_chanctx_common(struct ieee80211_hw *hw,
+				  struct ieee80211_vif_chanctx_switch *vifs,
+				  int n_vifs,
+				  enum ieee80211_chanctx_switch_mode mode,
+				  struct iwl_mvm_switch_vif_chanctx_ops *ops);
+
 bool __iwl_mvm_assign_vif_chanctx_common(struct iwl_mvm *mvm,
 					 struct ieee80211_vif *vif,
 					 struct ieee80211_chanctx_conf *ctx,
