@@ -17,7 +17,7 @@ static u32 iwl_mvm_get_sec_sta_mask(struct iwl_mvm *mvm,
 
 	if (vif->type == NL80211_IFTYPE_AP &&
 	    !(keyconf->flags & IEEE80211_KEY_FLAG_PAIRWISE))
-		return BIT(mvmvif->mcast_sta.sta_id);
+		return BIT(mvmvif->deflink.mcast_sta.sta_id);
 
 	if (sta) {
 		struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
@@ -26,8 +26,8 @@ static u32 iwl_mvm_get_sec_sta_mask(struct iwl_mvm *mvm,
 	}
 
 	if (vif->type == NL80211_IFTYPE_STATION &&
-	    mvmvif->ap_sta_id != IWL_MVM_INVALID_STA)
-		return BIT(mvmvif->ap_sta_id);
+	    mvmvif->deflink.ap_sta_id != IWL_MVM_INVALID_STA)
+		return BIT(mvmvif->deflink.ap_sta_id);
 
 	/* invalid */
 	return 0;
@@ -70,8 +70,8 @@ static u32 iwl_mvm_get_sec_flags(struct iwl_mvm *mvm,
 
 	rcu_read_lock();
 	if (!sta && vif->type == NL80211_IFTYPE_STATION &&
-	    mvmvif->ap_sta_id != IWL_MVM_INVALID_STA) {
-		u8 sta_id = mvmvif->ap_sta_id;
+	    mvmvif->deflink.ap_sta_id != IWL_MVM_INVALID_STA) {
+		u8 sta_id = mvmvif->deflink.ap_sta_id;
 
 		sta = rcu_dereference_check(mvm->fw_id_to_mac_id[sta_id],
 					    lockdep_is_held(&mvm->mutex));
@@ -214,7 +214,7 @@ void iwl_mvm_sec_key_remove_ap(struct iwl_mvm *mvm,
 	u8 sec_key_ver = iwl_fw_lookup_cmd_ver(mvm->fw, sec_key_id, 0);
 
 	if (WARN_ON(vif->type != NL80211_IFTYPE_STATION ||
-		    mvmvif->ap_sta_id == IWL_MVM_INVALID_STA))
+		    mvmvif->deflink.ap_sta_id == IWL_MVM_INVALID_STA))
 		return;
 
 	if (!sec_key_ver)

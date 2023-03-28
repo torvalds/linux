@@ -150,7 +150,7 @@ static void iwl_mvm_power_configure_uapsd(struct iwl_mvm *mvm,
 #endif
 
 	for (ac = IEEE80211_AC_VO; ac <= IEEE80211_AC_BK; ac++) {
-		if (!mvmvif->queue_params[ac].uapsd)
+		if (!mvmvif->deflink.queue_params[ac].uapsd)
 			continue;
 
 		if (!test_bit(IWL_MVM_STATUS_IN_D3, &mvm->status))
@@ -160,7 +160,7 @@ static void iwl_mvm_power_configure_uapsd(struct iwl_mvm *mvm,
 		cmd->uapsd_ac_flags |= BIT(ac);
 
 		/* QNDP TID - the highest TID with no admission control */
-		if (!tid_found && !mvmvif->queue_params[ac].acm) {
+		if (!tid_found && !mvmvif->deflink.queue_params[ac].acm) {
 			tid_found = true;
 			switch (ac) {
 			case IEEE80211_AC_VO:
@@ -509,8 +509,9 @@ static void iwl_mvm_power_uapsd_misbehav_ap_iterator(void *_data, u8 *mac,
 	/* The ap_sta_id is not expected to change during current association
 	 * so no explicit protection is needed
 	 */
-	if (mvmvif->ap_sta_id == *ap_sta_id)
-		memcpy(mvmvif->uapsd_misbehaving_bssid, vif->bss_conf.bssid,
+	if (mvmvif->deflink.ap_sta_id == *ap_sta_id)
+		memcpy(mvmvif->uapsd_misbehaving_bssid,
+		       vif->bss_conf.bssid,
 		       ETH_ALEN);
 }
 
@@ -552,7 +553,8 @@ static void iwl_mvm_power_ps_disabled_iterator(void *_data, u8* mac,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	bool *disable_ps = _data;
 
-	if (mvmvif->phy_ctxt && mvmvif->phy_ctxt->id < NUM_PHY_CTX)
+	if (mvmvif->deflink.phy_ctxt &&
+	    mvmvif->deflink.phy_ctxt->id < NUM_PHY_CTX)
 		*disable_ps |= mvmvif->ps_disabled;
 }
 
@@ -561,7 +563,7 @@ static void iwl_mvm_power_get_vifs_iterator(void *_data, u8 *mac,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_power_vifs *power_iterator = _data;
-	bool active = mvmvif->phy_ctxt && mvmvif->phy_ctxt->id < NUM_PHY_CTX;
+	bool active = mvmvif->deflink.phy_ctxt && mvmvif->deflink.phy_ctxt->id < NUM_PHY_CTX;
 
 	if (!mvmvif->uploaded)
 		return;
@@ -649,11 +651,11 @@ static void iwl_mvm_power_set_pm(struct iwl_mvm *mvm,
 	}
 
 	if (vifs->bss_active && vifs->p2p_active)
-		client_same_channel = (bss_mvmvif->phy_ctxt->id ==
-				       p2p_mvmvif->phy_ctxt->id);
+		client_same_channel = (bss_mvmvif->deflink.phy_ctxt->id ==
+				       p2p_mvmvif->deflink.phy_ctxt->id);
 	if (vifs->bss_active && vifs->ap_active)
-		ap_same_channel = (bss_mvmvif->phy_ctxt->id ==
-				   ap_mvmvif->phy_ctxt->id);
+		ap_same_channel = (bss_mvmvif->deflink.phy_ctxt->id ==
+				   ap_mvmvif->deflink.phy_ctxt->id);
 
 	/* clients are not stand alone: enable PM if DCM */
 	if (!(client_same_channel || ap_same_channel)) {

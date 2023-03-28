@@ -1785,10 +1785,10 @@ update_fw:
 
 	if (vif->type == NL80211_IFTYPE_STATION) {
 		if (!sta->tdls) {
-			WARN_ON(mvmvif->ap_sta_id != IWL_MVM_INVALID_STA);
-			mvmvif->ap_sta_id = sta_id;
+			WARN_ON(mvmvif->deflink.ap_sta_id != IWL_MVM_INVALID_STA);
+			mvmvif->deflink.ap_sta_id = sta_id;
 		} else {
-			WARN_ON(mvmvif->ap_sta_id == IWL_MVM_INVALID_STA);
+			WARN_ON(mvmvif->deflink.ap_sta_id == IWL_MVM_INVALID_STA);
 		}
 	}
 
@@ -1953,7 +1953,7 @@ static bool iwl_mvm_sta_del(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	}
 
 	if (vif->type == NL80211_IFTYPE_STATION &&
-	    mvmvif->ap_sta_id == sta_id) {
+	    mvmvif->deflink.ap_sta_id == sta_id) {
 		/* if associated - we can't remove the AP STA now */
 		if (vif->cfg.assoc)
 			return true;
@@ -1962,7 +1962,7 @@ static bool iwl_mvm_sta_del(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		iwl_mvm_sec_key_remove_ap(mvm, vif);
 
 		/* unassoc - go ahead - remove the AP STA now */
-		mvmvif->ap_sta_id = IWL_MVM_INVALID_STA;
+		mvmvif->deflink.ap_sta_id = IWL_MVM_INVALID_STA;
 	}
 
 	/*
@@ -2227,7 +2227,7 @@ void iwl_mvm_dealloc_snif_sta(struct iwl_mvm *mvm)
 int iwl_mvm_send_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_mvm_int_sta *bsta = &mvmvif->bcast_sta;
+	struct iwl_mvm_int_sta *bsta = &mvmvif->deflink.bcast_sta;
 	static const u8 _baddr[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 	const u8 *baddr = _baddr;
 	int queue;
@@ -2236,7 +2236,7 @@ int iwl_mvm_send_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		iwl_mvm_get_wd_timeout(mvm, vif, false, false);
 	struct iwl_trans_txq_scd_cfg cfg = {
 		.fifo = IWL_MVM_TX_FIFO_VO,
-		.sta_id = mvmvif->bcast_sta.sta_id,
+		.sta_id = mvmvif->deflink.bcast_sta.sta_id,
 		.tid = IWL_MAX_TID_COUNT,
 		.aggregate = false,
 		.frame_limit = IWL_FRAME_LIMIT,
@@ -2302,7 +2302,7 @@ void iwl_mvm_free_bcast_sta_queues(struct iwl_mvm *mvm,
 
 	lockdep_assert_held(&mvm->mutex);
 
-	iwl_mvm_flush_sta(mvm, &mvmvif->bcast_sta, true);
+	iwl_mvm_flush_sta(mvm, &mvmvif->deflink.bcast_sta, true);
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_AP:
@@ -2319,13 +2319,13 @@ void iwl_mvm_free_bcast_sta_queues(struct iwl_mvm *mvm,
 	}
 
 	queue = *queueptr;
-	iwl_mvm_disable_txq(mvm, NULL, mvmvif->bcast_sta.sta_id,
+	iwl_mvm_disable_txq(mvm, NULL, mvmvif->deflink.bcast_sta.sta_id,
 			    queueptr, IWL_MAX_TID_COUNT);
 	if (iwl_mvm_has_new_tx_api(mvm))
 		return;
 
-	WARN_ON(!(mvmvif->bcast_sta.tfd_queue_msk & BIT(queue)));
-	mvmvif->bcast_sta.tfd_queue_msk &= ~BIT(queue);
+	WARN_ON(!(mvmvif->deflink.bcast_sta.tfd_queue_msk & BIT(queue)));
+	mvmvif->deflink.bcast_sta.tfd_queue_msk &= ~BIT(queue);
 }
 
 /* Send the FW a request to remove the station from it's internal data
@@ -2339,7 +2339,7 @@ int iwl_mvm_send_rm_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	iwl_mvm_free_bcast_sta_queues(mvm, vif);
 
-	ret = iwl_mvm_rm_sta_common(mvm, mvmvif->bcast_sta.sta_id);
+	ret = iwl_mvm_rm_sta_common(mvm, mvmvif->deflink.bcast_sta.sta_id);
 	if (ret)
 		IWL_WARN(mvm, "Failed sending remove station\n");
 	return ret;
@@ -2351,7 +2351,7 @@ int iwl_mvm_alloc_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	lockdep_assert_held(&mvm->mutex);
 
-	return iwl_mvm_allocate_int_sta(mvm, &mvmvif->bcast_sta, 0,
+	return iwl_mvm_allocate_int_sta(mvm, &mvmvif->deflink.bcast_sta, 0,
 					ieee80211_vif_type_p2p(vif),
 					IWL_STA_GENERAL_PURPOSE);
 }
@@ -2366,7 +2366,7 @@ int iwl_mvm_alloc_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 int iwl_mvm_add_p2p_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_mvm_int_sta *bsta = &mvmvif->bcast_sta;
+	struct iwl_mvm_int_sta *bsta = &mvmvif->deflink.bcast_sta;
 	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -2387,7 +2387,7 @@ void iwl_mvm_dealloc_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	iwl_mvm_dealloc_int_sta(mvm, &mvmvif->bcast_sta);
+	iwl_mvm_dealloc_int_sta(mvm, &mvmvif->deflink.bcast_sta);
 }
 
 /*
@@ -2418,7 +2418,7 @@ int iwl_mvm_rm_p2p_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 int iwl_mvm_add_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_mvm_int_sta *msta = &mvmvif->mcast_sta;
+	struct iwl_mvm_int_sta *msta = &mvmvif->deflink.mcast_sta;
 	static const u8 _maddr[] = {0x03, 0x00, 0x00, 0x00, 0x00, 0x00};
 	const u8 *maddr = _maddr;
 	struct iwl_trans_txq_scd_cfg cfg = {
@@ -2445,7 +2445,7 @@ int iwl_mvm_add_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	 * changes in mac80211 layer.
 	 */
 	if (vif->type == NL80211_IFTYPE_ADHOC)
-		mvmvif->cab_queue = IWL_MVM_DQA_GCAST_QUEUE;
+		mvmvif->deflink.cab_queue = IWL_MVM_DQA_GCAST_QUEUE;
 
 	/*
 	 * While in previous FWs we had to exclude cab queue from TFD queue
@@ -2453,9 +2453,10 @@ int iwl_mvm_add_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	 */
 	if (!iwl_mvm_has_new_tx_api(mvm) &&
 	    fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_STA_TYPE)) {
-		iwl_mvm_enable_txq(mvm, NULL, mvmvif->cab_queue, 0, &cfg,
+		iwl_mvm_enable_txq(mvm, NULL, mvmvif->deflink.cab_queue, 0,
+				   &cfg,
 				   timeout);
-		msta->tfd_queue_msk |= BIT(mvmvif->cab_queue);
+		msta->tfd_queue_msk |= BIT(mvmvif->deflink.cab_queue);
 	}
 	ret = iwl_mvm_add_int_sta_common(mvm, msta, maddr,
 					 mvmvif->id, mvmvif->color);
@@ -2476,10 +2477,11 @@ int iwl_mvm_add_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 			ret = queue;
 			goto err;
 		}
-		mvmvif->cab_queue = queue;
+		mvmvif->deflink.cab_queue = queue;
 	} else if (!fw_has_api(&mvm->fw->ucode_capa,
 			       IWL_UCODE_TLV_API_STA_TYPE))
-		iwl_mvm_enable_txq(mvm, NULL, mvmvif->cab_queue, 0, &cfg,
+		iwl_mvm_enable_txq(mvm, NULL, mvmvif->deflink.cab_queue, 0,
+				   &cfg,
 				   timeout);
 
 	return 0;
@@ -2552,12 +2554,12 @@ int iwl_mvm_rm_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	lockdep_assert_held(&mvm->mutex);
 
-	iwl_mvm_flush_sta(mvm, &mvmvif->mcast_sta, true);
+	iwl_mvm_flush_sta(mvm, &mvmvif->deflink.mcast_sta, true);
 
-	iwl_mvm_disable_txq(mvm, NULL, mvmvif->mcast_sta.sta_id,
-			    &mvmvif->cab_queue, 0);
+	iwl_mvm_disable_txq(mvm, NULL, mvmvif->deflink.mcast_sta.sta_id,
+			    &mvmvif->deflink.cab_queue, 0);
 
-	ret = iwl_mvm_rm_sta_common(mvm, mvmvif->mcast_sta.sta_id);
+	ret = iwl_mvm_rm_sta_common(mvm, mvmvif->deflink.mcast_sta.sta_id);
 	if (ret)
 		IWL_WARN(mvm, "Failed sending remove station\n");
 
@@ -3383,8 +3385,8 @@ static struct iwl_mvm_sta *iwl_mvm_get_key_sta(struct iwl_mvm *mvm,
 	 * station ID, then use AP's station ID.
 	 */
 	if (vif->type == NL80211_IFTYPE_STATION &&
-	    mvmvif->ap_sta_id != IWL_MVM_INVALID_STA) {
-		u8 sta_id = mvmvif->ap_sta_id;
+	    mvmvif->deflink.ap_sta_id != IWL_MVM_INVALID_STA) {
+		u8 sta_id = mvmvif->deflink.ap_sta_id;
 
 		sta = rcu_dereference_check(mvm->fw_id_to_mac_id[sta_id],
 					    lockdep_is_held(&mvm->mutex));
@@ -3661,8 +3663,8 @@ static inline u8 *iwl_mvm_get_mac_addr(struct iwl_mvm *mvm,
 		return sta->addr;
 
 	if (vif->type == NL80211_IFTYPE_STATION &&
-	    mvmvif->ap_sta_id != IWL_MVM_INVALID_STA) {
-		u8 sta_id = mvmvif->ap_sta_id;
+	    mvmvif->deflink.ap_sta_id != IWL_MVM_INVALID_STA) {
+		u8 sta_id = mvmvif->deflink.ap_sta_id;
 		sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[sta_id],
 						lockdep_is_held(&mvm->mutex));
 		return sta->addr;
@@ -3694,7 +3696,7 @@ static int __iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
 		   !(keyconf->flags & IEEE80211_KEY_FLAG_PAIRWISE)) {
 		struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-		sta_id = mvmvif->mcast_sta.sta_id;
+		sta_id = mvmvif->deflink.mcast_sta.sta_id;
 	} else {
 		IWL_ERR(mvm, "Failed to find station id\n");
 		return -EINVAL;
@@ -3759,7 +3761,7 @@ int iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
 	} else {
 		struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-		sta_id = mvmvif->mcast_sta.sta_id;
+		sta_id = mvmvif->deflink.mcast_sta.sta_id;
 	}
 
 	if (keyconf->cipher == WLAN_CIPHER_SUITE_AES_CMAC ||
@@ -3834,7 +3836,7 @@ int iwl_mvm_remove_sta_key(struct iwl_mvm *mvm,
 	if (mvm_sta)
 		sta_id = mvm_sta->sta_id;
 	else if (!sta && vif->type == NL80211_IFTYPE_AP && mcast)
-		sta_id = iwl_mvm_vif_from_mac80211(vif)->mcast_sta.sta_id;
+		sta_id = iwl_mvm_vif_from_mac80211(vif)->deflink.mcast_sta.sta_id;
 
 
 	IWL_DEBUG_WEP(mvm, "mvm remove dynamic key: idx=%d sta=%d\n",
@@ -4113,17 +4115,19 @@ void iwl_mvm_modify_all_sta_disable_tx(struct iwl_mvm *mvm,
 		return;
 
 	/* Need to block/unblock also multicast station */
-	if (mvmvif->mcast_sta.sta_id != IWL_MVM_INVALID_STA)
+	if (mvmvif->deflink.mcast_sta.sta_id != IWL_MVM_INVALID_STA)
 		iwl_mvm_int_sta_modify_disable_tx(mvm, mvmvif,
-						  &mvmvif->mcast_sta, disable);
+						  &mvmvif->deflink.mcast_sta,
+						  disable);
 
 	/*
 	 * Only unblock the broadcast station (FW blocks it for immediate
 	 * quiet, not the driver)
 	 */
-	if (!disable && mvmvif->bcast_sta.sta_id != IWL_MVM_INVALID_STA)
+	if (!disable && mvmvif->deflink.bcast_sta.sta_id != IWL_MVM_INVALID_STA)
 		iwl_mvm_int_sta_modify_disable_tx(mvm, mvmvif,
-						  &mvmvif->bcast_sta, disable);
+						  &mvmvif->deflink.bcast_sta,
+						  disable);
 }
 
 void iwl_mvm_csa_client_absent(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
@@ -4133,7 +4137,7 @@ void iwl_mvm_csa_client_absent(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	rcu_read_lock();
 
-	mvmsta = iwl_mvm_sta_from_staid_rcu(mvm, mvmvif->ap_sta_id);
+	mvmsta = iwl_mvm_sta_from_staid_rcu(mvm, mvmvif->deflink.ap_sta_id);
 
 	if (mvmsta)
 		iwl_mvm_sta_modify_disable_tx(mvm, mvmsta, true);

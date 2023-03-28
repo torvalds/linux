@@ -631,7 +631,7 @@ static int iwl_mvm_get_ctrl_vif_queue(struct iwl_mvm *mvm,
 
 		if (!ieee80211_has_order(fc) && !ieee80211_is_probe_req(fc) &&
 		    is_multicast_ether_addr(hdr->addr1))
-			return mvmvif->cab_queue;
+			return mvmvif->deflink.cab_queue;
 
 		WARN_ONCE(info->control.vif->type != NL80211_IFTYPE_ADHOC,
 			  "fc=0x%02x", le16_to_cpu(fc));
@@ -668,7 +668,7 @@ static void iwl_mvm_probe_resp_set_noa(struct iwl_mvm *mvm,
 
 	rcu_read_lock();
 
-	resp_data = rcu_dereference(mvmvif->probe_resp_data);
+	resp_data = rcu_dereference(mvmvif->deflink.probe_resp_data);
 	if (!resp_data)
 		goto out;
 
@@ -740,9 +740,9 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 		    info.control.vif->type == NL80211_IFTYPE_AP ||
 		    info.control.vif->type == NL80211_IFTYPE_ADHOC) {
 			if (!ieee80211_is_data(hdr->frame_control))
-				sta_id = mvmvif->bcast_sta.sta_id;
+				sta_id = mvmvif->deflink.bcast_sta.sta_id;
 			else
-				sta_id = mvmvif->mcast_sta.sta_id;
+				sta_id = mvmvif->deflink.mcast_sta.sta_id;
 
 			queue = iwl_mvm_get_ctrl_vif_queue(mvm, &info, hdr);
 		} else if (info.control.vif->type == NL80211_IFTYPE_MONITOR) {

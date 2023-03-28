@@ -294,13 +294,13 @@ void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		return;
 
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	mvmvif->smps_requests[req_type] = smps_request;
+	mvmvif->deflink.smps_requests[req_type] = smps_request;
 	for (i = 0; i < NUM_IWL_MVM_SMPS_REQ; i++) {
-		if (mvmvif->smps_requests[i] == IEEE80211_SMPS_STATIC) {
+		if (mvmvif->deflink.smps_requests[i] == IEEE80211_SMPS_STATIC) {
 			smps_mode = IEEE80211_SMPS_STATIC;
 			break;
 		}
-		if (mvmvif->smps_requests[i] == IEEE80211_SMPS_DYNAMIC)
+		if (mvmvif->deflink.smps_requests[i] == IEEE80211_SMPS_DYNAMIC)
 			smps_mode = IEEE80211_SMPS_DYNAMIC;
 	}
 
@@ -392,12 +392,12 @@ static void iwl_mvm_diversity_iter(void *_data, u8 *mac,
 	struct iwl_mvm_diversity_iter_data *data = _data;
 	int i;
 
-	if (mvmvif->phy_ctxt != data->ctxt)
+	if (mvmvif->deflink.phy_ctxt != data->ctxt)
 		return;
 
 	for (i = 0; i < NUM_IWL_MVM_SMPS_REQ; i++) {
-		if (mvmvif->smps_requests[i] == IEEE80211_SMPS_STATIC ||
-		    mvmvif->smps_requests[i] == IEEE80211_SMPS_DYNAMIC) {
+		if (mvmvif->deflink.smps_requests[i] == IEEE80211_SMPS_STATIC ||
+		    mvmvif->deflink.smps_requests[i] == IEEE80211_SMPS_DYNAMIC) {
 			data->result = false;
 			break;
 		}
@@ -495,10 +495,10 @@ static void iwl_mvm_ll_iter(void *_data, u8 *mac, struct ieee80211_vif *vif)
 	if (iwl_mvm_vif_low_latency(mvmvif)) {
 		result->result = true;
 
-		if (!mvmvif->phy_ctxt)
+		if (!mvmvif->deflink.phy_ctxt)
 			return;
 
-		band = mvmvif->phy_ctxt->channel->band;
+		band = mvmvif->deflink.phy_ctxt->channel->band;
 		result->result_per_band[band] = true;
 	}
 }
@@ -819,10 +819,10 @@ static void iwl_mvm_uapsd_agg_disconnect(struct iwl_mvm *mvm,
 	if (!vif->cfg.assoc)
 		return;
 
-	if (!mvmvif->queue_params[IEEE80211_AC_VO].uapsd &&
-	    !mvmvif->queue_params[IEEE80211_AC_VI].uapsd &&
-	    !mvmvif->queue_params[IEEE80211_AC_BE].uapsd &&
-	    !mvmvif->queue_params[IEEE80211_AC_BK].uapsd)
+	if (!mvmvif->deflink.queue_params[IEEE80211_AC_VO].uapsd &&
+	    !mvmvif->deflink.queue_params[IEEE80211_AC_VI].uapsd &&
+	    !mvmvif->deflink.queue_params[IEEE80211_AC_BE].uapsd &&
+	    !mvmvif->deflink.queue_params[IEEE80211_AC_BK].uapsd)
 		return;
 
 	if (mvm->tcm.data[mvmvif->id].uapsd_nonagg_detect.detected)
@@ -831,7 +831,8 @@ static void iwl_mvm_uapsd_agg_disconnect(struct iwl_mvm *mvm,
 	mvm->tcm.data[mvmvif->id].uapsd_nonagg_detect.detected = true;
 	IWL_INFO(mvm,
 		 "detected AP should do aggregation but isn't, likely due to U-APSD\n");
-	schedule_delayed_work(&mvmvif->uapsd_nonagg_detected_wk, 15 * HZ);
+	schedule_delayed_work(&mvmvif->uapsd_nonagg_detected_wk,
+			      15 * HZ);
 }
 
 static void iwl_mvm_check_uapsd_agg_expected_tpt(struct iwl_mvm *mvm,
@@ -883,10 +884,10 @@ static void iwl_mvm_tcm_iterator(void *_data, u8 *mac,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	u32 *band = _data;
 
-	if (!mvmvif->phy_ctxt)
+	if (!mvmvif->deflink.phy_ctxt)
 		return;
 
-	band[mvmvif->id] = mvmvif->phy_ctxt->channel->band;
+	band[mvmvif->id] = mvmvif->deflink.phy_ctxt->channel->band;
 }
 
 static unsigned long iwl_mvm_calc_tcm_stats(struct iwl_mvm *mvm,

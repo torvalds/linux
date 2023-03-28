@@ -281,11 +281,54 @@ struct iwl_probe_resp_data {
 };
 
 /**
+ * struct iwl_mvm_vif_link_info - per link data in Virtual Interface
+ * @ap_sta_id: the sta_id of the AP - valid only if VIF type is STA
+ * @bssid: BSSID for this (client) interface
+ * @bcast_sta: station used for broadcast packets. Used by the following
+ *	vifs: P2P_DEVICE, GO and AP.
+ * @beacon_stats: beacon statistics, containing the # of received beacons,
+ *	# of received beacons accumulated over FW restart, and the current
+ *	average signal of beacons retrieved from the firmware
+ * @smps_requests: the SMPS requests of different parts of the driver,
+ *	combined on update to yield the overall request to mac80211.
+ * @probe_resp_data: data from FW notification to store NOA and CSA related
+ *	data to be inserted into probe response.
+ * @he_ru_2mhz_block: 26-tone RU OFDMA transmissions should be blocked
+ * @queue_params: QoS params for this MAC
+ */
+struct iwl_mvm_vif_link_info {
+	u8 bssid[ETH_ALEN];
+	u8 ap_sta_id;
+
+	struct iwl_mvm_int_sta bcast_sta;
+	struct iwl_mvm_int_sta mcast_sta;
+
+	struct {
+		u32 num_beacons, accu_num_beacons;
+		u8 avg_signal;
+	} beacon_stats;
+
+	enum ieee80211_smps_mode smps_requests[NUM_IWL_MVM_SMPS_REQ];
+	struct iwl_probe_resp_data __rcu *probe_resp_data;
+
+	bool he_ru_2mhz_block;
+
+	u16 cab_queue;
+	/* Assigned while mac80211 has the link in a channel context,
+	 * or, for P2P Device, while it exists.
+	 */
+	struct iwl_mvm_phy_ctxt *phy_ctxt;
+	/* QoS data from mac80211, need to store this here
+	 * as mac80211 has a separate callback but we need
+	 * to have the data for the MAC context
+	 */
+	struct ieee80211_tx_queue_params queue_params[IEEE80211_NUM_ACS];
+};
+
+/**
  * struct iwl_mvm_vif - data per Virtual Interface, it is a MAC context
  * @id: between 0 and 3
  * @color: to solve races upon MAC addition and removal
- * @ap_sta_id: the sta_id of the AP - valid only if VIF type is STA
- * @bssid: BSSID for this (client) interface
  * @associated: indicates that we're currently associated, used only for
  *	managing the firmware state in iwl_mvm_bss_info_changed_station()
  * @ap_assoc_sta_count: count of stations associated to us - valid only
@@ -293,7 +336,7 @@ struct iwl_probe_resp_data {
  * @uploaded: indicates the MAC context has been added to the device
  * @ap_ibss_active: indicates that AP/IBSS is configured and that the interface
  *	should get quota etc.
- * @pm_enabled - Indicate if MAC power management is allowed
+ * @pm_enabled - indicate if MAC power management is allowed
  * @monitor_active: indicates that monitor context is configured, and that the
  *	interface should get quota etc.
  * @low_latency: bit flags for low latency
@@ -302,68 +345,31 @@ struct iwl_probe_resp_data {
  *	as a result from low_latency bit flags and takes force into account.
  * @authorized: indicates the AP station was set to authorized
  * @ps_disabled: indicates that this interface requires PS to be disabled
- * @queue_params: QoS params for this MAC
- * @bcast_sta: station used for broadcast packets. Used by the following
- *  vifs: P2P_DEVICE, GO and AP.
- * @beacon_skb: the skb used to hold the AP/GO beacon template
- * @smps_requests: the SMPS requests of different parts of the driver,
- *	combined on update to yield the overall request to mac80211.
- * @beacon_stats: beacon statistics, containing the # of received beacons,
- *	# of received beacons accumulated over FW restart, and the current
- *	average signal of beacons retrieved from the firmware
+ * @csa_countdown: indicates that CSA countdown may be started
  * @csa_failed: CSA failed to schedule time event, report an error later
+ * @csa_bcn_pending: indicates that we are waiting for a beacon on a new channel
  * @features: hw features active for this vif
- * @probe_resp_data: data from FW notification to store NOA and CSA related
- *	data to be inserted into probe response.
  */
 struct iwl_mvm_vif {
 	struct iwl_mvm *mvm;
 	u16 id;
 	u16 color;
-	u8 ap_sta_id;
 
-	u8 bssid[ETH_ALEN];
 	bool associated;
 	u8 ap_assoc_sta_count;
-
-	u16 cab_queue;
-
 	bool uploaded;
 	bool ap_ibss_active;
 	bool pm_enabled;
 	bool monitor_active;
+
 	u8 low_latency: 6;
 	u8 low_latency_actual: 1;
+
 	u8 authorized:1;
 	bool ps_disabled;
-	struct iwl_mvm_vif_bf_data bf_data;
-
-	struct {
-		u32 num_beacons, accu_num_beacons;
-		u8 avg_signal;
-	} beacon_stats;
 
 	u32 ap_beacon_time;
-
-	enum iwl_tsf_id tsf_id;
-
-	/*
-	 * QoS data from mac80211, need to store this here
-	 * as mac80211 has a separate callback but we need
-	 * to have the data for the MAC context
-	 */
-	struct ieee80211_tx_queue_params queue_params[IEEE80211_NUM_ACS];
-	struct iwl_mvm_time_event_data time_event_data;
-	struct iwl_mvm_time_event_data hs_time_event_data;
-
-	struct iwl_mvm_int_sta bcast_sta;
-	struct iwl_mvm_int_sta mcast_sta;
-
-	/*
-	 * Assigned while mac80211 has the interface in a channel context,
-	 * or, for P2P Device, while it exists.
-	 */
-	struct iwl_mvm_phy_ctxt *phy_ctxt;
+	struct iwl_mvm_vif_bf_data bf_data;
 
 #ifdef CONFIG_PM
 	/* WoWLAN GTK rekey data */
@@ -399,39 +405,42 @@ struct iwl_mvm_vif {
 	int dbgfs_quota_min;
 #endif
 
-	enum ieee80211_smps_mode smps_requests[NUM_IWL_MVM_SMPS_REQ];
-
 	/* FW identified misbehaving AP */
 	u8 uapsd_misbehaving_bssid[ETH_ALEN];
-
 	struct delayed_work uapsd_nonagg_detected_wk;
 
-	/* Indicates that CSA countdown may be started */
 	bool csa_countdown;
 	bool csa_failed;
+	bool csa_bcn_pending;
 	u16 csa_target_freq;
 	u16 csa_count;
 	u16 csa_misbehave;
 	struct delayed_work csa_work;
 
-	/* Indicates that we are waiting for a beacon on a new channel */
-	bool csa_bcn_pending;
+	enum iwl_tsf_id tsf_id;
+
+	struct iwl_mvm_time_event_data time_event_data;
+	struct iwl_mvm_time_event_data hs_time_event_data;
 
 	/* TCP Checksum Offload */
 	netdev_features_t features;
 
-	struct iwl_probe_resp_data __rcu *probe_resp_data;
-
 	/* we can only have 2 GTK + 2 IGTK active at a time */
 	struct ieee80211_key_conf *ap_early_keys[4];
-
-	/* 26-tone RU OFDMA transmissions should be blocked */
-	bool he_ru_2mhz_block;
 
 	struct {
 		struct ieee80211_key_conf __rcu *keys[2];
 	} bcn_prot;
+
+	struct iwl_mvm_vif_link_info deflink;
+	struct iwl_mvm_vif_link_info *link[IEEE80211_MLD_MAX_NUM_LINKS];
 };
+
+#define for_each_mvm_vif_valid_link(mvm_vif, link_id)			\
+	for (link_id = 0;						\
+	     link_id < ARRAY_SIZE((mvm_vif)->link);			\
+	     link_id++)							\
+		if ((mvm_vif)->link[link_id])
 
 static inline struct iwl_mvm_vif *
 iwl_mvm_vif_from_mac80211(struct ieee80211_vif *vif)

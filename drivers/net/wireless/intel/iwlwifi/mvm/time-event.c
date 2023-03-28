@@ -79,7 +79,8 @@ void iwl_mvm_roc_done_wk(struct work_struct *wk)
 
 		if (!WARN_ON(!mvm->p2p_device_vif)) {
 			mvmvif = iwl_mvm_vif_from_mac80211(mvm->p2p_device_vif);
-			iwl_mvm_flush_sta(mvm, &mvmvif->bcast_sta, true);
+			iwl_mvm_flush_sta(mvm, &mvmvif->deflink.bcast_sta,
+					  true);
 		}
 	}
 
@@ -170,7 +171,8 @@ static bool iwl_mvm_te_check_disconnect(struct iwl_mvm *mvm,
 		struct iwl_mvm_sta *mvmsta;
 
 		rcu_read_lock();
-		mvmsta = iwl_mvm_sta_from_staid_rcu(mvm, mvmvif->ap_sta_id);
+		mvmsta = iwl_mvm_sta_from_staid_rcu(mvm,
+						    mvmvif->deflink.ap_sta_id);
 		if (!WARN_ON(!mvmsta))
 			iwl_mvm_sta_modify_disable_tx(mvm, mvmsta, false);
 		rcu_read_unlock();

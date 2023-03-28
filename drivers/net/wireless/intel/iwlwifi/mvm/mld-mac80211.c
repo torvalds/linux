@@ -43,13 +43,13 @@ static int iwl_mvm_mld_mac_add_interface(struct ieee80211_hw *hw,
 	 * MAC context is bound to it at this stage.
 	 */
 	if (vif->type == NL80211_IFTYPE_P2P_DEVICE) {
-		mvmvif->phy_ctxt = iwl_mvm_get_free_phy_ctxt(mvm);
-		if (!mvmvif->phy_ctxt) {
+		mvmvif->deflink.phy_ctxt = iwl_mvm_get_free_phy_ctxt(mvm);
+		if (!mvmvif->deflink.phy_ctxt) {
 			ret = -ENOSPC;
 			goto out_free_bf;
 		}
 
-		iwl_mvm_phy_ctxt_ref(mvm, mvmvif->phy_ctxt);
+		iwl_mvm_phy_ctxt_ref(mvm, mvmvif->deflink.phy_ctxt);
 		ret = iwl_mvm_add_link(mvm, vif);
 		if (ret)
 			goto out_unref_phy;
@@ -97,7 +97,7 @@ static int iwl_mvm_mld_mac_add_interface(struct ieee80211_hw *hw,
 	iwl_mvm_link_changed(mvm, vif, LINK_CONTEXT_MODIFY_ACTIVE, false);
 	iwl_mvm_remove_link(mvm, vif);
  out_unref_phy:
-	iwl_mvm_phy_ctxt_unref(mvm, mvmvif->phy_ctxt);
+	iwl_mvm_phy_ctxt_unref(mvm, mvmvif->deflink.phy_ctxt);
  out_free_bf:
 	if (mvm->bf_allowed_vif == mvmvif) {
 		mvm->bf_allowed_vif = NULL;
@@ -105,7 +105,8 @@ static int iwl_mvm_mld_mac_add_interface(struct ieee80211_hw *hw,
 				       IEEE80211_VIF_SUPPORTS_CQM_RSSI);
 	}
  out_remove_mac:
-	mvmvif->phy_ctxt = NULL;
+	mvmvif->deflink.phy_ctxt = NULL;
+	mvmvif->link[0] = NULL;
 	iwl_mvm_mld_mac_ctxt_remove(mvm, vif);
  out_unlock:
 	mutex_unlock(&mvm->mutex);
@@ -129,8 +130,8 @@ static void iwl_mvm_mld_mac_remove_interface(struct ieee80211_hw *hw,
 		iwl_mvm_link_changed(mvm, vif, LINK_CONTEXT_MODIFY_ACTIVE,
 				     false);
 		iwl_mvm_remove_link(mvm, vif);
-		iwl_mvm_phy_ctxt_unref(mvm, mvmvif->phy_ctxt);
-		mvmvif->phy_ctxt = NULL;
+		iwl_mvm_phy_ctxt_unref(mvm, mvmvif->deflink.phy_ctxt);
+		mvmvif->deflink.phy_ctxt = NULL;
 	}
 
 	iwl_mvm_mld_mac_ctxt_remove(mvm, vif);
@@ -187,7 +188,7 @@ out_remove_link:
 	iwl_mvm_power_update_mac(mvm);
 out:
 	if (ret)
-		mvmvif->phy_ctxt = NULL;
+		mvmvif->deflink.phy_ctxt = NULL;
 	return ret;
 }
 
@@ -230,7 +231,7 @@ static void __iwl_mvm_mld_unassign_vif_chanctx(struct iwl_mvm *mvm,
 out:
 	if (switching_chanctx)
 		return;
-	mvmvif->phy_ctxt = NULL;
+	mvmvif->deflink.phy_ctxt = NULL;
 	iwl_mvm_power_update_mac(mvm);
 }
 

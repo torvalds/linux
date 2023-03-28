@@ -23,14 +23,14 @@ static void iwl_mvm_bound_iface_iterator(void *_data, u8 *mac,
 	struct iwl_mvm_active_iface_iterator_data *data = _data;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	if (vif == data->ignore_vif || !mvmvif->phy_ctxt ||
+	if (vif == data->ignore_vif || !mvmvif->deflink.phy_ctxt ||
 	    vif->type == NL80211_IFTYPE_P2P_DEVICE)
 		return;
 
 	data->num_active_macs++;
 
 	if (vif->type == NL80211_IFTYPE_STATION) {
-		data->sta_vif_ap_sta_id = mvmvif->ap_sta_id;
+		data->sta_vif_ap_sta_id = mvmvif->deflink.ap_sta_id;
 		if (vif->cfg.assoc)
 			data->sta_vif_state = SF_FULL_ON;
 		else
@@ -264,7 +264,7 @@ int iwl_mvm_sf_update(struct iwl_mvm *mvm, struct ieee80211_vif *changed_vif,
 			} else if (changed_vif->cfg.assoc &&
 				   changed_vif->bss_conf.dtim_period) {
 				mvmvif = iwl_mvm_vif_from_mac80211(changed_vif);
-				sta_id = mvmvif->ap_sta_id;
+				sta_id = mvmvif->deflink.ap_sta_id;
 				new_state = SF_FULL_ON;
 			} else {
 				new_state = SF_INIT_OFF;

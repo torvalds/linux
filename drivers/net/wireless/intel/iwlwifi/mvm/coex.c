@@ -292,7 +292,8 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 			/* ... relax constraints and disable rssi events */
 			iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_BT_COEX,
 					    smps_mode);
-			iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->ap_sta_id,
+			iwl_mvm_bt_coex_reduced_txp(mvm,
+						    mvmvif->deflink.ap_sta_id,
 						    false);
 			iwl_mvm_bt_coex_enable_rssi_event(mvm, vif, false, 0);
 		}
@@ -314,8 +315,8 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	if (!vif->cfg.assoc)
 		smps_mode = IEEE80211_SMPS_AUTOMATIC;
 
-	if (mvmvif->phy_ctxt &&
-	    (mvm->last_bt_notif.rrc_status & BIT(mvmvif->phy_ctxt->id)))
+	if (mvmvif->deflink.phy_ctxt &&
+	    (mvm->last_bt_notif.rrc_status & BIT(mvmvif->deflink.phy_ctxt->id)))
 		smps_mode = IEEE80211_SMPS_AUTOMATIC;
 
 	IWL_DEBUG_COEX(data->mvm,
@@ -384,7 +385,8 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	if (iwl_get_coex_type(mvm, vif) == BT_COEX_LOOSE_LUT ||
 	    mvm->cfg->bt_shared_single_ant || !vif->cfg.assoc ||
 	    le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) == BT_OFF) {
-		iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->ap_sta_id, false);
+		iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->deflink.ap_sta_id,
+					    false);
 		iwl_mvm_bt_coex_enable_rssi_event(mvm, vif, false, 0);
 		return;
 	}
@@ -396,10 +398,12 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	if (!ave_rssi)
 		ave_rssi = -100;
 	if (ave_rssi > -IWL_MVM_BT_COEX_EN_RED_TXP_THRESH) {
-		if (iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->ap_sta_id, true))
+		if (iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->deflink.ap_sta_id,
+						true))
 			IWL_ERR(mvm, "Couldn't send BT_CONFIG cmd\n");
 	} else if (ave_rssi < -IWL_MVM_BT_COEX_DIS_RED_TXP_THRESH) {
-		if (iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->ap_sta_id, false))
+		if (iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->deflink.ap_sta_id,
+						false))
 			IWL_ERR(mvm, "Couldn't send BT_CONFIG cmd\n");
 	}
 
@@ -521,7 +525,7 @@ void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	 * Rssi update while not associated - can happen since the statistics
 	 * are handled asynchronously
 	 */
-	if (mvmvif->ap_sta_id == IWL_MVM_INVALID_STA)
+	if (mvmvif->deflink.ap_sta_id == IWL_MVM_INVALID_STA)
 		return;
 
 	/* No BT - reports should be disabled */
@@ -537,10 +541,13 @@ void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	 */
 	if (rssi_event == RSSI_EVENT_LOW || mvm->cfg->bt_shared_single_ant ||
 	    iwl_get_coex_type(mvm, vif) == BT_COEX_LOOSE_LUT)
-		ret = iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->ap_sta_id,
+		ret = iwl_mvm_bt_coex_reduced_txp(mvm,
+						  mvmvif->deflink.ap_sta_id,
 						  false);
 	else
-		ret = iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->ap_sta_id, true);
+		ret = iwl_mvm_bt_coex_reduced_txp(mvm,
+						  mvmvif->deflink.ap_sta_id,
+						  true);
 
 	if (ret)
 		IWL_ERR(mvm, "couldn't send BT_CONFIG HCMD upon RSSI event\n");
@@ -554,7 +561,7 @@ u16 iwl_mvm_coex_agg_time_limit(struct iwl_mvm *mvm,
 {
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(mvmsta->vif);
-	struct iwl_mvm_phy_ctxt *phy_ctxt = mvmvif->phy_ctxt;
+	struct iwl_mvm_phy_ctxt *phy_ctxt = mvmvif->deflink.phy_ctxt;
 	enum iwl_bt_coex_lut_type lut_type;
 
 	if (mvm->last_bt_notif.ttc_status & BIT(phy_ctxt->id))
@@ -578,7 +585,7 @@ bool iwl_mvm_bt_coex_is_mimo_allowed(struct iwl_mvm *mvm,
 {
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(mvmsta->vif);
-	struct iwl_mvm_phy_ctxt *phy_ctxt = mvmvif->phy_ctxt;
+	struct iwl_mvm_phy_ctxt *phy_ctxt = mvmvif->deflink.phy_ctxt;
 	enum iwl_bt_coex_lut_type lut_type;
 
 	if (mvm->last_bt_notif.ttc_status & BIT(phy_ctxt->id))

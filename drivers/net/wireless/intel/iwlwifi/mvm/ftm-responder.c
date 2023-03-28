@@ -119,7 +119,7 @@ iwl_mvm_ftm_responder_cmd(struct iwl_mvm *mvm,
 			cpu_to_le32(IWL_TOF_RESPONDER_CMD_VALID_CHAN_INFO |
 				    IWL_TOF_RESPONDER_CMD_VALID_BSSID |
 				    IWL_TOF_RESPONDER_CMD_VALID_STA_ID),
-		.sta_id = mvmvif->bcast_sta.sta_id,
+		.sta_id = mvmvif->deflink.bcast_sta.sta_id,
 	};
 	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id, 6);
 	int err;
