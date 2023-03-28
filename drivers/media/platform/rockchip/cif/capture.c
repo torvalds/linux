@@ -1538,9 +1538,9 @@ static void rkcif_rdbk_frame_end_toisp(struct rkcif_stream *stream,
 	    dev->rdbk_rx_buf[RDBK_L] &&
 	    dev->rdbk_rx_buf[RDBK_M] &&
 	    dev->rdbk_rx_buf[RDBK_S]) {
-		l_ts = dev->rdbk_rx_buf[RDBK_L]->dbufs.timestamp;
-		m_ts = dev->rdbk_rx_buf[RDBK_M]->dbufs.timestamp;
-		s_ts = dev->rdbk_rx_buf[RDBK_S]->dbufs.timestamp;
+		l_ts = dev->rdbk_rx_buf[RDBK_L]->fe_timestamp;
+		m_ts = dev->rdbk_rx_buf[RDBK_M]->fe_timestamp;
+		s_ts = dev->rdbk_rx_buf[RDBK_S]->fe_timestamp;
 
 		if (m_ts < l_ts || s_ts < m_ts) {
 			v4l2_err(&dev->v4l2_dev,
@@ -1580,8 +1580,8 @@ static void rkcif_rdbk_frame_end_toisp(struct rkcif_stream *stream,
 		dev->rdbk_rx_buf[RDBK_S] = NULL;
 	} else if (dev->hdr.hdr_mode == HDR_X2 &&
 		dev->rdbk_rx_buf[RDBK_L] && dev->rdbk_rx_buf[RDBK_M]) {
-		l_ts = dev->rdbk_rx_buf[RDBK_L]->dbufs.timestamp;
-		s_ts = dev->rdbk_rx_buf[RDBK_M]->dbufs.timestamp;
+		l_ts = dev->rdbk_rx_buf[RDBK_L]->fe_timestamp;
+		s_ts = dev->rdbk_rx_buf[RDBK_M]->fe_timestamp;
 
 		if (s_ts < l_ts) {
 			v4l2_err(&dev->v4l2_dev,
@@ -1728,6 +1728,7 @@ static int rkcif_assign_new_buffer_update_toisp(struct rkcif_stream *stream,
 					active_buf->dbufs.is_first = true;
 				active_buf->dbufs.sequence = stream->frame_idx - 1;
 				active_buf->dbufs.timestamp = stream->readout.fs_timestamp;
+				active_buf->fe_timestamp = ktime_get_ns();
 				stream->last_frame_idx = stream->frame_idx;
 				if (dev->hdr.hdr_mode == NO_HDR)
 					rkcif_s_rx_buffer(dev, &active_buf->dbufs);
@@ -1756,6 +1757,7 @@ static int rkcif_assign_new_buffer_update_toisp(struct rkcif_stream *stream,
 					active_buf->dbufs.is_first = true;
 				active_buf->dbufs.sequence = stream->frame_idx - 1;
 				active_buf->dbufs.timestamp = stream->readout.fs_timestamp;
+				active_buf->fe_timestamp = ktime_get_ns();
 				stream->last_frame_idx = stream->frame_idx;
 				if (dev->hdr.hdr_mode == NO_HDR)
 					rkcif_s_rx_buffer(dev, &active_buf->dbufs);
@@ -1804,6 +1806,7 @@ static int rkcif_assign_new_buffer_update_toisp(struct rkcif_stream *stream,
 				active_buf->dbufs.is_first = true;
 			active_buf->dbufs.sequence = stream->frame_idx - 1;
 			active_buf->dbufs.timestamp = stream->readout.fs_timestamp;
+			active_buf->fe_timestamp = ktime_get_ns();
 			stream->last_frame_idx = stream->frame_idx;
 			if (dev->hdr.hdr_mode == NO_HDR)
 				rkcif_s_rx_buffer(dev, &active_buf->dbufs);
@@ -7683,9 +7686,9 @@ static void rkcif_rdbk_frame_end(struct rkcif_stream *stream)
 		if (dev->rdbk_buf[RDBK_L] &&
 		    dev->rdbk_buf[RDBK_M] &&
 		    dev->rdbk_buf[RDBK_S]) {
-			l_ts = dev->rdbk_buf[RDBK_L]->vb.vb2_buf.timestamp;
-			m_ts = dev->rdbk_buf[RDBK_M]->vb.vb2_buf.timestamp;
-			s_ts = dev->rdbk_buf[RDBK_S]->vb.vb2_buf.timestamp;
+			l_ts = dev->rdbk_buf[RDBK_L]->fe_timestamp;
+			m_ts = dev->rdbk_buf[RDBK_M]->fe_timestamp;
+			s_ts = dev->rdbk_buf[RDBK_S]->fe_timestamp;
 
 			if (m_ts < l_ts || s_ts < m_ts) {
 				v4l2_err(&dev->v4l2_dev,
@@ -7745,8 +7748,8 @@ static void rkcif_rdbk_frame_end(struct rkcif_stream *stream)
 		}
 	} else if (dev->hdr.hdr_mode == HDR_X2) {
 		if (dev->rdbk_buf[RDBK_L] && dev->rdbk_buf[RDBK_M]) {
-			l_ts = dev->rdbk_buf[RDBK_L]->vb.vb2_buf.timestamp;
-			s_ts = dev->rdbk_buf[RDBK_M]->vb.vb2_buf.timestamp;
+			l_ts = dev->rdbk_buf[RDBK_L]->fe_timestamp;
+			s_ts = dev->rdbk_buf[RDBK_M]->fe_timestamp;
 
 			if (s_ts < l_ts) {
 				v4l2_err(&dev->v4l2_dev,
@@ -7853,6 +7856,7 @@ static void rkcif_buf_done_prepare(struct rkcif_stream *stream,
 		vb_done = &active_buf->vb;
 		vb_done->vb2_buf.timestamp = stream->readout.fs_timestamp;
 		vb_done->sequence = stream->frame_idx - 1;
+		active_buf->fe_timestamp = ktime_get_ns();
 		if (stream->is_line_wake_up) {
 			spin_lock_irqsave(&stream->fps_lock, flags);
 			if (mode)
@@ -8080,6 +8084,7 @@ static void rkcif_line_wake_up_rdbk(struct rkcif_stream *stream, int mipi_id)
 			spin_unlock_irqrestore(&stream->vbq_lock, flags);
 			active_buf->dbufs.sequence = stream->frame_idx - 1;
 			active_buf->dbufs.timestamp = stream->readout.fs_timestamp;
+			active_buf->fe_timestamp = ktime_get_ns();
 			stream->last_frame_idx = stream->frame_idx;
 			if (stream->cifdev->hdr.hdr_mode == NO_HDR)
 				rkcif_s_rx_buffer(stream->cifdev, &active_buf->dbufs);

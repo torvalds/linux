@@ -188,6 +188,7 @@ struct rkcif_buffer {
 		void *vaddr[VIDEO_MAX_PLANES];
 	};
 	struct dma_buf *dbuf;
+	u64 fe_timestamp;
 };
 
 struct rkcif_tools_buffer {
@@ -443,6 +444,7 @@ struct rkcif_rx_buffer {
 	struct rkisp_rx_buf dbufs;
 	struct rkcif_dummy_buffer dummy;
 	struct rkisp_thunderboot_shmem shmem;
+	u64 fe_timestamp;
 };
 
 enum rkcif_dma_en_mode {
