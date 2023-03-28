@@ -543,6 +543,14 @@ struct acpi_field_info {
 	u32 pkg_length;
 };
 
+/* Information about the interrupt ID and _EVT of a GED device */
+
+struct acpi_ged_handler_info {
+	struct acpi_ged_handler_info *next;
+	u32 int_id;		/* The interrupt ID that triggers the execution ofthe evt_method. */
+	struct acpi_namespace_node *evt_method;	/* The _EVT method to be executed when an interrupt with ID = int_ID is received */
+};
+
 /*****************************************************************************
  *
  * Generic "state" object for stacks
