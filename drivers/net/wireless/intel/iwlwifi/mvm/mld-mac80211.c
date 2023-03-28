@@ -157,9 +157,16 @@ static int __iwl_mvm_mld_assign_vif_chanctx(struct iwl_mvm *mvm,
 						switching_chanctx, &ret))
 		goto out;
 
-	ret = iwl_mvm_add_link(mvm, vif);
-	if (ret)
-		goto out;
+	if (!switching_chanctx) {
+		ret = iwl_mvm_add_link(mvm, vif);
+		if (ret)
+			goto out;
+	} else {
+		ret = iwl_mvm_link_changed(mvm, vif, 0, false);
+		if (ret)
+			goto out_remove_link;
+	}
+
 	ret = iwl_mvm_link_changed(mvm, vif, LINK_CONTEXT_MODIFY_ACTIVE |
 				   LINK_CONTEXT_MODIFY_RATES_INFO,
 				   true);
@@ -219,10 +226,9 @@ static void __iwl_mvm_mld_unassign_vif_chanctx(struct iwl_mvm *mvm,
 	if (vif->type == NL80211_IFTYPE_MONITOR)
 		iwl_mvm_mld_rm_snif_sta(mvm, vif);
 
-	/* Link needs to be deactivated before removal */
 	iwl_mvm_link_changed(mvm, vif, LINK_CONTEXT_MODIFY_ACTIVE, false);
-	iwl_mvm_remove_link(mvm, vif);
-
+	if (!switching_chanctx)
+		iwl_mvm_remove_link(mvm, vif);
 out:
 	if (switching_chanctx)
 		return;
