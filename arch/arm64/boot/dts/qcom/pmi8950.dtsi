@@ -143,6 +143,7 @@
 					"flash-fail",
 					"otst2",
 					"otst3";
+			smbchg-lite;
 			status = "disabled";
 
 			chg_otg: chg_otg {};
