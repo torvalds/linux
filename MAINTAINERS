@@ -2275,7 +2275,7 @@ F:	arch/arm/boot/dts/intel-ixp*
 F:	arch/arm/mach-ixp4xx/
 F:	drivers/bus/intel-ixp4xx-eb.c
 F:	drivers/clocksource/timer-ixp4xx.c
-F:	drivers/crypto/ixp4xx_crypto.c
+F:	drivers/crypto/intel/ixp4xx/ixp4xx_crypto.c
 F:	drivers/gpio/gpio-ixp4xx.c
 F:	drivers/irqchip/irq-ixp4xx.c
 
@@ -10380,7 +10380,7 @@ INTEL IXP4XX CRYPTO SUPPORT
 M:	Corentin Labbe <clabbe@baylibre.com>
 L:	linux-crypto@vger.kernel.org
 S:	Maintained
-F:	drivers/crypto/ixp4xx_crypto.c
+F:	drivers/crypto/intel/ixp4xx/ixp4xx_crypto.c
 
 INTEL ISHTP ECLITE DRIVER
 M:	Sumesh K Naduvalath <sumesh.k.naduvalath@intel.com>

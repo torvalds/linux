@@ -240,21 +240,6 @@ config CRYPTO_DEV_TALITOS2
 	  Say 'Y' here to use the Freescale Security Engine (SEC)
 	  version 2 and following as found on MPC83xx, MPC85xx, etc ...
 
-config CRYPTO_DEV_IXP4XX
-	tristate "Driver for IXP4xx crypto hardware acceleration"
-	depends on ARCH_IXP4XX && IXP4XX_QMGR && IXP4XX_NPE
-	select CRYPTO_AES
-	select CRYPTO_DES
-	select CRYPTO_ECB
-	select CRYPTO_CBC
-	select CRYPTO_CTR
-	select CRYPTO_LIB_DES
-	select CRYPTO_AEAD
-	select CRYPTO_AUTHENC
-	select CRYPTO_SKCIPHER
-	help
-	  Driver for the IXP4xx NPE crypto engine.
-
 config CRYPTO_DEV_PPC4XX
 	tristate "Driver AMCC PPC4xx crypto accelerator"
 	depends on PPC && 4xx
