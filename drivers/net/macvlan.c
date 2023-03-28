@@ -47,6 +47,7 @@ struct macvlan_port {
 	struct sk_buff_head	bc_queue;
 	struct work_struct	bc_work;
 	u32			bc_queue_len_used;
+	int			bc_cutoff;
 	u32			flags;
 	int			count;
 	struct hlist_head	vlan_source_hash[MACVLAN_HASH_SIZE];
@@ -814,6 +815,12 @@ static void macvlan_compute_filter(unsigned long *mc_filter,
 	}
 }
 
+static void macvlan_recompute_bc_filter(struct macvlan_dev *vlan)
+{
+	macvlan_compute_filter(vlan->port->bc_filter, vlan->lowerdev, NULL,
+			       vlan->port->bc_cutoff);
+}
+
 static void macvlan_set_mac_lists(struct net_device *dev)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
@@ -838,8 +845,16 @@ static void macvlan_set_mac_lists(struct net_device *dev)
 	 */
 	macvlan_compute_filter(vlan->port->mc_filter, vlan->lowerdev, NULL,
 			       0);
-	macvlan_compute_filter(vlan->port->bc_filter, vlan->lowerdev, NULL,
-			       1);
+	macvlan_recompute_bc_filter(vlan);
+}
+
+static void update_port_bc_cutoff(struct macvlan_dev *vlan, int cutoff)
+{
+	if (vlan->port->bc_cutoff == cutoff)
+		return;
+
+	vlan->port->bc_cutoff = cutoff;
+	macvlan_recompute_bc_filter(vlan);
 }
 
 static int macvlan_change_mtu(struct net_device *dev, int new_mtu)
@@ -1254,6 +1269,7 @@ static int macvlan_port_create(struct net_device *dev)
 		INIT_HLIST_HEAD(&port->vlan_source_hash[i]);
 
 	port->bc_queue_len_used = 0;
+	port->bc_cutoff = 1;
 	skb_queue_head_init(&port->bc_queue);
 	INIT_WORK(&port->bc_work, macvlan_process_broadcast);
 
@@ -1527,6 +1543,10 @@ int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
 	if (data && data[IFLA_MACVLAN_BC_QUEUE_LEN])
 		vlan->bc_queue_len_req = nla_get_u32(data[IFLA_MACVLAN_BC_QUEUE_LEN]);
 
+	if (data && data[IFLA_MACVLAN_BC_CUTOFF])
+		update_port_bc_cutoff(
+			vlan, nla_get_s32(data[IFLA_MACVLAN_BC_CUTOFF]));
+
 	err = register_netdevice(dev);
 	if (err < 0)
 		goto destroy_macvlan_port;
@@ -1623,6 +1643,10 @@ static int macvlan_changelink(struct net_device *dev,
 		update_port_bc_queue_len(vlan->port);
 	}
 
+	if (data && data[IFLA_MACVLAN_BC_CUTOFF])
+		update_port_bc_cutoff(
+			vlan, nla_get_s32(data[IFLA_MACVLAN_BC_CUTOFF]));
+
 	if (set_mode)
 		vlan->mode = mode;
 	if (data && data[IFLA_MACVLAN_MACADDR_MODE]) {
@@ -1702,6 +1726,9 @@ static int macvlan_fill_info(struct sk_buff *skb,
 	if (nla_put_u32(skb, IFLA_MACVLAN_BC_QUEUE_LEN, vlan->bc_queue_len_req))
 		goto nla_put_failure;
 	if (nla_put_u32(skb, IFLA_MACVLAN_BC_QUEUE_LEN_USED, port->bc_queue_len_used))
+		goto nla_put_failure;
+	if (port->bc_cutoff != 1 &&
+	    nla_put_s32(skb, IFLA_MACVLAN_BC_CUTOFF, port->bc_cutoff))
 		goto nla_put_failure;
 	return 0;
 
