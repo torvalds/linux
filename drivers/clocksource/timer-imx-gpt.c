@@ -16,7 +16,6 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <soc/imx/timer.h>
 
 /*
  * There are 4 versions of the timer hardware on Freescale MXC hardware.
@@ -25,6 +24,12 @@
  *  - MX25, MX31, MX35, MX37, MX51, MX6Q(rev1.0)
  *  - MX6DL, MX6SX, MX6Q(rev1.1+)
  */
+enum imx_gpt_type {
+	GPT_TYPE_IMX1,		/* i.MX1 */
+	GPT_TYPE_IMX21,		/* i.MX21/27 */
+	GPT_TYPE_IMX31,		/* i.MX31/35/25/37/51/6Q */
+	GPT_TYPE_IMX6DL,	/* i.MX6DL/SX/SL */
+};
 
 /* defines common for all i.MX */
 #define MXC_TCTL		0x00
