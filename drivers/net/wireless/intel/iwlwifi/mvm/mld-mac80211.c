@@ -640,6 +640,7 @@ const struct ieee80211_ops iwl_mvm_mld_hw_ops = {
 	.switch_vif_chanctx = iwl_mvm_mld_switch_vif_chanctx,
 	.join_ibss = iwl_mvm_mld_start_ap_ibss,
 	.leave_ibss = iwl_mvm_mld_stop_ap_ibss,
+	.post_channel_switch = iwl_mvm_post_channel_switch,
 	.sta_state = iwl_mvm_mld_mac_sta_state,
 	.conf_tx = iwl_mvm_mld_mac_conf_tx,
 	.bss_info_changed = iwl_mvm_mld_bss_info_changed,

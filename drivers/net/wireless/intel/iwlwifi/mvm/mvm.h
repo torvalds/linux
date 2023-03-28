@@ -2298,6 +2298,8 @@ static inline u8 iwl_mvm_phy_band_from_nl80211(enum nl80211_band band)
 
 /* Channel Switch */
 void iwl_mvm_channel_switch_disconnect_wk(struct work_struct *wk);
+int iwl_mvm_post_channel_switch(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif);
 
 /* Channel Context */
 /**

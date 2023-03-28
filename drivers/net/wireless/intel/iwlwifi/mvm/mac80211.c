@@ -1317,8 +1317,8 @@ static int iwl_mvm_set_tx_power(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	return iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0, len, &cmd);
 }
 
-static int iwl_mvm_post_channel_switch(struct ieee80211_hw *hw,
-				       struct ieee80211_vif *vif)
+int iwl_mvm_post_channel_switch(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
@@ -1339,8 +1339,10 @@ static int iwl_mvm_post_channel_switch(struct ieee80211_hw *hw,
 		}
 
 		iwl_mvm_sta_modify_disable_tx(mvm, mvmsta, false);
-
-		iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
+		if (mvm->mld_api_is_used)
+			iwl_mvm_mld_mac_ctxt_changed(mvm, vif, false);
+		else
+			iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
 
 		if (!fw_has_capa(&mvm->fw->ucode_capa,
 				 IWL_UCODE_TLV_CAPA_CHANNEL_SWITCH_CMD)) {
