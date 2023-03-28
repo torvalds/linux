@@ -244,7 +244,8 @@ static void iwl_mvm_mld_unassign_vif_chanctx(struct ieee80211_hw *hw,
 }
 
 static int iwl_mvm_mld_start_ap_ibss(struct ieee80211_hw *hw,
-				     struct ieee80211_vif *vif)
+				     struct ieee80211_vif *vif,
+				     struct ieee80211_bss_conf *link_conf)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
@@ -319,8 +320,22 @@ out_unlock:
 	return ret;
 }
 
+static int iwl_mvm_mld_start_ap(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif,
+				struct ieee80211_bss_conf *link_conf)
+{
+	return iwl_mvm_mld_start_ap_ibss(hw, vif, link_conf);
+}
+
+static int iwl_mvm_mld_start_ibss(struct ieee80211_hw *hw,
+				  struct ieee80211_vif *vif)
+{
+	return iwl_mvm_mld_start_ap_ibss(hw, vif, &vif->bss_conf);
+}
+
 static void iwl_mvm_mld_stop_ap_ibss(struct ieee80211_hw *hw,
-				     struct ieee80211_vif *vif)
+				     struct ieee80211_vif *vif,
+				     struct ieee80211_bss_conf *link_conf)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 
@@ -346,6 +361,19 @@ static void iwl_mvm_mld_stop_ap_ibss(struct ieee80211_hw *hw,
 	iwl_mvm_mld_mac_ctxt_remove(mvm, vif);
 
 	mutex_unlock(&mvm->mutex);
+}
+
+static void iwl_mvm_mld_stop_ap(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif,
+				struct ieee80211_bss_conf *link_conf)
+{
+	iwl_mvm_mld_stop_ap_ibss(hw, vif, link_conf);
+}
+
+static void iwl_mvm_mld_stop_ibss(struct ieee80211_hw *hw,
+				  struct ieee80211_vif *vif)
+{
+	iwl_mvm_mld_stop_ap_ibss(hw, vif, &vif->bss_conf);
 }
 
 static int iwl_mvm_mld_mac_sta_state(struct ieee80211_hw *hw,
@@ -630,18 +658,90 @@ static int iwl_mvm_mld_roc(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	return iwl_mvm_roc_common(hw, vif, channel, duration, type, &ops);
 }
 const struct ieee80211_ops iwl_mvm_mld_hw_ops = {
+	.tx = iwl_mvm_mac_tx,
+	.wake_tx_queue = iwl_mvm_mac_wake_tx_queue,
+	.ampdu_action = iwl_mvm_mac_ampdu_action,
+	.get_antenna = iwl_mvm_op_get_antenna,
+	.start = iwl_mvm_mac_start,
+	.reconfig_complete = iwl_mvm_mac_reconfig_complete,
+	.stop = iwl_mvm_mac_stop,
 	.add_interface = iwl_mvm_mld_mac_add_interface,
 	.remove_interface = iwl_mvm_mld_mac_remove_interface,
+	.config = iwl_mvm_mac_config,
+	.prepare_multicast = iwl_mvm_prepare_multicast,
+	.configure_filter = iwl_mvm_configure_filter,
 	.config_iface_filter = iwl_mvm_mld_config_iface_filter,
+	.bss_info_changed = iwl_mvm_mld_bss_info_changed,
+	.hw_scan = iwl_mvm_mac_hw_scan,
+	.cancel_hw_scan = iwl_mvm_mac_cancel_hw_scan,
+	.sta_pre_rcu_remove = iwl_mvm_sta_pre_rcu_remove,
+	.sta_state = iwl_mvm_mld_mac_sta_state,
+	.sta_notify = iwl_mvm_mac_sta_notify,
+	.allow_buffered_frames = iwl_mvm_mac_allow_buffered_frames,
+	.release_buffered_frames = iwl_mvm_mac_release_buffered_frames,
+	.set_rts_threshold = iwl_mvm_mac_set_rts_threshold,
+	.sta_rc_update = iwl_mvm_sta_rc_update,
+	.conf_tx = iwl_mvm_mld_mac_conf_tx,
+	.mgd_prepare_tx = iwl_mvm_mac_mgd_prepare_tx,
+	.mgd_complete_tx = iwl_mvm_mac_mgd_complete_tx,
+	.mgd_protect_tdls_discover = iwl_mvm_mac_mgd_protect_tdls_discover,
+	.flush = iwl_mvm_mac_flush,
+	.sched_scan_start = iwl_mvm_mac_sched_scan_start,
+	.sched_scan_stop = iwl_mvm_mac_sched_scan_stop,
+	.set_key = iwl_mvm_mac_set_key,
+	.update_tkip_key = iwl_mvm_mac_update_tkip_key,
 	.remain_on_channel = iwl_mvm_mld_roc,
 	.cancel_remain_on_channel = iwl_mvm_cancel_roc,
+	.add_chanctx = iwl_mvm_add_chanctx,
+	.remove_chanctx = iwl_mvm_remove_chanctx,
+	.change_chanctx = iwl_mvm_change_chanctx,
 	.assign_vif_chanctx = iwl_mvm_mld_assign_vif_chanctx,
 	.unassign_vif_chanctx = iwl_mvm_mld_unassign_vif_chanctx,
 	.switch_vif_chanctx = iwl_mvm_mld_switch_vif_chanctx,
-	.join_ibss = iwl_mvm_mld_start_ap_ibss,
-	.leave_ibss = iwl_mvm_mld_stop_ap_ibss,
+
+	.start_ap = iwl_mvm_mld_start_ap,
+	.stop_ap = iwl_mvm_mld_stop_ap,
+	.join_ibss = iwl_mvm_mld_start_ibss,
+	.leave_ibss = iwl_mvm_mld_stop_ibss,
+
+	.tx_last_beacon = iwl_mvm_tx_last_beacon,
+
+	.set_tim = iwl_mvm_set_tim,
+
+	.channel_switch = iwl_mvm_channel_switch,
+	.pre_channel_switch = iwl_mvm_pre_channel_switch,
 	.post_channel_switch = iwl_mvm_post_channel_switch,
-	.sta_state = iwl_mvm_mld_mac_sta_state,
-	.conf_tx = iwl_mvm_mld_mac_conf_tx,
-	.bss_info_changed = iwl_mvm_mld_bss_info_changed,
+	.abort_channel_switch = iwl_mvm_abort_channel_switch,
+	.channel_switch_rx_beacon = iwl_mvm_channel_switch_rx_beacon,
+
+	.tdls_channel_switch = iwl_mvm_tdls_channel_switch,
+	.tdls_cancel_channel_switch = iwl_mvm_tdls_cancel_channel_switch,
+	.tdls_recv_channel_switch = iwl_mvm_tdls_recv_channel_switch,
+
+	.event_callback = iwl_mvm_mac_event_callback,
+
+	.sync_rx_queues = iwl_mvm_sync_rx_queues,
+
+	CFG80211_TESTMODE_CMD(iwl_mvm_mac_testmode_cmd)
+
+#ifdef CONFIG_PM_SLEEP
+	/* look at d3.c */
+	.suspend = iwl_mvm_suspend,
+	.resume = iwl_mvm_resume,
+	.set_wakeup = iwl_mvm_set_wakeup,
+	.set_rekey_data = iwl_mvm_set_rekey_data,
+#if IS_ENABLED(CONFIG_IPV6)
+	.ipv6_addr_change = iwl_mvm_ipv6_addr_change,
+#endif
+	.set_default_unicast_key = iwl_mvm_set_default_unicast_key,
+#endif
+	.get_survey = iwl_mvm_mac_get_survey,
+	.sta_statistics = iwl_mvm_mac_sta_statistics,
+	.get_ftm_responder_stats = iwl_mvm_mac_get_ftm_responder_stats,
+	.start_pmsr = iwl_mvm_start_pmsr,
+	.abort_pmsr = iwl_mvm_abort_pmsr,
+
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	.sta_add_debugfs = iwl_mvm_sta_add_debugfs,
+#endif
 };
