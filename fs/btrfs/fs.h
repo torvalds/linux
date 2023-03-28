@@ -687,6 +687,7 @@ struct btrfs_fs_info {
 	/* Protected by qgroup_rescan_lock */
 	bool qgroup_rescan_running;
 	u8 qgroup_drop_subtree_thres;
+	u64 qgroup_enable_gen;
 
 	/*
 	 * If this is not 0, then it indicates a serious filesystem error has

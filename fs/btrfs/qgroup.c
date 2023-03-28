@@ -369,6 +369,15 @@ static void qgroup_mark_inconsistent(struct btrfs_fs_info *fs_info)
 				  BTRFS_QGROUP_RUNTIME_FLAG_NO_ACCOUNTING);
 }
 
+static void qgroup_read_enable_gen(struct btrfs_fs_info *fs_info,
+				   struct extent_buffer *leaf, int slot,
+				   struct btrfs_qgroup_status_item *ptr)
+{
+	ASSERT(btrfs_fs_incompat(fs_info, SIMPLE_QUOTA));
+	ASSERT(btrfs_item_size(leaf, slot) >= sizeof(*ptr));
+	fs_info->qgroup_enable_gen = btrfs_qgroup_status_enable_gen(leaf, ptr);
+}
+
 /*
  * The full config is read in one go, only called from open_ctree()
  * It doesn't use any locking, as at this point we're still single-threaded
@@ -384,7 +393,6 @@ int btrfs_read_qgroup_config(struct btrfs_fs_info *fs_info)
 	int ret = 0;
 	u64 flags = 0;
 	u64 rescan_progress = 0;
-	bool simple;
 
 	if (btrfs_qgroup_mode(fs_info) == BTRFS_QGROUP_MODE_DISABLED)
 		return 0;
@@ -437,9 +445,9 @@ int btrfs_read_qgroup_config(struct btrfs_fs_info *fs_info)
 				goto out;
 			}
 			fs_info->qgroup_flags = btrfs_qgroup_status_flags(l, ptr);
-			simple = (fs_info->qgroup_flags & BTRFS_QGROUP_STATUS_FLAG_SIMPLE_MODE);
-			if (btrfs_qgroup_status_generation(l, ptr) !=
-			    fs_info->generation && !simple) {
+			if (fs_info->qgroup_flags & BTRFS_QGROUP_STATUS_FLAG_SIMPLE_MODE) {
+				qgroup_read_enable_gen(fs_info, l, slot, ptr);
+			} else if (btrfs_qgroup_status_generation(l, ptr) != fs_info->generation) {
 				qgroup_mark_inconsistent(fs_info);
 				btrfs_err(fs_info,
 					"qgroup generation mismatch, marked as inconsistent");
@@ -1103,10 +1111,12 @@ int btrfs_quota_enable(struct btrfs_fs_info *fs_info,
 	btrfs_set_qgroup_status_generation(leaf, ptr, trans->transid);
 	btrfs_set_qgroup_status_version(leaf, ptr, BTRFS_QGROUP_STATUS_VERSION);
 	fs_info->qgroup_flags = BTRFS_QGROUP_STATUS_FLAG_ON;
-	if (simple)
+	if (simple) {
 		fs_info->qgroup_flags |= BTRFS_QGROUP_STATUS_FLAG_SIMPLE_MODE;
-	else
+		btrfs_set_qgroup_status_enable_gen(leaf, ptr, trans->transid);
+	} else {
 		fs_info->qgroup_flags |= BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT;
+	}
 	btrfs_set_qgroup_status_flags(leaf, ptr, fs_info->qgroup_flags &
 				      BTRFS_QGROUP_STATUS_FLAGS_MASK);
 	btrfs_set_qgroup_status_rescan(leaf, ptr, 0);
@@ -1209,6 +1219,8 @@ out_add_root:
 		btrfs_abort_transaction(trans, ret);
 		goto out_free_path;
 	}
+
+	fs_info->qgroup_enable_gen = trans->transid;
 
 	mutex_unlock(&fs_info->qgroup_ioctl_lock);
 	/*
@@ -4653,6 +4665,10 @@ int btrfs_record_squota_delta(struct btrfs_fs_info *fs_info,
 		return 0;
 
 	if (!is_fstree(root))
+		return 0;
+
+	/* If the extent predates enabling quotas, don't count it. */
+	if (delta->generation < fs_info->qgroup_enable_gen)
 		return 0;
 
 	spin_lock(&fs_info->qgroup_lock);

@@ -276,6 +276,8 @@ struct btrfs_squota_delta {
 	u64 num_bytes;
 	/* The number of bytes reserved for this extent. */
 	u64 rsv_bytes;
+	/* The generation the extent was created in. */
+	u64 generation;
 	/* Whether we are using or freeing the extent. */
 	bool is_inc;
 	/* Whether the extent is data or metadata. */
