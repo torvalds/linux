@@ -13,17 +13,34 @@ static int iwl_mvm_mld_mac_add_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
-	/* Common for MLD and non-MLD API */
-	if (iwl_mvm_mac_add_interface_common(mvm, hw, vif, &ret))
+	mvmvif->mvm = mvm;
+	RCU_INIT_POINTER(mvmvif->deflink.probe_resp_data, NULL);
+
+	/* Not much to do here. The stack will not allow interface
+	 * types or combinations that we didn't advertise, so we
+	 * don't really have to check the types.
+	 */
+
+	/* make sure that beacon statistics don't go backwards with FW reset */
+	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
+		mvmvif->deflink.beacon_stats.accu_num_beacons +=
+			mvmvif->deflink.beacon_stats.num_beacons;
+
+	/* Allocate resources for the MAC context, and add it to the fw  */
+	ret = iwl_mvm_mac_ctxt_init(mvm, vif);
+	if (ret)
 		goto out_unlock;
+
+	rcu_assign_pointer(mvm->vif_id_to_mac[mvmvif->id], vif);
+
+	mvmvif->features |= hw->netdev_features;
+
+	/* the first link always points to the default one */
+	mvmvif->link[0] = &mvmvif->deflink;
 
 	ret = iwl_mvm_mld_mac_ctxt_add(mvm, vif);
 	if (ret)
 		goto out_unlock;
-
-	ret = iwl_mvm_power_update_mac(mvm);
-	if (ret)
-		goto out_remove_mac;
 
 	/* beacon filtering */
 	ret = iwl_mvm_disable_beacon_filter(mvm, vif, 0);
@@ -67,7 +84,15 @@ static int iwl_mvm_mld_mac_add_interface(struct ieee80211_hw *hw,
 		 * update the p2p device MAC when a GO is started/stopped
 		 */
 		mvm->p2p_device_vif = vif;
+	} else {
+		ret = iwl_mvm_add_link(mvm, vif);
+		if (ret)
+			goto out_free_bf;
 	}
+
+	ret = iwl_mvm_power_update_mac(mvm);
+	if (ret)
+		goto out_free_bf;
 
 	iwl_mvm_tcm_add_vif(mvm, vif);
 	INIT_DELAYED_WORK(&mvmvif->csa_work,
@@ -117,9 +142,52 @@ static void iwl_mvm_mld_mac_remove_interface(struct ieee80211_hw *hw,
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_probe_resp_data *probe_data;
 
-	if (iwl_mvm_mac_remove_interface_common(hw, vif))
-		goto out;
+	iwl_mvm_prepare_mac_removal(mvm, vif);
+
+	if (!(vif->type == NL80211_IFTYPE_AP ||
+	      vif->type == NL80211_IFTYPE_ADHOC))
+		iwl_mvm_tcm_rm_vif(mvm, vif);
+
+	mutex_lock(&mvm->mutex);
+
+	if (vif == mvm->csme_vif) {
+		iwl_mei_set_netdev(NULL);
+		mvm->csme_vif = NULL;
+	}
+
+	probe_data = rcu_dereference_protected(mvmvif->deflink.probe_resp_data,
+					       lockdep_is_held(&mvm->mutex));
+	RCU_INIT_POINTER(mvmvif->deflink.probe_resp_data, NULL);
+	if (probe_data)
+		kfree_rcu(probe_data, rcu_head);
+
+	if (mvm->bf_allowed_vif == mvmvif) {
+		mvm->bf_allowed_vif = NULL;
+		vif->driver_flags &= ~(IEEE80211_VIF_BEACON_FILTER |
+				       IEEE80211_VIF_SUPPORTS_CQM_RSSI);
+	}
+
+	if (vif->bss_conf.ftm_responder)
+		memset(&mvm->ftm_resp_stats, 0, sizeof(mvm->ftm_resp_stats));
+
+	iwl_mvm_vif_dbgfs_clean(mvm, vif);
+
+	/* For AP/GO interface, the tear down of the resources allocated to the
+	 * interface is be handled as part of the stop_ap flow.
+	 */
+	if (vif->type == NL80211_IFTYPE_AP ||
+	    vif->type == NL80211_IFTYPE_ADHOC) {
+#ifdef CONFIG_NL80211_TESTMODE
+		if (vif == mvm->noa_vif) {
+			mvm->noa_vif = NULL;
+			mvm->noa_duration = 0;
+		}
+#endif
+	}
+
+	iwl_mvm_power_update_mac(mvm);
 
 	if (vif->type == NL80211_IFTYPE_P2P_DEVICE) {
 		mvm->p2p_device_vif = NULL;
@@ -130,6 +198,8 @@ static void iwl_mvm_mld_mac_remove_interface(struct ieee80211_hw *hw,
 		iwl_mvm_remove_link(mvm, vif);
 		iwl_mvm_phy_ctxt_unref(mvm, mvmvif->deflink.phy_ctxt);
 		mvmvif->deflink.phy_ctxt = NULL;
+	} else {
+		iwl_mvm_remove_link(mvm, vif);
 	}
 
 	iwl_mvm_mld_mac_ctxt_remove(mvm, vif);
@@ -141,7 +211,6 @@ static void iwl_mvm_mld_mac_remove_interface(struct ieee80211_hw *hw,
 		__clear_bit(IEEE80211_HW_RX_INCLUDES_FCS, mvm->hw->flags);
 	}
 
-out:
 	mutex_unlock(&mvm->mutex);
 }
 
@@ -150,28 +219,30 @@ static int __iwl_mvm_mld_assign_vif_chanctx(struct iwl_mvm *mvm,
 					    struct ieee80211_chanctx_conf *ctx,
 					    bool switching_chanctx)
 {
+	u16 *phy_ctxt_id = (u16 *)ctx->drv_priv;
+	struct iwl_mvm_phy_ctxt *phy_ctxt = &mvm->phy_ctxts[*phy_ctxt_id];
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	int ret;
 
-	if (__iwl_mvm_assign_vif_chanctx_common(mvm, vif, ctx,
-						switching_chanctx, &ret))
-		goto out;
+	mvmvif->deflink.phy_ctxt = phy_ctxt;
 
-	if (!switching_chanctx) {
-		ret = iwl_mvm_add_link(mvm, vif);
-		if (ret)
-			goto out;
-	} else {
-		ret = iwl_mvm_link_changed(mvm, vif, 0, false);
-		if (ret)
-			goto out_remove_link;
+	if (switching_chanctx) {
+		/* reactivate if we turned this off during channel switch */
+		if (vif->type == NL80211_IFTYPE_AP)
+			mvmvif->ap_ibss_active = true;
 	}
 
+	/* send it first with phy context ID */
+	ret = iwl_mvm_link_changed(mvm, vif, 0, false);
+	if (ret)
+		goto out;
+
+	/* then activate */
 	ret = iwl_mvm_link_changed(mvm, vif, LINK_CONTEXT_MODIFY_ACTIVE |
 				   LINK_CONTEXT_MODIFY_RATES_INFO,
 				   true);
 	if (ret)
-		goto out_remove_link;
+		goto out;
 
 	/*
 	 * Power state must be updated before quotas,
@@ -182,19 +253,16 @@ static int __iwl_mvm_mld_assign_vif_chanctx(struct iwl_mvm *mvm,
 	if (vif->type == NL80211_IFTYPE_MONITOR) {
 		ret = iwl_mvm_mld_add_snif_sta(mvm, vif);
 		if (ret)
-			goto out_remove_link;
+			goto deactivate;
 	}
 
-	goto out;
+	return 0;
 
-out_remove_link:
-	/* Link needs to be deactivated before removal */
+deactivate:
 	iwl_mvm_link_changed(mvm, vif, LINK_CONTEXT_MODIFY_ACTIVE, false);
-	iwl_mvm_remove_link(mvm, vif);
-	iwl_mvm_power_update_mac(mvm);
 out:
-	if (ret)
-		mvmvif->deflink.phy_ctxt = NULL;
+	mvmvif->deflink.phy_ctxt = NULL;
+	iwl_mvm_power_update_mac(mvm);
 	return ret;
 }
 
@@ -220,16 +288,23 @@ static void __iwl_mvm_mld_unassign_vif_chanctx(struct iwl_mvm *mvm,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	if (__iwl_mvm_unassign_vif_chanctx_common(mvm, vif, switching_chanctx))
-		goto out;
+	if (vif->type == NL80211_IFTYPE_AP && switching_chanctx) {
+		mvmvif->csa_countdown = false;
+
+		/* Set CS bit on all the stations */
+		iwl_mvm_modify_all_sta_disable_tx(mvm, mvmvif, true);
+
+		/* Save blocked iface, the timeout is set on the next beacon */
+		rcu_assign_pointer(mvm->csa_tx_blocked_vif, vif);
+
+		mvmvif->ap_ibss_active = false;
+	}
 
 	if (vif->type == NL80211_IFTYPE_MONITOR)
 		iwl_mvm_mld_rm_snif_sta(mvm, vif);
 
 	iwl_mvm_link_changed(mvm, vif, LINK_CONTEXT_MODIFY_ACTIVE, false);
-	if (!switching_chanctx)
-		iwl_mvm_remove_link(mvm, vif);
-out:
+
 	if (switching_chanctx)
 		return;
 	mvmvif->deflink.phy_ctxt = NULL;
@@ -257,32 +332,19 @@ static int iwl_mvm_mld_start_ap_ibss(struct ieee80211_hw *hw,
 	int ret;
 
 	mutex_lock(&mvm->mutex);
-
-	/* No need to re-calculate the tsf_is, as it was offloaded */
-
-	/* Add the mac context */
-	ret = iwl_mvm_mld_mac_ctxt_add(mvm, vif);
-	if (ret)
-		goto out_unlock;
-
 	/* Send the beacon template */
 	ret = iwl_mvm_mac_ctxt_beacon_changed(mvm, vif, link_conf);
 	if (ret)
 		goto out_unlock;
 
-	/* Add link and activate it */
-	ret = iwl_mvm_add_link(mvm, vif);
-	if (ret)
-		goto out_remove_mac;
-
 	ret = iwl_mvm_link_changed(mvm, vif, LINK_CONTEXT_MODIFY_ALL,
 				   true);
 	if (ret)
-		goto out_remove_link;
+		goto out_unlock;
 
 	ret = iwl_mvm_mld_add_mcast_sta(mvm, vif);
 	if (ret)
-		goto out_remove_link;
+		goto out_unlock;
 
 	/* Send the bcast station. At this stage the TBTT and DTIM time
 	 * events are added and applied to the scheduler
@@ -314,12 +376,6 @@ out_failed:
 	iwl_mvm_mld_rm_bcast_sta(mvm, vif);
 out_rm_mcast:
 	iwl_mvm_mld_rm_mcast_sta(mvm, vif);
-out_remove_link:
-	/* Link needs to be deactivated before removal */
-	iwl_mvm_link_changed(mvm, vif, LINK_CONTEXT_MODIFY_ACTIVE, false);
-	iwl_mvm_remove_link(mvm, vif);
-out_remove_mac:
-	iwl_mvm_mld_mac_ctxt_remove(mvm, vif);
 out_unlock:
 	mutex_unlock(&mvm->mutex);
 	return ret;
@@ -357,14 +413,7 @@ static void iwl_mvm_mld_stop_ap_ibss(struct ieee80211_hw *hw,
 	iwl_mvm_mld_rm_bcast_sta(mvm, vif);
 	iwl_mvm_mld_rm_mcast_sta(mvm, vif);
 
-	/* Link needs to be deactivated before removal */
-	iwl_mvm_link_changed(mvm, vif, LINK_CONTEXT_MODIFY_ACTIVE, false);
-	iwl_mvm_remove_link(mvm, vif);
-
 	iwl_mvm_power_update_mac(mvm);
-
-	iwl_mvm_mld_mac_ctxt_remove(mvm, vif);
-
 	mutex_unlock(&mvm->mutex);
 }
 

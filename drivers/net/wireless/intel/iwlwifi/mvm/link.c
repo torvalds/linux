@@ -23,10 +23,8 @@ static int iwl_mvm_link_cmd_send(struct iwl_mvm *mvm,
 int iwl_mvm_add_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_phy_ctxt *phyctxt = mvmvif->deflink.phy_ctxt;
 	struct iwl_link_config_cmd cmd = {};
-
-	if (WARN_ON_ONCE(!mvmvif->deflink.phy_ctxt))
-		return -EINVAL;
 
 	/* Update SF - Disable if needed. if this fails, SF might still be on
 	 * while many macs are bound, which is forbidden - so fail the binding.
@@ -36,7 +34,11 @@ int iwl_mvm_add_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	cmd.link_id = cpu_to_le32(mvmvif->id);
 	cmd.mac_id = cpu_to_le32(mvmvif->id);
-	cmd.phy_id = cpu_to_le32(mvmvif->deflink.phy_ctxt->id);
+	/* P2P-Device already has a valid PHY context during add */
+	if (phyctxt)
+		cmd.phy_id = cpu_to_le32(phyctxt->id);
+	else
+		cmd.phy_id = cpu_to_le32(FW_CTXT_INVALID);
 
 	memcpy(cmd.local_link_addr, vif->addr, ETH_ALEN);
 
@@ -54,15 +56,15 @@ int iwl_mvm_link_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	struct iwl_link_config_cmd cmd = {};
 	u32 ht_flag, flags = 0, flags_mask = 0;
 
-	if (!phyctxt)
-		return -EINVAL;
-
 	cmd.link_id = cpu_to_le32(mvmvif->id);
 
 	/* The phy_id, link address and listen_lmac can be modified only until
 	 * the link becomes active, otherwise they will be ignored.
 	 */
-	cmd.phy_id = cpu_to_le32(phyctxt->id);
+	if (phyctxt)
+		cmd.phy_id = cpu_to_le32(phyctxt->id);
+	else
+		cmd.phy_id = cpu_to_le32(FW_CTXT_INVALID);
 	cmd.mac_id = cpu_to_le32(mvmvif->id);
 
 	memcpy(cmd.local_link_addr, vif->addr, ETH_ALEN);
@@ -156,9 +158,6 @@ int iwl_mvm_remove_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_link_config_cmd cmd = {};
 	int ret;
-
-	if (WARN_ON_ONCE(!mvmvif->deflink.phy_ctxt))
-		return -EINVAL;
 
 	cmd.link_id = cpu_to_le32(mvmvif->id);
 	ret = iwl_mvm_link_cmd_send(mvm, &cmd, FW_CTXT_ACTION_REMOVE);

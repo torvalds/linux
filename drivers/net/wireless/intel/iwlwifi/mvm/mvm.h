@@ -1718,11 +1718,8 @@ u8 iwl_mvm_get_ctrl_pos(struct cfg80211_chan_def *chandef);
 
 /* MAC (virtual interface) programming */
 
-bool iwl_mvm_mac_add_interface_common(struct iwl_mvm *mvm,
-				      struct ieee80211_hw *hw,
-				      struct ieee80211_vif *vif, int *ret);
-bool iwl_mvm_mac_remove_interface_common(struct ieee80211_hw *hw,
-					 struct ieee80211_vif *vif);
+void iwl_mvm_prepare_mac_removal(struct iwl_mvm *mvm,
+				 struct ieee80211_vif *vif);
 void iwl_mvm_set_fw_basic_rates(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 				__le32 *cck_rates, __le32 *ofdm_rates);
 void iwl_mvm_set_fw_protection_flags(struct iwl_mvm *mvm,
