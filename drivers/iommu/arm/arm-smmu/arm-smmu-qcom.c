@@ -859,6 +859,7 @@ struct qtb500_device {
 	struct qsmmuv500_tbu_device tbu;
 	bool no_halt;
 	u32 num_ports;
+	void __iomem			*debugchain_base;
 };
 
 #define to_qtb500(tbu)		container_of(tbu, struct qtb500_device, tbu)
@@ -1283,6 +1284,10 @@ static struct qsmmuv500_tbu_device *qtb500_impl_init(struct qsmmuv500_tbu_device
 {
 	struct qtb500_device *qtb;
 	struct device *dev = tbu->dev;
+#ifdef CONFIG_ARM_SMMU_TESTBUS
+	struct resource *res;
+	struct platform_device *pdev = to_platform_device(dev);
+#endif
 	int ret;
 
 	qtb = devm_krealloc(dev, tbu, sizeof(*qtb), GFP_KERNEL);
@@ -1297,6 +1302,31 @@ static struct qsmmuv500_tbu_device *qtb500_impl_init(struct qsmmuv500_tbu_device
 
 	qtb->no_halt = of_property_read_bool(dev->of_node, "qcom,no-qtb-atos-halt");
 
+#ifdef CONFIG_ARM_SMMU_TESTBUS
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "debugchain-base");
+	if (!res) {
+		dev_info(dev, "Unable to get the debugchain-base\n");
+		return ERR_PTR(-EINVAL);
+		goto end;
+	}
+
+	qtb->debugchain_base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(qtb->debugchain_base)) {
+		dev_info(dev, "devm_ioremap failure, overlapping regs\n");
+
+		/*
+		 * use ioremap for qtb's sharing same debug chain register space
+		 * for eg : sf and hf qtb's on mmnoc.
+		 */
+		qtb->debugchain_base = ioremap(res->start, resource_size(res));
+		if (IS_ERR(qtb->debugchain_base)) {
+			dev_err(dev, "unable to ioremap the debugchain-base\n");
+			return ERR_PTR(-EINVAL);
+		}
+	}
+
+end:
+#endif
 	return &qtb->tbu;
 }
 
@@ -1420,6 +1450,47 @@ __maybe_unused static struct dentry *get_iommu_debug_dir(void)
 
 #ifdef CONFIG_ARM_SMMU_TESTBUS_DEBUGFS
 static struct dentry *debugfs_testbus_dir;
+
+static ssize_t arm_smmu_debug_debugchain_read(struct file *file,
+		char __user *ubuf, size_t count, loff_t *offset)
+
+{
+	char *buf;
+	ssize_t retval;
+	size_t buflen;
+	int buf_len;
+	struct qsmmuv500_tbu_device *tbu = file->private_data;
+	struct qtb500_device *qtb = to_qtb500(tbu);
+	void __iomem *debugchain_base = qtb->debugchain_base;
+	long chain_length = 0;
+	u64 val;
+
+	if (*offset)
+		return 0;
+
+	arm_smmu_power_on(tbu->pwr);
+	chain_length = arm_smmu_debug_qtb_debugchain_load(debugchain_base);
+	buf_len = chain_length * sizeof(u64);
+	buf = kzalloc(buf_len, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+	arm_smmu_debug_qtb_debugchain_dump(debugchain_base);
+	do {
+		val = arm_smmu_debug_qtb_debugchain_dump(debugchain_base);
+		scnprintf(buf + strlen(buf), buf_len - strlen(buf), "0x%0x\n", val);
+	} while (chain_length--);
+	arm_smmu_power_off(tbu->smmu, tbu->pwr);
+
+	buflen = min(count, strlen(buf));
+	if (copy_to_user(ubuf, buf, buflen)) {
+		pr_err_ratelimited("Couldn't copy_to_user\n");
+		retval = -EFAULT;
+	} else {
+		*offset = 1;
+		retval = buflen;
+	}
+	return retval;
+}
 
 static ssize_t arm_smmu_debug_testbus_read(struct file *file,
 		char __user *ubuf, size_t count, loff_t *offset,
@@ -1630,6 +1701,9 @@ static ssize_t arm_smmu_debug_tbu_testbus_sel_write(struct file *file,
 		return -EINVAL;
 	}
 
+	if (of_device_is_compatible(tbu->dev->of_node, "qcom,qtb500"))
+		return 0;
+
 	arm_smmu_power_on(tbu->pwr);
 	arm_smmu_debug_tbu_testbus_select(tbu_base, WRITE, val);
 	arm_smmu_power_off(tbu->smmu, tbu->pwr);
@@ -1653,7 +1727,13 @@ static const struct file_operations arm_smmu_debug_tbu_testbus_sel_fops = {
 static ssize_t arm_smmu_debug_tbu_testbus_read(struct file *file,
 		char __user *ubuf, size_t count, loff_t *offset)
 {
-	return arm_smmu_debug_testbus_read(file, ubuf,
+	struct qsmmuv500_tbu_device *tbu = file->private_data;
+
+	if (of_device_is_compatible(tbu->dev->of_node, "qcom,qtb500"))
+		return arm_smmu_debug_debugchain_read(file, ubuf,
+				count, offset);
+	else
+		return arm_smmu_debug_testbus_read(file, ubuf,
 			count, offset, SEL_TBU, TESTBUS_OUTPUT);
 }
 
@@ -1731,15 +1811,23 @@ static void arm_smmu_testbus_dump(struct arm_smmu_device *smmu, u16 sid)
 
 		tbu = qsmmuv500_find_tbu(smmu, sid);
 		spin_lock(&testbus_lock);
-		if (tbu)
-			arm_smmu_debug_dump_tbu_testbus(tbu->dev,
+		if (tbu) {
+			if (of_device_is_compatible(tbu->dev->of_node, "qcom,qtb500")) {
+				struct qtb500_device *qtb = to_qtb500(tbu);
+
+				arm_smmu_debug_dump_debugchain(tbu->dev,
+							qtb->debugchain_base);
+			} else {
+				arm_smmu_debug_dump_tbu_testbus(tbu->dev,
 							tbu->base,
 							TBU_TESTBUS_SEL_ALL);
-		else
+			}
+		} else {
 			arm_smmu_debug_dump_tcu_testbus(smmu->dev,
 							smmu->phys_addr,
 							data->tcu_base,
 							TCU_TESTBUS_SEL_ALL);
+		}
 		spin_unlock(&testbus_lock);
 	}
 }

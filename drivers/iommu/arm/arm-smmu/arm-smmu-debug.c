@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -10,6 +11,40 @@
 #include "arm-smmu-debug.h"
 #include <linux/qcom_scm.h>
 
+u32 arm_smmu_debug_qtb_debugchain_load(void __iomem *debugchain_base)
+{
+	u32 shiftreglen = 0;
+
+	/* Reading the debugchain_load register will start the debugchain sequence */
+	readl_relaxed(debugchain_base + DebugChainQTB_debug_Load);
+	shiftreglen = readl_relaxed(debugchain_base + DebugChainQTB_debug_ShiftRegLen);
+	return (((shiftreglen * 2)/64 + ((shiftreglen * 2)%64 == 0 ? 0 : 1) + 1));
+}
+
+u64 arm_smmu_debug_qtb_debugchain_dump(void __iomem *debugchain_base)
+{
+	u64 dump;
+
+	dump = readl_relaxed(debugchain_base + DebugChainQTB_debug_Dump_Low);
+	dump = (dump | (readl_relaxed(debugchain_base + DebugChainQTB_debug_Dump_High) << 31));
+
+	return dump;
+}
+
+void arm_smmu_debug_dump_debugchain(struct device *dev, void __iomem *debugchain_base)
+{
+	long chain_length = 0, index = 0;
+	u64 val;
+
+	chain_length = arm_smmu_debug_qtb_debugchain_load(debugchain_base);
+	dev_info(dev, "Dumping Debug chain: Length : %d\n", chain_length);
+	/* First read is to dump away the 0xDEADBEEF value */
+	arm_smmu_debug_qtb_debugchain_dump(debugchain_base);
+	do {
+		val = arm_smmu_debug_qtb_debugchain_dump(debugchain_base);
+		dev_info(dev, "Debug chain: Index :%ld, val : 0x%lx\n", index++, val);
+	} while (chain_length--);
+}
 
 u32 arm_smmu_debug_tbu_testbus_select(void __iomem *tbu_base,
 				bool write, u32 val)
