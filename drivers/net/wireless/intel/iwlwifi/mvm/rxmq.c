@@ -979,9 +979,10 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 		return false;
 	}
 
-	if (WARN(tid != baid_data->tid || mvm_sta->sta_id != baid_data->sta_id,
+	if (WARN(tid != baid_data->tid ||
+		 mvm_sta->deflink.sta_id != baid_data->sta_id,
 		 "baid 0x%x is mapped to sta:%d tid:%d, but was received for sta:%d tid:%d\n",
-		 baid, baid_data->sta_id, baid_data->tid, mvm_sta->sta_id,
+		 baid, baid_data->sta_id, baid_data->tid, mvm_sta->deflink.sta_id,
 		 tid))
 		return false;
 

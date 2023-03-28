@@ -22,7 +22,7 @@ static u32 iwl_mvm_get_sec_sta_mask(struct iwl_mvm *mvm,
 	if (sta) {
 		struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
-		return BIT(mvmsta->sta_id);
+		return BIT(mvmsta->deflink.sta_id);
 	}
 
 	if (vif->type == NL80211_IFTYPE_STATION &&

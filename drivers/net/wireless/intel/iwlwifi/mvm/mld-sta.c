@@ -243,7 +243,7 @@ static int iwl_mvm_mld_disable_txq(struct iwl_mvm *mvm,
 			.operation = cpu_to_le32(IWL_SCD_QUEUE_REMOVE),
 			.u.remove.tid = cpu_to_le32(tid),
 			.u.remove.sta_mask =
-				cpu_to_le32(BIT(mvmsta->sta_id)),
+				cpu_to_le32(BIT(mvmsta->deflink.sta_id)),
 		};
 
 		ret = iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0,
@@ -348,7 +348,7 @@ static void iwl_mvm_mld_sta_modify_disable_tx(struct iwl_mvm *mvm,
 
 	mvm_sta->disable_tx = disable;
 
-	cmd.sta_id = cpu_to_le32(mvm_sta->sta_id);
+	cmd.sta_id = cpu_to_le32(mvm_sta->deflink.sta_id);
 	cmd.disable = cpu_to_le32(disable);
 
 	ret = iwl_mvm_send_cmd_pdu(mvm,

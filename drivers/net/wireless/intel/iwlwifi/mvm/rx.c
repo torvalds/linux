@@ -241,7 +241,7 @@ static void iwl_mvm_rx_handle_tcm(struct iwl_mvm *mvm,
 	     !mvmvif->deflink.queue_params[IEEE80211_AC_VI].uapsd &&
 	     !mvmvif->deflink.queue_params[IEEE80211_AC_BE].uapsd &&
 	     !mvmvif->deflink.queue_params[IEEE80211_AC_BK].uapsd) ||
-	    mvmsta->sta_id != mvmvif->deflink.ap_sta_id)
+	    mvmsta->deflink.sta_id != mvmvif->deflink.ap_sta_id)
 		return;
 
 	if (rate_n_flags & RATE_MCS_HT_MSK_V1) {
@@ -712,14 +712,14 @@ static void iwl_mvm_stats_energy_iter(void *_data,
 {
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	u8 *energy = _data;
-	u32 sta_id = mvmsta->sta_id;
+	u32 sta_id = mvmsta->deflink.sta_id;
 
 	if (WARN_ONCE(sta_id >= IWL_MVM_STATION_COUNT_MAX, "sta_id %d >= %d",
 		      sta_id, IWL_MVM_STATION_COUNT_MAX))
 		return;
 
 	if (energy[sta_id])
-		mvmsta->avg_energy = energy[sta_id];
+		mvmsta->deflink.avg_energy = energy[sta_id];
 
 }
 

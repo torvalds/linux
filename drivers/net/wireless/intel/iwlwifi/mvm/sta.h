@@ -331,8 +331,26 @@ struct iwl_mvm_rxq_dup_data {
 } ____cacheline_aligned_in_smp;
 
 /**
+ * struct iwl_mvm_link_sta - link specific parameters of a station
+ * @rcu_head: used for freeing the data
+ * @sta_id: the index of the station in the fw
+ * @lq_sta: holds rate scaling data, either for the case when RS is done in
+ *	the driver - %rs_drv or in the FW - %rs_fw.
+ * @avg_energy: energy as reported by FW statistics notification
+ */
+struct iwl_mvm_link_sta {
+	struct rcu_head rcu_head;
+	u32 sta_id;
+	union {
+		struct iwl_lq_sta_rs_fw rs_fw;
+		struct iwl_lq_sta rs_drv;
+	} lq_sta;
+
+	u8 avg_energy;
+};
+
+/**
  * struct iwl_mvm_sta - representation of a station in the driver
- * @sta_id: the index of the station in the fw (will be replaced by id_n_color)
  * @tfd_queue_msk: the tfd queues used by the station
  * @mac_id_n_color: the MAC context this station is linked to
  * @tid_disable_agg: bitmap: if bit(tid) is set, the fw won't send ampdus for
@@ -347,8 +365,6 @@ struct iwl_mvm_rxq_dup_data {
  * and from Tx response flow, it needs a spinlock.
  * @tid_data: per tid data + mgmt. Look at %iwl_mvm_tid_data.
  * @tid_to_baid: a simple map of TID to baid
- * @lq_sta: holds rate scaling data, either for the case when RS is done in
- *	the driver - %rs_drv or in the FW - %rs_fw.
  * @reserved_queue: the queue reserved for this STA for DQA purposes
  *	Every STA has is given one reserved queue to allow it to operate. If no
  *	such queue can be guaranteed, the STA addition will fail.
@@ -374,6 +390,12 @@ struct iwl_mvm_rxq_dup_data {
  *	used during connection establishment (e.g. for the 4 way handshake
  *	exchange).
  * @pairwise_cipher: used to feed iwlmei upon authorization
+ * @deflink: the default link station, for non-MLO STA, all link specific data
+ *	is accessed via deflink (or link[0]). For MLO, it will hold data of the
+ *	first added link STA.
+ * @link: per link sta entries. For non-MLO only link[0] holds data. For MLO,
+ *	link[0] points to deflink and link[link_id] is allocated when new link
+ *	sta is added.
  *
  * When mac80211 creates a station it reserves some space (hw->sta_data_size)
  * in the structure for use by driver. This structure is placed in that
@@ -381,7 +403,6 @@ struct iwl_mvm_rxq_dup_data {
  *
  */
 struct iwl_mvm_sta {
-	u32 sta_id;
 	u32 tfd_queue_msk;
 	u32 mac_id_n_color;
 	u16 tid_disable_agg;
@@ -393,10 +414,6 @@ struct iwl_mvm_sta {
 	spinlock_t lock;
 	struct iwl_mvm_tid_data tid_data[IWL_MAX_TID_COUNT + 1];
 	u8 tid_to_baid[IWL_MAX_TID_COUNT];
-	union {
-		struct iwl_lq_sta_rs_fw rs_fw;
-		struct iwl_lq_sta rs_drv;
-	} lq_sta;
 	struct ieee80211_vif *vif;
 	struct iwl_mvm_key_pn __rcu *ptk_pn[4];
 	struct iwl_mvm_rxq_dup_data *dup_data;
@@ -414,9 +431,11 @@ struct iwl_mvm_sta {
 	bool sleeping;
 	u8 agg_tids;
 	u8 sleep_tx_count;
-	u8 avg_energy;
 	u8 tx_ant;
 	u32 pairwise_cipher;
+
+	struct iwl_mvm_link_sta deflink;
+	struct iwl_mvm_link_sta __rcu *link[IEEE80211_MLD_MAX_NUM_LINKS];
 };
 
 u16 iwl_mvm_tid_queued(struct iwl_mvm *mvm, struct iwl_mvm_tid_data *tid_data);

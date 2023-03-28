@@ -376,7 +376,7 @@ static ssize_t iwl_dbgfs_rs_data_read(struct file *file, char __user *user_buf,
 {
 	struct ieee80211_sta *sta = file->private_data;
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
-	struct iwl_lq_sta_rs_fw *lq_sta = &mvmsta->lq_sta.rs_fw;
+	struct iwl_lq_sta_rs_fw *lq_sta = &mvmsta->deflink.lq_sta.rs_fw;
 	struct iwl_mvm *mvm = lq_sta->pers.drv;
 	static const size_t bufsz = 2048;
 	char *buff;

@@ -194,7 +194,7 @@ static int iwl_mvm_bt_coex_reduced_txp(struct iwl_mvm *mvm, u8 sta_id,
 	if (mvmsta->bt_reduced_txpower == enable)
 		return 0;
 
-	value = mvmsta->sta_id;
+	value = mvmsta->deflink.sta_id;
 
 	if (enable)
 		value |= BT_REDUCED_TX_POWER_BIT;

@@ -754,7 +754,7 @@ static int rs_collect_tlc_data(struct iwl_mvm *mvm,
 		return -EINVAL;
 
 	if (tbl->column != RS_COLUMN_INVALID) {
-		struct lq_sta_pers *pers = &mvmsta->lq_sta.rs_drv.pers;
+		struct lq_sta_pers *pers = &mvmsta->deflink.lq_sta.rs_drv.pers;
 
 		pers->tx_stats[tbl->column][scale_index].total += attempts;
 		pers->tx_stats[tbl->column][scale_index].success += successes;
@@ -2599,7 +2599,7 @@ void rs_update_last_rssi(struct iwl_mvm *mvm,
 			 struct iwl_mvm_sta *mvmsta,
 			 struct ieee80211_rx_status *rx_status)
 {
-	struct iwl_lq_sta *lq_sta = &mvmsta->lq_sta.rs_drv;
+	struct iwl_lq_sta *lq_sta = &mvmsta->deflink.lq_sta.rs_drv;
 	int i;
 
 	lq_sta->pers.chains = rx_status->chains;
@@ -2711,7 +2711,7 @@ static void *rs_drv_alloc_sta(void *mvm_rate, struct ieee80211_sta *sta,
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_op_mode *op_mode = (struct iwl_op_mode *)mvm_rate;
 	struct iwl_mvm *mvm  = IWL_OP_MODE_GET_MVM(op_mode);
-	struct iwl_lq_sta *lq_sta = &mvmsta->lq_sta.rs_drv;
+	struct iwl_lq_sta *lq_sta = &mvmsta->deflink.lq_sta.rs_drv;
 
 	IWL_DEBUG_RATE(mvm, "create station rate scale window\n");
 
@@ -2917,18 +2917,18 @@ static void rs_drv_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	struct ieee80211_sta_ht_cap *ht_cap = &sta->deflink.ht_cap;
 	struct ieee80211_sta_vht_cap *vht_cap = &sta->deflink.vht_cap;
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
-	struct iwl_lq_sta *lq_sta = &mvmsta->lq_sta.rs_drv;
+	struct iwl_lq_sta *lq_sta = &mvmsta->deflink.lq_sta.rs_drv;
 	struct ieee80211_supported_band *sband;
 	unsigned long supp; /* must be unsigned long for for_each_set_bit */
 
-	lockdep_assert_held(&mvmsta->lq_sta.rs_drv.pers.lock);
+	lockdep_assert_held(&mvmsta->deflink.lq_sta.rs_drv.pers.lock);
 
 	/* clear all non-persistent lq data */
 	memset(lq_sta, 0, offsetof(typeof(*lq_sta), pers));
 
 	sband = hw->wiphy->bands[band];
 
-	lq_sta->lq.sta_id = mvmsta->sta_id;
+	lq_sta->lq.sta_id = mvmsta->deflink.sta_id;
 	mvmsta->amsdu_enabled = 0;
 	mvmsta->max_amsdu_len = sta->cur->max_amsdu_len;
 
@@ -2940,7 +2940,7 @@ static void rs_drv_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 
 	IWL_DEBUG_RATE(mvm,
 		       "LQ: *** rate scale station global init for station %d ***\n",
-		       mvmsta->sta_id);
+		       mvmsta->deflink.sta_id);
 	/* TODO: what is a good starting rate for STA? About middle? Maybe not
 	 * the lowest or the highest rate.. Could consider using RSSI from
 	 * previous packets? Need to have IEEE 802.1X auth succeed immediately
@@ -3032,7 +3032,7 @@ static void __iwl_mvm_rs_tx_status(struct iwl_mvm *mvm,
 	u8 lq_color = RS_DRV_DATA_LQ_COLOR_GET(tlc_info);
 	u32 tx_resp_hwrate = (uintptr_t)info->status.status_driver_data[1];
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
-	struct iwl_lq_sta *lq_sta = &mvmsta->lq_sta.rs_drv;
+	struct iwl_lq_sta *lq_sta = &mvmsta->deflink.lq_sta.rs_drv;
 
 	if (!lq_sta->pers.drv) {
 		IWL_DEBUG_RATE(mvm, "Rate scaling not initialized yet.\n");
@@ -3256,11 +3256,11 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	/* If it's locked we are in middle of init flow
 	 * just wait for next tx status to update the lq_sta data
 	 */
-	if (!spin_trylock(&mvmsta->lq_sta.rs_drv.pers.lock))
+	if (!spin_trylock(&mvmsta->deflink.lq_sta.rs_drv.pers.lock))
 		return;
 
 	__iwl_mvm_rs_tx_status(mvm, sta, tid, info, ndp);
-	spin_unlock(&mvmsta->lq_sta.rs_drv.pers.lock);
+	spin_unlock(&mvmsta->deflink.lq_sta.rs_drv.pers.lock);
 }
 
 #ifdef CONFIG_MAC80211_DEBUGFS
@@ -3436,7 +3436,7 @@ static void rs_bfer_active_iter(void *_data,
 {
 	struct rs_bfer_active_iter_data *data = _data;
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
-	struct iwl_lq_cmd *lq_cmd = &mvmsta->lq_sta.rs_drv.lq;
+	struct iwl_lq_cmd *lq_cmd = &mvmsta->deflink.lq_sta.rs_drv.lq;
 	u32 ss_params = le32_to_cpu(lq_cmd->ss_params);
 
 	if (sta == data->exclude_sta)
@@ -3467,7 +3467,8 @@ static int rs_bfer_priority(struct iwl_mvm_sta *sta)
 		prio = 1;
 		break;
 	default:
-		WARN_ONCE(true, "viftype %d sta_id %d", viftype, sta->sta_id);
+		WARN_ONCE(true, "viftype %d sta_id %d", viftype,
+			  sta->deflink.sta_id);
 		prio = -1;
 	}
 
@@ -3544,12 +3545,12 @@ static void rs_set_lq_ss_params(struct iwl_mvm *mvm,
 	}
 
 	IWL_DEBUG_RATE(mvm, "Found existing sta %d with BFER activated\n",
-		       bfer_mvmsta->sta_id);
+		       bfer_mvmsta->deflink.sta_id);
 
 	/* Disallow BFER on another STA if active and we're a higher priority */
 	if (rs_bfer_priority_cmp(mvmsta, bfer_mvmsta) > 0) {
 		struct iwl_lq_cmd *bfersta_lq_cmd =
-			&bfer_mvmsta->lq_sta.rs_drv.lq;
+			&bfer_mvmsta->deflink.lq_sta.rs_drv.lq;
 		u32 bfersta_ss_params = le32_to_cpu(bfersta_lq_cmd->ss_params);
 
 		bfersta_ss_params &= ~LQ_SS_BFER_ALLOWED;
@@ -3559,7 +3560,7 @@ static void rs_set_lq_ss_params(struct iwl_mvm *mvm,
 		ss_params |= LQ_SS_BFER_ALLOWED;
 		IWL_DEBUG_RATE(mvm,
 			       "Lower priority BFER sta found (%d). Switch BFER\n",
-			       bfer_mvmsta->sta_id);
+			       bfer_mvmsta->deflink.sta_id);
 	}
 out:
 	lq_cmd->ss_params = cpu_to_le32(ss_params);
@@ -3744,7 +3745,7 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 
 	struct iwl_lq_sta *lq_sta = file->private_data;
 	struct iwl_mvm_sta *mvmsta =
-		container_of(lq_sta, struct iwl_mvm_sta, lq_sta.rs_drv);
+		container_of(lq_sta, struct iwl_mvm_sta, deflink.lq_sta.rs_drv);
 	struct iwl_mvm *mvm;
 	struct iwl_scale_tbl_info *tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
 	struct rs_rate *rate = &tbl->rate;
@@ -4045,7 +4046,8 @@ static void rs_drv_add_sta_debugfs(void *mvm, void *priv_sta,
 	struct iwl_lq_sta *lq_sta = priv_sta;
 	struct iwl_mvm_sta *mvmsta;
 
-	mvmsta = container_of(lq_sta, struct iwl_mvm_sta, lq_sta.rs_drv);
+	mvmsta = container_of(lq_sta, struct iwl_mvm_sta,
+			      deflink.lq_sta.rs_drv);
 
 	if (!mvmsta->vif)
 		return;
@@ -4102,9 +4104,9 @@ void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	} else {
 		struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
-		spin_lock(&mvmsta->lq_sta.rs_drv.pers.lock);
+		spin_lock(&mvmsta->deflink.lq_sta.rs_drv.pers.lock);
 		rs_drv_rate_init(mvm, sta, band);
-		spin_unlock(&mvmsta->lq_sta.rs_drv.pers.lock);
+		spin_unlock(&mvmsta->deflink.lq_sta.rs_drv.pers.lock);
 	}
 }
 
@@ -4121,7 +4123,7 @@ void iwl_mvm_rate_control_unregister(void)
 static int rs_drv_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 				bool enable)
 {
-	struct iwl_lq_cmd *lq = &mvmsta->lq_sta.rs_drv.lq;
+	struct iwl_lq_cmd *lq = &mvmsta->deflink.lq_sta.rs_drv.lq;
 
 	lockdep_assert_held(&mvm->mutex);
 
