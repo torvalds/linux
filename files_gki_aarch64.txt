@@ -4829,6 +4829,7 @@ kernel/bpf/reuseport_array.c
 kernel/bpf/ringbuf.c
 kernel/bpf/stackmap.c
 kernel/bpf/syscall.c
+kernel/bpf/sysfs_btf.c
 kernel/bpf/task_iter.c
 kernel/bpf/tnum.c
 kernel/bpf/trampoline.c
@@ -5930,6 +5931,7 @@ net/netfilter/core.c
 net/netfilter/nf_conncount.c
 net/netfilter/nf_conntrack_acct.c
 net/netfilter/nf_conntrack_amanda.c
+net/netfilter/nf_conntrack_bpf.c
 net/netfilter/nf_conntrack_broadcast.c
 net/netfilter/nf_conntrack_core.c
 net/netfilter/nf_conntrack_ecache.c
@@ -5960,6 +5962,7 @@ net/netfilter/nf_conntrack_tftp.c
 net/netfilter/nf_internals.h
 net/netfilter/nf_log.c
 net/netfilter/nf_nat_amanda.c
+net/netfilter/nf_nat_bpf.c
 net/netfilter/nf_nat_core.c
 net/netfilter/nf_nat_ftp.c
 net/netfilter/nf_nat_helper.c
