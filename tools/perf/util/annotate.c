@@ -3217,6 +3217,12 @@ static int annotation__config(const char *var, const char *value, void *data)
 			pr_err("Not enough memory for annotate.objdump\n");
 			return -1;
 		}
+	} else if (!strcmp(var, "annotate.addr2line")) {
+		symbol_conf.addr2line_path = strdup(value);
+		if (!symbol_conf.addr2line_path) {
+			pr_err("Not enough memory for annotate.addr2line\n");
+			return -1;
+		}
 	} else if (!strcmp(var, "annotate.demangle")) {
 		symbol_conf.demangle = perf_config_bool("demangle", value);
 	} else if (!strcmp(var, "annotate.demangle_kernel")) {

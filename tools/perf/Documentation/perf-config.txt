@@ -250,6 +250,9 @@ annotate.*::
 	These are in control of addresses, jump function, source code
 	in lines of assembly code from a specific program.
 
+	annotate.addr2line::
+		addr2line binary to use for file names and line numbers.
+
 	annotate.objdump::
 		objdump binary to use for disassembly and annotations.
 

@@ -1439,7 +1439,7 @@ int cmd_top(int argc, const char **argv)
 	};
 	struct record_opts *opts = &top.record_opts;
 	struct target *target = &opts->target;
-	const char *disassembler_style = NULL, *objdump_path = NULL;
+	const char *disassembler_style = NULL, *objdump_path = NULL, *addr2line_path = NULL;
 	const struct option options[] = {
 	OPT_CALLBACK('e', "event", &top.evlist, "event",
 		     "event selector. use 'perf list' to list available events",
@@ -1527,6 +1527,8 @@ int cmd_top(int argc, const char **argv)
 	OPT_BOOLEAN(0, "no-bpf-event", &top.record_opts.no_bpf_event, "do not record bpf events"),
 	OPT_STRING(0, "objdump", &objdump_path, "path",
 		    "objdump binary to use for disassembly and annotations"),
+	OPT_STRING(0, "addr2line", &addr2line_path, "path",
+		   "addr2line binary to use for line numbers"),
 	OPT_STRING('M', "disassembler-style", &disassembler_style, "disassembler style",
 		   "Specify disassembler style (e.g. -M intel for intel syntax)"),
 	OPT_STRING(0, "prefix", &top.annotation_opts.prefix, "prefix",
@@ -1629,7 +1631,11 @@ int cmd_top(int argc, const char **argv)
 		if (!top.annotation_opts.objdump_path)
 			return -ENOMEM;
 	}
-
+	if (addr2line_path) {
+		symbol_conf.addr2line_path = strdup(addr2line_path);
+		if (!symbol_conf.addr2line_path)
+			return -ENOMEM;
+	}
 
 	status = symbol__validate_sym_arguments();
 	if (status)

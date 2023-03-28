@@ -1226,7 +1226,7 @@ int cmd_report(int argc, const char **argv)
 	};
 	char *sort_order_help = sort_help("sort by key(s):");
 	char *field_order_help = sort_help("output field(s): overhead period sample ");
-	const char *disassembler_style = NULL, *objdump_path = NULL;
+	const char *disassembler_style = NULL, *objdump_path = NULL, *addr2line_path = NULL;
 	const struct option options[] = {
 	OPT_STRING('i', "input", &input_name, "file",
 		    "input file name"),
@@ -1344,6 +1344,8 @@ int cmd_report(int argc, const char **argv)
 		    "add last branch records to call history"),
 	OPT_STRING(0, "objdump", &objdump_path, "path",
 		   "objdump binary to use for disassembly and annotations"),
+	OPT_STRING(0, "addr2line", &addr2line_path, "path",
+		   "addr2line binary to use for line numbers"),
 	OPT_BOOLEAN(0, "demangle", &symbol_conf.demangle,
 		    "Disable symbol demangling"),
 	OPT_BOOLEAN(0, "demangle-kernel", &symbol_conf.demangle_kernel,
@@ -1428,6 +1430,11 @@ int cmd_report(int argc, const char **argv)
 	if (objdump_path) {
 		report.annotation_opts.objdump_path = strdup(objdump_path);
 		if (!report.annotation_opts.objdump_path)
+			return -ENOMEM;
+	}
+	if (addr2line_path) {
+		symbol_conf.addr2line_path = strdup(addr2line_path);
+		if (!symbol_conf.addr2line_path)
 			return -ENOMEM;
 	}
 

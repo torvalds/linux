@@ -381,6 +381,9 @@ OPTIONS
 	This allows to examine the path the program took to each sample.
 	The data collection must have used -b (or -j) and -g.
 
+--addr2line=<path>::
+        Path to addr2line binary.
+
 --objdump=<path>::
         Path to objdump binary.
 

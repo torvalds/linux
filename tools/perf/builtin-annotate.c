@@ -517,7 +517,7 @@ int cmd_annotate(int argc, const char **argv)
 	struct itrace_synth_opts itrace_synth_opts = {
 		.set = 0,
 	};
-	const char *disassembler_style = NULL, *objdump_path = NULL;
+	const char *disassembler_style = NULL, *objdump_path = NULL, *addr2line_path = NULL;
 	struct option options[] = {
 	OPT_STRING('i', "input", &input_name, "file",
 		    "input file name"),
@@ -570,6 +570,8 @@ int cmd_annotate(int argc, const char **argv)
 		    "Strip first N entries of source file path name in programs (with --prefix)"),
 	OPT_STRING(0, "objdump", &objdump_path, "path",
 		   "objdump binary to use for disassembly and annotations"),
+	OPT_STRING(0, "addr2line", &addr2line_path, "path",
+		   "addr2line binary to use for line numbers"),
 	OPT_BOOLEAN(0, "demangle", &symbol_conf.demangle,
 		    "Enable symbol demangling"),
 	OPT_BOOLEAN(0, "demangle-kernel", &symbol_conf.demangle_kernel,
@@ -627,6 +629,11 @@ int cmd_annotate(int argc, const char **argv)
 	if (objdump_path) {
 		annotate.opts.objdump_path = strdup(objdump_path);
 		if (!annotate.opts.objdump_path)
+			return -ENOMEM;
+	}
+	if (addr2line_path) {
+		symbol_conf.addr2line_path = strdup(addr2line_path);
+		if (!symbol_conf.addr2line_path)
 			return -ENOMEM;
 	}
 

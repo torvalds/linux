@@ -161,6 +161,12 @@ Default is to monitor all CPUS.
 -M::
 --disassembler-style=:: Set disassembler style for objdump.
 
+--addr2line=<path>::
+        Path to addr2line binary.
+
+--objdump=<path>::
+        Path to objdump binary.
+
 --prefix=PREFIX::
 --prefix-strip=N::
         Remove first N entries from source file path names in executables

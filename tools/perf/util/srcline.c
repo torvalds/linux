@@ -414,9 +414,14 @@ static void addr2line_subprocess_cleanup(struct a2l_subprocess *a2l)
 	free(a2l);
 }
 
-static struct a2l_subprocess *addr2line_subprocess_init(const char *path)
+static struct a2l_subprocess *addr2line_subprocess_init(const char *addr2line_path,
+							const char *binary_path)
 {
-	const char *argv[] = { "addr2line", "-e", path, "-i", "-f", NULL };
+	const char *argv[] = {
+		addr2line_path ?: "addr2line",
+		"-e", binary_path,
+		"-i", "-f", NULL
+	};
 	struct a2l_subprocess *a2l = zalloc(sizeof(*a2l));
 	int start_command_status = 0;
 
@@ -436,21 +441,22 @@ static struct a2l_subprocess *addr2line_subprocess_init(const char *path)
 	a2l->addr2line.argv = NULL; /* it's not used after start_command; avoid dangling pointers */
 
 	if (start_command_status != 0) {
-		pr_warning("could not start addr2line for %s: start_command return code %d\n",
-			   path,
-			   start_command_status);
+		pr_warning("could not start addr2line (%s) for %s: start_command return code %d\n",
+			addr2line_path, binary_path, start_command_status);
 		goto out;
 	}
 
 	a2l->to_child = fdopen(a2l->addr2line.in, "w");
 	if (a2l->to_child == NULL) {
-		pr_warning("could not open write-stream to addr2line of %s\n", path);
+		pr_warning("could not open write-stream to addr2line (%s) of %s\n",
+			addr2line_path, binary_path);
 		goto out;
 	}
 
 	a2l->from_child = fdopen(a2l->addr2line.out, "r");
 	if (a2l->from_child == NULL) {
-		pr_warning("could not open read-stream from addr2line of %s\n", path);
+		pr_warning("could not open read-stream from addr2line (%s) of %s\n",
+			addr2line_path, binary_path);
 		goto out;
 	}
 
@@ -490,7 +496,6 @@ static int read_addr2line_record(struct a2l_subprocess *a2l,
 
 	if (getline(&line, &line_len, a2l->from_child) < 0 || !line_len)
 		goto error;
-
 	if (function != NULL)
 		*function = strdup(strim(line));
 
@@ -553,7 +558,8 @@ static int addr2line(const char *dso_name, u64 addr,
 		if (!filename__has_section(dso_name, ".debug_line"))
 			goto out;
 
-		dso->a2l = addr2line_subprocess_init(dso_name);
+		dso->a2l = addr2line_subprocess_init(symbol_conf.addr2line_path,
+						     dso_name);
 		a2l = dso->a2l;
 	}
 
