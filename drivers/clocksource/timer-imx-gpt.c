@@ -93,13 +93,11 @@ static void imx1_gpt_irq_disable(struct imx_timer *imxtm)
 	tmp = readl_relaxed(imxtm->base + MXC_TCTL);
 	writel_relaxed(tmp & ~MX1_2_TCTL_IRQEN, imxtm->base + MXC_TCTL);
 }
-#define imx21_gpt_irq_disable imx1_gpt_irq_disable
 
 static void imx31_gpt_irq_disable(struct imx_timer *imxtm)
 {
 	writel_relaxed(0, imxtm->base + V2_IR);
 }
-#define imx6dl_gpt_irq_disable imx31_gpt_irq_disable
 
 static void imx1_gpt_irq_enable(struct imx_timer *imxtm)
 {
@@ -108,13 +106,11 @@ static void imx1_gpt_irq_enable(struct imx_timer *imxtm)
 	tmp = readl_relaxed(imxtm->base + MXC_TCTL);
 	writel_relaxed(tmp | MX1_2_TCTL_IRQEN, imxtm->base + MXC_TCTL);
 }
-#define imx21_gpt_irq_enable imx1_gpt_irq_enable
 
 static void imx31_gpt_irq_enable(struct imx_timer *imxtm)
 {
 	writel_relaxed(1<<0, imxtm->base + V2_IR);
 }
-#define imx6dl_gpt_irq_enable imx31_gpt_irq_enable
 
 static void imx1_gpt_irq_acknowledge(struct imx_timer *imxtm)
 {
@@ -131,7 +127,6 @@ static void imx31_gpt_irq_acknowledge(struct imx_timer *imxtm)
 {
 	writel_relaxed(V2_TSTAT_OF1, imxtm->base + V2_TSTAT);
 }
-#define imx6dl_gpt_irq_acknowledge imx31_gpt_irq_acknowledge
 
 static void __iomem *sched_clock_reg;
 
@@ -296,7 +291,6 @@ static void imx1_gpt_setup_tctl(struct imx_timer *imxtm)
 	tctl_val = MX1_2_TCTL_FRR | MX1_2_TCTL_CLK_PCLK1 | MXC_TCTL_TEN;
 	writel_relaxed(tctl_val, imxtm->base + MXC_TCTL);
 }
-#define imx21_gpt_setup_tctl imx1_gpt_setup_tctl
 
 static void imx31_gpt_setup_tctl(struct imx_timer *imxtm)
 {
@@ -343,10 +337,10 @@ static const struct imx_gpt_data imx21_gpt_data = {
 	.reg_tstat = MX1_2_TSTAT,
 	.reg_tcn = MX1_2_TCN,
 	.reg_tcmp = MX1_2_TCMP,
-	.gpt_irq_enable = imx21_gpt_irq_enable,
-	.gpt_irq_disable = imx21_gpt_irq_disable,
+	.gpt_irq_enable = imx1_gpt_irq_enable,
+	.gpt_irq_disable = imx1_gpt_irq_disable,
 	.gpt_irq_acknowledge = imx21_gpt_irq_acknowledge,
-	.gpt_setup_tctl = imx21_gpt_setup_tctl,
+	.gpt_setup_tctl = imx1_gpt_setup_tctl,
 	.set_next_event = mx1_2_set_next_event,
 };
 
@@ -365,9 +359,9 @@ static const struct imx_gpt_data imx6dl_gpt_data = {
 	.reg_tstat = V2_TSTAT,
 	.reg_tcn = V2_TCN,
 	.reg_tcmp = V2_TCMP,
-	.gpt_irq_enable = imx6dl_gpt_irq_enable,
-	.gpt_irq_disable = imx6dl_gpt_irq_disable,
-	.gpt_irq_acknowledge = imx6dl_gpt_irq_acknowledge,
+	.gpt_irq_enable = imx31_gpt_irq_enable,
+	.gpt_irq_disable = imx31_gpt_irq_disable,
+	.gpt_irq_acknowledge = imx31_gpt_irq_acknowledge,
 	.gpt_setup_tctl = imx6dl_gpt_setup_tctl,
 	.set_next_event = v2_set_next_event,
 };
