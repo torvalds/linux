@@ -98,6 +98,10 @@ static void iwl_mvm_fill_sf_command(struct iwl_mvm *mvm,
 				    struct ieee80211_sta *sta)
 {
 	int i, j, watermark;
+	u8 max_rx_nss = 0;
+	bool is_legacy = true;
+	struct ieee80211_link_sta *link_sta;
+	unsigned int link_id;
 
 	sf_cmd->watermark[SF_LONG_DELAY_ON] = cpu_to_le32(SF_W_MARK_SCAN);
 
@@ -106,10 +110,25 @@ static void iwl_mvm_fill_sf_command(struct iwl_mvm *mvm,
 	 * capabilities of the AP station, and choose the watermark accordingly.
 	 */
 	if (sta) {
-		if (sta->deflink.ht_cap.ht_supported ||
-		    sta->deflink.vht_cap.vht_supported ||
-		    sta->deflink.he_cap.has_he) {
-			switch (sta->deflink.rx_nss) {
+		/* find the maximal NSS number among all links (if relevant) */
+		rcu_read_lock();
+		for (link_id = 0; link_id < ARRAY_SIZE(sta->link); link_id++) {
+			link_sta = rcu_dereference(sta->link[link_id]);
+			if (!link_sta)
+				continue;
+
+			if (link_sta->ht_cap.ht_supported ||
+			    link_sta->vht_cap.vht_supported ||
+			    link_sta->eht_cap.has_eht ||
+			    link_sta->he_cap.has_he) {
+				is_legacy = false;
+				max_rx_nss = max(max_rx_nss, link_sta->rx_nss);
+			}
+		}
+		rcu_read_unlock();
+
+		if (!is_legacy) {
+			switch (max_rx_nss) {
 			case 1:
 				watermark = SF_W_MARK_SISO;
 				break;
@@ -151,7 +170,6 @@ static void iwl_mvm_fill_sf_command(struct iwl_mvm *mvm,
 		memcpy(sf_cmd->full_on_timeouts, sf_full_timeout_def,
 		       sizeof(sf_full_timeout_def));
 	}
-
 }
 
 static int iwl_mvm_sf_config(struct iwl_mvm *mvm, u8 sta_id,
@@ -275,5 +293,9 @@ int iwl_mvm_sf_update(struct iwl_mvm *mvm, struct ieee80211_vif *changed_vif,
 		/* If there are multiple active macs - change to SF_UNINIT */
 		new_state = SF_UNINIT;
 	}
+
+	/* For MLO it's ok to use deflink->sta_id as it's needed only to get
+	 * a pointer to mac80211 sta
+	 */
 	return iwl_mvm_sf_config(mvm, sta_id, new_state);
 }
