@@ -3,6 +3,7 @@
  * Copyright (C) 2022 - 2023 Intel Corporation
  */
 #include "mvm.h"
+#include "time-event.h"
 
 static u32 iwl_mvm_get_free_fw_link_id(struct iwl_mvm *mvm,
 				       struct iwl_mvm_vif *mvm_vif)
@@ -107,6 +108,28 @@ int iwl_mvm_link_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (!link_info->active && active &&
 	    mvmvif->fw_active_links_num >= IWL_MVM_FW_MAX_ACTIVE_LINKS_NUM)
 		return -EINVAL;
+
+	if (changes & LINK_CONTEXT_MODIFY_ACTIVE) {
+		/* When activating a link, phy context should be valid;
+		 * when deactivating a link, it also should be valid since
+		 * the link was active before. So, do nothing in this case.
+		 * Since a link is added first with FW_CTXT_INVALID, then we
+		 * can get here in case it's removed before it was activated.
+		 */
+		if (!link_info->phy_ctxt)
+			return 0;
+
+		/* Catch early if driver tries to activate or deactivate a link
+		 * twice.
+		 */
+		WARN_ON_ONCE(active == link_info->active);
+
+		/* When deactivating a link session protection should
+		 * be stopped
+		 */
+		if (!active && vif->type == NL80211_IFTYPE_STATION)
+			iwl_mvm_stop_session_protection(mvm, vif);
+	}
 
 	cmd.link_id = cpu_to_le32(link_info->fw_link_id);
 
@@ -245,6 +268,26 @@ int iwl_mvm_remove_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (!ret)
 		if (iwl_mvm_sf_update(mvm, vif, true))
 			IWL_ERR(mvm, "Failed to update SF state\n");
+
+	return ret;
+}
+
+/* link should be deactivated before removal, so in most cases we need to
+ * perform these two operations together
+ */
+int iwl_mvm_disable_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			 struct ieee80211_bss_conf *link_conf)
+{
+	int ret;
+
+	ret = iwl_mvm_link_changed(mvm, vif, link_conf,
+				   LINK_CONTEXT_MODIFY_ACTIVE, false);
+	if (ret)
+		return ret;
+
+	ret = iwl_mvm_remove_link(mvm, vif, link_conf);
+	if (ret)
+		return ret;
 
 	return ret;
 }

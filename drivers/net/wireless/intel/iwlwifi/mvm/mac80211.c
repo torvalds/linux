@@ -983,6 +983,7 @@ static void iwl_mvm_cleanup_iterator(void *data, u8 *mac,
 {
 	struct iwl_mvm *mvm = data;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_probe_resp_data *probe_data;
 	unsigned int link_id;
 
 	mvmvif->uploaded = false;
@@ -993,13 +994,19 @@ static void iwl_mvm_cleanup_iterator(void *data, u8 *mac,
 
 	memset(&mvmvif->bf_data, 0, sizeof(mvmvif->bf_data));
 
+	mvmvif->fw_active_links_num = 0;
 	for_each_mvm_vif_valid_link(mvmvif, link_id) {
 		mvmvif->link[link_id]->ap_sta_id = IWL_MVM_INVALID_STA;
 		mvmvif->link[link_id]->fw_link_id = IWL_MVM_FW_LINK_ID_INVALID;
 		mvmvif->link[link_id]->phy_ctxt = NULL;
-		memset(&mvmvif->link[link_id]->probe_resp_data, 0,
-		       sizeof(mvmvif->link[link_id]->probe_resp_data));
+		mvmvif->link[link_id]->active = 0;
 	}
+
+	probe_data = rcu_dereference_protected(mvmvif->deflink.probe_resp_data,
+					       lockdep_is_held(&mvm->mutex));
+	if (probe_data)
+		kfree_rcu(probe_data, rcu_head);
+	RCU_INIT_POINTER(mvmvif->deflink.probe_resp_data, NULL);
 }
 
 static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
@@ -1455,7 +1462,6 @@ static bool iwl_mvm_mac_add_interface_common(struct iwl_mvm *mvm,
 	lockdep_assert_held(&mvm->mutex);
 
 	mvmvif->mvm = mvm;
-	RCU_INIT_POINTER(mvmvif->deflink.probe_resp_data, NULL);
 
 	/* the first link always points to the default one */
 	mvmvif->link[0] = &mvmvif->deflink;

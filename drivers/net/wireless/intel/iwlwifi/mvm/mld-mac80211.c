@@ -14,7 +14,6 @@ static int iwl_mvm_mld_mac_add_interface(struct ieee80211_hw *hw,
 	mutex_lock(&mvm->mutex);
 
 	mvmvif->mvm = mvm;
-	RCU_INIT_POINTER(mvmvif->deflink.probe_resp_data, NULL);
 
 	/* Not much to do here. The stack will not allow interface
 	 * types or combinations that we didn't advertise, so we
@@ -35,8 +34,10 @@ static int iwl_mvm_mld_mac_add_interface(struct ieee80211_hw *hw,
 
 	mvmvif->features |= hw->netdev_features;
 
-	/* the first link always points to the default one */
+	/* reset deflink MLO parameters */
 	mvmvif->deflink.fw_link_id = IWL_MVM_FW_LINK_ID_INVALID;
+	mvmvif->deflink.active = 0;
+	/* the first link always points to the default one */
 	mvmvif->link[0] = &mvmvif->deflink;
 
 	ret = iwl_mvm_mld_mac_ctxt_add(mvm, vif);
@@ -119,10 +120,7 @@ static int iwl_mvm_mld_mac_add_interface(struct ieee80211_hw *hw,
 	goto out_unlock;
 
  out_remove_link:
-	/* Link needs to be deactivated before removal */
-	iwl_mvm_link_changed(mvm, vif, &vif->bss_conf,
-			     LINK_CONTEXT_MODIFY_ACTIVE, false);
-	iwl_mvm_remove_link(mvm, vif, &vif->bss_conf);
+	iwl_mvm_disable_link(mvm, vif, &vif->bss_conf);
  out_unref_phy:
 	iwl_mvm_phy_ctxt_unref(mvm, mvmvif->deflink.phy_ctxt);
  out_free_bf:
@@ -198,14 +196,11 @@ static void iwl_mvm_mld_mac_remove_interface(struct ieee80211_hw *hw,
 
 		/* P2P device uses only one link */
 		iwl_mvm_mld_rm_bcast_sta(mvm, vif, &vif->bss_conf);
-		/* Link needs to be deactivated before removal */
-		iwl_mvm_link_changed(mvm, vif, &vif->bss_conf,
-				     LINK_CONTEXT_MODIFY_ACTIVE, false);
-		iwl_mvm_remove_link(mvm, vif, &vif->bss_conf);
+		iwl_mvm_disable_link(mvm, vif, &vif->bss_conf);
 		iwl_mvm_phy_ctxt_unref(mvm, mvmvif->deflink.phy_ctxt);
 		mvmvif->deflink.phy_ctxt = NULL;
 	} else {
-		iwl_mvm_remove_link(mvm, vif, &vif->bss_conf);
+		iwl_mvm_disable_link(mvm, vif, &vif->bss_conf);
 	}
 
 	iwl_mvm_mld_mac_ctxt_remove(mvm, vif);
@@ -359,7 +354,10 @@ static int iwl_mvm_mld_start_ap_ibss(struct ieee80211_hw *hw,
 	if (ret)
 		goto out_unlock;
 
-	ret = iwl_mvm_link_changed(mvm, vif, link_conf, LINK_CONTEXT_MODIFY_ALL,
+	/* the link should be already activated when assigning chan context */
+	ret = iwl_mvm_link_changed(mvm, vif, link_conf,
+				   LINK_CONTEXT_MODIFY_ALL &
+				   ~LINK_CONTEXT_MODIFY_ACTIVE,
 				   true);
 	if (ret)
 		goto out_unlock;
@@ -839,6 +837,126 @@ static int iwl_mvm_mld_roc(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	return iwl_mvm_roc_common(hw, vif, channel, duration, type, &ops);
 }
+
+static int
+iwl_mvm_mld_change_vif_links(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif,
+			     u16 old_links, u16 new_links,
+			     struct ieee80211_bss_conf *old[IEEE80211_MLD_MAX_NUM_LINKS])
+{
+	struct iwl_mvm_vif_link_info *new_link[IEEE80211_MLD_MAX_NUM_LINKS] = {};
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	u16 removed = old_links & ~new_links;
+	u16 added = new_links & ~old_links;
+	int err, i;
+
+	if (hweight16(new_links) > 2) {
+		return -EOPNOTSUPP;
+	} else if (hweight16(new_links) > 1) {
+		unsigned int n_active = 0;
+
+		for (i = 0; i < IEEE80211_MLD_MAX_NUM_LINKS; i++) {
+			struct ieee80211_bss_conf *link_conf;
+
+			link_conf = link_conf_dereference_protected(vif, i);
+			if (link_conf &&
+			    rcu_access_pointer(link_conf->chanctx_conf))
+				n_active++;
+		}
+
+		if (n_active > 1)
+			return -EOPNOTSUPP;
+	}
+
+	for (i = 0; i < IEEE80211_MLD_MAX_NUM_LINKS; i++) {
+		int r;
+
+		if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
+			break;
+
+		if (!(added & BIT(i)))
+			continue;
+		new_link[i] = kzalloc(sizeof(*new_link[i]), GFP_KERNEL);
+		if (!new_link[i]) {
+			err = -ENOMEM;
+			goto free;
+		}
+
+		new_link[i]->bcast_sta.sta_id = IWL_MVM_INVALID_STA;
+		new_link[i]->mcast_sta.sta_id = IWL_MVM_INVALID_STA;
+		new_link[i]->ap_sta_id = IWL_MVM_INVALID_STA;
+		new_link[i]->fw_link_id = IWL_MVM_FW_LINK_ID_INVALID;
+
+		for (r = 0; r < NUM_IWL_MVM_SMPS_REQ; r++)
+			new_link[i]->smps_requests[r] =
+				IEEE80211_SMPS_AUTOMATIC;
+	}
+
+	mutex_lock(&mvm->mutex);
+
+	if (old_links == 0) {
+		err = iwl_mvm_disable_link(mvm, vif, &vif->bss_conf);
+		if (err)
+			goto out_err;
+		mvmvif->link[0] = NULL;
+	}
+
+	for (i = 0; i < IEEE80211_MLD_MAX_NUM_LINKS; i++) {
+		if (removed & BIT(i)) {
+			struct ieee80211_bss_conf *link_conf = old[i];
+
+			err = iwl_mvm_disable_link(mvm, vif, link_conf);
+			if (err)
+				goto out_err;
+			kfree(mvmvif->link[i]);
+			mvmvif->link[i] = NULL;
+		}
+
+		if (added & BIT(i)) {
+			struct ieee80211_bss_conf *link_conf;
+
+			/* FIXME: allow use of sdata_dereference()? */
+			link_conf = rcu_dereference_protected(vif->link_conf[i],
+							      1);
+			if (WARN_ON(!link_conf))
+				continue;
+
+			if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART,
+				      &mvm->status))
+				mvmvif->link[i] = new_link[i];
+			new_link[i] = NULL;
+			err = iwl_mvm_add_link(mvm, vif, link_conf);
+			if (err)
+				goto out_err;
+		}
+	}
+
+	err = 0;
+	if (new_links == 0) {
+		mvmvif->link[0] = &mvmvif->deflink;
+		err = iwl_mvm_add_link(mvm, vif, &vif->bss_conf);
+	}
+
+out_err:
+	/* we really don't have a good way to roll back here ... */
+	mutex_unlock(&mvm->mutex);
+
+free:
+	for (i = 0; i < IEEE80211_MLD_MAX_NUM_LINKS; i++)
+		kfree(new_link[i]);
+	return err;
+}
+
+static int
+iwl_mvm_mld_change_sta_links(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif,
+			     struct ieee80211_sta *sta,
+			     u16 old_links, u16 new_links)
+{
+	return 0;
+}
+
 const struct ieee80211_ops iwl_mvm_mld_hw_ops = {
 	.tx = iwl_mvm_mac_tx,
 	.wake_tx_queue = iwl_mvm_mac_wake_tx_queue,
@@ -928,4 +1046,7 @@ const struct ieee80211_ops iwl_mvm_mld_hw_ops = {
 	.sta_add_debugfs = iwl_mvm_sta_add_debugfs,
 #endif
 	.set_hw_timestamp = iwl_mvm_set_hw_timestamp,
+
+	.change_vif_links = iwl_mvm_mld_change_vif_links,
+	.change_sta_links = iwl_mvm_mld_change_sta_links,
 };
