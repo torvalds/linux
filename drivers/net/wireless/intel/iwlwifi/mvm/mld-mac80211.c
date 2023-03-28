@@ -220,17 +220,23 @@ static void iwl_mvm_mld_mac_remove_interface(struct ieee80211_hw *hw,
 	mutex_unlock(&mvm->mutex);
 }
 
-static int __iwl_mvm_mld_assign_vif_chanctx(struct iwl_mvm *mvm,
-					    struct ieee80211_vif *vif,
-					    struct ieee80211_chanctx_conf *ctx,
-					    bool switching_chanctx)
+static int
+__iwl_mvm_mld_assign_vif_chanctx(struct iwl_mvm *mvm,
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_bss_conf *link_conf,
+				 struct ieee80211_chanctx_conf *ctx,
+				 bool switching_chanctx)
 {
 	u16 *phy_ctxt_id = (u16 *)ctx->drv_priv;
 	struct iwl_mvm_phy_ctxt *phy_ctxt = &mvm->phy_ctxts[*phy_ctxt_id];
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	unsigned int link_id = link_conf->link_id;
 	int ret;
 
-	mvmvif->deflink.phy_ctxt = phy_ctxt;
+	if (WARN_ON_ONCE(!mvmvif->link[link_id]))
+		return -EINVAL;
+
+	mvmvif->link[link_id]->phy_ctxt = phy_ctxt;
 
 	if (switching_chanctx) {
 		/* reactivate if we turned this off during channel switch */
@@ -239,12 +245,12 @@ static int __iwl_mvm_mld_assign_vif_chanctx(struct iwl_mvm *mvm,
 	}
 
 	/* send it first with phy context ID */
-	ret = iwl_mvm_link_changed(mvm, vif, &vif->bss_conf, 0, false);
+	ret = iwl_mvm_link_changed(mvm, vif, link_conf, 0, false);
 	if (ret)
 		goto out;
 
 	/* then activate */
-	ret = iwl_mvm_link_changed(mvm, vif, &vif->bss_conf,
+	ret = iwl_mvm_link_changed(mvm, vif, link_conf,
 				   LINK_CONTEXT_MODIFY_ACTIVE |
 				   LINK_CONTEXT_MODIFY_RATES_INFO,
 				   true);
@@ -258,8 +264,7 @@ static int __iwl_mvm_mld_assign_vif_chanctx(struct iwl_mvm *mvm,
 	iwl_mvm_power_update_mac(mvm);
 
 	if (vif->type == NL80211_IFTYPE_MONITOR) {
-		ret = iwl_mvm_mld_add_snif_sta(mvm, vif,
-					       &vif->bss_conf);
+		ret = iwl_mvm_mld_add_snif_sta(mvm, vif, link_conf);
 		if (ret)
 			goto deactivate;
 	}
@@ -267,10 +272,10 @@ static int __iwl_mvm_mld_assign_vif_chanctx(struct iwl_mvm *mvm,
 	return 0;
 
 deactivate:
-	iwl_mvm_link_changed(mvm, vif, &vif->bss_conf,
-			     LINK_CONTEXT_MODIFY_ACTIVE, false);
+	iwl_mvm_link_changed(mvm, vif, link_conf, LINK_CONTEXT_MODIFY_ACTIVE,
+			     false);
 out:
-	mvmvif->deflink.phy_ctxt = NULL;
+	mvmvif->link[link_id]->phy_ctxt = NULL;
 	iwl_mvm_power_update_mac(mvm);
 	return ret;
 }
@@ -284,18 +289,25 @@ static int iwl_mvm_mld_assign_vif_chanctx(struct ieee80211_hw *hw,
 	int ret;
 
 	mutex_lock(&mvm->mutex);
-	ret = __iwl_mvm_mld_assign_vif_chanctx(mvm, vif, ctx, false);
+	ret = __iwl_mvm_mld_assign_vif_chanctx(mvm, vif, link_conf, ctx, false);
 	mutex_unlock(&mvm->mutex);
 
 	return ret;
 }
 
-static void __iwl_mvm_mld_unassign_vif_chanctx(struct iwl_mvm *mvm,
-					       struct ieee80211_vif *vif,
-					       struct ieee80211_chanctx_conf *ctx,
-					       bool switching_chanctx)
+static void
+__iwl_mvm_mld_unassign_vif_chanctx(struct iwl_mvm *mvm,
+				   struct ieee80211_vif *vif,
+				   struct ieee80211_bss_conf *link_conf,
+				   struct ieee80211_chanctx_conf *ctx,
+				   bool switching_chanctx)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	unsigned int link_id = link_conf->link_id;
+
+	/* shouldn't happen, but verify link_id is valid before accessing */
+	if (WARN_ON_ONCE(!mvmvif->link[link_id]))
+		return;
 
 	if (vif->type == NL80211_IFTYPE_AP && switching_chanctx) {
 		mvmvif->csa_countdown = false;
@@ -312,12 +324,12 @@ static void __iwl_mvm_mld_unassign_vif_chanctx(struct iwl_mvm *mvm,
 	if (vif->type == NL80211_IFTYPE_MONITOR)
 		iwl_mvm_mld_rm_snif_sta(mvm, vif);
 
-	iwl_mvm_link_changed(mvm, vif, &vif->bss_conf,
+	iwl_mvm_link_changed(mvm, vif, link_conf,
 			     LINK_CONTEXT_MODIFY_ACTIVE, false);
 
 	if (switching_chanctx)
 		return;
-	mvmvif->deflink.phy_ctxt = NULL;
+	mvmvif->link[link_id]->phy_ctxt = NULL;
 	iwl_mvm_power_update_mac(mvm);
 }
 
@@ -329,7 +341,7 @@ static void iwl_mvm_mld_unassign_vif_chanctx(struct ieee80211_hw *hw,
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 
 	mutex_lock(&mvm->mutex);
-	__iwl_mvm_mld_unassign_vif_chanctx(mvm, vif, ctx, false);
+	__iwl_mvm_mld_unassign_vif_chanctx(mvm, vif, link_conf, ctx, false);
 	mutex_unlock(&mvm->mutex);
 }
 

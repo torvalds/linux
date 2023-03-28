@@ -2365,10 +2365,12 @@ int iwl_mvm_post_channel_switch(struct ieee80211_hw *hw,
 struct iwl_mvm_switch_vif_chanctx_ops {
 	int (*__assign_vif_chanctx)(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif,
+				    struct ieee80211_bss_conf *link_conf,
 				    struct ieee80211_chanctx_conf *ctx,
 				    bool switching_chanctx);
 	void (*__unassign_vif_chanctx)(struct iwl_mvm *mvm,
 				       struct ieee80211_vif *vif,
+				       struct ieee80211_bss_conf *link_conf,
 				       struct ieee80211_chanctx_conf *ctx,
 				       bool switching_chanctx);
 };
@@ -2379,14 +2381,6 @@ iwl_mvm_switch_vif_chanctx_common(struct ieee80211_hw *hw,
 				  int n_vifs,
 				  enum ieee80211_chanctx_switch_mode mode,
 				  struct iwl_mvm_switch_vif_chanctx_ops *ops);
-
-bool __iwl_mvm_assign_vif_chanctx_common(struct iwl_mvm *mvm,
-					 struct ieee80211_vif *vif,
-					 struct ieee80211_chanctx_conf *ctx,
-					 bool switching_chanctx, int *ret);
-bool __iwl_mvm_unassign_vif_chanctx_common(struct iwl_mvm *mvm,
-					   struct ieee80211_vif *vif,
-					   bool switching_chanctx);
 
 /* Channel info utils */
 static inline bool iwl_mvm_has_ultra_hb_channel(struct iwl_mvm *mvm)

@@ -4608,10 +4608,11 @@ out_unlock:
  * Returns true if we're done assigning the chanctx
  * (either on failure or success)
  */
-bool __iwl_mvm_assign_vif_chanctx_common(struct iwl_mvm *mvm,
-					 struct ieee80211_vif *vif,
-					 struct ieee80211_chanctx_conf *ctx,
-					 bool switching_chanctx, int *ret)
+static bool
+__iwl_mvm_assign_vif_chanctx_common(struct iwl_mvm *mvm,
+				    struct ieee80211_vif *vif,
+				    struct ieee80211_chanctx_conf *ctx,
+				    bool switching_chanctx, int *ret)
 {
 	u16 *phy_ctxt_id = (u16 *)ctx->drv_priv;
 	struct iwl_mvm_phy_ctxt *phy_ctxt = &mvm->phy_ctxts[*phy_ctxt_id];
@@ -4651,11 +4652,15 @@ bool __iwl_mvm_assign_vif_chanctx_common(struct iwl_mvm *mvm,
 
 static int __iwl_mvm_assign_vif_chanctx(struct iwl_mvm *mvm,
 					struct ieee80211_vif *vif,
+					struct ieee80211_bss_conf *link_conf,
 					struct ieee80211_chanctx_conf *ctx,
 					bool switching_chanctx)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	int ret;
+
+	if (WARN_ON(!link_conf))
+		return -EINVAL;
 
 	if (__iwl_mvm_assign_vif_chanctx_common(mvm, vif, ctx,
 						switching_chanctx, &ret))
@@ -4736,7 +4741,7 @@ static int iwl_mvm_assign_vif_chanctx(struct ieee80211_hw *hw,
 	int ret;
 
 	mutex_lock(&mvm->mutex);
-	ret = __iwl_mvm_assign_vif_chanctx(mvm, vif, ctx, false);
+	ret = __iwl_mvm_assign_vif_chanctx(mvm, vif, link_conf, ctx, false);
 	mutex_unlock(&mvm->mutex);
 
 	return ret;
@@ -4748,9 +4753,9 @@ static int iwl_mvm_assign_vif_chanctx(struct ieee80211_hw *hw,
  * Returns if chanctx unassign chanctx is done
  * (either on failure or success)
  */
-bool __iwl_mvm_unassign_vif_chanctx_common(struct iwl_mvm *mvm,
-					   struct ieee80211_vif *vif,
-					   bool switching_chanctx)
+static bool __iwl_mvm_unassign_vif_chanctx_common(struct iwl_mvm *mvm,
+						  struct ieee80211_vif *vif,
+						  bool switching_chanctx)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
@@ -4788,6 +4793,7 @@ bool __iwl_mvm_unassign_vif_chanctx_common(struct iwl_mvm *mvm,
 
 static void __iwl_mvm_unassign_vif_chanctx(struct iwl_mvm *mvm,
 					   struct ieee80211_vif *vif,
+					   struct ieee80211_bss_conf *link_conf,
 					   struct ieee80211_chanctx_conf *ctx,
 					   bool switching_chanctx)
 {
@@ -4827,7 +4833,7 @@ static void iwl_mvm_unassign_vif_chanctx(struct ieee80211_hw *hw,
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 
 	mutex_lock(&mvm->mutex);
-	__iwl_mvm_unassign_vif_chanctx(mvm, vif, ctx, false);
+	__iwl_mvm_unassign_vif_chanctx(mvm, vif, link_conf, ctx, false);
 	mutex_unlock(&mvm->mutex);
 }
 
@@ -4839,7 +4845,8 @@ iwl_mvm_switch_vif_chanctx_swap(struct iwl_mvm *mvm,
 	int ret;
 
 	mutex_lock(&mvm->mutex);
-	ops->__unassign_vif_chanctx(mvm, vifs[0].vif, vifs[0].old_ctx, true);
+	ops->__unassign_vif_chanctx(mvm, vifs[0].vif, vifs[0].link_conf,
+				    vifs[0].old_ctx, true);
 	__iwl_mvm_remove_chanctx(mvm, vifs[0].old_ctx);
 
 	ret = __iwl_mvm_add_chanctx(mvm, vifs[0].new_ctx);
@@ -4848,8 +4855,8 @@ iwl_mvm_switch_vif_chanctx_swap(struct iwl_mvm *mvm,
 		goto out_reassign;
 	}
 
-	ret = ops->__assign_vif_chanctx(mvm, vifs[0].vif, vifs[0].new_ctx,
-					   true);
+	ret = ops->__assign_vif_chanctx(mvm, vifs[0].vif, vifs[0].link_conf,
+					vifs[0].new_ctx, true);
 	if (ret) {
 		IWL_ERR(mvm,
 			"failed to assign new_ctx during channel switch\n");
@@ -4871,8 +4878,8 @@ out_reassign:
 		goto out_restart;
 	}
 
-	if (ops->__assign_vif_chanctx(mvm, vifs[0].vif, vifs[0].old_ctx,
-				      true)) {
+	if (ops->__assign_vif_chanctx(mvm, vifs[0].vif, vifs[0].link_conf,
+				      vifs[0].old_ctx, true)) {
 		IWL_ERR(mvm, "failed to reassign old_ctx after failure.\n");
 		goto out_restart;
 	}
@@ -4897,10 +4904,11 @@ iwl_mvm_switch_vif_chanctx_reassign(struct iwl_mvm *mvm,
 	int ret;
 
 	mutex_lock(&mvm->mutex);
-	ops->__unassign_vif_chanctx(mvm, vifs[0].vif, vifs[0].old_ctx, true);
+	ops->__unassign_vif_chanctx(mvm, vifs[0].vif, vifs[0].link_conf,
+				    vifs[0].old_ctx, true);
 
-	ret = ops->__assign_vif_chanctx(mvm, vifs[0].vif, vifs[0].new_ctx,
-					   true);
+	ret = ops->__assign_vif_chanctx(mvm, vifs[0].vif, vifs[0].link_conf,
+					vifs[0].new_ctx, true);
 	if (ret) {
 		IWL_ERR(mvm,
 			"failed to assign new_ctx during channel switch\n");
@@ -4910,8 +4918,8 @@ iwl_mvm_switch_vif_chanctx_reassign(struct iwl_mvm *mvm,
 	goto out;
 
 out_reassign:
-	if (ops->__assign_vif_chanctx(mvm, vifs[0].vif, vifs[0].old_ctx,
-				      true)) {
+	if (ops->__assign_vif_chanctx(mvm, vifs[0].vif, vifs[0].link_conf,
+				      vifs[0].old_ctx, true)) {
 		IWL_ERR(mvm, "failed to reassign old_ctx after failure.\n");
 		goto out_restart;
 	}
