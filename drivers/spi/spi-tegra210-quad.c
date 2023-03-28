@@ -1552,8 +1552,7 @@ static int tegra_qspi_probe(struct platform_device *pdev)
 
 	tqspi->soc_data = device_get_match_data(&pdev->dev);
 	master->num_chipselect = tqspi->soc_data->cs_count;
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	tqspi->base = devm_ioremap_resource(&pdev->dev, r);
+	tqspi->base = devm_platform_get_and_ioremap_resource(pdev, 0, &r);
 	if (IS_ERR(tqspi->base))
 		return PTR_ERR(tqspi->base);
 
