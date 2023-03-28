@@ -195,6 +195,11 @@ static int vcn_v4_0_3_hw_init(void *handle)
 				ring->doorbell_index
 						<< VCN_RB1_DB_CTRL__OFFSET__SHIFT |
 					VCN_RB1_DB_CTRL__EN_MASK);
+
+			/* Read DB_CTRL to flush the write DB_CTRL command. */
+			RREG32_SOC15(
+				VCN, GET_INST(VCN, ring->me),
+				regVCN_RB1_DB_CTRL);
 		}
 
 		r = amdgpu_ring_test_helper(ring);
