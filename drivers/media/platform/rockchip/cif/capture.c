@@ -7857,14 +7857,14 @@ static void rkcif_buf_done_prepare(struct rkcif_stream *stream,
 		if (stream->cif_fmt_in->field == V4L2_FIELD_INTERLACED) {
 			if (stream->frame_phase == CIF_CSI_FRAME1_READY && active_buf) {
 
-				if (cif_dev->is_support_tools)
+				if (cif_dev->is_support_tools && stream->tools_vdev)
 					rkcif_buf_done_with_tools(stream, active_buf);
 				else
 					rkcif_vb_done_tasklet(stream, active_buf);
 			}
 		} else {
 			if (active_buf) {
-				if (cif_dev->is_support_tools)
+				if (cif_dev->is_support_tools && stream->tools_vdev)
 					rkcif_buf_done_with_tools(stream, active_buf);
 				else
 					rkcif_vb_done_tasklet(stream, active_buf);
