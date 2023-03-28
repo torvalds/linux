@@ -4586,3 +4586,49 @@ void btrfs_qgroup_destroy_extent_records(struct btrfs_transaction *trans)
 	}
 	*root = RB_ROOT;
 }
+
+int btrfs_record_squota_delta(struct btrfs_fs_info *fs_info,
+			      struct btrfs_squota_delta *delta)
+{
+	int ret;
+	struct btrfs_qgroup *qgroup;
+	struct btrfs_qgroup *qg;
+	LIST_HEAD(qgroup_list);
+	u64 root = delta->root;
+	u64 num_bytes = delta->num_bytes;
+	const int sign = (delta->is_inc ? 1 : -1);
+
+	if (btrfs_qgroup_mode(fs_info) != BTRFS_QGROUP_MODE_SIMPLE)
+		return 0;
+
+	if (!is_fstree(root))
+		return 0;
+
+	spin_lock(&fs_info->qgroup_lock);
+	qgroup = find_qgroup_rb(fs_info, root);
+	if (!qgroup) {
+		ret = -ENOENT;
+		goto out;
+	}
+
+	ret = 0;
+	qgroup_iterator_add(&qgroup_list, qgroup);
+	list_for_each_entry(qg, &qgroup_list, iterator) {
+		struct btrfs_qgroup_list *glist;
+
+		qg->excl += num_bytes * sign;
+		qg->rfer += num_bytes * sign;
+		qgroup_dirty(fs_info, qg);
+
+		list_for_each_entry(glist, &qg->groups, next_group)
+			qgroup_iterator_add(&qgroup_list, glist->group);
+	}
+	qgroup_iterator_clean(&qgroup_list);
+
+out:
+	spin_unlock(&fs_info->qgroup_lock);
+	if (!ret && delta->rsv_bytes)
+		btrfs_qgroup_free_refroot(fs_info, root, delta->rsv_bytes,
+					  BTRFS_QGROUP_RSV_DATA);
+	return ret;
+}

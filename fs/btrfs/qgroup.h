@@ -269,6 +269,19 @@ struct btrfs_qgroup {
 	struct kobject kobj;
 };
 
+struct btrfs_squota_delta {
+	/* The fstree root this delta counts against. */
+	u64 root;
+	/* The number of bytes in the extent being counted. */
+	u64 num_bytes;
+	/* The number of bytes reserved for this extent. */
+	u64 rsv_bytes;
+	/* Whether we are using or freeing the extent. */
+	bool is_inc;
+	/* Whether the extent is data or metadata. */
+	bool is_data;
+};
+
 static inline u64 btrfs_qgroup_subvolid(u64 qgroupid)
 {
 	return (qgroupid & ((1ULL << BTRFS_QGROUP_LEVEL_SHIFT) - 1));
@@ -407,5 +420,7 @@ int btrfs_qgroup_trace_subtree_after_cow(struct btrfs_trans_handle *trans,
 		struct btrfs_root *root, struct extent_buffer *eb);
 void btrfs_qgroup_destroy_extent_records(struct btrfs_transaction *trans);
 bool btrfs_check_quota_leak(struct btrfs_fs_info *fs_info);
+int btrfs_record_squota_delta(struct btrfs_fs_info *fs_info,
+			      struct btrfs_squota_delta *delta);
 
 #endif
