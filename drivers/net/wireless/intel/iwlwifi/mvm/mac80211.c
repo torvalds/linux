@@ -983,18 +983,23 @@ static void iwl_mvm_cleanup_iterator(void *data, u8 *mac,
 {
 	struct iwl_mvm *mvm = data;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	unsigned int link_id;
 
 	mvmvif->uploaded = false;
-	mvmvif->deflink.ap_sta_id = IWL_MVM_INVALID_STA;
 
 	spin_lock_bh(&mvm->time_event_lock);
 	iwl_mvm_te_clear_data(mvm, &mvmvif->time_event_data);
 	spin_unlock_bh(&mvm->time_event_lock);
 
-	mvmvif->deflink.phy_ctxt = NULL;
 	memset(&mvmvif->bf_data, 0, sizeof(mvmvif->bf_data));
-	memset(&mvmvif->deflink.probe_resp_data, 0,
-	       sizeof(mvmvif->deflink.probe_resp_data));
+
+	for_each_mvm_vif_valid_link(mvmvif, link_id) {
+		mvmvif->link[link_id]->ap_sta_id = IWL_MVM_INVALID_STA;
+		mvmvif->link[link_id]->fw_link_id = IWL_MVM_FW_LINK_ID_INVALID;
+		mvmvif->link[link_id]->phy_ctxt = NULL;
+		memset(&mvmvif->link[link_id]->probe_resp_data, 0,
+		       sizeof(mvmvif->link[link_id]->probe_resp_data));
+	}
 }
 
 static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
@@ -3251,6 +3256,7 @@ void iwl_mvm_sta_pre_rcu_remove(struct ieee80211_hw *hw,
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
+	unsigned int link_id;
 
 	/*
 	 * This is called before mac80211 does RCU synchronisation,
@@ -3259,12 +3265,24 @@ void iwl_mvm_sta_pre_rcu_remove(struct ieee80211_hw *hw,
 	 * be able to find the station this way, and we don't rely
 	 * on further RCU synchronisation after the sta_state()
 	 * callback deleted the station.
+	 * Since there's mvm->mutex here, no need to have RCU lock for
+	 * mvm_sta->link access.
 	 */
 	mutex_lock(&mvm->mutex);
-	if (sta == rcu_access_pointer(mvm->fw_id_to_mac_id[mvm_sta->deflink.sta_id]))
-		rcu_assign_pointer(mvm->fw_id_to_mac_id[mvm_sta->deflink.sta_id],
-				   ERR_PTR(-ENOENT));
+	for (link_id = 0; link_id < ARRAY_SIZE(mvm_sta->link); link_id++) {
+		struct iwl_mvm_link_sta *link_sta;
+		u32 sta_id;
 
+		if (!mvm_sta->link[link_id])
+			continue;
+
+		link_sta = rcu_dereference_protected(mvm_sta->link[link_id],
+						     lockdep_is_held(&mvm->mutex));
+		sta_id = link_sta->sta_id;
+		if (sta == rcu_access_pointer(mvm->fw_id_to_mac_id[sta_id]))
+			rcu_assign_pointer(mvm->fw_id_to_mac_id[sta_id],
+					   ERR_PTR(-ENOENT));
+	}
 	mutex_unlock(&mvm->mutex);
 }
 
