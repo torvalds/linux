@@ -1027,6 +1027,7 @@ To see what is available, simply cat the file::
 	nohex
 	nobin
 	noblock
+	nofields
 	trace_printk
 	annotate
 	nouserstacktrace
@@ -1109,6 +1110,11 @@ Here are the available options:
 
   block
 	When set, reading trace_pipe will not block when polled.
+
+  fields
+	Print the fields as described by their types. This is a better
+	option than using hex, bin or raw, as it gives a better parsing
+	of the content of the event.
 
   trace_printk
 	Can disable trace_printk() from writing into the buffer.
