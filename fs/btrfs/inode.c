@@ -2632,39 +2632,36 @@ blk_status_t btrfs_extract_ordered_extent(struct btrfs_bio *bbio)
 	u64 len = bbio->bio.bi_iter.bi_size;
 	struct btrfs_inode *inode = bbio->inode;
 	struct btrfs_ordered_extent *ordered;
-	u64 file_len;
-	u64 end = start + len;
-	u64 ordered_end;
-	u64 pre, post;
+	u64 ordered_len;
 	int ret = 0;
 
 	ordered = btrfs_lookup_ordered_extent(inode, bbio->file_offset);
 	if (WARN_ON_ONCE(!ordered))
 		return BLK_STS_IOERR;
+	ordered_len = ordered->num_bytes;
 
-	/* No need to split */
-	if (ordered->disk_num_bytes == len)
-		goto out;
-
-	ordered_end = ordered->disk_bytenr + ordered->disk_num_bytes;
-	/* bio must be in one ordered extent */
-	if (WARN_ON_ONCE(start < ordered->disk_bytenr || end > ordered_end)) {
+	/* Must always be called for the beginning of an ordered extent. */
+	if (WARN_ON_ONCE(start != ordered->disk_bytenr)) {
 		ret = -EINVAL;
 		goto out;
 	}
 
-	file_len = ordered->num_bytes;
-	pre = start - ordered->disk_bytenr;
-	post = ordered_end - end;
+	/* The bio must be entirely covered by the ordered extent. */
+	if (WARN_ON_ONCE(len > ordered_len)) {
+		ret = -EINVAL;
+		goto out;
+	}
 
-	ret = btrfs_split_ordered_extent(ordered, pre, post);
+	/* No need to split if the ordered extent covers the entire bio. */
+	if (ordered->disk_num_bytes == len)
+		goto out;
+
+	ret = btrfs_split_ordered_extent(ordered, len, 0);
 	if (ret)
 		goto out;
-	ret = split_zoned_em(inode, bbio->file_offset, file_len, pre, post);
-
+	ret = split_zoned_em(inode, bbio->file_offset, ordered_len, len, 0);
 out:
 	btrfs_put_ordered_extent(ordered);
-
 	return errno_to_blk_status(ret);
 }
 
