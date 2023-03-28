@@ -16,6 +16,10 @@
 	model = "STMicroelectronics STM32MP157C eval daughter";
 	compatible = "st,stm32mp157c-ed1", "st,stm32mp157";
 
+	aliases {
+		serial0 = &uart4;
+	};
+
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
@@ -70,10 +74,6 @@
 			reg = <0xe8000000 0x8000000>;
 			no-map;
 		};
-	};
-
-	aliases {
-		serial0 = &uart4;
 	};
 
 	sd_switch: regulator-sd_switch {
