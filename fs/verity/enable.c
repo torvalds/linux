@@ -165,7 +165,7 @@ static int build_merkle_tree(struct file *filp,
 		}
 	}
 	/* The root hash was filled by the last call to hash_one_block(). */
-	if (WARN_ON(buffers[num_levels].filled != params->digest_size)) {
+	if (WARN_ON_ONCE(buffers[num_levels].filled != params->digest_size)) {
 		err = -EINVAL;
 		goto out;
 	}
@@ -277,7 +277,7 @@ static int enable_verity(struct file *filp,
 		fsverity_err(inode, "%ps() failed with err %d",
 			     vops->end_enable_verity, err);
 		fsverity_free_info(vi);
-	} else if (WARN_ON(!IS_VERITY(inode))) {
+	} else if (WARN_ON_ONCE(!IS_VERITY(inode))) {
 		err = -EINVAL;
 		fsverity_free_info(vi);
 	} else {
