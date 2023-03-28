@@ -488,6 +488,16 @@ static void aspeed_i3c_toggle_scl_in(struct aspeed_i3c_master *master, u32 times
 	}
 }
 
+static void aspeed_i3c_gen_stop_to_internal(struct aspeed_i3c_master *master)
+{
+	regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+			  SCL_IN_SW_MODE_VAL, SCL_IN_SW_MODE_VAL);
+	regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+			  SDA_IN_SW_MODE_VAL, 0);
+	regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+			  SDA_IN_SW_MODE_VAL, SDA_IN_SW_MODE_VAL);
+}
+
 static bool aspeed_i3c_fsm_is_idle(struct aspeed_i3c_master *master)
 {
 	/*
@@ -1362,6 +1372,13 @@ static int aspeed_i3c_master_bus_init(struct i3c_master_controller *m)
 							     BUS_FREE_TIMING)),
 				     NSEC_PER_USEC);
 		udelay(wait_enable_us);
+		aspeed_i3c_toggle_scl_in(master, 8);
+		if (!(readl(master->regs + DEVICE_CTRL) & DEV_CTRL_ENABLE)) {
+			dev_warn(master->dev, "failed to enable controller");
+			aspeed_i3c_isolate_scl_sda(master, false);
+			return -EACCES;
+		}
+		aspeed_i3c_gen_stop_to_internal(master);
 		aspeed_i3c_isolate_scl_sda(master, false);
 	}
 
