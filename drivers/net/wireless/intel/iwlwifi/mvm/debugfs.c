@@ -1388,6 +1388,7 @@ static int _iwl_dbgfs_inject_beacon_ie(struct iwl_mvm *mvm, char *bin, int len)
 	struct sk_buff *beacon;
 	struct ieee80211_tx_info *info;
 	struct iwl_mac_beacon_cmd beacon_cmd = {};
+	unsigned int link_id;
 	u8 rate;
 	int i;
 
@@ -1436,17 +1437,20 @@ static int _iwl_dbgfs_inject_beacon_ie(struct iwl_mvm *mvm, char *bin, int len)
 	info = IEEE80211_SKB_CB(beacon);
 	rate = iwl_mvm_mac_ctxt_get_beacon_rate(mvm, info, vif);
 
-	beacon_cmd.flags =
-		cpu_to_le16(iwl_mvm_mac_ctxt_get_beacon_flags(mvm->fw, rate));
-	beacon_cmd.byte_cnt = cpu_to_le16((u16)beacon->len);
-	beacon_cmd.template_id = cpu_to_le32((u32)mvmvif->id);
+	for_each_mvm_vif_valid_link(mvmvif, link_id) {
+		beacon_cmd.flags =
+			cpu_to_le16(iwl_mvm_mac_ctxt_get_beacon_flags(mvm->fw,
+								      rate));
+		beacon_cmd.byte_cnt = cpu_to_le16((u16)beacon->len);
+		beacon_cmd.link_id = cpu_to_le32((u32)mvmvif->id);
 
-	iwl_mvm_mac_ctxt_set_tim(mvm, &beacon_cmd.tim_idx,
-				 &beacon_cmd.tim_size,
-				 beacon->data, beacon->len);
+		iwl_mvm_mac_ctxt_set_tim(mvm, &beacon_cmd.tim_idx,
+					 &beacon_cmd.tim_size,
+					 beacon->data, beacon->len);
 
-	iwl_mvm_mac_ctxt_send_beacon_cmd(mvm, beacon, &beacon_cmd,
-					 sizeof(beacon_cmd));
+		iwl_mvm_mac_ctxt_send_beacon_cmd(mvm, beacon, &beacon_cmd,
+						 sizeof(beacon_cmd));
+	}
 	mutex_unlock(&mvm->mutex);
 
 	dev_kfree_skb(beacon);

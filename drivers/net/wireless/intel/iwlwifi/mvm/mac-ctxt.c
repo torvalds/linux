@@ -1039,7 +1039,8 @@ static int iwl_mvm_mac_ctxt_send_beacon_v7(struct iwl_mvm *mvm,
 
 static int iwl_mvm_mac_ctxt_send_beacon_v9(struct iwl_mvm *mvm,
 					   struct ieee80211_vif *vif,
-					   struct sk_buff *beacon)
+					   struct sk_buff *beacon,
+					   struct ieee80211_bss_conf *link_conf)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(beacon);
@@ -1052,7 +1053,7 @@ static int iwl_mvm_mac_ctxt_send_beacon_v9(struct iwl_mvm *mvm,
 
 	/* Enable FILS on PSC channels only */
 	rcu_read_lock();
-	ctx = rcu_dereference(vif->bss_conf.chanctx_conf);
+	ctx = rcu_dereference(link_conf->chanctx_conf);
 	channel = ieee80211_frequency_to_channel(ctx->def.chan->center_freq);
 	WARN_ON(channel == 0);
 	if (cfg80211_channel_is_psc(ctx->def.chan) &&
@@ -1069,7 +1070,7 @@ static int iwl_mvm_mac_ctxt_send_beacon_v9(struct iwl_mvm *mvm,
 
 	beacon_cmd.flags = cpu_to_le16(flags);
 	beacon_cmd.byte_cnt = cpu_to_le16((u16)beacon->len);
-	beacon_cmd.template_id = cpu_to_le32((u32)mvmvif->id);
+	beacon_cmd.link_id = cpu_to_le32((u32)mvmvif->id);
 
 	if (vif->type == NL80211_IFTYPE_AP)
 		iwl_mvm_mac_ctxt_set_tim(mvm, &beacon_cmd.tim_idx,
@@ -1091,7 +1092,8 @@ static int iwl_mvm_mac_ctxt_send_beacon_v9(struct iwl_mvm *mvm,
 
 int iwl_mvm_mac_ctxt_send_beacon(struct iwl_mvm *mvm,
 				 struct ieee80211_vif *vif,
-				 struct sk_buff *beacon)
+				 struct sk_buff *beacon,
+				 struct ieee80211_bss_conf *link_conf)
 {
 	if (WARN_ON(!beacon))
 		return -EINVAL;
@@ -1105,14 +1107,16 @@ int iwl_mvm_mac_ctxt_send_beacon(struct iwl_mvm *mvm,
 
 	if (fw_has_api(&mvm->fw->ucode_capa,
 		       IWL_UCODE_TLV_API_NEW_BEACON_TEMPLATE))
-		return iwl_mvm_mac_ctxt_send_beacon_v9(mvm, vif, beacon);
+		return iwl_mvm_mac_ctxt_send_beacon_v9(mvm, vif, beacon,
+						       link_conf);
 
 	return iwl_mvm_mac_ctxt_send_beacon_v7(mvm, vif, beacon);
 }
 
 /* The beacon template for the AP/GO/IBSS has changed and needs update */
 int iwl_mvm_mac_ctxt_beacon_changed(struct iwl_mvm *mvm,
-				    struct ieee80211_vif *vif)
+				    struct ieee80211_vif *vif,
+				    struct ieee80211_bss_conf *link_conf)
 {
 	struct sk_buff *beacon;
 	int ret;
@@ -1120,7 +1124,8 @@ int iwl_mvm_mac_ctxt_beacon_changed(struct iwl_mvm *mvm,
 	WARN_ON(vif->type != NL80211_IFTYPE_AP &&
 		vif->type != NL80211_IFTYPE_ADHOC);
 
-	beacon = ieee80211_beacon_get_template(mvm->hw, vif, NULL, 0);
+	beacon = ieee80211_beacon_get_template(mvm->hw, vif, NULL,
+					       link_conf->link_id);
 	if (!beacon)
 		return -ENOMEM;
 
@@ -1131,7 +1136,7 @@ int iwl_mvm_mac_ctxt_beacon_changed(struct iwl_mvm *mvm,
 	}
 #endif
 
-	ret = iwl_mvm_mac_ctxt_send_beacon(mvm, vif, beacon);
+	ret = iwl_mvm_mac_ctxt_send_beacon(mvm, vif, beacon, link_conf);
 	dev_kfree_skb(beacon);
 	return ret;
 }
@@ -1398,7 +1403,8 @@ static void iwl_mvm_csa_count_down(struct iwl_mvm *mvm,
 	if (!ieee80211_beacon_cntdwn_is_complete(csa_vif)) {
 		int c = ieee80211_beacon_update_cntdwn(csa_vif);
 
-		iwl_mvm_mac_ctxt_beacon_changed(mvm, csa_vif);
+		iwl_mvm_mac_ctxt_beacon_changed(mvm, csa_vif,
+						&csa_vif->bss_conf);
 		if (csa_vif->p2p &&
 		    !iwl_mvm_te_scheduled(&mvmvif->time_event_data) && gp2 &&
 		    tx_success) {

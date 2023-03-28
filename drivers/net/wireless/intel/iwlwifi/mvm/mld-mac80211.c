@@ -258,15 +258,15 @@ static int iwl_mvm_mld_start_ap_ibss(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
-	/* Send the beacon template */
-	ret = iwl_mvm_mac_ctxt_beacon_changed(mvm, vif);
-	if (ret)
-		goto out_unlock;
-
 	/* No need to re-calculate the tsf_is, as it was offloaded */
 
 	/* Add the mac context */
 	ret = iwl_mvm_mld_mac_ctxt_add(mvm, vif);
+	if (ret)
+		goto out_unlock;
+
+	/* Send the beacon template */
+	ret = iwl_mvm_mac_ctxt_beacon_changed(mvm, vif, link_conf);
 	if (ret)
 		goto out_unlock;
 
@@ -532,7 +532,7 @@ iwl_mvm_mld_bss_info_changed_ap_ibss(struct iwl_mvm *mvm,
 
 	/* Need to send a new beacon template to the FW */
 	if (changes & BSS_CHANGED_BEACON &&
-	    iwl_mvm_mac_ctxt_beacon_changed(mvm, vif))
+	    iwl_mvm_mac_ctxt_beacon_changed(mvm, vif, &vif->bss_conf))
 		IWL_WARN(mvm, "Failed updating beacon data\n");
 
 	if (changes & BSS_CHANGED_FTM_RESPONDER) {
