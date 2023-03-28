@@ -146,7 +146,7 @@
 			smbchg-lite;
 			status = "disabled";
 
-			chg_otg: chg_otg {};
+			otg_vbus: otg-vbus {};
 		};
 
 		pmi8950_fg: fuel-gauge@4000 {
