@@ -5896,9 +5896,9 @@ static bool iwl_mvm_mac_can_aggregate(struct ieee80211_hw *hw,
 	return iwl_mvm_can_hw_csum(skb) == iwl_mvm_can_hw_csum(head);
 }
 
-static int iwl_mvm_set_hw_timestamp(struct ieee80211_hw *hw,
-				    struct ieee80211_vif *vif,
-				    struct cfg80211_set_hw_timestamp *hwts)
+int iwl_mvm_set_hw_timestamp(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif,
+			     struct cfg80211_set_hw_timestamp *hwts)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	u32 protocols = 0;

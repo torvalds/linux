@@ -2602,4 +2602,7 @@ bool iwl_mvm_have_links_same_channel(struct iwl_mvm_vif *vif1,
 bool iwl_mvm_vif_is_active(struct iwl_mvm_vif *mvmvif);
 int iwl_mvm_set_tx_power(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			 s16 tx_power);
+int iwl_mvm_set_hw_timestamp(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif,
+			     struct cfg80211_set_hw_timestamp *hwts);
 #endif /* __IWL_MVM_H__ */
