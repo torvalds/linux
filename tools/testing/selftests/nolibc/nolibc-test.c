@@ -667,17 +667,13 @@ int run_stdlib(int min, int max)
 	return ret;
 }
 
-#if defined(__clang__)
-__attribute__((optnone))
-#elif defined(__GNUC__)
-__attribute__((optimize("O0")))
-#endif
 static int smash_stack(void)
 {
 	char buf[100];
+	volatile char *ptr = buf;
 
 	for (size_t i = 0; i < 200; i++)
-		buf[i] = 'P';
+		ptr[i] = 'P';
 
 	return 1;
 }
