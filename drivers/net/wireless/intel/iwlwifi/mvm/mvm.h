@@ -1606,10 +1606,14 @@ int iwl_mvm_flush_sta(struct iwl_mvm *mvm, void *sta, bool internal);
 int iwl_mvm_flush_sta_tids(struct iwl_mvm *mvm, u32 sta_id, u16 tids);
 
 /* Utils to extract sta related data */
-__le32 iwl_mvm_get_sta_htc_flags(struct ieee80211_sta *sta);
+__le32 iwl_mvm_get_sta_htc_flags(struct ieee80211_sta *sta,
+				 struct ieee80211_link_sta *link_sta);
 u8 iwl_mvm_get_sta_uapsd_acs(struct ieee80211_sta *sta);
-u32 iwl_mvm_get_sta_ampdu_dens(struct ieee80211_sta *sta, u32 *_agg_size);
-int iwl_mvm_set_sta_pkt_ext(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
+u32 iwl_mvm_get_sta_ampdu_dens(struct ieee80211_link_sta *link_sta,
+			       struct ieee80211_bss_conf *link_conf,
+			       u32 *_agg_size);
+int iwl_mvm_set_sta_pkt_ext(struct iwl_mvm *mvm,
+			    struct ieee80211_link_sta *link_sta,
 			    struct iwl_he_pkt_ext_v2 *pkt_ext);
 
 void iwl_mvm_async_handlers_purge(struct iwl_mvm *mvm);

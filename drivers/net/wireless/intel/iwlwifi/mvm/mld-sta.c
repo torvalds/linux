@@ -50,18 +50,14 @@ static int iwl_mvm_mld_add_int_sta_to_fw(struct iwl_mvm *mvm,
  */
 static int iwl_mvm_mld_rm_sta_from_fw(struct iwl_mvm *mvm, u32 sta_id)
 {
-	struct ieee80211_sta *sta;
 	struct iwl_mvm_remove_sta_cmd rm_sta_cmd = {
 		.sta_id = cpu_to_le32(sta_id),
 	};
 	int ret;
 
-	sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[sta_id],
-					lockdep_is_held(&mvm->mutex));
-
 	/* Note: internal stations are marked as error values */
-	if (!sta) {
-		IWL_ERR(mvm, "Invalid station id\n");
+	if (!rcu_access_pointer(mvm->fw_id_to_mac_id[sta_id])) {
+		IWL_ERR(mvm, "Invalid station id %d\n", sta_id);
 		return -EINVAL;
 	}
 
@@ -380,18 +376,20 @@ int iwl_mvm_mld_rm_aux_sta(struct iwl_mvm *mvm)
 
 /* send a cfg sta command to add/update a sta in firmware */
 static int iwl_mvm_mld_cfg_sta(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
-			       struct ieee80211_vif *vif)
+			       struct ieee80211_vif *vif,
+			       struct ieee80211_link_sta *link_sta,
+			       struct ieee80211_bss_conf *link_conf,
+			       struct iwl_mvm_link_sta *mvm_link_sta)
 {
 	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_vif *mvm_vif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_vif_link_info *link_info =
+					mvm_vif->link[link_conf->link_id];
 	struct iwl_mvm_sta_cfg_cmd cmd = {
-		.sta_id = cpu_to_le32(mvm_sta->deflink.sta_id),
+		.sta_id = cpu_to_le32(mvm_link_sta->sta_id),
 		.station_type = cpu_to_le32(mvm_sta->sta_type),
 		.mfp = cpu_to_le32(sta->mfp),
 	};
-	/* FIXME: use proper link_id */
-	unsigned int link_id = 0;
-	struct iwl_mvm_vif_link_info *link_info = mvm_vif->link[link_id];
 	u32 agg_size = 0, mpdu_dens = 0;
 
 	/* when adding sta, link should exist in FW */
@@ -407,7 +405,7 @@ static int iwl_mvm_mld_cfg_sta(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	if (mvm_sta->sta_state >= IEEE80211_STA_ASSOC)
 		cmd.assoc_id = cpu_to_le32(sta->aid);
 
-	switch (sta->deflink.rx_nss) {
+	switch (link_sta->rx_nss) {
 	case 1:
 		cmd.mimo = cpu_to_le32(0);
 		break;
@@ -433,7 +431,7 @@ static int iwl_mvm_mld_cfg_sta(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		break;
 	}
 
-	mpdu_dens = iwl_mvm_get_sta_ampdu_dens(sta, &agg_size);
+	mpdu_dens = iwl_mvm_get_sta_ampdu_dens(link_sta, link_conf, &agg_size);
 	cmd.tx_ampdu_spacing = cpu_to_le32(mpdu_dens);
 	cmd.tx_ampdu_max_size = cpu_to_le32(agg_size);
 
@@ -443,17 +441,17 @@ static int iwl_mvm_mld_cfg_sta(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		cmd.uapsd_acs = cpu_to_le32(iwl_mvm_get_sta_uapsd_acs(sta));
 	}
 
-	if (sta->deflink.he_cap.has_he) {
+	if (link_sta->he_cap.has_he) {
 		cmd.trig_rnd_alloc =
-			cpu_to_le32(vif->bss_conf.uora_exists ? 1 : 0);
+			cpu_to_le32(link_conf->uora_exists ? 1 : 0);
 
 		/* PPE Thresholds */
-		iwl_mvm_set_sta_pkt_ext(mvm, sta, &cmd.pkt_ext);
+		iwl_mvm_set_sta_pkt_ext(mvm, link_sta, &cmd.pkt_ext);
 
 		/* HTC flags */
-		cmd.htc_flags = iwl_mvm_get_sta_htc_flags(sta);
+		cmd.htc_flags = iwl_mvm_get_sta_htc_flags(sta, link_sta);
 
-		if (sta->deflink.he_cap.he_cap_elem.mac_cap_info[2] &
+		if (link_sta->he_cap.he_cap_elem.mac_cap_info[2] &
 		    IEEE80211_HE_MAC_CAP2_ACK_EN)
 			cmd.ack_enabled = cpu_to_le32(1);
 	}
@@ -461,72 +459,243 @@ static int iwl_mvm_mld_cfg_sta(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	return iwl_mvm_mld_send_sta_cmd(mvm, &cmd);
 }
 
-int iwl_mvm_mld_add_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			struct ieee80211_sta *sta)
+static void iwl_mvm_mld_sta_rm_all_sta_links(struct iwl_mvm *mvm,
+					     struct iwl_mvm_sta *mvm_sta)
 {
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	unsigned int link_id;
+
+	for (link_id = 0; link_id < ARRAY_SIZE(mvm_sta->link); link_id++) {
+		struct iwl_mvm_link_sta *link =
+			rcu_dereference_protected(mvm_sta->link[link_id],
+						  lockdep_is_held(&mvm->mutex));
+
+		if (!link)
+			continue;
+
+		RCU_INIT_POINTER(mvm->fw_id_to_mac_id[link->sta_id], NULL);
+		RCU_INIT_POINTER(mvm_sta->link[link_id], NULL);
+
+		if (link != &mvm_sta->deflink)
+			kfree_rcu(link, rcu_head);
+	}
+}
+
+/* allocate all the links of a sta, called when the station is first added */
+static int iwl_mvm_mld_alloc_sta_links(struct iwl_mvm *mvm,
+				       struct ieee80211_vif *vif,
+				       struct ieee80211_sta *sta)
+{
 	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
-	int sta_id, ret = 0;
+	struct iwl_mvm_link_sta *link;
+	unsigned int link_id;
+	u32 sta_id;
+	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
+	for (link_id = 0; link_id < ARRAY_SIZE(sta->link); link_id++) {
+		if (!rcu_access_pointer(sta->link[link_id]) ||
+		    mvm_sta->link[link_id])
+			continue;
+
 		sta_id = iwl_mvm_find_free_sta_id(mvm,
 						  ieee80211_vif_type_p2p(vif));
-	else
-		sta_id = mvm_sta->deflink.sta_id;
 
-	if (sta_id == IWL_MVM_INVALID_STA)
-		return -ENOSPC;
+		if (sta_id == IWL_MVM_INVALID_STA) {
+			ret = -ENOSPC;
+			goto err;
+		}
 
-	spin_lock_init(&mvm_sta->lock);
+		if (rcu_access_pointer(sta->link[link_id]) == &sta->deflink) {
+			link = &mvm_sta->deflink;
+		} else {
+			link = kzalloc(sizeof(*link), GFP_KERNEL);
+			if (!link) {
+				ret = -ENOMEM;
+				goto err;
+			}
+		}
 
-	/* if this is a HW restart re-alloc existing queues */
-	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
-		struct iwl_mvm_int_sta tmp_sta = {
-			.sta_id = sta_id,
-			.type = mvm_sta->sta_type,
-		};
+		link->sta_id = sta_id;
+		rcu_assign_pointer(mvm_sta->link[link_id], link);
+		rcu_assign_pointer(mvm->fw_id_to_mac_id[link->sta_id], sta);
+	}
 
-		/* First add an empty station since allocating
-		 * a queue requires a valid station
-		 */
+	return 0;
+
+err:
+	iwl_mvm_mld_sta_rm_all_sta_links(mvm, mvm_sta);
+	return ret;
+}
+
+static void iwl_mvm_mld_set_ap_sta_id(struct ieee80211_sta *sta,
+				      struct iwl_mvm_vif_link_info *vif_link,
+				      struct iwl_mvm_link_sta *sta_link)
+{
+	if (!sta->tdls) {
+		WARN_ON(vif_link->ap_sta_id != IWL_MVM_INVALID_STA);
+		vif_link->ap_sta_id = sta_link->sta_id;
+	} else {
+		WARN_ON(vif_link->ap_sta_id == IWL_MVM_INVALID_STA);
+	}
+}
+
+/* FIXME: consider waiting for mac80211 to add the STA instead of allocating
+ * queues here
+ */
+static int iwl_mvm_alloc_sta_after_restart(struct iwl_mvm *mvm,
+					   struct ieee80211_vif *vif,
+					   struct ieee80211_sta *sta)
+{
+	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct ieee80211_link_sta *link_sta;
+	unsigned int link_id;
+	struct iwl_mvm_int_sta tmp_sta = {
+		.type = mvm_sta->sta_type,
+	};
+	int sta_id, ret;
+
+	/* First add an empty station since allocating a queue requires
+	 * a valid station. Since we need a link_id to allocate a station,
+	 * pick up the first valid one.
+	 */
+	for_each_sta_active_link(vif, sta, link_sta, link_id) {
+		struct iwl_mvm_vif_link_info *mvm_link;
+		struct ieee80211_bss_conf *link_conf =
+			link_conf_dereference_protected(vif, link_id);
+		struct iwl_mvm_link_sta *mvm_link_sta =
+			rcu_dereference_protected(mvm_sta->link[link_id],
+						  lockdep_is_held(&mvm->mutex));
+
+		if (!link_conf)
+			continue;
+
+		mvm_link = mvmvif->link[link_conf->link_id];
+
+		if (!mvm_link || !mvm_link_sta)
+			continue;
+
+		sta_id = mvm_link_sta->sta_id;
+		tmp_sta.sta_id = sta_id;
 		ret = iwl_mvm_mld_add_int_sta_to_fw(mvm, &tmp_sta,
 						    vif->bss_conf.bssid,
-						    mvmvif->id);
+						    mvm_link->fw_link_id);
 		if (ret)
 			return ret;
 
+		rcu_assign_pointer(mvm->fw_id_to_mac_id[sta_id], sta);
 		iwl_mvm_realloc_queues_after_restart(mvm, sta);
-	} else {
-		ret = iwl_mvm_sta_init(mvm, vif, sta, sta_id,
+
+		/* since we need only one station, no need to continue */
+		return 0;
+	}
+
+	/* no active link found */
+	return -EINVAL;
+}
+
+int iwl_mvm_mld_add_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			struct ieee80211_sta *sta)
+{
+	struct iwl_mvm_vif *mvm_vif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
+	unsigned long link_sta_added_to_fw = 0;
+	struct ieee80211_link_sta *link_sta;
+	int ret = 0;
+	unsigned int link_id;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
+		ret = iwl_mvm_mld_alloc_sta_links(mvm, vif, sta);
+		if (ret)
+			return ret;
+	}
+
+	spin_lock_init(&mvm_sta->lock);
+
+	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
+		ret = iwl_mvm_alloc_sta_after_restart(mvm, vif, sta);
+	else
+		ret = iwl_mvm_sta_init(mvm, vif, sta, IWL_MVM_INVALID_STA,
 				       STATION_TYPE_PEER);
-	}
-
-	ret = iwl_mvm_mld_cfg_sta(mvm, sta, vif);
 	if (ret)
-		return ret;
+		goto err;
 
-	if (vif->type == NL80211_IFTYPE_STATION) {
-		if (!sta->tdls) {
-			WARN_ON(mvmvif->deflink.ap_sta_id != IWL_MVM_INVALID_STA);
-			mvmvif->deflink.ap_sta_id = sta_id;
-		} else {
-			WARN_ON(mvmvif->deflink.ap_sta_id == IWL_MVM_INVALID_STA);
-		}
+	/* at this stage sta link pointers are already allocated */
+	ret = iwl_mvm_mld_update_sta(mvm, vif, sta);
+
+	for_each_sta_active_link(vif, sta, link_sta, link_id) {
+		struct ieee80211_bss_conf *link_conf =
+			rcu_dereference_protected(vif->link_conf[link_id], 1);
+		struct iwl_mvm_link_sta *mvm_link_sta =
+			rcu_dereference_protected(mvm_sta->link[link_id],
+						  lockdep_is_held(&mvm->mutex));
+
+		if (WARN_ON(!link_conf || !mvm_link_sta))
+			goto err;
+
+		ret = iwl_mvm_mld_cfg_sta(mvm, sta, vif, link_sta, link_conf,
+					  mvm_link_sta);
+		if (ret)
+			goto err;
+
+		link_sta_added_to_fw |= BIT(link_id);
+
+		if (vif->type == NL80211_IFTYPE_STATION)
+			iwl_mvm_mld_set_ap_sta_id(sta, mvm_vif->link[link_id],
+						  mvm_link_sta);
 	}
-
-	rcu_assign_pointer(mvm->fw_id_to_mac_id[sta_id], sta);
 
 	return 0;
+
+err:
+	/* remove all already allocated stations in FW */
+	for_each_set_bit(link_id, &link_sta_added_to_fw,
+			 IEEE80211_MLD_MAX_NUM_LINKS) {
+		struct iwl_mvm_link_sta *mvm_link_sta =
+			rcu_dereference_protected(mvm_sta->link[link_id],
+						  lockdep_is_held(&mvm->mutex));
+
+		iwl_mvm_mld_rm_sta_from_fw(mvm, mvm_link_sta->sta_id);
+	}
+
+	/* free all sta resources in the driver */
+	iwl_mvm_mld_sta_rm_all_sta_links(mvm, mvm_sta);
+	return ret;
 }
 
 int iwl_mvm_mld_update_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta)
 {
+	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
+	struct ieee80211_link_sta *link_sta;
+	unsigned int link_id;
+	int ret = 0;
+
 	lockdep_assert_held(&mvm->mutex);
 
-	return iwl_mvm_mld_cfg_sta(mvm, sta, vif);
+	for_each_sta_active_link(vif, sta, link_sta, link_id) {
+		struct ieee80211_bss_conf *link_conf =
+			rcu_dereference_protected(vif->link_conf[link_id], 1);
+		struct iwl_mvm_link_sta *mvm_link_sta =
+			rcu_dereference_protected(mvm_sta->link[link_id],
+						  lockdep_is_held(&mvm->mutex));
+
+		if (WARN_ON(!link_conf || !mvm_link_sta))
+			return -EINVAL;
+
+		ret = iwl_mvm_mld_cfg_sta(mvm, sta, vif, link_sta, link_conf,
+					  mvm_link_sta);
+
+		if (ret) {
+			IWL_ERR(mvm, "Failed to update sta link %d\n", link_id);
+			break;
+		}
+	}
+
+	return ret;
 }
 
 static void iwl_mvm_mld_disable_sta_queues(struct iwl_mvm *mvm,
@@ -559,6 +728,8 @@ int iwl_mvm_mld_rm_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta)
 {
 	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
+	struct ieee80211_link_sta *link_sta;
+	unsigned int link_id;
 	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -566,20 +737,38 @@ int iwl_mvm_mld_rm_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	kfree(mvm_sta->dup_data);
 
 	/* flush its queues here since we are freeing mvm_sta */
-	ret = iwl_mvm_flush_sta(mvm, mvm_sta, false);
-	if (ret)
-		return ret;
+	for_each_sta_active_link(vif, sta, link_sta, link_id) {
+		struct iwl_mvm_link_sta *mvm_link_sta =
+			rcu_dereference_protected(mvm_sta->link[link_id],
+						  lockdep_is_held(&mvm->mutex));
+
+		if (WARN_ON(!mvm_link_sta))
+			return -EINVAL;
+
+		ret = iwl_mvm_flush_sta_tids(mvm, mvm_link_sta->sta_id,
+					     0xffff);
+		if (ret)
+			return ret;
+	}
+
 	ret = iwl_mvm_wait_sta_queues_empty(mvm, mvm_sta);
 	if (ret)
 		return ret;
 
 	iwl_mvm_mld_disable_sta_queues(mvm, vif, sta);
 
-	if (iwl_mvm_sta_del(mvm, vif, sta, &ret))
-		return ret;
+	for_each_sta_active_link(vif, sta, link_sta, link_id) {
+		struct iwl_mvm_link_sta *mvm_link_sta =
+			rcu_dereference_protected(mvm_sta->link[link_id],
+						  lockdep_is_held(&mvm->mutex));
 
-	ret = iwl_mvm_mld_rm_sta_from_fw(mvm, mvm_sta->deflink.sta_id);
-	RCU_INIT_POINTER(mvm->fw_id_to_mac_id[mvm_sta->deflink.sta_id], NULL);
+		if (iwl_mvm_sta_del(mvm, vif, sta, mvm_link_sta, &ret))
+			return ret;
+
+		ret = iwl_mvm_mld_rm_sta_from_fw(mvm, mvm_link_sta->sta_id);
+	}
+
+	iwl_mvm_mld_sta_rm_all_sta_links(mvm, mvm_sta);
 
 	return ret;
 }

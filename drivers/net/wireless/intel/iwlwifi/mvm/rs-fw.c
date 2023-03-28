@@ -641,18 +641,30 @@ int rs_fw_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 
 void iwl_mvm_rs_add_sta(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta)
 {
-	struct iwl_lq_sta_rs_fw *lq_sta = &mvmsta->deflink.lq_sta.rs_fw;
+	unsigned int link_id;
 
 	IWL_DEBUG_RATE(mvm, "create station rate scale window\n");
 
-	lq_sta->pers.drv = mvm;
-	lq_sta->pers.sta_id = mvmsta->deflink.sta_id;
-	lq_sta->pers.chains = 0;
-	memset(lq_sta->pers.chain_signal, 0, sizeof(lq_sta->pers.chain_signal));
-	lq_sta->pers.last_rssi = S8_MIN;
-	lq_sta->last_rate_n_flags = 0;
+	for (link_id = 0; link_id < ARRAY_SIZE(mvmsta->link); link_id++) {
+		struct iwl_lq_sta_rs_fw *lq_sta;
+		struct iwl_mvm_link_sta *link =
+			rcu_dereference_protected(mvmsta->link[link_id],
+						  lockdep_is_held(&mvm->mutex));
+		if (!link)
+			continue;
+
+		lq_sta = &link->lq_sta.rs_fw;
+
+		lq_sta->pers.drv = mvm;
+		lq_sta->pers.sta_id = link->sta_id;
+		lq_sta->pers.chains = 0;
+		memset(lq_sta->pers.chain_signal, 0,
+		       sizeof(lq_sta->pers.chain_signal));
+		lq_sta->pers.last_rssi = S8_MIN;
+		lq_sta->last_rate_n_flags = 0;
 
 #ifdef CONFIG_MAC80211_DEBUGFS
-	lq_sta->pers.dbg_fixed_rate = 0;
+		lq_sta->pers.dbg_fixed_rate = 0;
 #endif
+	}
 }
