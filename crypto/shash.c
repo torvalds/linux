@@ -569,8 +569,7 @@ int hash_prepare_alg(struct hash_alg_common *alg)
 	struct crypto_istat_hash *istat = hash_get_stat(alg);
 	struct crypto_alg *base = &alg->base;
 
-	if (alg->digestsize > HASH_MAX_DIGESTSIZE ||
-	    alg->statesize > HASH_MAX_STATESIZE)
+	if (alg->digestsize > HASH_MAX_DIGESTSIZE)
 		return -EINVAL;
 
 	base->cra_flags &= ~CRYPTO_ALG_TYPE_MASK;

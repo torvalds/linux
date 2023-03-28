@@ -183,8 +183,6 @@ struct shash_desc {
  */
 #define HASH_MAX_DESCSIZE	(sizeof(struct shash_desc) + 360)
 
-#define HASH_MAX_STATESIZE	512
-
 #define SHASH_DESC_ON_STACK(shash, ctx)					     \
 	char __##shash##_desc[sizeof(struct shash_desc) + HASH_MAX_DESCSIZE] \
 		__aligned(__alignof__(struct shash_desc));		     \
