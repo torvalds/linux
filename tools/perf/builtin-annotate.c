@@ -352,6 +352,7 @@ find_next:
 			int ret;
 			int (*annotate)(struct hist_entry *he,
 					struct evsel *evsel,
+					struct annotation_options *options,
 					struct hist_browser_timer *hbt);
 
 			annotate = dlsym(perf_gtk_handle,
@@ -361,7 +362,7 @@ find_next:
 				return;
 			}
 
-			ret = annotate(he, evsel, NULL);
+			ret = annotate(he, evsel, &ann->opts, NULL);
 			if (!ret || !ann->skip_missing)
 				return;
 
@@ -509,7 +510,6 @@ int cmd_annotate(int argc, const char **argv)
 			.ordered_events = true,
 			.ordering_requires_timestamps = true,
 		},
-		.opts = annotation__default_options,
 	};
 	struct perf_data data = {
 		.mode  = PERF_DATA_MODE_READ,
@@ -598,6 +598,7 @@ int cmd_annotate(int argc, const char **argv)
 	set_option_flag(options, 0, "show-total-period", PARSE_OPT_EXCLUSIVE);
 	set_option_flag(options, 0, "show-nr-samples", PARSE_OPT_EXCLUSIVE);
 
+	annotation_options__init(&annotate.opts);
 
 	ret = hists__init();
 	if (ret < 0)
@@ -698,6 +699,7 @@ out_delete:
 #ifndef NDEBUG
 	perf_session__delete(annotate.session);
 #endif
+	annotation_options__exit(&annotate.opts);
 
 	return ret;
 }

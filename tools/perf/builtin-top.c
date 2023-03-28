@@ -1435,7 +1435,6 @@ int cmd_top(int argc, const char **argv)
 			.sample_time_set = true,
 		},
 		.max_stack	     = sysctl__max_stack(),
-		.annotation_opts     = annotation__default_options,
 		.nr_threads_synthesize = UINT_MAX,
 	};
 	struct record_opts *opts = &top.record_opts;
@@ -1586,6 +1585,8 @@ int cmd_top(int argc, const char **argv)
 
 	if (status < 0)
 		return status;
+
+	annotation_options__init(&top.annotation_opts);
 
 	top.annotation_opts.min_pcnt = 5;
 	top.annotation_opts.context  = 4;
@@ -1783,6 +1784,7 @@ int cmd_top(int argc, const char **argv)
 out_delete_evlist:
 	evlist__delete(top.evlist);
 	perf_session__delete(top.session);
+	annotation_options__exit(&top.annotation_opts);
 
 	return status;
 }
