@@ -2440,7 +2440,6 @@ static int gaudi2_set_fixed_properties(struct hl_device *hdev)
 	prop->first_available_user_interrupt = GAUDI2_IRQ_NUM_USER_FIRST;
 	prop->tpc_interrupt_id = GAUDI2_IRQ_NUM_TPC_ASSERT;
 	prop->eq_interrupt_id = GAUDI2_IRQ_NUM_EVENT_QUEUE;
-	prop->unexpected_user_error_interrupt_id = GAUDI2_IRQ_NUM_UNEXPECTED_ERROR;
 
 	prop->first_available_cq[0] = GAUDI2_RESERVED_CQ_NUMBER;
 
@@ -3351,7 +3350,7 @@ static void gaudi2_user_interrupt_setup(struct hl_device *hdev)
 	/* Initialize TPC interrupt */
 	HL_USR_INTR_STRUCT_INIT(hdev->tpc_interrupt, hdev, 0, HL_USR_INTERRUPT_TPC);
 
-	/* Initialize general purpose interrupt */
+	/* Initialize unexpected error interrupt */
 	HL_USR_INTR_STRUCT_INIT(hdev->unexpected_error_interrupt, hdev, 0,
 						HL_USR_INTERRUPT_UNEXPECTED);
 
@@ -4015,7 +4014,7 @@ static const char *gaudi2_irq_name(u16 irq_number)
 	case GAUDI2_IRQ_NUM_TPC_ASSERT:
 		return "gaudi2 tpc assert";
 	case GAUDI2_IRQ_NUM_UNEXPECTED_ERROR:
-		return "gaudi2 tpc assert";
+		return "gaudi2 unexpected error";
 	case GAUDI2_IRQ_NUM_USER_FIRST ... GAUDI2_IRQ_NUM_USER_LAST:
 		return "gaudi2 user completion";
 	default:

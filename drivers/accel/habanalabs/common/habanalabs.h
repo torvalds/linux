@@ -663,7 +663,6 @@ struct hl_hints_range {
  * @user_dec_intr_count: number of decoder interrupts exposed to user.
  * @tpc_interrupt_id: interrupt id for TPC to use in order to raise events towards the host.
  * @eq_interrupt_id: interrupt id for EQ, uses to synchronize EQ interrupts in hard-reset.
- * @unexpected_user_error_interrupt_id: interrupt id used to indicate an unexpected user error.
  * @cache_line_size: device cache line size.
  * @server_type: Server type that the ASIC is currently installed in.
  *               The value is according to enum hl_server_type in uapi file.
@@ -795,7 +794,6 @@ struct asic_fixed_properties {
 	u16				user_dec_intr_count;
 	u16				tpc_interrupt_id;
 	u16				eq_interrupt_id;
-	u16				unexpected_user_error_interrupt_id;
 	u16				cache_line_size;
 	u16				server_type;
 	u8				completion_queues_count;
