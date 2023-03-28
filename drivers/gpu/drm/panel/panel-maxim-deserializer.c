@@ -48,8 +48,6 @@ struct maxim_deserializer_panel {
 	struct i2c_client *client;
 	struct regmap *regmap;
 	struct gpio_desc *enable_gpio;
-	struct pinctrl *pinctrl;
-	struct pinctrl_state *state;
 
 	/* the panel desc as detected */
 	const struct maxim_deserializer_panel_desc *desc;
@@ -61,8 +59,10 @@ static void maxim_max96752f_panel_prepare(struct maxim_deserializer_panel *p)
 	regmap_write(p->regmap, 0x0140, 0x20);
 
 	regmap_write(p->regmap, 0x01ce, 0x5e);	/* oldi */
-	regmap_write(p->regmap, 0x020c, 0x84);	/* bl_pwm */
-	regmap_write(p->regmap, 0x0206, 0x83);	/* tp_int */
+	regmap_write(p->regmap, 0x020e, 0x40);	/* bl_pwm */
+	regmap_write(p->regmap, 0x020c, 0x84);
+	regmap_write(p->regmap, 0x0207, 0xa1);	/* tp_int */
+	regmap_write(p->regmap, 0x0206, 0x83);
 
 	regmap_write(p->regmap, 0x0215, 0x90);	/* lcd_en */
 	msleep(20);
@@ -164,6 +164,8 @@ static int maxim_deserializer_panel_unprepare(struct drm_panel *panel)
 	if (p->desc->unprepare)
 		p->desc->unprepare(p);
 
+	pinctrl_pm_select_sleep_state(p->dev);
+
 	return 0;
 }
 
@@ -174,8 +176,7 @@ static int maxim_deserializer_panel_prepare(struct drm_panel *panel)
 	if (!p->desc)
 		return 0;
 
-	if (!IS_ERR(p->state))
-		pinctrl_select_state(p->pinctrl, p->state);
+	pinctrl_pm_select_default_state(p->dev);
 
 	if (p->desc->prepare)
 		p->desc->prepare(p);
@@ -219,8 +220,6 @@ static int maxim_deserializer_panel_detect(struct maxim_deserializer_panel *p)
 		return -ENODEV;
 
 	p->desc = desc;
-	p->state = pinctrl_lookup_state(p->pinctrl,
-			desc->name ? desc->name : desc->deserializer.name);
 	client->addr = desc->deserializer.addr;
 
 	return 0;
@@ -309,11 +308,6 @@ static int maxim_deserializer_panel_probe(struct i2c_client *client)
 	p->dev = dev;
 	p->client = client;
 	i2c_set_clientdata(client, p);
-
-	p->pinctrl = devm_pinctrl_get(dev);
-	if (IS_ERR(p->pinctrl))
-		return dev_err_probe(dev, PTR_ERR(p->pinctrl),
-				     "failed to get pinctrl\n");
 
 	p->enable_gpio = devm_gpiod_get_optional(dev, "enable", GPIOD_ASIS);
 	if (IS_ERR(p->enable_gpio))
