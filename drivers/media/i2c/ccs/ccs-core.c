@@ -569,8 +569,6 @@ static u32 ccs_pixel_order(struct ccs_sensor *sensor)
 			flip |= CCS_IMAGE_ORIENTATION_VERTICAL_FLIP;
 	}
 
-	flip ^= sensor->hvflip_inv_mask;
-
 	dev_dbg(&client->dev, "flip %u\n", flip);
 	return sensor->default_pixel_order ^ flip;
 }
@@ -631,8 +629,6 @@ static int ccs_set_ctrl(struct v4l2_ctrl *ctrl)
 
 		if (sensor->vflip->val)
 			orient |= CCS_IMAGE_ORIENTATION_VERTICAL_FLIP;
-
-		orient ^= sensor->hvflip_inv_mask;
 
 		ccs_update_mbus_formats(sensor);
 
@@ -3185,7 +3181,6 @@ static int ccs_get_hwconfig(struct ccs_sensor *sensor, struct device *dev)
 	struct v4l2_fwnode_endpoint bus_cfg = { .bus_type = V4L2_MBUS_UNKNOWN };
 	struct fwnode_handle *ep;
 	struct fwnode_handle *fwnode = dev_fwnode(dev);
-	u32 rotation;
 	unsigned int i;
 	int rval;
 
@@ -3222,22 +3217,6 @@ static int ccs_get_hwconfig(struct ccs_sensor *sensor, struct device *dev)
 		dev_err(dev, "unsupported bus %u\n", bus_cfg.bus_type);
 		rval = -EINVAL;
 		goto out_err;
-	}
-
-	rval = fwnode_property_read_u32(fwnode, "rotation", &rotation);
-	if (!rval) {
-		switch (rotation) {
-		case 180:
-			hwcfg->module_board_orient =
-				CCS_MODULE_BOARD_ORIENT_180;
-			fallthrough;
-		case 0:
-			break;
-		default:
-			dev_err(dev, "invalid rotation %u\n", rotation);
-			rval = -EINVAL;
-			goto out_err;
-		}
 	}
 
 	rval = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
@@ -3436,25 +3415,6 @@ static int ccs_probe(struct i2c_client *client)
 	rval = ccs_update_phy_ctrl(sensor);
 	if (rval < 0)
 		goto out_free_ccs_limits;
-
-	/*
-	 * Handle Sensor Module orientation on the board.
-	 *
-	 * The application of H-FLIP and V-FLIP on the sensor is modified by
-	 * the sensor orientation on the board.
-	 *
-	 * For CCS_BOARD_SENSOR_ORIENT_180 the default behaviour is to set
-	 * both H-FLIP and V-FLIP for normal operation which also implies
-	 * that a set/unset operation for user space HFLIP and VFLIP v4l2
-	 * controls will need to be internally inverted.
-	 *
-	 * Rotation also changes the bayer pattern.
-	 */
-	if (sensor->hwcfg.module_board_orient ==
-	    CCS_MODULE_BOARD_ORIENT_180)
-		sensor->hvflip_inv_mask =
-			CCS_IMAGE_ORIENTATION_HORIZONTAL_MIRROR |
-			CCS_IMAGE_ORIENTATION_VERTICAL_FLIP;
 
 	rval = ccs_call_quirk(sensor, limits);
 	if (rval) {
