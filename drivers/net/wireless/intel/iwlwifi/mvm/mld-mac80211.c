@@ -67,11 +67,13 @@ static int iwl_mvm_mld_mac_add_interface(struct ieee80211_hw *hw,
 		}
 
 		iwl_mvm_phy_ctxt_ref(mvm, mvmvif->deflink.phy_ctxt);
-		ret = iwl_mvm_add_link(mvm, vif);
+		ret = iwl_mvm_add_link(mvm, vif, &vif->bss_conf);
 		if (ret)
 			goto out_unref_phy;
 
-		ret = iwl_mvm_link_changed(mvm, vif, LINK_CONTEXT_MODIFY_ACTIVE,
+		ret = iwl_mvm_link_changed(mvm, vif, &vif->bss_conf,
+					   LINK_CONTEXT_MODIFY_ACTIVE |
+					   LINK_CONTEXT_MODIFY_RATES_INFO,
 					   true);
 		if (ret)
 			goto out_remove_link;
@@ -85,7 +87,7 @@ static int iwl_mvm_mld_mac_add_interface(struct ieee80211_hw *hw,
 		 */
 		mvm->p2p_device_vif = vif;
 	} else {
-		ret = iwl_mvm_add_link(mvm, vif);
+		ret = iwl_mvm_add_link(mvm, vif, &vif->bss_conf);
 		if (ret)
 			goto out_free_bf;
 	}
@@ -117,8 +119,9 @@ static int iwl_mvm_mld_mac_add_interface(struct ieee80211_hw *hw,
 
  out_remove_link:
 	/* Link needs to be deactivated before removal */
-	iwl_mvm_link_changed(mvm, vif, LINK_CONTEXT_MODIFY_ACTIVE, false);
-	iwl_mvm_remove_link(mvm, vif);
+	iwl_mvm_link_changed(mvm, vif, &vif->bss_conf,
+			     LINK_CONTEXT_MODIFY_ACTIVE, false);
+	iwl_mvm_remove_link(mvm, vif, &vif->bss_conf);
  out_unref_phy:
 	iwl_mvm_phy_ctxt_unref(mvm, mvmvif->deflink.phy_ctxt);
  out_free_bf:
@@ -193,13 +196,13 @@ static void iwl_mvm_mld_mac_remove_interface(struct ieee80211_hw *hw,
 		mvm->p2p_device_vif = NULL;
 		iwl_mvm_mld_rm_bcast_sta(mvm, vif);
 		/* Link needs to be deactivated before removal */
-		iwl_mvm_link_changed(mvm, vif, LINK_CONTEXT_MODIFY_ACTIVE,
-				     false);
-		iwl_mvm_remove_link(mvm, vif);
+		iwl_mvm_link_changed(mvm, vif, &vif->bss_conf,
+				     LINK_CONTEXT_MODIFY_ACTIVE, false);
+		iwl_mvm_remove_link(mvm, vif, &vif->bss_conf);
 		iwl_mvm_phy_ctxt_unref(mvm, mvmvif->deflink.phy_ctxt);
 		mvmvif->deflink.phy_ctxt = NULL;
 	} else {
-		iwl_mvm_remove_link(mvm, vif);
+		iwl_mvm_remove_link(mvm, vif, &vif->bss_conf);
 	}
 
 	iwl_mvm_mld_mac_ctxt_remove(mvm, vif);
@@ -233,12 +236,13 @@ static int __iwl_mvm_mld_assign_vif_chanctx(struct iwl_mvm *mvm,
 	}
 
 	/* send it first with phy context ID */
-	ret = iwl_mvm_link_changed(mvm, vif, 0, false);
+	ret = iwl_mvm_link_changed(mvm, vif, &vif->bss_conf, 0, false);
 	if (ret)
 		goto out;
 
 	/* then activate */
-	ret = iwl_mvm_link_changed(mvm, vif, LINK_CONTEXT_MODIFY_ACTIVE |
+	ret = iwl_mvm_link_changed(mvm, vif, &vif->bss_conf,
+				   LINK_CONTEXT_MODIFY_ACTIVE |
 				   LINK_CONTEXT_MODIFY_RATES_INFO,
 				   true);
 	if (ret)
@@ -259,7 +263,8 @@ static int __iwl_mvm_mld_assign_vif_chanctx(struct iwl_mvm *mvm,
 	return 0;
 
 deactivate:
-	iwl_mvm_link_changed(mvm, vif, LINK_CONTEXT_MODIFY_ACTIVE, false);
+	iwl_mvm_link_changed(mvm, vif, &vif->bss_conf,
+			     LINK_CONTEXT_MODIFY_ACTIVE, false);
 out:
 	mvmvif->deflink.phy_ctxt = NULL;
 	iwl_mvm_power_update_mac(mvm);
@@ -303,7 +308,8 @@ static void __iwl_mvm_mld_unassign_vif_chanctx(struct iwl_mvm *mvm,
 	if (vif->type == NL80211_IFTYPE_MONITOR)
 		iwl_mvm_mld_rm_snif_sta(mvm, vif);
 
-	iwl_mvm_link_changed(mvm, vif, LINK_CONTEXT_MODIFY_ACTIVE, false);
+	iwl_mvm_link_changed(mvm, vif, &vif->bss_conf,
+			     LINK_CONTEXT_MODIFY_ACTIVE, false);
 
 	if (switching_chanctx)
 		return;
@@ -337,7 +343,7 @@ static int iwl_mvm_mld_start_ap_ibss(struct ieee80211_hw *hw,
 	if (ret)
 		goto out_unlock;
 
-	ret = iwl_mvm_link_changed(mvm, vif, LINK_CONTEXT_MODIFY_ALL,
+	ret = iwl_mvm_link_changed(mvm, vif, link_conf, LINK_CONTEXT_MODIFY_ALL,
 				   true);
 	if (ret)
 		goto out_unlock;
@@ -477,7 +483,8 @@ iwl_mvm_mld_bss_info_changed_station(struct iwl_mvm *mvm,
 		link_changes |= LINK_CONTEXT_MODIFY_EHT_PARAMS;
 
 	if (link_changes) {
-		ret = iwl_mvm_link_changed(mvm, vif, link_changes, true);
+		ret = iwl_mvm_link_changed(mvm, vif, &vif->bss_conf,
+					   link_changes, true);
 		if (ret)
 			IWL_ERR(mvm, "failed to update link\n");
 	}
@@ -576,7 +583,8 @@ iwl_mvm_mld_bss_info_changed_ap_ibss(struct iwl_mvm *mvm,
 
 	if (changes & (BSS_CHANGED_ERP_CTS_PROT | BSS_CHANGED_HT |
 		       BSS_CHANGED_BANDWIDTH | BSS_CHANGED_QOS) &&
-		       iwl_mvm_link_changed(mvm, vif, link_changes, true))
+		       iwl_mvm_link_changed(mvm, vif, &vif->bss_conf,
+					    link_changes, true))
 		IWL_ERR(mvm, "failed to update MAC %pM\n", vif->addr);
 
 	/* Need to send a new beacon template to the FW */
@@ -661,7 +669,7 @@ iwl_mvm_mld_mac_conf_tx(struct ieee80211_hw *hw,
 		int ret;
 
 		mutex_lock(&mvm->mutex);
-		ret = iwl_mvm_link_changed(mvm, vif,
+		ret = iwl_mvm_link_changed(mvm, vif, &vif->bss_conf,
 					   LINK_CONTEXT_MODIFY_QOS_PARAMS,
 					   true);
 		mutex_unlock(&mvm->mutex);
@@ -683,7 +691,8 @@ static int iwl_mvm_link_switch_phy_ctx(struct iwl_mvm *mvm,
 	 * inactive. Therefore, first deactivate the link, then change its
 	 * phy_ctx, and then activate it again.
 	 */
-	ret = iwl_mvm_link_changed(mvm, vif, LINK_CONTEXT_MODIFY_ACTIVE, false);
+	ret = iwl_mvm_link_changed(mvm, vif, &vif->bss_conf,
+				   LINK_CONTEXT_MODIFY_ACTIVE, false);
 	if (WARN(ret, "Failed to deactivate link\n"))
 		return ret;
 
@@ -691,11 +700,12 @@ static int iwl_mvm_link_switch_phy_ctx(struct iwl_mvm *mvm,
 
 	mvmvif->deflink.phy_ctxt = new_phy_ctxt;
 
-	ret = iwl_mvm_link_changed(mvm, vif, 0, false);
+	ret = iwl_mvm_link_changed(mvm, vif, &vif->bss_conf, 0, false);
 	if (WARN(ret, "Failed to deactivate link\n"))
 		return ret;
 
-	ret = iwl_mvm_link_changed(mvm, vif, LINK_CONTEXT_MODIFY_ACTIVE, true);
+	ret = iwl_mvm_link_changed(mvm, vif, &vif->bss_conf,
+				   LINK_CONTEXT_MODIFY_ACTIVE, true);
 	WARN(ret, "Failed binding P2P_DEVICE\n");
 	return ret;
 }

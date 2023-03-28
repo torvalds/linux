@@ -397,16 +397,18 @@ static void iwl_mvm_ack_rates(struct iwl_mvm *mvm,
 }
 
 void iwl_mvm_set_fw_basic_rates(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+				struct ieee80211_bss_conf *link_conf,
 				__le32 *cck_rates, __le32 *ofdm_rates)
 {
 	struct ieee80211_chanctx_conf *chanctx;
-	u8 cck_ack_rates, ofdm_ack_rates;
+	u8 cck_ack_rates = 0, ofdm_ack_rates = 0;
 
 	rcu_read_lock();
-	chanctx = rcu_dereference(vif->bss_conf.chanctx_conf);
+	chanctx = rcu_dereference(link_conf->chanctx_conf);
 	iwl_mvm_ack_rates(mvm, vif, chanctx ? chanctx->def.chan->band
 					    : NL80211_BAND_2GHZ,
 			  &cck_ack_rates, &ofdm_ack_rates);
+
 	rcu_read_unlock();
 
 	*cck_rates = cpu_to_le32((u32)cck_ack_rates);
@@ -415,21 +417,22 @@ void iwl_mvm_set_fw_basic_rates(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 void iwl_mvm_set_fw_protection_flags(struct iwl_mvm *mvm,
 				     struct ieee80211_vif *vif,
+				     struct ieee80211_bss_conf *link_conf,
 				     __le32 *protection_flags, u32 ht_flag,
 				     u32 tgg_flag)
 {
 	/* for both sta and ap, ht_operation_mode hold the protection_mode */
-	u8 protection_mode = vif->bss_conf.ht_operation_mode &
+	u8 protection_mode = link_conf->ht_operation_mode &
 				 IEEE80211_HT_OP_MODE_PROTECTION;
-	bool ht_enabled = !!(vif->bss_conf.ht_operation_mode &
+	bool ht_enabled = !!(link_conf->ht_operation_mode &
 			     IEEE80211_HT_OP_MODE_PROTECTION);
 
-	if (vif->bss_conf.use_cts_prot)
+	if (link_conf->use_cts_prot)
 		*protection_flags |= cpu_to_le32(tgg_flag);
 
 	IWL_DEBUG_RATE(mvm, "use_cts_prot %d, ht_operation_mode %d\n",
-		       vif->bss_conf.use_cts_prot,
-		       vif->bss_conf.ht_operation_mode);
+		       link_conf->use_cts_prot,
+		       link_conf->ht_operation_mode);
 
 	if (!ht_enabled)
 		return;
@@ -448,7 +451,7 @@ void iwl_mvm_set_fw_protection_flags(struct iwl_mvm *mvm,
 		break;
 	case IEEE80211_HT_OP_MODE_PROTECTION_20MHZ:
 		/* Protect when channel wider than 20MHz */
-		if (vif->bss_conf.chandef.width > NL80211_CHAN_WIDTH_20)
+		if (link_conf->chandef.width > NL80211_CHAN_WIDTH_20)
 			*protection_flags |= cpu_to_le32(ht_flag);
 		break;
 	default:
@@ -459,6 +462,7 @@ void iwl_mvm_set_fw_protection_flags(struct iwl_mvm *mvm,
 }
 
 void iwl_mvm_set_fw_qos_params(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			       struct ieee80211_bss_conf *link_conf,
 			       struct iwl_ac_qos *ac, __le32 *qos_flags)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
@@ -478,10 +482,10 @@ void iwl_mvm_set_fw_qos_params(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		ac[ucode_ac].fifos_mask = BIT(txf);
 	}
 
-	if (vif->bss_conf.qos)
+	if (link_conf->qos)
 		*qos_flags |= cpu_to_le32(MAC_QOS_FLG_UPDATE_EDCA);
 
-	if (vif->bss_conf.chandef.width != NL80211_CHAN_WIDTH_20_NOHT)
+	if (link_conf->chandef.width != NL80211_CHAN_WIDTH_20_NOHT)
 		*qos_flags |= cpu_to_le32(MAC_QOS_FLG_TGN);
 }
 
@@ -538,7 +542,7 @@ static void iwl_mvm_mac_ctxt_cmd_common(struct iwl_mvm *mvm,
 	else
 		eth_broadcast_addr(cmd->bssid_addr);
 
-	iwl_mvm_set_fw_basic_rates(mvm, vif, &cmd->cck_rates,
+	iwl_mvm_set_fw_basic_rates(mvm, vif, &vif->bss_conf, &cmd->cck_rates,
 				   &cmd->ofdm_rates);
 
 	cmd->cck_short_preamble =
@@ -550,11 +554,13 @@ static void iwl_mvm_mac_ctxt_cmd_common(struct iwl_mvm *mvm,
 
 	cmd->filter_flags = 0;
 
-	iwl_mvm_set_fw_qos_params(mvm, vif, &cmd->ac[0], &cmd->qos_flags);
+	iwl_mvm_set_fw_qos_params(mvm, vif, &vif->bss_conf, &cmd->ac[0],
+				  &cmd->qos_flags);
 
 	/* The fw does not distinguish between ht and fat */
 	ht_flag = MAC_PROT_FLG_HT_PROT | MAC_PROT_FLG_FAT_PROT;
-	iwl_mvm_set_fw_protection_flags(mvm, vif, &cmd->protection_flags,
+	iwl_mvm_set_fw_protection_flags(mvm, vif, &vif->bss_conf,
+					&cmd->protection_flags,
 					ht_flag, MAC_PROT_FLG_TGG_PROTECT);
 }
 
@@ -570,6 +576,7 @@ static int iwl_mvm_mac_ctxt_send_cmd(struct iwl_mvm *mvm,
 }
 
 void iwl_mvm_set_fw_dtim_tbtt(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			      struct ieee80211_bss_conf *link_conf,
 			      __le64 *dtim_tsf, __le32 *dtim_time,
 			      __le32 *assoc_beacon_arrive_time)
 {
@@ -590,17 +597,17 @@ void iwl_mvm_set_fw_dtim_tbtt(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	 * 384us in the longest case), this is currently not relevant
 	 * as the firmware wakes up around 2ms before the TBTT.
 	 */
-	dtim_offs = vif->bss_conf.sync_dtim_count *
-			vif->bss_conf.beacon_int;
+	dtim_offs = link_conf->sync_dtim_count *
+			link_conf->beacon_int;
 	/* convert TU to usecs */
 	dtim_offs *= 1024;
 
 	*dtim_tsf =
-		cpu_to_le64(vif->bss_conf.sync_tsf + dtim_offs);
+		cpu_to_le64(link_conf->sync_tsf + dtim_offs);
 	*dtim_time =
-		cpu_to_le32(vif->bss_conf.sync_device_ts + dtim_offs);
+		cpu_to_le32(link_conf->sync_device_ts + dtim_offs);
 	*assoc_beacon_arrive_time =
-		cpu_to_le32(vif->bss_conf.sync_device_ts);
+		cpu_to_le32(link_conf->sync_device_ts);
 
 	IWL_DEBUG_INFO(mvm, "DTIM TBTT is 0x%llx/0x%x, offset %d\n",
 		       le64_to_cpu(*dtim_tsf),
@@ -666,7 +673,8 @@ static int iwl_mvm_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 	    !force_assoc_off) {
 		struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-		iwl_mvm_set_fw_dtim_tbtt(mvm, vif, &ctxt_sta->dtim_tsf,
+		iwl_mvm_set_fw_dtim_tbtt(mvm, vif, &vif->bss_conf,
+					 &ctxt_sta->dtim_tsf,
 					 &ctxt_sta->dtim_time,
 					 &ctxt_sta->assoc_beacon_arrive_time);
 
