@@ -93,6 +93,18 @@ config CAN_AT91
 	  This is a driver for the SoC CAN controller in Atmel's AT91SAM9263
 	  and AT91SAM9X5 processors.
 
+config CAN_BXCAN
+	tristate "STM32 Basic Extended CAN (bxCAN) devices"
+	depends on OF || ARCH_STM32 || COMPILE_TEST
+	depends on HAS_IOMEM
+	select CAN_RX_OFFLOAD
+	help
+	  Say yes here to build support for the STMicroelectronics STM32 basic
+	  extended CAN Controller (bxCAN).
+
+	  This driver can also be built as a module. If so, the module
+	  will be called bxcan.
+
 config CAN_CAN327
 	tristate "Serial / USB serial ELM327 based OBD-II Interfaces (can327)"
 	depends on TTY
