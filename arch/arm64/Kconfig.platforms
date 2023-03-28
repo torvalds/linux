@@ -300,6 +300,14 @@ config ARCH_KALAMA
 	  KALAMA chipset. If you do not wish to build a kernel that
 	  runs on this chipset or if you are unsure, say 'N' here.
 
+config ARCH_BLAIR
+	bool "Enable Support for Qualcomm Technologies, Inc. BLAIR"
+	depends on ARCH_QCOM
+	help
+	  This enables support for the Qualcomm Technologies, Inc.'s
+	  BLAIR chipset. If you do not wish to build a kernel that
+	  runs on this chipset or if you are unsure, say 'N' here.
+
 config QTI_QUIN_GVM
 	bool "Enable Support for Qualcomm Technologies, Inc. Auto GVMs on QUIN"
 	depends on ARCH_QCOM
