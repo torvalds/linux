@@ -1898,7 +1898,6 @@ static int ena_clean_xdp_irq(struct ena_ring *xdp_ring, u32 budget)
 {
 	u32 total_done = 0;
 	u16 next_to_clean;
-	u32 tx_bytes = 0;
 	int tx_pkts = 0;
 	u16 req_id;
 	int rc;
@@ -1936,7 +1935,6 @@ static int ena_clean_xdp_irq(struct ena_ring *xdp_ring, u32 budget)
 			  "tx_poll: q %d skb %p completed\n", xdp_ring->qid,
 			  xdpf);
 
-		tx_bytes += xdpf->len;
 		tx_pkts++;
 		total_done += tx_info->tx_descs;
 
