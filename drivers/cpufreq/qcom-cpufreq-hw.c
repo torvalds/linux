@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/qcom-cpufreq-hw.h>
+#include <linux/topology.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/dcvsh.h>
@@ -31,8 +32,8 @@
 
 #define GT_IRQ_STATUS			BIT(2)
 
-#define CYCLE_CNTR_OFFSET(c, m, acc_count)		\
-				(acc_count ? ((c - cpumask_first(m) + 1) * 4) : 0)
+#define CYCLE_CNTR_OFFSET(core_id, m, acc_count)		\
+				(acc_count ? ((core_id + 1) * 4) : 0)
 
 struct cpufreq_counter {
 	u64 total_cycle_counter;
@@ -157,7 +158,7 @@ u64 qcom_cpufreq_get_cpu_cycle_counter(int cpu)
 	cpu_counter = &qcom_cpufreq_counter[cpu];
 	spin_lock_irqsave(&cpu_counter->lock, flags);
 
-	offset = CYCLE_CNTR_OFFSET(cpu, policy->related_cpus,
+	offset = CYCLE_CNTR_OFFSET(topology_core_id(cpu), policy->related_cpus,
 					soc_data->accumulative_counter);
 	val = readl_relaxed(data->base +
 					soc_data->reg_cycle_cntr + offset);
@@ -174,6 +175,8 @@ u64 qcom_cpufreq_get_cpu_cycle_counter(int cpu)
 	}
 	cycle_counter_ret = cpu_counter->total_cycle_counter;
 	spin_unlock_irqrestore(&cpu_counter->lock, flags);
+
+	pr_debug("CPU %u, core-id 0x%x, offset %u\n", cpu, topology_core_id(cpu), offset);
 
 	return cycle_counter_ret;
 }
