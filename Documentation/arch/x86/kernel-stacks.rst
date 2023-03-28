@@ -12,7 +12,7 @@ Most of the text from Keith Owens, hacked by AK
 x86_64 page size (PAGE_SIZE) is 4K.
 
 Like all other architectures, x86_64 has a kernel stack for every
-active thread.  These thread stacks are THREAD_SIZE (2*PAGE_SIZE) big.
+active thread.  These thread stacks are THREAD_SIZE (4*PAGE_SIZE) big.
 These stacks contain useful data as long as a thread is alive or a
 zombie. While the thread is in user space the kernel stack is empty
 except for the thread_info structure at the bottom.
