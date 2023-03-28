@@ -8490,22 +8490,27 @@ static int gaudi2_handle_qman_err(struct hl_device *hdev, u16 event_type, u64 *e
 
 static int gaudi2_handle_arc_farm_sei_err(struct hl_device *hdev, u16 event_type)
 {
-	u32 i, sts_val, sts_clr_val = 0, error_count = 0;
+	u32 i, sts_val, sts_clr_val, error_count = 0, arc_farm;
 
-	sts_val = RREG32(mmARC_FARM_ARC0_AUX_ARC_SEI_INTR_STS);
+	for (arc_farm = 0 ; arc_farm < NUM_OF_ARC_FARMS_ARC ; arc_farm++) {
+		sts_clr_val = 0;
+		sts_val = RREG32(mmARC_FARM_ARC0_AUX_ARC_SEI_INTR_STS +
+				(arc_farm * ARC_FARM_OFFSET));
 
-	for (i = 0 ; i < GAUDI2_NUM_OF_ARC_SEI_ERR_CAUSE ; i++) {
-		if (sts_val & BIT(i)) {
-			gaudi2_print_event(hdev, event_type, true,
-				"err cause: %s", gaudi2_arc_sei_error_cause[i]);
-			sts_clr_val |= BIT(i);
-			error_count++;
+		for (i = 0 ; i < GAUDI2_NUM_OF_ARC_SEI_ERR_CAUSE ; i++) {
+			if (sts_val & BIT(i)) {
+				gaudi2_print_event(hdev, event_type, true,
+						"ARC FARM ARC %u err cause: %s",
+						arc_farm, gaudi2_arc_sei_error_cause[i]);
+				sts_clr_val |= BIT(i);
+				error_count++;
+			}
 		}
+		WREG32(mmARC_FARM_ARC0_AUX_ARC_SEI_INTR_CLR + (arc_farm * ARC_FARM_OFFSET),
+				sts_clr_val);
 	}
 
 	hl_check_for_glbl_errors(hdev);
-
-	WREG32(mmARC_FARM_ARC0_AUX_ARC_SEI_INTR_CLR, sts_clr_val);
 
 	return error_count;
 }
