@@ -258,18 +258,11 @@ int iwl_mvm_mld_add_aux_sta(struct iwl_mvm *mvm, u32 lmac_id)
 				       IWL_MAX_TID_COUNT, NULL);
 }
 
-static int iwl_mvm_mld_disable_txq(struct iwl_mvm *mvm,
-				   struct ieee80211_sta *sta,
+static int iwl_mvm_mld_disable_txq(struct iwl_mvm *mvm, int sta_id,
 				   u16 *queueptr, u8 tid)
 {
-	struct iwl_mvm_sta *mvmsta;
 	int queue = *queueptr;
 	int ret = 0;
-
-	if (!sta)
-		return -EINVAL;
-
-	mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
 	if (mvm->sta_remove_requires_queue_remove) {
 		u32 cmd_id = WIDE_ID(DATA_PATH_GROUP,
@@ -277,8 +270,7 @@ static int iwl_mvm_mld_disable_txq(struct iwl_mvm *mvm,
 		struct iwl_scd_queue_cfg_cmd remove_cmd = {
 			.operation = cpu_to_le32(IWL_SCD_QUEUE_REMOVE),
 			.u.remove.tid = cpu_to_le32(tid),
-			.u.remove.sta_mask =
-				cpu_to_le32(BIT(mvmsta->deflink.sta_id)),
+			.u.remove.sta_mask = cpu_to_le32(BIT(sta_id)),
 		};
 
 		ret = iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0,
@@ -308,7 +300,7 @@ static int iwl_mvm_mld_rm_int_sta(struct iwl_mvm *mvm,
 	if (flush)
 		iwl_mvm_flush_sta(mvm, int_sta, true);
 
-	iwl_mvm_mld_disable_txq(mvm, NULL, queuptr, tid);
+	iwl_mvm_mld_disable_txq(mvm, int_sta->sta_id, queuptr, tid);
 
 	ret = iwl_mvm_mld_rm_sta_from_fw(mvm, int_sta->sta_id);
 	if (ret)
@@ -536,8 +528,8 @@ static void iwl_mvm_mld_disable_sta_queues(struct iwl_mvm *mvm,
 		if (mvm_sta->tid_data[i].txq_id == IWL_MVM_INVALID_QUEUE)
 			continue;
 
-		iwl_mvm_mld_disable_txq(mvm, sta, &mvm_sta->tid_data[i].txq_id,
-					i);
+		iwl_mvm_mld_disable_txq(mvm, mvm_sta->deflink.sta_id,
+					&mvm_sta->tid_data[i].txq_id, i);
 		mvm_sta->tid_data[i].txq_id = IWL_MVM_INVALID_QUEUE;
 	}
 
