@@ -352,6 +352,23 @@ static void iwl_mvm_mld_stop_ap_ibss(struct ieee80211_hw *hw,
 	mutex_unlock(&mvm->mutex);
 }
 
+static int iwl_mvm_mld_mac_sta_state(struct ieee80211_hw *hw,
+				     struct ieee80211_vif *vif,
+				     struct ieee80211_sta *sta,
+				     enum ieee80211_sta_state old_state,
+				     enum ieee80211_sta_state new_state)
+{
+	struct iwl_mvm_sta_state_ops callbacks = {
+		.add_sta = iwl_mvm_mld_add_sta,
+		.update_sta = iwl_mvm_mld_update_sta,
+		.rm_sta = iwl_mvm_mld_rm_sta,
+		.mac_ctxt_changed = iwl_mvm_mld_mac_ctxt_changed,
+	};
+
+	return iwl_mvm_mac_sta_state_common(hw, vif, sta, old_state, new_state,
+					    &callbacks);
+}
+
 const struct ieee80211_ops iwl_mvm_mld_hw_ops = {
 	.add_interface = iwl_mvm_mld_mac_add_interface,
 	.remove_interface = iwl_mvm_mld_mac_remove_interface,
@@ -359,4 +376,5 @@ const struct ieee80211_ops iwl_mvm_mld_hw_ops = {
 	.unassign_vif_chanctx = iwl_mvm_mld_unassign_vif_chanctx,
 	.join_ibss = iwl_mvm_mld_start_ap_ibss,
 	.leave_ibss = iwl_mvm_mld_stop_ap_ibss,
+	.sta_state = iwl_mvm_mld_mac_sta_state,
 };

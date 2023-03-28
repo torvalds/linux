@@ -24,8 +24,7 @@ static inline int iwl_mvm_add_sta_cmd_size(struct iwl_mvm *mvm)
 		return sizeof(struct iwl_mvm_add_sta_cmd_v7);
 }
 
-static int iwl_mvm_find_free_sta_id(struct iwl_mvm *mvm,
-				    enum nl80211_iftype iftype)
+int iwl_mvm_find_free_sta_id(struct iwl_mvm *mvm, enum nl80211_iftype iftype)
 {
 	int sta_id;
 	u32 reserved_ids = 0;
@@ -52,8 +51,7 @@ static int iwl_mvm_find_free_sta_id(struct iwl_mvm *mvm,
 }
 
 /* Calculate the ampdu density and max size */
-static u32 iwl_mvm_get_sta_ampdu_dens(struct ieee80211_sta *sta,
-				      u32 *_agg_size)
+u32 iwl_mvm_get_sta_ampdu_dens(struct ieee80211_sta *sta, u32 *_agg_size)
 {
 	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 	u32 agg_size = 0, mpdu_dens = 0;
@@ -97,7 +95,7 @@ static u32 iwl_mvm_get_sta_ampdu_dens(struct ieee80211_sta *sta,
 	return mpdu_dens;
 }
 
-static u8 iwl_mvm_get_sta_uapsd_acs(struct ieee80211_sta *sta)
+u8 iwl_mvm_get_sta_uapsd_acs(struct ieee80211_sta *sta)
 {
 	u8 uapsd_acs = 0;
 
@@ -1528,8 +1526,8 @@ static int iwl_mvm_reserve_sta_stream(struct iwl_mvm *mvm,
  *
  * Note that re-enabling aggregations isn't done in this function.
  */
-static void iwl_mvm_realloc_queues_after_restart(struct iwl_mvm *mvm,
-						 struct ieee80211_sta *sta)
+void iwl_mvm_realloc_queues_after_restart(struct iwl_mvm *mvm,
+					  struct ieee80211_sta *sta)
 {
 	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 	unsigned int wdg =
@@ -1649,8 +1647,8 @@ static int iwl_mvm_add_int_sta_common(struct iwl_mvm *mvm,
 }
 
 /* Initialize driver data of a new sta */
-static int iwl_mvm_sta_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			    struct ieee80211_sta *sta, int sta_id, u8 sta_type)
+int iwl_mvm_sta_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+		     struct ieee80211_sta *sta, int sta_id, u8 sta_type)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
@@ -1923,9 +1921,12 @@ int iwl_mvm_wait_sta_queues_empty(struct iwl_mvm *mvm,
 	return 0;
 }
 
-/* Execute the common part for both MLD and non-MLD modes */
-static bool iwl_mvm_sta_del(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			    struct ieee80211_sta *sta, int *ret)
+/* Execute the common part for both MLD and non-MLD modes.
+ * Returns if we're done with removing the station, either
+ * with error or success
+ */
+bool iwl_mvm_sta_del(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+		     struct ieee80211_sta *sta, int *ret)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);

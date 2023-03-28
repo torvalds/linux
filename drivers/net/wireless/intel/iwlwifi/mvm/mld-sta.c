@@ -3,6 +3,7 @@
  * Copyright (C) 2022 Intel Corporation
  */
 #include "mvm.h"
+#include "time-sync.h"
 
 static int iwl_mvm_mld_send_sta_cmd(struct iwl_mvm *mvm,
 				    struct iwl_mvm_sta_cfg_cmd *cmd)
@@ -329,6 +330,210 @@ int iwl_mvm_mld_rm_snif_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	return iwl_mvm_mld_rm_int_sta(mvm, &mvm->snif_sta, false,
 				      IWL_MAX_TID_COUNT, &mvm->snif_queue);
+}
+
+/* send a cfg sta command to add/update a sta in firmware */
+static int iwl_mvm_mld_cfg_sta(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
+			       struct ieee80211_vif *vif, u16 phy_id)
+{
+	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
+	struct iwl_mvm_sta_cfg_cmd cmd = {
+		.sta_id = cpu_to_le32(mvm_sta->deflink.sta_id),
+		.link_id = cpu_to_le32(phy_id),
+		.station_type = cpu_to_le32(mvm_sta->sta_type),
+		.mfp = cpu_to_le32(sta->mfp),
+	};
+	u32 agg_size = 0, mpdu_dens = 0;
+
+	/* For now the link addr is the same as the mld addr */
+	if (vif->type == NL80211_IFTYPE_AP) {
+		memcpy(&cmd.peer_mld_address, sta->addr, ETH_ALEN);
+		memcpy(&cmd.peer_link_address, sta->addr, ETH_ALEN);
+	} else if (vif->bss_conf.bssid) {
+		memcpy(&cmd.peer_mld_address, vif->bss_conf.bssid, ETH_ALEN);
+		memcpy(&cmd.peer_link_address, vif->bss_conf.bssid, ETH_ALEN);
+	}
+
+	if (mvm_sta->sta_state >= IEEE80211_STA_ASSOC)
+		cmd.assoc_id = cpu_to_le32(sta->aid);
+
+	switch (sta->deflink.rx_nss) {
+	case 1:
+		cmd.mimo = cpu_to_le32(0);
+		break;
+	case 2 ... 8:
+		cmd.mimo = cpu_to_le32(1);
+		break;
+	}
+
+	switch (sta->deflink.smps_mode) {
+	case IEEE80211_SMPS_AUTOMATIC:
+	case IEEE80211_SMPS_NUM_MODES:
+		WARN_ON(1);
+		break;
+	case IEEE80211_SMPS_STATIC:
+		/* override NSS */
+		cmd.mimo = cpu_to_le32(0);
+		break;
+	case IEEE80211_SMPS_DYNAMIC:
+		cmd.mimo_protection = cpu_to_le32(1);
+		break;
+	case IEEE80211_SMPS_OFF:
+		/* nothing */
+		break;
+	}
+
+	mpdu_dens = iwl_mvm_get_sta_ampdu_dens(sta, &agg_size);
+	cmd.tx_ampdu_spacing = cpu_to_le32(mpdu_dens);
+	cmd.tx_ampdu_max_size = cpu_to_le32(agg_size);
+
+	if (sta->wme) {
+		cmd.sp_length =
+			cpu_to_le32(sta->max_sp ? sta->max_sp * 2 : 128);
+		cmd.uapsd_acs = cpu_to_le32(iwl_mvm_get_sta_uapsd_acs(sta));
+	}
+
+	if (sta->deflink.he_cap.has_he) {
+		cmd.trig_rnd_alloc =
+			cpu_to_le32(vif->bss_conf.uora_exists ? 1 : 0);
+
+		/* PPE Thresholds */
+		iwl_mvm_set_sta_pkt_ext(mvm, sta, &cmd.pkt_ext);
+
+		/* HTC flags */
+		cmd.htc_flags = iwl_mvm_get_sta_htc_flags(sta);
+
+		if (sta->deflink.he_cap.he_cap_elem.mac_cap_info[2] &
+		    IEEE80211_HE_MAC_CAP2_ACK_EN)
+			cmd.ack_enabled = cpu_to_le32(1);
+	}
+
+	return iwl_mvm_mld_send_sta_cmd(mvm, &cmd);
+}
+
+int iwl_mvm_mld_add_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			struct ieee80211_sta *sta)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
+	int sta_id, ret = 0;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
+		sta_id = iwl_mvm_find_free_sta_id(mvm,
+						  ieee80211_vif_type_p2p(vif));
+	else
+		sta_id = mvm_sta->deflink.sta_id;
+
+	if (sta_id == IWL_MVM_INVALID_STA)
+		return -ENOSPC;
+
+	spin_lock_init(&mvm_sta->lock);
+
+	/* if this is a HW restart re-alloc existing queues */
+	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
+		struct iwl_mvm_int_sta tmp_sta = {
+			.sta_id = sta_id,
+			.type = mvm_sta->sta_type,
+		};
+
+		/* First add an empty station since allocating
+		 * a queue requires a valid station
+		 */
+		ret = iwl_mvm_mld_add_int_sta_to_fw(mvm, &tmp_sta,
+						    vif->bss_conf.bssid,
+						    mvmvif->deflink.phy_ctxt->id);
+		if (ret)
+			return ret;
+
+		iwl_mvm_realloc_queues_after_restart(mvm, sta);
+	} else {
+		ret = iwl_mvm_sta_init(mvm, vif, sta, sta_id,
+				       STATION_TYPE_PEER);
+	}
+
+	ret = iwl_mvm_mld_cfg_sta(mvm, sta, vif, mvmvif->deflink.phy_ctxt->id);
+	if (ret)
+		return ret;
+
+	if (vif->type == NL80211_IFTYPE_STATION) {
+		if (!sta->tdls) {
+			WARN_ON(mvmvif->deflink.ap_sta_id != IWL_MVM_INVALID_STA);
+			mvmvif->deflink.ap_sta_id = sta_id;
+		} else {
+			WARN_ON(mvmvif->deflink.ap_sta_id == IWL_MVM_INVALID_STA);
+		}
+	}
+
+	rcu_assign_pointer(mvm->fw_id_to_mac_id[sta_id], sta);
+
+	return 0;
+}
+
+int iwl_mvm_mld_update_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			   struct ieee80211_sta *sta)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	lockdep_assert_held(&mvm->mutex);
+
+	return iwl_mvm_mld_cfg_sta(mvm, sta, vif, mvmvif->deflink.phy_ctxt->id);
+}
+
+static void iwl_mvm_mld_disable_sta_queues(struct iwl_mvm *mvm,
+					   struct ieee80211_vif *vif,
+					   struct ieee80211_sta *sta)
+{
+	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
+	int i;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	for (i = 0; i < ARRAY_SIZE(mvm_sta->tid_data); i++) {
+		if (mvm_sta->tid_data[i].txq_id == IWL_MVM_INVALID_QUEUE)
+			continue;
+
+		iwl_mvm_mld_disable_txq(mvm, sta, &mvm_sta->tid_data[i].txq_id,
+					i);
+		mvm_sta->tid_data[i].txq_id = IWL_MVM_INVALID_QUEUE;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(sta->txq); i++) {
+		struct iwl_mvm_txq *mvmtxq =
+			iwl_mvm_txq_from_mac80211(sta->txq[i]);
+
+		mvmtxq->txq_id = IWL_MVM_INVALID_QUEUE;
+	}
+}
+
+int iwl_mvm_mld_rm_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+		       struct ieee80211_sta *sta)
+{
+	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
+	int ret;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	kfree(mvm_sta->dup_data);
+
+	/* flush its queues here since we are freeing mvm_sta */
+	ret = iwl_mvm_flush_sta(mvm, mvm_sta, false);
+	if (ret)
+		return ret;
+	ret = iwl_mvm_wait_sta_queues_empty(mvm, mvm_sta);
+	if (ret)
+		return ret;
+
+	iwl_mvm_mld_disable_sta_queues(mvm, vif, sta);
+
+	if (iwl_mvm_sta_del(mvm, vif, sta, &ret))
+		return ret;
+
+	ret = iwl_mvm_mld_rm_sta_from_fw(mvm, mvm_sta->deflink.sta_id);
+	RCU_INIT_POINTER(mvm->fw_id_to_mac_id[mvm_sta->deflink.sta_id], NULL);
+
+	return ret;
 }
 
 static void iwl_mvm_mld_sta_modify_disable_tx(struct iwl_mvm *mvm,

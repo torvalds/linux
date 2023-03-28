@@ -2103,9 +2103,8 @@ static void iwl_mvm_get_optimal_ppe_info(struct iwl_he_pkt_ext_v2 *pkt_ext,
 }
 
 /* Set the pkt_ext field according to PPE Thresholds element */
-static int iwl_mvm_set_sta_pkt_ext(struct iwl_mvm *mvm,
-				   struct ieee80211_sta *sta,
-				   struct iwl_he_pkt_ext_v2 *pkt_ext)
+int iwl_mvm_set_sta_pkt_ext(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
+			    struct iwl_he_pkt_ext_v2 *pkt_ext)
 {
 	u8 nominal_padding;
 	int i, ret = 0;
@@ -2250,7 +2249,7 @@ bool iwl_mvm_is_nic_ack_enabled(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 			       IEEE80211_HE_MAC_CAP2_ACK_EN));
 }
 
-static __le32 iwl_mvm_get_sta_htc_flags(struct ieee80211_sta *sta)
+__le32 iwl_mvm_get_sta_htc_flags(struct ieee80211_sta *sta)
 {
 	u8 *mac_cap_info = &sta->deflink.he_cap.he_cap_elem.mac_cap_info[0];
 	__le32 htc_flags = 0;
@@ -3425,11 +3424,37 @@ static void iwl_mvm_mei_host_associated(struct iwl_mvm *mvm,
 #endif
 }
 
+static int iwl_mvm_mac_ctxt_changed_wrapper(struct iwl_mvm *mvm,
+					    struct ieee80211_vif *vif,
+					    bool force_assoc_off)
+{
+	return iwl_mvm_mac_ctxt_changed(mvm, vif, force_assoc_off, NULL);
+}
+
 static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_sta *sta,
 				 enum ieee80211_sta_state old_state,
 				 enum ieee80211_sta_state new_state)
+{
+	struct iwl_mvm_sta_state_ops callbacks = {
+		.add_sta = iwl_mvm_add_sta,
+		.update_sta = iwl_mvm_update_sta,
+		.rm_sta = iwl_mvm_rm_sta,
+		.mac_ctxt_changed = iwl_mvm_mac_ctxt_changed_wrapper,
+	};
+
+	return iwl_mvm_mac_sta_state_common(hw, vif, sta, old_state, new_state,
+					    &callbacks);
+}
+
+/* Common part for MLD and non-MLD modes */
+int iwl_mvm_mac_sta_state_common(struct ieee80211_hw *hw,
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_sta *sta,
+				 enum ieee80211_sta_state old_state,
+				 enum ieee80211_sta_state new_state,
+				 struct iwl_mvm_sta_state_ops *callbacks)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
@@ -3507,7 +3532,7 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 			goto out_unlock;
 		}
 
-		ret = iwl_mvm_add_sta(mvm, vif, sta);
+		ret = callbacks->add_sta(mvm, vif, sta);
 		if (sta->tdls && ret == 0) {
 			iwl_mvm_recalc_tdls_state(mvm, vif, true);
 			iwl_mvm_tdls_check_trigger(mvm, vif, sta->addr,
@@ -3529,11 +3554,12 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 		if (vif->type == NL80211_IFTYPE_AP) {
 			vif->bss_conf.he_support = sta->deflink.he_cap.has_he;
 			mvmvif->ap_assoc_sta_count++;
-			iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
-			if ((vif->bss_conf.he_support &&
+			callbacks->mac_ctxt_changed(mvm, vif, false);
+			if (!mvm->mld_api_is_used &&
+			    ((vif->bss_conf.he_support &&
 			     !iwlwifi_mod_params.disable_11ax) ||
 			    (vif->bss_conf.eht_support &&
-			     !iwlwifi_mod_params.disable_11be))
+			     !iwlwifi_mod_params.disable_11be)))
 				iwl_mvm_cfg_he_sta(mvm, vif,
 						   mvm_sta->deflink.sta_id);
 		} else if (vif->type == NL80211_IFTYPE_STATION) {
@@ -3543,13 +3569,19 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 			if (sta->deflink.he_cap.has_he)
 				iwl_mvm_check_he_obss_narrow_bw_ru(hw, vif);
 
-			iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
+			callbacks->mac_ctxt_changed(mvm, vif, false);
+
+			if (mvm->mld_api_is_used)
+				iwl_mvm_link_changed(mvm, vif,
+						     LINK_CONTEXT_MODIFY_ALL &
+						     ~LINK_CONTEXT_MODIFY_ACTIVE,
+						     true);
 		}
 
 		iwl_mvm_rs_rate_init(mvm, sta,
 				     mvmvif->deflink.phy_ctxt->channel->band,
 				     false);
-		ret = iwl_mvm_update_sta(mvm, vif, sta);
+		ret = callbacks->update_sta(mvm, vif, sta);
 	} else if (old_state == IEEE80211_STA_ASSOC &&
 		   new_state == IEEE80211_STA_AUTHORIZED) {
 		ret = 0;
@@ -3567,7 +3599,7 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 
 			mvmvif->authorized = 1;
 
-			iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
+			callbacks->mac_ctxt_changed(mvm, vif, false);
 			iwl_mvm_mei_host_associated(mvm, vif, mvm_sta);
 		}
 
@@ -3601,7 +3633,7 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 		   new_state == IEEE80211_STA_AUTH) {
 		if (vif->type == NL80211_IFTYPE_AP) {
 			mvmvif->ap_assoc_sta_count--;
-			iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
+			callbacks->mac_ctxt_changed(mvm, vif, false);
 		} else if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls)
 			iwl_mvm_stop_session_protection(mvm, vif);
 		ret = 0;
@@ -3612,7 +3644,7 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 		   new_state == IEEE80211_STA_NOTEXIST) {
 		if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls)
 			iwl_mvm_stop_session_protection(mvm, vif);
-		ret = iwl_mvm_rm_sta(mvm, vif, sta);
+		ret = callbacks->rm_sta(mvm, vif, sta);
 		if (sta->tdls) {
 			iwl_mvm_recalc_tdls_state(mvm, vif, false);
 			iwl_mvm_tdls_check_trigger(mvm, vif, sta->addr,

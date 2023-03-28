@@ -471,6 +471,9 @@ struct iwl_mvm_int_sta {
  */
 int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			   bool update, unsigned int flags);
+int iwl_mvm_find_free_sta_id(struct iwl_mvm *mvm, enum nl80211_iftype iftype);
+int iwl_mvm_sta_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+		     struct ieee80211_sta *sta, int sta_id, u8 sta_type);
 int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 		    struct ieee80211_vif *vif,
 		    struct ieee80211_sta *sta);
@@ -482,8 +485,12 @@ static inline int iwl_mvm_update_sta(struct iwl_mvm *mvm,
 	return iwl_mvm_sta_send_to_fw(mvm, sta, true, 0);
 }
 
+void iwl_mvm_realloc_queues_after_restart(struct iwl_mvm *mvm,
+					  struct ieee80211_sta *sta);
 int iwl_mvm_wait_sta_queues_empty(struct iwl_mvm *mvm,
 				  struct iwl_mvm_sta *mvm_sta);
+bool iwl_mvm_sta_del(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+		     struct ieee80211_sta *sta, int *ret);
 int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 		   struct ieee80211_vif *vif,
 		   struct ieee80211_sta *sta);
@@ -578,6 +585,38 @@ int iwl_mvm_tvqm_enable_txq(struct iwl_mvm *mvm,
 			    struct ieee80211_sta *sta,
 			    u8 sta_id, u8 tid, unsigned int timeout);
 
+/* Sta state */
+/**
+ * struct iwl_mvm_sta_state_ops - callbacks for the sta_state() ops
+ *
+ * Since the only difference between both MLD and
+ * non-MLD versions of sta_state() is these function calls,
+ * each version will send its specific function calls to
+ * %iwl_mvm_mac_sta_state_common().
+ *
+ * @add_sta: pointer to the function that adds a new sta
+ * @update_sta: pointer to the function that updates a sta
+ * @rm_sta: pointer to the functions that removes a sta
+ * @mac_ctxt_changed: pointer to the function that handles a change in mac ctxt
+ */
+struct iwl_mvm_sta_state_ops {
+	int (*add_sta)(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+		       struct ieee80211_sta *sta);
+	int (*update_sta)(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			  struct ieee80211_sta *sta);
+	int (*rm_sta)(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+		      struct ieee80211_sta *sta);
+	int (*mac_ctxt_changed)(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+				bool force_assoc_off);
+};
+
+int iwl_mvm_mac_sta_state_common(struct ieee80211_hw *hw,
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_sta *sta,
+				 enum ieee80211_sta_state old_state,
+				 enum ieee80211_sta_state new_state,
+				 struct iwl_mvm_sta_state_ops *callbacks);
+
 /* New MLD STA related APIs */
 /* STA */
 int iwl_mvm_mld_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
@@ -586,6 +625,12 @@ int iwl_mvm_mld_add_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_mld_rm_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_mld_rm_snif_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_mld_rm_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+int iwl_mvm_mld_add_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			struct ieee80211_sta *sta);
+int iwl_mvm_mld_update_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			   struct ieee80211_sta *sta);
+int iwl_mvm_mld_rm_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+		       struct ieee80211_sta *sta);
 
 /* Queues */
 void iwl_mvm_mld_modify_all_sta_disable_tx(struct iwl_mvm *mvm,
