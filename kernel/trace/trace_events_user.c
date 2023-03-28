@@ -99,8 +99,22 @@ struct user_event_enabler {
 /* Bits 0-5 are for the bit to update upon enable/disable (0-63 allowed) */
 #define ENABLE_VAL_BIT_MASK 0x3F
 
+/* Bit 6 is for faulting status of enablement */
+#define ENABLE_VAL_FAULTING_BIT 6
+
 /* Only duplicate the bit value */
 #define ENABLE_VAL_DUP_MASK ENABLE_VAL_BIT_MASK
+
+#define ENABLE_BITOPS(e) ((unsigned long *)&(e)->values)
+
+/* Used for asynchronous faulting in of pages */
+struct user_event_enabler_fault {
+	struct work_struct work;
+	struct user_event_mm *mm;
+	struct user_event_enabler *enabler;
+};
+
+static struct kmem_cache *fault_cache;
 
 /* Global list of memory descriptors using user_events */
 static LIST_HEAD(user_event_mms);
@@ -263,7 +277,85 @@ out:
 }
 
 static int user_event_enabler_write(struct user_event_mm *mm,
-				    struct user_event_enabler *enabler)
+				    struct user_event_enabler *enabler,
+				    bool fixup_fault);
+
+static void user_event_enabler_fault_fixup(struct work_struct *work)
+{
+	struct user_event_enabler_fault *fault = container_of(
+		work, struct user_event_enabler_fault, work);
+	struct user_event_enabler *enabler = fault->enabler;
+	struct user_event_mm *mm = fault->mm;
+	unsigned long uaddr = enabler->addr;
+	int ret;
+
+	ret = user_event_mm_fault_in(mm, uaddr);
+
+	if (ret && ret != -ENOENT) {
+		struct user_event *user = enabler->event;
+
+		pr_warn("user_events: Fault for mm: 0x%pK @ 0x%llx event: %s\n",
+			mm->mm, (unsigned long long)uaddr, EVENT_NAME(user));
+	}
+
+	/* Prevent state changes from racing */
+	mutex_lock(&event_mutex);
+
+	/*
+	 * If we managed to get the page, re-issue the write. We do not
+	 * want to get into a possible infinite loop, which is why we only
+	 * attempt again directly if the page came in. If we couldn't get
+	 * the page here, then we will try again the next time the event is
+	 * enabled/disabled.
+	 */
+	clear_bit(ENABLE_VAL_FAULTING_BIT, ENABLE_BITOPS(enabler));
+
+	if (!ret) {
+		mmap_read_lock(mm->mm);
+		user_event_enabler_write(mm, enabler, true);
+		mmap_read_unlock(mm->mm);
+	}
+
+	mutex_unlock(&event_mutex);
+
+	/* In all cases we no longer need the mm or fault */
+	user_event_mm_put(mm);
+	kmem_cache_free(fault_cache, fault);
+}
+
+static bool user_event_enabler_queue_fault(struct user_event_mm *mm,
+					   struct user_event_enabler *enabler)
+{
+	struct user_event_enabler_fault *fault;
+
+	fault = kmem_cache_zalloc(fault_cache, GFP_NOWAIT | __GFP_NOWARN);
+
+	if (!fault)
+		return false;
+
+	INIT_WORK(&fault->work, user_event_enabler_fault_fixup);
+	fault->mm = user_event_mm_get(mm);
+	fault->enabler = enabler;
+
+	/* Don't try to queue in again while we have a pending fault */
+	set_bit(ENABLE_VAL_FAULTING_BIT, ENABLE_BITOPS(enabler));
+
+	if (!schedule_work(&fault->work)) {
+		/* Allow another attempt later */
+		clear_bit(ENABLE_VAL_FAULTING_BIT, ENABLE_BITOPS(enabler));
+
+		user_event_mm_put(mm);
+		kmem_cache_free(fault_cache, fault);
+
+		return false;
+	}
+
+	return true;
+}
+
+static int user_event_enabler_write(struct user_event_mm *mm,
+				    struct user_event_enabler *enabler,
+				    bool fixup_fault)
 {
 	unsigned long uaddr = enabler->addr;
 	unsigned long *ptr;
@@ -278,11 +370,19 @@ static int user_event_enabler_write(struct user_event_mm *mm,
 	if (refcount_read(&mm->tasks) == 0)
 		return -ENOENT;
 
+	if (unlikely(test_bit(ENABLE_VAL_FAULTING_BIT, ENABLE_BITOPS(enabler))))
+		return -EBUSY;
+
 	ret = pin_user_pages_remote(mm->mm, uaddr, 1, FOLL_WRITE | FOLL_NOFAULT,
 				    &page, NULL, NULL);
 
-	if (ret <= 0) {
-		pr_warn("user_events: Enable write failed\n");
+	if (unlikely(ret <= 0)) {
+		if (!fixup_fault)
+			return -EFAULT;
+
+		if (!user_event_enabler_queue_fault(mm, enabler))
+			pr_warn("user_events: Unable to queue fault handler\n");
+
 		return -EFAULT;
 	}
 
@@ -314,7 +414,7 @@ static void user_event_enabler_update(struct user_event *user)
 
 		list_for_each_entry_rcu(enabler, &mm->enablers, link)
 			if (enabler->event == user)
-				user_event_enabler_write(mm, enabler);
+				user_event_enabler_write(mm, enabler, true);
 
 		rcu_read_unlock();
 		mmap_read_unlock(mm->mm);
@@ -562,7 +662,7 @@ retry:
 
 	/* Attempt to reflect the current state within the process */
 	mmap_read_lock(user_mm->mm);
-	*write_result = user_event_enabler_write(user_mm, enabler);
+	*write_result = user_event_enabler_write(user_mm, enabler, false);
 	mmap_read_unlock(user_mm->mm);
 
 	/*
@@ -2201,16 +2301,24 @@ static int __init trace_events_user_init(void)
 {
 	int ret;
 
+	fault_cache = KMEM_CACHE(user_event_enabler_fault, 0);
+
+	if (!fault_cache)
+		return -ENOMEM;
+
 	init_group = user_event_group_create(&init_user_ns);
 
-	if (!init_group)
+	if (!init_group) {
+		kmem_cache_destroy(fault_cache);
 		return -ENOMEM;
+	}
 
 	ret = create_user_tracefs();
 
 	if (ret) {
 		pr_warn("user_events could not register with tracefs\n");
 		user_event_group_destroy(init_group);
+		kmem_cache_destroy(fault_cache);
 		init_group = NULL;
 		return ret;
 	}
