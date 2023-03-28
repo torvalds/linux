@@ -4,11 +4,10 @@ if ARCH_APPLE || COMPILE_TEST
 
 menu "Apple SoC drivers"
 
-config APPLE_MBOX
+config APPLE_MAILBOX
 	tristate "Apple SoC mailboxes"
 	depends on PM
 	depends on ARCH_APPLE || (64BIT && COMPILE_TEST)
-	depends on !APPLE_MAILBOX
 	default ARCH_APPLE
 	help
 	  Apple SoCs have various co-processors required for certain
@@ -20,7 +19,7 @@ config APPLE_MBOX
 
 config APPLE_RTKIT
 	tristate "Apple RTKit co-processor IPC protocol"
-	depends on APPLE_MBOX
+	depends on APPLE_MAILBOX
 	depends on ARCH_APPLE || COMPILE_TEST
 	default ARCH_APPLE
 	help

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
-obj-$(CONFIG_APPLE_MBOX) += apple-mailbox.o
+obj-$(CONFIG_APPLE_MAILBOX) += apple-mailbox.o
 apple-mailbox-y = mailbox.o
 
 obj-$(CONFIG_APPLE_RTKIT) += apple-rtkit.o
