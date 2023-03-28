@@ -8745,7 +8745,7 @@ static int __init pcie_init(void)
 	char rc_name[MAX_RC_NAME_LEN];
 	void __iomem *reg_addr;
 
-	pr_alert("pcie:%s.\n", __func__);
+	pr_debug("pcie:%s.\n", __func__);
 
 	pcie_drv.rc_num = 0;
 	mutex_init(&pcie_drv.drv_lock);
