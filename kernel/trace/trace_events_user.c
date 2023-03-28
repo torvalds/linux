@@ -53,9 +53,9 @@
  * allows isolation for events by various means.
  */
 struct user_event_group {
-	char *system_name;
-	struct hlist_node node;
-	struct mutex reg_mutex;
+	char		*system_name;
+	struct		hlist_node node;
+	struct		mutex reg_mutex;
 	DECLARE_HASHTABLE(register_table, 8);
 };
 
@@ -76,17 +76,17 @@ static unsigned int current_user_events;
  * refcnt reaches one.
  */
 struct user_event {
-	struct user_event_group *group;
-	struct tracepoint tracepoint;
-	struct trace_event_call call;
-	struct trace_event_class class;
-	struct dyn_event devent;
-	struct hlist_node node;
-	struct list_head fields;
-	struct list_head validators;
-	refcount_t refcnt;
-	int min_size;
-	char status;
+	struct user_event_group		*group;
+	struct tracepoint		tracepoint;
+	struct trace_event_call		call;
+	struct trace_event_class	class;
+	struct dyn_event		devent;
+	struct hlist_node		node;
+	struct list_head		fields;
+	struct list_head		validators;
+	refcount_t			refcnt;
+	int				min_size;
+	char				status;
 };
 
 /*
@@ -95,12 +95,12 @@ struct user_event {
  * these to track enablement sites that are tied to an event.
  */
 struct user_event_enabler {
-	struct list_head link;
-	struct user_event *event;
-	unsigned long addr;
+	struct list_head	link;
+	struct user_event	*event;
+	unsigned long		addr;
 
 	/* Track enable bit, flags, etc. Aligned for bitops. */
-	unsigned int values;
+	unsigned int		values;
 };
 
 /* Bits 0-5 are for the bit to update upon enable/disable (0-63 allowed) */
@@ -119,9 +119,9 @@ struct user_event_enabler {
 
 /* Used for asynchronous faulting in of pages */
 struct user_event_enabler_fault {
-	struct work_struct work;
-	struct user_event_mm *mm;
-	struct user_event_enabler *enabler;
+	struct work_struct		work;
+	struct user_event_mm		*mm;
+	struct user_event_enabler	*enabler;
 };
 
 static struct kmem_cache *fault_cache;
@@ -137,23 +137,23 @@ static DEFINE_SPINLOCK(user_event_mms_lock);
  * These are not shared and only accessible by the file that created it.
  */
 struct user_event_refs {
-	struct rcu_head rcu;
-	int count;
-	struct user_event *events[];
+	struct rcu_head		rcu;
+	int			count;
+	struct user_event	*events[];
 };
 
 struct user_event_file_info {
-	struct user_event_group *group;
-	struct user_event_refs *refs;
+	struct user_event_group	*group;
+	struct user_event_refs	*refs;
 };
 
 #define VALIDATOR_ENSURE_NULL (1 << 0)
 #define VALIDATOR_REL (1 << 1)
 
 struct user_event_validator {
-	struct list_head link;
-	int offset;
-	int flags;
+	struct list_head	link;
+	int			offset;
+	int			flags;
 };
 
 typedef void (*user_event_func_t) (struct user_event *user, struct iov_iter *i,
@@ -2276,11 +2276,11 @@ out:
 }
 
 static const struct file_operations user_data_fops = {
-	.open = user_events_open,
-	.write = user_events_write,
-	.write_iter = user_events_write_iter,
+	.open		= user_events_open,
+	.write		= user_events_write,
+	.write_iter	= user_events_write_iter,
 	.unlocked_ioctl	= user_events_ioctl,
-	.release = user_events_release,
+	.release	= user_events_release,
 };
 
 static void *user_seq_start(struct seq_file *m, loff_t *pos)
@@ -2346,10 +2346,10 @@ static int user_seq_show(struct seq_file *m, void *p)
 }
 
 static const struct seq_operations user_seq_ops = {
-	.start = user_seq_start,
-	.next  = user_seq_next,
-	.stop  = user_seq_stop,
-	.show  = user_seq_show,
+	.start	= user_seq_start,
+	.next	= user_seq_next,
+	.stop	= user_seq_stop,
+	.show	= user_seq_show,
 };
 
 static int user_status_open(struct inode *node, struct file *file)
@@ -2375,10 +2375,10 @@ static int user_status_open(struct inode *node, struct file *file)
 }
 
 static const struct file_operations user_status_fops = {
-	.open = user_status_open,
-	.read = seq_read,
-	.llseek  = seq_lseek,
-	.release = seq_release,
+	.open		= user_status_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
 };
 
 /*

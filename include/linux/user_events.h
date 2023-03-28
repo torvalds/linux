@@ -17,13 +17,13 @@
 
 #ifdef CONFIG_USER_EVENTS
 struct user_event_mm {
-	struct list_head link;
-	struct list_head enablers;
-	struct mm_struct *mm;
-	struct user_event_mm *next;
-	refcount_t refcnt;
-	refcount_t tasks;
-	struct rcu_work put_rwork;
+	struct list_head	link;
+	struct list_head	enablers;
+	struct mm_struct	*mm;
+	struct user_event_mm	*next;
+	refcount_t		refcnt;
+	refcount_t		tasks;
+	struct rcu_work		put_rwork;
 };
 
 extern void user_event_mm_dup(struct task_struct *t,
