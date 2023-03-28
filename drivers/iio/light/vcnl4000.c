@@ -208,7 +208,6 @@ static int vcnl4000_init(struct vcnl4000_data *data)
 
 	data->rev = ret & 0xf;
 	data->al_scale = 250000;
-	mutex_init(&data->vcnl4000_lock);
 
 	return data->chip_spec->set_power_state(data, true);
 };
@@ -1366,6 +1365,8 @@ static int vcnl4000_probe(struct i2c_client *client)
 	data->client = client;
 	data->id = id->driver_data;
 	data->chip_spec = &vcnl4000_chip_spec_cfg[data->id];
+
+	mutex_init(&data->vcnl4000_lock);
 
 	ret = data->chip_spec->init(data);
 	if (ret < 0)
