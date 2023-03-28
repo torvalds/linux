@@ -1013,7 +1013,8 @@ static void __init of_unittest_bus_ranges(void)
 	struct device_node *np;
 	struct of_range range;
 	struct of_range_parser parser;
-	int i = 0;
+	struct resource res;
+	int ret, i = 0;
 
 	np = of_find_node_by_path("/testcase-data/address-tests");
 	if (!np) {
@@ -1025,6 +1026,19 @@ static void __init of_unittest_bus_ranges(void)
 		pr_err("missing ranges property\n");
 		return;
 	}
+
+	ret = of_range_to_resource(np, 1, &res);
+	unittest(!ret, "of_range_to_resource returned error (%d) node %pOF\n",
+		ret, np);
+	unittest(resource_type(&res) == IORESOURCE_MEM,
+		"of_range_to_resource wrong resource type on node %pOF res=%pR\n",
+		np, &res);
+	unittest(res.start == 0xd0000000,
+		"of_range_to_resource wrong resource start address on node %pOF res=%pR\n",
+		np, &res);
+	unittest(resource_size(&res) == 0x20000000,
+		"of_range_to_resource wrong resource start address on node %pOF res=%pR\n",
+		np, &res);
 
 	/*
 	 * Get the "ranges" from the device tree

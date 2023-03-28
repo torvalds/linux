@@ -68,6 +68,8 @@ extern int of_pci_address_to_resource(struct device_node *dev, int bar,
 extern int of_pci_range_to_resource(struct of_pci_range *range,
 				    struct device_node *np,
 				    struct resource *res);
+extern int of_range_to_resource(struct device_node *np, int index,
+				struct resource *res);
 extern bool of_dma_is_coherent(struct device_node *np);
 #else /* CONFIG_OF_ADDRESS */
 static inline void __iomem *of_io_request_and_map(struct device_node *device,
@@ -116,6 +118,12 @@ static inline int of_pci_address_to_resource(struct device_node *dev, int bar,
 static inline int of_pci_range_to_resource(struct of_pci_range *range,
 					   struct device_node *np,
 					   struct resource *res)
+{
+	return -ENOSYS;
+}
+
+static inline int of_range_to_resource(struct device_node *np, int index,
+				       struct resource *res)
 {
 	return -ENOSYS;
 }
