@@ -5725,8 +5725,8 @@ int mlx5e_attach_netdev(struct mlx5e_priv *priv)
 
 	/* Validate the max_wqe_size_sq capability. */
 	if (WARN_ON_ONCE(mlx5e_get_max_sq_wqebbs(priv->mdev) < MLX5E_MAX_TX_WQEBBS)) {
-		mlx5_core_warn(priv->mdev, "MLX5E: Max SQ WQEBBs firmware capability: %u, needed %lu\n",
-			       mlx5e_get_max_sq_wqebbs(priv->mdev), MLX5E_MAX_TX_WQEBBS);
+		mlx5_core_warn(priv->mdev, "MLX5E: Max SQ WQEBBs firmware capability: %u, needed %u\n",
+			       mlx5e_get_max_sq_wqebbs(priv->mdev), (unsigned int)MLX5E_MAX_TX_WQEBBS);
 		return -EIO;
 	}
 
