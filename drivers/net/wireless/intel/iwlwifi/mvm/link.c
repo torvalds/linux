@@ -113,7 +113,7 @@ int iwl_mvm_link_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 					link_conf->dtim_period);
 
 	if (!link_conf->he_support || iwlwifi_mod_params.disable_11ax ||
-	    !vif->cfg.assoc) {
+	    (vif->type == NL80211_IFTYPE_STATION && !vif->cfg.assoc)) {
 		changes &= ~LINK_CONTEXT_MODIFY_HE_PARAMS;
 		goto send_cmd;
 	}

@@ -454,37 +454,41 @@ static int iwl_mvm_mld_mac_sta_state(struct ieee80211_hw *hw,
 }
 
 static void
-iwl_mvm_mld_bss_info_changed_station(struct iwl_mvm *mvm,
-				     struct ieee80211_vif *vif,
-				     struct ieee80211_bss_conf *bss_conf,
-				     u64 changes)
+iwl_mvm_mld_link_info_changed_station(struct iwl_mvm *mvm,
+				      struct ieee80211_vif *vif,
+				      struct ieee80211_bss_conf *link_conf,
+				      u64 changes)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	int ret;
+	bool has_he, has_eht;
 	u32 link_changes = 0;
-	bool has_he = vif->bss_conf.he_support &&
-			  !iwlwifi_mod_params.disable_11ax;
-	bool has_eht = vif->bss_conf.eht_support &&
-			  !iwlwifi_mod_params.disable_11be;
+	int ret;
 
-	if (changes & BSS_CHANGED_ASSOC && vif->cfg.assoc &&
-	    (has_he || has_eht)) {
+	if (WARN_ON_ONCE(!mvmvif->link[link_conf->link_id]))
+		return;
+
+	has_he = link_conf->he_support && !iwlwifi_mod_params.disable_11ax;
+	has_eht = link_conf->eht_support && !iwlwifi_mod_params.disable_11be;
+
+	/* Update EDCA params */
+	if (changes & BSS_CHANGED_QOS && vif->cfg.assoc && link_conf->qos)
+		link_changes |= LINK_CONTEXT_MODIFY_QOS_PARAMS;
+
+	if (changes & BSS_CHANGED_ERP_SLOT)
+		link_changes |= LINK_CONTEXT_MODIFY_RATES_INFO;
+
+	if (vif->cfg.assoc && (has_he || has_eht)) {
 		IWL_DEBUG_MAC80211(mvm, "Associated in HE mode\n");
 		link_changes |= LINK_CONTEXT_MODIFY_HE_PARAMS;
 	}
-
-	/* Update MU EDCA params */
-	if (changes & BSS_CHANGED_QOS && vif->cfg.assoc &&
-	    (has_he || has_eht))
-		link_changes |= LINK_CONTEXT_MODIFY_QOS_PARAMS;
 
 	/* Update EHT Puncturing info */
 	if (changes & BSS_CHANGED_EHT_PUNCTURING && vif->cfg.assoc && has_eht)
 		link_changes |= LINK_CONTEXT_MODIFY_EHT_PARAMS;
 
 	if (link_changes) {
-		ret = iwl_mvm_link_changed(mvm, vif, &vif->bss_conf,
-					   link_changes, true);
+		ret = iwl_mvm_link_changed(mvm, vif, link_conf, link_changes,
+					   true);
 		if (ret)
 			IWL_ERR(mvm, "failed to update link\n");
 	}
@@ -493,85 +497,139 @@ iwl_mvm_mld_bss_info_changed_station(struct iwl_mvm *mvm,
 	if (ret)
 		IWL_ERR(mvm, "failed to update MAC %pM\n", vif->addr);
 
-	memcpy(mvmvif->deflink.bssid, bss_conf->bssid, ETH_ALEN);
+	memcpy(mvmvif->link[link_conf->link_id]->bssid, link_conf->bssid,
+	       ETH_ALEN);
+
+	iwl_mvm_bss_info_changed_station_common(mvm, vif, link_conf, changes);
+}
+
+static bool iwl_mvm_mld_vif_have_valid_ap_sta(struct iwl_mvm_vif *mvmvif)
+{
+	int i;
+
+	for_each_mvm_vif_valid_link(mvmvif, i) {
+		if (mvmvif->link[i]->ap_sta_id != IWL_MVM_INVALID_STA)
+			return true;
+	}
+
+	return false;
+}
+
+static void iwl_mvm_mld_vif_delete_all_stas(struct iwl_mvm *mvm,
+					    struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	int i, ret;
+
+	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
+		return;
+
+	iwl_mvm_sec_key_remove_ap(mvm, vif);
+
+	for_each_mvm_vif_valid_link(mvmvif, i) {
+		struct iwl_mvm_vif_link_info *link = mvmvif->link[i];
+
+		if (!link)
+			continue;
+
+		ret = iwl_mvm_mld_rm_sta_id(mvm, vif, link->ap_sta_id);
+		if (ret)
+			IWL_ERR(mvm, "failed to remove AP station\n");
+
+		link->ap_sta_id = IWL_MVM_INVALID_STA;
+	}
+}
+
+static void iwl_mvm_mld_vif_cfg_changed_station(struct iwl_mvm *mvm,
+						struct ieee80211_vif *vif,
+						u64 changes)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct ieee80211_bss_conf *link_conf;
+	bool protect = false;
+	unsigned int i;
+	int ret;
+
+	ret = iwl_mvm_mld_mac_ctxt_changed(mvm, vif, false);
+	if (ret)
+		IWL_ERR(mvm, "failed to update MAC %pM\n", vif->addr);
+
 	mvmvif->associated = vif->cfg.assoc;
 
-	if (changes & BSS_CHANGED_ASSOC) {
-		if (vif->cfg.assoc) {
-			/* clear statistics to get clean beacon counter */
-			iwl_mvm_request_statistics(mvm, true);
-			memset(&mvmvif->deflink.beacon_stats, 0,
-			       sizeof(mvmvif->deflink.beacon_stats));
+	if (!(changes & BSS_CHANGED_ASSOC))
+		return;
 
-			if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART,
-				      &mvm->status) &&
-			    !vif->bss_conf.dtim_period) {
-				/* If we're not restarting and still haven't
-				 * heard a beacon (dtim period unknown) then
-				 * make sure we still have enough minimum time
-				 * remaining in the time event, since the auth
-				 * might actually have taken quite a while
-				 * (especially for SAE) and so the remaining
-				 * time could be small without us having heard
-				 * a beacon yet.
-				 */
-				iwl_mvm_protect_assoc(mvm, vif, 0);
-			}
+	if (vif->cfg.assoc) {
+		/* clear statistics to get clean beacon counter */
+		iwl_mvm_request_statistics(mvm, true);
+		iwl_mvm_sf_update(mvm, vif, false);
+		iwl_mvm_power_vif_assoc(mvm, vif);
 
-			iwl_mvm_sf_update(mvm, vif, false);
-			iwl_mvm_power_vif_assoc(mvm, vif);
+		for_each_mvm_vif_valid_link(mvmvif, i) {
+			memset(&mvmvif->link[i]->beacon_stats, 0,
+			       sizeof(mvmvif->link[i]->beacon_stats));
+
 			if (vif->p2p) {
 				iwl_mvm_update_smps(mvm, vif,
 						    IWL_MVM_SMPS_REQ_PROT,
-						    IEEE80211_SMPS_DYNAMIC, 0);
+						    IEEE80211_SMPS_DYNAMIC, i);
 			}
-		} else if (mvmvif->deflink.ap_sta_id != IWL_MVM_INVALID_STA) {
-			iwl_mvm_mei_host_disassociated(mvm);
-			/* If update fails - SF might be running in associated
-			 * mode while disassociated - which is forbidden.
-			 */
-			ret = iwl_mvm_sf_update(mvm, vif, false);
-			WARN_ONCE(ret &&
-				  !test_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED,
-					    &mvm->status),
-				  "Failed to update SF upon disassociation\n");
 
-			/* If we get an assert during the connection (after the
-			 * station has been added, but before the vif is set
-			 * to associated), mac80211 will re-add the station and
-			 * then configure the vif. Since the vif is not
-			 * associated, we would remove the station here and
-			 * this would fail the recovery.
-			 */
-			if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART,
-				      &mvm->status)) {
-				/* first remove remaining keys */
-				iwl_mvm_sec_key_remove_ap(mvm, vif);
-
-				/* Remove AP station now that
-				 * the MAC is unassoc
-				 */
-				ret = iwl_mvm_mld_rm_sta_id(mvm, vif,
-							    mvmvif->deflink.ap_sta_id);
-				if (ret)
-					IWL_ERR(mvm,
-						"failed to remove AP station\n");
-
-				mvmvif->deflink.ap_sta_id = IWL_MVM_INVALID_STA;
-			}
+			rcu_read_lock();
+			link_conf = rcu_dereference(vif->link_conf[i]);
+			if (link_conf && !link_conf->dtim_period)
+				protect = true;
+			rcu_read_unlock();
 		}
 
-		iwl_mvm_bss_info_changed_station_assoc(mvm, vif, changes);
+		if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status) &&
+		    protect) {
+			/* If we're not restarting and still haven't
+			 * heard a beacon (dtim period unknown) then
+			 * make sure we still have enough minimum time
+			 * remaining in the time event, since the auth
+			 * might actually have taken quite a while
+			 * (especially for SAE) and so the remaining
+			 * time could be small without us having heard
+			 * a beacon yet.
+			 */
+			iwl_mvm_protect_assoc(mvm, vif, 0);
+		}
+
+		iwl_mvm_sf_update(mvm, vif, false);
+
+		/* FIXME: need to decide about misbehaving AP handling */
+		iwl_mvm_power_vif_assoc(mvm, vif);
+	} else if (iwl_mvm_mld_vif_have_valid_ap_sta(mvmvif)) {
+		iwl_mvm_mei_host_disassociated(mvm);
+
+		/* If update fails - SF might be running in associated
+		 * mode while disassociated - which is forbidden.
+		 */
+		ret = iwl_mvm_sf_update(mvm, vif, false);
+		WARN_ONCE(ret &&
+			  !test_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED,
+				    &mvm->status),
+			  "Failed to update SF upon disassociation\n");
+
+		/* If we get an assert during the connection (after the
+		 * station has been added, but before the vif is set
+		 * to associated), mac80211 will re-add the station and
+		 * then configure the vif. Since the vif is not
+		 * associated, we would remove the station here and
+		 * this would fail the recovery.
+		 */
+		iwl_mvm_mld_vif_delete_all_stas(mvm, vif);
 	}
 
-	iwl_mvm_bss_info_changed_station_common(mvm, vif, &vif->bss_conf, changes);
+	iwl_mvm_bss_info_changed_station_assoc(mvm, vif, changes);
 }
 
 static void
-iwl_mvm_mld_bss_info_changed_ap_ibss(struct iwl_mvm *mvm,
-				     struct ieee80211_vif *vif,
-				     struct ieee80211_bss_conf *bss_conf,
-				     u64 changes)
+iwl_mvm_mld_link_info_changed_ap_ibss(struct iwl_mvm *mvm,
+				      struct ieee80211_vif *vif,
+				      struct ieee80211_bss_conf *link_conf,
+				      u64 changes)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	u32 link_changes = LINK_CONTEXT_MODIFY_PROTECT_FLAGS |
@@ -581,17 +639,22 @@ iwl_mvm_mld_bss_info_changed_ap_ibss(struct iwl_mvm *mvm,
 	if (!mvmvif->ap_ibss_active)
 		return;
 
+	if (link_conf->he_support)
+		link_changes |= LINK_CONTEXT_MODIFY_HE_PARAMS;
+
 	if (changes & (BSS_CHANGED_ERP_CTS_PROT | BSS_CHANGED_HT |
-		       BSS_CHANGED_BANDWIDTH | BSS_CHANGED_QOS) &&
-		       iwl_mvm_link_changed(mvm, vif, &vif->bss_conf,
+		       BSS_CHANGED_BANDWIDTH | BSS_CHANGED_QOS |
+		       BSS_CHANGED_HE_BSS_COLOR) &&
+		       iwl_mvm_link_changed(mvm, vif, link_conf,
 					    link_changes, true))
 		IWL_ERR(mvm, "failed to update MAC %pM\n", vif->addr);
 
 	/* Need to send a new beacon template to the FW */
 	if (changes & BSS_CHANGED_BEACON &&
-	    iwl_mvm_mac_ctxt_beacon_changed(mvm, vif, &vif->bss_conf))
+	    iwl_mvm_mac_ctxt_beacon_changed(mvm, vif, link_conf))
 		IWL_WARN(mvm, "Failed updating beacon data\n");
 
+	/* FIXME: need to decide if we need FTM responder per link */
 	if (changes & BSS_CHANGED_FTM_RESPONDER) {
 		int ret = iwl_mvm_ftm_start_responder(mvm, vif);
 
@@ -601,19 +664,58 @@ iwl_mvm_mld_bss_info_changed_ap_ibss(struct iwl_mvm *mvm,
 	}
 }
 
-static void iwl_mvm_mld_bss_info_changed(struct ieee80211_hw *hw,
-					 struct ieee80211_vif *vif,
-					 struct ieee80211_bss_conf *bss_conf,
-					 u64 changes)
+static void iwl_mvm_mld_link_info_changed(struct ieee80211_hw *hw,
+					  struct ieee80211_vif *vif,
+					  struct ieee80211_bss_conf *link_conf,
+					  u64 changes)
 {
-	struct iwl_mvm_bss_info_changed_ops callbacks = {
-		.bss_info_changed_sta = iwl_mvm_mld_bss_info_changed_station,
-		.bss_info_changed_ap_ibss =
-			iwl_mvm_mld_bss_info_changed_ap_ibss,
-	};
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 
-	iwl_mvm_bss_info_changed_common(hw, vif, bss_conf, &callbacks,
-					changes);
+	mutex_lock(&mvm->mutex);
+
+	switch (vif->type) {
+	case NL80211_IFTYPE_STATION:
+		iwl_mvm_mld_link_info_changed_station(mvm, vif, link_conf,
+						      changes);
+		break;
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_ADHOC:
+		iwl_mvm_mld_link_info_changed_ap_ibss(mvm, vif, link_conf,
+						      changes);
+		break;
+	case NL80211_IFTYPE_MONITOR:
+		if (changes & BSS_CHANGED_MU_GROUPS)
+			iwl_mvm_update_mu_groups(mvm, vif);
+		break;
+	default:
+		/* shouldn't happen */
+		WARN_ON_ONCE(1);
+	}
+
+	if (changes & BSS_CHANGED_TXPOWER) {
+		IWL_DEBUG_CALIB(mvm, "Changing TX Power to %d dBm\n",
+				link_conf->txpower);
+		iwl_mvm_set_tx_power(mvm, vif, link_conf->txpower);
+	}
+
+	mutex_unlock(&mvm->mutex);
+}
+
+static void iwl_mvm_mld_vif_cfg_changed(struct ieee80211_hw *hw,
+					struct ieee80211_vif *vif,
+					u64 changes)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+
+	mutex_lock(&mvm->mutex);
+
+	if (changes & BSS_CHANGED_IDLE && !vif->cfg.idle)
+		iwl_mvm_scan_stop(mvm, IWL_MVM_SCAN_SCHED, true);
+
+	if (vif->type == NL80211_IFTYPE_STATION)
+		iwl_mvm_mld_vif_cfg_changed_station(mvm, vif, changes);
+
+	mutex_unlock(&mvm->mutex);
 }
 
 static int
@@ -735,7 +837,8 @@ const struct ieee80211_ops iwl_mvm_mld_hw_ops = {
 	.prepare_multicast = iwl_mvm_prepare_multicast,
 	.configure_filter = iwl_mvm_configure_filter,
 	.config_iface_filter = iwl_mvm_mld_config_iface_filter,
-	.bss_info_changed = iwl_mvm_mld_bss_info_changed,
+	.link_info_changed = iwl_mvm_mld_link_info_changed,
+	.vif_cfg_changed = iwl_mvm_mld_vif_cfg_changed,
 	.hw_scan = iwl_mvm_mac_hw_scan,
 	.cancel_hw_scan = iwl_mvm_mac_cancel_hw_scan,
 	.sta_pre_rcu_remove = iwl_mvm_sta_pre_rcu_remove,

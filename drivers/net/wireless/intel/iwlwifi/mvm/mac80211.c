@@ -1888,8 +1888,7 @@ static void iwl_mvm_config_iface_filter(struct ieee80211_hw *hw,
 	mutex_unlock(&mvm->mutex);
 }
 
-static int iwl_mvm_update_mu_groups(struct iwl_mvm *mvm,
-				    struct ieee80211_vif *vif)
+int iwl_mvm_update_mu_groups(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
 	struct iwl_mu_group_mgmt_cmd cmd = {};
 
@@ -2523,6 +2522,9 @@ iwl_mvm_bss_info_changed_station_common(struct iwl_mvm *mvm,
 		/* reset cqm events tracking */
 		mvmvif->bf_data.last_cqm_event = 0;
 		if (mvmvif->bf_data.bf_enabled) {
+			/* FIXME: need to update per link when FW API will
+			 * support it
+			 */
 			ret = iwl_mvm_enable_beacon_filter(mvm, vif, 0);
 			if (ret)
 				IWL_ERR(mvm,
