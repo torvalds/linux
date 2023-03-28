@@ -211,6 +211,8 @@ static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 	char *wake_cntrl1;
 	char *wake_cntrl2;
 	char *pin_sts;
+	char *interrupt_sts;
+	char *wake_sts;
 	char *pull_up_sel;
 	char *orientation;
 	char debounce_value[40];
@@ -243,7 +245,7 @@ static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 			continue;
 		}
 		seq_printf(s, "GPIO bank%d\n", bank);
-		seq_puts(s, "gpio\tint|active|trigger|S0i3| S3|S4/S5| Z|wake|pull|  orient|       debounce|reg\n");
+		seq_puts(s, "gpio\t  int|active|trigger|S0i3| S3|S4/S5| Z|wake|pull|  orient|       debounce|reg\n");
 		for (; i < pin_num; i++) {
 			seq_printf(s, "#%d\t", i);
 			raw_spin_lock_irqsave(&gpio_dev->lock, flags);
@@ -274,12 +276,18 @@ static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 				else
 					interrupt_mask = "😷";
 
-				seq_printf(s, "%s|     %s|  %s|",
+				if (pin_reg & BIT(INTERRUPT_STS_OFF))
+					interrupt_sts = "🔥";
+				else
+					interrupt_sts = "  ";
+
+				seq_printf(s, "%s %s|     %s|  %s|",
+				   interrupt_sts,
 				   interrupt_mask,
 				   active_level,
 				   level_trig);
 			} else
-				seq_puts(s, "  ∅|      |       |");
+				seq_puts(s, "    ∅|      |       |");
 
 			if (pin_reg & BIT(WAKE_CNTRL_OFF_S0I3))
 				wake_cntrl0 = "⏰";
@@ -304,6 +312,12 @@ static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 			else
 				wake_cntrlz = "  ";
 			seq_printf(s, "%s|", wake_cntrlz);
+
+			if (pin_reg & BIT(WAKE_STS_OFF))
+				wake_sts = "🔥";
+			else
+				wake_sts = " ";
+			seq_printf(s, "   %s|", wake_sts);
 
 			if (pin_reg & BIT(PULL_UP_ENABLE_OFF)) {
 				if (pin_reg & BIT(PULL_UP_SEL_OFF))
