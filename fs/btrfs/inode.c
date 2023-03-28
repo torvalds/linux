@@ -7714,6 +7714,24 @@ static void btrfs_dio_submit_io(const struct iomap_iter *iter, struct bio *bio,
 	dip->bytes = bio->bi_iter.bi_size;
 
 	dio_data->submitted += bio->bi_iter.bi_size;
+
+	/*
+	 * Check if we are doing a partial write.  If we are, we need to split
+	 * the ordered extent to match the submitted bio.  Hang on to the
+	 * remaining unfinishable ordered_extent in dio_data so that it can be
+	 * cancelled in iomap_end to avoid a deadlock wherein faulting the
+	 * remaining pages is blocked on the outstanding ordered extent.
+	 */
+	if (iter->flags & IOMAP_WRITE) {
+		int ret;
+
+		ret = btrfs_extract_ordered_extent(bbio, dio_data->ordered);
+		if (ret) {
+			btrfs_bio_end_io(bbio, errno_to_blk_status(ret));
+			return;
+		}
+	}
+
 	btrfs_submit_bio(bbio, 0);
 }
 
