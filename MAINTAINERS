@@ -15630,6 +15630,13 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/ptp/ptp_ocp.c
 
+INTEL PTP DFL ToD DRIVER
+M:	Tianfei Zhang <tianfei.zhang@intel.com>
+L:	linux-fpga@vger.kernel.org
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/ptp/ptp_dfl_tod.c
+
 OPENCORES I2C BUS DRIVER
 M:	Peter Korsgaard <peter@korsgaard.com>
 M:	Andrew Lunn <andrew@lunn.ch>
