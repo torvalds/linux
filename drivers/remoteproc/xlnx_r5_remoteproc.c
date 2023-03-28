@@ -441,7 +441,7 @@ static int add_mem_regions_carveout(struct rproc *rproc)
 	struct reserved_mem *rmem;
 	int i = 0;
 
-	r5_core = (struct zynqmp_r5_core *)rproc->priv;
+	r5_core = rproc->priv;
 
 	/* Register associated reserved memory regions */
 	of_phandle_iterator_init(&it, r5_core->np, "memory-region", NULL, 0);
@@ -572,7 +572,7 @@ static int add_tcm_carveout_split_mode(struct rproc *rproc)
 	size_t bank_size;
 	char *bank_name;
 
-	r5_core = (struct zynqmp_r5_core *)rproc->priv;
+	r5_core = rproc->priv;
 	dev = r5_core->dev;
 	num_banks = r5_core->tcm_bank_count;
 
@@ -641,7 +641,7 @@ static int add_tcm_carveout_lockstep_mode(struct rproc *rproc)
 	u32 pm_domain_id;
 	char *bank_name;
 
-	r5_core = (struct zynqmp_r5_core *)rproc->priv;
+	r5_core = rproc->priv;
 	dev = r5_core->dev;
 
 	/* Go through zynqmp banks for r5 node */
@@ -711,7 +711,7 @@ static int add_tcm_banks(struct rproc *rproc)
 	struct zynqmp_r5_core *r5_core;
 	struct device *dev;
 
-	r5_core = (struct zynqmp_r5_core *)rproc->priv;
+	r5_core = rproc->priv;
 	if (!r5_core)
 		return -EINVAL;
 
@@ -804,7 +804,7 @@ static int zynqmp_r5_rproc_unprepare(struct rproc *rproc)
 	u32 pm_domain_id;
 	int i;
 
-	r5_core = (struct zynqmp_r5_core *)rproc->priv;
+	r5_core = rproc->priv;
 
 	for (i = 0; i < r5_core->tcm_bank_count; i++) {
 		pm_domain_id = r5_core->tcm_banks[i]->pm_domain_id;
@@ -859,7 +859,7 @@ static struct zynqmp_r5_core *zynqmp_r5_add_rproc_core(struct device *cdev)
 	}
 
 	r5_rproc->auto_boot = false;
-	r5_core = (struct zynqmp_r5_core *)r5_rproc->priv;
+	r5_core = r5_rproc->priv;
 	r5_core->dev = cdev;
 	r5_core->np = dev_of_node(cdev);
 	if (!r5_core->np) {
@@ -1143,12 +1143,12 @@ release_r5_cores:
 
 static void zynqmp_r5_cluster_exit(void *data)
 {
-	struct platform_device *pdev = (struct platform_device *)data;
+	struct platform_device *pdev = data;
 	struct zynqmp_r5_cluster *cluster;
 	struct zynqmp_r5_core *r5_core;
 	int i;
 
-	cluster = (struct zynqmp_r5_cluster *)platform_get_drvdata(pdev);
+	cluster = platform_get_drvdata(pdev);
 	if (!cluster)
 		return;
 
