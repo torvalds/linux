@@ -23,6 +23,7 @@
 #include "xe_gt_sysfs.h"
 #include "xe_gt_tlb_invalidation.h"
 #include "xe_gt_topology.h"
+#include "xe_guc_engine_types.h"
 #include "xe_hw_fence.h"
 #include "xe_irq.h"
 #include "xe_lrc.h"
@@ -257,30 +258,43 @@ int xe_gt_record_default_lrcs(struct xe_gt *gt)
 				     hwe, ENGINE_FLAG_WA);
 		if (IS_ERR(e)) {
 			err = PTR_ERR(e);
+			drm_err(&xe->drm, "gt%d, hwe %s, xe_engine_create,e failed=%d",
+				gt->info.id, hwe->name, err);
 			goto put_vm;
 		}
 
 		/* Prime golden LRC with known good state */
 		err = emit_wa_job(gt, e);
-		if (err)
+		if (err) {
+			drm_err(&xe->drm, "gt%d, hwe %s, guc_id=%d, emit_wa_job,e failed=%d",
+				gt->info.id, hwe->name, e->guc->id, err);
 			goto put_engine;
+		}
 
 		nop_e = xe_engine_create(xe, vm, BIT(hwe->logical_instance),
 					 1, hwe, ENGINE_FLAG_WA);
 		if (IS_ERR(nop_e)) {
 			err = PTR_ERR(nop_e);
+			drm_err(&xe->drm, "gt%d, hwe %s, xe_engine_create,nop_e failed=%d",
+				gt->info.id, hwe->name, err);
 			goto put_engine;
 		}
 
 		/* Switch to different LRC */
 		err = emit_nop_job(gt, nop_e);
-		if (err)
+		if (err) {
+			drm_err(&xe->drm, "gt%d, hwe %s, guc_id=%d, emit_nop_job,nop_e failed=%d",
+				gt->info.id, hwe->name, nop_e->guc->id, err);
 			goto put_nop_e;
+		}
 
 		/* Reload golden LRC to record the effect of any indirect W/A */
 		err = emit_nop_job(gt, e);
-		if (err)
+		if (err) {
+			drm_err(&xe->drm, "gt%d, hwe %s, guc_id=%d, emit_nop_job,e failed=%d",
+				gt->info.id, hwe->name, e->guc->id, err);
 			goto put_nop_e;
+		}
 
 		xe_map_memcpy_from(xe, default_lrc,
 				   &e->lrc[0].bo->vmap,
