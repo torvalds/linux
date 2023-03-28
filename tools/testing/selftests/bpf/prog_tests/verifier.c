@@ -40,6 +40,7 @@
 #include "verifier_var_off.skel.h"
 #include "verifier_xadd.skel.h"
 #include "verifier_xdp.skel.h"
+#include "verifier_xdp_direct_packet_access.skel.h"
 
 __maybe_unused
 static void run_tests_aux(const char *skel_name, skel_elf_bytes_fn elf_bytes_factory)
@@ -102,3 +103,4 @@ void test_verifier_value_or_null(void)        { RUN(verifier_value_or_null); }
 void test_verifier_var_off(void)              { RUN(verifier_var_off); }
 void test_verifier_xadd(void)                 { RUN(verifier_xadd); }
 void test_verifier_xdp(void)                  { RUN(verifier_xdp); }
+void test_verifier_xdp_direct_packet_access(void) { RUN(verifier_xdp_direct_packet_access); }
