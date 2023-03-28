@@ -506,6 +506,8 @@ enum v4l2_scene_mode -
     value down. A value of zero stops the motion if one is in progress
     and has no effect otherwise.
 
+.. _v4l2-camera-sensor-orientation:
+
 ``V4L2_CID_CAMERA_ORIENTATION (menu)``
     This read-only control describes the camera orientation by reporting its
     mounting position on the device where the camera is installed. The control
@@ -536,6 +538,7 @@ enum v4l2_scene_mode -
       - The camera is not directly attached to the device and is freely movable.
 
 
+.. _v4l2-camera-sensor-rotation:
 
 ``V4L2_CID_CAMERA_SENSOR_ROTATION (integer)``
     This read-only control describes the rotation correction in degrees in the
