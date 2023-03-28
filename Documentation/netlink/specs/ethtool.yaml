@@ -165,6 +165,12 @@ attribute-sets:
       -
         name: rx-push
         type: u8
+      -
+        name: tx-push-buf-len
+        type: u32
+      -
+        name: tx-push-buf-len-max
+        type: u32
 
   -
     name: mm-stat
@@ -311,6 +317,8 @@ operations:
             - cqe-size
             - tx-push
             - rx-push
+            - tx-push-buf-len
+            - tx-push-buf-len-max
       dump: *ring-get-op
     -
       name: rings-set
