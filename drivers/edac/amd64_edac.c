@@ -4244,10 +4244,8 @@ module_init(amd64_edac_init);
 module_exit(amd64_edac_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("SoftwareBitMaker: Doug Thompson, "
-		"Dave Peterson, Thayne Harbaugh");
-MODULE_DESCRIPTION("MC support for AMD64 memory controllers - "
-		EDAC_AMD64_VERSION);
+MODULE_AUTHOR("SoftwareBitMaker: Doug Thompson, Dave Peterson, Thayne Harbaugh; AMD");
+MODULE_DESCRIPTION("MC support for AMD64 memory controllers - " EDAC_AMD64_VERSION);
 
 module_param(edac_op_state, int, 0444);
 MODULE_PARM_DESC(edac_op_state, "EDAC Error Reporting state: 0=Poll,1=NMI");

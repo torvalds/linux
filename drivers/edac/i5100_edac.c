@@ -1220,6 +1220,5 @@ module_init(i5100_init);
 module_exit(i5100_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR
-    ("Arthur Jones <ajones@riverbed.com>");
+MODULE_AUTHOR("Arthur Jones <ajones@riverbed.com>");
 MODULE_DESCRIPTION("MC Driver for Intel I5100 memory controllers");
