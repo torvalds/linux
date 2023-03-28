@@ -4587,8 +4587,6 @@ static void trigger_rx_softirq(void *data)
  *
  * - If this is another cpu queue, link it to our rps_ipi_list,
  *   and make sure we will process rps_ipi_list from net_rx_action().
- *   As we do not know yet if we are called from net_rx_action(),
- *   we have to raise NET_RX_SOFTIRQ. This might change in the future.
  *
  * - If this is our own queue, NAPI schedule our backlog.
  *   Note that this also raises NET_RX_SOFTIRQ.
@@ -4602,7 +4600,11 @@ static void napi_schedule_rps(struct softnet_data *sd)
 		sd->rps_ipi_next = mysd->rps_ipi_list;
 		mysd->rps_ipi_list = sd;
 
-		__raise_softirq_irqoff(NET_RX_SOFTIRQ);
+		/* If not called from net_rx_action()
+		 * we have to raise NET_RX_SOFTIRQ.
+		 */
+		if (!mysd->in_net_rx_action)
+			__raise_softirq_irqoff(NET_RX_SOFTIRQ);
 		return;
 	}
 #endif /* CONFIG_RPS */
