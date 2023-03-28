@@ -442,7 +442,7 @@ static bool user_event_enabler_dup(struct user_event_enabler *orig,
 	if (unlikely(test_bit(ENABLE_VAL_FREEING_BIT, ENABLE_BITOPS(orig))))
 		return true;
 
-	enabler = kzalloc(sizeof(*enabler), GFP_NOWAIT);
+	enabler = kzalloc(sizeof(*enabler), GFP_NOWAIT | __GFP_ACCOUNT);
 
 	if (!enabler)
 		return false;
@@ -502,7 +502,7 @@ static struct user_event_mm *user_event_mm_create(struct task_struct *t)
 	struct user_event_mm *user_mm;
 	unsigned long flags;
 
-	user_mm = kzalloc(sizeof(*user_mm), GFP_KERNEL);
+	user_mm = kzalloc(sizeof(*user_mm), GFP_KERNEL_ACCOUNT);
 
 	if (!user_mm)
 		return NULL;
@@ -662,7 +662,7 @@ static struct user_event_enabler
 	if (!user_mm)
 		return NULL;
 
-	enabler = kzalloc(sizeof(*enabler), GFP_KERNEL);
+	enabler = kzalloc(sizeof(*enabler), GFP_KERNEL_ACCOUNT);
 
 	if (!enabler)
 		goto out;
@@ -870,7 +870,7 @@ static int user_event_add_field(struct user_event *user, const char *type,
 	struct ftrace_event_field *field;
 	int validator_flags = 0;
 
-	field = kmalloc(sizeof(*field), GFP_KERNEL);
+	field = kmalloc(sizeof(*field), GFP_KERNEL_ACCOUNT);
 
 	if (!field)
 		return -ENOMEM;
@@ -889,7 +889,7 @@ add_validator:
 	if (strstr(type, "char") != NULL)
 		validator_flags |= VALIDATOR_ENSURE_NULL;
 
-	validator = kmalloc(sizeof(*validator), GFP_KERNEL);
+	validator = kmalloc(sizeof(*validator), GFP_KERNEL_ACCOUNT);
 
 	if (!validator) {
 		kfree(field);
@@ -1175,7 +1175,7 @@ static int user_event_create_print_fmt(struct user_event *user)
 
 	len = user_event_set_print_fmt(user, NULL, 0);
 
-	print_fmt = kmalloc(len, GFP_KERNEL);
+	print_fmt = kmalloc(len, GFP_KERNEL_ACCOUNT);
 
 	if (!print_fmt)
 		return -ENOMEM;
@@ -1508,7 +1508,7 @@ static int user_event_create(const char *raw_command)
 	raw_command += USER_EVENTS_PREFIX_LEN;
 	raw_command = skip_spaces(raw_command);
 
-	name = kstrdup(raw_command, GFP_KERNEL);
+	name = kstrdup(raw_command, GFP_KERNEL_ACCOUNT);
 
 	if (!name)
 		return -ENOMEM;
@@ -1704,7 +1704,7 @@ static int user_event_parse(struct user_event_group *group, char *name,
 		return 0;
 	}
 
-	user = kzalloc(sizeof(*user), GFP_KERNEL);
+	user = kzalloc(sizeof(*user), GFP_KERNEL_ACCOUNT);
 
 	if (!user)
 		return -ENOMEM;
@@ -1874,7 +1874,7 @@ static int user_events_open(struct inode *node, struct file *file)
 	if (!group)
 		return -ENOENT;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc(sizeof(*info), GFP_KERNEL_ACCOUNT);
 
 	if (!info)
 		return -ENOMEM;
@@ -1927,7 +1927,7 @@ static int user_events_ref_add(struct user_event_file_info *info,
 
 	size = struct_size(refs, events, count + 1);
 
-	new_refs = kzalloc(size, GFP_KERNEL);
+	new_refs = kzalloc(size, GFP_KERNEL_ACCOUNT);
 
 	if (!new_refs)
 		return -ENOMEM;
