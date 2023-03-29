@@ -399,16 +399,13 @@ static void icl_load_csc_matrix(const struct intel_crtc_state *crtc_state)
 	}
 }
 
-static void chv_load_cgm_csc(struct intel_crtc *crtc,
-			     const struct drm_property_blob *blob)
+static void chv_cgm_csc_convert_ctm(u16 coeffs[9],
+				    const struct drm_property_blob *blob)
 {
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	const struct drm_color_ctm *ctm = blob->data;
-	enum pipe pipe = crtc->pipe;
-	u16 coeffs[9];
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(coeffs); i++) {
+	for (i = 0; i < 9; i++) {
 		u64 abs_coeff = ((1ULL << 63) - 1) & ctm->matrix[i];
 
 		/* Round coefficient. */
@@ -425,6 +422,16 @@ static void chv_load_cgm_csc(struct intel_crtc *crtc,
 		coeffs[i] |= ((abs_coeff >> 32) & 7) << 12;
 		coeffs[i] |= (abs_coeff >> 20) & 0xfff;
 	}
+}
+
+static void chv_load_cgm_csc(struct intel_crtc *crtc,
+			     const struct drm_property_blob *blob)
+{
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+	u16 coeffs[9];
+
+	chv_cgm_csc_convert_ctm(coeffs, blob);
 
 	intel_de_write_fw(i915, CGM_PIPE_CSC_COEFF01(pipe),
 			  coeffs[1] << 16 | coeffs[0]);
