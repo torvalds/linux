@@ -572,10 +572,9 @@ static int iwl_mvm_alloc_sta_after_restart(struct iwl_mvm *mvm,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct ieee80211_link_sta *link_sta;
 	unsigned int link_id;
-	struct iwl_mvm_int_sta tmp_sta = {
-		.type = mvm_sta->sta_type,
-	};
-	int sta_id, ret;
+	/* no active link found */
+	int ret = -EINVAL;
+	int sta_id;
 
 	/* First add an empty station since allocating a queue requires
 	 * a valid station. Since we need a link_id to allocate a station,
@@ -598,23 +597,19 @@ static int iwl_mvm_alloc_sta_after_restart(struct iwl_mvm *mvm,
 			continue;
 
 		sta_id = mvm_link_sta->sta_id;
-		tmp_sta.sta_id = sta_id;
-		ret = iwl_mvm_mld_add_int_sta_to_fw(mvm, &tmp_sta,
-						    vif->bss_conf.bssid,
-						    mvm_link->fw_link_id);
+		ret = iwl_mvm_mld_cfg_sta(mvm, sta, vif, link_sta,
+					  link_conf, mvm_link_sta);
 		if (ret)
 			return ret;
 
 		rcu_assign_pointer(mvm->fw_id_to_mac_id[sta_id], sta);
 		rcu_assign_pointer(mvm->fw_id_to_link_sta[sta_id], link_sta);
-		iwl_mvm_realloc_queues_after_restart(mvm, sta);
-
-		/* since we need only one station, no need to continue */
-		return 0;
+		ret = 0;
 	}
 
-	/* no active link found */
-	return -EINVAL;
+	iwl_mvm_realloc_queues_after_restart(mvm, sta);
+
+	return ret;
 }
 
 int iwl_mvm_mld_add_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
