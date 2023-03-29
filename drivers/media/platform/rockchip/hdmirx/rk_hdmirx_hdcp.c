@@ -79,14 +79,14 @@ static int hdcp_load_keys_cb(struct rk_hdmirx_hdcp *hdcp)
 
 static int rk_hdmirx_hdcp_load_key(struct rk_hdmirx_hdcp *hdcp)
 {
-	int ret;
+	int ret = 0;
 
 	hdcp->status = HDMIRX_HDCP_DISABLED;
-	if (!hdcp->keys_is_load) {
+	if (!hdcp->keys_is_load)
 		ret = hdcp_load_keys_cb(hdcp);
-		if (ret)
-			return ret;
-	}
+
+	if (ret && !hdcp->test_key_load)
+		return -EINVAL;
 
 	hdcp->status = HDMIRX_HDCP_AUTH_START;
 	if (hdcp->aes_encrypt)
@@ -313,6 +313,60 @@ static ssize_t support_show(struct device *device,
 
 static DEVICE_ATTR_RO(support);
 
+static ssize_t test_key1x_store(struct device *device,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct rk_hdmirx_hdcp *hdcp = g_hdmirx_hdcp;
+	u8 hdcp_vendor_data[VENDOR_DATA_SIZE + 1];
+	struct hdcp_key_data_t *key_data;
+	void __iomem *base;
+	char str[4] = {0};
+	int ret, len, i;
+
+	len = count / 2;
+	if (len < (HDCP_KEY_SIZE + HDCP_KEY_SEED_SIZE))
+		return -EINVAL;
+
+	if (len > VENDOR_DATA_SIZE)
+		len = VENDOR_DATA_SIZE;
+
+	for (i = 0; i < len; i++) {
+		long c = -1;
+
+		memcpy(str, &buf[i * 2], 2);
+		ret = kstrtol(str, 16, &c);
+		if (ret || c > 255 || c < 0)
+			return -EINVAL;
+		hdcp_vendor_data[i] = (u8)(c & 0xff);
+	}
+
+	key_data = (struct hdcp_key_data_t *)hdcp_vendor_data;
+	if ((key_data->signature != HDCP_SIG_MAGIC)
+	    || !(key_data->flags & HDCP_FLG_AES))
+		hdcp->aes_encrypt = false;
+	else
+		hdcp->aes_encrypt = true;
+
+	base = sip_hdcp_request_share_memory(HDMI_RX);
+	if (!base)
+		return -ENOMEM;
+	memcpy_toio(base, hdcp_vendor_data, len);
+	hdcp->test_key_load = true;
+
+	if (!hdcp->enable)
+		return count;
+
+	rk_hdmirx_hdcp2_hpd_config(hdcp, false);
+	rk_hdmirx_hdcp_start(hdcp);
+	msleep(300);
+	rk_hdmirx_hdcp2_hpd_config(hdcp, true);
+
+	return count;
+}
+
+static DEVICE_ATTR_WO(test_key1x);
+
 struct rk_hdmirx_hdcp *rk_hdmirx_hdcp_register(struct rk_hdmirx_hdcp *hdcp_data)
 {
 	int ret = 0;
@@ -362,6 +416,12 @@ struct rk_hdmirx_hdcp *rk_hdmirx_hdcp_register(struct rk_hdmirx_hdcp *hdcp_data)
 		goto error2;
 	}
 
+	ret = device_create_file(hdcp->mdev.this_device, &dev_attr_test_key1x);
+	if (ret) {
+		dev_err(hdcp->dev, "HDCP: Could not add sys file test_key1x\n");
+		goto error2;
+	}
+
 	hdcp->hdcp_start = rk_hdmirx_hdcp_start;
 	hdcp->hdcp_stop = rk_hdmirx_hdcp_stop;
 	hdcp->hdcp2_connect_ctrl = rk_hdmirx_hdcp2_connect_ctrl;
@@ -382,5 +442,6 @@ void rk_hdmirx_hdcp_unregister(struct rk_hdmirx_hdcp *hdcp)
 	device_remove_file(hdcp->mdev.this_device, &dev_attr_enable);
 	device_remove_file(hdcp->mdev.this_device, &dev_attr_status);
 	device_remove_file(hdcp->mdev.this_device, &dev_attr_support);
+	device_remove_file(hdcp->mdev.this_device, &dev_attr_test_key1x);
 	misc_deregister(&hdcp->mdev);
 }

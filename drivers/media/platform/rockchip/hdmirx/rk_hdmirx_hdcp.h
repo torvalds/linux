@@ -48,6 +48,7 @@ struct rk_hdmirx_hdcp {
 
 	struct miscdevice mdev;
 	bool keys_is_load;
+	bool test_key_load;
 	bool aes_encrypt;
 	struct device *dev;
 	struct rk_hdmirx_dev *hdmirx;
