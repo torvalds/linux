@@ -60,9 +60,9 @@ config SLUB_DEBUG
 	select STACKDEPOT if STACKTRACE_SUPPORT
 	help
 	  SLUB has extensive debug support features. Disabling these can
-	  result in significant savings in code size. This also disables
-	  SLUB sysfs support. /sys/slab will not exist and there will be
-	  no support for cache validation etc.
+	  result in significant savings in code size. While /sys/kernel/slab
+	  will still exist (with SYSFS enabled), it will not provide e.g. cache
+	  validation.
 
 config SLUB_DEBUG_ON
 	bool "SLUB debugging on by default"
