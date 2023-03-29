@@ -15,7 +15,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
 #include <linux/spi/spi_gpio.h>
-
+#include <linux/delay.h>
 
 /*
  * This bitbanging SPI master driver should help make systems usable
@@ -114,7 +114,9 @@ static inline int getmiso(const struct spi_device *spi)
  * reaching even one Mbit/sec (except when we can inline bitops), so for now
  * we'll just assume we never need additional per-bit slowdowns.
  */
-#define spidelay(nsecs)	do {} while (0)
+
+/* ndelay added here is used to generate stable SPI clock waveform. */
+#define spidelay(nsecs)	ndelay(nsecs)
 
 #include "spi-bitbang-txrx.h"
 
