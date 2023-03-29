@@ -120,40 +120,42 @@ struct intel_color_funcs {
 #define ILK_CSC_COEFF_LIMITED_RANGE ((235 - 16) << (12 - 8)) /* exponent 0 */
 #define ILK_CSC_POSTOFF_LIMITED_RANGE (16 << (12 - 8))
 
-/* Nop pre/post offsets */
-static const u16 ilk_csc_off_zero[3] = {};
-
-/* Identity matrix */
-static const u16 ilk_csc_coeff_identity[9] = {
-	ILK_CSC_COEFF_1_0, 0, 0,
-	0, ILK_CSC_COEFF_1_0, 0,
-	0, 0, ILK_CSC_COEFF_1_0,
-};
-
-/* Limited range RGB post offsets */
-static const u16 ilk_csc_postoff_limited_range[3] = {
-	ILK_CSC_POSTOFF_LIMITED_RANGE,
-	ILK_CSC_POSTOFF_LIMITED_RANGE,
-	ILK_CSC_POSTOFF_LIMITED_RANGE,
+static const struct intel_csc_matrix ilk_csc_matrix_identity = {
+	.preoff = {},
+	.coeff = {
+		ILK_CSC_COEFF_1_0, 0, 0,
+		0, ILK_CSC_COEFF_1_0, 0,
+		0, 0, ILK_CSC_COEFF_1_0,
+	},
+	.postoff = {},
 };
 
 /* Full range RGB -> limited range RGB matrix */
-static const u16 ilk_csc_coeff_limited_range[9] = {
-	ILK_CSC_COEFF_LIMITED_RANGE, 0, 0,
-	0, ILK_CSC_COEFF_LIMITED_RANGE, 0,
-	0, 0, ILK_CSC_COEFF_LIMITED_RANGE,
+static const struct intel_csc_matrix ilk_csc_matrix_limited_range = {
+	.preoff = {},
+	.coeff = {
+		ILK_CSC_COEFF_LIMITED_RANGE, 0, 0,
+		0, ILK_CSC_COEFF_LIMITED_RANGE, 0,
+		0, 0, ILK_CSC_COEFF_LIMITED_RANGE,
+	},
+	.postoff = {
+		ILK_CSC_POSTOFF_LIMITED_RANGE,
+		ILK_CSC_POSTOFF_LIMITED_RANGE,
+		ILK_CSC_POSTOFF_LIMITED_RANGE,
+	},
 };
 
 /* BT.709 full range RGB -> limited range YCbCr matrix */
-static const u16 ilk_csc_coeff_rgb_to_ycbcr[9] = {
-	0x1e08, 0x9cc0, 0xb528,
-	0x2ba8, 0x09d8, 0x37e8,
-	0xbce8, 0x9ad8, 0x1e08,
-};
-
-/* Limited range YCbCr post offsets */
-static const u16 ilk_csc_postoff_rgb_to_ycbcr[3] = {
-	0x0800, 0x0100, 0x0800,
+static const struct intel_csc_matrix ilk_csc_matrix_rgb_to_ycbcr = {
+	.preoff = {},
+	.coeff = {
+		0x1e08, 0x9cc0, 0xb528,
+		0x2ba8, 0x09d8, 0x37e8,
+		0xbce8, 0x9ad8, 0x1e08,
+	},
+	.postoff = {
+		0x0800, 0x0100, 0x0800,
+	},
 };
 
 static bool lut_is_legacy(const struct drm_property_blob *lut)
@@ -188,69 +190,66 @@ static u64 *ctm_mult_by_limited(u64 *result, const u64 *input)
 }
 
 static void ilk_update_pipe_csc(struct intel_crtc *crtc,
-				const u16 preoff[3],
-				const u16 coeff[9],
-				const u16 postoff[3])
+				const struct intel_csc_matrix *csc)
 {
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
-	intel_de_write_fw(i915, PIPE_CSC_PREOFF_HI(pipe), preoff[0]);
-	intel_de_write_fw(i915, PIPE_CSC_PREOFF_ME(pipe), preoff[1]);
-	intel_de_write_fw(i915, PIPE_CSC_PREOFF_LO(pipe), preoff[2]);
+	intel_de_write_fw(i915, PIPE_CSC_PREOFF_HI(pipe), csc->preoff[0]);
+	intel_de_write_fw(i915, PIPE_CSC_PREOFF_ME(pipe), csc->preoff[1]);
+	intel_de_write_fw(i915, PIPE_CSC_PREOFF_LO(pipe), csc->preoff[2]);
 
 	intel_de_write_fw(i915, PIPE_CSC_COEFF_RY_GY(pipe),
-			  coeff[0] << 16 | coeff[1]);
-	intel_de_write_fw(i915, PIPE_CSC_COEFF_BY(pipe), coeff[2] << 16);
+			  csc->coeff[0] << 16 | csc->coeff[1]);
+	intel_de_write_fw(i915, PIPE_CSC_COEFF_BY(pipe),
+			  csc->coeff[2] << 16);
 
 	intel_de_write_fw(i915, PIPE_CSC_COEFF_RU_GU(pipe),
-			  coeff[3] << 16 | coeff[4]);
-	intel_de_write_fw(i915, PIPE_CSC_COEFF_BU(pipe), coeff[5] << 16);
+			  csc->coeff[3] << 16 | csc->coeff[4]);
+	intel_de_write_fw(i915, PIPE_CSC_COEFF_BU(pipe),
+			  csc->coeff[5] << 16);
 
 	intel_de_write_fw(i915, PIPE_CSC_COEFF_RV_GV(pipe),
-			  coeff[6] << 16 | coeff[7]);
-	intel_de_write_fw(i915, PIPE_CSC_COEFF_BV(pipe), coeff[8] << 16);
+			  csc->coeff[6] << 16 | csc->coeff[7]);
+	intel_de_write_fw(i915, PIPE_CSC_COEFF_BV(pipe),
+			  csc->coeff[8] << 16);
 
-	if (DISPLAY_VER(i915) >= 7) {
-		intel_de_write_fw(i915, PIPE_CSC_POSTOFF_HI(pipe),
-				  postoff[0]);
-		intel_de_write_fw(i915, PIPE_CSC_POSTOFF_ME(pipe),
-				  postoff[1]);
-		intel_de_write_fw(i915, PIPE_CSC_POSTOFF_LO(pipe),
-				  postoff[2]);
-	}
+	if (DISPLAY_VER(i915) < 7)
+		return;
+
+	intel_de_write_fw(i915, PIPE_CSC_POSTOFF_HI(pipe), csc->postoff[0]);
+	intel_de_write_fw(i915, PIPE_CSC_POSTOFF_ME(pipe), csc->postoff[1]);
+	intel_de_write_fw(i915, PIPE_CSC_POSTOFF_LO(pipe), csc->postoff[2]);
 }
 
 static void icl_update_output_csc(struct intel_crtc *crtc,
-				  const u16 preoff[3],
-				  const u16 coeff[9],
-				  const u16 postoff[3])
+				  const struct intel_csc_matrix *csc)
 {
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
-	intel_de_write_fw(i915, PIPE_CSC_OUTPUT_PREOFF_HI(pipe), preoff[0]);
-	intel_de_write_fw(i915, PIPE_CSC_OUTPUT_PREOFF_ME(pipe), preoff[1]);
-	intel_de_write_fw(i915, PIPE_CSC_OUTPUT_PREOFF_LO(pipe), preoff[2]);
+	intel_de_write_fw(i915, PIPE_CSC_OUTPUT_PREOFF_HI(pipe), csc->preoff[0]);
+	intel_de_write_fw(i915, PIPE_CSC_OUTPUT_PREOFF_ME(pipe), csc->preoff[1]);
+	intel_de_write_fw(i915, PIPE_CSC_OUTPUT_PREOFF_LO(pipe), csc->preoff[2]);
 
 	intel_de_write_fw(i915, PIPE_CSC_OUTPUT_COEFF_RY_GY(pipe),
-			  coeff[0] << 16 | coeff[1]);
+			  csc->coeff[0] << 16 | csc->coeff[1]);
 	intel_de_write_fw(i915, PIPE_CSC_OUTPUT_COEFF_BY(pipe),
-			  coeff[2] << 16);
+			  csc->coeff[2] << 16);
 
 	intel_de_write_fw(i915, PIPE_CSC_OUTPUT_COEFF_RU_GU(pipe),
-			  coeff[3] << 16 | coeff[4]);
+			  csc->coeff[3] << 16 | csc->coeff[4]);
 	intel_de_write_fw(i915, PIPE_CSC_OUTPUT_COEFF_BU(pipe),
-			  coeff[5] << 16);
+			  csc->coeff[5] << 16);
 
 	intel_de_write_fw(i915, PIPE_CSC_OUTPUT_COEFF_RV_GV(pipe),
-			  coeff[6] << 16 | coeff[7]);
+			  csc->coeff[6] << 16 | csc->coeff[7]);
 	intel_de_write_fw(i915, PIPE_CSC_OUTPUT_COEFF_BV(pipe),
-			  coeff[8] << 16);
+			  csc->coeff[8] << 16);
 
-	intel_de_write_fw(i915, PIPE_CSC_OUTPUT_POSTOFF_HI(pipe), postoff[0]);
-	intel_de_write_fw(i915, PIPE_CSC_OUTPUT_POSTOFF_ME(pipe), postoff[1]);
-	intel_de_write_fw(i915, PIPE_CSC_OUTPUT_POSTOFF_LO(pipe), postoff[2]);
+	intel_de_write_fw(i915, PIPE_CSC_OUTPUT_POSTOFF_HI(pipe), csc->postoff[0]);
+	intel_de_write_fw(i915, PIPE_CSC_OUTPUT_POSTOFF_ME(pipe), csc->postoff[1]);
+	intel_de_write_fw(i915, PIPE_CSC_OUTPUT_POSTOFF_LO(pipe), csc->postoff[2]);
 }
 
 static bool ilk_limited_range(const struct intel_crtc_state *crtc_state)
@@ -294,12 +293,19 @@ static bool ilk_csc_limited_range(const struct intel_crtc_state *crtc_state)
 }
 
 static void ilk_csc_convert_ctm(const struct intel_crtc_state *crtc_state,
-				u16 coeffs[9], bool limited_color_range)
+				struct intel_csc_matrix *csc,
+				bool limited_color_range)
 {
 	const struct drm_color_ctm *ctm = crtc_state->hw.ctm->data;
 	const u64 *input;
 	u64 temp[9];
 	int i;
+
+	/* for preoff/postoff */
+	if (limited_color_range)
+		*csc = ilk_csc_matrix_limited_range;
+	else
+		*csc = ilk_csc_matrix_identity;
 
 	if (limited_color_range)
 		input = ctm_mult_by_limited(temp, ctm->matrix);
@@ -319,28 +325,28 @@ static void ilk_csc_convert_ctm(const struct intel_crtc_state *crtc_state,
 		 */
 		abs_coeff = clamp_val(abs_coeff, 0, CTM_COEFF_4_0 - 1);
 
-		coeffs[i] = 0;
+		csc->coeff[i] = 0;
 
 		/* sign bit */
 		if (CTM_COEFF_NEGATIVE(input[i]))
-			coeffs[i] |= 1 << 15;
+			csc->coeff[i] |= 1 << 15;
 
 		if (abs_coeff < CTM_COEFF_0_125)
-			coeffs[i] |= (3 << 12) |
+			csc->coeff[i] |= (3 << 12) |
 				ILK_CSC_COEFF_FP(abs_coeff, 12);
 		else if (abs_coeff < CTM_COEFF_0_25)
-			coeffs[i] |= (2 << 12) |
+			csc->coeff[i] |= (2 << 12) |
 				ILK_CSC_COEFF_FP(abs_coeff, 11);
 		else if (abs_coeff < CTM_COEFF_0_5)
-			coeffs[i] |= (1 << 12) |
+			csc->coeff[i] |= (1 << 12) |
 				ILK_CSC_COEFF_FP(abs_coeff, 10);
 		else if (abs_coeff < CTM_COEFF_1_0)
-			coeffs[i] |= ILK_CSC_COEFF_FP(abs_coeff, 9);
+			csc->coeff[i] |= ILK_CSC_COEFF_FP(abs_coeff, 9);
 		else if (abs_coeff < CTM_COEFF_2_0)
-			coeffs[i] |= (7 << 12) |
+			csc->coeff[i] |= (7 << 12) |
 				ILK_CSC_COEFF_FP(abs_coeff, 8);
 		else
-			coeffs[i] |= (6 << 12) |
+			csc->coeff[i] |= (6 << 12) |
 				ILK_CSC_COEFF_FP(abs_coeff, 7);
 	}
 }
@@ -352,21 +358,15 @@ static void ilk_load_csc_matrix(const struct intel_crtc_state *crtc_state)
 	bool limited_color_range = ilk_csc_limited_range(crtc_state);
 
 	if (crtc_state->hw.ctm) {
-		u16 coeff[9];
+		struct intel_csc_matrix tmp;
 
-		ilk_csc_convert_ctm(crtc_state, coeff, limited_color_range);
-		ilk_update_pipe_csc(crtc, ilk_csc_off_zero, coeff,
-				    limited_color_range ?
-				    ilk_csc_postoff_limited_range :
-				    ilk_csc_off_zero);
+		ilk_csc_convert_ctm(crtc_state, &tmp, limited_color_range);
+
+		ilk_update_pipe_csc(crtc, &tmp);
 	} else if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB) {
-		ilk_update_pipe_csc(crtc, ilk_csc_off_zero,
-				    ilk_csc_coeff_rgb_to_ycbcr,
-				    ilk_csc_postoff_rgb_to_ycbcr);
+		ilk_update_pipe_csc(crtc, &ilk_csc_matrix_rgb_to_ycbcr);
 	} else if (limited_color_range) {
-		ilk_update_pipe_csc(crtc, ilk_csc_off_zero,
-				    ilk_csc_coeff_limited_range,
-				    ilk_csc_postoff_limited_range);
+		ilk_update_pipe_csc(crtc, &ilk_csc_matrix_limited_range);
 	} else if (crtc_state->csc_enable) {
 		/*
 		 * On GLK both pipe CSC and degamma LUT are controlled
@@ -376,9 +376,7 @@ static void ilk_load_csc_matrix(const struct intel_crtc_state *crtc_state)
 		 */
 		drm_WARN_ON(&i915->drm, !IS_GEMINILAKE(i915));
 
-		ilk_update_pipe_csc(crtc, ilk_csc_off_zero,
-				    ilk_csc_coeff_identity,
-				    ilk_csc_off_zero);
+		ilk_update_pipe_csc(crtc, &ilk_csc_matrix_identity);
 	}
 }
 
@@ -387,21 +385,17 @@ static void icl_load_csc_matrix(const struct intel_crtc_state *crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
 	if (crtc_state->hw.ctm) {
-		u16 coeff[9];
+		struct intel_csc_matrix tmp;
 
-		ilk_csc_convert_ctm(crtc_state, coeff, false);
-		ilk_update_pipe_csc(crtc, ilk_csc_off_zero,
-				    coeff, ilk_csc_off_zero);
+		ilk_csc_convert_ctm(crtc_state, &tmp, false);
+
+		ilk_update_pipe_csc(crtc, &tmp);
 	}
 
 	if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB) {
-		icl_update_output_csc(crtc, ilk_csc_off_zero,
-				      ilk_csc_coeff_rgb_to_ycbcr,
-				      ilk_csc_postoff_rgb_to_ycbcr);
+		icl_update_output_csc(crtc, &ilk_csc_matrix_rgb_to_ycbcr);
 	} else if (crtc_state->limited_color_range) {
-		icl_update_output_csc(crtc, ilk_csc_off_zero,
-				      ilk_csc_coeff_limited_range,
-				      ilk_csc_postoff_limited_range);
+		icl_update_output_csc(crtc, &ilk_csc_matrix_limited_range);
 	}
 }
 
