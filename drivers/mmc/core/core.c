@@ -2199,10 +2199,8 @@ int mmc_card_alternative_gpt_sector(struct mmc_card *card, sector_t *gpt_sector)
 }
 EXPORT_SYMBOL(mmc_card_alternative_gpt_sector);
 
-void mmc_rescan(struct work_struct *work)
+static void __mmc_rescan(struct mmc_host *host)
 {
-	struct mmc_host *host =
-		container_of(work, struct mmc_host, detect.work);
 	int i;
 
 	if (host->rescan_disable)
@@ -2274,6 +2272,14 @@ void mmc_rescan(struct work_struct *work)
 		mmc_schedule_delayed_work(&host->detect, HZ);
 }
 
+void mmc_rescan(struct work_struct *work)
+{
+	struct mmc_host *host =
+		container_of(work, struct mmc_host, detect.work);
+
+	__mmc_rescan(host);
+}
+
 void mmc_start_host(struct mmc_host *host)
 {
 	host->f_init = max(min(freqs[0], host->f_max), host->f_min);
@@ -2286,7 +2292,8 @@ void mmc_start_host(struct mmc_host *host)
 	}
 
 	mmc_gpiod_request_cd_irq(host);
-	_mmc_detect_change(host, 0, false);
+	host->detect_change = 1;
+	__mmc_rescan(host);
 }
 
 void __mmc_stop_host(struct mmc_host *host)
