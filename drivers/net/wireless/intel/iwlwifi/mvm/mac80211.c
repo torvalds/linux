@@ -3464,7 +3464,6 @@ static void iwl_mvm_mei_host_associated(struct iwl_mvm *mvm,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mei_conn_info conn_info = {
 		.ssid_len = vif->cfg.ssid_len,
-		.channel = vif->bss_conf.chandef.chan->hw_value,
 	};
 
 	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
@@ -3472,6 +3471,12 @@ static void iwl_mvm_mei_host_associated(struct iwl_mvm *mvm,
 
 	if (!mvm->mei_registered)
 		return;
+
+	/* FIXME: MEI needs to be updated for MLO */
+	if (!vif->bss_conf.chandef.chan)
+		return;
+
+	conn_info.channel = vif->bss_conf.chandef.chan->hw_value;
 
 	switch (mvm_sta->pairwise_cipher) {
 	case WLAN_CIPHER_SUITE_TKIP:
