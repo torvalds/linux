@@ -78,7 +78,13 @@ static inline struct folio_vec bio_iter_iovec_folio(struct bio *bio,
 #define bio_for_each_folio(bvl, bio, iter)				\
 	__bio_for_each_folio(bvl, bio, iter, (bio)->bi_iter)
 
-static inline loff_t folio_end_pos(struct folio *folio)
+/*
+ * Use u64 for the end pos and sector helpers because if the folio covers the
+ * max supported range of the mapping, the start offset of the next folio
+ * overflows loff_t. This breaks much of the range based processing in the
+ * buffered write path.
+ */
+static inline u64 folio_end_pos(struct folio *folio)
 {
 	return folio_pos(folio) + folio_size(folio);
 }
@@ -93,7 +99,7 @@ static inline loff_t folio_sector(struct folio *folio)
 	return folio_pos(folio) >> 9;
 }
 
-static inline loff_t folio_end_sector(struct folio *folio)
+static inline u64 folio_end_sector(struct folio *folio)
 {
 	return folio_end_pos(folio) >> 9;
 }
@@ -101,12 +107,12 @@ static inline loff_t folio_end_sector(struct folio *folio)
 typedef DARRAY(struct folio *) folios;
 
 static int filemap_get_contig_folios_d(struct address_space *mapping,
-				       loff_t start, loff_t end,
+				       loff_t start, u64 end,
 				       int fgp_flags, gfp_t gfp,
 				       folios *folios)
 {
 	struct folio *f;
-	loff_t pos = start;
+	u64 pos = start;
 	int ret = 0;
 
 	while (pos < end) {
@@ -1859,7 +1865,7 @@ static int __bch2_buffered_write(struct bch_inode_info *inode,
 	folios folios;
 	struct folio **fi, *f;
 	unsigned copied = 0, f_offset;
-	loff_t end = pos + len, f_pos;
+	u64 end = pos + len, f_pos;
 	loff_t last_folio_pos = inode->v.i_size;
 	int ret = 0;
 
@@ -1901,7 +1907,7 @@ static int __bch2_buffered_write(struct bch_inode_info *inode,
 	f_offset = pos - folio_pos(darray_first(folios));
 	darray_for_each(folios, fi) {
 		struct folio *f = *fi;
-		unsigned f_len = min(end, folio_end_pos(f)) - f_pos;
+		u64 f_len = min(end, folio_end_pos(f)) - f_pos;
 
 		if (!bch2_folio_create(f, __GFP_NOFAIL)->uptodate) {
 			ret = bch2_folio_set(c, inode_inum(inode), fi,
@@ -1940,7 +1946,7 @@ static int __bch2_buffered_write(struct bch_inode_info *inode,
 	f_offset = pos - folio_pos(darray_first(folios));
 	darray_for_each(folios, fi) {
 		struct folio *f = *fi;
-		unsigned f_len = min(end, folio_end_pos(f)) - f_pos;
+		u64 f_len = min(end, folio_end_pos(f)) - f_pos;
 		unsigned f_copied = copy_page_from_iter_atomic(&f->page, f_offset, f_len, iter);
 
 		if (!f_copied) {
@@ -1982,7 +1988,7 @@ static int __bch2_buffered_write(struct bch_inode_info *inode,
 	f_offset = pos - folio_pos(darray_first(folios));
 	darray_for_each(folios, fi) {
 		struct folio *f = *fi;
-		unsigned f_len = min(end, folio_end_pos(f)) - f_pos;
+		u64 f_len = min(end, folio_end_pos(f)) - f_pos;
 
 		if (!folio_test_uptodate(f))
 			folio_mark_uptodate(f);
@@ -2818,7 +2824,7 @@ static int __bch2_truncate_folio(struct bch_inode_info *inode,
 	struct folio *folio;
 	s64 i_sectors_delta = 0;
 	int ret = 0;
-	loff_t end_pos;
+	u64 end_pos;
 
 	folio = filemap_lock_folio(mapping, index);
 	if (!folio) {
@@ -2844,7 +2850,7 @@ static int __bch2_truncate_folio(struct bch_inode_info *inode,
 	BUG_ON(end	<= folio_pos(folio));
 
 	start_offset	= max(start, folio_pos(folio)) - folio_pos(folio);
-	end_offset	= min(end, folio_end_pos(folio)) - folio_pos(folio);
+	end_offset	= min_t(u64, end, folio_end_pos(folio)) - folio_pos(folio);
 
 	/* Folio boundary? Nothing to do */
 	if (start_offset == 0 &&
@@ -2895,7 +2901,7 @@ static int __bch2_truncate_folio(struct bch_inode_info *inode,
 	WARN_ON_ONCE(folio_pos(folio) >= inode->v.i_size);
 	end_pos = folio_end_pos(folio);
 	if (inode->v.i_size > folio_pos(folio))
-		end_pos = min(inode->v.i_size, end_pos);
+		end_pos = min_t(u64, inode->v.i_size, end_pos);
 	ret = s->s[(end_pos - folio_pos(folio) - 1) >> 9].state >= SECTOR_dirty;
 
 	folio_zero_segment(folio, start_offset, end_offset);
