@@ -6881,23 +6881,6 @@ static int ext4_quota_on(struct super_block *sb, int type, int format_id,
 		sb_dqopt(sb)->flags &= ~DQUOT_NOLIST_DIRTY;
 	}
 
-	/*
-	 * When we journal data on quota file, we have to flush journal to see
-	 * all updates to the file when we bypass pagecache...
-	 */
-	if (EXT4_SB(sb)->s_journal &&
-	    ext4_should_journal_data(d_inode(path->dentry))) {
-		/*
-		 * We don't need to lock updates but journal_flush() could
-		 * otherwise be livelocked...
-		 */
-		jbd2_journal_lock_updates(EXT4_SB(sb)->s_journal);
-		err = jbd2_journal_flush(EXT4_SB(sb)->s_journal, 0);
-		jbd2_journal_unlock_updates(EXT4_SB(sb)->s_journal);
-		if (err)
-			return err;
-	}
-
 	lockdep_set_quota_inode(path->dentry->d_inode, I_DATA_SEM_QUOTA);
 	err = dquot_quota_on(sb, type, format_id, path);
 	if (!err) {
