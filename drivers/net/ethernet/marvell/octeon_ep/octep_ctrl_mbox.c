@@ -167,7 +167,7 @@ int octep_ctrl_mbox_send(struct octep_ctrl_mbox *mbox, struct octep_ctrl_mbox_ms
 	ci = readl(q->hw_cons);
 
 	if (octep_ctrl_mbox_circq_space(pi, ci, q->sz) < (msg->hdr.s.sz + mbox_hdr_sz)) {
-		mutex_unlock(&mbox->f2hq_lock);
+		mutex_unlock(&mbox->h2fq_lock);
 		return -EAGAIN;
 	}
 
