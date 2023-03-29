@@ -8,6 +8,8 @@
 #include "fs.h"
 #include "subvolume.h"
 
+static int bch2_subvolume_delete(struct btree_trans *, u32);
+
 /* Snapshot tree: */
 
 void bch2_snapshot_tree_to_text(struct printbuf *out, struct bch_fs *c,
@@ -643,12 +645,13 @@ static int check_subvol(struct btree_trans *trans,
 		return ret;
 
 	if (BCH_SUBVOLUME_UNLINKED(subvol.v)) {
+		bch2_fs_lazy_rw(c);
+
 		ret = bch2_subvolume_delete(trans, iter->pos.offset);
-		if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
+		if (ret)
 			bch_err(c, "error deleting subvolume %llu: %s",
 				iter->pos.offset, bch2_err_str(ret));
-		if (ret)
-			return ret;
+		return ret ?: -BCH_ERR_transaction_restart_nested;
 	}
 
 	if (!BCH_SUBVOLUME_SNAP(subvol.v)) {
@@ -1166,8 +1169,11 @@ void bch2_subvolume_to_text(struct printbuf *out, struct bch_fs *c,
 	struct bkey_s_c_subvolume s = bkey_s_c_to_subvolume(k);
 
 	prt_printf(out, "root %llu snapshot id %u",
-	       le64_to_cpu(s.v->inode),
-	       le32_to_cpu(s.v->snapshot));
+		   le64_to_cpu(s.v->inode),
+		   le32_to_cpu(s.v->snapshot));
+
+	if (bkey_val_bytes(s.k) > offsetof(struct bch_subvolume, parent))
+		prt_printf(out, " parent %u", le32_to_cpu(s.v->parent));
 }
 
 static __always_inline int
@@ -1204,23 +1210,71 @@ int bch2_snapshot_get_subvol(struct btree_trans *trans, u32 snapshot,
 int bch2_subvolume_get_snapshot(struct btree_trans *trans, u32 subvol,
 				u32 *snapid)
 {
-	struct bch_subvolume s;
+	struct btree_iter iter;
+	struct bkey_s_c k;
 	int ret;
 
-	ret = bch2_subvolume_get_inlined(trans, subvol, true,
-					 BTREE_ITER_CACHED|
-					 BTREE_ITER_WITH_UPDATES,
-					 &s);
-	if (!ret)
-		*snapid = le32_to_cpu(s.snapshot);
+	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_subvolumes, POS(0, subvol),
+			       BTREE_ITER_CACHED|
+			       BTREE_ITER_WITH_UPDATES);
+	ret = bkey_err(k) ?: k.k->type == KEY_TYPE_subvolume ? 0 : -ENOENT;
+
+	if (likely(!ret))
+		*snapid = le32_to_cpu(bkey_s_c_to_subvolume(k).v->snapshot);
+	else if (bch2_err_matches(ret, ENOENT))
+		bch2_fs_inconsistent(trans->c, "missing subvolume %u", subvol);
+	bch2_trans_iter_exit(trans, &iter);
 	return ret;
+}
+
+static int bch2_subvolume_reparent(struct btree_trans *trans,
+				   struct btree_iter *iter,
+				   struct bkey_s_c k,
+				   u32 old_parent, u32 new_parent)
+{
+	struct bkey_i_subvolume *s;
+	int ret;
+
+	if (k.k->type != KEY_TYPE_subvolume)
+		return 0;
+
+	if (bkey_val_bytes(k.k) > offsetof(struct bch_subvolume, parent) &&
+	    le32_to_cpu(bkey_s_c_to_subvolume(k).v->parent) != old_parent)
+		return 0;
+
+	s = bch2_bkey_make_mut_typed(trans, iter, k, 0, subvolume);
+	ret = PTR_ERR_OR_ZERO(s);
+	if (ret)
+		return ret;
+
+	s->v.parent = cpu_to_le32(new_parent);
+	return 0;
+}
+
+/*
+ * Scan for subvolumes with parent @subvolid_to_delete, reparent:
+ */
+static int bch2_subvolumes_reparent(struct btree_trans *trans, u32 subvolid_to_delete)
+{
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	struct bch_subvolume s;
+
+	return lockrestart_do(trans,
+			bch2_subvolume_get(trans, subvolid_to_delete, true,
+				   BTREE_ITER_CACHED, &s)) ?:
+		for_each_btree_key_commit(trans, iter,
+				BTREE_ID_subvolumes, POS_MIN, BTREE_ITER_PREFETCH, k,
+				NULL, NULL, BTREE_INSERT_NOFAIL,
+			bch2_subvolume_reparent(trans, &iter, k,
+					subvolid_to_delete, le32_to_cpu(s.parent)));
 }
 
 /*
  * Delete subvolume, mark snapshot ID as deleted, queue up snapshot
  * deletion/cleanup:
  */
-int bch2_subvolume_delete(struct btree_trans *trans, u32 subvolid)
+static int __bch2_subvolume_delete(struct btree_trans *trans, u32 subvolid)
 {
 	struct btree_iter iter;
 	struct bkey_s_c_subvolume subvol;
@@ -1260,6 +1314,13 @@ err:
 	return ret;
 }
 
+static int bch2_subvolume_delete(struct btree_trans *trans, u32 subvolid)
+{
+	return bch2_subvolumes_reparent(trans, subvolid) ?:
+		commit_do(trans, NULL, NULL, BTREE_INSERT_NOFAIL,
+			  __bch2_subvolume_delete(trans, subvolid));
+}
+
 void bch2_subvolume_wait_for_pagecache_and_delete(struct work_struct *work)
 {
 	struct bch_fs *c = container_of(work, struct bch_fs,
@@ -1280,8 +1341,7 @@ void bch2_subvolume_wait_for_pagecache_and_delete(struct work_struct *work)
 		bch2_evict_subvolume_inodes(c, &s);
 
 		for (id = s.data; id < s.data + s.nr; id++) {
-			ret = bch2_trans_do(c, NULL, NULL, BTREE_INSERT_NOFAIL,
-				      bch2_subvolume_delete(&trans, *id));
+			ret = bch2_trans_run(c, bch2_subvolume_delete(&trans, *id));
 			if (ret) {
 				bch_err(c, "error deleting subvolume %u: %s", *id, bch2_err_str(ret));
 				break;
@@ -1359,6 +1419,7 @@ int bch2_subvolume_create(struct btree_trans *trans, u64 inode,
 			  u32 *new_snapshotid,
 			  bool ro)
 {
+	struct bch_fs *c = trans->c;
 	struct btree_iter dst_iter, src_iter = (struct btree_iter) { NULL };
 	struct bkey_i_subvolume *new_subvol = NULL;
 	struct bkey_i_subvolume *src_subvol = NULL;
@@ -1383,7 +1444,7 @@ int bch2_subvolume_create(struct btree_trans *trans, u64 inode,
 				BTREE_ITER_CACHED, subvolume);
 		ret = PTR_ERR_OR_ZERO(src_subvol);
 		if (unlikely(ret)) {
-			bch2_fs_inconsistent_on(ret == -ENOENT, trans->c,
+			bch2_fs_inconsistent_on(ret == -ENOENT, c,
 						"subvolume %u not found", src_subvolid);
 			goto err;
 		}
@@ -1412,6 +1473,10 @@ int bch2_subvolume_create(struct btree_trans *trans, u64 inode,
 	new_subvol->v.flags	= 0;
 	new_subvol->v.snapshot	= cpu_to_le32(new_nodes[0]);
 	new_subvol->v.inode	= cpu_to_le64(inode);
+	new_subvol->v.parent	= cpu_to_le32(src_subvolid);
+	new_subvol->v.otime.lo	= cpu_to_le64(bch2_current_time(c));
+	new_subvol->v.otime.hi	= 0;
+
 	SET_BCH_SUBVOLUME_RO(&new_subvol->v, ro);
 	SET_BCH_SUBVOLUME_SNAP(&new_subvol->v, src_subvolid != 0);
 

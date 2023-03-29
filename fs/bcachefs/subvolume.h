@@ -156,7 +156,6 @@ int bch2_snapshot_node_create(struct btree_trans *, u32,
 int bch2_delete_dead_snapshots(struct bch_fs *);
 void bch2_delete_dead_snapshots_async(struct bch_fs *);
 
-int bch2_subvolume_delete(struct btree_trans *, u32);
 int bch2_subvolume_unlink(struct btree_trans *, u32);
 int bch2_subvolume_create(struct btree_trans *, u64, u32,
 			  u32 *, u32 *, bool);

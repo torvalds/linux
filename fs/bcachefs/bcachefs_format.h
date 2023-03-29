@@ -254,6 +254,11 @@ struct bkey_packed {
 	__u8		pad[sizeof(struct bkey) - 3];
 } __packed __aligned(8);
 
+typedef struct {
+	__le64			lo;
+	__le64			hi;
+} bch_le128;
+
 #define BKEY_U64s			(sizeof(struct bkey) / sizeof(__u64))
 #define BKEY_U64s_MAX			U8_MAX
 #define BKEY_VAL_U64s_MAX		(BKEY_U64s_MAX - BKEY_U64s)
@@ -1106,6 +1111,9 @@ struct bch_subvolume {
 	__le32			flags;
 	__le32			snapshot;
 	__le64			inode;
+	__le32			parent;
+	__le32			pad;
+	bch_le128		otime;
 };
 
 LE32_BITMASK(BCH_SUBVOLUME_RO,		struct bch_subvolume, flags,  0,  1)
