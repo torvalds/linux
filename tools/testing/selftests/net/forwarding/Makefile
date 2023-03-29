@@ -85,6 +85,7 @@ TEST_PROGS = bridge_igmp.sh \
 	tc_mpls_l2vpn.sh \
 	tc_police.sh \
 	tc_shblocks.sh \
+	tc_tunnel_key.sh \
 	tc_vlan_modify.sh \
 	vxlan_asymmetric_ipv6.sh \
 	vxlan_asymmetric.sh \
