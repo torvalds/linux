@@ -2691,7 +2691,7 @@ static int ov5670_probe(struct i2c_client *client)
 	if (!ov5670)
 		return -ENOMEM;
 
-	ov5670->xvclk = devm_clk_get(&client->dev, NULL);
+	ov5670->xvclk = devm_clk_get_optional(&client->dev, NULL);
 	if (!IS_ERR_OR_NULL(ov5670->xvclk))
 		input_clk = clk_get_rate(ov5670->xvclk);
 	else if (!ov5670->xvclk || PTR_ERR(ov5670->xvclk) == -ENOENT)
