@@ -722,6 +722,9 @@ void iwl_mvm_mac_tx(struct ieee80211_hw *hw,
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	bool offchannel = IEEE80211_SKB_CB(skb)->flags &
 		IEEE80211_TX_CTL_TX_OFFCHAN;
+	u32 link_id = u32_get_bits(info->control.flags,
+				   IEEE80211_TX_CTRL_MLO_LINK);
+	struct ieee80211_sta *tmp_sta = sta;
 
 	if (iwl_mvm_is_radio_killed(mvm)) {
 		IWL_DEBUG_DROP(mvm, "Dropping - RF/CT KILL\n");
@@ -753,6 +756,25 @@ void iwl_mvm_mac_tx(struct ieee80211_hw *hw,
 			if (IS_ERR_OR_NULL(sta))
 				goto drop;
 		}
+	}
+
+	if (tmp_sta && !sta && link_id != IEEE80211_LINK_UNSPECIFIED &&
+	    !ieee80211_is_probe_resp(hdr->frame_control)) {
+		/* translate MLD addresses to LINK addresses */
+		struct ieee80211_link_sta *link_sta =
+			rcu_dereference(tmp_sta->link[link_id]);
+		struct ieee80211_bss_conf *link_conf =
+			rcu_dereference(info->control.vif->link_conf[link_id]);
+		struct ieee80211_mgmt *mgmt;
+
+		if (WARN_ON(!link_sta || !link_conf))
+			goto drop;
+
+		/* if sta is NULL, the frame is a management frame */
+		mgmt = (void *)hdr;
+		memcpy(mgmt->da, link_sta->addr, ETH_ALEN);
+		memcpy(mgmt->sa, link_conf->addr, ETH_ALEN);
+		memcpy(mgmt->bssid, link_conf->bssid, ETH_ALEN);
 	}
 
 	iwl_mvm_tx_skb(mvm, skb, sta);
