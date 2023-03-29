@@ -1027,6 +1027,8 @@ struct intel_crtc_state {
 	/* actual state of LUTs */
 	struct drm_property_blob *pre_csc_lut, *post_csc_lut;
 
+	struct intel_csc_matrix csc, output_csc;
+
 	/**
 	 * quirks - bitfield with hw state readout quirks
 	 *
