@@ -10,6 +10,15 @@
 
 #include <linux/bitfield.h>
 
+struct max96745 {
+	struct device *dev;
+	struct regmap *regmap;
+	struct i2c_mux_core *muxc;
+	struct gpio_desc *enable_gpio;
+	struct extcon_dev *extcon;
+	bool idle_disc;
+};
+
 #define GPIO_A_REG(gpio)	(0x0200 + ((gpio) * 8))
 #define GPIO_B_REG(gpio)	(0x0201 + ((gpio) * 8))
 #define GPIO_C_REG(gpio)	(0x0202 + ((gpio) * 8))

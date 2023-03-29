@@ -9,19 +9,11 @@
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
+#include <linux/extcon-provider.h>
 #include <linux/gpio/consumer.h>
 #include <linux/regmap.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/max96745.h>
-
-struct max96745 {
-	struct device *dev;
-	struct regmap *regmap;
-	struct i2c_mux_core *muxc;
-	bool idle_disc;
-	struct gpio_desc *enable_gpio;
-	struct gpio_desc *lock_gpio;
-};
 
 static const struct mfd_cell max96745_devs[] = {
 	{
@@ -32,6 +24,24 @@ static const struct mfd_cell max96745_devs[] = {
 		.of_compatible = "maxim,max96745-bridge",
 	},
 };
+
+static const unsigned int max96745_cable[] = {
+	EXTCON_JACK_VIDEO_OUT,
+	EXTCON_NONE,
+};
+
+static bool max96745_vid_tx_active(struct max96745 *max96745)
+{
+	u32 val;
+
+	if (regmap_read(max96745->regmap, 0x0107, &val))
+		return false;
+
+	if (!FIELD_GET(VID_TX_ACTIVE_A | VID_TX_ACTIVE_B, val))
+		return false;
+
+	return true;
+}
 
 static bool max96745_volatile_reg(struct device *dev, unsigned int reg)
 {
@@ -104,12 +114,10 @@ static void max96745_power_off(void *data)
 
 static void max96745_power_on(struct max96745 *max96745)
 {
-	u32 val;
-	int ret;
-
-	ret = regmap_read(max96745->regmap, 0x0107, &val);
-	if (!ret && FIELD_GET(VID_TX_ACTIVE_A | VID_TX_ACTIVE_B, val))
+	if (max96745_vid_tx_active(max96745)) {
+		extcon_set_state(max96745->extcon, EXTCON_JACK_VIDEO_OUT, true);
 		return;
+	}
 
 	if (max96745->enable_gpio) {
 		gpiod_direction_output(max96745->enable_gpio, 1);
@@ -245,10 +253,15 @@ static int max96745_i2c_probe(struct i2c_client *client)
 		return dev_err_probe(dev, PTR_ERR(max96745->enable_gpio),
 				     "failed to get enable GPIO\n");
 
-	max96745->lock_gpio = devm_gpiod_get_optional(dev, "lock", GPIOD_IN);
-	if (IS_ERR(max96745->lock_gpio))
-		return dev_err_probe(dev, PTR_ERR(max96745->lock_gpio),
-				     "failed to get lock GPIO\n");
+	max96745->extcon = devm_extcon_dev_allocate(dev, max96745_cable);
+	if (IS_ERR(max96745->extcon))
+		return dev_err_probe(dev, PTR_ERR(max96745->extcon),
+				     "failed to allocate extcon device\n");
+
+	ret = devm_extcon_dev_register(dev, max96745->extcon);
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "failed to register extcon device\n");
 
 	max96745_power_on(max96745);
 
