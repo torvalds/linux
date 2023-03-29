@@ -63,9 +63,9 @@ __xe_bb_create_job(struct xe_engine *kernel_eng, struct xe_bb *bb, u64 *addr)
 {
 	u32 size = drm_suballoc_size(bb->bo);
 
-	XE_BUG_ON((bb->len * 4 + 1) > size);
-
 	bb->cs[bb->len++] = MI_BATCH_BUFFER_END;
+
+	WARN_ON(bb->len * 4 + bb_prefetch(kernel_eng->gt) > size);
 
 	xe_sa_bo_flush_write(bb->bo);
 
