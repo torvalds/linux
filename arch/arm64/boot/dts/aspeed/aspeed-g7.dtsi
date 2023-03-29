@@ -267,6 +267,40 @@
 					status = "disabled";
 				};
 			};
+
+			mac0: ftgmac@14050000 {
+				compatible = "aspeed,ast2700-mac", "faraday,ftgmac100";
+				reg = <0x0 0x14050000 0x0 0x200>;
+				interrupt-parent = <&intc4>;
+				interrupts-extended = <&intc4 0>;
+
+				clocks = <&io_clk AST2700_IO_CLK_GATE_MAC0CLK>;
+				resets = <&io_clk ASPEED_RESET_MAC0>;
+				status = "disabled";
+			};
+
+			mac1: ftgmac@14060000 {
+				compatible = "aspeed,ast2700-mac", "faraday,ftgmac100";
+				reg = <0x0 0x14060000 0x0 0x200>;
+				interrupt-parent = <&intc4>;
+				interrupts-extended = <&intc4 1>;
+
+				clocks = <&io_clk AST2700_IO_CLK_GATE_MAC0CLK>;
+				resets = <&io_clk ASPEED_RESET_MAC0>;
+				status = "disabled";
+			};
+
+			mac2: ftgmac@14070000 {
+				compatible = "aspeed,ast2700-mac", "faraday,ftgmac100";
+				reg = <0x0 0x14070000 0x0 0x200>;
+				interrupt-parent = <&intc4>;
+				interrupts-extended = <&intc4 2>;
+
+				clocks = <&io_clk AST2700_IO_CLK_GATE_MAC0CLK>;
+				resets = <&io_clk ASPEED_RESET_MAC0>;
+				status = "disabled";
+			};
+
 		};
 	};
 };

@@ -31,3 +31,10 @@
 	};
 };
 
+&mac0 {
+	status = "okay";
+
+	phy-mode = "rgmii-rxid";
+	phy-handle = <&ethphy0>;
+};
+
