@@ -451,12 +451,7 @@ Support
 =======
 
 For general information, go to the Intel support website at:
-
-    http://support.intel.com
-
-or the Intel Wired Networking project hosted by Sourceforge at:
-
-    http://sourceforge.net/projects/e1000
+http://support.intel.com
 
 If an issue is identified with the released source code on the supported
 kernel with a supported adapter, email the specific information related

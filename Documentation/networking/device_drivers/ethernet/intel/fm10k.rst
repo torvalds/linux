@@ -130,12 +130,7 @@ the Intel Ethernet Controller XL710.
 Support
 =======
 For general information, go to the Intel support website at:
-
 https://www.intel.com/support/
-
-or the Intel Wired Networking project hosted by Sourceforge at:
-
-https://sourceforge.net/projects/e1000
 
 If an issue is identified with the released source code on a supported kernel
 with a supported adapter, email the specific information related to the issue
