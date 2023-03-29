@@ -3213,7 +3213,6 @@ static void port_get_link_speed(struct ksz_port *port)
 	u8 remote;
 	int i;
 	int p;
-	int change = 0;
 
 	interrupt = hw_block_intr(hw);
 
@@ -3260,17 +3259,14 @@ static void port_get_link_speed(struct ksz_port *port)
 					port_cfg_back_pressure(hw, p,
 						(1 == info->duplex));
 				}
-				change |= 1 << i;
 				port_cfg_change(hw, port, info, status);
 			}
 			info->state = media_connected;
 		} else {
-			if (media_disconnected != info->state) {
-				change |= 1 << i;
-
-				/* Indicate the link just goes down. */
+			/* Indicate the link just goes down. */
+			if (media_disconnected != info->state)
 				hw->port_mib[p].link_down = 1;
-			}
+
 			info->state = media_disconnected;
 		}
 		hw->port_mib[p].state = (u8) info->state;
