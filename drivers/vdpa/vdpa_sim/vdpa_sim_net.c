@@ -466,15 +466,20 @@ static int vdpasim_net_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
 
 	vdpasim_net_setup_config(simdev, config);
 
-	ret = _vdpa_register_device(&simdev->vdpa, VDPASIM_NET_VQ_NUM);
-	if (ret)
-		goto reg_err;
-
 	net = sim_to_net(simdev);
 
 	u64_stats_init(&net->tx_stats.syncp);
 	u64_stats_init(&net->rx_stats.syncp);
 	u64_stats_init(&net->cq_stats.syncp);
+
+	/*
+	 * Initialization must be completed before this call, since it can
+	 * connect the device to the vDPA bus, so requests can arrive after
+	 * this call.
+	 */
+	ret = _vdpa_register_device(&simdev->vdpa, VDPASIM_NET_VQ_NUM);
+	if (ret)
+		goto reg_err;
 
 	return 0;
 
