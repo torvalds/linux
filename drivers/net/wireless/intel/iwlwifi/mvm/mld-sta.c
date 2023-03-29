@@ -398,9 +398,9 @@ static int iwl_mvm_mld_cfg_sta(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 
 	cmd.link_id = cpu_to_le32(link_info->fw_link_id);
 
-	/* For now the link addr is the same as the mld addr */
 	memcpy(&cmd.peer_mld_address, sta->addr, ETH_ALEN);
-	memcpy(&cmd.peer_link_address, sta->addr, ETH_ALEN);
+	/* FIXME: use the correct link */
+	memcpy(&cmd.peer_link_address, sta->deflink.addr, ETH_ALEN);
 
 	if (mvm_sta->sta_state >= IEEE80211_STA_ASSOC)
 		cmd.assoc_id = cpu_to_le32(sta->aid);
