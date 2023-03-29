@@ -2348,19 +2348,6 @@ static int ext4_da_writepages_trans_blocks(struct inode *inode)
 				MAX_WRITEPAGES_EXTENT_LEN + bpp - 1, bpp);
 }
 
-/* Return true if the folio needs to be written as part of transaction commit */
-static bool ext4_folio_nomap_can_writeout(struct folio *folio)
-{
-	struct buffer_head *bh, *head;
-
-	bh = head = folio_buffers(folio);
-	do {
-		if (buffer_dirty(bh) && buffer_mapped(bh) && !buffer_delay(bh))
-			return true;
-	} while ((bh = bh->b_this_page) != head);
-	return false;
-}
-
 static int ext4_journal_page_buffers(handle_t *handle, struct page *page,
 				     int len)
 {
@@ -2545,13 +2532,11 @@ static int mpage_prepare_extent_to_map(struct mpage_da_data *mpd)
 			 * range operations before discarding the page cache.
 			 */
 			if (!mpd->can_map) {
-				if (ext4_folio_nomap_can_writeout(folio)) {
-					WARN_ON_ONCE(sb->s_writers.frozen ==
-						     SB_FREEZE_COMPLETE);
-					err = mpage_submit_folio(mpd, folio);
-					if (err < 0)
-						goto out;
-				}
+				WARN_ON_ONCE(sb->s_writers.frozen ==
+					     SB_FREEZE_COMPLETE);
+				err = mpage_submit_folio(mpd, folio);
+				if (err < 0)
+					goto out;
 				/* Pending dirtying of journalled data? */
 				if (folio_test_checked(folio)) {
 					WARN_ON_ONCE(sb->s_writers.frozen >=
