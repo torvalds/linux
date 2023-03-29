@@ -37,7 +37,8 @@
 	EM( SCAN_CGROUP_CHARGE_FAIL,	"ccgroup_charge_failed")	\
 	EM( SCAN_TRUNCATED,		"truncated")			\
 	EM( SCAN_PAGE_HAS_PRIVATE,	"page_has_private")		\
-	EMe(SCAN_STORE_FAILED,		"store_failed")
+	EM( SCAN_STORE_FAILED,		"store_failed")			\
+	EMe(SCAN_COPY_MC,		"copy_poisoned_page")
 
 #undef EM
 #undef EMe
