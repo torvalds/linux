@@ -1395,6 +1395,7 @@ static void __update_discard_tree_range(struct f2fs_sb_info *sbi,
 
 	while (1) {
 		struct rb_node *node;
+		bool merged = false;
 		struct discard_cmd *tdc = NULL;
 
 		if (prev_dc) {
@@ -1423,7 +1424,7 @@ static void __update_discard_tree_range(struct f2fs_sb_info *sbi,
 			__relocate_discard_cmd(dcc, prev_dc);
 			di = prev_dc->di;
 			tdc = prev_dc;
-			goto next;
+			merged = true;
 		}
 
 		if (next_dc && next_dc->state == D_PREP &&
@@ -1437,10 +1438,12 @@ static void __update_discard_tree_range(struct f2fs_sb_info *sbi,
 			__relocate_discard_cmd(dcc, next_dc);
 			if (tdc)
 				__remove_discard_cmd(sbi, tdc);
-			goto next;
+			merged = true;
 		}
 
-		__insert_discard_cmd(sbi, bdev, di.lstart, di.start, di.len);
+		if (!merged)
+			__insert_discard_cmd(sbi, bdev,
+						di.lstart, di.start, di.len);
  next:
 		prev_dc = next_dc;
 		if (!prev_dc)
