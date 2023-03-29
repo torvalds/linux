@@ -27,9 +27,6 @@ ENTRY(_start)
 
 jiffies = jiffies_64;
 
-PECOFF_SECTION_ALIGNMENT = 0x1000;
-PECOFF_FILE_ALIGNMENT = 0x200;
-
 SECTIONS
 {
 	/* Beginning of code and text segment */
@@ -132,6 +129,7 @@ SECTIONS
 #ifdef CONFIG_EFI
 	.pecoff_edata_padding : { BYTE(0); . = ALIGN(PECOFF_FILE_ALIGNMENT); }
 	__pecoff_data_raw_size = ABSOLUTE(. - __pecoff_text_end);
+	__pecoff_data_raw_end = ABSOLUTE(.);
 #endif
 
 	/* End of data section */
@@ -142,6 +140,7 @@ SECTIONS
 #ifdef CONFIG_EFI
 	. = ALIGN(PECOFF_SECTION_ALIGNMENT);
 	__pecoff_data_virt_size = ABSOLUTE(. - __pecoff_text_end);
+	__pecoff_data_virt_end = ABSOLUTE(.);
 #endif
 	_end = .;
 
