@@ -14,8 +14,10 @@ int btrfs_scrub_progress(struct btrfs_fs_info *fs_info, u64 devid,
 			 struct btrfs_scrub_progress *progress);
 
 /* Temporary declaration, would be deleted later. */
-int scrub_raid56_parity(struct scrub_ctx *sctx, struct map_lookup *map,
-			struct btrfs_device *sdev, u64 logic_start,
-			u64 logic_end);
+struct scrub_ctx;
+struct scrub_sector;
+int scrub_find_csum(struct scrub_ctx *sctx, u64 logical, u8 *csum);
+int scrub_add_sector_to_rd_bio(struct scrub_ctx *sctx,
+			       struct scrub_sector *sector);
 
 #endif
