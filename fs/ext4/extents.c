@@ -5290,13 +5290,6 @@ static int ext4_collapse_range(struct file *file, loff_t offset, loff_t len)
 	punch_start = offset >> EXT4_BLOCK_SIZE_BITS(sb);
 	punch_stop = (offset + len) >> EXT4_BLOCK_SIZE_BITS(sb);
 
-	/* Call ext4_force_commit to flush all data in case of data=journal. */
-	if (ext4_should_journal_data(inode)) {
-		ret = ext4_force_commit(inode->i_sb);
-		if (ret)
-			return ret;
-	}
-
 	inode_lock(inode);
 	/*
 	 * There is no need to overlap collapse range with EOF, in which case
@@ -5442,13 +5435,6 @@ static int ext4_insert_range(struct file *file, loff_t offset, loff_t len)
 
 	offset_lblk = offset >> EXT4_BLOCK_SIZE_BITS(sb);
 	len_lblk = len >> EXT4_BLOCK_SIZE_BITS(sb);
-
-	/* Call ext4_force_commit to flush all data in case of data=journal */
-	if (ext4_should_journal_data(inode)) {
-		ret = ext4_force_commit(inode->i_sb);
-		if (ret)
-			return ret;
-	}
 
 	inode_lock(inode);
 	/* Currently just for extent based files */
