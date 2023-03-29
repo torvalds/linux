@@ -130,7 +130,7 @@
     {
         "BriefDescription": "Counts the number of issue slots  that were not delivered by the frontend due to BACLEARS, which occurs when the Branch Target Buffer (BTB) prediction or lack thereof, was corrected by a later branch predictor in the frontend",
         "MetricExpr": "TOPDOWN_FE_BOUND.BRANCH_DETECT / tma_info_slots",
-        "MetricGroup": "TopdownL3;tma_L3_group;tma_frontend_latency_group",
+        "MetricGroup": "TopdownL3;tma_L3_group;tma_fetch_latency_group",
         "MetricName": "tma_branch_detect",
         "MetricThreshold": "tma_branch_detect > 0.05",
         "PublicDescription": "Counts the number of issue slots  that were not delivered by the frontend due to BACLEARS, which occurs when the Branch Target Buffer (BTB) prediction or lack thereof, was corrected by a later branch predictor in the frontend. Includes BACLEARS due to all branch types including conditional and unconditional jumps, returns, and indirect branches.",
@@ -147,7 +147,7 @@
     {
         "BriefDescription": "Counts the number of issue slots  that were not delivered by the frontend due to BTCLEARS, which occurs when the Branch Target Buffer (BTB) predicts a taken branch.",
         "MetricExpr": "TOPDOWN_FE_BOUND.BRANCH_RESTEER / tma_info_slots",
-        "MetricGroup": "TopdownL3;tma_L3_group;tma_frontend_latency_group",
+        "MetricGroup": "TopdownL3;tma_L3_group;tma_fetch_latency_group",
         "MetricName": "tma_branch_resteer",
         "MetricThreshold": "tma_branch_resteer > 0.05",
         "ScaleUnit": "100%"
@@ -155,14 +155,14 @@
     {
         "BriefDescription": "Counts the number of issue slots  that were not delivered by the frontend due to the microcode sequencer (MS).",
         "MetricExpr": "TOPDOWN_FE_BOUND.CISC / tma_info_slots",
-        "MetricGroup": "TopdownL3;tma_L3_group;tma_frontend_bandwidth_group",
+        "MetricGroup": "TopdownL3;tma_L3_group;tma_fetch_bandwidth_group",
         "MetricName": "tma_cisc",
         "MetricThreshold": "tma_cisc > 0.05",
         "ScaleUnit": "100%"
     },
     {
         "BriefDescription": "Counts the number of cycles due to backend bound stalls that are core execution bound and not attributed to outstanding demand load or store stalls.",
-        "MetricExpr": "max(0, tma_backend_bound - tma_load_store_bound)",
+        "MetricExpr": "max(0, tma_backend_bound - tma_memory_bound)",
         "MetricGroup": "TopdownL2;tma_L2_group;tma_backend_bound_group",
         "MetricName": "tma_core_bound",
         "MetricThreshold": "tma_core_bound > 0.1",
@@ -171,7 +171,7 @@
     {
         "BriefDescription": "Counts the number of issue slots  that were not delivered by the frontend due to decode stalls.",
         "MetricExpr": "TOPDOWN_FE_BOUND.DECODE / tma_info_slots",
-        "MetricGroup": "TopdownL3;tma_L3_group;tma_frontend_bandwidth_group",
+        "MetricGroup": "TopdownL3;tma_L3_group;tma_fetch_bandwidth_group",
         "MetricName": "tma_decode",
         "MetricThreshold": "tma_decode > 0.05",
         "ScaleUnit": "100%"
@@ -188,7 +188,7 @@
         "BriefDescription": "Counts the number of cycles the core is stalled due to a demand load miss which hit in DRAM or MMIO (Non-DRAM).",
         "MetricConstraint": "NO_GROUP_EVENTS",
         "MetricExpr": "MEM_BOUND_STALLS.LOAD_DRAM_HIT / tma_info_clks - MEM_BOUND_STALLS_AT_RET_CORRECTION * MEM_BOUND_STALLS.LOAD_DRAM_HIT / MEM_BOUND_STALLS.LOAD",
-        "MetricGroup": "TopdownL3;tma_L3_group;tma_load_store_bound_group",
+        "MetricGroup": "TopdownL3;tma_L3_group;tma_memory_bound_group",
         "MetricName": "tma_dram_bound",
         "MetricThreshold": "tma_dram_bound > 0.1",
         "ScaleUnit": "100%"
@@ -202,6 +202,22 @@
         "ScaleUnit": "100%"
     },
     {
+        "BriefDescription": "Counts the number of issue slots  that were not delivered by the frontend due to frontend bandwidth restrictions due to decode, predecode, cisc, and other limitations.",
+        "MetricExpr": "TOPDOWN_FE_BOUND.FRONTEND_BANDWIDTH / tma_info_slots",
+        "MetricGroup": "TopdownL2;tma_L2_group;tma_frontend_bound_group",
+        "MetricName": "tma_fetch_bandwidth",
+        "MetricThreshold": "tma_fetch_bandwidth > 0.1",
+        "ScaleUnit": "100%"
+    },
+    {
+        "BriefDescription": "Counts the number of issue slots  that were not delivered by the frontend due to frontend bandwidth restrictions due to decode, predecode, cisc, and other limitations.",
+        "MetricExpr": "TOPDOWN_FE_BOUND.FRONTEND_LATENCY / tma_info_slots",
+        "MetricGroup": "TopdownL2;tma_L2_group;tma_frontend_bound_group",
+        "MetricName": "tma_fetch_latency",
+        "MetricThreshold": "tma_fetch_latency > 0.15",
+        "ScaleUnit": "100%"
+    },
+    {
         "BriefDescription": "Counts the number of machine clears relative to the number of nuke slots due to FP assists.",
         "MetricExpr": "tma_nuke * (MACHINE_CLEARS.FP_ASSIST / MACHINE_CLEARS.SLOW)",
         "MetricGroup": "TopdownL4;tma_L4_group;tma_nuke_group",
@@ -210,19 +226,11 @@
         "ScaleUnit": "100%"
     },
     {
-        "BriefDescription": "Counts the number of floating point operations per uop with all default weighting.",
+        "BriefDescription": "Counts the number of floating point divide operations per uop.",
         "MetricExpr": "UOPS_RETIRED.FPDIV / tma_info_slots",
         "MetricGroup": "TopdownL3;tma_L3_group;tma_base_group",
-        "MetricName": "tma_fp_uops",
-        "MetricThreshold": "tma_fp_uops > 0.2",
-        "ScaleUnit": "100%"
-    },
-    {
-        "BriefDescription": "Counts the number of issue slots  that were not delivered by the frontend due to frontend bandwidth restrictions due to decode, predecode, cisc, and other limitations.",
-        "MetricExpr": "TOPDOWN_FE_BOUND.FRONTEND_BANDWIDTH / tma_info_slots",
-        "MetricGroup": "TopdownL2;tma_L2_group;tma_frontend_bound_group",
-        "MetricName": "tma_frontend_bandwidth",
-        "MetricThreshold": "tma_frontend_bandwidth > 0.1",
+        "MetricName": "tma_fpdiv_uops",
+        "MetricThreshold": "tma_fpdiv_uops > 0.2",
         "ScaleUnit": "100%"
     },
     {
@@ -234,19 +242,11 @@
         "ScaleUnit": "100%"
     },
     {
-        "BriefDescription": "Counts the number of issue slots  that were not delivered by the frontend due to frontend bandwidth restrictions due to decode, predecode, cisc, and other limitations.",
-        "MetricExpr": "TOPDOWN_FE_BOUND.FRONTEND_LATENCY / tma_info_slots",
-        "MetricGroup": "TopdownL2;tma_L2_group;tma_frontend_bound_group",
-        "MetricName": "tma_frontend_latency",
-        "MetricThreshold": "tma_frontend_latency > 0.15",
-        "ScaleUnit": "100%"
-    },
-    {
         "BriefDescription": "Counts the number of issue slots  that were not delivered by the frontend due to instruction cache misses.",
         "MetricExpr": "TOPDOWN_FE_BOUND.ICACHE / tma_info_slots",
-        "MetricGroup": "TopdownL3;tma_L3_group;tma_frontend_latency_group",
-        "MetricName": "tma_icache",
-        "MetricThreshold": "tma_icache > 0.05",
+        "MetricGroup": "TopdownL3;tma_L3_group;tma_fetch_latency_group",
+        "MetricName": "tma_icache_misses",
+        "MetricThreshold": "tma_icache_misses > 0.05",
         "ScaleUnit": "100%"
     },
     {
@@ -369,7 +369,27 @@
         "MetricName": "tma_info_ipload"
     },
     {
-        "BriefDescription": "Number of Instructions per non-speculative Branch Misprediction",
+        "BriefDescription": "Instructions per retired conditional Branch Misprediction where the branch was not taken",
+        "MetricExpr": "INST_RETIRED.ANY / (BR_MISP_RETIRED.COND - BR_MISP_RETIRED.COND_TAKEN)",
+        "MetricName": "tma_info_ipmisp_cond_ntaken"
+    },
+    {
+        "BriefDescription": "Instructions per retired conditional Branch Misprediction where the branch was taken",
+        "MetricExpr": "INST_RETIRED.ANY / BR_MISP_RETIRED.COND_TAKEN",
+        "MetricName": "tma_info_ipmisp_cond_taken"
+    },
+    {
+        "BriefDescription": "Instructions per retired indirect call or jump Branch Misprediction",
+        "MetricExpr": "INST_RETIRED.ANY / BR_MISP_RETIRED.INDIRECT",
+        "MetricName": "tma_info_ipmisp_indirect"
+    },
+    {
+        "BriefDescription": "Instructions per retired return Branch Misprediction",
+        "MetricExpr": "INST_RETIRED.ANY / BR_MISP_RETIRED.RETURN",
+        "MetricName": "tma_info_ipmisp_ret"
+    },
+    {
+        "BriefDescription": "Instructions per retired Branch Misprediction",
         "MetricExpr": "INST_RETIRED.ANY / BR_MISP_RETIRED.ALL_BRANCHES",
         "MetricGroup": " ",
         "MetricName": "tma_info_ipmispredict"
@@ -435,15 +455,15 @@
     {
         "BriefDescription": "Counts the number of issue slots  that were not delivered by the frontend due to Instruction Table Lookaside Buffer (ITLB) misses.",
         "MetricExpr": "TOPDOWN_FE_BOUND.ITLB / tma_info_slots",
-        "MetricGroup": "TopdownL3;tma_L3_group;tma_frontend_latency_group",
-        "MetricName": "tma_itlb",
-        "MetricThreshold": "tma_itlb > 0.05",
+        "MetricGroup": "TopdownL3;tma_L3_group;tma_fetch_latency_group",
+        "MetricName": "tma_itlb_misses",
+        "MetricThreshold": "tma_itlb_misses > 0.05",
         "ScaleUnit": "100%"
     },
     {
         "BriefDescription": "Counts the number of cycles that the oldest load of the load buffer is stalled at retirement due to a load block.",
         "MetricExpr": "LD_HEAD.L1_BOUND_AT_RET / tma_info_clks",
-        "MetricGroup": "TopdownL3;tma_L3_group;tma_load_store_bound_group",
+        "MetricGroup": "TopdownL3;tma_L3_group;tma_memory_bound_group",
         "MetricName": "tma_l1_bound",
         "MetricThreshold": "tma_l1_bound > 0.1",
         "ScaleUnit": "100%"
@@ -452,7 +472,7 @@
         "BriefDescription": "Counts the number of cycles a core is stalled due to a demand load which hit in the L2 Cache.",
         "MetricConstraint": "NO_GROUP_EVENTS",
         "MetricExpr": "MEM_BOUND_STALLS.LOAD_L2_HIT / tma_info_clks - MEM_BOUND_STALLS_AT_RET_CORRECTION * MEM_BOUND_STALLS.LOAD_L2_HIT / MEM_BOUND_STALLS.LOAD",
-        "MetricGroup": "TopdownL3;tma_L3_group;tma_load_store_bound_group",
+        "MetricGroup": "TopdownL3;tma_L3_group;tma_memory_bound_group",
         "MetricName": "tma_l2_bound",
         "MetricThreshold": "tma_l2_bound > 0.1",
         "ScaleUnit": "100%"
@@ -460,7 +480,7 @@
     {
         "BriefDescription": "Counts the number of cycles a core is stalled due to a demand load which hit in the Last Level Cache (LLC) or other core with HITE/F/M.",
         "MetricExpr": "MEM_BOUND_STALLS.LOAD_LLC_HIT / tma_info_clks - MEM_BOUND_STALLS_AT_RET_CORRECTION * MEM_BOUND_STALLS.LOAD_LLC_HIT / MEM_BOUND_STALLS.LOAD",
-        "MetricGroup": "TopdownL3;tma_L3_group;tma_load_store_bound_group",
+        "MetricGroup": "TopdownL3;tma_L3_group;tma_memory_bound_group",
         "MetricName": "tma_l3_bound",
         "MetricThreshold": "tma_l3_bound > 0.1",
         "ScaleUnit": "100%"
@@ -471,14 +491,6 @@
         "MetricGroup": "TopdownL4;tma_L4_group;tma_mem_scheduler_group",
         "MetricName": "tma_ld_buffer",
         "MetricThreshold": "tma_ld_buffer > 0.05",
-        "ScaleUnit": "100%"
-    },
-    {
-        "BriefDescription": "Counts the number of cycles the core is stalled due to stores or loads.",
-        "MetricExpr": "min(tma_backend_bound, LD_HEAD.ANY_AT_RET / tma_info_clks + tma_store_bound)",
-        "MetricGroup": "TopdownL2;tma_L2_group;tma_backend_bound_group",
-        "MetricName": "tma_load_store_bound",
-        "MetricThreshold": "tma_load_store_bound > 0.2",
         "ScaleUnit": "100%"
     },
     {
@@ -495,6 +507,14 @@
         "MetricGroup": "TopdownL3;tma_L3_group;tma_resource_bound_group",
         "MetricName": "tma_mem_scheduler",
         "MetricThreshold": "tma_mem_scheduler > 0.1",
+        "ScaleUnit": "100%"
+    },
+    {
+        "BriefDescription": "Counts the number of cycles the core is stalled due to stores or loads.",
+        "MetricExpr": "min(tma_backend_bound, LD_HEAD.ANY_AT_RET / tma_info_clks + tma_store_bound)",
+        "MetricGroup": "TopdownL2;tma_L2_group;tma_backend_bound_group",
+        "MetricName": "tma_memory_bound",
+        "MetricThreshold": "tma_memory_bound > 0.2",
         "ScaleUnit": "100%"
     },
     {
@@ -533,7 +553,7 @@
     {
         "BriefDescription": "Counts the number of issue slots  that were not delivered by the frontend due to other common frontend stalls not categorized.",
         "MetricExpr": "TOPDOWN_FE_BOUND.OTHER / tma_info_slots",
-        "MetricGroup": "TopdownL3;tma_L3_group;tma_frontend_bandwidth_group",
+        "MetricGroup": "TopdownL3;tma_L3_group;tma_fetch_bandwidth_group",
         "MetricName": "tma_other_fb",
         "MetricThreshold": "tma_other_fb > 0.05",
         "ScaleUnit": "100%"
@@ -548,8 +568,8 @@
     },
     {
         "BriefDescription": "Counts the number of cycles the core is stalled due to a demand load miss which hits in the L2, LLC, DRAM or MMIO (Non-DRAM) but could not be correctly attributed or cycles in which the load miss is waiting on a request buffer.",
-        "MetricExpr": "max(0, tma_load_store_bound - (tma_store_bound + tma_l1_bound + tma_l2_bound + tma_l3_bound + tma_dram_bound))",
-        "MetricGroup": "TopdownL3;tma_L3_group;tma_load_store_bound_group",
+        "MetricExpr": "max(0, tma_memory_bound - (tma_store_bound + tma_l1_bound + tma_l2_bound + tma_l3_bound + tma_dram_bound))",
+        "MetricGroup": "TopdownL3;tma_L3_group;tma_memory_bound_group",
         "MetricName": "tma_other_load_store",
         "MetricThreshold": "tma_other_load_store > 0.1",
         "ScaleUnit": "100%"
@@ -573,7 +593,7 @@
     {
         "BriefDescription": "Counts the number of issue slots  that were not delivered by the frontend due to wrong predecodes.",
         "MetricExpr": "TOPDOWN_FE_BOUND.PREDECODE / tma_info_slots",
-        "MetricGroup": "TopdownL3;tma_L3_group;tma_frontend_bandwidth_group",
+        "MetricGroup": "TopdownL3;tma_L3_group;tma_fetch_bandwidth_group",
         "MetricName": "tma_predecode",
         "MetricThreshold": "tma_predecode > 0.05",
         "ScaleUnit": "100%"
@@ -662,7 +682,7 @@
     {
         "BriefDescription": "Counts the number of cycles the core is stalled due to store buffer full.",
         "MetricExpr": "tma_mem_scheduler * (MEM_SCHEDULER_BLOCK.ST_BUF / MEM_SCHEDULER_BLOCK.ALL)",
-        "MetricGroup": "TopdownL3;tma_L3_group;tma_load_store_bound_group",
+        "MetricGroup": "TopdownL3;tma_L3_group;tma_memory_bound_group",
         "MetricName": "tma_store_bound",
         "MetricThreshold": "tma_store_bound > 0.1",
         "ScaleUnit": "100%"
@@ -671,8 +691,8 @@
         "BriefDescription": "Counts the number of cycles that the oldest load of the load buffer is stalled at retirement due to a store forward block.",
         "MetricExpr": "LD_HEAD.ST_ADDR_AT_RET / tma_info_clks",
         "MetricGroup": "TopdownL4;tma_L4_group;tma_l1_bound_group",
-        "MetricName": "tma_store_fwd",
-        "MetricThreshold": "tma_store_fwd > 0.05",
+        "MetricName": "tma_store_fwd_blk",
+        "MetricThreshold": "tma_store_fwd_blk > 0.05",
         "ScaleUnit": "100%"
     }
 ]
