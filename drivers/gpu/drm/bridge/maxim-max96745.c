@@ -26,7 +26,6 @@
 
 struct max96745_bridge {
 	struct drm_bridge bridge;
-	struct drm_bridge *next_bridge;
 	struct drm_panel *panel;
 	enum drm_connector_status status;
 
@@ -83,16 +82,9 @@ static int max96745_bridge_attach(struct drm_bridge *bridge,
 	int ret;
 
 	ret = drm_of_find_panel_or_bridge(bridge->of_node, 1, -1, &ser->panel,
-					  &ser->next_bridge);
+					  NULL);
 	if (ret < 0 && ret != -ENODEV)
 		return ret;
-
-	if (ser->next_bridge) {
-		ret = drm_bridge_attach(bridge->encoder, ser->next_bridge,
-					bridge, DRM_BRIDGE_ATTACH_NO_CONNECTOR);
-		if (ret)
-			return ret;
-	}
 
 	if (max96745_bridge_link_locked(ser))
 		ser->status = connector_status_connected;
@@ -178,9 +170,6 @@ max96745_bridge_detect(struct drm_bridge *bridge)
 		atomic_set(&ser->lock.triggered, 0);
 	}
 
-	if (ser->next_bridge && (ser->next_bridge->ops & DRM_BRIDGE_OP_DETECT))
-		status = drm_bridge_detect(ser->next_bridge);
-
 out:
 	ser->status = status;
 	return status;
@@ -190,9 +179,6 @@ static int max96745_bridge_get_modes(struct drm_bridge *bridge,
 				     struct drm_connector *connector)
 {
 	struct max96745_bridge *ser = to_max96745_bridge(bridge);
-
-	if (ser->next_bridge)
-		return drm_bridge_get_modes(ser->next_bridge, connector);
 
 	if (ser->panel)
 		return drm_panel_get_modes(ser->panel, connector);
@@ -272,7 +258,6 @@ static int max96745_bridge_probe(struct platform_device *pdev)
 	ser->bridge.funcs = &max96745_bridge_funcs;
 	ser->bridge.of_node = dev->of_node;
 	ser->bridge.ops = DRM_BRIDGE_OP_DETECT | DRM_BRIDGE_OP_MODES;
-	ser->bridge.type = DRM_MODE_CONNECTOR_LVDS;
 
 	drm_bridge_add(&ser->bridge);
 
