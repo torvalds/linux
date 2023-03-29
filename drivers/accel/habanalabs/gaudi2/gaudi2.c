@@ -2097,7 +2097,8 @@ enum razwi_event_sources {
 	RAZWI_PDMA,
 	RAZWI_NIC,
 	RAZWI_DEC,
-	RAZWI_ROT
+	RAZWI_ROT,
+	RAZWI_ARC_FARM
 };
 
 struct hbm_mc_error_causes {
@@ -8049,6 +8050,9 @@ static enum gaudi2_engine_id gaudi2_razwi_calc_engine_id(struct hl_device *hdev,
 	case RAZWI_ROT:
 		return GAUDI2_ENGINE_ID_ROT_0 + module_idx;
 
+	case RAZWI_ARC_FARM:
+		return GAUDI2_ENGINE_ID_ARC_FARM;
+
 	default:
 		return GAUDI2_ENGINE_ID_SIZE;
 	}
@@ -8157,6 +8161,11 @@ static void gaudi2_ack_module_razwi_event_handler(struct hl_device *hdev,
 		hbw_rtr_id = gaudi2_rot_initiator_hbw_rtr_id[module_idx];
 		lbw_rtr_id = gaudi2_rot_initiator_lbw_rtr_id[module_idx];
 		sprintf(initiator_name, "ROT_%u", module_idx);
+		break;
+	case RAZWI_ARC_FARM:
+		lbw_rtr_id = DCORE1_RTR5;
+		hbw_rtr_id = DCORE1_RTR7;
+		sprintf(initiator_name, "ARC_FARM_%u", module_idx);
 		break;
 	default:
 		return;
@@ -8611,7 +8620,7 @@ static int gaudi2_handle_qman_err(struct hl_device *hdev, u16 event_type, u64 *e
 	return error_count;
 }
 
-static int gaudi2_handle_arc_farm_sei_err(struct hl_device *hdev, u16 event_type)
+static int gaudi2_handle_arc_farm_sei_err(struct hl_device *hdev, u16 event_type, u64 *event_mask)
 {
 	u32 i, sts_val, sts_clr_val, error_count = 0, arc_farm;
 
@@ -8633,6 +8642,7 @@ static int gaudi2_handle_arc_farm_sei_err(struct hl_device *hdev, u16 event_type
 				sts_clr_val);
 	}
 
+	gaudi2_ack_module_razwi_event_handler(hdev, RAZWI_ARC_FARM, 0, 0, event_mask);
 	hl_check_for_glbl_errors(hdev);
 
 	return error_count;
@@ -9619,7 +9629,7 @@ static void gaudi2_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_ent
 		break;
 
 	case GAUDI2_EVENT_ARC_AXI_ERROR_RESPONSE_0:
-		error_count = gaudi2_handle_arc_farm_sei_err(hdev, event_type);
+		error_count = gaudi2_handle_arc_farm_sei_err(hdev, event_type, &event_mask);
 		event_mask |= HL_NOTIFIER_EVENT_USER_ENGINE_ERR;
 		break;
 
