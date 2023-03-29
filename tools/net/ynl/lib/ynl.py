@@ -67,6 +67,14 @@ class Netlink:
     NLMSGERR_ATTR_MISS_NEST = 6
 
 
+class NlError(Exception):
+  def __init__(self, nl_msg):
+    self.nl_msg = nl_msg
+
+  def __str__(self):
+    return f"Netlink error: {os.strerror(-self.nl_msg.error)}\n{self.nl_msg}"
+
+
 class NlAttr:
     type_formats = { 'u8' : ('B', 1), 's8' : ('b', 1),
                      'u16': ('H', 2), 's16': ('h', 2),
@@ -551,9 +559,7 @@ class YnlFamily(SpecFamily):
                     self._decode_extack(msg, op.attr_set, nl_msg.extack)
 
                 if nl_msg.error:
-                    print("Netlink error:", os.strerror(-nl_msg.error))
-                    print(nl_msg)
-                    return
+                    raise NlError(nl_msg)
                 if nl_msg.done:
                     if nl_msg.extack:
                         print("Netlink warning:")
