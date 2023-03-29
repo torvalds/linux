@@ -1136,12 +1136,18 @@ static u32 wa_16013835468_bit_get(struct intel_dp *intel_dp)
 
 /*
  * Wa_16013835468
+ * Wa_14015648006
  */
 static void wm_optimization_wa(struct intel_dp *intel_dp,
 			       const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	bool set_wa_bit = false;
+
+	/* Wa_14015648006 */
+	if (IS_MTL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0) ||
+	    IS_DISPLAY_VER(dev_priv, 11, 13))
+		set_wa_bit |= crtc_state->wm_level_disabled;
 
 	/* Wa_16013835468 */
 	if (DISPLAY_VER(dev_priv) == 12)
@@ -1197,6 +1203,7 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 
 	/*
 	 * Wa_16013835468
+	 * Wa_14015648006
 	 */
 	wm_optimization_wa(intel_dp, crtc_state);
 
@@ -1374,8 +1381,9 @@ static void intel_psr_disable_locked(struct intel_dp *intel_dp)
 
 	/*
 	 * Wa_16013835468
+	 * Wa_14015648006
 	 */
-	if (DISPLAY_VER(dev_priv) == 12)
+	if (DISPLAY_VER(dev_priv) >= 11)
 		intel_de_rmw(dev_priv, GEN8_CHICKEN_DCPR_1,
 			     wa_16013835468_bit_get(intel_dp), 0);
 
@@ -1949,6 +1957,9 @@ void intel_psr_pre_plane_update(struct intel_atomic_state *state,
 
 		if (psr->enabled && needs_to_disable)
 			intel_psr_disable_locked(intel_dp);
+		else if (psr->enabled && new_crtc_state->wm_level_disabled)
+			/* Wa_14015648006 */
+			wm_optimization_wa(intel_dp, new_crtc_state);
 
 		mutex_unlock(&psr->lock);
 	}
@@ -1978,6 +1989,9 @@ static void _intel_psr_post_plane_update(const struct intel_atomic_state *state,
 
 		if (!psr->enabled && !keep_disabled)
 			intel_psr_enable_locked(intel_dp, crtc_state);
+		else if (psr->enabled && !crtc_state->wm_level_disabled)
+			/* Wa_14015648006 */
+			wm_optimization_wa(intel_dp, crtc_state);
 
 		/* Force a PSR exit when enabling CRC to avoid CRC timeouts */
 		if (crtc_state->crc_enabled && psr->enabled)
