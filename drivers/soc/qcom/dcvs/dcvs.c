@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) "qcom-dcvs: " fmt
@@ -30,6 +30,7 @@ static const char * const dcvs_hw_names[NUM_DCVS_HW_TYPES] = {
 	[DCVS_LLCC]		= "LLCC",
 	[DCVS_L3]		= "L3",
 	[DCVS_DDRQOS]		= "DDRQOS",
+	[DCVS_UBWCP]		= "UBWCP",
 };
 
 enum dcvs_type {
@@ -769,7 +770,8 @@ static int qcom_dcvs_path_probe(struct platform_device *pdev)
 	switch (path_type) {
 	case DCVS_SLOW_PATH:
 		if (hw->type == DCVS_DDR || hw->type == DCVS_LLCC
-					|| hw->type == DCVS_DDRQOS)
+					|| hw->type == DCVS_DDRQOS
+					|| hw->type == DCVS_UBWCP)
 			ret = setup_icc_sp_device(dev, hw, path);
 		else if (hw->type == DCVS_L3)
 			ret = setup_epss_l3_sp_device(dev, hw, path);
