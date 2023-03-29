@@ -500,16 +500,17 @@ out:
 	rcu_read_unlock();
 }
 
-u16 rs_fw_get_max_amsdu_len(struct ieee80211_sta *sta)
+u16 rs_fw_get_max_amsdu_len(struct ieee80211_sta *sta,
+			    struct ieee80211_bss_conf *link_conf,
+			    struct ieee80211_link_sta *link_sta)
 {
-	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
-	const struct ieee80211_sta_vht_cap *vht_cap = &sta->deflink.vht_cap;
-	const struct ieee80211_sta_ht_cap *ht_cap = &sta->deflink.ht_cap;
+	const struct ieee80211_sta_vht_cap *vht_cap = &link_sta->vht_cap;
+	const struct ieee80211_sta_ht_cap *ht_cap = &link_sta->ht_cap;
 
-	if (WARN_ON_ONCE(!mvmsta->vif->bss_conf.chandef.chan))
+	if (WARN_ON_ONCE(!link_conf->chandef.chan))
 		return IEEE80211_MAX_MPDU_LEN_VHT_3895;
 
-	if (mvmsta->vif->bss_conf.chandef.chan->band == NL80211_BAND_6GHZ) {
+	if (link_conf->chandef.chan->band == NL80211_BAND_6GHZ) {
 		switch (le16_get_bits(sta->deflink.he_6ghz_capa.capa,
 				      IEEE80211_HE_6GHZ_CAP_MAX_MPDU_LEN)) {
 		case IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454:
@@ -546,16 +547,18 @@ u16 rs_fw_get_max_amsdu_len(struct ieee80211_sta *sta)
 }
 
 void rs_fw_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
+		     struct ieee80211_bss_conf *link_conf,
+		     struct ieee80211_link_sta *link_sta,
 		     enum nl80211_band band, bool update)
 {
 	struct ieee80211_hw *hw = mvm->hw;
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
-	struct iwl_lq_sta_rs_fw *lq_sta = &mvmsta->deflink.lq_sta.rs_fw;
 	u32 cmd_id = WIDE_ID(DATA_PATH_GROUP, TLC_MNG_CONFIG_CMD);
 	struct ieee80211_supported_band *sband = hw->wiphy->bands[band];
-	u16 max_amsdu_len = rs_fw_get_max_amsdu_len(sta);
+	u16 max_amsdu_len = rs_fw_get_max_amsdu_len(sta, link_conf, link_sta);
+	struct iwl_mvm_link_sta *mvm_link_sta;
+	struct iwl_lq_sta_rs_fw *lq_sta;
 	struct iwl_tlc_config_cmd_v4 cfg_cmd = {
-		.sta_id = mvmsta->deflink.sta_id,
 		.max_ch_width = update ?
 			rs_fw_bw_from_sta_bw(sta) : IWL_TLC_MNG_CH_WIDTH_20MHZ,
 		.flags = cpu_to_le16(rs_fw_get_config_flags(mvm, sta, sband)),
@@ -564,10 +567,23 @@ void rs_fw_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		.max_mpdu_len = iwl_mvm_is_csum_supported(mvm) ?
 				cpu_to_le16(max_amsdu_len) : 0,
 	};
-	int ret;
+	unsigned int link_id = link_conf->link_id;
 	int cmd_ver;
+	int ret;
 
+	rcu_read_lock();
+	mvm_link_sta = rcu_dereference(mvmsta->link[link_id]);
+	if (WARN_ON_ONCE(!mvm_link_sta)) {
+		rcu_read_unlock();
+		return;
+	}
+
+	cfg_cmd.sta_id = mvm_link_sta->sta_id;
+
+	lq_sta = &mvm_link_sta->lq_sta.rs_fw;
 	memset(lq_sta, 0, offsetof(typeof(*lq_sta), pers));
+
+	rcu_read_unlock();
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	iwl_mvm_reset_frame_stats(mvm);

@@ -1487,9 +1487,11 @@ static void rs_set_amsdu_len(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			     enum rs_action scale_action)
 {
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	struct ieee80211_bss_conf *bss_conf = &mvmsta->vif->bss_conf;
 	int i;
 
-	sta->deflink.agg.max_amsdu_len = rs_fw_get_max_amsdu_len(sta);
+	sta->deflink.agg.max_amsdu_len =
+		rs_fw_get_max_amsdu_len(sta, bss_conf, &sta->deflink);
 
 	/*
 	 * In case TLC offload is not active amsdu_enabled is either 0xFFFF
@@ -1502,7 +1504,7 @@ static void rs_set_amsdu_len(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	else
 		mvmsta->amsdu_enabled = 0xFFFF;
 
-	if (mvmsta->vif->bss_conf.he_support &&
+	if (bss_conf->he_support &&
 	    !iwlwifi_mod_params.disable_11ax)
 		mvmsta->max_amsdu_len = sta->deflink.agg.max_amsdu_len;
 	else
@@ -3002,17 +3004,20 @@ static void rs_drv_rate_update(void *mvm_r,
 			       void *priv_sta, u32 changed)
 {
 	struct iwl_op_mode *op_mode = mvm_r;
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm *mvm __maybe_unused = IWL_OP_MODE_GET_MVM(op_mode);
 	u8 tid;
 
-	if (!iwl_mvm_sta_from_mac80211(sta)->vif)
+	if (!mvmsta->vif)
 		return;
 
 	/* Stop any ongoing aggregations as rs starts off assuming no agg */
 	for (tid = 0; tid < IWL_MAX_TID_COUNT; tid++)
 		ieee80211_stop_tx_ba_session(sta, tid);
 
-	iwl_mvm_rs_rate_init(mvm, sta, sband->band, true);
+	iwl_mvm_rs_rate_init(mvm, sta,
+			     &mvmsta->vif->bss_conf, &sta->deflink,
+			     sband->band, true);
 }
 
 static void __iwl_mvm_rs_tx_status(struct iwl_mvm *mvm,
@@ -4097,10 +4102,12 @@ static const struct rate_control_ops rs_mvm_ops_drv = {
 };
 
 void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
+			  struct ieee80211_bss_conf *link_conf,
+			  struct ieee80211_link_sta *link_sta,
 			  enum nl80211_band band, bool update)
 {
 	if (iwl_mvm_has_tlc_offload(mvm)) {
-		rs_fw_rate_init(mvm, sta, band, update);
+		rs_fw_rate_init(mvm, sta, link_conf, link_sta, band, update);
 	} else {
 		struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 

@@ -3557,15 +3557,28 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
  *	(2) if a link is valid in sta then it's valid in vif (can
  *	use same index in the link array)
  */
+static void iwl_mvm_rs_rate_init_all_links(struct iwl_mvm *mvm,
+					   struct ieee80211_vif *vif,
+					   struct ieee80211_sta *sta,
+					   bool update)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	unsigned int link_id;
 
-#define iwl_mvm_rs_rate_init_all_links(mvm, mvmvif, sta, update) do {		\
-	typeof(mvmvif) _mvmvif = mvmvif;					\
-	unsigned int _i;							\
-	for_each_mvm_vif_valid_link(_mvmvif, _i)				\
-		iwl_mvm_rs_rate_init((mvm), (sta),				\
-				     _mvmvif->link[_i]->phy_ctxt->channel->band,\
-				     (update));					\
-} while (0)
+	for_each_mvm_vif_valid_link(mvmvif, link_id) {
+		struct ieee80211_bss_conf *conf =
+			rcu_dereference_protected(vif->link_conf[link_id], 1);
+		struct ieee80211_link_sta *link_sta =
+			rcu_dereference_protected(sta->link[link_id], 1);
+
+		if (!conf || !link_sta || !mvmvif->link[link_id]->phy_ctxt)
+			continue;
+
+		iwl_mvm_rs_rate_init(mvm, sta, conf, link_sta,
+				     mvmvif->link[link_id]->phy_ctxt->channel->band,
+				     update);
+	}
+}
 
 #define IWL_MVM_MIN_BEACON_INTERVAL_TU 16
 
@@ -3729,7 +3742,7 @@ iwl_mvm_sta_state_auth_to_assoc(struct ieee80211_hw *hw,
 	}
 
 out:
-	iwl_mvm_rs_rate_init_all_links(mvm, mvmvif, sta, false);
+	iwl_mvm_rs_rate_init_all_links(mvm, vif, sta, false);
 
 	return callbacks->update_sta(mvm, vif, sta);
 }
@@ -3762,7 +3775,7 @@ iwl_mvm_sta_state_assoc_to_authorized(struct iwl_mvm *mvm,
 		iwl_mvm_mei_host_associated(mvm, vif, mvm_sta);
 	}
 
-	iwl_mvm_rs_rate_init_all_links(mvm, mvmvif, sta, true);
+	iwl_mvm_rs_rate_init_all_links(mvm, vif, sta, true);
 
 	return 0;
 }
@@ -3781,7 +3794,7 @@ iwl_mvm_sta_state_authorized_to_assoc(struct iwl_mvm *mvm,
 	/* once we move into assoc state, need to update rate scale to
 	 * disable using wide bandwidth
 	 */
-	iwl_mvm_rs_rate_init_all_links(mvm, mvmvif, sta, false);
+	iwl_mvm_rs_rate_init_all_links(mvm, vif, sta, false);
 
 	if (!sta->tdls) {
 		/* Set this but don't call iwl_mvm_mac_ctxt_changed()
@@ -3950,6 +3963,7 @@ void iwl_mvm_sta_rc_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       IEEE80211_RC_SUPP_RATES_CHANGED |
 		       IEEE80211_RC_NSS_CHANGED))
 		iwl_mvm_rs_rate_init(mvm, sta,
+				     &vif->bss_conf, &sta->deflink,
 				     mvmvif->deflink.phy_ctxt->channel->band,
 				     true);
 
