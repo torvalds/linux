@@ -203,8 +203,6 @@ static int emit_wa_job(struct xe_gt *gt, struct xe_engine *e)
 			bb->cs[bb->len++] = entry->set_bits;
 		}
 	}
-	bb->cs[bb->len++] = MI_NOOP;
-	bb->cs[bb->len++] = MI_BATCH_BUFFER_END;
 
 	batch_ofs = xe_bo_ggtt_addr(gt->kernel_bb_pool.bo);
 	job = xe_bb_create_wa_job(e, bb, batch_ofs);
