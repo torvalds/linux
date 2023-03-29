@@ -1336,13 +1336,33 @@ lazy_rcu_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 	unsigned long flags;
 	unsigned long count = 0;
 
+	/*
+	 * Protect against concurrent (de-)offloading. Otherwise nocb locking
+	 * may be ignored or imbalanced.
+	 */
+	if (!mutex_trylock(&rcu_state.barrier_mutex)) {
+		/*
+		 * But really don't insist if barrier_mutex is contended since we
+		 * can't guarantee that it will never engage in a dependency
+		 * chain involving memory allocation. The lock is seldom contended
+		 * anyway.
+		 */
+		return 0;
+	}
+
 	/* Snapshot count of all CPUs */
 	for_each_possible_cpu(cpu) {
 		struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
-		int _count = READ_ONCE(rdp->lazy_len);
+		int _count;
+
+		if (!rcu_rdp_is_offloaded(rdp))
+			continue;
+
+		_count = READ_ONCE(rdp->lazy_len);
 
 		if (_count == 0)
 			continue;
+
 		rcu_nocb_lock_irqsave(rdp, flags);
 		WRITE_ONCE(rdp->lazy_len, 0);
 		rcu_nocb_unlock_irqrestore(rdp, flags);
@@ -1352,6 +1372,9 @@ lazy_rcu_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 		if (sc->nr_to_scan <= 0)
 			break;
 	}
+
+	mutex_unlock(&rcu_state.barrier_mutex);
+
 	return count ? count : SHRINK_STOP;
 }
 
