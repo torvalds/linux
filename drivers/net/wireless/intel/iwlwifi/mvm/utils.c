@@ -296,6 +296,10 @@ void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		return;
 
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	if (WARN_ON_ONCE(!mvmvif->link[link_id]))
+		return;
+
 	mvmvif->link[link_id]->smps_requests[req_type] = smps_request;
 	for (i = 0; i < NUM_IWL_MVM_SMPS_REQ; i++) {
 		if (mvmvif->link[link_id]->smps_requests[i] ==
