@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2012-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2012-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <asm/arch_timer.h>
@@ -898,7 +898,7 @@ void *ipc_log_context_create(int max_num_pages,
 	kref_init(&ctxt->refcount);
 	ctxt->destroyed = false;
 	create_ctx_debugfs(ctxt, mod_name);
-
+	ipc_log_cdev_create(ctxt, mod_name);
 	/* set magic last to signal context init is complete */
 	ctxt->magic = IPC_LOG_CONTEXT_MAGIC_NUM;
 	ctxt->nmagic = ~(IPC_LOG_CONTEXT_MAGIC_NUM);
@@ -953,7 +953,7 @@ int ipc_log_context_destroy(void *ctxt)
 		return 0;
 
 	debugfs_remove_recursive(ilctxt->dent);
-
+	ipc_log_cdev_remove(ilctxt);
 	spin_lock(&ilctxt->context_lock_lhb1);
 	ilctxt->destroyed = true;
 	complete_all(&ilctxt->read_avail);
@@ -976,7 +976,7 @@ EXPORT_SYMBOL(ipc_log_context_destroy);
 static int __init ipc_logging_init(void)
 {
 	check_and_create_debugfs();
-
+	ipc_log_cdev_init();
 	register_minidump((u64)&ipc_log_context_list, sizeof(struct list_head),
 			  "ipc_log_ctxt_list", minidump_buf_cnt);
 

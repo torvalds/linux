@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2012-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2012-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #ifndef _IPC_LOGGING_PRIVATE_H
 #define _IPC_LOGGING_PRIVATE_H
 
+#include <linux/device.h>
+#include <linux/cdev.h>
 #include <linux/ipc_logging.h>
 
 #define IPC_LOG_VERSION 0x0003
@@ -63,6 +65,19 @@ struct ipc_log_page {
 };
 
 /**
+ * struct ipc_log_cdev - Ipc logging character device
+ *
+ * @cdev: character device structure
+ * @dev: device structure
+ *
+ * Character device structure for ipc logging. Used to create character device nodes in DevFS.
+ */
+struct ipc_log_cdev {
+	struct cdev cdev;
+	struct device dev;
+};
+
+/**
  * struct ipc_log_context - main logging context
  *
  * @magic:  Magic number (used for log extraction)
@@ -87,6 +102,7 @@ struct ipc_log_page {
  * @dfunc_info_list:  List of deserialization functions
  * @context_lock_lhb1:  Lock for entire structure
  * @read_avail:  Completed when new data is added to the log
+ * @cdev: Ipc logging character device
  */
 struct ipc_log_context {
 	uint32_t magic;
@@ -113,6 +129,7 @@ struct ipc_log_context {
 	struct completion read_avail;
 	struct kref refcount;
 	bool destroyed;
+	struct ipc_log_cdev cdev;
 };
 
 struct dfunc_info {
@@ -161,6 +178,16 @@ void check_and_create_debugfs(void)
 void create_ctx_debugfs(struct ipc_log_context *ctxt, const char *mod_name)
 {
 }
+#endif
+
+#if IS_ENABLED(CONFIG_IPC_LOGGING_CDEV)
+void ipc_log_cdev_init(void);
+void ipc_log_cdev_create(struct ipc_log_context *ilctxt, const char *mod_name);
+void ipc_log_cdev_remove(struct ipc_log_context *ilctxt);
+#else
+static inline void ipc_log_cdev_init(void) {}
+static inline void ipc_log_cdev_create(struct ipc_log_context *ilctxt, const char *mod_name) {}
+static inline void ipc_log_cdev_remove(struct ipc_log_context *ilctxt) {}
 #endif
 
 #endif
