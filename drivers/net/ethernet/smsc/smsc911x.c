@@ -1016,7 +1016,7 @@ static void smsc911x_phy_adjust_link(struct net_device *dev)
 static int smsc911x_mii_probe(struct net_device *dev)
 {
 	struct smsc911x_data *pdata = netdev_priv(dev);
-	struct phy_device *phydev = NULL;
+	struct phy_device *phydev;
 	int ret;
 
 	/* find the first phy */
