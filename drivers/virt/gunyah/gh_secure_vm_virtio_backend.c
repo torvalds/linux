@@ -10,10 +10,14 @@
 #include <linux/mm.h>
 #include <linux/poll.h>
 #include <linux/delay.h>
+#include <linux/dma-direct.h>
+#include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/of_fdt.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/wait.h>
@@ -61,6 +65,7 @@ enum {
 
 struct shared_memory {
 	struct resource r;
+	u32 size;
 	u32 gunyah_label, shm_memparcel;
 };
 
@@ -75,6 +80,8 @@ struct virt_machine {
 	struct list_head vb_dev_list;
 	phys_addr_t shmem_addr;
 	u64 shmem_size;
+	struct device *com_mem_dev;
+	bool is_static;
 };
 
 struct ioevent_context {
@@ -808,12 +815,24 @@ note_shared_buffers(struct device_node *np, struct virt_machine *vm)
 			return -EINVAL;
 		}
 
-		ret = of_address_to_resource(snp, 0, &vm->shmem[idx].r);
-		if (ret) {
-			of_node_put(snp);
-			dev_err(vm->dev, "%s: Invalid address at index %d\n",
-						VIRTIO_PRINT_MARKER, idx);
-			return -EINVAL;
+		if (of_property_read_bool(snp, "no-map")) {
+			vm->is_static = true;
+			ret = of_address_to_resource(snp, 0, &vm->shmem[idx].r);
+			if (ret) {
+				of_node_put(snp);
+				dev_err(vm->dev, "%s: Invalid address at index %d\n",
+							VIRTIO_PRINT_MARKER, idx);
+				return -EINVAL;
+			}
+		} else {
+			vm->is_static = false;
+			ret = of_property_read_u32(snp, "size", &vm->shmem[idx].size);
+			if (ret) {
+				of_node_put(snp);
+				dev_err(vm->dev, "%s: Invalid size at index %d\n",
+							VIRTIO_PRINT_MARKER, idx);
+				return -EINVAL;
+			}
 		}
 
 		ret = of_property_read_u32(snp, "gunyah-label",
@@ -833,19 +852,62 @@ note_shared_buffers(struct device_node *np, struct virt_machine *vm)
 	return 0;
 }
 
+static void gh_memdev_release(struct device *dev)
+{
+	of_reserved_mem_device_release(dev);
+}
+
+static struct device *gh_alloc_memdev(struct device *dev,
+				const char *name, unsigned int idx)
+{
+	struct device *mem_dev;
+	int ret;
+
+	mem_dev = devm_kzalloc(dev, sizeof(*mem_dev), GFP_KERNEL);
+	if (!mem_dev)
+		return NULL;
+
+	device_initialize(mem_dev);
+	dev_set_name(mem_dev, "%s:%s", dev_name(dev), name);
+	mem_dev->parent = dev;
+	mem_dev->coherent_dma_mask = dev->coherent_dma_mask;
+	mem_dev->dma_mask = dev->dma_mask;
+	mem_dev->release = gh_memdev_release;
+	mem_dev->dma_parms = devm_kzalloc(dev, sizeof(*mem_dev->dma_parms),
+									GFP_KERNEL);
+	if (!mem_dev->dma_parms)
+		goto err;
+
+	/*
+	 * The memdevs are not proper OF platform devices, so in order for them
+	 * to be treated as valid DMA masters we need a bit of a hack to force
+	 * them to inherit the MFC node's DMA configuration.
+	 */
+	of_dma_configure(mem_dev, dev->of_node, true);
+
+	if (device_add(mem_dev) == 0) {
+		ret = of_reserved_mem_device_init_by_idx(mem_dev, dev->of_node,
+							 idx);
+		if (ret) {
+			device_del(mem_dev);
+			goto err;
+		}
+
+		return mem_dev;
+	}
+
+err:
+	put_device(mem_dev);
+	return NULL;
+}
+
 static struct virt_machine *
 new_vm(struct device *dev, const char *vm_name, struct device_node *np)
 {
 	struct virt_machine *vm;
 	int ret;
 	struct resource r;
-
-	ret = of_address_to_resource(np, 0, &r);
-	if (ret || !r.start || !resource_size(&r)) {
-		pr_err("%s: Invalid shared memory for VM %s\n",
-					VIRTIO_PRINT_MARKER, vm_name);
-		return NULL;
-	}
+	u32 size;
 
 	vm = devm_kzalloc(dev, sizeof(*vm), GFP_KERNEL);
 	if (!vm)
@@ -857,8 +919,38 @@ new_vm(struct device *dev, const char *vm_name, struct device_node *np)
 	if (ret)
 		return NULL;
 
-	vm->shmem_addr = r.start;
-	vm->shmem_size = resource_size(&r);
+	if (vm->is_static) {
+		ret = of_address_to_resource(np, 0, &r);
+		if (ret || !r.start || !resource_size(&r)) {
+			dev_err(vm->dev, "%s: Invalid shared memory for VM %s\n",
+						VIRTIO_PRINT_MARKER, vm_name);
+			return NULL;
+		}
+
+		vm->shmem_addr = r.start;
+		vm->shmem_size = resource_size(&r);
+
+		dev_info(vm->dev, "%s: Recognized VM '%s' shmem_addr %pK shmem_size %llx\n",
+				VIRTIO_PRINT_MARKER, vm->vm_name,
+				(void *)vm->shmem_addr, vm->shmem_size);
+	} else {
+		vm->com_mem_dev = gh_alloc_memdev(dev, "com_mem", 1);
+		if (!vm->com_mem_dev) {
+			device_unregister(vm->com_mem_dev);
+			return NULL;
+		}
+
+		ret = of_property_read_u32(np, "shared-buffers-size", &size);
+		if (ret) {
+			dev_err(vm->dev, "%s: Invalid shared memory size for VM %s\n",
+					VIRTIO_PRINT_MARKER, vm_name);
+			return NULL;
+		}
+
+		vm->shmem_size = size;
+		dev_info(vm->dev, "%s: Recognized VM '%s' shmem_size %llx\n",
+			VIRTIO_PRINT_MARKER, vm->vm_name, vm->shmem_size);
+	}
 
 	spin_lock_init(&vm->vb_dev_lock);
 	INIT_LIST_HEAD(&vm->vb_dev_list);
@@ -866,10 +958,6 @@ new_vm(struct device *dev, const char *vm_name, struct device_node *np)
 	spin_lock(&vm_list_lock);
 	list_add(&vm->list, &vm_list);
 	spin_unlock(&vm_list_lock);
-
-	pr_info("%s: Recognized VM '%s' shmem_addr %pK shmem_size %llx\n",
-			VIRTIO_PRINT_MARKER, vm->vm_name,
-			(void *)vm->shmem_addr, vm->shmem_size);
 
 	return vm;
 }
@@ -1175,12 +1263,29 @@ static int share_vm_buffers(struct virt_machine *vm, gh_vmid_t peer)
 {
 	int i, ret;
 	gh_vmid_t self_vmid;
+	dma_addr_t dma_handle;
+	u64 offset = 0;
+	void *virt;
 
 	ret = ghd_rm_get_vmid(GH_PRIMARY_VM, &self_vmid);
 	if (ret)
 		return ret;
 
+	if (!vm->is_static) {
+		virt = dma_alloc_coherent(vm->com_mem_dev, vm->shmem_size, &dma_handle, GFP_KERNEL);
+		if (!virt)
+			return -ENOMEM;
+
+		vm->shmem_addr = dma_to_phys(vm->com_mem_dev, dma_handle);
+	}
+
 	for (i = 0; i < vm->shmem_entries; ++i) {
+		if (!vm->is_static) {
+			vm->shmem[i].r.start = vm->shmem_addr + offset;
+			vm->shmem[i].r.end = vm->shmem[i].r.start + vm->shmem[i].size - 1;
+			offset = offset + vm->shmem[i].size;
+		}
+
 		ret = share_a_vm_buffer(self_vmid, peer, vm->shmem[i].gunyah_label,
 				&vm->shmem[i].r, &vm->shmem[i].shm_memparcel, &vm->shmem[i]);
 		if (ret) {
@@ -1205,7 +1310,6 @@ static int gh_virtio_mmio_init(gh_vmid_t vmid, const char *vm_name, gh_label_t l
 	struct virt_machine *vm;
 	struct virtio_backend_device *vb_dev;
 	int ret;
-
 
 	vm = find_vm_by_name(vm_name);
 	if (!vm) {
