@@ -11,10 +11,41 @@
 /delete-node/ &qseecom_mem;
 /delete-node/ &wcnss_fw_mem;
 
+/* Decrease the size */
+&cont_splash_mem {
+	reg = <0x0 0x90001000 0x0 (1080 * 1920 * 3)>;
+};
+
 / {
 	model = "Xiaomi Mi A1";
 	compatible = "xiaomi,tissot", "qcom,msm8953";
 	qcom,board-id = <0x1000b 0x00>;
+
+	chosen {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		framebuffer@90001000 {
+			compatible = "simple-framebuffer";
+			reg = <0 0x90001000 0 (1920 * 1080 * 3)>;
+
+			width = <1080>;
+			height = <1920>;
+			stride = <(1080 * 3)>;
+			format = "r8g8b8";
+
+			power-domains = <&gcc MDSS_GDSC>;
+
+			clocks = <&gcc GCC_MDSS_AHB_CLK>,
+				 <&gcc GCC_MDSS_AXI_CLK>,
+				 <&gcc GCC_MDSS_VSYNC_CLK>,
+				 <&gcc GCC_MDSS_MDP_CLK>,
+				 <&gcc GCC_MDSS_BYTE0_CLK>,
+				 <&gcc GCC_MDSS_PCLK0_CLK>,
+				 <&gcc GCC_MDSS_ESC0_CLK>;
+		};
+	};
 
 	gpio-keys {
 		compatible = "gpio-keys";
@@ -56,16 +87,58 @@
 			pmsg-size = <0x8000>;
 		};
 	};
-};
 
-&max98927_codec {
-	status = "okay";
+	i2c-sensors {
+		compatible = "i2c-gpio";
+		sda-gpios = <&tlmm 14 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&tlmm 15 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		i2c-gpio,delay-us = <2>; /* ~100 kHz */
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-	reset-gpios = <&tlmm 86 GPIO_ACTIVE_LOW>;
+		ak09918: magnetometer@c {
+			compatible = "asahi-kasei,ak09918";
+			reg = <0x0c>;
+
+			vdd-supply = <&pm8953_l10>;
+			vid-supply = <&pm8953_l6>;
+		};
+
+		/*
+		 * Driver still missing
+		 * Just for general information
+		 */
+		ltr579: light@53 {
+			compatible = "liteon,ltr579";
+			reg = <0x53>;
+
+			vdd-supply = <&pm8953_l10>;
+			vid-supply = <&pm8953_l6>;
+		};
+
+		bmi120: imu@68 {
+			compatible = "bosch,bmi120";
+			reg = <0x68>;
+
+			vdd-supply = <&pm8953_l10>;
+			vddio-supply = <&pm8953_l6>;
+
+			mount-matrix = "0", "1", "0",
+					"1", "0", "0",
+					"0", "0", "1";
+		};
+	};
 };
 
 &aw2013_led {
 	status = "okay";
+};
+
+&battery {
+	charge-full-design-microamp-hours = <3080000>;
+	constant-charge-current-max-microamp = <1000000>;
+	voltage-min-design-microvolt = <3400000>;
+	voltage-max-design-microvolt = <4400000>;
 };
 
 &ft5406_ts {
@@ -75,13 +148,56 @@
 	touchscreen-size-y = <1920>;
 };
 
+&max98927_codec {
+	status = "okay";
+
+	reset-gpios = <&tlmm 86 GPIO_ACTIVE_LOW>;
+};
+
+&panel {
+	compatible = "xiaomi,tissot-panel";
+};
+
 &pmi8950_wled {
 	qcom,external-pfet;
 	qcom,cabc;
 };
 
+&q6afedai {
+	dai@127 {
+		reg = <QUINARY_MI2S_RX>;
+		qcom,sd-lines = <0 1>;
+	};
+};
+
 &sdhc_2 {
 	cd-gpios = <&tlmm 133 GPIO_ACTIVE_HIGH>;
+};
+
+&sound_card {
+	status = "okay";
+
+	/* xiaomi-tissot sound configuration is similar to xiaomi-daisy */
+	model = "xiaomi-daisy";
+
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&cdc_pdm_lines_act &cdc_pdm_lines_2_act &cdc_pdm_comp_lines_act &pri_tlmm_default>;
+	pinctrl-1 = <&cdc_pdm_lines_sus &cdc_pdm_lines_2_sus &cdc_pdm_comp_lines_sus &pri_tlmm_default>;
+
+	quinary-mi2s-dai-link {
+		link-name = "Quinary MI2S";
+		cpu {
+			sound-dai = <&q6afedai QUINARY_MI2S_RX>;
+		};
+
+		platform {
+			sound-dai = <&q6routing>;
+		};
+
+		codec {
+			sound-dai = <&max98927_codec>;
+		};
+	};
 };
 
 &tlmm {
@@ -93,6 +209,13 @@
 		drive-strength = <2>;
 		bias-pull-up;
 	};
+
+	pri_tlmm_default: pri-tlmm-pins {
+		pins = "gpio88", "gpio91", "gpio93";
+		function = "pri_mi2s";
+		drive-strength = <8>;
+		bias-disable;
+	};
 };
 
 &uart_0 {
@@ -100,8 +223,4 @@
 	pinctrl-0 = <&uart_console_active>;
 
 	status = "okay";
-};
-
-&panel {
-	compatible = "xiaomi,tissot-panel";
 };
