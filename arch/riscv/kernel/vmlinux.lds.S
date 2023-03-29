@@ -96,10 +96,6 @@ SECTIONS
 		*(.rel.dyn*)
 	}
 
-	.rela.dyn : {
-		*(.rela*)
-	}
-
 	__init_data_end = .;
 
 	. = ALIGN(8);
@@ -124,6 +120,10 @@ SECTIONS
 	.sdata : {
 		__global_pointer$ = . + 0x800;
 		*(.sdata*)
+	}
+
+	.rela.dyn : {
+		*(.rela*)
 	}
 
 #ifdef CONFIG_EFI
