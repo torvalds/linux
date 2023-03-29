@@ -126,8 +126,12 @@ static void compute_irq_count(void)
 		if (count != 0) {
 			irq = irq_info_list[i].irq;
 			desc = irq_info_list[i].desc;
-			pr_emerg("IRQ %d [%s] - %d times\n",
-				irq, desc->action->name, count);
+			pr_emerg("IRQ %d [%s:%s] - %d times\n", irq,
+				(desc->irq_data.chip) ?
+				desc->irq_data.chip->name : "UNKNOWN",
+				(desc->action) ?
+				desc->action->name : "NONAME",
+				count);
 		}
 	}
 }
