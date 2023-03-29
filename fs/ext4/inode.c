@@ -1003,6 +1003,18 @@ int ext4_walk_page_buffers(handle_t *handle, struct inode *inode,
 	return ret;
 }
 
+/*
+ * Helper for handling dirtying of journalled data. We also mark the folio as
+ * dirty so that writeback code knows about this page (and inode) contains
+ * dirty data. ext4_writepages() then commits appropriate transaction to
+ * make data stable.
+ */
+static int ext4_dirty_journalled_data(handle_t *handle, struct buffer_head *bh)
+{
+	folio_mark_dirty(bh->b_folio);
+	return ext4_handle_dirty_metadata(handle, NULL, bh);
+}
+
 int do_journal_get_write_access(handle_t *handle, struct inode *inode,
 				struct buffer_head *bh)
 {
@@ -1025,7 +1037,7 @@ int do_journal_get_write_access(handle_t *handle, struct inode *inode,
 	ret = ext4_journal_get_write_access(handle, inode->i_sb, bh,
 					    EXT4_JTR_NONE);
 	if (!ret && dirty)
-		ret = ext4_handle_dirty_metadata(handle, NULL, bh);
+		ret = ext4_dirty_journalled_data(handle, bh);
 	return ret;
 }
 
@@ -1272,7 +1284,7 @@ static int write_end_fn(handle_t *handle, struct inode *inode,
 	if (!buffer_mapped(bh) || buffer_freed(bh))
 		return 0;
 	set_buffer_uptodate(bh);
-	ret = ext4_handle_dirty_metadata(handle, NULL, bh);
+	ret = ext4_dirty_journalled_data(handle, bh);
 	clear_buffer_meta(bh);
 	clear_buffer_prio(bh);
 	return ret;
@@ -1356,7 +1368,7 @@ static int ext4_write_end(struct file *file,
 /*
  * This is a private version of page_zero_new_buffers() which doesn't
  * set the buffer to be dirty, since in data=journalled mode we need
- * to call ext4_handle_dirty_metadata() instead.
+ * to call ext4_dirty_journalled_data() instead.
  */
 static void ext4_journalled_zero_new_buffers(handle_t *handle,
 					    struct inode *inode,
@@ -3740,7 +3752,7 @@ static int __ext4_block_zero_page_range(handle_t *handle,
 	BUFFER_TRACE(bh, "zeroed end of block");
 
 	if (ext4_should_journal_data(inode)) {
-		err = ext4_handle_dirty_metadata(handle, inode, bh);
+		err = ext4_dirty_journalled_data(handle, bh);
 	} else {
 		err = 0;
 		mark_buffer_dirty(bh);
