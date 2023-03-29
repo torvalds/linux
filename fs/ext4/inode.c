@@ -179,33 +179,6 @@ void ext4_evict_inode(struct inode *inode)
 	if (EXT4_I(inode)->i_flags & EXT4_EA_INODE_FL)
 		ext4_evict_ea_inode(inode);
 	if (inode->i_nlink) {
-		/*
-		 * When journalling data dirty buffers are tracked only in the
-		 * journal. So although mm thinks everything is clean and
-		 * ready for reaping the inode might still have some pages to
-		 * write in the running transaction or waiting to be
-		 * checkpointed. Thus calling jbd2_journal_invalidate_folio()
-		 * (via truncate_inode_pages()) to discard these buffers can
-		 * cause data loss. Also even if we did not discard these
-		 * buffers, we would have no way to find them after the inode
-		 * is reaped and thus user could see stale data if he tries to
-		 * read them before the transaction is checkpointed. So be
-		 * careful and force everything to disk here... We use
-		 * ei->i_datasync_tid to store the newest transaction
-		 * containing inode's data.
-		 *
-		 * Note that directories do not have this problem because they
-		 * don't use page cache.
-		 */
-		if (inode->i_ino != EXT4_JOURNAL_INO &&
-		    ext4_should_journal_data(inode) &&
-		    S_ISREG(inode->i_mode) && inode->i_data.nrpages) {
-			journal_t *journal = EXT4_SB(inode->i_sb)->s_journal;
-			tid_t commit_tid = EXT4_I(inode)->i_datasync_tid;
-
-			jbd2_complete_transaction(journal, commit_tid);
-			filemap_write_and_wait(&inode->i_data);
-		}
 		truncate_inode_pages_final(&inode->i_data);
 
 		goto no_delete;
