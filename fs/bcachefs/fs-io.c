@@ -2783,7 +2783,7 @@ retry:
 		goto err;
 
 	for_each_btree_key_upto_norestart(&trans, iter, BTREE_ID_extents, start, end, 0, k, ret)
-		if (bkey_extent_is_data(k.k)) {
+		if (bkey_extent_is_data(k.k) && !bkey_extent_is_unwritten(k)) {
 			ret = 1;
 			break;
 		}
@@ -2809,6 +2809,7 @@ static int __bch2_truncate_folio(struct bch_inode_info *inode,
 	struct folio *folio;
 	s64 i_sectors_delta = 0;
 	int ret = 0;
+	loff_t end_pos;
 
 	folio = filemap_lock_folio(mapping, index);
 	if (!folio) {
@@ -2875,10 +2876,18 @@ static int __bch2_truncate_folio(struct bch_inode_info *inode,
 	/*
 	 * Caller needs to know whether this folio will be written out by
 	 * writeback - doing an i_size update if necessary - or whether it will
-	 * be responsible for the i_size update:
+	 * be responsible for the i_size update.
+	 *
+	 * Note that we shouldn't ever see a folio beyond EOF, but check and
+	 * warn if so. This has been observed by failure to clean up folios
+	 * after a short write and there's still a chance reclaim will fix
+	 * things up.
 	 */
-	ret = s->s[(min(inode->v.i_size, folio_end_pos(folio)) -
-		    folio_pos(folio) - 1) >> 9].state >= SECTOR_dirty;
+	WARN_ON_ONCE(folio_pos(folio) >= inode->v.i_size);
+	end_pos = folio_end_pos(folio);
+	if (inode->v.i_size > folio_pos(folio))
+		end_pos = min(inode->v.i_size, end_pos);
+	ret = s->s[(end_pos - folio_pos(folio) - 1) >> 9].state >= SECTOR_dirty;
 
 	folio_zero_segment(folio, start_offset, end_offset);
 
