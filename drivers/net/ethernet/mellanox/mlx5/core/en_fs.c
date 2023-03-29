@@ -1490,6 +1490,8 @@ err:
 
 void mlx5e_fs_cleanup(struct mlx5e_flow_steering *fs)
 {
+	if (!fs)
+		return;
 	debugfs_remove_recursive(fs->dfs_root);
 	mlx5e_fs_ethtool_free(fs);
 	mlx5e_fs_tc_free(fs);
