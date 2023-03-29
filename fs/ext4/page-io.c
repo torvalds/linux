@@ -479,9 +479,11 @@ int ext4_bio_write_folio(struct ext4_io_submit *io, struct folio *folio,
 			 * to redirty the folio and keep TOWRITE tag so that
 			 * racing WB_SYNC_ALL writeback does not skip the folio.
 			 * This happens e.g. when doing writeout for
-			 * transaction commit.
+			 * transaction commit or when journalled data is not
+			 * yet committed.
 			 */
-			if (buffer_dirty(bh)) {
+			if (buffer_dirty(bh) ||
+			    (buffer_jbd(bh) && buffer_jbddirty(bh))) {
 				if (!folio_test_dirty(folio))
 					folio_redirty_for_writepage(wbc, folio);
 				keep_towrite = true;

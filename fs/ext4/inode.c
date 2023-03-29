@@ -2393,7 +2393,6 @@ static int mpage_journal_page_buffers(handle_t *handle,
 	int len;
 
 	ClearPageChecked(page);
-	clear_page_dirty_for_io(page);
 	mpd->wbc->nr_to_write--;
 
 	if (page->index == size >> PAGE_SHIFT &&
