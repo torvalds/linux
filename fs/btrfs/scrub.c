@@ -41,14 +41,10 @@
 struct scrub_ctx;
 
 /*
- * The following three values only influence the performance.
+ * The following value only influences the performance.
  *
- * The last one configures the number of parallel and outstanding I/O
- * operations. The first one configures an upper limit for the number
- * of (dynamically allocated) pages that are added to a bio.
+ * This determines the batch size for stripe submitted in one go.
  */
-#define SCRUB_SECTORS_PER_BIO	32	/* 128KiB per bio for 4KiB pages */
-#define SCRUB_BIOS_PER_SCTX	64	/* 8MiB per device in flight for 4KiB pages */
 #define SCRUB_STRIPES_PER_SCTX	8	/* That would be 8 64K stripe per-device. */
 
 /*
@@ -56,19 +52,6 @@ struct scrub_ctx;
  * largest node/leaf/sector size that shall be supported.
  */
 #define SCRUB_MAX_SECTORS_PER_BLOCK	(BTRFS_MAX_METADATA_BLOCKSIZE / SZ_4K)
-
-#define SCRUB_MAX_PAGES			(DIV_ROUND_UP(BTRFS_MAX_METADATA_BLOCKSIZE, PAGE_SIZE))
-
-/*
- * Maximum number of mirrors that can be available for all profiles counting
- * the target device of dev-replace as one. During an active device replace
- * procedure, the target device of the copy operation is a mirror for the
- * filesystem data as well that can be used to read data in order to repair
- * read errors on other disks.
- *
- * Current value is derived from RAID1C4 with 4 copies.
- */
-#define BTRFS_MAX_MIRRORS (4 + 1)
 
 /* Represent one sector and its needed info to verify the content. */
 struct scrub_sector_verification {
@@ -182,31 +165,12 @@ struct scrub_stripe {
 	struct work_struct work;
 };
 
-struct scrub_bio {
-	int			index;
-	struct scrub_ctx	*sctx;
-	struct btrfs_device	*dev;
-	struct bio		*bio;
-	blk_status_t		status;
-	u64			logical;
-	u64			physical;
-	int			sector_count;
-	int			next_free;
-	struct work_struct	work;
-};
-
 struct scrub_ctx {
-	struct scrub_bio	*bios[SCRUB_BIOS_PER_SCTX];
 	struct scrub_stripe	stripes[SCRUB_STRIPES_PER_SCTX];
 	struct scrub_stripe	*raid56_data_stripes;
 	struct btrfs_fs_info	*fs_info;
 	int			first_free;
-	int			curr;
 	int			cur_stripe;
-	atomic_t		bios_in_flight;
-	atomic_t		workers_pending;
-	spinlock_t		list_lock;
-	wait_queue_head_t	list_wait;
 	struct list_head	csum_list;
 	atomic_t		cancel_req;
 	int			readonly;
@@ -305,21 +269,7 @@ static void wait_scrub_stripe_io(struct scrub_stripe *stripe)
 	wait_event(stripe->io_wait, atomic_read(&stripe->pending_io) == 0);
 }
 
-static void scrub_bio_end_io_worker(struct work_struct *work);
 static void scrub_put_ctx(struct scrub_ctx *sctx);
-
-static void scrub_pending_bio_inc(struct scrub_ctx *sctx)
-{
-	refcount_inc(&sctx->refs);
-	atomic_inc(&sctx->bios_in_flight);
-}
-
-static void scrub_pending_bio_dec(struct scrub_ctx *sctx)
-{
-	atomic_dec(&sctx->bios_in_flight);
-	wake_up(&sctx->list_wait);
-	scrub_put_ctx(sctx);
-}
 
 static void __scrub_blocked_if_needed(struct btrfs_fs_info *fs_info)
 {
@@ -371,21 +321,6 @@ static noinline_for_stack void scrub_free_ctx(struct scrub_ctx *sctx)
 	if (!sctx)
 		return;
 
-	/* this can happen when scrub is cancelled */
-	if (sctx->curr != -1) {
-		struct scrub_bio *sbio = sctx->bios[sctx->curr];
-
-		bio_put(sbio->bio);
-	}
-
-	for (i = 0; i < SCRUB_BIOS_PER_SCTX; ++i) {
-		struct scrub_bio *sbio = sctx->bios[i];
-
-		if (!sbio)
-			break;
-		kfree(sbio);
-	}
-
 	for (i = 0; i < SCRUB_STRIPES_PER_SCTX; i++)
 		release_scrub_stripe(&sctx->stripes[i]);
 
@@ -410,28 +345,8 @@ static noinline_for_stack struct scrub_ctx *scrub_setup_ctx(
 		goto nomem;
 	refcount_set(&sctx->refs, 1);
 	sctx->is_dev_replace = is_dev_replace;
-	sctx->sectors_per_bio = SCRUB_SECTORS_PER_BIO;
-	sctx->curr = -1;
 	sctx->fs_info = fs_info;
 	INIT_LIST_HEAD(&sctx->csum_list);
-	for (i = 0; i < SCRUB_BIOS_PER_SCTX; ++i) {
-		struct scrub_bio *sbio;
-
-		sbio = kzalloc(sizeof(*sbio), GFP_KERNEL);
-		if (!sbio)
-			goto nomem;
-		sctx->bios[i] = sbio;
-
-		sbio->index = i;
-		sbio->sctx = sctx;
-		sbio->sector_count = 0;
-		INIT_WORK(&sbio->work, scrub_bio_end_io_worker);
-
-		if (i != SCRUB_BIOS_PER_SCTX - 1)
-			sctx->bios[i]->next_free = i + 1;
-		else
-			sctx->bios[i]->next_free = -1;
-	}
 	for (i = 0; i < SCRUB_STRIPES_PER_SCTX; i++) {
 		int ret;
 
@@ -441,13 +356,9 @@ static noinline_for_stack struct scrub_ctx *scrub_setup_ctx(
 		sctx->stripes[i].sctx = sctx;
 	}
 	sctx->first_free = 0;
-	atomic_set(&sctx->bios_in_flight, 0);
-	atomic_set(&sctx->workers_pending, 0);
 	atomic_set(&sctx->cancel_req, 0);
 
-	spin_lock_init(&sctx->list_lock);
 	spin_lock_init(&sctx->stat_lock);
-	init_waitqueue_head(&sctx->list_wait);
 	sctx->throttle_deadline = 0;
 
 	mutex_init(&sctx->wr_lock);
@@ -1286,6 +1197,10 @@ static void scrub_write_sectors(struct scrub_ctx *sctx, struct scrub_stripe *str
 	}
 }
 
+/*
+ * Throttling of IO submission, bandwidth-limit based, the timeslice is 1
+ * second.  Limit can be set via /sys/fs/UUID/devinfo/devid/scrub_speed_max.
+ */
 static void scrub_throttle_dev_io(struct scrub_ctx *sctx, struct btrfs_device *device,
 				  unsigned int bio_size)
 {
@@ -1336,112 +1251,6 @@ static void scrub_throttle_dev_io(struct scrub_ctx *sctx, struct btrfs_device *d
 
 	/* Next call will start the deadline period */
 	sctx->throttle_deadline = 0;
-}
-
-/*
- * Throttling of IO submission, bandwidth-limit based, the timeslice is 1
- * second.  Limit can be set via /sys/fs/UUID/devinfo/devid/scrub_speed_max.
- */
-static void scrub_throttle(struct scrub_ctx *sctx)
-{
-	struct scrub_bio *sbio = sctx->bios[sctx->curr];
-
-	scrub_throttle_dev_io(sctx, sbio->dev, sbio->bio->bi_iter.bi_size);
-}
-
-static void scrub_submit(struct scrub_ctx *sctx)
-{
-	struct scrub_bio *sbio;
-
-	if (sctx->curr == -1)
-		return;
-
-	scrub_throttle(sctx);
-
-	sbio = sctx->bios[sctx->curr];
-	sctx->curr = -1;
-	scrub_pending_bio_inc(sctx);
-	btrfsic_check_bio(sbio->bio);
-	submit_bio(sbio->bio);
-}
-
-static void scrub_bio_end_io_worker(struct work_struct *work)
-{
-	struct scrub_bio *sbio = container_of(work, struct scrub_bio, work);
-	struct scrub_ctx *sctx = sbio->sctx;
-
-	ASSERT(sbio->sector_count <= SCRUB_SECTORS_PER_BIO);
-
-	bio_put(sbio->bio);
-	sbio->bio = NULL;
-	spin_lock(&sctx->list_lock);
-	sbio->next_free = sctx->first_free;
-	sctx->first_free = sbio->index;
-	spin_unlock(&sctx->list_lock);
-
-	scrub_pending_bio_dec(sctx);
-}
-
-static void drop_csum_range(struct scrub_ctx *sctx, struct btrfs_ordered_sum *sum)
-{
-	sctx->stat.csum_discards += sum->len >> sctx->fs_info->sectorsize_bits;
-	list_del(&sum->list);
-	kfree(sum);
-}
-
-/*
- * Find the desired csum for range [logical, logical + sectorsize), and store
- * the csum into @csum.
- *
- * The search source is sctx->csum_list, which is a pre-populated list
- * storing bytenr ordered csum ranges.  We're responsible to cleanup any range
- * that is before @logical.
- *
- * Return 0 if there is no csum for the range.
- * Return 1 if there is csum for the range and copied to @csum.
- */
-int scrub_find_csum(struct scrub_ctx *sctx, u64 logical, u8 *csum)
-{
-	bool found = false;
-
-	while (!list_empty(&sctx->csum_list)) {
-		struct btrfs_ordered_sum *sum = NULL;
-		unsigned long index;
-		unsigned long num_sectors;
-
-		sum = list_first_entry(&sctx->csum_list,
-				       struct btrfs_ordered_sum, list);
-		/* The current csum range is beyond our range, no csum found */
-		if (sum->bytenr > logical)
-			break;
-
-		/*
-		 * The current sum is before our bytenr, since scrub is always
-		 * done in bytenr order, the csum will never be used anymore,
-		 * clean it up so that later calls won't bother with the range,
-		 * and continue search the next range.
-		 */
-		if (sum->bytenr + sum->len <= logical) {
-			drop_csum_range(sctx, sum);
-			continue;
-		}
-
-		/* Now the csum range covers our bytenr, copy the csum */
-		found = true;
-		index = (logical - sum->bytenr) >> sctx->fs_info->sectorsize_bits;
-		num_sectors = sum->len >> sctx->fs_info->sectorsize_bits;
-
-		memcpy(csum, sum->sums + index * sctx->fs_info->csum_size,
-		       sctx->fs_info->csum_size);
-
-		/* Cleanup the range if we're at the end of the csum range */
-		if (index == num_sectors - 1)
-			drop_csum_range(sctx, sum);
-		break;
-	}
-	if (!found)
-		return 0;
-	return 1;
 }
 
 /*
@@ -1623,8 +1432,6 @@ static int sync_write_pointer_for_zoned(struct scrub_ctx *sctx, u64 logical,
 
 	if (!btrfs_is_zoned(fs_info))
 		return 0;
-
-	wait_event(sctx->list_wait, atomic_read(&sctx->bios_in_flight) == 0);
 
 	mutex_lock(&sctx->wr_lock);
 	if (sctx->write_pointer < physical_end) {
@@ -2153,11 +1960,6 @@ static int scrub_simple_mirror(struct scrub_ctx *sctx,
 		/* Paused? */
 		if (atomic_read(&fs_info->scrub_pause_req)) {
 			/* Push queued extents */
-			scrub_submit(sctx);
-			mutex_lock(&sctx->wr_lock);
-			mutex_unlock(&sctx->wr_lock);
-			wait_event(sctx->list_wait,
-				   atomic_read(&sctx->bios_in_flight) == 0);
 			scrub_blocked_if_needed(fs_info);
 		}
 		/* Block group removed? */
@@ -2285,8 +2087,6 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	u64 stripe_logical;
 	int stop_loop = 0;
 
-	wait_event(sctx->list_wait,
-		   atomic_read(&sctx->bios_in_flight) == 0);
 	scrub_blocked_if_needed(fs_info);
 
 	if (sctx->is_dev_replace &&
@@ -2402,8 +2202,6 @@ next:
 			break;
 	}
 out:
-	/* push queued extents */
-	scrub_submit(sctx);
 	flush_scrub_stripes(sctx);
 	if (sctx->raid56_data_stripes) {
 		for (int i = 0; i < nr_data_stripes(map); i++)
@@ -2728,34 +2526,6 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 
 		ret = scrub_chunk(sctx, cache, scrub_dev, found_key.offset,
 				  dev_extent_len);
-
-		/*
-		 * flush, submit all pending read and write bios, afterwards
-		 * wait for them.
-		 * Note that in the dev replace case, a read request causes
-		 * write requests that are submitted in the read completion
-		 * worker. Therefore in the current situation, it is required
-		 * that all write requests are flushed, so that all read and
-		 * write requests are really completed when bios_in_flight
-		 * changes to 0.
-		 */
-		scrub_submit(sctx);
-
-		wait_event(sctx->list_wait,
-			   atomic_read(&sctx->bios_in_flight) == 0);
-
-		scrub_pause_on(fs_info);
-
-		/*
-		 * must be called before we decrease @scrub_paused.
-		 * make sure we don't block transaction commit while
-		 * we are waiting pending workers finished.
-		 */
-		wait_event(sctx->list_wait,
-			   atomic_read(&sctx->workers_pending) == 0);
-
-		scrub_pause_off(fs_info);
-
 		if (sctx->is_dev_replace &&
 		    !btrfs_finish_block_group_to_copy(dev_replace->srcdev,
 						      cache, found_key.offset))
@@ -3086,11 +2856,8 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 		ret = scrub_enumerate_chunks(sctx, dev, start, end);
 	memalloc_nofs_restore(nofs_flag);
 
-	wait_event(sctx->list_wait, atomic_read(&sctx->bios_in_flight) == 0);
 	atomic_dec(&fs_info->scrubs_running);
 	wake_up(&fs_info->scrub_pause_wait);
-
-	wait_event(sctx->list_wait, atomic_read(&sctx->workers_pending) == 0);
 
 	if (progress)
 		memcpy(progress, &sctx->stat, sizeof(*progress));

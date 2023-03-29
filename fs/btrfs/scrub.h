@@ -13,9 +13,4 @@ int btrfs_scrub_cancel_dev(struct btrfs_device *dev);
 int btrfs_scrub_progress(struct btrfs_fs_info *fs_info, u64 devid,
 			 struct btrfs_scrub_progress *progress);
 
-/* Temporary declaration, would be deleted later. */
-struct scrub_ctx;
-struct scrub_block;
-int scrub_find_csum(struct scrub_ctx *sctx, u64 logical, u8 *csum);
-
 #endif
