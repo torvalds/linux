@@ -953,7 +953,14 @@ iwl_mvm_mld_change_sta_links(struct ieee80211_hw *hw,
 			     struct ieee80211_sta *sta,
 			     u16 old_links, u16 new_links)
 {
-	return 0;
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	int ret;
+
+	mutex_lock(&mvm->mutex);
+	ret = iwl_mvm_mld_update_sta_links(mvm, vif, sta, old_links, new_links);
+	mutex_unlock(&mvm->mutex);
+
+	return ret;
 }
 
 const struct ieee80211_ops iwl_mvm_mld_hw_ops = {
