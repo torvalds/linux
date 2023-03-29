@@ -80,17 +80,25 @@ class NlAttr:
         self.full_len = (self.payload_len + 3) & ~3
         self.raw = raw[offset + 4:offset + self.payload_len]
 
+    def format_byte_order(byte_order):
+        if byte_order:
+            return ">" if byte_order == "big-endian" else "<"
+        return ""
+
     def as_u8(self):
         return struct.unpack("B", self.raw)[0]
 
-    def as_u16(self):
-        return struct.unpack("H", self.raw)[0]
+    def as_u16(self, byte_order=None):
+        endian = NlAttr.format_byte_order(byte_order)
+        return struct.unpack(f"{endian}H", self.raw)[0]
 
-    def as_u32(self):
-        return struct.unpack("I", self.raw)[0]
+    def as_u32(self, byte_order=None):
+        endian = NlAttr.format_byte_order(byte_order)
+        return struct.unpack(f"{endian}I", self.raw)[0]
 
-    def as_u64(self):
-        return struct.unpack("Q", self.raw)[0]
+    def as_u64(self, byte_order=None):
+        endian = NlAttr.format_byte_order(byte_order)
+        return struct.unpack(f"{endian}Q", self.raw)[0]
 
     def as_strz(self):
         return self.raw.decode('ascii')[:-1]
@@ -365,11 +373,14 @@ class YnlFamily(SpecFamily):
         elif attr["type"] == 'u8':
             attr_payload = struct.pack("B", int(value))
         elif attr["type"] == 'u16':
-            attr_payload = struct.pack("H", int(value))
+            endian = NlAttr.format_byte_order(attr.byte_order)
+            attr_payload = struct.pack(f"{endian}H", int(value))
         elif attr["type"] == 'u32':
-            attr_payload = struct.pack("I", int(value))
+            endian = NlAttr.format_byte_order(attr.byte_order)
+            attr_payload = struct.pack(f"{endian}I", int(value))
         elif attr["type"] == 'u64':
-            attr_payload = struct.pack("Q", int(value))
+            endian = NlAttr.format_byte_order(attr.byte_order)
+            attr_payload = struct.pack(f"{endian}Q", int(value))
         elif attr["type"] == 'string':
             attr_payload = str(value).encode('ascii') + b'\x00'
         elif attr["type"] == 'binary':
@@ -415,11 +426,11 @@ class YnlFamily(SpecFamily):
             elif attr_spec['type'] == 'u8':
                 decoded = attr.as_u8()
             elif attr_spec['type'] == 'u16':
-                decoded = attr.as_u16()
+                decoded = attr.as_u16(attr_spec.byte_order)
             elif attr_spec['type'] == 'u32':
-                decoded = attr.as_u32()
+                decoded = attr.as_u32(attr_spec.byte_order)
             elif attr_spec['type'] == 'u64':
-                decoded = attr.as_u64()
+                decoded = attr.as_u64(attr_spec.byte_order)
             elif attr_spec["type"] == 'string':
                 decoded = attr.as_strz()
             elif attr_spec["type"] == 'binary':

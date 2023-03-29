@@ -163,6 +163,7 @@ class SpecAttr(SpecElement):
         self.is_multi = yaml.get('multi-attr', False)
         self.struct_name = yaml.get('struct')
         self.sub_type = yaml.get('sub-type')
+        self.byte_order = yaml.get('byte-order')
 
 
 class SpecAttrSet(SpecElement):
