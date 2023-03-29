@@ -113,6 +113,9 @@ static int bpf_tcp_ca_btf_struct_access(struct bpf_verifier_log *log,
 	case offsetof(struct tcp_sock, ecn_flags):
 		end = offsetofend(struct tcp_sock, ecn_flags);
 		break;
+	case offsetof(struct tcp_sock, app_limited):
+		end = offsetofend(struct tcp_sock, app_limited);
+		break;
 	default:
 		bpf_log(log, "no write support to tcp_sock at off %d\n", off);
 		return -EACCES;
