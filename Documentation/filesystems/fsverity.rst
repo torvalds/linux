@@ -118,10 +118,11 @@ as follows:
 - ``hash_algorithm`` must be the identifier for the hash algorithm to
   use for the Merkle tree, such as FS_VERITY_HASH_ALG_SHA256.  See
   ``include/uapi/linux/fsverity.h`` for the list of possible values.
-- ``block_size`` must be the Merkle tree block size.  Currently, this
-  must be equal to the system page size, which is usually 4096 bytes.
-  Other sizes may be supported in the future.  This value is not
-  necessarily the same as the filesystem block size.
+- ``block_size`` is the Merkle tree block size, in bytes.  In Linux
+  v6.3 and later, this can be any power of 2 between (inclusively)
+  1024 and the minimum of the system page size and the filesystem
+  block size.  In earlier versions, the page size was the only allowed
+  value.
 - ``salt_size`` is the size of the salt in bytes, or 0 if no salt is
   provided.  The salt is a value that is prepended to every hashed
   block; it can be used to personalize the hashing for a particular
@@ -161,6 +162,7 @@ FS_IOC_ENABLE_VERITY can fail with the following errors:
 - ``EBUSY``: this ioctl is already running on the file
 - ``EEXIST``: the file already has verity enabled
 - ``EFAULT``: the caller provided inaccessible memory
+- ``EFBIG``: the file is too large to enable verity on
 - ``EINTR``: the operation was interrupted by a fatal signal
 - ``EINVAL``: unsupported version, hash algorithm, or block size; or
   reserved bits are set; or the file descriptor refers to neither a
@@ -495,9 +497,11 @@ To create verity files on an ext4 filesystem, the filesystem must have
 been formatted with ``-O verity`` or had ``tune2fs -O verity`` run on
 it.  "verity" is an RO_COMPAT filesystem feature, so once set, old
 kernels will only be able to mount the filesystem readonly, and old
-versions of e2fsck will be unable to check the filesystem.  Moreover,
-currently ext4 only supports mounting a filesystem with the "verity"
-feature when its block size is equal to PAGE_SIZE (often 4096 bytes).
+versions of e2fsck will be unable to check the filesystem.
+
+Originally, an ext4 filesystem with the "verity" feature could only be
+mounted when its block size was equal to the system page size
+(typically 4096 bytes).  In Linux v6.3, this limitation was removed.
 
 ext4 sets the EXT4_VERITY_FL on-disk inode flag on verity files.  It
 can only be set by `FS_IOC_ENABLE_VERITY`_, and it cannot be cleared.
@@ -518,9 +522,7 @@ support paging multi-gigabyte xattrs into memory, and to support
 encrypting xattrs.  Note that the verity metadata *must* be encrypted
 when the file is, since it contains hashes of the plaintext data.
 
-Currently, ext4 verity only supports the case where the Merkle tree
-block size, filesystem block size, and page size are all the same.  It
-also only supports extent-based files.
+ext4 only allows verity on extent-based files.
 
 f2fs
 ----
@@ -538,11 +540,10 @@ Like ext4, f2fs stores the verity metadata (Merkle tree and
 fsverity_descriptor) past the end of the file, starting at the first
 64K boundary beyond i_size.  See explanation for ext4 above.
 Moreover, f2fs supports at most 4096 bytes of xattr entries per inode
-which wouldn't be enough for even a single Merkle tree block.
+which usually wouldn't be enough for even a single Merkle tree block.
 
-Currently, f2fs verity only supports a Merkle tree block size of 4096.
-Also, f2fs doesn't support enabling verity on files that currently
-have atomic or volatile writes pending.
+f2fs doesn't support enabling verity on files that currently have
+atomic or volatile writes pending.
 
 btrfs
 -----
@@ -567,51 +568,48 @@ Pagecache
 ~~~~~~~~~
 
 For filesystems using Linux's pagecache, the ``->read_folio()`` and
-``->readahead()`` methods must be modified to verify pages before they
-are marked Uptodate.  Merely hooking ``->read_iter()`` would be
+``->readahead()`` methods must be modified to verify folios before
+they are marked Uptodate.  Merely hooking ``->read_iter()`` would be
 insufficient, since ``->read_iter()`` is not used for memory maps.
 
-Therefore, fs/verity/ provides a function fsverity_verify_page() which
-verifies a page that has been read into the pagecache of a verity
-inode, but is still locked and not Uptodate, so it's not yet readable
-by userspace.  As needed to do the verification,
-fsverity_verify_page() will call back into the filesystem to read
-Merkle tree pages via fsverity_operations::read_merkle_tree_page().
+Therefore, fs/verity/ provides the function fsverity_verify_blocks()
+which verifies data that has been read into the pagecache of a verity
+inode.  The containing folio must still be locked and not Uptodate, so
+it's not yet readable by userspace.  As needed to do the verification,
+fsverity_verify_blocks() will call back into the filesystem to read
+hash blocks via fsverity_operations::read_merkle_tree_page().
 
-fsverity_verify_page() returns false if verification failed; in this
-case, the filesystem must not set the page Uptodate.  Following this,
+fsverity_verify_blocks() returns false if verification failed; in this
+case, the filesystem must not set the folio Uptodate.  Following this,
 as per the usual Linux pagecache behavior, attempts by userspace to
-read() from the part of the file containing the page will fail with
-EIO, and accesses to the page within a memory map will raise SIGBUS.
+read() from the part of the file containing the folio will fail with
+EIO, and accesses to the folio within a memory map will raise SIGBUS.
 
-fsverity_verify_page() currently only supports the case where the
-Merkle tree block size is equal to PAGE_SIZE (often 4096 bytes).
-
-In principle, fsverity_verify_page() verifies the entire path in the
-Merkle tree from the data page to the root hash.  However, for
-efficiency the filesystem may cache the hash pages.  Therefore,
-fsverity_verify_page() only ascends the tree reading hash pages until
-an already-verified hash page is seen, as indicated by the PageChecked
-bit being set.  It then verifies the path to that page.
+In principle, verifying a data block requires verifying the entire
+path in the Merkle tree from the data block to the root hash.
+However, for efficiency the filesystem may cache the hash blocks.
+Therefore, fsverity_verify_blocks() only ascends the tree reading hash
+blocks until an already-verified hash block is seen.  It then verifies
+the path to that block.
 
 This optimization, which is also used by dm-verity, results in
 excellent sequential read performance.  This is because usually (e.g.
-127 in 128 times for 4K blocks and SHA-256) the hash page from the
+127 in 128 times for 4K blocks and SHA-256) the hash block from the
 bottom level of the tree will already be cached and checked from
-reading a previous data page.  However, random reads perform worse.
+reading a previous data block.  However, random reads perform worse.
 
 Block device based filesystems
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Block device based filesystems (e.g. ext4 and f2fs) in Linux also use
 the pagecache, so the above subsection applies too.  However, they
-also usually read many pages from a file at once, grouped into a
+also usually read many data blocks from a file at once, grouped into a
 structure called a "bio".  To make it easier for these types of
 filesystems to support fs-verity, fs/verity/ also provides a function
-fsverity_verify_bio() which verifies all pages in a bio.
+fsverity_verify_bio() which verifies all data blocks in a bio.
 
 ext4 and f2fs also support encryption.  If a verity file is also
-encrypted, the pages must be decrypted before being verified.  To
+encrypted, the data must be decrypted before being verified.  To
 support this, these filesystems allocate a "post-read context" for
 each bio and store it in ``->bi_private``::
 
@@ -626,14 +624,14 @@ each bio and store it in ``->bi_private``::
 verity, or both is enabled.  After the bio completes, for each needed
 postprocessing step the filesystem enqueues the bio_post_read_ctx on a
 workqueue, and then the workqueue work does the decryption or
-verification.  Finally, pages where no decryption or verity error
-occurred are marked Uptodate, and the pages are unlocked.
+verification.  Finally, folios where no decryption or verity error
+occurred are marked Uptodate, and the folios are unlocked.
 
 On many filesystems, files can contain holes.  Normally,
-``->readahead()`` simply zeroes holes and sets the corresponding pages
-Uptodate; no bios are issued.  To prevent this case from bypassing
-fs-verity, these filesystems use fsverity_verify_page() to verify hole
-pages.
+``->readahead()`` simply zeroes hole blocks and considers the
+corresponding data to be up-to-date; no bios are issued.  To prevent
+this case from bypassing fs-verity, filesystems use
+fsverity_verify_blocks() to verify hole blocks.
 
 Filesystems also disable direct I/O on verity files, since otherwise
 direct I/O would bypass fs-verity.
@@ -644,7 +642,7 @@ Userspace utility
 This document focuses on the kernel, but a userspace utility for
 fs-verity can be found at:
 
-	https://git.kernel.org/pub/scm/linux/kernel/git/ebiggers/fsverity-utils.git
+	https://git.kernel.org/pub/scm/fs/fsverity/fsverity-utils.git
 
 See the README.md file in the fsverity-utils source tree for details,
 including examples of setting up fs-verity protected files.
@@ -793,9 +791,9 @@ weren't already directly answered in other parts of this document.
 :A: There are many reasons why this is not possible or would be very
     difficult, including the following:
 
-    - To prevent bypassing verification, pages must not be marked
+    - To prevent bypassing verification, folios must not be marked
       Uptodate until they've been verified.  Currently, each
-      filesystem is responsible for marking pages Uptodate via
+      filesystem is responsible for marking folios Uptodate via
       ``->readahead()``.  Therefore, currently it's not possible for
       the VFS to do the verification on its own.  Changing this would
       require significant changes to the VFS and all filesystems.

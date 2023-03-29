@@ -8,10 +8,10 @@
 #include <asm/kvm_hyp.h>
 #include <asm/kvm_hypevents.h>
 #include <asm/kvm_mmu.h>
-#include <linux/arm-smccc.h>
 #include <linux/kvm_host.h>
 #include <uapi/linux/psci.h>
 
+#include <nvhe/arm-smccc.h>
 #include <nvhe/mem_protect.h>
 #include <nvhe/memory.h>
 #include <nvhe/pkvm.h>
@@ -186,7 +186,6 @@ static int psci_cpu_suspend(u64 func_id, struct kvm_cpu_context *host_ctxt)
 	boot_args->r0 = r0;
 
 	pkvm_psci_notify(PKVM_PSCI_CPU_SUSPEND, host_ctxt);
-	trace_hyp_exit();
 	/*
 	 * Will either return if shallow sleep state, or wake up into the entry
 	 * point if it is a deep sleep state.
@@ -194,7 +193,6 @@ static int psci_cpu_suspend(u64 func_id, struct kvm_cpu_context *host_ctxt)
 	ret = psci_call(func_id, power_state,
 			__hyp_pa(&kvm_hyp_cpu_resume),
 			__hyp_pa(init_params));
-	trace_hyp_enter();
 
 	return ret;
 }
@@ -230,6 +228,8 @@ asmlinkage void __noreturn kvm_host_psci_cpu_entry(bool is_cpu_on)
 	struct psci_boot_args *boot_args;
 	struct kvm_cpu_context *host_ctxt;
 
+	trace_hyp_enter();
+
 	host_ctxt = &this_cpu_ptr(&kvm_host_data)->host_ctxt;
 
 	if (is_cpu_on)
@@ -245,6 +245,7 @@ asmlinkage void __noreturn kvm_host_psci_cpu_entry(bool is_cpu_on)
 
 	pkvm_psci_notify(PKVM_PSCI_CPU_ENTRY, host_ctxt);
 
+	trace_hyp_exit();
 	__host_enter(host_ctxt);
 }
 

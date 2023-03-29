@@ -109,8 +109,6 @@ int __fsverity_verify_signature(const struct inode *inode, const u8 *signature,
 		return err;
 	}
 
-	pr_debug("Valid signature for file digest %s:%*phN\n",
-		 hash_alg->name, hash_alg->digest_size, file_digest);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(__fsverity_verify_signature);

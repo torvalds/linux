@@ -292,7 +292,7 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
 		result = ima_calc_file_hash(file, &hash.hdr);
 	}
 
-	if (result == -ENOMEM)
+	if (result && result != -EBADF && result != -EINVAL)
 		goto out;
 
 	length = sizeof(hash.hdr) + hash.hdr.length;

@@ -44,6 +44,8 @@
 #include <asm/traps.h>
 #include <asm/virt.h>
 
+#include <trace/hooks/fault.h>
+
 struct fault_info {
 	int	(*fn)(unsigned long far, unsigned long esr,
 		      struct pt_regs *regs);
@@ -313,6 +315,7 @@ static void die_kernel_fault(const char *msg, unsigned long addr,
 
 	kasan_non_canonical_hook(addr);
 
+	trace_android_rvh_die_kernel_fault(msg, addr, esr, regs);
 	mem_abort_decode(esr);
 
 	show_pte(addr);
@@ -760,6 +763,7 @@ static int do_sea(unsigned long far, unsigned long esr, struct pt_regs *regs)
 		 */
 		siaddr  = untagged_addr(far);
 	}
+	trace_android_rvh_do_sea(siaddr, esr, regs);
 	arm64_notify_die(inf->name, regs, inf->sig, inf->code, siaddr, esr);
 
 	return 0;
@@ -867,6 +871,8 @@ NOKPROBE_SYMBOL(do_mem_abort);
 
 void do_sp_pc_abort(unsigned long addr, unsigned long esr, struct pt_regs *regs)
 {
+	trace_android_rvh_do_sp_pc_abort(addr, esr, regs);
+
 	arm64_notify_die("SP/PC alignment exception", regs, SIGBUS, BUS_ADRALN,
 			 addr, esr);
 }
@@ -966,5 +972,5 @@ struct page *alloc_zeroed_user_highpage_movable(struct vm_area_struct *vma,
 void tag_clear_highpage(struct page *page)
 {
 	mte_zero_clear_page_tags(page_address(page));
-	set_bit(PG_mte_tagged, &page->flags);
+	set_page_mte_tagged(page);
 }

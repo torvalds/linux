@@ -38,7 +38,6 @@
 #define UFS_UPIU_MAX_UNIT_NUM_ID	0x7F
 #define UFS_MAX_LUNS		(SCSI_W_LUN_BASE + UFS_UPIU_MAX_UNIT_NUM_ID)
 #define UFS_UPIU_WLUN_ID	(1 << 7)
-#define UFS_RPMB_UNIT		0xC4
 
 /* WriteBooster buffer is available only for the logical unit from 0 to 7 */
 #define UFS_UPIU_MAX_WB_LUN_ID	8
@@ -48,6 +47,11 @@
  * If it is over the limit, WriteBooster feature will be disabled.
  */
 #define UFS_WB_EXCEED_LIFETIME		0x0B
+
+/*
+ * In UFS Spec, the Extra Header Segment (EHS) starts from byte 32 in UPIU request/response packet
+ */
+#define EHS_OFFSET_IN_RESPONSE 32
 
 /* Well known logical unit id in LUN field of UPIU */
 enum {
@@ -165,6 +169,7 @@ enum attr_idn {
 	QUERY_ATTR_IDN_AVAIL_WB_BUFF_SIZE       = 0x1D,
 	QUERY_ATTR_IDN_WB_BUFF_LIFE_TIME_EST    = 0x1E,
 	QUERY_ATTR_IDN_CURR_WB_BUFF_SIZE        = 0x1F,
+	QUERY_ATTR_IDN_EXT_IID_EN		= 0x2A,
 };
 
 /* Descriptor idn for Query requests */
@@ -210,6 +215,28 @@ enum unit_desc_param {
 	UNIT_DESC_PARAM_HPB_PIN_RGN_START_OFF	= 0x25,
 	UNIT_DESC_PARAM_HPB_NUM_PIN_RGNS	= 0x27,
 	UNIT_DESC_PARAM_WB_BUF_ALLOC_UNITS	= 0x29,
+};
+
+/* RPMB Unit descriptor parameters offsets in bytes*/
+enum rpmb_unit_desc_param {
+	RPMB_UNIT_DESC_PARAM_LEN		= 0x0,
+	RPMB_UNIT_DESC_PARAM_TYPE		= 0x1,
+	RPMB_UNIT_DESC_PARAM_UNIT_INDEX		= 0x2,
+	RPMB_UNIT_DESC_PARAM_LU_ENABLE		= 0x3,
+	RPMB_UNIT_DESC_PARAM_BOOT_LUN_ID	= 0x4,
+	RPMB_UNIT_DESC_PARAM_LU_WR_PROTECT	= 0x5,
+	RPMB_UNIT_DESC_PARAM_LU_Q_DEPTH		= 0x6,
+	RPMB_UNIT_DESC_PARAM_PSA_SENSITIVE	= 0x7,
+	RPMB_UNIT_DESC_PARAM_MEM_TYPE		= 0x8,
+	RPMB_UNIT_DESC_PARAM_REGION_EN		= 0x9,
+	RPMB_UNIT_DESC_PARAM_LOGICAL_BLK_SIZE	= 0xA,
+	RPMB_UNIT_DESC_PARAM_LOGICAL_BLK_COUNT	= 0xB,
+	RPMB_UNIT_DESC_PARAM_REGION0_SIZE	= 0x13,
+	RPMB_UNIT_DESC_PARAM_REGION1_SIZE	= 0x14,
+	RPMB_UNIT_DESC_PARAM_REGION2_SIZE	= 0x15,
+	RPMB_UNIT_DESC_PARAM_REGION3_SIZE	= 0x16,
+	RPMB_UNIT_DESC_PARAM_PROVISIONING_TYPE	= 0x17,
+	RPMB_UNIT_DESC_PARAM_PHY_MEM_RSRC_CNT	= 0x18,
 };
 
 /* Device descriptor parameters offsets in bytes*/
@@ -352,6 +379,7 @@ enum {
 	UFS_DEV_EXT_TEMP_NOTIF		= BIT(6),
 	UFS_DEV_HPB_SUPPORT		= BIT(7),
 	UFS_DEV_WRITE_BOOSTER_SUP	= BIT(8),
+	UFS_DEV_EXT_IID_SUP		= BIT(16),
 };
 #define UFS_DEV_HPB_SUPPORT_VERSION		0x310
 
@@ -589,6 +617,8 @@ struct ufs_dev_info {
 	u8	*model;
 	u16	wspecversion;
 	u32	clk_gating_wait_us;
+	/* Stores the depth of queue in UFS device */
+	u8	bqueuedepth;
 
 	/* UFS HPB related flag */
 	bool	hpb_enabled;
@@ -601,6 +631,11 @@ struct ufs_dev_info {
 
 	bool	b_rpm_dev_flush_capable;
 	u8	b_presrv_uspc_en;
+
+	bool    b_advanced_rpmb_en;
+
+	/* UFS EXT_IID Enable */
+	bool	b_ext_iid_en;
 };
 
 /*

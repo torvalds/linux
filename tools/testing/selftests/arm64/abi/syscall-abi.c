@@ -390,6 +390,10 @@ static void test_one_syscall(struct syscall_cfg *cfg)
 
 			sme_vl &= PR_SME_VL_LEN_MASK;
 
+			/* Found lowest VL */
+			if (sve_vq_from_vl(sme_vl) > sme_vq)
+				break;
+
 			if (sme_vq != sve_vq_from_vl(sme_vl))
 				sme_vq = sve_vq_from_vl(sme_vl);
 
@@ -460,6 +464,10 @@ int sme_count_vls(void)
 					   strerror(errno), errno);
 
 		vl &= PR_SME_VL_LEN_MASK;
+
+		/* Found lowest VL */
+		if (sve_vq_from_vl(vl) > vq)
+			break;
 
 		if (vq != sve_vq_from_vl(vl))
 			vq = sve_vq_from_vl(vl);

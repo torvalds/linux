@@ -60,6 +60,14 @@ EXPORT_SYMBOL_GPL(btracker_create);
 
 void btracker_destroy(struct background_tracker *b)
 {
+	struct bt_work *w, *tmp;
+
+	BUG_ON(!list_empty(&b->issued));
+	list_for_each_entry_safe (w, tmp, &b->queued, list) {
+		list_del(&w->list);
+		kmem_cache_free(b->work_cache, w);
+	}
+
 	kmem_cache_destroy(b->work_cache);
 	kfree(b);
 }

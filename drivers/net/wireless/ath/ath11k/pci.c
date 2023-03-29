@@ -979,7 +979,7 @@ static __maybe_unused int ath11k_pci_pm_suspend(struct device *dev)
 	if (ret)
 		ath11k_warn(ab, "failed to suspend core: %d\n", ret);
 
-	return ret;
+	return 0;
 }
 
 static __maybe_unused int ath11k_pci_pm_resume(struct device *dev)

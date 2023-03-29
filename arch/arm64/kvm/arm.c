@@ -16,7 +16,6 @@
 #include <linux/fs.h>
 #include <linux/mman.h>
 #include <linux/sched.h>
-#include <linux/kmemleak.h>
 #include <linux/kvm.h>
 #include <linux/kvm_irqfd.h>
 #include <linux/irqbypass.h>
@@ -48,7 +47,6 @@
 #include <kvm/arm_psci.h>
 
 static enum kvm_mode kvm_mode = KVM_MODE_DEFAULT;
-DEFINE_STATIC_KEY_FALSE(kvm_protected_mode_initialized);
 
 DECLARE_KVM_HYP_PER_CPU(unsigned long, kvm_hyp_vector);
 
@@ -2234,52 +2232,6 @@ out_err:
 	return err;
 }
 
-static void _kvm_host_prot_finalize(void *arg)
-{
-	int *err = arg;
-
-	if (WARN_ON(kvm_call_hyp_nvhe(__pkvm_prot_finalize)))
-		WRITE_ONCE(*err, -EINVAL);
-}
-
-static int pkvm_drop_host_privileges(void)
-{
-	int ret = 0;
-
-	/*
-	 * Flip the static key upfront as that may no longer be possible
-	 * once the host stage 2 is installed.
-	 */
-	static_branch_enable(&kvm_protected_mode_initialized);
-
-	/*
-	 * Fixup the boot mode so that we don't take spurious round
-	 * trips via EL2 on cpu_resume. Flush to the PoC for a good
-	 * measure, so that it can be observed by a CPU coming out of
-	 * suspend with the MMU off.
-	 */
-	__boot_cpu_mode[0] = __boot_cpu_mode[1] = BOOT_CPU_MODE_EL1;
-	dcache_clean_poc((unsigned long)__boot_cpu_mode,
-			 (unsigned long)(__boot_cpu_mode + 2));
-
-	on_each_cpu(_kvm_host_prot_finalize, &ret, 1);
-	return ret;
-}
-
-static int finalize_hyp_mode(void)
-{
-	if (!is_protected_kvm_enabled())
-		return 0;
-
-	/*
-	 * Exclude HYP sections from kmemleak so that they don't get peeked
-	 * at, which would end badly once inaccessible.
-	 */
-	kmemleak_free_part(__hyp_bss_start, __hyp_bss_end - __hyp_bss_start);
-	kmemleak_free_part_phys(hyp_mem_base, hyp_mem_size);
-	return pkvm_drop_host_privileges();
-}
-
 struct kvm_vcpu *kvm_mpidr_to_vcpu(struct kvm *kvm, unsigned long mpidr)
 {
 	struct kvm_vcpu *vcpu;
@@ -2395,12 +2347,6 @@ int kvm_arch_init(void *opaque)
 		goto out_hyp;
 
 	if (!in_hyp_mode) {
-		err = finalize_hyp_mode();
-		if (err) {
-			kvm_err("Failed to finalize Hyp protection\n");
-			goto out_hyp;
-		}
-
 		err = init_hyp_tracefs();
 		if (err)
 			kvm_err("Failed to initialize Hyp tracing\n");
