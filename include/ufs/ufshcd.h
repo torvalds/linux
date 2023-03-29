@@ -1095,7 +1095,7 @@ struct ufs_hw_queue {
 	void __iomem *mcq_cq_head;
 	void __iomem *mcq_cq_tail;
 
-	void *sqe_base_addr;
+	struct utp_transfer_req_desc *sqe_base_addr;
 	dma_addr_t sqe_dma_addr;
 	struct cq_entry *cqe_base_addr;
 	dma_addr_t cqe_dma_addr;

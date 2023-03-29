@@ -2242,10 +2242,11 @@ void ufshcd_send_command(struct ufs_hba *hba, unsigned int task_tag,
 
 	if (is_mcq_enabled(hba)) {
 		int utrd_size = sizeof(struct utp_transfer_req_desc);
+		struct utp_transfer_req_desc *src = lrbp->utr_descriptor_ptr;
+		struct utp_transfer_req_desc *dest = hwq->sqe_base_addr + hwq->sq_tail_slot;
 
 		spin_lock(&hwq->sq_lock);
-		memcpy(hwq->sqe_base_addr + (hwq->sq_tail_slot * utrd_size),
-		       lrbp->utr_descriptor_ptr, utrd_size);
+		memcpy(dest, src, utrd_size);
 		ufshcd_inc_sq_tail(hwq);
 		spin_unlock(&hwq->sq_lock);
 	} else {
