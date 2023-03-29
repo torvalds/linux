@@ -23,7 +23,7 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/hardirq.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 
 #include <asm/machdep.h>
 #include <asm/irq.h>
