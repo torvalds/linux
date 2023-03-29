@@ -156,6 +156,7 @@
 
 &i2c8 {
 	status = "okay";
+	mctp-controller;
 	temperature-sensor@1f {
 		compatible = "ti,tmp421";
 		reg = <0x1f>;
@@ -164,6 +165,10 @@
 	eeprom@50 {
 		compatible = "st,24c32";
 		reg = <0x50>;
+	};
+	mctp@10 {
+		compatible = "mctp-i2c-controller";
+		reg = <(0x10 | I2C_OWN_SLAVE_ADDRESS)>;
 	};
 };
 
@@ -238,7 +243,7 @@
 &gpio0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_gpiu1_default &pinctrl_gpiu7_default>;
-	status = "okay";
+
 	gpio-line-names =
 	/*A0-A7*/ "","","","","","","","",
 	/*B0-B7*/ "power-bmc-nic","presence-ocp-debug",
@@ -280,7 +285,6 @@
 };
 
 &gpio1 {
-	status = "okay";
 	gpio-line-names =
 	/*18A0-18A7*/ "","","","","","","","",
 	/*18B0-18B7*/ "","","","","","","","",
