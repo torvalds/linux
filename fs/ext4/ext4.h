@@ -1886,7 +1886,6 @@ static inline void ext4_simulate_fail_bh(struct super_block *sb,
  * Inode dynamic state flags
  */
 enum {
-	EXT4_STATE_JDATA,		/* journaled data exists */
 	EXT4_STATE_NEW,			/* inode is newly created */
 	EXT4_STATE_XATTR,		/* has in-inode xattrs */
 	EXT4_STATE_NO_EXPAND,		/* No space for expansion */

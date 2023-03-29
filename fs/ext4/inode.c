@@ -1414,7 +1414,6 @@ static int ext4_journalled_write_end(struct file *file,
 	}
 	if (!verity)
 		size_changed = ext4_update_inode_size(inode, pos + copied);
-	ext4_set_inode_state(inode, EXT4_STATE_JDATA);
 	EXT4_I(inode)->i_datasync_tid = handle->h_transaction->t_tid;
 	folio_unlock(folio);
 	folio_put(folio);
@@ -2340,8 +2339,6 @@ static int ext4_journal_page_buffers(handle_t *handle, struct page *page,
 		ret = err;
 	EXT4_I(inode)->i_datasync_tid = handle->h_transaction->t_tid;
 
-	ext4_set_inode_state(inode, EXT4_STATE_JDATA);
-
 	return ret;
 }
 
@@ -3085,9 +3082,7 @@ int ext4_alloc_da_blocks(struct inode *inode)
 static sector_t ext4_bmap(struct address_space *mapping, sector_t block)
 {
 	struct inode *inode = mapping->host;
-	journal_t *journal;
 	sector_t ret = 0;
-	int err;
 
 	inode_lock_shared(inode);
 	/*
@@ -3097,43 +3092,14 @@ static sector_t ext4_bmap(struct address_space *mapping, sector_t block)
 		goto out;
 
 	if (mapping_tagged(mapping, PAGECACHE_TAG_DIRTY) &&
-			test_opt(inode->i_sb, DELALLOC)) {
+	    (test_opt(inode->i_sb, DELALLOC) ||
+	     ext4_should_journal_data(inode))) {
 		/*
-		 * With delalloc we want to sync the file
-		 * so that we can make sure we allocate
-		 * blocks for file
+		 * With delalloc or journalled data we want to sync the file so
+		 * that we can make sure we allocate blocks for file and data
+		 * is in place for the user to see it
 		 */
 		filemap_write_and_wait(mapping);
-	}
-
-	if (EXT4_JOURNAL(inode) &&
-	    ext4_test_inode_state(inode, EXT4_STATE_JDATA)) {
-		/*
-		 * This is a REALLY heavyweight approach, but the use of
-		 * bmap on dirty files is expected to be extremely rare:
-		 * only if we run lilo or swapon on a freshly made file
-		 * do we expect this to happen.
-		 *
-		 * (bmap requires CAP_SYS_RAWIO so this does not
-		 * represent an unprivileged user DOS attack --- we'd be
-		 * in trouble if mortal users could trigger this path at
-		 * will.)
-		 *
-		 * NB. EXT4_STATE_JDATA is not set on files other than
-		 * regular files.  If somebody wants to bmap a directory
-		 * or symlink and gets confused because the buffer
-		 * hasn't yet been flushed to disk, they deserve
-		 * everything they get.
-		 */
-
-		ext4_clear_inode_state(inode, EXT4_STATE_JDATA);
-		journal = EXT4_JOURNAL(inode);
-		jbd2_journal_lock_updates(journal);
-		err = jbd2_journal_flush(journal, 0);
-		jbd2_journal_unlock_updates(journal);
-
-		if (err)
-			goto out;
 	}
 
 	ret = iomap_bmap(mapping, block, &ext4_iomap_ops);
