@@ -780,7 +780,7 @@ int iwl_mvm_mld_rm_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 						  lockdep_is_held(&mvm->mutex));
 		bool stay_in_fw;
 
-		stay_in_fw = iwl_mvm_sta_del(mvm, vif, sta, mvm_link_sta, &ret);
+		stay_in_fw = iwl_mvm_sta_del(mvm, vif, sta, link_sta, &ret);
 		if (ret)
 			break;
 

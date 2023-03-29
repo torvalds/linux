@@ -1986,13 +1986,21 @@ int iwl_mvm_wait_sta_queues_empty(struct iwl_mvm *mvm,
  */
 bool iwl_mvm_sta_del(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		     struct ieee80211_sta *sta,
-		     struct iwl_mvm_link_sta *mvm_link_sta, int *ret)
+		     struct ieee80211_link_sta *link_sta, int *ret)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_vif_link_info *mvm_link =
+		mvmvif->link[link_sta->link_id];
 	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
-	u8 sta_id = mvm_link_sta->sta_id;
+	struct iwl_mvm_link_sta *mvm_link_sta;
+	u8 sta_id;
 
 	lockdep_assert_held(&mvm->mutex);
+
+	mvm_link_sta =
+		rcu_dereference_protected(mvm_sta->link[link_sta->link_id],
+					  lockdep_is_held(&mvm->mutex));
+	sta_id = mvm_link_sta->sta_id;
 
 	/* If there is a TXQ still marked as reserved - free it */
 	if (mvm_sta->reserved_queue != IEEE80211_INVAL_HW_QUEUE) {
@@ -2022,10 +2030,10 @@ bool iwl_mvm_sta_del(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			return true;
 
 		/* first remove remaining keys */
-		iwl_mvm_sec_key_remove_ap(mvm, vif, &mvmvif->deflink, 0);
+		iwl_mvm_sec_key_remove_ap(mvm, vif, mvm_link, 0);
 
 		/* unassoc - go ahead - remove the AP STA now */
-		mvmvif->deflink.ap_sta_id = IWL_MVM_INVALID_STA;
+		mvm_link->ap_sta_id = IWL_MVM_INVALID_STA;
 	}
 
 	/*
@@ -2082,7 +2090,7 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 
 	iwl_mvm_disable_sta_queues(mvm, vif, sta);
 
-	if (iwl_mvm_sta_del(mvm, vif, sta, &mvm_sta->deflink, &ret))
+	if (iwl_mvm_sta_del(mvm, vif, sta, &sta->deflink, &ret))
 		return ret;
 
 	ret = iwl_mvm_rm_sta_common(mvm, mvm_sta->deflink.sta_id);
