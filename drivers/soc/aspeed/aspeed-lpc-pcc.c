@@ -205,8 +205,6 @@ static void aspeed_pcc_dma_tasklet(unsigned long arg)
 	u32 reg;
 	u32 pre_dma_idx;
 	u32 cur_dma_idx;
-	u8 has_data = 0;
-
 	struct aspeed_pcc *pcc = (struct aspeed_pcc*)arg;
 	struct kfifo *fifo = &pcc->fifo;
 
@@ -218,7 +216,6 @@ static void aspeed_pcc_dma_tasklet(unsigned long arg)
 
 	cur_dma_idx = reg & (PCC_DMA_MAX_BUFSZ - 1);
 	pre_dma_idx = pcc->dma.idx;
-	has_data = (pre_dma_idx == cur_dma_idx) ? false : true;
 
 	do {
 		/* kick the oldest one if full */
@@ -228,10 +225,9 @@ static void aspeed_pcc_dma_tasklet(unsigned long arg)
 		pre_dma_idx = (pre_dma_idx + 1) % PCC_DMA_MAX_BUFSZ;
 	} while (pre_dma_idx != cur_dma_idx);
 
-	if (has_data)
-		wake_up_interruptible(&pcc->wq);
-
 	pcc->dma.idx = cur_dma_idx;
+
+	wake_up_interruptible(&pcc->wq);
 }
 
 static irqreturn_t aspeed_pcc_isr(int irq, void *arg)
