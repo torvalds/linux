@@ -604,11 +604,10 @@ static void iwl_mvm_skb_prepare_status(struct sk_buff *skb,
 }
 
 static int iwl_mvm_get_ctrl_vif_queue(struct iwl_mvm *mvm,
+				      struct iwl_mvm_vif_link_info *link,
 				      struct ieee80211_tx_info *info,
 				      struct ieee80211_hdr *hdr)
 {
-	struct iwl_mvm_vif *mvmvif =
-		iwl_mvm_vif_from_mac80211(info->control.vif);
 	__le16 fc = hdr->frame_control;
 
 	switch (info->control.vif->type) {
@@ -631,7 +630,7 @@ static int iwl_mvm_get_ctrl_vif_queue(struct iwl_mvm *mvm,
 
 		if (!ieee80211_has_order(fc) && !ieee80211_is_probe_req(fc) &&
 		    is_multicast_ether_addr(hdr->addr1))
-			return mvmvif->deflink.cab_queue;
+			return link->cab_queue;
 
 		WARN_ONCE(info->control.vif->type != NL80211_IFTYPE_ADHOC,
 			  "fc=0x%02x", le16_to_cpu(fc));
@@ -757,7 +756,8 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 			else
 				sta_id = link->mcast_sta.sta_id;
 
-			queue = iwl_mvm_get_ctrl_vif_queue(mvm, &info, hdr);
+			queue = iwl_mvm_get_ctrl_vif_queue(mvm, link, &info,
+							   hdr);
 		} else if (info.control.vif->type == NL80211_IFTYPE_MONITOR) {
 			queue = mvm->snif_queue;
 			sta_id = mvm->snif_sta.sta_id;
