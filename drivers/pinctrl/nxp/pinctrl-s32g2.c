@@ -721,7 +721,7 @@ static const struct s32_pin_range s32_pin_ranges_siul2[] = {
 	S32_PIN_RANGE(942, 1007),
 };
 
-static struct s32_pinctrl_soc_info s32_pinctrl_info = {
+static const struct s32_pinctrl_soc_data s32_pinctrl_data = {
 	.pins = s32_pinctrl_pads_siul2,
 	.npins = ARRAY_SIZE(s32_pinctrl_pads_siul2),
 	.mem_pin_ranges = s32_pin_ranges_siul2,
@@ -730,9 +730,8 @@ static struct s32_pinctrl_soc_info s32_pinctrl_info = {
 
 static const struct of_device_id s32_pinctrl_of_match[] = {
 	{
-
 		.compatible = "nxp,s32g2-siul2-pinctrl",
-		.data = (void *) &s32_pinctrl_info,
+		.data = &s32_pinctrl_data,
 	},
 	{ /* sentinel */ }
 };
@@ -740,14 +739,11 @@ MODULE_DEVICE_TABLE(of, s32_pinctrl_of_match);
 
 static int s32g_pinctrl_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *of_id =
-		of_match_device(s32_pinctrl_of_match, &pdev->dev);
+	const struct s32_pinctrl_soc_data *soc_data;
 
-	if (!of_id)
-		return -ENODEV;
+	soc_data = of_device_get_match_data(&pdev->dev);
 
-	return s32_pinctrl_probe
-			(pdev, (struct s32_pinctrl_soc_info *) of_id->data);
+	return s32_pinctrl_probe(pdev, soc_data);
 }
 
 static const struct dev_pm_ops s32g_pinctrl_pm_ops = {
