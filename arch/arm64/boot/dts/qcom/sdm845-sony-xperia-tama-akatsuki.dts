@@ -10,9 +10,51 @@
 / {
 	model = "Sony Xperia XZ3";
 	compatible = "sony,akatsuki-row", "qcom,sdm845";
+
+	/* Fixed DCDC for the OLED panel */
+	ts_vddio_supply: ts-vddio-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "ts_vddio";
+
+		regulator-min-microvolt = <1840000>;
+		regulator-max-microvolt = <1840000>;
+
+		gpio = <&tlmm 133 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-boot-on;
+	};
 };
 
-/* For the future: WLED + LAB/IBB/OLEDB are not used on Akatsuki */
+&ibb {
+	status = "disabled";
+};
+
+&lab {
+	status = "disabled";
+};
+
+&panel {
+	/* Akatsuki uses an OLED panel. */
+	/delete-property/ backlight;
+	/delete-property/ vsp-supply;
+	/delete-property/ vsn-supply;
+	/delete-property/ touch-reset-gpios;
+};
+
+&pmi8998_wled {
+	status = "disabled";
+};
+
+&tlmm {
+	ts_vddio_en: ts-vddio-en-state {
+		pins = "gpio133";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		output-high;
+	};
+};
+
 &vreg_l14a_1p8 {
 	regulator-min-microvolt = <1840000>;
 	regulator-max-microvolt = <1840000>;
