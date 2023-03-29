@@ -629,18 +629,6 @@ struct btree_path_buf {
 
 #define REPLICAS_DELTA_LIST_MAX	(1U << 16)
 
-struct snapshot_t {
-	u32			parent;
-	u32			children[2];
-	u32			subvol; /* Nonzero only if a subvolume points to this node: */
-	u32			equiv;
-};
-
-typedef struct {
-	u32		subvol;
-	u64		inum;
-} subvol_inum;
-
 #define BCACHEFS_ROOT_SUBVOL_INUM					\
 	((subvol_inum) { BCACHEFS_ROOT_SUBVOL,	BCACHEFS_ROOT_INO })
 
