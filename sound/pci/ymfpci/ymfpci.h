@@ -297,6 +297,12 @@ static const int saved_regs_index[] = {
 };
 #define YDSXGR_NUM_SAVED_REGS	ARRAY_SIZE(saved_regs_index)
 
+static const int pci_saved_regs_index[] = {
+	PCIR_DSXG_LEGACY,
+	PCIR_DSXG_ELEGACY,
+};
+#define DSXG_PCI_NUM_SAVED_REGS	ARRAY_SIZE(pci_saved_regs_index)
+
 struct snd_ymfpci {
 	int irq;
 
@@ -376,8 +382,7 @@ struct snd_ymfpci {
 
 	u32 saved_regs[YDSXGR_NUM_SAVED_REGS];
 	u32 saved_ydsxgr_mode;
-	u16 saved_dsxg_legacy;
-	u16 saved_dsxg_elegacy;
+	u16 saved_dsxg_pci_regs[DSXG_PCI_NUM_SAVED_REGS];
 };
 
 int snd_ymfpci_create(struct snd_card *card,
