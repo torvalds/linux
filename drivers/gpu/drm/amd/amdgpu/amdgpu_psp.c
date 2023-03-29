@@ -1655,6 +1655,8 @@ int psp_ras_initialize(struct psp_context *psp)
 		ras_cmd->ras_in_message.init_flags.poison_mode_en = 1;
 	if (!adev->gmc.xgmi.connected_to_cpu)
 		ras_cmd->ras_in_message.init_flags.dgpu_mode = 1;
+	ras_cmd->ras_in_message.init_flags.xcc_mask =
+		adev->gfx.xcc_mask;
 
 	ret = psp_ta_load(psp, &psp->ras_context.context);
 
