@@ -6,11 +6,12 @@
  *			 <benh@kernel.crashing.org>
  */
 
-#include <linux/device.h>
 #include <linux/mod_devicetable.h>
-#include <linux/pm.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+
+struct device;
+struct of_device_id;
 
 /**
  * struct of_dev_auxdata - lookup table entry for device names & platform_data

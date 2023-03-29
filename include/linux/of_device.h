@@ -7,9 +7,10 @@
 #include <linux/of_platform.h> /* temporary until merge */
 
 #include <linux/of.h>
-#include <linux/mod_devicetable.h>
 
 struct device;
+struct of_device_id;
+struct kobj_uevent_env;
 
 #ifdef CONFIG_OF
 extern const struct of_device_id *of_match_device(

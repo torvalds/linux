@@ -16,13 +16,10 @@
 #include <linux/errno.h>
 #include <linux/kobject.h>
 #include <linux/mod_devicetable.h>
-#include <linux/topology.h>
-#include <linux/notifier.h>
 #include <linux/property.h>
 #include <linux/list.h>
 
 #include <asm/byteorder.h>
-#include <asm/errno.h>
 
 typedef u32 phandle;
 typedef u32 ihandle;
@@ -1520,6 +1517,8 @@ enum of_reconfig_change {
 	OF_RECONFIG_CHANGE_ADD,
 	OF_RECONFIG_CHANGE_REMOVE,
 };
+
+struct notifier_block;
 
 #ifdef CONFIG_OF_DYNAMIC
 extern int of_reconfig_notifier_register(struct notifier_block *);
