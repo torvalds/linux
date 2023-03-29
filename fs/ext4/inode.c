@@ -2496,11 +2496,10 @@ static int mpage_prepare_extent_to_map(struct mpage_da_data *mpd)
 			 * Just submit the page. For data=journal mode we
 			 * first handle writeout of the page for checkpoint and
 			 * only after that handle delayed page dirtying. This
-			 * is crutial so that forcing a transaction commit and
-			 * then calling filemap_write_and_wait() guarantees
-			 * current state of data is in its final location. Such
-			 * sequence is used for example by insert/collapse
-			 * range operations before discarding the page cache.
+			 * makes sure current data is checkpointed to the final
+			 * location before possibly journalling it again which
+			 * is desirable when the page is frequently dirtied
+			 * through a pin.
 			 */
 			if (!mpd->can_map) {
 				WARN_ON_ONCE(sb->s_writers.frozen ==
