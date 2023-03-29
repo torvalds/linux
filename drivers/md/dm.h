@@ -233,9 +233,21 @@ unsigned int dm_get_reserved_bio_based_ios(void);
 
 static inline unsigned int dm_num_hash_locks(void)
 {
-	unsigned int num_locks = roundup_pow_of_two(num_online_cpus());
+	unsigned int num_locks = roundup_pow_of_two(num_online_cpus()) << 1;
 
 	return min_t(unsigned int, num_locks, DM_HASH_LOCKS_MAX);
+}
+
+#define DM_HASH_LOCKS_MULT  4294967291ULL
+#define DM_HASH_LOCKS_SHIFT 6
+
+static inline unsigned int dm_hash_locks_index(sector_t block,
+					       unsigned int num_locks)
+{
+	sector_t h1 = (block * DM_HASH_LOCKS_MULT) >> DM_HASH_LOCKS_SHIFT;
+	sector_t h2 = h1 >> DM_HASH_LOCKS_SHIFT;
+
+	return (h1 ^ h2) & (num_locks - 1);
 }
 
 #endif

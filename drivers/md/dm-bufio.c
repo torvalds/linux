@@ -398,7 +398,7 @@ struct dm_buffer_cache {
 
 static inline unsigned int cache_index(sector_t block, unsigned int num_locks)
 {
-	return block & (num_locks - 1);
+	return dm_hash_locks_index(block, num_locks);
 }
 
 static inline void cache_read_lock(struct dm_buffer_cache *bc, sector_t block)

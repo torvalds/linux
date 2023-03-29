@@ -117,9 +117,10 @@ static int cmp_keys(struct dm_cell_key *lhs,
 	return 0;
 }
 
-static unsigned lock_nr(struct dm_cell_key *key, unsigned int num_locks)
+static inline unsigned int lock_nr(struct dm_cell_key *key, unsigned int num_locks)
 {
-	return (key->block_begin >> BIO_PRISON_MAX_RANGE_SHIFT) & (num_locks - 1);
+	return dm_hash_locks_index((key->block_begin >> BIO_PRISON_MAX_RANGE_SHIFT),
+				   num_locks);
 }
 
 bool dm_cell_key_has_valid_range(struct dm_cell_key *key)
