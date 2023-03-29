@@ -4545,6 +4545,9 @@ static int con_font_get(struct vc_data *vc, struct console_font_op *op)
 	int c;
 	unsigned int vpitch = op->op == KD_FONT_OP_GET_TALL ? op->height : 32;
 
+	if (vpitch > max_font_height)
+		return -EINVAL;
+
 	if (op->data) {
 		font.data = kvmalloc(max_font_size, GFP_KERNEL);
 		if (!font.data)

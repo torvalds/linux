@@ -2,6 +2,7 @@
 # Makefile for the different targets used to generate full packages of a kernel
 
 include $(srctree)/scripts/Kbuild.include
+include $(srctree)/scripts/Makefile.lib
 
 KERNELPATH := kernel-$(subst -,_,$(KERNELRELEASE))
 KBUILD_PKG_ROOTCMD ?="fakeroot -u"
@@ -26,54 +27,46 @@ fi ; \
 tar -I $(KGZIP) -c $(RCS_TAR_IGNORE) -f $(2).tar.gz \
 	--transform 's:^:$(2)/:S' $(TAR_CONTENT) $(3)
 
-# .tmp_filelist .tmp_filelist_exclude
+# tarball compression
 # ---------------------------------------------------------------------------
 
-scripts/list-gitignored: FORCE
-	$(Q)$(MAKE) -f $(srctree)/Makefile scripts_package
+%.tar.gz: %.tar
+	$(call cmd,gzip)
 
-# 1f5d3a6b6532e25a5cdf1f311956b2b03d343a48 removed '*.rej' from .gitignore,
-# but it is definitely a generated file.
-filechk_filelist = \
-	$< --exclude='*.rej' --output=$@_exclude --prefix=./ --rootdir=$(srctree) --stat=-
+%.tar.bz2: %.tar
+	$(call cmd,bzip2)
 
-.tmp_filelist: scripts/list-gitignored FORCE
-	$(call filechk,filelist)
+%.tar.xz: %.tar
+	$(call cmd,xzmisc)
 
-# tarball
+%.tar.zst: %.tar
+	$(call cmd,zstd)
+
+# Git
 # ---------------------------------------------------------------------------
 
-quiet_cmd_tar = TAR     $@
-      cmd_tar = tar -c -f $@ $(tar-compress-opt) $(tar-exclude-opt) \
-                --owner=0 --group=0 --sort=name \
-                --transform 's:^\.:$*:S' -C $(tar-rootdir) .
+filechk_HEAD = git -C $(srctree) rev-parse --verify HEAD 2>/dev/null
 
-tar-rootdir := $(srctree)
+.tmp_HEAD: check-git FORCE
+	$(call filechk,HEAD)
 
-%.tar:
-	$(call cmd,tar)
-
-%.tar.gz: private tar-compress-opt := -I $(KGZIP)
-%.tar.gz:
-	$(call cmd,tar)
-
-%.tar.bz2: private tar-compress-opt := -I $(KBZIP2)
-%.tar.bz2:
-	$(call cmd,tar)
-
-%.tar.xz: private tar-compress-opt := -I $(XZ)
-%.tar.xz:
-	$(call cmd,tar)
-
-%.tar.zst: private tar-compress-opt := -I $(ZSTD)
-%.tar.zst:
-	$(call cmd,tar)
+PHONY += check-git
+check-git:
+	@if ! $(srctree)/scripts/check-git; then \
+		echo >&2 "error: creating source package requires git repository"; \
+		false; \
+	fi
 
 # Linux source tarball
 # ---------------------------------------------------------------------------
 
-linux.tar.gz: tar-exclude-opt = --exclude=./$@ --exclude-from=$<_exclude
-linux.tar.gz: .tmp_filelist
+quiet_cmd_archive_linux = ARCHIVE $@
+      cmd_archive_linux = \
+	git -C $(srctree) archive --output=$$(realpath $@) --prefix=$(basename $@)/ $$(cat $<)
+
+targets += linux.tar
+linux.tar: .tmp_HEAD FORCE
+	$(call if_changed,archive_linux)
 
 # rpm-pkg
 # ---------------------------------------------------------------------------
@@ -89,7 +82,7 @@ PHONY += srcrpm-pkg
 srcrpm-pkg: linux.tar.gz
 	$(CONFIG_SHELL) $(MKSPEC) >$(objtree)/kernel.spec
 	+rpmbuild $(RPMOPTS) --target $(UTS_MACHINE)-linux -bs kernel.spec \
-	--define='_smp_mflags %{nil}' --define='_sourcedir .' --define='_srcrpmdir .'
+	--define='_smp_mflags %{nil}' --define='_sourcedir rpmbuild/SOURCES' --define='_srcrpmdir .'
 
 # binrpm-pkg
 # ---------------------------------------------------------------------------
@@ -148,74 +141,62 @@ snap-pkg:
 # dir-pkg tar*-pkg - tarball targets
 # ---------------------------------------------------------------------------
 
-tar-pkg-tarball = linux-$(KERNELRELEASE)-$(ARCH).$(1)
-tar-pkg-phony = $(subst .,,$(1))-pkg
-
 tar-install: FORCE
 	$(Q)$(MAKE) -f $(srctree)/Makefile
 	+$(Q)$(srctree)/scripts/package/buildtar $@
+
+quiet_cmd_tar = TAR     $@
+      cmd_tar = cd $<; tar cf ../$@ --owner=root --group=root --sort=name *
+
+linux-$(KERNELRELEASE)-$(ARCH).tar: tar-install
+	$(call cmd,tar)
 
 PHONY += dir-pkg
 dir-pkg: tar-install
 	@echo "Kernel tree successfully created in $<"
 
-define tar-pkg-rule
-PHONY += $(tar-pkg-phony)
-$(tar-pkg-phony): $(tar-pkg-tarball)
+PHONY += tar-pkg
+tar-pkg: linux-$(KERNELRELEASE)-$(ARCH).tar
 	@:
 
-$(tar-pkg-tarball): private tar-rootdir := tar-install
-$(tar-pkg-tarball): tar-install
-endef
-
-$(foreach x, tar tar.gz tar.bz2 tar.xz tar.zst, $(eval $(call tar-pkg-rule,$(x))))
+tar%-pkg: linux-$(KERNELRELEASE)-$(ARCH).tar.% FORCE
+	@:
 
 # perf-tar*-src-pkg - generate a source tarball with perf source
 # ---------------------------------------------------------------------------
 
-perf-tar-src-pkg-tarball = perf-$(KERNELVERSION).$(1)
-perf-tar-src-pkg-phony   = perf-$(subst .,,$(1))-src-pkg
+.tmp_perf:
+	$(Q)mkdir .tmp_perf
 
-quiet_cmd_stage_perf_src = STAGE   $@
-      cmd_stage_perf_src = \
-	rm -rf $@; \
-	mkdir -p $@; \
-	tar -c -f - --exclude-from=$<_exclude -C $(srctree) --files-from=$(srctree)/tools/perf/MANIFEST | \
-	tar -x -f - -C $@
-
-.tmp_perf: .tmp_filelist
-	$(call cmd,stage_perf_src)
-
-filechk_perf_head = \
-	if test -z "$(git -C $(srctree) rev-parse --show-cdup 2>/dev/null)" && \
-	       head=$$(git -C $(srctree) rev-parse --verify HEAD 2>/dev/null); then \
-		echo $$head; \
-	else \
-		echo "not a git tree"; \
-	fi
-
-.tmp_perf/HEAD: .tmp_perf FORCE
-	$(call filechk,perf_head)
+.tmp_perf/HEAD: .tmp_HEAD | .tmp_perf
+	$(call cmd,copy)
 
 quiet_cmd_perf_version_file = GEN     $@
       cmd_perf_version_file = cd $(srctree)/tools/perf; util/PERF-VERSION-GEN $(dir $(abspath $@))
 
-# PERF-VERSION-FILE and HEAD are independent, but this avoids updating the
+# PERF-VERSION-FILE and .tmp_HEAD are independent, but this avoids updating the
 # timestamp of PERF-VERSION-FILE.
 # The best is to fix tools/perf/util/PERF-VERSION-GEN.
-.tmp_perf/PERF-VERSION-FILE: .tmp_perf/HEAD $(srctree)/tools/perf/util/PERF-VERSION-GEN
+.tmp_perf/PERF-VERSION-FILE: .tmp_HEAD $(srctree)/tools/perf/util/PERF-VERSION-GEN | .tmp_perf
 	$(call cmd,perf_version_file)
 
-define perf-tar-src-pkg-rule
-PHONY += $(perf-tar-src-pkg-phony)
-$(perf-tar-src-pkg-phony): $(perf-tar-src-pkg-tarball)
+quiet_cmd_archive_perf = ARCHIVE $@
+      cmd_archive_perf = \
+	git -C $(srctree) archive --output=$$(realpath $@) --prefix=$(basename $@)/ \
+	--add-file=$$(realpath $(word 2, $^)) \
+	--add-file=$$(realpath $(word 3, $^)) \
+	$$(cat $(word 2, $^))^{tree} $$(cat $<)
+
+targets += perf-$(KERNELVERSION).tar
+perf-$(KERNELVERSION).tar: tools/perf/MANIFEST .tmp_perf/HEAD .tmp_perf/PERF-VERSION-FILE FORCE
+	$(call if_changed,archive_perf)
+
+PHONY += perf-tar-src-pkg
+perf-tar-src-pkg: perf-$(KERNELVERSION).tar
 	@:
 
-$(perf-tar-src-pkg-tarball): private tar-rootdir := .tmp_perf
-$(perf-tar-src-pkg-tarball): .tmp_filelist .tmp_perf/HEAD .tmp_perf/PERF-VERSION-FILE
-endef
-
-$(foreach x, tar tar.gz tar.bz2 tar.xz tar.zst, $(eval $(call perf-tar-src-pkg-rule,$(x))))
+perf-tar%-src-pkg: perf-$(KERNELVERSION).tar.% FORCE
+	@:
 
 # Help text displayed when executing 'make help'
 # ---------------------------------------------------------------------------
@@ -242,5 +223,14 @@ help:
 
 PHONY += FORCE
 FORCE:
+
+# Read all saved command lines and dependencies for the $(targets) we
+# may be building above, using $(if_changed{,_dep}). As an
+# optimization, we don't need to read them if the target does not
+# exist, we will rebuild anyway in that case.
+
+existing-targets := $(wildcard $(sort $(targets)))
+
+-include $(foreach f,$(existing-targets),$(dir $(f)).$(notdir $(f)).cmd)
 
 .PHONY: $(PHONY)

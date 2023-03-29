@@ -11,9 +11,15 @@
 #
 
 usage() {
-	echo "Usage: $0 [srctree]" >&2
+	echo "Usage: $0 [--no-local] [srctree]" >&2
 	exit 1
 }
+
+no_local=false
+if test "$1" = "--no-local"; then
+	no_local=true
+	shift
+fi
 
 srctree=.
 if test $# -gt 0; then
@@ -26,14 +32,22 @@ fi
 
 scm_version()
 {
-	local short
+	local short=false
+	local no_dirty=false
 	local tag
-	short=false
+
+	while [ $# -gt 0 ];
+	do
+		case "$1" in
+		--short)
+			short=true;;
+		--no-dirty)
+			no_dirty=true;;
+		esac
+		shift
+	done
 
 	cd "$srctree"
-	if test "$1" = "--short"; then
-		short=true
-	fi
 
 	if test -n "$(git rev-parse --show-cdup 2>/dev/null)"; then
 		return
@@ -75,6 +89,10 @@ scm_version()
 		printf '%s%s' -g "$(echo $head | cut -c1-12)"
 	fi
 
+	if ${no_dirty}; then
+		return
+	fi
+
 	# Check for uncommitted changes.
 	# This script must avoid any write attempt to the source tree, which
 	# might be read-only.
@@ -110,11 +128,6 @@ collect_files()
 	echo "$res"
 }
 
-if ! test -e include/config/auto.conf; then
-	echo "Error: kernelrelease not valid - run 'make prepare' to update it" >&2
-	exit 1
-fi
-
 if [ -z "${KERNELVERSION}" ]; then
 	echo "KERNELVERSION is not set" >&2
 	exit 1
@@ -124,6 +137,16 @@ fi
 file_localversion="$(collect_files localversion*)"
 if test ! "$srctree" -ef .; then
 	file_localversion="${file_localversion}$(collect_files "$srctree"/localversion*)"
+fi
+
+if ${no_local}; then
+	echo "${KERNELVERSION}$(scm_version --no-dirty)"
+	exit 0
+fi
+
+if ! test -e include/config/auto.conf; then
+	echo "Error: kernelrelease not valid - run 'make prepare' to update it" >&2
+	exit 1
 fi
 
 # version string from CONFIG_LOCALVERSION

@@ -596,7 +596,7 @@ static void qcom_geni_serial_stop_tx_dma(struct uart_port *uport)
 	if (!qcom_geni_serial_main_active(uport))
 		return;
 
-	if (port->rx_dma_addr) {
+	if (port->tx_dma_addr) {
 		geni_se_tx_dma_unprep(&port->se, port->tx_dma_addr,
 				      port->tx_remaining);
 		port->tx_dma_addr = 0;
@@ -631,9 +631,8 @@ static void qcom_geni_serial_start_tx_dma(struct uart_port *uport)
 	if (port->tx_dma_addr)
 		return;
 
-	xmit_size = uart_circ_chars_pending(xmit);
-	if (xmit_size < WAKEUP_CHARS)
-		uart_write_wakeup(uport);
+	if (uart_circ_empty(xmit))
+		return;
 
 	xmit_size = CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
 
@@ -1070,6 +1069,10 @@ static int setup_fifos(struct qcom_geni_serial_port *port)
 static void qcom_geni_serial_shutdown(struct uart_port *uport)
 {
 	disable_irq(uport->irq);
+
+	if (uart_console(uport))
+		return;
+
 	qcom_geni_serial_stop_tx(uport);
 	qcom_geni_serial_stop_rx(uport);
 }

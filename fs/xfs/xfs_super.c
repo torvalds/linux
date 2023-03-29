@@ -41,6 +41,7 @@
 #include "xfs_attr_item.h"
 #include "xfs_xattr.h"
 #include "xfs_iunlink_item.h"
+#include "xfs_dahash_test.h"
 
 #include <linux/magic.h>
 #include <linux/fs_context.h>
@@ -2285,6 +2286,10 @@ init_xfs_fs(void)
 	int			error;
 
 	xfs_check_ondisk_structs();
+
+	error = xfs_dahash_test();
+	if (error)
+		return error;
 
 	printk(KERN_INFO XFS_VERSION_STRING " with "
 			 XFS_BUILD_OPTIONS " enabled\n");

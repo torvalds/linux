@@ -16,6 +16,7 @@ USB support
     gadget_multi
     gadget_printer
     gadget_serial
+    gadget_uvc
     gadget-testing
     iuu_phoenix
     mass-storage

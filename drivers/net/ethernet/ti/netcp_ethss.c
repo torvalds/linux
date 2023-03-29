@@ -3583,13 +3583,11 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 	/* init the hw stats lock */
 	spin_lock_init(&gbe_dev->hw_stats_lock);
 
-	if (of_find_property(node, "enable-ale", NULL)) {
-		gbe_dev->enable_ale = true;
+	gbe_dev->enable_ale = of_property_read_bool(node, "enable-ale");
+	if (gbe_dev->enable_ale)
 		dev_info(dev, "ALE enabled\n");
-	} else {
-		gbe_dev->enable_ale = false;
+	else
 		dev_dbg(dev, "ALE bypass enabled*\n");
-	}
 
 	ret = of_property_read_u32(node, "tx-queue",
 				   &gbe_dev->tx_queue_id);
