@@ -503,10 +503,10 @@ static void io_req_map_rw(struct io_kiocb *req, const struct iovec *iovec,
 	if (!iovec) {
 		unsigned iov_off = 0;
 
-		io->s.iter.iov = io->s.fast_iov;
-		if (iter->iov != fast_iov) {
-			iov_off = iter->iov - fast_iov;
-			io->s.iter.iov += iov_off;
+		io->s.iter.__iov = io->s.fast_iov;
+		if (iter->__iov != fast_iov) {
+			iov_off = iter_iov(iter) - fast_iov;
+			io->s.iter.__iov += iov_off;
 		}
 		if (io->s.fast_iov != fast_iov)
 			memcpy(io->s.fast_iov + iov_off, fast_iov + iov_off,

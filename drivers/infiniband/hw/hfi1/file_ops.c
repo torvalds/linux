@@ -287,11 +287,12 @@ static ssize_t hfi1_write_iter(struct kiocb *kiocb, struct iov_iter *from)
 	}
 
 	while (dim) {
+		const struct iovec *iov = iter_iov(from);
 		int ret;
 		unsigned long count = 0;
 
 		ret = hfi1_user_sdma_process_request(
-			fd, (struct iovec *)(from->iov + done),
+			fd, (struct iovec *)(iov + done),
 			dim, &count);
 		if (ret) {
 			reqs = ret;

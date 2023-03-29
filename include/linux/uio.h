@@ -51,7 +51,8 @@ struct iov_iter {
 	};
 	size_t count;
 	union {
-		const struct iovec *iov;
+		/* use iter_iov() to get the current vec */
+		const struct iovec *__iov;
 		const struct kvec *kvec;
 		const struct bio_vec *bvec;
 		struct xarray *xarray;
@@ -67,6 +68,8 @@ struct iov_iter {
 		loff_t xarray_start;
 	};
 };
+
+#define iter_iov(iter)	(iter)->__iov
 
 static inline enum iter_type iov_iter_type(const struct iov_iter *i)
 {
@@ -146,9 +149,9 @@ static inline size_t iov_length(const struct iovec *iov, unsigned long nr_segs)
 static inline struct iovec iov_iter_iovec(const struct iov_iter *iter)
 {
 	return (struct iovec) {
-		.iov_base = iter->iov->iov_base + iter->iov_offset,
+		.iov_base = iter_iov(iter)->iov_base + iter->iov_offset,
 		.iov_len = min(iter->count,
-			       iter->iov->iov_len - iter->iov_offset),
+			       iter_iov(iter)->iov_len - iter->iov_offset),
 	};
 }
 

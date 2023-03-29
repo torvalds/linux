@@ -31,8 +31,8 @@ static struct bio_map_data *bio_alloc_map_data(struct iov_iter *data,
 		return NULL;
 	bmd->iter = *data;
 	if (iter_is_iovec(data)) {
-		memcpy(bmd->iov, data->iov, sizeof(struct iovec) * data->nr_segs);
-		bmd->iter.iov = bmd->iov;
+		memcpy(bmd->iov, iter_iov(data), sizeof(struct iovec) * data->nr_segs);
+		bmd->iter.__iov = bmd->iov;
 	}
 	return bmd;
 }
