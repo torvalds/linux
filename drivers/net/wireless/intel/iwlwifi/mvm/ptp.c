@@ -116,7 +116,7 @@ iwl_mvm_get_crosstimestamp_fw(struct iwl_mvm *mvm, u32 *gp2, u64 *sys_time)
 
 	gp2_10ns = (u64)le32_to_cpu(resp->gp2_timestamp_hi) << 32 |
 		le32_to_cpu(resp->gp2_timestamp_lo);
-	*gp2 = gp2_10ns / 100;
+	*gp2 = div_u64(gp2_10ns, 100);
 
 	*sys_time = (u64)le32_to_cpu(resp->platform_timestamp_hi) << 32 |
 		le32_to_cpu(resp->platform_timestamp_lo);
