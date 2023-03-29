@@ -5477,6 +5477,7 @@ int dwc3_msm_set_dp_mode(struct device *dev, bool dp_connected, int lanes)
 		pm_runtime_get_sync(&mdwc->dwc3->dev);
 		mdwc->ss_phy->flags |= PHY_USB_DP_CONCURRENT_MODE;
 		pm_runtime_put_sync(&mdwc->dwc3->dev);
+		dbg_log_string("Set DP 2 lanes: success, refcnt:%d\n", mdwc->refcnt_dp_usb);
 		return 0;
 	}
 
@@ -5486,10 +5487,6 @@ int dwc3_msm_set_dp_mode(struct device *dev, bool dp_connected, int lanes)
 
 	mutex_lock(&mdwc->role_switch_mutex);
 	/* 4 lanes handling */
-	if (mdwc->dp_state != DP_2_LANE)
-		mdwc->refcnt_dp_usb++;
-
-	mdwc->dp_state = DP_4_LANE;
 	if (mdwc->id_state == DWC3_ID_GROUND) {
 		/* stop USB host mode */
 		ret = dwc3_start_stop_host(mdwc, false);
@@ -5507,16 +5504,20 @@ int dwc3_msm_set_dp_mode(struct device *dev, bool dp_connected, int lanes)
 		dwc3_msm_set_dp_only_params(mdwc);
 		dwc3_start_stop_device(mdwc, true);
 	} else {
-		if (mdwc->in_host_mode || mdwc->in_device_mode) {
-			ret = -EBUSY;
-			goto exit;
-		}
+		while (test_bit(WAIT_FOR_LPM, &mdwc->inputs))
+			msleep(20);
 
 		dbg_log_string("USB is not active.\n");
 		dwc3_msm_set_dp_only_params(mdwc);
 	}
 
+	if (mdwc->dp_state != DP_2_LANE)
+		mdwc->refcnt_dp_usb++;
+
+	mdwc->dp_state = DP_4_LANE;
+
 exit:
+	dbg_log_string("Set DP 4 lanes: %d refcnt:%d\n", ret, mdwc->refcnt_dp_usb);
 	mutex_unlock(&mdwc->role_switch_mutex);
 	return ret;
 }
