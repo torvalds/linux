@@ -2328,7 +2328,8 @@ int iwl_mvm_sec_key_del(struct iwl_mvm *mvm,
 			struct ieee80211_key_conf *keyconf);
 void iwl_mvm_sec_key_remove_ap(struct iwl_mvm *mvm,
 			       struct ieee80211_vif *vif,
-			       struct iwl_mvm_vif_link_info *link);
+			       struct iwl_mvm_vif_link_info *link,
+			       unsigned int link_id);
 
 int iwl_rfi_send_config_cmd(struct iwl_mvm *mvm,
 			    struct iwl_rfi_lut_entry *rfi_table);

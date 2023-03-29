@@ -2022,7 +2022,7 @@ bool iwl_mvm_sta_del(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			return true;
 
 		/* first remove remaining keys */
-		iwl_mvm_sec_key_remove_ap(mvm, vif, &mvmvif->deflink);
+		iwl_mvm_sec_key_remove_ap(mvm, vif, &mvmvif->deflink, 0);
 
 		/* unassoc - go ahead - remove the AP STA now */
 		mvmvif->deflink.ap_sta_id = IWL_MVM_INVALID_STA;
