@@ -429,10 +429,10 @@ static void icl_load_csc_matrix(const struct intel_crtc_state *crtc_state)
 		icl_update_output_csc(crtc, &crtc_state->output_csc);
 }
 
-static void chv_cgm_csc_convert_ctm(struct intel_csc_matrix *csc,
-				    const struct drm_property_blob *blob)
+static void chv_cgm_csc_convert_ctm(const struct intel_crtc_state *crtc_state,
+				    struct intel_csc_matrix *csc)
 {
-	const struct drm_color_ctm *ctm = blob->data;
+	const struct drm_color_ctm *ctm = crtc_state->hw.ctm->data;
 	int i;
 
 	for (i = 0; i < 9; i++) {
@@ -455,24 +455,29 @@ static void chv_cgm_csc_convert_ctm(struct intel_csc_matrix *csc,
 }
 
 static void chv_load_cgm_csc(struct intel_crtc *crtc,
-			     const struct drm_property_blob *blob)
+			     const struct intel_csc_matrix *csc)
 {
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
-	struct intel_csc_matrix tmp;
-
-	chv_cgm_csc_convert_ctm(&tmp, blob);
 
 	intel_de_write_fw(i915, CGM_PIPE_CSC_COEFF01(pipe),
-			  tmp.coeff[1] << 16 | tmp.coeff[0]);
+			  csc->coeff[1] << 16 | csc->coeff[0]);
 	intel_de_write_fw(i915, CGM_PIPE_CSC_COEFF23(pipe),
-			  tmp.coeff[3] << 16 | tmp.coeff[2]);
+			  csc->coeff[3] << 16 | csc->coeff[2]);
 	intel_de_write_fw(i915, CGM_PIPE_CSC_COEFF45(pipe),
-			  tmp.coeff[5] << 16 | tmp.coeff[4]);
+			  csc->coeff[5] << 16 | csc->coeff[4]);
 	intel_de_write_fw(i915, CGM_PIPE_CSC_COEFF67(pipe),
-			  tmp.coeff[7] << 16 | tmp.coeff[6]);
+			  csc->coeff[7] << 16 | csc->coeff[6]);
 	intel_de_write_fw(i915, CGM_PIPE_CSC_COEFF8(pipe),
-			  tmp.coeff[8]);
+			  csc->coeff[8]);
+}
+
+static void chv_assign_csc(struct intel_crtc_state *crtc_state)
+{
+	if (crtc_state->hw.ctm)
+		chv_cgm_csc_convert_ctm(crtc_state, &crtc_state->csc);
+	else
+		intel_csc_clear(&crtc_state->csc);
 }
 
 /* convert hw value with given bit_precision to lut property val */
@@ -1440,10 +1445,9 @@ static void chv_load_luts(const struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	const struct drm_property_blob *pre_csc_lut = crtc_state->pre_csc_lut;
 	const struct drm_property_blob *post_csc_lut = crtc_state->post_csc_lut;
-	const struct drm_property_blob *ctm = crtc_state->hw.ctm;
 
 	if (crtc_state->cgm_mode & CGM_PIPE_MODE_CSC)
-		chv_load_cgm_csc(crtc, ctm);
+		chv_load_cgm_csc(crtc, &crtc_state->csc);
 
 	if (crtc_state->cgm_mode & CGM_PIPE_MODE_DEGAMMA)
 		chv_load_cgm_degamma(crtc, pre_csc_lut);
@@ -1869,6 +1873,8 @@ static int chv_color_check(struct intel_crtc_state *crtc_state)
 		return ret;
 
 	intel_assign_luts(crtc_state);
+
+	chv_assign_csc(crtc_state);
 
 	crtc_state->preload_luts = chv_can_preload_luts(crtc_state);
 
