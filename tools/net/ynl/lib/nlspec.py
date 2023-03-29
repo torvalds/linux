@@ -444,6 +444,15 @@ class SpecFamily(SpecElement):
 
             self.msgs[op.name] = op
 
+    def find_operation(self, name):
+      """
+      For a given operation name, find and return operation spec.
+      """
+      for op in self.yaml['operations']['list']:
+        if name == op['name']:
+          return op
+      return None
+
     def resolve(self):
         self.resolve_up(super())
 

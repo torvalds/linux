@@ -527,6 +527,17 @@ class YnlFamily(SpecFamily):
 
                 self.handle_ntf(nl_msg, gm)
 
+    def operation_do_attributes(self, name):
+      """
+      For a given operation name, find and return a supported
+      set of attributes (as a dict).
+      """
+      op = self.find_operation(name)
+      if not op:
+        return None
+
+      return op['do']['request']['attributes'].copy()
+
     def _op(self, method, vals, dump=False):
         op = self.ops[method]
 
