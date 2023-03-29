@@ -30,21 +30,16 @@ struct max96745_bridge {
 	enum drm_connector_status status;
 
 	struct device *dev;
+	struct max96745 *parent;
 	struct regmap *regmap;
 	struct {
 		struct gpio_desc *gpio;
 		int irq;
 		atomic_t triggered;
 	} lock;
-	struct extcon_dev *extcon;
 };
 
 #define to_max96745_bridge(x)	container_of(x, struct max96745_bridge, x)
-
-static const unsigned int max96745_bridge_cable[] = {
-	EXTCON_JACK_VIDEO_OUT,
-	EXTCON_NONE,
-};
 
 static bool max96745_bridge_link_locked(struct max96745_bridge *ser)
 {
@@ -57,19 +52,6 @@ static bool max96745_bridge_link_locked(struct max96745_bridge *ser)
 		return false;
 
 	if (!FIELD_GET(LINK_LOCKED, val))
-		return false;
-
-	return true;
-}
-
-static bool max96745_bridge_vid_tx_active(struct max96745_bridge *ser)
-{
-	u32 val;
-
-	if (regmap_read(ser->regmap, 0x0107, &val))
-		return false;
-
-	if (!FIELD_GET(VID_TX_ACTIVE_A | VID_TX_ACTIVE_B, val))
 		return false;
 
 	return true;
@@ -91,9 +73,6 @@ static int max96745_bridge_attach(struct drm_bridge *bridge,
 	else
 		ser->status = connector_status_disconnected;
 
-	extcon_set_state(ser->extcon, EXTCON_JACK_VIDEO_OUT,
-			 max96745_bridge_vid_tx_active(ser));
-
 	return 0;
 }
 
@@ -108,18 +87,20 @@ static void max96745_bridge_pre_enable(struct drm_bridge *bridge)
 static void max96745_bridge_enable(struct drm_bridge *bridge)
 {
 	struct max96745_bridge *ser = to_max96745_bridge(bridge);
+	struct max96745 *max96745 = ser->parent;
 
 	if (ser->panel)
 		drm_panel_enable(ser->panel);
 
-	extcon_set_state_sync(ser->extcon, EXTCON_JACK_VIDEO_OUT, true);
+	extcon_set_state_sync(max96745->extcon, EXTCON_JACK_VIDEO_OUT, true);
 }
 
 static void max96745_bridge_disable(struct drm_bridge *bridge)
 {
 	struct max96745_bridge *ser = to_max96745_bridge(bridge);
+	struct max96745 *max96745 = ser->parent;
 
-	extcon_set_state_sync(ser->extcon, EXTCON_JACK_VIDEO_OUT, false);
+	extcon_set_state_sync(max96745->extcon, EXTCON_JACK_VIDEO_OUT, false);
 
 	if (ser->panel)
 		drm_panel_disable(ser->panel);
@@ -137,6 +118,7 @@ static enum drm_connector_status
 max96745_bridge_detect(struct drm_bridge *bridge)
 {
 	struct max96745_bridge *ser = to_max96745_bridge(bridge);
+	struct max96745 *max96745 = ser->parent;
 	enum drm_connector_status status = connector_status_connected;
 
 	if (!drm_kms_helper_is_poll_worker())
@@ -147,7 +129,7 @@ max96745_bridge_detect(struct drm_bridge *bridge)
 		goto out;
 	}
 
-	if (extcon_get_state(ser->extcon, EXTCON_JACK_VIDEO_OUT)) {
+	if (extcon_get_state(max96745->extcon, EXTCON_JACK_VIDEO_OUT)) {
 		u32 dprx_trn_status2;
 
 		if (atomic_cmpxchg(&ser->lock.triggered, 1, 0)) {
@@ -203,8 +185,9 @@ static const struct drm_bridge_funcs max96745_bridge_funcs = {
 static irqreturn_t max96745_bridge_lock_irq_handler(int irq, void *arg)
 {
 	struct max96745_bridge *ser = arg;
+	struct max96745 *max96745 = ser->parent;
 
-	if (extcon_get_state(ser->extcon, EXTCON_JACK_VIDEO_OUT))
+	if (extcon_get_state(max96745->extcon, EXTCON_JACK_VIDEO_OUT))
 		atomic_set(&ser->lock.triggered, 1);
 
 	return IRQ_HANDLED;
@@ -221,6 +204,7 @@ static int max96745_bridge_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ser->dev = dev;
+	ser->parent = dev_get_drvdata(dev->parent);
 	platform_set_drvdata(pdev, ser);
 
 	ser->regmap = dev_get_regmap(dev->parent, NULL);
@@ -231,16 +215,6 @@ static int max96745_bridge_probe(struct platform_device *pdev)
 	if (IS_ERR(ser->lock.gpio))
 		return dev_err_probe(dev, PTR_ERR(ser->lock.gpio),
 				     "failed to get lock GPIO\n");
-
-	ser->extcon = devm_extcon_dev_allocate(dev, max96745_bridge_cable);
-	if (IS_ERR(ser->extcon))
-		return dev_err_probe(dev, PTR_ERR(ser->extcon),
-				     "failed to allocate extcon device\n");
-
-	ret = devm_extcon_dev_register(dev, ser->extcon);
-	if (ret)
-		return dev_err_probe(dev, ret,
-				     "failed to register extcon device\n");
 
 	if (ser->lock.gpio) {
 		ser->lock.irq = gpiod_to_irq(ser->lock.gpio);
