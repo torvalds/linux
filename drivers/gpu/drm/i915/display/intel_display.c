@@ -7313,6 +7313,12 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 	 * 7. New _arm() registers are finally written
 	 * 8. Hardware finally latches a complete set of new
 	 *    register values, and subsequent frames will be OK again
+	 *
+	 * Also note that due to the pipe CSC hardware issues on
+	 * SKL/GLK DC states must remain off until the pipe CSC
+	 * state readout has happened. Otherwise we risk corrupting
+	 * the CSC latched register values with the readout (see
+	 * skl_read_csc() and skl_color_commit_noarm()).
 	 */
 	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_DC_OFF);
 
