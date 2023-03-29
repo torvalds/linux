@@ -5591,7 +5591,7 @@ void iwl_mvm_mac_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			continue;
 
 		/* make sure only TDLS peers or the AP are flushed */
-		WARN_ON(i != mvmvif->deflink.ap_sta_id && !sta->tdls);
+		WARN_ON_ONCE(i != mvmvif->deflink.ap_sta_id && !sta->tdls);
 
 		if (drop) {
 			if (iwl_mvm_flush_sta(mvm, mvmsta, false))
