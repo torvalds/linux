@@ -1860,6 +1860,7 @@ static int __bch2_buffered_write(struct bch_inode_info *inode,
 	struct folio **fi, *f;
 	unsigned copied = 0, f_offset;
 	loff_t end = pos + len, f_pos;
+	loff_t last_folio_pos = inode->v.i_size;
 	int ret = 0;
 
 	BUG_ON(!len);
@@ -1876,8 +1877,6 @@ static int __bch2_buffered_write(struct bch_inode_info *inode,
 
 	BUG_ON(!folios.nr);
 
-	end = min(end, folio_end_pos(darray_last(folios)));
-
 	f = darray_first(folios);
 	if (pos != folio_pos(f) && !folio_test_uptodate(f)) {
 		ret = bch2_read_single_folio(f, mapping);
@@ -1886,6 +1885,8 @@ static int __bch2_buffered_write(struct bch_inode_info *inode,
 	}
 
 	f = darray_last(folios);
+	end = min(end, folio_end_pos(f));
+	last_folio_pos = folio_pos(f);
 	if (end != folio_end_pos(f) && !folio_test_uptodate(f)) {
 		if (end >= inode->v.i_size) {
 			folio_zero_range(f, 0, folio_size(f));
@@ -1998,6 +1999,14 @@ out:
 		folio_unlock(*fi);
 		folio_put(*fi);
 	}
+
+	/*
+	 * If the last folio added to the mapping starts beyond current EOF, we
+	 * performed a short write but left around at least one post-EOF folio.
+	 * Clean up the mapping before we return.
+	 */
+	if (last_folio_pos >= inode->v.i_size)
+		truncate_pagecache(&inode->v, inode->v.i_size);
 
 	darray_exit(&folios);
 	bch2_folio_reservation_put(c, inode, &res);
