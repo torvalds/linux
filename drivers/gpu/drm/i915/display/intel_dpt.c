@@ -324,10 +324,14 @@ void intel_dpt_configure(struct intel_crtc *crtc)
 		enum pipe pipe = crtc->pipe;
 		enum plane_id plane_id;
 
-		for_each_plane_id_on_crtc(crtc, plane_id)
+		for_each_plane_id_on_crtc(crtc, plane_id) {
+			if (plane_id == PLANE_CURSOR)
+				continue;
+
 			intel_de_rmw(i915, PLANE_CHICKEN(pipe, plane_id),
 				     PLANE_CHICKEN_DISABLE_DPT,
 				     i915->params.enable_dpt ? 0 : PLANE_CHICKEN_DISABLE_DPT);
+		}
 	} else if (DISPLAY_VER(i915) == 13) {
 		intel_de_rmw(i915, CHICKEN_MISC_2,
 			     CHICKEN_MISC_DISABLE_DPT,
