@@ -116,10 +116,9 @@ struct intel_color_funcs {
 #define ILK_CSC_COEFF_FP(coeff, fbits)	\
 	(clamp_val(((coeff) >> (32 - (fbits) - 3)) + 4, 0, 0xfff) & 0xff8)
 
-#define ILK_CSC_COEFF_LIMITED_RANGE 0x0dc0
 #define ILK_CSC_COEFF_1_0 0x7800
-
-#define ILK_CSC_POSTOFF_LIMITED_RANGE (16 * (1 << 12) / 255)
+#define ILK_CSC_COEFF_LIMITED_RANGE ((235 - 16) << (12 - 8)) /* exponent 0 */
+#define ILK_CSC_POSTOFF_LIMITED_RANGE (16 << (12 - 8))
 
 /* Nop pre/post offsets */
 static const u16 ilk_csc_off_zero[3] = {};
