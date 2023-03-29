@@ -998,6 +998,9 @@ int iwl_mvm_mld_update_sta_links(struct iwl_mvm *mvm,
 		if (WARN_ON(ret))
 			goto err;
 
+		link_sta->agg.max_rc_amsdu_len = 1;
+		ieee80211_sta_recalc_aggregates(sta);
+
 		mvm_sta_link =
 			rcu_dereference_protected(mvm_sta->link[link_id],
 						  lockdep_is_held(&mvm->mutex));
