@@ -1568,6 +1568,7 @@ struct mpage_da_data {
 	struct ext4_io_submit io_submit;	/* IO submission data */
 	unsigned int do_map:1;
 	unsigned int scanned_until_end:1;
+	unsigned int journalled_more_data:1;
 };
 
 static void mpage_release_unused_pages(struct mpage_da_data *mpd,
@@ -2545,6 +2546,7 @@ static int mpage_prepare_extent_to_map(struct mpage_da_data *mpd)
 						mpd, &folio->page);
 					if (err < 0)
 						goto out;
+					mpd->journalled_more_data = 1;
 				}
 				mpage_folio_done(mpd, folio);
 			} else {
@@ -2634,10 +2636,23 @@ static int ext4_do_writepages(struct mpage_da_data *mpd)
 
 	/*
 	 * data=journal mode does not do delalloc so we just need to writeout /
-	 * journal already mapped buffers
+	 * journal already mapped buffers. On the other hand we need to commit
+	 * transaction to make data stable. We expect all the data to be
+	 * already in the journal (the only exception are DMA pinned pages
+	 * dirtied behind our back) so we commit transaction here and run the
+	 * writeback loop to checkpoint them. The checkpointing is not actually
+	 * necessary to make data persistent *but* quite a few places (extent
+	 * shifting operations, fsverity, ...) depend on being able to drop
+	 * pagecache pages after calling filemap_write_and_wait() and for that
+	 * checkpointing needs to happen.
 	 */
-	if (ext4_should_journal_data(inode))
+	if (ext4_should_journal_data(inode)) {
 		mpd->can_map = 0;
+		if (wbc->sync_mode == WB_SYNC_ALL)
+			ext4_fc_commit(sbi->s_journal,
+				       EXT4_I(inode)->i_datasync_tid);
+	}
+	mpd->journalled_more_data = 0;
 
 	if (ext4_should_dioread_nolock(inode)) {
 		/*
@@ -2818,6 +2833,13 @@ static int ext4_writepages(struct address_space *mapping,
 
 	percpu_down_read(&EXT4_SB(sb)->s_writepages_rwsem);
 	ret = ext4_do_writepages(&mpd);
+	/*
+	 * For data=journal writeback we could have come across pages marked
+	 * for delayed dirtying (PageChecked) which were just added to the
+	 * running transaction. Try once more to get them to stable storage.
+	 */
+	if (!ret && mpd.journalled_more_data)
+		ret = ext4_do_writepages(&mpd);
 	percpu_up_read(&EXT4_SB(sb)->s_writepages_rwsem);
 
 	return ret;
