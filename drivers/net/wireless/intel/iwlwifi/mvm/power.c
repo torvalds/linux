@@ -286,7 +286,8 @@ static bool iwl_mvm_power_is_radar(struct ieee80211_vif *vif)
 	rcu_read_lock();
 	for_each_vif_active_link(vif, link_conf, link_id) {
 		chanctx_conf = rcu_dereference(link_conf->chanctx_conf);
-		if (WARN_ON(!chanctx_conf))
+		/* this happens on link switching, just ignore inactive ones */
+		if (!chanctx_conf)
 			continue;
 
 		radar_detect = !!(chanctx_conf->def.chan->flags &
