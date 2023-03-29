@@ -2286,7 +2286,7 @@ DEFINE_SIMPLE_DEV_PM_OPS(snd_ymfpci_pm, snd_ymfpci_suspend, snd_ymfpci_resume);
 
 int snd_ymfpci_create(struct snd_card *card,
 		      struct pci_dev *pci,
-		      unsigned short old_legacy_ctrl)
+		      u16 old_legacy_ctrl)
 {
 	struct snd_ymfpci *chip = card->private_data;
 	int err;
