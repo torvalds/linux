@@ -792,24 +792,20 @@ static void macvlan_compute_filter(unsigned long *mc_filter,
 				   struct macvlan_dev *vlan, int cutoff)
 {
 	if (dev->flags & (IFF_PROMISC | IFF_ALLMULTI)) {
-		if (cutoff >= 0)
-			bitmap_fill(mc_filter, MACVLAN_MC_FILTER_SZ);
-		else
-			bitmap_zero(mc_filter, MACVLAN_MC_FILTER_SZ);
+		bitmap_fill(mc_filter, MACVLAN_MC_FILTER_SZ);
 	} else {
 		DECLARE_BITMAP(filter, MACVLAN_MC_FILTER_SZ);
 		struct netdev_hw_addr *ha;
 
 		bitmap_zero(filter, MACVLAN_MC_FILTER_SZ);
 		netdev_for_each_mc_addr(ha, dev) {
-			if (cutoff >= 0 && ha->synced <= cutoff)
+			if (!vlan && ha->synced <= cutoff)
 				continue;
 
 			__set_bit(mc_hash(vlan, ha->addr), filter);
 		}
 
-		if (cutoff >= 0)
-			__set_bit(mc_hash(vlan, dev->broadcast), filter);
+		__set_bit(mc_hash(vlan, dev->broadcast), filter);
 
 		bitmap_copy(mc_filter, filter, MACVLAN_MC_FILTER_SZ);
 	}
@@ -817,6 +813,11 @@ static void macvlan_compute_filter(unsigned long *mc_filter,
 
 static void macvlan_recompute_bc_filter(struct macvlan_dev *vlan)
 {
+	if (vlan->port->bc_cutoff < 0) {
+		bitmap_zero(vlan->port->bc_filter, MACVLAN_MC_FILTER_SZ);
+		return;
+	}
+
 	macvlan_compute_filter(vlan->port->bc_filter, vlan->lowerdev, NULL,
 			       vlan->port->bc_cutoff);
 }
