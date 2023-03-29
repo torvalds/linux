@@ -19,5 +19,6 @@ struct scrub_sector;
 int scrub_find_csum(struct scrub_ctx *sctx, u64 logical, u8 *csum);
 int scrub_add_sector_to_rd_bio(struct scrub_ctx *sctx,
 			       struct scrub_sector *sector);
+void scrub_sector_get(struct scrub_sector *sector);
 
 #endif
