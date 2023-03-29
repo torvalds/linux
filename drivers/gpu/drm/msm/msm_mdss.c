@@ -274,7 +274,7 @@ static int msm_mdss_enable(struct msm_mdss *msm_mdss)
 		msm_mdss_setup_ubwc_dec_40(msm_mdss);
 		break;
 	default:
-		dev_err(msm_mdss->dev, "Unuspported UBWC decoder version %x\n",
+		dev_err(msm_mdss->dev, "Unsupported UBWC decoder version %x\n",
 			msm_mdss->mdss_data->ubwc_dec_version);
 		dev_err(msm_mdss->dev, "HW_REV: 0x%x\n",
 			readl_relaxed(msm_mdss->mmio + HW_REV));
