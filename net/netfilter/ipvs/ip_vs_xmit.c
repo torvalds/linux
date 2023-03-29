@@ -339,7 +339,7 @@ __ip_vs_get_out_rt(struct netns_ipvs *ipvs, int skb_af, struct sk_buff *skb,
 			spin_unlock_bh(&dest->dst_lock);
 			IP_VS_DBG(10, "new dst %pI4, src %pI4, refcnt=%d\n",
 				  &dest->addr.ip, &dest_dst->dst_saddr.ip,
-				  atomic_read(&rt->dst.__refcnt));
+				  rcuref_read(&rt->dst.__rcuref));
 		}
 		if (ret_saddr)
 			*ret_saddr = dest_dst->dst_saddr.ip;
@@ -507,7 +507,7 @@ __ip_vs_get_out_rt_v6(struct netns_ipvs *ipvs, int skb_af, struct sk_buff *skb,
 			spin_unlock_bh(&dest->dst_lock);
 			IP_VS_DBG(10, "new dst %pI6, src %pI6, refcnt=%d\n",
 				  &dest->addr.in6, &dest_dst->dst_saddr.in6,
-				  atomic_read(&rt->dst.__refcnt));
+				  rcuref_read(&rt->dst.__rcuref));
 		}
 		if (ret_saddr)
 			*ret_saddr = dest_dst->dst_saddr.in6;

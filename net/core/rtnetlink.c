@@ -843,7 +843,7 @@ int rtnl_put_cacheinfo(struct sk_buff *skb, struct dst_entry *dst, u32 id,
 	if (dst) {
 		ci.rta_lastuse = jiffies_delta_to_clock_t(jiffies - dst->lastuse);
 		ci.rta_used = dst->__use;
-		ci.rta_clntref = atomic_read(&dst->__refcnt);
+		ci.rta_clntref = rcuref_read(&dst->__rcuref);
 	}
 	if (expires) {
 		unsigned long clock;
