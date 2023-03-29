@@ -19,3 +19,15 @@
 		reg = <0x4 0x00000000 0x0 0x0c000000>;
 	};
 };
+
+&mdio0 {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	ethphy0: ethernet-phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};
+};
+

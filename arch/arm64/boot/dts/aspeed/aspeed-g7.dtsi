@@ -69,15 +69,15 @@
 		ranges;
 
 		gic: interrupt-controller@12200000 {
-				compatible = "arm,gic-v3";
-				interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_HIGH)>;
-				#interrupt-cells = <3>;
-				interrupt-controller;
-				interrupt-parent = <&gic>;
-				#redistributor-regions = <1>;
-				reg =	<0 0x12200000 0 0x10000>,		//GICD
-					<0 0x12280000 0 0x80000>,		//GICR
-					<0 0x40440000 0 0x1000>;		//GICC
+			compatible = "arm,gic-v3";
+			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_HIGH)>;
+			#interrupt-cells = <3>;
+			interrupt-controller;
+			interrupt-parent = <&gic>;
+			#redistributor-regions = <1>;
+			reg =	<0 0x12200000 0 0x10000>,		//GICD
+				<0 0x12280000 0 0x80000>,		//GICR
+				<0 0x40440000 0 0x1000>;		//GICC
 		};
 
 		apb {
@@ -85,6 +85,99 @@
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges;
+
+			cpu_clk: clock-controller@12c02200 {
+				compatible = "aspeed,ast2700_cpu-clk";
+				reg = <0 0x12c02200 0 0x400>;
+				#clock-cells = <1>;
+				#reset-cells = <1>;
+			};
+
+			io_clk: clock-controller@14c02200 {
+				compatible = "aspeed,ast2700_io-clk";
+				reg = <0 0x14c02200 0 0x400>;
+				#clock-cells = <1>;
+				#reset-cells = <1>;
+			};
+
+			intc: interrupt-controller@12100000 {
+				compatible = "simple-mfd";
+				#address-cells = <2>;
+				#size-cells = <2>;
+				ranges = <0x0 0x12100000 0x0 0x12100000 0x0 0x4000>;
+
+				intc0: interrupt-controller@1000 {
+					#interrupt-cells = <1>;
+					interrupt-controller;
+					compatible = "aspeed,ast2700-intc-ic";
+					reg = <0x0 0x12101000 0x0 0x10>;
+					interrupts = <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>;
+				};
+
+				intc1: interrupt-controller@1100 {
+					#interrupt-cells = <1>;
+					interrupt-controller;
+					compatible = "aspeed,ast2700-intc-ic";
+					reg = <0x0 0x12101100 0x0 0x10>;
+					interrupts = <GIC_SPI 129 IRQ_TYPE_LEVEL_HIGH>;
+				};
+
+				intc2: interrupt-controller@1200 {
+					#interrupt-cells = <1>;
+					interrupt-controller;
+					compatible = "aspeed,ast2700-intc-ic";
+					reg = <0x0 0x12101200 0x0 0x10>;
+					interrupts = <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>;
+				};
+
+				intc3: interrupt-controller@1300 {
+					#interrupt-cells = <1>;
+					interrupt-controller;
+					compatible = "aspeed,ast2700-intc-ic";
+					reg = <0x0 0x12101300 0x0 0x10>;
+					interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>;
+				};
+
+				intc4: interrupt-controller@1400 {
+					#interrupt-cells = <1>;
+					interrupt-controller;
+					compatible = "aspeed,ast2700-intc-ic";
+					reg = <0x0 0x12101400 0x0 0x10>;
+					interrupts = <GIC_SPI 132 IRQ_TYPE_LEVEL_HIGH>;
+				};
+
+				intc5: interrupt-controller@1500 {
+					#interrupt-cells = <1>;
+					interrupt-controller;
+					compatible = "aspeed,ast2700-intc-ic";
+					reg = <0x0 0x12101500 0x0 0x10>;
+					interrupts = <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>;
+				};
+
+				intc6: interrupt-controller@1600 {
+					#interrupt-cells = <1>;
+					interrupt-controller;
+					compatible = "aspeed,ast2700-intc-ic";
+					reg = <0x0 0x12101600 0x0 0x10>;
+					interrupts = <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>;
+				};
+
+				intc7: interrupt-controller@1700 {
+					#interrupt-cells = <1>;
+					interrupt-controller;
+					compatible = "aspeed,ast2700-intc-ic";
+					reg = <0x0 0x12101700 0x0 0x10>;
+					interrupts = <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>;
+				};
+
+				intc8: interrupt-controller@1800 {
+					#interrupt-cells = <1>;
+					interrupt-controller;
+					compatible = "aspeed,ast2700-intc-ic";
+					reg = <0x0 0x12101800 0x0 0x10>;
+					interrupts = <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>;
+				};
+			};
 
 			uart1: serial@14c33000 {
 				compatible = "ns16550a";
@@ -140,6 +233,40 @@
 				status = "okay";
 			};
 
+			mdio: bus@14040000 {
+				compatible = "simple-bus";
+				#address-cells = <2>;
+				#size-cells = <2>;
+				ranges = <0 0 0 0x14040000 0 0x100>;
+
+				mdio0: mdio@0 {
+					compatible = "aspeed,ast2700-mdio";
+					reg = <0 0 0 0x8>;
+					resets = <&io_clk ASPEED_RESET_MII>;
+					status = "disabled";
+				};
+
+				mdio1: mdio@8 {
+					compatible = "aspeed,ast2700-mdio";
+					reg = <0 0x8 0 0x8>;
+					resets = <&io_clk ASPEED_RESET_MII>;
+					status = "disabled";
+				};
+
+				mdio2: mdio@10 {
+					compatible = "aspeed,ast2700-mdio";
+					reg = <0 0x10 0 0x8>;
+					resets = <&io_clk ASPEED_RESET_MII>;
+					status = "disabled";
+				};
+
+				mdio3: mdio@18 {
+					compatible = "aspeed,ast2700-mdio";
+					reg = <0 0x18 0 0x8>;
+					resets = <&io_clk ASPEED_RESET_MII>;
+					status = "disabled";
+				};
+			};
 		};
 	};
 };
