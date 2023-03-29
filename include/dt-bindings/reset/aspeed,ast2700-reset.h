@@ -51,6 +51,8 @@
 #define ASPEED_RESET_P0_EHCI		(39)
 #define ASPEED_RESET_USB11		(40)
 
+#define ASPEED_CPU_RESET_NUMS		(ASPEED_RESET_USB11 + 1)
+
 /* IO Die */
 #define ASPEED_RESET_LPC0		(0)
 #define ASPEED_RESET_LPC1		(1)
@@ -107,5 +109,7 @@
 #define ASPEED_RESET_VGAL		(53)
 /* reserved 54:62 */
 #define ASPEED_RESET_I3CDMA             (63)
+
+#define ASPEED_IO_RESET_NUMS		(ASPEED_RESET_I3CDMA + 1)
 
 #endif  /* _MACH_ASPEED_AST2700_RESET_H_ */
