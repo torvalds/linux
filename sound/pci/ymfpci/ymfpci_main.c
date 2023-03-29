@@ -2224,8 +2224,11 @@ static int snd_ymfpci_suspend(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_ymfpci *chip = card->private_data;
-	unsigned int i;
-	
+	unsigned int i, legacy_reg_count = DSXG_PCI_NUM_SAVED_LEGACY_REGS;
+
+	if (chip->pci->device >= 0x0010) /* YMF 744/754 */
+		legacy_reg_count = DSXG_PCI_NUM_SAVED_REGS;
+
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	snd_ac97_suspend(chip->ac97);
 
@@ -2234,7 +2237,7 @@ static int snd_ymfpci_suspend(struct device *dev)
 
 	chip->saved_ydsxgr_mode = snd_ymfpci_readl(chip, YDSXGR_MODE);
 
-	for (i = 0; i < DSXG_PCI_NUM_SAVED_REGS; i++)
+	for (i = 0; i < legacy_reg_count; i++)
 		pci_read_config_word(chip->pci, pci_saved_regs_index[i],
 				      chip->saved_dsxg_pci_regs + i);
 
@@ -2249,7 +2252,10 @@ static int snd_ymfpci_resume(struct device *dev)
 	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_ymfpci *chip = card->private_data;
-	unsigned int i;
+	unsigned int i, legacy_reg_count = DSXG_PCI_NUM_SAVED_LEGACY_REGS;
+
+	if (chip->pci->device >= 0x0010) /* YMF 744/754 */
+		legacy_reg_count = DSXG_PCI_NUM_SAVED_REGS;
 
 	snd_ymfpci_aclink_reset(pci);
 	snd_ymfpci_codec_ready(chip, 0);
@@ -2261,7 +2267,7 @@ static int snd_ymfpci_resume(struct device *dev)
 
 	snd_ac97_resume(chip->ac97);
 
-	for (i = 0; i < DSXG_PCI_NUM_SAVED_REGS; i++)
+	for (i = 0; i < legacy_reg_count; i++)
 		pci_write_config_word(chip->pci, pci_saved_regs_index[i],
 				      chip->saved_dsxg_pci_regs[i]);
 

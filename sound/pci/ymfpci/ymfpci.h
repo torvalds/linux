@@ -298,10 +298,18 @@ static const int saved_regs_index[] = {
 #define YDSXGR_NUM_SAVED_REGS	ARRAY_SIZE(saved_regs_index)
 
 static const int pci_saved_regs_index[] = {
+	/* All Chips */
 	PCIR_DSXG_LEGACY,
 	PCIR_DSXG_ELEGACY,
+	/* YMF 744/754 */
+	PCIR_DSXG_FMBASE,
+	PCIR_DSXG_SBBASE,
+	PCIR_DSXG_MPU401BASE,
+	PCIR_DSXG_JOYBASE,
 };
 #define DSXG_PCI_NUM_SAVED_REGS	ARRAY_SIZE(pci_saved_regs_index)
+#define DSXG_PCI_NUM_SAVED_LEGACY_REGS	2
+static_assert(DSXG_PCI_NUM_SAVED_LEGACY_REGS <= DSXG_PCI_NUM_SAVED_REGS);
 
 struct snd_ymfpci {
 	int irq;
