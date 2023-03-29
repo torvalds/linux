@@ -159,12 +159,6 @@ static void iwl_mvm_mld_mac_remove_interface(struct ieee80211_hw *hw,
 		mvm->csme_vif = NULL;
 	}
 
-	probe_data = rcu_dereference_protected(mvmvif->deflink.probe_resp_data,
-					       lockdep_is_held(&mvm->mutex));
-	RCU_INIT_POINTER(mvmvif->deflink.probe_resp_data, NULL);
-	if (probe_data)
-		kfree_rcu(probe_data, rcu_head);
-
 	if (mvm->bf_allowed_vif == mvmvif) {
 		mvm->bf_allowed_vif = NULL;
 		vif->driver_flags &= ~(IEEE80211_VIF_BEACON_FILTER |
@@ -206,6 +200,12 @@ static void iwl_mvm_mld_mac_remove_interface(struct ieee80211_hw *hw,
 	iwl_mvm_mld_mac_ctxt_remove(mvm, vif);
 
 	RCU_INIT_POINTER(mvm->vif_id_to_mac[mvmvif->id], NULL);
+
+	probe_data = rcu_dereference_protected(mvmvif->deflink.probe_resp_data,
+					       lockdep_is_held(&mvm->mutex));
+	RCU_INIT_POINTER(mvmvif->deflink.probe_resp_data, NULL);
+	if (probe_data)
+		kfree_rcu(probe_data, rcu_head);
 
 	if (vif->type == NL80211_IFTYPE_MONITOR) {
 		mvm->monitor_on = false;
