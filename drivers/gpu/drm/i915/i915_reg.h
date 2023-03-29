@@ -3360,6 +3360,7 @@
 #define   CUR_FBC_EN			REG_BIT(31)
 #define   CUR_FBC_HEIGHT_MASK		REG_GENMASK(7, 0)
 #define   CUR_FBC_HEIGHT(h)		REG_FIELD_PREP(CUR_FBC_HEIGHT_MASK, (h))
+#define _CUR_CHICKEN_A		0x700a4 /* mtl+ */
 #define _CURASURFLIVE		0x700ac /* g4x+ */
 #define _CURBCNTR		0x700c0
 #define _CURBBASE		0x700c4
@@ -3374,6 +3375,7 @@
 #define CURPOS(pipe) _MMIO_CURSOR2(pipe, _CURAPOS)
 #define CURSIZE(pipe) _MMIO_CURSOR2(pipe, _CURASIZE)
 #define CUR_FBC_CTL(pipe) _MMIO_CURSOR2(pipe, _CUR_FBC_CTL_A)
+#define CUR_CHICKEN(pipe) _MMIO_CURSOR2(pipe, _CUR_CHICKEN_A)
 #define CURSURFLIVE(pipe) _MMIO_CURSOR2(pipe, _CURASURFLIVE)
 
 #define CURSOR_A_OFFSET 0x70080
