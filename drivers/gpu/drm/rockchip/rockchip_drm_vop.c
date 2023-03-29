@@ -3145,7 +3145,7 @@ static void vop_update_csc(struct drm_crtc *crtc)
 		s->output_mode = ROCKCHIP_OUT_MODE_P888;
 
 	if (is_uv_swap(s->bus_format, s->output_mode))
-		VOP_CTRL_SET(vop, dsp_data_swap, DSP_RB_SWAP);
+		VOP_CTRL_SET(vop, dsp_rb_swap, 1);
 	else
 		VOP_CTRL_SET(vop, dsp_data_swap, 0);
 
