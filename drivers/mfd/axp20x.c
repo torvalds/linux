@@ -119,6 +119,7 @@ static const struct regmap_access_table axp22x_volatile_table = {
 
 /* AXP288 ranges are shared with the AXP803, as they cover the same range */
 static const struct regmap_range axp288_writeable_ranges[] = {
+	regmap_reg_range(AXP288_POWER_REASON, AXP288_POWER_REASON),
 	regmap_reg_range(AXP20X_DATACACHE(0), AXP20X_IRQ6_STATE),
 	regmap_reg_range(AXP20X_DCDC_MODE, AXP288_FG_TUNE5),
 };
