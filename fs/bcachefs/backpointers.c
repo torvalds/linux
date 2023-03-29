@@ -420,7 +420,8 @@ struct bkey_s_c bch2_backpointer_get_key(struct btree_trans *trans,
 					 struct btree_iter *iter,
 					 struct bpos bucket,
 					 u64 bp_offset,
-					 struct bch_backpointer bp)
+					 struct bch_backpointer bp,
+					 unsigned iter_flags)
 {
 	struct bch_fs *c = trans->c;
 	struct bkey_s_c k;
@@ -430,7 +431,7 @@ struct bkey_s_c bch2_backpointer_get_key(struct btree_trans *trans,
 				  bp.pos,
 				  0,
 				  min(bp.level, c->btree_roots[bp.btree_id].level),
-				  0);
+				  iter_flags);
 	k = bch2_btree_iter_peek_slot(iter);
 	if (bkey_err(k)) {
 		bch2_trans_iter_exit(trans, iter);
@@ -976,7 +977,7 @@ static int check_one_backpointer(struct btree_trans *trans,
 	    bbpos_cmp(pos, end) > 0)
 		return 0;
 
-	k = bch2_backpointer_get_key(trans, &iter, bucket, *bp_offset, bp);
+	k = bch2_backpointer_get_key(trans, &iter, bucket, *bp_offset, bp, 0);
 	ret = bkey_err(k);
 	if (ret == -BCH_ERR_backpointer_to_overwritten_btree_node)
 		return 0;

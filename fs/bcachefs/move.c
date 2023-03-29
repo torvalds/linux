@@ -678,7 +678,7 @@ failed_to_evacuate:
 			break;
 
 		k = bch2_backpointer_get_key(trans, &iter,
-					     bucket, bp_offset, bp);
+					     bucket, bp_offset, bp, 0);
 		ret = bkey_err(k);
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			continue;
@@ -767,7 +767,7 @@ int __bch2_evacuate_bucket(struct btree_trans *trans,
 			unsigned i = 0;
 
 			k = bch2_backpointer_get_key(trans, &iter,
-						bucket, bp_offset, bp);
+						bucket, bp_offset, bp, 0);
 			ret = bkey_err(k);
 			if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 				continue;

@@ -925,7 +925,8 @@ static int ec_stripe_update_extent(struct btree_trans *trans,
 		return -EIO;
 	}
 
-	k = bch2_backpointer_get_key(trans, &iter, bucket, *bp_offset, bp);
+	k = bch2_backpointer_get_key(trans, &iter, bucket, *bp_offset, bp,
+				     BTREE_ITER_INTENT);
 	ret = bkey_err(k);
 	if (ret)
 		return ret;
