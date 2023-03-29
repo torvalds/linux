@@ -921,9 +921,7 @@ iwl_mvm_mld_change_vif_links(struct ieee80211_hw *hw,
 		if (added & BIT(i)) {
 			struct ieee80211_bss_conf *link_conf;
 
-			/* FIXME: allow use of sdata_dereference()? */
-			link_conf = rcu_dereference_protected(vif->link_conf[i],
-							      1);
+			link_conf = link_conf_dereference_protected(vif, i);
 			if (WARN_ON(!link_conf))
 				continue;
 

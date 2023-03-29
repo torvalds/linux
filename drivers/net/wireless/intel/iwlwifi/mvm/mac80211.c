@@ -3591,9 +3591,9 @@ static void iwl_mvm_rs_rate_init_all_links(struct iwl_mvm *mvm,
 
 	for_each_mvm_vif_valid_link(mvmvif, link_id) {
 		struct ieee80211_bss_conf *conf =
-			rcu_dereference_protected(vif->link_conf[link_id], 1);
+			link_conf_dereference_protected(vif, link_id);
 		struct ieee80211_link_sta *link_sta =
-			rcu_dereference_protected(sta->link[link_id], 1);
+			link_sta_dereference_protected(sta, link_id);
 
 		if (!conf || !link_sta || !mvmvif->link[link_id]->phy_ctxt)
 			continue;
@@ -3622,9 +3622,9 @@ static bool iwl_mvm_vif_conf_from_sta(struct iwl_mvm *mvm,
 	for_each_set_bit(i, (unsigned long *)&sta->valid_links,
 			 IEEE80211_MLD_MAX_NUM_LINKS) {
 		struct ieee80211_link_sta *link_sta =
-			rcu_dereference_protected(sta->link[i], 1);
+			link_sta_dereference_protected(sta, i);
 		struct ieee80211_bss_conf *link_conf =
-			rcu_dereference_protected(vif->link_conf[i], 1);
+			link_conf_dereference_protected(vif, i);
 
 		if (!link_conf || !link_sta)
 			continue;
@@ -3653,9 +3653,9 @@ static void iwl_mvm_vif_set_he_support(struct ieee80211_hw *hw,
 	for_each_set_bit(i, (unsigned long *)&sta->valid_links,
 			 IEEE80211_MLD_MAX_NUM_LINKS) {
 		struct ieee80211_link_sta *link_sta =
-			rcu_dereference_protected(sta->link[i], 1);
+			link_sta_dereference_protected(sta, i);
 		struct ieee80211_bss_conf *link_conf =
-			rcu_dereference_protected(vif->link_conf[i], 1);
+			link_conf_dereference_protected(vif, i);
 
 		if (!link_conf || !link_sta || !mvmvif->link[i])
 			continue;
@@ -3753,7 +3753,7 @@ iwl_mvm_sta_state_auth_to_assoc(struct ieee80211_hw *hw,
 		for_each_set_bit(i, (unsigned long *)&sta->valid_links,
 				 IEEE80211_MLD_MAX_NUM_LINKS) {
 			struct ieee80211_bss_conf *link_conf =
-				rcu_dereference_protected(vif->link_conf[i], 1);
+				link_conf_dereference_protected(vif, i);
 
 			if (WARN_ON(!link_conf))
 				return -EINVAL;

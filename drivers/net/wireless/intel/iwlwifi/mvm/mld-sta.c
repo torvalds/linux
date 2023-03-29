@@ -499,7 +499,7 @@ static int iwl_mvm_mld_alloc_sta_link(struct iwl_mvm *mvm,
 				      unsigned int link_id)
 {
 	struct ieee80211_link_sta *link_sta =
-		rcu_dereference_protected(sta->link[link_id], 1);
+		link_sta_dereference_protected(sta, link_id);
 	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_link_sta *link;
 	u32 sta_id = iwl_mvm_find_free_sta_id(mvm,
@@ -654,7 +654,7 @@ int iwl_mvm_mld_add_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	for_each_sta_active_link(vif, sta, link_sta, link_id) {
 		struct ieee80211_bss_conf *link_conf =
-			rcu_dereference_protected(vif->link_conf[link_id], 1);
+			link_conf_dereference_protected(vif, link_id);
 		struct iwl_mvm_link_sta *mvm_link_sta =
 			rcu_dereference_protected(mvm_sta->link[link_id],
 						  lockdep_is_held(&mvm->mutex));
@@ -704,7 +704,7 @@ int iwl_mvm_mld_update_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	for_each_sta_active_link(vif, sta, link_sta, link_id) {
 		struct ieee80211_bss_conf *link_conf =
-			rcu_dereference_protected(vif->link_conf[link_id], 1);
+			link_conf_dereference_protected(vif, link_id);
 		struct iwl_mvm_link_sta *mvm_link_sta =
 			rcu_dereference_protected(mvm_sta->link[link_id],
 						  lockdep_is_held(&mvm->mutex));
@@ -983,9 +983,9 @@ int iwl_mvm_mld_update_sta_links(struct iwl_mvm *mvm,
 
 	for_each_set_bit(link_id, &links_to_add, IEEE80211_MLD_MAX_NUM_LINKS) {
 		struct ieee80211_bss_conf *link_conf =
-			rcu_dereference_protected(vif->link_conf[link_id], 1);
+			link_conf_dereference_protected(vif, link_id);
 		struct ieee80211_link_sta *link_sta =
-			rcu_dereference_protected(sta->link[link_id], 1);
+			link_sta_dereference_protected(sta, link_id);
 		mvm_vif_link = mvm_vif->link[link_id];
 
 		if (WARN_ON(!mvm_vif_link || !link_conf || !link_sta ||
