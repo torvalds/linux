@@ -2220,7 +2220,6 @@ static void snd_ymfpci_free(struct snd_card *card)
 	release_firmware(chip->controller_microcode);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static const int saved_regs_index[] = {
 	/* spdif */
 	YDSXGR_SPDIFOUTCTRL,
@@ -2304,8 +2303,7 @@ static int snd_ymfpci_resume(struct device *dev)
 	return 0;
 }
 
-SIMPLE_DEV_PM_OPS(snd_ymfpci_pm, snd_ymfpci_suspend, snd_ymfpci_resume);
-#endif /* CONFIG_PM_SLEEP */
+DEFINE_SIMPLE_DEV_PM_OPS(snd_ymfpci_pm, snd_ymfpci_suspend, snd_ymfpci_resume);
 
 int snd_ymfpci_create(struct snd_card *card,
 		      struct pci_dev *pci,
@@ -2374,12 +2372,10 @@ int snd_ymfpci_create(struct snd_card *card,
 	if (err < 0)
 		return err;
 
-#ifdef CONFIG_PM_SLEEP
 	chip->saved_regs = devm_kmalloc_array(&pci->dev, YDSXGR_NUM_SAVED_REGS,
 					      sizeof(u32), GFP_KERNEL);
 	if (!chip->saved_regs)
 		return -ENOMEM;
-#endif
 
 	snd_ymfpci_proc_init(card, chip);
 

@@ -345,12 +345,10 @@ struct snd_ymfpci {
 	const struct firmware *dsp_microcode;
 	const struct firmware *controller_microcode;
 
-#ifdef CONFIG_PM_SLEEP
 	u32 *saved_regs;
 	u32 saved_ydsxgr_mode;
 	u16 saved_dsxg_legacy;
 	u16 saved_dsxg_elegacy;
-#endif
 };
 
 int snd_ymfpci_create(struct snd_card *card,

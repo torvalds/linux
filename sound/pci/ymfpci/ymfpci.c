@@ -352,11 +352,9 @@ static struct pci_driver ymfpci_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_ymfpci_ids,
 	.probe = snd_card_ymfpci_probe,
-#ifdef CONFIG_PM_SLEEP
 	.driver = {
-		.pm = &snd_ymfpci_pm,
+		.pm = pm_sleep_ptr(&snd_ymfpci_pm),
 	},
-#endif
 };
 
 module_pci_driver(ymfpci_driver);
