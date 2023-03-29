@@ -291,17 +291,28 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	ieee80211_hw_set(hw, SUPPORTS_PS);
 	ieee80211_hw_set(hw, SUPPORTS_DYNAMIC_PS);
 	ieee80211_hw_set(hw, AMPDU_AGGREGATION);
-	ieee80211_hw_set(hw, TIMING_BEACON_ONLY);
 	ieee80211_hw_set(hw, CONNECTION_MONITOR);
 	ieee80211_hw_set(hw, CHANCTX_STA_CSA);
 	ieee80211_hw_set(hw, SUPPORT_FAST_XMIT);
 	ieee80211_hw_set(hw, SUPPORTS_CLONED_SKBS);
 	ieee80211_hw_set(hw, SUPPORTS_AMSDU_IN_AMPDU);
 	ieee80211_hw_set(hw, NEEDS_UNIQUE_STA_ADDR);
-	ieee80211_hw_set(hw, DEAUTH_NEED_MGD_TX_PREP);
 	ieee80211_hw_set(hw, SUPPORTS_VHT_EXT_NSS_BW);
 	ieee80211_hw_set(hw, BUFF_MMPDU_TXQ);
 	ieee80211_hw_set(hw, STA_MMPDU_TXQ);
+
+	/* With MLD FW API, it tracks timing by itself,
+	 * no need for any timing from the host
+	 */
+	if (!mvm->mld_api_is_used)
+		ieee80211_hw_set(hw, TIMING_BEACON_ONLY);
+
+	/* We should probably have this, but mac80211
+	 * currently doesn't support it for MLO.
+	 */
+	if (!(hw->wiphy->flags & WIPHY_FLAG_SUPPORTS_MLO))
+		ieee80211_hw_set(hw, DEAUTH_NEED_MGD_TX_PREP);
+
 	/*
 	 * On older devices, enabling TX A-MSDU occasionally leads to
 	 * something getting messed up, the command read from the FIFO
