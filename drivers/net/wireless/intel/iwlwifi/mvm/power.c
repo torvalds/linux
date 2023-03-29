@@ -279,18 +279,24 @@ static bool iwl_mvm_power_allow_uapsd(struct iwl_mvm *mvm,
 static bool iwl_mvm_power_is_radar(struct ieee80211_vif *vif)
 {
 	struct ieee80211_chanctx_conf *chanctx_conf;
-	struct ieee80211_channel *chan;
+	struct ieee80211_bss_conf *link_conf;
 	bool radar_detect = false;
+	unsigned int link_id;
 
 	rcu_read_lock();
-	chanctx_conf = rcu_dereference(vif->bss_conf.chanctx_conf);
-	WARN_ON(!chanctx_conf);
-	if (chanctx_conf) {
-		chan = chanctx_conf->def.chan;
-		radar_detect = chan->flags & IEEE80211_CHAN_RADAR;
-	}
-	rcu_read_unlock();
+	for_each_vif_active_link(vif, link_conf, link_id) {
+		chanctx_conf = rcu_dereference(link_conf->chanctx_conf);
+		if (WARN_ON(!chanctx_conf))
+			continue;
 
+		radar_detect = !!(chanctx_conf->def.chan->flags &
+				  IEEE80211_CHAN_RADAR);
+		if (radar_detect)
+			goto out;
+	}
+
+out:
+	rcu_read_unlock();
 	return radar_detect;
 }
 
