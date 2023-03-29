@@ -3657,7 +3657,7 @@ static void iwl_mvm_vif_set_he_support(struct ieee80211_hw *hw,
 		struct ieee80211_bss_conf *link_conf =
 			rcu_dereference_protected(vif->link_conf[i], 1);
 
-		if (!link_conf || !link_sta)
+		if (!link_conf || !link_sta || !mvmvif->link[i])
 			continue;
 
 		link_conf->he_support = link_sta->he_cap.has_he;
@@ -3757,6 +3757,8 @@ iwl_mvm_sta_state_auth_to_assoc(struct ieee80211_hw *hw,
 
 			if (WARN_ON(!link_conf))
 				return -EINVAL;
+			if (!mvmvif->link[i])
+				continue;
 
 			iwl_mvm_link_changed(mvm, vif, link_conf,
 					     LINK_CONTEXT_MODIFY_ALL &
