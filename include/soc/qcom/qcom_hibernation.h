@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __SOC_QCOM_HIBERNATION_H__
@@ -23,12 +23,13 @@
 #define WRAPPED_KEY_SIZE \
 		(AAD_WITH_PAD_LENGTH + WRAP_PAYLOAD_LENGTH + MAC_LENGTH + \
 		NONCE_LENGTH)
+#define IV_SIZE			12
 
 struct qcom_crypto_params {
 	unsigned int authsize;
 	unsigned int authslot_count;
 	unsigned char key_blob[WRAPPED_KEY_SIZE];
-	unsigned char iv[12];
+	unsigned char iv[IV_SIZE];
 	unsigned char aad[12];
 };
 

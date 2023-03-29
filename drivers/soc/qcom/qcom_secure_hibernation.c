@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -84,6 +84,7 @@ static uint8_t *authslot_start;
 static unsigned short root_swap_dev;
 static struct work_struct save_params_work;
 static struct completion write_done;
+static unsigned char iv[IV_SIZE];
 
 static void init_sg(struct scatterlist *sg, void *data, unsigned int size)
 {
@@ -102,6 +103,21 @@ static void save_auth(uint8_t *out_buf)
 static void skip_swap_map_write(void *data, bool *skip)
 {
 	*skip = true;
+}
+
+static void increment_iv(unsigned char *iv, u8 size)
+{
+	int i;
+	u16 num, carry = 1;
+
+	i = size - 1;
+	do {
+		num = (u8)iv[i];
+		num += carry;
+		iv[i] = num & 0xFF;
+		carry = (num > 0xFF) ? 1 : 0;
+		i--;
+	} while (i >= 0 && carry != 0);
 }
 
 static void encrypt_page(void *data, void *buf)
@@ -123,8 +139,10 @@ static void encrypt_page(void *data, void *buf)
 
 	ret = crypto_aead_setauthsize(tfm, AUTH_SIZE);
 	iv_size = crypto_aead_ivsize(tfm);
-	if (iv_size && first_encrypt)
+	if (iv_size && first_encrypt) {
 		get_random_bytes(params->iv, iv_size);
+		memcpy((void *)iv, params->iv, IV_SIZE);
+	}
 
 	ret = crypto_aead_setkey(tfm, key, AES256_KEY_SIZE);
 	if (ret) {
@@ -138,7 +156,8 @@ static void encrypt_page(void *data, void *buf)
 	init_sg(sg_out, temp_out_buf, PAGE_SIZE + AUTH_SIZE);
 	aead_request_set_ad(req, sizeof(params->aad));
 
-	aead_request_set_crypt(req, sg_in, sg_out, PAGE_SIZE, params->iv);
+	increment_iv(iv, IV_SIZE);
+	aead_request_set_crypt(req, sg_in, sg_out, PAGE_SIZE, iv);
 	crypto_aead_encrypt(req);
 	ret = crypto_wait_req(ret, &wait);
 	if (ret) {
