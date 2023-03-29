@@ -358,6 +358,7 @@ static struct clk_branch gpucc_sleep_clk = {
 static struct gdsc gpu_cx_gdsc = {
 	.gdscr = 0x106c,
 	.gds_hw_ctrl = 0x1540,
+	.clk_dis_wait_val = 8,
 	.pd = {
 		.name = "gpu_cx_gdsc",
 	},
