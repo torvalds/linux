@@ -359,6 +359,8 @@ extern const void *of_get_property(const struct device_node *node,
 				const char *name,
 				int *lenp);
 extern struct device_node *of_get_cpu_node(int cpu, unsigned int *thread);
+extern struct device_node *of_cpu_device_node_get(int cpu);
+extern int of_cpu_node_to_id(struct device_node *np);
 extern struct device_node *of_get_next_cpu_node(struct device_node *prev);
 extern struct device_node *of_get_cpu_state_node(struct device_node *cpu_node,
 						 int index);
@@ -437,8 +439,6 @@ const __be32 *of_prop_next_u32(struct property *prop, const __be32 *cur,
 const char *of_prop_next_string(struct property *prop, const char *cur);
 
 bool of_console_check(struct device_node *dn, char *name, int index);
-
-extern int of_cpu_node_to_id(struct device_node *np);
 
 int of_map_id(struct device_node *np, u32 id,
 	       const char *map_name, const char *map_mask_name,
@@ -632,6 +632,16 @@ static inline struct device_node *of_get_cpu_node(int cpu,
 					unsigned int *thread)
 {
 	return NULL;
+}
+
+static inline struct device_node *of_cpu_device_node_get(int cpu)
+{
+	return NULL;
+}
+
+static inline int of_cpu_node_to_id(struct device_node *np)
+{
+	return -ENODEV;
 }
 
 static inline struct device_node *of_get_next_cpu_node(struct device_node *prev)
@@ -834,11 +844,6 @@ static inline void of_property_set_flag(struct property *p, unsigned long flag)
 
 static inline void of_property_clear_flag(struct property *p, unsigned long flag)
 {
-}
-
-static inline int of_cpu_node_to_id(struct device_node *np)
-{
-	return -ENODEV;
 }
 
 static inline int of_map_id(struct device_node *np, u32 id,
