@@ -1025,16 +1025,25 @@ fsck_err:
 
 static int bch2_fs_initialize_subvolumes(struct bch_fs *c)
 {
-	struct bkey_i_snapshot	root_snapshot;
-	struct bkey_i_subvolume root_volume;
+	struct bkey_i_snapshot_tree	root_tree;
+	struct bkey_i_snapshot		root_snapshot;
+	struct bkey_i_subvolume		root_volume;
 	int ret;
+
+	bkey_snapshot_tree_init(&root_tree.k_i);
+	root_tree.k.p.offset		= 1;
+	root_tree.v.master_subvol	= cpu_to_le32(1);
+	root_tree.v.root_snapshot	= cpu_to_le32(U32_MAX);
+	ret = bch2_btree_insert(c, BTREE_ID_snapshot_trees,
+				&root_tree.k_i,
+				NULL, NULL, 0);
 
 	bkey_snapshot_init(&root_snapshot.k_i);
 	root_snapshot.k.p.offset = U32_MAX;
 	root_snapshot.v.flags	= 0;
 	root_snapshot.v.parent	= 0;
 	root_snapshot.v.subvol	= BCACHEFS_ROOT_SUBVOL;
-	root_snapshot.v.pad	= 0;
+	root_snapshot.v.tree	= cpu_to_le32(1);
 	SET_BCH_SNAPSHOT_SUBVOL(&root_snapshot.v, true);
 
 	ret = bch2_btree_insert(c, BTREE_ID_snapshots,
@@ -1135,8 +1144,12 @@ int bch2_fs_recovery(struct bch_fs *c)
 	}
 
 	if (!c->opts.nochanges) {
-		if (c->sb.version < bcachefs_metadata_version_no_bps_in_alloc_keys) {
-			bch_info(c, "version prior to no_bps_in_alloc_keys, upgrade and fsck required");
+		if (c->sb.version < bcachefs_metadata_required_upgrade_below) {
+			bch_info(c, "version %s (%u) prior to %s (%u), upgrade and fsck required",
+				 bch2_metadata_versions[c->sb.version],
+				 c->sb.version,
+				 bch2_metadata_versions[bcachefs_metadata_required_upgrade_below],
+				 bcachefs_metadata_required_upgrade_below);
 			c->opts.version_upgrade	= true;
 			c->opts.fsck		= true;
 			c->opts.fix_errors	= FSCK_OPT_YES;

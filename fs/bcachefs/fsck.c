@@ -2427,7 +2427,8 @@ int bch2_fsck_full(struct bch_fs *c)
 {
 	int ret;
 again:
-	ret =   bch2_fs_check_snapshots(c) ?:
+	ret =   bch2_fs_check_snapshot_trees(c);
+		bch2_fs_check_snapshots(c) ?:
 		bch2_fs_check_subvols(c) ?:
 		bch2_delete_dead_snapshots(c) ?:
 		check_inodes(c, true) ?:

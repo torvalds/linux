@@ -10,6 +10,7 @@ struct snapshot_t {
 	u32			parent;
 	u32			children[2];
 	u32			subvol; /* Nonzero only if a subvolume points to this node: */
+	u32			tree;
 	u32			equiv;
 };
 

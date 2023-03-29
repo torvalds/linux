@@ -364,7 +364,8 @@ static inline void bkey_init(struct bkey *k)
 	x(alloc_v4,		27)			\
 	x(backpointer,		28)			\
 	x(inode_v3,		29)			\
-	x(bucket_gens,		30)
+	x(bucket_gens,		30)			\
+	x(snapshot_tree,	31)
 
 enum bch_bkey_type {
 #define x(name, nr) KEY_TYPE_##name	= nr,
@@ -1123,13 +1124,26 @@ struct bch_snapshot {
 	__le32			parent;
 	__le32			children[2];
 	__le32			subvol;
-	__le32			pad;
+	__le32			tree;
 };
 
 LE32_BITMASK(BCH_SNAPSHOT_DELETED,	struct bch_snapshot, flags,  0,  1)
 
 /* True if a subvolume points to this snapshot node: */
 LE32_BITMASK(BCH_SNAPSHOT_SUBVOL,	struct bch_snapshot, flags,  1,  2)
+
+/*
+ * Snapshot trees:
+ *
+ * The snapshot_trees btree gives us persistent indentifier for each tree of
+ * bch_snapshot nodes, and allow us to record and easily find the root/master
+ * subvolume that other snapshots were created from:
+ */
+struct bch_snapshot_tree {
+	struct bch_val		v;
+	__le32			master_subvol;
+	__le32			root_snapshot;
+};
 
 /* LRU btree: */
 
@@ -1559,7 +1573,8 @@ struct bch_sb_field_journal_seq_blacklist {
 	x(bucket_gens,			25)		\
 	x(lru_v2,			26)		\
 	x(fragmentation_lru,		27)		\
-	x(no_bps_in_alloc_keys,		28)
+	x(no_bps_in_alloc_keys,		28)		\
+	x(snapshot_trees,		29)
 
 enum bcachefs_metadata_version {
 	bcachefs_metadata_version_min = 9,
@@ -1568,6 +1583,8 @@ enum bcachefs_metadata_version {
 #undef x
 	bcachefs_metadata_version_max
 };
+
+static const unsigned bcachefs_metadata_required_upgrade_below = bcachefs_metadata_version_snapshot_trees;
 
 #define bcachefs_metadata_version_current	(bcachefs_metadata_version_max - 1)
 
@@ -2095,7 +2112,8 @@ LE32_BITMASK(JSET_NO_FLUSH,	struct jset, flags, 5, 6);
 	x(freespace,		11)		\
 	x(need_discard,		12)		\
 	x(backpointers,		13)		\
-	x(bucket_gens,		14)
+	x(bucket_gens,		14)		\
+	x(snapshot_trees,	15)
 
 enum btree_id {
 #define x(kwd, val) BTREE_ID_##kwd = val,

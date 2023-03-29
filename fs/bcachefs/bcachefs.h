@@ -445,6 +445,7 @@ enum gc_phase {
 	GC_PHASE_BTREE_need_discard,
 	GC_PHASE_BTREE_backpointers,
 	GC_PHASE_BTREE_bucket_gens,
+	GC_PHASE_BTREE_snapshot_trees,
 
 	GC_PHASE_PENDING_DELETE,
 };

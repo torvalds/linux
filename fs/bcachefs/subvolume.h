@@ -5,6 +5,16 @@
 #include "darray.h"
 #include "subvolume_types.h"
 
+void bch2_snapshot_tree_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
+int bch2_snapshot_tree_invalid(const struct bch_fs *, struct bkey_s_c,
+			       unsigned, struct printbuf *);
+
+#define bch2_bkey_ops_snapshot_tree ((struct bkey_ops) {	\
+	.key_invalid	= bch2_snapshot_tree_invalid,		\
+	.val_to_text	= bch2_snapshot_tree_to_text,		\
+	.min_val_size	= 8,					\
+})
+
 void bch2_snapshot_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 int bch2_snapshot_invalid(const struct bch_fs *, struct bkey_s_c,
 			  unsigned, struct printbuf *);
@@ -26,6 +36,15 @@ static inline struct snapshot_t *snapshot_t(struct bch_fs *c, u32 id)
 static inline u32 bch2_snapshot_parent(struct bch_fs *c, u32 id)
 {
 	return snapshot_t(c, id)->parent;
+}
+
+static inline u32 bch2_snapshot_root(struct bch_fs *c, u32 id)
+{
+	u32 parent;
+
+	while ((parent = bch2_snapshot_parent(c, id)))
+		id = parent;
+	return id;
 }
 
 static inline u32 bch2_snapshot_equiv(struct bch_fs *c, u32 id)
@@ -107,6 +126,7 @@ static inline int snapshot_list_add(struct bch_fs *c, snapshot_id_list *s, u32 i
 	return ret;
 }
 
+int bch2_fs_check_snapshot_trees(struct bch_fs *);
 int bch2_fs_check_snapshots(struct bch_fs *);
 int bch2_fs_check_subvols(struct bch_fs *);
 
