@@ -371,6 +371,7 @@ extern int of_n_addr_cells(struct device_node *np);
 extern int of_n_size_cells(struct device_node *np);
 extern const struct of_device_id *of_match_node(
 	const struct of_device_id *matches, const struct device_node *node);
+extern const void *of_device_get_match_data(const struct device *dev);
 extern int of_modalias_node(struct device_node *node, char *modalias, int len);
 extern void of_print_phandle_args(const char *msg, const struct of_phandle_args *args);
 extern int __of_parse_phandle_with_args(const struct device_node *np,
@@ -850,6 +851,11 @@ static inline int of_map_id(struct device_node *np, u32 id,
 static inline phys_addr_t of_dma_get_max_cpu_address(struct device_node *np)
 {
 	return PHYS_ADDR_MAX;
+}
+
+static inline const void *of_device_get_match_data(const struct device *dev)
+{
+	return NULL;
 }
 
 #define of_match_ptr(_ptr)	NULL
