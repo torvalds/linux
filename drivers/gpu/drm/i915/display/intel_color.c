@@ -611,6 +611,41 @@ static void chv_load_cgm_csc(struct intel_crtc *crtc,
 			  csc->coeff[8]);
 }
 
+static void chv_read_cgm_csc(struct intel_crtc *crtc,
+			     struct intel_csc_matrix *csc)
+{
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+	u32 tmp;
+
+	tmp = intel_de_read_fw(i915, CGM_PIPE_CSC_COEFF01(pipe));
+	csc->coeff[0] = tmp & 0xffff;
+	csc->coeff[1] = tmp >> 16;
+
+	tmp = intel_de_read_fw(i915, CGM_PIPE_CSC_COEFF23(pipe));
+	csc->coeff[2] = tmp & 0xffff;
+	csc->coeff[3] = tmp >> 16;
+
+	tmp = intel_de_read_fw(i915, CGM_PIPE_CSC_COEFF45(pipe));
+	csc->coeff[4] = tmp & 0xffff;
+	csc->coeff[5] = tmp >> 16;
+
+	tmp = intel_de_read_fw(i915, CGM_PIPE_CSC_COEFF67(pipe));
+	csc->coeff[6] = tmp & 0xffff;
+	csc->coeff[7] = tmp >> 16;
+
+	tmp = intel_de_read_fw(i915, CGM_PIPE_CSC_COEFF8(pipe));
+	csc->coeff[8] = tmp & 0xffff;
+}
+
+static void chv_read_csc(struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+
+	if (crtc_state->cgm_mode & CGM_PIPE_MODE_CSC)
+		chv_read_cgm_csc(crtc, &crtc_state->csc);
+}
+
 static void chv_assign_csc(struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
@@ -3328,6 +3363,7 @@ static const struct intel_color_funcs chv_color_funcs = {
 	.load_luts = chv_load_luts,
 	.read_luts = chv_read_luts,
 	.lut_equal = chv_lut_equal,
+	.read_csc = chv_read_csc,
 };
 
 static const struct intel_color_funcs i965_color_funcs = {
