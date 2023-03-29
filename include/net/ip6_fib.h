@@ -469,13 +469,10 @@ void rt6_get_prefsrc(const struct rt6_info *rt, struct in6_addr *addr)
 	rcu_read_lock();
 
 	from = rcu_dereference(rt->from);
-	if (from) {
+	if (from)
 		*addr = from->fib6_prefsrc.addr;
-	} else {
-		struct in6_addr in6_zero = {};
-
-		*addr = in6_zero;
-	}
+	else
+		*addr = in6addr_any;
 
 	rcu_read_unlock();
 }
