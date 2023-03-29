@@ -2214,7 +2214,7 @@ static void snd_ymfpci_free(struct snd_card *card)
 
 	snd_ymfpci_free_gameport(chip);
 	
-	pci_write_config_word(chip->pci, 0x40, chip->old_legacy_ctrl);
+	pci_write_config_word(chip->pci, PCIR_DSXG_LEGACY, chip->old_legacy_ctrl);
 	
 	release_firmware(chip->dsp_microcode);
 	release_firmware(chip->controller_microcode);
