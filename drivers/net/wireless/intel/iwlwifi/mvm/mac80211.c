@@ -2699,7 +2699,8 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 			if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART,
 				      &mvm->status)) {
 				/* first remove remaining keys */
-				iwl_mvm_sec_key_remove_ap(mvm, vif);
+				iwl_mvm_sec_key_remove_ap(mvm, vif,
+							  &mvmvif->deflink);
 
 				/*
 				 * Remove AP station now that

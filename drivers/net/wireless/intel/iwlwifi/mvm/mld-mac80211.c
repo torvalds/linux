@@ -538,14 +538,13 @@ static void iwl_mvm_mld_vif_delete_all_stas(struct iwl_mvm *mvm,
 	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
 		return;
 
-	iwl_mvm_sec_key_remove_ap(mvm, vif);
-
 	for_each_mvm_vif_valid_link(mvmvif, i) {
 		struct iwl_mvm_vif_link_info *link = mvmvif->link[i];
 
 		if (!link)
 			continue;
 
+		iwl_mvm_sec_key_remove_ap(mvm, vif, link);
 		ret = iwl_mvm_mld_rm_sta_id(mvm, vif, link->ap_sta_id);
 		if (ret)
 			IWL_ERR(mvm, "failed to remove AP station\n");
