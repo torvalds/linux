@@ -21,7 +21,7 @@ static bool __reserve_if_idle(struct rxe_task *task)
 {
 	WARN_ON(rxe_read(task->qp) <= 0);
 
-	if (task->tasklet.state & TASKLET_STATE_SCHED)
+	if (task->tasklet.state & BIT(TASKLET_STATE_SCHED))
 		return false;
 
 	if (task->state == TASK_STATE_IDLE) {
@@ -46,7 +46,7 @@ static bool __reserve_if_idle(struct rxe_task *task)
  */
 static bool __is_done(struct rxe_task *task)
 {
-	if (task->tasklet.state & TASKLET_STATE_SCHED)
+	if (task->tasklet.state & BIT(TASKLET_STATE_SCHED))
 		return false;
 
 	if (task->state == TASK_STATE_IDLE ||
