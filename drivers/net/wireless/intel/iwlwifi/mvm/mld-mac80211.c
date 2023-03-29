@@ -231,6 +231,18 @@ __iwl_mvm_mld_assign_vif_chanctx(struct iwl_mvm *mvm,
 	if (WARN_ON_ONCE(!mvmvif->link[link_id]))
 		return -EINVAL;
 
+	/* mac parameters such as HE support can change at this stage
+	 * For sta, need first to configure correct state from drv_sta_state
+	 * and only after that update mac config.
+	 */
+	if (vif->type == NL80211_IFTYPE_AP) {
+		ret = iwl_mvm_mld_mac_ctxt_changed(mvm, vif, false);
+		if (ret) {
+			IWL_ERR(mvm, "failed to update MAC %pM\n", vif->addr);
+			return -EINVAL;
+		}
+	}
+
 	mvmvif->link[link_id]->phy_ctxt = phy_ctxt;
 
 	if (switching_chanctx) {
