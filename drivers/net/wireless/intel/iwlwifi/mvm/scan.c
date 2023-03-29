@@ -2677,11 +2677,23 @@ static void iwl_mvm_scan_respect_p2p_go_iter(void *_data, u8 *mac,
 	if (vif == data->current_vif)
 		return;
 
-	if (vif->type == NL80211_IFTYPE_AP && vif->p2p &&
-	    mvmvif->deflink.phy_ctxt->id < NUM_PHY_CTX &&
-	    (data->band == NUM_NL80211_BANDS ||
-	     mvmvif->deflink.phy_ctxt->channel->band == data->band))
-		data->p2p_go = true;
+	if (vif->type == NL80211_IFTYPE_AP && vif->p2p) {
+		u32 link_id;
+
+		for (link_id = 0;
+		     link_id < ARRAY_SIZE(mvmvif->link);
+		     link_id++) {
+			struct iwl_mvm_vif_link_info *link =
+				mvmvif->link[link_id];
+
+			if (link && link->phy_ctxt->id < NUM_PHY_CTX &&
+			    (data->band == NUM_NL80211_BANDS ||
+			     link->phy_ctxt->channel->band == data->band)) {
+				data->p2p_go = true;
+				break;
+			}
+		}
+	}
 }
 
 static bool _iwl_mvm_get_respect_p2p_go(struct iwl_mvm *mvm,
