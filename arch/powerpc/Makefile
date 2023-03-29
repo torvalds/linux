@@ -247,89 +247,92 @@ bootwrapper_install:
 	$(Q)$(MAKE) $(build)=$(boot) $(patsubst %,$(boot)/%,$@)
 
 include $(srctree)/scripts/Makefile.defconf
-PHONY += pseries_le_defconfig
+
+generated_configs += pseries_le_defconfig
 pseries_le_defconfig:
 	$(call merge_into_defconfig,pseries_defconfig,le)
 
-PHONY += ppc64le_defconfig
+generated_configs += ppc64le_defconfig
 ppc64le_defconfig:
 	$(call merge_into_defconfig,ppc64_defconfig,le)
 
-PHONY += ppc64le_guest_defconfig
+generated_configs += ppc64le_guest_defconfig
 ppc64le_guest_defconfig:
 	$(call merge_into_defconfig,ppc64_defconfig,le guest)
 
-PHONY += ppc64_guest_defconfig
+generated_configs += ppc64_guest_defconfig
 ppc64_guest_defconfig:
 	$(call merge_into_defconfig,ppc64_defconfig,be guest)
 
-PHONY += powernv_be_defconfig
+generated_configs += powernv_be_defconfig
 powernv_be_defconfig:
 	$(call merge_into_defconfig,powernv_defconfig,be)
 
-PHONY += mpc85xx_defconfig
+generated_configs += mpc85xx_defconfig
 mpc85xx_defconfig:
 	$(call merge_into_defconfig,mpc85xx_base.config,\
 		85xx-32bit 85xx-hw fsl-emb-nonhw)
 
-PHONY += mpc85xx_smp_defconfig
+generated_configs += mpc85xx_smp_defconfig
 mpc85xx_smp_defconfig:
 	$(call merge_into_defconfig,mpc85xx_base.config,\
 		85xx-32bit 85xx-smp 85xx-hw fsl-emb-nonhw)
 
-PHONY += corenet32_smp_defconfig
+generated_configs += corenet32_smp_defconfig
 corenet32_smp_defconfig:
 	$(call merge_into_defconfig,corenet_base.config,\
 		85xx-32bit 85xx-smp 85xx-hw fsl-emb-nonhw dpaa)
 
-PHONY += corenet64_smp_defconfig
+generated_configs += corenet64_smp_defconfig
 corenet64_smp_defconfig:
 	$(call merge_into_defconfig,corenet_base.config,\
 		85xx-64bit 85xx-smp altivec 85xx-hw fsl-emb-nonhw dpaa)
 
-PHONY += mpc86xx_defconfig
+generated_configs += mpc86xx_defconfig
 mpc86xx_defconfig:
 	$(call merge_into_defconfig,mpc86xx_base.config,\
 		86xx-hw fsl-emb-nonhw)
 
-PHONY += mpc86xx_smp_defconfig
+generated_configs += mpc86xx_smp_defconfig
 mpc86xx_smp_defconfig:
 	$(call merge_into_defconfig,mpc86xx_base.config,\
 		86xx-smp 86xx-hw fsl-emb-nonhw)
 
-PHONY += ppc32_allmodconfig
+generated_configs += ppc32_allmodconfig
 ppc32_allmodconfig:
 	$(Q)$(MAKE) KCONFIG_ALLCONFIG=$(srctree)/arch/powerpc/configs/book3s_32.config \
 		-f $(srctree)/Makefile allmodconfig
 
-PHONY += ppc_defconfig
+generated_configs += ppc_defconfig
 ppc_defconfig:
 	$(call merge_into_defconfig,book3s_32.config,)
 
-PHONY += ppc64le_allmodconfig
+generated_configs += ppc64le_allmodconfig
 ppc64le_allmodconfig:
 	$(Q)$(MAKE) KCONFIG_ALLCONFIG=$(srctree)/arch/powerpc/configs/le.config \
 		-f $(srctree)/Makefile allmodconfig
 
-PHONY += ppc64le_allnoconfig
+generated_configs += ppc64le_allnoconfig
 ppc64le_allnoconfig:
 	$(Q)$(MAKE) KCONFIG_ALLCONFIG=$(srctree)/arch/powerpc/configs/ppc64le.config \
 		-f $(srctree)/Makefile allnoconfig
 
-PHONY += ppc64_book3e_allmodconfig
+generated_configs += ppc64_book3e_allmodconfig
 ppc64_book3e_allmodconfig:
 	$(Q)$(MAKE) KCONFIG_ALLCONFIG=$(srctree)/arch/powerpc/configs/85xx-64bit.config \
 		-f $(srctree)/Makefile allmodconfig
 
-PHONY += ppc32_randconfig
+generated_configs += ppc32_randconfig
 ppc32_randconfig:
 	$(Q)$(MAKE) KCONFIG_ALLCONFIG=$(srctree)/arch/powerpc/configs/32-bit.config \
 		-f $(srctree)/Makefile randconfig
 
-PHONY += ppc64_randconfig
+generated_configs += ppc64_randconfig
 ppc64_randconfig:
 	$(Q)$(MAKE) KCONFIG_ALLCONFIG=$(srctree)/arch/powerpc/configs/64-bit.config \
 		-f $(srctree)/Makefile randconfig
+
+PHONY += $(generated_configs)
 
 define archhelp
   echo '* zImage          - Build default images selected by kernel config'
@@ -351,6 +354,9 @@ define archhelp
   echo '  support passing a device tree directly.  Replace <dt> with the'
   echo '  name of a dts file from the arch/$(ARCH)/boot/dts/ directory'
   echo '  (minus the .dts extension).'
+  echo
+  $(foreach cfg,$(generated_configs),
+    printf "  %-27s - Build for %s\\n" $(cfg) $(subst _defconfig,,$(cfg));)
 endef
 
 PHONY += install
