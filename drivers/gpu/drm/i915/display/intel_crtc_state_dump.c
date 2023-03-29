@@ -158,6 +158,45 @@ static void intel_dump_plane_state(const struct intel_plane_state *plane_state)
 			    DRM_RECT_ARG(&plane_state->uapi.dst));
 }
 
+static void
+ilk_dump_csc(struct drm_i915_private *i915, const char *name,
+	     const struct intel_csc_matrix *csc)
+{
+	int i;
+
+	drm_dbg_kms(&i915->drm,
+		    "%s: pre offsets: 0x%04x 0x%04x 0x%04x\n", name,
+		    csc->preoff[0], csc->preoff[1], csc->preoff[2]);
+
+	for (i = 0; i < 3; i++)
+		drm_dbg_kms(&i915->drm,
+			    "%s: coefficients: 0x%04x 0x%04x 0x%04x\n", name,
+			    csc->coeff[3 * i + 0],
+			    csc->coeff[3 * i + 1],
+			    csc->coeff[3 * i + 2]);
+
+	if (DISPLAY_VER(i915) < 7)
+		return;
+
+	drm_dbg_kms(&i915->drm,
+		    "%s: post offsets: 0x%04x 0x%04x 0x%04x\n", name,
+		    csc->postoff[0], csc->postoff[1], csc->postoff[2]);
+}
+
+static void
+chv_dump_csc(struct drm_i915_private *i915, const char *name,
+	     const struct intel_csc_matrix *csc)
+{
+	int i;
+
+	for (i = 0; i < 3; i++)
+		drm_dbg_kms(&i915->drm,
+			    "%s: coefficients: 0x%04x 0x%04x 0x%04x\n", name,
+			    csc->coeff[3 * i + 0],
+			    csc->coeff[3 * i + 1],
+			    csc->coeff[3 * i + 2]);
+}
+
 void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 			   struct intel_atomic_state *state,
 			   const char *context)
@@ -324,6 +363,14 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 		    drm_color_lut_size(pipe_config->pre_csc_lut) : 0,
 		    pipe_config->post_csc_lut ?
 		    drm_color_lut_size(pipe_config->post_csc_lut) : 0);
+
+	if (DISPLAY_VER(i915) >= 11)
+		ilk_dump_csc(i915, "output csc", &pipe_config->output_csc);
+
+	if (!HAS_GMCH(i915))
+		ilk_dump_csc(i915, "pipe csc", &pipe_config->csc);
+	else if (IS_CHERRYVIEW(i915))
+		chv_dump_csc(i915, "cgm csc", &pipe_config->csc);
 
 dump_planes:
 	if (!state)
