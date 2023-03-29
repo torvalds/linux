@@ -1138,6 +1138,16 @@ static void mes_v11_0_kiq_setting(struct amdgpu_ring *ring)
 	WREG32_SOC15(GC, 0, regRLC_CP_SCHEDULERS, tmp);
 }
 
+static void mes_v11_0_kiq_clear(struct amdgpu_device *adev)
+{
+	uint32_t tmp;
+
+	/* tell RLC which is KIQ dequeue */
+	tmp = RREG32_SOC15(GC, 0, regRLC_CP_SCHEDULERS);
+	tmp &= ~RLC_CP_SCHEDULERS__scheduler0_MASK;
+	WREG32_SOC15(GC, 0, regRLC_CP_SCHEDULERS, tmp);
+}
+
 static int mes_v11_0_kiq_hw_init(struct amdgpu_device *adev)
 {
 	int r = 0;
@@ -1182,10 +1192,10 @@ static int mes_v11_0_kiq_hw_fini(struct amdgpu_device *adev)
 
 	if (amdgpu_sriov_vf(adev)) {
 		mes_v11_0_kiq_dequeue(&adev->gfx.kiq.ring);
+		mes_v11_0_kiq_clear(adev);
 	}
 
-	if (!amdgpu_sriov_vf(adev))
-		mes_v11_0_enable(adev, false);
+	mes_v11_0_enable(adev, false);
 
 	return 0;
 }
