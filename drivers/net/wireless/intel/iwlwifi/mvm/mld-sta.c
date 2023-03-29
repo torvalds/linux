@@ -472,6 +472,7 @@ static void iwl_mvm_mld_sta_rm_all_sta_links(struct iwl_mvm *mvm,
 			continue;
 
 		RCU_INIT_POINTER(mvm->fw_id_to_mac_id[link->sta_id], NULL);
+		RCU_INIT_POINTER(mvm->fw_id_to_link_sta[link->sta_id], NULL);
 		RCU_INIT_POINTER(mvm_sta->link[link_id], NULL);
 
 		if (link != &mvm_sta->deflink)
@@ -485,6 +486,7 @@ static void iwl_mvm_mld_free_sta_link(struct iwl_mvm *mvm,
 				      unsigned int link_id)
 {
 	RCU_INIT_POINTER(mvm->fw_id_to_mac_id[mvm_sta_link->sta_id], NULL);
+	RCU_INIT_POINTER(mvm->fw_id_to_link_sta[mvm_sta_link->sta_id], NULL);
 	RCU_INIT_POINTER(mvm_sta->link[link_id], NULL);
 
 	if (mvm_sta_link != &mvm_sta->deflink)
@@ -496,6 +498,8 @@ static int iwl_mvm_mld_alloc_sta_link(struct iwl_mvm *mvm,
 				      struct ieee80211_sta *sta,
 				      unsigned int link_id)
 {
+	struct ieee80211_link_sta *link_sta =
+		rcu_dereference_protected(sta->link[link_id], 1);
 	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_link_sta *link;
 	u32 sta_id = iwl_mvm_find_free_sta_id(mvm,
@@ -515,6 +519,8 @@ static int iwl_mvm_mld_alloc_sta_link(struct iwl_mvm *mvm,
 	link->sta_id = sta_id;
 	rcu_assign_pointer(mvm_sta->link[link_id], link);
 	rcu_assign_pointer(mvm->fw_id_to_mac_id[link->sta_id], sta);
+	rcu_assign_pointer(mvm->fw_id_to_link_sta[link->sta_id],
+			   link_sta);
 
 	return 0;
 }
@@ -604,6 +610,7 @@ static int iwl_mvm_alloc_sta_after_restart(struct iwl_mvm *mvm,
 			return ret;
 
 		rcu_assign_pointer(mvm->fw_id_to_mac_id[sta_id], sta);
+		rcu_assign_pointer(mvm->fw_id_to_link_sta[sta_id], link_sta);
 		iwl_mvm_realloc_queues_after_restart(mvm, sta);
 
 		/* since we need only one station, no need to continue */
@@ -800,6 +807,7 @@ int iwl_mvm_mld_rm_sta_id(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	lockdep_assert_held(&mvm->mutex);
 
 	RCU_INIT_POINTER(mvm->fw_id_to_mac_id[sta_id], NULL);
+	RCU_INIT_POINTER(mvm->fw_id_to_link_sta[sta_id], NULL);
 	return ret;
 }
 

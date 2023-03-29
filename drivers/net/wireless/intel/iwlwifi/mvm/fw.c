@@ -1570,8 +1570,10 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	}
 
 	/* init the fw <-> mac80211 STA mapping */
-	for (i = 0; i < mvm->fw->ucode_capa.num_stations; i++)
+	for (i = 0; i < mvm->fw->ucode_capa.num_stations; i++) {
 		RCU_INIT_POINTER(mvm->fw_id_to_mac_id[i], NULL);
+		RCU_INIT_POINTER(mvm->fw_id_to_link_sta[i], NULL);
+	}
 
 	memset(&mvm->fw_link_ids_map, 0, sizeof(mvm->fw_link_ids_map));
 
@@ -1757,8 +1759,10 @@ int iwl_mvm_load_d3_fw(struct iwl_mvm *mvm)
 		goto error;
 
 	/* init the fw <-> mac80211 STA mapping */
-	for (i = 0; i < mvm->fw->ucode_capa.num_stations; i++)
+	for (i = 0; i < mvm->fw->ucode_capa.num_stations; i++) {
 		RCU_INIT_POINTER(mvm->fw_id_to_mac_id[i], NULL);
+		RCU_INIT_POINTER(mvm->fw_id_to_link_sta[i], NULL);
+	}
 
 	if (iwl_fw_lookup_cmd_ver(mvm->fw, ADD_STA, 0) < 12) {
 		/*
