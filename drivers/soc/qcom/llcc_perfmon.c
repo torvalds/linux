@@ -50,12 +50,11 @@ struct llcc_perfmon_private;
  * @event_filter_config:	Port filter config support
  */
 struct event_port_ops {
-	bool (*event_config)(struct llcc_perfmon_private *priv,
-			unsigned int type, unsigned int *num, bool enable);
+	bool (*event_config)(struct llcc_perfmon_private *priv, unsigned int type,
+			unsigned int *num, bool enable);
 	void (*event_enable)(struct llcc_perfmon_private *priv, bool enable);
-	bool (*event_filter_config)(struct llcc_perfmon_private *priv,
-			enum filter_type filter, unsigned long long match,
-			unsigned long long mask, bool enable);
+	bool (*event_filter_config)(struct llcc_perfmon_private *priv, enum filter_type filter,
+			unsigned long long match, unsigned long long mask, bool enable);
 };
 
 enum fltr_config {
@@ -149,15 +148,14 @@ static void perfmon_counter_dump(struct llcc_perfmon_private *llcc_priv)
 		counter_map = &llcc_priv->configured[i];
 		offset = LLCC_COUNTER_n_VALUE(llcc_priv->drv_ver, i);
 		for (j = 0; j < llcc_priv->num_banks; j++) {
-			regmap_read(llcc_priv->llcc_map, llcc_priv->bank_off[j]
-					+ offset, &val);
+			regmap_read(llcc_priv->llcc_map, llcc_priv->bank_off[j] + offset, &val);
 			counter_map->counter_dump[j] += val;
 		}
 	}
 }
 
-static ssize_t perfmon_counter_dump_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t perfmon_counter_dump_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
 {
 	struct llcc_perfmon_private *llcc_priv = dev_get_drvdata(dev);
 	struct llcc_perfmon_counter_map *counter_map;
@@ -174,12 +172,10 @@ static ssize_t perfmon_counter_dump_show(struct device *dev,
 	for (i = 0; i < llcc_priv->configured_cntrs - 1; i++) {
 		total = 0;
 		counter_map = &llcc_priv->configured[i];
-		cnt += scnprintf(buf + cnt, PAGE_SIZE - cnt,
-				"Port %02d,Event %02d,",
+		cnt += scnprintf(buf + cnt, PAGE_SIZE - cnt, "Port %02d,Event %03d,",
 				counter_map->port_sel, counter_map->event_sel);
 
-		if ((counter_map->port_sel == EVENT_PORT_BEAC) &&
-				(llcc_priv->num_mc > 1)) {
+		if (counter_map->port_sel == EVENT_PORT_BEAC && llcc_priv->num_mc > 1) {
 			/* DBX uses 2 counters for BEAC 0 & 1 */
 			i++;
 			for (j = 0; j < llcc_priv->num_banks; j++) {
@@ -195,8 +191,7 @@ static ssize_t perfmon_counter_dump_show(struct device *dev,
 			}
 		}
 
-		cnt += scnprintf(buf + cnt, PAGE_SIZE - cnt, "0x%016llx\n",
-				total);
+		cnt += scnprintf(buf + cnt, PAGE_SIZE - cnt, "0x%016llx\n", total);
 	}
 
 	cnt += scnprintf(buf + cnt, PAGE_SIZE - cnt, "CYCLE COUNT, ,");
@@ -237,8 +232,7 @@ static void remove_filters(struct llcc_perfmon_private *llcc_priv)
 			filter0_applied = llcc_priv->filters_applied[i][j][FILTER_0];
 			port_ops = llcc_priv->port_ops[i];
 
-			if (!filter0_applied ||
-					!port_ops->event_filter_config)
+			if (!filter0_applied || !port_ops->event_filter_config)
 				continue;
 
 			/* Removing FILTER0 configuration if present */
@@ -271,7 +265,7 @@ static void remove_counters(struct llcc_perfmon_private *llcc_priv)
 		counter_map = &llcc_priv->configured[i];
 		port_ops = llcc_priv->port_ops[counter_map->port_sel];
 		port_ops->event_config(llcc_priv, 0, &i, false);
-		pr_info("removed counter %2d for event %2ld from port %2ld\n", i,
+		pr_info("removed counter %2d for event %3ld from port %2ld\n", i,
 				counter_map->event_sel, counter_map->port_sel);
 		if ((llcc_priv->enables_port & (1 << counter_map->port_sel)) &&
 				port_ops->event_enable)
@@ -295,8 +289,8 @@ static void remove_counters(struct llcc_perfmon_private *llcc_priv)
 	}
 }
 
-static ssize_t perfmon_configure_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t perfmon_configure_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
 {
 	struct llcc_perfmon_private *llcc_priv = dev_get_drvdata(dev);
 	struct event_port_ops *port_ops;
@@ -351,10 +345,9 @@ static ssize_t perfmon_configure_store(struct device *dev,
 
 		port_ops = llcc_priv->port_ops[port_sel];
 		port_ops->event_config(llcc_priv, event_sel, &j, true);
-		pr_info("counter %2d configured for event %2ld from port %ld\n",
-				j++, event_sel, port_sel);
-		if (((llcc_priv->enables_port & (1 << port_sel)) == 0) &&
-				(port_ops->event_enable))
+		pr_info("counter %2d configured for event %3ld from port %ld\n", j++, event_sel,
+				port_sel);
+		if (((llcc_priv->enables_port & (1 << port_sel)) == 0) && port_ops->event_enable)
 			port_ops->event_enable(llcc_priv, true);
 
 		llcc_priv->enables_port |= (1 << port_sel);
@@ -369,8 +362,8 @@ static ssize_t perfmon_configure_store(struct device *dev,
 	return count;
 }
 
-static ssize_t perfmon_remove_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t perfmon_remove_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
 {
 	struct llcc_perfmon_private *llcc_priv = dev_get_drvdata(dev);
 	struct event_port_ops *port_ops;
@@ -429,10 +422,9 @@ static ssize_t perfmon_remove_store(struct device *dev,
 		counter_map->event_sel = 0;
 		port_ops = llcc_priv->port_ops[port_sel];
 		port_ops->event_config(llcc_priv, event_sel, &j, false);
-		pr_info("removed counter %2d for event %2ld from port %2ld\n",
-				j++, event_sel, port_sel);
-		if ((llcc_priv->enables_port & (1 << port_sel)) &&
-				(port_ops->event_enable))
+		pr_info("removed counter %2d for event %3ld from port %2ld\n", j++, event_sel,
+				port_sel);
+		if ((llcc_priv->enables_port & (1 << port_sel)) && port_ops->event_enable)
 			port_ops->event_enable(llcc_priv, false);
 
 		llcc_priv->enables_port &= ~(1 << port_sel);
@@ -476,9 +468,8 @@ static enum filter_type find_filter_type(char *filter)
 	return ret;
 }
 
-static ssize_t perfmon_filter_config_store(struct device *dev,
-		struct device_attribute *attr, const char *buf,
-		size_t count)
+static ssize_t perfmon_filter_config_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
 {
 	struct llcc_perfmon_private *llcc_priv = dev_get_drvdata(dev);
 	unsigned long long mask, match;
@@ -565,8 +556,7 @@ static ssize_t perfmon_filter_config_store(struct device *dev,
 		if (port_filter_en & (1 << i)) {
 			/* Updating the applied filter information for the port */
 			llcc_priv->filters_applied[i][fil_applied][filter_idx] = fil_applied;
-			port_ops->event_filter_config(llcc_priv, fil_applied,
-					match, mask, true);
+			port_ops->event_filter_config(llcc_priv, fil_applied, match, mask, true);
 		}
 	}
 
@@ -580,8 +570,8 @@ filter_config_free:
 	return -EINVAL;
 }
 
-static ssize_t perfmon_filter_remove_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t perfmon_filter_remove_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
 {
 	struct llcc_perfmon_private *llcc_priv = dev_get_drvdata(dev);
 	struct event_port_ops *port_ops;
@@ -692,9 +682,8 @@ filter_remove_free:
 	return count;
 }
 
-static ssize_t perfmon_start_store(struct device *dev,
-		struct device_attribute *attr, const char *buf,
-		size_t count)
+static ssize_t perfmon_start_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
 {
 	struct llcc_perfmon_private *llcc_priv = dev_get_drvdata(dev);
 	uint32_t val = 0, mask_val, offset;
@@ -759,9 +748,8 @@ static ssize_t perfmon_start_store(struct device *dev,
 	return count;
 }
 
-static ssize_t perfmon_ns_periodic_dump_store(struct device *dev,
-		struct device_attribute *attr, const char *buf,
-		size_t count)
+static ssize_t perfmon_ns_periodic_dump_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
 {
 	struct llcc_perfmon_private *llcc_priv = dev_get_drvdata(dev);
 
@@ -778,15 +766,14 @@ static ssize_t perfmon_ns_periodic_dump_store(struct device *dev,
 	if (hrtimer_is_queued(&llcc_priv->hrtimer))
 		hrtimer_forward_now(&llcc_priv->hrtimer, llcc_priv->expires);
 	else
-		hrtimer_start(&llcc_priv->hrtimer, llcc_priv->expires,
-			      HRTIMER_MODE_REL_PINNED);
+		hrtimer_start(&llcc_priv->hrtimer, llcc_priv->expires, HRTIMER_MODE_REL_PINNED);
 
 	mutex_unlock(&llcc_priv->mutex);
 	return count;
 }
 
-static ssize_t perfmon_scid_status_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t perfmon_scid_status_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
 {
 	struct llcc_perfmon_private *llcc_priv = dev_get_drvdata(dev);
 	uint32_t val;
@@ -798,8 +785,7 @@ static ssize_t perfmon_scid_status_show(struct device *dev,
 		total = 0;
 		offset = TRP_SCID_n_STATUS(i);
 		for (j = 0; j < llcc_priv->num_banks; j++) {
-			regmap_read(llcc_priv->llcc_map,
-					llcc_priv->bank_off[j] + offset, &val);
+			regmap_read(llcc_priv->llcc_map, llcc_priv->bank_off[j] + offset, &val);
 			val = (val & TRP_SCID_STATUS_CURRENT_CAP_MASK) >>
 				TRP_SCID_STATUS_CURRENT_CAP_SHIFT;
 			total += val;
@@ -807,14 +793,12 @@ static ssize_t perfmon_scid_status_show(struct device *dev,
 
 		llcc_bcast_read(llcc_priv, offset, &val);
 		if (val & TRP_SCID_STATUS_ACTIVE_MASK)
-			cnt += scnprintf(buf + cnt, PAGE_SIZE - cnt,
-					"SCID %02d %10s", i, "ACTIVE");
+			cnt += scnprintf(buf + cnt, PAGE_SIZE - cnt, "SCID %02d %10s", i, "ACTIVE");
 		else
 			cnt += scnprintf(buf + cnt, PAGE_SIZE - cnt,
 					"SCID %02d %10s", i, "DEACTIVE");
 
-		cnt += scnprintf(buf + cnt, PAGE_SIZE - cnt, ",0x%08lx\n",
-				total);
+		cnt += scnprintf(buf + cnt, PAGE_SIZE - cnt, ",0x%08lx\n", total);
 	}
 
 	return cnt;
@@ -845,8 +829,8 @@ static struct attribute_group llcc_perfmon_group = {
 	.attrs	= llcc_perfmon_attrs,
 };
 
-static void perfmon_cntr_config(struct llcc_perfmon_private *llcc_priv,
-		unsigned int port, unsigned int counter_num, bool enable)
+static void perfmon_cntr_config(struct llcc_perfmon_private *llcc_priv, unsigned int port,
+		unsigned int counter_num, bool enable)
 {
 	uint32_t val = 0, offset;
 
@@ -855,17 +839,15 @@ static void perfmon_cntr_config(struct llcc_perfmon_private *llcc_priv,
 
 	if (enable)
 		val = (port & PERFMON_PORT_SELECT_MASK) |
-			((counter_num << EVENT_SELECT_SHIFT) &
-			PERFMON_EVENT_SELECT_MASK) | CLEAR_ON_ENABLE |
-			CLEAR_ON_DUMP;
+			((counter_num << EVENT_SELECT_SHIFT) & PERFMON_EVENT_SELECT_MASK) |
+			CLEAR_ON_ENABLE | CLEAR_ON_DUMP;
 
 	offset = PERFMON_COUNTER_n_CONFIG(llcc_priv->drv_ver, counter_num);
 	llcc_bcast_write(llcc_priv, offset, val);
 }
 
-static bool feac_event_config(struct llcc_perfmon_private *llcc_priv,
-		unsigned int event_type, unsigned int *counter_num,
-		bool enable)
+static bool feac_event_config(struct llcc_perfmon_private *llcc_priv, unsigned int event_type,
+		unsigned int *counter_num, bool enable)
 {
 	uint32_t val = 0, mask_val, offset;
 	u8 filter_en;
@@ -886,12 +868,10 @@ static bool feac_event_config(struct llcc_perfmon_private *llcc_priv,
 	if (enable) {
 		val = (event_type << EVENT_SEL_SHIFT) & EVENT_SEL_MASK;
 		if (llcc_priv->version >= REV_2) {
-			val = (event_type << EVENT_SEL_SHIFT) &
-					EVENT_SEL_MASK7;
+			val = (event_type << EVENT_SEL_SHIFT) & EVENT_SEL_MASK7;
 
 			if (llcc_priv->version == REV_5)
-				val = (event_type << EVENT_SEL_SHIFT) &
-						EVENT_SEL_MASK8;
+				val = (event_type << EVENT_SEL_SHIFT) & EVENT_SEL_MASK8;
 		}
 		if (filter_en)
 			val |= (FILTER_0 << FILTER_SEL_SHIFT) | FILTER_EN;
@@ -903,8 +883,7 @@ static bool feac_event_config(struct llcc_perfmon_private *llcc_priv,
 	return true;
 }
 
-static void feac_event_enable(struct llcc_perfmon_private *llcc_priv,
-		bool enable)
+static void feac_event_enable(struct llcc_perfmon_private *llcc_priv, bool enable)
 {
 	uint32_t val = 0, mask_val, offset;
 	bool filter_en = false;
@@ -912,26 +891,21 @@ static void feac_event_enable(struct llcc_perfmon_private *llcc_priv,
 	filter_en = llcc_priv->port_filter_sel[FILTER_0] & (1 << EVENT_PORT_FEAC);
 
 	if (enable) {
-		val = (BYTE_SCALING << BYTE_SCALING_SHIFT) |
-			(BEAT_SCALING << BEAT_SCALING_SHIFT) | PROF_EN;
+		val = (BYTE_SCALING << BYTE_SCALING_SHIFT) | (BEAT_SCALING << BEAT_SCALING_SHIFT) |
+			PROF_EN;
 
 		if (filter_en) {
 			if (llcc_priv->version == REV_0)
-				val |= (FILTER_0 <<
-					FEAC_SCALING_FILTER_SEL_SHIFT) |
+				val |= (FILTER_0 << FEAC_SCALING_FILTER_SEL_SHIFT) |
 					FEAC_SCALING_FILTER_EN;
 			else
-				val |= (FILTER_0 <<
-					FEAC_WR_BEAT_FILTER_SEL_SHIFT) |
+				val |= (FILTER_0 << FEAC_WR_BEAT_FILTER_SEL_SHIFT) |
 					FEAC_WR_BEAT_FILTER_EN |
-					(FILTER_0 <<
-					FEAC_WR_BYTE_FILTER_SEL_SHIFT) |
+					(FILTER_0 << FEAC_WR_BYTE_FILTER_SEL_SHIFT) |
 					FEAC_WR_BYTE_FILTER_EN |
-					(FILTER_0 <<
-					FEAC_RD_BEAT_FILTER_SEL_SHIFT) |
+					(FILTER_0 << FEAC_RD_BEAT_FILTER_SEL_SHIFT) |
 					FEAC_RD_BEAT_FILTER_EN |
-					(FILTER_0 <<
-					FEAC_RD_BYTE_FILTER_SEL_SHIFT) |
+					(FILTER_0 << FEAC_RD_BYTE_FILTER_SEL_SHIFT) |
 					FEAC_RD_BYTE_FILTER_EN;
 		}
 	}
@@ -940,17 +914,12 @@ static void feac_event_enable(struct llcc_perfmon_private *llcc_priv,
 
 	if (llcc_priv->filtered_ports & (1 << EVENT_PORT_FEAC)) {
 		if (llcc_priv->version == REV_0)
-			mask_val |= FEAC_SCALING_FILTER_SEL_MASK |
-				FEAC_SCALING_FILTER_EN_MASK;
+			mask_val |= FEAC_SCALING_FILTER_SEL_MASK | FEAC_SCALING_FILTER_EN_MASK;
 		else
-			mask_val |= FEAC_WR_BEAT_FILTER_SEL_MASK |
-				FEAC_WR_BEAT_FILTER_EN_MASK |
-				FEAC_WR_BYTE_FILTER_SEL_MASK |
-				FEAC_WR_BYTE_FILTER_EN_MASK |
-				FEAC_RD_BEAT_FILTER_SEL_MASK |
-				FEAC_RD_BEAT_FILTER_EN_MASK |
-				FEAC_RD_BYTE_FILTER_SEL_MASK |
-				FEAC_RD_BYTE_FILTER_EN_MASK;
+			mask_val |= FEAC_WR_BEAT_FILTER_SEL_MASK | FEAC_WR_BEAT_FILTER_EN_MASK |
+				FEAC_WR_BYTE_FILTER_SEL_MASK | FEAC_WR_BYTE_FILTER_EN_MASK |
+				FEAC_RD_BEAT_FILTER_SEL_MASK | FEAC_RD_BEAT_FILTER_EN_MASK |
+				FEAC_RD_BYTE_FILTER_SEL_MASK | FEAC_RD_BYTE_FILTER_EN_MASK;
 	}
 
 	offset = FEAC_PROF_CFG(llcc_priv->drv_ver);
@@ -958,8 +927,8 @@ static void feac_event_enable(struct llcc_perfmon_private *llcc_priv,
 }
 
 static bool feac_event_filter_config(struct llcc_perfmon_private *llcc_priv,
-		enum filter_type filter, unsigned long long match,
-		unsigned long long mask, bool enable)
+		enum filter_type filter, unsigned long long match, unsigned long long mask,
+		bool enable)
 {
 	uint64_t val = 0;
 	uint32_t mask_val, offset;
@@ -967,8 +936,7 @@ static bool feac_event_filter_config(struct llcc_perfmon_private *llcc_priv,
 	if (filter == SCID) {
 		if (llcc_priv->version == REV_0) {
 			if (enable)
-				val = (match << SCID_MATCH_SHIFT) |
-					(mask << SCID_MASK_SHIFT);
+				val = (match << SCID_MATCH_SHIFT) | (mask << SCID_MASK_SHIFT);
 
 			mask_val = SCID_MATCH_MASK | SCID_MASK_MASK;
 		} else {
@@ -1000,40 +968,35 @@ static bool feac_event_filter_config(struct llcc_perfmon_private *llcc_priv,
 		llcc_bcast_modify(llcc_priv, offset, val, mask_val);
 	} else if (filter == MID) {
 		if (enable)
-			val = (match << MID_MATCH_SHIFT) |
-				(mask << MID_MASK_SHIFT);
+			val = (match << MID_MATCH_SHIFT) | (mask << MID_MASK_SHIFT);
 
 		mask_val = MID_MATCH_MASK | MID_MASK_MASK;
 		offset = FEAC_PROF_FILTER_0_CFG5(llcc_priv->drv_ver);
 		llcc_bcast_modify(llcc_priv, offset, val, mask_val);
 	} else if (filter == OPCODE) {
 		if (enable)
-			val = (match << OPCODE_MATCH_SHIFT) |
-				(mask << OPCODE_MASK_SHIFT);
+			val = (match << OPCODE_MATCH_SHIFT) | (mask << OPCODE_MASK_SHIFT);
 
 		mask_val = OPCODE_MATCH_MASK | OPCODE_MASK_MASK;
 		offset = FEAC_PROF_FILTER_0_CFG3(llcc_priv->drv_ver);
 		llcc_bcast_modify(llcc_priv, offset, val, mask_val);
 	} else if (filter == CACHEALLOC) {
 		if (enable)
-			val = (match << CACHEALLOC_MATCH_SHIFT) |
-				(mask << CACHEALLOC_MASK_SHIFT);
+			val = (match << CACHEALLOC_MATCH_SHIFT) | (mask << CACHEALLOC_MASK_SHIFT);
 
 		mask_val = CACHEALLOC_MATCH_MASK | CACHEALLOC_MASK_MASK;
 		offset = FEAC_PROF_FILTER_0_CFG3(llcc_priv->drv_ver);
 		llcc_bcast_modify(llcc_priv, offset, val, mask_val);
 	} else if (filter == MEMTAGOPS) {
 		if (enable)
-			val = (match << MEMTAGOPS_MATCH_SHIFT) |
-				(mask << MEMTAGOPS_MASK_SHIFT);
+			val = (match << MEMTAGOPS_MATCH_SHIFT) | (mask << MEMTAGOPS_MASK_SHIFT);
 
 		mask_val = MEMTAGOPS_MATCH_MASK | MEMTAGOPS_MASK_MASK;
 		offset = FEAC_PROF_FILTER_0_CFG7(llcc_priv->drv_ver);
 		llcc_bcast_modify(llcc_priv, offset, val, mask_val);
 	} else if (filter == DIRTYINFO) {
 		if (enable)
-			val = (match << DIRTYINFO_MATCH_SHIFT) |
-				(mask << DIRTYINFO_MASK_SHIFT);
+			val = (match << DIRTYINFO_MATCH_SHIFT) | (mask << DIRTYINFO_MASK_SHIFT);
 
 		mask_val = DIRTYINFO_MATCH_MASK | DIRTYINFO_MASK_MASK;
 		offset = FEAC_PROF_FILTER_0_CFG7(llcc_priv->drv_ver);
@@ -1075,9 +1038,8 @@ static struct event_port_ops feac_port_ops = {
 	.event_filter_config	= feac_event_filter_config,
 };
 
-static bool ferc_event_config(struct llcc_perfmon_private *llcc_priv,
-		unsigned int event_type, unsigned int *counter_num,
-		bool enable)
+static bool ferc_event_config(struct llcc_perfmon_private *llcc_priv, unsigned int event_type,
+		unsigned int *counter_num, bool enable)
 {
 	uint32_t val = 0, mask_val, offset;
 	bool filter_en;
@@ -1140,9 +1102,8 @@ static struct event_port_ops ferc_port_ops = {
 	.event_filter_config	= ferc_event_filter_config,
 };
 
-static bool fewc_event_config(struct llcc_perfmon_private *llcc_priv,
-		unsigned int event_type, unsigned int *counter_num,
-		bool enable)
+static bool fewc_event_config(struct llcc_perfmon_private *llcc_priv, unsigned int event_type,
+		unsigned int *counter_num, bool enable)
 {
 	uint32_t val = 0, mask_val, offset;
 	bool filter_en;
@@ -1191,9 +1152,8 @@ static struct event_port_ops fewc_port_ops = {
 	.event_filter_config	= fewc_event_filter_config,
 };
 
-static bool beac_event_config(struct llcc_perfmon_private *llcc_priv,
-		unsigned int event_type, unsigned int *counter_num,
-		bool enable)
+static bool beac_event_config(struct llcc_perfmon_private *llcc_priv, unsigned int event_type,
+		unsigned int *counter_num, bool enable)
 {
 	uint32_t val = 0, mask_val;
 	uint32_t valcfg = 0, mask_valcfg = 0;
@@ -1206,10 +1166,8 @@ static bool beac_event_config(struct llcc_perfmon_private *llcc_priv,
 	if (filter_en) {
 		mask_val |= FILTER_SEL_MASK | FILTER_EN_MASK;
 		if (llcc_priv->version >= REV_2)
-			mask_valcfg = BEAC_WR_BEAT_FILTER_SEL_MASK |
-				BEAC_WR_BEAT_FILTER_EN_MASK |
-				BEAC_RD_BEAT_FILTER_SEL_MASK |
-				BEAC_RD_BEAT_FILTER_EN_MASK;
+			mask_valcfg = BEAC_WR_BEAT_FILTER_SEL_MASK | BEAC_WR_BEAT_FILTER_EN_MASK |
+				BEAC_RD_BEAT_FILTER_SEL_MASK | BEAC_RD_BEAT_FILTER_EN_MASK;
 	}
 
 	if (enable) {
@@ -1217,29 +1175,26 @@ static bool beac_event_config(struct llcc_perfmon_private *llcc_priv,
 		if (filter_en) {
 			val |= (FILTER_0 << FILTER_SEL_SHIFT) | FILTER_EN;
 			if (llcc_priv->version >= REV_2)
-				valcfg = (FILTER_0 <<
-					BEAC_WR_BEAT_FILTER_SEL_SHIFT) |
+				valcfg = (FILTER_0 << BEAC_WR_BEAT_FILTER_SEL_SHIFT) |
 					BEAC_WR_BEAT_FILTER_EN |
-					(FILTER_0 <<
-					BEAC_RD_BEAT_FILTER_SEL_SHIFT) |
+					(FILTER_0 << BEAC_RD_BEAT_FILTER_SEL_SHIFT) |
 					BEAC_RD_BEAT_FILTER_EN;
 		}
 	}
 
 	for (mc_cnt = 0; mc_cnt < llcc_priv->num_mc; mc_cnt++) {
-		offset = BEAC0_PROF_EVENT_n_CFG(llcc_priv->drv_ver,
-				*counter_num + mc_cnt) + mc_cnt * BEAC_INST_OFF;
+		offset = BEAC0_PROF_EVENT_n_CFG(llcc_priv->drv_ver, *counter_num + mc_cnt) +
+			mc_cnt * BEAC_INST_OFF;
 		llcc_bcast_modify(llcc_priv, offset, val, mask_val);
 
-		offset = BEAC0_PROF_CFG(llcc_priv->drv_ver) +
-			mc_cnt * BEAC_INST_OFF;
+		offset = BEAC0_PROF_CFG(llcc_priv->drv_ver) + mc_cnt * BEAC_INST_OFF;
 		llcc_bcast_modify(llcc_priv, offset, valcfg, mask_valcfg);
 
 		perfmon_cntr_config(llcc_priv, EVENT_PORT_BEAC, *counter_num, enable);
 		/* DBX uses 2 counters for BEAC 0 & 1 */
 		if (mc_cnt == 1)
-			perfmon_cntr_config(llcc_priv, EVENT_PORT_BEAC1,
-					*counter_num + mc_cnt, enable);
+			perfmon_cntr_config(llcc_priv, EVENT_PORT_BEAC1, *counter_num + mc_cnt,
+					enable);
 	}
 
 	/* DBX uses 2 counters for BEAC 0 & 1 */
@@ -1263,15 +1218,13 @@ static void beac_event_enable(struct llcc_perfmon_private *llcc_priv, bool enabl
 	unsigned int mc_cnt, offset;
 
 	if (enable)
-		val = (BYTE_SCALING << BYTE_SCALING_SHIFT) |
-			(BEAT_SCALING << BEAT_SCALING_SHIFT) | PROF_EN;
+		val = (BYTE_SCALING << BYTE_SCALING_SHIFT) | (BEAT_SCALING << BEAT_SCALING_SHIFT) |
+			PROF_EN;
 
-	mask_val = PROF_CFG_BEAT_SCALING_MASK | PROF_CFG_BYTE_SCALING_MASK
-		| PROF_CFG_EN_MASK;
+	mask_val = PROF_CFG_BEAT_SCALING_MASK | PROF_CFG_BYTE_SCALING_MASK | PROF_CFG_EN_MASK;
 
 	for (mc_cnt = 0; mc_cnt < llcc_priv->num_mc; mc_cnt++) {
-		offset = BEAC0_PROF_CFG(llcc_priv->drv_ver) +
-			mc_cnt * BEAC_INST_OFF;
+		offset = BEAC0_PROF_CFG(llcc_priv->drv_ver) + mc_cnt * BEAC_INST_OFF;
 		llcc_bcast_modify(llcc_priv, offset, val, mask_val);
 	}
 }
@@ -1297,8 +1250,7 @@ static bool beac_event_filter_config(struct llcc_perfmon_private *llcc_priv,
 		}
 	} else if (filter == MID) {
 		if (enable)
-			val = (match << MID_MATCH_SHIFT) |
-				(mask << MID_MASK_SHIFT);
+			val = (match << MID_MATCH_SHIFT) | (mask << MID_MASK_SHIFT);
 
 		mask_val = MID_MATCH_MASK | MID_MASK_MASK;
 		for (mc_cnt = 0; mc_cnt < llcc_priv->num_mc; mc_cnt++) {
@@ -1348,8 +1300,7 @@ static bool beac_event_filter_config(struct llcc_perfmon_private *llcc_priv,
 
 	mask_val = BEAC_MC_PROFTAG_MASK;
 	for (mc_cnt = 0; mc_cnt < llcc_priv->num_mc; mc_cnt++) {
-		offset = BEAC0_PROF_CFG(llcc_priv->drv_ver)
-			+ mc_cnt * BEAC_INST_OFF;
+		offset = BEAC0_PROF_CFG(llcc_priv->drv_ver) + mc_cnt * BEAC_INST_OFF;
 		llcc_bcast_modify(llcc_priv, offset, val, mask_val);
 	}
 	return true;
@@ -1361,9 +1312,8 @@ static struct event_port_ops beac_port_ops = {
 	.event_filter_config	= beac_event_filter_config,
 };
 
-static bool berc_event_config(struct llcc_perfmon_private *llcc_priv,
-		unsigned int event_type, unsigned int *counter_num,
-		bool enable)
+static bool berc_event_config(struct llcc_perfmon_private *llcc_priv, unsigned int event_type,
+		unsigned int *counter_num, bool enable)
 {
 	uint64_t val = 0;
 	uint32_t mask_val, offset;
@@ -1387,17 +1337,15 @@ static bool berc_event_config(struct llcc_perfmon_private *llcc_priv,
 	return true;
 }
 
-static void berc_event_enable(struct llcc_perfmon_private *llcc_priv,
-		bool enable)
+static void berc_event_enable(struct llcc_perfmon_private *llcc_priv, bool enable)
 {
 	uint32_t val = 0, mask_val, offset;
 
 	if (enable)
-		val = (BYTE_SCALING << BYTE_SCALING_SHIFT) |
-			(BEAT_SCALING << BEAT_SCALING_SHIFT) | PROF_EN;
+		val = (BYTE_SCALING << BYTE_SCALING_SHIFT) | (BEAT_SCALING << BEAT_SCALING_SHIFT) |
+			PROF_EN;
 
-	mask_val = PROF_CFG_BEAT_SCALING_MASK | PROF_CFG_BYTE_SCALING_MASK
-		| PROF_CFG_EN_MASK;
+	mask_val = PROF_CFG_BEAT_SCALING_MASK | PROF_CFG_BYTE_SCALING_MASK | PROF_CFG_EN_MASK;
 	offset = BERC_PROF_CFG(llcc_priv->drv_ver);
 	llcc_bcast_modify(llcc_priv, offset, val, mask_val);
 }
@@ -1414,8 +1362,7 @@ static bool berc_event_filter_config(struct llcc_perfmon_private *llcc_priv,
 	}
 
 	if (enable)
-		val = (match << PROFTAG_MATCH_SHIFT) |
-		       (mask << PROFTAG_MASK_SHIFT);
+		val = (match << PROFTAG_MATCH_SHIFT) | (mask << PROFTAG_MASK_SHIFT);
 
 	mask_val = PROFTAG_MATCH_MASK | PROFTAG_MASK_MASK;
 	offset = BERC_PROF_FILTER_0_CFG0(llcc_priv->drv_ver);
@@ -1429,9 +1376,8 @@ static struct event_port_ops berc_port_ops = {
 	.event_filter_config	= berc_event_filter_config,
 };
 
-static bool trp_event_config(struct llcc_perfmon_private *llcc_priv,
-		unsigned int event_type, unsigned int *counter_num,
-		bool enable)
+static bool trp_event_config(struct llcc_perfmon_private *llcc_priv, unsigned int event_type,
+		unsigned int *counter_num, bool enable)
 {
 	uint64_t val = 0;
 	uint32_t mask_val;
@@ -1449,22 +1395,19 @@ static bool trp_event_config(struct llcc_perfmon_private *llcc_priv,
 	if (enable) {
 		val = (event_type << EVENT_SEL_SHIFT) & EVENT_SEL_MASK;
 		if (llcc_priv->version >= REV_2)
-			val = (event_type << EVENT_SEL_SHIFT) &
-					EVENT_SEL_MASK7;
+			val = (event_type << EVENT_SEL_SHIFT) & EVENT_SEL_MASK7;
 
 		if (filter_en)
 			val |= (FILTER_0 << FILTER_SEL_SHIFT) | FILTER_EN;
 	}
 
-	llcc_bcast_modify(llcc_priv, TRP_PROF_EVENT_n_CFG(*counter_num),
-			val, mask_val);
+	llcc_bcast_modify(llcc_priv, TRP_PROF_EVENT_n_CFG(*counter_num), val, mask_val);
 	perfmon_cntr_config(llcc_priv, EVENT_PORT_TRP, *counter_num, enable);
 	return true;
 }
 
-static bool trp_event_filter_config(struct llcc_perfmon_private *llcc_priv,
-		enum filter_type filter, unsigned long long match,
-		unsigned long long mask, bool enable)
+static bool trp_event_filter_config(struct llcc_perfmon_private *llcc_priv, enum filter_type filter,
+		unsigned long long match, unsigned long long mask, bool enable)
 {
 	uint64_t val = 0;
 	uint32_t mask_val;
@@ -1498,14 +1441,12 @@ static bool trp_event_filter_config(struct llcc_perfmon_private *llcc_priv,
 		}
 	} else if (filter == WAY_ID) {
 		if (enable)
-			val = (match << TRP_WAY_ID_MATCH_SHIFT) |
-				(mask << TRP_WAY_ID_MASK_SHIFT);
+			val = (match << TRP_WAY_ID_MATCH_SHIFT) | (mask << TRP_WAY_ID_MASK_SHIFT);
 
 		mask_val = TRP_WAY_ID_MATCH_MASK | TRP_WAY_ID_MASK_MASK;
 	} else if (filter == PROFILING_TAG) {
 		if (enable)
-			val = (match << TRP_PROFTAG_MATCH_SHIFT) |
-				(mask << TRP_PROFTAG_MASK_SHIFT);
+			val = (match << TRP_PROFTAG_MATCH_SHIFT) | (mask << TRP_PROFTAG_MASK_SHIFT);
 
 		mask_val = TRP_PROFTAG_MATCH_MASK | TRP_PROFTAG_MASK_MASK;
 	} else {
@@ -1514,11 +1455,9 @@ static bool trp_event_filter_config(struct llcc_perfmon_private *llcc_priv,
 	}
 
 	if ((llcc_priv->version >= REV_2) && ((filter == SCID) || (filter == MULTISCID)))
-		llcc_bcast_modify(llcc_priv, TRP_PROF_FILTER_0_CFG2, val,
-				mask_val);
+		llcc_bcast_modify(llcc_priv, TRP_PROF_FILTER_0_CFG2, val, mask_val);
 	else
-		llcc_bcast_modify(llcc_priv, TRP_PROF_FILTER_0_CFG1, val,
-				mask_val);
+		llcc_bcast_modify(llcc_priv, TRP_PROF_FILTER_0_CFG1, val, mask_val);
 	return true;
 }
 
@@ -1527,9 +1466,8 @@ static struct event_port_ops  trp_port_ops = {
 	.event_filter_config	= trp_event_filter_config,
 };
 
-static bool drp_event_config(struct llcc_perfmon_private *llcc_priv,
-		unsigned int event_type, unsigned int *counter_num,
-		bool enable)
+static bool drp_event_config(struct llcc_perfmon_private *llcc_priv, unsigned int event_type,
+		unsigned int *counter_num, bool enable)
 {
 	uint32_t val = 0, mask_val, offset;
 	bool filter_en;
@@ -1546,8 +1484,7 @@ static bool drp_event_config(struct llcc_perfmon_private *llcc_priv,
 	if (enable) {
 		val = (event_type << EVENT_SEL_SHIFT) & EVENT_SEL_MASK;
 		if (llcc_priv->version >= REV_2)
-			val = (event_type << EVENT_SEL_SHIFT) &
-					EVENT_SEL_MASK7;
+			val = (event_type << EVENT_SEL_SHIFT) & EVENT_SEL_MASK7;
 
 		if (filter_en)
 			val |= (FILTER_0 << FILTER_SEL_SHIFT) | FILTER_EN;
@@ -1559,8 +1496,7 @@ static bool drp_event_config(struct llcc_perfmon_private *llcc_priv,
 	return true;
 }
 
-static void drp_event_enable(struct llcc_perfmon_private *llcc_priv,
-		bool enable)
+static void drp_event_enable(struct llcc_perfmon_private *llcc_priv, bool enable)
 {
 	uint32_t val = 0, mask_val, offset;
 
@@ -1577,9 +1513,8 @@ static struct event_port_ops drp_port_ops = {
 	.event_enable	= drp_event_enable,
 };
 
-static bool pmgr_event_config(struct llcc_perfmon_private *llcc_priv,
-		unsigned int event_type, unsigned int *counter_num,
-		bool enable)
+static bool pmgr_event_config(struct llcc_perfmon_private *llcc_priv, unsigned int event_type,
+		unsigned int *counter_num, bool enable)
 {
 	uint32_t val = 0, mask_val, offset;
 
@@ -1617,8 +1552,8 @@ static void llcc_register_event_port(struct llcc_perfmon_private *llcc_priv,
 
 static enum hrtimer_restart llcc_perfmon_timer_handler(struct hrtimer *hrtimer)
 {
-	struct llcc_perfmon_private *llcc_priv = container_of(hrtimer,
-			struct llcc_perfmon_private, hrtimer);
+	struct llcc_perfmon_private *llcc_priv = container_of(hrtimer, struct llcc_perfmon_private,
+			hrtimer);
 
 	perfmon_counter_dump(llcc_priv);
 	hrtimer_forward_now(&llcc_priv->hrtimer, llcc_priv->expires);
@@ -1641,8 +1576,7 @@ static int llcc_perfmon_probe(struct platform_device *pdev)
 	if (!llcc_driv_data)
 		return -ENOMEM;
 
-	if ((llcc_driv_data->regmap == NULL) ||
-			(llcc_driv_data->bcast_regmap == NULL))
+	if (llcc_driv_data->regmap == NULL || llcc_driv_data->bcast_regmap == NULL)
 		return -ENODEV;
 
 	llcc_priv->llcc_map = llcc_driv_data->regmap;
@@ -1696,8 +1630,7 @@ static int llcc_perfmon_probe(struct platform_device *pdev)
 	if ((val & MAJOR_VER_MASK) == LLCC_VERSION_5)
 		llcc_priv->version = REV_5;
 	pr_info("Revision <%x.%x.%x>, %d MEMORY CNTRLRS connected with LLCC\n",
-			MAJOR_REV_NO(val), BRANCH_NO(val), MINOR_NO(val),
-			llcc_priv->num_mc);
+			MAJOR_REV_NO(val), BRANCH_NO(val), MINOR_NO(val), llcc_priv->num_mc);
 
 	return 0;
 }
