@@ -59,6 +59,9 @@ struct load_info {
 	unsigned long mod_kallsyms_init_off;
 #endif
 #ifdef CONFIG_MODULE_DECOMPRESS
+#ifdef CONFIG_MODULE_STATS
+	unsigned long compressed_len;
+#endif
 	struct page **pages;
 	unsigned int max_pages;
 	unsigned int used_pages;
@@ -142,6 +145,81 @@ static inline bool set_livepatch_module(struct module *mod)
 	return false;
 #endif
 }
+
+/**
+ * enum fail_dup_mod_reason - state at which a duplicate module was detected
+ *
+ * @FAIL_DUP_MOD_BECOMING: the module is read properly, passes all checks but
+ * 	we've determined that another module with the same name is already loaded
+ * 	or being processed on our &modules list. This happens on early_mod_check()
+ * 	right before layout_and_allocate(). The kernel would have already
+ * 	vmalloc()'d space for the entire module through finit_module(). If
+ * 	decompression was used two vmap() spaces were used. These failures can
+ * 	happen when userspace has not seen the module present on the kernel and
+ * 	tries to load the module multiple times at same time.
+ * @FAIL_DUP_MOD_LOAD: the module has been read properly, passes all validation
+ *	checks and the kernel determines that the module was unique and because
+ *	of this allocated yet another private kernel copy of the module space in
+ *	layout_and_allocate() but after this determined in add_unformed_module()
+ *	that another module with the same name is already loaded or being processed.
+ *	These failures should be mitigated as much as possible and are indicative
+ *	of really fast races in loading modules. Without module decompression
+ *	they waste twice as much vmap space. With module decompression three
+ *	times the module's size vmap space is wasted.
+ */
+enum fail_dup_mod_reason {
+	FAIL_DUP_MOD_BECOMING = 0,
+	FAIL_DUP_MOD_LOAD,
+};
+
+#ifdef CONFIG_MODULE_DEBUGFS
+extern struct dentry *mod_debugfs_root;
+#endif
+
+#ifdef CONFIG_MODULE_STATS
+
+#define mod_stat_add_long(count, var) atomic_long_add(count, var)
+#define mod_stat_inc(name) atomic_inc(name)
+
+extern atomic_long_t total_mod_size;
+extern atomic_long_t total_text_size;
+extern atomic_long_t invalid_kread_bytes;
+extern atomic_long_t invalid_decompress_bytes;
+
+extern atomic_t modcount;
+extern atomic_t failed_kreads;
+extern atomic_t failed_decompress;
+struct mod_fail_load {
+	struct list_head list;
+	char name[MODULE_NAME_LEN];
+	atomic_long_t count;
+	unsigned long dup_fail_mask;
+};
+
+int try_add_failed_module(const char *name, enum fail_dup_mod_reason reason);
+void mod_stat_bump_invalid(struct load_info *info, int flags);
+void mod_stat_bump_becoming(struct load_info *info, int flags);
+
+#else
+
+#define mod_stat_add_long(name, var)
+#define mod_stat_inc(name)
+
+static inline int try_add_failed_module(const char *name,
+					enum fail_dup_mod_reason reason)
+{
+	return 0;
+}
+
+static inline void mod_stat_bump_invalid(struct load_info *info, int flags)
+{
+}
+
+static inline void mod_stat_bump_becoming(struct load_info *info, int flags)
+{
+}
+
+#endif /* CONFIG_MODULE_STATS */
 
 #ifdef CONFIG_MODULE_UNLOAD_TAINT_TRACKING
 struct mod_unload_taint {

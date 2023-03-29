@@ -297,6 +297,10 @@ int module_decompress(struct load_info *info, const void *buf, size_t size)
 	ssize_t data_size;
 	int error;
 
+#if defined(CONFIG_MODULE_STATS)
+	info->compressed_len = size;
+#endif
+
 	/*
 	 * Start with number of pages twice as big as needed for
 	 * compressed data.

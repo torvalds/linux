@@ -56,6 +56,7 @@
 #include <linux/dynamic_debug.h>
 #include <linux/audit.h>
 #include <linux/cfi.h>
+#include <linux/debugfs.h>
 #include <uapi/linux/module.h>
 #include "internal.h"
 
@@ -2500,6 +2501,18 @@ static noinline int do_init_module(struct module *mod)
 {
 	int ret = 0;
 	struct mod_initfree *freeinit;
+#if defined(CONFIG_MODULE_STATS)
+	unsigned int text_size = 0, total_size = 0;
+
+	for_each_mod_mem_type(type) {
+		const struct module_memory *mod_mem = &mod->mem[type];
+		if (mod_mem->size) {
+			total_size += mod_mem->size;
+			if (type == MOD_TEXT || type == MOD_INIT_TEXT)
+				text_size += mod_mem->size;
+		}
+	}
+#endif
 
 	freeinit = kmalloc(sizeof(*freeinit), GFP_KERNEL);
 	if (!freeinit) {
@@ -2561,6 +2574,7 @@ static noinline int do_init_module(struct module *mod)
 		mod->mem[type].base = NULL;
 		mod->mem[type].size = 0;
 	}
+
 #ifdef CONFIG_DEBUG_INFO_BTF_MODULES
 	/* .BTF is not SHF_ALLOC and will get removed, so sanitize pointer */
 	mod->btf_data = NULL;
@@ -2584,6 +2598,11 @@ static noinline int do_init_module(struct module *mod)
 	mutex_unlock(&module_mutex);
 	wake_up_all(&module_wq);
 
+	mod_stat_add_long(text_size, &total_text_size);
+	mod_stat_add_long(total_size, &total_mod_size);
+
+	mod_stat_inc(&modcount);
+
 	return 0;
 
 fail_free_freeinit:
@@ -2599,6 +2618,7 @@ fail:
 	ftrace_release_mod(mod);
 	free_module(mod);
 	wake_up_all(&module_wq);
+
 	return ret;
 }
 
@@ -2632,7 +2652,8 @@ static bool finished_loading(const char *name)
 }
 
 /* Must be called with module_mutex held */
-static int module_patient_check_exists(const char *name)
+static int module_patient_check_exists(const char *name,
+				       enum fail_dup_mod_reason reason)
 {
 	struct module *old;
 	int err = 0;
@@ -2654,6 +2675,9 @@ static int module_patient_check_exists(const char *name)
 		/* The module might have gone in the meantime. */
 		old = find_module_all(name, strlen(name), true);
 	}
+
+	if (try_add_failed_module(name, reason))
+		pr_warn("Could not add fail-tracking for module: %s\n", name);
 
 	/*
 	 * We are here only when the same module was being loaded. Do
@@ -2679,7 +2703,7 @@ static int add_unformed_module(struct module *mod)
 	mod->state = MODULE_STATE_UNFORMED;
 
 	mutex_lock(&module_mutex);
-	err = module_patient_check_exists(mod->name);
+	err = module_patient_check_exists(mod->name, FAIL_DUP_MOD_LOAD);
 	if (err)
 		goto out;
 
@@ -2800,6 +2824,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 		       int flags)
 {
 	struct module *mod;
+	bool module_allocated = false;
 	long err = 0;
 	char *after_dashes;
 
@@ -2838,6 +2863,8 @@ static int load_module(struct load_info *info, const char __user *uargs,
 		err = PTR_ERR(mod);
 		goto free_copy;
 	}
+
+	module_allocated = true;
 
 	audit_log_kern_module(mod->name);
 
@@ -2983,6 +3010,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	synchronize_rcu();
 	mutex_unlock(&module_mutex);
  free_module:
+	mod_stat_bump_invalid(info, flags);
 	/* Free lock-classes; relies on the preceding sync_rcu() */
 	for_class_mod_mem_type(type, core_data) {
 		lockdep_free_key_range(mod->mem[type].base,
@@ -2991,6 +3019,13 @@ static int load_module(struct load_info *info, const char __user *uargs,
 
 	module_deallocate(mod, info);
  free_copy:
+	/*
+	 * The info->len is always set. We distinguish between
+	 * failures once the proper module was allocated and
+	 * before that.
+	 */
+	if (!module_allocated)
+		mod_stat_bump_becoming(info, flags);
 	free_copy(info, flags);
 	return err;
 }
@@ -3009,8 +3044,11 @@ SYSCALL_DEFINE3(init_module, void __user *, umod,
 	       umod, len, uargs);
 
 	err = copy_module_from_user(umod, len, &info);
-	if (err)
+	if (err) {
+		mod_stat_inc(&failed_kreads);
+		mod_stat_add_long(len, &invalid_kread_bytes);
 		return err;
+	}
 
 	return load_module(&info, uargs, 0);
 }
@@ -3035,14 +3073,20 @@ SYSCALL_DEFINE3(finit_module, int, fd, const char __user *, uargs, int, flags)
 
 	len = kernel_read_file_from_fd(fd, 0, &buf, INT_MAX, NULL,
 				       READING_MODULE);
-	if (len < 0)
+	if (len < 0) {
+		mod_stat_inc(&failed_kreads);
+		mod_stat_add_long(len, &invalid_kread_bytes);
 		return len;
+	}
 
 	if (flags & MODULE_INIT_COMPRESSED_FILE) {
 		err = module_decompress(&info, buf, len);
 		vfree(buf); /* compressed data is no longer needed */
-		if (err)
+		if (err) {
+			mod_stat_inc(&failed_decompress);
+			mod_stat_add_long(len, &invalid_decompress_bytes);
 			return err;
+		}
 	} else {
 		info.hdr = buf;
 		info.len = len;
@@ -3216,3 +3260,14 @@ void print_modules(void)
 			last_unloaded_module.taints);
 	pr_cont("\n");
 }
+
+#ifdef CONFIG_MODULE_DEBUGFS
+struct dentry *mod_debugfs_root;
+
+static int module_debugfs_init(void)
+{
+	mod_debugfs_root = debugfs_create_dir("modules", NULL);
+	return 0;
+}
+module_init(module_debugfs_init);
+#endif

@@ -22,6 +22,45 @@ menuconfig MODULES
 
 if MODULES
 
+config MODULE_DEBUGFS
+	bool
+
+config MODULE_DEBUG
+	bool "Module debugging"
+	depends on DEBUG_FS
+	help
+	  Allows you to enable / disable features which can help you debug
+	  modules. You don't need these options on production systems.
+
+if MODULE_DEBUG
+
+config MODULE_STATS
+	bool "Module statistics"
+	depends on DEBUG_FS
+	select MODULE_DEBUGFS
+	help
+	  This option allows you to maintain a record of module statistics.
+	  For example, size of all modules, average size, text size, a list
+	  of failed modules and the size for each of those. For failed
+	  modules we keep track of modules which failed due to either the
+	  existing module taking too long to load or that module was already
+	  loaded.
+
+	  You should enable this if you are debugging production loads
+	  and want to see if userspace or the kernel is doing stupid things
+	  with loading modules when it shouldn't or if you want to help
+	  optimize userspace / kernel space module autoloading schemes.
+	  You might want to do this because failed modules tend to use
+	  up significant amount of memory, and so you'd be doing everyone a
+	  favor in avoiding these failures proactively.
+
+	  This functionality is also useful for those experimenting with
+	  module .text ELF section optimization.
+
+	  If unsure, say N.
+
+endif # MODULE_DEBUG
+
 config MODULE_FORCE_LOAD
 	bool "Forced module loading"
 	default n
@@ -51,7 +90,7 @@ config MODULE_FORCE_UNLOAD
 config MODULE_UNLOAD_TAINT_TRACKING
 	bool "Tainted module unload tracking"
 	depends on MODULE_UNLOAD
-	default n
+	select MODULE_DEBUGFS
 	help
 	  This option allows you to maintain a record of each unloaded
 	  module that tainted the kernel. In addition to displaying a
