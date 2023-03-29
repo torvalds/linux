@@ -399,7 +399,7 @@ static void icl_load_csc_matrix(const struct intel_crtc_state *crtc_state)
 	}
 }
 
-static void chv_cgm_csc_convert_ctm(u16 coeffs[9],
+static void chv_cgm_csc_convert_ctm(struct intel_csc_matrix *csc,
 				    const struct drm_property_blob *blob)
 {
 	const struct drm_color_ctm *ctm = blob->data;
@@ -413,14 +413,14 @@ static void chv_cgm_csc_convert_ctm(u16 coeffs[9],
 		/* Clamp to hardware limits. */
 		abs_coeff = clamp_val(abs_coeff, 0, CTM_COEFF_8_0 - 1);
 
-		coeffs[i] = 0;
+		csc->coeff[i] = 0;
 
 		/* Write coefficients in S3.12 format. */
 		if (ctm->matrix[i] & (1ULL << 63))
-			coeffs[i] |= 1 << 15;
+			csc->coeff[i] |= 1 << 15;
 
-		coeffs[i] |= ((abs_coeff >> 32) & 7) << 12;
-		coeffs[i] |= (abs_coeff >> 20) & 0xfff;
+		csc->coeff[i] |= ((abs_coeff >> 32) & 7) << 12;
+		csc->coeff[i] |= (abs_coeff >> 20) & 0xfff;
 	}
 }
 
@@ -429,20 +429,20 @@ static void chv_load_cgm_csc(struct intel_crtc *crtc,
 {
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
-	u16 coeffs[9];
+	struct intel_csc_matrix tmp;
 
-	chv_cgm_csc_convert_ctm(coeffs, blob);
+	chv_cgm_csc_convert_ctm(&tmp, blob);
 
 	intel_de_write_fw(i915, CGM_PIPE_CSC_COEFF01(pipe),
-			  coeffs[1] << 16 | coeffs[0]);
+			  tmp.coeff[1] << 16 | tmp.coeff[0]);
 	intel_de_write_fw(i915, CGM_PIPE_CSC_COEFF23(pipe),
-			  coeffs[3] << 16 | coeffs[2]);
+			  tmp.coeff[3] << 16 | tmp.coeff[2]);
 	intel_de_write_fw(i915, CGM_PIPE_CSC_COEFF45(pipe),
-			  coeffs[5] << 16 | coeffs[4]);
+			  tmp.coeff[5] << 16 | tmp.coeff[4]);
 	intel_de_write_fw(i915, CGM_PIPE_CSC_COEFF67(pipe),
-			  coeffs[7] << 16 | coeffs[6]);
+			  tmp.coeff[7] << 16 | tmp.coeff[6]);
 	intel_de_write_fw(i915, CGM_PIPE_CSC_COEFF8(pipe),
-			  coeffs[8]);
+			  tmp.coeff[8]);
 }
 
 /* convert hw value with given bit_precision to lut property val */
