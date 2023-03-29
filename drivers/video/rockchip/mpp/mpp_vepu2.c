@@ -336,7 +336,7 @@ static void *vepu_prepare(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 	}
 
 	core_id = find_first_bit(&ccu->core_idle, ccu->core_num);
-
+	core_id = array_index_nospec(core_id, MPP_MAX_CORE_NUM);
 	if (core_id >= core_id_max + 1 || !queue->cores[core_id]) {
 		mpp_task = NULL;
 		mpp_dbg_core("core %d all busy %lx\n", core_id, ccu->core_idle);
