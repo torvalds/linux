@@ -1685,8 +1685,8 @@ static int soc_tplg_fe_link_create(struct soc_tplg *tplg,
 	struct snd_soc_dai_link_component *dlc;
 	int ret;
 
-	/* link + cpu + codec */
-	link = devm_kzalloc(tplg->dev, sizeof(*link) + (2 * sizeof(*dlc)), GFP_KERNEL);
+	/* link + cpu + codec + platform */
+	link = devm_kzalloc(tplg->dev, sizeof(*link) + (3 * sizeof(*dlc)), GFP_KERNEL);
 	if (link == NULL)
 		return -ENOMEM;
 
@@ -1723,6 +1723,14 @@ static int soc_tplg_fe_link_create(struct soc_tplg *tplg,
 
 	link->codecs->name = "snd-soc-dummy";
 	link->codecs->dai_name = "snd-soc-dummy-dai";
+
+	/*
+	 * Many topology is assuming link has Platform.
+	 * This might be overwritten at soc_tplg_dai_link_load().
+	 */
+	link->platforms	= &dlc[2];
+	link->platforms->name = "snd-soc-dummy";
+	link->num_platforms = 1;
 
 	/* enable DPCM */
 	link->dynamic = 1;
