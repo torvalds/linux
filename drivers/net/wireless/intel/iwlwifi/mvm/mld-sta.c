@@ -21,8 +21,7 @@ static int iwl_mvm_mld_send_sta_cmd(struct iwl_mvm *mvm,
  */
 static int iwl_mvm_mld_add_int_sta_to_fw(struct iwl_mvm *mvm,
 					 struct iwl_mvm_int_sta *sta,
-					 const u8 *addr,
-					 u16 mac_id)
+					 const u8 *addr, int link_id)
 {
 	struct iwl_mvm_sta_cfg_cmd cmd;
 
@@ -31,7 +30,7 @@ static int iwl_mvm_mld_add_int_sta_to_fw(struct iwl_mvm *mvm,
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.sta_id = cpu_to_le32((u8)sta->sta_id);
 
-	cmd.link_id = cpu_to_le32(mac_id);
+	cmd.link_id = cpu_to_le32(link_id);
 
 	cmd.station_type = cpu_to_le32(sta->type);
 
@@ -94,7 +93,7 @@ static int iwl_mvm_add_aux_sta_to_fw(struct iwl_mvm *mvm,
  */
 static int iwl_mvm_mld_add_int_sta_with_queue(struct iwl_mvm *mvm,
 					      struct iwl_mvm_int_sta *sta,
-					      const u8 *addr, int mac_id,
+					      const u8 *addr, int link_id,
 					      u16 *queue, u8 tid,
 					      unsigned int *_wdg_timeout)
 {
@@ -106,9 +105,9 @@ static int iwl_mvm_mld_add_int_sta_with_queue(struct iwl_mvm *mvm,
 		return -ENOSPC;
 
 	if (sta->type == STATION_TYPE_AUX)
-		ret = iwl_mvm_add_aux_sta_to_fw(mvm, sta, mac_id);
+		ret = iwl_mvm_add_aux_sta_to_fw(mvm, sta, link_id);
 	else
-		ret = iwl_mvm_mld_add_int_sta_to_fw(mvm, sta, addr, mac_id);
+		ret = iwl_mvm_mld_add_int_sta_to_fw(mvm, sta, addr, link_id);
 	if (ret)
 		return ret;
 
@@ -135,7 +134,7 @@ static int iwl_mvm_mld_add_int_sta(struct iwl_mvm *mvm,
 				   struct iwl_mvm_int_sta *int_sta, u16 *queue,
 				   enum nl80211_iftype iftype,
 				   enum iwl_fw_sta_type sta_type,
-				   int mac_id, const u8 *addr, u8 tid,
+				   int link_id, const u8 *addr, u8 tid,
 				   unsigned int *wdg_timeout)
 {
 	int ret;
@@ -148,7 +147,7 @@ static int iwl_mvm_mld_add_int_sta(struct iwl_mvm *mvm,
 	if (ret)
 		return ret;
 
-	ret = iwl_mvm_mld_add_int_sta_with_queue(mvm, int_sta, addr, mac_id,
+	ret = iwl_mvm_mld_add_int_sta_with_queue(mvm, int_sta, addr, link_id,
 						 queue, tid, wdg_timeout);
 	if (ret) {
 		iwl_mvm_dealloc_int_sta(mvm, int_sta);
@@ -254,8 +253,8 @@ int iwl_mvm_mld_add_aux_sta(struct iwl_mvm *mvm, u32 lmac_id)
 {
 	lockdep_assert_held(&mvm->mutex);
 
-	/* In CDB NICs we need to specify which lmac to use for aux activity
-	 * using the mac_id argument place to send lmac_id to the function
+	/* In CDB NICs we need to specify which lmac to use for aux activity;
+	 * use the link_id argument place to send lmac_id to the function.
 	 */
 	return iwl_mvm_mld_add_int_sta(mvm, &mvm->aux_sta, &mvm->aux_queue,
 				       NL80211_IFTYPE_UNSPECIFIED,
