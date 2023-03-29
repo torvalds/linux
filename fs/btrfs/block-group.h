@@ -91,14 +91,6 @@ struct btrfs_caching_control {
 /* Once caching_thread() finds this much free space, it will wake up waiters. */
 #define CACHING_CTL_WAKE_UP SZ_2M
 
-/*
- * Tree to record all locked full stripes of a RAID5/6 block group
- */
-struct btrfs_full_stripe_locks_tree {
-	struct rb_root root;
-	struct mutex lock;
-};
-
 struct btrfs_block_group {
 	struct btrfs_fs_info *fs_info;
 	struct inode *inode;
@@ -228,9 +220,6 @@ struct btrfs_block_group {
 	 * All accesses protected by the spinlock 'lock'.
 	 */
 	int swap_extents;
-
-	/* Record locked full stripes for RAID5/6 block group */
-	struct btrfs_full_stripe_locks_tree full_stripe_locks_root;
 
 	/*
 	 * Allocation offset for the block group to implement sequential

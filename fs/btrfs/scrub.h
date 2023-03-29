@@ -16,9 +16,16 @@ int btrfs_scrub_progress(struct btrfs_fs_info *fs_info, u64 devid,
 /* Temporary declaration, would be deleted later. */
 struct scrub_ctx;
 struct scrub_sector;
+struct scrub_block;
 int scrub_find_csum(struct scrub_ctx *sctx, u64 logical, u8 *csum);
 int scrub_add_sector_to_rd_bio(struct scrub_ctx *sctx,
 			       struct scrub_sector *sector);
 void scrub_sector_get(struct scrub_sector *sector);
+struct scrub_sector *alloc_scrub_sector(struct scrub_block *sblock, u64 logical);
+struct scrub_block *alloc_scrub_block(struct scrub_ctx *sctx,
+				     struct btrfs_device *dev,
+				     u64 logical, u64 physical,
+				     u64 physical_for_dev_replace,
+				     int mirror_num);
 
 #endif
