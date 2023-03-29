@@ -563,6 +563,12 @@ static void iwl_mvm_mld_vif_cfg_changed_station(struct iwl_mvm *mvm,
 	unsigned int i;
 	int ret;
 
+	/* This might get called without active links during the
+	 * chanctx switch, but we don't care about it anyway.
+	 */
+	if (changes == BSS_CHANGED_IDLE)
+		return;
+
 	ret = iwl_mvm_mld_mac_ctxt_changed(mvm, vif, false);
 	if (ret)
 		IWL_ERR(mvm, "failed to update MAC %pM\n", vif->addr);
