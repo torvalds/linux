@@ -936,7 +936,7 @@ struct nix_aq_enq_req {
 		struct nix_cq_ctx_s cq;
 		struct nix_rsse_s   rss;
 		struct nix_rx_mce_s mce;
-		u64 prof;
+		struct nix_bandprof_s prof;
 	};
 	union {
 		struct nix_rq_ctx_s rq_mask;
@@ -944,7 +944,7 @@ struct nix_aq_enq_req {
 		struct nix_cq_ctx_s cq_mask;
 		struct nix_rsse_s   rss_mask;
 		struct nix_rx_mce_s mce_mask;
-		u64 prof_mask;
+		struct nix_bandprof_s prof_mask;
 	};
 };
 
