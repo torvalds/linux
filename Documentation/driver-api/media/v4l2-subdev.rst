@@ -218,6 +218,17 @@ available. There may be one or more async connections to a given sub-device but
 this is not known at the time of adding the connections to the notifier. Async
 connections are bound as matching async sub-devices are found, one by one.
 
+Asynchronous sub-device notifier for sub-devices
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A driver that registers an asynchronous sub-device may also register an
+asynchronous notifier. This is called an asynchronous sub-device notifier andthe
+process is similar to that of a bridge driver apart from that the notifier is
+initialised using :c:func:`v4l2_async_subdev_nf_init` instead. A sub-device
+notifier may complete only after the V4L2 device becomes available, i.e. there's
+a path via async sub-devices and notifiers to a notifier that is not an
+asynchronous sub-device notifier.
+
 Asynchronous sub-device registration helper for camera sensor drivers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
