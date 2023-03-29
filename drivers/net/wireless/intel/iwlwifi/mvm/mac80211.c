@@ -3392,20 +3392,27 @@ static void iwl_mvm_check_he_obss_narrow_bw_ru_iter(struct wiphy *wiphy,
 	rcu_read_unlock();
 }
 
-static void iwl_mvm_check_he_obss_narrow_bw_ru(struct ieee80211_hw *hw,
-					       struct ieee80211_vif *vif)
+static void
+iwl_mvm_check_he_obss_narrow_bw_ru(struct ieee80211_hw *hw,
+				   struct ieee80211_vif *vif,
+				   unsigned int link_id,
+				   struct ieee80211_bss_conf *link_conf)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_he_obss_narrow_bw_ru_data iter_data = {
 		.tolerated = true,
 	};
 
-	if (!(vif->bss_conf.chandef.chan->flags & IEEE80211_CHAN_RADAR)) {
-		mvmvif->deflink.he_ru_2mhz_block = false;
+	if (WARN_ON_ONCE(!link_conf->chandef.chan ||
+			 !mvmvif->link[link_id]))
+		return;
+
+	if (!(link_conf->chandef.chan->flags & IEEE80211_CHAN_RADAR)) {
+		mvmvif->link[link_id]->he_ru_2mhz_block = false;
 		return;
 	}
 
-	cfg80211_bss_iter(hw->wiphy, &vif->bss_conf.chandef,
+	cfg80211_bss_iter(hw->wiphy, &link_conf->chandef,
 			  iwl_mvm_check_he_obss_narrow_bw_ru_iter,
 			  &iter_data);
 
@@ -3413,7 +3420,7 @@ static void iwl_mvm_check_he_obss_narrow_bw_ru(struct ieee80211_hw *hw,
 	 * If there is at least one AP on radar channel that cannot
 	 * tolerate 26-tone RU UL OFDMA transmissions using HE TB PPDU.
 	 */
-	mvmvif->deflink.he_ru_2mhz_block = !iter_data.tolerated;
+	mvmvif->link[link_id]->he_ru_2mhz_block = !iter_data.tolerated;
 }
 
 static void iwl_mvm_reset_cca_40mhz_workaround(struct iwl_mvm *mvm,
@@ -3615,7 +3622,8 @@ static void iwl_mvm_vif_set_he_support(struct ieee80211_hw *hw,
 		if (is_sta) {
 			mvmvif->link[i]->he_ru_2mhz_block = false;
 			if (link_sta->he_cap.has_he)
-				iwl_mvm_check_he_obss_narrow_bw_ru(hw, vif);
+				iwl_mvm_check_he_obss_narrow_bw_ru(hw, vif, i,
+								   link_conf);
 		}
 	}
 }
