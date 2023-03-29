@@ -1198,11 +1198,8 @@ static struct ib_mr *rxe_get_dma_mr(struct ib_pd *ibpd, int access)
 	int err;
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
-	if (!mr) {
-		err = -ENOMEM;
-		rxe_dbg_dev(rxe, "no memory for mr");
-		goto err_out;
-	}
+	if (!mr)
+		return ERR_PTR(-ENOMEM);
 
 	err = rxe_add_to_pool(&rxe->mr_pool, mr);
 	if (err) {
@@ -1220,7 +1217,6 @@ static struct ib_mr *rxe_get_dma_mr(struct ib_pd *ibpd, int access)
 
 err_free:
 	kfree(mr);
-err_out:
 	rxe_err_pd(pd, "returned err = %d", err);
 	return ERR_PTR(err);
 }
@@ -1235,11 +1231,8 @@ static struct ib_mr *rxe_reg_user_mr(struct ib_pd *ibpd, u64 start,
 	int err, cleanup_err;
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
-	if (!mr) {
-		err = -ENOMEM;
-		rxe_dbg_pd(pd, "no memory for mr");
-		goto err_out;
-	}
+	if (!mr)
+		return ERR_PTR(-ENOMEM);
 
 	err = rxe_add_to_pool(&rxe->mr_pool, mr);
 	if (err) {
@@ -1266,7 +1259,6 @@ err_cleanup:
 		rxe_err_mr(mr, "cleanup failed, err = %d", cleanup_err);
 err_free:
 	kfree(mr);
-err_out:
 	rxe_err_pd(pd, "returned err = %d", err);
 	return ERR_PTR(err);
 }
@@ -1287,17 +1279,12 @@ static struct ib_mr *rxe_alloc_mr(struct ib_pd *ibpd, enum ib_mr_type mr_type,
 	}
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
-	if (!mr) {
-		err = -ENOMEM;
-		rxe_dbg_mr(mr, "no memory for mr");
-		goto err_out;
-	}
+	if (!mr)
+		return ERR_PTR(-ENOMEM);
 
 	err = rxe_add_to_pool(&rxe->mr_pool, mr);
-	if (err) {
-		rxe_dbg_mr(mr, "unable to create mr, err = %d", err);
+	if (err)
 		goto err_free;
-	}
 
 	rxe_get(pd);
 	mr->ibmr.pd = ibpd;
