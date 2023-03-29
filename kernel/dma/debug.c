@@ -534,11 +534,11 @@ void debug_dma_dump_mappings(struct device *dev)
 			if (!dev || dev == entry->dev) {
 				cln = to_cacheline_number(entry);
 				dev_info(entry->dev,
-					 "%s idx %d P=%llx N=%lx D=%llx L=%llx cln=%llx %s %s\n",
+					 "%s idx %d P=%llx N=%lx D=%llx L=%llx cln=%pa %s %s\n",
 					 type2name[entry->type], idx,
 					 phys_addr(entry), entry->pfn,
 					 entry->dev_addr, entry->size,
-					 cln, dir2name[entry->direction],
+					 &cln, dir2name[entry->direction],
 					 maperr2str[entry->map_err_type]);
 			}
 		}
@@ -565,13 +565,13 @@ static int dump_show(struct seq_file *seq, void *v)
 		list_for_each_entry(entry, &bucket->list, list) {
 			cln = to_cacheline_number(entry);
 			seq_printf(seq,
-				   "%s %s %s idx %d P=%llx N=%lx D=%llx L=%llx cln=%llx %s %s\n",
+				   "%s %s %s idx %d P=%llx N=%lx D=%llx L=%llx cln=%pa %s %s\n",
 				   dev_driver_string(entry->dev),
 				   dev_name(entry->dev),
 				   type2name[entry->type], idx,
 				   phys_addr(entry), entry->pfn,
 				   entry->dev_addr, entry->size,
-				   cln, dir2name[entry->direction],
+				   &cln, dir2name[entry->direction],
 				   maperr2str[entry->map_err_type]);
 		}
 		spin_unlock_irqrestore(&bucket->lock, flags);
