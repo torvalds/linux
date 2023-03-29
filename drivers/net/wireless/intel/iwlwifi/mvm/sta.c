@@ -1719,10 +1719,10 @@ int iwl_mvm_sta_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		rcu_assign_pointer(mvm_sta->link[0], &mvm_sta->deflink);
 
 		if (!mvm->trans->trans_cfg->gen2)
-			mvm_sta->max_agg_bufsize =
+			mvm_sta->deflink.lq_sta.rs_drv.pers.max_agg_bufsize =
 				LINK_QUAL_AGG_FRAME_LIMIT_DEF;
 		else
-			mvm_sta->max_agg_bufsize =
+			mvm_sta->deflink.lq_sta.rs_drv.pers.max_agg_bufsize =
 				LINK_QUAL_AGG_FRAME_LIMIT_GEN2_DEF;
 	}
 
@@ -3258,10 +3258,11 @@ out:
 	 * for each station. Therefore, use the minimum of all the
 	 * aggregation sessions and our default value.
 	 */
-	mvmsta->max_agg_bufsize =
-		min(mvmsta->max_agg_bufsize, buf_size);
+	mvmsta->deflink.lq_sta.rs_drv.pers.max_agg_bufsize =
+		min(mvmsta->deflink.lq_sta.rs_drv.pers.max_agg_bufsize,
+		    buf_size);
 	mvmsta->deflink.lq_sta.rs_drv.lq.agg_frame_cnt_limit =
-		mvmsta->max_agg_bufsize;
+		mvmsta->deflink.lq_sta.rs_drv.pers.max_agg_bufsize;
 
 	IWL_DEBUG_HT(mvm, "Tx aggregation enabled on ra = %pM tid = %d\n",
 		     sta->addr, tid);

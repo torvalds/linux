@@ -1,10 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
+ * Copyright (C) 2003 - 2014, 2018 - 2022 Intel Corporation
  *****************************************************************************/
 
 #ifndef __rs_h__
@@ -204,6 +203,7 @@ struct rs_rate {
 /**
  * struct iwl_lq_sta_rs_fw - rate and related statistics for RS in FW
  * @last_rate_n_flags: last rate reported by FW
+ * @max_agg_bufsize: the maximal size of the AGG buffer for this station
  * @sta_id: the id of the station
 #ifdef CONFIG_MAC80211_DEBUGFS
  * @dbg_fixed_rate: for debug, use fixed rate if not 0
@@ -353,6 +353,7 @@ struct iwl_lq_sta {
 
 	/* last tx rate_n_flags */
 	u32 last_rate_n_flags;
+
 	/* packets destined for this STA are aggregated */
 	u8 is_agg;
 
@@ -371,6 +372,7 @@ struct iwl_lq_sta {
 		u8 chains;
 		s8 chain_signal[IEEE80211_MAX_CHAINS];
 		s8 last_rssi;
+		u16 max_agg_bufsize;
 		struct rs_rate_stats tx_stats[RS_COLUMN_COUNT][IWL_RATE_COUNT];
 		struct iwl_mvm *drv;
 		spinlock_t lock; /* for races in reinit/update table */

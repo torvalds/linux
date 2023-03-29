@@ -355,7 +355,6 @@ struct iwl_mvm_link_sta {
  * @mac_id_n_color: the MAC context this station is linked to
  * @tid_disable_agg: bitmap: if bit(tid) is set, the fw won't send ampdus for
  *	tid.
- * @max_agg_bufsize: the maximal size of the AGG buffer for this station
  * @sta_type: station type
  * @sta_state: station state according to enum %ieee80211_sta_state
  * @bt_reduced_txpower: is reduced tx power enabled for this station
@@ -406,7 +405,6 @@ struct iwl_mvm_sta {
 	u32 tfd_queue_msk;
 	u32 mac_id_n_color;
 	u16 tid_disable_agg;
-	u16 max_agg_bufsize;
 	u8 sta_type;
 	enum ieee80211_sta_state sta_state;
 	bool bt_reduced_txpower;

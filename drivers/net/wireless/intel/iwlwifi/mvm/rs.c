@@ -3607,7 +3607,7 @@ static void rs_fill_lq_cmd(struct iwl_mvm *mvm,
 	    num_of_ant(initial_rate->ant) == 1)
 		lq_cmd->single_stream_ant_msk = initial_rate->ant;
 
-	lq_cmd->agg_frame_cnt_limit = mvmsta->max_agg_bufsize;
+	lq_cmd->agg_frame_cnt_limit = lq_sta->pers.max_agg_bufsize;
 
 	/*
 	 * In case of low latency, tell the firmware to leave a frame in the
