@@ -355,7 +355,6 @@ struct iwl_mvm_vif_link_info {
  * @csa_failed: CSA failed to schedule time event, report an error later
  * @csa_bcn_pending: indicates that we are waiting for a beacon on a new channel
  * @features: hw features active for this vif
- * @fw_active_links_num: the number of activated links
  */
 struct iwl_mvm_vif {
 	struct iwl_mvm *mvm;
@@ -438,8 +437,6 @@ struct iwl_mvm_vif {
 	struct {
 		struct ieee80211_key_conf __rcu *keys[2];
 	} bcn_prot;
-
-	u32 fw_active_links_num;
 
 	struct iwl_mvm_vif_link_info deflink;
 	struct iwl_mvm_vif_link_info *link[IEEE80211_MLD_MAX_NUM_LINKS];
