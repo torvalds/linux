@@ -862,19 +862,18 @@ static umode_t auth_attr_is_visible(struct kobject *kobj,
 	struct tlmi_pwd_setting *setting = to_tlmi_pwd_setting(kobj);
 
 	/* We only want to display level and index settings on HDD/NVMe */
-	if ((attr == (struct attribute *)&auth_index) ||
-			(attr == (struct attribute *)&auth_level)) {
+	if (attr == &auth_index.attr || attr == &auth_level.attr) {
 		if ((setting == tlmi_priv.pwd_hdd) || (setting == tlmi_priv.pwd_nvme))
 			return attr->mode;
 		return 0;
 	}
 
 	/* We only display certificates on Admin account, if supported */
-	if ((attr == (struct attribute *)&auth_certificate) ||
-			(attr == (struct attribute *)&auth_signature) ||
-			(attr == (struct attribute *)&auth_save_signature) ||
-			(attr == (struct attribute *)&auth_cert_thumb) ||
-			(attr == (struct attribute *)&auth_cert_to_password)) {
+	if (attr == &auth_certificate.attr ||
+	    attr == &auth_signature.attr ||
+	    attr == &auth_save_signature.attr ||
+	    attr == &auth_cert_thumb.attr ||
+	    attr == &auth_cert_to_password.attr) {
 		if ((setting == tlmi_priv.pwd_admin) && tlmi_priv.certificate_support)
 			return attr->mode;
 		return 0;
