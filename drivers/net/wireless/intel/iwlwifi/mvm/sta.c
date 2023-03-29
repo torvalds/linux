@@ -2348,10 +2348,18 @@ int iwl_mvm_send_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		}
 
 		if (vif->type == NL80211_IFTYPE_AP ||
-		    vif->type == NL80211_IFTYPE_ADHOC)
+		    vif->type == NL80211_IFTYPE_ADHOC) {
+			/* for queue management */
 			mvm->probe_queue = queue;
-		else if (vif->type == NL80211_IFTYPE_P2P_DEVICE)
+			/* for use in TX */
+			mvmvif->deflink.mgmt_queue = queue;
+		} else if (vif->type == NL80211_IFTYPE_P2P_DEVICE) {
 			mvm->p2p_dev_queue = queue;
+		}
+	} else if (vif->type == NL80211_IFTYPE_AP ||
+		   vif->type == NL80211_IFTYPE_ADHOC) {
+		/* set it for use in TX */
+		mvmvif->deflink.mgmt_queue = mvm->probe_queue;
 	}
 
 	return 0;
@@ -2384,6 +2392,10 @@ void iwl_mvm_free_bcast_sta_queues(struct iwl_mvm *mvm,
 	queue = *queueptr;
 	iwl_mvm_disable_txq(mvm, NULL, mvmvif->deflink.bcast_sta.sta_id,
 			    queueptr, IWL_MAX_TID_COUNT);
+
+	if (vif->type == NL80211_IFTYPE_AP || vif->type == NL80211_IFTYPE_ADHOC)
+		mvmvif->deflink.mgmt_queue = mvm->probe_queue;
+
 	if (iwl_mvm_has_new_tx_api(mvm))
 		return;
 

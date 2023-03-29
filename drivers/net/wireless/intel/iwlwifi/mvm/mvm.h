@@ -299,6 +299,7 @@ struct iwl_probe_resp_data {
  *	data to be inserted into probe response.
  * @he_ru_2mhz_block: 26-tone RU OFDMA transmissions should be blocked
  * @queue_params: QoS params for this MAC
+ * @mgmt_queue: queue number for unbufferable management frames
  */
 struct iwl_mvm_vif_link_info {
 	u8 bssid[ETH_ALEN];
@@ -329,6 +330,8 @@ struct iwl_mvm_vif_link_info {
 	 * to have the data for the MAC context
 	 */
 	struct ieee80211_tx_queue_params queue_params[IEEE80211_NUM_ACS];
+
+	u16 mgmt_queue;
 };
 
 /**

@@ -181,7 +181,7 @@ int iwl_mvm_mld_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	if (vif->type == NL80211_IFTYPE_AP ||
 	    vif->type == NL80211_IFTYPE_ADHOC) {
-		queue = &mvm->probe_queue;
+		queue = &mvm_link->mgmt_queue;
 	} else if (vif->type == NL80211_IFTYPE_P2P_DEVICE) {
 		queue = &mvm->p2p_dev_queue;
 	} else {
@@ -327,7 +327,7 @@ int iwl_mvm_mld_rm_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	switch (vif->type) {
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_ADHOC:
-		queueptr = &mvm->probe_queue;
+		queueptr = &link->mgmt_queue;
 		break;
 	case NL80211_IFTYPE_P2P_DEVICE:
 		queueptr = &mvm->p2p_dev_queue;

@@ -626,7 +626,7 @@ static int iwl_mvm_get_ctrl_vif_queue(struct iwl_mvm *mvm,
 		if (ieee80211_is_mgmt(fc) &&
 		    (!ieee80211_is_bufferable_mmpdu(fc) ||
 		     ieee80211_is_deauth(fc) || ieee80211_is_disassoc(fc)))
-			return mvm->probe_queue;
+			return link->mgmt_queue;
 
 		if (!ieee80211_has_order(fc) && !ieee80211_is_probe_req(fc) &&
 		    is_multicast_ether_addr(hdr->addr1))
@@ -634,7 +634,7 @@ static int iwl_mvm_get_ctrl_vif_queue(struct iwl_mvm *mvm,
 
 		WARN_ONCE(info->control.vif->type != NL80211_IFTYPE_ADHOC,
 			  "fc=0x%02x", le16_to_cpu(fc));
-		return mvm->probe_queue;
+		return link->mgmt_queue;
 	case NL80211_IFTYPE_P2P_DEVICE:
 		if (ieee80211_is_mgmt(fc))
 			return mvm->p2p_dev_queue;
