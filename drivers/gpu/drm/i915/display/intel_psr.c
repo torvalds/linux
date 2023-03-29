@@ -1968,11 +1968,14 @@ void intel_psr_pre_plane_update(struct intel_atomic_state *state,
 		 * - PSR disabled in new state
 		 * - All planes will go inactive
 		 * - Changing between PSR versions
+		 * - Display WA #1136: skl, bxt
 		 */
 		needs_to_disable |= intel_crtc_needs_modeset(new_crtc_state);
 		needs_to_disable |= !new_crtc_state->has_psr;
 		needs_to_disable |= !new_crtc_state->active_planes;
 		needs_to_disable |= new_crtc_state->has_psr2 != psr->psr2_enabled;
+		needs_to_disable |= DISPLAY_VER(i915) < 11 &&
+			new_crtc_state->wm_level_disabled;
 
 		if (psr->enabled && needs_to_disable)
 			intel_psr_disable_locked(intel_dp);
@@ -2005,6 +2008,10 @@ static void _intel_psr_post_plane_update(const struct intel_atomic_state *state,
 
 		keep_disabled |= psr->sink_not_reliable;
 		keep_disabled |= !crtc_state->active_planes;
+
+		/* Display WA #1136: skl, bxt */
+		keep_disabled |= DISPLAY_VER(dev_priv) < 11 &&
+			crtc_state->wm_level_disabled;
 
 		if (!psr->enabled && !keep_disabled)
 			intel_psr_enable_locked(intel_dp, crtc_state);
