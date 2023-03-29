@@ -2220,35 +2220,6 @@ static void snd_ymfpci_free(struct snd_card *card)
 	release_firmware(chip->controller_microcode);
 }
 
-static const int saved_regs_index[] = {
-	/* spdif */
-	YDSXGR_SPDIFOUTCTRL,
-	YDSXGR_SPDIFOUTSTATUS,
-	YDSXGR_SPDIFINCTRL,
-	/* volumes */
-	YDSXGR_PRIADCLOOPVOL,
-	YDSXGR_NATIVEDACINVOL,
-	YDSXGR_NATIVEDACOUTVOL,
-	YDSXGR_BUF441OUTVOL,
-	YDSXGR_NATIVEADCINVOL,
-	YDSXGR_SPDIFLOOPVOL,
-	YDSXGR_SPDIFOUTVOL,
-	YDSXGR_ZVOUTVOL,
-	YDSXGR_LEGACYOUTVOL,
-	/* address bases */
-	YDSXGR_PLAYCTRLBASE,
-	YDSXGR_RECCTRLBASE,
-	YDSXGR_EFFCTRLBASE,
-	YDSXGR_WORKBASE,
-	/* capture set up */
-	YDSXGR_MAPOFREC,
-	YDSXGR_RECFORMAT,
-	YDSXGR_RECSLOTSR,
-	YDSXGR_ADCFORMAT,
-	YDSXGR_ADCSLOTSR,
-};
-#define YDSXGR_NUM_SAVED_REGS	ARRAY_SIZE(saved_regs_index)
-
 static int snd_ymfpci_suspend(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
@@ -2371,11 +2342,6 @@ int snd_ymfpci_create(struct snd_card *card,
 	err = snd_ymfpci_ac3_init(chip);
 	if (err < 0)
 		return err;
-
-	chip->saved_regs = devm_kmalloc_array(&pci->dev, YDSXGR_NUM_SAVED_REGS,
-					      sizeof(u32), GFP_KERNEL);
-	if (!chip->saved_regs)
-		return -ENOMEM;
 
 	snd_ymfpci_proc_init(card, chip);
 

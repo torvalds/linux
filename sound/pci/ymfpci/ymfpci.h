@@ -268,6 +268,35 @@ struct snd_ymfpci_pcm {
 	u32 shift;
 };
 
+static const int saved_regs_index[] = {
+	/* spdif */
+	YDSXGR_SPDIFOUTCTRL,
+	YDSXGR_SPDIFOUTSTATUS,
+	YDSXGR_SPDIFINCTRL,
+	/* volumes */
+	YDSXGR_PRIADCLOOPVOL,
+	YDSXGR_NATIVEDACINVOL,
+	YDSXGR_NATIVEDACOUTVOL,
+	YDSXGR_BUF441OUTVOL,
+	YDSXGR_NATIVEADCINVOL,
+	YDSXGR_SPDIFLOOPVOL,
+	YDSXGR_SPDIFOUTVOL,
+	YDSXGR_ZVOUTVOL,
+	YDSXGR_LEGACYOUTVOL,
+	/* address bases */
+	YDSXGR_PLAYCTRLBASE,
+	YDSXGR_RECCTRLBASE,
+	YDSXGR_EFFCTRLBASE,
+	YDSXGR_WORKBASE,
+	/* capture set up */
+	YDSXGR_MAPOFREC,
+	YDSXGR_RECFORMAT,
+	YDSXGR_RECSLOTSR,
+	YDSXGR_ADCFORMAT,
+	YDSXGR_ADCSLOTSR,
+};
+#define YDSXGR_NUM_SAVED_REGS	ARRAY_SIZE(saved_regs_index)
+
 struct snd_ymfpci {
 	int irq;
 
@@ -345,7 +374,7 @@ struct snd_ymfpci {
 	const struct firmware *dsp_microcode;
 	const struct firmware *controller_microcode;
 
-	u32 *saved_regs;
+	u32 saved_regs[YDSXGR_NUM_SAVED_REGS];
 	u32 saved_ydsxgr_mode;
 	u16 saved_dsxg_legacy;
 	u16 saved_dsxg_elegacy;
