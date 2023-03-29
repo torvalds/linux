@@ -148,15 +148,6 @@ static inline size_t iov_length(const struct iovec *iov, unsigned long nr_segs)
 	return ret;
 }
 
-static inline struct iovec iov_iter_iovec(const struct iov_iter *iter)
-{
-	return (struct iovec) {
-		.iov_base = iter_iov(iter)->iov_base + iter->iov_offset,
-		.iov_len = min(iter->count,
-			       iter_iov(iter)->iov_len - iter->iov_offset),
-	};
-}
-
 size_t copy_page_from_iter_atomic(struct page *page, unsigned offset,
 				  size_t bytes, struct iov_iter *i);
 void iov_iter_advance(struct iov_iter *i, size_t bytes);
