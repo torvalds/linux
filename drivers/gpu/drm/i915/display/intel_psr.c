@@ -1954,23 +1954,22 @@ static void _intel_psr_post_plane_update(const struct intel_atomic_state *state,
 					     crtc_state->uapi.encoder_mask) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 		struct intel_psr *psr = &intel_dp->psr;
+		bool keep_disabled = false;
 
 		mutex_lock(&psr->lock);
 
-		if (psr->sink_not_reliable)
-			goto exit;
-
 		drm_WARN_ON(&dev_priv->drm, psr->enabled && !crtc_state->active_planes);
 
-		/* Only enable if there is active planes */
-		if (!psr->enabled && crtc_state->active_planes)
+		keep_disabled |= psr->sink_not_reliable;
+		keep_disabled |= !crtc_state->active_planes;
+
+		if (!psr->enabled && !keep_disabled)
 			intel_psr_enable_locked(intel_dp, crtc_state);
 
 		/* Force a PSR exit when enabling CRC to avoid CRC timeouts */
 		if (crtc_state->crc_enabled && psr->enabled)
 			psr_force_hw_tracking_exit(intel_dp);
 
-exit:
 		mutex_unlock(&psr->lock);
 	}
 }
