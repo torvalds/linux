@@ -5573,6 +5573,24 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	} \
 } while (0)
 
+#define PIPE_CONF_CHECK_CSC(name) do { \
+	PIPE_CONF_CHECK_X(name.preoff[0]); \
+	PIPE_CONF_CHECK_X(name.preoff[1]); \
+	PIPE_CONF_CHECK_X(name.preoff[2]); \
+	PIPE_CONF_CHECK_X(name.coeff[0]); \
+	PIPE_CONF_CHECK_X(name.coeff[1]); \
+	PIPE_CONF_CHECK_X(name.coeff[2]); \
+	PIPE_CONF_CHECK_X(name.coeff[3]); \
+	PIPE_CONF_CHECK_X(name.coeff[4]); \
+	PIPE_CONF_CHECK_X(name.coeff[5]); \
+	PIPE_CONF_CHECK_X(name.coeff[6]); \
+	PIPE_CONF_CHECK_X(name.coeff[7]); \
+	PIPE_CONF_CHECK_X(name.coeff[8]); \
+	PIPE_CONF_CHECK_X(name.postoff[0]); \
+	PIPE_CONF_CHECK_X(name.postoff[1]); \
+	PIPE_CONF_CHECK_X(name.postoff[2]); \
+} while (0)
+
 #define PIPE_CONF_QUIRK(quirk) \
 	((current_config->quirks | pipe_config->quirks) & (quirk))
 
@@ -5669,6 +5687,9 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 
 		PIPE_CONF_CHECK_COLOR_LUT(pre_csc_lut, true);
 		PIPE_CONF_CHECK_COLOR_LUT(post_csc_lut, false);
+
+		PIPE_CONF_CHECK_CSC(csc);
+		PIPE_CONF_CHECK_CSC(output_csc);
 
 		if (current_config->active_planes) {
 			PIPE_CONF_CHECK_BOOL(has_psr);
