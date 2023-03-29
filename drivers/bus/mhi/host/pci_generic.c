@@ -363,6 +363,15 @@ static const struct mhi_controller_config modem_foxconn_sdx55_config = {
 	.event_cfg = mhi_foxconn_sdx55_events,
 };
 
+static const struct mhi_pci_dev_info mhi_foxconn_sdx24_info = {
+	.name = "foxconn-sdx24",
+	.config = &modem_foxconn_sdx55_config,
+	.bar_num = MHI_PCI_DEFAULT_BAR_NUM,
+	.dma_data_width = 32,
+	.mru_default = 32768,
+	.sideband_wake = false,
+};
+
 static const struct mhi_pci_dev_info mhi_foxconn_sdx55_info = {
 	.name = "foxconn-sdx55",
 	.fw = "qcom/sdx55m/sbl1.mbn",
@@ -587,6 +596,15 @@ static const struct pci_device_id mhi_pci_id_table[] = {
 	/* T99W373 (sdx62) */
 	{ PCI_DEVICE(PCI_VENDOR_ID_FOXCONN, 0xe0d9),
 		.driver_data = (kernel_ulong_t) &mhi_foxconn_sdx65_info },
+	/* T99W510 (sdx24), variant 1 */
+	{ PCI_DEVICE(PCI_VENDOR_ID_FOXCONN, 0xe0f0),
+		.driver_data = (kernel_ulong_t) &mhi_foxconn_sdx24_info },
+	/* T99W510 (sdx24), variant 2 */
+	{ PCI_DEVICE(PCI_VENDOR_ID_FOXCONN, 0xe0f1),
+		.driver_data = (kernel_ulong_t) &mhi_foxconn_sdx24_info },
+	/* T99W510 (sdx24), variant 3 */
+	{ PCI_DEVICE(PCI_VENDOR_ID_FOXCONN, 0xe0f2),
+		.driver_data = (kernel_ulong_t) &mhi_foxconn_sdx24_info },
 	/* MV31-W (Cinterion) */
 	{ PCI_DEVICE(PCI_VENDOR_ID_THALES, 0x00b3),
 		.driver_data = (kernel_ulong_t) &mhi_mv31_info },
