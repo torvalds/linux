@@ -3080,7 +3080,6 @@ static int proc_dointvec_minmax_warn_RT_change(struct ctl_table *table,
 	return ret;
 }
 
-#ifdef CONFIG_SYSCTL
 static struct ctl_table vm_compaction[] = {
 	{
 		.procname	= "compact_memory",
@@ -3118,7 +3117,6 @@ static struct ctl_table vm_compaction[] = {
 	},
 	{ }
 };
-#endif
 
 static int __init kcompactd_init(void)
 {
@@ -3135,9 +3133,7 @@ static int __init kcompactd_init(void)
 
 	for_each_node_state(nid, N_MEMORY)
 		kcompactd_run(nid);
-#ifdef CONFIG_SYSCTL
 	register_sysctl_init("vm", vm_compaction);
-#endif
 	return 0;
 }
 subsys_initcall(kcompactd_init)
