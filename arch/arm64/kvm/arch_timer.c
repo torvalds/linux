@@ -458,6 +458,8 @@ static void timer_save_state(struct arch_timer_context *ctx)
 		goto out;
 
 	switch (index) {
+		u64 cval;
+
 	case TIMER_VTIMER:
 		timer_set_ctl(ctx, read_sysreg_el0(SYS_CNTV_CTL));
 		timer_set_cval(ctx, read_sysreg_el0(SYS_CNTV_CVAL));
@@ -485,7 +487,12 @@ static void timer_save_state(struct arch_timer_context *ctx)
 		break;
 	case TIMER_PTIMER:
 		timer_set_ctl(ctx, read_sysreg_el0(SYS_CNTP_CTL));
-		timer_set_cval(ctx, read_sysreg_el0(SYS_CNTP_CVAL));
+		cval = read_sysreg_el0(SYS_CNTP_CVAL);
+
+		if (!has_cntpoff())
+			cval -= timer_get_offset(ctx);
+
+		timer_set_cval(ctx, cval);
 
 		/* Disable the timer */
 		write_sysreg_el0(0, SYS_CNTP_CTL);
@@ -555,6 +562,8 @@ static void timer_restore_state(struct arch_timer_context *ctx)
 		goto out;
 
 	switch (index) {
+		u64 cval, offset;
+
 	case TIMER_VTIMER:
 		set_cntvoff(timer_get_offset(ctx));
 		write_sysreg_el0(timer_get_cval(ctx), SYS_CNTV_CVAL);
@@ -562,8 +571,12 @@ static void timer_restore_state(struct arch_timer_context *ctx)
 		write_sysreg_el0(timer_get_ctl(ctx), SYS_CNTV_CTL);
 		break;
 	case TIMER_PTIMER:
-		set_cntpoff(timer_get_offset(ctx));
-		write_sysreg_el0(timer_get_cval(ctx), SYS_CNTP_CVAL);
+		cval = timer_get_cval(ctx);
+		offset = timer_get_offset(ctx);
+		set_cntpoff(offset);
+		if (!has_cntpoff())
+			cval += offset;
+		write_sysreg_el0(cval, SYS_CNTP_CVAL);
 		isb();
 		write_sysreg_el0(timer_get_ctl(ctx), SYS_CNTP_CTL);
 		break;
@@ -634,6 +647,61 @@ static void kvm_timer_vcpu_load_nogic(struct kvm_vcpu *vcpu)
 		enable_percpu_irq(host_vtimer_irq, host_vtimer_irq_flags);
 }
 
+/* If _pred is true, set bit in _set, otherwise set it in _clr */
+#define assign_clear_set_bit(_pred, _bit, _clr, _set)			\
+	do {								\
+		if (_pred)						\
+			(_set) |= (_bit);				\
+		else							\
+			(_clr) |= (_bit);				\
+	} while (0)
+
+static void timer_set_traps(struct kvm_vcpu *vcpu, struct timer_map *map)
+{
+	bool tpt, tpc;
+	u64 clr, set;
+
+	/*
+	 * No trapping gets configured here with nVHE. See
+	 * __timer_enable_traps(), which is where the stuff happens.
+	 */
+	if (!has_vhe())
+		return;
+
+	/*
+	 * Our default policy is not to trap anything. As we progress
+	 * within this function, reality kicks in and we start adding
+	 * traps based on emulation requirements.
+	 */
+	tpt = tpc = false;
+
+	/*
+	 * We have two possibility to deal with a physical offset:
+	 *
+	 * - Either we have CNTPOFF (yay!) or the offset is 0:
+	 *   we let the guest freely access the HW
+	 *
+	 * - or neither of these condition apply:
+	 *   we trap accesses to the HW, but still use it
+	 *   after correcting the physical offset
+	 */
+	if (!has_cntpoff() && timer_get_offset(map->direct_ptimer))
+		tpt = tpc = true;
+
+	/*
+	 * Now that we have collected our requirements, compute the
+	 * trap and enable bits.
+	 */
+	set = 0;
+	clr = 0;
+
+	assign_clear_set_bit(tpt, CNTHCTL_EL1PCEN << 10, set, clr);
+	assign_clear_set_bit(tpc, CNTHCTL_EL1PCTEN << 10, set, clr);
+
+	/* This only happens on VHE, so use the CNTKCTL_EL1 accessor */
+	sysreg_clear_set(cntkctl_el1, clr, set);
+}
+
 void kvm_timer_vcpu_load(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_cpu *timer = vcpu_timer(vcpu);
@@ -657,9 +725,10 @@ void kvm_timer_vcpu_load(struct kvm_vcpu *vcpu)
 	timer_restore_state(map.direct_vtimer);
 	if (map.direct_ptimer)
 		timer_restore_state(map.direct_ptimer);
-
 	if (map.emul_ptimer)
 		timer_emulate(map.emul_ptimer);
+
+	timer_set_traps(vcpu, &map);
 }
 
 bool kvm_timer_should_notify_user(struct kvm_vcpu *vcpu)
@@ -1292,28 +1361,11 @@ no_vgic:
 	return 0;
 }
 
-/*
- * On VHE system, we only need to configure the EL2 timer trap register once,
- * not for every world switch.
- * The host kernel runs at EL2 with HCR_EL2.TGE == 1,
- * and this makes those bits have no effect for the host kernel execution.
- */
+/* If we have CNTPOFF, permanently set ECV to enable it */
 void kvm_timer_init_vhe(void)
 {
-	/* When HCR_EL2.E2H ==1, EL1PCEN and EL1PCTEN are shifted by 10 */
-	u32 cnthctl_shift = 10;
-	u64 val;
-
-	/*
-	 * VHE systems allow the guest direct access to the EL1 physical
-	 * timer/counter.
-	 */
-	val = read_sysreg(cnthctl_el2);
-	val |= (CNTHCTL_EL1PCEN << cnthctl_shift);
-	val |= (CNTHCTL_EL1PCTEN << cnthctl_shift);
 	if (cpus_have_final_cap(ARM64_HAS_ECV_CNTPOFF))
-		val |= CNTHCTL_ECV;
-	write_sysreg(val, cnthctl_el2);
+		sysreg_clear_set(cntkctl_el1, 0, CNTHCTL_ECV);
 }
 
 static void set_timer_irqs(struct kvm *kvm, int vtimer_irq, int ptimer_irq)
