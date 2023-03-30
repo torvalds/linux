@@ -1180,6 +1180,21 @@ static ssize_t amdgpu_set_pp_dpm_vclk(struct device *dev,
 	return amdgpu_set_pp_dpm_clock(dev, PP_VCLK, buf, count);
 }
 
+static ssize_t amdgpu_get_pp_dpm_vclk1(struct device *dev,
+		struct device_attribute *attr,
+		char *buf)
+{
+	return amdgpu_get_pp_dpm_clock(dev, PP_VCLK1, buf);
+}
+
+static ssize_t amdgpu_set_pp_dpm_vclk1(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf,
+		size_t count)
+{
+	return amdgpu_set_pp_dpm_clock(dev, PP_VCLK1, buf, count);
+}
+
 static ssize_t amdgpu_get_pp_dpm_dclk(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
@@ -1193,6 +1208,21 @@ static ssize_t amdgpu_set_pp_dpm_dclk(struct device *dev,
 		size_t count)
 {
 	return amdgpu_set_pp_dpm_clock(dev, PP_DCLK, buf, count);
+}
+
+static ssize_t amdgpu_get_pp_dpm_dclk1(struct device *dev,
+		struct device_attribute *attr,
+		char *buf)
+{
+	return amdgpu_get_pp_dpm_clock(dev, PP_DCLK1, buf);
+}
+
+static ssize_t amdgpu_set_pp_dpm_dclk1(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf,
+		size_t count)
+{
+	return amdgpu_set_pp_dpm_clock(dev, PP_DCLK1, buf, count);
 }
 
 static ssize_t amdgpu_get_pp_dpm_dcefclk(struct device *dev,
@@ -2002,7 +2032,9 @@ static struct amdgpu_device_attr amdgpu_device_attrs[] = {
 	AMDGPU_DEVICE_ATTR_RW(pp_dpm_socclk,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
 	AMDGPU_DEVICE_ATTR_RW(pp_dpm_fclk,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
 	AMDGPU_DEVICE_ATTR_RW(pp_dpm_vclk,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
+	AMDGPU_DEVICE_ATTR_RW(pp_dpm_vclk1,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
 	AMDGPU_DEVICE_ATTR_RW(pp_dpm_dclk,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
+	AMDGPU_DEVICE_ATTR_RW(pp_dpm_dclk1,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
 	AMDGPU_DEVICE_ATTR_RW(pp_dpm_dcefclk,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
 	AMDGPU_DEVICE_ATTR_RW(pp_dpm_pcie,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
 	AMDGPU_DEVICE_ATTR_RW(pp_sclk_od,				ATTR_FLAG_BASIC),
