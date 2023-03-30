@@ -137,7 +137,6 @@ static const struct drm_fb_helper_funcs exynos_drm_fb_helper_funcs = {
 
 int exynos_drm_fbdev_init(struct drm_device *dev)
 {
-	struct exynos_drm_private *private = dev->dev_private;
 	struct drm_fb_helper *helper;
 	int ret;
 
@@ -147,8 +146,6 @@ int exynos_drm_fbdev_init(struct drm_device *dev)
 	helper = kzalloc(sizeof(*helper), GFP_KERNEL);
 	if (!helper)
 		return -ENOMEM;
-
-	private->fb_helper = helper;
 
 	drm_fb_helper_prepare(dev, helper, PREFERRED_BPP, &exynos_drm_fb_helper_funcs);
 
@@ -172,7 +169,6 @@ err_setup:
 	drm_fb_helper_fini(helper);
 err_init:
 	drm_fb_helper_unprepare(helper);
-	private->fb_helper = NULL;
 	kfree(helper);
 
 	return ret;
@@ -197,14 +193,13 @@ static void exynos_drm_fbdev_destroy(struct drm_device *dev,
 
 void exynos_drm_fbdev_fini(struct drm_device *dev)
 {
-	struct exynos_drm_private *private = dev->dev_private;
+	struct drm_fb_helper *fb_helper = dev->fb_helper;
 
-	if (!private || !private->fb_helper)
+	if (!fb_helper)
 		return;
 
-	exynos_drm_fbdev_destroy(dev, private->fb_helper);
-	drm_fb_helper_unprepare(private->fb_helper);
-	kfree(private->fb_helper);
-	private->fb_helper = NULL;
+	exynos_drm_fbdev_destroy(dev, fb_helper);
+	drm_fb_helper_unprepare(fb_helper);
+	kfree(fb_helper);
 }
 
