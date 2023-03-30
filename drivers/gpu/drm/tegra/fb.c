@@ -218,7 +218,6 @@ static const struct fb_ops tegra_fb_ops = {
 static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 			     struct drm_fb_helper_surface_size *sizes)
 {
-	struct tegra_fbdev *fbdev = to_tegra_fbdev(helper);
 	struct tegra_drm *tegra = helper->dev->dev_private;
 	struct drm_device *drm = helper->dev;
 	struct drm_mode_fb_cmd2 cmd = { 0 };
@@ -253,16 +252,15 @@ static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 		return PTR_ERR(info);
 	}
 
-	fbdev->fb = tegra_fb_alloc(drm, &cmd, &bo, 1);
-	if (IS_ERR(fbdev->fb)) {
-		err = PTR_ERR(fbdev->fb);
+	fb = tegra_fb_alloc(drm, &cmd, &bo, 1);
+	if (IS_ERR(fb)) {
+		err = PTR_ERR(fb);
 		dev_err(drm->dev, "failed to allocate DRM framebuffer: %d\n",
 			err);
 		drm_gem_object_put(&bo->gem);
-		return PTR_ERR(fbdev->fb);
+		return PTR_ERR(fb);
 	}
 
-	fb = fbdev->fb;
 	helper->fb = fb;
 	helper->info = info;
 
@@ -350,10 +348,13 @@ fini:
 
 static void tegra_fbdev_exit(struct tegra_fbdev *fbdev)
 {
-	drm_fb_helper_unregister_info(&fbdev->base);
+	struct drm_fb_helper *helper = &fbdev->base;
+	struct drm_framebuffer *fb = helper->fb;
 
-	if (fbdev->fb) {
-		struct tegra_bo *bo = tegra_fb_get_plane(fbdev->fb, 0);
+	drm_fb_helper_unregister_info(helper);
+
+	if (fb) {
+		struct tegra_bo *bo = tegra_fb_get_plane(fb, 0);
 
 		/* Undo the special mapping we made in fbdev probe. */
 		if (bo && bo->pages) {
@@ -361,10 +362,10 @@ static void tegra_fbdev_exit(struct tegra_fbdev *fbdev)
 			bo->vaddr = NULL;
 		}
 
-		drm_framebuffer_remove(fbdev->fb);
+		drm_framebuffer_remove(fb);
 	}
 
-	drm_fb_helper_fini(&fbdev->base);
+	drm_fb_helper_fini(helper);
 	tegra_fbdev_free(fbdev);
 }
 #endif

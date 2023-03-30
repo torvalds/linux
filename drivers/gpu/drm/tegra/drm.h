@@ -32,7 +32,6 @@ struct reset_control;
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 struct tegra_fbdev {
 	struct drm_fb_helper base;
-	struct drm_framebuffer *fb;
 };
 #endif
 
