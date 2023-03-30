@@ -2990,6 +2990,41 @@ struct rtw89_txpwr_table {
 		     const struct rtw89_txpwr_table *tbl);
 };
 
+struct rtw89_txpwr_rule_2ghz {
+	const s8 (*lmt)[RTW89_2G_BW_NUM][RTW89_NTX_NUM]
+		       [RTW89_RS_LMT_NUM][RTW89_BF_NUM]
+		       [RTW89_REGD_NUM][RTW89_2G_CH_NUM];
+	const s8 (*lmt_ru)[RTW89_RU_NUM][RTW89_NTX_NUM]
+			  [RTW89_REGD_NUM][RTW89_2G_CH_NUM];
+};
+
+struct rtw89_txpwr_rule_5ghz {
+	const s8 (*lmt)[RTW89_5G_BW_NUM][RTW89_NTX_NUM]
+		       [RTW89_RS_LMT_NUM][RTW89_BF_NUM]
+		       [RTW89_REGD_NUM][RTW89_5G_CH_NUM];
+	const s8 (*lmt_ru)[RTW89_RU_NUM][RTW89_NTX_NUM]
+			  [RTW89_REGD_NUM][RTW89_5G_CH_NUM];
+};
+
+struct rtw89_txpwr_rule_6ghz {
+	const s8 (*lmt)[RTW89_6G_BW_NUM][RTW89_NTX_NUM]
+		       [RTW89_RS_LMT_NUM][RTW89_BF_NUM]
+		       [RTW89_REGD_NUM][RTW89_6G_CH_NUM];
+	const s8 (*lmt_ru)[RTW89_RU_NUM][RTW89_NTX_NUM]
+			  [RTW89_REGD_NUM][RTW89_6G_CH_NUM];
+};
+
+struct rtw89_rfe_parms {
+	struct rtw89_txpwr_rule_2ghz rule_2ghz;
+	struct rtw89_txpwr_rule_5ghz rule_5ghz;
+	struct rtw89_txpwr_rule_6ghz rule_6ghz;
+};
+
+struct rtw89_rfe_parms_conf {
+	const struct rtw89_rfe_parms *rfe_parms;
+	u8 rfe_type;
+};
+
 struct rtw89_page_regs {
 	u32 hci_fc_ctrl;
 	u32 ch_page_ctrl;
@@ -3127,21 +3162,10 @@ struct rtw89_chip_info {
 	const struct rtw89_phy_dig_gain_table *dig_table;
 	const struct rtw89_dig_regs *dig_regs;
 	const struct rtw89_phy_tssi_dbw_table *tssi_dbw_table;
-	const s8 (*txpwr_lmt_2g)[RTW89_2G_BW_NUM][RTW89_NTX_NUM]
-				[RTW89_RS_LMT_NUM][RTW89_BF_NUM]
-				[RTW89_REGD_NUM][RTW89_2G_CH_NUM];
-	const s8 (*txpwr_lmt_5g)[RTW89_5G_BW_NUM][RTW89_NTX_NUM]
-				[RTW89_RS_LMT_NUM][RTW89_BF_NUM]
-				[RTW89_REGD_NUM][RTW89_5G_CH_NUM];
-	const s8 (*txpwr_lmt_6g)[RTW89_6G_BW_NUM][RTW89_NTX_NUM]
-				[RTW89_RS_LMT_NUM][RTW89_BF_NUM]
-				[RTW89_REGD_NUM][RTW89_6G_CH_NUM];
-	const s8 (*txpwr_lmt_ru_2g)[RTW89_RU_NUM][RTW89_NTX_NUM]
-				   [RTW89_REGD_NUM][RTW89_2G_CH_NUM];
-	const s8 (*txpwr_lmt_ru_5g)[RTW89_RU_NUM][RTW89_NTX_NUM]
-				   [RTW89_REGD_NUM][RTW89_5G_CH_NUM];
-	const s8 (*txpwr_lmt_ru_6g)[RTW89_RU_NUM][RTW89_NTX_NUM]
-				   [RTW89_REGD_NUM][RTW89_6G_CH_NUM];
+
+	/* NULL if no rfe-specific, or a null-terminated array by rfe_parms */
+	const struct rtw89_rfe_parms_conf *rfe_parms_conf;
+	const struct rtw89_rfe_parms *dflt_parms;
 
 	u8 txpwr_factor_rf;
 	u8 txpwr_factor_mac;
@@ -3992,6 +4016,7 @@ struct rtw89_dev {
 	struct rtw89_hw_scan_info scan_info;
 	const struct rtw89_chip_info *chip;
 	const struct rtw89_pci_info *pci_info;
+	const struct rtw89_rfe_parms *rfe_parms;
 	struct rtw89_hal hal;
 	struct rtw89_mcc_info mcc;
 	struct rtw89_mac_info mac;

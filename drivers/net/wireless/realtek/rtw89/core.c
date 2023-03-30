@@ -3557,6 +3557,28 @@ static void rtw89_core_setup_phycap(struct rtw89_dev *rtwdev)
 		rtwdev->chip->chip_id == RTL8852A && rtwdev->hal.cv <= CHIP_CBV;
 }
 
+static void rtw89_core_setup_rfe_parms(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	const struct rtw89_rfe_parms_conf *conf = chip->rfe_parms_conf;
+	struct rtw89_efuse *efuse = &rtwdev->efuse;
+	u8 rfe_type = efuse->rfe_type;
+
+	if (!conf)
+		goto out;
+
+	while (conf->rfe_parms) {
+		if (rfe_type == conf->rfe_type) {
+			rtwdev->rfe_parms = conf->rfe_parms;
+			return;
+		}
+		conf++;
+	}
+
+out:
+	rtwdev->rfe_parms = chip->dflt_parms;
+}
+
 static int rtw89_chip_efuse_info_setup(struct rtw89_dev *rtwdev)
 {
 	int ret;
@@ -3578,6 +3600,7 @@ static int rtw89_chip_efuse_info_setup(struct rtw89_dev *rtwdev)
 		return ret;
 
 	rtw89_core_setup_phycap(rtwdev);
+	rtw89_core_setup_rfe_parms(rtwdev);
 
 	rtw89_mac_pwr_off(rtwdev);
 

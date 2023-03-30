@@ -1617,29 +1617,35 @@ static u8 rtw89_channel_to_idx(struct rtw89_dev *rtwdev, u8 band, u8 channel)
 s8 rtw89_phy_read_txpwr_limit(struct rtw89_dev *rtwdev, u8 band,
 			      u8 bw, u8 ntx, u8 rs, u8 bf, u8 ch)
 {
-	const struct rtw89_chip_info *chip = rtwdev->chip;
+	const struct rtw89_rfe_parms *rfe_parms = rtwdev->rfe_parms;
+	const struct rtw89_txpwr_rule_2ghz *rule_2ghz = &rfe_parms->rule_2ghz;
+	const struct rtw89_txpwr_rule_5ghz *rule_5ghz = &rfe_parms->rule_5ghz;
+	const struct rtw89_txpwr_rule_6ghz *rule_6ghz = &rfe_parms->rule_6ghz;
 	u8 ch_idx = rtw89_channel_to_idx(rtwdev, band, ch);
 	u8 regd = rtw89_regd_get(rtwdev, band);
 	s8 lmt = 0, sar;
 
 	switch (band) {
 	case RTW89_BAND_2G:
-		lmt = (*chip->txpwr_lmt_2g)[bw][ntx][rs][bf][regd][ch_idx];
-		if (!lmt)
-			lmt = (*chip->txpwr_lmt_2g)[bw][ntx][rs][bf]
-						   [RTW89_WW][ch_idx];
+		lmt = (*rule_2ghz->lmt)[bw][ntx][rs][bf][regd][ch_idx];
+		if (lmt)
+			break;
+
+		lmt = (*rule_2ghz->lmt)[bw][ntx][rs][bf][RTW89_WW][ch_idx];
 		break;
 	case RTW89_BAND_5G:
-		lmt = (*chip->txpwr_lmt_5g)[bw][ntx][rs][bf][regd][ch_idx];
-		if (!lmt)
-			lmt = (*chip->txpwr_lmt_5g)[bw][ntx][rs][bf]
-						   [RTW89_WW][ch_idx];
+		lmt = (*rule_5ghz->lmt)[bw][ntx][rs][bf][regd][ch_idx];
+		if (lmt)
+			break;
+
+		lmt = (*rule_5ghz->lmt)[bw][ntx][rs][bf][RTW89_WW][ch_idx];
 		break;
 	case RTW89_BAND_6G:
-		lmt = (*chip->txpwr_lmt_6g)[bw][ntx][rs][bf][regd][ch_idx];
-		if (!lmt)
-			lmt = (*chip->txpwr_lmt_6g)[bw][ntx][rs][bf]
-						   [RTW89_WW][ch_idx];
+		lmt = (*rule_6ghz->lmt)[bw][ntx][rs][bf][regd][ch_idx];
+		if (lmt)
+			break;
+
+		lmt = (*rule_6ghz->lmt)[bw][ntx][rs][bf][RTW89_WW][ch_idx];
 		break;
 	default:
 		rtw89_warn(rtwdev, "unknown band type: %d\n", band);
@@ -1862,29 +1868,35 @@ void rtw89_phy_fill_txpwr_limit(struct rtw89_dev *rtwdev,
 static s8 rtw89_phy_read_txpwr_limit_ru(struct rtw89_dev *rtwdev, u8 band,
 					u8 ru, u8 ntx, u8 ch)
 {
-	const struct rtw89_chip_info *chip = rtwdev->chip;
+	const struct rtw89_rfe_parms *rfe_parms = rtwdev->rfe_parms;
+	const struct rtw89_txpwr_rule_2ghz *rule_2ghz = &rfe_parms->rule_2ghz;
+	const struct rtw89_txpwr_rule_5ghz *rule_5ghz = &rfe_parms->rule_5ghz;
+	const struct rtw89_txpwr_rule_6ghz *rule_6ghz = &rfe_parms->rule_6ghz;
 	u8 ch_idx = rtw89_channel_to_idx(rtwdev, band, ch);
 	u8 regd = rtw89_regd_get(rtwdev, band);
 	s8 lmt_ru = 0, sar;
 
 	switch (band) {
 	case RTW89_BAND_2G:
-		lmt_ru = (*chip->txpwr_lmt_ru_2g)[ru][ntx][regd][ch_idx];
-		if (!lmt_ru)
-			lmt_ru = (*chip->txpwr_lmt_ru_2g)[ru][ntx]
-							 [RTW89_WW][ch_idx];
+		lmt_ru = (*rule_2ghz->lmt_ru)[ru][ntx][regd][ch_idx];
+		if (lmt_ru)
+			break;
+
+		lmt_ru = (*rule_2ghz->lmt_ru)[ru][ntx][RTW89_WW][ch_idx];
 		break;
 	case RTW89_BAND_5G:
-		lmt_ru = (*chip->txpwr_lmt_ru_5g)[ru][ntx][regd][ch_idx];
-		if (!lmt_ru)
-			lmt_ru = (*chip->txpwr_lmt_ru_5g)[ru][ntx]
-							 [RTW89_WW][ch_idx];
+		lmt_ru = (*rule_5ghz->lmt_ru)[ru][ntx][regd][ch_idx];
+		if (lmt_ru)
+			break;
+
+		lmt_ru = (*rule_5ghz->lmt_ru)[ru][ntx][RTW89_WW][ch_idx];
 		break;
 	case RTW89_BAND_6G:
-		lmt_ru = (*chip->txpwr_lmt_ru_6g)[ru][ntx][regd][ch_idx];
-		if (!lmt_ru)
-			lmt_ru = (*chip->txpwr_lmt_ru_6g)[ru][ntx]
-							 [RTW89_WW][ch_idx];
+		lmt_ru = (*rule_6ghz->lmt_ru)[ru][ntx][regd][ch_idx];
+		if (lmt_ru)
+			break;
+
+		lmt_ru = (*rule_6ghz->lmt_ru)[ru][ntx][RTW89_WW][ch_idx];
 		break;
 	default:
 		rtw89_warn(rtwdev, "unknown band type: %d\n", band);
