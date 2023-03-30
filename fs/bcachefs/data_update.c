@@ -162,7 +162,11 @@ static int __bch2_data_update_index_update(struct btree_trans *trans,
 			if (((1U << i) & m->data_opts.rewrite_ptrs) &&
 			    (ptr = bch2_extent_has_ptr(old, p, bkey_i_to_s(insert))) &&
 			    !ptr->cached) {
+				bch2_bkey_drop_ptr_noerror(bkey_i_to_s(insert), ptr);
+				/*
+				 * See comment below:
 				bch2_extent_ptr_set_cached(bkey_i_to_s(insert), ptr);
+				*/
 				rewrites_found |= 1U << i;
 			}
 			i++;
@@ -204,7 +208,14 @@ restart_drop_extra_replicas:
 			if (!p.ptr.cached &&
 			    durability - ptr_durability >= m->op.opts.data_replicas) {
 				durability -= ptr_durability;
+				bch2_bkey_drop_ptr_noerror(bkey_i_to_s(insert), &entry->ptr);
+				/*
+				 * Currently, we're dropping unneeded replicas
+				 * instead of marking them as cached, since
+				 * cached data in stripe buckets prevents them
+				 * from being reused:
 				bch2_extent_ptr_set_cached(bkey_i_to_s(insert), &entry->ptr);
+				*/
 				goto restart_drop_extra_replicas;
 			}
 		}
