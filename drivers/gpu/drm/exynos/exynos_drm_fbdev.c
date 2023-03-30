@@ -28,13 +28,6 @@
 #define MAX_CONNECTOR		4
 #define PREFERRED_BPP		32
 
-#define to_exynos_fbdev(x)	container_of(x, struct exynos_drm_fbdev,\
-				drm_fb_helper)
-
-struct exynos_drm_fbdev {
-	struct drm_fb_helper	drm_fb_helper;
-};
-
 static int exynos_drm_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	struct drm_fb_helper *helper = info->par;
@@ -144,7 +137,6 @@ static const struct drm_fb_helper_funcs exynos_drm_fb_helper_funcs = {
 
 int exynos_drm_fbdev_init(struct drm_device *dev)
 {
-	struct exynos_drm_fbdev *fbdev;
 	struct exynos_drm_private *private = dev->dev_private;
 	struct drm_fb_helper *helper;
 	int ret;
@@ -152,11 +144,11 @@ int exynos_drm_fbdev_init(struct drm_device *dev)
 	if (!dev->mode_config.num_crtc)
 		return 0;
 
-	fbdev = kzalloc(sizeof(*fbdev), GFP_KERNEL);
-	if (!fbdev)
+	helper = kzalloc(sizeof(*helper), GFP_KERNEL);
+	if (!helper)
 		return -ENOMEM;
 
-	private->fb_helper = helper = &fbdev->drm_fb_helper;
+	private->fb_helper = helper;
 
 	drm_fb_helper_prepare(dev, helper, PREFERRED_BPP, &exynos_drm_fb_helper_funcs);
 
@@ -181,7 +173,7 @@ err_setup:
 err_init:
 	drm_fb_helper_unprepare(helper);
 	private->fb_helper = NULL;
-	kfree(fbdev);
+	kfree(helper);
 
 	return ret;
 }
@@ -206,16 +198,13 @@ static void exynos_drm_fbdev_destroy(struct drm_device *dev,
 void exynos_drm_fbdev_fini(struct drm_device *dev)
 {
 	struct exynos_drm_private *private = dev->dev_private;
-	struct exynos_drm_fbdev *fbdev;
 
 	if (!private || !private->fb_helper)
 		return;
 
-	fbdev = to_exynos_fbdev(private->fb_helper);
-
 	exynos_drm_fbdev_destroy(dev, private->fb_helper);
 	drm_fb_helper_unprepare(private->fb_helper);
-	kfree(fbdev);
+	kfree(private->fb_helper);
 	private->fb_helper = NULL;
 }
 
