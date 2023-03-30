@@ -51,3 +51,15 @@
 		};
 	};
 };
+
+&pcie0 {
+	power-gpios = <&gpio 32 GPIO_ACTIVE_HIGH>;
+	reset-gpios = <&gpio 26 GPIO_ACTIVE_LOW>;
+	status = "disabled";
+};
+
+&pcie1 {
+	power-gpios = <&gpio 21 GPIO_ACTIVE_HIGH>;
+	reset-gpios = <&gpio 28 GPIO_ACTIVE_LOW>;
+	status = "disabled";
+};

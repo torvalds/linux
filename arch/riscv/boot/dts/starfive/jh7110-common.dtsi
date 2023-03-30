@@ -588,24 +588,6 @@
 	};
 };
 
-&pcie0 {
-	pinctrl-names = "perst-default", "perst-active", "power-default", "power-active";
-	pinctrl-0 = <&pcie0_perst_default>;
-	pinctrl-1 = <&pcie0_perst_active>;
-	pinctrl-2 = <&pcie0_power_default>;
-	pinctrl-3 = <&pcie0_power_active>;
-	status = "disabled";
-};
-
-&pcie1 {
-	pinctrl-names = "perst-default", "perst-active", "power-default", "power-active";
-	pinctrl-0 = <&pcie1_perst_default>;
-	pinctrl-1 = <&pcie1_perst_active>;
-	pinctrl-2 = <&pcie1_power_default>;
-	pinctrl-3 = <&pcie1_power_active>;
-	status = "disabled";
-};
-
 &mailbox_contrl0 {
 	status = "okay";
 };
