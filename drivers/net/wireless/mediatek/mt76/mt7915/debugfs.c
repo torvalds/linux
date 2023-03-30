@@ -958,10 +958,10 @@ mt7915_xmit_queues_show(struct seq_file *file, void *data)
 
 DEFINE_SHOW_ATTRIBUTE(mt7915_xmit_queues);
 
-#define mt7915_txpower_puts(prefix, rate)					\
+#define mt7915_txpower_puts(rate)						\
 ({										\
-	len += scnprintf(buf + len, sz - len, "%-16s:", #prefix " (tmac)");	\
-	for (i = 0; i < mt7915_sku_group_len[rate]; i++, offs++)		\
+	len += scnprintf(buf + len, sz - len, "%-16s:", #rate " (TMAC)");	\
+	for (i = 0; i < mt7915_sku_group_len[SKU_##rate]; i++, offs++)		\
 		len += scnprintf(buf + len, sz - len, " %6d", txpwr[offs]);	\
 	len += scnprintf(buf + len, sz - len, "\n");				\
 })
@@ -1004,41 +1004,41 @@ mt7915_rate_txpower_get(struct file *file, char __user *user_buf,
 			 phy != &dev->phy, phy->mt76->chandef.chan->hw_value);
 	len += scnprintf(buf + len, sz - len, "%-16s  %6s %6s %6s %6s\n",
 			 " ", "1m", "2m", "5m", "11m");
-	mt7915_txpower_puts(CCK, SKU_CCK);
+	mt7915_txpower_puts(CCK);
 
 	len += scnprintf(buf + len, sz - len,
 			 "%-16s  %6s %6s %6s %6s %6s %6s %6s %6s\n",
 			 " ", "6m", "9m", "12m", "18m", "24m", "36m", "48m",
 			 "54m");
-	mt7915_txpower_puts(OFDM, SKU_OFDM);
+	mt7915_txpower_puts(OFDM);
 
 	len += scnprintf(buf + len, sz - len,
 			 "%-16s  %6s %6s %6s %6s %6s %6s %6s %6s\n",
 			 " ", "mcs0", "mcs1", "mcs2", "mcs3", "mcs4",
 			 "mcs5", "mcs6", "mcs7");
-	mt7915_txpower_puts(HT20, SKU_HT_BW20);
+	mt7915_txpower_puts(HT_BW20);
 
 	len += scnprintf(buf + len, sz - len,
 			 "%-16s  %6s %6s %6s %6s %6s %6s %6s %6s %6s\n",
 			 " ", "mcs0", "mcs1", "mcs2", "mcs3", "mcs4", "mcs5",
 			 "mcs6", "mcs7", "mcs32");
-	mt7915_txpower_puts(HT40, SKU_HT_BW40);
+	mt7915_txpower_puts(HT_BW40);
 
 	len += scnprintf(buf + len, sz - len,
 			 "%-16s  %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s\n",
 			 " ", "mcs0", "mcs1", "mcs2", "mcs3", "mcs4", "mcs5",
 			 "mcs6", "mcs7", "mcs8", "mcs9", "mcs10", "mcs11");
-	mt7915_txpower_puts(VHT20, SKU_VHT_BW20);
-	mt7915_txpower_puts(VHT40, SKU_VHT_BW40);
-	mt7915_txpower_puts(VHT80, SKU_VHT_BW80);
-	mt7915_txpower_puts(VHT160, SKU_VHT_BW160);
-	mt7915_txpower_puts(HE26, SKU_HE_RU26);
-	mt7915_txpower_puts(HE52, SKU_HE_RU52);
-	mt7915_txpower_puts(HE106, SKU_HE_RU106);
-	mt7915_txpower_puts(HE242, SKU_HE_RU242);
-	mt7915_txpower_puts(HE484, SKU_HE_RU484);
-	mt7915_txpower_puts(HE996, SKU_HE_RU996);
-	mt7915_txpower_puts(HE996x2, SKU_HE_RU2x996);
+	mt7915_txpower_puts(VHT_BW20);
+	mt7915_txpower_puts(VHT_BW40);
+	mt7915_txpower_puts(VHT_BW80);
+	mt7915_txpower_puts(VHT_BW160);
+	mt7915_txpower_puts(HE_RU26);
+	mt7915_txpower_puts(HE_RU52);
+	mt7915_txpower_puts(HE_RU106);
+	mt7915_txpower_puts(HE_RU242);
+	mt7915_txpower_puts(HE_RU484);
+	mt7915_txpower_puts(HE_RU996);
+	mt7915_txpower_puts(HE_RU2x996);
 
 	reg = is_mt7915(&dev->mt76) ? MT_WF_PHY_TPC_CTRL_STAT(band) :
 	      MT_WF_PHY_TPC_CTRL_STAT_MT7916(band);
