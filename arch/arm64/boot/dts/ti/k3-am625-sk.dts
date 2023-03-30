@@ -87,6 +87,17 @@
 		states = <1800000 0x0>,
 			 <3300000 0x1>;
 	};
+
+	vcc_1v8: regulator-5 {
+		/* output of TPS6282518DMQ */
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_1v8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&vcc_3v3_sys>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
 };
 
 &main_pmx0 {
@@ -255,4 +266,8 @@
 			};
 		};
 	};
+};
+
+&tlv320aic3106 {
+	DVDD-supply = <&vcc_1v8>;
 };

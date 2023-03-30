@@ -225,3 +225,7 @@
 		};
 	};
 };
+
+&tlv320aic3106 {
+	DVDD-supply = <&buck2_reg>;
+};
