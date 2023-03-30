@@ -7,7 +7,11 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/watchdog.h>
-#include <loongson1.h>
+
+/* Loongson 1 Watchdog Register Definitions */
+#define WDT_EN			0x0
+#define WDT_TIMER		0x4
+#define WDT_SET			0x8
 
 #define DEFAULT_HEARTBEAT	30
 
@@ -66,6 +70,18 @@ static int ls1x_wdt_stop(struct watchdog_device *wdt_dev)
 	return 0;
 }
 
+static int ls1x_wdt_restart(struct watchdog_device *wdt_dev,
+			    unsigned long action, void *data)
+{
+	struct ls1x_wdt_drvdata *drvdata = watchdog_get_drvdata(wdt_dev);
+
+	writel(0x1, drvdata->base + WDT_EN);
+	writel(0x1, drvdata->base + WDT_TIMER);
+	writel(0x1, drvdata->base + WDT_SET);
+
+	return 0;
+}
+
 static const struct watchdog_info ls1x_wdt_info = {
 	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE,
 	.identity = "Loongson1 Watchdog",
@@ -77,6 +93,7 @@ static const struct watchdog_ops ls1x_wdt_ops = {
 	.stop = ls1x_wdt_stop,
 	.ping = ls1x_wdt_ping,
 	.set_timeout = ls1x_wdt_set_timeout,
+	.restart = ls1x_wdt_restart,
 };
 
 static int ls1x_wdt_probe(struct platform_device *pdev)
