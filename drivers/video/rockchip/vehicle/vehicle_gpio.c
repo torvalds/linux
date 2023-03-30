@@ -91,23 +91,20 @@ static int gpio_parse_dt(struct gpio_detect *gpiod, const char *ad_name)
 	struct device_node *gpiod_node;
 	struct device_node *node;
 	const char *name;
-	// int num;
 	int ret = 0;
 
 	gpiod_node = of_parse_phandle(dev->of_node, "rockchip,gpio-det", 0);
 	if (!gpiod_node) {
 		VEHICLE_DGERR("phase gpio-det from dts failed, maybe no use!\n");
-		return 0;
+		return -EINVAL;
 	}
 
 	gpiod->num = of_get_child_count(gpiod_node);
 	if (gpiod->num == 0) {
 		VEHICLE_DGERR("gpio-det child count is 0, maybe no use!\n");
-		return 0;
+		return -EINVAL;
 	}
 
-	of_property_read_u32(gpiod_node, "rockchip,camcap-mirror",
-			     &gpiod->mirror);
 	for_each_child_of_node(gpiod_node, node) {
 		enum of_gpio_flags flags;
 
@@ -137,34 +134,34 @@ int vehicle_gpio_init(struct gpio_detect *gpiod, const char *ad_name)
 	unsigned long irqflags = IRQF_ONESHOT;
 
 	if (gpio_parse_dt(gpiod, ad_name) < 0) {
-		VEHICLE_DGERR("%s,parse dt failed\n", __func__);
-		return -EINVAL;
-	}
+		VEHICLE_INFO("%s, gpio parse dt failed, maybe unuse gpio-det\n", __func__);
+	} else {
+		gpio = gpiod->gpio;
 
-	gpio = gpiod->gpio;
+		ret = gpio_request(gpio, "vehicle");
+		if (ret < 0)
+			VEHICLE_DGERR("%s:failed to request gpio %d, maybe no use\n",
+					__func__, ret);
 
-	ret = gpio_request(gpio, "vehicle");
-	if (ret < 0)
-		VEHICLE_DGERR("%s:failed to request gpio %d, maybe no use\n", __func__, ret);
+		dev_info(gpiod->dev, "%s: request irq gpio(%d)\n", __func__, gpio);
+		gpio_direction_input(gpio);
 
-	dev_info(gpiod->dev, "%s: request irq gpio(%d)\n", __func__, gpio);
-	gpio_direction_input(gpio);
+		gpiod->irq = gpio_to_irq(gpio);
+		if (gpiod->irq < 0)
+			VEHICLE_DGERR("failed to get irq, GPIO %d, maybe no use\n", gpio);
 
-	gpiod->irq = gpio_to_irq(gpio);
-	if (gpiod->irq < 0)
-		VEHICLE_DGERR("failed to get irq, GPIO %d, maybe no use\n", gpio);
-
-	gpiod->val = gpio_get_value(gpio);
-	if (gpiod->val)
-		irqflags |= IRQ_TYPE_EDGE_FALLING;
-	else
-		irqflags |= IRQ_TYPE_EDGE_RISING;
-	ret = devm_request_threaded_irq(gpiod->dev, gpiod->irq,
+		gpiod->val = gpio_get_value(gpio);
+		if (gpiod->val)
+			irqflags |= IRQ_TYPE_EDGE_FALLING;
+		else
+			irqflags |= IRQ_TYPE_EDGE_RISING;
+		ret = devm_request_threaded_irq(gpiod->dev, gpiod->irq,
 					NULL, gpio_det_interrupt,
 					irqflags, "vehicle gpio", gpiod);
-	if (ret < 0)
-		VEHICLE_DGERR("request irq(%s) failed:%d\n",
-			"vehicle", ret);
+		if (ret < 0)
+			VEHICLE_DGERR("request irq(%s) failed:%d\n",
+				"vehicle", ret);
+	}
 
 	//if not add in create_workqueue only execute once;
 	INIT_DELAYED_WORK(&gpiod->work, gpio_det_work_func);
@@ -176,7 +173,6 @@ int vehicle_gpio_init(struct gpio_detect *gpiod, const char *ad_name)
 
 int vehicle_gpio_deinit(struct gpio_detect *gpiod)
 {
-	free_irq(gpiod->irq, gpiod);
 	gpio_free(gpiod->gpio);
 	return 0;
 }

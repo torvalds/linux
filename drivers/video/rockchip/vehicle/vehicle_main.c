@@ -77,15 +77,14 @@ static int vehicle_parse_dt(struct vehicle *vehicle_info)
 	vehicle_info->pinctrl = devm_pinctrl_get(dev);
 
 	if (IS_ERR(vehicle_info->pinctrl)) {
-		dev_err(dev, "pinctrl get failed\n");
-		return PTR_ERR(vehicle_info->pinctrl);
+		dev_err(dev, "pinctrl get failed, maybe unuse\n");
+	} else {
+		vehicle_info->pins_default = pinctrl_lookup_state(vehicle_info->pinctrl,
+				"default");
+
+		if (IS_ERR(vehicle_info->pins_default))
+			dev_err(dev, "get default pinstate failed\n");
 	}
-
-	vehicle_info->pins_default = pinctrl_lookup_state(vehicle_info->pinctrl,
-			"default");
-
-	if (IS_ERR(vehicle_info->pins_default))
-		dev_err(dev, "get default pinstate failed\n");
 
 	return 0;
 }
