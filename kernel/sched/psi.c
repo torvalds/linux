@@ -384,6 +384,114 @@ static void collect_percpu_times(struct psi_group *group,
 		*pchanged_states = changed_states;
 }
 
+/* Trigger tracking window manipulations */
+static void window_reset(struct psi_window *win, u64 now, u64 value,
+			 u64 prev_growth)
+{
+	win->start_time = now;
+	win->start_value = value;
+	win->prev_growth = prev_growth;
+}
+
+/*
+ * PSI growth tracking window update and growth calculation routine.
+ *
+ * This approximates a sliding tracking window by interpolating
+ * partially elapsed windows using historical growth data from the
+ * previous intervals. This minimizes memory requirements (by not storing
+ * all the intermediate values in the previous window) and simplifies
+ * the calculations. It works well because PSI signal changes only in
+ * positive direction and over relatively small window sizes the growth
+ * is close to linear.
+ */
+static u64 window_update(struct psi_window *win, u64 now, u64 value)
+{
+	u64 elapsed;
+	u64 growth;
+
+	elapsed = now - win->start_time;
+	growth = value - win->start_value;
+	/*
+	 * After each tracking window passes win->start_value and
+	 * win->start_time get reset and win->prev_growth stores
+	 * the average per-window growth of the previous window.
+	 * win->prev_growth is then used to interpolate additional
+	 * growth from the previous window assuming it was linear.
+	 */
+	if (elapsed > win->size)
+		window_reset(win, now, value, growth);
+	else {
+		u32 remaining;
+
+		remaining = win->size - elapsed;
+		growth += div64_u64(win->prev_growth * remaining, win->size);
+	}
+
+	return growth;
+}
+
+static u64 update_triggers(struct psi_group *group, u64 now)
+{
+	struct psi_trigger *t;
+	bool update_total = false;
+	u64 *total = group->total[PSI_POLL];
+
+	/*
+	 * On subsequent updates, calculate growth deltas and let
+	 * watchers know when their specified thresholds are exceeded.
+	 */
+	list_for_each_entry(t, &group->triggers, node) {
+		u64 growth;
+		bool new_stall;
+
+		new_stall = group->polling_total[t->state] != total[t->state];
+
+		/* Check for stall activity or a previous threshold breach */
+		if (!new_stall && !t->pending_event)
+			continue;
+		/*
+		 * Check for new stall activity, as well as deferred
+		 * events that occurred in the last window after the
+		 * trigger had already fired (we want to ratelimit
+		 * events without dropping any).
+		 */
+		if (new_stall) {
+			/*
+			 * Multiple triggers might be looking at the same state,
+			 * remember to update group->polling_total[] once we've
+			 * been through all of them. Also remember to extend the
+			 * polling time if we see new stall activity.
+			 */
+			update_total = true;
+
+			/* Calculate growth since last update */
+			growth = window_update(&t->win, now, total[t->state]);
+			if (!t->pending_event) {
+				if (growth < t->threshold)
+					continue;
+
+				t->pending_event = true;
+			}
+		}
+		/* Limit event signaling to once per window */
+		if (now < t->last_event_time + t->win.size)
+			continue;
+
+		/* Generate an event */
+		if (cmpxchg(&t->event, 0, 1) == 0)
+			wake_up_interruptible(&t->event_wait);
+		t->last_event_time = now;
+		/* Reset threshold breach flag once event got generated */
+		t->pending_event = false;
+	}
+
+	if (update_total)
+		memcpy(group->polling_total, total,
+				sizeof(group->polling_total));
+
+	return now + group->poll_min_period;
+}
+
 static u64 update_averages(struct psi_group *group, u64 now)
 {
 	unsigned long missed_periods = 0;
@@ -470,52 +578,6 @@ static void psi_avgs_work(struct work_struct *work)
 	mutex_unlock(&group->avgs_lock);
 }
 
-/* Trigger tracking window manipulations */
-static void window_reset(struct psi_window *win, u64 now, u64 value,
-			 u64 prev_growth)
-{
-	win->start_time = now;
-	win->start_value = value;
-	win->prev_growth = prev_growth;
-}
-
-/*
- * PSI growth tracking window update and growth calculation routine.
- *
- * This approximates a sliding tracking window by interpolating
- * partially elapsed windows using historical growth data from the
- * previous intervals. This minimizes memory requirements (by not storing
- * all the intermediate values in the previous window) and simplifies
- * the calculations. It works well because PSI signal changes only in
- * positive direction and over relatively small window sizes the growth
- * is close to linear.
- */
-static u64 window_update(struct psi_window *win, u64 now, u64 value)
-{
-	u64 elapsed;
-	u64 growth;
-
-	elapsed = now - win->start_time;
-	growth = value - win->start_value;
-	/*
-	 * After each tracking window passes win->start_value and
-	 * win->start_time get reset and win->prev_growth stores
-	 * the average per-window growth of the previous window.
-	 * win->prev_growth is then used to interpolate additional
-	 * growth from the previous window assuming it was linear.
-	 */
-	if (elapsed > win->size)
-		window_reset(win, now, value, growth);
-	else {
-		u32 remaining;
-
-		remaining = win->size - elapsed;
-		growth += div64_u64(win->prev_growth * remaining, win->size);
-	}
-
-	return growth;
-}
-
 static void init_triggers(struct psi_group *group, u64 now)
 {
 	struct psi_trigger *t;
@@ -526,68 +588,6 @@ static void init_triggers(struct psi_group *group, u64 now)
 	memcpy(group->polling_total, group->total[PSI_POLL],
 		   sizeof(group->polling_total));
 	group->polling_next_update = now + group->poll_min_period;
-}
-
-static u64 update_triggers(struct psi_group *group, u64 now)
-{
-	struct psi_trigger *t;
-	bool update_total = false;
-	u64 *total = group->total[PSI_POLL];
-
-	/*
-	 * On subsequent updates, calculate growth deltas and let
-	 * watchers know when their specified thresholds are exceeded.
-	 */
-	list_for_each_entry(t, &group->triggers, node) {
-		u64 growth;
-		bool new_stall;
-
-		new_stall = group->polling_total[t->state] != total[t->state];
-
-		/* Check for stall activity or a previous threshold breach */
-		if (!new_stall && !t->pending_event)
-			continue;
-		/*
-		 * Check for new stall activity, as well as deferred
-		 * events that occurred in the last window after the
-		 * trigger had already fired (we want to ratelimit
-		 * events without dropping any).
-		 */
-		if (new_stall) {
-			/*
-			 * Multiple triggers might be looking at the same state,
-			 * remember to update group->polling_total[] once we've
-			 * been through all of them. Also remember to extend the
-			 * polling time if we see new stall activity.
-			 */
-			update_total = true;
-
-			/* Calculate growth since last update */
-			growth = window_update(&t->win, now, total[t->state]);
-			if (!t->pending_event) {
-				if (growth < t->threshold)
-					continue;
-
-				t->pending_event = true;
-			}
-		}
-		/* Limit event signaling to once per window */
-		if (now < t->last_event_time + t->win.size)
-			continue;
-
-		/* Generate an event */
-		if (cmpxchg(&t->event, 0, 1) == 0)
-			wake_up_interruptible(&t->event_wait);
-		t->last_event_time = now;
-		/* Reset threshold breach flag once event got generated */
-		t->pending_event = false;
-	}
-
-	if (update_total)
-		memcpy(group->polling_total, total,
-				sizeof(group->polling_total));
-
-	return now + group->poll_min_period;
 }
 
 /* Schedule polling if it's not already scheduled or forced. */
