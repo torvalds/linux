@@ -8251,6 +8251,7 @@ static bool gaudi2_handle_psoc_razwi_happened(struct hl_device *hdev, u32 razwi_
 	u16 num_of_eng, eng_id[PSOC_RAZWI_MAX_ENG_PER_RTR];
 	char eng_name_str[PSOC_RAZWI_ENG_STR_SIZE];
 	bool razwi_happened = false;
+	u64 addr;
 	int i;
 
 	num_of_eng = gaudi2_psoc_razwi_get_engines(common_razwi_info, ARRAY_SIZE(common_razwi_info),
@@ -8269,43 +8270,53 @@ static bool gaudi2_handle_psoc_razwi_happened(struct hl_device *hdev, u32 razwi_
 		if (RREG32(base[i] + DEC_RAZWI_HBW_AW_SET)) {
 			addr_hi = RREG32(base[i] + DEC_RAZWI_HBW_AW_ADDR_HI);
 			addr_lo = RREG32(base[i] + DEC_RAZWI_HBW_AW_ADDR_LO);
-			dev_err(hdev->dev,
+			addr = ((u64)addr_hi << 32) + addr_lo;
+			if (addr) {
+				dev_err(hdev->dev,
 					"PSOC HBW AW RAZWI: %s, address (aligned to 128 byte): 0x%llX\n",
-					eng_name_str, ((u64)addr_hi << 32) + addr_lo);
-			hl_handle_razwi(hdev, ((u64)addr_hi << 32) + addr_lo, &eng_id[0],
+					eng_name_str, addr);
+				hl_handle_razwi(hdev, addr, &eng_id[0],
 					num_of_eng, HL_RAZWI_HBW | HL_RAZWI_WRITE, event_mask);
-			razwi_happened = true;
+				razwi_happened = true;
+			}
 		}
 
 		if (RREG32(base[i] + DEC_RAZWI_HBW_AR_SET)) {
 			addr_hi = RREG32(base[i] + DEC_RAZWI_HBW_AR_ADDR_HI);
 			addr_lo = RREG32(base[i] + DEC_RAZWI_HBW_AR_ADDR_LO);
-			dev_err(hdev->dev,
+			addr = ((u64)addr_hi << 32) + addr_lo;
+			if (addr) {
+				dev_err(hdev->dev,
 					"PSOC HBW AR RAZWI: %s, address (aligned to 128 byte): 0x%llX\n",
-					eng_name_str, ((u64)addr_hi << 32) + addr_lo);
-			hl_handle_razwi(hdev, ((u64)addr_hi << 32) + addr_lo, &eng_id[0],
+					eng_name_str, addr);
+				hl_handle_razwi(hdev, addr, &eng_id[0],
 					num_of_eng, HL_RAZWI_HBW | HL_RAZWI_READ, event_mask);
-			razwi_happened = true;
+				razwi_happened = true;
+			}
 		}
 
 		if (RREG32(base[i] + DEC_RAZWI_LBW_AW_SET)) {
 			addr_lo = RREG32(base[i] + DEC_RAZWI_LBW_AW_ADDR);
-			dev_err(hdev->dev,
+			if (addr_lo) {
+				dev_err(hdev->dev,
 					"PSOC LBW AW RAZWI: %s, address (aligned to 128 byte): 0x%X\n",
 					eng_name_str, addr_lo);
-			hl_handle_razwi(hdev, addr_lo, &eng_id[0],
+				hl_handle_razwi(hdev, addr_lo, &eng_id[0],
 					num_of_eng, HL_RAZWI_LBW | HL_RAZWI_WRITE, event_mask);
-			razwi_happened = true;
+				razwi_happened = true;
+			}
 		}
 
 		if (RREG32(base[i] + DEC_RAZWI_LBW_AR_SET)) {
 			addr_lo = RREG32(base[i] + DEC_RAZWI_LBW_AR_ADDR);
-			dev_err(hdev->dev,
-					"PSOC LBW AR RAZWI: %s, address (aligned to 128 byte): 0x%X\n",
-					eng_name_str, addr_lo);
-			hl_handle_razwi(hdev, addr_lo, &eng_id[0],
+			if (addr_lo) {
+				dev_err(hdev->dev,
+						"PSOC LBW AR RAZWI: %s, address (aligned to 128 byte): 0x%X\n",
+						eng_name_str, addr_lo);
+				hl_handle_razwi(hdev, addr_lo, &eng_id[0],
 					num_of_eng, HL_RAZWI_LBW | HL_RAZWI_READ, event_mask);
-			razwi_happened = true;
+				razwi_happened = true;
+			}
 		}
 		/* In common case the loop will break, when there is only one engine id, or
 		 * several engines with the same router. The exceptional case is with psoc razwi
