@@ -417,18 +417,12 @@ static void mlx5e_ipsec_handle_event(struct work_struct *_work)
 {
 	struct mlx5e_ipsec_work *work =
 		container_of(_work, struct mlx5e_ipsec_work, work);
+	struct mlx5e_ipsec_sa_entry *sa_entry = work->data;
 	struct mlx5_accel_esp_xfrm_attrs *attrs;
-	struct mlx5e_ipsec_sa_entry *sa_entry;
 	struct mlx5e_ipsec_aso *aso;
-	struct mlx5e_ipsec *ipsec;
 	int ret;
 
-	sa_entry = xa_load(&work->ipsec->sadb, work->id);
-	if (!sa_entry)
-		goto out;
-
-	ipsec = sa_entry->ipsec;
-	aso = ipsec->aso;
+	aso = sa_entry->ipsec->aso;
 	attrs = &sa_entry->attrs;
 
 	spin_lock(&sa_entry->x->lock);
@@ -448,7 +442,6 @@ static void mlx5e_ipsec_handle_event(struct work_struct *_work)
 
 unlock:
 	spin_unlock(&sa_entry->x->lock);
-out:
 	kfree(work);
 }
 
@@ -456,6 +449,7 @@ static int mlx5e_ipsec_event(struct notifier_block *nb, unsigned long event,
 			     void *data)
 {
 	struct mlx5e_ipsec *ipsec = container_of(nb, struct mlx5e_ipsec, nb);
+	struct mlx5e_ipsec_sa_entry *sa_entry;
 	struct mlx5_eqe_obj_change *object;
 	struct mlx5e_ipsec_work *work;
 	struct mlx5_eqe *eqe = data;
@@ -470,13 +464,16 @@ static int mlx5e_ipsec_event(struct notifier_block *nb, unsigned long event,
 	if (type != MLX5_GENERAL_OBJECT_TYPES_IPSEC)
 		return NOTIFY_DONE;
 
+	sa_entry = xa_load(&ipsec->sadb, be32_to_cpu(object->obj_id));
+	if (!sa_entry)
+		return NOTIFY_DONE;
+
 	work = kmalloc(sizeof(*work), GFP_ATOMIC);
 	if (!work)
 		return NOTIFY_DONE;
 
 	INIT_WORK(&work->work, mlx5e_ipsec_handle_event);
-	work->ipsec = ipsec;
-	work->id = be32_to_cpu(object->obj_id);
+	work->data = sa_entry;
 
 	queue_work(ipsec->wq, &work->work);
 	return NOTIFY_OK;

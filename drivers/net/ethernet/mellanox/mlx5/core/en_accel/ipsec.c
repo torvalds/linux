@@ -406,14 +406,16 @@ static int mlx5e_xfrm_validate_state(struct mlx5_core_dev *mdev,
 	return 0;
 }
 
-static void _update_xfrm_state(struct work_struct *work)
+static void mlx5e_ipsec_modify_state(struct work_struct *_work)
 {
-	struct mlx5e_ipsec_modify_state_work *modify_work =
-		container_of(work, struct mlx5e_ipsec_modify_state_work, work);
-	struct mlx5e_ipsec_sa_entry *sa_entry = container_of(
-		modify_work, struct mlx5e_ipsec_sa_entry, modify_work);
+	struct mlx5e_ipsec_work *work =
+		container_of(_work, struct mlx5e_ipsec_work, work);
+	struct mlx5e_ipsec_sa_entry *sa_entry = work->sa_entry;
+	struct mlx5_accel_esp_xfrm_attrs *attrs;
 
-	mlx5_accel_esp_modify_xfrm(sa_entry, &modify_work->attrs);
+	attrs = &((struct mlx5e_ipsec_sa_entry *)work->data)->attrs;
+
+	mlx5_accel_esp_modify_xfrm(sa_entry, attrs);
 }
 
 static void mlx5e_ipsec_set_esn_ops(struct mlx5e_ipsec_sa_entry *sa_entry)
@@ -430,6 +432,36 @@ static void mlx5e_ipsec_set_esn_ops(struct mlx5e_ipsec_sa_entry *sa_entry)
 	}
 
 	sa_entry->set_iv_op = mlx5e_ipsec_set_iv;
+}
+
+static int mlx5_ipsec_create_work(struct mlx5e_ipsec_sa_entry *sa_entry)
+{
+	struct xfrm_state *x = sa_entry->x;
+	struct mlx5e_ipsec_work *work;
+
+	switch (x->xso.type) {
+	case XFRM_DEV_OFFLOAD_CRYPTO:
+		if (!(x->props.flags & XFRM_STATE_ESN))
+			return 0;
+		break;
+	default:
+		return 0;
+	}
+
+	work = kzalloc(sizeof(*work), GFP_KERNEL);
+	if (!work)
+		return -ENOMEM;
+
+	work->data = kzalloc(sizeof(*sa_entry), GFP_KERNEL);
+	if (!work->data) {
+		kfree(work);
+		return -ENOMEM;
+	}
+
+	INIT_WORK(&work->work, mlx5e_ipsec_modify_state);
+	work->sa_entry = sa_entry;
+	sa_entry->work = work;
+	return 0;
 }
 
 static int mlx5e_xfrm_add_state(struct xfrm_state *x,
@@ -467,10 +499,15 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x,
 		mlx5e_ipsec_update_esn_state(sa_entry);
 
 	mlx5e_ipsec_build_accel_xfrm_attrs(sa_entry, &sa_entry->attrs);
+
+	err = mlx5_ipsec_create_work(sa_entry);
+	if (err)
+		goto err_xfrm;
+
 	/* create hw context */
 	err = mlx5_ipsec_create_sa_ctx(sa_entry);
 	if (err)
-		goto err_xfrm;
+		goto release_work;
 
 	err = mlx5e_accel_ipsec_fs_add_rule(sa_entry);
 	if (err)
@@ -486,16 +523,6 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x,
 		goto err_add_rule;
 
 	mlx5e_ipsec_set_esn_ops(sa_entry);
-
-	switch (x->xso.type) {
-	case XFRM_DEV_OFFLOAD_CRYPTO:
-		if (x->props.flags & XFRM_STATE_ESN)
-			INIT_WORK(&sa_entry->modify_work.work,
-				  _update_xfrm_state);
-		break;
-	default:
-		break;
-	}
 out:
 	x->xso.offload_handle = (unsigned long)sa_entry;
 	return 0;
@@ -504,6 +531,9 @@ err_add_rule:
 	mlx5e_accel_ipsec_fs_del_rule(sa_entry);
 err_hw_ctx:
 	mlx5_ipsec_free_sa_ctx(sa_entry);
+release_work:
+	kfree(sa_entry->work->data);
+	kfree(sa_entry->work);
 err_xfrm:
 	kfree(sa_entry);
 	NL_SET_ERR_MSG_MOD(extack, "Device failed to offload this policy");
@@ -530,17 +560,13 @@ static void mlx5e_xfrm_free_state(struct xfrm_state *x)
 	if (x->xso.flags & XFRM_DEV_OFFLOAD_FLAG_ACQ)
 		goto sa_entry_free;
 
-	switch (x->xso.type) {
-	case XFRM_DEV_OFFLOAD_CRYPTO:
-		if (x->props.flags & XFRM_STATE_ESN)
-			cancel_work_sync(&sa_entry->modify_work.work);
-		break;
-	default:
-		break;
-	}
+	if (sa_entry->work)
+		cancel_work_sync(&sa_entry->work->work);
 
 	mlx5e_accel_ipsec_fs_del_rule(sa_entry);
 	mlx5_ipsec_free_sa_ctx(sa_entry);
+	kfree(sa_entry->work->data);
+	kfree(sa_entry->work);
 sa_entry_free:
 	kfree(sa_entry);
 }
@@ -626,16 +652,18 @@ static bool mlx5e_ipsec_offload_ok(struct sk_buff *skb, struct xfrm_state *x)
 static void mlx5e_xfrm_advance_esn_state(struct xfrm_state *x)
 {
 	struct mlx5e_ipsec_sa_entry *sa_entry = to_ipsec_sa_entry(x);
-	struct mlx5e_ipsec_modify_state_work *modify_work =
-		&sa_entry->modify_work;
+	struct mlx5e_ipsec_work *work = sa_entry->work;
+	struct mlx5e_ipsec_sa_entry *sa_entry_shadow;
 	bool need_update;
 
 	need_update = mlx5e_ipsec_update_esn_state(sa_entry);
 	if (!need_update)
 		return;
 
-	mlx5e_ipsec_build_accel_xfrm_attrs(sa_entry, &modify_work->attrs);
-	queue_work(sa_entry->ipsec->wq, &modify_work->work);
+	sa_entry_shadow = work->data;
+	memset(sa_entry_shadow, 0x00, sizeof(*sa_entry_shadow));
+	mlx5e_ipsec_build_accel_xfrm_attrs(sa_entry, &sa_entry_shadow->attrs);
+	queue_work(sa_entry->ipsec->wq, &work->work);
 }
 
 static void mlx5e_xfrm_update_curlft(struct xfrm_state *x)

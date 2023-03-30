@@ -136,8 +136,8 @@ struct mlx5e_ipsec_tx;
 
 struct mlx5e_ipsec_work {
 	struct work_struct work;
-	struct mlx5e_ipsec *ipsec;
-	u32 id;
+	struct mlx5e_ipsec_sa_entry *sa_entry;
+	void *data;
 };
 
 struct mlx5e_ipsec_aso {
@@ -176,11 +176,6 @@ struct mlx5e_ipsec_rule {
 	struct mlx5_fc *fc;
 };
 
-struct mlx5e_ipsec_modify_state_work {
-	struct work_struct		work;
-	struct mlx5_accel_esp_xfrm_attrs attrs;
-};
-
 struct mlx5e_ipsec_limits {
 	u64 round;
 	u8 soft_limit_hit : 1;
@@ -197,7 +192,7 @@ struct mlx5e_ipsec_sa_entry {
 	u32 ipsec_obj_id;
 	u32 enc_key_id;
 	struct mlx5e_ipsec_rule ipsec_rule;
-	struct mlx5e_ipsec_modify_state_work modify_work;
+	struct mlx5e_ipsec_work *work;
 	struct mlx5e_ipsec_limits limits;
 };
 
