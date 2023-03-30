@@ -160,7 +160,6 @@ struct mlx5e_ipsec {
 
 struct mlx5e_ipsec_esn_state {
 	u32 esn;
-	u8 trigger: 1;
 	u8 overlap: 1;
 };
 

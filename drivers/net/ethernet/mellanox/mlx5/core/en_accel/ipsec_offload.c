@@ -225,9 +225,6 @@ static int mlx5_modify_ipsec_obj(struct mlx5e_ipsec_sa_entry *sa_entry,
 	void *obj;
 	int err;
 
-	if (!attrs->esn_trigger)
-		return 0;
-
 	general_obj_types = MLX5_CAP_GEN_64(mdev, general_obj_types);
 	if (!(general_obj_types & MLX5_HCA_CAP_GENERAL_OBJECT_TYPES_IPSEC))
 		return -EINVAL;

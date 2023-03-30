@@ -56,11 +56,6 @@ static bool mlx5e_ipsec_update_esn_state(struct mlx5e_ipsec_sa_entry *sa_entry)
 	u32 seq_bottom = 0;
 	u8 overlap;
 
-	if (!(sa_entry->x->props.flags & XFRM_STATE_ESN)) {
-		sa_entry->esn_state.trigger = 0;
-		return false;
-	}
-
 	replay_esn = sa_entry->x->replay_esn;
 	if (replay_esn->seq >= replay_esn->replay_window)
 		seq_bottom = replay_esn->seq - replay_esn->replay_window + 1;
@@ -70,7 +65,6 @@ static bool mlx5e_ipsec_update_esn_state(struct mlx5e_ipsec_sa_entry *sa_entry)
 	sa_entry->esn_state.esn = xfrm_replay_seqhi(sa_entry->x,
 						    htonl(seq_bottom));
 
-	sa_entry->esn_state.trigger = 1;
 	if (unlikely(overlap && seq_bottom < MLX5E_IPSEC_ESN_SCOPE_MID)) {
 		sa_entry->esn_state.overlap = 0;
 		return true;
@@ -229,7 +223,7 @@ void mlx5e_ipsec_build_accel_xfrm_attrs(struct mlx5e_ipsec_sa_entry *sa_entry,
 	aes_gcm->icv_len = x->aead->alg_icv_len;
 
 	/* esn */
-	if (sa_entry->esn_state.trigger) {
+	if (x->props.flags & XFRM_STATE_ESN) {
 		attrs->esn_trigger = true;
 		attrs->esn = sa_entry->esn_state.esn;
 		attrs->esn_overlap = sa_entry->esn_state.overlap;
@@ -394,6 +388,22 @@ static void _update_xfrm_state(struct work_struct *work)
 	mlx5_accel_esp_modify_xfrm(sa_entry, &modify_work->attrs);
 }
 
+static void mlx5e_ipsec_set_esn_ops(struct mlx5e_ipsec_sa_entry *sa_entry)
+{
+	struct xfrm_state *x = sa_entry->x;
+
+	if (x->xso.type != XFRM_DEV_OFFLOAD_CRYPTO ||
+	    x->xso.dir != XFRM_DEV_OFFLOAD_OUT)
+		return;
+
+	if (x->props.flags & XFRM_STATE_ESN) {
+		sa_entry->set_iv_op = mlx5e_ipsec_set_iv_esn;
+		return;
+	}
+
+	sa_entry->set_iv_op = mlx5e_ipsec_set_iv;
+}
+
 static int mlx5e_xfrm_add_state(struct xfrm_state *x,
 				struct netlink_ext_ack *extack)
 {
@@ -425,7 +435,8 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x,
 		goto err_xfrm;
 
 	/* check esn */
-	mlx5e_ipsec_update_esn_state(sa_entry);
+	if (x->props.flags & XFRM_STATE_ESN)
+		mlx5e_ipsec_update_esn_state(sa_entry);
 
 	mlx5e_ipsec_build_accel_xfrm_attrs(sa_entry, &sa_entry->attrs);
 	/* create hw context */
@@ -446,11 +457,17 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x,
 	if (err)
 		goto err_add_rule;
 
-	if (x->xso.dir == XFRM_DEV_OFFLOAD_OUT)
-		sa_entry->set_iv_op = (x->props.flags & XFRM_STATE_ESN) ?
-				mlx5e_ipsec_set_iv_esn : mlx5e_ipsec_set_iv;
+	mlx5e_ipsec_set_esn_ops(sa_entry);
 
-	INIT_WORK(&sa_entry->modify_work.work, _update_xfrm_state);
+	switch (x->xso.type) {
+	case XFRM_DEV_OFFLOAD_CRYPTO:
+		if (x->props.flags & XFRM_STATE_ESN)
+			INIT_WORK(&sa_entry->modify_work.work,
+				  _update_xfrm_state);
+		break;
+	default:
+		break;
+	}
 out:
 	x->xso.offload_handle = (unsigned long)sa_entry;
 	return 0;
@@ -485,7 +502,15 @@ static void mlx5e_xfrm_free_state(struct xfrm_state *x)
 	if (x->xso.flags & XFRM_DEV_OFFLOAD_FLAG_ACQ)
 		goto sa_entry_free;
 
-	cancel_work_sync(&sa_entry->modify_work.work);
+	switch (x->xso.type) {
+	case XFRM_DEV_OFFLOAD_CRYPTO:
+		if (x->props.flags & XFRM_STATE_ESN)
+			cancel_work_sync(&sa_entry->modify_work.work);
+		break;
+	default:
+		break;
+	}
+
 	mlx5e_accel_ipsec_fs_del_rule(sa_entry);
 	mlx5_ipsec_free_sa_ctx(sa_entry);
 sa_entry_free:
