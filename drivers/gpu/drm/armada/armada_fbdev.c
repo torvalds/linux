@@ -117,6 +117,32 @@ static const struct drm_fb_helper_funcs armada_fb_helper_funcs = {
 	.fb_probe	= armada_fb_probe,
 };
 
+/*
+ * Fbdev client and struct drm_client_funcs
+ */
+
+static void armada_fbdev_client_unregister(struct drm_client_dev *client)
+{ }
+
+static int armada_fbdev_client_restore(struct drm_client_dev *client)
+{
+	drm_fb_helper_lastclose(client->dev);
+
+	return 0;
+}
+
+static int armada_fbdev_client_hotplug(struct drm_client_dev *client)
+{
+	return 0;
+}
+
+static const struct drm_client_funcs armada_fbdev_client_funcs = {
+	.owner		= THIS_MODULE,
+	.unregister	= armada_fbdev_client_unregister,
+	.restore	= armada_fbdev_client_restore,
+	.hotplug	= armada_fbdev_client_hotplug,
+};
+
 int armada_fbdev_init(struct drm_device *dev)
 {
 	struct armada_private *priv = drm_to_armada_dev(dev);
@@ -131,22 +157,30 @@ int armada_fbdev_init(struct drm_device *dev)
 
 	drm_fb_helper_prepare(dev, fbh, 32, &armada_fb_helper_funcs);
 
+	ret = drm_client_init(dev, &fbh->client, "armada-fbdev",
+			      &armada_fbdev_client_funcs);
+	if (ret)
+		goto err_drm_fb_helper_unprepare;
+
 	ret = drm_fb_helper_init(dev, fbh);
 	if (ret) {
 		DRM_ERROR("failed to initialize drm fb helper\n");
-		goto err_fb_helper;
+		goto err_drm_client_release;
 	}
 
 	ret = drm_fb_helper_initial_config(fbh);
 	if (ret) {
 		DRM_ERROR("failed to set initial config\n");
-		goto err_fb_setup;
+		goto err_drm_fb_helper_fini;
 	}
 
 	return 0;
- err_fb_setup:
+
+err_drm_fb_helper_fini:
 	drm_fb_helper_fini(fbh);
- err_fb_helper:
+err_drm_client_release:
+	drm_client_release(&fbh->client);
+err_drm_fb_helper_unprepare:
 	drm_fb_helper_unprepare(fbh);
 	priv->fbdev = NULL;
 	return ret;
@@ -161,6 +195,7 @@ void armada_fbdev_fini(struct drm_device *dev)
 		drm_fb_helper_unregister_info(fbh);
 
 		drm_fb_helper_fini(fbh);
+		drm_client_release(&fbh->client);
 
 		if (fbh->fb)
 			fbh->fb->funcs->destroy(fbh->fb);
