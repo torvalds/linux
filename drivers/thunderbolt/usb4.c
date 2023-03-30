@@ -1303,6 +1303,20 @@ static int usb4_port_sb_write(struct tb_port *port, enum usb4_sb_target target,
 	return 0;
 }
 
+static int usb4_port_sb_opcode_err_to_errno(u32 val)
+{
+	switch (val) {
+	case 0:
+		return 0;
+	case USB4_SB_OPCODE_ERR:
+		return -EAGAIN;
+	case USB4_SB_OPCODE_ONS:
+		return -EOPNOTSUPP;
+	default:
+		return -EIO;
+	}
+}
+
 static int usb4_port_sb_op(struct tb_port *port, enum usb4_sb_target target,
 			   u8 index, enum usb4_sb_opcode opcode, int timeout_msec)
 {
@@ -1325,21 +1339,8 @@ static int usb4_port_sb_op(struct tb_port *port, enum usb4_sb_target target,
 		if (ret)
 			return ret;
 
-		switch (val) {
-		case 0:
-			return 0;
-
-		case USB4_SB_OPCODE_ERR:
-			return -EAGAIN;
-
-		case USB4_SB_OPCODE_ONS:
-			return -EOPNOTSUPP;
-
-		default:
-			if (val != opcode)
-				return -EIO;
-			break;
-		}
+		if (val != opcode)
+			return usb4_port_sb_opcode_err_to_errno(val);
 	} while (ktime_before(ktime_get(), timeout));
 
 	return -ETIMEDOUT;
@@ -1800,12 +1801,13 @@ int usb4_port_retimer_nvm_authenticate_status(struct tb_port *port, u8 index,
 	if (ret)
 		return ret;
 
-	switch (val) {
+	ret = usb4_port_sb_opcode_err_to_errno(val);
+	switch (ret) {
 	case 0:
 		*status = 0;
 		return 0;
 
-	case USB4_SB_OPCODE_ERR:
+	case -EAGAIN:
 		ret = usb4_port_retimer_read(port, index, USB4_SB_METADATA,
 					     &metadata, sizeof(metadata));
 		if (ret)
@@ -1814,11 +1816,8 @@ int usb4_port_retimer_nvm_authenticate_status(struct tb_port *port, u8 index,
 		*status = metadata & USB4_SB_METADATA_NVM_AUTH_WRITE_MASK;
 		return 0;
 
-	case USB4_SB_OPCODE_ONS:
-		return -EOPNOTSUPP;
-
 	default:
-		return -EIO;
+		return ret;
 	}
 }
 
