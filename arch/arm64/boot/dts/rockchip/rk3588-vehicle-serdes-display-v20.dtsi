@@ -404,7 +404,7 @@
 &backlight {
 	pwms = <&pwm0 0 25000 0>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&bl_enable_pin>;
+	pinctrl-0 = <&bl0_enable_pin>;
 	enable-gpios = <&gpio1 RK_PA7 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
@@ -474,11 +474,17 @@
 
 &dp2lvds_backlight0 {
 	pwms = <&pwm10 0 25000 0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&bl2_enable_pin>;
+	enable-gpios = <&gpio3 RK_PC4 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
 &dp2lvds_backlight1 {
 	pwms = <&pwm14 0 25000 0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&bl3_enable_pin>;
+	enable-gpios = <&gpio3 RK_PC6 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
@@ -597,11 +603,17 @@
 
 &edp2lvds_backlight0 {
 	pwms = <&pwm7 0 25000 0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&bl4_enable_pin>;
+	enable-gpios = <&gpio0 RK_PD5 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
 &edp2lvds_backlight1 {
 	pwms = <&pwm11 0 25000 0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&bl5_enable_pin>;
+	enable-gpios = <&gpio1 RK_PA6 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
@@ -1792,20 +1804,38 @@
 &pinctrl {
 
 	bl {
-		bl_enable_pin: bl-enable-pin {
+		bl0_enable_pin: bl0-enable-pin {
 			rockchip,pins = <1 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		bl1_enable_pin: bl1-enable-pin {
 			rockchip,pins = <1 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
+
+		bl2_enable_pin: bl2-enable-pin {
+			rockchip,pins = <3 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bl3_enable_pin: bl3-enable-pin {
+			rockchip,pins = <3 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bl4_enable_pin: bl4-enable-pin {
+			rockchip,pins = <0 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bl5_enable_pin: bl5-enable-pin {
+			rockchip,pins = <1 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
 	};
 
 	serdes {
+		//dsi0
 		ser0_rst_pin: ser0-rst-pin {
 			rockchip,pins = <1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
+		//dsi1
 		ser1_rst_pin: ser1-rst-pin {
 			rockchip,pins = <1 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
