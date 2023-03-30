@@ -286,10 +286,8 @@ static int get_tjmax(struct temp_data *tdata, struct device *dev)
 		 * If the TjMax is not plausible, an assumption
 		 * will be used
 		 */
-		if (val) {
-			dev_dbg(dev, "TjMax is %d degrees C\n", val);
+		if (val)
 			return val * 1000;
-		}
 	}
 
 	if (force_tjmax) {
