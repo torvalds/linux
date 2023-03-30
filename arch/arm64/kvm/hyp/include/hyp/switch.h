@@ -353,6 +353,8 @@ static bool kvm_hyp_handle_cntpct(struct kvm_vcpu *vcpu)
 
 	if (ctxt->offset.vm_offset)
 		val -= *kern_hyp_va(ctxt->offset.vm_offset);
+	if (ctxt->offset.vcpu_offset)
+		val -= *kern_hyp_va(ctxt->offset.vcpu_offset);
 
 	vcpu_set_reg(vcpu, kvm_vcpu_sys_get_rt(vcpu), val);
 	__kvm_skip_instr(vcpu);
