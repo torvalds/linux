@@ -75,8 +75,18 @@ struct armada_private {
 
 #define drm_to_armada_dev(dev) container_of(dev, struct armada_private, drm)
 
-int armada_fbdev_init(struct drm_device *);
-void armada_fbdev_fini(struct drm_device *);
+#if defined(CONFIG_DRM_FBDEV_EMULATION)
+int armada_fbdev_init(struct drm_device *dev);
+void armada_fbdev_fini(struct drm_device *dev);
+#else
+static inline int armada_fbdev_init(struct drm_device *dev)
+{
+	return 0;
+}
+
+static inline void armada_fbdev_fini(struct drm_device *dev)
+{ }
+#endif
 
 int armada_overlay_plane_create(struct drm_device *, unsigned long);
 
