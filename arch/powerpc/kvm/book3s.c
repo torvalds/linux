@@ -188,10 +188,10 @@ void kvmppc_book3s_queue_irqprio(struct kvm_vcpu *vcpu, unsigned int vec)
 }
 EXPORT_SYMBOL_GPL(kvmppc_book3s_queue_irqprio);
 
-void kvmppc_core_queue_machine_check(struct kvm_vcpu *vcpu, ulong flags)
+void kvmppc_core_queue_machine_check(struct kvm_vcpu *vcpu, ulong srr1_flags)
 {
 	/* might as well deliver this straight away */
-	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_MACHINE_CHECK, flags);
+	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_MACHINE_CHECK, srr1_flags);
 }
 EXPORT_SYMBOL_GPL(kvmppc_core_queue_machine_check);
 
@@ -201,29 +201,29 @@ void kvmppc_core_queue_syscall(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL(kvmppc_core_queue_syscall);
 
-void kvmppc_core_queue_program(struct kvm_vcpu *vcpu, ulong flags)
+void kvmppc_core_queue_program(struct kvm_vcpu *vcpu, ulong srr1_flags)
 {
 	/* might as well deliver this straight away */
-	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_PROGRAM, flags);
+	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_PROGRAM, srr1_flags);
 }
 EXPORT_SYMBOL_GPL(kvmppc_core_queue_program);
 
-void kvmppc_core_queue_fpunavail(struct kvm_vcpu *vcpu)
+void kvmppc_core_queue_fpunavail(struct kvm_vcpu *vcpu, ulong srr1_flags)
 {
 	/* might as well deliver this straight away */
-	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_FP_UNAVAIL, 0);
+	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_FP_UNAVAIL, srr1_flags);
 }
 
-void kvmppc_core_queue_vec_unavail(struct kvm_vcpu *vcpu)
+void kvmppc_core_queue_vec_unavail(struct kvm_vcpu *vcpu, ulong srr1_flags)
 {
 	/* might as well deliver this straight away */
-	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_ALTIVEC, 0);
+	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_ALTIVEC, srr1_flags);
 }
 
-void kvmppc_core_queue_vsx_unavail(struct kvm_vcpu *vcpu)
+void kvmppc_core_queue_vsx_unavail(struct kvm_vcpu *vcpu, ulong srr1_flags)
 {
 	/* might as well deliver this straight away */
-	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_VSX, 0);
+	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_VSX, srr1_flags);
 }
 
 void kvmppc_core_queue_dec(struct kvm_vcpu *vcpu)
@@ -278,18 +278,18 @@ void kvmppc_core_dequeue_external(struct kvm_vcpu *vcpu)
 	kvmppc_book3s_dequeue_irqprio(vcpu, BOOK3S_INTERRUPT_EXTERNAL);
 }
 
-void kvmppc_core_queue_data_storage(struct kvm_vcpu *vcpu, ulong dar,
-				    ulong flags)
+void kvmppc_core_queue_data_storage(struct kvm_vcpu *vcpu, ulong srr1_flags,
+				    ulong dar, ulong dsisr)
 {
 	kvmppc_set_dar(vcpu, dar);
-	kvmppc_set_dsisr(vcpu, flags);
-	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_DATA_STORAGE, 0);
+	kvmppc_set_dsisr(vcpu, dsisr);
+	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_DATA_STORAGE, srr1_flags);
 }
 EXPORT_SYMBOL_GPL(kvmppc_core_queue_data_storage);
 
-void kvmppc_core_queue_inst_storage(struct kvm_vcpu *vcpu, ulong flags)
+void kvmppc_core_queue_inst_storage(struct kvm_vcpu *vcpu, ulong srr1_flags)
 {
-	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_INST_STORAGE, flags);
+	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_INST_STORAGE, srr1_flags);
 }
 EXPORT_SYMBOL_GPL(kvmppc_core_queue_inst_storage);
 
