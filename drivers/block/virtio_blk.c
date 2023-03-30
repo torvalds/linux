@@ -866,16 +866,12 @@ static int virtblk_probe_zoned_device(struct virtio_device *vdev,
 	return ret;
 }
 
-static inline bool virtblk_has_zoned_feature(struct virtio_device *vdev)
-{
-	return virtio_has_feature(vdev, VIRTIO_BLK_F_ZONED);
-}
-
 #else
 
 /*
  * Zoned block device support is not configured in this kernel.
- * We only need to define a few symbols to avoid compilation errors.
+ * Host-managed zoned devices can't be supported, but others are
+ * good to go as regular block devices.
  */
 #define virtblk_report_zones       NULL
 
@@ -886,12 +882,16 @@ static inline void virtblk_revalidate_zones(struct virtio_blk *vblk)
 static inline int virtblk_probe_zoned_device(struct virtio_device *vdev,
 			struct virtio_blk *vblk, struct request_queue *q)
 {
-	return -EOPNOTSUPP;
-}
+	u8 model;
 
-static inline bool virtblk_has_zoned_feature(struct virtio_device *vdev)
-{
-	return false;
+	virtio_cread(vdev, struct virtio_blk_config, zoned.model, &model);
+	if (model == VIRTIO_BLK_Z_HM) {
+		dev_err(&vdev->dev,
+			"virtio_blk: zoned devices are not supported");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
 }
 #endif /* CONFIG_BLK_DEV_ZONED */
 
@@ -1577,7 +1577,11 @@ static int virtblk_probe(struct virtio_device *vdev)
 	virtblk_update_capacity(vblk, false);
 	virtio_device_ready(vdev);
 
-	if (virtblk_has_zoned_feature(vdev)) {
+	/*
+	 * All steps that follow use the VQs therefore they need to be
+	 * placed after the virtio_device_ready() call above.
+	 */
+	if (virtio_has_feature(vdev, VIRTIO_BLK_F_ZONED)) {
 		err = virtblk_probe_zoned_device(vdev, vblk, q);
 		if (err)
 			goto out_cleanup_disk;
@@ -1683,10 +1687,7 @@ static unsigned int features[] = {
 	VIRTIO_BLK_F_RO, VIRTIO_BLK_F_BLK_SIZE,
 	VIRTIO_BLK_F_FLUSH, VIRTIO_BLK_F_TOPOLOGY, VIRTIO_BLK_F_CONFIG_WCE,
 	VIRTIO_BLK_F_MQ, VIRTIO_BLK_F_DISCARD, VIRTIO_BLK_F_WRITE_ZEROES,
-	VIRTIO_BLK_F_SECURE_ERASE,
-#ifdef CONFIG_BLK_DEV_ZONED
-	VIRTIO_BLK_F_ZONED,
-#endif /* CONFIG_BLK_DEV_ZONED */
+	VIRTIO_BLK_F_SECURE_ERASE, VIRTIO_BLK_F_ZONED,
 };
 
 static struct virtio_driver virtio_blk = {
