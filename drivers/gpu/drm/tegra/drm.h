@@ -15,7 +15,6 @@
 #include <drm/drm_bridge.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_encoder.h>
-#include <drm/drm_fb_helper.h>
 #include <drm/drm_fixed.h>
 #include <drm/drm_probe_helper.h>
 #include <uapi/drm/tegra_drm.h>
@@ -194,22 +193,9 @@ struct drm_framebuffer *tegra_fb_create(struct drm_device *drm,
 					const struct drm_mode_fb_cmd2 *cmd);
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
-int tegra_drm_fb_prepare(struct drm_device *drm);
-void tegra_drm_fb_free(struct drm_device *drm);
-int tegra_drm_fb_init(struct drm_device *drm);
-void tegra_drm_fb_exit(struct drm_device *drm);
+void tegra_fbdev_setup(struct drm_device *drm);
 #else
-static inline int tegra_drm_fb_prepare(struct drm_device *drm)
-{
-	return 0;
-}
-static inline void tegra_drm_fb_free(struct drm_device *drm)
-{ }
-static inline int tegra_drm_fb_init(struct drm_device *drm)
-{
-	return 0;
-}
-static inline void tegra_drm_fb_exit(struct drm_device *drm)
+static inline void tegra_fbdev_setup(struct drm_device *drm)
 { }
 #endif
 
