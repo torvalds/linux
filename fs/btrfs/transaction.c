@@ -607,7 +607,7 @@ start_transaction(struct btrfs_root *root, unsigned int num_items,
 		 */
 		num_bytes = btrfs_calc_insert_metadata_size(fs_info, num_items);
 		if (flush == BTRFS_RESERVE_FLUSH_ALL &&
-		    btrfs_block_rsv_full(delayed_refs_rsv) == 0) {
+		    !btrfs_block_rsv_full(delayed_refs_rsv)) {
 			delayed_refs_bytes = num_bytes;
 			num_bytes <<= 1;
 		}
