@@ -165,3 +165,28 @@ int BPF_PROG(test_global_mask_no_null_check, struct task_struct *task, u64 clone
 
 	return 0;
 }
+
+SEC("tp_btf/task_newtask")
+__failure __msg("Possibly NULL pointer passed to helper arg2")
+int BPF_PROG(test_global_mask_rcu_no_null_check, struct task_struct *task, u64 clone_flags)
+{
+	struct bpf_cpumask *prev, *curr;
+
+	curr = bpf_cpumask_create();
+	if (!curr)
+		return 0;
+
+	prev = bpf_kptr_xchg(&global_mask, curr);
+	if (prev)
+		bpf_cpumask_release(prev);
+
+	bpf_rcu_read_lock();
+	curr = global_mask;
+	/* PTR_TO_BTF_ID | PTR_MAYBE_NULL | MEM_RCU passed to bpf_kptr_xchg() */
+	prev = bpf_kptr_xchg(&global_mask, curr);
+	bpf_rcu_read_unlock();
+	if (prev)
+		bpf_cpumask_release(prev);
+
+	return 0;
+}
