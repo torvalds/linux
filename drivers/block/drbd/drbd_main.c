@@ -231,9 +231,11 @@ void tl_release(struct drbd_connection *connection, unsigned int barrier_nr,
 		}
 	req = list_prepare_entry(tmp, &connection->transfer_log, tl_requests);
 	list_for_each_entry_safe_from(req, r, &connection->transfer_log, tl_requests) {
+		struct drbd_peer_device *peer_device;
 		if (req->epoch != expect_epoch)
 			break;
-		_req_mod(req, BARRIER_ACKED);
+		peer_device = conn_peer_device(connection, req->device->vnr);
+		_req_mod(req, BARRIER_ACKED, peer_device);
 	}
 	spin_unlock_irq(&connection->resource->req_lock);
 
@@ -256,10 +258,13 @@ bail:
 /* must hold resource->req_lock */
 void _tl_restart(struct drbd_connection *connection, enum drbd_req_event what)
 {
+	struct drbd_peer_device *peer_device;
 	struct drbd_request *req, *r;
 
-	list_for_each_entry_safe(req, r, &connection->transfer_log, tl_requests)
-		_req_mod(req, what);
+	list_for_each_entry_safe(req, r, &connection->transfer_log, tl_requests) {
+		peer_device = conn_peer_device(connection, req->device->vnr);
+		_req_mod(req, what, peer_device);
+	}
 }
 
 void tl_restart(struct drbd_connection *connection, enum drbd_req_event what)
@@ -297,7 +302,7 @@ void tl_abort_disk_io(struct drbd_device *device)
 			continue;
 		if (req->device != device)
 			continue;
-		_req_mod(req, ABORT_DISK_IO);
+		_req_mod(req, ABORT_DISK_IO, NULL);
 	}
 	spin_unlock_irq(&connection->resource->req_lock);
 }

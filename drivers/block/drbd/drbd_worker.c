@@ -276,7 +276,7 @@ void drbd_request_endio(struct bio *bio)
 
 	/* not req_mod(), we need irqsave here! */
 	spin_lock_irqsave(&device->resource->req_lock, flags);
-	__req_mod(req, what, &m);
+	__req_mod(req, what, NULL, &m);
 	spin_unlock_irqrestore(&device->resource->req_lock, flags);
 	put_ldev(device);
 
@@ -1425,7 +1425,7 @@ int w_send_out_of_sync(struct drbd_work *w, int cancel)
 	int err;
 
 	if (unlikely(cancel)) {
-		req_mod(req, SEND_CANCELED);
+		req_mod(req, SEND_CANCELED, peer_device);
 		return 0;
 	}
 	req->pre_send_jif = jiffies;
@@ -1437,7 +1437,7 @@ int w_send_out_of_sync(struct drbd_work *w, int cancel)
 	maybe_send_barrier(connection, req->epoch);
 
 	err = drbd_send_out_of_sync(peer_device, req);
-	req_mod(req, OOS_HANDED_TO_NETWORK);
+	req_mod(req, OOS_HANDED_TO_NETWORK, peer_device);
 
 	return err;
 }
@@ -1457,7 +1457,7 @@ int w_send_dblock(struct drbd_work *w, int cancel)
 	int err;
 
 	if (unlikely(cancel)) {
-		req_mod(req, SEND_CANCELED);
+		req_mod(req, SEND_CANCELED, peer_device);
 		return 0;
 	}
 	req->pre_send_jif = jiffies;
@@ -1467,7 +1467,7 @@ int w_send_dblock(struct drbd_work *w, int cancel)
 	connection->send.current_epoch_writes++;
 
 	err = drbd_send_dblock(peer_device, req);
-	req_mod(req, err ? SEND_FAILED : HANDED_OVER_TO_NETWORK);
+	req_mod(req, err ? SEND_FAILED : HANDED_OVER_TO_NETWORK, peer_device);
 
 	if (do_send_unplug && !err)
 		pd_send_unplug_remote(peer_device);
@@ -1490,7 +1490,7 @@ int w_send_read_req(struct drbd_work *w, int cancel)
 	int err;
 
 	if (unlikely(cancel)) {
-		req_mod(req, SEND_CANCELED);
+		req_mod(req, SEND_CANCELED, peer_device);
 		return 0;
 	}
 	req->pre_send_jif = jiffies;
@@ -1502,7 +1502,7 @@ int w_send_read_req(struct drbd_work *w, int cancel)
 	err = drbd_send_drequest(peer_device, P_DATA_REQUEST, req->i.sector, req->i.size,
 				 (unsigned long)req);
 
-	req_mod(req, err ? SEND_FAILED : HANDED_OVER_TO_NETWORK);
+	req_mod(req, err ? SEND_FAILED : HANDED_OVER_TO_NETWORK, peer_device);
 
 	if (do_send_unplug && !err)
 		pd_send_unplug_remote(peer_device);
