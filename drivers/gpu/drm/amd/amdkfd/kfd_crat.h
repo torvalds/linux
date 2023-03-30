@@ -317,6 +317,18 @@ struct cdit_header {
 
 struct kfd_dev;
 
+/* Static table to describe GPU Cache information */
+struct kfd_gpu_cache_info {
+	uint32_t	cache_size;
+	uint32_t	cache_level;
+	uint32_t	flags;
+	/* Indicates how many Compute Units share this cache
+	 * within a SA. Value = 1 indicates the cache is not shared
+	 */
+	uint32_t	num_cu_shared;
+};
+int kfd_get_gpu_cache_info(struct kfd_dev *kdev, struct kfd_gpu_cache_info **pcache_info);
+
 int kfd_create_crat_image_acpi(void **crat_image, size_t *size);
 void kfd_destroy_crat_image(void *crat_image);
 int kfd_parse_crat_table(void *crat_image, struct list_head *device_list,

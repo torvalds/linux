@@ -1020,20 +1020,10 @@ static int btusb_recv_bulk(struct btusb_data *data, void *buffer, int count)
 		hci_skb_expect(skb) -= len;
 
 		if (skb->len == HCI_ACL_HDR_SIZE) {
-			__u16 handle = __le16_to_cpu(hci_acl_hdr(skb)->handle);
 			__le16 dlen = hci_acl_hdr(skb)->dlen;
-			__u8 type;
 
 			/* Complete ACL header */
 			hci_skb_expect(skb) = __le16_to_cpu(dlen);
-
-			/* Detect if ISO packet has been sent over bulk */
-			if (hci_conn_num(data->hdev, ISO_LINK)) {
-				type = hci_conn_lookup_type(data->hdev,
-							    hci_handle(handle));
-				if (type == ISO_LINK)
-					hci_skb_pkt_type(skb) = HCI_ISODATA_PKT;
-			}
 
 			if (skb_tailroom(skb) < hci_skb_expect(skb)) {
 				kfree_skb(skb);
