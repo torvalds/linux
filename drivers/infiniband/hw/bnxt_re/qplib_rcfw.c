@@ -454,10 +454,11 @@ int bnxt_qplib_deinit_rcfw(struct bnxt_qplib_rcfw *rcfw)
 {
 	struct cmdq_deinitialize_fw req;
 	struct creq_deinitialize_fw_resp resp;
-	u16 cmd_flags = 0;
 	int rc;
 
-	RCFW_CMD_PREP(req, DEINITIALIZE_FW, cmd_flags);
+	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
+				 CMDQ_BASE_OPCODE_DEINITIALIZE_FW,
+				 sizeof(req));
 	rc = bnxt_qplib_rcfw_send_message(rcfw, (void *)&req, (void *)&resp,
 					  NULL, 0);
 	if (rc)
@@ -472,11 +473,12 @@ int bnxt_qplib_init_rcfw(struct bnxt_qplib_rcfw *rcfw,
 {
 	struct creq_initialize_fw_resp resp;
 	struct cmdq_initialize_fw req;
-	u16 cmd_flags = 0;
 	u8 pgsz, lvl;
 	int rc;
 
-	RCFW_CMD_PREP(req, INITIALIZE_FW, cmd_flags);
+	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
+				 CMDQ_BASE_OPCODE_INITIALIZE_FW,
+				 sizeof(req));
 	/* Supply (log-base-2-of-host-page-size - base-page-shift)
 	 * to bono to adjust the doorbell page sizes.
 	 */

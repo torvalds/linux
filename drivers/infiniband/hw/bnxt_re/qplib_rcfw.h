@@ -51,25 +51,26 @@
 #define RCFW_DBR_PCI_BAR_REGION		2
 #define RCFW_DBR_BASE_PAGE_SHIFT	12
 
-#define RCFW_CMD_PREP(req, CMD, cmd_flags)				\
-	do {								\
-		memset(&(req), 0, sizeof((req)));			\
-		(req).opcode = CMDQ_BASE_OPCODE_##CMD;			\
-		(req).cmd_size = sizeof((req));				\
-		(req).flags = cpu_to_le16(cmd_flags);			\
-	} while (0)
-
-#define RCFW_CMD_WAIT_TIME_MS		20000 /* 20 Seconds timeout */
-
 /* Cmdq contains a fix number of a 16-Byte slots */
 struct bnxt_qplib_cmdqe {
 	u8		data[16];
 };
 
+#define BNXT_QPLIB_CMDQE_UNITS		sizeof(struct bnxt_qplib_cmdqe)
+
+static inline void bnxt_qplib_rcfw_cmd_prep(struct cmdq_base *req,
+					    u8 opcode, u8 cmd_size)
+{
+	memset(req, 0, cmd_size);
+	req->opcode = opcode;
+	req->cmd_size = cmd_size;
+}
+
+#define RCFW_CMD_WAIT_TIME_MS		20000 /* 20 Seconds timeout */
+
 /* CMDQ elements */
 #define BNXT_QPLIB_CMDQE_MAX_CNT_256	256
 #define BNXT_QPLIB_CMDQE_MAX_CNT_8192	8192
-#define BNXT_QPLIB_CMDQE_UNITS		sizeof(struct bnxt_qplib_cmdqe)
 #define BNXT_QPLIB_CMDQE_BYTES(depth)	((depth) * BNXT_QPLIB_CMDQE_UNITS)
 
 static inline u32 bnxt_qplib_cmdqe_npages(u32 depth)

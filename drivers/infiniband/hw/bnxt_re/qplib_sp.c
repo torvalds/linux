@@ -70,10 +70,11 @@ static void bnxt_qplib_query_version(struct bnxt_qplib_rcfw *rcfw,
 {
 	struct cmdq_query_version req;
 	struct creq_query_version_resp resp;
-	u16 cmd_flags = 0;
 	int rc = 0;
 
-	RCFW_CMD_PREP(req, QUERY_VERSION, cmd_flags);
+	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
+				 CMDQ_BASE_OPCODE_QUERY_VERSION,
+				 sizeof(req));
 
 	rc = bnxt_qplib_rcfw_send_message(rcfw, (void *)&req,
 					  (void *)&resp, NULL, 0);
@@ -88,16 +89,17 @@ static void bnxt_qplib_query_version(struct bnxt_qplib_rcfw *rcfw,
 int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw,
 			    struct bnxt_qplib_dev_attr *attr, bool vf)
 {
-	struct cmdq_query_func req;
-	struct creq_query_func_resp resp;
-	struct bnxt_qplib_rcfw_sbuf *sbuf;
 	struct creq_query_func_resp_sb *sb;
-	u16 cmd_flags = 0;
-	u32 temp;
+	struct bnxt_qplib_rcfw_sbuf *sbuf;
+	struct creq_query_func_resp resp;
+	struct cmdq_query_func req;
 	u8 *tqm_alloc;
 	int i, rc = 0;
+	u32 temp;
 
-	RCFW_CMD_PREP(req, QUERY_FUNC, cmd_flags);
+	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
+				 CMDQ_BASE_OPCODE_QUERY_FUNC,
+				 sizeof(req));
 
 	sbuf = bnxt_qplib_rcfw_alloc_sbuf(rcfw, sizeof(*sb));
 	if (!sbuf) {
@@ -176,10 +178,11 @@ int bnxt_qplib_set_func_resources(struct bnxt_qplib_res *res,
 {
 	struct cmdq_set_func_resources req;
 	struct creq_set_func_resources_resp resp;
-	u16 cmd_flags = 0;
 	int rc = 0;
 
-	RCFW_CMD_PREP(req, SET_FUNC_RESOURCES, cmd_flags);
+	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
+				 CMDQ_BASE_OPCODE_SET_FUNC_RESOURCES,
+				 sizeof(req));
 
 	req.number_of_qp = cpu_to_le32(ctx->qpc_count);
 	req.number_of_mrw = cpu_to_le32(ctx->mrw_count);
@@ -247,10 +250,11 @@ int bnxt_qplib_del_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 	if (update) {
 		struct cmdq_delete_gid req;
 		struct creq_delete_gid_resp resp;
-		u16 cmd_flags = 0;
 		int rc;
 
-		RCFW_CMD_PREP(req, DELETE_GID, cmd_flags);
+		bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
+					 CMDQ_BASE_OPCODE_DELETE_GID,
+					 sizeof(req));
 		if (sgid_tbl->hw_id[index] == 0xFFFF) {
 			dev_err(&res->pdev->dev,
 				"GID entry contains an invalid HW id\n");
@@ -317,10 +321,11 @@ int bnxt_qplib_add_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 	if (update) {
 		struct cmdq_add_gid req;
 		struct creq_add_gid_resp resp;
-		u16 cmd_flags = 0;
 		int rc;
 
-		RCFW_CMD_PREP(req, ADD_GID, cmd_flags);
+		bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
+					 CMDQ_BASE_OPCODE_ADD_GID,
+					 sizeof(req));
 
 		req.gid[0] = cpu_to_be32(((u32 *)gid->data)[3]);
 		req.gid[1] = cpu_to_be32(((u32 *)gid->data)[2]);
@@ -378,9 +383,10 @@ int bnxt_qplib_update_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 	struct creq_modify_gid_resp resp;
 	struct cmdq_modify_gid req;
 	int rc;
-	u16 cmd_flags = 0;
 
-	RCFW_CMD_PREP(req, MODIFY_GID, cmd_flags);
+	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
+				 CMDQ_BASE_OPCODE_MODIFY_GID,
+				 sizeof(req));
 
 	req.gid[0] = cpu_to_be32(((u32 *)gid->data)[3]);
 	req.gid[1] = cpu_to_be32(((u32 *)gid->data)[2]);
@@ -411,12 +417,13 @@ int bnxt_qplib_create_ah(struct bnxt_qplib_res *res, struct bnxt_qplib_ah *ah,
 	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
 	struct cmdq_create_ah req;
 	struct creq_create_ah_resp resp;
-	u16 cmd_flags = 0;
 	u32 temp32[4];
 	u16 temp16[3];
 	int rc;
 
-	RCFW_CMD_PREP(req, CREATE_AH, cmd_flags);
+	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
+				 CMDQ_BASE_OPCODE_CREATE_AH,
+				 sizeof(req));
 
 	memcpy(temp32, ah->dgid.data, sizeof(struct bnxt_qplib_gid));
 	req.dgid[0] = cpu_to_le32(temp32[0]);
@@ -454,10 +461,11 @@ void bnxt_qplib_destroy_ah(struct bnxt_qplib_res *res, struct bnxt_qplib_ah *ah,
 	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
 	struct cmdq_destroy_ah req;
 	struct creq_destroy_ah_resp resp;
-	u16 cmd_flags = 0;
 
 	/* Clean up the AH table in the device */
-	RCFW_CMD_PREP(req, DESTROY_AH, cmd_flags);
+	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
+				 CMDQ_BASE_OPCODE_DESTROY_AH,
+				 sizeof(req));
 
 	req.ah_cid = cpu_to_le32(ah->id);
 
@@ -471,7 +479,6 @@ int bnxt_qplib_free_mrw(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mrw)
 	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
 	struct cmdq_deallocate_key req;
 	struct creq_deallocate_key_resp resp;
-	u16 cmd_flags = 0;
 	int rc;
 
 	if (mrw->lkey == 0xFFFFFFFF) {
@@ -479,7 +486,9 @@ int bnxt_qplib_free_mrw(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mrw)
 		return 0;
 	}
 
-	RCFW_CMD_PREP(req, DEALLOCATE_KEY, cmd_flags);
+	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
+				 CMDQ_BASE_OPCODE_DEALLOCATE_KEY,
+				 sizeof(req));
 
 	req.mrw_flags = mrw->type;
 
@@ -507,11 +516,12 @@ int bnxt_qplib_alloc_mrw(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mrw)
 	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
 	struct cmdq_allocate_mrw req;
 	struct creq_allocate_mrw_resp resp;
-	u16 cmd_flags = 0;
 	unsigned long tmp;
 	int rc;
 
-	RCFW_CMD_PREP(req, ALLOCATE_MRW, cmd_flags);
+	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
+				 CMDQ_BASE_OPCODE_ALLOCATE_MRW,
+				 sizeof(req));
 
 	req.pd_id = cpu_to_le32(mrw->pd->id);
 	req.mrw_flags = mrw->type;
@@ -543,10 +553,11 @@ int bnxt_qplib_dereg_mrw(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mrw,
 	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
 	struct cmdq_deregister_mr req;
 	struct creq_deregister_mr_resp resp;
-	u16 cmd_flags = 0;
 	int rc;
 
-	RCFW_CMD_PREP(req, DEREGISTER_MR, cmd_flags);
+	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
+				 CMDQ_BASE_OPCODE_DEREGISTER_MR,
+				 sizeof(req));
 
 	req.lkey = cpu_to_le32(mrw->lkey);
 	rc = bnxt_qplib_rcfw_send_message(rcfw, (void *)&req,
@@ -572,9 +583,9 @@ int bnxt_qplib_reg_mr(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mr,
 	struct bnxt_qplib_sg_info sginfo = {};
 	struct creq_register_mr_resp resp;
 	struct cmdq_register_mr req;
-	u16 cmd_flags = 0, level;
 	int pages, rc;
 	u32 pg_size;
+	u16 level;
 
 	if (num_pbls) {
 		pages = roundup_pow_of_two(num_pbls);
@@ -602,7 +613,9 @@ int bnxt_qplib_reg_mr(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mr,
 		}
 	}
 
-	RCFW_CMD_PREP(req, REGISTER_MR, cmd_flags);
+	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
+				 CMDQ_BASE_OPCODE_REGISTER_MR,
+				 sizeof(req));
 
 	/* Configure the request */
 	if (mr->hwq.level == PBL_LVL_MAX) {
@@ -686,10 +699,11 @@ int bnxt_qplib_get_roce_stats(struct bnxt_qplib_rcfw *rcfw,
 	struct creq_query_roce_stats_resp resp;
 	struct bnxt_qplib_rcfw_sbuf *sbuf;
 	struct creq_query_roce_stats_resp_sb *sb;
-	u16 cmd_flags = 0;
 	int rc = 0;
 
-	RCFW_CMD_PREP(req, QUERY_ROCE_STATS, cmd_flags);
+	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
+				 CMDQ_BASE_OPCODE_QUERY_ROCE_STATS,
+				 sizeof(req));
 
 	sbuf = bnxt_qplib_rcfw_alloc_sbuf(rcfw, sizeof(*sb));
 	if (!sbuf) {
@@ -766,7 +780,6 @@ int bnxt_qplib_qext_stat(struct bnxt_qplib_rcfw *rcfw, u32 fid,
 	struct creq_query_roce_stats_ext_resp_sb *sb;
 	struct cmdq_query_roce_stats_ext req = {};
 	struct bnxt_qplib_rcfw_sbuf *sbuf;
-	u16 cmd_flags = 0;
 	int rc;
 
 	sbuf = bnxt_qplib_rcfw_alloc_sbuf(rcfw, sizeof(*sb));
@@ -776,7 +789,9 @@ int bnxt_qplib_qext_stat(struct bnxt_qplib_rcfw *rcfw, u32 fid,
 		return -ENOMEM;
 	}
 
-	RCFW_CMD_PREP(req, QUERY_ROCE_STATS_EXT, cmd_flags);
+	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
+				 CMDQ_QUERY_ROCE_STATS_EXT_OPCODE_QUERY_ROCE_STATS,
+				 sizeof(req));
 
 	req.resp_size = ALIGN(sizeof(*sb), BNXT_QPLIB_CMDQE_UNITS);
 	req.resp_addr = cpu_to_le64(sbuf->dma_addr);
