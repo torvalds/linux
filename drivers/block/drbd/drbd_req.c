@@ -122,12 +122,13 @@ void drbd_req_destroy(struct kref *kref)
 		 * before it even was submitted or sent.
 		 * In that case we do not want to touch the bitmap at all.
 		 */
+		struct drbd_peer_device *peer_device = first_peer_device(device);
 		if ((s & (RQ_POSTPONED|RQ_LOCAL_MASK|RQ_NET_MASK)) != RQ_POSTPONED) {
 			if (!(s & RQ_NET_OK) || !(s & RQ_LOCAL_OK))
-				drbd_set_out_of_sync(device, req->i.sector, req->i.size);
+				drbd_set_out_of_sync(peer_device, req->i.sector, req->i.size);
 
 			if ((s & RQ_NET_OK) && (s & RQ_LOCAL_OK) && (s & RQ_NET_SIS))
-				drbd_set_in_sync(device, req->i.sector, req->i.size);
+				drbd_set_in_sync(peer_device, req->i.sector, req->i.size);
 		}
 
 		/* one might be tempted to move the drbd_al_complete_io
@@ -620,7 +621,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		break;
 
 	case READ_COMPLETED_WITH_ERROR:
-		drbd_set_out_of_sync(device, req->i.sector, req->i.size);
+		drbd_set_out_of_sync(peer_device, req->i.sector, req->i.size);
 		drbd_report_io_error(device, req);
 		__drbd_chk_io_error(device, DRBD_READ_ERROR);
 		fallthrough;
@@ -1131,7 +1132,7 @@ static int drbd_process_write_request(struct drbd_request *req)
 	if (remote) {
 		_req_mod(req, TO_BE_SENT, peer_device);
 		_req_mod(req, QUEUE_FOR_NET_WRITE, peer_device);
-	} else if (drbd_set_out_of_sync(device, req->i.sector, req->i.size))
+	} else if (drbd_set_out_of_sync(peer_device, req->i.sector, req->i.size))
 		_req_mod(req, QUEUE_FOR_SEND_OOS, peer_device);
 
 	return remote;

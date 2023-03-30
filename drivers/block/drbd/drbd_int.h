@@ -1433,21 +1433,24 @@ void drbd_resync_after_changed(struct drbd_device *device);
 extern void drbd_start_resync(struct drbd_device *device, enum drbd_conns side);
 extern void resume_next_sg(struct drbd_device *device);
 extern void suspend_other_sg(struct drbd_device *device);
-extern int drbd_resync_finished(struct drbd_device *device);
+extern int drbd_resync_finished(struct drbd_peer_device *peer_device);
 /* maybe rather drbd_main.c ? */
 extern void *drbd_md_get_buffer(struct drbd_device *device, const char *intent);
 extern void drbd_md_put_buffer(struct drbd_device *device);
 extern int drbd_md_sync_page_io(struct drbd_device *device,
 		struct drbd_backing_dev *bdev, sector_t sector, enum req_op op);
-extern void drbd_ov_out_of_sync_found(struct drbd_device *, sector_t, int);
+extern void drbd_ov_out_of_sync_found(struct drbd_peer_device *peer_device,
+		sector_t sector, int size);
 extern void wait_until_done_or_force_detached(struct drbd_device *device,
 		struct drbd_backing_dev *bdev, unsigned int *done);
-extern void drbd_rs_controller_reset(struct drbd_device *device);
+extern void drbd_rs_controller_reset(struct drbd_peer_device *peer_device);
 
-static inline void ov_out_of_sync_print(struct drbd_device *device)
+static inline void ov_out_of_sync_print(struct drbd_peer_device *peer_device)
 {
+	struct drbd_device *device = peer_device->device;
+
 	if (device->ov_last_oos_size) {
-		drbd_err(device, "Out of sync: start=%llu, size=%lu (sectors)\n",
+		drbd_err(peer_device, "Out of sync: start=%llu, size=%lu (sectors)\n",
 		     (unsigned long long)device->ov_last_oos_start,
 		     (unsigned long)device->ov_last_oos_size);
 	}
@@ -1486,7 +1489,7 @@ extern int drbd_ack_receiver(struct drbd_thread *thi);
 extern void drbd_send_ping_wf(struct work_struct *ws);
 extern void drbd_send_acks_wf(struct work_struct *ws);
 extern bool drbd_rs_c_min_rate_throttle(struct drbd_device *device);
-extern bool drbd_rs_should_slow_down(struct drbd_device *device, sector_t sector,
+extern bool drbd_rs_should_slow_down(struct drbd_peer_device *peer_device, sector_t sector,
 		bool throttle_if_app_is_waiting);
 extern int drbd_submit_peer_request(struct drbd_peer_request *peer_req);
 extern int drbd_free_peer_reqs(struct drbd_device *, struct list_head *);
@@ -1542,22 +1545,22 @@ extern void drbd_al_begin_io(struct drbd_device *device, struct drbd_interval *i
 extern void drbd_al_complete_io(struct drbd_device *device, struct drbd_interval *i);
 extern void drbd_rs_complete_io(struct drbd_device *device, sector_t sector);
 extern int drbd_rs_begin_io(struct drbd_device *device, sector_t sector);
-extern int drbd_try_rs_begin_io(struct drbd_device *device, sector_t sector);
+extern int drbd_try_rs_begin_io(struct drbd_peer_device *peer_device, sector_t sector);
 extern void drbd_rs_cancel_all(struct drbd_device *device);
 extern int drbd_rs_del_all(struct drbd_device *device);
-extern void drbd_rs_failed_io(struct drbd_device *device,
+extern void drbd_rs_failed_io(struct drbd_peer_device *peer_device,
 		sector_t sector, int size);
-extern void drbd_advance_rs_marks(struct drbd_device *device, unsigned long still_to_go);
+extern void drbd_advance_rs_marks(struct drbd_peer_device *peer_device, unsigned long still_to_go);
 
 enum update_sync_bits_mode { RECORD_RS_FAILED, SET_OUT_OF_SYNC, SET_IN_SYNC };
-extern int __drbd_change_sync(struct drbd_device *device, sector_t sector, int size,
+extern int __drbd_change_sync(struct drbd_peer_device *peer_device, sector_t sector, int size,
 		enum update_sync_bits_mode mode);
-#define drbd_set_in_sync(device, sector, size) \
-	__drbd_change_sync(device, sector, size, SET_IN_SYNC)
-#define drbd_set_out_of_sync(device, sector, size) \
-	__drbd_change_sync(device, sector, size, SET_OUT_OF_SYNC)
-#define drbd_rs_failed_io(device, sector, size) \
-	__drbd_change_sync(device, sector, size, RECORD_RS_FAILED)
+#define drbd_set_in_sync(peer_device, sector, size) \
+	__drbd_change_sync(peer_device, sector, size, SET_IN_SYNC)
+#define drbd_set_out_of_sync(peer_device, sector, size) \
+	__drbd_change_sync(peer_device, sector, size, SET_OUT_OF_SYNC)
+#define drbd_rs_failed_io(peer_device, sector, size) \
+	__drbd_change_sync(peer_device, sector, size, RECORD_RS_FAILED)
 extern void drbd_al_shrink(struct drbd_device *device);
 extern int drbd_al_initialize(struct drbd_device *, void *);
 
@@ -1945,15 +1948,16 @@ static inline int __dec_ap_pending(struct drbd_device *device)
  * C_SYNC_SOURCE sends P_RS_DATA_REPLY   (and expects P_WRITE_ACK with ID_SYNCER)
  *					   (or P_NEG_ACK with ID_SYNCER)
  */
-static inline void inc_rs_pending(struct drbd_device *device)
+static inline void inc_rs_pending(struct drbd_peer_device *peer_device)
 {
-	atomic_inc(&device->rs_pending_cnt);
+	atomic_inc(&peer_device->device->rs_pending_cnt);
 }
 
-#define dec_rs_pending(device) ((void)expect((device), __dec_rs_pending(device) >= 0))
-static inline int __dec_rs_pending(struct drbd_device *device)
+#define dec_rs_pending(peer_device) \
+	((void)expect((peer_device), __dec_rs_pending(peer_device) >= 0))
+static inline int __dec_rs_pending(struct drbd_peer_device *peer_device)
 {
-	return atomic_dec_return(&device->rs_pending_cnt);
+	return atomic_dec_return(&peer_device->device->rs_pending_cnt);
 }
 
 /* counts how many answers we still need to send to the peer.
