@@ -85,8 +85,8 @@ done:
 	return count ? 0 : -ETIMEDOUT;
 };
 
-static int __send_message(struct bnxt_qplib_rcfw *rcfw, struct cmdq_base *req,
-			  struct creq_base *resp, void *sb, u8 is_block)
+static int __send_message(struct bnxt_qplib_rcfw *rcfw,
+			  struct bnxt_qplib_cmdqmsg *msg)
 {
 	struct bnxt_qplib_cmdq_ctx *cmdq = &rcfw->cmdq;
 	struct bnxt_qplib_hwq *hwq = &cmdq->hwq;
@@ -101,7 +101,7 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw, struct cmdq_base *req,
 
 	pdev = rcfw->pdev;
 
-	opcode = req->opcode;
+	opcode = msg->req->opcode;
 	if (!test_bit(FIRMWARE_INITIALIZED_FLAG, &cmdq->flags) &&
 	    (opcode != CMDQ_BASE_OPCODE_QUERY_FUNC &&
 	     opcode != CMDQ_BASE_OPCODE_INITIALIZE_FW &&
@@ -124,7 +124,7 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw, struct cmdq_base *req,
 	 * cmdqe
 	 */
 	spin_lock_irqsave(&hwq->lock, flags);
-	if (req->cmd_size >= HWQ_FREE_SLOTS(hwq)) {
+	if (msg->req->cmd_size >= HWQ_FREE_SLOTS(hwq)) {
 		dev_err(&pdev->dev, "RCFW: CMDQ is full!\n");
 		spin_unlock_irqrestore(&hwq->lock, flags);
 		return -EAGAIN;
@@ -133,36 +133,36 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw, struct cmdq_base *req,
 
 	cookie = cmdq->seq_num & RCFW_MAX_COOKIE_VALUE;
 	cbit = cookie % rcfw->cmdq_depth;
-	if (is_block)
+	if (msg->block)
 		cookie |= RCFW_CMD_IS_BLOCKING;
 
 	set_bit(cbit, cmdq->cmdq_bitmap);
-	req->cookie = cpu_to_le16(cookie);
+	msg->req->cookie = cpu_to_le16(cookie);
 	crsqe = &rcfw->crsqe_tbl[cbit];
 	if (crsqe->resp) {
 		spin_unlock_irqrestore(&hwq->lock, flags);
 		return -EBUSY;
 	}
 
-	size = req->cmd_size;
+	size = msg->req->cmd_size;
 	/* change the cmd_size to the number of 16byte cmdq unit.
 	 * req->cmd_size is modified here
 	 */
-	bnxt_qplib_set_cmd_slots(req);
+	bnxt_qplib_set_cmd_slots(msg->req);
 
-	memset(resp, 0, sizeof(*resp));
-	crsqe->resp = (struct creq_qp_event *)resp;
-	crsqe->resp->cookie = req->cookie;
-	crsqe->req_size = req->cmd_size;
-	if (req->resp_size && sb) {
-		struct bnxt_qplib_rcfw_sbuf *sbuf = sb;
+	memset(msg->resp, 0, sizeof(*msg->resp));
+	crsqe->resp = (struct creq_qp_event *)msg->resp;
+	crsqe->resp->cookie = msg->req->cookie;
+	crsqe->req_size = msg->req->cmd_size;
+	if (msg->req->resp_size && msg->sb) {
+		struct bnxt_qplib_rcfw_sbuf *sbuf = msg->sb;
 
-		req->resp_addr = cpu_to_le64(sbuf->dma_addr);
-		req->resp_size = (sbuf->size + BNXT_QPLIB_CMDQE_UNITS - 1) /
+		msg->req->resp_addr = cpu_to_le64(sbuf->dma_addr);
+		msg->req->resp_size = (sbuf->size + BNXT_QPLIB_CMDQE_UNITS - 1) /
 				  BNXT_QPLIB_CMDQE_UNITS;
 	}
 
-	preq = (u8 *)req;
+	preq = (u8 *)msg->req;
 	do {
 		/* Locate the next cmdq slot */
 		sw_prod = HWQ_CMP(hwq->prod, hwq);
@@ -191,7 +191,6 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw, struct cmdq_base *req,
 		cmdq_prod |= BIT(FIRMWARE_FIRST_FLAG);
 		clear_bit(FIRMWARE_FIRST_FLAG, &cmdq->flags);
 	}
-
 	/* ring CMDQ DB */
 	wmb();
 	writel(cmdq_prod, cmdq->cmdq_mbox.prod);
@@ -203,11 +202,9 @@ done:
 }
 
 int bnxt_qplib_rcfw_send_message(struct bnxt_qplib_rcfw *rcfw,
-				 struct cmdq_base *req,
-				 struct creq_base *resp,
-				 void *sb, u8 is_block)
+				 struct bnxt_qplib_cmdqmsg *msg)
 {
-	struct creq_qp_event *evnt = (struct creq_qp_event *)resp;
+	struct creq_qp_event *evnt = (struct creq_qp_event *)msg->resp;
 	u16 cookie;
 	u8 opcode, retry_cnt = 0xFF;
 	int rc = 0;
@@ -217,9 +214,9 @@ int bnxt_qplib_rcfw_send_message(struct bnxt_qplib_rcfw *rcfw,
 		return 0;
 
 	do {
-		opcode = req->opcode;
-		rc = __send_message(rcfw, req, resp, sb, is_block);
-		cookie = le16_to_cpu(req->cookie) & RCFW_MAX_COOKIE_VALUE;
+		opcode = msg->req->opcode;
+		rc = __send_message(rcfw, msg);
+		cookie = le16_to_cpu(msg->req->cookie) & RCFW_MAX_COOKIE_VALUE;
 		if (!rc)
 			break;
 
@@ -229,11 +226,11 @@ int bnxt_qplib_rcfw_send_message(struct bnxt_qplib_rcfw *rcfw,
 				cookie, opcode);
 			return rc;
 		}
-		is_block ? mdelay(1) : usleep_range(500, 1000);
+		msg->block ? mdelay(1) : usleep_range(500, 1000);
 
 	} while (retry_cnt--);
 
-	if (is_block)
+	if (msg->block)
 		rc = __block_for_resp(rcfw, cookie);
 	else
 		rc = __wait_for_resp(rcfw, cookie);
@@ -452,15 +449,17 @@ static irqreturn_t bnxt_qplib_creq_irq(int irq, void *dev_instance)
 /* RCFW */
 int bnxt_qplib_deinit_rcfw(struct bnxt_qplib_rcfw *rcfw)
 {
-	struct cmdq_deinitialize_fw req;
-	struct creq_deinitialize_fw_resp resp;
+	struct creq_deinitialize_fw_resp resp = {};
+	struct cmdq_deinitialize_fw req = {};
+	struct bnxt_qplib_cmdqmsg msg = {};
 	int rc;
 
 	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
 				 CMDQ_BASE_OPCODE_DEINITIALIZE_FW,
 				 sizeof(req));
-	rc = bnxt_qplib_rcfw_send_message(rcfw, (void *)&req, (void *)&resp,
-					  NULL, 0);
+	bnxt_qplib_fill_cmdqmsg(&msg, &req, &resp, NULL,
+				sizeof(req), sizeof(resp), 0);
+	rc = bnxt_qplib_rcfw_send_message(rcfw, &msg);
 	if (rc)
 		return rc;
 
@@ -471,8 +470,9 @@ int bnxt_qplib_deinit_rcfw(struct bnxt_qplib_rcfw *rcfw)
 int bnxt_qplib_init_rcfw(struct bnxt_qplib_rcfw *rcfw,
 			 struct bnxt_qplib_ctx *ctx, int is_virtfn)
 {
-	struct creq_initialize_fw_resp resp;
-	struct cmdq_initialize_fw req;
+	struct creq_initialize_fw_resp resp = {};
+	struct cmdq_initialize_fw req = {};
+	struct bnxt_qplib_cmdqmsg msg = {};
 	u8 pgsz, lvl;
 	int rc;
 
@@ -547,8 +547,8 @@ config_vf_res:
 
 skip_ctx_setup:
 	req.stat_ctx_id = cpu_to_le32(ctx->stats.fw_id);
-	rc = bnxt_qplib_rcfw_send_message(rcfw, (void *)&req, (void *)&resp,
-					  NULL, 0);
+	bnxt_qplib_fill_cmdqmsg(&msg, &req, &resp, NULL, sizeof(req), sizeof(resp), 0);
+	rc = bnxt_qplib_rcfw_send_message(rcfw, &msg);
 	if (rc)
 		return rc;
 	set_bit(FIRMWARE_INITIALIZED_FLAG, &rcfw->cmdq.flags);

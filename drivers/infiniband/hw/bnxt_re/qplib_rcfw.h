@@ -61,7 +61,6 @@ struct bnxt_qplib_cmdqe {
 static inline void bnxt_qplib_rcfw_cmd_prep(struct cmdq_base *req,
 					    u8 opcode, u8 cmd_size)
 {
-	memset(req, 0, cmd_size);
 	req->opcode = opcode;
 	req->cmd_size = cmd_size;
 }
@@ -191,6 +190,27 @@ struct bnxt_qplib_rcfw {
 	u32 cmdq_depth;
 };
 
+struct bnxt_qplib_cmdqmsg {
+	struct cmdq_base	*req;
+	struct creq_base	*resp;
+	void			*sb;
+	u32			req_sz;
+	u32			res_sz;
+	u8			block;
+};
+
+static inline void bnxt_qplib_fill_cmdqmsg(struct bnxt_qplib_cmdqmsg *msg,
+					   void *req, void *resp, void *sb,
+					   u32 req_sz, u32 res_sz, u8 block)
+{
+	msg->req = req;
+	msg->resp = resp;
+	msg->sb = sb;
+	msg->req_sz = req_sz;
+	msg->res_sz = res_sz;
+	msg->block = block;
+}
+
 void bnxt_qplib_free_rcfw_channel(struct bnxt_qplib_rcfw *rcfw);
 int bnxt_qplib_alloc_rcfw_channel(struct bnxt_qplib_res *res,
 				  struct bnxt_qplib_rcfw *rcfw,
@@ -211,8 +231,7 @@ struct bnxt_qplib_rcfw_sbuf *bnxt_qplib_rcfw_alloc_sbuf(
 void bnxt_qplib_rcfw_free_sbuf(struct bnxt_qplib_rcfw *rcfw,
 			       struct bnxt_qplib_rcfw_sbuf *sbuf);
 int bnxt_qplib_rcfw_send_message(struct bnxt_qplib_rcfw *rcfw,
-				 struct cmdq_base *req, struct creq_base *resp,
-				 void *sbuf, u8 is_block);
+				 struct bnxt_qplib_cmdqmsg *msg);
 
 int bnxt_qplib_deinit_rcfw(struct bnxt_qplib_rcfw *rcfw);
 int bnxt_qplib_init_rcfw(struct bnxt_qplib_rcfw *rcfw,
