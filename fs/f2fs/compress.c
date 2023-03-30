@@ -264,35 +264,21 @@ static void lz4_destroy_compress_ctx(struct compress_ctx *cc)
 	cc->private = NULL;
 }
 
-#ifdef CONFIG_F2FS_FS_LZ4HC
-static int lz4hc_compress_pages(struct compress_ctx *cc)
-{
-	unsigned char level = F2FS_I(cc->inode)->i_compress_level;
-	int len;
-
-	if (level)
-		len = LZ4_compress_HC(cc->rbuf, cc->cbuf->cdata, cc->rlen,
-					cc->clen, level, cc->private);
-	else
-		len = LZ4_compress_default(cc->rbuf, cc->cbuf->cdata, cc->rlen,
-						cc->clen, cc->private);
-	if (!len)
-		return -EAGAIN;
-
-	cc->clen = len;
-	return 0;
-}
-#endif
-
 static int lz4_compress_pages(struct compress_ctx *cc)
 {
-	int len;
+	int len = -EINVAL;
+	unsigned char level = F2FS_I(cc->inode)->i_compress_level;
 
-#ifdef CONFIG_F2FS_FS_LZ4HC
-	return lz4hc_compress_pages(cc);
-#endif
-	len = LZ4_compress_default(cc->rbuf, cc->cbuf->cdata, cc->rlen,
+	if (!level)
+		len = LZ4_compress_default(cc->rbuf, cc->cbuf->cdata, cc->rlen,
 						cc->clen, cc->private);
+#ifdef CONFIG_F2FS_FS_LZ4HC
+	else
+		len = LZ4_compress_HC(cc->rbuf, cc->cbuf->cdata, cc->rlen,
+					cc->clen, level, cc->private);
+#endif
+	if (len < 0)
+		return len;
 	if (!len)
 		return -EAGAIN;
 
