@@ -29,6 +29,7 @@ static const struct regcache_types regcache_types_list[] = {
 	{ REGCACHE_NONE, "none" },
 	{ REGCACHE_FLAT, "flat" },
 	{ REGCACHE_RBTREE, "rbtree" },
+	{ REGCACHE_MAPLE, "maple" },
 };
 
 KUNIT_ARRAY_PARAM(regcache_types, regcache_types_list, case_to_desc);
@@ -36,12 +37,14 @@ KUNIT_ARRAY_PARAM(regcache_types, regcache_types_list, case_to_desc);
 static const struct regcache_types real_cache_types_list[] = {
 	{ REGCACHE_FLAT, "flat" },
 	{ REGCACHE_RBTREE, "rbtree" },
+	{ REGCACHE_MAPLE, "maple" },
 };
 
 KUNIT_ARRAY_PARAM(real_cache_types, real_cache_types_list, case_to_desc);
 
 static const struct regcache_types sparse_cache_types_list[] = {
 	{ REGCACHE_RBTREE, "rbtree" },
+	{ REGCACHE_MAPLE, "maple" },
 };
 
 KUNIT_ARRAY_PARAM(sparse_cache_types, sparse_cache_types_list, case_to_desc);
