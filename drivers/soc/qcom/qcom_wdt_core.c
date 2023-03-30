@@ -49,7 +49,8 @@ static void qcom_wdt_dump_cpu_alive_mask(struct msm_watchdog_data *wdog_dd)
 				alive_mask_buf);
 }
 
-void record_irq_count(void)
+#ifdef CONFIG_QCOM_IRQ_STAT
+static void record_irq_count(void)
 {
 	int irq, ipi_nr;
 	unsigned int count;
@@ -78,7 +79,7 @@ struct irq_info {
 	struct irq_desc *desc;
 };
 
-void compute_irq_count(void)
+static void compute_irq_count(void)
 {
 	int i, irq, ipi_nr;
 	unsigned int count, diff;
@@ -130,6 +131,10 @@ void compute_irq_count(void)
 		}
 	}
 }
+#else
+static void record_irq_count(void) { }
+static void compute_irq_count(void) { }
+#endif
 
 static int qcom_wdt_hibernation_notifier(struct notifier_block *nb,
 				unsigned long event, void *dummy)
