@@ -34,6 +34,8 @@ struct arch_timer_offset {
 struct arch_timer_vm_data {
 	/* Offset applied to the virtual timer/counter */
 	u64	voffset;
+	/* Offset applied to the physical timer/counter */
+	u64	poffset;
 };
 
 struct arch_timer_context {

@@ -52,6 +52,11 @@ static u64 kvm_arm_timer_read(struct kvm_vcpu *vcpu,
 			      struct arch_timer_context *timer,
 			      enum kvm_arch_timer_regs treg);
 
+static bool has_cntpoff(void)
+{
+	return (has_vhe() && cpus_have_final_cap(ARM64_HAS_ECV_CNTPOFF));
+}
+
 u32 timer_get_ctl(struct arch_timer_context *ctxt)
 {
 	struct kvm_vcpu *vcpu = ctxt->vcpu;
@@ -84,7 +89,7 @@ u64 timer_get_cval(struct arch_timer_context *ctxt)
 
 static u64 timer_get_offset(struct arch_timer_context *ctxt)
 {
-	if (ctxt->offset.vm_offset)
+	if (ctxt && ctxt->offset.vm_offset)
 		return *ctxt->offset.vm_offset;
 
 	return 0;
@@ -432,6 +437,12 @@ static void set_cntvoff(u64 cntvoff)
 	kvm_call_hyp(__kvm_timer_set_cntvoff, cntvoff);
 }
 
+static void set_cntpoff(u64 cntpoff)
+{
+	if (has_cntpoff())
+		write_sysreg_s(cntpoff, SYS_CNTPOFF_EL2);
+}
+
 static void timer_save_state(struct arch_timer_context *ctx)
 {
 	struct arch_timer_cpu *timer = vcpu_timer(ctx->vcpu);
@@ -480,6 +491,7 @@ static void timer_save_state(struct arch_timer_context *ctx)
 		write_sysreg_el0(0, SYS_CNTP_CTL);
 		isb();
 
+		set_cntpoff(0);
 		break;
 	case NR_KVM_TIMERS:
 		BUG();
@@ -550,6 +562,7 @@ static void timer_restore_state(struct arch_timer_context *ctx)
 		write_sysreg_el0(timer_get_ctl(ctx), SYS_CNTV_CTL);
 		break;
 	case TIMER_PTIMER:
+		set_cntpoff(timer_get_offset(ctx));
 		write_sysreg_el0(timer_get_cval(ctx), SYS_CNTP_CVAL);
 		isb();
 		write_sysreg_el0(timer_get_ctl(ctx), SYS_CNTP_CTL);
@@ -767,6 +780,7 @@ void kvm_timer_vcpu_init(struct kvm_vcpu *vcpu)
 	vtimer->vcpu = vcpu;
 	vtimer->offset.vm_offset = &vcpu->kvm->arch.timer_data.voffset;
 	ptimer->vcpu = vcpu;
+	ptimer->offset.vm_offset = &vcpu->kvm->arch.timer_data.poffset;
 
 	/* Synchronize cntvoff across all vtimers of a VM. */
 	timer_set_offset(vtimer, kvm_phys_timer_read());
@@ -1297,6 +1311,8 @@ void kvm_timer_init_vhe(void)
 	val = read_sysreg(cnthctl_el2);
 	val |= (CNTHCTL_EL1PCEN << cnthctl_shift);
 	val |= (CNTHCTL_EL1PCTEN << cnthctl_shift);
+	if (cpus_have_final_cap(ARM64_HAS_ECV_CNTPOFF))
+		val |= CNTHCTL_ECV;
 	write_sysreg(val, cnthctl_el2);
 }
 

@@ -47,7 +47,7 @@ static void kvm_ptp_get_time(struct kvm_vcpu *vcpu, u64 *val)
 		cycles = systime_snapshot.cycles - vcpu->kvm->arch.timer_data.voffset;
 		break;
 	case KVM_PTP_PHYS_COUNTER:
-		cycles = systime_snapshot.cycles;
+		cycles = systime_snapshot.cycles - vcpu->kvm->arch.timer_data.poffset;
 		break;
 	default:
 		return;
