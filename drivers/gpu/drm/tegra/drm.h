@@ -29,12 +29,6 @@
 
 struct reset_control;
 
-#ifdef CONFIG_DRM_FBDEV_EMULATION
-struct tegra_fbdev {
-	struct drm_fb_helper base;
-};
-#endif
-
 struct tegra_drm {
 	struct drm_device *drm;
 
@@ -51,10 +45,6 @@ struct tegra_drm {
 
 	struct mutex clients_lock;
 	struct list_head clients;
-
-#ifdef CONFIG_DRM_FBDEV_EMULATION
-	struct tegra_fbdev *fbdev;
-#endif
 
 	unsigned int hmask, vmask;
 	unsigned int pitch_align;
