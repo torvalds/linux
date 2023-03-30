@@ -275,26 +275,21 @@ void mlx5_accel_esp_modify_xfrm(struct mlx5e_ipsec_sa_entry *sa_entry,
 	memcpy(&sa_entry->attrs, attrs, sizeof(sa_entry->attrs));
 }
 
-static void
-mlx5e_ipsec_aso_update_esn(struct mlx5e_ipsec_sa_entry *sa_entry,
-			   const struct mlx5_accel_esp_xfrm_attrs *attrs)
+static void mlx5e_ipsec_aso_update(struct mlx5e_ipsec_sa_entry *sa_entry,
+				   struct mlx5_wqe_aso_ctrl_seg *data)
 {
-	struct mlx5_wqe_aso_ctrl_seg data = {};
+	data->data_mask_mode = MLX5_ASO_DATA_MASK_MODE_BITWISE_64BIT << 6;
+	data->condition_1_0_operand = MLX5_ASO_ALWAYS_TRUE |
+				      MLX5_ASO_ALWAYS_TRUE << 4;
 
-	data.data_mask_mode = MLX5_ASO_DATA_MASK_MODE_BITWISE_64BIT << 6;
-	data.condition_1_0_operand = MLX5_ASO_ALWAYS_TRUE | MLX5_ASO_ALWAYS_TRUE
-								    << 4;
-	data.data_offset_condition_operand = MLX5_IPSEC_ASO_REMOVE_FLOW_PKT_CNT_OFFSET;
-	data.bitwise_data = cpu_to_be64(BIT_ULL(54));
-	data.data_mask = data.bitwise_data;
-
-	mlx5e_ipsec_aso_query(sa_entry, &data);
+	mlx5e_ipsec_aso_query(sa_entry, data);
 }
 
 static void mlx5e_ipsec_update_esn_state(struct mlx5e_ipsec_sa_entry *sa_entry,
 					 u32 mode_param)
 {
 	struct mlx5_accel_esp_xfrm_attrs attrs = {};
+	struct mlx5_wqe_aso_ctrl_seg data = {};
 
 	if (mode_param < MLX5E_IPSEC_ESN_SCOPE_MID) {
 		sa_entry->esn_state.esn++;
@@ -305,7 +300,13 @@ static void mlx5e_ipsec_update_esn_state(struct mlx5e_ipsec_sa_entry *sa_entry,
 
 	mlx5e_ipsec_build_accel_xfrm_attrs(sa_entry, &attrs);
 	mlx5_accel_esp_modify_xfrm(sa_entry, &attrs);
-	mlx5e_ipsec_aso_update_esn(sa_entry, &attrs);
+
+	data.data_offset_condition_operand =
+		MLX5_IPSEC_ASO_REMOVE_FLOW_PKT_CNT_OFFSET;
+	data.bitwise_data = cpu_to_be64(BIT_ULL(54));
+	data.data_mask = data.bitwise_data;
+
+	mlx5e_ipsec_aso_update(sa_entry, &data);
 }
 
 static void mlx5e_ipsec_handle_event(struct work_struct *_work)
