@@ -1711,8 +1711,9 @@ static void destroy_buf_queue(struct rkisp_stream *stream,
 		if (buf->vb.vb2_buf.memory)
 			vb2_buffer_done(&buf->vb.vb2_buf, state);
 	}
-	rkisp_rockit_buf_free(stream);
+	rkisp_rockit_buf_state_clear(stream);
 	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
+	rkisp_rockit_buf_free(stream);
 }
 
 static void rkisp_stop_streaming(struct vb2_queue *queue)
