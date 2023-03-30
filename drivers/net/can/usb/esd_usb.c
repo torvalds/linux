@@ -237,14 +237,23 @@ static void esd_usb_rx_event(struct esd_usb_net_priv *priv,
 	if (id == ESD_EV_CAN_ERROR_EXT) {
 		u8 state = msg->rx.ev_can_err_ext.status;
 		u8 ecc = msg->rx.ev_can_err_ext.ecc;
-		u8 rxerr = msg->rx.ev_can_err_ext.rec;
-		u8 txerr = msg->rx.ev_can_err_ext.tec;
+
+		priv->bec.rxerr = msg->rx.ev_can_err_ext.rec;
+		priv->bec.txerr = msg->rx.ev_can_err_ext.tec;
 
 		netdev_dbg(priv->netdev,
 			   "CAN_ERR_EV_EXT: dlc=%#02x state=%02x ecc=%02x rec=%02x tec=%02x\n",
-			   msg->rx.dlc, state, ecc, rxerr, txerr);
+			   msg->rx.dlc, state, ecc,
+			   priv->bec.rxerr, priv->bec.txerr);
+
+		/* if berr-reporting is off, only pass through on state change ... */
+		if (!(priv->can.ctrlmode & CAN_CTRLMODE_BERR_REPORTING) &&
+		    state == priv->old_state)
+			return;
 
 		skb = alloc_can_err_skb(priv->netdev, &cf);
+		if (!skb)
+			stats->rx_dropped++;
 
 		if (state != priv->old_state) {
 			enum can_state tx_state, rx_state;
@@ -265,14 +274,14 @@ static void esd_usb_rx_event(struct esd_usb_net_priv *priv,
 				break;
 			default:
 				new_state = CAN_STATE_ERROR_ACTIVE;
-				txerr = 0;
-				rxerr = 0;
+				priv->bec.txerr = 0;
+				priv->bec.rxerr = 0;
 				break;
 			}
 
 			if (new_state != priv->can.state) {
-				tx_state = (txerr >= rxerr) ? new_state : 0;
-				rx_state = (txerr <= rxerr) ? new_state : 0;
+				tx_state = (priv->bec.txerr >= priv->bec.rxerr) ? new_state : 0;
+				rx_state = (priv->bec.txerr <= priv->bec.rxerr) ? new_state : 0;
 				can_change_state(priv->netdev, cf,
 						 tx_state, rx_state);
 			}
@@ -304,17 +313,12 @@ static void esd_usb_rx_event(struct esd_usb_net_priv *priv,
 			cf->data[3] = ecc & SJA1000_ECC_SEG;
 		}
 
-		priv->bec.txerr = txerr;
-		priv->bec.rxerr = rxerr;
-
 		if (skb) {
 			cf->can_id |= CAN_ERR_CNT;
-			cf->data[6] = txerr;
-			cf->data[7] = rxerr;
+			cf->data[6] = priv->bec.txerr;
+			cf->data[7] = priv->bec.rxerr;
 
 			netif_rx(skb);
-		} else {
-			stats->rx_dropped++;
 		}
 	}
 }
@@ -1016,7 +1020,8 @@ static int esd_usb_probe_one_net(struct usb_interface *intf, int index)
 
 	priv->can.state = CAN_STATE_STOPPED;
 	priv->can.ctrlmode_supported = CAN_CTRLMODE_LISTENONLY |
-		CAN_CTRLMODE_CC_LEN8_DLC;
+		CAN_CTRLMODE_CC_LEN8_DLC |
+		CAN_CTRLMODE_BERR_REPORTING;
 
 	if (le16_to_cpu(dev->udev->descriptor.idProduct) ==
 	    USB_CANUSBM_PRODUCT_ID)
