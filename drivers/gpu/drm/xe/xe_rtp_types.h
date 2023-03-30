@@ -1,0 +1,105 @@
+/* SPDX-License-Identifier: MIT */
+/*
+ * Copyright © 2022 Intel Corporation
+ */
+
+#ifndef _XE_RTP_TYPES_
+#define _XE_RTP_TYPES_
+
+#include <linux/types.h>
+
+#include "i915_reg_defs.h"
+
+struct xe_hw_engine;
+struct xe_gt;
+
+enum {
+	XE_RTP_REG_REGULAR,
+	XE_RTP_REG_MCR,
+};
+
+/**
+ * struct xe_rtp_regval - register and value for rtp table
+ */
+struct xe_rtp_regval {
+	/** @reg: Register */
+	u32		reg;
+	/*
+	 * TODO: maybe we need a union here with a func pointer for cases
+	 * that are too specific to be generalized
+	 */
+	/** @clr_bits: bits to clear when updating register */
+	u32		clr_bits;
+	/** @set_bits: bits to set when updating register */
+	u32		set_bits;
+#define XE_RTP_NOCHECK		.read_mask = 0
+	/** @read_mask: mask for bits to consider when reading value back */
+	u32		read_mask;
+#define XE_RTP_FLAG_FOREACH_ENGINE	BIT(0)
+#define XE_RTP_FLAG_MASKED_REG		BIT(1)
+#define XE_RTP_FLAG_ENGINE_BASE		BIT(2)
+	/** @flags: flags to apply on rule evaluation or action */
+	u8		flags;
+	/** @reg_type: register type, see ``XE_RTP_REG_*`` */
+	u8		reg_type;
+};
+
+enum {
+	XE_RTP_MATCH_PLATFORM,
+	XE_RTP_MATCH_SUBPLATFORM,
+	XE_RTP_MATCH_GRAPHICS_VERSION,
+	XE_RTP_MATCH_GRAPHICS_VERSION_RANGE,
+	XE_RTP_MATCH_MEDIA_VERSION,
+	XE_RTP_MATCH_MEDIA_VERSION_RANGE,
+	XE_RTP_MATCH_INTEGRATED,
+	XE_RTP_MATCH_DISCRETE,
+	XE_RTP_MATCH_STEP,
+	XE_RTP_MATCH_ENGINE_CLASS,
+	XE_RTP_MATCH_NOT_ENGINE_CLASS,
+	XE_RTP_MATCH_FUNC,
+};
+
+/** struct xe_rtp_rule - match rule for processing entry */
+struct xe_rtp_rule {
+	u8 match_type;
+
+	/* match filters */
+	union {
+		/* MATCH_PLATFORM / MATCH_SUBPLATFORM */
+		struct {
+			u8 platform;
+			u8 subplatform;
+		};
+		/*
+		 * MATCH_GRAPHICS_VERSION / XE_RTP_MATCH_GRAPHICS_VERSION_RANGE /
+		 * MATCH_MEDIA_VERSION  / XE_RTP_MATCH_MEDIA_VERSION_RANGE
+		 */
+		struct {
+			u32 ver_start;
+#define XE_RTP_END_VERSION_UNDEFINED	U32_MAX
+			u32 ver_end;
+		};
+		/* MATCH_STEP */
+		struct {
+			u8 step_start;
+			u8 step_end;
+		};
+		/* MATCH_ENGINE_CLASS / MATCH_NOT_ENGINE_CLASS */
+		struct {
+			u8 engine_class;
+		};
+		/* MATCH_FUNC */
+		bool (*match_func)(const struct xe_gt *gt,
+				   const struct xe_hw_engine *hwe);
+	};
+};
+
+/** struct xe_rtp_entry - Entry in an rtp table */
+struct xe_rtp_entry {
+	const char *name;
+	const struct xe_rtp_regval regval;
+	const struct xe_rtp_rule *rules;
+	unsigned int n_rules;
+};
+
+#endif

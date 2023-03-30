@@ -1,0 +1,290 @@
+/* SPDX-License-Identifier: MIT */
+/*
+ * Copyright © 2021 Intel Corporation
+ */
+
+#ifndef _XE_BO_H_
+#define _XE_BO_H_
+
+#include "xe_bo_types.h"
+#include "xe_macros.h"
+#include "xe_vm_types.h"
+
+#define XE_DEFAULT_GTT_SIZE_MB          3072ULL /* 3GB by default */
+
+#define XE_BO_CREATE_USER_BIT		BIT(1)
+#define XE_BO_CREATE_SYSTEM_BIT		BIT(2)
+#define XE_BO_CREATE_VRAM0_BIT		BIT(3)
+#define XE_BO_CREATE_VRAM1_BIT		BIT(4)
+#define XE_BO_CREATE_VRAM_IF_DGFX(gt) \
+	(IS_DGFX(gt_to_xe(gt)) ? XE_BO_CREATE_VRAM0_BIT << gt->info.vram_id : \
+	 XE_BO_CREATE_SYSTEM_BIT)
+#define XE_BO_CREATE_GGTT_BIT		BIT(5)
+#define XE_BO_CREATE_IGNORE_MIN_PAGE_SIZE_BIT BIT(6)
+#define XE_BO_CREATE_PINNED_BIT		BIT(7)
+#define XE_BO_DEFER_BACKING		BIT(8)
+#define XE_BO_SCANOUT_BIT		BIT(9)
+/* this one is trigger internally only */
+#define XE_BO_INTERNAL_TEST		BIT(30)
+#define XE_BO_INTERNAL_64K		BIT(31)
+
+#define PPAT_UNCACHED                   GENMASK_ULL(4, 3)
+#define PPAT_CACHED_PDE                 0
+#define PPAT_CACHED                     BIT_ULL(7)
+#define PPAT_DISPLAY_ELLC               BIT_ULL(4)
+
+#define GEN8_PTE_SHIFT			12
+#define GEN8_PAGE_SIZE			(1 << GEN8_PTE_SHIFT)
+#define GEN8_PTE_MASK			(GEN8_PAGE_SIZE - 1)
+#define GEN8_PDE_SHIFT			(GEN8_PTE_SHIFT - 3)
+#define GEN8_PDES			(1 << GEN8_PDE_SHIFT)
+#define GEN8_PDE_MASK			(GEN8_PDES - 1)
+
+#define GEN8_64K_PTE_SHIFT		16
+#define GEN8_64K_PAGE_SIZE		(1 << GEN8_64K_PTE_SHIFT)
+#define GEN8_64K_PTE_MASK		(GEN8_64K_PAGE_SIZE - 1)
+#define GEN8_64K_PDE_MASK		(GEN8_PDE_MASK >> 4)
+
+#define GEN8_PDE_PS_2M			BIT_ULL(7)
+#define GEN8_PDPE_PS_1G			BIT_ULL(7)
+#define GEN8_PDE_IPS_64K		BIT_ULL(11)
+
+#define GEN12_GGTT_PTE_LM		BIT_ULL(1)
+#define GEN12_USM_PPGTT_PTE_AE		BIT_ULL(10)
+#define GEN12_PPGTT_PTE_LM		BIT_ULL(11)
+#define GEN12_PDE_64K			BIT_ULL(6)
+#define GEN12_PTE_PS64                  BIT_ULL(8)
+
+#define GEN8_PAGE_PRESENT		BIT_ULL(0)
+#define GEN8_PAGE_RW			BIT_ULL(1)
+
+#define PTE_READ_ONLY			BIT(0)
+
+#define XE_PL_SYSTEM		TTM_PL_SYSTEM
+#define XE_PL_TT		TTM_PL_TT
+#define XE_PL_VRAM0		TTM_PL_VRAM
+#define XE_PL_VRAM1		(XE_PL_VRAM0 + 1)
+
+#define XE_BO_PROPS_INVALID	(-1)
+
+struct sg_table;
+
+struct xe_bo *xe_bo_alloc(void);
+void xe_bo_free(struct xe_bo *bo);
+
+struct xe_bo *__xe_bo_create_locked(struct xe_device *xe, struct xe_bo *bo,
+				    struct xe_gt *gt, struct dma_resv *resv,
+				    size_t size, enum ttm_bo_type type,
+				    u32 flags);
+struct xe_bo *xe_bo_create_locked(struct xe_device *xe, struct xe_gt *gt,
+				  struct xe_vm *vm, size_t size,
+				  enum ttm_bo_type type, u32 flags);
+struct xe_bo *xe_bo_create(struct xe_device *xe, struct xe_gt *gt,
+			   struct xe_vm *vm, size_t size,
+			   enum ttm_bo_type type, u32 flags);
+struct xe_bo *xe_bo_create_pin_map(struct xe_device *xe, struct xe_gt *gt,
+				   struct xe_vm *vm, size_t size,
+				   enum ttm_bo_type type, u32 flags);
+struct xe_bo *xe_bo_create_from_data(struct xe_device *xe, struct xe_gt *gt,
+				     const void *data, size_t size,
+				     enum ttm_bo_type type, u32 flags);
+
+int xe_bo_placement_for_flags(struct xe_device *xe, struct xe_bo *bo,
+			      u32 bo_flags);
+
+static inline struct xe_bo *ttm_to_xe_bo(const struct ttm_buffer_object *bo)
+{
+	return container_of(bo, struct xe_bo, ttm);
+}
+
+static inline struct xe_bo *gem_to_xe_bo(const struct drm_gem_object *obj)
+{
+	return container_of(obj, struct xe_bo, ttm.base);
+}
+
+#define xe_bo_device(bo) ttm_to_xe_device((bo)->ttm.bdev)
+
+static inline struct xe_bo *xe_bo_get(struct xe_bo *bo)
+{
+	if (bo)
+		drm_gem_object_get(&bo->ttm.base);
+
+	return bo;
+}
+
+static inline void xe_bo_put(struct xe_bo *bo)
+{
+	if (bo)
+		drm_gem_object_put(&bo->ttm.base);
+}
+
+static inline void xe_bo_assert_held(struct xe_bo *bo)
+{
+	if (bo)
+		dma_resv_assert_held((bo)->ttm.base.resv);
+}
+
+int xe_bo_lock(struct xe_bo *bo, struct ww_acquire_ctx *ww,
+	       int num_resv, bool intr);
+
+void xe_bo_unlock(struct xe_bo *bo, struct ww_acquire_ctx *ww);
+
+static inline void xe_bo_unlock_vm_held(struct xe_bo *bo)
+{
+	if (bo) {
+		XE_BUG_ON(bo->vm && bo->ttm.base.resv != &bo->vm->resv);
+		if (bo->vm)
+			xe_vm_assert_held(bo->vm);
+		else
+			dma_resv_unlock(bo->ttm.base.resv);
+	}
+}
+
+static inline void xe_bo_lock_no_vm(struct xe_bo *bo,
+				    struct ww_acquire_ctx *ctx)
+{
+	if (bo) {
+		XE_BUG_ON(bo->vm || (bo->ttm.type != ttm_bo_type_sg &&
+				     bo->ttm.base.resv != &bo->ttm.base._resv));
+		dma_resv_lock(bo->ttm.base.resv, ctx);
+	}
+}
+
+static inline void xe_bo_unlock_no_vm(struct xe_bo *bo)
+{
+	if (bo) {
+		XE_BUG_ON(bo->vm || (bo->ttm.type != ttm_bo_type_sg &&
+				     bo->ttm.base.resv != &bo->ttm.base._resv));
+		dma_resv_unlock(bo->ttm.base.resv);
+	}
+}
+
+int xe_bo_pin_external(struct xe_bo *bo);
+int xe_bo_pin(struct xe_bo *bo);
+void xe_bo_unpin_external(struct xe_bo *bo);
+void xe_bo_unpin(struct xe_bo *bo);
+int xe_bo_validate(struct xe_bo *bo, struct xe_vm *vm, bool allow_res_evict);
+
+static inline bool xe_bo_is_pinned(struct xe_bo *bo)
+{
+	return bo->ttm.pin_count;
+}
+
+static inline void xe_bo_unpin_map_no_vm(struct xe_bo *bo)
+{
+	if (likely(bo)) {
+		xe_bo_lock_no_vm(bo, NULL);
+		xe_bo_unpin(bo);
+		xe_bo_unlock_no_vm(bo);
+
+		xe_bo_put(bo);
+	}
+}
+
+bool xe_bo_is_xe_bo(struct ttm_buffer_object *bo);
+dma_addr_t xe_bo_addr(struct xe_bo *bo, u64 offset,
+		      size_t page_size, bool *is_lmem);
+
+static inline dma_addr_t
+xe_bo_main_addr(struct xe_bo *bo, size_t page_size)
+{
+	bool is_lmem;
+
+	return xe_bo_addr(bo, 0, page_size, &is_lmem);
+}
+
+static inline u32
+xe_bo_ggtt_addr(struct xe_bo *bo)
+{
+	XE_BUG_ON(bo->ggtt_node.size > bo->size);
+	XE_BUG_ON(bo->ggtt_node.start + bo->ggtt_node.size > (1ull << 32));
+	return bo->ggtt_node.start;
+}
+
+int xe_bo_vmap(struct xe_bo *bo);
+void xe_bo_vunmap(struct xe_bo *bo);
+
+bool mem_type_is_vram(u32 mem_type);
+bool xe_bo_is_vram(struct xe_bo *bo);
+
+bool xe_bo_can_migrate(struct xe_bo *bo, u32 mem_type);
+
+int xe_bo_migrate(struct xe_bo *bo, u32 mem_type);
+int xe_bo_evict(struct xe_bo *bo, bool force_alloc);
+
+extern struct ttm_device_funcs xe_ttm_funcs;
+
+int xe_gem_create_ioctl(struct drm_device *dev, void *data,
+			struct drm_file *file);
+int xe_gem_mmap_offset_ioctl(struct drm_device *dev, void *data,
+			     struct drm_file *file);
+int xe_bo_dumb_create(struct drm_file *file_priv,
+		      struct drm_device *dev,
+		      struct drm_mode_create_dumb *args);
+
+bool xe_bo_needs_ccs_pages(struct xe_bo *bo);
+
+static inline size_t xe_bo_ccs_pages_start(struct xe_bo *bo)
+{
+	return PAGE_ALIGN(bo->ttm.base.size);
+}
+
+void __xe_bo_release_dummy(struct kref *kref);
+
+/**
+ * xe_bo_put_deferred() - Put a buffer object with delayed final freeing
+ * @bo: The bo to put.
+ * @deferred: List to which to add the buffer object if we cannot put, or
+ * NULL if the function is to put unconditionally.
+ *
+ * Since the final freeing of an object includes both sleeping and (!)
+ * memory allocation in the dma_resv individualization, it's not ok
+ * to put an object from atomic context nor from within a held lock
+ * tainted by reclaim. In such situations we want to defer the final
+ * freeing until we've exited the restricting context, or in the worst
+ * case to a workqueue.
+ * This function either puts the object if possible without the refcount
+ * reaching zero, or adds it to the @deferred list if that was not possible.
+ * The caller needs to follow up with a call to xe_bo_put_commit() to actually
+ * put the bo iff this function returns true. It's safe to always
+ * follow up with a call to xe_bo_put_commit().
+ * TODO: It's TTM that is the villain here. Perhaps TTM should add an
+ * interface like this.
+ *
+ * Return: true if @bo was the first object put on the @freed list,
+ * false otherwise.
+ */
+static inline bool
+xe_bo_put_deferred(struct xe_bo *bo, struct llist_head *deferred)
+{
+	if (!deferred) {
+		xe_bo_put(bo);
+		return false;
+	}
+
+	if (!kref_put(&bo->ttm.base.refcount, __xe_bo_release_dummy))
+		return false;
+
+	return llist_add(&bo->freed, deferred);
+}
+
+void xe_bo_put_commit(struct llist_head *deferred);
+
+struct sg_table *xe_bo_get_sg(struct xe_bo *bo);
+
+#if IS_ENABLED(CONFIG_DRM_XE_KUNIT_TEST)
+/**
+ * xe_bo_is_mem_type - Whether the bo currently resides in the given
+ * TTM memory type
+ * @bo: The bo to check.
+ * @mem_type: The TTM memory type.
+ *
+ * Return: true iff the bo resides in @mem_type, false otherwise.
+ */
+static inline bool xe_bo_is_mem_type(struct xe_bo *bo, u32 mem_type)
+{
+	xe_bo_assert_held(bo);
+	return bo->ttm.resource->mem_type == mem_type;
+}
+#endif
+#endif

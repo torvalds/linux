@@ -1,0 +1,21 @@
+/* SPDX-License-Identifier: MIT */
+/*
+ * Copyright © 2022 Intel Corporation
+ */
+
+#ifndef _XE_UC_H_
+#define _XE_UC_H_
+
+#include "xe_uc_types.h"
+
+int xe_uc_init(struct xe_uc *uc);
+int xe_uc_init_hwconfig(struct xe_uc *uc);
+int xe_uc_init_post_hwconfig(struct xe_uc *uc);
+int xe_uc_init_hw(struct xe_uc *uc);
+int xe_uc_reset_prepare(struct xe_uc *uc);
+void xe_uc_stop_prepare(struct xe_uc *uc);
+int xe_uc_stop(struct xe_uc *uc);
+int xe_uc_start(struct xe_uc *uc);
+int xe_uc_suspend(struct xe_uc *uc);
+
+#endif

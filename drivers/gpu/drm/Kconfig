@@ -276,6 +276,8 @@ source "drivers/gpu/drm/nouveau/Kconfig"
 
 source "drivers/gpu/drm/i915/Kconfig"
 
+source "drivers/gpu/drm/xe/Kconfig"
+
 source "drivers/gpu/drm/kmb/Kconfig"
 
 config DRM_VGEM

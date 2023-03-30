@@ -1,0 +1,248 @@
+// SPDX-License-Identifier: MIT
+/*
+ * Copyright © 2022 Intel Corporation
+ */
+
+#include "xe_reg_sr.h"
+
+#include <linux/align.h>
+#include <linux/string_helpers.h>
+#include <linux/xarray.h>
+
+#include <drm/drm_print.h>
+#include <drm/drm_managed.h>
+
+#include "xe_rtp_types.h"
+#include "xe_device_types.h"
+#include "xe_force_wake.h"
+#include "xe_gt.h"
+#include "xe_gt_mcr.h"
+#include "xe_macros.h"
+#include "xe_mmio.h"
+
+#include "gt/intel_engine_regs.h"
+#include "gt/intel_gt_regs.h"
+
+#define XE_REG_SR_GROW_STEP_DEFAULT	16
+
+static void reg_sr_fini(struct drm_device *drm, void *arg)
+{
+	struct xe_reg_sr *sr = arg;
+
+	xa_destroy(&sr->xa);
+	kfree(sr->pool.arr);
+	memset(&sr->pool, 0, sizeof(sr->pool));
+}
+
+int xe_reg_sr_init(struct xe_reg_sr *sr, const char *name, struct xe_device *xe)
+{
+	xa_init(&sr->xa);
+	memset(&sr->pool, 0, sizeof(sr->pool));
+	sr->pool.grow_step = XE_REG_SR_GROW_STEP_DEFAULT;
+	sr->name = name;
+
+	return drmm_add_action_or_reset(&xe->drm, reg_sr_fini, sr);
+}
+
+int xe_reg_sr_dump_kv(struct xe_reg_sr *sr,
+		      struct xe_reg_sr_kv **dst)
+{
+	struct xe_reg_sr_kv *iter;
+	struct xe_reg_sr_entry *entry;
+	unsigned long idx;
+
+	if (xa_empty(&sr->xa)) {
+		*dst = NULL;
+		return 0;
+	}
+
+	*dst = kmalloc_array(sr->pool.used, sizeof(**dst), GFP_KERNEL);
+	if (!*dst)
+		return -ENOMEM;
+
+	iter = *dst;
+	xa_for_each(&sr->xa, idx, entry) {
+		iter->k = idx;
+		iter->v = *entry;
+		iter++;
+	}
+
+	return 0;
+}
+
+static struct xe_reg_sr_entry *alloc_entry(struct xe_reg_sr *sr)
+{
+	if (sr->pool.used == sr->pool.allocated) {
+		struct xe_reg_sr_entry *arr;
+
+		arr = krealloc_array(sr->pool.arr,
+				     ALIGN(sr->pool.allocated + 1, sr->pool.grow_step),
+				     sizeof(*arr), GFP_KERNEL);
+		if (!arr)
+			return NULL;
+
+		sr->pool.arr = arr;
+		sr->pool.allocated += sr->pool.grow_step;
+	}
+
+	return &sr->pool.arr[sr->pool.used++];
+}
+
+static bool compatible_entries(const struct xe_reg_sr_entry *e1,
+			       const struct xe_reg_sr_entry *e2)
+{
+	/*
+	 * Don't allow overwriting values: clr_bits/set_bits should be disjoint
+	 * when operating in the same register
+	 */
+	if (e1->clr_bits & e2->clr_bits || e1->set_bits & e2->set_bits ||
+	    e1->clr_bits & e2->set_bits || e1->set_bits & e2->clr_bits)
+		return false;
+
+	if (e1->masked_reg != e2->masked_reg)
+		return false;
+
+	if (e1->reg_type != e2->reg_type)
+		return false;
+
+	return true;
+}
+
+int xe_reg_sr_add(struct xe_reg_sr *sr, u32 reg,
+		  const struct xe_reg_sr_entry *e)
+{
+	unsigned long idx = reg;
+	struct xe_reg_sr_entry *pentry = xa_load(&sr->xa, idx);
+	int ret;
+
+	if (pentry) {
+		if (!compatible_entries(pentry, e)) {
+			ret = -EINVAL;
+			goto fail;
+		}
+
+		pentry->clr_bits |= e->clr_bits;
+		pentry->set_bits |= e->set_bits;
+		pentry->read_mask |= e->read_mask;
+
+		return 0;
+	}
+
+	pentry = alloc_entry(sr);
+	if (!pentry) {
+		ret = -ENOMEM;
+		goto fail;
+	}
+
+	*pentry = *e;
+	ret = xa_err(xa_store(&sr->xa, idx, pentry, GFP_KERNEL));
+	if (ret)
+		goto fail;
+
+	return 0;
+
+fail:
+	DRM_ERROR("Discarding save-restore reg %04lx (clear: %08x, set: %08x, masked: %s): ret=%d\n",
+		  idx, e->clr_bits, e->set_bits,
+		  str_yes_no(e->masked_reg), ret);
+
+	return ret;
+}
+
+static void apply_one_mmio(struct xe_gt *gt, u32 reg,
+			   struct xe_reg_sr_entry *entry)
+{
+	struct xe_device *xe = gt_to_xe(gt);
+	u32 val;
+
+	/*
+	 * If this is a masked register, need to figure what goes on the upper
+	 * 16 bits: it's either the clr_bits (when using FIELD_SET and WR) or
+	 * the set_bits, when using SET.
+	 *
+	 * When it's not masked, we have to read it from hardware, unless we are
+	 * supposed to set all bits.
+	 */
+	if (entry->masked_reg)
+		val = (entry->clr_bits ?: entry->set_bits << 16);
+	else if (entry->clr_bits + 1)
+		val = (entry->reg_type == XE_RTP_REG_MCR ?
+		       xe_gt_mcr_unicast_read_any(gt, MCR_REG(reg)) :
+		       xe_mmio_read32(gt, reg)) & (~entry->clr_bits);
+	else
+		val = 0;
+
+	/*
+	 * TODO: add selftest to validate all tables, regardless of platform:
+	 *   - Masked registers can't have set_bits with upper bits set
+	 *   - set_bits must be contained in clr_bits
+	 */
+	val |= entry->set_bits;
+
+	drm_dbg(&xe->drm, "REG[0x%x] = 0x%08x", reg, val);
+
+	if (entry->reg_type == XE_RTP_REG_MCR)
+		xe_gt_mcr_multicast_write(gt, MCR_REG(reg), val);
+	else
+		xe_mmio_write32(gt, reg, val);
+}
+
+void xe_reg_sr_apply_mmio(struct xe_reg_sr *sr, struct xe_gt *gt)
+{
+	struct xe_device *xe = gt_to_xe(gt);
+	struct xe_reg_sr_entry *entry;
+	unsigned long reg;
+	int err;
+
+	drm_dbg(&xe->drm, "Applying %s save-restore MMIOs\n", sr->name);
+
+	err = xe_force_wake_get(&gt->mmio.fw, XE_FORCEWAKE_ALL);
+	if (err)
+		goto err_force_wake;
+
+	xa_for_each(&sr->xa, reg, entry)
+		apply_one_mmio(gt, reg, entry);
+
+	err = xe_force_wake_put(&gt->mmio.fw, XE_FORCEWAKE_ALL);
+	XE_WARN_ON(err);
+
+	return;
+
+err_force_wake:
+	drm_err(&xe->drm, "Failed to apply, err=%d\n", err);
+}
+
+void xe_reg_sr_apply_whitelist(struct xe_reg_sr *sr, u32 mmio_base,
+			       struct xe_gt *gt)
+{
+	struct xe_device *xe = gt_to_xe(gt);
+	struct xe_reg_sr_entry *entry;
+	unsigned long reg;
+	unsigned int slot = 0;
+	int err;
+
+	drm_dbg(&xe->drm, "Whitelisting %s registers\n", sr->name);
+
+	err = xe_force_wake_get(&gt->mmio.fw, XE_FORCEWAKE_ALL);
+	if (err)
+		goto err_force_wake;
+
+	xa_for_each(&sr->xa, reg, entry) {
+		xe_mmio_write32(gt, RING_FORCE_TO_NONPRIV(mmio_base, slot).reg,
+				reg | entry->set_bits);
+		slot++;
+	}
+
+	/* And clear the rest just in case of garbage */
+	for (; slot < RING_MAX_NONPRIV_SLOTS; slot++)
+		xe_mmio_write32(gt, RING_FORCE_TO_NONPRIV(mmio_base, slot).reg,
+				RING_NOPID(mmio_base).reg);
+
+	err = xe_force_wake_put(&gt->mmio.fw, XE_FORCEWAKE_ALL);
+	XE_WARN_ON(err);
+
+	return;
+
+err_force_wake:
+	drm_err(&xe->drm, "Failed to apply, err=%d\n", err);
+}
