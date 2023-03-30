@@ -2305,8 +2305,7 @@ static inline int io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	if (unlikely(ret))
 		return io_submit_fail_init(sqe, req, ret);
 
-	/* don't need @sqe from now on */
-	trace_io_uring_submit_sqe(req, true);
+	trace_io_uring_submit_req(req);
 
 	/*
 	 * If we already have a head request, queue this one for async
