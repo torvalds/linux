@@ -16,6 +16,7 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_prime.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/exynos_drm.h>
@@ -32,17 +33,14 @@
 
 struct exynos_drm_fbdev {
 	struct drm_fb_helper	drm_fb_helper;
-	struct exynos_drm_gem	*exynos_gem;
 };
 
-static int exynos_drm_fb_mmap(struct fb_info *info,
-			struct vm_area_struct *vma)
+static int exynos_drm_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	struct drm_fb_helper *helper = info->par;
-	struct exynos_drm_fbdev *exynos_fbd = to_exynos_fbdev(helper);
-	struct exynos_drm_gem *exynos_gem = exynos_fbd->exynos_gem;
+	struct drm_gem_object *obj = drm_gem_fb_get_obj(helper->fb, 0);
 
-	return drm_gem_prime_mmap(&exynos_gem->base, vma);
+	return drm_gem_prime_mmap(obj, vma);
 }
 
 static const struct fb_ops exynos_drm_fb_ops = {
@@ -89,7 +87,6 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 				    struct drm_fb_helper_surface_size *sizes)
 {
-	struct exynos_drm_fbdev *exynos_fbdev = to_exynos_fbdev(helper);
 	struct exynos_drm_gem *exynos_gem;
 	struct drm_device *dev = helper->dev;
 	struct drm_mode_fb_cmd2 mode_cmd = { 0 };
@@ -112,8 +109,6 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 	exynos_gem = exynos_drm_gem_create(dev, EXYNOS_BO_WC, size, true);
 	if (IS_ERR(exynos_gem))
 		return PTR_ERR(exynos_gem);
-
-	exynos_fbdev->exynos_gem = exynos_gem;
 
 	helper->fb =
 		exynos_drm_framebuffer_init(dev, &mode_cmd, &exynos_gem, 1);
