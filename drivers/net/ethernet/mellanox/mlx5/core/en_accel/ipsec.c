@@ -40,6 +40,8 @@
 #include "ipsec.h"
 #include "ipsec_rxtx.h"
 
+#define MLX5_IPSEC_RESCHED msecs_to_jiffies(1000)
+
 static struct mlx5e_ipsec_sa_entry *to_ipsec_sa_entry(struct xfrm_state *x)
 {
 	return (struct mlx5e_ipsec_sa_entry *)x->xso.offload_handle;
@@ -48,6 +50,28 @@ static struct mlx5e_ipsec_sa_entry *to_ipsec_sa_entry(struct xfrm_state *x)
 static struct mlx5e_ipsec_pol_entry *to_ipsec_pol_entry(struct xfrm_policy *x)
 {
 	return (struct mlx5e_ipsec_pol_entry *)x->xdo.offload_handle;
+}
+
+static void mlx5e_ipsec_handle_tx_limit(struct work_struct *_work)
+{
+	struct mlx5e_ipsec_dwork *dwork =
+		container_of(_work, struct mlx5e_ipsec_dwork, dwork.work);
+	struct mlx5e_ipsec_sa_entry *sa_entry = dwork->sa_entry;
+	struct xfrm_state *x = sa_entry->x;
+
+	spin_lock(&x->lock);
+	xfrm_state_check_expire(x);
+	if (x->km.state == XFRM_STATE_EXPIRED) {
+		sa_entry->attrs.drop = true;
+		mlx5e_accel_ipsec_fs_modify(sa_entry);
+	}
+	spin_unlock(&x->lock);
+
+	if (sa_entry->attrs.drop)
+		return;
+
+	queue_delayed_work(sa_entry->ipsec->wq, &dwork->dwork,
+			   MLX5_IPSEC_RESCHED);
 }
 
 static bool mlx5e_ipsec_update_esn_state(struct mlx5e_ipsec_sa_entry *sa_entry)
@@ -464,6 +488,31 @@ static int mlx5_ipsec_create_work(struct mlx5e_ipsec_sa_entry *sa_entry)
 	return 0;
 }
 
+static int mlx5e_ipsec_create_dwork(struct mlx5e_ipsec_sa_entry *sa_entry)
+{
+	struct xfrm_state *x = sa_entry->x;
+	struct mlx5e_ipsec_dwork *dwork;
+
+	if (x->xso.type != XFRM_DEV_OFFLOAD_PACKET)
+		return 0;
+
+	if (x->xso.dir != XFRM_DEV_OFFLOAD_OUT)
+		return 0;
+
+	if (x->lft.soft_packet_limit == XFRM_INF &&
+	    x->lft.hard_packet_limit == XFRM_INF)
+		return 0;
+
+	dwork = kzalloc(sizeof(*dwork), GFP_KERNEL);
+	if (!dwork)
+		return -ENOMEM;
+
+	dwork->sa_entry = sa_entry;
+	INIT_DELAYED_WORK(&dwork->dwork, mlx5e_ipsec_handle_tx_limit);
+	sa_entry->dwork = dwork;
+	return 0;
+}
+
 static int mlx5e_xfrm_add_state(struct xfrm_state *x,
 				struct netlink_ext_ack *extack)
 {
@@ -504,10 +553,14 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x,
 	if (err)
 		goto err_xfrm;
 
+	err = mlx5e_ipsec_create_dwork(sa_entry);
+	if (err)
+		goto release_work;
+
 	/* create hw context */
 	err = mlx5_ipsec_create_sa_ctx(sa_entry);
 	if (err)
-		goto release_work;
+		goto release_dwork;
 
 	err = mlx5e_accel_ipsec_fs_add_rule(sa_entry);
 	if (err)
@@ -523,6 +576,10 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x,
 		goto err_add_rule;
 
 	mlx5e_ipsec_set_esn_ops(sa_entry);
+
+	if (sa_entry->dwork)
+		queue_delayed_work(ipsec->wq, &sa_entry->dwork->dwork,
+				   MLX5_IPSEC_RESCHED);
 out:
 	x->xso.offload_handle = (unsigned long)sa_entry;
 	return 0;
@@ -531,6 +588,8 @@ err_add_rule:
 	mlx5e_accel_ipsec_fs_del_rule(sa_entry);
 err_hw_ctx:
 	mlx5_ipsec_free_sa_ctx(sa_entry);
+release_dwork:
+	kfree(sa_entry->dwork);
 release_work:
 	kfree(sa_entry->work->data);
 	kfree(sa_entry->work);
@@ -563,8 +622,12 @@ static void mlx5e_xfrm_free_state(struct xfrm_state *x)
 	if (sa_entry->work)
 		cancel_work_sync(&sa_entry->work->work);
 
+	if (sa_entry->dwork)
+		cancel_delayed_work_sync(&sa_entry->dwork->dwork);
+
 	mlx5e_accel_ipsec_fs_del_rule(sa_entry);
 	mlx5_ipsec_free_sa_ctx(sa_entry);
+	kfree(sa_entry->dwork);
 	kfree(sa_entry->work->data);
 	kfree(sa_entry->work);
 sa_entry_free:
