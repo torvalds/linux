@@ -430,6 +430,13 @@ static int rk_platform_power_on_gpu(struct device *dev)
 			goto fail_to_enable_regulator;
 		}
 
+		if (cpu_is_rk3528()) {
+#if defined(CONFIG_MALI_DEVFREQ) && defined(CONFIG_HAVE_CLK)
+			struct mali_device *mdev = dev_get_drvdata(dev);
+
+			clk_set_rate(mdev->clock, mdev->current_freq);
+#endif
+		}
 		platform->is_powered = true;
 	}
 
@@ -447,6 +454,14 @@ static void rk_platform_power_off_gpu(struct device *dev)
 	struct rk_context *platform = s_rk_context;
 
 	if (platform->is_powered) {
+		if (cpu_is_rk3528()) {
+#if defined(CONFIG_MALI_DEVFREQ) && defined(CONFIG_HAVE_CLK)
+			struct mali_device *mdev = dev_get_drvdata(dev);
+
+			//use normal pll 200M for gpu when suspend
+			clk_set_rate(mdev->clock, 200000000);
+#endif
+		}
 		rk_platform_disable_clk_gpu(dev);
 		rk_platform_disable_gpu_regulator(dev);
 
