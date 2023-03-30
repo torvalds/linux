@@ -39,6 +39,7 @@ struct cluster_data {
 	unsigned int		task_thres;
 	unsigned int		max_nr;
 	unsigned int		nr_assist;
+	unsigned int		nr_busy;
 	s64			need_ts;
 	struct list_head	lru;
 	bool			enable;
@@ -81,7 +82,7 @@ spinlock_t core_ctl_pending_lock;
 bool core_ctl_pending;
 
 static DEFINE_SPINLOCK(state_lock);
-static void apply_need(struct cluster_data *state);
+static void sysfs_param_changed(struct cluster_data *state);
 static void wake_up_core_ctl_thread(void);
 static bool initialized;
 static bool assist_params_initialized;
@@ -104,7 +105,7 @@ static ssize_t store_min_cpus(struct cluster_data *state,
 		return -EINVAL;
 
 	state->min_cpus = min(val, state->num_cpus);
-	apply_need(state);
+	sysfs_param_changed(state);
 
 	return count;
 }
@@ -123,7 +124,7 @@ static ssize_t store_max_cpus(struct cluster_data *state,
 		return -EINVAL;
 
 	state->max_cpus = min(val, state->num_cpus);
-	apply_need(state);
+	sysfs_param_changed(state);
 
 	return count;
 }
@@ -142,7 +143,7 @@ static ssize_t store_offline_delay_ms(struct cluster_data *state,
 		return -EINVAL;
 
 	state->offline_delay_ms = val;
-	apply_need(state);
+	sysfs_param_changed(state);
 
 	return count;
 }
@@ -164,7 +165,7 @@ static ssize_t store_task_thres(struct cluster_data *state,
 		return -EINVAL;
 
 	state->task_thres = val;
-	apply_need(state);
+	sysfs_param_changed(state);
 
 	return count;
 }
@@ -195,7 +196,7 @@ static ssize_t store_busy_up_thres(struct cluster_data *state,
 		for (i = 0; i < state->num_cpus; i++)
 			state->busy_up_thres[i] = val[i];
 	}
-	apply_need(state);
+	sysfs_param_changed(state);
 	return count;
 }
 
@@ -230,7 +231,7 @@ static ssize_t store_busy_down_thres(struct cluster_data *state,
 		for (i = 0; i < state->num_cpus; i++)
 			state->busy_down_thres[i] = val[i];
 	}
-	apply_need(state);
+	sysfs_param_changed(state);
 	return count;
 }
 
@@ -258,7 +259,7 @@ static ssize_t store_enable(struct cluster_data *state,
 	bval = !!val;
 	if (bval != state->enable) {
 		state->enable = bval;
-		apply_need(state);
+		sysfs_param_changed(state);
 	}
 
 	return count;
@@ -843,6 +844,40 @@ static int compute_cluster_nr_strict_need(int index)
 	return nr_strict_need;
 }
 
+/*
+ * Determine the number of cpus that are busy in the cluster.
+ *
+ * Using the thresholds for indicating that the cpu is busy
+ * with hysterysis, and the high-irqload status for the cpu,
+ * determine if a single cpu is busy, and include this in the
+ * roll-up busy calculation for the entire cluster.
+ */
+static int compute_cluster_nr_busy(int index)
+{
+	int cpu;
+	struct cluster_data *cluster = &cluster_state[index];
+	struct cpu_data *c;
+	unsigned int thres_idx;
+	int nr_busy = 0;
+
+	for_each_cpu(cpu, &cluster->cpu_mask) {
+		cluster->active_cpus = get_active_cpu_count(cluster);
+		thres_idx = cluster->active_cpus ? cluster->active_cpus - 1 : 0;
+		list_for_each_entry(c, &cluster->lru, sib) {
+
+			if (c->busy_pct >= cluster->busy_up_thres[thres_idx] ||
+			    sched_cpu_high_irqload(c->cpu))
+				c->is_busy = true;
+			else if (c->busy_pct < cluster->busy_down_thres[thres_idx])
+				c->is_busy = false;
+
+			nr_busy += c->is_busy;
+		}
+	}
+
+	return nr_busy;
+}
+
 static void update_running_avg(void)
 {
 	struct cluster_data *cluster;
@@ -879,10 +914,13 @@ static void update_running_avg(void)
 		else
 			cluster->nr_assist = 0;
 
+		cluster->nr_busy = compute_cluster_nr_busy(index);
+
 		trace_core_ctl_update_nr_need(cluster->first_cpu, nr_need,
-					nr_misfit_need,
-					cluster->nrrun, cluster->max_nr,
-					cluster->nr_assist);
+					nr_misfit_need, cluster->nrrun, cluster->max_nr,
+					cluster->strict_nrrun, nr_assist_need,
+					nr_misfit_assist_need, cluster->nr_assist,
+					cluster->nr_busy);
 
 		big_avg += cluster_real_big_tasks(index);
 	}
@@ -894,12 +932,15 @@ static void update_running_avg(void)
 
 #define MAX_NR_THRESHOLD	4
 /* adjust needed CPUs based on current runqueue information */
-static unsigned int apply_task_need(const struct cluster_data *cluster,
-				    unsigned int new_need)
+static unsigned int apply_task_need(const struct cluster_data *cluster)
 {
+	int new_need;
+
 	/* resume all cores if there are enough tasks */
 	if (cluster->nrrun >= cluster->task_thres)
 		return cluster->num_cpus;
+
+	new_need = cluster->nr_busy;
 
 	/*
 	 * resume as many cores as the previous cluster
@@ -969,8 +1010,7 @@ static bool adjustment_possible(const struct cluster_data *cluster,
 static bool eval_need(struct cluster_data *cluster)
 {
 	unsigned long flags;
-	struct cpu_data *c;
-	unsigned int need_cpus = 0, last_need, thres_idx;
+	unsigned int need_cpus = 0, last_need;
 	bool adj_now = false;
 	bool adj_possible = false;
 	unsigned int new_need;
@@ -981,26 +1021,11 @@ static bool eval_need(struct cluster_data *cluster)
 
 	spin_lock_irqsave(&state_lock, flags);
 
-	if (cluster->boost || !cluster->enable) {
+	if (cluster->boost || !cluster->enable)
 		need_cpus = cluster->max_cpus;
-	} else {
-		cluster->active_cpus = get_active_cpu_count(cluster);
-		thres_idx = cluster->active_cpus ? cluster->active_cpus - 1 : 0;
-		list_for_each_entry(c, &cluster->lru, sib) {
-			bool old_is_busy = c->is_busy;
+	else
+		need_cpus = apply_task_need(cluster);
 
-			if (c->busy_pct >= cluster->busy_up_thres[thres_idx] ||
-			    sched_cpu_high_irqload(c->cpu))
-				c->is_busy = true;
-			else if (c->busy_pct < cluster->busy_down_thres[thres_idx])
-				c->is_busy = false;
-
-			trace_core_ctl_set_busy(c->cpu, c->busy_pct, old_is_busy,
-						c->is_busy);
-			need_cpus += c->is_busy;
-		}
-		need_cpus = apply_task_need(cluster, need_cpus);
-	}
 	new_need = apply_limits(cluster, need_cpus);
 
 	last_need = cluster->need_cpus;
@@ -1039,7 +1064,7 @@ unlock:
 	return adj_now && adj_possible;
 }
 
-static void apply_need(struct cluster_data *cluster)
+static void sysfs_param_changed(struct cluster_data *cluster)
 {
 	if (eval_need(cluster))
 		wake_up_core_ctl_thread();
@@ -1090,7 +1115,7 @@ int core_ctl_set_boost(bool boost)
 	if (boost_state_changed) {
 		index = 0;
 		for_each_cluster(cluster, index)
-			apply_need(cluster);
+			sysfs_param_changed(cluster);
 	}
 
 	if (cluster)
@@ -1375,7 +1400,7 @@ static void core_ctl_pause_cpus(struct cpumask *cpus_to_pause)
 	cpumask_copy(&saved_cpus, cpus_to_pause);
 
 	if (cpumask_any(cpus_to_pause) < nr_cpu_ids) {
-		if (walt_halt_cpus(cpus_to_pause, PAUSE_CORE_CTL) < 0)
+		if (walt_pause_cpus(cpus_to_pause, PAUSE_CORE_CTL) < 0)
 			pr_debug("core_ctl pause operation failed cpus=%*pbl paused_by_us=%*pbl\n",
 				 cpumask_pr_args(cpus_to_pause),
 				 cpumask_pr_args(&cpus_paused_by_us));
@@ -1404,7 +1429,7 @@ static void core_ctl_resume_cpus(struct cpumask *cpus_to_unpause)
 	cpumask_copy(&saved_cpus, cpus_to_unpause);
 
 	if (cpumask_any(cpus_to_unpause) < nr_cpu_ids) {
-		if (walt_start_cpus(cpus_to_unpause, PAUSE_CORE_CTL) < 0)
+		if (walt_resume_cpus(cpus_to_unpause, PAUSE_CORE_CTL) < 0)
 			pr_debug("core_ctl resume operation failed cpus=%*pbl paused_by_us=%*pbl\n",
 				 cpumask_pr_args(cpus_to_unpause),
 				 cpumask_pr_args(&cpus_paused_by_us));
