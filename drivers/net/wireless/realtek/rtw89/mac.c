@@ -1584,12 +1584,15 @@ static void dle_func_en(struct rtw89_dev *rtwdev, bool enable)
 
 static void dle_clk_en(struct rtw89_dev *rtwdev, bool enable)
 {
-	if (enable)
-		rtw89_write32_set(rtwdev, R_AX_DMAC_CLK_EN,
-				  B_AX_DLE_WDE_CLK_EN | B_AX_DLE_PLE_CLK_EN);
-	else
-		rtw89_write32_clr(rtwdev, R_AX_DMAC_CLK_EN,
-				  B_AX_DLE_WDE_CLK_EN | B_AX_DLE_PLE_CLK_EN);
+	u32 val = B_AX_DLE_WDE_CLK_EN | B_AX_DLE_PLE_CLK_EN;
+
+	if (enable) {
+		if (rtwdev->chip->chip_id == RTL8851B)
+			val |= B_AX_AXIDMA_CLK_EN;
+		rtw89_write32_set(rtwdev, R_AX_DMAC_CLK_EN, val);
+	} else {
+		rtw89_write32_clr(rtwdev, R_AX_DMAC_CLK_EN, val);
+	}
 }
 
 static int dle_mix_cfg(struct rtw89_dev *rtwdev, const struct rtw89_dle_mem *cfg)
@@ -1854,7 +1857,8 @@ static int preload_init(struct rtw89_dev *rtwdev, enum rtw89_mac_idx mac_idx,
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 
-	if (chip->chip_id == RTL8852A || chip->chip_id == RTL8852B || !is_qta_poh(rtwdev))
+	if (chip->chip_id == RTL8852A || chip->chip_id == RTL8852B ||
+	    chip->chip_id == RTL8851B || !is_qta_poh(rtwdev))
 		return 0;
 
 	return preload_init_set(rtwdev, mac_idx, mode);
@@ -1890,7 +1894,8 @@ static void _patch_ss2f_path(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 
-	if (chip->chip_id == RTL8852A || chip->chip_id == RTL8852B)
+	if (chip->chip_id == RTL8852A || chip->chip_id == RTL8852B ||
+	    chip->chip_id == RTL8851B)
 		return;
 
 	rtw89_write32_mask(rtwdev, R_AX_SS2FINFO_PATH, B_AX_SS_DEST_QUEUE_MASK,
@@ -1959,7 +1964,8 @@ static int sec_eng_init(struct rtw89_dev *rtwdev)
 	/* init TX encryption */
 	val |= (B_AX_SEC_TX_ENC | B_AX_SEC_RX_DEC);
 	val |= (B_AX_MC_DEC | B_AX_BC_DEC);
-	if (chip->chip_id == RTL8852A || chip->chip_id == RTL8852B)
+	if (chip->chip_id == RTL8852A || chip->chip_id == RTL8852B ||
+	    chip->chip_id == RTL8851B)
 		val &= ~B_AX_TX_PARTIAL_MODE;
 	rtw89_write32(rtwdev, R_AX_SEC_ENG_CTRL, val);
 
@@ -2065,7 +2071,7 @@ static int scheduler_init(struct rtw89_dev *rtwdev, u8 mac_idx)
 		rtw89_write32_mask(rtwdev, reg, B_AX_SIFS_MACTXEN_T1_MASK,
 				   SIFS_MACTXEN_T1);
 
-	if (rtwdev->chip->chip_id == RTL8852B) {
+	if (rtwdev->chip->chip_id == RTL8852B || rtwdev->chip->chip_id == RTL8851B) {
 		reg = rtw89_mac_reg_by_idx(R_AX_SCH_EXT_CTRL, mac_idx);
 		rtw89_write32_set(rtwdev, reg, B_AX_PORT_RST_TSF_ADV);
 	}
@@ -3364,7 +3370,14 @@ static int rtw89_mac_trx_init(struct rtw89_dev *rtwdev)
 
 static void rtw89_disable_fw_watchdog(struct rtw89_dev *rtwdev)
 {
+	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
 	u32 val32;
+
+	if (chip_id == RTL8852B || chip_id == RTL8851B) {
+		rtw89_write32_clr(rtwdev, R_AX_PLATFORM_ENABLE, B_AX_APB_WRAP_EN);
+		rtw89_write32_set(rtwdev, R_AX_PLATFORM_ENABLE, B_AX_APB_WRAP_EN);
+		return;
+	}
 
 	rtw89_mac_mem_write(rtwdev, R_AX_WDT_CTRL,
 			    WDT_CTRL_ALL_DIS, RTW89_MAC_MEM_CPU_LOCAL);
@@ -3450,7 +3463,10 @@ static int rtw89_mac_dmac_pre_init(struct rtw89_dev *rtwdev)
 		      B_AX_PKT_BUF_EN;
 	rtw89_write32(rtwdev, R_AX_DMAC_FUNC_EN, val);
 
-	val = B_AX_DISPATCHER_CLK_EN;
+	if (chip_id == RTL8851B)
+		val = B_AX_DISPATCHER_CLK_EN | B_AX_AXIDMA_CLK_EN;
+	else
+		val = B_AX_DISPATCHER_CLK_EN;
 	rtw89_write32(rtwdev, R_AX_DMAC_CLK_EN, val);
 
 	if (chip_id != RTL8852C)
@@ -4691,11 +4707,13 @@ int rtw89_mac_coex_init(struct rtw89_dev *rtwdev, const struct rtw89_mac_ax_coex
 	int ret;
 
 	rtw89_write8_set(rtwdev, R_AX_GPIO_MUXCFG, B_AX_ENBT);
-	rtw89_write8_set(rtwdev, R_AX_BTC_FUNC_EN, B_AX_PTA_WL_TX_EN);
+	if (rtwdev->chip->chip_id != RTL8851B)
+		rtw89_write8_set(rtwdev, R_AX_BTC_FUNC_EN, B_AX_PTA_WL_TX_EN);
 	rtw89_write8_set(rtwdev, R_AX_BT_COEX_CFG_2 + 1, B_AX_GNT_BT_POLARITY >> 8);
 	rtw89_write8_set(rtwdev, R_AX_CSR_MODE, B_AX_STATIS_BT_EN | B_AX_WL_ACT_MSK);
 	rtw89_write8_set(rtwdev, R_AX_CSR_MODE + 2, B_AX_BT_CNT_RST >> 16);
-	rtw89_write8_clr(rtwdev, R_AX_TRXPTCL_RESP_0 + 3, B_AX_RSP_CHK_BTCCA >> 24);
+	if (rtwdev->chip->chip_id != RTL8851B)
+		rtw89_write8_clr(rtwdev, R_AX_TRXPTCL_RESP_0 + 3, B_AX_RSP_CHK_BTCCA >> 24);
 
 	val16 = rtw89_read16(rtwdev, R_AX_CCA_CFG_0);
 	val16 = (val16 | B_AX_BTCCA_EN) & ~B_AX_BTCCA_BRK_TXOP_EN;
