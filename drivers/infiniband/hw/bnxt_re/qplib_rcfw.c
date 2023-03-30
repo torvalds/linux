@@ -49,6 +49,7 @@
 #include "qplib_rcfw.h"
 #include "qplib_sp.h"
 #include "qplib_fp.h"
+#include "qplib_tlv.h"
 
 static void bnxt_qplib_service_creq(struct tasklet_struct *t);
 
@@ -101,7 +102,7 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw,
 
 	pdev = rcfw->pdev;
 
-	opcode = msg->req->opcode;
+	opcode = __get_cmdq_base_opcode(msg->req, msg->req_sz);
 	if (!test_bit(FIRMWARE_INITIALIZED_FLAG, &cmdq->flags) &&
 	    (opcode != CMDQ_BASE_OPCODE_QUERY_FUNC &&
 	     opcode != CMDQ_BASE_OPCODE_INITIALIZE_FW &&
@@ -137,7 +138,7 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw,
 		cookie |= RCFW_CMD_IS_BLOCKING;
 
 	set_bit(cbit, cmdq->cmdq_bitmap);
-	msg->req->cookie = cpu_to_le16(cookie);
+	__set_cmdq_base_cookie(msg->req, msg->req_sz, cpu_to_le16(cookie));
 	crsqe = &rcfw->crsqe_tbl[cbit];
 	if (crsqe->resp) {
 		spin_unlock_irqrestore(&hwq->lock, flags);
@@ -153,13 +154,12 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw,
 	memset(msg->resp, 0, sizeof(*msg->resp));
 	crsqe->resp = (struct creq_qp_event *)msg->resp;
 	crsqe->resp->cookie = msg->req->cookie;
-	crsqe->req_size = msg->req->cmd_size;
-	if (msg->req->resp_size && msg->sb) {
+	crsqe->req_size = __get_cmdq_base_cmd_size(msg->req, msg->req_sz);
+	if (__get_cmdq_base_resp_size(msg->req, msg->req_sz) && msg->sb) {
 		struct bnxt_qplib_rcfw_sbuf *sbuf = msg->sb;
-
-		msg->req->resp_addr = cpu_to_le64(sbuf->dma_addr);
-		msg->req->resp_size = (sbuf->size + BNXT_QPLIB_CMDQE_UNITS - 1) /
-				  BNXT_QPLIB_CMDQE_UNITS;
+		__set_cmdq_base_resp_addr(msg->req, msg->req_sz, cpu_to_le64(sbuf->dma_addr));
+		__set_cmdq_base_resp_size(msg->req, msg->req_sz,
+					  ALIGN(sbuf->size, BNXT_QPLIB_CMDQE_UNITS));
 	}
 
 	preq = (u8 *)msg->req;
@@ -214,12 +214,12 @@ int bnxt_qplib_rcfw_send_message(struct bnxt_qplib_rcfw *rcfw,
 		return 0;
 
 	do {
-		opcode = msg->req->opcode;
+		opcode = __get_cmdq_base_opcode(msg->req, msg->req_sz);
 		rc = __send_message(rcfw, msg);
-		cookie = le16_to_cpu(msg->req->cookie) & RCFW_MAX_COOKIE_VALUE;
+		cookie = le16_to_cpu(__get_cmdq_base_cookie(msg->req, msg->req_sz)) &
+				RCFW_MAX_COOKIE_VALUE;
 		if (!rc)
 			break;
-
 		if (!retry_cnt || (rc != -EAGAIN && rc != -EBUSY)) {
 			/* send failed */
 			dev_err(&rcfw->pdev->dev, "cmdq[%#x]=%#x send failed\n",
