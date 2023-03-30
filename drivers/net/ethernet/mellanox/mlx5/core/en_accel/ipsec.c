@@ -52,18 +52,46 @@ static struct mlx5e_ipsec_pol_entry *to_ipsec_pol_entry(struct xfrm_policy *x)
 
 static bool mlx5e_ipsec_update_esn_state(struct mlx5e_ipsec_sa_entry *sa_entry)
 {
-	struct xfrm_replay_state_esn *replay_esn;
+	struct xfrm_state *x = sa_entry->x;
 	u32 seq_bottom = 0;
+	u32 esn, esn_msb;
 	u8 overlap;
 
-	replay_esn = sa_entry->x->replay_esn;
-	if (replay_esn->seq >= replay_esn->replay_window)
-		seq_bottom = replay_esn->seq - replay_esn->replay_window + 1;
+	switch (x->xso.type) {
+	case XFRM_DEV_OFFLOAD_PACKET:
+		switch (x->xso.dir) {
+		case XFRM_DEV_OFFLOAD_IN:
+			esn = x->replay_esn->seq;
+			esn_msb = x->replay_esn->seq_hi;
+			break;
+		case XFRM_DEV_OFFLOAD_OUT:
+			esn = x->replay_esn->oseq;
+			esn_msb = x->replay_esn->oseq_hi;
+			break;
+		default:
+			WARN_ON(true);
+			return false;
+		}
+		break;
+	case XFRM_DEV_OFFLOAD_CRYPTO:
+		/* Already parsed by XFRM core */
+		esn = x->replay_esn->seq;
+		break;
+	default:
+		WARN_ON(true);
+		return false;
+	}
 
 	overlap = sa_entry->esn_state.overlap;
 
-	sa_entry->esn_state.esn = xfrm_replay_seqhi(sa_entry->x,
-						    htonl(seq_bottom));
+	if (esn >= x->replay_esn->replay_window)
+		seq_bottom = esn - x->replay_esn->replay_window + 1;
+
+	if (x->xso.type == XFRM_DEV_OFFLOAD_CRYPTO)
+		esn_msb = xfrm_replay_seqhi(x, htonl(seq_bottom));
+
+	sa_entry->esn_state.esn = esn;
+	sa_entry->esn_state.esn_msb = esn_msb;
 
 	if (unlikely(overlap && seq_bottom < MLX5E_IPSEC_ESN_SCOPE_MID)) {
 		sa_entry->esn_state.overlap = 0;
@@ -224,10 +252,10 @@ void mlx5e_ipsec_build_accel_xfrm_attrs(struct mlx5e_ipsec_sa_entry *sa_entry,
 
 	/* esn */
 	if (x->props.flags & XFRM_STATE_ESN) {
-		attrs->esn_trigger = true;
-		attrs->esn = sa_entry->esn_state.esn;
-		attrs->esn_overlap = sa_entry->esn_state.overlap;
-		attrs->replay_window = x->replay_esn->replay_window;
+		attrs->replay_esn.trigger = true;
+		attrs->replay_esn.esn = sa_entry->esn_state.esn;
+		attrs->replay_esn.esn_msb = sa_entry->esn_state.esn_msb;
+		attrs->replay_esn.overlap = sa_entry->esn_state.overlap;
 	}
 
 	attrs->dir = x->xso.dir;

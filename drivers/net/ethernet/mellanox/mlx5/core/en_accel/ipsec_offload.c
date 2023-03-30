@@ -76,15 +76,17 @@ static void mlx5e_ipsec_packet_setup(void *obj, u32 pdn,
 	void *aso_ctx;
 
 	aso_ctx = MLX5_ADDR_OF(ipsec_obj, obj, ipsec_aso);
-	if (attrs->esn_trigger) {
+	if (attrs->replay_esn.trigger) {
 		MLX5_SET(ipsec_aso, aso_ctx, esn_event_arm, 1);
 
 		if (attrs->dir == XFRM_DEV_OFFLOAD_IN) {
 			MLX5_SET(ipsec_aso, aso_ctx, window_sz,
-				 attrs->replay_window / 64);
+				 attrs->replay_esn.replay_window / 64);
 			MLX5_SET(ipsec_aso, aso_ctx, mode,
 				 MLX5_IPSEC_ASO_REPLAY_PROTECTION);
-			}
+		}
+		MLX5_SET(ipsec_aso, aso_ctx, mode_parameter,
+			 attrs->replay_esn.esn);
 	}
 
 	/* ASO context */
@@ -136,10 +138,10 @@ static int mlx5_create_ipsec_obj(struct mlx5e_ipsec_sa_entry *sa_entry)
 	salt_iv_p = MLX5_ADDR_OF(ipsec_obj, obj, implicit_iv);
 	memcpy(salt_iv_p, &aes_gcm->seq_iv, sizeof(aes_gcm->seq_iv));
 	/* esn */
-	if (attrs->esn_trigger) {
+	if (attrs->replay_esn.trigger) {
 		MLX5_SET(ipsec_obj, obj, esn_en, 1);
-		MLX5_SET(ipsec_obj, obj, esn_msb, attrs->esn);
-		MLX5_SET(ipsec_obj, obj, esn_overlap, attrs->esn_overlap);
+		MLX5_SET(ipsec_obj, obj, esn_msb, attrs->replay_esn.esn_msb);
+		MLX5_SET(ipsec_obj, obj, esn_overlap, attrs->replay_esn.overlap);
 	}
 
 	MLX5_SET(ipsec_obj, obj, dekn, sa_entry->enc_key_id);
@@ -252,8 +254,8 @@ static int mlx5_modify_ipsec_obj(struct mlx5e_ipsec_sa_entry *sa_entry,
 	MLX5_SET64(ipsec_obj, obj, modify_field_select,
 		   MLX5_MODIFY_IPSEC_BITMASK_ESN_OVERLAP |
 			   MLX5_MODIFY_IPSEC_BITMASK_ESN_MSB);
-	MLX5_SET(ipsec_obj, obj, esn_msb, attrs->esn);
-	MLX5_SET(ipsec_obj, obj, esn_overlap, attrs->esn_overlap);
+	MLX5_SET(ipsec_obj, obj, esn_msb, attrs->replay_esn.esn_msb);
+	MLX5_SET(ipsec_obj, obj, esn_overlap, attrs->replay_esn.overlap);
 
 	/* general object fields set */
 	MLX5_SET(general_obj_in_cmd_hdr, in, opcode, MLX5_CMD_OP_MODIFY_GENERAL_OBJECT);
@@ -290,7 +292,7 @@ static void mlx5e_ipsec_update_esn_state(struct mlx5e_ipsec_sa_entry *sa_entry,
 	struct mlx5_wqe_aso_ctrl_seg data = {};
 
 	if (mode_param < MLX5E_IPSEC_ESN_SCOPE_MID) {
-		sa_entry->esn_state.esn++;
+		sa_entry->esn_state.esn_msb++;
 		sa_entry->esn_state.overlap = 0;
 	} else {
 		sa_entry->esn_state.overlap = 1;
@@ -434,7 +436,7 @@ static void mlx5e_ipsec_handle_event(struct work_struct *_work)
 	if (ret)
 		goto unlock;
 
-	if (attrs->esn_trigger &&
+	if (attrs->replay_esn.trigger &&
 	    !MLX5_GET(ipsec_aso, aso->ctx, esn_event_arm)) {
 		u32 mode_param = MLX5_GET(ipsec_aso, aso->ctx, mode_parameter);
 

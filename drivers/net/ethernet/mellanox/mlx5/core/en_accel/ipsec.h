@@ -67,8 +67,15 @@ struct mlx5_ipsec_lft {
 	u64 numb_rounds_soft;
 };
 
+struct mlx5_replay_esn {
+	u32 replay_window;
+	u32 esn;
+	u32 esn_msb;
+	u8 overlap : 1;
+	u8 trigger : 1;
+};
+
 struct mlx5_accel_esp_xfrm_attrs {
-	u32   esn;
 	u32   spi;
 	u32   flags;
 	struct aes_gcm_keymat aes_gcm;
@@ -85,11 +92,9 @@ struct mlx5_accel_esp_xfrm_attrs {
 
 	struct upspec upspec;
 	u8 dir : 2;
-	u8 esn_overlap : 1;
-	u8 esn_trigger : 1;
 	u8 type : 2;
 	u8 family;
-	u32 replay_window;
+	struct mlx5_replay_esn replay_esn;
 	u32 authsize;
 	u32 reqid;
 	struct mlx5_ipsec_lft lft;
@@ -160,6 +165,7 @@ struct mlx5e_ipsec {
 
 struct mlx5e_ipsec_esn_state {
 	u32 esn;
+	u32 esn_msb;
 	u8 overlap: 1;
 };
 
