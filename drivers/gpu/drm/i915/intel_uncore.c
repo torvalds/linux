@@ -32,7 +32,6 @@
 #include "i915_reg.h"
 #include "i915_trace.h"
 #include "i915_vgpu.h"
-#include "intel_pm.h"
 
 #define FORCEWAKE_ACK_TIMEOUT_MS 50
 #define GT_FIFO_TIMEOUT_MS	 10
@@ -2460,7 +2459,7 @@ static int i915_pmic_bus_access_notifier(struct notifier_block *nb,
 
 static void uncore_unmap_mmio(struct drm_device *drm, void *regs)
 {
-	iounmap(regs);
+	iounmap((void __iomem *)regs);
 }
 
 int intel_uncore_setup_mmio(struct intel_uncore *uncore, phys_addr_t phys_addr)
@@ -2491,7 +2490,8 @@ int intel_uncore_setup_mmio(struct intel_uncore *uncore, phys_addr_t phys_addr)
 		return -EIO;
 	}
 
-	return drmm_add_action_or_reset(&i915->drm, uncore_unmap_mmio, uncore->regs);
+	return drmm_add_action_or_reset(&i915->drm, uncore_unmap_mmio,
+					(void __force *)uncore->regs);
 }
 
 void intel_uncore_init_early(struct intel_uncore *uncore,
@@ -2748,14 +2748,25 @@ static void driver_initiated_flr(struct intel_uncore *uncore)
 	/* Trigger the actual Driver-FLR */
 	intel_uncore_rmw_fw(uncore, GU_CNTL, 0, DRIVERFLR);
 
+	/* Wait for hardware teardown to complete */
+	ret = intel_wait_for_register_fw(uncore, GU_CNTL,
+					 DRIVERFLR, 0,
+					 flr_timeout_ms);
+	if (ret) {
+		drm_err(&i915->drm, "Driver-FLR-teardown wait completion failed! %d\n", ret);
+		return;
+	}
+
+	/* Wait for hardware/firmware re-init to complete */
 	ret = intel_wait_for_register_fw(uncore, GU_DEBUG,
 					 DRIVERFLR_STATUS, DRIVERFLR_STATUS,
 					 flr_timeout_ms);
 	if (ret) {
-		drm_err(&i915->drm, "wait for Driver-FLR completion failed! %d\n", ret);
+		drm_err(&i915->drm, "Driver-FLR-reinit wait completion failed! %d\n", ret);
 		return;
 	}
 
+	/* Clear sticky completion status */
 	intel_uncore_write_fw(uncore, GU_DEBUG, DRIVERFLR_STATUS);
 }
 

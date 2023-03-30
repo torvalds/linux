@@ -59,6 +59,7 @@ config DRM_EXYNOS_DSI
 	depends on DRM_EXYNOS_FIMD || DRM_EXYNOS5433_DECON || DRM_EXYNOS7_DECON
 	select DRM_MIPI_DSI
 	select DRM_PANEL
+	select DRM_SAMSUNG_DSIM
 	default n
 	help
 	  This enables support for Exynos MIPI-DSI device.

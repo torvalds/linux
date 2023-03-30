@@ -442,16 +442,10 @@ static long mlx5vf_precopy_ioctl(struct file *filp, unsigned int cmd,
 	if (migf->pre_copy_initial_bytes > *pos) {
 		info.initial_bytes = migf->pre_copy_initial_bytes - *pos;
 	} else {
-		buf = mlx5vf_get_data_buff_from_pos(migf, *pos, &end_of_data);
-		if (buf) {
-			info.dirty_bytes = buf->start_pos + buf->length - *pos;
-		} else {
-			if (!end_of_data) {
-				ret = -EINVAL;
-				goto err_migf_unlock;
-			}
-			info.dirty_bytes = inc_length;
-		}
+		info.dirty_bytes = migf->max_pos - *pos;
+		if (!info.dirty_bytes)
+			end_of_data = true;
+		info.dirty_bytes += inc_length;
 	}
 
 	if (!end_of_data || !inc_length) {

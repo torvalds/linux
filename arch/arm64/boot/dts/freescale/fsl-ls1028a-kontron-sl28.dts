@@ -92,8 +92,6 @@
 	phy-handle = <&phy0>;
 	phy-mode = "sgmii";
 	managed = "in-band-status";
-	nvmem-cells = <&base_mac_address 0>;
-	nvmem-cell-names = "mac-address";
 	status = "okay";
 };
 
@@ -154,21 +152,6 @@
 			partition@3e0000 {
 				reg = <0x3e0000 0x020000>;
 				label = "bootloader environment";
-			};
-		};
-
-		otp-1 {
-			compatible = "user-otp";
-
-			nvmem-layout {
-				compatible = "kontron,sl28-vpd";
-
-				serial_number: serial-number {
-				};
-
-				base_mac_address: base-mac-address {
-					#nvmem-cell-cells = <1>;
-				};
 			};
 		};
 	};

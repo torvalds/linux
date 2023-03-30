@@ -540,8 +540,8 @@ static void hl_mmu_pa_page_with_offset(struct hl_ctx *ctx, u64 virt_addr,
 		u32 page_off;
 
 		/*
-		 * Bit arithmetics cannot be used for non power of two page
-		 * sizes. In addition, since bit arithmetics is not used,
+		 * Bit arithmetic cannot be used for non power of two page
+		 * sizes. In addition, since bit arithmetic is not used,
 		 * we cannot ignore dram base. All that shall be considered.
 		 */
 
@@ -757,7 +757,7 @@ u64 hl_mmu_get_next_hop_addr(struct hl_ctx *ctx, u64 curr_pte)
  * @mmu_prop: MMU properties.
  * @hop_idx: HOP index.
  * @hop_addr: HOP address.
- * @virt_addr: virtual address fro the translation.
+ * @virt_addr: virtual address for the translation.
  *
  * @return the matching PTE value on success, otherwise U64_MAX.
  */

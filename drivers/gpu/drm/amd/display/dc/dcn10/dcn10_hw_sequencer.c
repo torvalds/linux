@@ -919,7 +919,7 @@ enum dc_status dcn10_enable_stream_timing(
 	if (false == pipe_ctx->clock_source->funcs->program_pix_clk(
 			pipe_ctx->clock_source,
 			&pipe_ctx->stream_res.pix_clk_params,
-			link_dp_get_encoding_format(&pipe_ctx->link_config.dp_link_settings),
+			dc->link_srv->dp_get_encoding_format(&pipe_ctx->link_config.dp_link_settings),
 			&pipe_ctx->pll_settings)) {
 		BREAK_TO_DEBUGGER();
 		return DC_ERROR_UNEXPECTED;
@@ -1017,7 +1017,7 @@ static void dcn10_reset_back_end_for_pipe(
 		 * VBIOS lit up eDP, so check link status too.
 		 */
 		if (!pipe_ctx->stream->dpms_off || link->link_status.link_active)
-			link_set_dpms_off(pipe_ctx);
+			dc->link_srv->set_dpms_off(pipe_ctx);
 		else if (pipe_ctx->stream_res.audio)
 			dc->hwss.disable_audio_stream(pipe_ctx);
 
@@ -1564,7 +1564,7 @@ void dcn10_init_hw(struct dc *dc)
 	}
 
 	/* we want to turn off all dp displays before doing detection */
-	link_blank_all_dp_displays(dc);
+	dc->link_srv->blank_all_dp_displays(dc);
 
 	if (hws->funcs.enable_power_gating_plane)
 		hws->funcs.enable_power_gating_plane(dc->hwseq, true);
@@ -1638,7 +1638,7 @@ void dcn10_power_down_on_boot(struct dc *dc)
 	int edp_num;
 	int i = 0;
 
-	get_edp_links(dc, edp_links, &edp_num);
+	dc_get_edp_links(dc, edp_links, &edp_num);
 	if (edp_num)
 		edp_link = edp_links[0];
 

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: BSD-3-Clause
+# SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 
 import functools
 import os
@@ -200,7 +200,7 @@ def _genl_msg(nl_type, nl_flags, genl_cmd, genl_version, seq=None):
     if seq is None:
         seq = random.randint(1, 1024)
     nlmsg = struct.pack("HHII", nl_type, nl_flags, seq, 0)
-    genlmsg = struct.pack("bbH", genl_cmd, genl_version, 0)
+    genlmsg = struct.pack("BBH", genl_cmd, genl_version, 0)
     return nlmsg + genlmsg
 
 
@@ -264,7 +264,7 @@ class GenlMsg:
         self.hdr = nl_msg.raw[0:4]
         self.raw = nl_msg.raw[4:]
 
-        self.genl_cmd, self.genl_version, _ = struct.unpack("bbH", self.hdr)
+        self.genl_cmd, self.genl_version, _ = struct.unpack("BBH", self.hdr)
 
         self.raw_attrs = NlAttrs(self.raw)
 
@@ -302,11 +302,6 @@ class YnlFamily(SpecFamily):
         self.sock = socket.socket(socket.AF_NETLINK, socket.SOCK_RAW, Netlink.NETLINK_GENERIC)
         self.sock.setsockopt(Netlink.SOL_NETLINK, Netlink.NETLINK_CAP_ACK, 1)
         self.sock.setsockopt(Netlink.SOL_NETLINK, Netlink.NETLINK_EXT_ACK, 1)
-
-        self._types = dict()
-
-        for elem in self.yaml.get('definitions', []):
-            self._types[elem['name']] = elem
 
         self.async_msg_ids = set()
         self.async_msg_queue = []
@@ -353,17 +348,17 @@ class YnlFamily(SpecFamily):
 
     def _decode_enum(self, rsp, attr_spec):
         raw = rsp[attr_spec['name']]
-        enum = self._types[attr_spec['enum']]
+        enum = self.consts[attr_spec['enum']]
         i = attr_spec.get('value-start', 0)
         if 'enum-as-flags' in attr_spec and attr_spec['enum-as-flags']:
             value = set()
             while raw:
                 if raw & 1:
-                    value.add(enum['entries'][i])
+                    value.add(enum.entries_by_val[i].name)
                 raw >>= 1
                 i += 1
         else:
-            value = enum['entries'][raw - i]
+            value = enum.entries_by_val[raw - i].name
         rsp[attr_spec['name']] = value
 
     def _decode(self, attrs, space):

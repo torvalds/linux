@@ -48,7 +48,7 @@ static bool is_dig_link_enc_stream(struct dc_stream_state *stream)
 					/* DIGs do not support DP2.0 streams with 128b/132b encoding. */
 					struct dc_link_settings link_settings = {0};
 
-					link_decide_link_settings(stream, &link_settings);
+					stream->ctx->dc->link_srv->dp_decide_link_settings(stream, &link_settings);
 					if ((link_settings.link_rate >= LINK_RATE_LOW) &&
 							link_settings.link_rate <= LINK_RATE_HIGH3) {
 						is_dig_stream = true;

@@ -421,7 +421,6 @@ void dc_dmub_srv_get_visual_confirm_color_cmd(struct dc *dc, struct pipe_ctx *pi
 	}
 }
 
-#ifdef CONFIG_DRM_AMD_DC_DCN
 /**
  * populate_subvp_cmd_drr_info - Helper to populate DRR pipe info for the DMCUB subvp command
  *
@@ -638,7 +637,7 @@ static void populate_subvp_cmd_pipe_info(struct dc *dc,
 	pipe_data->pipe_config.subvp_data.main_vblank_end =
 			main_timing->v_total - main_timing->v_front_porch - main_timing->v_addressable;
 	pipe_data->pipe_config.subvp_data.mall_region_lines = phantom_timing->v_addressable;
-	pipe_data->pipe_config.subvp_data.main_pipe_index = subvp_pipe->pipe_idx;
+	pipe_data->pipe_config.subvp_data.main_pipe_index = subvp_pipe->stream_res.tg->inst;
 	pipe_data->pipe_config.subvp_data.is_drr = subvp_pipe->stream->ignore_msa_timing_param;
 
 	/* Calculate the scaling factor from the src and dst height.
@@ -680,11 +679,11 @@ static void populate_subvp_cmd_pipe_info(struct dc *dc,
 		struct pipe_ctx *phantom_pipe = &context->res_ctx.pipe_ctx[j];
 
 		if (phantom_pipe->stream == subvp_pipe->stream->mall_stream_config.paired_stream) {
-			pipe_data->pipe_config.subvp_data.phantom_pipe_index = phantom_pipe->pipe_idx;
+			pipe_data->pipe_config.subvp_data.phantom_pipe_index = phantom_pipe->stream_res.tg->inst;
 			if (phantom_pipe->bottom_pipe) {
-				pipe_data->pipe_config.subvp_data.phantom_split_pipe_index = phantom_pipe->bottom_pipe->pipe_idx;
+				pipe_data->pipe_config.subvp_data.phantom_split_pipe_index = phantom_pipe->bottom_pipe->plane_res.hubp->inst;
 			} else if (phantom_pipe->next_odm_pipe) {
-				pipe_data->pipe_config.subvp_data.phantom_split_pipe_index = phantom_pipe->next_odm_pipe->pipe_idx;
+				pipe_data->pipe_config.subvp_data.phantom_split_pipe_index = phantom_pipe->next_odm_pipe->plane_res.hubp->inst;
 			} else {
 				pipe_data->pipe_config.subvp_data.phantom_split_pipe_index = 0;
 			}
@@ -750,7 +749,8 @@ void dc_dmub_setup_subvp_dmub_command(struct dc *dc,
 					!pipe->top_pipe && !pipe->prev_odm_pipe &&
 					pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
 				populate_subvp_cmd_pipe_info(dc, context, &cmd, pipe, cmd_pipe_index++);
-			} else if (pipe->plane_state && pipe->stream->mall_stream_config.type == SUBVP_NONE) {
+			} else if (pipe->plane_state && pipe->stream->mall_stream_config.type == SUBVP_NONE &&
+				    !pipe->top_pipe && !pipe->prev_odm_pipe) {
 				// Don't need to check for ActiveDRAMClockChangeMargin < 0, not valid in cases where
 				// we run through DML without calculating "natural" P-state support
 				populate_subvp_cmd_vblank_pipe_info(dc, context, &cmd, pipe, cmd_pipe_index++);
@@ -775,7 +775,6 @@ void dc_dmub_setup_subvp_dmub_command(struct dc *dc,
 	dc_dmub_srv_cmd_execute(dc->ctx->dmub_srv);
 	dc_dmub_srv_wait_idle(dc->ctx->dmub_srv);
 }
-#endif
 
 bool dc_dmub_srv_get_diagnostic_data(struct dc_dmub_srv *dc_dmub_srv, struct dmub_diagnostic_data *diag_data)
 {

@@ -6,6 +6,7 @@
 #include "gt/intel_engine_pm.h"
 #include "gt/intel_gpu_commands.h"
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_print.h"
 #include "gt/intel_ring.h"
 #include "intel_gsc_fw.h"
 
@@ -88,9 +89,8 @@ out_rq:
 	i915_request_put(rq);
 
 	if (err)
-		drm_err(&gsc_uc_to_gt(gsc)->i915->drm,
-			"Request submission for GSC load failed (%d)\n",
-			err);
+		gt_err(gsc_uc_to_gt(gsc), "Request submission for GSC load failed %pe\n",
+		       ERR_PTR(err));
 
 	return err;
 }
@@ -200,8 +200,7 @@ int intel_gsc_uc_fw_upload(struct intel_gsc_uc *gsc)
 	/* FW is not fully operational until we enable SW proxy */
 	intel_uc_fw_change_status(gsc_fw, INTEL_UC_FIRMWARE_TRANSFERRED);
 
-	drm_info(&gt->i915->drm, "Loaded GSC firmware %s\n",
-		 gsc_fw->file_selected.path);
+	gt_info(gt, "Loaded GSC firmware %s\n", gsc_fw->file_selected.path);
 
 	return 0;
 

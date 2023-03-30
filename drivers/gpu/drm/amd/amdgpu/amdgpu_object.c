@@ -1265,23 +1265,40 @@ void amdgpu_bo_move_notify(struct ttm_buffer_object *bo,
 	trace_amdgpu_bo_move(abo, new_mem->mem_type, old_mem->mem_type);
 }
 
-void amdgpu_bo_get_memory(struct amdgpu_bo *bo, uint64_t *vram_mem,
-				uint64_t *gtt_mem, uint64_t *cpu_mem)
+void amdgpu_bo_get_memory(struct amdgpu_bo *bo,
+			  struct amdgpu_mem_stats *stats)
 {
 	unsigned int domain;
+	uint64_t size = amdgpu_bo_size(bo);
 
 	domain = amdgpu_mem_type_to_domain(bo->tbo.resource->mem_type);
 	switch (domain) {
 	case AMDGPU_GEM_DOMAIN_VRAM:
-		*vram_mem += amdgpu_bo_size(bo);
+		stats->vram += size;
+		if (amdgpu_bo_in_cpu_visible_vram(bo))
+			stats->visible_vram += size;
 		break;
 	case AMDGPU_GEM_DOMAIN_GTT:
-		*gtt_mem += amdgpu_bo_size(bo);
+		stats->gtt += size;
 		break;
 	case AMDGPU_GEM_DOMAIN_CPU:
 	default:
-		*cpu_mem += amdgpu_bo_size(bo);
+		stats->cpu += size;
 		break;
+	}
+
+	if (bo->preferred_domains & AMDGPU_GEM_DOMAIN_VRAM) {
+		stats->requested_vram += size;
+		if (bo->flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED)
+			stats->requested_visible_vram += size;
+
+		if (domain != AMDGPU_GEM_DOMAIN_VRAM) {
+			stats->evicted_vram += size;
+			if (bo->flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED)
+				stats->evicted_visible_vram += size;
+		}
+	} else if (bo->preferred_domains & AMDGPU_GEM_DOMAIN_GTT) {
+		stats->requested_gtt += size;
 	}
 }
 
@@ -1315,7 +1332,7 @@ void amdgpu_bo_release_notify(struct ttm_buffer_object *bo)
 
 	if (!bo->resource || bo->resource->mem_type != TTM_PL_VRAM ||
 	    !(abo->flags & AMDGPU_GEM_CREATE_VRAM_WIPE_ON_RELEASE) ||
-	    adev->in_suspend || adev->shutdown)
+	    adev->in_suspend || drm_dev_is_unplugged(adev_to_drm(adev)))
 		return;
 
 	if (WARN_ON_ONCE(!dma_resv_trylock(bo->base.resv)))

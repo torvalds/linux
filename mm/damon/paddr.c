@@ -130,7 +130,6 @@ static bool damon_pa_young(unsigned long paddr, unsigned long *folio_sz)
 			accessed = false;
 		else
 			accessed = true;
-		folio_put(folio);
 		goto out;
 	}
 
@@ -144,10 +143,10 @@ static bool damon_pa_young(unsigned long paddr, unsigned long *folio_sz)
 
 	if (need_lock)
 		folio_unlock(folio);
-	folio_put(folio);
 
 out:
 	*folio_sz = folio_size(folio);
+	folio_put(folio);
 	return accessed;
 }
 
@@ -281,8 +280,8 @@ static inline unsigned long damon_pa_mark_accessed_or_deactivate(
 			folio_mark_accessed(folio);
 		else
 			folio_deactivate(folio);
-		folio_put(folio);
 		applied += folio_nr_pages(folio);
+		folio_put(folio);
 	}
 	return applied * PAGE_SIZE;
 }

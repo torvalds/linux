@@ -28,6 +28,9 @@
 #define gt_err_ratelimited(_gt, _fmt, ...) \
 	drm_err_ratelimited(&(_gt)->i915->drm, "GT%u: " _fmt, (_gt)->info.id, ##__VA_ARGS__)
 
+#define gt_notice_ratelimited(_gt, _fmt, ...) \
+	dev_notice_ratelimited((_gt)->i915->drm.dev, "GT%u: " _fmt, (_gt)->info.id, ##__VA_ARGS__)
+
 #define gt_probe_error(_gt, _fmt, ...) \
 	do { \
 		if (i915_error_injected()) \

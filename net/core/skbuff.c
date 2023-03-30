@@ -517,18 +517,16 @@ static void *kmalloc_reserve(unsigned int *size, gfp_t flags, int node,
 #ifdef HAVE_SKB_SMALL_HEAD_CACHE
 	if (obj_size <= SKB_SMALL_HEAD_CACHE_SIZE &&
 	    !(flags & KMALLOC_NOT_NORMAL_BITS)) {
-
-		/* skb_small_head_cache has non power of two size,
-		 * likely forcing SLUB to use order-3 pages.
-		 * We deliberately attempt a NOMEMALLOC allocation only.
-		 */
 		obj = kmem_cache_alloc_node(skb_small_head_cache,
 				flags | __GFP_NOMEMALLOC | __GFP_NOWARN,
 				node);
-		if (obj) {
-			*size = SKB_SMALL_HEAD_CACHE_SIZE;
+		*size = SKB_SMALL_HEAD_CACHE_SIZE;
+		if (obj || !(gfp_pfmemalloc_allowed(flags)))
 			goto out;
-		}
+		/* Try again but now we are using pfmemalloc reserves */
+		ret_pfmemalloc = true;
+		obj = kmem_cache_alloc_node(skb_small_head_cache, flags, node);
+		goto out;
 	}
 #endif
 	*size = obj_size = kmalloc_size_roundup(obj_size);
@@ -2082,6 +2080,7 @@ struct sk_buff *skb_realloc_headroom(struct sk_buff *skb, unsigned int headroom)
 }
 EXPORT_SYMBOL(skb_realloc_headroom);
 
+/* Note: We plan to rework this in linux-6.4 */
 int __skb_unclone_keeptruesize(struct sk_buff *skb, gfp_t pri)
 {
 	unsigned int saved_end_offset, saved_truesize;
@@ -2099,6 +2098,22 @@ int __skb_unclone_keeptruesize(struct sk_buff *skb, gfp_t pri)
 
 	if (likely(skb_end_offset(skb) == saved_end_offset))
 		return 0;
+
+#ifdef HAVE_SKB_SMALL_HEAD_CACHE
+	/* We can not change skb->end if the original or new value
+	 * is SKB_SMALL_HEAD_HEADROOM, as it might break skb_kfree_head().
+	 */
+	if (saved_end_offset == SKB_SMALL_HEAD_HEADROOM ||
+	    skb_end_offset(skb) == SKB_SMALL_HEAD_HEADROOM) {
+		/* We think this path should not be taken.
+		 * Add a temporary trace to warn us just in case.
+		 */
+		pr_err_once("__skb_unclone_keeptruesize() skb_end_offset() %u -> %u\n",
+			    saved_end_offset, skb_end_offset(skb));
+		WARN_ON_ONCE(1);
+		return 0;
+	}
+#endif
 
 	shinfo = skb_shinfo(skb);
 

@@ -158,7 +158,7 @@ static const struct intel_memory_region_ops intel_region_lmem_ops = {
 static bool get_legacy_lowmem_region(struct intel_uncore *uncore,
 				     u64 *start, u32 *size)
 {
-	if (!IS_DG1_GRAPHICS_STEP(uncore->i915, STEP_A0, STEP_C0))
+	if (!IS_DG1(uncore->i915))
 		return false;
 
 	*start = 0;

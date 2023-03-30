@@ -321,7 +321,8 @@ static int vega20_ih_irq_init(struct amdgpu_device *adev)
 	/* psp firmware won't program IH_CHICKEN for aldebaran
 	 * driver needs to program it properly according to
 	 * MC_SPACE type in IH_RB_CNTL */
-	if (adev->ip_versions[OSSSYS_HWIP][0] == IP_VERSION(4, 4, 0)) {
+	if ((adev->ip_versions[OSSSYS_HWIP][0] == IP_VERSION(4, 4, 0)) ||
+	    (adev->ip_versions[OSSSYS_HWIP][0] == IP_VERSION(4, 4, 2))) {
 		ih_chicken = RREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN_ALDEBARAN);
 		if (adev->irq.ih.use_bus_addr) {
 			ih_chicken = REG_SET_FIELD(ih_chicken, IH_CHICKEN,
@@ -551,12 +552,14 @@ static int vega20_ih_sw_init(void *handle)
 	adev->irq.ih1.use_doorbell = true;
 	adev->irq.ih1.doorbell_index = (adev->doorbell_index.ih + 1) << 1;
 
-	r = amdgpu_ih_ring_init(adev, &adev->irq.ih2, PAGE_SIZE, true);
-	if (r)
-		return r;
+	if (adev->ip_versions[OSSSYS_HWIP][0] != IP_VERSION(4, 4, 2)) {
+		r = amdgpu_ih_ring_init(adev, &adev->irq.ih2, PAGE_SIZE, true);
+		if (r)
+			return r;
 
-	adev->irq.ih2.use_doorbell = true;
-	adev->irq.ih2.doorbell_index = (adev->doorbell_index.ih + 2) << 1;
+		adev->irq.ih2.use_doorbell = true;
+		adev->irq.ih2.doorbell_index = (adev->doorbell_index.ih + 2) << 1;
+	}
 
 	/* initialize ih control registers offset */
 	vega20_ih_init_register_offset(adev);

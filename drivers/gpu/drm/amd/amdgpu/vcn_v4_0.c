@@ -181,6 +181,10 @@ static int vcn_v4_0_sw_init(void *handle)
 	if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG)
 		adev->vcn.pause_dpg_mode = vcn_v4_0_pause_dpg_mode;
 
+	r = amdgpu_vcn_ras_sw_init(adev);
+	if (r)
+		return r;
+
 	return 0;
 }
 
@@ -2123,6 +2127,4 @@ static void vcn_v4_0_set_ras_funcs(struct amdgpu_device *adev)
 	default:
 		break;
 	}
-
-	amdgpu_vcn_set_ras_funcs(adev);
 }

@@ -105,7 +105,6 @@ struct mlxsw_thermal {
 	struct thermal_zone_device *tzdev;
 	int polling_delay;
 	struct thermal_cooling_device *cdevs[MLXSW_MFCR_PWMS_MAX];
-	u8 cooling_levels[MLXSW_THERMAL_MAX_STATE + 1];
 	struct thermal_trip trips[MLXSW_THERMAL_NUM_TRIPS];
 	struct mlxsw_cooling_states cooling_states[MLXSW_THERMAL_NUM_TRIPS];
 	struct mlxsw_thermal_area line_cards[];
@@ -468,7 +467,7 @@ static int mlxsw_thermal_set_cur_state(struct thermal_cooling_device *cdev,
 		return idx;
 
 	/* Normalize the state to the valid speed range. */
-	state = thermal->cooling_levels[state];
+	state = max_t(unsigned long, MLXSW_THERMAL_MIN_STATE, state);
 	mlxsw_reg_mfsc_pack(mfsc_pl, idx, mlxsw_state_to_duty(state));
 	err = mlxsw_reg_write(thermal->core, MLXSW_REG(mfsc), mfsc_pl);
 	if (err) {
@@ -858,10 +857,6 @@ int mlxsw_thermal_init(struct mlxsw_core *core,
 			thermal->cdevs[i] = cdev;
 		}
 	}
-
-	/* Initialize cooling levels per PWM state. */
-	for (i = 0; i < MLXSW_THERMAL_MAX_STATE; i++)
-		thermal->cooling_levels[i] = max(MLXSW_THERMAL_MIN_STATE, i);
 
 	thermal->polling_delay = bus_info->low_frequency ?
 				 MLXSW_THERMAL_SLOW_POLL_INT :

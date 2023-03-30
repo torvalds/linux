@@ -208,6 +208,36 @@ int amdgpu_umc_process_ras_data_cb(struct amdgpu_device *adev,
 	return amdgpu_umc_do_page_retirement(adev, ras_error_status, entry, true);
 }
 
+int amdgpu_umc_ras_sw_init(struct amdgpu_device *adev)
+{
+	int err;
+	struct amdgpu_umc_ras *ras;
+
+	if (!adev->umc.ras)
+		return 0;
+
+	ras = adev->umc.ras;
+
+	err = amdgpu_ras_register_ras_block(adev, &ras->ras_block);
+	if (err) {
+		dev_err(adev->dev, "Failed to register umc ras block!\n");
+		return err;
+	}
+
+	strcpy(adev->umc.ras->ras_block.ras_comm.name, "umc");
+	ras->ras_block.ras_comm.block = AMDGPU_RAS_BLOCK__UMC;
+	ras->ras_block.ras_comm.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
+	adev->umc.ras_if = &ras->ras_block.ras_comm;
+
+	if (!ras->ras_block.ras_late_init)
+		ras->ras_block.ras_late_init = amdgpu_umc_ras_late_init;
+
+	if (ras->ras_block.ras_cb)
+		ras->ras_block.ras_cb = amdgpu_umc_process_ras_data_cb;
+
+	return 0;
+}
+
 int amdgpu_umc_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block)
 {
 	int r;

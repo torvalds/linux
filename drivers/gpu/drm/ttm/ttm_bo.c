@@ -295,8 +295,6 @@ static int ttm_bo_cleanup_refs(struct ttm_buffer_object *bo,
 	if (unlock_resv)
 		dma_resv_unlock(bo->base.resv);
 
-	ttm_bo_put(bo);
-
 	return 0;
 }
 

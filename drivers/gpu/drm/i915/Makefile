@@ -195,6 +195,7 @@ i915-y += \
 i915-y += \
 	  gt/uc/intel_gsc_fw.o \
 	  gt/uc/intel_gsc_uc.o \
+	  gt/uc/intel_gsc_uc_heci_cmd_submit.o\
 	  gt/uc/intel_guc.o \
 	  gt/uc/intel_guc_ads.o \
 	  gt/uc/intel_guc_capture.o \
@@ -239,6 +240,7 @@ i915-y += \
 	display/intel_display_power.o \
 	display/intel_display_power_map.o \
 	display/intel_display_power_well.o \
+	display/intel_display_rps.o \
 	display/intel_dmc.o \
 	display/intel_dpio_phy.o \
 	display/intel_dpll.o \
@@ -254,6 +256,7 @@ i915-y += \
 	display/intel_frontbuffer.o \
 	display/intel_global_state.o \
 	display/intel_hdcp.o \
+	display/intel_hdcp_gsc.o \
 	display/intel_hotplug.o \
 	display/intel_hti.o \
 	display/intel_lpe_audio.o \
@@ -266,10 +269,13 @@ i915-y += \
 	display/intel_psr.o \
 	display/intel_quirks.o \
 	display/intel_sprite.o \
+	display/intel_sprite_uapi.o \
 	display/intel_tc.o \
 	display/intel_vblank.o \
 	display/intel_vga.o \
+	display/intel_wm.o \
 	display/i9xx_plane.o \
+	display/i9xx_wm.o \
 	display/skl_scaler.o \
 	display/skl_universal_plane.o \
 	display/skl_watermark.o

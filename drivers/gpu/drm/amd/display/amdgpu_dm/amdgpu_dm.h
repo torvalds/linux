@@ -461,9 +461,7 @@ struct amdgpu_display_manager {
 	struct amdgpu_dm_backlight_caps backlight_caps[AMDGPU_DM_MAX_NUM_EDP];
 
 	struct mod_freesync *freesync_module;
-#ifdef CONFIG_DRM_AMD_DC_HDCP
 	struct hdcp_workqueue *hdcp_workqueue;
-#endif
 
 	/**
 	 * @vblank_control_workqueue:
@@ -747,9 +745,7 @@ struct dm_connector_state {
 	uint8_t underscan_hborder;
 	bool underscan_enable;
 	bool freesync_capable;
-#ifdef CONFIG_DRM_AMD_DC_HDCP
 	bool update_hdcp;
-#endif
 	uint8_t abm_level;
 	int vcpi_slots;
 	uint64_t pbn;

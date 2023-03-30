@@ -341,6 +341,18 @@ struct intel_engine_guc_stats {
 	u64 start_gt_clk;
 };
 
+union intel_engine_tlb_inv_reg {
+	i915_reg_t	reg;
+	i915_mcr_reg_t	mcr_reg;
+};
+
+struct intel_engine_tlb_inv {
+	bool mcr;
+	union intel_engine_tlb_inv_reg reg;
+	u32 request;
+	u32 done;
+};
+
 struct intel_engine_cs {
 	struct drm_i915_private *i915;
 	struct intel_gt *gt;
@@ -371,6 +383,8 @@ struct intel_engine_cs {
 	u32 uabi_capabilities;
 	u32 context_size;
 	u32 mmio_base;
+
+	struct intel_engine_tlb_inv tlb_inv;
 
 	/*
 	 * Some w/a require forcewake to be held (which prevents RC6) while

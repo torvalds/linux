@@ -43,7 +43,7 @@
 #include <drm/drm_rect.h>
 #include <drm/drm_vblank.h>
 #include <drm/drm_vblank_work.h>
-#include <drm/i915_mei_hdcp_interface.h>
+#include <drm/i915_hdcp_interface.h>
 #include <media/cec-notifier.h>
 
 #include "i915_vma.h"
@@ -53,7 +53,7 @@
 #include "intel_display_limits.h"
 #include "intel_display_power.h"
 #include "intel_dpll_mgr.h"
-#include "intel_pm_types.h"
+#include "intel_wm_types.h"
 
 struct drm_printer;
 struct __intel_global_objs_state;
@@ -255,6 +255,11 @@ struct intel_encoder {
 	 * Returns whether the port clock is enabled or not.
 	 */
 	bool (*is_clock_enabled)(struct intel_encoder *encoder);
+	/*
+	 * Returns the PLL type the port uses.
+	 */
+	enum icl_port_dpll_id (*port_pll_type)(struct intel_encoder *encoder,
+					       const struct intel_crtc_state *crtc_state);
 	const struct intel_ddi_buf_trans *(*get_buf_trans)(struct intel_encoder *encoder,
 							   const struct intel_crtc_state *crtc_state,
 							   int *n_entries);
@@ -326,6 +331,7 @@ struct intel_vbt_panel_data {
 	struct {
 		u16 pwm_freq_hz;
 		u16 brightness_precision_bits;
+		u16 hdr_dpcd_refresh_timeout;
 		bool present;
 		bool active_low_pwm;
 		u8 min_brightness;	/* min_brightness/255 of max */
@@ -1249,6 +1255,9 @@ struct intel_crtc_state {
 	/* bitmask of planes that will be updated during the commit */
 	u8 update_planes;
 
+	/* bitmask of planes with async flip active */
+	u8 async_flip_planes;
+
 	u8 framestart_delay; /* 1-4 */
 	u8 msa_timing_delay; /* 0-3 */
 
@@ -1502,17 +1511,6 @@ struct intel_watermark_params {
 	u8 cacheline_size;
 };
 
-struct cxsr_latency {
-	bool is_desktop : 1;
-	bool is_ddr3 : 1;
-	u16 fsb_freq;
-	u16 mem_freq;
-	u16 display_sr;
-	u16 display_hpll_disable;
-	u16 cursor_sr;
-	u16 cursor_hpll_disable;
-};
-
 #define to_intel_atomic_state(x) container_of(x, struct intel_atomic_state, base)
 #define to_intel_crtc(x) container_of(x, struct intel_crtc, base)
 #define to_intel_crtc_state(x) container_of(x, struct intel_crtc_state, uapi)
@@ -1631,6 +1629,8 @@ struct intel_psr {
 	bool psr2_sel_fetch_cff_enabled;
 	bool req_psr2_sdp_prior_scanline;
 	u8 sink_sync_latency;
+	u8 io_wake_lines;
+	u8 fast_wake_lines;
 	ktime_t last_entry_attempt;
 	ktime_t last_exit;
 	bool sink_not_reliable;
@@ -1788,6 +1788,7 @@ struct intel_digital_port {
 	bool tc_legacy_port:1;
 	char tc_port_name[8];
 	enum tc_port_mode tc_mode;
+	enum tc_port_mode tc_init_mode;
 	enum phy_fia tc_phy_fia;
 	u8 tc_phy_fia_idx;
 

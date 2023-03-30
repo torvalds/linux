@@ -841,5 +841,4 @@ static void __exit hi3559av100_crg_exit(void)
 module_exit(hi3559av100_crg_exit);
 
 
-MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("HiSilicon Hi3559AV100 CRG Driver");

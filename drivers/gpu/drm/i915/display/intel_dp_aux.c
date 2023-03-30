@@ -6,6 +6,7 @@
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "i915_trace.h"
+#include "intel_bios.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_dp_aux.h"
@@ -204,8 +205,19 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 	for (i = 0; i < ARRAY_SIZE(ch_data); i++)
 		ch_data[i] = intel_dp->aux_ch_data_reg(intel_dp, i);
 
-	if (is_tc_port)
+	if (is_tc_port) {
 		intel_tc_port_lock(dig_port);
+		/*
+		 * Abort transfers on a disconnected port as required by
+		 * DP 1.4a link CTS 4.2.1.5, also avoiding the long AUX
+		 * timeouts that would otherwise happen.
+		 * TODO: abort the transfer on non-TC ports as well.
+		 */
+		if (!intel_tc_port_connected_locked(&dig_port->base)) {
+			ret = -ENXIO;
+			goto out_unlock;
+		}
+	}
 
 	aux_domain = intel_aux_power_domain(dig_port);
 
@@ -366,7 +378,7 @@ out:
 
 	intel_pps_unlock(intel_dp, pps_wakeref);
 	intel_display_power_put_async(i915, aux_domain, aux_wakeref);
-
+out_unlock:
 	if (is_tc_port)
 		intel_tc_port_unlock(dig_port);
 
@@ -736,4 +748,38 @@ void intel_dp_aux_init(struct intel_dp *intel_dp)
 
 	intel_dp->aux.transfer = intel_dp_aux_transfer;
 	cpu_latency_qos_add_request(&intel_dp->pm_qos, PM_QOS_DEFAULT_VALUE);
+}
+
+static enum aux_ch default_aux_ch(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+
+	/* SKL has DDI E but no AUX E */
+	if (DISPLAY_VER(i915) == 9 && encoder->port == PORT_E)
+		return AUX_CH_A;
+
+	return (enum aux_ch)encoder->port;
+}
+
+enum aux_ch intel_dp_aux_ch(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	enum aux_ch aux_ch;
+
+	aux_ch = intel_bios_dp_aux_ch(encoder->devdata);
+	if (aux_ch != AUX_CH_NONE) {
+		drm_dbg_kms(&i915->drm, "[ENCODER:%d:%s] using AUX %c (VBT)\n",
+			    encoder->base.base.id, encoder->base.name,
+			    aux_ch_name(aux_ch));
+		return aux_ch;
+	}
+
+	aux_ch = default_aux_ch(encoder);
+
+	drm_dbg_kms(&i915->drm,
+		    "[ENCODER:%d:%s] using AUX %c (platform default)\n",
+		    encoder->base.base.id, encoder->base.name,
+		    aux_ch_name(aux_ch));
+
+	return aux_ch;
 }

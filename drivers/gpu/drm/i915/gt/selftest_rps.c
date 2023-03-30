@@ -299,13 +299,13 @@ int live_rps_clock_interval(void *arg)
 			for (i = 0; i < 5; i++) {
 				preempt_disable();
 
-				dt_[i] = ktime_get();
 				cycles_[i] = -intel_uncore_read_fw(gt->uncore, GEN6_RP_CUR_UP_EI);
+				dt_[i] = ktime_get();
 
 				udelay(1000);
 
-				dt_[i] = ktime_sub(ktime_get(), dt_[i]);
 				cycles_[i] += intel_uncore_read_fw(gt->uncore, GEN6_RP_CUR_UP_EI);
+				dt_[i] = ktime_sub(ktime_get(), dt_[i]);
 
 				preempt_enable();
 			}
@@ -537,8 +537,8 @@ static u64 __measure_frequency(u32 *cntr, int duration_ms)
 {
 	u64 dc, dt;
 
-	dt = ktime_get();
 	dc = READ_ONCE(*cntr);
+	dt = ktime_get();
 	usleep_range(1000 * duration_ms, 2000 * duration_ms);
 	dc = READ_ONCE(*cntr) - dc;
 	dt = ktime_get() - dt;
@@ -566,8 +566,8 @@ static u64 __measure_cs_frequency(struct intel_engine_cs *engine,
 {
 	u64 dc, dt;
 
-	dt = ktime_get();
 	dc = intel_uncore_read_fw(engine->uncore, CS_GPR(0));
+	dt = ktime_get();
 	usleep_range(1000 * duration_ms, 2000 * duration_ms);
 	dc = intel_uncore_read_fw(engine->uncore, CS_GPR(0)) - dc;
 	dt = ktime_get() - dt;
@@ -1094,8 +1094,8 @@ static u64 __measure_power(int duration_ms)
 {
 	u64 dE, dt;
 
-	dt = ktime_get();
 	dE = librapl_energy_uJ();
+	dt = ktime_get();
 	usleep_range(1000 * duration_ms, 2000 * duration_ms);
 	dE = librapl_energy_uJ() - dE;
 	dt = ktime_get() - dt;

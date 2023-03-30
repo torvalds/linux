@@ -267,3 +267,40 @@ void hsw_ips_get_config(struct intel_crtc_state *crtc_state)
 		crtc_state->ips_enabled = true;
 	}
 }
+
+static int hsw_ips_debugfs_status_show(struct seq_file *m, void *unused)
+{
+	struct drm_i915_private *i915 = m->private;
+	intel_wakeref_t wakeref;
+
+	if (!HAS_IPS(i915))
+		return -ENODEV;
+
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
+
+	seq_printf(m, "Enabled by kernel parameter: %s\n",
+		   str_yes_no(i915->params.enable_ips));
+
+	if (DISPLAY_VER(i915) >= 8) {
+		seq_puts(m, "Currently: unknown\n");
+	} else {
+		if (intel_de_read(i915, IPS_CTL) & IPS_ENABLE)
+			seq_puts(m, "Currently: enabled\n");
+		else
+			seq_puts(m, "Currently: disabled\n");
+	}
+
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(hsw_ips_debugfs_status);
+
+void hsw_ips_debugfs_register(struct drm_i915_private *i915)
+{
+	struct drm_minor *minor = i915->drm.primary;
+
+	debugfs_create_file("i915_ips_status", 0444, minor->debugfs_root,
+			    i915, &hsw_ips_debugfs_status_fops);
+}

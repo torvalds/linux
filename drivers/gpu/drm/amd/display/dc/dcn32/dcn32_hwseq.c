@@ -131,9 +131,14 @@ void dcn32_enable_power_gating_plane(
 	bool enable)
 {
 	bool force_on = true; /* disable power gating */
+	uint32_t org_ip_request_cntl = 0;
 
 	if (enable)
 		force_on = false;
+
+	REG_GET(DC_IP_REQUEST_CNTL, IP_REQUEST_EN, &org_ip_request_cntl);
+	if (org_ip_request_cntl == 0)
+		REG_SET(DC_IP_REQUEST_CNTL, 0, IP_REQUEST_EN, 1);
 
 	/* DCHUBP0/1/2/3 */
 	REG_UPDATE(DOMAIN0_PG_CONFIG, DOMAIN_POWER_FORCEON, force_on);
@@ -146,6 +151,9 @@ void dcn32_enable_power_gating_plane(
 	REG_UPDATE(DOMAIN17_PG_CONFIG, DOMAIN_POWER_FORCEON, force_on);
 	REG_UPDATE(DOMAIN18_PG_CONFIG, DOMAIN_POWER_FORCEON, force_on);
 	REG_UPDATE(DOMAIN19_PG_CONFIG, DOMAIN_POWER_FORCEON, force_on);
+
+	if (org_ip_request_cntl == 0)
+		REG_SET(DC_IP_REQUEST_CNTL, 0, IP_REQUEST_EN, 0);
 }
 
 void dcn32_hubp_pg_control(struct dce_hwseq *hws, unsigned int hubp_inst, bool power_on)
@@ -786,13 +794,14 @@ void dcn32_init_hw(struct dc *dc)
 		}
 	}
 
-	/* Power gate DSCs */
-	for (i = 0; i < res_pool->res_cap->num_dsc; i++)
-		if (hws->funcs.dsc_pg_control != NULL)
-			hws->funcs.dsc_pg_control(hws, res_pool->dscs[i]->inst, false);
+	/* enable_power_gating_plane before dsc_pg_control because
+	 * FORCEON = 1 with hw default value on bootup, resume from s3
+	 */
+	if (hws->funcs.enable_power_gating_plane)
+		hws->funcs.enable_power_gating_plane(dc->hwseq, true);
 
 	/* we want to turn off all dp displays before doing detection */
-	link_blank_all_dp_displays(dc);
+	dc->link_srv->blank_all_dp_displays(dc);
 
 	/* If taking control over from VBIOS, we may want to optimize our first
 	 * mode set, so we need to skip powering down pipes until we know which
@@ -828,7 +837,7 @@ void dcn32_init_hw(struct dc *dc)
 		struct dc_link *edp_links[MAX_NUM_EDP];
 		struct dc_link *edp_link;
 
-		get_edp_links(dc, edp_links, &edp_num);
+		dc_get_edp_links(dc, edp_links, &edp_num);
 		if (edp_num) {
 			for (i = 0; i < edp_num; i++) {
 				edp_link = edp_links[i];
@@ -886,8 +895,6 @@ void dcn32_init_hw(struct dc *dc)
 
 		REG_UPDATE(DCFCLK_CNTL, DCFCLK_GATE_DIS, 0);
 	}
-	if (hws->funcs.enable_power_gating_plane)
-		hws->funcs.enable_power_gating_plane(dc->hwseq, true);
 
 	if (!dcb->funcs->is_accelerated_mode(dcb) && dc->res_pool->hubbub->funcs->init_watermarks)
 		dc->res_pool->hubbub->funcs->init_watermarks(dc->res_pool->hubbub);
@@ -1095,7 +1102,7 @@ unsigned int dcn32_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsign
 	two_pix_per_container = optc2_is_two_pixels_per_containter(&stream->timing);
 	odm_combine_factor = get_odm_config(pipe_ctx, NULL);
 
-	if (link_is_dp_128b_132b_signal(pipe_ctx)) {
+	if (stream->ctx->dc->link_srv->dp_is_128b_132b_signal(pipe_ctx)) {
 		*k1_div = PIXEL_RATE_DIV_BY_1;
 		*k2_div = PIXEL_RATE_DIV_BY_1;
 	} else if (dc_is_hdmi_tmds_signal(stream->signal) || dc_is_dvi_signal(stream->signal)) {
@@ -1104,7 +1111,7 @@ unsigned int dcn32_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsign
 			*k2_div = PIXEL_RATE_DIV_BY_2;
 		else
 			*k2_div = PIXEL_RATE_DIV_BY_4;
-	} else if (dc_is_dp_signal(stream->signal) || dc_is_virtual_signal(stream->signal)) {
+	} else if (dc_is_dp_signal(stream->signal)) {
 		if (two_pix_per_container) {
 			*k1_div = PIXEL_RATE_DIV_BY_1;
 			*k2_div = PIXEL_RATE_DIV_BY_2;
@@ -1159,7 +1166,7 @@ void dcn32_unblank_stream(struct pipe_ctx *pipe_ctx,
 
 	params.link_settings.link_rate = link_settings->link_rate;
 
-	if (link_is_dp_128b_132b_signal(pipe_ctx)) {
+	if (link->dc->link_srv->dp_is_128b_132b_signal(pipe_ctx)) {
 		/* TODO - DP2.0 HW: Set ODM mode in dp hpo encoder here */
 		pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->dp_unblank(
 				pipe_ctx->stream_res.hpo_dp_stream_enc,
@@ -1186,7 +1193,7 @@ bool dcn32_is_dp_dig_pixel_rate_div_policy(struct pipe_ctx *pipe_ctx)
 	if (!is_h_timing_divisible_by_2(pipe_ctx->stream))
 		return false;
 
-	if (dc_is_dp_signal(pipe_ctx->stream->signal) && !link_is_dp_128b_132b_signal(pipe_ctx) &&
+	if (dc_is_dp_signal(pipe_ctx->stream->signal) && !dc->link_srv->dp_is_128b_132b_signal(pipe_ctx) &&
 		dc->debug.enable_dp_dig_pixel_rate_div_policy)
 		return true;
 	return false;
@@ -1220,7 +1227,8 @@ static void apply_symclk_on_tx_off_wa(struct dc_link *link)
 				pipe_ctx->clock_source->funcs->program_pix_clk(
 						pipe_ctx->clock_source,
 						&pipe_ctx->stream_res.pix_clk_params,
-						link_dp_get_encoding_format(&pipe_ctx->link_config.dp_link_settings),
+						dc->link_srv->dp_get_encoding_format(
+								&pipe_ctx->link_config.dp_link_settings),
 						&pipe_ctx->pll_settings);
 				link->phy_state.symclk_state = SYMCLK_ON_TX_OFF;
 				break;
@@ -1252,7 +1260,7 @@ void dcn32_disable_link_output(struct dc_link *link,
 	else if (dmcu != NULL && dmcu->funcs->lock_phy)
 		dmcu->funcs->unlock_phy(dmcu);
 
-	link_dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_DISABLE_LINK_PHY);
+	dc->link_srv->dp_trace_source_sequence(link, DPCD_SOURCE_SEQ_AFTER_DISABLE_LINK_PHY);
 
 	apply_symclk_on_tx_off_wa(link);
 }
@@ -1405,4 +1413,87 @@ void dcn32_enable_phantom_streams(struct dc *dc, struct dc_state *context)
 			break;
 		}
 	}
+}
+
+/* Blank pixel data during initialization */
+void dcn32_init_blank(
+		struct dc *dc,
+		struct timing_generator *tg)
+{
+	struct dce_hwseq *hws = dc->hwseq;
+	enum dc_color_space color_space;
+	struct tg_color black_color = {0};
+	struct output_pixel_processor *opp = NULL;
+	struct output_pixel_processor *bottom_opp = NULL;
+	uint32_t num_opps, opp_id_src0, opp_id_src1;
+	uint32_t otg_active_width, otg_active_height;
+	uint32_t i;
+
+	/* program opp dpg blank color */
+	color_space = COLOR_SPACE_SRGB;
+	color_space_to_black_color(dc, color_space, &black_color);
+
+	/* get the OTG active size */
+	tg->funcs->get_otg_active_size(tg,
+			&otg_active_width,
+			&otg_active_height);
+
+	/* get the OPTC source */
+	tg->funcs->get_optc_source(tg, &num_opps, &opp_id_src0, &opp_id_src1);
+
+	if (opp_id_src0 >= dc->res_pool->res_cap->num_opp) {
+		ASSERT(false);
+		return;
+	}
+
+	for (i = 0; i < dc->res_pool->res_cap->num_opp; i++) {
+		if (dc->res_pool->opps[i] != NULL && dc->res_pool->opps[i]->inst == opp_id_src0) {
+			opp = dc->res_pool->opps[i];
+			break;
+		}
+	}
+
+	if (num_opps == 2) {
+		otg_active_width = otg_active_width / 2;
+
+		if (opp_id_src1 >= dc->res_pool->res_cap->num_opp) {
+			ASSERT(false);
+			return;
+		}
+		for (i = 0; i < dc->res_pool->res_cap->num_opp; i++) {
+			if (dc->res_pool->opps[i] != NULL && dc->res_pool->opps[i]->inst == opp_id_src1) {
+				bottom_opp = dc->res_pool->opps[i];
+				break;
+			}
+		}
+	}
+
+	if (opp && opp->funcs->opp_set_disp_pattern_generator)
+		opp->funcs->opp_set_disp_pattern_generator(
+				opp,
+				CONTROLLER_DP_TEST_PATTERN_SOLID_COLOR,
+				CONTROLLER_DP_COLOR_SPACE_UDEFINED,
+				COLOR_DEPTH_UNDEFINED,
+				&black_color,
+				otg_active_width,
+				otg_active_height,
+				0);
+
+	if (num_opps == 2) {
+		if (bottom_opp && bottom_opp->funcs->opp_set_disp_pattern_generator) {
+			bottom_opp->funcs->opp_set_disp_pattern_generator(
+					bottom_opp,
+					CONTROLLER_DP_TEST_PATTERN_SOLID_COLOR,
+					CONTROLLER_DP_COLOR_SPACE_UDEFINED,
+					COLOR_DEPTH_UNDEFINED,
+					&black_color,
+					otg_active_width,
+					otg_active_height,
+					0);
+			hws->funcs.wait_for_blank_complete(bottom_opp);
+		}
+	}
+
+	if (opp)
+		hws->funcs.wait_for_blank_complete(opp);
 }

@@ -63,7 +63,10 @@ struct gaudi2_cold_rst_data {
 			u32 fake_sig_validation_en : 1;
 			u32 bist_skip_enable : 1;
 			u32 bist_need_iatu_config : 1;
-			u32 reserved : 24;
+			u32 fake_bis_compliant : 1;
+			u32 wd_rst_cause_arm : 1;
+			u32 wd_rst_cause_arcpid : 1;
+			u32 reserved : 21;
 		};
 		__le32 data;
 	};
