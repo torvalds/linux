@@ -394,11 +394,6 @@ struct ufs_clk_gating {
 	struct workqueue_struct *clk_gating_workq;
 };
 
-struct ufs_saved_pwr_info {
-	struct ufs_pa_layer_attr info;
-	bool is_valid;
-};
-
 /**
  * struct ufs_clk_scaling - UFS clock scaling related data
  * @active_reqs: number of requests that are pending. If this is zero when
@@ -428,7 +423,7 @@ struct ufs_clk_scaling {
 	ktime_t window_start_t;
 	ktime_t busy_start_t;
 	struct device_attribute enable_attr;
-	struct ufs_saved_pwr_info saved_pwr_info;
+	struct ufs_pa_layer_attr saved_pwr_info;
 	struct workqueue_struct *workq;
 	struct work_struct suspend_work;
 	struct work_struct resume_work;

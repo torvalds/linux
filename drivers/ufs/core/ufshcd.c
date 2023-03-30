@@ -1269,7 +1269,7 @@ static int ufshcd_scale_gear(struct ufs_hba *hba, bool scale_up)
 	struct ufs_pa_layer_attr new_pwr_info;
 
 	if (scale_up) {
-		memcpy(&new_pwr_info, &hba->clk_scaling.saved_pwr_info.info,
+		memcpy(&new_pwr_info, &hba->clk_scaling.saved_pwr_info,
 		       sizeof(struct ufs_pa_layer_attr));
 	} else {
 		memcpy(&new_pwr_info, &hba->pwr_info,
@@ -1278,7 +1278,7 @@ static int ufshcd_scale_gear(struct ufs_hba *hba, bool scale_up)
 		if (hba->pwr_info.gear_tx > hba->clk_scaling.min_gear ||
 		    hba->pwr_info.gear_rx > hba->clk_scaling.min_gear) {
 			/* save the current power mode */
-			memcpy(&hba->clk_scaling.saved_pwr_info.info,
+			memcpy(&hba->clk_scaling.saved_pwr_info,
 				&hba->pwr_info,
 				sizeof(struct ufs_pa_layer_attr));
 
@@ -10349,10 +10349,9 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 
 	/* Initialize devfreq */
 	if (ufshcd_is_clkscaling_supported(hba)) {
-		memcpy(&hba->clk_scaling.saved_pwr_info.info,
+		memcpy(&hba->clk_scaling.saved_pwr_info,
 			&hba->pwr_info,
 			sizeof(struct ufs_pa_layer_attr));
-		hba->clk_scaling.saved_pwr_info.is_valid = true;
 		hba->clk_scaling.is_allowed = true;
 
 		err = ufshcd_devfreq_init(hba);
