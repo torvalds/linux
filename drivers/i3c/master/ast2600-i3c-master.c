@@ -36,6 +36,8 @@
 
 #define AST2600_DEFAULT_SDA_PULLUP_OHMS		2000
 
+#define DEV_ADDR_TABLE_IBI_PEC			BIT(11)
+
 struct ast2600_i3c {
 	struct dw_i3c_master dw;
 	struct regmap *global_regs;
@@ -99,8 +101,26 @@ static int ast2600_i3c_init(struct dw_i3c_master *dw)
 	return rc;
 }
 
+static void ast2600_i3c_set_dat_ibi(struct dw_i3c_master *i3c,
+				    struct i3c_dev_desc *dev,
+				    bool enable, u32 *dat)
+{
+	/*
+	 * The ast2600 i3c controller will lock up on receiving 4n+1-byte IBIs
+	 * if the PEC is disabled. We have no way to restrict the length of
+	 * IBIs sent to the controller, so we need to unconditionally enable
+	 * PEC checking, which means we drop a byte of payload data
+	 */
+	if (enable && dev->info.bcr & I3C_BCR_IBI_PAYLOAD) {
+		dev_warn_once(&i3c->base.dev,
+		      "Enabling PEC workaround. IBI payloads will be truncated\n");
+		*dat |= DEV_ADDR_TABLE_IBI_PEC;
+	}
+}
+
 const struct dw_i3c_platform_ops ast2600_i3c_ops = {
 	.init = ast2600_i3c_init,
+	.set_dat_ibi = ast2600_i3c_set_dat_ibi,
 };
 
 static int ast2600_i3c_probe(struct platform_device *pdev)
@@ -137,6 +157,7 @@ static int ast2600_i3c_probe(struct platform_device *pdev)
 			i3c->sda_pullup);
 
 	i3c->dw.platform_ops = &ast2600_i3c_ops;
+	i3c->dw.ibi_capable = true;
 	return dw_i3c_common_probe(&i3c->dw, pdev);
 }
 
