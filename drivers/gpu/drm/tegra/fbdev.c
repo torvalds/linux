@@ -126,6 +126,30 @@ static const struct drm_fb_helper_funcs tegra_fb_helper_funcs = {
 	.fb_probe = tegra_fbdev_probe,
 };
 
+/*
+ * struct drm_client
+ */
+
+static void tegra_fbdev_client_unregister(struct drm_client_dev *client)
+{ }
+
+static int tregra_fbdev_client_restore(struct drm_client_dev *client)
+{
+	return 0;
+}
+
+static int tegra_fbdev_client_hotplug(struct drm_client_dev *client)
+{
+	return 0;
+}
+
+static const struct drm_client_funcs tegra_fbdev_client_funcs = {
+	.owner		= THIS_MODULE,
+	.unregister	= tegra_fbdev_client_unregister,
+	.restore	= tegra_fbdev_client_restore,
+	.hotplug	= tegra_fbdev_client_hotplug,
+};
+
 static struct drm_fb_helper *tegra_fbdev_create(struct drm_device *drm)
 {
 	struct drm_fb_helper *helper;
@@ -152,11 +176,15 @@ static int tegra_fbdev_init(struct drm_fb_helper *helper,
 	struct drm_device *drm = helper->dev;
 	int err;
 
+	err = drm_client_init(dev, &helper->client, "fbdev", &tegra_fbdev_client_funcs);
+	if (err)
+		return err;
+
 	err = drm_fb_helper_init(drm, helper);
 	if (err < 0) {
 		dev_err(drm->dev, "failed to initialize DRM FB helper: %d\n",
 			err);
-		return err;
+		goto err_drm_client_release;
 	}
 
 	err = drm_fb_helper_initial_config(helper);
@@ -170,6 +198,8 @@ static int tegra_fbdev_init(struct drm_fb_helper *helper,
 
 fini:
 	drm_fb_helper_fini(helper);
+err_drm_client_release:
+	drm_client_release(&helper->client);
 	return err;
 }
 
@@ -192,6 +222,7 @@ static void tegra_fbdev_exit(struct drm_fb_helper *helper)
 	}
 
 	drm_fb_helper_fini(helper);
+	drm_client_release(&helper->client);
 	tegra_fbdev_free(helper);
 }
 
