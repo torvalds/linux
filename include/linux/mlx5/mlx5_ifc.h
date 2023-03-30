@@ -10103,7 +10103,10 @@ enum {
 struct mlx5_ifc_mtutc_reg_bits {
 	u8         reserved_at_0[0x5];
 	u8         freq_adj_units[0x3];
-	u8         reserved_at_8[0x14];
+	u8         reserved_at_8[0x3];
+	u8         log_max_freq_adjustment[0x5];
+
+	u8         reserved_at_10[0xc];
 	u8         operation[0x4];
 
 	u8         freq_adjustment[0x20];

@@ -1000,12 +1000,34 @@ static void mlx5_init_clock_info(struct mlx5_core_dev *mdev)
 	info->frac = timer->tc.frac;
 }
 
+static void mlx5_init_timer_max_freq_adjustment(struct mlx5_core_dev *mdev)
+{
+	struct mlx5_clock *clock = &mdev->clock;
+	u32 out[MLX5_ST_SZ_DW(mtutc_reg)] = {};
+	u32 in[MLX5_ST_SZ_DW(mtutc_reg)] = {};
+	u8 log_max_freq_adjustment = 0;
+	int err;
+
+	err = mlx5_core_access_reg(mdev, in, sizeof(in), out, sizeof(out),
+				   MLX5_REG_MTUTC, 0, 0);
+	if (!err)
+		log_max_freq_adjustment =
+			MLX5_GET(mtutc_reg, out, log_max_freq_adjustment);
+
+	if (log_max_freq_adjustment)
+		clock->ptp_info.max_adj =
+			min(S32_MAX, 1 << log_max_freq_adjustment);
+}
+
 static void mlx5_init_timer_clock(struct mlx5_core_dev *mdev)
 {
 	struct mlx5_clock *clock = &mdev->clock;
 
 	/* Configure the PHC */
 	clock->ptp_info = mlx5_ptp_clock_info;
+
+	if (MLX5_CAP_MCAM_REG(mdev, mtutc))
+		mlx5_init_timer_max_freq_adjustment(mdev);
 
 	mlx5_timecounter_init(mdev);
 	mlx5_init_clock_info(mdev);
