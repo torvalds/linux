@@ -185,13 +185,33 @@ struct tegra_bo *tegra_fb_get_plane(struct drm_framebuffer *framebuffer,
 bool tegra_fb_is_bottom_up(struct drm_framebuffer *framebuffer);
 int tegra_fb_get_tiling(struct drm_framebuffer *framebuffer,
 			struct tegra_bo_tiling *tiling);
+struct drm_framebuffer *tegra_fb_alloc(struct drm_device *drm,
+				       const struct drm_mode_fb_cmd2 *mode_cmd,
+				       struct tegra_bo **planes,
+				       unsigned int num_planes);
 struct drm_framebuffer *tegra_fb_create(struct drm_device *drm,
 					struct drm_file *file,
 					const struct drm_mode_fb_cmd2 *cmd);
+
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 int tegra_drm_fb_prepare(struct drm_device *drm);
 void tegra_drm_fb_free(struct drm_device *drm);
 int tegra_drm_fb_init(struct drm_device *drm);
 void tegra_drm_fb_exit(struct drm_device *drm);
+#else
+static inline int tegra_drm_fb_prepare(struct drm_device *drm)
+{
+	return 0;
+}
+static inline void tegra_drm_fb_free(struct drm_device *drm)
+{ }
+static inline int tegra_drm_fb_init(struct drm_device *drm)
+{
+	return 0;
+}
+static inline void tegra_drm_fb_exit(struct drm_device *drm)
+{ }
+#endif
 
 extern struct platform_driver tegra_display_hub_driver;
 extern struct platform_driver tegra_dc_driver;
