@@ -140,12 +140,12 @@ static void sh7786_pci_fixup(struct pci_dev *dev)
 	 * Prevent enumeration of root complex resources.
 	 */
 	if (pci_is_root_bus(dev->bus) && dev->devfn == 0) {
-		int i;
+		struct resource *r;
 
-		for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
-			dev->resource[i].start	= 0;
-			dev->resource[i].end	= 0;
-			dev->resource[i].flags	= 0;
+		pci_dev_for_each_resource(dev, r) {
+			r->start	= 0;
+			r->end		= 0;
+			r->flags	= 0;
 		}
 	}
 }

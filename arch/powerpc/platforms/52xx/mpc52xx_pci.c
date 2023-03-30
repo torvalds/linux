@@ -327,14 +327,13 @@ mpc52xx_pci_setup(struct pci_controller *hose,
 static void
 mpc52xx_pci_fixup_resources(struct pci_dev *dev)
 {
-	int i;
+	struct resource *res;
 
 	pr_debug("%s() %.4x:%.4x\n", __func__, dev->vendor, dev->device);
 
 	/* We don't rely on boot loader for PCI and resets all
 	   devices */
-	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
-		struct resource *res = &dev->resource[i];
+	pci_dev_for_each_resource(dev, res) {
 		if (res->end > res->start) {	/* Only valid resources */
 			res->end -= res->start;
 			res->start = 0;
