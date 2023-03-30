@@ -59,7 +59,6 @@ struct arch_timer_context {
 
 	/* Duplicated state from arch_timer.c for convenience */
 	u32				host_timer_irq;
-	u32				host_timer_irq_flags;
 };
 
 struct timer_map {

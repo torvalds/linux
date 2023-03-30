@@ -30,14 +30,9 @@ static u32 host_ptimer_irq_flags;
 
 static DEFINE_STATIC_KEY_FALSE(has_gic_active_state);
 
-static const struct kvm_irq_level default_ptimer_irq = {
-	.irq	= 30,
-	.level	= 1,
-};
-
-static const struct kvm_irq_level default_vtimer_irq = {
-	.irq	= 27,
-	.level	= 1,
+static const u8 default_ppi[] = {
+	[TIMER_PTIMER]  = 30,
+	[TIMER_VTIMER]  = 27,
 };
 
 static bool kvm_timer_irq_can_fire(struct arch_timer_context *timer_ctx);
@@ -820,12 +815,14 @@ int kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu)
 	 * resets the timer to be disabled and unmasked and is compliant with
 	 * the ARMv7 architecture.
 	 */
-	timer_set_ctl(vcpu_vtimer(vcpu), 0);
-	timer_set_ctl(vcpu_ptimer(vcpu), 0);
+	for (int i = 0; i < NR_KVM_TIMERS; i++)
+		timer_set_ctl(vcpu_get_timer(vcpu, i), 0);
+
 
 	if (timer->enabled) {
-		kvm_timer_update_irq(vcpu, false, vcpu_vtimer(vcpu));
-		kvm_timer_update_irq(vcpu, false, vcpu_ptimer(vcpu));
+		for (int i = 0; i < NR_KVM_TIMERS; i++)
+			kvm_timer_update_irq(vcpu, false,
+					     vcpu_get_timer(vcpu, i));
 
 		if (irqchip_in_kernel(vcpu->kvm)) {
 			kvm_vgic_reset_mapped_irq(vcpu, map.direct_vtimer->irq.irq);
@@ -840,39 +837,47 @@ int kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+static void timer_context_init(struct kvm_vcpu *vcpu, int timerid)
+{
+	struct arch_timer_context *ctxt = vcpu_get_timer(vcpu, timerid);
+	struct kvm *kvm = vcpu->kvm;
+
+	ctxt->vcpu = vcpu;
+
+	if (timerid == TIMER_VTIMER)
+		ctxt->offset.vm_offset = &kvm->arch.timer_data.voffset;
+	else
+		ctxt->offset.vm_offset = &kvm->arch.timer_data.poffset;
+
+	hrtimer_init(&ctxt->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_HARD);
+	ctxt->hrtimer.function = kvm_hrtimer_expire;
+	ctxt->irq.irq = default_ppi[timerid];
+
+	switch (timerid) {
+	case TIMER_PTIMER:
+		ctxt->host_timer_irq = host_ptimer_irq;
+		break;
+	case TIMER_VTIMER:
+		ctxt->host_timer_irq = host_vtimer_irq;
+		break;
+	}
+}
+
 void kvm_timer_vcpu_init(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_cpu *timer = vcpu_timer(vcpu);
-	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
-	struct arch_timer_context *ptimer = vcpu_ptimer(vcpu);
 
-	vtimer->vcpu = vcpu;
-	vtimer->offset.vm_offset = &vcpu->kvm->arch.timer_data.voffset;
-	ptimer->vcpu = vcpu;
-	ptimer->offset.vm_offset = &vcpu->kvm->arch.timer_data.poffset;
+	for (int i = 0; i < NR_KVM_TIMERS; i++)
+		timer_context_init(vcpu, i);
 
 	/* Synchronize offsets across timers of a VM if not already provided */
 	if (!test_bit(KVM_ARCH_FLAG_VM_COUNTER_OFFSET, &vcpu->kvm->arch.flags)) {
-		timer_set_offset(vtimer, kvm_phys_timer_read());
-		timer_set_offset(ptimer, 0);
+		timer_set_offset(vcpu_vtimer(vcpu), kvm_phys_timer_read());
+		timer_set_offset(vcpu_ptimer(vcpu), 0);
 	}
 
 	hrtimer_init(&timer->bg_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_HARD);
 	timer->bg_timer.function = kvm_bg_timer_expire;
-
-	hrtimer_init(&vtimer->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_HARD);
-	hrtimer_init(&ptimer->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_HARD);
-	vtimer->hrtimer.function = kvm_hrtimer_expire;
-	ptimer->hrtimer.function = kvm_hrtimer_expire;
-
-	vtimer->irq.irq = default_vtimer_irq.irq;
-	ptimer->irq.irq = default_ptimer_irq.irq;
-
-	vtimer->host_timer_irq = host_vtimer_irq;
-	ptimer->host_timer_irq = host_ptimer_irq;
-
-	vtimer->host_timer_irq_flags = host_vtimer_irq_flags;
-	ptimer->host_timer_irq_flags = host_ptimer_irq_flags;
 }
 
 void kvm_timer_cpu_up(void)
