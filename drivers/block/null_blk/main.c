@@ -1030,8 +1030,8 @@ static int null_flush_cache_page(struct nullb *nullb, struct nullb_page *c_page)
 	if (!t_page)
 		return -ENOMEM;
 
-	src = kmap_atomic(c_page->page);
-	dst = kmap_atomic(t_page->page);
+	src = kmap_local_page(c_page->page);
+	dst = kmap_local_page(t_page->page);
 
 	for (i = 0; i < PAGE_SECTORS;
 			i += (nullb->dev->blocksize >> SECTOR_SHIFT)) {
@@ -1043,8 +1043,8 @@ static int null_flush_cache_page(struct nullb *nullb, struct nullb_page *c_page)
 		}
 	}
 
-	kunmap_atomic(dst);
-	kunmap_atomic(src);
+	kunmap_local(dst);
+	kunmap_local(src);
 
 	ret = radix_tree_delete_item(&nullb->dev->cache, idx, c_page);
 	null_free_page(ret);
