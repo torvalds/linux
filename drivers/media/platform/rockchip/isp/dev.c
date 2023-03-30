@@ -188,8 +188,9 @@ static int __isp_pipeline_s_isp_clk(struct rkisp_pipeline *p)
 		return 0;
 	}
 
-	if (dev->isp_inp & (INP_RAWRD0 | INP_RAWRD1 | INP_RAWRD2)) {
-		if (dev->isp_ver < ISP_V30) {
+	if (dev->isp_inp & (INP_RAWRD0 | INP_RAWRD1 | INP_RAWRD2) ||
+	    (dev->is_pre_on && hw_dev->dev_num > 1)) {
+		if (dev->isp_ver < ISP_V30 || dev->is_pre_on) {
 			/* isp with mipi no support dvfs, calculate max data rate */
 			for (i = 0; i < hw_dev->dev_num; i++) {
 				fps = hw_dev->isp_size[i].fps;

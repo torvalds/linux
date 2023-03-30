@@ -1088,7 +1088,7 @@ static int __maybe_unused rkisp_runtime_resume(struct device *dev)
 	enable_sys_clk(hw_dev);
 	for (i = 0; i < hw_dev->dev_num; i++) {
 		isp = hw_dev->isp[i];
-		if (!isp)
+		if (!isp || !isp->sw_base_addr)
 			continue;
 		buf = isp->sw_base_addr;
 		memset(buf, 0, RKISP_ISP_SW_MAX_SIZE * mult);
