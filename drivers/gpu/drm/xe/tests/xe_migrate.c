@@ -35,8 +35,9 @@ static int run_sanity_job(struct xe_migrate *m, struct xe_device *xe,
 			  struct xe_bb *bb, u32 second_idx, const char *str,
 			  struct kunit *test)
 {
+	u64 batch_base = xe_migrate_batch_base(m, xe->info.supports_usm);
 	struct xe_sched_job *job = xe_bb_create_migration_job(m->eng, bb,
-							      m->batch_base_ofs,
+							      batch_base,
 							      second_idx);
 	struct dma_fence *fence;
 
