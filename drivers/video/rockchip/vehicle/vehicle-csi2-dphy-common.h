@@ -14,6 +14,10 @@
 #include "vehicle_samsung_dcphy_common.h"
 #include "../../../media/platform/rockchip/cif/mipi-csi2.h"
 
+/* RK3562 DPHY GRF REG OFFSET */
+#define RK3562_GRF_VI_CON0	(0x0520)
+#define RK3562_GRF_VI_CON1	(0x0524)
+
 /* GRF REG OFFSET */
 #define GRF_VI_CON0	(0x0340)
 #define GRF_VI_CON1	(0x0344)
@@ -196,6 +200,18 @@ enum grf_reg_id {
 	GRF_DPHY_CSIHOST3_SEL,
 	GRF_DPHY_CSIHOST4_SEL,
 	GRF_DPHY_CSIHOST5_SEL,
+	/* below is for rv1106 only */
+	GRF_MIPI_HOST0_SEL,
+	GRF_LVDS_HOST0_SEL,
+	/* below is for rk3562 */
+	GRF_DPHY1_CLK_INV_SEL,
+	GRF_DPHY1_CLK1_INV_SEL,
+	GRF_DPHY1_CSI2PHY_CLKLANE1_EN,
+	GRF_DPHY1_CSI2PHY_FORCERXMODE,
+	GRF_DPHY1_CSI2PHY_CLKLANE_EN,
+	GRF_DPHY1_CSI2PHY_DATALANE_EN,
+	GRF_DPHY1_CSI2PHY_DATALANE_EN0,
+	GRF_DPHY1_CSI2PHY_DATALANE_EN1,
 };
 
 enum csi2dphy_reg_id {
@@ -290,6 +306,8 @@ enum csi2_dphy_chip_id {
 	CHIP_ID_RK3568 = 0x0,
 	CHIP_ID_RK3588 = 0x1,
 	CHIP_ID_RK3588_DCPHY = 0x2,
+	CHIP_ID_RV1106 = 0x3,
+	CHIP_ID_RK3562 = 0x4,
 };
 
 enum csi2_dphy_rx_pads {
@@ -357,6 +375,7 @@ struct csi2_dphy_hw {
 	u64 data_rate_mbps;
 	struct rkmodule_csi_dphy_param *dphy_param;
 	struct samsung_mipi_dcphy *samsung_phy;
+	int phy_index;
 };
 
 #endif

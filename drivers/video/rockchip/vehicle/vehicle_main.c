@@ -40,7 +40,7 @@
 #include "../../../media/platform/rockchip/cif/dev.h"
 #include "../../../phy/rockchip/phy-rockchip-csi2-dphy-common.h"
 
-#define DRIVER_VERSION		KERNEL_VERSION(0, 0x03, 0x00)
+#define DRIVER_VERSION		KERNEL_VERSION(0, 0x03, 0x02)
 
 static bool flinger_inited;
 static bool TEST_GPIO = true;

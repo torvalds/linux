@@ -68,6 +68,11 @@
  *  2.default palne Esmart3-win0
  *  3.fix rotation parameters config from dts
  *  4.add vehicle_version.h
+ * V0.0X03.0X01
+ *  1.fix bug of gpio-det if not use
+ *  2.fix some head file error
+ * V0.0X03.0X02
+ *  add rk3562 support
  */
 
 #endif

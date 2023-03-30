@@ -85,6 +85,26 @@ static const char * const rk3588_cif_rsts[] = {
 	"rst_cif_d",
 };
 
+static const char * const rk3562_cif_clks[] = {
+	"aclk_cif",
+	"hclk_cif",
+	"dclk_cif",
+	"csirx0_data",
+	"csirx1_data",
+	"csirx2_data",
+	"csirx3_data",
+};
+
+static const char * const rk3562_cif_rsts[] = {
+	"rst_cif_a",
+	"rst_cif_h",
+	"rst_cif_d",
+	"rst_cif_i0",
+	"rst_cif_i1",
+	"rst_cif_i2",
+	"rst_cif_i3",
+};
+
 //define dphy and csi clks/rst
 static struct clk_bulk_data rk3568_csi2_dphy_hw_clks[] = {
 	{ .id = "pclk" },
@@ -119,6 +139,22 @@ static struct clk_bulk_data rk3588_csi2_dcphy_clks[] = {
 static const char * const rk3588_csi2_rsts[] = {
 	"srst_csihost_p",
 	"srst_csihost_vicap",
+};
+
+static struct clk_bulk_data rk3562_csi2_dphy_hw_clks[] = {
+	{ .id = "pclk" },
+};
+
+static const char * const rk3562_csi2_dphy_hw_rsts[] = {
+	"srst_p_csiphy",
+};
+
+static struct clk_bulk_data rk3562_csi2_clks[] = {
+	{ .id = "pclk_csi2host" },
+};
+
+static const char * const rk3562_csi2_rsts[] = {
+	"srst_csihost_p",
 };
 
 //define cif regs
@@ -466,6 +502,115 @@ static const struct vehicle_cif_reg rk3588_cif_regs[] = {
 	[CIF_REG_GRF_CIFIO_CON] = CIF_REG_NAME(CIF_GRF_SOC_CON2, "CIF_REG_GRF_CIFIO_CON"),
 };
 
+static const struct vehicle_cif_reg rk3562_cif_regs[] = {
+	[CIF_REG_MIPI_LVDS_ID0_CTRL0] = CIF_REG_NAME(CSI_MIPI0_ID0_CTRL0,
+						"CIF_REG_MIPI_LVDS_ID0_CTRL0"),
+	[CIF_REG_MIPI_LVDS_ID0_CTRL1] = CIF_REG_NAME(CSI_MIPI0_ID0_CTRL1,
+						"CIF_REG_MIPI_LVDS_ID0_CTRL1"),
+	[CIF_REG_MIPI_LVDS_ID1_CTRL0] = CIF_REG_NAME(CSI_MIPI0_ID1_CTRL0,
+						"CIF_REG_MIPI_LVDS_ID1_CTRL0"),
+	[CIF_REG_MIPI_LVDS_ID1_CTRL1] = CIF_REG_NAME(CSI_MIPI0_ID1_CTRL1,
+						"CIF_REG_MIPI_LVDS_ID1_CTRL1"),
+	[CIF_REG_MIPI_LVDS_ID2_CTRL0] = CIF_REG_NAME(CSI_MIPI0_ID2_CTRL0,
+						"CIF_REG_MIPI_LVDS_ID2_CTRL0"),
+	[CIF_REG_MIPI_LVDS_ID2_CTRL1] = CIF_REG_NAME(CSI_MIPI0_ID2_CTRL1,
+						"CIF_REG_MIPI_LVDS_ID2_CTRL1"),
+	[CIF_REG_MIPI_LVDS_ID3_CTRL0] = CIF_REG_NAME(CSI_MIPI0_ID3_CTRL0,
+						"CIF_REG_MIPI_LVDS_ID3_CTRL0"),
+	[CIF_REG_MIPI_LVDS_ID3_CTRL1] = CIF_REG_NAME(CSI_MIPI0_ID3_CTRL1,
+						"CIF_REG_MIPI_LVDS_ID3_CTRL1"),
+	[CIF_REG_MIPI_LVDS_CTRL] = CIF_REG_NAME(CSI_MIPI0_CTRL, "CIF_REG_MIPI_LVDS_CTRL"),
+	[CIF_REG_MIPI_LVDS_FRAME0_ADDR_Y_ID0] = CIF_REG_NAME(CSI_MIPI0_FRM0_ADDR_Y_ID0,
+						"CIF_REG_MIPI_LVDS_FRAME0_ADDR_Y_ID0"),
+	[CIF_REG_MIPI_LVDS_FRAME1_ADDR_Y_ID0] = CIF_REG_NAME(CSI_MIPI0_FRM1_ADDR_Y_ID0,
+						"CIF_REG_MIPI_LVDS_FRAME1_ADDR_Y_ID0"),
+	[CIF_REG_MIPI_LVDS_FRAME0_ADDR_UV_ID0] = CIF_REG_NAME(CSI_MIPI0_FRM0_ADDR_UV_ID0,
+						"CIF_REG_MIPI_LVDS_FRAME0_ADDR_UV_ID0"),
+	[CIF_REG_MIPI_LVDS_FRAME1_ADDR_UV_ID0] = CIF_REG_NAME(CSI_MIPI0_FRM1_ADDR_UV_ID0,
+						"CIF_REG_MIPI_LVDS_FRAME1_ADDR_UV_ID0"),
+	[CIF_REG_MIPI_LVDS_FRAME0_VLW_Y_ID0] = CIF_REG_NAME(CSI_MIPI0_VLW_ID0,
+						"CIF_REG_MIPI_LVDS_FRAME0_VLW_Y_ID0"),
+	[CIF_REG_MIPI_LVDS_FRAME0_ADDR_Y_ID1] = CIF_REG_NAME(CSI_MIPI0_FRM0_ADDR_Y_ID1,
+						"CIF_REG_MIPI_LVDS_FRAME0_ADDR_Y_ID1"),
+	[CIF_REG_MIPI_LVDS_FRAME1_ADDR_Y_ID1] = CIF_REG_NAME(CSI_MIPI0_FRM1_ADDR_Y_ID1,
+						"CIF_REG_MIPI_LVDS_FRAME1_ADDR_Y_ID1"),
+	[CIF_REG_MIPI_LVDS_FRAME0_ADDR_UV_ID1] = CIF_REG_NAME(CSI_MIPI0_FRM0_ADDR_UV_ID1,
+						"CIF_REG_MIPI_LVDS_FRAME0_ADDR_UV_ID1"),
+	[CIF_REG_MIPI_LVDS_FRAME1_ADDR_UV_ID1] = CIF_REG_NAME(CSI_MIPI0_FRM1_ADDR_UV_ID1,
+						"CIF_REG_MIPI_LVDS_FRAME1_ADDR_UV_ID1"),
+	[CIF_REG_MIPI_LVDS_FRAME0_VLW_Y_ID1] = CIF_REG_NAME(CSI_MIPI0_VLW_ID1,
+						"CIF_REG_MIPI_LVDS_FRAME0_VLW_Y_ID1"),
+	[CIF_REG_MIPI_LVDS_FRAME0_ADDR_Y_ID2] = CIF_REG_NAME(CSI_MIPI0_FRM0_ADDR_Y_ID2,
+						"CIF_REG_MIPI_LVDS_FRAME0_ADDR_Y_ID2"),
+	[CIF_REG_MIPI_LVDS_FRAME1_ADDR_Y_ID2] = CIF_REG_NAME(CSI_MIPI0_FRM1_ADDR_Y_ID2,
+						"CIF_REG_MIPI_LVDS_FRAME1_ADDR_Y_ID2"),
+	[CIF_REG_MIPI_LVDS_FRAME0_ADDR_UV_ID2] = CIF_REG_NAME(CSI_MIPI0_FRM0_ADDR_UV_ID2,
+						"CIF_REG_MIPI_LVDS_FRAME0_ADDR_UV_ID2"),
+	[CIF_REG_MIPI_LVDS_FRAME1_ADDR_UV_ID2] = CIF_REG_NAME(CSI_MIPI0_FRM1_ADDR_UV_ID2,
+						"CIF_REG_MIPI_LVDS_FRAME1_ADDR_UV_ID2"),
+	[CIF_REG_MIPI_LVDS_FRAME0_VLW_Y_ID2] = CIF_REG_NAME(CSI_MIPI0_VLW_ID2,
+						"CIF_REG_MIPI_LVDS_FRAME0_VLW_Y_ID2"),
+	[CIF_REG_MIPI_LVDS_FRAME0_ADDR_Y_ID3] = CIF_REG_NAME(CSI_MIPI0_FRM0_ADDR_Y_ID3,
+						"CIF_REG_MIPI_LVDS_FRAME0_ADDR_Y_ID3"),
+	[CIF_REG_MIPI_LVDS_FRAME1_ADDR_Y_ID3] = CIF_REG_NAME(CSI_MIPI0_FRM1_ADDR_Y_ID3,
+						"CIF_REG_MIPI_LVDS_FRAME1_ADDR_Y_ID3"),
+	[CIF_REG_MIPI_LVDS_FRAME0_ADDR_UV_ID3] = CIF_REG_NAME(CSI_MIPI0_FRM0_ADDR_UV_ID3,
+						"CIF_REG_MIPI_LVDS_FRAME0_ADDR_UV_ID3"),
+	[CIF_REG_MIPI_LVDS_FRAME1_ADDR_UV_ID3] = CIF_REG_NAME(CSI_MIPI0_FRM1_ADDR_UV_ID3,
+						"CIF_REG_MIPI_LVDS_FRAME1_ADDR_UV_ID3"),
+	[CIF_REG_MIPI_LVDS_FRAME0_VLW_Y_ID3] = CIF_REG_NAME(CSI_MIPI0_VLW_ID3,
+						"CIF_REG_MIPI_LVDS_FRAME0_VLW_Y_ID3"),
+	[CIF_REG_MIPI_LVDS_INTEN] = CIF_REG_NAME(CSI_MIPI0_INTEN, "CIF_REG_MIPI_LVDS_INTEN"),
+	[CIF_REG_MIPI_LVDS_INTSTAT] = CIF_REG_NAME(CSI_MIPI0_INTSTAT, "CIF_REG_MIPI_LVDS_INTSTAT"),
+	[CIF_REG_MIPI_LVDS_LINE_INT_NUM_ID0_1] = CIF_REG_NAME(CSI_MIPI0_LINE_INT_NUM_ID0_1,
+						"CIF_REG_MIPI_LVDS_LINE_INT_NUM_ID0_1"),
+	[CIF_REG_MIPI_LVDS_LINE_INT_NUM_ID2_3] = CIF_REG_NAME(CSI_MIPI0_LINE_INT_NUM_ID2_3,
+						"CIF_REG_MIPI_LVDS_LINE_INT_NUM_ID2_3"),
+	[CIF_REG_MIPI_LVDS_LINE_LINE_CNT_ID0_1] = CIF_REG_NAME(CSI_MIPI0_LINE_CNT_ID0_1,
+						"CIF_REG_MIPI_LVDS_LINE_LINE_CNT_ID0_1"),
+	[CIF_REG_MIPI_LVDS_LINE_LINE_CNT_ID2_3] = CIF_REG_NAME(CSI_MIPI0_LINE_CNT_ID2_3,
+						"CIF_REG_MIPI_LVDS_LINE_LINE_CNT_ID2_3"),
+	[CIF_REG_MIPI_LVDS_ID0_CROP_START] = CIF_REG_NAME(CSI_MIPI0_ID0_CROP_START,
+						"CIF_REG_MIPI_LVDS_ID0_CROP_START"),
+	[CIF_REG_MIPI_LVDS_ID1_CROP_START] = CIF_REG_NAME(CSI_MIPI0_ID1_CROP_START,
+						"CIF_REG_MIPI_LVDS_ID1_CROP_START"),
+	[CIF_REG_MIPI_LVDS_ID2_CROP_START] = CIF_REG_NAME(CSI_MIPI0_ID2_CROP_START,
+						"CIF_REG_MIPI_LVDS_ID2_CROP_START"),
+	[CIF_REG_MIPI_LVDS_ID3_CROP_START] = CIF_REG_NAME(CSI_MIPI0_ID3_CROP_START,
+						"CIF_REG_MIPI_LVDS_ID3_CROP_START"),
+	[CIF_REG_MIPI_FRAME_NUM_VC0] = CIF_REG_NAME(CSI_MIPI0_FRAME_NUM_VC0,
+						"CIF_REG_MIPI_FRAME_NUM_VC0"),
+	[CIF_REG_MIPI_FRAME_NUM_VC1] = CIF_REG_NAME(CSI_MIPI0_FRAME_NUM_VC1,
+						"CIF_REG_MIPI_FRAME_NUM_VC1"),
+	[CIF_REG_MIPI_FRAME_NUM_VC2] = CIF_REG_NAME(CSI_MIPI0_FRAME_NUM_VC2,
+						"CIF_REG_MIPI_FRAME_NUM_VC2"),
+	[CIF_REG_MIPI_FRAME_NUM_VC3] = CIF_REG_NAME(CSI_MIPI0_FRAME_NUM_VC3,
+						"CIF_REG_MIPI_FRAME_NUM_VC3"),
+	[CIF_REG_MIPI_EFFECT_CODE_ID0] = CIF_REG_NAME(CSI_MIPI0_EFFECT_CODE_ID0,
+						"CIF_REG_MIPI_EFFECT_CODE_ID0"),
+	[CIF_REG_MIPI_EFFECT_CODE_ID1] = CIF_REG_NAME(CSI_MIPI0_EFFECT_CODE_ID1,
+						"CIF_REG_MIPI_EFFECT_CODE_ID1"),
+	[CIF_REG_MIPI_EFFECT_CODE_ID2] = CIF_REG_NAME(CSI_MIPI0_EFFECT_CODE_ID2,
+						"CIF_REG_MIPI_EFFECT_CODE_ID2"),
+	[CIF_REG_MIPI_EFFECT_CODE_ID3] = CIF_REG_NAME(CSI_MIPI0_EFFECT_CODE_ID3,
+						"CIF_REG_MIPI_EFFECT_CODE_ID3"),
+	[CIF_REG_MIPI_ON_PAD] = CIF_REG_NAME(CSI_MIPI0_ON_PAD, "CIF_REG_MIPI_ON_PAD"),
+	[CIF_REG_GLB_CTRL] = CIF_REG_NAME(GLB_CTRL, "CIF_REG_GLB_CTRL"),
+	[CIF_REG_GLB_INTEN] = CIF_REG_NAME(GLB_INTEN, "CIF_REG_GLB_INTEN"),
+	[CIF_REG_GLB_INTST] = CIF_REG_NAME(GLB_INTST, "CIF_REG_GLB_INTST"),
+	[CIF_REG_SCL_CH_CTRL] = CIF_REG_NAME(SCL_CH_CTRL, "CIF_REG_SCL_CH_CTRL"),
+	[CIF_REG_SCL_CTRL] = CIF_REG_NAME(SCL_CTRL, "CIF_REG_SCL_CTRL"),
+	[CIF_REG_SCL_FRM0_ADDR_CH0] = CIF_REG_NAME(SCL_FRM0_ADDR_CH0,
+						"CIF_REG_SCL_FRM0_ADDR_CH0"),
+	[CIF_REG_SCL_FRM1_ADDR_CH0] = CIF_REG_NAME(SCL_FRM1_ADDR_CH0,
+						"CIF_REG_SCL_FRM1_ADDR_CH0"),
+	[CIF_REG_SCL_VLW_CH0] = CIF_REG_NAME(SCL_VLW_CH0, "CIF_REG_SCL_VLW_CH0"),
+	[CIF_REG_SCL_BLC_CH0] = CIF_REG_NAME(SCL_BLC_CH0, "CIF_REG_SCL_BLC_CH0"),
+	[CIF_REG_TOISP0_CTRL] = CIF_REG_NAME(TOISP0_CH_CTRL, "CIF_REG_TOISP0_CTRL"),
+	[CIF_REG_TOISP0_SIZE] = CIF_REG_NAME(TOISP0_CROP_SIZE, "CIF_REG_TOISP0_SIZE"),
+	[CIF_REG_TOISP0_CROP] = CIF_REG_NAME(TOISP0_CROP, "CIF_REG_TOISP0_CROP"),
+};
+
 //define dphy and csi regs
 static const struct grf_reg rk3568_grf_dphy_regs[] = {
 	[GRF_DPHY_CSI2PHY_FORCERXMODE] = GRF_REG(GRF_VI_CON0, 4, 0),
@@ -596,6 +741,45 @@ static const struct csi2dphy_reg rk3588_csi2dcphy_regs[] = {
 	[CSI2PHY_S0D3_DESKEW_CON4] = CSI2PHY_REG(CSI2_DCPHY_S0D3_DESKEW_CON4),
 };
 
+static const struct grf_reg rk3562_grf_dphy_regs[] = {
+	[GRF_DPHY_CSI2PHY_FORCERXMODE] = GRF_REG(RK3562_GRF_VI_CON0, 4, 0),
+	[GRF_DPHY_CSI2PHY_DATALANE_EN] = GRF_REG(RK3562_GRF_VI_CON0, 4, 4),
+	[GRF_DPHY_CSI2PHY_DATALANE_EN0] = GRF_REG(RK3562_GRF_VI_CON0, 2, 4),
+	[GRF_DPHY_CSI2PHY_DATALANE_EN1] = GRF_REG(RK3562_GRF_VI_CON0, 2, 6),
+	[GRF_DPHY_CSI2PHY_CLKLANE_EN] = GRF_REG(RK3562_GRF_VI_CON0, 1, 8),
+	[GRF_DPHY_CLK_INV_SEL] = GRF_REG(RK3562_GRF_VI_CON0, 1, 9),
+	[GRF_DPHY_CSI2PHY_CLKLANE1_EN] = GRF_REG(RK3562_GRF_VI_CON0, 1, 10),
+	[GRF_DPHY_CLK1_INV_SEL] = GRF_REG(RK3562_GRF_VI_CON0, 1, 11),
+	[GRF_DPHY_CSI2PHY_LANE_SEL] = GRF_REG(RK3562_GRF_VI_CON0, 1, 12),
+	[GRF_DPHY_CSI2PHY1_LANE_SEL] = GRF_REG(RK3562_GRF_VI_CON0, 1, 13),
+	[GRF_DPHY1_CSI2PHY_FORCERXMODE] = GRF_REG(RK3562_GRF_VI_CON1, 4, 0),
+	[GRF_DPHY1_CSI2PHY_DATALANE_EN] = GRF_REG(RK3562_GRF_VI_CON1, 4, 4),
+	[GRF_DPHY1_CSI2PHY_DATALANE_EN0] = GRF_REG(RK3562_GRF_VI_CON1, 2, 4),
+	[GRF_DPHY1_CSI2PHY_DATALANE_EN1] = GRF_REG(RK3562_GRF_VI_CON1, 2, 6),
+	[GRF_DPHY1_CSI2PHY_CLKLANE_EN] = GRF_REG(RK3562_GRF_VI_CON1, 1, 8),
+	[GRF_DPHY1_CLK_INV_SEL] = GRF_REG(RK3562_GRF_VI_CON1, 1, 9),
+	[GRF_DPHY1_CSI2PHY_CLKLANE1_EN] = GRF_REG(RK3562_GRF_VI_CON1, 1, 10),
+	[GRF_DPHY1_CLK1_INV_SEL] = GRF_REG(RK3562_GRF_VI_CON1, 1, 11),
+};
+
+static const struct csi2dphy_reg rk3562_csi2dphy_regs[] = {
+	[CSI2PHY_REG_CTRL_LANE_ENABLE] = CSI2PHY_REG(CSI2_DPHY_CTRL_LANE_ENABLE),
+	[CSI2PHY_DUAL_CLK_EN] = CSI2PHY_REG(CSI2_DPHY_DUAL_CAL_EN),
+	[CSI2PHY_CLK_THS_SETTLE] = CSI2PHY_REG(CSI2_DPHY_CLK_WR_THS_SETTLE),
+	[CSI2PHY_CLK_CALIB_ENABLE] = CSI2PHY_REG(CSI2_DPHY_CLK_CALIB_EN),
+	[CSI2PHY_LANE0_THS_SETTLE] = CSI2PHY_REG(CSI2_DPHY_LANE0_WR_THS_SETTLE),
+	[CSI2PHY_LANE0_CALIB_ENABLE] = CSI2PHY_REG(CSI2_DPHY_LANE0_CALIB_EN),
+	[CSI2PHY_LANE1_THS_SETTLE] = CSI2PHY_REG(CSI2_DPHY_LANE1_WR_THS_SETTLE),
+	[CSI2PHY_LANE1_CALIB_ENABLE] = CSI2PHY_REG(CSI2_DPHY_LANE1_CALIB_EN),
+	[CSI2PHY_LANE2_THS_SETTLE] = CSI2PHY_REG(CSI2_DPHY_LANE2_WR_THS_SETTLE),
+	[CSI2PHY_LANE2_CALIB_ENABLE] = CSI2PHY_REG(CSI2_DPHY_LANE2_CALIB_EN),
+	[CSI2PHY_LANE3_THS_SETTLE] = CSI2PHY_REG(CSI2_DPHY_LANE3_WR_THS_SETTLE),
+	[CSI2PHY_LANE3_CALIB_ENABLE] = CSI2PHY_REG(CSI2_DPHY_LANE3_CALIB_EN),
+	[CSI2PHY_CLK1_THS_SETTLE] = CSI2PHY_REG(CSI2_DPHY_CLK1_WR_THS_SETTLE),
+	[CSI2PHY_CLK1_CALIB_ENABLE] = CSI2PHY_REG(CSI2_DPHY_CLK1_CALIB_EN),
+	[CSI2PHY_CLK1_LANE_ENABLE] = CSI2PHY_REG(CSI2_DPHY_CLK1_LANE_EN),
+};
+
 //define dcphy params
 static struct rkmodule_csi_dphy_param rk3588_dcphy_param = {
 	.vendor = PHY_VENDOR_SAMSUNG,
@@ -685,6 +869,22 @@ static struct csi2_dphy_hw rk3588_csi2_dcphy_hw = {
 	.csi2dphy_regs = rk3588_csi2dcphy_regs,
 	.grf_regs = rk3588_grf_dcphy_regs,
 	.chip_id = CHIP_ID_RK3588_DCPHY,
+};
+
+static struct csi2_dphy_hw rk3562_csi2_dphy_hw = {
+	.dphy_clks = rk3562_csi2_dphy_hw_clks,
+	.num_dphy_clks = ARRAY_SIZE(rk3562_csi2_dphy_hw_clks),
+	.dphy_rsts = rk3562_csi2_dphy_hw_rsts,
+	.num_dphy_rsts = ARRAY_SIZE(rk3562_csi2_dphy_hw_rsts),
+	.csi2_clks = rk3562_csi2_clks,
+	.num_csi2_clks = ARRAY_SIZE(rk3562_csi2_clks),
+	.csi2_rsts = rk3562_csi2_rsts,
+	.num_csi2_rsts = ARRAY_SIZE(rk3562_csi2_rsts),
+	.hsfreq_ranges = rk3568_csi2_dphy_hw_hsfreq_ranges,
+	.num_hsfreq_ranges = ARRAY_SIZE(rk3568_csi2_dphy_hw_hsfreq_ranges),
+	.csi2dphy_regs = rk3562_csi2dphy_regs,
+	.grf_regs = rk3562_grf_dphy_regs,
+	.chip_id = CHIP_ID_RK3562,
 };
 
 static const struct cif_input_fmt in_fmts[] = {
@@ -1043,10 +1243,17 @@ static void rkcif_write_reg(struct vehicle_cif *cif,
 	int csi_offset = 0;
 
 	if (cif->inf_id == RKCIF_MIPI_LVDS &&
-	   cif->chip_id == CHIP_RK3588_VEHICLE_CIF &&
-	   index >= CIF_REG_MIPI_LVDS_ID0_CTRL0 &&
-	   index <= CIF_REG_MIPI_ON_PAD)
-		csi_offset = cif->csi_host_idx * 0x100;
+	    index >= CIF_REG_MIPI_LVDS_ID0_CTRL0 &&
+	    index <= CIF_REG_MIPI_ON_PAD) {
+		if (cif->chip_id == CHIP_RK3588_VEHICLE_CIF) {
+			csi_offset = cif->csi_host_idx * 0x100;
+		} else if (cif->chip_id == CHIP_RK3562_VEHICLE_CIF) {
+			if (cif->csi_host_idx < 3)
+				csi_offset = cif->csi_host_idx * 0x200;
+			else
+				csi_offset = 0x500;
+		}
+	}
 
 	if (index < CIF_REG_INDEX_MAX) {
 		if (index == CIF_REG_DVP_CTRL ||
@@ -1070,10 +1277,17 @@ static void rkcif_write_reg_or(struct vehicle_cif *cif,
 	int csi_offset = 0;
 
 	if (cif->inf_id == RKCIF_MIPI_LVDS &&
-	   cif->chip_id == CHIP_RK3588_VEHICLE_CIF &&
-	   index >= CIF_REG_MIPI_LVDS_ID0_CTRL0 &&
-	   index <= CIF_REG_MIPI_ON_PAD)
-		csi_offset = cif->csi_host_idx * 0x100;
+	    index >= CIF_REG_MIPI_LVDS_ID0_CTRL0 &&
+	    index <= CIF_REG_MIPI_ON_PAD) {
+		if (cif->chip_id == CHIP_RK3588_VEHICLE_CIF) {
+			csi_offset = cif->csi_host_idx * 0x100;
+		} else if (cif->chip_id == CHIP_RK3562_VEHICLE_CIF) {
+			if (cif->csi_host_idx < 3)
+				csi_offset = cif->csi_host_idx * 0x200;
+			else
+				csi_offset = 0x500;
+		}
+	}
 
 	if (index < CIF_REG_INDEX_MAX) {
 		if (index == CIF_REG_DVP_CTRL ||
@@ -1099,10 +1313,17 @@ static void rkcif_write_reg_and(struct vehicle_cif *cif,
 	int csi_offset = 0;
 
 	if (cif->inf_id == RKCIF_MIPI_LVDS &&
-	   cif->chip_id == CHIP_RK3588_VEHICLE_CIF &&
-	   index >= CIF_REG_MIPI_LVDS_ID0_CTRL0 &&
-	   index <= CIF_REG_MIPI_ON_PAD)
-		csi_offset = cif->csi_host_idx * 0x100;
+	    index >= CIF_REG_MIPI_LVDS_ID0_CTRL0 &&
+	    index <= CIF_REG_MIPI_ON_PAD) {
+		if (cif->chip_id == CHIP_RK3588_VEHICLE_CIF) {
+			csi_offset = cif->csi_host_idx * 0x100;
+		} else if (cif->chip_id == CHIP_RK3562_VEHICLE_CIF) {
+			if (cif->csi_host_idx < 3)
+				csi_offset = cif->csi_host_idx * 0x200;
+			else
+				csi_offset = 0x500;
+		}
+	}
 
 	if (index < CIF_REG_INDEX_MAX) {
 		if (index == CIF_REG_DVP_CTRL ||
@@ -1128,10 +1349,17 @@ static unsigned int rkcif_read_reg(struct vehicle_cif *cif,
 	int csi_offset = 0;
 
 	if (cif->inf_id == RKCIF_MIPI_LVDS &&
-	   cif->chip_id == CHIP_RK3588_VEHICLE_CIF &&
-	   index >= CIF_REG_MIPI_LVDS_ID0_CTRL0 &&
-	   index <= CIF_REG_MIPI_ON_PAD)
-		csi_offset = cif->csi_host_idx * 0x100;
+	    index >= CIF_REG_MIPI_LVDS_ID0_CTRL0 &&
+	    index <= CIF_REG_MIPI_ON_PAD) {
+		if (cif->chip_id == CHIP_RK3588_VEHICLE_CIF) {
+			csi_offset = cif->csi_host_idx * 0x100;
+		} else if (cif->chip_id == CHIP_RK3562_VEHICLE_CIF) {
+			if (cif->csi_host_idx < 3)
+				csi_offset = cif->csi_host_idx * 0x200;
+			else
+				csi_offset = 0x500;
+		}
+	}
 
 	if (index < CIF_REG_INDEX_MAX) {
 		if (index == CIF_REG_DVP_CTRL ||
@@ -1420,22 +1648,27 @@ static void csi2_dphy_config_dual_mode(struct vehicle_cif *cif)
 {
 	struct csi2_dphy_hw *hw = cif->dphy_hw;
 	u32 val;
-	u32 phy_index = 0; //dphy0/dphy3
 
 	val = ~GRF_CSI2PHY_LANE_SEL_SPLIT;
-	if (phy_index < 3) {
+	if (cif->dphy_hw->phy_index < 3) {
 		csi2_dphy_write_grf_reg(hw, GRF_DPHY_CSI2PHY_DATALANE_EN,
 				GENMASK(cif->cif_cfg.lanes - 1, 0));
 		csi2_dphy_write_grf_reg(hw, GRF_DPHY_CSI2PHY_CLKLANE_EN, 0x1);
-		if (cif->chip_id < CHIP_RK3588_VEHICLE_CIF)
+		if (cif->chip_id != CHIP_RK3588_VEHICLE_CIF)
 			csi2_dphy_write_grf_reg(hw, GRF_DPHY_CSI2PHY_LANE_SEL, val);
 		else
 			csi2_dphy_write_sys_grf_reg(hw, GRF_DPHY_CSI2PHY_LANE_SEL, val);
 	} else {
-		csi2_dphy_write_grf_reg(hw, GRF_DPHY_CSI2PHY_DATALANE_EN,
-				GENMASK(cif->cif_cfg.lanes - 1, 0));
-		csi2_dphy_write_grf_reg(hw, GRF_DPHY_CSI2PHY_CLKLANE_EN, 0x1);
-		if (cif->chip_id < CHIP_RK3588_VEHICLE_CIF)
+		if (cif->chip_id <= CHIP_ID_RK3588) {
+			csi2_dphy_write_grf_reg(hw, GRF_DPHY_CSI2PHY_DATALANE_EN,
+					GENMASK(cif->cif_cfg.lanes - 1, 0));
+			csi2_dphy_write_grf_reg(hw, GRF_DPHY_CSI2PHY_CLKLANE_EN, 0x1);
+		} else {
+			csi2_dphy_write_grf_reg(hw, GRF_DPHY1_CSI2PHY_DATALANE_EN,
+					GENMASK(cif->cif_cfg.lanes - 1, 0));
+			csi2_dphy_write_grf_reg(hw, GRF_DPHY1_CSI2PHY_CLKLANE_EN, 0x1);
+		}
+		if (cif->chip_id != CHIP_RK3588_VEHICLE_CIF)
 			csi2_dphy_write_grf_reg(hw, GRF_DPHY_CSI2PHY1_LANE_SEL, val);
 		else
 			csi2_dphy_write_sys_grf_reg(hw, GRF_DPHY_CSI2PHY1_LANE_SEL, val);
@@ -2701,10 +2934,10 @@ static int vehicle_cif_stream_start(struct vehicle_cif *cif)
 static int cif_csi_stream_setup(struct vehicle_cif *cif)
 {
 	vehicle_csi2_stream_start(cif);
-	if (cif->dphy_hw->chip_id == CHIP_ID_RK3588)
-		vehicle_csi2_dphy_stream_start(cif);
-	else
+	if (cif->dphy_hw->chip_id == CHIP_ID_RK3588_DCPHY)
 		vehicle_csi2_dcphy_stream_start(cif);
+	else
+		vehicle_csi2_dphy_stream_start(cif);
 	vehicle_cif_stream_start(cif);
 
 	return 0;
@@ -2934,10 +3167,10 @@ static int vehicle_cif_csi_stream_stop(struct vehicle_cif *cif)
 {
 	vehicle_cif_stream_stop(cif);
 	vehicle_csi2_stream_stop(cif);
-	if (cif->dphy_hw->chip_id == CHIP_ID_RK3588)
-		vehicle_csi2_dphy_stream_stop(cif);
-	else
+	if (cif->dphy_hw->chip_id == CHIP_ID_RK3588_DCPHY)
 		vehicle_csi2_dcphy_stream_stop(cif);
+	else
+		vehicle_csi2_dphy_stream_stop(cif);
 
 	return 0;
 }
@@ -3377,7 +3610,7 @@ static int vehicle_cif_do_stop_stream(struct vehicle_cif  *cif)
 		return -1;
 
 	if (cif->cif_cfg.type == V4L2_MBUS_CSI2_DPHY) {
-		if (cif->chip_id == CHIP_RK3588_VEHICLE_CIF) {
+		if (cif->chip_id >= CHIP_RK3588_VEHICLE_CIF) {
 			vehicle_cif_csi2_s_stream_v1(cif, 0, V4L2_MBUS_CSI2_DPHY);
 			vehicle_cif_csi_stream_stop(cif);
 		} else {
@@ -3419,7 +3652,7 @@ static int vehicle_cif_do_start_stream(struct vehicle_cif  *cif)
 		vehicle_cif_csi2_dump_regs(cif);
 
 		/*  5. start stream */
-		if (cif->chip_id == CHIP_RK3588_VEHICLE_CIF)
+		if (cif->chip_id >= CHIP_RK3588_VEHICLE_CIF)
 			vehicle_cif_csi2_s_stream_v1(cif, 1, V4L2_MBUS_CSI2_DPHY);
 		else
 			vehicle_cif_csi2_s_stream(cif, 1, V4L2_MBUS_CSI2_DPHY);
@@ -4276,6 +4509,8 @@ static irqreturn_t vehicle_csirx_irq1(int irq, void *data)
 			VEHICLE_DGERR("ERR1: ecc errors, reg: 0x%x, cnt:%d\n",
 				 val, err_list->cnt);
 		}
+		if (val & CSIHOST_ERR1_ERR_CTRL)
+			VEHICLE_DGERR("ERR1: ctrl errors, reg: 0x%x\n", val);
 
 		hw->err_list[RK_CSI2_ERR_ALL].cnt++;
 		err_stat = ((hw->err_list[RK_CSI2_ERR_FS_FE_MIS].cnt & 0xff) << 8) |
@@ -4371,7 +4606,7 @@ int vehicle_cif_reverse_open(struct vehicle_cfg *v_cfg)
 		vehicle_cif_csi2_dump_regs(cif);
 
 		/*  5. start stream */
-		if (cif->chip_id == CHIP_RK3588_VEHICLE_CIF)
+		if (cif->chip_id >= CHIP_RK3588_VEHICLE_CIF)
 			vehicle_cif_csi2_s_stream_v1(cif, 1, V4L2_MBUS_CSI2_DPHY);
 		else
 			vehicle_cif_csi2_s_stream(cif, 1, V4L2_MBUS_CSI2_DPHY);
@@ -4433,7 +4668,7 @@ int vehicle_cif_reverse_close(void)
 	if (!ret) {
 		VEHICLE_DGERR("%s wait stream stop timeout!\n", __func__);
 		if (cif->cif_cfg.type == V4L2_MBUS_CSI2_DPHY) {
-			if (cif->chip_id == CHIP_RK3588_VEHICLE_CIF)
+			if (cif->chip_id >= CHIP_RK3588_VEHICLE_CIF)
 				vehicle_cif_csi2_s_stream_v1(cif, 0, V4L2_MBUS_CSI2_DPHY);
 			else
 				vehicle_cif_csi2_s_stream(cif, 0, V4L2_MBUS_CSI2_DPHY);
@@ -4501,7 +4736,7 @@ static int cif_parse_dt(struct vehicle_cif *cif)
 	if (of_property_read_u32(dev->of_node, "cif,chip-id",
 				 &cif->chip_id)) {
 		VEHICLE_INFO("%s:Get cif, chip_id failed!\n", __func__);
-		cif->chip_id = 1; //default rk3588;
+		cif->chip_id = CHIP_RK3588_VEHICLE_CIF; //default rk3588;
 	}
 
 	cif_node = of_parse_phandle(dev->of_node, "rockchip,cif", 0);
@@ -4536,8 +4771,9 @@ static int cif_parse_dt(struct vehicle_cif *cif)
 	}
 
 	if (cif->inf_id == RKCIF_MIPI_LVDS) {
-		if (!(cif->csi_host_idx == RKCIF_MIPI0_CSI2 ||
-				cif->csi_host_idx == RKCIF_MIPI1_CSI2)) {
+		if (cif->chip_id == CHIP_RK3588_VEHICLE_CIF &&
+		    !(cif->csi_host_idx == RKCIF_MIPI0_CSI2 ||
+		      cif->csi_host_idx == RKCIF_MIPI1_CSI2)) {
 			node = of_parse_phandle(phy_node, "rockchip,csi2-dphy", 0);
 			cif->csi2_dphy_base = of_iomap(node, 0);
 
@@ -4545,6 +4781,9 @@ static int cif_parse_dt(struct vehicle_cif *cif)
 				syscon_regmap_lookup_by_phandle(phy_node, "rockchip,dphy-grf");
 			if (IS_ERR(cif->regmap_dphy_grf))
 				VEHICLE_INFO("unable to get rockchip,dphy-grf\n");
+		} else if (cif->chip_id != CHIP_RK3588_VEHICLE_CIF) {
+			node = of_parse_phandle(phy_node, "rockchip,csi2-dphy", 0);
+			cif->csi2_dphy_base = of_iomap(node, 0);
 		}
 
 		cis2_node = of_parse_phandle(phy_node, "rockchip,csi2", 0);
@@ -4640,10 +4879,12 @@ int vehicle_cif_init(struct vehicle_cif *cif)
 	if (inf_id == RKCIF_MIPI_LVDS) {
 		if (cif->chip_id == CHIP_RK3588_VEHICLE_CIF) {
 			if (cif->csi_host_idx == RKCIF_MIPI0_CSI2 ||
-				cif->csi_host_idx == RKCIF_MIPI1_CSI2)
+			    cif->csi_host_idx == RKCIF_MIPI1_CSI2)
 				dphy_hw = &rk3588_csi2_dcphy_hw;
 			else
 				dphy_hw = &rk3588_csi2_dphy_hw;
+		} else if (cif->chip_id == CHIP_RK3562_VEHICLE_CIF) {
+			dphy_hw = &rk3562_csi2_dphy_hw;
 		} else {
 			dphy_hw = &rk3568_csi2_dphy_hw;
 		}
@@ -4653,6 +4894,9 @@ int vehicle_cif_init(struct vehicle_cif *cif)
 	if (cif->chip_id == CHIP_RK3588_VEHICLE_CIF) {
 		clk->clks_num = ARRAY_SIZE(rk3588_cif_clks);
 		clk->rsts_num = ARRAY_SIZE(rk3588_cif_rsts);
+	} else if (cif->chip_id == CHIP_RK3562_VEHICLE_CIF) {
+		clk->clks_num = ARRAY_SIZE(rk3562_cif_clks);
+		clk->rsts_num = ARRAY_SIZE(rk3562_cif_rsts);
 	} else {
 		clk->clks_num = ARRAY_SIZE(rk3568_cif_clks);
 		clk->rsts_num = ARRAY_SIZE(rk3568_cif_rsts);
@@ -4661,6 +4905,20 @@ int vehicle_cif_init(struct vehicle_cif *cif)
 	if (inf_id == RKCIF_MIPI_LVDS) {
 		cif->dphy_hw = dphy_hw;
 		dphy_hw->dev = cif->dev;
+		/*get phy_index*/
+		if (cif->dphy_hw->chip_id == CHIP_ID_RK3588) {
+			if (cif->csi_host_idx >= RKCIF_MIPI4_CSI2)
+				cif->dphy_hw->phy_index = 3;
+			else
+				cif->dphy_hw->phy_index = 0;
+		} else if (cif->dphy_hw->chip_id == CHIP_ID_RK3562) {
+			if (cif->csi_host_idx >= RKCIF_MIPI2_CSI2)
+				cif->dphy_hw->phy_index = 3;
+			else
+				cif->dphy_hw->phy_index = 0;
+		} else {
+			cif->dphy_hw->phy_index = 0;
+		}
 		/*get mipi dcphy*/
 		if (cif->dphy_hw->chip_id == CHIP_ID_RK3588_DCPHY) {
 			struct phy *dcphy = NULL;
@@ -4678,7 +4936,8 @@ int vehicle_cif_init(struct vehicle_cif *cif)
 			cif->dphy_hw->samsung_phy = dcphy_hw;
 		}
 		/* csi2 mipidphy rsts */
-		if (cif->dphy_hw->chip_id == CHIP_ID_RK3588) {
+		if (cif->dphy_hw->chip_id == CHIP_ID_RK3588 ||
+		    cif->dphy_hw->chip_id == CHIP_ID_RK3562) {
 			for (i = 0; i < dphy_hw->num_dphy_rsts; i++) {
 				struct reset_control *rst = NULL;
 
@@ -4744,6 +5003,17 @@ int vehicle_cif_init(struct vehicle_cif *cif)
 			clk->clks[i] = tmp_cif_clk;
 			clk->on = false;
 		}
+	} else if (cif->chip_id == CHIP_RK3562_VEHICLE_CIF) {
+		for (i = 0; i < clk->clks_num; i++) {
+			tmp_cif_clk = devm_clk_get(dev, rk3562_cif_clks[i]);
+
+			if (IS_ERR(tmp_cif_clk)) {
+				dev_err(dev, "failed to get %s\n", rk3562_cif_clks[i]);
+				return PTR_ERR(tmp_cif_clk);
+			}
+			clk->clks[i] = tmp_cif_clk;
+			clk->on = false;
+		}
 	} else {
 		for (i = 0; i < clk->clks_num; i++) {
 			tmp_cif_clk = devm_clk_get(dev, rk3568_cif_clks[i]);
@@ -4766,6 +5036,18 @@ int vehicle_cif_init(struct vehicle_cif *cif)
 				rst = devm_reset_control_get(dev, rk3588_cif_rsts[i]);
 			if (IS_ERR(rst)) {
 				dev_err(dev, "failed to get %s\n", rk3588_cif_rsts[i]);
+				return PTR_ERR(rst);
+			}
+			clk->cif_rst[i] = rst;
+		}
+	} else if (cif->chip_id == CHIP_RK3562_VEHICLE_CIF) {
+		for (i = 0; i < clk->rsts_num; i++) {
+			struct reset_control *rst = NULL;
+
+			if (rk3568_cif_rsts[i])
+				rst = devm_reset_control_get(dev, rk3562_cif_rsts[i]);
+			if (IS_ERR(rst)) {
+				dev_err(dev, "failed to get %s\n", rk3562_cif_rsts[i]);
 				return PTR_ERR(rst);
 			}
 			clk->cif_rst[i] = rst;
@@ -4794,7 +5076,7 @@ int vehicle_cif_init(struct vehicle_cif *cif)
 			vehicle_csi2_clk_ctrl(cif, 1);
 
 	/*  3. request cif irq & mipi csi irq1-2 */
-	if (cif->chip_id == CHIP_RK3588_VEHICLE_CIF) {
+	if (cif->chip_id >= CHIP_RK3588_VEHICLE_CIF) {
 		ret = request_irq(cif->irq, rk_camera_irq_v1, IRQF_SHARED, "vehicle_cif", cif);
 		if (ret < 0) {
 			VEHICLE_DGERR("request cif irq failed!\n");
@@ -4828,12 +5110,15 @@ int vehicle_cif_init(struct vehicle_cif *cif)
 	/*  4. set cif regs */
 	if (cif->chip_id == CHIP_RK3588_VEHICLE_CIF)
 		cif->cif_regs = rk3588_cif_regs;
+	else if (cif->chip_id == CHIP_RK3562_VEHICLE_CIF)
+		cif->cif_regs = rk3562_cif_regs;
 	else
 		cif->cif_regs = rk3568_cif_regs;
 
 	if (inf_id == RKCIF_MIPI_LVDS) {
 		/* 5. set csi2-mipi-dphy reg */
-		if (cif->dphy_hw->chip_id == CHIP_ID_RK3588)
+		if (cif->dphy_hw->chip_id == CHIP_ID_RK3588 ||
+		    cif->dphy_hw->chip_id == CHIP_ID_RK3562)
 			cif->dphy_hw->csi2_dphy_base = cif->csi2_dphy_base;
 
 		/* 7. set mipi-csi2 reg */
@@ -4906,7 +5191,8 @@ int vehicle_cif_deinit(struct vehicle_cif *cif)
 		for (i = 0; i < dphy_hw->num_dphy_clks; i++)
 			clk_put(dphy_hw->dphy_clks[i].clk);
 		/* dphy rsts release */
-		if (cif->dphy_hw->chip_id == CHIP_ID_RK3588) {
+		if (cif->dphy_hw->chip_id == CHIP_ID_RK3588 ||
+		    cif->dphy_hw->chip_id == CHIP_ID_RK3562) {
 			for (i = 0; i < dphy_hw->num_dphy_rsts; i++)
 				reset_control_put(dphy_hw->dphy_rst[i]);
 		}
