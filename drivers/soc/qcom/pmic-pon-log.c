@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2020-2021, The Linux Foundation. All rights reserved. */
-/* Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved. */
+/* Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved. */
 
 #include <linux/err.h>
 #include <linux/ipc_logging.h>
@@ -174,10 +174,20 @@ static const struct pmic_pon_trigger_mapping pmic_pon_pon_trigger_map[] = {
 	{0x0085, "HARD_RESET"},
 	{0x0086, "RESIN_N"},
 	{0x0087, "KPDPWR_N"},
+	/* PM5100 USB PON trigger */
+	{0x0202, "USB_CHARGER"},
 	{0x0621, "RTC_ALARM"},
 	{0x0640, "SMPL"},
+	/* PMX75 USB PON trigger */
+	{0x18A0, "USB_CHARGER"},
 	{0x18C0, "PMIC_SID1_GPIO5"},
+	/* PMI632 USB PON trigger */
+	{0x2763, "USB_CHARGER"},
+	/* PM8350B USB PON trigger */
 	{0x31C2, "USB_CHARGER"},
+	/* PM8550B USB PON trigger */
+	/* PM7550BA USB PON trigger */
+	{0x71C2, "USB_CHARGER"},
 	/* PM7250B USB PON trigger */
 	{0x8732, "USB_CHARGER"},
 };
