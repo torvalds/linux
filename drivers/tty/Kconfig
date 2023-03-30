@@ -160,7 +160,7 @@ config LEGACY_TIOCSTI
 	  a dangerous legacy operation, and can be disabled on most
 	  systems.
 
-	  Say 'Y here only if you have confirmed that your system's
+	  Say Y here only if you have confirmed that your system's
 	  userspace depends on this functionality to continue operating
 	  normally.
 
