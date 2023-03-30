@@ -2434,7 +2434,7 @@ int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
 	if (unlikely(!entries))
 		return 0;
 	/* make sure SQ entry isn't read before tail */
-	ret = left = min3(nr, ctx->sq_entries, entries);
+	ret = left = min(nr, entries);
 	io_get_task_refs(left);
 	io_submit_state_start(&ctx->submit_state, left);
 

@@ -262,9 +262,11 @@ static inline bool io_sqring_full(struct io_ring_ctx *ctx)
 static inline unsigned int io_sqring_entries(struct io_ring_ctx *ctx)
 {
 	struct io_rings *rings = ctx->rings;
+	unsigned int entries;
 
 	/* make sure SQ entry isn't read before tail */
-	return smp_load_acquire(&rings->sq.tail) - ctx->cached_sq_head;
+	entries = smp_load_acquire(&rings->sq.tail) - ctx->cached_sq_head;
+	return min(entries, ctx->sq_entries);
 }
 
 static inline int io_run_task_work(void)
