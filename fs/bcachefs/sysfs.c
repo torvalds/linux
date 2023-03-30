@@ -602,12 +602,12 @@ SHOW(bch2_fs_counters)
 			counter_since_mount = counter - c->counters_on_mount[BCH_COUNTER_##t];\
 			prt_printf(out, "since mount:");				\
 			prt_tab(out);						\
-			prt_human_readable_u64(out, counter_since_mount << 9);	\
+			prt_human_readable_u64(out, counter_since_mount);	\
 			prt_newline(out);					\
 										\
 			prt_printf(out, "since filesystem creation:");		\
 			prt_tab(out);						\
-			prt_human_readable_u64(out, counter << 9);		\
+			prt_human_readable_u64(out, counter);			\
 			prt_newline(out);					\
 		}
 	BCH_PERSISTENT_COUNTERS()
