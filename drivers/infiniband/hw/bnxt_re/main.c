@@ -1332,6 +1332,27 @@ exit:
 	return rc;
 }
 
+static void bnxt_re_setup_cc(struct bnxt_re_dev *rdev, bool enable)
+{
+	struct bnxt_qplib_cc_param cc_param = {};
+
+	/* Currently enabling only for GenP5 adapters */
+	if (!bnxt_qplib_is_chip_gen_p5(rdev->chip_ctx))
+		return;
+
+	if (enable) {
+		cc_param.enable  = 1;
+		cc_param.cc_mode = CMDQ_MODIFY_ROCE_CC_CC_MODE_PROBABILISTIC_CC_MODE;
+	}
+
+	cc_param.mask = (CMDQ_MODIFY_ROCE_CC_MODIFY_MASK_CC_MODE |
+			 CMDQ_MODIFY_ROCE_CC_MODIFY_MASK_ENABLE_CC |
+			 CMDQ_MODIFY_ROCE_CC_MODIFY_MASK_TOS_ECN);
+
+	if (bnxt_qplib_modify_cc(&rdev->qplib_res, &cc_param))
+		ibdev_err(&rdev->ibdev, "Failed to setup CC enable = %d\n", enable);
+}
+
 /*
  * "Notifier chain callback can be invoked for the same chain from
  * different CPUs at the same time".
@@ -1400,7 +1421,7 @@ static void bnxt_re_remove(struct auxiliary_device *adev)
 		 */
 		goto skip_remove;
 	}
-
+	bnxt_re_setup_cc(rdev, false);
 	ib_unregister_device(&rdev->ibdev);
 	ib_dealloc_device(&rdev->ibdev);
 	bnxt_re_dev_uninit(rdev);
@@ -1432,6 +1453,7 @@ static int bnxt_re_probe(struct auxiliary_device *adev,
 		goto err;
 	}
 
+	bnxt_re_setup_cc(rdev, true);
 	mutex_unlock(&bnxt_re_mutex);
 	return 0;
 

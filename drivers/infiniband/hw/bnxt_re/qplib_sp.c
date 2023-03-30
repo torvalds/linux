@@ -48,6 +48,7 @@
 #include "qplib_res.h"
 #include "qplib_rcfw.h"
 #include "qplib_sp.h"
+#include "qplib_tlv.h"
 
 const struct bnxt_qplib_gid bnxt_qplib_gid_zero = {{ 0, 0, 0, 0, 0, 0, 0, 0,
 						     0, 0, 0, 0, 0, 0, 0, 0 } };
@@ -847,5 +848,113 @@ int bnxt_qplib_qext_stat(struct bnxt_qplib_rcfw *rcfw, u32 fid,
 
 bail:
 	bnxt_qplib_rcfw_free_sbuf(rcfw, sbuf);
+	return rc;
+}
+
+static void bnxt_qplib_fill_cc_gen1(struct cmdq_modify_roce_cc_gen1_tlv *ext_req,
+				    struct bnxt_qplib_cc_param_ext *cc_ext)
+{
+	ext_req->modify_mask = cpu_to_le64(cc_ext->ext_mask);
+	cc_ext->ext_mask = 0;
+	ext_req->inactivity_th_hi = cpu_to_le16(cc_ext->inact_th_hi);
+	ext_req->min_time_between_cnps = cpu_to_le16(cc_ext->min_delta_cnp);
+	ext_req->init_cp = cpu_to_le16(cc_ext->init_cp);
+	ext_req->tr_update_mode = cc_ext->tr_update_mode;
+	ext_req->tr_update_cycles = cc_ext->tr_update_cyls;
+	ext_req->fr_num_rtts = cc_ext->fr_rtt;
+	ext_req->ai_rate_increase = cc_ext->ai_rate_incr;
+	ext_req->reduction_relax_rtts_th = cpu_to_le16(cc_ext->rr_rtt_th);
+	ext_req->additional_relax_cr_th = cpu_to_le16(cc_ext->ar_cr_th);
+	ext_req->cr_min_th = cpu_to_le16(cc_ext->cr_min_th);
+	ext_req->bw_avg_weight = cc_ext->bw_avg_weight;
+	ext_req->actual_cr_factor = cc_ext->cr_factor;
+	ext_req->max_cp_cr_th = cpu_to_le16(cc_ext->cr_th_max_cp);
+	ext_req->cp_bias_en = cc_ext->cp_bias_en;
+	ext_req->cp_bias = cc_ext->cp_bias;
+	ext_req->cnp_ecn = cc_ext->cnp_ecn;
+	ext_req->rtt_jitter_en = cc_ext->rtt_jitter_en;
+	ext_req->link_bytes_per_usec = cpu_to_le16(cc_ext->bytes_per_usec);
+	ext_req->reset_cc_cr_th = cpu_to_le16(cc_ext->cc_cr_reset_th);
+	ext_req->cr_width = cc_ext->cr_width;
+	ext_req->quota_period_min = cc_ext->min_quota;
+	ext_req->quota_period_max = cc_ext->max_quota;
+	ext_req->quota_period_abs_max = cc_ext->abs_max_quota;
+	ext_req->tr_lower_bound = cpu_to_le16(cc_ext->tr_lb);
+	ext_req->cr_prob_factor = cc_ext->cr_prob_fac;
+	ext_req->tr_prob_factor = cc_ext->tr_prob_fac;
+	ext_req->fairness_cr_th = cpu_to_le16(cc_ext->fair_cr_th);
+	ext_req->red_div = cc_ext->red_div;
+	ext_req->cnp_ratio_th = cc_ext->cnp_ratio_th;
+	ext_req->exp_ai_rtts = cpu_to_le16(cc_ext->ai_ext_rtt);
+	ext_req->exp_ai_cr_cp_ratio = cc_ext->exp_crcp_ratio;
+	ext_req->use_rate_table = cc_ext->low_rate_en;
+	ext_req->cp_exp_update_th = cpu_to_le16(cc_ext->cpcr_update_th);
+	ext_req->high_exp_ai_rtts_th1 = cpu_to_le16(cc_ext->ai_rtt_th1);
+	ext_req->high_exp_ai_rtts_th2 = cpu_to_le16(cc_ext->ai_rtt_th2);
+	ext_req->actual_cr_cong_free_rtts_th = cpu_to_le16(cc_ext->cf_rtt_th);
+	ext_req->severe_cong_cr_th1 = cpu_to_le16(cc_ext->sc_cr_th1);
+	ext_req->severe_cong_cr_th2 = cpu_to_le16(cc_ext->sc_cr_th2);
+	ext_req->link64B_per_rtt = cpu_to_le32(cc_ext->l64B_per_rtt);
+	ext_req->cc_ack_bytes = cc_ext->cc_ack_bytes;
+}
+
+int bnxt_qplib_modify_cc(struct bnxt_qplib_res *res,
+			 struct bnxt_qplib_cc_param *cc_param)
+{
+	struct bnxt_qplib_tlv_modify_cc_req tlv_req = {};
+	struct creq_modify_roce_cc_resp resp = {};
+	struct bnxt_qplib_cmdqmsg msg = {};
+	struct cmdq_modify_roce_cc *req;
+	int req_size;
+	void *cmd;
+	int rc;
+
+	/* Prepare the older base command */
+	req = &tlv_req.base_req;
+	cmd = req;
+	req_size = sizeof(*req);
+	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)req, CMDQ_BASE_OPCODE_MODIFY_ROCE_CC,
+				 sizeof(*req));
+	req->modify_mask = cpu_to_le32(cc_param->mask);
+	req->enable_cc = cc_param->enable;
+	req->g = cc_param->g;
+	req->num_phases_per_state = cc_param->nph_per_state;
+	req->time_per_phase = cc_param->time_pph;
+	req->pkts_per_phase = cc_param->pkts_pph;
+	req->init_cr = cpu_to_le16(cc_param->init_cr);
+	req->init_tr = cpu_to_le16(cc_param->init_tr);
+	req->tos_dscp_tos_ecn = (cc_param->tos_dscp << CMDQ_MODIFY_ROCE_CC_TOS_DSCP_SFT) |
+				(cc_param->tos_ecn & CMDQ_MODIFY_ROCE_CC_TOS_ECN_MASK);
+	req->alt_vlan_pcp = cc_param->alt_vlan_pcp;
+	req->alt_tos_dscp = cpu_to_le16(cc_param->alt_tos_dscp);
+	req->rtt = cpu_to_le16(cc_param->rtt);
+	req->tcp_cp = cpu_to_le16(cc_param->tcp_cp);
+	req->cc_mode = cc_param->cc_mode;
+	req->inactivity_th = cpu_to_le16(cc_param->inact_th);
+
+	/* For chip gen P5 onwards fill extended cmd and header */
+	if (bnxt_qplib_is_chip_gen_p5(res->cctx)) {
+		struct roce_tlv *hdr;
+		u32 payload;
+		u32 chunks;
+
+		cmd = &tlv_req;
+		req_size = sizeof(tlv_req);
+		/* Prepare primary tlv header */
+		hdr = &tlv_req.tlv_hdr;
+		chunks = CHUNKS(sizeof(struct bnxt_qplib_tlv_modify_cc_req));
+		payload = sizeof(struct cmdq_modify_roce_cc);
+		__roce_1st_tlv_prep(hdr, chunks, payload, true);
+		/* Prepare secondary tlv header */
+		hdr = (struct roce_tlv *)&tlv_req.ext_req;
+		payload = sizeof(struct cmdq_modify_roce_cc_gen1_tlv) -
+			  sizeof(struct roce_tlv);
+		__roce_ext_tlv_prep(hdr, TLV_TYPE_MODIFY_ROCE_CC_GEN1, payload, false, true);
+		bnxt_qplib_fill_cc_gen1(&tlv_req.ext_req, &cc_param->cc_ext);
+	}
+
+	bnxt_qplib_fill_cmdqmsg(&msg, cmd, &resp, NULL, req_size,
+				sizeof(resp), 0);
+	rc = bnxt_qplib_rcfw_send_message(res->rcfw, &msg);
 	return rc;
 }

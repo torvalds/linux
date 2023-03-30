@@ -96,7 +96,7 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw,
 	u32 sw_prod, cmdq_prod;
 	struct pci_dev *pdev;
 	unsigned long flags;
-	u32 size, opcode;
+	u32 bsize, opcode;
 	u16 cookie, cbit;
 	u8 *preq;
 
@@ -145,15 +145,14 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw,
 		return -EBUSY;
 	}
 
-	size = msg->req->cmd_size;
 	/* change the cmd_size to the number of 16byte cmdq unit.
 	 * req->cmd_size is modified here
 	 */
-	bnxt_qplib_set_cmd_slots(msg->req);
+	bsize = bnxt_qplib_set_cmd_slots(msg->req);
 
 	memset(msg->resp, 0, sizeof(*msg->resp));
 	crsqe->resp = (struct creq_qp_event *)msg->resp;
-	crsqe->resp->cookie = msg->req->cookie;
+	crsqe->resp->cookie = cpu_to_le16(cookie);
 	crsqe->req_size = __get_cmdq_base_cmd_size(msg->req, msg->req_sz);
 	if (__get_cmdq_base_resp_size(msg->req, msg->req_sz) && msg->sb) {
 		struct bnxt_qplib_rcfw_sbuf *sbuf = msg->sb;
@@ -174,11 +173,11 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw,
 		}
 		/* Copy a segment of the req cmd to the cmdq */
 		memset(cmdqe, 0, sizeof(*cmdqe));
-		memcpy(cmdqe, preq, min_t(u32, size, sizeof(*cmdqe)));
-		preq += min_t(u32, size, sizeof(*cmdqe));
-		size -= min_t(u32, size, sizeof(*cmdqe));
+		memcpy(cmdqe, preq, min_t(u32, bsize, sizeof(*cmdqe)));
+		preq += min_t(u32, bsize, sizeof(*cmdqe));
+		bsize -= min_t(u32, bsize, sizeof(*cmdqe));
 		hwq->prod++;
-	} while (size > 0);
+	} while (bsize > 0);
 	cmdq->seq_num++;
 
 	cmdq_prod = hwq->prod;

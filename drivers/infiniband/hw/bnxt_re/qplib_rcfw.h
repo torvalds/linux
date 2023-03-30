@@ -39,6 +39,8 @@
 #ifndef __BNXT_QPLIB_RCFW_H__
 #define __BNXT_QPLIB_RCFW_H__
 
+#include "qplib_tlv.h"
+
 #define RCFW_CMDQ_TRIG_VAL		1
 #define RCFW_COMM_PCI_BAR_REGION	0
 #define RCFW_COMM_CONS_PCI_BAR_REGION	2
@@ -87,11 +89,21 @@ static inline u32 bnxt_qplib_cmdqe_page_size(u32 depth)
 	return (bnxt_qplib_cmdqe_npages(depth) * PAGE_SIZE);
 }
 
-/* Set the cmd_size to a factor of CMDQE unit */
-static inline void bnxt_qplib_set_cmd_slots(struct cmdq_base *req)
+static inline u32 bnxt_qplib_set_cmd_slots(struct cmdq_base *req)
 {
-	req->cmd_size = (req->cmd_size + BNXT_QPLIB_CMDQE_UNITS - 1) /
-			 BNXT_QPLIB_CMDQE_UNITS;
+	u32 cmd_byte = 0;
+
+	if (HAS_TLV_HEADER(req)) {
+		struct roce_tlv *tlv_req = (struct roce_tlv *)req;
+
+		cmd_byte = tlv_req->total_size * BNXT_QPLIB_CMDQE_UNITS;
+	} else {
+		cmd_byte = req->cmd_size;
+		req->cmd_size = (req->cmd_size + BNXT_QPLIB_CMDQE_UNITS - 1) /
+				 BNXT_QPLIB_CMDQE_UNITS;
+	}
+
+	return cmd_byte;
 }
 
 #define RCFW_MAX_COOKIE_VALUE		0x7FFF
