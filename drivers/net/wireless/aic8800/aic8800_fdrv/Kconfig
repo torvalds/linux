@@ -1,0 +1,36 @@
+config AIC8800_WLAN_SUPPORT
+	tristate "AIC8800 wlan Support"
+	help
+	  This is support for aic wifi driver.
+
+#choice
+#        depends on AIC8800_WLAN_SUPPORT
+#        prompt "Select 8800 support platform"
+#
+#        config PLATFORM_ROCHCHIP
+#                bool "PLATFORM_ROCHCHIP"
+#                depends on AIC8800_WLAN_SUPPORT
+#
+#	config PLATFORM_ALLWINNER
+#                bool "PLATFORM_ALLWINNER"
+#                depends on AIC8800_WLAN_SUPPORT
+#
+#        config PLATFORM_AMLOGIC
+#                bool "PLATFORM_AMLOGIC"
+#                depends on AIC8800_WLAN_SUPPORT
+#
+#        config PLATFORM_UBUNTU
+#                bool "PLATFORM_UBUNTU"
+#                depends on AIC8800_WLAN_SUPPORT
+#
+#endchoice
+#
+#config USE_5G
+#	bool "AIC8800 force enable 5G"
+#        ---help---
+#          This is parameter that force enable 5G.
+#
+#config HE_FOR_OLD_KERNEL
+#	bool "AIC8800 support AX for old kernel"
+#        ---help---
+#          This is parameter that enable AX for old kernel.

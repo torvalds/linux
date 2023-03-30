@@ -1,0 +1,5 @@
+config AIC_LOADFW_SUPPORT
+	tristate "AIC8800 Load Firmware Support"
+	help
+	  This is support for aic load firmware driver.
+

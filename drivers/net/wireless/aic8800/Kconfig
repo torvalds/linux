@@ -1,0 +1,10 @@
+config AIC_WLAN_SUPPORT
+	bool "AIC wireless Support"
+	default n
+	help
+	  This is support for aic wireless chip.
+
+if AIC_WLAN_SUPPORT
+source "drivers/net/wireless/aic8800/aic8800_fdrv/Kconfig"
+source "drivers/net/wireless/aic8800/aic_load_fw/Kconfig"
+endif
