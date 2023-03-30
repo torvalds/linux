@@ -151,6 +151,9 @@ struct psi_trigger {
 
 	/* Deferred event(s) from previous ratelimit window */
 	bool pending_event;
+
+	/* Trigger type - PSI_AVGS for unprivileged, PSI_POLL for RT */
+	enum psi_aggregators aggregator;
 };
 
 struct psi_group {
@@ -170,6 +173,10 @@ struct psi_group {
 
 	/* Aggregator work control */
 	struct delayed_work avgs_work;
+
+	/* Unprivileged triggers against N*PSI_FREQ windows */
+	struct list_head avg_triggers;
+	u32 avg_nr_triggers[NR_PSI_STATES - 1];
 
 	/* Total stall times and sampled pressure averages */
 	u64 total[NR_PSI_AGGREGATORS][NR_PSI_STATES - 1];
