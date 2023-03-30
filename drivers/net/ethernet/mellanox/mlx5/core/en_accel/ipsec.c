@@ -283,6 +283,11 @@ static int mlx5e_xfrm_validate_state(struct mlx5_core_dev *mdev,
 			NL_SET_ERR_MSG_MOD(extack, "Hard packet limit must be greater than soft one");
 			return -EINVAL;
 		}
+
+		if (!x->lft.soft_packet_limit || !x->lft.hard_packet_limit) {
+			NL_SET_ERR_MSG_MOD(extack, "Soft/hard packet limits can't be 0");
+			return -EINVAL;
+		}
 		break;
 	default:
 		NL_SET_ERR_MSG_MOD(extack, "Unsupported xfrm offload type");
