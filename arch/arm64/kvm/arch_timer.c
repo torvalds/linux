@@ -52,6 +52,11 @@ static bool has_cntpoff(void)
 	return (has_vhe() && cpus_have_final_cap(ARM64_HAS_ECV_CNTPOFF));
 }
 
+static int nr_timers(struct kvm_vcpu *vcpu)
+{
+	return NR_KVM_TIMERS;
+}
+
 u32 timer_get_ctl(struct arch_timer_context *ctxt)
 {
 	struct kvm_vcpu *vcpu = ctxt->vcpu;
@@ -255,7 +260,7 @@ static u64 kvm_timer_earliest_exp(struct kvm_vcpu *vcpu)
 	u64 min_delta = ULLONG_MAX;
 	int i;
 
-	for (i = 0; i < NR_KVM_TIMERS; i++) {
+	for (i = 0; i < nr_timers(vcpu); i++) {
 		struct arch_timer_context *ctx = &vcpu->arch.timer_cpu.timers[i];
 
 		WARN(ctx->loaded, "timer %d loaded\n", i);
@@ -815,12 +820,12 @@ int kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu)
 	 * resets the timer to be disabled and unmasked and is compliant with
 	 * the ARMv7 architecture.
 	 */
-	for (int i = 0; i < NR_KVM_TIMERS; i++)
+	for (int i = 0; i < nr_timers(vcpu); i++)
 		timer_set_ctl(vcpu_get_timer(vcpu, i), 0);
 
 
 	if (timer->enabled) {
-		for (int i = 0; i < NR_KVM_TIMERS; i++)
+		for (int i = 0; i < nr_timers(vcpu); i++)
 			kvm_timer_update_irq(vcpu, false,
 					     vcpu_get_timer(vcpu, i));
 
@@ -1303,7 +1308,7 @@ static bool timer_irqs_are_valid(struct kvm_vcpu *vcpu)
 
 	mutex_lock(&vcpu->kvm->arch.timer_data.lock);
 
-	for (int i = 0; i < NR_KVM_TIMERS; i++) {
+	for (int i = 0; i < nr_timers(vcpu); i++) {
 		struct arch_timer_context *ctx;
 		int irq;
 
@@ -1319,7 +1324,7 @@ static bool timer_irqs_are_valid(struct kvm_vcpu *vcpu)
 		ppis |= BIT(irq);
 	}
 
-	valid = hweight32(ppis) == NR_KVM_TIMERS;
+	valid = hweight32(ppis) == nr_timers(vcpu);
 
 	if (valid)
 		set_bit(KVM_ARCH_FLAG_TIMER_PPIS_IMMUTABLE, &vcpu->kvm->arch.flags);
@@ -1336,7 +1341,7 @@ bool kvm_arch_timer_get_input_level(int vintid)
 	if (WARN(!vcpu, "No vcpu context!\n"))
 		return false;
 
-	for (int i = 0; i < NR_KVM_TIMERS; i++) {
+	for (int i = 0; i < nr_timers(vcpu); i++) {
 		struct arch_timer_context *ctx;
 
 		ctx = vcpu_get_timer(vcpu, i);
