@@ -1155,6 +1155,7 @@ static void dw_i3c_master_set_sir_enabled(struct dw_i3c_master *master,
 	} else {
 		reg |= DEV_ADDR_TABLE_SIR_REJECT;
 	}
+	master->platform_ops->set_dat_ibi(master, dev, enable, &reg);
 	writel(reg, master->regs + dat_entry);
 
 	reg = readl(master->regs + IBI_SIR_REQ_REJECT);
@@ -1246,6 +1247,17 @@ static void dw_i3c_master_handle_ibi_sir(struct dw_i3c_master *master,
 
 	addr = IBI_QUEUE_IBI_ADDR(status);
 	len = IBI_QUEUE_STATUS_DATA_LEN(status);
+
+	/*
+	 * We be tempted to check the error status in bit 30; however, due
+	 * to the PEC errata workaround on some platform implementations (see
+	 * ast2600_i3c_set_dat_ibi()), those will almost always have a PEC
+	 * error on IBI payload data, as well as losing the last byte of
+	 * payload.
+	 *
+	 * If we implement error status checking on that bit, we may need
+	 * a new platform op to validate it.
+	 */
 
 	spin_lock_irqsave(&master->devs_lock, flags);
 	idx = dw_i3c_master_get_addr_pos(master, addr);
@@ -1387,8 +1399,15 @@ static int dw_i3c_platform_init_nop(struct dw_i3c_master *i3c)
 	return 0;
 }
 
+static void dw_i3c_platform_set_dat_ibi_nop(struct dw_i3c_master *i3c,
+					struct i3c_dev_desc *dev,
+					bool enable, u32 *dat)
+{
+}
+
 static const struct dw_i3c_platform_ops dw_i3c_platform_ops_default = {
 	.init = dw_i3c_platform_init_nop,
+	.set_dat_ibi = dw_i3c_platform_set_dat_ibi_nop,
 };
 
 int dw_i3c_common_probe(struct dw_i3c_master *master,

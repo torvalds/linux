@@ -66,6 +66,16 @@ struct dw_i3c_platform_ops {
 	 * perform actual device enabling with the i3c core ready.
 	 */
 	int (*init)(struct dw_i3c_master *i3c);
+
+	/*
+	 * Initialise a DAT entry to enable/disable IBIs. Allows the platform
+	 * to perform any device workarounds on the DAT entry before
+	 * inserting into the hardware table.
+	 *
+	 * Called with the DAT lock held; must not sleep.
+	 */
+	void (*set_dat_ibi)(struct dw_i3c_master *i3c,
+			    struct i3c_dev_desc *dev, bool enable, u32 *reg);
 };
 
 extern int dw_i3c_common_probe(struct dw_i3c_master *master,
