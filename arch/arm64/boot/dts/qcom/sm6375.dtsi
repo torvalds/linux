@@ -1209,6 +1209,7 @@
 			clock-names = "xo";
 
 			power-domains = <&rpmpd SM6375_VDDCX>;
+			power-domain-names = "cx";
 
 			memory-region = <&pil_cdsp_mem>;
 

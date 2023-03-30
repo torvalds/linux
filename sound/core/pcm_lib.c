@@ -2155,6 +2155,8 @@ int pcm_lib_apply_appl_ptr(struct snd_pcm_substream *substream,
 		ret = substream->ops->ack(substream);
 		if (ret < 0) {
 			runtime->control->appl_ptr = old_appl_ptr;
+			if (ret == -EPIPE)
+				__snd_pcm_xrun(substream);
 			return ret;
 		}
 	}
