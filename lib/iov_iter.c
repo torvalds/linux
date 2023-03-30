@@ -1735,18 +1735,35 @@ uaccess_end:
 }
 
 static int copy_iovec_from_user(struct iovec *iov,
-		const struct iovec __user *uvec, unsigned long nr_segs)
+		const struct iovec __user *uiov, unsigned long nr_segs)
 {
-	unsigned long seg;
+	int ret = -EFAULT;
 
-	if (copy_from_user(iov, uvec, nr_segs * sizeof(*uvec)))
+	if (!user_access_begin(uiov, nr_segs * sizeof(*uiov)))
 		return -EFAULT;
-	for (seg = 0; seg < nr_segs; seg++) {
-		if ((ssize_t)iov[seg].iov_len < 0)
-			return -EINVAL;
-	}
 
-	return 0;
+	do {
+		void __user *buf;
+		ssize_t len;
+
+		unsafe_get_user(len, &uiov->iov_len, uaccess_end);
+		unsafe_get_user(buf, &uiov->iov_base, uaccess_end);
+
+		/* check for size_t not fitting in ssize_t .. */
+		if (unlikely(len < 0)) {
+			ret = -EINVAL;
+			goto uaccess_end;
+		}
+		iov->iov_base = buf;
+		iov->iov_len = len;
+
+		uiov++; iov++;
+	} while (--nr_segs);
+
+	ret = 0;
+uaccess_end:
+	user_access_end();
+	return ret;
 }
 
 struct iovec *iovec_from_user(const struct iovec __user *uvec,
@@ -1771,7 +1788,7 @@ struct iovec *iovec_from_user(const struct iovec __user *uvec,
 			return ERR_PTR(-ENOMEM);
 	}
 
-	if (compat)
+	if (unlikely(compat))
 		ret = copy_compat_iovec_from_user(iov, uvec, nr_segs);
 	else
 		ret = copy_iovec_from_user(iov, uvec, nr_segs);
