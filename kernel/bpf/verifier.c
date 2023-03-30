@@ -7204,6 +7204,10 @@ found:
 		}
 		break;
 	}
+	case PTR_TO_BTF_ID | PTR_MAYBE_NULL:
+	case PTR_TO_BTF_ID | PTR_MAYBE_NULL | MEM_RCU:
+		verbose(env, "Possibly NULL pointer passed to helper arg%d\n", regno);
+		return -EACCES;
 	case PTR_TO_BTF_ID | MEM_ALLOC:
 		if (meta->func_id != BPF_FUNC_spin_lock && meta->func_id != BPF_FUNC_spin_unlock &&
 		    meta->func_id != BPF_FUNC_kptr_xchg) {
