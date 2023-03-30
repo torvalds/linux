@@ -309,8 +309,9 @@
   icc_node_add
   icc_node_create
   icc_nodes_remove
-  icc_provider_add
-  icc_provider_del
+  icc_provider_deregister
+  icc_provider_init
+  icc_provider_register
   icc_set_bw
   icc_sync_state
   ida_alloc_range
@@ -1753,6 +1754,10 @@
 # required by qcom_usb_vbus-regulator.ko
   regulator_get_current_limit_regmap
   regulator_set_current_limit_regmap
+
+# required by qnoc-sm8450.ko
+  icc_provider_add
+  icc_provider_del
 
 # required by qrtr-tun.ko
   _copy_to_iter

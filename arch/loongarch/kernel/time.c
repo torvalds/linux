@@ -135,16 +135,17 @@ static int get_timer_irq(void)
 
 int constant_clockevent_init(void)
 {
-	int irq;
 	unsigned int cpu = smp_processor_id();
 	unsigned long min_delta = 0x600;
 	unsigned long max_delta = (1UL << 48) - 1;
 	struct clock_event_device *cd;
-	static int timer_irq_installed = 0;
+	static int irq = 0, timer_irq_installed = 0;
 
-	irq = get_timer_irq();
-	if (irq < 0)
-		pr_err("Failed to map irq %d (timer)\n", irq);
+	if (!timer_irq_installed) {
+		irq = get_timer_irq();
+		if (irq < 0)
+			pr_err("Failed to map irq %d (timer)\n", irq);
+	}
 
 	cd = &per_cpu(constant_clockevent_device, cpu);
 
