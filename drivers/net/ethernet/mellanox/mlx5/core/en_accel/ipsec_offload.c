@@ -568,6 +568,7 @@ int mlx5e_ipsec_aso_query(struct mlx5e_ipsec_sa_entry *sa_entry,
 	struct mlx5_wqe_aso_ctrl_seg *ctrl;
 	struct mlx5e_hw_objs *res;
 	struct mlx5_aso_wqe *wqe;
+	unsigned long expires;
 	u8 ds_cnt;
 	int ret;
 
@@ -589,7 +590,12 @@ int mlx5e_ipsec_aso_query(struct mlx5e_ipsec_sa_entry *sa_entry,
 	mlx5e_ipsec_aso_copy(ctrl, data);
 
 	mlx5_aso_post_wqe(aso->aso, false, &wqe->ctrl);
-	ret = mlx5_aso_poll_cq(aso->aso, false);
+	expires = jiffies + msecs_to_jiffies(10);
+	do {
+		ret = mlx5_aso_poll_cq(aso->aso, false);
+		if (ret)
+			usleep_range(2, 10);
+	} while (ret && time_is_after_jiffies(expires));
 	spin_unlock_bh(&aso->lock);
 	return ret;
 }
