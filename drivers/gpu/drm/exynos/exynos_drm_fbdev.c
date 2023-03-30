@@ -135,6 +135,30 @@ static const struct drm_fb_helper_funcs exynos_drm_fb_helper_funcs = {
 	.fb_probe =	exynos_drm_fbdev_create,
 };
 
+/*
+ * struct drm_client
+ */
+
+static void exynos_drm_fbdev_client_unregister(struct drm_client_dev *client)
+{ }
+
+static int exynos_drm_fbdev_client_restore(struct drm_client_dev *client)
+{
+	return 0;
+}
+
+static int exynos_drm_fbdev_client_hotplug(struct drm_client_dev *client)
+{
+	return 0;
+}
+
+static const struct drm_client_funcs exynos_drm_fbdev_client_funcs = {
+	.owner		= THIS_MODULE,
+	.unregister	= exynos_drm_fbdev_client_unregister,
+	.restore	= exynos_drm_fbdev_client_restore,
+	.hotplug	= exynos_drm_fbdev_client_hotplug,
+};
+
 int exynos_drm_fbdev_init(struct drm_device *dev)
 {
 	struct drm_fb_helper *helper;
@@ -149,11 +173,15 @@ int exynos_drm_fbdev_init(struct drm_device *dev)
 
 	drm_fb_helper_prepare(dev, helper, PREFERRED_BPP, &exynos_drm_fb_helper_funcs);
 
+	ret = drm_client_init(dev, &helper->client, "exynos-fbdev", &exynos_drm_fbdev_client_funcs);
+	if (ret)
+		goto err_drm_fb_helper_unprepare;
+
 	ret = drm_fb_helper_init(dev, helper);
 	if (ret < 0) {
 		DRM_DEV_ERROR(dev->dev,
 			      "failed to initialize drm fb helper.\n");
-		goto err_init;
+		goto err_drm_client_release;
 	}
 
 	ret = drm_fb_helper_initial_config(helper);
@@ -167,7 +195,9 @@ int exynos_drm_fbdev_init(struct drm_device *dev)
 
 err_setup:
 	drm_fb_helper_fini(helper);
-err_init:
+err_drm_client_release:
+	drm_client_release(&helper->client);
+err_drm_fb_helper_unprepare:
 	drm_fb_helper_unprepare(helper);
 	kfree(helper);
 
@@ -199,6 +229,7 @@ void exynos_drm_fbdev_fini(struct drm_device *dev)
 		return;
 
 	exynos_drm_fbdev_destroy(dev, fb_helper);
+	drm_client_release(&fb_helper->client);
 	drm_fb_helper_unprepare(fb_helper);
 	kfree(fb_helper);
 }
