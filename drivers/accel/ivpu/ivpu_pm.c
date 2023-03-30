@@ -98,12 +98,18 @@ retry:
 static void ivpu_pm_recovery_work(struct work_struct *work)
 {
 	struct ivpu_pm_info *pm = container_of(work, struct ivpu_pm_info, recovery_work);
-	struct ivpu_device *vdev =  pm->vdev;
+	struct ivpu_device *vdev = pm->vdev;
 	char *evt[2] = {"IVPU_PM_EVENT=IVPU_RECOVER", NULL};
 	int ret;
 
-	ret = pci_reset_function(to_pci_dev(vdev->drm.dev));
-	if (ret)
+retry:
+	ret = pci_try_reset_function(to_pci_dev(vdev->drm.dev));
+	if (ret == -EAGAIN && !drm_dev_is_unplugged(&vdev->drm)) {
+		cond_resched();
+		goto retry;
+	}
+
+	if (ret && ret != -EAGAIN)
 		ivpu_err(vdev, "Failed to reset VPU: %d\n", ret);
 
 	kobject_uevent_env(&vdev->drm.dev->kobj, KOBJ_CHANGE, evt);
@@ -304,6 +310,11 @@ int ivpu_pm_init(struct ivpu_device *vdev)
 		pm_runtime_set_autosuspend_delay(dev, 60000);
 
 	return 0;
+}
+
+void ivpu_pm_cancel_recovery(struct ivpu_device *vdev)
+{
+	cancel_work_sync(&vdev->pm->recovery_work);
 }
 
 void ivpu_pm_enable(struct ivpu_device *vdev)
