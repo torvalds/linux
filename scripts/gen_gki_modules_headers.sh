@@ -100,10 +100,15 @@ if [ "$(basename "${TARGET}")" = "gki_module_unprotected.h" ]; then
 	generate_header "${TARGET}" "${GKI_VENDOR_SYMBOLS}" "unprotected"
 else
 	# Sorted list of exported symbols
-	GKI_EXPORTED_SYMBOLS="${objtree}/protected_exports"
+	GKI_EXPORTED_SYMBOLS="${objtree}/abi_gki_protected_exports"
 
-	# Make a temp copy to avoid changing source during pre-processing
-	cp -f "${SYMBOL_LIST}" "${GKI_EXPORTED_SYMBOLS}"
+	if [ -z "${SYMBOL_LIST}" ]; then
+		# Create empty list if ARCH doesn't have protected exports
+		touch "${GKI_EXPORTED_SYMBOLS}"
+	else
+		# Make a temp copy to avoid changing source during pre-processing
+		cp -f "${SYMBOL_LIST}" "${GKI_EXPORTED_SYMBOLS}"
+	fi
 
 	generate_header "${TARGET}" "${GKI_EXPORTED_SYMBOLS}" "protected_exports"
 fi
