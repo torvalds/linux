@@ -1161,9 +1161,18 @@ fail:
 static void __rtw89_fw_h2c_set_tx_path(struct rtw89_dev *rtwdev,
 				       struct sk_buff *skb)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_hal *hal = &rtwdev->hal;
-	u8 ntx_path = hal->antenna_tx ? hal->antenna_tx : RF_B;
-	u8 map_b = hal->antenna_tx == RF_AB ? 1 : 0;
+	u8 ntx_path;
+	u8 map_b;
+
+	if (chip->rf_path_num == 1) {
+		ntx_path = RF_A;
+		map_b = 0;
+	} else {
+		ntx_path = hal->antenna_tx ? hal->antenna_tx : RF_B;
+		map_b = hal->antenna_tx == RF_AB ? 1 : 0;
+	}
 
 	SET_CMC_TBL_NTX_PATH_EN(skb->data, ntx_path);
 	SET_CMC_TBL_PATH_MAP_A(skb->data, 0);
