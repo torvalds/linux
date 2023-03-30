@@ -16,7 +16,6 @@ struct armada_crtc;
 struct armada_gem_object;
 struct clk;
 struct drm_display_mode;
-struct drm_fb_helper;
 
 static inline void
 armada_updatel(uint32_t val, uint32_t mask, void __iomem *ptr)
@@ -55,7 +54,6 @@ extern const struct armada_variant armada510_ops;
 
 struct armada_private {
 	struct drm_device	drm;
-	struct drm_fb_helper	*fbdev;
 	struct armada_crtc	*dcrtc[2];
 	struct drm_mm		linear; /* protected by linear_lock */
 	struct mutex		linear_lock;
@@ -76,15 +74,9 @@ struct armada_private {
 #define drm_to_armada_dev(dev) container_of(dev, struct armada_private, drm)
 
 #if defined(CONFIG_DRM_FBDEV_EMULATION)
-int armada_fbdev_init(struct drm_device *dev);
-void armada_fbdev_fini(struct drm_device *dev);
+void armada_fbdev_setup(struct drm_device *dev);
 #else
-static inline int armada_fbdev_init(struct drm_device *dev)
-{
-	return 0;
-}
-
-static inline void armada_fbdev_fini(struct drm_device *dev)
+static inline void armada_fbdev_setup(struct drm_device *dev)
 { }
 #endif
 

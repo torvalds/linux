@@ -17,7 +17,6 @@
 #include <drm/drm_managed.h>
 #include <drm/drm_prime.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/drm_fb_helper.h>
 #include <drm/drm_of.h>
 #include <drm/drm_vblank.h>
 
@@ -38,7 +37,6 @@ static const struct drm_ioctl_desc armada_ioctls[] = {
 DEFINE_DRM_GEM_FOPS(armada_drm_fops);
 
 static const struct drm_driver armada_drm_driver = {
-	.lastclose		= drm_fb_helper_lastclose,
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
 	.gem_prime_import	= armada_gem_prime_import,
@@ -56,7 +54,6 @@ static const struct drm_driver armada_drm_driver = {
 
 static const struct drm_mode_config_funcs armada_drm_mode_config_funcs = {
 	.fb_create		= armada_fb_create,
-	.output_poll_changed	= drm_fb_helper_output_poll_changed,
 	.atomic_check		= drm_atomic_helper_check,
 	.atomic_commit		= drm_atomic_helper_commit,
 };
@@ -133,10 +130,6 @@ static int armada_drm_bind(struct device *dev)
 
 	drm_mode_config_reset(&priv->drm);
 
-	ret = armada_fbdev_init(&priv->drm);
-	if (ret)
-		goto err_comp;
-
 	drm_kms_helper_poll_init(&priv->drm);
 
 	ret = drm_dev_register(&priv->drm, 0);
@@ -147,11 +140,12 @@ static int armada_drm_bind(struct device *dev)
 	armada_drm_debugfs_init(priv->drm.primary);
 #endif
 
+	armada_fbdev_setup(&priv->drm);
+
 	return 0;
 
  err_poll:
 	drm_kms_helper_poll_fini(&priv->drm);
-	armada_fbdev_fini(&priv->drm);
  err_comp:
 	component_unbind_all(dev, &priv->drm);
  err_kms:
@@ -166,7 +160,6 @@ static void armada_drm_unbind(struct device *dev)
 	struct armada_private *priv = drm_to_armada_dev(drm);
 
 	drm_kms_helper_poll_fini(&priv->drm);
-	armada_fbdev_fini(&priv->drm);
 
 	drm_dev_unregister(&priv->drm);
 
