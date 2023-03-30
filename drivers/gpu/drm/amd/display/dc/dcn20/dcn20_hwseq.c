@@ -313,6 +313,10 @@ void dcn20_init_blank(
 	}
 	opp = dc->res_pool->opps[opp_id_src0];
 
+	/* don't override the blank pattern if already enabled with the correct one. */
+	if (opp->funcs->dpg_is_blanked && opp->funcs->dpg_is_blanked(opp))
+		return;
+
 	if (num_opps == 2) {
 		otg_active_width = otg_active_width / 2;
 
