@@ -861,6 +861,11 @@ static void mlx5e_dealloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 	struct mlx5e_mpw_info *wi = mlx5e_get_mpw_info(rq, ix);
 	/* This function is called on rq/netdev close. */
 	mlx5e_free_rx_mpwqe(rq, wi);
+
+	/* Avoid a second release of the wqe pages: dealloc is called also
+	 * for missing wqes on an already flushed RQ.
+	 */
+	bitmap_fill(wi->skip_release_bitmap, rq->mpwqe.pages_per_wqe);
 }
 
 INDIRECT_CALLABLE_SCOPE bool mlx5e_post_rx_wqes(struct mlx5e_rq *rq)
