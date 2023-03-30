@@ -831,10 +831,35 @@ DEFINE_EVENT(transaction_event,	trans_restart_injected,
 	TP_ARGS(trans, caller_ip)
 );
 
-DEFINE_EVENT(transaction_event,	trans_restart_split_race,
+TRACE_EVENT(trans_restart_split_race,
 	TP_PROTO(struct btree_trans *trans,
-		 unsigned long caller_ip),
-	TP_ARGS(trans, caller_ip)
+		 unsigned long caller_ip,
+		 struct btree *b),
+	TP_ARGS(trans, caller_ip, b),
+
+	TP_STRUCT__entry(
+		__array(char,			trans_fn, 32	)
+		__field(unsigned long,		caller_ip	)
+		__field(u8,			level		)
+		__field(u16,			written		)
+		__field(u16,			blocks		)
+		__field(u16,			u64s_remaining	)
+	),
+
+	TP_fast_assign(
+		strscpy(__entry->trans_fn, trans->fn, sizeof(__entry->trans_fn));
+		__entry->caller_ip		= caller_ip;
+		__entry->level		= b->c.level;
+		__entry->written	= b->written;
+		__entry->blocks		= btree_blocks(trans->c);
+		__entry->u64s_remaining	= bch_btree_keys_u64s_remaining(trans->c, b);
+	),
+
+	TP_printk("%s %pS l=%u written %u/%u u64s remaining %u",
+		  __entry->trans_fn, (void *) __entry->caller_ip,
+		  __entry->level,
+		  __entry->written, __entry->blocks,
+		  __entry->u64s_remaining)
 );
 
 DEFINE_EVENT(transaction_event,	trans_blocked_journal_reclaim,
