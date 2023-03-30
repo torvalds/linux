@@ -207,41 +207,6 @@ struct thermal_governor {
 	struct list_head	governor_list;
 };
 
-/* Structure that holds binding parameters for a zone */
-struct thermal_bind_params {
-	struct thermal_cooling_device *cdev;
-
-	/*
-	 * This is a measure of 'how effectively these devices can
-	 * cool 'this' thermal zone. It shall be determined by
-	 * platform characterization. This value is relative to the
-	 * rest of the weights so a cooling device whose weight is
-	 * double that of another cooling device is twice as
-	 * effective. See Documentation/driver-api/thermal/sysfs-api.rst for more
-	 * information.
-	 */
-	int weight;
-
-	/*
-	 * This is a bit mask that gives the binding relation between this
-	 * thermal zone and cdev, for a particular trip point.
-	 * See Documentation/driver-api/thermal/sysfs-api.rst for more information.
-	 */
-	int trip_mask;
-
-	/*
-	 * This is an array of cooling state limits. Must have exactly
-	 * 2 * thermal_zone.number_of_trip_points. It is an array consisting
-	 * of tuples <lower-state upper-state> of state limits. Each trip
-	 * will be associated with one state limit tuple when binding.
-	 * A NULL pointer means <THERMAL_NO_LIMITS THERMAL_NO_LIMITS>
-	 * on all trips.
-	 */
-	unsigned long *binding_limits;
-	int (*match) (struct thermal_zone_device *tz,
-			struct thermal_cooling_device *cdev);
-};
-
 /* Structure to define Thermal Zone parameters */
 struct thermal_zone_params {
 	char governor_name[THERMAL_NAME_LENGTH];
@@ -252,9 +217,6 @@ struct thermal_zone_params {
 	 * will be created. when no_hwmon == true, nothing will be done
 	 */
 	bool no_hwmon;
-
-	int num_tbps;	/* Number of tbp entries */
-	struct thermal_bind_params *tbp;
 
 	/*
 	 * Sustainable power (heat) that this thermal zone can dissipate in
