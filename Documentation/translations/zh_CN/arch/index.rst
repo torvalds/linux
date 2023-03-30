@@ -12,7 +12,7 @@
    ../arm64/index
    ../riscv/index
    openrisc/index
-   ../parisc/index
+   parisc/index
    ../loongarch/index
 
 TODOList:

@@ -1,6 +1,6 @@
-.. include:: ../disclaimer-zh_CN.rst
+.. include:: ../../disclaimer-zh_CN.rst
 
-:Original: Documentation/parisc/registers.rst
+:Original: Documentation/arch/parisc/registers.rst
 
 :翻译:
 

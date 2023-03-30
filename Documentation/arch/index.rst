@@ -18,7 +18,7 @@ implementation.
    ../mips/index
    nios2/index
    openrisc/index
-   ../parisc/index
+   parisc/index
    ../powerpc/index
    ../riscv/index
    ../s390/index

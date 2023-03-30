@@ -15834,7 +15834,7 @@ W:	https://parisc.wiki.kernel.org
 Q:	http://patchwork.kernel.org/project/linux-parisc/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jejb/parisc-2.6.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/deller/parisc-linux.git
-F:	Documentation/parisc/
+F:	Documentation/arch/parisc/
 F:	arch/parisc/
 F:	drivers/char/agp/parisc-agp.c
 F:	drivers/input/misc/hp_sdc_rtc.c
