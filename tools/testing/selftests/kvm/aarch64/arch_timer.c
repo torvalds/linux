@@ -121,24 +121,34 @@ static void guest_validate_irq(unsigned int intid,
 	uint64_t xcnt = 0, xcnt_diff_us, cval = 0;
 	unsigned long xctl = 0;
 	unsigned int timer_irq = 0;
+	unsigned int accessor;
 
-	if (stage == GUEST_STAGE_VTIMER_CVAL ||
-		stage == GUEST_STAGE_VTIMER_TVAL) {
-		xctl = timer_get_ctl(VIRTUAL);
-		timer_set_ctl(VIRTUAL, CTL_IMASK);
-		xcnt = timer_get_cntct(VIRTUAL);
-		cval = timer_get_cval(VIRTUAL);
+	if (intid == IAR_SPURIOUS)
+		return;
+
+	switch (stage) {
+	case GUEST_STAGE_VTIMER_CVAL:
+	case GUEST_STAGE_VTIMER_TVAL:
+		accessor = VIRTUAL;
 		timer_irq = vtimer_irq;
-	} else if (stage == GUEST_STAGE_PTIMER_CVAL ||
-		stage == GUEST_STAGE_PTIMER_TVAL) {
-		xctl = timer_get_ctl(PHYSICAL);
-		timer_set_ctl(PHYSICAL, CTL_IMASK);
-		xcnt = timer_get_cntct(PHYSICAL);
-		cval = timer_get_cval(PHYSICAL);
+		break;
+	case GUEST_STAGE_PTIMER_CVAL:
+	case GUEST_STAGE_PTIMER_TVAL:
+		accessor = PHYSICAL;
 		timer_irq = ptimer_irq;
-	} else {
+		break;
+	default:
 		GUEST_ASSERT(0);
+		return;
 	}
+
+	xctl = timer_get_ctl(accessor);
+	if ((xctl & CTL_IMASK) || !(xctl & CTL_ENABLE))
+		return;
+
+	timer_set_ctl(accessor, CTL_IMASK);
+	xcnt = timer_get_cntct(accessor);
+	cval = timer_get_cval(accessor);
 
 	xcnt_diff_us = cycles_to_usec(xcnt - shared_data->xcnt);
 
@@ -148,6 +158,8 @@ static void guest_validate_irq(unsigned int intid,
 	/* Basic 'timer condition met' check */
 	GUEST_ASSERT_3(xcnt >= cval, xcnt, cval, xcnt_diff_us);
 	GUEST_ASSERT_1(xctl & CTL_ISTATUS, xctl);
+
+	WRITE_ONCE(shared_data->nr_iter, shared_data->nr_iter + 1);
 }
 
 static void guest_irq_handler(struct ex_regs *regs)
@@ -157,8 +169,6 @@ static void guest_irq_handler(struct ex_regs *regs)
 	struct test_vcpu_shared_data *shared_data = &vcpu_shared_data[cpu];
 
 	guest_validate_irq(intid, shared_data);
-
-	WRITE_ONCE(shared_data->nr_iter, shared_data->nr_iter + 1);
 
 	gic_set_eoi(intid);
 }
