@@ -262,8 +262,6 @@
 		bridge {
 			compatible = "maxim,max96755f-bridge";
 			lock-gpios = <&gpio1 RK_PA4 GPIO_ACTIVE_HIGH>;
-			dsi,lanes = <4>;
-			dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE)>;
 
 			ports {
 				#address-cells = <1>;
@@ -482,8 +480,6 @@
 		bridge {
 			compatible = "maxim,max96755f-bridge";
 			lock-gpios = <&gpio1 RK_PA5 GPIO_ACTIVE_HIGH>;
-			dsi,lanes = <4>;
-			dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE)>;
 
 			ports {
 				#address-cells = <1>;
