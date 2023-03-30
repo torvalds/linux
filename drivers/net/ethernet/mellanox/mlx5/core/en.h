@@ -475,11 +475,6 @@ struct mlx5e_txqsq {
 	cqe_ts_to_ns               ptp_cyc2time;
 } ____cacheline_aligned_in_smp;
 
-union mlx5e_alloc_unit {
-	struct page *page;
-	struct xdp_buff *xsk;
-};
-
 /* XDP packets can be transmitted in different ways. On completion, we need to
  * distinguish between them to clean up things in a proper way.
  */
@@ -605,16 +600,35 @@ struct mlx5e_icosq {
 	struct work_struct         recover_work;
 } ____cacheline_aligned_in_smp;
 
+struct mlx5e_frag_page {
+	struct page *page;
+	u16 frags;
+};
+
+enum mlx5e_wqe_frag_flag {
+	MLX5E_WQE_FRAG_LAST_IN_PAGE,
+	MLX5E_WQE_FRAG_SKIP_RELEASE,
+};
+
 struct mlx5e_wqe_frag_info {
-	union mlx5e_alloc_unit *au;
+	union {
+		struct mlx5e_frag_page *frag_page;
+		struct xdp_buff **xskp;
+	};
 	u32 offset;
-	bool last_in_page;
+	u8 flags;
+};
+
+union mlx5e_alloc_units {
+	DECLARE_FLEX_ARRAY(struct mlx5e_frag_page, frag_pages);
+	DECLARE_FLEX_ARRAY(struct page *, pages);
+	DECLARE_FLEX_ARRAY(struct xdp_buff *, xsk_buffs);
 };
 
 struct mlx5e_mpw_info {
 	u16 consumed_strides;
-	DECLARE_BITMAP(xdp_xmit_bitmap, MLX5_MPWRQ_MAX_PAGES_PER_WQE);
-	union mlx5e_alloc_unit alloc_units[];
+	DECLARE_BITMAP(skip_release_bitmap, MLX5_MPWRQ_MAX_PAGES_PER_WQE);
+	union mlx5e_alloc_units alloc_units;
 };
 
 #define MLX5E_MAX_RX_FRAGS 4
@@ -625,11 +639,6 @@ struct mlx5e_mpw_info {
 #define MLX5E_CACHE_UNIT (MLX5_MPWRQ_MAX_PAGES_PER_WQE > NAPI_POLL_WEIGHT ? \
 			  MLX5_MPWRQ_MAX_PAGES_PER_WQE : NAPI_POLL_WEIGHT)
 #define MLX5E_CACHE_SIZE	(4 * roundup_pow_of_two(MLX5E_CACHE_UNIT))
-struct mlx5e_page_cache {
-	u32 head;
-	u32 tail;
-	struct page *page_cache[MLX5E_CACHE_SIZE];
-};
 
 struct mlx5e_rq;
 typedef void (*mlx5e_fp_handle_rx_cqe)(struct mlx5e_rq*, struct mlx5_cqe64*);
@@ -661,19 +670,24 @@ struct mlx5e_rq_frags_info {
 	struct mlx5e_rq_frag_info arr[MLX5E_MAX_RX_FRAGS];
 	u8 num_frags;
 	u8 log_num_frags;
-	u8 wqe_bulk;
+	u16 wqe_bulk;
+	u16 refill_unit;
 	u8 wqe_index_mask;
 };
 
 struct mlx5e_dma_info {
 	dma_addr_t addr;
-	struct page *page;
+	union {
+		struct mlx5e_frag_page *frag_page;
+		struct page *page;
+	};
 };
 
 struct mlx5e_shampo_hd {
 	u32 mkey;
 	struct mlx5e_dma_info *info;
-	struct page *last_page;
+	struct mlx5e_frag_page *pages;
+	u16 curr_page_index;
 	u16 hd_per_wq;
 	u16 hd_per_wqe;
 	unsigned long *bitmap;
@@ -702,7 +716,7 @@ struct mlx5e_rq {
 		struct {
 			struct mlx5_wq_cyc          wq;
 			struct mlx5e_wqe_frag_info *frags;
-			union mlx5e_alloc_unit     *alloc_units;
+			union mlx5e_alloc_units    *alloc_units;
 			struct mlx5e_rq_frags_info  info;
 			mlx5e_fp_skb_from_cqe       skb_from_cqe;
 		} wqe;
@@ -738,7 +752,6 @@ struct mlx5e_rq {
 	struct mlx5e_rq_stats *stats;
 	struct mlx5e_cq        cq;
 	struct mlx5e_cq_decomp cqd;
-	struct mlx5e_page_cache page_cache;
 	struct hwtstamp_config *tstamp;
 	struct mlx5_clock      *clock;
 	struct mlx5e_icosq    *icosq;
