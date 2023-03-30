@@ -1456,6 +1456,7 @@ struct dc_link {
 
 	struct ddc_service *ddc;
 
+	enum dp_panel_mode panel_mode;
 	bool aux_mode;
 
 	/* Private to DC core */
