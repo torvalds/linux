@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: (GPL-2.0-or-later OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/arm/msm/qcom,llcc.yaml#
+$id: http://devicetree.org/schemas/cache/qcom,llcc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Last Level Cache Controller
