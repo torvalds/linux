@@ -2417,7 +2417,6 @@ static void rtw89_dcfo_comp(struct rtw89_dev *rtwdev, s32 curr_cfo)
 	bool is_linked = rtwdev->total_sta_assoc > 0;
 	s32 cfo_avg_312;
 	s32 dcfo_comp_val;
-	u8 dcfo_comp_sft = rtwdev->chip->dcfo_comp_sft;
 	int sign;
 
 	if (!is_linked) {
@@ -2430,8 +2429,8 @@ static void rtw89_dcfo_comp(struct rtw89_dev *rtwdev, s32 curr_cfo)
 		return;
 	dcfo_comp_val = rtw89_phy_read32_mask(rtwdev, R_DCFO, B_DCFO);
 	sign = curr_cfo > 0 ? 1 : -1;
-	cfo_avg_312 = (curr_cfo << dcfo_comp_sft) / 5 + sign * dcfo_comp_val;
-	rtw89_debug(rtwdev, RTW89_DBG_CFO, "DCFO: avg_cfo=%d\n", cfo_avg_312);
+	cfo_avg_312 = curr_cfo / 625 + sign * dcfo_comp_val;
+	rtw89_debug(rtwdev, RTW89_DBG_CFO, "avg_cfo_312=%d step\n", cfo_avg_312);
 	if (rtwdev->chip->chip_id == RTL8852A && rtwdev->hal.cv == CHIP_CBV)
 		cfo_avg_312 = -cfo_avg_312;
 	rtw89_phy_set_phy_regs(rtwdev, dcfo_comp->addr, dcfo_comp->mask,
@@ -2440,9 +2439,16 @@ static void rtw89_dcfo_comp(struct rtw89_dev *rtwdev, s32 curr_cfo)
 
 static void rtw89_dcfo_comp_init(struct rtw89_dev *rtwdev)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
 	rtw89_phy_set_phy_regs(rtwdev, R_DCFO_OPT, B_DCFO_OPT_EN, 1);
 	rtw89_phy_set_phy_regs(rtwdev, R_DCFO_WEIGHT, B_DCFO_WEIGHT_MSK, 8);
-	rtw89_write32_clr(rtwdev, R_AX_PWR_UL_CTRL2, B_AX_PWR_UL_CFO_MASK);
+
+	if (chip->cfo_hw_comp)
+		rtw89_write32_mask(rtwdev, R_AX_PWR_UL_CTRL2,
+				   B_AX_PWR_UL_CFO_MASK, 0x6);
+	else
+		rtw89_write32_clr(rtwdev, R_AX_PWR_UL_CTRL2, B_AX_PWR_UL_CFO_MASK);
 }
 
 static void rtw89_phy_cfo_init(struct rtw89_dev *rtwdev)
@@ -2512,6 +2518,7 @@ static void rtw89_phy_cfo_crystal_cap_adjust(struct rtw89_dev *rtwdev,
 
 static s32 rtw89_phy_average_cfo_calc(struct rtw89_dev *rtwdev)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_cfo_tracking_info *cfo = &rtwdev->cfo_tracking;
 	s32 cfo_khz_all = 0;
 	s32 cfo_cnt_all = 0;
@@ -2528,6 +2535,8 @@ static s32 rtw89_phy_average_cfo_calc(struct rtw89_dev *rtwdev)
 		cfo_cnt_all += cfo->cfo_cnt[i];
 		cfo_all_avg = phy_div(cfo_khz_all, cfo_cnt_all);
 		cfo->pre_cfo_avg[i] = cfo->cfo_avg[i];
+		cfo->dcfo_avg = phy_div(cfo_khz_all << chip->dcfo_comp_sft,
+					cfo_cnt_all);
 	}
 	rtw89_debug(rtwdev, RTW89_DBG_CFO,
 		    "CFO track for macid = %d\n", i);
@@ -2654,7 +2663,9 @@ static void rtw89_phy_cfo_dm(struct rtw89_dev *rtwdev)
 	s32 new_cfo = 0;
 	bool x_cap_update = false;
 	u8 pre_x_cap = cfo->crystal_cap;
+	u8 dcfo_comp_sft = rtwdev->chip->dcfo_comp_sft;
 
+	cfo->dcfo_avg = 0;
 	rtw89_debug(rtwdev, RTW89_DBG_CFO, "CFO:total_sta_assoc=%d\n",
 		    rtwdev->total_sta_assoc);
 	if (rtwdev->total_sta_assoc == 0) {
@@ -2696,18 +2707,19 @@ static void rtw89_phy_cfo_dm(struct rtw89_dev *rtwdev)
 
 	rtw89_phy_cfo_crystal_cap_adjust(rtwdev, new_cfo);
 	cfo->cfo_avg_pre = new_cfo;
+	cfo->dcfo_avg_pre = cfo->dcfo_avg;
 	x_cap_update =  cfo->crystal_cap != pre_x_cap;
 	rtw89_debug(rtwdev, RTW89_DBG_CFO, "Xcap_up=%d\n", x_cap_update);
 	rtw89_debug(rtwdev, RTW89_DBG_CFO, "Xcap: D:%x C:%x->%x, ofst=%d\n",
 		    cfo->def_x_cap, pre_x_cap, cfo->crystal_cap,
 		    cfo->x_cap_ofst);
 	if (x_cap_update) {
-		if (new_cfo > 0)
-			new_cfo -= CFO_SW_COMP_FINE_TUNE;
+		if (cfo->dcfo_avg > 0)
+			cfo->dcfo_avg -= CFO_SW_COMP_FINE_TUNE << dcfo_comp_sft;
 		else
-			new_cfo += CFO_SW_COMP_FINE_TUNE;
+			cfo->dcfo_avg += CFO_SW_COMP_FINE_TUNE << dcfo_comp_sft;
 	}
-	rtw89_dcfo_comp(rtwdev, new_cfo);
+	rtw89_dcfo_comp(rtwdev, cfo->dcfo_avg);
 	rtw89_phy_cfo_statistics_reset(rtwdev);
 }
 

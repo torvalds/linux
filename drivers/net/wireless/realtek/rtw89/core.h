@@ -3202,6 +3202,7 @@ struct rtw89_chip_info {
 	struct rtw89_reg_def c2h_counter_reg;
 	const struct rtw89_page_regs *page_regs;
 	bool cfo_src_fd;
+	bool cfo_hw_comp;
 	const struct rtw89_reg_def *dcfo_comp;
 	u8 dcfo_comp_sft;
 	const struct rtw89_imr_info *imr_info;
@@ -3684,6 +3685,8 @@ struct rtw89_cfo_tracking_info {
 	s32 cfo_avg_pre;
 	s32 cfo_avg[CFO_TRACK_MAX_USER];
 	s32 pre_cfo_avg[CFO_TRACK_MAX_USER];
+	s32 dcfo_avg;
+	s32 dcfo_avg_pre;
 	u32 packet_count;
 	u32 packet_count_pre;
 	s32 residual_cfo_acc;
