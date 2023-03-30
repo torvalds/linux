@@ -3687,6 +3687,7 @@ static void vop3_layer_map_initial(struct vop2 *vop2, uint32_t current_vp_id)
 		vp_id = VOP_CTRL_GET(vop2, win_vp_id[win->phys_id]);
 		win->vp_mask = BIT(vp_id);
 		win->old_vp_mask = win->vp_mask;
+		vop2->vps[vp_id].win_mask |= BIT(win->phys_id);
 	}
 }
 
