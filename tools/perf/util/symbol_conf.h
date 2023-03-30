@@ -33,7 +33,6 @@ struct symbol_conf {
 			demangle_kernel,
 			filter_relative,
 			show_hist_headers,
-			branch_callstack,
 			has_filter,
 			show_ref_callgraph,
 			hide_unresolved,
