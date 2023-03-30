@@ -129,6 +129,7 @@ def define_pineapple():
         "drivers/soc/qcom/altmode-glink.ko",
         "drivers/soc/qcom/boot_stats.ko",
         "drivers/soc/qcom/dcvs/c1dcvs_scmi_v2.ko",
+        "drivers/soc/qcom/dcvs/cpufreq_stats_scmi_v2.ko",
         "drivers/soc/qcom/cdsprm.ko",
         "drivers/soc/qcom/charger-ulog-glink.ko",
         "drivers/soc/qcom/cmd-db.ko",
