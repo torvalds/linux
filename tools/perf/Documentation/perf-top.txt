@@ -254,6 +254,10 @@ Default is to monitor all CPUS.
 	The various filters must be specified as a comma separated list: --branch-filter any_ret,u,k
 	Note that this feature may not be available on all processors.
 
+--branch-history::
+	Add the addresses of sampled taken branches to the callstack.
+	This allows to examine the path the program took to each sample.
+
 --raw-trace::
 	When displaying traceevent output, do not use print fmt or plugins.
 
