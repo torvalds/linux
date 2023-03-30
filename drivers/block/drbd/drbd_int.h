@@ -66,6 +66,7 @@ extern int drbd_proc_details;
 
 struct drbd_device;
 struct drbd_connection;
+struct drbd_peer_device;
 
 /* Defines to control fault insertion */
 enum {
@@ -541,9 +542,10 @@ struct drbd_md_io {
 
 struct bm_io_work {
 	struct drbd_work w;
+	struct drbd_peer_device *peer_device;
 	char *why;
 	enum bm_flag flags;
-	int (*io_fn)(struct drbd_device *device);
+	int (*io_fn)(struct drbd_device *device, struct drbd_peer_device *peer_device);
 	void (*done)(struct drbd_device *device, int rv);
 };
 
@@ -1041,7 +1043,7 @@ extern int drbd_send_drequest_csum(struct drbd_peer_device *, sector_t sector,
 				   enum drbd_packet cmd);
 extern int drbd_send_ov_request(struct drbd_peer_device *, sector_t sector, int size);
 
-extern int drbd_send_bitmap(struct drbd_device *device);
+extern int drbd_send_bitmap(struct drbd_device *device, struct drbd_peer_device *peer_device);
 extern void drbd_send_sr_reply(struct drbd_peer_device *, enum drbd_state_rv retcode);
 extern void conn_send_sr_reply(struct drbd_connection *connection, enum drbd_state_rv retcode);
 extern int drbd_send_rs_deallocated(struct drbd_peer_device *, struct drbd_peer_request *);
@@ -1065,17 +1067,22 @@ extern void drbd_md_clear_flag(struct drbd_device *device, int flags)__must_hold
 extern int drbd_md_test_flag(struct drbd_backing_dev *, int);
 extern void drbd_md_mark_dirty(struct drbd_device *device);
 extern void drbd_queue_bitmap_io(struct drbd_device *device,
-				 int (*io_fn)(struct drbd_device *),
+				 int (*io_fn)(struct drbd_device *, struct drbd_peer_device *),
 				 void (*done)(struct drbd_device *, int),
-				 char *why, enum bm_flag flags);
+				 char *why, enum bm_flag flags,
+				 struct drbd_peer_device *peer_device);
 extern int drbd_bitmap_io(struct drbd_device *device,
-		int (*io_fn)(struct drbd_device *),
-		char *why, enum bm_flag flags);
+		int (*io_fn)(struct drbd_device *, struct drbd_peer_device *),
+		char *why, enum bm_flag flags,
+		struct drbd_peer_device *peer_device);
 extern int drbd_bitmap_io_from_worker(struct drbd_device *device,
-		int (*io_fn)(struct drbd_device *),
-		char *why, enum bm_flag flags);
-extern int drbd_bmio_set_n_write(struct drbd_device *device) __must_hold(local);
-extern int drbd_bmio_clear_n_write(struct drbd_device *device) __must_hold(local);
+		int (*io_fn)(struct drbd_device *, struct drbd_peer_device *),
+		char *why, enum bm_flag flags,
+		struct drbd_peer_device *peer_device);
+extern int drbd_bmio_set_n_write(struct drbd_device *device,
+		struct drbd_peer_device *peer_device) __must_hold(local);
+extern int drbd_bmio_clear_n_write(struct drbd_device *device,
+		struct drbd_peer_device *peer_device) __must_hold(local);
 
 /* Meta data layout
  *
@@ -1284,14 +1291,18 @@ extern void _drbd_bm_set_bits(struct drbd_device *device,
 		const unsigned long s, const unsigned long e);
 extern int  drbd_bm_test_bit(struct drbd_device *device, unsigned long bitnr);
 extern int  drbd_bm_e_weight(struct drbd_device *device, unsigned long enr);
-extern int  drbd_bm_read(struct drbd_device *device) __must_hold(local);
+extern int  drbd_bm_read(struct drbd_device *device,
+		struct drbd_peer_device *peer_device) __must_hold(local);
 extern void drbd_bm_mark_for_writeout(struct drbd_device *device, int page_nr);
-extern int  drbd_bm_write(struct drbd_device *device) __must_hold(local);
+extern int  drbd_bm_write(struct drbd_device *device,
+		struct drbd_peer_device *peer_device) __must_hold(local);
 extern void drbd_bm_reset_al_hints(struct drbd_device *device) __must_hold(local);
 extern int  drbd_bm_write_hinted(struct drbd_device *device) __must_hold(local);
 extern int  drbd_bm_write_lazy(struct drbd_device *device, unsigned upper_idx) __must_hold(local);
-extern int drbd_bm_write_all(struct drbd_device *device) __must_hold(local);
-extern int  drbd_bm_write_copy_pages(struct drbd_device *device) __must_hold(local);
+extern int drbd_bm_write_all(struct drbd_device *device,
+		struct drbd_peer_device *peer_device) __must_hold(local);
+extern int  drbd_bm_write_copy_pages(struct drbd_device *device,
+		struct drbd_peer_device *peer_device) __must_hold(local);
 extern size_t	     drbd_bm_words(struct drbd_device *device);
 extern unsigned long drbd_bm_bits(struct drbd_device *device);
 extern sector_t      drbd_bm_capacity(struct drbd_device *device);
