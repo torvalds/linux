@@ -291,7 +291,7 @@ static int dw_i3c_master_get_addr_pos(struct dw_i3c_master *master, u8 addr)
 	int pos;
 
 	for (pos = 0; pos < master->maxdevs; pos++) {
-		if (addr == master->addrs[pos])
+		if (addr == master->devs[pos].addr)
 			return pos;
 	}
 
@@ -769,7 +769,7 @@ static int dw_i3c_master_daa(struct i3c_master_controller *m)
 		if (ret < 0)
 			return -ENOSPC;
 
-		master->addrs[pos] = ret;
+		master->devs[pos].addr = ret;
 		p = even_parity(ret);
 		last_addr = ret;
 		ret |= (p << 7);
@@ -806,7 +806,7 @@ static int dw_i3c_master_daa(struct i3c_master_controller *m)
 
 	for (pos = 0; pos < master->maxdevs; pos++) {
 		if (newdevs & BIT(pos))
-			i3c_master_add_i3c_dev_locked(m, master->addrs[pos]);
+			i3c_master_add_i3c_dev_locked(m, master->devs[pos].addr);
 	}
 
 	dw_i3c_master_free_xfer(xfer);
@@ -905,11 +905,11 @@ static int dw_i3c_master_reattach_i3c_dev(struct i3c_dev_desc *dev,
 		       master->regs +
 		       DEV_ADDR_TABLE_LOC(master->datstartaddr, data->index));
 
-		master->addrs[data->index] = 0;
+		master->devs[data->index].addr = 0;
 		master->free_pos |= BIT(data->index);
 
 		data->index = pos;
-		master->addrs[pos] = dev->info.dyn_addr;
+		master->devs[pos].addr = dev->info.dyn_addr;
 		master->free_pos &= ~BIT(pos);
 	}
 
@@ -917,7 +917,7 @@ static int dw_i3c_master_reattach_i3c_dev(struct i3c_dev_desc *dev,
 	       master->regs +
 	       DEV_ADDR_TABLE_LOC(master->datstartaddr, data->index));
 
-	master->addrs[data->index] = dev->info.dyn_addr;
+	master->devs[data->index].addr = dev->info.dyn_addr;
 
 	return 0;
 }
@@ -938,11 +938,11 @@ static int dw_i3c_master_attach_i3c_dev(struct i3c_dev_desc *dev)
 		return -ENOMEM;
 
 	data->index = pos;
-	master->addrs[pos] = dev->info.dyn_addr ? : dev->info.static_addr;
+	master->devs[pos].addr = dev->info.dyn_addr ? : dev->info.static_addr;
 	master->free_pos &= ~BIT(pos);
 	i3c_dev_set_master_data(dev, data);
 
-	writel(DEV_ADDR_TABLE_DYNAMIC_ADDR(master->addrs[pos]),
+	writel(DEV_ADDR_TABLE_DYNAMIC_ADDR(master->devs[pos].addr),
 	       master->regs +
 	       DEV_ADDR_TABLE_LOC(master->datstartaddr, data->index));
 
@@ -960,7 +960,7 @@ static void dw_i3c_master_detach_i3c_dev(struct i3c_dev_desc *dev)
 	       DEV_ADDR_TABLE_LOC(master->datstartaddr, data->index));
 
 	i3c_dev_set_master_data(dev, NULL);
-	master->addrs[data->index] = 0;
+	master->devs[data->index].addr = 0;
 	master->free_pos |= BIT(data->index);
 	kfree(data);
 }
@@ -1046,7 +1046,7 @@ static int dw_i3c_master_attach_i2c_dev(struct i2c_dev_desc *dev)
 		return -ENOMEM;
 
 	data->index = pos;
-	master->addrs[pos] = dev->addr;
+	master->devs[pos].addr = dev->addr;
 	master->free_pos &= ~BIT(pos);
 	i2c_dev_set_master_data(dev, data);
 
@@ -1069,7 +1069,7 @@ static void dw_i3c_master_detach_i2c_dev(struct i2c_dev_desc *dev)
 	       DEV_ADDR_TABLE_LOC(master->datstartaddr, data->index));
 
 	i2c_dev_set_master_data(dev, NULL);
-	master->addrs[data->index] = 0;
+	master->devs[data->index].addr = 0;
 	master->free_pos |= BIT(data->index);
 	kfree(data);
 }

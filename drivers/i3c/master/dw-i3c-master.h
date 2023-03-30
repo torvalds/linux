@@ -17,6 +17,10 @@ struct dw_i3c_master_caps {
 	u8 datafifodepth;
 };
 
+struct dw_i3c_dat_entry {
+	u8 addr;
+};
+
 struct dw_i3c_master {
 	struct i3c_master_controller base;
 	u16 maxdevs;
@@ -33,7 +37,12 @@ struct dw_i3c_master {
 	struct clk *core_clk;
 	char version[5];
 	char type[5];
-	u8 addrs[DW_I3C_MAX_DEVS];
+
+	/*
+	 * Per-device hardware data, used to manage the device address table
+	 * (DAT)
+	 */
+	struct dw_i3c_dat_entry devs[DW_I3C_MAX_DEVS];
 
 	/* platform-specific data */
 	const struct dw_i3c_platform_ops *platform_ops;
