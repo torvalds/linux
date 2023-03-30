@@ -318,16 +318,22 @@ static void dw_i3c_master_wr_tx_fifo(struct dw_i3c_master *master,
 	}
 }
 
-static void dw_i3c_master_read_rx_fifo(struct dw_i3c_master *master,
-				       u8 *bytes, int nbytes)
+static void dw_i3c_master_read_fifo(struct dw_i3c_master *master,
+				    int reg,  u8 *bytes, int nbytes)
 {
-	readsl(master->regs + RX_TX_DATA_PORT, bytes, nbytes / 4);
+	readsl(master->regs + reg, bytes, nbytes / 4);
 	if (nbytes & 3) {
 		u32 tmp;
 
-		readsl(master->regs + RX_TX_DATA_PORT, &tmp, 1);
+		readsl(master->regs + reg, &tmp, 1);
 		memcpy(bytes + (nbytes & ~3), &tmp, nbytes & 3);
 	}
+}
+
+static void dw_i3c_master_read_rx_fifo(struct dw_i3c_master *master,
+				       u8 *bytes, int nbytes)
+{
+	return dw_i3c_master_read_fifo(master, RX_TX_DATA_PORT, bytes, nbytes);
 }
 
 static struct dw_i3c_xfer *
