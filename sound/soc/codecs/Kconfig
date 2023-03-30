@@ -133,6 +133,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_MAX98925
 	imply SND_SOC_MAX98926
 	imply SND_SOC_MAX98927
+	imply SND_SOC_MAX98363
 	imply SND_SOC_MAX98373_I2C
 	imply SND_SOC_MAX98373_SDW
 	imply SND_SOC_MAX98390
@@ -1132,6 +1133,16 @@ config SND_SOC_MAX98520
 	  8KHz to 192KHz.
 
 	  To compile this driver as a module, choose M here.
+
+config SND_SOC_MAX98363
+	tristate "Analog Devices MAX98363 Soundwire Speaker Amplifier"
+	depends on SOUNDWIRE
+	select REGMAP_SOUNDWIRE
+	help
+	  Enable support for Analog Devices MAX98363 Soundwire
+	  amplifier. MAX98363 supports the MIPI SoundWire v1.2
+	  compatible interface for audio and control data.
+	  This amplifier does not support I2C and I2S.
 
 config SND_SOC_MAX98373
 	tristate
