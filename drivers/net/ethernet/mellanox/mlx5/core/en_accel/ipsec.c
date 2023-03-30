@@ -87,25 +87,113 @@ static void mlx5e_ipsec_init_limits(struct mlx5e_ipsec_sa_entry *sa_entry,
 				    struct mlx5_accel_esp_xfrm_attrs *attrs)
 {
 	struct xfrm_state *x = sa_entry->x;
+	s64 start_value, n;
 
-	attrs->hard_packet_limit = x->lft.hard_packet_limit;
+	attrs->lft.hard_packet_limit = x->lft.hard_packet_limit;
+	attrs->lft.soft_packet_limit = x->lft.soft_packet_limit;
 	if (x->lft.soft_packet_limit == XFRM_INF)
 		return;
 
-	/* Hardware decrements hard_packet_limit counter through
-	 * the operation. While fires an event when soft_packet_limit
-	 * is reached. It emans that we need substitute the numbers
-	 * in order to properly count soft limit.
+	/* Compute hard limit initial value and number of rounds.
 	 *
-	 * As an example:
-	 * XFRM user sets soft limit is 2 and hard limit is 9 and
-	 * expects to see soft event after 2 packets and hard event
-	 * after 9 packets. In our case, the hard limit will be set
-	 * to 9 and soft limit is comparator to 7 so user gets the
-	 * soft event after 2 packeta
+	 * The counting pattern of hardware counter goes:
+	 *                value  -> 2^31-1
+	 *      2^31  | (2^31-1) -> 2^31-1
+	 *      2^31  | (2^31-1) -> 2^31-1
+	 *      [..]
+	 *      2^31  | (2^31-1) -> 0
+	 *
+	 * The pattern is created by using an ASO operation to atomically set
+	 * bit 31 after the down counter clears bit 31. This is effectively an
+	 * atomic addition of 2**31 to the counter.
+	 *
+	 * We wish to configure the counter, within the above pattern, so that
+	 * when it reaches 0, it has hit the hard limit. This is defined by this
+	 * system of equations:
+	 *
+	 *      hard_limit == start_value + n * 2^31
+	 *      n >= 0
+	 *      start_value < 2^32, start_value >= 0
+	 *
+	 * These equations are not single-solution, there are often two choices:
+	 *      hard_limit == start_value + n * 2^31
+	 *      hard_limit == (start_value+2^31) + (n-1) * 2^31
+	 *
+	 * The algorithm selects the solution that keeps the counter value
+	 * above 2^31 until the final iteration.
 	 */
-	attrs->soft_packet_limit =
-		x->lft.hard_packet_limit - x->lft.soft_packet_limit;
+
+	/* Start by estimating n and compute start_value */
+	n = attrs->lft.hard_packet_limit / BIT_ULL(31);
+	start_value = attrs->lft.hard_packet_limit - n * BIT_ULL(31);
+
+	/* Choose the best of the two solutions: */
+	if (n >= 1)
+		n -= 1;
+
+	/* Computed values solve the system of equations: */
+	start_value = attrs->lft.hard_packet_limit - n * BIT_ULL(31);
+
+	/* The best solution means: when there are multiple iterations we must
+	 * start above 2^31 and count down to 2**31 to get the interrupt.
+	 */
+	attrs->lft.hard_packet_limit = lower_32_bits(start_value);
+	attrs->lft.numb_rounds_hard = (u64)n;
+
+	/* Compute soft limit initial value and number of rounds.
+	 *
+	 * The soft_limit is achieved by adjusting the counter's
+	 * interrupt_value. This is embedded in the counting pattern created by
+	 * hard packet calculations above.
+	 *
+	 * We wish to compute the interrupt_value for the soft_limit. This is
+	 * defined by this system of equations:
+	 *
+	 *      soft_limit == start_value - soft_value + n * 2^31
+	 *      n >= 0
+	 *      soft_value < 2^32, soft_value >= 0
+	 *      for n == 0 start_value > soft_value
+	 *
+	 * As with compute_hard_n_value() the equations are not single-solution.
+	 * The algorithm selects the solution that has:
+	 *      2^30 <= soft_limit < 2^31 + 2^30
+	 * for the interior iterations, which guarantees a large guard band
+	 * around the counter hard limit and next interrupt.
+	 */
+
+	/* Start by estimating n and compute soft_value */
+	n = (x->lft.soft_packet_limit - attrs->lft.hard_packet_limit) / BIT_ULL(31);
+	start_value = attrs->lft.hard_packet_limit + n * BIT_ULL(31) -
+		      x->lft.soft_packet_limit;
+
+	/* Compare against constraints and adjust n */
+	if (n < 0)
+		n = 0;
+	else if (start_value >= BIT_ULL(32))
+		n -= 1;
+	else if (start_value < 0)
+		n += 1;
+
+	/* Choose the best of the two solutions: */
+	start_value = attrs->lft.hard_packet_limit + n * BIT_ULL(31) - start_value;
+	if (n != attrs->lft.numb_rounds_hard && start_value < BIT_ULL(30))
+		n += 1;
+
+	/* Note that the upper limit of soft_value happens naturally because we
+	 * always select the lowest soft_value.
+	 */
+
+	/* Computed values solve the system of equations: */
+	start_value = attrs->lft.hard_packet_limit + n * BIT_ULL(31) - start_value;
+
+	/* The best solution means: when there are multiple iterations we must
+	 * not fall below 2^30 as that would get too close to the false
+	 * hard_limit and when we reach an interior iteration for soft_limit it
+	 * has to be far away from 2**32-1 which is the counter reset point
+	 * after the +2^31 to accommodate latency.
+	 */
+	attrs->lft.soft_packet_limit = lower_32_bits(start_value);
+	attrs->lft.numb_rounds_soft = (u64)n;
 }
 
 void mlx5e_ipsec_build_accel_xfrm_attrs(struct mlx5e_ipsec_sa_entry *sa_entry,

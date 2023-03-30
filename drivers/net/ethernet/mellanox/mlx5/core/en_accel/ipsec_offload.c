@@ -8,6 +8,7 @@
 
 enum {
 	MLX5_IPSEC_ASO_REMOVE_FLOW_PKT_CNT_OFFSET,
+	MLX5_IPSEC_ASO_REMOVE_FLOW_SOFT_LFT_OFFSET,
 };
 
 u32 mlx5_ipsec_device_caps(struct mlx5_core_dev *mdev)
@@ -100,15 +101,15 @@ static void mlx5e_ipsec_packet_setup(void *obj, u32 pdn,
 	if (attrs->dir == XFRM_DEV_OFFLOAD_OUT)
 		MLX5_SET(ipsec_aso, aso_ctx, mode, MLX5_IPSEC_ASO_INC_SN);
 
-	if (attrs->hard_packet_limit != XFRM_INF) {
+	if (attrs->lft.hard_packet_limit != XFRM_INF) {
 		MLX5_SET(ipsec_aso, aso_ctx, remove_flow_pkt_cnt,
-			 lower_32_bits(attrs->hard_packet_limit));
+			 attrs->lft.hard_packet_limit);
 		MLX5_SET(ipsec_aso, aso_ctx, hard_lft_arm, 1);
 	}
 
-	if (attrs->soft_packet_limit != XFRM_INF) {
+	if (attrs->lft.soft_packet_limit != XFRM_INF) {
 		MLX5_SET(ipsec_aso, aso_ctx, remove_flow_soft_lft,
-			 lower_32_bits(attrs->soft_packet_limit));
+			 attrs->lft.soft_packet_limit);
 
 		MLX5_SET(ipsec_aso, aso_ctx, soft_lft_arm, 1);
 	}
@@ -309,6 +310,110 @@ static void mlx5e_ipsec_update_esn_state(struct mlx5e_ipsec_sa_entry *sa_entry,
 	mlx5e_ipsec_aso_update(sa_entry, &data);
 }
 
+static void mlx5e_ipsec_aso_update_hard(struct mlx5e_ipsec_sa_entry *sa_entry)
+{
+	struct mlx5_wqe_aso_ctrl_seg data = {};
+
+	data.data_offset_condition_operand =
+		MLX5_IPSEC_ASO_REMOVE_FLOW_PKT_CNT_OFFSET;
+	data.bitwise_data = cpu_to_be64(BIT_ULL(57) + BIT_ULL(31));
+	data.data_mask = data.bitwise_data;
+	mlx5e_ipsec_aso_update(sa_entry, &data);
+}
+
+static void mlx5e_ipsec_aso_update_soft(struct mlx5e_ipsec_sa_entry *sa_entry,
+					u32 val)
+{
+	struct mlx5_wqe_aso_ctrl_seg data = {};
+
+	data.data_offset_condition_operand =
+		MLX5_IPSEC_ASO_REMOVE_FLOW_SOFT_LFT_OFFSET;
+	data.bitwise_data = cpu_to_be64(val);
+	data.data_mask = cpu_to_be64(U32_MAX);
+	mlx5e_ipsec_aso_update(sa_entry, &data);
+}
+
+static void mlx5e_ipsec_handle_limits(struct mlx5e_ipsec_sa_entry *sa_entry)
+{
+	struct mlx5_accel_esp_xfrm_attrs *attrs = &sa_entry->attrs;
+	struct mlx5e_ipsec *ipsec = sa_entry->ipsec;
+	struct mlx5e_ipsec_aso *aso = ipsec->aso;
+	bool soft_arm, hard_arm;
+	u64 hard_cnt;
+
+	lockdep_assert_held(&sa_entry->x->lock);
+
+	soft_arm = !MLX5_GET(ipsec_aso, aso->ctx, soft_lft_arm);
+	hard_arm = !MLX5_GET(ipsec_aso, aso->ctx, hard_lft_arm);
+	if (!soft_arm && !hard_arm)
+		/* It is not lifetime event */
+		return;
+
+	hard_cnt = MLX5_GET(ipsec_aso, aso->ctx, remove_flow_pkt_cnt);
+	if (!hard_cnt || hard_arm) {
+		/* It is possible to see packet counter equal to zero without
+		 * hard limit event armed. Such situation can be if packet
+		 * decreased, while we handled soft limit event.
+		 *
+		 * However it will be HW/FW bug if hard limit event is raised
+		 * and packet counter is not zero.
+		 */
+		WARN_ON_ONCE(hard_arm && hard_cnt);
+
+		/* Notify about hard limit */
+		xfrm_state_check_expire(sa_entry->x);
+		return;
+	}
+
+	/* We are in soft limit event. */
+	if (!sa_entry->limits.soft_limit_hit &&
+	    sa_entry->limits.round == attrs->lft.numb_rounds_soft) {
+		sa_entry->limits.soft_limit_hit = true;
+		/* Notify about soft limit */
+		xfrm_state_check_expire(sa_entry->x);
+
+		if (sa_entry->limits.round == attrs->lft.numb_rounds_hard)
+			goto hard;
+
+		if (attrs->lft.soft_packet_limit > BIT_ULL(31)) {
+			/* We cannot avoid a soft_value that might have the high
+			 * bit set. For instance soft_value=2^31+1 cannot be
+			 * adjusted to the low bit clear version of soft_value=1
+			 * because it is too close to 0.
+			 *
+			 * Thus we have this corner case where we can hit the
+			 * soft_limit with the high bit set, but cannot adjust
+			 * the counter. Thus we set a temporary interrupt_value
+			 * at least 2^30 away from here and do the adjustment
+			 * then.
+			 */
+			mlx5e_ipsec_aso_update_soft(sa_entry,
+						    BIT_ULL(31) - BIT_ULL(30));
+			sa_entry->limits.fix_limit = true;
+			return;
+		}
+
+		sa_entry->limits.fix_limit = true;
+	}
+
+hard:
+	if (sa_entry->limits.round == attrs->lft.numb_rounds_hard) {
+		mlx5e_ipsec_aso_update_soft(sa_entry, 0);
+		attrs->lft.soft_packet_limit = XFRM_INF;
+		return;
+	}
+
+	mlx5e_ipsec_aso_update_hard(sa_entry);
+	sa_entry->limits.round++;
+	if (sa_entry->limits.round == attrs->lft.numb_rounds_soft)
+		mlx5e_ipsec_aso_update_soft(sa_entry,
+					    attrs->lft.soft_packet_limit);
+	if (sa_entry->limits.fix_limit) {
+		sa_entry->limits.fix_limit = false;
+		mlx5e_ipsec_aso_update_soft(sa_entry, BIT_ULL(31) - 1);
+	}
+}
+
 static void mlx5e_ipsec_handle_event(struct work_struct *_work)
 {
 	struct mlx5e_ipsec_work *work =
@@ -339,10 +444,8 @@ static void mlx5e_ipsec_handle_event(struct work_struct *_work)
 		mlx5e_ipsec_update_esn_state(sa_entry, mode_param);
 	}
 
-	if (attrs->soft_packet_limit != XFRM_INF)
-		if (!MLX5_GET(ipsec_aso, aso->ctx, soft_lft_arm) ||
-		    !MLX5_GET(ipsec_aso, aso->ctx, hard_lft_arm))
-			xfrm_state_check_expire(sa_entry->x);
+	if (attrs->lft.soft_packet_limit != XFRM_INF)
+		mlx5e_ipsec_handle_limits(sa_entry);
 
 unlock:
 	spin_unlock(&sa_entry->x->lock);

@@ -60,6 +60,13 @@ struct upspec {
 	u8 proto;
 };
 
+struct mlx5_ipsec_lft {
+	u64 hard_packet_limit;
+	u64 soft_packet_limit;
+	u64 numb_rounds_hard;
+	u64 numb_rounds_soft;
+};
+
 struct mlx5_accel_esp_xfrm_attrs {
 	u32   esn;
 	u32   spi;
@@ -85,8 +92,7 @@ struct mlx5_accel_esp_xfrm_attrs {
 	u32 replay_window;
 	u32 authsize;
 	u32 reqid;
-	u64 hard_packet_limit;
-	u64 soft_packet_limit;
+	struct mlx5_ipsec_lft lft;
 };
 
 enum mlx5_ipsec_cap {
@@ -170,6 +176,12 @@ struct mlx5e_ipsec_modify_state_work {
 	struct mlx5_accel_esp_xfrm_attrs attrs;
 };
 
+struct mlx5e_ipsec_limits {
+	u64 round;
+	u8 soft_limit_hit : 1;
+	u8 fix_limit : 1;
+};
+
 struct mlx5e_ipsec_sa_entry {
 	struct mlx5e_ipsec_esn_state esn_state;
 	struct xfrm_state *x;
@@ -181,6 +193,7 @@ struct mlx5e_ipsec_sa_entry {
 	u32 enc_key_id;
 	struct mlx5e_ipsec_rule ipsec_rule;
 	struct mlx5e_ipsec_modify_state_work modify_work;
+	struct mlx5e_ipsec_limits limits;
 };
 
 struct mlx5_accel_pol_xfrm_attrs {
