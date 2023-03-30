@@ -3272,7 +3272,7 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 		    !hdmi->logo_plug_out && !hdmi->disabled) {
 			hdmi->update = true;
 			hdmi_writeb(hdmi, HDMI_FC_GCP_SET_AVMUTE, HDMI_FC_GCP);
-			mdelay(50);
+			mdelay(180);
 			handle_plugged_change(hdmi, false);
 		} else {
 			hdmi->update = false;
