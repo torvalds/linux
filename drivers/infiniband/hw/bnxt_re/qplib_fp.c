@@ -1280,7 +1280,7 @@ int bnxt_qplib_modify_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 		memcpy(req.dest_mac, qp->ah.dmac, 6);
 
 	if (bmask & CMDQ_MODIFY_QP_MODIFY_MASK_PATH_MTU)
-		req.path_mtu = qp->path_mtu;
+		req.path_mtu_pingpong_push_enable |= qp->path_mtu;
 
 	if (bmask & CMDQ_MODIFY_QP_MODIFY_MASK_TIMEOUT)
 		req.timeout = qp->timeout;
