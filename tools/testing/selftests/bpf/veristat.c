@@ -798,7 +798,7 @@ static int guess_prog_type_by_ctx_name(const char *ctx_name,
 		enum bpf_attach_type attach_type;
 	} ctx_map[] = {
 		/* __sk_buff is most ambiguous, for now we assume cgroup_skb */
-		{ "__sk_buff", "sk_buff", BPF_PROG_TYPE_CGROUP_SKB, BPF_CGROUP_INET_INGRESS },
+		{ "__sk_buff", "sk_buff", BPF_PROG_TYPE_SCHED_CLS },
 		{ "bpf_sock", "sock", BPF_PROG_TYPE_CGROUP_SOCK, BPF_CGROUP_INET4_POST_BIND },
 		{ "bpf_sock_addr", "bpf_sock_addr_kern",  BPF_PROG_TYPE_CGROUP_SOCK_ADDR, BPF_CGROUP_INET4_BIND },
 		{ "bpf_sock_ops", "bpf_sock_ops_kern", BPF_PROG_TYPE_SOCK_OPS, BPF_CGROUP_SOCK_OPS },
