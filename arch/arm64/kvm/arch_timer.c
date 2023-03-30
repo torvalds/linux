@@ -392,12 +392,12 @@ static void kvm_timer_update_irq(struct kvm_vcpu *vcpu, bool new_level,
 	int ret;
 
 	timer_ctx->irq.level = new_level;
-	trace_kvm_timer_update_irq(vcpu->vcpu_id, timer_ctx->irq.irq,
+	trace_kvm_timer_update_irq(vcpu->vcpu_id, timer_irq(timer_ctx),
 				   timer_ctx->irq.level);
 
 	if (!userspace_irqchip(vcpu->kvm)) {
 		ret = kvm_vgic_inject_irq(vcpu->kvm, vcpu->vcpu_id,
-					  timer_ctx->irq.irq,
+					  timer_irq(timer_ctx),
 					  timer_ctx->irq.level,
 					  timer_ctx);
 		WARN_ON(ret);
@@ -607,7 +607,7 @@ static void kvm_timer_vcpu_load_gic(struct arch_timer_context *ctx)
 	kvm_timer_update_irq(ctx->vcpu, kvm_timer_should_fire(ctx), ctx);
 
 	if (irqchip_in_kernel(vcpu->kvm))
-		phys_active = kvm_vgic_map_is_active(vcpu, ctx->irq.irq);
+		phys_active = kvm_vgic_map_is_active(vcpu, timer_irq(ctx));
 
 	phys_active |= ctx->irq.level;
 
@@ -825,9 +825,9 @@ int kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu)
 					     vcpu_get_timer(vcpu, i));
 
 		if (irqchip_in_kernel(vcpu->kvm)) {
-			kvm_vgic_reset_mapped_irq(vcpu, map.direct_vtimer->irq.irq);
+			kvm_vgic_reset_mapped_irq(vcpu, timer_irq(map.direct_vtimer));
 			if (map.direct_ptimer)
-				kvm_vgic_reset_mapped_irq(vcpu, map.direct_ptimer->irq.irq);
+				kvm_vgic_reset_mapped_irq(vcpu, timer_irq(map.direct_ptimer));
 		}
 	}
 
@@ -851,7 +851,7 @@ static void timer_context_init(struct kvm_vcpu *vcpu, int timerid)
 
 	hrtimer_init(&ctxt->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_HARD);
 	ctxt->hrtimer.function = kvm_hrtimer_expire;
-	ctxt->irq.irq = default_ppi[timerid];
+	timer_irq(ctxt) = default_ppi[timerid];
 
 	switch (timerid) {
 	case TIMER_PTIMER:
@@ -1295,19 +1295,19 @@ static bool timer_irqs_are_valid(struct kvm_vcpu *vcpu)
 	int vtimer_irq, ptimer_irq, ret;
 	unsigned long i;
 
-	vtimer_irq = vcpu_vtimer(vcpu)->irq.irq;
+	vtimer_irq = timer_irq(vcpu_vtimer(vcpu));
 	ret = kvm_vgic_set_owner(vcpu, vtimer_irq, vcpu_vtimer(vcpu));
 	if (ret)
 		return false;
 
-	ptimer_irq = vcpu_ptimer(vcpu)->irq.irq;
+	ptimer_irq = timer_irq(vcpu_ptimer(vcpu));
 	ret = kvm_vgic_set_owner(vcpu, ptimer_irq, vcpu_ptimer(vcpu));
 	if (ret)
 		return false;
 
 	kvm_for_each_vcpu(i, vcpu, vcpu->kvm) {
-		if (vcpu_vtimer(vcpu)->irq.irq != vtimer_irq ||
-		    vcpu_ptimer(vcpu)->irq.irq != ptimer_irq)
+		if (timer_irq(vcpu_vtimer(vcpu)) != vtimer_irq ||
+		    timer_irq(vcpu_ptimer(vcpu)) != ptimer_irq)
 			return false;
 	}
 
@@ -1322,9 +1322,9 @@ bool kvm_arch_timer_get_input_level(int vintid)
 	if (WARN(!vcpu, "No vcpu context!\n"))
 		return false;
 
-	if (vintid == vcpu_vtimer(vcpu)->irq.irq)
+	if (vintid == timer_irq(vcpu_vtimer(vcpu)))
 		timer = vcpu_vtimer(vcpu);
-	else if (vintid == vcpu_ptimer(vcpu)->irq.irq)
+	else if (vintid == timer_irq(vcpu_ptimer(vcpu)))
 		timer = vcpu_ptimer(vcpu);
 	else
 		BUG();
@@ -1358,7 +1358,7 @@ int kvm_timer_enable(struct kvm_vcpu *vcpu)
 
 	ret = kvm_vgic_map_phys_irq(vcpu,
 				    map.direct_vtimer->host_timer_irq,
-				    map.direct_vtimer->irq.irq,
+				    timer_irq(map.direct_vtimer),
 				    &arch_timer_irq_ops);
 	if (ret)
 		return ret;
@@ -1366,7 +1366,7 @@ int kvm_timer_enable(struct kvm_vcpu *vcpu)
 	if (map.direct_ptimer) {
 		ret = kvm_vgic_map_phys_irq(vcpu,
 					    map.direct_ptimer->host_timer_irq,
-					    map.direct_ptimer->irq.irq,
+					    timer_irq(map.direct_ptimer),
 					    &arch_timer_irq_ops);
 	}
 
@@ -1391,8 +1391,8 @@ static void set_timer_irqs(struct kvm *kvm, int vtimer_irq, int ptimer_irq)
 	unsigned long i;
 
 	kvm_for_each_vcpu(i, vcpu, kvm) {
-		vcpu_vtimer(vcpu)->irq.irq = vtimer_irq;
-		vcpu_ptimer(vcpu)->irq.irq = ptimer_irq;
+		timer_irq(vcpu_vtimer(vcpu)) = vtimer_irq;
+		timer_irq(vcpu_ptimer(vcpu)) = ptimer_irq;
 	}
 }
 
@@ -1417,10 +1417,10 @@ int kvm_arm_timer_set_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
 
 	switch (attr->attr) {
 	case KVM_ARM_VCPU_TIMER_IRQ_VTIMER:
-		set_timer_irqs(vcpu->kvm, irq, ptimer->irq.irq);
+		set_timer_irqs(vcpu->kvm, irq, timer_irq(ptimer));
 		break;
 	case KVM_ARM_VCPU_TIMER_IRQ_PTIMER:
-		set_timer_irqs(vcpu->kvm, vtimer->irq.irq, irq);
+		set_timer_irqs(vcpu->kvm, timer_irq(vtimer), irq);
 		break;
 	default:
 		return -ENXIO;
@@ -1446,7 +1446,7 @@ int kvm_arm_timer_get_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
 		return -ENXIO;
 	}
 
-	irq = timer->irq.irq;
+	irq = timer_irq(timer);
 	return put_user(irq, uaddr);
 }
 
