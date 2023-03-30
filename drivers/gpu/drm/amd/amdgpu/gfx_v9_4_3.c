@@ -2165,6 +2165,10 @@ static int gfx_v9_4_3_late_init(void *handle)
 	if (r)
 		return r;
 
+	if (adev->gfx.ras &&
+	    adev->gfx.ras->enable_watchdog_timer)
+		adev->gfx.ras->enable_watchdog_timer(adev);
+
 	return 0;
 }
 
@@ -4011,6 +4015,34 @@ static void gfx_v9_4_3_inst_reset_ras_err_status(struct amdgpu_device *adev,
 	gfx_v9_4_3_inst_reset_sq_timeout_status(adev, xcc_id);
 }
 
+static void gfx_v9_4_3_inst_enable_watchdog_timer(struct amdgpu_device *adev,
+					void *ras_error_status, int xcc_id)
+{
+	uint32_t i;
+	uint32_t data;
+
+	data = REG_SET_FIELD(0, SQ_TIMEOUT_CONFIG, TIMEOUT_FATAL_DISABLE,
+			     amdgpu_watchdog_timer.timeout_fatal_disable ? 1 : 0);
+
+	if (amdgpu_watchdog_timer.timeout_fatal_disable &&
+	    (amdgpu_watchdog_timer.period < 1 ||
+	     amdgpu_watchdog_timer.period > 0x23)) {
+		dev_warn(adev->dev, "Watchdog period range is 1 to 0x23\n");
+		amdgpu_watchdog_timer.period = 0x23;
+	}
+	data = REG_SET_FIELD(data, SQ_TIMEOUT_CONFIG, PERIOD_SEL,
+			     amdgpu_watchdog_timer.period);
+
+	mutex_lock(&adev->grbm_idx_mutex);
+	for (i = 0; i < adev->gfx.config.max_shader_engines; i++) {
+		gfx_v9_4_3_xcc_select_se_sh(adev, i, 0xffffffff, 0xffffffff, xcc_id);
+		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regSQ_TIMEOUT_CONFIG, data);
+	}
+	gfx_v9_4_3_xcc_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff,
+			xcc_id);
+	mutex_unlock(&adev->grbm_idx_mutex);
+}
+
 static void gfx_v9_4_3_query_ras_error_count(struct amdgpu_device *adev,
 					void *ras_error_status)
 {
@@ -4031,6 +4063,11 @@ static void gfx_v9_4_3_query_ras_error_status(struct amdgpu_device *adev)
 static void gfx_v9_4_3_reset_ras_error_status(struct amdgpu_device *adev)
 {
 	amdgpu_gfx_ras_error_func(adev, NULL, gfx_v9_4_3_inst_reset_ras_err_status);
+}
+
+static void gfx_v9_4_3_enable_watchdog_timer(struct amdgpu_device *adev)
+{
+	amdgpu_gfx_ras_error_func(adev, NULL, gfx_v9_4_3_inst_enable_watchdog_timer);
 }
 
 static const struct amd_ip_funcs gfx_v9_4_3_ip_funcs = {
@@ -4361,4 +4398,5 @@ struct amdgpu_gfx_ras gfx_v9_4_3_ras = {
 	.ras_block = {
 		.hw_ops = &gfx_v9_4_3_ras_ops,
 	},
+	.enable_watchdog_timer = &gfx_v9_4_3_enable_watchdog_timer,
 };
