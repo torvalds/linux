@@ -13,29 +13,6 @@
 /* Attribute not found */
 #define ENOATTR         ENODATA
 
-static inline unsigned int inlinexattr_header_size(struct inode *inode)
-{
-	return sizeof(struct erofs_xattr_ibody_header) +
-		sizeof(u32) * EROFS_I(inode)->xattr_shared_count;
-}
-
-static inline erofs_blk_t xattrblock_addr(struct super_block *sb,
-					  unsigned int xattr_id)
-{
-#ifdef CONFIG_EROFS_FS_XATTR
-	return EROFS_SB(sb)->xattr_blkaddr +
-		xattr_id * sizeof(__u32) / sb->s_blocksize;
-#else
-	return 0;
-#endif
-}
-
-static inline unsigned int xattrblock_offset(struct super_block *sb,
-					     unsigned int xattr_id)
-{
-	return (xattr_id * sizeof(__u32)) % sb->s_blocksize;
-}
-
 #ifdef CONFIG_EROFS_FS_XATTR
 extern const struct xattr_handler erofs_xattr_user_handler;
 extern const struct xattr_handler erofs_xattr_trusted_handler;
