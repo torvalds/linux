@@ -8468,6 +8468,7 @@ int bpf_program__set_type(struct bpf_program *prog, enum bpf_prog_type type)
 		return libbpf_err(-EBUSY);
 
 	prog->type = type;
+	prog->sec_def = NULL;
 	return 0;
 }
 
