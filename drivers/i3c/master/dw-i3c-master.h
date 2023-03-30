@@ -19,6 +19,7 @@ struct dw_i3c_master_caps {
 
 struct dw_i3c_dat_entry {
 	u8 addr;
+	struct i3c_dev_desc *ibi_dev;
 };
 
 struct dw_i3c_master {
@@ -37,12 +38,22 @@ struct dw_i3c_master {
 	struct clk *core_clk;
 	char version[5];
 	char type[5];
+	bool ibi_capable;
 
 	/*
 	 * Per-device hardware data, used to manage the device address table
 	 * (DAT)
+	 *
+	 * Locking: the devs array may be referenced in IRQ context while
+	 * processing an IBI. However, IBIs (for a specific device, which
+	 * implies a specific DAT entry) can only happen while interrupts are
+	 * requested for that device, which is serialised against other
+	 * insertions/removals from the array by the global i3c infrastructure.
+	 * So, devs_lock protects against concurrent updates to devs->ibi_dev
+	 * between request_ibi/free_ibi and the IBI irq event.
 	 */
 	struct dw_i3c_dat_entry devs[DW_I3C_MAX_DEVS];
+	spinlock_t devs_lock;
 
 	/* platform-specific data */
 	const struct dw_i3c_platform_ops *platform_ops;
