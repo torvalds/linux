@@ -9724,7 +9724,7 @@ F:	include/linux/i3c/
 IA64 (Itanium) PLATFORM
 L:	linux-ia64@vger.kernel.org
 S:	Orphan
-F:	Documentation/ia64/
+F:	Documentation/arch/ia64/
 F:	arch/ia64/
 
 IBM Operation Panel Input Driver
