@@ -851,7 +851,6 @@ static void timer_context_init(struct kvm_vcpu *vcpu, int timerid)
 
 	hrtimer_init(&ctxt->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_HARD);
 	ctxt->hrtimer.function = kvm_hrtimer_expire;
-	timer_irq(ctxt) = default_ppi[timerid];
 
 	switch (timerid) {
 	case TIMER_PTIMER:
@@ -878,6 +877,13 @@ void kvm_timer_vcpu_init(struct kvm_vcpu *vcpu)
 
 	hrtimer_init(&timer->bg_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_HARD);
 	timer->bg_timer.function = kvm_bg_timer_expire;
+}
+
+void kvm_timer_init_vm(struct kvm *kvm)
+{
+	mutex_init(&kvm->arch.timer_data.lock);
+	for (int i = 0; i < NR_KVM_TIMERS; i++)
+		kvm->arch.timer_data.ppi[i] = default_ppi[i];
 }
 
 void kvm_timer_cpu_up(void)
@@ -1292,44 +1298,56 @@ void kvm_timer_vcpu_terminate(struct kvm_vcpu *vcpu)
 
 static bool timer_irqs_are_valid(struct kvm_vcpu *vcpu)
 {
-	int vtimer_irq, ptimer_irq, ret;
-	unsigned long i;
+	u32 ppis = 0;
+	bool valid;
 
-	vtimer_irq = timer_irq(vcpu_vtimer(vcpu));
-	ret = kvm_vgic_set_owner(vcpu, vtimer_irq, vcpu_vtimer(vcpu));
-	if (ret)
-		return false;
+	mutex_lock(&vcpu->kvm->arch.timer_data.lock);
 
-	ptimer_irq = timer_irq(vcpu_ptimer(vcpu));
-	ret = kvm_vgic_set_owner(vcpu, ptimer_irq, vcpu_ptimer(vcpu));
-	if (ret)
-		return false;
+	for (int i = 0; i < NR_KVM_TIMERS; i++) {
+		struct arch_timer_context *ctx;
+		int irq;
 
-	kvm_for_each_vcpu(i, vcpu, vcpu->kvm) {
-		if (timer_irq(vcpu_vtimer(vcpu)) != vtimer_irq ||
-		    timer_irq(vcpu_ptimer(vcpu)) != ptimer_irq)
-			return false;
+		ctx = vcpu_get_timer(vcpu, i);
+		irq = timer_irq(ctx);
+		if (kvm_vgic_set_owner(vcpu, irq, ctx))
+			break;
+
+		/*
+		 * We know by construction that we only have PPIs, so
+		 * all values are less than 32.
+		 */
+		ppis |= BIT(irq);
 	}
 
-	return true;
+	valid = hweight32(ppis) == NR_KVM_TIMERS;
+
+	if (valid)
+		set_bit(KVM_ARCH_FLAG_TIMER_PPIS_IMMUTABLE, &vcpu->kvm->arch.flags);
+
+	mutex_unlock(&vcpu->kvm->arch.timer_data.lock);
+
+	return valid;
 }
 
 bool kvm_arch_timer_get_input_level(int vintid)
 {
 	struct kvm_vcpu *vcpu = kvm_get_running_vcpu();
-	struct arch_timer_context *timer;
 
 	if (WARN(!vcpu, "No vcpu context!\n"))
 		return false;
 
-	if (vintid == timer_irq(vcpu_vtimer(vcpu)))
-		timer = vcpu_vtimer(vcpu);
-	else if (vintid == timer_irq(vcpu_ptimer(vcpu)))
-		timer = vcpu_ptimer(vcpu);
-	else
-		BUG();
+	for (int i = 0; i < NR_KVM_TIMERS; i++) {
+		struct arch_timer_context *ctx;
 
-	return kvm_timer_should_fire(timer);
+		ctx = vcpu_get_timer(vcpu, i);
+		if (timer_irq(ctx) == vintid)
+			return kvm_timer_should_fire(ctx);
+	}
+
+	/* A timer IRQ has fired, but no matching timer was found? */
+	WARN_RATELIMIT(1, "timer INTID%d unknown\n", vintid);
+
+	return false;
 }
 
 int kvm_timer_enable(struct kvm_vcpu *vcpu)
@@ -1385,23 +1403,10 @@ void kvm_timer_init_vhe(void)
 		sysreg_clear_set(cntkctl_el1, 0, CNTHCTL_ECV);
 }
 
-static void set_timer_irqs(struct kvm *kvm, int vtimer_irq, int ptimer_irq)
-{
-	struct kvm_vcpu *vcpu;
-	unsigned long i;
-
-	kvm_for_each_vcpu(i, vcpu, kvm) {
-		timer_irq(vcpu_vtimer(vcpu)) = vtimer_irq;
-		timer_irq(vcpu_ptimer(vcpu)) = ptimer_irq;
-	}
-}
-
 int kvm_arm_timer_set_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
 {
 	int __user *uaddr = (int __user *)(long)attr->addr;
-	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
-	struct arch_timer_context *ptimer = vcpu_ptimer(vcpu);
-	int irq;
+	int irq, idx, ret = 0;
 
 	if (!irqchip_in_kernel(vcpu->kvm))
 		return -EINVAL;
@@ -1412,21 +1417,36 @@ int kvm_arm_timer_set_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
 	if (!(irq_is_ppi(irq)))
 		return -EINVAL;
 
-	if (vcpu->arch.timer_cpu.enabled)
-		return -EBUSY;
+	mutex_lock(&vcpu->kvm->arch.timer_data.lock);
+
+	if (test_bit(KVM_ARCH_FLAG_TIMER_PPIS_IMMUTABLE,
+		     &vcpu->kvm->arch.flags)) {
+		ret = -EBUSY;
+		goto out;
+	}
 
 	switch (attr->attr) {
 	case KVM_ARM_VCPU_TIMER_IRQ_VTIMER:
-		set_timer_irqs(vcpu->kvm, irq, timer_irq(ptimer));
+		idx = TIMER_VTIMER;
 		break;
 	case KVM_ARM_VCPU_TIMER_IRQ_PTIMER:
-		set_timer_irqs(vcpu->kvm, timer_irq(vtimer), irq);
+		idx = TIMER_PTIMER;
 		break;
 	default:
-		return -ENXIO;
+		ret = -ENXIO;
+		goto out;
 	}
 
-	return 0;
+	/*
+	 * We cannot validate the IRQ unicity before we run, so take it at
+	 * face value. The verdict will be given on first vcpu run, for each
+	 * vcpu. Yes this is late. Blame it on the stupid API.
+	 */
+	vcpu->kvm->arch.timer_data.ppi[idx] = irq;
+
+out:
+	mutex_unlock(&vcpu->kvm->arch.timer_data.lock);
+	return ret;
 }
 
 int kvm_arm_timer_get_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)

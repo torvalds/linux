@@ -223,6 +223,8 @@ struct kvm_arch {
 #define KVM_ARCH_FLAG_SYSTEM_SUSPEND_ENABLED		5
 	/* VM counter offset */
 #define KVM_ARCH_FLAG_VM_COUNTER_OFFSET			6
+	/* Timer PPIs made immutable */
+#define KVM_ARCH_FLAG_TIMER_PPIS_IMMUTABLE		7
 
 	unsigned long flags;
 
