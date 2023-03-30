@@ -679,21 +679,6 @@ int bnxt_qplib_free_fast_reg_page_list(struct bnxt_qplib_res *res,
 	return 0;
 }
 
-int bnxt_qplib_map_tc2cos(struct bnxt_qplib_res *res, u16 *cids)
-{
-	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
-	struct cmdq_map_tc_to_cos req;
-	struct creq_map_tc_to_cos_resp resp;
-	u16 cmd_flags = 0;
-
-	RCFW_CMD_PREP(req, MAP_TC_TO_COS, cmd_flags);
-	req.cos0 = cpu_to_le16(cids[0]);
-	req.cos1 = cpu_to_le16(cids[1]);
-
-	return bnxt_qplib_rcfw_send_message(rcfw, (void *)&req, (void *)&resp,
-						NULL, 0);
-}
-
 int bnxt_qplib_get_roce_stats(struct bnxt_qplib_rcfw *rcfw,
 			      struct bnxt_qplib_roce_stats *stats)
 {
