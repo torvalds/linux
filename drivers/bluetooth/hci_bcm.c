@@ -890,7 +890,7 @@ unlock:
 #endif
 
 /* Some firmware reports an IRQ which does not work (wrong pin in fw table?) */
-static struct gpiod_lookup_table asus_tf103c_irq_gpios = {
+static struct gpiod_lookup_table irq_on_int33fc02_pin17_gpios = {
 	.dev_id = "serial0-0",
 	.table = {
 		GPIO_LOOKUP("INT33FC:02", 17, "host-wakeup-alt", GPIO_ACTIVE_HIGH),
@@ -905,7 +905,18 @@ static const struct dmi_system_id bcm_broken_irq_dmi_table[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TF103C"),
 		},
-		.driver_data = &asus_tf103c_irq_gpios,
+		.driver_data = &irq_on_int33fc02_pin17_gpios,
+	},
+	{
+		.ident = "Lenovo Yoga Tablet 2 830F/L / 1050F/L",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corp."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "VALLEYVIEW C0 PLATFORM"),
+			DMI_MATCH(DMI_BOARD_NAME, "BYT-T FFD8"),
+			/* Partial match on beginning of BIOS version */
+			DMI_MATCH(DMI_BIOS_VERSION, "BLADE_21"),
+		},
+		.driver_data = &irq_on_int33fc02_pin17_gpios,
 	},
 	{
 		.ident = "Meegopad T08",
