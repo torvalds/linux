@@ -209,6 +209,16 @@ int devtmpfs_init(void);
 static inline int devtmpfs_init(void) { return 0; }
 #endif
 
+#ifdef CONFIG_BLOCK
+extern struct class block_class;
+static inline bool is_blockdev(struct device *dev)
+{
+	return dev->class == &block_class;
+}
+#else
+static inline bool is_blockdev(struct device *dev) { return false; }
+#endif
+
 /* Device links support */
 int device_links_read_lock(void);
 void device_links_read_unlock(int idx);
