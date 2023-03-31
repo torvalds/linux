@@ -748,6 +748,13 @@ config COMMON_CLK_MT8188_VPPSYS
 	help
 	  This driver supports MediaTek MT8188 vppsys0/1 clocks.
 
+config COMMON_CLK_MT8188_WPESYS
+	tristate "Clock driver for MediaTek MT8188 wpesys"
+	depends on COMMON_CLK_MT8188_IMGSYS
+	default COMMON_CLK_MT8188_IMGSYS
+	help
+	  This driver supports MediaTek MT8188 Warp Engine clocks.
+
 config COMMON_CLK_MT8192
 	tristate "Clock driver for MediaTek MT8192"
 	depends on ARM64 || COMPILE_TEST
