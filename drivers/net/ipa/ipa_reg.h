@@ -60,9 +60,8 @@ enum ipa_reg_id {
 	SHARED_MEM_SIZE,
 	QSB_MAX_WRITES,
 	QSB_MAX_READS,
-	FILT_ROUT_HASH_EN,				/* Not IPA v5.0+ */
-	FILT_ROUT_CACHE_CFG,				/* IPA v5.0+ */
-	FILT_ROUT_HASH_FLUSH,				/* Not IPA v5.0+ */
+	FILT_ROUT_HASH_EN,				/* IPA v4.2 */
+	FILT_ROUT_HASH_FLUSH,			/* Not IPA v4.2 nor IPA v5.0+ */
 	FILT_ROUT_CACHE_FLUSH,				/* IPA v5.0+ */
 	STATE_AGGR_ACTIVE,
 	IPA_BCR,					/* Not IPA v4.5+ */
@@ -77,12 +76,12 @@ enum ipa_reg_id {
 	TIMERS_PULSE_GRAN_CFG,				/* IPA v4.5+ */
 	SRC_RSRC_GRP_01_RSRC_TYPE,
 	SRC_RSRC_GRP_23_RSRC_TYPE,
-	SRC_RSRC_GRP_45_RSRC_TYPE,		/* Not IPA v3.5+, IPA v4.5 */
-	SRC_RSRC_GRP_67_RSRC_TYPE,			/* Not IPA v3.5+ */
+	SRC_RSRC_GRP_45_RSRC_TYPE,	/* Not IPA v3.5+; IPA v4.5, IPA v5.0 */
+	SRC_RSRC_GRP_67_RSRC_TYPE,		/* Not IPA v3.5+; IPA v5.0 */
 	DST_RSRC_GRP_01_RSRC_TYPE,
 	DST_RSRC_GRP_23_RSRC_TYPE,
-	DST_RSRC_GRP_45_RSRC_TYPE,		/* Not IPA v3.5+, IPA v4.5 */
-	DST_RSRC_GRP_67_RSRC_TYPE,			/* Not IPA v3.5+ */
+	DST_RSRC_GRP_45_RSRC_TYPE,	/* Not IPA v3.5+; IPA v4.5, IPA v5.0 */
+	DST_RSRC_GRP_67_RSRC_TYPE,		/* Not IPA v3.5+; IPA v5.0 */
 	ENDP_INIT_CTRL,		/* Not IPA v4.2+ for TX, not IPA v4.0+ for RX */
 	ENDP_INIT_CFG,
 	ENDP_INIT_NAT,			/* TX only */
@@ -204,14 +203,6 @@ enum ipa_reg_qsb_max_reads_field_id {
 	GEN_QMB_1_MAX_READS,
 	GEN_QMB_0_MAX_READS_BEATS,			/* IPA v4.0+ */
 	GEN_QMB_1_MAX_READS_BEATS,			/* IPA v4.0+ */
-};
-
-/* FILT_ROUT_CACHE_CFG register */
-enum ipa_reg_filt_rout_cache_cfg_field_id {
-	ROUTER_CACHE_EN,
-	FILTER_CACHE_EN,
-	LOW_PRI_HASH_HIT_DISABLE,
-	LRU_EVICTION_THRESHOLD,
 };
 
 /* FILT_ROUT_HASH_EN and FILT_ROUT_HASH_FLUSH registers */

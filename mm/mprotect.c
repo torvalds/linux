@@ -805,7 +805,7 @@ static int do_mprotect_pkey(unsigned long start, size_t len,
 
 		if (map_deny_write_exec(vma, newflags)) {
 			error = -EACCES;
-			goto out;
+			break;
 		}
 
 		/* Allow architectures to sanity-check the new flags */

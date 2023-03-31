@@ -578,7 +578,7 @@ static void nv_pcie_gen3_enable(struct amdgpu_device *adev)
 
 static void nv_program_aspm(struct amdgpu_device *adev)
 {
-	if (!amdgpu_device_should_use_aspm(adev))
+	if (!amdgpu_device_should_use_aspm(adev) || !amdgpu_device_aspm_support_quirk())
 		return;
 
 	if (!(adev->flags & AMD_IS_APU) &&
@@ -1055,8 +1055,8 @@ static int nv_common_late_init(void *handle)
 			amdgpu_virt_update_sriov_video_codec(adev,
 							     sriov_sc_video_codecs_encode_array,
 							     ARRAY_SIZE(sriov_sc_video_codecs_encode_array),
-							     sriov_sc_video_codecs_decode_array_vcn1,
-							     ARRAY_SIZE(sriov_sc_video_codecs_decode_array_vcn1));
+							     sriov_sc_video_codecs_decode_array_vcn0,
+							     ARRAY_SIZE(sriov_sc_video_codecs_decode_array_vcn0));
 		}
 	}
 

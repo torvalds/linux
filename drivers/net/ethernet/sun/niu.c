@@ -9271,7 +9271,7 @@ static int niu_get_of_props(struct niu *np)
 	if (model)
 		strcpy(np->vpd.model, model);
 
-	if (of_find_property(dp, "hot-swappable-phy", NULL)) {
+	if (of_property_read_bool(dp, "hot-swappable-phy")) {
 		np->flags |= (NIU_FLAGS_10G | NIU_FLAGS_FIBER |
 			NIU_FLAGS_HOTPLUG_PHY);
 	}

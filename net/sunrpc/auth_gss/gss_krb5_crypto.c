@@ -353,7 +353,9 @@ gss_krb5_checksum(struct crypto_ahash *tfm, char *header, int hdrlen,
 	err = crypto_ahash_final(req);
 	if (err)
 		goto out_free_ahash;
-	memcpy(cksumout->data, checksumdata, cksumout->len);
+
+	memcpy(cksumout->data, checksumdata,
+	       min_t(int, cksumout->len, crypto_ahash_digestsize(tfm)));
 
 out_free_ahash:
 	ahash_request_free(req);
@@ -809,8 +811,7 @@ gss_krb5_aes_encrypt(struct krb5_ctx *kctx, u32 offset,
 	buf->tail[0].iov_len += GSS_KRB5_TOK_HDR_LEN;
 	buf->len += GSS_KRB5_TOK_HDR_LEN;
 
-	/* Do the HMAC */
-	hmac.len = GSS_KRB5_MAX_CKSUM_LEN;
+	hmac.len = kctx->gk5e->cksumlength;
 	hmac.data = buf->tail[0].iov_base + buf->tail[0].iov_len;
 
 	/*
@@ -873,8 +874,7 @@ gss_krb5_aes_decrypt(struct krb5_ctx *kctx, u32 offset, u32 len,
 	if (ret)
 		goto out_err;
 
-	/* Calculate our hmac over the plaintext data */
-	our_hmac_obj.len = sizeof(our_hmac);
+	our_hmac_obj.len = kctx->gk5e->cksumlength;
 	our_hmac_obj.data = our_hmac;
 	ret = gss_krb5_checksum(ahash, NULL, 0, &subbuf, 0, &our_hmac_obj);
 	if (ret)

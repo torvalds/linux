@@ -418,6 +418,7 @@ struct dma_features {
 	unsigned int frpbs;
 	unsigned int frpes;
 	unsigned int addr64;
+	unsigned int host_dma_width;
 	unsigned int rssen;
 	unsigned int vlhash;
 	unsigned int sphen;

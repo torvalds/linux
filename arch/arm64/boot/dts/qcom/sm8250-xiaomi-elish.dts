@@ -625,6 +625,6 @@
 };
 
 &venus {
-	firmware-name = "qcom/sm8250/elish/venus.mbn";
+	firmware-name = "qcom/sm8250/xiaomi/elish/venus.mbn";
 	status = "okay";
 };

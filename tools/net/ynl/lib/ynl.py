@@ -200,7 +200,7 @@ def _genl_msg(nl_type, nl_flags, genl_cmd, genl_version, seq=None):
     if seq is None:
         seq = random.randint(1, 1024)
     nlmsg = struct.pack("HHII", nl_type, nl_flags, seq, 0)
-    genlmsg = struct.pack("bbH", genl_cmd, genl_version, 0)
+    genlmsg = struct.pack("BBH", genl_cmd, genl_version, 0)
     return nlmsg + genlmsg
 
 
@@ -264,7 +264,7 @@ class GenlMsg:
         self.hdr = nl_msg.raw[0:4]
         self.raw = nl_msg.raw[4:]
 
-        self.genl_cmd, self.genl_version, _ = struct.unpack("bbH", self.hdr)
+        self.genl_cmd, self.genl_version, _ = struct.unpack("BBH", self.hdr)
 
         self.raw_attrs = NlAttrs(self.raw)
 
@@ -358,7 +358,7 @@ class YnlFamily(SpecFamily):
                 raw >>= 1
                 i += 1
         else:
-            value = enum['entries'][raw - i]
+            value = enum.entries_by_val[raw - i].name
         rsp[attr_spec['name']] = value
 
     def _decode(self, attrs, space):
