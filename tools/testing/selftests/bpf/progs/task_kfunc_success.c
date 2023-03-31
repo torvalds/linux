@@ -47,7 +47,10 @@ static int test_acquire_release(struct task_struct *task)
 	}
 
 	acquired = bpf_task_acquire(task);
-	bpf_task_release(acquired);
+	if (acquired)
+		bpf_task_release(acquired);
+	else
+		err = 6;
 
 	return 0;
 }
@@ -166,7 +169,10 @@ int BPF_PROG(test_task_current_acquire_release, struct task_struct *task, u64 cl
 
 	current = bpf_get_current_task_btf();
 	acquired = bpf_task_acquire(current);
-	bpf_task_release(acquired);
+	if (acquired)
+		bpf_task_release(acquired);
+	else
+		err = 1;
 
 	return 0;
 }
@@ -238,6 +244,22 @@ int BPF_PROG(test_task_from_pid_invalid, struct task_struct *task, u64 clone_fla
 		err = 2;
 		return 0;
 	}
+
+	return 0;
+}
+
+SEC("tp_btf/task_newtask")
+int BPF_PROG(task_kfunc_acquire_trusted_walked, struct task_struct *task, u64 clone_flags)
+{
+	struct task_struct *acquired;
+
+	/* task->group_leader is listed as a trusted, non-NULL field of task struct. */
+	acquired = bpf_task_acquire(task->group_leader);
+	if (acquired)
+		bpf_task_release(acquired);
+	else
+		err = 1;
+
 
 	return 0;
 }

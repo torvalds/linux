@@ -18,6 +18,7 @@
 #include <linux/pid_namespace.h>
 #include <linux/poison.h>
 #include <linux/proc_ns.h>
+#include <linux/sched/task.h>
 #include <linux/security.h>
 #include <linux/btf_ids.h>
 #include <linux/bpf_mem_alloc.h>
@@ -2013,7 +2014,9 @@ __bpf_kfunc struct bpf_rb_node *bpf_rbtree_first(struct bpf_rb_root *root)
  */
 __bpf_kfunc struct task_struct *bpf_task_acquire(struct task_struct *p)
 {
-	return get_task_struct(p);
+	if (refcount_inc_not_zero(&p->rcu_users))
+		return p;
+	return NULL;
 }
 
 /**
@@ -2089,7 +2092,7 @@ __bpf_kfunc struct task_struct *bpf_task_kptr_get(struct task_struct **pp)
  */
 __bpf_kfunc void bpf_task_release(struct task_struct *p)
 {
-	put_task_struct(p);
+	put_task_struct_rcu_user(p);
 }
 
 #ifdef CONFIG_CGROUPS
@@ -2199,7 +2202,7 @@ __bpf_kfunc struct task_struct *bpf_task_from_pid(s32 pid)
 	rcu_read_lock();
 	p = find_task_by_pid_ns(pid, &init_pid_ns);
 	if (p)
-		bpf_task_acquire(p);
+		p = bpf_task_acquire(p);
 	rcu_read_unlock();
 
 	return p;
@@ -2371,7 +2374,7 @@ BTF_ID_FLAGS(func, bpf_list_push_front)
 BTF_ID_FLAGS(func, bpf_list_push_back)
 BTF_ID_FLAGS(func, bpf_list_pop_front, KF_ACQUIRE | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_list_pop_back, KF_ACQUIRE | KF_RET_NULL)
-BTF_ID_FLAGS(func, bpf_task_acquire, KF_ACQUIRE | KF_TRUSTED_ARGS)
+BTF_ID_FLAGS(func, bpf_task_acquire, KF_ACQUIRE | KF_RCU | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_task_acquire_not_zero, KF_ACQUIRE | KF_RCU | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_task_kptr_get, KF_ACQUIRE | KF_KPTR_GET | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_task_release, KF_RELEASE)
