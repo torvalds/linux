@@ -221,7 +221,10 @@ static blk_status_t ubiblock_read(struct request *req)
 
 	rq_for_each_segment(bvec, req, iter)
 		flush_dcache_page(bvec.bv_page);
-	return errno_to_blk_status(ret);
+
+	blk_mq_end_request(req, errno_to_blk_status(ret));
+
+	return BLK_STS_OK;
 }
 
 static int ubiblock_open(struct block_device *bdev, fmode_t mode)
