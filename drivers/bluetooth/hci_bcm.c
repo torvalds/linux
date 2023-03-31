@@ -900,6 +900,14 @@ static struct gpiod_lookup_table irq_on_int33fc02_pin17_gpios = {
 
 static const struct dmi_system_id bcm_broken_irq_dmi_table[] = {
 	{
+		.ident = "Acer Iconia One 7 B1-750",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "VESPA2"),
+		},
+		.driver_data = &irq_on_int33fc02_pin17_gpios,
+	},
+	{
 		.ident = "Asus TF103C",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
