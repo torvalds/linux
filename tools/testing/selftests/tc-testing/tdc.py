@@ -369,6 +369,19 @@ def run_one_test(pm, args, index, tidx):
             pm.call_post_execute()
             return res
 
+    if 'dependsOn' in tidx:
+        if (args.verbose > 0):
+            print('probe command for test skip')
+        (p, procout) = exec_cmd(args, pm, 'execute', tidx['dependsOn'])
+        if p:
+            if (p.returncode != 0):
+                res = TestResult(tidx['id'], tidx['name'])
+                res.set_result(ResultState.skip)
+                res.set_errormsg('probe command: test skipped.')
+                pm.call_pre_case(tidx, test_skip=True)
+                pm.call_post_execute()
+                return res
+
     # populate NAMES with TESTID for this test
     NAMES['TESTID'] = tidx['id']
 
