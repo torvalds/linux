@@ -40,7 +40,7 @@ int BPF_PROG(kmalloc, unsigned long call_site, const void *ptr,
 }
 
 SEC("tp_btf/sched_process_fork")
-int BPF_PROG(fork, struct task_struct *parent, struct task_struct *child)
+int BPF_PROG(sched_process_fork, struct task_struct *parent, struct task_struct *child)
 {
 	struct storage *stg;
 

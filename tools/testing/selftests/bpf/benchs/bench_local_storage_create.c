@@ -95,7 +95,7 @@ static void setup(void)
 			exit(1);
 		}
 	} else {
-		if (!bpf_program__attach(skel->progs.fork)) {
+		if (!bpf_program__attach(skel->progs.sched_process_fork)) {
 			fprintf(stderr, "Error attaching bpf program\n");
 			exit(1);
 		}
