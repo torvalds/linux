@@ -1167,6 +1167,9 @@ static bool dpu_crtc_needs_dirtyfb(struct drm_crtc_state *cstate)
 	struct drm_crtc *crtc = cstate->crtc;
 	struct drm_encoder *encoder;
 
+	if (cstate->self_refresh_active)
+		return true;
+
 	drm_for_each_encoder_mask (encoder, crtc->dev, cstate->encoder_mask) {
 		if (dpu_encoder_get_intf_mode(encoder) == INTF_MODE_CMD) {
 			return true;
