@@ -392,6 +392,7 @@ static u64 xe_migrate_res_sizes(struct xe_res_cursor *cur)
 
 static u32 pte_update_size(struct xe_migrate *m,
 			   bool is_vram,
+			   struct ttm_resource *res,
 			   struct xe_res_cursor *cur,
 			   u64 *L0, u64 *L0_ofs, u32 *L0_pt,
 			   u32 cmd_size, u32 pt_ofs, u32 avail_pts)
@@ -417,7 +418,8 @@ static u32 pte_update_size(struct xe_migrate *m,
 		cmds += cmd_size;
 	} else {
 		/* Offset into identity map. */
-		*L0_ofs = xe_migrate_vram_ofs(cur->start);
+		*L0_ofs = xe_migrate_vram_ofs(cur->start +
+					      vram_region_io_offset(res));
 		cmds += cmd_size;
 	}
 
@@ -467,6 +469,7 @@ static void emit_pte(struct xe_migrate *m,
 					addr |= GEN12_PTE_PS64;
 				}
 
+				addr += vram_region_io_offset(bo->ttm.resource);
 				addr |= GEN12_PPGTT_PTE_LM;
 			}
 			addr |= PPAT_CACHED | GEN8_PAGE_PRESENT | GEN8_PAGE_RW;
@@ -646,17 +649,17 @@ struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
 
 		src_L0 = min(src_L0, dst_L0);
 
-		batch_size += pte_update_size(m, src_is_vram, &src_it, &src_L0,
+		batch_size += pte_update_size(m, src_is_vram, src, &src_it, &src_L0,
 					      &src_L0_ofs, &src_L0_pt, 0, 0,
 					      NUM_PT_PER_BLIT);
 
-		batch_size += pte_update_size(m, dst_is_vram, &dst_it, &src_L0,
+		batch_size += pte_update_size(m, dst_is_vram, dst, &dst_it, &src_L0,
 					      &dst_L0_ofs, &dst_L0_pt, 0,
 					      NUM_PT_PER_BLIT, NUM_PT_PER_BLIT);
 
 		if (copy_system_ccs) {
 			ccs_size = xe_device_ccs_bytes(xe, src_L0);
-			batch_size += pte_update_size(m, false, &ccs_it, &ccs_size,
+			batch_size += pte_update_size(m, false, NULL, &ccs_it, &ccs_size,
 						      &ccs_ofs, &ccs_pt, 0,
 						      2 * NUM_PT_PER_BLIT,
 						      NUM_PT_PER_BLIT);
@@ -879,7 +882,7 @@ struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 
 		/* Calculate final sizes and batch size.. */
 		batch_size = 2 +
-			pte_update_size(m, clear_vram, &src_it,
+			pte_update_size(m, clear_vram, src, &src_it,
 					&clear_L0, &clear_L0_ofs, &clear_L0_pt,
 					emit_clear_cmd_len(xe), 0,
 					NUM_PT_PER_BLIT);
