@@ -34,6 +34,7 @@
 #include "intel_dp_aux.h"
 #include "intel_hdmi.h"
 #include "intel_psr.h"
+#include "intel_psr_regs.h"
 #include "intel_snps_phy.h"
 #include "skl_universal_plane.h"
 

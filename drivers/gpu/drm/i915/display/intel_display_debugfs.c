@@ -29,6 +29,7 @@
 #include "intel_hotplug.h"
 #include "intel_panel.h"
 #include "intel_psr.h"
+#include "intel_psr_regs.h"
 #include "intel_sprite.h"
 #include "intel_wm.h"
 
