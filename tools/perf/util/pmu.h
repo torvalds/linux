@@ -211,7 +211,7 @@ void perf_pmu_error(struct list_head *list, char *name, char const *msg);
 int perf_pmu__new_format(struct list_head *list, char *name,
 			 int config, unsigned long *bits);
 void perf_pmu__set_format(unsigned long *bits, long from, long to);
-int perf_pmu__format_parse(char *dir, struct list_head *head);
+int perf_pmu__format_parse(int dirfd, struct list_head *head);
 void perf_pmu__del_formats(struct list_head *formats);
 
 struct perf_pmu *perf_pmu__scan(struct perf_pmu *pmu);
@@ -257,6 +257,8 @@ double perf_pmu__cpu_slots_per_cycle(void);
 int perf_pmu__event_source_devices_scnprintf(char *pathname, size_t size);
 int perf_pmu__pathname_scnprintf(char *buf, size_t size,
 				 const char *pmu_name, const char *filename);
+int perf_pmu__event_source_devices_fd(void);
+int perf_pmu__pathname_fd(int dirfd, const char *pmu_name, const char *filename, int flags);
 FILE *perf_pmu__open_file(struct perf_pmu *pmu, const char *name);
 
 void perf_pmu__destroy(void);

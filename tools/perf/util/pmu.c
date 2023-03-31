@@ -62,38 +62,38 @@ extern FILE *perf_pmu_in;
 
 static bool hybrid_scanned;
 
+static struct perf_pmu *perf_pmu__find2(int dirfd, const char *name);
+
 /*
  * Parse & process all the sysfs attributes located under
  * the directory specified in 'dir' parameter.
  */
-int perf_pmu__format_parse(char *dir, struct list_head *head)
+int perf_pmu__format_parse(int dirfd, struct list_head *head)
 {
 	struct dirent *evt_ent;
 	DIR *format_dir;
 	int ret = 0;
 
-	format_dir = opendir(dir);
+	format_dir = fdopendir(dirfd);
 	if (!format_dir)
 		return -EINVAL;
 
 	while (!ret && (evt_ent = readdir(format_dir))) {
-		char path[PATH_MAX];
 		char *name = evt_ent->d_name;
-		FILE *file;
+		int fd;
 
 		if (!strcmp(name, ".") || !strcmp(name, ".."))
 			continue;
 
-		snprintf(path, PATH_MAX, "%s/%s", dir, name);
 
 		ret = -EINVAL;
-		file = fopen(path, "r");
-		if (!file)
+		fd = openat(dirfd, name, O_RDONLY);
+		if (fd < 0)
 			break;
 
-		perf_pmu_in = file;
+		perf_pmu_in = fdopen(fd, "r");
 		ret = perf_pmu_parse(head, name);
-		fclose(file);
+		fclose(perf_pmu_in);
 	}
 
 	closedir(format_dir);
@@ -105,17 +105,16 @@ int perf_pmu__format_parse(char *dir, struct list_head *head)
  * located at:
  * /sys/bus/event_source/devices/<dev>/format as sysfs group attributes.
  */
-static int pmu_format(const char *name, struct list_head *format)
+static int pmu_format(int dirfd, const char *name, struct list_head *format)
 {
-	char path[PATH_MAX];
+	int fd;
 
-	if (!perf_pmu__pathname_scnprintf(path, sizeof(path), name, "format"))
-		return -1;
-
-	if (!file_available(path))
+	fd = perf_pmu__pathname_fd(dirfd, name, "format", O_DIRECTORY);
+	if (fd < 0)
 		return 0;
 
-	if (perf_pmu__format_parse(path, format))
+	/* it'll close the fd */
+	if (perf_pmu__format_parse(fd, format))
 		return -1;
 
 	return 0;
@@ -158,7 +157,7 @@ out:
 	return ret;
 }
 
-static int perf_pmu__parse_scale(struct perf_pmu_alias *alias, char *dir, char *name)
+static int perf_pmu__parse_scale(struct perf_pmu_alias *alias, int dirfd, char *name)
 {
 	struct stat st;
 	ssize_t sret;
@@ -166,9 +165,9 @@ static int perf_pmu__parse_scale(struct perf_pmu_alias *alias, char *dir, char *
 	int fd, ret = -1;
 	char path[PATH_MAX];
 
-	scnprintf(path, PATH_MAX, "%s/%s.scale", dir, name);
+	scnprintf(path, PATH_MAX, "%s.scale", name);
 
-	fd = open(path, O_RDONLY);
+	fd = openat(dirfd, path, O_RDONLY);
 	if (fd == -1)
 		return -1;
 
@@ -190,15 +189,15 @@ error:
 	return ret;
 }
 
-static int perf_pmu__parse_unit(struct perf_pmu_alias *alias, char *dir, char *name)
+static int perf_pmu__parse_unit(struct perf_pmu_alias *alias, int dirfd, char *name)
 {
 	char path[PATH_MAX];
 	ssize_t sret;
 	int fd;
 
-	scnprintf(path, PATH_MAX, "%s/%s.unit", dir, name);
+	scnprintf(path, PATH_MAX, "%s.unit", name);
 
-	fd = open(path, O_RDONLY);
+	fd = openat(dirfd, path, O_RDONLY);
 	if (fd == -1)
 		return -1;
 
@@ -221,14 +220,14 @@ error:
 }
 
 static int
-perf_pmu__parse_per_pkg(struct perf_pmu_alias *alias, char *dir, char *name)
+perf_pmu__parse_per_pkg(struct perf_pmu_alias *alias, int dirfd, char *name)
 {
 	char path[PATH_MAX];
 	int fd;
 
-	scnprintf(path, PATH_MAX, "%s/%s.per-pkg", dir, name);
+	scnprintf(path, PATH_MAX, "%s.per-pkg", name);
 
-	fd = open(path, O_RDONLY);
+	fd = openat(dirfd, path, O_RDONLY);
 	if (fd == -1)
 		return -1;
 
@@ -239,14 +238,14 @@ perf_pmu__parse_per_pkg(struct perf_pmu_alias *alias, char *dir, char *name)
 }
 
 static int perf_pmu__parse_snapshot(struct perf_pmu_alias *alias,
-				    char *dir, char *name)
+				    int dirfd, char *name)
 {
 	char path[PATH_MAX];
 	int fd;
 
-	scnprintf(path, PATH_MAX, "%s/%s.snapshot", dir, name);
+	scnprintf(path, PATH_MAX, "%s.snapshot", name);
 
-	fd = open(path, O_RDONLY);
+	fd = openat(dirfd, path, O_RDONLY);
 	if (fd == -1)
 		return -1;
 
@@ -332,7 +331,7 @@ static bool perf_pmu_merge_alias(struct perf_pmu_alias *newalias,
 	return false;
 }
 
-static int __perf_pmu__new_alias(struct list_head *list, char *dir, char *name,
+static int __perf_pmu__new_alias(struct list_head *list, int dirfd, char *name,
 				 char *desc, char *val, const struct pmu_event *pe)
 {
 	struct parse_events_term *term;
@@ -391,14 +390,14 @@ static int __perf_pmu__new_alias(struct list_head *list, char *dir, char *name,
 	}
 
 	alias->name = strdup(name);
-	if (dir) {
+	if (dirfd >= 0) {
 		/*
 		 * load unit name and scale if available
 		 */
-		perf_pmu__parse_unit(alias, dir, name);
-		perf_pmu__parse_scale(alias, dir, name);
-		perf_pmu__parse_per_pkg(alias, dir, name);
-		perf_pmu__parse_snapshot(alias, dir, name);
+		perf_pmu__parse_unit(alias, dirfd, name);
+		perf_pmu__parse_scale(alias, dirfd, name);
+		perf_pmu__parse_per_pkg(alias, dirfd, name);
+		perf_pmu__parse_snapshot(alias, dirfd, name);
 	}
 
 	alias->desc = desc ? strdup(desc) : NULL;
@@ -419,7 +418,7 @@ static int __perf_pmu__new_alias(struct list_head *list, char *dir, char *name,
 	return 0;
 }
 
-static int perf_pmu__new_alias(struct list_head *list, char *dir, char *name, FILE *file)
+static int perf_pmu__new_alias(struct list_head *list, int dirfd, char *name, FILE *file)
 {
 	char buf[256];
 	int ret;
@@ -433,7 +432,7 @@ static int perf_pmu__new_alias(struct list_head *list, char *dir, char *name, FI
 	/* Remove trailing newline from sysfs file */
 	strim(buf);
 
-	return __perf_pmu__new_alias(list, dir, name, NULL, buf, NULL);
+	return __perf_pmu__new_alias(list, dirfd, name, NULL, buf, NULL);
 }
 
 static inline bool pmu_alias_info_file(char *name)
@@ -457,17 +456,17 @@ static inline bool pmu_alias_info_file(char *name)
  * Process all the sysfs attributes located under the directory
  * specified in 'dir' parameter.
  */
-static int pmu_aliases_parse(char *dir, struct list_head *head)
+static int pmu_aliases_parse(int dirfd, struct list_head *head)
 {
 	struct dirent *evt_ent;
 	DIR *event_dir;
+	int fd;
 
-	event_dir = opendir(dir);
+	event_dir = fdopendir(dirfd);
 	if (!event_dir)
 		return -EINVAL;
 
 	while ((evt_ent = readdir(event_dir))) {
-		char path[PATH_MAX];
 		char *name = evt_ent->d_name;
 		FILE *file;
 
@@ -480,15 +479,14 @@ static int pmu_aliases_parse(char *dir, struct list_head *head)
 		if (pmu_alias_info_file(name))
 			continue;
 
-		scnprintf(path, PATH_MAX, "%s/%s", dir, name);
-
-		file = fopen(path, "r");
+		fd = openat(dirfd, name, O_RDONLY);
+		file = fdopen(fd, "r");
 		if (!file) {
-			pr_debug("Cannot open %s\n", path);
+			pr_debug("Cannot open %s\n", name);
 			continue;
 		}
 
-		if (perf_pmu__new_alias(head, dir, name, file) < 0)
+		if (perf_pmu__new_alias(head, dirfd, name, file) < 0)
 			pr_debug("Cannot set up %s\n", name);
 		fclose(file);
 	}
@@ -501,17 +499,16 @@ static int pmu_aliases_parse(char *dir, struct list_head *head)
  * Reading the pmu event aliases definition, which should be located at:
  * /sys/bus/event_source/devices/<dev>/events as sysfs group attributes.
  */
-static int pmu_aliases(const char *name, struct list_head *head)
+static int pmu_aliases(int dirfd, const char *name, struct list_head *head)
 {
-	char path[PATH_MAX];
+	int fd;
 
-	if (!perf_pmu__pathname_scnprintf(path, sizeof(path), name, "events"))
-		return -1;
-
-	if (!file_available(path))
+	fd = perf_pmu__pathname_fd(dirfd, name, "events", O_DIRECTORY);
+	if (fd < 0)
 		return 0;
 
-	if (pmu_aliases_parse(path, head))
+	/* it'll close the fd */
+	if (pmu_aliases_parse(fd, head))
 		return -1;
 
 	return 0;
@@ -544,14 +541,15 @@ static int pmu_alias_terms(struct perf_pmu_alias *alias,
 /* Add all pmus in sysfs to pmu list: */
 static void pmu_read_sysfs(void)
 {
-	char path[PATH_MAX];
+	int fd;
 	DIR *dir;
 	struct dirent *dent;
 
-	if (!perf_pmu__event_source_devices_scnprintf(path, sizeof(path)))
+	fd = perf_pmu__event_source_devices_fd();
+	if (fd < 0)
 		return;
 
-	dir = opendir(path);
+	dir = fdopendir(fd);
 	if (!dir)
 		return;
 
@@ -559,7 +557,7 @@ static void pmu_read_sysfs(void)
 		if (!strcmp(dent->d_name, ".") || !strcmp(dent->d_name, ".."))
 			continue;
 		/* add to static LIST_HEAD(pmus): */
-		perf_pmu__find(dent->d_name);
+		perf_pmu__find2(fd, dent->d_name);
 	}
 
 	closedir(dir);
@@ -763,7 +761,7 @@ static int pmu_add_cpu_aliases_map_callback(const struct pmu_event *pe,
 
 new_alias:
 	/* need type casts to override 'const' */
-	__perf_pmu__new_alias(data->head, NULL, (char *)pe->name, (char *)pe->desc,
+	__perf_pmu__new_alias(data->head, -1, (char *)pe->name, (char *)pe->desc,
 			      (char *)pe->event, pe);
 	return 0;
 }
@@ -814,7 +812,7 @@ static int pmu_add_sys_aliases_iter_fn(const struct pmu_event *pe,
 
 	if (!strcmp(pmu->id, pe->compat) &&
 	    pmu_uncore_alias_match(pe->pmu, pmu->name)) {
-		__perf_pmu__new_alias(idata->head, NULL,
+		__perf_pmu__new_alias(idata->head, -1,
 				      (char *)pe->name,
 				      (char *)pe->desc,
 				      (char *)pe->event,
@@ -863,7 +861,7 @@ static int pmu_max_precise(struct perf_pmu *pmu)
 	return max_precise;
 }
 
-static struct perf_pmu *pmu_lookup(const char *lookup_name)
+static struct perf_pmu *pmu_lookup(int dirfd, const char *lookup_name)
 {
 	struct perf_pmu *pmu;
 	LIST_HEAD(format);
@@ -884,13 +882,13 @@ static struct perf_pmu *pmu_lookup(const char *lookup_name)
 	 * type value and format definitions. Load both right
 	 * now.
 	 */
-	if (pmu_format(name, &format))
+	if (pmu_format(dirfd, name, &format))
 		return NULL;
 
 	/*
 	 * Check the aliases first to avoid unnecessary work.
 	 */
-	if (pmu_aliases(name, &aliases))
+	if (pmu_aliases(dirfd, name, &aliases))
 		return NULL;
 
 	pmu = zalloc(sizeof(*pmu));
@@ -1026,6 +1024,7 @@ bool evsel__is_aux_event(const struct evsel *evsel)
 struct perf_pmu *perf_pmu__find(const char *name)
 {
 	struct perf_pmu *pmu;
+	int dirfd;
 
 	/*
 	 * Once PMU is loaded it stays in the list,
@@ -1036,7 +1035,27 @@ struct perf_pmu *perf_pmu__find(const char *name)
 	if (pmu)
 		return pmu;
 
-	return pmu_lookup(name);
+	dirfd = perf_pmu__event_source_devices_fd();
+	pmu = pmu_lookup(dirfd, name);
+	close(dirfd);
+
+	return pmu;
+}
+
+static struct perf_pmu *perf_pmu__find2(int dirfd, const char *name)
+{
+	struct perf_pmu *pmu;
+
+	/*
+	 * Once PMU is loaded it stays in the list,
+	 * so we keep us from multiple reading/parsing
+	 * the pmu format definitions.
+	 */
+	pmu = pmu_find(name);
+	if (pmu)
+		return pmu;
+
+	return pmu_lookup(dirfd, name);
 }
 
 static struct perf_pmu_format *
@@ -1938,6 +1957,18 @@ int perf_pmu__event_source_devices_scnprintf(char *pathname, size_t size)
 	return scnprintf(pathname, size, "%s/bus/event_source/devices/", sysfs);
 }
 
+int perf_pmu__event_source_devices_fd(void)
+{
+	char path[PATH_MAX];
+	const char *sysfs = sysfs__mountpoint();
+
+	if (!sysfs)
+		return -1;
+
+	scnprintf(path, sizeof(path), "%s/bus/event_source/devices/", sysfs);
+	return open(path, O_DIRECTORY);
+}
+
 /*
  * Fill 'buf' with the path to a file or folder in 'pmu_name' in
  * sysfs. For example if pmu_name = "cs_etm" and 'filename' = "format"
@@ -1955,6 +1986,14 @@ int perf_pmu__pathname_scnprintf(char *buf, size_t size,
 	if (!perf_pmu__event_source_devices_scnprintf(base_path, sizeof(base_path)))
 		return 0;
 	return scnprintf(buf, size, "%s%s/%s", base_path, pmu_name, filename);
+}
+
+int perf_pmu__pathname_fd(int dirfd, const char *pmu_name, const char *filename, int flags)
+{
+	char path[PATH_MAX];
+
+	scnprintf(path, sizeof(path), "%s/%s", pmu_name, filename);
+	return openat(dirfd, path, flags);
 }
 
 static void perf_pmu__delete(struct perf_pmu *pmu)
