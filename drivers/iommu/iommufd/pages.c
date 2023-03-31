@@ -1207,12 +1207,20 @@ iopt_area_unpin_domain(struct pfn_batch *batch, struct iopt_area *area,
 			unsigned long start =
 				max(start_index, *unmapped_end_index);
 
+			if (IS_ENABLED(CONFIG_IOMMUFD_TEST) &&
+			    batch->total_pfns)
+				WARN_ON(*unmapped_end_index -
+						batch->total_pfns !=
+					start_index);
 			batch_from_domain(batch, domain, area, start,
 					  last_index);
-			batch_last_index = start + batch->total_pfns - 1;
+			batch_last_index = start_index + batch->total_pfns - 1;
 		} else {
 			batch_last_index = last_index;
 		}
+
+		if (IS_ENABLED(CONFIG_IOMMUFD_TEST))
+			WARN_ON(batch_last_index > real_last_index);
 
 		/*
 		 * unmaps must always 'cut' at a place where the pfns are not
