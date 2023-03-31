@@ -25,6 +25,7 @@
 /* J72xx SoC specific definitions for the CONTROL port */
 #define J72XX_GMII_SEL_MODE_SGMII	3
 #define J72XX_GMII_SEL_MODE_QSGMII	4
+#define J72XX_GMII_SEL_MODE_USXGMII	5
 #define J72XX_GMII_SEL_MODE_QSGMII_SUB	6
 
 #define PHY_GMII_PORT(n)	BIT((n) - 1)
@@ -112,6 +113,13 @@ static int phy_gmii_sel_mode(struct phy *phy, enum phy_mode mode, int submode)
 			goto unsupported;
 		else
 			gmii_sel_mode = J72XX_GMII_SEL_MODE_SGMII;
+		break;
+
+	case PHY_INTERFACE_MODE_USXGMII:
+		if (!(soc_data->extra_modes & BIT(PHY_INTERFACE_MODE_USXGMII)))
+			goto unsupported;
+		else
+			gmii_sel_mode = J72XX_GMII_SEL_MODE_USXGMII;
 		break;
 
 	default:
@@ -239,7 +247,8 @@ static const
 struct phy_gmii_sel_soc_data phy_gmii_sel_cpsw9g_soc_j784s4 = {
 	.use_of_data = true,
 	.regfields = phy_gmii_sel_fields_am654,
-	.extra_modes = BIT(PHY_INTERFACE_MODE_QSGMII),
+	.extra_modes = BIT(PHY_INTERFACE_MODE_QSGMII) |
+		       BIT(PHY_INTERFACE_MODE_USXGMII),
 	.num_ports = 8,
 	.num_qsgmii_main_ports = 2,
 };
