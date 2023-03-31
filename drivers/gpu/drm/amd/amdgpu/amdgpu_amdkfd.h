@@ -372,6 +372,17 @@ void amdgpu_amdkfd_release_notify(struct amdgpu_bo *bo)
 {
 }
 #endif
+
+#if IS_ENABLED(CONFIG_HSA_AMD_SVM)
+int kgd2kfd_init_zone_device(struct amdgpu_device *adev);
+#else
+static inline
+int kgd2kfd_init_zone_device(struct amdgpu_device *adev)
+{
+	return 0;
+}
+#endif
+
 /* KGD2KFD callbacks */
 int kgd2kfd_quiesce_mm(struct mm_struct *mm, uint32_t trigger);
 int kgd2kfd_resume_mm(struct mm_struct *mm);

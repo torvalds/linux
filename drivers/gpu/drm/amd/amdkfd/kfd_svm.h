@@ -265,6 +265,10 @@ static inline int kfd_criu_resume_svm(struct kfd_process *p)
 	return 0;
 }
 
+static inline void svm_range_set_max_pages(struct amdgpu_device *adev)
+{
+}
+
 #define KFD_IS_SVM_API_SUPPORTED(dev) false
 
 #endif /* IS_ENABLED(CONFIG_HSA_AMD_SVM) */

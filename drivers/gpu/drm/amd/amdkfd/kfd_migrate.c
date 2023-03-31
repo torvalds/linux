@@ -988,7 +988,7 @@ static const struct dev_pagemap_ops svm_migrate_pgmap_ops = {
 /* Each VRAM page uses sizeof(struct page) on system memory */
 #define SVM_HMM_PAGE_STRUCT_SIZE(size) ((size)/PAGE_SIZE * sizeof(struct page))
 
-int svm_migrate_init(struct amdgpu_device *adev)
+int kgd2kfd_init_zone_device(struct amdgpu_device *adev)
 {
 	struct amdgpu_kfd_dev *kfddev = &adev->kfd;
 	struct dev_pagemap *pgmap;
@@ -996,11 +996,9 @@ int svm_migrate_init(struct amdgpu_device *adev)
 	unsigned long size;
 	void *r;
 
-	/* Page migration works on Vega10 or newer */
-	if (!KFD_IS_SOC15(kfddev->dev))
+	/* Page migration works on gfx9 or newer */
+	if (adev->ip_versions[GC_HWIP][0] < IP_VERSION(9, 0, 1))
 		return -EINVAL;
-
-	svm_range_set_max_pages(adev);
 
 	if (adev->gmc.is_app_apu)
 		return 0;

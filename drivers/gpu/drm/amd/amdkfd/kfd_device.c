@@ -32,6 +32,7 @@
 #include "kfd_iommu.h"
 #include "amdgpu_amdkfd.h"
 #include "kfd_smi_events.h"
+#include "kfd_svm.h"
 #include "kfd_migrate.h"
 #include "amdgpu.h"
 #include "amdgpu_xcp.h"
@@ -791,7 +792,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		kfd->nodes[i] = node;
 	}
 
-	svm_migrate_init(kfd->adev);
+	svm_range_set_max_pages(kfd->adev);
 
 	if (kfd_resume_iommu(kfd))
 		goto kfd_resume_iommu_error;

@@ -2633,8 +2633,10 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 		goto init_failed;
 
 	/* Don't init kfd if whole hive need to be reset during init */
-	if (!adev->gmc.xgmi.pending_reset)
+	if (!adev->gmc.xgmi.pending_reset) {
+		kgd2kfd_init_zone_device(adev);
 		amdgpu_amdkfd_device_init(adev);
+	}
 
 	amdgpu_fru_get_product_info(adev);
 
