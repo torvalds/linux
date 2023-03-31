@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -2298,26 +2298,6 @@ static struct clk_branch gcc_ddrss_pcie_sf_qtb_clk = {
 	},
 };
 
-static struct clk_branch gcc_ddrss_ubwcp_clk = {
-	.halt_reg = 0x63020,
-	.halt_check = BRANCH_HALT_VOTED,
-	.hwcg_reg = 0x63020,
-	.hwcg_bit = 1,
-	.clkr = {
-		.enable_reg = 0x63020,
-		.enable_mask = BIT(0),
-		.hw.init = &(const struct clk_init_data){
-			.name = "gcc_ddrss_ubwcp_clk",
-			.parent_hws = (const struct clk_hw*[]){
-				&gcc_cpuss_ubwcp_clk_src.clkr.hw,
-			},
-			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
-			.ops = &clk_branch2_ops,
-		},
-	},
-};
-
 static struct clk_branch gcc_disp_hf_axi_clk = {
 	.halt_reg = 0x2700c,
 	.halt_check = BRANCH_HALT_SKIP,
@@ -4103,7 +4083,6 @@ static struct clk_regmap *gcc_pineapple_clocks[] = {
 	[GCC_CPUSS_UBWCP_CLK_SRC] = &gcc_cpuss_ubwcp_clk_src.clkr,
 	[GCC_DDRSS_GPU_AXI_CLK] = &gcc_ddrss_gpu_axi_clk.clkr,
 	[GCC_DDRSS_PCIE_SF_QTB_CLK] = &gcc_ddrss_pcie_sf_qtb_clk.clkr,
-	[GCC_DDRSS_UBWCP_CLK] = &gcc_ddrss_ubwcp_clk.clkr,
 	[GCC_DISP_HF_AXI_CLK] = &gcc_disp_hf_axi_clk.clkr,
 	[GCC_GP1_CLK] = &gcc_gp1_clk.clkr,
 	[GCC_GP1_CLK_SRC] = &gcc_gp1_clk_src.clkr,
@@ -4375,13 +4354,19 @@ static int gcc_pineapple_probe(struct platform_device *pdev)
 		return PTR_ERR(regmap);
 
 	/*
-	 * Keep the clocks always-ON
-	 * GCC_CAMERA_AHB_CLK, GCC_CAMERA_XO_CLK, GCC_DISP_AHB_CLK,
-	 * GCC_DISP_XO_CLK, GCC_GPU_CFG_AHB_CLK, GCC_VIDEO_AHB_CLK,
-	 * GCC_VIDEO_XO_CLK
+	 * Keep clocks always enabled:
+	 *	gcc_camera_ahb_clk
+	 *	gcc_camera_xo_clk
+	 *	gcc_ddrss_ubwcp_clk
+	 *	gcc_disp_ahb_clk
+	 *	gcc_disp_xo_clk
+	 *	gcc_gpu_cfg_ahb_clk
+	 *	gcc_video_ahb_clk
+	 *	gcc_video_xo_clk
 	 */
 	regmap_update_bits(regmap, 0x26004, BIT(0), BIT(0));
 	regmap_update_bits(regmap, 0x26028, BIT(0), BIT(0));
+	regmap_update_bits(regmap, 0x63020, BIT(0), BIT(0));
 	regmap_update_bits(regmap, 0x27004, BIT(0), BIT(0));
 	regmap_update_bits(regmap, 0x27018, BIT(0), BIT(0));
 	regmap_update_bits(regmap, 0x71004, BIT(0), BIT(0));
