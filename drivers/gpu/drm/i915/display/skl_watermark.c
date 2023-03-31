@@ -21,6 +21,7 @@
 #include "intel_pcode.h"
 #include "intel_wm.h"
 #include "skl_watermark.h"
+#include "skl_watermark_regs.h"
 
 static void skl_sagv_disable(struct drm_i915_private *i915);
 
