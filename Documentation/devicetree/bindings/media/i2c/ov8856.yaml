@@ -8,7 +8,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Omnivision OV8856 CMOS Sensor
 
 maintainers:
-  - Dongchun Zhu <dongchun.zhu@mediatek.com>
+  - Sakari Ailus <sakari.ailus@linux.intel.com>
 
 description: |-
   The Omnivision OV8856 is a high performance, 1/4-inch, 8 megapixel, CMOS
