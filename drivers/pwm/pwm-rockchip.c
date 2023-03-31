@@ -7,7 +7,9 @@
  */
 
 #include <linux/clk.h>
+#include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -15,6 +17,9 @@
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
 #include <linux/time.h>
+#include "pwm-rockchip.h"
+
+#define PWM_MAX_CHANNEL_NUM	4
 
 #define PWM_CTRL_TIMER_EN	(1 << 0)
 #define PWM_CTRL_OUTPUT_EN	(1 << 3)
@@ -32,7 +37,13 @@
 #define PWM_LP_DISABLE		(0 << 8)
 
 #define PWM_ONESHOT_COUNT_SHIFT	24
+#define PWM_ONESHOT_COUNT_MASK	(0xff << PWM_ONESHOT_COUNT_SHIFT)
 #define PWM_ONESHOT_COUNT_MAX	256
+
+#define PWM_REG_INTSTS(n)	((3 - (n)) * 0x10 + 0x10)
+#define PWM_REG_INT_EN(n)	((3 - (n)) * 0x10 + 0x14)
+
+#define PWM_CH_INT(n)		BIT(n)
 
 struct rockchip_pwm_chip {
 	struct pwm_chip chip;
@@ -46,6 +57,8 @@ struct rockchip_pwm_chip {
 	bool vop_pwm_en; /* indicate voppwm mirror register state */
 	bool center_aligned;
 	bool oneshot;
+	int channel_id;
+	int irq;
 };
 
 struct rockchip_pwm_regs {
@@ -103,6 +116,34 @@ static void rockchip_pwm_get_state(struct pwm_chip *chip,
 	clk_disable(pc->pclk);
 }
 
+static irqreturn_t rockchip_pwm_oneshot_irq(int irq, void *data)
+{
+	struct rockchip_pwm_chip *pc = data;
+	struct pwm_state state;
+	unsigned int id = pc->channel_id;
+	int val;
+
+	if (id > 3)
+		return IRQ_NONE;
+	val = readl_relaxed(pc->base + PWM_REG_INTSTS(id));
+
+	if ((val & PWM_CH_INT(id)) == 0)
+		return IRQ_NONE;
+
+	writel_relaxed(PWM_CH_INT(id), pc->base + PWM_REG_INTSTS(id));
+
+	/*
+	 * Set pwm state to disabled when the oneshot mode finished.
+	 */
+	pwm_get_state(&pc->chip.pwms[0], &state);
+	state.enabled = false;
+	pwm_apply_state(&pc->chip.pwms[0], &state);
+
+	rockchip_pwm_oneshot_callback(&pc->chip.pwms[0], &state);
+
+	return IRQ_HANDLED;
+}
+
 static void rockchip_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			       const struct pwm_state *state)
 {
@@ -142,11 +183,24 @@ static void rockchip_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		pc->oneshot = false;
 		dev_err(chip->dev, "Oneshot_count value overflow.\n");
 	} else if (state->oneshot_count > 0) {
+		u32 int_ctrl;
+
 		pc->oneshot = true;
+		ctrl &= ~PWM_ONESHOT_COUNT_MASK;
 		ctrl |= (state->oneshot_count - 1) << PWM_ONESHOT_COUNT_SHIFT;
+
+		int_ctrl = readl_relaxed(pc->base + PWM_REG_INT_EN(pc->channel_id));
+		int_ctrl |= PWM_CH_INT(pc->channel_id);
+		writel_relaxed(int_ctrl, pc->base + PWM_REG_INT_EN(pc->channel_id));
 	} else {
+		u32 int_ctrl;
+
 		pc->oneshot = false;
 		ctrl |= PWM_CONTINUOUS;
+
+		int_ctrl = readl_relaxed(pc->base + PWM_REG_INT_EN(pc->channel_id));
+		int_ctrl &= ~PWM_CH_INT(pc->channel_id);
+		writel_relaxed(int_ctrl, pc->base + PWM_REG_INT_EN(pc->channel_id));
 	}
 #endif
 
@@ -335,6 +389,13 @@ static const struct of_device_id rockchip_pwm_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, rockchip_pwm_dt_ids);
 
+static int rockchip_pwm_get_channel_id(const char *name)
+{
+	int len = strlen(name);
+
+	return name[len - 2] - '0';
+}
+
 static int rockchip_pwm_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *id;
@@ -390,6 +451,30 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "Can't prepare enable APB clk: %d\n", ret);
 		goto err_clk;
+	}
+
+	pc->channel_id = rockchip_pwm_get_channel_id(pdev->dev.of_node->full_name);
+	if (pc->channel_id < 0 || pc->channel_id >= PWM_MAX_CHANNEL_NUM) {
+		dev_err(&pdev->dev, "Channel id is out of range: %d\n", pc->channel_id);
+		ret = -EINVAL;
+		goto err_pclk;
+	}
+
+	if (IS_ENABLED(CONFIG_PWM_ROCKCHIP_ONESHOT)) {
+		pc->irq = platform_get_irq(pdev, 0);
+		if (pc->irq < 0) {
+			dev_err(&pdev->dev, "Get oneshot mode irq failed\n");
+			ret = pc->irq;
+			goto err_pclk;
+		}
+
+		ret = devm_request_irq(&pdev->dev, pc->irq, rockchip_pwm_oneshot_irq,
+				       IRQF_NO_SUSPEND | IRQF_SHARED,
+				       "rk_pwm_oneshot_irq", pc);
+		if (ret) {
+			dev_err(&pdev->dev, "Claim oneshot IRQ failed\n");
+			goto err_pclk;
+		}
 	}
 
 	pc->pinctrl = devm_pinctrl_get(&pdev->dev);
