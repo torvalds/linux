@@ -5,6 +5,8 @@
  * Copyright (C) 2021 Glider bv
  */
 
+#include <dt-bindings/media/video-interfaces.h>
+
 &csi40 {
 	status = "okay";
 
@@ -105,6 +107,7 @@
 			port@4 {
 				reg = <4>;
 				max96712_out0: endpoint {
+					bus-type = <MEDIA_BUS_TYPE_CSI2_DPHY>;
 					clock-lanes = <0>;
 					data-lanes = <1 2 3 4>;
 					remote-endpoint = <&csi40_in>;
@@ -125,6 +128,7 @@
 			port@4 {
 				reg = <4>;
 				max96712_out1: endpoint {
+					bus-type = <MEDIA_BUS_TYPE_CSI2_DPHY>;
 					clock-lanes = <0>;
 					data-lanes = <1 2 3 4>;
 					lane-polarities = <0 0 0 0 1>;
@@ -146,6 +150,7 @@
 			port@4 {
 				reg = <4>;
 				max96712_out2: endpoint {
+					bus-type = <MEDIA_BUS_TYPE_CSI2_DPHY>;
 					clock-lanes = <0>;
 					data-lanes = <1 2 3 4>;
 					lane-polarities = <0 0 0 0 1>;
