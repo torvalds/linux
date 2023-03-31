@@ -5,7 +5,7 @@
  *
  * Copyright (C) 2016, Intel Corporation
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -796,9 +796,30 @@ store_attr(adaptive_low_freq);
 show_attr(adaptive_high_freq);
 store_attr(adaptive_high_freq);
 show_attr(target_load_thresh);
-store_attr(target_load_thresh);
 show_attr(target_load_shift);
 store_attr(target_load_shift);
+
+static ssize_t store_target_load_thresh(struct gov_attr_set *attr_set,
+				const char *buf, size_t count)
+{
+	struct waltgov_tunables *tunables = to_waltgov_tunables(attr_set);
+	struct waltgov_policy *wg_policy;
+
+	if (kstrtouint(buf, 10, &tunables->target_load_thresh))
+		return -EINVAL;
+
+	list_for_each_entry(wg_policy, &attr_set->policy_list, tunables_hook) {
+		unsigned long flags;
+
+		raw_spin_lock_irqsave(&wg_policy->update_lock, flags);
+		wg_policy->hispeed_util = target_util(wg_policy,
+						wg_policy->tunables->hispeed_freq);
+		wg_policy->rtg_boost_util = target_util(wg_policy,
+						wg_policy->tunables->rtg_boost_freq);
+		raw_spin_unlock_irqrestore(&wg_policy->update_lock, flags);
+	}
+	return count;
+}
 
 static struct governor_attr hispeed_load = __ATTR_RW(hispeed_load);
 static struct governor_attr hispeed_freq = __ATTR_RW(hispeed_freq);
