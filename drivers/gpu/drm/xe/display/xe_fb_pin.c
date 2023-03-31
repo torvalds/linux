@@ -217,6 +217,23 @@ static struct i915_vma *__xe_pin_fb_vma(struct intel_framebuffer *fb,
 		goto err;
 	}
 
+	if (IS_DGFX(to_xe_device(bo->ttm.base.dev)) &&
+	    intel_fb_rc_ccs_cc_plane(&fb->base) >= 0 &&
+	    !(bo->flags & XE_BO_NEEDS_CPU_ACCESS)) {
+		struct xe_tile *tile = xe_device_get_root_tile(xe);
+
+		/*
+		 * If we need to able to access the clear-color value stored in
+		 * the buffer, then we require that such buffers are also CPU
+		 * accessible.  This is important on small-bar systems where
+		 * only some subset of VRAM is CPU accessible.
+		 */
+		if (tile->mem.vram.io_size < tile->mem.vram.usable_size) {
+			ret = -EINVAL;
+			goto err;
+		}
+	}
+
 	/*
 	 * Pin the framebuffer, we can't use xe_bo_(un)pin functions as the
 	 * assumptions are incorrect for framebuffers
