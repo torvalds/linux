@@ -634,6 +634,31 @@ void class_compat_remove_link(struct class_compat *cls, struct device *dev,
 }
 EXPORT_SYMBOL_GPL(class_compat_remove_link);
 
+/**
+ * class_is_registered - determine if at this moment in time, a class is
+ *			 registered in the driver core or not.
+ * @class: the class to check
+ *
+ * Returns a boolean to state if the class is registered in the driver core
+ * or not.  Note that the value could switch right after this call is made,
+ * so only use this in places where you "know" it is safe to do so (usually
+ * to determine if the specific class has been registered yet or not).
+ *
+ * Be careful in using this.
+ */
+bool class_is_registered(const struct class *class)
+{
+	struct subsys_private *sp = class_to_subsys(class);
+	bool is_initialized = false;
+
+	if (sp) {
+		is_initialized = true;
+		subsys_put(sp);
+	}
+	return is_initialized;
+}
+EXPORT_SYMBOL_GPL(class_is_registered);
+
 int __init classes_init(void)
 {
 	class_kset = kset_create_and_add("class", NULL, NULL);

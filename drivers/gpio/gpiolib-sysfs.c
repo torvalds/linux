@@ -554,7 +554,7 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 	int			offset;
 
 	/* can't export until sysfs is available ... */
-	if (!gpio_class.p) {
+	if (!class_is_registered(&gpio_class)) {
 		pr_debug("%s: called too early!\n", __func__);
 		return -ENOENT;
 	}
@@ -728,7 +728,7 @@ int gpiochip_sysfs_register(struct gpio_device *gdev)
 	 * register later, in gpiolib_sysfs_init() ... here we just
 	 * verify that _some_ field of gpio_class got initialized.
 	 */
-	if (!gpio_class.p)
+	if (!class_is_registered(&gpio_class))
 		return 0;
 
 	/*
