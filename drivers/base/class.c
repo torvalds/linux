@@ -97,8 +97,6 @@ static void class_release(struct kobject *kobj)
 
 	pr_debug("class '%s': release.\n", class->name);
 
-	class->p = NULL;
-
 	if (class->class_release)
 		class->class_release(class);
 	else
@@ -206,7 +204,6 @@ int class_register(struct class *cls)
 	cp->subsys.kobj.kset = class_kset;
 	cp->subsys.kobj.ktype = &class_ktype;
 	cp->class = cls;
-	cls->p = cp;
 
 	error = kset_register(&cp->subsys);
 	if (error)
@@ -222,7 +219,6 @@ int class_register(struct class *cls)
 
 err_out:
 	kfree(cp);
-	cls->p = NULL;
 	return error;
 }
 EXPORT_SYMBOL_GPL(class_register);
