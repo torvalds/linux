@@ -55,12 +55,14 @@
  * @drive_rts_on_open: drive RTS signal on ->open() when platform requires it
  * @no_uart_clock_set: UART clock set command for >3Mbps mode is unavailable
  * @max_autobaud_speed: max baudrate supported by device in autobaud mode
+ * @max_speed: max baudrate supported
  */
 struct bcm_device_data {
 	bool	no_early_set_baudrate;
 	bool	drive_rts_on_open;
 	bool	no_uart_clock_set;
 	u32	max_autobaud_speed;
+	u32	max_speed;
 };
 
 /**
@@ -1300,6 +1302,12 @@ static const struct hci_uart_proto bcm_proto = {
 };
 
 #ifdef CONFIG_ACPI
+
+/* bcm43430a0/a1 BT does not support 48MHz UART clock, limit to 2000000 baud */
+static struct bcm_device_data bcm43430_device_data = {
+	.max_speed = 2000000,
+};
+
 static const struct acpi_device_id bcm_acpi_match[] = {
 	{ "BCM2E00" },
 	{ "BCM2E01" },
@@ -1414,19 +1422,19 @@ static const struct acpi_device_id bcm_acpi_match[] = {
 	{ "BCM2E71" },
 	{ "BCM2E72" },
 	{ "BCM2E73" },
-	{ "BCM2E74" },
-	{ "BCM2E75" },
+	{ "BCM2E74", (long)&bcm43430_device_data },
+	{ "BCM2E75", (long)&bcm43430_device_data },
 	{ "BCM2E76" },
 	{ "BCM2E77" },
 	{ "BCM2E78" },
 	{ "BCM2E79" },
 	{ "BCM2E7A" },
-	{ "BCM2E7B" },
+	{ "BCM2E7B", (long)&bcm43430_device_data },
 	{ "BCM2E7C" },
 	{ "BCM2E7D" },
 	{ "BCM2E7E" },
 	{ "BCM2E7F" },
-	{ "BCM2E80" },
+	{ "BCM2E80", (long)&bcm43430_device_data },
 	{ "BCM2E81" },
 	{ "BCM2E82" },
 	{ "BCM2E83" },
@@ -1435,7 +1443,7 @@ static const struct acpi_device_id bcm_acpi_match[] = {
 	{ "BCM2E86" },
 	{ "BCM2E87" },
 	{ "BCM2E88" },
-	{ "BCM2E89" },
+	{ "BCM2E89", (long)&bcm43430_device_data },
 	{ "BCM2E8A" },
 	{ "BCM2E8B" },
 	{ "BCM2E8C" },
@@ -1444,29 +1452,30 @@ static const struct acpi_device_id bcm_acpi_match[] = {
 	{ "BCM2E90" },
 	{ "BCM2E92" },
 	{ "BCM2E93" },
-	{ "BCM2E94" },
+	{ "BCM2E94", (long)&bcm43430_device_data },
 	{ "BCM2E95" },
 	{ "BCM2E96" },
 	{ "BCM2E97" },
 	{ "BCM2E98" },
-	{ "BCM2E99" },
+	{ "BCM2E99", (long)&bcm43430_device_data },
 	{ "BCM2E9A" },
-	{ "BCM2E9B" },
+	{ "BCM2E9B", (long)&bcm43430_device_data },
 	{ "BCM2E9C" },
 	{ "BCM2E9D" },
+	{ "BCM2E9F", (long)&bcm43430_device_data },
 	{ "BCM2EA0" },
 	{ "BCM2EA1" },
-	{ "BCM2EA2" },
-	{ "BCM2EA3" },
+	{ "BCM2EA2", (long)&bcm43430_device_data },
+	{ "BCM2EA3", (long)&bcm43430_device_data },
 	{ "BCM2EA4" },
 	{ "BCM2EA5" },
 	{ "BCM2EA6" },
 	{ "BCM2EA7" },
 	{ "BCM2EA8" },
 	{ "BCM2EA9" },
-	{ "BCM2EAA" },
-	{ "BCM2EAB" },
-	{ "BCM2EAC" },
+	{ "BCM2EAA", (long)&bcm43430_device_data },
+	{ "BCM2EAB", (long)&bcm43430_device_data },
+	{ "BCM2EAC", (long)&bcm43430_device_data },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, bcm_acpi_match);
@@ -1535,6 +1544,8 @@ static int bcm_serdev_probe(struct serdev_device *serdev)
 		bcmdev->no_early_set_baudrate = data->no_early_set_baudrate;
 		bcmdev->drive_rts_on_open = data->drive_rts_on_open;
 		bcmdev->no_uart_clock_set = data->no_uart_clock_set;
+		if (data->max_speed && bcmdev->oper_speed > data->max_speed)
+			bcmdev->oper_speed = data->max_speed;
 	}
 
 	return hci_uart_register_device(&bcmdev->serdev_hu, &bcm_proto);
