@@ -150,6 +150,7 @@ unsigned long __bootdata(ident_map_size);
 struct physmem_info __bootdata(physmem_info);
 
 unsigned long __bootdata_preserved(__kaslr_offset);
+int __bootdata_preserved(__kaslr_enabled);
 unsigned int __bootdata_preserved(zlib_dfltcc_support);
 EXPORT_SYMBOL(zlib_dfltcc_support);
 u64 __bootdata_preserved(stfle_fac_list[16]);

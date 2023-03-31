@@ -160,10 +160,10 @@ static void setup_ident_map_size(unsigned long max_physmem_end)
 
 #ifdef CONFIG_CRASH_DUMP
 	if (oldmem_data.start) {
-		kaslr_enabled = 0;
+		__kaslr_enabled = 0;
 		ident_map_size = min(ident_map_size, oldmem_data.size);
 	} else if (ipl_block_valid && is_ipl_block_dump()) {
-		kaslr_enabled = 0;
+		__kaslr_enabled = 0;
 		if (!sclp_early_get_hsa_size(&hsa_size) && hsa_size)
 			ident_map_size = min(ident_map_size, hsa_size);
 	}
@@ -315,7 +315,7 @@ void startup_kernel(void)
 	save_ipl_cert_comp_list();
 	rescue_initrd(safe_addr, ident_map_size);
 
-	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE) && kaslr_enabled) {
+	if (kaslr_enabled()) {
 		random_lma = get_random_base();
 		if (random_lma) {
 			__kaslr_offset = random_lma - vmlinux.default_lma;

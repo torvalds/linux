@@ -153,7 +153,7 @@ void print_pgm_check_info(void)
 		decompressor_printk("Kernel command line: %s\n", early_command_line);
 	decompressor_printk("Kernel fault: interruption code %04x ilc:%x\n",
 			    S390_lowcore.pgm_code, S390_lowcore.pgm_ilc >> 1);
-	if (kaslr_enabled)
+	if (kaslr_enabled())
 		decompressor_printk("Kernel random base: %lx\n", __kaslr_offset);
 	decompressor_printk("PSW : %016lx %016lx (%pS)\n",
 			    S390_lowcore.psw_save_area.mask,

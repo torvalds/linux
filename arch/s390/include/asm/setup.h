@@ -146,6 +146,13 @@ static inline unsigned long kaslr_offset(void)
 	return __kaslr_offset;
 }
 
+extern int __kaslr_enabled;
+static inline int kaslr_enabled(void)
+{
+	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE))
+		return __kaslr_enabled;
+	return 0;
+}
 
 struct oldmem_data {
 	unsigned long start;
