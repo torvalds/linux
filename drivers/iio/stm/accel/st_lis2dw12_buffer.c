@@ -339,7 +339,7 @@ int st_lis2dw12_fifo_setup(struct st_lis2dw12_hw *hw)
 					st_lis2dw12_handler_irq,
 					st_lis2dw12_handler_thread,
 					IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
-					"st_lis2dw12", hw);
+					hw->name, hw);
 	if (ret) {
 		dev_err(hw->dev, "failed to request trigger irq %d\n",
 			hw->irq);

@@ -58,6 +58,7 @@ enum st_lis2dw12_sensor_id {
 struct st_lis2dw12_sensor {
 	enum st_lis2dw12_sensor_id id;
 	struct st_lis2dw12_hw *hw;
+	char name[32];
 
 	u16 gain;
 	u16 odr;
@@ -69,6 +70,7 @@ struct st_lis2dw12_hw {
 	int irq_emb;
 	int irq_pin;
 	u8 irq_reg;
+	char name[32];
 
 	struct mutex fifo_lock;
 	struct mutex lock;
@@ -90,7 +92,7 @@ struct st_lis2dw12_hw {
 	struct st_lis2dw12_transfer_buffer tb;
 };
 
-int st_lis2dw12_probe(struct device *dev, int irq,
+int st_lis2dw12_probe(struct device *dev, int irq, const char *name,
 		      const struct st_lis2dw12_transfer_function *tf_ops);
 int st_lis2dw12_fifo_setup(struct st_lis2dw12_hw *hw);
 int st_lis2dw12_update_fifo_watermark(struct st_lis2dw12_hw *hw, u8 watermark);

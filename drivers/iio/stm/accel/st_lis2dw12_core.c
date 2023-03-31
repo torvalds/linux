@@ -980,7 +980,8 @@ static struct iio_dev *st_lis2dw12_alloc_iiodev(struct st_lis2dw12_hw *hw,
 	case ST_LIS2DW12_ID_ACC:
 		iio_dev->channels = st_lis2dw12_acc_channels;
 		iio_dev->num_channels = ARRAY_SIZE(st_lis2dw12_acc_channels);
-		iio_dev->name = "lis2dw12_accel";
+		scnprintf(sensor->name, sizeof(sensor->name),
+			  "%s_accel", hw->name);
 		iio_dev->info = &st_lis2dw12_acc_info;
 		iio_dev->available_scan_masks = st_lis2dw12_avail_scan_masks;
 
@@ -990,7 +991,8 @@ static struct iio_dev *st_lis2dw12_alloc_iiodev(struct st_lis2dw12_hw *hw,
 	case ST_LIS2DW12_ID_WU:
 		iio_dev->channels = st_lis2dw12_wu_channels;
 		iio_dev->num_channels = ARRAY_SIZE(st_lis2dw12_wu_channels);
-		iio_dev->name = "lis2dw12_wk";
+		scnprintf(sensor->name, sizeof(sensor->name),
+			  "%s_wk", hw->name);
 		iio_dev->info = &st_lis2dw12_wu_info;
 		iio_dev->available_scan_masks =
 				st_lis2dw12_event_avail_scan_masks;
@@ -1001,7 +1003,8 @@ static struct iio_dev *st_lis2dw12_alloc_iiodev(struct st_lis2dw12_hw *hw,
 		iio_dev->channels = st_lis2dw12_tap_tap_channels;
 		iio_dev->num_channels =
 			ARRAY_SIZE(st_lis2dw12_tap_tap_channels);
-		iio_dev->name = "lis2dw12_tap_tap";
+		scnprintf(sensor->name, sizeof(sensor->name),
+			  "%s_tap_tap", hw->name);
 		iio_dev->info = &st_lis2dw12_tap_tap_info;
 		iio_dev->available_scan_masks =
 				st_lis2dw12_event_avail_scan_masks;
@@ -1011,7 +1014,8 @@ static struct iio_dev *st_lis2dw12_alloc_iiodev(struct st_lis2dw12_hw *hw,
 	case ST_LIS2DW12_ID_TAP:
 		iio_dev->channels = st_lis2dw12_tap_channels;
 		iio_dev->num_channels = ARRAY_SIZE(st_lis2dw12_tap_channels);
-		iio_dev->name = "lis2dw12_tap";
+		scnprintf(sensor->name, sizeof(sensor->name),
+			  "%s_tap", hw->name);
 		iio_dev->info = &st_lis2dw12_tap_info;
 		iio_dev->available_scan_masks =
 				st_lis2dw12_event_avail_scan_masks;
@@ -1022,10 +1026,12 @@ static struct iio_dev *st_lis2dw12_alloc_iiodev(struct st_lis2dw12_hw *hw,
 		return NULL;
 	}
 
+	iio_dev->name = sensor->name;
+
 	return iio_dev;
 }
 
-int st_lis2dw12_probe(struct device *dev, int irq,
+int st_lis2dw12_probe(struct device *dev, int irq, const char *name,
 		      const struct st_lis2dw12_transfer_function *tf_ops)
 {
 	struct st_lis2dw12_hw *hw;
@@ -1048,6 +1054,8 @@ int st_lis2dw12_probe(struct device *dev, int irq,
 	err = st_lis2dw12_check_whoami(hw);
 	if (err < 0)
 		return err;
+
+	scnprintf(hw->name, sizeof(hw->name), "%s", name);
 
 	err = st_lis2dw12_init_hw(hw);
 	if (err < 0)

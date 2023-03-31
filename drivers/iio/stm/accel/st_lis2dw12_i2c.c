@@ -60,7 +60,7 @@ static const struct st_lis2dw12_transfer_function st_lis2dw12_transfer_fn = {
 static int st_lis2dw12_i2c_probe(struct i2c_client *client,
 				 const struct i2c_device_id *id)
 {
-	return st_lis2dw12_probe(&client->dev, client->irq,
+	return st_lis2dw12_probe(&client->dev, client->irq, client->name,
 				 &st_lis2dw12_transfer_fn);
 }
 
@@ -83,6 +83,7 @@ MODULE_DEVICE_TABLE(of, st_lis2dw12_i2c_of_match);
 
 static const struct i2c_device_id st_lis2dw12_i2c_id_table[] = {
 	{ ST_LIS2DW12_DEV_NAME },
+	{ ST_IIS2DLPC_DEV_NAME },
 	{ ST_AIS2IH_DEV_NAME },
 	{},
 };

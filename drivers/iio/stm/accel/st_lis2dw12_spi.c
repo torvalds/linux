@@ -68,7 +68,7 @@ static const struct st_lis2dw12_transfer_function st_lis2dw12_transfer_fn = {
 
 static int st_lis2dw12_spi_probe(struct spi_device *spi)
 {
-	return st_lis2dw12_probe(&spi->dev, spi->irq,
+	return st_lis2dw12_probe(&spi->dev, spi->irq, spi->modalias,
 				 &st_lis2dw12_transfer_fn);
 }
 
@@ -91,6 +91,7 @@ MODULE_DEVICE_TABLE(of, st_lis2dw12_spi_of_match);
 
 static const struct spi_device_id st_lis2dw12_spi_id_table[] = {
 	{ ST_LIS2DW12_DEV_NAME },
+	{ ST_IIS2DLPC_DEV_NAME },
 	{ ST_AIS2IH_DEV_NAME },
 	{},
 };
