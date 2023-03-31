@@ -4,7 +4,6 @@
 #include <argp.h>
 #include <string.h>
 #include <stdlib.h>
-#include <linux/compiler.h>
 #include <sched.h>
 #include <pthread.h>
 #include <dirent.h>
@@ -19,6 +18,10 @@
 #include <libelf.h>
 #include <gelf.h>
 #include <float.h>
+
+#ifndef ARRAY_SIZE
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+#endif
 
 enum stat_id {
 	VERDICT,
