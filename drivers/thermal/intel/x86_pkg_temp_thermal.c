@@ -107,7 +107,7 @@ static struct zone_device *pkg_temp_thermal_get_dev(unsigned int cpu)
 
 static int sys_get_curr_temp(struct thermal_zone_device *tzd, int *temp)
 {
-	struct zone_device *zonedev = tzd->devdata;
+	struct zone_device *zonedev = thermal_zone_device_priv(tzd);
 	int val;
 
 	val = intel_tcc_get_temp(zonedev->cpu, true);
@@ -122,16 +122,18 @@ static int sys_get_curr_temp(struct thermal_zone_device *tzd, int *temp)
 static int
 sys_set_trip_temp(struct thermal_zone_device *tzd, int trip, int temp)
 {
-	struct zone_device *zonedev = tzd->devdata;
+	struct zone_device *zonedev = thermal_zone_device_priv(tzd);
 	u32 l, h, mask, shift, intr;
-	int tj_max, ret;
+	int tj_max, val, ret;
 
 	tj_max = intel_tcc_get_tjmax(zonedev->cpu);
 	if (tj_max < 0)
 		return tj_max;
 	tj_max *= 1000;
 
-	if (trip >= MAX_NUMBER_OF_TRIPS || temp >= tj_max)
+	val = (tj_max - temp)/1000;
+
+	if (trip >= MAX_NUMBER_OF_TRIPS || val < 0 || val > 0x7f)
 		return -EINVAL;
 
 	ret = rdmsr_on_cpu(zonedev->cpu, MSR_IA32_PACKAGE_THERM_INTERRUPT,
@@ -156,7 +158,7 @@ sys_set_trip_temp(struct thermal_zone_device *tzd, int trip, int temp)
 	if (!temp) {
 		l &= ~intr;
 	} else {
-		l |= (tj_max - temp)/1000 << shift;
+		l |= val << shift;
 		l |= intr;
 	}
 

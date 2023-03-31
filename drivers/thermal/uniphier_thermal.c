@@ -187,7 +187,7 @@ static void uniphier_tm_disable_sensor(struct uniphier_tm_dev *tdev)
 
 static int uniphier_tm_get_temp(struct thermal_zone_device *tz, int *out_temp)
 {
-	struct uniphier_tm_dev *tdev = tz->devdata;
+	struct uniphier_tm_dev *tdev = thermal_zone_device_priv(tz);
 	struct regmap *map = tdev->regmap;
 	int ret;
 	u32 temp;
