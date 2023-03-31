@@ -438,6 +438,7 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 	size_t len;
 	int i, cmd, err;
 	u32 addr, val;
+	u32 dword;
 	u16 half;
 	u8 erase_mask;
 
@@ -606,6 +607,16 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 		dev_dbg(nor->dev, "BFPT QER reserved value used\n");
 		break;
 	}
+
+	dword = bfpt.dwords[SFDP_DWORD(16)] & BFPT_DWORD16_4B_ADDR_MODE_MASK;
+	if (SFDP_MASK_CHECK(dword, BFPT_DWORD16_4B_ADDR_MODE_BRWR))
+		params->set_4byte_addr_mode = spi_nor_set_4byte_addr_mode_brwr;
+	else if (SFDP_MASK_CHECK(dword, BFPT_DWORD16_4B_ADDR_MODE_WREN_EN4B_EX4B))
+		params->set_4byte_addr_mode = spi_nor_set_4byte_addr_mode_wren_en4b_ex4b;
+	else if (SFDP_MASK_CHECK(dword, BFPT_DWORD16_4B_ADDR_MODE_EN4B_EX4B))
+		params->set_4byte_addr_mode = spi_nor_set_4byte_addr_mode_en4b_ex4b;
+	else
+		dev_dbg(nor->dev, "BFPT: 4-Byte Address Mode method is not recognized or not implemented\n");
 
 	/* Soft Reset support. */
 	if (bfpt.dwords[SFDP_DWORD(16)] & BFPT_DWORD16_SWRST_EN_RST)
