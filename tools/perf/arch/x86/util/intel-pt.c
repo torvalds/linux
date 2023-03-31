@@ -194,16 +194,19 @@ static u64 intel_pt_default_config(struct perf_pmu *intel_pt_pmu)
 	int pos = 0;
 	u64 config;
 	char c;
+	int dirfd;
+
+	dirfd = perf_pmu__event_source_devices_fd();
 
 	pos += scnprintf(buf + pos, sizeof(buf) - pos, "tsc");
 
-	if (perf_pmu__scan_file(intel_pt_pmu, "caps/mtc", "%d",
-				&mtc) != 1)
+	if (perf_pmu__scan_file_at(intel_pt_pmu, dirfd, "caps/mtc", "%d",
+				   &mtc) != 1)
 		mtc = 1;
 
 	if (mtc) {
-		if (perf_pmu__scan_file(intel_pt_pmu, "caps/mtc_periods", "%x",
-					&mtc_periods) != 1)
+		if (perf_pmu__scan_file_at(intel_pt_pmu, dirfd, "caps/mtc_periods", "%x",
+					   &mtc_periods) != 1)
 			mtc_periods = 0;
 		if (mtc_periods) {
 			mtc_period = intel_pt_pick_bit(mtc_periods, 3);
@@ -212,13 +215,13 @@ static u64 intel_pt_default_config(struct perf_pmu *intel_pt_pmu)
 		}
 	}
 
-	if (perf_pmu__scan_file(intel_pt_pmu, "caps/psb_cyc", "%d",
-				&psb_cyc) != 1)
+	if (perf_pmu__scan_file_at(intel_pt_pmu, dirfd, "caps/psb_cyc", "%d",
+				   &psb_cyc) != 1)
 		psb_cyc = 1;
 
 	if (psb_cyc && mtc_periods) {
-		if (perf_pmu__scan_file(intel_pt_pmu, "caps/psb_periods", "%x",
-					&psb_periods) != 1)
+		if (perf_pmu__scan_file_at(intel_pt_pmu, dirfd, "caps/psb_periods", "%x",
+					   &psb_periods) != 1)
 			psb_periods = 0;
 		if (psb_periods) {
 			psb_period = intel_pt_pick_bit(psb_periods, 3);
@@ -227,8 +230,8 @@ static u64 intel_pt_default_config(struct perf_pmu *intel_pt_pmu)
 		}
 	}
 
-	if (perf_pmu__scan_file(intel_pt_pmu, "format/pt", "%c", &c) == 1 &&
-	    perf_pmu__scan_file(intel_pt_pmu, "format/branch", "%c", &c) == 1)
+	if (perf_pmu__scan_file_at(intel_pt_pmu, dirfd, "format/pt", "%c", &c) == 1 &&
+	    perf_pmu__scan_file_at(intel_pt_pmu, dirfd, "format/branch", "%c", &c) == 1)
 		pos += scnprintf(buf + pos, sizeof(buf) - pos, ",pt,branch");
 
 	pr_debug2("%s default config: %s\n", intel_pt_pmu->name, buf);
@@ -236,6 +239,7 @@ static u64 intel_pt_default_config(struct perf_pmu *intel_pt_pmu)
 	intel_pt_parse_terms(intel_pt_pmu->name, &intel_pt_pmu->format, buf,
 			     &config);
 
+	close(dirfd);
 	return config;
 }
 
@@ -488,7 +492,7 @@ static void intel_pt_valid_str(char *str, size_t len, u64 valid)
 	}
 }
 
-static int intel_pt_val_config_term(struct perf_pmu *intel_pt_pmu,
+static int intel_pt_val_config_term(struct perf_pmu *intel_pt_pmu, int dirfd,
 				    const char *caps, const char *name,
 				    const char *supported, u64 config)
 {
@@ -498,11 +502,11 @@ static int intel_pt_val_config_term(struct perf_pmu *intel_pt_pmu,
 	u64 bits;
 	int ok;
 
-	if (perf_pmu__scan_file(intel_pt_pmu, caps, "%llx", &valid) != 1)
+	if (perf_pmu__scan_file_at(intel_pt_pmu, dirfd, caps, "%llx", &valid) != 1)
 		valid = 0;
 
 	if (supported &&
-	    perf_pmu__scan_file(intel_pt_pmu, supported, "%d", &ok) == 1 && !ok)
+	    perf_pmu__scan_file_at(intel_pt_pmu, dirfd, supported, "%d", &ok) == 1 && !ok)
 		valid = 0;
 
 	valid |= 1;
@@ -531,37 +535,45 @@ out_err:
 static int intel_pt_validate_config(struct perf_pmu *intel_pt_pmu,
 				    struct evsel *evsel)
 {
-	int err;
+	int err, dirfd;
 	char c;
 
 	if (!evsel)
 		return 0;
 
+	dirfd = perf_pmu__event_source_devices_fd();
+	if (dirfd < 0)
+		return dirfd;
+
 	/*
 	 * If supported, force pass-through config term (pt=1) even if user
 	 * sets pt=0, which avoids senseless kernel errors.
 	 */
-	if (perf_pmu__scan_file(intel_pt_pmu, "format/pt", "%c", &c) == 1 &&
+	if (perf_pmu__scan_file_at(intel_pt_pmu, dirfd, "format/pt", "%c", &c) == 1 &&
 	    !(evsel->core.attr.config & 1)) {
 		pr_warning("pt=0 doesn't make sense, forcing pt=1\n");
 		evsel->core.attr.config |= 1;
 	}
 
-	err = intel_pt_val_config_term(intel_pt_pmu, "caps/cycle_thresholds",
+	err = intel_pt_val_config_term(intel_pt_pmu, dirfd, "caps/cycle_thresholds",
 				       "cyc_thresh", "caps/psb_cyc",
 				       evsel->core.attr.config);
 	if (err)
-		return err;
+		goto out;
 
-	err = intel_pt_val_config_term(intel_pt_pmu, "caps/mtc_periods",
+	err = intel_pt_val_config_term(intel_pt_pmu, dirfd, "caps/mtc_periods",
 				       "mtc_period", "caps/mtc",
 				       evsel->core.attr.config);
 	if (err)
-		return err;
+		goto out;
 
-	return intel_pt_val_config_term(intel_pt_pmu, "caps/psb_periods",
+	err = intel_pt_val_config_term(intel_pt_pmu, dirfd, "caps/psb_periods",
 					"psb_period", "caps/psb_cyc",
 					evsel->core.attr.config);
+
+out:
+	close(dirfd);
+	return err;
 }
 
 static void intel_pt_config_sample_mode(struct perf_pmu *intel_pt_pmu,
