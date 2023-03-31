@@ -259,4 +259,6 @@ int perf_pmu__pathname_scnprintf(char *buf, size_t size,
 				 const char *pmu_name, const char *filename);
 FILE *perf_pmu__open_file(struct perf_pmu *pmu, const char *name);
 
+void perf_pmu__destroy(void);
+
 #endif /* __PMU_H */

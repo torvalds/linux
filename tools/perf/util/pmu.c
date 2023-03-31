@@ -300,6 +300,16 @@ void perf_pmu_free_alias(struct perf_pmu_alias *newalias)
 	free(newalias);
 }
 
+static void perf_pmu__del_aliases(struct perf_pmu *pmu)
+{
+	struct perf_pmu_alias *alias, *tmp;
+
+	list_for_each_entry_safe(alias, tmp, &pmu->aliases, list) {
+		list_del(&alias->list);
+		perf_pmu_free_alias(alias);
+	}
+}
+
 /* Merge an alias, search in alias list. If this name is already
  * present merge both of them to combine all information.
  */
@@ -921,6 +931,8 @@ static struct perf_pmu *pmu_lookup(const char *lookup_name)
 
 	if (is_hybrid)
 		list_add_tail(&pmu->hybrid_list, &perf_pmu__hybrid_pmus);
+	else
+		INIT_LIST_HEAD(&pmu->hybrid_list);
 
 	pmu->default_config = perf_pmu__get_default_config(pmu);
 
@@ -1750,6 +1762,18 @@ free_caps:
 	return -ENOMEM;
 }
 
+static void perf_pmu__del_caps(struct perf_pmu *pmu)
+{
+	struct perf_pmu_caps *caps, *tmp;
+
+	list_for_each_entry_safe(caps, tmp, &pmu->caps, list) {
+		list_del(&caps->list);
+		free(caps->name);
+		free(caps->value);
+		free(caps);
+	}
+}
+
 /*
  * Reading/parsing the given pmu capabilities, which should be located at:
  * /sys/bus/event_source/devices/<dev>/caps as sysfs group attributes.
@@ -1931,4 +1955,30 @@ int perf_pmu__pathname_scnprintf(char *buf, size_t size,
 	if (!perf_pmu__event_source_devices_scnprintf(base_path, sizeof(base_path)))
 		return 0;
 	return scnprintf(buf, size, "%s%s/%s", base_path, pmu_name, filename);
+}
+
+static void perf_pmu__delete(struct perf_pmu *pmu)
+{
+	perf_pmu__del_formats(&pmu->format);
+	perf_pmu__del_aliases(pmu);
+	perf_pmu__del_caps(pmu);
+
+	perf_cpu_map__put(pmu->cpus);
+
+	free(pmu->default_config);
+	free(pmu->name);
+	free(pmu->alias_name);
+	free(pmu);
+}
+
+void perf_pmu__destroy(void)
+{
+	struct perf_pmu *pmu, *tmp;
+
+	list_for_each_entry_safe(pmu, tmp, &pmus, list) {
+		list_del(&pmu->list);
+		list_del(&pmu->hybrid_list);
+
+		perf_pmu__delete(pmu);
+	}
 }
