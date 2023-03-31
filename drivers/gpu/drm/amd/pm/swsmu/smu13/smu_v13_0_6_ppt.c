@@ -82,8 +82,6 @@
 
 #define smnPCIE_ESM_CTRL 0x111003D0
 
-#define THROTTLER_TEMP_HBM_BIT 2
-
 static const struct cmn2asic_msg_mapping smu_v13_0_6_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,			     PPSMC_MSG_TestMessage,			0),
 	MSG_MAP(GetSmuVersion,			     PPSMC_MSG_GetSmuVersion,			1),
@@ -174,17 +172,12 @@ static const struct cmn2asic_mapping smu_v13_0_6_table_map[SMU_TABLE_COUNT] = {
 	TAB_MAP(I2C_COMMANDS),
 };
 
-#define THROTTLER_PROCHOT_GFX_BIT  0
-#define THROTTLER_PPT_BIT 1
-#define THROTTLER_TEMP_SOC_BIT 2
-#define THROTTLER_TEMP_VR_GFX_BIT 3
-
 static const uint8_t smu_v13_0_6_throttler_map[] = {
 	[THROTTLER_PPT_BIT]		= (SMU_THROTTLER_PPT0_BIT),
-	[THROTTLER_TEMP_SOC_BIT]	= (SMU_THROTTLER_TEMP_GPU_BIT),
-	[THROTTLER_TEMP_HBM_BIT]	= (SMU_THROTTLER_TEMP_MEM_BIT),
-	[THROTTLER_TEMP_VR_GFX_BIT]	= (SMU_THROTTLER_TEMP_VR_GFX_BIT),
-	[THROTTLER_PROCHOT_GFX_BIT]	= (SMU_THROTTLER_PROCHOT_GFX_BIT),
+	[THROTTLER_THERMAL_SOCKET_BIT]	= (SMU_THROTTLER_TEMP_GPU_BIT),
+	[THROTTLER_THERMAL_HBM_BIT]	= (SMU_THROTTLER_TEMP_MEM_BIT),
+	[THROTTLER_THERMAL_VR_BIT]	= (SMU_THROTTLER_TEMP_VR_GFX_BIT),
+	[THROTTLER_PROCHOT_BIT]		= (SMU_THROTTLER_PROCHOT_GFX_BIT),
 };
 
 struct PPTable_t {
@@ -642,16 +635,14 @@ static int smu_v13_0_6_freqs_in_same_level(int32_t frequency1,
 	return (abs(frequency1 - frequency2) <= EPSILON);
 }
 
-static uint32_t smu_v13_0_6_get_throttler_status(struct smu_context *smu,
-						 MetricsTable_t *metrics)
+static uint32_t smu_v13_0_6_get_throttler_status(struct smu_context *smu)
 {
+	struct smu_power_context *smu_power = &smu->smu_power;
+	struct smu_13_0_power_context *power_context = smu_power->power_context;
 	uint32_t  throttler_status = 0;
 
-	throttler_status |= metrics->ProchotResidencyAcc > 0 ? 1U << THROTTLER_PROCHOT_GFX_BIT : 0;
-	throttler_status |= metrics->PptResidencyAcc > 0 ? 1U << THROTTLER_PPT_BIT : 0;
-	throttler_status |= metrics->SocketThmResidencyAcc > 0 ?  1U << THROTTLER_TEMP_SOC_BIT : 0;
-	throttler_status |= metrics->VrThmResidencyAcc > 0 ? 1U << THROTTLER_TEMP_VR_GFX_BIT : 0;
-	throttler_status |= metrics->HbmThmResidencyAcc > 0 ? 1U << THROTTLER_TEMP_HBM_BIT : 0;
+	throttler_status = atomic_read(&power_context->throttle_status);
+	dev_dbg(smu->adev->dev, "SMU Throttler status: %u", throttler_status);
 
 	return throttler_status;
 }
@@ -720,9 +711,6 @@ static int smu_v13_0_6_get_smu_metrics_data(struct smu_context *smu,
 	 */
 	case METRICS_TEMPERATURE_VRSOC:
 		*value = SMUQ10_TO_UINT(metrics->MaxVrTemperature);
-		break;
-	case METRICS_THROTTLER_STATUS:
-		*value = smu_v13_0_6_get_throttler_status(smu, metrics);
 		break;
 	default:
 		*value = UINT_MAX;
@@ -1290,13 +1278,11 @@ static int smu_v13_0_6_irq_process(struct amdgpu_device *adev,
 				   struct amdgpu_iv_entry *entry)
 {
 	struct smu_context *smu = adev->powerplay.pp_handle;
+	struct smu_power_context *smu_power = &smu->smu_power;
+	struct smu_13_0_power_context *power_context = smu_power->power_context;
 	uint32_t client_id = entry->client_id;
-	uint32_t src_id = entry->src_id;
-	/*
-	 * ctxid is used to distinguish different
-	 * events for SMCToHost interrupt
-	 */
 	uint32_t ctxid = entry->src_data[0];
+	uint32_t src_id = entry->src_id;
 	uint32_t data;
 
 	if (client_id == SOC15_IH_CLIENTID_MP1) {
@@ -1305,7 +1291,10 @@ static int smu_v13_0_6_irq_process(struct amdgpu_device *adev,
 			data = RREG32_SOC15(MP1, 0, regMP1_SMN_IH_SW_INT_CTRL);
 			data = REG_SET_FIELD(data, MP1_SMN_IH_SW_INT_CTRL, INT_ACK, 1);
 			WREG32_SOC15(MP1, 0, regMP1_SMN_IH_SW_INT_CTRL, data);
-
+			/*
+			 * ctxid is used to distinguish different events for SMCToHost
+			 * interrupt.
+			 */
 			switch (ctxid) {
 			case IH_INTERRUPT_CONTEXT_ID_THERMAL_THROTTLING:
 				/*
@@ -1316,8 +1305,17 @@ static int smu_v13_0_6_irq_process(struct amdgpu_device *adev,
 				if (!atomic_read(&adev->throttling_logging_enabled))
 					return 0;
 
-				if (__ratelimit(&adev->throttling_logging_rs))
+				/* This uses the new method which fixes the
+				 * incorrect throttling status reporting
+				 * through metrics table. For older FWs,
+				 * it will be ignored.
+				 */
+				if (__ratelimit(&adev->throttling_logging_rs)) {
+					atomic_set(
+						&power_context->throttle_status,
+							entry->src_data[1]);
 					schedule_work(&smu->throttling_logging_work);
+				}
 
 				break;
 			}
@@ -1895,37 +1893,35 @@ static int smu_v13_0_6_allow_xgmi_power_down(struct smu_context *smu, bool en)
 					       en ? 0 : 1, NULL);
 }
 
-static const struct throttling_logging_label {
-	uint32_t feature_mask;
-	const char *label;
-} logging_label[] = {
-	{ (1U << THROTTLER_TEMP_HBM_BIT), "HBM" },
-	{ (1U << THROTTLER_TEMP_SOC_BIT), "SOC" },
-	{ (1U << THROTTLER_TEMP_VR_GFX_BIT), "VR limit" },
+static const char *const throttling_logging_label[] = {
+	[THROTTLER_PROCHOT_BIT] = "Prochot",
+	[THROTTLER_PPT_BIT] = "PPT",
+	[THROTTLER_THERMAL_SOCKET_BIT] = "SOC",
+	[THROTTLER_THERMAL_VR_BIT] = "VR",
+	[THROTTLER_THERMAL_HBM_BIT] = "HBM"
 };
+
 static void smu_v13_0_6_log_thermal_throttling_event(struct smu_context *smu)
 {
-	int ret;
 	int throttler_idx, throtting_events = 0, buf_idx = 0;
 	struct amdgpu_device *adev = smu->adev;
 	uint32_t throttler_status;
 	char log_buf[256];
 
-	ret = smu_v13_0_6_get_smu_metrics_data(smu, METRICS_THROTTLER_STATUS,
-					      &throttler_status);
-	if (ret)
+	throttler_status = smu_v13_0_6_get_throttler_status(smu);
+	if (!throttler_status)
 		return;
 
 	memset(log_buf, 0, sizeof(log_buf));
-	for (throttler_idx = 0; throttler_idx < ARRAY_SIZE(logging_label);
+	for (throttler_idx = 0;
+	     throttler_idx < ARRAY_SIZE(throttling_logging_label);
 	     throttler_idx++) {
-		if (throttler_status &
-		    logging_label[throttler_idx].feature_mask) {
+		if (throttler_status & (1U << throttler_idx)) {
 			throtting_events++;
-			buf_idx += snprintf(log_buf + buf_idx,
-					    sizeof(log_buf) - buf_idx, "%s%s",
-					    throtting_events > 1 ? " and " : "",
-					    logging_label[throttler_idx].label);
+			buf_idx += snprintf(
+				log_buf + buf_idx, sizeof(log_buf) - buf_idx,
+				"%s%s", throtting_events > 1 ? " and " : "",
+				throttling_logging_label[throttler_idx]);
 			if (buf_idx >= sizeof(log_buf)) {
 				dev_err(adev->dev, "buffer overflow!\n");
 				log_buf[sizeof(log_buf) - 1] = '\0';
@@ -1934,10 +1930,9 @@ static void smu_v13_0_6_log_thermal_throttling_event(struct smu_context *smu)
 		}
 	}
 
-	dev_warn(
-		adev->dev,
-		"WARN: GPU thermal throttling temperature reached, expect performance decrease. %s.\n",
-		log_buf);
+	dev_warn(adev->dev,
+		 "WARN: GPU is throttled, expect performance decrease. %s.\n",
+		 log_buf);
 	kgd2kfd_smi_event_throttle(
 		smu->adev->kfd.dev,
 		smu_cmn_get_indep_throttler_status(throttler_status,

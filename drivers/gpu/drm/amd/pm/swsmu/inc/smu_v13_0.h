@@ -119,6 +119,7 @@ struct smu_13_0_power_context {
 	uint32_t	power_source;
 	uint8_t		in_power_limit_boost_mode;
 	enum smu_13_0_power_state power_state;
+	atomic_t	throttle_status;
 };
 
 #if defined(SWSMU_CODE_LAYER_L2) || defined(SWSMU_CODE_LAYER_L3)
