@@ -191,7 +191,7 @@ def _define_image_build(
         build_vendor_boot = False,
         build_vendor_kernel_boot = False,
         build_vendor_dlkm = True,
-        build_system_dlkm = True,
+        build_system_dlkm = False,
         boot_image_outs = None,
         dtbo_list = [],
         vendor_ramdisk_binaries = None,
@@ -261,7 +261,7 @@ def _define_image_build(
         name = "{}_super_image".format(target),
         kernel_modules_install = "{}_modules_install".format(target),
         deps = [
-            ":{}_images_system_dlkm_image".format(target),
+            "{}_images_system_dlkm_image".format(base_kernel),
             ":{}_images_vendor_dlkm_image".format(target),
         ],
     )
@@ -285,6 +285,7 @@ def _define_kernel_dist(target, msm_target, variant, base_kernel):
     msm_dist_targets = [
         # do not sort
         base_kernel,
+        "{}_images_system_dlkm_image".format(base_kernel),
         "{}_headers".format(base_kernel),
         ":{}".format(target),
         ":{}_images".format(target),
