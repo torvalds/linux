@@ -124,7 +124,7 @@ bool ufshcd_crypto_enable(struct ufs_hba *hba)
 	/* Reset might clear all keys, so reprogram all the keys. */
 	blk_crypto_reprogram_all_keys(&hba->crypto_profile);
 
-	if (hba->quirks & UFSHCD_QUIRK_BROKEN_CRYPTO_ENABLE)
+	if (hba->android_quirks & UFSHCD_ANDROID_QUIRK_BROKEN_CRYPTO_ENABLE)
 		return false;
 
 	return true;
@@ -163,7 +163,7 @@ int ufshcd_hba_init_crypto_capabilities(struct ufs_hba *hba)
 	int err = 0;
 	enum blk_crypto_mode_num blk_mode_num;
 
-	if (hba->quirks & UFSHCD_QUIRK_CUSTOM_CRYPTO_PROFILE)
+	if (hba->android_quirks & UFSHCD_ANDROID_QUIRK_CUSTOM_CRYPTO_PROFILE)
 		return 0;
 
 	/*

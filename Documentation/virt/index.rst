@@ -15,6 +15,7 @@ Linux Virtualization Support
    acrn/index
    coco/sev-guest
    hyperv/index
+   gunyah/index
 
 .. only:: html and subproject
 

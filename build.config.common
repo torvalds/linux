@@ -1,6 +1,6 @@
 . ${ROOT_DIR}/${KERNEL_DIR}/build.config.constants
 
-KMI_GENERATION=2
+KMI_GENERATION=3
 
 LLVM=1
 DEPMOD=depmod

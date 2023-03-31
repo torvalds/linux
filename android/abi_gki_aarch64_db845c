@@ -404,6 +404,7 @@
   jiffies
   jiffies_to_msecs
   jiffies_to_usecs
+  kasan_flag_enabled
   kasprintf
   kernel_connect
   kernel_getsockname
@@ -1043,7 +1044,6 @@
   dma_get_sgtable_attrs
   down_read
   find_vma
-  kasan_flag_enabled
   __mmap_lock_do_trace_acquire_returned
   __mmap_lock_do_trace_released
   __mmap_lock_do_trace_start_locking
@@ -1966,7 +1966,10 @@
   spmi_controller_remove
 
 # required by system_heap.ko
-  __alloc_pages
+  dmabuf_page_pool_alloc
+  dmabuf_page_pool_create
+  dmabuf_page_pool_destroy
+  dmabuf_page_pool_free
   dma_heap_add
   dma_heap_get_dev
   dma_heap_get_name
@@ -2044,3 +2047,6 @@
 # required by wcd934x.ko
   mfd_add_devices
   mfd_remove_devices
+
+# preserved by --additions-only
+  __alloc_pages

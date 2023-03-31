@@ -42,6 +42,10 @@ void cfg80211_rx_assoc_resp(struct net_device *dev,
 	unsigned int link_id;
 
 	for (link_id = 0; link_id < ARRAY_SIZE(data->links); link_id++) {
+		cr.links[link_id].status = data->links[link_id].status;
+		WARN_ON_ONCE(cr.links[link_id].status != WLAN_STATUS_SUCCESS &&
+			     (!cr.ap_mld_addr || !cr.links[link_id].bss));
+
 		cr.links[link_id].bss = data->links[link_id].bss;
 		if (!cr.links[link_id].bss)
 			continue;
@@ -738,7 +742,10 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 		case NL80211_IFTYPE_AP:
 		case NL80211_IFTYPE_P2P_GO:
 		case NL80211_IFTYPE_AP_VLAN:
-			if (!ether_addr_equal(mgmt->bssid, wdev_address(wdev)))
+			if (!ether_addr_equal(mgmt->bssid, wdev_address(wdev)) &&
+			    (params->link_id < 0 ||
+			     !ether_addr_equal(mgmt->bssid,
+					       wdev->links[params->link_id].addr)))
 				err = -EINVAL;
 			break;
 		case NL80211_IFTYPE_MESH_POINT:
