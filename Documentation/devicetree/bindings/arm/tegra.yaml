@@ -171,5 +171,10 @@ properties:
         items:
           - const: nvidia,p3767-0000
           - const: nvidia,tegra234
+      - description: Jetson Orin NX Engineering Reference Developer Kit
+        items:
+          - const: nvidia,p3768-0000+p3767-0000
+          - const: nvidia,p3767-0000
+          - const: nvidia,tegra234
 
 additionalProperties: true
