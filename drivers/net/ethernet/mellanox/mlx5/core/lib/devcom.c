@@ -13,7 +13,7 @@ static LIST_HEAD(devcom_list);
 
 struct mlx5_devcom_component {
 	struct {
-		void *data;
+		void __rcu *data;
 	} device[MLX5_DEVCOM_PORTS_SUPPORTED];
 
 	mlx5_devcom_event_handler_t handler;
@@ -162,7 +162,7 @@ void mlx5_devcom_register_component(struct mlx5_devcom *devcom,
 	comp = &devcom->priv->components[id];
 	down_write(&comp->sem);
 	comp->handler = handler;
-	comp->device[devcom->idx].data = data;
+	rcu_assign_pointer(comp->device[devcom->idx].data, data);
 	up_write(&comp->sem);
 }
 
@@ -176,8 +176,9 @@ void mlx5_devcom_unregister_component(struct mlx5_devcom *devcom,
 
 	comp = &devcom->priv->components[id];
 	down_write(&comp->sem);
-	comp->device[devcom->idx].data = NULL;
+	RCU_INIT_POINTER(comp->device[devcom->idx].data, NULL);
 	up_write(&comp->sem);
+	synchronize_rcu();
 }
 
 int mlx5_devcom_send_event(struct mlx5_devcom *devcom,
@@ -193,12 +194,15 @@ int mlx5_devcom_send_event(struct mlx5_devcom *devcom,
 
 	comp = &devcom->priv->components[id];
 	down_write(&comp->sem);
-	for (i = 0; i < MLX5_DEVCOM_PORTS_SUPPORTED; i++)
-		if (i != devcom->idx && comp->device[i].data) {
-			err = comp->handler(event, comp->device[i].data,
-					    event_data);
+	for (i = 0; i < MLX5_DEVCOM_PORTS_SUPPORTED; i++) {
+		void *data = rcu_dereference_protected(comp->device[i].data,
+						       lockdep_is_held(&comp->sem));
+
+		if (i != devcom->idx && data) {
+			err = comp->handler(event, data, event_data);
 			break;
 		}
+	}
 
 	up_write(&comp->sem);
 	return err;
@@ -213,7 +217,7 @@ void mlx5_devcom_set_paired(struct mlx5_devcom *devcom,
 	comp = &devcom->priv->components[id];
 	WARN_ON(!rwsem_is_locked(&comp->sem));
 
-	comp->paired = paired;
+	WRITE_ONCE(comp->paired, paired);
 }
 
 bool mlx5_devcom_is_paired(struct mlx5_devcom *devcom,
@@ -222,7 +226,7 @@ bool mlx5_devcom_is_paired(struct mlx5_devcom *devcom,
 	if (IS_ERR_OR_NULL(devcom))
 		return false;
 
-	return devcom->priv->components[id].paired;
+	return READ_ONCE(devcom->priv->components[id].paired);
 }
 
 void *mlx5_devcom_get_peer_data(struct mlx5_devcom *devcom,
@@ -236,7 +240,7 @@ void *mlx5_devcom_get_peer_data(struct mlx5_devcom *devcom,
 
 	comp = &devcom->priv->components[id];
 	down_read(&comp->sem);
-	if (!comp->paired) {
+	if (!READ_ONCE(comp->paired)) {
 		up_read(&comp->sem);
 		return NULL;
 	}
@@ -245,7 +249,29 @@ void *mlx5_devcom_get_peer_data(struct mlx5_devcom *devcom,
 		if (i != devcom->idx)
 			break;
 
-	return comp->device[i].data;
+	return rcu_dereference_protected(comp->device[i].data, lockdep_is_held(&comp->sem));
+}
+
+void *mlx5_devcom_get_peer_data_rcu(struct mlx5_devcom *devcom, enum mlx5_devcom_components id)
+{
+	struct mlx5_devcom_component *comp;
+	int i;
+
+	if (IS_ERR_OR_NULL(devcom))
+		return NULL;
+
+	for (i = 0; i < MLX5_DEVCOM_PORTS_SUPPORTED; i++)
+		if (i != devcom->idx)
+			break;
+
+	comp = &devcom->priv->components[id];
+	/* This can change concurrently, however 'data' pointer will remain
+	 * valid for the duration of RCU read section.
+	 */
+	if (!READ_ONCE(comp->paired))
+		return NULL;
+
+	return rcu_dereference(comp->device[i].data);
 }
 
 void mlx5_devcom_release_peer_data(struct mlx5_devcom *devcom,
