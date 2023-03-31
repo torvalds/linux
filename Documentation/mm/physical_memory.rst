@@ -19,7 +19,7 @@ a bank of memory very suitable for DMA near peripheral devices.
 
 Each bank is called a node and the concept is represented under Linux by a
 ``struct pglist_data`` even if the architecture is UMA. This structure is
-always referenced to by it's typedef ``pg_data_t``. ``A pg_data_t`` structure
+always referenced by its typedef ``pg_data_t``. A ``pg_data_t`` structure
 for a particular node can be referenced by ``NODE_DATA(nid)`` macro where
 ``nid`` is the ID of that node.
 
