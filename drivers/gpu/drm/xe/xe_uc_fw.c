@@ -43,11 +43,11 @@ static struct xe_device *uc_fw_to_xe(struct xe_uc_fw *uc_fw)
  */
 #define XE_GUC_FIRMWARE_DEFS(fw_def, guc_def) \
 	fw_def(METEORLAKE,   guc_def(mtl,  70, 5, 2)) \
-	fw_def(ALDERLAKE_P,  guc_def(adlp,  70, 5, 2)) \
-	fw_def(ALDERLAKE_S,  guc_def(tgl,  70, 5, 2)) \
 	fw_def(PVC,          guc_def(pvc,  70, 5, 2)) \
 	fw_def(DG2,          guc_def(dg2,  70, 5, 2)) \
 	fw_def(DG1,          guc_def(dg1,  70, 5, 2)) \
+	fw_def(ALDERLAKE_P,  guc_def(adlp,  70, 5, 2)) \
+	fw_def(ALDERLAKE_S,  guc_def(tgl,  70, 5, 2)) \
 	fw_def(TIGERLAKE,    guc_def(tgl,  70, 5, 2))
 
 #define XE_HUC_FIRMWARE_DEFS(fw_def, huc_def, huc_ver) \
