@@ -1115,7 +1115,7 @@ static int secref_whitelist(const struct sectioncheck *mismatch,
 
 /*
  * If there's no name there, ignore it; likewise, ignore it if it's
- * one of the magic symbols emitted used by current ARM tools.
+ * one of the magic symbols emitted used by current tools.
  *
  * Otherwise if find_symbols_between() returns those symbols, they'll
  * fail the whitelist tests and cause lots of false alarms ... fixable
@@ -1128,7 +1128,7 @@ static inline int is_valid_name(struct elf_info *elf, Elf_Sym *sym)
 
 	if (!name || !strlen(name))
 		return 0;
-	return !is_arm_mapping_symbol(name);
+	return !is_mapping_symbol(name);
 }
 
 /**
