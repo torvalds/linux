@@ -118,8 +118,71 @@ struct xe_user_extension {
 #define DRM_IOCTL_XE_WAIT_USER_FENCE		DRM_IOWR(DRM_COMMAND_BASE + DRM_XE_WAIT_USER_FENCE, struct drm_xe_wait_user_fence)
 #define DRM_IOCTL_XE_VM_MADVISE			 DRM_IOW(DRM_COMMAND_BASE + DRM_XE_VM_MADVISE, struct drm_xe_vm_madvise)
 
-#define XE_MEM_REGION_CLASS_SYSMEM	0
-#define XE_MEM_REGION_CLASS_VRAM	1
+/**
+ * enum drm_xe_memory_class - Supported memory classes.
+ */
+enum drm_xe_memory_class {
+	/** @XE_MEM_REGION_CLASS_SYSMEM: Represents system memory. */
+	XE_MEM_REGION_CLASS_SYSMEM = 0,
+	/**
+	 * @XE_MEM_REGION_CLASS_VRAM: On discrete platforms, this
+	 * represents the memory that is local to the device, which we
+	 * call VRAM. Not valid on integrated platforms.
+	 */
+	XE_MEM_REGION_CLASS_VRAM
+};
+
+/**
+ * struct drm_xe_query_mem_region - Describes some region as known to
+ * the driver.
+ */
+struct drm_xe_query_mem_region {
+	/**
+	 * @mem_class: The memory class describing this region.
+	 *
+	 * See enum drm_xe_memory_class for supported values.
+	 */
+	__u16 mem_class;
+	/**
+	 * @instance: The instance for this region.
+	 *
+	 * The @mem_class and @instance taken together will always give
+	 * a unique pair.
+	 */
+	__u16 instance;
+	/** @pad: MBZ */
+	__u32 pad;
+	/**
+	 * @min_page_size: Min page-size in bytes for this region.
+	 *
+	 * When the kernel allocates memory for this region, the
+	 * underlying pages will be at least @min_page_size in size.
+	 *
+	 * Important note: When userspace allocates a GTT address which
+	 * can point to memory allocated from this region, it must also
+	 * respect this minimum alignment. This is enforced by the
+	 * kernel.
+	 */
+	__u32 min_page_size;
+	/**
+	 * @max_page_size: Max page-size in bytes for this region.
+	 */
+	__u32 max_page_size;
+	/**
+	 * @total_size: The usable size in bytes for this region.
+	 */
+	__u64 total_size;
+	/**
+	 * @used: Estimate of the memory used in bytes for this region.
+	 *
+	 * Requires CAP_PERFMON or CAP_SYS_ADMIN to get reliable
+	 * accounting.  Without this the value here will always equal
+	 * zero.
+	 */
+	__u64 used;
+	/** @reserved: MBZ */
+	__u64 reserved[8];
+};
 
 /**
  * struct drm_xe_query_mem_usage - describe memory regions and usage
@@ -129,22 +192,12 @@ struct xe_user_extension {
  * struct drm_xe_query_mem_usage in .data.
  */
 struct drm_xe_query_mem_usage {
-	/** @num_params: number of memory regions returned in regions */
+	/** @num_regions: number of memory regions returned in @regions */
 	__u32 num_regions;
-
 	/** @pad: MBZ */
 	__u32 pad;
-
-	struct drm_xe_query_mem_region {
-		__u16 mem_class;
-		__u16 instance;	/* unique ID even among different classes */
-		__u32 pad;
-		__u32 min_page_size;
-		__u32 max_page_size;
-		__u64 total_size;
-		__u64 used;
-		__u64 reserved[8];
-	} regions[];
+	/** @regions: The returned regions for this device */
+	struct drm_xe_query_mem_region regions[];
 };
 
 /**
@@ -888,6 +941,9 @@ struct drm_xe_vm_madvise {
 	 * Setting the preferred location will trigger a migrate of the VMA
 	 * backing store to new location if the backing store is already
 	 * allocated.
+	 *
+	 * For DRM_XE_VM_MADVISE_PREFERRED_MEM_CLASS usage, see enum
+	 * drm_xe_memory_class.
 	 */
 #define DRM_XE_VM_MADVISE_PREFERRED_MEM_CLASS	0
 #define DRM_XE_VM_MADVISE_PREFERRED_GT		1
