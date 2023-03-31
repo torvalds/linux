@@ -27,7 +27,6 @@ struct fwnode_handle;
  * @name:	Name of the class.
  * @class_groups: Default attributes of this class.
  * @dev_groups:	Default attributes of the devices that belong to the class.
- * @dev_kobj:	The kobject that represents this class and links it into the hierarchy.
  * @dev_uevent:	Called when a device is added, removed from this class, or a
  *		few other things that generate uevents to add the environment
  *		variables.
@@ -55,7 +54,6 @@ struct class {
 
 	const struct attribute_group	**class_groups;
 	const struct attribute_group	**dev_groups;
-	struct kobject			*dev_kobj;
 
 	int (*dev_uevent)(const struct device *dev, struct kobj_uevent_env *env);
 	char *(*devnode)(const struct device *dev, umode_t *mode);

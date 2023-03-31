@@ -197,10 +197,6 @@ int class_register(struct class *cls)
 		return error;
 	}
 
-	/* set the default /sys/dev directory for devices of this class */
-	if (!cls->dev_kobj)
-		cls->dev_kobj = sysfs_dev_char_kobj;
-
 	cp->subsys.kobj.kset = class_kset;
 	cp->subsys.kobj.ktype = &class_ktype;
 	cp->class = cls;
