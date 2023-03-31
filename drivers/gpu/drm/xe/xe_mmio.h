@@ -82,21 +82,28 @@ static inline int xe_mmio_write32_and_verify(struct xe_gt *gt,
 	return (reg_val & mask) != eval ? -EINVAL : 0;
 }
 
-static inline int xe_mmio_wait32(struct xe_gt *gt,
-				 u32 reg, u32 val,
-				 u32 mask, u32 timeout_ms)
+static inline int xe_mmio_wait32(struct xe_gt *gt, u32 reg, u32 val,
+				 u32 mask, u32 timeout_ms, u32 *out_val)
 {
 	ktime_t cur = ktime_get_raw();
 	const ktime_t end = ktime_add_ms(cur, timeout_ms);
+	int ret = -ETIMEDOUT;
 	s64 wait = 10;
+	u32 read;
 
 	for (;;) {
 		if ((xe_mmio_read32(gt, reg) & mask) == val)
 			return 0;
 
+		read = xe_mmio_read32(gt, reg);
+		if ((read & mask) == val) {
+			ret = 0;
+			break;
+		}
+
 		cur = ktime_get_raw();
 		if (!ktime_before(cur, end))
-			return -ETIMEDOUT;
+			break;
 
 		if (ktime_after(ktime_add_us(cur, wait), end))
 			wait = ktime_us_delta(end, cur);
@@ -105,7 +112,10 @@ static inline int xe_mmio_wait32(struct xe_gt *gt,
 		wait <<= 1;
 	}
 
-	return -ETIMEDOUT;
+	if (out_val)
+		*out_val = read;
+
+	return ret;
 }
 
 int xe_mmio_ioctl(struct drm_device *dev, void *data,

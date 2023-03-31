@@ -324,17 +324,17 @@ int xe_guc_reset(struct xe_guc *guc)
 {
 	struct xe_device *xe = guc_to_xe(guc);
 	struct xe_gt *gt = guc_to_gt(guc);
-	u32 guc_status;
+	u32 guc_status, gdrst;
 	int ret;
 
 	xe_force_wake_assert_held(gt_to_fw(gt), XE_FW_GT);
 
 	xe_mmio_write32(gt, GEN6_GDRST.reg, GEN11_GRDOM_GUC);
 
-	ret = xe_mmio_wait32(gt, GEN6_GDRST.reg, 0, GEN11_GRDOM_GUC, 5);
+	ret = xe_mmio_wait32(gt, GEN6_GDRST.reg, 0, GEN11_GRDOM_GUC, 5, &gdrst);
 	if (ret) {
 		drm_err(&xe->drm, "GuC reset timed out, GEN6_GDRST=0x%8x\n",
-			xe_mmio_read32(gt, GEN6_GDRST.reg));
+			gdrst);
 		goto err_out;
 	}
 
@@ -654,7 +654,7 @@ int xe_guc_send_mmio(struct xe_guc *guc, const u32 *request, u32 len)
 {
 	struct xe_device *xe = guc_to_xe(guc);
 	struct xe_gt *gt = guc_to_gt(guc);
-	u32 header;
+	u32 header, reply;
 	u32 reply_reg = xe_gt_is_media_type(gt) ?
 		MEDIA_SOFT_SCRATCH(0).reg : GEN11_SOFT_SCRATCH(0).reg;
 	int ret;
@@ -691,12 +691,11 @@ retry:
 	ret = xe_mmio_wait32(gt, reply_reg,
 			     FIELD_PREP(GUC_HXG_MSG_0_ORIGIN,
 					GUC_HXG_ORIGIN_GUC),
-			     GUC_HXG_MSG_0_ORIGIN,
-			     50);
+			     GUC_HXG_MSG_0_ORIGIN, 50, &reply);
 	if (ret) {
 timeout:
 		drm_err(&xe->drm, "mmio request 0x%08x: no reply 0x%08x\n",
-			request[0], xe_mmio_read32(gt, reply_reg));
+			request[0], reply);
 		return ret;
 	}
 
