@@ -810,7 +810,7 @@ static int guess_prog_type_by_ctx_name(const char *ctx_name,
 		enum bpf_prog_type prog_type;
 		enum bpf_attach_type attach_type;
 	} ctx_map[] = {
-		/* __sk_buff is most ambiguous, for now we assume cgroup_skb */
+		/* __sk_buff is most ambiguous, we assume TC program */
 		{ "__sk_buff", "sk_buff", BPF_PROG_TYPE_SCHED_CLS },
 		{ "bpf_sock", "sock", BPF_PROG_TYPE_CGROUP_SOCK, BPF_CGROUP_INET4_POST_BIND },
 		{ "bpf_sock_addr", "bpf_sock_addr_kern",  BPF_PROG_TYPE_CGROUP_SOCK_ADDR, BPF_CGROUP_INET4_BIND },
@@ -1045,6 +1045,7 @@ static int process_obj(const char *filename)
 			goto cleanup;
 		}
 
+		lprog = NULL;
 		bpf_object__for_each_program(tprog, tobj) {
 			const char *tprog_name = bpf_program__name(tprog);
 
@@ -1855,6 +1856,7 @@ static int handle_comparison_mode(void)
 one_more_time:
 	output_comp_headers(cur_fmt);
 
+	last_idx = -1;
 	for (i = 0; i < env.join_stat_cnt; i++) {
 		const struct verif_stats_join *join = &env.join_stats[i];
 
