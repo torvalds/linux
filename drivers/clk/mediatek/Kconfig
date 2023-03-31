@@ -692,6 +692,13 @@ config COMMON_CLK_MT8188
 	help
           This driver supports MediaTek MT8188 clocks.
 
+config COMMON_CLK_MT8188_ADSP_AUDIO26M
+	tristate "Clock driver for MediaTek MT8188 adsp audio26m"
+	depends on COMMON_CLK_MT8188
+	default COMMON_CLK_MT8188
+	help
+	  This driver supports MediaTek MT8188 adsp audio26m clocks.
+
 config COMMON_CLK_MT8188_CAMSYS
 	tristate "Clock driver for MediaTek MT8188 camsys"
 	depends on COMMON_CLK_MT8188_VPPSYS
