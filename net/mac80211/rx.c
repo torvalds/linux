@@ -2805,28 +2805,9 @@ ieee80211_rx_mesh_data(struct ieee80211_sub_if_data *sdata, struct sta_info *sta
 	    mesh_rmc_check(sdata, eth->h_source, mesh_hdr))
 		return RX_DROP_MONITOR;
 
-	/* Frame has reached destination.  Don't forward */
-	if (ether_addr_equal(sdata->vif.addr, eth->h_dest))
-		goto rx_accept;
-
-	if (!ifmsh->mshcfg.dot11MeshForwarding) {
-		if (is_multicast_ether_addr(eth->h_dest))
-			goto rx_accept;
-
-		return RX_DROP_MONITOR;
-	}
-
 	/* forward packet */
 	if (sdata->crypto_tx_tailroom_needed_cnt)
 		tailroom = IEEE80211_ENCRYPT_TAILROOM;
-
-	if (!--mesh_hdr->ttl) {
-		if (multicast)
-			goto rx_accept;
-
-		IEEE80211_IFSTA_MESH_CTR_INC(ifmsh, dropped_frames_ttl);
-		return RX_DROP_MONITOR;
-	}
 
 	if (mesh_hdr->flags & MESH_FLAGS_AE) {
 		struct mesh_path *mppath;
@@ -2862,6 +2843,25 @@ ieee80211_rx_mesh_data(struct ieee80211_sub_if_data *sdata, struct sta_info *sta
 		rcu_read_unlock();
 	}
 
+	/* Frame has reached destination.  Don't forward */
+	if (ether_addr_equal(sdata->vif.addr, eth->h_dest))
+		goto rx_accept;
+
+	if (!--mesh_hdr->ttl) {
+		if (multicast)
+			goto rx_accept;
+
+		IEEE80211_IFSTA_MESH_CTR_INC(ifmsh, dropped_frames_ttl);
+		return RX_DROP_MONITOR;
+	}
+
+	if (!ifmsh->mshcfg.dot11MeshForwarding) {
+		if (is_multicast_ether_addr(eth->h_dest))
+			goto rx_accept;
+
+		return RX_DROP_MONITOR;
+	}
+
 	skb_set_queue_mapping(skb, ieee802_1d_to_ac[skb->priority]);
 
 	if (!multicast &&
@@ -2885,6 +2885,9 @@ ieee80211_rx_mesh_data(struct ieee80211_sub_if_data *sdata, struct sta_info *sta
 
 		if (skb_cow_head(fwd_skb, hdrlen - sizeof(struct ethhdr)))
 			return RX_DROP_UNUSABLE;
+
+		if (skb_linearize(fwd_skb))
+			return RX_DROP_UNUSABLE;
 	}
 
 	fwd_hdr = skb_push(fwd_skb, hdrlen - sizeof(struct ethhdr));
@@ -2899,7 +2902,7 @@ ieee80211_rx_mesh_data(struct ieee80211_sub_if_data *sdata, struct sta_info *sta
 		hdrlen += ETH_ALEN;
 	else
 		fwd_skb->protocol = htons(fwd_skb->len - hdrlen);
-	skb_set_network_header(fwd_skb, hdrlen);
+	skb_set_network_header(fwd_skb, hdrlen + 2);
 
 	info = IEEE80211_SKB_CB(fwd_skb);
 	memset(info, 0, sizeof(*info));
@@ -2948,7 +2951,7 @@ __ieee80211_rx_h_amsdu(struct ieee80211_rx_data *rx, u8 data_offset)
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	__le16 fc = hdr->frame_control;
 	struct sk_buff_head frame_list;
-	static ieee80211_rx_result res;
+	ieee80211_rx_result res;
 	struct ethhdr ethhdr;
 	const u8 *check_da = ethhdr.h_dest, *check_sa = ethhdr.h_source;
 
@@ -2982,7 +2985,7 @@ __ieee80211_rx_h_amsdu(struct ieee80211_rx_data *rx, u8 data_offset)
 					  data_offset, true))
 		return RX_DROP_UNUSABLE;
 
-	if (rx->sta && rx->sta->amsdu_mesh_control < 0) {
+	if (rx->sta->amsdu_mesh_control < 0) {
 		s8 valid = -1;
 		int i;
 
@@ -3068,7 +3071,7 @@ ieee80211_rx_h_amsdu(struct ieee80211_rx_data *rx)
 		}
 	}
 
-	if (is_multicast_ether_addr(hdr->addr1))
+	if (is_multicast_ether_addr(hdr->addr1) || !rx->sta)
 		return RX_DROP_UNUSABLE;
 
 	if (rx->key) {
@@ -3099,7 +3102,7 @@ ieee80211_rx_h_data(struct ieee80211_rx_data *rx)
 	struct net_device *dev = sdata->dev;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)rx->skb->data;
 	__le16 fc = hdr->frame_control;
-	static ieee80211_rx_result res;
+	ieee80211_rx_result res;
 	bool port_control;
 	int err;
 
