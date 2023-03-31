@@ -38,3 +38,6 @@
 	phy-handle = <&ethphy0>;
 };
 
+&i2c0 {
+	status = "okay";
+};

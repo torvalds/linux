@@ -12,13 +12,32 @@
 	interrupt-parent = <&gic>;
 
 	aliases {
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+		i2c4 = &i2c4;
+		i2c5 = &i2c5;
+		i2c6 = &i2c6;
+		i2c7 = &i2c7;
+		i2c8 = &i2c8;
+		i2c9 = &i2c9;
+		i2c10 = &i2c10;
+		i2c11 = &i2c11;
+		i2c12 = &i2c12;
+		i2c13 = &i2c13;
+		i2c14 = &i2c14;
+		i2c15 = &i2c15;
 		serial0 = &uart1;
 		serial1 = &uart2;
 		serial2 = &uart3;
 		serial3 = &uart4;
 		serial4 = &uart5;
+		mdio0 = &mdio0;
+		mdio1 = &mdio1;
+		mdio2 = &mdio2;
+		mdio3 = &mdio3;
 	};
-
 
 	cpus {
 		#address-cells = <1>;
@@ -65,7 +84,6 @@
 		compatible = "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <2>;
-		device_type = "soc";
 		ranges;
 
 		gic: interrupt-controller@12200000 {
@@ -301,7 +319,263 @@
 				status = "disabled";
 			};
 
+			i2c: bus@14c0f000 {
+				compatible = "simple-bus";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0x0 0x14c0f000 0x1100>;
+			};
+
 		};
+	};
+};
+
+&i2c {
+	i2c_global: i2c-global-regs@0 {
+		compatible = "aspeed,i2c-global", "simple-mfd", "syscon";
+		reg = <0x0 0x100>;
+	};
+
+	i2c0: i2c-bus@100 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		#interrupt-cells = <1>;
+		reg = <0x100 0x100>, <0x1a0 0x20>;
+		compatible = "aspeed,ast2600-i2cv2";
+		aspeed,global-regs = <&i2c_global>;
+		aspeed,enable-dma;
+		clocks = <&io_clk AST2700_IO_CLK_GATE_I2CCLK>;
+		resets = <&io_clk ASPEED_RESET_I2C>;
+		interrupts-extended = <&intc2 0>;
+		clock-frequency = <100000>;
+		status = "disabled";
+	};
+
+	i2c1: i2c-bus@200 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		#interrupt-cells = <1>;
+		reg = <0x200 0x100>, <0x2a0 0x20>;
+		compatible = "aspeed,ast2600-i2cv2";
+		aspeed,global-regs = <&i2c_global>;
+		aspeed,enable-dma;
+		clocks = <&io_clk AST2700_IO_CLK_GATE_I2CCLK>;
+		resets = <&io_clk ASPEED_RESET_I2C>;
+		interrupts-extended = <&intc2 1>;
+		clock-frequency = <100000>;
+		status = "disabled";
+	};
+
+	i2c2: i2c-bus@300 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+		reg = <0x300 0x100>, <0x3a0 0x20>;
+		compatible = "aspeed,ast2600-i2cv2";
+		aspeed,global-regs = <&i2c_global>;
+		aspeed,enable-dma;
+		clocks = <&io_clk AST2700_IO_CLK_GATE_I2CCLK>;
+		resets = <&io_clk ASPEED_RESET_I2C>;
+		interrupts-extended = <&intc2 2>;
+		clock-frequency = <100000>;
+		status = "disabled";
+	};
+
+	i2c3: i2c-bus@400 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+		reg = <0x400 0x100>, <0x4a0 0x20>;
+		compatible = "aspeed,ast2600-i2cv2";
+		aspeed,global-regs = <&i2c_global>;
+		clocks = <&io_clk AST2700_IO_CLK_GATE_I2CCLK>;
+		resets = <&io_clk ASPEED_RESET_I2C>;
+		interrupts-extended = <&intc2 3>;
+		clock-frequency = <100000>;
+		status = "disabled";
+	};
+
+	i2c4: i2c-bus@500 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+		reg = <0x500 0x100>, <0x5a0 0x20>;
+		compatible = "aspeed,ast2600-i2cv2";
+		aspeed,global-regs = <&i2c_global>;
+		aspeed,enable-dma;
+		clocks = <&io_clk AST2700_IO_CLK_GATE_I2CCLK>;
+		resets = <&io_clk ASPEED_RESET_I2C>;
+		clock-frequency = <100000>;
+		interrupts-extended = <&intc2 4>;
+		status = "disabled";
+	};
+
+	i2c5: i2c-bus@600 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+		reg = <0x600 0x100>, <0x6a0 0x20>;
+		compatible = "aspeed,ast2600-i2cv2";
+		aspeed,global-regs = <&i2c_global>;
+		aspeed,enable-dma;
+		clocks = <&io_clk AST2700_IO_CLK_GATE_I2CCLK>;
+		resets = <&io_clk ASPEED_RESET_I2C>;
+		interrupts-extended = <&intc2 5>;
+		clock-frequency = <100000>;
+		status = "disabled";
+	};
+
+	i2c6: i2c-bus@700 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+		reg = <0x700 0x100>, <0x7a0 0x20>;
+		compatible = "aspeed,ast2600-i2cv2";
+		aspeed,global-regs = <&i2c_global>;
+		aspeed,enable-dma;
+		clocks = <&io_clk AST2700_IO_CLK_GATE_I2CCLK>;
+		resets = <&io_clk ASPEED_RESET_I2C>;
+		interrupts-extended = <&intc2 6>;
+		clock-frequency = <100000>;
+		status = "disabled";
+	};
+
+	i2c7: i2c-bus@800 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+		reg = <0x800 0x100>, <0x8a0 0x20>;
+		compatible = "aspeed,ast2600-i2cv2";
+		aspeed,global-regs = <&i2c_global>;
+		aspeed,enable-dma;
+		clocks = <&io_clk AST2700_IO_CLK_GATE_I2CCLK>;
+		resets = <&io_clk ASPEED_RESET_I2C>;
+		interrupts-extended = <&intc2 7>;
+		clock-frequency = <100000>;
+		pinctrl-names = "default";
+		status = "disabled";
+	};
+
+	i2c8: i2c-bus@900 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+		reg = <0x900 0x100>, <0x9a0 0x20>;
+		compatible = "aspeed,ast2600-i2cv2";
+		aspeed,global-regs = <&i2c_global>;
+		aspeed,enable-dma;
+		clocks = <&io_clk AST2700_IO_CLK_GATE_I2CCLK>;
+		resets = <&io_clk ASPEED_RESET_I2C>;
+		interrupts-extended = <&intc2 8>;
+		clock-frequency = <100000>;
+		pinctrl-names = "default";
+		status = "disabled";
+	};
+
+	i2c9: i2c-bus@a00 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+		reg = <0xa00 0x100>, <0xaa0 0x20>;
+		compatible = "aspeed,ast2600-i2cv2";
+		aspeed,global-regs = <&i2c_global>;
+		aspeed,enable-dma;
+		clocks = <&io_clk AST2700_IO_CLK_GATE_I2CCLK>;
+		resets = <&io_clk ASPEED_RESET_I2C>;
+		interrupts-extended = <&intc2 9>;
+		clock-frequency = <100000>;
+		status = "disabled";
+	};
+
+	i2c10: i2c-bus@b00 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+		reg = <0xb00 0x100>, <0xba0 0x20>;
+		compatible = "aspeed,ast2600-i2cv2";
+		aspeed,global-regs = <&i2c_global>;
+		aspeed,enable-dma;
+		clocks = <&io_clk AST2700_IO_CLK_GATE_I2CCLK>;
+		resets = <&io_clk ASPEED_RESET_I2C>;
+		interrupts-extended = <&intc2 10>;
+		clock-frequency = <100000>;
+		status = "disabled";
+	};
+
+	i2c11: i2c-bus@c00 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+		reg = <0xc00 0x100>, <0xca0 0x20>;
+		compatible = "aspeed,ast2600-i2cv2";
+		aspeed,global-regs = <&i2c_global>;
+		aspeed,enable-dma;
+		clocks = <&io_clk AST2700_IO_CLK_GATE_I2CCLK>;
+		resets = <&io_clk ASPEED_RESET_I2C>;
+		interrupts-extended = <&intc2 11>;
+		clock-frequency = <100000>;
+		status = "disabled";
+	};
+
+	i2c12: i2c-bus@d00 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+		reg = <0xd00 0x100>, <0xda0 0x20>;
+		compatible = "aspeed,ast2600-i2cv2";
+		aspeed,global-regs = <&i2c_global>;
+		aspeed,enable-dma;
+		clocks = <&io_clk AST2700_IO_CLK_GATE_I2CCLK>;
+		resets = <&io_clk ASPEED_RESET_I2C>;
+		interrupts-extended = <&intc2 12>;
+		clock-frequency = <100000>;
+		status = "disabled";
+	};
+
+	i2c13: i2c-bus@e00 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+		reg = <0xe00 0x100>, <0xea0 0x20>;
+		compatible = "aspeed,ast2600-i2cv2";
+		aspeed,global-regs = <&i2c_global>;
+		aspeed,enable-dma;
+		clocks = <&io_clk AST2700_IO_CLK_GATE_I2CCLK>;
+		resets = <&io_clk ASPEED_RESET_I2C>;
+		interrupts-extended = <&intc2 13>;
+		clock-frequency = <100000>;
+		status = "disabled";
+	};
+
+	i2c14: i2c-bus@f00 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+		reg = <0xf00 0x100>, <0xfa0 0x20>;
+		compatible = "aspeed,ast2600-i2cv2";
+		aspeed,global-regs = <&i2c_global>;
+		aspeed,enable-dma;
+		clocks = <&io_clk AST2700_IO_CLK_GATE_I2CCLK>;
+		resets = <&io_clk ASPEED_RESET_I2C>;
+		interrupts = <GIC_SPI 124 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts-extended = <&intc2 14>;
+		clock-frequency = <100000>;
+		status = "disabled";
+	};
+
+	i2c15: i2c-bus@1000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+		reg = <0x1000 0x100>, <0x10a0 0x20>;
+		compatible = "aspeed,ast2600-i2cv2";
+		aspeed,global-regs = <&i2c_global>;
+		aspeed,enable-dma;
+		clocks = <&io_clk AST2700_IO_CLK_GATE_I2CCLK>;
+		resets = <&io_clk ASPEED_RESET_I2C>;
+		interrupts-extended = <&intc2 15>;
+		clock-frequency = <100000>;
+		status = "disabled";
 	};
 };
 
