@@ -6,6 +6,7 @@
 #include <bpf/bpf_tracing.h>
 
 #include "profiler.h"
+#include "err.h"
 
 #ifndef NULL
 #define NULL 0
@@ -16,7 +17,6 @@
 #define O_DIRECTORY 00200000
 #define __O_TMPFILE 020000000
 #define O_TMPFILE (__O_TMPFILE | O_DIRECTORY)
-#define MAX_ERRNO 4095
 #define S_IFMT 00170000
 #define S_IFSOCK 0140000
 #define S_IFLNK 0120000
@@ -34,7 +34,6 @@
 #define S_ISBLK(m) (((m)&S_IFMT) == S_IFBLK)
 #define S_ISFIFO(m) (((m)&S_IFMT) == S_IFIFO)
 #define S_ISSOCK(m) (((m)&S_IFMT) == S_IFSOCK)
-#define IS_ERR_VALUE(x) (unsigned long)(void*)(x) >= (unsigned long)-MAX_ERRNO
 
 #define KILL_DATA_ARRAY_SIZE 8
 
