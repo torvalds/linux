@@ -1949,7 +1949,7 @@ static DEFINE_PER_CPU(struct vmap_block_queue, vmap_block_queue);
  * used as a hash table. When used as a hash a 'cpu' passed to
  * per_cpu() is not actually a CPU but rather a hash index.
  *
- * A hash function is addr_to_vb_xarray() which hashes any address
+ * A hash function is addr_to_vb_xa() which hashes any address
  * to a specific index(in a hash) it belongs to. This then uses a
  * per_cpu() macro to access an array with generated index.
  *
@@ -1975,7 +1975,7 @@ static DEFINE_PER_CPU(struct vmap_block_queue, vmap_block_queue);
  * however xarray spinlocks protect against any contention that remains.
  */
 static struct xarray *
-addr_to_vb_xarray(unsigned long addr)
+addr_to_vb_xa(unsigned long addr)
 {
 	int index = (addr / VMAP_BLOCK_SIZE) % num_possible_cpus();
 
@@ -2052,7 +2052,7 @@ static void *new_vmap_block(unsigned int order, gfp_t gfp_mask)
 	bitmap_set(vb->used_map, 0, (1UL << order));
 	INIT_LIST_HEAD(&vb->free_list);
 
-	xa = addr_to_vb_xarray(va->va_start);
+	xa = addr_to_vb_xa(va->va_start);
 	vb_idx = addr_to_vb_idx(va->va_start);
 	err = xa_insert(xa, vb_idx, vb, gfp_mask);
 	if (err) {
@@ -2074,7 +2074,7 @@ static void free_vmap_block(struct vmap_block *vb)
 	struct vmap_block *tmp;
 	struct xarray *xa;
 
-	xa = addr_to_vb_xarray(vb->va->va_start);
+	xa = addr_to_vb_xa(vb->va->va_start);
 	tmp = xa_erase(xa, addr_to_vb_idx(vb->va->va_start));
 	BUG_ON(tmp != vb);
 
@@ -2197,7 +2197,7 @@ static void vb_free(unsigned long addr, unsigned long size)
 	order = get_order(size);
 	offset = (addr & (VMAP_BLOCK_SIZE - 1)) >> PAGE_SHIFT;
 
-	xa = addr_to_vb_xarray(addr);
+	xa = addr_to_vb_xa(addr);
 	vb = xa_load(xa, addr_to_vb_idx(addr));
 
 	spin_lock(&vb->lock);
@@ -3596,7 +3596,7 @@ static size_t vmap_ram_vread_iter(struct iov_iter *iter, const char *addr,
 	 * Area is split into regions and tracked with vmap_block, read out
 	 * each region and zero fill the hole between regions.
 	 */
-	xa = addr_to_vb_xarray((unsigned long) addr);
+	xa = addr_to_vb_xa((unsigned long) addr);
 	vb = xa_load(xa, addr_to_vb_idx((unsigned long)addr));
 	if (!vb)
 		goto finished_zero;
