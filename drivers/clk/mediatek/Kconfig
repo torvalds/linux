@@ -734,6 +734,13 @@ config COMMON_CLK_MT8188_VDOSYS
 	help
 	  This driver supports MediaTek MT8188 vdosys0/1 (multimedia) clocks.
 
+config COMMON_CLK_MT8188_VENCSYS
+	tristate "Clock driver for MediaTek MT8188 vencsys"
+	depends on COMMON_CLK_MT8188_VPPSYS
+	default COMMON_CLK_MT8188_VPPSYS
+	help
+	  This driver supports MediaTek MT8188 vencsys clocks.
+
 config COMMON_CLK_MT8192
 	tristate "Clock driver for MediaTek MT8192"
 	depends on ARM64 || COMPILE_TEST
