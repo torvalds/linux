@@ -367,11 +367,12 @@ struct napi_struct {
 	struct sk_buff		*skb;
 	struct list_head	rx_list; /* Pending GRO_NORMAL skbs */
 	int			rx_count; /* length of rx_list */
+	unsigned int		napi_id;
 	struct hrtimer		timer;
+	struct task_struct	*thread;
+	/* control-path-only fields follow */
 	struct list_head	dev_list;
 	struct hlist_node	napi_hash_node;
-	unsigned int		napi_id;
-	struct task_struct	*thread;
 };
 
 enum {
