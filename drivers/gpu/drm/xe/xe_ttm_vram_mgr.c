@@ -373,10 +373,14 @@ int xe_ttm_vram_mgr_alloc_sgt(struct xe_device *xe,
 			      struct sg_table **sgt)
 {
 	struct xe_tile *tile = &xe->tiles[res->mem_type - XE_PL_VRAM0];
+	struct xe_ttm_vram_mgr_resource *vres = to_xe_ttm_vram_mgr_resource(res);
 	struct xe_res_cursor cursor;
 	struct scatterlist *sg;
 	int num_entries = 0;
 	int i, r;
+
+	if (vres->used_visible_size < res->size)
+		return -EOPNOTSUPP;
 
 	*sgt = kmalloc(sizeof(**sgt), GFP_KERNEL);
 	if (!*sgt)
