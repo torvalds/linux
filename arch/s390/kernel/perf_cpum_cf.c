@@ -1388,14 +1388,10 @@ static int cfset_all_read(unsigned long arg, struct cfset_request *req)
 
 static long cfset_ioctl_read(unsigned long arg, struct cfset_request *req)
 {
-	struct s390_ctrset_read read;
 	int ret = -ENODATA;
 
-	if (req && req->ctrset) {
-		if (copy_from_user(&read, (char __user *)arg, sizeof(read)))
-			return -EFAULT;
+	if (req && req->ctrset)
 		ret = cfset_all_read(arg, req);
-	}
 	return ret;
 }
 
