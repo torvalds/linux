@@ -879,6 +879,8 @@ static int __of_address_to_resource(struct device_node *dev, int index, int bar_
  * @index:	Index into the array
  * @r:		Pointer to resource array
  *
+ * Returns -EINVAL if the range cannot be converted to resource.
+ *
  * Note that if your address is a PIO address, the conversion will fail if
  * the physical address can't be internally converted to an IO token with
  * pci_address_to_pio(), that is because it's either called too early or it
