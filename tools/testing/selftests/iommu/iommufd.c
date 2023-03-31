@@ -594,6 +594,40 @@ TEST_F(iommufd_ioas, iova_ranges)
 	EXPECT_EQ(0, ranges[1].last);
 }
 
+TEST_F(iommufd_ioas, access_domain_destory)
+{
+	struct iommu_test_cmd access_cmd = {
+		.size = sizeof(access_cmd),
+		.op = IOMMU_TEST_OP_ACCESS_PAGES,
+		.access_pages = { .iova = self->base_iova + PAGE_SIZE,
+				  .length = PAGE_SIZE},
+	};
+	size_t buf_size = 2 * HUGEPAGE_SIZE;
+	uint8_t *buf;
+
+	buf = mmap(0, buf_size, PROT_READ | PROT_WRITE,
+		   MAP_SHARED | MAP_ANONYMOUS | MAP_HUGETLB | MAP_POPULATE, -1,
+		   0);
+	ASSERT_NE(MAP_FAILED, buf);
+	test_ioctl_ioas_map_fixed(buf, buf_size, self->base_iova);
+
+	test_cmd_create_access(self->ioas_id, &access_cmd.id,
+			       MOCK_FLAGS_ACCESS_CREATE_NEEDS_PIN_PAGES);
+	access_cmd.access_pages.uptr = (uintptr_t)buf + PAGE_SIZE;
+	ASSERT_EQ(0,
+		  ioctl(self->fd, _IOMMU_TEST_CMD(IOMMU_TEST_OP_ACCESS_PAGES),
+			&access_cmd));
+
+	/* Causes a complicated unpin across a huge page boundary */
+	if (self->stdev_id)
+		test_ioctl_destroy(self->stdev_id);
+
+	test_cmd_destroy_access_pages(
+		access_cmd.id, access_cmd.access_pages.out_access_pages_id);
+	test_cmd_destroy_access(access_cmd.id);
+	ASSERT_EQ(0, munmap(buf, buf_size));
+}
+
 TEST_F(iommufd_ioas, access_pin)
 {
 	struct iommu_test_cmd access_cmd = {
