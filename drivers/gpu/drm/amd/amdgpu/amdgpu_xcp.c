@@ -241,6 +241,7 @@ static int amdgpu_xcp_dev_alloc(struct amdgpu_device *adev)
 
 		/* Redirect all IOCTLs to the primary device */
 		p_ddev->render->dev = ddev;
+		p_ddev->primary->dev = ddev;
 		p_ddev->vma_offset_manager = ddev->vma_offset_manager;
 		adev->xcp_mgr->xcp[i].ddev = p_ddev;
 	}
