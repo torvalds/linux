@@ -220,7 +220,12 @@ bool is_pmu_core(const char *name);
 void print_pmu_events(const struct print_callbacks *print_cb, void *print_state);
 bool pmu_have_event(const char *pname, const char *name);
 
+FILE *perf_pmu__open_file(struct perf_pmu *pmu, const char *name);
+FILE *perf_pmu__open_file_at(struct perf_pmu *pmu, int dirfd, const char *name);
+
 int perf_pmu__scan_file(struct perf_pmu *pmu, const char *name, const char *fmt, ...) __scanf(3, 4);
+int perf_pmu__scan_file_at(struct perf_pmu *pmu, int dirfd, const char *name,
+			   const char *fmt, ...) __scanf(4, 5);
 
 bool perf_pmu__file_exists(struct perf_pmu *pmu, const char *name);
 
@@ -259,7 +264,6 @@ int perf_pmu__pathname_scnprintf(char *buf, size_t size,
 				 const char *pmu_name, const char *filename);
 int perf_pmu__event_source_devices_fd(void);
 int perf_pmu__pathname_fd(int dirfd, const char *pmu_name, const char *filename, int flags);
-FILE *perf_pmu__open_file(struct perf_pmu *pmu, const char *name);
 
 void perf_pmu__destroy(void);
 

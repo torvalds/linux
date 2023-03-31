@@ -567,7 +567,7 @@ static void pmu_read_sysfs(void)
  * Uncore PMUs have a "cpumask" file under sysfs. CPU PMUs (e.g. on arm/arm64)
  * may have a "cpus" file.
  */
-static struct perf_cpu_map *pmu_cpumask(const char *name)
+static struct perf_cpu_map *pmu_cpumask(int dirfd, const char *name)
 {
 	struct perf_cpu_map *cpus;
 	const char *templates[] = {
@@ -582,10 +582,11 @@ static struct perf_cpu_map *pmu_cpumask(const char *name)
 
 	strlcpy(pmu_name, name, sizeof(pmu_name));
 	for (template = templates; *template; template++) {
-		file = perf_pmu__open_file(&pmu, *template);
+		file = perf_pmu__open_file_at(&pmu, dirfd, *template);
 		if (!file)
 			continue;
 		cpus = perf_cpu_map__read(file);
+		fclose(file);
 		if (cpus)
 			return cpus;
 	}
@@ -593,15 +594,19 @@ static struct perf_cpu_map *pmu_cpumask(const char *name)
 	return NULL;
 }
 
-static bool pmu_is_uncore(const char *name)
+static bool pmu_is_uncore(int dirfd, const char *name)
 {
-	char path[PATH_MAX];
+	int fd;
 
 	if (perf_pmu__hybrid_mounted(name))
 		return false;
 
-	perf_pmu__pathname_scnprintf(path, sizeof(path), name, "cpumask");
-	return file_available(path);
+	fd = perf_pmu__pathname_fd(dirfd, name, "cpumask", O_PATH);
+	if (fd < 0)
+		return false;
+
+	close(fd);
+	return true;
 }
 
 static char *pmu_id(const char *name)
@@ -853,11 +858,11 @@ pmu_find_alias_name(const char *name __maybe_unused)
 	return NULL;
 }
 
-static int pmu_max_precise(struct perf_pmu *pmu)
+static int pmu_max_precise(int dirfd, struct perf_pmu *pmu)
 {
 	int max_precise = -1;
 
-	perf_pmu__scan_file(pmu, "caps/max_precise", "%d", &max_precise);
+	perf_pmu__scan_file_at(pmu, dirfd, "caps/max_precise", "%d", &max_precise);
 	return max_precise;
 }
 
@@ -895,14 +900,14 @@ static struct perf_pmu *pmu_lookup(int dirfd, const char *lookup_name)
 	if (!pmu)
 		return NULL;
 
-	pmu->cpus = pmu_cpumask(name);
+	pmu->cpus = pmu_cpumask(dirfd, name);
 	pmu->name = strdup(name);
 
 	if (!pmu->name)
 		goto err;
 
 	/* Read type, and ensure that type value is successfully assigned (return 1) */
-	if (perf_pmu__scan_file(pmu, "type", "%u", &type) != 1)
+	if (perf_pmu__scan_file_at(pmu, dirfd, "type", "%u", &type) != 1)
 		goto err;
 
 	alias_name = pmu_find_alias_name(name);
@@ -913,10 +918,10 @@ static struct perf_pmu *pmu_lookup(int dirfd, const char *lookup_name)
 	}
 
 	pmu->type = type;
-	pmu->is_uncore = pmu_is_uncore(name);
+	pmu->is_uncore = pmu_is_uncore(dirfd, name);
 	if (pmu->is_uncore)
 		pmu->id = pmu_id(name);
-	pmu->max_precise = pmu_max_precise(pmu);
+	pmu->max_precise = pmu_max_precise(dirfd, pmu);
 	pmu_add_cpu_aliases(&aliases, pmu);
 	pmu_add_sys_aliases(&aliases, pmu);
 
@@ -1730,6 +1735,17 @@ FILE *perf_pmu__open_file(struct perf_pmu *pmu, const char *name)
 	return fopen(path, "r");
 }
 
+FILE *perf_pmu__open_file_at(struct perf_pmu *pmu, int dirfd, const char *name)
+{
+	int fd;
+
+	fd = perf_pmu__pathname_fd(dirfd, pmu->name, name, O_RDONLY);
+	if (fd < 0)
+		return NULL;
+
+	return fdopen(fd, "r");
+}
+
 int perf_pmu__scan_file(struct perf_pmu *pmu, const char *name, const char *fmt,
 			...)
 {
@@ -1739,6 +1755,23 @@ int perf_pmu__scan_file(struct perf_pmu *pmu, const char *name, const char *fmt,
 
 	va_start(args, fmt);
 	file = perf_pmu__open_file(pmu, name);
+	if (file) {
+		ret = vfscanf(file, fmt, args);
+		fclose(file);
+	}
+	va_end(args);
+	return ret;
+}
+
+int perf_pmu__scan_file_at(struct perf_pmu *pmu, int dirfd, const char *name,
+			   const char *fmt, ...)
+{
+	va_list args;
+	FILE *file;
+	int ret = EOF;
+
+	va_start(args, fmt);
+	file = perf_pmu__open_file_at(pmu, dirfd, name);
 	if (file) {
 		ret = vfscanf(file, fmt, args);
 		fclose(file);
