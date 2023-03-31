@@ -9,7 +9,7 @@
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
  * Copyright (c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright (c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (c) 2018 - 2022 Intel Corporation
+ * Copyright (c) 2018 - 2023 Intel Corporation
  */
 
 #ifndef LINUX_IEEE80211_H
@@ -3557,11 +3557,6 @@ enum ieee80211_unprotected_wnm_actioncode {
 	WLAN_UNPROTECTED_WNM_ACTION_TIMING_MEASUREMENT_RESPONSE = 1,
 };
 
-/* Public action codes */
-enum ieee80211_public_actioncode {
-	WLAN_PUBLIC_ACTION_FTM_RESPONSE = 33,
-};
-
 /* Security key length */
 enum ieee80211_key_len {
 	WLAN_KEY_LEN_WEP40 = 5,
@@ -3653,7 +3648,7 @@ enum ieee80211_pub_actioncode {
 	WLAN_PUB_ACTION_NETWORK_CHANNEL_CONTROL = 30,
 	WLAN_PUB_ACTION_WHITE_SPACE_MAP_ANN = 31,
 	WLAN_PUB_ACTION_FTM_REQUEST = 32,
-	WLAN_PUB_ACTION_FTM = 33,
+	WLAN_PUB_ACTION_FTM_RESPONSE = 33,
 	WLAN_PUB_ACTION_FILS_DISCOVERY = 34,
 };
 
@@ -4383,7 +4378,7 @@ static inline bool ieee80211_is_ftm(struct sk_buff *skb)
 		return false;
 
 	if (mgmt->u.action.u.ftm.action_code ==
-		WLAN_PUBLIC_ACTION_FTM_RESPONSE &&
+		WLAN_PUB_ACTION_FTM_RESPONSE &&
 	    skb->len >= offsetofend(typeof(*mgmt), u.action.u.ftm))
 		return true;
 
