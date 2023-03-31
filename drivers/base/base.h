@@ -73,6 +73,8 @@ static inline void subsys_put(struct subsys_private *sp)
 		kset_put(&sp->subsys);
 }
 
+struct subsys_private *class_to_subsys(const struct class *class);
+
 struct driver_private {
 	struct kobject kobj;
 	struct klist klist_devices;

@@ -39,7 +39,7 @@ static struct kset *class_kset;
  * NULL.  A call to subsys_put() must be done when finished with the pointer in
  * order for it to be properly freed.
  */
-static struct subsys_private *class_to_subsys(const struct class *class)
+struct subsys_private *class_to_subsys(const struct class *class)
 {
 	struct subsys_private *sp = NULL;
 	struct kobject *kobj;
