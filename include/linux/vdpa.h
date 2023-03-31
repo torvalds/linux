@@ -10,7 +10,7 @@
 #include <linux/if_ether.h>
 
 /**
- * struct vdpa_calllback - vDPA callback definition.
+ * struct vdpa_callback - vDPA callback definition.
  * @callback: interrupt callback function
  * @private: the data passed to the callback function
  * @trigger: the eventfd for the callback (Optional).
@@ -120,7 +120,7 @@ struct vdpa_dev_set_config {
 };
 
 /**
- * Corresponding file area for device memory mapping
+ * struct vdpa_map_file - file area for device memory mapping
  * @file: vma->vm_file for the mapping
  * @offset: mapping offset in the vm_file
  */
@@ -171,10 +171,16 @@ struct vdpa_map_file {
  *				@vdev: vdpa device
  *				@idx: virtqueue index
  *				@state: pointer to returned state (last_avail_idx)
+ * @get_vendor_vq_stats:	Get the vendor statistics of a device.
+ *				@vdev: vdpa device
+ *				@idx: virtqueue index
+ *				@msg: socket buffer holding stats message
+ *				@extack: extack for reporting error messages
+ *				Returns integer: success (0) or error (< 0)
  * @get_vq_notification:	Get the notification area for a virtqueue (optional)
  *				@vdev: vdpa device
  *				@idx: virtqueue index
- *				Returns the notifcation area
+ *				Returns the notification area
  * @get_vq_irq:			Get the irq number of a virtqueue (optional,
  *				but must implemented if require vq irq offloading)
  *				@vdev: vdpa device
@@ -535,6 +541,8 @@ struct vdpa_mgmtdev_ops {
  * @config_attr_mask: bit mask of attributes of type enum vdpa_attr that
  *		      management device support during dev_add callback
  * @list: list entry
+ * @supported_features: features supported by device
+ * @max_supported_vqs: maximum number of virtqueues supported by device
  */
 struct vdpa_mgmt_dev {
 	struct device *device;
