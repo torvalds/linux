@@ -57,6 +57,9 @@ struct vringh {
 	void (*notify)(struct vringh *);
 };
 
+struct virtio_device;
+typedef void vrh_callback_t(struct virtio_device *, struct vringh *);
+
 /**
  * struct vringh_config_ops - ops for creating a host vring from a virtio driver
  * @find_vrhs: find the host vrings and instantiate them
@@ -68,8 +71,6 @@ struct vringh {
  *	Returns 0 on success or error status
  * @del_vrhs: free the host vrings found by find_vrhs().
  */
-struct virtio_device;
-typedef void vrh_callback_t(struct virtio_device *, struct vringh *);
 struct vringh_config_ops {
 	int (*find_vrhs)(struct virtio_device *vdev, unsigned nhvrs,
 			 struct vringh *vrhs[], vrh_callback_t *callbacks[]);
@@ -84,6 +85,12 @@ struct vringh_range {
 
 /**
  * struct vringh_iov - iovec mangler.
+ * @iov: array of iovecs to operate on
+ * @consumed: number of bytes consumed within iov[i]
+ * @i: index of current iovec
+ * @used: number of iovecs present in @iov
+ * @max_num: maximum number of iovecs.
+ *           corresponds to allocated memory of @iov
  *
  * Mangles iovec in place, and restores it.
  * Remaining data is iov + i, of used - i elements.
@@ -96,6 +103,12 @@ struct vringh_iov {
 
 /**
  * struct vringh_kiov - kvec mangler.
+ * @iov: array of iovecs to operate on
+ * @consumed: number of bytes consumed within iov[i]
+ * @i: index of current iovec
+ * @used: number of iovecs present in @iov
+ * @max_num: maximum number of iovecs.
+ *           corresponds to allocated memory of @iov
  *
  * Mangles kvec in place, and restores it.
  * Remaining data is iov + i, of used - i elements.
