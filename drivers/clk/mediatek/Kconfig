@@ -720,6 +720,13 @@ config COMMON_CLK_MT8188_MFGCFG
 	help
 	  This driver supports MediaTek MT8188 mfgcfg clocks.
 
+config COMMON_CLK_MT8188_VDECSYS
+	tristate "Clock driver for MediaTek MT8188 vdecsys"
+	depends on COMMON_CLK_MT8188_VPPSYS
+	default COMMON_CLK_MT8188_VPPSYS
+	help
+	  This driver supports MediaTek MT8188 vdecsys and vdecsys_soc clocks.
+
 config COMMON_CLK_MT8192
 	tristate "Clock driver for MediaTek MT8192"
 	depends on ARM64 || COMPILE_TEST
