@@ -1894,7 +1894,7 @@ out:
 
 err_put_super:
 	deactivate_locked_super(sb);
-	return ERR_PTR(ret);
+	return ERR_PTR(bch2_err_class(ret));
 }
 
 static void bch2_kill_sb(struct super_block *sb)
