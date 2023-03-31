@@ -71,7 +71,7 @@ out_delete:
 
 static int setup_pmu_alias_list(void)
 {
-	char path[PATH_MAX];
+	int fd, dirfd;
 	DIR *dir;
 	struct dirent *dent;
 	struct pmu_alias *pmu_alias;
@@ -79,10 +79,11 @@ static int setup_pmu_alias_list(void)
 	FILE *file;
 	int ret = -ENOMEM;
 
-	if (!perf_pmu__event_source_devices_scnprintf(path, sizeof(path)))
+	dirfd = perf_pmu__event_source_devices_fd();
+	if (dirfd < 0)
 		return -1;
 
-	dir = opendir(path);
+	dir = fdopendir(dirfd);
 	if (!dir)
 		return -errno;
 
@@ -91,11 +92,11 @@ static int setup_pmu_alias_list(void)
 		    !strcmp(dent->d_name, ".."))
 			continue;
 
-		perf_pmu__pathname_scnprintf(path, sizeof(path), dent->d_name, "alias");
-		if (!file_available(path))
+		fd = perf_pmu__pathname_fd(dirfd, dent->d_name, "alias", O_RDONLY);
+		if (fd < 0)
 			continue;
 
-		file = fopen(path, "r");
+		file = fdopen(fd, "r");
 		if (!file)
 			continue;
 
