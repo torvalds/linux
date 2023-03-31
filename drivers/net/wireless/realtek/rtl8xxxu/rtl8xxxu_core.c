@@ -54,6 +54,8 @@ MODULE_FIRMWARE("rtlwifi/rtl8192eu_nic.bin");
 MODULE_FIRMWARE("rtlwifi/rtl8723bu_nic.bin");
 MODULE_FIRMWARE("rtlwifi/rtl8723bu_bt.bin");
 MODULE_FIRMWARE("rtlwifi/rtl8188fufw.bin");
+MODULE_FIRMWARE("rtlwifi/rtl8710bufw_SMIC.bin");
+MODULE_FIRMWARE("rtlwifi/rtl8710bufw_UMC.bin");
 
 module_param_named(debug, rtl8xxxu_debug, int, 0600);
 MODULE_PARM_DESC(debug, "Set debug mask");
@@ -654,6 +656,9 @@ u8 rtl8xxxu_read8(struct rtl8xxxu_priv *priv, u16 addr)
 	int len;
 	u8 data;
 
+	if (priv->rtl_chip == RTL8710B && addr <= 0xff)
+		addr |= 0x8000;
+
 	mutex_lock(&priv->usb_buf_mutex);
 	len = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 			      REALTEK_USB_CMD_REQ, REALTEK_USB_READ,
@@ -673,6 +678,9 @@ u16 rtl8xxxu_read16(struct rtl8xxxu_priv *priv, u16 addr)
 	struct usb_device *udev = priv->udev;
 	int len;
 	u16 data;
+
+	if (priv->rtl_chip == RTL8710B && addr <= 0xff)
+		addr |= 0x8000;
 
 	mutex_lock(&priv->usb_buf_mutex);
 	len = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
@@ -694,6 +702,9 @@ u32 rtl8xxxu_read32(struct rtl8xxxu_priv *priv, u16 addr)
 	int len;
 	u32 data;
 
+	if (priv->rtl_chip == RTL8710B && addr <= 0xff)
+		addr |= 0x8000;
+
 	mutex_lock(&priv->usb_buf_mutex);
 	len = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 			      REALTEK_USB_CMD_REQ, REALTEK_USB_READ,
@@ -712,6 +723,9 @@ int rtl8xxxu_write8(struct rtl8xxxu_priv *priv, u16 addr, u8 val)
 {
 	struct usb_device *udev = priv->udev;
 	int ret;
+
+	if (priv->rtl_chip == RTL8710B && addr <= 0xff)
+		addr |= 0x8000;
 
 	mutex_lock(&priv->usb_buf_mutex);
 	priv->usb_buf.val8 = val;
@@ -733,6 +747,9 @@ int rtl8xxxu_write16(struct rtl8xxxu_priv *priv, u16 addr, u16 val)
 	struct usb_device *udev = priv->udev;
 	int ret;
 
+	if (priv->rtl_chip == RTL8710B && addr <= 0xff)
+		addr |= 0x8000;
+
 	mutex_lock(&priv->usb_buf_mutex);
 	priv->usb_buf.val16 = cpu_to_le16(val);
 	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
@@ -751,6 +768,9 @@ int rtl8xxxu_write32(struct rtl8xxxu_priv *priv, u16 addr, u32 val)
 {
 	struct usb_device *udev = priv->udev;
 	int ret;
+
+	if (priv->rtl_chip == RTL8710B && addr <= 0xff)
+		addr |= 0x8000;
 
 	mutex_lock(&priv->usb_buf_mutex);
 	priv->usb_buf.val32 = cpu_to_le32(val);
@@ -1699,7 +1719,7 @@ rtl8xxxu_read_efuse8(struct rtl8xxxu_priv *priv, u16 offset, u8 *data)
 	return 0;
 }
 
-static int rtl8xxxu_read_efuse(struct rtl8xxxu_priv *priv)
+int rtl8xxxu_read_efuse(struct rtl8xxxu_priv *priv)
 {
 	struct device *dev = &priv->udev->dev;
 	int i, ret = 0;
@@ -1845,12 +1865,18 @@ void rtl8xxxu_reset_8051(struct rtl8xxxu_priv *priv)
 static int rtl8xxxu_start_firmware(struct rtl8xxxu_priv *priv)
 {
 	struct device *dev = &priv->udev->dev;
+	u16 reg_mcu_fw_dl;
 	int ret = 0, i;
 	u32 val32;
 
+	if (priv->rtl_chip == RTL8710B)
+		reg_mcu_fw_dl = REG_8051FW_CTRL_V1_8710B;
+	else
+		reg_mcu_fw_dl = REG_MCU_FW_DL;
+
 	/* Poll checksum report */
 	for (i = 0; i < RTL8XXXU_FIRMWARE_POLL_MAX; i++) {
-		val32 = rtl8xxxu_read32(priv, REG_MCU_FW_DL);
+		val32 = rtl8xxxu_read32(priv, reg_mcu_fw_dl);
 		if (val32 & MCU_FW_DL_CSUM_REPORT)
 			break;
 	}
@@ -1861,10 +1887,10 @@ static int rtl8xxxu_start_firmware(struct rtl8xxxu_priv *priv)
 		goto exit;
 	}
 
-	val32 = rtl8xxxu_read32(priv, REG_MCU_FW_DL);
+	val32 = rtl8xxxu_read32(priv, reg_mcu_fw_dl);
 	val32 |= MCU_FW_DL_READY;
 	val32 &= ~MCU_WINT_INIT_READY;
-	rtl8xxxu_write32(priv, REG_MCU_FW_DL, val32);
+	rtl8xxxu_write32(priv, reg_mcu_fw_dl, val32);
 
 	/*
 	 * Reset the 8051 in order for the firmware to start running,
@@ -1874,7 +1900,7 @@ static int rtl8xxxu_start_firmware(struct rtl8xxxu_priv *priv)
 
 	/* Wait for firmware to become ready */
 	for (i = 0; i < RTL8XXXU_FIRMWARE_POLL_MAX; i++) {
-		val32 = rtl8xxxu_read32(priv, REG_MCU_FW_DL);
+		val32 = rtl8xxxu_read32(priv, reg_mcu_fw_dl);
 		if (val32 & MCU_WINT_INIT_READY)
 			break;
 
@@ -1890,7 +1916,7 @@ static int rtl8xxxu_start_firmware(struct rtl8xxxu_priv *priv)
 	/*
 	 * Init H2C command
 	 */
-	if (priv->rtl_chip == RTL8723B || priv->rtl_chip == RTL8188F)
+	if (priv->rtl_chip == RTL8723B || priv->rtl_chip == RTL8188F || priv->rtl_chip == RTL8710B)
 		rtl8xxxu_write8(priv, REG_HMTFR, 0x0f);
 exit:
 	return ret;
@@ -1899,42 +1925,56 @@ exit:
 static int rtl8xxxu_download_firmware(struct rtl8xxxu_priv *priv)
 {
 	int pages, remainder, i, ret;
+	u16 reg_mcu_fw_dl;
 	u8 val8;
 	u16 val16;
 	u32 val32;
 	u8 *fwptr;
 
-	val8 = rtl8xxxu_read8(priv, REG_SYS_FUNC + 1);
-	val8 |= 4;
-	rtl8xxxu_write8(priv, REG_SYS_FUNC + 1, val8);
+	if (priv->rtl_chip == RTL8710B) {
+		reg_mcu_fw_dl = REG_8051FW_CTRL_V1_8710B;
+	} else {
+		reg_mcu_fw_dl = REG_MCU_FW_DL;
 
-	/* 8051 enable */
-	val16 = rtl8xxxu_read16(priv, REG_SYS_FUNC);
-	val16 |= SYS_FUNC_CPU_ENABLE;
-	rtl8xxxu_write16(priv, REG_SYS_FUNC, val16);
+		val8 = rtl8xxxu_read8(priv, REG_SYS_FUNC + 1);
+		val8 |= 4;
+		rtl8xxxu_write8(priv, REG_SYS_FUNC + 1, val8);
 
-	val8 = rtl8xxxu_read8(priv, REG_MCU_FW_DL);
+		/* 8051 enable */
+		val16 = rtl8xxxu_read16(priv, REG_SYS_FUNC);
+		val16 |= SYS_FUNC_CPU_ENABLE;
+		rtl8xxxu_write16(priv, REG_SYS_FUNC, val16);
+	}
+
+	val8 = rtl8xxxu_read8(priv, reg_mcu_fw_dl);
 	if (val8 & MCU_FW_RAM_SEL) {
 		dev_info(&priv->udev->dev,
 			 "Firmware is already running, resetting the MCU.\n");
-		rtl8xxxu_write8(priv, REG_MCU_FW_DL, 0x00);
+		rtl8xxxu_write8(priv, reg_mcu_fw_dl, 0x00);
 		priv->fops->reset_8051(priv);
 	}
 
 	/* MCU firmware download enable */
-	val8 = rtl8xxxu_read8(priv, REG_MCU_FW_DL);
+	val8 = rtl8xxxu_read8(priv, reg_mcu_fw_dl);
 	val8 |= MCU_FW_DL_ENABLE;
-	rtl8xxxu_write8(priv, REG_MCU_FW_DL, val8);
+	rtl8xxxu_write8(priv, reg_mcu_fw_dl, val8);
 
 	/* 8051 reset */
-	val32 = rtl8xxxu_read32(priv, REG_MCU_FW_DL);
+	val32 = rtl8xxxu_read32(priv, reg_mcu_fw_dl);
 	val32 &= ~BIT(19);
-	rtl8xxxu_write32(priv, REG_MCU_FW_DL, val32);
+	rtl8xxxu_write32(priv, reg_mcu_fw_dl, val32);
+
+	if (priv->rtl_chip == RTL8710B) {
+		/* We must set 0x8090[8]=1 before download FW. */
+		val8 = rtl8xxxu_read8(priv, reg_mcu_fw_dl + 1);
+		val8 |= BIT(0);
+		rtl8xxxu_write8(priv, reg_mcu_fw_dl + 1, val8);
+	}
 
 	/* Reset firmware download checksum */
-	val8 = rtl8xxxu_read8(priv, REG_MCU_FW_DL);
+	val8 = rtl8xxxu_read8(priv, reg_mcu_fw_dl);
 	val8 |= MCU_FW_DL_CSUM_REPORT;
-	rtl8xxxu_write8(priv, REG_MCU_FW_DL, val8);
+	rtl8xxxu_write8(priv, reg_mcu_fw_dl, val8);
 
 	pages = priv->fw_size / RTL_FW_PAGE_SIZE;
 	remainder = priv->fw_size % RTL_FW_PAGE_SIZE;
@@ -1942,9 +1982,9 @@ static int rtl8xxxu_download_firmware(struct rtl8xxxu_priv *priv)
 	fwptr = priv->fw_data->data;
 
 	for (i = 0; i < pages; i++) {
-		val8 = rtl8xxxu_read8(priv, REG_MCU_FW_DL + 2) & 0xF8;
+		val8 = rtl8xxxu_read8(priv, reg_mcu_fw_dl + 2) & 0xF8;
 		val8 |= i;
-		rtl8xxxu_write8(priv, REG_MCU_FW_DL + 2, val8);
+		rtl8xxxu_write8(priv, reg_mcu_fw_dl + 2, val8);
 
 		ret = rtl8xxxu_writeN(priv, REG_FW_START_ADDRESS,
 				      fwptr, RTL_FW_PAGE_SIZE);
@@ -1957,9 +1997,9 @@ static int rtl8xxxu_download_firmware(struct rtl8xxxu_priv *priv)
 	}
 
 	if (remainder) {
-		val8 = rtl8xxxu_read8(priv, REG_MCU_FW_DL + 2) & 0xF8;
+		val8 = rtl8xxxu_read8(priv, reg_mcu_fw_dl + 2) & 0xF8;
 		val8 |= i;
-		rtl8xxxu_write8(priv, REG_MCU_FW_DL + 2, val8);
+		rtl8xxxu_write8(priv, reg_mcu_fw_dl + 2, val8);
 		ret = rtl8xxxu_writeN(priv, REG_FW_START_ADDRESS,
 				      fwptr, remainder);
 		if (ret != remainder) {
@@ -1971,9 +2011,9 @@ static int rtl8xxxu_download_firmware(struct rtl8xxxu_priv *priv)
 	ret = 0;
 fw_abort:
 	/* MCU firmware download disable */
-	val16 = rtl8xxxu_read16(priv, REG_MCU_FW_DL);
+	val16 = rtl8xxxu_read16(priv, reg_mcu_fw_dl);
 	val16 &= ~MCU_FW_DL_ENABLE;
-	rtl8xxxu_write16(priv, REG_MCU_FW_DL, val16);
+	rtl8xxxu_write16(priv, reg_mcu_fw_dl, val16);
 
 	return ret;
 }
@@ -2013,6 +2053,7 @@ int rtl8xxxu_load_firmware(struct rtl8xxxu_priv *priv, const char *fw_name)
 	case 0x5300:
 	case 0x2300:
 	case 0x88f0:
+	case 0x10b0:
 		break;
 	default:
 		ret = -EINVAL;
@@ -3823,7 +3864,7 @@ void rtl8xxxu_init_burst(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_write8(priv, REG_HT_SINGLE_AMPDU_8723B, val8);
 
 	rtl8xxxu_write16(priv, REG_MAX_AGGR_NUM, 0x0c14);
-	if (priv->rtl_chip == RTL8723B)
+	if (priv->rtl_chip == RTL8723B || priv->rtl_chip == RTL8710B)
 		val8 = 0x5e;
 	else if (priv->rtl_chip == RTL8188F)
 		val8 = 0x70; /* 0x5e would make it very slow */
@@ -3831,13 +3872,17 @@ void rtl8xxxu_init_burst(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_write32(priv, REG_AGGLEN_LMT, 0xffffffff);
 	rtl8xxxu_write8(priv, REG_RX_PKT_LIMIT, 0x18);
 	rtl8xxxu_write8(priv, REG_PIFS, 0x00);
-	if (priv->rtl_chip == RTL8188F) {
+	if (priv->rtl_chip == RTL8188F || priv->rtl_chip == RTL8710B) {
 		rtl8xxxu_write8(priv, REG_FWHW_TXQ_CTRL, FWHW_TXQ_CTRL_AMPDU_RETRY);
 		rtl8xxxu_write32(priv, REG_FAST_EDCA_CTRL, 0x03086666);
 	}
+	/*
+	 * The RTL8710BU vendor driver uses 0x50 here and it works fine,
+	 * but in rtl8xxxu 0x50 causes slow upload and random packet loss. Why?
+	 */
 	if (priv->rtl_chip == RTL8723B)
 		val8 = 0x50;
-	else if (priv->rtl_chip == RTL8188F)
+	else if (priv->rtl_chip == RTL8188F || priv->rtl_chip == RTL8710B)
 		val8 = 0x28; /* 0x50 would make the upload slow */
 	rtl8xxxu_write8(priv, REG_USTIME_TSF_8723B, val8);
 	rtl8xxxu_write8(priv, REG_USTIME_EDCA, val8);
@@ -3923,7 +3968,7 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 
 	/* RFSW Control - clear bit 14 ?? */
 	if (priv->rtl_chip != RTL8723B && priv->rtl_chip != RTL8192E &&
-	    priv->rtl_chip != RTL8188E)
+	    priv->rtl_chip != RTL8188E && priv->rtl_chip != RTL8710B)
 		rtl8xxxu_write32(priv, REG_FPGA0_TX_INFO, 0x00000003);
 
 	val32 = FPGA0_RF_TRSW | FPGA0_RF_TRSWB | FPGA0_RF_ANTSW |
@@ -3936,7 +3981,8 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	rtl8xxxu_write32(priv, REG_FPGA0_XAB_RF_SW_CTRL, val32);
 
 	/* 0x860[6:5]= 00 - why? - this sets antenna B */
-	if (priv->rtl_chip != RTL8192E && priv->rtl_chip != RTL8188E)
+	if (priv->rtl_chip != RTL8192E && priv->rtl_chip != RTL8188E &&
+	    priv->rtl_chip != RTL8710B)
 		rtl8xxxu_write32(priv, REG_FPGA0_XA_RF_INT_OE, 0x66f60210);
 
 	if (!macpower) {
@@ -4009,10 +4055,14 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 			val8 &= 0xf8;
 			rtl8xxxu_write8(priv, 0xa3, val8);
 		}
+
+		if (priv->rtl_chip == RTL8710B)
+			rtl8xxxu_write8(priv, REG_EARLY_MODE_CONTROL_8710B, 0);
 	}
 
 	/*
-	 * Unit in 8 bytes, not obvious what it is used for
+	 * Unit in 8 bytes.
+	 * Get Rx PHY status in order to report RSSI and others.
 	 */
 	rtl8xxxu_write8(priv, REG_RX_DRVINFO_SZ, 4);
 
@@ -4031,6 +4081,8 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		val8 = rtl8xxxu_read8(priv, REG_USB_SPECIAL_OPTION);
 		val8 |= USB_SPEC_INT_BULK_SELECT;
 		rtl8xxxu_write8(priv, REG_USB_SPECIAL_OPTION, val8);
+	} else if (priv->rtl_chip == RTL8710B) {
+		rtl8xxxu_write32(priv, REG_HIMR0_8710B, 0);
 	} else {
 		/*
 		 * Enable all interrupts - not obvious USB needs to do this
@@ -4050,7 +4102,7 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		RCR_APPEND_PHYSTAT | RCR_APPEND_ICV | RCR_APPEND_MIC;
 	rtl8xxxu_write32(priv, REG_RCR, val32);
 
-	if (priv->rtl_chip == RTL8188F) {
+	if (priv->rtl_chip == RTL8188F || priv->rtl_chip == RTL8710B) {
 		/* Accept all data frames */
 		rtl8xxxu_write16(priv, REG_RXFLTMAP2, 0xffff);
 
@@ -4119,7 +4171,7 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	val16 = BEACON_DISABLE_TSF_UPDATE | (BEACON_DISABLE_TSF_UPDATE << 8);
 	rtl8xxxu_write16(priv, REG_BEACON_CTRL, val16);
 	rtl8xxxu_write16(priv, REG_TBTT_PROHIBIT, 0x6404);
-	if (priv->rtl_chip != RTL8188F)
+	if (priv->rtl_chip != RTL8188F && priv->rtl_chip != RTL8710B)
 		/* Firmware will control REG_DRVERLYINT when power saving is enable, */
 		/* so don't set this register on STA mode. */
 		rtl8xxxu_write8(priv, REG_DRIVER_EARLY_INT, DRIVER_EARLY_INT_TIME);
@@ -4129,14 +4181,14 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	/*
 	 * Initialize burst parameters
 	 */
-
 	if (priv->fops->init_burst)
 		priv->fops->init_burst(priv);
 
 	if (fops->init_aggregation)
 		fops->init_aggregation(priv);
 
-	if (priv->rtl_chip == RTL8188F || priv->rtl_chip == RTL8188E) {
+	if (priv->rtl_chip == RTL8188F || priv->rtl_chip == RTL8188E ||
+	    priv->rtl_chip == RTL8710B) {
 		rtl8xxxu_write16(priv, REG_PKT_VO_VI_LIFE_TIME, 0x0400); /* unit: 256us. 256ms */
 		rtl8xxxu_write16(priv, REG_PKT_BE_BK_LIFE_TIME, 0x0400); /* unit: 256us. 256ms */
 	}
@@ -4159,7 +4211,8 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	fops->set_tx_power(priv, 1, false);
 
 	/* Let the 8051 take control of antenna setting */
-	if (priv->rtl_chip != RTL8192E && priv->rtl_chip != RTL8188F) {
+	if (priv->rtl_chip != RTL8192E && priv->rtl_chip != RTL8188F &&
+	    priv->rtl_chip != RTL8710B) {
 		val8 = rtl8xxxu_read8(priv, REG_LEDCFG2);
 		val8 |= LEDCFG2_DPDT_SELECT;
 		rtl8xxxu_write8(priv, REG_LEDCFG2, val8);
@@ -4170,7 +4223,7 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	/* Disable BAR - not sure if this has any effect on USB */
 	rtl8xxxu_write32(priv, REG_BAR_MODE_CTRL, 0x0201ffff);
 
-	if (priv->rtl_chip != RTL8188F && priv->rtl_chip != RTL8188E)
+	if (priv->rtl_chip != RTL8188F && priv->rtl_chip != RTL8188E && priv->rtl_chip != RTL8710B)
 		rtl8xxxu_write16(priv, REG_FAST_EDCA_CTRL, 0);
 
 	if (fops->init_statistics)
@@ -4209,7 +4262,7 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	 * This should enable thermal meter
 	 */
 	if (fops->gen2_thermal_meter) {
-		if (priv->rtl_chip == RTL8188F) {
+		if (priv->rtl_chip == RTL8188F || priv->rtl_chip == RTL8710B) {
 			val32 = rtl8xxxu_read_rfreg(priv, RF_A, RF6052_REG_T_METER_8723B);
 			val32 |= 0x30000;
 			rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_T_METER_8723B, val32);
@@ -4280,6 +4333,24 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 			val32 &= ~AGC_RPT_CCK;
 		rtl8xxxu_write32(priv, REG_AGC_RPT, val32);
 	}
+
+	if (priv->rtl_chip == RTL8710B) {
+		/*
+		 * 0x76D[5:4] is Port0,Port1 Enable Bit.
+		 * This is only for 8710B, 2b'00 for MP and 2b'11 for Normal Driver
+		 */
+		val8 = rtl8xxxu_read8(priv, REG_PORT_CONTROL_8710B);
+		val8 |= BIT(5) | BIT(4);
+		rtl8xxxu_write8(priv, REG_PORT_CONTROL_8710B, val8);
+
+		/* Set 0x5c[8] and [2:0] = 1, LDO mode */
+		val32 = rtl8xxxu_read32(priv, REG_WL_RF_PSS_8710B);
+		val32 |= 0x107;
+		rtl8xxxu_write32(priv, REG_WL_RF_PSS_8710B, val32);
+	}
+
+	val32 = rtl8xxxu_read32(priv, 0xa9c);
+	priv->cck_new_agc = u32_get_bits(val32, BIT(17));
 
 	/* Initialise the center frequency offset tracking */
 	if (priv->fops->set_crystal_cap) {
@@ -5370,6 +5441,10 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 
 	rtl8xxxu_calc_tx_desc_csum(tx_desc);
 
+	/* avoid zero checksum make tx hang */
+	if (priv->rtl_chip == RTL8710B)
+		tx_desc->csum = ~tx_desc->csum;
+
 	usb_fill_bulk_urb(&tx_urb->urb, priv->udev, priv->pipe_out[queue],
 			  skb->data, skb->len, rtl8xxxu_tx_complete, skb);
 
@@ -5385,11 +5460,11 @@ error:
 	dev_kfree_skb(skb);
 }
 
-static void rtl8xxxu_rx_parse_phystats(struct rtl8xxxu_priv *priv,
-				       struct ieee80211_rx_status *rx_status,
-				       struct rtl8723au_phy_stats *phy_stats,
-				       u32 rxmcs, struct ieee80211_hdr *hdr,
-				       bool crc_icv_err)
+void rtl8723au_rx_parse_phystats(struct rtl8xxxu_priv *priv,
+				 struct ieee80211_rx_status *rx_status,
+				 struct rtl8723au_phy_stats *phy_stats,
+				 u32 rxmcs, struct ieee80211_hdr *hdr,
+				 bool crc_icv_err)
 {
 	if (phy_stats->sgi_en)
 		rx_status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
@@ -5398,9 +5473,7 @@ static void rtl8xxxu_rx_parse_phystats(struct rtl8xxxu_priv *priv,
 		/*
 		 * Handle PHY stats for CCK rates
 		 */
-		u8 cck_agc_rpt = phy_stats->cck_agc_rpt_ofdm_cfosho_a;
-
-		rx_status->signal = priv->fops->cck_rssi(priv, cck_agc_rpt);
+		rx_status->signal = priv->fops->cck_rssi(priv, phy_stats);
 	} else {
 		bool parse_cfo = priv->fops->set_crystal_cap &&
 				 priv->vif &&
@@ -5419,6 +5492,96 @@ static void rtl8xxxu_rx_parse_phystats(struct rtl8xxxu_priv *priv,
 
 		rx_status->signal =
 			(phy_stats->cck_sig_qual_ofdm_pwdb_all >> 1) - 110;
+	}
+}
+
+static void jaguar2_rx_parse_phystats_type0(struct rtl8xxxu_priv *priv,
+					    struct ieee80211_rx_status *rx_status,
+					    struct jaguar2_phy_stats_type0 *phy_stats0,
+					    u32 rxmcs, struct ieee80211_hdr *hdr,
+					    bool crc_icv_err)
+{
+	s8 rx_power = phy_stats0->pwdb - 110;
+
+	if (!priv->cck_new_agc)
+		rx_power = priv->fops->cck_rssi(priv, (struct rtl8723au_phy_stats *)phy_stats0);
+
+	rx_status->signal = rx_power;
+}
+
+static void jaguar2_rx_parse_phystats_type1(struct rtl8xxxu_priv *priv,
+					    struct ieee80211_rx_status *rx_status,
+					    struct jaguar2_phy_stats_type1 *phy_stats1,
+					    u32 rxmcs, struct ieee80211_hdr *hdr,
+					    bool crc_icv_err)
+{
+	bool parse_cfo = priv->fops->set_crystal_cap &&
+			 priv->vif &&
+			 priv->vif->type == NL80211_IFTYPE_STATION &&
+			 priv->vif->cfg.assoc &&
+			 !crc_icv_err &&
+			 !ieee80211_is_ctl(hdr->frame_control) &&
+			 ether_addr_equal(priv->vif->bss_conf.bssid, hdr->addr2);
+	u8 pwdb_max = 0;
+	int rx_path;
+
+	if (parse_cfo) {
+		/* Only path-A and path-B have CFO tail and short CFO */
+		priv->cfo_tracking.cfo_tail[RF_A] = phy_stats1->cfo_tail[RF_A];
+		priv->cfo_tracking.cfo_tail[RF_B] = phy_stats1->cfo_tail[RF_B];
+
+		priv->cfo_tracking.packet_count++;
+	}
+
+	for (rx_path = 0; rx_path < priv->rx_paths; rx_path++)
+		pwdb_max = max(pwdb_max, phy_stats1->pwdb[rx_path]);
+
+	rx_status->signal = pwdb_max - 110;
+}
+
+static void jaguar2_rx_parse_phystats_type2(struct rtl8xxxu_priv *priv,
+					    struct ieee80211_rx_status *rx_status,
+					    struct jaguar2_phy_stats_type2 *phy_stats2,
+					    u32 rxmcs, struct ieee80211_hdr *hdr,
+					    bool crc_icv_err)
+{
+	u8 pwdb_max = 0;
+	int rx_path;
+
+	for (rx_path = 0; rx_path < priv->rx_paths; rx_path++)
+		pwdb_max = max(pwdb_max, phy_stats2->pwdb[rx_path]);
+
+	rx_status->signal = pwdb_max - 110;
+}
+
+void jaguar2_rx_parse_phystats(struct rtl8xxxu_priv *priv,
+			       struct ieee80211_rx_status *rx_status,
+			       struct rtl8723au_phy_stats *phy_stats,
+			       u32 rxmcs, struct ieee80211_hdr *hdr,
+			       bool crc_icv_err)
+{
+	struct jaguar2_phy_stats_type0 *phy_stats0 = (struct jaguar2_phy_stats_type0 *)phy_stats;
+	struct jaguar2_phy_stats_type1 *phy_stats1 = (struct jaguar2_phy_stats_type1 *)phy_stats;
+	struct jaguar2_phy_stats_type2 *phy_stats2 = (struct jaguar2_phy_stats_type2 *)phy_stats;
+
+	switch (phy_stats0->page_num) {
+	case 0:
+		/* CCK */
+		jaguar2_rx_parse_phystats_type0(priv, rx_status, phy_stats0,
+						rxmcs, hdr, crc_icv_err);
+		break;
+	case 1:
+		/* OFDM */
+		jaguar2_rx_parse_phystats_type1(priv, rx_status, phy_stats1,
+						rxmcs, hdr, crc_icv_err);
+		break;
+	case 2:
+		/* Also OFDM but different (how?) */
+		jaguar2_rx_parse_phystats_type2(priv, rx_status, phy_stats2,
+						rxmcs, hdr, crc_icv_err);
+		break;
+	default:
+		return;
 	}
 }
 
@@ -5920,7 +6083,7 @@ int rtl8xxxu_parse_rxdesc16(struct rtl8xxxu_priv *priv, struct sk_buff *skb)
 			skb_trim(skb, pkt_len);
 
 			if (rx_desc->phy_stats)
-				rtl8xxxu_rx_parse_phystats(
+				priv->fops->parse_phystats(
 					priv, rx_status, phy_stats,
 					rx_desc->rxmcs,
 					(struct ieee80211_hdr *)skb->data,
@@ -5995,7 +6158,7 @@ int rtl8xxxu_parse_rxdesc24(struct rtl8xxxu_priv *priv, struct sk_buff *skb)
 	}
 
 	if (rx_desc->phy_stats)
-		rtl8xxxu_rx_parse_phystats(priv, rx_status, phy_stats,
+		priv->fops->parse_phystats(priv, rx_status, phy_stats,
 					   rx_desc->rxmcs, (struct ieee80211_hdr *)skb->data,
 					   rx_desc->crc32 || rx_desc->icverr);
 
@@ -7007,12 +7170,13 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 		case 0x818b:
 		case 0xf179:
 		case 0x8179:
+		case 0xb711:
 			untested = 0;
 			break;
 		}
 		break;
 	case 0x7392:
-		if (id->idProduct == 0x7811 || id->idProduct == 0xa611)
+		if (id->idProduct == 0x7811 || id->idProduct == 0xa611 || id->idProduct == 0xb811)
 			untested = 0;
 		break;
 	case 0x050d:
@@ -7055,6 +7219,7 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 	priv->udev = udev;
 	priv->fops = (struct rtl8xxxu_fileops *)id->driver_info;
 	mutex_init(&priv->usb_buf_mutex);
+	mutex_init(&priv->syson_indirect_access_mutex);
 	mutex_init(&priv->h2c_mutex);
 	INIT_LIST_HEAD(&priv->tx_urb_free_list);
 	spin_lock_init(&priv->tx_urb_lock);
@@ -7084,7 +7249,7 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 	else
 		INIT_WORK(&priv->c2hcmd_work, rtl8xxxu_c2hcmd_callback);
 
-	ret = rtl8xxxu_read_efuse(priv);
+	ret = priv->fops->read_efuse(priv);
 	if (ret) {
 		dev_err(&udev->dev, "Fatal - failed to read EFuse\n");
 		goto err_set_intfdata;
@@ -7174,6 +7339,7 @@ err_set_intfdata:
 
 	kfree(priv->fw_data);
 	mutex_destroy(&priv->usb_buf_mutex);
+	mutex_destroy(&priv->syson_indirect_access_mutex);
 	mutex_destroy(&priv->h2c_mutex);
 
 	ieee80211_free_hw(hw);
@@ -7203,6 +7369,7 @@ static void rtl8xxxu_disconnect(struct usb_interface *interface)
 
 	kfree(priv->fw_data);
 	mutex_destroy(&priv->usb_buf_mutex);
+	mutex_destroy(&priv->syson_indirect_access_mutex);
 	mutex_destroy(&priv->h2c_mutex);
 
 	if (priv->udev->state != USB_STATE_NOTATTACHED) {
@@ -7283,6 +7450,12 @@ static const struct usb_device_id dev_table[] = {
 /* Rosewill USB-N150 Nano */
 {USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_REALTEK, 0xffef, 0xff, 0xff, 0xff),
 	.driver_info = (unsigned long)&rtl8188eu_fops},
+/* RTL8710BU aka RTL8188GU (not to be confused with RTL8188GTVU) */
+{USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_REALTEK, 0xb711, 0xff, 0xff, 0xff),
+	.driver_info = (unsigned long)&rtl8710bu_fops},
+/* TOTOLINK N150UA V5 / N150UA-B */
+{USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_REALTEK, 0x2005, 0xff, 0xff, 0xff),
+	.driver_info = (unsigned long)&rtl8710bu_fops},
 #ifdef CONFIG_RTL8XXXU_UNTESTED
 /* Still supported by rtlwifi */
 {USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_REALTEK, 0x8176, 0xff, 0xff, 0xff),
@@ -7451,24 +7624,6 @@ static struct usb_driver rtl8xxxu_driver = {
 	.disable_hub_initiated_lpm = 1,
 };
 
-static int __init rtl8xxxu_module_init(void)
-{
-	int res;
-
-	res = usb_register(&rtl8xxxu_driver);
-	if (res < 0)
-		pr_err(DRIVER_NAME ": usb_register() failed (%i)\n", res);
-
-	return res;
-}
-
-static void __exit rtl8xxxu_module_exit(void)
-{
-	usb_deregister(&rtl8xxxu_driver);
-}
-
-
 MODULE_DEVICE_TABLE(usb, dev_table);
 
-module_init(rtl8xxxu_module_init);
-module_exit(rtl8xxxu_module_exit);
+module_usb_driver(rtl8xxxu_driver);

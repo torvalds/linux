@@ -10,6 +10,7 @@
 #include <asm/unaligned.h>
 #include "ieee80211_i.h"
 #include "mesh.h"
+#include "wme.h"
 #include "driver-ops.h"
 
 static int mesh_allocated;
@@ -698,6 +699,95 @@ ieee80211_mesh_update_bss_params(struct ieee80211_sub_if_data *sdata,
 			__le32_to_cpu(he_oper->he_oper_params);
 }
 
+bool ieee80211_mesh_xmit_fast(struct ieee80211_sub_if_data *sdata,
+			      struct sk_buff *skb, u32 ctrl_flags)
+{
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+	struct ieee80211_mesh_fast_tx *entry;
+	struct ieee80211s_hdr *meshhdr;
+	u8 sa[ETH_ALEN] __aligned(2);
+	struct tid_ampdu_tx *tid_tx;
+	struct sta_info *sta;
+	bool copy_sa = false;
+	u16 ethertype;
+	u8 tid;
+
+	if (ctrl_flags & IEEE80211_TX_CTRL_SKIP_MPATH_LOOKUP)
+		return false;
+
+	if (ifmsh->mshcfg.dot11MeshNolearn)
+		return false;
+
+	/* Add support for these cases later */
+	if (ifmsh->ps_peers_light_sleep || ifmsh->ps_peers_deep_sleep)
+		return false;
+
+	if (is_multicast_ether_addr(skb->data))
+		return false;
+
+	ethertype = (skb->data[12] << 8) | skb->data[13];
+	if (ethertype < ETH_P_802_3_MIN)
+		return false;
+
+	if (skb->sk && skb_shinfo(skb)->tx_flags & SKBTX_WIFI_STATUS)
+		return false;
+
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		skb_set_transport_header(skb, skb_checksum_start_offset(skb));
+		if (skb_checksum_help(skb))
+			return false;
+	}
+
+	entry = mesh_fast_tx_get(sdata, skb->data);
+	if (!entry)
+		return false;
+
+	if (skb_headroom(skb) < entry->hdrlen + entry->fast_tx.hdr_len)
+		return false;
+
+	sta = rcu_dereference(entry->mpath->next_hop);
+	if (!sta)
+		return false;
+
+	tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
+	tid_tx = rcu_dereference(sta->ampdu_mlme.tid_tx[tid]);
+	if (tid_tx) {
+		if (!test_bit(HT_AGG_STATE_OPERATIONAL, &tid_tx->state))
+			return false;
+		if (tid_tx->timeout)
+			tid_tx->last_tx = jiffies;
+	}
+
+	skb = skb_share_check(skb, GFP_ATOMIC);
+	if (!skb)
+		return true;
+
+	skb_set_queue_mapping(skb, ieee80211_select_queue(sdata, sta, skb));
+
+	meshhdr = (struct ieee80211s_hdr *)entry->hdr;
+	if ((meshhdr->flags & MESH_FLAGS_AE) == MESH_FLAGS_AE_A5_A6) {
+		/* preserve SA from eth header for 6-addr frames */
+		ether_addr_copy(sa, skb->data + ETH_ALEN);
+		copy_sa = true;
+	}
+
+	memcpy(skb_push(skb, entry->hdrlen - 2 * ETH_ALEN), entry->hdr,
+	       entry->hdrlen);
+
+	meshhdr = (struct ieee80211s_hdr *)skb->data;
+	put_unaligned_le32(atomic_inc_return(&sdata->u.mesh.mesh_seqnum),
+			   &meshhdr->seqnum);
+	meshhdr->ttl = sdata->u.mesh.mshcfg.dot11MeshTTL;
+	if (copy_sa)
+	    ether_addr_copy(meshhdr->eaddr2, sa);
+
+	skb_push(skb, 2 * ETH_ALEN);
+	__ieee80211_xmit_fast(sdata, sta, &entry->fast_tx, skb, tid_tx,
+			      entry->mpath->dst, sdata->vif.addr);
+
+	return true;
+}
+
 /**
  * ieee80211_fill_mesh_addresses - fill addresses of a locally originated mesh frame
  * @hdr:	802.11 frame header
@@ -752,10 +842,8 @@ unsigned int ieee80211_new_mesh_header(struct ieee80211_sub_if_data *sdata,
 
 	meshhdr->ttl = sdata->u.mesh.mshcfg.dot11MeshTTL;
 
-	/* FIXME: racy -- TX on multiple queues can be concurrent */
-	put_unaligned(cpu_to_le32(sdata->u.mesh.mesh_seqnum), &meshhdr->seqnum);
-	sdata->u.mesh.mesh_seqnum++;
-
+	put_unaligned_le32(atomic_inc_return(&sdata->u.mesh.mesh_seqnum),
+			   &meshhdr->seqnum);
 	if (addr4or5 && !addr6) {
 		meshhdr->flags |= MESH_FLAGS_AE_A4;
 		memcpy(meshhdr->eaddr1, addr4or5, ETH_ALEN);
@@ -781,6 +869,8 @@ static void ieee80211_mesh_housekeeping(struct ieee80211_sub_if_data *sdata)
 
 	changed = mesh_accept_plinks_update(sdata);
 	ieee80211_mbss_info_change_notify(sdata, changed);
+
+	mesh_fast_tx_gc(sdata);
 
 	mod_timer(&ifmsh->housekeeping_timer,
 		  round_jiffies(jiffies +

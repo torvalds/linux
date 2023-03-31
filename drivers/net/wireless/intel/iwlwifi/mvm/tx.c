@@ -14,6 +14,7 @@
 #include "iwl-eeprom-parse.h"
 #include "mvm.h"
 #include "sta.h"
+#include "time-sync.h"
 
 static void
 iwl_mvm_bar_check_trigger(struct iwl_mvm *mvm, const u8 *addr,
@@ -603,11 +604,10 @@ static void iwl_mvm_skb_prepare_status(struct sk_buff *skb,
 }
 
 static int iwl_mvm_get_ctrl_vif_queue(struct iwl_mvm *mvm,
+				      struct iwl_mvm_vif_link_info *link,
 				      struct ieee80211_tx_info *info,
 				      struct ieee80211_hdr *hdr)
 {
-	struct iwl_mvm_vif *mvmvif =
-		iwl_mvm_vif_from_mac80211(info->control.vif);
 	__le16 fc = hdr->frame_control;
 
 	switch (info->control.vif->type) {
@@ -626,15 +626,15 @@ static int iwl_mvm_get_ctrl_vif_queue(struct iwl_mvm *mvm,
 		if (ieee80211_is_mgmt(fc) &&
 		    (!ieee80211_is_bufferable_mmpdu(fc) ||
 		     ieee80211_is_deauth(fc) || ieee80211_is_disassoc(fc)))
-			return mvm->probe_queue;
+			return link->mgmt_queue;
 
 		if (!ieee80211_has_order(fc) && !ieee80211_is_probe_req(fc) &&
 		    is_multicast_ether_addr(hdr->addr1))
-			return mvmvif->cab_queue;
+			return link->cab_queue;
 
 		WARN_ONCE(info->control.vif->type != NL80211_IFTYPE_ADHOC,
 			  "fc=0x%02x", le16_to_cpu(fc));
-		return mvm->probe_queue;
+		return link->mgmt_queue;
 	case NL80211_IFTYPE_P2P_DEVICE:
 		if (ieee80211_is_mgmt(fc))
 			return mvm->p2p_dev_queue;
@@ -667,7 +667,7 @@ static void iwl_mvm_probe_resp_set_noa(struct iwl_mvm *mvm,
 
 	rcu_read_lock();
 
-	resp_data = rcu_dereference(mvmvif->probe_resp_data);
+	resp_data = rcu_dereference(mvmvif->deflink.probe_resp_data);
 	if (!resp_data)
 		goto out;
 
@@ -738,12 +738,26 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 		if (info.control.vif->type == NL80211_IFTYPE_P2P_DEVICE ||
 		    info.control.vif->type == NL80211_IFTYPE_AP ||
 		    info.control.vif->type == NL80211_IFTYPE_ADHOC) {
-			if (!ieee80211_is_data(hdr->frame_control))
-				sta_id = mvmvif->bcast_sta.sta_id;
-			else
-				sta_id = mvmvif->mcast_sta.sta_id;
+			u32 link_id = u32_get_bits(info.control.flags,
+						   IEEE80211_TX_CTRL_MLO_LINK);
+			struct iwl_mvm_vif_link_info *link;
 
-			queue = iwl_mvm_get_ctrl_vif_queue(mvm, &info, hdr);
+			if (link_id == IEEE80211_LINK_UNSPECIFIED) {
+				if (info.control.vif->active_links)
+					link_id = ffs(info.control.vif->active_links) - 1;
+				else
+					link_id = 0;
+			}
+
+			link = mvmvif->link[link_id];
+
+			if (!ieee80211_is_data(hdr->frame_control))
+				sta_id = link->bcast_sta.sta_id;
+			else
+				sta_id = link->mcast_sta.sta_id;
+
+			queue = iwl_mvm_get_ctrl_vif_queue(mvm, link, &info,
+							   hdr);
 		} else if (info.control.vif->type == NL80211_IFTYPE_MONITOR) {
 			queue = mvm->snif_queue;
 			sta_id = mvm->snif_sta.sta_id;
@@ -1083,7 +1097,7 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 	if (WARN_ON_ONCE(!mvmsta))
 		return -1;
 
-	if (WARN_ON_ONCE(mvmsta->sta_id == IWL_MVM_INVALID_STA))
+	if (WARN_ON_ONCE(mvmsta->deflink.sta_id == IWL_MVM_INVALID_STA))
 		return -1;
 
 	if (unlikely(ieee80211_is_any_nullfunc(fc)) && sta->deflink.he_cap.has_he)
@@ -1093,7 +1107,7 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 		iwl_mvm_probe_resp_set_noa(mvm, skb);
 
 	dev_cmd = iwl_mvm_set_tx_params(mvm, skb, info, hdrlen,
-					sta, mvmsta->sta_id);
+					sta, mvmsta->deflink.sta_id);
 	if (!dev_cmd)
 		goto drop;
 
@@ -1169,7 +1183,7 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 	}
 
 	IWL_DEBUG_TX(mvm, "TX to [%d|%d] Q:%d - seq: 0x%x len %d\n",
-		     mvmsta->sta_id, tid, txq_id,
+		     mvmsta->deflink.sta_id, tid, txq_id,
 		     IEEE80211_SEQ_TO_SN(seq_number), skb->len);
 
 	/* From now on, we cannot access info->control */
@@ -1204,7 +1218,8 @@ drop_unlock_sta:
 	iwl_trans_free_tx_cmd(mvm->trans, dev_cmd);
 	spin_unlock(&mvmsta->lock);
 drop:
-	IWL_DEBUG_TX(mvm, "TX to [%d|%d] dropped\n", mvmsta->sta_id, tid);
+	IWL_DEBUG_TX(mvm, "TX to [%d|%d] dropped\n", mvmsta->deflink.sta_id,
+		     tid);
 	return -1;
 }
 
@@ -1221,7 +1236,7 @@ int iwl_mvm_tx_skb_sta(struct iwl_mvm *mvm, struct sk_buff *skb,
 	if (WARN_ON_ONCE(!mvmsta))
 		return -1;
 
-	if (WARN_ON_ONCE(mvmsta->sta_id == IWL_MVM_INVALID_STA))
+	if (WARN_ON_ONCE(mvmsta->deflink.sta_id == IWL_MVM_INVALID_STA))
 		return -1;
 
 	memcpy(&info, skb->cb, sizeof(info));
@@ -1643,7 +1658,8 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 		info->status.status_driver_data[0] =
 			RS_DRV_DATA_PACK(lq_color, tx_resp->reduced_tpc);
 
-		ieee80211_tx_status(mvm->hw, skb);
+		if (likely(!iwl_mvm_time_sync_frame(mvm, skb, hdr->addr1)))
+			ieee80211_tx_status(mvm->hw, skb);
 	}
 
 	/* This is an aggregation queue or might become one, so we use
@@ -1973,9 +1989,11 @@ static void iwl_mvm_tx_reclaim(struct iwl_mvm *mvm, int sta_id, int tid,
 	 * possible (i.e. first MPDU in the aggregation wasn't acked)
 	 * Still it's important to update RS about sent vs. acked.
 	 */
-	if (!is_flush && skb_queue_empty(&reclaimed_skbs)) {
+	if (!is_flush && skb_queue_empty(&reclaimed_skbs) &&
+	    !iwl_mvm_has_tlc_offload(mvm)) {
 		struct ieee80211_chanctx_conf *chanctx_conf = NULL;
 
+		/* no TLC offload, so non-MLD mode */
 		if (mvmsta->vif)
 			chanctx_conf =
 				rcu_dereference(mvmsta->vif->bss_conf.chanctx_conf);
@@ -1986,11 +2004,8 @@ static void iwl_mvm_tx_reclaim(struct iwl_mvm *mvm, int sta_id, int tid,
 		tx_info->band = chanctx_conf->def.chan->band;
 		iwl_mvm_hwrate_to_tx_status(mvm->fw, rate, tx_info);
 
-		if (!iwl_mvm_has_tlc_offload(mvm)) {
-			IWL_DEBUG_TX_REPLY(mvm,
-					   "No reclaim. Update rs directly\n");
-			iwl_mvm_rs_tx_status(mvm, sta, tid, tx_info, false);
-		}
+		IWL_DEBUG_TX_REPLY(mvm, "No reclaim. Update rs directly\n");
+		iwl_mvm_rs_tx_status(mvm, sta, tid, tx_info, false);
 	}
 
 out:
@@ -2228,17 +2243,22 @@ free_rsp:
 
 int iwl_mvm_flush_sta(struct iwl_mvm *mvm, void *sta, bool internal)
 {
-	struct iwl_mvm_int_sta *int_sta = sta;
-	struct iwl_mvm_sta *mvm_sta = sta;
+	u32 sta_id, tfd_queue_msk;
 
-	BUILD_BUG_ON(offsetof(struct iwl_mvm_int_sta, sta_id) !=
-		     offsetof(struct iwl_mvm_sta, sta_id));
+	if (internal) {
+		struct iwl_mvm_int_sta *int_sta = sta;
+
+		sta_id = int_sta->sta_id;
+		tfd_queue_msk = int_sta->tfd_queue_msk;
+	} else {
+		struct iwl_mvm_sta *mvm_sta = sta;
+
+		sta_id = mvm_sta->deflink.sta_id;
+		tfd_queue_msk = mvm_sta->tfd_queue_msk;
+	}
 
 	if (iwl_mvm_has_new_tx_api(mvm))
-		return iwl_mvm_flush_sta_tids(mvm, mvm_sta->sta_id, 0xffff);
+		return iwl_mvm_flush_sta_tids(mvm, sta_id, 0xffff);
 
-	if (internal)
-		return iwl_mvm_flush_tx_path(mvm, int_sta->tfd_queue_msk);
-
-	return iwl_mvm_flush_tx_path(mvm, mvm_sta->tfd_queue_msk);
+	return iwl_mvm_flush_tx_path(mvm, tfd_queue_msk);
 }

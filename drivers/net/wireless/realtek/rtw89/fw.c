@@ -2038,6 +2038,92 @@ fail:
 	return ret;
 }
 
+#define H2C_LEN_CXDRVINFO_ROLE_SIZE_V2(max_role_num) \
+	(4 + 8 * (max_role_num) + H2C_LEN_CXDRVINFO_ROLE_DBCC_LEN + H2C_LEN_CXDRVHDR)
+
+int rtw89_fw_h2c_cxdrv_role_v2(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_btc *btc = &rtwdev->btc;
+	const struct rtw89_btc_ver *ver = btc->ver;
+	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
+	struct rtw89_btc_wl_role_info_v2 *role_info = &wl->role_info_v2;
+	struct rtw89_btc_wl_role_info_bpos *bpos = &role_info->role_map.role;
+	struct rtw89_btc_wl_active_role_v2 *active = role_info->active_role_v2;
+	struct sk_buff *skb;
+	u32 len;
+	u8 *cmd, offset;
+	int ret;
+	int i;
+
+	len = H2C_LEN_CXDRVINFO_ROLE_SIZE_V2(ver->max_role_num);
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for h2c cxdrv_role\n");
+		return -ENOMEM;
+	}
+	skb_put(skb, len);
+	cmd = skb->data;
+
+	RTW89_SET_FWCMD_CXHDR_TYPE(cmd, CXDRVINFO_ROLE);
+	RTW89_SET_FWCMD_CXHDR_LEN(cmd, len - H2C_LEN_CXDRVHDR);
+
+	RTW89_SET_FWCMD_CXROLE_CONNECT_CNT(cmd, role_info->connect_cnt);
+	RTW89_SET_FWCMD_CXROLE_LINK_MODE(cmd, role_info->link_mode);
+
+	RTW89_SET_FWCMD_CXROLE_ROLE_NONE(cmd, bpos->none);
+	RTW89_SET_FWCMD_CXROLE_ROLE_STA(cmd, bpos->station);
+	RTW89_SET_FWCMD_CXROLE_ROLE_AP(cmd, bpos->ap);
+	RTW89_SET_FWCMD_CXROLE_ROLE_VAP(cmd, bpos->vap);
+	RTW89_SET_FWCMD_CXROLE_ROLE_ADHOC(cmd, bpos->adhoc);
+	RTW89_SET_FWCMD_CXROLE_ROLE_ADHOC_MASTER(cmd, bpos->adhoc_master);
+	RTW89_SET_FWCMD_CXROLE_ROLE_MESH(cmd, bpos->mesh);
+	RTW89_SET_FWCMD_CXROLE_ROLE_MONITOR(cmd, bpos->moniter);
+	RTW89_SET_FWCMD_CXROLE_ROLE_P2P_DEV(cmd, bpos->p2p_device);
+	RTW89_SET_FWCMD_CXROLE_ROLE_P2P_GC(cmd, bpos->p2p_gc);
+	RTW89_SET_FWCMD_CXROLE_ROLE_P2P_GO(cmd, bpos->p2p_go);
+	RTW89_SET_FWCMD_CXROLE_ROLE_NAN(cmd, bpos->nan);
+
+	offset = PORT_DATA_OFFSET;
+	for (i = 0; i < RTW89_PORT_NUM; i++, active++) {
+		RTW89_SET_FWCMD_CXROLE_ACT_CONNECTED_V2(cmd, active->connected, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_PID_V2(cmd, active->pid, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_PHY_V2(cmd, active->phy, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_NOA_V2(cmd, active->noa, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_BAND_V2(cmd, active->band, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_CLIENT_PS_V2(cmd, active->client_ps, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_BW_V2(cmd, active->bw, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_ROLE_V2(cmd, active->role, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_CH_V2(cmd, active->ch, i, offset);
+		RTW89_SET_FWCMD_CXROLE_ACT_NOA_DUR_V2(cmd, active->noa_duration, i, offset);
+	}
+
+	offset = len - H2C_LEN_CXDRVINFO_ROLE_DBCC_LEN;
+	RTW89_SET_FWCMD_CXROLE_MROLE_TYPE(cmd, role_info->mrole_type, offset);
+	RTW89_SET_FWCMD_CXROLE_MROLE_NOA(cmd, role_info->mrole_noa_duration, offset);
+	RTW89_SET_FWCMD_CXROLE_DBCC_EN(cmd, role_info->dbcc_en, offset);
+	RTW89_SET_FWCMD_CXROLE_DBCC_CHG(cmd, role_info->dbcc_chg, offset);
+	RTW89_SET_FWCMD_CXROLE_DBCC_2G_PHY(cmd, role_info->dbcc_2g_phy, offset);
+	RTW89_SET_FWCMD_CXROLE_LINK_MODE_CHG(cmd, role_info->link_mode_chg, offset);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_OUTSRC, BTFC_SET,
+			      SET_DRV_INFO, 0, 0,
+			      len);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+fail:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}
+
 #define H2C_LEN_CXDRVINFO_CTRL (4 + H2C_LEN_CXDRVHDR)
 int rtw89_fw_h2c_cxdrv_ctrl(struct rtw89_dev *rtwdev)
 {
@@ -2069,6 +2155,62 @@ int rtw89_fw_h2c_cxdrv_ctrl(struct rtw89_dev *rtwdev)
 			      H2C_CAT_OUTSRC, BTFC_SET,
 			      SET_DRV_INFO, 0, 0,
 			      H2C_LEN_CXDRVINFO_CTRL);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+fail:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}
+
+#define H2C_LEN_CXDRVINFO_TRX (28 + H2C_LEN_CXDRVHDR)
+int rtw89_fw_h2c_cxdrv_trx(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_trx_info *trx = &btc->dm.trx_info;
+	struct sk_buff *skb;
+	u8 *cmd;
+	int ret;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_LEN_CXDRVINFO_TRX);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for h2c cxdrv_trx\n");
+		return -ENOMEM;
+	}
+	skb_put(skb, H2C_LEN_CXDRVINFO_TRX);
+	cmd = skb->data;
+
+	RTW89_SET_FWCMD_CXHDR_TYPE(cmd, CXDRVINFO_TRX);
+	RTW89_SET_FWCMD_CXHDR_LEN(cmd, H2C_LEN_CXDRVINFO_TRX - H2C_LEN_CXDRVHDR);
+
+	RTW89_SET_FWCMD_CXTRX_TXLV(cmd, trx->tx_lvl);
+	RTW89_SET_FWCMD_CXTRX_RXLV(cmd, trx->rx_lvl);
+	RTW89_SET_FWCMD_CXTRX_WLRSSI(cmd, trx->wl_rssi);
+	RTW89_SET_FWCMD_CXTRX_BTRSSI(cmd, trx->bt_rssi);
+	RTW89_SET_FWCMD_CXTRX_TXPWR(cmd, trx->tx_power);
+	RTW89_SET_FWCMD_CXTRX_RXGAIN(cmd, trx->rx_gain);
+	RTW89_SET_FWCMD_CXTRX_BTTXPWR(cmd, trx->bt_tx_power);
+	RTW89_SET_FWCMD_CXTRX_BTRXGAIN(cmd, trx->bt_rx_gain);
+	RTW89_SET_FWCMD_CXTRX_CN(cmd, trx->cn);
+	RTW89_SET_FWCMD_CXTRX_NHM(cmd, trx->nhm);
+	RTW89_SET_FWCMD_CXTRX_BTPROFILE(cmd, trx->bt_profile);
+	RTW89_SET_FWCMD_CXTRX_RSVD2(cmd, trx->rsvd2);
+	RTW89_SET_FWCMD_CXTRX_TXRATE(cmd, trx->tx_rate);
+	RTW89_SET_FWCMD_CXTRX_RXRATE(cmd, trx->rx_rate);
+	RTW89_SET_FWCMD_CXTRX_TXTP(cmd, trx->tx_tp);
+	RTW89_SET_FWCMD_CXTRX_RXTP(cmd, trx->rx_tp);
+	RTW89_SET_FWCMD_CXTRX_RXERRRA(cmd, trx->rx_err_ratio);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_OUTSRC, BTFC_SET,
+			      SET_DRV_INFO, 0, 0,
+			      H2C_LEN_CXDRVINFO_TRX);
 
 	ret = rtw89_h2c_tx(rtwdev, skb, false);
 	if (ret) {

@@ -9,6 +9,7 @@
 #include "iwl-trans.h"
 #include "mvm.h"
 #include "fw-api.h"
+#include "time-sync.h"
 
 static inline int iwl_mvm_check_pn(struct iwl_mvm *mvm, struct sk_buff *skb,
 				   int queue, struct ieee80211_sta *sta)
@@ -252,12 +253,22 @@ static void iwl_mvm_add_rtap_sniffer_config(struct iwl_mvm *mvm,
 static void iwl_mvm_pass_packet_to_mac80211(struct iwl_mvm *mvm,
 					    struct napi_struct *napi,
 					    struct sk_buff *skb, int queue,
-					    struct ieee80211_sta *sta)
+					    struct ieee80211_sta *sta,
+					    struct ieee80211_link_sta *link_sta)
 {
-	if (iwl_mvm_check_pn(mvm, skb, queue, sta))
+	if (unlikely(iwl_mvm_check_pn(mvm, skb, queue, sta))) {
 		kfree_skb(skb);
-	else
-		ieee80211_rx_napi(mvm->hw, sta, skb, napi);
+		return;
+	}
+
+	if (sta && sta->valid_links && link_sta) {
+		struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
+
+		rx_status->link_valid = 1;
+		rx_status->link_id = link_sta->link_id;
+	}
+
+	ieee80211_rx_napi(mvm->hw, sta, skb, napi);
 }
 
 static void iwl_mvm_get_signal_strength(struct iwl_mvm *mvm,
@@ -630,7 +641,7 @@ static void iwl_mvm_release_frames(struct iwl_mvm *mvm,
 		while ((skb = __skb_dequeue(skb_list))) {
 			iwl_mvm_pass_packet_to_mac80211(mvm, napi, skb,
 							reorder_buf->queue,
-							sta);
+							sta, NULL /* FIXME */);
 			reorder_buf->num_stored--;
 		}
 	}
@@ -978,9 +989,10 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 		return false;
 	}
 
-	if (WARN(tid != baid_data->tid || mvm_sta->sta_id != baid_data->sta_id,
+	if (WARN(tid != baid_data->tid ||
+		 mvm_sta->deflink.sta_id != baid_data->sta_id,
 		 "baid 0x%x is mapped to sta:%d tid:%d, but was received for sta:%d tid:%d\n",
-		 baid, baid_data->sta_id, baid_data->tid, mvm_sta->sta_id,
+		 baid, baid_data->sta_id, baid_data->tid, mvm_sta->deflink.sta_id,
 		 tid))
 		return false;
 
@@ -2296,6 +2308,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	u32 len;
 	u32 pkt_len = iwl_rx_packet_payload_len(pkt);
 	struct ieee80211_sta *sta = NULL;
+	struct ieee80211_link_sta *link_sta = NULL;
 	struct sk_buff *skb;
 	u8 crypt_len = 0;
 	size_t desc_size;
@@ -2452,6 +2465,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 			sta = rcu_dereference(mvm->fw_id_to_mac_id[id]);
 			if (IS_ERR(sta))
 				sta = NULL;
+			link_sta = rcu_dereference(mvm->fw_id_to_link_sta[id]);
 		}
 	} else if (!is_multicast_ether_addr(hdr->addr2)) {
 		/*
@@ -2585,9 +2599,11 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		goto out;
 	}
 
-	if (!iwl_mvm_reorder(mvm, napi, queue, sta, skb, desc))
-		iwl_mvm_pass_packet_to_mac80211(mvm, napi, skb, queue,
-						sta);
+	if (!iwl_mvm_reorder(mvm, napi, queue, sta, skb, desc) &&
+	    likely(!iwl_mvm_time_sync_frame(mvm, skb, hdr->addr2)))
+		iwl_mvm_pass_packet_to_mac80211(mvm, napi, skb, queue, sta,
+						link_sta);
+
 out:
 	rcu_read_unlock();
 }

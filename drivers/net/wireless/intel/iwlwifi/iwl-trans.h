@@ -775,6 +775,8 @@ struct iwl_imr_data {
  * @periodic_trig_list: periodic triggers list
  * @domains_bitmap: bitmap of active domains other than &IWL_FW_INI_DOMAIN_ALWAYS_ON
  * @ucode_preset: preset based on ucode
+ * @dump_file_name_ext: dump file name extension
+ * @dump_file_name_ext_valid: dump file name extension if valid or not
  */
 struct iwl_trans_debug {
 	u8 n_dest_reg;
@@ -813,6 +815,8 @@ struct iwl_trans_debug {
 	bool restart_required;
 	u32 last_tp_resetfw;
 	struct iwl_imr_data imr_data;
+	u8 dump_file_name_ext[IWL_FW_INI_MAX_NAME];
+	bool dump_file_name_ext_valid;
 };
 
 struct iwl_dma_ptr {

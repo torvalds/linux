@@ -1502,6 +1502,23 @@ static inline int drv_net_fill_forward_path(struct ieee80211_local *local,
 	return ret;
 }
 
+static inline int drv_net_setup_tc(struct ieee80211_local *local,
+				   struct ieee80211_sub_if_data *sdata,
+				   struct net_device *dev,
+				   enum tc_setup_type type, void *type_data)
+{
+	int ret = -EOPNOTSUPP;
+
+	sdata = get_bss_sdata(sdata);
+	trace_drv_net_setup_tc(local, sdata, type);
+	if (local->ops->net_setup_tc)
+		ret = local->ops->net_setup_tc(&local->hw, &sdata->vif, dev,
+					       type, type_data);
+	trace_drv_return_int(local, ret);
+
+	return ret;
+}
+
 int drv_change_vif_links(struct ieee80211_local *local,
 			 struct ieee80211_sub_if_data *sdata,
 			 u16 old_links, u16 new_links,

@@ -193,8 +193,9 @@ static void iwl_mvm_scan_iterator(void *_data, u8 *mac,
 	struct iwl_mvm_scan_iter_data *data = _data;
 	struct iwl_mvm_vif *curr_mvmvif;
 
-	if (vif->type != NL80211_IFTYPE_P2P_DEVICE && mvmvif->phy_ctxt &&
-	    mvmvif->phy_ctxt->id < NUM_PHY_CTX)
+	if (vif->type != NL80211_IFTYPE_P2P_DEVICE &&
+	    mvmvif->deflink.phy_ctxt &&
+	    mvmvif->deflink.phy_ctxt->id < NUM_PHY_CTX)
 		data->global_cnt += 1;
 
 	if (!data->current_vif || vif == data->current_vif)
@@ -203,8 +204,8 @@ static void iwl_mvm_scan_iterator(void *_data, u8 *mac,
 	curr_mvmvif = iwl_mvm_vif_from_mac80211(data->current_vif);
 
 	if (vif->type == NL80211_IFTYPE_AP && vif->p2p &&
-	    mvmvif->phy_ctxt && curr_mvmvif->phy_ctxt &&
-	    mvmvif->phy_ctxt->id != curr_mvmvif->phy_ctxt->id)
+	    mvmvif->deflink.phy_ctxt && curr_mvmvif->deflink.phy_ctxt &&
+	    mvmvif->deflink.phy_ctxt->id != curr_mvmvif->deflink.phy_ctxt->id)
 		data->is_dcm_with_p2p_go = true;
 }
 
@@ -2676,11 +2677,23 @@ static void iwl_mvm_scan_respect_p2p_go_iter(void *_data, u8 *mac,
 	if (vif == data->current_vif)
 		return;
 
-	if (vif->type == NL80211_IFTYPE_AP && vif->p2p &&
-	    mvmvif->phy_ctxt->id < NUM_PHY_CTX &&
-	    (data->band == NUM_NL80211_BANDS ||
-	     mvmvif->phy_ctxt->channel->band == data->band))
-		data->p2p_go = true;
+	if (vif->type == NL80211_IFTYPE_AP && vif->p2p) {
+		u32 link_id;
+
+		for (link_id = 0;
+		     link_id < ARRAY_SIZE(mvmvif->link);
+		     link_id++) {
+			struct iwl_mvm_vif_link_info *link =
+				mvmvif->link[link_id];
+
+			if (link && link->phy_ctxt->id < NUM_PHY_CTX &&
+			    (data->band == NUM_NL80211_BANDS ||
+			     link->phy_ctxt->channel->band == data->band)) {
+				data->p2p_go = true;
+				break;
+			}
+		}
+	}
 }
 
 static bool _iwl_mvm_get_respect_p2p_go(struct iwl_mvm *mvm,
@@ -2980,7 +2993,7 @@ void iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 			.scan_start_tsf = mvm->scan_start,
 		};
 
-		memcpy(info.tsf_bssid, mvm->scan_vif->bssid, ETH_ALEN);
+		memcpy(info.tsf_bssid, mvm->scan_vif->deflink.bssid, ETH_ALEN);
 		ieee80211_scan_completed(mvm->hw, &info);
 		mvm->scan_vif = NULL;
 		cancel_delayed_work(&mvm->scan_timeout_dwork);

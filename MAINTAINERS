@@ -12276,7 +12276,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/wireless/wireless.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/wireless/wireless-next.git
 F:	Documentation/networking/mac80211-injection.rst
 F:	Documentation/networking/mac80211_hwsim/mac80211_hwsim.rst
-F:	drivers/net/wireless/mac80211_hwsim.[ch]
+F:	drivers/net/wireless/virtual/mac80211_hwsim.[ch]
 F:	include/net/mac80211.h
 F:	net/mac80211/
 
@@ -17554,7 +17554,7 @@ F:	include/ras/ras_event.h
 RAYLINK/WEBGEAR 802.11 WIRELESS LAN DRIVER
 L:	linux-wireless@vger.kernel.org
 S:	Orphan
-F:	drivers/net/wireless/ray*
+F:	drivers/net/wireless/legacy/ray*
 
 RC-CORE / LIRC FRAMEWORK
 M:	Sean Young <sean@mess.org>
@@ -21798,7 +21798,7 @@ USB WIRELESS RNDIS DRIVER (rndis_wlan)
 M:	Jussi Kivilinna <jussi.kivilinna@iki.fi>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
-F:	drivers/net/wireless/rndis_wlan.c
+F:	drivers/net/wireless/legacy/rndis_wlan.c
 
 USB XHCI DRIVER
 M:	Mathias Nyman <mathias.nyman@intel.com>
@@ -22552,7 +22552,7 @@ F:	drivers/input/misc/wistron_btns.c
 WL3501 WIRELESS PCMCIA CARD DRIVER
 L:	linux-wireless@vger.kernel.org
 S:	Odd fixes
-F:	drivers/net/wireless/wl3501*
+F:	drivers/net/wireless/legacy/wl3501*
 
 WOLFSON MICROELECTRONICS DRIVERS
 L:	patches@opensource.cirrus.com

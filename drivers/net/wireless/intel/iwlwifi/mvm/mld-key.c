@@ -17,17 +17,17 @@ static u32 iwl_mvm_get_sec_sta_mask(struct iwl_mvm *mvm,
 
 	if (vif->type == NL80211_IFTYPE_AP &&
 	    !(keyconf->flags & IEEE80211_KEY_FLAG_PAIRWISE))
-		return BIT(mvmvif->mcast_sta.sta_id);
+		return BIT(mvmvif->deflink.mcast_sta.sta_id);
 
 	if (sta) {
 		struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
-		return BIT(mvmsta->sta_id);
+		return BIT(mvmsta->deflink.sta_id);
 	}
 
 	if (vif->type == NL80211_IFTYPE_STATION &&
-	    mvmvif->ap_sta_id != IWL_MVM_INVALID_STA)
-		return BIT(mvmvif->ap_sta_id);
+	    mvmvif->deflink.ap_sta_id != IWL_MVM_INVALID_STA)
+		return BIT(mvmvif->deflink.ap_sta_id);
 
 	/* invalid */
 	return 0;
@@ -70,8 +70,8 @@ static u32 iwl_mvm_get_sec_flags(struct iwl_mvm *mvm,
 
 	rcu_read_lock();
 	if (!sta && vif->type == NL80211_IFTYPE_STATION &&
-	    mvmvif->ap_sta_id != IWL_MVM_INVALID_STA) {
-		u8 sta_id = mvmvif->ap_sta_id;
+	    mvmvif->deflink.ap_sta_id != IWL_MVM_INVALID_STA) {
+		u8 sta_id = mvmvif->deflink.ap_sta_id;
 
 		sta = rcu_dereference_check(mvm->fw_id_to_mac_id[sta_id],
 					    lockdep_is_held(&mvm->mutex));
@@ -195,6 +195,7 @@ static void iwl_mvm_sec_key_remove_ap_iter(struct ieee80211_hw *hw,
 					   void *data)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	unsigned int link_id = (uintptr_t)data;
 
 	if (key->hw_key_idx == STA_KEY_IDX_INVALID)
 		return;
@@ -202,19 +203,23 @@ static void iwl_mvm_sec_key_remove_ap_iter(struct ieee80211_hw *hw,
 	if (sta)
 		return;
 
+	if (key->link_id >= 0 && key->link_id != link_id)
+		return;
+
 	_iwl_mvm_sec_key_del(mvm, vif, NULL, key, CMD_ASYNC);
 	key->hw_key_idx = STA_KEY_IDX_INVALID;
 }
 
 void iwl_mvm_sec_key_remove_ap(struct iwl_mvm *mvm,
-			       struct ieee80211_vif *vif)
+			       struct ieee80211_vif *vif,
+			       struct iwl_mvm_vif_link_info *link,
+			       unsigned int link_id)
 {
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	u32 sec_key_id = WIDE_ID(DATA_PATH_GROUP, SEC_KEY_CMD);
 	u8 sec_key_ver = iwl_fw_lookup_cmd_ver(mvm->fw, sec_key_id, 0);
 
-	if (WARN_ON(vif->type != NL80211_IFTYPE_STATION ||
-		    mvmvif->ap_sta_id == IWL_MVM_INVALID_STA))
+	if (WARN_ON_ONCE(vif->type != NL80211_IFTYPE_STATION ||
+			 link->ap_sta_id == IWL_MVM_INVALID_STA))
 		return;
 
 	if (!sec_key_ver)
@@ -222,5 +227,5 @@ void iwl_mvm_sec_key_remove_ap(struct iwl_mvm *mvm,
 
 	ieee80211_iter_keys_rcu(mvm->hw, vif,
 				iwl_mvm_sec_key_remove_ap_iter,
-				NULL);
+				(void *)(uintptr_t)link_id);
 }

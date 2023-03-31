@@ -791,7 +791,7 @@ static int rtl8188fu_init_phy_rf(struct rtl8xxxu_priv *priv)
 	return ret;
 }
 
-static void rtl8188f_phy_lc_calibrate(struct rtl8xxxu_priv *priv)
+void rtl8188f_phy_lc_calibrate(struct rtl8xxxu_priv *priv)
 {
 	u32 val32;
 	u32 rf_amode, lstf;
@@ -1677,8 +1677,9 @@ void rtl8188f_set_crystal_cap(struct rtl8xxxu_priv *priv, u8 crystal_cap)
 	cfo->crystal_cap = crystal_cap;
 }
 
-static s8 rtl8188f_cck_rssi(struct rtl8xxxu_priv *priv, u8 cck_agc_rpt)
+static s8 rtl8188f_cck_rssi(struct rtl8xxxu_priv *priv, struct rtl8723au_phy_stats *phy_stats)
 {
+	u8 cck_agc_rpt = phy_stats->cck_agc_rpt_ofdm_cfosho_a;
 	s8 rx_pwr_all = 0x00;
 	u8 vga_idx, lna_idx;
 
@@ -1714,6 +1715,7 @@ struct rtl8xxxu_fileops rtl8188fu_fops = {
 	.load_firmware = rtl8188fu_load_firmware,
 	.power_on = rtl8188fu_power_on,
 	.power_off = rtl8188fu_power_off,
+	.read_efuse = rtl8xxxu_read_efuse,
 	.reset_8051 = rtl8xxxu_reset_8051,
 	.llt_init = rtl8xxxu_auto_llt_table,
 	.init_phy_bb = rtl8188fu_init_phy_bb,
@@ -1723,6 +1725,7 @@ struct rtl8xxxu_fileops rtl8188fu_fops = {
 	.phy_iq_calibrate = rtl8188fu_phy_iq_calibrate,
 	.config_channel = rtl8188fu_config_channel,
 	.parse_rx_desc = rtl8xxxu_parse_rxdesc24,
+	.parse_phystats = rtl8723au_rx_parse_phystats,
 	.init_aggregation = rtl8188fu_init_aggregation,
 	.init_statistics = rtl8188fu_init_statistics,
 	.init_burst = rtl8xxxu_init_burst,

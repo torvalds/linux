@@ -1234,9 +1234,9 @@ static struct ipw_fw_error *ipw_alloc_error_log(struct ipw_priv *priv)
 	u32 base = ipw_read32(priv, IPW_ERROR_LOG);
 	u32 elem_len = ipw_read_reg32(priv, base);
 
-	error = kmalloc(sizeof(*error) +
-			sizeof(*error->elem) * elem_len +
-			sizeof(*error->log) * log_len, GFP_ATOMIC);
+	error = kmalloc(size_add(struct_size(error, elem, elem_len),
+				 array_size(sizeof(*error->log), log_len)),
+			GFP_ATOMIC);
 	if (!error) {
 		IPW_ERROR("Memory allocation for firmware error log "
 			  "failed.\n");
@@ -1247,7 +1247,6 @@ static struct ipw_fw_error *ipw_alloc_error_log(struct ipw_priv *priv)
 	error->config = priv->config;
 	error->elem_len = elem_len;
 	error->log_len = log_len;
-	error->elem = (struct ipw_error_elem *)error->payload;
 	error->log = (struct ipw_event *)(error->elem + elem_len);
 
 	ipw_capture_event_log(priv, log_len, error->log);

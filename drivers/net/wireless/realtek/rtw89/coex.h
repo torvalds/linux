@@ -66,6 +66,11 @@ enum btc_rssi_st {
 	BTC_RSSI_ST_MAX
 };
 
+enum btc_fddt_en {
+	BTC_FDDT_DISABLE,
+	BTC_FDDT_ENABLE,
+};
+
 #define	BTC_RSSI_HIGH(_rssi_) \
 	({typeof(_rssi_) __rssi = (_rssi_); \
 	  ((__rssi == BTC_RSSI_ST_HIGH || \
