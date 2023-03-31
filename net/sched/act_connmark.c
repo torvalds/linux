@@ -158,6 +158,9 @@ static int tcf_connmark_init(struct net *net, struct nlattr *nla,
 		nparms->zone = parm->zone;
 
 		ret = 0;
+	} else {
+		err = ret;
+		goto out_free;
 	}
 
 	err = tcf_action_check_ctrlact(parm->action, tp, &goto_ch, extack);
