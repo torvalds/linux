@@ -3318,7 +3318,7 @@ static const struct flash_info *spi_nor_get_flash_info(struct spi_nor *nor,
 			 * JEDEC knows better, so overwrite platform ID. We
 			 * can't trust partitions any longer, but we'll let
 			 * mtd apply them anyway, since some partitions may be
-			 * marked read-only, and we don't want to lose that
+			 * marked read-only, and we don't want to loose that
 			 * information, even if it's not 100% accurate.
 			 */
 			dev_warn(nor->dev, "found %s, expected %s\n",
