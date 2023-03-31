@@ -1558,7 +1558,8 @@ struct bch_sb_field_journal_seq_blacklist {
 	x(unwritten_extents,		24)		\
 	x(bucket_gens,			25)		\
 	x(lru_v2,			26)		\
-	x(fragmentation_lru,		27)
+	x(fragmentation_lru,		27)		\
+	x(no_bps_in_alloc_keys,		28)
 
 enum bcachefs_metadata_version {
 	bcachefs_metadata_version_min = 9,

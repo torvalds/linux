@@ -60,6 +60,7 @@ enum btree_insert_flags {
 int bch2_btree_delete_extent_at(struct btree_trans *, struct btree_iter *,
 				unsigned, unsigned);
 int bch2_btree_delete_at(struct btree_trans *, struct btree_iter *, unsigned);
+int bch2_btree_delete_at_buffered(struct btree_trans *, enum btree_id, struct bpos);
 
 int bch2_btree_insert_nonextent(struct btree_trans *, enum btree_id,
 				struct bkey_i *, enum btree_update_flags);

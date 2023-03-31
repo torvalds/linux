@@ -345,17 +345,17 @@ static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bc
 
 	if (!test_bit(BCH_FS_CHECK_BACKPOINTERS_DONE, &c->flags)) {
 		struct bch_backpointer bp;
-		u64 bp_offset = 0;
+		struct bpos bp_pos = POS_MIN;
 
 		ret = bch2_get_next_backpointer(trans, POS(ca->dev_idx, b), -1,
-						&bp_offset, &bp,
+						&bp_pos, &bp,
 						BTREE_ITER_NOPRESERVE);
 		if (ret) {
 			ob = ERR_PTR(ret);
 			goto err;
 		}
 
-		if (bp_offset != U64_MAX) {
+		if (!bkey_eq(bp_pos, POS_MAX)) {
 			/*
 			 * Bucket may have data in it - we don't call
 			 * bc2h_trans_inconnsistent() because fsck hasn't

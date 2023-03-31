@@ -53,16 +53,11 @@ static inline struct bpos bucket_pos_to_bp(const struct bch_fs *c,
 	return ret;
 }
 
-bool bch2_bucket_backpointer_del(struct btree_trans *,
-				struct bkey_i_alloc_v4 *,
-				struct bch_backpointer);
-
-int bch2_bucket_backpointer_mod_nowritebuffer(struct btree_trans *,
-				struct bkey_i_alloc_v4 *,
+int bch2_bucket_backpointer_mod_nowritebuffer(struct btree_trans *, struct bpos,
 				struct bch_backpointer, struct bkey_s_c, bool);
 
 static inline int bch2_bucket_backpointer_mod(struct btree_trans *trans,
-				struct bkey_i_alloc_v4 *a,
+				struct bpos bucket,
 				struct bch_backpointer bp,
 				struct bkey_s_c orig_k,
 				bool insert)
@@ -71,13 +66,8 @@ static inline int bch2_bucket_backpointer_mod(struct btree_trans *trans,
 	struct bkey_i_backpointer *bp_k;
 	int ret;
 
-	if (!insert &&
-	    unlikely(BCH_ALLOC_V4_NR_BACKPOINTERS(&a->v)) &&
-	    bch2_bucket_backpointer_del(trans, a, bp))
-		return 0;
-
 	if (unlikely(bch2_backpointers_no_use_write_buffer))
-		return bch2_bucket_backpointer_mod_nowritebuffer(trans, a, bp, orig_k, insert);
+		return bch2_bucket_backpointer_mod_nowritebuffer(trans, bucket, bp, orig_k, insert);
 
 	bp_k = bch2_trans_kmalloc_nomemzero(trans, sizeof(struct bkey_i_backpointer));
 	ret = PTR_ERR_OR_ZERO(bp_k);
@@ -85,7 +75,7 @@ static inline int bch2_bucket_backpointer_mod(struct btree_trans *trans,
 		return ret;
 
 	bkey_backpointer_init(&bp_k->k_i);
-	bp_k->k.p = bucket_pos_to_bp(c, a->k.p, bp.bucket_offset);
+	bp_k->k.p = bucket_pos_to_bp(c, bucket, bp.bucket_offset);
 	bp_k->v = bp;
 
 	if (!insert) {
@@ -126,12 +116,12 @@ static inline void bch2_extent_ptr_to_bp(struct bch_fs *c,
 }
 
 int bch2_get_next_backpointer(struct btree_trans *, struct bpos, int,
-			      u64 *, struct bch_backpointer *, unsigned);
+			      struct bpos *, struct bch_backpointer *, unsigned);
 struct bkey_s_c bch2_backpointer_get_key(struct btree_trans *, struct btree_iter *,
-					 struct bpos, u64, struct bch_backpointer,
+					 struct bpos, struct bch_backpointer,
 					 unsigned);
 struct btree *bch2_backpointer_get_node(struct btree_trans *, struct btree_iter *,
-					struct bpos, u64, struct bch_backpointer);
+					struct bpos, struct bch_backpointer);
 
 int bch2_check_btree_backpointers(struct bch_fs *);
 int bch2_check_extents_to_backpointers(struct bch_fs *);

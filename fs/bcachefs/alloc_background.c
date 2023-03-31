@@ -451,6 +451,8 @@ void __bch2_alloc_to_v4(struct bkey_s_c k, struct bch_alloc_v4 *out)
 
 		if (src < dst)
 			memset(src, 0, dst - src);
+
+		SET_BCH_ALLOC_V4_NR_BACKPOINTERS(out, 0);
 	} else {
 		struct bkey_alloc_unpacked u = bch2_alloc_unpack(k);
 
@@ -476,20 +478,13 @@ static noinline struct bkey_i_alloc_v4 *
 __bch2_alloc_to_v4_mut(struct btree_trans *trans, struct bkey_s_c k)
 {
 	struct bkey_i_alloc_v4 *ret;
-	if (k.k->type == KEY_TYPE_alloc_v4) {
-		struct bkey_s_c_alloc_v4 a = bkey_s_c_to_alloc_v4(k);
-		unsigned bytes = sizeof(struct bkey_i_alloc_v4) +
-			BCH_ALLOC_V4_NR_BACKPOINTERS(a.v) *
-			sizeof(struct bch_backpointer);
-		void *src, *dst;
 
-		/*
-		 * Reserve space for one more backpointer here:
-		 * Not sketchy at doing it this way, nope...
-		 */
-		ret = bch2_trans_kmalloc(trans, bytes + sizeof(struct bch_backpointer));
-		if (IS_ERR(ret))
-			return ret;
+	ret = bch2_trans_kmalloc(trans, sizeof(struct bkey_i_alloc_v4));
+	if (IS_ERR(ret))
+		return ret;
+
+	if (k.k->type == KEY_TYPE_alloc_v4) {
+		void *src, *dst;
 
 		bkey_reassemble(&ret->k_i, k);
 
@@ -497,17 +492,12 @@ __bch2_alloc_to_v4_mut(struct btree_trans *trans, struct bkey_s_c k)
 		SET_BCH_ALLOC_V4_BACKPOINTERS_START(&ret->v, BCH_ALLOC_V4_U64s);
 		dst = alloc_v4_backpointers(&ret->v);
 
-		memmove(dst, src, BCH_ALLOC_V4_NR_BACKPOINTERS(&ret->v) *
-			sizeof(struct bch_backpointer));
 		if (src < dst)
 			memset(src, 0, dst - src);
+
+		SET_BCH_ALLOC_V4_NR_BACKPOINTERS(&ret->v, 0);
 		set_alloc_v4_u64s(ret);
 	} else {
-		ret = bch2_trans_kmalloc(trans, sizeof(struct bkey_i_alloc_v4) +
-					 sizeof(struct bch_backpointer));
-		if (IS_ERR(ret))
-			return ret;
-
 		bkey_alloc_v4_init(&ret->k_i);
 		ret->k.p = k.k->p;
 		bch2_alloc_to_v4(k, &ret->v);
@@ -517,8 +507,12 @@ __bch2_alloc_to_v4_mut(struct btree_trans *trans, struct bkey_s_c k)
 
 static inline struct bkey_i_alloc_v4 *bch2_alloc_to_v4_mut_inlined(struct btree_trans *trans, struct bkey_s_c k)
 {
+	struct bkey_s_c_alloc_v4 a;
+
 	if (likely(k.k->type == KEY_TYPE_alloc_v4) &&
-	    BCH_ALLOC_V4_BACKPOINTERS_START(bkey_s_c_to_alloc_v4(k).v) == BCH_ALLOC_V4_U64s) {
+	    ((a = bkey_s_c_to_alloc_v4(k), true) &&
+	     BCH_ALLOC_V4_BACKPOINTERS_START(a.v) == BCH_ALLOC_V4_U64s &&
+	     BCH_ALLOC_V4_NR_BACKPOINTERS(a.v) == 0)) {
 		/*
 		 * Reserve space for one more backpointer here:
 		 * Not sketchy at doing it this way, nope...

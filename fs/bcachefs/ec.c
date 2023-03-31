@@ -887,7 +887,7 @@ err:
 static int ec_stripe_update_extent(struct btree_trans *trans,
 				   struct bpos bucket, u8 gen,
 				   struct ec_stripe_buf *s,
-				   u64 *bp_offset)
+				   struct bpos *bp_pos)
 {
 	struct bch_fs *c = trans->c;
 	struct bch_backpointer bp;
@@ -900,10 +900,10 @@ static int ec_stripe_update_extent(struct btree_trans *trans,
 	int ret, dev, block;
 
 	ret = bch2_get_next_backpointer(trans, bucket, gen,
-				bp_offset, &bp, BTREE_ITER_CACHED);
+				bp_pos, &bp, BTREE_ITER_CACHED);
 	if (ret)
 		return ret;
-	if (*bp_offset == U64_MAX)
+	if (bpos_eq(*bp_pos, SPOS_MAX))
 		return 0;
 
 	if (bp.level) {
@@ -911,7 +911,7 @@ static int ec_stripe_update_extent(struct btree_trans *trans,
 		struct btree_iter node_iter;
 		struct btree *b;
 
-		b = bch2_backpointer_get_node(trans, &node_iter, bucket, *bp_offset, bp);
+		b = bch2_backpointer_get_node(trans, &node_iter, *bp_pos, bp);
 		bch2_trans_iter_exit(trans, &node_iter);
 
 		if (!b)
@@ -925,8 +925,7 @@ static int ec_stripe_update_extent(struct btree_trans *trans,
 		return -EIO;
 	}
 
-	k = bch2_backpointer_get_key(trans, &iter, bucket, *bp_offset, bp,
-				     BTREE_ITER_INTENT);
+	k = bch2_backpointer_get_key(trans, &iter, *bp_pos, bp, BTREE_ITER_INTENT);
 	ret = bkey_err(k);
 	if (ret)
 		return ret;
@@ -985,7 +984,7 @@ static int ec_stripe_update_bucket(struct btree_trans *trans, struct ec_stripe_b
 	struct bch_fs *c = trans->c;
 	struct bch_extent_ptr bucket = s->key.v.ptrs[block];
 	struct bpos bucket_pos = PTR_BUCKET_POS(c, &bucket);
-	u64 bp_offset = 0;
+	struct bpos bp_pos = POS_MIN;
 	int ret = 0;
 
 	while (1) {
@@ -993,13 +992,13 @@ static int ec_stripe_update_bucket(struct btree_trans *trans, struct ec_stripe_b
 				BTREE_INSERT_NOCHECK_RW|
 				BTREE_INSERT_NOFAIL,
 			ec_stripe_update_extent(trans, bucket_pos, bucket.gen,
-						s, &bp_offset));
+						s, &bp_pos));
 		if (ret)
 			break;
-		if (bp_offset == U64_MAX)
+		if (bkey_eq(bp_pos, POS_MAX))
 			break;
 
-		bp_offset++;
+		bp_pos = bpos_nosnap_successor(bp_pos);
 	}
 
 	return ret;

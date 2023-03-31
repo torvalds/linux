@@ -1134,14 +1134,11 @@ int bch2_fs_recovery(struct bch_fs *c)
 	}
 
 	if (!c->opts.nochanges) {
-		if (c->sb.version < bcachefs_metadata_version_lru_v2) {
-			bch_info(c, "version prior to backpointers, upgrade and fsck required");
+		if (c->sb.version < bcachefs_metadata_version_no_bps_in_alloc_keys) {
+			bch_info(c, "version prior to no_bps_in_alloc_keys, upgrade and fsck required");
 			c->opts.version_upgrade	= true;
 			c->opts.fsck		= true;
 			c->opts.fix_errors	= FSCK_OPT_YES;
-		} else if (c->sb.version < bcachefs_metadata_version_fragmentation_lru) {
-			bch_info(c, "version prior to backpointers, upgrade required");
-			c->opts.version_upgrade	= true;
 		}
 	}
 

@@ -1802,6 +1802,20 @@ int bch2_btree_delete_at(struct btree_trans *trans,
 	return bch2_btree_delete_extent_at(trans, iter, 0, update_flags);
 }
 
+int bch2_btree_delete_at_buffered(struct btree_trans *trans,
+				  enum btree_id btree, struct bpos pos)
+{
+	struct bkey_i *k;
+
+	k = bch2_trans_kmalloc(trans, sizeof(*k));
+	if (IS_ERR(k))
+		return PTR_ERR(k);
+
+	bkey_init(&k->k);
+	k->k.p = pos;
+	return bch2_trans_update_buffered(trans, btree, k);
+}
+
 int bch2_btree_delete_range_trans(struct btree_trans *trans, enum btree_id id,
 				  struct bpos start, struct bpos end,
 				  unsigned update_flags,

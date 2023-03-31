@@ -1407,17 +1407,17 @@ static inline int bch2_trans_mark_pointer(struct btree_trans *trans,
 	bool insert = !(flags & BTREE_TRIGGER_OVERWRITE);
 	struct btree_iter iter;
 	struct bkey_i_alloc_v4 *a;
-	struct bpos bucket_pos;
+	struct bpos bucket;
 	struct bch_backpointer bp;
 	s64 sectors;
 	int ret;
 
-	bch2_extent_ptr_to_bp(trans->c, btree_id, level, k, p, &bucket_pos, &bp);
+	bch2_extent_ptr_to_bp(trans->c, btree_id, level, k, p, &bucket, &bp);
 	sectors = bp.bucket_len;
 	if (!insert)
 		sectors = -sectors;
 
-	a = bch2_trans_start_alloc_update(trans, &iter, bucket_pos);
+	a = bch2_trans_start_alloc_update(trans, &iter, bucket);
 	if (IS_ERR(a))
 		return PTR_ERR(a);
 
@@ -1428,7 +1428,7 @@ static inline int bch2_trans_mark_pointer(struct btree_trans *trans,
 		goto err;
 
 	if (!p.ptr.cached) {
-		ret = bch2_bucket_backpointer_mod(trans, a, bp, k, insert);
+		ret = bch2_bucket_backpointer_mod(trans, bucket, bp, k, insert);
 		if (ret)
 			goto err;
 	}
