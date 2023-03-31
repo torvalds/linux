@@ -706,6 +706,13 @@ config COMMON_CLK_MT8188_IMGSYS
 	help
 	  This driver supports MediaTek MT8188 imgsys and imgsys2 clocks.
 
+config COMMON_CLK_MT8188_IMP_IIC_WRAP
+	tristate "Clock driver for MediaTek MT8188 imp_iic_wrap"
+	depends on COMMON_CLK_MT8188
+	default COMMON_CLK_MT8188
+	help
+	  This driver supports MediaTek MT8188 I2C/I3C clocks.
+
 config COMMON_CLK_MT8188_IPESYS
 	tristate "Clock driver for MediaTek MT8188 ipesys"
 	depends on COMMON_CLK_MT8188_IMGSYS
