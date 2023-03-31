@@ -275,14 +275,14 @@ static int imx8ulp_clk_cgc2_init(struct platform_device *pdev)
 	clks[IMX8ULP_CLK_PLL4_PFD2_DIV2_GATE] = imx_clk_hw_gate_dis("pll4_pfd2_div2_gate", "pll4_pfd2", base + 0x60c, 15);
 	clks[IMX8ULP_CLK_PLL4_PFD3_DIV1_GATE] = imx_clk_hw_gate_dis("pll4_pfd3_div1_gate", "pll4_pfd3", base + 0x60c, 23);
 	clks[IMX8ULP_CLK_PLL4_PFD3_DIV2_GATE] = imx_clk_hw_gate_dis("pll4_pfd3_div2_gate", "pll4_pfd3", base + 0x60c, 31);
-	clks[IMX8ULP_CLK_PLL4_PFD0_DIV1] = imx_clk_hw_divider("pll4_pfd0_div1", "pll4_pfd0_div1_gate", base + 0x608, 0, 6);
-	clks[IMX8ULP_CLK_PLL4_PFD0_DIV2] = imx_clk_hw_divider("pll4_pfd0_div2", "pll4_pfd0_div2_gate", base + 0x608, 8, 6);
-	clks[IMX8ULP_CLK_PLL4_PFD1_DIV1] = imx_clk_hw_divider("pll4_pfd1_div1", "pll4_pfd1_div1_gate", base + 0x608, 16, 6);
-	clks[IMX8ULP_CLK_PLL4_PFD1_DIV2] = imx_clk_hw_divider("pll4_pfd1_div2", "pll4_pfd1_div2_gate", base + 0x608, 24, 6);
-	clks[IMX8ULP_CLK_PLL4_PFD2_DIV1] = imx_clk_hw_divider("pll4_pfd2_div1", "pll4_pfd2_div1_gate", base + 0x60c, 0, 6);
-	clks[IMX8ULP_CLK_PLL4_PFD2_DIV2] = imx_clk_hw_divider("pll4_pfd2_div2", "pll4_pfd2_div2_gate", base + 0x60c, 8, 6);
-	clks[IMX8ULP_CLK_PLL4_PFD3_DIV1] = imx_clk_hw_divider("pll4_pfd3_div1", "pll4_pfd3_div1_gate", base + 0x60c, 16, 6);
-	clks[IMX8ULP_CLK_PLL4_PFD3_DIV2] = imx_clk_hw_divider("pll4_pfd3_div2", "pll4_pfd3_div2_gate", base + 0x60c, 24, 6);
+	clks[IMX8ULP_CLK_PLL4_PFD0_DIV1] = imx_clk_hw_divider_closest("pll4_pfd0_div1", "pll4_pfd0_div1_gate", base + 0x608, 0, 6);
+	clks[IMX8ULP_CLK_PLL4_PFD0_DIV2] = imx_clk_hw_divider_closest("pll4_pfd0_div2", "pll4_pfd0_div2_gate", base + 0x608, 8, 6);
+	clks[IMX8ULP_CLK_PLL4_PFD1_DIV1] = imx_clk_hw_divider_closest("pll4_pfd1_div1", "pll4_pfd1_div1_gate", base + 0x608, 16, 6);
+	clks[IMX8ULP_CLK_PLL4_PFD1_DIV2] = imx_clk_hw_divider_closest("pll4_pfd1_div2", "pll4_pfd1_div2_gate", base + 0x608, 24, 6);
+	clks[IMX8ULP_CLK_PLL4_PFD2_DIV1] = imx_clk_hw_divider_closest("pll4_pfd2_div1", "pll4_pfd2_div1_gate", base + 0x60c, 0, 6);
+	clks[IMX8ULP_CLK_PLL4_PFD2_DIV2] = imx_clk_hw_divider_closest("pll4_pfd2_div2", "pll4_pfd2_div2_gate", base + 0x60c, 8, 6);
+	clks[IMX8ULP_CLK_PLL4_PFD3_DIV1] = imx_clk_hw_divider_closest("pll4_pfd3_div1", "pll4_pfd3_div1_gate", base + 0x60c, 16, 6);
+	clks[IMX8ULP_CLK_PLL4_PFD3_DIV2] = imx_clk_hw_divider_closest("pll4_pfd3_div2", "pll4_pfd3_div2_gate", base + 0x60c, 24, 6);
 
 	clks[IMX8ULP_CLK_CGC2_SOSC_DIV1_GATE] = imx_clk_hw_gate_dis("cgc2_sosc_div1_gate", "sosc", base + 0x108, 7);
 	clks[IMX8ULP_CLK_CGC2_SOSC_DIV2_GATE] = imx_clk_hw_gate_dis("cgc2_sosc_div2_gate", "sosc", base + 0x108, 15);
