@@ -930,10 +930,12 @@ static ssize_t current_value_show(struct kobject *kobj, struct kobj_attribute *a
 	/* validate and split from `item,value` -> `value` */
 	value = strpbrk(item, ",");
 	if (!value || value == item || !strlen(value + 1))
-		return -EINVAL;
+		ret = -EINVAL;
+	else
+		ret = sysfs_emit(buf, "%s\n", value + 1);
 
-	ret = sysfs_emit(buf, "%s\n", value + 1);
 	kfree(item);
+
 	return ret;
 }
 
