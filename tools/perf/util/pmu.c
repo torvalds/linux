@@ -1804,6 +1804,7 @@ int perf_pmu__caps_parse(struct perf_pmu *pmu)
 	char caps_path[PATH_MAX];
 	DIR *caps_dir;
 	struct dirent *evt_ent;
+	int caps_fd;
 
 	if (pmu->caps_initialized)
 		return pmu->nr_caps;
@@ -1822,18 +1823,19 @@ int perf_pmu__caps_parse(struct perf_pmu *pmu)
 	if (!caps_dir)
 		return -EINVAL;
 
+	caps_fd = dirfd(caps_dir);
+
 	while ((evt_ent = readdir(caps_dir)) != NULL) {
-		char path[PATH_MAX + NAME_MAX + 1];
 		char *name = evt_ent->d_name;
 		char value[128];
 		FILE *file;
+		int fd;
 
 		if (!strcmp(name, ".") || !strcmp(name, ".."))
 			continue;
 
-		snprintf(path, sizeof(path), "%s/%s", caps_path, name);
-
-		file = fopen(path, "r");
+		fd = openat(caps_fd, name, O_RDONLY);
+		file = fdopen(fd, "r");
 		if (!file)
 			continue;
 
