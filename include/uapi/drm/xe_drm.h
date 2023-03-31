@@ -180,8 +180,37 @@ struct drm_xe_query_mem_region {
 	 * zero.
 	 */
 	__u64 used;
+	/**
+	 * @cpu_visible_size: How much of this region can be CPU
+	 * accessed, in bytes.
+	 *
+	 * This will always be <= @total_size, and the remainder (if
+	 * any) will not be CPU accessible. If the CPU accessible part
+	 * is smaller than @total_size then this is referred to as a
+	 * small BAR system.
+	 *
+	 * On systems without small BAR (full BAR), the probed_size will
+	 * always equal the @total_size, since all of it will be CPU
+	 * accessible.
+	 *
+	 * Note this is only tracked for XE_MEM_REGION_CLASS_VRAM
+	 * regions (for other types the value here will always equal
+	 * zero).
+	 */
+	__u64 cpu_visible_size;
+	/**
+	 * @cpu_visible_used: Estimate of CPU visible memory used, in
+	 * bytes.
+	 *
+	 * Requires CAP_PERFMON or CAP_SYS_ADMIN to get reliable
+	 * accounting. Without this the value here will always equal
+	 * zero.  Note this is only currently tracked for
+	 * XE_MEM_REGION_CLASS_VRAM regions (for other types the value
+	 * here will always be zero).
+	 */
+	__u64 cpu_visible_used;
 	/** @reserved: MBZ */
-	__u64 reserved[8];
+	__u64 reserved[6];
 };
 
 /**
@@ -383,6 +412,22 @@ struct drm_xe_gem_create {
 
 #define XE_GEM_CREATE_FLAG_DEFER_BACKING	(0x1 << 24)
 #define XE_GEM_CREATE_FLAG_SCANOUT		(0x1 << 25)
+/*
+ * When using VRAM as a possible placement, ensure that the corresponding VRAM
+ * allocation will always use the CPU accessible part of VRAM. This is important
+ * for small-bar systems (on full-bar systems this gets turned into a noop).
+ *
+ * Note: System memory can be used as an extra placement if the kernel should
+ * spill the allocation to system memory, if space can't be made available in
+ * the CPU accessible part of VRAM (giving the same behaviour as the i915
+ * interface, see I915_GEM_CREATE_EXT_FLAG_NEEDS_CPU_ACCESS).
+ *
+ * Note: For clear-color CCS surfaces the kernel needs to read the clear-color
+ * value stored in the buffer, and on discrete platforms we need to use VRAM for
+ * display surfaces, therefore the kernel requires setting this flag for such
+ * objects, otherwise an error is thrown on small-bar systems.
+ */
+#define XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM	(0x1 << 26)
 	/**
 	 * @flags: Flags, currently a mask of memory instances of where BO can
 	 * be placed
