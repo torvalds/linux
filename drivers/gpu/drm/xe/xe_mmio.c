@@ -261,11 +261,6 @@ int xe_mmio_probe_vram(struct xe_device *xe)
 	if (err)
 		return err;
 
-	/* small bar issues will only cover root tile sizes */
-	if (xe->mem.vram.io_size < vram_size)
-		drm_warn(&xe->drm, "Restricting VRAM size to PCI resource size (0x%llx->0x%llx)\n",
-			 vram_size, (u64)xe->mem.vram.io_size);
-
 	drm_info(&xe->drm, "VISIBLE VRAM: %pa, %pa\n", &xe->mem.vram.io_start,
 		 &xe->mem.vram.io_size);
 
@@ -287,9 +282,7 @@ int xe_mmio_probe_vram(struct xe_device *xe)
 		}
 
 		tile->mem.vram.base = tile_offset;
-
-		/* small bar can limit the visible size.  size accordingly */
-		tile->mem.vram.usable_size = min_t(u64, vram_size, io_size);
+		tile->mem.vram.usable_size = vram_size;
 		tile->mem.vram.mapping = xe->mem.vram.mapping + tile_offset;
 
 		drm_info(&xe->drm, "VRAM[%u, %u]: %pa, %pa\n", id, tile->id,
@@ -304,7 +297,7 @@ int xe_mmio_probe_vram(struct xe_device *xe)
 		available_size += vram_size;
 
 		if (total_size > xe->mem.vram.io_size) {
-			drm_warn(&xe->drm, "VRAM: %pa is larger than resource %pa\n",
+			drm_info(&xe->drm, "VRAM: %pa is larger than resource %pa\n",
 				 &total_size, &xe->mem.vram.io_size);
 		}
 
