@@ -67,8 +67,11 @@
   free_pages
   free_pages_exact
   generic_file_read_iter
+  generic_mii_ioctl
   generic_perform_write
   generic_write_checks
+  genphy_read_lpa
+  genphy_update_link
   gen_pool_add_owner
   gen_pool_alloc_algo_owner
   gen_pool_destroy
@@ -132,6 +135,9 @@
   memset
   __memset_io
   memstart_addr
+  mii_check_media
+  mii_ethtool_gset
+  mii_nway_restart
   mod_timer
   __msecs_to_jiffies
   msleep
@@ -168,6 +174,8 @@
   param_ops_ullong
   param_set_uint
   __per_cpu_offset
+  phy_resolve_aneg_linkmode
+  phy_start_aneg
   __platform_driver_register
   platform_driver_unregister
   preempt_schedule
@@ -305,6 +313,8 @@
   unregister_restart_handler
   unregister_syscore_ops
   up_write
+  usbnet_get_endpoints
+  usbnet_link_change
   vfree
   vfs_fsync_range
   vmalloc
