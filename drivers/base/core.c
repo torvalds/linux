@@ -2255,7 +2255,9 @@ static void fw_devlink_link_device(struct device *dev)
 int (*platform_notify)(struct device *dev) = NULL;
 int (*platform_notify_remove)(struct device *dev) = NULL;
 static struct kobject *dev_kobj;
-struct kobject *sysfs_dev_char_kobj;
+
+/* /sys/dev/char */
+static struct kobject *sysfs_dev_char_kobj;
 
 /* /sys/dev/block */
 static struct kobject *sysfs_dev_block_kobj;
