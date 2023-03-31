@@ -1601,7 +1601,7 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 
 	if (parse_events_term__num(&term,
 				   PARSE_EVENTS__TERM_TYPE_USER,
-				   config, 1, false, &config,
+				   config, 1, false, NULL,
 					NULL) < 0) {
 		free(config);
 		goto out_err;
