@@ -140,6 +140,7 @@ static struct env {
 	bool quiet;
 	int log_level;
 	enum resfmt out_fmt;
+	bool show_version;
 	bool comparison_mode;
 	bool replay_mode;
 
@@ -176,16 +177,22 @@ static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va
 	return vfprintf(stderr, format, args);
 }
 
-const char *argp_program_version = "veristat";
+#ifndef VERISTAT_VERSION
+#define VERISTAT_VERSION "<kernel>"
+#endif
+
+const char *argp_program_version = "veristat v" VERISTAT_VERSION;
 const char *argp_program_bug_address = "<bpf@vger.kernel.org>";
 const char argp_program_doc[] =
 "veristat    BPF verifier stats collection and comparison tool.\n"
 "\n"
 "USAGE: veristat <obj-file> [<obj-file>...]\n"
-"   OR: veristat -C <baseline.csv> <comparison.csv>\n";
+"   OR: veristat -C <baseline.csv> <comparison.csv>\n"
+"   OR: veristat -R <results.csv>\n";
 
 static const struct argp_option opts[] = {
 	{ NULL, 'h', NULL, OPTION_HIDDEN, "Show the full help" },
+	{ "version", 'V', NULL, 0, "Print version" },
 	{ "verbose", 'v', NULL, 0, "Verbose mode" },
 	{ "log-level", 'l', "LEVEL", 0, "Verifier log level (default 0 for normal mode, 1 for verbose mode)" },
 	{ "debug", 'd', NULL, 0, "Debug mode (turns on libbpf debug logging)" },
@@ -211,6 +218,9 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 	switch (key) {
 	case 'h':
 		argp_state_help(state, stderr, ARGP_HELP_STD_HELP);
+		break;
+	case 'V':
+		env.show_version = true;
 		break;
 	case 'v':
 		env.verbose = true;
@@ -1990,6 +2000,11 @@ int main(int argc, char **argv)
 
 	if (argp_parse(&argp, argc, argv, 0, NULL, NULL))
 		return 1;
+
+	if (env.show_version) {
+		printf("%s\n", argp_program_version);
+		return 0;
+	}
 
 	if (env.verbose && env.quiet) {
 		fprintf(stderr, "Verbose and quiet modes are incompatible, please specify just one or neither!\n\n");
