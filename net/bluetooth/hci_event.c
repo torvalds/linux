@@ -1,6 +1,7 @@
 /*
    BlueZ - Bluetooth protocol stack for Linux
    Copyright (c) 2000-2001, 2010, Code Aurora Forum. All rights reserved.
+   Copyright 2023 NXP
 
    Written 2000,2001 by Maxim Krasnyansky <maxk@qualcomm.com>
 
@@ -3833,7 +3834,7 @@ static u8 hci_cc_le_set_cig_params(struct hci_dev *hdev, void *data,
 	rcu_read_lock();
 
 	list_for_each_entry_rcu(conn, &hdev->conn_hash.list, list) {
-		if (conn->type != ISO_LINK || conn->iso_qos.cig != rp->cig_id ||
+		if (conn->type != ISO_LINK || conn->iso_qos.ucast.cig != rp->cig_id ||
 		    conn->state == BT_CONNECTED)
 			continue;
 
@@ -3890,7 +3891,7 @@ static u8 hci_cc_le_setup_iso_path(struct hci_dev *hdev, void *data,
 	/* Input (Host to Controller) */
 	case 0x00:
 		/* Only confirm connection if output only */
-		if (conn->iso_qos.out.sdu && !conn->iso_qos.in.sdu)
+		if (conn->iso_qos.ucast.out.sdu && !conn->iso_qos.ucast.in.sdu)
 			hci_connect_cfm(conn, rp->status);
 		break;
 	/* Output (Controller to Host) */
@@ -6818,15 +6819,15 @@ static void hci_le_cis_estabilished_evt(struct hci_dev *hdev, void *data,
 		memset(&interval, 0, sizeof(interval));
 
 		memcpy(&interval, ev->c_latency, sizeof(ev->c_latency));
-		conn->iso_qos.in.interval = le32_to_cpu(interval);
+		conn->iso_qos.ucast.in.interval = le32_to_cpu(interval);
 		memcpy(&interval, ev->p_latency, sizeof(ev->p_latency));
-		conn->iso_qos.out.interval = le32_to_cpu(interval);
-		conn->iso_qos.in.latency = le16_to_cpu(ev->interval);
-		conn->iso_qos.out.latency = le16_to_cpu(ev->interval);
-		conn->iso_qos.in.sdu = le16_to_cpu(ev->c_mtu);
-		conn->iso_qos.out.sdu = le16_to_cpu(ev->p_mtu);
-		conn->iso_qos.in.phy = ev->c_phy;
-		conn->iso_qos.out.phy = ev->p_phy;
+		conn->iso_qos.ucast.out.interval = le32_to_cpu(interval);
+		conn->iso_qos.ucast.in.latency = le16_to_cpu(ev->interval);
+		conn->iso_qos.ucast.out.latency = le16_to_cpu(ev->interval);
+		conn->iso_qos.ucast.in.sdu = le16_to_cpu(ev->c_mtu);
+		conn->iso_qos.ucast.out.sdu = le16_to_cpu(ev->p_mtu);
+		conn->iso_qos.ucast.in.phy = ev->c_phy;
+		conn->iso_qos.ucast.out.phy = ev->p_phy;
 	}
 
 	if (!ev->status) {
@@ -6900,8 +6901,8 @@ static void hci_le_cis_req_evt(struct hci_dev *hdev, void *data,
 		cis->handle = cis_handle;
 	}
 
-	cis->iso_qos.cig = ev->cig_id;
-	cis->iso_qos.cis = ev->cis_id;
+	cis->iso_qos.ucast.cig = ev->cig_id;
+	cis->iso_qos.ucast.cis = ev->cis_id;
 
 	if (!(flags & HCI_PROTO_DEFER)) {
 		hci_le_accept_cis(hdev, ev->cis_handle);
@@ -6988,13 +6989,13 @@ static void hci_le_big_sync_established_evt(struct hci_dev *hdev, void *data,
 			bis->handle = handle;
 		}
 
-		bis->iso_qos.big = ev->handle;
+		bis->iso_qos.bcast.big = ev->handle;
 		memset(&interval, 0, sizeof(interval));
 		memcpy(&interval, ev->latency, sizeof(ev->latency));
-		bis->iso_qos.in.interval = le32_to_cpu(interval);
+		bis->iso_qos.bcast.in.interval = le32_to_cpu(interval);
 		/* Convert ISO Interval (1.25 ms slots) to latency (ms) */
-		bis->iso_qos.in.latency = le16_to_cpu(ev->interval) * 125 / 100;
-		bis->iso_qos.in.sdu = le16_to_cpu(ev->max_pdu);
+		bis->iso_qos.bcast.in.latency = le16_to_cpu(ev->interval) * 125 / 100;
+		bis->iso_qos.bcast.in.sdu = le16_to_cpu(ev->max_pdu);
 
 		hci_iso_setup_path(bis);
 	}
