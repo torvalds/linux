@@ -163,6 +163,7 @@ class SpecAttr(SpecElement):
         self.is_multi = yaml.get('multi-attr', False)
         self.struct_name = yaml.get('struct')
         self.sub_type = yaml.get('sub-type')
+        self.byte_order = yaml.get('byte-order')
 
 
 class SpecAttrSet(SpecElement):
@@ -442,6 +443,15 @@ class SpecFamily(SpecElement):
             rsp_val = rsp_val_next
 
             self.msgs[op.name] = op
+
+    def find_operation(self, name):
+      """
+      For a given operation name, find and return operation spec.
+      """
+      for op in self.yaml['operations']['list']:
+        if name == op['name']:
+          return op
+      return None
 
     def resolve(self):
         self.resolve_up(super())
