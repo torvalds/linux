@@ -22077,6 +22077,7 @@ F:	drivers/vdpa/
 F:	drivers/virtio/
 F:	include/linux/vdpa.h
 F:	include/linux/virtio*.h
+F:	include/linux/vringh.h
 F:	include/uapi/linux/virtio_*.h
 F:	tools/virtio/
 
