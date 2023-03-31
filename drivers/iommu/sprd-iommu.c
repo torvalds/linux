@@ -62,6 +62,7 @@ enum sprd_iommu_version {
  * @eb: gate clock which controls IOMMU access
  */
 struct sprd_iommu_device {
+	struct sprd_iommu_domain	*dom;
 	enum sprd_iommu_version	ver;
 	u32			*prot_page_va;
 	dma_addr_t		prot_page_pa;
@@ -252,15 +253,27 @@ static int sprd_iommu_attach_device(struct iommu_domain *domain,
 	struct sprd_iommu_domain *dom = to_sprd_domain(domain);
 	size_t pgt_size = sprd_iommu_pgt_size(domain);
 
-	if (dom->sdev)
-		return -EINVAL;
+	/* The device is attached to this domain */
+	if (sdev->dom == dom)
+		return 0;
 
-	dom->pgt_va = dma_alloc_coherent(sdev->dev, pgt_size, &dom->pgt_pa, GFP_KERNEL);
-	if (!dom->pgt_va)
-		return -ENOMEM;
+	/* The first time that domain is attaching to a device */
+	if (!dom->pgt_va) {
+		dom->pgt_va = dma_alloc_coherent(sdev->dev, pgt_size, &dom->pgt_pa, GFP_KERNEL);
+		if (!dom->pgt_va)
+			return -ENOMEM;
 
-	dom->sdev = sdev;
+		dom->sdev = sdev;
+	}
 
+	sdev->dom = dom;
+
+	/*
+	 * One sprd IOMMU serves one client device only, disabled it before
+	 * configure mapping table to avoid access conflict in case other
+	 * mapping table is stored in.
+	 */
+	sprd_iommu_hw_en(sdev, false);
 	sprd_iommu_first_ppn(dom);
 	sprd_iommu_first_vpn(dom);
 	sprd_iommu_vpn_range(dom);
