@@ -39,6 +39,7 @@ static const char * const supply_names[] = {
 	"vdd-usb-cp",
 };
 
+static bool config_standby;
 static int audio_fsm_mode = WCD_USBSS_AUDIO_MANUAL;
 
 /* Linearlizer coefficients for 32ohm load */
@@ -66,11 +67,18 @@ static ssize_t wcd_usbss_surge_period_store(struct kobject *kobj,
 	struct kobj_attribute *attr,
 	const char *buf, size_t count);
 
+static ssize_t wcd_usbss_standby_store(struct kobject *kobj,
+	struct kobj_attribute *attr,
+	const char *buf, size_t count);
+
 static struct kobj_attribute wcd_usbss_surge_enable_attribute =
 	__ATTR(surge_enable, 0220, NULL, wcd_usbss_surge_enable_store);
 
 static struct kobj_attribute wcd_usbss_surge_period_attribute =
 	__ATTR(surge_period, 0220, NULL, wcd_usbss_surge_period_store);
+
+static struct kobj_attribute wcd_usbss_standby_enable_attribute =
+	__ATTR(standby_mode, 0220, NULL, wcd_usbss_standby_store);
 
 /*
  * wcd_usbss_is_in_reset_state - routine for using captured state to reset WCD USB-SS after surge
@@ -134,6 +142,33 @@ static int wcd_usbss_reset_routine(void)
 	return wcd_usbss_switch_update(wcd_usbss_ctxt_->cable_type, wcd_usbss_ctxt_->cable_status);
 }
 
+static int wcd_usbss_standby_control(bool enter_standby)
+{
+	if (!wcd_usbss_ctxt_->standby_enable)
+		return 0;
+
+	if (wcd_usbss_ctxt_->is_in_standby == enter_standby)
+		return 0;
+
+	mutex_lock(&wcd_usbss_ctxt_->standby_lock);
+
+	if (enter_standby) {
+		dev_dbg(wcd_usbss_ctxt_->dev, "%s: Enabling standby mode\n",
+			__func__);
+		regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_USB_SS_CNTL, 0x10, 0x10);
+		wcd_usbss_ctxt_->is_in_standby = true;
+	} else {
+		dev_dbg(wcd_usbss_ctxt_->dev, "%s: Disabling standby mode\n",
+			__func__);
+		regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_USB_SS_CNTL, 0x10, 0x00);
+		wcd_usbss_ctxt_->is_in_standby = false;
+	}
+
+	mutex_unlock(&wcd_usbss_ctxt_->standby_lock);
+
+	return 0;
+}
+
 static ssize_t wcd_usbss_surge_enable_store(struct kobject *kobj,
 					struct kobj_attribute *attr,
 					const char *buf, size_t count)
@@ -176,6 +211,31 @@ static ssize_t wcd_usbss_surge_period_store(struct kobject *kobj,
 	return count;
 }
 
+static ssize_t wcd_usbss_standby_store(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					const char *buf, size_t count)
+{
+	unsigned int enable = 0;
+
+	if (kstrtouint(buf, 10, &enable) < 0)
+		return -EINVAL;
+
+	/* temporarily enabling standby to force proper state update */
+	wcd_usbss_ctxt_->standby_enable = true;
+
+	if (enable) {
+		if (wcd_usbss_ctxt_->cable_status == WCD_USBSS_CABLE_DISCONNECT)
+			wcd_usbss_standby_control(true);
+		else
+			wcd_usbss_standby_control(false);
+	} else {
+		wcd_usbss_standby_control(false);
+	}
+
+	wcd_usbss_ctxt_->standby_enable = enable;
+
+	return count;
+}
 /*
  * wcd_usbss_surge_kthread_fn - checks for a negative surge reset at a given period interval
  *
@@ -252,6 +312,14 @@ static int wcd_usbss_sysfs_init(struct wcd_usbss_ctxt *priv)
 	if (rc < 0) {
 		dev_err(priv->dev,
 			"%s: sysfs failed, unable to register surge period attribute. rc: %d\n",
+			__func__, rc);
+		return rc;
+	}
+
+	rc = sysfs_create_file(priv->surge_kobject, &wcd_usbss_standby_enable_attribute.attr);
+	if (rc < 0) {
+		dev_err(priv->dev,
+			"%s: sysfs failed, unable to register standby enable attribute. rc: %d\n",
 			__func__, rc);
 		return rc;
 	}
@@ -561,12 +629,19 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 	if (!wcd_usbss_ctxt_->regmap)
 		return -EINVAL;
 
+	pr_info("%s: ctype = %d, connect_status = %d\n",
+		__func__, ctype, connect_status);
+
 	wcd_usbss_ctxt_->cable_type = ctype;
 	wcd_usbss_ctxt_->cable_status = connect_status;
 
 	if (connect_status == WCD_USBSS_CABLE_DISCONNECT) {
 		wcd_usbss_switch_update_defaults(wcd_usbss_ctxt_);
+		wcd_usbss_dpdm_switch_update(false, false);
+		wcd_usbss_standby_control(true);
 	} else if (connect_status == WCD_USBSS_CABLE_CONNECT) {
+		wcd_usbss_standby_control(false);
+
 		switch (ctype) {
 		case WCD_USBSS_USB:
 			wcd_usbss_dpdm_switch_update(true, true);
@@ -841,6 +916,16 @@ static int wcd_usbss_probe(struct i2c_client *i2c)
 
 	devm_regmap_qti_debugfs_register(priv->dev, priv->regmap);
 
+	wcd_usbss_ctxt_ = priv;
+
+	mutex_init(&priv->standby_lock);
+	i2c_set_clientdata(i2c, priv);
+	if (config_standby) {
+		priv->standby_enable = true;
+		wcd_usbss_dpdm_switch_update(false, false);
+		wcd_usbss_standby_control(true);
+	}
+
 	priv->ucsi_nb.notifier_call = wcd_usbss_usbc_event_changed;
 	priv->ucsi_nb.priority = 0;
 	rc = register_ucsi_glink_notifier(&priv->ucsi_nb);
@@ -852,7 +937,6 @@ static int wcd_usbss_probe(struct i2c_client *i2c)
 
 	mutex_init(&priv->notification_lock);
 	i2c_set_clientdata(i2c, priv);
-	wcd_usbss_ctxt_ = priv;
 
 	wcd_usbss_update_reg_init(priv->regmap);
 	INIT_WORK(&priv->usbc_analog_work,
@@ -887,6 +971,7 @@ static void wcd_usbss_remove(struct i2c_client *i2c)
 	pm_relax(priv->dev);
 	mutex_destroy(&priv->notification_lock);
 	mutex_destroy(&priv->io_lock);
+	mutex_destroy(&priv->standby_lock);
 	dev_set_drvdata(&i2c->dev, NULL);
 	wcd_usbss_ctxt_ = NULL;
 }
