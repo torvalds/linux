@@ -213,7 +213,7 @@ EXPORT_SYMBOL_GPL(of_pci_address_to_resource);
  * @res:	pointer to a valid resource that will be updated to
  *              reflect the values contained in the range.
  *
- * Returns EINVAL if the range cannot be converted to resource.
+ * Returns -EINVAL if the range cannot be converted to resource.
  *
  * Note that if the range is an IO range, the resource will be converted
  * using pci_address_to_pio() which can fail if it is called too early or
