@@ -62,12 +62,14 @@ static int __tegra_bpmp_thermal_get_temp(struct tegra_bpmp_thermal_zone *zone,
 
 static int tegra_bpmp_thermal_get_temp(struct thermal_zone_device *tz, int *out_temp)
 {
-	return __tegra_bpmp_thermal_get_temp(tz->devdata, out_temp);
+	struct tegra_bpmp_thermal_zone *zone = thermal_zone_device_priv(tz);
+
+	return __tegra_bpmp_thermal_get_temp(zone, out_temp);
 }
 
 static int tegra_bpmp_thermal_set_trips(struct thermal_zone_device *tz, int low, int high)
 {
-	struct tegra_bpmp_thermal_zone *zone = tz->devdata;
+	struct tegra_bpmp_thermal_zone *zone = thermal_zone_device_priv(tz);
 	struct mrq_thermal_host_to_bpmp_request req;
 	struct tegra_bpmp_message msg;
 	int err;
