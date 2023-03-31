@@ -1452,6 +1452,10 @@ struct tb_tunnel *tb_tunnel_alloc_dma(struct tb *tb, struct tb_port *nhi,
 	struct tb_path *path;
 	int credits;
 
+	/* Ring 0 is reserved for control channel */
+	if (WARN_ON(!receive_ring || !transmit_ring))
+		return NULL;
+
 	if (receive_ring > 0)
 		npaths++;
 	if (transmit_ring > 0)
