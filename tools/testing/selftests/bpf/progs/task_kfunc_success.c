@@ -122,7 +122,7 @@ int BPF_PROG(test_task_xchg_release, struct task_struct *task, u64 clone_flags)
 }
 
 SEC("tp_btf/task_newtask")
-int BPF_PROG(test_task_get_release, struct task_struct *task, u64 clone_flags)
+int BPF_PROG(test_task_map_acquire_release, struct task_struct *task, u64 clone_flags)
 {
 	struct task_struct *kptr;
 	struct __tasks_kfunc_map_value *v;
@@ -143,18 +143,18 @@ int BPF_PROG(test_task_get_release, struct task_struct *task, u64 clone_flags)
 		return 0;
 	}
 
-	kptr = bpf_task_kptr_get(&v->task);
-	if (kptr) {
-		/* Until we resolve the issues with using task->rcu_users, we
-		 * expect bpf_task_kptr_get() to return a NULL task. See the
-		 * comment at the definition of bpf_task_acquire_not_zero() for
-		 * more details.
-		 */
-		bpf_task_release(kptr);
+	bpf_rcu_read_lock();
+	kptr = v->task;
+	if (!kptr) {
 		err = 3;
-		return 0;
+	} else {
+		kptr = bpf_task_acquire(kptr);
+		if (!kptr)
+			err = 4;
+		else
+			bpf_task_release(kptr);
 	}
-
+	bpf_rcu_read_unlock();
 
 	return 0;
 }

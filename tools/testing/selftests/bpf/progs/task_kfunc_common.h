@@ -21,7 +21,6 @@ struct hash_map {
 } __tasks_kfunc_map SEC(".maps");
 
 struct task_struct *bpf_task_acquire(struct task_struct *p) __ksym;
-struct task_struct *bpf_task_kptr_get(struct task_struct **pp) __ksym;
 void bpf_task_release(struct task_struct *p) __ksym;
 struct task_struct *bpf_task_from_pid(s32 pid) __ksym;
 void bpf_rcu_read_lock(void) __ksym;

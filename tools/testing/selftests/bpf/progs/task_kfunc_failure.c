@@ -129,59 +129,6 @@ int BPF_PROG(task_kfunc_acquire_unreleased, struct task_struct *task, u64 clone_
 }
 
 SEC("tp_btf/task_newtask")
-__failure __msg("arg#0 expected pointer to map value")
-int BPF_PROG(task_kfunc_get_non_kptr_param, struct task_struct *task, u64 clone_flags)
-{
-	struct task_struct *kptr;
-
-	/* Cannot use bpf_task_kptr_get() on a non-kptr, even on a valid task. */
-	kptr = bpf_task_kptr_get(&task);
-	if (!kptr)
-		return 0;
-
-	bpf_task_release(kptr);
-
-	return 0;
-}
-
-SEC("tp_btf/task_newtask")
-__failure __msg("arg#0 expected pointer to map value")
-int BPF_PROG(task_kfunc_get_non_kptr_acquired, struct task_struct *task, u64 clone_flags)
-{
-	struct task_struct *kptr, *acquired;
-
-	acquired = bpf_task_acquire(task);
-	if (!acquired)
-		return 0;
-
-	/* Cannot use bpf_task_kptr_get() on a non-kptr, even if it was acquired. */
-	kptr = bpf_task_kptr_get(&acquired);
-	bpf_task_release(acquired);
-	if (!kptr)
-		return 0;
-
-	bpf_task_release(kptr);
-
-	return 0;
-}
-
-SEC("tp_btf/task_newtask")
-__failure __msg("arg#0 expected pointer to map value")
-int BPF_PROG(task_kfunc_get_null, struct task_struct *task, u64 clone_flags)
-{
-	struct task_struct *kptr;
-
-	/* Cannot use bpf_task_kptr_get() on a NULL pointer. */
-	kptr = bpf_task_kptr_get(NULL);
-	if (!kptr)
-		return 0;
-
-	bpf_task_release(kptr);
-
-	return 0;
-}
-
-SEC("tp_btf/task_newtask")
 __failure __msg("Unreleased reference")
 int BPF_PROG(task_kfunc_xchg_unreleased, struct task_struct *task, u64 clone_flags)
 {
@@ -210,26 +157,6 @@ int BPF_PROG(task_kfunc_acquire_release_no_null_check, struct task_struct *task,
 	acquired = bpf_task_acquire(task);
 	/* Can't invoke bpf_task_release() on an acquired task without a NULL check. */
 	bpf_task_release(acquired);
-
-	return 0;
-}
-
-SEC("tp_btf/task_newtask")
-__failure __msg("Unreleased reference")
-int BPF_PROG(task_kfunc_get_unreleased, struct task_struct *task, u64 clone_flags)
-{
-	struct task_struct *kptr;
-	struct __tasks_kfunc_map_value *v;
-
-	v = insert_lookup_task(task);
-	if (!v)
-		return 0;
-
-	kptr = bpf_task_kptr_get(&v->task);
-	if (!kptr)
-		return 0;
-
-	/* Kptr acquired above is never released. */
 
 	return 0;
 }
