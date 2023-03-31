@@ -378,9 +378,6 @@ struct kfd_dev {
 
 	int noretry;
 
-	/* HMM page migration MEMORY_DEVICE_PRIVATE mapping */
-	struct dev_pagemap pgmap;
-
 	struct kfd_node *nodes[MAX_KFD_NODES];
 	unsigned int num_nodes;
 };

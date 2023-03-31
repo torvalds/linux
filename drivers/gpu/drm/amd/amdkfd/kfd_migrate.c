@@ -206,7 +206,7 @@ svm_migrate_copy_done(struct amdgpu_device *adev, struct dma_fence *mfence)
 unsigned long
 svm_migrate_addr_to_pfn(struct amdgpu_device *adev, unsigned long addr)
 {
-	return (addr + adev->kfd.dev->pgmap.range.start) >> PAGE_SHIFT;
+	return (addr + adev->kfd.pgmap.range.start) >> PAGE_SHIFT;
 }
 
 static void
@@ -236,7 +236,7 @@ svm_migrate_addr(struct amdgpu_device *adev, struct page *page)
 	unsigned long addr;
 
 	addr = page_to_pfn(page) << PAGE_SHIFT;
-	return (addr - adev->kfd.dev->pgmap.range.start);
+	return (addr - adev->kfd.pgmap.range.start);
 }
 
 static struct page *
@@ -990,14 +990,14 @@ static const struct dev_pagemap_ops svm_migrate_pgmap_ops = {
 
 int svm_migrate_init(struct amdgpu_device *adev)
 {
-	struct kfd_dev *kfddev = adev->kfd.dev;
+	struct amdgpu_kfd_dev *kfddev = &adev->kfd;
 	struct dev_pagemap *pgmap;
 	struct resource *res = NULL;
 	unsigned long size;
 	void *r;
 
 	/* Page migration works on Vega10 or newer */
-	if (!KFD_IS_SOC15(kfddev))
+	if (!KFD_IS_SOC15(kfddev->dev))
 		return -EINVAL;
 
 	pgmap = &kfddev->pgmap;

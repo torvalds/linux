@@ -174,7 +174,7 @@ svm_range_dma_map_dev(struct amdgpu_device *adev, struct svm_range *prange,
 
 			addr[i] = (hmm_pfns[i] << PAGE_SHIFT) +
 				   bo_adev->vm_manager.vram_base_offset -
-				   bo_adev->kfd.dev->pgmap.range.start;
+				   bo_adev->kfd.pgmap.range.start;
 			addr[i] |= SVM_RANGE_VRAM_DOMAIN;
 			pr_debug_ratelimited("vram address: 0x%llx\n", addr[i]);
 			continue;
@@ -2827,7 +2827,7 @@ svm_range_restore_pages(struct amdgpu_device *adev, unsigned int pasid,
 	bool migration = false;
 	int r = 0;
 
-	if (!KFD_IS_SVM_API_SUPPORTED(adev->kfd.dev)) {
+	if (!KFD_IS_SVM_API_SUPPORTED(adev)) {
 		pr_debug("device does not support SVM\n");
 		return -EFAULT;
 	}
@@ -3112,7 +3112,7 @@ int svm_range_list_init(struct kfd_process *p)
 	spin_lock_init(&svms->deferred_list_lock);
 
 	for (i = 0; i < p->n_pdds; i++)
-		if (KFD_IS_SVM_API_SUPPORTED(p->pdds[i]->dev->kfd))
+		if (KFD_IS_SVM_API_SUPPORTED(p->pdds[i]->dev->adev))
 			bitmap_set(svms->bitmap_supported, i, 1);
 
 	return 0;

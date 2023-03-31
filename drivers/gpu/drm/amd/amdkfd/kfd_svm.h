@@ -200,8 +200,8 @@ void svm_range_list_lock_and_flush_work(struct svm_range_list *svms, struct mm_s
 /* SVM API and HMM page migration work together, device memory type
  * is initialized to not 0 when page migration register device memory.
  */
-#define KFD_IS_SVM_API_SUPPORTED(dev) ((dev)->pgmap.type != 0 ||\
-				       (dev)->adev->gmc.is_app_apu)
+#define KFD_IS_SVM_API_SUPPORTED(adev) ((adev)->kfd.pgmap.type != 0 ||\
+					(adev)->gmc.is_app_apu)
 
 void svm_range_bo_unref_async(struct svm_range_bo *svm_bo);
 
