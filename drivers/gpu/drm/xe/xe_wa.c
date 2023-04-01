@@ -5,6 +5,7 @@
 
 #include "xe_wa.h"
 
+#include <kunit/visibility.h>
 #include <linux/compiler_types.h>
 
 #include "regs/xe_engine_regs.h"
@@ -628,6 +629,7 @@ void xe_wa_process_gt(struct xe_gt *gt)
 {
 	xe_rtp_process(gt_was, &gt->reg_sr, gt, NULL);
 }
+EXPORT_SYMBOL_IF_KUNIT(xe_wa_process_gt);
 
 /**
  * xe_wa_process_engine - process engine workaround table

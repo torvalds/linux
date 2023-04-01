@@ -5,6 +5,8 @@
 
 #include "xe_tuning.h"
 
+#include <kunit/visibility.h>
+
 #include "regs/xe_gt_regs.h"
 #include "xe_gt_types.h"
 #include "xe_platform_types.h"
@@ -62,6 +64,7 @@ void xe_tuning_process_gt(struct xe_gt *gt)
 {
 	xe_rtp_process(gt_tunings, &gt->reg_sr, gt, NULL);
 }
+EXPORT_SYMBOL_IF_KUNIT(xe_tuning_process_gt);
 
 /**
  * xe_tuning_process_lrc - process lrc tunings
