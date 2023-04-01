@@ -8,7 +8,6 @@
 #include <linux/bitmap.h>
 #include <linux/device.h>
 #include <linux/io.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/iopoll.h>
 #include <linux/reset-controller.h>
 #include <linux/spinlock.h>
@@ -21,7 +20,7 @@ struct jh71x0_reset {
 	spinlock_t lock;
 	void __iomem *assert;
 	void __iomem *status;
-	const u64 *asserted;
+	const u32 *asserted;
 };
 
 static inline struct jh71x0_reset *
@@ -34,12 +33,12 @@ static int jh71x0_reset_update(struct reset_controller_dev *rcdev,
 			       unsigned long id, bool assert)
 {
 	struct jh71x0_reset *data = jh71x0_reset_from(rcdev);
-	unsigned long offset = BIT_ULL_WORD(id);
-	u64 mask = BIT_ULL_MASK(id);
-	void __iomem *reg_assert = data->assert + offset * sizeof(u64);
-	void __iomem *reg_status = data->status + offset * sizeof(u64);
-	u64 done = data->asserted ? data->asserted[offset] & mask : 0;
-	u64 value;
+	unsigned long offset = id / 32;
+	u32 mask = BIT(id % 32);
+	void __iomem *reg_assert = data->assert + offset * sizeof(u32);
+	void __iomem *reg_status = data->status + offset * sizeof(u32);
+	u32 done = data->asserted ? data->asserted[offset] & mask : 0;
+	u32 value;
 	unsigned long flags;
 	int ret;
 
@@ -48,15 +47,15 @@ static int jh71x0_reset_update(struct reset_controller_dev *rcdev,
 
 	spin_lock_irqsave(&data->lock, flags);
 
-	value = readq(reg_assert);
+	value = readl(reg_assert);
 	if (assert)
 		value |= mask;
 	else
 		value &= ~mask;
-	writeq(value, reg_assert);
+	writel(value, reg_assert);
 
 	/* if the associated clock is gated, deasserting might otherwise hang forever */
-	ret = readq_poll_timeout_atomic(reg_status, value, (value & mask) == done, 0, 1000);
+	ret = readl_poll_timeout_atomic(reg_status, value, (value & mask) == done, 0, 1000);
 
 	spin_unlock_irqrestore(&data->lock, flags);
 	return ret;
@@ -90,10 +89,10 @@ static int jh71x0_reset_status(struct reset_controller_dev *rcdev,
 			       unsigned long id)
 {
 	struct jh71x0_reset *data = jh71x0_reset_from(rcdev);
-	unsigned long offset = BIT_ULL_WORD(id);
-	u64 mask = BIT_ULL_MASK(id);
-	void __iomem *reg_status = data->status + offset * sizeof(u64);
-	u64 value = readq(reg_status);
+	unsigned long offset = id / 32;
+	u32 mask = BIT(id % 32);
+	void __iomem *reg_status = data->status + offset * sizeof(u32);
+	u32 value = readl(reg_status);
 
 	return !((value ^ data->asserted[offset]) & mask);
 }
@@ -107,7 +106,7 @@ static const struct reset_control_ops jh71x0_reset_ops = {
 
 int reset_starfive_jh71x0_register(struct device *dev, struct device_node *of_node,
 				   void __iomem *assert, void __iomem *status,
-				   const u64 *asserted, unsigned int nr_resets,
+				   const u32 *asserted, unsigned int nr_resets,
 				   struct module *owner)
 {
 	struct jh71x0_reset *data;
