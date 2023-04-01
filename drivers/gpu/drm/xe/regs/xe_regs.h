@@ -72,15 +72,8 @@
 
 #define SOFTWARE_FLAGS_SPR33			_MMIO(0x4f084)
 
-#define GEN8_PCU_ISR				_MMIO(0x444e0)
-#define GEN8_PCU_IMR				_MMIO(0x444e4)
-#define GEN8_PCU_IIR				_MMIO(0x444e8)
-#define GEN8_PCU_IER				_MMIO(0x444ec)
-
-#define GEN11_GU_MISC_ISR			_MMIO(0x444f0)
-#define GEN11_GU_MISC_IMR			_MMIO(0x444f4)
-#define GEN11_GU_MISC_IIR			_MMIO(0x444f8)
-#define GEN11_GU_MISC_IER			_MMIO(0x444fc)
+#define PCU_IRQ_OFFSET				0x444e0
+#define GU_MISC_IRQ_OFFSET			0x444f0
 #define   GEN11_GU_MISC_GSE			(1 << 27)
 
 #define GEN11_GFX_MSTR_IRQ			_MMIO(0x190010)

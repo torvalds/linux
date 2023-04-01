@@ -18,6 +18,14 @@
 #include "xe_hw_engine.h"
 #include "xe_mmio.h"
 
+/*
+ * Interrupt registers for a unit are always consecutive and ordered
+ * ISR, IMR, IIR, IER.
+ */
+#define IMR(offset)				_MMIO(offset + 0x4)
+#define IIR(offset)				_MMIO(offset + 0x8)
+#define IER(offset)				_MMIO(offset + 0xc)
+
 static void assert_iir_is_zero(struct xe_gt *gt, i915_reg_t reg)
 {
 	u32 val = xe_mmio_read32(gt, reg.reg);
@@ -47,9 +55,9 @@ static void irq_init(struct xe_gt *gt,
 }
 #define IRQ_INIT(gt, type, imr_val, ier_val) \
 	irq_init((gt), \
-		 type##IMR, imr_val, \
-		 type##IER, ier_val, \
-		 type##IIR)
+		 IMR(type), imr_val, \
+		 IER(type), ier_val, \
+		 IIR(type))
 
 static void irq_reset(struct xe_gt *gt, i915_reg_t imr, i915_reg_t iir,
 			   i915_reg_t ier)
@@ -66,7 +74,7 @@ static void irq_reset(struct xe_gt *gt, i915_reg_t imr, i915_reg_t iir,
 	xe_mmio_read32(gt, iir.reg);
 }
 #define IRQ_RESET(gt, type) \
-	irq_reset((gt), type##IMR, type##IIR, type##IER)
+	irq_reset((gt), IMR(type), IIR(type), IER(type))
 
 static u32 gen11_intr_disable(struct xe_gt *gt)
 {
@@ -89,9 +97,9 @@ gen11_gu_misc_irq_ack(struct xe_gt *gt, const u32 master_ctl)
 	if (!(master_ctl & GEN11_GU_MISC_IRQ))
 		return 0;
 
-	iir = xe_mmio_read32(gt, GEN11_GU_MISC_IIR.reg);
+	iir = xe_mmio_read32(gt, IIR(GU_MISC_IRQ_OFFSET).reg);
 	if (likely(iir))
-		xe_mmio_write32(gt, GEN11_GU_MISC_IIR.reg, iir);
+		xe_mmio_write32(gt, IIR(GU_MISC_IRQ_OFFSET).reg, iir);
 
 	return iir;
 }
@@ -172,7 +180,7 @@ static void gen11_irq_postinstall(struct xe_device *xe, struct xe_gt *gt)
 
 	gen11_gt_irq_postinstall(xe, gt);
 
-	IRQ_INIT(gt, GEN11_GU_MISC_, ~GEN11_GU_MISC_GSE, GEN11_GU_MISC_GSE);
+	IRQ_INIT(gt, GU_MISC_IRQ_OFFSET, ~GEN11_GU_MISC_GSE, GEN11_GU_MISC_GSE);
 
 	gen11_intr_enable(gt, true);
 }
@@ -331,7 +339,7 @@ static void dg1_irq_postinstall(struct xe_device *xe, struct xe_gt *gt)
 {
 	gen11_gt_irq_postinstall(xe, gt);
 
-	IRQ_INIT(gt, GEN11_GU_MISC_, ~GEN11_GU_MISC_GSE, GEN11_GU_MISC_GSE);
+	IRQ_INIT(gt, GU_MISC_IRQ_OFFSET, ~GEN11_GU_MISC_GSE, GEN11_GU_MISC_GSE);
 
 	if (gt->info.id == XE_GT0)
 		dg1_intr_enable(xe, true);
@@ -432,8 +440,8 @@ static void gen11_irq_reset(struct xe_gt *gt)
 
 	gen11_gt_irq_reset(gt);
 
-	IRQ_RESET(gt, GEN11_GU_MISC_);
-	IRQ_RESET(gt, GEN8_PCU_);
+	IRQ_RESET(gt, GU_MISC_IRQ_OFFSET);
+	IRQ_RESET(gt, PCU_IRQ_OFFSET);
 }
 
 static void dg1_irq_reset(struct xe_gt *gt)
@@ -443,8 +451,8 @@ static void dg1_irq_reset(struct xe_gt *gt)
 
 	gen11_gt_irq_reset(gt);
 
-	IRQ_RESET(gt, GEN11_GU_MISC_);
-	IRQ_RESET(gt, GEN8_PCU_);
+	IRQ_RESET(gt, GU_MISC_IRQ_OFFSET);
+	IRQ_RESET(gt, PCU_IRQ_OFFSET);
 }
 
 static void xe_irq_reset(struct xe_device *xe)
