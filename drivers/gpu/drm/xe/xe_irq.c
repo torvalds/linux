@@ -350,7 +350,7 @@ static irqreturn_t dg1_irq_handler(int irq, void *arg)
 {
 	struct xe_device *xe = arg;
 	struct xe_gt *gt;
-	u32 master_tile_ctl, master_ctl = 0, gu_misc_iir;
+	u32 master_tile_ctl, master_ctl = 0, tile0_master_ctl = 0, gu_misc_iir;
 	long unsigned int intr_dw[2];
 	u32 identity[32];
 	u8 id;
@@ -384,9 +384,17 @@ static irqreturn_t dg1_irq_handler(int irq, void *arg)
 		if (!xe_gt_is_media_type(gt))
 			xe_mmio_write32(gt, GFX_MSTR_IRQ.reg, master_ctl);
 		gt_irq_handler(xe, gt, master_ctl, intr_dw, identity);
+
+		/*
+		 * Save primary tile's master interrupt register for display
+		 * processing below.
+		 */
+		if (id == 0)
+			tile0_master_ctl = master_ctl;
 	}
 
-	gu_misc_iir = gu_misc_irq_ack(gt, master_ctl);
+	/* Gunit GSE interrupts can trigger display backlight operations */
+	gu_misc_iir = gu_misc_irq_ack(gt, tile0_master_ctl);
 
 	dg1_intr_enable(xe, false);
 
