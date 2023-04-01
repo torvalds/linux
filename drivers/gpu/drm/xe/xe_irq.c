@@ -77,7 +77,7 @@ static void mask_and_disable(struct xe_gt *gt, u32 irqregs)
 	xe_mmio_read32(gt, IIR(irqregs).reg);
 }
 
-static u32 gen11_intr_disable(struct xe_gt *gt)
+static u32 xelp_intr_disable(struct xe_gt *gt)
 {
 	xe_mmio_write32(gt, GFX_MSTR_IRQ.reg, 0);
 
@@ -105,7 +105,7 @@ gen11_gu_misc_irq_ack(struct xe_gt *gt, const u32 master_ctl)
 	return iir;
 }
 
-static inline void gen11_intr_enable(struct xe_gt *gt, bool stall)
+static inline void xelp_intr_enable(struct xe_gt *gt, bool stall)
 {
 	xe_mmio_write32(gt, GFX_MSTR_IRQ.reg, MASTER_IRQ);
 	if (stall)
@@ -175,7 +175,7 @@ static void gen11_gt_irq_postinstall(struct xe_device *xe, struct xe_gt *gt)
 	xe_mmio_write32(gt, GUC_SG_INTR_MASK.reg,  ~0);
 }
 
-static void gen11_irq_postinstall(struct xe_device *xe, struct xe_gt *gt)
+static void xelp_irq_postinstall(struct xe_device *xe, struct xe_gt *gt)
 {
 	/* TODO: PCH */
 
@@ -183,7 +183,7 @@ static void gen11_irq_postinstall(struct xe_device *xe, struct xe_gt *gt)
 
 	unmask_and_enable(gt, GU_MISC_IRQ_OFFSET, GU_MISC_GSE);
 
-	gen11_intr_enable(gt, true);
+	xelp_intr_enable(gt, true);
 }
 
 static u32
@@ -285,7 +285,11 @@ static void gen11_gt_irq_handler(struct xe_device *xe, struct xe_gt *gt,
 	spin_unlock(&xe->irq.lock);
 }
 
-static irqreturn_t gen11_irq_handler(int irq, void *arg)
+/*
+ * Top-level interrupt handler for Xe_LP platforms (which did not have
+ * a "master tile" interrupt register.
+ */
+static irqreturn_t xelp_irq_handler(int irq, void *arg)
 {
 	struct xe_device *xe = arg;
 	struct xe_gt *gt = xe_device_get_gt(xe, 0);	/* Only 1 GT here */
@@ -293,9 +297,9 @@ static irqreturn_t gen11_irq_handler(int irq, void *arg)
 	long unsigned int intr_dw[2];
 	u32 identity[32];
 
-	master_ctl = gen11_intr_disable(gt);
+	master_ctl = xelp_intr_disable(gt);
 	if (!master_ctl) {
-		gen11_intr_enable(gt, false);
+		xelp_intr_enable(gt, false);
 		return IRQ_NONE;
 	}
 
@@ -303,7 +307,7 @@ static irqreturn_t gen11_irq_handler(int irq, void *arg)
 
 	gu_misc_iir = gen11_gu_misc_irq_ack(gt, master_ctl);
 
-	gen11_intr_enable(gt, false);
+	xelp_intr_enable(gt, false);
 
 	return IRQ_HANDLED;
 }
@@ -345,6 +349,11 @@ static void dg1_irq_postinstall(struct xe_device *xe, struct xe_gt *gt)
 		dg1_intr_enable(xe, true);
 }
 
+/*
+ * Top-level interrupt handler for Xe_LP+ and beyond.  These platforms have
+ * a "master tile" interrupt register which must be consulted before the
+ * "graphics master" interrupt register.
+ */
 static irqreturn_t dg1_irq_handler(int irq, void *arg)
 {
 	struct xe_device *xe = arg;
@@ -434,9 +443,9 @@ static void gen11_gt_irq_reset(struct xe_gt *gt)
 	xe_mmio_write32(gt, GUC_SG_INTR_MASK.reg,		~0);
 }
 
-static void gen11_irq_reset(struct xe_gt *gt)
+static void xelp_irq_reset(struct xe_gt *gt)
 {
-	gen11_intr_disable(gt);
+	xelp_intr_disable(gt);
 
 	gen11_gt_irq_reset(gt);
 
@@ -461,13 +470,10 @@ static void xe_irq_reset(struct xe_device *xe)
 	u8 id;
 
 	for_each_gt(gt, xe, id) {
-		if (GRAPHICS_VERx100(xe) >= 1210) {
+		if (GRAPHICS_VERx100(xe) >= 1210)
 			dg1_irq_reset(gt);
-		} else if (GRAPHICS_VER(xe) >= 11) {
-			gen11_irq_reset(gt);
-		} else {
-			drm_err(&xe->drm, "No interrupt reset hook");
-		}
+		else
+			xelp_irq_reset(gt);
 	}
 }
 
@@ -477,10 +483,8 @@ void xe_gt_irq_postinstall(struct xe_gt *gt)
 
 	if (GRAPHICS_VERx100(xe) >= 1210)
 		dg1_irq_postinstall(xe, gt);
-	else if (GRAPHICS_VER(xe) >= 11)
-		gen11_irq_postinstall(xe, gt);
 	else
-		drm_err(&xe->drm, "No interrupt postinstall hook");
+		xelp_irq_postinstall(xe, gt);
 }
 
 static void xe_irq_postinstall(struct xe_device *xe)
@@ -496,10 +500,8 @@ static irq_handler_t xe_irq_handler(struct xe_device *xe)
 {
 	if (GRAPHICS_VERx100(xe) >= 1210) {
 		return dg1_irq_handler;
-	} else if (GRAPHICS_VER(xe) >= 11) {
-		return gen11_irq_handler;
 	} else {
-		return NULL;
+		return xelp_irq_handler;
 	}
 }
 
