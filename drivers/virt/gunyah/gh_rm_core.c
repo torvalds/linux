@@ -894,6 +894,26 @@ int gh_rm_populate_hyp_res(gh_vmid_t vmid, const char *vm_name)
 	pr_debug("%s: %d Resources are associated with vmid %d\n",
 		 __func__, n_res, vmid);
 
+	/* Need polulate VCPU first to know if VM support proxy scheduling */
+	for (i = 0; i < n_res; i++) {
+		if (res_entries[i].res_type == GH_RM_RES_TYPE_VCPU) {
+			ret = linux_irq = gh_rm_get_irq(&res_entries[i]);
+			if (ret < 0)
+				goto out;
+
+			cap_id = (u64) res_entries[i].cap_id_high << 32 |
+					res_entries[i].cap_id_low;
+			label = res_entries[i].resource_label;
+			if (gh_vcpu_affinity_set_fn)
+				do {
+					ret = (*gh_vcpu_affinity_set_fn)(
+						vmid, label, cap_id, linux_irq);
+				} while (ret == -EAGAIN);
+			if (ret < 0)
+				goto out;
+		}
+	}
+
 	for (i = 0; i < n_res; i++) {
 		pr_debug("%s: idx:%d res_entries.res_type = 0x%x, res_entries.partner_vmid = 0x%x, res_entries.resource_handle = 0x%x, res_entries.resource_label = 0x%x, res_entries.cap_id_low = 0x%x, res_entries.cap_id_high = 0x%x, res_entries.virq_handle = 0x%x, res_entries.virq = 0x%x res_entries.base_high = 0x%x, res_entries.base_low = 0x%x, res_entries.size_high = 0x%x, res_entries.size_low = 0x%x\n",
 			__func__, i,
@@ -934,10 +954,9 @@ int gh_rm_populate_hyp_res(gh_vmid_t vmid, const char *vm_name)
 					GH_MSGQ_DIRECTION_RX, linux_irq);
 				break;
 			case GH_RM_RES_TYPE_VCPU:
-				if (gh_vcpu_affinity_set_fn)
-					ret = (*gh_vcpu_affinity_set_fn)(vmid, label,
-								cap_id, linux_irq);
+			/* Already populate VCPU resource */
 				break;
+
 			case GH_RM_RES_TYPE_DB_TX:
 				ret = gh_dbl_populate_cap_info(label, cap_id,
 					GH_MSGQ_DIRECTION_TX, linux_irq);
