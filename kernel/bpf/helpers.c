@@ -18,6 +18,7 @@
 #include <linux/pid_namespace.h>
 #include <linux/poison.h>
 #include <linux/proc_ns.h>
+#include <linux/sched/task.h>
 #include <linux/security.h>
 #include <linux/btf_ids.h>
 #include <linux/bpf_mem_alloc.h>
@@ -2013,73 +2014,8 @@ __bpf_kfunc struct bpf_rb_node *bpf_rbtree_first(struct bpf_rb_root *root)
  */
 __bpf_kfunc struct task_struct *bpf_task_acquire(struct task_struct *p)
 {
-	return get_task_struct(p);
-}
-
-/**
- * bpf_task_acquire_not_zero - Acquire a reference to a rcu task object. A task
- * acquired by this kfunc which is not stored in a map as a kptr, must be
- * released by calling bpf_task_release().
- * @p: The task on which a reference is being acquired.
- */
-__bpf_kfunc struct task_struct *bpf_task_acquire_not_zero(struct task_struct *p)
-{
-	/* For the time being this function returns NULL, as it's not currently
-	 * possible to safely acquire a reference to a task with RCU protection
-	 * using get_task_struct() and put_task_struct(). This is due to the
-	 * slightly odd mechanics of p->rcu_users, and how task RCU protection
-	 * works.
-	 *
-	 * A struct task_struct is refcounted by two different refcount_t
-	 * fields:
-	 *
-	 * 1. p->usage:     The "true" refcount field which tracks a task's
-	 *		    lifetime. The task is freed as soon as this
-	 *		    refcount drops to 0.
-	 *
-	 * 2. p->rcu_users: An "RCU users" refcount field which is statically
-	 *		    initialized to 2, and is co-located in a union with
-	 *		    a struct rcu_head field (p->rcu). p->rcu_users
-	 *		    essentially encapsulates a single p->usage
-	 *		    refcount, and when p->rcu_users goes to 0, an RCU
-	 *		    callback is scheduled on the struct rcu_head which
-	 *		    decrements the p->usage refcount.
-	 *
-	 * There are two important implications to this task refcounting logic
-	 * described above. The first is that
-	 * refcount_inc_not_zero(&p->rcu_users) cannot be used anywhere, as
-	 * after the refcount goes to 0, the RCU callback being scheduled will
-	 * cause the memory backing the refcount to again be nonzero due to the
-	 * fields sharing a union. The other is that we can't rely on RCU to
-	 * guarantee that a task is valid in a BPF program. This is because a
-	 * task could have already transitioned to being in the TASK_DEAD
-	 * state, had its rcu_users refcount go to 0, and its rcu callback
-	 * invoked in which it drops its single p->usage reference. At this
-	 * point the task will be freed as soon as the last p->usage reference
-	 * goes to 0, without waiting for another RCU gp to elapse. The only
-	 * way that a BPF program can guarantee that a task is valid is in this
-	 * scenario is to hold a p->usage refcount itself.
-	 *
-	 * Until we're able to resolve this issue, either by pulling
-	 * p->rcu_users and p->rcu out of the union, or by getting rid of
-	 * p->usage and just using p->rcu_users for refcounting, we'll just
-	 * return NULL here.
-	 */
-	return NULL;
-}
-
-/**
- * bpf_task_kptr_get - Acquire a reference on a struct task_struct kptr. A task
- * kptr acquired by this kfunc which is not subsequently stored in a map, must
- * be released by calling bpf_task_release().
- * @pp: A pointer to a task kptr on which a reference is being acquired.
- */
-__bpf_kfunc struct task_struct *bpf_task_kptr_get(struct task_struct **pp)
-{
-	/* We must return NULL here until we have clarity on how to properly
-	 * leverage RCU for ensuring a task's lifetime. See the comment above
-	 * in bpf_task_acquire_not_zero() for more details.
-	 */
+	if (refcount_inc_not_zero(&p->rcu_users))
+		return p;
 	return NULL;
 }
 
@@ -2089,7 +2025,7 @@ __bpf_kfunc struct task_struct *bpf_task_kptr_get(struct task_struct **pp)
  */
 __bpf_kfunc void bpf_task_release(struct task_struct *p)
 {
-	put_task_struct(p);
+	put_task_struct_rcu_user(p);
 }
 
 #ifdef CONFIG_CGROUPS
@@ -2199,7 +2135,7 @@ __bpf_kfunc struct task_struct *bpf_task_from_pid(s32 pid)
 	rcu_read_lock();
 	p = find_task_by_pid_ns(pid, &init_pid_ns);
 	if (p)
-		bpf_task_acquire(p);
+		p = bpf_task_acquire(p);
 	rcu_read_unlock();
 
 	return p;
@@ -2371,9 +2307,7 @@ BTF_ID_FLAGS(func, bpf_list_push_front)
 BTF_ID_FLAGS(func, bpf_list_push_back)
 BTF_ID_FLAGS(func, bpf_list_pop_front, KF_ACQUIRE | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_list_pop_back, KF_ACQUIRE | KF_RET_NULL)
-BTF_ID_FLAGS(func, bpf_task_acquire, KF_ACQUIRE | KF_TRUSTED_ARGS)
-BTF_ID_FLAGS(func, bpf_task_acquire_not_zero, KF_ACQUIRE | KF_RCU | KF_RET_NULL)
-BTF_ID_FLAGS(func, bpf_task_kptr_get, KF_ACQUIRE | KF_KPTR_GET | KF_RET_NULL)
+BTF_ID_FLAGS(func, bpf_task_acquire, KF_ACQUIRE | KF_RCU | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_task_release, KF_RELEASE)
 BTF_ID_FLAGS(func, bpf_rbtree_remove, KF_ACQUIRE)
 BTF_ID_FLAGS(func, bpf_rbtree_add)

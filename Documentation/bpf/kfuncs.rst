@@ -471,13 +471,50 @@ struct_ops callback arg. For example:
 		struct task_struct *acquired;
 
 		acquired = bpf_task_acquire(task);
+		if (acquired)
+			/*
+			 * In a typical program you'd do something like store
+			 * the task in a map, and the map will automatically
+			 * release it later. Here, we release it manually.
+			 */
+			bpf_task_release(acquired);
+		return 0;
+	}
 
-		/*
-		 * In a typical program you'd do something like store
-		 * the task in a map, and the map will automatically
-		 * release it later. Here, we release it manually.
-		 */
-		bpf_task_release(acquired);
+
+References acquired on ``struct task_struct *`` objects are RCU protected.
+Therefore, when in an RCU read region, you can obtain a pointer to a task
+embedded in a map value without having to acquire a reference:
+
+.. code-block:: c
+
+	#define private(name) SEC(".data." #name) __hidden __attribute__((aligned(8)))
+	private(TASK) static struct task_struct *global;
+
+	/**
+	 * A trivial example showing how to access a task stored
+	 * in a map using RCU.
+	 */
+	SEC("tp_btf/task_newtask")
+	int BPF_PROG(task_rcu_read_example, struct task_struct *task, u64 clone_flags)
+	{
+		struct task_struct *local_copy;
+
+		bpf_rcu_read_lock();
+		local_copy = global;
+		if (local_copy)
+			/*
+			 * We could also pass local_copy to kfuncs or helper functions here,
+			 * as we're guaranteed that local_copy will be valid until we exit
+			 * the RCU read region below.
+			 */
+			bpf_printk("Global task %s is valid", local_copy->comm);
+		else
+			bpf_printk("No global task found");
+		bpf_rcu_read_unlock();
+
+		/* At this point we can no longer reference local_copy. */
+
 		return 0;
 	}
 
