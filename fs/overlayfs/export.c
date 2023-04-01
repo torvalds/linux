@@ -289,9 +289,7 @@ static struct dentry *ovl_obtain_alias(struct super_block *sb,
 	struct inode *inode = NULL;
 	struct ovl_entry *oe;
 	struct ovl_inode_params oip = {
-		.lowerpath = lowerpath,
 		.index = index,
-		.numlower = !!lower
 	};
 
 	/* We get overlay directory dentries with ovl_lookup_real() */

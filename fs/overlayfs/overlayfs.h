@@ -653,10 +653,8 @@ bool ovl_is_private_xattr(struct super_block *sb, const char *name);
 struct ovl_inode_params {
 	struct inode *newinode;
 	struct dentry *upperdentry;
-	struct ovl_path *lowerpath;
 	struct ovl_entry *oe;
 	bool index;
-	unsigned int numlower;
 	char *redirect;
 	struct dentry *lowerdata;
 };

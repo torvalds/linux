@@ -1005,10 +1005,6 @@ void ovl_inode_init(struct inode *inode, struct ovl_inode_params *oip,
 	oi->__upperdentry = oip->upperdentry;
 	oi->oe = oip->oe;
 	oi->redirect = oip->redirect;
-	if (oip->lowerpath && oip->lowerpath->dentry) {
-		oi->lowerpath.dentry = dget(oip->lowerpath->dentry);
-		oi->lowerpath.layer = oip->lowerpath->layer;
-	}
 	if (oip->lowerdata)
 		oi->lowerdata = igrab(d_inode(oip->lowerdata));
 
@@ -1325,7 +1321,7 @@ struct inode *ovl_get_inode(struct super_block *sb,
 {
 	struct ovl_fs *ofs = OVL_FS(sb);
 	struct dentry *upperdentry = oip->upperdentry;
-	struct ovl_path *lowerpath = oip->lowerpath;
+	struct ovl_path *lowerpath = ovl_lowerpath(oip->oe);
 	struct inode *realinode = upperdentry ? d_inode(upperdentry) : NULL;
 	struct inode *inode;
 	struct dentry *lowerdentry = lowerpath ? lowerpath->dentry : NULL;
@@ -1404,7 +1400,7 @@ struct inode *ovl_get_inode(struct super_block *sb,
 
 	/* Check for non-merge dir that may have whiteouts */
 	if (is_dir) {
-		if (((upperdentry && lowerdentry) || oip->numlower > 1) ||
+		if (((upperdentry && lowerdentry) || ovl_numlower(oip->oe) > 1) ||
 		    ovl_path_check_origin_xattr(ofs, &realpath)) {
 			ovl_set_flag(OVL_WHITEOUTS, inode);
 		}

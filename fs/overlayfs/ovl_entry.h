@@ -120,6 +120,11 @@ static inline struct ovl_path *ovl_lowerstack(struct ovl_entry *oe)
 	return ovl_numlower(oe) ? oe->__lowerstack : NULL;
 }
 
+static inline struct ovl_path *ovl_lowerpath(struct ovl_entry *oe)
+{
+	return ovl_lowerstack(oe);
+}
+
 /* private information held for every overlayfs dentry */
 static inline unsigned long *OVL_E_FLAGS(struct dentry *dentry)
 {
@@ -136,7 +141,6 @@ struct ovl_inode {
 	unsigned long flags;
 	struct inode vfs_inode;
 	struct dentry *__upperdentry;
-	struct ovl_path lowerpath;
 	struct ovl_entry *oe;
 
 	/* synchronize copy up and more */
