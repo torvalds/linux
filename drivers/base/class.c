@@ -103,6 +103,7 @@ static void class_release(struct kobject *kobj)
 		pr_debug("class '%s' does not have a release() function, "
 			 "be careful\n", class->name);
 
+	lockdep_unregister_key(&cp->lock_key);
 	kfree(cp);
 }
 
