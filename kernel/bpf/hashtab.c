@@ -607,6 +607,8 @@ free_htab:
 
 static inline u32 htab_map_hash(const void *key, u32 key_len, u32 hashrnd)
 {
+	if (likely(key_len % 4 == 0))
+		return jhash2(key, key_len / 4, hashrnd);
 	return jhash(key, key_len, hashrnd);
 }
 
