@@ -150,13 +150,7 @@ static void gt_irq_postinstall(struct xe_device *xe, struct xe_gt *gt)
 		xe_mmio_write32(gt, XEHPC_BCS7_BCS8_INTR_MASK.reg, ~dmask);
 	xe_mmio_write32(gt, VCS0_VCS1_INTR_MASK.reg, ~dmask);
 	xe_mmio_write32(gt, VCS2_VCS3_INTR_MASK.reg, ~dmask);
-	//if (HAS_ENGINE(gt, VCS4) || HAS_ENGINE(gt, VCS5))
-	//	intel_uncore_write(uncore, VCS4_VCS5_INTR_MASK, ~dmask);
-	//if (HAS_ENGINE(gt, VCS6) || HAS_ENGINE(gt, VCS7))
-	//	intel_uncore_write(uncore, VCS6_VCS7_INTR_MASK, ~dmask);
 	xe_mmio_write32(gt, VECS0_VECS1_INTR_MASK.reg, ~dmask);
-	//if (HAS_ENGINE(gt, VECS2) || HAS_ENGINE(gt, VECS3))
-	//	intel_uncore_write(uncore, VECS2_VECS3_INTR_MASK, ~dmask);
 	if (ccs_mask & (BIT(0)|BIT(1)))
 		xe_mmio_write32(gt, CCS0_CCS1_INTR_MASK.reg, ~dmask);
 	if (ccs_mask & (BIT(2)|BIT(3)))
@@ -423,13 +417,7 @@ static void gt_irq_reset(struct xe_gt *gt)
 		xe_mmio_write32(gt, XEHPC_BCS7_BCS8_INTR_MASK.reg, ~0);
 	xe_mmio_write32(gt, VCS0_VCS1_INTR_MASK.reg,	~0);
 	xe_mmio_write32(gt, VCS2_VCS3_INTR_MASK.reg,	~0);
-//	if (HAS_ENGINE(gt, VCS4) || HAS_ENGINE(gt, VCS5))
-//		xe_mmio_write32(xe, VCS4_VCS5_INTR_MASK.reg,   ~0);
-//	if (HAS_ENGINE(gt, VCS6) || HAS_ENGINE(gt, VCS7))
-//		xe_mmio_write32(xe, VCS6_VCS7_INTR_MASK.reg,   ~0);
 	xe_mmio_write32(gt, VECS0_VECS1_INTR_MASK.reg,	~0);
-//	if (HAS_ENGINE(gt, VECS2) || HAS_ENGINE(gt, VECS3))
-//		xe_mmio_write32(xe, VECS2_VECS3_INTR_MASK.reg, ~0);
 	if (ccs_mask & (BIT(0)|BIT(1)))
 		xe_mmio_write32(gt, CCS0_CCS1_INTR_MASK.reg, ~0);
 	if (ccs_mask & (BIT(2)|BIT(3)))
