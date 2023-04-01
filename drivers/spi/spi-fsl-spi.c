@@ -263,18 +263,10 @@ static int fsl_spi_bufs(struct spi_device *spi, struct spi_transfer *t,
 	if (t->bits_per_word)
 		bits_per_word = t->bits_per_word;
 
-	if (bits_per_word > 8) {
-		/* invalid length? */
-		if (len & 1)
-			return -EINVAL;
+	if (bits_per_word > 8)
 		len /= 2;
-	}
-	if (bits_per_word > 16) {
-		/* invalid length? */
-		if (len & 1)
-			return -EINVAL;
+	if (bits_per_word > 16)
 		len /= 2;
-	}
 
 	mpc8xxx_spi->tx = t->tx_buf;
 	mpc8xxx_spi->rx = t->rx_buf;
