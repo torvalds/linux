@@ -172,7 +172,6 @@ static struct inode *ovl_alloc_inode(struct super_block *sb)
 	oi->flags = 0;
 	oi->__upperdentry = NULL;
 	oi->oe = NULL;
-	oi->lowerdata = NULL;
 	mutex_init(&oi->lock);
 
 	return &oi->vfs_inode;
@@ -195,8 +194,6 @@ static void ovl_destroy_inode(struct inode *inode)
 	ovl_free_entry(oi->oe);
 	if (S_ISDIR(inode->i_mode))
 		ovl_dir_cache_free(inode);
-	else
-		iput(oi->lowerdata);
 }
 
 static void ovl_free_fs(struct ovl_fs *ofs)

@@ -1110,8 +1110,6 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 			.oe = oe,
 			.index = index,
 			.redirect = upperredirect,
-			.lowerdata = (ctr > 1 && !d.is_dir) ?
-				      stack[ctr - 1].dentry : NULL,
 		};
 
 		inode = ovl_get_inode(dentry->d_sb, &oip);
