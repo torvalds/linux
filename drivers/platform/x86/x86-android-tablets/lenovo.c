@@ -162,9 +162,9 @@ static struct gpiod_lookup_table * const lenovo_yoga_tab2_830_1050_gpios[] = {
 static int __init lenovo_yoga_tab2_830_1050_init(void);
 static void lenovo_yoga_tab2_830_1050_exit(void);
 
-struct x86_dev_info lenovo_yoga_tab2_830_1050_info __initdata = {
+const struct x86_dev_info lenovo_yoga_tab2_830_1050_info __initconst = {
 	.i2c_client_info = lenovo_yoga_tab2_830_1050_i2c_clients,
-	/* i2c_client_count gets set by lenovo_yoga_tab2_830_1050_init() */
+	.i2c_client_count = ARRAY_SIZE(lenovo_yoga_tab2_830_1050_i2c_clients),
 	.pdev_info = int3496_pdevs,
 	.pdev_count = 1,
 	.gpio_button = &lenovo_yoga_tab2_830_1050_lid,
@@ -177,23 +177,10 @@ struct x86_dev_info lenovo_yoga_tab2_830_1050_info __initdata = {
 
 /*
  * The Lenovo Yoga Tablet 2 830 and 1050 (8" vs 10") versions use the same
- * mainboard, but they need some different treatment related to the display:
- * 1. The 830 uses a portrait LCD panel with a landscape touchscreen, requiring
- *    the touchscreen driver to adjust the touch-coords to match the LCD.
- * 2. Both use an TI LP8557 LED backlight controller. On the 1050 the LP8557's
- *    PWM input is connected to the PMIC's PWM output and everything works fine
- *    with the defaults programmed into the LP8557 by the BIOS.
- *    But on the 830 the LP8557's PWM input is connected to a PWM output coming
- *    from the LCD panel's controller. The Android code has a hack in the i915
- *    driver to write the non-standard DSI reg 0x9f with the desired backlight
- *    level to set the duty-cycle of the LCD's PWM output.
- *
- *    To avoid having to have a similar hack in the mainline kernel the LP8557
- *    entry in lenovo_yoga_tab2_830_1050_i2c_clients instead just programs the
- *    LP8557 to directly set the level, ignoring the PWM input. This means that
- *    the LP8557 i2c_client should only be instantiated on the 830.
+ * mainboard, but the 830 uses a portrait LCD panel with a landscape touchscreen,
+ * requiring the touchscreen driver to adjust the touch-coords to match the LCD.
  */
-static int __init lenovo_yoga_tab2_830_1050_init_display(void)
+static int __init lenovo_yoga_tab2_830_1050_init_touchscreen(void)
 {
 	struct gpio_desc *gpiod;
 	int ret;
@@ -206,14 +193,10 @@ static int __init lenovo_yoga_tab2_830_1050_init_display(void)
 	ret = gpiod_get_value_cansleep(gpiod);
 	if (ret) {
 		pr_info("detected Lenovo Yoga Tablet 2 1050F/L\n");
-		lenovo_yoga_tab2_830_1050_info.i2c_client_count =
-			ARRAY_SIZE(lenovo_yoga_tab2_830_1050_i2c_clients) - 1;
 	} else {
 		pr_info("detected Lenovo Yoga Tablet 2 830F/L\n");
 		lenovo_yoga_tab2_830_1050_rmi_pdata.sensor_pdata.axis_align.swap_axes = true;
 		lenovo_yoga_tab2_830_1050_rmi_pdata.sensor_pdata.axis_align.flip_y = true;
-		lenovo_yoga_tab2_830_1050_info.i2c_client_count =
-			ARRAY_SIZE(lenovo_yoga_tab2_830_1050_i2c_clients);
 	}
 
 	return 0;
@@ -281,7 +264,7 @@ static int __init lenovo_yoga_tab2_830_1050_init(void)
 {
 	int ret;
 
-	ret = lenovo_yoga_tab2_830_1050_init_display();
+	ret = lenovo_yoga_tab2_830_1050_init_touchscreen();
 	if (ret)
 		return ret;
 
