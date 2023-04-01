@@ -2,7 +2,8 @@
 /*
  *  pkey device driver
  *
- *  Copyright IBM Corp. 2017,2019
+ *  Copyright IBM Corp. 2017, 2023
+ *
  *  Author(s): Harald Freudenberger
  */
 
@@ -32,6 +33,7 @@ MODULE_AUTHOR("IBM Corporation");
 MODULE_DESCRIPTION("s390 protected key interface");
 
 #define KEYBLOBBUFSIZE 8192	/* key buffer size used for internal processing */
+#define MINKEYBLOBBUFSIZE (sizeof(struct keytoken_header))
 #define PROTKEYBLOBBUFSIZE 256	/* protected key buffer size used internal */
 #define MAXAPQNSINLIST 64	/* max 64 apqns within a apqn list */
 #define AES_WK_VP_SIZE 32	/* Size of WK VP block appended to a prot key */
@@ -72,15 +74,30 @@ struct protaeskeytoken {
 } __packed;
 
 /* inside view of a clear key token (type 0x00 version 0x02) */
-struct clearaeskeytoken {
-	u8  type;	 /* 0x00 for PAES specific key tokens */
+struct clearkeytoken {
+	u8  type;	/* 0x00 for PAES specific key tokens */
 	u8  res0[3];
-	u8  version;	 /* 0x02 for clear AES key token */
+	u8  version;	/* 0x02 for clear key token */
 	u8  res1[3];
-	u32 keytype;	 /* key type, one of the PKEY_KEYTYPE values */
-	u32 len;	 /* bytes actually stored in clearkey[] */
+	u32 keytype;	/* key type, one of the PKEY_KEYTYPE_* values */
+	u32 len;	/* bytes actually stored in clearkey[] */
 	u8  clearkey[]; /* clear key value */
 } __packed;
+
+/* helper function which translates the PKEY_KEYTYPE_AES_* to their keysize */
+static inline u32 pkey_keytype_aes_to_size(u32 keytype)
+{
+	switch (keytype) {
+	case PKEY_KEYTYPE_AES_128:
+		return 16;
+	case PKEY_KEYTYPE_AES_192:
+		return 24;
+	case PKEY_KEYTYPE_AES_256:
+		return 32;
+	default:
+		return 0;
+	}
+}
 
 /*
  * Create a protected key from a clear key value via PCKMO instruction.
@@ -91,22 +108,59 @@ static int pkey_clr2protkey(u32 keytype, const u8 *clrkey,
 	/* mask of available pckmo subfunctions */
 	static cpacf_mask_t pckmo_functions;
 
-	u8 paramblock[64];
+	u8 paramblock[112];
+	u32 pkeytype;
 	int keysize;
 	long fc;
 
 	switch (keytype) {
 	case PKEY_KEYTYPE_AES_128:
+		/* 16 byte key, 32 byte aes wkvp, total 48 bytes */
 		keysize = 16;
+		pkeytype = keytype;
 		fc = CPACF_PCKMO_ENC_AES_128_KEY;
 		break;
 	case PKEY_KEYTYPE_AES_192:
+		/* 24 byte key, 32 byte aes wkvp, total 56 bytes */
 		keysize = 24;
+		pkeytype = keytype;
 		fc = CPACF_PCKMO_ENC_AES_192_KEY;
 		break;
 	case PKEY_KEYTYPE_AES_256:
+		/* 32 byte key, 32 byte aes wkvp, total 64 bytes */
 		keysize = 32;
+		pkeytype = keytype;
 		fc = CPACF_PCKMO_ENC_AES_256_KEY;
+		break;
+	case PKEY_KEYTYPE_ECC_P256:
+		/* 32 byte key, 32 byte aes wkvp, total 64 bytes */
+		keysize = 32;
+		pkeytype = PKEY_KEYTYPE_ECC;
+		fc = CPACF_PCKMO_ENC_ECC_P256_KEY;
+		break;
+	case PKEY_KEYTYPE_ECC_P384:
+		/* 48 byte key, 32 byte aes wkvp, total 80 bytes */
+		keysize = 48;
+		pkeytype = PKEY_KEYTYPE_ECC;
+		fc = CPACF_PCKMO_ENC_ECC_P384_KEY;
+		break;
+	case PKEY_KEYTYPE_ECC_P521:
+		/* 80 byte key, 32 byte aes wkvp, total 112 bytes */
+		keysize = 80;
+		pkeytype = PKEY_KEYTYPE_ECC;
+		fc = CPACF_PCKMO_ENC_ECC_P521_KEY;
+		break;
+	case PKEY_KEYTYPE_ECC_ED25519:
+		/* 32 byte key, 32 byte aes wkvp, total 64 bytes */
+		keysize = 32;
+		pkeytype = PKEY_KEYTYPE_ECC;
+		fc = CPACF_PCKMO_ENC_ECC_ED25519_KEY;
+		break;
+	case PKEY_KEYTYPE_ECC_ED448:
+		/* 64 byte key, 32 byte aes wkvp, total 96 bytes */
+		keysize = 64;
+		pkeytype = PKEY_KEYTYPE_ECC;
+		fc = CPACF_PCKMO_ENC_ECC_ED448_KEY;
 		break;
 	default:
 		DEBUG_ERR("%s unknown/unsupported keytype %u\n",
@@ -142,7 +196,7 @@ static int pkey_clr2protkey(u32 keytype, const u8 *clrkey,
 	/* copy created protected key to key buffer including the wkvp block */
 	*protkeylen = keysize + AES_WK_VP_SIZE;
 	memcpy(protkey, paramblock, *protkeylen);
-	*protkeytype = keytype;
+	*protkeytype = pkeytype;
 
 	return 0;
 }
@@ -319,17 +373,8 @@ static int pkey_genprotkey(u32 keytype, u8 *protkey,
 	int keysize;
 	int rc;
 
-	switch (keytype) {
-	case PKEY_KEYTYPE_AES_128:
-		keysize = 16;
-		break;
-	case PKEY_KEYTYPE_AES_192:
-		keysize = 24;
-		break;
-	case PKEY_KEYTYPE_AES_256:
-		keysize = 32;
-		break;
-	default:
+	keysize = pkey_keytype_aes_to_size(keytype);
+	if (!keysize) {
 		DEBUG_ERR("%s unknown/unsupported keytype %d\n", __func__,
 			  keytype);
 		return -EINVAL;
@@ -404,6 +449,111 @@ static int pkey_verifyprotkey(const u8 *protkey, u32 protkeylen,
 	return 0;
 }
 
+/* Helper for pkey_nonccatok2pkey, handles aes clear key token */
+static int nonccatokaes2pkey(const struct clearkeytoken *t,
+			     u8 *protkey, u32 *protkeylen, u32 *protkeytype)
+{
+	size_t tmpbuflen = max_t(size_t, SECKEYBLOBSIZE, MAXEP11AESKEYBLOBSIZE);
+	u8 *tmpbuf = NULL;
+	u32 keysize;
+	int rc;
+
+	keysize = pkey_keytype_aes_to_size(t->keytype);
+	if (!keysize) {
+		DEBUG_ERR("%s unknown/unsupported keytype %u\n",
+			  __func__, t->keytype);
+		return -EINVAL;
+	}
+	if (t->len != keysize) {
+		DEBUG_ERR("%s non clear key aes token: invalid key len %u\n",
+			  __func__, t->len);
+		return -EINVAL;
+	}
+
+	/* try direct way with the PCKMO instruction */
+	rc = pkey_clr2protkey(t->keytype, t->clearkey,
+			      protkey, protkeylen, protkeytype);
+	if (!rc)
+		goto out;
+
+	/* PCKMO failed, so try the CCA secure key way */
+	tmpbuf = kmalloc(tmpbuflen, GFP_ATOMIC);
+	if (!tmpbuf)
+		return -ENOMEM;
+	zcrypt_wait_api_operational();
+	rc = cca_clr2seckey(0xFFFF, 0xFFFF, t->keytype, t->clearkey, tmpbuf);
+	if (rc)
+		goto try_via_ep11;
+	rc = pkey_skey2pkey(tmpbuf,
+			    protkey, protkeylen, protkeytype);
+	if (!rc)
+		goto out;
+
+try_via_ep11:
+	/* if the CCA way also failed, let's try via EP11 */
+	rc = pkey_clr2ep11key(t->clearkey, t->len,
+			      tmpbuf, &tmpbuflen);
+	if (rc)
+		goto failure;
+	rc = pkey_ep11key2pkey(tmpbuf,
+			       protkey, protkeylen, protkeytype);
+	if (!rc)
+		goto out;
+
+failure:
+	DEBUG_ERR("%s unable to build protected key from clear", __func__);
+
+out:
+	kfree(tmpbuf);
+	return rc;
+}
+
+/* Helper for pkey_nonccatok2pkey, handles ecc clear key token */
+static int nonccatokecc2pkey(const struct clearkeytoken *t,
+			     u8 *protkey, u32 *protkeylen, u32 *protkeytype)
+{
+	u32 keylen;
+	int rc;
+
+	switch (t->keytype) {
+	case PKEY_KEYTYPE_ECC_P256:
+		keylen = 32;
+		break;
+	case PKEY_KEYTYPE_ECC_P384:
+		keylen = 48;
+		break;
+	case PKEY_KEYTYPE_ECC_P521:
+		keylen = 80;
+		break;
+	case PKEY_KEYTYPE_ECC_ED25519:
+		keylen = 32;
+		break;
+	case PKEY_KEYTYPE_ECC_ED448:
+		keylen = 64;
+		break;
+	default:
+		DEBUG_ERR("%s unknown/unsupported keytype %u\n",
+			  __func__, t->keytype);
+		return -EINVAL;
+	}
+
+	if (t->len != keylen) {
+		DEBUG_ERR("%s non clear key ecc token: invalid key len %u\n",
+			  __func__, t->len);
+		return -EINVAL;
+	}
+
+	/* only one path possible: via PCKMO instruction */
+	rc = pkey_clr2protkey(t->keytype, t->clearkey,
+			      protkey, protkeylen, protkeytype);
+	if (rc) {
+		DEBUG_ERR("%s unable to build protected key from clear",
+			  __func__);
+	}
+
+	return rc;
+}
+
 /*
  * Transform a non-CCA key token into a protected key
  */
@@ -411,7 +561,6 @@ static int pkey_nonccatok2pkey(const u8 *key, u32 keylen,
 			       u8 *protkey, u32 *protkeylen, u32 *protkeytype)
 {
 	struct keytoken_header *hdr = (struct keytoken_header *)key;
-	u8 *tmpbuf = NULL;
 	int rc = -EINVAL;
 
 	switch (hdr->version) {
@@ -430,54 +579,31 @@ static int pkey_nonccatok2pkey(const u8 *key, u32 keylen,
 		break;
 	}
 	case TOKVER_CLEAR_KEY: {
-		struct clearaeskeytoken *t;
-		struct pkey_clrkey ckey;
-		union u_tmpbuf {
-			u8 skey[SECKEYBLOBSIZE];
-			u8 ep11key[MAXEP11AESKEYBLOBSIZE];
-		};
-		size_t tmpbuflen = sizeof(union u_tmpbuf);
+		struct clearkeytoken *t = (struct clearkeytoken *)key;
 
-		if (keylen < sizeof(struct clearaeskeytoken))
+		if (keylen < sizeof(struct clearkeytoken) ||
+		    keylen != sizeof(*t) + t->len)
 			goto out;
-		t = (struct clearaeskeytoken *)key;
-		if (keylen != sizeof(*t) + t->len)
-			goto out;
-		if ((t->keytype == PKEY_KEYTYPE_AES_128 && t->len == 16) ||
-		    (t->keytype == PKEY_KEYTYPE_AES_192 && t->len == 24) ||
-		    (t->keytype == PKEY_KEYTYPE_AES_256 && t->len == 32))
-			memcpy(ckey.clrkey, t->clearkey, t->len);
-		else
-			goto out;
-		/* alloc temp key buffer space */
-		tmpbuf = kmalloc(tmpbuflen, GFP_ATOMIC);
-		if (!tmpbuf) {
-			rc = -ENOMEM;
-			goto out;
+		switch (t->keytype) {
+		case PKEY_KEYTYPE_AES_128:
+		case PKEY_KEYTYPE_AES_192:
+		case PKEY_KEYTYPE_AES_256:
+			rc = nonccatokaes2pkey(t, protkey,
+					       protkeylen, protkeytype);
+			break;
+		case PKEY_KEYTYPE_ECC_P256:
+		case PKEY_KEYTYPE_ECC_P384:
+		case PKEY_KEYTYPE_ECC_P521:
+		case PKEY_KEYTYPE_ECC_ED25519:
+		case PKEY_KEYTYPE_ECC_ED448:
+			rc = nonccatokecc2pkey(t, protkey,
+					       protkeylen, protkeytype);
+			break;
+		default:
+			DEBUG_ERR("%s unknown/unsupported non cca clear key type %u\n",
+				  __func__, t->keytype);
+			return -EINVAL;
 		}
-		/* try direct way with the PCKMO instruction */
-		rc = pkey_clr2protkey(t->keytype, ckey.clrkey,
-				      protkey, protkeylen, protkeytype);
-		if (rc == 0)
-			break;
-		/* PCKMO failed, so try the CCA secure key way */
-		zcrypt_wait_api_operational();
-		rc = cca_clr2seckey(0xFFFF, 0xFFFF, t->keytype,
-				    ckey.clrkey, tmpbuf);
-		if (rc == 0)
-			rc = pkey_skey2pkey(tmpbuf,
-					    protkey, protkeylen, protkeytype);
-		if (rc == 0)
-			break;
-		/* if the CCA way also failed, let's try via EP11 */
-		rc = pkey_clr2ep11key(ckey.clrkey, t->len,
-				      tmpbuf, &tmpbuflen);
-		if (rc == 0)
-			rc = pkey_ep11key2pkey(tmpbuf,
-					       protkey, protkeylen, protkeytype);
-		/* now we should really have an protected key */
-		DEBUG_ERR("%s unable to build protected key from clear",
-			  __func__);
 		break;
 	}
 	case TOKVER_EP11_AES: {
@@ -500,11 +626,9 @@ static int pkey_nonccatok2pkey(const u8 *key, u32 keylen,
 	default:
 		DEBUG_ERR("%s unknown/unsupported non-CCA token version %d\n",
 			  __func__, hdr->version);
-		rc = -EINVAL;
 	}
 
 out:
-	kfree(tmpbuf);
 	return rc;
 }
 
@@ -1149,7 +1273,7 @@ static int pkey_keyblob2pkey3(const struct pkey_apqn *apqns, size_t nr_apqns,
 
 static void *_copy_key_from_user(void __user *ukey, size_t keylen)
 {
-	if (!ukey || keylen < MINKEYBLOBSIZE || keylen > KEYBLOBBUFSIZE)
+	if (!ukey || keylen < MINKEYBLOBBUFSIZE || keylen > KEYBLOBBUFSIZE)
 		return ERR_PTR(-EINVAL);
 
 	return memdup_user(ukey, keylen);
