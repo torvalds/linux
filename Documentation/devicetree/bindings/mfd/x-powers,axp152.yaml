@@ -73,6 +73,16 @@ allOf:
       required:
         - interrupts
 
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: x-powers,axp313a
+
+    then:
+      properties:
+        x-powers,dcdc-freq: false
+
 properties:
   compatible:
     oneOf:
@@ -82,6 +92,7 @@ properties:
           - x-powers,axp209
           - x-powers,axp221
           - x-powers,axp223
+          - x-powers,axp313a
           - x-powers,axp803
           - x-powers,axp806
           - x-powers,axp809
