@@ -343,7 +343,7 @@ static bool id_blocked(u16 device_id)
 }
 
 static const struct xe_subplatform_desc *
-subplatform_get(const struct xe_device *xe, const struct xe_device_desc *desc)
+find_subplatform(const struct xe_device *xe, const struct xe_device_desc *desc)
 {
 	const struct xe_subplatform_desc *sp;
 	const u16 *id;
@@ -356,49 +356,12 @@ subplatform_get(const struct xe_device *xe, const struct xe_device_desc *desc)
 	return NULL;
 }
 
-static void xe_pci_remove(struct pci_dev *pdev)
+static void xe_info_init(struct xe_device *xe,
+			 const struct xe_device_desc *desc,
+			 const struct xe_subplatform_desc *subplatform_desc)
 {
-	struct xe_device *xe;
-
-	xe = pci_get_drvdata(pdev);
-	if (!xe) /* driver load aborted, nothing to cleanup */
-		return;
-
-	xe_device_remove(xe);
-	xe_pm_runtime_fini(xe);
-	pci_set_drvdata(pdev, NULL);
-}
-
-static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
-{
-	const struct xe_device_desc *desc = (void *)ent->driver_data;
-	const struct xe_subplatform_desc *spd;
-	struct xe_device *xe;
 	struct xe_gt *gt;
 	u8 id;
-	int err;
-
-	if (desc->require_force_probe && !id_forced(pdev->device)) {
-		dev_info(&pdev->dev,
-			 "Your graphics device %04x is not officially supported\n"
-			 "by xe driver in this kernel version. To force Xe probe,\n"
-			 "use xe.force_probe='%04x' and i915.force_probe='!%04x'\n"
-			 "module parameters or CONFIG_DRM_XE_FORCE_PROBE='%04x' and\n"
-			 "CONFIG_DRM_I915_FORCE_PROBE='!%04x' configuration options.\n",
-			 pdev->device, pdev->device, pdev->device,
-			 pdev->device, pdev->device);
-		return -ENODEV;
-	}
-
-	if (id_blocked(pdev->device)) {
-		dev_info(&pdev->dev, "Probe blocked for device [%04x:%04x].\n",
-			 pdev->vendor, pdev->device);
-		return -ENODEV;
-	}
-
-	xe = xe_device_create(pdev, ent);
-	if (IS_ERR(xe))
-		return PTR_ERR(xe);
 
 	xe->info.graphics_verx100 = desc->graphics_ver * 100 +
 				    desc->graphics_rel;
@@ -417,8 +380,8 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	xe->info.has_range_tlb_invalidation = desc->has_range_tlb_invalidation;
 	xe->info.has_link_copy_engine = desc->has_link_copy_engine;
 
-	spd = subplatform_get(xe, desc);
-	xe->info.subplatform = spd ? spd->subplatform : XE_SUBPLATFORM_NONE;
+	xe->info.subplatform = subplatform_desc ?
+		subplatform_desc->subplatform : XE_SUBPLATFORM_NONE;
 	xe->info.step = xe_step_get(xe);
 
 	for (id = 0; id < xe->info.tile_count; ++id) {
@@ -443,9 +406,56 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 				desc->extra_gts[id - 1].mmio_adj_offset;
 		}
 	}
+}
 
+static void xe_pci_remove(struct pci_dev *pdev)
+{
+	struct xe_device *xe;
+
+	xe = pci_get_drvdata(pdev);
+	if (!xe) /* driver load aborted, nothing to cleanup */
+		return;
+
+	xe_device_remove(xe);
+	xe_pm_runtime_fini(xe);
+	pci_set_drvdata(pdev, NULL);
+}
+
+static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+{
+	const struct xe_device_desc *desc = (void *)ent->driver_data;
+	const struct xe_subplatform_desc *subplatform_desc;
+	struct xe_device *xe;
+	int err;
+
+	if (desc->require_force_probe && !id_forced(pdev->device)) {
+		dev_info(&pdev->dev,
+			 "Your graphics device %04x is not officially supported\n"
+			 "by xe driver in this kernel version. To force Xe probe,\n"
+			 "use xe.force_probe='%04x' and i915.force_probe='!%04x'\n"
+			 "module parameters or CONFIG_DRM_XE_FORCE_PROBE='%04x' and\n"
+			 "CONFIG_DRM_I915_FORCE_PROBE='!%04x' configuration options.\n",
+			 pdev->device, pdev->device, pdev->device,
+			 pdev->device, pdev->device);
+		return -ENODEV;
+	}
+
+	if (id_blocked(pdev->device)) {
+		dev_info(&pdev->dev, "Probe blocked for device [%04x:%04x].\n",
+			 pdev->vendor, pdev->device);
+		return -ENODEV;
+	}
+
+	xe = xe_device_create(pdev, ent);
+	if (IS_ERR(xe))
+		return PTR_ERR(xe);
+
+	subplatform_desc = find_subplatform(xe, desc);
+
+	xe_info_init(xe, desc, subplatform_desc);
 	drm_dbg(&xe->drm, "%s %s %04x:%04x dgfx:%d gfx100:%d media100:%d dma_m_s:%d tc:%d",
-		desc->platform_name, spd ? spd->name : "",
+		desc->platform_name,
+		subplatform_desc ? subplatform_desc->name : "",
 		xe->info.devid, xe->info.revid,
 		xe->info.is_dgfx, xe->info.graphics_verx100,
 		xe->info.media_verx100,
