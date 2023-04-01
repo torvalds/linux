@@ -444,9 +444,10 @@ static int nv_read_register(struct amdgpu_device *adev, u32 se_num,
 	*value = 0;
 	for (i = 0; i < ARRAY_SIZE(nv_allowed_read_registers); i++) {
 		en = &nv_allowed_read_registers[i];
-		if (adev->reg_offset[en->hwip][en->inst] &&
-		    reg_offset != (adev->reg_offset[en->hwip][en->inst][en->seg]
-				   + en->reg_offset))
+		if (!adev->reg_offset[en->hwip][en->inst])
+			continue;
+		else if (reg_offset != (adev->reg_offset[en->hwip][en->inst][en->seg]
+					+ en->reg_offset))
 			continue;
 
 		*value = nv_get_register_value(adev,
@@ -1054,8 +1055,8 @@ static int nv_common_late_init(void *handle)
 			amdgpu_virt_update_sriov_video_codec(adev,
 							     sriov_sc_video_codecs_encode_array,
 							     ARRAY_SIZE(sriov_sc_video_codecs_encode_array),
-							     sriov_sc_video_codecs_decode_array_vcn1,
-							     ARRAY_SIZE(sriov_sc_video_codecs_decode_array_vcn1));
+							     sriov_sc_video_codecs_decode_array_vcn0,
+							     ARRAY_SIZE(sriov_sc_video_codecs_decode_array_vcn0));
 		}
 	}
 

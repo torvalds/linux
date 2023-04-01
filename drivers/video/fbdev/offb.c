@@ -549,10 +549,10 @@ static void offb_init_nodriver(struct platform_device *parent, struct device_nod
 	int foreign_endian = 0;
 
 #ifdef __BIG_ENDIAN
-	if (of_get_property(dp, "little-endian", NULL))
+	if (of_property_read_bool(dp, "little-endian"))
 		foreign_endian = FBINFO_FOREIGN_ENDIAN;
 #else
-	if (of_get_property(dp, "big-endian", NULL))
+	if (of_property_read_bool(dp, "big-endian"))
 		foreign_endian = FBINFO_FOREIGN_ENDIAN;
 #endif
 

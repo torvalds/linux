@@ -132,6 +132,16 @@ source "drivers/net/ethernet/mscc/Kconfig"
 source "drivers/net/ethernet/microsoft/Kconfig"
 source "drivers/net/ethernet/moxa/Kconfig"
 source "drivers/net/ethernet/myricom/Kconfig"
+
+config FEALNX
+	tristate "Myson MTD-8xx PCI Ethernet support"
+	depends on PCI
+	select CRC32
+	select MII
+	help
+	  Say Y here to support the Myson MTD-800 family of PCI-based Ethernet
+	  cards. <http://www.myson.com.tw/>
+
 source "drivers/net/ethernet/ni/Kconfig"
 source "drivers/net/ethernet/natsemi/Kconfig"
 source "drivers/net/ethernet/neterion/Kconfig"

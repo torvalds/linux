@@ -91,7 +91,7 @@ version=$KERNELRELEASE
 if [ -n "$KDEB_PKGVERSION" ]; then
 	packageversion=$KDEB_PKGVERSION
 else
-	packageversion=$version-$($srctree/init/build-version)
+	packageversion=$(${srctree}/scripts/setlocalversion --no-local ${srctree})-$($srctree/init/build-version)
 fi
 sourcename=${KDEB_SOURCENAME:-linux-upstream}
 
@@ -152,6 +152,14 @@ mkdir -p debian/patches
 } > debian/patches/config
 echo config > debian/patches/series
 
+$(dirname $0)/gen-diff-patch debian/patches/diff.patch debian/patches/untracked.patch
+if [ -f debian/patches/diff.patch ]; then
+	echo diff.patch >> debian/patches/series
+fi
+if [ -f debian/patches/untracked.patch ]; then
+	echo untracked.patch >> debian/patches/series
+fi
+
 echo $debarch > debian/arch
 extra_build_depends=", $(if_enabled_echo CONFIG_UNWINDER_ORC libelf-dev:native)"
 extra_build_depends="$extra_build_depends, $(if_enabled_echo CONFIG_SYSTEM_TRUSTED_KEYRING libssl-dev:native)"
@@ -192,7 +200,7 @@ Section: kernel
 Priority: optional
 Maintainer: $maintainer
 Rules-Requires-Root: no
-Build-Depends: bc, rsync, kmod, cpio, bison, flex $extra_build_depends
+Build-Depends: bc, debhelper, rsync, kmod, cpio, bison, flex $extra_build_depends
 Homepage: https://www.kernel.org/
 
 Package: $packagename-$version
@@ -200,6 +208,10 @@ Architecture: $debarch
 Description: Linux kernel, version $version
  This package contains the Linux kernel, modules and corresponding other
  files, version: $version.
+EOF
+
+if [ "${SRCARCH}" != um ]; then
+cat <<EOF >> debian/control
 
 Package: linux-libc-dev
 Section: devel
@@ -222,6 +234,7 @@ Description: Linux kernel headers for $version on $debarch
  This is useful for people who need to build external modules
 EOF
 fi
+fi
 
 if is_enabled CONFIG_DEBUG_INFO; then
 cat <<EOF >> debian/control
@@ -239,10 +252,12 @@ cat <<EOF > debian/rules
 #!$(command -v $MAKE) -f
 
 srctree ?= .
+KERNELRELEASE = ${KERNELRELEASE}
 
 build-indep:
 build-arch:
 	\$(MAKE) -f \$(srctree)/Makefile ARCH=${ARCH} \
+	KERNELRELEASE=\$(KERNELRELEASE) \
 	\$(shell \$(srctree)/scripts/package/deb-build-option) \
 	olddefconfig all
 
@@ -250,7 +265,9 @@ build: build-arch
 
 binary-indep:
 binary-arch: build-arch
-	\$(MAKE) -f \$(srctree)/Makefile ARCH=${ARCH} intdeb-pkg
+	\$(MAKE) -f \$(srctree)/Makefile ARCH=${ARCH} \
+	KERNELRELEASE=\$(KERNELRELEASE) intdeb-pkg
+
 clean:
 	rm -rf debian/files debian/linux-*
 	\$(MAKE) -f \$(srctree)/Makefile ARCH=${ARCH} clean

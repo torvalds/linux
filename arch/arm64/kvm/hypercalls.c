@@ -44,7 +44,7 @@ static void kvm_ptp_get_time(struct kvm_vcpu *vcpu, u64 *val)
 	feature = smccc_get_arg1(vcpu);
 	switch (feature) {
 	case KVM_PTP_VIRT_COUNTER:
-		cycles = systime_snapshot.cycles - vcpu_read_sys_reg(vcpu, CNTVOFF_EL2);
+		cycles = systime_snapshot.cycles - vcpu->kvm->arch.timer_data.voffset;
 		break;
 	case KVM_PTP_PHYS_COUNTER:
 		cycles = systime_snapshot.cycles;
