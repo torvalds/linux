@@ -4,6 +4,7 @@
  */
 
 #include <kunit/test.h>
+#include <kunit/visibility.h>
 
 #include "tests/xe_migrate_test.h"
 #include "tests/xe_pci_test.h"
@@ -409,4 +410,4 @@ void xe_migrate_sanity_kunit(struct kunit *test)
 {
 	xe_call_for_each_device(migrate_test_run_device);
 }
-EXPORT_SYMBOL(xe_migrate_sanity_kunit);
+EXPORT_SYMBOL_IF_KUNIT(xe_migrate_sanity_kunit);

@@ -4,6 +4,7 @@
  */
 
 #include <kunit/test.h>
+#include <kunit/visibility.h>
 
 #include "tests/xe_bo_test.h"
 #include "tests/xe_pci_test.h"
@@ -166,7 +167,7 @@ void xe_ccs_migrate_kunit(struct kunit *test)
 {
 	xe_call_for_each_device(ccs_test_run_device);
 }
-EXPORT_SYMBOL(xe_ccs_migrate_kunit);
+EXPORT_SYMBOL_IF_KUNIT(xe_ccs_migrate_kunit);
 
 static int evict_test_run_gt(struct xe_device *xe, struct xe_gt *gt, struct kunit *test)
 {
@@ -304,4 +305,4 @@ void xe_bo_evict_kunit(struct kunit *test)
 {
 	xe_call_for_each_device(evict_test_run_device);
 }
-EXPORT_SYMBOL(xe_bo_evict_kunit);
+EXPORT_SYMBOL_IF_KUNIT(xe_bo_evict_kunit);

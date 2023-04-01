@@ -4,6 +4,7 @@
  */
 
 #include <kunit/test.h>
+#include <kunit/visibility.h>
 
 #include "tests/xe_dma_buf_test.h"
 #include "tests/xe_pci_test.h"
@@ -259,4 +260,4 @@ void xe_dma_buf_kunit(struct kunit *test)
 {
 	xe_call_for_each_device(dma_buf_run_device);
 }
-EXPORT_SYMBOL(xe_dma_buf_kunit);
+EXPORT_SYMBOL_IF_KUNIT(xe_dma_buf_kunit);
