@@ -4,6 +4,8 @@
 
 #include <linux/bits.h>
 #include <linux/clk-provider.h>
+#include <linux/device.h>
+#include <linux/spinlock.h>
 
 /* register fields */
 #define JH7100_CLK_ENABLE	BIT(31)
