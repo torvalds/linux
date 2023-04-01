@@ -42,39 +42,40 @@ static void assert_iir_is_zero(struct xe_gt *gt, i915_reg_t reg)
 	xe_mmio_read32(gt, reg.reg);
 }
 
-static void irq_init(struct xe_gt *gt,
-		     i915_reg_t imr, u32 imr_val,
-		     i915_reg_t ier, u32 ier_val,
-		     i915_reg_t iir)
+/*
+ * Unmask and enable the specified interrupts.  Does not check current state,
+ * so any bits not specified here will become masked and disabled.
+ */
+static void unmask_and_enable(struct xe_gt *gt, u32 irqregs, u32 bits)
 {
-	assert_iir_is_zero(gt, iir);
+	/*
+	 * If we're just enabling an interrupt now, it shouldn't already
+	 * be raised in the IIR.
+	 */
+	assert_iir_is_zero(gt, IIR(irqregs));
 
-	xe_mmio_write32(gt, ier.reg, ier_val);
-	xe_mmio_write32(gt, imr.reg, imr_val);
-	xe_mmio_read32(gt, imr.reg);
+	xe_mmio_write32(gt, IER(irqregs).reg, bits);
+	xe_mmio_write32(gt, IMR(irqregs).reg, ~bits);
+
+	/* Posting read */
+	xe_mmio_read32(gt, IMR(irqregs).reg);
 }
-#define IRQ_INIT(gt, type, imr_val, ier_val) \
-	irq_init((gt), \
-		 IMR(type), imr_val, \
-		 IER(type), ier_val, \
-		 IIR(type))
 
-static void irq_reset(struct xe_gt *gt, i915_reg_t imr, i915_reg_t iir,
-			   i915_reg_t ier)
+/* Mask and disable all interrupts. */
+static void mask_and_disable(struct xe_gt *gt, u32 irqregs)
 {
-	xe_mmio_write32(gt, imr.reg, 0xffffffff);
-	xe_mmio_read32(gt, imr.reg);
+	xe_mmio_write32(gt, IMR(irqregs).reg, ~0);
+	/* Posting read */
+	xe_mmio_read32(gt, IMR(irqregs).reg);
 
-	xe_mmio_write32(gt, ier.reg, 0);
+	xe_mmio_write32(gt, IER(irqregs).reg, 0);
 
 	/* IIR can theoretically queue up two events. Be paranoid. */
-	xe_mmio_write32(gt, iir.reg, 0xffffffff);
-	xe_mmio_read32(gt, iir.reg);
-	xe_mmio_write32(gt, iir.reg, 0xffffffff);
-	xe_mmio_read32(gt, iir.reg);
+	xe_mmio_write32(gt, IIR(irqregs).reg, ~0);
+	xe_mmio_read32(gt, IIR(irqregs).reg);
+	xe_mmio_write32(gt, IIR(irqregs).reg, ~0);
+	xe_mmio_read32(gt, IIR(irqregs).reg);
 }
-#define IRQ_RESET(gt, type) \
-	irq_reset((gt), IMR(type), IIR(type), IER(type))
 
 static u32 gen11_intr_disable(struct xe_gt *gt)
 {
@@ -180,7 +181,7 @@ static void gen11_irq_postinstall(struct xe_device *xe, struct xe_gt *gt)
 
 	gen11_gt_irq_postinstall(xe, gt);
 
-	IRQ_INIT(gt, GU_MISC_IRQ_OFFSET, ~GEN11_GU_MISC_GSE, GEN11_GU_MISC_GSE);
+	unmask_and_enable(gt, GU_MISC_IRQ_OFFSET, GEN11_GU_MISC_GSE);
 
 	gen11_intr_enable(gt, true);
 }
@@ -339,7 +340,7 @@ static void dg1_irq_postinstall(struct xe_device *xe, struct xe_gt *gt)
 {
 	gen11_gt_irq_postinstall(xe, gt);
 
-	IRQ_INIT(gt, GU_MISC_IRQ_OFFSET, ~GEN11_GU_MISC_GSE, GEN11_GU_MISC_GSE);
+	unmask_and_enable(gt, GU_MISC_IRQ_OFFSET, GEN11_GU_MISC_GSE);
 
 	if (gt->info.id == XE_GT0)
 		dg1_intr_enable(xe, true);
@@ -440,8 +441,8 @@ static void gen11_irq_reset(struct xe_gt *gt)
 
 	gen11_gt_irq_reset(gt);
 
-	IRQ_RESET(gt, GU_MISC_IRQ_OFFSET);
-	IRQ_RESET(gt, PCU_IRQ_OFFSET);
+	mask_and_disable(gt, GU_MISC_IRQ_OFFSET);
+	mask_and_disable(gt, PCU_IRQ_OFFSET);
 }
 
 static void dg1_irq_reset(struct xe_gt *gt)
@@ -451,8 +452,8 @@ static void dg1_irq_reset(struct xe_gt *gt)
 
 	gen11_gt_irq_reset(gt);
 
-	IRQ_RESET(gt, GU_MISC_IRQ_OFFSET);
-	IRQ_RESET(gt, PCU_IRQ_OFFSET);
+	mask_and_disable(gt, GU_MISC_IRQ_OFFSET);
+	mask_and_disable(gt, PCU_IRQ_OFFSET);
 }
 
 static void xe_irq_reset(struct xe_device *xe)
