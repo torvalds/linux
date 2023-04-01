@@ -74,13 +74,13 @@
 
 #define PCU_IRQ_OFFSET				0x444e0
 #define GU_MISC_IRQ_OFFSET			0x444f0
-#define   GEN11_GU_MISC_GSE			(1 << 27)
+#define   GU_MISC_GSE				REG_BIT(27)
 
-#define GEN11_GFX_MSTR_IRQ			_MMIO(0x190010)
-#define   GEN11_MASTER_IRQ			(1 << 31)
-#define   GEN11_GU_MISC_IRQ			(1 << 29)
-#define   GEN11_DISPLAY_IRQ			(1 << 16)
-#define   GEN11_GT_DW_IRQ(x)			(1 << (x))
+#define GFX_MSTR_IRQ				_MMIO(0x190010)
+#define   MASTER_IRQ				REG_BIT(31)
+#define   GU_MISC_IRQ				REG_BIT(29)
+#define   DISPLAY_IRQ				REG_BIT(16)
+#define   GT_DW_IRQ(x)				REG_BIT(x)
 
 #define DG1_MSTR_TILE_INTR			_MMIO(0x190008)
 #define   DG1_MSTR_IRQ				REG_BIT(31)

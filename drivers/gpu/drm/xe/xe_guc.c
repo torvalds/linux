@@ -561,12 +561,12 @@ static void guc_enable_irq(struct xe_guc *guc)
 		REG_FIELD_PREP(ENGINE0_MASK, GUC_INTR_GUC2HOST)  :
 		REG_FIELD_PREP(ENGINE1_MASK, GUC_INTR_GUC2HOST);
 
-	xe_mmio_write32(gt, GEN11_GUC_SG_INTR_ENABLE.reg,
+	xe_mmio_write32(gt, GUC_SG_INTR_ENABLE.reg,
 			REG_FIELD_PREP(ENGINE1_MASK, GUC_INTR_GUC2HOST));
 	if (xe_gt_is_media_type(gt))
-		xe_mmio_rmw32(gt, GEN11_GUC_SG_INTR_MASK.reg, events, 0);
+		xe_mmio_rmw32(gt, GUC_SG_INTR_MASK.reg, events, 0);
 	else
-		xe_mmio_write32(gt, GEN11_GUC_SG_INTR_MASK.reg, ~events);
+		xe_mmio_write32(gt, GUC_SG_INTR_MASK.reg, ~events);
 }
 
 int xe_guc_enable_communication(struct xe_guc *guc)

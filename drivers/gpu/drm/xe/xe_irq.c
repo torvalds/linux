@@ -79,7 +79,7 @@ static void mask_and_disable(struct xe_gt *gt, u32 irqregs)
 
 static u32 gen11_intr_disable(struct xe_gt *gt)
 {
-	xe_mmio_write32(gt, GEN11_GFX_MSTR_IRQ.reg, 0);
+	xe_mmio_write32(gt, GFX_MSTR_IRQ.reg, 0);
 
 	/*
 	 * Now with master disabled, get a sample of level indications
@@ -87,7 +87,7 @@ static u32 gen11_intr_disable(struct xe_gt *gt)
 	 * New indications can and will light up during processing,
 	 * and will generate new interrupt after enabling master.
 	 */
-	return xe_mmio_read32(gt, GEN11_GFX_MSTR_IRQ.reg);
+	return xe_mmio_read32(gt, GFX_MSTR_IRQ.reg);
 }
 
 static u32
@@ -95,7 +95,7 @@ gen11_gu_misc_irq_ack(struct xe_gt *gt, const u32 master_ctl)
 {
 	u32 iir;
 
-	if (!(master_ctl & GEN11_GU_MISC_IRQ))
+	if (!(master_ctl & GU_MISC_IRQ))
 		return 0;
 
 	iir = xe_mmio_read32(gt, IIR(GU_MISC_IRQ_OFFSET).reg);
@@ -107,9 +107,9 @@ gen11_gu_misc_irq_ack(struct xe_gt *gt, const u32 master_ctl)
 
 static inline void gen11_intr_enable(struct xe_gt *gt, bool stall)
 {
-	xe_mmio_write32(gt, GEN11_GFX_MSTR_IRQ.reg, GEN11_MASTER_IRQ);
+	xe_mmio_write32(gt, GFX_MSTR_IRQ.reg, MASTER_IRQ);
 	if (stall)
-		xe_mmio_read32(gt, GEN11_GFX_MSTR_IRQ.reg);
+		xe_mmio_read32(gt, GFX_MSTR_IRQ.reg);
 }
 
 static void gen11_gt_irq_postinstall(struct xe_device *xe, struct xe_gt *gt)
@@ -132,14 +132,14 @@ static void gen11_gt_irq_postinstall(struct xe_device *xe, struct xe_gt *gt)
 	smask = irqs << 16;
 
 	/* Enable RCS, BCS, VCS and VECS class interrupts. */
-	xe_mmio_write32(gt, GEN11_RENDER_COPY_INTR_ENABLE.reg, dmask);
-	xe_mmio_write32(gt, GEN11_VCS_VECS_INTR_ENABLE.reg, dmask);
+	xe_mmio_write32(gt, RENDER_COPY_INTR_ENABLE.reg, dmask);
+	xe_mmio_write32(gt, VCS_VECS_INTR_ENABLE.reg, dmask);
 	if (ccs_mask)
-		xe_mmio_write32(gt, GEN12_CCS_RSVD_INTR_ENABLE.reg, smask);
+		xe_mmio_write32(gt, CCS_RSVD_INTR_ENABLE.reg, smask);
 
 	/* Unmask irqs on RCS, BCS, VCS and VECS engines. */
-	xe_mmio_write32(gt, GEN11_RCS0_RSVD_INTR_MASK.reg, ~smask);
-	xe_mmio_write32(gt, GEN11_BCS_RSVD_INTR_MASK.reg, ~smask);
+	xe_mmio_write32(gt, RCS0_RSVD_INTR_MASK.reg, ~smask);
+	xe_mmio_write32(gt, BCS_RSVD_INTR_MASK.reg, ~smask);
 	if (bcs_mask & (BIT(1)|BIT(2)))
 		xe_mmio_write32(gt, XEHPC_BCS1_BCS2_INTR_MASK.reg, ~dmask);
 	if (bcs_mask & (BIT(3)|BIT(4)))
@@ -148,31 +148,31 @@ static void gen11_gt_irq_postinstall(struct xe_device *xe, struct xe_gt *gt)
 		xe_mmio_write32(gt, XEHPC_BCS5_BCS6_INTR_MASK.reg, ~dmask);
 	if (bcs_mask & (BIT(7)|BIT(8)))
 		xe_mmio_write32(gt, XEHPC_BCS7_BCS8_INTR_MASK.reg, ~dmask);
-	xe_mmio_write32(gt, GEN11_VCS0_VCS1_INTR_MASK.reg, ~dmask);
-	xe_mmio_write32(gt, GEN11_VCS2_VCS3_INTR_MASK.reg, ~dmask);
+	xe_mmio_write32(gt, VCS0_VCS1_INTR_MASK.reg, ~dmask);
+	xe_mmio_write32(gt, VCS2_VCS3_INTR_MASK.reg, ~dmask);
 	//if (HAS_ENGINE(gt, VCS4) || HAS_ENGINE(gt, VCS5))
-	//	intel_uncore_write(uncore, GEN12_VCS4_VCS5_INTR_MASK, ~dmask);
+	//	intel_uncore_write(uncore, VCS4_VCS5_INTR_MASK, ~dmask);
 	//if (HAS_ENGINE(gt, VCS6) || HAS_ENGINE(gt, VCS7))
-	//	intel_uncore_write(uncore, GEN12_VCS6_VCS7_INTR_MASK, ~dmask);
-	xe_mmio_write32(gt, GEN11_VECS0_VECS1_INTR_MASK.reg, ~dmask);
+	//	intel_uncore_write(uncore, VCS6_VCS7_INTR_MASK, ~dmask);
+	xe_mmio_write32(gt, VECS0_VECS1_INTR_MASK.reg, ~dmask);
 	//if (HAS_ENGINE(gt, VECS2) || HAS_ENGINE(gt, VECS3))
-	//	intel_uncore_write(uncore, GEN12_VECS2_VECS3_INTR_MASK, ~dmask);
+	//	intel_uncore_write(uncore, VECS2_VECS3_INTR_MASK, ~dmask);
 	if (ccs_mask & (BIT(0)|BIT(1)))
-		xe_mmio_write32(gt, GEN12_CCS0_CCS1_INTR_MASK.reg, ~dmask);
+		xe_mmio_write32(gt, CCS0_CCS1_INTR_MASK.reg, ~dmask);
 	if (ccs_mask & (BIT(2)|BIT(3)))
-		xe_mmio_write32(gt,  GEN12_CCS2_CCS3_INTR_MASK.reg, ~dmask);
+		xe_mmio_write32(gt,  CCS2_CCS3_INTR_MASK.reg, ~dmask);
 
 	/*
 	 * RPS interrupts will get enabled/disabled on demand when RPS itself
 	 * is enabled/disabled.
 	 */
 	/* TODO: gt->pm_ier, gt->pm_imr */
-	xe_mmio_write32(gt, GEN11_GPM_WGBOXPERF_INTR_ENABLE.reg, 0);
-	xe_mmio_write32(gt, GEN11_GPM_WGBOXPERF_INTR_MASK.reg,  ~0);
+	xe_mmio_write32(gt, GPM_WGBOXPERF_INTR_ENABLE.reg, 0);
+	xe_mmio_write32(gt, GPM_WGBOXPERF_INTR_MASK.reg,  ~0);
 
 	/* Same thing for GuC interrupts */
-	xe_mmio_write32(gt, GEN11_GUC_SG_INTR_ENABLE.reg, 0);
-	xe_mmio_write32(gt, GEN11_GUC_SG_INTR_MASK.reg,  ~0);
+	xe_mmio_write32(gt, GUC_SG_INTR_ENABLE.reg, 0);
+	xe_mmio_write32(gt, GUC_SG_INTR_MASK.reg,  ~0);
 }
 
 static void gen11_irq_postinstall(struct xe_device *xe, struct xe_gt *gt)
@@ -181,7 +181,7 @@ static void gen11_irq_postinstall(struct xe_device *xe, struct xe_gt *gt)
 
 	gen11_gt_irq_postinstall(xe, gt);
 
-	unmask_and_enable(gt, GU_MISC_IRQ_OFFSET, GEN11_GU_MISC_GSE);
+	unmask_and_enable(gt, GU_MISC_IRQ_OFFSET, GU_MISC_GSE);
 
 	gen11_intr_enable(gt, true);
 }
@@ -197,7 +197,7 @@ gen11_gt_engine_identity(struct xe_device *xe,
 
 	lockdep_assert_held(&xe->irq.lock);
 
-	xe_mmio_write32(gt, GEN11_IIR_REG_SELECTOR(bank).reg, BIT(bit));
+	xe_mmio_write32(gt, IIR_REG_SELECTOR(bank).reg, BIT(bit));
 
 	/*
 	 * NB: Specs do not specify how long to spin wait,
@@ -205,18 +205,17 @@ gen11_gt_engine_identity(struct xe_device *xe,
 	 */
 	timeout_ts = (local_clock() >> 10) + 100;
 	do {
-		ident = xe_mmio_read32(gt, GEN11_INTR_IDENTITY_REG(bank).reg);
-	} while (!(ident & GEN11_INTR_DATA_VALID) &&
+		ident = xe_mmio_read32(gt, INTR_IDENTITY_REG(bank).reg);
+	} while (!(ident & INTR_DATA_VALID) &&
 		 !time_after32(local_clock() >> 10, timeout_ts));
 
-	if (unlikely(!(ident & GEN11_INTR_DATA_VALID))) {
+	if (unlikely(!(ident & INTR_DATA_VALID))) {
 		drm_err(&xe->drm, "INTR_IDENTITY_REG%u:%u 0x%08x not valid!\n",
 			bank, bit, ident);
 		return 0;
 	}
 
-	xe_mmio_write32(gt, GEN11_INTR_IDENTITY_REG(bank).reg,
-			GEN11_INTR_DATA_VALID);
+	xe_mmio_write32(gt, INTR_IDENTITY_REG(bank).reg, INTR_DATA_VALID);
 
 	return ident;
 }
@@ -250,24 +249,24 @@ static void gen11_gt_irq_handler(struct xe_device *xe, struct xe_gt *gt,
 	spin_lock(&xe->irq.lock);
 
 	for (bank = 0; bank < 2; bank++) {
-		if (!(master_ctl & GEN11_GT_DW_IRQ(bank)))
+		if (!(master_ctl & GT_DW_IRQ(bank)))
 			continue;
 
 		if (!xe_gt_is_media_type(gt)) {
 			intr_dw[bank] =
-				xe_mmio_read32(gt, GEN11_GT_INTR_DW(bank).reg);
+				xe_mmio_read32(gt, GT_INTR_DW(bank).reg);
 			for_each_set_bit(bit, intr_dw + bank, 32)
 				identity[bit] = gen11_gt_engine_identity(xe, gt,
 									 bank,
 									 bit);
-			xe_mmio_write32(gt, GEN11_GT_INTR_DW(bank).reg,
+			xe_mmio_write32(gt, GT_INTR_DW(bank).reg,
 					intr_dw[bank]);
 		}
 
 		for_each_set_bit(bit, intr_dw + bank, 32) {
-			class = GEN11_INTR_ENGINE_CLASS(identity[bit]);
-			instance = GEN11_INTR_ENGINE_INSTANCE(identity[bit]);
-			intr_vec = GEN11_INTR_ENGINE_INTR(identity[bit]);
+			class = INTR_ENGINE_CLASS(identity[bit]);
+			instance = INTR_ENGINE_INSTANCE(identity[bit]);
+			intr_vec = INTR_ENGINE_INTR(identity[bit]);
 
 			if (class == XE_ENGINE_CLASS_OTHER) {
 				gen11_gt_other_irq_handler(gt, instance,
@@ -340,7 +339,7 @@ static void dg1_irq_postinstall(struct xe_device *xe, struct xe_gt *gt)
 {
 	gen11_gt_irq_postinstall(xe, gt);
 
-	unmask_and_enable(gt, GU_MISC_IRQ_OFFSET, GEN11_GU_MISC_GSE);
+	unmask_and_enable(gt, GU_MISC_IRQ_OFFSET, GU_MISC_GSE);
 
 	if (gt->info.id == XE_GT0)
 		dg1_intr_enable(xe, true);
@@ -368,7 +367,7 @@ static irqreturn_t dg1_irq_handler(int irq, void *arg)
 			continue;
 
 		if (!xe_gt_is_media_type(gt))
-			master_ctl = xe_mmio_read32(gt, GEN11_GFX_MSTR_IRQ.reg);
+			master_ctl = xe_mmio_read32(gt, GFX_MSTR_IRQ.reg);
 
 		/*
 		 * We might be in irq handler just when PCIe DPC is initiated
@@ -382,7 +381,7 @@ static irqreturn_t dg1_irq_handler(int irq, void *arg)
 		}
 
 		if (!xe_gt_is_media_type(gt))
-			xe_mmio_write32(gt, GEN11_GFX_MSTR_IRQ.reg, master_ctl);
+			xe_mmio_write32(gt, GFX_MSTR_IRQ.reg, master_ctl);
 		gen11_gt_irq_handler(xe, gt, master_ctl, intr_dw, identity);
 	}
 
@@ -399,14 +398,14 @@ static void gen11_gt_irq_reset(struct xe_gt *gt)
 	u32 bcs_mask = xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_COPY);
 
 	/* Disable RCS, BCS, VCS and VECS class engines. */
-	xe_mmio_write32(gt, GEN11_RENDER_COPY_INTR_ENABLE.reg,	 0);
-	xe_mmio_write32(gt, GEN11_VCS_VECS_INTR_ENABLE.reg,	 0);
+	xe_mmio_write32(gt, RENDER_COPY_INTR_ENABLE.reg,	 0);
+	xe_mmio_write32(gt, VCS_VECS_INTR_ENABLE.reg,	 0);
 	if (ccs_mask)
-		xe_mmio_write32(gt, GEN12_CCS_RSVD_INTR_ENABLE.reg, 0);
+		xe_mmio_write32(gt, CCS_RSVD_INTR_ENABLE.reg, 0);
 
 	/* Restore masks irqs on RCS, BCS, VCS and VECS engines. */
-	xe_mmio_write32(gt, GEN11_RCS0_RSVD_INTR_MASK.reg,	~0);
-	xe_mmio_write32(gt, GEN11_BCS_RSVD_INTR_MASK.reg,	~0);
+	xe_mmio_write32(gt, RCS0_RSVD_INTR_MASK.reg,	~0);
+	xe_mmio_write32(gt, BCS_RSVD_INTR_MASK.reg,	~0);
 	if (bcs_mask & (BIT(1)|BIT(2)))
 		xe_mmio_write32(gt, XEHPC_BCS1_BCS2_INTR_MASK.reg, ~0);
 	if (bcs_mask & (BIT(3)|BIT(4)))
@@ -415,24 +414,24 @@ static void gen11_gt_irq_reset(struct xe_gt *gt)
 		xe_mmio_write32(gt, XEHPC_BCS5_BCS6_INTR_MASK.reg, ~0);
 	if (bcs_mask & (BIT(7)|BIT(8)))
 		xe_mmio_write32(gt, XEHPC_BCS7_BCS8_INTR_MASK.reg, ~0);
-	xe_mmio_write32(gt, GEN11_VCS0_VCS1_INTR_MASK.reg,	~0);
-	xe_mmio_write32(gt, GEN11_VCS2_VCS3_INTR_MASK.reg,	~0);
+	xe_mmio_write32(gt, VCS0_VCS1_INTR_MASK.reg,	~0);
+	xe_mmio_write32(gt, VCS2_VCS3_INTR_MASK.reg,	~0);
 //	if (HAS_ENGINE(gt, VCS4) || HAS_ENGINE(gt, VCS5))
-//		xe_mmio_write32(xe, GEN12_VCS4_VCS5_INTR_MASK.reg,   ~0);
+//		xe_mmio_write32(xe, VCS4_VCS5_INTR_MASK.reg,   ~0);
 //	if (HAS_ENGINE(gt, VCS6) || HAS_ENGINE(gt, VCS7))
-//		xe_mmio_write32(xe, GEN12_VCS6_VCS7_INTR_MASK.reg,   ~0);
-	xe_mmio_write32(gt, GEN11_VECS0_VECS1_INTR_MASK.reg,	~0);
+//		xe_mmio_write32(xe, VCS6_VCS7_INTR_MASK.reg,   ~0);
+	xe_mmio_write32(gt, VECS0_VECS1_INTR_MASK.reg,	~0);
 //	if (HAS_ENGINE(gt, VECS2) || HAS_ENGINE(gt, VECS3))
-//		xe_mmio_write32(xe, GEN12_VECS2_VECS3_INTR_MASK.reg, ~0);
+//		xe_mmio_write32(xe, VECS2_VECS3_INTR_MASK.reg, ~0);
 	if (ccs_mask & (BIT(0)|BIT(1)))
-		xe_mmio_write32(gt, GEN12_CCS0_CCS1_INTR_MASK.reg, ~0);
+		xe_mmio_write32(gt, CCS0_CCS1_INTR_MASK.reg, ~0);
 	if (ccs_mask & (BIT(2)|BIT(3)))
-		xe_mmio_write32(gt,  GEN12_CCS2_CCS3_INTR_MASK.reg, ~0);
+		xe_mmio_write32(gt,  CCS2_CCS3_INTR_MASK.reg, ~0);
 
-	xe_mmio_write32(gt, GEN11_GPM_WGBOXPERF_INTR_ENABLE.reg, 0);
-	xe_mmio_write32(gt, GEN11_GPM_WGBOXPERF_INTR_MASK.reg,  ~0);
-	xe_mmio_write32(gt, GEN11_GUC_SG_INTR_ENABLE.reg,	 0);
-	xe_mmio_write32(gt, GEN11_GUC_SG_INTR_MASK.reg,		~0);
+	xe_mmio_write32(gt, GPM_WGBOXPERF_INTR_ENABLE.reg, 0);
+	xe_mmio_write32(gt, GPM_WGBOXPERF_INTR_MASK.reg,  ~0);
+	xe_mmio_write32(gt, GUC_SG_INTR_ENABLE.reg,	 0);
+	xe_mmio_write32(gt, GUC_SG_INTR_MASK.reg,		~0);
 }
 
 static void gen11_irq_reset(struct xe_gt *gt)
