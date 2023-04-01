@@ -10,7 +10,7 @@
 #include <linux/device.h>
 #include <linux/io.h>
 
-#include "clk-starfive-jh7100.h"
+#include "clk-starfive-jh71x0.h"
 
 static struct jh7100_clk *jh7100_clk_from(struct clk_hw *hw)
 {
