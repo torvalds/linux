@@ -34,6 +34,7 @@ MODULE_DESCRIPTION("s390 protected key interface");
 #define KEYBLOBBUFSIZE 8192	/* key buffer size used for internal processing */
 #define PROTKEYBLOBBUFSIZE 256	/* protected key buffer size used internal */
 #define MAXAPQNSINLIST 64	/* max 64 apqns within a apqn list */
+#define AES_WK_VP_SIZE 32	/* Size of WK VP block appended to a prot key */
 
 /*
  * debug feature data and functions
@@ -82,11 +83,10 @@ struct clearaeskeytoken {
 } __packed;
 
 /*
- * Create a protected key from a clear key value.
+ * Create a protected key from a clear key value via PCKMO instruction.
  */
-static int pkey_clr2protkey(u32 keytype,
-			    const struct pkey_clrkey *clrkey,
-			    struct pkey_protkey *protkey)
+static int pkey_clr2protkey(u32 keytype, const u8 *clrkey,
+			    u8 *protkey, u32 *protkeylen, u32 *protkeytype)
 {
 	/* mask of available pckmo subfunctions */
 	static cpacf_mask_t pckmo_functions;
@@ -109,8 +109,14 @@ static int pkey_clr2protkey(u32 keytype,
 		fc = CPACF_PCKMO_ENC_AES_256_KEY;
 		break;
 	default:
-		DEBUG_ERR("%s unknown/unsupported keytype %d\n",
+		DEBUG_ERR("%s unknown/unsupported keytype %u\n",
 			  __func__, keytype);
+		return -EINVAL;
+	}
+
+	if (*protkeylen < keysize + AES_WK_VP_SIZE) {
+		DEBUG_ERR("%s prot key buffer size too small: %u < %d\n",
+			  __func__, *protkeylen, keysize + AES_WK_VP_SIZE);
 		return -EINVAL;
 	}
 
@@ -128,15 +134,15 @@ static int pkey_clr2protkey(u32 keytype,
 
 	/* prepare param block */
 	memset(paramblock, 0, sizeof(paramblock));
-	memcpy(paramblock, clrkey->clrkey, keysize);
+	memcpy(paramblock, clrkey, keysize);
 
 	/* call the pckmo instruction */
 	cpacf_pckmo(fc, paramblock);
 
-	/* copy created protected key */
-	protkey->type = keytype;
-	protkey->len = keysize + 32;
-	memcpy(protkey->protkey, paramblock, keysize + 32);
+	/* copy created protected key to key buffer including the wkvp block */
+	*protkeylen = keysize + AES_WK_VP_SIZE;
+	memcpy(protkey, paramblock, *protkeylen);
+	*protkeytype = keytype;
 
 	return 0;
 }
@@ -144,7 +150,8 @@ static int pkey_clr2protkey(u32 keytype,
 /*
  * Find card and transform secure key into protected key.
  */
-static int pkey_skey2pkey(const u8 *key, struct pkey_protkey *pkey)
+static int pkey_skey2pkey(const u8 *key, u8 *protkey,
+			  u32 *protkeylen, u32 *protkeytype)
 {
 	struct keytoken_header *hdr = (struct keytoken_header *)key;
 	u16 cardnr, domain;
@@ -167,14 +174,13 @@ static int pkey_skey2pkey(const u8 *key, struct pkey_protkey *pkey)
 			continue;
 		switch (hdr->version) {
 		case TOKVER_CCA_AES:
-			rc = cca_sec2protkey(cardnr, domain,
-					     key, pkey->protkey,
-					     &pkey->len, &pkey->type);
+			rc = cca_sec2protkey(cardnr, domain, key,
+					     protkey, protkeylen, protkeytype);
 			break;
 		case TOKVER_CCA_VLSC:
-			rc = cca_cipher2protkey(cardnr, domain,
-						key, pkey->protkey,
-						&pkey->len, &pkey->type);
+			rc = cca_cipher2protkey(cardnr, domain, key,
+						protkey, protkeylen,
+						protkeytype);
 			break;
 		default:
 			return -EINVAL;
@@ -227,7 +233,8 @@ out:
 /*
  * Find card and transform EP11 secure key into protected key.
  */
-static int pkey_ep11key2pkey(const u8 *key, struct pkey_protkey *pkey)
+static int pkey_ep11key2pkey(const u8 *key, u8 *protkey,
+			     u32 *protkeylen, u32 *protkeytype)
 {
 	struct ep11keyblob *kb = (struct ep11keyblob *)key;
 	u32 nr_apqns, *apqns = NULL;
@@ -246,9 +253,8 @@ static int pkey_ep11key2pkey(const u8 *key, struct pkey_protkey *pkey)
 	for (rc = -ENODEV, i = 0; i < nr_apqns; i++) {
 		card = apqns[i] >> 16;
 		dom = apqns[i] & 0xFFFF;
-		pkey->len = sizeof(pkey->protkey);
 		rc = ep11_kblob2protkey(card, dom, key, kb->head.len,
-					pkey->protkey, &pkey->len, &pkey->type);
+					protkey, protkeylen, protkeytype);
 		if (rc == 0)
 			break;
 	}
@@ -306,9 +312,10 @@ out:
 /*
  * Generate a random protected key
  */
-static int pkey_genprotkey(u32 keytype, struct pkey_protkey *protkey)
+static int pkey_genprotkey(u32 keytype, u8 *protkey,
+			   u32 *protkeylen, u32 *protkeytype)
 {
-	struct pkey_clrkey clrkey;
+	u8 clrkey[32];
 	int keysize;
 	int rc;
 
@@ -329,15 +336,16 @@ static int pkey_genprotkey(u32 keytype, struct pkey_protkey *protkey)
 	}
 
 	/* generate a dummy random clear key */
-	get_random_bytes(clrkey.clrkey, keysize);
+	get_random_bytes(clrkey, keysize);
 
 	/* convert it to a dummy protected key */
-	rc = pkey_clr2protkey(keytype, &clrkey, protkey);
+	rc = pkey_clr2protkey(keytype, clrkey,
+			      protkey, protkeylen, protkeytype);
 	if (rc)
 		return rc;
 
 	/* replace the key part of the protected key with random bytes */
-	get_random_bytes(protkey->protkey, keysize);
+	get_random_bytes(protkey, keysize);
 
 	return 0;
 }
@@ -345,7 +353,8 @@ static int pkey_genprotkey(u32 keytype, struct pkey_protkey *protkey)
 /*
  * Verify if a protected key is still valid
  */
-static int pkey_verifyprotkey(const struct pkey_protkey *protkey)
+static int pkey_verifyprotkey(const u8 *protkey, u32 protkeylen,
+			      u32 protkeytype)
 {
 	struct {
 		u8 iv[AES_BLOCK_SIZE];
@@ -353,29 +362,37 @@ static int pkey_verifyprotkey(const struct pkey_protkey *protkey)
 	} param;
 	u8 null_msg[AES_BLOCK_SIZE];
 	u8 dest_buf[AES_BLOCK_SIZE];
+	unsigned int k, pkeylen;
 	unsigned long fc;
-	unsigned int k;
 
-	switch (protkey->type) {
+	switch (protkeytype) {
 	case PKEY_KEYTYPE_AES_128:
+		pkeylen = 16 + AES_WK_VP_SIZE;
 		fc = CPACF_KMC_PAES_128;
 		break;
 	case PKEY_KEYTYPE_AES_192:
+		pkeylen = 24 + AES_WK_VP_SIZE;
 		fc = CPACF_KMC_PAES_192;
 		break;
 	case PKEY_KEYTYPE_AES_256:
+		pkeylen = 32 + AES_WK_VP_SIZE;
 		fc = CPACF_KMC_PAES_256;
 		break;
 	default:
-		DEBUG_ERR("%s unknown/unsupported keytype %d\n", __func__,
-			  protkey->type);
+		DEBUG_ERR("%s unknown/unsupported keytype %u\n", __func__,
+			  protkeytype);
+		return -EINVAL;
+	}
+	if (protkeylen != pkeylen) {
+		DEBUG_ERR("%s invalid protected key size %u for keytype %u\n",
+			  __func__, protkeylen, protkeytype);
 		return -EINVAL;
 	}
 
 	memset(null_msg, 0, sizeof(null_msg));
 
 	memset(param.iv, 0, sizeof(param.iv));
-	memcpy(param.key, protkey->protkey, sizeof(param.key));
+	memcpy(param.key, protkey, protkeylen);
 
 	k = cpacf_kmc(fc | CPACF_ENCRYPT, &param, null_msg, dest_buf,
 		      sizeof(null_msg));
@@ -391,7 +408,7 @@ static int pkey_verifyprotkey(const struct pkey_protkey *protkey)
  * Transform a non-CCA key token into a protected key
  */
 static int pkey_nonccatok2pkey(const u8 *key, u32 keylen,
-			       struct pkey_protkey *protkey)
+			       u8 *protkey, u32 *protkeylen, u32 *protkeytype)
 {
 	struct keytoken_header *hdr = (struct keytoken_header *)key;
 	u8 *tmpbuf = NULL;
@@ -404,11 +421,12 @@ static int pkey_nonccatok2pkey(const u8 *key, u32 keylen,
 		if (keylen != sizeof(struct protaeskeytoken))
 			goto out;
 		t = (struct protaeskeytoken *)key;
-		protkey->len = t->len;
-		protkey->type = t->keytype;
-		memcpy(protkey->protkey, t->protkey,
-		       sizeof(protkey->protkey));
-		rc = pkey_verifyprotkey(protkey);
+		rc = pkey_verifyprotkey(t->protkey, t->len, t->keytype);
+		if (rc)
+			goto out;
+		memcpy(protkey, t->protkey, t->len);
+		*protkeylen = t->len;
+		*protkeytype = t->keytype;
 		break;
 	}
 	case TOKVER_CLEAR_KEY: {
@@ -438,7 +456,8 @@ static int pkey_nonccatok2pkey(const u8 *key, u32 keylen,
 			goto out;
 		}
 		/* try direct way with the PCKMO instruction */
-		rc = pkey_clr2protkey(t->keytype, &ckey, protkey);
+		rc = pkey_clr2protkey(t->keytype, ckey.clrkey,
+				      protkey, protkeylen, protkeytype);
 		if (rc == 0)
 			break;
 		/* PCKMO failed, so try the CCA secure key way */
@@ -446,14 +465,16 @@ static int pkey_nonccatok2pkey(const u8 *key, u32 keylen,
 		rc = cca_clr2seckey(0xFFFF, 0xFFFF, t->keytype,
 				    ckey.clrkey, tmpbuf);
 		if (rc == 0)
-			rc = pkey_skey2pkey(tmpbuf, protkey);
+			rc = pkey_skey2pkey(tmpbuf,
+					    protkey, protkeylen, protkeytype);
 		if (rc == 0)
 			break;
 		/* if the CCA way also failed, let's try via EP11 */
 		rc = pkey_clr2ep11key(ckey.clrkey, t->len,
 				      tmpbuf, &tmpbuflen);
 		if (rc == 0)
-			rc = pkey_ep11key2pkey(tmpbuf, protkey);
+			rc = pkey_ep11key2pkey(tmpbuf,
+					       protkey, protkeylen, protkeytype);
 		/* now we should really have an protected key */
 		DEBUG_ERR("%s unable to build protected key from clear",
 			  __func__);
@@ -464,7 +485,8 @@ static int pkey_nonccatok2pkey(const u8 *key, u32 keylen,
 		rc = ep11_check_aes_key(debug_info, 3, key, keylen, 1);
 		if (rc)
 			goto out;
-		rc = pkey_ep11key2pkey(key, protkey);
+		rc = pkey_ep11key2pkey(key,
+				       protkey, protkeylen, protkeytype);
 		break;
 	}
 	case TOKVER_EP11_AES_WITH_HEADER:
@@ -473,7 +495,7 @@ static int pkey_nonccatok2pkey(const u8 *key, u32 keylen,
 		if (rc)
 			goto out;
 		rc = pkey_ep11key2pkey(key + sizeof(struct ep11kblob_header),
-				       protkey);
+				       protkey, protkeylen, protkeytype);
 		break;
 	default:
 		DEBUG_ERR("%s unknown/unsupported non-CCA token version %d\n",
@@ -490,7 +512,7 @@ out:
  * Transform a CCA internal key token into a protected key
  */
 static int pkey_ccainttok2pkey(const u8 *key, u32 keylen,
-			       struct pkey_protkey *protkey)
+			       u8 *protkey, u32 *protkeylen, u32 *protkeytype)
 {
 	struct keytoken_header *hdr = (struct keytoken_header *)key;
 
@@ -509,14 +531,14 @@ static int pkey_ccainttok2pkey(const u8 *key, u32 keylen,
 		return -EINVAL;
 	}
 
-	return pkey_skey2pkey(key, protkey);
+	return pkey_skey2pkey(key, protkey, protkeylen, protkeytype);
 }
 
 /*
  * Transform a key blob (of any type) into a protected key
  */
 int pkey_keyblob2pkey(const u8 *key, u32 keylen,
-		      struct pkey_protkey *protkey)
+		      u8 *protkey, u32 *protkeylen, u32 *protkeytype)
 {
 	struct keytoken_header *hdr = (struct keytoken_header *)key;
 	int rc;
@@ -528,10 +550,12 @@ int pkey_keyblob2pkey(const u8 *key, u32 keylen,
 
 	switch (hdr->type) {
 	case TOKTYPE_NON_CCA:
-		rc = pkey_nonccatok2pkey(key, keylen, protkey);
+		rc = pkey_nonccatok2pkey(key, keylen,
+					 protkey, protkeylen, protkeytype);
 		break;
 	case TOKTYPE_CCA_INTERNAL:
-		rc = pkey_ccainttok2pkey(key, keylen, protkey);
+		rc = pkey_ccainttok2pkey(key, keylen,
+					 protkey, protkeylen, protkeytype);
 		break;
 	default:
 		DEBUG_ERR("%s unknown/unsupported blob type %d\n",
@@ -771,7 +795,7 @@ out:
 
 static int pkey_keyblob2pkey2(const struct pkey_apqn *apqns, size_t nr_apqns,
 			      const u8 *key, size_t keylen,
-			      struct pkey_protkey *pkey)
+			      u8 *protkey, u32 *protkeylen, u32 *protkeytype)
 {
 	struct keytoken_header *hdr = (struct keytoken_header *)key;
 	int i, card, dom, rc;
@@ -806,7 +830,9 @@ static int pkey_keyblob2pkey2(const struct pkey_apqn *apqns, size_t nr_apqns,
 			if (ep11_check_aes_key(debug_info, 3, key, keylen, 1))
 				return -EINVAL;
 		} else {
-			return pkey_nonccatok2pkey(key, keylen, pkey);
+			return pkey_nonccatok2pkey(key, keylen,
+						   protkey, protkeylen,
+						   protkeytype);
 		}
 	} else {
 		DEBUG_ERR("%s unknown/unsupported blob type %d\n",
@@ -822,20 +848,20 @@ static int pkey_keyblob2pkey2(const struct pkey_apqn *apqns, size_t nr_apqns,
 		dom = apqns[i].domain;
 		if (hdr->type == TOKTYPE_CCA_INTERNAL &&
 		    hdr->version == TOKVER_CCA_AES) {
-			rc = cca_sec2protkey(card, dom, key, pkey->protkey,
-					     &pkey->len, &pkey->type);
+			rc = cca_sec2protkey(card, dom, key,
+					     protkey, protkeylen, protkeytype);
 		} else if (hdr->type == TOKTYPE_CCA_INTERNAL &&
 			   hdr->version == TOKVER_CCA_VLSC) {
-			rc = cca_cipher2protkey(card, dom, key, pkey->protkey,
-						&pkey->len, &pkey->type);
+			rc = cca_cipher2protkey(card, dom, key,
+						protkey, protkeylen,
+						protkeytype);
 		} else {
 			/* EP11 AES secure key blob */
 			struct ep11keyblob *kb = (struct ep11keyblob *)key;
 
-			pkey->len = sizeof(pkey->protkey);
 			rc = ep11_kblob2protkey(card, dom, key, kb->head.len,
-						pkey->protkey, &pkey->len,
-						&pkey->type);
+						protkey, protkeylen,
+						protkeytype);
 		}
 		if (rc == 0)
 			break;
@@ -1020,8 +1046,8 @@ out:
 }
 
 static int pkey_keyblob2pkey3(const struct pkey_apqn *apqns, size_t nr_apqns,
-			      const u8 *key, size_t keylen, u32 *protkeytype,
-			      u8 *protkey, u32 *protkeylen)
+			      const u8 *key, size_t keylen,
+			      u8 *protkey, u32 *protkeylen, u32 *protkeytype)
 {
 	struct keytoken_header *hdr = (struct keytoken_header *)key;
 	int i, card, dom, rc;
@@ -1076,15 +1102,8 @@ static int pkey_keyblob2pkey3(const struct pkey_apqn *apqns, size_t nr_apqns,
 		if (cca_check_sececckeytoken(debug_info, 3, key, keylen, 1))
 			return -EINVAL;
 	} else if (hdr->type == TOKTYPE_NON_CCA) {
-		struct pkey_protkey pkey;
-
-		rc = pkey_nonccatok2pkey(key, keylen, &pkey);
-		if (rc)
-			return rc;
-		memcpy(protkey, pkey.protkey, pkey.len);
-		*protkeylen = pkey.len;
-		*protkeytype = pkey.type;
-		return 0;
+		return pkey_nonccatok2pkey(key, keylen,
+					   protkey, protkeylen, protkeytype);
 	} else {
 		DEBUG_ERR("%s unknown/unsupported blob type %d\n",
 			  __func__, hdr->type);
@@ -1187,6 +1206,7 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 
 		if (copy_from_user(&ksp, usp, sizeof(ksp)))
 			return -EFAULT;
+		ksp.protkey.len = sizeof(ksp.protkey.protkey);
 		rc = cca_sec2protkey(ksp.cardnr, ksp.domain,
 				     ksp.seckey.seckey, ksp.protkey.protkey,
 				     &ksp.protkey.len, &ksp.protkey.type);
@@ -1203,8 +1223,10 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 
 		if (copy_from_user(&kcp, ucp, sizeof(kcp)))
 			return -EFAULT;
-		rc = pkey_clr2protkey(kcp.keytype,
-				      &kcp.clrkey, &kcp.protkey);
+		kcp.protkey.len = sizeof(kcp.protkey.protkey);
+		rc = pkey_clr2protkey(kcp.keytype, kcp.clrkey.clrkey,
+				      kcp.protkey.protkey,
+				      &kcp.protkey.len, &kcp.protkey.type);
 		DEBUG_DBG("%s pkey_clr2protkey()=%d\n", __func__, rc);
 		if (rc)
 			break;
@@ -1234,7 +1256,9 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 
 		if (copy_from_user(&ksp, usp, sizeof(ksp)))
 			return -EFAULT;
-		rc = pkey_skey2pkey(ksp.seckey.seckey, &ksp.protkey);
+		ksp.protkey.len = sizeof(ksp.protkey.protkey);
+		rc = pkey_skey2pkey(ksp.seckey.seckey, ksp.protkey.protkey,
+				    &ksp.protkey.len, &ksp.protkey.type);
 		DEBUG_DBG("%s pkey_skey2pkey()=%d\n", __func__, rc);
 		if (rc)
 			break;
@@ -1263,7 +1287,9 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 
 		if (copy_from_user(&kgp, ugp, sizeof(kgp)))
 			return -EFAULT;
-		rc = pkey_genprotkey(kgp.keytype, &kgp.protkey);
+		kgp.protkey.len = sizeof(kgp.protkey.protkey);
+		rc = pkey_genprotkey(kgp.keytype, kgp.protkey.protkey,
+				     &kgp.protkey.len, &kgp.protkey.type);
 		DEBUG_DBG("%s pkey_genprotkey()=%d\n", __func__, rc);
 		if (rc)
 			break;
@@ -1277,7 +1303,8 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 
 		if (copy_from_user(&kvp, uvp, sizeof(kvp)))
 			return -EFAULT;
-		rc = pkey_verifyprotkey(&kvp.protkey);
+		rc = pkey_verifyprotkey(kvp.protkey.protkey,
+					kvp.protkey.len, kvp.protkey.type);
 		DEBUG_DBG("%s pkey_verifyprotkey()=%d\n", __func__, rc);
 		break;
 	}
@@ -1291,7 +1318,9 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 		kkey = _copy_key_from_user(ktp.key, ktp.keylen);
 		if (IS_ERR(kkey))
 			return PTR_ERR(kkey);
-		rc = pkey_keyblob2pkey(kkey, ktp.keylen, &ktp.protkey);
+		ktp.protkey.len = sizeof(ktp.protkey.protkey);
+		rc = pkey_keyblob2pkey(kkey, ktp.keylen, ktp.protkey.protkey,
+				       &ktp.protkey.len, &ktp.protkey.type);
 		DEBUG_DBG("%s pkey_keyblob2pkey()=%d\n", __func__, rc);
 		memzero_explicit(kkey, ktp.keylen);
 		kfree(kkey);
@@ -1423,8 +1452,11 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 			kfree(apqns);
 			return PTR_ERR(kkey);
 		}
+		ktp.protkey.len = sizeof(ktp.protkey.protkey);
 		rc = pkey_keyblob2pkey2(apqns, ktp.apqn_entries,
-					kkey, ktp.keylen, &ktp.protkey);
+					kkey, ktp.keylen,
+					ktp.protkey.protkey, &ktp.protkey.len,
+					&ktp.protkey.type);
 		DEBUG_DBG("%s pkey_keyblob2pkey2()=%d\n", __func__, rc);
 		kfree(apqns);
 		memzero_explicit(kkey, ktp.keylen);
@@ -1549,9 +1581,9 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 			kfree(kkey);
 			return -ENOMEM;
 		}
-		rc = pkey_keyblob2pkey3(apqns, ktp.apqn_entries, kkey,
-					ktp.keylen, &ktp.pkeytype,
-					protkey, &protkeylen);
+		rc = pkey_keyblob2pkey3(apqns, ktp.apqn_entries,
+					kkey, ktp.keylen,
+					protkey, &protkeylen, &ktp.pkeytype);
 		DEBUG_DBG("%s pkey_keyblob2pkey3()=%d\n", __func__, rc);
 		kfree(apqns);
 		memzero_explicit(kkey, ktp.keylen);
@@ -1612,7 +1644,9 @@ static ssize_t pkey_protkey_aes_attr_read(u32 keytype, bool is_xts, char *buf,
 	protkeytoken.version = TOKVER_PROTECTED_KEY;
 	protkeytoken.keytype = keytype;
 
-	rc = pkey_genprotkey(protkeytoken.keytype, &protkey);
+	protkey.len = sizeof(protkey.protkey);
+	rc = pkey_genprotkey(protkeytoken.keytype,
+			     protkey.protkey, &protkey.len, &protkey.type);
 	if (rc)
 		return rc;
 
@@ -1622,7 +1656,10 @@ static ssize_t pkey_protkey_aes_attr_read(u32 keytype, bool is_xts, char *buf,
 	memcpy(buf, &protkeytoken, sizeof(protkeytoken));
 
 	if (is_xts) {
-		rc = pkey_genprotkey(protkeytoken.keytype, &protkey);
+		/* xts needs a second protected key, reuse protkey struct */
+		protkey.len = sizeof(protkey.protkey);
+		rc = pkey_genprotkey(protkeytoken.keytype,
+				     protkey.protkey, &protkey.len, &protkey.type);
 		if (rc)
 			return rc;
 
