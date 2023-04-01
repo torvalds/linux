@@ -82,6 +82,13 @@ static bool compatible_entries(const struct xe_reg_sr_entry *e1,
 	return true;
 }
 
+static void reg_sr_inc_error(struct xe_reg_sr *sr)
+{
+#if IS_ENABLED(CONFIG_DRM_XE_KUNIT_TEST)
+	sr->errors++;
+#endif
+}
+
 int xe_reg_sr_add(struct xe_reg_sr *sr, u32 reg,
 		  const struct xe_reg_sr_entry *e)
 {
@@ -119,6 +126,7 @@ fail:
 	DRM_ERROR("Discarding save-restore reg %04lx (clear: %08x, set: %08x, masked: %s): ret=%d\n",
 		  idx, e->clr_bits, e->set_bits,
 		  str_yes_no(e->masked_reg), ret);
+	reg_sr_inc_error(sr);
 
 	return ret;
 }

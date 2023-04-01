@@ -32,6 +32,10 @@ struct xe_reg_sr {
 	} pool;
 	struct xarray xa;
 	const char *name;
+
+#if IS_ENABLED(CONFIG_DRM_XE_KUNIT_TEST)
+	unsigned int errors;
+#endif
 };
 
 #endif
