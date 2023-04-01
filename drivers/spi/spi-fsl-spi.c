@@ -145,10 +145,10 @@ static void fsl_spi_grlib_set_shifts(u32 *rx_shift, u32 *tx_shift,
 	}
 }
 
-static int mspi_apply_cpu_mode_quirks(struct spi_mpc8xxx_cs *cs,
-				struct spi_device *spi,
-				struct mpc8xxx_spi *mpc8xxx_spi,
-				int bits_per_word)
+static void mspi_apply_cpu_mode_quirks(struct spi_mpc8xxx_cs *cs,
+				       struct spi_device *spi,
+				       struct mpc8xxx_spi *mpc8xxx_spi,
+				       int bits_per_word)
 {
 	cs->rx_shift = 0;
 	cs->tx_shift = 0;
@@ -161,8 +161,7 @@ static int mspi_apply_cpu_mode_quirks(struct spi_mpc8xxx_cs *cs,
 	} else if (bits_per_word <= 32) {
 		cs->get_rx = mpc8xxx_spi_rx_buf_u32;
 		cs->get_tx = mpc8xxx_spi_tx_buf_u32;
-	} else
-		return -EINVAL;
+	}
 
 	if (mpc8xxx_spi->set_shifts)
 		mpc8xxx_spi->set_shifts(&cs->rx_shift, &cs->tx_shift,
@@ -173,8 +172,6 @@ static int mspi_apply_cpu_mode_quirks(struct spi_mpc8xxx_cs *cs,
 	mpc8xxx_spi->tx_shift = cs->tx_shift;
 	mpc8xxx_spi->get_rx = cs->get_rx;
 	mpc8xxx_spi->get_tx = cs->get_tx;
-
-	return bits_per_word;
 }
 
 static int fsl_spi_setup_transfer(struct spi_device *spi,
@@ -201,12 +198,7 @@ static int fsl_spi_setup_transfer(struct spi_device *spi,
 		hz = spi->max_speed_hz;
 
 	if (!(mpc8xxx_spi->flags & SPI_CPM_MODE))
-		bits_per_word = mspi_apply_cpu_mode_quirks(cs, spi,
-							   mpc8xxx_spi,
-							   bits_per_word);
-
-	if (bits_per_word < 0)
-		return bits_per_word;
+		mspi_apply_cpu_mode_quirks(cs, spi, mpc8xxx_spi, bits_per_word);
 
 	if (bits_per_word == 32)
 		bits_per_word = 0;
