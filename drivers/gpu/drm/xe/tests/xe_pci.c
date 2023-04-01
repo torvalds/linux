@@ -8,6 +8,7 @@
 #include "tests/xe_test.h"
 
 #include <kunit/test.h>
+#include <kunit/visibility.h>
 
 struct kunit_test_data {
 	int ndevs;
@@ -60,3 +61,49 @@ int xe_call_for_each_device(xe_device_fn xe_fn)
 
 	return ret;
 }
+
+int xe_pci_fake_device_init(struct xe_device *xe, enum xe_platform platform,
+			    enum xe_subplatform subplatform)
+{
+	const struct pci_device_id *ent = pciidlist;
+	const struct xe_device_desc *desc;
+	const struct xe_subplatform_desc *subplatform_desc;
+
+	if (platform == XE_TEST_PLATFORM_ANY) {
+		desc = (const void *)ent->driver_data;
+		subplatform_desc = NULL;
+		goto done;
+	}
+
+	for (ent = pciidlist; ent->device; ent++) {
+		desc = (const void *)ent->driver_data;
+		if (desc->platform == platform)
+			break;
+	}
+
+	if (!ent->device)
+		return -ENODEV;
+
+	if (subplatform == XE_TEST_SUBPLATFORM_ANY) {
+		subplatform_desc = desc->subplatforms;
+		goto done;
+	}
+
+	for (subplatform_desc = desc->subplatforms;
+	     subplatform_desc && subplatform_desc->subplatform;
+	     subplatform_desc++)
+		if (subplatform_desc->subplatform == subplatform)
+			break;
+
+	if (subplatform == XE_SUBPLATFORM_NONE && subplatform_desc)
+		return -ENODEV;
+
+	if (subplatform != XE_SUBPLATFORM_NONE && !subplatform_desc)
+		return -ENODEV;
+
+done:
+	xe_info_init(xe, desc, subplatform_desc);
+
+	return 0;
+}
+EXPORT_SYMBOL_IF_KUNIT(xe_pci_fake_device_init);

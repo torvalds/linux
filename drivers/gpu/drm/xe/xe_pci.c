@@ -423,7 +423,7 @@ static void xe_pci_remove(struct pci_dev *pdev)
 
 static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	const struct xe_device_desc *desc = (void *)ent->driver_data;
+	const struct xe_device_desc *desc = (const void *)ent->driver_data;
 	const struct xe_subplatform_desc *subplatform_desc;
 	struct xe_device *xe;
 	int err;
