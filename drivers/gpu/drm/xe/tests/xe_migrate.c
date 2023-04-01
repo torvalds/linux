@@ -6,6 +6,7 @@
 #include <kunit/test.h>
 
 #include "tests/xe_migrate_test.h"
+#include "tests/xe_pci_test.h"
 
 #include "xe_pci.h"
 
