@@ -1,3 +1,4 @@
+load(":gen3auto.bzl", "define_gen3auto")
 load(":kalama.bzl", "define_kalama")
 load(":kalama_tuivm.bzl", "define_kalama_tuivm")
 load(":kalama_oemvm.bzl", "define_kalama_oemvm")
@@ -12,6 +13,7 @@ load("//build:msm_kernel_extensions.bzl", "define_top_level_rules")
 def define_msm_platforms():
     define_top_level_rules()
     define_signing_keys()
+    define_gen3auto()
     define_kalama()
     define_kalama_tuivm()
     define_kalama_oemvm()
