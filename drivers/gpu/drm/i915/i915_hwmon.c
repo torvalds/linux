@@ -349,6 +349,8 @@ hwm_power_is_visible(const struct hwm_drvdata *ddat, u32 attr, int chan)
 	}
 }
 
+#define PL1_DISABLE 0
+
 /*
  * HW allows arbitrary PL1 limits to be set but silently clamps these values to
  * "typical but not guaranteed" min/max values in rg.pkg_power_sku. Follow the
@@ -361,6 +363,14 @@ hwm_power_max_read(struct hwm_drvdata *ddat, long *val)
 	struct i915_hwmon *hwmon = ddat->hwmon;
 	intel_wakeref_t wakeref;
 	u64 r, min, max;
+
+	/* Check if PL1 limit is disabled */
+	with_intel_runtime_pm(ddat->uncore->rpm, wakeref)
+		r = intel_uncore_read(ddat->uncore, hwmon->rg.pkg_rapl_limit);
+	if (!(r & PKG_PWR_LIM_1_EN)) {
+		*val = PL1_DISABLE;
+		return 0;
+	}
 
 	*val = hwm_field_read_and_scale(ddat,
 					hwmon->rg.pkg_rapl_limit,
@@ -385,7 +395,23 @@ static int
 hwm_power_max_write(struct hwm_drvdata *ddat, long val)
 {
 	struct i915_hwmon *hwmon = ddat->hwmon;
+	intel_wakeref_t wakeref;
 	u32 nval;
+
+	/* Disable PL1 limit and verify, because the limit cannot be disabled on all platforms */
+	if (val == PL1_DISABLE) {
+		mutex_lock(&hwmon->hwmon_lock);
+		with_intel_runtime_pm(ddat->uncore->rpm, wakeref) {
+			intel_uncore_rmw(ddat->uncore, hwmon->rg.pkg_rapl_limit,
+					 PKG_PWR_LIM_1_EN, 0);
+			nval = intel_uncore_read(ddat->uncore, hwmon->rg.pkg_rapl_limit);
+		}
+		mutex_unlock(&hwmon->hwmon_lock);
+
+		if (nval & PKG_PWR_LIM_1_EN)
+			return -ENODEV;
+		return 0;
+	}
 
 	/* Computation in 64-bits to avoid overflow. Round to nearest. */
 	nval = DIV_ROUND_CLOSEST_ULL((u64)val << hwmon->scl_shift_power, SF_POWER);
