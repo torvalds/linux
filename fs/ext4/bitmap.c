@@ -74,10 +74,7 @@ int ext4_block_bitmap_csum_verify(struct super_block *sb,
 	} else
 		calculated &= 0xFFFF;
 
-	if (provided == calculated)
-		return 1;
-
-	return 0;
+	return provided == calculated;
 }
 
 void ext4_block_bitmap_csum_set(struct super_block *sb,
