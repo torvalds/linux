@@ -77,6 +77,15 @@ const struct dmi_system_id x86_android_tablet_ids[] __initconst = {
 		.driver_data = (void *)&czc_p10t,
 	},
 	{
+		/* Lenovo Yoga Book X90F / X90L */
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "CHERRYVIEW D1 PLATFORM"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "YETI-11"),
+		},
+		.driver_data = (void *)&lenovo_yogabook_x90_info,
+	},
+	{
 		/* Lenovo Yoga Book X91F / X91L */
 		.matches = {
 			/* Non exact match to match F + L versions */
