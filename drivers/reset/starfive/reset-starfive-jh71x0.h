@@ -6,6 +6,9 @@
 #ifndef __RESET_STARFIVE_JH71X0_H
 #define __RESET_STARFIVE_JH71X0_H
 
-int jh7100_reset_probe(struct platform_device *pdev);
+int reset_starfive_jh7100_register(struct device *dev, struct device_node *of_node,
+				   void __iomem *assert, void __iomem *status,
+				   const u64 *asserted, unsigned int nr_resets,
+				   struct module *owner);
 
 #endif /* __RESET_STARFIVE_JH71X0_H */
