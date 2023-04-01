@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/seq_file.h>
@@ -240,6 +240,35 @@ static inline bool is_complex_sibling_idle(int cpu)
 	return false;
 }
 
+static inline bool walt_should_reject_fbt_cpu(struct walt_rq *wrq, struct task_struct *p,
+						int cpu, int order_index,
+						struct find_best_target_env *fbt_env)
+{
+	if (!cpu_active(cpu))
+		return true;
+
+	if (cpu_halted(cpu))
+		return true;
+
+	/*
+	 * This CPU is the target of an active migration that's
+	 * yet to complete. Avoid placing another task on it.
+	 */
+	if (is_reserved(cpu))
+		return true;
+
+	if (sched_cpu_high_irqload(cpu))
+		return true;
+
+	if (fbt_env->skip_cpu == cpu)
+		return true;
+
+	if (wrq->num_mvp_tasks > 0 && per_task_boost(p) != TASK_BOOST_STRICT_MAX)
+		return true;
+
+	return false;
+}
+
 #define DIRE_STRAITS_PREV_NR_LIMIT 10
 static void walt_find_best_target(struct sched_domain *sd,
 					cpumask_t *candidates,
@@ -329,27 +358,7 @@ static void walt_find_best_target(struct sched_domain *sd,
 			/* record the prss as we visit cpus in a cluster */
 			fbt_env->prs[i] = wrq->prev_runnable_sum + wrq->grp_time.prev_runnable_sum;
 
-			if (!cpu_active(i))
-				continue;
-
-			if (cpu_halted(i))
-				continue;
-
-			/*
-			 * This CPU is the target of an active migration that's
-			 * yet to complete. Avoid placing another task on it.
-			 */
-			if (is_reserved(i))
-				continue;
-
-			if (sched_cpu_high_irqload(i))
-				continue;
-
-			if (fbt_env->skip_cpu == i)
-				continue;
-
-			if (wrq->num_mvp_tasks > 0 &&
-				per_task_boost(p) != TASK_BOOST_STRICT_MAX)
+			if (walt_should_reject_fbt_cpu(wrq, p, i, order_index, fbt_env))
 				continue;
 
 			/*
