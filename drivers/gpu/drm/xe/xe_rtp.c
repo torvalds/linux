@@ -5,6 +5,8 @@
 
 #include "xe_rtp.h"
 
+#include <kunit/visibility.h>
+
 #include <drm/xe_drm.h>
 
 #include "xe_gt.h"
@@ -155,6 +157,7 @@ void xe_rtp_process(const struct xe_rtp_entry *entries, struct xe_reg_sr *sr,
 		}
 	}
 }
+EXPORT_SYMBOL_IF_KUNIT(xe_rtp_process);
 
 bool xe_rtp_match_even_instance(const struct xe_gt *gt,
 				const struct xe_hw_engine *hwe)

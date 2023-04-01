@@ -5,6 +5,7 @@
 
 #include "xe_reg_sr.h"
 
+#include <kunit/visibility.h>
 #include <linux/align.h>
 #include <linux/string_helpers.h>
 #include <linux/xarray.h>
@@ -43,6 +44,7 @@ int xe_reg_sr_init(struct xe_reg_sr *sr, const char *name, struct xe_device *xe)
 
 	return drmm_add_action_or_reset(&xe->drm, reg_sr_fini, sr);
 }
+EXPORT_SYMBOL_IF_KUNIT(xe_reg_sr_init);
 
 static struct xe_reg_sr_entry *alloc_entry(struct xe_reg_sr *sr)
 {
