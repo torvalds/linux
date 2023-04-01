@@ -91,7 +91,7 @@ static u32 xelp_intr_disable(struct xe_gt *gt)
 }
 
 static u32
-gen11_gu_misc_irq_ack(struct xe_gt *gt, const u32 master_ctl)
+gu_misc_irq_ack(struct xe_gt *gt, const u32 master_ctl)
 {
 	u32 iir;
 
@@ -112,7 +112,7 @@ static inline void xelp_intr_enable(struct xe_gt *gt, bool stall)
 		xe_mmio_read32(gt, GFX_MSTR_IRQ.reg);
 }
 
-static void gen11_gt_irq_postinstall(struct xe_device *xe, struct xe_gt *gt)
+static void gt_irq_postinstall(struct xe_device *xe, struct xe_gt *gt)
 {
 	u32 irqs, dmask, smask;
 	u32 ccs_mask = xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_COMPUTE);
@@ -179,7 +179,7 @@ static void xelp_irq_postinstall(struct xe_device *xe, struct xe_gt *gt)
 {
 	/* TODO: PCH */
 
-	gen11_gt_irq_postinstall(xe, gt);
+	gt_irq_postinstall(xe, gt);
 
 	unmask_and_enable(gt, GU_MISC_IRQ_OFFSET, GU_MISC_GSE);
 
@@ -187,10 +187,10 @@ static void xelp_irq_postinstall(struct xe_device *xe, struct xe_gt *gt)
 }
 
 static u32
-gen11_gt_engine_identity(struct xe_device *xe,
-			 struct xe_gt *gt,
-			 const unsigned int bank,
-			 const unsigned int bit)
+gt_engine_identity(struct xe_device *xe,
+		   struct xe_gt *gt,
+		   const unsigned int bank,
+		   const unsigned int bit)
 {
 	u32 timeout_ts;
 	u32 ident;
@@ -223,7 +223,7 @@ gen11_gt_engine_identity(struct xe_device *xe,
 #define   OTHER_MEDIA_GUC_INSTANCE           16
 
 static void
-gen11_gt_other_irq_handler(struct xe_gt *gt, const u8 instance, const u16 iir)
+gt_other_irq_handler(struct xe_gt *gt, const u8 instance, const u16 iir)
 {
 	if (instance == OTHER_GUC_INSTANCE && !xe_gt_is_media_type(gt))
 		return xe_guc_irq_handler(&gt->uc.guc, iir);
@@ -237,9 +237,9 @@ gen11_gt_other_irq_handler(struct xe_gt *gt, const u8 instance, const u16 iir)
 	}
 }
 
-static void gen11_gt_irq_handler(struct xe_device *xe, struct xe_gt *gt,
-				 u32 master_ctl, long unsigned int *intr_dw,
-				 u32 *identity)
+static void gt_irq_handler(struct xe_device *xe, struct xe_gt *gt,
+			   u32 master_ctl, long unsigned int *intr_dw,
+			   u32 *identity)
 {
 	unsigned int bank, bit;
 	u16 instance, intr_vec;
@@ -256,9 +256,8 @@ static void gen11_gt_irq_handler(struct xe_device *xe, struct xe_gt *gt,
 			intr_dw[bank] =
 				xe_mmio_read32(gt, GT_INTR_DW(bank).reg);
 			for_each_set_bit(bit, intr_dw + bank, 32)
-				identity[bit] = gen11_gt_engine_identity(xe, gt,
-									 bank,
-									 bit);
+				identity[bit] = gt_engine_identity(xe, gt,
+								   bank, bit);
 			xe_mmio_write32(gt, GT_INTR_DW(bank).reg,
 					intr_dw[bank]);
 		}
@@ -269,8 +268,7 @@ static void gen11_gt_irq_handler(struct xe_device *xe, struct xe_gt *gt,
 			intr_vec = INTR_ENGINE_INTR(identity[bit]);
 
 			if (class == XE_ENGINE_CLASS_OTHER) {
-				gen11_gt_other_irq_handler(gt, instance,
-							   intr_vec);
+				gt_other_irq_handler(gt, instance, intr_vec);
 				continue;
 			}
 
@@ -303,9 +301,9 @@ static irqreturn_t xelp_irq_handler(int irq, void *arg)
 		return IRQ_NONE;
 	}
 
-	gen11_gt_irq_handler(xe, gt, master_ctl, intr_dw, identity);
+	gt_irq_handler(xe, gt, master_ctl, intr_dw, identity);
 
-	gu_misc_iir = gen11_gu_misc_irq_ack(gt, master_ctl);
+	gu_misc_iir = gu_misc_irq_ack(gt, master_ctl);
 
 	xelp_intr_enable(gt, false);
 
@@ -341,7 +339,7 @@ static void dg1_intr_enable(struct xe_device *xe, bool stall)
 
 static void dg1_irq_postinstall(struct xe_device *xe, struct xe_gt *gt)
 {
-	gen11_gt_irq_postinstall(xe, gt);
+	gt_irq_postinstall(xe, gt);
 
 	unmask_and_enable(gt, GU_MISC_IRQ_OFFSET, GU_MISC_GSE);
 
@@ -391,17 +389,17 @@ static irqreturn_t dg1_irq_handler(int irq, void *arg)
 
 		if (!xe_gt_is_media_type(gt))
 			xe_mmio_write32(gt, GFX_MSTR_IRQ.reg, master_ctl);
-		gen11_gt_irq_handler(xe, gt, master_ctl, intr_dw, identity);
+		gt_irq_handler(xe, gt, master_ctl, intr_dw, identity);
 	}
 
-	gu_misc_iir = gen11_gu_misc_irq_ack(gt, master_ctl);
+	gu_misc_iir = gu_misc_irq_ack(gt, master_ctl);
 
 	dg1_intr_enable(xe, false);
 
 	return IRQ_HANDLED;
 }
 
-static void gen11_gt_irq_reset(struct xe_gt *gt)
+static void gt_irq_reset(struct xe_gt *gt)
 {
 	u32 ccs_mask = xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_COMPUTE);
 	u32 bcs_mask = xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_COPY);
@@ -447,7 +445,7 @@ static void xelp_irq_reset(struct xe_gt *gt)
 {
 	xelp_intr_disable(gt);
 
-	gen11_gt_irq_reset(gt);
+	gt_irq_reset(gt);
 
 	mask_and_disable(gt, GU_MISC_IRQ_OFFSET);
 	mask_and_disable(gt, PCU_IRQ_OFFSET);
@@ -458,7 +456,7 @@ static void dg1_irq_reset(struct xe_gt *gt)
 	if (gt->info.id == 0)
 		dg1_intr_disable(gt_to_xe(gt));
 
-	gen11_gt_irq_reset(gt);
+	gt_irq_reset(gt);
 
 	mask_and_disable(gt, GU_MISC_IRQ_OFFSET);
 	mask_and_disable(gt, PCU_IRQ_OFFSET);
