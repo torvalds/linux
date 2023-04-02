@@ -34,6 +34,8 @@
 #define SPECIAL_CTRL_STS_AMDIX_STATE_	0x2000
 
 #define EDPD_MAX_WAIT_DFLT_MS		640
+/* interval between phylib state machine runs in ms */
+#define PHY_STATE_MACH_MS		1000
 
 struct smsc_hw_stat {
 	const char *string;
@@ -294,6 +296,79 @@ static void smsc_get_stats(struct phy_device *phydev,
 	for (i = 0; i < ARRAY_SIZE(smsc_hw_stats); i++)
 		data[i] = smsc_get_stat(phydev, i);
 }
+
+static int smsc_phy_get_edpd(struct phy_device *phydev, u16 *edpd)
+{
+	struct smsc_phy_priv *priv = phydev->priv;
+
+	if (!priv)
+		return -EOPNOTSUPP;
+
+	if (!priv->edpd_enable)
+		*edpd = ETHTOOL_PHY_EDPD_DISABLE;
+	else if (!priv->edpd_max_wait_ms)
+		*edpd = ETHTOOL_PHY_EDPD_NO_TX;
+	else
+		*edpd = PHY_STATE_MACH_MS + priv->edpd_max_wait_ms;
+
+	return 0;
+}
+
+static int smsc_phy_set_edpd(struct phy_device *phydev, u16 edpd)
+{
+	struct smsc_phy_priv *priv = phydev->priv;
+
+	if (!priv)
+		return -EOPNOTSUPP;
+
+	switch (edpd) {
+	case ETHTOOL_PHY_EDPD_DISABLE:
+		priv->edpd_enable = false;
+		break;
+	case ETHTOOL_PHY_EDPD_NO_TX:
+		priv->edpd_enable = true;
+		priv->edpd_max_wait_ms = 0;
+		break;
+	case ETHTOOL_PHY_EDPD_DFLT_TX_MSECS:
+		edpd = PHY_STATE_MACH_MS + EDPD_MAX_WAIT_DFLT_MS;
+		fallthrough;
+	default:
+		if (phydev->irq != PHY_POLL)
+			return -EOPNOTSUPP;
+		if (edpd < PHY_STATE_MACH_MS || edpd > PHY_STATE_MACH_MS + 1000)
+			return -EINVAL;
+		priv->edpd_enable = true;
+		priv->edpd_max_wait_ms = edpd - PHY_STATE_MACH_MS;
+	}
+
+	priv->edpd_mode_set_by_user = true;
+
+	return smsc_phy_config_edpd(phydev);
+}
+
+int smsc_phy_get_tunable(struct phy_device *phydev,
+			 struct ethtool_tunable *tuna, void *data)
+{
+	switch (tuna->id) {
+	case ETHTOOL_PHY_EDPD:
+		return smsc_phy_get_edpd(phydev, data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+EXPORT_SYMBOL_GPL(smsc_phy_get_tunable);
+
+int smsc_phy_set_tunable(struct phy_device *phydev,
+			 struct ethtool_tunable *tuna, const void *data)
+{
+	switch (tuna->id) {
+	case ETHTOOL_PHY_EDPD:
+		return smsc_phy_set_edpd(phydev, *(u16 *)data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+EXPORT_SYMBOL_GPL(smsc_phy_set_tunable);
 
 int smsc_phy_probe(struct phy_device *phydev)
 {
