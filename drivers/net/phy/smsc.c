@@ -114,8 +114,11 @@ int smsc_phy_config_init(struct phy_device *phydev)
 {
 	struct smsc_phy_priv *priv = phydev->priv;
 
-	if (!priv || !priv->edpd_enable || phydev->irq != PHY_POLL)
+	if (!priv)
 		return 0;
+
+	if (phydev->irq != PHY_POLL)
+		priv->edpd_enable = false;
 
 	return smsc_phy_config_edpd(phydev);
 }
@@ -208,8 +211,7 @@ int lan87xx_read_status(struct phy_device *phydev)
 	if (err)
 		return err;
 
-	if (!phydev->link && priv && priv->edpd_enable &&
-	    phydev->irq == PHY_POLL) {
+	if (!phydev->link && priv && priv->edpd_enable) {
 		/* Disable EDPD to wake up PHY */
 		int rc = phy_read(phydev, MII_LAN83C185_CTRL_STATUS);
 		if (rc < 0)
