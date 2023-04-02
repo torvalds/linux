@@ -690,9 +690,6 @@ struct snd_soc_dai_link {
 	const struct snd_soc_pcm_stream *c2c_params;
 	unsigned int num_c2c_params;
 
-	const struct snd_soc_pcm_stream *params;	/* REMOVE ME */
-	unsigned int num_params;			/* REMOVE ME */
-
 	unsigned int dai_fmt;           /* format to set on init */
 
 	enum snd_soc_dpcm_trigger trigger[2]; /* trigger type for DPCM */
