@@ -33,6 +33,8 @@
 #define SPECIAL_CTRL_STS_AMDIX_ENABLE_	0x4000
 #define SPECIAL_CTRL_STS_AMDIX_STATE_	0x2000
 
+#define EDPD_MAX_WAIT_DFLT_MS		640
+
 struct smsc_hw_stat {
 	const char *string;
 	u8 reg;
@@ -46,6 +48,7 @@ static struct smsc_hw_stat smsc_hw_stats[] = {
 struct smsc_phy_priv {
 	unsigned int edpd_enable:1;
 	unsigned int edpd_mode_set_by_user:1;
+	unsigned int edpd_max_wait_ms;
 };
 
 static int smsc_phy_ack_interrupt(struct phy_device *phydev)
@@ -213,9 +216,13 @@ int lan87xx_read_status(struct phy_device *phydev)
 	if (err)
 		return err;
 
-	if (!phydev->link && priv && priv->edpd_enable) {
+	if (!phydev->link && priv && priv->edpd_enable &&
+	    priv->edpd_max_wait_ms) {
+		unsigned int max_wait = priv->edpd_max_wait_ms * 1000;
+		int rc;
+
 		/* Disable EDPD to wake up PHY */
-		int rc = phy_read(phydev, MII_LAN83C185_CTRL_STATUS);
+		rc = phy_read(phydev, MII_LAN83C185_CTRL_STATUS);
 		if (rc < 0)
 			return rc;
 
@@ -229,7 +236,7 @@ int lan87xx_read_status(struct phy_device *phydev)
 		 */
 		read_poll_timeout(phy_read, rc,
 				  rc & MII_LAN83C185_ENERGYON || rc < 0,
-				  10000, 640000, true, phydev,
+				  10000, max_wait, true, phydev,
 				  MII_LAN83C185_CTRL_STATUS);
 		if (rc < 0)
 			return rc;
@@ -299,6 +306,7 @@ int smsc_phy_probe(struct phy_device *phydev)
 		return -ENOMEM;
 
 	priv->edpd_enable = true;
+	priv->edpd_max_wait_ms = EDPD_MAX_WAIT_DFLT_MS;
 
 	if (device_property_present(dev, "smsc,disable-energy-detect"))
 		priv->edpd_enable = false;
