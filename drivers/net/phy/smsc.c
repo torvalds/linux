@@ -469,6 +469,9 @@ static struct phy_driver smsc_phy_driver[] = {
 	.get_strings	= smsc_get_strings,
 	.get_stats	= smsc_get_stats,
 
+	.get_tunable	= smsc_phy_get_tunable,
+	.set_tunable	= smsc_phy_set_tunable,
+
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
 }, {
@@ -513,6 +516,9 @@ static struct phy_driver smsc_phy_driver[] = {
 	.get_strings	= smsc_get_strings,
 	.get_stats	= smsc_get_stats,
 
+	.get_tunable	= smsc_phy_get_tunable,
+	.set_tunable	= smsc_phy_set_tunable,
+
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
 }, {
@@ -538,6 +544,9 @@ static struct phy_driver smsc_phy_driver[] = {
 	.get_sset_count = smsc_get_sset_count,
 	.get_strings	= smsc_get_strings,
 	.get_stats	= smsc_get_stats,
+
+	.get_tunable	= smsc_phy_get_tunable,
+	.set_tunable	= smsc_phy_set_tunable,
 
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
@@ -568,6 +577,9 @@ static struct phy_driver smsc_phy_driver[] = {
 	.get_sset_count = smsc_get_sset_count,
 	.get_strings	= smsc_get_strings,
 	.get_stats	= smsc_get_stats,
+
+	.get_tunable	= smsc_phy_get_tunable,
+	.set_tunable	= smsc_phy_set_tunable,
 
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
