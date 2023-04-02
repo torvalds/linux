@@ -183,7 +183,7 @@ static int dev_ifsioc_locked(struct net *net, struct ifreq *ifr, unsigned int cm
 	return err;
 }
 
-static int net_hwtstamp_validate(const struct hwtstamp_config *cfg)
+static int net_hwtstamp_validate(const struct kernel_hwtstamp_config *cfg)
 {
 	enum hwtstamp_tx_types tx_type;
 	enum hwtstamp_rx_filters rx_filter;
@@ -259,13 +259,16 @@ static int dev_get_hwtstamp(struct net_device *dev, struct ifreq *ifr)
 
 static int dev_set_hwtstamp(struct net_device *dev, struct ifreq *ifr)
 {
+	struct kernel_hwtstamp_config kernel_cfg;
 	struct hwtstamp_config cfg;
 	int err;
 
 	if (copy_from_user(&cfg, ifr->ifr_data, sizeof(cfg)))
 		return -EFAULT;
 
-	err = net_hwtstamp_validate(&cfg);
+	hwtstamp_config_to_kernel(&kernel_cfg, &cfg);
+
+	err = net_hwtstamp_validate(&kernel_cfg);
 	if (err)
 		return err;
 
