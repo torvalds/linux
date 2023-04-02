@@ -1075,7 +1075,7 @@ static int dapm_new_dai_link(struct snd_soc_dapm_widget *w)
 	struct snd_soc_pcm_runtime *rtd = w->priv;
 
 	/* create control for links with > 1 config */
-	if (rtd->dai_link->num_params <= 1)
+	if (rtd->dai_link->num_c2c_params <= 1)
 		return 0;
 
 	/* add kcontrol */
@@ -3864,7 +3864,7 @@ snd_soc_dai_link_event_pre_pmu(struct snd_soc_dapm_widget *w,
 	 * either party on the link to alter the configuration if
 	 * necessary
 	 */
-	config = rtd->dai_link->params + rtd->params_select;
+	config = rtd->dai_link->c2c_params + rtd->c2c_params_select;
 	if (!config) {
 		dev_err(w->dapm->dev, "ASoC: link config missing\n");
 		ret = -EINVAL;
@@ -4010,7 +4010,7 @@ static int snd_soc_dapm_dai_link_get(struct snd_kcontrol *kcontrol,
 	struct snd_soc_dapm_widget *w = snd_kcontrol_chip(kcontrol);
 	struct snd_soc_pcm_runtime *rtd = w->priv;
 
-	ucontrol->value.enumerated.item[0] = rtd->params_select;
+	ucontrol->value.enumerated.item[0] = rtd->c2c_params_select;
 
 	return 0;
 }
@@ -4025,13 +4025,13 @@ static int snd_soc_dapm_dai_link_put(struct snd_kcontrol *kcontrol,
 	if (w->power)
 		return -EBUSY;
 
-	if (ucontrol->value.enumerated.item[0] == rtd->params_select)
+	if (ucontrol->value.enumerated.item[0] == rtd->c2c_params_select)
 		return 0;
 
-	if (ucontrol->value.enumerated.item[0] >= rtd->dai_link->num_params)
+	if (ucontrol->value.enumerated.item[0] >= rtd->dai_link->num_c2c_params)
 		return -EINVAL;
 
-	rtd->params_select = ucontrol->value.enumerated.item[0];
+	rtd->c2c_params_select = ucontrol->value.enumerated.item[0];
 
 	return 1;
 }
@@ -4039,7 +4039,7 @@ static int snd_soc_dapm_dai_link_put(struct snd_kcontrol *kcontrol,
 static void
 snd_soc_dapm_free_kcontrol(struct snd_soc_card *card,
 			unsigned long *private_value,
-			int num_params,
+			int num_c2c_params,
 			const char **w_param_text)
 {
 	int count;
@@ -4049,7 +4049,7 @@ snd_soc_dapm_free_kcontrol(struct snd_soc_card *card,
 	if (!w_param_text)
 		return;
 
-	for (count = 0 ; count < num_params; count++)
+	for (count = 0 ; count < num_c2c_params; count++)
 		devm_kfree(card->dev, (void *)w_param_text[count]);
 	devm_kfree(card->dev, w_param_text);
 }
@@ -4057,8 +4057,8 @@ snd_soc_dapm_free_kcontrol(struct snd_soc_card *card,
 static struct snd_kcontrol_new *
 snd_soc_dapm_alloc_kcontrol(struct snd_soc_card *card,
 			char *link_name,
-			const struct snd_soc_pcm_stream *params,
-			int num_params, const char **w_param_text,
+			const struct snd_soc_pcm_stream *c2c_params,
+			int num_c2c_params, const char **w_param_text,
 			unsigned long *private_value)
 {
 	struct soc_enum w_param_enum[] = {
@@ -4070,10 +4070,10 @@ snd_soc_dapm_alloc_kcontrol(struct snd_soc_card *card,
 			     snd_soc_dapm_dai_link_put),
 	};
 	struct snd_kcontrol_new *kcontrol_news;
-	const struct snd_soc_pcm_stream *config = params;
+	const struct snd_soc_pcm_stream *config = c2c_params;
 	int count;
 
-	for (count = 0 ; count < num_params; count++) {
+	for (count = 0 ; count < num_c2c_params; count++) {
 		if (!config->stream_name) {
 			dev_warn(card->dapm.dev,
 				"ASoC: anonymous config %d for dai link %s\n",
@@ -4093,7 +4093,7 @@ snd_soc_dapm_alloc_kcontrol(struct snd_soc_card *card,
 		config++;
 	}
 
-	w_param_enum[0].items = num_params;
+	w_param_enum[0].items = num_c2c_params;
 	w_param_enum[0].texts = w_param_text;
 
 	*private_value =
@@ -4118,7 +4118,7 @@ snd_soc_dapm_alloc_kcontrol(struct snd_soc_card *card,
 	return kcontrol_news;
 
 outfree_w_param:
-	snd_soc_dapm_free_kcontrol(card, private_value, num_params, w_param_text);
+	snd_soc_dapm_free_kcontrol(card, private_value, num_c2c_params, w_param_text);
 	return NULL;
 }
 
@@ -4146,17 +4146,17 @@ snd_soc_dapm_new_dai(struct snd_soc_card *card,
 	w_param_text	= NULL;
 	kcontrol_news	= NULL;
 	num_kcontrols	= 0;
-	if (rtd->dai_link->num_params > 1) {
+	if (rtd->dai_link->num_c2c_params > 1) {
 		w_param_text = devm_kcalloc(card->dev,
-					    rtd->dai_link->num_params,
+					    rtd->dai_link->num_c2c_params,
 					    sizeof(char *), GFP_KERNEL);
 		if (!w_param_text)
 			goto param_fail;
 
 		num_kcontrols = 1;
 		kcontrol_news = snd_soc_dapm_alloc_kcontrol(card, link_name,
-							    rtd->dai_link->params,
-							    rtd->dai_link->num_params,
+							    rtd->dai_link->c2c_params,
+							    rtd->dai_link->num_c2c_params,
 							    w_param_text, &private_value);
 		if (!kcontrol_news)
 			goto param_fail;
@@ -4187,7 +4187,7 @@ snd_soc_dapm_new_dai(struct snd_soc_card *card,
 outfree_kcontrol_news:
 	devm_kfree(card->dev, (void *)template.kcontrol_news);
 	snd_soc_dapm_free_kcontrol(card, &private_value,
-				   rtd->dai_link->num_params, w_param_text);
+				   rtd->dai_link->num_c2c_params, w_param_text);
 param_fail:
 	devm_kfree(card->dev, link_name);
 name_fail:
@@ -4336,7 +4336,7 @@ static void dapm_connect_dai_pair(struct snd_soc_card *card,
 	struct snd_pcm_str *streams = rtd->pcm->streams;
 	int stream;
 
-	if (dai_link->params) {
+	if (dai_link->c2c_params) {
 		playback_cpu	= snd_soc_dai_get_widget_capture(cpu_dai);
 		capture_cpu	= snd_soc_dai_get_widget_playback(cpu_dai);
 	} else {
@@ -4349,7 +4349,7 @@ static void dapm_connect_dai_pair(struct snd_soc_card *card,
 	codec = snd_soc_dai_get_widget(codec_dai, stream);
 
 	if (playback_cpu && codec) {
-		if (dai_link->params && !rtd->c2c_widget[stream]) {
+		if (dai_link->c2c_params && !rtd->c2c_widget[stream]) {
 			substream = streams[stream].substream;
 			dai = snd_soc_dapm_new_dai(card, substream, "playback");
 			if (IS_ERR(dai))
@@ -4368,7 +4368,7 @@ capture:
 	codec = snd_soc_dai_get_widget(codec_dai, stream);
 
 	if (codec && capture_cpu) {
-		if (dai_link->params && !rtd->c2c_widget[stream]) {
+		if (dai_link->c2c_params && !rtd->c2c_widget[stream]) {
 			substream = streams[stream].substream;
 			dai = snd_soc_dapm_new_dai(card, substream, "capture");
 			if (IS_ERR(dai))
