@@ -509,7 +509,7 @@ static int module_alloc_ftrace_hotpatch_trampolines(struct module *me,
 	start = module_alloc(numpages * PAGE_SIZE);
 	if (!start)
 		return -ENOMEM;
-	set_memory_ro((unsigned long)start, numpages);
+	set_memory_rox((unsigned long)start, numpages);
 	end = start + size;
 
 	me->arch.trampolines_start = (struct ftrace_hotpatch_trampoline *)start;

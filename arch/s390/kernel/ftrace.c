@@ -226,7 +226,7 @@ static int __init ftrace_plt_init(void)
 
 	start = ftrace_shared_hotpatch_trampoline(&end);
 	memcpy(ftrace_plt, start, end - start);
-	set_memory_ro((unsigned long)ftrace_plt, 1);
+	set_memory_rox((unsigned long)ftrace_plt, 1);
 	return 0;
 }
 device_initcall(ftrace_plt_init);
