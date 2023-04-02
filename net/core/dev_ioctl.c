@@ -246,20 +246,34 @@ static int dev_eth_ioctl(struct net_device *dev,
 			 struct ifreq *ifr, unsigned int cmd)
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
+
+	if (!ops->ndo_eth_ioctl)
+		return -EOPNOTSUPP;
+
+	if (!netif_device_present(dev))
+		return -ENODEV;
+
+	return ops->ndo_eth_ioctl(dev, ifr, cmd);
+}
+
+static int dev_get_hwtstamp(struct net_device *dev, struct ifreq *ifr)
+{
+	return dev_eth_ioctl(dev, ifr, SIOCGHWTSTAMP);
+}
+
+static int dev_set_hwtstamp(struct net_device *dev, struct ifreq *ifr)
+{
 	int err;
 
-	err = dsa_ndo_eth_ioctl(dev, ifr, cmd);
+	err = net_hwtstamp_validate(ifr);
+	if (err)
+		return err;
+
+	err = dsa_ndo_eth_ioctl(dev, ifr, SIOCSHWTSTAMP);
 	if (err != -EOPNOTSUPP)
 		return err;
 
-	if (ops->ndo_eth_ioctl) {
-		if (netif_device_present(dev))
-			err = ops->ndo_eth_ioctl(dev, ifr, cmd);
-		else
-			err = -ENODEV;
-	}
-
-	return err;
+	return dev_eth_ioctl(dev, ifr, SIOCSHWTSTAMP);
 }
 
 static int dev_siocbond(struct net_device *dev,
@@ -395,12 +409,11 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, void __user *data,
 		return dev_siocdevprivate(dev, ifr, data, cmd);
 
 	case SIOCSHWTSTAMP:
-		err = net_hwtstamp_validate(ifr);
-		if (err)
-			return err;
-		fallthrough;
+		return dev_set_hwtstamp(dev, ifr);
 
 	case SIOCGHWTSTAMP:
+		return dev_get_hwtstamp(dev, ifr);
+
 	case SIOCGMIIPHY:
 	case SIOCGMIIREG:
 	case SIOCSMIIREG:
