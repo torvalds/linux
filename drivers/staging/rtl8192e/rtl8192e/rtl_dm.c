@@ -516,10 +516,8 @@ static void _rtl92e_dm_tx_power_tracking_callback_tssi(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 	bool	viviflag = false;
 	struct dcmd_txcmd tx_cmd;
-	u8	powerlevelOFDM24G;
 	int	i = 0, j = 0, k = 0;
 	u8	tmp_report[5] = {0, 0, 0, 0, 0};
-	u32	Value;
 	u8	Pwr_Flag;
 	u16	Avg_TSSI_Meas, tssi_13dBm, Avg_TSSI_Meas_from_driver = 0;
 	u32	delta = 0;
@@ -528,14 +526,11 @@ static void _rtl92e_dm_tx_power_tracking_callback_tssi(struct net_device *dev)
 	rtl92e_writeb(dev, FW_Busy_Flag, 0);
 	priv->rtllib->bdynamic_txpower_enable = false;
 
-	powerlevelOFDM24G = priv->pwr_track >> 24;
-	Value = powerlevelOFDM24G;
-
 	for (j = 0; j <= 30; j++) {
 
 		tx_cmd.op	= TXCMD_SET_TX_PWR_TRACKING;
 		tx_cmd.length	= 4;
-		tx_cmd.value	= Value;
+		tx_cmd.value	= priv->pwr_track >> 24;
 		rtl92e_send_cmd_pkt(dev, DESC_PACKET_TYPE_NORMAL, (u8 *)&tx_cmd,
 				    sizeof(struct dcmd_txcmd));
 		mdelay(1);
