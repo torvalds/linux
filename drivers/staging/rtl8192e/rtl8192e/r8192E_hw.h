@@ -37,7 +37,6 @@ enum baseband_config {
 #define EEPROM_CID_NetCore				0x5
 #define EEPROM_CID_Nettronix			0x6
 #define EEPROM_CID_Pronet				0x7
-#define EEPROM_CID_DLINK				0x8
 #define EEPROM_CID_WHQL					0xFE
 enum _RTL8192PCI_HW {
 	MAC0			= 0x000,

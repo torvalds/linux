@@ -431,9 +431,6 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 	else
 		priv->chnl_plan = priv->reg_chnl_plan;
 
-	if (priv->eeprom_vid == 0x1186 &&  priv->eeprom_did == 0x3304)
-		priv->customer_id =  RT_CID_DLINK;
-
 	switch (priv->eeprom_customer_id) {
 	case EEPROM_CID_DEFAULT:
 		priv->customer_id = RT_CID_DEFAULT;
@@ -459,9 +456,6 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 		break;
 	case EEPROM_CID_Pronet:
 		priv->customer_id = RT_CID_PRONET;
-		break;
-	case EEPROM_CID_DLINK:
-		priv->customer_id = RT_CID_DLINK;
 		break;
 
 	case EEPROM_CID_WHQL:

@@ -134,7 +134,6 @@ enum rt_customer_id {
 	RT_CID_TOSHIBA	  = 9,
 	RT_CID_819X_NETCORE     = 10,
 	RT_CID_Nettronix	= 11,
-	RT_CID_DLINK	    = 12,
 	RT_CID_PRONET	   = 13,
 };
 
