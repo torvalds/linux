@@ -4332,9 +4332,6 @@ error:
  * pointer.
  *
  * Returns &struct device pointer on success, or ERR_PTR() on error.
- *
- * Note: the struct class passed to this function must have previously
- * been created with a call to class_create().
  */
 struct device *device_create(const struct class *class, struct device *parent,
 			     dev_t devt, void *drvdata, const char *fmt, ...)
@@ -4373,9 +4370,6 @@ EXPORT_SYMBOL_GPL(device_create);
  * pointer.
  *
  * Returns &struct device pointer on success, or ERR_PTR() on error.
- *
- * Note: the struct class passed to this function must have previously
- * been created with a call to class_create().
  */
 struct device *device_create_with_groups(const struct class *class,
 					 struct device *parent, dev_t devt,
