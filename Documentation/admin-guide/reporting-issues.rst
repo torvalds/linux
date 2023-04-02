@@ -395,7 +395,7 @@ might want to be aware of; it for example explains how to add your issue to the
 list of tracked regressions, to ensure it won't fall through the cracks.
 
 What qualifies as security issue is left to your judgment. Consider reading
-Documentation/admin-guide/security-bugs.rst before proceeding, as it
+Documentation/process/security-bugs.rst before proceeding, as it
 provides additional details how to best handle security issues.
 
 An issue is a 'really severe problem' when something totally unacceptably bad
@@ -1269,7 +1269,7 @@ them when sending the report by mail. If you filed it in a bug tracker, forward
 the report's text to these addresses; but on top of it put a small note where
 you mention that you filed it with a link to the ticket.
 
-See Documentation/admin-guide/security-bugs.rst for more information.
+See Documentation/process/security-bugs.rst for more information.
 
 
 Duties after the report went out

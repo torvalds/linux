@@ -73,7 +73,7 @@ Tips for patch submitters
 	and ideally, should come with a patch proposal. Please do not send
 	automated reports to this list either. Such bugs will be handled
 	better and faster in the usual public places. See
-	Documentation/admin-guide/security-bugs.rst for details.
+	Documentation/process/security-bugs.rst for details.
 
 8.	Happy hacking.
 
@@ -18799,7 +18799,7 @@ F:	include/uapi/linux/sed*
 SECURITY CONTACT
 M:	Security Officers <security@kernel.org>
 S:	Supported
-F:	Documentation/admin-guide/security-bugs.rst
+F:	Documentation/process/security-bugs.rst
 
 SECURITY SUBSYSTEM
 M:	Paul Moore <paul@paul-moore.com>

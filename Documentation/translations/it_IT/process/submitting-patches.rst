@@ -272,7 +272,7 @@ embargo potrebbe essere preso in considerazione per dare il tempo alle
 distribuzioni di prendere la patch e renderla disponibile ai loro utenti;
 in questo caso, ovviamente, la patch non dovrebbe essere inviata su alcuna
 lista di discussione pubblica. Leggete anche
-Documentation/admin-guide/security-bugs.rst.
+Documentation/process/security-bugs.rst.
 
 Patch che correggono bachi importanti su un kernel già rilasciato, dovrebbero
 essere inviate ai manutentori dei kernel stabili aggiungendo la seguente riga::
