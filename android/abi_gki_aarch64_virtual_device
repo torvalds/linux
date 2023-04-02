@@ -1,8 +1,5 @@
 [abi_symbol_list]
 # commonly used symbols
-  alloc_candev_mqs
-  alloc_can_err_skb
-  alloc_can_skb
   alloc_etherdev_mqs
   __alloc_pages
   __alloc_skb
@@ -14,12 +11,6 @@
   __arch_copy_to_user
   arm64_use_ng_mappings
   bcmp
-  blk_queue_io_min
-  blk_queue_io_opt
-  blk_queue_logical_block_size
-  blk_queue_max_discard_sectors
-  blk_queue_max_write_zeroes_sectors
-  blk_queue_physical_block_size
   bpf_trace_run2
   bpf_trace_run3
   bt_err
@@ -28,28 +19,19 @@
   build_skb
   cancel_delayed_work_sync
   cancel_work_sync
-  can_change_mtu
-  can_dropped_invalid_skb
   cfg80211_chandef_valid
   __check_object_size
   __class_create
   class_destroy
-  __ClearPageMovable
   clk_disable
   clk_enable
   clk_get_rate
   clk_prepare
   clk_set_rate
   clk_unprepare
-  close_candev
   complete
   __const_udelay
   consume_skb
-  contig_page_data
-  __cpuhp_remove_state
-  __cpuhp_setup_state
-  __cpuhp_state_add_instance
-  __cpuhp_state_remove_instance
   cpu_hwcaps
   cpu_number
   __cpu_online_mask
@@ -63,12 +45,10 @@
   debugfs_remove
   default_llseek
   delayed_work_timer_fn
-  del_gendisk
   del_timer
   destroy_workqueue
   dev_addr_mod
   _dev_err
-  device_add_disk
   device_create
   device_create_file
   device_remove_file
@@ -168,7 +148,6 @@
   __folio_put
   fortify_panic
   fput
-  free_candev
   free_irq
   free_netdev
   __free_pages
@@ -192,7 +171,6 @@
   hrtimer_start_range_ns
   ida_alloc_range
   ida_free
-  idr_alloc
   idr_destroy
   idr_remove
   ieee80211_alloc_hw_nm
@@ -239,15 +217,9 @@
   __kmalloc
   kmalloc_caches
   kmalloc_trace
-  kmem_cache_alloc
-  kmem_cache_create
-  kmem_cache_destroy
-  kmem_cache_free
   kmemdup
   kstrndup
   kstrtobool_from_user
-  kstrtoint
-  kstrtouint
   kthread_create_on_node
   kthread_park
   kthread_should_stop
@@ -266,7 +238,6 @@
   log_write_mmio
   memcpy
   memmove
-  memparse
   memset
   memstart_addr
   misc_deregister
@@ -307,11 +278,9 @@
   nonseekable_open
   noop_llseek
   nr_cpu_ids
-  __num_online_cpus
   of_device_is_compatible
   of_find_property
   of_property_read_variable_u32_array
-  open_candev
   page_frag_alloc_align
   __page_frag_cache_drain
   page_frag_free
@@ -331,7 +300,6 @@
   pci_release_region
   pci_request_region
   pci_unregister_driver
-  __per_cpu_offset
   perf_trace_buf_alloc
   perf_trace_run_bpf_submit
   platform_device_add
@@ -351,7 +319,6 @@
   prepare_to_wait_event
   _printk
   put_device
-  put_disk
   __put_task_struct
   put_unused_fd
   queue_delayed_work_on
@@ -369,11 +336,8 @@
   __rcu_read_lock
   __rcu_read_unlock
   refcount_warn_saturate
-  __register_blkdev
-  register_candev
   register_netdevice
   register_netdevice_notifier
-  register_shrinker
   register_virtio_device
   register_virtio_driver
   __regmap_init
@@ -382,14 +346,11 @@
   remap_pfn_range
   request_firmware
   request_threaded_irq
-  rtnl_link_register
-  rtnl_link_unregister
   rtnl_lock
   rtnl_unlock
   sched_set_fifo_low
   schedule
   schedule_timeout
-  scnprintf
   seq_lseek
   seq_printf
   seq_puts
@@ -401,8 +362,6 @@
   __serio_register_driver
   __serio_register_port
   serio_unregister_driver
-  set_capacity_and_notify
-  __SetPageMovable
   sg_alloc_table
   sg_free_table
   sg_init_one
@@ -418,7 +377,6 @@
   single_open
   single_release
   skb_add_rx_frag
-  skb_clone
   skb_dequeue
   skb_pull
   skb_push
@@ -426,7 +384,6 @@
   skb_queue_purge
   skb_queue_tail
   skb_to_sgvec
-  skb_tstamp_tx
   snprintf
   sprintf
   sscanf
@@ -453,13 +410,9 @@
   trace_handle_return
   trace_raw_output_prep
   __trace_trigger_soft_disabled
-  unlock_page
-  unregister_blkdev
-  unregister_candev
   unregister_netdev
   unregister_netdevice_notifier
   unregister_netdevice_queue
-  unregister_shrinker
   unregister_virtio_device
   unregister_virtio_driver
   usb_add_hcd
@@ -490,7 +443,6 @@
   usb_unanchor_urb
   __usecs_to_jiffies
   usleep_range_state
-  vfree
   virtio_break_device
   virtio_check_driver_offered_feature
   virtio_config_changed
@@ -649,6 +601,7 @@
 
 # required by dummy_hcd.ko
   ktime_get_ts64
+  scnprintf
   strstr
   usb_add_gadget_udc
   usb_del_gadget_udc
@@ -679,7 +632,12 @@
   dma_fence_free
 
 # required by gs_usb.ko
+  alloc_candev_mqs
+  alloc_can_err_skb
   alloc_canfd_skb
+  alloc_can_skb
+  can_change_mtu
+  can_dropped_invalid_skb
   can_eth_ioctl_hwts
   can_ethtool_op_get_ts_info_hwts
   can_fd_dlc2len
@@ -687,9 +645,14 @@
   can_free_echo_skb
   can_get_echo_skb
   can_put_echo_skb
+  close_candev
+  free_candev
+  open_candev
+  register_candev
   timecounter_cyc2time
   timecounter_init
   timecounter_read
+  unregister_candev
   usb_control_msg_recv
   usb_control_msg_send
 
@@ -768,6 +731,7 @@
   dma_map_page_attrs
   dma_sync_single_for_cpu
   dma_unmap_page_attrs
+  idr_alloc
   idr_get_next
   ieee80211_calc_rx_airtime
   ieee80211_channel_to_freq_khz
@@ -897,6 +861,7 @@
   input_set_capability
   kstrtobool
   kstrtou8
+  kstrtouint
   ps2_begin_command
   ps2_cmd_aborted
   ps2_command
@@ -932,17 +897,11 @@
   rtc_tm_to_time64
   rtc_update_irq
 
-# required by slcan.ko
-  can_bus_off
-  can_change_state
-  capable
-  hex_asc_upper
-  hex_to_bin
-  tty_mode_ioctl
-  tty_register_ldisc
-  tty_unregister_ldisc
-
 # required by system_heap.ko
+  dmabuf_page_pool_alloc
+  dmabuf_page_pool_create
+  dmabuf_page_pool_destroy
+  dmabuf_page_pool_free
   dma_heap_add
   dma_heap_get_dev
   dma_heap_get_name
@@ -950,6 +909,7 @@
   dma_sync_sg_for_cpu
   __sg_page_iter_next
   __sg_page_iter_start
+  vfree
   vmalloc
   vmap
   vunmap
@@ -959,9 +919,6 @@
   param_ops_ulong
   print_hex_dump
   sock_recvmsg
-
-# required by vcan.ko
-  sock_efree
 
 # required by vexpress-config.ko
   devres_add
@@ -983,6 +940,7 @@
 # required by vhci-hcd.ko
   kernel_sendmsg
   kernel_sock_shutdown
+  kstrtoint
   kstrtoll
   platform_bus
   sockfd_lookup
@@ -1002,6 +960,9 @@
   module_put
   netdev_upper_dev_link
   netif_stacked_transfer_operstate
+  rtnl_link_register
+  rtnl_link_unregister
+  skb_clone
   unregister_netdevice_many
   wiphy_free
   wiphy_new_nm
@@ -1085,6 +1046,10 @@
   __get_task_comm
   iomem_resource
   is_virtio_device
+  kmem_cache_alloc
+  kmem_cache_create
+  kmem_cache_destroy
+  kmem_cache_free
   memdup_user
   sync_file_get_fence
   __traceiter_dma_fence_emit
@@ -1105,16 +1070,21 @@
   balloon_page_alloc
   balloon_page_dequeue
   balloon_page_enqueue
+  __ClearPageMovable
+  contig_page_data
   init_on_free
   mutex_trylock
   page_relinquish
   page_reporting_register
   page_reporting_unregister
   register_oom_notifier
+  register_shrinker
+  __SetPageMovable
   si_mem_available
   si_meminfo
   system_freezable_wq
   unregister_oom_notifier
+  unregister_shrinker
   virtqueue_disable_dma_api_for_buffers
   vm_event_states
   vm_node_stat
@@ -1138,21 +1108,33 @@
   blk_mq_unquiesce_queue
   blk_mq_virtio_map_queues
   blk_queue_alignment_offset
+  blk_queue_io_min
+  blk_queue_io_opt
+  blk_queue_logical_block_size
+  blk_queue_max_discard_sectors
   blk_queue_max_discard_segments
   blk_queue_max_hw_sectors
   blk_queue_max_secure_erase_sectors
   blk_queue_max_segments
   blk_queue_max_segment_size
+  blk_queue_max_write_zeroes_sectors
+  blk_queue_physical_block_size
   blk_queue_write_cache
   blk_rq_map_kern
   __blk_rq_map_sg
   blk_status_to_errno
+  del_gendisk
+  device_add_disk
+  put_disk
+  __register_blkdev
+  set_capacity_and_notify
   set_disk_ro
   sg_alloc_table_chained
   sg_free_table_chained
   string_get_size
   sysfs_emit
   __sysfs_match_string
+  unregister_blkdev
   virtio_max_dma_size
 
 # required by virtio_console.ko
@@ -1173,6 +1155,7 @@
   pipe_unlock
   __register_chrdev
   __splice_from_pipe
+  unlock_page
   __unregister_chrdev
   wait_for_completion
 
@@ -1180,6 +1163,7 @@
   device_for_each_child
   device_register
   devm_platform_ioremap_resource
+  memparse
 
 # required by virtio_net.ko
   bpf_dispatcher_xdp_func
@@ -1189,6 +1173,10 @@
   bpf_prog_sub
   bpf_stats_enabled_key
   bpf_warn_invalid_xdp_action
+  __cpuhp_remove_state
+  __cpuhp_setup_state
+  __cpuhp_state_add_instance
+  __cpuhp_state_remove_instance
   cpumask_next_wrap
   cpus_read_lock
   cpus_read_unlock
@@ -1211,12 +1199,14 @@
   netif_tx_lock
   netif_tx_unlock
   net_ratelimit
+  __num_online_cpus
   __pskb_pull_tail
   sched_clock
   skb_coalesce_rx_frag
   __skb_flow_dissect
   skb_page_frag_refill
   skb_partial_csum_set
+  skb_tstamp_tx
   softnet_data
   __traceiter_xdp_exception
   __tracepoint_xdp_exception
@@ -1356,7 +1346,7 @@
   vsock_core_unregister
   vsock_for_each_connected_socket
 
-# required by zram.ko
+# preserved by --additions-only
   __alloc_percpu
   bdev_end_io_acct
   bdev_start_io_acct
@@ -1366,6 +1356,9 @@
   __blk_alloc_disk
   blk_queue_flag_clear
   blk_queue_flag_set
+  can_bus_off
+  can_change_state
+  capable
   __class_register
   class_unregister
   __cpu_possible_mask
@@ -1374,32 +1367,37 @@
   crypto_comp_decompress
   crypto_destroy_tfm
   crypto_has_alg
+  dec_zone_page_state
   down_read
   down_write
   _find_next_bit
   flush_dcache_page
+  folio_wait_bit
   free_percpu
+  hex_asc_upper
+  hex_to_bin
   idr_find
   idr_for_each
+  inc_zone_page_state
   __init_rwsem
+  kstrdup
   kstrtou16
   kstrtoull
   memset64
   mutex_is_locked
   page_endio
-  set_capacity
-  sync_blockdev
-  sysfs_streq
-  up_read
-  up_write
-  vzalloc
-
-# required by zsmalloc.ko
-  dec_zone_page_state
-  folio_wait_bit
-  inc_zone_page_state
-  kstrdup
+  __per_cpu_offset
   _raw_read_lock
   _raw_read_unlock
   _raw_write_lock
   _raw_write_unlock
+  set_capacity
+  sock_efree
+  sync_blockdev
+  sysfs_streq
+  tty_mode_ioctl
+  tty_register_ldisc
+  tty_unregister_ldisc
+  up_read
+  up_write
+  vzalloc

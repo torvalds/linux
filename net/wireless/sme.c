@@ -806,6 +806,10 @@ void __cfg80211_connect_result(struct net_device *dev,
 		}
 
 		for_each_valid_link(cr, link) {
+			/* don't do extra lookups for failures */
+			if (cr->links[link].status != WLAN_STATUS_SUCCESS)
+				continue;
+
 			if (cr->links[link].bss)
 				continue;
 
@@ -842,6 +846,16 @@ void __cfg80211_connect_result(struct net_device *dev,
 	}
 
 	memset(wdev->links, 0, sizeof(wdev->links));
+	for_each_valid_link(cr, link) {
+		if (cr->links[link].status == WLAN_STATUS_SUCCESS)
+			continue;
+		cr->valid_links &= ~BIT(link);
+		/* don't require bss pointer for failed links */
+		if (!cr->links[link].bss)
+			continue;
+		cfg80211_unhold_bss(bss_from_pub(cr->links[link].bss));
+		cfg80211_put_bss(wdev->wiphy, cr->links[link].bss);
+	}
 	wdev->valid_links = cr->valid_links;
 	for_each_valid_link(cr, link)
 		wdev->links[link].client.current_bss =
@@ -1266,7 +1280,8 @@ out:
 }
 EXPORT_SYMBOL(cfg80211_roamed);
 
-void __cfg80211_port_authorized(struct wireless_dev *wdev, const u8 *bssid)
+void __cfg80211_port_authorized(struct wireless_dev *wdev, const u8 *bssid,
+					const u8 *td_bitmap, u8 td_bitmap_len)
 {
 	ASSERT_WDEV_LOCK(wdev);
 
@@ -1279,11 +1294,11 @@ void __cfg80211_port_authorized(struct wireless_dev *wdev, const u8 *bssid)
 		return;
 
 	nl80211_send_port_authorized(wiphy_to_rdev(wdev->wiphy), wdev->netdev,
-				     bssid);
+				     bssid, td_bitmap, td_bitmap_len);
 }
 
 void cfg80211_port_authorized(struct net_device *dev, const u8 *bssid,
-			      gfp_t gfp)
+			      const u8 *td_bitmap, u8 td_bitmap_len, gfp_t gfp)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
@@ -1293,12 +1308,15 @@ void cfg80211_port_authorized(struct net_device *dev, const u8 *bssid,
 	if (WARN_ON(!bssid))
 		return;
 
-	ev = kzalloc(sizeof(*ev), gfp);
+	ev = kzalloc(sizeof(*ev) + td_bitmap_len, gfp);
 	if (!ev)
 		return;
 
 	ev->type = EVENT_PORT_AUTHORIZED;
 	memcpy(ev->pa.bssid, bssid, ETH_ALEN);
+	ev->pa.td_bitmap = ((u8 *)ev) + sizeof(*ev);
+	ev->pa.td_bitmap_len = td_bitmap_len;
+	memcpy((void *)ev->pa.td_bitmap, td_bitmap, td_bitmap_len);
 
 	/*
 	 * Use the wdev event list so that if there are pending

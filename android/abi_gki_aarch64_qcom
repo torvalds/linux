@@ -55,6 +55,8 @@
   atomic_notifier_chain_register
   atomic_notifier_chain_unregister
   autoremove_wake_function
+  __auxiliary_driver_register
+  auxiliary_driver_unregister
   available_idle_cpu
   backlight_device_get_by_type
   backlight_device_register
@@ -690,6 +692,7 @@
   devm_fwnode_iio_channel_get_by_name
   devm_fwnode_pwm_get
   devm_gen_pool_create
+  devm_gh_rm_register_platform_ops
   devm_gpiochip_add_data_with_key
   devm_gpiod_get
   devm_gpiod_get_optional
@@ -1314,6 +1317,9 @@
   get_user_pages
   get_wiphy_regdom
   get_zeroed_page
+  gh_rm_call
+  gh_rm_notifier_register
+  gh_rm_notifier_unregister
   gic_nonsecure_priorities
   gov_attr_set_init
   gov_attr_set_put
@@ -3075,6 +3081,7 @@
   __sg_page_iter_dma_next
   __sg_page_iter_next
   __sg_page_iter_start
+  shmem_file_setup
   shmem_read_mapping_page_gfp
   show_rcu_gp_kthreads
   show_rcu_tasks_classic_gp_kthread
@@ -3485,6 +3492,7 @@
   __traceiter_android_rvh_select_fallback_rq
   __traceiter_android_rvh_select_task_rq_fair
   __traceiter_android_rvh_select_task_rq_rt
+  __traceiter_android_rvh_shmem_get_folio
   __traceiter_android_rvh_set_balance_anon_file_reclaim
   __traceiter_android_rvh_set_cpus_allowed_by_task
   __traceiter_android_rvh_setscheduler
@@ -3613,6 +3621,7 @@
   __tracepoint_android_rvh_select_fallback_rq
   __tracepoint_android_rvh_select_task_rq_fair
   __tracepoint_android_rvh_select_task_rq_rt
+  __tracepoint_android_rvh_shmem_get_folio
   __tracepoint_android_rvh_set_balance_anon_file_reclaim
   __tracepoint_android_rvh_set_cpus_allowed_by_task
   __tracepoint_android_rvh_setscheduler

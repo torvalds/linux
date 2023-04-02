@@ -175,6 +175,7 @@ cfg80211_tx_mlme_mgmt
 cfg80211_unlink_bss
 cfg80211_unregister_wdev
 cfg80211_update_owe_info_event
+cfg80211_valid_disable_subchannel_bitmap
 cfg80211_vendor_cmd_get_sender
 cfg80211_vendor_cmd_reply
 close_candev

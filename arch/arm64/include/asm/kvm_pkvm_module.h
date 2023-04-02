@@ -4,6 +4,7 @@
 #define __ARM64_KVM_PKVM_MODULE_H__
 
 #include <asm/kvm_pgtable.h>
+#include <linux/android_kabi.h>
 #include <linux/export.h>
 
 typedef void (*dyn_hcall_t)(struct kvm_cpu_context *);
@@ -39,11 +40,48 @@ struct pkvm_module_ops {
 	int (*register_hyp_panic_notifier)(void (*cb)(struct kvm_cpu_context *host_ctxt));
 	int (*host_donate_hyp)(u64 pfn, u64 nr_pages);
 	int (*hyp_donate_host)(u64 pfn, u64 nr_pages);
+	int (*host_share_hyp)(u64 pfn);
+	int (*host_unshare_hyp)(u64 pfn);
+	int (*pin_shared_mem)(void *from, void *to);
+	void (*unpin_shared_mem)(void *from, void *to);
 	void* (*memcpy)(void *to, const void *from, size_t count);
 	void* (*memset)(void *dst, int c, size_t count);
 	phys_addr_t (*hyp_pa)(void *x);
 	void* (*hyp_va)(phys_addr_t phys);
 	unsigned long (*kern_hyp_va)(unsigned long x);
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
+	ANDROID_KABI_RESERVE(3);
+	ANDROID_KABI_RESERVE(4);
+	ANDROID_KABI_RESERVE(5);
+	ANDROID_KABI_RESERVE(6);
+	ANDROID_KABI_RESERVE(7);
+	ANDROID_KABI_RESERVE(8);
+	ANDROID_KABI_RESERVE(9);
+	ANDROID_KABI_RESERVE(10);
+	ANDROID_KABI_RESERVE(11);
+	ANDROID_KABI_RESERVE(12);
+	ANDROID_KABI_RESERVE(13);
+	ANDROID_KABI_RESERVE(14);
+	ANDROID_KABI_RESERVE(15);
+	ANDROID_KABI_RESERVE(16);
+	ANDROID_KABI_RESERVE(17);
+	ANDROID_KABI_RESERVE(18);
+	ANDROID_KABI_RESERVE(19);
+	ANDROID_KABI_RESERVE(20);
+	ANDROID_KABI_RESERVE(21);
+	ANDROID_KABI_RESERVE(22);
+	ANDROID_KABI_RESERVE(23);
+	ANDROID_KABI_RESERVE(24);
+	ANDROID_KABI_RESERVE(25);
+	ANDROID_KABI_RESERVE(26);
+	ANDROID_KABI_RESERVE(27);
+	ANDROID_KABI_RESERVE(28);
+	ANDROID_KABI_RESERVE(29);
+	ANDROID_KABI_RESERVE(30);
+	ANDROID_KABI_RESERVE(31);
+	ANDROID_KABI_RESERVE(32);
 };
 
 int __pkvm_load_el2_module(struct module *this, unsigned long *token);

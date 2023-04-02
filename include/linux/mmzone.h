@@ -7,6 +7,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/list.h>
+#include <linux/list_nulls.h>
 #include <linux/wait.h>
 #include <linux/bitops.h>
 #include <linux/cache.h>
@@ -310,7 +311,7 @@ enum lruvec_flags {
  * They form a sliding window of a variable size [MIN_NR_GENS, MAX_NR_GENS]. An
  * offset within MAX_NR_GENS, i.e., gen, indexes the LRU list of the
  * corresponding generation. The gen counter in folio->flags stores gen+1 while
- * a page is on one of lrugen->lists[]. Otherwise it stores 0.
+ * a page is on one of lrugen->folios[]. Otherwise it stores 0.
  *
  * A page is added to the youngest generation on faulting. The aging needs to
  * check the accessed bit at least twice before handing this page over to the
@@ -322,8 +323,8 @@ enum lruvec_flags {
  * rest of generations, if they exist, are considered inactive. See
  * lru_gen_is_active().
  *
- * PG_active is always cleared while a page is on one of lrugen->lists[] so that
- * the aging needs not to worry about it. And it's set again when a page
+ * PG_active is always cleared while a page is on one of lrugen->folios[] so
+ * that the aging needs not to worry about it. And it's set again when a page
  * considered active is isolated for non-reclaiming purposes, e.g., migration.
  * See lru_gen_add_folio() and lru_gen_del_folio().
  *
@@ -365,6 +366,15 @@ struct page_vma_mapped_walk;
 #define LRU_GEN_MASK		((BIT(LRU_GEN_WIDTH) - 1) << LRU_GEN_PGOFF)
 #define LRU_REFS_MASK		((BIT(LRU_REFS_WIDTH) - 1) << LRU_REFS_PGOFF)
 
+/* see the comment on MEMCG_NR_GENS */
+enum {
+	MEMCG_LRU_NOP,
+	MEMCG_LRU_HEAD,
+	MEMCG_LRU_TAIL,
+	MEMCG_LRU_OLD,
+	MEMCG_LRU_YOUNG,
+};
+
 #ifdef CONFIG_LRU_GEN
 
 enum {
@@ -402,7 +412,7 @@ enum {
  * The number of pages in each generation is eventually consistent and therefore
  * can be transiently negative when reset_batch_size() is pending.
  */
-struct lru_gen_struct {
+struct lru_gen_folio {
 	/* the aging increments the youngest generation number */
 	unsigned long max_seq;
 	/* the eviction increments the oldest generation numbers */
@@ -410,7 +420,7 @@ struct lru_gen_struct {
 	/* the birth time of each generation in jiffies */
 	unsigned long timestamps[MAX_NR_GENS];
 	/* the multi-gen LRU lists, lazily sorted on eviction */
-	struct list_head lists[MAX_NR_GENS][ANON_AND_FILE][MAX_NR_ZONES];
+	struct list_head folios[MAX_NR_GENS][ANON_AND_FILE][MAX_NR_ZONES];
 	/* the multi-gen LRU sizes, eventually consistent */
 	long nr_pages[MAX_NR_GENS][ANON_AND_FILE][MAX_NR_ZONES];
 	/* the exponential moving average of refaulted */
@@ -424,6 +434,14 @@ struct lru_gen_struct {
 	atomic_long_t refaulted[NR_HIST_GENS][ANON_AND_FILE][MAX_NR_TIERS];
 	/* whether the multi-gen LRU is enabled */
 	bool enabled;
+#ifdef CONFIG_MEMCG
+	/* the memcg generation this lru_gen_folio belongs to */
+	u8 gen;
+	/* the list segment this lru_gen_folio belongs to */
+	u8 seg;
+	/* per-node lru_gen_folio list for global reclaim */
+	struct hlist_nulls_node list;
+#endif
 };
 
 enum {
@@ -459,7 +477,7 @@ struct lru_gen_mm_state {
 struct lru_gen_mm_walk {
 	/* the lruvec under reclaim */
 	struct lruvec *lruvec;
-	/* unstable max_seq from lru_gen_struct */
+	/* unstable max_seq from lru_gen_folio */
 	unsigned long max_seq;
 	/* the next address within an mm to scan */
 	unsigned long next_addr;
@@ -477,11 +495,86 @@ void lru_gen_init_lruvec(struct lruvec *lruvec);
 void lru_gen_look_around(struct page_vma_mapped_walk *pvmw);
 
 #ifdef CONFIG_MEMCG
+
+/*
+ * For each node, memcgs are divided into two generations: the old and the
+ * young. For each generation, memcgs are randomly sharded into multiple bins
+ * to improve scalability. For each bin, the hlist_nulls is virtually divided
+ * into three segments: the head, the tail and the default.
+ *
+ * An onlining memcg is added to the tail of a random bin in the old generation.
+ * The eviction starts at the head of a random bin in the old generation. The
+ * per-node memcg generation counter, whose reminder (mod MEMCG_NR_GENS) indexes
+ * the old generation, is incremented when all its bins become empty.
+ *
+ * There are four operations:
+ * 1. MEMCG_LRU_HEAD, which moves an memcg to the head of a random bin in its
+ *    current generation (old or young) and updates its "seg" to "head";
+ * 2. MEMCG_LRU_TAIL, which moves an memcg to the tail of a random bin in its
+ *    current generation (old or young) and updates its "seg" to "tail";
+ * 3. MEMCG_LRU_OLD, which moves an memcg to the head of a random bin in the old
+ *    generation, updates its "gen" to "old" and resets its "seg" to "default";
+ * 4. MEMCG_LRU_YOUNG, which moves an memcg to the tail of a random bin in the
+ *    young generation, updates its "gen" to "young" and resets its "seg" to
+ *    "default".
+ *
+ * The events that trigger the above operations are:
+ * 1. Exceeding the soft limit, which triggers MEMCG_LRU_HEAD;
+ * 2. The first attempt to reclaim an memcg below low, which triggers
+ *    MEMCG_LRU_TAIL;
+ * 3. The first attempt to reclaim an memcg below reclaimable size threshold,
+ *    which triggers MEMCG_LRU_TAIL;
+ * 4. The second attempt to reclaim an memcg below reclaimable size threshold,
+ *    which triggers MEMCG_LRU_YOUNG;
+ * 5. Attempting to reclaim an memcg below min, which triggers MEMCG_LRU_YOUNG;
+ * 6. Finishing the aging on the eviction path, which triggers MEMCG_LRU_YOUNG;
+ * 7. Offlining an memcg, which triggers MEMCG_LRU_OLD.
+ *
+ * Note that memcg LRU only applies to global reclaim, and the round-robin
+ * incrementing of their max_seq counters ensures the eventual fairness to all
+ * eligible memcgs. For memcg reclaim, it still relies on mem_cgroup_iter().
+ */
+#define MEMCG_NR_GENS	2
+#define MEMCG_NR_BINS	8
+
+struct lru_gen_memcg {
+	/* the per-node memcg generation counter */
+	unsigned long seq;
+	/* each memcg has one lru_gen_folio per node */
+	unsigned long nr_memcgs[MEMCG_NR_GENS];
+	/* per-node lru_gen_folio list for global reclaim */
+	struct hlist_nulls_head	fifo[MEMCG_NR_GENS][MEMCG_NR_BINS];
+	/* protects the above */
+	spinlock_t lock;
+};
+
+void lru_gen_init_pgdat(struct pglist_data *pgdat);
+
 void lru_gen_init_memcg(struct mem_cgroup *memcg);
 void lru_gen_exit_memcg(struct mem_cgroup *memcg);
-#endif
+void lru_gen_online_memcg(struct mem_cgroup *memcg);
+void lru_gen_offline_memcg(struct mem_cgroup *memcg);
+void lru_gen_release_memcg(struct mem_cgroup *memcg);
+void lru_gen_rotate_memcg(struct lruvec *lruvec, int op);
+
+#else /* !CONFIG_MEMCG */
+
+#define MEMCG_NR_GENS	1
+
+struct lru_gen_memcg {
+};
+
+static inline void lru_gen_init_pgdat(struct pglist_data *pgdat)
+{
+}
+
+#endif /* CONFIG_MEMCG */
 
 #else /* !CONFIG_LRU_GEN */
+
+static inline void lru_gen_init_pgdat(struct pglist_data *pgdat)
+{
+}
 
 static inline void lru_gen_init_lruvec(struct lruvec *lruvec)
 {
@@ -492,6 +585,7 @@ static inline void lru_gen_look_around(struct page_vma_mapped_walk *pvmw)
 }
 
 #ifdef CONFIG_MEMCG
+
 static inline void lru_gen_init_memcg(struct mem_cgroup *memcg)
 {
 }
@@ -499,7 +593,24 @@ static inline void lru_gen_init_memcg(struct mem_cgroup *memcg)
 static inline void lru_gen_exit_memcg(struct mem_cgroup *memcg)
 {
 }
-#endif
+
+static inline void lru_gen_online_memcg(struct mem_cgroup *memcg)
+{
+}
+
+static inline void lru_gen_offline_memcg(struct mem_cgroup *memcg)
+{
+}
+
+static inline void lru_gen_release_memcg(struct mem_cgroup *memcg)
+{
+}
+
+static inline void lru_gen_rotate_memcg(struct lruvec *lruvec, int op)
+{
+}
+
+#endif /* CONFIG_MEMCG */
 
 #endif /* CONFIG_LRU_GEN */
 
@@ -522,7 +633,7 @@ struct lruvec {
 	unsigned long			flags;
 #ifdef CONFIG_LRU_GEN
 	/* evictable pages divided into generations */
-	struct lru_gen_struct		lrugen;
+	struct lru_gen_folio		lrugen;
 	/* to concurrently iterate lru_gen_mm_list */
 	struct lru_gen_mm_state		mm_state;
 #endif
@@ -1217,6 +1328,8 @@ typedef struct pglist_data {
 #ifdef CONFIG_LRU_GEN
 	/* kswap mm walk data */
 	struct lru_gen_mm_walk	mm_walk;
+	/* lru_gen_folio list */
+	struct lru_gen_memcg memcg_lru;
 #endif
 
 	CACHELINE_PADDING(_pad2_);
