@@ -486,7 +486,7 @@ int class_interface_register(struct class_interface *class_intf)
 	if (class_intf->add_dev) {
 		class_dev_iter_init(&iter, parent, NULL, NULL);
 		while ((dev = class_dev_iter_next(&iter)))
-			class_intf->add_dev(dev, class_intf);
+			class_intf->add_dev(dev);
 		class_dev_iter_exit(&iter);
 	}
 	mutex_unlock(&sp->mutex);
@@ -514,7 +514,7 @@ void class_interface_unregister(struct class_interface *class_intf)
 	if (class_intf->remove_dev) {
 		class_dev_iter_init(&iter, parent, NULL, NULL);
 		while ((dev = class_dev_iter_next(&iter)))
-			class_intf->remove_dev(dev, class_intf);
+			class_intf->remove_dev(dev);
 		class_dev_iter_exit(&iter);
 	}
 	mutex_unlock(&sp->mutex);

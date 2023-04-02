@@ -1200,8 +1200,7 @@ static const struct attribute_group rsrc_attributes = {
 	.attrs = pccard_rsrc_attributes,
 };
 
-static int pccard_sysfs_add_rsrc(struct device *dev,
-					   struct class_interface *class_intf)
+static int pccard_sysfs_add_rsrc(struct device *dev)
 {
 	struct pcmcia_socket *s = dev_get_drvdata(dev);
 
@@ -1210,8 +1209,7 @@ static int pccard_sysfs_add_rsrc(struct device *dev,
 	return sysfs_create_group(&dev->kobj, &rsrc_attributes);
 }
 
-static void pccard_sysfs_remove_rsrc(struct device *dev,
-					       struct class_interface *class_intf)
+static void pccard_sysfs_remove_rsrc(struct device *dev)
 {
 	struct pcmcia_socket *s = dev_get_drvdata(dev);
 

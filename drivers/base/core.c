@@ -541,8 +541,7 @@ static struct class devlink_class = {
 	.dev_release = devlink_dev_release,
 };
 
-static int devlink_add_symlinks(struct device *dev,
-				struct class_interface *class_intf)
+static int devlink_add_symlinks(struct device *dev)
 {
 	int ret;
 	size_t len;
@@ -591,8 +590,7 @@ out:
 	return ret;
 }
 
-static void devlink_remove_symlinks(struct device *dev,
-				   struct class_interface *class_intf)
+static void devlink_remove_symlinks(struct device *dev)
 {
 	struct device_link *link = to_devlink(dev);
 	size_t len;
@@ -3647,7 +3645,7 @@ int device_add(struct device *dev)
 		/* notify any interfaces that the device is here */
 		list_for_each_entry(class_intf, &sp->interfaces, node)
 			if (class_intf->add_dev)
-				class_intf->add_dev(dev, class_intf);
+				class_intf->add_dev(dev);
 		mutex_unlock(&sp->mutex);
 		subsys_put(sp);
 	}
@@ -3805,7 +3803,7 @@ void device_del(struct device *dev)
 		/* notify any interfaces that the device is now gone */
 		list_for_each_entry(class_intf, &sp->interfaces, node)
 			if (class_intf->remove_dev)
-				class_intf->remove_dev(dev, class_intf);
+				class_intf->remove_dev(dev);
 		/* remove the device from the class list */
 		klist_del(&dev->p->knode_class);
 		mutex_unlock(&sp->mutex);

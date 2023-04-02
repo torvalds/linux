@@ -219,8 +219,8 @@ struct class_interface {
 	struct list_head	node;
 	const struct class	*class;
 
-	int (*add_dev)		(struct device *, struct class_interface *);
-	void (*remove_dev)	(struct device *, struct class_interface *);
+	int (*add_dev)		(struct device *dev);
+	void (*remove_dev)	(struct device *dev);
 };
 
 int __must_check class_interface_register(struct class_interface *);
