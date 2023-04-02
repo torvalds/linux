@@ -391,36 +391,32 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, void __user *data,
 		rtnl_lock();
 		return err;
 
+	case SIOCDEVPRIVATE ... SIOCDEVPRIVATE + 15:
+		return dev_siocdevprivate(dev, ifr, data, cmd);
+
 	case SIOCSHWTSTAMP:
 		err = net_hwtstamp_validate(ifr);
 		if (err)
 			return err;
 		fallthrough;
 
-	/*
-	 *	Unknown or private ioctl
-	 */
+	case SIOCGHWTSTAMP:
+	case SIOCGMIIPHY:
+	case SIOCGMIIREG:
+	case SIOCSMIIREG:
+		return dev_eth_ioctl(dev, ifr, cmd);
+
+	case SIOCBONDENSLAVE:
+	case SIOCBONDRELEASE:
+	case SIOCBONDSETHWADDR:
+	case SIOCBONDSLAVEINFOQUERY:
+	case SIOCBONDINFOQUERY:
+	case SIOCBONDCHANGEACTIVE:
+		return dev_siocbond(dev, ifr, cmd);
+
+	/* Unknown ioctl */
 	default:
-		if (cmd >= SIOCDEVPRIVATE &&
-		    cmd <= SIOCDEVPRIVATE + 15)
-			return dev_siocdevprivate(dev, ifr, data, cmd);
-
-		if (cmd == SIOCGMIIPHY ||
-		    cmd == SIOCGMIIREG ||
-		    cmd == SIOCSMIIREG ||
-		    cmd == SIOCSHWTSTAMP ||
-		    cmd == SIOCGHWTSTAMP) {
-			err = dev_eth_ioctl(dev, ifr, cmd);
-		} else if (cmd == SIOCBONDENSLAVE ||
-		    cmd == SIOCBONDRELEASE ||
-		    cmd == SIOCBONDSETHWADDR ||
-		    cmd == SIOCBONDSLAVEINFOQUERY ||
-		    cmd == SIOCBONDINFOQUERY ||
-		    cmd == SIOCBONDCHANGEACTIVE) {
-			err = dev_siocbond(dev, ifr, cmd);
-		} else
-			err = -EINVAL;
-
+		err = -EINVAL;
 	}
 	return err;
 }
