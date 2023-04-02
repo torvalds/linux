@@ -249,7 +249,7 @@ static int dev_eth_ioctl(struct net_device *dev,
 	int err;
 
 	err = dsa_ndo_eth_ioctl(dev, ifr, cmd);
-	if (err == 0 || err != -EOPNOTSUPP)
+	if (err != -EOPNOTSUPP)
 		return err;
 
 	if (ops->ndo_eth_ioctl) {
