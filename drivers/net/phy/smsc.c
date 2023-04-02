@@ -44,7 +44,7 @@ static struct smsc_hw_stat smsc_hw_stats[] = {
 };
 
 struct smsc_phy_priv {
-	bool energy_enable;
+	unsigned int edpd_enable:1;
 };
 
 static int smsc_phy_ack_interrupt(struct phy_device *phydev)
@@ -102,7 +102,7 @@ int smsc_phy_config_init(struct phy_device *phydev)
 {
 	struct smsc_phy_priv *priv = phydev->priv;
 
-	if (!priv || !priv->energy_enable || phydev->irq != PHY_POLL)
+	if (!priv || !priv->edpd_enable || phydev->irq != PHY_POLL)
 		return 0;
 
 	/* Enable energy detect power down mode */
@@ -198,7 +198,7 @@ int lan87xx_read_status(struct phy_device *phydev)
 	if (err)
 		return err;
 
-	if (!phydev->link && priv && priv->energy_enable &&
+	if (!phydev->link && priv && priv->edpd_enable &&
 	    phydev->irq == PHY_POLL) {
 		/* Disable EDPD to wake up PHY */
 		int rc = phy_read(phydev, MII_LAN83C185_CTRL_STATUS);
@@ -284,10 +284,10 @@ int smsc_phy_probe(struct phy_device *phydev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->energy_enable = true;
+	priv->edpd_enable = true;
 
 	if (device_property_present(dev, "smsc,disable-energy-detect"))
-		priv->energy_enable = false;
+		priv->edpd_enable = false;
 
 	phydev->priv = priv;
 
