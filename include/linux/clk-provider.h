@@ -1135,10 +1135,8 @@ struct clk_fractional_divider {
 	void __iomem	*reg;
 	u8		mshift;
 	u8		mwidth;
-	u32		mmask;
 	u8		nshift;
 	u8		nwidth;
-	u32		nmask;
 	u8		flags;
 	void		(*approximation)(struct clk_hw *hw,
 				unsigned long rate, unsigned long *parent_rate,
