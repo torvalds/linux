@@ -619,7 +619,6 @@ static void edt_ft5x06_restore_reg_parameters(struct edt_ft5x06_ts_data *tsdata)
 	if (reg_addr->reg_report_rate != NO_REGISTER)
 		edt_ft5x06_register_write(tsdata, reg_addr->reg_report_rate,
 					  tsdata->report_rate);
-
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -1458,7 +1457,6 @@ static int edt_ft5x06_ts_resume(struct device *dev)
 		usleep_range(5000, 6000);
 		gpiod_set_value_cansleep(wake_gpio, 1);
 	}
-
 
 	return ret;
 }
