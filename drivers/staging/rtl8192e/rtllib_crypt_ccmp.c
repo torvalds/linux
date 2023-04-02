@@ -36,7 +36,7 @@ struct rtllib_ccmp_data {
 
 	u32 dot11rsna_stats_ccmp_format_errors;
 	u32 dot11rsna_stats_ccmp_replays;
-	u32 dot11RSNAStatsCCMPDecryptErrors;
+	u32 dot11rsna_stats_ccmp_decrypt_errors;
 
 	int key_idx;
 
@@ -296,7 +296,7 @@ static int rtllib_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 				pr_debug("CCMP: decrypt failed: STA= %pM\n",
 					 hdr->addr2);
 			}
-			key->dot11RSNAStatsCCMPDecryptErrors++;
+			key->dot11rsna_stats_ccmp_decrypt_errors++;
 			return -5;
 		}
 
@@ -376,7 +376,7 @@ static void rtllib_ccmp_print_stats(struct seq_file *m, void *priv)
 		   ccmp->tx_pn, ccmp->rx_pn,
 		   ccmp->dot11rsna_stats_ccmp_format_errors,
 		   ccmp->dot11rsna_stats_ccmp_replays,
-		   ccmp->dot11RSNAStatsCCMPDecryptErrors);
+		   ccmp->dot11rsna_stats_ccmp_decrypt_errors);
 }
 
 static struct lib80211_crypto_ops rtllib_crypt_ccmp = {
