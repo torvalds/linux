@@ -732,30 +732,24 @@ void __init vmem_map_init(void)
 	     memblock_region_cmp, memblock_region_swap);
 	__for_each_mem_range(i, &memblock.memory, &memory_rwx,
 			     NUMA_NO_NODE, MEMBLOCK_NONE, &base, &end, NULL) {
-		__set_memory((unsigned long)__va(base),
-			     (end - base) >> PAGE_SHIFT,
-			     SET_MEMORY_RW | SET_MEMORY_NX);
+		set_memory_rwnx((unsigned long)__va(base),
+				(end - base) >> PAGE_SHIFT);
 	}
 
 #ifdef CONFIG_KASAN
-	for_each_mem_range(i, &base, &end)
-		__set_memory(__sha(base),
-			     (__sha(end) - __sha(base)) >> PAGE_SHIFT,
-			     SET_MEMORY_RW | SET_MEMORY_NX);
+	for_each_mem_range(i, &base, &end) {
+		set_memory_rwnx(__sha(base),
+				(__sha(end) - __sha(base)) >> PAGE_SHIFT);
+	}
 #endif
-
-	__set_memory((unsigned long)_stext,
-		     (unsigned long)(_etext - _stext) >> PAGE_SHIFT,
-		     SET_MEMORY_RO | SET_MEMORY_X);
-	__set_memory((unsigned long)_etext,
-		     (unsigned long)(__end_rodata - _etext) >> PAGE_SHIFT,
-		     SET_MEMORY_RO);
-	__set_memory((unsigned long)_sinittext,
-		     (unsigned long)(_einittext - _sinittext) >> PAGE_SHIFT,
-		     SET_MEMORY_RO | SET_MEMORY_X);
-	__set_memory(__stext_amode31,
-		     (__etext_amode31 - __stext_amode31) >> PAGE_SHIFT,
-		     SET_MEMORY_RO | SET_MEMORY_X);
+	set_memory_rox((unsigned long)_stext,
+		       (unsigned long)(_etext - _stext) >> PAGE_SHIFT);
+	set_memory_ro((unsigned long)_etext,
+		      (unsigned long)(__end_rodata - _etext) >> PAGE_SHIFT);
+	set_memory_rox((unsigned long)_sinittext,
+		       (unsigned long)(_einittext - _sinittext) >> PAGE_SHIFT);
+	set_memory_rox(__stext_amode31,
+		       (__etext_amode31 - __stext_amode31) >> PAGE_SHIFT);
 
 	/* lowcore must be executable for LPSWE */
 	if (static_key_enabled(&cpu_has_bear))
