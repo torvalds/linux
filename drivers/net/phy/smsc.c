@@ -77,6 +77,18 @@ int smsc_phy_config_intr(struct phy_device *phydev)
 }
 EXPORT_SYMBOL_GPL(smsc_phy_config_intr);
 
+static int smsc_phy_config_edpd(struct phy_device *phydev)
+{
+	struct smsc_phy_priv *priv = phydev->priv;
+
+	if (priv->edpd_enable)
+		return phy_set_bits(phydev, MII_LAN83C185_CTRL_STATUS,
+				    MII_LAN83C185_EDPWRDOWN);
+	else
+		return phy_clear_bits(phydev, MII_LAN83C185_CTRL_STATUS,
+				      MII_LAN83C185_EDPWRDOWN);
+}
+
 irqreturn_t smsc_phy_handle_interrupt(struct phy_device *phydev)
 {
 	int irq_status;
@@ -105,9 +117,7 @@ int smsc_phy_config_init(struct phy_device *phydev)
 	if (!priv || !priv->edpd_enable || phydev->irq != PHY_POLL)
 		return 0;
 
-	/* Enable energy detect power down mode */
-	return phy_set_bits(phydev, MII_LAN83C185_CTRL_STATUS,
-			    MII_LAN83C185_EDPWRDOWN);
+	return smsc_phy_config_edpd(phydev);
 }
 EXPORT_SYMBOL_GPL(smsc_phy_config_init);
 
