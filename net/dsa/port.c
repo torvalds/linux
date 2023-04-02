@@ -114,19 +114,21 @@ static bool dsa_port_can_configure_learning(struct dsa_port *dp)
 	return !err;
 }
 
-bool dsa_port_supports_hwtstamp(struct dsa_port *dp, struct ifreq *ifr)
+bool dsa_port_supports_hwtstamp(struct dsa_port *dp)
 {
 	struct dsa_switch *ds = dp->ds;
+	struct ifreq ifr = {};
 	int err;
 
 	if (!ds->ops->port_hwtstamp_get || !ds->ops->port_hwtstamp_set)
 		return false;
 
 	/* "See through" shim implementations of the "get" method.
-	 * This will clobber the ifreq structure, but we will either return an
-	 * error, or the master will overwrite it with proper values.
+	 * Since we can't cook up a complete ioctl request structure, this will
+	 * fail in copy_to_user() with -EFAULT, which hopefully is enough to
+	 * detect a valid implementation.
 	 */
-	err = ds->ops->port_hwtstamp_get(ds, dp->index, ifr);
+	err = ds->ops->port_hwtstamp_get(ds, dp->index, &ifr);
 	return err != -EOPNOTSUPP;
 }
 
