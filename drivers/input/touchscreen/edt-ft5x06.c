@@ -183,11 +183,11 @@ static bool edt_ft5x06_ts_check_crc(struct edt_ft5x06_ts_data *tsdata,
 	for (i = 0; i < buflen - 1; i++)
 		crc ^= buf[i];
 
-	if (crc != buf[buflen-1]) {
+	if (crc != buf[buflen - 1]) {
 		tsdata->crc_errors++;
 		dev_err_ratelimited(&tsdata->client->dev,
 				    "crc error: 0x%02x expected, got 0x%02x\n",
-				    crc, buf[buflen-1]);
+				    crc, buf[buflen - 1]);
 		return false;
 	}
 
