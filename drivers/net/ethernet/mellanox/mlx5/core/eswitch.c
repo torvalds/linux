@@ -92,7 +92,7 @@ mlx5_eswitch_get_vport(struct mlx5_eswitch *esw, u16 vport_num)
 {
 	struct mlx5_vport *vport;
 
-	if (!esw || !MLX5_CAP_GEN(esw->dev, vport_group_manager))
+	if (!esw)
 		return ERR_PTR(-EPERM);
 
 	vport = xa_load(&esw->vports, vport_num);
