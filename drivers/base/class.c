@@ -235,7 +235,7 @@ void class_unregister(const struct class *cls)
 }
 EXPORT_SYMBOL_GPL(class_unregister);
 
-static void class_create_release(struct class *cls)
+static void class_create_release(const struct class *cls)
 {
 	pr_debug("%s called for %s\n", __func__, cls->name);
 	kfree(cls);
