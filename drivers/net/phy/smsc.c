@@ -45,6 +45,7 @@ static struct smsc_hw_stat smsc_hw_stats[] = {
 
 struct smsc_phy_priv {
 	unsigned int edpd_enable:1;
+	unsigned int edpd_mode_set_by_user:1;
 };
 
 static int smsc_phy_ack_interrupt(struct phy_device *phydev)
@@ -117,7 +118,8 @@ int smsc_phy_config_init(struct phy_device *phydev)
 	if (!priv)
 		return 0;
 
-	if (phydev->irq != PHY_POLL)
+	/* don't use EDPD in irq mode except overridden by user */
+	if (!priv->edpd_mode_set_by_user && phydev->irq != PHY_POLL)
 		priv->edpd_enable = false;
 
 	return smsc_phy_config_edpd(phydev);
