@@ -240,15 +240,22 @@ int ovl_getattr(struct mnt_idmap *idmap, const struct path *path,
 			/*
 			 * If lower is not same as lowerdata or if there was
 			 * no origin on upper, we can end up here.
+			 * With lazy lowerdata lookup, guess lowerdata blocks
+			 * from size to avoid lowerdata lookup on stat(2).
 			 */
 			struct kstat lowerdatastat;
 			u32 lowermask = STATX_BLOCKS;
 
 			ovl_path_lowerdata(dentry, &realpath);
-			err = vfs_getattr(&realpath, &lowerdatastat,
-					  lowermask, flags);
-			if (err)
-				goto out;
+			if (realpath.dentry) {
+				err = vfs_getattr(&realpath, &lowerdatastat,
+						  lowermask, flags);
+				if (err)
+					goto out;
+			} else {
+				lowerdatastat.blocks =
+					round_up(stat->size, stat->blksize) >> 9;
+			}
 			stat->blocks = lowerdatastat.blocks;
 		}
 	}
@@ -708,6 +715,9 @@ static int ovl_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	int err;
 	struct inode *realinode = ovl_inode_realdata(inode);
 	const struct cred *old_cred;
+
+	if (!realinode)
+		return -EIO;
 
 	if (!realinode->i_op->fiemap)
 		return -EOPNOTSUPP;

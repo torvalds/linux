@@ -115,6 +115,9 @@ static int ovl_real_fdget_meta(const struct file *file, struct fd *real,
 		ovl_path_real(dentry, &realpath);
 	else
 		ovl_path_realdata(dentry, &realpath);
+	/* TODO: lazy lookup of lowerdata */
+	if (!realpath.dentry)
+		return -EIO;
 
 	/* Has it been copied up since we'd opened it? */
 	if (unlikely(file_inode(real->file) != d_inode(realpath.dentry))) {
@@ -158,6 +161,10 @@ static int ovl_open(struct inode *inode, struct file *file)
 	file->f_flags &= ~(O_CREAT | O_EXCL | O_NOCTTY | O_TRUNC);
 
 	ovl_path_realdata(dentry, &realpath);
+	/* TODO: lazy lookup of lowerdata */
+	if (!realpath.dentry)
+		return -EIO;
+
 	realfile = ovl_open_realfile(file, &realpath);
 	if (IS_ERR(realfile))
 		return PTR_ERR(realfile);

@@ -159,7 +159,7 @@ void ovl_dentry_init_flags(struct dentry *dentry, struct dentry *upperdentry,
 
 	if (upperdentry)
 		flags |= upperdentry->d_flags;
-	for (i = 0; i < ovl_numlower(oe); i++)
+	for (i = 0; i < ovl_numlower(oe) && lowerstack[i].dentry; i++)
 		flags |= lowerstack[i].dentry->d_flags;
 
 	spin_lock(&dentry->d_lock);

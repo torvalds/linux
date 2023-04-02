@@ -81,6 +81,14 @@ static struct dentry *ovl_d_real(struct dentry *dentry,
 	if (real && !inode && ovl_has_upperdata(d_inode(dentry)))
 		return real;
 
+	/*
+	 * XXX: We may need lazy lookup of lowerdata for !inode case to return
+	 * the real lowerdata dentry.  The only current caller of d_real() with
+	 * NULL inode is d_real_inode() from trace_uprobe and this caller is
+	 * likely going to be followed reading from the file, before placing
+	 * uprobes on offset within the file, so lowerdata should be available
+	 * when setting the uprobe.
+	 */
 	lower = ovl_dentry_lowerdata(dentry);
 	if (!lower)
 		goto bug;
@@ -102,6 +110,9 @@ bug:
 static int ovl_revalidate_real(struct dentry *d, unsigned int flags, bool weak)
 {
 	int ret = 1;
+
+	if (!d)
+		return 1;
 
 	if (weak) {
 		if (d->d_flags & DCACHE_OP_WEAK_REVALIDATE)
