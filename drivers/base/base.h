@@ -54,7 +54,7 @@ struct subsys_private {
 	struct device *dev_root;
 
 	struct kset glue_dirs;
-	struct class *class;
+	const struct class *class;
 
 	struct lock_class_key lock_key;
 };

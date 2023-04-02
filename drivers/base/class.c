@@ -93,7 +93,7 @@ static ssize_t class_attr_store(struct kobject *kobj, struct attribute *attr,
 static void class_release(struct kobject *kobj)
 {
 	struct subsys_private *cp = to_subsys_private(kobj);
-	struct class *class = cp->class;
+	const struct class *class = cp->class;
 
 	pr_debug("class '%s': release.\n", class->name);
 
@@ -110,7 +110,7 @@ static void class_release(struct kobject *kobj)
 static const struct kobj_ns_type_operations *class_child_ns_type(const struct kobject *kobj)
 {
 	const struct subsys_private *cp = to_subsys_private(kobj);
-	struct class *class = cp->class;
+	const struct class *class = cp->class;
 
 	return class->ns_type;
 }
@@ -175,7 +175,7 @@ static void klist_class_dev_put(struct klist_node *n)
 	put_device(dev);
 }
 
-int class_register(struct class *cls)
+int class_register(const struct class *cls)
 {
 	struct subsys_private *cp;
 	struct lock_class_key *key;

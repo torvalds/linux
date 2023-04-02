@@ -76,7 +76,7 @@ struct class_dev_iter {
 	const struct device_type	*type;
 };
 
-int __must_check class_register(struct class *class);
+int __must_check class_register(const struct class *class);
 void class_unregister(const struct class *class);
 bool class_is_registered(const struct class *class);
 
