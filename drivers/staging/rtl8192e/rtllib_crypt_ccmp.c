@@ -74,7 +74,6 @@ fail:
 	return NULL;
 }
 
-
 static void rtllib_ccmp_deinit(void *priv)
 {
 	struct rtllib_ccmp_data *_priv = priv;
@@ -83,7 +82,6 @@ static void rtllib_ccmp_deinit(void *priv)
 		crypto_free_aead(_priv->tfm);
 	kfree(priv);
 }
-
 
 static int ccmp_init_iv_and_aad(struct rtllib_hdr_4addr *hdr,
 				u8 *pn, u8 *iv, u8 *aad)
@@ -149,8 +147,6 @@ static int ccmp_init_iv_and_aad(struct rtllib_hdr_4addr *hdr,
 
 	return aad_len;
 }
-
-
 
 static int rtllib_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
@@ -219,7 +215,6 @@ static int rtllib_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 	return 0;
 }
-
 
 static int rtllib_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
@@ -315,7 +310,6 @@ static int rtllib_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	return keyidx;
 }
 
-
 static int rtllib_ccmp_set_key(void *key, int len, u8 *seq, void *priv)
 {
 	struct rtllib_ccmp_data *data = priv;
@@ -349,7 +343,6 @@ static int rtllib_ccmp_set_key(void *key, int len, u8 *seq, void *priv)
 	return 0;
 }
 
-
 static int rtllib_ccmp_get_key(void *key, int len, u8 *seq, void *priv)
 {
 	struct rtllib_ccmp_data *data = priv;
@@ -372,7 +365,6 @@ static int rtllib_ccmp_get_key(void *key, int len, u8 *seq, void *priv)
 
 	return CCMP_TK_LEN;
 }
-
 
 static void rtllib_ccmp_print_stats(struct seq_file *m, void *priv)
 {
@@ -403,12 +395,10 @@ static struct lib80211_crypto_ops rtllib_crypt_ccmp = {
 	.owner			= THIS_MODULE,
 };
 
-
 static int __init rtllib_crypto_ccmp_init(void)
 {
 	return lib80211_register_crypto_ops(&rtllib_crypt_ccmp);
 }
-
 
 static void __exit rtllib_crypto_ccmp_exit(void)
 {
