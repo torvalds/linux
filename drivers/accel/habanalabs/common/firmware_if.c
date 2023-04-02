@@ -105,7 +105,7 @@ static char *extract_u32_until_given_char(char *str, u32 *ver_num, char given_ch
  */
 static int hl_get_preboot_major_minor(struct hl_device *hdev, char *preboot_ver)
 {
-	preboot_ver = extract_u32_until_given_char(preboot_ver, &hdev->fw_major_version, '.');
+	preboot_ver = extract_u32_until_given_char(preboot_ver, &hdev->fw_inner_major_ver, '.');
 	if (!preboot_ver) {
 		dev_err(hdev->dev, "Error parsing preboot major version\n");
 		goto err_zero_ver;
@@ -113,7 +113,7 @@ static int hl_get_preboot_major_minor(struct hl_device *hdev, char *preboot_ver)
 
 	preboot_ver++;
 
-	preboot_ver = extract_u32_until_given_char(preboot_ver, &hdev->fw_minor_version, '.');
+	preboot_ver = extract_u32_until_given_char(preboot_ver, &hdev->fw_inner_minor_ver, '.');
 	if (!preboot_ver) {
 		dev_err(hdev->dev, "Error parsing preboot minor version\n");
 		goto err_zero_ver;
@@ -121,8 +121,8 @@ static int hl_get_preboot_major_minor(struct hl_device *hdev, char *preboot_ver)
 	return 0;
 
 err_zero_ver:
-	hdev->fw_major_version = 0;
-	hdev->fw_minor_version = 0;
+	hdev->fw_inner_major_ver = 0;
+	hdev->fw_inner_minor_ver = 0;
 	return -EINVAL;
 }
 
