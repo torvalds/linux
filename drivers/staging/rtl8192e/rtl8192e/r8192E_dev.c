@@ -435,12 +435,6 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 	case EEPROM_CID_DEFAULT:
 		priv->customer_id = RT_CID_DEFAULT;
 		break;
-	case EEPROM_CID_CAMEO:
-		priv->customer_id = RT_CID_819x_CAMEO;
-		break;
-	case  EEPROM_CID_RUNTOP:
-		priv->customer_id = RT_CID_819x_RUNTOP;
-		break;
 	case EEPROM_CID_NetCore:
 		priv->customer_id = RT_CID_819X_NETCORE;
 		break;
@@ -450,12 +444,6 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 			priv->chnl_plan = priv->eeprom_chnl_plan & 0x7f;
 		else
 			priv->chnl_plan = 0x0;
-		break;
-	case EEPROM_CID_Nettronix:
-		priv->customer_id = RT_CID_Nettronix;
-		break;
-	case EEPROM_CID_Pronet:
-		priv->customer_id = RT_CID_PRONET;
 		break;
 
 	case EEPROM_CID_WHQL:

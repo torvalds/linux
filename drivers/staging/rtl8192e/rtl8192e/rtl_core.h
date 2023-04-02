@@ -129,12 +129,8 @@ enum dcmg_txcmd_op {
 
 enum rt_customer_id {
 	RT_CID_DEFAULT	  = 0,
-	RT_CID_819x_CAMEO       = 6,
-	RT_CID_819x_RUNTOP      = 7,
 	RT_CID_TOSHIBA	  = 9,
 	RT_CID_819X_NETCORE     = 10,
-	RT_CID_Nettronix	= 11,
-	RT_CID_PRONET	   = 13,
 };
 
 enum reset_type {
