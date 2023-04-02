@@ -433,10 +433,6 @@ enum led_ctl_mode {
 	LED_CTL_START_TO_LINK = 8,
 };
 
-enum rt_rf_type_def {
-	RF_1T2R = 0,
-};
-
 enum wireless_mode {
 	WIRELESS_MODE_UNKNOWN = 0x00,
 	WIRELESS_MODE_A = 0x01,
