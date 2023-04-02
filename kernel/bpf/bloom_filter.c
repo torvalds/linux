@@ -16,13 +16,6 @@ struct bpf_bloom_filter {
 	struct bpf_map map;
 	u32 bitset_mask;
 	u32 hash_seed;
-	/* If the size of the values in the bloom filter is u32 aligned,
-	 * then it is more performant to use jhash2 as the underlying hash
-	 * function, else we use jhash. This tracks the number of u32s
-	 * in an u32-aligned value size. If the value size is not u32 aligned,
-	 * this will be 0.
-	 */
-	u32 aligned_u32_count;
 	u32 nr_hash_funcs;
 	unsigned long bitset[];
 };
@@ -32,9 +25,8 @@ static u32 hash(struct bpf_bloom_filter *bloom, void *value,
 {
 	u32 h;
 
-	if (bloom->aligned_u32_count)
-		h = jhash2(value, bloom->aligned_u32_count,
-			   bloom->hash_seed + index);
+	if (likely(value_size % 4 == 0))
+		h = jhash2(value, value_size / 4, bloom->hash_seed + index);
 	else
 		h = jhash(value, value_size, bloom->hash_seed + index);
 
@@ -151,11 +143,6 @@ static struct bpf_map *bloom_map_alloc(union bpf_attr *attr)
 
 	bloom->nr_hash_funcs = nr_hash_funcs;
 	bloom->bitset_mask = bitset_mask;
-
-	/* Check whether the value size is u32-aligned */
-	if ((attr->value_size & (sizeof(u32) - 1)) == 0)
-		bloom->aligned_u32_count =
-			attr->value_size / sizeof(u32);
 
 	if (!(attr->map_flags & BPF_F_ZERO_SEED))
 		bloom->hash_seed = get_random_u32();
