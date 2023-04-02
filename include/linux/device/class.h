@@ -217,7 +217,7 @@ ssize_t show_class_attr_string(const struct class *class, const struct class_att
 
 struct class_interface {
 	struct list_head	node;
-	struct class		*class;
+	const struct class	*class;
 
 	int (*add_dev)		(struct device *, struct class_interface *);
 	void (*remove_dev)	(struct device *, struct class_interface *);

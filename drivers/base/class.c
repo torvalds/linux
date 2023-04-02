@@ -498,7 +498,7 @@ EXPORT_SYMBOL_GPL(class_interface_register);
 void class_interface_unregister(struct class_interface *class_intf)
 {
 	struct subsys_private *sp;
-	struct class *parent = class_intf->class;
+	const struct class *parent = class_intf->class;
 	struct class_dev_iter iter;
 	struct device *dev;
 
