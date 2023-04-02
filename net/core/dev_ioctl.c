@@ -259,7 +259,11 @@ static int dev_get_hwtstamp(struct net_device *dev, struct ifreq *ifr)
 
 static int dev_set_hwtstamp(struct net_device *dev, struct ifreq *ifr)
 {
+	struct netdev_notifier_hwtstamp_info info = {
+		.info.dev = dev,
+	};
 	struct kernel_hwtstamp_config kernel_cfg;
+	struct netlink_ext_ack extack = {};
 	struct hwtstamp_config cfg;
 	int err;
 
@@ -272,9 +276,17 @@ static int dev_set_hwtstamp(struct net_device *dev, struct ifreq *ifr)
 	if (err)
 		return err;
 
-	err = dsa_ndo_eth_ioctl(dev, ifr, SIOCSHWTSTAMP);
-	if (err != -EOPNOTSUPP)
+	info.info.extack = &extack;
+	info.config = &kernel_cfg;
+
+	err = call_netdevice_notifiers_info(NETDEV_PRE_CHANGE_HWTSTAMP,
+					    &info.info);
+	err = notifier_to_errno(err);
+	if (err) {
+		if (extack._msg)
+			netdev_err(dev, "%s\n", extack._msg);
 		return err;
+	}
 
 	return dev_eth_ioctl(dev, ifr, SIOCSHWTSTAMP);
 }
