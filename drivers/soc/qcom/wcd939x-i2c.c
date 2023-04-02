@@ -637,8 +637,10 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 
 	if (connect_status == WCD_USBSS_CABLE_DISCONNECT) {
 		wcd_usbss_switch_update_defaults(wcd_usbss_ctxt_);
-		wcd_usbss_dpdm_switch_update(false, false);
-		wcd_usbss_standby_control(true);
+		if (config_standby) {
+			wcd_usbss_dpdm_switch_update(false, false);
+			wcd_usbss_standby_control(true);
+		}
 	} else if (connect_status == WCD_USBSS_CABLE_CONNECT) {
 		wcd_usbss_standby_control(false);
 
