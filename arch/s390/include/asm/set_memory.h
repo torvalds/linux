@@ -34,6 +34,12 @@ static inline int set_memory_x(unsigned long addr, int numpages)
 	return __set_memory(addr, numpages, SET_MEMORY_X);
 }
 
+#define set_memory_rox set_memory_rox
+static inline int set_memory_rox(unsigned long addr, int numpages)
+{
+	return __set_memory(addr, numpages, SET_MEMORY_RO | SET_MEMORY_X);
+}
+
 static inline int set_memory_4k(unsigned long addr, int numpages)
 {
 	return __set_memory(addr, numpages, SET_MEMORY_4K);
