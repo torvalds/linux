@@ -352,6 +352,7 @@ static const char *s_flag[MAX_SBI_FLAG] = {
 	[SBI_QUOTA_NEED_REPAIR]	= "quota_need_repair",
 	[SBI_IS_RESIZEFS]	= "resizefs",
 	[SBI_IS_FREEZING]	= "freezefs",
+	[SBI_IS_WRITABLE]	= "writable",
 };
 
 static const char *ipu_mode_names[F2FS_IPU_MAX] = {
