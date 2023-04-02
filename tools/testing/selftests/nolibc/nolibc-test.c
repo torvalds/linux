@@ -671,8 +671,9 @@ static int smash_stack(void)
 {
 	char buf[100];
 	volatile char *ptr = buf;
+	size_t i;
 
-	for (size_t i = 0; i < 200; i++)
+	for (i = 0; i < 200; i++)
 		ptr[i] = 'P';
 
 	return 1;
