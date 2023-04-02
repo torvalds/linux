@@ -597,6 +597,7 @@
 /* eMMC flash */
 &mmc_0 {
 	status = "okay";
+	mmc-ddr-1_8v;
 	mmc-hs200-1_8v;
 	cap-mmc-highspeed;
 	non-removable;
