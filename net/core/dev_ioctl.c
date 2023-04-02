@@ -183,22 +183,18 @@ static int dev_ifsioc_locked(struct net *net, struct ifreq *ifr, unsigned int cm
 	return err;
 }
 
-static int net_hwtstamp_validate(struct ifreq *ifr)
+static int net_hwtstamp_validate(const struct hwtstamp_config *cfg)
 {
-	struct hwtstamp_config cfg;
 	enum hwtstamp_tx_types tx_type;
 	enum hwtstamp_rx_filters rx_filter;
 	int tx_type_valid = 0;
 	int rx_filter_valid = 0;
 
-	if (copy_from_user(&cfg, ifr->ifr_data, sizeof(cfg)))
-		return -EFAULT;
-
-	if (cfg.flags & ~HWTSTAMP_FLAG_MASK)
+	if (cfg->flags & ~HWTSTAMP_FLAG_MASK)
 		return -EINVAL;
 
-	tx_type = cfg.tx_type;
-	rx_filter = cfg.rx_filter;
+	tx_type = cfg->tx_type;
+	rx_filter = cfg->rx_filter;
 
 	switch (tx_type) {
 	case HWTSTAMP_TX_OFF:
@@ -263,9 +259,13 @@ static int dev_get_hwtstamp(struct net_device *dev, struct ifreq *ifr)
 
 static int dev_set_hwtstamp(struct net_device *dev, struct ifreq *ifr)
 {
+	struct hwtstamp_config cfg;
 	int err;
 
-	err = net_hwtstamp_validate(ifr);
+	if (copy_from_user(&cfg, ifr->ifr_data, sizeof(cfg)))
+		return -EFAULT;
+
+	err = net_hwtstamp_validate(&cfg);
 	if (err)
 		return err;
 
