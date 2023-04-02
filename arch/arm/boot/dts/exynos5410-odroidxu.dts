@@ -21,6 +21,8 @@
 
 	aliases {
 		ethernet = &ethernet;
+		mmc0 = &mmc_0;
+		mmc1 = &mmc_2;
 	};
 
 	memory@40000000 {

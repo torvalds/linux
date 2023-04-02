@@ -15,6 +15,9 @@
 / {
 	aliases {
 		i2c104 = &i2c_104;
+		mmc0 = &mmc_0; /* eMMC */
+		mmc1 = &mmc_2; /* SD */
+		mmc2 = &mmc_3; /* WiFi */
 	};
 
 	memory@40000000 {
