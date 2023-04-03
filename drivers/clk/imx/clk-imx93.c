@@ -352,6 +352,8 @@ static struct platform_driver imx93_clk_driver = {
 	},
 };
 module_platform_driver(imx93_clk_driver);
+module_param(mcore_booted, bool, 0444);
+MODULE_PARM_DESC(mcore_booted, "See Cortex-M core is booted or not");
 
 MODULE_DESCRIPTION("NXP i.MX93 clock driver");
 MODULE_LICENSE("GPL v2");
