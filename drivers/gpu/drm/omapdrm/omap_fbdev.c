@@ -4,13 +4,14 @@
  * Author: Rob Clark <rob@ti.com>
  */
 
-#include <drm/drm_crtc.h>
-#include <drm/drm_util.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_file.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_util.h>
 
 #include "omap_drv.h"
 #include "omap_fbdev.h"
@@ -73,6 +74,25 @@ fallback:
 	return drm_fb_helper_pan_display(var, fbi);
 }
 
+static void omap_fbdev_fb_destroy(struct fb_info *info)
+{
+	struct drm_fb_helper *helper = info->par;
+	struct drm_framebuffer *fb = helper->fb;
+	struct drm_gem_object *bo = drm_gem_fb_get_obj(fb, 0);
+	struct omap_fbdev *fbdev = to_omap_fbdev(helper);
+
+	DBG();
+
+	drm_fb_helper_fini(helper);
+
+	omap_gem_unpin(bo);
+	drm_framebuffer_remove(fb);
+
+	drm_client_release(&helper->client);
+	drm_fb_helper_unprepare(helper);
+	kfree(fbdev);
+}
+
 static const struct fb_ops omap_fb_ops = {
 	.owner = THIS_MODULE,
 
@@ -88,6 +108,8 @@ static const struct fb_ops omap_fb_ops = {
 	.fb_fillrect = drm_fb_helper_sys_fillrect,
 	.fb_copyarea = drm_fb_helper_sys_copyarea,
 	.fb_imageblit = drm_fb_helper_sys_imageblit,
+
+	.fb_destroy = omap_fbdev_fb_destroy,
 };
 
 static int omap_fbdev_create(struct drm_fb_helper *helper,
@@ -222,76 +244,94 @@ static struct drm_fb_helper *get_fb(struct fb_info *fbi)
 	return fbi->par;
 }
 
-/* initialize fbdev helper */
-void omap_fbdev_init(struct drm_device *dev)
-{
-	struct omap_drm_private *priv = dev->dev_private;
-	struct omap_fbdev *fbdev = NULL;
-	struct drm_fb_helper *helper;
-	int ret = 0;
+/*
+ * struct drm_client
+ */
 
-	if (!priv->num_pipes)
-		return;
+static void omap_fbdev_client_unregister(struct drm_client_dev *client)
+{
+	struct drm_fb_helper *fb_helper = drm_fb_helper_from_client(client);
+
+	if (fb_helper->info) {
+		drm_fb_helper_unregister_info(fb_helper);
+	} else {
+		drm_client_release(&fb_helper->client);
+		drm_fb_helper_unprepare(fb_helper);
+		kfree(fb_helper);
+	}
+}
+
+static int omap_fbdev_client_restore(struct drm_client_dev *client)
+{
+	drm_fb_helper_lastclose(client->dev);
+
+	return 0;
+}
+
+static int omap_fbdev_client_hotplug(struct drm_client_dev *client)
+{
+	struct drm_fb_helper *fb_helper = drm_fb_helper_from_client(client);
+	struct drm_device *dev = client->dev;
+	int ret;
+
+	if (dev->fb_helper)
+		return drm_fb_helper_hotplug_event(dev->fb_helper);
+
+	ret = drm_fb_helper_init(dev, fb_helper);
+	if (ret)
+		goto err_drm_err;
+
+	ret = drm_fb_helper_initial_config(fb_helper);
+	if (ret)
+		goto err_drm_fb_helper_fini;
+
+	return 0;
+
+err_drm_fb_helper_fini:
+	drm_fb_helper_fini(fb_helper);
+err_drm_err:
+	drm_err(dev, "Failed to setup fbdev emulation (ret=%d)\n", ret);
+	return ret;
+}
+
+static const struct drm_client_funcs omap_fbdev_client_funcs = {
+	.owner		= THIS_MODULE,
+	.unregister	= omap_fbdev_client_unregister,
+	.restore	= omap_fbdev_client_restore,
+	.hotplug	= omap_fbdev_client_hotplug,
+};
+
+void omap_fbdev_setup(struct drm_device *dev)
+{
+	struct omap_fbdev *fbdev;
+	struct drm_fb_helper *helper;
+	int ret;
+
+	drm_WARN(dev, !dev->registered, "Device has not been registered.\n");
+	drm_WARN(dev, dev->fb_helper, "fb_helper is already set!\n");
 
 	fbdev = kzalloc(sizeof(*fbdev), GFP_KERNEL);
 	if (!fbdev)
 		return;
-
-	INIT_WORK(&fbdev->work, pan_worker);
-
 	helper = &fbdev->base;
 
 	drm_fb_helper_prepare(dev, helper, 32, &omap_fb_helper_funcs);
 
-	ret = drm_fb_helper_init(dev, helper);
+	ret = drm_client_init(dev, &helper->client, "fbdev", &omap_fbdev_client_funcs);
 	if (ret)
-		goto fail;
+		goto err_drm_client_init;
 
-	ret = drm_fb_helper_initial_config(helper);
+	INIT_WORK(&fbdev->work, pan_worker);
+
+	ret = omap_fbdev_client_hotplug(&helper->client);
 	if (ret)
-		goto fini;
+		drm_dbg_kms(dev, "client hotplug ret=%d\n", ret);
+
+	drm_client_register(&helper->client);
 
 	return;
 
-fini:
-	drm_fb_helper_fini(helper);
-fail:
-	drm_fb_helper_unprepare(helper);
-	kfree(fbdev);
-
-	dev_warn(dev->dev, "omap_fbdev_init failed\n");
-}
-
-void omap_fbdev_fini(struct drm_device *dev)
-{
-	struct drm_fb_helper *helper = dev->fb_helper;
-	struct drm_framebuffer *fb;
-	struct drm_gem_object *bo;
-	struct omap_fbdev *fbdev;
-
-	DBG();
-
-	if (!helper)
-		return;
-
-	fb = helper->fb;
-
-	drm_fb_helper_unregister_info(helper);
-
-	drm_fb_helper_fini(helper);
-
-	fbdev = to_omap_fbdev(helper);
-
-	bo = drm_gem_fb_get_obj(fb, 0);
-
-	/* unpin the GEM object pinned in omap_fbdev_create() */
-	if (bo)
-		omap_gem_unpin(bo);
-
-	/* this will free the backing object */
-	if (fb)
-		drm_framebuffer_remove(fb);
-
+err_drm_client_init:
 	drm_fb_helper_unprepare(helper);
 	kfree(fbdev);
 }
