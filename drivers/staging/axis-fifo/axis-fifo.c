@@ -916,15 +916,13 @@ err_initial:
 	return rc;
 }
 
-static int axis_fifo_remove(struct platform_device *pdev)
+static void axis_fifo_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct axis_fifo *fifo = dev_get_drvdata(dev);
 
 	misc_deregister(&fifo->miscdev);
 	dev_set_drvdata(dev, NULL);
-
-	return 0;
 }
 
 static const struct of_device_id axis_fifo_of_match[] = {
@@ -939,7 +937,7 @@ static struct platform_driver axis_fifo_driver = {
 		.of_match_table	= axis_fifo_of_match,
 	},
 	.probe		= axis_fifo_probe,
-	.remove		= axis_fifo_remove,
+	.remove_new	= axis_fifo_remove,
 };
 
 static int __init axis_fifo_init(void)
