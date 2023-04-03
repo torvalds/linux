@@ -25,7 +25,7 @@ pub struct Error(core::ffi::c_int);
 
 impl Error {
     /// Returns the kernel error code.
-    pub fn to_kernel_errno(self) -> core::ffi::c_int {
+    pub fn to_errno(self) -> core::ffi::c_int {
         self.0
     }
 }
