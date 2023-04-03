@@ -406,7 +406,7 @@ static void sdhci_arasan_set_clock(struct sdhci_host *host, unsigned int clock)
 	}
 
 	/* Set the Input and Output Clock Phase Delays */
-	if (clk_data->set_clk_delays)
+	if (clk_data->set_clk_delays && clock > PHY_CLK_TOO_SLOW_HZ)
 		clk_data->set_clk_delays(host);
 
 	if (sdhci_arasan->internal_phy_reg && clock >= MIN_PHY_CLK_HZ) {
