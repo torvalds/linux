@@ -907,8 +907,7 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 
 	if (!d.stop && ovl_numlower(poe)) {
 		err = -ENOMEM;
-		stack = kcalloc(ofs->numlayer - 1, sizeof(struct ovl_path),
-				GFP_KERNEL);
+		stack = ovl_stack_alloc(ofs->numlayer - 1);
 		if (!stack)
 			goto out_put_upper;
 	}
@@ -1073,7 +1072,7 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 	if (!oe)
 		goto out_put;
 
-	memcpy(ovl_lowerstack(oe), stack, sizeof(struct ovl_path) * ctr);
+	ovl_stack_cpy(ovl_lowerstack(oe), stack, ctr);
 	dentry->d_fsdata = oe;
 
 	if (upperopaque)
@@ -1131,18 +1130,16 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 		kfree(origin_path);
 	}
 	dput(index);
-	kfree(stack);
+	ovl_stack_free(stack, ctr);
 	kfree(d.redirect);
 	return d_splice_alias(inode, dentry);
 
 out_free_oe:
 	dentry->d_fsdata = NULL;
-	kfree(oe);
+	ovl_free_entry(oe);
 out_put:
 	dput(index);
-	for (i = 0; i < ctr; i++)
-		dput(stack[i].dentry);
-	kfree(stack);
+	ovl_stack_free(stack, ctr);
 out_put_upper:
 	if (origin_path) {
 		dput(origin_path->dentry);

@@ -127,8 +127,6 @@ static inline struct ovl_path *ovl_lowerstack(struct ovl_entry *oe)
 	return ovl_numlower(oe) ? oe->__lowerstack : NULL;
 }
 
-struct ovl_entry *ovl_alloc_entry(unsigned int numlower);
-
 static inline struct ovl_entry *OVL_E(struct dentry *dentry)
 {
 	return (struct ovl_entry *) dentry->d_fsdata;
