@@ -1000,7 +1000,7 @@ static int kvmppc_resume_inst_load(struct kvm_vcpu *vcpu,
 	}
 }
 
-/**
+/*
  * kvmppc_handle_exit
  *
  * Return value is in the form (errcode<<2 | RESUME_FLAG_HOST | RESUME_FLAG_NV)
