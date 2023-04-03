@@ -1167,6 +1167,7 @@ static int btnxpuart_close(struct hci_dev *hdev)
 {
 	struct btnxpuart_dev *nxpdev = hci_get_drvdata(hdev);
 
+	ps_wakeup(nxpdev);
 	serdev_device_close(nxpdev->serdev);
 	clear_bit(BTNXPUART_SERDEV_OPEN, &nxpdev->tx_state);
 	return 0;
