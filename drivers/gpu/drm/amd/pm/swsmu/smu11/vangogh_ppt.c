@@ -2389,6 +2389,7 @@ static u32 vangogh_set_gfxoff_residency(struct smu_context *smu, bool start)
  * vangogh_get_gfxoff_residency
  *
  * @smu: amdgpu_device pointer
+ * @residency: placeholder for return value
  *
  * This function will be used to get gfxoff residency.
  *
@@ -2407,6 +2408,7 @@ static u32 vangogh_get_gfxoff_residency(struct smu_context *smu, uint32_t *resid
  * vangogh_get_gfxoff_entrycount - get gfxoff entry count
  *
  * @smu: amdgpu_device pointer
+ * @entrycount: placeholder for return value
  *
  * This function will be used to get gfxoff entry count
  *

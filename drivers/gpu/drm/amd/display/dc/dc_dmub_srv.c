@@ -302,27 +302,29 @@ static uint8_t dc_dmub_srv_get_pipes_for_stream(struct dc *dc, struct dc_stream_
 	return pipes;
 }
 
-static int dc_dmub_srv_get_timing_generator_offset(struct dc *dc, struct dc_stream_state *stream)
+static void dc_dmub_srv_populate_fams_pipe_info(struct dc *dc, struct dc_state *context,
+		struct pipe_ctx *head_pipe,
+		struct dmub_cmd_fw_assisted_mclk_switch_pipe_data *fams_pipe_data)
 {
-	int  tg_inst = 0;
-	int i = 0;
+	int j;
+	int pipe_idx = 0;
 
-	for (i = 0; i < MAX_PIPES; i++) {
-		struct pipe_ctx *pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+	fams_pipe_data->pipe_index[pipe_idx++] = head_pipe->plane_res.hubp->inst;
+	for (j = 0; j < dc->res_pool->pipe_count; j++) {
+		struct pipe_ctx *split_pipe = &context->res_ctx.pipe_ctx[j];
 
-		if (pipe->stream == stream && pipe->stream_res.tg) {
-			tg_inst = pipe->stream_res.tg->inst;
-			break;
+		if (split_pipe->stream == head_pipe->stream && (split_pipe->top_pipe || split_pipe->prev_odm_pipe)) {
+			fams_pipe_data->pipe_index[pipe_idx++] = split_pipe->plane_res.hubp->inst;
 		}
 	}
-	return tg_inst;
+	fams_pipe_data->pipe_count = pipe_idx;
 }
 
 bool dc_dmub_srv_p_state_delegate(struct dc *dc, bool should_manage_pstate, struct dc_state *context)
 {
 	union dmub_rb_cmd cmd = { 0 };
 	struct dmub_cmd_fw_assisted_mclk_switch_config *config_data = &cmd.fw_assisted_mclk_switch.config_data;
-	int i = 0;
+	int i = 0, k = 0;
 	int ramp_up_num_steps = 1; // TODO: Ramp is currently disabled. Reenable it.
 	uint8_t visual_confirm_enabled;
 
@@ -337,17 +339,21 @@ bool dc_dmub_srv_p_state_delegate(struct dc *dc, bool should_manage_pstate, stru
 	cmd.fw_assisted_mclk_switch.config_data.fams_enabled = should_manage_pstate;
 	cmd.fw_assisted_mclk_switch.config_data.visual_confirm_enabled = visual_confirm_enabled;
 
-	for (i = 0; context && i < context->stream_count; i++) {
-		struct dc_stream_state *stream = context->streams[i];
-		uint8_t min_refresh_in_hz = (stream->timing.min_refresh_in_uhz + 999999) / 1000000;
-		int  tg_inst = dc_dmub_srv_get_timing_generator_offset(dc, stream);
+	for (i = 0, k = 0; context && i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
-		config_data->pipe_data[tg_inst].pix_clk_100hz = stream->timing.pix_clk_100hz;
-		config_data->pipe_data[tg_inst].min_refresh_in_hz = min_refresh_in_hz;
-		config_data->pipe_data[tg_inst].max_ramp_step = ramp_up_num_steps;
-		config_data->pipe_data[tg_inst].pipes = dc_dmub_srv_get_pipes_for_stream(dc, stream);
+		if (!pipe->top_pipe && !pipe->prev_odm_pipe && pipe->stream && pipe->stream->fpo_in_use) {
+			struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+			uint8_t min_refresh_in_hz = (pipe->stream->timing.min_refresh_in_uhz + 999999) / 1000000;
+
+			config_data->pipe_data[k].pix_clk_100hz = pipe->stream->timing.pix_clk_100hz;
+			config_data->pipe_data[k].min_refresh_in_hz = min_refresh_in_hz;
+			config_data->pipe_data[k].max_ramp_step = ramp_up_num_steps;
+			config_data->pipe_data[k].pipes = dc_dmub_srv_get_pipes_for_stream(dc, pipe->stream);
+			dc_dmub_srv_populate_fams_pipe_info(dc, context, pipe, &config_data->pipe_data[k]);
+			k++;
+		}
 	}
-
 	cmd.fw_assisted_mclk_switch.header.payload_bytes =
 		sizeof(cmd.fw_assisted_mclk_switch) - sizeof(cmd.fw_assisted_mclk_switch.header);
 

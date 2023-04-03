@@ -131,7 +131,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_2_soc = {
 	.urgent_latency_pixel_data_only_us = 4.0,
 	.urgent_latency_pixel_mixed_with_vm_data_us = 4.0,
 	.urgent_latency_vm_data_only_us = 4.0,
-	.fclk_change_latency_us = 20,
+	.fclk_change_latency_us = 25,
 	.usr_retraining_latency_us = 2,
 	.smn_latency_us = 2,
 	.mall_allocated_for_dcn_mbytes = 64,
@@ -1960,8 +1960,13 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 	}
 
 	context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching = false;
+	for (i = 0; i < context->stream_count; i++) {
+		if (context->streams[i])
+			context->streams[i]->fpo_in_use = false;
+	}
 
-	if (!pstate_en) {
+	if (!pstate_en || (!dc->debug.disable_fpo_optimizations &&
+			pstate_en && vlevel != 0)) {
 		/* only when the mclk switch can not be natural, is the fw based vblank stretch attempted */
 		context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching =
 			dcn30_can_support_mclk_switch_using_fw_based_vblank_stretch(dc, context);
@@ -1985,11 +1990,21 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 				context->bw_ctx.dml.soc.fclk_change_latency_us =
 						dc->clk_mgr->bw_params->dummy_pstate_table[dummy_latency_index].dummy_pstate_latency_us;
 			}
-			dcn32_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, false);
-			maxMpcComb = context->bw_ctx.dml.vba.maxMpcComb;
-			dcfclk_from_fw_based_mclk_switching = context->bw_ctx.dml.vba.DCFCLKState[vlevel][context->bw_ctx.dml.vba.maxMpcComb];
-			pstate_en = context->bw_ctx.dml.vba.DRAMClockChangeSupport[vlevel][maxMpcComb] !=
-					dm_dram_clock_change_unsupported;
+			dcn32_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel_temp, false);
+			if (vlevel_temp < vlevel) {
+				vlevel = vlevel_temp;
+				maxMpcComb = context->bw_ctx.dml.vba.maxMpcComb;
+				dcfclk_from_fw_based_mclk_switching = context->bw_ctx.dml.vba.DCFCLKState[vlevel][context->bw_ctx.dml.vba.maxMpcComb];
+				pstate_en = true;
+			} else {
+				/* Restore FCLK latency and re-run validation to go back to original validation
+				 * output if we find that enabling FPO does not give us any benefit (i.e. lower
+				 * voltage level)
+				 */
+				context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching = false;
+				context->bw_ctx.dml.soc.fclk_change_latency_us = dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.fclk_change_latency_us;
+				dcn32_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, false);
+			}
 		}
 	}
 
@@ -2187,10 +2202,6 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 		/* Restore full p-state latency */
 		context->bw_ctx.dml.soc.dram_clock_change_latency_us =
 				dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.pstate_latency_us;
-
-	if (context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching) {
-		dcn30_setup_mclk_switch_using_fw_based_vblank_stretch(dc, context);
-	}
 
 	/* revert fclk lat changes if required */
 	if (need_fclk_lat_as_dummy)

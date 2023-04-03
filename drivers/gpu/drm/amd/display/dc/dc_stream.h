@@ -293,6 +293,7 @@ struct dc_stream_state {
 
 	bool has_non_synchronizable_pclk;
 	bool vblank_synchronized;
+	bool fpo_in_use;
 	struct mall_stream_config mall_stream_config;
 };
 

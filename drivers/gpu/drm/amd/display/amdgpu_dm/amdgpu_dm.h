@@ -610,6 +610,7 @@ struct amdgpu_dm_connector {
 
 	struct drm_connector base;
 	uint32_t connector_id;
+	int bl_idx;
 
 	/* we need to mind the EDID between detect
 	   and get modes due to analog/digital/tvencoder */

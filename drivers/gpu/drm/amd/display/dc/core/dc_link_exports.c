@@ -285,8 +285,7 @@ int dc_link_aux_transfer_raw(struct ddc_service *ddc,
 			ddc, payload, operation_result);
 }
 
-uint32_t dc_link_bw_kbps_from_raw_frl_link_rate_data(
-		struct dc *dc, uint8_t bw)
+uint32_t dc_link_bw_kbps_from_raw_frl_link_rate_data(const struct dc *dc, uint8_t bw)
 {
 	return dc->link_srv->bw_kbps_from_raw_frl_link_rate_data(bw);
 }
@@ -473,4 +472,9 @@ void dc_link_disable_hpd(const struct dc_link *link)
 void dc_link_enable_hpd_filter(struct dc_link *link, bool enable)
 {
 	link->dc->link_srv->enable_hpd_filter(link, enable);
+}
+
+bool dc_link_validate(struct dc *dc, const struct dc_stream_state *streams, const unsigned int count)
+{
+	return dc->link_srv->validate_dpia_bandwidth(streams, count);
 }

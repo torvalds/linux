@@ -725,6 +725,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.min_prefetch_in_strobe_ns = 60000, // 60us
 	.disable_unbounded_requesting = false,
 	.override_dispclk_programming = true,
+	.disable_fpo_optimizations = false,
 };
 
 static const struct dc_debug_options debug_defaults_diags = {

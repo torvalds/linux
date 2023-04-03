@@ -208,7 +208,7 @@ bool needs_dsc_aux_workaround(struct dc_link *link)
 	return false;
 }
 
-bool is_synaptics_cascaded_panamera(struct dc_link *link, struct drm_dp_mst_port *port)
+static bool is_synaptics_cascaded_panamera(struct dc_link *link, struct drm_dp_mst_port *port)
 {
 	u8 branch_vendor_data[4] = { 0 }; // Vendor data 0x50C ~ 0x50F
 

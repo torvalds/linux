@@ -30,6 +30,7 @@
  */
 #include "link_validation.h"
 #include "protocols/link_dp_capability.h"
+#include "protocols/link_dp_dpia_bw.h"
 #include "resource.h"
 
 #define DC_LOGGER_INIT(logger)
@@ -255,57 +256,6 @@ uint32_t dp_link_bandwidth_kbps(
 	return link_rate_per_lane_kbps * link_settings->lane_count / 10000 * total_data_bw_efficiency_x10000;
 }
 
-uint32_t link_timing_bandwidth_kbps(const struct dc_crtc_timing *timing)
-{
-	uint32_t bits_per_channel = 0;
-	uint32_t kbps;
-
-	if (timing->flags.DSC)
-		return dc_dsc_stream_bandwidth_in_kbps(timing,
-				timing->dsc_cfg.bits_per_pixel,
-				timing->dsc_cfg.num_slices_h,
-				timing->dsc_cfg.is_dp);
-
-	switch (timing->display_color_depth) {
-	case COLOR_DEPTH_666:
-		bits_per_channel = 6;
-		break;
-	case COLOR_DEPTH_888:
-		bits_per_channel = 8;
-		break;
-	case COLOR_DEPTH_101010:
-		bits_per_channel = 10;
-		break;
-	case COLOR_DEPTH_121212:
-		bits_per_channel = 12;
-		break;
-	case COLOR_DEPTH_141414:
-		bits_per_channel = 14;
-		break;
-	case COLOR_DEPTH_161616:
-		bits_per_channel = 16;
-		break;
-	default:
-		ASSERT(bits_per_channel != 0);
-		bits_per_channel = 8;
-		break;
-	}
-
-	kbps = timing->pix_clk_100hz / 10;
-	kbps *= bits_per_channel;
-
-	if (timing->flags.Y_ONLY != 1) {
-		/*Only YOnly make reduce bandwidth by 1/3 compares to RGB*/
-		kbps *= 3;
-		if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
-			kbps /= 2;
-		else if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR422)
-			kbps = kbps * 2 / 3;
-	}
-
-	return kbps;
-}
-
 static bool dp_validate_mode_timing(
 	struct dc_link *link,
 	const struct dc_crtc_timing *timing)
@@ -393,4 +343,21 @@ enum dc_status link_validate_mode_timing(
 	}
 
 	return DC_OK;
+}
+
+bool link_validate_dpia_bandwidth(const struct dc_stream_state *stream, const unsigned int num_streams)
+{
+	bool ret = true;
+	int bw_needed[MAX_DPIA_NUM];
+	struct dc_link *link[MAX_DPIA_NUM];
+
+	if (!num_streams || num_streams > MAX_DPIA_NUM)
+		return ret;
+
+	for (uint8_t i = 0; i < num_streams; ++i) {
+
+		link[i] = stream[i].link;
+		bw_needed[i] = dc_bandwidth_in_kbps_from_timing(&stream[i].timing);
+	}
+	return ret;
 }

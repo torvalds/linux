@@ -194,4 +194,12 @@ void dcn32_dio_stream_encoder_construct(
 	const struct dcn10_stream_encoder_shift *se_shift,
 	const struct dcn10_stream_encoder_mask *se_mask);
 
+
+void enc32_enable_fifo(struct stream_encoder *enc);
+
+void enc32_stream_encoder_dp_unblank(
+		struct dc_link *link,
+		struct stream_encoder *enc,
+		const struct encoder_unblank_param *param);
+
 #endif /* __DC_DIO_STREAM_ENCODER_DCN32_H__ */

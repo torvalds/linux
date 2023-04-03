@@ -181,14 +181,14 @@ static bool __get_eeprom_i2c_addr(struct amdgpu_device *adev,
 	switch (adev->asic_type) {
 	case CHIP_VEGA20:
 		control->i2c_address = EEPROM_I2C_MADDR_0;
-		break;
+		return true;
 
 	case CHIP_ARCTURUS:
 		return __get_eeprom_i2c_addr_arct(adev, control);
 
 	case CHIP_SIENNA_CICHLID:
 		control->i2c_address = EEPROM_I2C_MADDR_0;
-		break;
+		return true;
 
 	case CHIP_ALDEBARAN:
 		if (strnstr(atom_ctx->vbios_version, "D673",
@@ -196,7 +196,7 @@ static bool __get_eeprom_i2c_addr(struct amdgpu_device *adev,
 			control->i2c_address = EEPROM_I2C_MADDR_4;
 		else
 			control->i2c_address = EEPROM_I2C_MADDR_0;
-		break;
+		return true;
 
 	case CHIP_IP_DISCOVERY:
 		return __get_eeprom_i2c_addr_ip_discovery(adev, control);
@@ -204,17 +204,6 @@ static bool __get_eeprom_i2c_addr(struct amdgpu_device *adev,
 	default:
 		return false;
 	}
-
-	switch (adev->ip_versions[MP1_HWIP][0]) {
-	case IP_VERSION(13, 0, 0):
-		control->i2c_address = EEPROM_I2C_MADDR_4;
-		break;
-
-	default:
-		break;
-	}
-
-	return true;
 }
 
 static void

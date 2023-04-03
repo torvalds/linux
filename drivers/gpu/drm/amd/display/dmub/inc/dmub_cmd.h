@@ -95,6 +95,13 @@
 /* Maximum number of SubVP streams */
 #define DMUB_MAX_SUBVP_STREAMS 2
 
+/* Define max FPO streams as 4 for now. Current implementation today
+ * only supports 1, but could be more in the future. Reduce array
+ * size to ensure the command size remains less than 64 bytes if
+ * adding new fields.
+ */
+#define DMUB_MAX_FPO_STREAMS 4
+
 /* Maximum number of streams on any ASIC. */
 #define DMUB_MAX_STREAMS 6
 
@@ -3084,14 +3091,15 @@ struct dmub_cmd_fw_assisted_mclk_switch_pipe_data {
 	uint8_t max_ramp_step;
 	uint8_t pipes;
 	uint8_t min_refresh_in_hz;
-	uint8_t padding[1];
+	uint8_t pipe_count;
+	uint8_t pipe_index[4];
 };
 
 struct dmub_cmd_fw_assisted_mclk_switch_config {
 	uint8_t fams_enabled;
 	uint8_t visual_confirm_enabled;
-	uint8_t padding[2];
-	struct dmub_cmd_fw_assisted_mclk_switch_pipe_data pipe_data[DMUB_MAX_STREAMS];
+	uint16_t vactive_stretch_margin_us; // Extra vblank stretch required when doing FPO + Vactive
+	struct dmub_cmd_fw_assisted_mclk_switch_pipe_data pipe_data[DMUB_MAX_FPO_STREAMS];
 };
 
 struct dmub_rb_cmd_fw_assisted_mclk_switch {

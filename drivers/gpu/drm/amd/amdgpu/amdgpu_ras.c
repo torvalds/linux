@@ -34,6 +34,7 @@
 #include "amdgpu_atomfirmware.h"
 #include "amdgpu_xgmi.h"
 #include "ivsrcid/nbio/irqsrcs_nbif_7_4.h"
+#include "nbio_v4_3.h"
 #include "atom.h"
 #include "amdgpu_reset.h"
 
@@ -2340,6 +2341,7 @@ static bool amdgpu_ras_asic_supported(struct amdgpu_device *adev)
 	if (amdgpu_sriov_vf(adev)) {
 		switch (adev->ip_versions[MP0_HWIP][0]) {
 		case IP_VERSION(13, 0, 2):
+		case IP_VERSION(13, 0, 10):
 			return true;
 		default:
 			return false;
@@ -2560,6 +2562,16 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 	case IP_VERSION(7, 4, 4):
 		if (!adev->gmc.xgmi.connected_to_cpu)
 			adev->nbio.ras = &nbio_v7_4_ras;
+		break;
+	case IP_VERSION(4, 3, 0):
+		if (adev->ras_hw_enabled & (1 << AMDGPU_RAS_BLOCK__DF))
+			/* unlike other generation of nbio ras,
+			 * nbio v4_3 only support fatal error interrupt
+			 * to inform software that DF is freezed due to
+			 * system fatal error event. driver should not
+			 * enable nbio ras in such case. Instead,
+			 * check DF RAS */
+			adev->nbio.ras = &nbio_v4_3_ras;
 		break;
 	default:
 		/* nbio ras is not available */

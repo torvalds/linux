@@ -118,6 +118,10 @@ int amdgpu_jpeg_dec_ring_test_ring(struct amdgpu_ring *ring)
 	unsigned i;
 	int r;
 
+	/* JPEG in SRIOV does not support direct register read/write */
+	if (amdgpu_sriov_vf(adev))
+		return 0;
+
 	WREG32(adev->jpeg.inst[ring->me].external.jpeg_pitch, 0xCAFEDEAD);
 	r = amdgpu_ring_alloc(ring, 3);
 	if (r)
@@ -202,16 +206,17 @@ int amdgpu_jpeg_dec_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	} else {
 		r = 0;
 	}
+	if (!amdgpu_sriov_vf(adev)) {
+		for (i = 0; i < adev->usec_timeout; i++) {
+			tmp = RREG32(adev->jpeg.inst[ring->me].external.jpeg_pitch);
+			if (tmp == 0xDEADBEEF)
+				break;
+			udelay(1);
+		}
 
-	for (i = 0; i < adev->usec_timeout; i++) {
-		tmp = RREG32(adev->jpeg.inst[ring->me].external.jpeg_pitch);
-		if (tmp == 0xDEADBEEF)
-			break;
-		udelay(1);
+		if (i >= adev->usec_timeout)
+			r = -ETIMEDOUT;
 	}
-
-	if (i >= adev->usec_timeout)
-		r = -ETIMEDOUT;
 
 	dma_fence_put(fence);
 error:

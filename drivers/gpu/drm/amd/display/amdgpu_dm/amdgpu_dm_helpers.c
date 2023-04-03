@@ -44,6 +44,9 @@
 #include "dm_helpers.h"
 #include "ddc_service_types.h"
 
+/* MST Dock */
+static const uint8_t SYNAPTICS_DEVICE_ID[] = "SYNA";
+
 /* dm_helpers_parse_edid_caps
  *
  * Parse edid caps

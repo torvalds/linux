@@ -46,6 +46,8 @@
 
 void hubp32_update_force_pstate_disallow(struct hubp *hubp, bool pstate_disallow);
 
+void hubp32_update_force_cursor_pstate_disallow(struct hubp *hubp, bool pstate_disallow);
+
 void hubp32_update_mall_sel(struct hubp *hubp, uint32_t mall_sel, bool c_cursor);
 
 void hubp32_prepare_subvp_buffering(struct hubp *hubp, bool enable);
