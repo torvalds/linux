@@ -132,7 +132,7 @@ unlock:
 }
 EXPORT_SYMBOL_GPL(psp_send_platform_access_msg);
 
-int psp_ring_platform_doorbell(int msg)
+int psp_ring_platform_doorbell(int msg, u32 *result)
 {
 	struct psp_device *psp = psp_get_master_device();
 	struct psp_platform_access_device *pa_dev;
@@ -164,6 +164,8 @@ int psp_ring_platform_doorbell(int msg)
 
 	val = FIELD_GET(PSP_CMDRESP_STS, ioread32(cmd));
 	if (val) {
+		if (result)
+			*result = val;
 		ret = -EIO;
 		goto unlock;
 	}
