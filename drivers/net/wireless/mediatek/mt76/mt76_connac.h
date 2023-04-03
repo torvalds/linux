@@ -279,6 +279,12 @@ static inline u8 mt76_connac_spe_idx(u8 antenna_mask)
 	return ant_to_spe[antenna_mask];
 }
 
+static inline void mt76_connac_irq_enable(struct mt76_dev *dev, u32 mask)
+{
+	mt76_set_irq_mask(dev, 0, 0, mask);
+	tasklet_schedule(&dev->irq_tasklet);
+}
+
 int mt76_connac_pm_wake(struct mt76_phy *phy, struct mt76_connac_pm *pm);
 void mt76_connac_power_save_sched(struct mt76_phy *phy,
 				  struct mt76_connac_pm *pm);

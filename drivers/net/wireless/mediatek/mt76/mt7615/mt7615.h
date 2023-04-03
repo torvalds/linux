@@ -410,13 +410,6 @@ void mt7615_mcu_rx_event(struct mt7615_dev *dev, struct sk_buff *skb);
 int mt7615_mcu_rdd_send_pattern(struct mt7615_dev *dev);
 int mt7615_mcu_fw_log_2_host(struct mt7615_dev *dev, u8 ctrl);
 
-static inline void mt7615_irq_enable(struct mt7615_dev *dev, u32 mask)
-{
-	mt76_set_irq_mask(&dev->mt76, 0, 0, mask);
-
-	tasklet_schedule(&dev->mt76.irq_tasklet);
-}
-
 static inline bool mt7615_firmware_offload(struct mt7615_dev *dev)
 {
 	return dev->fw_ver > MT7615_FIRMWARE_V2;

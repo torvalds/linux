@@ -66,9 +66,7 @@ const u32 mt7663e_reg_map[] = {
 static void
 mt7615_rx_poll_complete(struct mt76_dev *mdev, enum mt76_rxq_id q)
 {
-	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
-
-	mt7615_irq_enable(dev, MT_INT_RX_DONE(q));
+	mt76_connac_irq_enable(mdev, MT_INT_RX_DONE(q));
 }
 
 static irqreturn_t mt7615_irq_handler(int irq, void *dev_instance)

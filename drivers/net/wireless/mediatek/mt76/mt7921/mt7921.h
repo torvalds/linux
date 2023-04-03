@@ -390,13 +390,6 @@ void mt7921_mcu_rx_event(struct mt7921_dev *dev, struct sk_buff *skb);
 int mt7921_mcu_set_rxfilter(struct mt7921_dev *dev, u32 fif,
 			    u8 bit_op, u32 bit_map);
 
-static inline void mt7921_irq_enable(struct mt7921_dev *dev, u32 mask)
-{
-	mt76_set_irq_mask(&dev->mt76, 0, 0, mask);
-
-	tasklet_schedule(&dev->mt76.irq_tasklet);
-}
-
 static inline u32
 mt7921_reg_map_l1(struct mt7921_dev *dev, u32 addr)
 {

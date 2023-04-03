@@ -31,14 +31,12 @@ MODULE_PARM_DESC(disable_aspm, "disable PCI ASPM support");
 static void
 mt7921_rx_poll_complete(struct mt76_dev *mdev, enum mt76_rxq_id q)
 {
-	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
-
 	if (q == MT_RXQ_MAIN)
-		mt7921_irq_enable(dev, MT_INT_RX_DONE_DATA);
+		mt76_connac_irq_enable(mdev, MT_INT_RX_DONE_DATA);
 	else if (q == MT_RXQ_MCU_WA)
-		mt7921_irq_enable(dev, MT_INT_RX_DONE_WM2);
+		mt76_connac_irq_enable(mdev, MT_INT_RX_DONE_WM2);
 	else
-		mt7921_irq_enable(dev, MT_INT_RX_DONE_WM);
+		mt76_connac_irq_enable(mdev, MT_INT_RX_DONE_WM);
 }
 
 static irqreturn_t mt7921_irq_handler(int irq, void *dev_instance)
@@ -465,8 +463,9 @@ static int mt7921_pci_resume(struct device *device)
 
 	/* enable interrupt */
 	mt76_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0xff);
-	mt7921_irq_enable(dev, MT_INT_RX_DONE_ALL | MT_INT_TX_DONE_ALL |
-			  MT_INT_MCU_CMD);
+	mt76_connac_irq_enable(&dev->mt76,
+			       MT_INT_RX_DONE_ALL | MT_INT_TX_DONE_ALL |
+			       MT_INT_MCU_CMD);
 	mt76_set(dev, MT_MCU2HOST_SW_INT_ENA, MT_MCU_CMD_WAKE_RX_PCIE);
 
 	/* put dma enabled */
