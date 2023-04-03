@@ -2756,7 +2756,7 @@ EXPORT_SYMBOL_GPL(call_rcu);
  */
 struct kvfree_rcu_bulk_data {
 	struct list_head list;
-	unsigned long gp_snap;
+	struct rcu_gp_oldstate gp_snap;
 	unsigned long nr_records;
 	void *records[];
 };
@@ -2921,23 +2921,24 @@ kvfree_rcu_bulk(struct kfree_rcu_cpu *krcp,
 	int i;
 
 	debug_rcu_bhead_unqueue(bnode);
+	if (!WARN_ON_ONCE(!poll_state_synchronize_rcu_full(&bnode->gp_snap))) {
+		rcu_lock_acquire(&rcu_callback_map);
+		if (idx == 0) { // kmalloc() / kfree().
+			trace_rcu_invoke_kfree_bulk_callback(
+				rcu_state.name, bnode->nr_records,
+				bnode->records);
 
-	rcu_lock_acquire(&rcu_callback_map);
-	if (idx == 0) { // kmalloc() / kfree().
-		trace_rcu_invoke_kfree_bulk_callback(
-			rcu_state.name, bnode->nr_records,
-			bnode->records);
+			kfree_bulk(bnode->nr_records, bnode->records);
+		} else { // vmalloc() / vfree().
+			for (i = 0; i < bnode->nr_records; i++) {
+				trace_rcu_invoke_kvfree_callback(
+					rcu_state.name, bnode->records[i], 0);
 
-		kfree_bulk(bnode->nr_records, bnode->records);
-	} else { // vmalloc() / vfree().
-		for (i = 0; i < bnode->nr_records; i++) {
-			trace_rcu_invoke_kvfree_callback(
-				rcu_state.name, bnode->records[i], 0);
-
-			vfree(bnode->records[i]);
+				vfree(bnode->records[i]);
+			}
 		}
+		rcu_lock_release(&rcu_callback_map);
 	}
-	rcu_lock_release(&rcu_callback_map);
 
 	raw_spin_lock_irqsave(&krcp->lock, flags);
 	if (put_cached_bnode(krcp, bnode))
@@ -3081,7 +3082,7 @@ kvfree_rcu_drain_ready(struct kfree_rcu_cpu *krcp)
 		INIT_LIST_HEAD(&bulk_ready[i]);
 
 		list_for_each_entry_safe_reverse(bnode, n, &krcp->bulk_head[i], list) {
-			if (!poll_state_synchronize_rcu(bnode->gp_snap))
+			if (!poll_state_synchronize_rcu_full(&bnode->gp_snap))
 				break;
 
 			atomic_sub(bnode->nr_records, &krcp->bulk_count[i]);
@@ -3285,7 +3286,7 @@ add_ptr_to_bulk_krc_lock(struct kfree_rcu_cpu **krcp,
 
 	// Finally insert and update the GP for this page.
 	bnode->records[bnode->nr_records++] = ptr;
-	bnode->gp_snap = get_state_synchronize_rcu();
+	get_state_synchronize_rcu_full(&bnode->gp_snap);
 	atomic_inc(&(*krcp)->bulk_count[idx]);
 
 	return true;
