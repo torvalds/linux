@@ -25,6 +25,7 @@
 
 #include "omap_dmm_tiler.h"
 #include "omap_drv.h"
+#include "omap_fbdev.h"
 
 #define DRIVER_NAME		MODULE_NAME
 #define DRIVER_DESC		"OMAP DRM"

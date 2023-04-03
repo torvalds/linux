@@ -13,6 +13,7 @@
 #include <drm/drm_gem_framebuffer_helper.h>
 
 #include "omap_drv.h"
+#include "omap_fbdev.h"
 
 MODULE_PARM_DESC(ywrap, "Enable ywrap scrolling (omap44xx and later, default 'y')");
 static bool ywrap_enabled = true;
@@ -250,8 +251,6 @@ void omap_fbdev_init(struct drm_device *dev)
 	if (ret)
 		goto fini;
 
-	priv->fbdev = helper;
-
 	return;
 
 fini:
@@ -265,8 +264,7 @@ fail:
 
 void omap_fbdev_fini(struct drm_device *dev)
 {
-	struct omap_drm_private *priv = dev->dev_private;
-	struct drm_fb_helper *helper = priv->fbdev;
+	struct drm_fb_helper *helper = dev->fb_helper;
 	struct drm_framebuffer *fb;
 	struct drm_gem_object *bo;
 	struct omap_fbdev *fbdev;
@@ -296,6 +294,4 @@ void omap_fbdev_fini(struct drm_device *dev)
 
 	drm_fb_helper_unprepare(helper);
 	kfree(fbdev);
-
-	priv->fbdev = NULL;
 }
