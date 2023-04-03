@@ -187,24 +187,6 @@ static void r4k_blast_dcache_user_page_setup(void)
 
 #endif
 
-static void (* r4k_blast_dcache_page_indexed)(unsigned long addr);
-
-static void r4k_blast_dcache_page_indexed_setup(void)
-{
-	unsigned long dc_lsize = cpu_dcache_line_size();
-
-	if (dc_lsize == 0)
-		r4k_blast_dcache_page_indexed = (void *)cache_noop;
-	else if (dc_lsize == 16)
-		r4k_blast_dcache_page_indexed = blast_dcache16_page_indexed;
-	else if (dc_lsize == 32)
-		r4k_blast_dcache_page_indexed = blast_dcache32_page_indexed;
-	else if (dc_lsize == 64)
-		r4k_blast_dcache_page_indexed = blast_dcache64_page_indexed;
-	else if (dc_lsize == 128)
-		r4k_blast_dcache_page_indexed = blast_dcache128_page_indexed;
-}
-
 void (* r4k_blast_dcache)(void);
 EXPORT_SYMBOL(r4k_blast_dcache);
 
@@ -266,39 +248,6 @@ static inline void tx49_blast_icache32(void)
 				     addr | ws, 32);
 }
 
-static inline void blast_icache32_r4600_v1_page_indexed(unsigned long page)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	blast_icache32_page_indexed(page);
-	local_irq_restore(flags);
-}
-
-static inline void tx49_blast_icache32_page_indexed(unsigned long page)
-{
-	unsigned long indexmask = current_cpu_data.icache.waysize - 1;
-	unsigned long start = INDEX_BASE + (page & indexmask);
-	unsigned long end = start + PAGE_SIZE;
-	unsigned long ws_inc = 1UL << current_cpu_data.icache.waybit;
-	unsigned long ws_end = current_cpu_data.icache.ways <<
-			       current_cpu_data.icache.waybit;
-	unsigned long ws, addr;
-
-	CACHE32_UNROLL32_ALIGN2;
-	/* I'm in even chunk.  blast odd chunks */
-	for (ws = 0; ws < ws_end; ws += ws_inc)
-		for (addr = start + 0x400; addr < end; addr += 0x400 * 2)
-			cache_unroll(32, kernel_cache, Index_Invalidate_I,
-				     addr | ws, 32);
-	CACHE32_UNROLL32_ALIGN;
-	/* I'm in odd chunk.  blast even chunks */
-	for (ws = 0; ws < ws_end; ws += ws_inc)
-		for (addr = start; addr < end; addr += 0x400 * 2)
-			cache_unroll(32, kernel_cache, Index_Invalidate_I,
-				     addr | ws, 32);
-}
-
 static void (* r4k_blast_icache_page)(unsigned long addr);
 
 static void r4k_blast_icache_page_setup(void)
@@ -340,34 +289,6 @@ static void r4k_blast_icache_user_page_setup(void)
 }
 
 #endif
-
-static void (* r4k_blast_icache_page_indexed)(unsigned long addr);
-
-static void r4k_blast_icache_page_indexed_setup(void)
-{
-	unsigned long ic_lsize = cpu_icache_line_size();
-
-	if (ic_lsize == 0)
-		r4k_blast_icache_page_indexed = (void *)cache_noop;
-	else if (ic_lsize == 16)
-		r4k_blast_icache_page_indexed = blast_icache16_page_indexed;
-	else if (ic_lsize == 32) {
-		if (IS_ENABLED(CONFIG_WAR_R4600_V1_INDEX_ICACHEOP) &&
-		    cpu_is_r4600_v1_x())
-			r4k_blast_icache_page_indexed =
-				blast_icache32_r4600_v1_page_indexed;
-		else if (IS_ENABLED(CONFIG_WAR_TX49XX_ICACHE_INDEX_INV))
-			r4k_blast_icache_page_indexed =
-				tx49_blast_icache32_page_indexed;
-		else if (current_cpu_type() == CPU_LOONGSON2EF)
-			r4k_blast_icache_page_indexed =
-				loongson2_blast_icache32_page_indexed;
-		else
-			r4k_blast_icache_page_indexed =
-				blast_icache32_page_indexed;
-	} else if (ic_lsize == 64)
-		r4k_blast_icache_page_indexed = blast_icache64_page_indexed;
-}
 
 void (* r4k_blast_icache)(void);
 EXPORT_SYMBOL(r4k_blast_icache);
@@ -412,24 +333,6 @@ static void r4k_blast_scache_page_setup(void)
 		r4k_blast_scache_page = blast_scache64_page;
 	else if (sc_lsize == 128)
 		r4k_blast_scache_page = blast_scache128_page;
-}
-
-static void (* r4k_blast_scache_page_indexed)(unsigned long addr);
-
-static void r4k_blast_scache_page_indexed_setup(void)
-{
-	unsigned long sc_lsize = cpu_scache_line_size();
-
-	if (scache_size == 0)
-		r4k_blast_scache_page_indexed = (void *)cache_noop;
-	else if (sc_lsize == 16)
-		r4k_blast_scache_page_indexed = blast_scache16_page_indexed;
-	else if (sc_lsize == 32)
-		r4k_blast_scache_page_indexed = blast_scache32_page_indexed;
-	else if (sc_lsize == 64)
-		r4k_blast_scache_page_indexed = blast_scache64_page_indexed;
-	else if (sc_lsize == 128)
-		r4k_blast_scache_page_indexed = blast_scache128_page_indexed;
 }
 
 static void (* r4k_blast_scache)(void);
@@ -1807,13 +1710,10 @@ void r4k_cache_init(void)
 	setup_scache();
 
 	r4k_blast_dcache_page_setup();
-	r4k_blast_dcache_page_indexed_setup();
 	r4k_blast_dcache_setup();
 	r4k_blast_icache_page_setup();
-	r4k_blast_icache_page_indexed_setup();
 	r4k_blast_icache_setup();
 	r4k_blast_scache_page_setup();
-	r4k_blast_scache_page_indexed_setup();
 	r4k_blast_scache_setup();
 	r4k_blast_scache_node_setup();
 #ifdef CONFIG_EVA
