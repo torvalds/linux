@@ -30,6 +30,7 @@
 #include <asm/sclp.h>
 
 typedef void (*relocate_kernel_t)(unsigned long, unsigned long, unsigned long);
+typedef int (*purgatory_t)(int);
 
 extern const unsigned char relocate_kernel[];
 extern const unsigned long long relocate_kernel_len;
@@ -40,10 +41,13 @@ extern const unsigned long long relocate_kernel_len;
  * Reset the system, copy boot CPU registers to absolute zero,
  * and jump to the kdump image
  */
-static void __do_machine_kdump(void *image)
+static void __do_machine_kdump(void *data)
 {
-	int (*start_kdump)(int);
+	struct kimage *image = data;
+	purgatory_t purgatory;
 	unsigned long prefix;
+
+	purgatory = (purgatory_t)image->start;
 
 	/* store_status() saved the prefix register to lowcore */
 	prefix = (unsigned long) S390_lowcore.prefixreg_save_area;
@@ -59,11 +63,9 @@ static void __do_machine_kdump(void *image)
 	memcpy(absolute_pointer(__LC_FPREGS_SAVE_AREA),
 	       phys_to_virt(prefix + __LC_FPREGS_SAVE_AREA), 512);
 
-	__load_psw_mask(PSW_MASK_BASE | PSW_DEFAULT_KEY | PSW_MASK_EA | PSW_MASK_BA);
-	start_kdump = (void *)((struct kimage *) image)->start;
-	start_kdump(1);
+	call_nodat(1, int, purgatory, int, 1);
 
-	/* Die if start_kdump returns */
+	/* Die if kdump returns */
 	disabled_wait();
 }
 
@@ -112,13 +114,9 @@ static noinline void __machine_kdump(void *image)
 
 static int do_start_kdump(struct kimage *image)
 {
-	int (*start_kdump)(int) = (void *)image->start;
-	int rc;
+	purgatory_t purgatory = (purgatory_t)image->start;
 
-	__arch_local_irq_stnsm(0xfb); /* disable DAT */
-	rc = start_kdump(0);
-	__arch_local_irq_stosm(0x04); /* enable DAT */
-	return rc;
+	return call_nodat(1, int, purgatory, int, 0);
 }
 
 #endif /* CONFIG_CRASH_DUMP */
@@ -258,8 +256,10 @@ static void __do_machine_kexec(void *data)
 		diag308_subcode |= DIAG308_FLAG_EI;
 	s390_reset_system();
 
-	__arch_local_irq_stnsm(0xfb); /* disable DAT - avoid no-execute */
-	(*(relocate_kernel_t)data_mover)(entry, image->start, diag308_subcode);
+	call_nodat(3, void, (relocate_kernel_t)data_mover,
+		   unsigned long, entry,
+		   unsigned long, image->start,
+		   unsigned long, diag308_subcode);
 
 	/* Die if kexec returns */
 	disabled_wait();

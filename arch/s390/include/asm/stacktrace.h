@@ -189,4 +189,51 @@ static __always_inline unsigned long get_stack_pointer(struct task_struct *task,
 	(rettype)r2;							\
 })
 
+/*
+ * Use call_nodat() to call a function with DAT disabled.
+ * Proper sign and zero extension of function arguments is done.
+ * Usage:
+ *
+ * rc = call_nodat(nr, rettype, fn, t1, a1, t2, a2, ...)
+ *
+ * - nr specifies the number of function arguments of fn.
+ * - fn is the function to be called, where fn is a physical address.
+ * - rettype is the return type of fn.
+ * - t1, a1, ... are pairs, where t1 must match the type of the first
+ *   argument of fn, t2 the second, etc. a1 is the corresponding
+ *   first function argument (not name), etc.
+ *
+ * fn() is called with standard C function call ABI, with the exception
+ * that no useful stackframe or stackpointer is passed via register 15.
+ * Therefore the called function must not use r15 to access the stack.
+ */
+#define call_nodat(nr, rettype, fn, ...)				\
+({									\
+	rettype (*__fn)(CALL_PARM_##nr(__VA_ARGS__)) = (fn);		\
+	psw_t psw_enter, psw_leave;					\
+	CALL_LARGS_##nr(__VA_ARGS__);					\
+	CALL_REGS_##nr;							\
+									\
+	CALL_TYPECHECK_##nr(__VA_ARGS__);				\
+	psw_enter.mask = PSW_KERNEL_BITS & ~PSW_MASK_DAT;		\
+	psw_enter.addr = (unsigned long)__fn;				\
+	asm volatile(							\
+		"	epsw	0,1\n"					\
+		"	risbg	1,0,0,31,32\n"				\
+		"	larl	7,1f\n"					\
+		"	stg	1,%[psw_leave]\n"			\
+		"	stg	7,8+%[psw_leave]\n"			\
+		"	la	7,%[psw_leave]\n"			\
+		"	lra	7,0(7)\n"				\
+		"	larl	1,0f\n"					\
+		"	lra	14,0(1)\n"				\
+		"	lpswe	%[psw_enter]\n"				\
+		"0:	lpswe	0(7)\n"					\
+		"1:\n"							\
+		: CALL_FMT_##nr, [psw_leave] "=Q" (psw_leave)		\
+		: [psw_enter] "Q" (psw_enter)				\
+		: "7", CALL_CLOBBER_##nr);				\
+	(rettype)r2;							\
+})
+
 #endif /* _ASM_S390_STACKTRACE_H */
