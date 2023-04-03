@@ -5,7 +5,6 @@
 #include <linux/firmware.h>
 #include "mt7921.h"
 #include "mt7921_trace.h"
-#include "eeprom.h"
 #include "mcu.h"
 #include "mac.h"
 

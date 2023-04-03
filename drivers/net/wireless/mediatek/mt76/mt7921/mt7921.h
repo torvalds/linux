@@ -266,6 +266,17 @@ struct mt7921_phy {
 	bool roc_grant;
 };
 
+enum mt7921_eeprom_field {
+	MT_EE_CHIP_ID =		0x000,
+	MT_EE_VERSION =		0x002,
+	MT_EE_MAC_ADDR =	0x004,
+	MT_EE_WIFI_CONF =	0x07c,
+	MT_EE_HW_TYPE =		0x55b,
+	__MT_EE_MAX =		0x9ff
+};
+
+#define MT_EE_HW_TYPE_ENCAP			BIT(0)
+
 #define mt7921_init_reset(dev)		((dev)->hif_ops->init_reset(dev))
 #define mt7921_dev_reset(dev)		((dev)->hif_ops->reset(dev))
 #define mt7921_mcu_init(dev)		((dev)->hif_ops->mcu_init(dev))
