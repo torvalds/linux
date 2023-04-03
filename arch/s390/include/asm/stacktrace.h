@@ -210,7 +210,9 @@ static __always_inline unsigned long get_stack_pointer(struct task_struct *task,
 #define call_nodat(nr, rettype, fn, ...)				\
 ({									\
 	rettype (*__fn)(CALL_PARM_##nr(__VA_ARGS__)) = (fn);		\
-	psw_t psw_enter, psw_leave;					\
+	/* aligned since psw_leave must not cross page boundary */	\
+	psw_t __aligned(16) psw_leave;					\
+	psw_t psw_enter;						\
 	CALL_LARGS_##nr(__VA_ARGS__);					\
 	CALL_REGS_##nr;							\
 									\

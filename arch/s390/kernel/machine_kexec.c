@@ -112,13 +112,6 @@ static noinline void __machine_kdump(void *image)
 	store_status(__do_machine_kdump, image);
 }
 
-static int do_start_kdump(struct kimage *image)
-{
-	purgatory_t purgatory = (purgatory_t)image->start;
-
-	return call_nodat(1, int, purgatory, int, 0);
-}
-
 #endif /* CONFIG_CRASH_DUMP */
 
 /*
@@ -127,12 +120,10 @@ static int do_start_kdump(struct kimage *image)
 static bool kdump_csum_valid(struct kimage *image)
 {
 #ifdef CONFIG_CRASH_DUMP
+	purgatory_t purgatory = (purgatory_t)image->start;
 	int rc;
 
-	preempt_disable();
-	rc = call_on_stack(1, S390_lowcore.nodat_stack, int, do_start_kdump,
-			   struct kimage *, image);
-	preempt_enable();
+	rc = call_nodat(1, int, purgatory, int, 0);
 	return rc == 0;
 #else
 	return false;
