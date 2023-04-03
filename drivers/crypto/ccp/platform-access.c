@@ -20,14 +20,6 @@
 
 #define PSP_CMD_TIMEOUT_US	(500 * USEC_PER_MSEC)
 
-/* Doorbell shouldn't be ringing */
-static int check_doorbell(u32 __iomem *doorbell)
-{
-	u32 tmp;
-
-	return readl_poll_timeout(doorbell, tmp, tmp != 0, 0, PSP_CMD_TIMEOUT_US);
-}
-
 /* Recovery field should be equal 0 to start sending commands */
 static int check_recovery(u32 __iomem *cmd)
 {
@@ -155,18 +147,6 @@ int psp_ring_platform_doorbell(int msg)
 	cmd = psp->io_regs + pa_dev->vdata->doorbell_cmd_reg;
 
 	mutex_lock(&pa_dev->doorbell_mutex);
-
-	if (check_doorbell(button)) {
-		dev_dbg(psp->dev, "doorbell is not ready\n");
-		ret = -EBUSY;
-		goto unlock;
-	}
-
-	if (check_recovery(cmd)) {
-		dev_dbg(psp->dev, "doorbell command in recovery\n");
-		ret = -EBUSY;
-		goto unlock;
-	}
 
 	if (wait_cmd(cmd)) {
 		dev_dbg(psp->dev, "doorbell command not done processing\n");
