@@ -18,12 +18,6 @@
  * fbdev funcs, to implement legacy fbdev interface on top of drm driver
  */
 
-#define to_msm_fbdev(x) container_of(x, struct msm_fbdev, base)
-
-struct msm_fbdev {
-	struct drm_fb_helper base;
-};
-
 static int msm_fbdev_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	struct drm_fb_helper *helper = (struct drm_fb_helper *)info->par;
@@ -129,15 +123,12 @@ static const struct drm_fb_helper_funcs msm_fb_helper_funcs = {
 struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
-	struct msm_fbdev *fbdev;
 	struct drm_fb_helper *helper;
 	int ret;
 
-	fbdev = kzalloc(sizeof(*fbdev), GFP_KERNEL);
-	if (!fbdev)
+	helper = kzalloc(sizeof(*helper), GFP_KERNEL);
+	if (!helper)
 		return NULL;
-
-	helper = &fbdev->base;
 
 	drm_fb_helper_prepare(dev, helper, 32, &msm_fb_helper_funcs);
 
@@ -159,7 +150,7 @@ fini:
 	drm_fb_helper_fini(helper);
 fail:
 	drm_fb_helper_unprepare(helper);
-	kfree(fbdev);
+	kfree(helper);
 	return NULL;
 }
 
@@ -168,15 +159,12 @@ void msm_fbdev_free(struct drm_device *dev)
 	struct msm_drm_private *priv = dev->dev_private;
 	struct drm_fb_helper *helper = priv->fbdev;
 	struct drm_framebuffer *fb = helper->fb;
-	struct msm_fbdev *fbdev;
 
 	DBG();
 
 	drm_fb_helper_unregister_info(helper);
 
 	drm_fb_helper_fini(helper);
-
-	fbdev = to_msm_fbdev(priv->fbdev);
 
 	/* this will free the backing object */
 	if (fb) {
@@ -186,7 +174,7 @@ void msm_fbdev_free(struct drm_device *dev)
 	}
 
 	drm_fb_helper_unprepare(helper);
-	kfree(fbdev);
+	kfree(helper);
 
 	priv->fbdev = NULL;
 }
