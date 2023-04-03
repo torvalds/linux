@@ -788,6 +788,7 @@ struct mt76_dev {
 	spinlock_t rx_lock;
 	struct napi_struct napi[__MT_RXQ_MAX];
 	struct sk_buff_head rx_skb[__MT_RXQ_MAX];
+	struct tasklet_struct irq_tasklet;
 
 	struct list_head txwi_cache;
 	struct list_head rxwi_cache;

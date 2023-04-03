@@ -251,7 +251,7 @@ static void mt7996_rx_poll_complete(struct mt76_dev *mdev,
 /* TODO: support 2/4/6/8 MSI-X vectors */
 static void mt7996_irq_tasklet(struct tasklet_struct *t)
 {
-	struct mt7996_dev *dev = from_tasklet(dev, t, irq_tasklet);
+	struct mt7996_dev *dev = from_tasklet(dev, t, mt76.irq_tasklet);
 	u32 i, intr, mask, intr1;
 
 	mt76_wr(dev, MT_INT_MASK_CSR, 0);
@@ -308,7 +308,7 @@ irqreturn_t mt7996_irq_handler(int irq, void *dev_instance)
 	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mphy.state))
 		return IRQ_NONE;
 
-	tasklet_schedule(&dev->irq_tasklet);
+	tasklet_schedule(&dev->mt76.irq_tasklet);
 
 	return IRQ_HANDLED;
 }
@@ -349,7 +349,7 @@ struct mt7996_dev *mt7996_mmio_probe(struct device *pdev,
 	if (ret)
 		goto error;
 
-	tasklet_setup(&dev->irq_tasklet, mt7996_irq_tasklet);
+	tasklet_setup(&mdev->irq_tasklet, mt7996_irq_tasklet);
 
 	mt76_wr(dev, MT_INT_MASK_CSR, 0);
 

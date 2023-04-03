@@ -1180,7 +1180,7 @@ static void mt7915_stop_hardware(struct mt7915_dev *dev)
 	mt7915_mcu_exit(dev);
 	mt7915_tx_token_put(dev);
 	mt7915_dma_cleanup(dev);
-	tasklet_disable(&dev->irq_tasklet);
+	tasklet_disable(&dev->mt76.irq_tasklet);
 
 	if (is_mt7986(&dev->mt76))
 		mt7986_wmac_disable(dev);

@@ -222,7 +222,6 @@ struct mt7996_dev {
 	u32 q_wfdma_mask;
 
 	const struct mt76_bus_ops *bus_ops;
-	struct tasklet_struct irq_tasklet;
 	struct mt7996_phy phy;
 
 	/* monitor rx chain configured channel */
@@ -451,7 +450,7 @@ static inline void mt7996_irq_enable(struct mt7996_dev *dev, u32 mask)
 	else
 		mt76_set_irq_mask(&dev->mt76, 0, 0, mask);
 
-	tasklet_schedule(&dev->irq_tasklet);
+	tasklet_schedule(&dev->mt76.irq_tasklet);
 }
 
 static inline void mt7996_irq_disable(struct mt7996_dev *dev, u32 mask)
