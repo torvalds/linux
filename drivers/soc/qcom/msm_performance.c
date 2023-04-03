@@ -821,15 +821,15 @@ static int msm_perf_core_ctl_notify(struct notifier_block *nb,
 	static unsigned int tld, nrb, i;
 	static unsigned int top_ld[CLUSTER_MAX], curr_cp[CLUSTER_MAX];
 	static DECLARE_WORK(sysfs_notify_work, nr_notify_userspace);
-	// struct core_ctl_notif_data *d = data;
+	struct core_ctl_notif_data *d = data;
 	int cluster = 0;
 
-	// nrb += d->nr_big;
-	// tld += d->coloc_load_pct;
-	// for (cluster = 0; cluster < CLUSTER_MAX; cluster++) {
-		// top_ld[cluster] += d->ta_util_pct[cluster];
-		// curr_cp[cluster] += d->cur_cap_pct[cluster];
-	// }
+	nrb += d->nr_big;
+	tld += d->coloc_load_pct;
+	for (cluster = 0; cluster < CLUSTER_MAX; cluster++) {
+		top_ld[cluster] += d->ta_util_pct[cluster];
+		curr_cp[cluster] += d->cur_cap_pct[cluster];
+	}
 	i++;
 	if (i == POLL_INT) {
 		aggr_big_nr = ((nrb%POLL_INT) ? 1 : 0) + nrb/POLL_INT;
