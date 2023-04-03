@@ -272,6 +272,7 @@ struct adspsleepmon {
 	bool b_config_adsp_panic_lpm;
 	bool b_config_adsp_panic_lpi;
 	bool b_config_adsp_panic_lpm_overall;
+	bool b_config_adsp_ssr_enable;
 	bool b_rpmsg_register;
 	u32 lpm_wait_time;
 	u32 lpi_wait_time;
@@ -342,11 +343,13 @@ static int sleepmon_send_ssr_command(void)
 
 	if (g_adspsleepmon.rpmsgdev && g_adspsleepmon.adsp_version > 1) {
 
-		if (g_adspsleepmon.adsp_rproc) {
-			pr_info("Setting recovery flag for ADSP SSR\n");
-			qcom_rproc_update_recovery_status(g_adspsleepmon.adsp_rproc, true);
-		} else {
-			pr_info("Couldn't find rproc handle for ADSP\n");
+		if (g_adspsleepmon.b_config_adsp_ssr_enable) {
+			if (g_adspsleepmon.adsp_rproc) {
+				pr_info("Setting recovery flag for ADSP SSR\n");
+				qcom_rproc_update_recovery_status(g_adspsleepmon.adsp_rproc, true);
+			} else {
+				pr_info("Couldn't find rproc handle for ADSP\n");
+			}
 		}
 
 		rpmsg.adsp_ver_info = SLEEPMON_ADSP_GLINK_VERSION;
@@ -359,11 +362,12 @@ static int sleepmon_send_ssr_command(void)
 
 		if (result) {
 			pr_err("Send SSR command failed\n");
-
-			if (g_adspsleepmon.adsp_rproc) {
-				pr_info("Resetting recovery flag for ADSP SSR\n");
-				qcom_rproc_update_recovery_status(
-					g_adspsleepmon.adsp_rproc, false);
+			if (g_adspsleepmon.b_config_adsp_ssr_enable) {
+				if (g_adspsleepmon.adsp_rproc) {
+					pr_info("Resetting recovery flag for ADSP SSR\n");
+					qcom_rproc_update_recovery_status(
+						g_adspsleepmon.adsp_rproc, false);
+				}
 			}
 
 		}
@@ -659,7 +663,8 @@ static int debugfs_adsp_panic_state_read(void *data, u64 *val)
 {
 	*val = g_adspsleepmon.b_config_adsp_panic_lpm |
 		(g_adspsleepmon.b_config_adsp_panic_lpi << 1) |
-		(g_adspsleepmon.b_config_adsp_panic_lpm_overall << 2);
+		(g_adspsleepmon.b_config_adsp_panic_lpm_overall << 2) |
+		(g_adspsleepmon.b_config_adsp_ssr_enable << 3);
 
 	return 0;
 }
@@ -684,7 +689,23 @@ static int debugfs_adsp_panic_state_write(void *data, u64 val)
 		g_adspsleepmon.b_config_adsp_panic_lpm_overall = false;
 	else
 		g_adspsleepmon.b_config_adsp_panic_lpm_overall = true;
-
+	if (!(val & 0x8))
+		g_adspsleepmon.b_config_adsp_ssr_enable = false;
+	else {
+		if (g_adspsleepmon.adsp_rproc) {
+			if (g_adspsleepmon.b_config_adsp_panic_lpm ||
+				g_adspsleepmon.b_config_adsp_panic_lpi ||
+				g_adspsleepmon.b_config_adsp_panic_lpm_overall)
+				g_adspsleepmon.b_config_adsp_ssr_enable = true;
+			else {
+				pr_err("ADSP panics are not enabled and discarded ADSP SSR enable request\n");
+				return -EINVAL;
+			}
+		} else {
+			pr_err("Couldn't find rproc handle for ADSP and discarded ADSP SSR enable request\n");
+			return -EINVAL;
+		}
+	}
 	return 0;
 }
 
@@ -697,7 +718,8 @@ static int read_adsp_panic_state_show(struct seq_file *s, void *d)
 {
 	int val = g_adspsleepmon.b_config_adsp_panic_lpm |
 			(g_adspsleepmon.b_config_adsp_panic_lpi << 1) |
-			(g_adspsleepmon.b_config_adsp_panic_lpm_overall << 2);
+			(g_adspsleepmon.b_config_adsp_panic_lpm_overall << 2) |
+			(g_adspsleepmon.b_config_adsp_ssr_enable << 3);
 
 	if (!g_adspsleepmon.rpmsgdev ||
 			g_adspsleepmon.adsp_version <= 1) {
@@ -717,6 +739,10 @@ static int read_adsp_panic_state_show(struct seq_file *s, void *d)
 		seq_puts(s, "\nADSP panic for LPM overall violation enabled\n");
 	else
 		seq_puts(s, "\nADSP panic for LPM overall violation is disabled\n");
+	if (val & 8)
+		seq_puts(s, "\nADSP SSR config enabled\n");
+	else
+		seq_puts(s, "\nADSP SSR config disabled\n");
 
 	return 0;
 }
@@ -1683,6 +1709,14 @@ static int adspsleepmon_driver_probe(struct platform_device *pdev)
 	of_property_read_u32(dev->of_node, "qcom,rproc-handle",
 				&g_adspsleepmon.adsp_rproc_phandle);
 
+	if (g_adspsleepmon.adsp_rproc_phandle &&
+		(g_adspsleepmon.b_config_adsp_panic_lpm ||
+		 g_adspsleepmon.b_config_adsp_panic_lpi ||
+		 g_adspsleepmon.b_config_adsp_panic_lpm_overall)) {
+		g_adspsleepmon.b_config_adsp_ssr_enable = true;
+		dev_info(dev, "ADSP SSR config enabled\n");
+	}
+
 	g_adspsleepmon.b_panic_lpm = g_adspsleepmon.b_config_panic_lpm;
 	g_adspsleepmon.b_panic_lpi = g_adspsleepmon.b_config_panic_lpi;
 
@@ -1715,14 +1749,14 @@ static int adspsleepmon_driver_probe(struct platform_device *pdev)
 			0644, g_adspsleepmon.debugfs_dir, NULL, &adsp_panic_state_fops);
 
 	if (!g_adspsleepmon.debugfs_adsp_panic_file)
-		dev_err(dev, "Unable to create SSR state file in debugfs\n");
+		dev_err(dev, "Unable to create ADSP panic state file in debugfs\n");
 
 	g_adspsleepmon.debugfs_read_adsp_panic_state =
 			debugfs_create_file("read_adsp_panic_state",
 			0444, g_adspsleepmon.debugfs_dir, NULL, &read_adsp_panic_state_fops);
 
 	if (!g_adspsleepmon.debugfs_read_adsp_panic_state)
-		dev_err(dev, "Unable to create SSR state read file in debugfs\n");
+		dev_err(dev, "Unable to create ADSP panic state read file in debugfs\n");
 
 	ret = register_rpmsg_driver(&sleepmon_rpmsg_client);
 
