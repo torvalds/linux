@@ -26,8 +26,6 @@
 #define ACP3x_REG_START		0x1240000
 #define ACP3x_REG_END		0x125C000
 
-static struct platform_device *dmic_dev;
-
 static const struct sof_amd_acp_desc renoir_chip_info = {
 	.rev		= 3,
 	.host_bridge_id = HOST_BRIDGE_CZN,
@@ -65,32 +63,17 @@ static const struct sof_dev_desc renoir_desc = {
 
 static int acp_pci_rn_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 {
-	struct device *dev = &pci->dev;
 	unsigned int flag;
-	int ret;
 
 	flag = snd_amd_acp_find_config(pci);
 	if (flag != FLAG_AMD_SOF && flag != FLAG_AMD_SOF_ONLY_DMIC)
 		return -ENODEV;
 
-	ret = sof_pci_probe(pci, pci_id);
-	if (ret != 0)
-		return ret;
-
-	dmic_dev = platform_device_register_data(dev, "dmic-codec", PLATFORM_DEVID_NONE, NULL, 0);
-	if (IS_ERR(dmic_dev)) {
-		dev_err(dev, "failed to create DMIC device\n");
-		sof_pci_remove(pci);
-		return PTR_ERR(dmic_dev);
-	}
-	return ret;
+	return sof_pci_probe(pci, pci_id);
 };
 
 static void acp_pci_rn_remove(struct pci_dev *pci)
 {
-	if (dmic_dev)
-		platform_device_unregister(dmic_dev);
-
 	return sof_pci_remove(pci);
 }
 

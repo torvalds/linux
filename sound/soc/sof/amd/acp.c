@@ -481,11 +481,18 @@ int amd_sof_acp_probe(struct snd_sof_dev *sdev)
 		return -ENOMEM;
 
 	adata->dev = sdev;
+	adata->dmic_dev = platform_device_register_data(sdev->dev, "dmic-codec",
+							PLATFORM_DEVID_NONE, NULL, 0);
+	if (IS_ERR(adata->dmic_dev)) {
+		dev_err(sdev->dev, "failed to register platform for dmic codec\n");
+		return PTR_ERR(adata->dmic_dev);
+	}
 	addr = pci_resource_start(pci, ACP_DSP_BAR);
 	sdev->bar[ACP_DSP_BAR] = devm_ioremap(sdev->dev, addr, pci_resource_len(pci, ACP_DSP_BAR));
 	if (!sdev->bar[ACP_DSP_BAR]) {
 		dev_err(sdev->dev, "ioremap error\n");
-		return -ENXIO;
+		ret = -ENXIO;
+		goto unregister_dev;
 	}
 
 	pci_set_master(pci);
@@ -494,7 +501,8 @@ int amd_sof_acp_probe(struct snd_sof_dev *sdev)
 	adata->smn_dev = pci_get_device(PCI_VENDOR_ID_AMD, chip->host_bridge_id, NULL);
 	if (!adata->smn_dev) {
 		dev_err(sdev->dev, "Failed to get host bridge device\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto unregister_dev;
 	}
 
 	sdev->ipc_irq = pci->irq;
@@ -529,6 +537,8 @@ free_ipc_irq:
 	free_irq(sdev->ipc_irq, sdev);
 free_smn_dev:
 	pci_dev_put(adata->smn_dev);
+unregister_dev:
+	platform_device_unregister(adata->dmic_dev);
 	return ret;
 }
 EXPORT_SYMBOL_NS(amd_sof_acp_probe, SND_SOC_SOF_AMD_COMMON);
@@ -542,6 +552,9 @@ int amd_sof_acp_remove(struct snd_sof_dev *sdev)
 
 	if (sdev->ipc_irq)
 		free_irq(sdev->ipc_irq, sdev);
+
+	if (adata->dmic_dev)
+		platform_device_unregister(adata->dmic_dev);
 
 	return acp_reset(sdev);
 }

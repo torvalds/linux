@@ -170,6 +170,8 @@ struct sof_amd_acp_desc {
 /* Common device data struct for ACP devices */
 struct acp_dev_data {
 	struct snd_sof_dev  *dev;
+	/* DMIC device */
+	struct platform_device *dmic_dev;
 	unsigned int fw_bin_size;
 	unsigned int fw_data_bin_size;
 	u32 fw_bin_page_count;
