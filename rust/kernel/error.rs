@@ -76,7 +76,6 @@ impl Error {
     ///
     /// It is a bug to pass an out-of-range `errno`. `EINVAL` would
     /// be returned in such a case.
-    #[allow(dead_code)]
     pub(crate) fn from_errno(errno: core::ffi::c_int) -> Error {
         if errno < -(bindings::MAX_ERRNO as i32) || errno >= 0 {
             // TODO: Make it a `WARN_ONCE` once available.
@@ -180,3 +179,13 @@ impl From<core::convert::Infallible> for Error {
 /// it should still be modeled as returning a `Result` rather than
 /// just an [`Error`].
 pub type Result<T = ()> = core::result::Result<T, Error>;
+
+/// Converts an integer as returned by a C kernel function to an error if it's negative, and
+/// `Ok(())` otherwise.
+pub fn to_result(err: core::ffi::c_int) -> Result {
+    if err < 0 {
+        Err(Error::from_errno(err))
+    } else {
+        Ok(())
+    }
+}
