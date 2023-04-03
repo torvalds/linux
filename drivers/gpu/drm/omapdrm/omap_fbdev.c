@@ -10,6 +10,7 @@
 #include <drm/drm_file.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 
 #include "omap_drv.h"
 
@@ -25,7 +26,6 @@ module_param_named(ywrap, ywrap_enabled, bool, 0644);
 
 struct omap_fbdev {
 	struct drm_fb_helper base;
-	struct drm_gem_object *bo;
 	bool ywrap_enabled;
 
 	/* for deferred dmm roll when getting called in atomic ctx */
@@ -37,12 +37,14 @@ static struct drm_fb_helper *get_fb(struct fb_info *fbi);
 static void pan_worker(struct work_struct *work)
 {
 	struct omap_fbdev *fbdev = container_of(work, struct omap_fbdev, work);
-	struct fb_info *fbi = fbdev->base.info;
+	struct drm_fb_helper *helper = &fbdev->base;
+	struct fb_info *fbi = helper->info;
+	struct drm_gem_object *bo = drm_gem_fb_get_obj(helper->fb, 0);
 	int npages;
 
 	/* DMM roll shifts in 4K pages: */
 	npages = fbi->fix.line_length >> PAGE_SHIFT;
-	omap_gem_roll(fbdev->bo, fbi->var.yoffset * npages);
+	omap_gem_roll(bo, fbi->var.yoffset * npages);
 }
 
 static int omap_fbdev_pan_display(struct fb_var_screeninfo *var,
@@ -97,6 +99,7 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 	union omap_gem_size gsize;
 	struct fb_info *fbi = NULL;
 	struct drm_mode_fb_cmd2 mode_cmd = {0};
+	struct drm_gem_object *bo;
 	dma_addr_t dma_addr;
 	int ret;
 
@@ -127,20 +130,20 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 		.bytes = PAGE_ALIGN(mode_cmd.pitches[0] * mode_cmd.height),
 	};
 	DBG("allocating %d bytes for fb %d", gsize.bytes, dev->primary->index);
-	fbdev->bo = omap_gem_new(dev, gsize, OMAP_BO_SCANOUT | OMAP_BO_WC);
-	if (!fbdev->bo) {
+	bo = omap_gem_new(dev, gsize, OMAP_BO_SCANOUT | OMAP_BO_WC);
+	if (!bo) {
 		dev_err(dev->dev, "failed to allocate buffer object\n");
 		ret = -ENOMEM;
 		goto fail;
 	}
 
-	fb = omap_framebuffer_init(dev, &mode_cmd, &fbdev->bo);
+	fb = omap_framebuffer_init(dev, &mode_cmd, &bo);
 	if (IS_ERR(fb)) {
 		dev_err(dev->dev, "failed to allocate fb\n");
 		/* note: if fb creation failed, we can't rely on fb destroy
 		 * to unref the bo:
 		 */
-		drm_gem_object_put(fbdev->bo);
+		drm_gem_object_put(bo);
 		ret = PTR_ERR(fb);
 		goto fail;
 	}
@@ -153,7 +156,7 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 	 * to it).  Then we just need to be sure that we are able to re-
 	 * pin it in case of an opps.
 	 */
-	ret = omap_gem_pin(fbdev->bo, &dma_addr);
+	ret = omap_gem_pin(bo, &dma_addr);
 	if (ret) {
 		dev_err(dev->dev, "could not pin framebuffer\n");
 		ret = -ENOMEM;
@@ -175,10 +178,10 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 
 	drm_fb_helper_fill_info(fbi, helper, sizes);
 
-	fbi->screen_buffer = omap_gem_vaddr(fbdev->bo);
-	fbi->screen_size = fbdev->bo->size;
+	fbi->screen_buffer = omap_gem_vaddr(bo);
+	fbi->screen_size = bo->size;
 	fbi->fix.smem_start = dma_addr;
-	fbi->fix.smem_len = fbdev->bo->size;
+	fbi->fix.smem_len = bo->size;
 
 	/* if we have DMM, then we can use it for scrolling by just
 	 * shuffling pages around in DMM rather than doing sw blit.
@@ -265,6 +268,7 @@ void omap_fbdev_fini(struct drm_device *dev)
 	struct omap_drm_private *priv = dev->dev_private;
 	struct drm_fb_helper *helper = priv->fbdev;
 	struct drm_framebuffer *fb;
+	struct drm_gem_object *bo;
 	struct omap_fbdev *fbdev;
 
 	DBG();
@@ -280,9 +284,11 @@ void omap_fbdev_fini(struct drm_device *dev)
 
 	fbdev = to_omap_fbdev(helper);
 
+	bo = drm_gem_fb_get_obj(fb, 0);
+
 	/* unpin the GEM object pinned in omap_fbdev_create() */
-	if (fbdev->bo)
-		omap_gem_unpin(fbdev->bo);
+	if (bo)
+		omap_gem_unpin(bo);
 
 	/* this will free the backing object */
 	if (fb)
