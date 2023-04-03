@@ -13177,6 +13177,7 @@ M:	Landen Chao <Landen.Chao@mediatek.com>
 M:	DENG Qingfang <dqfext@gmail.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
+F:	drivers/net/dsa/mt7530-mdio.c
 F:	drivers/net/dsa/mt7530.*
 F:	net/dsa/tag_mtk.c
 
