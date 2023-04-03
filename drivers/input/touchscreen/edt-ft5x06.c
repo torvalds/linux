@@ -319,7 +319,7 @@ static int edt_ft5x06_register_write(struct edt_ft5x06_ts_data *tsdata,
 static int edt_ft5x06_register_read(struct edt_ft5x06_ts_data *tsdata,
 				    u8 addr)
 {
-	u8 wrbuf[2], rdbuf[2];
+	u8 wrbuf[2], rdbuf[2], crc;
 	int error;
 
 	switch (tsdata->version) {
@@ -333,11 +333,11 @@ static int edt_ft5x06_register_read(struct edt_ft5x06_ts_data *tsdata,
 		if (error)
 			return error;
 
-		if ((wrbuf[0] ^ wrbuf[1] ^ rdbuf[0]) != rdbuf[1]) {
+		crc = wrbuf[0] ^ wrbuf[1] ^ rdbuf[0];
+		if (crc != rdbuf[1]) {
 			dev_err(&tsdata->client->dev,
 				"crc error: 0x%02x expected, got 0x%02x\n",
-				wrbuf[0] ^ wrbuf[1] ^ rdbuf[0],
-				rdbuf[1]);
+				crc, rdbuf[1]);
 			return -EIO;
 		}
 		break;
