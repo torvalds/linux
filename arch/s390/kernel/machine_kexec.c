@@ -111,9 +111,8 @@ static noinline void __machine_kdump(void *image)
 	store_status(__do_machine_kdump, image);
 }
 
-static unsigned long do_start_kdump(unsigned long addr)
+static int do_start_kdump(struct kimage *image)
 {
-	struct kimage *image = (struct kimage *) addr;
 	int (*start_kdump)(int) = (void *)image->start;
 	int rc;
 
@@ -134,8 +133,8 @@ static bool kdump_csum_valid(struct kimage *image)
 	int rc;
 
 	preempt_disable();
-	rc = call_on_stack(1, S390_lowcore.nodat_stack, unsigned long, do_start_kdump,
-			   unsigned long, (unsigned long)image);
+	rc = call_on_stack(1, S390_lowcore.nodat_stack, int, do_start_kdump,
+			   struct kimage *, image);
 	preempt_enable();
 	return rc == 0;
 #else
