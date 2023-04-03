@@ -3262,6 +3262,9 @@
   ucsi_set_drvdata
   ucsi_unregister
   __udelay
+  __udp4_lib_lookup
+  __udp6_lib_lookup
+  udp_table
   ufshcd_auto_hibern8_update
   ufshcd_delay_us
   ufshcd_dme_get_attr
