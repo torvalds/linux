@@ -924,7 +924,7 @@ mutex:
 	return ret;
 }
 
-static int imx8mq_mipi_csi_remove(struct platform_device *pdev)
+static void imx8mq_mipi_csi_remove(struct platform_device *pdev)
 {
 	struct v4l2_subdev *sd = platform_get_drvdata(pdev);
 	struct csi_state *state = mipi_sd_to_csi2_state(sd);
@@ -940,8 +940,6 @@ static int imx8mq_mipi_csi_remove(struct platform_device *pdev)
 	mutex_destroy(&state->lock);
 	pm_runtime_set_suspended(&pdev->dev);
 	imx8mq_mipi_csi_release_icc(pdev);
-
-	return 0;
 }
 
 static const struct of_device_id imx8mq_mipi_csi_of_match[] = {
@@ -952,7 +950,7 @@ MODULE_DEVICE_TABLE(of, imx8mq_mipi_csi_of_match);
 
 static struct platform_driver imx8mq_mipi_csi_driver = {
 	.probe		= imx8mq_mipi_csi_probe,
-	.remove		= imx8mq_mipi_csi_remove,
+	.remove_new	= imx8mq_mipi_csi_remove,
 	.driver		= {
 		.of_match_table = imx8mq_mipi_csi_of_match,
 		.name		= MIPI_CSI2_DRIVER_NAME,
