@@ -2440,10 +2440,17 @@ static int dw_hdmi_dclk_set(void *data, bool enable, int vp_id)
 
 	snprintf(clk_name, sizeof(clk_name), "dclk_vp%d", vp_id);
 
-	dclk = devm_clk_get(hdmi->dev, clk_name);
+	dclk = devm_clk_get_optional(hdmi->dev, clk_name);
 	if (IS_ERR(dclk)) {
 		DRM_DEV_ERROR(hdmi->dev, "failed to get %s\n", clk_name);
 		return PTR_ERR(dclk);
+	} else if (!dclk) {
+		if (hdmi->is_hdmi_qp) {
+			DRM_DEV_ERROR(hdmi->dev, "failed to get %s\n", clk_name);
+			return -ENOENT;
+		}
+
+		return 0;
 	}
 
 	if (enable) {

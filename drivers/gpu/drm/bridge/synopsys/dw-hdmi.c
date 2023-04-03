@@ -3972,6 +3972,8 @@ static void dw_hdmi_bridge_atomic_disable(struct drm_bridge *bridge,
 	hdmi->curr_conn = NULL;
 	dw_hdmi_update_power(hdmi);
 	dw_hdmi_update_phy_mask(hdmi);
+	if (hdmi->plat_data->dclk_set)
+		hdmi->plat_data->dclk_set(hdmi->plat_data->phy_data, false, 0);
 	mutex_unlock(&hdmi->mutex);
 
 	mutex_lock(&hdmi->i2c->lock);
@@ -3993,6 +3995,8 @@ static void dw_hdmi_bridge_atomic_enable(struct drm_bridge *bridge,
 	mutex_lock(&hdmi->mutex);
 	hdmi->disabled = false;
 	hdmi->curr_conn = connector;
+	if (hdmi->plat_data->dclk_set)
+		hdmi->plat_data->dclk_set(hdmi->plat_data->phy_data, true, 0);
 	dw_hdmi_update_power(hdmi);
 	dw_hdmi_update_phy_mask(hdmi);
 	handle_plugged_change(hdmi, true);
@@ -4847,6 +4851,8 @@ struct dw_hdmi *dw_hdmi_probe(struct platform_device *pdev,
 		hdmi->initialized = true;
 		if (hdmi->plat_data->set_ddc_io)
 			hdmi->plat_data->set_ddc_io(hdmi->plat_data->phy_data, true);
+		if (hdmi->plat_data->dclk_set)
+			hdmi->plat_data->dclk_set(hdmi->plat_data->phy_data, true, 0);
 	} else if (ret & HDMI_PHY_TX_PHY_LOCK) {
 		hdmi->phy.ops->disable(hdmi, hdmi->phy.data);
 		if (hdmi->plat_data->set_ddc_io)
