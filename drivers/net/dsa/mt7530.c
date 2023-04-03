@@ -1982,6 +1982,47 @@ static const struct irq_domain_ops mt7530_irq_domain_ops = {
 };
 
 static void
+mt7988_irq_mask(struct irq_data *d)
+{
+	struct mt7530_priv *priv = irq_data_get_irq_chip_data(d);
+
+	priv->irq_enable &= ~BIT(d->hwirq);
+	mt7530_mii_write(priv, MT7530_SYS_INT_EN, priv->irq_enable);
+}
+
+static void
+mt7988_irq_unmask(struct irq_data *d)
+{
+	struct mt7530_priv *priv = irq_data_get_irq_chip_data(d);
+
+	priv->irq_enable |= BIT(d->hwirq);
+	mt7530_mii_write(priv, MT7530_SYS_INT_EN, priv->irq_enable);
+}
+
+static struct irq_chip mt7988_irq_chip = {
+	.name = KBUILD_MODNAME,
+	.irq_mask = mt7988_irq_mask,
+	.irq_unmask = mt7988_irq_unmask,
+};
+
+static int
+mt7988_irq_map(struct irq_domain *domain, unsigned int irq,
+	       irq_hw_number_t hwirq)
+{
+	irq_set_chip_data(irq, domain->host_data);
+	irq_set_chip_and_handler(irq, &mt7988_irq_chip, handle_simple_irq);
+	irq_set_nested_thread(irq, true);
+	irq_set_noprobe(irq);
+
+	return 0;
+}
+
+static const struct irq_domain_ops mt7988_irq_domain_ops = {
+	.map = mt7988_irq_map,
+	.xlate = irq_domain_xlate_onecell,
+};
+
+static void
 mt7530_setup_mdio_irq(struct mt7530_priv *priv)
 {
 	struct dsa_switch *ds = priv->ds;
@@ -2015,8 +2056,15 @@ mt7530_setup_irq(struct mt7530_priv *priv)
 		return priv->irq ? : -EINVAL;
 	}
 
-	priv->irq_domain = irq_domain_add_linear(np, MT7530_NUM_PHYS,
-						 &mt7530_irq_domain_ops, priv);
+	if (priv->id == ID_MT7988)
+		priv->irq_domain = irq_domain_add_linear(np, MT7530_NUM_PHYS,
+							 &mt7988_irq_domain_ops,
+							 priv);
+	else
+		priv->irq_domain = irq_domain_add_linear(np, MT7530_NUM_PHYS,
+							 &mt7530_irq_domain_ops,
+							 priv);
+
 	if (!priv->irq_domain) {
 		dev_err(dev, "failed to create IRQ domain\n");
 		return -ENOMEM;
@@ -2511,6 +2559,25 @@ static void mt7531_mac_port_get_caps(struct dsa_switch *ds, int port,
 	}
 }
 
+static void mt7988_mac_port_get_caps(struct dsa_switch *ds, int port,
+				     struct phylink_config *config)
+{
+	phy_interface_zero(config->supported_interfaces);
+
+	switch (port) {
+	case 0 ... 4: /* Internal phy */
+		__set_bit(PHY_INTERFACE_MODE_INTERNAL,
+			  config->supported_interfaces);
+		break;
+
+	case 6:
+		__set_bit(PHY_INTERFACE_MODE_INTERNAL,
+			  config->supported_interfaces);
+		config->mac_capabilities = MAC_ASYM_PAUSE | MAC_SYM_PAUSE |
+					   MAC_10000FD;
+	}
+}
+
 static int
 mt753x_pad_setup(struct dsa_switch *ds, const struct phylink_link_state *state)
 {
@@ -2587,6 +2654,17 @@ static bool mt753x_is_mac_port(u32 port)
 }
 
 static int
+mt7988_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
+		  phy_interface_t interface)
+{
+	if (dsa_is_cpu_port(ds, port) &&
+	    interface == PHY_INTERFACE_MODE_INTERNAL)
+		return 0;
+
+	return -EINVAL;
+}
+
+static int
 mt7531_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
 		  phy_interface_t interface)
 {
@@ -2656,7 +2734,8 @@ mt753x_phylink_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
 
 	switch (port) {
 	case 0 ... 4: /* Internal phy */
-		if (state->interface != PHY_INTERFACE_MODE_GMII)
+		if (state->interface != PHY_INTERFACE_MODE_GMII &&
+		    state->interface != PHY_INTERFACE_MODE_INTERNAL)
 			goto unsupported;
 		break;
 	case 5: /* 2nd cpu port with phy of port 0 or 4 / external phy */
@@ -2734,7 +2813,8 @@ static void mt753x_phylink_mac_link_up(struct dsa_switch *ds, int port,
 	/* MT753x MAC works in 1G full duplex mode for all up-clocked
 	 * variants.
 	 */
-	if (interface == PHY_INTERFACE_MODE_TRGMII ||
+	if (interface == PHY_INTERFACE_MODE_INTERNAL ||
+	    interface == PHY_INTERFACE_MODE_TRGMII ||
 	    (phy_interface_mode_is_8023z(interface))) {
 		speed = SPEED_1000;
 		duplex = DUPLEX_FULL;
@@ -2810,6 +2890,21 @@ mt7531_cpu_port_config(struct dsa_switch *ds, int port)
 				   interface, speed, DUPLEX_FULL);
 	mt753x_phylink_mac_link_up(ds, port, MLO_AN_FIXED, interface, NULL,
 				   speed, DUPLEX_FULL, true, true);
+
+	return 0;
+}
+
+static int
+mt7988_cpu_port_config(struct dsa_switch *ds, int port)
+{
+	struct mt7530_priv *priv = ds->priv;
+
+	mt7530_write(priv, MT7530_PMCR_P(port),
+		     PMCR_CPU_PORT_SETTING(priv->id));
+
+	mt753x_phylink_mac_link_up(ds, port, MLO_AN_FIXED,
+				   PHY_INTERFACE_MODE_INTERNAL, NULL,
+				   SPEED_10000, DUPLEX_FULL, true, true);
 
 	return 0;
 }
@@ -2956,6 +3051,27 @@ static int mt753x_set_mac_eee(struct dsa_switch *ds, int port,
 	return 0;
 }
 
+static int mt7988_pad_setup(struct dsa_switch *ds, phy_interface_t interface)
+{
+	return 0;
+}
+
+static int mt7988_setup(struct dsa_switch *ds)
+{
+	struct mt7530_priv *priv = ds->priv;
+
+	/* Reset the switch */
+	reset_control_assert(priv->rstc);
+	usleep_range(20, 50);
+	reset_control_deassert(priv->rstc);
+	usleep_range(20, 50);
+
+	/* Reset the switch PHYs */
+	mt7530_write(priv, MT7530_SYS_CTRL, SYS_CTRL_PHY_RST);
+
+	return mt7531_setup_common(ds);
+}
+
 const struct dsa_switch_ops mt7530_switch_ops = {
 	.get_tag_protocol	= mtk_get_tag_protocol,
 	.setup			= mt753x_setup,
@@ -3029,6 +3145,19 @@ const struct mt753x_info mt753x_table[] = {
 		.cpu_port_config = mt7531_cpu_port_config,
 		.mac_port_get_caps = mt7531_mac_port_get_caps,
 		.mac_port_config = mt7531_mac_config,
+	},
+	[ID_MT7988] = {
+		.id = ID_MT7988,
+		.pcs_ops = &mt7530_pcs_ops,
+		.sw_setup = mt7988_setup,
+		.phy_read_c22 = mt7531_ind_c22_phy_read,
+		.phy_write_c22 = mt7531_ind_c22_phy_write,
+		.phy_read_c45 = mt7531_ind_c45_phy_read,
+		.phy_write_c45 = mt7531_ind_c45_phy_write,
+		.pad_setup = mt7988_pad_setup,
+		.cpu_port_config = mt7988_cpu_port_config,
+		.mac_port_get_caps = mt7988_mac_port_get_caps,
+		.mac_port_config = mt7988_mac_config,
 	},
 };
 EXPORT_SYMBOL_GPL(mt753x_table);
