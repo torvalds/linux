@@ -58,7 +58,6 @@ static void msm_deinit_vram(struct drm_device *ddev);
 
 static const struct drm_mode_config_funcs mode_config_funcs = {
 	.fb_create = msm_framebuffer_create,
-	.output_poll_changed = drm_fb_helper_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
@@ -235,11 +234,6 @@ static int msm_drm_uninit(struct device *dev)
 
 	msm_perf_debugfs_cleanup(priv);
 	msm_rd_debugfs_cleanup(priv);
-
-#ifdef CONFIG_DRM_FBDEV_EMULATION
-	if (ddev->fb_helper)
-		msm_fbdev_free(ddev);
-#endif
 
 	if (kms)
 		msm_disp_snapshot_destroy(ddev);
@@ -543,16 +537,14 @@ static int msm_drm_init(struct device *dev, const struct drm_driver *drv)
 	}
 	drm_mode_config_reset(ddev);
 
-#ifdef CONFIG_DRM_FBDEV_EMULATION
-	if (kms)
-		msm_fbdev_init(ddev);
-#endif
-
 	ret = msm_debugfs_late_init(ddev);
 	if (ret)
 		goto err_msm_uninit;
 
 	drm_kms_helper_poll_init(ddev);
+
+	if (kms)
+		msm_fbdev_setup(ddev);
 
 	return 0;
 
@@ -1092,7 +1084,6 @@ static const struct drm_driver msm_driver = {
 				DRIVER_SYNCOBJ,
 	.open               = msm_open,
 	.postclose           = msm_postclose,
-	.lastclose          = drm_fb_helper_lastclose,
 	.dumb_create        = msm_gem_dumb_create,
 	.dumb_map_offset    = msm_gem_dumb_map_offset,
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,

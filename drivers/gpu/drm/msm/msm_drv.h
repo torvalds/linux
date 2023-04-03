@@ -29,7 +29,6 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/drm_fb_helper.h>
 #include <drm/display/drm_dsc.h>
 #include <drm/msm_drm.h>
 #include <drm/drm_gem.h>
@@ -304,8 +303,13 @@ struct drm_framebuffer *msm_framebuffer_create(struct drm_device *dev,
 struct drm_framebuffer * msm_alloc_stolen_fb(struct drm_device *dev,
 		int w, int h, int p, uint32_t format);
 
-struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev);
-void msm_fbdev_free(struct drm_device *dev);
+#ifdef CONFIG_DRM_FBDEV_EMULATION
+void msm_fbdev_setup(struct drm_device *dev);
+#else
+static inline void msm_fbdev_setup(struct drm_device *dev)
+{
+}
+#endif
 
 struct hdmi;
 #ifdef CONFIG_DRM_MSM_HDMI
