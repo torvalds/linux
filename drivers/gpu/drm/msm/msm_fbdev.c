@@ -14,6 +14,10 @@
 #include "msm_gem.h"
 #include "msm_kms.h"
 
+static bool fbdev = true;
+MODULE_PARM_DESC(fbdev, "Enable fbdev compat layer");
+module_param(fbdev, bool, 0600);
+
 /*
  * fbdev funcs, to implement legacy fbdev interface on top of drm driver
  */
@@ -124,6 +128,9 @@ struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev)
 {
 	struct drm_fb_helper *helper;
 	int ret;
+
+	if (!fbdev)
+		return NULL;
 
 	helper = kzalloc(sizeof(*helper), GFP_KERNEL);
 	if (!helper)
