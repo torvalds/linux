@@ -34,6 +34,7 @@
 #define FIRMWARE_W9098	"nxp/uartuart9098_bt_v1.bin"
 #define FIRMWARE_IW416	"nxp/uartiw416_bt_v0.bin"
 #define FIRMWARE_IW612	"nxp/uartspi_n61x_v1.bin.se"
+#define FIRMWARE_HELPER	"nxp/helper_uart_3000000.bin"
 
 #define CHIP_ID_W9098		0x5c03
 #define CHIP_ID_IW416		0x7201
@@ -123,7 +124,7 @@ struct psmode_cmd_payload {
 } __packed;
 
 struct btnxpuart_data {
-	bool fw_download_3M_baudrate;
+	const char *helper_fw_name;
 	const char *fw_name;
 };
 
@@ -150,6 +151,7 @@ struct btnxpuart_dev {
 	u32 fw_init_baudrate;
 	bool timeout_changed;
 	bool baudrate_changed;
+	bool helper_downloaded;
 
 	struct ps_data psdata;
 	struct btnxpuart_data *nxp_data;
@@ -167,6 +169,13 @@ struct btnxpuart_dev {
 #define NXP_CRC_ERROR_V3	0x7c
 
 #define HDR_LEN			16
+
+#define NXP_RECV_CHIP_VER_V1 \
+	.type = NXP_V1_CHIP_VER_PKT, \
+	.hlen = 4, \
+	.loff = 0, \
+	.lsize = 0, \
+	.maxlen = 4
 
 #define NXP_RECV_FW_REQ_V1 \
 	.type = NXP_V1_FW_REQ_PKT, \
@@ -192,6 +201,11 @@ struct btnxpuart_dev {
 struct v1_data_req {
 	__le16 len;
 	__le16 len_comp;
+} __packed;
+
+struct v1_start_ind {
+	__le16 chip_id;
+	__le16 chip_id_comp;
 } __packed;
 
 struct v3_data_req {
@@ -518,6 +532,7 @@ static int nxp_download_firmware(struct hci_dev *hdev)
 	nxpdev->fw_v3_offset_correction = 0;
 	nxpdev->baudrate_changed = false;
 	nxpdev->timeout_changed = false;
+	nxpdev->helper_downloaded = false;
 
 	serdev_device_set_baudrate(nxpdev->serdev, HCI_NXP_PRI_BAUDRATE);
 	serdev_device_set_flow_control(nxpdev->serdev, 0);
@@ -664,6 +679,29 @@ static int nxp_request_firmware(struct hci_dev *hdev, const char *fw_name)
 }
 
 /* for legacy chipsets with V1 bootloader */
+static int nxp_recv_chip_ver_v1(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	struct btnxpuart_dev *nxpdev = hci_get_drvdata(hdev);
+	struct v1_start_ind *req;
+
+	req = (struct v1_start_ind *)skb_pull_data(skb, sizeof(struct v1_start_ind));
+	if (!req)
+		goto free_skb;
+
+	if ((req->chip_id ^ req->chip_id_comp) == 0xffff) {
+		nxpdev->fw_dnld_v1_offset = 0;
+		nxpdev->fw_v1_sent_bytes = 0;
+		nxpdev->fw_v1_expected_len = HDR_LEN;
+		release_firmware(nxpdev->fw);
+		memset(nxpdev->fw_name, 0, sizeof(nxpdev->fw_name));
+		nxp_send_ack(NXP_ACK_V1, hdev);
+	}
+
+free_skb:
+	kfree_skb(skb);
+	return 0;
+}
+
 static int nxp_recv_fw_req_v1(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct btnxpuart_dev *nxpdev = hci_get_drvdata(hdev);
@@ -685,7 +723,7 @@ static int nxp_recv_fw_req_v1(struct hci_dev *hdev, struct sk_buff *skb)
 	}
 	nxp_send_ack(NXP_ACK_V1, hdev);
 
-	if (nxp_data->fw_download_3M_baudrate) {
+	if (!nxp_data->helper_fw_name) {
 		if (!nxpdev->timeout_changed) {
 			nxpdev->timeout_changed = nxp_fw_change_timeout(hdev, req->len);
 			goto free_skb;
@@ -702,14 +740,26 @@ static int nxp_recv_fw_req_v1(struct hci_dev *hdev, struct sk_buff *skb)
 		}
 	}
 
-	if (nxp_request_firmware(hdev, nxp_data->fw_name))
-		goto free_skb;
+	if (!nxp_data->helper_fw_name || nxpdev->helper_downloaded) {
+		if (nxp_request_firmware(hdev, nxp_data->fw_name))
+			goto free_skb;
+	} else if (nxp_data->helper_fw_name && !nxpdev->helper_downloaded) {
+		if (nxp_request_firmware(hdev, nxp_data->helper_fw_name))
+			goto free_skb;
+	}
 
 	requested_len = req->len;
 	if (requested_len == 0) {
 		bt_dev_dbg(hdev, "FW Downloaded Successfully: %zu bytes", nxpdev->fw->size);
-		clear_bit(BTNXPUART_FW_DOWNLOADING, &nxpdev->tx_state);
-		wake_up_interruptible(&nxpdev->fw_dnld_done_wait_q);
+		if (nxp_data->helper_fw_name && !nxpdev->helper_downloaded) {
+			nxpdev->helper_downloaded = true;
+			serdev_device_wait_until_sent(nxpdev->serdev, 0);
+			serdev_device_set_baudrate(nxpdev->serdev, HCI_NXP_SEC_BAUDRATE);
+			serdev_device_set_flow_control(nxpdev->serdev, 1);
+		} else {
+			clear_bit(BTNXPUART_FW_DOWNLOADING, &nxpdev->tx_state);
+			wake_up_interruptible(&nxpdev->fw_dnld_done_wait_q);
+		}
 		goto free_skb;
 	}
 	if (requested_len & 0x01) {
@@ -1142,6 +1192,7 @@ static const struct h4_recv_pkt nxp_recv_pkts[] = {
 	{ H4_RECV_ACL,          .recv = hci_recv_frame },
 	{ H4_RECV_SCO,          .recv = hci_recv_frame },
 	{ H4_RECV_EVENT,        .recv = hci_recv_frame },
+	{ NXP_RECV_CHIP_VER_V1, .recv = nxp_recv_chip_ver_v1 },
 	{ NXP_RECV_FW_REQ_V1,   .recv = nxp_recv_fw_req_v1 },
 	{ NXP_RECV_CHIP_VER_V3, .recv = nxp_recv_chip_ver_v3 },
 	{ NXP_RECV_FW_REQ_V3,   .recv = nxp_recv_fw_req_v3 },
@@ -1265,12 +1316,12 @@ static void nxp_serdev_remove(struct serdev_device *serdev)
 }
 
 static struct btnxpuart_data w8987_data = {
-	.fw_download_3M_baudrate = true,
+	.helper_fw_name = NULL,
 	.fw_name = FIRMWARE_W8987,
 };
 
 static struct btnxpuart_data w8997_data = {
-	.fw_download_3M_baudrate = false,
+	.helper_fw_name = FIRMWARE_HELPER,
 	.fw_name = FIRMWARE_W8997,
 };
 
