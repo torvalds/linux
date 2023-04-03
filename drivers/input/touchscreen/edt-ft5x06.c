@@ -75,6 +75,9 @@
 #define EDT_DEFAULT_NUM_X		1024
 #define EDT_DEFAULT_NUM_Y		1024
 
+#define M06_REG_CMD(factory) ((factory) ? 0xf3 : 0xfc)
+#define M06_REG_ADDR(factory, addr) ((factory) ? (addr) & 0x7f : (addr) & 0x3f)
+
 enum edt_pmode {
 	EDT_PMODE_NOT_SUPPORTED,
 	EDT_PMODE_HIBERNATE,
@@ -294,8 +297,8 @@ static int edt_ft5x06_register_write(struct edt_ft5x06_ts_data *tsdata,
 
 	switch (tsdata->version) {
 	case EDT_M06:
-		wrbuf[0] = tsdata->factory_mode ? 0xf3 : 0xfc;
-		wrbuf[1] = tsdata->factory_mode ? addr & 0x7f : addr & 0x3f;
+		wrbuf[0] = M06_REG_CMD(tsdata->factory_mode);
+		wrbuf[1] = M06_REG_ADDR(tsdata->factory_mode, addr);
 		wrbuf[2] = value;
 		wrbuf[3] = wrbuf[0] ^ wrbuf[1] ^ wrbuf[2];
 		return edt_ft5x06_ts_readwrite(tsdata->client, 4,
@@ -324,8 +327,8 @@ static int edt_ft5x06_register_read(struct edt_ft5x06_ts_data *tsdata,
 
 	switch (tsdata->version) {
 	case EDT_M06:
-		wrbuf[0] = tsdata->factory_mode ? 0xf3 : 0xfc;
-		wrbuf[1] = tsdata->factory_mode ? addr & 0x7f : addr & 0x3f;
+		wrbuf[0] = M06_REG_CMD(tsdata->factory_mode);
+		wrbuf[1] = M06_REG_ADDR(tsdata->factory_mode, addr);
 		wrbuf[1] |= tsdata->factory_mode ? 0x80 : 0x40;
 
 		error = edt_ft5x06_ts_readwrite(tsdata->client, 2, wrbuf, 2,
