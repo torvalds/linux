@@ -47,6 +47,8 @@ extern struct list_head crypto_alg_list;
 extern struct rw_semaphore crypto_alg_sem;
 extern struct blocking_notifier_head crypto_chain;
 
+int alg_test(const char *driver, const char *alg, u32 type, u32 mask);
+
 #ifdef CONFIG_CRYPTO_MANAGER_DISABLE_TESTS
 static inline bool crypto_boot_test_finished(void)
 {

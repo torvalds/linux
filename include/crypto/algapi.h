@@ -49,6 +49,7 @@ struct crypto_instance;
 struct module;
 struct notifier_block;
 struct rtattr;
+struct scatterlist;
 struct seq_file;
 struct sk_buff;
 
@@ -131,6 +132,14 @@ struct crypto_attr_type {
 	u32 type;
 	u32 mask;
 };
+
+/*
+ * Algorithm registration interface.
+ */
+int crypto_register_alg(struct crypto_alg *alg);
+void crypto_unregister_alg(struct crypto_alg *alg);
+int crypto_register_algs(struct crypto_alg *algs, int count);
+void crypto_unregister_algs(struct crypto_alg *algs, int count);
 
 void crypto_mod_put(struct crypto_alg *alg);
 
@@ -261,6 +270,11 @@ static inline void crypto_request_complete(struct crypto_async_request *req,
 					   int err)
 {
 	req->complete(req->data, err);
+}
+
+static inline u32 crypto_tfm_alg_type(struct crypto_tfm *tfm)
+{
+	return tfm->__crt_alg->cra_flags & CRYPTO_ALG_TYPE_MASK;
 }
 
 #endif	/* _CRYPTO_ALGAPI_H */

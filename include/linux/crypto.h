@@ -12,13 +12,10 @@
 #ifndef _LINUX_CRYPTO_H
 #define _LINUX_CRYPTO_H
 
-#include <linux/atomic.h>
-#include <linux/kernel.h>
-#include <linux/list.h>
-#include <linux/bug.h>
+#include <linux/completion.h>
 #include <linux/refcount.h>
 #include <linux/slab.h>
-#include <linux/completion.h>
+#include <linux/types.h>
 
 /*
  * Algorithm masks and types.
@@ -158,10 +155,9 @@
 
 #define CRYPTO_MINALIGN_ATTR __attribute__ ((__aligned__(CRYPTO_MINALIGN)))
 
-struct scatterlist;
-struct crypto_async_request;
 struct crypto_tfm;
 struct crypto_type;
+struct module;
 
 typedef void (*crypto_completion_t)(void *req, int err);
 
@@ -412,14 +408,6 @@ static inline void crypto_init_wait(struct crypto_wait *wait)
 }
 
 /*
- * Algorithm registration interface.
- */
-int crypto_register_alg(struct crypto_alg *alg);
-void crypto_unregister_alg(struct crypto_alg *alg);
-int crypto_register_algs(struct crypto_alg *algs, int count);
-void crypto_unregister_algs(struct crypto_alg *algs, int count);
-
-/*
  * Algorithm query interface.
  */
 int crypto_has_alg(const char *name, u32 type, u32 mask);
@@ -459,8 +447,6 @@ static inline void crypto_free_tfm(struct crypto_tfm *tfm)
 	return crypto_destroy_tfm(tfm, tfm);
 }
 
-int alg_test(const char *driver, const char *alg, u32 type, u32 mask);
-
 /*
  * Transform helpers which query the underlying algorithm.
  */
@@ -472,16 +458,6 @@ static inline const char *crypto_tfm_alg_name(struct crypto_tfm *tfm)
 static inline const char *crypto_tfm_alg_driver_name(struct crypto_tfm *tfm)
 {
 	return tfm->__crt_alg->cra_driver_name;
-}
-
-static inline int crypto_tfm_alg_priority(struct crypto_tfm *tfm)
-{
-	return tfm->__crt_alg->cra_priority;
-}
-
-static inline u32 crypto_tfm_alg_type(struct crypto_tfm *tfm)
-{
-	return tfm->__crt_alg->cra_flags & CRYPTO_ALG_TYPE_MASK;
 }
 
 static inline unsigned int crypto_tfm_alg_blocksize(struct crypto_tfm *tfm)
