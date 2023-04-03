@@ -369,6 +369,13 @@ include $(src)/gvt/Makefile
 obj-$(CONFIG_DRM_I915) += i915.o
 obj-$(CONFIG_DRM_I915_GVT_KVMGT) += kvmgt.o
 
+# kernel-doc test
+#
+# Enable locally for CONFIG_DRM_I915_WERROR=y. See also scripts/Makefile.build
+ifdef CONFIG_DRM_I915_WERROR
+    cmd_checkdoc = $(srctree)/scripts/kernel-doc -none $<
+endif
+
 # header test
 
 # exclude some broken headers from the test coverage
