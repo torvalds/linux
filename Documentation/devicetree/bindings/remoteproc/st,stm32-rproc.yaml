@@ -72,9 +72,9 @@ properties:
               ready for shutdown
       - description: |
           A channel (d) used by the local proc to notify the remote proc that it
-          has to stop interprocessor communnication.
+          has to stop interprocessor communication.
           Unidirectional channel:
-            - from local to remote, where ACK from the remote means that communnication
+            - from local to remote, where ACK from the remote means that communication
               as been stopped on the remote side.
     minItems: 1
 
