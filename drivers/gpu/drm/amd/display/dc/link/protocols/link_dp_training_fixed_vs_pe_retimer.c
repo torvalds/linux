@@ -233,7 +233,8 @@ enum link_training_result dp_perform_fixed_vs_pe_training_sequence_legacy(
 			link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 	const uint8_t vendor_lttpr_write_data_intercept_en[4] = {0x1, 0x55, 0x63, 0x0};
 	const uint8_t vendor_lttpr_write_data_intercept_dis[4] = {0x1, 0x55, 0x63, 0x68};
-	uint32_t pre_disable_intercept_delay_ms = link->dc->debug.fixed_vs_aux_delay_config_wa;
+	uint32_t pre_disable_intercept_delay_ms =
+			link->local_sink->edid_caps.panel_patch.delay_disable_aux_intercept_ms;
 	uint8_t vendor_lttpr_write_data_vs[4] = {0x1, 0x51, 0x63, 0x0};
 	uint8_t vendor_lttpr_write_data_pe[4] = {0x1, 0x52, 0x63, 0x0};
 	uint32_t vendor_lttpr_write_address = 0xF004F;
@@ -259,7 +260,7 @@ enum link_training_result dp_perform_fixed_vs_pe_training_sequence_legacy(
 
 		/* Certain display and cable configuration require extra delay */
 		if (offset > 2)
-			pre_disable_intercept_delay_ms = link->dc->debug.fixed_vs_aux_delay_config_wa * 2;
+			pre_disable_intercept_delay_ms = pre_disable_intercept_delay_ms * 2;
 	}
 
 	/* Vendor specific: Reset lane settings */
@@ -380,7 +381,8 @@ enum link_training_result dp_perform_fixed_vs_pe_training_sequence_legacy(
 						0);
 				/* Vendor specific: Disable intercept */
 				for (i = 0; i < max_vendor_dpcd_retries; i++) {
-					msleep(pre_disable_intercept_delay_ms);
+					if (pre_disable_intercept_delay_ms != 0)
+						msleep(pre_disable_intercept_delay_ms);
 					dpcd_status = core_link_write_dpcd(
 							link,
 							vendor_lttpr_write_address,
@@ -591,9 +593,11 @@ enum link_training_result dp_perform_fixed_vs_pe_training_sequence(
 	const uint8_t vendor_lttpr_write_data_adicora_eq1[4] = {0x1, 0x55, 0x63, 0x2E};
 	const uint8_t vendor_lttpr_write_data_adicora_eq2[4] = {0x1, 0x55, 0x63, 0x01};
 	const uint8_t vendor_lttpr_write_data_adicora_eq3[4] = {0x1, 0x55, 0x63, 0x68};
-	uint32_t pre_disable_intercept_delay_ms = link->dc->debug.fixed_vs_aux_delay_config_wa;
 	uint8_t vendor_lttpr_write_data_vs[4] = {0x1, 0x51, 0x63, 0x0};
 	uint8_t vendor_lttpr_write_data_pe[4] = {0x1, 0x52, 0x63, 0x0};
+	uint32_t pre_disable_intercept_delay_ms =
+			link->local_sink->edid_caps.panel_patch.delay_disable_aux_intercept_ms;
+
 
 	uint32_t vendor_lttpr_write_address = 0xF004F;
 	enum link_training_result status = LINK_TRAINING_SUCCESS;
@@ -618,7 +622,7 @@ enum link_training_result dp_perform_fixed_vs_pe_training_sequence(
 
 		/* Certain display and cable configuration require extra delay */
 		if (offset > 2)
-			pre_disable_intercept_delay_ms = link->dc->debug.fixed_vs_aux_delay_config_wa * 2;
+			pre_disable_intercept_delay_ms = pre_disable_intercept_delay_ms * 2;
 	}
 
 	/* Vendor specific: Reset lane settings */
@@ -739,7 +743,8 @@ enum link_training_result dp_perform_fixed_vs_pe_training_sequence(
 						0);
 				/* Vendor specific: Disable intercept */
 				for (i = 0; i < max_vendor_dpcd_retries; i++) {
-					msleep(pre_disable_intercept_delay_ms);
+					if (pre_disable_intercept_delay_ms != 0)
+						msleep(pre_disable_intercept_delay_ms);
 					dpcd_status = core_link_write_dpcd(
 							link,
 							vendor_lttpr_write_address,

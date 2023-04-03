@@ -855,7 +855,6 @@ struct dc_debug_options {
 	bool force_usr_allow;
 	/* uses value at boot and disables switch */
 	bool disable_dtb_ref_clk_switch;
-	uint32_t fixed_vs_aux_delay_config_wa;
 	bool extended_blank_optimization;
 	union aux_wake_wa_options aux_wake_wa;
 	uint32_t mst_start_top_delay;

@@ -196,6 +196,7 @@ struct dc_panel_patch {
 	unsigned int disable_fams;
 	unsigned int skip_avmute;
 	unsigned int mst_start_top_delay;
+	unsigned int delay_disable_aux_intercept_ms;
 };
 
 struct dc_edid_caps {
