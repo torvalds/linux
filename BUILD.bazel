@@ -16,6 +16,7 @@ _aarch64_additional_kmi_symbol_lists = [
     # keep sorted
     "android/abi_gki_aarch64_db845c",
     "android/abi_gki_aarch64_galaxy",
+    "android/abi_gki_aarch64_oplus",
     "android/abi_gki_aarch64_pixel",
     "android/abi_gki_aarch64_qcom",
     "android/abi_gki_aarch64_virtual_device",
