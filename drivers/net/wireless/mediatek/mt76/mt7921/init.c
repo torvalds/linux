@@ -4,7 +4,7 @@
 #include <linux/etherdevice.h>
 #include <linux/firmware.h>
 #include "mt7921.h"
-#include "mac.h"
+#include "../mt76_connac2_mac.h"
 #include "mcu.h"
 
 static const struct ieee80211_iface_limit if_limits[] = {

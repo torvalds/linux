@@ -10,7 +10,7 @@
 
 #include "mt7921.h"
 #include "mcu.h"
-#include "mac.h"
+#include "../mt76_connac2_mac.h"
 
 static const struct usb_device_id mt7921u_device_table[] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x0e8d, 0x7961, 0xff, 0xff, 0xff),
