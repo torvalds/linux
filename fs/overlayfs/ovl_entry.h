@@ -113,9 +113,19 @@ struct ovl_entry {
 		};
 		struct rcu_head rcu;
 	};
-	unsigned numlower;
-	struct ovl_path lowerstack[];
+	unsigned int __numlower;
+	struct ovl_path __lowerstack[];
 };
+
+static inline unsigned int ovl_numlower(struct ovl_entry *oe)
+{
+	return oe ? oe->__numlower : 0;
+}
+
+static inline struct ovl_path *ovl_lowerstack(struct ovl_entry *oe)
+{
+	return ovl_numlower(oe) ? oe->__lowerstack : NULL;
+}
 
 struct ovl_entry *ovl_alloc_entry(unsigned int numlower);
 

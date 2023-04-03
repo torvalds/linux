@@ -80,7 +80,7 @@ static int ovl_connectable_layer(struct dentry *dentry)
 
 	/* We can get overlay root from root of any layer */
 	if (dentry == dentry->d_sb->s_root)
-		return oe->numlower;
+		return ovl_numlower(oe);
 
 	/*
 	 * If it's an unindexed merge dir, then it's not connectable with any
@@ -91,7 +91,7 @@ static int ovl_connectable_layer(struct dentry *dentry)
 		return 0;
 
 	/* We can get upper/overlay path from indexed/lower dentry */
-	return oe->lowerstack[0].layer->idx;
+	return ovl_lowerstack(oe)->layer->idx;
 }
 
 /*
@@ -105,6 +105,7 @@ static int ovl_connectable_layer(struct dentry *dentry)
 static int ovl_connect_layer(struct dentry *dentry)
 {
 	struct dentry *next, *parent = NULL;
+	struct ovl_entry *oe = OVL_E(dentry);
 	int origin_layer;
 	int err = 0;
 
@@ -112,7 +113,7 @@ static int ovl_connect_layer(struct dentry *dentry)
 	    WARN_ON(!ovl_dentry_lower(dentry)))
 		return -EIO;
 
-	origin_layer = OVL_E(dentry)->lowerstack[0].layer->idx;
+	origin_layer = ovl_lowerstack(oe)->layer->idx;
 	if (ovl_dentry_test_flag(OVL_E_CONNECTED, dentry))
 		return origin_layer;
 
@@ -319,8 +320,8 @@ static struct dentry *ovl_obtain_alias(struct super_block *sb,
 		goto nomem;
 
 	if (lower) {
-		oe->lowerstack->dentry = dget(lower);
-		oe->lowerstack->layer = lowerpath->layer;
+		ovl_lowerstack(oe)->dentry = dget(lower);
+		ovl_lowerstack(oe)->layer = lowerpath->layer;
 	}
 	dentry->d_fsdata = oe;
 	if (upper_alias)
@@ -342,14 +343,15 @@ out_iput:
 static struct dentry *ovl_dentry_real_at(struct dentry *dentry, int idx)
 {
 	struct ovl_entry *oe = OVL_E(dentry);
+	struct ovl_path *lowerstack = ovl_lowerstack(oe);
 	int i;
 
 	if (!idx)
 		return ovl_dentry_upper(dentry);
 
-	for (i = 0; i < oe->numlower; i++) {
-		if (oe->lowerstack[i].layer->idx == idx)
-			return oe->lowerstack[i].dentry;
+	for (i = 0; i < ovl_numlower(oe); i++) {
+		if (lowerstack[i].layer->idx == idx)
+			return lowerstack[i].dentry;
 	}
 
 	return NULL;

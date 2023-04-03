@@ -85,11 +85,11 @@ bool ovl_verify_lower(struct super_block *sb)
 
 struct ovl_entry *ovl_alloc_entry(unsigned int numlower)
 {
-	size_t size = offsetof(struct ovl_entry, lowerstack[numlower]);
+	size_t size = offsetof(struct ovl_entry, __lowerstack[numlower]);
 	struct ovl_entry *oe = kzalloc(size, GFP_KERNEL);
 
 	if (oe)
-		oe->numlower = numlower;
+		oe->__numlower = numlower;
 
 	return oe;
 }
@@ -120,12 +120,13 @@ void ovl_dentry_init_flags(struct dentry *dentry, struct dentry *upperdentry,
 			   unsigned int mask)
 {
 	struct ovl_entry *oe = OVL_E(dentry);
+	struct ovl_path *lowerstack = ovl_lowerstack(oe);
 	unsigned int i, flags = 0;
 
 	if (upperdentry)
 		flags |= upperdentry->d_flags;
-	for (i = 0; i < oe->numlower; i++)
-		flags |= oe->lowerstack[i].dentry->d_flags;
+	for (i = 0; i < ovl_numlower(oe); i++)
+		flags |= lowerstack[i].dentry->d_flags;
 
 	spin_lock(&dentry->d_lock);
 	dentry->d_flags &= ~mask;
@@ -152,7 +153,7 @@ enum ovl_path_type ovl_path_type(struct dentry *dentry)
 		/*
 		 * Non-dir dentry can hold lower dentry of its copy up origin.
 		 */
-		if (oe->numlower) {
+		if (ovl_numlower(oe)) {
 			if (ovl_test_flag(OVL_CONST_INO, d_inode(dentry)))
 				type |= __OVL_PATH_ORIGIN;
 			if (d_is_dir(dentry) ||
@@ -160,7 +161,7 @@ enum ovl_path_type ovl_path_type(struct dentry *dentry)
 				type |= __OVL_PATH_MERGE;
 		}
 	} else {
-		if (oe->numlower > 1)
+		if (ovl_numlower(oe) > 1)
 			type |= __OVL_PATH_MERGE;
 	}
 	return type;
@@ -177,10 +178,11 @@ void ovl_path_upper(struct dentry *dentry, struct path *path)
 void ovl_path_lower(struct dentry *dentry, struct path *path)
 {
 	struct ovl_entry *oe = OVL_E(dentry);
+	struct ovl_path *lowerpath = ovl_lowerstack(oe);
 
-	if (oe->numlower) {
-		path->mnt = oe->lowerstack[0].layer->mnt;
-		path->dentry = oe->lowerstack[0].dentry;
+	if (ovl_numlower(oe)) {
+		path->mnt = lowerpath->layer->mnt;
+		path->dentry = lowerpath->dentry;
 	} else {
 		*path = (struct path) { };
 	}
@@ -189,10 +191,11 @@ void ovl_path_lower(struct dentry *dentry, struct path *path)
 void ovl_path_lowerdata(struct dentry *dentry, struct path *path)
 {
 	struct ovl_entry *oe = OVL_E(dentry);
+	struct ovl_path *lowerstack = ovl_lowerstack(oe);
 
-	if (oe->numlower) {
-		path->mnt = oe->lowerstack[oe->numlower - 1].layer->mnt;
-		path->dentry = oe->lowerstack[oe->numlower - 1].dentry;
+	if (ovl_numlower(oe)) {
+		path->mnt = lowerstack[ovl_numlower(oe) - 1].layer->mnt;
+		path->dentry = lowerstack[ovl_numlower(oe) - 1].dentry;
 	} else {
 		*path = (struct path) { };
 	}
@@ -233,14 +236,14 @@ struct dentry *ovl_dentry_lower(struct dentry *dentry)
 {
 	struct ovl_entry *oe = OVL_E(dentry);
 
-	return oe->numlower ? oe->lowerstack[0].dentry : NULL;
+	return ovl_numlower(oe) ? ovl_lowerstack(oe)->dentry : NULL;
 }
 
 const struct ovl_layer *ovl_layer_lower(struct dentry *dentry)
 {
 	struct ovl_entry *oe = OVL_E(dentry);
 
-	return oe->numlower ? oe->lowerstack[0].layer : NULL;
+	return ovl_numlower(oe) ? ovl_lowerstack(oe)->layer : NULL;
 }
 
 /*
@@ -253,7 +256,8 @@ struct dentry *ovl_dentry_lowerdata(struct dentry *dentry)
 {
 	struct ovl_entry *oe = OVL_E(dentry);
 
-	return oe->numlower ? oe->lowerstack[oe->numlower - 1].dentry : NULL;
+	return ovl_numlower(oe) ?
+		ovl_lowerstack(oe)[ovl_numlower(oe) - 1].dentry : NULL;
 }
 
 struct dentry *ovl_dentry_real(struct dentry *dentry)
@@ -1028,7 +1032,7 @@ bool ovl_is_metacopy_dentry(struct dentry *dentry)
 		return false;
 	}
 
-	return (oe->numlower > 1);
+	return (ovl_numlower(oe) > 1);
 }
 
 char *ovl_get_redirect_xattr(struct ovl_fs *ofs, const struct path *path, int padding)

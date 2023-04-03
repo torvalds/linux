@@ -56,10 +56,11 @@ MODULE_PARM_DESC(xino_auto,
 
 static void ovl_entry_stack_free(struct ovl_entry *oe)
 {
+	struct ovl_path *lowerstack = ovl_lowerstack(oe);
 	unsigned int i;
 
-	for (i = 0; i < oe->numlower; i++)
-		dput(oe->lowerstack[i].dentry);
+	for (i = 0; i < ovl_numlower(oe); i++)
+		dput(lowerstack[i].dentry);
 }
 
 static bool ovl_metacopy_def = IS_ENABLED(CONFIG_OVERLAY_FS_METACOPY);
@@ -139,6 +140,7 @@ static int ovl_dentry_revalidate_common(struct dentry *dentry,
 					unsigned int flags, bool weak)
 {
 	struct ovl_entry *oe = OVL_E(dentry);
+	struct ovl_path *lowerstack = ovl_lowerstack(oe);
 	struct inode *inode = d_inode_rcu(dentry);
 	struct dentry *upper;
 	unsigned int i;
@@ -152,10 +154,9 @@ static int ovl_dentry_revalidate_common(struct dentry *dentry,
 	if (upper)
 		ret = ovl_revalidate_real(upper, flags, weak);
 
-	for (i = 0; ret > 0 && i < oe->numlower; i++) {
-		ret = ovl_revalidate_real(oe->lowerstack[i].dentry, flags,
-					  weak);
-	}
+	for (i = 0; ret > 0 && i < ovl_numlower(oe); i++)
+		ret = ovl_revalidate_real(lowerstack[i].dentry, flags, weak);
+
 	return ret;
 }
 
@@ -1454,7 +1455,7 @@ static int ovl_get_indexdir(struct super_block *sb, struct ovl_fs *ofs,
 
 	/* Verify lower root is upper root origin */
 	err = ovl_verify_origin(ofs, upperpath->dentry,
-				oe->lowerstack[0].dentry, true);
+				ovl_lowerstack(oe)->dentry, true);
 	if (err) {
 		pr_err("failed to verify upper root origin\n");
 		goto out;
@@ -1717,6 +1718,7 @@ static struct ovl_entry *ovl_get_lowerstack(struct super_block *sb,
 {
 	int err;
 	struct path *stack = NULL;
+	struct ovl_path *lowerstack;
 	unsigned int i;
 	struct ovl_entry *oe;
 
@@ -1754,9 +1756,10 @@ static struct ovl_entry *ovl_get_lowerstack(struct super_block *sb,
 	if (!oe)
 		goto out_err;
 
+	lowerstack = ovl_lowerstack(oe);
 	for (i = 0; i < numlower; i++) {
-		oe->lowerstack[i].dentry = dget(stack[i].dentry);
-		oe->lowerstack[i].layer = &ofs->layers[i+1];
+		lowerstack[i].dentry = dget(stack[i].dentry);
+		lowerstack[i].layer = &ofs->layers[i+1];
 	}
 
 out:
@@ -1849,7 +1852,7 @@ static struct dentry *ovl_get_root(struct super_block *sb,
 				   struct ovl_entry *oe)
 {
 	struct dentry *root;
-	struct ovl_path *lowerpath = &oe->lowerstack[0];
+	struct ovl_path *lowerpath = ovl_lowerstack(oe);
 	unsigned long ino = d_inode(lowerpath->dentry)->i_ino;
 	int fsid = lowerpath->layer->fsid;
 	struct ovl_inode_params oip = {

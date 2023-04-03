@@ -791,19 +791,20 @@ fail:
 int ovl_path_next(int idx, struct dentry *dentry, struct path *path)
 {
 	struct ovl_entry *oe = OVL_E(dentry);
+	struct ovl_path *lowerstack = ovl_lowerstack(oe);
 
 	BUG_ON(idx < 0);
 	if (idx == 0) {
 		ovl_path_upper(dentry, path);
 		if (path->dentry)
-			return oe->numlower ? 1 : -1;
+			return ovl_numlower(oe) ? 1 : -1;
 		idx++;
 	}
-	BUG_ON(idx > oe->numlower);
-	path->dentry = oe->lowerstack[idx - 1].dentry;
-	path->mnt = oe->lowerstack[idx - 1].layer->mnt;
+	BUG_ON(idx > ovl_numlower(oe));
+	path->dentry = lowerstack[idx - 1].dentry;
+	path->mnt = lowerstack[idx - 1].layer->mnt;
 
-	return (idx < oe->numlower) ? idx + 1 : -1;
+	return (idx < ovl_numlower(oe)) ? idx + 1 : -1;
 }
 
 /* Fix missing 'origin' xattr */
@@ -853,7 +854,7 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 		.is_dir = false,
 		.opaque = false,
 		.stop = false,
-		.last = ofs->config.redirect_follow ? false : !poe->numlower,
+		.last = ofs->config.redirect_follow ? false : !ovl_numlower(poe),
 		.redirect = NULL,
 		.metacopy = false,
 	};
@@ -904,7 +905,7 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 		upperopaque = d.opaque;
 	}
 
-	if (!d.stop && poe->numlower) {
+	if (!d.stop && ovl_numlower(poe)) {
 		err = -ENOMEM;
 		stack = kcalloc(ofs->numlayer - 1, sizeof(struct ovl_path),
 				GFP_KERNEL);
@@ -912,13 +913,13 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 			goto out_put_upper;
 	}
 
-	for (i = 0; !d.stop && i < poe->numlower; i++) {
-		struct ovl_path lower = poe->lowerstack[i];
+	for (i = 0; !d.stop && i < ovl_numlower(poe); i++) {
+		struct ovl_path lower = ovl_lowerstack(poe)[i];
 
 		if (!ofs->config.redirect_follow)
-			d.last = i == poe->numlower - 1;
+			d.last = i == ovl_numlower(poe) - 1;
 		else
-			d.last = lower.layer->idx == roe->numlower;
+			d.last = lower.layer->idx == ovl_numlower(roe);
 
 		d.mnt = lower.layer->mnt;
 		err = ovl_lookup_layer(lower.dentry, &d, &this, false);
@@ -1072,7 +1073,7 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 	if (!oe)
 		goto out_put;
 
-	memcpy(oe->lowerstack, stack, sizeof(struct ovl_path) * ctr);
+	memcpy(ovl_lowerstack(oe), stack, sizeof(struct ovl_path) * ctr);
 	dentry->d_fsdata = oe;
 
 	if (upperopaque)
@@ -1177,12 +1178,13 @@ bool ovl_lower_positive(struct dentry *dentry)
 
 	old_cred = ovl_override_creds(dentry->d_sb);
 	/* Positive upper -> have to look up lower to see whether it exists */
-	for (i = 0; !done && !positive && i < poe->numlower; i++) {
+	for (i = 0; !done && !positive && i < ovl_numlower(poe); i++) {
 		struct dentry *this;
-		struct dentry *lowerdir = poe->lowerstack[i].dentry;
+		struct ovl_path *parentpath = &ovl_lowerstack(poe)[i];
 
-		this = lookup_one_positive_unlocked(mnt_idmap(poe->lowerstack[i].layer->mnt),
-						   name->name, lowerdir, name->len);
+		this = lookup_one_positive_unlocked(
+				mnt_idmap(parentpath->layer->mnt),
+				name->name, parentpath->dentry, name->len);
 		if (IS_ERR(this)) {
 			switch (PTR_ERR(this)) {
 			case -ENOENT:
