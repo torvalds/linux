@@ -996,9 +996,15 @@ EXPORT_SYMBOL(drm_crtc_vblank_count_and_time);
 int drm_crtc_next_vblank_start(struct drm_crtc *crtc, ktime_t *vblanktime)
 {
 	unsigned int pipe = drm_crtc_index(crtc);
-	struct drm_vblank_crtc *vblank = &crtc->dev->vblank[pipe];
-	struct drm_display_mode *mode = &vblank->hwmode;
+	struct drm_vblank_crtc *vblank;
+	struct drm_display_mode *mode;
 	u64 vblank_start;
+
+	if (!drm_dev_has_vblank(crtc->dev))
+		return -EINVAL;
+
+	vblank = &crtc->dev->vblank[pipe];
+	mode = &vblank->hwmode;
 
 	if (!vblank->framedur_ns || !vblank->linedur_ns)
 		return -EINVAL;
