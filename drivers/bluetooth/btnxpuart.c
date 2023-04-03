@@ -1199,25 +1199,10 @@ static const struct h4_recv_pkt nxp_recv_pkts[] = {
 	{ NXP_RECV_FW_REQ_V3,   .recv = nxp_recv_fw_req_v3 },
 };
 
-static bool is_valid_bootloader_signature(const u8 *data, size_t count)
-{
-	if ((*data == NXP_V1_FW_REQ_PKT && count == sizeof(struct v1_data_req) + 1) ||
-	    (*data == NXP_V3_FW_REQ_PKT && count == sizeof(struct v3_data_req) + 1) ||
-	    (*data == NXP_V3_CHIP_VER_PKT && count == sizeof(struct v3_start_ind) + 1))
-		return true;
-	else
-		return false;
-}
-
 static int btnxpuart_receive_buf(struct serdev_device *serdev, const u8 *data,
 				 size_t count)
 {
 	struct btnxpuart_dev *nxpdev = serdev_device_get_drvdata(serdev);
-
-	if (is_fw_downloading(nxpdev) && !is_valid_bootloader_signature(data, count)) {
-		/* Unknown bootloader signature, skip without returning error */
-		return count;
-	}
 
 	ps_start_timer(nxpdev);
 
@@ -1225,7 +1210,9 @@ static int btnxpuart_receive_buf(struct serdev_device *serdev, const u8 *data,
 				     nxp_recv_pkts, ARRAY_SIZE(nxp_recv_pkts));
 	if (IS_ERR(nxpdev->rx_skb)) {
 		int err = PTR_ERR(nxpdev->rx_skb);
-
+		/* Safe to ignore out-of-sync bootloader signatures */
+		if (is_fw_downloading(nxpdev))
+			return count;
 		bt_dev_err(nxpdev->hdev, "Frame reassembly failed (%d)", err);
 		nxpdev->rx_skb = NULL;
 		return err;
