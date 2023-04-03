@@ -6,6 +6,7 @@
  * Author: Brendan Higgins <brendanhiggins@google.com>
  */
 #include <kunit/test.h>
+#include <kunit/test-bug.h>
 
 #include "try-catch-impl.h"
 
@@ -532,7 +533,46 @@ static struct kunit_suite kunit_status_test_suite = {
 	.test_cases = kunit_status_test_cases,
 };
 
+static void kunit_current_test(struct kunit *test)
+{
+	/* Check results of both current->kunit_test and
+	 * kunit_get_current_test() are equivalent to current test.
+	 */
+	KUNIT_EXPECT_PTR_EQ(test, test, current->kunit_test);
+	KUNIT_EXPECT_PTR_EQ(test, test, kunit_get_current_test());
+}
+
+static void kunit_current_fail_test(struct kunit *test)
+{
+	struct kunit fake;
+
+	kunit_init_test(&fake, "fake test", NULL);
+	KUNIT_EXPECT_EQ(test, fake.status, KUNIT_SUCCESS);
+
+	/* Set current->kunit_test to fake test. */
+	current->kunit_test = &fake;
+
+	kunit_fail_current_test("This should make `fake` test fail.");
+	KUNIT_EXPECT_EQ(test, fake.status, (enum kunit_status)KUNIT_FAILURE);
+	kunit_cleanup(&fake);
+
+	/* Reset current->kunit_test to current test. */
+	current->kunit_test = test;
+}
+
+static struct kunit_case kunit_current_test_cases[] = {
+	KUNIT_CASE(kunit_current_test),
+	KUNIT_CASE(kunit_current_fail_test),
+	{}
+};
+
+static struct kunit_suite kunit_current_test_suite = {
+	.name = "kunit_current",
+	.test_cases = kunit_current_test_cases,
+};
+
 kunit_test_suites(&kunit_try_catch_test_suite, &kunit_resource_test_suite,
-		  &kunit_log_test_suite, &kunit_status_test_suite);
+		  &kunit_log_test_suite, &kunit_status_test_suite,
+		  &kunit_current_test_suite);
 
 MODULE_LICENSE("GPL v2");
