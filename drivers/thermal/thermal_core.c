@@ -22,7 +22,7 @@
 #include <linux/suspend.h>
 
 #define CREATE_TRACE_POINTS
-#include <trace/events/thermal.h>
+#include "thermal_trace.h"
 
 #include "thermal_core.h"
 #include "thermal_hwmon.h"

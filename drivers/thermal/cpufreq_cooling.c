@@ -23,7 +23,7 @@
 #include <linux/thermal.h>
 #include <linux/units.h>
 
-#include <trace/events/thermal.h>
+#include "thermal_trace.h"
 
 /*
  * Cooling state <-> CPUFreq frequency

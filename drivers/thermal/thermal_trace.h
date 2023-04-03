@@ -195,5 +195,11 @@ TRACE_EVENT(thermal_power_devfreq_limit,
 #endif /* CONFIG_DEVFREQ_THERMAL */
 #endif /* _TRACE_THERMAL_H */
 
+#undef TRACE_INCLUDE_PATH
+#define TRACE_INCLUDE_PATH .
+
+#undef TRACE_INCLUDE_FILE
+#define TRACE_INCLUDE_FILE thermal_trace
+
 /* This part must be outside protection */
 #include <trace/define_trace.h>
