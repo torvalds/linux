@@ -89,16 +89,24 @@ static irqreturn_t mtk_vcodec_enc_irq_handler(int irq, void *priv)
 	struct mtk_vcodec_ctx *ctx;
 	unsigned long flags;
 	void __iomem *addr;
+	int core_id;
 
 	spin_lock_irqsave(&dev->irqlock, flags);
 	ctx = dev->curr_ctx;
 	spin_unlock_irqrestore(&dev->irqlock, flags);
 
-	mtk_v4l2_debug(1, "id=%d coreid:%d", ctx->id, dev->venc_pdata->core_id);
-	addr = dev->reg_base[dev->venc_pdata->core_id] +
-				MTK_VENC_IRQ_ACK_OFFSET;
+	core_id = dev->venc_pdata->core_id;
+	if (core_id < 0 || core_id >= NUM_MAX_VCODEC_REG_BASE) {
+		mtk_v4l2_err("Invalid core id: %d, ctx id: %d",
+			     core_id, ctx->id);
+		return IRQ_HANDLED;
+	}
 
-	ctx->irq_status = readl(dev->reg_base[dev->venc_pdata->core_id] +
+	mtk_v4l2_debug(1, "id: %d, core id: %d", ctx->id, core_id);
+
+	addr = dev->reg_base[core_id] + MTK_VENC_IRQ_ACK_OFFSET;
+
+	ctx->irq_status = readl(dev->reg_base[core_id] +
 				(MTK_VENC_IRQ_STATUS_OFFSET));
 
 	clean_irq_status(ctx->irq_status, addr);
