@@ -1259,6 +1259,8 @@ int dcn20_populate_dml_pipes_from_context(struct dc *dc,
 
 		pipes[pipe_cnt].clks_cfg.refclk_mhz = dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000.0;
 
+		pipes[pipe_cnt].pipe.dest.use_maximum_vstartup = dc->ctx->dce_version == DCN_VERSION_2_01;
+
 		pipes[pipe_cnt].dout.dsc_enable = res_ctx->pipe_ctx[i].stream->timing.flags.DSC;
 		/* todo: rotation?*/
 		pipes[pipe_cnt].dout.dsc_slices = res_ctx->pipe_ctx[i].stream->timing.dsc_cfg.num_slices_h;
