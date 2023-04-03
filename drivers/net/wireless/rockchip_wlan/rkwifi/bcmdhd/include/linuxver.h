@@ -937,6 +937,7 @@ static inline struct inode *file_inode(const struct file *f)
 #else
 #define vfs_write(fp, buf, len, pos) ({ UNUSED_PARAMETER(fp); UNUSED_PARAMETER(buf); UNUSED_PARAMETER(len); UNUSED_PARAMETER(pos); -EPERM; })
 #define vfs_read(fp, buf, len, pos) ({ UNUSED_PARAMETER(fp); UNUSED_PARAMETER(buf); UNUSED_PARAMETER(len); UNUSED_PARAMETER(pos); -EPERM; })
+#define filp_open(filename, flags, mode) ({ UNUSED_PARAMETER(filename); UNUSED_PARAMETER(flags); UNUSED_PARAMETER(mode); ERR_PTR(-EPERM); })
 #endif
 int kernel_read_compat(struct file *file, loff_t offset, char *addr, unsigned long count);
 #else /* LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0) */
