@@ -79,6 +79,13 @@ config SPI_ALTERA_DFL
 	  Altera SPI master controller.  The SPI master is connected
 	  to a SPI slave to Avalon bridge in a Intel MAX BMC.
 
+config SPI_AMLOGIC_SPIFC_A1
+	tristate "Amlogic A1 SPIFC controller"
+	depends on ARCH_MESON || COMPILE_TEST
+	help
+	  This enables master mode support for the SPIFC (SPI flash
+	  controller) available in Amlogic A1 (A113L SoC).
+
 config SPI_AR934X
 	tristate "Qualcomm Atheros AR934X/QCA95XX SPI controller driver"
 	depends on ATH79 || COMPILE_TEST
