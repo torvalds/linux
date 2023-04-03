@@ -2646,11 +2646,8 @@ bool intel_hdmi_handle_sink_scrambling(struct intel_encoder *encoder,
 				       bool scrambling)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 	struct drm_scrambling *sink_scrambling =
 		&connector->display_info.hdmi.scdc.scrambling;
-	struct i2c_adapter *adapter =
-		intel_gmbus_get_adapter(dev_priv, intel_hdmi->ddc_bus);
 
 	if (!sink_scrambling->supported)
 		return true;
@@ -2661,9 +2658,8 @@ bool intel_hdmi_handle_sink_scrambling(struct intel_encoder *encoder,
 		    str_yes_no(scrambling), high_tmds_clock_ratio ? 40 : 10);
 
 	/* Set TMDS bit clock ratio to 1/40 or 1/10, and enable/disable scrambling */
-	return drm_scdc_set_high_tmds_clock_ratio(adapter,
-						  high_tmds_clock_ratio) &&
-		drm_scdc_set_scrambling(adapter, scrambling);
+	return drm_scdc_set_high_tmds_clock_ratio(connector, high_tmds_clock_ratio) &&
+		drm_scdc_set_scrambling(connector, scrambling);
 }
 
 static u8 chv_port_to_ddc_pin(struct drm_i915_private *dev_priv, enum port port)

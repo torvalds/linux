@@ -3988,8 +3988,8 @@ static int intel_hdmi_reset_link(struct intel_encoder *encoder,
 
 	ret = drm_scdc_readb(adapter, SCDC_TMDS_CONFIG, &config);
 	if (ret < 0) {
-		drm_err(&dev_priv->drm, "Failed to read TMDS config: %d\n",
-			ret);
+		drm_err(&dev_priv->drm, "[CONNECTOR:%d:%s] Failed to read TMDS config: %d\n",
+			connector->base.base.id, connector->base.name, ret);
 		return 0;
 	}
 
