@@ -30,6 +30,8 @@ use core::{
     ptr::NonNull,
 };
 
+mod std_vendor;
+
 /// A reference-counted pointer to an instance of `T`.
 ///
 /// The reference count is incremented when new instances of [`Arc`] are created, and decremented
