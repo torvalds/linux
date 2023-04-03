@@ -254,14 +254,13 @@ static void __do_machine_kexec(void *data)
 	relocate_kernel_t data_mover;
 	struct kimage *image = data;
 
-	s390_reset_system();
 	data_mover = (relocate_kernel_t) page_to_phys(image->control_code_page);
-
-	__arch_local_irq_stnsm(0xfb); /* disable DAT - avoid no-execute */
-	/* Call the moving routine */
 	diag308_subcode = DIAG308_CLEAR_RESET;
 	if (sclp.has_iplcc)
 		diag308_subcode |= DIAG308_FLAG_EI;
+	s390_reset_system();
+
+	__arch_local_irq_stnsm(0xfb); /* disable DAT - avoid no-execute */
 	(*data_mover)(&image->head, image->start, diag308_subcode);
 
 	/* Die if kexec returns */
