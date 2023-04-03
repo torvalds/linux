@@ -31,12 +31,10 @@ static struct platform_device *dmic_dev;
 static const struct sof_amd_acp_desc rembrandt_chip_info = {
 	.rev		= 6,
 	.host_bridge_id = HOST_BRIDGE_RMB,
-	.i2s_mode	= 0x0a,
 	.pgfsm_base	= ACP6X_PGFSM_BASE,
 	.ext_intr_stat	= ACP6X_EXT_INTR_STAT,
 	.dsp_intr_base	= ACP6X_DSP_SW_INTR_BASE,
 	.sram_pte_offset = ACP6X_SRAM_PTE_OFFSET,
-	.i2s_pin_config_offset = ACP6X_I2S_PIN_CONFIG,
 	.hw_semaphore_offset = ACP6X_AXI2DAGB_SEM_0,
 	.acp_clkmux_sel = ACP6X_CLKMUX_SEL,
 	.fusion_dsp_offset = ACP6X_DSP_FUSION_RUNSTALL,

@@ -158,12 +158,10 @@ struct acp_dsp_stream {
 struct sof_amd_acp_desc {
 	unsigned int rev;
 	unsigned int host_bridge_id;
-	unsigned int i2s_mode;
 	u32 pgfsm_base;
 	u32 ext_intr_stat;
 	u32 dsp_intr_base;
 	u32 sram_pte_offset;
-	u32 i2s_pin_config_offset;
 	u32 hw_semaphore_offset;
 	u32 acp_clkmux_sel;
 	u32 fusion_dsp_offset;
