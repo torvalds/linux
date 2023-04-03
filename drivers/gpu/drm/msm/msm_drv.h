@@ -129,8 +129,6 @@ struct msm_drm_private {
 	bool is_a2xx;
 	bool has_cached_coherent;
 
-	struct drm_fb_helper *fbdev;
-
 	struct msm_rd_state *rd;       /* debugfs to dump all submits */
 	struct msm_rd_state *hangrd;   /* debugfs to dump hanging submits */
 	struct msm_perf_state *perf;

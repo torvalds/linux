@@ -122,7 +122,6 @@ static const struct drm_fb_helper_funcs msm_fb_helper_funcs = {
 /* initialize fbdev helper */
 struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev)
 {
-	struct msm_drm_private *priv = dev->dev_private;
 	struct drm_fb_helper *helper;
 	int ret;
 
@@ -142,8 +141,6 @@ struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev)
 	if (ret)
 		goto fini;
 
-	priv->fbdev = helper;
-
 	return helper;
 
 fini:
@@ -156,8 +153,7 @@ fail:
 
 void msm_fbdev_free(struct drm_device *dev)
 {
-	struct msm_drm_private *priv = dev->dev_private;
-	struct drm_fb_helper *helper = priv->fbdev;
+	struct drm_fb_helper *helper = dev->fb_helper;
 	struct drm_framebuffer *fb = helper->fb;
 
 	DBG();
@@ -176,5 +172,5 @@ void msm_fbdev_free(struct drm_device *dev)
 	drm_fb_helper_unprepare(helper);
 	kfree(helper);
 
-	priv->fbdev = NULL;
+	dev->fb_helper = NULL;
 }

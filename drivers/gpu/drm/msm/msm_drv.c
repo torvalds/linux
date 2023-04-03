@@ -243,7 +243,7 @@ static int msm_drm_uninit(struct device *dev)
 	msm_rd_debugfs_cleanup(priv);
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
-	if (fbdev && priv->fbdev)
+	if (fbdev && ddev->fb_helper)
 		msm_fbdev_free(ddev);
 #endif
 
@@ -551,7 +551,7 @@ static int msm_drm_init(struct device *dev, const struct drm_driver *drv)
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 	if (kms && fbdev)
-		priv->fbdev = msm_fbdev_init(ddev);
+		msm_fbdev_init(ddev);
 #endif
 
 	ret = msm_debugfs_late_init(ddev);
