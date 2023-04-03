@@ -137,7 +137,7 @@ static int regcache_maple_drop(struct regmap *map, unsigned int min,
 					GFP_KERNEL);
 			if (!lower) {
 				ret = -ENOMEM;
-				goto out;
+				goto out_unlocked;
 			}
 		}
 
@@ -151,7 +151,7 @@ static int regcache_maple_drop(struct regmap *map, unsigned int min,
 					GFP_KERNEL);
 			if (!upper) {
 				ret = -ENOMEM;
-				goto out;
+				goto out_unlocked;
 			}
 		}
 
@@ -179,6 +179,7 @@ static int regcache_maple_drop(struct regmap *map, unsigned int min,
 
 out:
 	mas_unlock(&mas);
+out_unlocked:
 	kfree(lower);
 	kfree(upper);
 
