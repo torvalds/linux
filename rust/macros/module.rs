@@ -278,7 +278,7 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
                         return 0;
                     }}
                     Err(e) => {{
-                        return e.to_kernel_errno();
+                        return e.to_errno();
                     }}
                 }}
             }}
