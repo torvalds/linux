@@ -1062,7 +1062,7 @@ err_disable_runtime_pm:
 	return ret;
 }
 
-static int rkvdec_remove(struct platform_device *pdev)
+static void rkvdec_remove(struct platform_device *pdev)
 {
 	struct rkvdec_dev *rkvdec = platform_get_drvdata(pdev);
 
@@ -1071,7 +1071,6 @@ static int rkvdec_remove(struct platform_device *pdev)
 	rkvdec_v4l2_cleanup(rkvdec);
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -1101,7 +1100,7 @@ static const struct dev_pm_ops rkvdec_pm_ops = {
 
 static struct platform_driver rkvdec_driver = {
 	.probe = rkvdec_probe,
-	.remove = rkvdec_remove,
+	.remove_new = rkvdec_remove,
 	.driver = {
 		   .name = "rkvdec",
 		   .of_match_table = of_rkvdec_match,
