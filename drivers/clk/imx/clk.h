@@ -153,9 +153,6 @@ extern struct imx_fracn_gppll_clk imx_fracn_gppll;
 #define imx_clk_pllv2(name, parent, base) \
 	to_clk(imx_clk_hw_pllv2(name, parent, base))
 
-#define imx_clk_mux_flags(name, reg, shift, width, parents, num_parents, flags) \
-	to_clk(imx_clk_hw_mux_flags(name, reg, shift, width, parents, num_parents, flags))
-
 #define imx_clk_hw_gate(name, parent, reg, shift) \
 	imx_clk_hw_gate_flags(name, parent, reg, shift, 0)
 
