@@ -26,7 +26,7 @@
 // *** IMPORTANT ***
 // PMFW TEAM: Always increment the interface version if
 // anything is changed in this file
-#define SMU13_0_6_DRIVER_IF_VERSION 0x08042023
+#define SMU13_0_6_DRIVER_IF_VERSION 0x08042024
 
 //I2C Interface
 #define NUM_I2C_CONTROLLERS                8
@@ -125,11 +125,28 @@ typedef struct {
 #define IH_INTERRUPT_ID_TO_DRIVER                   0xFE
 #define IH_INTERRUPT_CONTEXT_ID_THERMAL_THROTTLING  0x7
 
-//thermal over-temp mask defines
-#define THROTTLER_TEMP_CCD_BIT     5
-#define THROTTLER_TEMP_XCD_BIT     6
-#define THROTTLER_TEMP_HBM_BIT     7
-#define THROTTLER_TEMP_AID_BIT     8
-#define THROTTLER_VRHOT_BIT        9
+//thermal over-temp mask defines for IH interrupt to host
+#define THROTTLER_PROCHOT_BIT           0
+#define THROTTLER_PPT_BIT               1
+#define THROTTLER_THERMAL_SOCKET_BIT    2//AID, XCD, CCD throttling
+#define THROTTLER_THERMAL_VR_BIT        3//VRHOT
+#define THROTTLER_THERMAL_HBM_BIT       4
+
+// These defines are used with the following messages:
+// SMC_MSG_TransferTableDram2Smu
+// SMC_MSG_TransferTableSmu2Dram
+// #define TABLE_PPTABLE                 0
+// #define TABLE_AVFS_PSM_DEBUG          1
+// #define TABLE_AVFS_FUSE_OVERRIDE      2
+// #define TABLE_PMSTATUSLOG             3
+// #define TABLE_SMU_METRICS             4
+// #define TABLE_DRIVER_SMU_CONFIG       5
+// #define TABLE_I2C_COMMANDS            6
+// #define TABLE_COUNT                   7
+
+// // Table transfer status
+// #define TABLE_TRANSFER_OK         0x0
+// #define TABLE_TRANSFER_FAILED     0xFF
+// #define TABLE_TRANSFER_PENDING    0xAB
 
 #endif

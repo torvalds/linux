@@ -82,6 +82,8 @@
 
 #define smnPCIE_ESM_CTRL 0x111003D0
 
+#define THROTTLER_TEMP_HBM_BIT 2
+
 static const struct cmn2asic_msg_mapping smu_v13_0_6_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,			     PPSMC_MSG_TestMessage,			0),
 	MSG_MAP(GetSmuVersion,			     PPSMC_MSG_GetSmuVersion,			1),
