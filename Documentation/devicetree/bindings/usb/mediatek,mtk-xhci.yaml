@@ -87,14 +87,6 @@ properties:
       - const: dma_ck
       - const: xhci_ck
 
-  assigned-clocks:
-    minItems: 1
-    maxItems: 5
-
-  assigned-clock-parents:
-    minItems: 1
-    maxItems: 5
-
   phys:
     description:
       List of all PHYs used on this HCD, it's better to keep PHYs in order
