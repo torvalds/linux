@@ -19,6 +19,7 @@
 #include "platform-access.h"
 
 #define PSP_CMD_TIMEOUT_US	(500 * USEC_PER_MSEC)
+#define DOORBELL_CMDRESP_STS	GENMASK(7, 0)
 
 /* Recovery field should be equal 0 to start sending commands */
 static int check_recovery(u32 __iomem *cmd)
@@ -154,7 +155,7 @@ int psp_ring_platform_doorbell(int msg, u32 *result)
 		goto unlock;
 	}
 
-	iowrite32(FIELD_PREP(PSP_DRBL_MSG, msg), cmd);
+	iowrite32(FIELD_PREP(DOORBELL_CMDRESP_STS, msg), cmd);
 	iowrite32(PSP_DRBL_RING, button);
 
 	if (wait_cmd(cmd)) {
@@ -162,7 +163,7 @@ int psp_ring_platform_doorbell(int msg, u32 *result)
 		goto unlock;
 	}
 
-	val = FIELD_GET(PSP_CMDRESP_STS, ioread32(cmd));
+	val = FIELD_GET(DOORBELL_CMDRESP_STS, ioread32(cmd));
 	if (val) {
 		if (result)
 			*result = val;
