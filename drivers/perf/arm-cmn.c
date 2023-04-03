@@ -1546,7 +1546,7 @@ static int arm_cmn_event_init(struct perf_event *event)
 	type = CMN_EVENT_TYPE(event);
 	/* DTC events (i.e. cycles) already have everything they need */
 	if (type == CMN_TYPE_DTC)
-		return 0;
+		return arm_cmn_validate_group(cmn, event);
 
 	eventid = CMN_EVENT_EVENTID(event);
 	/* For watchpoints we need the actual XP node here */
