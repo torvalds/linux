@@ -22,6 +22,7 @@
 #include <soc/rockchip/rockchip_dmc.h>
 #include <soc/rockchip/rockchip_opp_select.h>
 #include <soc/rockchip/rockchip_system_monitor.h>
+#include <soc/rockchip/rockchip_iommu.h>
 
 #ifdef CONFIG_PM_DEVFREQ
 #include "../drivers/devfreq/governor.h"
@@ -1146,17 +1147,16 @@ static int rkvdec2_set_freq(struct mpp_dev *mpp,
 
 static int rkvdec2_soft_reset(struct mpp_dev *mpp)
 {
-	u32 rst_status = 0;
 	int ret = 0;
 
-	/* soft reset */
-	mpp_write(mpp, RKVDEC_REG_IMPORTANT_BASE, RKVDEC_SOFTREST_EN);
-	ret = readl_relaxed_poll_timeout(mpp->reg_base + RKVDEC_REG_INT_EN,
-					 rst_status,
-					 rst_status & RKVDEC_SOFT_RESET_READY,
-					 5, 500);
+	/*
+	 * for rk3528 and rk3562
+	 * use mmu reset instead of rkvdec soft reset
+	 * rkvdec will reset together when rkvdec_mmu force reset
+	 */
+	ret = rockchip_iommu_force_reset(mpp->dev);
 	if (ret)
-		mpp_err("soft reset fail, int %08x\n", rst_status);
+		mpp_err("soft mmu reset fail, ret %d\n", ret);
 	mpp_write(mpp, RKVDEC_REG_INT_EN, 0);
 
 	return ret;
