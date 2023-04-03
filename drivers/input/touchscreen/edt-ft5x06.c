@@ -240,13 +240,10 @@ static int edt_M06_i2c_read(void *context, const void *reg_buf, size_t reg_size,
 		if (!edt_ft5x06_ts_check_crc(tsdata, val_buf, val_size))
 			return -EIO;
 	} else if (reg_read) {
-		u8 crc = wbuf[0] ^ wbuf[1] ^ rbuf[0];
-
-		if (crc != rbuf[1]) {
-			dev_err(dev, "crc error: 0x%02x expected, got 0x%02x\n",
-				crc, rbuf[1]);
+		wbuf[2] = rbuf[0];
+		wbuf[3] = rbuf[1];
+		if (!edt_ft5x06_ts_check_crc(tsdata, wbuf, 4))
 			return -EIO;
-		}
 
 		*((u8 *)val_buf) = rbuf[0];
 	}
