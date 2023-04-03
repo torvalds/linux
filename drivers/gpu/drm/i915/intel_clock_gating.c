@@ -36,8 +36,8 @@
 #include "gt/intel_gt_regs.h"
 
 #include "i915_drv.h"
+#include "intel_clock_gating.h"
 #include "intel_mchbar_regs.h"
-#include "intel_pm.h"
 #include "vlv_sideband.h"
 
 struct drm_i915_clock_gating_funcs {
@@ -774,7 +774,7 @@ static void i830_init_clock_gating(struct drm_i915_private *dev_priv)
 		   _MASKED_BIT_ENABLE(MEM_DISPLAY_B_TRICKLE_FEED_DISABLE));
 }
 
-void intel_init_clock_gating(struct drm_i915_private *dev_priv)
+void intel_clock_gating_init(struct drm_i915_private *dev_priv)
 {
 	dev_priv->clock_gating_funcs->init_clock_gating(dev_priv);
 }
@@ -818,7 +818,7 @@ CG_FUNCS(nop);
 #undef CG_FUNCS
 
 /**
- * intel_init_clock_gating_hooks - setup the clock gating hooks
+ * intel_clock_gating_hooks_init - setup the clock gating hooks
  * @dev_priv: device private
  *
  * Setup the hooks that configure which clocks of a given platform can be
@@ -826,7 +826,7 @@ CG_FUNCS(nop);
  * platforms. Note that some GT specific workarounds are applied separately
  * when GPU contexts or batchbuffers start their execution.
  */
-void intel_init_clock_gating_hooks(struct drm_i915_private *dev_priv)
+void intel_clock_gating_hooks_init(struct drm_i915_private *dev_priv)
 {
 	if (IS_METEORLAKE(dev_priv))
 		dev_priv->clock_gating_funcs = &nop_clock_gating_funcs;

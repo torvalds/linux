@@ -63,6 +63,7 @@
 #include "intel_audio.h"
 #include "intel_bw.h"
 #include "intel_cdclk.h"
+#include "intel_clock_gating.h"
 #include "intel_color.h"
 #include "intel_crt.h"
 #include "intel_crtc.h"
@@ -105,7 +106,6 @@
 #include "intel_pcode.h"
 #include "intel_pipe_crc.h"
 #include "intel_plane_initial.h"
-#include "intel_pm.h"
 #include "intel_pps.h"
 #include "intel_psr.h"
 #include "intel_quirks.h"
@@ -850,7 +850,7 @@ void intel_display_finish_reset(struct drm_i915_private *i915)
 		 */
 		intel_pps_unlock_regs_wa(i915);
 		intel_modeset_init_hw(i915);
-		intel_init_clock_gating(i915);
+		intel_clock_gating_init(i915);
 		intel_hpd_init(i915);
 
 		ret = __intel_display_resume(i915, state, ctx);
