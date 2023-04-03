@@ -167,6 +167,11 @@ struct kvm_pgtable_mm_ops {
 	void		(*icache_inval_pou)(void *addr, size_t size);
 };
 
+static inline kvm_pte_t *kvm_pte_follow(kvm_pte_t pte, struct kvm_pgtable_mm_ops *mm_ops)
+{
+	return mm_ops->phys_to_virt(kvm_pte_to_phys(pte));
+}
+
 /**
  * enum kvm_pgtable_stage2_flags - Stage-2 page-table flags.
  * @KVM_PGTABLE_S2_NOFWB:	Don't enforce Normal-WB even if the CPUs have
