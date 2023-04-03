@@ -783,7 +783,7 @@ static ssize_t edt_ft5x06_debugfs_raw_data_read(struct file *file,
 
 	error = edt_ft5x06_register_write(tsdata, 0x08, 0x01);
 	if (error) {
-		dev_dbg(&client->dev,
+		dev_err(&client->dev,
 			"failed to write 0x08 register, error %d\n", error);
 		goto out;
 	}
@@ -797,13 +797,13 @@ static ssize_t edt_ft5x06_debugfs_raw_data_read(struct file *file,
 
 	if (val < 0) {
 		error = val;
-		dev_dbg(&client->dev,
+		dev_err(&client->dev,
 			"failed to read 0x08 register, error %d\n", error);
 		goto out;
 	}
 
 	if (retries == 0) {
-		dev_dbg(&client->dev,
+		dev_err(&client->dev,
 			"timed out waiting for register to settle\n");
 		error = -ETIMEDOUT;
 		goto out;
