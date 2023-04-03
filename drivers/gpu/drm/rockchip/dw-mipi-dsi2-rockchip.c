@@ -1006,6 +1006,15 @@ dw_mipi_dsi2_connector_mode_valid(struct drm_connector *connector,
 
 	drm_display_mode_to_videomode(mode, &vm);
 
+	if (vm.vactive > 16383)
+		return MODE_VIRTUAL_Y;
+
+	if (vm.vsync_len > 1023)
+		return MODE_VSYNC_WIDE;
+
+	if (vm.vback_porch > 1023 || vm.vfront_porch > 1023)
+		return MODE_VBLANK_WIDE;
+
 	/*
 	 * the minimum region size (HSA,HBP,HACT,HFP) is 4 pixels
 	 * which is the ip known issues and limitations.
