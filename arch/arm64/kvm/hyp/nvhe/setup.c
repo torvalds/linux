@@ -357,15 +357,15 @@ void __noreturn __pkvm_init_finalise(void)
 	};
 	pkvm_pgtable.mm_ops = &pkvm_pgtable_mm_ops;
 
-	ret = fix_host_ownership();
-	if (ret)
-		goto out;
-
 	ret = fix_hyp_pgtable_refcnt();
 	if (ret)
 		goto out;
 
 	ret = hyp_create_pcpu_fixmap();
+	if (ret)
+		goto out;
+
+	ret = fix_host_ownership();
 	if (ret)
 		goto out;
 
