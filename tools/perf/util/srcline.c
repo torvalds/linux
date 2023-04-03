@@ -435,7 +435,50 @@ static struct child_process *addr2line_subprocess_init(const char *addr2line_pat
 	return a2l;
 }
 
+enum a2l_style {
+	BROKEN,
+	GNU_BINUTILS,
+	LLVM,
+};
+
+static enum a2l_style addr2line_configure(struct child_process *a2l)
+{
+	static bool cached;
+	static enum a2l_style style;
+
+	if (!cached) {
+		char buf[128];
+		struct io io;
+		int ch;
+
+		if (write(a2l->in, ",\n", 2) != 2)
+			return BROKEN;
+
+		io__init(&io, a2l->out, buf, sizeof(buf));
+		ch = io__get_char(&io);
+		if (ch == ',') {
+			style = LLVM;
+			cached = true;
+		} else if (ch == '?') {
+			style = GNU_BINUTILS;
+			cached = true;
+		} else {
+			style = BROKEN;
+		}
+		do {
+			ch = io__get_char(&io);
+		} while (ch > 0 && ch != '\n');
+		if (style == GNU_BINUTILS) {
+			do {
+				ch = io__get_char(&io);
+			} while (ch > 0 && ch != '\n');
+		}
+	}
+	return style;
+}
+
 static int read_addr2line_record(struct io *io,
+				 enum a2l_style style,
 				 char **function,
 				 char **filename,
 				 unsigned int *line_nr)
@@ -462,6 +505,12 @@ static int read_addr2line_record(struct io *io,
 
 	if (io__getline(io, &line, &line_len) < 0 || !line_len)
 		goto error;
+
+	if (style == LLVM && line_len == 2 && line[0] == ',') {
+		zfree(&line);
+		return 0;
+	}
+
 	if (function != NULL)
 		*function = strdup(strim(line));
 
@@ -471,7 +520,8 @@ static int read_addr2line_record(struct io *io,
 	if (io__getline(io, &line, &line_len) < 0 || !line_len)
 		goto error;
 
-	if (filename_split(line, line_nr == NULL ? &dummy_line_nr : line_nr) == 0) {
+	if (filename_split(line, line_nr == NULL ? &dummy_line_nr : line_nr) == 0 &&
+	    style == GNU_BINUTILS) {
 		ret = 0;
 		goto error;
 	}
@@ -523,6 +573,7 @@ static int addr2line(const char *dso_name, u64 addr,
 	char buf[128];
 	ssize_t written;
 	struct io io;
+	enum a2l_style a2l_style;
 
 	if (!a2l) {
 		if (!filename__has_section(dso_name, ".debug_line"))
@@ -538,15 +589,22 @@ static int addr2line(const char *dso_name, u64 addr,
 			pr_warning("%s %s: addr2line_subprocess_init failed\n", __func__, dso_name);
 		goto out;
 	}
+	a2l_style = addr2line_configure(a2l);
+	if (a2l_style == BROKEN) {
+		if (!symbol_conf.disable_add2line_warn)
+			pr_warning("%s: addr2line configuration failed\n", __func__);
+		goto out;
+	}
 
 	/*
 	 * Send our request and then *deliberately* send something that can't be interpreted as
 	 * a valid address to ask addr2line about (namely, ","). This causes addr2line to first
 	 * write out the answer to our request, in an unbounded/unknown number of records, and
-	 * then to write out the lines "??" and "??:0", so that we can detect when it has
-	 * finished giving us anything useful. We have to be careful about the first record,
-	 * though, because it may be genuinely unknown, in which case we'll get two sets of
-	 * "??"/"??:0" lines.
+	 * then to write out the lines "??" and "??:0", for GNU binutils, or "," for
+	 * llvm-addr2line, so that we can detect when it has finished giving us anything
+	 * useful. With GNU binutils, we have to be careful about the first record, though,
+	 * because it may be genuinely unknown, in which case we'll get two sets of "??"/"??:0"
+	 * lines.
 	 */
 	len = snprintf(buf, sizeof(buf), "%016"PRIx64"\n,\n", addr);
 	written = len > 0 ? write(a2l->in, buf, len) : -1;
@@ -557,7 +615,8 @@ static int addr2line(const char *dso_name, u64 addr,
 	}
 	io__init(&io, a2l->out, buf, sizeof(buf));
 
-	switch (read_addr2line_record(&io, &record_function, &record_filename, &record_line_nr)) {
+	switch (read_addr2line_record(&io, a2l_style,
+				      &record_function, &record_filename, &record_line_nr)) {
 	case -1:
 		if (!symbol_conf.disable_add2line_warn)
 			pr_warning("%s %s: could not read first record\n", __func__, dso_name);
@@ -567,7 +626,7 @@ static int addr2line(const char *dso_name, u64 addr,
 		 * The first record was invalid, so return failure, but first read another
 		 * record, since we asked a junk question and have to clear the answer out.
 		 */
-		switch (read_addr2line_record(&io, NULL, NULL, NULL)) {
+		switch (read_addr2line_record(&io, a2l_style, NULL, NULL, NULL)) {
 		case -1:
 			if (!symbol_conf.disable_add2line_warn)
 				pr_warning("%s %s: could not read delimiter record\n",
@@ -606,6 +665,7 @@ static int addr2line(const char *dso_name, u64 addr,
 
 	/* We have to read the records even if we don't care about the inline info. */
 	while ((record_status = read_addr2line_record(&io,
+						      a2l_style,
 						      &record_function,
 						      &record_filename,
 						      &record_line_nr)) == 1) {
