@@ -135,6 +135,10 @@ struct edt_ft5x06_ts_data {
 	int offset_y;
 	int report_rate;
 	int max_support_points;
+	int point_len;
+	u8 tdata_cmd;
+	int tdata_len;
+	int tdata_offset;
 
 	char name[EDT_NAME_LEN];
 	char fw_version[EDT_NAME_LEN];
@@ -296,38 +300,13 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 {
 	struct edt_ft5x06_ts_data *tsdata = dev_id;
 	struct device *dev = &tsdata->client->dev;
-	u8 cmd;
 	u8 rdbuf[63];
 	int i, type, x, y, id;
-	int offset, tplen, datalen, crclen;
 	int error;
 
-	switch (tsdata->version) {
-	case EDT_M06:
-		cmd = 0xf9; /* tell the controller to send touch data */
-		offset = 5; /* where the actual touch data starts */
-		tplen = 4;  /* data comes in so called frames */
-		crclen = 1; /* length of the crc data */
-		break;
-
-	case EDT_M09:
-	case EDT_M12:
-	case EV_FT:
-	case GENERIC_FT:
-		cmd = 0x0;
-		offset = 3;
-		tplen = 6;
-		crclen = 0;
-		break;
-
-	default:
-		goto out;
-	}
-
 	memset(rdbuf, 0, sizeof(rdbuf));
-	datalen = tplen * tsdata->max_support_points + offset + crclen;
-
-	error = regmap_bulk_read(tsdata->regmap, cmd, rdbuf, datalen);
+	error = regmap_bulk_read(tsdata->regmap, tsdata->tdata_cmd, rdbuf,
+				 tsdata->tdata_len);
 	if (error) {
 		dev_err_ratelimited(dev, "Unable to fetch data, error: %d\n",
 				    error);
@@ -335,7 +314,7 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 	}
 
 	for (i = 0; i < tsdata->max_support_points; i++) {
-		u8 *buf = &rdbuf[i * tplen + offset];
+		u8 *buf = &rdbuf[i * tsdata->point_len + tsdata->tdata_offset];
 
 		type = buf[0] >> 6;
 		/* ignore Reserved events */
@@ -1071,6 +1050,26 @@ static void edt_ft5x06_ts_get_parameters(struct edt_ft5x06_ts_data *tsdata)
 	}
 }
 
+static void edt_ft5x06_ts_set_tdata_parameters(struct edt_ft5x06_ts_data *tsdata)
+{
+	int crclen;
+
+	if (tsdata->version == EDT_M06) {
+		tsdata->tdata_cmd = 0xf9;
+		tsdata->tdata_offset = 5;
+		tsdata->point_len = 4;
+		crclen = 1;
+	} else {
+		tsdata->tdata_cmd = 0x0;
+		tsdata->tdata_offset = 3;
+		tsdata->point_len = 6;
+		crclen = 0;
+	}
+
+	tsdata->tdata_len = tsdata->point_len * tsdata->max_support_points +
+		tsdata->tdata_offset + crclen;
+}
+
 static void edt_ft5x06_ts_set_regs(struct edt_ft5x06_ts_data *tsdata)
 {
 	struct edt_reg_addr *reg_addr = &tsdata->reg_addr;
@@ -1274,6 +1273,7 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client)
 	 */
 	regmap_read(tsdata->regmap, 0x00, &val);
 
+	edt_ft5x06_ts_set_tdata_parameters(tsdata);
 	edt_ft5x06_ts_set_regs(tsdata);
 	edt_ft5x06_ts_get_defaults(&client->dev, tsdata);
 	edt_ft5x06_ts_get_parameters(tsdata);
