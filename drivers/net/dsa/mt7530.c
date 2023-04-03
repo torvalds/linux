@@ -224,9 +224,10 @@ mt7530_mii_read(struct mt7530_priv *priv, u32 reg)
 	/* MT7530 uses 31 as the pseudo port */
 	ret = bus->write(bus, 0x1f, 0x1f, page);
 	if (ret < 0) {
+		WARN_ON_ONCE(1);
 		dev_err(&bus->dev,
 			"failed to read mt7530 register\n");
-		return ret;
+		return 0;
 	}
 
 	lo = bus->read(bus, 0x1f, r);
