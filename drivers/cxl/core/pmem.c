@@ -62,9 +62,9 @@ static int match_nvdimm_bridge(struct device *dev, void *data)
 	return is_cxl_nvdimm_bridge(dev);
 }
 
-struct cxl_nvdimm_bridge *cxl_find_nvdimm_bridge(struct device *start)
+struct cxl_nvdimm_bridge *cxl_find_nvdimm_bridge(struct cxl_memdev *cxlmd)
 {
-	struct cxl_port *port = find_cxl_root(start);
+	struct cxl_port *port = find_cxl_root(dev_get_drvdata(&cxlmd->dev));
 	struct device *dev;
 
 	if (!port)
@@ -253,7 +253,7 @@ int devm_cxl_add_nvdimm(struct cxl_memdev *cxlmd)
 	struct device *dev;
 	int rc;
 
-	cxl_nvb = cxl_find_nvdimm_bridge(&cxlmd->dev);
+	cxl_nvb = cxl_find_nvdimm_bridge(cxlmd);
 	if (!cxl_nvb)
 		return -ENODEV;
 

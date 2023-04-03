@@ -823,41 +823,17 @@ static bool dev_is_cxl_root_child(struct device *dev)
 	return false;
 }
 
-/* Find a 2nd level CXL port that has a dport that is an ancestor of @match */
-static int match_root_child(struct device *dev, const void *match)
+struct cxl_port *find_cxl_root(struct cxl_port *port)
 {
-	const struct device *iter = NULL;
-	struct cxl_dport *dport;
-	struct cxl_port *port;
+	struct cxl_port *iter = port;
 
-	if (!dev_is_cxl_root_child(dev))
-		return 0;
+	while (iter && !is_cxl_root(iter))
+		iter = to_cxl_port(iter->dev.parent);
 
-	port = to_cxl_port(dev);
-	iter = match;
-	while (iter) {
-		dport = cxl_find_dport_by_dev(port, iter);
-		if (dport)
-			break;
-		iter = iter->parent;
-	}
-
-	return !!iter;
-}
-
-struct cxl_port *find_cxl_root(struct device *dev)
-{
-	struct device *port_dev;
-	struct cxl_port *root;
-
-	port_dev = bus_find_device(&cxl_bus_type, NULL, dev, match_root_child);
-	if (!port_dev)
+	if (!iter)
 		return NULL;
-
-	root = to_cxl_port(port_dev->parent);
-	get_device(&root->dev);
-	put_device(port_dev);
-	return root;
+	get_device(&iter->dev);
+	return iter;
 }
 EXPORT_SYMBOL_NS_GPL(find_cxl_root, CXL);
 
