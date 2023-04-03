@@ -908,13 +908,11 @@ err_free_dev:
  *
  * Unregister the interface from mostcore
  */
-static int dim2_remove(struct platform_device *pdev)
+static void dim2_remove(struct platform_device *pdev)
 {
 	struct dim2_hdm *dev = platform_get_drvdata(pdev);
 
 	most_deregister_interface(&dev->most_iface);
-
-	return 0;
 }
 
 /* platform specific functions [[ */
@@ -1092,7 +1090,7 @@ MODULE_DEVICE_TABLE(of, dim2_of_match);
 
 static struct platform_driver dim2_driver = {
 	.probe = dim2_probe,
-	.remove = dim2_remove,
+	.remove_new = dim2_remove,
 	.driver = {
 		.name = "hdm_dim2",
 		.of_match_table = dim2_of_match,
