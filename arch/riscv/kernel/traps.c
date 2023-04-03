@@ -270,10 +270,10 @@ asmlinkage __visible __trap_section void do_trap_ecall_u(struct pt_regs *regs)
 	if (user_mode(regs)) {
 		ulong syscall = regs->a7;
 
-		syscall = syscall_enter_from_user_mode(regs, syscall);
-
 		regs->epc += 4;
 		regs->orig_a0 = regs->a0;
+
+		syscall = syscall_enter_from_user_mode(regs, syscall);
 
 		if (syscall < NR_syscalls)
 			syscall_handler(regs, syscall);
