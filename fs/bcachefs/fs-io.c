@@ -528,6 +528,14 @@ static inline void folio_sector_set(struct folio *folio,
 	s->s[i].state = n;
 }
 
+/* file offset (to folio offset) to bch_folio_sector index */
+static inline int folio_pos_to_s(struct folio *folio, loff_t pos)
+{
+	u64 f_offset = pos - folio_pos(folio);
+	BUG_ON(pos < folio_pos(folio) || pos >= folio_end_pos(folio));
+	return f_offset >> SECTOR_SHIFT;
+}
+
 static inline struct bch_folio *__bch2_folio(struct folio *folio)
 {
 	return folio_has_private(folio)
@@ -2902,7 +2910,7 @@ static int __bch2_truncate_folio(struct bch_inode_info *inode,
 	end_pos = folio_end_pos(folio);
 	if (inode->v.i_size > folio_pos(folio))
 		end_pos = min_t(u64, inode->v.i_size, end_pos);
-	ret = s->s[(end_pos - folio_pos(folio) - 1) >> 9].state >= SECTOR_dirty;
+	ret = s->s[folio_pos_to_s(folio, end_pos - 1)].state >= SECTOR_dirty;
 
 	folio_zero_segment(folio, start_offset, end_offset);
 
@@ -3653,15 +3661,15 @@ err:
 
 /* fseek: */
 
-static int folio_data_offset(struct folio *folio, unsigned offset)
+static int folio_data_offset(struct folio *folio, loff_t pos)
 {
 	struct bch_folio *s = bch2_folio(folio);
 	unsigned i, sectors = folio_sectors(folio);
 
 	if (s)
-		for (i = offset >> 9; i < sectors; i++)
+		for (i = folio_pos_to_s(folio, pos); i < sectors; i++)
 			if (s->s[i].state >= SECTOR_dirty)
-				return i << 9;
+				return i << SECTOR_SHIFT;
 
 	return -1;
 }
@@ -3687,8 +3695,7 @@ static loff_t bch2_seek_pagecache_data(struct inode *vinode,
 
 			folio_lock(folio);
 			offset = folio_data_offset(folio,
-					max(folio_pos(folio), start_offset) -
-					folio_pos(folio));
+					max(folio_pos(folio), start_offset));
 			if (offset >= 0) {
 				ret = clamp(folio_pos(folio) + offset,
 					    start_offset, end_offset);
@@ -3762,7 +3769,7 @@ static bool folio_hole_offset(struct address_space *mapping, loff_t *offset)
 {
 	struct folio *folio;
 	struct bch_folio *s;
-	unsigned i, sectors, f_offset;
+	unsigned i, sectors;
 	bool ret = true;
 
 	folio = filemap_lock_folio(mapping, *offset >> PAGE_SHIFT);
@@ -3774,11 +3781,10 @@ static bool folio_hole_offset(struct address_space *mapping, loff_t *offset)
 		goto unlock;
 
 	sectors = folio_sectors(folio);
-	f_offset = *offset - folio_pos(folio);
-
-	for (i = f_offset >> 9; i < sectors; i++)
+	for (i = folio_pos_to_s(folio, *offset); i < sectors; i++)
 		if (s->s[i].state < SECTOR_dirty) {
-			*offset = max(*offset, folio_pos(folio) + (i << 9));
+			*offset = max(*offset,
+				      folio_pos(folio) + (i << SECTOR_SHIFT));
 			goto unlock;
 		}
 
