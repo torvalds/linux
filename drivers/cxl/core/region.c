@@ -1674,6 +1674,7 @@ static int cxl_region_attach(struct cxl_region *cxlr,
 		if (rc)
 			goto err_decrement;
 		p->state = CXL_CONFIG_ACTIVE;
+		set_bit(CXL_REGION_F_INCOHERENT, &cxlr->flags);
 	}
 
 	cxled->cxld.interleave_ways = p->interleave_ways;
@@ -1775,8 +1776,6 @@ static int attach_target(struct cxl_region *cxlr,
 
 	down_read(&cxl_dpa_rwsem);
 	rc = cxl_region_attach(cxlr, cxled, pos);
-	if (rc == 0)
-		set_bit(CXL_REGION_F_INCOHERENT, &cxlr->flags);
 	up_read(&cxl_dpa_rwsem);
 	up_write(&cxl_region_rwsem);
 	return rc;
