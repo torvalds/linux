@@ -20,6 +20,7 @@
 
 #include <linux/bug.h>
 #include <linux/build_bug.h>
+#include <linux/err.h>
 #include <linux/refcount.h>
 
 __noreturn void rust_helper_BUG(void)
@@ -45,6 +46,12 @@ bool rust_helper_refcount_dec_and_test(refcount_t *r)
 	return refcount_dec_and_test(r);
 }
 EXPORT_SYMBOL_GPL(rust_helper_refcount_dec_and_test);
+
+__force void *rust_helper_ERR_PTR(long err)
+{
+	return ERR_PTR(err);
+}
+EXPORT_SYMBOL_GPL(rust_helper_ERR_PTR);
 
 /*
  * We use `bindgen`'s `--size_t-is-usize` option to bind the C `size_t` type
