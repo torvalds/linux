@@ -3289,6 +3289,7 @@ static int dsa_master_changeupper(struct net_device *dev,
 static int dsa_slave_netdevice_event(struct notifier_block *nb,
 				     unsigned long event, void *ptr)
 {
+	struct netlink_ext_ack *extack = netdev_notifier_info_to_extack(ptr);
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 
 	switch (event) {
@@ -3417,6 +3418,16 @@ static int dsa_slave_netdevice_event(struct notifier_block *nb,
 		dev_close_many(&close_list, true);
 
 		return NOTIFY_OK;
+	}
+	case NETDEV_PRE_CHANGE_HWTSTAMP: {
+		struct netdev_notifier_hwtstamp_info *info = ptr;
+		int err;
+
+		if (!netdev_uses_dsa(dev))
+			return NOTIFY_DONE;
+
+		err = dsa_master_pre_change_hwtstamp(dev, info->config, extack);
+		return notifier_from_errno(err);
 	}
 	default:
 		break;
