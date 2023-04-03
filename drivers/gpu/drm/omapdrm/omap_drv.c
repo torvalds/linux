@@ -6,6 +6,7 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
 #include <linux/sort.h>
 #include <linux/sys_soc.h>
 
