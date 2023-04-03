@@ -655,11 +655,6 @@ static int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 	return 0;
 }
 
-void mt7615_sta_ps(struct mt76_dev *mdev, struct ieee80211_sta *sta, bool ps)
-{
-}
-EXPORT_SYMBOL_GPL(mt7615_sta_ps);
-
 static u16
 mt7615_mac_tx_rate_val(struct mt7615_dev *dev,
 		       struct mt76_phy *mphy,

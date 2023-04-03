@@ -1309,7 +1309,8 @@ mt76_check_sta(struct mt76_dev *dev, struct sk_buff *skb)
 	if (ps)
 		set_bit(MT_WCID_FLAG_PS, &wcid->flags);
 
-	dev->drv->sta_ps(dev, sta, ps);
+	if (dev->drv->sta_ps)
+		dev->drv->sta_ps(dev, sta, ps);
 
 	if (!ps)
 		clear_bit(MT_WCID_FLAG_PS, &wcid->flags);
