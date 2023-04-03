@@ -149,7 +149,7 @@ int psp_ring_platform_doorbell(int msg)
 	mutex_lock(&pa_dev->doorbell_mutex);
 
 	if (wait_cmd(cmd)) {
-		dev_dbg(psp->dev, "doorbell command not done processing\n");
+		dev_err(psp->dev, "doorbell command not done processing\n");
 		ret = -EBUSY;
 		goto unlock;
 	}
