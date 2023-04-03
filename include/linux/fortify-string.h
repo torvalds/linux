@@ -371,6 +371,70 @@ __FORTIFY_INLINE ssize_t strscpy(char * const POS p, const char * const POS q, s
 	return __real_strscpy(p, q, len);
 }
 
+/* Defined after fortified strlen() to reuse it. */
+extern size_t __real_strlcat(char *p, const char *q, size_t avail) __RENAME(strlcat);
+/**
+ * strlcat - Append a string to an existing string
+ *
+ * @p: pointer to %NUL-terminated string to append to
+ * @q: pointer to %NUL-terminated string to append from
+ * @avail: Maximum bytes available in @p
+ *
+ * Appends %NUL-terminated string @q after the %NUL-terminated
+ * string at @p, but will not write beyond @avail bytes total,
+ * potentially truncating the copy from @q. @p will stay
+ * %NUL-terminated only if a %NUL already existed within
+ * the @avail bytes of @p. If so, the resulting number of
+ * bytes copied from @q will be at most "@avail - strlen(@p) - 1".
+ *
+ * Do not use this function. While FORTIFY_SOURCE tries to avoid
+ * read and write overflows, this is only possible when the sizes
+ * of @p and @q are known to the compiler. Prefer building the
+ * string with formatting, via scnprintf(), seq_buf, or similar.
+ *
+ * Returns total bytes that _would_ have been contained by @p
+ * regardless of truncation, similar to snprintf(). If return
+ * value is >= @avail, the string has been truncated.
+ *
+ */
+__FORTIFY_INLINE
+size_t strlcat(char * const POS p, const char * const POS q, size_t avail)
+{
+	const size_t p_size = __member_size(p);
+	const size_t q_size = __member_size(q);
+	size_t p_len, copy_len;
+	size_t actual, wanted;
+
+	/* Give up immediately if both buffer sizes are unknown. */
+	if (p_size == SIZE_MAX && q_size == SIZE_MAX)
+		return __real_strlcat(p, q, avail);
+
+	p_len = strnlen(p, avail);
+	copy_len = strlen(q);
+	wanted = actual = p_len + copy_len;
+
+	/* Cannot append any more: report truncation. */
+	if (avail <= p_len)
+		return wanted;
+
+	/* Give up if string is already overflowed. */
+	if (p_size <= p_len)
+		fortify_panic(__func__);
+
+	if (actual >= avail) {
+		copy_len = avail - p_len - 1;
+		actual = p_len + copy_len;
+	}
+
+	/* Give up if copy will overflow. */
+	if (p_size <= actual)
+		fortify_panic(__func__);
+	__underlying_memcpy(p + p_len, q, copy_len);
+	p[actual] = '\0';
+
+	return wanted;
+}
+
 /**
  * strncat - Append a string to an existing string
  *
