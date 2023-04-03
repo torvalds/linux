@@ -2467,10 +2467,11 @@ static int setup_driver(struct mlx5_vdpa_dev *mvdev)
 		err = 0;
 		goto out;
 	}
+	mlx5_vdpa_add_debugfs(ndev);
 	err = setup_virtqueues(mvdev);
 	if (err) {
 		mlx5_vdpa_warn(mvdev, "setup_virtqueues\n");
-		goto out;
+		goto err_setup;
 	}
 
 	err = create_rqt(ndev);
@@ -2500,6 +2501,8 @@ err_tir:
 	destroy_rqt(ndev);
 err_rqt:
 	teardown_virtqueues(ndev);
+err_setup:
+	mlx5_vdpa_remove_debugfs(ndev->debugfs);
 out:
 	return err;
 }
@@ -2513,6 +2516,8 @@ static void teardown_driver(struct mlx5_vdpa_net *ndev)
 	if (!ndev->setup)
 		return;
 
+	mlx5_vdpa_remove_debugfs(ndev->debugfs);
+	ndev->debugfs = NULL;
 	teardown_steering(ndev);
 	destroy_tir(ndev);
 	destroy_rqt(ndev);
@@ -3261,7 +3266,6 @@ static int mlx5_vdpa_dev_add(struct vdpa_mgmt_dev *v_mdev, const char *name,
 	if (err)
 		goto err_reg;
 
-	mlx5_vdpa_add_debugfs(ndev);
 	mgtdev->ndev = ndev;
 	return 0;
 
