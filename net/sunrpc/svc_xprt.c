@@ -909,18 +909,20 @@ void svc_drop(struct svc_rqst *rqstp)
 }
 EXPORT_SYMBOL_GPL(svc_drop);
 
-/*
- * Return reply to client.
+/**
+ * svc_send - Return reply to client
+ * @rqstp: RPC transaction context
+ *
  */
-int svc_send(struct svc_rqst *rqstp)
+void svc_send(struct svc_rqst *rqstp)
 {
 	struct svc_xprt	*xprt;
-	int		len = -EFAULT;
 	struct xdr_buf	*xb;
+	int status;
 
 	xprt = rqstp->rq_xprt;
 	if (!xprt)
-		goto out;
+		return;
 
 	/* calculate over-all length */
 	xb = &rqstp->rq_res;
@@ -930,15 +932,10 @@ int svc_send(struct svc_rqst *rqstp)
 	trace_svc_xdr_sendto(rqstp->rq_xid, xb);
 	trace_svc_stats_latency(rqstp);
 
-	len = xprt->xpt_ops->xpo_sendto(rqstp);
+	status = xprt->xpt_ops->xpo_sendto(rqstp);
 
-	trace_svc_send(rqstp, len);
+	trace_svc_send(rqstp, status);
 	svc_xprt_release(rqstp);
-
-	if (len == -ECONNREFUSED || len == -ENOTCONN || len == -EAGAIN)
-		len = 0;
-out:
-	return len;
 }
 
 /*
