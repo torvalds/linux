@@ -50,6 +50,7 @@ pub mod types;
 #[doc(hidden)]
 pub use bindings;
 pub use macros;
+pub use uapi;
 
 #[doc(hidden)]
 pub use build_error::build_error;
