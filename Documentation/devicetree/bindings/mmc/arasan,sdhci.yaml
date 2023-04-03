@@ -27,6 +27,7 @@ allOf:
             enum:
               - xlnx,zynqmp-8.9a
               - xlnx,versal-8.9a
+              - xlnx,versal-net-emmc
     then:
       properties:
         clock-output-names:
@@ -59,6 +60,10 @@ properties:
       - items:
           - const: xlnx,versal-8.9a             # Versal SDHCI 8.9a PHY
           - const: arasan,sdhci-8.9a
+        description:
+          For this device it is strongly suggested to include
+          clock-output-names and '#clock-cells'.
+      - const: xlnx,versal-net-emmc     # Versal Net eMMC PHY
         description:
           For this device it is strongly suggested to include
           clock-output-names and '#clock-cells'.
