@@ -1746,10 +1746,10 @@ mlx5e_skb_from_cqe_nonlinear(struct mlx5e_rq *rq, struct mlx5e_wqe_frag_info *wi
 	prog = rcu_dereference(rq->xdp_prog);
 	if (prog && mlx5e_xdp_handle(rq, prog, &mxbuf)) {
 		if (test_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags)) {
-			int i;
+			struct mlx5e_wqe_frag_info *pwi;
 
-			for (i = wi - head_wi; i < rq->wqe.info.num_frags; i++)
-				mlx5e_put_rx_frag(rq, &head_wi[i]);
+			for (pwi = head_wi; pwi < wi; pwi++)
+				pwi->flags |= BIT(MLX5E_WQE_FRAG_SKIP_RELEASE);
 		}
 		return NULL; /* page/packet was consumed by XDP */
 	}
