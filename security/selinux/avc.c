@@ -603,12 +603,10 @@ static int avc_latest_notif_update(int seqno, int is_insert)
  * response to a security_compute_av() call.  If the
  * sequence number @avd->seqno is not less than the latest
  * revocation notification, then the function copies
- * the access vectors into a cache entry, returns
- * avc_node inserted. Otherwise, this function returns NULL.
+ * the access vectors into a cache entry.
  */
-static struct avc_node *avc_insert(u32 ssid, u32 tsid, u16 tclass,
-				   struct av_decision *avd,
-				   struct avc_xperms_node *xp_node)
+static void avc_insert(u32 ssid, u32 tsid, u16 tclass,
+		       struct av_decision *avd, struct avc_xperms_node *xp_node)
 {
 	struct avc_node *pos, *node = NULL;
 	int hvalue;
@@ -617,16 +615,16 @@ static struct avc_node *avc_insert(u32 ssid, u32 tsid, u16 tclass,
 	struct hlist_head *head;
 
 	if (avc_latest_notif_update(avd->seqno, 1))
-		return NULL;
+		return;
 
 	node = avc_alloc_node();
 	if (!node)
-		return NULL;
+		return;
 
 	avc_node_populate(node, ssid, tsid, tclass, avd);
 	if (avc_xperms_populate(node, xp_node)) {
 		avc_node_kill(node);
-		return NULL;
+		return;
 	}
 
 	hvalue = avc_hash(ssid, tsid, tclass);
@@ -644,7 +642,7 @@ static struct avc_node *avc_insert(u32 ssid, u32 tsid, u16 tclass,
 	hlist_add_head_rcu(&node->list, head);
 found:
 	spin_unlock_irqrestore(lock, flag);
-	return node;
+	return;
 }
 
 /**
@@ -984,13 +982,13 @@ int avc_ss_reset(u32 seqno)
  * fails.  Don't inline this, since it's the slow-path and just results in a
  * bigger stack frame.
  */
-static noinline struct avc_node *avc_compute_av(u32 ssid, u32 tsid, u16 tclass,
-						struct av_decision *avd,
-						struct avc_xperms_node *xp_node)
+static noinline void avc_compute_av(u32 ssid, u32 tsid, u16 tclass,
+				    struct av_decision *avd,
+				    struct avc_xperms_node *xp_node)
 {
 	INIT_LIST_HEAD(&xp_node->xpd_head);
 	security_compute_av(ssid, tsid, tclass, avd, &xp_node->xp);
-	return avc_insert(ssid, tsid, tclass, avd, xp_node);
+	avc_insert(ssid, tsid, tclass, avd, xp_node);
 }
 
 static noinline int avc_denied(u32 ssid, u32 tsid,
