@@ -162,8 +162,6 @@ struct xe_gt {
 		} vram;
 		/** @vram_mgr: VRAM TTM manager */
 		struct xe_ttm_vram_mgr *vram_mgr;
-		/** @gtt_mr: GTT TTM manager */
-		struct xe_ttm_gtt_mgr *gtt_mgr;
 		/** @ggtt: Global graphics translation table */
 		struct xe_ggtt *ggtt;
 	} mem;

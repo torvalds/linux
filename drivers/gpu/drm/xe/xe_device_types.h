@@ -134,6 +134,8 @@ struct xe_device {
 			/** @mapping: pointer to VRAM mappable space */
 			void *__iomem mapping;
 		} vram;
+		/** @sys_mgr: system TTM manager */
+		struct ttm_resource_manager sys_mgr;
 	} mem;
 
 	/** @usm: unified memory state */

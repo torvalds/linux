@@ -36,7 +36,6 @@
 #include "xe_ring_ops.h"
 #include "xe_sa.h"
 #include "xe_sched_job.h"
-#include "xe_ttm_gtt_mgr.h"
 #include "xe_ttm_vram_mgr.h"
 #include "xe_tuning.h"
 #include "xe_uc.h"
@@ -77,16 +76,11 @@ int xe_gt_alloc(struct xe_device *xe, struct xe_gt *gt)
 		if (!gt->mem.vram_mgr)
 			return -ENOMEM;
 
-		gt->mem.gtt_mgr = drmm_kzalloc(drm, sizeof(*gt->mem.gtt_mgr),
-					       GFP_KERNEL);
-		if (!gt->mem.gtt_mgr)
-			return -ENOMEM;
 	} else {
 		struct xe_gt *full_gt = xe_find_full_gt(gt);
 
 		gt->mem.ggtt = full_gt->mem.ggtt;
 		gt->mem.vram_mgr = full_gt->mem.vram_mgr;
-		gt->mem.gtt_mgr = full_gt->mem.gtt_mgr;
 	}
 
 	gt->ordered_wq = alloc_ordered_workqueue("gt-ordered-wq", 0);
@@ -98,25 +92,13 @@ static int gt_ttm_mgr_init(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	int err;
-	struct sysinfo si;
-	u64 gtt_size;
-
-	si_meminfo(&si);
-	gtt_size = (u64)si.totalram * si.mem_unit * 3/4;
 
 	if (gt->mem.vram.size) {
 		err = xe_ttm_vram_mgr_init(gt, gt->mem.vram_mgr);
 		if (err)
 			return err;
-		gtt_size = min(max((XE_DEFAULT_GTT_SIZE_MB << 20),
-				   (u64)gt->mem.vram.size),
-			       gtt_size);
 		xe->info.mem_region_mask |= BIT(gt->info.vram_id) << 1;
 	}
-
-	err = xe_ttm_gtt_mgr_init(gt, gt->mem.gtt_mgr, gtt_size);
-	if (err)
-		return err;
 
 	return 0;
 }

@@ -27,6 +27,7 @@
 #include "xe_pm.h"
 #include "xe_query.h"
 #include "xe_ttm_stolen_mgr.h"
+#include "xe_ttm_sys_mgr.h"
 #include "xe_vm.h"
 #include "xe_vm_madvise.h"
 #include "xe_wait_user_fence.h"
@@ -261,6 +262,8 @@ int xe_device_probe(struct xe_device *xe)
 	err = xe_mmio_probe_vram(xe);
 	if (err)
 		goto err_irq_shutdown;
+
+	xe_ttm_sys_mgr_init(xe);
 
 	for_each_gt(gt, xe, id) {
 		err = xe_gt_init_noalloc(gt);

@@ -4,6 +4,8 @@
  * Copyright (C) 2021-2002 Red Hat
  */
 
+#include "xe_ttm_sys_mgr.h"
+
 #include <drm/drm_managed.h>
 
 #include <drm/ttm/ttm_placement.h>
@@ -12,31 +14,24 @@
 
 #include "xe_bo.h"
 #include "xe_gt.h"
-#include "xe_ttm_gtt_mgr.h"
 
-struct xe_ttm_gtt_node {
+struct xe_ttm_sys_node {
 	struct ttm_buffer_object *tbo;
 	struct ttm_range_mgr_node base;
 };
 
-static inline struct xe_ttm_gtt_mgr *
-to_gtt_mgr(struct ttm_resource_manager *man)
+static inline struct xe_ttm_sys_node *
+to_xe_ttm_sys_node(struct ttm_resource *res)
 {
-	return container_of(man, struct xe_ttm_gtt_mgr, manager);
+	return container_of(res, struct xe_ttm_sys_node, base.base);
 }
 
-static inline struct xe_ttm_gtt_node *
-to_xe_ttm_gtt_node(struct ttm_resource *res)
-{
-	return container_of(res, struct xe_ttm_gtt_node, base.base);
-}
-
-static int xe_ttm_gtt_mgr_new(struct ttm_resource_manager *man,
+static int xe_ttm_sys_mgr_new(struct ttm_resource_manager *man,
 			      struct ttm_buffer_object *tbo,
 			      const struct ttm_place *place,
 			      struct ttm_resource **res)
 {
-	struct xe_ttm_gtt_node *node;
+	struct xe_ttm_sys_node *node;
 	int r;
 
 	node = kzalloc(struct_size(node, base.mm_nodes, 1), GFP_KERNEL);
@@ -66,32 +61,31 @@ err_fini:
 	return r;
 }
 
-static void xe_ttm_gtt_mgr_del(struct ttm_resource_manager *man,
+static void xe_ttm_sys_mgr_del(struct ttm_resource_manager *man,
 			       struct ttm_resource *res)
 {
-	struct xe_ttm_gtt_node *node = to_xe_ttm_gtt_node(res);
+	struct xe_ttm_sys_node *node = to_xe_ttm_sys_node(res);
 
 	ttm_resource_fini(man, res);
 	kfree(node);
 }
 
-static void xe_ttm_gtt_mgr_debug(struct ttm_resource_manager *man,
+static void xe_ttm_sys_mgr_debug(struct ttm_resource_manager *man,
 				 struct drm_printer *printer)
 {
 
 }
 
-static const struct ttm_resource_manager_func xe_ttm_gtt_mgr_func = {
-	.alloc = xe_ttm_gtt_mgr_new,
-	.free = xe_ttm_gtt_mgr_del,
-	.debug = xe_ttm_gtt_mgr_debug
+static const struct ttm_resource_manager_func xe_ttm_sys_mgr_func = {
+	.alloc = xe_ttm_sys_mgr_new,
+	.free = xe_ttm_sys_mgr_del,
+	.debug = xe_ttm_sys_mgr_debug
 };
 
-static void ttm_gtt_mgr_fini(struct drm_device *drm, void *arg)
+static void ttm_sys_mgr_fini(struct drm_device *drm, void *arg)
 {
-	struct xe_ttm_gtt_mgr *mgr = arg;
-	struct xe_device *xe = gt_to_xe(mgr->gt);
-	struct ttm_resource_manager *man = &mgr->manager;
+	struct xe_device *xe = (struct xe_device *)arg;
+	struct ttm_resource_manager *man = &xe->mem.sys_mgr;
 	int err;
 
 	ttm_resource_manager_set_used(man, false);
@@ -104,27 +98,18 @@ static void ttm_gtt_mgr_fini(struct drm_device *drm, void *arg)
 	ttm_set_driver_manager(&xe->ttm, XE_PL_TT, NULL);
 }
 
-int xe_ttm_gtt_mgr_init(struct xe_gt *gt, struct xe_ttm_gtt_mgr *mgr,
-			u64 gtt_size)
+int xe_ttm_sys_mgr_init(struct xe_device *xe)
 {
-	struct xe_device *xe = gt_to_xe(gt);
-	struct ttm_resource_manager *man = &mgr->manager;
-	int err;
+	struct ttm_resource_manager *man = &xe->mem.sys_mgr;
+	struct sysinfo si;
+	u64 gtt_size;
 
-	XE_BUG_ON(xe_gt_is_media_type(gt));
-
-	mgr->gt = gt;
+	si_meminfo(&si);
+	gtt_size = (u64)si.totalram * si.mem_unit * 3/4;
 	man->use_tt = true;
-	man->func = &xe_ttm_gtt_mgr_func;
-
+	man->func = &xe_ttm_sys_mgr_func;
 	ttm_resource_manager_init(man, &xe->ttm, gtt_size >> PAGE_SHIFT);
-
-	ttm_set_driver_manager(&xe->ttm, XE_PL_TT, &mgr->manager);
+	ttm_set_driver_manager(&xe->ttm, XE_PL_TT, man);
 	ttm_resource_manager_set_used(man, true);
-
-	err = drmm_add_action_or_reset(&xe->drm, ttm_gtt_mgr_fini, mgr);
-	if (err)
-		return err;
-
-	return 0;
+	return drmm_add_action_or_reset(&xe->drm, ttm_sys_mgr_fini, xe);
 }
