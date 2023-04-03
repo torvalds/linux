@@ -5421,8 +5421,13 @@ static int btrfs_inode_by_name(struct btrfs_inode *dir, struct dentry *dentry,
 		return -ENOMEM;
 
 	ret = fscrypt_setup_filename(&dir->vfs_inode, &dentry->d_name, 1, &fname);
-	if (ret)
+	if (ret < 0)
 		goto out;
+	/*
+	 * fscrypt_setup_filename() should never return a positive value, but
+	 * gcc on sparc/parisc thinks it can, so assert that doesn't happen.
+	 */
+	ASSERT(ret == 0);
 
 	/* This needs to handle no-key deletions later on */
 

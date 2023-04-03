@@ -428,11 +428,17 @@ MAX_XDP_METADATA_KFUNC,
 #ifdef CONFIG_NET
 u32 bpf_xdp_metadata_kfunc_id(int id);
 bool bpf_dev_bound_kfunc_id(u32 btf_id);
+void xdp_set_features_flag(struct net_device *dev, xdp_features_t val);
 void xdp_features_set_redirect_target(struct net_device *dev, bool support_sg);
 void xdp_features_clear_redirect_target(struct net_device *dev);
 #else
 static inline u32 bpf_xdp_metadata_kfunc_id(int id) { return 0; }
 static inline bool bpf_dev_bound_kfunc_id(u32 btf_id) { return false; }
+
+static inline void
+xdp_set_features_flag(struct net_device *dev, xdp_features_t val)
+{
+}
 
 static inline void
 xdp_features_set_redirect_target(struct net_device *dev, bool support_sg)
@@ -444,5 +450,10 @@ xdp_features_clear_redirect_target(struct net_device *dev)
 {
 }
 #endif
+
+static inline void xdp_clear_features_flag(struct net_device *dev)
+{
+	xdp_set_features_flag(dev, 0);
+}
 
 #endif /* __LINUX_NET_XDP_H__ */

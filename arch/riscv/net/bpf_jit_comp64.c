@@ -10,6 +10,7 @@
 #include <linux/filter.h>
 #include <linux/memory.h>
 #include <linux/stop_machine.h>
+#include <asm/patch.h>
 #include "bpf_jit.h"
 
 #define RV_REG_TCC RV_REG_A6

@@ -599,8 +599,7 @@ static int pxa3xx_gcu_probe(struct platform_device *pdev)
 	priv->misc_dev.fops	= &pxa3xx_gcu_miscdev_fops;
 
 	/* handle IO resources */
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->mmio_base = devm_ioremap_resource(dev, r);
+	priv->mmio_base = devm_platform_get_and_ioremap_resource(pdev, 0, &r);
 	if (IS_ERR(priv->mmio_base))
 		return PTR_ERR(priv->mmio_base);
 

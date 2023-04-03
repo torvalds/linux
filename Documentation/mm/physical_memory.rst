@@ -66,7 +66,7 @@ one of the types described below.
   also populated on boot using one of ``kernelcore``, ``movablecore`` and
   ``movable_node`` kernel command line parameters. See
   Documentation/mm/page_migration.rst and
-  Documentation/admin-guide/mm/memory_hotplug.rst for additional details.
+  Documentation/admin-guide/mm/memory-hotplug.rst for additional details.
 
 * ``ZONE_DEVICE`` represents memory residing on devices such as PMEM and GPU.
   It has different characteristics than RAM zone types and it exists to provide

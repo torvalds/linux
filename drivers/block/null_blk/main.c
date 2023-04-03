@@ -1413,8 +1413,7 @@ static inline void nullb_complete_cmd(struct nullb_cmd *cmd)
 	case NULL_IRQ_SOFTIRQ:
 		switch (cmd->nq->dev->queue_mode) {
 		case NULL_Q_MQ:
-			if (likely(!blk_should_fake_timeout(cmd->rq->q)))
-				blk_mq_complete_request(cmd->rq);
+			blk_mq_complete_request(cmd->rq);
 			break;
 		case NULL_Q_BIO:
 			/*
@@ -1658,12 +1657,13 @@ static enum blk_eh_timer_return null_timeout_rq(struct request *rq)
 }
 
 static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
-			 const struct blk_mq_queue_data *bd)
+				  const struct blk_mq_queue_data *bd)
 {
-	struct nullb_cmd *cmd = blk_mq_rq_to_pdu(bd->rq);
+	struct request *rq = bd->rq;
+	struct nullb_cmd *cmd = blk_mq_rq_to_pdu(rq);
 	struct nullb_queue *nq = hctx->driver_data;
-	sector_t nr_sectors = blk_rq_sectors(bd->rq);
-	sector_t sector = blk_rq_pos(bd->rq);
+	sector_t nr_sectors = blk_rq_sectors(rq);
+	sector_t sector = blk_rq_pos(rq);
 	const bool is_poll = hctx->type == HCTX_TYPE_POLL;
 
 	might_sleep_if(hctx->flags & BLK_MQ_F_BLOCKING);
@@ -1672,14 +1672,15 @@ static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
 		hrtimer_init(&cmd->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 		cmd->timer.function = null_cmd_timer_expired;
 	}
-	cmd->rq = bd->rq;
+	cmd->rq = rq;
 	cmd->error = BLK_STS_OK;
 	cmd->nq = nq;
-	cmd->fake_timeout = should_timeout_request(bd->rq);
+	cmd->fake_timeout = should_timeout_request(rq) ||
+		blk_should_fake_timeout(rq->q);
 
-	blk_mq_start_request(bd->rq);
+	blk_mq_start_request(rq);
 
-	if (should_requeue_request(bd->rq)) {
+	if (should_requeue_request(rq)) {
 		/*
 		 * Alternate between hitting the core BUSY path, and the
 		 * driver driven requeue path
@@ -1687,22 +1688,20 @@ static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
 		nq->requeue_selection++;
 		if (nq->requeue_selection & 1)
 			return BLK_STS_RESOURCE;
-		else {
-			blk_mq_requeue_request(bd->rq, true);
-			return BLK_STS_OK;
-		}
+		blk_mq_requeue_request(rq, true);
+		return BLK_STS_OK;
 	}
 
 	if (is_poll) {
 		spin_lock(&nq->poll_lock);
-		list_add_tail(&bd->rq->queuelist, &nq->poll_list);
+		list_add_tail(&rq->queuelist, &nq->poll_list);
 		spin_unlock(&nq->poll_lock);
 		return BLK_STS_OK;
 	}
 	if (cmd->fake_timeout)
 		return BLK_STS_OK;
 
-	return null_handle_cmd(cmd, sector, nr_sectors, req_op(bd->rq));
+	return null_handle_cmd(cmd, sector, nr_sectors, req_op(rq));
 }
 
 static void cleanup_queue(struct nullb_queue *nq)

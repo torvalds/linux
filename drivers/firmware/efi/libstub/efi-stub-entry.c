@@ -5,6 +5,15 @@
 
 #include "efistub.h"
 
+static unsigned long screen_info_offset;
+
+struct screen_info *alloc_screen_info(void)
+{
+	if (IS_ENABLED(CONFIG_ARM))
+		return __alloc_screen_info();
+	return (void *)&screen_info + screen_info_offset;
+}
+
 /*
  * EFI entry point for the generic EFI stub used by ARM, arm64, RISC-V and
  * LoongArch. This is the entrypoint that is described in the PE/COFF header
@@ -55,6 +64,8 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 		efi_err("Failed to relocate kernel\n");
 		return status;
 	}
+
+	screen_info_offset = image_addr - (unsigned long)image->image_base;
 
 	status = efi_stub_common(handle, image, image_addr, cmdline_ptr);
 
