@@ -14,8 +14,6 @@
 #include "msm_gem.h"
 #include "msm_kms.h"
 
-static int msm_fbdev_mmap(struct fb_info *info, struct vm_area_struct *vma);
-
 /*
  * fbdev funcs, to implement legacy fbdev interface on top of drm driver
  */
@@ -24,8 +22,15 @@ static int msm_fbdev_mmap(struct fb_info *info, struct vm_area_struct *vma);
 
 struct msm_fbdev {
 	struct drm_fb_helper base;
-	struct drm_framebuffer *fb;
 };
+
+static int msm_fbdev_mmap(struct fb_info *info, struct vm_area_struct *vma)
+{
+	struct drm_fb_helper *helper = (struct drm_fb_helper *)info->par;
+	struct drm_gem_object *bo = msm_framebuffer_bo(helper->fb, 0);
+
+	return drm_gem_prime_mmap(bo, vma);
+}
 
 static const struct fb_ops msm_fb_ops = {
 	.owner = THIS_MODULE,
@@ -42,19 +47,9 @@ static const struct fb_ops msm_fb_ops = {
 	.fb_mmap = msm_fbdev_mmap,
 };
 
-static int msm_fbdev_mmap(struct fb_info *info, struct vm_area_struct *vma)
-{
-	struct drm_fb_helper *helper = (struct drm_fb_helper *)info->par;
-	struct msm_fbdev *fbdev = to_msm_fbdev(helper);
-	struct drm_gem_object *bo = msm_framebuffer_bo(fbdev->fb, 0);
-
-	return drm_gem_prime_mmap(bo, vma);
-}
-
 static int msm_fbdev_create(struct drm_fb_helper *helper,
 		struct drm_fb_helper_surface_size *sizes)
 {
-	struct msm_fbdev *fbdev = to_msm_fbdev(helper);
 	struct drm_device *dev = helper->dev;
 	struct msm_drm_private *priv = dev->dev_private;
 	struct drm_framebuffer *fb = NULL;
@@ -101,7 +96,6 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 
 	DBG("fbi=%p, dev=%p", fbi, dev);
 
-	fbdev->fb = fb;
 	helper->fb = fb;
 
 	fbi->fbops = &msm_fb_ops;
@@ -118,7 +112,7 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 	fbi->fix.smem_len = bo->size;
 
 	DBG("par=%p, %dx%d", fbi->par, fbi->var.xres, fbi->var.yres);
-	DBG("allocated %dx%d fb", fbdev->fb->width, fbdev->fb->height);
+	DBG("allocated %dx%d fb", fb->width, fb->height);
 
 	return 0;
 
@@ -173,6 +167,7 @@ void msm_fbdev_free(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
 	struct drm_fb_helper *helper = priv->fbdev;
+	struct drm_framebuffer *fb = helper->fb;
 	struct msm_fbdev *fbdev;
 
 	DBG();
@@ -184,11 +179,10 @@ void msm_fbdev_free(struct drm_device *dev)
 	fbdev = to_msm_fbdev(priv->fbdev);
 
 	/* this will free the backing object */
-	if (fbdev->fb) {
-		struct drm_gem_object *bo =
-			msm_framebuffer_bo(fbdev->fb, 0);
+	if (fb) {
+		struct drm_gem_object *bo = msm_framebuffer_bo(fb, 0);
 		msm_gem_put_vaddr(bo);
-		drm_framebuffer_remove(fbdev->fb);
+		drm_framebuffer_remove(fb);
 	}
 
 	drm_fb_helper_unprepare(helper);
