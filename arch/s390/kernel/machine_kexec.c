@@ -29,8 +29,7 @@
 #include <asm/nmi.h>
 #include <asm/sclp.h>
 
-typedef void (*relocate_kernel_t)(kimage_entry_t *, unsigned long,
-				  unsigned long);
+typedef void (*relocate_kernel_t)(unsigned long, unsigned long, unsigned long);
 
 extern const unsigned char relocate_kernel[];
 extern const unsigned long long relocate_kernel_len;
@@ -58,7 +57,7 @@ static void __do_machine_kdump(void *image)
 	 * prefix register of this CPU to zero
 	 */
 	memcpy(absolute_pointer(__LC_FPREGS_SAVE_AREA),
-	       (void *)(prefix + __LC_FPREGS_SAVE_AREA), 512);
+	       phys_to_virt(prefix + __LC_FPREGS_SAVE_AREA), 512);
 
 	__load_psw_mask(PSW_MASK_BASE | PSW_DEFAULT_KEY | PSW_MASK_EA | PSW_MASK_BA);
 	start_kdump = (void *)((struct kimage *) image)->start;
@@ -209,7 +208,7 @@ int machine_kexec_prepare(struct kimage *image)
 		return -EINVAL;
 
 	/* Get the destination where the assembler code should be copied to.*/
-	reboot_code_buffer = (void *) page_to_phys(image->control_code_page);
+	reboot_code_buffer = page_to_virt(image->control_code_page);
 
 	/* Then copy it */
 	memcpy(reboot_code_buffer, relocate_kernel, relocate_kernel_len);
@@ -249,18 +248,18 @@ void machine_crash_shutdown(struct pt_regs *regs)
  */
 static void __do_machine_kexec(void *data)
 {
-	unsigned long diag308_subcode;
-	relocate_kernel_t data_mover;
+	unsigned long data_mover, entry, diag308_subcode;
 	struct kimage *image = data;
 
-	data_mover = (relocate_kernel_t) page_to_phys(image->control_code_page);
+	data_mover = page_to_phys(image->control_code_page);
+	entry = virt_to_phys(&image->head);
 	diag308_subcode = DIAG308_CLEAR_RESET;
 	if (sclp.has_iplcc)
 		diag308_subcode |= DIAG308_FLAG_EI;
 	s390_reset_system();
 
 	__arch_local_irq_stnsm(0xfb); /* disable DAT - avoid no-execute */
-	(*data_mover)(&image->head, image->start, diag308_subcode);
+	(*(relocate_kernel_t)data_mover)(entry, image->start, diag308_subcode);
 
 	/* Die if kexec returns */
 	disabled_wait();
