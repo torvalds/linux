@@ -4,7 +4,6 @@
  * Author: Rob Clark <robdclark@gmail.com>
  */
 
-#include <drm/drm_aperture.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
@@ -153,11 +152,6 @@ struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev)
 		DRM_DEV_ERROR(dev->dev, "could not init fbdev: ret=%d\n", ret);
 		goto fail;
 	}
-
-	/* the fw fb could be anywhere in memory */
-	ret = drm_aperture_remove_framebuffers(false, dev->driver);
-	if (ret)
-		goto fini;
 
 	ret = drm_fb_helper_initial_config(helper);
 	if (ret)
