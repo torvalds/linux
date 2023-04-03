@@ -355,8 +355,13 @@ int cpufreq_table_validate_and_sort(struct cpufreq_policy *policy)
 {
 	int ret;
 
-	if (!policy->freq_table)
+	if (!policy->freq_table) {
+		/* Freq table must be passed by drivers with target_index() */
+		if (has_target_index())
+			return -EINVAL;
+
 		return 0;
+	}
 
 	ret = cpufreq_frequency_table_cpuinfo(policy, policy->freq_table);
 	if (ret)
