@@ -717,18 +717,28 @@ static int cxl_setup_hdm_decoder_from_dvsec(struct cxl_port *port,
 	return 0;
 }
 
-static bool should_emulate_decoders(struct cxl_port *port)
+static bool should_emulate_decoders(struct cxl_endpoint_dvsec_info *info)
 {
-	struct cxl_hdm *cxlhdm = dev_get_drvdata(&port->dev);
-	void __iomem *hdm = cxlhdm->regs.hdm_decoder;
+	struct cxl_hdm *cxlhdm;
+	void __iomem *hdm;
 	u32 ctrl;
 	int i;
 
-	if (!is_cxl_endpoint(cxlhdm->port))
+	if (!info)
 		return false;
+
+	cxlhdm = dev_get_drvdata(&info->port->dev);
+	hdm = cxlhdm->regs.hdm_decoder;
 
 	if (!hdm)
 		return true;
+
+	/*
+	 * If HDM decoders are present and the driver is in control of
+	 * Mem_Enable skip DVSEC based emulation
+	 */
+	if (!info->mem_enabled)
+		return false;
 
 	/*
 	 * If any decoders are committed already, there should not be any
@@ -747,7 +757,7 @@ static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 			    int *target_map, void __iomem *hdm, int which,
 			    u64 *dpa_base, struct cxl_endpoint_dvsec_info *info)
 {
-	struct cxl_endpoint_decoder *cxled = NULL;
+	struct cxl_endpoint_decoder *cxled;
 	u64 size, base, skip, dpa_size;
 	bool committed;
 	u32 remainder;
@@ -758,11 +768,8 @@ static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 		unsigned char target_id[8];
 	} target_list;
 
-	if (should_emulate_decoders(port))
+	if (should_emulate_decoders(info))
 		return cxl_setup_hdm_decoder_from_dvsec(port, cxld, which, info);
-
-	if (is_endpoint_decoder(&cxld->dev))
-		cxled = to_cxl_endpoint_decoder(&cxld->dev);
 
 	ctrl = readl(hdm + CXL_HDM_DECODER0_CTRL_OFFSET(which));
 	base = ioread64_hi_lo(hdm + CXL_HDM_DECODER0_BASE_LOW_OFFSET(which));
@@ -783,9 +790,6 @@ static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 		.start = base,
 		.end = base + size - 1,
 	};
-
-	if (cxled && !committed && range_len(&info->dvsec_range[which]))
-		return cxl_setup_hdm_decoder_from_dvsec(port, cxld, which, info);
 
 	/* decoders are enabled if committed */
 	if (committed) {
@@ -824,7 +828,7 @@ static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 	if (rc)
 		return rc;
 
-	if (!cxled) {
+	if (!info) {
 		target_list.value =
 			ioread64_hi_lo(hdm + CXL_HDM_DECODER0_TL_LOW(which));
 		for (i = 0; i < cxld->interleave_ways; i++)
@@ -844,6 +848,7 @@ static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 		return -ENXIO;
 	}
 	skip = ioread64_hi_lo(hdm + CXL_HDM_DECODER0_SKIP_LOW(which));
+	cxled = to_cxl_endpoint_decoder(&cxld->dev);
 	rc = devm_cxl_dpa_reserve(cxled, *dpa_base + skip, dpa_size, skip);
 	if (rc) {
 		dev_err(&port->dev,
