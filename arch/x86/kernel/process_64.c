@@ -758,7 +758,7 @@ static int prctl_enable_tagged_addr(struct mm_struct *mm, unsigned long nr_bits)
 
 	if (mm_valid_pasid(mm) &&
 	    !test_bit(MM_CONTEXT_FORCE_TAGGED_SVA, &mm->context.flags))
-		return -EINTR;
+		return -EINVAL;
 
 	if (mmap_write_lock_killable(mm))
 		return -EINTR;
