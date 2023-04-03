@@ -1745,7 +1745,6 @@ void r4k_cache_init(void)
 	__flush_kernel_vmap_range = r4k_flush_kernel_vmap_range;
 
 	flush_icache_all	= r4k_flush_icache_all;
-	local_flush_data_cache_page	= local_r4k_flush_data_cache_page;
 	flush_data_cache_page	= r4k_flush_data_cache_page;
 	flush_icache_range	= r4k_flush_icache_range;
 	local_flush_icache_range	= local_r4k_flush_icache_range;
@@ -1788,7 +1787,6 @@ void r4k_cache_init(void)
 		/* I$ fills from D$ just by emptying the write buffers */
 		flush_cache_page = (void *)b5k_instruction_hazard;
 		flush_cache_range = (void *)b5k_instruction_hazard;
-		local_flush_data_cache_page = (void *)b5k_instruction_hazard;
 		flush_data_cache_page = (void *)b5k_instruction_hazard;
 		flush_icache_range = (void *)b5k_instruction_hazard;
 		local_flush_icache_range = (void *)b5k_instruction_hazard;
@@ -1808,7 +1806,6 @@ void r4k_cache_init(void)
 		flush_cache_range	= (void *)cache_noop;
 		flush_icache_all	= (void *)cache_noop;
 		flush_data_cache_page	= (void *)cache_noop;
-		local_flush_data_cache_page	= (void *)cache_noop;
 		break;
 	}
 }
