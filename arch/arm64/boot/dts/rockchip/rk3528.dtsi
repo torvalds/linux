@@ -386,17 +386,17 @@
 
 			trips {
 				threshold: trip-point-0 {
-					temperature = <90000>;
+					temperature = <95000>;
 					hysteresis = <2000>;
 					type = "passive";
 				};
 				target: trip-point-1 {
-					temperature = <105000>;
+					temperature = <110000>;
 					hysteresis = <2000>;
 					type = "passive";
 				};
 				soc_crit: soc-crit {
-					temperature = <115000>; /* millicelsius */
+					temperature = <120000>; /* millicelsius */
 					hysteresis = <2000>; /* millicelsius */
 					type = "critical";
 				};
