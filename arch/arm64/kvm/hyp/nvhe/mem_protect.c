@@ -799,7 +799,11 @@ static int host_stage2_idmap(struct kvm_vcpu_fault_info *fault, u64 addr)
 	if (ret)
 		return ret;
 
-	return host_stage2_idmap_locked(range.start, range.end - range.start, prot, false);
+	/*
+	 * We're guaranteed not to require memory allocation by construction,
+	 * no need to bother even trying to recycle pages.
+	 */
+	return __host_stage2_idmap(range.start, range.end, prot, false);
 }
 
 static void (*illegal_abt_notifier)(struct kvm_cpu_context *host_ctxt);
