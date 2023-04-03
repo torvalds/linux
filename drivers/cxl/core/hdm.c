@@ -738,14 +738,20 @@ static int cxl_decoder_reset(struct cxl_decoder *cxld)
 	return 0;
 }
 
-static int cxl_setup_hdm_decoder_from_dvsec(struct cxl_port *port,
-					    struct cxl_decoder *cxld, int which,
-					    struct cxl_endpoint_dvsec_info *info)
+static int cxl_setup_hdm_decoder_from_dvsec(
+	struct cxl_port *port, struct cxl_decoder *cxld, u64 *dpa_base,
+	int which, struct cxl_endpoint_dvsec_info *info)
 {
+	struct cxl_endpoint_decoder *cxled;
+	u64 len;
+	int rc;
+
 	if (!is_cxl_endpoint(port))
 		return -EOPNOTSUPP;
 
-	if (!range_len(&info->dvsec_range[which]))
+	cxled = to_cxl_endpoint_decoder(&cxld->dev);
+	len = range_len(&info->dvsec_range[which]);
+	if (!len)
 		return -ENOENT;
 
 	cxld->target_type = CXL_DECODER_EXPANDER;
@@ -759,6 +765,16 @@ static int cxl_setup_hdm_decoder_from_dvsec(struct cxl_port *port,
 	 */
 	cxld->flags |= CXL_DECODER_F_ENABLE | CXL_DECODER_F_LOCK;
 	port->commit_end = cxld->id;
+
+	rc = devm_cxl_dpa_reserve(cxled, *dpa_base, len, 0);
+	if (rc) {
+		dev_err(&port->dev,
+			"decoder%d.%d: Failed to reserve DPA range %#llx - %#llx\n (%d)",
+			port->id, cxld->id, *dpa_base, *dpa_base + len - 1, rc);
+		return rc;
+	}
+	*dpa_base += len;
+	cxled->state = CXL_DECODER_STATE_AUTO;
 
 	return 0;
 }
@@ -779,7 +795,8 @@ static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 	} target_list;
 
 	if (should_emulate_decoders(info))
-		return cxl_setup_hdm_decoder_from_dvsec(port, cxld, which, info);
+		return cxl_setup_hdm_decoder_from_dvsec(port, cxld, dpa_base,
+							which, info);
 
 	ctrl = readl(hdm + CXL_HDM_DECODER0_CTRL_OFFSET(which));
 	base = ioread64_hi_lo(hdm + CXL_HDM_DECODER0_BASE_LOW_OFFSET(which));
