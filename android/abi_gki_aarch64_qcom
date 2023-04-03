@@ -2101,6 +2101,7 @@
   mempool_free
   mempool_free_slab
   memremap
+  memremap_pages
   memscan
   mem_section
   memset64
@@ -2108,6 +2109,7 @@
   __memset_io
   memstart_addr
   memunmap
+  memunmap_pages
   migrate_pages
   migrate_swap
   __migrate_task
