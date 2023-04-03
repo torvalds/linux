@@ -1502,8 +1502,9 @@
 		interrupt-names = "hdmi", "hdmi_wakeup";
 		clocks = <&cru PCLK_HDMI>,
 			 <&cru CLK_SFR_HDMI>,
-			 <&cru CLK_CEC_HDMI>;
-		clock-names = "iahb", "isfr", "cec";
+			 <&cru CLK_CEC_HDMI>,
+			 <&inno_hdmiphy_clk>;
+		clock-names = "iahb", "isfr", "cec", "dclk_vp0";
 		reg-io-width = <4>;
 		rockchip,grf = <&grf>;
 		pinctrl-names = "default", "idle";
