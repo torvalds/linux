@@ -313,7 +313,7 @@ imx8qxp_pixel_link_find_next_bridge(struct imx8qxp_pixel_link *pl)
 		}
 
 		/* specially select the next bridge with companion PXL2DPI */
-		if (of_find_property(remote, "fsl,companion-pxl2dpi", NULL))
+		if (of_property_present(remote, "fsl,companion-pxl2dpi"))
 			bridge_sel = ep_cnt;
 
 		ep_cnt++;
