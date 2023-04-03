@@ -1214,6 +1214,28 @@ bool rockchip_iommu_is_enabled(struct device *dev)
 }
 EXPORT_SYMBOL(rockchip_iommu_is_enabled);
 
+int rockchip_iommu_force_reset(struct device *dev)
+{
+	struct rk_iommu *iommu;
+	int ret;
+
+	iommu = rk_iommu_from_dev(dev);
+	if (!iommu)
+		return -ENODEV;
+
+	ret = rk_iommu_enable_stall(iommu);
+	if (ret)
+		return ret;
+
+	ret = rk_iommu_force_reset(iommu);
+
+	rk_iommu_disable_stall(iommu);
+
+	return ret;
+
+}
+EXPORT_SYMBOL(rockchip_iommu_force_reset);
+
 static void rk_iommu_detach_device(struct iommu_domain *domain,
 				   struct device *dev)
 {
