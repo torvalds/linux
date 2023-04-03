@@ -25,7 +25,6 @@ module_param_named(ywrap, ywrap_enabled, bool, 0644);
 
 struct omap_fbdev {
 	struct drm_fb_helper base;
-	struct drm_framebuffer *fb;
 	struct drm_gem_object *bo;
 	bool ywrap_enabled;
 
@@ -170,7 +169,6 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 
 	DBG("fbi=%p, dev=%p", fbi, dev);
 
-	fbdev->fb = fb;
 	helper->fb = fb;
 
 	fbi->fbops = &omap_fb_ops;
@@ -193,7 +191,7 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 
 
 	DBG("par=%p, %dx%d", fbi->par, fbi->var.xres, fbi->var.yres);
-	DBG("allocated %dx%d fb", fbdev->fb->width, fbdev->fb->height);
+	DBG("allocated %dx%d fb", fb->width, fb->height);
 
 	return 0;
 
@@ -266,12 +264,15 @@ void omap_fbdev_fini(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
 	struct drm_fb_helper *helper = priv->fbdev;
+	struct drm_framebuffer *fb;
 	struct omap_fbdev *fbdev;
 
 	DBG();
 
 	if (!helper)
 		return;
+
+	fb = helper->fb;
 
 	drm_fb_helper_unregister_info(helper);
 
@@ -284,8 +285,8 @@ void omap_fbdev_fini(struct drm_device *dev)
 		omap_gem_unpin(fbdev->bo);
 
 	/* this will free the backing object */
-	if (fbdev->fb)
-		drm_framebuffer_remove(fbdev->fb);
+	if (fb)
+		drm_framebuffer_remove(fb);
 
 	drm_fb_helper_unprepare(helper);
 	kfree(fbdev);
