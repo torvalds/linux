@@ -176,7 +176,7 @@ static const struct dpu_perf_cfg msm8998_perf_data = {
 	.bw_inefficiency_factor = 120,
 };
 
-static const struct dpu_mdss_cfg msm8998_dpu_cfg = {
+const struct dpu_mdss_cfg dpu_msm8998_cfg = {
 	.caps = &msm8998_dpu_caps,
 	.ubwc = &msm8998_ubwc_cfg,
 	.mdp_count = ARRAY_SIZE(msm8998_mdp),

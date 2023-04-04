@@ -910,18 +910,18 @@ struct dpu_mdss_cfg {
 	unsigned long mdss_irqs;
 };
 
-struct dpu_mdss_hw_cfg_handler {
-	u32 hw_rev;
-	const struct dpu_mdss_cfg *dpu_cfg;
-};
-
-/**
- * dpu_hw_catalog_init - dpu hardware catalog init API retrieves
- * hardcoded target specific catalog information in config structure
- * @hw_rev:       caller needs provide the hardware revision.
- *
- * Return: dpu config structure
- */
-const struct dpu_mdss_cfg *dpu_hw_catalog_init(u32 hw_rev);
+extern const struct dpu_mdss_cfg dpu_msm8998_cfg;
+extern const struct dpu_mdss_cfg dpu_sdm845_cfg;
+extern const struct dpu_mdss_cfg dpu_sm8150_cfg;
+extern const struct dpu_mdss_cfg dpu_sc8180x_cfg;
+extern const struct dpu_mdss_cfg dpu_sm8250_cfg;
+extern const struct dpu_mdss_cfg dpu_sc7180_cfg;
+extern const struct dpu_mdss_cfg dpu_sm6115_cfg;
+extern const struct dpu_mdss_cfg dpu_qcm2290_cfg;
+extern const struct dpu_mdss_cfg dpu_sm8350_cfg;
+extern const struct dpu_mdss_cfg dpu_sc7280_cfg;
+extern const struct dpu_mdss_cfg dpu_sc8280xp_cfg;
+extern const struct dpu_mdss_cfg dpu_sm8450_cfg;
+extern const struct dpu_mdss_cfg dpu_sm8550_cfg;
 
 #endif /* _DPU_HW_CATALOG_H */

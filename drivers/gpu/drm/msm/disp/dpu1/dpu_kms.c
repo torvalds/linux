@@ -995,6 +995,7 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 	struct dpu_kms *dpu_kms;
 	struct drm_device *dev;
 	int i, rc = -EINVAL;
+	u32 core_rev;
 
 	if (!kms) {
 		DPU_ERROR("invalid kms\n");
@@ -1044,17 +1045,14 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 	if (rc < 0)
 		goto error;
 
-	dpu_kms->core_rev = readl_relaxed(dpu_kms->mmio + 0x0);
+	core_rev = readl_relaxed(dpu_kms->mmio + 0x0);
 
-	pr_info("dpu hardware revision:0x%x\n", dpu_kms->core_rev);
+	pr_info("dpu hardware revision:0x%x\n", core_rev);
 
-	dpu_kms->catalog = dpu_hw_catalog_init(dpu_kms->core_rev);
-	if (IS_ERR_OR_NULL(dpu_kms->catalog)) {
-		rc = PTR_ERR(dpu_kms->catalog);
-		if (!dpu_kms->catalog)
-			rc = -EINVAL;
-		DPU_ERROR("catalog init failed: %d\n", rc);
-		dpu_kms->catalog = NULL;
+	dpu_kms->catalog = of_device_get_match_data(dev->dev);
+	if (!dpu_kms->catalog) {
+		DPU_ERROR("device config not known!\n");
+		rc = -EINVAL;
 		goto power_error;
 	}
 
@@ -1280,19 +1278,19 @@ static const struct dev_pm_ops dpu_pm_ops = {
 };
 
 static const struct of_device_id dpu_dt_match[] = {
-	{ .compatible = "qcom,msm8998-dpu", },
-	{ .compatible = "qcom,qcm2290-dpu", },
-	{ .compatible = "qcom,sdm845-dpu", },
-	{ .compatible = "qcom,sc7180-dpu", },
-	{ .compatible = "qcom,sc7280-dpu", },
-	{ .compatible = "qcom,sc8180x-dpu", },
-	{ .compatible = "qcom,sc8280xp-dpu", },
-	{ .compatible = "qcom,sm6115-dpu", },
-	{ .compatible = "qcom,sm8150-dpu", },
-	{ .compatible = "qcom,sm8250-dpu", },
-	{ .compatible = "qcom,sm8350-dpu", },
-	{ .compatible = "qcom,sm8450-dpu", },
-	{ .compatible = "qcom,sm8550-dpu", },
+	{ .compatible = "qcom,msm8998-dpu", .data = &dpu_msm8998_cfg, },
+	{ .compatible = "qcom,qcm2290-dpu", .data = &dpu_qcm2290_cfg, },
+	{ .compatible = "qcom,sdm845-dpu", .data = &dpu_sdm845_cfg, },
+	{ .compatible = "qcom,sc7180-dpu", .data = &dpu_sc7180_cfg, },
+	{ .compatible = "qcom,sc7280-dpu", .data = &dpu_sc7280_cfg, },
+	{ .compatible = "qcom,sc8180x-dpu", .data = &dpu_sc8180x_cfg, },
+	{ .compatible = "qcom,sc8280xp-dpu", .data = &dpu_sc8280xp_cfg, },
+	{ .compatible = "qcom,sm6115-dpu", .data = &dpu_sm6115_cfg, },
+	{ .compatible = "qcom,sm8150-dpu", .data = &dpu_sm8150_cfg, },
+	{ .compatible = "qcom,sm8250-dpu", .data = &dpu_sm8250_cfg, },
+	{ .compatible = "qcom,sm8350-dpu", .data = &dpu_sm8350_cfg, },
+	{ .compatible = "qcom,sm8450-dpu", .data = &dpu_sm8450_cfg, },
+	{ .compatible = "qcom,sm8550-dpu", .data = &dpu_sm8550_cfg, },
 	{}
 };
 MODULE_DEVICE_TABLE(of, dpu_dt_match);
