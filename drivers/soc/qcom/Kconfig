@@ -1018,6 +1018,19 @@ config MSM_PERFORMANCE
           fmin and fmax. The user space can request  the cpu freq change by
           writing cpu#:freq values
 
+config QTI_PLH_SCMI_CLIENT
+	tristate "Qualcomm Technologies Inc. SCMI client driver for PLH"
+	depends on MSM_PERFORMANCE && QTI_SCMI_PLH_PROTOCOL
+	default n
+	help
+	  SCMI client driver registers itself with SCMI framework for PLH
+	  vendor protocol, and also registers with the plh interface driver
+	  msm_performance.
+
+	  This driver deliver the PLH vendor protocol handle to interface
+	  driver, and interface driver will use this handle to communicate
+	  with CPUCP PLH.
+
 config QCOM_PANEL_EVENT_NOTIFIER
 	tristate "panel event notifier"
 	depends on DRM
