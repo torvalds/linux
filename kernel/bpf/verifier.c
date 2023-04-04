@@ -4974,6 +4974,11 @@ static bool is_rcu_reg(const struct bpf_reg_state *reg)
 	return reg->type & MEM_RCU;
 }
 
+static void clear_trusted_flags(enum bpf_type_flag *flag)
+{
+	*flag &= ~(BPF_REG_TRUSTED_MODIFIERS | MEM_RCU);
+}
+
 static int check_pkt_ptr_alignment(struct bpf_verifier_env *env,
 				   const struct bpf_reg_state *reg,
 				   int off, int size, bool strict)
@@ -5602,8 +5607,8 @@ static int check_ptr_to_btf_access(struct bpf_verifier_env *env,
 			} else if (flag & (MEM_PERCPU | MEM_USER)) {
 				/* keep as-is */
 			} else {
-				/* walking unknown pointers yields untrusted pointer */
-				flag = PTR_UNTRUSTED;
+				/* walking unknown pointers yields old deprecated PTR_TO_BTF_ID */
+				clear_trusted_flags(&flag);
 			}
 		} else {
 			/*
@@ -5617,7 +5622,7 @@ static int check_ptr_to_btf_access(struct bpf_verifier_env *env,
 		}
 	} else {
 		/* Old compat. Deprecated */
-		flag &= ~PTR_TRUSTED;
+		clear_trusted_flags(&flag);
 	}
 
 	if (atype == BPF_READ && value_regno >= 0)
