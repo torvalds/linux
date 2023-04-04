@@ -19,48 +19,6 @@
  */
 #define MAX_BLOCKS    12
 
-#define DPU_HW_VER(MAJOR, MINOR, STEP)			\
-		((((unsigned int)MAJOR & 0xF) << 28) |	\
-		((MINOR & 0xFFF) << 16) |		\
-		(STEP & 0xFFFF))
-
-#define DPU_HW_MAJOR(rev)		((rev) >> 28)
-#define DPU_HW_MINOR(rev)		(((rev) >> 16) & 0xFFF)
-#define DPU_HW_STEP(rev)		((rev) & 0xFFFF)
-#define DPU_HW_MAJOR_MINOR(rev)		((rev) >> 16)
-
-#define IS_DPU_MAJOR_MINOR_SAME(rev1, rev2)   \
-	(DPU_HW_MAJOR_MINOR((rev1)) == DPU_HW_MAJOR_MINOR((rev2)))
-
-#define DPU_HW_VER_170	DPU_HW_VER(1, 7, 0) /* 8996 v1.0 */
-#define DPU_HW_VER_171	DPU_HW_VER(1, 7, 1) /* 8996 v2.0 */
-#define DPU_HW_VER_172	DPU_HW_VER(1, 7, 2) /* 8996 v3.0 */
-#define DPU_HW_VER_300	DPU_HW_VER(3, 0, 0) /* 8998 v1.0 */
-#define DPU_HW_VER_301	DPU_HW_VER(3, 0, 1) /* 8998 v1.1 */
-#define DPU_HW_VER_400	DPU_HW_VER(4, 0, 0) /* sdm845 v1.0 */
-#define DPU_HW_VER_401	DPU_HW_VER(4, 0, 1) /* sdm845 v2.0 */
-#define DPU_HW_VER_410	DPU_HW_VER(4, 1, 0) /* sdm670 v1.0 */
-#define DPU_HW_VER_500	DPU_HW_VER(5, 0, 0) /* sm8150 v1.0 */
-#define DPU_HW_VER_501	DPU_HW_VER(5, 0, 1) /* sm8150 v2.0 */
-#define DPU_HW_VER_510	DPU_HW_VER(5, 1, 1) /* sc8180 */
-#define DPU_HW_VER_600	DPU_HW_VER(6, 0, 0) /* sm8250 */
-#define DPU_HW_VER_620	DPU_HW_VER(6, 2, 0) /* sc7180 v1.0 */
-#define DPU_HW_VER_630	DPU_HW_VER(6, 3, 0) /* sm6115|sm4250 */
-#define DPU_HW_VER_650	DPU_HW_VER(6, 5, 0) /* qcm2290|sm4125 */
-#define DPU_HW_VER_700	DPU_HW_VER(7, 0, 0) /* sm8350 */
-#define DPU_HW_VER_720	DPU_HW_VER(7, 2, 0) /* sc7280 */
-#define DPU_HW_VER_800	DPU_HW_VER(8, 0, 0) /* sc8280xp */
-#define DPU_HW_VER_810	DPU_HW_VER(8, 1, 0) /* sm8450 */
-#define DPU_HW_VER_900	DPU_HW_VER(9, 0, 0) /* sm8550 */
-
-#define IS_MSM8996_TARGET(rev) IS_DPU_MAJOR_MINOR_SAME((rev), DPU_HW_VER_170)
-#define IS_MSM8998_TARGET(rev) IS_DPU_MAJOR_MINOR_SAME((rev), DPU_HW_VER_300)
-#define IS_SDM845_TARGET(rev) IS_DPU_MAJOR_MINOR_SAME((rev), DPU_HW_VER_400)
-#define IS_SDM670_TARGET(rev) IS_DPU_MAJOR_MINOR_SAME((rev), DPU_HW_VER_410)
-#define IS_SDM855_TARGET(rev) IS_DPU_MAJOR_MINOR_SAME((rev), DPU_HW_VER_500)
-#define IS_SC7180_TARGET(rev) IS_DPU_MAJOR_MINOR_SAME((rev), DPU_HW_VER_620)
-#define IS_SC7280_TARGET(rev) IS_DPU_MAJOR_MINOR_SAME((rev), DPU_HW_VER_720)
-
 #define DPU_HW_BLK_NAME_LEN	16
 
 #define MAX_IMG_WIDTH 0x3fff
