@@ -294,6 +294,26 @@ static int hdaml_link_wait_syncpu(u32 __iomem *lsync)
 	return hdaml_wait_bit(lsync, 0, AZX_REG_ML_LSYNC_SYNCPU, 0);
 }
 
+static void hdaml_link_sync_arm(u32 __iomem *lsync, int sublink)
+{
+	u32 val;
+
+	val = readl(lsync);
+	val |= (AZX_REG_ML_LSYNC_CMDSYNC << sublink);
+
+	writel(val, lsync);
+}
+
+static void hdaml_link_sync_go(u32 __iomem *lsync)
+{
+	u32 val;
+
+	val = readl(lsync);
+	val |= AZX_REG_ML_LSYNC_SYNCGO;
+
+	writel(val, lsync);
+}
+
 /* END HDAML section */
 
 static int hda_ml_alloc_h2link(struct hdac_bus *bus, int index)
@@ -491,6 +511,56 @@ int hdac_bus_eml_sdw_wait_syncpu_unlocked(struct hdac_bus *bus)
 	return hdac_bus_eml_wait_syncpu_unlocked(bus, true, AZX_REG_ML_LEPTR_ID_SDW);
 }
 EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_wait_syncpu_unlocked, SND_SOC_SOF_HDA_MLINK);
+
+void hdac_bus_eml_sync_arm_unlocked(struct hdac_bus *bus, bool alt, int elid, int sublink)
+{
+	struct hdac_ext2_link *h2link;
+	struct hdac_ext_link *hlink;
+
+	h2link = find_ext2_link(bus, alt, elid);
+	if (!h2link)
+		return;
+
+	if (!h2link->lss)
+		return;
+
+	hlink = &h2link->hext_link;
+
+	hdaml_link_sync_arm(hlink->ml_addr + AZX_REG_ML_LSYNC, sublink);
+}
+EXPORT_SYMBOL_NS(hdac_bus_eml_sync_arm_unlocked, SND_SOC_SOF_HDA_MLINK);
+
+void hdac_bus_eml_sdw_sync_arm_unlocked(struct hdac_bus *bus, int sublink)
+{
+	hdac_bus_eml_sync_arm_unlocked(bus, true, AZX_REG_ML_LEPTR_ID_SDW, sublink);
+}
+EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_sync_arm_unlocked, SND_SOC_SOF_HDA_MLINK);
+
+int hdac_bus_eml_sync_go_unlocked(struct hdac_bus *bus, bool alt, int elid)
+{
+	struct hdac_ext2_link *h2link;
+	struct hdac_ext_link *hlink;
+
+	h2link = find_ext2_link(bus, alt, elid);
+	if (!h2link)
+		return 0;
+
+	if (!h2link->lss)
+		return 0;
+
+	hlink = &h2link->hext_link;
+
+	hdaml_link_sync_go(hlink->ml_addr + AZX_REG_ML_LSYNC);
+
+	return 0;
+}
+EXPORT_SYMBOL_NS(hdac_bus_eml_sync_go_unlocked, SND_SOC_SOF_HDA_MLINK);
+
+int hdac_bus_eml_sdw_sync_go_unlocked(struct hdac_bus *bus)
+{
+	return hdac_bus_eml_sync_go_unlocked(bus, true, AZX_REG_ML_LEPTR_ID_SDW);
+}
+EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_sync_go_unlocked, SND_SOC_SOF_HDA_MLINK);
 
 static int hdac_bus_eml_power_up_base(struct hdac_bus *bus, bool alt, int elid, int sublink,
 				      bool eml_lock)
