@@ -45,11 +45,11 @@
 #include <media/videobuf2-v4l2.h>
 #include <soc/rockchip/rockchip-system-status.h>
 #include <sound/hdmi-codec.h>
+#include <linux/rk_hdmirx_class.h>
 #include "rk_hdmirx.h"
 #include "rk_hdmirx_cec.h"
 #include "rk_hdmirx_hdcp.h"
 
-static struct class *hdmirx_class;
 static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "debug level (0-3)");
@@ -4297,7 +4297,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_unreg_video_dev;
 
-	hdmirx_dev->classdev = device_create_with_groups(hdmirx_class,
+	hdmirx_dev->classdev = device_create_with_groups(rk_hdmirx_class(),
 							 dev, MKDEV(0, 0),
 							 hdmirx_dev,
 							 hdmirx_groups,
@@ -4455,9 +4455,6 @@ static struct platform_driver hdmirx_driver = {
 
 static int __init hdmirx_init(void)
 {
-	hdmirx_class = class_create(THIS_MODULE, "hdmirx");
-	if (IS_ERR(hdmirx_class))
-		return PTR_ERR(hdmirx_class);
 	return platform_driver_register(&hdmirx_driver);
 }
 module_init(hdmirx_init);
@@ -4465,7 +4462,6 @@ module_init(hdmirx_init);
 static void __exit hdmirx_exit(void)
 {
 	platform_driver_unregister(&hdmirx_driver);
-	class_destroy(hdmirx_class);
 }
 module_exit(hdmirx_exit);
 
