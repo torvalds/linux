@@ -1501,8 +1501,10 @@ static int __init dm_mirror_init(void)
 	int r;
 
 	dm_raid1_wq = alloc_workqueue("dm_raid1_wq", 0, 0);
-	if (!dm_raid1_wq)
+	if (!dm_raid1_wq) {
+		DMERR("Failed to alloc workqueue");
 		return -ENOMEM;
+	}
 
 	r = dm_register_target(&mirror_target);
 	if (r < 0) {
