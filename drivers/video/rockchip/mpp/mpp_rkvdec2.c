@@ -1688,8 +1688,9 @@ static int rkvdec2_free_rcbbuf(struct platform_device *pdev, struct rkvdec2_dev 
 
 	if (dec->rcb_page) {
 		size_t page_size = PAGE_ALIGN(dec->rcb_size - dec->sram_size);
+		int order = min(get_order(page_size), MAX_ORDER);
 
-		__free_pages(dec->rcb_page, get_order(page_size));
+		__free_pages(dec->rcb_page, order);
 	}
 	if (dec->rcb_iova) {
 		domain = dec->mpp.iommu_info->domain;

@@ -2508,8 +2508,9 @@ static int rkvenc2_free_rcbbuf(struct platform_device *pdev, struct rkvenc_dev *
 
 	if (enc->rcb_page) {
 		size_t page_size = PAGE_ALIGN(enc->sram_used - enc->sram_size);
+		int order = min(get_order(page_size), MAX_ORDER);
 
-		__free_pages(enc->rcb_page, get_order(page_size));
+		__free_pages(enc->rcb_page, order);
 	}
 	if (enc->sram_iova) {
 		domain = enc->mpp.iommu_info->domain;
