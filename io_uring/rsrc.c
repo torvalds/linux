@@ -36,9 +36,11 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,
 void io_rsrc_refs_drop(struct io_ring_ctx *ctx)
 	__must_hold(&ctx->uring_lock)
 {
-	if (ctx->rsrc_cached_refs) {
-		io_rsrc_put_node(ctx->rsrc_node, ctx->rsrc_cached_refs);
-		ctx->rsrc_cached_refs = 0;
+	struct io_rsrc_node *node = ctx->rsrc_node;
+
+	if (node && node->cached_refs) {
+		io_rsrc_put_node(node, node->cached_refs);
+		node->cached_refs = 0;
 	}
 }
 
@@ -151,11 +153,11 @@ static void io_buffer_unmap(struct io_ring_ctx *ctx, struct io_mapped_ubuf **slo
 	*slot = NULL;
 }
 
-void io_rsrc_refs_refill(struct io_ring_ctx *ctx)
+void io_rsrc_refs_refill(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
 	__must_hold(&ctx->uring_lock)
 {
-	ctx->rsrc_cached_refs += IO_RSRC_REF_BATCH;
-	refcount_add(IO_RSRC_REF_BATCH, &ctx->rsrc_node->refs);
+	node->cached_refs += IO_RSRC_REF_BATCH;
+	refcount_add(IO_RSRC_REF_BATCH, &node->refs);
 }
 
 static void __io_rsrc_put_work(struct io_rsrc_node *ref_node)
@@ -300,6 +302,7 @@ void io_rsrc_node_switch(struct io_ring_ctx *ctx,
 	if (!ctx->rsrc_node) {
 		ctx->rsrc_node = ctx->rsrc_backup_node;
 		ctx->rsrc_backup_node = NULL;
+		ctx->rsrc_node->cached_refs = 0;
 	}
 }
 

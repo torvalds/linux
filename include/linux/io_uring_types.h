@@ -240,7 +240,6 @@ struct io_ring_ctx {
 		 * uring_lock, and updated through io_uring_register(2)
 		 */
 		struct io_rsrc_node	*rsrc_node;
-		int			rsrc_cached_refs;
 		atomic_t		cancel_seq;
 		struct io_file_table	file_table;
 		unsigned		nr_user_files;

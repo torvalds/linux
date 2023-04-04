@@ -43,6 +43,7 @@ struct io_rsrc_node {
 	struct io_rsrc_data		*rsrc_data;
 	struct llist_node		llist;
 	bool				done;
+	int				cached_refs;
 };
 
 struct io_mapped_ubuf {
@@ -56,7 +57,7 @@ struct io_mapped_ubuf {
 void io_rsrc_put_tw(struct callback_head *cb);
 void io_rsrc_node_ref_zero(struct io_rsrc_node *node);
 void io_rsrc_put_work(struct work_struct *work);
-void io_rsrc_refs_refill(struct io_ring_ctx *ctx);
+void io_rsrc_refs_refill(struct io_ring_ctx *ctx, struct io_rsrc_node *node);
 void io_wait_rsrc_data(struct io_rsrc_data *data);
 void io_rsrc_node_destroy(struct io_rsrc_node *ref_node);
 void io_rsrc_refs_drop(struct io_ring_ctx *ctx);
@@ -128,17 +129,18 @@ static inline void io_req_put_rsrc_locked(struct io_kiocb *req,
 
 	if (node) {
 		if (node == ctx->rsrc_node)
-			ctx->rsrc_cached_refs++;
+			node->cached_refs++;
 		else
 			io_rsrc_put_node(node, 1);
 	}
 }
 
-static inline void io_charge_rsrc_node(struct io_ring_ctx *ctx)
+static inline void io_charge_rsrc_node(struct io_ring_ctx *ctx,
+				       struct io_rsrc_node *node)
 {
-	ctx->rsrc_cached_refs--;
-	if (unlikely(ctx->rsrc_cached_refs < 0))
-		io_rsrc_refs_refill(ctx);
+	node->cached_refs--;
+	if (unlikely(node->cached_refs < 0))
+		io_rsrc_refs_refill(ctx, node);
 }
 
 static inline void io_req_set_rsrc_node(struct io_kiocb *req,
@@ -151,7 +153,7 @@ static inline void io_req_set_rsrc_node(struct io_kiocb *req,
 		lockdep_assert_held(&ctx->uring_lock);
 
 		req->rsrc_node = ctx->rsrc_node;
-		io_charge_rsrc_node(ctx);
+		io_charge_rsrc_node(ctx, ctx->rsrc_node);
 		io_ring_submit_unlock(ctx, issue_flags);
 	}
 }
