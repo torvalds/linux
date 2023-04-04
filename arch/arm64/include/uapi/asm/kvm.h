@@ -472,11 +472,15 @@ enum {
 enum kvm_smccc_filter_action {
 	KVM_SMCCC_FILTER_HANDLE = 0,
 	KVM_SMCCC_FILTER_DENY,
+	KVM_SMCCC_FILTER_FWD_TO_USER,
 
 #ifdef __KERNEL__
 	NR_SMCCC_FILTER_ACTIONS
 #endif
 };
+
+/* arm64-specific KVM_EXIT_HYPERCALL flags */
+#define KVM_HYPERCALL_EXIT_SMC	(1U << 0)
 
 #endif
 

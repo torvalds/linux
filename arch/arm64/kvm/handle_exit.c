@@ -71,7 +71,9 @@ static int handle_smc(struct kvm_vcpu *vcpu)
 	 * Trap exception, not a Secure Monitor Call exception [...]"
 	 *
 	 * We need to advance the PC after the trap, as it would
-	 * otherwise return to the same address...
+	 * otherwise return to the same address. Furthermore, pre-incrementing
+	 * the PC before potentially exiting to userspace maintains the same
+	 * abstraction for both SMCs and HVCs.
 	 */
 	kvm_incr_pc(vcpu);
 
