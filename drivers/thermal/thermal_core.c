@@ -1256,13 +1256,21 @@ thermal_zone_device_register_with_trips(const char *type, struct thermal_trip *t
 	if (!tz)
 		return ERR_PTR(-ENOMEM);
 
+	if (tzp) {
+		tz->tzp = kmemdup(tzp, sizeof(*tzp), GFP_KERNEL);
+		if (!tz->tzp) {
+			result = -ENOMEM;
+			goto free_tz;
+		}
+	}
+
 	INIT_LIST_HEAD(&tz->thermal_instances);
 	ida_init(&tz->ida);
 	mutex_init(&tz->lock);
 	id = ida_alloc(&thermal_tz_ida, GFP_KERNEL);
 	if (id < 0) {
 		result = id;
-		goto free_tz;
+		goto free_tzp;
 	}
 
 	tz->id = id;
@@ -1272,7 +1280,6 @@ thermal_zone_device_register_with_trips(const char *type, struct thermal_trip *t
 		ops->critical = thermal_zone_device_critical;
 
 	tz->ops = ops;
-	tz->tzp = tzp;
 	tz->device.class = thermal_class;
 	tz->devdata = devdata;
 	tz->trips = trips;
@@ -1354,6 +1361,8 @@ release_device:
 	tz = NULL;
 remove_id:
 	ida_free(&thermal_tz_ida, id);
+free_tzp:
+	kfree(tz->tzp);
 free_tz:
 	kfree(tz);
 	return ERR_PTR(result);
@@ -1433,6 +1442,8 @@ void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 	mutex_lock(&tz->lock);
 	device_del(&tz->device);
 	mutex_unlock(&tz->lock);
+
+	kfree(tz->tzp);
 
 	put_device(&tz->device);
 
