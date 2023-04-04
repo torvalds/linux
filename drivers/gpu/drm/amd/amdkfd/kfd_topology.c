@@ -364,7 +364,6 @@ static ssize_t kfd_cache_show(struct kobject *kobj, struct attribute *attr,
 
 	/* Making sure that the buffer is an empty string */
 	buffer[0] = 0;
-
 	cache = container_of(attr, struct kfd_cache_properties, attr);
 	if (cache->gpu && kfd_devcgroup_check_permission(cache->gpu))
 		return -EPERM;
@@ -379,12 +378,13 @@ static ssize_t kfd_cache_show(struct kobject *kobj, struct attribute *attr,
 	sysfs_show_32bit_prop(buffer, offs, "association", cache->cache_assoc);
 	sysfs_show_32bit_prop(buffer, offs, "latency", cache->cache_latency);
 	sysfs_show_32bit_prop(buffer, offs, "type", cache->cache_type);
+
 	offs += snprintf(buffer+offs, PAGE_SIZE-offs, "sibling_map ");
-	for (i = 0; i < CRAT_SIBLINGMAP_SIZE; i++)
+	for (i = 0; i < cache->sibling_map_size; i++)
 		for (j = 0; j < sizeof(cache->sibling_map[0])*8; j++)
 			/* Check each bit */
 			offs += snprintf(buffer+offs, PAGE_SIZE-offs, "%d,",
-					 (cache->sibling_map[i] >> j) & 1);
+						(cache->sibling_map[i] >> j) & 1);
 
 	/* Replace the last "," with end of line */
 	buffer[offs-1] = '\n';
@@ -1198,7 +1198,6 @@ static struct kfd_topology_device *kfd_assign_gpu(struct kfd_dev *gpu)
 	struct kfd_iolink_properties *iolink;
 	struct kfd_iolink_properties *p2plink;
 
-	down_write(&topology_lock);
 	list_for_each_entry(dev, &topology_device_list, list) {
 		/* Discrete GPUs need their own topology device list
 		 * entries. Don't assign them to CPU/APU nodes.
@@ -1222,7 +1221,6 @@ static struct kfd_topology_device *kfd_assign_gpu(struct kfd_dev *gpu)
 			break;
 		}
 	}
-	up_write(&topology_lock);
 	return out_dev;
 }
 
@@ -1593,6 +1591,221 @@ out:
 	return ret;
 }
 
+
+/* Helper function. See kfd_fill_gpu_cache_info for parameter description */
+static int fill_in_l1_pcache(struct kfd_cache_properties **props_ext,
+				struct kfd_gpu_cache_info *pcache_info,
+				struct kfd_cu_info *cu_info,
+				int cu_bitmask,
+				int cache_type, unsigned int cu_processor_id,
+				int cu_block)
+{
+	unsigned int cu_sibling_map_mask;
+	int first_active_cu;
+	struct kfd_cache_properties *pcache = NULL;
+
+	cu_sibling_map_mask = cu_bitmask;
+	cu_sibling_map_mask >>= cu_block;
+	cu_sibling_map_mask &= ((1 << pcache_info[cache_type].num_cu_shared) - 1);
+	first_active_cu = ffs(cu_sibling_map_mask);
+
+	/* CU could be inactive. In case of shared cache find the first active
+	 * CU. and incase of non-shared cache check if the CU is inactive. If
+	 * inactive active skip it
+	 */
+	if (first_active_cu) {
+		pcache = kfd_alloc_struct(pcache);
+		if (!pcache)
+			return -ENOMEM;
+
+		memset(pcache, 0, sizeof(struct kfd_cache_properties));
+		pcache->processor_id_low = cu_processor_id + (first_active_cu - 1);
+		pcache->cache_level = pcache_info[cache_type].cache_level;
+		pcache->cache_size = pcache_info[cache_type].cache_size;
+
+		if (pcache_info[cache_type].flags & CRAT_CACHE_FLAGS_DATA_CACHE)
+			pcache->cache_type |= HSA_CACHE_TYPE_DATA;
+		if (pcache_info[cache_type].flags & CRAT_CACHE_FLAGS_INST_CACHE)
+			pcache->cache_type |= HSA_CACHE_TYPE_INSTRUCTION;
+		if (pcache_info[cache_type].flags & CRAT_CACHE_FLAGS_CPU_CACHE)
+			pcache->cache_type |= HSA_CACHE_TYPE_CPU;
+		if (pcache_info[cache_type].flags & CRAT_CACHE_FLAGS_SIMD_CACHE)
+			pcache->cache_type |= HSA_CACHE_TYPE_HSACU;
+
+		/* Sibling map is w.r.t processor_id_low, so shift out
+		 * inactive CU
+		 */
+		cu_sibling_map_mask =
+			cu_sibling_map_mask >> (first_active_cu - 1);
+
+		pcache->sibling_map[0] = (uint8_t)(cu_sibling_map_mask & 0xFF);
+		pcache->sibling_map[1] =
+				(uint8_t)((cu_sibling_map_mask >> 8) & 0xFF);
+		pcache->sibling_map[2] =
+				(uint8_t)((cu_sibling_map_mask >> 16) & 0xFF);
+		pcache->sibling_map[3] =
+				(uint8_t)((cu_sibling_map_mask >> 24) & 0xFF);
+
+		pcache->sibling_map_size = 4;
+		*props_ext = pcache;
+
+		return 0;
+	}
+	return 1;
+}
+
+/* Helper function. See kfd_fill_gpu_cache_info for parameter description */
+static int fill_in_l2_l3_pcache(struct kfd_cache_properties **props_ext,
+				struct kfd_gpu_cache_info *pcache_info,
+				struct kfd_cu_info *cu_info,
+				int cache_type, unsigned int cu_processor_id)
+{
+	unsigned int cu_sibling_map_mask;
+	int first_active_cu;
+	int i, j, k;
+	struct kfd_cache_properties *pcache = NULL;
+
+	cu_sibling_map_mask = cu_info->cu_bitmap[0][0];
+	cu_sibling_map_mask &=
+		((1 << pcache_info[cache_type].num_cu_shared) - 1);
+	first_active_cu = ffs(cu_sibling_map_mask);
+
+	/* CU could be inactive. In case of shared cache find the first active
+	 * CU. and incase of non-shared cache check if the CU is inactive. If
+	 * inactive active skip it
+	 */
+	if (first_active_cu) {
+		pcache = kfd_alloc_struct(pcache);
+		if (!pcache)
+			return -ENOMEM;
+
+		memset(pcache, 0, sizeof(struct kfd_cache_properties));
+		pcache->processor_id_low = cu_processor_id
+					+ (first_active_cu - 1);
+		pcache->cache_level = pcache_info[cache_type].cache_level;
+		pcache->cache_size = pcache_info[cache_type].cache_size;
+
+		if (pcache_info[cache_type].flags & CRAT_CACHE_FLAGS_DATA_CACHE)
+			pcache->cache_type |= HSA_CACHE_TYPE_DATA;
+		if (pcache_info[cache_type].flags & CRAT_CACHE_FLAGS_INST_CACHE)
+			pcache->cache_type |= HSA_CACHE_TYPE_INSTRUCTION;
+		if (pcache_info[cache_type].flags & CRAT_CACHE_FLAGS_CPU_CACHE)
+			pcache->cache_type |= HSA_CACHE_TYPE_CPU;
+		if (pcache_info[cache_type].flags & CRAT_CACHE_FLAGS_SIMD_CACHE)
+			pcache->cache_type |= HSA_CACHE_TYPE_HSACU;
+
+		/* Sibling map is w.r.t processor_id_low, so shift out
+		 * inactive CU
+		 */
+		cu_sibling_map_mask = cu_sibling_map_mask >> (first_active_cu - 1);
+		k = 0;
+
+		for (i = 0; i < cu_info->num_shader_engines; i++) {
+			for (j = 0; j < cu_info->num_shader_arrays_per_engine; j++) {
+				pcache->sibling_map[k] = (uint8_t)(cu_sibling_map_mask & 0xFF);
+				pcache->sibling_map[k+1] = (uint8_t)((cu_sibling_map_mask >> 8) & 0xFF);
+				pcache->sibling_map[k+2] = (uint8_t)((cu_sibling_map_mask >> 16) & 0xFF);
+				pcache->sibling_map[k+3] = (uint8_t)((cu_sibling_map_mask >> 24) & 0xFF);
+				k += 4;
+
+				cu_sibling_map_mask = cu_info->cu_bitmap[i % 4][j + i / 4];
+				cu_sibling_map_mask &= ((1 << pcache_info[cache_type].num_cu_shared) - 1);
+			}
+		}
+		pcache->sibling_map_size = k;
+		*props_ext = pcache;
+		return 0;
+	}
+	return 1;
+}
+
+#define KFD_MAX_CACHE_TYPES 6
+
+/* kfd_fill_cache_non_crat_info - Fill GPU cache info using kfd_gpu_cache_info
+ * tables
+ */
+void kfd_fill_cache_non_crat_info(struct kfd_topology_device *dev, struct kfd_dev *kdev)
+{
+	struct kfd_gpu_cache_info *pcache_info = NULL;
+	int i, j, k;
+	int ct = 0;
+	unsigned int cu_processor_id;
+	int ret;
+	unsigned int num_cu_shared;
+	struct kfd_cu_info cu_info;
+	struct kfd_cu_info *pcu_info;
+	int gpu_processor_id;
+	struct kfd_cache_properties *props_ext;
+	int num_of_entries = 0;
+	int num_of_cache_types = 0;
+	struct kfd_gpu_cache_info cache_info[KFD_MAX_CACHE_TYPES];
+
+	amdgpu_amdkfd_get_cu_info(kdev->adev, &cu_info);
+	pcu_info = &cu_info;
+
+	gpu_processor_id = dev->node_props.simd_id_base;
+
+	pcache_info = cache_info;
+	num_of_cache_types = kfd_get_gpu_cache_info(kdev, &pcache_info);
+	if (!num_of_cache_types) {
+		pr_warn("no cache info found\n");
+		return;
+	}
+
+	/* For each type of cache listed in the kfd_gpu_cache_info table,
+	 * go through all available Compute Units.
+	 * The [i,j,k] loop will
+	 *		if kfd_gpu_cache_info.num_cu_shared = 1
+	 *			will parse through all available CU
+	 *		If (kfd_gpu_cache_info.num_cu_shared != 1)
+	 *			then it will consider only one CU from
+	 *			the shared unit
+	 */
+	for (ct = 0; ct < num_of_cache_types; ct++) {
+		cu_processor_id = gpu_processor_id;
+		if (pcache_info[ct].cache_level == 1) {
+			for (i = 0; i < pcu_info->num_shader_engines; i++) {
+				for (j = 0; j < pcu_info->num_shader_arrays_per_engine; j++) {
+					for (k = 0; k < pcu_info->num_cu_per_sh; k += pcache_info[ct].num_cu_shared) {
+
+						ret = fill_in_l1_pcache(&props_ext, pcache_info, pcu_info,
+										pcu_info->cu_bitmap[i % 4][j + i / 4], ct,
+										cu_processor_id, k);
+
+						if (ret < 0)
+							break;
+
+						if (!ret) {
+							num_of_entries++;
+							list_add_tail(&props_ext->list, &dev->cache_props);
+						}
+
+						/* Move to next CU block */
+						num_cu_shared = ((k + pcache_info[ct].num_cu_shared) <=
+							pcu_info->num_cu_per_sh) ?
+							pcache_info[ct].num_cu_shared :
+							(pcu_info->num_cu_per_sh - k);
+						cu_processor_id += num_cu_shared;
+					}
+				}
+			}
+		} else {
+			ret = fill_in_l2_l3_pcache(&props_ext, pcache_info,
+								pcu_info, ct, cu_processor_id);
+
+			if (ret < 0)
+				break;
+
+			if (!ret) {
+				num_of_entries++;
+				list_add_tail(&props_ext->list, &dev->cache_props);
+			}
+		}
+	}
+	dev->node_props.caches_count += num_of_entries;
+	pr_debug("Added [%d] GPU cache entries\n", num_of_entries);
+}
+
 int kfd_topology_add_device(struct kfd_dev *gpu)
 {
 	uint32_t gpu_id;
@@ -1617,9 +1830,9 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	 * CRAT to create a new topology device. Once created assign the gpu to
 	 * that topology device
 	 */
+	down_write(&topology_lock);
 	dev = kfd_assign_gpu(gpu);
 	if (!dev) {
-		down_write(&topology_lock);
 		proximity_domain = ++topology_crat_proximity_domain;
 
 		res = kfd_create_crat_image_virtual(&crat_image, &image_size,
@@ -1631,6 +1844,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 			topology_crat_proximity_domain--;
 			return res;
 		}
+
 		res = kfd_parse_crat_table(crat_image,
 					   &temp_topology_device_list,
 					   proximity_domain);
@@ -1644,23 +1858,28 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 		kfd_topology_update_device_list(&temp_topology_device_list,
 			&topology_device_list);
 
-		/* Update the SYSFS tree, since we added another topology
-		 * device
-		 */
-		res = kfd_topology_update_sysfs();
-		up_write(&topology_lock);
-
-		if (!res)
-			sys_props.generation_count++;
-		else
-			pr_err("Failed to update GPU (ID: 0x%x) to sysfs topology. res=%d\n",
-						gpu_id, res);
 		dev = kfd_assign_gpu(gpu);
 		if (WARN_ON(!dev)) {
 			res = -ENODEV;
 			goto err;
 		}
+
+		/* Fill the cache affinity information here for the GPUs
+		 * using VCRAT
+		 */
+		kfd_fill_cache_non_crat_info(dev, gpu);
+
+		/* Update the SYSFS tree, since we added another topology
+		 * device
+		 */
+		res = kfd_topology_update_sysfs();
+		if (!res)
+			sys_props.generation_count++;
+		else
+			pr_err("Failed to update GPU (ID: 0x%x) to sysfs topology. res=%d\n",
+						gpu_id, res);
 	}
+	up_write(&topology_lock);
 
 	dev->gpu_id = gpu_id;
 	gpu->id = gpu_id;
