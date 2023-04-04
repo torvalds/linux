@@ -229,7 +229,7 @@ static int ulpi_read_id(struct ulpi *ulpi)
 	request_module("ulpi:v%04xp%04x", ulpi->id.vendor, ulpi->id.product);
 	return 0;
 err:
-	of_device_request_module(&ulpi->dev);
+	of_request_module(ulpi->dev.of_node);
 	return 0;
 }
 
