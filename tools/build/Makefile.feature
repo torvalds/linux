@@ -64,6 +64,7 @@ FEATURE_TESTS_BASIC :=                  \
         lzma                            \
         get_cpuid                       \
         bpf                             \
+        scandirat			\
         sched_getcpu			\
         sdt				\
         setns				\
