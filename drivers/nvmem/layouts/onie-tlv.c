@@ -237,19 +237,7 @@ static struct nvmem_layout onie_tlv_layout = {
 	.of_match_table = onie_tlv_of_match_table,
 	.add_cells = onie_tlv_parse_table,
 };
-
-static int __init onie_tlv_init(void)
-{
-	return nvmem_layout_register(&onie_tlv_layout);
-}
-
-static void __exit onie_tlv_exit(void)
-{
-	nvmem_layout_unregister(&onie_tlv_layout);
-}
-
-module_init(onie_tlv_init);
-module_exit(onie_tlv_exit);
+module_nvmem_layout_driver(onie_tlv_layout);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Miquel Raynal <miquel.raynal@bootlin.com>");
