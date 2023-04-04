@@ -2,26 +2,19 @@
 /*
  * Copyright (c) 2019 BayLibre, SAS
  * Author: Neil Armstrong <narmstrong@baylibre.com>
- * Copyright (c) 2019 Christian Hewitt <christianshewitt@gmail.com>
- * Copyright (c) 2022 Radxa Limited
- * Author: Yuntian Zhang <yt@radxa.com>
+ * Copyright (c) 2023 Christian Hewitt <christianshewitt@gmail.com>
  */
 
-/dts-v1/;
-
-#include "meson-g12b-a311d.dtsi"
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/leds/common.h>
 #include <dt-bindings/gpio/meson-g12a-gpio.h>
 #include <dt-bindings/sound/meson-g12a-tohdmitx.h>
 
 / {
-	compatible = "radxa,zero2", "amlogic,a311d", "amlogic,g12b";
-	model = "Radxa Zero2";
-
 	aliases {
 		serial0 = &uart_AO;
-		serial2 = &uart_A;
+		ethernet0 = &ethmac;
+		rtc1 = &vrtc;
 	};
 
 	chosen {
@@ -30,28 +23,34 @@
 
 	memory@0 {
 		device_type = "memory";
-		reg = <0x0 0x0 0x0 0x80000000>;
+		reg = <0x0 0x0 0x0 0x80000000>; /* 2 GiB or 4 GiB */
 	};
 
-	gpio-keys-polled {
-		compatible = "gpio-keys-polled";
-		poll-interval = <100>;
-		power-button {
-			label = "power";
+	adc-keys {
+		compatible = "adc-keys";
+		io-channels = <&saradc 2>;
+		io-channel-names = "buttons";
+		keyup-threshold-microvolt = <1710000>;
+
+		button-function {
+			label = "RST";
 			linux,code = <KEY_POWER>;
-			gpios = <&gpio_ao GPIOAO_3 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+			press-threshold-microvolt = <10000>;
 		};
 	};
 
-	leds {
-		compatible = "gpio-leds";
+	emmc_pwrseq: emmc-pwrseq {
+		compatible = "mmc-pwrseq-emmc";
+		reset-gpios = <&gpio BOOT_12 GPIO_ACTIVE_LOW>;
+	};
 
-		led-green {
-			color = <LED_COLOR_ID_GREEN>;
-			function = LED_FUNCTION_STATUS;
-			gpios = <&gpio GPIOA_12 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "heartbeat";
-		};
+	fan0: pwm-fan {
+		compatible = "pwm-fan";
+		#cooling-cells = <2>;
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		cooling-levels = <0 120 170 220>;
+		pwms = <&pwm_cd 1 40000 0>;
 	};
 
 	hdmi-connector {
@@ -65,9 +64,21 @@
 		};
 	};
 
-	emmc_pwrseq: emmc-pwrseq {
-		compatible = "mmc-pwrseq-emmc";
-		reset-gpios = <&gpio BOOT_12 GPIO_ACTIVE_LOW>;
+	leds {
+		compatible = "gpio-leds";
+
+		led-0 {
+			color = <LED_COLOR_ID_BLUE>;
+			function = LED_FUNCTION_STATUS;
+			gpios = <&gpio_ao GPIOAO_7 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		led-1 {
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_STATUS;
+			gpios = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_LOW>;
+		};
 	};
 
 	sdio_pwrseq: sdio-pwrseq {
@@ -77,11 +88,38 @@
 		clock-names = "ext_clock";
 	};
 
-	ao_5v: regulator-ao-5v {
+	wifi32k: wifi32k {
+		compatible = "pwm-clock";
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+		pwms = <&pwm_ef 0 30518 0>; /* PWM_E at 32.768KHz */
+	};
+
+	dc_in: regulator-dc-in {
 		compatible = "regulator-fixed";
-		regulator-name = "AO_5V";
+		regulator-name = "DC_IN";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+	};
+
+	vcc_5v: regulator-vcc-5v {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC_5V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&dc_in>;
+
+		gpio = <&gpio GPIOH_8 GPIO_OPEN_DRAIN>;
+		enable-active-high;
+	};
+
+	vcc_3v3: regulator-vcc-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vsys_3v3>;
 		regulator-always-on;
 	};
 
@@ -94,75 +132,71 @@
 		regulator-always-on;
 	};
 
-	vcc_3v3: regulator-vcc-3v3 {
-		compatible = "regulator-fixed";
-		regulator-name = "VCC_3V3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		vin-supply = <&vddao_3v3>;
-		regulator-always-on;
-		/* FIXME: actually controlled by VDDCPU_B_EN */
-	};
-
 	vddao_1v8: regulator-vddao-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "VDDIO_AO1V8";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
-		vin-supply = <&vddao_3v3>;
-		regulator-always-on;
-	};
-
-	vddao_3v3: regulator-vddao-3v3 {
-		compatible = "regulator-fixed";
-		regulator-name = "VDDAO_3V3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		vin-supply = <&ao_5v>;
+		vin-supply = <&vsys_3v3>;
 		regulator-always-on;
 	};
 
 	vddcpu_a: regulator-vddcpu-a {
-		/*
-		 * MP8756GD Regulator.
-		 */
 		compatible = "pwm-regulator";
-
 		regulator-name = "VDDCPU_A";
-		regulator-min-microvolt = <730000>;
-		regulator-max-microvolt = <1022000>;
-
-		pwm-supply = <&ao_5v>;
-
+		regulator-min-microvolt = <690000>;
+		regulator-max-microvolt = <1050000>;
+		pwm-supply = <&dc_in>;
 		pwms = <&pwm_ab 0 1250 0>;
 		pwm-dutycycle-range = <100 0>;
-
 		regulator-boot-on;
 		regulator-always-on;
 	};
 
 	vddcpu_b: regulator-vddcpu-b {
-		/*
-		 * Silergy SY8120B1ABC Regulator.
-		 */
 		compatible = "pwm-regulator";
-
 		regulator-name = "VDDCPU_B";
-		regulator-min-microvolt = <730000>;
-		regulator-max-microvolt = <1022000>;
-
-		pwm-supply = <&ao_5v>;
-
+		regulator-min-microvolt = <690000>;
+		regulator-max-microvolt = <1050000>;
+		pwm-supply = <&vsys_3v3>;
 		pwms = <&pwm_AO_cd 1 1250 0>;
 		pwm-dutycycle-range = <100 0>;
-
 		regulator-boot-on;
 		regulator-always-on;
 	};
 
+	vsys_3v3: regulator-vsys-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "VSYS_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&dc_in>;
+		regulator-always-on;
+	};
+
+	emmc_1v8: regulator-emmc-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "EMMC_AO1V8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&vcc_3v3>;
+		regulator-always-on;
+	};
+
+	usb_pwr: regulator-usb-pwr {
+		compatible = "regulator-fixed";
+		regulator-name = "USB_PWR";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&vcc_5v>;
+
+		gpio = <&gpio GPIOA_6 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
 	sound {
 		compatible = "amlogic,axg-sound-card";
-		model = "RADXA-ZERO2";
+		model = "BPI-M2S";
 		audio-aux-devs = <&tdmout_b>;
 		audio-routing = "TDMOUT_B IN 0", "FRDDR_A OUT 1",
 				"TDMOUT_B IN 1", "FRDDR_B OUT 1",
@@ -213,24 +247,14 @@
 			};
 		};
 	};
-
-	wifi32k: clock-0 {
-		compatible = "pwm-clock";
-		#clock-cells = <0>;
-		clock-frequency = <32768>;
-		pwms = <&pwm_ef 0 30518 0>; /* PWM_E at 32.768KHz */
-	};
 };
 
 &arb {
 	status = "okay";
 };
 
-&cec_AO {
-	pinctrl-0 = <&cec_ao_a_h_pins>;
-	pinctrl-names = "default";
-	status = "disabled";
-	hdmi-phandle = <&hdmi_tx>;
+&clkc_audio {
+	status = "okay";
 };
 
 &cecb_AO {
@@ -238,10 +262,6 @@
 	pinctrl-names = "default";
 	status = "okay";
 	hdmi-phandle = <&hdmi_tx>;
-};
-
-&clkc_audio {
-	status = "okay";
 };
 
 &cpu0 {
@@ -286,6 +306,31 @@
 	clock-latency = <50000>;
 };
 
+&ethmac {
+	pinctrl-0 = <&eth_pins>, <&eth_rgmii_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+	phy-mode = "rgmii";
+	phy-handle = <&external_phy>;
+	amlogic,tx-delay-ns = <2>;
+};
+
+&ext_mdio {
+	external_phy: ethernet-phy@0 {
+		/* Realtek RTL8211F (0x001cc916) */
+		reg = <0>;
+		max-speed = <1000>;
+
+		reset-assert-us = <10000>;
+		reset-deassert-us = <80000>;
+		reset-gpios = <&gpio GPIOZ_15 (GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN)>;
+
+		interrupt-parent = <&gpio_intc>;
+		/* MAC_INTR on GPIOZ_14 */
+		interrupts = <26 IRQ_TYPE_LEVEL_LOW>;
+	};
+};
+
 &frddr_a {
 	status = "okay";
 };
@@ -298,42 +343,11 @@
 	status = "okay";
 };
 
-&gpio {
-	gpio-line-names =
-		/* GPIOZ */
-		"PIN_27", "PIN_28", "PIN_7", "PIN_11", "PIN_13", "PIN_15", "PIN_18", "PIN_40",
-		"", "", "", "", "", "", "", "",
-		/* GPIOH */
-		"", "", "", "", "PIN_19", "PIN_21", "PIN_24", "PIN_23",
-		"",
-		/* BOOT */
-		"", "", "", "", "", "", "", "",
-		"", "", "", "", "EMMC_PWRSEQ", "", "", "",
-		/* GPIOC */
-		"", "", "", "", "", "", "SD_CD", "PIN_36",
-		/* GPIOA */
-		"PIN_32", "PIN_12", "PIN_35", "", "", "PIN_38", "", "",
-		"", "", "", "", "LED_GREEN", "PIN_31", "PIN_3", "PIN_5",
-		/* GPIOX */
-		"", "", "", "", "", "", "SDIO_PWRSEQ", "",
-		"", "", "", "", "", "", "", "",
-		"", "BT_SHUTDOWN", "", "";
-};
-
-&gpio_ao {
-	gpio-line-names =
-		/* GPIOAO */
-		"PIN_8", "PIN_10", "", "BTN_POWER", "", "", "", "PIN_29",
-		"PIN_33", "PIN_37", "FAN", "",
-		/* GPIOE */
-		"", "", "";
-};
-
 &hdmi_tx {
 	status = "okay";
 	pinctrl-0 = <&hdmitx_hpd_pins>, <&hdmitx_ddc_pins>;
 	pinctrl-names = "default";
-	hdmi-supply = <&ao_5v>;
+	hdmi-supply = <&vcc_5v>;
 };
 
 &hdmi_tx_tmds_port {
@@ -342,34 +356,37 @@
 	};
 };
 
-&ir {
-	status = "disabled";
-	pinctrl-0 = <&remote_input_ao_pins>;
+/* Main i2c bus */
+&i2c2 {
+	status = "okay";
+	pinctrl-0 = <&i2c2_sda_x_pins>, <&i2c2_sck_x_pins>;
 	pinctrl-names = "default";
 };
 
+&pcie {
+	status = "okay";
+	reset-gpios = <&gpio GPIOA_8 GPIO_ACTIVE_LOW>;
+};
+
 &pwm_ab {
+	status = "okay";
 	pinctrl-0 = <&pwm_a_e_pins>;
 	pinctrl-names = "default";
 	clocks = <&xtal>;
 	clock-names = "clkin0";
+};
+
+&pwm_cd {
 	status = "okay";
+	pinctrl-0 = <&pwm_d_x6_pins>;
+	pinctrl-names = "default";
+	pwm-gpios = <&gpio GPIOAO_10 GPIO_ACTIVE_HIGH>;
 };
 
 &pwm_ef {
+	status = "okay";
 	pinctrl-0 = <&pwm_e_pins>;
 	pinctrl-names = "default";
-	clocks = <&xtal>;
-	clock-names = "clkin0";
-	status = "okay";
-};
-
-&pwm_AO_ab {
-	pinctrl-0 = <&pwm_ao_a_pins>;
-	pinctrl-names = "default";
-	clocks = <&xtal>;
-	clock-names = "clkin0";
-	status = "okay";
 };
 
 &pwm_AO_cd {
@@ -387,7 +404,8 @@
 
 /* SDIO */
 &sd_emmc_a {
-	status = "okay";
+	/* enable if WiFi/BT board connected */
+	status = "disabled";
 	pinctrl-0 = <&sdio_pins>;
 	pinctrl-1 = <&sdio_clk_gate_pins>;
 	pinctrl-names = "default", "clk-gate";
@@ -395,23 +413,22 @@
 	#size-cells = <0>;
 
 	bus-width = <4>;
-	cap-sd-highspeed;
-	max-frequency = <100000000>;
+	sd-uhs-sdr104;
+	max-frequency = <50000000>;
 
 	non-removable;
 	disable-wp;
 
-	/* WiFi firmware requires power to be kept while in suspend */
+	/* WiFi firmware requires power in suspend */
 	keep-power-in-suspend;
 
 	mmc-pwrseq = <&sdio_pwrseq>;
 
-	vmmc-supply = <&vddao_3v3>;
+	vmmc-supply = <&vsys_3v3>;
 	vqmmc-supply = <&vddao_1v8>;
 
-	brcmf: wifi@1 {
+	rtl8822cs: wifi@1 {
 		reg = <1>;
-		compatible = "brcm,bcm4329-fmac";
 	};
 };
 
@@ -428,8 +445,8 @@
 	disable-wp;
 
 	cd-gpios = <&gpio GPIOC_6 GPIO_ACTIVE_LOW>;
-	vmmc-supply = <&vddao_3v3>;
-	vqmmc-supply = <&vddao_3v3>;
+	vmmc-supply = <&vsys_3v3>;
+	vqmmc-supply = <&vsys_3v3>;
 };
 
 /* eMMC */
@@ -448,7 +465,7 @@
 
 	mmc-pwrseq = <&emmc_pwrseq>;
 	vmmc-supply = <&vcc_3v3>;
-	vqmmc-supply = <&vcc_1v8>;
+	vqmmc-supply = <&emmc_1v8>;
 };
 
 &tdmif_b {
@@ -464,17 +481,17 @@
 };
 
 &uart_A {
-	status = "okay";
+	/* enable if WiFi/BT board connected */
+	status = "disabled";
 	pinctrl-0 = <&uart_a_pins>, <&uart_a_cts_rts_pins>;
 	pinctrl-names = "default";
 	uart-has-rtscts;
 
 	bluetooth {
-		compatible = "brcm,bcm43438-bt";
-		shutdown-gpios = <&gpio GPIOX_17 GPIO_ACTIVE_HIGH>;
-		max-speed = <2000000>;
-		clocks = <&wifi32k>;
-		clock-names = "lpo";
+		compatible = "realtek,rtl8822cs-bt";
+		enable-gpios  = <&gpio GPIOX_17 GPIO_ACTIVE_HIGH>;
+		host-wake-gpios = <&gpio GPIOX_19 GPIO_ACTIVE_HIGH>;
+		device-wake-gpios = <&gpio GPIOX_18 GPIO_ACTIVE_HIGH>;
 	};
 };
 
@@ -484,6 +501,21 @@
 	pinctrl-names = "default";
 };
 
+&usb2_phy0 {
+	phy-supply = <&dc_in>;
+};
+
+&usb2_phy1 {
+	phy-supply = <&usb_pwr>;
+};
+
+&usb3_pcie_phy {
+	phy-supply = <&usb_pwr>;
+};
+
 &usb {
 	status = "okay";
+	dr_mode = "peripheral";
+	phys = <&usb2_phy0>, <&usb2_phy1>;
+	phy-names = "usb2-phy0", "usb2-phy1";
 };
