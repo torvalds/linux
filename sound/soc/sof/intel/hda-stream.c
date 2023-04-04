@@ -485,9 +485,8 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 {
 	const struct sof_intel_dsp_desc *chip = get_chip_info(sdev->pdata);
 	struct hdac_bus *bus = sof_to_bus(sdev);
-	struct hdac_stream *hstream = &hext_stream->hstream;
-	int sd_offset = SOF_STREAM_SD_OFFSET(hstream);
-	int ret;
+	struct hdac_stream *hstream;
+	int sd_offset, ret;
 	u32 dma_start = SOF_HDA_SD_CTL_DMA_START;
 	u32 mask;
 	u32 run;
@@ -501,6 +500,9 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 		dev_err(sdev->dev, "error: no dma buffer allocated!\n");
 		return -ENODEV;
 	}
+
+	hstream = &hext_stream->hstream;
+	sd_offset = SOF_STREAM_SD_OFFSET(hstream);
 
 	/* decouple host and link DMA */
 	mask = 0x1 << hstream->index;
