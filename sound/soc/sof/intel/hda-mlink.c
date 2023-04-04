@@ -28,10 +28,11 @@
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 
-void hda_bus_ml_get_capabilities(struct hdac_bus *bus)
+int hda_bus_ml_get_capabilities(struct hdac_bus *bus)
 {
 	if (bus->mlcap)
-		snd_hdac_ext_bus_get_ml_capabilities(bus);
+		return snd_hdac_ext_bus_get_ml_capabilities(bus);
+	return 0;
 }
 
 void hda_bus_ml_free(struct hdac_bus *bus)
