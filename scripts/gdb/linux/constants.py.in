@@ -17,6 +17,7 @@
 #include <linux/hrtimer.h>
 #include <linux/mount.h>
 #include <linux/of_fdt.h>
+#include <linux/radix-tree.h>
 #include <linux/threads.h>
 
 /* We need to stringify expanded macros so that they can be parsed */
@@ -67,6 +68,13 @@ LX_VALUE(NR_CPUS)
 
 /* linux/of_fdt.h> */
 LX_VALUE(OF_DT_HEADER)
+
+/* linux/radix-tree.h */
+LX_GDBPARSED(RADIX_TREE_ENTRY_MASK)
+LX_GDBPARSED(RADIX_TREE_INTERNAL_NODE)
+LX_GDBPARSED(RADIX_TREE_MAP_SIZE)
+LX_GDBPARSED(RADIX_TREE_MAP_SHIFT)
+LX_GDBPARSED(RADIX_TREE_MAP_MASK)
 
 /* Kernel Configs */
 LX_CONFIG(CONFIG_GENERIC_CLOCKEVENTS)
