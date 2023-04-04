@@ -1482,6 +1482,17 @@ static int rk_tsadcv2_get_trim_code(const struct chip_tsadc_table *table,
 	return code - base_code;
 }
 
+static int rk_tsadcv3_get_trim_code(const struct chip_tsadc_table *table,
+				    int code, int trim_base, int trim_base_frac)
+{
+	int temp = trim_base * 1000 + trim_base_frac * 100;
+	u32 base_code = rk_tsadcv2_temp_to_code(table, temp);
+
+	rk_tsadcv2_temp_to_code(table, temp);
+
+	return (TSADCV3_Q_MAX_VAL - code) - base_code;
+}
+
 static int rk_tsadcv1_set_clk_rate(struct platform_device *pdev)
 {
 	struct clk *clk;
@@ -1884,6 +1895,8 @@ static const struct rockchip_tsadc_chip rk3562_tsadc_data = {
 	.set_alarm_temp = rk_tsadcv3_alarm_temp,
 	.set_tshut_temp = rk_tsadcv3_tshut_temp,
 	.set_tshut_mode = rk_tsadcv4_tshut_mode,
+	.get_trim_code = rk_tsadcv3_get_trim_code,
+	.trim_slope = 588,
 
 	.table = {
 		.id = rk3562_code_table,
