@@ -359,9 +359,36 @@
 		rockchip,low-temp = <10000>;
 		rockchip,low-temp-min-volt = <900000>;
 
+		rockchip,leakage-voltage-sel = <
+			1   10   0
+			11  14   1
+			15  22   2
+			23  28   3
+			29  254  4
+		>;
+
+		opp-920000000 {
+			opp-hz = /bits/ 64 <920000000>;
+			opp-microvolt = <850000 850000 1000000>;
+		};
 		opp-1056000000 {
 			opp-hz = /bits/ 64 <1056000000>;
+			opp-microvolt = <850000 850000 1000000>;
+			opp-microvolt-L0 = <875000 875000 1000000>;
+			opp-microvolt-L1 = <850000 850000 1000000>;
+			opp-microvolt-L2 = <850000 850000 1000000>;
+			opp-microvolt-L3 = <850000 850000 1000000>;
+			opp-microvolt-L4 = <850000 850000 1000000>;
+		};
+		opp-1184000000 {
+			opp-hz = /bits/ 64 <1184000000>;
 			opp-microvolt = <900000 900000 1000000>;
+			opp-microvolt-L0 = <950000 950000 1000000>;
+			opp-microvolt-L1 = <925000 925000 1000000>;
+			opp-microvolt-L2 = <900000 900000 1000000>;
+			opp-microvolt-L3 = <875000 875000 1000000>;
+			opp-microvolt-L4 = <862500 862500 1000000>;
+			status = "disabled";
 		};
 	};
 
