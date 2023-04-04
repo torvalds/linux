@@ -8,6 +8,7 @@
 #include "mt7996.h"
 #include "mac.h"
 #include "mcu.h"
+#include "coredump.h"
 #include "eeprom.h"
 
 static const struct ieee80211_iface_limit if_limits[] = {
@@ -841,6 +842,8 @@ int mt7996_register_device(struct mt7996_dev *dev)
 
 	init_waitqueue_head(&dev->reset_wait);
 	INIT_WORK(&dev->reset_work, mt7996_mac_reset_work);
+	INIT_WORK(&dev->dump_work, mt7996_mac_dump_work);
+	mutex_init(&dev->dump_mutex);
 
 	ret = mt7996_init_hardware(dev);
 	if (ret)
@@ -871,13 +874,18 @@ int mt7996_register_device(struct mt7996_dev *dev)
 
 	dev->recovery.hw_init_done = true;
 
-	return mt7996_init_debugfs(&dev->phy);
+	ret = mt7996_init_debugfs(&dev->phy);
+	if (ret)
+		return ret;
+
+	return mt7996_coredump_register(dev);
 }
 
 void mt7996_unregister_device(struct mt7996_dev *dev)
 {
 	mt7996_unregister_phy(mt7996_phy3(dev), MT_BAND2);
 	mt7996_unregister_phy(mt7996_phy2(dev), MT_BAND1);
+	mt7996_coredump_unregister(dev);
 	mt76_unregister_device(&dev->mt76);
 	mt7996_mcu_exit(dev);
 	mt7996_tx_token_put(dev);

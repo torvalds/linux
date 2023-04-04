@@ -162,6 +162,14 @@ static u32 __mt7996_reg_addr(struct mt7996_dev *dev, u32 addr)
 	return mt7996_reg_map_l2(dev, addr);
 }
 
+void mt7996_memcpy_fromio(struct mt7996_dev *dev, void *buf, u32 offset,
+			  size_t len)
+{
+	u32 addr = __mt7996_reg_addr(dev, offset);
+
+	memcpy_fromio(buf, dev->mt76.mmio.regs + addr, len);
+}
+
 static u32 mt7996_rr(struct mt76_dev *mdev, u32 offset)
 {
 	struct mt7996_dev *dev = container_of(mdev, struct mt7996_dev, mt76);

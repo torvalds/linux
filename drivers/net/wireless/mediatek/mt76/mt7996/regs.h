@@ -474,6 +474,9 @@ enum base_rev {
 #define MT_INFRA_MCU_END			0x7c3fffff
 
 /* FW MODE SYNC */
+#define MT_FW_ASSERT_CNT			0x02208274
+#define MT_FW_DUMP_STATE			0x02209e90
+
 #define MT_SWDEF_BASE				0x00401400
 
 #define MT_SWDEF(ofs)				(MT_SWDEF_BASE + (ofs))
@@ -507,6 +510,13 @@ enum base_rev {
 #define MT_LED_TX_BLINK_OFF_MASK		GENMASK(15, 8)
 
 #define MT_LED_EN(_n)				MT_LED_PHYS(0x40 + ((_n) * 4))
+
+/* CONN DBG */
+#define MT_CONN_DBG_CTL_BASE			0x18023000
+#define MT_CONN_DBG_CTL(ofs)			(MT_CONN_DBG_CTL_BASE + (ofs))
+#define MT_CONN_DBG_CTL_OUT_SEL			MT_CONN_DBG_CTL(0x604)
+#define MT_CONN_DBG_CTL_PC_LOG_SEL		MT_CONN_DBG_CTL(0x60c)
+#define MT_CONN_DBG_CTL_PC_LOG			MT_CONN_DBG_CTL(0x610)
 
 #define MT_LED_GPIO_MUX2			0x70005058 /* GPIO 18 */
 #define MT_LED_GPIO_MUX3			0x7000505C /* GPIO 26 */
@@ -560,5 +570,13 @@ enum base_rev {
 #define MT_WF_PHYRX_CSD_BAND_RXTD12(_band)		MT_WF_PHYRX_BAND(_band, 0x8230)
 #define MT_WF_PHYRX_CSD_BAND_RXTD12_IRPI_SW_CLR_ONLY	BIT(18)
 #define MT_WF_PHYRX_CSD_BAND_RXTD12_IRPI_SW_CLR		BIT(29)
+
+/* CONN MCU EXCP CON */
+#define MT_MCU_WM_EXCP_BASE			0x89050000
+#define MT_MCU_WM_EXCP(ofs)			(MT_MCU_WM_EXCP_BASE + (ofs))
+#define MT_MCU_WM_EXCP_PC_CTRL			MT_MCU_WM_EXCP(0x100)
+#define MT_MCU_WM_EXCP_PC_LOG			MT_MCU_WM_EXCP(0x104)
+#define MT_MCU_WM_EXCP_LR_CTRL			MT_MCU_WM_EXCP(0x200)
+#define MT_MCU_WM_EXCP_LR_LOG			MT_MCU_WM_EXCP(0x204)
 
 #endif

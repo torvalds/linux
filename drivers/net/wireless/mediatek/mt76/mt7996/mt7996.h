@@ -176,6 +176,15 @@ struct mib_stats {
 	u32 tx_amsdu_cnt;
 };
 
+/* crash-dump */
+struct mt7996_crash_data {
+	guid_t guid;
+	struct timespec64 timestamp;
+
+	u8 *memdump_buf;
+	size_t memdump_buf_len;
+};
+
 struct mt7996_hif {
 	struct list_head list;
 
@@ -234,6 +243,7 @@ struct mt7996_dev {
 
 	struct work_struct init_work;
 	struct work_struct rc_work;
+	struct work_struct dump_work;
 	struct work_struct reset_work;
 	wait_queue_head_t reset_wait;
 	struct {
@@ -244,6 +254,14 @@ struct mt7996_dev {
 		bool hw_init_done:1;
 		bool restart:1;
 	} recovery;
+
+	/* protects coredump data */
+	struct mutex dump_mutex;
+#ifdef CONFIG_DEV_COREDUMP
+	struct {
+		struct mt7996_crash_data *crash_data;
+	} coredump;
+#endif
 
 	struct list_head sta_rc_list;
 	struct list_head sta_poll_list;
@@ -476,6 +494,9 @@ static inline void mt7996_irq_disable(struct mt7996_dev *dev, u32 mask)
 		mt76_set_irq_mask(&dev->mt76, MT_INT_MASK_CSR, mask, 0);
 }
 
+void mt7996_memcpy_fromio(struct mt7996_dev *dev, void *buf, u32 offset,
+			  size_t len);
+
 void mt7996_mac_init(struct mt7996_dev *dev);
 u32 mt7996_mac_wtbl_lmac_addr(struct mt7996_dev *dev, u16 wcid, u8 dw);
 bool mt7996_mac_wtbl_update(struct mt7996_dev *dev, int idx, u32 mask);
@@ -495,6 +516,7 @@ void mt7996_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta);
 void mt7996_mac_work(struct work_struct *work);
 void mt7996_mac_reset_work(struct work_struct *work);
+void mt7996_mac_dump_work(struct work_struct *work);
 void mt7996_mac_sta_rc_work(struct work_struct *work);
 void mt7996_mac_update_stats(struct mt7996_phy *phy);
 void mt7996_mac_twt_teardown_flow(struct mt7996_dev *dev,
