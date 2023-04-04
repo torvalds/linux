@@ -47,6 +47,7 @@
 #include <linux/usb/redriver.h>
 #include <linux/usb/composite.h>
 #include <linux/soc/qcom/wcd939x-i2c.h>
+#include <linux/usb/repeater.h>
 
 #include "core.h"
 #include "gadget.h"
@@ -212,6 +213,9 @@
 
 #define DWC3_DEPCFG_RETRY		BIT(15)
 #define DWC3_DEPCFG_TRB_WB		BIT(14)
+
+/* USB repeater */
+#define USB_REPEATER_V1		0x1
 
 enum dbm_reg {
 	DBM_EP_CFG,
@@ -3259,6 +3263,21 @@ static void mdwc3_update_u1u2_value(struct dwc3 *dwc)
 		dwc->dis_u2_entry_quirk ? "disabled" : "enabled");
 }
 
+int dwc3_msm_get_repeater_ver(struct dwc3_msm *mdwc)
+{
+	struct usb_repeater *ur = NULL;
+	int ver;
+
+	ur = devm_usb_get_repeater_by_phandle(mdwc->hs_phy->dev, "usb-repeater", 0);
+	if (IS_ERR(ur))
+		return -ENODEV;
+
+	ver = usb_repeater_get_version(ur);
+	usb_put_repeater(ur);
+
+	return ver;
+}
+
 void dwc3_msm_notify_event(struct dwc3 *dwc,
 		enum dwc3_notify_event event, unsigned int value)
 {
@@ -3298,9 +3317,20 @@ void dwc3_msm_notify_event(struct dwc3 *dwc,
 		if (mdwc->use_eusb2_phy &&
 				(dwc->gadget->speed >= USB_SPEED_SUPER)) {
 			usb_phy_notify_connect(mdwc->hs_phy, dwc->gadget->speed);
-			udelay(20);
-			/* Perform usb2 phy soft reset as given workaround */
-			mdwc3_usb2_phy_soft_reset(mdwc);
+
+			/*
+			 * Certain USB repeater HW revisions will have a fix on
+			 * silicon.  Limit the controller PHY soft reset to the
+			 * version which requires it.
+			 */
+			if (dwc3_msm_get_repeater_ver(mdwc) == USB_REPEATER_V1) {
+				udelay(20);
+				/*
+				 * Perform usb2 phy soft reset as given
+				 * workaround
+				 */
+				mdwc3_usb2_phy_soft_reset(mdwc);
+			}
 		}
 
 		/*
