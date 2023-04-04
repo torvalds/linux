@@ -229,7 +229,7 @@ const struct bpf_func_proto bpf_inode_storage_get_proto = {
 	.gpl_only	= false,
 	.ret_type	= RET_PTR_TO_MAP_VALUE_OR_NULL,
 	.arg1_type	= ARG_CONST_MAP_PTR,
-	.arg2_type	= ARG_PTR_TO_BTF_ID,
+	.arg2_type	= ARG_PTR_TO_BTF_ID_OR_NULL,
 	.arg2_btf_id	= &bpf_inode_storage_btf_ids[0],
 	.arg3_type	= ARG_PTR_TO_MAP_VALUE_OR_NULL,
 	.arg4_type	= ARG_ANYTHING,
@@ -240,6 +240,6 @@ const struct bpf_func_proto bpf_inode_storage_delete_proto = {
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_CONST_MAP_PTR,
-	.arg2_type	= ARG_PTR_TO_BTF_ID,
+	.arg2_type	= ARG_PTR_TO_BTF_ID_OR_NULL,
 	.arg2_btf_id	= &bpf_inode_storage_btf_ids[0],
 };
