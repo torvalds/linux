@@ -178,12 +178,12 @@ static int mqprio_parse_nlattr(struct Qdisc *sch, struct tc_mqprio_qopt *qopt,
 
 	if (tb[TCA_MQPRIO_MODE]) {
 		priv->flags |= TC_MQPRIO_F_MODE;
-		priv->mode = *(u16 *)nla_data(tb[TCA_MQPRIO_MODE]);
+		priv->mode = nla_get_u16(tb[TCA_MQPRIO_MODE]);
 	}
 
 	if (tb[TCA_MQPRIO_SHAPER]) {
 		priv->flags |= TC_MQPRIO_F_SHAPER;
-		priv->shaper = *(u16 *)nla_data(tb[TCA_MQPRIO_SHAPER]);
+		priv->shaper = nla_get_u16(tb[TCA_MQPRIO_SHAPER]);
 	}
 
 	if (tb[TCA_MQPRIO_MIN_RATE64]) {
@@ -196,7 +196,7 @@ static int mqprio_parse_nlattr(struct Qdisc *sch, struct tc_mqprio_qopt *qopt,
 				return -EINVAL;
 			if (i >= qopt->num_tc)
 				break;
-			priv->min_rate[i] = *(u64 *)nla_data(attr);
+			priv->min_rate[i] = nla_get_u64(attr);
 			i++;
 		}
 		priv->flags |= TC_MQPRIO_F_MIN_RATE;
@@ -212,7 +212,7 @@ static int mqprio_parse_nlattr(struct Qdisc *sch, struct tc_mqprio_qopt *qopt,
 				return -EINVAL;
 			if (i >= qopt->num_tc)
 				break;
-			priv->max_rate[i] = *(u64 *)nla_data(attr);
+			priv->max_rate[i] = nla_get_u64(attr);
 			i++;
 		}
 		priv->flags |= TC_MQPRIO_F_MAX_RATE;
