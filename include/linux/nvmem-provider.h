@@ -9,6 +9,7 @@
 #ifndef _LINUX_NVMEM_PROVIDER_H
 #define _LINUX_NVMEM_PROVIDER_H
 
+#include <linux/device/driver.h>
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/gpio/consumer.h>
@@ -242,4 +243,9 @@ nvmem_layout_get_match_data(struct nvmem_device *nvmem,
 }
 
 #endif /* CONFIG_NVMEM */
+
+#define module_nvmem_layout_driver(__layout_driver)		\
+	module_driver(__layout_driver, nvmem_layout_register,	\
+		      nvmem_layout_unregister)
+
 #endif  /* ifndef _LINUX_NVMEM_PROVIDER_H */
