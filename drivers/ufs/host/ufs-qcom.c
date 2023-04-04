@@ -342,7 +342,7 @@ out:
 static inline void cancel_dwork_unvote_cpufreq(struct ufs_hba *hba)
 {
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
-	int err;
+	int err, i;
 
 	if (host->cpufreq_dis)
 		return;
@@ -352,14 +352,16 @@ static inline void cancel_dwork_unvote_cpufreq(struct ufs_hba *hba)
 		return;
 	atomic_set(&host->num_reqs_threshold, 0);
 
-	err = ufs_qcom_mod_min_cpufreq(host->config_cpu,
-				       host->min_cpu_scale_freq);
-	if (err < 0)
-		dev_err(hba->dev, "fail set cpufreq-fmin_def %d:\n",
-				err);
-	else
-		host->cur_freq_vote = false;
-	dev_dbg(hba->dev, "%s,err=%d\n", __func__, err);
+	for (i = 0; i < host->num_cpus; i++) {
+		err = ufs_qcom_mod_min_cpufreq(host->cpu_info[i].cpu,
+				       host->cpu_info[i].min_cpu_scale_freq);
+		if (err < 0)
+			dev_err(hba->dev, "fail set cpufreq-fmin_def %d\n", err);
+		else
+			host->cur_freq_vote = false;
+		dev_dbg(hba->dev, "%s: err=%d,cpu=%u\n", __func__, err,
+			host->cpu_info[i].cpu);
+	}
 }
 
 static int ufs_qcom_get_pwr_dev_param(struct ufs_qcom_dev_params *qcom_param,
@@ -1451,26 +1453,33 @@ static int ufs_qcom_mod_min_cpufreq(unsigned int cpu, s32 new_val)
 	return ret;
 }
 
-static int ufs_qcom_init_cpu_minfreq_req(struct ufs_qcom_host *host,
-					unsigned int cpu)
+static int ufs_qcom_init_cpu_minfreq_req(struct ufs_qcom_host *host)
 {
-	int ret;
+	int ret, i;
+	unsigned int cpu;
 	struct cpufreq_policy *policy;
 	struct freq_qos_request *req;
 
-	policy = cpufreq_cpu_get(cpu);
-	if (!policy) {
-		dev_err(host->hba->dev, "Failed to get cpu(%u)freq policy\n",
-			cpu);
-		return -EINVAL;
-	}
+	for (i = 0; i < host->num_cpus; i++) {
+		cpu = (unsigned int)host->cpu_info[i].cpu;
 
-	req = &per_cpu(qos_min_req, cpu);
-	ret = freq_qos_add_request(&policy->constraints, req, FREQ_QOS_MIN,
-				FREQ_QOS_MIN_DEFAULT_VALUE);
-	if (ret < 0)
-		dev_err(host->hba->dev, "Failed to add freq qos req\n");
-	cpufreq_cpu_put(policy);
+		policy = cpufreq_cpu_get(cpu);
+		if (!policy) {
+			dev_err(host->hba->dev, "Failed to get cpu(%u)freq policy\n",
+				cpu);
+			return -EINVAL;
+		}
+
+		req = &per_cpu(qos_min_req, cpu);
+		ret = freq_qos_add_request(&policy->constraints, req, FREQ_QOS_MIN,
+					FREQ_QOS_MIN_DEFAULT_VALUE);
+		cpufreq_cpu_put(policy);
+		if (ret < 0) {
+			dev_err(host->hba->dev, "Failed to add freq qos req(%u), err=%d\n",
+				cpu, ret);
+			break;
+		}
+	}
 
 	return ret;
 }
@@ -1516,30 +1525,38 @@ static void ufs_qcom_cpufreq_dwork(struct work_struct *work)
 	unsigned long cur_thres = atomic_read(&host->num_reqs_threshold);
 	unsigned int freq_val = -1;
 	int err = -1;
+	int scale_up;
+	int i;
 
 	atomic_set(&host->num_reqs_threshold, 0);
 
 	if (cur_thres > NUM_REQS_HIGH_THRESH && !host->cur_freq_vote) {
-		freq_val = host->max_cpu_scale_freq;
+		scale_up = 1;
 		ufs_qcom_toggle_pri_affinity(host->hba, true);
 	} else if (cur_thres < NUM_REQS_LOW_THRESH && host->cur_freq_vote) {
-		freq_val = host->min_cpu_scale_freq;
+		scale_up = 0;
 		ufs_qcom_toggle_pri_affinity(host->hba, false);
-	}
-
-	if (freq_val == -1)
+	} else
 		goto out;
 
-	err = ufs_qcom_mod_min_cpufreq(host->config_cpu, freq_val);
-	if (err < 0)
-		dev_err(host->hba->dev, "fail set cpufreq-fmin to %d: %u\n",
-				err, freq_val);
-	else if (freq_val == host->max_cpu_scale_freq)
-		host->cur_freq_vote = true;
-	else if (freq_val == host->min_cpu_scale_freq)
-		host->cur_freq_vote = false;
-	dev_dbg(host->hba->dev, "cur_freq_vote=%d,freq_val=%u,cth=%u\n",
-		host->cur_freq_vote, freq_val, cur_thres);
+	host->cur_freq_vote = true;
+	for (i = 0; i < host->num_cpus; i++) {
+		if (scale_up)
+			freq_val = host->cpu_info[i].max_cpu_scale_freq;
+		else
+			freq_val = host->cpu_info[i].min_cpu_scale_freq;
+
+		err = ufs_qcom_mod_min_cpufreq(host->cpu_info[i].cpu, freq_val);
+		if (err < 0) {
+			dev_err(host->hba->dev, "fail set cpufreq-fmin,freq_val=%u,cpu=%u,err=%d\n",
+				freq_val, host->cpu_info[i].cpu, err);
+			host->cur_freq_vote = false;
+		} else if (freq_val == host->cpu_info[i].min_cpu_scale_freq)
+			host->cur_freq_vote = false;
+		dev_dbg(host->hba->dev, "cur_freq_vote=%d,freq_val=%u,cth=%u,cpu=%u\n",
+			host->cur_freq_vote, freq_val, cur_thres, host->cpu_info[i].cpu);
+	}
+
 out:
 	queue_delayed_work(host->ufs_qos->workq, &host->fwork,
 			   msecs_to_jiffies(UFS_QCOM_LOAD_MON_DLY_MS));
@@ -2745,7 +2762,6 @@ static int ufs_qcom_setup_qos(struct ufs_hba *hba)
 	struct ufs_qcom_qos_req *qr = host->ufs_qos;
 	struct qos_cpu_group *qcg = qr->qcg;
 	struct cpufreq_policy *policy;
-	unsigned int cpu;
 	int i, err;
 
 	for (i = 0; i < qr->num_groups; i++, qcg++) {
@@ -2772,27 +2788,22 @@ static int ufs_qcom_setup_qos(struct ufs_hba *hba)
 			goto free_mem;
 		}
 		INIT_WORK(&qcg->vwork, ufs_qcom_vote_work);
+	}
 
-		if (host->cpufreq_dis || qcg->perf_core)
-			continue;
-		/* Bump up the cpufreq of the non-perf group */
-		cpu = cpumask_first((const struct cpumask *)&qcg->mask);
-		policy = cpufreq_cpu_get(cpu);
+	for (i = 0; i < host->num_cpus; i++) {
+		policy = cpufreq_cpu_get(host->cpu_info[i].cpu);
 		if (!policy) {
-			dev_err(dev, "%s: Failed cpufreq policy,cpu=%d,mask=0x%08x\n",
-				__func__, cpu, qcg->mask);
+			dev_err(dev, "Failed cpufreq policy,cpu=%u\n", host->cpu_info[i].cpu);
 			host->cpufreq_dis = true;
-			host->config_cpu = -1;
-			continue;
+			break;
 		}
-		host->config_cpu = cpu;
-		host->min_cpu_scale_freq = policy->cpuinfo.min_freq;
-		host->max_cpu_scale_freq = policy->cpuinfo.max_freq;
+		host->cpu_info[i].min_cpu_scale_freq = policy->cpuinfo.min_freq;
+		host->cpu_info[i].max_cpu_scale_freq = policy->cpuinfo.max_freq;
 		cpufreq_cpu_put(policy);
 	}
 
 	if (!host->cpufreq_dis) {
-		err = ufs_qcom_init_cpu_minfreq_req(host, host->config_cpu);
+		err = ufs_qcom_init_cpu_minfreq_req(host);
 		if (err) {
 			dev_err(dev, "Failed to register for freq_qos: %d\n",
 				err);
@@ -2811,6 +2822,41 @@ free_mem:
 		qcg--;
 	}
 	return err;
+}
+
+static void ufs_qcom_parse_cpu_freq_vote(struct device_node *group_node, struct ufs_hba *hba)
+{
+	int num_cpus, i;
+	struct cpu_freq_info *cpu_freq_info;
+	struct device *dev = hba->dev;
+	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
+
+	num_cpus = of_property_count_u32_elems(group_node, "cpu_freq_vote");
+	if (num_cpus > 0) {
+		/*
+		 * There may be more than one cpu_freq_vote in DT, when parsing the second
+		 * cpu_freq_vote, memory for both the first cpu_freq_vote and the second
+		 * cpu_freq_vote should be allocated. After copying the first cpu_freq_vote's
+		 * info to the newly allocated memory, the memory allocated by kzalloc previously
+		 * should be freed.
+		 */
+		cpu_freq_info = kzalloc(
+			sizeof(struct cpu_freq_info) * (host->num_cpus + num_cpus), GFP_KERNEL);
+		if (cpu_freq_info) {
+			memcpy(cpu_freq_info, host->cpu_info,
+				host->num_cpus * sizeof(struct cpu_freq_info));
+			for (i = 0; i < num_cpus; i++) {
+				of_property_read_u32_index(group_node, "cpu_freq_vote",
+					i, &(cpu_freq_info[host->num_cpus + i].cpu));
+			}
+
+			kfree(host->cpu_info);
+			host->cpu_info = cpu_freq_info;
+			host->num_cpus += num_cpus;
+		} else
+			dev_err(dev, "allocating memory for cpufreq info failed\n");
+	} else
+		dev_warn(dev, "no cpu_freq_vote found\n");
 }
 
 static void ufs_qcom_qos_init(struct ufs_hba *hba)
@@ -2873,6 +2919,9 @@ static void ufs_qcom_qos_init(struct ufs_hba *hba)
 						       &qcg->votes[i]))
 				goto out_vote_err;
 		}
+
+		ufs_qcom_parse_cpu_freq_vote(group_node, hba);
+
 		dev_dbg(dev, "%s: qcg: 0x%08x\n", __func__, qcg);
 		qcg->host = host;
 		++qcg;
@@ -2887,6 +2936,8 @@ out_err:
 	kfree(qr->qcg);
 	kfree(qr);
 	host->ufs_qos = NULL;
+	kfree(host->cpu_info);
+	host->cpu_info = NULL;
 }
 
 static void ufs_qcom_parse_irq_affinity(struct ufs_hba *hba)
