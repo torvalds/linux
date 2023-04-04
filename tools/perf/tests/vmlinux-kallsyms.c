@@ -323,7 +323,7 @@ next_pair:
 		mem_end = map__unmap_ip(vmlinux_map, map__end(map));
 
 		pair = maps__find(kallsyms.kmaps, mem_start);
-		if (pair == NULL || pair->priv)
+		if (pair == NULL || map__priv(pair))
 			continue;
 
 		if (map__start(pair) == mem_start) {
@@ -351,7 +351,7 @@ next_pair:
 	maps__for_each_entry(maps, rb_node) {
 		struct map *map = rb_node->map;
 
-		if (!map->priv) {
+		if (!map__priv(map)) {
 			if (!header_printed) {
 				pr_info("WARN: Maps only in kallsyms:\n");
 				header_printed = true;

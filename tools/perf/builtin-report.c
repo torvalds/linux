@@ -849,13 +849,14 @@ static size_t maps__fprintf_task(struct maps *maps, int indent, FILE *fp)
 	maps__for_each_entry(maps, rb_node) {
 		struct map *map = rb_node->map;
 		const struct dso *dso = map__dso(map);
+		u32 prot = map__prot(map);
 
 		printed += fprintf(fp, "%*s  %" PRIx64 "-%" PRIx64 " %c%c%c%c %08" PRIx64 " %" PRIu64 " %s\n",
 				   indent, "", map__start(map), map__end(map),
-				   map->prot & PROT_READ ? 'r' : '-',
-				   map->prot & PROT_WRITE ? 'w' : '-',
-				   map->prot & PROT_EXEC ? 'x' : '-',
-				   map->flags & MAP_SHARED ? 's' : 'p',
+				   prot & PROT_READ ? 'r' : '-',
+				   prot & PROT_WRITE ? 'w' : '-',
+				   prot & PROT_EXEC ? 'x' : '-',
+				   map__flags(map) ? 's' : 'p',
 				   map->pgoff,
 				   dso->id.ino, dso->name);
 	}

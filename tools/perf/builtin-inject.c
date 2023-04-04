@@ -758,7 +758,7 @@ int perf_event__inject_buildid(struct perf_tool *tool, union perf_event *event,
 		if (!dso->hit) {
 			dso->hit = 1;
 			dso__inject_build_id(dso, tool, machine,
-					     sample->cpumode, al.map->flags);
+					     sample->cpumode, map__flags(al.map));
 		}
 	}
 

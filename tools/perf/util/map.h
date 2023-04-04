@@ -72,6 +72,21 @@ static inline u64 map__end(const struct map *map)
 	return map->end;
 }
 
+static inline u32 map__flags(const struct map *map)
+{
+	return map->flags;
+}
+
+static inline u32 map__prot(const struct map *map)
+{
+	return map->prot;
+}
+
+static inline bool map__priv(const struct map *map)
+{
+	return map->priv;
+}
+
 static inline size_t map__size(const struct map *map)
 {
 	return map__end(map) - map__start(map);
