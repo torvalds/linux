@@ -376,7 +376,9 @@ struct efa_admin_reg_mr_cmd {
 	 * 0 : local_write_enable - Local write permissions:
 	 *    must be set for RQ buffers and buffers posted for
 	 *    RDMA Read requests
-	 * 1 : reserved1 - MBZ
+	 * 1 : remote_write_enable - Remote write
+	 *    permissions: must be set to enable RDMA write to
+	 *    the region
 	 * 2 : remote_read_enable - Remote read permissions:
 	 *    must be set to enable RDMA read from the region
 	 * 7:3 : reserved2 - MBZ
@@ -620,7 +622,9 @@ struct efa_admin_feature_device_attr_desc {
 	 *    modify QP command
 	 * 2 : data_polling_128 - If set, 128 bytes data
 	 *    polling is supported
-	 * 31:3 : reserved - MBZ
+	 * 3 : rdma_write - If set, RDMA Write is supported
+	 *    on TX queues
+	 * 31:4 : reserved - MBZ
 	 */
 	u32 device_caps;
 
@@ -674,7 +678,7 @@ struct efa_admin_feature_queue_attr_desc {
 	/* The maximum size of LLQ in bytes */
 	u32 max_llq_size;
 
-	/* Maximum number of SGEs for a single RDMA read WQE */
+	/* Maximum number of SGEs for a single RDMA read/write WQE */
 	u16 max_wr_rdma_sges;
 
 	/*
@@ -979,6 +983,7 @@ struct efa_admin_host_info {
 #define EFA_ADMIN_REG_MR_CMD_PHYS_PAGE_SIZE_SHIFT_MASK      GENMASK(4, 0)
 #define EFA_ADMIN_REG_MR_CMD_MEM_ADDR_PHY_MODE_EN_MASK      BIT(7)
 #define EFA_ADMIN_REG_MR_CMD_LOCAL_WRITE_ENABLE_MASK        BIT(0)
+#define EFA_ADMIN_REG_MR_CMD_REMOTE_WRITE_ENABLE_MASK       BIT(1)
 #define EFA_ADMIN_REG_MR_CMD_REMOTE_READ_ENABLE_MASK        BIT(2)
 
 /* create_cq_cmd */
@@ -994,6 +999,7 @@ struct efa_admin_host_info {
 #define EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_RDMA_READ_MASK   BIT(0)
 #define EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_RNR_RETRY_MASK   BIT(1)
 #define EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_DATA_POLLING_128_MASK BIT(2)
+#define EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_RDMA_WRITE_MASK  BIT(3)
 
 /* create_eq_cmd */
 #define EFA_ADMIN_CREATE_EQ_CMD_ENTRY_SIZE_WORDS_MASK       GENMASK(4, 0)
