@@ -51,6 +51,7 @@ struct nvmem_keepout {
  * struct nvmem_cell_info - NVMEM cell description
  * @name:	Name.
  * @offset:	Offset within the NVMEM device.
+ * @raw_len:	Length of raw data (without post processing).
  * @bytes:	Length of the cell.
  * @bit_offset:	Bit offset if cell is smaller than a byte.
  * @nbits:	Number of bits.
@@ -62,6 +63,7 @@ struct nvmem_keepout {
 struct nvmem_cell_info {
 	const char		*name;
 	unsigned int		offset;
+	size_t			raw_len;
 	unsigned int		bytes;
 	unsigned int		bit_offset;
 	unsigned int		nbits;
