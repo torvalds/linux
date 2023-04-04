@@ -314,6 +314,15 @@ static void hdaml_link_sync_go(u32 __iomem *lsync)
 	writel(val, lsync);
 }
 
+static bool hdaml_link_check_cmdsync(u32 __iomem *lsync, u32 cmdsync_mask)
+{
+	u32 val;
+
+	val = readl(lsync);
+
+	return !!(val & cmdsync_mask);
+}
+
 /* END HDAML section */
 
 static int hda_ml_alloc_h2link(struct hdac_bus *bus, int index)
@@ -561,6 +570,35 @@ int hdac_bus_eml_sdw_sync_go_unlocked(struct hdac_bus *bus)
 	return hdac_bus_eml_sync_go_unlocked(bus, true, AZX_REG_ML_LEPTR_ID_SDW);
 }
 EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_sync_go_unlocked, SND_SOC_SOF_HDA_MLINK);
+
+bool hdac_bus_eml_check_cmdsync_unlocked(struct hdac_bus *bus, bool alt, int elid)
+{
+	struct hdac_ext2_link *h2link;
+	struct hdac_ext_link *hlink;
+	u32 cmdsync_mask;
+
+	h2link = find_ext2_link(bus, alt, elid);
+	if (!h2link)
+		return 0;
+
+	if (!h2link->lss)
+		return 0;
+
+	hlink = &h2link->hext_link;
+
+	cmdsync_mask = GENMASK(AZX_REG_ML_LSYNC_CMDSYNC_SHIFT + h2link->slcount - 1,
+			       AZX_REG_ML_LSYNC_CMDSYNC_SHIFT);
+
+	return hdaml_link_check_cmdsync(hlink->ml_addr + AZX_REG_ML_LSYNC,
+					cmdsync_mask);
+}
+EXPORT_SYMBOL_NS(hdac_bus_eml_check_cmdsync_unlocked, SND_SOC_SOF_HDA_MLINK);
+
+bool hdac_bus_eml_sdw_check_cmdsync_unlocked(struct hdac_bus *bus)
+{
+	return hdac_bus_eml_check_cmdsync_unlocked(bus, true, AZX_REG_ML_LEPTR_ID_SDW);
+}
+EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_check_cmdsync_unlocked, SND_SOC_SOF_HDA_MLINK);
 
 static int hdac_bus_eml_power_up_base(struct hdac_bus *bus, bool alt, int elid, int sublink,
 				      bool eml_lock)
