@@ -103,6 +103,11 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 		return ret;
 	}
 
+	if (sdev->dspless_mode_selected) {
+		sof_set_fw_state(sdev, SOF_DSPLESS_MODE);
+		return 0;
+	}
+
 	/*
 	 * Nothing further to be done for platforms that support the low power
 	 * D0 substate. Resume trace and return when resuming from

@@ -1144,7 +1144,11 @@ static void sof_disconnect_dai_widget(struct snd_soc_component *scomp,
 static int spcm_bind(struct snd_soc_component *scomp, struct snd_sof_pcm *spcm,
 		     int dir)
 {
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_sof_widget *host_widget;
+
+	if (sdev->dspless_mode_selected)
+		return 0;
 
 	host_widget = snd_sof_find_swidget_sname(scomp,
 						 spcm->pcm.caps[dir].name,
@@ -2270,6 +2274,126 @@ static struct snd_soc_tplg_ops sof_tplg_ops = {
 	.bytes_ext_ops_count	= ARRAY_SIZE(sof_bytes_ext_ops),
 };
 
+static int snd_sof_dspless_kcontrol(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	return 0;
+}
+
+static const struct snd_soc_tplg_kcontrol_ops sof_dspless_io_ops[] = {
+	{SOF_TPLG_KCTL_VOL_ID, snd_sof_dspless_kcontrol, snd_sof_dspless_kcontrol},
+	{SOF_TPLG_KCTL_BYTES_ID, snd_sof_dspless_kcontrol, snd_sof_dspless_kcontrol},
+	{SOF_TPLG_KCTL_ENUM_ID, snd_sof_dspless_kcontrol, snd_sof_dspless_kcontrol},
+	{SOF_TPLG_KCTL_SWITCH_ID, snd_sof_dspless_kcontrol, snd_sof_dspless_kcontrol},
+};
+
+static int snd_sof_dspless_bytes_ext_get(struct snd_kcontrol *kcontrol,
+					 unsigned int __user *binary_data,
+					 unsigned int size)
+{
+	return 0;
+}
+
+static int snd_sof_dspless_bytes_ext_put(struct snd_kcontrol *kcontrol,
+					 const unsigned int __user *binary_data,
+					 unsigned int size)
+{
+	return 0;
+}
+
+static const struct snd_soc_tplg_bytes_ext_ops sof_dspless_bytes_ext_ops[] = {
+	{SOF_TPLG_KCTL_BYTES_ID, snd_sof_dspless_bytes_ext_get, snd_sof_dspless_bytes_ext_put},
+	{SOF_TPLG_KCTL_BYTES_VOLATILE_RO, snd_sof_dspless_bytes_ext_get},
+};
+
+/* external widget init - used for any driver specific init */
+static int sof_dspless_widget_ready(struct snd_soc_component *scomp, int index,
+				    struct snd_soc_dapm_widget *w,
+				    struct snd_soc_tplg_dapm_widget *tw)
+{
+	if (WIDGET_IS_DAI(w->id)) {
+		struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+		struct snd_sof_widget *swidget;
+		struct snd_sof_dai dai;
+		int ret;
+
+		swidget = kzalloc(sizeof(*swidget), GFP_KERNEL);
+		if (!swidget)
+			return -ENOMEM;
+
+		memset(&dai, 0, sizeof(dai));
+
+		ret = sof_connect_dai_widget(scomp, w, tw, &dai);
+		if (ret) {
+			kfree(swidget);
+			return ret;
+		}
+
+		swidget->scomp = scomp;
+		swidget->widget = w;
+		mutex_init(&swidget->setup_mutex);
+		w->dobj.private = swidget;
+		list_add(&swidget->list, &sdev->widget_list);
+	}
+
+	return 0;
+}
+
+static int sof_dspless_widget_unload(struct snd_soc_component *scomp,
+				     struct snd_soc_dobj *dobj)
+{
+	struct snd_soc_dapm_widget *w = container_of(dobj, struct snd_soc_dapm_widget, dobj);
+
+	if (WIDGET_IS_DAI(w->id)) {
+		struct snd_sof_widget *swidget = dobj->private;
+
+		sof_disconnect_dai_widget(scomp, w);
+
+		if (!swidget)
+			return 0;
+
+		/* remove and free swidget object */
+		list_del(&swidget->list);
+		kfree(swidget);
+	}
+
+	return 0;
+}
+
+static int sof_dspless_link_load(struct snd_soc_component *scomp, int index,
+				 struct snd_soc_dai_link *link,
+				 struct snd_soc_tplg_link_config *cfg)
+{
+	link->platforms->name = dev_name(scomp->dev);
+
+	/* Set nonatomic property for FE dai links for FE-BE compatibility */
+	if (!link->no_pcm)
+		link->nonatomic = true;
+
+	return 0;
+}
+
+static struct snd_soc_tplg_ops sof_dspless_tplg_ops = {
+	/* external widget init - used for any driver specific init */
+	.widget_ready	= sof_dspless_widget_ready,
+	.widget_unload	= sof_dspless_widget_unload,
+
+	/* FE DAI - used for any driver specific init */
+	.dai_load	= sof_dai_load,
+	.dai_unload	= sof_dai_unload,
+
+	/* DAI link - used for any driver specific init */
+	.link_load	= sof_dspless_link_load,
+
+	/* vendor specific kcontrol handlers available for binding */
+	.io_ops		= sof_dspless_io_ops,
+	.io_ops_count	= ARRAY_SIZE(sof_dspless_io_ops),
+
+	/* vendor specific bytes ext handlers available for binding */
+	.bytes_ext_ops = sof_dspless_bytes_ext_ops,
+	.bytes_ext_ops_count = ARRAY_SIZE(sof_dspless_bytes_ext_ops),
+};
+
 int snd_sof_load_topology(struct snd_soc_component *scomp, const char *file)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
@@ -2287,7 +2411,11 @@ int snd_sof_load_topology(struct snd_soc_component *scomp, const char *file)
 		return ret;
 	}
 
-	ret = snd_soc_tplg_component_load(scomp, &sof_tplg_ops, fw);
+	if (sdev->dspless_mode_selected)
+		ret = snd_soc_tplg_component_load(scomp, &sof_dspless_tplg_ops, fw);
+	else
+		ret = snd_soc_tplg_component_load(scomp, &sof_tplg_ops, fw);
+
 	if (ret < 0) {
 		dev_err(scomp->dev, "error: tplg component load failed %d\n",
 			ret);

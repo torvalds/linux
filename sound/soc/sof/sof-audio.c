@@ -688,7 +688,7 @@ int sof_widget_list_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm,
 		struct snd_sof_widget *pipe_widget;
 		struct snd_sof_pipeline *spipe;
 
-		if (!swidget)
+		if (!swidget || sdev->dspless_mode_selected)
 			continue;
 
 		spipe = swidget->spipe;
