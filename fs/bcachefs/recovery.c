@@ -543,6 +543,8 @@ static int journal_keys_sort(struct bch_fs *c)
 		if (!i || i->ignore)
 			continue;
 
+		cond_resched();
+
 		for_each_jset_key(k, entry, &i->j) {
 			if (keys->nr == keys->size) {
 				__journal_keys_sort(keys);
