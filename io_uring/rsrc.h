@@ -4,6 +4,8 @@
 
 #include <net/af_unix.h>
 
+#include "alloc_cache.h"
+
 #define IO_RSRC_TAG_TABLE_SHIFT	(PAGE_SHIFT - 3)
 #define IO_RSRC_TAG_TABLE_MAX	(1U << IO_RSRC_TAG_TABLE_SHIFT)
 #define IO_RSRC_TAG_TABLE_MASK	(IO_RSRC_TAG_TABLE_MAX - 1)
@@ -37,8 +39,11 @@ struct io_rsrc_data {
 };
 
 struct io_rsrc_node {
+	union {
+		struct io_cache_entry		cache;
+		struct io_rsrc_data		*rsrc_data;
+	};
 	struct list_head		node;
-	struct io_rsrc_data		*rsrc_data;
 	struct llist_node		llist;
 	int				refs;
 	bool				done;
@@ -65,7 +70,7 @@ void io_rsrc_put_tw(struct callback_head *cb);
 void io_rsrc_node_ref_zero(struct io_rsrc_node *node);
 void io_rsrc_put_work(struct work_struct *work);
 void io_wait_rsrc_data(struct io_rsrc_data *data);
-void io_rsrc_node_destroy(struct io_rsrc_node *ref_node);
+void io_rsrc_node_destroy(struct io_ring_ctx *ctx, struct io_rsrc_node *ref_node);
 int io_rsrc_node_switch_start(struct io_ring_ctx *ctx);
 int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx,
 			  struct io_rsrc_node *node, void *rsrc);

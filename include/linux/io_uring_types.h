@@ -332,6 +332,7 @@ struct io_ring_ctx {
 
 	/* protected by ->uring_lock */
 	struct list_head		rsrc_ref_list;
+	struct io_alloc_cache		rsrc_node_cache;
 
 	struct list_head		io_buffers_pages;
 

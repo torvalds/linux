@@ -164,7 +164,7 @@ static void __io_rsrc_put_work(struct io_rsrc_node *ref_node)
 		kfree(prsrc);
 	}
 
-	io_rsrc_node_destroy(ref_node);
+	io_rsrc_node_destroy(rsrc_data->ctx, ref_node);
 	if (atomic_dec_and_test(&rsrc_data->refs))
 		complete(&rsrc_data->done);
 }
@@ -175,9 +175,10 @@ void io_wait_rsrc_data(struct io_rsrc_data *data)
 		wait_for_completion(&data->done);
 }
 
-void io_rsrc_node_destroy(struct io_rsrc_node *ref_node)
+void io_rsrc_node_destroy(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
 {
-	kfree(ref_node);
+	if (!io_alloc_cache_put(&ctx->rsrc_node_cache, &node->cache))
+		kfree(node);
 }
 
 void io_rsrc_node_ref_zero(struct io_rsrc_node *node)
@@ -198,13 +199,19 @@ void io_rsrc_node_ref_zero(struct io_rsrc_node *node)
 	}
 }
 
-static struct io_rsrc_node *io_rsrc_node_alloc(void)
+static struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx)
 {
 	struct io_rsrc_node *ref_node;
+	struct io_cache_entry *entry;
 
-	ref_node = kzalloc(sizeof(*ref_node), GFP_KERNEL);
-	if (!ref_node)
-		return NULL;
+	entry = io_alloc_cache_get(&ctx->rsrc_node_cache);
+	if (entry) {
+		ref_node = container_of(entry, struct io_rsrc_node, cache);
+	} else {
+		ref_node = kzalloc(sizeof(*ref_node), GFP_KERNEL);
+		if (!ref_node)
+			return NULL;
+	}
 
 	ref_node->refs = 1;
 	INIT_LIST_HEAD(&ref_node->node);
@@ -243,7 +250,7 @@ int io_rsrc_node_switch_start(struct io_ring_ctx *ctx)
 {
 	if (ctx->rsrc_backup_node)
 		return 0;
-	ctx->rsrc_backup_node = io_rsrc_node_alloc();
+	ctx->rsrc_backup_node = io_rsrc_node_alloc(ctx);
 	return ctx->rsrc_backup_node ? 0 : -ENOMEM;
 }
 
