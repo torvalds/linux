@@ -336,19 +336,26 @@ void ksz8_port_init_cnt(struct ksz_device *dev, int port)
 	}
 }
 
-static void ksz8_r_table(struct ksz_device *dev, int table, u16 addr, u64 *data)
+static int ksz8_r_table(struct ksz_device *dev, int table, u16 addr, u64 *data)
 {
 	const u16 *regs;
 	u16 ctrl_addr;
+	int ret;
 
 	regs = dev->info->regs;
 
 	ctrl_addr = IND_ACC_TABLE(table | TABLE_READ) | addr;
 
 	mutex_lock(&dev->alu_mutex);
-	ksz_write16(dev, regs[REG_IND_CTRL_0], ctrl_addr);
-	ksz_read64(dev, regs[REG_IND_DATA_HI], data);
+	ret = ksz_write16(dev, regs[REG_IND_CTRL_0], ctrl_addr);
+	if (ret)
+		goto unlock_alu;
+
+	ret = ksz_read64(dev, regs[REG_IND_DATA_HI], data);
+unlock_alu:
 	mutex_unlock(&dev->alu_mutex);
+
+	return ret;
 }
 
 static void ksz8_w_table(struct ksz_device *dev, int table, u16 addr, u64 data)
@@ -464,11 +471,15 @@ static int ksz8_r_sta_mac_table(struct ksz_device *dev, u16 addr,
 	const u8 *shifts;
 	const u32 *masks;
 	u64 data;
+	int ret;
 
 	shifts = dev->info->shifts;
 	masks = dev->info->masks;
 
-	ksz8_r_table(dev, TABLE_STATIC_MAC, addr, &data);
+	ret = ksz8_r_table(dev, TABLE_STATIC_MAC, addr, &data);
+	if (ret)
+		return ret;
+
 	data_hi = data >> 32;
 	data_lo = (u32)data;
 
