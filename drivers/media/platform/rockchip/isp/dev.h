@@ -248,6 +248,7 @@ struct rkisp_device {
 	bool is_rdbk_auto;
 	bool is_pre_on;
 	bool is_first_double;
+	bool is_probe_end;
 
 	struct rkisp_vicap_input vicap_in;
 

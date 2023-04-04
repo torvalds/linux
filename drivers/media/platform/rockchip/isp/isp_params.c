@@ -260,6 +260,9 @@ static int rkisp_params_fh_open(struct file *filp)
 	struct rkisp_isp_params_vdev *params = video_drvdata(filp);
 	int ret;
 
+	if (!params->dev->is_probe_end)
+		return -EINVAL;
+
 	ret = v4l2_fh_open(filp);
 	if (!ret) {
 		ret = v4l2_pipeline_pm_get(&params->vnode.vdev.entity);

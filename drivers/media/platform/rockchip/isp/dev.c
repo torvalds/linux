@@ -919,6 +919,7 @@ static int rkisp_plat_probe(struct platform_device *pdev)
 	mutex_lock(&rkisp_dev_mutex);
 	list_add_tail(&isp_dev->list, &rkisp_device_list);
 	mutex_unlock(&rkisp_dev_mutex);
+	isp_dev->is_probe_end = true;
 	return 0;
 
 err_unreg_media_dev:

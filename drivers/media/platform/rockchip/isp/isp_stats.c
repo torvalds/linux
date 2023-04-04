@@ -88,6 +88,9 @@ static int rkisp_stats_fh_open(struct file *filp)
 	struct rkisp_isp_stats_vdev *stats = video_drvdata(filp);
 	int ret;
 
+	if (!stats->dev->is_probe_end)
+		return -EINVAL;
+
 	ret = v4l2_fh_open(filp);
 	if (!ret) {
 		ret = v4l2_pipeline_pm_get(&stats->vnode.vdev.entity);

@@ -82,6 +82,9 @@ static int rkisp_luma_fh_open(struct file *filp)
 	struct rkisp_luma_vdev *params = video_drvdata(filp);
 	int ret;
 
+	if (!params->dev->is_probe_end)
+		return -EINVAL;
+
 	ret = v4l2_fh_open(filp);
 	if (!ret) {
 		ret = v4l2_pipeline_pm_get(&params->vnode.vdev.entity);
