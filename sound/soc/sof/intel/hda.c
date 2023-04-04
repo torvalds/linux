@@ -44,6 +44,37 @@
 #define EXCEPT_MAX_HDR_SIZE	0x400
 #define HDA_EXT_ROM_STATUS_SIZE 8
 
+static u32 hda_get_interface_mask(struct snd_sof_dev *sdev)
+{
+	const struct sof_intel_dsp_desc *chip;
+	u32 interface_mask = 0;
+
+	chip = get_chip_info(sdev->pdata);
+	switch (chip->hw_ip_version) {
+	case SOF_INTEL_TANGIER:
+	case SOF_INTEL_BAYTRAIL:
+	case SOF_INTEL_BROADWELL:
+		interface_mask = BIT(SOF_DAI_INTEL_SSP);
+		break;
+	case SOF_INTEL_CAVS_1_5:
+	case SOF_INTEL_CAVS_1_5_PLUS:
+		interface_mask = BIT(SOF_DAI_INTEL_SSP) | BIT(SOF_DAI_INTEL_DMIC) |
+				 BIT(SOF_DAI_INTEL_HDA);
+		break;
+	case SOF_INTEL_CAVS_1_8:
+	case SOF_INTEL_CAVS_2_0:
+	case SOF_INTEL_CAVS_2_5:
+	case SOF_INTEL_ACE_1_0:
+		interface_mask = BIT(SOF_DAI_INTEL_SSP) | BIT(SOF_DAI_INTEL_DMIC) |
+				 BIT(SOF_DAI_INTEL_HDA) | BIT(SOF_DAI_INTEL_ALH);
+		break;
+	default:
+		break;
+	}
+
+	return interface_mask;
+}
+
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL_SOUNDWIRE)
 
 /*
@@ -845,6 +876,7 @@ static int dmic_detect_topology_fixup(struct snd_sof_dev *sdev,
 
 static int hda_init_caps(struct snd_sof_dev *sdev)
 {
+	u32 interface_mask = hda_get_interface_mask(sdev);
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct snd_sof_pdata *pdata = sdev->pdata;
 	struct sof_intel_hda_dev *hdev = pdata->hw_pdata;
@@ -864,6 +896,10 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 	}
 
 	hda_bus_ml_get_capabilities(bus);
+
+	/* Skip SoundWire if it is not supported */
+	if (!(interface_mask & BIT(SOF_DAI_INTEL_ALH)))
+		goto skip_soundwire;
 
 	/* scan SoundWire capabilities exposed by DSDT */
 	ret = hda_sdw_acpi_scan(sdev);
@@ -1486,12 +1522,16 @@ void hda_set_mach_params(struct snd_soc_acpi_mach *mach,
 
 struct snd_soc_acpi_mach *hda_machine_select(struct snd_sof_dev *sdev)
 {
+	u32 interface_mask = hda_get_interface_mask(sdev);
 	struct snd_sof_pdata *sof_pdata = sdev->pdata;
 	const struct sof_dev_desc *desc = sof_pdata->desc;
-	struct snd_soc_acpi_mach *mach;
+	struct snd_soc_acpi_mach *mach = NULL;
 	const char *tplg_filename;
 
-	mach = snd_soc_acpi_find_machine(desc->machines);
+	/* Try I2S or DMIC if it is supported */
+	if (interface_mask & (BIT(SOF_DAI_INTEL_SSP) | BIT(SOF_DAI_INTEL_DMIC)))
+		mach = snd_soc_acpi_find_machine(desc->machines);
+
 	if (mach) {
 		bool add_extension = false;
 		bool tplg_fixup = false;
@@ -1598,10 +1638,8 @@ struct snd_soc_acpi_mach *hda_machine_select(struct snd_sof_dev *sdev)
 		}
 	}
 
-	/*
-	 * If I2S fails, try SoundWire
-	 */
-	if (!mach)
+	/* If I2S fails, try SoundWire if it is supported */
+	if (!mach && (interface_mask & BIT(SOF_DAI_INTEL_ALH)))
 		mach = hda_sdw_machine_select(sdev);
 
 	/*
