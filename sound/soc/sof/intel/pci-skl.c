@@ -26,6 +26,7 @@ static struct sof_dev_desc skl_desc = {
 	.irqindex_host_ipc	= -1,
 	.ipc_supported_mask	= BIT(SOF_INTEL_IPC4),
 	.ipc_default		= SOF_INTEL_IPC4,
+	.dspless_mode_supported	= true,		/* Only supported for HDaudio */
 	.default_fw_path = {
 		[SOF_INTEL_IPC4] = "intel/avs/skl",
 	},
@@ -50,6 +51,7 @@ static struct sof_dev_desc kbl_desc = {
 	.irqindex_host_ipc	= -1,
 	.ipc_supported_mask	= BIT(SOF_INTEL_IPC4),
 	.ipc_default		= SOF_INTEL_IPC4,
+	.dspless_mode_supported	= true,		/* Only supported for HDaudio */
 	.default_fw_path = {
 		[SOF_INTEL_IPC4] = "intel/avs/kbl",
 	},

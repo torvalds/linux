@@ -330,6 +330,11 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 			spcm->stream[substream->stream].suspend_ignored = true;
 			return 0;
 		}
+
+		/* On suspend the DMA must be stopped in DSPless mode */
+		if (sdev->dspless_mode_selected)
+			reset_hw_params = true;
+
 		fallthrough;
 	case SNDRV_PCM_TRIGGER_STOP:
 		ipc_first = true;
@@ -705,7 +710,6 @@ void snd_sof_new_platform_drv(struct snd_sof_dev *sdev)
 
 	pd->pcm_construct = sof_pcm_new;
 	pd->ignore_machine = drv_name;
-	pd->be_hw_params_fixup = sof_pcm_dai_link_fixup;
 	pd->be_pcm_base = SOF_BE_PCM_BASE;
 	pd->use_dai_pcm_id = true;
 	pd->topology_name_prefix = "sof";
@@ -714,4 +718,11 @@ void snd_sof_new_platform_drv(struct snd_sof_dev *sdev)
 	pd->module_get_upon_open = 1;
 
 	pd->legacy_dai_naming = 1;
+
+	/*
+	 * The fixup is only needed when the DSP is in use as with the DSPless
+	 * mode we are directly using the audio interface
+	 */
+	if (!sdev->dspless_mode_selected)
+		pd->be_hw_params_fixup = sof_pcm_dai_link_fixup;
 }

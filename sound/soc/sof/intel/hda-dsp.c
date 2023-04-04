@@ -321,6 +321,9 @@ void hda_dsp_ipc_int_enable(struct snd_sof_dev *sdev)
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	const struct sof_intel_dsp_desc *chip = hda->desc;
 
+	if (sdev->dspless_mode_selected)
+		return;
+
 	/* enable IPC DONE and BUSY interrupts */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, chip->ipc_ctl,
 			HDA_DSP_REG_HIPCCTL_DONE | HDA_DSP_REG_HIPCCTL_BUSY,
@@ -335,6 +338,9 @@ void hda_dsp_ipc_int_disable(struct snd_sof_dev *sdev)
 {
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	const struct sof_intel_dsp_desc *chip = hda->desc;
+
+	if (sdev->dspless_mode_selected)
+		return;
 
 	/* disable IPC interrupt */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, HDA_DSP_REG_ADSPIC,
@@ -681,6 +687,9 @@ static int hda_suspend(struct snd_sof_dev *sdev, bool runtime_suspend)
 	/* power down all hda links */
 	hda_bus_ml_suspend(bus);
 
+	if (sdev->dspless_mode_selected)
+		goto skip_dsp;
+
 	ret = chip->power_down_dsp(sdev);
 	if (ret < 0) {
 		dev_err(sdev->dev, "failed to power down DSP during suspend\n");
@@ -694,6 +703,7 @@ static int hda_suspend(struct snd_sof_dev *sdev, bool runtime_suspend)
 	/* disable ppcap interrupt */
 	hda_dsp_ctrl_ppcap_enable(sdev, false);
 	hda_dsp_ctrl_ppcap_int_enable(sdev, false);
+skip_dsp:
 
 	/* disable hda bus irq and streams */
 	hda_dsp_ctrl_stop_chip(sdev);
@@ -744,9 +754,11 @@ static int hda_resume(struct snd_sof_dev *sdev, bool runtime_resume)
 			hda_codec_jack_check(sdev);
 	}
 
-	/* enable ppcap interrupt */
-	hda_dsp_ctrl_ppcap_enable(sdev, true);
-	hda_dsp_ctrl_ppcap_int_enable(sdev, true);
+	if (!sdev->dspless_mode_selected) {
+		/* enable ppcap interrupt */
+		hda_dsp_ctrl_ppcap_enable(sdev, true);
+		hda_dsp_ctrl_ppcap_int_enable(sdev, true);
+	}
 
 cleanup:
 	/* display codec can powered off after controller init */
@@ -843,8 +855,10 @@ int hda_dsp_runtime_suspend(struct snd_sof_dev *sdev)
 	};
 	int ret;
 
-	/* cancel any attempt for DSP D0I3 */
-	cancel_delayed_work_sync(&hda->d0i3_work);
+	if (!sdev->dspless_mode_selected) {
+		/* cancel any attempt for DSP D0I3 */
+		cancel_delayed_work_sync(&hda->d0i3_work);
+	}
 
 	/* stop hda controller and power dsp off */
 	ret = hda_suspend(sdev, true);
@@ -866,8 +880,10 @@ int hda_dsp_suspend(struct snd_sof_dev *sdev, u32 target_state)
 	};
 	int ret;
 
-	/* cancel any attempt for DSP D0I3 */
-	cancel_delayed_work_sync(&hda->d0i3_work);
+	if (!sdev->dspless_mode_selected) {
+		/* cancel any attempt for DSP D0I3 */
+		cancel_delayed_work_sync(&hda->d0i3_work);
+	}
 
 	if (target_state == SOF_DSP_PM_D0) {
 		/* Set DSP power state */

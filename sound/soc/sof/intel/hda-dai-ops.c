@@ -319,13 +319,44 @@ static const struct hda_dai_widget_dma_ops hda_ipc3_dma_ops = {
 	.post_trigger = hda_ipc3_post_trigger,
 };
 
+static struct hdac_ext_stream *
+hda_dspless_get_hext_stream(struct snd_sof_dev *sdev, struct snd_soc_dai *cpu_dai,
+			    struct snd_pcm_substream *substream)
+{
+	struct hdac_stream *hstream = substream->runtime->private_data;
+
+	return stream_to_hdac_ext_stream(hstream);
+}
+
+static void hda_dspless_setup_hext_stream(struct snd_sof_dev *sdev,
+					  struct hdac_ext_stream *hext_stream,
+					  unsigned int format_val)
+{
+	/*
+	 * Save the format_val which was adjusted by the maxbps of the codec.
+	 * This information is not available on the FE side since there we are
+	 * using dummy_codec.
+	 */
+	hext_stream->hstream.format_val = format_val;
+}
+
+static const struct hda_dai_widget_dma_ops hda_dspless_dma_ops = {
+	.get_hext_stream = hda_dspless_get_hext_stream,
+	.setup_hext_stream = hda_dspless_setup_hext_stream,
+};
+
 #endif
 
 const struct hda_dai_widget_dma_ops *
 hda_select_dai_widget_ops(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 {
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
-	struct snd_sof_dai *sdai = swidget->private;
+	struct snd_sof_dai *sdai;
+
+	if (sdev->dspless_mode_selected)
+		return &hda_dspless_dma_ops;
+
+	sdai = swidget->private;
 
 	switch (sdev->pdata->ipc_type) {
 	case SOF_IPC:
