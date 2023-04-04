@@ -37,7 +37,7 @@ struct io_rsrc_data {
 };
 
 struct io_rsrc_node {
-	struct percpu_ref		refs;
+	refcount_t			refs;
 	struct list_head		node;
 	struct list_head		rsrc_list;
 	struct io_rsrc_data		*rsrc_data;
@@ -54,6 +54,7 @@ struct io_mapped_ubuf {
 };
 
 void io_rsrc_put_tw(struct callback_head *cb);
+void io_rsrc_node_ref_zero(struct io_rsrc_node *node);
 void io_rsrc_put_work(struct work_struct *work);
 void io_rsrc_refs_refill(struct io_ring_ctx *ctx);
 void io_wait_rsrc_data(struct io_rsrc_data *data);
@@ -109,7 +110,8 @@ int io_register_rsrc(struct io_ring_ctx *ctx, void __user *arg,
 
 static inline void io_rsrc_put_node(struct io_rsrc_node *node, int nr)
 {
-	percpu_ref_put_many(&node->refs, nr);
+	if (refcount_sub_and_test(nr, &node->refs))
+		io_rsrc_node_ref_zero(node);
 }
 
 static inline void io_req_put_rsrc(struct io_kiocb *req)

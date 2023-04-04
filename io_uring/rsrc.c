@@ -155,7 +155,7 @@ void io_rsrc_refs_refill(struct io_ring_ctx *ctx)
 	__must_hold(&ctx->uring_lock)
 {
 	ctx->rsrc_cached_refs += IO_RSRC_REF_BATCH;
-	percpu_ref_get_many(&ctx->rsrc_node->refs, IO_RSRC_REF_BATCH);
+	refcount_add(IO_RSRC_REF_BATCH, &ctx->rsrc_node->refs);
 }
 
 static void __io_rsrc_put_work(struct io_rsrc_node *ref_node)
@@ -220,13 +220,11 @@ void io_wait_rsrc_data(struct io_rsrc_data *data)
 
 void io_rsrc_node_destroy(struct io_rsrc_node *ref_node)
 {
-	percpu_ref_exit(&ref_node->refs);
 	kfree(ref_node);
 }
 
-static __cold void io_rsrc_node_ref_zero(struct percpu_ref *ref)
+__cold void io_rsrc_node_ref_zero(struct io_rsrc_node *node)
 {
-	struct io_rsrc_node *node = container_of(ref, struct io_rsrc_node, refs);
 	struct io_ring_ctx *ctx = node->rsrc_data->ctx;
 	unsigned long flags;
 	bool first_add = false;
@@ -269,11 +267,7 @@ static struct io_rsrc_node *io_rsrc_node_alloc(void)
 	if (!ref_node)
 		return NULL;
 
-	if (percpu_ref_init(&ref_node->refs, io_rsrc_node_ref_zero,
-			    0, GFP_KERNEL)) {
-		kfree(ref_node);
-		return NULL;
-	}
+	refcount_set(&ref_node->refs, 1);
 	INIT_LIST_HEAD(&ref_node->node);
 	INIT_LIST_HEAD(&ref_node->rsrc_list);
 	ref_node->done = false;
@@ -298,7 +292,8 @@ void io_rsrc_node_switch(struct io_ring_ctx *ctx,
 		spin_unlock_irq(&ctx->rsrc_ref_lock);
 
 		atomic_inc(&data_to_kill->refs);
-		percpu_ref_kill(&rsrc_node->refs);
+		/* put master ref */
+		io_rsrc_put_node(rsrc_node, 1);
 		ctx->rsrc_node = NULL;
 	}
 
