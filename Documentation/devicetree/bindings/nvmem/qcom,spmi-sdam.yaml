@@ -15,7 +15,7 @@ description: |
   to/from the PBUS.
 
 allOf:
-  - $ref: "nvmem.yaml#"
+  - $ref: nvmem.yaml#
 
 properties:
   compatible:
