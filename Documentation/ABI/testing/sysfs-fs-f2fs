@@ -190,12 +190,6 @@ Description:	Controls the memory footprint used by free nids and cached
 		nat entries. By default, 1 is set, which indicates
 		10 MB / 1 GB RAM.
 
-What:		/sys/fs/f2fs/<disk>/batched_trim_sections
-Date:		February 2015
-Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
-Description:	Controls the trimming rate in batch mode.
-		<deprecated>
-
 What:		/sys/fs/f2fs/<disk>/cp_interval
 Date:		October 2015
 Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
