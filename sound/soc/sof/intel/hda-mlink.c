@@ -232,6 +232,28 @@ static int hdaml_link_shutdown(u32 __iomem *lctl, int sublink)
 	return check_sublink_power(lctl, sublink, false);
 }
 
+static void hdaml_link_enable_interrupt(u32 __iomem *lctl, bool enable)
+{
+	u32 val;
+
+	val = readl(lctl);
+	if (enable)
+		val |= AZX_ML_LCTL_INTEN;
+	else
+		val &= ~AZX_ML_LCTL_INTEN;
+
+	writel(val, lctl);
+}
+
+static bool hdaml_link_check_interrupt(u32 __iomem *lctl)
+{
+	u32 val;
+
+	val = readl(lctl);
+
+	return val & AZX_ML_LCTL_INTSTS;
+}
+
 /* END HDAML section */
 
 static int hda_ml_alloc_h2link(struct hdac_bus *bus, int index)
@@ -339,6 +361,46 @@ int hdac_bus_eml_get_count(struct hdac_bus *bus, bool alt, int elid)
 	return h2link->slcount;
 }
 EXPORT_SYMBOL_NS(hdac_bus_eml_get_count, SND_SOC_SOF_HDA_MLINK);
+
+void hdac_bus_eml_enable_interrupt(struct hdac_bus *bus, bool alt, int elid, bool enable)
+{
+	struct hdac_ext2_link *h2link;
+	struct hdac_ext_link *hlink;
+
+	h2link = find_ext2_link(bus, alt, elid);
+	if (!h2link)
+		return;
+
+	if (!h2link->intc)
+		return;
+
+	hlink = &h2link->hext_link;
+
+	mutex_lock(&h2link->eml_lock);
+
+	hdaml_link_enable_interrupt(hlink->ml_addr + AZX_REG_ML_LCTL, enable);
+
+	mutex_unlock(&h2link->eml_lock);
+}
+EXPORT_SYMBOL_NS(hdac_bus_eml_enable_interrupt, SND_SOC_SOF_HDA_MLINK);
+
+bool hdac_bus_eml_check_interrupt(struct hdac_bus *bus, bool alt, int elid)
+{
+	struct hdac_ext2_link *h2link;
+	struct hdac_ext_link *hlink;
+
+	h2link = find_ext2_link(bus, alt, elid);
+	if (!h2link)
+		return false;
+
+	if (!h2link->intc)
+		return false;
+
+	hlink = &h2link->hext_link;
+
+	return hdaml_link_check_interrupt(hlink->ml_addr + AZX_REG_ML_LCTL);
+}
+EXPORT_SYMBOL_NS(hdac_bus_eml_check_interrupt, SND_SOC_SOF_HDA_MLINK);
 
 static int hdac_bus_eml_power_up_base(struct hdac_bus *bus, bool alt, int elid, int sublink,
 				      bool eml_lock)
