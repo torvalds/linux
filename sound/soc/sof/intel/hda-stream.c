@@ -874,12 +874,14 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 
 		hext_stream = &hda_stream->hext_stream;
 
-		hext_stream->pphc_addr = sdev->bar[HDA_DSP_PP_BAR] +
-			SOF_HDA_PPHC_BASE + SOF_HDA_PPHC_INTERVAL * i;
+		if (sdev->bar[HDA_DSP_PP_BAR]) {
+			hext_stream->pphc_addr = sdev->bar[HDA_DSP_PP_BAR] +
+				SOF_HDA_PPHC_BASE + SOF_HDA_PPHC_INTERVAL * i;
 
-		hext_stream->pplc_addr = sdev->bar[HDA_DSP_PP_BAR] +
-			SOF_HDA_PPLC_BASE + SOF_HDA_PPLC_MULTI * num_total +
-			SOF_HDA_PPLC_INTERVAL * i;
+			hext_stream->pplc_addr = sdev->bar[HDA_DSP_PP_BAR] +
+				SOF_HDA_PPLC_BASE + SOF_HDA_PPLC_MULTI * num_total +
+				SOF_HDA_PPLC_INTERVAL * i;
+		}
 
 		hstream = &hext_stream->hstream;
 
@@ -930,13 +932,14 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 
 		hext_stream = &hda_stream->hext_stream;
 
-		/* we always have DSP support */
-		hext_stream->pphc_addr = sdev->bar[HDA_DSP_PP_BAR] +
-			SOF_HDA_PPHC_BASE + SOF_HDA_PPHC_INTERVAL * i;
+		if (sdev->bar[HDA_DSP_PP_BAR]) {
+			hext_stream->pphc_addr = sdev->bar[HDA_DSP_PP_BAR] +
+				SOF_HDA_PPHC_BASE + SOF_HDA_PPHC_INTERVAL * i;
 
-		hext_stream->pplc_addr = sdev->bar[HDA_DSP_PP_BAR] +
-			SOF_HDA_PPLC_BASE + SOF_HDA_PPLC_MULTI * num_total +
-			SOF_HDA_PPLC_INTERVAL * i;
+			hext_stream->pplc_addr = sdev->bar[HDA_DSP_PP_BAR] +
+				SOF_HDA_PPLC_BASE + SOF_HDA_PPLC_MULTI * num_total +
+				SOF_HDA_PPLC_INTERVAL * i;
+		}
 
 		hstream = &hext_stream->hstream;
 
