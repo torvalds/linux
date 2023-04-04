@@ -89,6 +89,11 @@ static const struct dpu_intf_cfg sc7180_intf[] = {
 	INTF_BLK("intf_1", INTF_1, 0x6a800, 0x2c0, INTF_DSI, 0, 24, INTF_SC7180_MASK, MDP_SSPP_TOP0_INTR, 26, 27),
 };
 
+static const struct dpu_wb_cfg sc7180_wb[] = {
+	WB_BLK("wb_2", WB_2, 0x65000, WB_SM8250_MASK, DPU_CLK_CTRL_WB2, 6,
+			VBIF_RT, MDP_SSPP_TOP0_INTR, 4096, 4),
+};
+
 static const struct dpu_perf_cfg sc7180_perf_data = {
 	.max_bw_low = 6800000,
 	.max_bw_high = 6800000,
@@ -134,8 +139,8 @@ static const struct dpu_mdss_cfg sc7180_dpu_cfg = {
 	.pingpong = sc7180_pp,
 	.intf_count = ARRAY_SIZE(sc7180_intf),
 	.intf = sc7180_intf,
-	.wb_count = ARRAY_SIZE(sm8250_wb),
-	.wb = sm8250_wb,
+	.wb_count = ARRAY_SIZE(sc7180_wb),
+	.wb = sc7180_wb,
 	.vbif_count = ARRAY_SIZE(sdm845_vbif),
 	.vbif = sdm845_vbif,
 	.reg_dma_count = 1,
