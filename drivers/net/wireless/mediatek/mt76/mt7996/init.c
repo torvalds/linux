@@ -99,9 +99,8 @@ static void mt7996_led_set_brightness(struct led_classdev *led_cdev,
 		mt7996_led_set_config(led_cdev, 0xff, 0);
 }
 
-static void
-mt7996_init_txpower(struct mt7996_dev *dev,
-		    struct ieee80211_supported_band *sband)
+void mt7996_init_txpower(struct mt7996_dev *dev,
+			 struct ieee80211_supported_band *sband)
 {
 	int i, nss = hweight8(dev->mphy.antenna_mask);
 	int nss_delta = mt76_tx_power_nss_delta(nss);
@@ -255,7 +254,7 @@ mt7996_mac_init_band(struct mt7996_dev *dev, u8 band)
 	mt76_rmw(dev, MT_WTBLOFF_RSCR(band), mask, set);
 }
 
-static void mt7996_mac_init(struct mt7996_dev *dev)
+void mt7996_mac_init(struct mt7996_dev *dev)
 {
 #define HIF_TXD_V2_1	4
 	int i;
@@ -289,7 +288,7 @@ static void mt7996_mac_init(struct mt7996_dev *dev)
 		mt7996_mac_init_band(dev, i);
 }
 
-static int mt7996_txbf_init(struct mt7996_dev *dev)
+int mt7996_txbf_init(struct mt7996_dev *dev)
 {
 	int ret;
 
@@ -869,6 +868,8 @@ int mt7996_register_device(struct mt7996_dev *dev)
 	ret = mt7996_register_phy(dev, mt7996_phy3(dev), MT_BAND2);
 	if (ret)
 		return ret;
+
+	dev->recovery.hw_init_done = true;
 
 	return mt7996_init_debugfs(&dev->phy);
 }

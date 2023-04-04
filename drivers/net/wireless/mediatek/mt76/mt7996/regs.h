@@ -317,6 +317,8 @@ enum base_rev {
 #define MT_WFDMA0_RX_INT_PCIE_SEL		MT_WFDMA0(0x154)
 #define MT_WFDMA0_RX_INT_SEL_RING3		BIT(3)
 
+#define MT_WFDMA0_MCU_HOST_INT_ENA		MT_WFDMA0(0x1f4)
+
 #define MT_WFDMA0_GLO_CFG			MT_WFDMA0(0x208)
 #define MT_WFDMA0_GLO_CFG_TX_DMA_EN		BIT(0)
 #define MT_WFDMA0_GLO_CFG_RX_DMA_EN		BIT(2)
@@ -444,6 +446,10 @@ enum base_rev {
 #define MT_MCU_CMD_NORMAL_STATE			BIT(5)
 #define MT_MCU_CMD_ERROR_MASK			GENMASK(5, 1)
 
+#define MT_MCU_CMD_WA_WDT			BIT(31)
+#define MT_MCU_CMD_WM_WDT			BIT(30)
+#define MT_MCU_CMD_WDT_MASK			GENMASK(31, 30)
+
 /* l1/l2 remap */
 #define MT_HIF_REMAP_L1				0x155024
 #define MT_HIF_REMAP_L1_MASK			GENMASK(31, 16)
@@ -468,7 +474,10 @@ enum base_rev {
 #define MT_INFRA_MCU_END			0x7c3fffff
 
 /* FW MODE SYNC */
-#define MT_SWDEF_MODE				0x9143c
+#define MT_SWDEF_BASE				0x00401400
+
+#define MT_SWDEF(ofs)				(MT_SWDEF_BASE + (ofs))
+#define MT_SWDEF_MODE				MT_SWDEF(0x3c)
 #define MT_SWDEF_NORMAL_MODE			0
 
 /* LED */
@@ -506,7 +515,7 @@ enum base_rev {
 #define MT_TOP_MISC_FW_STATE			GENMASK(2, 0)
 
 #define MT_HW_REV				0x70010204
-#define MT_WF_SUBSYS_RST			0x70002600
+#define MT_WF_SUBSYS_RST			0x70028600
 
 /* PCIE MAC */
 #define MT_PCIE_MAC_BASE			0x74030000

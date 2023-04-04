@@ -1704,7 +1704,7 @@ mt7996_wait_reset_state(struct mt7996_dev *dev, u32 state)
 	bool ret;
 
 	ret = wait_event_timeout(dev->reset_wait,
-				 (READ_ONCE(dev->reset_state) & state),
+				 (READ_ONCE(dev->recovery.state) & state),
 				 MT7996_RESET_TIMEOUT);
 
 	WARN(!ret, "Timeout waiting for MCU reset state %x\n", state);
@@ -1753,53 +1753,6 @@ mt7996_update_beacons(struct mt7996_dev *dev)
 					    mt7996_update_vif_beacon, phy3->hw);
 }
 
-static void
-mt7996_dma_reset(struct mt7996_dev *dev)
-{
-	struct mt76_phy *phy2 = dev->mt76.phys[MT_BAND1];
-	struct mt76_phy *phy3 = dev->mt76.phys[MT_BAND2];
-	u32 hif1_ofs = MT_WFDMA0_PCIE1(0) - MT_WFDMA0(0);
-	int i;
-
-	mt76_clear(dev, MT_WFDMA0_GLO_CFG,
-		   MT_WFDMA0_GLO_CFG_TX_DMA_EN |
-		   MT_WFDMA0_GLO_CFG_RX_DMA_EN);
-
-	if (dev->hif2)
-		mt76_clear(dev, MT_WFDMA0_GLO_CFG + hif1_ofs,
-			   MT_WFDMA0_GLO_CFG_TX_DMA_EN |
-			   MT_WFDMA0_GLO_CFG_RX_DMA_EN);
-
-	usleep_range(1000, 2000);
-
-	for (i = 0; i < __MT_TXQ_MAX; i++) {
-		mt76_queue_tx_cleanup(dev, dev->mphy.q_tx[i], true);
-		if (phy2)
-			mt76_queue_tx_cleanup(dev, phy2->q_tx[i], true);
-		if (phy3)
-			mt76_queue_tx_cleanup(dev, phy3->q_tx[i], true);
-	}
-
-	for (i = 0; i < __MT_MCUQ_MAX; i++)
-		mt76_queue_tx_cleanup(dev, dev->mt76.q_mcu[i], true);
-
-	mt76_for_each_q_rx(&dev->mt76, i)
-		mt76_queue_rx_reset(dev, i);
-
-	mt76_tx_status_check(&dev->mt76, true);
-
-	/* re-init prefetch settings after reset */
-	mt7996_dma_prefetch(dev);
-
-	mt76_set(dev, MT_WFDMA0_GLO_CFG,
-		 MT_WFDMA0_GLO_CFG_TX_DMA_EN | MT_WFDMA0_GLO_CFG_RX_DMA_EN);
-
-	if (dev->hif2)
-		mt76_set(dev, MT_WFDMA0_GLO_CFG + hif1_ofs,
-			 MT_WFDMA0_GLO_CFG_TX_DMA_EN |
-			 MT_WFDMA0_GLO_CFG_RX_DMA_EN);
-}
-
 void mt7996_tx_token_put(struct mt7996_dev *dev)
 {
 	struct mt76_txwi_cache *txwi;
@@ -1814,7 +1767,193 @@ void mt7996_tx_token_put(struct mt7996_dev *dev)
 	idr_destroy(&dev->mt76.token);
 }
 
-/* system error recovery */
+static int
+mt7996_mac_restart(struct mt7996_dev *dev)
+{
+	struct mt7996_phy *phy2, *phy3;
+	struct mt76_dev *mdev = &dev->mt76;
+	int i, ret;
+
+	phy2 = mt7996_phy2(dev);
+	phy3 = mt7996_phy3(dev);
+
+	if (dev->hif2) {
+		mt76_wr(dev, MT_INT1_MASK_CSR, 0x0);
+		mt76_wr(dev, MT_INT1_SOURCE_CSR, ~0);
+	}
+
+	if (dev_is_pci(mdev->dev)) {
+		mt76_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0x0);
+		if (dev->hif2)
+			mt76_wr(dev, MT_PCIE1_MAC_INT_ENABLE, 0x0);
+	}
+
+	set_bit(MT76_RESET, &dev->mphy.state);
+	set_bit(MT76_MCU_RESET, &dev->mphy.state);
+	wake_up(&dev->mt76.mcu.wait);
+	if (phy2) {
+		set_bit(MT76_RESET, &phy2->mt76->state);
+		set_bit(MT76_MCU_RESET, &phy2->mt76->state);
+	}
+	if (phy3) {
+		set_bit(MT76_RESET, &phy3->mt76->state);
+		set_bit(MT76_MCU_RESET, &phy3->mt76->state);
+	}
+
+	/* lock/unlock all queues to ensure that no tx is pending */
+	mt76_txq_schedule_all(&dev->mphy);
+	if (phy2)
+		mt76_txq_schedule_all(phy2->mt76);
+	if (phy3)
+		mt76_txq_schedule_all(phy3->mt76);
+
+	/* disable all tx/rx napi */
+	mt76_worker_disable(&dev->mt76.tx_worker);
+	mt76_for_each_q_rx(mdev, i) {
+		if (mdev->q_rx[i].ndesc)
+			napi_disable(&dev->mt76.napi[i]);
+	}
+	napi_disable(&dev->mt76.tx_napi);
+
+	/* token reinit */
+	mt7996_tx_token_put(dev);
+	idr_init(&dev->mt76.token);
+
+	mt7996_dma_reset(dev, true);
+
+	local_bh_disable();
+	mt76_for_each_q_rx(mdev, i) {
+		if (mdev->q_rx[i].ndesc) {
+			napi_enable(&dev->mt76.napi[i]);
+			napi_schedule(&dev->mt76.napi[i]);
+		}
+	}
+	local_bh_enable();
+	clear_bit(MT76_MCU_RESET, &dev->mphy.state);
+	clear_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state);
+
+	mt76_wr(dev, MT_INT_MASK_CSR, dev->mt76.mmio.irqmask);
+	mt76_wr(dev, MT_INT_SOURCE_CSR, ~0);
+	if (dev->hif2) {
+		mt76_wr(dev, MT_INT1_MASK_CSR, dev->mt76.mmio.irqmask);
+		mt76_wr(dev, MT_INT1_SOURCE_CSR, ~0);
+	}
+	if (dev_is_pci(mdev->dev)) {
+		mt76_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0xff);
+		if (dev->hif2)
+			mt76_wr(dev, MT_PCIE1_MAC_INT_ENABLE, 0xff);
+	}
+
+	/* load firmware */
+	ret = mt7996_mcu_init_firmware(dev);
+	if (ret)
+		goto out;
+
+	/* set the necessary init items */
+	ret = mt7996_mcu_set_eeprom(dev);
+	if (ret)
+		goto out;
+
+	mt7996_mac_init(dev);
+	mt7996_init_txpower(dev, &dev->mphy.sband_2g.sband);
+	mt7996_init_txpower(dev, &dev->mphy.sband_5g.sband);
+	mt7996_init_txpower(dev, &dev->mphy.sband_6g.sband);
+	ret = mt7996_txbf_init(dev);
+
+	if (test_bit(MT76_STATE_RUNNING, &dev->mphy.state)) {
+		ret = mt7996_run(dev->mphy.hw);
+		if (ret)
+			goto out;
+	}
+
+	if (phy2 && test_bit(MT76_STATE_RUNNING, &phy2->mt76->state)) {
+		ret = mt7996_run(phy2->mt76->hw);
+		if (ret)
+			goto out;
+	}
+
+	if (phy3 && test_bit(MT76_STATE_RUNNING, &phy3->mt76->state)) {
+		ret = mt7996_run(phy3->mt76->hw);
+		if (ret)
+			goto out;
+	}
+
+out:
+	/* reset done */
+	clear_bit(MT76_RESET, &dev->mphy.state);
+	if (phy2)
+		clear_bit(MT76_RESET, &phy2->mt76->state);
+	if (phy3)
+		clear_bit(MT76_RESET, &phy3->mt76->state);
+
+	local_bh_disable();
+	napi_enable(&dev->mt76.tx_napi);
+	napi_schedule(&dev->mt76.tx_napi);
+	local_bh_enable();
+
+	mt76_worker_enable(&dev->mt76.tx_worker);
+	return ret;
+}
+
+static void
+mt7996_mac_full_reset(struct mt7996_dev *dev)
+{
+	struct mt7996_phy *phy2, *phy3;
+	int i;
+
+	phy2 = mt7996_phy2(dev);
+	phy3 = mt7996_phy3(dev);
+	dev->recovery.hw_full_reset = true;
+
+	wake_up(&dev->mt76.mcu.wait);
+	ieee80211_stop_queues(mt76_hw(dev));
+	if (phy2)
+		ieee80211_stop_queues(phy2->mt76->hw);
+	if (phy3)
+		ieee80211_stop_queues(phy3->mt76->hw);
+
+	cancel_delayed_work_sync(&dev->mphy.mac_work);
+	if (phy2)
+		cancel_delayed_work_sync(&phy2->mt76->mac_work);
+	if (phy3)
+		cancel_delayed_work_sync(&phy3->mt76->mac_work);
+
+	mutex_lock(&dev->mt76.mutex);
+	for (i = 0; i < 10; i++) {
+		if (!mt7996_mac_restart(dev))
+			break;
+	}
+	mutex_unlock(&dev->mt76.mutex);
+
+	if (i == 10)
+		dev_err(dev->mt76.dev, "chip full reset failed\n");
+
+	ieee80211_restart_hw(mt76_hw(dev));
+	if (phy2)
+		ieee80211_restart_hw(phy2->mt76->hw);
+	if (phy3)
+		ieee80211_restart_hw(phy3->mt76->hw);
+
+	ieee80211_wake_queues(mt76_hw(dev));
+	if (phy2)
+		ieee80211_wake_queues(phy2->mt76->hw);
+	if (phy3)
+		ieee80211_wake_queues(phy3->mt76->hw);
+
+	dev->recovery.hw_full_reset = false;
+	ieee80211_queue_delayed_work(mt76_hw(dev),
+				     &dev->mphy.mac_work,
+				     MT7996_WATCHDOG_TIME);
+	if (phy2)
+		ieee80211_queue_delayed_work(phy2->mt76->hw,
+					     &phy2->mt76->mac_work,
+					     MT7996_WATCHDOG_TIME);
+	if (phy3)
+		ieee80211_queue_delayed_work(phy3->mt76->hw,
+					     &phy3->mt76->mac_work,
+					     MT7996_WATCHDOG_TIME);
+}
+
 void mt7996_mac_reset_work(struct work_struct *work)
 {
 	struct mt7996_phy *phy2, *phy3;
@@ -1825,9 +1964,36 @@ void mt7996_mac_reset_work(struct work_struct *work)
 	phy2 = mt7996_phy2(dev);
 	phy3 = mt7996_phy3(dev);
 
-	if (!(READ_ONCE(dev->reset_state) & MT_MCU_CMD_STOP_DMA))
+	/* chip full reset */
+	if (dev->recovery.restart) {
+		/* disable WA/WM WDT */
+		mt76_clear(dev, MT_WFDMA0_MCU_HOST_INT_ENA,
+			   MT_MCU_CMD_WDT_MASK);
+
+		if (READ_ONCE(dev->recovery.state) & MT_MCU_CMD_WA_WDT)
+			dev->recovery.wa_reset_count++;
+		else
+			dev->recovery.wm_reset_count++;
+
+		mt7996_mac_full_reset(dev);
+
+		/* enable mcu irq */
+		mt7996_irq_enable(dev, MT_INT_MCU_CMD);
+		mt7996_irq_disable(dev, 0);
+
+		/* enable WA/WM WDT */
+		mt76_set(dev, MT_WFDMA0_MCU_HOST_INT_ENA, MT_MCU_CMD_WDT_MASK);
+
+		dev->recovery.state = MT_MCU_CMD_NORMAL_STATE;
+		dev->recovery.restart = false;
+		return;
+	}
+
+	if (!(READ_ONCE(dev->recovery.state) & MT_MCU_CMD_STOP_DMA))
 		return;
 
+	dev_info(dev->mt76.dev,"\n%s L1 SER recovery start.",
+		 wiphy_name(dev->mt76.hw->wiphy));
 	ieee80211_stop_queues(mt76_hw(dev));
 	if (phy2)
 		ieee80211_stop_queues(phy2->mt76->hw);
@@ -1856,7 +2022,7 @@ void mt7996_mac_reset_work(struct work_struct *work)
 	mt76_wr(dev, MT_MCU_INT_EVENT, MT_MCU_INT_EVENT_DMA_STOPPED);
 
 	if (mt7996_wait_reset_state(dev, MT_MCU_CMD_RESET_DONE)) {
-		mt7996_dma_reset(dev);
+		mt7996_dma_reset(dev, false);
 
 		mt7996_tx_token_put(dev);
 		idr_init(&dev->mt76.token);
@@ -1911,6 +2077,32 @@ void mt7996_mac_reset_work(struct work_struct *work)
 		ieee80211_queue_delayed_work(phy3->mt76->hw,
 					     &phy3->mt76->mac_work,
 					     MT7996_WATCHDOG_TIME);
+	dev_info(dev->mt76.dev,"\n%s L1 SER recovery completed.",
+		 wiphy_name(dev->mt76.hw->wiphy));
+}
+
+void mt7996_reset(struct mt7996_dev *dev)
+{
+	if (!dev->recovery.hw_init_done)
+		return;
+
+	if (dev->recovery.hw_full_reset)
+		return;
+
+	/* wm/wa exception: do full recovery */
+	if (READ_ONCE(dev->recovery.state) & MT_MCU_CMD_WDT_MASK) {
+		dev->recovery.restart = true;
+		dev_info(dev->mt76.dev,
+			 "%s indicated firmware crash, attempting recovery\n",
+			 wiphy_name(dev->mt76.hw->wiphy));
+
+		mt7996_irq_disable(dev, MT_INT_MCU_CMD);
+		queue_work(dev->mt76.wq, &dev->reset_work);
+		return;
+	}
+
+	queue_work(dev->mt76.wq, &dev->reset_work);
+	wake_up(&dev->reset_wait);
 }
 
 void mt7996_mac_update_stats(struct mt7996_phy *phy)

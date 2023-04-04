@@ -236,7 +236,14 @@ struct mt7996_dev {
 	struct work_struct rc_work;
 	struct work_struct reset_work;
 	wait_queue_head_t reset_wait;
-	u32 reset_state;
+	struct {
+		u32 state;
+		u32 wa_reset_count;
+		u32 wm_reset_count;
+		bool hw_full_reset:1;
+		bool hw_init_done:1;
+		bool restart:1;
+	} recovery;
 
 	struct list_head sta_rc_list;
 	struct list_head sta_poll_list;
@@ -369,9 +376,16 @@ int mt7996_eeprom_get_target_power(struct mt7996_dev *dev,
 				   struct ieee80211_channel *chan);
 s8 mt7996_eeprom_get_power_delta(struct mt7996_dev *dev, int band);
 int mt7996_dma_init(struct mt7996_dev *dev);
+void mt7996_dma_reset(struct mt7996_dev *dev, bool force);
 void mt7996_dma_prefetch(struct mt7996_dev *dev);
 void mt7996_dma_cleanup(struct mt7996_dev *dev);
+void mt7996_init_txpower(struct mt7996_dev *dev,
+			 struct ieee80211_supported_band *sband);
+int mt7996_txbf_init(struct mt7996_dev *dev);
+void mt7996_reset(struct mt7996_dev *dev);
+int mt7996_run(struct ieee80211_hw *hw);
 int mt7996_mcu_init(struct mt7996_dev *dev);
+int mt7996_mcu_init_firmware(struct mt7996_dev *dev);
 int mt7996_mcu_twt_agrt_update(struct mt7996_dev *dev,
 			       struct mt7996_vif *mvif,
 			       struct mt7996_twt_flow *flow,
@@ -461,6 +475,7 @@ static inline void mt7996_irq_disable(struct mt7996_dev *dev, u32 mask)
 		mt76_set_irq_mask(&dev->mt76, MT_INT_MASK_CSR, mask, 0);
 }
 
+void mt7996_mac_init(struct mt7996_dev *dev);
 u32 mt7996_mac_wtbl_lmac_addr(struct mt7996_dev *dev, u16 wcid, u8 dw);
 bool mt7996_mac_wtbl_update(struct mt7996_dev *dev, int idx, u32 mask);
 void mt7996_mac_reset_counters(struct mt7996_phy *phy);

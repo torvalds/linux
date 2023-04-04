@@ -22,16 +22,12 @@ static bool mt7996_dev_running(struct mt7996_dev *dev)
 	return phy && test_bit(MT76_STATE_RUNNING, &phy->mt76->state);
 }
 
-static int mt7996_start(struct ieee80211_hw *hw)
+int mt7996_run(struct ieee80211_hw *hw)
 {
 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
 	struct mt7996_phy *phy = mt7996_hw_phy(hw);
 	bool running;
 	int ret;
-
-	flush_work(&dev->init_work);
-
-	mutex_lock(&dev->mt76.mutex);
 
 	running = mt7996_dev_running(dev);
 	if (!running) {
@@ -59,6 +55,18 @@ static int mt7996_start(struct ieee80211_hw *hw)
 		mt7996_mac_reset_counters(phy);
 
 out:
+	return ret;
+}
+
+static int mt7996_start(struct ieee80211_hw *hw)
+{
+	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+	int ret;
+
+	flush_work(&dev->init_work);
+
+	mutex_lock(&dev->mt76.mutex);
+	ret = mt7996_run(hw);
 	mutex_unlock(&dev->mt76.mutex);
 
 	return ret;
