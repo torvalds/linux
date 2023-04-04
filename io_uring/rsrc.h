@@ -38,11 +38,17 @@ struct io_rsrc_data {
 
 struct io_rsrc_node {
 	struct list_head		node;
-	struct list_head		rsrc_list;
 	struct io_rsrc_data		*rsrc_data;
 	struct llist_node		llist;
 	int				refs;
 	bool				done;
+
+	/*
+	 * Keeps a list of struct io_rsrc_put to be completed. Each entry
+	 * represents one rsrc (e.g. file or buffer), but all of them should've
+	 * came from the same table and so are of the same type.
+	 */
+	struct list_head		item_list;
 };
 
 struct io_mapped_ubuf {

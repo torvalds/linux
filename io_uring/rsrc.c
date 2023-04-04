@@ -146,7 +146,7 @@ static void __io_rsrc_put_work(struct io_rsrc_node *ref_node)
 	struct io_ring_ctx *ctx = rsrc_data->ctx;
 	struct io_rsrc_put *prsrc, *tmp;
 
-	list_for_each_entry_safe(prsrc, tmp, &ref_node->rsrc_list, list) {
+	list_for_each_entry_safe(prsrc, tmp, &ref_node->item_list, list) {
 		list_del(&prsrc->list);
 
 		if (prsrc->tag) {
@@ -249,7 +249,7 @@ static struct io_rsrc_node *io_rsrc_node_alloc(void)
 
 	ref_node->refs = 1;
 	INIT_LIST_HEAD(&ref_node->node);
-	INIT_LIST_HEAD(&ref_node->rsrc_list);
+	INIT_LIST_HEAD(&ref_node->item_list);
 	ref_node->done = false;
 	return ref_node;
 }
@@ -737,7 +737,7 @@ int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx,
 	prsrc->tag = *tag_slot;
 	*tag_slot = 0;
 	prsrc->rsrc = rsrc;
-	list_add(&prsrc->list, &node->rsrc_list);
+	list_add(&prsrc->list, &node->item_list);
 	return 0;
 }
 
