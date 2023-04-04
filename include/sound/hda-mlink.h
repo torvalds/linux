@@ -13,6 +13,8 @@ struct hdac_bus;
 int hda_bus_ml_init(struct hdac_bus *bus);
 void hda_bus_ml_free(struct hdac_bus *bus);
 
+int hdac_bus_eml_get_count(struct hdac_bus *bus, bool alt, int elid);
+
 int hdac_bus_eml_power_up(struct hdac_bus *bus, bool alt, int elid, int sublink);
 int hdac_bus_eml_power_up_unlocked(struct hdac_bus *bus, bool alt, int elid, int sublink);
 
@@ -33,6 +35,9 @@ static inline int
 hda_bus_ml_init(struct hdac_bus *bus) { return 0; }
 
 static inline void hda_bus_ml_free(struct hdac_bus *bus) { }
+
+static inline int
+hdac_bus_eml_get_count(struct hdac_bus *bus, bool alt, int elid) { return 0; }
 
 static inline int
 hdac_bus_eml_power_up(struct hdac_bus *bus, bool alt, int elid, int sublink)

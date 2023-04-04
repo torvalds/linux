@@ -328,6 +328,18 @@ find_ext2_link(struct hdac_bus *bus, bool alt, int elid)
 	return NULL;
 }
 
+int hdac_bus_eml_get_count(struct hdac_bus *bus, bool alt, int elid)
+{
+	struct hdac_ext2_link *h2link;
+
+	h2link = find_ext2_link(bus, alt, elid);
+	if (!h2link)
+		return 0;
+
+	return h2link->slcount;
+}
+EXPORT_SYMBOL_NS(hdac_bus_eml_get_count, SND_SOC_SOF_HDA_MLINK);
+
 static int hdac_bus_eml_power_up_base(struct hdac_bus *bus, bool alt, int elid, int sublink,
 				      bool eml_lock)
 {
