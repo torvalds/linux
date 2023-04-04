@@ -4,6 +4,7 @@
  */
 
 #include <linux/of.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 
@@ -42,3 +43,32 @@ ssize_t of_modalias(const struct device_node *np, char *str, ssize_t len)
 
 	return tsize;
 }
+
+int of_request_module(const struct device_node *np)
+{
+	char *str;
+	ssize_t size;
+	int ret;
+
+	if (!np)
+		return -ENODEV;
+
+	size = of_modalias(np, NULL, 0);
+	if (size < 0)
+		return size;
+
+	/* Reserve an additional byte for the trailing '\0' */
+	size++;
+
+	str = kmalloc(size, GFP_KERNEL);
+	if (!str)
+		return -ENOMEM;
+
+	of_modalias(np, str, size);
+	str[size - 1] = '\0';
+	ret = request_module(str);
+	kfree(str);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(of_request_module);

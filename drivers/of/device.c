@@ -8,7 +8,6 @@
 #include <linux/dma-direct.h> /* for bus_dma_region */
 #include <linux/dma-map-ops.h>
 #include <linux/init.h>
-#include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
@@ -249,30 +248,10 @@ EXPORT_SYMBOL(of_device_get_match_data);
 
 int of_device_request_module(struct device *dev)
 {
-	char *str;
-	ssize_t size;
-	int ret;
-
-	if (!dev || !dev->of_node)
+	if (!dev)
 		return -ENODEV;
 
-	size = of_modalias(dev->of_node, NULL, 0);
-	if (size < 0)
-		return size;
-
-	/* Reserve an additional byte for the trailing '\0' */
-	size++;
-
-	str = kmalloc(size, GFP_KERNEL);
-	if (!str)
-		return -ENOMEM;
-
-	of_modalias(dev->of_node, str, size);
-	str[size - 1] = '\0';
-	ret = request_module(str);
-	kfree(str);
-
-	return ret;
+	return of_request_module(dev->of_node);
 }
 EXPORT_SYMBOL_GPL(of_device_request_module);
 
