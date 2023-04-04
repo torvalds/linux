@@ -59,8 +59,6 @@ extern void acpi_video_unregister(void);
 extern void acpi_video_register_backlight(void);
 extern int acpi_video_get_edid(struct acpi_device *device, int type,
 			       int device_id, void **edid);
-extern enum acpi_backlight_type acpi_video_get_backlight_type(void);
-extern bool acpi_video_backlight_use_native(void);
 /*
  * Note: The value returned by acpi_video_handles_brightness_key_presses()
  * may change over time and should not be cached.
@@ -69,6 +67,19 @@ extern bool acpi_video_handles_brightness_key_presses(void);
 extern int acpi_video_get_levels(struct acpi_device *device,
 				 struct acpi_video_device_brightness **dev_br,
 				 int *pmax_level);
+
+extern enum acpi_backlight_type __acpi_video_get_backlight_type(bool native,
+								bool *auto_detect);
+
+static inline enum acpi_backlight_type acpi_video_get_backlight_type(void)
+{
+	return __acpi_video_get_backlight_type(false, NULL);
+}
+
+static inline bool acpi_video_backlight_use_native(void)
+{
+	return __acpi_video_get_backlight_type(true, NULL) == acpi_backlight_native;
+}
 #else
 static inline void acpi_video_report_nolcd(void) { return; };
 static inline int acpi_video_register(void) { return -ENODEV; }
