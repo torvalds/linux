@@ -209,11 +209,9 @@ void io_rsrc_node_ref_zero(struct io_rsrc_node *node)
 	__must_hold(&node->rsrc_data->ctx->uring_lock)
 {
 	struct io_ring_ctx *ctx = node->rsrc_data->ctx;
-	unsigned long flags;
 	bool first_add = false;
 	unsigned long delay = HZ;
 
-	spin_lock_irqsave(&ctx->rsrc_ref_lock, flags);
 	node->done = true;
 
 	/* if we are mid-quiesce then do not delay */
@@ -229,7 +227,6 @@ void io_rsrc_node_ref_zero(struct io_rsrc_node *node)
 		list_del(&node->node);
 		first_add |= llist_add(&node->llist, &ctx->rsrc_put_llist);
 	}
-	spin_unlock_irqrestore(&ctx->rsrc_ref_lock, flags);
 
 	if (!first_add)
 		return;
@@ -268,9 +265,7 @@ void io_rsrc_node_switch(struct io_ring_ctx *ctx,
 		struct io_rsrc_node *rsrc_node = ctx->rsrc_node;
 
 		rsrc_node->rsrc_data = data_to_kill;
-		spin_lock_irq(&ctx->rsrc_ref_lock);
 		list_add_tail(&rsrc_node->node, &ctx->rsrc_ref_list);
-		spin_unlock_irq(&ctx->rsrc_ref_lock);
 
 		atomic_inc(&data_to_kill->refs);
 		/* put master ref */

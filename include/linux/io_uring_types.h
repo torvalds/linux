@@ -333,8 +333,8 @@ struct io_ring_ctx {
 	struct delayed_work		rsrc_put_work;
 	struct callback_head		rsrc_put_tw;
 	struct llist_head		rsrc_put_llist;
+	/* protected by ->uring_lock */
 	struct list_head		rsrc_ref_list;
-	spinlock_t			rsrc_ref_lock;
 
 	struct list_head		io_buffers_pages;
 
