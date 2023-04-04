@@ -145,15 +145,8 @@ static void io_rsrc_put_work_one(struct io_rsrc_data *rsrc_data,
 {
 	struct io_ring_ctx *ctx = rsrc_data->ctx;
 
-	if (prsrc->tag) {
-		if (ctx->flags & IORING_SETUP_IOPOLL) {
-			mutex_lock(&ctx->uring_lock);
-			io_post_aux_cqe(ctx, prsrc->tag, 0, 0);
-			mutex_unlock(&ctx->uring_lock);
-		} else {
-			io_post_aux_cqe(ctx, prsrc->tag, 0, 0);
-		}
-	}
+	if (prsrc->tag)
+		io_post_aux_cqe(ctx, prsrc->tag, 0, 0);
 	rsrc_data->do_put(ctx, prsrc);
 }
 
@@ -176,32 +169,6 @@ static void __io_rsrc_put_work(struct io_rsrc_node *ref_node)
 		complete(&rsrc_data->done);
 }
 
-void io_rsrc_put_work(struct work_struct *work)
-{
-	struct io_ring_ctx *ctx;
-	struct llist_node *node;
-
-	ctx = container_of(work, struct io_ring_ctx, rsrc_put_work.work);
-	node = llist_del_all(&ctx->rsrc_put_llist);
-
-	while (node) {
-		struct io_rsrc_node *ref_node;
-		struct llist_node *next = node->next;
-
-		ref_node = llist_entry(node, struct io_rsrc_node, llist);
-		__io_rsrc_put_work(ref_node);
-		node = next;
-	}
-}
-
-void io_rsrc_put_tw(struct callback_head *cb)
-{
-	struct io_ring_ctx *ctx = container_of(cb, struct io_ring_ctx,
-					       rsrc_put_tw);
-
-	io_rsrc_put_work(&ctx->rsrc_put_work.work);
-}
-
 void io_wait_rsrc_data(struct io_rsrc_data *data)
 {
 	if (data && !atomic_dec_and_test(&data->refs))
@@ -217,34 +184,18 @@ void io_rsrc_node_ref_zero(struct io_rsrc_node *node)
 	__must_hold(&node->rsrc_data->ctx->uring_lock)
 {
 	struct io_ring_ctx *ctx = node->rsrc_data->ctx;
-	bool first_add = false;
-	unsigned long delay = HZ;
 
 	node->done = true;
-
-	/* if we are mid-quiesce then do not delay */
-	if (node->rsrc_data->quiesce)
-		delay = 0;
-
 	while (!list_empty(&ctx->rsrc_ref_list)) {
 		node = list_first_entry(&ctx->rsrc_ref_list,
 					    struct io_rsrc_node, node);
 		/* recycle ref nodes in order */
 		if (!node->done)
 			break;
+
 		list_del(&node->node);
-		first_add |= llist_add(&node->llist, &ctx->rsrc_put_llist);
+		__io_rsrc_put_work(node);
 	}
-
-	if (!first_add)
-		return;
-
-	if (ctx->submitter_task) {
-		if (!task_work_add(ctx->submitter_task, &ctx->rsrc_put_tw,
-				   ctx->notify_method))
-			return;
-	}
-	mod_delayed_work(system_wq, &ctx->rsrc_put_work, delay);
 }
 
 static struct io_rsrc_node *io_rsrc_node_alloc(void)
@@ -320,13 +271,11 @@ __cold static int io_rsrc_ref_quiesce(struct io_rsrc_data *data,
 		if (ret < 0) {
 			atomic_inc(&data->refs);
 			/* wait for all works potentially completing data->done */
-			flush_delayed_work(&ctx->rsrc_put_work);
 			reinit_completion(&data->done);
 			mutex_lock(&ctx->uring_lock);
 			break;
 		}
 
-		flush_delayed_work(&ctx->rsrc_put_work);
 		ret = wait_for_completion_interruptible(&data->done);
 		if (!ret) {
 			mutex_lock(&ctx->uring_lock);
