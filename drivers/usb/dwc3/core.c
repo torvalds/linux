@@ -1041,15 +1041,14 @@ static int dwc3_core_init(struct dwc3 *dwc)
 
 	usb_phy_init(dwc->usb2_phy);
 	usb_phy_init(dwc->usb3_phy);
+
 	ret = phy_init(dwc->usb2_generic_phy);
 	if (ret < 0)
-		goto err0a;
+		goto err_shutdown_usb3_phy;
 
 	ret = phy_init(dwc->usb3_generic_phy);
-	if (ret < 0) {
-		phy_exit(dwc->usb2_generic_phy);
-		goto err0a;
-	}
+	if (ret < 0)
+		goto err_exit_usb2_phy;
 
 	ret = dwc3_core_soft_reset(dwc);
 	if (ret)
@@ -1225,11 +1224,12 @@ err2:
 	usb_phy_set_suspend(dwc->usb3_phy, 1);
 
 err1:
-	usb_phy_shutdown(dwc->usb2_phy);
-	usb_phy_shutdown(dwc->usb3_phy);
-	phy_exit(dwc->usb2_generic_phy);
 	phy_exit(dwc->usb3_generic_phy);
-
+err_exit_usb2_phy:
+	phy_exit(dwc->usb2_generic_phy);
+err_shutdown_usb3_phy:
+	usb_phy_shutdown(dwc->usb3_phy);
+	usb_phy_shutdown(dwc->usb2_phy);
 err0a:
 	dwc3_ulpi_exit(dwc);
 
