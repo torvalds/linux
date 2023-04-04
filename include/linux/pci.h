@@ -1444,11 +1444,21 @@ int devm_request_pci_bus_resources(struct device *dev,
 /* Temporary until new and working PCI SBR API in place */
 int pci_bridge_secondary_bus_reset(struct pci_dev *dev);
 
+#define __pci_bus_for_each_res0(bus, res, ...)				\
+	for (unsigned int __b = 0;					\
+	     (res = pci_bus_resource_n(bus, __b)) || __b < PCI_BRIDGE_RESOURCE_NUM; \
+	     __b++)
+
+#define __pci_bus_for_each_res1(bus, res, __b)				\
+	for (__b = 0;							\
+	     (res = pci_bus_resource_n(bus, __b)) || __b < PCI_BRIDGE_RESOURCE_NUM; \
+	     __b++)
+
 /**
  * pci_bus_for_each_resource - iterate over PCI bus resources
  * @bus: the PCI bus
  * @res: pointer to the current resource
- * @i: index of the current resource
+ * @...: optional index of the current resource
  *
  * Iterate over PCI bus resources. The first part is to go over PCI bus
  * resource array, which has at most the %PCI_BRIDGE_RESOURCE_NUM entries.
@@ -1461,13 +1471,17 @@ int pci_bridge_secondary_bus_reset(struct pci_dev *dev);
  *	struct resource *res;
  *	unsigned int i;
  *
+ * 	// With optional index
  * 	pci_bus_for_each_resource(bus, res, i)
  * 		pr_info("PCI bus resource[%u]: %pR\n", i, res);
+ *
+ * 	// Without index
+ * 	pci_bus_for_each_resource(bus, res)
+ * 		_do_something_(res);
  */
-#define pci_bus_for_each_resource(bus, res, i)				\
-	for (i = 0;							\
-	    (res = pci_bus_resource_n(bus, i)) || i < PCI_BRIDGE_RESOURCE_NUM; \
-	     i++)
+#define pci_bus_for_each_resource(bus, res, ...)			\
+	CONCATENATE(__pci_bus_for_each_res, COUNT_ARGS(__VA_ARGS__))	\
+		    (bus, res, __VA_ARGS__)
 
 int __must_check pci_bus_alloc_resource(struct pci_bus *bus,
 			struct resource *res, resource_size_t size,
