@@ -198,7 +198,7 @@ static int bpf_dummy_ops_btf_struct_access(struct bpf_verifier_log *log,
 	if (err < 0)
 		return err;
 
-	return atype == BPF_READ ? err : NOT_INIT;
+	return NOT_INIT;
 }
 
 static const struct bpf_verifier_ops bpf_dummy_verifier_ops = {

@@ -78,9 +78,6 @@ static int bpf_tcp_ca_btf_struct_access(struct bpf_verifier_log *log,
 	const struct btf_type *t;
 	size_t end;
 
-	if (atype == BPF_READ)
-		return btf_struct_access(log, reg, off, size, atype, next_btf_id, flag);
-
 	t = btf_type_by_id(reg->btf, reg->btf_id);
 	if (t != tcp_sock_type) {
 		bpf_log(log, "only read is supported\n");

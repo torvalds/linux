@@ -8753,9 +8753,6 @@ static int tc_cls_act_btf_struct_access(struct bpf_verifier_log *log,
 {
 	int ret = -EACCES;
 
-	if (atype == BPF_READ)
-		return btf_struct_access(log, reg, off, size, atype, next_btf_id, flag);
-
 	mutex_lock(&nf_conn_btf_access_lock);
 	if (nfct_btf_struct_access)
 		ret = nfct_btf_struct_access(log, reg, off, size, atype, next_btf_id, flag);
@@ -8829,9 +8826,6 @@ static int xdp_btf_struct_access(struct bpf_verifier_log *log,
 				 u32 *next_btf_id, enum bpf_type_flag *flag)
 {
 	int ret = -EACCES;
-
-	if (atype == BPF_READ)
-		return btf_struct_access(log, reg, off, size, atype, next_btf_id, flag);
 
 	mutex_lock(&nf_conn_btf_access_lock);
 	if (nfct_btf_struct_access)
