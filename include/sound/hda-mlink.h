@@ -41,6 +41,8 @@ int hdac_bus_eml_power_down_unlocked(struct hdac_bus *bus, bool alt, int elid, i
 int hdac_bus_eml_sdw_power_up_unlocked(struct hdac_bus *bus, int sublink);
 int hdac_bus_eml_sdw_power_down_unlocked(struct hdac_bus *bus, int sublink);
 
+int hdac_bus_eml_sdw_set_lsdiid(struct hdac_bus *bus, int sublink, int dev_num);
+
 void hda_bus_ml_put_all(struct hdac_bus *bus);
 void hda_bus_ml_reset_losidv(struct hdac_bus *bus);
 int hda_bus_ml_resume(struct hdac_bus *bus);
@@ -130,6 +132,9 @@ hdac_bus_eml_sdw_power_up_unlocked(struct hdac_bus *bus, int sublink) { return 0
 
 static inline int
 hdac_bus_eml_sdw_power_down_unlocked(struct hdac_bus *bus, int sublink) { return 0; }
+
+static inline int
+hdac_bus_eml_sdw_set_lsdiid(struct hdac_bus *bus, int sublink, int dev_num) { return 0; }
 
 static inline void hda_bus_ml_put_all(struct hdac_bus *bus) { }
 static inline void hda_bus_ml_reset_losidv(struct hdac_bus *bus) { }

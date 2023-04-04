@@ -323,6 +323,16 @@ static bool hdaml_link_check_cmdsync(u32 __iomem *lsync, u32 cmdsync_mask)
 	return !!(val & cmdsync_mask);
 }
 
+static void hdaml_link_set_lsdiid(u32 __iomem *lsdiid, int dev_num)
+{
+	u32 val;
+
+	val = readl(lsdiid);
+	val |= BIT(dev_num);
+
+	writel(val, lsdiid);
+}
+
 /* END HDAML section */
 
 static int hda_ml_alloc_h2link(struct hdac_bus *bus, int index)
@@ -697,6 +707,26 @@ int hdac_bus_eml_sdw_power_down_unlocked(struct hdac_bus *bus, int sublink)
 	return hdac_bus_eml_power_down_unlocked(bus, true, AZX_REG_ML_LEPTR_ID_SDW, sublink);
 }
 EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_power_down_unlocked, SND_SOC_SOF_HDA_MLINK);
+
+int hdac_bus_eml_sdw_set_lsdiid(struct hdac_bus *bus, int sublink, int dev_num)
+{
+	struct hdac_ext2_link *h2link;
+	struct hdac_ext_link *hlink;
+
+	h2link = find_ext2_link(bus, true, AZX_REG_ML_LEPTR_ID_SDW);
+	if (!h2link)
+		return -ENODEV;
+
+	hlink = &h2link->hext_link;
+
+	mutex_lock(&h2link->eml_lock);
+
+	hdaml_link_set_lsdiid(hlink->ml_addr + AZX_REG_ML_LSDIID_OFFSET(sublink), dev_num);
+
+	mutex_unlock(&h2link->eml_lock);
+
+	return 0;
+} EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_set_lsdiid, SND_SOC_SOF_HDA_MLINK);
 
 void hda_bus_ml_put_all(struct hdac_bus *bus)
 {
