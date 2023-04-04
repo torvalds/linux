@@ -31,6 +31,7 @@
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
 #include <linux/mali/mali_utgard.h>
+#include <linux/pm_runtime.h>
 #include <soc/rockchip/rockchip_opp_select.h>
 
 #include "mali_kernel_common.h"
@@ -745,6 +746,7 @@ static int mali_driver_suspend_scheduler(struct device *dev)
 		return -ENODEV;
 #endif
 
+	pm_runtime_force_suspend(dev);
 #if defined(CONFIG_MALI_DEVFREQ) && \
                 (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
 	devfreq_suspend_device(mdev->devfreq);
@@ -789,6 +791,7 @@ static int mali_driver_resume_scheduler(struct device *dev)
                 (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
 	devfreq_resume_device(mdev->devfreq);
 #endif
+	pm_runtime_force_resume(dev);
 
 	return 0;
 }
