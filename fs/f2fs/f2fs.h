@@ -3474,7 +3474,6 @@ int f2fs_get_tmpfile(struct user_namespace *mnt_userns, struct inode *dir,
 /*
  * dir.c
  */
-unsigned char f2fs_get_de_type(struct f2fs_dir_entry *de);
 int f2fs_init_casefolded_name(const struct inode *dir,
 			      struct f2fs_filename *fname);
 int f2fs_setup_filename(struct inode *dir, const struct qstr *iname,
