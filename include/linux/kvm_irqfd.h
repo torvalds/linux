@@ -31,7 +31,7 @@ struct kvm_kernel_irqfd_resampler {
 	/*
 	 * Entry in list of kvm->irqfd.resampler_list.  Use for sharing
 	 * resamplers among irqfds on the same gsi.
-	 * Accessed and modified under kvm->irqfds.resampler_lock
+	 * RCU list modified under kvm->irqfds.resampler_lock
 	 */
 	struct list_head link;
 };
