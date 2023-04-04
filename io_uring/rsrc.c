@@ -31,6 +31,11 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,
 #define IORING_MAX_FIXED_FILES	(1U << 20)
 #define IORING_MAX_REG_BUFFERS	(1U << 14)
 
+static inline bool io_put_rsrc_data_ref(struct io_rsrc_data *rsrc_data)
+{
+	return !--rsrc_data->refs;
+}
+
 int __io_account_mem(struct user_struct *user, unsigned long nr_pages)
 {
 	unsigned long page_limit, cur_pages, new_pages;
@@ -165,13 +170,13 @@ static void __io_rsrc_put_work(struct io_rsrc_node *ref_node)
 	}
 
 	io_rsrc_node_destroy(rsrc_data->ctx, ref_node);
-	if (atomic_dec_and_test(&rsrc_data->refs))
+	if (io_put_rsrc_data_ref(rsrc_data))
 		complete(&rsrc_data->done);
 }
 
 void io_wait_rsrc_data(struct io_rsrc_data *data)
 {
-	if (data && !atomic_dec_and_test(&data->refs))
+	if (data && !io_put_rsrc_data_ref(data))
 		wait_for_completion(&data->done);
 }
 
@@ -234,7 +239,7 @@ void io_rsrc_node_switch(struct io_ring_ctx *ctx,
 		rsrc_node->rsrc_data = data_to_kill;
 		list_add_tail(&rsrc_node->node, &ctx->rsrc_ref_list);
 
-		atomic_inc(&data_to_kill->refs);
+		data_to_kill->refs++;
 		/* put master ref */
 		io_put_rsrc_node(ctx, rsrc_node);
 		ctx->rsrc_node = NULL;
@@ -267,8 +272,8 @@ __cold static int io_rsrc_ref_quiesce(struct io_rsrc_data *data,
 		return ret;
 	io_rsrc_node_switch(ctx, data);
 
-	/* kill initial ref, already quiesced if zero */
-	if (atomic_dec_and_test(&data->refs))
+	/* kill initial ref */
+	if (io_put_rsrc_data_ref(data))
 		return 0;
 
 	data->quiesce = true;
@@ -276,17 +281,19 @@ __cold static int io_rsrc_ref_quiesce(struct io_rsrc_data *data,
 	do {
 		ret = io_run_task_work_sig(ctx);
 		if (ret < 0) {
-			atomic_inc(&data->refs);
-			/* wait for all works potentially completing data->done */
-			reinit_completion(&data->done);
 			mutex_lock(&ctx->uring_lock);
+			if (!data->refs) {
+				ret = 0;
+			} else {
+				/* restore the master reference */
+				data->refs++;
+			}
 			break;
 		}
-
 		ret = wait_for_completion_interruptible(&data->done);
 		if (!ret) {
 			mutex_lock(&ctx->uring_lock);
-			if (atomic_read(&data->refs) <= 0)
+			if (!data->refs)
 				break;
 			/*
 			 * it has been revived by another thread while
@@ -361,6 +368,7 @@ __cold static int io_rsrc_data_alloc(struct io_ring_ctx *ctx,
 	data->nr = nr;
 	data->ctx = ctx;
 	data->do_put = do_put;
+	data->refs = 1;
 	if (utags) {
 		ret = -EFAULT;
 		for (i = 0; i < nr; i++) {
@@ -371,8 +379,6 @@ __cold static int io_rsrc_data_alloc(struct io_ring_ctx *ctx,
 				goto fail;
 		}
 	}
-
-	atomic_set(&data->refs, 1);
 	init_completion(&data->done);
 	*pdata = data;
 	return 0;

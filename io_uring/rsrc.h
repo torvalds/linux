@@ -33,8 +33,8 @@ struct io_rsrc_data {
 	u64				**tags;
 	unsigned int			nr;
 	rsrc_put_fn			*do_put;
-	atomic_t			refs;
 	struct completion		done;
+	int				refs;
 	bool				quiesce;
 };
 
