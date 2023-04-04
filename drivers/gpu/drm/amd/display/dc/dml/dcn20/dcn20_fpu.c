@@ -2333,7 +2333,7 @@ void dcn21_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params
 		k++;
 	}
 
-	memcpy(dcn2_1_soc.clock_limits, s, sizeof(dcn2_1_soc.clock_limits));
+	memcpy(&dcn2_1_soc.clock_limits, s, sizeof(dcn2_1_soc.clock_limits));
 
 	if (clk_table->num_entries) {
 		dcn2_1_soc.num_states = clk_table->num_entries + 1;
