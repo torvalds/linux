@@ -37,13 +37,12 @@ struct io_rsrc_data {
 };
 
 struct io_rsrc_node {
-	refcount_t			refs;
 	struct list_head		node;
 	struct list_head		rsrc_list;
 	struct io_rsrc_data		*rsrc_data;
 	struct llist_node		llist;
+	int				refs;
 	bool				done;
-	int				cached_refs;
 };
 
 struct io_mapped_ubuf {
@@ -57,10 +56,8 @@ struct io_mapped_ubuf {
 void io_rsrc_put_tw(struct callback_head *cb);
 void io_rsrc_node_ref_zero(struct io_rsrc_node *node);
 void io_rsrc_put_work(struct work_struct *work);
-void io_rsrc_refs_refill(struct io_ring_ctx *ctx, struct io_rsrc_node *node);
 void io_wait_rsrc_data(struct io_rsrc_data *data);
 void io_rsrc_node_destroy(struct io_rsrc_node *ref_node);
-void io_rsrc_refs_drop(struct io_ring_ctx *ctx);
 int io_rsrc_node_switch_start(struct io_ring_ctx *ctx);
 int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx,
 			  struct io_rsrc_node *node, void *rsrc);
@@ -109,38 +106,22 @@ int io_register_rsrc_update(struct io_ring_ctx *ctx, void __user *arg,
 int io_register_rsrc(struct io_ring_ctx *ctx, void __user *arg,
 			unsigned int size, unsigned int type);
 
-static inline void io_rsrc_put_node(struct io_rsrc_node *node, int nr)
-{
-	if (refcount_sub_and_test(nr, &node->refs))
-		io_rsrc_node_ref_zero(node);
-}
-
 static inline void io_put_rsrc_node(struct io_rsrc_node *node)
 {
-	if (node)
-		io_rsrc_put_node(node, 1);
+	if (node && !--node->refs)
+		io_rsrc_node_ref_zero(node);
 }
 
 static inline void io_req_put_rsrc_locked(struct io_kiocb *req,
 					  struct io_ring_ctx *ctx)
-	__must_hold(&ctx->uring_lock)
 {
-	struct io_rsrc_node *node = req->rsrc_node;
-
-	if (node) {
-		if (node == ctx->rsrc_node)
-			node->cached_refs++;
-		else
-			io_rsrc_put_node(node, 1);
-	}
+	io_put_rsrc_node(req->rsrc_node);
 }
 
 static inline void io_charge_rsrc_node(struct io_ring_ctx *ctx,
 				       struct io_rsrc_node *node)
 {
-	node->cached_refs--;
-	if (unlikely(node->cached_refs < 0))
-		io_rsrc_refs_refill(ctx, node);
+	node->refs++;
 }
 
 static inline void io_req_set_rsrc_node(struct io_kiocb *req,

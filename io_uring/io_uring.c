@@ -967,7 +967,7 @@ bool io_aux_cqe(struct io_ring_ctx *ctx, bool defer, u64 user_data, s32 res, u32
 	return true;
 }
 
-static void __io_req_complete_post(struct io_kiocb *req)
+static void __io_req_complete_post(struct io_kiocb *req, unsigned issue_flags)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_rsrc_node *rsrc_node = NULL;
@@ -1003,7 +1003,11 @@ static void __io_req_complete_post(struct io_kiocb *req)
 	}
 	io_cq_unlock_post(ctx);
 
-	io_put_rsrc_node(rsrc_node);
+	if (rsrc_node) {
+		io_ring_submit_lock(ctx, issue_flags);
+		io_put_rsrc_node(rsrc_node);
+		io_ring_submit_unlock(ctx, issue_flags);
+	}
 }
 
 void io_req_complete_post(struct io_kiocb *req, unsigned issue_flags)
@@ -1013,12 +1017,12 @@ void io_req_complete_post(struct io_kiocb *req, unsigned issue_flags)
 		io_req_task_work_add(req);
 	} else if (!(issue_flags & IO_URING_F_UNLOCKED) ||
 		   !(req->ctx->flags & IORING_SETUP_IOPOLL)) {
-		__io_req_complete_post(req);
+		__io_req_complete_post(req, issue_flags);
 	} else {
 		struct io_ring_ctx *ctx = req->ctx;
 
 		mutex_lock(&ctx->uring_lock);
-		__io_req_complete_post(req);
+		__io_req_complete_post(req, issue_flags & ~IO_URING_F_UNLOCKED);
 		mutex_unlock(&ctx->uring_lock);
 	}
 }
@@ -1120,7 +1124,10 @@ static __cold void io_free_req_tw(struct io_kiocb *req, struct io_tw_state *ts)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 
-	io_put_rsrc_node(req->rsrc_node);
+	if (req->rsrc_node) {
+		io_tw_lock(ctx, ts);
+		io_put_rsrc_node(req->rsrc_node);
+	}
 	io_dismantle_req(req);
 	io_put_task_remote(req->task, 1);
 
@@ -2790,7 +2797,6 @@ static void io_req_caches_free(struct io_ring_ctx *ctx)
 static __cold void io_ring_ctx_free(struct io_ring_ctx *ctx)
 {
 	io_sq_thread_finish(ctx);
-	io_rsrc_refs_drop(ctx);
 	/* __io_rsrc_put_work() may need uring_lock to progress, wait w/o it */
 	io_wait_rsrc_data(ctx->buf_data);
 	io_wait_rsrc_data(ctx->file_data);

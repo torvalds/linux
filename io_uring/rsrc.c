@@ -27,22 +27,9 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,
 				  struct io_mapped_ubuf **pimu,
 				  struct page **last_hpage);
 
-#define IO_RSRC_REF_BATCH	100
-
 /* only define max */
 #define IORING_MAX_FIXED_FILES	(1U << 20)
 #define IORING_MAX_REG_BUFFERS	(1U << 14)
-
-void io_rsrc_refs_drop(struct io_ring_ctx *ctx)
-	__must_hold(&ctx->uring_lock)
-{
-	struct io_rsrc_node *node = ctx->rsrc_node;
-
-	if (node && node->cached_refs) {
-		io_rsrc_put_node(node, node->cached_refs);
-		node->cached_refs = 0;
-	}
-}
 
 int __io_account_mem(struct user_struct *user, unsigned long nr_pages)
 {
@@ -153,13 +140,6 @@ static void io_buffer_unmap(struct io_ring_ctx *ctx, struct io_mapped_ubuf **slo
 	*slot = NULL;
 }
 
-void io_rsrc_refs_refill(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
-	__must_hold(&ctx->uring_lock)
-{
-	node->cached_refs += IO_RSRC_REF_BATCH;
-	refcount_add(IO_RSRC_REF_BATCH, &node->refs);
-}
-
 static void __io_rsrc_put_work(struct io_rsrc_node *ref_node)
 {
 	struct io_rsrc_data *rsrc_data = ref_node->rsrc_data;
@@ -225,7 +205,8 @@ void io_rsrc_node_destroy(struct io_rsrc_node *ref_node)
 	kfree(ref_node);
 }
 
-__cold void io_rsrc_node_ref_zero(struct io_rsrc_node *node)
+void io_rsrc_node_ref_zero(struct io_rsrc_node *node)
+	__must_hold(&node->rsrc_data->ctx->uring_lock)
 {
 	struct io_ring_ctx *ctx = node->rsrc_data->ctx;
 	unsigned long flags;
@@ -269,7 +250,7 @@ static struct io_rsrc_node *io_rsrc_node_alloc(void)
 	if (!ref_node)
 		return NULL;
 
-	refcount_set(&ref_node->refs, 1);
+	ref_node->refs = 1;
 	INIT_LIST_HEAD(&ref_node->node);
 	INIT_LIST_HEAD(&ref_node->rsrc_list);
 	ref_node->done = false;
@@ -283,8 +264,6 @@ void io_rsrc_node_switch(struct io_ring_ctx *ctx,
 	WARN_ON_ONCE(!ctx->rsrc_backup_node);
 	WARN_ON_ONCE(data_to_kill && !ctx->rsrc_node);
 
-	io_rsrc_refs_drop(ctx);
-
 	if (data_to_kill) {
 		struct io_rsrc_node *rsrc_node = ctx->rsrc_node;
 
@@ -295,14 +274,13 @@ void io_rsrc_node_switch(struct io_ring_ctx *ctx,
 
 		atomic_inc(&data_to_kill->refs);
 		/* put master ref */
-		io_rsrc_put_node(rsrc_node, 1);
+		io_put_rsrc_node(rsrc_node);
 		ctx->rsrc_node = NULL;
 	}
 
 	if (!ctx->rsrc_node) {
 		ctx->rsrc_node = ctx->rsrc_backup_node;
 		ctx->rsrc_backup_node = NULL;
-		ctx->rsrc_node->cached_refs = 0;
 	}
 }
 
