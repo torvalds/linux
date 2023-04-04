@@ -17,6 +17,12 @@ int hdac_bus_eml_get_count(struct hdac_bus *bus, bool alt, int elid);
 void hdac_bus_eml_enable_interrupt(struct hdac_bus *bus, bool alt, int elid, bool enable);
 bool hdac_bus_eml_check_interrupt(struct hdac_bus *bus, bool alt, int elid);
 
+int hdac_bus_eml_set_syncprd_unlocked(struct hdac_bus *bus, bool alt, int elid, u32 syncprd);
+int hdac_bus_eml_sdw_set_syncprd_unlocked(struct hdac_bus *bus, u32 syncprd);
+
+int hdac_bus_eml_wait_syncpu_unlocked(struct hdac_bus *bus, bool alt, int elid);
+int hdac_bus_eml_sdw_wait_syncpu_unlocked(struct hdac_bus *bus);
+
 int hdac_bus_eml_power_up(struct hdac_bus *bus, bool alt, int elid, int sublink);
 int hdac_bus_eml_power_up_unlocked(struct hdac_bus *bus, bool alt, int elid, int sublink);
 
@@ -46,6 +52,27 @@ hdac_bus_eml_enable_interrupt(struct hdac_bus *bus, bool alt, int elid, bool ena
 
 static inline bool
 hdac_bus_eml_check_interrupt(struct hdac_bus *bus, bool alt, int elid) { return false; }
+
+static inline int
+hdac_bus_eml_set_syncprd_unlocked(struct hdac_bus *bus, bool alt, int elid, u32 syncprd)
+{
+	return 0;
+}
+
+static inline int
+hdac_bus_eml_sdw_set_syncprd_unlocked(struct hdac_bus *bus, u32 syncprd)
+{
+	return 0;
+}
+
+static inline int
+hdac_bus_eml_wait_syncpu_unlocked(struct hdac_bus *bus, bool alt, int elid)
+{
+	return 0;
+}
+
+static inline int
+hdac_bus_eml_sdw_wait_syncpu_unlocked(struct hdac_bus *bus) { return 0; }
 
 static inline int
 hdac_bus_eml_power_up(struct hdac_bus *bus, bool alt, int elid, int sublink)

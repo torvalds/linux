@@ -254,6 +254,46 @@ static bool hdaml_link_check_interrupt(u32 __iomem *lctl)
 	return val & AZX_ML_LCTL_INTSTS;
 }
 
+static int hdaml_wait_bit(void __iomem *base, int offset, u32 mask, u32 target)
+{
+	int timeout = HDAML_POLL_DELAY_RETRY;
+	u32 reg_read;
+
+	do {
+		reg_read = readl(base + offset);
+		if ((reg_read & mask) == target)
+			return 0;
+
+		timeout--;
+		usleep_range(HDAML_POLL_DELAY_MIN_US,
+			     HDAML_POLL_DELAY_MIN_US + HDAML_POLL_DELAY_SLACK_US);
+	} while (timeout != 0);
+
+	return -EAGAIN;
+}
+
+static void hdaml_link_set_syncprd(u32 __iomem *lsync, u32 syncprd)
+{
+	u32 val;
+
+	val = readl(lsync);
+	val &= ~AZX_REG_ML_LSYNC_SYNCPRD;
+	val |= (syncprd & AZX_REG_ML_LSYNC_SYNCPRD);
+
+	/*
+	 * set SYNCPU but do not wait. The bit is cleared by hardware when
+	 * the link becomes active.
+	 */
+	val |= AZX_REG_ML_LSYNC_SYNCPU;
+
+	writel(val, lsync);
+}
+
+static int hdaml_link_wait_syncpu(u32 __iomem *lsync)
+{
+	return hdaml_wait_bit(lsync, 0, AZX_REG_ML_LSYNC_SYNCPU, 0);
+}
+
 /* END HDAML section */
 
 static int hda_ml_alloc_h2link(struct hdac_bus *bus, int index)
@@ -401,6 +441,56 @@ bool hdac_bus_eml_check_interrupt(struct hdac_bus *bus, bool alt, int elid)
 	return hdaml_link_check_interrupt(hlink->ml_addr + AZX_REG_ML_LCTL);
 }
 EXPORT_SYMBOL_NS(hdac_bus_eml_check_interrupt, SND_SOC_SOF_HDA_MLINK);
+
+int hdac_bus_eml_set_syncprd_unlocked(struct hdac_bus *bus, bool alt, int elid, u32 syncprd)
+{
+	struct hdac_ext2_link *h2link;
+	struct hdac_ext_link *hlink;
+
+	h2link = find_ext2_link(bus, alt, elid);
+	if (!h2link)
+		return 0;
+
+	if (!h2link->lss)
+		return 0;
+
+	hlink = &h2link->hext_link;
+
+	hdaml_link_set_syncprd(hlink->ml_addr + AZX_REG_ML_LSYNC, syncprd);
+
+	return 0;
+}
+EXPORT_SYMBOL_NS(hdac_bus_eml_set_syncprd_unlocked, SND_SOC_SOF_HDA_MLINK);
+
+int hdac_bus_eml_sdw_set_syncprd_unlocked(struct hdac_bus *bus, u32 syncprd)
+{
+	return hdac_bus_eml_set_syncprd_unlocked(bus, true, AZX_REG_ML_LEPTR_ID_SDW, syncprd);
+}
+EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_set_syncprd_unlocked, SND_SOC_SOF_HDA_MLINK);
+
+int hdac_bus_eml_wait_syncpu_unlocked(struct hdac_bus *bus, bool alt, int elid)
+{
+	struct hdac_ext2_link *h2link;
+	struct hdac_ext_link *hlink;
+
+	h2link = find_ext2_link(bus, alt, elid);
+	if (!h2link)
+		return 0;
+
+	if (!h2link->lss)
+		return 0;
+
+	hlink = &h2link->hext_link;
+
+	return hdaml_link_wait_syncpu(hlink->ml_addr + AZX_REG_ML_LSYNC);
+}
+EXPORT_SYMBOL_NS(hdac_bus_eml_wait_syncpu_unlocked, SND_SOC_SOF_HDA_MLINK);
+
+int hdac_bus_eml_sdw_wait_syncpu_unlocked(struct hdac_bus *bus)
+{
+	return hdac_bus_eml_wait_syncpu_unlocked(bus, true, AZX_REG_ML_LEPTR_ID_SDW);
+}
+EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_wait_syncpu_unlocked, SND_SOC_SOF_HDA_MLINK);
 
 static int hdac_bus_eml_power_up_base(struct hdac_bus *bus, bool alt, int elid, int sublink,
 				      bool eml_lock)
