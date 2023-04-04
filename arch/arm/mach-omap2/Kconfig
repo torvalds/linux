@@ -255,17 +255,6 @@ config MACH_NOKIA_N8X0
 	select MACH_NOKIA_N810
 	select MACH_NOKIA_N810_WIMAX
 
-config OMAP3_SDRC_AC_TIMING
-	bool "Enable SDRC AC timing register changes"
-	depends on ARCH_OMAP3
-	help
-	  If you know that none of your system initiators will attempt to
-	  access SDRAM during CORE DVFS, select Y here.  This should boost
-	  SDRAM performance at lower CORE OPPs.  There are relatively few
-	  users who will wish to say yes at this point - almost everyone will
-	  wish to say no.  Selecting yes without understanding what is
-	  going on could result in system crashes;
-
 endmenu
 
 endif
