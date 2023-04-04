@@ -1116,7 +1116,7 @@ static inline void io_dismantle_req(struct io_kiocb *req)
 		io_put_file(req->file);
 }
 
-__cold void io_free_req(struct io_kiocb *req)
+static __cold void io_free_req_tw(struct io_kiocb *req, struct io_tw_state *ts)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 
@@ -1128,6 +1128,12 @@ __cold void io_free_req(struct io_kiocb *req)
 	wq_list_add_head(&req->comp_list, &ctx->locked_free_list);
 	ctx->locked_free_nr++;
 	spin_unlock(&ctx->completion_lock);
+}
+
+__cold void io_free_req(struct io_kiocb *req)
+{
+	req->io_task_work.func = io_free_req_tw;
+	io_req_task_work_add(req);
 }
 
 static void __io_req_find_next_prep(struct io_kiocb *req)
