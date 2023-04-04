@@ -47,32 +47,34 @@
 static u32 hda_get_interface_mask(struct snd_sof_dev *sdev)
 {
 	const struct sof_intel_dsp_desc *chip;
-	u32 interface_mask = 0;
+	u32 interface_mask[2] = { 0 };
 
 	chip = get_chip_info(sdev->pdata);
 	switch (chip->hw_ip_version) {
 	case SOF_INTEL_TANGIER:
 	case SOF_INTEL_BAYTRAIL:
 	case SOF_INTEL_BROADWELL:
-		interface_mask = BIT(SOF_DAI_INTEL_SSP);
+		interface_mask[0] =  BIT(SOF_DAI_INTEL_SSP);
 		break;
 	case SOF_INTEL_CAVS_1_5:
 	case SOF_INTEL_CAVS_1_5_PLUS:
-		interface_mask = BIT(SOF_DAI_INTEL_SSP) | BIT(SOF_DAI_INTEL_DMIC) |
-				 BIT(SOF_DAI_INTEL_HDA);
+		interface_mask[0] = BIT(SOF_DAI_INTEL_SSP) | BIT(SOF_DAI_INTEL_DMIC) |
+				    BIT(SOF_DAI_INTEL_HDA);
+		interface_mask[1] = BIT(SOF_DAI_INTEL_HDA);
 		break;
 	case SOF_INTEL_CAVS_1_8:
 	case SOF_INTEL_CAVS_2_0:
 	case SOF_INTEL_CAVS_2_5:
 	case SOF_INTEL_ACE_1_0:
-		interface_mask = BIT(SOF_DAI_INTEL_SSP) | BIT(SOF_DAI_INTEL_DMIC) |
-				 BIT(SOF_DAI_INTEL_HDA) | BIT(SOF_DAI_INTEL_ALH);
+		interface_mask[0] = BIT(SOF_DAI_INTEL_SSP) | BIT(SOF_DAI_INTEL_DMIC) |
+				    BIT(SOF_DAI_INTEL_HDA) | BIT(SOF_DAI_INTEL_ALH);
+		interface_mask[1] = BIT(SOF_DAI_INTEL_HDA);
 		break;
 	default:
 		break;
 	}
 
-	return interface_mask;
+	return interface_mask[sdev->dspless_mode_selected];
 }
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL_SOUNDWIRE)
@@ -1057,6 +1059,9 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 #else
 	hdev->no_ipc_position = sof_ops(sdev)->pcm_pointer ? 1 : 0;
 #endif
+
+	if (sdev->dspless_mode_selected)
+		hdev->no_ipc_position = 1;
 
 	/* set up HDA base */
 	bus = sof_to_bus(sdev);

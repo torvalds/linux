@@ -31,10 +31,17 @@ int hda_dai_config(struct snd_soc_dapm_widget *w, unsigned int flags,
 		   struct snd_sof_dai_config_data *data)
 {
 	struct snd_sof_widget *swidget = w->dobj.private;
-	struct snd_soc_component *component = swidget->scomp;
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
-	const struct sof_ipc_tplg_ops *tplg_ops = sof_ipc_get_ops(sdev, tplg);
+	const struct sof_ipc_tplg_ops *tplg_ops;
+	struct snd_soc_component *component;
+	struct snd_sof_dev *sdev;
 	int ret;
+
+	if (!swidget)
+		return 0;
+
+	component = swidget->scomp;
+	sdev = snd_soc_component_get_drvdata(component);
+	tplg_ops = sof_ipc_get_ops(sdev, tplg);
 
 	if (tplg_ops && tplg_ops->dai_config) {
 		ret = tplg_ops->dai_config(sdev, swidget, flags, data);
@@ -56,13 +63,21 @@ hda_dai_get_ops(struct snd_pcm_substream *substream, struct snd_soc_dai *cpu_dai
 	struct snd_soc_dapm_widget *w = snd_soc_dai_get_widget(cpu_dai, substream->stream);
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(cpu_dai->component);
 	struct snd_sof_widget *swidget = w->dobj.private;
-	struct snd_sof_dai *sdai = swidget->private;
+	struct snd_sof_dai *sdai;
+
+	/*
+	 * The swidget parameter of hda_select_dai_widget_ops() is ignored in
+	 * case of DSPless mode
+	 */
+	if (sdev->dspless_mode_selected)
+		return hda_select_dai_widget_ops(sdev, NULL);
+
+	sdai = swidget->private;
 
 	/* select and set the DAI widget ops if not set already */
 	if (!sdai->platform_private) {
 		const struct hda_dai_widget_dma_ops *ops =
 			hda_select_dai_widget_ops(sdev, swidget);
-
 		if (!ops)
 			return NULL;
 
