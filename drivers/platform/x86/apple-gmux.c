@@ -57,7 +57,7 @@
 struct apple_gmux_config;
 
 struct apple_gmux_data {
-	u8 *__iomem iomem_base;
+	u8 __iomem *iomem_base;
 	unsigned long iostart;
 	unsigned long iolen;
 	const struct apple_gmux_config *config;

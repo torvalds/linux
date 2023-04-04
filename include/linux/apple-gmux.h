@@ -66,7 +66,7 @@ static inline bool apple_gmux_is_indexed(unsigned long iostart)
 
 static inline bool apple_gmux_is_mmio(unsigned long iostart)
 {
-	u8 *__iomem iomem_base = ioremap(iostart, 16);
+	u8 __iomem *iomem_base = ioremap(iostart, 16);
 	u8 val;
 
 	if (!iomem_base)
