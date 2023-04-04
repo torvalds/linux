@@ -3615,6 +3615,22 @@ int mt7996_mcu_rf_regval(struct mt7996_dev *dev, u32 regidx, u32 *val, bool set)
 	return 0;
 }
 
+int mt7996_mcu_trigger_assert(struct mt7996_dev *dev)
+{
+	struct {
+		__le16 tag;
+		__le16 len;
+		u8 enable;
+		u8 rsv[3];
+	} __packed req = {
+		.len = cpu_to_le16(sizeof(req) - 4),
+		.enable = true,
+	};
+
+	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(ASSERT_DUMP),
+				 &req, sizeof(req), false);
+}
+
 int mt7996_mcu_set_rro(struct mt7996_dev *dev, u16 tag, u8 val)
 {
 	struct {
