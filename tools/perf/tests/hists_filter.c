@@ -89,6 +89,7 @@ static int add_hist_entries(struct evlist *evlist,
 			}
 
 			fake_samples[i].thread = al.thread;
+			map__put(fake_samples[i].map);
 			fake_samples[i].map = al.map;
 			fake_samples[i].sym = al.sym;
 		}
@@ -99,6 +100,14 @@ static int add_hist_entries(struct evlist *evlist,
 out:
 	pr_debug("Not enough memory for adding a hist entry\n");
 	return TEST_FAIL;
+}
+
+static void put_fake_samples(void)
+{
+	size_t i;
+
+	for (i = 0; i < ARRAY_SIZE(fake_samples); i++)
+		map__put(fake_samples[i].map);
 }
 
 static int test__hists_filter(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
@@ -322,6 +331,7 @@ out:
 	evlist__delete(evlist);
 	reset_output_field();
 	machines__exit(&machines);
+	put_fake_samples();
 
 	return err;
 }

@@ -78,6 +78,7 @@ static int add_hist_entries(struct hists *hists, struct machine *machine)
 		}
 
 		fake_samples[i].thread = al.thread;
+		map__put(fake_samples[i].map);
 		fake_samples[i].map = al.map;
 		fake_samples[i].sym = al.sym;
 	}
@@ -111,6 +112,14 @@ static void del_hist_entries(struct hists *hists)
 		rb_erase_cached(&he->rb_node_in, root_in);
 		hist_entry__delete(he);
 	}
+}
+
+static void put_fake_samples(void)
+{
+	size_t i;
+
+	for (i = 0; i < ARRAY_SIZE(fake_samples); i++)
+		map__put(fake_samples[i].map);
 }
 
 typedef int (*test_fn_t)(struct evsel *, struct machine *);
@@ -620,6 +629,7 @@ out:
 	/* tear down everything */
 	evlist__delete(evlist);
 	machines__exit(&machines);
+	put_fake_samples();
 
 	return err;
 }

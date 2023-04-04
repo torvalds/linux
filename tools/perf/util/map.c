@@ -410,7 +410,7 @@ struct map *map__clone(struct map *from)
 	map = memdup(from, size);
 	if (map != NULL) {
 		refcount_set(&map->refcnt, 1);
-		dso__get(dso);
+		map->dso = dso__get(dso);
 	}
 
 	return map;

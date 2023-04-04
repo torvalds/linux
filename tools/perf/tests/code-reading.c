@@ -366,6 +366,7 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 	}
 	pr_debug("Bytes read match those read by objdump\n");
 out:
+	map__put(al.map);
 	return err;
 }
 

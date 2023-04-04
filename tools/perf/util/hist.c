@@ -450,7 +450,7 @@ static int hist_entry__init(struct hist_entry *he,
 			memset(&he->stat, 0, sizeof(he->stat));
 	}
 
-	map__get(he->ms.map);
+	he->ms.map = map__get(he->ms.map);
 
 	if (he->branch_info) {
 		/*
@@ -465,13 +465,13 @@ static int hist_entry__init(struct hist_entry *he,
 		memcpy(he->branch_info, template->branch_info,
 		       sizeof(*he->branch_info));
 
-		map__get(he->branch_info->from.ms.map);
-		map__get(he->branch_info->to.ms.map);
+		he->branch_info->from.ms.map = map__get(he->branch_info->from.ms.map);
+		he->branch_info->to.ms.map = map__get(he->branch_info->to.ms.map);
 	}
 
 	if (he->mem_info) {
-		map__get(he->mem_info->iaddr.ms.map);
-		map__get(he->mem_info->daddr.ms.map);
+		he->mem_info->iaddr.ms.map = map__get(he->mem_info->iaddr.ms.map);
+		he->mem_info->daddr.ms.map = map__get(he->mem_info->daddr.ms.map);
 	}
 
 	if (hist_entry__has_callchains(he) && symbol_conf.use_callchain)
