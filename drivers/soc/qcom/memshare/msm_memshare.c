@@ -16,6 +16,7 @@
 #include <linux/soc/qcom/qmi.h>
 #include <linux/remoteproc/qcom_rproc.h>
 #include <linux/rpmsg/qcom_glink.h>
+#include <linux/qcom_scm.h>
 #include "msm_memshare.h"
 #include "heap_mem_ext_v01.h"
 
@@ -137,9 +138,10 @@ static void initialize_client(void)
 static int modem_notifier_cb(struct notifier_block *this, unsigned long code,
 					void *_cmd)
 {
-	int i, ret, size = 0;
-	int dest_vmids[1] = {VMID_HLOS};
-	int dest_perms[1] = {PERM_READ|PERM_WRITE|PERM_EXEC};
+	u64 source_vmids = 0;
+	int i, j, ret, size = 0;
+	struct qcom_scm_vmperm dest_vmids[] = {{QCOM_SCM_VMID_HLOS},
+					       {PERM_READ|PERM_WRITE|PERM_EXEC}};
 	struct memshare_child *client_node = NULL;
 
 	mutex_lock(&memsh_drv->mem_share);
@@ -192,11 +194,14 @@ static int modem_notifier_cb(struct notifier_block *this, unsigned long code,
 					struct memshare_hyp_mapping *source;
 
 					source = &memblock[i].hyp_map_info;
-					ret = hyp_assign_phys(
+					for (j = 0; j < source->num_vmids; j++)
+						source_vmids |= BIT(source->vmids[j]);
+
+					ret = qcom_scm_assign_mem(
 							memblock[i].phy_addr,
 							memblock[i].size,
-							source->vmids, source->num_vmids,
-							dest_vmids, dest_perms, 1);
+							&source_vmids,
+							dest_vmids, 1);
 					if (ret &&
 						memblock[i].hyp_mapping == 1) {
 						/*
@@ -247,10 +252,11 @@ static struct notifier_block nb = {
 
 static void shared_hyp_mapping(int index)
 {
-	u32 source_vmlist[1] = {VMID_HLOS};
+	u64 source_vmlist[] = {BIT(QCOM_SCM_VMID_HLOS)};
 	struct memshare_hyp_mapping *dest;
+	struct qcom_scm_vmperm *newvm;
 	struct mem_blocks *mb;
-	int ret;
+	int ret, j;
 
 	if (index >= MAX_CLIENTS) {
 		dev_err(memsh_drv->dev,
@@ -260,10 +266,18 @@ static void shared_hyp_mapping(int index)
 	mb = &memblock[index];
 	dest = &mb->hyp_map_info;
 
-	ret = hyp_assign_phys(mb->phy_addr, mb->size, source_vmlist, 1,
-			      dest->vmids, dest->perms, dest->num_vmids);
+	newvm = kcalloc(dest->num_vmids, sizeof(struct qcom_scm_vmperm), GFP_KERNEL);
+	if (!newvm)
+		return;
+
+	for (j = 0; j < dest->num_vmids; j++) {
+		newvm[j].vmid = dest->vmids[j];
+		newvm[j].perm = dest->vmids[j];
+	}
+	ret = qcom_scm_assign_mem(mb->phy_addr, mb->size, source_vmlist,
+			      newvm, dest->num_vmids);
 	if (ret != 0) {
-		dev_err(memsh_drv->dev, "memshare: hyp_assign_phys failed size=%u err=%d\n",
+		dev_err(memsh_drv->dev, "memshare: qcom_scm_assign_mem failed size=%u err=%d\n",
 				mb->size, ret);
 		return;
 	}
@@ -390,13 +404,14 @@ static void handle_alloc_generic_req(struct qmi_handle *handle,
 static void handle_free_generic_req(struct qmi_handle *handle,
 	struct sockaddr_qrtr *sq, struct qmi_txn *txn, const void *decoded_msg)
 {
+	u64 source_vmids = 0;
 	struct mem_free_generic_req_msg_v01 *free_req;
 	struct mem_free_generic_resp_msg_v01 free_resp;
 	struct memshare_child *client_node = NULL;
-	int rc, flag = 0, ret = 0, size = 0, i;
+	int rc, flag = 0, ret = 0, size = 0, i, j;
 	int index = DHMS_MEM_CLIENT_INVALID;
-	int dest_vmids[1] = {VMID_HLOS};
-	int dest_perms[1] = {PERM_READ|PERM_WRITE|PERM_EXEC};
+	struct qcom_scm_vmperm dest_vmids[] = {{QCOM_SCM_VMID_HLOS},
+					       {PERM_READ|PERM_WRITE|PERM_EXEC}};
 
 	mutex_lock(&memsh_drv->mem_free);
 	free_req = (struct mem_free_generic_req_msg_v01 *)decoded_msg;
@@ -446,9 +461,12 @@ static void handle_free_generic_req(struct qmi_handle *handle,
 			free_req->client_id, memblock[index].size);
 
 		source = &memblock[index].hyp_map_info;
-		ret = hyp_assign_phys(memblock[index].phy_addr, memblock[index].size,
-				      source->vmids, source->num_vmids,
-				      dest_vmids, dest_perms, 1);
+		for (j = 0; j < source->num_vmids; j++)
+			source_vmids |= BIT(source->vmids[j]);
+
+		ret = qcom_scm_assign_mem(memblock[index].phy_addr, memblock[index].size,
+				      &source_vmids,
+				      dest_vmids, 1);
 		if (ret && memblock[index].hyp_mapping == 1) {
 		/*
 		 * This is an error case as hyp mapping was successful
