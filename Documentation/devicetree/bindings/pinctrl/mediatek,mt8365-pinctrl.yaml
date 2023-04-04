@@ -99,6 +99,9 @@ patternProperties:
               102: (R1, R0) = (1, 0) which means R1 enabled and R0 disabled.
               103: (R1, R0) = (1, 1) which means R1 enabled and R0 enabled.
 
+          drive-strength:
+            enum: [2, 4, 6, 8, 10, 12, 14, 16]
+
           input-enable: true
 
           input-disable: true
