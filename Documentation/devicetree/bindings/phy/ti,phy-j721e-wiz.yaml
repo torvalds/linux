@@ -89,6 +89,9 @@ properties:
       "#clock-cells":
         const: 0
 
+      clock-output-names:
+        maxItems: 1
+
       assigned-clocks:
         maxItems: 1
 
@@ -122,6 +125,9 @@ patternProperties:
       "#clock-cells":
         const: 0
 
+      clock-output-names:
+        maxItems: 1
+
       assigned-clocks:
         maxItems: 1
 
@@ -149,6 +155,9 @@ patternProperties:
 
       "#clock-cells":
         const: 0
+
+      clock-output-names:
+        maxItems: 1
 
     required:
       - clocks
