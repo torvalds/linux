@@ -893,8 +893,7 @@ struct bpf_verifier_ops {
 				  struct bpf_prog *prog, u32 *target_size);
 	int (*btf_struct_access)(struct bpf_verifier_log *log,
 				 const struct bpf_reg_state *reg,
-				 int off, int size, enum bpf_access_type atype,
-				 u32 *next_btf_id, enum bpf_type_flag *flag);
+				 int off, int size);
 };
 
 struct bpf_prog_offload_ops {
@@ -2264,7 +2263,7 @@ static inline bool bpf_tracing_btf_ctx_access(int off, int size,
 int btf_struct_access(struct bpf_verifier_log *log,
 		      const struct bpf_reg_state *reg,
 		      int off, int size, enum bpf_access_type atype,
-		      u32 *next_btf_id, enum bpf_type_flag *flag);
+		      u32 *next_btf_id, enum bpf_type_flag *flag, const char **field_name);
 bool btf_struct_ids_match(struct bpf_verifier_log *log,
 			  const struct btf *btf, u32 id, int off,
 			  const struct btf *need_btf, u32 need_type_id,
@@ -2303,7 +2302,7 @@ struct bpf_core_ctx {
 
 bool btf_nested_type_is_trusted(struct bpf_verifier_log *log,
 				const struct bpf_reg_state *reg,
-				int off, const char *suffix);
+				const char *field_name, u32 btf_id, const char *suffix);
 
 bool btf_type_ids_nocast_alias(struct bpf_verifier_log *log,
 			       const struct btf *reg_btf, u32 reg_id,
@@ -2518,7 +2517,8 @@ static inline struct bpf_prog *bpf_prog_by_id(u32 id)
 static inline int btf_struct_access(struct bpf_verifier_log *log,
 				    const struct bpf_reg_state *reg,
 				    int off, int size, enum bpf_access_type atype,
-				    u32 *next_btf_id, enum bpf_type_flag *flag)
+				    u32 *next_btf_id, enum bpf_type_flag *flag,
+				    const char **field_name)
 {
 	return -EACCES;
 }

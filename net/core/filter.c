@@ -4998,7 +4998,7 @@ const struct bpf_func_proto bpf_get_socket_ptr_cookie_proto = {
 	.func		= bpf_get_socket_ptr_cookie,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
-	.arg1_type	= ARG_PTR_TO_BTF_ID_SOCK_COMMON,
+	.arg1_type	= ARG_PTR_TO_BTF_ID_SOCK_COMMON | PTR_MAYBE_NULL,
 };
 
 BPF_CALL_1(bpf_get_socket_cookie_sock_ops, struct bpf_sock_ops_kern *, ctx)
@@ -8742,23 +8742,18 @@ EXPORT_SYMBOL_GPL(nf_conn_btf_access_lock);
 
 int (*nfct_btf_struct_access)(struct bpf_verifier_log *log,
 			      const struct bpf_reg_state *reg,
-			      int off, int size, enum bpf_access_type atype,
-			      u32 *next_btf_id, enum bpf_type_flag *flag);
+			      int off, int size);
 EXPORT_SYMBOL_GPL(nfct_btf_struct_access);
 
 static int tc_cls_act_btf_struct_access(struct bpf_verifier_log *log,
 					const struct bpf_reg_state *reg,
-					int off, int size, enum bpf_access_type atype,
-					u32 *next_btf_id, enum bpf_type_flag *flag)
+					int off, int size)
 {
 	int ret = -EACCES;
 
-	if (atype == BPF_READ)
-		return btf_struct_access(log, reg, off, size, atype, next_btf_id, flag);
-
 	mutex_lock(&nf_conn_btf_access_lock);
 	if (nfct_btf_struct_access)
-		ret = nfct_btf_struct_access(log, reg, off, size, atype, next_btf_id, flag);
+		ret = nfct_btf_struct_access(log, reg, off, size);
 	mutex_unlock(&nf_conn_btf_access_lock);
 
 	return ret;
@@ -8825,17 +8820,13 @@ EXPORT_SYMBOL_GPL(bpf_warn_invalid_xdp_action);
 
 static int xdp_btf_struct_access(struct bpf_verifier_log *log,
 				 const struct bpf_reg_state *reg,
-				 int off, int size, enum bpf_access_type atype,
-				 u32 *next_btf_id, enum bpf_type_flag *flag)
+				 int off, int size)
 {
 	int ret = -EACCES;
 
-	if (atype == BPF_READ)
-		return btf_struct_access(log, reg, off, size, atype, next_btf_id, flag);
-
 	mutex_lock(&nf_conn_btf_access_lock);
 	if (nfct_btf_struct_access)
-		ret = nfct_btf_struct_access(log, reg, off, size, atype, next_btf_id, flag);
+		ret = nfct_btf_struct_access(log, reg, off, size);
 	mutex_unlock(&nf_conn_btf_access_lock);
 
 	return ret;
