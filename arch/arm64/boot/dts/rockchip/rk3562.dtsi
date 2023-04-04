@@ -2459,6 +2459,19 @@
 		gpu_leakage: gpu-leakage@1d {
 			reg = <0x1d 0x1>;
 		};
+		cpu_tsadc_trim_l: cpu-tsadc-trim-l@2a {
+			reg = <0x2a 0x1>;
+		};
+		cpu_tsadc_trim_h: cpu-tsadc-trim-h@2b {
+			reg = <0x2b 0x1>;
+		};
+		tsadc_trim_base_frac: tsadc-trim-base-frac@2c {
+			reg = <0x2c 0x1>;
+			bits = <4 4>;
+		};
+		tsadc_trim_base: tsadc-trim-base@2d {
+			reg = <0x2d 0x1>;
+		};
 		cpu_opp_info: cpu-opp-info@2e {
 			reg = <0x2e 0x6>;
 		};
@@ -2609,6 +2622,8 @@
 		rockchip,hw-tshut-temp = <120000>;
 		rockchip,hw-tshut-mode = <0>; /* tshut mode 0:CRU 1:GPIO */
 		rockchip,hw-tshut-polarity = <0>; /* tshut polarity 0:LOW 1:HIGH */
+		nvmem-cells = <&cpu_tsadc_trim_l>, <&cpu_tsadc_trim_h>, <&tsadc_trim_base>, <&tsadc_trim_base_frac>;
+		nvmem-cell-names = "trim_l", "trim_h", "trim_base", "trim_base_frac";
 		status = "disabled";
 	};
 
