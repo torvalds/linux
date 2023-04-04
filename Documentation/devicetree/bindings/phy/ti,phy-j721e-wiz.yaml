@@ -54,18 +54,6 @@ properties:
 
   ranges: true
 
-  assigned-clocks:
-    minItems: 1
-    maxItems: 2
-
-  assigned-clock-parents:
-    minItems: 1
-    maxItems: 2
-
-  assigned-clock-rates:
-    minItems: 1
-    maxItems: 2
-
   typec-dir-gpios:
     maxItems: 1
     description:
