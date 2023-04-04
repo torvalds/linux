@@ -61,14 +61,6 @@ properties:
       - const: pll0_refclk
       - const: pll1_refclk
 
-  assigned-clocks:
-    minItems: 1
-    maxItems: 2
-
-  assigned-clock-parents:
-    minItems: 1
-    maxItems: 2
-
   cdns,autoconf:
     type: boolean
     description:
