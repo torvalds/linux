@@ -328,6 +328,12 @@ struct drm_i915_gem_object {
  */
 #define I915_BO_ALLOC_GPU_ONLY	  BIT(6)
 #define I915_BO_ALLOC_CCS_AUX	  BIT(7)
+/*
+ * Object is allowed to retain its initial data and will not be cleared on first
+ * access if used along with I915_BO_ALLOC_USER. This is mainly to keep
+ * preallocated framebuffer data intact while transitioning it to i915drmfb.
+ */
+#define I915_BO_PREALLOC	  BIT(8)
 #define I915_BO_ALLOC_FLAGS (I915_BO_ALLOC_CONTIGUOUS | \
 			     I915_BO_ALLOC_VOLATILE | \
 			     I915_BO_ALLOC_CPU_CLEAR | \
@@ -335,10 +341,11 @@ struct drm_i915_gem_object {
 			     I915_BO_ALLOC_PM_VOLATILE | \
 			     I915_BO_ALLOC_PM_EARLY | \
 			     I915_BO_ALLOC_GPU_ONLY | \
-			     I915_BO_ALLOC_CCS_AUX)
-#define I915_BO_READONLY          BIT(8)
-#define I915_TILING_QUIRK_BIT     9 /* unknown swizzling; do not release! */
-#define I915_BO_PROTECTED         BIT(10)
+			     I915_BO_ALLOC_CCS_AUX | \
+			     I915_BO_PREALLOC)
+#define I915_BO_READONLY          BIT(9)
+#define I915_TILING_QUIRK_BIT     10 /* unknown swizzling; do not release! */
+#define I915_BO_PROTECTED         BIT(11)
 	/**
 	 * @mem_flags - Mutable placement-related flags
 	 *
