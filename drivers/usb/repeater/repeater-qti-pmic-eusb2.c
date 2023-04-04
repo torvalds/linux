@@ -22,6 +22,9 @@
 #define EUSB2_1P8_VOL_MAX			1800000 /* uV */
 #define EUSB2_1P8_HPM_LOAD			32000	/* uA */
 
+/* Repeater REVID registers */
+#define EUSB2_REVISION1			0x00
+
 /* eUSB2 status registers */
 #define EUSB2_RPTR_STATUS		0x08
 #define	RPTR_OK				BIT(7)
@@ -175,6 +178,17 @@ static void eusb2_repeater_update_seq(struct eusb2_repeater *er,
 						seq[i], seq[i+1]);
 		eusb2_repeater_reg_write(er, seq[i+1], seq[i]);
 	}
+}
+
+static int eusb2_repeater_get_version(struct usb_repeater *ur)
+{
+	struct eusb2_repeater *er =
+			container_of(ur, struct eusb2_repeater, ur);
+	u8 reg;
+
+	eusb2_repeater_reg_read(er, &reg, EUSB2_REVISION1, 1);
+
+	return reg;
 }
 
 static void eusb2_repeater_create_debugfs(struct eusb2_repeater *er)
@@ -513,6 +527,7 @@ static int eusb2_repeater_probe(struct platform_device *pdev)
 	er->ur.reset		= eusb2_repeater_reset;
 	er->ur.powerup		= eusb2_repeater_powerup;
 	er->ur.powerdown	= eusb2_repeater_powerdown;
+	er->ur.get_version	= eusb2_repeater_get_version;
 
 	ret = usb_add_repeater_dev(&er->ur);
 	if (ret)

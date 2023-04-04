@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #ifndef __LINUX_USB_REPEATER_H
 #define __LINUX_USB_REPEATER_H
@@ -20,6 +20,7 @@ struct usb_repeater  {
 	int	(*suspend)(struct usb_repeater *r, int suspend);
 	int	(*powerup)(struct usb_repeater *r);
 	int	(*powerdown)(struct usb_repeater *r);
+	int	(*get_version)(struct usb_repeater *r);
 };
 
 #if IS_ENABLED(CONFIG_USB_REPEATER)
@@ -88,5 +89,13 @@ static inline int usb_repeater_powerdown(struct usb_repeater *r)
 		return r->powerdown(r);
 	else
 		return 0;
+}
+
+static inline int usb_repeater_get_version(struct usb_repeater *r)
+{
+	if (r && r->get_version != NULL)
+		return r->get_version(r);
+	else
+		return -EINVAL;
 }
 #endif /* __LINUX_USB_REPEATER_H */
