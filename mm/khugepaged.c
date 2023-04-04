@@ -1859,17 +1859,18 @@ next:
  *
  * Basic scheme is simple, details are more complex:
  *  - allocate and lock a new huge page;
- *  - scan page cache replacing old pages with the new one
+ *  - scan page cache, locking old pages
  *    + swap/gup in pages if necessary;
- *    + keep old pages around in case rollback is required;
+ *  - copy data to new page
+ *  - handle shmem holes
+ *    + re-validate that holes weren't filled by someone else
+ *    + check for userfaultfd
  *  - finalize updates to the page cache;
  *  - if replacing succeeds:
- *    + copy data over;
- *    + free old pages;
  *    + unlock huge page;
+ *    + free old pages;
  *  - if replacing failed;
- *    + put all pages back and unfreeze them;
- *    + restore gaps in the page cache;
+ *    + unlock old pages
  *    + unlock and free huge page;
  */
 static int collapse_file(struct mm_struct *mm, unsigned long addr,
@@ -1916,12 +1917,6 @@ static int collapse_file(struct mm_struct *mm, unsigned long addr,
 			goto rollback;
 		}
 	} while (1);
-
-	/*
-	 * At this point the hpage is locked and not up-to-date.
-	 * It's safe to insert it into the page cache, because nobody would
-	 * be able to map it or use it in another way until we unlock it.
-	 */
 
 	xas_set(&xas, start);
 	for (index = start; index < end; index++) {
@@ -2090,12 +2085,16 @@ static int collapse_file(struct mm_struct *mm, unsigned long addr,
 		VM_BUG_ON_PAGE(page != xas_load(&xas), page);
 
 		/*
-		 * The page is expected to have page_count() == 3:
+		 * We control three references to the page:
 		 *  - we hold a pin on it;
 		 *  - one reference from page cache;
 		 *  - one from isolate_lru_page;
+		 * If those are the only references, then any new usage of the
+		 * page will have to fetch it from the page cache. That requires
+		 * locking the page to handle truncate, so any new usage will be
+		 * blocked until we unlock page after collapse/during rollback.
 		 */
-		if (!page_ref_freeze(page, 3)) {
+		if (page_count(page) != 3) {
 			result = SCAN_PAGE_COUNT;
 			xas_unlock_irq(&xas);
 			putback_lru_page(page);
@@ -2103,16 +2102,14 @@ static int collapse_file(struct mm_struct *mm, unsigned long addr,
 		}
 
 		/*
-		 * Add the page to the list to be able to undo the collapse if
-		 * something go wrong.
+		 * Accumulate the pages that are being collapsed.
 		 */
 		list_add_tail(&page->lru, &pagelist);
 
-		/* Finally, replace with the new page. */
-		xas_store(&xas, hpage);
-		/* We can't get an ENOMEM here (because the allocation happened before)
-		 * but let's check for errors (XArray implementation can be
-		 * changed in the future)
+		/*
+		 * We can't get an ENOMEM here (because the allocation happened
+		 * before) but let's check for errors (XArray implementation
+		 * can be changed in the future)
 		 */
 		WARN_ON_ONCE(xas_error(&xas));
 		continue;
@@ -2157,8 +2154,7 @@ xa_unlocked:
 		goto rollback;
 
 	/*
-	 * Replacing old pages with new one has succeeded, now we
-	 * attempt to copy the contents.
+	 * The old pages are locked, so they won't change anymore.
 	 */
 	index = start;
 	list_for_each_entry(page, &pagelist, lru) {
@@ -2247,11 +2243,11 @@ immap_locked:
 		/* nr_none is always 0 for non-shmem. */
 		__mod_lruvec_page_state(hpage, NR_SHMEM, nr_none);
 	}
-	/* Join all the small entries into a single multi-index entry. */
-	xas_set_order(&xas, start, HPAGE_PMD_ORDER);
-	xas_store(&xas, hpage);
-	xas_unlock_irq(&xas);
 
+	/*
+	 * Mark hpage as uptodate before inserting it into the page cache so
+	 * that it isn't mistaken for an fallocated but unwritten page.
+	 */
 	folio = page_folio(hpage);
 	folio_mark_uptodate(folio);
 	folio_ref_add(folio, HPAGE_PMD_NR - 1);
@@ -2259,6 +2255,11 @@ immap_locked:
 	if (is_shmem)
 		folio_mark_dirty(folio);
 	folio_add_lru(folio);
+
+	/* Join all the small entries into a single multi-index entry. */
+	xas_set_order(&xas, start, HPAGE_PMD_ORDER);
+	xas_store(&xas, hpage);
+	xas_unlock_irq(&xas);
 
 	/*
 	 * Remove pte page tables, so we can re-fault the page as huge.
@@ -2273,47 +2274,29 @@ immap_locked:
 	list_for_each_entry_safe(page, tmp, &pagelist, lru) {
 		list_del(&page->lru);
 		page->mapping = NULL;
-		page_ref_unfreeze(page, 1);
 		ClearPageActive(page);
 		ClearPageUnevictable(page);
 		unlock_page(page);
-		put_page(page);
+		folio_put_refs(page_folio(page), 3);
 	}
 
 	goto out;
 
 rollback:
 	/* Something went wrong: roll back page cache changes */
-	xas_lock_irq(&xas);
 	if (nr_none) {
+		xas_lock_irq(&xas);
 		mapping->nrpages -= nr_none;
 		shmem_uncharge(mapping->host, nr_none);
+		xas_unlock_irq(&xas);
 	}
 
-	xas_set(&xas, start);
-	end = index;
-	for (index = start; index < end; index++) {
-		xas_next(&xas);
-		page = list_first_entry_or_null(&pagelist,
-				struct page, lru);
-		if (!page || xas.xa_index < page->index) {
-			nr_none--;
-			continue;
-		}
-
-		VM_BUG_ON_PAGE(page->index != xas.xa_index, page);
-
-		/* Unfreeze the page. */
+	list_for_each_entry_safe(page, tmp, &pagelist, lru) {
 		list_del(&page->lru);
-		page_ref_unfreeze(page, 2);
-		xas_store(&xas, page);
-		xas_pause(&xas);
-		xas_unlock_irq(&xas);
 		unlock_page(page);
 		putback_lru_page(page);
-		xas_lock_irq(&xas);
+		put_page(page);
 	}
-	VM_BUG_ON(nr_none);
 	/*
 	 * Undo the updates of filemap_nr_thps_inc for non-SHMEM
 	 * file only. This undo is not needed unless failure is
@@ -2327,8 +2310,6 @@ rollback:
 		 */
 		smp_mb();
 	}
-
-	xas_unlock_irq(&xas);
 
 	hpage->mapping = NULL;
 
