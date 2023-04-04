@@ -1641,11 +1641,6 @@ int drm_fb_helper_set_par(struct fb_info *info)
 	if (oops_in_progress)
 		return -EBUSY;
 
-	if (var->pixclock != 0) {
-		drm_err(fb_helper->dev, "PIXEL CLOCK SET\n");
-		return -EINVAL;
-	}
-
 	/*
 	 * Normally we want to make sure that a kms master takes precedence over
 	 * fbdev, to avoid fbdev flickering and occasionally stealing the
