@@ -5378,6 +5378,7 @@ static int bpf_map_direct_read(struct bpf_map *map, int off, int size, u64 *val)
 }
 
 #define BTF_TYPE_SAFE_RCU(__type)  __PASTE(__type, __safe_rcu)
+#define BTF_TYPE_SAFE_RCU_OR_NULL(__type)  __PASTE(__type, __safe_rcu_or_null)
 #define BTF_TYPE_SAFE_TRUSTED(__type)  __PASTE(__type, __safe_trusted)
 
 /*
@@ -5394,8 +5395,29 @@ BTF_TYPE_SAFE_RCU(struct task_struct) {
 	struct task_struct *group_leader;
 };
 
+BTF_TYPE_SAFE_RCU(struct cgroup) {
+	/* cgrp->kn is always accessible as documented in kernel/cgroup/cgroup.c */
+	struct kernfs_node *kn;
+};
+
 BTF_TYPE_SAFE_RCU(struct css_set) {
 	struct cgroup *dfl_cgrp;
+};
+
+/* RCU trusted: these fields are trusted in RCU CS and can be NULL */
+BTF_TYPE_SAFE_RCU_OR_NULL(struct mm_struct) {
+	struct file __rcu *exe_file;
+};
+
+/* skb->sk, req->sk are not RCU protected, but we mark them as such
+ * because bpf prog accessible sockets are SOCK_RCU_FREE.
+ */
+BTF_TYPE_SAFE_RCU_OR_NULL(struct sk_buff) {
+	struct sock *sk;
+};
+
+BTF_TYPE_SAFE_RCU_OR_NULL(struct request_sock) {
+	struct sock *sk;
 };
 
 /* full trusted: these fields are trusted even outside of RCU CS and never NULL */
@@ -5430,9 +5452,21 @@ static bool type_is_rcu(struct bpf_verifier_env *env,
 			const char *field_name, u32 btf_id)
 {
 	BTF_TYPE_EMIT(BTF_TYPE_SAFE_RCU(struct task_struct));
+	BTF_TYPE_EMIT(BTF_TYPE_SAFE_RCU(struct cgroup));
 	BTF_TYPE_EMIT(BTF_TYPE_SAFE_RCU(struct css_set));
 
 	return btf_nested_type_is_trusted(&env->log, reg, field_name, btf_id, "__safe_rcu");
+}
+
+static bool type_is_rcu_or_null(struct bpf_verifier_env *env,
+				struct bpf_reg_state *reg,
+				const char *field_name, u32 btf_id)
+{
+	BTF_TYPE_EMIT(BTF_TYPE_SAFE_RCU_OR_NULL(struct mm_struct));
+	BTF_TYPE_EMIT(BTF_TYPE_SAFE_RCU_OR_NULL(struct sk_buff));
+	BTF_TYPE_EMIT(BTF_TYPE_SAFE_RCU_OR_NULL(struct request_sock));
+
+	return btf_nested_type_is_trusted(&env->log, reg, field_name, btf_id, "__safe_rcu_or_null");
 }
 
 static bool type_is_trusted(struct bpf_verifier_env *env,
@@ -5561,9 +5595,10 @@ static int check_ptr_to_btf_access(struct bpf_verifier_env *env,
 			if (type_is_rcu(env, reg, field_name, btf_id)) {
 				/* ignore __rcu tag and mark it MEM_RCU */
 				flag |= MEM_RCU;
-			} else if (flag & MEM_RCU) {
+			} else if (flag & MEM_RCU ||
+				   type_is_rcu_or_null(env, reg, field_name, btf_id)) {
 				/* __rcu tagged pointers can be NULL */
-				flag |= PTR_MAYBE_NULL;
+				flag |= MEM_RCU | PTR_MAYBE_NULL;
 			} else if (flag & (MEM_PERCPU | MEM_USER)) {
 				/* keep as-is */
 			} else {
