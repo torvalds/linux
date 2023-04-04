@@ -446,7 +446,9 @@ static void dpu_hw_ctl_setup_blendstage(struct dpu_hw_ctl *ctx,
 			 * CTL_LAYER has 3-bit field (and extra bits in EXT register),
 			 * all EXT registers has 4-bit fields.
 			 */
-			if (cfg->idx == 0) {
+			if (cfg->idx == -1) {
+				continue;
+			} else if (cfg->idx == 0) {
 				mixercfg[0] |= mix << cfg->shift;
 				mixercfg[1] |= ext << cfg->ext_shift;
 			} else {

@@ -15,18 +15,11 @@
  * early, but it only works if the EFI stub is part of the core kernel image
  * itself. The zboot decompressor can only use the configuration table
  * approach.
- *
- * In order to support both methods from the same build of the EFI stub
- * library, provide this dummy global definition of struct screen_info. If it
- * is required to satisfy a link dependency, it means we need to override the
- * __weak alloc and free methods with the ones below, and those will be pulled
- * in as well.
  */
-struct screen_info screen_info;
 
 static efi_guid_t screen_info_guid = LINUX_EFI_SCREEN_INFO_TABLE_GUID;
 
-struct screen_info *alloc_screen_info(void)
+struct screen_info *__alloc_screen_info(void)
 {
 	struct screen_info *si;
 	efi_status_t status;

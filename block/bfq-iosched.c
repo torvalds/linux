@@ -2854,11 +2854,11 @@ bfq_setup_stable_merge(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 {
 	int proc_ref = min(bfqq_process_refs(bfqq),
 			   bfqq_process_refs(stable_merge_bfqq));
-	struct bfq_queue *new_bfqq;
+	struct bfq_queue *new_bfqq = NULL;
 
-	if (idling_boosts_thr_without_issues(bfqd, bfqq) ||
-	    proc_ref == 0)
-		return NULL;
+	bfqq_data->stable_merge_bfqq = NULL;
+	if (idling_boosts_thr_without_issues(bfqd, bfqq) || proc_ref == 0)
+		goto out;
 
 	/* next function will take at least one ref */
 	new_bfqq = bfq_setup_merge(bfqq, stable_merge_bfqq);
@@ -2873,6 +2873,11 @@ bfq_setup_stable_merge(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 			new_bfqq_data->stably_merged = true;
 		}
 	}
+
+out:
+	/* deschedule stable merge, because done or aborted here */
+	bfq_put_stable_ref(stable_merge_bfqq);
+
 	return new_bfqq;
 }
 
@@ -2932,11 +2937,6 @@ bfq_setup_cooperator(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 					   msecs_to_jiffies(bfq_late_stable_merging))) {
 			struct bfq_queue *stable_merge_bfqq =
 				bfqq_data->stable_merge_bfqq;
-
-			/* deschedule stable merge, because done or aborted here */
-			bfq_put_stable_ref(stable_merge_bfqq);
-
-			bfqq_data->stable_merge_bfqq = NULL;
 
 			return bfq_setup_stable_merge(bfqd, bfqq,
 						      stable_merge_bfqq,

@@ -8,7 +8,6 @@
 #include <linux/pci.h>
 
 #include <drm/drm_accel.h>
-#include <drm/drm_drv.h>
 #include <drm/drm_file.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_ioctl.h>
@@ -118,6 +117,10 @@ static int ivpu_get_param_ioctl(struct drm_device *dev, void *data, struct drm_f
 	struct pci_dev *pdev = to_pci_dev(vdev->drm.dev);
 	struct drm_ivpu_param *args = data;
 	int ret = 0;
+	int idx;
+
+	if (!drm_dev_enter(dev, &idx))
+		return -ENODEV;
 
 	switch (args->param) {
 	case DRM_IVPU_PARAM_DEVICE_ID:
@@ -171,6 +174,7 @@ static int ivpu_get_param_ioctl(struct drm_device *dev, void *data, struct drm_f
 		break;
 	}
 
+	drm_dev_exit(idx);
 	return ret;
 }
 
@@ -470,8 +474,8 @@ static int ivpu_dev_init(struct ivpu_device *vdev)
 
 	vdev->hw->ops = &ivpu_hw_mtl_ops;
 	vdev->platform = IVPU_PLATFORM_INVALID;
-	vdev->context_xa_limit.min = IVPU_GLOBAL_CONTEXT_MMU_SSID + 1;
-	vdev->context_xa_limit.max = IVPU_CONTEXT_LIMIT;
+	vdev->context_xa_limit.min = IVPU_USER_CONTEXT_MIN_SSID;
+	vdev->context_xa_limit.max = IVPU_USER_CONTEXT_MAX_SSID;
 	atomic64_set(&vdev->unique_id_counter, 0);
 	xa_init_flags(&vdev->context_xa, XA_FLAGS_ALLOC);
 	xa_init_flags(&vdev->submitted_jobs_xa, XA_FLAGS_ALLOC1);
@@ -565,6 +569,8 @@ err_mmu_gctx_fini:
 	ivpu_mmu_global_context_fini(vdev);
 err_power_down:
 	ivpu_hw_power_down(vdev);
+	if (IVPU_WA(d3hot_after_power_off))
+		pci_set_power_state(to_pci_dev(vdev->drm.dev), PCI_D3hot);
 err_xa_destroy:
 	xa_destroy(&vdev->submitted_jobs_xa);
 	xa_destroy(&vdev->context_xa);
@@ -575,7 +581,11 @@ static void ivpu_dev_fini(struct ivpu_device *vdev)
 {
 	ivpu_pm_disable(vdev);
 	ivpu_shutdown(vdev);
+	if (IVPU_WA(d3hot_after_power_off))
+		pci_set_power_state(to_pci_dev(vdev->drm.dev), PCI_D3hot);
 	ivpu_job_done_thread_fini(vdev);
+	ivpu_pm_cancel_recovery(vdev);
+
 	ivpu_ipc_fini(vdev);
 	ivpu_fw_fini(vdev);
 	ivpu_mmu_global_context_fini(vdev);
@@ -622,7 +632,7 @@ static void ivpu_remove(struct pci_dev *pdev)
 {
 	struct ivpu_device *vdev = pci_get_drvdata(pdev);
 
-	drm_dev_unregister(&vdev->drm);
+	drm_dev_unplug(&vdev->drm);
 	ivpu_dev_fini(vdev);
 }
 

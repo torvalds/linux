@@ -66,7 +66,7 @@ static inline void set_nr_cpu_ids(unsigned int nr)
  *
  * Finally, some operations just want the exact limit, either because
  * they set bits or just don't have any faster fixed-sized versions. We
- * call this just 'nr_cpumask_size'.
+ * call this just 'nr_cpumask_bits'.
  *
  * Note that these optional constants are always guaranteed to be at
  * least as big as 'nr_cpu_ids' itself is, and all our cpumask
@@ -147,7 +147,7 @@ static __always_inline void cpu_max_bits_warn(unsigned int cpu, unsigned int bit
 /* verify cpu argument to cpumask_* operators */
 static __always_inline unsigned int cpumask_check(unsigned int cpu)
 {
-	cpu_max_bits_warn(cpu, nr_cpumask_bits);
+	cpu_max_bits_warn(cpu, small_cpumask_bits);
 	return cpu;
 }
 
@@ -351,6 +351,23 @@ unsigned int __pure cpumask_next_wrap(int n, const struct cpumask *mask, int sta
 	for_each_andnot_bit(cpu, cpumask_bits(mask1), cpumask_bits(mask2), small_cpumask_bits)
 
 /**
+ * for_each_cpu_or - iterate over every cpu present in either mask
+ * @cpu: the (optionally unsigned) integer iterator
+ * @mask1: the first cpumask pointer
+ * @mask2: the second cpumask pointer
+ *
+ * This saves a temporary CPU mask in many places.  It is equivalent to:
+ *	struct cpumask tmp;
+ *	cpumask_or(&tmp, &mask1, &mask2);
+ *	for_each_cpu(cpu, &tmp)
+ *		...
+ *
+ * After the loop, cpu is >= nr_cpu_ids.
+ */
+#define for_each_cpu_or(cpu, mask1, mask2)				\
+	for_each_or_bit(cpu, cpumask_bits(mask1), cpumask_bits(mask2), small_cpumask_bits)
+
+/**
  * cpumask_any_but - return a "random" in a cpumask, but not this one.
  * @mask: the cpumask to search
  * @cpu: the cpu to ignore.
@@ -518,14 +535,14 @@ static __always_inline bool cpumask_test_and_clear_cpu(int cpu, struct cpumask *
 /**
  * cpumask_setall - set all cpus (< nr_cpu_ids) in a cpumask
  * @dstp: the cpumask pointer
- *
- * Note: since we set bits, we should use the tighter 'bitmap_set()' with
- * the eact number of bits, not 'bitmap_fill()' that will fill past the
- * end.
  */
 static inline void cpumask_setall(struct cpumask *dstp)
 {
-	bitmap_set(cpumask_bits(dstp), 0, nr_cpumask_bits);
+	if (small_const_nbits(small_cpumask_bits)) {
+		cpumask_bits(dstp)[0] = BITMAP_LAST_WORD_MASK(nr_cpumask_bits);
+		return;
+	}
+	bitmap_fill(cpumask_bits(dstp), nr_cpumask_bits);
 }
 
 /**

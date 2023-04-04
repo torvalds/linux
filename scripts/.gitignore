@@ -3,7 +3,6 @@
 /generate_rust_target
 /insert-sys-cert
 /kallsyms
-/list-gitignored
 /module.lds
 /recordmcount
 /sign-file

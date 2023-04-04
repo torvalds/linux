@@ -203,20 +203,20 @@ static int tpmi_create_device(struct intel_tpmi_info *tpmi_info,
 	struct intel_vsec_device *feature_vsec_dev;
 	struct resource *res, *tmp;
 	const char *name;
-	int ret, i;
+	int i;
 
 	name = intel_tpmi_name(pfs->pfs_header.tpmi_id);
 	if (!name)
 		return -EOPNOTSUPP;
 
-	feature_vsec_dev = kzalloc(sizeof(*feature_vsec_dev), GFP_KERNEL);
-	if (!feature_vsec_dev)
+	res = kcalloc(pfs->pfs_header.num_entries, sizeof(*res), GFP_KERNEL);
+	if (!res)
 		return -ENOMEM;
 
-	res = kcalloc(pfs->pfs_header.num_entries, sizeof(*res), GFP_KERNEL);
-	if (!res) {
-		ret = -ENOMEM;
-		goto free_vsec;
+	feature_vsec_dev = kzalloc(sizeof(*feature_vsec_dev), GFP_KERNEL);
+	if (!feature_vsec_dev) {
+		kfree(res);
+		return -ENOMEM;
 	}
 
 	snprintf(feature_id_name, sizeof(feature_id_name), "tpmi-%s", name);
@@ -239,20 +239,11 @@ static int tpmi_create_device(struct intel_tpmi_info *tpmi_info,
 	/*
 	 * intel_vsec_add_aux() is resource managed, no explicit
 	 * delete is required on error or on module unload.
+	 * feature_vsec_dev and res memory are also freed as part of
+	 * device deletion.
 	 */
-	ret = intel_vsec_add_aux(vsec_dev->pcidev, &vsec_dev->auxdev.dev,
-				 feature_vsec_dev, feature_id_name);
-	if (ret)
-		goto free_res;
-
-	return 0;
-
-free_res:
-	kfree(res);
-free_vsec:
-	kfree(feature_vsec_dev);
-
-	return ret;
+	return intel_vsec_add_aux(vsec_dev->pcidev, &vsec_dev->auxdev.dev,
+				  feature_vsec_dev, feature_id_name);
 }
 
 static int tpmi_create_devices(struct intel_tpmi_info *tpmi_info)

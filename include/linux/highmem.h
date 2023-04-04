@@ -481,4 +481,10 @@ static inline void folio_zero_range(struct folio *folio,
 	zero_user_segments(&folio->page, start, start + length, 0, 0);
 }
 
+static inline void put_and_unmap_page(struct page *page, void *addr)
+{
+	kunmap_local(addr);
+	put_page(page);
+}
+
 #endif /* _LINUX_HIGHMEM_H */

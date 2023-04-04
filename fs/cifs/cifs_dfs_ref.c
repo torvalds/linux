@@ -179,6 +179,7 @@ static struct vfsmount *cifs_dfs_do_automount(struct path *path)
 	tmp.source = full_path;
 	tmp.leaf_fullpath = NULL;
 	tmp.UNC = tmp.prepath = NULL;
+	tmp.dfs_root_ses = NULL;
 
 	rc = smb3_fs_context_dup(ctx, &tmp);
 	if (rc) {

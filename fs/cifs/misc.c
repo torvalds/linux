@@ -22,6 +22,7 @@
 #ifdef CONFIG_CIFS_DFS_UPCALL
 #include "dns_resolve.h"
 #include "dfs_cache.h"
+#include "dfs.h"
 #endif
 #include "fs_context.h"
 #include "cached_dir.h"
@@ -134,6 +135,9 @@ tconInfoAlloc(void)
 	spin_lock_init(&ret_buf->stat_lock);
 	atomic_set(&ret_buf->num_local_opens, 0);
 	atomic_set(&ret_buf->num_remote_opens, 0);
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	INIT_LIST_HEAD(&ret_buf->dfs_ses_list);
+#endif
 
 	return ret_buf;
 }
@@ -149,6 +153,9 @@ tconInfoFree(struct cifs_tcon *tcon)
 	atomic_dec(&tconInfoAllocCount);
 	kfree(tcon->nativeFileSystem);
 	kfree_sensitive(tcon->password);
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	dfs_put_root_smb_sessions(&tcon->dfs_ses_list);
+#endif
 	kfree(tcon);
 }
 
@@ -1255,6 +1262,7 @@ int cifs_inval_name_dfs_link_error(const unsigned int xid,
 		 * removing cached DFS targets that the client would eventually
 		 * need during failover.
 		 */
+		ses = CIFS_DFS_ROOT_SES(ses);
 		if (ses->server->ops->get_dfs_refer &&
 		    !ses->server->ops->get_dfs_refer(xid, ses, ref_path, &refs,
 						     &num_refs, cifs_sb->local_nls,

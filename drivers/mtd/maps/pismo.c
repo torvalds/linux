@@ -206,8 +206,7 @@ static void pismo_remove(struct i2c_client *client)
 	kfree(pismo);
 }
 
-static int pismo_probe(struct i2c_client *client,
-		       const struct i2c_device_id *id)
+static int pismo_probe(struct i2c_client *client)
 {
 	struct pismo_pdata *pdata = client->dev.platform_data;
 	struct pismo_eeprom eeprom;
@@ -260,7 +259,7 @@ static struct i2c_driver pismo_driver = {
 	.driver	= {
 		.name	= "pismo",
 	},
-	.probe		= pismo_probe,
+	.probe_new	= pismo_probe,
 	.remove		= pismo_remove,
 	.id_table	= pismo_id,
 };

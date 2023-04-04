@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+
 name: netdev
 
 doc:
@@ -7,6 +9,7 @@ definitions:
   -
     type: flags
     name: xdp-act
+    render-max: true
     entries:
       -
         name: basic
@@ -48,7 +51,6 @@ attribute-sets:
         name: ifindex
         doc: netdev ifindex
         type: u32
-        value: 1
         checks:
           min: 1
       -
@@ -66,7 +68,6 @@ operations:
     -
       name: dev-get
       doc: Get / dump information about a netdev.
-      value: 1
       attribute-set: dev
       do:
         request:

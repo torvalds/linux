@@ -442,8 +442,7 @@ static u8 ds2482_w1_set_pullup(void *data, int delay)
 }
 
 
-static int ds2482_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ds2482_probe(struct i2c_client *client)
 {
 	struct ds2482_data *data;
 	int err = -ENODEV;
@@ -553,7 +552,7 @@ static struct i2c_driver ds2482_driver = {
 	.driver = {
 		.name	= "ds2482",
 	},
-	.probe		= ds2482_probe,
+	.probe_new	= ds2482_probe,
 	.remove		= ds2482_remove,
 	.id_table	= ds2482_id,
 };
