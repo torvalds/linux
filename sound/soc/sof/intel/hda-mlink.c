@@ -170,6 +170,68 @@ static int hdaml_lnk_enum(struct device *dev, struct hdac_ext2_link *h2link,
 	return 0;
 }
 
+/*
+ * Hardware recommendations are to wait ~10us before checking any hardware transition
+ * reported by bits changing status.
+ * This value does not need to be super-precise, a slack of 5us is perfectly acceptable.
+ * The worst-case is about 1ms before reporting an issue
+ */
+#define HDAML_POLL_DELAY_MIN_US 10
+#define HDAML_POLL_DELAY_SLACK_US 5
+#define HDAML_POLL_DELAY_RETRY  100
+
+static int check_sublink_power(u32 __iomem *lctl, int sublink, bool enabled)
+{
+	int mask = BIT(sublink) << AZX_ML_LCTL_CPA_SHIFT;
+	int retry = HDAML_POLL_DELAY_RETRY;
+	u32 val;
+
+	usleep_range(HDAML_POLL_DELAY_MIN_US,
+		     HDAML_POLL_DELAY_MIN_US + HDAML_POLL_DELAY_SLACK_US);
+	do {
+		val = readl(lctl);
+		if (enabled) {
+			if (val & mask)
+				return 0;
+		} else {
+			if (!(val & mask))
+				return 0;
+		}
+		usleep_range(HDAML_POLL_DELAY_MIN_US,
+			     HDAML_POLL_DELAY_MIN_US + HDAML_POLL_DELAY_SLACK_US);
+
+	} while (--retry);
+
+	return -EIO;
+}
+
+static int hdaml_link_init(u32 __iomem *lctl, int sublink)
+{
+	u32 val;
+	u32 mask = BIT(sublink) << AZX_ML_LCTL_SPA_SHIFT;
+
+	val = readl(lctl);
+	val |= mask;
+
+	writel(val, lctl);
+
+	return check_sublink_power(lctl, sublink, true);
+}
+
+static int hdaml_link_shutdown(u32 __iomem *lctl, int sublink)
+{
+	u32 val;
+	u32 mask;
+
+	val = readl(lctl);
+	mask = BIT(sublink) << AZX_ML_LCTL_SPA_SHIFT;
+	val &= ~mask;
+
+	writel(val, lctl);
+
+	return check_sublink_power(lctl, sublink, false);
+}
+
 /* END HDAML section */
 
 static int hda_ml_alloc_h2link(struct hdac_bus *bus, int index)
@@ -250,6 +312,107 @@ void hda_bus_ml_free(struct hdac_bus *bus)
 	}
 }
 EXPORT_SYMBOL_NS(hda_bus_ml_free, SND_SOC_SOF_HDA_MLINK);
+
+static struct hdac_ext2_link *
+find_ext2_link(struct hdac_bus *bus, bool alt, int elid)
+{
+	struct hdac_ext_link *hlink;
+
+	list_for_each_entry(hlink, &bus->hlink_list, list) {
+		struct hdac_ext2_link *h2link = hdac_ext_link_to_ext2(hlink);
+
+		if (h2link->alt == alt && h2link->elid == elid)
+			return h2link;
+	}
+
+	return NULL;
+}
+
+static int hdac_bus_eml_power_up_base(struct hdac_bus *bus, bool alt, int elid, int sublink,
+				      bool eml_lock)
+{
+	struct hdac_ext2_link *h2link;
+	struct hdac_ext_link *hlink;
+	int ret = 0;
+
+	h2link = find_ext2_link(bus, alt, elid);
+	if (!h2link)
+		return -ENODEV;
+
+	if (sublink >= h2link->slcount)
+		return -EINVAL;
+
+	hlink = &h2link->hext_link;
+
+	if (eml_lock)
+		mutex_lock(&h2link->eml_lock);
+
+	if (++hlink->ref_count > 1)
+		goto skip_init;
+
+	ret = hdaml_link_init(hlink->ml_addr + AZX_REG_ML_LCTL, sublink);
+
+skip_init:
+	if (eml_lock)
+		mutex_unlock(&h2link->eml_lock);
+
+	return ret;
+}
+
+int hdac_bus_eml_power_up(struct hdac_bus *bus, bool alt, int elid, int sublink)
+{
+	return hdac_bus_eml_power_up_base(bus, alt, elid, sublink, true);
+}
+EXPORT_SYMBOL_NS(hdac_bus_eml_power_up, SND_SOC_SOF_HDA_MLINK);
+
+int hdac_bus_eml_power_up_unlocked(struct hdac_bus *bus, bool alt, int elid, int sublink)
+{
+	return hdac_bus_eml_power_up_base(bus, alt, elid, sublink, false);
+}
+EXPORT_SYMBOL_NS(hdac_bus_eml_power_up_unlocked, SND_SOC_SOF_HDA_MLINK);
+
+static int hdac_bus_eml_power_down_base(struct hdac_bus *bus, bool alt, int elid, int sublink,
+					bool eml_lock)
+{
+	struct hdac_ext2_link *h2link;
+	struct hdac_ext_link *hlink;
+	int ret = 0;
+
+	h2link = find_ext2_link(bus, alt, elid);
+	if (!h2link)
+		return -ENODEV;
+
+	if (sublink >= h2link->slcount)
+		return -EINVAL;
+
+	hlink = &h2link->hext_link;
+
+	if (eml_lock)
+		mutex_lock(&h2link->eml_lock);
+
+	if (--hlink->ref_count > 0)
+		goto skip_shutdown;
+
+	ret = hdaml_link_shutdown(hlink->ml_addr + AZX_REG_ML_LCTL, sublink);
+
+skip_shutdown:
+	if (eml_lock)
+		mutex_unlock(&h2link->eml_lock);
+
+	return ret;
+}
+
+int hdac_bus_eml_power_down(struct hdac_bus *bus, bool alt, int elid, int sublink)
+{
+	return hdac_bus_eml_power_down_base(bus, alt, elid, sublink, true);
+}
+EXPORT_SYMBOL_NS(hdac_bus_eml_power_down, SND_SOC_SOF_HDA_MLINK);
+
+int hdac_bus_eml_power_down_unlocked(struct hdac_bus *bus, bool alt, int elid, int sublink)
+{
+	return hdac_bus_eml_power_down_base(bus, alt, elid, sublink, false);
+}
+EXPORT_SYMBOL_NS(hdac_bus_eml_power_down_unlocked, SND_SOC_SOF_HDA_MLINK);
 
 void hda_bus_ml_put_all(struct hdac_bus *bus)
 {
