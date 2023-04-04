@@ -17,6 +17,7 @@
 #include <linux/nvmem-provider.h>
 #include <linux/gpio/consumer.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/slab.h>
 
 struct nvmem_device {
@@ -760,6 +761,13 @@ static struct nvmem_layout *nvmem_layout_get(struct nvmem_device *nvmem)
 	layout_np = of_get_child_by_name(np, "nvmem-layout");
 	if (!layout_np)
 		return NULL;
+
+	/*
+	 * In case the nvmem device was built-in while the layout was built as a
+	 * module, we shall manually request the layout driver loading otherwise
+	 * we'll never have any match.
+	 */
+	of_request_module(layout_np);
 
 	spin_lock(&nvmem_layout_lock);
 
