@@ -335,10 +335,10 @@ next_pair:
 			}
 
 			pr_info("WARN: %" PRIx64 "-%" PRIx64 " %" PRIx64 " %s in kallsyms as",
-				map__start(map), map__end(map), map->pgoff, dso->name);
+				map__start(map), map__end(map), map__pgoff(map), dso->name);
 			if (mem_end != map__end(pair))
 				pr_info(":\nWARN: *%" PRIx64 "-%" PRIx64 " %" PRIx64,
-					map__start(pair), map__end(pair), pair->pgoff);
+					map__start(pair), map__end(pair), map__pgoff(pair));
 			pr_info(" %s\n", dso->name);
 			pair->priv = 1;
 		}

@@ -857,7 +857,7 @@ static size_t maps__fprintf_task(struct maps *maps, int indent, FILE *fp)
 				   prot & PROT_WRITE ? 'w' : '-',
 				   prot & PROT_EXEC ? 'x' : '-',
 				   map__flags(map) ? 's' : 'p',
-				   map->pgoff,
+				   map__pgoff(map),
 				   dso->id.ino, dso->name);
 	}
 

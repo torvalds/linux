@@ -810,11 +810,11 @@ static int maps__split_kallsyms_for_kcore(struct maps *kmaps, struct dso *dso)
 			continue;
 		}
 		curr_map_dso = map__dso(curr_map);
-		pos->start -= map__start(curr_map) - curr_map->pgoff;
+		pos->start -= map__start(curr_map) - map__pgoff(curr_map);
 		if (pos->end > map__end(curr_map))
 			pos->end = map__end(curr_map);
 		if (pos->end)
-			pos->end -= map__start(curr_map) - curr_map->pgoff;
+			pos->end -= map__start(curr_map) - map__pgoff(curr_map);
 		symbols__insert(&curr_map_dso->symbols, pos);
 		++count;
 	}
@@ -1459,7 +1459,7 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 		if (new_map == replacement_map) {
 			map->start	= map__start(new_map);
 			map->end	= map__end(new_map);
-			map->pgoff	= new_map->pgoff;
+			map->pgoff	= map__pgoff(new_map);
 			map->map_ip	= new_map->map_ip;
 			map->unmap_ip	= new_map->unmap_ip;
 			/* Ensure maps are correctly ordered */

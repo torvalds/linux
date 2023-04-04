@@ -421,7 +421,7 @@ size_t map__fprintf(struct map *map, FILE *fp)
 	const struct dso *dso = map__dso(map);
 
 	return fprintf(fp, " %" PRIx64 "-%" PRIx64 " %" PRIx64 " %s\n",
-		       map__start(map), map__end(map), map->pgoff, dso->name);
+		       map__start(map), map__end(map), map__pgoff(map), dso->name);
 }
 
 size_t map__fprintf_dsoname(struct map *map, FILE *fp)
@@ -510,7 +510,7 @@ u64 map__rip_2objdump(struct map *map, u64 rip)
 		return rip;
 
 	if (dso->rel)
-		return rip - map->pgoff;
+		return rip - map__pgoff(map);
 
 	/*
 	 * kernel modules also have DSO_TYPE_USER in dso->kernel,
@@ -519,7 +519,7 @@ u64 map__rip_2objdump(struct map *map, u64 rip)
 	if (dso->kernel == DSO_SPACE__USER)
 		return rip + dso->text_offset;
 
-	return map__unmap_ip(map, rip) - map->reloc;
+	return map__unmap_ip(map, rip) - map__reloc(map);
 }
 
 /**
@@ -542,7 +542,7 @@ u64 map__objdump_2mem(struct map *map, u64 ip)
 		return map__unmap_ip(map, ip);
 
 	if (dso->rel)
-		return map__unmap_ip(map, ip + map->pgoff);
+		return map__unmap_ip(map, ip + map__pgoff(map));
 
 	/*
 	 * kernel modules also have DSO_TYPE_USER in dso->kernel,
@@ -551,7 +551,7 @@ u64 map__objdump_2mem(struct map *map, u64 ip)
 	if (dso->kernel == DSO_SPACE__USER)
 		return map__unmap_ip(map, ip - dso->text_offset);
 
-	return ip + map->reloc;
+	return ip + map__reloc(map);
 }
 
 bool map__contains_symbol(const struct map *map, const struct symbol *sym)
@@ -592,12 +592,12 @@ struct maps *map__kmaps(struct map *map)
 
 u64 map__dso_map_ip(const struct map *map, u64 ip)
 {
-	return ip - map__start(map) + map->pgoff;
+	return ip - map__start(map) + map__pgoff(map);
 }
 
 u64 map__dso_unmap_ip(const struct map *map, u64 ip)
 {
-	return ip + map__start(map) - map->pgoff;
+	return ip + map__start(map) - map__pgoff(map);
 }
 
 u64 identity__map_ip(const struct map *map __maybe_unused, u64 ip)

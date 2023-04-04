@@ -72,6 +72,16 @@ static inline u64 map__end(const struct map *map)
 	return map->end;
 }
 
+static inline u64 map__pgoff(const struct map *map)
+{
+	return map->pgoff;
+}
+
+static inline u64 map__reloc(const struct map *map)
+{
+	return map->reloc;
+}
+
 static inline u32 map__flags(const struct map *map)
 {
 	return map->flags;
