@@ -159,7 +159,7 @@ static const struct pinctrl_ops mlxbf3_pinctrl_group_ops = {
 static const char * const mlxbf3_gpiofunc_group_names[] = { "swctrl" };
 static const char * const mlxbf3_hwfunc_group_names[]   = { "hwctrl" };
 
-struct pinfunction mlxbf3_pmx_funcs[] = {
+static struct pinfunction mlxbf3_pmx_funcs[] = {
 	PINCTRL_PINFUNCTION("hwfunc", mlxbf3_hwfunc_group_names, 1),
 	PINCTRL_PINFUNCTION("gpiofunc", mlxbf3_gpiofunc_group_names, 1),
 };
