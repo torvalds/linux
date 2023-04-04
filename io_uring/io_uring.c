@@ -970,6 +970,7 @@ bool io_aux_cqe(struct io_ring_ctx *ctx, bool defer, u64 user_data, s32 res, u32
 static void __io_req_complete_post(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
+	struct io_rsrc_node *rsrc_node = NULL;
 
 	io_cq_lock(ctx);
 	if (!(req->flags & REQ_F_CQE_SKIP))
@@ -990,7 +991,7 @@ static void __io_req_complete_post(struct io_kiocb *req)
 		}
 		io_put_kbuf_comp(req);
 		io_dismantle_req(req);
-		io_req_put_rsrc(req);
+		rsrc_node = req->rsrc_node;
 		/*
 		 * Selected buffer deallocation in io_clean_op() assumes that
 		 * we don't hold ->completion_lock. Clean them here to avoid
@@ -1001,6 +1002,8 @@ static void __io_req_complete_post(struct io_kiocb *req)
 		ctx->locked_free_nr++;
 	}
 	io_cq_unlock_post(ctx);
+
+	io_put_rsrc_node(rsrc_node);
 }
 
 void io_req_complete_post(struct io_kiocb *req, unsigned issue_flags)
@@ -1117,7 +1120,7 @@ __cold void io_free_req(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 
-	io_req_put_rsrc(req);
+	io_put_rsrc_node(req->rsrc_node);
 	io_dismantle_req(req);
 	io_put_task_remote(req->task, 1);
 

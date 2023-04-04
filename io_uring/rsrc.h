@@ -115,10 +115,10 @@ static inline void io_rsrc_put_node(struct io_rsrc_node *node, int nr)
 		io_rsrc_node_ref_zero(node);
 }
 
-static inline void io_req_put_rsrc(struct io_kiocb *req)
+static inline void io_put_rsrc_node(struct io_rsrc_node *node)
 {
-	if (req->rsrc_node)
-		io_rsrc_put_node(req->rsrc_node, 1);
+	if (node)
+		io_rsrc_put_node(node, 1);
 }
 
 static inline void io_req_put_rsrc_locked(struct io_kiocb *req,
