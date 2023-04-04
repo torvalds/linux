@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 #
-# (C) COPYRIGHT 2012-2022 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2012-2023 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -112,21 +112,6 @@ config MALI_BIFROST_ENABLE_TRACE
 	  Enables tracing in kbase. Trace log available through
 	  the "mali_trace" debugfs file, when the CONFIG_DEBUG_FS is enabled
 
-config MALI_FW_CORE_DUMP
-	bool "Enable support for FW core dump"
-	depends on MALI_BIFROST && MALI_CSF_SUPPORT
-	default n
-	help
-	  Adds ability to request firmware core dump through the "fw_core_dump"
-	  debugfs file
-
-	  Example:
-	  * To explicitly request core dump:
-	      echo 1 > /sys/kernel/debug/mali0/fw_core_dump
-	  * To output current core dump (after explicitly requesting a core dump,
-	    or kernel driver reported an internal firmware error):
-	      cat /sys/kernel/debug/mali0/fw_core_dump
-
 config MALI_ARBITER_SUPPORT
 	bool "Enable arbiter support for Mali"
 	depends on MALI_BIFROST && !MALI_CSF_SUPPORT
@@ -178,7 +163,19 @@ menuconfig MALI_BIFROST_EXPERT
 
 if MALI_BIFROST_EXPERT
 
-config MALI_2MB_ALLOC
+config LARGE_PAGE_ALLOC_OVERRIDE
+	bool "Override default setting of 2MB pages"
+	depends on MALI_BIFROST && MALI_BIFROST_EXPERT
+	default n
+	help
+	  An override config for LARGE_PAGE_ALLOC config.
+	  When LARGE_PAGE_ALLOC_OVERRIDE is Y, 2MB page allocation will be
+	  enabled by LARGE_PAGE_ALLOC. When this is N, the feature will be
+	  enabled when GPU HW satisfies requirements.
+
+	  If in doubt, say N
+
+config LARGE_PAGE_ALLOC
 	bool "Attempt to allocate 2MB pages"
 	depends on MALI_BIFROST && MALI_BIFROST_EXPERT
 	default n
@@ -186,6 +183,10 @@ config MALI_2MB_ALLOC
 	  Rather than allocating all GPU memory page-by-page, attempt to
 	  allocate 2MB pages from the kernel. This reduces TLB pressure and
 	  helps to prevent memory fragmentation.
+
+	  Note this config applies only when LARGE_PAGE_ALLOC_OVERRIDE config
+	  is enabled and enabling this on a GPU HW that does not satisfy
+	  requirements can cause serious problem.
 
 	  If in doubt, say N
 
@@ -221,14 +222,6 @@ config MALI_BIFROST_ERROR_INJECT
 	default n
 	help
 	  Enables insertion of errors to test module failure and recovery mechanisms.
-
-config MALI_GEM5_BUILD
-	bool "Enable build of Mali kernel driver for GEM5"
-	depends on MALI_BIFROST && MALI_BIFROST_EXPERT
-	default n
-	help
-	  This option is to do a Mali GEM5 build.
-	  If unsure, say N.
 
 comment "Debug options"
 	depends on MALI_BIFROST && MALI_BIFROST_EXPERT

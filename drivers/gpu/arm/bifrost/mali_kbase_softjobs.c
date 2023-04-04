@@ -943,6 +943,13 @@ static int kbase_jit_allocate_prepare(struct kbase_jd_atom *katom)
 	int ret;
 	u32 i;
 
+	if (!kbase_mem_allow_alloc(kctx)) {
+		dev_dbg(kbdev->dev, "Invalid attempt to allocate JIT memory by %s/%d for ctx %d_%d",
+			current->comm, current->pid, kctx->tgid, kctx->id);
+		ret = -EINVAL;
+		goto fail;
+	}
+
 	/* For backwards compatibility, and to prevent reading more than 1 jit
 	 * info struct on jit version 1
 	 */

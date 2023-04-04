@@ -274,6 +274,7 @@ void kbase_csf_queue_group_terminate(struct kbase_context *kctx,
  */
 void kbase_csf_term_descheduled_queue_group(struct kbase_queue_group *group);
 
+#if IS_ENABLED(CONFIG_MALI_VECTOR_DUMP) || MALI_UNIT_TEST
 /**
  * kbase_csf_queue_group_suspend - Suspend a GPU command queue group
  *
@@ -291,6 +292,7 @@ void kbase_csf_term_descheduled_queue_group(struct kbase_queue_group *group);
  */
 int kbase_csf_queue_group_suspend(struct kbase_context *kctx,
 	struct kbase_suspend_copy_buffer *sus_buf, u8 group_handle);
+#endif
 
 /**
  * kbase_csf_add_group_fatal_error - Report a fatal group error to userspace

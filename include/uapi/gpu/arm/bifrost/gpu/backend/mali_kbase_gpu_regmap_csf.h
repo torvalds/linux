@@ -27,4 +27,15 @@
 #define IPA_CONTROL_REG(r) (IPA_CONTROL_BASE + (r))
 #define STATUS 0x004 /* (RO) Status register */
 
+/* USER base address */
+#define USER_BASE 0x0010000
+#define USER_REG(r) (USER_BASE + (r))
+
+/* USER register offsets */
+#define LATEST_FLUSH 0x0000 /* () Flush ID of latest clean-and-invalidate operation */
+
+/* DOORBELLS base address */
+#define DOORBELLS_BASE 0x0080000
+#define DOORBELLS_REG(r) (DOORBELLS_BASE + (r))
+
 #endif /* _UAPI_KBASE_GPU_REGMAP_CSF_H_ */

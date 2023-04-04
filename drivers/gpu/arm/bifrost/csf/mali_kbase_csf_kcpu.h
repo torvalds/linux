@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2018-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -186,6 +186,7 @@ struct kbase_suspend_copy_buffer {
 	struct kbase_mem_phy_alloc *cpu_alloc;
 };
 
+#if IS_ENABLED(CONFIG_MALI_VECTOR_DUMP) || MALI_UNIT_TEST
 /**
  * struct kbase_kcpu_command_group_suspend_info - structure which contains
  *		suspend buffer data captured for a suspended queue group.
@@ -198,6 +199,7 @@ struct kbase_kcpu_command_group_suspend_info {
 	struct kbase_suspend_copy_buffer *sus_buf;
 	u8 group_handle;
 };
+#endif
 
 
 /**
@@ -232,7 +234,9 @@ struct kbase_kcpu_command {
 		struct kbase_kcpu_command_import_info import;
 		struct kbase_kcpu_command_jit_alloc_info jit_alloc;
 		struct kbase_kcpu_command_jit_free_info jit_free;
+#if IS_ENABLED(CONFIG_MALI_VECTOR_DUMP) || MALI_UNIT_TEST
 		struct kbase_kcpu_command_group_suspend_info suspend_buf_copy;
+#endif
 	} info;
 };
 

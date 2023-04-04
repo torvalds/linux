@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2017-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2017-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -62,8 +62,11 @@ bob_defaults {
     mali_dma_buf_legacy_compat: {
         kbuild_options: ["CONFIG_MALI_DMA_BUF_LEGACY_COMPAT=y"],
     },
+    large_page_alloc_override: {
+        kbuild_options: ["CONFIG_LARGE_PAGE_ALLOC_OVERRIDE=y"],
+    },
     large_page_alloc: {
-        kbuild_options: ["CONFIG_MALI_2MB_ALLOC=y"],
+        kbuild_options: ["CONFIG_LARGE_PAGE_ALLOC=y"],
     },
     mali_memory_fully_backed: {
         kbuild_options: ["CONFIG_MALI_MEMORY_FULLY_BACKED=y"],
@@ -85,9 +88,6 @@ bob_defaults {
     },
     mali_error_inject: {
         kbuild_options: ["CONFIG_MALI_BIFROST_ERROR_INJECT=y"],
-    },
-    mali_gem5_build: {
-        kbuild_options: ["CONFIG_MALI_GEM5_BUILD=y"],
     },
     mali_debug: {
         kbuild_options: [
@@ -136,9 +136,6 @@ bob_defaults {
     },
     platform_is_fpga: {
         kbuild_options: ["CONFIG_MALI_IS_FPGA=y"],
-    },
-    mali_fw_core_dump: {
-        kbuild_options: ["CONFIG_MALI_FW_CORE_DUMP=y"],
     },
     mali_coresight: {
         kbuild_options: ["CONFIG_MALI_CORESIGHT=y"],
@@ -194,6 +191,15 @@ bob_kernel_module {
         "platform/*/*.c",
         "platform/*/*.h",
         "platform/*/Kbuild",
+        "platform/*/*/*.c",
+        "platform/*/*/*.h",
+        "platform/*/*/Kbuild",
+        "platform/*/*/*.c",
+        "platform/*/*/*.h",
+        "platform/*/*/Kbuild",
+        "platform/*/*/*/*.c",
+        "platform/*/*/*/*.h",
+        "platform/*/*/*/Kbuild",
         "thirdparty/*.c",
         "thirdparty/Kbuild",
         "debug/*.c",

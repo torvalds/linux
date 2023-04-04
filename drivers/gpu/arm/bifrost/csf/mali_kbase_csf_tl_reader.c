@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -31,9 +31,7 @@
 #include "mali_kbase_pm.h"
 #include "mali_kbase_hwaccess_time.h"
 
-#include <linux/gcd.h>
 #include <linux/math64.h>
-#include <asm/arch_timer.h>
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 #include "tl/mali_kbase_timeline_priv.h"
@@ -95,81 +93,6 @@ void kbase_csf_tl_reader_debugfs_init(struct kbase_device *kbdev)
 		&kbase_csf_tl_poll_interval_fops);
 }
 #endif
-
-/**
- * get_cpu_gpu_time() - Get current CPU and GPU timestamps.
- *
- * @kbdev:	Kbase device.
- * @cpu_ts:	Output CPU timestamp.
- * @gpu_ts:	Output GPU timestamp.
- * @gpu_cycle:  Output GPU cycle counts.
- */
-static void get_cpu_gpu_time(
-	struct kbase_device *kbdev,
-	u64 *cpu_ts,
-	u64 *gpu_ts,
-	u64 *gpu_cycle)
-{
-	struct timespec64 ts;
-
-	kbase_pm_context_active(kbdev);
-	kbase_backend_get_gpu_time(kbdev, gpu_cycle, gpu_ts, &ts);
-	kbase_pm_context_idle(kbdev);
-
-	if (cpu_ts)
-		*cpu_ts = ts.tv_sec * NSEC_PER_SEC + ts.tv_nsec;
-}
-
-
-/**
- * kbase_ts_converter_init() - Initialize system timestamp converter.
- *
- * @self:	System Timestamp Converter instance.
- * @kbdev:	Kbase device pointer
- *
- * Return: Zero on success, -1 otherwise.
- */
-static int kbase_ts_converter_init(
-	struct kbase_ts_converter *self,
-	struct kbase_device *kbdev)
-{
-	u64 cpu_ts = 0;
-	u64 gpu_ts = 0;
-	u64 freq;
-	u64 common_factor;
-
-	get_cpu_gpu_time(kbdev, &cpu_ts, &gpu_ts, NULL);
-	freq = arch_timer_get_cntfrq();
-
-	if (!freq) {
-		dev_warn(kbdev->dev, "arch_timer_get_rate() is zero!");
-		return -1;
-	}
-
-	common_factor = gcd(NSEC_PER_SEC, freq);
-
-	self->multiplier = div64_u64(NSEC_PER_SEC, common_factor);
-	self->divisor = div64_u64(freq, common_factor);
-	self->offset =
-		cpu_ts - div64_u64(gpu_ts * self->multiplier, self->divisor);
-
-	return 0;
-}
-
-/**
- * kbase_ts_converter_convert() - Convert GPU timestamp to CPU timestamp.
- *
- * @self:	System Timestamp Converter instance.
- * @gpu_ts:	System timestamp value to converter.
- *
- * Return: The CPU timestamp.
- */
-static u64 __maybe_unused
-kbase_ts_converter_convert(const struct kbase_ts_converter *self, u64 gpu_ts)
-{
-	return div64_u64(gpu_ts * self->multiplier, self->divisor) +
-		  self->offset;
-}
 
 /**
  * tl_reader_overflow_notify() - Emit stream overflow tracepoint.
@@ -321,8 +244,8 @@ int kbase_csf_tl_reader_flush_buffer(struct kbase_csf_tl_reader *self)
 		{
 			struct kbase_csffw_tl_message *msg =
 				(struct kbase_csffw_tl_message *) csffw_data_it;
-			msg->timestamp = kbase_ts_converter_convert(&self->ts_converter,
-						   msg->timestamp);
+			msg->timestamp =
+				kbase_backend_time_convert_gpu_to_cpu(kbdev, msg->timestamp);
 		}
 
 		/* Copy the message out to the tl_stream. */
@@ -395,9 +318,6 @@ static int tl_reader_init_late(
 			KBASE_CSFFW_TIMELINE_HEADER_NAME);
 		return -1;
 	}
-
-	if (kbase_ts_converter_init(&self->ts_converter, kbdev))
-		return -1;
 
 	self->kbdev = kbdev;
 	self->trace_buffer = tb;

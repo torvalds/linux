@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2010-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -1573,7 +1573,6 @@ static int kbasep_ioctl_cs_cpu_queue_dump(struct kbase_context *kctx,
 					cpu_queue_info->size);
 }
 
-#define POWER_DOWN_LATEST_FLUSH_VALUE ((u32)1)
 static int kbase_ioctl_read_user_page(struct kbase_context *kctx,
 				      union kbase_ioctl_read_user_page *user_page)
 {
@@ -2059,6 +2058,7 @@ static long kbase_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				struct kbase_ioctl_cs_cpu_queue_info,
 				kctx);
 		break;
+	/* This IOCTL will be kept for backward compatibility */
 	case KBASE_IOCTL_READ_USER_PAGE:
 		KBASE_HANDLE_IOCTL_INOUT(KBASE_IOCTL_READ_USER_PAGE, kbase_ioctl_read_user_page,
 					 union kbase_ioctl_read_user_page, kctx);
@@ -2225,7 +2225,10 @@ KBASE_EXPORT_TEST_API(kbase_event_wakeup);
 #if MALI_USE_CSF
 int kbase_event_pending(struct kbase_context *ctx)
 {
-	WARN_ON_ONCE(!ctx);
+	KBASE_DEBUG_ASSERT(ctx);
+
+	if (unlikely(!ctx))
+		return -EPERM;
 
 	return (atomic_read(&ctx->event_count) != 0) ||
 		kbase_csf_event_error_pending(ctx) ||
@@ -2235,6 +2238,9 @@ int kbase_event_pending(struct kbase_context *ctx)
 int kbase_event_pending(struct kbase_context *ctx)
 {
 	KBASE_DEBUG_ASSERT(ctx);
+
+	if (unlikely(!ctx))
+		return -EPERM;
 
 	return (atomic_read(&ctx->event_count) != 0) ||
 		(atomic_read(&ctx->event_closed) != 0);
@@ -4284,7 +4290,7 @@ void kbase_protected_mode_term(struct kbase_device *kbdev)
 	kfree(kbdev->protected_dev);
 }
 
-#if !IS_ENABLED(CONFIG_MALI_REAL_HW)
+#if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
 static int kbase_common_reg_map(struct kbase_device *kbdev)
 {
 	return 0;
@@ -4292,7 +4298,7 @@ static int kbase_common_reg_map(struct kbase_device *kbdev)
 static void kbase_common_reg_unmap(struct kbase_device * const kbdev)
 {
 }
-#else /* !IS_ENABLED(CONFIG_MALI_REAL_HW) */
+#else /* !IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI) */
 static int kbase_common_reg_map(struct kbase_device *kbdev)
 {
 	int err = 0;
@@ -4328,7 +4334,7 @@ static void kbase_common_reg_unmap(struct kbase_device * const kbdev)
 		kbdev->reg_size = 0;
 	}
 }
-#endif /* !IS_ENABLED(CONFIG_MALI_REAL_HW) */
+#endif /* !IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI) */
 
 int registers_map(struct kbase_device * const kbdev)
 {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2010-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -190,6 +190,27 @@ static u64 select_job_chain(struct kbase_jd_atom *katom)
 	return jc;
 }
 
+static inline bool kbasep_jm_wait_js_free(struct kbase_device *kbdev, unsigned int js,
+					  struct kbase_context *kctx)
+{
+	const ktime_t wait_loop_start = ktime_get_raw();
+	const s64 max_timeout = (s64)kbdev->js_data.js_free_wait_time_ms;
+	s64 diff = 0;
+
+	/* wait for the JS_COMMAND_NEXT register to reach the given status value */
+	do {
+		if (!kbase_reg_read(kbdev, JOB_SLOT_REG(js, JS_COMMAND_NEXT)))
+			return true;
+
+		diff = ktime_to_ms(ktime_sub(ktime_get_raw(), wait_loop_start));
+	} while (diff < max_timeout);
+
+	dev_err(kbdev->dev, "Timeout in waiting for job slot %u to become free for ctx %d_%u", js,
+		kctx->tgid, kctx->id);
+
+	return false;
+}
+
 int kbase_job_hw_submit(struct kbase_device *kbdev, struct kbase_jd_atom *katom, unsigned int js)
 {
 	struct kbase_context *kctx;
@@ -203,8 +224,7 @@ int kbase_job_hw_submit(struct kbase_device *kbdev, struct kbase_jd_atom *katom,
 	kctx = katom->kctx;
 
 	/* Command register must be available */
-	if (WARN(!kbasep_jm_is_js_free(kbdev, js, kctx),
-		 "Attempting to assign to occupied slot %d in kctx %pK\n", js, (void *)kctx))
+	if (!kbasep_jm_wait_js_free(kbdev, js, kctx))
 		return -EPERM;
 
 	dev_dbg(kctx->kbdev->dev, "Write JS_HEAD_NEXT 0x%llx for atom %pK\n",

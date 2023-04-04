@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -228,11 +228,11 @@ static void remove_unlinked_chunk(struct kbase_context *kctx,
 	kbase_vunmap(kctx, &chunk->map);
 	/* KBASE_REG_DONT_NEED regions will be confused with ephemeral regions (inc freed JIT
 	 * regions), and so we must clear that flag too before freeing.
-	 * For "no user free", we check that the refcount is 1 as it is a shrinkable region;
+	 * For "no user free count", we check that the count is 1 as it is a shrinkable region;
 	 * no other code part within kbase can take a reference to it.
 	 */
-	WARN_ON(chunk->region->no_user_free_refcnt > 1);
-	kbase_va_region_no_user_free_put(kctx, chunk->region);
+	WARN_ON(atomic_read(&chunk->region->no_user_free_count) > 1);
+	kbase_va_region_no_user_free_dec(chunk->region);
 #if !defined(CONFIG_MALI_VECTOR_DUMP)
 	chunk->region->flags &= ~KBASE_REG_DONT_NEED;
 #endif
@@ -315,8 +315,8 @@ static struct kbase_csf_tiler_heap_chunk *alloc_new_chunk(struct kbase_context *
 	 * It should be fine and not a security risk if we let the region leak till
 	 * region tracker termination in such a case.
 	 */
-	if (unlikely(chunk->region->no_user_free_refcnt > 1)) {
-		dev_err(kctx->kbdev->dev, "Chunk region has no_user_free_refcnt > 1!\n");
+	if (unlikely(atomic_read(&chunk->region->no_user_free_count) > 1)) {
+		dev_err(kctx->kbdev->dev, "Chunk region has no_user_free_count > 1!\n");
 		goto unroll_region;
 	}
 
@@ -371,7 +371,7 @@ unroll_region:
 	/* KBASE_REG_DONT_NEED regions will be confused with ephemeral regions (inc freed JIT
 	 * regions), and so we must clear that flag too before freeing.
 	 */
-	kbase_va_region_no_user_free_put(kctx, chunk->region);
+	kbase_va_region_no_user_free_dec(chunk->region);
 #if !defined(CONFIG_MALI_VECTOR_DUMP)
 	chunk->region->flags &= ~KBASE_REG_DONT_NEED;
 #endif
@@ -531,7 +531,7 @@ static void delete_heap(struct kbase_csf_tiler_heap *heap)
 	if (heap->buf_desc_reg) {
 		kbase_vunmap(kctx, &heap->buf_desc_map);
 		kbase_gpu_vm_lock(kctx);
-		kbase_va_region_no_user_free_put(kctx, heap->buf_desc_reg);
+		kbase_va_region_no_user_free_dec(heap->buf_desc_reg);
 		kbase_gpu_vm_unlock(kctx);
 	}
 
@@ -741,7 +741,8 @@ int kbase_csf_tiler_heap_init(struct kbase_context *const kctx, u32 const chunk_
 		 */
 
 		heap->buf_desc_va = buf_desc_va;
-		heap->buf_desc_reg = kbase_va_region_no_user_free_get(kctx, buf_desc_reg);
+		heap->buf_desc_reg = buf_desc_reg;
+		kbase_va_region_no_user_free_inc(buf_desc_reg);
 
 		vmap_ptr = kbase_vmap_reg(kctx, buf_desc_reg, buf_desc_va, TILER_BUF_DESC_SIZE,
 					  KBASE_REG_CPU_RD, &heap->buf_desc_map,
@@ -834,7 +835,7 @@ heap_context_alloc_failed:
 buf_desc_vmap_failed:
 	if (heap->buf_desc_reg) {
 		kbase_gpu_vm_lock(kctx);
-		kbase_va_region_no_user_free_put(kctx, heap->buf_desc_reg);
+		kbase_va_region_no_user_free_dec(heap->buf_desc_reg);
 		kbase_gpu_vm_unlock(kctx);
 	}
 buf_desc_not_suitable:
@@ -967,7 +968,12 @@ int kbase_csf_tiler_heap_alloc_new_chunk(struct kbase_context *kctx,
 
 	err = validate_allocation_request(heap, nr_in_flight, pending_frag_count);
 	if (unlikely(err)) {
-		dev_err(kctx->kbdev->dev,
+		/* The allocation request can be legitimate, but be invoked on a heap
+		 * that has already reached the maximum pre-configured capacity. This
+		 * is useful debug information, but should not be treated as an error,
+		 * since the request will be re-sent at a later point.
+		 */
+		dev_dbg(kctx->kbdev->dev,
 			"Not allocating new chunk for heap 0x%llX due to current heap state (err %d)",
 			gpu_heap_va, err);
 		mutex_unlock(&kctx->csf.tiler_heaps.lock);

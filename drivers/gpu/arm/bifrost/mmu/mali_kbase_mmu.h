@@ -152,21 +152,71 @@ u64 kbase_mmu_create_ate(struct kbase_device *kbdev,
 	struct tagged_addr phy, unsigned long flags, int level, int group_id);
 
 int kbase_mmu_insert_pages_no_flush(struct kbase_device *kbdev, struct kbase_mmu_table *mmut,
-				    const u64 start_vpfn, struct tagged_addr *phys, size_t nr,
+				    u64 vpfn, struct tagged_addr *phys, size_t nr,
 				    unsigned long flags, int group_id, u64 *dirty_pgds,
 				    struct kbase_va_region *reg, bool ignore_page_migration);
 int kbase_mmu_insert_pages(struct kbase_device *kbdev, struct kbase_mmu_table *mmut, u64 vpfn,
 			   struct tagged_addr *phys, size_t nr, unsigned long flags, int as_nr,
 			   int group_id, enum kbase_caller_mmu_sync_info mmu_sync_info,
 			   struct kbase_va_region *reg, bool ignore_page_migration);
-int kbase_mmu_insert_single_page(struct kbase_context *kctx, u64 vpfn,
-				 struct tagged_addr phys, size_t nr,
-				 unsigned long flags, int group_id,
-				 enum kbase_caller_mmu_sync_info mmu_sync_info);
+int kbase_mmu_insert_imported_pages(struct kbase_device *kbdev, struct kbase_mmu_table *mmut,
+				    u64 vpfn, struct tagged_addr *phys, size_t nr,
+				    unsigned long flags, int as_nr, int group_id,
+				    enum kbase_caller_mmu_sync_info mmu_sync_info,
+				    struct kbase_va_region *reg);
+int kbase_mmu_insert_aliased_pages(struct kbase_device *kbdev, struct kbase_mmu_table *mmut,
+				   u64 vpfn, struct tagged_addr *phys, size_t nr,
+				   unsigned long flags, int as_nr, int group_id,
+				   enum kbase_caller_mmu_sync_info mmu_sync_info,
+				   struct kbase_va_region *reg);
+int kbase_mmu_insert_single_page(struct kbase_context *kctx, u64 vpfn, struct tagged_addr phys,
+				 size_t nr, unsigned long flags, int group_id,
+				 enum kbase_caller_mmu_sync_info mmu_sync_info,
+				 bool ignore_page_migration);
+int kbase_mmu_insert_single_imported_page(struct kbase_context *kctx, u64 vpfn,
+					  struct tagged_addr phys, size_t nr, unsigned long flags,
+					  int group_id,
+					  enum kbase_caller_mmu_sync_info mmu_sync_info);
+int kbase_mmu_insert_single_aliased_page(struct kbase_context *kctx, u64 vpfn,
+					 struct tagged_addr phys, size_t nr, unsigned long flags,
+					 int group_id,
+					 enum kbase_caller_mmu_sync_info mmu_sync_info);
 
+/**
+ * kbase_mmu_teardown_pages - Remove GPU virtual addresses from the MMU page table
+ *
+ * @kbdev:    Pointer to kbase device.
+ * @mmut:     Pointer to GPU MMU page table.
+ * @vpfn:     Start page frame number of the GPU virtual pages to unmap.
+ * @phys:     Array of physical pages currently mapped to the virtual
+ *            pages to unmap, or NULL. This is used for GPU cache maintenance
+ *            and page migration support.
+ * @nr_phys_pages: Number of physical pages to flush.
+ * @nr_virt_pages: Number of virtual pages whose PTEs should be destroyed.
+ * @as_nr:    Address space number, for GPU cache maintenance operations
+ *            that happen outside a specific kbase context.
+ * @ignore_page_migration: Whether page migration metadata should be ignored.
+ *
+ * We actually discard the ATE and free the page table pages if no valid entries
+ * exist in PGD.
+ *
+ * IMPORTANT: This uses kbasep_js_runpool_release_ctx() when the context is
+ * currently scheduled into the runpool, and so potentially uses a lot of locks.
+ * These locks must be taken in the correct order with respect to others
+ * already held by the caller. Refer to kbasep_js_runpool_release_ctx() for more
+ * information.
+ *
+ * The @p phys pointer to physical pages is not necessary for unmapping virtual memory,
+ * but it is used for fine-grained GPU cache maintenance. If @p phys is NULL,
+ * GPU cache maintenance will be done as usual, that is invalidating the whole GPU caches
+ * instead of specific physical address ranges.
+ *
+ * Return: 0 on success, otherwise an error code.
+ */
 int kbase_mmu_teardown_pages(struct kbase_device *kbdev, struct kbase_mmu_table *mmut, u64 vpfn,
-			     struct tagged_addr *phys, size_t nr, int as_nr,
-			     bool ignore_page_migration);
+			     struct tagged_addr *phys, size_t nr_phys_pages, size_t nr_virt_pages,
+			     int as_nr, bool ignore_page_migration);
+
 int kbase_mmu_update_pages(struct kbase_context *kctx, u64 vpfn,
 			   struct tagged_addr *phys, size_t nr,
 			   unsigned long flags, int const group_id);

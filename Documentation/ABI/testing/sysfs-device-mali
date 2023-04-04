@@ -62,8 +62,11 @@ What:		/sys/class/misc/mali%u/device/idle_hysteresis_time
 Description:
 		This attribute is available only with mali platform
 		device-driver that supports a CSF GPU. This attribute is
-		used to set the duration value in milliseconds for the
-		configuring hysteresis field for determining GPU idle detection.
+		used to configure the timeout value in microseconds for the
+		GPU idle handling. If GPU has been idle for this timeout
+		period, then it is put to sleep for GPUs where sleep feature
+		is supported or is powered down after suspending command
+		stream groups.
 
 What:		/sys/class/misc/mali%u/device/js_ctx_scheduling_mode
 Description:

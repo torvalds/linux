@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -63,15 +63,16 @@ void kbase_gpu_report_bus_fault_and_kill(struct kbase_context *kctx,
 	u32 const exception_data = (status >> 8) & 0xFFFFFF;
 	int const as_no = as->number;
 	unsigned long flags;
+	const uintptr_t fault_addr = fault->addr;
 
 	/* terminal fault, print info about the fault */
 	dev_err(kbdev->dev,
-		"GPU bus fault in AS%d at PA 0x%016llX\n"
+		"GPU bus fault in AS%d at PA %pK\n"
 		"raw fault status: 0x%X\n"
 		"exception type 0x%X: %s\n"
 		"exception data 0x%X\n"
 		"pid: %d\n",
-		as_no, fault->addr,
+		as_no, (void *)fault_addr,
 		status,
 		exception_type, kbase_gpu_exception_name(exception_type),
 		exception_data,
@@ -428,6 +429,7 @@ int kbase_mmu_as_init(struct kbase_device *kbdev, unsigned int i)
 	kbdev->as[i].number = i;
 	kbdev->as[i].bf_data.addr = 0ULL;
 	kbdev->as[i].pf_data.addr = 0ULL;
+	kbdev->as[i].is_unresponsive = false;
 
 	kbdev->as[i].pf_wq = alloc_workqueue("mali_mmu%u", 0, 1, i);
 	if (!kbdev->as[i].pf_wq)

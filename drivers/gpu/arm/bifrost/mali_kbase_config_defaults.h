@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2013-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2013-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -221,6 +221,16 @@ enum {
  */
 #define JM_DEFAULT_RESET_TIMEOUT_MS (1) /* 1 ms */
 
+/* Default timeout in clock cycles to be used when checking if JS_COMMAND_NEXT
+ * is updated on HW side so a Job Slot is considered free.
+ * This timeout will only take effect on GPUs with low value for the minimum
+ * GPU clock frequency (<= 100MHz).
+ *
+ * Based on 1ms timeout at 100MHz. Will default to 0ms on GPUs with higher
+ * value for minimum GPU clock frequency.
+ */
+#define JM_DEFAULT_JS_FREE_TIMEOUT_CYCLES (100000)
+
 #endif /* MALI_USE_CSF */
 
 /* Default timeslice that a context is scheduled in for, in nanoseconds.
@@ -257,5 +267,12 @@ enum {
  */
 #define DEFAULT_IR_THRESHOLD (192)
 
+/* Waiting time in clock cycles for the completion of a MMU operation.
+ *
+ * Ideally 1.6M GPU cycles required for the L2 cache (512KiB slice) flush.
+ *
+ * As a pessimistic value, 50M GPU cycles ( > 30 times bigger ) is chosen.
+ * It corresponds to 0.5s in GPU @ 100Mhz.
+ */
+#define MMU_AS_INACTIVE_WAIT_TIMEOUT_CYCLES ((u64)50 * 1024 * 1024)
 #endif /* _KBASE_CONFIG_DEFAULTS_H_ */
-

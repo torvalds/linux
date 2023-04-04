@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2018-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -1562,11 +1562,13 @@ static void program_cs(struct kbase_device *kbdev,
 	    WARN_ON(csi_index >= ginfo->stream_num))
 		return;
 
-	assign_user_doorbell_to_queue(kbdev, queue);
-	if (queue->doorbell_nr == KBASEP_USER_DB_NR_INVALID)
-		return;
+	if (queue->enabled) {
+		assign_user_doorbell_to_queue(kbdev, queue);
+		if (queue->doorbell_nr == KBASEP_USER_DB_NR_INVALID)
+			return;
 
-	WARN_ON(queue->doorbell_nr != queue->group->doorbell_nr);
+		WARN_ON(queue->doorbell_nr != queue->group->doorbell_nr);
+	}
 
 	if (queue->enabled && queue_group_suspended_locked(group))
 		program_cs_extract_init(queue);
@@ -1868,6 +1870,7 @@ static void halt_csg_slot(struct kbase_queue_group *group, bool suspend)
 		unsigned long flags;
 		struct kbase_csf_cmd_stream_group_info *ginfo =
 						&global_iface->groups[slot];
+
 		u32 halt_cmd = suspend ? CSG_REQ_STATE_SUSPEND :
 					 CSG_REQ_STATE_TERMINATE;
 
@@ -1885,8 +1888,8 @@ static void halt_csg_slot(struct kbase_queue_group *group, bool suspend)
 		csg_slot[slot].trigger_jiffies = jiffies;
 		KBASE_KTRACE_ADD_CSF_GRP(kbdev, CSG_SLOT_STOP_REQ, group, halt_cmd);
 
-		KBASE_TLSTREAM_TL_KBASE_DEVICE_HALT_CSG(
-			kbdev, kbdev->gpu_props.props.raw_props.gpu_id, slot);
+		KBASE_TLSTREAM_TL_KBASE_DEVICE_HALTING_CSG(
+			kbdev, kbdev->gpu_props.props.raw_props.gpu_id, slot, suspend);
 	}
 }
 
@@ -3440,6 +3443,9 @@ static void program_suspending_csg_slots(struct kbase_device *kbdev)
 
 				/* The on slot csg is now stopped */
 				clear_bit(i, slot_mask);
+
+				KBASE_TLSTREAM_TL_KBASE_DEVICE_SUSPEND_CSG(
+					kbdev, kbdev->gpu_props.props.raw_props.gpu_id, i);
 
 				if (likely(group)) {
 					bool as_fault;
@@ -5076,6 +5082,9 @@ static int wait_csg_slots_suspend(struct kbase_device *kbdev, unsigned long *slo
 				/* The on slot csg is now stopped */
 				clear_bit(i, slot_mask_local);
 
+				KBASE_TLSTREAM_TL_KBASE_DEVICE_SUSPEND_CSG(
+					kbdev, kbdev->gpu_props.props.raw_props.gpu_id, i);
+
 				group = scheduler->csg_slots[i].resident_group;
 				if (likely(group)) {
 					/* Only do save/cleanup if the
@@ -5134,8 +5143,13 @@ static void evict_lru_or_blocked_csg(struct kbase_device *kbdev)
 
 	if (all_addr_spaces_used) {
 		for (i = 0; i != total_csg_slots; ++i) {
-			if (scheduler->csg_slots[i].resident_group != NULL)
+			if (scheduler->csg_slots[i].resident_group != NULL) {
+				if (WARN_ON(scheduler->csg_slots[i].resident_group->kctx->as_nr <
+					    0))
+					continue;
+
 				as_usage[scheduler->csg_slots[i].resident_group->kctx->as_nr]++;
+			}
 		}
 	}
 
@@ -5156,6 +5170,9 @@ static void evict_lru_or_blocked_csg(struct kbase_device *kbdev)
 		    (group->priority != BASE_QUEUE_GROUP_PRIORITY_REALTIME) &&
 		    ((lru_idle_group == NULL) ||
 		     (lru_idle_group->prepared_seq_num < group->prepared_seq_num))) {
+			if (WARN_ON(group->kctx->as_nr < 0))
+				continue;
+
 			/* If all address spaces are used, we need to ensure the group does not
 			 * share the AS with other active CSGs. Or CSG would be freed without AS
 			 * and this optimization would not work.

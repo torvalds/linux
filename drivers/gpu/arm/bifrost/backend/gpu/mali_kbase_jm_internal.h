@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2011-2016, 2018-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2016, 2018-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -49,14 +49,6 @@ static inline char *kbasep_make_job_slot_string(unsigned int js, char *js_string
 {
 	snprintf(js_string, js_size, "job_slot_%u", js);
 	return js_string;
-}
-#endif
-
-#if !MALI_USE_CSF
-static inline int kbasep_jm_is_js_free(struct kbase_device *kbdev, unsigned int js,
-				       struct kbase_context *kctx)
-{
-	return !kbase_reg_read(kbdev, JOB_SLOT_REG(js, JS_COMMAND_NEXT));
 }
 #endif
 

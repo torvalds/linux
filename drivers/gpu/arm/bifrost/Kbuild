@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 #
-# (C) COPYRIGHT 2012-2022 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2012-2023 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -69,7 +69,7 @@ endif
 #
 
 # Driver version string which is returned to userspace via an ioctl
-MALI_RELEASE_NAME ?= '"g17p0-01eac0"'
+MALI_RELEASE_NAME ?= '"g18p0-01eac0"'
 # Set up defaults if not defined by build system
 ifeq ($(CONFIG_MALI_BIFROST_DEBUG), y)
     MALI_UNIT_TEST = 1

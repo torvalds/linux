@@ -108,7 +108,6 @@
 #define JOB_IRQ_JS_STATE        0x010   /* status==active and _next == busy snapshot from last JOB_IRQ_CLEAR */
 #define JOB_IRQ_THROTTLE        0x014   /* cycles to delay delivering an interrupt externally. The JOB_IRQ_STATUS is NOT affected by this, just the delivery of the interrupt.  */
 
-#define JOB_SLOT0               0x800   /* Configuration registers for job slot 0 */
 #define JOB_SLOT1               0x880   /* Configuration registers for job slot 1 */
 #define JOB_SLOT2               0x900   /* Configuration registers for job slot 2 */
 #define JOB_SLOT3               0x980   /* Configuration registers for job slot 3 */
@@ -124,8 +123,6 @@
 #define JOB_SLOT13              0xE80   /* Configuration registers for job slot 13 */
 #define JOB_SLOT14              0xF00   /* Configuration registers for job slot 14 */
 #define JOB_SLOT15              0xF80   /* Configuration registers for job slot 15 */
-
-#define JOB_SLOT_REG(n, r)      (JOB_CONTROL_REG(JOB_SLOT0 + ((n) << 7)) + (r))
 
 #define JS_XAFFINITY           0x1C /* (RO) Extended affinity mask for job slot n*/
 

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2011-2017, 2019-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -90,6 +90,19 @@ static inline bool kbase_ctx_flag(struct kbase_context *kctx,
 				      enum kbase_context_flags flag)
 {
 	return atomic_read(&kctx->flags) & flag;
+}
+
+/**
+ * kbase_ctx_compat_mode - Indicate whether a kbase context needs to operate
+ *                         in compatibility mode for 32-bit userspace.
+ * @kctx: kbase context
+ *
+ * Return: True if needs to maintain compatibility, False otherwise.
+ */
+static inline bool kbase_ctx_compat_mode(struct kbase_context *kctx)
+{
+	return !IS_ENABLED(CONFIG_64BIT) ||
+	       (IS_ENABLED(CONFIG_64BIT) && kbase_ctx_flag(kctx, KCTX_COMPAT));
 }
 
 /**

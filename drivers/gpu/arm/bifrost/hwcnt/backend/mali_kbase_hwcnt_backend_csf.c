@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2021-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2021-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -289,6 +289,8 @@ kbasep_hwcnt_backend_csf_cc_initial_sample(struct kbase_hwcnt_backend_csf *backe
 	u64 cycle_counts[BASE_MAX_NR_CLOCKS_REGULATORS];
 	size_t clk;
 
+	memset(cycle_counts, 0, sizeof(cycle_counts));
+
 	/* Read cycle count from CSF interface for both clock domains. */
 	backend_csf->info->csf_if->get_gpu_cycle_count(backend_csf->info->csf_if->ctx, cycle_counts,
 						       clk_enable_map);
@@ -307,6 +309,8 @@ static void kbasep_hwcnt_backend_csf_cc_update(struct kbase_hwcnt_backend_csf *b
 {
 	u64 cycle_counts[BASE_MAX_NR_CLOCKS_REGULATORS];
 	size_t clk;
+
+	memset(cycle_counts, 0, sizeof(cycle_counts));
 
 	backend_csf->info->csf_if->assert_lock_held(backend_csf->info->csf_if->ctx);
 
@@ -558,7 +562,7 @@ static void kbasep_hwcnt_backend_csf_accumulate_samples(struct kbase_hwcnt_backe
 							u32 insert_index_to_stop)
 {
 	u32 raw_idx;
-	unsigned long flags;
+	unsigned long flags = 0UL;
 	u8 *cpu_dump_base = (u8 *)backend_csf->ring_buf_cpu_base;
 	const size_t ring_buf_cnt = backend_csf->info->ring_buf_cnt;
 	const size_t buf_dump_bytes = backend_csf->info->prfcnt_info.dump_bytes;
@@ -639,7 +643,7 @@ static void kbasep_hwcnt_backend_watchdog_timer_cb(void *info)
 {
 	struct kbase_hwcnt_backend_csf_info *csf_info = info;
 	struct kbase_hwcnt_backend_csf *backend_csf;
-	unsigned long flags;
+	unsigned long flags = 0UL;
 
 	csf_info->csf_if->lock(csf_info->csf_if->ctx, &flags);
 
@@ -658,8 +662,8 @@ static void kbasep_hwcnt_backend_watchdog_timer_cb(void *info)
 	    /* 3. dump state indicates no other dumping is in progress. */
 	    ((backend_csf->dump_state == KBASE_HWCNT_BACKEND_CSF_DUMP_IDLE) ||
 	     (backend_csf->dump_state == KBASE_HWCNT_BACKEND_CSF_DUMP_COMPLETED))) {
-		u32 extract_index;
-		u32 insert_index;
+		u32 extract_index = 0U;
+		u32 insert_index = 0U;
 
 		/* Read the raw extract and insert indexes from the CSF interface. */
 		csf_info->csf_if->get_indexes(csf_info->csf_if->ctx, &extract_index, &insert_index);
@@ -700,11 +704,11 @@ static void kbasep_hwcnt_backend_watchdog_timer_cb(void *info)
  */
 static void kbasep_hwcnt_backend_csf_dump_worker(struct work_struct *work)
 {
-	unsigned long flags;
+	unsigned long flags = 0ULL;
 	struct kbase_hwcnt_backend_csf *backend_csf;
 	u32 insert_index_to_acc;
-	u32 extract_index;
-	u32 insert_index;
+	u32 extract_index = 0U;
+	u32 insert_index = 0U;
 
 	WARN_ON(!work);
 	backend_csf = container_of(work, struct kbase_hwcnt_backend_csf, hwc_dump_work);
@@ -776,10 +780,10 @@ static void kbasep_hwcnt_backend_csf_dump_worker(struct work_struct *work)
  */
 static void kbasep_hwcnt_backend_csf_threshold_worker(struct work_struct *work)
 {
-	unsigned long flags;
+	unsigned long flags = 0ULL;
 	struct kbase_hwcnt_backend_csf *backend_csf;
-	u32 extract_index;
-	u32 insert_index;
+	u32 extract_index = 0U;
+	u32 insert_index = 0U;
 
 	WARN_ON(!work);
 
@@ -920,7 +924,7 @@ static int kbasep_hwcnt_backend_csf_dump_enable(struct kbase_hwcnt_backend *back
 						const struct kbase_hwcnt_enable_map *enable_map)
 {
 	int errcode;
-	unsigned long flags;
+	unsigned long flags = 0UL;
 	struct kbase_hwcnt_backend_csf *backend_csf = (struct kbase_hwcnt_backend_csf *)backend;
 
 	if (!backend_csf)
@@ -954,7 +958,7 @@ static void kbasep_hwcnt_backend_csf_wait_enable_transition_complete(
 /* CSF backend implementation of kbase_hwcnt_backend_dump_disable_fn */
 static void kbasep_hwcnt_backend_csf_dump_disable(struct kbase_hwcnt_backend *backend)
 {
-	unsigned long flags;
+	unsigned long flags = 0UL;
 	struct kbase_hwcnt_backend_csf *backend_csf = (struct kbase_hwcnt_backend_csf *)backend;
 	bool do_disable = false;
 
@@ -1050,7 +1054,7 @@ static void kbasep_hwcnt_backend_csf_dump_disable(struct kbase_hwcnt_backend *ba
 static int kbasep_hwcnt_backend_csf_dump_request(struct kbase_hwcnt_backend *backend,
 						 u64 *dump_time_ns)
 {
-	unsigned long flags;
+	unsigned long flags = 0UL;
 	struct kbase_hwcnt_backend_csf *backend_csf = (struct kbase_hwcnt_backend_csf *)backend;
 	bool do_request = false;
 	bool watchdog_dumping = false;
@@ -1157,7 +1161,7 @@ static int kbasep_hwcnt_backend_csf_dump_request(struct kbase_hwcnt_backend *bac
 /* CSF backend implementation of kbase_hwcnt_backend_dump_wait_fn */
 static int kbasep_hwcnt_backend_csf_dump_wait(struct kbase_hwcnt_backend *backend)
 {
-	unsigned long flags;
+	unsigned long flags = 0UL;
 	struct kbase_hwcnt_backend_csf *backend_csf = (struct kbase_hwcnt_backend_csf *)backend;
 	int errcode;
 
@@ -1365,7 +1369,7 @@ alloc_error:
 static int kbasep_hwcnt_backend_csf_init(const struct kbase_hwcnt_backend_info *info,
 					 struct kbase_hwcnt_backend **out_backend)
 {
-	unsigned long flags;
+	unsigned long flags = 0UL;
 	struct kbase_hwcnt_backend_csf *backend_csf = NULL;
 	struct kbase_hwcnt_backend_csf_info *csf_info = (struct kbase_hwcnt_backend_csf_info *)info;
 	int errcode;
@@ -1407,7 +1411,7 @@ static int kbasep_hwcnt_backend_csf_init(const struct kbase_hwcnt_backend_info *
 /* CSF backend implementation of kbase_hwcnt_backend_term_fn */
 static void kbasep_hwcnt_backend_csf_term(struct kbase_hwcnt_backend *backend)
 {
-	unsigned long flags;
+	unsigned long flags = 0UL;
 	struct kbase_hwcnt_backend_csf *backend_csf = (struct kbase_hwcnt_backend_csf *)backend;
 
 	if (!backend)
@@ -1619,7 +1623,7 @@ void kbase_hwcnt_backend_csf_protm_exited(struct kbase_hwcnt_backend_interface *
 
 void kbase_hwcnt_backend_csf_on_unrecoverable_error(struct kbase_hwcnt_backend_interface *iface)
 {
-	unsigned long flags;
+	unsigned long flags = 0UL;
 	struct kbase_hwcnt_backend_csf_info *csf_info;
 
 	csf_info = (struct kbase_hwcnt_backend_csf_info *)iface->info;
@@ -1639,7 +1643,7 @@ void kbase_hwcnt_backend_csf_on_unrecoverable_error(struct kbase_hwcnt_backend_i
 
 void kbase_hwcnt_backend_csf_on_before_reset(struct kbase_hwcnt_backend_interface *iface)
 {
-	unsigned long flags;
+	unsigned long flags = 0UL;
 	struct kbase_hwcnt_backend_csf_info *csf_info;
 	struct kbase_hwcnt_backend_csf *backend_csf;
 

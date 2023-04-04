@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -100,10 +100,10 @@ static void evict_heap_context(struct kbase_csf_heap_context_allocator *const ct
 
 	lockdep_assert_held(&ctx_alloc->lock);
 
-	/* There is no need to take vm_lock here as the ctx_alloc region is no_user_free
-	 * refcounted. The region and the backing page can't disappear whilst this
-	 * function is executing.
-	 * Flush type is passed as FLUSH_PT to CLN+INV L2 only.
+	/* There is no need to take vm_lock here as the ctx_alloc region is protected
+	 * via a nonzero no_user_free_count. The region and the backing page can't
+	 * disappear whilst this function is executing. Flush type is passed as FLUSH_PT
+	 * to CLN+INV L2 only.
 	 */
 	kbase_mmu_flush_pa_range(kctx->kbdev, kctx,
 				heap_context_pa, ctx_alloc->heap_context_size_aligned,
@@ -181,14 +181,9 @@ void kbase_csf_heap_context_allocator_term(
 
 	if (ctx_alloc->region) {
 		kbase_gpu_vm_lock(kctx);
-		/*
-		 * We can't enforce (nor check) the no_user_free refcount
-		 * to be 0 here as other code regions can take such a reference.
-		 * Anyway, this isn't an issue as the region will eventually
-		 * be freed by the region tracker if its refcount didn't drop
-		 * to 0.
-		 */
-		kbase_va_region_no_user_free_put(kctx, ctx_alloc->region);
+		WARN_ON(!kbase_va_region_is_no_user_free(ctx_alloc->region));
+
+		kbase_va_region_no_user_free_dec(ctx_alloc->region);
 		kbase_mem_free_region(kctx, ctx_alloc->region);
 		kbase_gpu_vm_unlock(kctx);
 	}

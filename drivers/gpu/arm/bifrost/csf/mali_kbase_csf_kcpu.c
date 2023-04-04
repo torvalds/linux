@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2018-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -365,15 +365,16 @@ static int kbase_kcpu_jit_allocate_prepare(
 {
 	struct kbase_context *const kctx = kcpu_queue->kctx;
 	void __user *data = u64_to_user_ptr(alloc_info->info);
-	struct base_jit_alloc_info *info;
+	struct base_jit_alloc_info *info = NULL;
 	u32 count = alloc_info->count;
 	int ret = 0;
 	u32 i;
 
 	lockdep_assert_held(&kcpu_queue->lock);
 
-	if (!data || count > kcpu_queue->kctx->jit_max_allocations ||
-			count > ARRAY_SIZE(kctx->jit_alloc)) {
+	if ((count == 0) || (count > ARRAY_SIZE(kctx->jit_alloc)) ||
+	    (count > kcpu_queue->kctx->jit_max_allocations) || (!data) ||
+	    !kbase_mem_allow_alloc(kctx)) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -610,6 +611,7 @@ out:
 	return ret;
 }
 
+#if IS_ENABLED(CONFIG_MALI_VECTOR_DUMP) || MALI_UNIT_TEST
 static int kbase_csf_queue_group_suspend_prepare(
 		struct kbase_kcpu_command_queue *kcpu_queue,
 		struct base_kcpu_command_group_suspend_info *suspend_buf,
@@ -681,8 +683,7 @@ static int kbase_csf_queue_group_suspend_prepare(
 		    (kbase_reg_current_backed_size(reg) < nr_pages) ||
 		    !(reg->flags & KBASE_REG_CPU_WR) ||
 		    (reg->gpu_alloc->type != KBASE_MEM_TYPE_NATIVE) ||
-		    (kbase_is_region_shrinkable(reg)) ||
-		    (kbase_va_region_is_no_user_free(kctx, reg))) {
+		    (kbase_is_region_shrinkable(reg)) || (kbase_va_region_is_no_user_free(reg))) {
 			ret = -EINVAL;
 			goto out_clean_pages;
 		}
@@ -726,6 +727,7 @@ static int kbase_csf_queue_group_suspend_process(struct kbase_context *kctx,
 {
 	return kbase_csf_queue_group_suspend(kctx, sus_buf, group_handle);
 }
+#endif
 
 static enum kbase_csf_event_callback_action event_cqs_callback(void *param)
 {
@@ -1037,9 +1039,12 @@ static int kbase_kcpu_cqs_wait_operation_process(struct kbase_device *kbdev,
 				queue->kctx, cqs_wait_operation->objs[i].addr, &mapping);
 			u64 val = 0;
 
-			/* GPUCORE-28172 RDT to review */
-			if (!queue->command_started)
+			if (!queue->command_started) {
 				queue->command_started = true;
+				KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_CQS_WAIT_OPERATION_START(
+					kbdev, queue);
+			}
+
 
 			if (!evt) {
 				dev_warn(kbdev->dev,
@@ -1089,7 +1094,8 @@ static int kbase_kcpu_cqs_wait_operation_process(struct kbase_device *kbdev,
 					queue->has_error = true;
 				}
 
-				/* GPUCORE-28172 RDT to review */
+				KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_CQS_WAIT_OPERATION_END(
+					kbdev, queue, *(u32 *)evt);
 
 				queue->command_started = false;
 			}
@@ -1232,8 +1238,6 @@ static void kbase_kcpu_cqs_set_operation_process(
 		evt = (uintptr_t)kbase_phy_alloc_mapping_get(
 			queue->kctx, cqs_set_operation->objs[i].addr, &mapping);
 
-		/* GPUCORE-28172 RDT to review */
-
 		if (!evt) {
 			dev_warn(kbdev->dev,
 				"Sync memory %llx already freed", cqs_set_operation->objs[i].addr);
@@ -1258,7 +1262,8 @@ static void kbase_kcpu_cqs_set_operation_process(
 				break;
 			}
 
-			/* GPUCORE-28172 RDT to review */
+			KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_CQS_SET_OPERATION(
+				kbdev, queue, *(u32 *)evt ? 1 : 0);
 
 			/* Always propagate errors */
 			*(u32 *)evt = queue->has_error;
@@ -1622,11 +1627,7 @@ static int kbasep_kcpu_fence_signal_init(struct kbase_kcpu_command_queue *kcpu_q
 
 	/* Set reference to KCPU metadata and increment refcount */
 	kcpu_fence->metadata = kcpu_queue->metadata;
-#if (KERNEL_VERSION(4, 11, 0) > LINUX_VERSION_CODE)
-	WARN_ON(!atomic_inc_not_zero(&kcpu_fence->metadata->refcount));
-#else
-	WARN_ON(!refcount_inc_not_zero(&kcpu_fence->metadata->refcount));
-#endif
+	WARN_ON(!kbase_refcount_inc_not_zero(&kcpu_fence->metadata->refcount));
 
 	/* create a sync_file fd representing the fence */
 	*sync_file = sync_file_create(fence_out);
@@ -2056,7 +2057,7 @@ static void kcpu_queue_process(struct kbase_kcpu_command_queue *queue,
 
 			break;
 		}
-		case BASE_KCPU_COMMAND_TYPE_JIT_FREE:
+		case BASE_KCPU_COMMAND_TYPE_JIT_FREE: {
 			KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_JIT_FREE_START(kbdev, queue);
 
 			status = kbase_kcpu_jit_free_process(queue, cmd);
@@ -2066,6 +2067,8 @@ static void kcpu_queue_process(struct kbase_kcpu_command_queue *queue,
 			KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_JIT_FREE_END(
 				kbdev, queue);
 			break;
+		}
+#if IS_ENABLED(CONFIG_MALI_VECTOR_DUMP) || MALI_UNIT_TEST
 		case BASE_KCPU_COMMAND_TYPE_GROUP_SUSPEND: {
 			struct kbase_suspend_copy_buffer *sus_buf =
 					cmd->info.suspend_buf_copy.sus_buf;
@@ -2082,24 +2085,25 @@ static void kcpu_queue_process(struct kbase_kcpu_command_queue *queue,
 
 				KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_GROUP_SUSPEND_END(
 					kbdev, queue, status);
+			}
 
-				if (!sus_buf->cpu_alloc) {
-					int i;
+			if (!sus_buf->cpu_alloc) {
+				int i;
 
-					for (i = 0; i < sus_buf->nr_pages; i++)
-						put_page(sus_buf->pages[i]);
-				} else {
-					kbase_mem_phy_alloc_kernel_unmapped(
-						sus_buf->cpu_alloc);
-					kbase_mem_phy_alloc_put(
-						sus_buf->cpu_alloc);
-				}
+				for (i = 0; i < sus_buf->nr_pages; i++)
+					put_page(sus_buf->pages[i]);
+			} else {
+				kbase_mem_phy_alloc_kernel_unmapped(
+					sus_buf->cpu_alloc);
+				kbase_mem_phy_alloc_put(
+					sus_buf->cpu_alloc);
 			}
 
 			kfree(sus_buf->pages);
 			kfree(sus_buf);
 			break;
 		}
+#endif
 		default:
 			dev_dbg(kbdev->dev,
 				"Unrecognized command type");
@@ -2174,12 +2178,29 @@ static void KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_ENQUEUE_COMMAND(
 	}
 	case BASE_KCPU_COMMAND_TYPE_CQS_WAIT_OPERATION:
 	{
-		/* GPUCORE-28172 RDT to review */
+		const struct base_cqs_wait_operation_info *waits =
+			cmd->info.cqs_wait_operation.objs;
+		u32 inherit_err_flags = cmd->info.cqs_wait_operation.inherit_err_flags;
+		unsigned int i;
+
+		for (i = 0; i < cmd->info.cqs_wait_operation.nr_objs; i++) {
+			KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_ENQUEUE_CQS_WAIT_OPERATION(
+				kbdev, queue, waits[i].addr, waits[i].val,
+				waits[i].operation, waits[i].data_type,
+				(inherit_err_flags & ((uint32_t)1 << i)) ? 1 : 0);
+		}
 		break;
 	}
 	case BASE_KCPU_COMMAND_TYPE_CQS_SET_OPERATION:
 	{
-		/* GPUCORE-28172 RDT to review */
+		const struct base_cqs_set_operation_info *sets = cmd->info.cqs_set_operation.objs;
+		unsigned int i;
+
+		for (i = 0; i < cmd->info.cqs_set_operation.nr_objs; i++) {
+			KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_ENQUEUE_CQS_SET_OPERATION(
+				kbdev, queue, sets[i].addr, sets[i].val,
+				sets[i].operation, sets[i].data_type);
+		}
 		break;
 	}
 	case BASE_KCPU_COMMAND_TYPE_ERROR_BARRIER:
@@ -2226,11 +2247,13 @@ static void KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_ENQUEUE_COMMAND(
 		KBASE_TLSTREAM_TL_KBASE_ARRAY_END_KCPUQUEUE_ENQUEUE_JIT_FREE(kbdev, queue);
 		break;
 	}
+#if IS_ENABLED(CONFIG_MALI_VECTOR_DUMP) || MALI_UNIT_TEST
 	case BASE_KCPU_COMMAND_TYPE_GROUP_SUSPEND:
 		KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_ENQUEUE_GROUP_SUSPEND(
 			kbdev, queue, cmd->info.suspend_buf_copy.sus_buf,
 			cmd->info.suspend_buf_copy.group_handle);
 		break;
+#endif
 	default:
 		dev_dbg(kbdev->dev, "Unknown command type %u", cmd->type);
 		break;
@@ -2387,11 +2410,13 @@ int kbase_csf_kcpu_queue_enqueue(struct kbase_context *kctx,
 			ret = kbase_kcpu_jit_free_prepare(queue,
 					&command.info.jit_free, kcpu_cmd);
 			break;
+#if IS_ENABLED(CONFIG_MALI_VECTOR_DUMP) || MALI_UNIT_TEST
 		case BASE_KCPU_COMMAND_TYPE_GROUP_SUSPEND:
 			ret = kbase_csf_queue_group_suspend_prepare(queue,
 					&command.info.suspend_buf_copy,
 					kcpu_cmd);
 			break;
+#endif
 		default:
 			dev_dbg(queue->kctx->kbdev->dev,
 				"Unknown command type %u", command.type);
@@ -2467,6 +2492,7 @@ int kbase_csf_kcpu_queue_new(struct kbase_context *kctx,
 {
 	struct kbase_kcpu_command_queue *queue;
 	int idx;
+	int n;
 	int ret = 0;
 #if IS_ENABLED(CONFIG_SYNC_FILE)
 	struct kbase_kcpu_dma_fence_meta *metadata;
@@ -2519,6 +2545,7 @@ int kbase_csf_kcpu_queue_new(struct kbase_context *kctx,
 
 	metadata = kzalloc(sizeof(*metadata), GFP_KERNEL);
 	if (!metadata) {
+		destroy_workqueue(queue->wq);
 		kfree(queue);
 		ret = -ENOMEM;
 		goto out;
@@ -2526,14 +2553,17 @@ int kbase_csf_kcpu_queue_new(struct kbase_context *kctx,
 
 	metadata->kbdev = kctx->kbdev;
 	metadata->kctx_id = kctx->id;
-	snprintf(metadata->timeline_name, MAX_TIMELINE_NAME, "%d-%d_%d-%lld-kcpu", kctx->kbdev->id,
-		 kctx->tgid, kctx->id, queue->fence_context);
+	n = snprintf(metadata->timeline_name, MAX_TIMELINE_NAME, "%d-%d_%d-%lld-kcpu",
+		     kctx->kbdev->id, kctx->tgid, kctx->id, queue->fence_context);
+	if (WARN_ON(n >= MAX_TIMELINE_NAME)) {
+		destroy_workqueue(queue->wq);
+		kfree(queue);
+		kfree(metadata);
+		ret = -EINVAL;
+		goto out;
+	}
 
-#if (KERNEL_VERSION(4, 11, 0) > LINUX_VERSION_CODE)
-	atomic_set(&metadata->refcount, 1);
-#else
-	refcount_set(&metadata->refcount, 1);
-#endif
+	kbase_refcount_set(&metadata->refcount, 1);
 	queue->metadata = metadata;
 	atomic_inc(&kctx->kbdev->live_fence_metadata);
 #endif /* CONFIG_SYNC_FILE */

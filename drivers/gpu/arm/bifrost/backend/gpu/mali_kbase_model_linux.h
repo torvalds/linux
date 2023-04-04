@@ -124,7 +124,7 @@ void midgard_model_read_reg(void *h, u32 addr, u32 *const value);
  *
  * This hook is global to the model Linux framework.
  */
-void gpu_device_raise_irq(void *model, enum model_linux_irqs irq);
+void gpu_device_raise_irq(void *model, u32 irq);
 
 /**
  * gpu_device_set_data() - Private model set data function.

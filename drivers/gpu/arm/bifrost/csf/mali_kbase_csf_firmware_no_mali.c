@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2018-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -1124,6 +1124,7 @@ int kbase_csf_firmware_early_init(struct kbase_device *kbdev)
 	INIT_LIST_HEAD(&kbdev->csf.firmware_interfaces);
 	INIT_LIST_HEAD(&kbdev->csf.firmware_config);
 	INIT_LIST_HEAD(&kbdev->csf.firmware_trace_buffers.list);
+	INIT_LIST_HEAD(&kbdev->csf.user_reg.list);
 	INIT_WORK(&kbdev->csf.firmware_reload_work,
 		  kbase_csf_firmware_reload_worker);
 	INIT_WORK(&kbdev->csf.fw_error_work, firmware_error_worker);
@@ -1569,7 +1570,7 @@ int kbase_csf_firmware_mcu_shared_mapping_init(
 		goto page_list_alloc_error;
 
 	ret = kbase_mem_pool_alloc_pages(&kbdev->mem_pools.small[KBASE_MEM_GROUP_CSF_FW], num_pages,
-					 phys, false);
+					 phys, false, NULL);
 	if (ret <= 0)
 		goto phys_mem_pool_alloc_error;
 
@@ -1580,8 +1581,8 @@ int kbase_csf_firmware_mcu_shared_mapping_init(
 	if (!cpu_addr)
 		goto vmap_error;
 
-	va_reg = kbase_alloc_free_region(&kbdev->csf.shared_reg_rbtree, 0,
-			num_pages, KBASE_REG_ZONE_MCU_SHARED);
+	va_reg = kbase_alloc_free_region(kbdev, &kbdev->csf.shared_reg_rbtree, 0, num_pages,
+					 KBASE_REG_ZONE_MCU_SHARED);
 	if (!va_reg)
 		goto va_region_alloc_error;
 

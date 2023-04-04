@@ -145,6 +145,9 @@
 #define BASE_CSF_TILER_OOM_EXCEPTION_FLAG (1u << 0)
 #define BASE_CSF_EXCEPTION_HANDLER_FLAGS_MASK (BASE_CSF_TILER_OOM_EXCEPTION_FLAG)
 
+/* Initial value for LATEST_FLUSH register */
+#define POWER_DOWN_LATEST_FLUSH_VALUE ((uint32_t)1)
+
 /**
  * enum base_kcpu_command_type - Kernel CPU queue command type.
  * @BASE_KCPU_COMMAND_TYPE_FENCE_SIGNAL:       fence_signal,

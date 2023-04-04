@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2018-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -201,8 +201,8 @@ static int setup_shared_iface_static_region(struct kbase_device *kbdev)
 	if (!interface)
 		return -EINVAL;
 
-	reg = kbase_alloc_free_region(&kbdev->csf.shared_reg_rbtree, 0,
-			interface->num_pages_aligned, KBASE_REG_ZONE_MCU_SHARED);
+	reg = kbase_alloc_free_region(kbdev, &kbdev->csf.shared_reg_rbtree, 0,
+				      interface->num_pages_aligned, KBASE_REG_ZONE_MCU_SHARED);
 	if (reg) {
 		mutex_lock(&kbdev->csf.reg_lock);
 		ret = kbase_add_va_region_rbtree(kbdev, reg,
@@ -296,19 +296,41 @@ static void boot_csf_firmware(struct kbase_device *kbdev)
 	wait_for_firmware_boot(kbdev);
 }
 
-static void wait_ready(struct kbase_device *kbdev)
+/**
+ * wait_ready() - Wait for previously issued MMU command to complete.
+ *
+ * @kbdev:        Kbase device to wait for a MMU command to complete.
+ *
+ * Reset GPU if the wait for previously issued command times out.
+ *
+ * Return:  0 on success, error code otherwise.
+ */
+static int wait_ready(struct kbase_device *kbdev)
 {
-	u32 max_loops = KBASE_AS_INACTIVE_MAX_LOOPS;
-	u32 val;
+	const ktime_t wait_loop_start = ktime_get_raw();
+	const u32 mmu_as_inactive_wait_time_ms = kbdev->mmu_as_inactive_wait_time_ms;
+	s64 diff;
 
-	val = kbase_reg_read(kbdev, MMU_AS_REG(MCU_AS_NR, AS_STATUS));
+	do {
+		unsigned int i;
 
-	/* Wait for a while for the update command to take effect */
-	while (--max_loops && (val & AS_STATUS_AS_ACTIVE))
-		val = kbase_reg_read(kbdev, MMU_AS_REG(MCU_AS_NR, AS_STATUS));
+		for (i = 0; i < 1000; i++) {
+			/* Wait for the MMU status to indicate there is no active command */
+			if (!(kbase_reg_read(kbdev, MMU_AS_REG(MCU_AS_NR, AS_STATUS)) &
+			      AS_STATUS_AS_ACTIVE))
+				return 0;
+		}
 
-	if (max_loops == 0)
-		dev_err(kbdev->dev, "AS_ACTIVE bit stuck, might be caused by slow/unstable GPU clock or possible faulty FPGA connector\n");
+		diff = ktime_to_ms(ktime_sub(ktime_get_raw(), wait_loop_start));
+	} while (diff < mmu_as_inactive_wait_time_ms);
+
+	dev_err(kbdev->dev,
+		"AS_ACTIVE bit stuck for MCU AS. Might be caused by unstable GPU clk/pwr or faulty system");
+
+	if (kbase_prepare_to_reset_gpu_locked(kbdev, RESET_FLAGS_HWC_UNRECOVERABLE_ERROR))
+		kbase_reset_gpu_locked(kbdev);
+
+	return -ETIMEDOUT;
 }
 
 static void unload_mmu_tables(struct kbase_device *kbdev)
@@ -323,7 +345,7 @@ static void unload_mmu_tables(struct kbase_device *kbdev)
 	mutex_unlock(&kbdev->mmu_hw_mutex);
 }
 
-static void load_mmu_tables(struct kbase_device *kbdev)
+static int load_mmu_tables(struct kbase_device *kbdev)
 {
 	unsigned long irq_flags;
 
@@ -334,7 +356,7 @@ static void load_mmu_tables(struct kbase_device *kbdev)
 	mutex_unlock(&kbdev->mmu_hw_mutex);
 
 	/* Wait for a while for the update command to take effect */
-	wait_ready(kbdev);
+	return wait_ready(kbdev);
 }
 
 /**
@@ -695,7 +717,7 @@ static int parse_memory_setup_entry(struct kbase_device *kbdev,
 			ret = kbase_mem_pool_alloc_pages(
 				kbase_mem_pool_group_select(kbdev, KBASE_MEM_GROUP_CSF_FW,
 							    is_small_page),
-				num_pages_aligned, phys, false);
+				num_pages_aligned, phys, false, NULL);
 			ignore_page_migration = false;
 		}
 	}
@@ -2240,6 +2262,7 @@ int kbase_csf_firmware_early_init(struct kbase_device *kbdev)
 	INIT_LIST_HEAD(&kbdev->csf.firmware_config);
 	INIT_LIST_HEAD(&kbdev->csf.firmware_timeline_metadata);
 	INIT_LIST_HEAD(&kbdev->csf.firmware_trace_buffers.list);
+	INIT_LIST_HEAD(&kbdev->csf.user_reg.list);
 	INIT_WORK(&kbdev->csf.firmware_reload_work,
 		  kbase_csf_firmware_reload_worker);
 	INIT_WORK(&kbdev->csf.fw_error_work, firmware_error_worker);
@@ -2403,7 +2426,9 @@ int kbase_csf_firmware_load_init(struct kbase_device *kbdev)
 	kbase_pm_wait_for_l2_powered(kbdev);
 
 	/* Load the MMU tables into the selected address space */
-	load_mmu_tables(kbdev);
+	ret = load_mmu_tables(kbdev);
+	if (ret != 0)
+		goto err_out;
 
 	boot_csf_firmware(kbdev);
 
@@ -2445,9 +2470,8 @@ int kbase_csf_firmware_load_init(struct kbase_device *kbdev)
 		goto err_out;
 	}
 
-#ifdef CONFIG_MALI_FW_CORE_DUMP
-	kbase_csf_firmware_core_dump_init(kbdev);
-#endif
+	if (kbdev->csf.fw_core_dump.available)
+		kbase_csf_firmware_core_dump_init(kbdev);
 
 	/* Firmware loaded successfully, ret = 0 */
 	KBASE_KTRACE_ADD(kbdev, CSF_FIRMWARE_BOOT, NULL,
@@ -3029,7 +3053,7 @@ int kbase_csf_firmware_mcu_shared_mapping_init(
 		goto page_list_alloc_error;
 
 	ret = kbase_mem_pool_alloc_pages(&kbdev->mem_pools.small[KBASE_MEM_GROUP_CSF_FW], num_pages,
-					 phys, false);
+					 phys, false, NULL);
 	if (ret <= 0)
 		goto phys_mem_pool_alloc_error;
 
@@ -3040,8 +3064,8 @@ int kbase_csf_firmware_mcu_shared_mapping_init(
 	if (!cpu_addr)
 		goto vmap_error;
 
-	va_reg = kbase_alloc_free_region(&kbdev->csf.shared_reg_rbtree, 0,
-			num_pages, KBASE_REG_ZONE_MCU_SHARED);
+	va_reg = kbase_alloc_free_region(kbdev, &kbdev->csf.shared_reg_rbtree, 0, num_pages,
+					 KBASE_REG_ZONE_MCU_SHARED);
 	if (!va_reg)
 		goto va_region_alloc_error;
 

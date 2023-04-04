@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -104,6 +104,70 @@ const char *kbase_gpu_exception_name(u32 const exception_code)
 		break;
 	case GPU_FAULTSTATUS_EXCEPTION_TYPE_GPU_CACHEABILITY_FAULT:
 		e = "GPU_CACHEABILITY_FAULT";
+		break;
+	/* MMU Fault */
+	case CS_FAULT_EXCEPTION_TYPE_TRANSLATION_FAULT_L0:
+		e = "TRANSLATION_FAULT at level 0";
+		break;
+	case CS_FAULT_EXCEPTION_TYPE_TRANSLATION_FAULT_L1:
+		e = "TRANSLATION_FAULT at level 1";
+		break;
+	case CS_FAULT_EXCEPTION_TYPE_TRANSLATION_FAULT_L2:
+		e = "TRANSLATION_FAULT at level 2";
+		break;
+	case CS_FAULT_EXCEPTION_TYPE_TRANSLATION_FAULT_L3:
+		e = "TRANSLATION_FAULT at level 3";
+		break;
+	case CS_FAULT_EXCEPTION_TYPE_TRANSLATION_FAULT_L4:
+		e = "TRANSLATION_FAULT";
+		break;
+	case CS_FAULT_EXCEPTION_TYPE_PERMISSION_FAULT_0:
+		e = "PERMISSION_FAULT at level 0";
+		break;
+	case CS_FAULT_EXCEPTION_TYPE_PERMISSION_FAULT_1:
+		e = "PERMISSION_FAULT at level 1";
+		break;
+	case CS_FAULT_EXCEPTION_TYPE_PERMISSION_FAULT_2:
+		e = "PERMISSION_FAULT at level 2";
+		break;
+	case CS_FAULT_EXCEPTION_TYPE_PERMISSION_FAULT_3:
+		e = "PERMISSION_FAULT at level 3";
+		break;
+	case CS_FAULT_EXCEPTION_TYPE_ACCESS_FLAG_1:
+		e = "ACCESS_FLAG at level 1";
+		break;
+	case CS_FAULT_EXCEPTION_TYPE_ACCESS_FLAG_2:
+		e = "ACCESS_FLAG at level 2";
+		break;
+	case CS_FAULT_EXCEPTION_TYPE_ACCESS_FLAG_3:
+		e = "ACCESS_FLAG at level 3";
+		break;
+	case CS_FAULT_EXCEPTION_TYPE_ADDRESS_SIZE_FAULT_IN:
+		e = "ADDRESS_SIZE_FAULT_IN";
+		break;
+	case CS_FAULT_EXCEPTION_TYPE_ADDRESS_SIZE_FAULT_OUT_0:
+		e = "ADDRESS_SIZE_FAULT_OUT_0 at level 0";
+		break;
+	case CS_FAULT_EXCEPTION_TYPE_ADDRESS_SIZE_FAULT_OUT_1:
+		e = "ADDRESS_SIZE_FAULT_OUT_1 at level 1";
+		break;
+	case CS_FAULT_EXCEPTION_TYPE_ADDRESS_SIZE_FAULT_OUT_2:
+		e = "ADDRESS_SIZE_FAULT_OUT_2 at level 2";
+		break;
+	case CS_FAULT_EXCEPTION_TYPE_ADDRESS_SIZE_FAULT_OUT_3:
+		e = "ADDRESS_SIZE_FAULT_OUT_3 at level 3";
+		break;
+	case CS_FAULT_EXCEPTION_TYPE_MEMORY_ATTRIBUTE_FAULT_0:
+		e = "MEMORY_ATTRIBUTE_FAULT_0 at level 0";
+		break;
+	case CS_FAULT_EXCEPTION_TYPE_MEMORY_ATTRIBUTE_FAULT_1:
+		e = "MEMORY_ATTRIBUTE_FAULT_1 at level 1";
+		break;
+	case CS_FAULT_EXCEPTION_TYPE_MEMORY_ATTRIBUTE_FAULT_2:
+		e = "MEMORY_ATTRIBUTE_FAULT_2 at level 2";
+		break;
+	case CS_FAULT_EXCEPTION_TYPE_MEMORY_ATTRIBUTE_FAULT_3:
+		e = "MEMORY_ATTRIBUTE_FAULT_3 at level 3";
 		break;
 	/* Any other exception code is unknown */
 	default:

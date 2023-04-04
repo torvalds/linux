@@ -2575,26 +2575,33 @@ void kbase_pm_disable_interrupts(struct kbase_device *kbdev)
 KBASE_EXPORT_TEST_API(kbase_pm_disable_interrupts);
 
 #if MALI_USE_CSF
+/**
+ * update_user_reg_page_mapping - Update the mapping for USER Register page
+ *
+ * @kbdev: The kbase device structure for the device.
+ *
+ * This function must be called to unmap the dummy or real page from USER Register page
+ * mapping whenever GPU is powered up or down. The dummy or real page would get
+ * appropriately mapped in when Userspace reads the LATEST_FLUSH value.
+ */
 static void update_user_reg_page_mapping(struct kbase_device *kbdev)
 {
+	struct kbase_context *kctx, *n;
+
 	lockdep_assert_held(&kbdev->pm.lock);
 
 	mutex_lock(&kbdev->csf.reg_lock);
-
-	/* Only if the mappings for USER page exist, update all PTEs associated to it */
-	if (kbdev->csf.nr_user_page_mapped > 0) {
-		if (likely(kbdev->csf.mali_file_inode)) {
-			/* This would zap the pte corresponding to the mapping of User
-			 * register page for all the Kbase contexts.
-			 */
-			unmap_mapping_range(kbdev->csf.mali_file_inode->i_mapping,
-					    BASEP_MEM_CSF_USER_REG_PAGE_HANDLE, PAGE_SIZE, 1);
-		} else {
-			dev_err(kbdev->dev,
-				"Device file inode not exist even if USER page previously mapped");
-		}
+	list_for_each_entry_safe(kctx, n, &kbdev->csf.user_reg.list, csf.user_reg.link) {
+		/* This would zap the PTE corresponding to the mapping of User
+		 * Register page of the kbase context. The mapping will be reestablished
+		 * when the context (user process) needs to access to the page.
+		 */
+		unmap_mapping_range(kbdev->csf.user_reg.filp->f_inode->i_mapping,
+				    kctx->csf.user_reg.file_offset << PAGE_SHIFT, PAGE_SIZE, 1);
+		list_del_init(&kctx->csf.user_reg.link);
+		dev_dbg(kbdev->dev, "Updated USER Reg page mapping of ctx %d_%d", kctx->tgid,
+			kctx->id);
 	}
-
 	mutex_unlock(&kbdev->csf.reg_lock);
 }
 #endif

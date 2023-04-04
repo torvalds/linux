@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2014-2016, 2018-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -22,6 +22,8 @@
 #include <mali_kbase.h>
 #include <mali_kbase_hwaccess_time.h>
 #if MALI_USE_CSF
+#include <asm/arch_timer.h>
+#include <linux/gcd.h>
 #include <csf/mali_kbase_csf_timeout.h>
 #endif
 #include <device/mali_kbase_device.h>
@@ -121,19 +123,28 @@ unsigned int kbase_get_timeout_ms(struct kbase_device *kbdev,
 	/* Only for debug messages, safe default in case it's mis-maintained */
 	const char *selector_str = "(unknown)";
 
-	if (WARN(!kbdev->lowest_gpu_freq_khz,
-		 "Lowest frequency uninitialized! Using reference frequency for scaling")) {
+	if (!kbdev->lowest_gpu_freq_khz) {
+		dev_dbg(kbdev->dev,
+			"Lowest frequency uninitialized! Using reference frequency for scaling");
 		freq_khz = DEFAULT_REF_TIMEOUT_FREQ_KHZ;
 	} else {
 		freq_khz = kbdev->lowest_gpu_freq_khz;
 	}
 
 	switch (selector) {
+	case MMU_AS_INACTIVE_WAIT_TIMEOUT:
+		selector_str = "MMU_AS_INACTIVE_WAIT_TIMEOUT";
+		nr_cycles = MMU_AS_INACTIVE_WAIT_TIMEOUT_CYCLES;
+		break;
 	case KBASE_TIMEOUT_SELECTOR_COUNT:
 	default:
 #if !MALI_USE_CSF
 		WARN(1, "Invalid timeout selector used! Using default value");
 		nr_cycles = JM_DEFAULT_TIMEOUT_CYCLES;
+		break;
+	case JM_DEFAULT_JS_FREE_TIMEOUT:
+		selector_str = "JM_DEFAULT_JS_FREE_TIMEOUT";
+		nr_cycles = JM_DEFAULT_JS_FREE_TIMEOUT_CYCLES;
 		break;
 #else
 		/* Use Firmware timeout if invalid selection */
@@ -203,4 +214,66 @@ u64 kbase_backend_get_cycle_cnt(struct kbase_device *kbdev)
 	} while (hi1 != hi2);
 
 	return lo | (((u64) hi1) << 32);
+}
+
+#if MALI_USE_CSF
+u64 __maybe_unused kbase_backend_time_convert_gpu_to_cpu(struct kbase_device *kbdev, u64 gpu_ts)
+{
+	if (WARN_ON(!kbdev))
+		return 0;
+
+	return div64_u64(gpu_ts * kbdev->backend_time.multiplier, kbdev->backend_time.divisor) +
+	       kbdev->backend_time.offset;
+}
+
+/**
+ * get_cpu_gpu_time() - Get current CPU and GPU timestamps.
+ *
+ * @kbdev:	Kbase device.
+ * @cpu_ts:	Output CPU timestamp.
+ * @gpu_ts:	Output GPU timestamp.
+ * @gpu_cycle:  Output GPU cycle counts.
+ */
+static void get_cpu_gpu_time(struct kbase_device *kbdev, u64 *cpu_ts, u64 *gpu_ts, u64 *gpu_cycle)
+{
+	struct timespec64 ts;
+
+	kbase_backend_get_gpu_time(kbdev, gpu_cycle, gpu_ts, &ts);
+
+	if (cpu_ts)
+		*cpu_ts = ts.tv_sec * NSEC_PER_SEC + ts.tv_nsec;
+}
+#endif
+
+int kbase_backend_time_init(struct kbase_device *kbdev)
+{
+#if MALI_USE_CSF
+	u64 cpu_ts = 0;
+	u64 gpu_ts = 0;
+	u64 freq;
+	u64 common_factor;
+
+	get_cpu_gpu_time(kbdev, &cpu_ts, &gpu_ts, NULL);
+	freq = arch_timer_get_cntfrq();
+
+	if (!freq) {
+		dev_warn(kbdev->dev, "arch_timer_get_rate() is zero!");
+		return -EINVAL;
+	}
+
+	common_factor = gcd(NSEC_PER_SEC, freq);
+
+	kbdev->backend_time.multiplier = div64_u64(NSEC_PER_SEC, common_factor);
+	kbdev->backend_time.divisor = div64_u64(freq, common_factor);
+
+	if (!kbdev->backend_time.divisor) {
+		dev_warn(kbdev->dev, "CPU to GPU divisor is zero!");
+		return -EINVAL;
+	}
+
+	kbdev->backend_time.offset = cpu_ts - div64_u64(gpu_ts * kbdev->backend_time.multiplier,
+							kbdev->backend_time.divisor);
+#endif
+
+	return 0;
 }

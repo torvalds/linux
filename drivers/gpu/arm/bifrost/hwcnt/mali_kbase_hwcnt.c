@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2018, 2020-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -362,7 +362,7 @@ static int kbasep_hwcnt_accumulator_dump(struct kbase_hwcnt_context *hctx, u64 *
 	bool cur_map_any_enabled;
 	struct kbase_hwcnt_enable_map *cur_map;
 	bool new_map_any_enabled = false;
-	u64 dump_time_ns;
+	u64 dump_time_ns = 0;
 	struct kbase_hwcnt_accumulator *accum;
 
 	WARN_ON(!hctx);

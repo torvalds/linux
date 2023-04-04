@@ -36,6 +36,9 @@
 
 #define GPU_ID                  0x000   /* (RO) GPU and revision identifier */
 
+#define GPU_IRQ_CLEAR           0x024   /* (WO) */
+#define GPU_IRQ_STATUS          0x02C   /* (RO) */
+
 #define SHADER_READY_LO         0x140   /* (RO) Shader core ready bitmap, low word */
 #define SHADER_READY_HI         0x144   /* (RO) Shader core ready bitmap, high word */
 
@@ -62,6 +65,7 @@
 
 #define JOB_IRQ_CLEAR           0x004   /* Interrupt clear register */
 #define JOB_IRQ_MASK            0x008   /* Interrupt mask register */
+#define JOB_IRQ_STATUS          0x00C   /* Interrupt status register */
 
 /* MMU control registers */
 
@@ -70,6 +74,9 @@
 #define MMU_REG(r)              (MEMORY_MANAGEMENT_BASE + (r))
 
 #define MMU_IRQ_RAWSTAT         0x000   /* (RW) Raw interrupt status register */
+#define MMU_IRQ_CLEAR           0x004   /* (WO) Interrupt clear register */
+#define MMU_IRQ_MASK            0x008   /* (RW) Interrupt mask register */
+#define MMU_IRQ_STATUS          0x00C   /* (RO) Interrupt status register */
 
 #define MMU_AS0                 0x400   /* Configuration registers for address space 0 */
 

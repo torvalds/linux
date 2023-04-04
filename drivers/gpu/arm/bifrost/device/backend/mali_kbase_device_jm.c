@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -97,6 +97,10 @@ static int kbase_backend_late_init(struct kbase_device *kbdev)
 
 	/* Update gpuprops with L2_FEATURES if applicable */
 	err = kbase_gpuprops_update_l2_features(kbdev);
+	if (err)
+		goto fail_update_l2_features;
+
+	err = kbase_backend_time_init(kbdev);
 	if (err)
 		goto fail_update_l2_features;
 
@@ -211,17 +215,19 @@ static void kbase_device_hwcnt_backend_jm_watchdog_term(struct kbase_device *kbd
 
 static const struct kbase_device_init dev_init[] = {
 #if !IS_ENABLED(CONFIG_MALI_REAL_HW)
-	{ kbase_gpu_device_create, kbase_gpu_device_destroy,
-	  "Dummy model initialization failed" },
+	{ kbase_gpu_device_create, kbase_gpu_device_destroy, "Dummy model initialization failed" },
 #else /* !IS_ENABLED(CONFIG_MALI_REAL_HW) */
 	{ assign_irqs, NULL, "IRQ search failed" },
-	{ registers_map, registers_unmap, "Register map failed" },
 #endif /* !IS_ENABLED(CONFIG_MALI_REAL_HW) */
+#if !IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
+	{ registers_map, registers_unmap, "Register map failed" },
+#endif /* !IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI) */
 	{ kbase_device_io_history_init, kbase_device_io_history_term,
 	  "Register access history initialization failed" },
 	{ kbase_device_pm_init, kbase_device_pm_term, "Power management initialization failed" },
 	{ kbase_device_early_init, kbase_device_early_term, "Early device initialization failed" },
 	{ kbase_device_populate_max_freq, NULL, "Populating max frequency failed" },
+	{ kbase_pm_lowest_gpu_freq_init, NULL, "Lowest freq initialization failed" },
 	{ kbase_device_misc_init, kbase_device_misc_term,
 	  "Miscellaneous device initialization failed" },
 	{ kbase_device_pcm_dev_init, kbase_device_pcm_dev_term,
@@ -237,7 +243,6 @@ static const struct kbase_device_init dev_init[] = {
 	  "Timeline stream initialization failed" },
 	{ kbase_clk_rate_trace_manager_init, kbase_clk_rate_trace_manager_term,
 	  "Clock rate trace manager initialization failed" },
-	{ kbase_pm_lowest_gpu_freq_init, NULL, "Lowest freq initialization failed" },
 	{ kbase_instr_backend_init, kbase_instr_backend_term,
 	  "Instrumentation backend initialization failed" },
 	{ kbase_device_hwcnt_watchdog_if_init, kbase_device_hwcnt_watchdog_if_term,

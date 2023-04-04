@@ -51,9 +51,7 @@
 #define MMU_FEATURES            0x014   /* (RO) MMU features */
 #define AS_PRESENT              0x018   /* (RO) Address space slots present */
 #define GPU_IRQ_RAWSTAT         0x020   /* (RW) */
-#define GPU_IRQ_CLEAR           0x024   /* (WO) */
 #define GPU_IRQ_MASK            0x028   /* (RW) */
-#define GPU_IRQ_STATUS          0x02C   /* (RO) */
 
 #define GPU_COMMAND             0x030   /* (WO) */
 #define GPU_STATUS              0x034   /* (RO) */
@@ -176,13 +174,8 @@
 /* Job control registers */
 
 #define JOB_IRQ_RAWSTAT         0x000   /* Raw interrupt status register */
-#define JOB_IRQ_STATUS          0x00C   /* Interrupt status register */
 
 /* MMU control registers */
-
-#define MMU_IRQ_CLEAR           0x004   /* (WO) Interrupt clear register */
-#define MMU_IRQ_MASK            0x008   /* (RW) Interrupt mask register */
-#define MMU_IRQ_STATUS          0x00C   /* (RO) Interrupt status register */
 
 #define MMU_AS1                 0x440   /* Configuration registers for address space 1 */
 #define MMU_AS2                 0x480   /* Configuration registers for address space 2 */

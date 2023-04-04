@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -35,6 +35,47 @@
 #include <uapi/linux/eventpoll.h>
 #endif
 
+static int kbase_unprivileged_global_profiling;
+
+/**
+ * kbase_unprivileged_global_profiling_set - set permissions for unprivileged processes
+ *
+ * @val: String containing value to set. Only strings representing positive
+ *       integers are accepted as valid; any non-positive integer (including 0)
+ *       is rejected.
+ * @kp: Module parameter associated with this method.
+ *
+ * This method can only be used to enable permissions for unprivileged processes,
+ * if they are disabled: for this reason, the only values which are accepted are
+ * strings representing positive integers. Since it's impossible to disable
+ * permissions once they're set, any integer which is non-positive is rejected,
+ * including 0.
+ *
+ * Return: 0 if success, otherwise error code.
+ */
+static int kbase_unprivileged_global_profiling_set(const char *val, const struct kernel_param *kp)
+{
+	int new_val;
+	int ret = kstrtoint(val, 0, &new_val);
+
+	if (ret == 0) {
+		if (new_val < 1)
+			return -EINVAL;
+
+		kbase_unprivileged_global_profiling = 1;
+	}
+
+	return ret;
+}
+
+static const struct kernel_param_ops kbase_global_unprivileged_profiling_ops = {
+	.get = param_get_int,
+	.set = kbase_unprivileged_global_profiling_set,
+};
+
+module_param_cb(kbase_unprivileged_global_profiling, &kbase_global_unprivileged_profiling_ops,
+		&kbase_unprivileged_global_profiling, 0600);
+
 /* The timeline stream file operations functions. */
 static ssize_t kbasep_timeline_io_read(struct file *filp, char __user *buffer,
 				       size_t size, loff_t *f_pos);
@@ -42,6 +83,15 @@ static __poll_t kbasep_timeline_io_poll(struct file *filp, poll_table *wait);
 static int kbasep_timeline_io_release(struct inode *inode, struct file *filp);
 static int kbasep_timeline_io_fsync(struct file *filp, loff_t start, loff_t end,
 				    int datasync);
+
+static bool timeline_is_permitted(void)
+{
+#if KERNEL_VERSION(5, 8, 0) <= LINUX_VERSION_CODE
+	return kbase_unprivileged_global_profiling || perfmon_capable();
+#else
+	return kbase_unprivileged_global_profiling || capable(CAP_SYS_ADMIN);
+#endif
+}
 
 /**
  * kbasep_timeline_io_packet_pending - check timeline streams for pending
@@ -328,6 +378,9 @@ int kbase_timeline_io_acquire(struct kbase_device *kbdev, u32 flags)
 	};
 	int err;
 
+	if (!timeline_is_permitted())
+		return -EPERM;
+
 	if (WARN_ON(!kbdev) || (flags & ~BASE_TLSTREAM_FLAGS_MASK))
 		return -EINVAL;
 
@@ -371,7 +424,7 @@ void kbase_timeline_io_debugfs_init(struct kbase_device *const kbdev)
 	if (WARN_ON(!kbdev) || WARN_ON(IS_ERR_OR_NULL(kbdev->mali_debugfs_directory)))
 		return;
 
-	file = debugfs_create_file("tlstream", 0444, kbdev->mali_debugfs_directory, kbdev,
+	file = debugfs_create_file("tlstream", 0400, kbdev->mali_debugfs_directory, kbdev,
 				   &kbasep_tlstream_debugfs_fops);
 
 	if (IS_ERR_OR_NULL(file))

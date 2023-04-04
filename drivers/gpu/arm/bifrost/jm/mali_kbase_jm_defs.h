@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2019-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -127,10 +127,17 @@
 /**
  * enum kbase_timeout_selector - The choice of which timeout to get scaled
  *                               using the lowest GPU frequency.
+ * @MMU_AS_INACTIVE_WAIT_TIMEOUT: Maximum waiting time in ms for the completion
+ *                                of a MMU operation
+ * @JM_DEFAULT_JS_FREE_TIMEOUT: Maximum timeout to wait for JS_COMMAND_NEXT
+ *                              to be updated on HW side so a Job Slot is
+ *                              considered free.
  * @KBASE_TIMEOUT_SELECTOR_COUNT: Number of timeout selectors. Must be last in
  *                                the enum.
  */
 enum kbase_timeout_selector {
+	MMU_AS_INACTIVE_WAIT_TIMEOUT,
+	JM_DEFAULT_JS_FREE_TIMEOUT,
 
 	/* Must be the last in the enum */
 	KBASE_TIMEOUT_SELECTOR_COUNT
@@ -852,6 +859,10 @@ struct jsctx_queue {
  * @pf_data:           Data relating to Page fault.
  * @bf_data:           Data relating to Bus fault.
  * @current_setup:     Stores the MMU configuration for this address space.
+ * @is_unresponsive:   Flag to indicate MMU is not responding.
+ *                     Set if a MMU command isn't completed within
+ *                     &kbase_device:mmu_as_inactive_wait_time_ms.
+ *                     Clear by kbase_ctx_sched_restore_all_as() after GPU reset completes.
  */
 struct kbase_as {
 	int number;
@@ -861,6 +872,7 @@ struct kbase_as {
 	struct kbase_fault pf_data;
 	struct kbase_fault bf_data;
 	struct kbase_mmu_setup current_setup;
+	bool is_unresponsive;
 };
 
 #endif /* _KBASE_JM_DEFS_H_ */

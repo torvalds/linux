@@ -28,6 +28,11 @@
 #include <linux/shrinker.h>
 #include <linux/atomic.h>
 #include <linux/version.h>
+#if KERNEL_VERSION(4, 11, 0) <= LINUX_VERSION_CODE
+#include <linux/sched/signal.h>
+#else
+#include <linux/signal.h>
+#endif
 
 #define pool_dbg(pool, format, ...) \
 	dev_dbg(pool->kbdev->dev, "%s-pool [%zu/%zu]: " format,	\
@@ -38,6 +43,47 @@
 
 #define NOT_DIRTY false
 #define NOT_RECLAIMED false
+
+/**
+ * can_alloc_page() - Check if the current thread can allocate a physical page
+ *
+ * @pool:                Pointer to the memory pool.
+ * @page_owner:          Pointer to the task/process that created the Kbase context
+ *                       for which a page needs to be allocated. It can be NULL if
+ *                       the page won't be associated with Kbase context.
+ * @alloc_from_kthread:  Flag indicating that the current thread is a kernel thread.
+ *
+ * This function checks if the current thread is a kernel thread and can make a
+ * request to kernel to allocate a physical page. If the kernel thread is allocating
+ * a page for the Kbase context and the process that created the context is exiting
+ * or is being killed, then there is no point in doing a page allocation.
+ *
+ * The check done by the function is particularly helpful when the system is running
+ * low on memory. When a page is allocated from the context of a kernel thread, OoM
+ * killer doesn't consider the kernel thread for killing and kernel keeps retrying
+ * to allocate the page as long as the OoM killer is able to kill processes.
+ * The check allows kernel thread to quickly exit the page allocation loop once OoM
+ * killer has initiated the killing of @page_owner, thereby unblocking the context
+ * termination for @page_owner and freeing of GPU memory allocated by it. This helps
+ * in preventing the kernel panic and also limits the number of innocent processes
+ * that get killed.
+ *
+ * Return: true if the page can be allocated otherwise false.
+ */
+static inline bool can_alloc_page(struct kbase_mem_pool *pool, struct task_struct *page_owner,
+				  const bool alloc_from_kthread)
+{
+	if (likely(!alloc_from_kthread || !page_owner))
+		return true;
+
+	if ((page_owner->flags & PF_EXITING) || fatal_signal_pending(page_owner)) {
+		dev_info(pool->kbdev->dev, "%s : Process %s/%d exiting",
+			__func__, page_owner->comm, task_pid_nr(page_owner));
+		return false;
+	}
+
+	return true;
+}
 
 static size_t kbase_mem_pool_capacity(struct kbase_mem_pool *pool)
 {
@@ -342,10 +388,12 @@ static size_t kbase_mem_pool_shrink(struct kbase_mem_pool *pool,
 	return nr_freed;
 }
 
-int kbase_mem_pool_grow(struct kbase_mem_pool *pool, size_t nr_to_grow)
+int kbase_mem_pool_grow(struct kbase_mem_pool *pool, size_t nr_to_grow,
+			struct task_struct *page_owner)
 {
 	struct page *p;
 	size_t i;
+	const bool alloc_from_kthread = !!(current->flags & PF_KTHREAD);
 
 	kbase_mem_pool_lock(pool);
 
@@ -359,6 +407,9 @@ int kbase_mem_pool_grow(struct kbase_mem_pool *pool, size_t nr_to_grow)
 			return -ENOMEM;
 		}
 		kbase_mem_pool_unlock(pool);
+
+		if (unlikely(!can_alloc_page(pool, page_owner, alloc_from_kthread)))
+			return -ENOMEM;
 
 		p = kbase_mem_alloc_page(pool);
 		if (!p) {
@@ -392,7 +443,7 @@ void kbase_mem_pool_trim(struct kbase_mem_pool *pool, size_t new_size)
 	if (new_size < cur_size)
 		kbase_mem_pool_shrink(pool, cur_size - new_size);
 	else if (new_size > cur_size)
-		err = kbase_mem_pool_grow(pool, new_size - cur_size);
+		err = kbase_mem_pool_grow(pool, new_size - cur_size, NULL);
 
 	if (err) {
 		size_t grown_size = kbase_mem_pool_size(pool);
@@ -656,13 +707,15 @@ void kbase_mem_pool_free_locked(struct kbase_mem_pool *pool, struct page *p,
 }
 
 int kbase_mem_pool_alloc_pages(struct kbase_mem_pool *pool, size_t nr_4k_pages,
-			       struct tagged_addr *pages, bool partial_allowed)
+			       struct tagged_addr *pages, bool partial_allowed,
+			       struct task_struct *page_owner)
 {
 	struct page *p;
 	size_t nr_from_pool;
 	size_t i = 0;
 	int err = -ENOMEM;
 	size_t nr_pages_internal;
+	const bool alloc_from_kthread = !!(current->flags & PF_KTHREAD);
 
 	nr_pages_internal = nr_4k_pages / (1u << (pool->order));
 
@@ -697,7 +750,7 @@ int kbase_mem_pool_alloc_pages(struct kbase_mem_pool *pool, size_t nr_4k_pages,
 	if (i != nr_4k_pages && pool->next_pool) {
 		/* Allocate via next pool */
 		err = kbase_mem_pool_alloc_pages(pool->next_pool, nr_4k_pages - i, pages + i,
-						 partial_allowed);
+						 partial_allowed, page_owner);
 
 		if (err < 0)
 			goto err_rollback;
@@ -706,6 +759,9 @@ int kbase_mem_pool_alloc_pages(struct kbase_mem_pool *pool, size_t nr_4k_pages,
 	} else {
 		/* Get any remaining pages from kernel */
 		while (i != nr_4k_pages) {
+			if (unlikely(!can_alloc_page(pool, page_owner, alloc_from_kthread)))
+				goto err_rollback;
+
 			p = kbase_mem_alloc_page(pool);
 			if (!p) {
 				if (partial_allowed)

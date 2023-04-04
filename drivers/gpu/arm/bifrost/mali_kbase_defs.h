@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2011-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -245,12 +245,25 @@ struct kbase_fault {
 	bool protected_mode;
 };
 
+/** Maximum number of memory pages that should be allocated for the array
+ * of pointers to free PGDs.
+ *
+ * This number has been pre-calculated to deal with the maximum allocation
+ * size expressed by the default value of KBASE_MEM_ALLOC_MAX_SIZE.
+ * This is supposed to be enough for almost the entirety of MMU operations.
+ * Any size greater than KBASE_MEM_ALLOC_MAX_SIZE requires being broken down
+ * into multiple iterations, each dealing with at most KBASE_MEM_ALLOC_MAX_SIZE
+ * bytes.
+ *
+ * Please update this value if KBASE_MEM_ALLOC_MAX_SIZE changes.
+ */
+#define MAX_PAGES_FOR_FREE_PGDS ((size_t)9)
+
+/* Maximum number of pointers to free PGDs */
+#define MAX_FREE_PGDS ((PAGE_SIZE / sizeof(struct page *)) * MAX_PAGES_FOR_FREE_PGDS)
+
 /**
  * struct kbase_mmu_table  - object representing a set of GPU page tables
- * @mmu_teardown_pages:   Array containing pointers to 3 separate pages, used
- *                        to cache the entries of top (L0) & intermediate level
- *                        page tables (L1 & L2) to avoid repeated calls to
- *                        kmap_atomic() during the MMU teardown.
  * @mmu_lock:             Lock to serialize the accesses made to multi level GPU
  *                        page tables
  * @pgd:                  Physical address of the page allocated for the top
@@ -262,14 +275,40 @@ struct kbase_fault {
  *                        Valid range is 0..(MEMORY_GROUP_MANAGER_NR_GROUPS-1).
  * @kctx:                 If this set of MMU tables belongs to a context then
  *                        this is a back-reference to the context, otherwise
- *                        it is NULL
+ *                        it is NULL.
+ * @scratch_mem:          Scratch memory used for MMU operations, which are
+ *                        serialized by the @mmu_lock.
  */
 struct kbase_mmu_table {
-	u64 *mmu_teardown_pages[MIDGARD_MMU_BOTTOMLEVEL];
 	struct mutex mmu_lock;
 	phys_addr_t pgd;
 	u8 group_id;
 	struct kbase_context *kctx;
+	union {
+		/**
+		 * @teardown_pages: Scratch memory used for backup copies of whole
+		 *                  PGD pages when tearing down levels upon
+		 *                  termination of the MMU table.
+		 */
+		struct {
+			/**
+			 * @levels: Array of PGD pages, large enough to copy one PGD
+			 *          for each level of the MMU table.
+			 */
+			u64 levels[MIDGARD_MMU_BOTTOMLEVEL][PAGE_SIZE / sizeof(u64)];
+		} teardown_pages;
+		/**
+		 * @free_pgds: Scratch memory user for insertion, update and teardown
+		 *             operations to store a temporary list of PGDs to be freed
+		 *             at the end of the operation.
+		 */
+		struct {
+			/** @pgds: Array of pointers to PGDs to free. */
+			struct page *pgds[MAX_FREE_PGDS];
+			/** @head_index: Index of first free element in the PGDs array. */
+			size_t head_index;
+		} free_pgds;
+	} scratch_mem;
 };
 
 /**
@@ -292,6 +331,8 @@ struct kbase_reg_zone {
 #else
 #include "jm/mali_kbase_jm_defs.h"
 #endif
+
+#include "mali_kbase_hwaccess_time.h"
 
 static inline int kbase_as_has_bus_fault(struct kbase_as *as,
 	struct kbase_fault *fault)
@@ -762,6 +803,8 @@ struct kbase_mem_migrate {
  *                         GPU adrress spaces assigned to them.
  * @mmu_mask_change:       Lock to serialize the access to MMU interrupt mask
  *                         register used in the handling of Bus & Page faults.
+ * @pagesize_2mb:          Boolean to determine whether 2MiB page sizes are
+ *                         supported and used where possible.
  * @gpu_props:             Object containing complete information about the
  *                         configuration/properties of GPU HW device in use.
  * @hw_issues_mask:        List of SW workarounds for HW issues
@@ -807,6 +850,7 @@ struct kbase_mem_migrate {
  *                         GPU reset.
  * @lowest_gpu_freq_khz:   Lowest frequency in KHz that the GPU can run at. Used
  *                         to calculate suitable timeouts for wait operations.
+ * @backend_time:          Kbase backend time related attributes.
  * @cache_clean_in_progress: Set when a cache clean has been started, and
  *                         cleared when it has finished. This prevents multiple
  *                         cache cleans being done simultaneously.
@@ -1001,6 +1045,9 @@ struct kbase_mem_migrate {
  *                          KCPU queue. These structures may outlive kbase module
  *                          itself. Therefore, in such a case, a warning should be
  *                          be produced.
+ * @mmu_as_inactive_wait_time_ms: Maximum waiting time in ms for the completion of
+ *                          a MMU operation
+ * @va_region_slab:         kmem_cache (slab) for allocated kbase_va_region structures.
  */
 struct kbase_device {
 	u32 hw_quirks_sc;
@@ -1057,6 +1104,8 @@ struct kbase_device {
 
 	spinlock_t mmu_mask_change;
 
+	bool pagesize_2mb;
+
 	struct kbase_gpu_props gpu_props;
 
 	unsigned long hw_issues_mask[(BASE_HW_ISSUE_END + BITS_PER_LONG - 1) / BITS_PER_LONG];
@@ -1109,6 +1158,10 @@ struct kbase_device {
 	u32 reset_timeout_ms;
 
 	u64 lowest_gpu_freq_khz;
+
+#if MALI_USE_CSF
+	struct kbase_backend_time backend_time;
+#endif
 
 	bool cache_clean_in_progress;
 	u32 cache_clean_queued;
@@ -1308,6 +1361,8 @@ struct kbase_device {
 #if MALI_USE_CSF && IS_ENABLED(CONFIG_SYNC_FILE)
 	atomic_t live_fence_metadata;
 #endif
+	u32 mmu_as_inactive_wait_time_ms;
+	struct kmem_cache *va_region_slab;
 };
 
 /**
@@ -1661,11 +1716,13 @@ struct kbase_sub_alloc {
  *                        is scheduled in and an atom is pulled from the context's per
  *                        slot runnable tree in JM GPU or GPU command queue
  *                        group is programmed on CSG slot in CSF GPU.
- * @mm_update_lock:       lock used for handling of special tracking page.
  * @process_mm:           Pointer to the memory descriptor of the process which
  *                        created the context. Used for accounting the physical
  *                        pages used for GPU allocations, done for the context,
- *                        to the memory consumed by the process.
+ *                        to the memory consumed by the process. A reference is taken
+ *                        on this descriptor for the Userspace created contexts so that
+ *                        Kbase can safely access it to update the memory usage counters.
+ *                        The reference is dropped on context termination.
  * @gpu_va_end:           End address of the GPU va space (in 4KB page units)
  * @running_total_tiler_heap_nr_chunks: Running total of number of chunks in all
  *                        tiler heaps of the kbase context.
@@ -1787,6 +1844,10 @@ struct kbase_sub_alloc {
  * @limited_core_mask:    The mask that is applied to the affinity in case of atoms
  *                        marked with BASE_JD_REQ_LIMITED_CORE_MASK.
  * @platform_data:        Pointer to platform specific per-context data.
+ * @task:                 Pointer to the task structure of the main thread of the process
+ *                        that created the Kbase context. It would be set only for the
+ *                        contexts created by the Userspace and not for the contexts
+ *                        created internally by the Kbase.
  *
  * A kernel base context is an entity among which the GPU is scheduled.
  * Each context has its own GPU address space.
@@ -1874,8 +1935,7 @@ struct kbase_context {
 
 	atomic_t refcount;
 
-	spinlock_t         mm_update_lock;
-	struct mm_struct __rcu *process_mm;
+	struct mm_struct *process_mm;
 	u64 gpu_va_end;
 #if MALI_USE_CSF
 	u32 running_total_tiler_heap_nr_chunks;
@@ -1938,6 +1998,8 @@ struct kbase_context {
 #if !MALI_USE_CSF
 	void *platform_data;
 #endif
+
+	struct task_struct *task;
 };
 
 #ifdef CONFIG_MALI_CINSTR_GWT
@@ -2040,5 +2102,4 @@ static inline u64 kbase_get_lock_region_min_size_log2(struct kbase_gpu_props con
 #define KBASE_AS_INACTIVE_MAX_LOOPS     100000000
 /* Maximum number of loops polling the GPU PRFCNT_ACTIVE bit before we assume the GPU has hung */
 #define KBASE_PRFCNT_ACTIVE_MAX_LOOPS   100000000
-
 #endif /* _KBASE_DEFS_H_ */

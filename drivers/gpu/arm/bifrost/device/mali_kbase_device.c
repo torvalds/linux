@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2010-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -35,6 +35,7 @@
 #include <mali_kbase.h>
 #include <mali_kbase_defs.h>
 #include <mali_kbase_hwaccess_instr.h>
+#include <mali_kbase_hwaccess_time.h>
 #include <mali_kbase_hw.h>
 #include <mali_kbase_config_defaults.h>
 #include <linux/priority_control_manager.h>
@@ -308,7 +309,8 @@ int kbase_device_misc_init(struct kbase_device * const kbdev)
 #endif /* MALI_USE_CSF */
 
 	kbdev->mmu_mode = kbase_mmu_mode_get_aarch64();
-
+	kbdev->mmu_as_inactive_wait_time_ms =
+		kbase_get_timeout_ms(kbdev, MMU_AS_INACTIVE_WAIT_TIMEOUT);
 	mutex_init(&kbdev->kctx_list_lock);
 	INIT_LIST_HEAD(&kbdev->kctx_list);
 

@@ -39,7 +39,9 @@
 
 #define CS_REQ_EXCEPTION_MASK (CS_REQ_FAULT_MASK | CS_REQ_FATAL_MASK)
 #define CS_ACK_EXCEPTION_MASK (CS_ACK_FAULT_MASK | CS_ACK_FATAL_MASK)
-#define POWER_DOWN_LATEST_FLUSH_VALUE ((u32)1)
+
+#define CS_RING_BUFFER_MAX_SIZE ((uint32_t)(1 << 31)) /* 2GiB */
+#define CS_RING_BUFFER_MIN_SIZE ((uint32_t)4096)
 
 #define PROTM_ALLOC_MAX_RETRIES ((u8)5)
 
@@ -72,6 +74,38 @@ struct irq_idle_and_protm_track {
 	u32 idle_seq;
 	s8 idle_slot;
 };
+
+/**
+ * kbasep_ctx_user_reg_page_mapping_term() - Terminate resources for USER Register Page.
+ *
+ * @kctx:   Pointer to the kbase context
+ */
+static void kbasep_ctx_user_reg_page_mapping_term(struct kbase_context *kctx)
+{
+	struct kbase_device *kbdev = kctx->kbdev;
+
+	if (unlikely(kctx->csf.user_reg.vma))
+		dev_err(kbdev->dev, "VMA for USER Register page exist on termination of ctx %d_%d",
+			kctx->tgid, kctx->id);
+	if (WARN_ON_ONCE(!list_empty(&kctx->csf.user_reg.link)))
+		list_del_init(&kctx->csf.user_reg.link);
+}
+
+/**
+ * kbasep_ctx_user_reg_page_mapping_init() - Initialize resources for USER Register Page.
+ *
+ * @kctx:   Pointer to the kbase context
+ *
+ * @return: 0 on success.
+ */
+static int kbasep_ctx_user_reg_page_mapping_init(struct kbase_context *kctx)
+{
+	INIT_LIST_HEAD(&kctx->csf.user_reg.link);
+	kctx->csf.user_reg.vma = NULL;
+	kctx->csf.user_reg.file_offset = 0;
+
+	return 0;
+}
 
 static void put_user_pages_mmap_handle(struct kbase_context *kctx,
 			struct kbase_queue *queue)
@@ -267,7 +301,7 @@ int kbase_csf_alloc_command_stream_user_pages(struct kbase_context *kctx, struct
 
 	ret = kbase_mem_pool_alloc_pages(&kctx->mem_pools.small[KBASE_MEM_GROUP_CSF_IO],
 					 KBASEP_NUM_CS_USER_IO_PAGES,
-					 queue->phys, false);
+					 queue->phys, false, kctx->task);
 	if (ret != KBASEP_NUM_CS_USER_IO_PAGES) {
 		/* Marking both the phys to zero for indicating there is no phys allocated */
 		queue->phys[0].tagged_addr = 0;
@@ -293,11 +327,8 @@ int kbase_csf_alloc_command_stream_user_pages(struct kbase_context *kctx, struct
 
 	queue->db_file_offset = kbdev->csf.db_file_offsets;
 	kbdev->csf.db_file_offsets += BASEP_QUEUE_NR_MMAP_USER_PAGES;
-#if (KERNEL_VERSION(4, 11, 0) > LINUX_VERSION_CODE)
-	WARN(atomic_read(&queue->refcount) != 1, "Incorrect refcounting for queue object\n");
-#else
-	WARN(refcount_read(&queue->refcount) != 1, "Incorrect refcounting for queue object\n");
-#endif
+	WARN(kbase_refcount_read(&queue->refcount) != 1,
+	     "Incorrect refcounting for queue object\n");
 	/* This is the second reference taken on the queue object and
 	 * would be dropped only when the IO mapping is removed either
 	 * explicitly by userspace or implicitly by kernel on process exit.
@@ -369,21 +400,13 @@ static struct kbase_queue *find_queue(struct kbase_context *kctx, u64 base_addr)
 
 static void get_queue(struct kbase_queue *queue)
 {
-#if (KERNEL_VERSION(4, 11, 0) > LINUX_VERSION_CODE)
-	WARN_ON(!atomic_inc_not_zero(&queue->refcount));
-#else
-	WARN_ON(!refcount_inc_not_zero(&queue->refcount));
-#endif
+	WARN_ON(!kbase_refcount_inc_not_zero(&queue->refcount));
 }
 
 static void release_queue(struct kbase_queue *queue)
 {
 	lockdep_assert_held(&queue->kctx->csf.lock);
-#if (KERNEL_VERSION(4, 11, 0) > LINUX_VERSION_CODE)
-	if (atomic_dec_and_test(&queue->refcount)) {
-#else
-	if (refcount_dec_and_test(&queue->refcount)) {
-#endif
+	if (kbase_refcount_dec_and_test(&queue->refcount)) {
 		/* The queue can't still be on the per context list. */
 		WARN_ON(!list_empty(&queue->link));
 		WARN_ON(queue->group);
@@ -399,7 +422,7 @@ static void release_queue(struct kbase_queue *queue)
 		 * would free up the GPU queue memory.
 		 */
 		kbase_gpu_vm_lock(queue->kctx);
-		kbase_va_region_no_user_free_put(queue->kctx, queue->queue_reg);
+		kbase_va_region_no_user_free_dec(queue->queue_reg);
 		kbase_gpu_vm_unlock(queue->kctx);
 
 		kfree(queue);
@@ -505,17 +528,16 @@ static int csf_queue_register_internal(struct kbase_context *kctx,
 
 	queue->kctx = kctx;
 	queue->base_addr = queue_addr;
-	queue->queue_reg = kbase_va_region_no_user_free_get(kctx, region);
+
+	queue->queue_reg = region;
+	kbase_va_region_no_user_free_inc(region);
+
 	queue->size = (queue_size << PAGE_SHIFT);
 	queue->csi_index = KBASEP_IF_NR_INVALID;
 	queue->enabled = false;
 
 	queue->priority = reg->priority;
-#if (KERNEL_VERSION(4, 11, 0) > LINUX_VERSION_CODE)
-	atomic_set(&queue->refcount, 1);
-#else
-	refcount_set(&queue->refcount, 1);
-#endif
+	kbase_refcount_set(&queue->refcount, 1);
 
 	queue->group = NULL;
 	queue->bind_state = KBASE_CSF_QUEUE_UNBOUND;
@@ -572,6 +594,13 @@ out:
 int kbase_csf_queue_register(struct kbase_context *kctx,
 			     struct kbase_ioctl_cs_queue_register *reg)
 {
+	/* Validate the ring buffer configuration parameters */
+	if (reg->buffer_size < CS_RING_BUFFER_MIN_SIZE ||
+	    reg->buffer_size > CS_RING_BUFFER_MAX_SIZE ||
+	    reg->buffer_size & (reg->buffer_size - 1) || !reg->buffer_gpu_addr ||
+	    reg->buffer_gpu_addr & ~PAGE_MASK)
+		return -EINVAL;
+
 	return csf_queue_register_internal(kctx, reg, NULL);
 }
 
@@ -588,6 +617,13 @@ int kbase_csf_queue_register_ex(struct kbase_context *kctx,
 
 	/* If cs_trace_command not supported, the call fails */
 	if (glb_version < kbase_csf_interface_version(1, 1, 0))
+		return -EINVAL;
+
+	/* Validate the ring buffer configuration parameters */
+	if (reg->buffer_size < CS_RING_BUFFER_MIN_SIZE ||
+	    reg->buffer_size > CS_RING_BUFFER_MAX_SIZE ||
+	    reg->buffer_size & (reg->buffer_size - 1) || !reg->buffer_gpu_addr ||
+	    reg->buffer_gpu_addr & ~PAGE_MASK)
 		return -EINVAL;
 
 	/* Validate the cs_trace configuration parameters */
@@ -909,6 +945,9 @@ static void unbind_stopped_queue(struct kbase_context *kctx,
 {
 	lockdep_assert_held(&kctx->csf.lock);
 
+	if (WARN_ON(queue->csi_index < 0))
+		return;
+
 	if (queue->bind_state != KBASE_CSF_QUEUE_UNBOUND) {
 		unsigned long flags;
 
@@ -922,6 +961,7 @@ static void unbind_stopped_queue(struct kbase_context *kctx,
 		kbase_csf_scheduler_spin_unlock(kctx->kbdev, flags);
 
 		put_user_pages_mmap_handle(kctx, queue);
+		WARN_ON_ONCE(queue->doorbell_nr != KBASEP_USER_DB_NR_INVALID);
 		queue->bind_state = KBASE_CSF_QUEUE_UNBOUND;
 	}
 }
@@ -1099,7 +1139,7 @@ static int create_normal_suspend_buffer(struct kbase_context *const kctx,
 
 	/* Get physical page for a normal suspend buffer */
 	err = kbase_mem_pool_alloc_pages(&kctx->mem_pools.small[KBASE_MEM_GROUP_CSF_FW], nr_pages,
-					 &s_buf->phy[0], false);
+					 &s_buf->phy[0], false, kctx->task);
 
 	if (err < 0) {
 		kfree(s_buf->phy);
@@ -1539,6 +1579,7 @@ void kbase_csf_queue_group_terminate(struct kbase_context *kctx,
 }
 KBASE_EXPORT_TEST_API(kbase_csf_queue_group_terminate);
 
+#if IS_ENABLED(CONFIG_MALI_VECTOR_DUMP) || MALI_UNIT_TEST
 int kbase_csf_queue_group_suspend(struct kbase_context *kctx,
 				  struct kbase_suspend_copy_buffer *sus_buf,
 				  u8 group_handle)
@@ -1569,6 +1610,7 @@ int kbase_csf_queue_group_suspend(struct kbase_context *kctx,
 
 	return err;
 }
+#endif
 
 void kbase_csf_add_group_fatal_error(
 	struct kbase_queue_group *const group,
@@ -1637,8 +1679,6 @@ int kbase_csf_ctx_init(struct kbase_context *kctx)
 
 	kbase_csf_event_init(kctx);
 
-	kctx->csf.user_reg_vma = NULL;
-
 	/* Mark all the cookies as 'free' */
 	bitmap_fill(kctx->csf.cookies, KBASE_CSF_NUM_USER_IO_PAGES_HANDLE);
 
@@ -1658,7 +1698,14 @@ int kbase_csf_ctx_init(struct kbase_context *kctx)
 					mutex_init(&kctx->csf.lock);
 					INIT_WORK(&kctx->csf.pending_submission_work,
 						  pending_submission_worker);
-				} else
+
+					err = kbasep_ctx_user_reg_page_mapping_init(kctx);
+
+					if (unlikely(err))
+						kbase_csf_tiler_heap_context_term(kctx);
+				}
+
+				if (unlikely(err))
 					kbase_csf_kcpu_queue_context_term(kctx);
 			}
 
@@ -1816,17 +1863,14 @@ void kbase_csf_ctx_term(struct kbase_context *kctx)
 		 * only one reference left that was taken when queue was
 		 * registered.
 		 */
-#if (KERNEL_VERSION(4, 11, 0) > LINUX_VERSION_CODE)
-		WARN_ON(atomic_read(&queue->refcount) != 1);
-#else
-		WARN_ON(refcount_read(&queue->refcount) != 1);
-#endif
+		WARN_ON(kbase_refcount_read(&queue->refcount) != 1);
 		list_del_init(&queue->link);
 		release_queue(queue);
 	}
 
 	mutex_unlock(&kctx->csf.lock);
 
+	kbasep_ctx_user_reg_page_mapping_term(kctx);
 	kbase_csf_tiler_heap_context_term(kctx);
 	kbase_csf_kcpu_queue_context_term(kctx);
 	kbase_csf_scheduler_context_term(kctx);
@@ -2746,6 +2790,9 @@ static void process_csg_interrupts(struct kbase_device *const kbdev, int const c
 	if ((req ^ ack) & CSG_REQ_IDLE_MASK) {
 		struct kbase_csf_scheduler *scheduler =	&kbdev->csf.scheduler;
 
+		KBASE_TLSTREAM_TL_KBASE_DEVICE_CSG_IDLE(
+			kbdev, kbdev->gpu_props.props.raw_props.gpu_id, csg_nr);
+
 		kbase_csf_firmware_csg_input_mask(ginfo, CSG_REQ, ack,
 			CSG_REQ_IDLE_MASK);
 
@@ -3159,12 +3206,12 @@ int kbase_csf_doorbell_mapping_init(struct kbase_device *kbdev)
 	struct file *filp;
 	int ret;
 
-	filp = shmem_file_setup("mali csf", MAX_LFS_FILESIZE, VM_NORESERVE);
+	filp = shmem_file_setup("mali csf db", MAX_LFS_FILESIZE, VM_NORESERVE);
 	if (IS_ERR(filp))
 		return PTR_ERR(filp);
 
 	ret = kbase_mem_pool_alloc_pages(&kbdev->mem_pools.small[KBASE_MEM_GROUP_CSF_FW], 1, &phys,
-					 false);
+					 false, NULL);
 
 	if (ret <= 0) {
 		fput(filp);
@@ -3180,29 +3227,34 @@ int kbase_csf_doorbell_mapping_init(struct kbase_device *kbdev)
 
 void kbase_csf_free_dummy_user_reg_page(struct kbase_device *kbdev)
 {
-	if (as_phys_addr_t(kbdev->csf.dummy_user_reg_page)) {
-		struct page *page = as_page(kbdev->csf.dummy_user_reg_page);
+	if (kbdev->csf.user_reg.filp) {
+		struct page *page = as_page(kbdev->csf.user_reg.dummy_page);
 
-		kbase_mem_pool_free(
-			&kbdev->mem_pools.small[KBASE_MEM_GROUP_CSF_FW], page,
-			false);
+		kbase_mem_pool_free(&kbdev->mem_pools.small[KBASE_MEM_GROUP_CSF_FW], page, false);
+		fput(kbdev->csf.user_reg.filp);
 	}
 }
 
 int kbase_csf_setup_dummy_user_reg_page(struct kbase_device *kbdev)
 {
 	struct tagged_addr phys;
+	struct file *filp;
 	struct page *page;
 	u32 *addr;
-	int ret;
 
-	kbdev->csf.dummy_user_reg_page = as_tagged(0);
+	kbdev->csf.user_reg.filp = NULL;
 
-	ret = kbase_mem_pool_alloc_pages(&kbdev->mem_pools.small[KBASE_MEM_GROUP_CSF_FW], 1, &phys,
-					 false);
+	filp = shmem_file_setup("mali csf user_reg", MAX_LFS_FILESIZE, VM_NORESERVE);
+	if (IS_ERR(filp)) {
+		dev_err(kbdev->dev, "failed to get an unlinked file for user_reg");
+		return PTR_ERR(filp);
+	}
 
-	if (ret <= 0)
-		return ret;
+	if (kbase_mem_pool_alloc_pages(&kbdev->mem_pools.small[KBASE_MEM_GROUP_CSF_FW], 1, &phys,
+				       false, NULL) <= 0) {
+		fput(filp);
+		return -ENOMEM;
+	}
 
 	page = as_page(phys);
 	addr = kmap_atomic(page);
@@ -3212,12 +3264,13 @@ int kbase_csf_setup_dummy_user_reg_page(struct kbase_device *kbdev)
 	 */
 	addr[LATEST_FLUSH / sizeof(u32)] = POWER_DOWN_LATEST_FLUSH_VALUE;
 
-	kbase_sync_single_for_device(kbdev, kbase_dma_addr(page), sizeof(u32),
+	kbase_sync_single_for_device(kbdev, kbase_dma_addr(page) + LATEST_FLUSH, sizeof(u32),
 				     DMA_BIDIRECTIONAL);
 	kunmap_atomic(addr);
 
-	kbdev->csf.dummy_user_reg_page = phys;
-
+	kbdev->csf.user_reg.filp = filp;
+	kbdev->csf.user_reg.dummy_page = phys;
+	kbdev->csf.user_reg.file_offset = 0;
 	return 0;
 }
 

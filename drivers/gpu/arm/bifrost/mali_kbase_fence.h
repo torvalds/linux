@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2010-2018, 2020-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -32,6 +32,7 @@
 #include <linux/list.h>
 #include "mali_kbase_fence_defs.h"
 #include "mali_kbase.h"
+#include "mali_kbase_refcount_defs.h"
 
 #if MALI_USE_CSF
 /* Maximum number of characters in DMA fence timeline name. */
@@ -49,11 +50,7 @@
  * @timeline_name:  String of timeline name for associated fence object.
  */
 struct kbase_kcpu_dma_fence_meta {
-#if (KERNEL_VERSION(4, 11, 0) > LINUX_VERSION_CODE)
-	atomic_t refcount;
-#else
-	refcount_t refcount;
-#endif
+	kbase_refcount_t refcount;
 	struct kbase_device *kbdev;
 	int kctx_id;
 	char timeline_name[MAX_TIMELINE_NAME];
@@ -225,11 +222,7 @@ static inline struct kbase_kcpu_dma_fence *kbase_kcpu_dma_fence_get(struct dma_f
 
 static inline void kbase_kcpu_dma_fence_meta_put(struct kbase_kcpu_dma_fence_meta *metadata)
 {
-#if (KERNEL_VERSION(4, 11, 0) > LINUX_VERSION_CODE)
-	if (atomic_dec_and_test(&metadata->refcount)) {
-#else
-	if (refcount_dec_and_test(&metadata->refcount)) {
-#endif
+	if (kbase_refcount_dec_and_test(&metadata->refcount)) {
 		atomic_dec(&metadata->kbdev->live_fence_metadata);
 		kfree(metadata);
 	}

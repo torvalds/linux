@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -120,6 +120,10 @@ static int kbase_backend_late_init(struct kbase_device *kbdev)
 
 	/* Update gpuprops with L2_FEATURES if applicable */
 	err = kbase_gpuprops_update_l2_features(kbdev);
+	if (err)
+		goto fail_update_l2_features;
+
+	err = kbase_backend_time_init(kbdev);
 	if (err)
 		goto fail_update_l2_features;
 
@@ -285,8 +289,10 @@ static const struct kbase_device_init dev_init[] = {
 	  "Dummy model initialization failed" },
 #else /* !IS_ENABLED(CONFIG_MALI_REAL_HW) */
 	{ assign_irqs, NULL, "IRQ search failed" },
-	{ registers_map, registers_unmap, "Register map failed" },
 #endif /* !IS_ENABLED(CONFIG_MALI_REAL_HW) */
+#if !IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
+	{ registers_map, registers_unmap, "Register map failed" },
+#endif /* !IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI) */
 	{ power_control_init, power_control_term, "Power control initialization failed" },
 	{ kbase_device_io_history_init, kbase_device_io_history_term,
 	  "Register access history initialization failed" },
@@ -359,7 +365,6 @@ static void kbase_device_term_partial(struct kbase_device *kbdev,
 
 void kbase_device_term(struct kbase_device *kbdev)
 {
-	kbdev->csf.mali_file_inode = NULL;
 	kbase_device_term_partial(kbdev, ARRAY_SIZE(dev_init));
 	kbase_mem_halt(kbdev);
 }

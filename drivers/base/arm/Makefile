@@ -96,6 +96,12 @@ ifeq ($(CONFIG_GCOV_KERNEL), y)
     EXTRA_CFLAGS += -DGCOV_PROFILE=1
 endif
 
+ifeq ($(CONFIG_MALI_KCOV),y)
+    KBUILD_CFLAGS += $(call cc-option, -fsanitize-coverage=trace-cmp)
+    EXTRA_CFLAGS += -DKCOV=1
+    EXTRA_CFLAGS += -DKCOV_ENABLE_COMPARISONS=1
+endif
+
 # The following were added to align with W=1 in scripts/Makefile.extrawarn
 # from the Linux source tree (v5.18.14)
 KBUILD_CFLAGS += -Wextra -Wunused -Wno-unused-parameter

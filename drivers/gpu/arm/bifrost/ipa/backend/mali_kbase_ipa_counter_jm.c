@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2016-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2016-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -455,16 +455,14 @@ static const struct kbase_ipa_group ipa_groups_def_tbax[] = {
 	},
 };
 
-
-#define IPA_POWER_MODEL_OPS(gpu, init_token) \
-	const struct kbase_ipa_model_ops kbase_ ## gpu ## _ipa_model_ops = { \
-		.name = "mali-" #gpu "-power-model", \
-		.init = kbase_ ## init_token ## _power_model_init, \
-		.term = kbase_ipa_vinstr_common_model_term, \
-		.get_dynamic_coeff = kbase_ipa_vinstr_dynamic_coeff, \
-		.reset_counter_data = kbase_ipa_vinstr_reset_data, \
-	}; \
-	KBASE_EXPORT_TEST_API(kbase_ ## gpu ## _ipa_model_ops)
+#define IPA_POWER_MODEL_OPS(gpu, init_token)                                                       \
+	static const struct kbase_ipa_model_ops kbase_##gpu##_ipa_model_ops = {                    \
+		.name = "mali-" #gpu "-power-model",                                               \
+		.init = kbase_##init_token##_power_model_init,                                     \
+		.term = kbase_ipa_vinstr_common_model_term,                                        \
+		.get_dynamic_coeff = kbase_ipa_vinstr_dynamic_coeff,                               \
+		.reset_counter_data = kbase_ipa_vinstr_reset_data,                                 \
+	}
 
 #define STANDARD_POWER_MODEL(gpu, reference_voltage) \
 	static int kbase_ ## gpu ## _power_model_init(\

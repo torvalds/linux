@@ -38,6 +38,7 @@
 /* Required for kbase_mem_evictable_unmake */
 #include "mali_kbase_mem_linux.h"
 #include "mali_kbase_mem_migrate.h"
+#include "mali_kbase_refcount_defs.h"
 
 static inline void kbase_process_page_usage_inc(struct kbase_context *kctx,
 		int pages);
@@ -419,8 +420,8 @@ static inline struct kbase_mem_phy_alloc *kbase_mem_phy_alloc_put(struct kbase_m
  * @jit_usage_id: The last just-in-time memory usage ID for this region.
  * @jit_bin_id:   The just-in-time memory bin this region came from.
  * @va_refcnt:    Number of users of this region. Protected by reg_lock.
- * @no_user_free_refcnt:    Number of users that want to prevent the region from
- *                          being freed by userspace.
+ * @no_user_free_count:    Number of contexts that want to prevent the region
+ *                         from being freed by userspace.
  * @heap_info_gpu_addr: Pointer to an object in GPU memory defining an end of
  *                      an allocated region
  *                      The object can be one of:
@@ -681,8 +682,8 @@ struct kbase_va_region {
 	size_t used_pages;
 #endif /* MALI_JIT_PRESSURE_LIMIT_BASE */
 
-	int    va_refcnt;
-	int no_user_free_refcnt;
+	kbase_refcount_t va_refcnt;
+	atomic_t no_user_free_count;
 };
 
 /**
@@ -759,15 +760,12 @@ static inline void kbase_region_refcnt_free(struct kbase_device *kbdev,
 static inline struct kbase_va_region *kbase_va_region_alloc_get(
 		struct kbase_context *kctx, struct kbase_va_region *region)
 {
-	lockdep_assert_held(&kctx->reg_lock);
+	WARN_ON(!kbase_refcount_read(&region->va_refcnt));
+	WARN_ON(kbase_refcount_read(&region->va_refcnt) == INT_MAX);
 
-	WARN_ON(!region->va_refcnt);
-	WARN_ON(region->va_refcnt == INT_MAX);
-
-	/* non-atomic as kctx->reg_lock is held */
 	dev_dbg(kctx->kbdev->dev, "va_refcnt %d before get %pK\n",
-		region->va_refcnt, (void *)region);
-	region->va_refcnt++;
+		kbase_refcount_read(&region->va_refcnt), (void *)region);
+	kbase_refcount_inc(&region->va_refcnt);
 
 	return region;
 }
@@ -775,17 +773,14 @@ static inline struct kbase_va_region *kbase_va_region_alloc_get(
 static inline struct kbase_va_region *kbase_va_region_alloc_put(
 		struct kbase_context *kctx, struct kbase_va_region *region)
 {
-	lockdep_assert_held(&kctx->reg_lock);
-
-	WARN_ON(region->va_refcnt <= 0);
+	WARN_ON(kbase_refcount_read(&region->va_refcnt) <= 0);
 	WARN_ON(region->flags & KBASE_REG_FREE);
 
-	/* non-atomic as kctx->reg_lock is held */
-	region->va_refcnt--;
-	dev_dbg(kctx->kbdev->dev, "va_refcnt %d after put %pK\n",
-		region->va_refcnt, (void *)region);
-	if (!region->va_refcnt)
+	if (kbase_refcount_dec_and_test(&region->va_refcnt))
 		kbase_region_refcnt_free(kctx->kbdev, region);
+	else
+		dev_dbg(kctx->kbdev->dev, "va_refcnt %d after put %pK\n",
+			kbase_refcount_read(&region->va_refcnt), (void *)region);
 
 	return NULL;
 }
@@ -799,58 +794,44 @@ static inline struct kbase_va_region *kbase_va_region_alloc_put(
  * Hence, callers cannot rely on this check alone to determine if a region might be shrunk
  * by any part of kbase. Instead they should use kbase_is_region_shrinkable().
  *
- * @kctx: Pointer to kbase context.
  * @region: Pointer to region.
  *
  * Return: true if userspace cannot free the region, false if userspace can free the region.
  */
-static inline bool kbase_va_region_is_no_user_free(struct kbase_context *kctx,
-						   struct kbase_va_region *region)
+static inline bool kbase_va_region_is_no_user_free(struct kbase_va_region *region)
 {
-	lockdep_assert_held(&kctx->reg_lock);
-	return region->no_user_free_refcnt > 0;
+	return atomic_read(&region->no_user_free_count) > 0;
 }
 
 /**
- * kbase_va_region_no_user_free_get - Increment "no user free" refcount for a region.
+ * kbase_va_region_no_user_free_inc - Increment "no user free" count for a region.
  * Calling this function will prevent the region to be shrunk by parts of kbase that
- * don't own the region (as long as the refcount stays above zero). Refer to
+ * don't own the region (as long as the count stays above zero). Refer to
  * kbase_va_region_is_no_user_free() for more information.
  *
- * @kctx: Pointer to kbase context.
  * @region: Pointer to region (not shrinkable).
  *
  * Return: the pointer to the region passed as argument.
  */
-static inline struct kbase_va_region *
-kbase_va_region_no_user_free_get(struct kbase_context *kctx, struct kbase_va_region *region)
+static inline void kbase_va_region_no_user_free_inc(struct kbase_va_region *region)
 {
-	lockdep_assert_held(&kctx->reg_lock);
-
 	WARN_ON(kbase_is_region_shrinkable(region));
-	WARN_ON(region->no_user_free_refcnt == INT_MAX);
+	WARN_ON(atomic_read(&region->no_user_free_count) == INT_MAX);
 
 	/* non-atomic as kctx->reg_lock is held */
-	region->no_user_free_refcnt++;
-
-	return region;
+	atomic_inc(&region->no_user_free_count);
 }
 
 /**
- * kbase_va_region_no_user_free_put - Decrement "no user free" refcount for a region.
+ * kbase_va_region_no_user_free_dec - Decrement "no user free" count for a region.
  *
- * @kctx: Pointer to kbase context.
  * @region: Pointer to region (not shrinkable).
  */
-static inline void kbase_va_region_no_user_free_put(struct kbase_context *kctx,
-						    struct kbase_va_region *region)
+static inline void kbase_va_region_no_user_free_dec(struct kbase_va_region *region)
 {
-	lockdep_assert_held(&kctx->reg_lock);
+	WARN_ON(!kbase_va_region_is_no_user_free(region));
 
-	WARN_ON(!kbase_va_region_is_no_user_free(kctx, region));
-
-	/* non-atomic as kctx->reg_lock is held */
-	region->no_user_free_refcnt--;
+	atomic_dec(&region->no_user_free_count);
 }
 
 /* Common functions */
@@ -1148,6 +1129,9 @@ void kbase_mem_pool_free_locked(struct kbase_mem_pool *pool, struct page *p,
  * @pages:    Pointer to array where the physical address of the allocated
  *            pages will be stored.
  * @partial_allowed: If fewer pages allocated is allowed
+ * @page_owner: Pointer to the task that created the Kbase context for which
+ *              the pages are being allocated. It can be NULL if the pages
+ *              won't be associated with any Kbase context.
  *
  * Like kbase_mem_pool_alloc() but optimized for allocating many pages.
  *
@@ -1164,7 +1148,8 @@ void kbase_mem_pool_free_locked(struct kbase_mem_pool *pool, struct page *p,
  * this lock, it should use kbase_mem_pool_alloc_pages_locked() instead.
  */
 int kbase_mem_pool_alloc_pages(struct kbase_mem_pool *pool, size_t nr_4k_pages,
-			       struct tagged_addr *pages, bool partial_allowed);
+			       struct tagged_addr *pages, bool partial_allowed,
+			       struct task_struct *page_owner);
 
 /**
  * kbase_mem_pool_alloc_pages_locked - Allocate pages from memory pool
@@ -1276,13 +1261,17 @@ void kbase_mem_pool_set_max_size(struct kbase_mem_pool *pool, size_t max_size);
  * kbase_mem_pool_grow - Grow the pool
  * @pool:       Memory pool to grow
  * @nr_to_grow: Number of pages to add to the pool
+ * @page_owner: Pointer to the task that created the Kbase context for which
+ *              the memory pool is being grown. It can be NULL if the pages
+ *              to be allocated won't be associated with any Kbase context.
  *
  * Adds @nr_to_grow pages to the pool. Note that this may cause the pool to
  * become larger than the maximum size specified.
  *
  * Return: 0 on success, -ENOMEM if unable to allocate sufficent pages
  */
-int kbase_mem_pool_grow(struct kbase_mem_pool *pool, size_t nr_to_grow);
+int kbase_mem_pool_grow(struct kbase_mem_pool *pool, size_t nr_to_grow,
+			struct task_struct *page_owner);
 
 /**
  * kbase_mem_pool_trim - Grow or shrink the pool to a new size
@@ -1398,8 +1387,8 @@ struct kbase_va_region *kbase_region_tracker_find_region_base_address(
 struct kbase_va_region *kbase_find_region_base_address(struct rb_root *rbtree,
 		u64 gpu_addr);
 
-struct kbase_va_region *kbase_alloc_free_region(struct rb_root *rbtree,
-		u64 start_pfn, size_t nr_pages, int zone);
+struct kbase_va_region *kbase_alloc_free_region(struct kbase_device *kbdev, struct rb_root *rbtree,
+						u64 start_pfn, size_t nr_pages, int zone);
 void kbase_free_alloced_region(struct kbase_va_region *reg);
 int kbase_add_va_region(struct kbase_context *kctx, struct kbase_va_region *reg,
 		u64 addr, size_t nr_pages, size_t align);
@@ -1409,6 +1398,32 @@ int kbase_add_va_region_rbtree(struct kbase_device *kbdev,
 
 bool kbase_check_alloc_flags(unsigned long flags);
 bool kbase_check_import_flags(unsigned long flags);
+
+static inline bool kbase_import_size_is_valid(struct kbase_device *kbdev, u64 va_pages)
+{
+	if (va_pages > KBASE_MEM_ALLOC_MAX_SIZE) {
+		dev_dbg(
+			kbdev->dev,
+			"Import attempted with va_pages==%lld larger than KBASE_MEM_ALLOC_MAX_SIZE!",
+			(unsigned long long)va_pages);
+		return false;
+	}
+
+	return true;
+}
+
+static inline bool kbase_alias_size_is_valid(struct kbase_device *kbdev, u64 va_pages)
+{
+	if (va_pages > KBASE_MEM_ALLOC_MAX_SIZE) {
+		dev_dbg(
+			kbdev->dev,
+			"Alias attempted with va_pages==%lld larger than KBASE_MEM_ALLOC_MAX_SIZE!",
+			(unsigned long long)va_pages);
+		return false;
+	}
+
+	return true;
+}
 
 /**
  * kbase_check_alloc_sizes - check user space sizes parameters for an
@@ -1737,7 +1752,7 @@ int kbase_alloc_phy_pages_helper(struct kbase_mem_phy_alloc *alloc,
  *
  * @prealloc_sa:        Information about the partial allocation if the amount of memory requested
  *                      is not a multiple of 2MB. One instance of struct kbase_sub_alloc must be
- *                      allocated by the caller iff CONFIG_MALI_2MB_ALLOC is enabled.
+ *                      allocated by the caller if kbdev->pagesize_2mb is enabled.
  *
  * Allocates @nr_pages_requested and updates the alloc object. This function does not allocate new
  * pages from the kernel, and therefore will never trigger the OoM killer. Therefore, it can be
@@ -1765,7 +1780,7 @@ int kbase_alloc_phy_pages_helper(struct kbase_mem_phy_alloc *alloc,
  * This ensures that the pool can be grown to the required size and that the allocation can
  * complete without another thread using the newly grown pages.
  *
- * If CONFIG_MALI_2MB_ALLOC is defined and the allocation is >= 2MB, then @pool must be one of the
+ * If kbdev->pagesize_2mb is enabled and the allocation is >= 2MB, then @pool must be one of the
  * pools from alloc->imported.native.kctx->mem_pools.large[]. Otherwise it must be one of the
  * mempools from alloc->imported.native.kctx->mem_pools.small[].
  *
@@ -2494,8 +2509,7 @@ kbase_ctx_reg_zone_get(struct kbase_context *kctx, unsigned long zone_bits)
  * kbase_mem_allow_alloc - Check if allocation of GPU memory is allowed
  * @kctx: Pointer to kbase context
  *
- * Don't allow the allocation of GPU memory until user space has set up the
- * tracking page (which sets kctx->process_mm) or if the ioctl has been issued
+ * Don't allow the allocation of GPU memory if the ioctl has been issued
  * from the forked child process using the mali device file fd inherited from
  * the parent process.
  *
@@ -2503,13 +2517,23 @@ kbase_ctx_reg_zone_get(struct kbase_context *kctx, unsigned long zone_bits)
  */
 static inline bool kbase_mem_allow_alloc(struct kbase_context *kctx)
 {
-	bool allow_alloc = true;
+	return (kctx->process_mm == current->mm);
+}
 
-	rcu_read_lock();
-	allow_alloc = (rcu_dereference(kctx->process_mm) == current->mm);
-	rcu_read_unlock();
-
-	return allow_alloc;
+/**
+ * kbase_mem_mmgrab - Wrapper function to take reference on mm_struct of current process
+ */
+static inline void kbase_mem_mmgrab(void)
+{
+	/* This merely takes a reference on the memory descriptor structure
+	 * i.e. mm_struct of current process and not on its address space and
+	 * so won't block the freeing of address space on process exit.
+	 */
+#if KERNEL_VERSION(4, 11, 0) > LINUX_VERSION_CODE
+	atomic_inc(&current->mm->mm_count);
+#else
+	mmgrab(current->mm);
+#endif
 }
 
 /**

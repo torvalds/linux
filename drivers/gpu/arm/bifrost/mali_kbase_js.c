@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2011-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -34,6 +34,7 @@
 
 #include "mali_kbase_jm.h"
 #include "mali_kbase_hwaccess_jm.h"
+#include <mali_kbase_hwaccess_time.h>
 #include <linux/priority_control_manager.h>
 
 /*
@@ -531,6 +532,7 @@ int kbasep_js_devdata_init(struct kbase_device * const kbdev)
 	jsdd->gpu_reset_ticks_dumping = DEFAULT_JS_RESET_TICKS_DUMPING;
 	jsdd->ctx_timeslice_ns = DEFAULT_JS_CTX_TIMESLICE_NS;
 	atomic_set(&jsdd->soft_job_timeout_ms, DEFAULT_JS_SOFT_JOB_TIMEOUT);
+	jsdd->js_free_wait_time_ms = kbase_get_timeout_ms(kbdev, JM_DEFAULT_JS_FREE_TIMEOUT);
 
 	dev_dbg(kbdev->dev, "JS Config Attribs: ");
 	dev_dbg(kbdev->dev, "\tscheduling_period_ns:%u",
@@ -555,6 +557,7 @@ int kbasep_js_devdata_init(struct kbase_device * const kbdev)
 			jsdd->ctx_timeslice_ns);
 	dev_dbg(kbdev->dev, "\tsoft_job_timeout:%i",
 		atomic_read(&jsdd->soft_job_timeout_ms));
+	dev_dbg(kbdev->dev, "\tjs_free_wait_time_ms:%u", jsdd->js_free_wait_time_ms);
 
 	if (!(jsdd->soft_stop_ticks < jsdd->hard_stop_ticks_ss &&
 			jsdd->hard_stop_ticks_ss < jsdd->gpu_reset_ticks_ss &&

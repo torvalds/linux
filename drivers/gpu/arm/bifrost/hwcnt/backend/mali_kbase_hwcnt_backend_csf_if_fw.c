@@ -329,7 +329,7 @@ static int kbasep_hwcnt_backend_csf_if_fw_ring_buf_alloc(
 
 	/* Get physical page for the buffer */
 	ret = kbase_mem_pool_alloc_pages(&kbdev->mem_pools.small[KBASE_MEM_GROUP_CSF_FW], num_pages,
-					 phys, false);
+					 phys, false, NULL);
 	if (ret != num_pages)
 		goto phys_mem_pool_alloc_error;
 
@@ -482,7 +482,8 @@ kbasep_hwcnt_backend_csf_if_fw_ring_buf_free(struct kbase_hwcnt_backend_csf_if_c
 
 		WARN_ON(kbase_mmu_teardown_pages(fw_ctx->kbdev, &fw_ctx->kbdev->csf.mcu_mmu,
 						 gpu_va_base >> PAGE_SHIFT, fw_ring_buf->phys,
-						 fw_ring_buf->num_pages, MCU_AS_NR, true));
+						 fw_ring_buf->num_pages, fw_ring_buf->num_pages,
+						 MCU_AS_NR, true));
 
 		vunmap(fw_ring_buf->cpu_dump_base);
 

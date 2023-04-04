@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2014-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -1001,17 +1001,11 @@ void kbase_backend_slot_update(struct kbase_device *kbdev)
 						other_slots_busy(kbdev, js))
 					break;
 
-#ifdef CONFIG_MALI_GEM5_BUILD
-				if (!kbasep_jm_is_js_free(kbdev, js,
-						katom[idx]->kctx))
-					break;
-#endif
 				/* Check if this job needs the cycle counter
 				 * enabled before submission
 				 */
 				if (katom[idx]->core_req & BASE_JD_REQ_PERMON)
-					kbase_pm_request_gpu_cycle_counter_l2_is_on(
-									kbdev);
+					kbase_pm_request_gpu_cycle_counter_l2_is_on(kbdev);
 
 				if (!kbase_job_hw_submit(kbdev, katom[idx], js)) {
 					katom[idx]->gpu_rb_state = KBASE_ATOM_GPU_RB_SUBMITTED;
@@ -1025,9 +1019,12 @@ void kbase_backend_slot_update(struct kbase_device *kbdev)
 
 					/* Inform platform at start/finish of atom */
 					kbasep_platform_event_atom_submit(katom[idx]);
-				}
-				else
+				} else {
+					if (katom[idx]->core_req & BASE_JD_REQ_PERMON)
+						kbase_pm_release_gpu_cycle_counter_nolock(kbdev);
+
 					break;
+				}
 
 				/* ***TRANSITION TO HIGHER STATE*** */
 				fallthrough;

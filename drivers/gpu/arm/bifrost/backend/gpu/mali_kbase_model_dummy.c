@@ -2024,8 +2024,6 @@ void midgard_model_read_reg(void *h, u32 addr, u32 *const value)
 
 		*value = gpu_model_get_prfcnt_value(KBASE_IPA_CORE_TYPE_SHADER,
 						    counter_index, is_low_word);
-	} else if (addr == USER_REG(LATEST_FLUSH)) {
-		*value = 0;
 	}
 #endif
 	else if (addr == GPU_CONTROL_REG(GPU_FEATURES_LO)) {

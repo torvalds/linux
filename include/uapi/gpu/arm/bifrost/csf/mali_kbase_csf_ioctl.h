@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2020-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -79,11 +79,13 @@
  *   - prfcnt_block_metadata::block_idx gaps.
  *   - PRFCNT_CONTROL_CMD_SAMPLE_ASYNC is removed.
  * 1.18:
+ * - Relax the requirement to create a mapping with BASE_MEM_MAP_TRACKING_HANDLE
+ *   before allocating GPU memory for the context.
  * - CPU mappings of USER_BUFFER imported memory handles must be cached.
  */
 
 #define BASE_UK_VERSION_MAJOR 1
-#define BASE_UK_VERSION_MINOR 17
+#define BASE_UK_VERSION_MINOR 18
 
 /**
  * struct kbase_ioctl_version_check - Check version compatibility between

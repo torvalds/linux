@@ -105,7 +105,7 @@ static void serve_mmu_irq(struct work_struct *work)
 	kmem_cache_free(kbdev->irq_slab, data);
 }
 
-void gpu_device_raise_irq(void *model, enum model_linux_irqs irq)
+void gpu_device_raise_irq(void *model, u32 irq)
 {
 	struct model_irq_data *data;
 	struct kbase_device *kbdev = gpu_device_get_data(model);

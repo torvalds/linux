@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2017-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2017-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -242,6 +242,7 @@ void kbase_ctx_sched_restore_all_as(struct kbase_device *kbdev)
 	for (i = 0; i != kbdev->nr_hw_address_spaces; ++i) {
 		struct kbase_context *kctx;
 
+		kbdev->as[i].is_unresponsive = false;
 #if MALI_USE_CSF
 		if ((i == MCU_AS_NR) && kbdev->csf.firmware_inited) {
 			kbase_mmu_update(kbdev, &kbdev->csf.mcu_mmu,

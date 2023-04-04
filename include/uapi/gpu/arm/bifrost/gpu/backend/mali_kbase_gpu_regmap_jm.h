@@ -43,4 +43,8 @@
 #define JS_CONFIG_NEXT         0x58	/* (RW) Next configuration settings for job slot n */
 #define JS_COMMAND_NEXT        0x60	/* (RW) Next command register for job slot n */
 
+#define JOB_SLOT0               0x800   /* Configuration registers for job slot 0 */
+
+#define JOB_SLOT_REG(n, r)      (JOB_CONTROL_REG(JOB_SLOT0 + ((n) << 7)) + (r))
+
 #endif /* _UAPI_KBASE_GPU_REGMAP_JM_H_ */

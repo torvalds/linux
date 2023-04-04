@@ -613,7 +613,7 @@ static int shared_mcu_csg_reg_init(struct kbase_device *kbdev,
 	int err, i;
 
 	INIT_LIST_HEAD(&csg_reg->link);
-	reg = kbase_alloc_free_region(&kbdev->csf.shared_reg_rbtree, 0, nr_csg_reg_pages,
+	reg = kbase_alloc_free_region(kbdev, &kbdev->csf.shared_reg_rbtree, 0, nr_csg_reg_pages,
 				      KBASE_REG_ZONE_MCU_SHARED);
 
 	if (!reg) {
@@ -668,16 +668,17 @@ fail_userio_pages_map_fail:
 	while (i-- > 0) {
 		vpfn = CSG_REG_USERIO_VPFN(reg, i, nr_susp_pages);
 		kbase_mmu_teardown_pages(kbdev, &kbdev->csf.mcu_mmu, vpfn, shared_regs->dummy_phys,
-					 KBASEP_NUM_CS_USER_IO_PAGES, MCU_AS_NR, true);
+					 KBASEP_NUM_CS_USER_IO_PAGES, KBASEP_NUM_CS_USER_IO_PAGES,
+					 MCU_AS_NR, true);
 	}
 
 	vpfn = CSG_REG_PMOD_BUF_VPFN(reg, nr_susp_pages);
 	kbase_mmu_teardown_pages(kbdev, &kbdev->csf.mcu_mmu, vpfn, shared_regs->dummy_phys,
-				 nr_susp_pages, MCU_AS_NR, true);
+				 nr_susp_pages, nr_susp_pages, MCU_AS_NR, true);
 fail_pmod_map_fail:
 	vpfn = CSG_REG_SUSP_BUF_VPFN(reg, nr_susp_pages);
 	kbase_mmu_teardown_pages(kbdev, &kbdev->csf.mcu_mmu, vpfn, shared_regs->dummy_phys,
-				 nr_susp_pages, MCU_AS_NR, true);
+				 nr_susp_pages, nr_susp_pages, MCU_AS_NR, true);
 fail_susp_map_fail:
 	mutex_lock(&kbdev->csf.reg_lock);
 	kbase_remove_va_region(kbdev, reg);
@@ -701,15 +702,16 @@ static void shared_mcu_csg_reg_term(struct kbase_device *kbdev,
 	for (i = 0; i < nr_csis; i++) {
 		vpfn = CSG_REG_USERIO_VPFN(reg, i, nr_susp_pages);
 		kbase_mmu_teardown_pages(kbdev, &kbdev->csf.mcu_mmu, vpfn, shared_regs->dummy_phys,
-					 KBASEP_NUM_CS_USER_IO_PAGES, MCU_AS_NR, true);
+					 KBASEP_NUM_CS_USER_IO_PAGES, KBASEP_NUM_CS_USER_IO_PAGES,
+					 MCU_AS_NR, true);
 	}
 
 	vpfn = CSG_REG_PMOD_BUF_VPFN(reg, nr_susp_pages);
 	kbase_mmu_teardown_pages(kbdev, &kbdev->csf.mcu_mmu, vpfn, shared_regs->dummy_phys,
-				 nr_susp_pages, MCU_AS_NR, true);
+				 nr_susp_pages, nr_susp_pages, MCU_AS_NR, true);
 	vpfn = CSG_REG_SUSP_BUF_VPFN(reg, nr_susp_pages);
 	kbase_mmu_teardown_pages(kbdev, &kbdev->csf.mcu_mmu, vpfn, shared_regs->dummy_phys,
-				 nr_susp_pages, MCU_AS_NR, true);
+				 nr_susp_pages, nr_susp_pages, MCU_AS_NR, true);
 
 	mutex_lock(&kbdev->csf.reg_lock);
 	kbase_remove_va_region(kbdev, reg);
@@ -738,7 +740,7 @@ int kbase_csf_mcu_shared_regs_data_init(struct kbase_device *kbdev)
 		return -ENOMEM;
 
 	if (kbase_mem_pool_alloc_pages(&kbdev->mem_pools.small[KBASE_MEM_GROUP_CSF_FW], 1,
-				       &shared_regs->dummy_phys[0], false) <= 0)
+				       &shared_regs->dummy_phys[0], false, NULL) <= 0)
 		return -ENOMEM;
 
 	shared_regs->dummy_phys_allocated = true;
