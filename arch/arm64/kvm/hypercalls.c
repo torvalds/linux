@@ -65,7 +65,7 @@ static void kvm_ptp_get_time(struct kvm_vcpu *vcpu, u64 *val)
 	val[3] = lower_32_bits(cycles);
 }
 
-static bool kvm_hvc_call_default_allowed(u32 func_id)
+static bool kvm_smccc_default_allowed(u32 func_id)
 {
 	switch (func_id) {
 	/*
@@ -93,7 +93,7 @@ static bool kvm_hvc_call_default_allowed(u32 func_id)
 	}
 }
 
-static bool kvm_hvc_call_allowed(struct kvm_vcpu *vcpu, u32 func_id)
+static bool kvm_smccc_test_fw_bmap(struct kvm_vcpu *vcpu, u32 func_id)
 {
 	struct kvm_smccc_features *smccc_feat = &vcpu->kvm->arch.smccc_feat;
 
@@ -117,8 +117,17 @@ static bool kvm_hvc_call_allowed(struct kvm_vcpu *vcpu, u32 func_id)
 		return test_bit(KVM_REG_ARM_VENDOR_HYP_BIT_PTP,
 				&smccc_feat->vendor_hyp_bmap);
 	default:
-		return kvm_hvc_call_default_allowed(func_id);
+		return false;
 	}
+}
+
+static u8 kvm_smccc_get_action(struct kvm_vcpu *vcpu, u32 func_id)
+{
+	if (kvm_smccc_test_fw_bmap(vcpu, func_id) ||
+	    kvm_smccc_default_allowed(func_id))
+		return KVM_SMCCC_FILTER_HANDLE;
+
+	return KVM_SMCCC_FILTER_DENY;
 }
 
 int kvm_smccc_call_handler(struct kvm_vcpu *vcpu)
@@ -127,10 +136,19 @@ int kvm_smccc_call_handler(struct kvm_vcpu *vcpu)
 	u32 func_id = smccc_get_function(vcpu);
 	u64 val[4] = {SMCCC_RET_NOT_SUPPORTED};
 	u32 feature;
+	u8 action;
 	gpa_t gpa;
 
-	if (!kvm_hvc_call_allowed(vcpu, func_id))
+	action = kvm_smccc_get_action(vcpu, func_id);
+	switch (action) {
+	case KVM_SMCCC_FILTER_HANDLE:
+		break;
+	case KVM_SMCCC_FILTER_DENY:
 		goto out;
+	default:
+		WARN_RATELIMIT(1, "Unhandled SMCCC filter action: %d\n", action);
+		goto out;
+	}
 
 	switch (func_id) {
 	case ARM_SMCCC_VERSION_FUNC_ID:
