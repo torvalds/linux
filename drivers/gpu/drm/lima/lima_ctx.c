@@ -15,7 +15,6 @@ int lima_ctx_create(struct lima_device *dev, struct lima_ctx_mgr *mgr, u32 *id)
 	if (!ctx)
 		return -ENOMEM;
 	ctx->dev = dev;
-	ctx->mgr = mgr;
 	kref_init(&ctx->refcnt);
 
 	for (i = 0; i < lima_pipe_num; i++) {
@@ -43,17 +42,10 @@ err_out0:
 static void lima_ctx_do_release(struct kref *ref)
 {
 	struct lima_ctx *ctx = container_of(ref, struct lima_ctx, refcnt);
-	struct lima_ctx_mgr *mgr = ctx->mgr;
 	int i;
 
-	for (i = 0; i < lima_pipe_num; i++) {
-		struct lima_sched_context *context = &ctx->context[i];
-		struct drm_sched_entity *entity = &context->base;
-
-		mgr->elapsed_ns[i] += entity->elapsed_ns;
-
+	for (i = 0; i < lima_pipe_num; i++)
 		lima_sched_context_fini(ctx->dev->pipe + i, ctx->context + i);
-	}
 	kfree(ctx);
 }
 
@@ -106,24 +98,4 @@ void lima_ctx_mgr_fini(struct lima_ctx_mgr *mgr)
 
 	xa_destroy(&mgr->handles);
 	mutex_destroy(&mgr->lock);
-}
-
-void lima_ctx_mgr_usage(struct lima_ctx_mgr *mgr, u64 usage[lima_pipe_num])
-{
-	struct lima_ctx *ctx;
-	unsigned long id;
-
-	for (int i = 0; i < lima_pipe_num; i++)
-		usage[i] = mgr->elapsed_ns[i];
-
-	mutex_lock(&mgr->lock);
-	xa_for_each(&mgr->handles, id, ctx) {
-		for (int i = 0; i < lima_pipe_num; i++) {
-			struct lima_sched_context *context = &ctx->context[i];
-			struct drm_sched_entity *entity = &context->base;
-
-			usage[i] += entity->elapsed_ns;
-		}
-	}
-	mutex_unlock(&mgr->lock);
 }
