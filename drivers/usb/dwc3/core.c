@@ -1717,7 +1717,7 @@ static int dwc3_probe(struct platform_device *pdev)
 	dwc->reset = devm_reset_control_array_get_optional_shared(dev);
 	if (IS_ERR(dwc->reset)) {
 		ret = PTR_ERR(dwc->reset);
-		goto put_usb_psy;
+		goto err_put_psy;
 	}
 
 	if (dev->of_node) {
@@ -1731,7 +1731,7 @@ static int dwc3_probe(struct platform_device *pdev)
 		if (IS_ERR(dwc->bus_clk)) {
 			ret = dev_err_probe(dev, PTR_ERR(dwc->bus_clk),
 					    "could not get bus clock\n");
-			goto put_usb_psy;
+			goto err_put_psy;
 		}
 
 		if (dwc->bus_clk == NULL) {
@@ -1739,7 +1739,7 @@ static int dwc3_probe(struct platform_device *pdev)
 			if (IS_ERR(dwc->bus_clk)) {
 				ret = dev_err_probe(dev, PTR_ERR(dwc->bus_clk),
 						    "could not get bus clock\n");
-				goto put_usb_psy;
+				goto err_put_psy;
 			}
 		}
 
@@ -1747,7 +1747,7 @@ static int dwc3_probe(struct platform_device *pdev)
 		if (IS_ERR(dwc->ref_clk)) {
 			ret = dev_err_probe(dev, PTR_ERR(dwc->ref_clk),
 					    "could not get ref clock\n");
-			goto put_usb_psy;
+			goto err_put_psy;
 		}
 
 		if (dwc->ref_clk == NULL) {
@@ -1755,7 +1755,7 @@ static int dwc3_probe(struct platform_device *pdev)
 			if (IS_ERR(dwc->ref_clk)) {
 				ret = dev_err_probe(dev, PTR_ERR(dwc->ref_clk),
 						    "could not get ref clock\n");
-				goto put_usb_psy;
+				goto err_put_psy;
 			}
 		}
 
@@ -1763,7 +1763,7 @@ static int dwc3_probe(struct platform_device *pdev)
 		if (IS_ERR(dwc->susp_clk)) {
 			ret = dev_err_probe(dev, PTR_ERR(dwc->susp_clk),
 					    "could not get suspend clock\n");
-			goto put_usb_psy;
+			goto err_put_psy;
 		}
 
 		if (dwc->susp_clk == NULL) {
@@ -1771,23 +1771,23 @@ static int dwc3_probe(struct platform_device *pdev)
 			if (IS_ERR(dwc->susp_clk)) {
 				ret = dev_err_probe(dev, PTR_ERR(dwc->susp_clk),
 						    "could not get suspend clock\n");
-				goto put_usb_psy;
+				goto err_put_psy;
 			}
 		}
 	}
 
 	ret = reset_control_deassert(dwc->reset);
 	if (ret)
-		goto put_usb_psy;
+		goto err_put_psy;
 
 	ret = dwc3_clk_enable(dwc);
 	if (ret)
-		goto assert_reset;
+		goto err_assert_reset;
 
 	if (!dwc3_core_is_valid(dwc)) {
 		dev_err(dwc->dev, "this is not a DesignWare USB3 DRD Core\n");
 		ret = -ENODEV;
-		goto disable_clks;
+		goto err_disable_clks;
 	}
 
 	platform_set_drvdata(pdev, dwc);
@@ -1797,7 +1797,7 @@ static int dwc3_probe(struct platform_device *pdev)
 	    DWC3_GHWPARAMS0_AWIDTH(dwc->hwparams.hwparams0) == 64) {
 		ret = dma_set_mask_and_coherent(dwc->sysdev, DMA_BIT_MASK(64));
 		if (ret)
-			goto disable_clks;
+			goto err_disable_clks;
 	}
 
 	spin_lock_init(&dwc->lock);
@@ -1815,23 +1815,23 @@ static int dwc3_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(dwc->dev, "failed to allocate event buffers\n");
 		ret = -ENOMEM;
-		goto err2;
+		goto err_allow_rpm;
 	}
 
 	dwc->edev = dwc3_get_extcon(dwc);
 	if (IS_ERR(dwc->edev)) {
 		ret = dev_err_probe(dwc->dev, PTR_ERR(dwc->edev), "failed to get extcon\n");
-		goto err3;
+		goto err_free_event_buffers;
 	}
 
 	ret = dwc3_get_dr_mode(dwc);
 	if (ret)
-		goto err3;
+		goto err_free_event_buffers;
 
 	ret = dwc3_core_init(dwc);
 	if (ret) {
 		dev_err_probe(dev, ret, "failed to initialize core\n");
-		goto err3;
+		goto err_free_event_buffers;
 	}
 
 	dwc3_check_params(dwc);
@@ -1839,13 +1839,13 @@ static int dwc3_probe(struct platform_device *pdev)
 
 	ret = dwc3_core_init_mode(dwc);
 	if (ret)
-		goto err5;
+		goto err_exit_debugfs;
 
 	pm_runtime_put(dev);
 
 	return 0;
 
-err5:
+err_exit_debugfs:
 	dwc3_debugfs_exit(dwc);
 	dwc3_event_buffers_cleanup(dwc);
 
@@ -1860,20 +1860,19 @@ err5:
 	phy_exit(dwc->usb3_generic_phy);
 
 	dwc3_ulpi_exit(dwc);
-err3:
+err_free_event_buffers:
 	dwc3_free_event_buffers(dwc);
-
-err2:
+err_allow_rpm:
 	pm_runtime_allow(dev);
 	pm_runtime_disable(dev);
 	pm_runtime_dont_use_autosuspend(dev);
 	pm_runtime_set_suspended(dev);
 	pm_runtime_put_noidle(dev);
-disable_clks:
+err_disable_clks:
 	dwc3_clk_disable(dwc);
-assert_reset:
+err_assert_reset:
 	reset_control_assert(dwc->reset);
-put_usb_psy:
+err_put_psy:
 	if (dwc->usb_psy)
 		power_supply_put(dwc->usb_psy);
 
