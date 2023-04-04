@@ -36,13 +36,12 @@ void hda_bus_ml_get_capabilities(struct hdac_bus *bus)
 
 void hda_bus_ml_free(struct hdac_bus *bus)
 {
-	struct hdac_ext_link *hlink;
+	struct hdac_ext_link *hlink, *_h;
 
 	if (!bus->mlcap)
 		return;
 
-	while (!list_empty(&bus->hlink_list)) {
-		hlink = list_first_entry(&bus->hlink_list, struct hdac_ext_link, list);
+	list_for_each_entry_safe(hlink, _h, &bus->hlink_list, list) {
 		list_del(&hlink->list);
 		kfree(hlink);
 	}
