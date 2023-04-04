@@ -5459,7 +5459,7 @@ static int check_ptr_to_btf_access(struct bpf_verifier_env *env,
 	const struct btf_type *t = btf_type_by_id(reg->btf, reg->btf_id);
 	const char *tname = btf_name_by_offset(reg->btf, t->name_off);
 	enum bpf_type_flag flag = 0;
-	u32 btf_id;
+	u32 btf_id = 0;
 	int ret;
 
 	if (!env->allow_ptr_leaks) {
@@ -5509,7 +5509,7 @@ static int check_ptr_to_btf_access(struct bpf_verifier_env *env,
 			verbose(env, "verifier internal error: reg->btf must be kernel btf\n");
 			return -EFAULT;
 		}
-		ret = env->ops->btf_struct_access(&env->log, reg, off, size, atype, &btf_id, &flag);
+		ret = env->ops->btf_struct_access(&env->log, reg, off, size);
 	} else {
 		/* Writes are permitted with default btf_struct_access for
 		 * program allocated objects (which always have ref_obj_id > 0),
