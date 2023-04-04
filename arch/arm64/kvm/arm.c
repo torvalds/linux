@@ -1444,6 +1444,8 @@ static int kvm_vm_ioctl_set_device_addr(struct kvm *kvm,
 static int kvm_vm_has_attr(struct kvm *kvm, struct kvm_device_attr *attr)
 {
 	switch (attr->group) {
+	case KVM_ARM_VM_SMCCC_CTRL:
+		return kvm_vm_smccc_has_attr(kvm, attr);
 	default:
 		return -ENXIO;
 	}
@@ -1452,6 +1454,8 @@ static int kvm_vm_has_attr(struct kvm *kvm, struct kvm_device_attr *attr)
 static int kvm_vm_set_attr(struct kvm *kvm, struct kvm_device_attr *attr)
 {
 	switch (attr->group) {
+	case KVM_ARM_VM_SMCCC_CTRL:
+		return kvm_vm_smccc_set_attr(kvm, attr);
 	default:
 		return -ENXIO;
 	}

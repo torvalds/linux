@@ -372,6 +372,10 @@ enum {
 #endif
 };
 
+/* Device Control API on vm fd */
+#define KVM_ARM_VM_SMCCC_CTRL		0
+#define   KVM_ARM_VM_SMCCC_FILTER	0
+
 /* Device Control API: ARM VGIC */
 #define KVM_DEV_ARM_VGIC_GRP_ADDR	0
 #define KVM_DEV_ARM_VGIC_GRP_DIST_REGS	1
@@ -477,6 +481,13 @@ enum kvm_smccc_filter_action {
 #ifdef __KERNEL__
 	NR_SMCCC_FILTER_ACTIONS
 #endif
+};
+
+struct kvm_smccc_filter {
+	__u32 base;
+	__u32 nr_functions;
+	__u8 action;
+	__u8 pad[15];
 };
 
 /* arm64-specific KVM_EXIT_HYPERCALL flags */

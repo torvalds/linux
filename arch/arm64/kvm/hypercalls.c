@@ -145,6 +145,44 @@ static void init_smccc_filter(struct kvm *kvm)
 	WARN_ON_ONCE(r);
 }
 
+static int kvm_smccc_set_filter(struct kvm *kvm, struct kvm_smccc_filter __user *uaddr)
+{
+	const void *zero_page = page_to_virt(ZERO_PAGE(0));
+	struct kvm_smccc_filter filter;
+	u32 start, end;
+	int r;
+
+	if (copy_from_user(&filter, uaddr, sizeof(filter)))
+		return -EFAULT;
+
+	if (memcmp(filter.pad, zero_page, sizeof(filter.pad)))
+		return -EINVAL;
+
+	start = filter.base;
+	end = start + filter.nr_functions - 1;
+
+	if (end < start || filter.action >= NR_SMCCC_FILTER_ACTIONS)
+		return -EINVAL;
+
+	mutex_lock(&kvm->lock);
+
+	if (kvm_vm_has_ran_once(kvm)) {
+		r = -EBUSY;
+		goto out_unlock;
+	}
+
+	r = mtree_insert_range(&kvm->arch.smccc_filter, start, end,
+			       xa_mk_value(filter.action), GFP_KERNEL_ACCOUNT);
+	if (r)
+		goto out_unlock;
+
+	set_bit(KVM_ARCH_FLAG_SMCCC_FILTER_CONFIGURED, &kvm->arch.flags);
+
+out_unlock:
+	mutex_unlock(&kvm->lock);
+	return r;
+}
+
 static u8 kvm_smccc_filter_get_action(struct kvm *kvm, u32 func_id)
 {
 	unsigned long idx = func_id;
@@ -568,4 +606,26 @@ int kvm_arm_set_fw_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 	}
 
 	return -EINVAL;
+}
+
+int kvm_vm_smccc_has_attr(struct kvm *kvm, struct kvm_device_attr *attr)
+{
+	switch (attr->attr) {
+	case KVM_ARM_VM_SMCCC_FILTER:
+		return 0;
+	default:
+		return -ENXIO;
+	}
+}
+
+int kvm_vm_smccc_set_attr(struct kvm *kvm, struct kvm_device_attr *attr)
+{
+	void __user *uaddr = (void __user *)attr->addr;
+
+	switch (attr->attr) {
+	case KVM_ARM_VM_SMCCC_FILTER:
+		return kvm_smccc_set_filter(kvm, uaddr);
+	default:
+		return -ENXIO;
+	}
 }
