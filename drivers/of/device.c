@@ -246,15 +246,6 @@ const void *of_device_get_match_data(const struct device *dev)
 }
 EXPORT_SYMBOL(of_device_get_match_data);
 
-int of_device_request_module(struct device *dev)
-{
-	if (!dev)
-		return -ENODEV;
-
-	return of_request_module(dev->of_node);
-}
-EXPORT_SYMBOL_GPL(of_device_request_module);
-
 /**
  * of_device_modalias - Fill buffer with newline terminated modalias string
  * @dev:	Calling device
