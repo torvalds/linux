@@ -905,7 +905,7 @@ static int amd_pstate_change_driver_mode(int mode)
 	return 0;
 }
 
-cppc_mode_transition_fn mode_state_machine[AMD_PSTATE_MAX][AMD_PSTATE_MAX] = {
+static cppc_mode_transition_fn mode_state_machine[AMD_PSTATE_MAX][AMD_PSTATE_MAX] = {
 	[AMD_PSTATE_DISABLE]         = {
 		[AMD_PSTATE_DISABLE]     = NULL,
 		[AMD_PSTATE_PASSIVE]     = amd_pstate_register_driver,
