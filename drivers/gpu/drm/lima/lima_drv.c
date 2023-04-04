@@ -218,11 +218,6 @@ static int lima_drm_driver_open(struct drm_device *dev, struct drm_file *file)
 	if (!priv)
 		return -ENOMEM;
 
-	err = xa_alloc_cyclic(&ldev->active_contexts, &priv->id, priv,
-			      xa_limit_32b, &ldev->next_context_id, GFP_KERNEL);
-	if (err < 0)
-		goto err_out0;
-
 	priv->vm = lima_vm_create(ldev);
 	if (!priv->vm) {
 		err = -ENOMEM;
@@ -242,9 +237,6 @@ err_out0:
 static void lima_drm_driver_postclose(struct drm_device *dev, struct drm_file *file)
 {
 	struct lima_drm_priv *priv = file->driver_priv;
-	struct lima_device *ldev = to_lima_dev(dev);
-
-	xa_erase(&ldev->active_contexts, priv->id);
 
 	lima_ctx_mgr_fini(&priv->ctx_mgr);
 	lima_vm_put(priv->vm);
@@ -396,8 +388,6 @@ static int lima_pdev_probe(struct platform_device *pdev)
 	ldev->dev = &pdev->dev;
 	ldev->id = (enum lima_gpu_id)of_device_get_match_data(&pdev->dev);
 
-	xa_init_flags(&ldev->active_contexts, XA_FLAGS_ALLOC);
-
 	platform_set_drvdata(pdev, ldev);
 
 	/* Allocate and initialize the DRM device. */
@@ -455,8 +445,6 @@ static int lima_pdev_remove(struct platform_device *pdev)
 {
 	struct lima_device *ldev = platform_get_drvdata(pdev);
 	struct drm_device *ddev = ldev->ddev;
-
-	xa_destroy(&ldev->active_contexts);
 
 	sysfs_remove_bin_file(&ldev->dev->kobj, &lima_error_state_attr);
 
