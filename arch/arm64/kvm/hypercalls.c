@@ -121,8 +121,58 @@ static bool kvm_smccc_test_fw_bmap(struct kvm_vcpu *vcpu, u32 func_id)
 	}
 }
 
+#define SMCCC_ARCH_RANGE_BEGIN	ARM_SMCCC_VERSION_FUNC_ID
+#define SMCCC_ARCH_RANGE_END				\
+	ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL,		\
+			   ARM_SMCCC_SMC_32,		\
+			   0, ARM_SMCCC_FUNC_MASK)
+
+static void init_smccc_filter(struct kvm *kvm)
+{
+	int r;
+
+	mt_init(&kvm->arch.smccc_filter);
+
+	/*
+	 * Prevent userspace from handling any SMCCC calls in the architecture
+	 * range, avoiding the risk of misrepresenting Spectre mitigation status
+	 * to the guest.
+	 */
+	r = mtree_insert_range(&kvm->arch.smccc_filter,
+			       SMCCC_ARCH_RANGE_BEGIN, SMCCC_ARCH_RANGE_END,
+			       xa_mk_value(KVM_SMCCC_FILTER_HANDLE),
+			       GFP_KERNEL_ACCOUNT);
+	WARN_ON_ONCE(r);
+}
+
+static u8 kvm_smccc_filter_get_action(struct kvm *kvm, u32 func_id)
+{
+	unsigned long idx = func_id;
+	void *val;
+
+	if (!test_bit(KVM_ARCH_FLAG_SMCCC_FILTER_CONFIGURED, &kvm->arch.flags))
+		return KVM_SMCCC_FILTER_HANDLE;
+
+	/*
+	 * But where's the error handling, you say?
+	 *
+	 * mt_find() returns NULL if no entry was found, which just so happens
+	 * to match KVM_SMCCC_FILTER_HANDLE.
+	 */
+	val = mt_find(&kvm->arch.smccc_filter, &idx, idx);
+	return xa_to_value(val);
+}
+
 static u8 kvm_smccc_get_action(struct kvm_vcpu *vcpu, u32 func_id)
 {
+	/*
+	 * Intervening actions in the SMCCC filter take precedence over the
+	 * pseudo-firmware register bitmaps.
+	 */
+	u8 action = kvm_smccc_filter_get_action(vcpu->kvm, func_id);
+	if (action != KVM_SMCCC_FILTER_HANDLE)
+		return action;
+
 	if (kvm_smccc_test_fw_bmap(vcpu, func_id) ||
 	    kvm_smccc_default_allowed(func_id))
 		return KVM_SMCCC_FILTER_HANDLE;
@@ -263,6 +313,13 @@ void kvm_arm_init_hypercalls(struct kvm *kvm)
 	smccc_feat->std_bmap = KVM_ARM_SMCCC_STD_FEATURES;
 	smccc_feat->std_hyp_bmap = KVM_ARM_SMCCC_STD_HYP_FEATURES;
 	smccc_feat->vendor_hyp_bmap = KVM_ARM_SMCCC_VENDOR_HYP_FEATURES;
+
+	init_smccc_filter(kvm);
+}
+
+void kvm_arm_teardown_hypercalls(struct kvm *kvm)
+{
+	mtree_destroy(&kvm->arch.smccc_filter);
 }
 
 int kvm_arm_get_fw_num_regs(struct kvm_vcpu *vcpu)
