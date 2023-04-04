@@ -236,7 +236,7 @@ void io_rsrc_node_switch(struct io_ring_ctx *ctx,
 
 		atomic_inc(&data_to_kill->refs);
 		/* put master ref */
-		io_put_rsrc_node(rsrc_node);
+		io_put_rsrc_node(ctx, rsrc_node);
 		ctx->rsrc_node = NULL;
 	}
 

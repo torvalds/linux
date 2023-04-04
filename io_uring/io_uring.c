@@ -1002,7 +1002,7 @@ static void __io_req_complete_post(struct io_kiocb *req, unsigned issue_flags)
 
 	if (rsrc_node) {
 		io_ring_submit_lock(ctx, issue_flags);
-		io_put_rsrc_node(rsrc_node);
+		io_put_rsrc_node(ctx, rsrc_node);
 		io_ring_submit_unlock(ctx, issue_flags);
 	}
 }
@@ -1123,7 +1123,7 @@ static __cold void io_free_req_tw(struct io_kiocb *req, struct io_tw_state *ts)
 
 	if (req->rsrc_node) {
 		io_tw_lock(ctx, ts);
-		io_put_rsrc_node(req->rsrc_node);
+		io_put_rsrc_node(ctx, req->rsrc_node);
 	}
 	io_dismantle_req(req);
 	io_put_task_remote(req->task, 1);
