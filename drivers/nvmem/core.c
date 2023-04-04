@@ -755,7 +755,7 @@ EXPORT_SYMBOL_GPL(nvmem_layout_unregister);
 static struct nvmem_layout *nvmem_layout_get(struct nvmem_device *nvmem)
 {
 	struct device_node *layout_np, *np = nvmem->dev.of_node;
-	struct nvmem_layout *l, *layout = NULL;
+	struct nvmem_layout *l, *layout = ERR_PTR(-EPROBE_DEFER);
 
 	layout_np = of_get_child_by_name(np, "nvmem-layout");
 	if (!layout_np)
@@ -938,6 +938,13 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 	 * pointer will be NULL and nvmem_layout_put() will be a noop.
 	 */
 	nvmem->layout = config->layout ?: nvmem_layout_get(nvmem);
+	if (IS_ERR(nvmem->layout)) {
+		rval = PTR_ERR(nvmem->layout);
+		nvmem->layout = NULL;
+
+		if (rval == -EPROBE_DEFER)
+			goto err_teardown_compat;
+	}
 
 	if (config->cells) {
 		rval = nvmem_add_cells(nvmem, config->cells, config->ncells);
@@ -970,6 +977,7 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 err_remove_cells:
 	nvmem_device_remove_all_cells(nvmem);
 	nvmem_layout_put(nvmem->layout);
+err_teardown_compat:
 	if (config->compat)
 		nvmem_sysfs_remove_compat(nvmem, config);
 err_put_device:
