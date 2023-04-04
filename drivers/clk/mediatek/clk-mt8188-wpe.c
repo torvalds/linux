@@ -4,9 +4,11 @@
  * Author: Garmin Chang <garmin.chang@mediatek.com>
  */
 
-#include <dt-bindings/clock/mediatek,mt8188-clk.h>
 #include <linux/clk-provider.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
+
+#include <dt-bindings/clock/mediatek,mt8188-clk.h>
 
 #include "clk-gate.h"
 #include "clk-mtk.h"
@@ -88,7 +90,7 @@ static const struct of_device_id of_match_clk_mt8188_wpe[] = {
 	{ .compatible = "mediatek,mt8188-wpesys-vpp0", .data = &wpe_vpp0_desc },
 	{ /* sentinel */ }
 };
-MODULE_DEVICE_TABLE(platform, clk_mt8188_vpp1_id_table);
+MODULE_DEVICE_TABLE(of, of_match_clk_mt8188_wpe);
 
 static struct platform_driver clk_mt8188_wpe_drv = {
 	.probe = mtk_clk_simple_probe,
