@@ -8,6 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
+#include <linux/of_device.h>
 #include <linux/phy.h>
 
 #define PHY_ID_YT8511		0x0000010a
@@ -235,8 +236,19 @@ static int ytphy_soft_reset(struct phy_device *phydev)
 
 static int yt8512_clk_init(struct phy_device *phydev)
 {
+	struct device_node *node = phydev->mdio.dev.of_node;
+	const char *strings = NULL;
 	int ret;
 	int val;
+
+	if (node && node->parent && node->parent->parent) {
+		ret = of_property_read_string(node->parent->parent,
+					      "clock_in_out", &strings);
+		if (!ret) {
+			if (!strcmp(strings, "input"))
+				return 0;
+		}
+	}
 
 	val = ytphy_read_ext(phydev, YT8512_EXTREG_AFE_PLL);
 	if (val < 0)
