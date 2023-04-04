@@ -1537,6 +1537,27 @@ static void drm_fb_helper_fill_pixel_fmt(struct fb_var_screeninfo *var,
 	}
 }
 
+static void __fill_var(struct fb_var_screeninfo *var,
+		       struct drm_framebuffer *fb)
+{
+	int i;
+
+	var->xres_virtual = fb->width;
+	var->yres_virtual = fb->height;
+	var->accel_flags = FB_ACCELF_TEXT;
+	var->bits_per_pixel = drm_format_info_bpp(fb->format, 0);
+
+	var->height = var->width = 0;
+	var->left_margin = var->right_margin = 0;
+	var->upper_margin = var->lower_margin = 0;
+	var->hsync_len = var->vsync_len = 0;
+	var->sync = var->vmode = 0;
+	var->rotate = 0;
+	var->colorspace = 0;
+	for (i = 0; i < 4; i++)
+		var->reserved[i] = 0;
+}
+
 /**
  * drm_fb_helper_check_var - implementation for &fb_ops.fb_check_var
  * @var: screeninfo to check
@@ -1589,8 +1610,22 @@ int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 		return -EINVAL;
 	}
 
-	var->xres_virtual = fb->width;
-	var->yres_virtual = fb->height;
+	__fill_var(var, fb);
+
+	/*
+	 * fb_pan_display() validates this, but fb_set_par() doesn't and just
+	 * falls over. Note that __fill_var above adjusts y/res_virtual.
+	 */
+	if (var->yoffset > var->yres_virtual - var->yres ||
+	    var->xoffset > var->xres_virtual - var->xres)
+		return -EINVAL;
+
+	/* We neither support grayscale nor FOURCC (also stored in here). */
+	if (var->grayscale > 0)
+		return -EINVAL;
+
+	if (var->nonstd)
+		return -EINVAL;
 
 	/*
 	 * Workaround for SDL 1.2, which is known to be setting all pixel format
@@ -1605,11 +1640,6 @@ int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 	    !var->blue.msb_right && !var->transp.msb_right) {
 		drm_fb_helper_fill_pixel_fmt(var, format);
 	}
-
-	/*
-	 * Likewise, bits_per_pixel should be rounded up to a supported value.
-	 */
-	var->bits_per_pixel = bpp;
 
 	/*
 	 * drm fbdev emulation doesn't support changing the pixel format at all,
@@ -2034,12 +2064,9 @@ static void drm_fb_helper_fill_var(struct fb_info *info,
 	}
 
 	info->pseudo_palette = fb_helper->pseudo_palette;
-	info->var.xres_virtual = fb->width;
-	info->var.yres_virtual = fb->height;
-	info->var.bits_per_pixel = drm_format_info_bpp(format, 0);
-	info->var.accel_flags = FB_ACCELF_TEXT;
 	info->var.xoffset = 0;
 	info->var.yoffset = 0;
+	__fill_var(&info->var, fb);
 	info->var.activate = FB_ACTIVATE_NOW;
 
 	drm_fb_helper_fill_pixel_fmt(&info->var, format);
