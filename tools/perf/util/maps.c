@@ -26,6 +26,9 @@ static void __maps__free_maps_by_name(struct maps *maps)
 	/*
 	 * Free everything to try to do it from the rbtree in the next search
 	 */
+	for (unsigned int i = 0; i < maps__nr_maps(maps); i++)
+		map__put(maps__maps_by_name(maps)[i]);
+
 	zfree(&maps->maps_by_name);
 	maps->nr_maps_allocated = 0;
 }
@@ -42,7 +45,7 @@ static int __maps__insert(struct maps *maps, struct map *map)
 		return -ENOMEM;
 
 	RB_CLEAR_NODE(&new_rb_node->rb_node);
-	new_rb_node->map = map;
+	new_rb_node->map = map__get(map);
 
 	while (*p != NULL) {
 		parent = *p;
@@ -55,7 +58,6 @@ static int __maps__insert(struct maps *maps, struct map *map)
 
 	rb_link_node(&new_rb_node->rb_node, parent, p);
 	rb_insert_color(&new_rb_node->rb_node, maps__entries(maps));
-	map__get(map);
 	return 0;
 }
 
@@ -100,7 +102,7 @@ int maps__insert(struct maps *maps, struct map *map)
 			maps->maps_by_name = maps_by_name;
 			maps->nr_maps_allocated = nr_allocate;
 		}
-		maps__maps_by_name(maps)[maps__nr_maps(maps) - 1] = map;
+		maps__maps_by_name(maps)[maps__nr_maps(maps) - 1] = map__get(map);
 		__maps__sort_by_name(maps);
 	}
  out:
@@ -126,15 +128,18 @@ void maps__remove(struct maps *maps, struct map *map)
 	rb_node = maps__find_node(maps, map);
 	assert(rb_node->map == map);
 	__maps__remove(maps, rb_node);
-	--maps->nr_maps;
 	if (maps__maps_by_name(maps))
 		__maps__free_maps_by_name(maps);
+	--maps->nr_maps;
 	up_write(maps__lock(maps));
 }
 
 static void __maps__purge(struct maps *maps)
 {
 	struct map_rb_node *pos, *next;
+
+	if (maps__maps_by_name(maps))
+		__maps__free_maps_by_name(maps);
 
 	maps__for_each_entry_safe(maps, pos, next) {
 		rb_erase_init(&pos->rb_node,  maps__entries(maps));
@@ -293,7 +298,7 @@ int maps__fixup_overlappings(struct maps *maps, struct map *map, FILE *fp)
 	}
 
 	next = first;
-	while (next) {
+	while (next && !err) {
 		struct map_rb_node *pos = rb_entry(next, struct map_rb_node, rb_node);
 		next = rb_next(&pos->rb_node);
 
@@ -331,8 +336,10 @@ int maps__fixup_overlappings(struct maps *maps, struct map *map, FILE *fp)
 
 			before->end = map__start(map);
 			err = __maps__insert(maps, before);
-			if (err)
+			if (err) {
+				map__put(before);
 				goto put_map;
+			}
 
 			if (verbose >= 2 && !use_browser)
 				map__fprintf(before, fp);
@@ -352,22 +359,17 @@ int maps__fixup_overlappings(struct maps *maps, struct map *map, FILE *fp)
 			assert(map__map_ip(pos->map, map__end(map)) ==
 				map__map_ip(after, map__end(map)));
 			err = __maps__insert(maps, after);
-			if (err)
+			if (err) {
+				map__put(after);
 				goto put_map;
-
+			}
 			if (verbose >= 2 && !use_browser)
 				map__fprintf(after, fp);
 			map__put(after);
 		}
 put_map:
 		map__put(pos->map);
-
-		if (err)
-			goto out;
 	}
-
-	err = 0;
-out:
 	up_write(maps__lock(maps));
 	return err;
 }

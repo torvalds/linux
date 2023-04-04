@@ -2053,10 +2053,23 @@ out:
 
 static int map__strcmp(const void *a, const void *b)
 {
-	const struct dso *dso_a = map__dso(*(const struct map **)a);
-	const struct dso *dso_b = map__dso(*(const struct map **)b);
+	const struct map *map_a = *(const struct map **)a;
+	const struct map *map_b = *(const struct map **)b;
+	const struct dso *dso_a = map__dso(map_a);
+	const struct dso *dso_b = map__dso(map_b);
+	int ret = strcmp(dso_a->short_name, dso_b->short_name);
 
-	return strcmp(dso_a->short_name, dso_b->short_name);
+	if (ret == 0 && map_a != map_b) {
+		/*
+		 * Ensure distinct but name equal maps have an order in part to
+		 * aid reference counting.
+		 */
+		ret = (int)map__start(map_a) - (int)map__start(map_b);
+		if (ret == 0)
+			ret = (int)((intptr_t)map_a - (intptr_t)map_b);
+	}
+
+	return ret;
 }
 
 static int map__strcmp_name(const void *name, const void *b)
@@ -2088,7 +2101,7 @@ static int map__groups__sort_by_name_from_rbtree(struct maps *maps)
 	maps->nr_maps_allocated = maps__nr_maps(maps);
 
 	maps__for_each_entry(maps, rb_node)
-		maps_by_name[i++] = rb_node->map;
+		maps_by_name[i++] = map__get(rb_node->map);
 
 	__maps__sort_by_name(maps);
 
