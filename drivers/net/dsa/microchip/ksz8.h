@@ -32,6 +32,10 @@ void ksz8_freeze_mib(struct ksz_device *dev, int port, bool freeze);
 void ksz8_port_init_cnt(struct ksz_device *dev, int port);
 int ksz8_fdb_dump(struct ksz_device *dev, int port,
 		  dsa_fdb_dump_cb_t *cb, void *data);
+int ksz8_fdb_add(struct ksz_device *dev, int port, const unsigned char *addr,
+		 u16 vid, struct dsa_db db);
+int ksz8_fdb_del(struct ksz_device *dev, int port, const unsigned char *addr,
+		 u16 vid, struct dsa_db db);
 int ksz8_mdb_add(struct ksz_device *dev, int port,
 		 const struct switchdev_obj_port_mdb *mdb, struct dsa_db db);
 int ksz8_mdb_del(struct ksz_device *dev, int port,

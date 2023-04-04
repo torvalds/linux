@@ -1061,6 +1061,18 @@ int ksz8_mdb_del(struct ksz_device *dev, int port,
 	return ksz8_del_sta_mac(dev, port, mdb->addr, mdb->vid);
 }
 
+int ksz8_fdb_add(struct ksz_device *dev, int port, const unsigned char *addr,
+		 u16 vid, struct dsa_db db)
+{
+	return ksz8_add_sta_mac(dev, port, addr, vid);
+}
+
+int ksz8_fdb_del(struct ksz_device *dev, int port, const unsigned char *addr,
+		 u16 vid, struct dsa_db db)
+{
+	return ksz8_del_sta_mac(dev, port, addr, vid);
+}
+
 int ksz8_port_vlan_filtering(struct ksz_device *dev, int port, bool flag,
 			     struct netlink_ext_ack *extack)
 {
