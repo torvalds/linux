@@ -79,8 +79,8 @@ struct mcp_get_gpio {
 	u8 cmd;
 	u8 dummy;
 	struct {
-		u8 direction;
 		u8 value;
+		u8 direction;
 	} gpio[MCP_NGPIO];
 } __packed;
 
