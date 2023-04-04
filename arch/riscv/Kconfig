@@ -142,11 +142,22 @@ config RISCV
 	select TRACE_IRQFLAGS_SUPPORT
 	select UACCESS_MEMCPY if !MMU
 	select ZONE_DMA32 if 64BIT
-	select HAVE_DYNAMIC_FTRACE if !XIP_KERNEL && MMU && $(cc-option,-fpatchable-function-entry=8)
+	select HAVE_DYNAMIC_FTRACE if !XIP_KERNEL && MMU && (CLANG_SUPPORTS_DYNAMIC_FTRACE || GCC_SUPPORTS_DYNAMIC_FTRACE)
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS if HAVE_DYNAMIC_FTRACE
 	select HAVE_FTRACE_MCOUNT_RECORD if !XIP_KERNEL
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACER if !XIP_KERNEL && !PREEMPTION
+
+config CLANG_SUPPORTS_DYNAMIC_FTRACE
+	def_bool CC_IS_CLANG
+	# https://github.com/llvm/llvm-project/commit/6ab8927931851bb42b2c93a00801dc499d7d9b1e
+	depends on CLANG_VERSION >= 130000
+	# https://github.com/ClangBuiltLinux/linux/issues/1817
+	depends on AS_IS_GNU || (AS_IS_LLVM && (LD_IS_LLD || LD_VERSION >= 23600))
+
+config GCC_SUPPORTS_DYNAMIC_FTRACE
+	def_bool CC_IS_GCC
+	depends on $(cc-option,-fpatchable-function-entry=8)
 
 config ARCH_MMAP_RND_BITS_MIN
 	default 18 if 64BIT
