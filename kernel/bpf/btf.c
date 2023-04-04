@@ -6166,7 +6166,8 @@ enum bpf_struct_walk_result {
 
 static int btf_struct_walk(struct bpf_verifier_log *log, const struct btf *btf,
 			   const struct btf_type *t, int off, int size,
-			   u32 *next_btf_id, enum bpf_type_flag *flag)
+			   u32 *next_btf_id, enum bpf_type_flag *flag,
+			   const char **field_name)
 {
 	u32 i, moff, mtrue_end, msize = 0, total_nelems = 0;
 	const struct btf_type *mtype, *elem_type = NULL;
@@ -6395,6 +6396,8 @@ error:
 			if (btf_type_is_struct(stype)) {
 				*next_btf_id = id;
 				*flag |= tmp_flag;
+				if (field_name)
+					*field_name = mname;
 				return WALK_PTR;
 			}
 		}
@@ -6421,7 +6424,8 @@ error:
 int btf_struct_access(struct bpf_verifier_log *log,
 		      const struct bpf_reg_state *reg,
 		      int off, int size, enum bpf_access_type atype __maybe_unused,
-		      u32 *next_btf_id, enum bpf_type_flag *flag)
+		      u32 *next_btf_id, enum bpf_type_flag *flag,
+		      const char **field_name)
 {
 	const struct btf *btf = reg->btf;
 	enum bpf_type_flag tmp_flag = 0;
@@ -6453,7 +6457,7 @@ int btf_struct_access(struct bpf_verifier_log *log,
 
 	t = btf_type_by_id(btf, id);
 	do {
-		err = btf_struct_walk(log, btf, t, off, size, &id, &tmp_flag);
+		err = btf_struct_walk(log, btf, t, off, size, &id, &tmp_flag, field_name);
 
 		switch (err) {
 		case WALK_PTR:
@@ -6528,7 +6532,7 @@ again:
 	type = btf_type_by_id(btf, id);
 	if (!type)
 		return false;
-	err = btf_struct_walk(log, btf, type, off, 1, &id, &flag);
+	err = btf_struct_walk(log, btf, type, off, 1, &id, &flag, NULL);
 	if (err != WALK_STRUCT)
 		return false;
 
@@ -8488,16 +8492,15 @@ out:
 
 bool btf_nested_type_is_trusted(struct bpf_verifier_log *log,
 				const struct bpf_reg_state *reg,
-				int off, const char *suffix)
+				const char *field_name, u32 btf_id, const char *suffix)
 {
 	struct btf *btf = reg->btf;
 	const struct btf_type *walk_type, *safe_type;
 	const char *tname;
 	char safe_tname[64];
 	long ret, safe_id;
-	const struct btf_member *member, *m_walk = NULL;
+	const struct btf_member *member;
 	u32 i;
-	const char *walk_name;
 
 	walk_type = btf_type_by_id(btf, reg->btf_id);
 	if (!walk_type)
@@ -8517,30 +8520,17 @@ bool btf_nested_type_is_trusted(struct bpf_verifier_log *log,
 	if (!safe_type)
 		return false;
 
-	for_each_member(i, walk_type, member) {
-		u32 moff;
-
-		/* We're looking for the PTR_TO_BTF_ID member in the struct
-		 * type we're walking which matches the specified offset.
-		 * Below, we'll iterate over the fields in the safe variant of
-		 * the struct and see if any of them has a matching type /
-		 * name.
-		 */
-		moff = __btf_member_bit_offset(walk_type, member) / 8;
-		if (off == moff) {
-			m_walk = member;
-			break;
-		}
-	}
-	if (m_walk == NULL)
-		return false;
-
-	walk_name = __btf_name_by_offset(btf, m_walk->name_off);
 	for_each_member(i, safe_type, member) {
 		const char *m_name = __btf_name_by_offset(btf, member->name_off);
+		const struct btf_type *mtype = btf_type_by_id(btf, member->type);
+		u32 id;
 
+		if (!btf_type_is_ptr(mtype))
+			continue;
+
+		btf_type_skip_modifiers(btf, mtype->type, &id);
 		/* If we match on both type and name, the field is considered trusted. */
-		if (m_walk->type == member->type && !strcmp(walk_name, m_name))
+		if (btf_id == id && !strcmp(field_name, m_name))
 			return true;
 	}
 

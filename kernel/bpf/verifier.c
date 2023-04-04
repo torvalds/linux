@@ -5400,12 +5400,12 @@ BTF_TYPE_SAFE_RCU(struct css_set) {
 
 /* full trusted: these fields are trusted even outside of RCU CS and never NULL */
 BTF_TYPE_SAFE_TRUSTED(struct bpf_iter_meta) {
-	__bpf_md_ptr(struct seq_file *, seq);
+	struct seq_file *seq;
 };
 
 BTF_TYPE_SAFE_TRUSTED(struct bpf_iter__task) {
-	__bpf_md_ptr(struct bpf_iter_meta *, meta);
-	__bpf_md_ptr(struct task_struct *, task);
+	struct bpf_iter_meta *meta;
+	struct task_struct *task;
 };
 
 BTF_TYPE_SAFE_TRUSTED(struct linux_binprm) {
@@ -5427,17 +5427,17 @@ BTF_TYPE_SAFE_TRUSTED(struct socket) {
 
 static bool type_is_rcu(struct bpf_verifier_env *env,
 			struct bpf_reg_state *reg,
-			int off)
+			const char *field_name, u32 btf_id)
 {
 	BTF_TYPE_EMIT(BTF_TYPE_SAFE_RCU(struct task_struct));
 	BTF_TYPE_EMIT(BTF_TYPE_SAFE_RCU(struct css_set));
 
-	return btf_nested_type_is_trusted(&env->log, reg, off, "__safe_rcu");
+	return btf_nested_type_is_trusted(&env->log, reg, field_name, btf_id, "__safe_rcu");
 }
 
 static bool type_is_trusted(struct bpf_verifier_env *env,
 			    struct bpf_reg_state *reg,
-			    int off)
+			    const char *field_name, u32 btf_id)
 {
 	BTF_TYPE_EMIT(BTF_TYPE_SAFE_TRUSTED(struct bpf_iter_meta));
 	BTF_TYPE_EMIT(BTF_TYPE_SAFE_TRUSTED(struct bpf_iter__task));
@@ -5446,7 +5446,7 @@ static bool type_is_trusted(struct bpf_verifier_env *env,
 	BTF_TYPE_EMIT(BTF_TYPE_SAFE_TRUSTED(struct dentry));
 	BTF_TYPE_EMIT(BTF_TYPE_SAFE_TRUSTED(struct socket));
 
-	return btf_nested_type_is_trusted(&env->log, reg, off, "__safe_trusted");
+	return btf_nested_type_is_trusted(&env->log, reg, field_name, btf_id, "__safe_trusted");
 }
 
 static int check_ptr_to_btf_access(struct bpf_verifier_env *env,
@@ -5458,6 +5458,7 @@ static int check_ptr_to_btf_access(struct bpf_verifier_env *env,
 	struct bpf_reg_state *reg = regs + regno;
 	const struct btf_type *t = btf_type_by_id(reg->btf, reg->btf_id);
 	const char *tname = btf_name_by_offset(reg->btf, t->name_off);
+	const char *field_name = NULL;
 	enum bpf_type_flag flag = 0;
 	u32 btf_id = 0;
 	int ret;
@@ -5526,7 +5527,7 @@ static int check_ptr_to_btf_access(struct bpf_verifier_env *env,
 			return -EFAULT;
 		}
 
-		ret = btf_struct_access(&env->log, reg, off, size, atype, &btf_id, &flag);
+		ret = btf_struct_access(&env->log, reg, off, size, atype, &btf_id, &flag, &field_name);
 	}
 
 	if (ret < 0)
@@ -5554,10 +5555,10 @@ static int check_ptr_to_btf_access(struct bpf_verifier_env *env,
 		 * A regular RCU-protected pointer with __rcu tag can also be deemed
 		 * trusted if we are in an RCU CS. Such pointer can be NULL.
 		 */
-		if (type_is_trusted(env, reg, off)) {
+		if (type_is_trusted(env, reg, field_name, btf_id)) {
 			flag |= PTR_TRUSTED;
 		} else if (in_rcu_cs(env) && !type_may_be_null(reg->type)) {
-			if (type_is_rcu(env, reg, off)) {
+			if (type_is_rcu(env, reg, field_name, btf_id)) {
 				/* ignore __rcu tag and mark it MEM_RCU */
 				flag |= MEM_RCU;
 			} else if (flag & MEM_RCU) {
@@ -5640,7 +5641,7 @@ static int check_ptr_to_map_access(struct bpf_verifier_env *env,
 	/* Simulate access to a PTR_TO_BTF_ID */
 	memset(&map_reg, 0, sizeof(map_reg));
 	mark_btf_ld_reg(env, &map_reg, 0, PTR_TO_BTF_ID, btf_vmlinux, *map->ops->map_btf_id, 0);
-	ret = btf_struct_access(&env->log, &map_reg, off, size, atype, &btf_id, &flag);
+	ret = btf_struct_access(&env->log, &map_reg, off, size, atype, &btf_id, &flag, NULL);
 	if (ret < 0)
 		return ret;
 
