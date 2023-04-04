@@ -255,8 +255,12 @@ void hda_bus_ml_put_all(struct hdac_bus *bus)
 {
 	struct hdac_ext_link *hlink;
 
-	list_for_each_entry(hlink, &bus->hlink_list, list)
-		snd_hdac_ext_bus_link_put(bus, hlink);
+	list_for_each_entry(hlink, &bus->hlink_list, list) {
+		struct hdac_ext2_link *h2link = hdac_ext_link_to_ext2(hlink);
+
+		if (!h2link->alt)
+			snd_hdac_ext_bus_link_put(bus, hlink);
+	}
 }
 EXPORT_SYMBOL_NS(hda_bus_ml_put_all, SND_SOC_SOF_HDA_MLINK);
 
@@ -277,7 +281,9 @@ int hda_bus_ml_resume(struct hdac_bus *bus)
 
 	/* power up links that were active before suspend */
 	list_for_each_entry(hlink, &bus->hlink_list, list) {
-		if (hlink->ref_count) {
+		struct hdac_ext2_link *h2link = hdac_ext_link_to_ext2(hlink);
+
+		if (!h2link->alt && hlink->ref_count) {
 			ret = snd_hdac_ext_bus_link_power_up(hlink);
 			if (ret < 0)
 				return ret;
@@ -289,7 +295,19 @@ EXPORT_SYMBOL_NS(hda_bus_ml_resume, SND_SOC_SOF_HDA_MLINK);
 
 int hda_bus_ml_suspend(struct hdac_bus *bus)
 {
-	return snd_hdac_ext_bus_link_power_down_all(bus);
+	struct hdac_ext_link *hlink;
+	int ret;
+
+	list_for_each_entry(hlink, &bus->hlink_list, list) {
+		struct hdac_ext2_link *h2link = hdac_ext_link_to_ext2(hlink);
+
+		if (!h2link->alt) {
+			ret = snd_hdac_ext_bus_link_power_down(hlink);
+			if (ret < 0)
+				return ret;
+		}
+	}
+	return 0;
 }
 EXPORT_SYMBOL_NS(hda_bus_ml_suspend, SND_SOC_SOF_HDA_MLINK);
 
