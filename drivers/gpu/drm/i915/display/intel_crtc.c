@@ -510,6 +510,13 @@ void intel_pipe_update_start(struct intel_crtc_state *new_crtc_state)
 						      VBLANK_EVASION_TIME_US);
 	max = vblank_start - 1;
 
+	/*
+	 * M/N is double buffered on the transcoder's undelayed vblank,
+	 * so with seamless M/N we must evade both vblanks.
+	 */
+	if (new_crtc_state->seamless_m_n && intel_crtc_needs_fastset(new_crtc_state))
+		min -= adjusted_mode->crtc_vblank_start - adjusted_mode->crtc_vdisplay;
+
 	if (min <= 0 || max <= 0)
 		goto irq_disable;
 
