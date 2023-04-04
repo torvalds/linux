@@ -163,7 +163,8 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 	obj = ERR_PTR(-ENODEV);
 	if (HAS_LMEM(dev_priv)) {
 		obj = i915_gem_object_create_lmem(dev_priv, size,
-						  I915_BO_ALLOC_CONTIGUOUS);
+						  I915_BO_ALLOC_CONTIGUOUS |
+						  I915_BO_ALLOC_USER);
 	} else {
 		/*
 		 * If the FB is too big, just don't use it since fbdev is not very
