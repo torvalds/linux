@@ -101,27 +101,6 @@ static int map_hdm_decoder_regs(struct cxl_port *port, void __iomem *crb,
 				      BIT(CXL_CM_CAP_CAP_ID_HDM));
 }
 
-static struct cxl_hdm *devm_cxl_setup_emulated_hdm(struct cxl_port *port,
-						   struct cxl_endpoint_dvsec_info *info)
-{
-	struct device *dev = &port->dev;
-	struct cxl_hdm *cxlhdm;
-
-	if (!info->mem_enabled)
-		return ERR_PTR(-ENODEV);
-
-	cxlhdm = devm_kzalloc(dev, sizeof(*cxlhdm), GFP_KERNEL);
-	if (!cxlhdm)
-		return ERR_PTR(-ENOMEM);
-
-	cxlhdm->port = port;
-	cxlhdm->decoder_count = info->ranges;
-	cxlhdm->target_count = info->ranges;
-	dev_set_drvdata(&port->dev, cxlhdm);
-
-	return cxlhdm;
-}
-
 /**
  * devm_cxl_setup_hdm - map HDM decoder component registers
  * @port: cxl_port to map
@@ -138,13 +117,14 @@ struct cxl_hdm *devm_cxl_setup_hdm(struct cxl_port *port,
 	cxlhdm = devm_kzalloc(dev, sizeof(*cxlhdm), GFP_KERNEL);
 	if (!cxlhdm)
 		return ERR_PTR(-ENOMEM);
-
 	cxlhdm->port = port;
-	crb = ioremap(port->component_reg_phys, CXL_COMPONENT_REG_BLOCK_SIZE);
-	if (!crb) {
-		if (info && info->mem_enabled)
-			return devm_cxl_setup_emulated_hdm(port, info);
+	dev_set_drvdata(dev, cxlhdm);
 
+	crb = ioremap(port->component_reg_phys, CXL_COMPONENT_REG_BLOCK_SIZE);
+	if (!crb && info && info->mem_enabled) {
+		cxlhdm->decoder_count = info->ranges;
+		return cxlhdm;
+	} else if (!crb) {
 		dev_err(dev, "No component registers mapped\n");
 		return ERR_PTR(-ENXIO);
 	}
@@ -159,8 +139,6 @@ struct cxl_hdm *devm_cxl_setup_hdm(struct cxl_port *port,
 		dev_err(dev, "Spec violation. Caps invalid\n");
 		return ERR_PTR(-ENXIO);
 	}
-
-	dev_set_drvdata(dev, cxlhdm);
 
 	return cxlhdm;
 }
