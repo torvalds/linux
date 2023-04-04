@@ -310,9 +310,12 @@ static __cold struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	INIT_LIST_HEAD(&ctx->sqd_list);
 	INIT_LIST_HEAD(&ctx->cq_overflow_list);
 	INIT_LIST_HEAD(&ctx->io_buffers_cache);
-	io_alloc_cache_init(&ctx->rsrc_node_cache, sizeof(struct io_rsrc_node));
-	io_alloc_cache_init(&ctx->apoll_cache, sizeof(struct async_poll));
-	io_alloc_cache_init(&ctx->netmsg_cache, sizeof(struct io_async_msghdr));
+	io_alloc_cache_init(&ctx->rsrc_node_cache, IO_NODE_ALLOC_CACHE_MAX,
+			    sizeof(struct io_rsrc_node));
+	io_alloc_cache_init(&ctx->apoll_cache, IO_ALLOC_CACHE_MAX,
+			    sizeof(struct async_poll));
+	io_alloc_cache_init(&ctx->netmsg_cache, IO_ALLOC_CACHE_MAX,
+			    sizeof(struct io_async_msghdr));
 	init_completion(&ctx->ref_comp);
 	xa_init_flags(&ctx->personalities, XA_FLAGS_ALLOC1);
 	mutex_init(&ctx->uring_lock);

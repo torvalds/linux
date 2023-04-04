@@ -13,7 +13,7 @@ struct io_cache_entry {
 static inline bool io_alloc_cache_put(struct io_alloc_cache *cache,
 				      struct io_cache_entry *entry)
 {
-	if (cache->nr_cached < IO_ALLOC_CACHE_MAX) {
+	if (cache->nr_cached < cache->max_cached) {
 		cache->nr_cached++;
 		wq_stack_add_head(&entry->node, &cache->list);
 		/* KASAN poisons object */
@@ -38,10 +38,12 @@ static inline struct io_cache_entry *io_alloc_cache_get(struct io_alloc_cache *c
 	return NULL;
 }
 
-static inline void io_alloc_cache_init(struct io_alloc_cache *cache, size_t size)
+static inline void io_alloc_cache_init(struct io_alloc_cache *cache,
+				       unsigned max_nr, size_t size)
 {
 	cache->list.next = NULL;
 	cache->nr_cached = 0;
+	cache->max_cached = max_nr;
 	cache->elem_size = size;
 }
 
