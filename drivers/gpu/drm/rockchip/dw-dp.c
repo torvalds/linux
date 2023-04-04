@@ -2194,13 +2194,29 @@ static int dw_dp_video_set_pixel_mode(struct dw_dp *dp, u8 pixel_mode)
 	return 0;
 }
 
+static bool dw_dp_video_need_vsc_sdp(struct dw_dp *dp)
+{
+	struct dw_dp_link *link = &dp->link;
+	struct dw_dp_video *video = &dp->video;
+
+	if (!link->vsc_sdp_extension_for_colorimetry_supported)
+		return false;
+
+	if (video->color_format == DRM_COLOR_FORMAT_YCRCB420)
+		return true;
+
+	if (dw_dp_is_hdr_eotf(dp->eotf_type))
+		return true;
+
+	return false;
+}
+
 static int dw_dp_video_set_msa(struct dw_dp *dp, u8 color_format, u8 bpc,
 			       u16 vstart, u16 hstart)
 {
-	struct dw_dp_link *link = &dp->link;
 	u16 misc = 0;
 
-	if (link->vsc_sdp_extension_for_colorimetry_supported)
+	if (dw_dp_video_need_vsc_sdp(dp))
 		misc |= DP_MSA_MISC_COLOR_VSC_SDP;
 
 	switch (color_format) {
@@ -2417,7 +2433,7 @@ static int dw_dp_video_enable(struct dw_dp *dp)
 	regmap_update_bits(dp->regmap, DPTX_VSAMPLE_CTRL, VIDEO_STREAM_ENABLE,
 			   FIELD_PREP(VIDEO_STREAM_ENABLE, 1));
 
-	if (link->vsc_sdp_extension_for_colorimetry_supported)
+	if (dw_dp_video_need_vsc_sdp(dp))
 		dw_dp_send_vsc_sdp(dp);
 
 	if (dw_dp_is_hdr_eotf(dp->eotf_type))
