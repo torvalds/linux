@@ -110,20 +110,6 @@ static unsigned long dcache_size __read_mostly;
 static unsigned long vcache_size __read_mostly;
 static unsigned long scache_size __read_mostly;
 
-/*
- * Dummy cache handling routines for machines without boardcaches
- */
-static void cache_noop(void) {}
-
-static struct bcache_ops no_sc_ops = {
-	.bc_enable = (void *)cache_noop,
-	.bc_disable = (void *)cache_noop,
-	.bc_wback_inv = (void *)cache_noop,
-	.bc_inv = (void *)cache_noop
-};
-
-struct bcache_ops *bcops = &no_sc_ops;
-
 #define cpu_is_r4600_v1_x()	((read_c0_prid() & 0xfffffff0) == 0x00002010)
 #define cpu_is_r4600_v2_x()	((read_c0_prid() & 0xfffffff0) == 0x00002020)
 
