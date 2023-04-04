@@ -36,7 +36,6 @@ struct mcp23s08 {
 	struct mutex		lock;
 
 	struct gpio_chip	chip;
-	struct irq_chip		irq_chip;
 
 	struct regmap		*regmap;
 	struct device		*dev;

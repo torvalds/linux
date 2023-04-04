@@ -10,6 +10,7 @@
 #include <linux/export.h>
 #include <linux/gpio/driver.h>
 #include <linux/gpio/consumer.h>
+#include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <asm/byteorder.h>
 #include <linux/interrupt.h>
@@ -467,17 +468,19 @@ static void mcp23s08_irq_mask(struct irq_data *data)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
 	struct mcp23s08 *mcp = gpiochip_get_data(gc);
-	unsigned int pos = data->hwirq;
+	unsigned int pos = irqd_to_hwirq(data);
 
 	mcp_set_bit(mcp, MCP_GPINTEN, pos, false);
+	gpiochip_disable_irq(gc, pos);
 }
 
 static void mcp23s08_irq_unmask(struct irq_data *data)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
 	struct mcp23s08 *mcp = gpiochip_get_data(gc);
-	unsigned int pos = data->hwirq;
+	unsigned int pos = irqd_to_hwirq(data);
 
+	gpiochip_enable_irq(gc, pos);
 	mcp_set_bit(mcp, MCP_GPINTEN, pos, true);
 }
 
@@ -485,7 +488,7 @@ static int mcp23s08_irq_set_type(struct irq_data *data, unsigned int type)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
 	struct mcp23s08 *mcp = gpiochip_get_data(gc);
-	unsigned int pos = data->hwirq;
+	unsigned int pos = irqd_to_hwirq(data);
 
 	if ((type & IRQ_TYPE_EDGE_BOTH) == IRQ_TYPE_EDGE_BOTH) {
 		mcp_set_bit(mcp, MCP_INTCON, pos, false);
@@ -554,6 +557,25 @@ static int mcp23s08_irq_setup(struct mcp23s08 *mcp)
 	return 0;
 }
 
+static void mcp23s08_irq_print_chip(struct irq_data *d, struct seq_file *p)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct mcp23s08 *mcp = gpiochip_get_data(gc);
+
+	seq_printf(p, dev_name(mcp->dev));
+}
+
+static const struct irq_chip mcp23s08_irq_chip = {
+	.irq_mask = mcp23s08_irq_mask,
+	.irq_unmask = mcp23s08_irq_unmask,
+	.irq_set_type = mcp23s08_irq_set_type,
+	.irq_bus_lock = mcp23s08_irq_bus_lock,
+	.irq_bus_sync_unlock = mcp23s08_irq_bus_unlock,
+	.irq_print_chip = mcp23s08_irq_print_chip,
+	.flags = IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
+};
+
 /*----------------------------------------------------------------------*/
 
 int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
@@ -569,12 +591,6 @@ int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 	mcp->addr = addr;
 
 	mcp->irq_active_high = false;
-	mcp->irq_chip.name = dev_name(dev);
-	mcp->irq_chip.irq_mask = mcp23s08_irq_mask;
-	mcp->irq_chip.irq_unmask = mcp23s08_irq_unmask;
-	mcp->irq_chip.irq_set_type = mcp23s08_irq_set_type;
-	mcp->irq_chip.irq_bus_lock = mcp23s08_irq_bus_lock;
-	mcp->irq_chip.irq_bus_sync_unlock = mcp23s08_irq_bus_unlock;
 
 	mcp->chip.direction_input = mcp23s08_direction_input;
 	mcp->chip.get = mcp23s08_get;
@@ -636,7 +652,7 @@ int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 	if (mcp->irq && mcp->irq_controller) {
 		struct gpio_irq_chip *girq = &mcp->chip.irq;
 
-		girq->chip = &mcp->irq_chip;
+		gpio_irq_chip_set_chip(girq, &mcp23s08_irq_chip);
 		/* This will let us handle the parent IRQ in the driver */
 		girq->parent_handler = NULL;
 		girq->num_parents = 0;
