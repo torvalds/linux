@@ -594,7 +594,7 @@ static int mcp_gpio_get(struct gpio_chip *gc,
 
 	mcp->txbuf[0] = MCP2221_GPIO_GET;
 
-	mcp->gp_idx = offsetof(struct mcp_get_gpio, gpio[offset].value);
+	mcp->gp_idx = offsetof(struct mcp_get_gpio, gpio[offset]);
 
 	mutex_lock(&mcp->lock);
 	ret = mcp_send_data_req_status(mcp, mcp->txbuf, 1);
@@ -675,7 +675,7 @@ static int mcp_gpio_get_direction(struct gpio_chip *gc,
 
 	mcp->txbuf[0] = MCP2221_GPIO_GET;
 
-	mcp->gp_idx = offsetof(struct mcp_get_gpio, gpio[offset].direction);
+	mcp->gp_idx = offsetof(struct mcp_get_gpio, gpio[offset]);
 
 	mutex_lock(&mcp->lock);
 	ret = mcp_send_data_req_status(mcp, mcp->txbuf, 1);
