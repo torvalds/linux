@@ -40,6 +40,10 @@ patternProperties:
         type: object
         description: Ethernet switch ports
 
+    required:
+      - "#address-cells"
+      - "#size-cells"
+
 oneOf:
   - required:
       - ports

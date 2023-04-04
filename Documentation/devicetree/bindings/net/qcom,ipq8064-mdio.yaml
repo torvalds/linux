@@ -53,7 +53,9 @@ examples:
             reg = <0x10>;
 
             ports {
-              /* ... */
+                #address-cells = <1>;
+                #size-cells = <0>;
+                /* ... */
             };
         };
     };
