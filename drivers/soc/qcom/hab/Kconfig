@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# HAB configuration
+#
+config MSM_HAB
+	tristate "Enable Hypervisor ABstraction Layer"
+	depends on QCOM_DMABUF_HEAPS
+	select WANT_DEV_COREDUMP
+	help
+	  HAB(Hypervisor ABstraction) driver can provide the message
+	  transmission and memory sharing services among different OSes.
+	  Internally, HAB makes use of some specific communication mechanism
+	  provided by the underlying hypervisor.
+	  It is required by the virtualization support for some multimedia
+	  and platform devices in MSM devices.
+
+config MSM_HAB_DEFAULT_VMID
+	int
+	default 2
+	help
+	  The default HAB VMID.
+	  It will not be used when there are some other configuration sources,
+	  e.g., device tree.
+
+config MSM_VIRTIO_HAB
+	bool "Enable hab plugin for virtio hypervisor"
+	depends on VIRTIO
+	depends on MSM_HAB
+	help
+	  hab plugin for virtio devices on guest OS.
+	  The plugin running on guest OS relies on
+	  virtio queues to transport HAB messages and
+	  communicate with host OS.
+
+config MSM_VHOST_HAB
+	bool "Enable hab plugin for vhost hypervisor"
+	select VHOST
+	depends on MSM_HAB
+	help
+	  hab plugin for vhost device on host OS.
+	  The plugin running on host OS relies on
+	  vhost framework to transport HAB messages
+	  and communicate with guest OS.

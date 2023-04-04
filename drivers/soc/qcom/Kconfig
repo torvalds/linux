@@ -239,6 +239,7 @@ config QCOM_QMI_HELPERS
 
 source "drivers/soc/qcom/memshare/Kconfig"
 
+source "drivers/soc/qcom/hab/Kconfig"
 config QCOM_RMTFS_MEM
 	tristate "Qualcomm Remote Filesystem memory driver"
 	depends on ARCH_QCOM
