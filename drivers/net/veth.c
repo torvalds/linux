@@ -708,7 +708,8 @@ static int veth_convert_skb_to_xdp_buff(struct veth_rq *rq,
 	u32 frame_sz;
 
 	if (skb_shared(skb) || skb_head_is_locked(skb) ||
-	    skb_shinfo(skb)->nr_frags) {
+	    skb_shinfo(skb)->nr_frags ||
+	    skb_headroom(skb) < XDP_PACKET_HEADROOM) {
 		u32 size, len, max_head_size, off;
 		struct sk_buff *nskb;
 		struct page *page;
@@ -773,9 +774,6 @@ static int veth_convert_skb_to_xdp_buff(struct veth_rq *rq,
 
 		consume_skb(skb);
 		skb = nskb;
-	} else if (skb_headroom(skb) < XDP_PACKET_HEADROOM &&
-		   pskb_expand_head(skb, VETH_XDP_HEADROOM, 0, GFP_ATOMIC)) {
-		goto drop;
 	}
 
 	/* SKB "head" area always have tailroom for skb_shared_info */
@@ -1257,6 +1255,26 @@ static int veth_enable_range_safe(struct net_device *dev, int start, int end)
 	return 0;
 }
 
+static void veth_set_xdp_features(struct net_device *dev)
+{
+	struct veth_priv *priv = netdev_priv(dev);
+	struct net_device *peer;
+
+	peer = rtnl_dereference(priv->peer);
+	if (peer && peer->real_num_tx_queues <= dev->real_num_rx_queues) {
+		xdp_features_t val = NETDEV_XDP_ACT_BASIC |
+				     NETDEV_XDP_ACT_REDIRECT |
+				     NETDEV_XDP_ACT_RX_SG;
+
+		if (priv->_xdp_prog || veth_gro_requested(dev))
+			val |= NETDEV_XDP_ACT_NDO_XMIT |
+			       NETDEV_XDP_ACT_NDO_XMIT_SG;
+		xdp_set_features_flag(dev, val);
+	} else {
+		xdp_clear_features_flag(dev);
+	}
+}
+
 static int veth_set_channels(struct net_device *dev,
 			     struct ethtool_channels *ch)
 {
@@ -1323,6 +1341,12 @@ out:
 		if (peer)
 			netif_carrier_on(peer);
 	}
+
+	/* update XDP supported features */
+	veth_set_xdp_features(dev);
+	if (peer)
+		veth_set_xdp_features(peer);
+
 	return err;
 
 revert:
@@ -1489,7 +1513,10 @@ static int veth_set_features(struct net_device *dev,
 		err = veth_napi_enable(dev);
 		if (err)
 			return err;
+
+		xdp_features_set_redirect_target(dev, true);
 	} else {
+		xdp_features_clear_redirect_target(dev);
 		veth_napi_del(dev);
 	}
 	return 0;
@@ -1570,10 +1597,15 @@ static int veth_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 			peer->hw_features &= ~NETIF_F_GSO_SOFTWARE;
 			peer->max_mtu = max_mtu;
 		}
+
+		xdp_features_set_redirect_target(dev, true);
 	}
 
 	if (old_prog) {
 		if (!prog) {
+			if (!veth_gro_requested(dev))
+				xdp_features_clear_redirect_target(dev);
+
 			if (dev->flags & IFF_UP)
 				veth_disable_xdp(dev);
 
@@ -1686,10 +1718,6 @@ static void veth_setup(struct net_device *dev)
 	dev->hw_enc_features = VETH_FEATURES;
 	dev->mpls_features = NETIF_F_HW_CSUM | NETIF_F_GSO_SOFTWARE;
 	netif_set_tso_max_size(dev, GSO_MAX_SIZE);
-
-	dev->xdp_features = NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
-			    NETDEV_XDP_ACT_NDO_XMIT | NETDEV_XDP_ACT_RX_SG |
-			    NETDEV_XDP_ACT_NDO_XMIT_SG;
 }
 
 /*
@@ -1857,6 +1885,10 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 		goto err_queues;
 
 	veth_disable_gro(dev);
+	/* update XDP supported features */
+	veth_set_xdp_features(dev);
+	veth_set_xdp_features(peer);
+
 	return 0;
 
 err_queues:

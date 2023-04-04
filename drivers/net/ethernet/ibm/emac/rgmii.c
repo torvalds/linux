@@ -242,7 +242,7 @@ static int rgmii_probe(struct platform_device *ofdev)
 	}
 
 	/* Check for RGMII flags */
-	if (of_get_property(ofdev->dev.of_node, "has-mdio", NULL))
+	if (of_property_read_bool(ofdev->dev.of_node, "has-mdio"))
 		dev->flags |= EMAC_RGMII_FLAG_HAS_MDIO;
 
 	/* CAB lacks the right properties, fix this up */

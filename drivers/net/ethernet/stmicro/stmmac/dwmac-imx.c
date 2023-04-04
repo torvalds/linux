@@ -213,8 +213,7 @@ imx_dwmac_parse_dt(struct imx_priv_data *dwmac, struct device *dev)
 	struct device_node *np = dev->of_node;
 	int err = 0;
 
-	if (of_get_property(np, "snps,rmii_refclk_ext", NULL))
-		dwmac->rmii_refclk_ext = true;
+	dwmac->rmii_refclk_ext = of_property_read_bool(np, "snps,rmii_refclk_ext");
 
 	dwmac->clk_tx = devm_clk_get(dev, "tx");
 	if (IS_ERR(dwmac->clk_tx)) {

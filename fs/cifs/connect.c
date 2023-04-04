@@ -2229,6 +2229,7 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb3_fs_context *ctx)
 	 * need to lock before changing something in the session.
 	 */
 	spin_lock(&cifs_tcp_ses_lock);
+	ses->dfs_root_ses = ctx->dfs_root_ses;
 	list_add(&ses->smb_ses_list, &server->smb_ses_list);
 	spin_unlock(&cifs_tcp_ses_lock);
 
@@ -3407,7 +3408,8 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb3_fs_context *ctx)
 	bool isdfs;
 	int rc;
 
-	uuid_gen(&mnt_ctx.mount_id);
+	INIT_LIST_HEAD(&mnt_ctx.dfs_ses_list);
+
 	rc = dfs_mount_share(&mnt_ctx, &isdfs);
 	if (rc)
 		goto error;
@@ -3427,7 +3429,6 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb3_fs_context *ctx)
 	kfree(cifs_sb->prepath);
 	cifs_sb->prepath = ctx->prepath;
 	ctx->prepath = NULL;
-	uuid_copy(&cifs_sb->dfs_mount_id, &mnt_ctx.mount_id);
 
 out:
 	cifs_try_adding_channels(cifs_sb, mnt_ctx.ses);
@@ -3439,7 +3440,7 @@ out:
 	return rc;
 
 error:
-	dfs_cache_put_refsrv_sessions(&mnt_ctx.mount_id);
+	dfs_put_root_smb_sessions(&mnt_ctx.dfs_ses_list);
 	kfree(mnt_ctx.origin_fullpath);
 	kfree(mnt_ctx.leaf_fullpath);
 	cifs_mount_put_conns(&mnt_ctx);
@@ -3637,9 +3638,6 @@ cifs_umount(struct cifs_sb_info *cifs_sb)
 	spin_unlock(&cifs_sb->tlink_tree_lock);
 
 	kfree(cifs_sb->prepath);
-#ifdef CONFIG_CIFS_DFS_UPCALL
-	dfs_cache_put_refsrv_sessions(&cifs_sb->dfs_mount_id);
-#endif
 	call_rcu(&cifs_sb->rcu, delayed_free);
 }
 
