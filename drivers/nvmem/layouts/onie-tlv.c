@@ -242,4 +242,3 @@ module_nvmem_layout_driver(onie_tlv_layout);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Miquel Raynal <miquel.raynal@bootlin.com>");
 MODULE_DESCRIPTION("NVMEM layout driver for Onie TLV table parsing");
-MODULE_ALIAS("NVMEM layout driver for Onie TLV table parsing");
