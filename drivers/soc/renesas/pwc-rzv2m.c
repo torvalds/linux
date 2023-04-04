@@ -131,7 +131,7 @@ static struct platform_driver rzv2m_pwc_driver = {
 	.probe = rzv2m_pwc_probe,
 	.driver = {
 		.name = "rzv2m_pwc",
-		.of_match_table = of_match_ptr(rzv2m_pwc_of_match),
+		.of_match_table = rzv2m_pwc_of_match,
 	},
 };
 module_platform_driver(rzv2m_pwc_driver);
