@@ -800,6 +800,18 @@ int hda_bus_ml_suspend(struct hdac_bus *bus)
 }
 EXPORT_SYMBOL_NS(hda_bus_ml_suspend, SND_SOC_SOF_HDA_MLINK);
 
+struct mutex *hdac_bus_eml_get_mutex(struct hdac_bus *bus, bool alt, int elid)
+{
+	struct hdac_ext2_link *h2link;
+
+	h2link = find_ext2_link(bus, alt, elid);
+	if (!h2link)
+		return NULL;
+
+	return &h2link->eml_lock;
+}
+EXPORT_SYMBOL_NS(hdac_bus_eml_get_mutex, SND_SOC_SOF_HDA_MLINK);
+
 struct hdac_ext_link *hdac_bus_eml_ssp_get_hlink(struct hdac_bus *bus)
 {
 	struct hdac_ext2_link *h2link;
