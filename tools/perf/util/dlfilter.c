@@ -278,7 +278,7 @@ static __s32 dlfilter__object_code(void *ctx, __u64 ip, void *buf, __u32 len)
 
 	map = a.map;
 have_map:
-	offset = map->map_ip(map, ip);
+	offset = map__map_ip(map, ip);
 	if (ip + len >= map__end(map))
 		len = map__end(map) - ip;
 	return dso__data_read_offset(map__dso(map), d->machine, offset, buf, len);

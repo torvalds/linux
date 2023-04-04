@@ -519,7 +519,7 @@ u64 map__rip_2objdump(struct map *map, u64 rip)
 	if (dso->kernel == DSO_SPACE__USER)
 		return rip + dso->text_offset;
 
-	return map->unmap_ip(map, rip) - map->reloc;
+	return map__unmap_ip(map, rip) - map->reloc;
 }
 
 /**
@@ -530,7 +530,7 @@ u64 map__rip_2objdump(struct map *map, u64 rip)
  * Closely related to map__rip_2objdump(), this function takes an address from
  * objdump and converts it to a memory address.  Note this assumes that @map
  * contains the address.  To be sure the result is valid, check it forwards
- * e.g. map__rip_2objdump(map->map_ip(map, map__objdump_2mem(map, ip))) == ip
+ * e.g. map__rip_2objdump(map__map_ip(map, map__objdump_2mem(map, ip))) == ip
  *
  * Return: Memory address.
  */
@@ -539,24 +539,24 @@ u64 map__objdump_2mem(struct map *map, u64 ip)
 	const struct dso *dso = map__dso(map);
 
 	if (!dso->adjust_symbols)
-		return map->unmap_ip(map, ip);
+		return map__unmap_ip(map, ip);
 
 	if (dso->rel)
-		return map->unmap_ip(map, ip + map->pgoff);
+		return map__unmap_ip(map, ip + map->pgoff);
 
 	/*
 	 * kernel modules also have DSO_TYPE_USER in dso->kernel,
 	 * but all kernel modules are ET_REL, so won't get here.
 	 */
 	if (dso->kernel == DSO_SPACE__USER)
-		return map->unmap_ip(map, ip - dso->text_offset);
+		return map__unmap_ip(map, ip - dso->text_offset);
 
 	return ip + map->reloc;
 }
 
 bool map__contains_symbol(const struct map *map, const struct symbol *sym)
 {
-	u64 ip = map->unmap_ip(map, sym->start);
+	u64 ip = map__unmap_ip(map, sym->start);
 
 	return ip >= map__start(map) && ip < map__end(map);
 }

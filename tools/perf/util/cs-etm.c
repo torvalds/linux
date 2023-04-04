@@ -893,7 +893,7 @@ static u32 cs_etm__mem_access(struct cs_etm_queue *etmq, u8 trace_chan_id,
 	    dso__data_status_seen(dso, DSO_DATA_STATUS_SEEN_ITRACE))
 		return 0;
 
-	offset = al.map->map_ip(al.map, address);
+	offset = map__map_ip(al.map, address);
 
 	map__load(al.map);
 

@@ -13,7 +13,7 @@
 #include "debug.h"
 #include "machine.h"
 
-#define UM(x) kallsyms_map->unmap_ip(kallsyms_map, (x))
+#define UM(x) map__unmap_ip(kallsyms_map, (x))
 
 static bool is_ignored_symbol(const char *name, char type)
 {
@@ -221,8 +221,8 @@ static int test__vmlinux_matches_kallsyms(struct test_suite *test __maybe_unused
 		if (sym->start == sym->end)
 			continue;
 
-		mem_start = vmlinux_map->unmap_ip(vmlinux_map, sym->start);
-		mem_end = vmlinux_map->unmap_ip(vmlinux_map, sym->end);
+		mem_start = map__unmap_ip(vmlinux_map, sym->start);
+		mem_end = map__unmap_ip(vmlinux_map, sym->end);
 
 		first_pair = machine__find_kernel_symbol(&kallsyms, mem_start, NULL);
 		pair = first_pair;
@@ -319,8 +319,8 @@ next_pair:
 	maps__for_each_entry(maps, rb_node) {
 		struct map *pair, *map = rb_node->map;
 
-		mem_start = vmlinux_map->unmap_ip(vmlinux_map, map__start(map));
-		mem_end = vmlinux_map->unmap_ip(vmlinux_map, map__end(map));
+		mem_start = map__unmap_ip(vmlinux_map, map__start(map));
+		mem_end = map__unmap_ip(vmlinux_map, map__end(map));
 
 		pair = maps__find(kallsyms.kmaps, mem_start);
 		if (pair == NULL || pair->priv)

@@ -194,7 +194,7 @@ struct symbol *maps__find_symbol(struct maps *maps, u64 addr, struct map **mapp)
 	if (map != NULL && map__load(map) >= 0) {
 		if (mapp != NULL)
 			*mapp = map;
-		return map__find_symbol(map, map->map_ip(map, addr));
+		return map__find_symbol(map, map__map_ip(map, addr));
 	}
 
 	return NULL;
@@ -237,7 +237,7 @@ int maps__find_ams(struct maps *maps, struct addr_map_symbol *ams)
 			return -1;
 	}
 
-	ams->al_addr = ams->ms.map->map_ip(ams->ms.map, ams->addr);
+	ams->al_addr = map__map_ip(ams->ms.map, ams->addr);
 	ams->ms.sym = map__find_symbol(ams->ms.map, ams->al_addr);
 
 	return ams->ms.sym ? 0 : -1;
@@ -349,8 +349,8 @@ int maps__fixup_overlappings(struct maps *maps, struct map *map, FILE *fp)
 
 			after->start = map__end(map);
 			after->pgoff += map__end(map) - map__start(pos->map);
-			assert(pos->map->map_ip(pos->map, map__end(map)) ==
-				after->map_ip(after, map__end(map)));
+			assert(map__map_ip(pos->map, map__end(map)) ==
+				map__map_ip(after, map__end(map)));
 			err = __maps__insert(maps, after);
 			if (err)
 				goto put_map;

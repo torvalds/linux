@@ -52,6 +52,16 @@ static inline struct dso *map__dso(const struct map *map)
 	return map->dso;
 }
 
+static inline u64 map__map_ip(const struct map *map, u64 ip)
+{
+	return map->map_ip(map, ip);
+}
+
+static inline u64 map__unmap_ip(const struct map *map, u64 ip)
+{
+	return map->unmap_ip(map, ip);
+}
+
 static inline u64 map__start(const struct map *map)
 {
 	return map->start;

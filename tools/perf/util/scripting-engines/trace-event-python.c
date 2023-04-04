@@ -471,7 +471,7 @@ static PyObject *python_process_callchain(struct perf_sample *sample,
 				struct addr_location node_al;
 				unsigned long offset;
 
-				node_al.addr = map->map_ip(map, node->ip);
+				node_al.addr = map__map_ip(map, node->ip);
 				node_al.map  = map;
 				offset = get_offset(node->ms.sym, &node_al);
 

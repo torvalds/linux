@@ -364,7 +364,7 @@ static int _hist_entry__sym_snprintf(struct map_symbol *ms,
 		u64 rip = ip;
 
 		if (dso && dso->kernel && dso->adjust_symbols)
-			rip = map->unmap_ip(map, ip);
+			rip = map__unmap_ip(map, ip);
 
 		ret += repsep_snprintf(bf, size, "%-#*llx %c ",
 				       BITS_PER_LONG / 4 + 2, rip, o);
@@ -375,7 +375,7 @@ static int _hist_entry__sym_snprintf(struct map_symbol *ms,
 		if (sym->type == STT_OBJECT) {
 			ret += repsep_snprintf(bf + ret, size - ret, "%s", sym->name);
 			ret += repsep_snprintf(bf + ret, size - ret, "+0x%llx",
-					ip - map->unmap_ip(map, sym->start));
+					ip - map__unmap_ip(map, sym->start));
 		} else {
 			ret += repsep_snprintf(bf + ret, size - ret, "%.*s",
 					       width - ret,
@@ -1147,7 +1147,7 @@ static int _hist_entry__addr_snprintf(struct map_symbol *ms,
 		if (sym->type == STT_OBJECT) {
 			ret += repsep_snprintf(bf + ret, size - ret, "%s", sym->name);
 			ret += repsep_snprintf(bf + ret, size - ret, "+0x%llx",
-					ip - map->unmap_ip(map, sym->start));
+					ip - map__unmap_ip(map, sym->start));
 		} else {
 			ret += repsep_snprintf(bf + ret, size - ret, "%.*s",
 					       width - ret,
@@ -2104,9 +2104,9 @@ sort__addr_cmp(struct hist_entry *left, struct hist_entry *right)
 	struct map *right_map = right->ms.map;
 
 	if (left_map)
-		left_ip = left_map->unmap_ip(left_map, left_ip);
+		left_ip = map__unmap_ip(left_map, left_ip);
 	if (right_map)
-		right_ip = right_map->unmap_ip(right_map, right_ip);
+		right_ip = map__unmap_ip(right_map, right_ip);
 
 	return _sort__addr_cmp(left_ip, right_ip);
 }
@@ -2118,7 +2118,7 @@ static int hist_entry__addr_snprintf(struct hist_entry *he, char *bf,
 	struct map *map = he->ms.map;
 
 	if (map)
-		ip = map->unmap_ip(map, ip);
+		ip = map__unmap_ip(map, ip);
 
 	return repsep_snprintf(bf, size, "%-#*llx", width, ip);
 }

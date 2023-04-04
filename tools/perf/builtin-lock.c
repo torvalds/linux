@@ -900,7 +900,7 @@ static int get_symbol_name_offset(struct map *map, struct symbol *sym, u64 ip,
 		return 0;
 	}
 
-	offset = map->map_ip(map, ip) - sym->start;
+	offset = map__map_ip(map, ip) - sym->start;
 
 	if (offset)
 		return scnprintf(buf, size, "%s+%#lx", sym->name, offset);
@@ -1070,7 +1070,7 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 				return -ENOMEM;
 			}
 
-			addrs[filters.nr_addrs++] = kmap->unmap_ip(kmap, sym->start);
+			addrs[filters.nr_addrs++] = map__unmap_ip(kmap, sym->start);
 			filters.addrs = addrs;
 		}
 	}

@@ -74,7 +74,7 @@ int lock_contention_prepare(struct lock_contention *con)
 				continue;
 			}
 
-			addrs[con->filters->nr_addrs++] = kmap->unmap_ip(kmap, sym->start);
+			addrs[con->filters->nr_addrs++] = map__unmap_ip(kmap, sym->start);
 			con->filters->addrs = addrs;
 		}
 		naddrs = con->filters->nr_addrs;
@@ -233,7 +233,7 @@ static const char *lock_contention_get_name(struct lock_contention *con,
 	if (sym) {
 		unsigned long offset;
 
-		offset = kmap->map_ip(kmap, addr) - sym->start;
+		offset = map__map_ip(kmap, addr) - sym->start;
 
 		if (offset == 0)
 			return sym->name;

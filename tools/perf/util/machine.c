@@ -919,7 +919,7 @@ static int machine__process_ksymbol_register(struct machine *machine,
 		dso = map__dso(map);
 	}
 
-	sym = symbol__new(map->map_ip(map, map__start(map)),
+	sym = symbol__new(map__map_ip(map, map__start(map)),
 			  event->ksymbol.len,
 			  0, 0, event->ksymbol.name);
 	if (!sym)
@@ -944,7 +944,7 @@ static int machine__process_ksymbol_unregister(struct machine *machine,
 	else {
 		struct dso *dso = map__dso(map);
 
-		sym = dso__find_symbol(dso, map->map_ip(map, map__start(map)));
+		sym = dso__find_symbol(dso, map__map_ip(map, map__start(map)));
 		if (sym)
 			dso__delete_symbol(dso, sym);
 	}
@@ -1279,7 +1279,7 @@ int machine__map_x86_64_entry_trampolines(struct machine *machine,
 
 		dest_map = maps__find(kmaps, map->pgoff);
 		if (dest_map != map)
-			map->pgoff = dest_map->map_ip(dest_map, map->pgoff);
+			map->pgoff = map__map_ip(dest_map, map->pgoff);
 		found = true;
 	}
 	if (found || machine->trampolines_mapped)
@@ -3345,7 +3345,7 @@ char *machine__resolve_kernel_addr(void *vmachine, unsigned long long *addrp, ch
 		return NULL;
 
 	*modp = __map__is_kmodule(map) ? (char *)map__dso(map)->short_name : NULL;
-	*addrp = map->unmap_ip(map, sym->start);
+	*addrp = map__unmap_ip(map, sym->start);
 	return sym->name;
 }
 
@@ -3388,17 +3388,17 @@ bool machine__is_lock_function(struct machine *machine, u64 addr)
 			return false;
 		}
 
-		machine->sched.text_start = kmap->unmap_ip(kmap, sym->start);
+		machine->sched.text_start = map__unmap_ip(kmap, sym->start);
 
 		/* should not fail from here */
 		sym = machine__find_kernel_symbol_by_name(machine, "__sched_text_end", &kmap);
-		machine->sched.text_end = kmap->unmap_ip(kmap, sym->start);
+		machine->sched.text_end = map__unmap_ip(kmap, sym->start);
 
 		sym = machine__find_kernel_symbol_by_name(machine, "__lock_text_start", &kmap);
-		machine->lock.text_start = kmap->unmap_ip(kmap, sym->start);
+		machine->lock.text_start = map__unmap_ip(kmap, sym->start);
 
 		sym = machine__find_kernel_symbol_by_name(machine, "__lock_text_end", &kmap);
-		machine->lock.text_end = kmap->unmap_ip(kmap, sym->start);
+		machine->lock.text_end = map__unmap_ip(kmap, sym->start);
 	}
 
 	/* failed to get kernel symbols */

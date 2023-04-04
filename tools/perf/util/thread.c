@@ -464,7 +464,7 @@ int thread__memcpy(struct thread *thread, struct machine *machine,
 	if( !dso || dso->data.status == DSO_DATA_STATUS_ERROR || map__load(al.map) < 0)
 		return -1;
 
-	offset = al.map->map_ip(al.map, ip);
+	offset = map__map_ip(al.map, ip);
 	if (is64bit)
 		*is64bit = dso->is_64_bit;
 
