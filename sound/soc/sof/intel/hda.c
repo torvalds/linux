@@ -918,7 +918,7 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 		return ret;
 	}
 
-	hda_bus_ml_get_capabilities(bus);
+	hda_bus_ml_init(bus);
 
 	/* Skip SoundWire if it is not supported */
 	if (!(interface_mask & BIT(SOF_DAI_INTEL_ALH)))
