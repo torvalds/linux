@@ -1276,19 +1276,19 @@ static unsigned long umc_determine_edac_cap(struct amd64_pvt *pvt)
 	u8 i, umc_en_mask = 0, dimm_ecc_en_mask = 0;
 	unsigned long edac_cap = EDAC_FLAG_NONE;
 
-		for_each_umc(i) {
-			if (!(pvt->umc[i].sdp_ctrl & UMC_SDP_INIT))
-				continue;
+	for_each_umc(i) {
+		if (!(pvt->umc[i].sdp_ctrl & UMC_SDP_INIT))
+			continue;
 
-			umc_en_mask |= BIT(i);
+		umc_en_mask |= BIT(i);
 
-			/* UMC Configuration bit 12 (DimmEccEn) */
-			if (pvt->umc[i].umc_cfg & BIT(12))
-				dimm_ecc_en_mask |= BIT(i);
-		}
+		/* UMC Configuration bit 12 (DimmEccEn) */
+		if (pvt->umc[i].umc_cfg & BIT(12))
+			dimm_ecc_en_mask |= BIT(i);
+	}
 
-		if (umc_en_mask == dimm_ecc_en_mask)
-			edac_cap = EDAC_FLAG_SECDED;
+	if (umc_en_mask == dimm_ecc_en_mask)
+		edac_cap = EDAC_FLAG_SECDED;
 
 	return edac_cap;
 }
