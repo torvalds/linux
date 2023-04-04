@@ -6373,11 +6373,20 @@ static void create_eml_sink(struct amdgpu_dm_connector *aconnector)
 	struct edid *edid;
 
 	if (!aconnector->base.edid_blob_ptr) {
-		DRM_ERROR("No EDID firmware found on connector: %s ,forcing to OFF!\n",
-				aconnector->base.name);
+		/* if connector->edid_override valid, pass
+		 * it to edid_override to edid_blob_ptr
+		 */
+		int count;
 
-		aconnector->base.force = DRM_FORCE_OFF;
-		return;
+		count = drm_edid_override_connector_update(&aconnector->base);
+
+		if (!aconnector->base.edid_blob_ptr) {
+			DRM_ERROR("No EDID firmware found on connector: %s ,forcing to OFF!\n",
+					aconnector->base.name);
+
+			aconnector->base.force = DRM_FORCE_OFF;
+			return;
+		}
 	}
 
 	edid = (struct edid *) aconnector->base.edid_blob_ptr->data;
