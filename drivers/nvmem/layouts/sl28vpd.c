@@ -141,7 +141,7 @@ static const struct of_device_id sl28vpd_of_match_table[] = {
 };
 MODULE_DEVICE_TABLE(of, sl28vpd_of_match_table);
 
-struct nvmem_layout sl28vpd_layout = {
+static struct nvmem_layout sl28vpd_layout = {
 	.name = "sl28-vpd",
 	.of_match_table = sl28vpd_of_match_table,
 	.add_cells = sl28vpd_add_cells,
