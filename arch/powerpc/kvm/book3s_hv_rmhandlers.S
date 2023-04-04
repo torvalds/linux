@@ -502,8 +502,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
  *                                                                            *
  *****************************************************************************/
 
-.global kvmppc_hv_entry
-kvmppc_hv_entry:
+SYM_CODE_START_LOCAL(kvmppc_hv_entry)
 
 	/* Required state:
 	 *
@@ -940,6 +939,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	ld	r4, VCPU_GPR(R4)(r4)
 	HRFI_TO_GUEST
 	b	.
+SYM_CODE_END(kvmppc_hv_entry)
 
 secondary_too_late:
 	li	r12, 0
@@ -1071,11 +1071,11 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	/* Save HEIR (HV emulation assist reg) in emul_inst
 	   if this is an HEI (HV emulation interrupt, e40) */
 	li	r3,KVM_INST_FETCH_FAILED
-	stw	r3,VCPU_LAST_INST(r9)
+	std	r3,VCPU_LAST_INST(r9)
 	cmpwi	r12,BOOK3S_INTERRUPT_H_EMUL_ASSIST
 	bne	11f
 	mfspr	r3,SPRN_HEIR
-11:	stw	r3,VCPU_HEIR(r9)
+11:	std	r3,VCPU_HEIR(r9)
 
 	/* these are volatile across C function calls */
 	mfctr	r3
@@ -1676,7 +1676,7 @@ fast_interrupt_c_return:
 	mtmsrd	r3
 
 	/* Store the result */
-	stw	r8, VCPU_LAST_INST(r9)
+	std	r8, VCPU_LAST_INST(r9)
 
 	/* Unset guest mode. */
 	li	r0, KVM_GUEST_MODE_HOST_HV

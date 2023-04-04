@@ -304,11 +304,11 @@ int kvmppc_emulate_mmio(struct kvm_vcpu *vcpu)
 		break;
 	case EMULATE_FAIL:
 	{
-		u32 last_inst;
+		ppc_inst_t last_inst;
 
 		kvmppc_get_last_inst(vcpu, INST_GENERIC, &last_inst);
 		kvm_debug_ratelimited("Guest access to device memory using unsupported instruction (opcode: %#08x)\n",
-				      last_inst);
+				      ppc_inst_val(last_inst));
 
 		/*
 		 * Injecting a Data Storage here is a bit more
@@ -321,7 +321,9 @@ int kvmppc_emulate_mmio(struct kvm_vcpu *vcpu)
 			if (vcpu->mmio_is_write)
 				dsisr |= DSISR_ISSTORE;
 
-			kvmppc_core_queue_data_storage(vcpu, vcpu->arch.vaddr_accessed, dsisr);
+			kvmppc_core_queue_data_storage(vcpu,
+					kvmppc_get_msr(vcpu) & SRR1_PREFIXED,
+					vcpu->arch.vaddr_accessed, dsisr);
 		} else {
 			/*
 			 * BookE does not send a SIGBUS on a bad

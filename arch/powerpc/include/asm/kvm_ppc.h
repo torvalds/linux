@@ -28,6 +28,7 @@
 #include <asm/xive.h>
 #include <asm/cpu_has_feature.h>
 #endif
+#include <asm/inst.h>
 
 /*
  * KVMPPC_INST_SW_BREAKPOINT is debug Instruction
@@ -84,7 +85,8 @@ extern int kvmppc_handle_vsx_store(struct kvm_vcpu *vcpu,
 				int is_default_endian);
 
 extern int kvmppc_load_last_inst(struct kvm_vcpu *vcpu,
-				 enum instruction_fetch_type type, u32 *inst);
+				 enum instruction_fetch_type type,
+				 unsigned long *inst);
 
 extern int kvmppc_ld(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr,
 		     bool data);
@@ -126,25 +128,34 @@ extern void kvmppc_core_vcpu_put(struct kvm_vcpu *vcpu);
 
 extern int kvmppc_core_prepare_to_enter(struct kvm_vcpu *vcpu);
 extern int kvmppc_core_pending_dec(struct kvm_vcpu *vcpu);
-extern void kvmppc_core_queue_machine_check(struct kvm_vcpu *vcpu, ulong flags);
+
+extern void kvmppc_core_queue_machine_check(struct kvm_vcpu *vcpu,
+					    ulong srr1_flags);
 extern void kvmppc_core_queue_syscall(struct kvm_vcpu *vcpu);
-extern void kvmppc_core_queue_program(struct kvm_vcpu *vcpu, ulong flags);
-extern void kvmppc_core_queue_fpunavail(struct kvm_vcpu *vcpu);
-extern void kvmppc_core_queue_vec_unavail(struct kvm_vcpu *vcpu);
-extern void kvmppc_core_queue_vsx_unavail(struct kvm_vcpu *vcpu);
+extern void kvmppc_core_queue_program(struct kvm_vcpu *vcpu,
+				      ulong srr1_flags);
+extern void kvmppc_core_queue_fpunavail(struct kvm_vcpu *vcpu,
+					ulong srr1_flags);
+extern void kvmppc_core_queue_vec_unavail(struct kvm_vcpu *vcpu,
+					  ulong srr1_flags);
+extern void kvmppc_core_queue_vsx_unavail(struct kvm_vcpu *vcpu,
+					  ulong srr1_flags);
 extern void kvmppc_core_queue_dec(struct kvm_vcpu *vcpu);
 extern void kvmppc_core_dequeue_dec(struct kvm_vcpu *vcpu);
 extern void kvmppc_core_queue_external(struct kvm_vcpu *vcpu,
                                        struct kvm_interrupt *irq);
 extern void kvmppc_core_dequeue_external(struct kvm_vcpu *vcpu);
-extern void kvmppc_core_queue_dtlb_miss(struct kvm_vcpu *vcpu, ulong dear_flags,
+extern void kvmppc_core_queue_dtlb_miss(struct kvm_vcpu *vcpu,
+					ulong dear_flags,
 					ulong esr_flags);
 extern void kvmppc_core_queue_data_storage(struct kvm_vcpu *vcpu,
-					   ulong dear_flags,
-					   ulong esr_flags);
+					   ulong srr1_flags,
+					   ulong dar,
+					   ulong dsisr);
 extern void kvmppc_core_queue_itlb_miss(struct kvm_vcpu *vcpu);
 extern void kvmppc_core_queue_inst_storage(struct kvm_vcpu *vcpu,
-					   ulong esr_flags);
+					   ulong srr1_flags);
+
 extern void kvmppc_core_flush_tlb(struct kvm_vcpu *vcpu);
 extern int kvmppc_core_check_requests(struct kvm_vcpu *vcpu);
 
@@ -315,7 +326,7 @@ extern struct kvmppc_ops *kvmppc_hv_ops;
 extern struct kvmppc_ops *kvmppc_pr_ops;
 
 static inline int kvmppc_get_last_inst(struct kvm_vcpu *vcpu,
-				enum instruction_fetch_type type, u32 *inst)
+				enum instruction_fetch_type type, ppc_inst_t *inst)
 {
 	int ret = EMULATE_DONE;
 	u32 fetched_inst;
@@ -326,15 +337,30 @@ static inline int kvmppc_get_last_inst(struct kvm_vcpu *vcpu,
 		ret = kvmppc_load_last_inst(vcpu, type, &vcpu->arch.last_inst);
 
 	/*  Write fetch_failed unswapped if the fetch failed */
-	if (ret == EMULATE_DONE)
-		fetched_inst = kvmppc_need_byteswap(vcpu) ?
-				swab32(vcpu->arch.last_inst) :
-				vcpu->arch.last_inst;
-	else
-		fetched_inst = vcpu->arch.last_inst;
+	if (ret != EMULATE_DONE) {
+		*inst = ppc_inst(KVM_INST_FETCH_FAILED);
+		return ret;
+	}
 
-	*inst = fetched_inst;
-	return ret;
+#ifdef CONFIG_PPC64
+	/* Is this a prefixed instruction? */
+	if ((vcpu->arch.last_inst >> 32) != 0) {
+		u32 prefix = vcpu->arch.last_inst >> 32;
+		u32 suffix = vcpu->arch.last_inst;
+		if (kvmppc_need_byteswap(vcpu)) {
+			prefix = swab32(prefix);
+			suffix = swab32(suffix);
+		}
+		*inst = ppc_inst_prefix(prefix, suffix);
+		return EMULATE_DONE;
+	}
+#endif
+
+	fetched_inst = kvmppc_need_byteswap(vcpu) ?
+		swab32(vcpu->arch.last_inst) :
+		vcpu->arch.last_inst;
+	*inst = ppc_inst(fetched_inst);
+	return EMULATE_DONE;
 }
 
 static inline bool is_kvmppc_hv_enabled(struct kvm *kvm)
