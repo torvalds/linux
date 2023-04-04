@@ -22,7 +22,7 @@ static int regcache_maple_read(struct regmap *map,
 
 	rcu_read_lock();
 
-	entry = mas_find(&mas, reg);
+	entry = mas_walk(&mas);
 	if (!entry) {
 		rcu_read_unlock();
 		return -ENOENT;
@@ -47,7 +47,7 @@ static int regcache_maple_write(struct regmap *map, unsigned int reg,
 
 	rcu_read_lock();
 
-	entry = mas_find(&mas, reg);
+	entry = mas_walk(&mas);
 	if (entry) {
 		entry[reg - mas.index] = val;
 		rcu_read_unlock();
