@@ -368,7 +368,7 @@ config NVMEM_VF610_OCOTP
 	  be called nvmem-vf610-ocotp.
 
 config NVMEM_ZYNQMP
-	bool "Xilinx ZYNQMP SoC nvmem firmware support"
+	tristate "Xilinx ZYNQMP SoC nvmem firmware support"
 	depends on ARCH_ZYNQMP
 	help
 	  This is a driver to access hardware related data like
