@@ -72,12 +72,32 @@ patternProperties:
           bias-disable: true
 
           bias-pull-up:
-            description:
-              Besides generic pinconfig options, it can be used as the pull up
-              settings for 2 pull resistors, R0 and R1. User can configure those
-              special pins.
+            oneOf:
+              - type: boolean
+              - enum: [100, 101, 102, 103]
+                description: Pull up R1/R0 type define value.
+            description: |
+              For pull up type is normal, it don't need add R1/R0 define.
+              For pull up type is R1/R0 type, it can add value to set different
+              resistance. Valid arguments are described as below:
+              100: (R1, R0) = (0, 0) which means R1 disabled and R0 disabled.
+              101: (R1, R0) = (0, 1) which means R1 disabled and R0 enabled.
+              102: (R1, R0) = (1, 0) which means R1 enabled and R0 disabled.
+              103: (R1, R0) = (1, 1) which means R1 enabled and R0 enabled.
 
-          bias-pull-down: true
+          bias-pull-down:
+            oneOf:
+              - type: boolean
+              - enum: [100, 101, 102, 103]
+                description: Pull down R1/R0 type define value.
+            description: |
+              For pull down type is normal, it don't need add R1/R0 define.
+              For pull down type is R1/R0 type, it can add value to set
+              different resistance. Valid arguments are described as below:
+              100: (R1, R0) = (0, 0) which means R1 disabled and R0 disabled.
+              101: (R1, R0) = (0, 1) which means R1 disabled and R0 enabled.
+              102: (R1, R0) = (1, 0) which means R1 enabled and R0 disabled.
+              103: (R1, R0) = (1, 1) which means R1 enabled and R0 enabled.
 
           input-enable: true
 
@@ -123,7 +143,9 @@ patternProperties:
             enum: [0, 1, 2, 3, 4, 5, 6, 7]
 
           mediatek,pull-up-adv:
+            deprecated: true
             description: |
+              DEPRECATED: Please use bias-pull-up instead.
               Pull up setings for 2 pull resistors, R0 and R1. User can
               configure those special pins. Valid arguments are described as
               below:
@@ -135,7 +157,9 @@ patternProperties:
             enum: [0, 1, 2, 3]
 
           mediatek,pull-down-adv:
+            deprecated: true
             description: |
+              DEPRECATED: Please use bias-pull-down instead.
               Pull down settings for 2 pull resistors, R0 and R1. User can
               configure those special pins. Valid arguments are described as
               below:
