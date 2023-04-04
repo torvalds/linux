@@ -292,7 +292,7 @@ static const struct iommu_ops mock_ops = {
 		},
 };
 
-struct iommu_device mock_iommu_device = {
+static struct iommu_device mock_iommu_device = {
 	.ops = &mock_ops,
 };
 
