@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt)	"eusb2_phy: %s: " fmt, __func__
@@ -819,6 +819,27 @@ static int msm_eusb2_phy_notify_connect(struct usb_phy *uphy,
 	struct msm_eusb2_phy *phy = container_of(uphy, struct msm_eusb2_phy, phy);
 
 	phy->cable_connected = true;
+
+	/*
+	 * SW WA for CV9 RESET DEVICE TEST(TD 9.23) compliance test failure.
+	 * During HS to SS transitions UTMI_TX Valid signal remains high causing
+	 * the next HS connect to fail. The below sequence sends an extra TX_READY
+	 * signal when the link transitions from HS to SS mode to lower down the
+	 * TX_VALID signal.
+	 */
+	if (!(phy->phy.flags & PHY_HOST_MODE) && (speed >= USB_SPEED_SUPER)) {
+		msm_eusb2_write_readback(phy->base, USB_PHY_APB_ACCESS_CMD, 0xff, 0x0);
+		msm_eusb2_write_readback(phy->base, USB_PHY_APB_ADDRESS, 0xff, 0x5);
+		msm_eusb2_write_readback(phy->base, USB_PHY_APB_WRDATA_LSB, 0xff, 0xc0);
+		msm_eusb2_write_readback(phy->base, USB_PHY_APB_ACCESS_CMD, 0xff, 0x3);
+		udelay(2);
+		msm_eusb2_write_readback(phy->base, USB_PHY_APB_ACCESS_CMD, 0xff, 0x0);
+		msm_eusb2_write_readback(phy->base, USB_PHY_APB_WRDATA_LSB, 0xff, 0x0);
+		msm_eusb2_write_readback(phy->base, USB_PHY_APB_ACCESS_CMD, 0xff, 0x3);
+		udelay(2);
+		msm_eusb2_write_readback(phy->base, USB_PHY_APB_ACCESS_CMD, 0xff, 0x0);
+	}
+
 	return 0;
 }
 
