@@ -127,7 +127,7 @@ patternProperties:
         description:
           Used for digitizing custom thermocouples.
           See Page 59 of the datasheet.
-        $ref: /schemas/types.yaml#/definitions/uint64-matrix
+        $ref: /schemas/types.yaml#/definitions/int64-matrix
         minItems: 3
         maxItems: 64
         items:
