@@ -340,8 +340,7 @@ static bool i915_get_crtc_scanoutpos(struct drm_crtc *_crtc,
 		 * matches how the scanline counter based position works since
 		 * the scanline counter doesn't count the two half lines.
 		 */
-		if (position >= vtotal)
-			position = vtotal - 1;
+		position = min(position, vtotal - 1);
 
 		/*
 		 * Start of vblank interrupt is triggered at start of hsync,
