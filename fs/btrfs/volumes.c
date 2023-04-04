@@ -1150,10 +1150,10 @@ static void btrfs_close_one_device(struct btrfs_device *device)
 	device->last_flush_error = 0;
 
 	/* Verify the device is back in a pristine state  */
-	ASSERT(!test_bit(BTRFS_DEV_STATE_FLUSH_SENT, &device->dev_state));
-	ASSERT(!test_bit(BTRFS_DEV_STATE_REPLACE_TGT, &device->dev_state));
-	ASSERT(list_empty(&device->dev_alloc_list));
-	ASSERT(list_empty(&device->post_commit_list));
+	WARN_ON(test_bit(BTRFS_DEV_STATE_FLUSH_SENT, &device->dev_state));
+	WARN_ON(test_bit(BTRFS_DEV_STATE_REPLACE_TGT, &device->dev_state));
+	WARN_ON(!list_empty(&device->dev_alloc_list));
+	WARN_ON(!list_empty(&device->post_commit_list));
 }
 
 static void close_fs_devices(struct btrfs_fs_devices *fs_devices)
