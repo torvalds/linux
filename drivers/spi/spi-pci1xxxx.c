@@ -114,17 +114,14 @@ static void pci1xxxx_spi_set_cs(struct spi_device *spi, bool enable)
 
 	/* Set the DEV_SEL bits of the SPI_MST_CTL_REG */
 	regval = readl(par->reg_base + SPI_MST_CTL_REG_OFFSET(p->hw_inst));
-	if (enable) {
+	if (!enable) {
+		regval |= SPI_FORCE_CE;
 		regval &= ~SPI_MST_CTL_DEVSEL_MASK;
 		regval |= (spi_get_chipselect(spi, 0) << 25);
-		writel(regval,
-		       par->reg_base + SPI_MST_CTL_REG_OFFSET(p->hw_inst));
 	} else {
-		regval &= ~(spi_get_chipselect(spi, 0) << 25);
-		writel(regval,
-		       par->reg_base + SPI_MST_CTL_REG_OFFSET(p->hw_inst));
-
+		regval &= ~SPI_FORCE_CE;
 	}
+	writel(regval, par->reg_base + SPI_MST_CTL_REG_OFFSET(p->hw_inst));
 }
 
 static u8 pci1xxxx_get_clock_div(u32 hz)
@@ -199,7 +196,7 @@ static int pci1xxxx_spi_transfer_one(struct spi_controller *spi_ctlr,
 			else
 				regval &= ~SPI_MST_CTL_MODE_SEL;
 
-			regval |= ((clkdiv << 5) | SPI_FORCE_CE);
+			regval |= (clkdiv << 5);
 			regval &= ~SPI_MST_CTL_CMD_LEN_MASK;
 			regval |= (len << 8);
 			writel(regval, par->reg_base +
@@ -223,10 +220,6 @@ static int pci1xxxx_spi_transfer_one(struct spi_controller *spi_ctlr,
 			}
 		}
 	}
-
-	regval = readl(par->reg_base + SPI_MST_CTL_REG_OFFSET(p->hw_inst));
-	regval &= ~SPI_FORCE_CE;
-	writel(regval, par->reg_base + SPI_MST_CTL_REG_OFFSET(p->hw_inst));
 	p->spi_xfer_in_progress = false;
 
 	return 0;
