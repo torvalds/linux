@@ -67,6 +67,11 @@ struct intel_fbdev {
 	struct mutex hpd_lock;
 };
 
+static struct intel_fbdev *to_intel_fbdev(struct drm_fb_helper *fb_helper)
+{
+	return container_of(fb_helper, struct intel_fbdev, helper);
+}
+
 static struct intel_frontbuffer *to_frontbuffer(struct intel_fbdev *ifbdev)
 {
 	return ifbdev->fb->frontbuffer;
@@ -79,9 +84,7 @@ static void intel_fbdev_invalidate(struct intel_fbdev *ifbdev)
 
 static int intel_fbdev_set_par(struct fb_info *info)
 {
-	struct drm_fb_helper *fb_helper = info->par;
-	struct intel_fbdev *ifbdev =
-		container_of(fb_helper, struct intel_fbdev, helper);
+	struct intel_fbdev *ifbdev = to_intel_fbdev(info->par);
 	int ret;
 
 	ret = drm_fb_helper_set_par(info);
@@ -93,9 +96,7 @@ static int intel_fbdev_set_par(struct fb_info *info)
 
 static int intel_fbdev_blank(int blank, struct fb_info *info)
 {
-	struct drm_fb_helper *fb_helper = info->par;
-	struct intel_fbdev *ifbdev =
-		container_of(fb_helper, struct intel_fbdev, helper);
+	struct intel_fbdev *ifbdev = to_intel_fbdev(info->par);
 	int ret;
 
 	ret = drm_fb_helper_blank(blank, info);
@@ -108,9 +109,7 @@ static int intel_fbdev_blank(int blank, struct fb_info *info)
 static int intel_fbdev_pan_display(struct fb_var_screeninfo *var,
 				   struct fb_info *info)
 {
-	struct drm_fb_helper *fb_helper = info->par;
-	struct intel_fbdev *ifbdev =
-		container_of(fb_helper, struct intel_fbdev, helper);
+	struct intel_fbdev *ifbdev = to_intel_fbdev(info->par);
 	int ret;
 
 	ret = drm_fb_helper_pan_display(var, info);
@@ -136,8 +135,7 @@ static const struct fb_ops intelfb_ops = {
 static int intelfb_alloc(struct drm_fb_helper *helper,
 			 struct drm_fb_helper_surface_size *sizes)
 {
-	struct intel_fbdev *ifbdev =
-		container_of(helper, struct intel_fbdev, helper);
+	struct intel_fbdev *ifbdev = to_intel_fbdev(helper);
 	struct drm_framebuffer *fb;
 	struct drm_device *dev = helper->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -194,8 +192,7 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 static int intelfb_create(struct drm_fb_helper *helper,
 			  struct drm_fb_helper_surface_size *sizes)
 {
-	struct intel_fbdev *ifbdev =
-		container_of(helper, struct intel_fbdev, helper);
+	struct intel_fbdev *ifbdev = to_intel_fbdev(helper);
 	struct intel_framebuffer *intel_fb = ifbdev->fb;
 	struct drm_device *dev = helper->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
