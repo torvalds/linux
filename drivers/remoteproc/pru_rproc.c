@@ -657,7 +657,7 @@ static void *pru_d_da_to_va(struct pru_rproc *pru, u32 da, size_t len)
 		swap(dram0, dram1);
 	shrd_ram = pruss->mem_regions[PRUSS_MEM_SHRD_RAM2];
 
-	if (da >= PRU_PDRAM_DA && da + len <= PRU_PDRAM_DA + dram0.size) {
+	if (da + len <= PRU_PDRAM_DA + dram0.size) {
 		offset = da - PRU_PDRAM_DA;
 		va = (__force void *)(dram0.va + offset);
 	} else if (da >= PRU_SDRAM_DA &&
@@ -706,8 +706,7 @@ static void *pru_i_da_to_va(struct pru_rproc *pru, u32 da, size_t len)
 	 */
 	da &= 0xfffff;
 
-	if (da >= PRU_IRAM_DA &&
-	    da + len <= PRU_IRAM_DA + pru->mem_regions[PRU_IOMEM_IRAM].size) {
+	if (da + len <= PRU_IRAM_DA + pru->mem_regions[PRU_IOMEM_IRAM].size) {
 		offset = da - PRU_IRAM_DA;
 		va = (__force void *)(pru->mem_regions[PRU_IOMEM_IRAM].va +
 				      offset);
