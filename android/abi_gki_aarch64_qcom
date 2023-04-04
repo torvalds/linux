@@ -709,6 +709,7 @@
   devm_kmemdup
   devm_krealloc
   devm_kstrdup
+  devm_led_classdev_flash_register_ext
   devm_led_classdev_register_ext
   devm_mbox_controller_register
   devm_mipi_dsi_attach
@@ -731,7 +732,6 @@
   devm_platform_get_and_ioremap_resource
   devm_platform_ioremap_resource
   devm_platform_ioremap_resource_byname
-  devm_pm_opp_attach_genpd
   devm_power_supply_register
   devm_pwm_get
   devm_regmap_add_irq_chip
@@ -980,6 +980,7 @@
   drm_connector_list_iter_begin
   drm_connector_list_iter_end
   drm_connector_list_iter_next
+  drm_connector_list_update
   drm_connector_register
   drm_connector_unregister
   drm_connector_update_edid_property
@@ -1049,6 +1050,8 @@
   drm_kms_helper_poll_enable
   drm_kms_helper_poll_fini
   drm_kms_helper_poll_init
+  drm_master_get
+  drm_master_put
   drm_mm_init
   drm_mm_insert_node_in_range
   drmm_mode_config_init
@@ -1060,6 +1063,7 @@
   drm_mode_copy
   drm_mode_create
   drm_mode_create_dp_colorspace_property
+  drm_mode_create_tile_group
   drm_mode_debug_printmodeline
   drm_mode_duplicate
   drm_mode_equal
@@ -1069,6 +1073,7 @@
   drm_mode_object_get
   drm_mode_object_put
   drm_mode_probed_add
+  drm_mode_prune_invalid
   drm_modeset_acquire_fini
   drm_modeset_acquire_init
   drm_modeset_backoff
@@ -1081,6 +1086,7 @@
   drm_mode_set_name
   drm_modeset_unlock
   drm_modeset_unlock_all
+  drm_mode_sort
   drm_mode_vrefresh
   drm_object_attach_property
   drm_object_property_set_value
@@ -1171,6 +1177,7 @@
   __fdget
   fd_install
   fget
+  _find_first_and_bit
   _find_first_bit
   _find_first_zero_bit
   find_get_pid
@@ -2117,6 +2124,7 @@
   msi_get_virq
   msleep
   msleep_interruptible
+  mtree_load
   __mutex_init
   mutex_is_locked
   mutex_lock
@@ -3182,6 +3190,11 @@
   snd_soc_unregister_card
   snd_soc_unregister_component
   snd_timer_interrupt
+  snd_usb_autoresume
+  snd_usb_autosuspend
+  snd_usb_endpoint_close
+  snd_usb_endpoint_open
+  snd_usb_endpoint_prepare
   snprintf
   soc_device_register
   soc_device_unregister
@@ -3401,6 +3414,7 @@
   __traceiter_android_rvh_account_irq
   __traceiter_android_rvh_after_dequeue_task
   __traceiter_android_rvh_after_enqueue_task
+  __traceiter_android_rvh_audio_usb_offload_disconnect
   __traceiter_android_rvh_build_perf_domains
   __traceiter_android_rvh_can_migrate_task
   __traceiter_android_rvh_check_preempt_tick
@@ -3424,6 +3438,9 @@
   __traceiter_android_rvh_flush_task
   __traceiter_android_rvh_get_nohz_timer_target
   __traceiter_android_rvh_gic_v3_set_affinity
+  __traceiter_android_rvh_iommu_alloc_insert_iova
+  __traceiter_android_rvh_iommu_iovad_init_alloc_algo
+  __traceiter_android_rvh_iommu_limit_align_shift
   __traceiter_android_rvh_iommu_setup_dma_ops
   __traceiter_android_rvh_is_cpu_allowed
   __traceiter_android_rvh_migrate_queued_task
@@ -3462,11 +3479,11 @@
   __traceiter_android_rvh_ttwu_cond
   __traceiter_android_rvh_uclamp_eff_get
   __traceiter_android_rvh_update_cpu_capacity
-  __traceiter_android_rvh_update_cpus_allowed
   __traceiter_android_rvh_update_misfit_status
   __traceiter_android_rvh_update_thermal_stats
   __traceiter_android_rvh_util_est_update
   __traceiter_android_rvh_wake_up_new_task
+  __traceiter_android_vh_audio_usb_offload_connect
   __traceiter_android_vh_binder_restore_priority
   __traceiter_android_vh_binder_set_priority
   __traceiter_android_vh_binder_wakeup_ilocked
@@ -3480,6 +3497,7 @@
   __traceiter_android_vh_cpu_idle_exit
   __traceiter_android_vh_cpuidle_psci_enter
   __traceiter_android_vh_cpuidle_psci_exit
+  __traceiter_android_vh_disable_thermal_cooling_stats
   __traceiter_android_vh_do_wake_up_sync
   __traceiter_android_vh_dump_throttled_rt_tasks
   __traceiter_android_vh_free_task
@@ -3512,6 +3530,7 @@
   __traceiter_gpu_mem_total
   __traceiter_ipi_entry
   __traceiter_ipi_raise
+  __traceiter_irq_handler_entry
   __traceiter_mmap_lock_acquire_returned
   __traceiter_mmap_lock_released
   __traceiter_mmap_lock_start_locking
@@ -3523,6 +3542,7 @@
   __tracepoint_android_rvh_account_irq
   __tracepoint_android_rvh_after_dequeue_task
   __tracepoint_android_rvh_after_enqueue_task
+  __tracepoint_android_rvh_audio_usb_offload_disconnect
   __tracepoint_android_rvh_build_perf_domains
   __tracepoint_android_rvh_can_migrate_task
   __tracepoint_android_rvh_check_preempt_tick
@@ -3546,6 +3566,9 @@
   __tracepoint_android_rvh_flush_task
   __tracepoint_android_rvh_get_nohz_timer_target
   __tracepoint_android_rvh_gic_v3_set_affinity
+  __tracepoint_android_rvh_iommu_alloc_insert_iova
+  __tracepoint_android_rvh_iommu_iovad_init_alloc_algo
+  __tracepoint_android_rvh_iommu_limit_align_shift
   __tracepoint_android_rvh_iommu_setup_dma_ops
   __tracepoint_android_rvh_is_cpu_allowed
   __tracepoint_android_rvh_migrate_queued_task
@@ -3584,11 +3607,11 @@
   __tracepoint_android_rvh_ttwu_cond
   __tracepoint_android_rvh_uclamp_eff_get
   __tracepoint_android_rvh_update_cpu_capacity
-  __tracepoint_android_rvh_update_cpus_allowed
   __tracepoint_android_rvh_update_misfit_status
   __tracepoint_android_rvh_update_thermal_stats
   __tracepoint_android_rvh_util_est_update
   __tracepoint_android_rvh_wake_up_new_task
+  __tracepoint_android_vh_audio_usb_offload_connect
   __tracepoint_android_vh_binder_restore_priority
   __tracepoint_android_vh_binder_set_priority
   __tracepoint_android_vh_binder_wakeup_ilocked
@@ -3602,6 +3625,7 @@
   __tracepoint_android_vh_cpu_idle_exit
   __tracepoint_android_vh_cpuidle_psci_enter
   __tracepoint_android_vh_cpuidle_psci_exit
+  __tracepoint_android_vh_disable_thermal_cooling_stats
   __tracepoint_android_vh_do_wake_up_sync
   __tracepoint_android_vh_dump_throttled_rt_tasks
   __tracepoint_android_vh_free_task
@@ -3634,6 +3658,7 @@
   __tracepoint_gpu_mem_total
   __tracepoint_ipi_entry
   __tracepoint_ipi_raise
+  __tracepoint_irq_handler_entry
   __tracepoint_mmap_lock_acquire_returned
   __tracepoint_mmap_lock_released
   __tracepoint_mmap_lock_start_locking
@@ -3887,13 +3912,16 @@
   uuid_parse
   v4l2_compat_ioctl32
   v4l2_ctrl_find
+  v4l2_ctrl_get_name
   v4l2_ctrl_handler_free
   v4l2_ctrl_handler_init_class
+  __v4l2_ctrl_modify_range
   v4l2_ctrl_new_custom
   v4l2_ctrl_new_std
   v4l2_ctrl_new_std_menu
   v4l2_ctrl_request_complete
   v4l2_ctrl_request_setup
+  __v4l2_ctrl_s_ctrl
   v4l2_ctrl_subscribe_event
   v4l2_device_register
   v4l2_device_register_subdev
@@ -3920,6 +3948,7 @@
   v4l2_m2m_release
   v4l2_m2m_request_queue
   v4l2_m2m_unregister_media_controller
+  v4l2_s_ctrl
   v4l2_src_change_event_subscribe
   v4l2_subdev_call_wrappers
   v4l2_subdev_init
@@ -4086,7 +4115,15 @@
   xdp_rxq_info_unreg_mem_model
   xdp_warn
   xfrm_lookup
+  xhci_alloc_command
+  xhci_alloc_erst
+  xhci_free_command
   xhci_get_endpoint_index
+  xhci_queue_stop_endpoint
+  xhci_ring_alloc
+  xhci_ring_cmd_db
+  xhci_ring_free
+  xhci_trb_virt_to_dma
   xp_alloc
   xp_dma_map
   xp_dma_sync_for_cpu_slow
@@ -4103,6 +4140,7 @@
   xsk_tx_peek_desc
   xsk_tx_release
   xsk_uses_need_wakeup
+  zap_vma_ptes
   zlib_deflate
   zlib_deflateEnd
   zlib_deflateInit2

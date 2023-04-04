@@ -315,7 +315,7 @@ struct f2fs_inode {
 			__u8 i_log_cluster_size;	/* log of cluster size */
 			__le16 i_compress_flag;		/* compress flag */
 						/* 0 bit: chksum flag
-						 * [10,15] bits: compress level
+						 * [8,15] bits: compress level
 						 */
 			__le32 i_extra_end[0];	/* for attribute size calculation */
 		} __packed;

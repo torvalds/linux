@@ -70,7 +70,6 @@
   debugfs_create_file
   debugfs_create_u32
   debugfs_create_x32
-  debugfs_lookup
   debugfs_remove
   default_llseek
   delayed_work_timer_fn
@@ -1006,6 +1005,7 @@
   drm_atomic_get_connector_state
   drm_atomic_get_crtc_state
   drm_atomic_get_new_private_obj_state
+  drm_atomic_get_old_private_obj_state
   drm_connector_register
   drm_connector_unregister
   __drm_crtc_commit_free
@@ -1747,6 +1747,9 @@
   rproc_get_by_child
   try_wait_for_completion
 
+# required by qcom_tsens.ko
+  debugfs_lookup
+
 # required by qcom_usb_vbus-regulator.ko
   regulator_get_current_limit_regmap
   regulator_set_current_limit_regmap
@@ -1968,7 +1971,13 @@
   __sg_page_iter_next
 
 # required by ufs_qcom.ko
+  insert_resource
+  msi_first_desc
+  msi_next_desc
   phy_set_mode_ext
+  platform_msi_domain_alloc_irqs
+  platform_msi_domain_free_irqs
+  remove_resource
   ufshcd_dme_configure_adapt
   ufshcd_dme_get_attr
   ufshcd_dme_set_attr
@@ -1976,6 +1985,10 @@
   ufshcd_get_local_unipro_ver
   ufshcd_get_pwr_dev_param
   ufshcd_init_pwr_dev_param
+  ufshcd_mcq_config_esi
+  ufshcd_mcq_enable_esi
+  ufshcd_mcq_poll_cqe_nolock
+  ufshcd_mcq_write_cqis
   ufshcd_pltfrm_init
   ufshcd_pltfrm_shutdown
   ufshcd_remove
@@ -1983,12 +1996,16 @@
   ufshcd_runtime_resume
   ufshcd_runtime_suspend
   ufshcd_suspend_prepare
+  ufshcd_system_freeze
+  ufshcd_system_restore
   ufshcd_system_resume
   ufshcd_system_suspend
+  ufshcd_system_thaw
   ufshcd_uic_hibern8_enter
   ufshcd_uic_hibern8_exit
 
 # required by ulpi.ko
+  debugfs_lookup_and_remove
   of_clk_set_defaults
   of_device_request_module
   __request_module

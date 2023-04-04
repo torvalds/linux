@@ -21,6 +21,7 @@
 #include <nvhe/memory.h>
 #include <nvhe/mem_protect.h>
 #include <nvhe/mm.h>
+#include <nvhe/modules.h>
 
 #define KVM_HOST_S2_FLAGS (KVM_PGTABLE_S2_NOFWB | KVM_PGTABLE_S2_IDMAP)
 
@@ -385,6 +386,8 @@ int __pkvm_prot_finalize(void)
 	__tlbi(vmalls12e1);
 	dsb(nsh);
 	isb();
+
+	__pkvm_close_module_registration();
 
 	return 0;
 }

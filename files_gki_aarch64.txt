@@ -315,6 +315,7 @@ arch/arm64/kvm/hyp/include/hyp/debug-sr.h
 arch/arm64/kvm/hyp/include/hyp/fault.h
 arch/arm64/kvm/hyp/include/hyp/switch.h
 arch/arm64/kvm/hyp/include/hyp/sysreg-sr.h
+arch/arm64/kvm/hyp/include/nvhe/arm-smccc.h
 arch/arm64/kvm/hyp/include/nvhe/clock.h
 arch/arm64/kvm/hyp/include/nvhe/early_alloc.h
 arch/arm64/kvm/hyp/include/nvhe/ffa.h
@@ -1033,6 +1034,7 @@ drivers/hid/hid-wiimote-core.c
 drivers/hid/hid-wiimote-debug.c
 drivers/hid/hid-wiimote.h
 drivers/hid/hid-wiimote-modules.c
+drivers/hid/i2c-hid/i2c-hid.h
 drivers/hid/uhid.c
 drivers/hid/usbhid/hid-core.c
 drivers/hid/usbhid/hiddev.c
@@ -1225,6 +1227,7 @@ drivers/mfd/mfd-core.c
 drivers/mfd/syscon.c
 drivers/misc/sram.c
 drivers/misc/sram.h
+drivers/misc/uid_sys_stats.c
 drivers/mmc/core/block.c
 drivers/mmc/core/block.h
 drivers/mmc/core/bus.c
@@ -1620,6 +1623,7 @@ drivers/ufs/core/ufshcd-crypto.c
 drivers/ufs/core/ufshcd-crypto.h
 drivers/ufs/core/ufshcd-priv.h
 drivers/ufs/core/ufshpb.h
+drivers/ufs/core/ufs-mcq.c
 drivers/ufs/core/ufs-sysfs.c
 drivers/ufs/core/ufs-sysfs.h
 drivers/ufs/host/tc-dwc-g210.c
@@ -1807,6 +1811,8 @@ drivers/usb/storage/unusual_usbat.h
 drivers/usb/storage/usb.c
 drivers/usb/storage/usb.h
 drivers/usb/storage/usual-tables.c
+drivers/usb/typec/altmodes/displayport.c
+drivers/usb/typec/altmodes/displayport.h
 drivers/usb/typec/bus.c
 drivers/usb/typec/bus.h
 drivers/usb/typec/class.c
@@ -1819,6 +1825,7 @@ drivers/usb/typec/retimer.c
 drivers/usb/typec/retimer.h
 drivers/usb/typec/tcpm/tcpci.c
 drivers/usb/typec/tcpm/tcpm.c
+drivers/usb/typec/ucsi/displayport.c
 drivers/usb/typec/ucsi/psy.c
 drivers/usb/typec/ucsi/trace.c
 drivers/usb/typec/ucsi/trace.h
@@ -4163,6 +4170,7 @@ include/trace/events/xdp.h
 include/trace/hooks/audio_usboffload.h
 include/trace/hooks/avc.h
 include/trace/hooks/binder.h
+include/trace/hooks/bug.h
 include/trace/hooks/cgroup.h
 include/trace/hooks/cpufreq.h
 include/trace/hooks/cpuidle.h
@@ -4170,7 +4178,9 @@ include/trace/hooks/cpuidle_psci.h
 include/trace/hooks/creds.h
 include/trace/hooks/debug.h
 include/trace/hooks/dmabuf.h
+include/trace/hooks/dtask.h
 include/trace/hooks/epoch.h
+include/trace/hooks/fault.h
 include/trace/hooks/fips140.h
 include/trace/hooks/fpsimd.h
 include/trace/hooks/ftrace_dump.h
@@ -4183,17 +4193,21 @@ include/trace/hooks/module.h
 include/trace/hooks/mpam.h
 include/trace/hooks/net.h
 include/trace/hooks/pm_domain.h
+include/trace/hooks/power.h
 include/trace/hooks/preemptirq.h
 include/trace/hooks/printk.h
 include/trace/hooks/remoteproc.h
 include/trace/hooks/rwsem.h
 include/trace/hooks/sched.h
 include/trace/hooks/selinux.h
+include/trace/hooks/softlockup.h
 include/trace/hooks/syscall_check.h
 include/trace/hooks/sys.h
 include/trace/hooks/sysrqcrash.h
+include/trace/hooks/thermal.h
 include/trace/hooks/timer.h
 include/trace/hooks/topology.h
+include/trace/hooks/traps.h
 include/trace/hooks/ufshcd.h
 include/trace/hooks/vendor_hooks.h
 include/trace/hooks/vmscan.h
@@ -6054,7 +6068,6 @@ net/sched/cls_bpf.c
 net/sched/cls_flow.c
 net/sched/cls_fw.c
 net/sched/cls_matchall.c
-net/sched/cls_tcindex.c
 net/sched/cls_u32.c
 net/sched/ematch.c
 net/sched/em_cmp.c

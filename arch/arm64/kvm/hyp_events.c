@@ -82,8 +82,8 @@ struct hyp_event {
 #undef __ARM64_KVM_HYPEVENTS_H_
 #include <asm/kvm_hypevents.h>
 
-extern struct hyp_event __start_hyp_events[];
-extern struct hyp_event __stop_hyp_events[];
+extern struct hyp_event __hyp_events_start[];
+extern struct hyp_event __hyp_events_end[];
 
 /* hyp_event section used by the hypervisor */
 extern struct hyp_event_id __hyp_event_ids_start[];
@@ -91,9 +91,9 @@ extern struct hyp_event_id __hyp_event_ids_end[];
 
 static struct hyp_event *find_hyp_event(const char *name)
 {
-	struct hyp_event *event = __start_hyp_events;
+	struct hyp_event *event = __hyp_events_start;
 
-	for (; (unsigned long)event < (unsigned long)__stop_hyp_events;
+	for (; (unsigned long)event < (unsigned long)__hyp_events_end;
 		event++) {
 		if (!strncmp(name, event->name, HYP_EVENT_NAME_MAX))
 			return event;
@@ -128,7 +128,7 @@ hyp_event_write(struct file *filp, const char __user *ubuf, size_t cnt, loff_t *
 	int ret;
 	char c;
 
-	if (cnt != 2)
+	if (!cnt || cnt > 2)
 		return -EINVAL;
 
 	if (get_user(c, ubuf))
@@ -319,7 +319,7 @@ bool kvm_hyp_events_enable_early(void)
 
 void kvm_hyp_init_events_tracefs(struct dentry *parent)
 {
-	struct hyp_event *event = __start_hyp_events;
+	struct hyp_event *event = __hyp_events_start;
 	struct dentry *d, *event_dir;
 
 	parent = tracefs_create_dir("events", parent);
@@ -333,8 +333,13 @@ void kvm_hyp_init_events_tracefs(struct dentry *parent)
 	if (!d)
 		pr_err("Failed to create events/header_page\n");
 
+	parent = tracefs_create_dir("hyp", parent);
+	if (!parent) {
+		pr_err("Failed to create tracefs folder for hyp events\n");
+		return;
+	}
 
-	for (; (unsigned long)event < (unsigned long)__stop_hyp_events; event++) {
+	for (; (unsigned long)event < (unsigned long)__hyp_events_end; event++) {
 		event_dir = tracefs_create_dir(event->name, parent);
 		if (!event_dir) {
 			pr_err("Failed to create events/hyp/%s\n", event->name);
@@ -364,13 +369,13 @@ void kvm_hyp_init_events_tracefs(struct dentry *parent)
  */
 int kvm_hyp_init_events(void)
 {
-	struct hyp_event *event = __start_hyp_events;
+	struct hyp_event *event = __hyp_events_start;
 	struct hyp_event_id *hyp_event_id = __hyp_event_ids_start;
 	int ret, err = -ENODEV;
 
 	/* TODO: BUILD_BUG nr events host side / hyp side */
 
-	for (; (unsigned long)event < (unsigned long)__stop_hyp_events;
+	for (; (unsigned long)event < (unsigned long)__hyp_events_end;
 		event++, hyp_event_id++) {
 		event->call->name = event->name;
 		ret = register_trace_event(&event->call->event);

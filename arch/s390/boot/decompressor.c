@@ -11,6 +11,7 @@
 #include <linux/string.h>
 #include <asm/page.h>
 #include "decompressor.h"
+#include "boot.h"
 
 /*
  * gzip declarations

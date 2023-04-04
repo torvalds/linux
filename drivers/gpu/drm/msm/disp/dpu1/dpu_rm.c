@@ -572,6 +572,8 @@ void dpu_rm_release(struct dpu_global_state *global_state,
 		ARRAY_SIZE(global_state->ctl_to_enc_id), enc->base.id);
 	_dpu_rm_clear_mapping(global_state->dsc_to_enc_id,
 		ARRAY_SIZE(global_state->dsc_to_enc_id), enc->base.id);
+	_dpu_rm_clear_mapping(global_state->dspp_to_enc_id,
+		ARRAY_SIZE(global_state->dspp_to_enc_id), enc->base.id);
 }
 
 int dpu_rm_reserve(
@@ -658,6 +660,11 @@ int dpu_rm_get_assigned_resources(struct dpu_rm *rm,
 		if (num_blks == blks_size) {
 			DPU_ERROR("More than %d resources assigned to enc %d\n",
 				  blks_size, enc_id);
+			break;
+		}
+		if (!hw_blks[i]) {
+			DPU_ERROR("Allocated resource %d unavailable to assign to enc %d\n",
+				  type, enc_id);
 			break;
 		}
 		blks[num_blks++] = hw_blks[i];

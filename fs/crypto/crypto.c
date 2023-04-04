@@ -237,41 +237,43 @@ EXPORT_SYMBOL(fscrypt_encrypt_block_inplace);
 
 /**
  * fscrypt_decrypt_pagecache_blocks() - Decrypt filesystem blocks in a
- *					pagecache page
- * @page:      The locked pagecache page containing the block(s) to decrypt
+ *					pagecache folio
+ * @folio:     The locked pagecache folio containing the block(s) to decrypt
  * @len:       Total size of the block(s) to decrypt.  Must be a nonzero
  *		multiple of the filesystem's block size.
- * @offs:      Byte offset within @page of the first block to decrypt.  Must be
+ * @offs:      Byte offset within @folio of the first block to decrypt.  Must be
  *		a multiple of the filesystem's block size.
  *
- * The specified block(s) are decrypted in-place within the pagecache page,
- * which must still be locked and not uptodate.  Normally, blocksize ==
- * PAGE_SIZE and the whole page is decrypted at once.
+ * The specified block(s) are decrypted in-place within the pagecache folio,
+ * which must still be locked and not uptodate.
  *
  * This is for use by the filesystem's ->readahead() method.
  *
  * Return: 0 on success; -errno on failure
  */
-int fscrypt_decrypt_pagecache_blocks(struct page *page, unsigned int len,
-				     unsigned int offs)
+int fscrypt_decrypt_pagecache_blocks(struct folio *folio, size_t len,
+				     size_t offs)
 {
-	const struct inode *inode = page->mapping->host;
+	const struct inode *inode = folio->mapping->host;
 	const unsigned int blockbits = inode->i_blkbits;
 	const unsigned int blocksize = 1 << blockbits;
-	u64 lblk_num = ((u64)page->index << (PAGE_SHIFT - blockbits)) +
+	u64 lblk_num = ((u64)folio->index << (PAGE_SHIFT - blockbits)) +
 		       (offs >> blockbits);
-	unsigned int i;
+	size_t i;
 	int err;
 
-	if (WARN_ON_ONCE(!PageLocked(page)))
+	if (WARN_ON_ONCE(!folio_test_locked(folio)))
 		return -EINVAL;
 
 	if (WARN_ON_ONCE(len <= 0 || !IS_ALIGNED(len | offs, blocksize)))
 		return -EINVAL;
 
 	for (i = offs; i < offs + len; i += blocksize, lblk_num++) {
+		struct page *page = folio_page(folio, i >> PAGE_SHIFT);
+
 		err = fscrypt_crypt_block(inode, FS_DECRYPT, lblk_num, page,
-					  page, blocksize, i, GFP_NOFS);
+					  page, blocksize, i & ~PAGE_MASK,
+					  GFP_NOFS);
 		if (err)
 			return err;
 	}

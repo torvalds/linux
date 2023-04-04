@@ -456,6 +456,8 @@ static void scsi_device_dev_release_usercontext(struct work_struct *work)
 
 	mod = sdev->host->hostt->module;
 
+	might_sleep();
+
 	scsi_dh_release_device(sdev);
 
 	parent = sdev->sdev_gendev.parent;

@@ -273,6 +273,11 @@ static int rtw_mac_power_switch(struct rtw_dev *rtwdev, bool pwr_on)
 	if (rtw_pwr_seq_parser(rtwdev, pwr_seq))
 		return -EINVAL;
 
+	if (pwr_on)
+		set_bit(RTW_FLAG_POWERON, rtwdev->flags);
+	else
+		clear_bit(RTW_FLAG_POWERON, rtwdev->flags);
+
 	return 0;
 }
 
@@ -335,6 +340,11 @@ int rtw_mac_power_on(struct rtw_dev *rtwdev)
 	ret = rtw_mac_power_switch(rtwdev, true);
 	if (ret == -EALREADY) {
 		rtw_mac_power_switch(rtwdev, false);
+
+		ret = rtw_mac_pre_system_cfg(rtwdev);
+		if (ret)
+			goto err;
+
 		ret = rtw_mac_power_switch(rtwdev, true);
 		if (ret)
 			goto err;
