@@ -146,19 +146,7 @@ struct nvmem_layout sl28vpd_layout = {
 	.of_match_table = sl28vpd_of_match_table,
 	.add_cells = sl28vpd_add_cells,
 };
-
-static int __init sl28vpd_init(void)
-{
-	return nvmem_layout_register(&sl28vpd_layout);
-}
-
-static void __exit sl28vpd_exit(void)
-{
-	nvmem_layout_unregister(&sl28vpd_layout);
-}
-
-module_init(sl28vpd_init);
-module_exit(sl28vpd_exit);
+module_nvmem_layout_driver(sl28vpd_layout);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Michael Walle <michael@walle.cc>");
