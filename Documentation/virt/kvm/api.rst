@@ -6218,8 +6218,7 @@ to the byte array.
 			__u64 nr;
 			__u64 args[6];
 			__u64 ret;
-			__u32 longmode;
-			__u32 pad;
+			__u64 flags;
 		} hypercall;
 
 Unused.  This was once used for 'hypercall to userspace'.  To implement
