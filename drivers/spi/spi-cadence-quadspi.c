@@ -45,6 +45,7 @@ enum {
 	CLK_AHB1,
 	CLK_QSPI_AHB,
 	CLK_QSPI_REF,
+	CLK_QSPI_SRC,
 	CLK_QSPI_NUM,
 };
 
@@ -263,12 +264,7 @@ struct cqspi_driver_platdata {
 
 #define CQSPI_IRQ_STATUS_MASK			0x1FFFF
 
-#define CQSPI_DEFAULT_FREQ			2000000
 #define CQSPI_READ_ID_FREQ			1000000
-#define CQSPI_WRITE_DATA_FREQ			12000000
-
-#define STARFIVE_RESET_REG_BASE_ADDR		0x13020000
-#define QSPI_RESET_REG_OFFSET			0x2fc
 
 static int cqspi_wait_for_bit(void __iomem *reg, const u32 mask, bool clr)
 {
@@ -1029,7 +1025,6 @@ static void cqspi_config_baudrate_div(struct cqspi_st *cqspi)
 	writel(reg, reg_base + CQSPI_REG_CONFIG);
 }
 
-
 static void cqspi_readdata_capture(struct cqspi_st *cqspi,
 				   const bool bypass,
 				   const unsigned int delay)
@@ -1230,10 +1225,8 @@ static int cqspi_mem_process(struct spi_mem *mem, const struct spi_mem_op *op)
 
 	if (op->cmd.opcode == SPINOR_OP_RDID)
 		cqspi_configure(f_pdata, CQSPI_READ_ID_FREQ);
-	else if (op->cmd.opcode == SPINOR_OP_PP_1_1_4)
-		cqspi_configure(f_pdata, CQSPI_WRITE_DATA_FREQ);
 	else
-		cqspi_configure(f_pdata, CQSPI_DEFAULT_FREQ);
+		cqspi_configure(f_pdata, mem->spi->max_speed_hz);
 
 	if (op->data.dir == SPI_MEM_DATA_IN && op->data.buf.in) {
 		if (!op->addr.nbytes)
@@ -1257,6 +1250,7 @@ static int cqspi_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op *op)
 		reset_control_assert(cqspi->qspi_rst);
 		reset_control_deassert(cqspi->qspi_rst);
 	}
+
 	ret = cqspi_mem_process(mem, op);
 
 	if (ret)
@@ -1474,6 +1468,7 @@ static int cadence_quadspi_clk_init(struct platform_device *pdev, struct cqspi_s
 		{ .id = "ahb1" },
 		{ .id = "clk_ahb" },
 		{ .id = "clk_ref" },
+		{ .id = "clk_src" },
 	};
 
 	int ret = 0;
@@ -1488,6 +1483,7 @@ static int cadence_quadspi_clk_init(struct platform_device *pdev, struct cqspi_s
 	cqspi->clks[CLK_AHB1] = qspiclk[1].clk;
 	cqspi->clks[CLK_QSPI_AHB] = qspiclk[2].clk;
 	cqspi->clks[CLK_QSPI_REF] = qspiclk[3].clk;
+	cqspi->clks[CLK_QSPI_SRC] = qspiclk[4].clk;
 
 	ret = clk_prepare_enable(cqspi->clks[CLK_QSPI_APB]);
 	if (ret) {
@@ -1505,6 +1501,12 @@ static int cadence_quadspi_clk_init(struct platform_device *pdev, struct cqspi_s
 	if (ret) {
 		dev_err(&pdev->dev, "%s: failed to enable CLK_QSPI_AHB\n", __func__);
 		goto disable_ahb1;
+	}
+
+	clk_set_parent(cqspi->clks[CLK_QSPI_REF], cqspi->clks[CLK_QSPI_SRC]);
+	if (ret) {
+		dev_err(&pdev->dev, "%s: failed to set parent of CLK_QSPI_REF\n", __func__);
+		goto disable_ahb_clk;
 	}
 
 	ret = clk_prepare_enable(cqspi->clks[CLK_QSPI_REF]);

@@ -342,11 +342,13 @@
 			clocks = <&clkgen JH7110_QSPI_CLK_REF>,
 				 <&clkgen JH7110_QSPI_CLK_APB>,
 				 <&clkgen JH7110_AHB1>,
-				 <&clkgen JH7110_QSPI_CLK_AHB>;
+				 <&clkgen JH7110_QSPI_CLK_AHB>,
+				 <&clkgen JH7110_QSPI_REF_SRC>;
 			clock-names = "clk_ref",
 				      "clk_apb",
 				      "ahb1",
-				      "clk_ahb";
+				      "clk_ahb",
+				      "clk_src";
 			resets = <&rstgen RSTN_U0_CDNS_QSPI_APB>,
 				 <&rstgen RSTN_U0_CDNS_QSPI_AHB>,
 				 <&rstgen RSTN_U0_CDNS_QSPI_REF>;
