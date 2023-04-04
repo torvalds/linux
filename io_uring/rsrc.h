@@ -49,6 +49,8 @@ struct io_rsrc_node {
 	 * came from the same table and so are of the same type.
 	 */
 	struct list_head		item_list;
+	struct io_rsrc_put		item;
+	int				inline_items;
 };
 
 struct io_mapped_ubuf {

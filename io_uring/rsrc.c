@@ -140,26 +140,34 @@ static void io_buffer_unmap(struct io_ring_ctx *ctx, struct io_mapped_ubuf **slo
 	*slot = NULL;
 }
 
+static void io_rsrc_put_work_one(struct io_rsrc_data *rsrc_data,
+				 struct io_rsrc_put *prsrc)
+{
+	struct io_ring_ctx *ctx = rsrc_data->ctx;
+
+	if (prsrc->tag) {
+		if (ctx->flags & IORING_SETUP_IOPOLL) {
+			mutex_lock(&ctx->uring_lock);
+			io_post_aux_cqe(ctx, prsrc->tag, 0, 0);
+			mutex_unlock(&ctx->uring_lock);
+		} else {
+			io_post_aux_cqe(ctx, prsrc->tag, 0, 0);
+		}
+	}
+	rsrc_data->do_put(ctx, prsrc);
+}
+
 static void __io_rsrc_put_work(struct io_rsrc_node *ref_node)
 {
 	struct io_rsrc_data *rsrc_data = ref_node->rsrc_data;
-	struct io_ring_ctx *ctx = rsrc_data->ctx;
 	struct io_rsrc_put *prsrc, *tmp;
+
+	if (ref_node->inline_items)
+		io_rsrc_put_work_one(rsrc_data, &ref_node->item);
 
 	list_for_each_entry_safe(prsrc, tmp, &ref_node->item_list, list) {
 		list_del(&prsrc->list);
-
-		if (prsrc->tag) {
-			if (ctx->flags & IORING_SETUP_IOPOLL) {
-				mutex_lock(&ctx->uring_lock);
-				io_post_aux_cqe(ctx, prsrc->tag, 0, 0);
-				mutex_unlock(&ctx->uring_lock);
-			} else {
-				io_post_aux_cqe(ctx, prsrc->tag, 0, 0);
-			}
-		}
-
-		rsrc_data->do_put(ctx, prsrc);
+		io_rsrc_put_work_one(rsrc_data, prsrc);
 		kfree(prsrc);
 	}
 
@@ -251,6 +259,7 @@ static struct io_rsrc_node *io_rsrc_node_alloc(void)
 	INIT_LIST_HEAD(&ref_node->node);
 	INIT_LIST_HEAD(&ref_node->item_list);
 	ref_node->done = false;
+	ref_node->inline_items = 0;
 	return ref_node;
 }
 
@@ -729,15 +738,23 @@ int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx,
 {
 	u64 *tag_slot = io_get_tag_slot(data, idx);
 	struct io_rsrc_put *prsrc;
+	bool inline_item = true;
 
-	prsrc = kzalloc(sizeof(*prsrc), GFP_KERNEL);
-	if (!prsrc)
-		return -ENOMEM;
+	if (!node->inline_items) {
+		prsrc = &node->item;
+		node->inline_items++;
+	} else {
+		prsrc = kzalloc(sizeof(*prsrc), GFP_KERNEL);
+		if (!prsrc)
+			return -ENOMEM;
+		inline_item = false;
+	}
 
 	prsrc->tag = *tag_slot;
 	*tag_slot = 0;
 	prsrc->rsrc = rsrc;
-	list_add(&prsrc->list, &node->item_list);
+	if (!inline_item)
+		list_add(&prsrc->list, &node->item_list);
 	return 0;
 }
 
