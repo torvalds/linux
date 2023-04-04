@@ -12,21 +12,11 @@
 
 #include <sound/hdaudio_ext.h>
 #include <sound/hda_register.h>
+#include <sound/hda-mlink.h>
 
-#include <linux/acpi.h>
 #include <linux/module.h>
-#include <linux/soundwire/sdw.h>
-#include <linux/soundwire/sdw_intel.h>
-#include <sound/intel-dsp-config.h>
-#include <sound/intel-nhlt.h>
-#include <sound/sof.h>
-#include <sound/sof/xtensa.h>
-#include "../sof-audio.h"
-#include "../sof-pci-dev.h"
-#include "../ops.h"
-#include "hda.h"
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_MLINK)
 
 int hda_bus_ml_get_capabilities(struct hdac_bus *bus)
 {
@@ -34,6 +24,7 @@ int hda_bus_ml_get_capabilities(struct hdac_bus *bus)
 		return snd_hdac_ext_bus_get_ml_capabilities(bus);
 	return 0;
 }
+EXPORT_SYMBOL_NS(hda_bus_ml_get_capabilities, SND_SOC_SOF_HDA_MLINK);
 
 void hda_bus_ml_free(struct hdac_bus *bus)
 {
@@ -47,6 +38,7 @@ void hda_bus_ml_free(struct hdac_bus *bus)
 		kfree(hlink);
 	}
 }
+EXPORT_SYMBOL_NS(hda_bus_ml_free, SND_SOC_SOF_HDA_MLINK);
 
 void hda_bus_ml_put_all(struct hdac_bus *bus)
 {
@@ -55,6 +47,7 @@ void hda_bus_ml_put_all(struct hdac_bus *bus)
 	list_for_each_entry(hlink, &bus->hlink_list, list)
 		snd_hdac_ext_bus_link_put(bus, hlink);
 }
+EXPORT_SYMBOL_NS(hda_bus_ml_put_all, SND_SOC_SOF_HDA_MLINK);
 
 void hda_bus_ml_reset_losidv(struct hdac_bus *bus)
 {
@@ -64,6 +57,7 @@ void hda_bus_ml_reset_losidv(struct hdac_bus *bus)
 	list_for_each_entry(hlink, &bus->hlink_list, list)
 		writel(0, hlink->ml_addr + AZX_REG_ML_LOSIDV);
 }
+EXPORT_SYMBOL_NS(hda_bus_ml_reset_losidv, SND_SOC_SOF_HDA_MLINK);
 
 int hda_bus_ml_resume(struct hdac_bus *bus)
 {
@@ -80,10 +74,14 @@ int hda_bus_ml_resume(struct hdac_bus *bus)
 	}
 	return 0;
 }
+EXPORT_SYMBOL_NS(hda_bus_ml_resume, SND_SOC_SOF_HDA_MLINK);
 
 int hda_bus_ml_suspend(struct hdac_bus *bus)
 {
 	return snd_hdac_ext_bus_link_power_down_all(bus);
 }
+EXPORT_SYMBOL_NS(hda_bus_ml_suspend, SND_SOC_SOF_HDA_MLINK);
 
 #endif
+
+MODULE_LICENSE("Dual BSD/GPL");
