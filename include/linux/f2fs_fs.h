@@ -584,21 +584,6 @@ struct f2fs_dentry_block {
 	__u8 filename[NR_DENTRY_IN_BLOCK][F2FS_SLOT_LEN];
 } __packed;
 
-/* file types used in inode_info->flags */
-enum {
-	F2FS_FT_UNKNOWN,
-	F2FS_FT_REG_FILE,
-	F2FS_FT_DIR,
-	F2FS_FT_CHRDEV,
-	F2FS_FT_BLKDEV,
-	F2FS_FT_FIFO,
-	F2FS_FT_SOCK,
-	F2FS_FT_SYMLINK,
-	F2FS_FT_MAX
-};
-
-#define S_SHIFT 12
-
 #define	F2FS_DEF_PROJID		0	/* default project ID */
 
 #endif  /* _LINUX_F2FS_FS_H */
