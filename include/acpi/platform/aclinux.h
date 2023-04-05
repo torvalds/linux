@@ -180,7 +180,10 @@
 #define ACPI_USE_STANDARD_HEADERS
 
 #ifdef ACPI_USE_STANDARD_HEADERS
+#include <stddef.h>
 #include <unistd.h>
+
+#define ACPI_OFFSET(d, f)   offsetof(d, f)
 #endif
 
 /* Define/disable kernel-specific declarators */
