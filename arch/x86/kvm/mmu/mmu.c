@@ -278,15 +278,11 @@ static inline bool kvm_available_flush_remote_tlbs_range(void)
 void kvm_flush_remote_tlbs_range(struct kvm *kvm, gfn_t start_gfn,
 				 gfn_t nr_pages)
 {
-	struct kvm_tlb_range range;
 	int ret = -EOPNOTSUPP;
 
-	range.start_gfn = start_gfn;
-	range.pages = nr_pages;
-
 	if (kvm_x86_ops.flush_remote_tlbs_range)
-		ret = static_call(kvm_x86_flush_remote_tlbs_range)(kvm, &range);
-
+		ret = static_call(kvm_x86_flush_remote_tlbs_range)(kvm, start_gfn,
+								   nr_pages);
 	if (ret)
 		kvm_flush_remote_tlbs(kvm);
 }

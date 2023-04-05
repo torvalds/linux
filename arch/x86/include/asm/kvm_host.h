@@ -482,11 +482,6 @@ struct kvm_mmu {
 	u64 pdptrs[4]; /* pae */
 };
 
-struct kvm_tlb_range {
-	u64 start_gfn;
-	u64 pages;
-};
-
 enum pmc_type {
 	KVM_PMC_GP = 0,
 	KVM_PMC_FIXED,
@@ -1589,8 +1584,8 @@ struct kvm_x86_ops {
 	void (*flush_tlb_all)(struct kvm_vcpu *vcpu);
 	void (*flush_tlb_current)(struct kvm_vcpu *vcpu);
 	int  (*flush_remote_tlbs)(struct kvm *kvm);
-	int  (*flush_remote_tlbs_range)(struct kvm *kvm,
-					struct kvm_tlb_range *range);
+	int  (*flush_remote_tlbs_range)(struct kvm *kvm, gfn_t gfn,
+					gfn_t nr_pages);
 
 	/*
 	 * Flush any TLB entries associated with the given GVA.
