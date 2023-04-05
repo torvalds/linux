@@ -395,6 +395,11 @@ int xe_uc_fw_init(struct xe_uc_fw *uc_fw)
 	uc_fw->minor_ver_found = FIELD_GET(CSS_SW_VERSION_UC_MINOR,
 					   css->sw_version);
 
+	drm_info(&xe->drm, "Using %s firmware (%u.%u) from %s\n",
+		 xe_uc_fw_type_repr(uc_fw->type),
+		 uc_fw->major_ver_found, uc_fw->minor_ver_found,
+		 uc_fw->path);
+
 	err = uc_fw_check_version_requirements(uc_fw);
 	if (err)
 		goto fail;
