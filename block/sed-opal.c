@@ -132,6 +132,8 @@ static const u8 opaluid[][OPAL_UID_LENGTH] = {
 		{ 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 },
 	[OPAL_LOCKINGRANGE_GLOBAL] =
 		{ 0x00, 0x00, 0x08, 0x02, 0x00, 0x00, 0x00, 0x01 },
+	[OPAL_LOCKINGRANGE_ACE_START_TO_KEY] =
+		{ 0x00, 0x00, 0x00, 0x08, 0x00, 0x03, 0xD0, 0x01 },
 	[OPAL_LOCKINGRANGE_ACE_RDLOCKED] =
 		{ 0x00, 0x00, 0x00, 0x08, 0x00, 0x03, 0xE0, 0x01 },
 	[OPAL_LOCKINGRANGE_ACE_WRLOCKED] =
@@ -1859,6 +1861,27 @@ static int add_user_to_lr(struct opal_dev *dev, void *data)
 	return finalize_and_send(dev, parse_and_check_status);
 }
 
+static int add_user_to_lr_ace(struct opal_dev *dev, void *data)
+{
+	int err;
+	struct opal_lock_unlock *lkul = data;
+	const u8 users[] = {
+		OPAL_ADMIN1,
+		lkul->session.who
+	};
+
+	err = set_lr_boolean_ace(dev, OPAL_LOCKINGRANGE_ACE_START_TO_KEY,
+				 lkul->session.opal_key.lr, users,
+				 ARRAY_SIZE(users));
+
+	if (err) {
+		pr_debug("Error building add user to locking ranges ACEs.\n");
+		return err;
+	}
+
+	return finalize_and_send(dev, parse_and_check_status);
+}
+
 static int lock_unlock_locking_range(struct opal_dev *dev, void *data)
 {
 	u8 lr_buffer[OPAL_UID_LENGTH];
@@ -2396,6 +2419,7 @@ static int opal_add_user_to_lr(struct opal_dev *dev,
 	const struct opal_step steps[] = {
 		{ start_admin1LSP_opal_session, &lk_unlk->session.opal_key },
 		{ add_user_to_lr, lk_unlk },
+		{ add_user_to_lr_ace, lk_unlk },
 		{ end_opal_session, }
 	};
 	int ret;
