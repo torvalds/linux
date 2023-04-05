@@ -82,7 +82,6 @@
 
 struct acpi_table_aest {
 	struct acpi_table_header header;
-	void *node_array[];
 };
 
 /* Common Subtable header - one per Node Structure (Subtable) */
