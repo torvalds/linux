@@ -1759,25 +1759,43 @@ static int set_sid_cpin_pin(struct opal_dev *dev, void *data)
 	return finalize_and_send(dev, parse_and_check_status);
 }
 
-static int add_user_to_lr(struct opal_dev *dev, void *data)
+static void add_authority_object_ref(int *err,
+				     struct opal_dev *dev,
+				     const u8 *uid,
+				     size_t uid_len)
+{
+	add_token_u8(err, dev, OPAL_STARTNAME);
+	add_token_bytestring(err, dev,
+			     opaluid[OPAL_HALF_UID_AUTHORITY_OBJ_REF],
+			     OPAL_UID_LENGTH/2);
+	add_token_bytestring(err, dev, uid, uid_len);
+	add_token_u8(err, dev, OPAL_ENDNAME);
+}
+
+static void add_boolean_object_ref(int *err,
+				   struct opal_dev *dev,
+				   u8 boolean_op)
+{
+	add_token_u8(err, dev, OPAL_STARTNAME);
+	add_token_bytestring(err, dev, opaluid[OPAL_HALF_UID_BOOLEAN_ACE],
+			     OPAL_UID_LENGTH/2);
+	add_token_u8(err, dev, boolean_op);
+	add_token_u8(err, dev, OPAL_ENDNAME);
+}
+
+static int set_lr_boolean_ace(struct opal_dev *dev,
+			      unsigned int opal_uid,
+			      u8 lr,
+			      const u8 *users,
+			      size_t users_len)
 {
 	u8 lr_buffer[OPAL_UID_LENGTH];
 	u8 user_uid[OPAL_UID_LENGTH];
-	struct opal_lock_unlock *lkul = data;
+	u8 u;
 	int err;
 
-	memcpy(lr_buffer, opaluid[OPAL_LOCKINGRANGE_ACE_RDLOCKED],
-	       OPAL_UID_LENGTH);
-
-	if (lkul->l_state == OPAL_RW)
-		memcpy(lr_buffer, opaluid[OPAL_LOCKINGRANGE_ACE_WRLOCKED],
-		       OPAL_UID_LENGTH);
-
-	lr_buffer[7] = lkul->session.opal_key.lr;
-
-	memcpy(user_uid, opaluid[OPAL_USER1_UID], OPAL_UID_LENGTH);
-
-	user_uid[7] = lkul->session.who;
+	memcpy(lr_buffer, opaluid[opal_uid], OPAL_UID_LENGTH);
+	lr_buffer[7] = lr;
 
 	err = cmd_start(dev, lr_buffer, opalmethod[OPAL_SET]);
 
@@ -1790,19 +1808,49 @@ static int add_user_to_lr(struct opal_dev *dev, void *data)
 
 	add_token_u8(&err, dev, OPAL_STARTLIST);
 
+	for (u = 0; u < users_len; u++) {
+		if (users[u] == OPAL_ADMIN1)
+			memcpy(user_uid, opaluid[OPAL_ADMIN1_UID],
+			       OPAL_UID_LENGTH);
+		else {
+			memcpy(user_uid, opaluid[OPAL_USER1_UID],
+			       OPAL_UID_LENGTH);
+			user_uid[7] = users[u];
+		}
 
-	add_token_u8(&err, dev, OPAL_STARTNAME);
-	add_token_bytestring(&err, dev,
-			     opaluid[OPAL_HALF_UID_AUTHORITY_OBJ_REF],
-			     OPAL_UID_LENGTH/2);
-	add_token_bytestring(&err, dev, user_uid, OPAL_UID_LENGTH);
-	add_token_u8(&err, dev, OPAL_ENDNAME);
+		add_authority_object_ref(&err, dev, user_uid, sizeof(user_uid));
+
+		/*
+		 * Add boolean operator in postfix only with
+		 * two or more authorities being added in ACE
+		 * expresion.
+		 * */
+		if (u > 0)
+			add_boolean_object_ref(&err, dev, OPAL_BOOLEAN_OR);
+	}
 
 	add_token_u8(&err, dev, OPAL_ENDLIST);
 	add_token_u8(&err, dev, OPAL_ENDNAME);
 	add_token_u8(&err, dev, OPAL_ENDLIST);
 	add_token_u8(&err, dev, OPAL_ENDNAME);
 
+	return err;
+}
+
+static int add_user_to_lr(struct opal_dev *dev, void *data)
+{
+	int err;
+	struct opal_lock_unlock *lkul = data;
+	const u8 users[] = {
+		lkul->session.who
+	};
+
+	err = set_lr_boolean_ace(dev,
+				 lkul->l_state == OPAL_RW ?
+					OPAL_LOCKINGRANGE_ACE_WRLOCKED :
+					OPAL_LOCKINGRANGE_ACE_RDLOCKED,
+				 lkul->session.opal_key.lr, users,
+				 ARRAY_SIZE(users));
 	if (err) {
 		pr_debug("Error building add user to locking range command.\n");
 		return err;
