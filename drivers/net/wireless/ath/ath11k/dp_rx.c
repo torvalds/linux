@@ -3106,8 +3106,11 @@ int ath11k_peer_rx_frag_setup(struct ath11k *ar, const u8 *peer_mac, int vdev_id
 	int i;
 
 	tfm = crypto_alloc_shash("michael_mic", 0, 0);
-	if (IS_ERR(tfm))
+	if (IS_ERR(tfm)) {
+		ath11k_warn(ab, "failed to allocate michael_mic shash: %ld\n",
+			    PTR_ERR(tfm));
 		return PTR_ERR(tfm);
+	}
 
 	spin_lock_bh(&ab->base_lock);
 
