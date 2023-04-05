@@ -230,7 +230,7 @@ void btf_dump_linfo_plain(const struct btf *btf,
 void btf_dump_linfo_json(const struct btf *btf,
 			 const struct bpf_line_info *linfo, bool linum);
 void btf_dump_linfo_dotlabel(const struct btf *btf,
-			     const struct bpf_line_info *linfo);
+			     const struct bpf_line_info *linfo, bool linum);
 
 struct nlattr;
 struct ifinfomsg;

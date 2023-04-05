@@ -6,6 +6,7 @@
 
 #include "xlated_dumper.h"
 
-void dump_xlated_cfg(struct dump_data *dd, void *buf, unsigned int len);
+void dump_xlated_cfg(struct dump_data *dd, void *buf, unsigned int len,
+		     bool opcodes, bool linum);
 
 #endif /* __BPF_TOOL_CFG_H */

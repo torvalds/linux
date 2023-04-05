@@ -852,7 +852,7 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 		if (json_output)
 			dump_xlated_json(&dd, buf, member_len, opcodes, linum);
 		else if (visual)
-			dump_xlated_cfg(&dd, buf, member_len);
+			dump_xlated_cfg(&dd, buf, member_len, opcodes, linum);
 		else
 			dump_xlated_plain(&dd, buf, member_len, opcodes, linum);
 		kernel_syms_destroy(&dd);

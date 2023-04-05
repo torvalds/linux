@@ -381,7 +381,8 @@ static void cfg_destroy(struct cfg *cfg)
 }
 
 static void
-draw_bb_node(struct func_node *func, struct bb_node *bb, struct dump_data *dd)
+draw_bb_node(struct func_node *func, struct bb_node *bb, struct dump_data *dd,
+	     bool opcodes, bool linum)
 {
 	const char *shape;
 
@@ -401,7 +402,8 @@ draw_bb_node(struct func_node *func, struct bb_node *bb, struct dump_data *dd)
 		unsigned int start_idx;
 		printf("{\\\n");
 		start_idx = bb->head - func->start;
-		dump_xlated_for_graph(dd, bb->head, bb->tail, start_idx);
+		dump_xlated_for_graph(dd, bb->head, bb->tail, start_idx,
+				      opcodes, linum);
 		printf("}");
 	}
 
@@ -427,12 +429,14 @@ static void draw_bb_succ_edges(struct func_node *func, struct bb_node *bb)
 	}
 }
 
-static void func_output_bb_def(struct func_node *func, struct dump_data *dd)
+static void
+func_output_bb_def(struct func_node *func, struct dump_data *dd,
+		   bool opcodes, bool linum)
 {
 	struct bb_node *bb;
 
 	list_for_each_entry(bb, &func->bbs, l) {
-		draw_bb_node(func, bb, dd);
+		draw_bb_node(func, bb, dd, opcodes, linum);
 	}
 }
 
@@ -452,7 +456,8 @@ static void func_output_edges(struct func_node *func)
 	       func_idx, ENTRY_BLOCK_INDEX, func_idx, EXIT_BLOCK_INDEX);
 }
 
-static void cfg_dump(struct cfg *cfg, struct dump_data *dd)
+static void
+cfg_dump(struct cfg *cfg, struct dump_data *dd, bool opcodes, bool linum)
 {
 	struct func_node *func;
 
@@ -460,14 +465,15 @@ static void cfg_dump(struct cfg *cfg, struct dump_data *dd)
 	list_for_each_entry(func, &cfg->funcs, l) {
 		printf("subgraph \"cluster_%d\" {\n\tstyle=\"dashed\";\n\tcolor=\"black\";\n\tlabel=\"func_%d ()\";\n",
 		       func->idx, func->idx);
-		func_output_bb_def(func, dd);
+		func_output_bb_def(func, dd, opcodes, linum);
 		func_output_edges(func);
 		printf("}\n");
 	}
 	printf("}\n");
 }
 
-void dump_xlated_cfg(struct dump_data *dd, void *buf, unsigned int len)
+void dump_xlated_cfg(struct dump_data *dd, void *buf, unsigned int len,
+		     bool opcodes, bool linum)
 {
 	struct bpf_insn *insn = buf;
 	struct cfg cfg;
@@ -476,7 +482,7 @@ void dump_xlated_cfg(struct dump_data *dd, void *buf, unsigned int len)
 	if (cfg_build(&cfg, insn, len))
 		return;
 
-	cfg_dump(&cfg, dd);
+	cfg_dump(&cfg, dd, opcodes, linum);
 
 	cfg_destroy(&cfg);
 }

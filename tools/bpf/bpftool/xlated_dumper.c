@@ -361,7 +361,8 @@ void dump_xlated_plain(struct dump_data *dd, void *buf, unsigned int len,
 }
 
 void dump_xlated_for_graph(struct dump_data *dd, void *buf_start, void *buf_end,
-			   unsigned int start_idx)
+			   unsigned int start_idx,
+			   bool opcodes, bool linum)
 {
 	const struct bpf_insn_cbs cbs = {
 		.cb_print	= print_insn_for_graph,
@@ -405,13 +406,23 @@ void dump_xlated_for_graph(struct dump_data *dd, void *buf_start, void *buf_end,
 
 			linfo = bpf_prog_linfo__lfind(prog_linfo, insn_off, 0);
 			if (linfo && linfo != last_linfo) {
-				btf_dump_linfo_dotlabel(btf, linfo);
+				btf_dump_linfo_dotlabel(btf, linfo, linum);
 				last_linfo = linfo;
 			}
 		}
 
 		printf("%d: ", insn_off);
 		print_bpf_insn(&cbs, cur, true);
+
+		if (opcodes) {
+			printf("\\ \\ \\ \\ ");
+			fprint_hex(stdout, cur, 8, " ");
+			if (double_insn && cur <= insn_end - 1) {
+				printf(" ");
+				fprint_hex(stdout, cur + 1, 8, " ");
+			}
+			printf("\\l\\\n");
+		}
 
 		if (cur != insn_end)
 			printf("| ");
