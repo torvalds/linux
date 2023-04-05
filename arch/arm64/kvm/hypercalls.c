@@ -222,13 +222,19 @@ static void kvm_prepare_hypercall_exit(struct kvm_vcpu *vcpu, u32 func_id)
 {
 	u8 ec = ESR_ELx_EC(kvm_vcpu_get_esr(vcpu));
 	struct kvm_run *run = vcpu->run;
-
-	run->exit_reason = KVM_EXIT_HYPERCALL;
-	run->hypercall.nr = func_id;
-	run->hypercall.flags = 0;
+	u64 flags = 0;
 
 	if (ec == ESR_ELx_EC_SMC32 || ec == ESR_ELx_EC_SMC64)
-		run->hypercall.flags |= KVM_HYPERCALL_EXIT_SMC;
+		flags |= KVM_HYPERCALL_EXIT_SMC;
+
+	if (!kvm_vcpu_trap_il_is32bit(vcpu))
+		flags |= KVM_HYPERCALL_EXIT_16BIT;
+
+	run->exit_reason = KVM_EXIT_HYPERCALL;
+	run->hypercall = (typeof(run->hypercall)) {
+		.nr	= func_id,
+		.flags	= flags,
+	};
 }
 
 int kvm_smccc_call_handler(struct kvm_vcpu *vcpu)

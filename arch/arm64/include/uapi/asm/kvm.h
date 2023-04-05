@@ -491,7 +491,8 @@ struct kvm_smccc_filter {
 };
 
 /* arm64-specific KVM_EXIT_HYPERCALL flags */
-#define KVM_HYPERCALL_EXIT_SMC	(1U << 0)
+#define KVM_HYPERCALL_EXIT_SMC		(1U << 0)
+#define KVM_HYPERCALL_EXIT_16BIT	(1U << 1)
 
 #endif
 

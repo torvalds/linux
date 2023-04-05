@@ -6244,6 +6244,14 @@ Definition of ``flags``:
    conduit to initiate the SMCCC call. If this bit is 0 then the guest
    used the HVC conduit for the SMCCC call.
 
+ - ``KVM_HYPERCALL_EXIT_16BIT``: Indicates that the guest used a 16bit
+   instruction to initiate the SMCCC call. If this bit is 0 then the
+   guest used a 32bit instruction. An AArch64 guest always has this
+   bit set to 0.
+
+At the point of exit, PC points to the instruction immediately following
+the trapping instruction.
+
 ::
 
 		/* KVM_EXIT_TPR_ACCESS */
