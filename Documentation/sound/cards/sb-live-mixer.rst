@@ -15,7 +15,7 @@ The ALSA driver programs this portion of chip by default code
 IEC958 (S/PDIF) raw PCM
 =======================
 
-This PCM device (it's the 4th PCM device (index 3!) and first subdevice
+This PCM device (it's the 3rd PCM device (index 2!) and first subdevice
 (index 0) for a given card) allows to forward 48kHz, stereo, 16-bit
 little endian streams without any modifications to the digital output
 (coaxial or optical). The universal interface allows the creation of up
@@ -33,9 +33,9 @@ Digital mixer controls
 These controls are built using the DSP instructions. They offer extended
 functionality. Only the default built-in code in the ALSA driver is described
 here. Note that the controls work as attenuators: the maximum value is the 
-neutral position leaving the signal unchanged. Note that if the  same destination 
-is mentioned in multiple controls, the signal is accumulated and can be wrapped 
-(set to maximal or minimal value without checking of overflow).
+neutral position leaving the signal unchanged. Note that if the same destination
+is mentioned in multiple controls, the signal is accumulated and can be clipped
+(set to maximal or minimal value without checking for overflow).
 
 
 Explanation of used abbreviations:
@@ -46,11 +46,11 @@ ADC
 	analog to digital converter
 I2S
 	one-way three wire serial bus for digital sound by Philips Semiconductors
-        (this standard is used for connecting standalone DAC and ADC converters)
+	(this standard is used for connecting standalone D/A and A/D converters)
 LFE
-	low frequency effects (subwoofer signal)
+	low frequency effects (used as subwoofer signal)
 AC97
-	a chip containing an analog mixer, DAC and ADC converters
+	a chip containing an analog mixer, D/A and A/D converters
 IEC958
 	S/PDIF
 FX-bus
@@ -312,6 +312,9 @@ MANUALS/PATENTS
 
 ftp://opensource.creative.com/pub/doc
 -------------------------------------
+
+Note that the site is defunct, but the documents are available
+from various other locations.
 
 LM4545.pdf
 	AC97 Codec
