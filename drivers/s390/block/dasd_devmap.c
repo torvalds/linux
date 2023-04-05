@@ -1518,6 +1518,41 @@ static ssize_t dasd_aq_mask_store(struct device *dev, struct device_attribute *a
 static DEVICE_ATTR(aq_mask, 0644, dasd_aq_mask_show, dasd_aq_mask_store);
 
 /*
+ * aq_requeue controls if requests are returned to the blocklayer on quiesce
+ * or if requests are only not started
+ */
+static ssize_t dasd_aqr_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	struct dasd_devmap *devmap;
+	int flag;
+
+	devmap = dasd_find_busid(dev_name(dev));
+	if (!IS_ERR(devmap))
+		flag = (devmap->features & DASD_FEATURE_REQUEUEQUIESCE) != 0;
+	else
+		flag = (DASD_FEATURE_DEFAULT &
+			DASD_FEATURE_REQUEUEQUIESCE) != 0;
+	return sysfs_emit(buf, "%d\n", flag);
+}
+
+static ssize_t dasd_aqr_store(struct device *dev, struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	bool val;
+	int rc;
+
+	if (kstrtobool(buf, &val))
+		return -EINVAL;
+
+	rc = dasd_set_feature(to_ccwdev(dev), DASD_FEATURE_REQUEUEQUIESCE, val);
+
+	return rc ? : count;
+}
+
+static DEVICE_ATTR(aq_requeue, 0644, dasd_aqr_show, dasd_aqr_store);
+
+/*
  * expiration time for default requests
  */
 static ssize_t
@@ -2367,6 +2402,7 @@ static struct attribute * dasd_attrs[] = {
 	&dev_attr_copy_role.attr,
 	&dev_attr_ping.attr,
 	&dev_attr_aq_mask.attr,
+	&dev_attr_aq_requeue.attr,
 	NULL,
 };
 
