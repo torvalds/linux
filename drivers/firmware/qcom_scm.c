@@ -2736,7 +2736,6 @@ bool qcom_scm_multi_call_allow(struct device *dev, bool multicall_allowed)
 struct completion *qcom_scm_lookup_wq(struct qcom_scm *scm, u32 wq_ctx)
 {
 	struct completion *wq = NULL;
-	u32 wq_ctx_idr = wq_ctx;
 	unsigned long flags;
 	int err;
 
@@ -2753,8 +2752,7 @@ struct completion *qcom_scm_lookup_wq(struct qcom_scm *scm, u32 wq_ctx)
 
 	init_completion(wq);
 
-	err = idr_alloc_u32(&scm->waitq.idr, wq, &wq_ctx_idr,
-			    (wq_ctx_idr < U32_MAX ? : U32_MAX), GFP_ATOMIC);
+	err = idr_alloc_u32(&scm->waitq.idr, wq, &wq_ctx, wq_ctx, GFP_ATOMIC);
 	if (err < 0) {
 		devm_kfree(scm->dev, wq);
 		wq = ERR_PTR(err);
