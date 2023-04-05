@@ -2922,8 +2922,8 @@ kvfree_rcu_bulk(struct kfree_rcu_cpu *krcp,
 	unsigned long flags;
 	int i;
 
-	debug_rcu_bhead_unqueue(bnode);
 	if (!WARN_ON_ONCE(!poll_state_synchronize_rcu_full(&bnode->gp_snap))) {
+		debug_rcu_bhead_unqueue(bnode);
 		rcu_lock_acquire(&rcu_callback_map);
 		if (idx == 0) { // kmalloc() / kfree().
 			trace_rcu_invoke_kfree_bulk_callback(
