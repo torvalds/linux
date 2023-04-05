@@ -691,11 +691,11 @@ int intel_gt_init(struct intel_gt *gt)
 	if (err)
 		goto err_gt;
 
-	intel_uc_init_late(&gt->uc);
-
 	err = i915_inject_probe_error(gt->i915, -EIO);
 	if (err)
 		goto err_gt;
+
+	intel_uc_init_late(&gt->uc);
 
 	intel_migrate_init(&gt->migrate, gt);
 
