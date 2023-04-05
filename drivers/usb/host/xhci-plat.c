@@ -362,10 +362,8 @@ static int xhci_generic_plat_probe(struct platform_device *pdev)
 		if (is_of_node(sysdev->fwnode) ||
 			is_acpi_device_node(sysdev->fwnode))
 			break;
-#ifdef CONFIG_PCI
-		else if (sysdev->bus == &pci_bus_type)
+		else if (dev_is_pci(sysdev))
 			break;
-#endif
 	}
 
 	if (!sysdev)
