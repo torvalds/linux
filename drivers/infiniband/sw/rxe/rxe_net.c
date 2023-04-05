@@ -413,11 +413,14 @@ int rxe_xmit_packet(struct rxe_qp *qp, struct rxe_pkt_info *pkt,
 	int is_request = pkt->mask & RXE_REQ_MASK;
 	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
 
+	spin_lock_bh(&qp->state_lock);
 	if ((is_request && (qp_state(qp) < IB_QPS_RTS)) ||
 	    (!is_request && (qp_state(qp) < IB_QPS_RTR))) {
+		spin_unlock_bh(&qp->state_lock);
 		rxe_dbg_qp(qp, "Packet dropped. QP is not in ready state\n");
 		goto drop;
 	}
+	spin_unlock_bh(&qp->state_lock);
 
 	rxe_icrc_generate(skb, pkt);
 

@@ -325,8 +325,10 @@ int rxe_qp_from_init(struct rxe_dev *rxe, struct rxe_qp *qp, struct rxe_pd *pd,
 	if (err)
 		goto err2;
 
+	spin_lock_bh(&qp->state_lock);
 	qp->attr.qp_state = IB_QPS_RESET;
 	qp->valid = 1;
+	spin_unlock_bh(&qp->state_lock);
 
 	return 0;
 
@@ -377,27 +379,9 @@ int rxe_qp_to_init(struct rxe_qp *qp, struct ib_qp_init_attr *init)
 	return 0;
 }
 
-/* called by the modify qp verb, this routine checks all the parameters before
- * making any changes
- */
 int rxe_qp_chk_attr(struct rxe_dev *rxe, struct rxe_qp *qp,
 		    struct ib_qp_attr *attr, int mask)
 {
-	enum ib_qp_state cur_state = (mask & IB_QP_CUR_STATE) ?
-					attr->cur_qp_state : qp->attr.qp_state;
-	enum ib_qp_state new_state = (mask & IB_QP_STATE) ?
-					attr->qp_state : cur_state;
-
-	if (!ib_modify_qp_is_ok(cur_state, new_state, qp_type(qp), mask)) {
-		rxe_dbg_qp(qp, "invalid mask or state\n");
-		goto err1;
-	}
-
-	if (mask & IB_QP_STATE && cur_state == IB_QPS_SQD) {
-		if (qp->attr.sq_draining && new_state != IB_QPS_ERR)
-			goto err1;
-	}
-
 	if (mask & IB_QP_PORT) {
 		if (!rdma_is_port_valid(&rxe->ib_dev, attr->port_num)) {
 			rxe_dbg_qp(qp, "invalid port %d\n", attr->port_num);
@@ -508,21 +492,95 @@ static void rxe_qp_reset(struct rxe_qp *qp)
 /* move the qp to the error state */
 void rxe_qp_error(struct rxe_qp *qp)
 {
+	spin_lock_bh(&qp->state_lock);
 	qp->attr.qp_state = IB_QPS_ERR;
 
 	/* drain work and packet queues */
 	rxe_sched_task(&qp->resp.task);
 	rxe_sched_task(&qp->comp.task);
 	rxe_sched_task(&qp->req.task);
+	spin_unlock_bh(&qp->state_lock);
 }
+
+static void rxe_qp_sqd(struct rxe_qp *qp, struct ib_qp_attr *attr,
+		       int mask)
+{
+	spin_lock_bh(&qp->state_lock);
+	qp->attr.sq_draining = 1;
+	rxe_sched_task(&qp->comp.task);
+	rxe_sched_task(&qp->req.task);
+	spin_unlock_bh(&qp->state_lock);
+}
+
+/* caller should hold qp->state_lock */
+static int __qp_chk_state(struct rxe_qp *qp, struct ib_qp_attr *attr,
+			    int mask)
+{
+	enum ib_qp_state cur_state;
+	enum ib_qp_state new_state;
+
+	cur_state = (mask & IB_QP_CUR_STATE) ?
+				attr->cur_qp_state : qp->attr.qp_state;
+	new_state = (mask & IB_QP_STATE) ?
+				attr->qp_state : cur_state;
+
+	if (!ib_modify_qp_is_ok(cur_state, new_state, qp_type(qp), mask))
+		return -EINVAL;
+
+	if (mask & IB_QP_STATE && cur_state == IB_QPS_SQD) {
+		if (qp->attr.sq_draining && new_state != IB_QPS_ERR)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
+static const char *const qps2str[] = {
+	[IB_QPS_RESET]	= "RESET",
+	[IB_QPS_INIT]	= "INIT",
+	[IB_QPS_RTR]	= "RTR",
+	[IB_QPS_RTS]	= "RTS",
+	[IB_QPS_SQD]	= "SQD",
+	[IB_QPS_SQE]	= "SQE",
+	[IB_QPS_ERR]	= "ERR",
+};
 
 /* called by the modify qp verb */
 int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 		     struct ib_udata *udata)
 {
-	enum ib_qp_state cur_state = (mask & IB_QP_CUR_STATE) ?
-				attr->cur_qp_state : qp->attr.qp_state;
 	int err;
+
+	if (mask & IB_QP_CUR_STATE)
+		qp->attr.cur_qp_state = attr->qp_state;
+
+	if (mask & IB_QP_STATE) {
+		spin_lock_bh(&qp->state_lock);
+		err = __qp_chk_state(qp, attr, mask);
+		if (!err) {
+			qp->attr.qp_state = attr->qp_state;
+			rxe_dbg_qp(qp, "state -> %s\n",
+					qps2str[attr->qp_state]);
+		}
+		spin_unlock_bh(&qp->state_lock);
+
+		if (err)
+			return err;
+
+		switch (attr->qp_state) {
+		case IB_QPS_RESET:
+			rxe_qp_reset(qp);
+			break;
+		case IB_QPS_SQD:
+			rxe_qp_sqd(qp, attr, mask);
+			break;
+		case IB_QPS_ERR:
+			rxe_qp_error(qp);
+			break;
+		default:
+			break;
+		}
+	}
 
 	if (mask & IB_QP_MAX_QP_RD_ATOMIC) {
 		int max_rd_atomic = attr->max_rd_atomic ?
@@ -544,9 +602,6 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 		if (err)
 			return err;
 	}
-
-	if (mask & IB_QP_CUR_STATE)
-		qp->attr.cur_qp_state = attr->qp_state;
 
 	if (mask & IB_QP_EN_SQD_ASYNC_NOTIFY)
 		qp->attr.en_sqd_async_notify = attr->en_sqd_async_notify;
@@ -627,48 +682,6 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 	if (mask & IB_QP_DEST_QPN)
 		qp->attr.dest_qp_num = attr->dest_qp_num;
 
-	if (mask & IB_QP_STATE) {
-		qp->attr.qp_state = attr->qp_state;
-
-		switch (attr->qp_state) {
-		case IB_QPS_RESET:
-			rxe_dbg_qp(qp, "state -> RESET\n");
-			rxe_qp_reset(qp);
-			break;
-
-		case IB_QPS_INIT:
-			rxe_dbg_qp(qp, "state -> INIT\n");
-			break;
-
-		case IB_QPS_RTR:
-			rxe_dbg_qp(qp, "state -> RTR\n");
-			break;
-
-		case IB_QPS_RTS:
-			rxe_dbg_qp(qp, "state -> RTS\n");
-			break;
-
-		case IB_QPS_SQD:
-			rxe_dbg_qp(qp, "state -> SQD\n");
-			if (cur_state != IB_QPS_SQD) {
-				qp->attr.sq_draining = 1;
-				rxe_sched_task(&qp->comp.task);
-				rxe_sched_task(&qp->req.task);
-			}
-			break;
-
-		case IB_QPS_SQE:
-			rxe_dbg_qp(qp, "state -> SQE !!?\n");
-			/* Not possible from modify_qp. */
-			break;
-
-		case IB_QPS_ERR:
-			rxe_dbg_qp(qp, "state -> ERR\n");
-			rxe_qp_error(qp);
-			break;
-		}
-	}
-
 	return 0;
 }
 
@@ -695,10 +708,12 @@ int rxe_qp_to_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask)
 	/* Applications that get this state typically spin on it.
 	 * Yield the processor
 	 */
-	if (qp->attr.sq_draining)
+	spin_lock_bh(&qp->state_lock);
+	if (qp->attr.sq_draining) {
+		spin_unlock_bh(&qp->state_lock);
 		cond_resched();
-
-	rxe_dbg_qp(qp, "attr->sq_draining = %d\n", attr->sq_draining);
+	}
+	spin_unlock_bh(&qp->state_lock);
 
 	return 0;
 }
@@ -722,7 +737,9 @@ static void rxe_qp_do_cleanup(struct work_struct *work)
 {
 	struct rxe_qp *qp = container_of(work, typeof(*qp), cleanup_work.work);
 
+	spin_lock_bh(&qp->state_lock);
 	qp->valid = 0;
+	spin_unlock_bh(&qp->state_lock);
 	qp->qp_timeout_jiffies = 0;
 
 	if (qp_type(qp) == IB_QPT_RC) {

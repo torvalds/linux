@@ -118,10 +118,12 @@ void retransmit_timer(struct timer_list *t)
 
 	rxe_dbg_qp(qp, "retransmit timer fired\n");
 
+	spin_lock_bh(&qp->state_lock);
 	if (qp->valid) {
 		qp->comp.timeout = 1;
 		rxe_sched_task(&qp->comp.task);
 	}
+	spin_unlock_bh(&qp->state_lock);
 }
 
 void rxe_comp_queue_pkt(struct rxe_qp *qp, struct sk_buff *skb)
@@ -479,9 +481,8 @@ static void do_complete(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 
 static void comp_check_sq_drain_done(struct rxe_qp *qp)
 {
+	spin_lock_bh(&qp->state_lock);
 	if (unlikely(qp_state(qp) == IB_QPS_SQD)) {
-		/* state_lock used by requester & completer */
-		spin_lock_bh(&qp->state_lock);
 		if (qp->attr.sq_draining && qp->comp.psn == qp->req.psn) {
 			qp->attr.sq_draining = 0;
 			spin_unlock_bh(&qp->state_lock);
@@ -497,8 +498,8 @@ static void comp_check_sq_drain_done(struct rxe_qp *qp)
 			}
 			return;
 		}
-		spin_unlock_bh(&qp->state_lock);
 	}
+	spin_unlock_bh(&qp->state_lock);
 }
 
 static inline enum comp_state complete_ack(struct rxe_qp *qp,
@@ -614,6 +615,26 @@ static void free_pkt(struct rxe_pkt_info *pkt)
 	ib_device_put(dev);
 }
 
+/* reset the retry timer if
+ * - QP is type RC
+ * - there is a packet sent by the requester that
+ *   might be acked (we still might get spurious
+ *   timeouts but try to keep them as few as possible)
+ * - the timeout parameter is set
+ * - the QP is alive
+ */
+static void reset_retry_timer(struct rxe_qp *qp)
+{
+	if (qp_type(qp) == IB_QPT_RC && qp->qp_timeout_jiffies) {
+		spin_lock_bh(&qp->state_lock);
+		if (qp_state(qp) >= IB_QPS_RTS &&
+		    psn_compare(qp->req.psn, qp->comp.psn) > 0)
+			mod_timer(&qp->retrans_timer,
+				  jiffies + qp->qp_timeout_jiffies);
+		spin_unlock_bh(&qp->state_lock);
+	}
+}
+
 int rxe_completer(struct rxe_qp *qp)
 {
 	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
@@ -623,14 +644,17 @@ int rxe_completer(struct rxe_qp *qp)
 	enum comp_state state;
 	int ret;
 
+	spin_lock_bh(&qp->state_lock);
 	if (!qp->valid || qp_state(qp) == IB_QPS_ERR ||
-	    qp_state(qp) == IB_QPS_RESET) {
+			  qp_state(qp) == IB_QPS_RESET) {
 		bool notify = qp->valid && (qp_state(qp) == IB_QPS_ERR);
 
 		drain_resp_pkts(qp);
 		flush_send_queue(qp, notify);
+		spin_unlock_bh(&qp->state_lock);
 		goto exit;
 	}
+	spin_unlock_bh(&qp->state_lock);
 
 	if (qp->comp.timeout) {
 		qp->comp.timeout_retry = 1;
@@ -718,20 +742,7 @@ int rxe_completer(struct rxe_qp *qp)
 				break;
 			}
 
-			/* re reset the timeout counter if
-			 * (1) QP is type RC
-			 * (2) the QP is alive
-			 * (3) there is a packet sent by the requester that
-			 *     might be acked (we still might get spurious
-			 *     timeouts but try to keep them as few as possible)
-			 * (4) the timeout parameter is set
-			 */
-			if ((qp_type(qp) == IB_QPT_RC) &&
-			    (qp_state(qp) >= IB_QPS_RTS) &&
-			    (psn_compare(qp->req.psn, qp->comp.psn) > 0) &&
-			    qp->qp_timeout_jiffies)
-				mod_timer(&qp->retrans_timer,
-					  jiffies + qp->qp_timeout_jiffies);
+			reset_retry_timer(qp);
 			goto exit;
 
 		case COMPST_ERROR_RETRY:
@@ -793,6 +804,7 @@ int rxe_completer(struct rxe_qp *qp)
 				 */
 				qp->req.wait_for_rnr_timer = 1;
 				rxe_dbg_qp(qp, "set rnr nak timer\n");
+				// TODO who protects from destroy_qp??
 				mod_timer(&qp->rnr_nak_timer,
 					  jiffies + rnrnak_jiffies(aeth_syn(pkt)
 						& ~AETH_TYPE_MASK));

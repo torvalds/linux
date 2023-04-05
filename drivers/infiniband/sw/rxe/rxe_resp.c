@@ -1137,8 +1137,13 @@ static enum resp_states do_complete(struct rxe_qp *qp,
 		return RESPST_ERR_CQ_OVERFLOW;
 
 finish:
-	if (unlikely(qp_state(qp) == IB_QPS_ERR))
+	spin_lock_bh(&qp->state_lock);
+	if (unlikely(qp_state(qp) == IB_QPS_ERR)) {
+		spin_unlock_bh(&qp->state_lock);
 		return RESPST_CHK_RESOURCE;
+	}
+	spin_unlock_bh(&qp->state_lock);
+
 	if (unlikely(!pkt))
 		return RESPST_DONE;
 	if (qp_type(qp) == IB_QPT_RC)
@@ -1464,14 +1469,17 @@ int rxe_responder(struct rxe_qp *qp)
 	struct rxe_pkt_info *pkt = NULL;
 	int ret;
 
+	spin_lock_bh(&qp->state_lock);
 	if (!qp->valid || qp_state(qp) == IB_QPS_ERR ||
-	    qp_state(qp) == IB_QPS_RESET) {
+			  qp_state(qp) == IB_QPS_RESET) {
 		bool notify = qp->valid && (qp_state(qp) == IB_QPS_ERR);
 
 		drain_req_pkts(qp);
 		flush_recv_queue(qp, notify);
+		spin_unlock_bh(&qp->state_lock);
 		goto exit;
 	}
+	spin_unlock_bh(&qp->state_lock);
 
 	qp->resp.aeth_syndrome = AETH_ACK_UNLIMITED;
 

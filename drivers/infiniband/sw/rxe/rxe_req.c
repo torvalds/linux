@@ -102,24 +102,33 @@ void rnr_nak_timer(struct timer_list *t)
 
 	rxe_dbg_qp(qp, "nak timer fired\n");
 
-	/* request a send queue retry */
-	qp->req.need_retry = 1;
-	qp->req.wait_for_rnr_timer = 0;
-	rxe_sched_task(&qp->req.task);
+	spin_lock_bh(&qp->state_lock);
+	if (qp->valid) {
+		/* request a send queue retry */
+		qp->req.need_retry = 1;
+		qp->req.wait_for_rnr_timer = 0;
+		rxe_sched_task(&qp->req.task);
+	}
+	spin_unlock_bh(&qp->state_lock);
 }
 
 static void req_check_sq_drain_done(struct rxe_qp *qp)
 {
-	struct rxe_queue *q = qp->sq.queue;
-	unsigned int index = qp->req.wqe_index;
-	unsigned int cons = queue_get_consumer(q, QUEUE_TYPE_FROM_CLIENT);
-	struct rxe_send_wqe *wqe = queue_addr_from_index(q, cons);
+	struct rxe_queue *q;
+	unsigned int index;
+	unsigned int cons;
+	struct rxe_send_wqe *wqe;
 
-	if (unlikely(qp_state(qp) == IB_QPS_SQD)) {
+	spin_lock_bh(&qp->state_lock);
+	if (qp_state(qp) == IB_QPS_SQD) {
+		q = qp->sq.queue;
+		index = qp->req.wqe_index;
+		cons = queue_get_consumer(q, QUEUE_TYPE_FROM_CLIENT);
+		wqe = queue_addr_from_index(q, cons);
+
 		/* check to see if we are drained;
 		 * state_lock used by requester and completer
 		 */
-		spin_lock_bh(&qp->state_lock);
 		do {
 			if (!qp->attr.sq_draining)
 				/* comp just finished */
@@ -144,28 +153,40 @@ static void req_check_sq_drain_done(struct rxe_qp *qp)
 			}
 			return;
 		} while (0);
-		spin_unlock_bh(&qp->state_lock);
 	}
+	spin_unlock_bh(&qp->state_lock);
+}
+
+static struct rxe_send_wqe *__req_next_wqe(struct rxe_qp *qp)
+{
+	struct rxe_queue *q = qp->sq.queue;
+	unsigned int index = qp->req.wqe_index;
+	unsigned int prod;
+
+	prod = queue_get_producer(q, QUEUE_TYPE_FROM_CLIENT);
+	if (index == prod)
+		return NULL;
+	else
+		return queue_addr_from_index(q, index);
 }
 
 static struct rxe_send_wqe *req_next_wqe(struct rxe_qp *qp)
 {
 	struct rxe_send_wqe *wqe;
-	struct rxe_queue *q = qp->sq.queue;
-	unsigned int index = qp->req.wqe_index;
-	unsigned int prod;
 
 	req_check_sq_drain_done(qp);
 
-	prod = queue_get_producer(q, QUEUE_TYPE_FROM_CLIENT);
-	if (index == prod)
+	wqe = __req_next_wqe(qp);
+	if (wqe == NULL)
 		return NULL;
 
-	wqe = queue_addr_from_index(q, index);
-
+	spin_lock(&qp->state_lock);
 	if (unlikely((qp_state(qp) == IB_QPS_SQD) &&
-		     (wqe->state != wqe_state_processing)))
+		     (wqe->state != wqe_state_processing))) {
+		spin_unlock(&qp->state_lock);
 		return NULL;
+	}
+	spin_unlock(&qp->state_lock);
 
 	wqe->mask = wr_opcode_mask(wqe->wr.opcode, qp);
 	return wqe;
@@ -656,15 +677,16 @@ int rxe_requester(struct rxe_qp *qp)
 	struct rxe_ah *ah;
 	struct rxe_av *av;
 
-	if (unlikely(!qp->valid))
+	spin_lock_bh(&qp->state_lock);
+	if (unlikely(!qp->valid)) {
+		spin_unlock_bh(&qp->state_lock);
 		goto exit;
+	}
 
 	if (unlikely(qp_state(qp) == IB_QPS_ERR)) {
-		wqe = req_next_wqe(qp);
+		wqe = __req_next_wqe(qp);
+		spin_unlock_bh(&qp->state_lock);
 		if (wqe)
-			/*
-			 * Generate an error completion for error qp state
-			 */
 			goto err;
 		else
 			goto exit;
@@ -678,8 +700,10 @@ int rxe_requester(struct rxe_qp *qp)
 		qp->req.wait_psn = 0;
 		qp->req.need_retry = 0;
 		qp->req.wait_for_rnr_timer = 0;
+		spin_unlock_bh(&qp->state_lock);
 		goto exit;
 	}
+	spin_unlock_bh(&qp->state_lock);
 
 	/* we come here if the retransmit timer has fired
 	 * or if the rnr timer has fired. If the retransmit
@@ -839,8 +863,7 @@ err:
 	/* update wqe_index for each wqe completion */
 	qp->req.wqe_index = queue_next_index(qp->sq.queue, qp->req.wqe_index);
 	wqe->state = wqe_state_error;
-	qp->attr.qp_state = IB_QPS_ERR;
-	rxe_sched_task(&qp->comp.task);
+	rxe_qp_error(qp);
 exit:
 	ret = -EAGAIN;
 out:

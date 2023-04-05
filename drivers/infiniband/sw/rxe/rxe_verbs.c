@@ -660,42 +660,70 @@ err_out:
 }
 
 /* send wr */
+
+/* sanity check incoming send work request */
 static int validate_send_wr(struct rxe_qp *qp, const struct ib_send_wr *ibwr,
-			    unsigned int mask, unsigned int length)
+			    unsigned int *maskp, unsigned int *lengthp)
 {
 	int num_sge = ibwr->num_sge;
 	struct rxe_sq *sq = &qp->sq;
+	unsigned int mask = 0;
+	unsigned long length = 0;
+	int err = -EINVAL;
+	int i;
 
-	if (unlikely(num_sge > sq->max_sge)) {
-		rxe_dbg_qp(qp, "num_sge > max_sge");
-		goto err_out;
-	}
-
-	if (unlikely(mask & WR_ATOMIC_MASK)) {
-		if (length != 8) {
-			rxe_dbg_qp(qp, "atomic length != 8");
-			goto err_out;
+	do {
+		mask = wr_opcode_mask(ibwr->opcode, qp);
+		if (!mask) {
+			rxe_err_qp(qp, "bad wr opcode for qp type");
+			break;
 		}
 
-		if (atomic_wr(ibwr)->remote_addr & 0x7) {
-			rxe_dbg_qp(qp, "misaligned atomic address");
-			goto err_out;
+		if (num_sge > sq->max_sge) {
+			rxe_err_qp(qp, "num_sge > max_sge");
+			break;
 		}
-	}
 
-	if (unlikely((ibwr->send_flags & IB_SEND_INLINE) &&
-		     (length > sq->max_inline))) {
-		rxe_dbg_qp(qp, "inline length too big");
-		goto err_out;
-	}
+		length = 0;
+		for (i = 0; i < ibwr->num_sge; i++)
+			length += ibwr->sg_list[i].length;
 
-	return 0;
+		if (length > (1UL << 31)) {
+			rxe_err_qp(qp, "message length too long");
+			break;
+		}
 
-err_out:
-	return -EINVAL;
+		if (mask & WR_ATOMIC_MASK) {
+			if (length != 8) {
+				rxe_err_qp(qp, "atomic length != 8");
+				break;
+			}
+			if (atomic_wr(ibwr)->remote_addr & 0x7) {
+				rxe_err_qp(qp, "misaligned atomic address");
+				break;
+			}
+		}
+		if (ibwr->send_flags & IB_SEND_INLINE) {
+			if (!(mask & WR_INLINE_MASK)) {
+				rxe_err_qp(qp, "opcode doesn't support inline data");
+				break;
+			}
+			if (length > sq->max_inline) {
+				rxe_err_qp(qp, "inline length too big");
+				break;
+			}
+		}
+
+		err = 0;
+	} while (0);
+
+	*maskp = mask;
+	*lengthp = (int)length;
+
+	return err;
 }
 
-static void init_send_wr(struct rxe_qp *qp, struct rxe_send_wr *wr,
+static int init_send_wr(struct rxe_qp *qp, struct rxe_send_wr *wr,
 			 const struct ib_send_wr *ibwr)
 {
 	wr->wr_id = ibwr->wr_id;
@@ -711,8 +739,18 @@ static void init_send_wr(struct rxe_qp *qp, struct rxe_send_wr *wr,
 		wr->wr.ud.ah_num = to_rah(ibah)->ah_num;
 		if (qp_type(qp) == IB_QPT_GSI)
 			wr->wr.ud.pkey_index = ud_wr(ibwr)->pkey_index;
-		if (wr->opcode == IB_WR_SEND_WITH_IMM)
+
+		switch (wr->opcode) {
+		case IB_WR_SEND_WITH_IMM:
 			wr->ex.imm_data = ibwr->ex.imm_data;
+			break;
+		case IB_WR_SEND:
+			break;
+		default:
+			rxe_err_qp(qp, "bad wr opcode %d for UD/GSI QP",
+					wr->opcode);
+			return -EINVAL;
+		}
 	} else {
 		switch (wr->opcode) {
 		case IB_WR_RDMA_WRITE_WITH_IMM:
@@ -728,6 +766,11 @@ static void init_send_wr(struct rxe_qp *qp, struct rxe_send_wr *wr,
 			break;
 		case IB_WR_SEND_WITH_INV:
 			wr->ex.invalidate_rkey = ibwr->ex.invalidate_rkey;
+			break;
+		case IB_WR_RDMA_READ_WITH_INV:
+			wr->ex.invalidate_rkey = ibwr->ex.invalidate_rkey;
+			wr->wr.rdma.remote_addr = rdma_wr(ibwr)->remote_addr;
+			wr->wr.rdma.rkey	= rdma_wr(ibwr)->rkey;
 			break;
 		case IB_WR_ATOMIC_CMP_AND_SWP:
 		case IB_WR_ATOMIC_FETCH_AND_ADD:
@@ -746,10 +789,20 @@ static void init_send_wr(struct rxe_qp *qp, struct rxe_send_wr *wr,
 			wr->wr.reg.key = reg_wr(ibwr)->key;
 			wr->wr.reg.access = reg_wr(ibwr)->access;
 			break;
+		case IB_WR_SEND:
+		case IB_WR_BIND_MW:
+		case IB_WR_FLUSH:
+		case IB_WR_ATOMIC_WRITE:
+			break;
 		default:
+			rxe_err_qp(qp, "unsupported wr opcode %d",
+					wr->opcode);
+			return -EINVAL;
 			break;
 		}
 	}
+
+	return 0;
 }
 
 static void copy_inline_data_to_wqe(struct rxe_send_wqe *wqe,
@@ -765,19 +818,22 @@ static void copy_inline_data_to_wqe(struct rxe_send_wqe *wqe,
 	}
 }
 
-static void init_send_wqe(struct rxe_qp *qp, const struct ib_send_wr *ibwr,
+static int init_send_wqe(struct rxe_qp *qp, const struct ib_send_wr *ibwr,
 			 unsigned int mask, unsigned int length,
 			 struct rxe_send_wqe *wqe)
 {
 	int num_sge = ibwr->num_sge;
+	int err;
 
-	init_send_wr(qp, &wqe->wr, ibwr);
+	err = init_send_wr(qp, &wqe->wr, ibwr);
+	if (err)
+		return err;
 
 	/* local operation */
 	if (unlikely(mask & WR_LOCAL_OP_MASK)) {
 		wqe->mask = mask;
 		wqe->state = wqe_state_posted;
-		return;
+		return 0;
 	}
 
 	if (unlikely(ibwr->send_flags & IB_SEND_INLINE))
@@ -796,93 +852,62 @@ static void init_send_wqe(struct rxe_qp *qp, const struct ib_send_wr *ibwr,
 	wqe->dma.sge_offset	= 0;
 	wqe->state		= wqe_state_posted;
 	wqe->ssn		= atomic_add_return(1, &qp->ssn);
-}
-
-static int post_one_send(struct rxe_qp *qp, const struct ib_send_wr *ibwr,
-			 unsigned int mask, u32 length)
-{
-	int err;
-	struct rxe_sq *sq = &qp->sq;
-	struct rxe_send_wqe *send_wqe;
-	unsigned long flags;
-	int full;
-
-	err = validate_send_wr(qp, ibwr, mask, length);
-	if (err)
-		return err;
-
-	spin_lock_irqsave(&qp->sq.sq_lock, flags);
-
-	full = queue_full(sq->queue, QUEUE_TYPE_FROM_ULP);
-	if (unlikely(full)) {
-		spin_unlock_irqrestore(&qp->sq.sq_lock, flags);
-		rxe_dbg_qp(qp, "queue full");
-		return -ENOMEM;
-	}
-
-	send_wqe = queue_producer_addr(sq->queue, QUEUE_TYPE_FROM_ULP);
-	init_send_wqe(qp, ibwr, mask, length, send_wqe);
-
-	queue_advance_producer(sq->queue, QUEUE_TYPE_FROM_ULP);
-
-	spin_unlock_irqrestore(&qp->sq.sq_lock, flags);
 
 	return 0;
 }
 
-static int rxe_post_send_kernel(struct rxe_qp *qp, const struct ib_send_wr *wr,
+static int post_one_send(struct rxe_qp *qp, const struct ib_send_wr *ibwr)
+{
+	int err;
+	struct rxe_sq *sq = &qp->sq;
+	struct rxe_send_wqe *send_wqe;
+	unsigned int mask;
+	unsigned int length;
+	int full;
+
+	err = validate_send_wr(qp, ibwr, &mask, &length);
+	if (err)
+		return err;
+
+	full = queue_full(sq->queue, QUEUE_TYPE_FROM_ULP);
+	if (unlikely(full)) {
+		rxe_err_qp(qp, "send queue full");
+		return -ENOMEM;
+	}
+
+	send_wqe = queue_producer_addr(sq->queue, QUEUE_TYPE_FROM_ULP);
+	err = init_send_wqe(qp, ibwr, mask, length, send_wqe);
+	if (!err)
+		queue_advance_producer(sq->queue, QUEUE_TYPE_FROM_ULP);
+
+	return err;
+}
+
+static int rxe_post_send_kernel(struct rxe_qp *qp,
+				const struct ib_send_wr *ibwr,
 				const struct ib_send_wr **bad_wr)
 {
 	int err = 0;
-	unsigned int mask;
-	unsigned int length = 0;
-	int i;
-	struct ib_send_wr *next;
+	unsigned long flags;
 
-	while (wr) {
-		mask = wr_opcode_mask(wr->opcode, qp);
-		if (unlikely(!mask)) {
-			rxe_dbg_qp(qp, "bad wr opcode for qp");
-			err = -EINVAL;
-			*bad_wr = wr;
-			break;
-		}
-
-		if (unlikely((wr->send_flags & IB_SEND_INLINE) &&
-			     !(mask & WR_INLINE_MASK))) {
-			rxe_dbg_qp(qp, "opcode doesn't support inline data");
-			err = -EINVAL;
-			*bad_wr = wr;
-			break;
-		}
-
-		next = wr->next;
-
-		length = 0;
-		for (i = 0; i < wr->num_sge; i++)
-			length += wr->sg_list[i].length;
-		if (length > 1<<31) {
-			err = -EINVAL;
-			rxe_dbg_qp(qp, "message length too long");
-			*bad_wr = wr;
-			break;
-		}
-
-		err = post_one_send(qp, wr, mask, length);
+	spin_lock_irqsave(&qp->sq.sq_lock, flags);
+	while (ibwr) {
+		err = post_one_send(qp, ibwr);
 		if (err) {
-			*bad_wr = wr;
+			*bad_wr = ibwr;
 			break;
 		}
-
-		wr = next;
+		ibwr = ibwr->next;
 	}
+	spin_unlock_irqrestore(&qp->sq.sq_lock, flags);
 
-	/* if we didn't post anything there's nothing to do */
 	if (!err)
 		rxe_sched_task(&qp->req.task);
 
-	if (unlikely(qp_state(qp) == IB_QPS_ERR))
+	spin_lock_bh(&qp->state_lock);
+	if (qp_state(qp) == IB_QPS_ERR)
 		rxe_sched_task(&qp->comp.task);
+	spin_unlock_bh(&qp->state_lock);
 
 	return err;
 }
@@ -893,19 +918,21 @@ static int rxe_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 	struct rxe_qp *qp = to_rqp(ibqp);
 	int err;
 
-	if (unlikely(!qp->valid)) {
-		*bad_wr = wr;
-		err = -EINVAL;
-		rxe_dbg_qp(qp, "qp destroyed");
-		goto err_out;
+	spin_lock_bh(&qp->state_lock);
+	/* caller has already called destroy_qp */
+	if (WARN_ON_ONCE(!qp->valid)) {
+		spin_unlock_bh(&qp->state_lock);
+		rxe_err_qp(qp, "qp has been destroyed");
+		return -EINVAL;
 	}
 
 	if (unlikely(qp_state(qp) < IB_QPS_RTS)) {
+		spin_unlock_bh(&qp->state_lock);
 		*bad_wr = wr;
-		err = -EINVAL;
-		rxe_dbg_qp(qp, "qp not ready to send");
-		goto err_out;
+		rxe_err_qp(qp, "qp not ready to send");
+		return -EINVAL;
 	}
+	spin_unlock_bh(&qp->state_lock);
 
 	if (qp->is_user) {
 		/* Utilize process context to do protocol processing */
@@ -913,14 +940,10 @@ static int rxe_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 	} else {
 		err = rxe_post_send_kernel(qp, wr, bad_wr);
 		if (err)
-			goto err_out;
+			return err;
 	}
 
 	return 0;
-
-err_out:
-	rxe_err_qp(qp, "returned err = %d", err);
-	return err;
 }
 
 /* recv wr */
@@ -985,18 +1008,27 @@ static int rxe_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 	struct rxe_rq *rq = &qp->rq;
 	unsigned long flags;
 
-	if (unlikely((qp_state(qp) < IB_QPS_INIT) || !qp->valid)) {
-		*bad_wr = wr;
-		err = -EINVAL;
-		rxe_dbg_qp(qp, "qp destroyed or not ready to post recv");
-		goto err_out;
+	spin_lock_bh(&qp->state_lock);
+	/* caller has already called destroy_qp */
+	if (WARN_ON_ONCE(!qp->valid)) {
+		spin_unlock_bh(&qp->state_lock);
+		rxe_err_qp(qp, "qp has been destroyed");
+		return -EINVAL;
 	}
+
+	/* see C10-97.2.1 */
+	if (unlikely((qp_state(qp) < IB_QPS_INIT))) {
+		spin_unlock_bh(&qp->state_lock);
+		*bad_wr = wr;
+		rxe_dbg_qp(qp, "qp not ready to post recv");
+		return -EINVAL;
+	}
+	spin_unlock_bh(&qp->state_lock);
 
 	if (unlikely(qp->srq)) {
 		*bad_wr = wr;
-		err = -EINVAL;
-		rxe_dbg_qp(qp, "use post_srq_recv instead");
-		goto err_out;
+		rxe_dbg_qp(qp, "qp has srq, use post_srq_recv instead");
+		return -EINVAL;
 	}
 
 	spin_lock_irqsave(&rq->producer_lock, flags);
@@ -1012,12 +1044,10 @@ static int rxe_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 
 	spin_unlock_irqrestore(&rq->producer_lock, flags);
 
+	spin_lock_bh(&qp->state_lock);
 	if (qp_state(qp) == IB_QPS_ERR)
 		rxe_sched_task(&qp->resp.task);
-
-err_out:
-	if (err)
-		rxe_err_qp(qp, "returned err = %d", err);
+	spin_unlock_bh(&qp->state_lock);
 
 	return err;
 }

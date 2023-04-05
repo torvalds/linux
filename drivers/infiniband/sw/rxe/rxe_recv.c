@@ -38,13 +38,19 @@ static int check_type_state(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 		return -EINVAL;
 	}
 
+	spin_lock_bh(&qp->state_lock);
 	if (pkt->mask & RXE_REQ_MASK) {
-		if (unlikely(qp_state(qp) < IB_QPS_RTR))
+		if (unlikely(qp_state(qp) < IB_QPS_RTR)) {
+			spin_unlock_bh(&qp->state_lock);
 			return -EINVAL;
+		}
 	} else {
-		if (unlikely(qp_state(qp) < IB_QPS_RTS))
+		if (unlikely(qp_state(qp) < IB_QPS_RTS)) {
+			spin_unlock_bh(&qp->state_lock);
 			return -EINVAL;
+		}
 	}
+	spin_unlock_bh(&qp->state_lock);
 
 	return 0;
 }
