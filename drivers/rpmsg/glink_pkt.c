@@ -6,6 +6,7 @@
 #include <linux/refcount.h>
 #include <linux/device.h>
 #include <linux/module.h>
+#include <linux/mm.h>
 #include <linux/skbuff.h>
 #include <linux/rpmsg.h>
 #include <linux/cdev.h>
@@ -38,6 +39,18 @@ do {									     \
 
 #define GLINK_PKT_IOCTL_QUEUE_RX_INTENT \
 	_IOW(GLINK_PKT_IOCTL_MAGIC, 0, unsigned int)
+
+struct glink_pkt_zerocopy_receive {
+	__u64 address;      /* in: address of mapping */
+	__u32 length;       /* out: number of bytes to map/mapped */
+	__u32 offset;   /* out: amount of bytes to skip */
+};
+
+#define GLINK_PKT_IOCTL_ZC_RECV \
+	_IOWR(GLINK_PKT_IOCTL_MAGIC, 1, struct glink_pkt_zerocopy_receive)
+
+#define GLINK_PKT_IOCTL_ZC_DONE \
+	_IOWR(GLINK_PKT_IOCTL_MAGIC, 2, struct glink_pkt_zerocopy_receive)
 
 #define MODULE_NAME "glink_pkt"
 static dev_t glink_pkt_major;
@@ -80,6 +93,7 @@ struct glink_pkt_device {
 
 	spinlock_t queue_lock;
 	struct sk_buff_head queue;
+	struct sk_buff_head pending;
 	wait_queue_head_t readq;
 	int sig_change;
 	bool fragmented_read;
@@ -627,6 +641,259 @@ static int glink_pkt_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
+struct glink_pkt_zerocopy_cb {
+	unsigned long leading_page;
+	unsigned long trailing_page;
+	unsigned long address;
+	unsigned long length;
+};
+
+static int glink_pkt_zerocopy_done(struct glink_pkt_device *gpdev,
+				   struct glink_pkt_zerocopy_receive *zc)
+{
+	unsigned long address = (unsigned long)zc->address;
+	struct glink_pkt_zerocopy_cb *cb = NULL;
+	struct vm_area_struct *vma;
+	struct sk_buff *skb;
+	unsigned long flags;
+
+	if (!PAGE_ALIGNED(address) || address != zc->address)
+		return -EINVAL;
+
+	if (!qcom_glink_rx_done_supported(gpdev->rpdev->ept))
+		return -EINVAL;
+
+	mmap_read_lock(current->mm);
+	vma = vma_lookup(current->mm, address);
+	if (!vma || vma->vm_ops != &glink_pkt_vm_ops) {
+		mmap_read_unlock(current->mm);
+		return -EINVAL;
+	}
+
+	spin_lock_irqsave(&gpdev->queue_lock, flags);
+	skb = skb_peek(&gpdev->pending);
+	if (skb) {
+		do {
+			cb = (struct glink_pkt_zerocopy_cb *)skb->cb;
+			if (address == cb->address) {
+				skb_unlink(skb, &gpdev->pending);
+				break;
+			}
+		} while ((skb = skb_peek_next(skb, &gpdev->pending)));
+	}
+	spin_unlock_irqrestore(&gpdev->queue_lock, flags);
+
+	if (cb && cb->address == address)
+		zap_vma_ptes(vma, address, cb->length);
+	mmap_read_unlock(current->mm);
+	if (!skb)
+		return -EINVAL;
+
+	qcom_glink_rx_done(gpdev->rpdev->ept, skb->data);
+	if (cb->trailing_page)
+		free_page(cb->trailing_page);
+	if (cb->leading_page)
+		free_page(cb->leading_page);
+	/*
+	 * Data memory is freed by qcom_glink_rx_done(), reset the skb data
+	 * pointers so kfree_skb() does not try to free a second time.
+	 */
+	skb->head = NULL;
+	skb->data = NULL;
+	kfree_skb(skb);
+
+	return 0;
+}
+
+static struct page *glink_pkt_vaddr_to_page(void *cpu_addr)
+{
+	if (is_vmalloc_addr(cpu_addr))
+		return vmalloc_to_page(cpu_addr);
+	return virt_to_page(cpu_addr);
+}
+
+static int glink_pkt_zerocopy_receive(struct glink_pkt_device *gpdev,
+				      struct glink_pkt_zerocopy_receive *zc)
+{
+	unsigned long address = (unsigned long)zc->address;
+	struct glink_pkt_zerocopy_cb *cb;
+	unsigned long trailing_page = 0;
+	unsigned long leading_page = 0;
+	unsigned long data_address;
+	struct vm_area_struct *vma;
+	unsigned int pages_to_map;
+	u32 total_bytes_to_map;
+	struct sk_buff *skb;
+	unsigned long flags;
+	u32 data_len;
+	u32 vma_len;
+	int rc;
+
+	if (!PAGE_ALIGNED(address) || address != zc->address)
+		return -EINVAL;
+
+	if (!qcom_glink_rx_done_supported(gpdev->rpdev->ept))
+		return -EINVAL;
+
+	zc->offset = 0;
+	zc->length = 0;
+
+	/* Check if address is being used in any of the pending mappings */
+	spin_lock_irqsave(&gpdev->queue_lock, flags);
+	skb = skb_peek(&gpdev->pending);
+	if (skb) {
+		do {
+			cb = (struct glink_pkt_zerocopy_cb *)skb->cb;
+
+			if (address >= cb->address && address <= (cb->address + cb->length)) {
+				spin_unlock_irqrestore(&gpdev->queue_lock, flags);
+				return -EINVAL;
+			}
+		} while ((skb = skb_peek_next(skb, &gpdev->pending)));
+	}
+	spin_unlock_irqrestore(&gpdev->queue_lock, flags);
+
+	mmap_read_lock(current->mm);
+	vma = vma_lookup(current->mm, address);
+	if (!vma || vma->vm_ops != &glink_pkt_vm_ops) {
+		rc = -EINVAL;
+		goto error_out;
+	}
+	vma_len = vma->vm_end - address;
+
+	spin_lock_irqsave(&gpdev->queue_lock, flags);
+	skb = skb_dequeue(&gpdev->queue);
+	spin_unlock_irqrestore(&gpdev->queue_lock, flags);
+	if (!skb) {
+		rc = -EIO;
+		goto error_out;
+	}
+	data_address = (unsigned long)skb->data;
+	data_len = skb->len;
+
+	/* Pass sanity checks, start actual mapping procedure */
+	total_bytes_to_map = data_len;
+
+	/*
+	 * If the skb data is not page aligned, then a blank page needs to be
+	 * allocated, zeroed out and the data copied to prevent information
+	 * leaks
+	 */
+	if (!PAGE_ALIGNED(data_address)) {
+		u32 copy_size;
+		u32 offset;
+		void *buf;
+
+		leading_page = get_zeroed_page(GFP_KERNEL);
+		if (!leading_page) {
+			rc = -ENOMEM;
+			goto skb_repush;
+		}
+
+		offset = data_address - ALIGN_DOWN(data_address, PAGE_SIZE);
+		copy_size = PAGE_SIZE - offset;
+		buf = (void *)leading_page;
+
+		memcpy(buf + offset, (void *)data_address, copy_size);
+		total_bytes_to_map = total_bytes_to_map - copy_size + PAGE_SIZE;
+
+		zc->offset = offset;
+	}
+
+	/*
+	 * If the data does not end of the page boundary, then we need to copy
+	 * the trailing data into a zeroed out page, similar to the first page
+	 */
+	if (!PAGE_ALIGNED(data_address + data_len)) {
+		u32 copy_size;
+		void *dst;
+		unsigned long end;
+
+		trailing_page = get_zeroed_page(GFP_KERNEL);
+		if (!trailing_page) {
+			rc = -ENOMEM;
+			goto free_leading;
+		}
+
+		end = data_address + data_len;
+		copy_size = end - ALIGN_DOWN(end, PAGE_SIZE);
+		dst = (void *)trailing_page;
+
+		memcpy(dst, (void *)ALIGN_DOWN(end, PAGE_SIZE), copy_size);
+		total_bytes_to_map = total_bytes_to_map - copy_size + PAGE_SIZE;
+	}
+
+	if (vma_len < total_bytes_to_map) {
+		rc = -ENOSPC;
+		goto free_trailing;
+	}
+	if (!PAGE_ALIGNED(total_bytes_to_map)) {
+		rc = -EINVAL;
+		goto free_trailing;
+	}
+	zap_vma_ptes(vma, address, total_bytes_to_map);
+
+	pages_to_map = total_bytes_to_map / PAGE_SIZE;
+	if (leading_page) {
+		rc = vm_insert_page(vma, address, virt_to_page(leading_page));
+		if (rc)
+			goto zap_pages;
+
+		address += PAGE_SIZE;
+	}
+
+	data_address = ALIGN(data_address, PAGE_SIZE);
+	while (pages_to_map) {
+		struct page *page;
+
+		page = glink_pkt_vaddr_to_page((void *)data_address);
+		prefetchw(page);
+		rc = vm_insert_page(vma, address, page);
+		if (rc)
+			goto zap_pages;
+
+		address += PAGE_SIZE;
+		data_address += PAGE_SIZE;
+		pages_to_map--;
+	}
+	if (trailing_page) {
+		rc = vm_insert_page(vma, address, virt_to_page(trailing_page));
+		if (rc)
+			goto zap_pages;
+
+		address += PAGE_SIZE;
+	}
+	zc->length = data_len;
+
+	spin_lock_irqsave(&gpdev->queue_lock, flags);
+	cb = (struct glink_pkt_zerocopy_cb *)skb->cb;
+	cb->leading_page = leading_page;
+	cb->trailing_page = trailing_page;
+	cb->address = zc->address;
+	cb->length = total_bytes_to_map;
+	skb_queue_tail(&gpdev->pending, skb);
+	spin_unlock_irqrestore(&gpdev->queue_lock, flags);
+	mmap_read_unlock(current->mm);
+
+	return 0;
+
+zap_pages:
+	zap_vma_ptes(vma, zc->address, total_bytes_to_map);
+free_trailing:
+	if (trailing_page)
+		free_page(trailing_page);
+free_leading:
+	if (leading_page)
+		free_page(leading_page);
+skb_repush:
+	spin_lock_irqsave(&gpdev->queue_lock, flags);
+	skb_queue_head(&gpdev->queue, skb);
+	spin_unlock_irqrestore(&gpdev->queue_lock, flags);
+error_out:
+	mmap_read_unlock(current->mm);
+	return rc;
+}
+
 /**
  * glink_pkt_ioctl() - ioctl() syscall for the glink_pkt device
  * file:	Pointer to the file structure.
@@ -640,6 +907,7 @@ static int glink_pkt_mmap(struct file *file, struct vm_area_struct *vma)
 static long glink_pkt_ioctl(struct file *file, unsigned int cmd,
 			    unsigned long arg)
 {
+	struct glink_pkt_zerocopy_receive zc;
 	struct glink_pkt_device *gpdev;
 	unsigned long flags;
 	int ret;
@@ -676,6 +944,23 @@ static long glink_pkt_ioctl(struct file *file, unsigned int cmd,
 	case GLINK_PKT_IOCTL_QUEUE_RX_INTENT:
 		/* Return success to not break userspace client logic */
 		ret = 0;
+		break;
+	case GLINK_PKT_IOCTL_ZC_RECV:
+		if (copy_from_user(&zc, (void __user *)arg, sizeof(zc))) {
+			ret = -EFAULT;
+			break;
+		}
+		ret = glink_pkt_zerocopy_receive(gpdev, &zc);
+
+		if (copy_to_user((void __user *)arg, &zc, sizeof(zc)))
+			ret = -EFAULT;
+		break;
+	case GLINK_PKT_IOCTL_ZC_DONE:
+		if (copy_from_user(&zc, (void __user *)arg, sizeof(zc))) {
+			ret = -EFAULT;
+			break;
+		}
+		ret = glink_pkt_zerocopy_done(gpdev, &zc);
 		break;
 	default:
 		GLINK_PKT_ERR("unrecognized ioctl command 0x%x\n", cmd);
@@ -852,6 +1137,7 @@ static int glink_pkt_create_device(struct device *parent,
 	gpdev->rdata_len = 0;
 
 	skb_queue_head_init(&gpdev->queue);
+	skb_queue_head_init(&gpdev->pending);
 	init_waitqueue_head(&gpdev->readq);
 
 	device_initialize(dev);
