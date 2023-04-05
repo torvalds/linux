@@ -50,6 +50,7 @@ struct dasd_devmap {
         unsigned short features;
 	struct dasd_device *device;
 	struct dasd_copy_relation *copy;
+	unsigned int aq_mask;
 };
 
 /*
@@ -1476,6 +1477,47 @@ dasd_eer_store(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR(eer_enabled, 0644, dasd_eer_show, dasd_eer_store);
 
 /*
+ * aq_mask controls if the DASD should be quiesced on certain triggers
+ * The aq_mask attribute is interpreted as bitmap of the DASD_EER_* triggers.
+ */
+static ssize_t dasd_aq_mask_show(struct device *dev, struct device_attribute *attr,
+				 char *buf)
+{
+	struct dasd_devmap *devmap;
+	unsigned int aq_mask = 0;
+
+	devmap = dasd_find_busid(dev_name(dev));
+	if (!IS_ERR(devmap))
+		aq_mask = devmap->aq_mask;
+
+	return sysfs_emit(buf, "%d\n", aq_mask);
+}
+
+static ssize_t dasd_aq_mask_store(struct device *dev, struct device_attribute *attr,
+				  const char *buf, size_t count)
+{
+	struct dasd_devmap *devmap;
+	unsigned int val;
+
+	if (kstrtouint(buf, 0, &val) || val > DASD_EER_VALID)
+		return -EINVAL;
+
+	devmap = dasd_devmap_from_cdev(to_ccwdev(dev));
+	if (IS_ERR(devmap))
+		return PTR_ERR(devmap);
+
+	spin_lock(&dasd_devmap_lock);
+	devmap->aq_mask = val;
+	if (devmap->device)
+		devmap->device->aq_mask = devmap->aq_mask;
+	spin_unlock(&dasd_devmap_lock);
+
+	return count;
+}
+
+static DEVICE_ATTR(aq_mask, 0644, dasd_aq_mask_show, dasd_aq_mask_store);
+
+/*
  * expiration time for default requests
  */
 static ssize_t
@@ -2324,6 +2366,7 @@ static struct attribute * dasd_attrs[] = {
 	&dev_attr_copy_pair.attr,
 	&dev_attr_copy_role.attr,
 	&dev_attr_ping.attr,
+	&dev_attr_aq_mask.attr,
 	NULL,
 };
 

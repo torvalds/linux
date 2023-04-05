@@ -444,13 +444,22 @@ struct dasd_discipline {
 
 extern struct dasd_discipline *dasd_diag_discipline_pointer;
 
-/* Trigger IDs for extended error reporting */
-#define DASD_EER_FATALERROR  1
-#define DASD_EER_NOPATH      2
-#define DASD_EER_STATECHANGE 3
-#define DASD_EER_PPRCSUSPEND 4
-#define DASD_EER_NOSPC	     5
-#define DASD_EER_AUTOQUIESCE 31
+/* Trigger IDs for extended error reporting DASD EER and autoquiesce */
+enum eer_trigger {
+	DASD_EER_FATALERROR = 1,
+	DASD_EER_NOPATH,
+	DASD_EER_STATECHANGE,
+	DASD_EER_PPRCSUSPEND,
+	DASD_EER_NOSPC,
+	DASD_EER_TIMEOUTS,
+	DASD_EER_STARTIO,
+
+	/* enum end marker, only add new trigger above */
+	DASD_EER_MAX,
+	DASD_EER_AUTOQUIESCE = 31, /* internal only */
+};
+
+#define DASD_EER_VALID ((1U << DASD_EER_MAX) - 1)
 
 /* DASD path handling */
 
