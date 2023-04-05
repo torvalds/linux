@@ -2231,13 +2231,18 @@ static int move_module(struct module *mod, struct load_info *info)
 		}
 		mod->mem[type].size = PAGE_ALIGN(mod->mem[type].size);
 		ptr = module_memory_alloc(mod->mem[type].size, type);
-
 		/*
-		 * The pointer to this block is stored in the module structure
-		 * which is inside the block. Just mark it as not being a
-		 * leak.
+                 * The pointer to these blocks of memory are stored on the module
+                 * structure and we keep that around so long as the module is
+                 * around. We only free that memory when we unload the module.
+                 * Just mark them as not being a leak then. The .init* ELF
+                 * sections *do* get freed after boot so we *could* treat them
+                 * slightly differently with kmemleak_ignore() and only grey
+                 * them out as they work as typical memory allocations which
+                 * *do* eventually get freed, but let's just keep things simple
+                 * and avoid *any* false positives.
 		 */
-		kmemleak_ignore(ptr);
+		kmemleak_not_leak(ptr);
 		if (!ptr) {
 			t = type;
 			goto out_enomem;
