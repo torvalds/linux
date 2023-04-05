@@ -31,6 +31,16 @@ config RPMSG_NS
 	  channel that probes the associated RPMsg device on remote endpoint
 	  service announcement.
 
+config MSM_RPM_SMD
+	tristate "RPM driver using SMD protocol"
+	select RPMSG
+	help
+	  RPM is the dedicated hardware engine for managing shared SoC
+	  resources. This config adds driver support for using SMD as a
+	  transport layer communication with RPM hardware. It also selects
+	  the MSM_MPM config that programs the MPM module to monitor interrupts
+	  during sleep modes.
+
 config RPMSG_MTK_SCP
 	tristate "MediaTek SCP"
 	depends on MTK_SCP
