@@ -409,31 +409,31 @@ config RISCV_ISA_C
 	  If you don't know what to do here, say Y.
 
 config RISCV_ISA_SVNAPOT
-	bool "SVNAPOT extension support"
+	bool "Svnapot extension support for supervisor mode NAPOT pages"
 	depends on 64BIT && MMU
 	depends on RISCV_ALTERNATIVE
 	default y
 	help
-	  Allow kernel to detect the SVNAPOT ISA-extension dynamically at boot
+	  Allow kernel to detect the Svnapot ISA-extension dynamically at boot
 	  time and enable its usage.
 
-	  The SVNAPOT extension is used to mark contiguous PTEs as a range
+	  The Svnapot extension is used to mark contiguous PTEs as a range
 	  of contiguous virtual-to-physical translations for a naturally
 	  aligned power-of-2 (NAPOT) granularity larger than the base 4KB page
 	  size. When HUGETLBFS is also selected this option unconditionally
 	  allocates some memory for each NAPOT page size supported by the kernel.
 	  When optimizing for low memory consumption and for platforms without
-	  the SVNAPOT extension, it may be better to say N here.
+	  the Svnapot extension, it may be better to say N here.
 
 	  If you don't know what to do here, say Y.
 
 config RISCV_ISA_SVPBMT
-	bool "SVPBMT extension support"
+	bool "Svpbmt extension support for supervisor mode page-based memory types"
 	depends on 64BIT && MMU
 	depends on RISCV_ALTERNATIVE
 	default y
 	help
-	   Adds support to dynamically detect the presence of the SVPBMT
+	   Adds support to dynamically detect the presence of the Svpbmt
 	   ISA-extension (Supervisor-mode: page-based memory types) and
 	   enable its usage.
 
@@ -441,7 +441,7 @@ config RISCV_ISA_SVPBMT
 	   that indicate the cacheability, idempotency, and ordering
 	   properties for access to that page.
 
-	   The SVPBMT extension is only available on 64Bit cpus.
+	   The Svpbmt extension is only available on 64-bit cpus.
 
 	   If you don't know what to do here, say Y.
 
@@ -491,7 +491,7 @@ config RISCV_ISA_ZICBOZ
 	depends on RISCV_ALTERNATIVE
 	default y
 	help
-	   Enable the use of the ZICBOZ extension (cbo.zero instruction)
+	   Enable the use of the Zicboz extension (cbo.zero instruction)
 	   when available.
 
 	   The Zicboz extension is used for faster zeroing of memory.
