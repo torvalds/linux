@@ -207,6 +207,24 @@ static const unsigned int da9063_bmem_bio_merged_limits[] = {
 	4600000, 4800000, 5000000, 5200000, 5400000, 5600000, 5800000, 6000000
 };
 
+static int da9063_set_xvp(struct regulator_dev *rdev, int lim_uV, int severity, bool enable)
+{
+	struct da9063_regulator *regl = rdev_get_drvdata(rdev);
+	struct device *dev = regl->hw->dev;
+
+	dev_dbg(dev, "%s: lim: %d, sev: %d, en: %d\n", regl->desc.name, lim_uV, severity, enable);
+
+	/*
+	 * only support enable and disable.
+	 * the da9063 offers a GPIO (GP_FB2) which is unasserted if an XV happens.
+	 * therefore ignore severity here, as there might be handlers in hardware.
+	 */
+	if (lim_uV)
+		return -EINVAL;
+
+	return regmap_field_write(regl->vmon, enable ? 1 : 0);
+}
+
 static int da9063_buck_set_mode(struct regulator_dev *rdev, unsigned int mode)
 {
 	struct da9063_regulator *regl = rdev_get_drvdata(rdev);
@@ -545,37 +563,41 @@ static int da9063_buck_get_current_limit(struct regulator_dev *rdev)
 }
 
 static const struct regulator_ops da9063_buck_ops = {
-	.enable			= regulator_enable_regmap,
-	.disable		= regulator_disable_regmap,
-	.is_enabled		= regulator_is_enabled_regmap,
-	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
-	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
-	.list_voltage		= regulator_list_voltage_linear,
-	.set_current_limit	= da9063_buck_set_current_limit,
-	.get_current_limit	= da9063_buck_get_current_limit,
-	.set_mode		= da9063_buck_set_mode,
-	.get_mode		= da9063_buck_get_mode,
-	.get_status		= da9063_buck_get_status,
-	.set_suspend_voltage	= da9063_set_suspend_voltage,
-	.set_suspend_enable	= da9063_suspend_enable,
-	.set_suspend_disable	= da9063_suspend_disable,
-	.set_suspend_mode	= da9063_buck_set_suspend_mode,
+	.enable				= regulator_enable_regmap,
+	.disable			= regulator_disable_regmap,
+	.is_enabled			= regulator_is_enabled_regmap,
+	.get_voltage_sel		= regulator_get_voltage_sel_regmap,
+	.set_voltage_sel		= regulator_set_voltage_sel_regmap,
+	.list_voltage			= regulator_list_voltage_linear,
+	.set_current_limit		= da9063_buck_set_current_limit,
+	.get_current_limit		= da9063_buck_get_current_limit,
+	.set_mode			= da9063_buck_set_mode,
+	.get_mode			= da9063_buck_get_mode,
+	.get_status			= da9063_buck_get_status,
+	.set_suspend_voltage		= da9063_set_suspend_voltage,
+	.set_suspend_enable		= da9063_suspend_enable,
+	.set_suspend_disable		= da9063_suspend_disable,
+	.set_suspend_mode		= da9063_buck_set_suspend_mode,
+	.set_over_voltage_protection	= da9063_set_xvp,
+	.set_under_voltage_protection	= da9063_set_xvp,
 };
 
 static const struct regulator_ops da9063_ldo_ops = {
-	.enable			= regulator_enable_regmap,
-	.disable		= regulator_disable_regmap,
-	.is_enabled		= regulator_is_enabled_regmap,
-	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
-	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
-	.list_voltage		= regulator_list_voltage_linear,
-	.set_mode		= da9063_ldo_set_mode,
-	.get_mode		= da9063_ldo_get_mode,
-	.get_status		= da9063_ldo_get_status,
-	.set_suspend_voltage	= da9063_set_suspend_voltage,
-	.set_suspend_enable	= da9063_suspend_enable,
-	.set_suspend_disable	= da9063_suspend_disable,
-	.set_suspend_mode	= da9063_ldo_set_suspend_mode,
+	.enable				= regulator_enable_regmap,
+	.disable			= regulator_disable_regmap,
+	.is_enabled			= regulator_is_enabled_regmap,
+	.get_voltage_sel		= regulator_get_voltage_sel_regmap,
+	.set_voltage_sel		= regulator_set_voltage_sel_regmap,
+	.list_voltage			= regulator_list_voltage_linear,
+	.set_mode			= da9063_ldo_set_mode,
+	.get_mode			= da9063_ldo_get_mode,
+	.get_status			= da9063_ldo_get_status,
+	.set_suspend_voltage		= da9063_set_suspend_voltage,
+	.set_suspend_enable		= da9063_suspend_enable,
+	.set_suspend_disable		= da9063_suspend_disable,
+	.set_suspend_mode		= da9063_ldo_set_suspend_mode,
+	.set_over_voltage_protection	= da9063_set_xvp,
+	.set_under_voltage_protection	= da9063_set_xvp,
 };
 
 /* Info of regulators for DA9063 */
@@ -747,6 +769,41 @@ static const struct regulator_init_data *da9063_get_regulator_initdata(
 	}
 
 	return NULL;
+}
+
+static int da9063_check_xvp_constraints(struct regulator_config *config)
+{
+	struct da9063_regulator *regl = config->driver_data;
+	const struct regulation_constraints *constr = &config->init_data->constraints;
+	const struct notification_limit *uv_l = &constr->under_voltage_limits;
+	const struct notification_limit *ov_l = &constr->over_voltage_limits;
+
+	/* make sure that only one severity is used to clarify if unchanged, enabled or disabled */
+	if ((!!uv_l->prot + !!uv_l->err + !!uv_l->warn) > 1) {
+		dev_err(config->dev, "%s: at most one voltage monitoring severity allowed!\n",
+			regl->desc.name);
+		return -EINVAL;
+	}
+
+	/* make sure that UV and OV monitoring is set to the same severity and value */
+	if (uv_l->prot != ov_l->prot) {
+		dev_err(config->dev,
+			"%s: protection-microvolt: value must be equal for uv and ov!\n",
+			regl->desc.name);
+		return -EINVAL;
+	}
+	if (uv_l->err != ov_l->err) {
+		dev_err(config->dev, "%s: error-microvolt: value must be equal for uv and ov!\n",
+			regl->desc.name);
+		return -EINVAL;
+	}
+	if (uv_l->warn != ov_l->warn) {
+		dev_err(config->dev, "%s: warn-microvolt: value must be equal for uv and ov!\n",
+			regl->desc.name);
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static struct of_regulator_match da9063_matches[] = {
@@ -970,6 +1027,11 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 		if (da9063_reg_matches)
 			config.of_node = da9063_reg_matches[id].of_node;
 		config.regmap = da9063->regmap;
+
+		ret = da9063_check_xvp_constraints(&config);
+		if (ret)
+			return ret;
+
 		regl->rdev = devm_regulator_register(&pdev->dev, &regl->desc,
 						     &config);
 		if (IS_ERR(regl->rdev)) {
