@@ -1690,6 +1690,17 @@ struct mt76_connac_config {
 	u8 data[320];
 } __packed;
 
+struct mt76_connac_mcu_uni_event {
+	u8 cid;
+	u8 pad[3];
+	__le32 status; /* 0: success, others: fail */
+} __packed;
+
+struct mt76_connac_mcu_reg_event {
+	__le32 reg;
+	__le32 val;
+} __packed;
+
 static inline enum mcu_cipher_type
 mt76_connac_mcu_get_cipher(int cipher)
 {
