@@ -1445,6 +1445,129 @@ static int setup_locking_range(struct opal_dev *dev, void *data)
 	return finalize_and_send(dev, parse_and_check_status);
 }
 
+static int response_get_column(const struct parsed_resp *resp,
+			       int *iter,
+			       u8 column,
+			       u64 *value)
+{
+	const struct opal_resp_tok *tok;
+	int n = *iter;
+	u64 val;
+
+	tok = response_get_token(resp, n);
+	if (IS_ERR(tok))
+		return PTR_ERR(tok);
+
+	if (!response_token_matches(tok, OPAL_STARTNAME)) {
+		pr_debug("Unexpected response token type %d.\n", n);
+		return OPAL_INVAL_PARAM;
+	}
+	n++;
+
+	if (response_get_u64(resp, n) != column) {
+		pr_debug("Token %d does not match expected column %u.\n",
+			 n, column);
+		return OPAL_INVAL_PARAM;
+	}
+	n++;
+
+	val = response_get_u64(resp, n);
+	n++;
+
+	tok = response_get_token(resp, n);
+	if (IS_ERR(tok))
+		return PTR_ERR(tok);
+
+	if (!response_token_matches(tok, OPAL_ENDNAME)) {
+		pr_debug("Unexpected response token type %d.\n", n);
+		return OPAL_INVAL_PARAM;
+	}
+	n++;
+
+	*value = val;
+	*iter = n;
+
+	return 0;
+}
+
+static int locking_range_status(struct opal_dev *dev, void *data)
+{
+	u8 lr_buffer[OPAL_UID_LENGTH];
+	u64 resp;
+	bool rlocked, wlocked;
+	int err, tok_n = 2;
+	struct opal_lr_status *lrst = data;
+
+	err = build_locking_range(lr_buffer, sizeof(lr_buffer),
+				  lrst->session.opal_key.lr);
+	if (err)
+		return err;
+
+	err = generic_get_columns(dev, lr_buffer, OPAL_RANGESTART,
+				  OPAL_WRITELOCKED);
+	if (err) {
+		pr_debug("Couldn't get lr %u table columns %d to %d.\n",
+			 lrst->session.opal_key.lr, OPAL_RANGESTART,
+			 OPAL_WRITELOCKED);
+		return err;
+	}
+
+	/* range start */
+	err = response_get_column(&dev->parsed, &tok_n, OPAL_RANGESTART,
+				  &lrst->range_start);
+	if (err)
+		return err;
+
+	/* range length */
+	err = response_get_column(&dev->parsed, &tok_n, OPAL_RANGELENGTH,
+				  &lrst->range_length);
+	if (err)
+		return err;
+
+	/* RLE */
+	err = response_get_column(&dev->parsed, &tok_n, OPAL_READLOCKENABLED,
+				  &resp);
+	if (err)
+		return err;
+
+	lrst->RLE = !!resp;
+
+	/* WLE */
+	err = response_get_column(&dev->parsed, &tok_n, OPAL_WRITELOCKENABLED,
+				  &resp);
+	if (err)
+		return err;
+
+	lrst->WLE = !!resp;
+
+	/* read locked */
+	err = response_get_column(&dev->parsed, &tok_n, OPAL_READLOCKED, &resp);
+	if (err)
+		return err;
+
+	rlocked = !!resp;
+
+	/* write locked */
+	err = response_get_column(&dev->parsed, &tok_n, OPAL_WRITELOCKED, &resp);
+	if (err)
+		return err;
+
+	wlocked = !!resp;
+
+	/* opal_lock_state can not map 'read locked' only state. */
+	lrst->l_state = OPAL_RW;
+	if (rlocked && wlocked)
+		lrst->l_state = OPAL_LK;
+	else if (wlocked)
+		lrst->l_state = OPAL_RO;
+	else if (rlocked) {
+		pr_debug("Can not report read locked only state.\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int start_generic_opal_session(struct opal_dev *dev,
 				      enum opal_uid auth,
 				      enum opal_uid sp_type,
@@ -2642,6 +2765,33 @@ static int opal_setup_locking_range(struct opal_dev *dev,
 	return ret;
 }
 
+static int opal_locking_range_status(struct opal_dev *dev,
+			  struct opal_lr_status *opal_lrst,
+			  void __user *data)
+{
+	const struct opal_step lr_steps[] = {
+		{ start_auth_opal_session, &opal_lrst->session },
+		{ locking_range_status, opal_lrst },
+		{ end_opal_session, }
+	};
+	int ret;
+
+	mutex_lock(&dev->dev_lock);
+	setup_opal_dev(dev);
+	ret = execute_steps(dev, lr_steps, ARRAY_SIZE(lr_steps));
+	mutex_unlock(&dev->dev_lock);
+
+	/* skip session info when copying back to uspace */
+	if (!ret && copy_to_user(data + offsetof(struct opal_lr_status, range_start),
+				(void *)opal_lrst + offsetof(struct opal_lr_status, range_start),
+				sizeof(*opal_lrst) - offsetof(struct opal_lr_status, range_start))) {
+		pr_debug("Error copying status to userspace\n");
+		return -EFAULT;
+	}
+
+	return ret;
+}
+
 static int opal_set_new_pw(struct opal_dev *dev, struct opal_new_pw *opal_pw)
 {
 	const struct opal_step pw_steps[] = {
@@ -2875,6 +3025,9 @@ int sed_ioctl(struct opal_dev *dev, unsigned int cmd, void __user *arg)
 		break;
 	case IOC_OPAL_GET_STATUS:
 		ret = opal_get_status(dev, arg);
+		break;
+	case IOC_OPAL_GET_LR_STATUS:
+		ret = opal_locking_range_status(dev, p, arg);
 		break;
 	default:
 		break;
