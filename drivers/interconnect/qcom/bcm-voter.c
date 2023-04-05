@@ -246,6 +246,31 @@ struct bcm_voter *of_bcm_voter_get(struct device *dev, const char *name)
 EXPORT_SYMBOL_GPL(of_bcm_voter_get);
 
 /**
+ * qcom_icc_bcm_voter_exist - checks if the bcm voter exists
+ * @voter: voter that needs to checked against available bcm voters
+ *
+ * Returns true incase bcm_voter exists else false
+ */
+static bool qcom_icc_bcm_voter_exist(struct bcm_voter *voter)
+{
+	bool exists = false;
+	struct bcm_voter *temp;
+
+	if (voter) {
+		mutex_lock(&bcm_voter_lock);
+		list_for_each_entry(temp, &bcm_voters, voter_node) {
+			if (temp == voter) {
+				exists = true;
+				break;
+			}
+		}
+		mutex_unlock(&bcm_voter_lock);
+	}
+
+	return exists;
+}
+
+/**
  * qcom_icc_bcm_voter_add - queues up the bcm nodes that require updates
  * @voter: voter that the bcms are being added to
  * @bcm: bcm to add to the commit and wake sleep list
@@ -253,6 +278,9 @@ EXPORT_SYMBOL_GPL(of_bcm_voter_get);
 void qcom_icc_bcm_voter_add(struct bcm_voter *voter, struct qcom_icc_bcm *bcm)
 {
 	if (!voter)
+		return;
+
+	if (!qcom_icc_bcm_voter_exist(voter))
 		return;
 
 	mutex_lock(&voter->lock);
@@ -475,6 +503,9 @@ int qcom_icc_bcm_voter_commit(struct bcm_voter *voter)
 	if (!voter)
 		return 0;
 
+	if (!qcom_icc_bcm_voter_exist(voter))
+		return -ENODEV;
+
 	mutex_lock(&voter->lock);
 
 	list_for_each_entry(bcm, &voter->commit_list, list)
@@ -500,6 +531,9 @@ EXPORT_SYMBOL_GPL(qcom_icc_bcm_voter_commit);
 void qcom_icc_bcm_voter_clear_init(struct bcm_voter *voter)
 {
 	if (!voter)
+		return;
+
+	if (!qcom_icc_bcm_voter_exist(voter))
 		return;
 
 	mutex_lock(&voter->lock);
@@ -566,6 +600,23 @@ static int qcom_icc_bcm_voter_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int qcom_icc_bcm_voter_remove(struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+	struct bcm_voter *voter, *temp;
+
+	mutex_lock(&bcm_voter_lock);
+	list_for_each_entry_safe(voter, temp, &bcm_voters, voter_node) {
+		if (voter->np == np) {
+			list_del(&voter->voter_node);
+			break;
+		}
+	}
+	mutex_unlock(&bcm_voter_lock);
+
+	return 0;
+}
+
 static const struct of_device_id bcm_voter_of_match[] = {
 	{ .compatible = "qcom,bcm-voter" },
 	{ }
@@ -574,12 +625,18 @@ MODULE_DEVICE_TABLE(of, bcm_voter_of_match);
 
 static struct platform_driver qcom_icc_bcm_voter_driver = {
 	.probe = qcom_icc_bcm_voter_probe,
+	.remove = qcom_icc_bcm_voter_remove,
 	.driver = {
 		.name		= "bcm_voter",
 		.of_match_table = bcm_voter_of_match,
 	},
 };
-module_platform_driver(qcom_icc_bcm_voter_driver);
+
+static int __init qcom_icc_bcm_voter_driver_init(void)
+{
+	return platform_driver_register(&qcom_icc_bcm_voter_driver);
+}
+module_init(qcom_icc_bcm_voter_driver_init);
 
 MODULE_AUTHOR("David Dai <daidavid1@codeaurora.org>");
 MODULE_DESCRIPTION("Qualcomm BCM Voter interconnect driver");
