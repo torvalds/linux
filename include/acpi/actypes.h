@@ -1240,7 +1240,7 @@ struct acpi_mem_space_context {
 	struct acpi_mem_mapping *first_mm;
 };
 
-struct acpi_data_table_space_context {
+struct acpi_data_table_mapping {
 	void *pointer;
 };
 
