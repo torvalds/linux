@@ -1700,7 +1700,7 @@ struct acpi_nfit_interleave {
 	u16 reserved;		/* Reserved, must be zero */
 	u32 line_count;
 	u32 line_size;
-	u32 line_offset[1];	/* Variable length */
+	u32 line_offset[];	/* Variable length */
 };
 
 /* 3: SMBIOS Management Information Structure */
