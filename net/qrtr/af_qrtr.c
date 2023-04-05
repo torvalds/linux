@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2015, Sony Mobile Communications Inc.
  * Copyright (c) 2013, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/kthread.h>
 #include <linux/module.h>
@@ -16,6 +16,7 @@
 #include <linux/pm_wakeup.h>
 #include <linux/of_device.h>
 #include <linux/ipc_logging.h>
+#include <linux/completion.h>
 
 #include <net/sock.h>
 #include <uapi/linux/sched/types.h>
@@ -111,6 +112,11 @@ struct qrtr_sock {
 	struct sockaddr_qrtr peer;
 
 	int state;
+
+	struct completion rx_queue_has_space;
+	bool signal_on_recv;
+	/* protect above signal variables */
+	spinlock_t signal_lock;
 };
 
 static inline struct qrtr_sock *qrtr_sk(struct sock *sk)
@@ -1199,6 +1205,27 @@ static void qrtr_fwd_pkt(struct sk_buff *skb, struct qrtr_cb *cb)
 	qrtr_node_release(node);
 }
 
+static int qrtr_sock_queue_ctrl_skb(struct qrtr_sock *ipc, struct sk_buff *skb)
+{
+	unsigned long flags;
+	int rc;
+
+	while (1) {
+		rc = sock_queue_rcv_skb(&ipc->sk, skb);
+		if (rc == -ENOMEM || rc == -ENOBUFS) {
+			spin_lock_irqsave(&ipc->signal_lock, flags);
+			reinit_completion(&ipc->rx_queue_has_space);
+			ipc->signal_on_recv = true;
+			spin_unlock_irqrestore(&ipc->signal_lock, flags);
+			wait_for_completion(&ipc->rx_queue_has_space);
+		} else {
+			return rc;
+		}
+	}
+
+	return 0;
+}
+
 static void qrtr_sock_queue_skb(struct qrtr_node *node, struct sk_buff *skb,
 				struct qrtr_sock *ipc)
 {
@@ -1214,7 +1241,9 @@ static void qrtr_sock_queue_skb(struct qrtr_node *node, struct sk_buff *skb,
 		atomic_inc(&node->hello_rcvd);
 	}
 
-	rc = sock_queue_rcv_skb(&ipc->sk, skb);
+	rc = (ipc->us.sq_port == QRTR_PORT_CTRL) ?
+		qrtr_sock_queue_ctrl_skb(ipc, skb) :
+		sock_queue_rcv_skb(&ipc->sk, skb);
 	if (rc) {
 		pr_err("%s: qrtr pkt dropped flow[%d] rc[%d]\n",
 		       __func__, cb->confirm_rx, rc);
@@ -1701,6 +1730,7 @@ static int qrtr_local_enqueue(struct qrtr_node *node, struct sk_buff *skb,
 	struct qrtr_sock *ipc;
 	struct qrtr_cb *cb;
 	struct sock *sk = skb->sk;
+	int rc;
 
 	ipc = qrtr_port_lookup(to->sq_port);
 	if (!ipc && to->sq_port == QRTR_PORT_CTRL) {
@@ -1727,13 +1757,14 @@ static int qrtr_local_enqueue(struct qrtr_node *node, struct sk_buff *skb,
 	cb->src_node = from->sq_node;
 	cb->src_port = from->sq_port;
 
-	if (sock_queue_rcv_skb(&ipc->sk, skb)) {
-		qrtr_port_put(ipc);
+	rc = (ipc->us.sq_port == QRTR_PORT_CTRL) ?
+		qrtr_sock_queue_ctrl_skb(ipc, skb) :
+		sock_queue_rcv_skb(&ipc->sk, skb);
+	qrtr_port_put(ipc);
+	if (rc) {
 		kfree_skb(skb);
 		return -ENOSPC;
 	}
-
-	qrtr_port_put(ipc);
 
 	return 0;
 }
@@ -1944,6 +1975,8 @@ static int qrtr_recvmsg(struct socket *sock, struct msghdr *msg,
 {
 	DECLARE_SOCKADDR(struct sockaddr_qrtr *, addr, msg->msg_name);
 	struct sock *sk = sock->sk;
+	unsigned long lock_flags;
+	struct qrtr_sock *ipc;
 	struct sk_buff *skb;
 	struct qrtr_cb *cb;
 	int copied, rc;
@@ -1987,6 +2020,17 @@ out:
 		qrtr_send_resume_tx(cb);
 
 	skb_free_datagram(sk, skb);
+
+	ipc = qrtr_sk(sk);
+	if (ipc->us.sq_port == QRTR_PORT_CTRL) {
+		spin_lock_irqsave(&ipc->signal_lock, lock_flags);
+		if (ipc->signal_on_recv) {
+			complete_all(&ipc->rx_queue_has_space);
+			ipc->signal_on_recv = false;
+		}
+		spin_unlock_irqrestore(&ipc->signal_lock, lock_flags);
+	}
+
 	release_sock(sk);
 
 	return rc;
@@ -2201,6 +2245,9 @@ static int qrtr_create(struct net *net, struct socket *sock,
 	ipc->us.sq_node = qrtr_local_nid;
 	ipc->us.sq_port = 0;
 	ipc->state = QRTR_STATE_INIT;
+	ipc->signal_on_recv = false;
+	init_completion(&ipc->rx_queue_has_space);
+	spin_lock_init(&ipc->signal_lock);
 
 	return 0;
 }
