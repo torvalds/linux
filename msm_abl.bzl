@@ -7,6 +7,8 @@ def define_abl_dist(target, msm_target, variant):
     Args:
       target: name of main Bazel target (e.g. `kalama_gki`)
     """
+    if msm_target == "autogvm":
+        return
     native.alias(
         name = "{}_abl".format(target),
         actual = "//bootable/bootloader/edk2:{}_abl".format(target),
