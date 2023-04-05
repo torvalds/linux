@@ -203,14 +203,16 @@ enum usb_wireless_status {
  *	following a reset or suspend operation it doesn't support.
  * @authorized: This allows to (de)authorize individual interfaces instead
  *	a whole device in contrast to the device authorization.
+ * @wireless_status: if the USB device uses a receiver/emitter combo, whether
+ *	the emitter is connected.
+ * @wireless_status_work: Used for scheduling wireless status changes
+ *	from atomic context.
  * @dev: driver model's view of this device
  * @usb_dev: if an interface is bound to the USB major, this will point
  *	to the sysfs representation for that device.
  * @reset_ws: Used for scheduling resets from atomic context.
  * @resetting_device: USB core reset the device, so use alt setting 0 as
  *	current; needs bandwidth alloc after reset.
- * @wireless_status: if the USB device uses a receiver/emitter combo, whether
- *	the emitter is connected.
  *
  * USB device drivers attach to interfaces on a physical device.  Each
  * interface encapsulates a single high level function, such as feeding

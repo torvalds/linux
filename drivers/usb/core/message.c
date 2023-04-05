@@ -1926,7 +1926,7 @@ static void __usb_wireless_status_intf(struct work_struct *ws)
 
 /**
  * usb_set_wireless_status - sets the wireless_status struct member
- * @dev: the device to modify
+ * @iface: the interface to modify
  * @status: the new wireless status
  *
  * Set the wireless_status struct member to the new value, and emit
