@@ -280,7 +280,7 @@ void sched_update_nr_prod(int cpu, int enq)
 	diff = curr_time - per_cpu(last_time, cpu);
 	BUG_ON((s64)diff < 0);
 	per_cpu(last_time, cpu) = curr_time;
-	per_cpu(nr, cpu) = cpu_rq(cpu)->nr_running;
+	per_cpu(nr, cpu) = cpu_rq(cpu)->nr_running + enq;
 
 	if (per_cpu(nr, cpu) > per_cpu(nr_max, cpu))
 		per_cpu(nr_max, cpu) = per_cpu(nr, cpu);
