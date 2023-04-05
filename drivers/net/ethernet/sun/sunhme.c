@@ -14,9 +14,6 @@
  *     argument : macaddr=0x00,0x10,0x20,0x30,0x40,0x50
  */
 
-#include <asm/byteorder.h>
-#include <asm/dma.h>
-#include <asm/irq.h>
 #include <linux/bitops.h>
 #include <linux/crc32.h>
 #include <linux/delay.h>
@@ -44,6 +41,10 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
+
+#include <asm/byteorder.h>
+#include <asm/dma.h>
+#include <asm/irq.h>
 
 #ifdef CONFIG_SPARC
 #include <asm/auxio.h>
