@@ -792,13 +792,8 @@ static bool btf_is_struct_packed(const struct btf *btf, __u32 id,
 				 const struct btf_type *t)
 {
 	const struct btf_member *m;
-	int align, i, bit_sz;
+	int max_align = 1, align, i, bit_sz;
 	__u16 vlen;
-
-	align = btf__align_of(btf, id);
-	/* size of a non-packed struct has to be a multiple of its alignment*/
-	if (align && t->size % align)
-		return true;
 
 	m = btf_members(t);
 	vlen = btf_vlen(t);
@@ -808,8 +803,11 @@ static bool btf_is_struct_packed(const struct btf *btf, __u32 id,
 		bit_sz = btf_member_bitfield_size(t, i);
 		if (align && bit_sz == 0 && m->offset % (8 * align) != 0)
 			return true;
+		max_align = max(align, max_align);
 	}
-
+	/* size of a non-packed struct has to be a multiple of its alignment */
+	if (t->size % max_align != 0)
+		return true;
 	/*
 	 * if original struct was marked as packed, but its layout is
 	 * naturally aligned, we'll detect that it's not packed
@@ -817,44 +815,97 @@ static bool btf_is_struct_packed(const struct btf *btf, __u32 id,
 	return false;
 }
 
-static int chip_away_bits(int total, int at_most)
-{
-	return total % at_most ? : at_most;
-}
-
 static void btf_dump_emit_bit_padding(const struct btf_dump *d,
-				      int cur_off, int m_off, int m_bit_sz,
-				      int align, int lvl)
+				      int cur_off, int next_off, int next_align,
+				      bool in_bitfield, int lvl)
 {
-	int off_diff = m_off - cur_off;
-	int ptr_bits = d->ptr_sz * 8;
+	const struct {
+		const char *name;
+		int bits;
+	} pads[] = {
+		{"long", d->ptr_sz * 8}, {"int", 32}, {"short", 16}, {"char", 8}
+	};
+	int new_off, pad_bits, bits, i;
+	const char *pad_type;
 
-	if (off_diff <= 0)
-		/* no gap */
-		return;
-	if (m_bit_sz == 0 && off_diff < align * 8)
-		/* natural padding will take care of a gap */
-		return;
+	if (cur_off >= next_off)
+		return; /* no gap */
 
-	while (off_diff > 0) {
-		const char *pad_type;
-		int pad_bits;
+	/* For filling out padding we want to take advantage of
+	 * natural alignment rules to minimize unnecessary explicit
+	 * padding. First, we find the largest type (among long, int,
+	 * short, or char) that can be used to force naturally aligned
+	 * boundary. Once determined, we'll use such type to fill in
+	 * the remaining padding gap. In some cases we can rely on
+	 * compiler filling some gaps, but sometimes we need to force
+	 * alignment to close natural alignment with markers like
+	 * `long: 0` (this is always the case for bitfields).  Note
+	 * that even if struct itself has, let's say 4-byte alignment
+	 * (i.e., it only uses up to int-aligned types), using `long:
+	 * X;` explicit padding doesn't actually change struct's
+	 * overall alignment requirements, but compiler does take into
+	 * account that type's (long, in this example) natural
+	 * alignment requirements when adding implicit padding. We use
+	 * this fact heavily and don't worry about ruining correct
+	 * struct alignment requirement.
+	 */
+	for (i = 0; i < ARRAY_SIZE(pads); i++) {
+		pad_bits = pads[i].bits;
+		pad_type = pads[i].name;
 
-		if (ptr_bits > 32 && off_diff > 32) {
-			pad_type = "long";
-			pad_bits = chip_away_bits(off_diff, ptr_bits);
-		} else if (off_diff > 16) {
-			pad_type = "int";
-			pad_bits = chip_away_bits(off_diff, 32);
-		} else if (off_diff > 8) {
-			pad_type = "short";
-			pad_bits = chip_away_bits(off_diff, 16);
-		} else {
-			pad_type = "char";
-			pad_bits = chip_away_bits(off_diff, 8);
+		new_off = roundup(cur_off, pad_bits);
+		if (new_off <= next_off)
+			break;
+	}
+
+	if (new_off > cur_off && new_off <= next_off) {
+		/* We need explicit `<type>: 0` aligning mark if next
+		 * field is right on alignment offset and its
+		 * alignment requirement is less strict than <type>'s
+		 * alignment (so compiler won't naturally align to the
+		 * offset we expect), or if subsequent `<type>: X`,
+		 * will actually completely fit in the remaining hole,
+		 * making compiler basically ignore `<type>: X`
+		 * completely.
+		 */
+		if (in_bitfield ||
+		    (new_off == next_off && roundup(cur_off, next_align * 8) != new_off) ||
+		    (new_off != next_off && next_off - new_off <= new_off - cur_off))
+			/* but for bitfields we'll emit explicit bit count */
+			btf_dump_printf(d, "\n%s%s: %d;", pfx(lvl), pad_type,
+					in_bitfield ? new_off - cur_off : 0);
+		cur_off = new_off;
+	}
+
+	/* Now we know we start at naturally aligned offset for a chosen
+	 * padding type (long, int, short, or char), and so the rest is just
+	 * a straightforward filling of remaining padding gap with full
+	 * `<type>: sizeof(<type>);` markers, except for the last one, which
+	 * might need smaller than sizeof(<type>) padding.
+	 */
+	while (cur_off != next_off) {
+		bits = min(next_off - cur_off, pad_bits);
+		if (bits == pad_bits) {
+			btf_dump_printf(d, "\n%s%s: %d;", pfx(lvl), pad_type, pad_bits);
+			cur_off += bits;
+			continue;
 		}
-		btf_dump_printf(d, "\n%s%s: %d;", pfx(lvl), pad_type, pad_bits);
-		off_diff -= pad_bits;
+		/* For the remainder padding that doesn't cover entire
+		 * pad_type bit length, we pick the smallest necessary type.
+		 * This is pure aesthetics, we could have just used `long`,
+		 * but having smallest necessary one communicates better the
+		 * scale of the padding gap.
+		 */
+		for (i = ARRAY_SIZE(pads) - 1; i >= 0; i--) {
+			pad_type = pads[i].name;
+			pad_bits = pads[i].bits;
+			if (pad_bits < bits)
+				continue;
+
+			btf_dump_printf(d, "\n%s%s: %d;", pfx(lvl), pad_type, bits);
+			cur_off += bits;
+			break;
+		}
 	}
 }
 
@@ -873,9 +924,11 @@ static void btf_dump_emit_struct_def(struct btf_dump *d,
 {
 	const struct btf_member *m = btf_members(t);
 	bool is_struct = btf_is_struct(t);
-	int align, i, packed, off = 0;
+	bool packed, prev_bitfield = false;
+	int align, i, off = 0;
 	__u16 vlen = btf_vlen(t);
 
+	align = btf__align_of(d->btf, id);
 	packed = is_struct ? btf_is_struct_packed(d->btf, id, t) : 0;
 
 	btf_dump_printf(d, "%s%s%s {",
@@ -885,33 +938,36 @@ static void btf_dump_emit_struct_def(struct btf_dump *d,
 
 	for (i = 0; i < vlen; i++, m++) {
 		const char *fname;
-		int m_off, m_sz;
+		int m_off, m_sz, m_align;
+		bool in_bitfield;
 
 		fname = btf_name_of(d, m->name_off);
 		m_sz = btf_member_bitfield_size(t, i);
 		m_off = btf_member_bit_offset(t, i);
-		align = packed ? 1 : btf__align_of(d->btf, m->type);
+		m_align = packed ? 1 : btf__align_of(d->btf, m->type);
 
-		btf_dump_emit_bit_padding(d, off, m_off, m_sz, align, lvl + 1);
+		in_bitfield = prev_bitfield && m_sz != 0;
+
+		btf_dump_emit_bit_padding(d, off, m_off, m_align, in_bitfield, lvl + 1);
 		btf_dump_printf(d, "\n%s", pfx(lvl + 1));
 		btf_dump_emit_type_decl(d, m->type, fname, lvl + 1);
 
 		if (m_sz) {
 			btf_dump_printf(d, ": %d", m_sz);
 			off = m_off + m_sz;
+			prev_bitfield = true;
 		} else {
 			m_sz = max((__s64)0, btf__resolve_size(d->btf, m->type));
 			off = m_off + m_sz * 8;
+			prev_bitfield = false;
 		}
+
 		btf_dump_printf(d, ";");
 	}
 
 	/* pad at the end, if necessary */
-	if (is_struct) {
-		align = packed ? 1 : btf__align_of(d->btf, id);
-		btf_dump_emit_bit_padding(d, off, t->size * 8, 0, align,
-					  lvl + 1);
-	}
+	if (is_struct)
+		btf_dump_emit_bit_padding(d, off, t->size * 8, align, false, lvl + 1);
 
 	if (vlen)
 		btf_dump_printf(d, "\n");

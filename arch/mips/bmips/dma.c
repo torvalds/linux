@@ -64,6 +64,8 @@ phys_addr_t dma_to_phys(struct device *dev, dma_addr_t dma_addr)
 	return dma_addr;
 }
 
+bool bmips_rac_flush_disable;
+
 void arch_sync_dma_for_cpu_all(void)
 {
 	void __iomem *cbr = BMIPS_GET_CBR();
@@ -72,6 +74,9 @@ void arch_sync_dma_for_cpu_all(void)
 	if (boot_cpu_type() != CPU_BMIPS3300 &&
 	    boot_cpu_type() != CPU_BMIPS4350 &&
 	    boot_cpu_type() != CPU_BMIPS4380)
+		return;
+
+	if (unlikely(bmips_rac_flush_disable))
 		return;
 
 	/* Flush stale data out of the readahead cache */
