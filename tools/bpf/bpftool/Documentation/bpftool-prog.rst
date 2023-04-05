@@ -106,9 +106,8 @@ DESCRIPTION
 		  CFG in DOT format, on standard output.
 
 		  If the programs have line_info available, the source line will
-		  be displayed by default.  If **linum** is specified,
-		  the filename, line number and line column will also be
-		  displayed on top of the source line.
+		  be displayed.  If **linum** is specified, the filename, line
+		  number and line column will also be displayed.
 
 	**bpftool prog dump jited**  *PROG* [{ **file** *FILE* | **opcodes** | **linum** }]
 		  Dump jited image (host machine code) of the program.
@@ -120,9 +119,8 @@ DESCRIPTION
 		  **opcodes** controls if raw opcodes will be printed.
 
 		  If the prog has line_info available, the source line will
-		  be displayed by default.  If **linum** is specified,
-		  the filename, line number and line column will also be
-		  displayed on top of the source line.
+		  be displayed.  If **linum** is specified, the filename, line
+		  number and line column will also be displayed.
 
 	**bpftool prog pin** *PROG* *FILE*
 		  Pin program *PROG* as *FILE*.
