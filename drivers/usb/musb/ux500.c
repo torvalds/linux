@@ -303,14 +303,12 @@ err0:
 	return ret;
 }
 
-static int ux500_remove(struct platform_device *pdev)
+static void ux500_remove(struct platform_device *pdev)
 {
 	struct ux500_glue	*glue = platform_get_drvdata(pdev);
 
 	platform_device_unregister(glue->musb);
 	clk_disable_unprepare(glue->clk);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -357,7 +355,7 @@ MODULE_DEVICE_TABLE(of, ux500_match);
 
 static struct platform_driver ux500_driver = {
 	.probe		= ux500_probe,
-	.remove		= ux500_remove,
+	.remove_new	= ux500_remove,
 	.driver		= {
 		.name	= "musb-ux500",
 		.pm	= &ux500_pm_ops,
