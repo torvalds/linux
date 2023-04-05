@@ -1274,7 +1274,7 @@ enum acpi_madt_rintc_version {
 /* 80: OEM data */
 
 struct acpi_madt_oem_data {
-	u8 oem_data[0];
+	ACPI_FLEX_ARRAY(u8, oem_data);
 };
 
 /*
