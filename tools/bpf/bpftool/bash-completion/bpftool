@@ -508,10 +508,7 @@ _bpftool()
                             ;;
                         *)
                             COMPREPLY=( $( compgen -W "map" -- "$cur" ) )
-                            _bpftool_once_attr 'type'
-                            _bpftool_once_attr 'dev'
-                            _bpftool_once_attr 'pinmaps'
-                            _bpftool_once_attr 'autoattach'
+                            _bpftool_once_attr 'type dev pinmaps autoattach'
                             return 0
                             ;;
                     esac
@@ -736,16 +733,10 @@ _bpftool()
                             esac
                             ;;
                         *)
-                            _bpftool_once_attr 'type'
-                            _bpftool_once_attr 'key'
-                            _bpftool_once_attr 'value'
-                            _bpftool_once_attr 'entries'
-                            _bpftool_once_attr 'name'
-                            _bpftool_once_attr 'flags'
+                            _bpftool_once_attr 'type key value entries name flags dev'
                             if _bpftool_search_list 'array_of_maps' 'hash_of_maps'; then
                                 _bpftool_once_attr 'inner_map'
                             fi
-                            _bpftool_once_attr 'dev'
                             return 0
                             ;;
                     esac
@@ -886,8 +877,7 @@ _bpftool()
                             return 0
                             ;;
                         *)
-                            _bpftool_once_attr 'cpu'
-                            _bpftool_once_attr 'index'
+                            _bpftool_once_attr 'cpu index'
                             return 0
                             ;;
                     esac
