@@ -5139,11 +5139,13 @@ static int _suspend_v3_hw(struct device *device)
 	flush_workqueue(hisi_hba->wq);
 	interrupt_disable_v3_hw(hisi_hba);
 
+#ifdef CONFIG_PM
 	if (atomic_read(&device->power.usage_count)) {
 		dev_err(dev, "PM suspend: host status cannot be suspended\n");
 		rc = -EBUSY;
 		goto err_out;
 	}
+#endif
 
 	rc = disable_host_v3_hw(hisi_hba);
 	if (rc) {
@@ -5162,7 +5164,9 @@ static int _suspend_v3_hw(struct device *device)
 
 err_out_recover_host:
 	enable_host_v3_hw(hisi_hba);
+#ifdef CONFIG_PM
 err_out:
+#endif
 	interrupt_enable_v3_hw(hisi_hba);
 	clear_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
 	clear_bit(HISI_SAS_RESETTING_BIT, &hisi_hba->flags);
