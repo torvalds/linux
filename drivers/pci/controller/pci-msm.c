@@ -4728,58 +4728,40 @@ static int msm_pcie_link_train(struct msm_pcie_dev_t *dev)
 	return 0;
 }
 
-static int msm_pcie_enable(struct msm_pcie_dev_t *dev)
+static int msm_pcie_check_ep_access(struct msm_pcie_dev_t *dev,
+					unsigned long ep_up_timeout)
+{
+	int ret = 0;
+
+	/* check endpoint configuration space is accessible */
+	while (time_before(jiffies, ep_up_timeout)) {
+		if (readl_relaxed(dev->conf) != PCIE_LINK_DOWN)
+			break;
+		usleep_range(EP_UP_TIMEOUT_US_MIN, EP_UP_TIMEOUT_US_MAX);
+	}
+
+	if (readl_relaxed(dev->conf) != PCIE_LINK_DOWN) {
+		PCIE_DBG(dev,
+			"PCIe: RC%d: endpoint config space is accessible\n",
+			dev->rc_idx);
+	} else {
+		PCIE_ERR(dev,
+			"PCIe: RC%d: endpoint config space is not accessible\n",
+			dev->rc_idx);
+		dev->link_status = MSM_PCIE_LINK_DISABLED;
+		dev->power_on = false;
+		dev->link_turned_off_counter++;
+		ret = -ENODEV;
+	}
+
+	return ret;
+}
+
+static int msm_pcie_enable_link(struct msm_pcie_dev_t *dev)
 {
 	int ret = 0;
 	uint32_t val;
 	unsigned long ep_up_timeout = 0;
-
-	PCIE_DBG(dev, "RC%d: entry\n", dev->rc_idx);
-
-	mutex_lock(&dev->setup_lock);
-
-	if (dev->link_status == MSM_PCIE_LINK_ENABLED) {
-		PCIE_ERR(dev, "PCIe: the link of RC%d is already enabled\n",
-			dev->rc_idx);
-		goto out;
-	}
-
-	/* assert PCIe reset link to keep EP in reset */
-
-	PCIE_INFO(dev, "PCIe: Assert the reset of endpoint of RC%d.\n",
-		dev->rc_idx);
-	gpio_set_value(dev->gpio[MSM_PCIE_GPIO_PERST].num,
-				dev->gpio[MSM_PCIE_GPIO_PERST].on);
-	usleep_range(PERST_PROPAGATION_DELAY_US_MIN,
-				 PERST_PROPAGATION_DELAY_US_MAX);
-
-	/* enable power */
-	ret = msm_pcie_vreg_init(dev);
-	if (ret)
-		goto out;
-
-	/* enable core, phy gdsc */
-	ret = msm_pcie_gdsc_init(dev);
-	if (ret)
-		goto gdsc_fail;
-
-	/* enable clocks */
-	ret = msm_pcie_clk_init(dev);
-	/* ensure that changes propagated to the hardware */
-	wmb();
-	if (ret)
-		goto clk_fail;
-
-	/* reset pcie controller and phy */
-	ret = msm_pcie_core_phy_reset(dev);
-	/* ensure that changes propagated to the hardware */
-	wmb();
-	if (ret)
-		goto reset_fail;
-
-	/* RUMI PCIe reset sequence */
-	if (dev->rumi_init)
-		dev->rumi_init(dev);
 
 	/* configure PCIe to RC mode */
 	msm_pcie_write_reg(dev->parf, PCIE20_PARF_DEVICE_TYPE, 0x4);
@@ -4836,7 +4818,7 @@ static int msm_pcie_enable(struct msm_pcie_dev_t *dev)
 	/* init PCIe PHY */
 	ret = pcie_phy_init(dev);
 	if (ret)
-		goto link_fail;
+		return ret;
 
 	if (dev->pcie_cesta_clkreq)
 		msm_pcie_write_reg(dev->parf, dev->pcie_cesta_clkreq, 0x0);
@@ -4861,7 +4843,7 @@ static int msm_pcie_enable(struct msm_pcie_dev_t *dev)
 		ret = msm_pcie_set_link_width(dev, dev->target_link_width <<
 					      PCI_EXP_LNKSTA_NLW_SHIFT);
 		if (ret)
-			goto link_fail;
+			return ret;
 	}
 
 	/* Disable override for fal10_veto logic to de-assert Qactive signal */
@@ -4886,7 +4868,7 @@ static int msm_pcie_enable(struct msm_pcie_dev_t *dev)
 
 	ret = msm_pcie_link_train(dev);
 	if (ret)
-		goto link_fail;
+		return ret;
 
 	dev->link_status = MSM_PCIE_LINK_ENABLED;
 	dev->power_on = true;
@@ -4906,27 +4888,65 @@ static int msm_pcie_enable(struct msm_pcie_dev_t *dev)
 	msm_pcie_config_sid(dev);
 	msm_pcie_config_controller(dev);
 
-	/* check endpoint configuration space is accessible */
-	while (time_before(jiffies, ep_up_timeout)) {
-		if (readl_relaxed(dev->conf) != PCIE_LINK_DOWN)
-			break;
-		usleep_range(EP_UP_TIMEOUT_US_MIN, EP_UP_TIMEOUT_US_MAX);
+	ret = msm_pcie_check_ep_access(dev, ep_up_timeout);
+
+	return ret;
+}
+
+static int msm_pcie_enable(struct msm_pcie_dev_t *dev)
+{
+	int ret = 0;
+
+	PCIE_DBG(dev, "RC%d: entry\n", dev->rc_idx);
+
+	mutex_lock(&dev->setup_lock);
+
+	if (dev->link_status == MSM_PCIE_LINK_ENABLED) {
+		PCIE_ERR(dev, "PCIe: the link of RC%d is already enabled\n",
+			dev->rc_idx);
+		goto out;
 	}
 
-	if (readl_relaxed(dev->conf) != PCIE_LINK_DOWN) {
-		PCIE_DBG(dev,
-			"PCIe: RC%d: endpoint config space is accessible\n",
-			dev->rc_idx);
-	} else {
-		PCIE_ERR(dev,
-			"PCIe: RC%d: endpoint config space is not accessible\n",
-			dev->rc_idx);
-		dev->link_status = MSM_PCIE_LINK_DISABLED;
-		dev->power_on = false;
-		dev->link_turned_off_counter++;
-		ret = -ENODEV;
+	/* assert PCIe reset link to keep EP in reset */
+
+	PCIE_INFO(dev, "PCIe: Assert the reset of endpoint of RC%d.\n",
+		dev->rc_idx);
+	gpio_set_value(dev->gpio[MSM_PCIE_GPIO_PERST].num,
+				dev->gpio[MSM_PCIE_GPIO_PERST].on);
+	usleep_range(PERST_PROPAGATION_DELAY_US_MIN,
+				 PERST_PROPAGATION_DELAY_US_MAX);
+
+	/* enable power */
+	ret = msm_pcie_vreg_init(dev);
+	if (ret)
+		goto out;
+
+	/* enable core, phy gdsc */
+	ret = msm_pcie_gdsc_init(dev);
+	if (ret)
+		goto gdsc_fail;
+
+	/* enable clocks */
+	ret = msm_pcie_clk_init(dev);
+	/* ensure that changes propagated to the hardware */
+	wmb();
+	if (ret)
+		goto clk_fail;
+
+	/* reset pcie controller and phy */
+	ret = msm_pcie_core_phy_reset(dev);
+	/* ensure that changes propagated to the hardware */
+	wmb();
+	if (ret)
+		goto reset_fail;
+
+	/* RUMI PCIe reset sequence */
+	if (dev->rumi_init)
+		dev->rumi_init(dev);
+
+	ret = msm_pcie_enable_link(dev);
+	if (ret)
 		goto link_fail;
-	}
 
 	if (dev->enumerated) {
 		if (!dev->lpi_enable)
@@ -6714,36 +6734,11 @@ static int msm_pcie_setup_drv(struct msm_pcie_dev_t *pcie_dev,
 	return 0;
 }
 
-static int msm_pcie_probe(struct platform_device *pdev)
+static void msm_pcie_read_dt(struct msm_pcie_dev_t *pcie_dev, int rc_idx,
+					struct platform_device *pdev,
+						struct device_node *of_node)
 {
 	int ret = 0;
-	int rc_idx = -1;
-	struct msm_pcie_dev_t *pcie_dev;
-	struct device_node *of_node;
-
-	dev_info(&pdev->dev, "PCIe: %s\n", __func__);
-
-	mutex_lock(&pcie_drv.drv_lock);
-
-	of_node = pdev->dev.of_node;
-
-	ret = of_property_read_u32(of_node, "cell-index", &rc_idx);
-	if (ret) {
-		dev_err(&pdev->dev, "PCIe: %s: Did not find RC index\n",
-			__func__);
-		goto out;
-	}
-
-	if (rc_idx >= MAX_RC_NUM)
-		goto out;
-
-	pcie_drv.rc_num++;
-	pcie_dev = &msm_pcie_dev[rc_idx];
-	pcie_dev->rc_idx = rc_idx;
-	pcie_dev->pdev = pdev;
-	pcie_dev->link_status = MSM_PCIE_LINK_DEINIT;
-
-	PCIE_DBG(pcie_dev, "PCIe: RC index is %d.\n", pcie_dev->rc_idx);
 
 	pcie_dev->l0s_supported = !of_property_read_bool(of_node,
 				"qcom,no-l0s-supported");
@@ -6938,28 +6933,33 @@ static int msm_pcie_probe(struct platform_device *pdev)
 	if (ret)
 		pcie_dev->pcie_cesta_clkreq = 0;
 
-	memcpy(pcie_dev->vreg, msm_pcie_vreg_info, sizeof(msm_pcie_vreg_info));
-	memcpy(pcie_dev->gpio, msm_pcie_gpio_info, sizeof(msm_pcie_gpio_info));
-	memcpy(pcie_dev->res, msm_pcie_res_info, sizeof(msm_pcie_res_info));
-	memcpy(pcie_dev->irq, msm_pcie_irq_info, sizeof(msm_pcie_irq_info));
-	memcpy(pcie_dev->reset, msm_pcie_reset_info[rc_idx],
-		sizeof(msm_pcie_reset_info[rc_idx]));
-	memcpy(pcie_dev->pipe_reset, msm_pcie_pipe_reset_info[rc_idx],
-		sizeof(msm_pcie_pipe_reset_info[rc_idx]));
-	memcpy(pcie_dev->linkdown_reset, msm_pcie_linkdown_reset_info[rc_idx],
-		sizeof(msm_pcie_linkdown_reset_info[rc_idx]));
+	pcie_dev->config_recovery = of_property_read_bool(of_node,
+							"qcom,config-recovery");
+	if (pcie_dev->config_recovery) {
+		PCIE_DUMP(pcie_dev,
+			  "PCIe RC%d config space recovery enabled\n",
+			  pcie_dev->rc_idx);
+		INIT_WORK(&pcie_dev->link_recover_wq, handle_link_recover);
+	}
 
-	init_completion(&pcie_dev->speed_change_completion);
+	ret = of_property_read_string(of_node, "qcom,drv-name",
+				      &pcie_dev->drv_name);
+	if (!ret) {
+		pcie_dev->drv_supported = true;
+		ret = msm_pcie_setup_drv(pcie_dev, of_node);
+		if (ret)
+			PCIE_ERR(pcie_dev,
+				 "PCIe: RC%d: DRV: failed to setup DRV: ret: %d\n",
+				pcie_dev->rc_idx, ret);
+	}
 
-	dev_set_drvdata(&pdev->dev, pcie_dev);
+	pcie_dev->panic_genspeed_mismatch = of_property_read_bool(of_node,
+						"qcom,panic-genspeed-mismatch");
+}
 
-	ret = msm_pcie_get_resources(pcie_dev, pcie_dev->pdev);
-	if (ret)
-		goto decrease_rc_num;
-
-	if (pcie_dev->rumi)
-		pcie_dev->rumi_init = msm_pcie_rumi_init;
-
+static void msm_pcie_get_pinctrl(struct msm_pcie_dev_t *pcie_dev,
+					struct platform_device *pdev)
+{
 	pcie_dev->pinctrl = devm_pinctrl_get(&pdev->dev);
 	if (IS_ERR_OR_NULL(pcie_dev->pinctrl))
 		PCIE_ERR(pcie_dev, "PCIe: RC%d failed to get pinctrl\n",
@@ -6986,6 +6986,64 @@ static int msm_pcie_probe(struct platform_device *pdev)
 			pcie_dev->pins_sleep = NULL;
 		}
 	}
+}
+
+static int msm_pcie_probe(struct platform_device *pdev)
+{
+	int ret = 0;
+	int rc_idx = -1;
+	struct msm_pcie_dev_t *pcie_dev;
+	struct device_node *of_node;
+
+	dev_info(&pdev->dev, "PCIe: %s\n", __func__);
+
+	mutex_lock(&pcie_drv.drv_lock);
+
+	of_node = pdev->dev.of_node;
+
+	ret = of_property_read_u32(of_node, "cell-index", &rc_idx);
+	if (ret) {
+		dev_err(&pdev->dev, "PCIe: %s: Did not find RC index\n",
+			__func__);
+		goto out;
+	}
+
+	if (rc_idx >= MAX_RC_NUM)
+		goto out;
+
+	pcie_drv.rc_num++;
+	pcie_dev = &msm_pcie_dev[rc_idx];
+	pcie_dev->rc_idx = rc_idx;
+	pcie_dev->pdev = pdev;
+	pcie_dev->link_status = MSM_PCIE_LINK_DEINIT;
+
+	PCIE_DBG(pcie_dev, "PCIe: RC index is %d.\n", pcie_dev->rc_idx);
+
+	msm_pcie_read_dt(pcie_dev, rc_idx, pdev, of_node);
+
+	memcpy(pcie_dev->vreg, msm_pcie_vreg_info, sizeof(msm_pcie_vreg_info));
+	memcpy(pcie_dev->gpio, msm_pcie_gpio_info, sizeof(msm_pcie_gpio_info));
+	memcpy(pcie_dev->res, msm_pcie_res_info, sizeof(msm_pcie_res_info));
+	memcpy(pcie_dev->irq, msm_pcie_irq_info, sizeof(msm_pcie_irq_info));
+	memcpy(pcie_dev->reset, msm_pcie_reset_info[rc_idx],
+		sizeof(msm_pcie_reset_info[rc_idx]));
+	memcpy(pcie_dev->pipe_reset, msm_pcie_pipe_reset_info[rc_idx],
+		sizeof(msm_pcie_pipe_reset_info[rc_idx]));
+	memcpy(pcie_dev->linkdown_reset, msm_pcie_linkdown_reset_info[rc_idx],
+		sizeof(msm_pcie_linkdown_reset_info[rc_idx]));
+
+	init_completion(&pcie_dev->speed_change_completion);
+
+	dev_set_drvdata(&pdev->dev, pcie_dev);
+
+	ret = msm_pcie_get_resources(pcie_dev, pcie_dev->pdev);
+	if (ret)
+		goto decrease_rc_num;
+
+	if (pcie_dev->rumi)
+		pcie_dev->rumi_init = msm_pcie_rumi_init;
+
+	msm_pcie_get_pinctrl(pcie_dev, pdev);
 
 	ret = msm_pcie_gpio_init(pcie_dev);
 	if (ret) {
@@ -6999,29 +7057,6 @@ static int msm_pcie_probe(struct platform_device *pdev)
 		msm_pcie_gpio_deinit(pcie_dev);
 		goto decrease_rc_num;
 	}
-
-	pcie_dev->config_recovery = of_property_read_bool(of_node,
-							"qcom,config-recovery");
-	if (pcie_dev->config_recovery) {
-		PCIE_DUMP(pcie_dev,
-			  "PCIe RC%d config space recovery enabled\n",
-			  pcie_dev->rc_idx);
-		INIT_WORK(&pcie_dev->link_recover_wq, handle_link_recover);
-	}
-
-	ret = of_property_read_string(of_node, "qcom,drv-name",
-				      &pcie_dev->drv_name);
-	if (!ret) {
-		pcie_dev->drv_supported = true;
-		ret = msm_pcie_setup_drv(pcie_dev, of_node);
-		if (ret)
-			PCIE_ERR(pcie_dev,
-				 "PCIe: RC%d: DRV: failed to setup DRV: ret: %d\n",
-				pcie_dev->rc_idx, ret);
-	}
-
-	pcie_dev->panic_genspeed_mismatch = of_property_read_bool(of_node,
-						"qcom,panic-genspeed-mismatch");
 
 	INIT_KFIFO(pcie_dev->aer_fifo);
 
