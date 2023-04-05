@@ -568,7 +568,6 @@ config MIPS_MALTA
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_MICROMIPS
 	select SYS_SUPPORTS_MIPS16
-	select SYS_SUPPORTS_MIPS_CMP
 	select SYS_SUPPORTS_MIPS_CPS
 	select SYS_SUPPORTS_MULTITHREADING
 	select SYS_SUPPORTS_RELOCATABLE
@@ -2270,15 +2269,10 @@ config MIPS_VPE_LOADER
 	  Includes a loader for loading an elf relocatable object
 	  onto another VPE and running it.
 
-config MIPS_VPE_LOADER_CMP
-	bool
-	default "y"
-	depends on MIPS_VPE_LOADER && MIPS_CMP
-
 config MIPS_VPE_LOADER_MT
 	bool
 	default "y"
-	depends on MIPS_VPE_LOADER && !MIPS_CMP
+	depends on MIPS_VPE_LOADER
 
 config MIPS_VPE_LOADER_TOM
 	bool "Load VPE program into memory hidden from linux"
@@ -2294,31 +2288,10 @@ config MIPS_VPE_APSP_API
 	bool "Enable support for AP/SP API (RTLX)"
 	depends on MIPS_VPE_LOADER
 
-config MIPS_VPE_APSP_API_CMP
-	bool
-	default "y"
-	depends on MIPS_VPE_APSP_API && MIPS_CMP
-
 config MIPS_VPE_APSP_API_MT
 	bool
 	default "y"
-	depends on MIPS_VPE_APSP_API && !MIPS_CMP
-
-config MIPS_CMP
-	bool "MIPS CMP framework support (DEPRECATED)"
-	depends on SYS_SUPPORTS_MIPS_CMP && !CPU_MIPSR6
-	select SMP
-	select SYNC_R4K
-	select SYS_SUPPORTS_SMP
-	select WEAK_ORDERING
-	default n
-	help
-	  Select this if you are using a bootloader which implements the "CMP
-	  framework" protocol (ie. YAMON) and want your kernel to make use of
-	  its ability to start secondary CPUs.
-
-	  Unless you have a specific need, you should use CONFIG_MIPS_CPS
-	  instead of this.
+	depends on MIPS_VPE_APSP_API
 
 config MIPS_CPS
 	bool "MIPS Coherent Processing System support"
@@ -2772,9 +2745,6 @@ config HOTPLUG_CPU
 	  Say N if you want to disable CPU hotplug.
 
 config SMP_UP
-	bool
-
-config SYS_SUPPORTS_MIPS_CMP
 	bool
 
 config SYS_SUPPORTS_MIPS_CPS
