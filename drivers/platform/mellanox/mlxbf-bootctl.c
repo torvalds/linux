@@ -244,11 +244,29 @@ static ssize_t secure_boot_fuse_state_show(struct device *dev,
 	return buf_len;
 }
 
+static ssize_t fw_reset_store(struct device *dev,
+			      struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	unsigned long key;
+	int err;
+
+	err = kstrtoul(buf, 16, &key);
+	if (err)
+		return err;
+
+	if (mlxbf_bootctl_smc(MLXBF_BOOTCTL_FW_RESET, key) < 0)
+		return -EINVAL;
+
+	return count;
+}
+
 static DEVICE_ATTR_RW(post_reset_wdog);
 static DEVICE_ATTR_RW(reset_action);
 static DEVICE_ATTR_RW(second_reset_action);
 static DEVICE_ATTR_RO(lifecycle_state);
 static DEVICE_ATTR_RO(secure_boot_fuse_state);
+static DEVICE_ATTR_WO(fw_reset);
 
 static struct attribute *mlxbf_bootctl_attrs[] = {
 	&dev_attr_post_reset_wdog.attr,
@@ -256,6 +274,7 @@ static struct attribute *mlxbf_bootctl_attrs[] = {
 	&dev_attr_second_reset_action.attr,
 	&dev_attr_lifecycle_state.attr,
 	&dev_attr_secure_boot_fuse_state.attr,
+	&dev_attr_fw_reset.attr,
 	NULL
 };
 
