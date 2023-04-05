@@ -967,6 +967,7 @@ static inline const char *eap_get_type(int type)
 	return ((u32)type >= ARRAY_SIZE(eap_types)) ? "Unknown" :
 		 eap_types[type];
 }
+
 static inline u8 Frame_QoSTID(u8 *buf)
 {
 	struct rtllib_hdr_3addr *hdr;
@@ -1199,6 +1200,7 @@ struct rx_reorder_entry {
 	u16			SeqNum;
 	struct rtllib_rxb *prxb;
 };
+
 enum fsync_state {
 	Default_Fsync,
 	HW_Fsync,
@@ -1325,6 +1327,7 @@ struct sw_cam_table {
 	u8				key_index;
 
 };
+
 #define   TOTAL_CAM_ENTRY				32
 struct rate_adaptive {
 	u8				rate_adaptive_disabled;
