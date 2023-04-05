@@ -142,11 +142,22 @@ struct btrfs_inode {
 	/* a local copy of root's last_log_commit */
 	int last_log_commit;
 
-	/*
-	 * Total number of bytes pending delalloc, used by stat to calculate the
-	 * real block usage of the file. This is used only for files.
-	 */
-	u64 delalloc_bytes;
+	union {
+		/*
+		 * Total number of bytes pending delalloc, used by stat to
+		 * calculate the real block usage of the file. This is used
+		 * only for files.
+		 */
+		u64 delalloc_bytes;
+		/*
+		 * The lowest possible index of the next dir index key which
+		 * points to an inode that needs to be logged.
+		 * This is used only for directories.
+		 * Use the helpers btrfs_get_first_dir_index_to_log() and
+		 * btrfs_set_first_dir_index_to_log() to access this field.
+		 */
+		u64 first_dir_index_to_log;
+	};
 
 	union {
 		/*
@@ -246,6 +257,17 @@ struct btrfs_inode {
 	struct rw_semaphore i_mmap_lock;
 	struct inode vfs_inode;
 };
+
+static inline u64 btrfs_get_first_dir_index_to_log(const struct btrfs_inode *inode)
+{
+	return READ_ONCE(inode->first_dir_index_to_log);
+}
+
+static inline void btrfs_set_first_dir_index_to_log(struct btrfs_inode *inode,
+						    u64 index)
+{
+	WRITE_ONCE(inode->first_dir_index_to_log, index);
+}
 
 static inline struct btrfs_inode *BTRFS_I(const struct inode *inode)
 {

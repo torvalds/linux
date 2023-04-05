@@ -3618,6 +3618,9 @@ static int flush_dir_items_batch(struct btrfs_trans_handle *trans,
 		ret = BTRFS_LOG_FORCE_COMMIT;
 	else
 		inode->last_dir_index_offset = last_index;
+
+	if (btrfs_get_first_dir_index_to_log(inode) == 0)
+		btrfs_set_first_dir_index_to_log(inode, batch.keys[0].offset);
 out:
 	kfree(ins_data);
 
@@ -5376,6 +5379,7 @@ static int log_new_dir_dentries(struct btrfs_trans_handle *trans,
 	LIST_HEAD(dir_list);
 	struct btrfs_dir_list *dir_elem;
 	u64 ino = btrfs_ino(start_inode);
+	struct btrfs_inode *curr_inode = start_inode;
 	int ret = 0;
 
 	/*
@@ -5390,18 +5394,23 @@ static int log_new_dir_dentries(struct btrfs_trans_handle *trans,
 	if (!path)
 		return -ENOMEM;
 
+	/* Pairs with btrfs_add_delayed_iput below. */
+	ihold(&curr_inode->vfs_inode);
+
 	while (true) {
+		struct inode *vfs_inode;
 		struct extent_buffer *leaf;
 		struct btrfs_key min_key;
+		u64 next_index;
 		bool continue_curr_inode = true;
 		int nritems;
 		int i;
 
 		min_key.objectid = ino;
 		min_key.type = BTRFS_DIR_INDEX_KEY;
-		min_key.offset = 0;
+		min_key.offset = btrfs_get_first_dir_index_to_log(curr_inode);
+		next_index = min_key.offset;
 again:
-		btrfs_release_path(path);
 		ret = btrfs_search_forward(root, &min_key, path, trans->transid);
 		if (ret < 0) {
 			break;
@@ -5425,6 +5434,8 @@ again:
 				continue_curr_inode = false;
 				break;
 			}
+
+			next_index = min_key.offset + 1;
 
 			di = btrfs_item_ptr(leaf, i, struct btrfs_dir_item);
 			type = btrfs_dir_ftype(leaf, di);
@@ -5466,12 +5477,16 @@ again:
 			break;
 		}
 
+		btrfs_release_path(path);
+
 		if (continue_curr_inode && min_key.offset < (u64)-1) {
 			min_key.offset++;
 			goto again;
 		}
 
 next:
+		btrfs_set_first_dir_index_to_log(curr_inode, next_index);
+
 		if (list_empty(&dir_list))
 			break;
 
@@ -5479,9 +5494,22 @@ next:
 		ino = dir_elem->ino;
 		list_del(&dir_elem->list);
 		kfree(dir_elem);
+
+		btrfs_add_delayed_iput(curr_inode);
+		curr_inode = NULL;
+
+		vfs_inode = btrfs_iget(fs_info->sb, ino, root);
+		if (IS_ERR(vfs_inode)) {
+			ret = PTR_ERR(vfs_inode);
+			break;
+		}
+		curr_inode = BTRFS_I(vfs_inode);
 	}
 out:
 	btrfs_free_path(path);
+	if (curr_inode)
+		btrfs_add_delayed_iput(curr_inode);
+
 	if (ret) {
 		struct btrfs_dir_list *next;
 
