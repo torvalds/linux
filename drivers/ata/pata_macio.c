@@ -21,6 +21,7 @@
 #include <linux/adb.h>
 #include <linux/pmu.h>
 #include <linux/scatterlist.h>
+#include <linux/irqdomain.h>
 #include <linux/of.h>
 #include <linux/gfp.h>
 #include <linux/pci.h>
