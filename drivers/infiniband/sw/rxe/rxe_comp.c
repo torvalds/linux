@@ -491,12 +491,11 @@ static inline enum comp_state complete_ack(struct rxe_qp *qp,
 		}
 	}
 
-	if (unlikely(qp->req.state == QP_STATE_DRAIN)) {
+	if (unlikely(qp_state(qp) == IB_QPS_SQD)) {
 		/* state_lock used by requester & completer */
 		spin_lock_bh(&qp->state_lock);
-		if ((qp->req.state == QP_STATE_DRAIN) &&
-		    (qp->comp.psn == qp->req.psn)) {
-			qp->req.state = QP_STATE_DRAINED;
+		if (qp->attr.sq_draining && qp->comp.psn == qp->req.psn) {
+			qp->attr.sq_draining = 0;
 			spin_unlock_bh(&qp->state_lock);
 
 			if (qp->ibqp.event_handler) {
@@ -723,7 +722,7 @@ int rxe_completer(struct rxe_qp *qp)
 			 * (4) the timeout parameter is set
 			 */
 			if ((qp_type(qp) == IB_QPT_RC) &&
-			    (qp->req.state == QP_STATE_READY) &&
+			    (qp_state(qp) >= IB_QPS_RTS) &&
 			    (psn_compare(qp->req.psn, qp->comp.psn) > 0) &&
 			    qp->qp_timeout_jiffies)
 				mod_timer(&qp->retrans_timer,

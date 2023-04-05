@@ -120,13 +120,13 @@ static struct rxe_send_wqe *req_next_wqe(struct rxe_qp *qp)
 	cons = queue_get_consumer(q, QUEUE_TYPE_FROM_CLIENT);
 	prod = queue_get_producer(q, QUEUE_TYPE_FROM_CLIENT);
 
-	if (unlikely(qp->req.state == QP_STATE_DRAIN)) {
+	if (unlikely(qp_state(qp) == IB_QPS_SQD)) {
 		/* check to see if we are drained;
 		 * state_lock used by requester and completer
 		 */
 		spin_lock_bh(&qp->state_lock);
 		do {
-			if (qp->req.state != QP_STATE_DRAIN) {
+			if (!qp->attr.sq_draining) {
 				/* comp just finished */
 				spin_unlock_bh(&qp->state_lock);
 				break;
@@ -139,7 +139,7 @@ static struct rxe_send_wqe *req_next_wqe(struct rxe_qp *qp)
 				break;
 			}
 
-			qp->req.state = QP_STATE_DRAINED;
+			qp->attr.sq_draining = 0;
 			spin_unlock_bh(&qp->state_lock);
 
 			if (qp->ibqp.event_handler) {
@@ -159,8 +159,7 @@ static struct rxe_send_wqe *req_next_wqe(struct rxe_qp *qp)
 
 	wqe = queue_addr_from_index(q, index);
 
-	if (unlikely((qp->req.state == QP_STATE_DRAIN ||
-		      qp->req.state == QP_STATE_DRAINED) &&
+	if (unlikely((qp_state(qp) == IB_QPS_SQD) &&
 		     (wqe->state != wqe_state_processing)))
 		return NULL;
 
@@ -656,7 +655,7 @@ int rxe_requester(struct rxe_qp *qp)
 	if (unlikely(!qp->valid))
 		goto exit;
 
-	if (unlikely(qp->req.state == QP_STATE_ERROR)) {
+	if (unlikely(qp_state(qp) == IB_QPS_ERR)) {
 		wqe = req_next_wqe(qp);
 		if (wqe)
 			/*
@@ -667,7 +666,7 @@ int rxe_requester(struct rxe_qp *qp)
 			goto exit;
 	}
 
-	if (unlikely(qp->req.state == QP_STATE_RESET)) {
+	if (unlikely(qp_state(qp) == IB_QPS_RESET)) {
 		qp->req.wqe_index = queue_get_consumer(q,
 						QUEUE_TYPE_FROM_CLIENT);
 		qp->req.opcode = -1;
@@ -836,7 +835,7 @@ err:
 	/* update wqe_index for each wqe completion */
 	qp->req.wqe_index = queue_next_index(qp->sq.queue, qp->req.wqe_index);
 	wqe->state = wqe_state_error;
-	qp->req.state = QP_STATE_ERROR;
+	qp->attr.qp_state = IB_QPS_ERR;
 	rxe_sched_task(&qp->comp.task);
 exit:
 	ret = -EAGAIN;

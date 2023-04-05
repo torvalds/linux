@@ -39,11 +39,12 @@ static int check_type_state(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 	}
 
 	if (pkt->mask & RXE_REQ_MASK) {
-		if (unlikely(qp_state(qp) <= IB_QPS_RTR))
+		if (unlikely(qp_state(qp) < IB_QPS_RTR))
 			return -EINVAL;
-	} else if (unlikely(qp->req.state < QP_STATE_READY ||
-				qp->req.state > QP_STATE_DRAINED))
-		return -EINVAL;
+	} else {
+		if (unlikely(qp_state(qp) < IB_QPS_RTS))
+			return -EINVAL;
+	}
 
 	return 0;
 }

@@ -881,7 +881,7 @@ static int rxe_post_send_kernel(struct rxe_qp *qp, const struct ib_send_wr *wr,
 	if (!err)
 		rxe_sched_task(&qp->req.task);
 
-	if (unlikely(qp->req.state == QP_STATE_ERROR))
+	if (unlikely(qp_state(qp) == IB_QPS_ERR))
 		rxe_sched_task(&qp->comp.task);
 
 	return err;
@@ -900,7 +900,7 @@ static int rxe_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 		goto err_out;
 	}
 
-	if (unlikely(qp->req.state < QP_STATE_READY)) {
+	if (unlikely(qp_state(qp) < IB_QPS_RTS)) {
 		*bad_wr = wr;
 		err = -EINVAL;
 		rxe_dbg_qp(qp, "qp not ready to send");

@@ -231,7 +231,6 @@ static int rxe_qp_init_req(struct rxe_dev *rxe, struct rxe_qp *qp,
 	qp->req.wqe_index = queue_get_producer(qp->sq.queue,
 					       QUEUE_TYPE_FROM_CLIENT);
 
-	qp->req.state		= QP_STATE_RESET;
 	qp->req.opcode		= -1;
 	qp->comp.opcode		= -1;
 
@@ -394,12 +393,9 @@ int rxe_qp_chk_attr(struct rxe_dev *rxe, struct rxe_qp *qp,
 		goto err1;
 	}
 
-	if (mask & IB_QP_STATE) {
-		if (cur_state == IB_QPS_SQD) {
-			if (qp->req.state == QP_STATE_DRAIN &&
-			    new_state != IB_QPS_ERR)
-				goto err1;
-		}
+	if (mask & IB_QP_STATE && cur_state == IB_QPS_SQD) {
+		if (qp->attr.sq_draining && new_state != IB_QPS_ERR)
+			goto err1;
 	}
 
 	if (mask & IB_QP_PORT) {
@@ -474,9 +470,6 @@ static void rxe_qp_reset(struct rxe_qp *qp)
 	rxe_disable_task(&qp->comp.task);
 	rxe_disable_task(&qp->req.task);
 
-	/* move qp to the reset state */
-	qp->req.state = QP_STATE_RESET;
-
 	/* drain work and packet queuesc */
 	rxe_requester(qp);
 	rxe_completer(qp);
@@ -512,22 +505,9 @@ static void rxe_qp_reset(struct rxe_qp *qp)
 	rxe_enable_task(&qp->req.task);
 }
 
-/* drain the send queue */
-static void rxe_qp_drain(struct rxe_qp *qp)
-{
-	if (qp->sq.queue) {
-		if (qp->req.state != QP_STATE_DRAINED) {
-			qp->req.state = QP_STATE_DRAIN;
-			rxe_sched_task(&qp->comp.task);
-			rxe_sched_task(&qp->req.task);
-		}
-	}
-}
-
 /* move the qp to the error state */
 void rxe_qp_error(struct rxe_qp *qp)
 {
-	qp->req.state = QP_STATE_ERROR;
 	qp->attr.qp_state = IB_QPS_ERR;
 
 	/* drain work and packet queues */
@@ -540,6 +520,8 @@ void rxe_qp_error(struct rxe_qp *qp)
 int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 		     struct ib_udata *udata)
 {
+	enum ib_qp_state cur_state = (mask & IB_QP_CUR_STATE) ?
+				attr->cur_qp_state : qp->attr.qp_state;
 	int err;
 
 	if (mask & IB_QP_MAX_QP_RD_ATOMIC) {
@@ -656,7 +638,6 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 
 		case IB_QPS_INIT:
 			rxe_dbg_qp(qp, "state -> INIT\n");
-			qp->req.state = QP_STATE_INIT;
 			break;
 
 		case IB_QPS_RTR:
@@ -665,12 +646,15 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 
 		case IB_QPS_RTS:
 			rxe_dbg_qp(qp, "state -> RTS\n");
-			qp->req.state = QP_STATE_READY;
 			break;
 
 		case IB_QPS_SQD:
 			rxe_dbg_qp(qp, "state -> SQD\n");
-			rxe_qp_drain(qp);
+			if (cur_state != IB_QPS_SQD) {
+				qp->attr.sq_draining = 1;
+				rxe_sched_task(&qp->comp.task);
+				rxe_sched_task(&qp->req.task);
+			}
 			break;
 
 		case IB_QPS_SQE:
@@ -708,16 +692,11 @@ int rxe_qp_to_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask)
 	rxe_av_to_attr(&qp->pri_av, &attr->ah_attr);
 	rxe_av_to_attr(&qp->alt_av, &attr->alt_ah_attr);
 
-	if (qp->req.state == QP_STATE_DRAIN) {
-		attr->sq_draining = 1;
-		/* applications that get this state
-		 * typically spin on it. yield the
-		 * processor
-		 */
+	/* Applications that get this state typically spin on it.
+	 * Yield the processor
+	 */
+	if (qp->attr.sq_draining)
 		cond_resched();
-	} else {
-		attr->sq_draining = 0;
-	}
 
 	rxe_dbg_qp(qp, "attr->sq_draining = %d\n", attr->sq_draining);
 
