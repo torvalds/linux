@@ -118,6 +118,41 @@ unsigned long vdso_size(void);
 
 #define HAVE_ARCH_PICK_MMAP_LAYOUT
 
+#define __stackleak_poison __stackleak_poison
+static __always_inline void __stackleak_poison(unsigned long erase_low,
+					       unsigned long erase_high,
+					       unsigned long poison)
+{
+	unsigned long tmp, count;
+
+	count = erase_high - erase_low;
+	if (!count)
+		return;
+	asm volatile(
+		"	cghi	%[count],8\n"
+		"	je	2f\n"
+		"	aghi	%[count],-(8+1)\n"
+		"	srlg	%[tmp],%[count],8\n"
+		"	ltgr	%[tmp],%[tmp]\n"
+		"	jz	1f\n"
+		"0:	stg	%[poison],0(%[addr])\n"
+		"	mvc	8(256-8,%[addr]),0(%[addr])\n"
+		"	la	%[addr],256(%[addr])\n"
+		"	brctg	%[tmp],0b\n"
+		"1:	stg	%[poison],0(%[addr])\n"
+		"	larl	%[tmp],3f\n"
+		"	ex	%[count],0(%[tmp])\n"
+		"	j	4f\n"
+		"2:	stg	%[poison],0(%[addr])\n"
+		"	j	4f\n"
+		"3:	mvc	8(1,%[addr]),0(%[addr])\n"
+		"4:\n"
+		: [addr] "+&a" (erase_low), [count] "+&d" (count), [tmp] "=&a" (tmp)
+		: [poison] "d" (poison)
+		: "memory", "cc"
+		);
+}
+
 /*
  * Thread structure
  */
