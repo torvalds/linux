@@ -6346,6 +6346,31 @@ amdgpu_dm_connector_late_register(struct drm_connector *connector)
 	return 0;
 }
 
+void amdgpu_dm_connector_funcs_force(struct drm_connector *connector)
+{
+	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
+	struct dc_link *dc_link = aconnector->dc_link;
+	struct dc_sink *dc_em_sink = aconnector->dc_em_sink;
+	struct edid *edid;
+
+	if (!connector->edid_override)
+		return;
+
+	drm_edid_override_connector_update(&aconnector->base);
+	edid = aconnector->base.edid_blob_ptr->data;
+	aconnector->edid = edid;
+
+	/* Update emulated (virtual) sink's EDID */
+	if (dc_em_sink && dc_link) {
+		memset(&dc_em_sink->edid_caps, 0, sizeof(struct dc_edid_caps));
+		memmove(dc_em_sink->dc_edid.raw_edid, edid, (edid->extensions + 1) * EDID_LENGTH);
+		dm_helpers_parse_edid_caps(
+			dc_link,
+			&dc_em_sink->dc_edid,
+			&dc_em_sink->edid_caps);
+	}
+}
+
 static const struct drm_connector_funcs amdgpu_dm_connector_funcs = {
 	.reset = amdgpu_dm_connector_funcs_reset,
 	.detect = amdgpu_dm_connector_detect,
@@ -6356,7 +6381,8 @@ static const struct drm_connector_funcs amdgpu_dm_connector_funcs = {
 	.atomic_set_property = amdgpu_dm_connector_atomic_set_property,
 	.atomic_get_property = amdgpu_dm_connector_atomic_get_property,
 	.late_register = amdgpu_dm_connector_late_register,
-	.early_unregister = amdgpu_dm_connector_unregister
+	.early_unregister = amdgpu_dm_connector_unregister,
+	.force = amdgpu_dm_connector_funcs_force
 };
 
 static int get_modes(struct drm_connector *connector)
