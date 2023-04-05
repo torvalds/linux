@@ -91,9 +91,9 @@ static int pkey_clr2protkey(u32 keytype,
 	/* mask of available pckmo subfunctions */
 	static cpacf_mask_t pckmo_functions;
 
-	long fc;
-	int keysize;
 	u8 paramblock[64];
+	int keysize;
+	long fc;
 
 	switch (keytype) {
 	case PKEY_KEYTYPE_AES_128:
@@ -146,9 +146,9 @@ static int pkey_clr2protkey(u32 keytype,
  */
 static int pkey_skey2pkey(const u8 *key, struct pkey_protkey *pkey)
 {
-	int rc, verify;
-	u16 cardnr, domain;
 	struct keytoken_header *hdr = (struct keytoken_header *)key;
+	u16 cardnr, domain;
+	int rc, verify;
 
 	zcrypt_wait_api_operational();
 
@@ -195,9 +195,9 @@ static int pkey_skey2pkey(const u8 *key, struct pkey_protkey *pkey)
 static int pkey_clr2ep11key(const u8 *clrkey, size_t clrkeylen,
 			    u8 *keybuf, size_t *keybuflen)
 {
-	int i, rc;
-	u16 card, dom;
 	u32 nr_apqns, *apqns = NULL;
+	u16 card, dom;
+	int i, rc;
 
 	zcrypt_wait_api_operational();
 
@@ -229,10 +229,10 @@ out:
  */
 static int pkey_ep11key2pkey(const u8 *key, struct pkey_protkey *pkey)
 {
-	int i, rc;
-	u16 card, dom;
-	u32 nr_apqns, *apqns = NULL;
 	struct ep11keyblob *kb = (struct ep11keyblob *)key;
+	u32 nr_apqns, *apqns = NULL;
+	u16 card, dom;
+	int i, rc;
 
 	zcrypt_wait_api_operational();
 
@@ -347,13 +347,13 @@ static int pkey_genprotkey(u32 keytype, struct pkey_protkey *protkey)
  */
 static int pkey_verifyprotkey(const struct pkey_protkey *protkey)
 {
-	unsigned long fc;
 	struct {
 		u8 iv[AES_BLOCK_SIZE];
 		u8 key[MAXPROTKEYSIZE];
 	} param;
 	u8 null_msg[AES_BLOCK_SIZE];
 	u8 dest_buf[AES_BLOCK_SIZE];
+	unsigned long fc;
 	unsigned int k;
 
 	switch (protkey->type) {
@@ -393,9 +393,9 @@ static int pkey_verifyprotkey(const struct pkey_protkey *protkey)
 static int pkey_nonccatok2pkey(const u8 *key, u32 keylen,
 			       struct pkey_protkey *protkey)
 {
-	int rc = -EINVAL;
-	u8 *tmpbuf = NULL;
 	struct keytoken_header *hdr = (struct keytoken_header *)key;
+	u8 *tmpbuf = NULL;
+	int rc = -EINVAL;
 
 	switch (hdr->version) {
 	case TOKVER_PROTECTED_KEY: {
@@ -518,8 +518,8 @@ static int pkey_ccainttok2pkey(const u8 *key, u32 keylen,
 int pkey_keyblob2pkey(const u8 *key, u32 keylen,
 		      struct pkey_protkey *protkey)
 {
-	int rc;
 	struct keytoken_header *hdr = (struct keytoken_header *)key;
+	int rc;
 
 	if (keylen < sizeof(struct keytoken_header)) {
 		DEBUG_ERR("%s invalid keylen %d\n", __func__, keylen);
@@ -663,9 +663,9 @@ static int pkey_verifykey2(const u8 *key, size_t keylen,
 			   enum pkey_key_type *ktype,
 			   enum pkey_key_size *ksize, u32 *flags)
 {
-	int rc;
-	u32 _nr_apqns, *_apqns = NULL;
 	struct keytoken_header *hdr = (struct keytoken_header *)key;
+	u32 _nr_apqns, *_apqns = NULL;
+	int rc;
 
 	if (keylen < sizeof(struct keytoken_header))
 		return -EINVAL;
@@ -773,8 +773,8 @@ static int pkey_keyblob2pkey2(const struct pkey_apqn *apqns, size_t nr_apqns,
 			      const u8 *key, size_t keylen,
 			      struct pkey_protkey *pkey)
 {
-	int i, card, dom, rc;
 	struct keytoken_header *hdr = (struct keytoken_header *)key;
+	int i, card, dom, rc;
 
 	/* check for at least one apqn given */
 	if (!apqns || !nr_apqns)
@@ -847,9 +847,9 @@ static int pkey_keyblob2pkey2(const struct pkey_apqn *apqns, size_t nr_apqns,
 static int pkey_apqns4key(const u8 *key, size_t keylen, u32 flags,
 			  struct pkey_apqn *apqns, size_t *nr_apqns)
 {
-	int rc;
-	u32 _nr_apqns, *_apqns = NULL;
 	struct keytoken_header *hdr = (struct keytoken_header *)key;
+	u32 _nr_apqns, *_apqns = NULL;
+	int rc;
 
 	if (keylen < sizeof(struct keytoken_header) || flags == 0)
 		return -EINVAL;
@@ -860,9 +860,9 @@ static int pkey_apqns4key(const u8 *key, size_t keylen, u32 flags,
 	    (hdr->version == TOKVER_EP11_AES_WITH_HEADER ||
 	     hdr->version == TOKVER_EP11_ECC_WITH_HEADER) &&
 	    is_ep11_keyblob(key + sizeof(struct ep11kblob_header))) {
-		int minhwtype = 0, api = 0;
 		struct ep11keyblob *kb = (struct ep11keyblob *)
 			(key + sizeof(struct ep11kblob_header));
+		int minhwtype = 0, api = 0;
 
 		if (flags != PKEY_FLAGS_MATCH_CUR_MKVP)
 			return -EINVAL;
@@ -877,8 +877,8 @@ static int pkey_apqns4key(const u8 *key, size_t keylen, u32 flags,
 	} else if (hdr->type == TOKTYPE_NON_CCA &&
 		   hdr->version == TOKVER_EP11_AES &&
 		   is_ep11_keyblob(key)) {
-		int minhwtype = 0, api = 0;
 		struct ep11keyblob *kb = (struct ep11keyblob *)key;
+		int minhwtype = 0, api = 0;
 
 		if (flags != PKEY_FLAGS_MATCH_CUR_MKVP)
 			return -EINVAL;
@@ -891,8 +891,8 @@ static int pkey_apqns4key(const u8 *key, size_t keylen, u32 flags,
 		if (rc)
 			goto out;
 	} else if (hdr->type == TOKTYPE_CCA_INTERNAL) {
-		int minhwtype = ZCRYPT_CEX3C;
 		u64 cur_mkvp = 0, old_mkvp = 0;
+		int minhwtype = ZCRYPT_CEX3C;
 
 		if (hdr->version == TOKVER_CCA_AES) {
 			struct secaeskeytoken *t = (struct secaeskeytoken *)key;
@@ -919,8 +919,8 @@ static int pkey_apqns4key(const u8 *key, size_t keylen, u32 flags,
 		if (rc)
 			goto out;
 	} else if (hdr->type == TOKTYPE_CCA_INTERNAL_PKA) {
-		u64 cur_mkvp = 0, old_mkvp = 0;
 		struct eccprivkeytoken *t = (struct eccprivkeytoken *)key;
+		u64 cur_mkvp = 0, old_mkvp = 0;
 
 		if (t->secid == 0x20) {
 			if (flags & PKEY_FLAGS_MATCH_CUR_MKVP)
@@ -957,8 +957,8 @@ static int pkey_apqns4keytype(enum pkey_key_type ktype,
 			      u8 cur_mkvp[32], u8 alt_mkvp[32], u32 flags,
 			      struct pkey_apqn *apqns, size_t *nr_apqns)
 {
-	int rc;
 	u32 _nr_apqns, *_apqns = NULL;
+	int rc;
 
 	zcrypt_wait_api_operational();
 
@@ -1023,8 +1023,8 @@ static int pkey_keyblob2pkey3(const struct pkey_apqn *apqns, size_t nr_apqns,
 			      const u8 *key, size_t keylen, u32 *protkeytype,
 			      u8 *protkey, u32 *protkeylen)
 {
-	int i, card, dom, rc;
 	struct keytoken_header *hdr = (struct keytoken_header *)key;
+	int i, card, dom, rc;
 
 	/* check for at least one apqn given */
 	if (!apqns || !nr_apqns)
@@ -1303,9 +1303,9 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 	}
 	case PKEY_GENSECK2: {
 		struct pkey_genseck2 __user *ugs = (void __user *)arg;
+		size_t klen = KEYBLOBBUFSIZE;
 		struct pkey_genseck2 kgs;
 		struct pkey_apqn *apqns;
-		size_t klen = KEYBLOBBUFSIZE;
 		u8 *kkey;
 
 		if (copy_from_user(&kgs, ugs, sizeof(kgs)))
@@ -1345,9 +1345,9 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 	}
 	case PKEY_CLR2SECK2: {
 		struct pkey_clr2seck2 __user *ucs = (void __user *)arg;
+		size_t klen = KEYBLOBBUFSIZE;
 		struct pkey_clr2seck2 kcs;
 		struct pkey_apqn *apqns;
-		size_t klen = KEYBLOBBUFSIZE;
 		u8 *kkey;
 
 		if (copy_from_user(&kcs, ucs, sizeof(kcs)))
@@ -1409,8 +1409,8 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 	}
 	case PKEY_KBLOB2PROTK2: {
 		struct pkey_kblob2pkey2 __user *utp = (void __user *)arg;
-		struct pkey_kblob2pkey2 ktp;
 		struct pkey_apqn *apqns = NULL;
+		struct pkey_kblob2pkey2 ktp;
 		u8 *kkey;
 
 		if (copy_from_user(&ktp, utp, sizeof(ktp)))
@@ -1437,8 +1437,8 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 	}
 	case PKEY_APQNS4K: {
 		struct pkey_apqns4key __user *uak = (void __user *)arg;
-		struct pkey_apqns4key kak;
 		struct pkey_apqn *apqns = NULL;
+		struct pkey_apqns4key kak;
 		size_t nr_apqns, len;
 		u8 *kkey;
 
@@ -1486,8 +1486,8 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 	}
 	case PKEY_APQNS4KT: {
 		struct pkey_apqns4keytype __user *uat = (void __user *)arg;
-		struct pkey_apqns4keytype kat;
 		struct pkey_apqn *apqns = NULL;
+		struct pkey_apqns4keytype kat;
 		size_t nr_apqns, len;
 
 		if (copy_from_user(&kat, uat, sizeof(kat)))
@@ -1528,9 +1528,9 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 	}
 	case PKEY_KBLOB2PROTK3: {
 		struct pkey_kblob2pkey3 __user *utp = (void __user *)arg;
-		struct pkey_kblob2pkey3 ktp;
-		struct pkey_apqn *apqns = NULL;
 		u32 protkeylen = PROTKEYBLOBBUFSIZE;
+		struct pkey_apqn *apqns = NULL;
+		struct pkey_kblob2pkey3 ktp;
 		u8 *kkey, *protkey;
 
 		if (copy_from_user(&ktp, utp, sizeof(ktp)))
@@ -1717,8 +1717,8 @@ static struct attribute_group protkey_attr_group = {
 static ssize_t pkey_ccadata_aes_attr_read(u32 keytype, bool is_xts, char *buf,
 					  loff_t off, size_t count)
 {
-	int rc;
 	struct pkey_seckey *seckey = (struct pkey_seckey *)buf;
+	int rc;
 
 	if (off != 0 || count < sizeof(struct secaeskeytoken))
 		return -EINVAL;
@@ -1824,9 +1824,9 @@ static ssize_t pkey_ccacipher_aes_attr_read(enum pkey_key_size keybits,
 					    bool is_xts, char *buf, loff_t off,
 					    size_t count)
 {
-	int i, rc, card, dom;
-	u32 nr_apqns, *apqns = NULL;
 	size_t keysize = CCACIPHERTOKENSIZE;
+	u32 nr_apqns, *apqns = NULL;
+	int i, rc, card, dom;
 
 	if (off != 0 || count < CCACIPHERTOKENSIZE)
 		return -EINVAL;
@@ -1947,9 +1947,9 @@ static ssize_t pkey_ep11_aes_attr_read(enum pkey_key_size keybits,
 				       bool is_xts, char *buf, loff_t off,
 				       size_t count)
 {
-	int i, rc, card, dom;
-	u32 nr_apqns, *apqns = NULL;
 	size_t keysize = MAXEP11AESKEYBLOBSIZE;
+	u32 nr_apqns, *apqns = NULL;
+	int i, rc, card, dom;
 
 	if (off != 0 || count < MAXEP11AESKEYBLOBSIZE)
 		return -EINVAL;
