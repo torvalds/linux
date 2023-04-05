@@ -150,7 +150,10 @@ struct acpi_resource_dma {
 	u8 bus_master;
 	u8 transfer;
 	u8 channel_count;
-	u8 channels[1];
+	union {
+		u8 channel;
+		 ACPI_FLEX_ARRAY(u8, channels);
+	};
 };
 
 struct acpi_resource_start_dependent {
