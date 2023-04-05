@@ -164,6 +164,10 @@
 		};
 
 	};
+
+	thermal_zones: thermal-zones {
+		#include "k3-j721s2-thermal.dtsi"
+	};
 };
 
 /* Now include peripherals from each bus segment */
