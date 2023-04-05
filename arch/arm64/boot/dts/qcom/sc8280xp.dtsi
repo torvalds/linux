@@ -2515,7 +2515,6 @@
 			status = "disabled";
 		};
 
-		/* RX */
 		swr1: soundwire-controller@3210000 {
 			compatible = "qcom,soundwire-v1.6.0";
 			reg = <0 0x03210000 0 0x2000>;
@@ -2590,13 +2589,13 @@
 			status = "disabled";
 		};
 
-		/* WSA */
 		swr0: soundwire-controller@3250000 {
 			reg = <0 0x03250000 0 0x2000>;
 			compatible = "qcom,soundwire-v1.6.0";
 			interrupts = <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&wsamacro>;
 			clock-names = "iface";
+			label = "WSA";
 
 			qcom,din-ports = <2>;
 			qcom,dout-ports = <6>;
@@ -2618,7 +2617,6 @@
 			status = "disabled";
 		};
 
-		/* TX */
 		swr2: soundwire-controller@3330000 {
 			compatible = "qcom,soundwire-v1.6.0";
 			reg = <0 0x03330000 0 0x2000>;
