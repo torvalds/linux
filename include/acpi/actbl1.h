@@ -901,7 +901,10 @@ struct acpi_dmar_andd {
 	struct acpi_dmar_header header;
 	u8 reserved[3];
 	u8 device_number;
-	char device_name[1];
+	union {
+		char __pad;
+		 ACPI_FLEX_ARRAY(char, device_name);
+	};
 };
 
 /* 5: SOC Integrated Address Translation Cache Reporting Structure */
