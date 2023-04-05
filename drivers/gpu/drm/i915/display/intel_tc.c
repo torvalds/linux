@@ -1358,10 +1358,7 @@ void intel_tc_port_lock(struct intel_digital_port *dig_port)
 	__intel_tc_port_lock(to_tc_port(dig_port), 1);
 }
 
-/**
- * intel_tc_port_disconnect_phy_work: disconnect TypeC PHY from display port
- * @dig_port: digital port
- *
+/*
  * Disconnect the given digital port from its TypeC PHY (handing back the
  * control of the PHY to the TypeC subsystem). This will happen in a delayed
  * manner after each aux transactions and modeset disables.
