@@ -209,6 +209,8 @@
 #elif defined(_AED_EFI) || defined(_GNU_EFI) || defined(_EDK2_EFI)
 #include "acefi.h"
 
+#elif defined(__ZEPHYR__)
+#include "aczephyr.h"
 #else
 
 /* Unknown environment */
