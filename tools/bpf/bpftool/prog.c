@@ -840,11 +840,6 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 					      false))
 				goto exit_free;
 		}
-	} else if (visual) {
-		if (json_output)
-			jsonw_null(json_wtr);
-		else
-			dump_xlated_cfg(buf, member_len);
 	} else {
 		kernel_syms_load(&dd);
 		dd.nr_jited_ksyms = info->nr_jited_ksyms;
@@ -854,12 +849,14 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 		dd.finfo_rec_size = info->func_info_rec_size;
 		dd.prog_linfo = prog_linfo;
 
-		if (json_output)
-			dump_xlated_json(&dd, buf, member_len, opcodes,
-					 linum);
+		if (json_output && visual)
+			jsonw_null(json_wtr);
+		else if (json_output)
+			dump_xlated_json(&dd, buf, member_len, opcodes, linum);
+		else if (visual)
+			dump_xlated_cfg(&dd, buf, member_len);
 		else
-			dump_xlated_plain(&dd, buf, member_len, opcodes,
-					  linum);
+			dump_xlated_plain(&dd, buf, member_len, opcodes, linum);
 		kernel_syms_destroy(&dd);
 	}
 

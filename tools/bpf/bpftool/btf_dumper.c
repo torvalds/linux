@@ -821,3 +821,37 @@ void btf_dump_linfo_json(const struct btf *btf,
 					BPF_LINE_INFO_LINE_COL(linfo->line_col));
 	}
 }
+
+static void dotlabel_puts(const char *s)
+{
+	for (; *s; ++s) {
+		switch (*s) {
+		case '\\':
+		case '"':
+		case '{':
+		case '}':
+		case '<':
+		case '>':
+		case '|':
+		case ' ':
+			putchar('\\');
+			__fallthrough;
+		default:
+			putchar(*s);
+		}
+	}
+}
+
+void btf_dump_linfo_dotlabel(const struct btf *btf,
+			     const struct bpf_line_info *linfo)
+{
+	const char *line = btf__name_by_offset(btf, linfo->line_off);
+
+	if (!line || !strlen(line))
+		return;
+	line = ltrim(line);
+
+	printf("; ");
+	dotlabel_puts(line);
+	printf("\\l\\\n");
+}
