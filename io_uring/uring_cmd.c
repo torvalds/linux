@@ -73,6 +73,7 @@ int io_uring_cmd_prep_async(struct io_kiocb *req)
 	cmd_size = uring_cmd_pdu_size(req->ctx->flags & IORING_SETUP_SQE128);
 
 	memcpy(req->async_data, ioucmd->cmd, cmd_size);
+	ioucmd->cmd = req->async_data;
 	return 0;
 }
 
@@ -128,9 +129,6 @@ int io_uring_cmd(struct io_kiocb *req, unsigned int issue_flags)
 		req->iopoll_completed = 0;
 		WRITE_ONCE(ioucmd->cookie, NULL);
 	}
-
-	if (req_has_async_data(req))
-		ioucmd->cmd = req->async_data;
 
 	ret = file->f_op->uring_cmd(ioucmd, issue_flags);
 	if (ret == -EAGAIN) {
