@@ -444,17 +444,7 @@ struct dasd_discipline {
 
 extern struct dasd_discipline *dasd_diag_discipline_pointer;
 
-/*
- * Notification numbers for extended error reporting notifications:
- * The DASD_EER_DISABLE notification is sent before a dasd_device (and it's
- * eer pointer) is freed. The error reporting module needs to do all necessary
- * cleanup steps.
- * The DASD_EER_TRIGGER notification sends the actual error reports (triggers).
- */
-#define DASD_EER_DISABLE 0
-#define DASD_EER_TRIGGER 1
-
-/* Trigger IDs for extended error reporting DASD_EER_TRIGGER notification */
+/* Trigger IDs for extended error reporting */
 #define DASD_EER_FATALERROR  1
 #define DASD_EER_NOPATH      2
 #define DASD_EER_STATECHANGE 3
