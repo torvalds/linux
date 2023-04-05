@@ -849,9 +849,7 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 		dd.finfo_rec_size = info->func_info_rec_size;
 		dd.prog_linfo = prog_linfo;
 
-		if (json_output && visual)
-			jsonw_null(json_wtr);
-		else if (json_output)
+		if (json_output)
 			dump_xlated_json(&dd, buf, member_len, opcodes, linum);
 		else if (visual)
 			dump_xlated_cfg(&dd, buf, member_len);
@@ -938,6 +936,10 @@ static int do_dump(int argc, char **argv)
 
 	if (argc) {
 		usage();
+		goto exit_close;
+	}
+	if (json_output && visual) {
+		p_err("'visual' is not compatible with JSON output");
 		goto exit_close;
 	}
 
