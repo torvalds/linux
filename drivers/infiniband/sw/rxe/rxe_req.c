@@ -108,17 +108,12 @@ void rnr_nak_timer(struct timer_list *t)
 	rxe_sched_task(&qp->req.task);
 }
 
-static struct rxe_send_wqe *req_next_wqe(struct rxe_qp *qp)
+static void req_check_sq_drain_done(struct rxe_qp *qp)
 {
-	struct rxe_send_wqe *wqe;
 	struct rxe_queue *q = qp->sq.queue;
 	unsigned int index = qp->req.wqe_index;
-	unsigned int cons;
-	unsigned int prod;
-
-	wqe = queue_head(q, QUEUE_TYPE_FROM_CLIENT);
-	cons = queue_get_consumer(q, QUEUE_TYPE_FROM_CLIENT);
-	prod = queue_get_producer(q, QUEUE_TYPE_FROM_CLIENT);
+	unsigned int cons = queue_get_consumer(q, QUEUE_TYPE_FROM_CLIENT);
+	struct rxe_send_wqe *wqe = queue_addr_from_index(q, cons);
 
 	if (unlikely(qp_state(qp) == IB_QPS_SQD)) {
 		/* check to see if we are drained;
@@ -126,18 +121,14 @@ static struct rxe_send_wqe *req_next_wqe(struct rxe_qp *qp)
 		 */
 		spin_lock_bh(&qp->state_lock);
 		do {
-			if (!qp->attr.sq_draining) {
+			if (!qp->attr.sq_draining)
 				/* comp just finished */
-				spin_unlock_bh(&qp->state_lock);
 				break;
-			}
 
 			if (wqe && ((index != cons) ||
-				(wqe->state != wqe_state_posted))) {
+				(wqe->state != wqe_state_posted)))
 				/* comp not done yet */
-				spin_unlock_bh(&qp->state_lock);
 				break;
-			}
 
 			qp->attr.sq_draining = 0;
 			spin_unlock_bh(&qp->state_lock);
@@ -151,9 +142,22 @@ static struct rxe_send_wqe *req_next_wqe(struct rxe_qp *qp)
 				qp->ibqp.event_handler(&ev,
 					qp->ibqp.qp_context);
 			}
+			return;
 		} while (0);
+		spin_unlock_bh(&qp->state_lock);
 	}
+}
 
+static struct rxe_send_wqe *req_next_wqe(struct rxe_qp *qp)
+{
+	struct rxe_send_wqe *wqe;
+	struct rxe_queue *q = qp->sq.queue;
+	unsigned int index = qp->req.wqe_index;
+	unsigned int prod;
+
+	req_check_sq_drain_done(qp);
+
+	prod = queue_get_producer(q, QUEUE_TYPE_FROM_CLIENT);
 	if (index == prod)
 		return NULL;
 

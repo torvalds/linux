@@ -477,20 +477,8 @@ static void do_complete(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 	}
 }
 
-static inline enum comp_state complete_ack(struct rxe_qp *qp,
-					   struct rxe_pkt_info *pkt,
-					   struct rxe_send_wqe *wqe)
+static void comp_check_sq_drain_done(struct rxe_qp *qp)
 {
-	if (wqe->has_rd_atomic) {
-		wqe->has_rd_atomic = 0;
-		atomic_inc(&qp->req.rd_atomic);
-		if (qp->req.need_rd_atomic) {
-			qp->comp.timeout_retry = 0;
-			qp->req.need_rd_atomic = 0;
-			rxe_sched_task(&qp->req.task);
-		}
-	}
-
 	if (unlikely(qp_state(qp) == IB_QPS_SQD)) {
 		/* state_lock used by requester & completer */
 		spin_lock_bh(&qp->state_lock);
@@ -507,10 +495,27 @@ static inline enum comp_state complete_ack(struct rxe_qp *qp,
 				qp->ibqp.event_handler(&ev,
 					qp->ibqp.qp_context);
 			}
-		} else {
-			spin_unlock_bh(&qp->state_lock);
+			return;
+		}
+		spin_unlock_bh(&qp->state_lock);
+	}
+}
+
+static inline enum comp_state complete_ack(struct rxe_qp *qp,
+					   struct rxe_pkt_info *pkt,
+					   struct rxe_send_wqe *wqe)
+{
+	if (wqe->has_rd_atomic) {
+		wqe->has_rd_atomic = 0;
+		atomic_inc(&qp->req.rd_atomic);
+		if (qp->req.need_rd_atomic) {
+			qp->comp.timeout_retry = 0;
+			qp->req.need_rd_atomic = 0;
+			rxe_sched_task(&qp->req.task);
 		}
 	}
+
+	comp_check_sq_drain_done(qp);
 
 	do_complete(qp, wqe);
 
