@@ -397,7 +397,7 @@ struct acpi_iort_node {
 	u32 identifier;
 	u32 mapping_count;
 	u32 mapping_offset;
-	char node_data[1];
+	char node_data[];
 };
 
 /* Values for subtable Type above */
@@ -453,14 +453,14 @@ struct acpi_iort_memory_access {
  */
 struct acpi_iort_its_group {
 	u32 its_count;
-	u32 identifiers[1];	/* GIC ITS identifier array */
+	u32 identifiers[];	/* GIC ITS identifier array */
 };
 
 struct acpi_iort_named_component {
 	u32 node_flags;
 	u64 memory_properties;	/* Memory access properties */
 	u8 memory_address_limit;	/* Memory address size limit */
-	char device_name[1];	/* Path of namespace object */
+	char device_name[];	/* Path of namespace object */
 };
 
 /* Masks for Flags field above */
@@ -474,7 +474,7 @@ struct acpi_iort_root_complex {
 	u32 pci_segment_number;
 	u8 memory_address_limit;	/* Memory address size limit */
 	u16 pasid_capabilities;	/* PASID Capabilities */
-	u8 reserved[1];		/* Reserved, must be zero */
+	u8 reserved[];		/* Reserved, must be zero */
 };
 
 /* Masks for ats_attribute field above */
@@ -496,7 +496,7 @@ struct acpi_iort_smmu {
 	u32 context_interrupt_offset;
 	u32 pmu_interrupt_count;
 	u32 pmu_interrupt_offset;
-	u64 interrupts[1];	/* Interrupt array */
+	u64 interrupts[];	/* Interrupt array */
 };
 
 /* Values for Model field above */
@@ -975,7 +975,7 @@ struct acpi_madt_local_sapic {
 	u8 reserved[3];		/* Reserved, must be zero */
 	u32 lapic_flags;
 	u32 uid;		/* Numeric UID - ACPI 3.0 */
-	char uid_string[1];	/* String UID  - ACPI 3.0 */
+	char uid_string[];	/* String UID  - ACPI 3.0 */
 };
 
 /* 8: Platform Interrupt Source */
@@ -1708,7 +1708,7 @@ struct acpi_nfit_interleave {
 struct acpi_nfit_smbios {
 	struct acpi_nfit_header header;
 	u32 reserved;		/* Reserved, must be zero */
-	u8 data[1];		/* Variable length */
+	u8 data[];		/* Variable length */
 };
 
 /* 4: NVDIMM Control Region Structure */
@@ -1765,7 +1765,7 @@ struct acpi_nfit_flush_address {
 	u32 device_handle;
 	u16 hint_count;
 	u8 reserved[6];		/* Reserved, must be zero */
-	u64 hint_address[1];	/* Variable length */
+	u64 hint_address[];	/* Variable length */
 };
 
 /* 7: Platform Capabilities Structure */
