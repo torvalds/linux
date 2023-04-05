@@ -499,7 +499,7 @@ acpi_ns_repair_HID(struct acpi_evaluate_info *info,
 	char *source;
 	char *dest;
 
-	ACPI_FUNCTION_NAME(ns_repair_HID);
+	ACPI_FUNCTION_TRACE(ns_repair_HID);
 
 	/* We only care about string _HID objects (not integers) */
 
