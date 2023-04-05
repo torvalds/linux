@@ -142,7 +142,10 @@ struct acpi_resource_irq {
 	u8 shareable;
 	u8 wake_capable;
 	u8 interrupt_count;
-	u8 interrupts[1];
+	union {
+		u8 interrupt;
+		 ACPI_FLEX_ARRAY(u8, interrupts);
+	};
 };
 
 struct acpi_resource_dma {
@@ -335,7 +338,10 @@ struct acpi_resource_extended_irq {
 	u8 wake_capable;
 	u8 interrupt_count;
 	struct acpi_resource_source resource_source;
-	u32 interrupts[1];
+	union {
+		u32 interrupt;
+		 ACPI_FLEX_ARRAY(u32, interrupts);
+	};
 };
 
 struct acpi_resource_generic_register {
