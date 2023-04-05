@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/libata.h>
 #include <linux/irq.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <scsi/scsi_host.h>
