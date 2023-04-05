@@ -7,6 +7,7 @@
 #include "reg.h"
 #include "fw.h"
 #include "debug.h"
+#include "sdio.h"
 
 void rtw_set_channel_mac(struct rtw_dev *rtwdev, u8 channel, u8 bw,
 			 u8 primary_ch_idx)
