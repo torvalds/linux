@@ -670,7 +670,7 @@ static int mlx5e_macsec_del_txsa(struct macsec_context *ctx)
 
 	mlx5e_macsec_cleanup_sa(macsec, tx_sa, true);
 	mlx5_destroy_encryption_key(macsec->mdev, tx_sa->enc_key_id);
-	kfree_rcu(tx_sa);
+	kfree_rcu_mightsleep(tx_sa);
 	macsec_device->tx_sa[assoc_num] = NULL;
 
 out:
@@ -849,7 +849,7 @@ static void macsec_del_rxsc_ctx(struct mlx5e_macsec *macsec, struct mlx5e_macsec
 	xa_erase(&macsec->sc_xarray, rx_sc->sc_xarray_element->fs_id);
 	metadata_dst_free(rx_sc->md_dst);
 	kfree(rx_sc->sc_xarray_element);
-	kfree_rcu(rx_sc);
+	kfree_rcu_mightsleep(rx_sc);
 }
 
 static int mlx5e_macsec_del_rxsc(struct macsec_context *ctx)

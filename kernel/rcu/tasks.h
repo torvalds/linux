@@ -136,8 +136,10 @@ static struct rcu_tasks rt_name =							\
 	.kname = #rt_name,								\
 }
 
+#ifdef CONFIG_TASKS_RCU
 /* Track exiting tasks in order to allow them to be waited for. */
 DEFINE_STATIC_SRCU(tasks_rcu_exit_srcu);
+#endif
 
 #ifdef CONFIG_TASKS_RCU
 /* Report delay in synchronize_srcu() completion in rcu_tasks_postscan(). */

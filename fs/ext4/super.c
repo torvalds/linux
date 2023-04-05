@@ -2500,7 +2500,7 @@ static void ext4_apply_quota_options(struct fs_context *fc,
 			qname = rcu_replace_pointer(sbi->s_qf_names[i], qname,
 						lockdep_is_held(&sb->s_umount));
 			if (qname)
-				kfree_rcu(qname);
+				kfree_rcu_mightsleep(qname);
 		}
 	}
 
