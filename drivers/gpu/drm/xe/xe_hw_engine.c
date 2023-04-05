@@ -253,7 +253,7 @@ void xe_hw_engine_enable_ring(struct xe_hw_engine *hwe)
 	u32 ccs_mask =
 		xe_hw_engine_mask_per_class(hwe->gt, XE_ENGINE_CLASS_COMPUTE);
 
-	if (hwe->class == XE_ENGINE_CLASS_COMPUTE && ccs_mask & BIT(0))
+	if (hwe->class == XE_ENGINE_CLASS_COMPUTE && ccs_mask)
 		xe_mmio_write32(hwe->gt, GEN12_RCU_MODE.reg,
 				_MASKED_BIT_ENABLE(GEN12_RCU_MODE_CCS_ENABLE));
 
