@@ -937,7 +937,6 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 	/*
 	 * Do the splice.
 	 */
-	ret = 0;
 	bytes = 0;
 	len = sd->total_len;
 	flags = sd->flags;

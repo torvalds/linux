@@ -602,26 +602,13 @@ psp_cmd_submit_buf(struct psp_context *psp,
 		   struct psp_gfx_cmd_resp *cmd, uint64_t fence_mc_addr)
 {
 	int ret;
-	int index, idx;
+	int index;
 	int timeout = 20000;
 	bool ras_intr = false;
 	bool skip_unsupport = false;
-	bool dev_entered;
 
 	if (psp->adev->no_hw_access)
 		return 0;
-
-	dev_entered = drm_dev_enter(adev_to_drm(psp->adev), &idx);
-	/*
-	 * We allow sending PSP messages LOAD_ASD and UNLOAD_TA without acquiring
-	 * a lock in drm_dev_enter during driver unload because we must call
-	 * drm_dev_unplug as the beginning  of unload driver sequence . It is very
-	 * crucial that userspace can't access device instances anymore.
-	 */
-	if (!dev_entered)
-		WARN_ON(psp->cmd_buf_mem->cmd_id != GFX_CMD_ID_LOAD_ASD &&
-			psp->cmd_buf_mem->cmd_id != GFX_CMD_ID_UNLOAD_TA &&
-			psp->cmd_buf_mem->cmd_id != GFX_CMD_ID_INVOKE_CMD);
 
 	memset(psp->cmd_buf_mem, 0, PSP_CMD_BUFFER_SIZE);
 
@@ -686,8 +673,6 @@ psp_cmd_submit_buf(struct psp_context *psp,
 	}
 
 exit:
-	if (dev_entered)
-		drm_dev_exit(idx);
 	return ret;
 }
 

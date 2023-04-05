@@ -9,9 +9,13 @@
 u64 nfp_nfdk_ipsec_tx(u64 flags, struct sk_buff *skb)
 {
 	struct xfrm_state *x = xfrm_input_state(skb);
+	struct iphdr *iph = ip_hdr(skb);
 
-	if (x->xso.dev && (x->xso.dev->features & NETIF_F_HW_ESP_TX_CSUM))
-		flags |= NFDK_DESC_TX_L3_CSUM | NFDK_DESC_TX_L4_CSUM;
+	if (x->xso.dev && (x->xso.dev->features & NETIF_F_HW_ESP_TX_CSUM)) {
+		if (iph->version == 4)
+			flags |= NFDK_DESC_TX_L3_CSUM;
+		flags |= NFDK_DESC_TX_L4_CSUM;
+	}
 
 	return flags;
 }
