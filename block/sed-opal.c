@@ -1149,12 +1149,8 @@ static int finalize_and_send(struct opal_dev *dev, cont_fn cont)
 	return opal_send_recv(dev, cont);
 }
 
-/*
- * request @column from table @table on device @dev. On success, the column
- * data will be available in dev->resp->tok[4]
- */
-static int generic_get_column(struct opal_dev *dev, const u8 *table,
-			      u64 column)
+static int generic_get_columns(struct opal_dev *dev, const u8 *table,
+			       u64 start_column, u64 end_column)
 {
 	int err;
 
@@ -1164,12 +1160,12 @@ static int generic_get_column(struct opal_dev *dev, const u8 *table,
 
 	add_token_u8(&err, dev, OPAL_STARTNAME);
 	add_token_u8(&err, dev, OPAL_STARTCOLUMN);
-	add_token_u64(&err, dev, column);
+	add_token_u64(&err, dev, start_column);
 	add_token_u8(&err, dev, OPAL_ENDNAME);
 
 	add_token_u8(&err, dev, OPAL_STARTNAME);
 	add_token_u8(&err, dev, OPAL_ENDCOLUMN);
-	add_token_u64(&err, dev, column);
+	add_token_u64(&err, dev, end_column);
 	add_token_u8(&err, dev, OPAL_ENDNAME);
 
 	add_token_u8(&err, dev, OPAL_ENDLIST);
@@ -1178,6 +1174,16 @@ static int generic_get_column(struct opal_dev *dev, const u8 *table,
 		return err;
 
 	return finalize_and_send(dev, parse_and_check_status);
+}
+
+/*
+ * request @column from table @table on device @dev. On success, the column
+ * data will be available in dev->resp->tok[4]
+ */
+static int generic_get_column(struct opal_dev *dev, const u8 *table,
+			      u64 column)
+{
+	return generic_get_columns(dev, table, column, column);
 }
 
 /*
