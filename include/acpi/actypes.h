@@ -1323,4 +1323,8 @@ typedef enum {
 #define ACPI_FALLTHROUGH do {} while(0)
 #endif
 
+#ifndef ACPI_FLEX_ARRAY
+#define ACPI_FLEX_ARRAY(TYPE, NAME)     TYPE NAME[0]
+#endif
+
 #endif				/* __ACTYPES_H__ */
