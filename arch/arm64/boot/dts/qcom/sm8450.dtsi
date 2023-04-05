@@ -2135,13 +2135,13 @@
 			#sound-dai-cells = <1>;
 		};
 
-		/* WSA2 */
 		swr4: soundwire-controller@31f0000 {
 			compatible = "qcom,soundwire-v1.7.0";
 			reg = <0 0x031f0000 0 0x2000>;
 			interrupts = <GIC_SPI 171 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&wsa2macro>;
 			clock-names = "iface";
+			label = "WSA2";
 
 			qcom,din-ports = <2>;
 			qcom,dout-ports = <6>;
@@ -2250,13 +2250,13 @@
 			#sound-dai-cells = <1>;
 		};
 
-		/* WSA */
 		swr0: soundwire-controller@3250000 {
 			compatible = "qcom,soundwire-v1.7.0";
 			reg = <0 0x03250000 0 0x2000>;
 			interrupts = <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&wsamacro>;
 			clock-names = "iface";
+			label = "WSA";
 
 			qcom,din-ports = <2>;
 			qcom,dout-ports = <6>;
