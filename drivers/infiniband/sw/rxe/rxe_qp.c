@@ -287,7 +287,6 @@ static int rxe_qp_init_resp(struct rxe_dev *rxe, struct rxe_qp *qp,
 
 	qp->resp.opcode		= OPCODE_NONE;
 	qp->resp.msn		= 0;
-	qp->resp.state		= QP_STATE_RESET;
 
 	return 0;
 }
@@ -479,7 +478,6 @@ static void rxe_qp_reset(struct rxe_qp *qp)
 	/* move qp to the reset state */
 	qp->req.state = QP_STATE_RESET;
 	qp->comp.state = QP_STATE_RESET;
-	qp->resp.state = QP_STATE_RESET;
 
 	/* drain work and packet queuesc */
 	rxe_requester(qp);
@@ -532,7 +530,6 @@ static void rxe_qp_drain(struct rxe_qp *qp)
 void rxe_qp_error(struct rxe_qp *qp)
 {
 	qp->req.state = QP_STATE_ERROR;
-	qp->resp.state = QP_STATE_ERROR;
 	qp->comp.state = QP_STATE_ERROR;
 	qp->attr.qp_state = IB_QPS_ERR;
 
@@ -663,13 +660,11 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 		case IB_QPS_INIT:
 			rxe_dbg_qp(qp, "state -> INIT\n");
 			qp->req.state = QP_STATE_INIT;
-			qp->resp.state = QP_STATE_INIT;
 			qp->comp.state = QP_STATE_INIT;
 			break;
 
 		case IB_QPS_RTR:
 			rxe_dbg_qp(qp, "state -> RTR\n");
-			qp->resp.state = QP_STATE_READY;
 			break;
 
 		case IB_QPS_RTS:

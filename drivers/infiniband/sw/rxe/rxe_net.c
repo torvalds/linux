@@ -414,7 +414,7 @@ int rxe_xmit_packet(struct rxe_qp *qp, struct rxe_pkt_info *pkt,
 	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
 
 	if ((is_request && (qp->req.state != QP_STATE_READY)) ||
-	    (!is_request && (qp->resp.state != QP_STATE_READY))) {
+	    (!is_request && (qp_state(qp) <= IB_QPS_RTR))) {
 		rxe_dbg_qp(qp, "Packet dropped. QP is not in ready state\n");
 		goto drop;
 	}

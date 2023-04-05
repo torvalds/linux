@@ -1137,7 +1137,7 @@ static enum resp_states do_complete(struct rxe_qp *qp,
 		return RESPST_ERR_CQ_OVERFLOW;
 
 finish:
-	if (unlikely(qp->resp.state == QP_STATE_ERROR))
+	if (unlikely(qp_state(qp) == IB_QPS_ERR))
 		return RESPST_CHK_RESOURCE;
 	if (unlikely(!pkt))
 		return RESPST_DONE;
@@ -1464,10 +1464,10 @@ int rxe_responder(struct rxe_qp *qp)
 	struct rxe_pkt_info *pkt = NULL;
 	int ret;
 
-	if (!qp->valid || qp->resp.state == QP_STATE_ERROR ||
-	    qp->resp.state == QP_STATE_RESET) {
-		bool notify = qp->valid &&
-				(qp->resp.state == QP_STATE_ERROR);
+	if (!qp->valid || qp_state(qp) == IB_QPS_ERR ||
+	    qp_state(qp) == IB_QPS_RESET) {
+		bool notify = qp->valid && (qp_state(qp) == IB_QPS_ERR);
+
 		drain_req_pkts(qp);
 		flush_recv_queue(qp, notify);
 		goto exit;

@@ -173,7 +173,6 @@ struct resp_res {
 };
 
 struct rxe_resp_info {
-	enum rxe_qp_state	state;
 	u32			msn;
 	u32			psn;
 	u32			ack_psn;
