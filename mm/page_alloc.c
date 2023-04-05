@@ -1131,7 +1131,7 @@ static inline bool free_page_is_bad(struct page *page)
 	return true;
 }
 
-static int free_tail_pages_check(struct page *head_page, struct page *page)
+static int free_tail_page_prepare(struct page *head_page, struct page *page)
 {
 	struct folio *folio = (struct folio *)head_page;
 	int ret = 1;
@@ -1142,7 +1142,7 @@ static int free_tail_pages_check(struct page *head_page, struct page *page)
 	 */
 	BUILD_BUG_ON((unsigned long)LIST_POISON1 & 1);
 
-	if (!IS_ENABLED(CONFIG_DEBUG_VM)) {
+	if (!static_branch_unlikely(&check_pages_enabled)) {
 		ret = 0;
 		goto out;
 	}
@@ -1276,9 +1276,9 @@ static __always_inline bool free_pages_prepare(struct page *page,
 			ClearPageHasHWPoisoned(page);
 		for (i = 1; i < (1 << order); i++) {
 			if (compound)
-				bad += free_tail_pages_check(page, page + i);
+				bad += free_tail_page_prepare(page, page + i);
 			if (is_check_pages_enabled()) {
-				if (unlikely(free_page_is_bad(page + i))) {
+				if (free_page_is_bad(page + i)) {
 					bad++;
 					continue;
 				}
@@ -1627,7 +1627,7 @@ static inline bool check_new_pages(struct page *page, unsigned int order)
 		for (int i = 0; i < (1 << order); i++) {
 			struct page *p = page + i;
 
-			if (unlikely(check_new_page(p)))
+			if (check_new_page(p))
 				return true;
 		}
 	}
