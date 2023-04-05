@@ -698,8 +698,10 @@ static int sn65dsi83_probe(struct i2c_client *client)
 	drm_bridge_add(&ctx->bridge);
 
 	ret = sn65dsi83_host_attach(ctx);
-	if (ret)
+	if (ret) {
+		dev_err_probe(dev, ret, "failed to attach DSI host\n");
 		goto err_remove_bridge;
+	}
 
 	return 0;
 
