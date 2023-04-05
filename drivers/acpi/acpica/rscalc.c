@@ -320,6 +320,16 @@ acpi_rs_get_aml_length(struct acpi_resource *resource,
 
 			break;
 
+		case ACPI_RESOURCE_TYPE_CLOCK_INPUT:
+
+			total_size = (acpi_rs_length)(total_size +
+						      resource->data.
+						      clock_input.
+						      resource_source.
+						      string_length);
+
+			break;
+
 		case ACPI_RESOURCE_TYPE_SERIAL_BUS:
 
 			total_size =
@@ -647,6 +657,13 @@ acpi_rs_get_list_length(u8 *aml_buffer,
 			    aml_resource->pin_group_config.vendor_offset -
 			    aml_resource->pin_group_config.res_source_offset +
 			    aml_resource->pin_group_config.vendor_length;
+
+			break;
+
+		case ACPI_RESOURCE_NAME_CLOCK_INPUT:
+			extra_struct_bytes =
+			    acpi_rs_stream_option_length(resource_length,
+							 minimum_aml_resource_length);
 
 			break;
 

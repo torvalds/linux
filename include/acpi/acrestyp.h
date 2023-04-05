@@ -536,6 +536,15 @@ struct acpi_resource_pin_config {
 	u8 *vendor_data;
 };
 
+struct acpi_resource_clock_input {
+	u8 revision_id;
+	u8 mode;
+	u8 scale;
+	u16 frequency_divisor;
+	u32 frequency_numerator;
+	struct acpi_resource_source resource_source;
+};
+
 /* Values for pin_config_type field above */
 
 #define ACPI_PIN_CONFIG_DEFAULT                 0
@@ -613,7 +622,8 @@ struct acpi_resource_pin_group_config {
 #define ACPI_RESOURCE_TYPE_PIN_GROUP            22	/* ACPI 6.2 */
 #define ACPI_RESOURCE_TYPE_PIN_GROUP_FUNCTION   23	/* ACPI 6.2 */
 #define ACPI_RESOURCE_TYPE_PIN_GROUP_CONFIG     24	/* ACPI 6.2 */
-#define ACPI_RESOURCE_TYPE_MAX                  24
+#define ACPI_RESOURCE_TYPE_CLOCK_INPUT          25	/* ACPI 6.5 */
+#define ACPI_RESOURCE_TYPE_MAX                  25
 
 /* Master union for resource descriptors */
 
@@ -647,6 +657,7 @@ union acpi_resource_data {
 	struct acpi_resource_pin_group pin_group;
 	struct acpi_resource_pin_group_function pin_group_function;
 	struct acpi_resource_pin_group_config pin_group_config;
+	struct acpi_resource_clock_input clock_input;
 
 	/* Common fields */
 
