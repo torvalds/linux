@@ -281,6 +281,10 @@
 				 <0x07 0x00000000 0x07 0x00000000 0x01 0x00000000>; /* FSS OSPI1 data region 3*/
 		};
 	};
+
+	thermal_zones: thermal-zones {
+		#include "k3-j784s4-thermal.dtsi"
+	};
 };
 
 /* Now include peripherals from each bus segment */
