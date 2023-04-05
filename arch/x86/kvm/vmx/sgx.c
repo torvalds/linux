@@ -382,7 +382,7 @@ int handle_encls(struct kvm_vcpu *vcpu)
 
 	if (!encls_leaf_enabled_in_guest(vcpu, leaf)) {
 		kvm_queue_exception(vcpu, UD_VECTOR);
-	} else if (!sgx_enabled_in_guest_bios(vcpu)) {
+	} else if (!sgx_enabled_in_guest_bios(vcpu) || !is_paging(vcpu)) {
 		kvm_inject_gp(vcpu, 0);
 	} else {
 		if (leaf == ECREATE)
