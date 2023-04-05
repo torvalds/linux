@@ -619,10 +619,10 @@ int rxe_completer(struct rxe_qp *qp)
 	enum comp_state state;
 	int ret;
 
-	if (!qp->valid || qp->comp.state == QP_STATE_ERROR ||
-	    qp->comp.state == QP_STATE_RESET) {
-		bool notify = qp->valid &&
-				(qp->comp.state == QP_STATE_ERROR);
+	if (!qp->valid || qp_state(qp) == IB_QPS_ERR ||
+	    qp_state(qp) == IB_QPS_RESET) {
+		bool notify = qp->valid && (qp_state(qp) == IB_QPS_ERR);
+
 		drain_resp_pkts(qp);
 		flush_send_queue(qp, notify);
 		goto exit;

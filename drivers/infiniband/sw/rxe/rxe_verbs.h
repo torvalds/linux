@@ -127,7 +127,6 @@ struct rxe_req_info {
 };
 
 struct rxe_comp_info {
-	enum rxe_qp_state	state;
 	u32			psn;
 	int			opcode;
 	int			timeout;
