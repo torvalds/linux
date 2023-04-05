@@ -461,26 +461,22 @@ ivpu_job_prepare_bos_for_submit(struct drm_file *file, struct ivpu_job *job, u32
 
 	job->cmd_buf_vpu_addr = bo->vpu_addr + commands_offset;
 
-	ret = drm_gem_lock_reservations((struct drm_gem_object **)job->bos, buf_count,
-					&acquire_ctx);
+	ret = drm_gem_lock_reservations((struct drm_gem_object **)job->bos, 1, &acquire_ctx);
 	if (ret) {
 		ivpu_warn(vdev, "Failed to lock reservations: %d\n", ret);
 		return ret;
 	}
 
-	for (i = 0; i < buf_count; i++) {
-		ret = dma_resv_reserve_fences(job->bos[i]->base.resv, 1);
-		if (ret) {
-			ivpu_warn(vdev, "Failed to reserve fences: %d\n", ret);
-			goto unlock_reservations;
-		}
+	ret = dma_resv_reserve_fences(bo->base.resv, 1);
+	if (ret) {
+		ivpu_warn(vdev, "Failed to reserve fences: %d\n", ret);
+		goto unlock_reservations;
 	}
 
-	for (i = 0; i < buf_count; i++)
-		dma_resv_add_fence(job->bos[i]->base.resv, job->done_fence, DMA_RESV_USAGE_WRITE);
+	dma_resv_add_fence(bo->base.resv, job->done_fence, DMA_RESV_USAGE_WRITE);
 
 unlock_reservations:
-	drm_gem_unlock_reservations((struct drm_gem_object **)job->bos, buf_count, &acquire_ctx);
+	drm_gem_unlock_reservations((struct drm_gem_object **)job->bos, 1, &acquire_ctx);
 
 	wmb(); /* Flush write combining buffers */
 
