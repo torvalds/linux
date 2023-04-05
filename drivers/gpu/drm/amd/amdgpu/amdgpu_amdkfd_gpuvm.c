@@ -504,9 +504,6 @@ kfd_mem_dmamap_userptr(struct kgd_mem *mem,
 	if (unlikely(ret))
 		goto release_sg;
 
-	drm_prime_sg_to_dma_addr_array(ttm->sg, ttm->dma_address,
-				       ttm->num_pages);
-
 	amdgpu_bo_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_GTT);
 	ret = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 	if (ret)
