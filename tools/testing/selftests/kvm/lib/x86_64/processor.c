@@ -697,7 +697,7 @@ uint64_t kvm_get_feature_msr(uint64_t msr_index)
 	return buffer.entry.data;
 }
 
-void __vm_xsave_require_permission(int bit, const char *name)
+void __vm_xsave_require_permission(uint64_t xfeature, const char *name)
 {
 	int kvm_fd;
 	u64 bitmask;
@@ -705,11 +705,14 @@ void __vm_xsave_require_permission(int bit, const char *name)
 	struct kvm_device_attr attr = {
 		.group = 0,
 		.attr = KVM_X86_XCOMP_GUEST_SUPP,
-		.addr = (unsigned long) &bitmask
+		.addr = (unsigned long) &bitmask,
 	};
 
 	TEST_ASSERT(!kvm_supported_cpuid,
 		    "kvm_get_supported_cpuid() cannot be used before ARCH_REQ_XCOMP_GUEST_PERM");
+
+	TEST_ASSERT(is_power_of_2(xfeature),
+		    "Dynamic XFeatures must be enabled one at a time");
 
 	kvm_fd = open_kvm_dev_path_or_exit();
 	rc = __kvm_ioctl(kvm_fd, KVM_GET_DEVICE_ATTR, &attr);
@@ -720,16 +723,16 @@ void __vm_xsave_require_permission(int bit, const char *name)
 
 	TEST_ASSERT(rc == 0, "KVM_GET_DEVICE_ATTR(0, KVM_X86_XCOMP_GUEST_SUPP) error: %ld", rc);
 
-	__TEST_REQUIRE(bitmask & (1ULL << bit),
+	__TEST_REQUIRE(bitmask & xfeature,
 		       "Required XSAVE feature '%s' not supported", name);
 
-	TEST_REQUIRE(!syscall(SYS_arch_prctl, ARCH_REQ_XCOMP_GUEST_PERM, bit));
+	TEST_REQUIRE(!syscall(SYS_arch_prctl, ARCH_REQ_XCOMP_GUEST_PERM, ilog2(xfeature)));
 
 	rc = syscall(SYS_arch_prctl, ARCH_GET_XCOMP_GUEST_PERM, &bitmask);
 	TEST_ASSERT(rc == 0, "prctl(ARCH_GET_XCOMP_GUEST_PERM) error: %ld", rc);
-	TEST_ASSERT(bitmask & (1ULL << bit),
-		    "prctl(ARCH_REQ_XCOMP_GUEST_PERM) failure bitmask=0x%lx",
-		    bitmask);
+	TEST_ASSERT(bitmask & xfeature,
+		    "'%s' (0x%lx) not permitted after prctl(ARCH_REQ_XCOMP_GUEST_PERM) perrmited=0x%lx",
+		    name, xfeature, bitmask);
 }
 
 void vcpu_init_cpuid(struct kvm_vcpu *vcpu, const struct kvm_cpuid2 *cpuid)

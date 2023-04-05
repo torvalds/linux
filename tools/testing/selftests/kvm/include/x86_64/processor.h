@@ -1098,10 +1098,10 @@ uint64_t kvm_hypercall(uint64_t nr, uint64_t a0, uint64_t a1, uint64_t a2,
 uint64_t __xen_hypercall(uint64_t nr, uint64_t a0, void *a1);
 void xen_hypercall(uint64_t nr, uint64_t a0, void *a1);
 
-void __vm_xsave_require_permission(int bit, const char *name);
+void __vm_xsave_require_permission(uint64_t xfeature, const char *name);
 
-#define vm_xsave_require_permission(perm)	\
-	__vm_xsave_require_permission(perm, #perm)
+#define vm_xsave_require_permission(xfeature)	\
+	__vm_xsave_require_permission(xfeature, #xfeature)
 
 enum pg_level {
 	PG_LEVEL_NONE,
