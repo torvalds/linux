@@ -782,7 +782,6 @@ static void smap_gather_stats(struct vm_area_struct *vma,
 	if (start >= vma->vm_end)
 		return;
 
-#ifdef CONFIG_SHMEM
 	if (vma->vm_file && shmem_mapping(vma->vm_file->f_mapping)) {
 		/*
 		 * For shared or readonly shmem mappings we know that all
@@ -803,7 +802,7 @@ static void smap_gather_stats(struct vm_area_struct *vma,
 			ops = &smaps_shmem_walk_ops;
 		}
 	}
-#endif
+
 	/* mmap_lock is held in m_start */
 	if (!start)
 		walk_page_vma(vma, ops, mss);

@@ -96,7 +96,14 @@ int shmem_unuse(unsigned int type);
 
 extern bool shmem_is_huge(struct inode *inode, pgoff_t index, bool shmem_huge_force,
 			  struct mm_struct *mm, unsigned long vm_flags);
+#ifdef CONFIG_SHMEM
 extern unsigned long shmem_swap_usage(struct vm_area_struct *vma);
+#else
+static inline unsigned long shmem_swap_usage(struct vm_area_struct *vma)
+{
+	return 0;
+}
+#endif
 extern unsigned long shmem_partial_swap_usage(struct address_space *mapping,
 						pgoff_t start, pgoff_t end);
 
