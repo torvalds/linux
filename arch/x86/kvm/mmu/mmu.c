@@ -270,9 +270,9 @@ static inline unsigned long kvm_mmu_get_guest_pgd(struct kvm_vcpu *vcpu,
 	return mmu->get_guest_pgd(vcpu);
 }
 
-static inline bool kvm_available_flush_tlb_with_range(void)
+static inline bool kvm_available_flush_remote_tlbs_range(void)
 {
-	return kvm_x86_ops.tlb_remote_flush_with_range;
+	return kvm_x86_ops.flush_remote_tlbs_range;
 }
 
 void kvm_flush_remote_tlbs_range(struct kvm *kvm, gfn_t start_gfn,
@@ -284,8 +284,8 @@ void kvm_flush_remote_tlbs_range(struct kvm *kvm, gfn_t start_gfn,
 	range.start_gfn = start_gfn;
 	range.pages = nr_pages;
 
-	if (kvm_x86_ops.tlb_remote_flush_with_range)
-		ret = static_call(kvm_x86_tlb_remote_flush_with_range)(kvm, &range);
+	if (kvm_x86_ops.flush_remote_tlbs_range)
+		ret = static_call(kvm_x86_flush_remote_tlbs_range)(kvm, &range);
 
 	if (ret)
 		kvm_flush_remote_tlbs(kvm);
@@ -1498,7 +1498,7 @@ restart:
 		}
 	}
 
-	if (need_flush && kvm_available_flush_tlb_with_range()) {
+	if (need_flush && kvm_available_flush_remote_tlbs_range()) {
 		kvm_flush_remote_tlbs_gfn(kvm, gfn, level);
 		return false;
 	}
@@ -6623,7 +6623,7 @@ restart:
 							       PG_LEVEL_NUM)) {
 			kvm_zap_one_rmap_spte(kvm, rmap_head, sptep);
 
-			if (kvm_available_flush_tlb_with_range())
+			if (kvm_available_flush_remote_tlbs_range())
 				kvm_flush_remote_tlbs_sptep(kvm, sptep);
 			else
 				need_tlb_flush = 1;

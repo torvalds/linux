@@ -29,8 +29,7 @@ static inline int hv_remote_flush_root_tdp(hpa_t root_tdp,
 		return hyperv_flush_guest_mapping(root_tdp);
 }
 
-int hv_remote_flush_tlb_with_range(struct kvm *kvm,
-		struct kvm_tlb_range *range)
+int hv_flush_remote_tlbs_range(struct kvm *kvm, struct kvm_tlb_range *range)
 {
 	struct kvm_arch *kvm_arch = &kvm->arch;
 	struct kvm_vcpu *vcpu;
@@ -86,19 +85,19 @@ int hv_remote_flush_tlb_with_range(struct kvm *kvm,
 	spin_unlock(&kvm_arch->hv_root_tdp_lock);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(hv_remote_flush_tlb_with_range);
+EXPORT_SYMBOL_GPL(hv_flush_remote_tlbs_range);
 
-int hv_remote_flush_tlb(struct kvm *kvm)
+int hv_flush_remote_tlbs(struct kvm *kvm)
 {
-	return hv_remote_flush_tlb_with_range(kvm, NULL);
+	return hv_flush_remote_tlbs_range(kvm, NULL);
 }
-EXPORT_SYMBOL_GPL(hv_remote_flush_tlb);
+EXPORT_SYMBOL_GPL(hv_flush_remote_tlbs);
 
 void hv_track_root_tdp(struct kvm_vcpu *vcpu, hpa_t root_tdp)
 {
 	struct kvm_arch *kvm_arch = &vcpu->kvm->arch;
 
-	if (kvm_x86_ops.tlb_remote_flush == hv_remote_flush_tlb) {
+	if (kvm_x86_ops.flush_remote_tlbs == hv_flush_remote_tlbs) {
 		spin_lock(&kvm_arch->hv_root_tdp_lock);
 		vcpu->arch.hv_root_tdp = root_tdp;
 		if (root_tdp != kvm_arch->hv_root_tdp)
