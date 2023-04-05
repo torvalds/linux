@@ -638,6 +638,7 @@ struct dasd_device {
 	struct kset *paths_info;
 	struct dasd_copy_relation *copy;
 	unsigned long aq_mask;
+	unsigned int aq_timeouts;
 };
 
 struct dasd_block {

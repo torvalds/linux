@@ -1553,6 +1553,52 @@ static ssize_t dasd_aqr_store(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR(aq_requeue, 0644, dasd_aqr_show, dasd_aqr_store);
 
 /*
+ * aq_timeouts controls how much retries have to time out until
+ * a device gets autoquiesced
+ */
+static ssize_t
+dasd_aq_timeouts_show(struct device *dev, struct device_attribute *attr,
+		      char *buf)
+{
+	struct dasd_device *device;
+	int len;
+
+	device = dasd_device_from_cdev(to_ccwdev(dev));
+	if (IS_ERR(device))
+		return -ENODEV;
+	len = sysfs_emit(buf, "%u\n", device->aq_timeouts);
+	dasd_put_device(device);
+	return len;
+}
+
+static ssize_t
+dasd_aq_timeouts_store(struct device *dev, struct device_attribute *attr,
+		       const char *buf, size_t count)
+{
+	struct dasd_device *device;
+	unsigned int val;
+
+	device = dasd_device_from_cdev(to_ccwdev(dev));
+	if (IS_ERR(device))
+		return -ENODEV;
+
+	if ((kstrtouint(buf, 10, &val) != 0) ||
+	    val > DASD_RETRIES_MAX || val == 0) {
+		dasd_put_device(device);
+		return -EINVAL;
+	}
+
+	if (val)
+		device->aq_timeouts = val;
+
+	dasd_put_device(device);
+	return count;
+}
+
+static DEVICE_ATTR(aq_timeouts, 0644, dasd_aq_timeouts_show,
+		   dasd_aq_timeouts_store);
+
+/*
  * expiration time for default requests
  */
 static ssize_t
@@ -2403,6 +2449,7 @@ static struct attribute * dasd_attrs[] = {
 	&dev_attr_ping.attr,
 	&dev_attr_aq_mask.attr,
 	&dev_attr_aq_requeue.attr,
+	&dev_attr_aq_timeouts.attr,
 	NULL,
 };
 
