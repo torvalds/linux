@@ -2413,7 +2413,7 @@ static int __init btrfs_print_mod_info(void)
 			", fsverity=no"
 #endif
 			;
-	pr_info("Btrfs loaded, crc32c=%s%s\n", crc32c_impl(), options);
+	pr_info("Btrfs loaded%s\n", options);
 	return 0;
 }
 
