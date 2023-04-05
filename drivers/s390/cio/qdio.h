@@ -210,11 +210,10 @@ struct qdio_q {
 	qdio_handler_t (*handler);
 
 	struct qdio_irq *irq_ptr;
+
+	/* memory page (PAGE_SIZE) used to place slib and sl on */
+	void *sl_page;
 	struct sl *sl;
-	/*
-	 * A page is allocated under this pointer and used for slib and sl.
-	 * slib is 2048 bytes big and sl points to offset PAGE_SIZE / 2.
-	 */
 	struct slib *slib;
 } __attribute__ ((aligned(256)));
 
