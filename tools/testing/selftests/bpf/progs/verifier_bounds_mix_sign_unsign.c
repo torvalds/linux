@@ -354,7 +354,7 @@ __naked void signed_and_unsigned_variant_10(void)
 	call %[bpf_map_lookup_elem];			\
 	if r0 == 0 goto l0_%=;				\
 	r1 = *(u64*)(r10 - 16);				\
-	r2 = 0;						\
+	r2 = -1;						\
 	if r2 > r1 goto l1_%=;				\
 	r0 = 0;						\
 	exit;						\
