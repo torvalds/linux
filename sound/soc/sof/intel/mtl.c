@@ -217,6 +217,7 @@ static int mtl_enable_interrupts(struct snd_sof_dev *sdev, bool enable)
 /* pre fw run operations */
 static int mtl_dsp_pre_fw_run(struct snd_sof_dev *sdev)
 {
+	struct sof_intel_hda_dev *hdev = sdev->pdata->hw_pdata;
 	u32 dsphfpwrsts;
 	u32 dsphfdsscs;
 	u32 cpa;
@@ -255,9 +256,11 @@ static int mtl_dsp_pre_fw_run(struct snd_sof_dev *sdev)
 	if (ret < 0)
 		dev_err(sdev->dev, "failed to power up gated DSP domain\n");
 
-	/* make sure SoundWire is not power-gated */
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, MTL_HFPWRCTL,
-				MTL_HfPWRCTL_WPIOXPG(1), MTL_HfPWRCTL_WPIOXPG(1));
+	/* if SoundWire is used, make sure it is not power-gated */
+	if (hdev->info.handle && hdev->info.link_mask > 0)
+		snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, MTL_HFPWRCTL,
+					MTL_HfPWRCTL_WPIOXPG(1), MTL_HfPWRCTL_WPIOXPG(1));
+
 	return ret;
 }
 
