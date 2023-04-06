@@ -284,7 +284,24 @@ static const struct snd_soc_acpi_link_adr rpl_sdw_rt1316_link12_rt714_link0[] = 
 	{}
 };
 
+static const struct snd_soc_acpi_codecs rpl_rt5682_hp = {
+	.num_codecs = 2,
+	.codecs = {"10EC5682", "RTL5682"},
+};
+
+static const struct snd_soc_acpi_codecs rpl_max98360a_amp = {
+	.num_codecs = 1,
+	.codecs = {"MX98360A"},
+};
+
 struct snd_soc_acpi_mach snd_soc_acpi_intel_rpl_machines[] = {
+	{
+		.comp_ids = &rpl_rt5682_hp,
+		.drv_name = "rpl_mx98360_rt5682",
+		.machine_quirk = snd_soc_acpi_codec_list,
+		.quirk_data = &rpl_max98360a_amp,
+		.sof_tplg_filename = "sof-rpl-max98360a-rt5682.tplg",
+	},
 	{},
 };
 EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_rpl_machines);
