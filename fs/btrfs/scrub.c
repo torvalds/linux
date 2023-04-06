@@ -1656,14 +1656,33 @@ static void scrub_submit_initial_read(struct scrub_ctx *sctx,
 	btrfs_submit_bio(bbio, mirror);
 }
 
-static void flush_scrub_stripes(struct scrub_ctx *sctx)
+static bool stripe_has_metadata_error(struct scrub_stripe *stripe)
+{
+	int i;
+
+	for_each_set_bit(i, &stripe->error_bitmap, stripe->nr_sectors) {
+		if (stripe->sectors[i].is_metadata) {
+			struct btrfs_fs_info *fs_info = stripe->bg->fs_info;
+
+			btrfs_err(fs_info,
+			"stripe %llu has unrepaired metadata sector at %llu",
+				  stripe->logical,
+				  stripe->logical + (i << fs_info->sectorsize_bits));
+			return true;
+		}
+	}
+	return false;
+}
+
+static int flush_scrub_stripes(struct scrub_ctx *sctx)
 {
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
 	struct scrub_stripe *stripe;
 	const int nr_stripes = sctx->cur_stripe;
+	int ret = 0;
 
 	if (!nr_stripes)
-		return;
+		return 0;
 
 	ASSERT(test_bit(SCRUB_STRIPE_FLAG_INITIALIZED, &sctx->stripes[0].state));
 
@@ -1709,6 +1728,16 @@ static void flush_scrub_stripes(struct scrub_ctx *sctx)
 
 	/* Submit for dev-replace. */
 	if (sctx->is_dev_replace) {
+		/*
+		 * For dev-replace, if we know there is something wrong with
+		 * metadata, we should immedately abort.
+		 */
+		for (int i = 0; i < nr_stripes; i++) {
+			if (stripe_has_metadata_error(&sctx->stripes[i])) {
+				ret = -EIO;
+				goto out;
+			}
+		}
 		for (int i = 0; i < nr_stripes; i++) {
 			unsigned long good;
 
@@ -1729,7 +1758,9 @@ static void flush_scrub_stripes(struct scrub_ctx *sctx)
 		wait_scrub_stripe_io(stripe);
 		scrub_reset_stripe(stripe);
 	}
+out:
 	sctx->cur_stripe = 0;
+	return ret;
 }
 
 static void raid56_scrub_wait_endio(struct bio *bio)
@@ -1745,8 +1776,11 @@ static int queue_scrub_stripe(struct scrub_ctx *sctx, struct btrfs_block_group *
 	int ret;
 
 	/* No available slot, submit all stripes and wait for them. */
-	if (sctx->cur_stripe >= SCRUB_STRIPES_PER_SCTX)
-		flush_scrub_stripes(sctx);
+	if (sctx->cur_stripe >= SCRUB_STRIPES_PER_SCTX) {
+		ret = flush_scrub_stripes(sctx);
+		if (ret < 0)
+			return ret;
+	}
 
 	stripe = &sctx->stripes[sctx->cur_stripe];
 
@@ -2075,6 +2109,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	const u64 profile = map->type & BTRFS_BLOCK_GROUP_PROFILE_MASK;
 	const u64 chunk_logical = bg->start;
 	int ret;
+	int ret2;
 	u64 physical = map->stripes[stripe_index].physical;
 	const u64 dev_stripe_len = btrfs_calc_stripe_length(em);
 	const u64 physical_end = physical + dev_stripe_len;
@@ -2202,7 +2237,9 @@ next:
 			break;
 	}
 out:
-	flush_scrub_stripes(sctx);
+	ret2 = flush_scrub_stripes(sctx);
+	if (!ret2)
+		ret = ret2;
 	if (sctx->raid56_data_stripes) {
 		for (int i = 0; i < nr_data_stripes(map); i++)
 			release_scrub_stripe(&sctx->raid56_data_stripes[i]);
