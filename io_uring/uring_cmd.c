@@ -15,13 +15,12 @@
 static void io_uring_cmd_work(struct io_kiocb *req, bool *locked)
 {
 	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req, struct io_uring_cmd);
-	unsigned issue_flags = *locked ? 0 : IO_URING_F_UNLOCKED;
 
-	ioucmd->task_work_cb(ioucmd, issue_flags);
+	ioucmd->task_work_cb(ioucmd);
 }
 
 void io_uring_cmd_complete_in_task(struct io_uring_cmd *ioucmd,
-			void (*task_work_cb)(struct io_uring_cmd *, unsigned))
+			void (*task_work_cb)(struct io_uring_cmd *))
 {
 	struct io_kiocb *req = cmd_to_io_kiocb(ioucmd);
 
@@ -43,8 +42,7 @@ static inline void io_req_set_cqe32_extra(struct io_kiocb *req,
  * Called by consumers of io_uring_cmd, if they originally returned
  * -EIOCBQUEUED upon receiving the command.
  */
-void io_uring_cmd_done(struct io_uring_cmd *ioucmd, ssize_t ret, ssize_t res2,
-		       unsigned issue_flags)
+void io_uring_cmd_done(struct io_uring_cmd *ioucmd, ssize_t ret, ssize_t res2)
 {
 	struct io_kiocb *req = cmd_to_io_kiocb(ioucmd);
 
@@ -58,7 +56,7 @@ void io_uring_cmd_done(struct io_uring_cmd *ioucmd, ssize_t ret, ssize_t res2,
 		/* order with io_iopoll_req_issued() checking ->iopoll_complete */
 		smp_store_release(&req->iopoll_completed, 1);
 	else
-		__io_req_complete(req, issue_flags);
+		__io_req_complete(req, 0);
 }
 EXPORT_SYMBOL_GPL(io_uring_cmd_done);
 
