@@ -3485,6 +3485,77 @@ out:
 	return pos;
 }
 
+u8 *ieee80211_ie_build_eht_oper(u8 *pos, struct cfg80211_chan_def *chandef,
+				const struct ieee80211_sta_eht_cap *eht_cap)
+
+{
+	const struct ieee80211_eht_mcs_nss_supp_20mhz_only *eht_mcs_nss =
+					&eht_cap->eht_mcs_nss_supp.only_20mhz;
+	struct ieee80211_eht_operation *eht_oper;
+	struct ieee80211_eht_operation_info *eht_oper_info;
+	u8 eht_oper_len = offsetof(struct ieee80211_eht_operation, optional);
+	u8 eht_oper_info_len =
+		offsetof(struct ieee80211_eht_operation_info, optional);
+	u8 chan_width = 0;
+
+	*pos++ = WLAN_EID_EXTENSION;
+	*pos++ = 1 + eht_oper_len + eht_oper_info_len;
+	*pos++ = WLAN_EID_EXT_EHT_OPERATION;
+
+	eht_oper = (struct ieee80211_eht_operation *)pos;
+
+	memcpy(&eht_oper->basic_mcs_nss, eht_mcs_nss, sizeof(*eht_mcs_nss));
+	eht_oper->params |= IEEE80211_EHT_OPER_INFO_PRESENT;
+	pos += eht_oper_len;
+
+	eht_oper_info =
+		(struct ieee80211_eht_operation_info *)eht_oper->optional;
+
+	eht_oper_info->ccfs0 =
+		ieee80211_frequency_to_channel(chandef->center_freq1);
+	if (chandef->center_freq2)
+		eht_oper_info->ccfs1 =
+			ieee80211_frequency_to_channel(chandef->center_freq2);
+	else
+		eht_oper_info->ccfs1 = 0;
+
+	switch (chandef->width) {
+	case NL80211_CHAN_WIDTH_320:
+		chan_width = IEEE80211_EHT_OPER_CHAN_WIDTH_320MHZ;
+		eht_oper_info->ccfs1 = eht_oper_info->ccfs0;
+		if (chandef->chan->center_freq < chandef->center_freq1)
+			eht_oper_info->ccfs0 -= 16;
+		else
+			eht_oper_info->ccfs0 += 16;
+		break;
+	case NL80211_CHAN_WIDTH_160:
+		eht_oper_info->ccfs1 = eht_oper_info->ccfs0;
+		if (chandef->chan->center_freq < chandef->center_freq1)
+			eht_oper_info->ccfs0 -= 8;
+		else
+			eht_oper_info->ccfs0 += 8;
+		fallthrough;
+	case NL80211_CHAN_WIDTH_80P80:
+		chan_width = IEEE80211_EHT_OPER_CHAN_WIDTH_160MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_80:
+		chan_width = IEEE80211_EHT_OPER_CHAN_WIDTH_80MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_40:
+		chan_width = IEEE80211_EHT_OPER_CHAN_WIDTH_40MHZ;
+		break;
+	default:
+		chan_width = IEEE80211_EHT_OPER_CHAN_WIDTH_20MHZ;
+		break;
+	}
+	eht_oper_info->control = chan_width;
+	pos += eht_oper_info_len;
+
+	/* TODO: eht_oper_info->optional */
+
+	return pos;
+}
+
 bool ieee80211_chandef_ht_oper(const struct ieee80211_ht_operation *ht_oper,
 			       struct cfg80211_chan_def *chandef)
 {
@@ -4929,7 +5000,7 @@ u8 ieee80211_ie_len_eht_cap(struct ieee80211_sub_if_data *sdata, u8 iftype)
 				       &eht_cap->eht_cap_elem,
 				       is_ap);
 	return 2 + 1 +
-	       sizeof(he_cap->he_cap_elem) + n +
+	       sizeof(eht_cap->eht_cap_elem) + n +
 	       ieee80211_eht_ppe_size(eht_cap->eht_ppe_thres[0],
 				      eht_cap->eht_cap_elem.phy_cap_info);
 	return 0;

@@ -686,6 +686,33 @@ desc_bk:
 	desc_info->bk = true;
 }
 
+static u16 rtw89_core_get_data_rate(struct rtw89_dev *rtwdev,
+				    struct rtw89_core_tx_request *tx_req)
+{
+	struct ieee80211_vif *vif = tx_req->vif;
+	struct ieee80211_sta *sta = tx_req->sta;
+	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
+	struct rtw89_phy_rate_pattern *rate_pattern = &rtwvif->rate_pattern;
+	enum rtw89_sub_entity_idx idx = rtwvif->sub_entity_idx;
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, idx);
+	u16 lowest_rate;
+
+	if (rate_pattern->enable)
+		return rate_pattern->rate;
+
+	if (vif->p2p)
+		lowest_rate = RTW89_HW_RATE_OFDM6;
+	else if (chan->band_type == RTW89_BAND_2G)
+		lowest_rate = RTW89_HW_RATE_CCK1;
+	else
+		lowest_rate = RTW89_HW_RATE_OFDM6;
+
+	if (!sta->deflink.supp_rates[chan->band_type])
+		return lowest_rate;
+
+	return __ffs(sta->deflink.supp_rates[chan->band_type]) + lowest_rate;
+}
+
 static void
 rtw89_core_tx_update_data_info(struct rtw89_dev *rtwdev,
 			       struct rtw89_core_tx_request *tx_req)
@@ -694,8 +721,6 @@ rtw89_core_tx_update_data_info(struct rtw89_dev *rtwdev,
 	struct ieee80211_sta *sta = tx_req->sta;
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
 	struct rtw89_sta *rtwsta = sta_to_rtwsta_safe(sta);
-	struct rtw89_phy_rate_pattern *rate_pattern = &rtwvif->rate_pattern;
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 	struct rtw89_tx_desc_info *desc_info = &tx_req->desc_info;
 	struct sk_buff *skb = tx_req->skb;
 	u8 tid, tid_indicate;
@@ -719,14 +744,7 @@ rtw89_core_tx_update_data_info(struct rtw89_dev *rtwdev,
 	if (IEEE80211_SKB_CB(skb)->control.hw_key)
 		rtw89_core_tx_update_sec_key(rtwdev, tx_req);
 
-	if (vif->p2p)
-		desc_info->data_retry_lowest_rate = RTW89_HW_RATE_OFDM6;
-	else if (rate_pattern->enable)
-		desc_info->data_retry_lowest_rate = rate_pattern->rate;
-	else if (chan->band_type == RTW89_BAND_2G)
-		desc_info->data_retry_lowest_rate = RTW89_HW_RATE_CCK1;
-	else
-		desc_info->data_retry_lowest_rate = RTW89_HW_RATE_OFDM6;
+	desc_info->data_retry_lowest_rate = rtw89_core_get_data_rate(rtwdev, tx_req);
 }
 
 static enum btc_pkt_type
@@ -1202,6 +1220,10 @@ static void rtw89_core_parse_phy_status_ie01(struct rtw89_dev *rtwdev, u8 *addr,
 	phy_ppdu->chan_idx = RTW89_GET_PHY_STS_IE01_CH_IDX(addr);
 	if (phy_ppdu->rate < RTW89_HW_RATE_OFDM6)
 		return;
+
+	if (!phy_ppdu->to_self)
+		return;
+
 	/* sign conversion for S(12,2) */
 	if (rtwdev->chip->cfo_src_fd)
 		cfo = sign_extend32(RTW89_GET_PHY_STS_IE01_FD_CFO(addr), 11);
@@ -1265,9 +1287,6 @@ static int rtw89_core_rx_parse_phy_sts(struct rtw89_dev *rtwdev,
 	/* mark invalid reports and bypass them */
 	if (phy_ppdu->ie < RTW89_CCK_PKT)
 		return -EINVAL;
-
-	if (!phy_ppdu->to_self)
-		return 0;
 
 	pos = (u8 *)phy_ppdu->buf + PHY_STS_HDR_LEN;
 	end = (u8 *)phy_ppdu->buf + phy_ppdu->len;
@@ -3245,6 +3264,7 @@ void rtw89_core_scan_start(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 	rtw89_btc_ntfy_scan_start(rtwdev, RTW89_PHY_0, chan->band_type);
 	rtw89_chip_rfk_scan(rtwdev, true);
 	rtw89_hci_recalc_int_mit(rtwdev);
+	rtw89_phy_config_edcca(rtwdev, true);
 
 	rtw89_fw_h2c_cam(rtwdev, rtwvif, NULL, mac_addr);
 }
@@ -3262,6 +3282,7 @@ void rtw89_core_scan_complete(struct rtw89_dev *rtwdev,
 
 	rtw89_chip_rfk_scan(rtwdev, false);
 	rtw89_btc_ntfy_scan_finish(rtwdev, RTW89_PHY_0);
+	rtw89_phy_config_edcca(rtwdev, false);
 
 	rtwdev->scanning = false;
 	rtwdev->dig.bypass_dig = true;
@@ -3434,18 +3455,22 @@ static int rtw89_core_register_hw(struct rtw89_dev *rtwdev)
 	ret = ieee80211_register_hw(hw);
 	if (ret) {
 		rtw89_err(rtwdev, "failed to register hw\n");
-		goto err;
+		goto err_free_supported_band;
 	}
 
 	ret = rtw89_regd_init(rtwdev, rtw89_regd_notifier);
 	if (ret) {
 		rtw89_err(rtwdev, "failed to init regd\n");
-		goto err;
+		goto err_unregister_hw;
 	}
 
 	return 0;
 
-err:
+err_unregister_hw:
+	ieee80211_unregister_hw(hw);
+err_free_supported_band:
+	rtw89_core_clr_supported_band(rtwdev);
+
 	return ret;
 }
 

@@ -1576,6 +1576,16 @@ enum rtw89_btc_bt_sta_counter {
 	BTC_BCNT_STA_MAX
 };
 
+enum rtw89_btc_bt_sta_counter_v105 {
+	BTC_BCNT_RFK_REQ_V105 = 0,
+	BTC_BCNT_HI_TX_V105 = 1,
+	BTC_BCNT_HI_RX_V105 = 2,
+	BTC_BCNT_LO_TX_V105 = 3,
+	BTC_BCNT_LO_RX_V105 = 4,
+	BTC_BCNT_POLLUTED_V105 = 5,
+	BTC_BCNT_STA_MAX_V105
+};
+
 struct rtw89_btc_fbtc_rpt_ctrl_v1 {
 	u16 fver; /* btc_ver::fcxbtcrpt */
 	u16 rpt_cnt; /* tmr counters */
@@ -1666,10 +1676,23 @@ struct rtw89_btc_fbtc_rpt_ctrl_v5 {
 	struct rtw89_btc_fbtc_rpt_ctrl_bt_mailbox bt_mbx_info;
 } __packed;
 
+struct rtw89_btc_fbtc_rpt_ctrl_v105 {
+	u8 fver;
+	u8 rsvd;
+	__le16 rsvd1;
+
+	u8 gnt_val[RTW89_PHY_MAX][4];
+	__le16 bt_cnt[BTC_BCNT_STA_MAX_V105];
+
+	struct rtw89_btc_fbtc_rpt_ctrl_info_v5 rpt_info;
+	struct rtw89_btc_fbtc_rpt_ctrl_bt_mailbox bt_mbx_info;
+} __packed;
+
 union rtw89_btc_fbtc_rpt_ctrl_ver_info {
 	struct rtw89_btc_fbtc_rpt_ctrl_v1 v1;
 	struct rtw89_btc_fbtc_rpt_ctrl_v4 v4;
 	struct rtw89_btc_fbtc_rpt_ctrl_v5 v5;
+	struct rtw89_btc_fbtc_rpt_ctrl_v105 v105;
 };
 
 enum rtw89_fbtc_ext_ctrl_type {
@@ -2186,12 +2209,13 @@ struct rtw89_btc_dm {
 	u32 wl_stb_chg: 1;
 	u32 pta_owner: 1;
 	u32 tdma_instant_excute: 1;
-	u32 rsvd: 1;
 
 	u16 slot_dur[CXST_MAX];
 
 	u8 run_reason;
 	u8 run_action;
+
+	u8 wl_lna2: 1;
 };
 
 struct rtw89_btc_ctrl {
@@ -3116,8 +3140,10 @@ struct rtw89_chip_info {
 	u32 txwd_body_size;
 	u32 h2c_ctrl_reg;
 	const u32 *h2c_regs;
+	struct rtw89_reg_def h2c_counter_reg;
 	u32 c2h_ctrl_reg;
 	const u32 *c2h_regs;
+	struct rtw89_reg_def c2h_counter_reg;
 	const struct rtw89_page_regs *page_regs;
 	bool cfo_src_fd;
 	const struct rtw89_reg_def *dcfo_comp;
@@ -3126,6 +3152,7 @@ struct rtw89_chip_info {
 	const struct rtw89_rrsr_cfgs *rrsr_cfgs;
 	u32 bss_clr_map_reg;
 	u32 dma_ch_mask;
+	u32 edcca_lvl_reg;
 	const struct wiphy_wowlan_support *wowlan_stub;
 };
 
@@ -3244,6 +3271,8 @@ struct rtw89_fw_info {
 	struct completion completion;
 	u8 h2c_seq;
 	u8 rec_seq;
+	u8 h2c_counter;
+	u8 c2h_counter;
 	struct rtw89_fw_suit normal;
 	struct rtw89_fw_suit wowlan;
 	bool fw_log_enable;
@@ -3335,6 +3364,8 @@ struct rtw89_hal {
 
 	bool entity_active;
 	enum rtw89_entity_mode entity_mode;
+
+	u32 edcca_bak;
 };
 
 #define RTW89_MAX_MAC_ID_NUM 128

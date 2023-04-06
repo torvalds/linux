@@ -234,6 +234,10 @@ int mesh_add_he_oper_ie(struct ieee80211_sub_if_data *sdata,
 			struct sk_buff *skb);
 int mesh_add_he_6ghz_cap_ie(struct ieee80211_sub_if_data *sdata,
 			    struct sk_buff *skb);
+int mesh_add_eht_cap_ie(struct ieee80211_sub_if_data *sdata,
+			struct sk_buff *skb, u8 ie_len);
+int mesh_add_eht_oper_ie(struct ieee80211_sub_if_data *sdata,
+			 struct sk_buff *skb);
 void mesh_rmc_free(struct ieee80211_sub_if_data *sdata);
 int mesh_rmc_init(struct ieee80211_sub_if_data *sdata);
 void ieee80211s_init(void);

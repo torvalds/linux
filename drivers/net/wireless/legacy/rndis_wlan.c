@@ -209,7 +209,7 @@ struct ndis_80211_status_indication {
 	union {
 		__le32					media_stream_mode;
 		__le32					radio_status;
-		struct ndis_80211_auth_request		auth_request[0];
+		DECLARE_FLEX_ARRAY(struct ndis_80211_auth_request, auth_request);
 		struct ndis_80211_pmkid_cand_list	cand_list;
 	} u;
 } __packed;
@@ -1972,7 +1972,7 @@ static bool rndis_bss_info_update(struct usbnet *usbdev,
 
 	if (bssid_len < sizeof(struct ndis_80211_bssid_ex) +
 			sizeof(struct ndis_80211_fixed_ies))
-		return NULL;
+		return false;
 
 	fixed = (struct ndis_80211_fixed_ies *)bssid->ies;
 
@@ -1981,13 +1981,13 @@ static bool rndis_bss_info_update(struct usbnet *usbdev,
 					(int)le32_to_cpu(bssid->ie_length));
 	ie_len -= sizeof(struct ndis_80211_fixed_ies);
 	if (ie_len < 0)
-		return NULL;
+		return false;
 
 	/* extract data for cfg80211_inform_bss */
 	channel = ieee80211_get_channel(priv->wdev.wiphy,
 			KHZ_TO_MHZ(le32_to_cpu(bssid->config.ds_config)));
 	if (!channel)
-		return NULL;
+		return false;
 
 	signal = level_to_qual(le32_to_cpu(bssid->rssi));
 	timestamp = le64_to_cpu(*(__le64 *)fixed->timestamp);

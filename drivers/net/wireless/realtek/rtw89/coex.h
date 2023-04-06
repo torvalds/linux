@@ -131,6 +131,7 @@ enum btc_role_state {
 enum btc_rfctrl {
 	BTC_RFCTRL_WL_OFF,
 	BTC_RFCTRL_WL_ON,
+	BTC_RFCTRL_LPS_WL_ON,
 	BTC_RFCTRL_FW_CTRL,
 	BTC_RFCTRL_MAX
 };

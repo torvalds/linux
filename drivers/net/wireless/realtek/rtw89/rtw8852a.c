@@ -1947,20 +1947,25 @@ static void rtw8852a_set_wl_lna2(struct rtw89_dev *rtwdev, u8 level)
 
 static void rtw8852a_btc_set_wl_rx_gain(struct rtw89_dev *rtwdev, u32 level)
 {
+	struct rtw89_btc *btc = &rtwdev->btc;
+
 	switch (level) {
 	case 0: /* original */
+	default:
 		rtw8852a_bb_ctrl_btc_preagc(rtwdev, false);
-		rtw8852a_set_wl_lna2(rtwdev, 0);
+		btc->dm.wl_lna2 = 0;
 		break;
 	case 1: /* for FDD free-run */
 		rtw8852a_bb_ctrl_btc_preagc(rtwdev, true);
-		rtw8852a_set_wl_lna2(rtwdev, 0);
+		btc->dm.wl_lna2 = 0;
 		break;
 	case 2: /* for BTG Co-Rx*/
 		rtw8852a_bb_ctrl_btc_preagc(rtwdev, false);
-		rtw8852a_set_wl_lna2(rtwdev, 1);
+		btc->dm.wl_lna2 = 1;
 		break;
 	}
+
+	rtw8852a_set_wl_lna2(rtwdev, btc->dm.wl_lna2);
 }
 
 static void rtw8852a_fill_freq_with_ppdu(struct rtw89_dev *rtwdev,
@@ -2131,9 +2136,11 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.h2c_desc_size		= sizeof(struct rtw89_txwd_body),
 	.txwd_body_size		= sizeof(struct rtw89_txwd_body),
 	.h2c_ctrl_reg		= R_AX_H2CREG_CTRL,
+	.h2c_counter_reg	= {R_AX_UDM1 + 1, B_AX_UDM1_HALMAC_H2C_DEQ_CNT_MASK >> 8},
 	.h2c_regs		= rtw8852a_h2c_regs,
 	.c2h_ctrl_reg		= R_AX_C2HREG_CTRL,
 	.c2h_regs		= rtw8852a_c2h_regs,
+	.c2h_counter_reg	= {R_AX_UDM1 + 1, B_AX_UDM1_HALMAC_C2H_ENQ_CNT_MASK >> 8},
 	.page_regs		= &rtw8852a_page_regs,
 	.cfo_src_fd		= false,
 	.dcfo_comp		= &rtw8852a_dcfo_comp,
@@ -2142,6 +2149,7 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.rrsr_cfgs		= &rtw8852a_rrsr_cfgs,
 	.bss_clr_map_reg	= R_BSS_CLR_MAP,
 	.dma_ch_mask		= 0,
+	.edcca_lvl_reg		= R_SEG0R_EDCCA_LVL,
 #ifdef CONFIG_PM
 	.wowlan_stub		= &rtw_wowlan_stub_8852a,
 #endif

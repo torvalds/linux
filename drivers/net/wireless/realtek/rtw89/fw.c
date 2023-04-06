@@ -615,6 +615,8 @@ int rtw89_fw_download(struct rtw89_dev *rtwdev, enum rtw89_fw_type type)
 
 	fw_info->h2c_seq = 0;
 	fw_info->rec_seq = 0;
+	fw_info->h2c_counter = 0;
+	fw_info->c2h_counter = 0;
 	rtwdev->mac.rpwm_seq_num = RPWM_SEQ_NUM_MAX;
 	rtwdev->mac.cpwm_seq_num = CPWM_SEQ_NUM_MAX;
 
@@ -2724,6 +2726,7 @@ static int rtw89_fw_write_h2c_reg(struct rtw89_dev *rtwdev,
 				  struct rtw89_mac_h2c_info *info)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
+	struct rtw89_fw_info *fw_info = &rtwdev->fw;
 	const u32 *h2c_reg = chip->h2c_regs;
 	u8 i, val, len;
 	int ret;
@@ -2743,6 +2746,9 @@ static int rtw89_fw_write_h2c_reg(struct rtw89_dev *rtwdev,
 	for (i = 0; i < RTW89_H2CREG_MAX; i++)
 		rtw89_write32(rtwdev, h2c_reg[i], info->h2creg[i]);
 
+	fw_info->h2c_counter++;
+	rtw89_write8_mask(rtwdev, chip->h2c_counter_reg.addr,
+			  chip->h2c_counter_reg.mask, fw_info->h2c_counter);
 	rtw89_write8(rtwdev, chip->h2c_ctrl_reg, B_AX_H2CREG_TRIGGER);
 
 	return 0;
@@ -2752,6 +2758,7 @@ static int rtw89_fw_read_c2h_reg(struct rtw89_dev *rtwdev,
 				 struct rtw89_mac_c2h_info *info)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
+	struct rtw89_fw_info *fw_info = &rtwdev->fw;
 	const u32 *c2h_reg = chip->c2h_regs;
 	u32 ret;
 	u8 i, val;
@@ -2774,6 +2781,10 @@ static int rtw89_fw_read_c2h_reg(struct rtw89_dev *rtwdev,
 	info->id = RTW89_GET_C2H_HDR_FUNC(*info->c2hreg);
 	info->content_len = (RTW89_GET_C2H_HDR_LEN(*info->c2hreg) << 2) -
 				RTW89_C2HREG_HDR_LEN;
+
+	fw_info->c2h_counter++;
+	rtw89_write8_mask(rtwdev, chip->c2h_counter_reg.addr,
+			  chip->c2h_counter_reg.mask, fw_info->c2h_counter);
 
 	return 0;
 }
