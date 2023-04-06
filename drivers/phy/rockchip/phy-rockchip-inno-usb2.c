@@ -795,6 +795,10 @@ static int rockchip_usb2phy_init(struct phy *phy)
 
 	mutex_lock(&rport->mutex);
 
+	if (rport->sel_pipe_phystatus)
+		property_enable(rphy->usbctrl_grf,
+				&rport->port_cfg->pipe_phystatus, true);
+
 	if (rport->port_id == USB2PHY_PORT_OTG &&
 	    (rport->mode == USB_DR_MODE_PERIPHERAL ||
 	     rport->mode == USB_DR_MODE_OTG)) {
@@ -881,10 +885,6 @@ static int rockchip_usb2phy_power_on(struct phy *phy)
 	ret = clk_prepare_enable(rphy->clk480m);
 	if (ret)
 		goto unlock;
-
-	if (rport->sel_pipe_phystatus)
-		property_enable(rphy->usbctrl_grf,
-				&rport->port_cfg->pipe_phystatus, true);
 
 	ret = property_enable(base, &rport->port_cfg->phy_sus, false);
 	if (ret)
@@ -1757,7 +1757,9 @@ static irqreturn_t rockchip_usb2phy_id_irq(int irq, void *data)
 	if (property_enabled(rphy->grf, &rport->port_cfg->idfall_det_st)) {
 		property_enable(rphy->grf, &rport->port_cfg->idfall_det_clr,
 				true);
-		cable_vbus_state = true;
+		/* switch to host if id fall det and iddig status is low */
+		if (!property_enabled(rphy->grf, &rport->port_cfg->utmi_iddig))
+			cable_vbus_state = true;
 	} else if (property_enabled(rphy->grf, &rport->port_cfg->idrise_det_st)) {
 		property_enable(rphy->grf, &rport->port_cfg->idrise_det_clr,
 				true);
