@@ -14,7 +14,7 @@
 #define PERCENT_TO_DDSLMT(dds, percent_m10) \
 	((((dds) * (percent_m10)) >> 5) / 100)
 
-const struct fhctl_offset fhctl_offset_v1 = {
+static const struct fhctl_offset fhctl_offset_v1 = {
 	.offset_hp_en = 0x0,
 	.offset_clk_con = 0x4,
 	.offset_rst_con = 0x8,
@@ -27,7 +27,7 @@ const struct fhctl_offset fhctl_offset_v1 = {
 	.offset_mon = 0x10,
 };
 
-const struct fhctl_offset fhctl_offset_v2 = {
+static const struct fhctl_offset fhctl_offset_v2 = {
 	.offset_hp_en = 0x0,
 	.offset_clk_con = 0x8,
 	.offset_rst_con = 0xc,
