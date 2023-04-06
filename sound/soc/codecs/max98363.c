@@ -389,7 +389,7 @@ static const struct snd_soc_dapm_route max98363_audio_map[] = {
 	{"BE_OUT", NULL, "AIFIN"},
 };
 
-const struct snd_soc_component_driver soc_codec_dev_max98363 = {
+static const struct snd_soc_component_driver soc_codec_dev_max98363 = {
 	.controls		= max98363_snd_controls,
 	.num_controls		= ARRAY_SIZE(max98363_snd_controls),
 	.dapm_widgets		= max98363_dapm_widgets,
