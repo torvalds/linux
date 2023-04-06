@@ -24,11 +24,6 @@
 #include "xe_pm.h"
 #include "xe_step.h"
 
-#define DEV_INFO_FOR_EACH_FLAG(func) \
-	func(require_force_probe); \
-	func(is_dgfx); \
-	/* Keep has_* in alphabetical order */ \
-
 struct xe_subplatform_desc {
 	enum xe_subplatform subplatform;
 	const char *name;
@@ -46,23 +41,20 @@ struct xe_device_desc {
 	const struct xe_graphics_desc *graphics;
 	const struct xe_media_desc *media;
 
-	enum xe_platform platform;
 	const char *platform_name;
 	const struct xe_subplatform_desc *subplatforms;
 	const struct xe_gt_desc *extra_gts;
 
-	u8 gt; /* GT number, 0 if undefined */
+	enum xe_platform platform;
 
-#define DEFINE_FLAG(name) u8 name:1
-	DEV_INFO_FOR_EACH_FLAG(DEFINE_FLAG);
-#undef DEFINE_FLAG
-
+	u8 require_force_probe:1;
+	u8 is_dgfx:1;
 	/*
 	 * FIXME: Xe doesn't care about presence/lack of 4tile since we can
 	 * already determine that from the graphics IP version.  This flag
 	 * should eventually move entirely into the display code's own logic.
 	 */
-	bool has_4tile;
+	u8 has_4tile:1;
 };
 
 #define PLATFORM(x)		\
