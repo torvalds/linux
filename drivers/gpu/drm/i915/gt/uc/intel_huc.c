@@ -235,6 +235,13 @@ static void delayed_huc_load_fini(struct intel_huc *huc)
 	i915_sw_fence_fini(&huc->delayed_load.fence);
 }
 
+int intel_huc_sanitize(struct intel_huc *huc)
+{
+	delayed_huc_load_complete(huc);
+	intel_uc_fw_sanitize(&huc->fw);
+	return 0;
+}
+
 static bool vcs_supported(struct intel_gt *gt)
 {
 	intel_engine_mask_t mask = gt->info.engine_mask;

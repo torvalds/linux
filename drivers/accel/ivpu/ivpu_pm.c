@@ -140,32 +140,28 @@ int ivpu_pm_suspend_cb(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
 	struct ivpu_device *vdev = to_ivpu_device(drm);
-	int ret;
+	unsigned long timeout;
 
 	ivpu_dbg(vdev, PM, "Suspend..\n");
 
-	ret = ivpu_suspend(vdev);
-	if (ret && vdev->pm->suspend_reschedule_counter) {
-		ivpu_dbg(vdev, PM, "Failed to enter idle, rescheduling suspend, retries left %d\n",
-			 vdev->pm->suspend_reschedule_counter);
-		pm_schedule_suspend(dev, vdev->timeout.reschedule_suspend);
-		vdev->pm->suspend_reschedule_counter--;
-		return -EBUSY;
-	} else if (!vdev->pm->suspend_reschedule_counter) {
-		ivpu_warn(vdev, "Failed to enter idle, force suspend\n");
-		ivpu_pm_prepare_cold_boot(vdev);
-	} else {
-		ivpu_pm_prepare_warm_boot(vdev);
+	timeout = jiffies + msecs_to_jiffies(vdev->timeout.tdr);
+	while (!ivpu_hw_is_idle(vdev)) {
+		cond_resched();
+		if (time_after_eq(jiffies, timeout)) {
+			ivpu_err(vdev, "Failed to enter idle on system suspend\n");
+			return -EBUSY;
+		}
 	}
 
-	vdev->pm->suspend_reschedule_counter = PM_RESCHEDULE_LIMIT;
+	ivpu_suspend(vdev);
+	ivpu_pm_prepare_warm_boot(vdev);
 
 	pci_save_state(to_pci_dev(dev));
 	pci_set_power_state(to_pci_dev(dev), PCI_D3hot);
 
 	ivpu_dbg(vdev, PM, "Suspend done.\n");
 
-	return ret;
+	return 0;
 }
 
 int ivpu_pm_resume_cb(struct device *dev)
