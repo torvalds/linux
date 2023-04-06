@@ -19,6 +19,7 @@
 #include "xe_drv.h"
 #include "xe_macros.h"
 #include "xe_module.h"
+#include "xe_pci_types.h"
 #include "xe_pm.h"
 #include "xe_step.h"
 
@@ -42,10 +43,8 @@ struct xe_gt_desc {
 };
 
 struct xe_device_desc {
-	u8 graphics_ver;
-	u8 graphics_rel;
-	u8 media_ver;
-	u8 media_rel;
+	const struct xe_graphics_desc *graphics;
+	const struct xe_media_desc *media;
 
 	u64 platform_engine_mask; /* Engines supported by the HW */
 
@@ -80,17 +79,57 @@ struct xe_device_desc {
 
 #define NOP(x)	x
 
+static const struct xe_graphics_desc graphics_xelp = {
+	.ver = 12,
+	.rel = 0,
+};
+
+static const struct xe_graphics_desc graphics_xelpp = {
+	.ver = 12,
+	.rel = 10,
+};
+
+static const struct xe_graphics_desc graphics_xehpg = {
+	.ver = 12,
+	.rel = 55,
+};
+
+static const struct xe_graphics_desc graphics_xehpc = {
+	.ver = 12,
+	.rel = 60,
+};
+
+static const struct xe_graphics_desc graphics_xelpg = {
+	.ver = 12,
+	.rel = 70,
+};
+
+static const struct xe_media_desc media_xem = {
+	.ver = 12,
+	.rel = 0,
+};
+
+static const struct xe_media_desc media_xehpm = {
+	.ver = 12,
+	.rel = 55,
+};
+
+static const struct xe_media_desc media_xelpmp = {
+	.ver = 13,
+	.rel = 0,
+};
+
 /* Keep in gen based order, and chronological order within a gen */
 #define GEN12_FEATURES \
 	.require_force_probe = true, \
-	.graphics_ver = 12, \
-	.media_ver = 12, \
 	.dma_mask_size = 39, \
 	.max_tiles = 1, \
 	.vm_max_level = 3, \
 	.vram_flags = 0
 
 static const struct xe_device_desc tgl_desc = {
+	.graphics = &graphics_xelp,
+	.media = &media_xem,
 	GEN12_FEATURES,
 	PLATFORM(XE_TIGERLAKE),
 	.platform_engine_mask =
@@ -100,6 +139,8 @@ static const struct xe_device_desc tgl_desc = {
 };
 
 static const struct xe_device_desc adl_s_desc = {
+	.graphics = &graphics_xelp,
+	.media = &media_xem,
 	GEN12_FEATURES,
 	PLATFORM(XE_ALDERLAKE_S),
 	.platform_engine_mask =
@@ -111,6 +152,8 @@ static const struct xe_device_desc adl_s_desc = {
 static const u16 adlp_rplu_ids[] = { XE_RPLU_IDS(NOP), 0 };
 
 static const struct xe_device_desc adl_p_desc = {
+	.graphics = &graphics_xelp,
+	.media = &media_xem,
 	GEN12_FEATURES,
 	PLATFORM(XE_ALDERLAKE_P),
 	.platform_engine_mask =
@@ -127,9 +170,10 @@ static const struct xe_device_desc adl_p_desc = {
 	.is_dgfx = 1
 
 static const struct xe_device_desc dg1_desc = {
+	.graphics = &graphics_xelpp,
+	.media = &media_xem,
 	GEN12_FEATURES,
 	DGFX_FEATURES,
-	.graphics_rel = 10,
 	PLATFORM(XE_DG1),
 	.platform_engine_mask =
 		BIT(XE_HW_ENGINE_RCS0) | BIT(XE_HW_ENGINE_BCS0) |
@@ -139,17 +183,11 @@ static const struct xe_device_desc dg1_desc = {
 
 #define XE_HP_FEATURES \
 	.require_force_probe = true, \
-	.graphics_ver = 12, \
-	.graphics_rel = 50, \
 	.has_range_tlb_invalidation = true, \
 	.has_flat_ccs = true, \
 	.dma_mask_size = 46, \
 	.max_tiles = 1, \
 	.vm_max_level = 3
-
-#define XE_HPM_FEATURES \
-	.media_ver = 12, \
-	.media_rel = 50
 
 static const u16 dg2_g10_ids[] = { XE_DG2_G10_IDS(NOP), XE_ATS_M150_IDS(NOP), 0 };
 static const u16 dg2_g11_ids[] = { XE_DG2_G11_IDS(NOP), XE_ATS_M75_IDS(NOP), 0 };
@@ -157,8 +195,6 @@ static const u16 dg2_g12_ids[] = { XE_DG2_G12_IDS(NOP), 0 };
 
 #define DG2_FEATURES \
 	DGFX_FEATURES, \
-	.graphics_rel = 55, \
-	.media_rel = 55, \
 	PLATFORM(XE_DG2), \
 	.subplatforms = (const struct xe_subplatform_desc[]) { \
 		{ XE_SUBPLATFORM_DG2_G10, "G10", dg2_g10_ids }, \
@@ -177,15 +213,17 @@ static const u16 dg2_g12_ids[] = { XE_DG2_G12_IDS(NOP), 0 };
 	.has_4tile = 1
 
 static const struct xe_device_desc ats_m_desc = {
+	.graphics = &graphics_xehpg,
+	.media = &media_xehpm,
 	XE_HP_FEATURES,
-	XE_HPM_FEATURES,
 
 	DG2_FEATURES,
 };
 
 static const struct xe_device_desc dg2_desc = {
+	.graphics = &graphics_xehpg,
+	.media = &media_xehpm,
 	XE_HP_FEATURES,
-	XE_HPM_FEATURES,
 
 	DG2_FEATURES,
 };
@@ -212,14 +250,12 @@ static const struct xe_gt_desc pvc_gts[] = {
 };
 
 static const __maybe_unused struct xe_device_desc pvc_desc = {
+	.graphics = &graphics_xehpc,
 	XE_HP_FEATURES,
-	XE_HPM_FEATURES,
 	DGFX_FEATURES,
 	PLATFORM(XE_PVC),
 	.extra_gts = pvc_gts,
-	.graphics_rel = 60,
 	.has_flat_ccs = 0,
-	.media_rel = 60,
 	.platform_engine_mask = PVC_ENGINES,
 	.vram_flags = XE_VRAM_FLAGS_NEED64K,
 	.dma_mask_size = 52,
@@ -250,16 +286,15 @@ static const struct xe_gt_desc xelpmp_gts[] = {
 
 static const struct xe_device_desc mtl_desc = {
 	/*
-	 * Real graphics IP version will be obtained from hardware GMD_ID
-	 * register.  Value provided here is just for sanity checking.
+	 * FIXME:  Real graphics/media IP will be mapped from hardware
+	 * GMD_ID register.  Hardcoded assignments here will go away soon.
 	 */
+	.graphics = &graphics_xelpg,
+	.media = &media_xelpmp,
 	.require_force_probe = true,
-	.graphics_ver = 12,
-	.graphics_rel = 70,
 	.dma_mask_size = 46,
 	.max_tiles = 2,
 	.vm_max_level = 3,
-	.media_ver = 13,
 	.has_range_tlb_invalidation = true,
 	PLATFORM(XE_METEORLAKE),
 	.extra_gts = xelpmp_gts,
@@ -363,10 +398,11 @@ static void xe_info_init(struct xe_device *xe,
 	struct xe_gt *gt;
 	u8 id;
 
-	xe->info.graphics_verx100 = desc->graphics_ver * 100 +
-				    desc->graphics_rel;
-	xe->info.media_verx100 = desc->media_ver * 100 +
-				 desc->media_rel;
+	xe->info.graphics_verx100 = desc->graphics->ver * 100 +
+				    desc->graphics->rel;
+	if (desc->media)
+		xe->info.media_verx100 = desc->media->ver * 100 +
+					 desc->media->rel;
 	xe->info.is_dgfx = desc->is_dgfx;
 	xe->info.platform = desc->platform;
 	xe->info.dma_mask_size = desc->dma_mask_size;
