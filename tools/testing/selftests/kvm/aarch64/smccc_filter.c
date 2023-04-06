@@ -219,7 +219,7 @@ static void expect_call_fwd_to_user(struct kvm_vcpu *vcpu, uint32_t func_id,
 			    "KVM_HYPERCALL_EXIT_SMC is not set");
 	else
 		TEST_ASSERT(!(run->hypercall.flags & KVM_HYPERCALL_EXIT_SMC),
-			    "KVM_HYPERCAL_EXIT_SMC is set");
+			    "KVM_HYPERCALL_EXIT_SMC is set");
 }
 
 /* SMCCC calls forwarded to userspace cause KVM_EXIT_HYPERCALL exits */
