@@ -22,6 +22,12 @@
 #define FORCEWAKE_ACK_MEDIA_VDBOX_GEN11(n)	_MMIO(0xd50 + (n) * 4)
 #define FORCEWAKE_ACK_MEDIA_VEBOX_GEN11(n)	_MMIO(0xd70 + (n) * 4)
 #define FORCEWAKE_ACK_RENDER_GEN9		_MMIO(0xd84)
+
+#define GMD_ID					_MMIO(0xd8c)
+#define   GMD_ID_ARCH_MASK			REG_GENMASK(31, 22)
+#define   GMD_ID_RELEASE_MASK			REG_GENMASK(21, 14)
+#define   GMD_ID_STEP				REG_GENMASK(5, 0)
+
 #define FORCEWAKE_ACK_GT_MTL			_MMIO(0xdfc)
 
 #define GEN9_LNCFCMOCS(i)			_MMIO(0xb020 + (i) * 4)	/* L3 Cache Control */

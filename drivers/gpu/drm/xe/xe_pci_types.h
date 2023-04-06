@@ -36,4 +36,9 @@ struct xe_media_desc {
 	u64 hw_engine_mask;	/* hardware engines provided by media IP */
 };
 
+struct gmdid_map {
+	unsigned int ver;
+	const void *ip;
+};
+
 #endif

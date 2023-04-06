@@ -15,6 +15,7 @@
 #include <drm/xe_pciids.h>
 
 #include "regs/xe_regs.h"
+#include "regs/xe_gt_regs.h"
 #include "xe_device.h"
 #include "xe_drv.h"
 #include "xe_macros.h"
@@ -140,9 +141,6 @@ static const struct xe_graphics_desc graphics_xehpc = {
 
 static const struct xe_graphics_desc graphics_xelpg = {
 	.name = "Xe_LPG",
-	.ver = 12,
-	.rel = 70,
-
 	.hw_engine_mask =
 		BIT(XE_HW_ENGINE_RCS0) | BIT(XE_HW_ENGINE_BCS0) |
 		BIT(XE_HW_ENGINE_CCS0),
@@ -173,9 +171,6 @@ static const struct xe_media_desc media_xehpm = {
 
 static const struct xe_media_desc media_xelpmp = {
 	.name = "Xe_LPM+",
-	.ver = 13,
-	.rel = 0,
-
 	.hw_engine_mask =
 		BIT(XE_HW_ENGINE_VCS0) | BIT(XE_HW_ENGINE_VCS2) |
 		BIT(XE_HW_ENGINE_VECS0),	/* TODO: add GSC0 */
@@ -277,18 +272,24 @@ static const struct xe_gt_desc xelpmp_gts[] = {
 };
 
 static const struct xe_device_desc mtl_desc = {
-	/*
-	 * FIXME:  Real graphics/media IP will be mapped from hardware
-	 * GMD_ID register.  Hardcoded assignments here will go away soon.
-	 */
-	.graphics = &graphics_xelpg,
-	.media = &media_xelpmp,
+	/* .graphics and .media determined via GMD_ID */
 	.require_force_probe = true,
 	PLATFORM(XE_METEORLAKE),
 	.extra_gts = xelpmp_gts,
 };
 
 #undef PLATFORM
+
+/* Map of GMD_ID values to graphics IP */
+static struct gmdid_map graphics_ip_map[] = {
+	{ 1270, &graphics_xelpg },
+	{ 1271, &graphics_xelpg },
+};
+
+/* Map of GMD_ID values to media IP */
+static struct gmdid_map media_ip_map[] = {
+	{ 1300, &media_xelpmp },
+};
 
 #define INTEL_VGA_DEVICE(id, info) {			\
 	PCI_DEVICE(PCI_VENDOR_ID_INTEL, id),		\
@@ -378,31 +379,135 @@ find_subplatform(const struct xe_device *xe, const struct xe_device_desc *desc)
 	return NULL;
 }
 
-static void xe_info_init(struct xe_device *xe,
-			 const struct xe_device_desc *desc,
-			 const struct xe_subplatform_desc *subplatform_desc)
+static u32 peek_gmdid(struct xe_device *xe, u32 gmdid_offset)
 {
+	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
+	void __iomem *map = pci_iomap_range(pdev, 0, gmdid_offset, sizeof(u32));
+	u32 ver;
+
+	if (!map) {
+		drm_err(&xe->drm, "Failed to read GMD_ID (%#x) from PCI BAR.\n",
+			gmdid_offset);
+		return 0;
+	}
+
+	ver = ioread32(map);
+	pci_iounmap(pdev, map);
+
+	return REG_FIELD_GET(GMD_ID_ARCH_MASK, ver) * 100 +
+		REG_FIELD_GET(GMD_ID_RELEASE_MASK, ver);
+}
+
+static void handle_gmdid(struct xe_device *xe,
+			 const struct xe_device_desc *desc,
+			 const struct xe_graphics_desc **graphics,
+			 const struct xe_media_desc **media)
+{
+	u32 ver;
+
+	if (desc->graphics) {
+		/*
+		 * Pre-GMD_ID platform; device descriptor already points to
+		 * the appropriate graphics descriptor.
+		 */
+		*graphics = desc->graphics;
+		xe->info.graphics_verx100 = (*graphics)->ver * 100 + (*graphics)->rel;
+	} else {
+		/*
+		 * GMD_ID platform; read IP version from hardware and select
+		 * graphics descriptor based on the result.
+		 */
+		ver = peek_gmdid(xe, GMD_ID.reg);
+		for (int i = 0; i < ARRAY_SIZE(graphics_ip_map); i++) {
+			if (ver == graphics_ip_map[i].ver) {
+				xe->info.graphics_verx100 = ver;
+				*graphics = graphics_ip_map[i].ip;
+
+				break;
+			}
+		}
+
+		if (!xe->info.graphics_verx100) {
+			drm_err(&xe->drm, "Hardware reports unknown graphics version %u.%02u\n",
+				ver / 100, ver % 100);
+		}
+	}
+
+	if (desc->media) {
+		/*
+		 * Pre-GMD_ID platform; device descriptor already points to
+		 * the appropriate media descriptor.
+		 */
+		*media = desc->media;
+		xe->info.media_verx100 = (*media)->ver * 100 + (*media)->rel;
+	} else {
+		/*
+		 * GMD_ID platform; read IP version from hardware and select
+		 * media descriptor based on the result.
+		 *
+		 * desc->media can also be NULL for a pre-GMD_ID platform that
+		 * simply doesn't have media (e.g., PVC); in that case the
+		 * attempt to read GMD_ID will return 0 (since there's no
+		 * register at that location).
+		 */
+		ver = peek_gmdid(xe, GMD_ID.reg + 0x380000);
+		if (ver == 0)
+			return;
+
+		for (int i = 0; i < ARRAY_SIZE(media_ip_map); i++) {
+			if (ver == media_ip_map[i].ver) {
+				xe->info.media_verx100 = ver;
+				*media = media_ip_map[i].ip;
+
+				break;
+			}
+		}
+
+		if (!xe->info.media_verx100) {
+			drm_err(&xe->drm, "Hardware reports unknown media version %u.%02u\n",
+				ver / 100, ver % 100);
+		}
+	}
+}
+
+
+static int xe_info_init(struct xe_device *xe,
+			const struct xe_device_desc *desc,
+			const struct xe_subplatform_desc *subplatform_desc)
+{
+	const struct xe_graphics_desc *graphics_desc = NULL;
+	const struct xe_media_desc *media_desc = NULL;
 	struct xe_gt *gt;
 	u8 id;
 
-	xe->info.graphics_verx100 = desc->graphics->ver * 100 +
-				    desc->graphics->rel;
-	if (desc->media)
-		xe->info.media_verx100 = desc->media->ver * 100 +
-					 desc->media->rel;
+	/*
+	 * If this platform supports GMD_ID, we'll detect the proper IP
+	 * descriptor to use from hardware registers.
+	 */
+	handle_gmdid(xe, desc, &graphics_desc, &media_desc);
+
+	/*
+	 * If we couldn't detect the graphics IP, that's considered a fatal
+	 * error and we should abort driver load.  Failing to detect media
+	 * IP is non-fatal; we'll just proceed without enabling media support.
+	 */
+	if (!graphics_desc)
+		return -ENODEV;
+
 	xe->info.is_dgfx = desc->is_dgfx;
 	xe->info.platform = desc->platform;
-	xe->info.graphics_name = desc->graphics->name;
-	xe->info.media_name = desc->media ? desc->media->name : "none";
-	xe->info.dma_mask_size = desc->graphics->dma_mask_size;
-	xe->info.vram_flags = desc->graphics->vram_flags;
-	xe->info.vm_max_level = desc->graphics->vm_max_level;
-	xe->info.supports_usm = desc->graphics->supports_usm;
-	xe->info.has_asid = desc->graphics->has_asid;
-	xe->info.has_flat_ccs = desc->graphics->has_flat_ccs;
+	xe->info.graphics_name = graphics_desc->name;
+	xe->info.media_name = media_desc ? media_desc->name : "none";
 	xe->info.has_4tile = desc->has_4tile;
-	xe->info.has_range_tlb_invalidation = desc->graphics->has_range_tlb_invalidation;
-	xe->info.has_link_copy_engine = desc->graphics->has_link_copy_engine;
+
+	xe->info.dma_mask_size = graphics_desc->dma_mask_size;
+	xe->info.vram_flags = graphics_desc->vram_flags;
+	xe->info.vm_max_level = graphics_desc->vm_max_level;
+	xe->info.supports_usm = graphics_desc->supports_usm;
+	xe->info.has_asid = graphics_desc->has_asid;
+	xe->info.has_flat_ccs = graphics_desc->has_flat_ccs;
+	xe->info.has_range_tlb_invalidation = graphics_desc->has_range_tlb_invalidation;
+	xe->info.has_link_copy_engine = graphics_desc->has_link_copy_engine;
 
 	/*
 	 * All platforms have at least one primary GT.  Any platform with media
@@ -413,7 +518,7 @@ static void xe_info_init(struct xe_device *xe,
 	 * FIXME: 'tile_count' here is misnamed since the rest of the driver
 	 * treats it as the number of GTs rather than just the number of tiles.
 	 */
-	xe->info.tile_count = 1 + desc->graphics->max_remote_tiles;
+	xe->info.tile_count = 1 + graphics_desc->max_remote_tiles;
 	if (MEDIA_VER(xe) >= 13)
 		xe->info.tile_count++;
 
@@ -430,9 +535,9 @@ static void xe_info_init(struct xe_device *xe,
 			gt->info.type = XE_GT_TYPE_MAIN;
 			gt->info.vram_id = id;
 
-			gt->info.__engine_mask = desc->graphics->hw_engine_mask;
-			if (MEDIA_VER(xe) < 13 && desc->media)
-				gt->info.__engine_mask |= desc->media->hw_engine_mask;
+			gt->info.__engine_mask = graphics_desc->hw_engine_mask;
+			if (MEDIA_VER(xe) < 13 && media_desc)
+				gt->info.__engine_mask |= media_desc->hw_engine_mask;
 
 			gt->mmio.adj_limit = 0;
 			gt->mmio.adj_offset = 0;
@@ -440,14 +545,16 @@ static void xe_info_init(struct xe_device *xe,
 			gt->info.type = desc->extra_gts[id - 1].type;
 			gt->info.vram_id = desc->extra_gts[id - 1].vram_id;
 			gt->info.__engine_mask = (gt->info.type == XE_GT_TYPE_MEDIA) ?
-				desc->media->hw_engine_mask :
-				desc->graphics->hw_engine_mask;
+				media_desc->hw_engine_mask :
+				graphics_desc->hw_engine_mask;
 			gt->mmio.adj_limit =
 				desc->extra_gts[id - 1].mmio_adj_limit;
 			gt->mmio.adj_offset =
 				desc->extra_gts[id - 1].mmio_adj_offset;
 		}
 	}
+
+	return 0;
 }
 
 static void xe_pci_remove(struct pci_dev *pdev)
@@ -494,7 +601,12 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	subplatform_desc = find_subplatform(xe, desc);
 
-	xe_info_init(xe, desc, subplatform_desc);
+	err = xe_info_init(xe, desc, subplatform_desc);
+	if (err) {
+		drm_dev_put(&xe->drm);
+		return err;
+	}
+
 	drm_dbg(&xe->drm, "%s %s %04x:%04x dgfx:%d gfx:%s (%d.%02d) media:%s (%d.%02d) dma_m_s:%d tc:%d",
 		desc->platform_name,
 		subplatform_desc ? subplatform_desc->name : "",
