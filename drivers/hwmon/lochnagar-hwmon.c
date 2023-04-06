@@ -321,7 +321,7 @@ static const struct hwmon_ops lochnagar_ops = {
 	.write = lochnagar_write,
 };
 
-static const struct hwmon_channel_info *lochnagar_info[] = {
+static const struct hwmon_channel_info * const lochnagar_info[] = {
 	HWMON_CHANNEL_INFO(temp,  HWMON_T_INPUT),
 	HWMON_CHANNEL_INFO(in,    HWMON_I_INPUT | HWMON_I_LABEL,
 				  HWMON_I_INPUT | HWMON_I_LABEL,
