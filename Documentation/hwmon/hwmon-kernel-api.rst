@@ -133,7 +133,7 @@ The hwmon_chip_info structure looks as follows::
 
 	struct hwmon_chip_info {
 		const struct hwmon_ops *ops;
-		const struct hwmon_channel_info **info;
+		const struct hwmon_channel_info * const *info;
 	};
 
 It contains the following fields:
@@ -229,7 +229,7 @@ register (HWMON_T_MAX) as well as a maximum temperature hysteresis register
 		.config = lm75_temp_config,
 	};
 
-	static const struct hwmon_channel_info *lm75_info[] = {
+	static const struct hwmon_channel_info * const lm75_info[] = {
 		&lm75_chip,
 		&lm75_temp,
 		NULL
@@ -238,7 +238,7 @@ register (HWMON_T_MAX) as well as a maximum temperature hysteresis register
 	The HWMON_CHANNEL_INFO() macro can and should be used when possible.
 	With this macro, the above example can be simplified to
 
-	static const struct hwmon_channel_info *lm75_info[] = {
+	static const struct hwmon_channel_info * const lm75_info[] = {
 		HWMON_CHANNEL_INFO(chip,
 				HWMON_C_REGISTER_TZ | HWMON_C_UPDATE_INTERVAL),
 		HWMON_CHANNEL_INFO(temp,
