@@ -17,6 +17,8 @@ struct xe_graphics_desc {
 	u8 vm_max_level;
 	u8 vram_flags;
 
+	u64 hw_engine_mask;	/* hardware engines provided by graphics IP */
+
 	u8 has_asid:1;
 	u8 has_flat_ccs:1;
 	u8 has_link_copy_engine:1;
@@ -27,6 +29,8 @@ struct xe_graphics_desc {
 struct xe_media_desc {
 	u8 ver;
 	u8 rel;
+
+	u64 hw_engine_mask;	/* hardware engines provided by media IP */
 };
 
 #endif

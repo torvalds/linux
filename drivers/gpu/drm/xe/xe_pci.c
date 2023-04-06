@@ -37,7 +37,6 @@ struct xe_subplatform_desc {
 struct xe_gt_desc {
 	enum xe_gt_type type;
 	u8 vram_id;
-	u64 engine_mask;
 	u32 mmio_adj_limit;
 	u32 mmio_adj_offset;
 };
@@ -45,8 +44,6 @@ struct xe_gt_desc {
 struct xe_device_desc {
 	const struct xe_graphics_desc *graphics;
 	const struct xe_media_desc *media;
-
-	u64 platform_engine_mask; /* Engines supported by the HW */
 
 	enum xe_platform platform;
 	const char *platform_name;
@@ -77,6 +74,8 @@ static const struct xe_graphics_desc graphics_xelp = {
 	.ver = 12,
 	.rel = 0,
 
+	.hw_engine_mask = BIT(XE_HW_ENGINE_RCS0) | BIT(XE_HW_ENGINE_BCS0),
+
 	.dma_mask_size = 39,
 	.vm_max_level = 3,
 };
@@ -84,6 +83,8 @@ static const struct xe_graphics_desc graphics_xelp = {
 static const struct xe_graphics_desc graphics_xelpp = {
 	.ver = 12,
 	.rel = 10,
+
+	.hw_engine_mask = BIT(XE_HW_ENGINE_RCS0) | BIT(XE_HW_ENGINE_BCS0),
 
 	.dma_mask_size = 39,
 	.vm_max_level = 3,
@@ -99,6 +100,11 @@ static const struct xe_graphics_desc graphics_xehpg = {
 	.ver = 12,
 	.rel = 55,
 
+	.hw_engine_mask =
+		BIT(XE_HW_ENGINE_RCS0) | BIT(XE_HW_ENGINE_BCS0) |
+		BIT(XE_HW_ENGINE_CCS0) | BIT(XE_HW_ENGINE_CCS1) |
+		BIT(XE_HW_ENGINE_CCS2) | BIT(XE_HW_ENGINE_CCS3),
+
 	XE_HP_FEATURES,
 	.vram_flags = XE_VRAM_FLAGS_NEED64K,
 };
@@ -106,6 +112,15 @@ static const struct xe_graphics_desc graphics_xehpg = {
 static const struct xe_graphics_desc graphics_xehpc = {
 	.ver = 12,
 	.rel = 60,
+
+	.hw_engine_mask =
+		BIT(XE_HW_ENGINE_BCS0) | BIT(XE_HW_ENGINE_BCS1) |
+		BIT(XE_HW_ENGINE_BCS2) | BIT(XE_HW_ENGINE_BCS3) |
+		BIT(XE_HW_ENGINE_BCS4) | BIT(XE_HW_ENGINE_BCS5) |
+		BIT(XE_HW_ENGINE_BCS6) | BIT(XE_HW_ENGINE_BCS7) |
+		BIT(XE_HW_ENGINE_BCS8) |
+		BIT(XE_HW_ENGINE_CCS0) | BIT(XE_HW_ENGINE_CCS1) |
+		BIT(XE_HW_ENGINE_CCS2) | BIT(XE_HW_ENGINE_CCS3),
 
 	XE_HP_FEATURES,
 	.dma_mask_size = 52,
@@ -123,6 +138,10 @@ static const struct xe_graphics_desc graphics_xelpg = {
 	.ver = 12,
 	.rel = 70,
 
+	.hw_engine_mask =
+		BIT(XE_HW_ENGINE_RCS0) | BIT(XE_HW_ENGINE_BCS0) |
+		BIT(XE_HW_ENGINE_CCS0),
+
 	XE_HP_FEATURES,
 	.max_tiles = 2,
 
@@ -132,16 +151,28 @@ static const struct xe_graphics_desc graphics_xelpg = {
 static const struct xe_media_desc media_xem = {
 	.ver = 12,
 	.rel = 0,
+
+	.hw_engine_mask =
+		BIT(XE_HW_ENGINE_VCS0) | BIT(XE_HW_ENGINE_VCS2) |
+		BIT(XE_HW_ENGINE_VECS0),
 };
 
 static const struct xe_media_desc media_xehpm = {
 	.ver = 12,
 	.rel = 55,
+
+	.hw_engine_mask =
+		BIT(XE_HW_ENGINE_VCS0) | BIT(XE_HW_ENGINE_VCS2) |
+		BIT(XE_HW_ENGINE_VECS0) | BIT(XE_HW_ENGINE_VECS1),
 };
 
 static const struct xe_media_desc media_xelpmp = {
 	.ver = 13,
 	.rel = 0,
+
+	.hw_engine_mask =
+		BIT(XE_HW_ENGINE_VCS0) | BIT(XE_HW_ENGINE_VCS2) |
+		BIT(XE_HW_ENGINE_VECS0),	/* TODO: add GSC0 */
 };
 
 static const struct xe_device_desc tgl_desc = {
@@ -149,10 +180,6 @@ static const struct xe_device_desc tgl_desc = {
 	.media = &media_xem,
 	PLATFORM(XE_TIGERLAKE),
 	.require_force_probe = true,
-	.platform_engine_mask =
-		BIT(XE_HW_ENGINE_RCS0) | BIT(XE_HW_ENGINE_BCS0) |
-		BIT(XE_HW_ENGINE_VECS0) | BIT(XE_HW_ENGINE_VCS0) |
-		BIT(XE_HW_ENGINE_VCS2),
 };
 
 static const struct xe_device_desc adl_s_desc = {
@@ -160,10 +187,6 @@ static const struct xe_device_desc adl_s_desc = {
 	.media = &media_xem,
 	PLATFORM(XE_ALDERLAKE_S),
 	.require_force_probe = true,
-	.platform_engine_mask =
-		BIT(XE_HW_ENGINE_RCS0) | BIT(XE_HW_ENGINE_BCS0) |
-		BIT(XE_HW_ENGINE_VECS0) | BIT(XE_HW_ENGINE_VCS0) |
-		BIT(XE_HW_ENGINE_VCS2),
 };
 
 static const u16 adlp_rplu_ids[] = { XE_RPLU_IDS(NOP), 0 };
@@ -173,10 +196,6 @@ static const struct xe_device_desc adl_p_desc = {
 	.media = &media_xem,
 	PLATFORM(XE_ALDERLAKE_P),
 	.require_force_probe = true,
-	.platform_engine_mask =
-		BIT(XE_HW_ENGINE_RCS0) | BIT(XE_HW_ENGINE_BCS0) |
-		BIT(XE_HW_ENGINE_VECS0) | BIT(XE_HW_ENGINE_VCS0) |
-		BIT(XE_HW_ENGINE_VCS2),
 	.subplatforms = (const struct xe_subplatform_desc[]) {
 		{ XE_SUBPLATFORM_ADLP_RPLU, "RPLU", adlp_rplu_ids },
 		{},
@@ -192,10 +211,6 @@ static const struct xe_device_desc dg1_desc = {
 	DGFX_FEATURES,
 	PLATFORM(XE_DG1),
 	.require_force_probe = true,
-	.platform_engine_mask =
-		BIT(XE_HW_ENGINE_RCS0) | BIT(XE_HW_ENGINE_BCS0) |
-		BIT(XE_HW_ENGINE_VECS0) | BIT(XE_HW_ENGINE_VCS0) |
-		BIT(XE_HW_ENGINE_VCS2),
 };
 
 static const u16 dg2_g10_ids[] = { XE_DG2_G10_IDS(NOP), XE_ATS_M150_IDS(NOP), 0 };
@@ -211,12 +226,6 @@ static const u16 dg2_g12_ids[] = { XE_DG2_G12_IDS(NOP), 0 };
 		{ XE_SUBPLATFORM_DG2_G12, "G12", dg2_g12_ids }, \
 		{ } \
 	}, \
-	.platform_engine_mask = \
-		BIT(XE_HW_ENGINE_RCS0) | BIT(XE_HW_ENGINE_BCS0) | \
-		BIT(XE_HW_ENGINE_VECS0) | BIT(XE_HW_ENGINE_VECS1) | \
-		BIT(XE_HW_ENGINE_VCS0) | BIT(XE_HW_ENGINE_VCS2) | \
-		BIT(XE_HW_ENGINE_CCS0) | BIT(XE_HW_ENGINE_CCS1) | \
-		BIT(XE_HW_ENGINE_CCS2) | BIT(XE_HW_ENGINE_CCS3), \
 	.has_4tile = 1
 
 static const struct xe_device_desc ats_m_desc = {
@@ -235,22 +244,10 @@ static const struct xe_device_desc dg2_desc = {
 	DG2_FEATURES,
 };
 
-#define PVC_ENGINES \
-	BIT(XE_HW_ENGINE_BCS0) | BIT(XE_HW_ENGINE_BCS1) | \
-	BIT(XE_HW_ENGINE_BCS2) | BIT(XE_HW_ENGINE_BCS3) | \
-	BIT(XE_HW_ENGINE_BCS4) | BIT(XE_HW_ENGINE_BCS5) | \
-	BIT(XE_HW_ENGINE_BCS6) | BIT(XE_HW_ENGINE_BCS7) | \
-	BIT(XE_HW_ENGINE_BCS8) | \
-	BIT(XE_HW_ENGINE_VCS0) | BIT(XE_HW_ENGINE_VCS1) | \
-	BIT(XE_HW_ENGINE_VCS2) | \
-	BIT(XE_HW_ENGINE_CCS0) | BIT(XE_HW_ENGINE_CCS1) | \
-	BIT(XE_HW_ENGINE_CCS2) | BIT(XE_HW_ENGINE_CCS3)
-
 static const struct xe_gt_desc pvc_gts[] = {
 	{
 		.type = XE_GT_TYPE_REMOTE,
 		.vram_id = 1,
-		.engine_mask = PVC_ENGINES,
 		.mmio_adj_limit = 0,
 		.mmio_adj_offset = 0,
 	},
@@ -262,26 +259,16 @@ static const __maybe_unused struct xe_device_desc pvc_desc = {
 	PLATFORM(XE_PVC),
 	.require_force_probe = true,
 	.extra_gts = pvc_gts,
-	.platform_engine_mask = PVC_ENGINES,
 };
-
-#define MTL_MEDIA_ENGINES \
-	BIT(XE_HW_ENGINE_VCS0) | BIT(XE_HW_ENGINE_VCS2) | \
-	BIT(XE_HW_ENGINE_VECS0)	/* TODO: GSC0 */
 
 static const struct xe_gt_desc xelpmp_gts[] = {
 	{
 		.type = XE_GT_TYPE_MEDIA,
 		.vram_id = 0,
-		.engine_mask = MTL_MEDIA_ENGINES,
 		.mmio_adj_limit = 0x40000,
 		.mmio_adj_offset = 0x380000,
 	},
 };
-
-#define MTL_MAIN_ENGINES \
-	BIT(XE_HW_ENGINE_RCS0) | BIT(XE_HW_ENGINE_BCS0) | \
-	BIT(XE_HW_ENGINE_CCS0)
 
 static const struct xe_device_desc mtl_desc = {
 	/*
@@ -293,7 +280,6 @@ static const struct xe_device_desc mtl_desc = {
 	.require_force_probe = true,
 	PLATFORM(XE_METEORLAKE),
 	.extra_gts = xelpmp_gts,
-	.platform_engine_mask = MTL_MAIN_ENGINES,
 };
 
 #undef PLATFORM
@@ -423,14 +409,19 @@ static void xe_info_init(struct xe_device *xe,
 		if (id == 0) {
 			gt->info.type = XE_GT_TYPE_MAIN;
 			gt->info.vram_id = id;
-			gt->info.__engine_mask = desc->platform_engine_mask;
+
+			gt->info.__engine_mask = desc->graphics->hw_engine_mask;
+			if (MEDIA_VER(xe) < 13 && desc->media)
+				gt->info.__engine_mask |= desc->media->hw_engine_mask;
+
 			gt->mmio.adj_limit = 0;
 			gt->mmio.adj_offset = 0;
 		} else {
 			gt->info.type = desc->extra_gts[id - 1].type;
 			gt->info.vram_id = desc->extra_gts[id - 1].vram_id;
-			gt->info.__engine_mask =
-				desc->extra_gts[id - 1].engine_mask;
+			gt->info.__engine_mask = (gt->info.type == XE_GT_TYPE_MEDIA) ?
+				desc->media->hw_engine_mask :
+				desc->graphics->hw_engine_mask;
 			gt->mmio.adj_limit =
 				desc->extra_gts[id - 1].mmio_adj_limit;
 			gt->mmio.adj_offset =
