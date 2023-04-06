@@ -984,7 +984,7 @@ int main(int argc, char **argv, char **envp)
 #else
 		else if (ioperm(0x501, 1, 1) == 0)
 #endif
-			asm volatile ("outb %%al, %%dx" :: "d"(0x501), "a"(0));
+			__asm__ volatile ("outb %%al, %%dx" :: "d"(0x501), "a"(0));
 		/* if it does nothing, fall back to the regular panic */
 #endif
 	}
