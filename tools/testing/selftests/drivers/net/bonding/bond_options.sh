@@ -5,6 +5,7 @@
 
 ALL_TESTS="
 	prio
+	arp_validate
 "
 
 REQUIRE_MZ=no
@@ -198,6 +199,60 @@ prio()
 		prio_arp $mode
 		prio_ns $mode
 	done
+}
+
+arp_validate_test()
+{
+	local param="$1"
+	RET=0
+
+	# create bond
+	bond_reset "${param}"
+
+	bond_check_connection
+	[ $RET -ne 0 ] && log_test "arp_validate" "$retmsg"
+
+	# wait for a while to make sure the mii status stable
+	sleep 5
+	for i in $(seq 0 2); do
+		mii_status=$(cmd_jq "ip -n ${s_ns} -j -d link show eth$i" ".[].linkinfo.info_slave_data.mii_status")
+		if [ ${mii_status} != "UP" ]; then
+			RET=1
+			log_test "arp_validate" "interface eth$i mii_status $mii_status"
+		fi
+	done
+}
+
+arp_validate_arp()
+{
+	local mode=$1
+	local val
+	for val in $(seq 0 6); do
+		arp_validate_test "mode $mode arp_interval 100 arp_ip_target ${g_ip4} arp_validate $val"
+		log_test "arp_validate" "$mode arp_ip_target arp_validate $val"
+	done
+}
+
+arp_validate_ns()
+{
+	local mode=$1
+	local val
+
+	if skip_ns; then
+		log_test_skip "arp_validate ns" "Current iproute or kernel doesn't support bond option 'ns_ip6_target'."
+		return 0
+	fi
+
+	for val in $(seq 0 6); do
+		arp_validate_test "mode $mode arp_interval 100 ns_ip6_target ${g_ip6} arp_validate $val"
+		log_test "arp_validate" "$mode ns_ip6_target arp_validate $val"
+	done
+}
+
+arp_validate()
+{
+	arp_validate_arp "active-backup"
+	arp_validate_ns "active-backup"
 }
 
 trap cleanup EXIT
