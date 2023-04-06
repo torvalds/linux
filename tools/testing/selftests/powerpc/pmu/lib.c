@@ -14,19 +14,6 @@
 #include "utils.h"
 #include "lib.h"
 
-
-int bind_to_cpu(int cpu)
-{
-	cpu_set_t mask;
-
-	printf("Binding to cpu %d\n", cpu);
-
-	CPU_ZERO(&mask);
-	CPU_SET(cpu, &mask);
-
-	return sched_setaffinity(0, sizeof(mask), &mask);
-}
-
 #define PARENT_TOKEN	0xAA
 #define CHILD_TOKEN	0x55
 

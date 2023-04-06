@@ -32,6 +32,7 @@ void *find_auxv_entry(int type, char *auxv);
 void *get_auxv_entry(int type);
 
 int pick_online_cpu(void);
+int bind_to_cpu(int cpu);
 
 int parse_intmax(const char *buffer, size_t count, intmax_t *result, int base);
 int parse_uintmax(const char *buffer, size_t count, uintmax_t *result, int base);
