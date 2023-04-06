@@ -1726,6 +1726,17 @@ static void print_contention_result(struct lock_contention *con)
 			break;
 	}
 
+	if (print_nr_entries) {
+		/* update the total/bad stats */
+		while ((st = pop_from_result())) {
+			total += use_bpf ? st->nr_contended : 1;
+			if (st->broken)
+				bad++;
+		}
+	}
+	/* some entries are collected but hidden by the callstack filter */
+	total += con->nr_filtered;
+
 	if (use_bpf)
 		print_bpf_events(total, &con->fails);
 	else

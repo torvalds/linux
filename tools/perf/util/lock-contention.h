@@ -141,6 +141,7 @@ struct lock_contention {
 	int stack_skip;
 	int aggr_mode;
 	int owner;
+	int nr_filtered;
 	bool save_callstack;
 };
 
