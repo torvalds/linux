@@ -376,6 +376,7 @@ enum dmub_fw_boot_status_bit {
 	DMUB_FW_BOOT_STATUS_BIT_OPTIMIZED_INIT_DONE = (1 << 2), /**< 1 if init done */
 	DMUB_FW_BOOT_STATUS_BIT_RESTORE_REQUIRED = (1 << 3), /**< 1 if driver should call restore */
 	DMUB_FW_BOOT_STATUS_BIT_DEFERRED_LOADED = (1 << 4), /**< 1 if VBIOS data is deferred programmed */
+	DMUB_FW_BOOT_STATUS_BIT_FAMS_ENABLED = (1 << 5), /**< 1 if FAMS is enabled*/
 	DMUB_FW_BOOT_STATUS_BIT_DETECTION_REQUIRED = (1 << 6), /**< 1 if detection need to be triggered by driver*/
 	DMUB_FW_BOOT_STATUS_BIT_HW_POWER_INIT_DONE = (1 << 7), /**< 1 if hw power init is completed */
 };
@@ -989,16 +990,25 @@ struct dmub_rb_cmd_mall {
 };
 
 /**
- * enum dmub_cmd_cab_type - TODO:
+ * enum dmub_cmd_cab_type - CAB command data.
  */
 enum dmub_cmd_cab_type {
+	/**
+	 * No idle optimizations (i.e. no CAB)
+	 */
 	DMUB_CMD__CAB_NO_IDLE_OPTIMIZATION = 0,
+	/**
+	 * No DCN requests for memory
+	 */
 	DMUB_CMD__CAB_NO_DCN_REQ = 1,
+	/**
+	 * Fit surfaces in CAB (i.e. CAB enable)
+	 */
 	DMUB_CMD__CAB_DCN_SS_FIT_IN_CAB = 2,
 };
 
 /**
- * struct dmub_rb_cmd_cab_for_ss - TODO:
+ * struct dmub_rb_cmd_cab - CAB command data.
  */
 struct dmub_rb_cmd_cab_for_ss {
 	struct dmub_cmd_header header;
@@ -1006,6 +1016,9 @@ struct dmub_rb_cmd_cab_for_ss {
 	uint8_t debug_bits;     /* debug bits */
 };
 
+/**
+ * Enum for indicating which MCLK switch mode per pipe
+ */
 enum mclk_switch_mode {
 	NONE = 0,
 	FPO = 1,
