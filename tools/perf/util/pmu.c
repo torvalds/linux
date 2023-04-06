@@ -1574,7 +1574,7 @@ static int cmp_sevent(const void *a, const void *b)
 {
 	const struct sevent *as = a;
 	const struct sevent *bs = b;
-	const char *a_pmu_name, *b_pmu_name;
+	const char *a_pmu_name = NULL, *b_pmu_name = NULL;
 	const char *a_name = "//", *a_desc = NULL, *a_topic = "";
 	const char *b_name = "//", *b_desc = NULL, *b_topic = "";
 	int ret;
@@ -1583,11 +1583,13 @@ static int cmp_sevent(const void *a, const void *b)
 		a_name = as->event->name;
 		a_desc = as->event->desc;
 		a_topic = as->event->topic ?: "";
+		a_pmu_name = as->event->pmu_name;
 	}
 	if (bs->event) {
 		b_name = bs->event->name;
 		b_desc = bs->event->desc;
 		b_topic = bs->event->topic ?: "";
+		b_pmu_name = bs->event->pmu_name;
 	}
 	/* Put extra events last. */
 	if (!!a_desc != !!b_desc)
@@ -1603,11 +1605,13 @@ static int cmp_sevent(const void *a, const void *b)
 		return as->is_cpu ? -1 : 1;
 
 	/* Order by PMU name. */
-	a_pmu_name = as->pmu->name ?: "";
-	b_pmu_name = bs->pmu->name ?: "";
-	ret = strcmp(a_pmu_name, b_pmu_name);
-	if (ret)
-		return ret;
+	if (as->pmu != bs->pmu) {
+		a_pmu_name = a_pmu_name ?: (as->pmu->name ?: "");
+		b_pmu_name = b_pmu_name ?: (bs->pmu->name ?: "");
+		ret = strcmp(a_pmu_name, b_pmu_name);
+		if (ret)
+			return ret;
+	}
 
 	/* Order by event name. */
 	return strcmp(a_name, b_name);
@@ -1621,17 +1625,26 @@ bool is_pmu_core(const char *name)
 static bool pmu_alias_is_duplicate(struct sevent *alias_a,
 				   struct sevent *alias_b)
 {
-	const char *a_pmu_name, *b_pmu_name;
-	const char *a_name = alias_a->event ? alias_a->event->name : "//";
-	const char *b_name = alias_b->event ? alias_b->event->name : "//";
+	const char *a_pmu_name = NULL, *b_pmu_name = NULL;
+	const char *a_name = "//", *b_name = "//";
+
+
+	if (alias_a->event) {
+		a_name = alias_a->event->name;
+		a_pmu_name = alias_a->event->pmu_name;
+	}
+	if (alias_b->event) {
+		b_name = alias_b->event->name;
+		b_pmu_name = alias_b->event->pmu_name;
+	}
 
 	/* Different names -> never duplicates */
 	if (strcmp(a_name, b_name))
 		return false;
 
 	/* Don't remove duplicates for different PMUs */
-	a_pmu_name = alias_a->pmu->name ?: "";
-	b_pmu_name = alias_b->pmu->name ?: "";
+	a_pmu_name = a_pmu_name ?: (alias_a->pmu->name ?: "");
+	b_pmu_name = b_pmu_name ?: (alias_b->pmu->name ?: "");
 	return strcmp(a_pmu_name, b_pmu_name) == 0;
 }
 
@@ -1680,7 +1693,8 @@ void print_pmu_events(const struct print_callbacks *print_cb, void *print_state)
 	for (j = 0; j < len; j++) {
 		const char *name, *alias = NULL, *scale_unit = NULL,
 			*desc = NULL, *long_desc = NULL,
-			*encoding_desc = NULL, *topic = NULL;
+			*encoding_desc = NULL, *topic = NULL,
+			*pmu_name = NULL;
 		bool deprecated = false;
 		size_t buf_used;
 
@@ -1690,7 +1704,8 @@ void print_pmu_events(const struct print_callbacks *print_cb, void *print_state)
 
 		if (!aliases[j].event) {
 			/* A selectable event. */
-			buf_used = snprintf(buf, sizeof(buf), "%s//", aliases[j].pmu->name) + 1;
+			pmu_name = aliases[j].pmu->name;
+			buf_used = snprintf(buf, sizeof(buf), "%s//", pmu_name) + 1;
 			name = buf;
 		} else {
 			if (aliases[j].event->desc) {
@@ -1705,6 +1720,7 @@ void print_pmu_events(const struct print_callbacks *print_cb, void *print_state)
 				}
 				buf_used = strlen(buf) + 1;
 			}
+			pmu_name = aliases[j].event->pmu_name ?: (aliases[j].pmu->name ?: "");
 			if (strlen(aliases[j].event->unit) || aliases[j].event->scale != 1.0) {
 				scale_unit = buf + buf_used;
 				buf_used += snprintf(buf + buf_used, sizeof(buf) - buf_used,
@@ -1716,12 +1732,11 @@ void print_pmu_events(const struct print_callbacks *print_cb, void *print_state)
 			topic = aliases[j].event->topic;
 			encoding_desc = buf + buf_used;
 			buf_used += snprintf(buf + buf_used, sizeof(buf) - buf_used,
-					"%s/%s/", aliases[j].pmu->name,
-					aliases[j].event->str) + 1;
+					"%s/%s/", pmu_name, aliases[j].event->str) + 1;
 			deprecated = aliases[j].event->deprecated;
 		}
 		print_cb->print_event(print_state,
-				aliases[j].pmu->name,
+				pmu_name,
 				topic,
 				name,
 				alias,
