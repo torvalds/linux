@@ -69,105 +69,85 @@ int dscr_default_lockstep_test(void)
 	return 0;
 }
 
-static unsigned long dscr;		/* System DSCR default */
-static unsigned long sequence;
-static unsigned long result[THREADS];
+struct random_thread_args {
+	pthread_t thread_id;
+	unsigned long *expected_system_dscr;
+	pthread_rwlock_t *rw_lock;
+	pthread_barrier_t *barrier;
+};
 
-static void *do_test(void *in)
+static void *dscr_default_random_thread(void *in)
 {
-	unsigned long thread = (unsigned long)in;
-	unsigned long i;
+	struct random_thread_args *args = (struct random_thread_args *)in;
+	unsigned long *expected_dscr_p = args->expected_system_dscr;
+	pthread_rwlock_t *rw_lock = args->rw_lock;
+	int err;
 
-	for (i = 0; i < COUNT; i++) {
-		unsigned long d, cur_dscr, cur_dscr_usr;
-		unsigned long s1, s2;
+	srand(gettid());
 
-		s1 = READ_ONCE(sequence);
-		if (s1 & 1)
-			continue;
-		rmb();
+	err = pthread_barrier_wait(args->barrier);
+	FAIL_IF_EXIT(err != 0 && err != PTHREAD_BARRIER_SERIAL_THREAD);
 
-		d = dscr;
-		cur_dscr = get_dscr();
-		cur_dscr_usr = get_dscr_usr();
+	for (int i = 0; i < COUNT; i++) {
+		unsigned long expected_dscr;
+		unsigned long current_dscr;
+		unsigned long current_dscr_usr;
 
-		rmb();
-		s2 = sequence;
+		FAIL_IF_EXIT(pthread_rwlock_rdlock(rw_lock));
+		expected_dscr = *expected_dscr_p;
+		current_dscr = get_dscr();
+		current_dscr_usr = get_dscr_usr();
+		FAIL_IF_EXIT(pthread_rwlock_unlock(rw_lock));
 
-		if (s1 != s2)
-			continue;
+		FAIL_IF_EXIT(current_dscr != expected_dscr);
+		FAIL_IF_EXIT(current_dscr_usr != expected_dscr);
 
-		if (cur_dscr != d) {
-			fprintf(stderr, "thread %ld kernel DSCR should be %ld "
-				"but is %ld\n", thread, d, cur_dscr);
-			result[thread] = 1;
-			pthread_exit(&result[thread]);
-		}
+		if (rand() % 10 == 0) {
+			unsigned long next_dscr;
 
-		if (cur_dscr_usr != d) {
-			fprintf(stderr, "thread %ld user DSCR should be %ld "
-				"but is %ld\n", thread, d, cur_dscr_usr);
-			result[thread] = 1;
-			pthread_exit(&result[thread]);
+			FAIL_IF_EXIT(pthread_rwlock_wrlock(rw_lock));
+			next_dscr = (*expected_dscr_p + 1) % DSCR_MAX;
+			set_default_dscr(next_dscr);
+			*expected_dscr_p = next_dscr;
+			FAIL_IF_EXIT(pthread_rwlock_unlock(rw_lock));
 		}
 	}
-	result[thread] = 0;
-	pthread_exit(&result[thread]);
+
+	pthread_exit((void *)0);
 }
 
 int dscr_default_random_test(void)
 {
-	pthread_t threads[THREADS];
-	unsigned long i, *status[THREADS];
+	struct random_thread_args threads[THREADS];
+	unsigned long expected_system_dscr = 0;
+	pthread_rwlockattr_t rwlock_attr;
+	pthread_rwlock_t rw_lock;
+	pthread_barrier_t barrier;
 
 	SKIP_IF(!have_hwcap2(PPC_FEATURE2_DSCR));
 
-	/* Initial DSCR default */
-	dscr = 1;
-	set_default_dscr(dscr);
+	FAIL_IF(pthread_rwlockattr_setkind_np(&rwlock_attr,
+					      PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP));
+	FAIL_IF(pthread_rwlock_init(&rw_lock, &rwlock_attr));
+	FAIL_IF(pthread_barrier_init(&barrier, NULL, THREADS));
 
-	/* Spawn all testing threads */
-	for (i = 0; i < THREADS; i++) {
-		if (pthread_create(&threads[i], NULL, do_test, (void *)i)) {
-			perror("pthread_create() failed");
-			return 1;
-		}
+	set_default_dscr(expected_system_dscr);
+
+	for (int i = 0; i < THREADS; i++) {
+		threads[i].expected_system_dscr = &expected_system_dscr;
+		threads[i].rw_lock = &rw_lock;
+		threads[i].barrier = &barrier;
+
+		FAIL_IF(pthread_create(&threads[i].thread_id, NULL,
+				       dscr_default_random_thread, (void *)&threads[i]));
 	}
 
-	srand(getpid());
+	for (int i = 0; i < THREADS; i++)
+		FAIL_IF(pthread_join(threads[i].thread_id, NULL));
 
-	/* Keep changing the DSCR default */
-	for (i = 0; i < COUNT; i++) {
-		double ret = uniform_deviate(rand());
+	FAIL_IF(pthread_barrier_destroy(&barrier));
+	FAIL_IF(pthread_rwlock_destroy(&rw_lock));
 
-		if (ret < 0.0001) {
-			sequence++;
-			wmb();
-
-			dscr++;
-			if (dscr > DSCR_MAX)
-				dscr = 0;
-
-			set_default_dscr(dscr);
-
-			wmb();
-			sequence++;
-		}
-	}
-
-	/* Individual testing thread exit status */
-	for (i = 0; i < THREADS; i++) {
-		if (pthread_join(threads[i], (void **)&(status[i]))) {
-			perror("pthread_join() failed");
-			return 1;
-		}
-
-		if (*status[i]) {
-			printf("%ldth thread failed to join with %ld status\n",
-								i, *status[i]);
-			return 1;
-		}
-	}
 	return 0;
 }
 

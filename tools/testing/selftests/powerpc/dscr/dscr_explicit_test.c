@@ -86,50 +86,72 @@ int dscr_explicit_lockstep_test(void)
 	return 0;
 }
 
+struct random_thread_args {
+	pthread_t thread_id;
+	bool do_yields;
+	pthread_barrier_t *barrier;
+};
+
+void *dscr_explicit_random_thread(void *in)
+{
+	struct random_thread_args *args = (struct random_thread_args *)in;
+	unsigned long expected_dscr = 0;
+	int err;
+
+	srand(gettid());
+
+	err = pthread_barrier_wait(args->barrier);
+	FAIL_IF_EXIT(err != 0 && err != PTHREAD_BARRIER_SERIAL_THREAD);
+
+	for (int i = 0; i < COUNT; i++) {
+		expected_dscr = rand() % DSCR_MAX;
+		set_dscr(expected_dscr);
+
+		for (int j = rand() % 5; j > 0; --j) {
+			FAIL_IF_EXIT(get_dscr() != expected_dscr);
+			FAIL_IF_EXIT(get_dscr_usr() != expected_dscr);
+
+			if (args->do_yields && rand() % 2)
+				sched_yield();
+		}
+
+		expected_dscr = rand() % DSCR_MAX;
+		set_dscr_usr(expected_dscr);
+
+		for (int j = rand() % 5; j > 0; --j) {
+			FAIL_IF_EXIT(get_dscr() != expected_dscr);
+			FAIL_IF_EXIT(get_dscr_usr() != expected_dscr);
+
+			if (args->do_yields && rand() % 2)
+				sched_yield();
+		}
+	}
+
+	return NULL;
+}
+
 int dscr_explicit_random_test(void)
 {
-	unsigned long i, dscr = 0;
+	struct random_thread_args threads[THREADS];
+	pthread_barrier_t barrier;
 
 	SKIP_IF(!have_hwcap2(PPC_FEATURE2_DSCR));
 
-	srand(getpid());
-	set_dscr(dscr);
+	FAIL_IF(pthread_barrier_init(&barrier, NULL, THREADS));
 
-	for (i = 0; i < COUNT; i++) {
-		unsigned long cur_dscr, cur_dscr_usr;
-		double ret = uniform_deviate(rand());
+	for (int i = 0; i < THREADS; i++) {
+		threads[i].do_yields = i % 2 == 0;
+		threads[i].barrier = &barrier;
 
-		if (ret < 0.001) {
-			dscr++;
-			if (dscr > DSCR_MAX)
-				dscr = 0;
-
-			set_dscr(dscr);
-		}
-
-		cur_dscr = get_dscr();
-		if (cur_dscr != dscr) {
-			fprintf(stderr, "Kernel DSCR should be %ld but "
-					"is %ld\n", dscr, cur_dscr);
-			return 1;
-		}
-
-		ret = uniform_deviate(rand());
-		if (ret < 0.001) {
-			dscr++;
-			if (dscr > DSCR_MAX)
-				dscr = 0;
-
-			set_dscr_usr(dscr);
-		}
-
-		cur_dscr_usr = get_dscr_usr();
-		if (cur_dscr_usr != dscr) {
-			fprintf(stderr, "User DSCR should be %ld but "
-					"is %ld\n", dscr, cur_dscr_usr);
-			return 1;
-		}
+		FAIL_IF(pthread_create(&threads[i].thread_id, NULL,
+				       dscr_explicit_random_thread, (void *)&threads[i]));
 	}
+
+	for (int i = 0; i < THREADS; i++)
+		FAIL_IF(pthread_join(threads[i].thread_id, NULL));
+
+	FAIL_IF(pthread_barrier_destroy(&barrier));
+
 	return 0;
 }
 
