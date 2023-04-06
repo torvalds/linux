@@ -181,19 +181,19 @@ static int stx104_write_raw(struct iio_dev *indio_dev,
 
 		return 0;
 	case IIO_CHAN_INFO_RAW:
-		if (chan->output) {
-			if (val < 0 || val > U16_MAX)
-				return -EINVAL;
+		if (!chan->output)
+			return -EINVAL;
 
-			mutex_lock(&priv->lock);
+		if (val < 0 || val > U16_MAX)
+			return -EINVAL;
 
-			priv->chan_out_states[chan->channel] = val;
-			iowrite16(val, &priv->reg->dac[chan->channel]);
+		mutex_lock(&priv->lock);
 
-			mutex_unlock(&priv->lock);
-			return 0;
-		}
-		return -EINVAL;
+		priv->chan_out_states[chan->channel] = val;
+		iowrite16(val, &priv->reg->dac[chan->channel]);
+
+		mutex_unlock(&priv->lock);
+		return 0;
 	}
 
 	return -EINVAL;
