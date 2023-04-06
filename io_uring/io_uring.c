@@ -1303,8 +1303,15 @@ static __cold void io_fallback_tw(struct io_uring_task *tctx)
 static void io_req_local_work_add(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
+	struct llist_node *first;
 
-	if (!llist_add(&req->io_task_work.node, &ctx->work_llist))
+	first = READ_ONCE(ctx->work_llist.first);
+	do {
+		req->io_task_work.node.next = first;
+	} while (!try_cmpxchg(&ctx->work_llist.first, &first,
+			      &req->io_task_work.node));
+
+	if (first)
 		return;
 
 	/* needed for the following wake up */
