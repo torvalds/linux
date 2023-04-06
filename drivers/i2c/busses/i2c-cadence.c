@@ -16,6 +16,7 @@
 #include <linux/of.h>
 #include <linux/pm_runtime.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/reset.h>
 
 /* Register offsets for the I2C device. */
 #define CDNS_I2C_CR_OFFSET		0x00 /* Control Register, RW */
@@ -178,6 +179,7 @@ enum cdns_i2c_slave_state {
  * @bus_hold_flag:	Flag used in repeated start for clearing HOLD bit
  * @clk:		Pointer to struct clk
  * @clk_rate_change_nb:	Notifier block for clock rate changes
+ * @reset:		Reset control for the device
  * @quirks:		flag for broken hold bit usage in r1p10
  * @ctrl_reg:		Cached value of the control register.
  * @ctrl_reg_diva_divb: value of fields DIV_A and DIV_B from CR register
@@ -204,6 +206,7 @@ struct cdns_i2c {
 	unsigned int bus_hold_flag;
 	struct clk *clk;
 	struct notifier_block clk_rate_change_nb;
+	struct reset_control *reset;
 	u32 quirks;
 	u32 ctrl_reg;
 	struct i2c_bus_recovery_info rinfo;
@@ -1325,9 +1328,21 @@ static int cdns_i2c_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, PTR_ERR(id->clk),
 				     "input clock not found.\n");
 
+	id->reset = devm_reset_control_get_optional_shared(&pdev->dev, NULL);
+	if (IS_ERR(id->reset))
+		return dev_err_probe(&pdev->dev, PTR_ERR(id->reset),
+				     "Failed to request reset.\n");
+
 	ret = clk_prepare_enable(id->clk);
 	if (ret)
 		dev_err(&pdev->dev, "Unable to enable clock.\n");
+
+	ret = reset_control_deassert(id->reset);
+	if (ret) {
+		dev_err_probe(&pdev->dev, ret,
+			      "Failed to de-assert reset.\n");
+		goto err_clk_dis;
+	}
 
 	pm_runtime_set_autosuspend_delay(id->dev, CNDS_I2C_PM_TIMEOUT);
 	pm_runtime_use_autosuspend(id->dev);
@@ -1360,28 +1375,30 @@ static int cdns_i2c_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "invalid SCL clock: %u Hz\n", id->i2c_clk);
 		ret = -EINVAL;
-		goto err_clk_dis;
+		goto err_clk_notifier_unregister;
 	}
 
 	ret = devm_request_irq(&pdev->dev, irq, cdns_i2c_isr, 0,
 				 DRIVER_NAME, id);
 	if (ret) {
 		dev_err(&pdev->dev, "cannot get irq %d\n", irq);
-		goto err_clk_dis;
+		goto err_clk_notifier_unregister;
 	}
 	cdns_i2c_init(id);
 
 	ret = i2c_add_adapter(&id->adap);
 	if (ret < 0)
-		goto err_clk_dis;
+		goto err_clk_notifier_unregister;
 
 	dev_info(&pdev->dev, "%u kHz mmio %08lx irq %d\n",
 		 id->i2c_clk / 1000, (unsigned long)r_mem->start, irq);
 
 	return 0;
 
-err_clk_dis:
+err_clk_notifier_unregister:
 	clk_notifier_unregister(id->clk, &id->clk_rate_change_nb);
+	reset_control_assert(id->reset);
+err_clk_dis:
 	clk_disable_unprepare(id->clk);
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
@@ -1406,6 +1423,7 @@ static int cdns_i2c_remove(struct platform_device *pdev)
 
 	i2c_del_adapter(&id->adap);
 	clk_notifier_unregister(id->clk, &id->clk_rate_change_nb);
+	reset_control_assert(id->reset);
 	clk_disable_unprepare(id->clk);
 
 	return 0;
