@@ -1938,7 +1938,7 @@ static int snd_soc_bind_card(struct snd_soc_card *card)
 	int ret;
 
 	mutex_lock(&client_mutex);
-	mutex_lock_nested(&card->mutex, SND_SOC_CARD_CLASS_INIT);
+	snd_soc_card_mutex_lock_root(card);
 
 	snd_soc_dapm_init(&card->dapm, card, NULL);
 
@@ -2093,7 +2093,7 @@ probe_end:
 	if (ret < 0)
 		soc_cleanup_card_resources(card);
 
-	mutex_unlock(&card->mutex);
+	snd_soc_card_mutex_unlock(card);
 	mutex_unlock(&client_mutex);
 
 	return ret;
