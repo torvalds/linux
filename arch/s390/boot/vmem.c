@@ -19,7 +19,7 @@ unsigned long __bootdata_preserved(s390_invalid_asce);
 
 enum populate_mode {
 	POPULATE_NONE,
-	POPULATE_ONE2ONE,
+	POPULATE_DIRECT,
 	POPULATE_ABS_LOWCORE,
 #ifdef CONFIG_KASAN
 	POPULATE_KASAN_MAP_SHADOW,
@@ -237,7 +237,7 @@ static unsigned long _pa(unsigned long addr, unsigned long size, enum populate_m
 	switch (mode) {
 	case POPULATE_NONE:
 		return -1;
-	case POPULATE_ONE2ONE:
+	case POPULATE_DIRECT:
 		return addr;
 	case POPULATE_ABS_LOWCORE:
 		return __abs_lowcore_pa(addr);
@@ -404,9 +404,9 @@ void setup_vmem(unsigned long asce_limit)
 	 * To prevent creation of a large page at address 0 first map
 	 * the lowcore and create the identity mapping only afterwards.
 	 */
-	pgtable_populate(0, sizeof(struct lowcore), POPULATE_ONE2ONE);
+	pgtable_populate(0, sizeof(struct lowcore), POPULATE_DIRECT);
 	for_each_physmem_usable_range(i, &start, &end)
-		pgtable_populate(start, end, POPULATE_ONE2ONE);
+		pgtable_populate(start, end, POPULATE_DIRECT);
 	pgtable_populate(__abs_lowcore, __abs_lowcore + sizeof(struct lowcore),
 			 POPULATE_ABS_LOWCORE);
 	pgtable_populate(__memcpy_real_area, __memcpy_real_area + PAGE_SIZE,
