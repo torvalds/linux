@@ -233,7 +233,7 @@ void omap_fbdev_init(struct drm_device *dev)
 
 	fbdev = kzalloc(sizeof(*fbdev), GFP_KERNEL);
 	if (!fbdev)
-		goto fail;
+		return;
 
 	INIT_WORK(&fbdev->work, pan_worker);
 

@@ -14,7 +14,10 @@ maintainers:
 
 properties:
   compatible:
-    const: nxp,pcf2127
+    enum:
+      - nxp,pca2129
+      - nxp,pcf2127
+      - nxp,pcf2129
 
   reg:
     maxItems: 1

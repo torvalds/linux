@@ -193,7 +193,7 @@ static int max597x_get_status(struct regulator_dev *rdev)
 
 	ret = regmap_read(rdev->regmap, MAX5970_REG_STATUS3, &val);
 	if (ret)
-		return REGULATOR_FAILED_RETRY;
+		return ret;
 
 	if (val & MAX5970_STATUS3_ALERT)
 		return REGULATOR_STATUS_ERROR;

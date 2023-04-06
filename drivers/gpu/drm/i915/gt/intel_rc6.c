@@ -486,6 +486,7 @@ static bool bxt_check_bios_rc6_setup(struct intel_rc6 *rc6)
 static bool rc6_supported(struct intel_rc6 *rc6)
 {
 	struct drm_i915_private *i915 = rc6_to_i915(rc6);
+	struct intel_gt *gt = rc6_to_gt(rc6);
 
 	if (!HAS_RC6(i915))
 		return false;
@@ -499,6 +500,13 @@ static bool rc6_supported(struct intel_rc6 *rc6)
 	if (IS_GEN9_LP(i915) && !bxt_check_bios_rc6_setup(rc6)) {
 		drm_notice(&i915->drm,
 			   "RC6 and powersaving disabled by BIOS\n");
+		return false;
+	}
+
+	if (IS_MTL_MEDIA_STEP(gt->i915, STEP_A0, STEP_B0) &&
+	    gt->type == GT_MEDIA) {
+		drm_notice(&i915->drm,
+			   "Media RC6 disabled on A step\n");
 		return false;
 	}
 

@@ -52,6 +52,12 @@ properties:
     description: Disable sending output reset signal
     type: boolean
 
+  mediatek,reset-by-toprgu:
+    description: The Top Reset Generation Unit (TOPRGU) generates reset signals
+      and distributes them to each IP. If present, the watchdog timer will be
+      reset by TOPRGU once system resets.
+    type: boolean
+
   '#reset-cells':
     const: 1
 

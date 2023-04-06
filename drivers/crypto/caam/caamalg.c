@@ -60,7 +60,11 @@
 #include <crypto/xts.h>
 #include <asm/unaligned.h>
 #include <linux/dma-mapping.h>
+#include <linux/device.h>
+#include <linux/err.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
+#include <linux/string.h>
 
 /*
  * crypto alg
@@ -1000,6 +1004,13 @@ static void aead_crypt_done(struct device *jrdev, u32 *desc, u32 err,
 		crypto_finalize_aead_request(jrp->engine, req, ecode);
 }
 
+static inline u8 *skcipher_edesc_iv(struct skcipher_edesc *edesc)
+{
+
+	return PTR_ALIGN((u8 *)edesc->sec4_sg + edesc->sec4_sg_bytes,
+			 dma_get_cache_alignment());
+}
+
 static void skcipher_crypt_done(struct device *jrdev, u32 *desc, u32 err,
 				void *context)
 {
@@ -1027,8 +1038,7 @@ static void skcipher_crypt_done(struct device *jrdev, u32 *desc, u32 err,
 	 * This is used e.g. by the CTS mode.
 	 */
 	if (ivsize && !ecode) {
-		memcpy(req->iv, (u8 *)edesc->sec4_sg + edesc->sec4_sg_bytes,
-		       ivsize);
+		memcpy(req->iv, skcipher_edesc_iv(edesc), ivsize);
 
 		print_hex_dump_debug("dstiv  @" __stringify(__LINE__)": ",
 				     DUMP_PREFIX_ADDRESS, 16, 4, req->iv,
@@ -1683,18 +1693,19 @@ static struct skcipher_edesc *skcipher_edesc_alloc(struct skcipher_request *req,
 	/*
 	 * allocate space for base edesc and hw desc commands, link tables, IV
 	 */
-	aligned_size = ALIGN(ivsize, __alignof__(*edesc));
-	aligned_size += sizeof(*edesc) + desc_bytes + sec4_sg_bytes;
+	aligned_size = sizeof(*edesc) + desc_bytes + sec4_sg_bytes;
 	aligned_size = ALIGN(aligned_size, dma_get_cache_alignment());
-	iv = kzalloc(aligned_size, flags);
-	if (!iv) {
+	aligned_size += ~(ARCH_KMALLOC_MINALIGN - 1) &
+			(dma_get_cache_alignment() - 1);
+	aligned_size += ALIGN(ivsize, dma_get_cache_alignment());
+	edesc = kzalloc(aligned_size, flags);
+	if (!edesc) {
 		dev_err(jrdev, "could not allocate extended descriptor\n");
 		caam_unmap(jrdev, req->src, req->dst, src_nents, dst_nents, 0,
 			   0, 0, 0);
 		return ERR_PTR(-ENOMEM);
 	}
 
-	edesc = (void *)(iv + ALIGN(ivsize, __alignof__(*edesc)));
 	edesc->src_nents = src_nents;
 	edesc->dst_nents = dst_nents;
 	edesc->mapped_src_nents = mapped_src_nents;
@@ -1706,6 +1717,7 @@ static struct skcipher_edesc *skcipher_edesc_alloc(struct skcipher_request *req,
 
 	/* Make sure IV is located in a DMAable area */
 	if (ivsize) {
+		iv = skcipher_edesc_iv(edesc);
 		memcpy(iv, req->iv, ivsize);
 
 		iv_dma = dma_map_single(jrdev, iv, ivsize, DMA_BIDIRECTIONAL);

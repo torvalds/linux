@@ -602,26 +602,13 @@ psp_cmd_submit_buf(struct psp_context *psp,
 		   struct psp_gfx_cmd_resp *cmd, uint64_t fence_mc_addr)
 {
 	int ret;
-	int index, idx;
+	int index;
 	int timeout = 20000;
 	bool ras_intr = false;
 	bool skip_unsupport = false;
-	bool dev_entered;
 
 	if (psp->adev->no_hw_access)
 		return 0;
-
-	dev_entered = drm_dev_enter(adev_to_drm(psp->adev), &idx);
-	/*
-	 * We allow sending PSP messages LOAD_ASD and UNLOAD_TA without acquiring
-	 * a lock in drm_dev_enter during driver unload because we must call
-	 * drm_dev_unplug as the beginning  of unload driver sequence . It is very
-	 * crucial that userspace can't access device instances anymore.
-	 */
-	if (!dev_entered)
-		WARN_ON(psp->cmd_buf_mem->cmd_id != GFX_CMD_ID_LOAD_ASD &&
-			psp->cmd_buf_mem->cmd_id != GFX_CMD_ID_UNLOAD_TA &&
-			psp->cmd_buf_mem->cmd_id != GFX_CMD_ID_INVOKE_CMD);
 
 	memset(psp->cmd_buf_mem, 0, PSP_CMD_BUFFER_SIZE);
 
@@ -686,8 +673,6 @@ psp_cmd_submit_buf(struct psp_context *psp,
 	}
 
 exit:
-	if (dev_entered)
-		drm_dev_exit(idx);
 	return ret;
 }
 
@@ -1683,7 +1668,7 @@ static int psp_hdcp_initialize(struct psp_context *psp)
 	psp->hdcp_context.context.mem_context.shared_mem_size = PSP_HDCP_SHARED_MEM_SIZE;
 	psp->hdcp_context.context.ta_load_type = GFX_CMD_ID_LOAD_TA;
 
-	if (!psp->hdcp_context.context.initialized) {
+	if (!psp->hdcp_context.context.mem_context.shared_buf) {
 		ret = psp_ta_init_shared_buf(psp, &psp->hdcp_context.context.mem_context);
 		if (ret)
 			return ret;
@@ -1750,7 +1735,7 @@ static int psp_dtm_initialize(struct psp_context *psp)
 	psp->dtm_context.context.mem_context.shared_mem_size = PSP_DTM_SHARED_MEM_SIZE;
 	psp->dtm_context.context.ta_load_type = GFX_CMD_ID_LOAD_TA;
 
-	if (!psp->dtm_context.context.initialized) {
+	if (!psp->dtm_context.context.mem_context.shared_buf) {
 		ret = psp_ta_init_shared_buf(psp, &psp->dtm_context.context.mem_context);
 		if (ret)
 			return ret;
@@ -1818,7 +1803,7 @@ static int psp_rap_initialize(struct psp_context *psp)
 	psp->rap_context.context.mem_context.shared_mem_size = PSP_RAP_SHARED_MEM_SIZE;
 	psp->rap_context.context.ta_load_type = GFX_CMD_ID_LOAD_TA;
 
-	if (!psp->rap_context.context.initialized) {
+	if (!psp->rap_context.context.mem_context.shared_buf) {
 		ret = psp_ta_init_shared_buf(psp, &psp->rap_context.context.mem_context);
 		if (ret)
 			return ret;

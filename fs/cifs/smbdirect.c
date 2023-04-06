@@ -837,7 +837,7 @@ static int smbd_post_send_iter(struct smbd_connection *info,
 	int data_length;
 	struct smbd_request *request;
 	struct smbd_data_transfer *packet;
-	int new_credits;
+	int new_credits = 0;
 
 wait_credit:
 	/* Wait for send credits. A SMBD packet needs one credit */

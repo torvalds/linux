@@ -40,6 +40,16 @@ properties:
     description:
       Indicates that the setting of RTC time is allowed by the host CPU.
 
+  nvmem-cells:
+    items:
+      - description:
+          four-byte nvmem cell holding a little-endian offset from the Unix
+          epoch representing the time when the RTC timer was last reset
+
+  nvmem-cell-names:
+    items:
+      - const: offset
+
   wakeup-source: true
 
 required:
@@ -69,6 +79,8 @@ examples:
           compatible = "qcom,pm8921-rtc";
           reg = <0x11d>;
           interrupts = <0x27 0>;
+          nvmem-cells = <&rtc_offset>;
+          nvmem-cell-names = "offset";
         };
       };
     };

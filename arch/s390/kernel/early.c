@@ -36,6 +36,23 @@
 
 int __bootdata(is_full_image);
 
+#define decompressor_handled_param(param)			\
+static int __init ignore_decompressor_param_##param(char *s)	\
+{								\
+	return 0;						\
+}								\
+early_param(#param, ignore_decompressor_param_##param)
+
+decompressor_handled_param(mem);
+decompressor_handled_param(vmalloc);
+decompressor_handled_param(dfltcc);
+decompressor_handled_param(noexec);
+decompressor_handled_param(facilities);
+decompressor_handled_param(nokaslr);
+#if IS_ENABLED(CONFIG_KVM)
+decompressor_handled_param(prot_virt);
+#endif
+
 static void __init reset_tod_clock(void)
 {
 	union tod_clock clk;

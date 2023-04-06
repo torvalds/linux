@@ -1415,23 +1415,26 @@ static struct iommu_device *exynos_iommu_probe_device(struct device *dev)
 	return &data->iommu;
 }
 
-static void exynos_iommu_release_device(struct device *dev)
+static void exynos_iommu_set_platform_dma(struct device *dev)
 {
 	struct exynos_iommu_owner *owner = dev_iommu_priv_get(dev);
-	struct sysmmu_drvdata *data;
 
 	if (owner->domain) {
 		struct iommu_group *group = iommu_group_get(dev);
 
 		if (group) {
-#ifndef CONFIG_ARM
-			WARN_ON(owner->domain !=
-				iommu_group_default_domain(group));
-#endif
 			exynos_iommu_detach_device(owner->domain, dev);
 			iommu_group_put(group);
 		}
 	}
+}
+
+static void exynos_iommu_release_device(struct device *dev)
+{
+	struct exynos_iommu_owner *owner = dev_iommu_priv_get(dev);
+	struct sysmmu_drvdata *data;
+
+	exynos_iommu_set_platform_dma(dev);
 
 	list_for_each_entry(data, &owner->controllers, owner_node)
 		device_link_del(data->link);
@@ -1479,7 +1482,7 @@ static const struct iommu_ops exynos_iommu_ops = {
 	.domain_alloc = exynos_iommu_domain_alloc,
 	.device_group = generic_device_group,
 #ifdef CONFIG_ARM
-	.set_platform_dma_ops = exynos_iommu_release_device,
+	.set_platform_dma_ops = exynos_iommu_set_platform_dma,
 #endif
 	.probe_device = exynos_iommu_probe_device,
 	.release_device = exynos_iommu_release_device,

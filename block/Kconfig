@@ -204,9 +204,6 @@ config BLK_INLINE_ENCRYPTION_FALLBACK
 
 source "block/partitions/Kconfig"
 
-config BLOCK_COMPAT
-	def_bool COMPAT
-
 config BLK_MQ_PCI
 	def_bool PCI
 

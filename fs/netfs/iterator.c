@@ -134,7 +134,7 @@ static ssize_t netfs_extract_user_to_sg(struct iov_iter *iter,
 		npages = DIV_ROUND_UP(off + len, PAGE_SIZE);
 		sg_max -= npages;
 
-		for (; npages < 0; npages--) {
+		for (; npages > 0; npages--) {
 			struct page *page = *pages;
 			size_t seg = min_t(size_t, PAGE_SIZE - off, len);
 

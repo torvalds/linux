@@ -117,7 +117,7 @@ lsio_subsys: bus@5d000000 {
 		interrupts = <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clk IMX_SC_R_FSPI_0 IMX_SC_PM_CLK_PER>,
 			 <&clk IMX_SC_R_FSPI_0 IMX_SC_PM_CLK_PER>;
-		clock-names = "fspi", "fspi_en";
+		clock-names = "fspi_en", "fspi";
 		power-domains = <&pd IMX_SC_R_FSPI_0>;
 		status = "disabled";
 	};

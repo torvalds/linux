@@ -1263,7 +1263,7 @@ static int __init amd_pstate_init(void)
 	 * with amd_pstate=passive or other modes in kernel command line
 	 */
 	if (cppc_state == AMD_PSTATE_DISABLE) {
-		pr_debug("driver load is disabled, boot with specific mode to enable this\n");
+		pr_info("driver load is disabled, boot with specific mode to enable this\n");
 		return -ENODEV;
 	}
 
@@ -1353,4 +1353,3 @@ early_param("amd_pstate", amd_pstate_param);
 
 MODULE_AUTHOR("Huang Rui <ray.huang@amd.com>");
 MODULE_DESCRIPTION("AMD Processor P-state Frequency Driver");
-MODULE_LICENSE("GPL");

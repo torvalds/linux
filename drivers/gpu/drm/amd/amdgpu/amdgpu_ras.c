@@ -176,7 +176,7 @@ static int amdgpu_reserve_page_direct(struct amdgpu_device *adev, uint64_t addre
 	if (amdgpu_bad_page_threshold != 0) {
 		amdgpu_ras_add_bad_pages(adev, err_data.err_addr,
 					 err_data.err_addr_cnt);
-		amdgpu_ras_save_bad_pages(adev);
+		amdgpu_ras_save_bad_pages(adev, NULL);
 	}
 
 	dev_warn(adev->dev, "WARNING: THIS IS ONLY FOR TEST PURPOSES AND WILL CORRUPT RAS EEPROM\n");
@@ -2084,22 +2084,32 @@ out:
 /*
  * write error record array to eeprom, the function should be
  * protected by recovery_lock
+ * new_cnt: new added UE count, excluding reserved bad pages, can be NULL
  */
-int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev)
+int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev,
+		unsigned long *new_cnt)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_err_handler_data *data;
 	struct amdgpu_ras_eeprom_control *control;
 	int save_count;
 
-	if (!con || !con->eh_data)
+	if (!con || !con->eh_data) {
+		if (new_cnt)
+			*new_cnt = 0;
+
 		return 0;
+	}
 
 	mutex_lock(&con->recovery_lock);
 	control = &con->eeprom_control;
 	data = con->eh_data;
 	save_count = data->count - control->ras_num_recs;
 	mutex_unlock(&con->recovery_lock);
+
+	if (new_cnt)
+		*new_cnt = save_count / adev->umc.retire_unit;
+
 	/* only new entries are saved */
 	if (save_count > 0) {
 		if (amdgpu_ras_eeprom_append(control,
@@ -2186,11 +2196,12 @@ static void amdgpu_ras_validate_threshold(struct amdgpu_device *adev,
 	/*
 	 * Justification of value bad_page_cnt_threshold in ras structure
 	 *
-	 * Generally, -1 <= amdgpu_bad_page_threshold <= max record length
-	 * in eeprom, and introduce two scenarios accordingly.
+	 * Generally, 0 <= amdgpu_bad_page_threshold <= max record length
+	 * in eeprom or amdgpu_bad_page_threshold == -2, introduce two
+	 * scenarios accordingly.
 	 *
 	 * Bad page retirement enablement:
-	 *    - If amdgpu_bad_page_threshold = -1,
+	 *    - If amdgpu_bad_page_threshold = -2,
 	 *      bad_page_cnt_threshold = typical value by formula.
 	 *
 	 *    - When the value from user is 0 < amdgpu_bad_page_threshold <
