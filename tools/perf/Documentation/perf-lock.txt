@@ -155,6 +155,7 @@ CONTENTION OPTIONS
 --tid=<value>::
         Record events on existing thread ID (comma separated list).
 
+-M::
 --map-nr-entries=<value>::
 	Maximum number of BPF map entries (default: 10240).
 

@@ -2294,7 +2294,7 @@ int cmd_lock(int argc, const char **argv)
 		   "Trace on existing process id"),
 	OPT_STRING(0, "tid", &target.tid, "tid",
 		   "Trace on existing thread id (exclusive to --pid)"),
-	OPT_CALLBACK(0, "map-nr-entries", &bpf_map_entries, "num",
+	OPT_CALLBACK('M', "map-nr-entries", &bpf_map_entries, "num",
 		     "Max number of BPF map entries", parse_map_entry),
 	OPT_CALLBACK(0, "max-stack", &max_stack_depth, "num",
 		     "Set the maximum stack depth when collecting lopck contention, "
