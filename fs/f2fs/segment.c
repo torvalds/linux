@@ -4942,9 +4942,8 @@ static int fix_curseg_write_pointer(struct f2fs_sb_info *sbi, int type)
 			    "New zone for curseg[%d] is not yet discarded. "
 			    "Reset the zone: curseg[0x%x,0x%x]",
 			    type, cs->segno, cs->next_blkoff);
-		err = __f2fs_issue_discard_zone(sbi, zbd->bdev,
-				zone_sector >> log_sectors_per_block,
-				zone.len >> log_sectors_per_block);
+		err = __f2fs_issue_discard_zone(sbi, zbd->bdev,	cs_zone_block,
+					zone.len >> log_sectors_per_block);
 		if (err) {
 			f2fs_err(sbi, "Discard zone failed: %s (errno=%d)",
 				 zbd->path, err);
