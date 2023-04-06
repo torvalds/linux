@@ -213,8 +213,8 @@ int hda_sdw_check_lcount_common(struct snd_sof_dev *sdev)
 	/* Check HW supported vs property value */
 	if (caps < ctx->count) {
 		dev_err(sdev->dev,
-			"BIOS master count %d is larger than hardware capabilities %d\n",
-			ctx->count, caps);
+			"%s: BIOS master count %d is larger than hardware capabilities %d\n",
+			__func__, ctx->count, caps);
 		return -EINVAL;
 	}
 
