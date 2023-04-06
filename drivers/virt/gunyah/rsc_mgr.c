@@ -798,6 +798,28 @@ static int gh_msgq_platform_probe_direction(struct platform_device *pdev, bool t
 	return 0;
 }
 
+static int gh_identify(void)
+{
+	struct gh_hypercall_hyp_identify_resp gh_api;
+
+	if (!arch_is_gh_guest())
+		return -ENODEV;
+
+	gh_hypercall_hyp_identify(&gh_api);
+
+	pr_info("Running under Gunyah hypervisor %llx/v%u\n",
+		FIELD_GET(GH_API_INFO_VARIANT_MASK, gh_api.api_info),
+		gh_api_version(&gh_api));
+
+	/* We might move this out to individual drivers if there's ever an API version bump */
+	if (gh_api_version(&gh_api) != GH_API_V1) {
+		pr_info("Unsupported Gunyah version: %u\n", gh_api_version(&gh_api));
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
 static int gh_rm_drv_probe(struct platform_device *pdev)
 {
 	struct irq_domain *parent_irq_domain;
@@ -805,6 +827,10 @@ static int gh_rm_drv_probe(struct platform_device *pdev)
 	struct gh_msgq_tx_data *msg;
 	struct gh_rm *rm;
 	int ret;
+
+	ret = gh_identify();
+	if (ret)
+		return ret;
 
 	rm = devm_kzalloc(&pdev->dev, sizeof(*rm), GFP_KERNEL);
 	if (!rm)
