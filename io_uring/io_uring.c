@@ -627,21 +627,23 @@ static inline void __io_cq_unlock_post(struct io_ring_ctx *ctx)
 	io_cqring_wake(ctx);
 }
 
-static inline void __io_cq_unlock_post_flush(struct io_ring_ctx *ctx)
+static void __io_cq_unlock_post_flush(struct io_ring_ctx *ctx)
 	__releases(ctx->completion_lock)
 {
 	io_commit_cqring(ctx);
-	__io_cq_unlock(ctx);
-	io_commit_cqring_flush(ctx);
 
-	/*
-	 * As ->task_complete implies that the ring is single tasked, cq_wait
-	 * may only be waited on by the current in io_cqring_wait(), but since
-	 * it will re-check the wakeup conditions once we return we can safely
-	 * skip waking it up.
-	 */
-	if (!(ctx->flags & IORING_SETUP_DEFER_TASKRUN))
+	if (ctx->task_complete) {
+		/*
+		 * ->task_complete implies that only current might be waiting
+		 * for CQEs, and obviously, we currently don't. No one is
+		 * waiting, wakeups are futile, skip them.
+		 */
+		io_commit_cqring_flush(ctx);
+	} else {
+		__io_cq_unlock(ctx);
+		io_commit_cqring_flush(ctx);
 		io_cqring_wake(ctx);
+	}
 }
 
 void io_cq_unlock_post(struct io_ring_ctx *ctx)
