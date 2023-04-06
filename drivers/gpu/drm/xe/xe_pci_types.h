@@ -13,11 +13,12 @@ struct xe_graphics_desc {
 	u8 rel;
 
 	u8 dma_mask_size;	/* available DMA address bits */
-	u8 max_tiles;		/* defaults to 1 if unset */
 	u8 vm_max_level;
 	u8 vram_flags;
 
 	u64 hw_engine_mask;	/* hardware engines provided by graphics IP */
+
+	u8 max_remote_tiles:2;
 
 	u8 has_asid:1;
 	u8 has_flat_ccs:1;

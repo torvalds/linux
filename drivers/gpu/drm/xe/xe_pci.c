@@ -124,7 +124,7 @@ static const struct xe_graphics_desc graphics_xehpc = {
 
 	XE_HP_FEATURES,
 	.dma_mask_size = 52,
-	.max_tiles = 2,
+	.max_remote_tiles = 1,
 	.vm_max_level = 4,
 	.vram_flags = XE_VRAM_FLAGS_NEED64K,
 
@@ -143,8 +143,6 @@ static const struct xe_graphics_desc graphics_xelpg = {
 		BIT(XE_HW_ENGINE_CCS0),
 
 	XE_HP_FEATURES,
-	.max_tiles = 2,
-
 	.has_flat_ccs = 0,
 };
 
@@ -388,7 +386,6 @@ static void xe_info_init(struct xe_device *xe,
 	xe->info.platform = desc->platform;
 	xe->info.dma_mask_size = desc->graphics->dma_mask_size;
 	xe->info.vram_flags = desc->graphics->vram_flags;
-	xe->info.tile_count = desc->graphics->max_tiles ?: 1;
 	xe->info.vm_max_level = desc->graphics->vm_max_level;
 	xe->info.supports_usm = desc->graphics->supports_usm;
 	xe->info.has_asid = desc->graphics->has_asid;
@@ -396,6 +393,19 @@ static void xe_info_init(struct xe_device *xe,
 	xe->info.has_4tile = desc->has_4tile;
 	xe->info.has_range_tlb_invalidation = desc->graphics->has_range_tlb_invalidation;
 	xe->info.has_link_copy_engine = desc->graphics->has_link_copy_engine;
+
+	/*
+	 * All platforms have at least one primary GT.  Any platform with media
+	 * version 13 or higher has an additional dedicated media GT.  And
+	 * depending on the graphics IP there may be additional "remote tiles."
+	 * All of these together determine the overall GT count.
+	 *
+	 * FIXME: 'tile_count' here is misnamed since the rest of the driver
+	 * treats it as the number of GTs rather than just the number of tiles.
+	 */
+	xe->info.tile_count = 1 + desc->graphics->max_remote_tiles;
+	if (MEDIA_VER(xe) >= 13)
+		xe->info.tile_count++;
 
 	xe->info.subplatform = subplatform_desc ?
 		subplatform_desc->subplatform : XE_SUBPLATFORM_NONE;
