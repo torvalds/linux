@@ -124,11 +124,18 @@ struct bpf_btf_load_opts {
 	char *log_buf;
 	__u32 log_level;
 	__u32 log_size;
+	/* output: actual total log contents size (including termintaing zero).
+	 * It could be both larger than original log_size (if log was
+	 * truncated), or smaller (if log buffer wasn't filled completely).
+	 * If kernel doesn't support this feature, log_size is left unchanged.
+	 */
+	__u32 log_true_size;
+	size_t :0;
 };
-#define bpf_btf_load_opts__last_field log_size
+#define bpf_btf_load_opts__last_field log_true_size
 
 LIBBPF_API int bpf_btf_load(const void *btf_data, size_t btf_size,
-			    const struct bpf_btf_load_opts *opts);
+			    struct bpf_btf_load_opts *opts);
 
 LIBBPF_API int bpf_map_update_elem(int fd, const void *key, const void *value,
 				   __u64 flags);

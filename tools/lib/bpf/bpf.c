@@ -1083,9 +1083,9 @@ int bpf_raw_tracepoint_open(const char *name, int prog_fd)
 	return libbpf_err_errno(fd);
 }
 
-int bpf_btf_load(const void *btf_data, size_t btf_size, const struct bpf_btf_load_opts *opts)
+int bpf_btf_load(const void *btf_data, size_t btf_size, struct bpf_btf_load_opts *opts)
 {
-	const size_t attr_sz = offsetofend(union bpf_attr, btf_log_level);
+	const size_t attr_sz = offsetofend(union bpf_attr, btf_log_true_size);
 	union bpf_attr attr;
 	char *log_buf;
 	size_t log_size;
@@ -1128,6 +1128,8 @@ int bpf_btf_load(const void *btf_data, size_t btf_size, const struct bpf_btf_loa
 		attr.btf_log_level = 1;
 		fd = sys_bpf_fd(BPF_BTF_LOAD, &attr, attr_sz);
 	}
+
+	OPTS_SET(opts, log_true_size, attr.btf_log_true_size);
 	return libbpf_err_errno(fd);
 }
 
