@@ -746,7 +746,7 @@ static int setup_initial_state(struct drm_device *drm_dev,
 
 		if (priv->crtc_funcs[pipe] &&
 		    priv->crtc_funcs[pipe]->loader_protect)
-			priv->crtc_funcs[pipe]->loader_protect(crtc, true);
+			priv->crtc_funcs[pipe]->loader_protect(crtc, true, NULL);
 	}
 
 	if (!set->fb) {
@@ -798,7 +798,7 @@ static int setup_initial_state(struct drm_device *drm_dev,
 
 error_crtc:
 	if (priv->crtc_funcs[pipe] && priv->crtc_funcs[pipe]->loader_protect)
-		priv->crtc_funcs[pipe]->loader_protect(crtc, false);
+		priv->crtc_funcs[pipe]->loader_protect(crtc, false, NULL);
 error_conn:
 	if (set->sub_dev->loader_protect)
 		set->sub_dev->loader_protect(conn_state->best_encoder, false);
@@ -994,11 +994,11 @@ void rockchip_drm_show_logo(struct drm_device *drm_dev)
 									     unset);
 				if (priv->crtc_funcs[pipe] &&
 				    priv->crtc_funcs[pipe]->loader_protect)
-					priv->crtc_funcs[pipe]->loader_protect(crtc, true);
+					priv->crtc_funcs[pipe]->loader_protect(crtc, true, NULL);
 				priv->crtc_funcs[pipe]->crtc_close(crtc);
 				if (priv->crtc_funcs[pipe] &&
 				    priv->crtc_funcs[pipe]->loader_protect)
-					priv->crtc_funcs[pipe]->loader_protect(crtc, false);
+					priv->crtc_funcs[pipe]->loader_protect(crtc, false, NULL);
 			}
 		}
 

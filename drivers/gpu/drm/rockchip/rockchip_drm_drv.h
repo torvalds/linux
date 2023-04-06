@@ -431,7 +431,7 @@ struct next_hdr_sink_data {
  * @wait_vact_end: wait the last active line.
  */
 struct rockchip_crtc_funcs {
-	int (*loader_protect)(struct drm_crtc *crtc, bool on);
+	int (*loader_protect)(struct drm_crtc *crtc, bool on, void *data);
 	int (*enable_vblank)(struct drm_crtc *crtc);
 	void (*disable_vblank)(struct drm_crtc *crtc);
 	size_t (*bandwidth)(struct drm_crtc *crtc,

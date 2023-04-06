@@ -2516,7 +2516,7 @@ static void vop_crtc_cancel_pending_vblank(struct drm_crtc *crtc,
 	spin_unlock_irqrestore(&drm->event_lock, flags);
 }
 
-static int vop_crtc_loader_protect(struct drm_crtc *crtc, bool on)
+static int vop_crtc_loader_protect(struct drm_crtc *crtc, bool on, void *data)
 {
 	struct rockchip_drm_private *private = crtc->dev->dev_private;
 	struct vop *vop = to_vop(crtc);

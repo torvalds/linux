@@ -5878,7 +5878,7 @@ static void vop2_crtc_disable_line_flag_event(struct drm_crtc *crtc)
 	spin_unlock_irqrestore(&vop2->irq_lock, flags);
 }
 
-static int vop2_crtc_loader_protect(struct drm_crtc *crtc, bool on)
+static int vop2_crtc_loader_protect(struct drm_crtc *crtc, bool on, void *data)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
