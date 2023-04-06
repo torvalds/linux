@@ -214,6 +214,57 @@ call is done from the thread assisting the interrupt handler. This is a
 building block for OP-TEE OS in secure world to implement the top half and
 bottom half style of device drivers.
 
+OPTEE_INSECURE_LOAD_IMAGE Kconfig option
+----------------------------------------
+
+The OPTEE_INSECURE_LOAD_IMAGE Kconfig option enables the ability to load the
+BL32 OP-TEE image from the kernel after the kernel boots, rather than loading
+it from the firmware before the kernel boots. This also requires enabling the
+corresponding option in Trusted Firmware for Arm. The Trusted Firmware for Arm
+documentation [8] explains the security threat associated with enabling this as
+well as mitigations at the firmware and platform level.
+
+There are additional attack vectors/mitigations for the kernel that should be
+addressed when using this option.
+
+1. Boot chain security.
+
+   * Attack vector: Replace the OP-TEE OS image in the rootfs to gain control of
+     the system.
+
+   * Mitigation: There must be boot chain security that verifies the kernel and
+     rootfs, otherwise an attacker can modify the loaded OP-TEE binary by
+     modifying it in the rootfs.
+
+2. Alternate boot modes.
+
+   * Attack vector: Using an alternate boot mode (i.e. recovery mode), the
+     OP-TEE driver isn't loaded, leaving the SMC hole open.
+
+   * Mitigation: If there are alternate methods of booting the device, such as a
+     recovery mode, it should be ensured that the same mitigations are applied
+     in that mode.
+
+3. Attacks prior to SMC invocation.
+
+   * Attack vector: Code that is executed prior to issuing the SMC call to load
+     OP-TEE can be exploited to then load an alternate OS image.
+
+   * Mitigation: The OP-TEE driver must be loaded before any potential attack
+     vectors are opened up. This should include mounting of any modifiable
+     filesystems, opening of network ports or communicating with external
+     devices (e.g. USB).
+
+4. Blocking SMC call to load OP-TEE.
+
+   * Attack vector: Prevent the driver from being probed, so the SMC call to
+     load OP-TEE isn't executed when desired, leaving it open to being executed
+     later and loading a modified OS.
+
+   * Mitigation: It is recommended to build the OP-TEE driver as builtin driver
+     rather than as a module to prevent exploits that may cause the module to
+     not be loaded.
+
 AMD-TEE driver
 ==============
 
@@ -309,3 +360,5 @@ References
 [6] include/linux/psp-tee.h
 
 [7] drivers/tee/amdtee/amdtee_if.h
+
+[8] https://trustedfirmware-a.readthedocs.io/en/latest/threat_model/threat_model.html
