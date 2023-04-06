@@ -35,7 +35,7 @@ struct perf_pmu_caps {
 };
 
 /**
- * struct perf_pmu - hi
+ * struct perf_pmu
  */
 struct perf_pmu {
 	/** @name: The name of the PMU such as "cpu". */
@@ -186,7 +186,10 @@ struct perf_pmu_alias {
 	 * default.
 	 */
 	bool deprecated;
-	/** @pmu_name: The name copied from struct perf_pmu. */
+	/**
+	 * @pmu_name: The name copied from the json struct pmu_event. This can
+	 * differ from the PMU name as it won't have suffixes.
+	 */
 	char *pmu_name;
 };
 
@@ -238,7 +241,6 @@ void pmu_add_cpu_aliases_table(struct list_head *head, struct perf_pmu *pmu,
 char *perf_pmu__getcpuid(struct perf_pmu *pmu);
 const struct pmu_events_table *pmu_events_table__find(void);
 const struct pmu_metrics_table *pmu_metrics_table__find(void);
-bool pmu_uncore_alias_match(const char *pmu_name, const char *name);
 void perf_pmu_free_alias(struct perf_pmu_alias *alias);
 
 int perf_pmu__convert_scale(const char *scale, char **end, double *sval);

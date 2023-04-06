@@ -686,11 +686,14 @@ __weak const struct pmu_metrics_table *pmu_metrics_table__find(void)
 	return perf_pmu__find_metrics_table(NULL);
 }
 
-/*
- * Suffix must be in form tok_{digits}, or tok{digits}, or same as pmu_name
- * to be valid.
+/**
+ * perf_pmu__match_ignoring_suffix - Does the pmu_name match tok ignoring any
+ *                                   trailing suffix? The Suffix must be in form
+ *                                   tok_{digits}, or tok{digits}.
+ * @pmu_name: The pmu_name with possible suffix.
+ * @tok: The possible match to pmu_name without suffix.
  */
-static bool perf_pmu__valid_suffix(const char *pmu_name, char *tok)
+static bool perf_pmu__match_ignoring_suffix(const char *pmu_name, const char *tok)
 {
 	const char *p;
 
@@ -715,10 +718,20 @@ static bool perf_pmu__valid_suffix(const char *pmu_name, char *tok)
 	return true;
 }
 
-bool pmu_uncore_alias_match(const char *pmu_name, const char *name)
+/**
+ * pmu_uncore_alias_match - does name match the PMU name?
+ * @pmu_name: the json struct pmu_event name. This may lack a suffix (which
+ *            matches) or be of the form "socket,pmuname" which will match
+ *            "socketX_pmunameY".
+ * @name: a real full PMU name as from sysfs.
+ */
+static bool pmu_uncore_alias_match(const char *pmu_name, const char *name)
 {
 	char *tmp = NULL, *tok, *str;
 	bool res;
+
+	if (strchr(pmu_name, ',') == NULL)
+		return perf_pmu__match_ignoring_suffix(name, pmu_name);
 
 	str = strdup(pmu_name);
 	if (!str)
@@ -746,7 +759,7 @@ bool pmu_uncore_alias_match(const char *pmu_name, const char *name)
 
 		name = strstr(name, tok);
 		if (!name ||
-		    (!next_tok && !perf_pmu__valid_suffix(name, tok))) {
+		    (!next_tok && !perf_pmu__match_ignoring_suffix(name, tok))) {
 			res = false;
 			goto out;
 		}
@@ -1961,7 +1974,7 @@ int perf_pmu__match(char *pattern, char *name, char *tok)
 	if (fnmatch(pattern, name, 0))
 		return -1;
 
-	if (tok && !perf_pmu__valid_suffix(name, tok))
+	if (tok && !perf_pmu__match_ignoring_suffix(name, tok))
 		return -1;
 
 	return 0;
