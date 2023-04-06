@@ -354,7 +354,7 @@ EXPORT_SYMBOL(arch_local_irq_restore);
  * disabled and marked as such, so the local_irq_enable() call
  * in arch_cpu_idle() will properly re-enable everything.
  */
-bool prep_irq_for_idle(void)
+__cpuidle bool prep_irq_for_idle(void)
 {
 	/*
 	 * First we need to hard disable to ensure no interrupt
