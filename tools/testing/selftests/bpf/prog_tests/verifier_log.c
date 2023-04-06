@@ -178,26 +178,47 @@ static void verif_log_subtest(const char *name, bool expect_load_error, int log_
 	opts.log_buf = logs.buf;
 	opts.log_level = log_level | 8; /* BPF_LOG_FIXED */
 	opts.log_size = sizeof(logs.buf);
+	opts.log_true_size = 0;
 	res = load_prog(&opts, expect_load_error);
 	ASSERT_NEQ(res, -ENOSPC, "prog_load_res_fixed");
 
 	log_true_sz_fixed = opts.log_true_size;
 	ASSERT_GT(log_true_sz_fixed, 0, "log_true_sz_fixed");
 
+	/* (FIXED, NULL) get actual log size */
+	opts.log_buf = NULL;
+	opts.log_level = log_level | 8; /* BPF_LOG_FIXED */
+	opts.log_size = 0;
+	opts.log_true_size = 0;
+	res = load_prog(&opts, expect_load_error);
+	ASSERT_NEQ(res, -ENOSPC, "prog_load_res_fixed_null");
+	ASSERT_EQ(opts.log_true_size, log_true_sz_fixed, "log_sz_fixed_null_eq");
+
 	/* (ROLLING) get actual log size */
 	opts.log_buf = logs.buf;
 	opts.log_level = log_level;
 	opts.log_size = sizeof(logs.buf);
+	opts.log_true_size = 0;
 	res = load_prog(&opts, expect_load_error);
 	ASSERT_NEQ(res, -ENOSPC, "prog_load_res_rolling");
 
 	log_true_sz_rolling = opts.log_true_size;
 	ASSERT_EQ(log_true_sz_rolling, log_true_sz_fixed, "log_true_sz_eq");
 
+	/* (ROLLING, NULL) get actual log size */
+	opts.log_buf = NULL;
+	opts.log_level = log_level;
+	opts.log_size = 0;
+	opts.log_true_size = 0;
+	res = load_prog(&opts, expect_load_error);
+	ASSERT_NEQ(res, -ENOSPC, "prog_load_res_rolling_null");
+	ASSERT_EQ(opts.log_true_size, log_true_sz_rolling, "log_true_sz_null_eq");
+
 	/* (FIXED) expect -ENOSPC for one byte short log */
 	opts.log_buf = logs.buf;
 	opts.log_level = log_level | 8; /* BPF_LOG_FIXED */
 	opts.log_size = log_true_sz_fixed - 1;
+	opts.log_true_size = 0;
 	res = load_prog(&opts, true /* should fail */);
 	ASSERT_EQ(res, -ENOSPC, "prog_load_res_too_short_fixed");
 
@@ -205,6 +226,7 @@ static void verif_log_subtest(const char *name, bool expect_load_error, int log_
 	opts.log_buf = logs.buf;
 	opts.log_level = log_level | 8; /* BPF_LOG_FIXED */
 	opts.log_size = log_true_sz_fixed;
+	opts.log_true_size = 0;
 	res = load_prog(&opts, expect_load_error);
 	ASSERT_NEQ(res, -ENOSPC, "prog_load_res_just_right_fixed");
 
@@ -219,6 +241,7 @@ static void verif_log_subtest(const char *name, bool expect_load_error, int log_
 	opts.log_buf = logs.buf;
 	opts.log_level = log_level;
 	opts.log_size = log_true_sz_rolling;
+	opts.log_true_size = 0;
 	res = load_prog(&opts, expect_load_error);
 	ASSERT_NEQ(res, -ENOSPC, "prog_load_res_just_right_rolling");
 
