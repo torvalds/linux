@@ -218,8 +218,6 @@ struct ufs_qcom_host {
 
 	struct gpio_desc *device_reset;
 
-	u32 hs_gear;
-
 	int esi_base;
 	bool esi_enabled;
 };
