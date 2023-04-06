@@ -223,4 +223,4 @@ void *sys_mmap(void *addr, size_t length, int prot, int flags, int fd,
 	return (void *)my_syscall1(__NR_mmap, &args);
 }
 #define sys_mmap sys_mmap
-#endif // _NOLIBC_ARCH_S390_H
+#endif /* _NOLIBC_ARCH_S390_H */

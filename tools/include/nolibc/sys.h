@@ -12,15 +12,15 @@
 
 /* system includes */
 #include <asm/unistd.h>
-#include <asm/signal.h>  // for SIGCHLD
+#include <asm/signal.h>  /* for SIGCHLD */
 #include <asm/ioctls.h>
 #include <asm/mman.h>
 #include <linux/fs.h>
 #include <linux/loop.h>
 #include <linux/time.h>
 #include <linux/auxvec.h>
-#include <linux/fcntl.h> // for O_* and AT_*
-#include <linux/stat.h>  // for statx()
+#include <linux/fcntl.h> /* for O_* and AT_* */
+#include <linux/stat.h>  /* for statx() */
 
 #include "arch.h"
 #include "errno.h"
@@ -322,7 +322,7 @@ static __attribute__((noreturn,unused))
 void sys_exit(int status)
 {
 	my_syscall1(__NR_exit, status & 255);
-	while(1); // shut the "noreturn" warnings.
+	while(1); /* shut the "noreturn" warnings. */
 }
 
 static __attribute__((noreturn,unused))

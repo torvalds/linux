@@ -48,6 +48,6 @@ void __stack_chk_init(void)
 	/* a bit more randomness in case getrandom() fails */
 	__stack_chk_guard ^= (uintptr_t) &__stack_chk_guard;
 }
-#endif // defined(NOLIBC_STACKPROTECTOR)
+#endif /* defined(NOLIBC_STACKPROTECTOR) */
 
-#endif // _NOLIBC_STACKPROTECTOR_H
+#endif /* _NOLIBC_STACKPROTECTOR_H */
