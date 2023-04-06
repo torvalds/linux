@@ -1602,7 +1602,7 @@ static int imx290_probe(struct i2c_client *client)
 	imx290->xclk = devm_clk_get(dev, "xclk");
 	if (IS_ERR(imx290->xclk))
 		return dev_err_probe(dev, PTR_ERR(imx290->xclk),
-				     "Could not get xclk");
+				     "Could not get xclk\n");
 
 	ret = imx290_get_regulators(dev, imx290);
 	if (ret < 0)
