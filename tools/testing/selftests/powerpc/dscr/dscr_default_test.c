@@ -9,7 +9,65 @@
  * Copyright 2012, Anton Blanchard, IBM Corporation.
  * Copyright 2015, Anshuman Khandual, IBM Corporation.
  */
+
+#define _GNU_SOURCE
+
 #include "dscr.h"
+
+#include <pthread.h>
+#include <semaphore.h>
+#include <unistd.h>
+
+static void *dscr_default_lockstep_writer(void *arg)
+{
+	sem_t *reader_sem = (sem_t *)arg;
+	sem_t *writer_sem = (sem_t *)arg + 1;
+	unsigned long expected_dscr = 0;
+
+	for (int i = 0; i < COUNT; i++) {
+		FAIL_IF_EXIT(sem_wait(writer_sem));
+
+		set_default_dscr(expected_dscr);
+		expected_dscr = (expected_dscr + 1) % DSCR_MAX;
+
+		FAIL_IF_EXIT(sem_post(reader_sem));
+	}
+
+	return NULL;
+}
+
+int dscr_default_lockstep_test(void)
+{
+	pthread_t writer;
+	sem_t rw_semaphores[2];
+	sem_t *reader_sem = &rw_semaphores[0];
+	sem_t *writer_sem = &rw_semaphores[1];
+	unsigned long expected_dscr = 0;
+
+	SKIP_IF(!have_hwcap2(PPC_FEATURE2_DSCR));
+
+	FAIL_IF(sem_init(reader_sem, 0, 0));
+	FAIL_IF(sem_init(writer_sem, 0, 1));  /* writer starts first */
+	FAIL_IF(bind_to_cpu(BIND_CPU_ANY) < 0);
+	FAIL_IF(pthread_create(&writer, NULL, dscr_default_lockstep_writer, (void *)rw_semaphores));
+
+	for (int i = 0; i < COUNT ; i++) {
+		FAIL_IF(sem_wait(reader_sem));
+
+		FAIL_IF(get_dscr() != expected_dscr);
+		FAIL_IF(get_dscr_usr() != expected_dscr);
+
+		expected_dscr = (expected_dscr + 1) % DSCR_MAX;
+
+		FAIL_IF(sem_post(writer_sem));
+	}
+
+	FAIL_IF(pthread_join(writer, NULL));
+	FAIL_IF(sem_destroy(reader_sem));
+	FAIL_IF(sem_destroy(writer_sem));
+
+	return 0;
+}
 
 static unsigned long dscr;		/* System DSCR default */
 static unsigned long sequence;
@@ -57,15 +115,12 @@ static void *do_test(void *in)
 	pthread_exit(&result[thread]);
 }
 
-int dscr_default(void)
+int dscr_default_random_test(void)
 {
 	pthread_t threads[THREADS];
 	unsigned long i, *status[THREADS];
-	unsigned long orig_dscr_default;
 
 	SKIP_IF(!have_hwcap2(PPC_FEATURE2_DSCR));
-
-	orig_dscr_default = get_default_dscr();
 
 	/* Initial DSCR default */
 	dscr = 1;
@@ -75,7 +130,7 @@ int dscr_default(void)
 	for (i = 0; i < THREADS; i++) {
 		if (pthread_create(&threads[i], NULL, do_test, (void *)i)) {
 			perror("pthread_create() failed");
-			goto fail;
+			return 1;
 		}
 	}
 
@@ -104,23 +159,31 @@ int dscr_default(void)
 	for (i = 0; i < THREADS; i++) {
 		if (pthread_join(threads[i], (void **)&(status[i]))) {
 			perror("pthread_join() failed");
-			goto fail;
+			return 1;
 		}
 
 		if (*status[i]) {
 			printf("%ldth thread failed to join with %ld status\n",
 								i, *status[i]);
-			goto fail;
+			return 1;
 		}
 	}
-	set_default_dscr(orig_dscr_default);
 	return 0;
-fail:
-	set_default_dscr(orig_dscr_default);
-	return 1;
 }
 
 int main(int argc, char *argv[])
 {
-	return test_harness(dscr_default, "dscr_default_test");
+	unsigned long orig_dscr_default = 0;
+	int err = 0;
+
+	if (have_hwcap2(PPC_FEATURE2_DSCR))
+		orig_dscr_default = get_default_dscr();
+
+	err |= test_harness(dscr_default_lockstep_test, "dscr_default_lockstep_test");
+	err |= test_harness(dscr_default_random_test, "dscr_default_random_test");
+
+	if (have_hwcap2(PPC_FEATURE2_DSCR))
+		set_default_dscr(orig_dscr_default);
+
+	return err;
 }
