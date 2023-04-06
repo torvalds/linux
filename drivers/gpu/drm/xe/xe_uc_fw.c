@@ -106,11 +106,13 @@ struct fw_blobs_by_type {
 	fw_def(DG1,		major_ver(i915,	guc,	dg1,	70, 5))		\
 	fw_def(ALDERLAKE_P,	major_ver(i915,	guc,	adlp,	70, 5))		\
 	fw_def(ALDERLAKE_S,	major_ver(i915,	guc,	tgl,	70, 5))		\
+	fw_def(ROCKETLAKE,	major_ver(i915,	guc,	tgl,	70, 5))		\
 	fw_def(TIGERLAKE,	major_ver(i915,	guc,	tgl,	70, 5))
 
 #define XE_HUC_FIRMWARE_DEFS(fw_def, mmp_ver, no_ver)				\
 	fw_def(ALDERLAKE_S,	no_ver(i915,	huc,	tgl))			\
 	fw_def(DG1,		no_ver(i915,	huc,	dg1))			\
+	fw_def(ROCKETLAKE,	no_ver(i915,	huc,	tgl))			\
 	fw_def(TIGERLAKE,	no_ver(i915,	huc,	tgl))
 
 #define MAKE_FW_PATH(dir__, uc__, shortname__, version__)			\
