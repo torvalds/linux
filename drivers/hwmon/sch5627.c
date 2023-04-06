@@ -379,7 +379,7 @@ static const struct hwmon_ops sch5627_ops = {
 	.write = sch5627_write,
 };
 
-static const struct hwmon_channel_info *sch5627_info[] = {
+static const struct hwmon_channel_info * const sch5627_info[] = {
 	HWMON_CHANNEL_INFO(chip, HWMON_C_REGISTER_TZ),
 	HWMON_CHANNEL_INFO(temp,
 			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT | HWMON_T_FAULT,
