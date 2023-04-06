@@ -228,8 +228,7 @@ static inline void io_poll_wq_wake(struct io_ring_ctx *ctx)
 				poll_to_key(EPOLL_URING_WAKE | EPOLLIN));
 }
 
-/* requires smb_mb() prior, see wq_has_sleeper() */
-static inline void __io_cqring_wake(struct io_ring_ctx *ctx)
+static inline void io_cqring_wake(struct io_ring_ctx *ctx)
 {
 	/*
 	 * Trigger waitqueue handler on all waiters on our waitqueue. This
@@ -241,15 +240,9 @@ static inline void __io_cqring_wake(struct io_ring_ctx *ctx)
 	 * waitqueue handlers, we know we have a dependency between eventfd or
 	 * epoll and should terminate multishot poll at that point.
 	 */
-	if (waitqueue_active(&ctx->cq_wait))
+	if (wq_has_sleeper(&ctx->cq_wait))
 		__wake_up(&ctx->cq_wait, TASK_NORMAL, 0,
 				poll_to_key(EPOLL_URING_WAKE | EPOLLIN));
-}
-
-static inline void io_cqring_wake(struct io_ring_ctx *ctx)
-{
-	smp_mb();
-	__io_cqring_wake(ctx);
 }
 
 static inline bool io_sqring_full(struct io_ring_ctx *ctx)

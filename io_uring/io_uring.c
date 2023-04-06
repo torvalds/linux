@@ -640,10 +640,8 @@ static inline void __io_cq_unlock_post_flush(struct io_ring_ctx *ctx)
 	 * it will re-check the wakeup conditions once we return we can safely
 	 * skip waking it up.
 	 */
-	if (!(ctx->flags & IORING_SETUP_DEFER_TASKRUN)) {
-		smp_mb();
-		__io_cqring_wake(ctx);
-	}
+	if (!(ctx->flags & IORING_SETUP_DEFER_TASKRUN))
+		io_cqring_wake(ctx);
 }
 
 void io_cq_unlock_post(struct io_ring_ctx *ctx)
