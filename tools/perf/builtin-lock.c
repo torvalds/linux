@@ -1557,7 +1557,7 @@ static const struct {
 	{ LCB_F_SPIN | LCB_F_WRITE,	"rwlock:W",	"rwlock" },
 	{ LCB_F_READ,			"rwsem:R",	"rwsem" },
 	{ LCB_F_WRITE,			"rwsem:W",	"rwsem" },
-	{ LCB_F_RT,			"rt=mutex",	"rt-mutex" },
+	{ LCB_F_RT,			"rt-mutex",	"rt-mutex" },
 	{ LCB_F_RT | LCB_F_READ,	"rwlock-rt:R",	"rwlock-rt" },
 	{ LCB_F_RT | LCB_F_WRITE,	"rwlock-rt:W",	"rwlock-rt" },
 	{ LCB_F_PERCPU | LCB_F_READ,	"pcpu-sem:R",	"percpu-rwsem" },
@@ -1594,6 +1594,10 @@ static unsigned int get_type_flag(const char *str)
 {
 	for (unsigned int i = 0; i < ARRAY_SIZE(lock_type_table); i++) {
 		if (!strcmp(lock_type_table[i].name, str))
+			return lock_type_table[i].flags;
+	}
+	for (unsigned int i = 0; i < ARRAY_SIZE(lock_type_table); i++) {
+		if (!strcmp(lock_type_table[i].str, str))
 			return lock_type_table[i].flags;
 	}
 	return UINT_MAX;
@@ -2121,45 +2125,14 @@ static int parse_lock_type(const struct option *opt __maybe_unused, const char *
 		unsigned int flags = get_type_flag(tok);
 
 		if (flags == -1U) {
-			char buf[32];
-
-			if (strchr(tok, ':'))
-			    continue;
-
-			/* try :R and :W suffixes for rwlock, rwsem, ... */
-			scnprintf(buf, sizeof(buf), "%s:R", tok);
-			flags = get_type_flag(buf);
-			if (flags != UINT_MAX) {
-				if (!add_lock_type(flags)) {
-					ret = -1;
-					break;
-				}
-			}
-
-			scnprintf(buf, sizeof(buf), "%s:W", tok);
-			flags = get_type_flag(buf);
-			if (flags != UINT_MAX) {
-				if (!add_lock_type(flags)) {
-					ret = -1;
-					break;
-				}
-			}
-			continue;
+			pr_err("Unknown lock flags: %s\n", tok);
+			ret = -1;
+			break;
 		}
 
 		if (!add_lock_type(flags)) {
 			ret = -1;
 			break;
-		}
-
-		if (!strcmp(tok, "mutex")) {
-			flags = get_type_flag("mutex-spin");
-			if (flags != UINT_MAX) {
-				if (!add_lock_type(flags)) {
-					ret = -1;
-					break;
-				}
-			}
 		}
 	}
 
