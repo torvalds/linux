@@ -308,7 +308,8 @@ static void drm_sched_start_timeout(struct drm_gpu_scheduler *sched)
  */
 void drm_sched_fault(struct drm_gpu_scheduler *sched)
 {
-	mod_delayed_work(sched->timeout_wq, &sched->work_tdr, 0);
+	if (sched->ready)
+		mod_delayed_work(sched->timeout_wq, &sched->work_tdr, 0);
 }
 EXPORT_SYMBOL(drm_sched_fault);
 
