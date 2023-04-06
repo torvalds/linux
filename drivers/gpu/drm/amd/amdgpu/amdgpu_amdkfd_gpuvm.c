@@ -272,15 +272,19 @@ create_dmamap_sg_bo(struct amdgpu_device *adev,
 		 struct kgd_mem *mem, struct amdgpu_bo **bo_out)
 {
 	struct drm_gem_object *gem_obj;
-	int ret, align;
+	int ret;
+	uint64_t flags = 0;
 
 	ret = amdgpu_bo_reserve(mem->bo, false);
 	if (ret)
 		return ret;
 
-	align = 1;
-	ret = amdgpu_gem_object_create(adev, mem->bo->tbo.base.size, align,
-			AMDGPU_GEM_DOMAIN_CPU, AMDGPU_GEM_CREATE_PREEMPTIBLE,
+	if (mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_USERPTR)
+		flags |= mem->bo->flags & (AMDGPU_GEM_CREATE_COHERENT |
+					AMDGPU_GEM_CREATE_UNCACHED);
+
+	ret = amdgpu_gem_object_create(adev, mem->bo->tbo.base.size, 1,
+			AMDGPU_GEM_DOMAIN_CPU, AMDGPU_GEM_CREATE_PREEMPTIBLE | flags,
 			ttm_bo_type_sg, mem->bo->tbo.base.resv, &gem_obj);
 
 	amdgpu_bo_unreserve(mem->bo);
