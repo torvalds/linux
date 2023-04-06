@@ -62,6 +62,50 @@ int xe_call_for_each_device(xe_device_fn xe_fn)
 	return ret;
 }
 
+/**
+ * xe_call_for_each_graphics_ip - Iterate over all recognized graphics IPs
+ * @xe_fn: Function to call for each device.
+ *
+ * This function iterates over the descriptors for all graphics IPs recognized
+ * by the driver and calls @xe_fn: for each one of them.
+ */
+void xe_call_for_each_graphics_ip(xe_graphics_fn xe_fn)
+{
+	const struct xe_graphics_desc *ip, *last = NULL;
+
+	for (int i = 0; i < ARRAY_SIZE(graphics_ip_map); i++) {
+		ip = graphics_ip_map[i].ip;
+		if (ip == last)
+			continue;
+
+		xe_fn(ip);
+		last = ip;
+	}
+}
+EXPORT_SYMBOL_IF_KUNIT(xe_call_for_each_graphics_ip);
+
+/**
+ * xe_call_for_each_media_ip - Iterate over all recognized media IPs
+ * @xe_fn: Function to call for each device.
+ *
+ * This function iterates over the descriptors for all media IPs recognized
+ * by the driver and calls @xe_fn: for each one of them.
+ */
+void xe_call_for_each_media_ip(xe_media_fn xe_fn)
+{
+	const struct xe_media_desc *ip, *last = NULL;
+
+	for (int i = 0; i < ARRAY_SIZE(media_ip_map); i++) {
+		ip = media_ip_map[i].ip;
+		if (ip == last)
+			continue;
+
+		xe_fn(ip);
+		last = ip;
+	}
+}
+EXPORT_SYMBOL_IF_KUNIT(xe_call_for_each_media_ip);
+
 int xe_pci_fake_device_init(struct xe_device *xe, enum xe_platform platform,
 			    enum xe_subplatform subplatform)
 {
