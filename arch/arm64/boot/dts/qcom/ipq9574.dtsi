@@ -422,6 +422,24 @@
 			timeout-sec = <30>;
 		};
 
+		apcs_glb: mailbox@b111000 {
+			compatible = "qcom,ipq9574-apcs-apps-global",
+				     "qcom,ipq6018-apcs-apps-global";
+			reg = <0x0b111000 0x1000>;
+			#clock-cells = <1>;
+			clocks = <&a73pll>, <&xo_board_clk>;
+			clock-names = "pll", "xo";
+			#mbox-cells = <1>;
+		};
+
+		a73pll: clock@b116000 {
+			compatible = "qcom,ipq9574-a73pll";
+			reg = <0x0b116000 0x40>;
+			#clock-cells = <0>;
+			clocks = <&xo_board_clk>;
+			clock-names = "xo";
+		};
+
 		timer@b120000 {
 			compatible = "arm,armv7-timer-mem";
 			reg = <0x0b120000 0x1000>;
