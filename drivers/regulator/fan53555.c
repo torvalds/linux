@@ -41,23 +41,23 @@
 #define FAN53555_MONITOR	0x05
 
 /* VSEL bit definitions */
-#define VSEL_BUCK_EN	(1 << 7)
-#define VSEL_MODE		(1 << 6)
+#define VSEL_BUCK_EN		BIT(7)
+#define VSEL_MODE		BIT(6)
 /* Chip ID and Verison */
-#define DIE_ID		0x0F	/* ID1 */
-#define DIE_REV		0x0F	/* ID2 */
+#define DIE_ID			0x0F	/* ID1 */
+#define DIE_REV			0x0F	/* ID2 */
 /* Control bit definitions */
-#define CTL_OUTPUT_DISCHG	(1 << 7)
-#define CTL_SLEW_MASK		(0x7 << 4)
-#define CTL_RESET			(1 << 2)
+#define CTL_OUTPUT_DISCHG	BIT(7)
+#define CTL_SLEW_MASK		GENMASK(6, 4)
+#define CTL_RESET		BIT(2)
 #define CTL_MODE_VSEL0_MODE	BIT(0)
 #define CTL_MODE_VSEL1_MODE	BIT(1)
 
 #define FAN53555_NVOLTAGES	64	/* Numbers of voltages */
 #define FAN53526_NVOLTAGES	128
 
-#define TCS_VSEL0_MODE		(1 << 7)
-#define TCS_VSEL1_MODE		(1 << 6)
+#define TCS_VSEL0_MODE		BIT(7)
+#define TCS_VSEL1_MODE		BIT(6)
 
 #define TCS_SLEW_MASK		GENMASK(4, 3)
 
