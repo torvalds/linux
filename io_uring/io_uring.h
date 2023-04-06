@@ -16,6 +16,11 @@
 #endif
 
 enum {
+	/* don't use deferred task_work */
+	IOU_F_TWQ_FORCE_NORMAL			= 1,
+};
+
+enum {
 	IOU_OK			= 0,
 	IOU_ISSUE_SKIP_COMPLETE	= -EIOCBQUEUED,
 
@@ -48,7 +53,7 @@ static inline bool io_req_ffs_set(struct io_kiocb *req)
 	return req->flags & REQ_F_FIXED_FILE;
 }
 
-void __io_req_task_work_add(struct io_kiocb *req, bool allow_local);
+void __io_req_task_work_add(struct io_kiocb *req, unsigned flags);
 bool io_is_uring_fops(struct file *file);
 bool io_alloc_async_data(struct io_kiocb *req);
 void io_req_task_queue(struct io_kiocb *req);
@@ -93,7 +98,7 @@ bool io_match_task_safe(struct io_kiocb *head, struct task_struct *task,
 
 static inline void io_req_task_work_add(struct io_kiocb *req)
 {
-	__io_req_task_work_add(req, true);
+	__io_req_task_work_add(req, 0);
 }
 
 #define io_for_each_link(pos, head) \
