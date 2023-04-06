@@ -76,6 +76,10 @@
 #define GC4653_MIRROR_BIT_MASK		BIT(0)
 #define GC4653_FLIP_BIT_MASK		BIT(1)
 
+#define GC4653_FRAME_BUFFER_REG         0x031d
+#define GC4653_FRAME_BUFFER_START       0x2d
+#define GC4653_FRAME_BUFFER_END         0x28
+
 #define REG_NULL			0xFFFF
 
 #define GC4653_REG_VALUE_08BIT		1
@@ -1254,8 +1258,12 @@ static int gc4653_set_ctrl(struct v4l2_ctrl *ctrl)
 			val |= GC4653_MIRROR_BIT_MASK;
 		else
 			val &= ~GC4653_MIRROR_BIT_MASK;
+		ret |= gc4653_write_reg(gc4653->client, GC4653_FRAME_BUFFER_REG,
+					GC4653_REG_VALUE_08BIT, GC4653_FRAME_BUFFER_START);
 		ret |= gc4653_write_reg(gc4653->client, GC4653_FLIP_MIRROR_REG,
 					GC4653_REG_VALUE_08BIT, val);
+		ret |= gc4653_write_reg(gc4653->client, GC4653_FRAME_BUFFER_REG,
+					GC4653_REG_VALUE_08BIT, GC4653_FRAME_BUFFER_END);
 		break;
 	case V4L2_CID_VFLIP:
 		ret = gc4653_read_reg(gc4653->client, GC4653_FLIP_MIRROR_REG,
@@ -1264,8 +1272,12 @@ static int gc4653_set_ctrl(struct v4l2_ctrl *ctrl)
 			val |= GC4653_FLIP_BIT_MASK;
 		else
 			val &= ~GC4653_FLIP_BIT_MASK;
+		ret |= gc4653_write_reg(gc4653->client, GC4653_FRAME_BUFFER_REG,
+					GC4653_REG_VALUE_08BIT, GC4653_FRAME_BUFFER_START);
 		ret |= gc4653_write_reg(gc4653->client, GC4653_FLIP_MIRROR_REG,
 					GC4653_REG_VALUE_08BIT, val);
+		ret |= gc4653_write_reg(gc4653->client, GC4653_FRAME_BUFFER_REG,
+					GC4653_REG_VALUE_08BIT, GC4653_FRAME_BUFFER_END);
 		break;
 	default:
 		dev_warn(&client->dev, "%s Unhandled id:0x%x, val:0x%x\n",
