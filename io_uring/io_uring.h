@@ -18,6 +18,15 @@
 enum {
 	/* don't use deferred task_work */
 	IOU_F_TWQ_FORCE_NORMAL			= 1,
+
+	/*
+	 * A hint to not wake right away but delay until there are enough of
+	 * tw's queued to match the number of CQEs the task is waiting for.
+	 *
+	 * Must not be used wirh requests generating more than one CQE.
+	 * It's also ignored unless IORING_SETUP_DEFER_TASKRUN is set.
+	 */
+	IOU_F_TWQ_LAZY_WAKE			= 2,
 };
 
 enum {

@@ -33,7 +33,7 @@ static inline void io_notif_flush(struct io_kiocb *notif)
 
 	/* drop slot's master ref */
 	if (refcount_dec_and_test(&nd->uarg.refcnt))
-		io_req_task_work_add(notif);
+		__io_req_task_work_add(notif, IOU_F_TWQ_LAZY_WAKE);
 }
 
 static inline int io_notif_account_mem(struct io_kiocb *notif, unsigned len)

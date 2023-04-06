@@ -31,7 +31,7 @@ static void io_tx_ubuf_callback(struct sk_buff *skb, struct ubuf_info *uarg,
 	struct io_kiocb *notif = cmd_to_io_kiocb(nd);
 
 	if (refcount_dec_and_test(&uarg->refcnt))
-		io_req_task_work_add(notif);
+		__io_req_task_work_add(notif, IOU_F_TWQ_LAZY_WAKE);
 }
 
 static void io_tx_ubuf_callback_ext(struct sk_buff *skb, struct ubuf_info *uarg,

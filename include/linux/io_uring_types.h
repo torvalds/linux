@@ -296,7 +296,7 @@ struct io_ring_ctx {
 		spinlock_t		completion_lock;
 
 		bool			poll_multi_queue;
-		bool			cq_waiting;
+		atomic_t		cq_wait_nr;
 
 		/*
 		 * ->iopoll_list is protected by the ctx->uring_lock for
@@ -566,6 +566,7 @@ struct io_kiocb {
 	atomic_t			refs;
 	atomic_t			poll_refs;
 	struct io_task_work		io_task_work;
+	unsigned			nr_tw;
 	/* for polled requests, i.e. IORING_OP_POLL_ADD and async armed poll */
 	union {
 		struct hlist_node	hash_node;

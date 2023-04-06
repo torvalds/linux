@@ -1300,35 +1300,59 @@ static __cold void io_fallback_tw(struct io_uring_task *tctx)
 	}
 }
 
-static void io_req_local_work_add(struct io_kiocb *req)
+static void io_req_local_work_add(struct io_kiocb *req, unsigned flags)
 {
 	struct io_ring_ctx *ctx = req->ctx;
+	unsigned nr_wait, nr_tw, nr_tw_prev;
 	struct llist_node *first;
+
+	if (req->flags & (REQ_F_LINK | REQ_F_HARDLINK))
+		flags &= ~IOU_F_TWQ_LAZY_WAKE;
 
 	first = READ_ONCE(ctx->work_llist.first);
 	do {
+		nr_tw_prev = 0;
+		if (first) {
+			struct io_kiocb *first_req = container_of(first,
+							struct io_kiocb,
+							io_task_work.node);
+			/*
+			 * Might be executed at any moment, rely on
+			 * SLAB_TYPESAFE_BY_RCU to keep it alive.
+			 */
+			nr_tw_prev = READ_ONCE(first_req->nr_tw);
+		}
+		nr_tw = nr_tw_prev + 1;
+		/* Large enough to fail the nr_wait comparison below */
+		if (!(flags & IOU_F_TWQ_LAZY_WAKE))
+			nr_tw = -1U;
+
+		req->nr_tw = nr_tw;
 		req->io_task_work.node.next = first;
 	} while (!try_cmpxchg(&ctx->work_llist.first, &first,
 			      &req->io_task_work.node));
 
-	if (first)
-		return;
-
-	/* needed for the following wake up */
-	smp_mb__after_atomic();
-
-	if (unlikely(atomic_read(&req->task->io_uring->in_cancel))) {
-		io_move_task_work_from_local(ctx);
-		return;
+	if (!first) {
+		if (unlikely(atomic_read(&req->task->io_uring->in_cancel))) {
+			io_move_task_work_from_local(ctx);
+			return;
+		}
+		if (ctx->flags & IORING_SETUP_TASKRUN_FLAG)
+			atomic_or(IORING_SQ_TASKRUN, &ctx->rings->sq_flags);
+		if (ctx->has_evfd)
+			io_eventfd_signal(ctx);
 	}
 
-	if (ctx->flags & IORING_SETUP_TASKRUN_FLAG)
-		atomic_or(IORING_SQ_TASKRUN, &ctx->rings->sq_flags);
-	if (ctx->has_evfd)
-		io_eventfd_signal(ctx);
-
-	if (READ_ONCE(ctx->cq_waiting))
-		wake_up_state(ctx->submitter_task, TASK_INTERRUPTIBLE);
+	nr_wait = atomic_read(&ctx->cq_wait_nr);
+	/* no one is waiting */
+	if (!nr_wait)
+		return;
+	/* either not enough or the previous add has already woken it up */
+	if (nr_wait > nr_tw || nr_tw_prev >= nr_wait)
+		return;
+	/* pairs with set_current_state() in io_cqring_wait() */
+	smp_mb__after_atomic();
+	wake_up_state(ctx->submitter_task, TASK_INTERRUPTIBLE);
 }
 
 void __io_req_task_work_add(struct io_kiocb *req, unsigned flags)
@@ -1339,7 +1363,7 @@ void __io_req_task_work_add(struct io_kiocb *req, unsigned flags)
 	if (!(flags & IOU_F_TWQ_FORCE_NORMAL) &&
 	    (ctx->flags & IORING_SETUP_DEFER_TASKRUN)) {
 		rcu_read_lock();
-		io_req_local_work_add(req);
+		io_req_local_work_add(req, flags);
 		rcu_read_unlock();
 		return;
 	}
@@ -2625,7 +2649,9 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 		unsigned long check_cq;
 
 		if (ctx->flags & IORING_SETUP_DEFER_TASKRUN) {
-			WRITE_ONCE(ctx->cq_waiting, 1);
+			int nr_wait = (int) iowq.cq_tail - READ_ONCE(ctx->rings->cq.tail);
+
+			atomic_set(&ctx->cq_wait_nr, nr_wait);
 			set_current_state(TASK_INTERRUPTIBLE);
 		} else {
 			prepare_to_wait_exclusive(&ctx->cq_wait, &iowq.wq,
@@ -2634,7 +2660,7 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 
 		ret = io_cqring_wait_schedule(ctx, &iowq);
 		__set_current_state(TASK_RUNNING);
-		WRITE_ONCE(ctx->cq_waiting, 0);
+		atomic_set(&ctx->cq_wait_nr, 0);
 
 		if (ret < 0)
 			break;
@@ -4517,7 +4543,7 @@ static int __init io_uring_init(void)
 	io_uring_optable_init();
 
 	req_cachep = KMEM_CACHE(io_kiocb, SLAB_HWCACHE_ALIGN | SLAB_PANIC |
-				SLAB_ACCOUNT);
+				SLAB_ACCOUNT | SLAB_TYPESAFE_BY_RCU);
 	return 0;
 };
 __initcall(io_uring_init);
