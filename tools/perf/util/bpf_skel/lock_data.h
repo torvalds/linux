@@ -15,6 +15,9 @@ struct contention_task_data {
 	char comm[TASK_COMM_LEN];
 };
 
+/* default buffer size */
+#define MAX_ENTRIES  16384
+
 /*
  * Upper bits of the flags in the contention_data are used to identify
  * some well-known locks which do not have symbols (non-global locks).

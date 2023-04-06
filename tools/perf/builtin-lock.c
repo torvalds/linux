@@ -60,7 +60,7 @@ static bool show_thread_stats;
 static bool show_lock_addrs;
 static bool show_lock_owner;
 static bool use_bpf;
-static unsigned long bpf_map_entries = 10240;
+static unsigned long bpf_map_entries = MAX_ENTRIES;
 static int max_stack_depth = CONTENTION_STACK_DEPTH;
 static int stack_skip = CONTENTION_STACK_SKIP;
 static int print_nr_entries = INT_MAX / 2;

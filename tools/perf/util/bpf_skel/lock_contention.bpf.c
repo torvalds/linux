@@ -7,9 +7,6 @@
 
 #include "lock_data.h"
 
-/* default buffer size */
-#define MAX_ENTRIES  10240
-
 /* for collect_lock_syms().  4096 was rejected by the verifier */
 #define MAX_CPUS  1024
 
@@ -63,7 +60,7 @@ struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
 	__uint(key_size, sizeof(__u64));
 	__uint(value_size, sizeof(__u32));
-	__uint(max_entries, 16384);
+	__uint(max_entries, MAX_ENTRIES);
 } lock_syms SEC(".maps");
 
 struct {
