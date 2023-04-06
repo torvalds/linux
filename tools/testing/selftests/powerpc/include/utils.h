@@ -31,6 +31,8 @@ int read_auxv(char *buf, ssize_t buf_size);
 void *find_auxv_entry(int type, char *auxv);
 void *get_auxv_entry(int type);
 
+#define BIND_CPU_ANY	(-1)
+
 int pick_online_cpu(void);
 int bind_to_cpu(int cpu);
 

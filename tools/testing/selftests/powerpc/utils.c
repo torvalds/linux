@@ -455,13 +455,24 @@ done:
 int bind_to_cpu(int cpu)
 {
 	cpu_set_t mask;
+	int err;
+
+	if (cpu == BIND_CPU_ANY) {
+		cpu = pick_online_cpu();
+		if (cpu < 0)
+			return cpu;
+	}
 
 	printf("Binding to cpu %d\n", cpu);
 
 	CPU_ZERO(&mask);
 	CPU_SET(cpu, &mask);
 
-	return sched_setaffinity(0, sizeof(mask), &mask);
+	err = sched_setaffinity(0, sizeof(mask), &mask);
+	if (err)
+		return err;
+
+	return cpu;
 }
 
 bool is_ppc64le(void)
