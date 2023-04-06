@@ -90,6 +90,7 @@ enum {
 	 * added in HW Version 3.0.0
 	 */
 	UFS_AH8_CFG				= 0xFC,
+	UFS_RD_REG_MCQ			= 0xD00,
 	UFS_MEM_ICE				= 0x2600,
 	REG_UFS_DEBUG_SPARE_CFG			= 0x284C,
 
