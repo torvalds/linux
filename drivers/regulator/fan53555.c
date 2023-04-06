@@ -49,7 +49,6 @@
 /* Control bit definitions */
 #define CTL_OUTPUT_DISCHG	(1 << 7)
 #define CTL_SLEW_MASK		(0x7 << 4)
-#define CTL_SLEW_SHIFT		4
 #define CTL_RESET			(1 << 2)
 #define CTL_MODE_VSEL0_MODE	BIT(0)
 #define CTL_MODE_VSEL1_MODE	BIT(1)
@@ -60,7 +59,6 @@
 #define TCS_VSEL0_MODE		(1 << 7)
 #define TCS_VSEL1_MODE		(1 << 6)
 
-#define TCS_SLEW_SHIFT		3
 #define TCS_SLEW_MASK		GENMASK(4, 3)
 
 enum fan53555_vendor {
