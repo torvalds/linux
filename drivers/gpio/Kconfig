@@ -1733,6 +1733,14 @@ config GPIO_AGGREGATOR
 	      industrial control context, to be operated from userspace using
 	      the GPIO chardev interface.
 
+config GPIO_DELAY
+	tristate "GPIO delay"
+	help
+	  Say yes here to enable the GPIO delay, which provides a way to
+	  configure platform specific delays for GPIO ramp-up or ramp-down
+	  delays. This can serve the following purposes:
+	    - Open-drain output using an RC filter
+
 config GPIO_LATCH
 	tristate "GPIO latch driver"
 	help
