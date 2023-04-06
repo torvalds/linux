@@ -444,21 +444,6 @@ static int validate_ctr_version(const u64 config, enum cpumf_ctr_set set)
 	return err;
 }
 
-static int validate_ctr_auth(const struct hw_perf_event *hwc)
-{
-	int err = -ENOENT;
-
-	/* Check authorization for cpu counter sets.
-	 * If the particular CPU counter set is not authorized,
-	 * return with -ENOENT in order to fall back to other
-	 * PMUs that might suffice the event request.
-	 */
-	if ((hwc->config_base & cpumf_ctr_info.auth_ctl))
-		err = 0;
-
-	return err;
-}
-
 /*
  * Change the CPUMF state to active.
  * Enable and activate the CPU-counter sets according
@@ -596,7 +581,6 @@ static int __hw_perf_event_init(struct perf_event *event, unsigned int type)
 	struct perf_event_attr *attr = &event->attr;
 	struct hw_perf_event *hwc = &event->hw;
 	enum cpumf_ctr_set set;
-	int err = 0;
 	u64 ev;
 
 	switch (type) {
@@ -672,12 +656,15 @@ static int __hw_perf_event_init(struct perf_event *event, unsigned int type)
 	cpumf_hw_inuse();
 	event->destroy = hw_perf_event_destroy;
 
-	/* Finally, validate version and authorization of the counter set */
-	err = validate_ctr_auth(hwc);
-	if (!err)
-		err = validate_ctr_version(hwc->config, set);
-
-	return err;
+	/*
+	 * Finally, validate version and authorization of the counter set.
+	 * If the particular CPU counter set is not authorized,
+	 * return with -ENOENT in order to fall back to other
+	 * PMUs that might suffice the event request.
+	 */
+	if (!(hwc->config_base & cpumf_ctr_info.auth_ctl))
+		return -ENOENT;
+	return validate_ctr_version(hwc->config, set);
 }
 
 /* Events CPU_CYLCES and INSTRUCTIONS can be submitted with two different
