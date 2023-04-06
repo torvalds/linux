@@ -9,6 +9,7 @@
 #include <linux/types.h>
 
 struct xe_graphics_desc {
+	const char *name;
 	u8 ver;
 	u8 rel;
 
@@ -28,6 +29,7 @@ struct xe_graphics_desc {
 };
 
 struct xe_media_desc {
+	const char *name;
 	u8 ver;
 	u8 rel;
 

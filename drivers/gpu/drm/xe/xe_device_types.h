@@ -51,6 +51,10 @@ struct xe_device {
 
 	/** @info: device info */
 	struct intel_device_info {
+		/** @graphics_name: graphics IP name */
+		const char *graphics_name;
+		/** @media_name: media IP name */
+		const char *media_name;
 		/** @graphics_verx100: graphics IP version */
 		u32 graphics_verx100;
 		/** @media_verx100: media IP version */
