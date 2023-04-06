@@ -2487,6 +2487,9 @@ static int sfp_module_eeprom(struct sfp *sfp, struct ethtool_eeprom *ee,
 	unsigned int first, last, len;
 	int ret;
 
+	if (!(sfp->state & SFP_F_PRESENT))
+		return -ENODEV;
+
 	if (ee->len == 0)
 		return -EINVAL;
 
@@ -2519,6 +2522,9 @@ static int sfp_module_eeprom_by_page(struct sfp *sfp,
 				     const struct ethtool_module_eeprom *page,
 				     struct netlink_ext_ack *extack)
 {
+	if (!(sfp->state & SFP_F_PRESENT))
+		return -ENODEV;
+
 	if (page->bank) {
 		NL_SET_ERR_MSG(extack, "Banks not supported");
 		return -EOPNOTSUPP;
