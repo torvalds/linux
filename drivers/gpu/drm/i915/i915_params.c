@@ -121,6 +121,9 @@ i915_param_named_unsafe(enable_psr2_sel_fetch, bool, 0400,
 	"(0=disabled, 1=enabled) "
 	"Default: 0");
 
+i915_param_named_unsafe(enable_sagv, bool, 0600,
+	"Enable system agent voltage/frequency scaling (SAGV) (default: true)");
+
 i915_param_named_unsafe(force_probe, charp, 0400,
 	"Force probe options for specified supported devices. "
 	"See CONFIG_DRM_I915_FORCE_PROBE for details.");
@@ -130,6 +133,9 @@ i915_param_named_unsafe(disable_power_well, int, 0400,
 	"(-1=auto [default], 0=power wells always on, 1=power wells disabled when possible)");
 
 i915_param_named_unsafe(enable_ips, int, 0400, "Enable IPS (default: true)");
+
+i915_param_named_unsafe(enable_dpt, bool, 0400,
+	"Enable display page table (DPT) (default: true)");
 
 i915_param_named(fastboot, int, 0400,
 	"Try to skip unnecessary mode sets at boot time "

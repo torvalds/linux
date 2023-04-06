@@ -14,6 +14,7 @@ static void hsw_ips_enable(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	u32 val;
 
 	if (!crtc_state->ips_enabled)
 		return;
@@ -26,10 +27,15 @@ static void hsw_ips_enable(const struct intel_crtc_state *crtc_state)
 	drm_WARN_ON(&i915->drm,
 		    !(crtc_state->active_planes & ~BIT(PLANE_CURSOR)));
 
+	val = IPS_ENABLE;
+
+	if (i915->display.ips.false_color)
+		val |= IPS_FALSE_COLOR;
+
 	if (IS_BROADWELL(i915)) {
 		drm_WARN_ON(&i915->drm,
 			    snb_pcode_write(&i915->uncore, DISPLAY_IPS_CONTROL,
-					    IPS_ENABLE | IPS_PCODE_CONTROL));
+					    val | IPS_PCODE_CONTROL));
 		/*
 		 * Quoting Art Runyan: "its not safe to expect any particular
 		 * value in IPS_CTL bit 31 after enabling IPS through the
@@ -37,7 +43,7 @@ static void hsw_ips_enable(const struct intel_crtc_state *crtc_state)
 		 * so we need to just enable it and continue on.
 		 */
 	} else {
-		intel_de_write(i915, IPS_CTL, IPS_ENABLE);
+		intel_de_write(i915, IPS_CTL, val);
 		/*
 		 * The bit only becomes 1 in the next vblank, so this wait here
 		 * is essentially intel_wait_for_vblank. If we don't have this
@@ -268,13 +274,56 @@ void hsw_ips_get_config(struct intel_crtc_state *crtc_state)
 	}
 }
 
+static int hsw_ips_debugfs_false_color_get(void *data, u64 *val)
+{
+	struct intel_crtc *crtc = data;
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+
+	*val = i915->display.ips.false_color;
+
+	return 0;
+}
+
+static int hsw_ips_debugfs_false_color_set(void *data, u64 val)
+{
+	struct intel_crtc *crtc = data;
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct intel_crtc_state *crtc_state;
+	int ret;
+
+	ret = drm_modeset_lock(&crtc->base.mutex, NULL);
+	if (ret)
+		return ret;
+
+	i915->display.ips.false_color = val;
+
+	crtc_state = to_intel_crtc_state(crtc->base.state);
+
+	if (!crtc_state->hw.active)
+		goto unlock;
+
+	if (crtc_state->uapi.commit &&
+	    !try_wait_for_completion(&crtc_state->uapi.commit->hw_done))
+		goto unlock;
+
+	hsw_ips_enable(crtc_state);
+
+ unlock:
+	drm_modeset_unlock(&crtc->base.mutex);
+
+	return ret;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(hsw_ips_debugfs_false_color_fops,
+			 hsw_ips_debugfs_false_color_get,
+			 hsw_ips_debugfs_false_color_set,
+			 "%llu\n");
+
 static int hsw_ips_debugfs_status_show(struct seq_file *m, void *unused)
 {
-	struct drm_i915_private *i915 = m->private;
+	struct intel_crtc *crtc = m->private;
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	intel_wakeref_t wakeref;
-
-	if (!HAS_IPS(i915))
-		return -ENODEV;
 
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
@@ -297,10 +346,14 @@ static int hsw_ips_debugfs_status_show(struct seq_file *m, void *unused)
 
 DEFINE_SHOW_ATTRIBUTE(hsw_ips_debugfs_status);
 
-void hsw_ips_debugfs_register(struct drm_i915_private *i915)
+void hsw_ips_crtc_debugfs_add(struct intel_crtc *crtc)
 {
-	struct drm_minor *minor = i915->drm.primary;
+	if (!hsw_crtc_supports_ips(crtc))
+		return;
 
-	debugfs_create_file("i915_ips_status", 0444, minor->debugfs_root,
-			    i915, &hsw_ips_debugfs_status_fops);
+	debugfs_create_file("i915_ips_false_color", 0644, crtc->base.debugfs_entry,
+			    crtc, &hsw_ips_debugfs_false_color_fops);
+
+	debugfs_create_file("i915_ips_status", 0444, crtc->base.debugfs_entry,
+			    crtc, &hsw_ips_debugfs_status_fops);
 }

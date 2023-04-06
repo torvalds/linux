@@ -60,6 +60,7 @@ struct __intel_global_objs_state;
 struct intel_ddi_buf_trans;
 struct intel_fbc;
 struct intel_connector;
+struct intel_tc_port;
 
 /*
  * Display related stuff
@@ -169,9 +170,6 @@ struct intel_encoder {
 	int (*compute_config_late)(struct intel_encoder *,
 				   struct intel_crtc_state *,
 				   struct drm_connector_state *);
-	void (*update_prepare)(struct intel_atomic_state *,
-			       struct intel_encoder *,
-			       struct intel_crtc *);
 	void (*pre_pll_enable)(struct intel_atomic_state *,
 			       struct intel_encoder *,
 			       const struct intel_crtc_state *,
@@ -184,9 +182,6 @@ struct intel_encoder {
 		       struct intel_encoder *,
 		       const struct intel_crtc_state *,
 		       const struct drm_connector_state *);
-	void (*update_complete)(struct intel_atomic_state *,
-				struct intel_encoder *,
-				struct intel_crtc *);
 	void (*disable)(struct intel_atomic_state *,
 			struct intel_encoder *,
 			const struct intel_crtc_state *,
@@ -1157,6 +1152,7 @@ struct intel_crtc_state {
 	bool has_psr2;
 	bool enable_psr2_sel_fetch;
 	bool req_psr2_sdp_prior_scanline;
+	bool wm_level_disabled;
 	u32 dc3co_exitline;
 	u16 su_y_granularity;
 	struct drm_dp_vsc_sdp psr_vsc;
@@ -1740,6 +1736,7 @@ struct intel_dp {
 
 	/* Display stream compression testing */
 	bool force_dsc_en;
+	int force_dsc_output_format;
 	int force_dsc_bpc;
 
 	bool hobl_failed;
@@ -1780,17 +1777,7 @@ struct intel_digital_port {
 	intel_wakeref_t ddi_io_wakeref;
 	intel_wakeref_t aux_wakeref;
 
-	struct mutex tc_lock;	/* protects the TypeC port mode */
-	intel_wakeref_t tc_lock_wakeref;
-	enum intel_display_power_domain tc_lock_power_domain;
-	struct delayed_work tc_disconnect_phy_work;
-	int tc_link_refcount;
-	bool tc_legacy_port:1;
-	char tc_port_name[8];
-	enum tc_port_mode tc_mode;
-	enum tc_port_mode tc_init_mode;
-	enum phy_fia tc_phy_fia;
-	u8 tc_phy_fia_idx;
+	struct intel_tc_port *tc;
 
 	/* protects num_hdcp_streams reference count, hdcp_port_data and hdcp_auth_status */
 	struct mutex hdcp_mutex;
