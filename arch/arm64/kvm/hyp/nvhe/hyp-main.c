@@ -1328,7 +1328,7 @@ int reset_pkvm_priv_hcall_limit(void)
 		return -EACCES;
 
 	addr = hyp_fixmap_map(__hyp_pa(&pkvm_priv_hcall_limit));
-	*addr = KVM_HOST_SMCCC_FUNC(__pkvm_prot_finalize);
+	*addr = __KVM_HOST_SMCCC_FUNC___pkvm_prot_finalize;
 	hyp_fixmap_unmap();
 
 	return 0;
