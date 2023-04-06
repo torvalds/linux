@@ -205,21 +205,25 @@ static int stx104_read_raw(struct iio_dev *indio_dev,
 			return err;
 		}
 
-		/* trigger ADC sample capture by writing to the 8-bit
-		 * Software Strobe Register and wait for completion
+		/*
+		 * Trigger ADC sample capture by writing to the 8-bit Software Strobe Register and
+		 * wait for completion; the conversion time range is 5 microseconds to 53.68 seconds
+		 * in steps of 25 nanoseconds. The actual Analog Input Frame Timer time interval is
+		 * calculated as:
+		 * ai_time_frame_ns = ( AIFT + 1 ) * ( 25 nanoseconds ).
+		 * Where 0 <= AIFT <= 2147483648.
 		 */
 		err = regmap_write(priv->aio_ctl_map, STX104_SOFTWARE_STROBE, 0);
 		if (err) {
 			mutex_unlock(&priv->lock);
 			return err;
 		}
-		do {
-			err = regmap_read(priv->aio_ctl_map, STX104_ADC_STATUS, &adc_status);
-			if (err) {
-				mutex_unlock(&priv->lock);
-				return err;
-			}
-		} while (u8_get_bits(adc_status, STX104_CNV));
+		err = regmap_read_poll_timeout(priv->aio_ctl_map, STX104_ADC_STATUS, adc_status,
+					       !u8_get_bits(adc_status, STX104_CNV), 0, 53687092);
+		if (err) {
+			mutex_unlock(&priv->lock);
+			return err;
+		}
 
 		err = regmap_read(priv->aio_data_map, STX104_ADC_DATA, &value);
 		if (err) {
