@@ -8,7 +8,7 @@
 // Copyright (c) 2012 Marvell Technology Ltd.
 // Yunfan Zhang <yfzhang@marvell.com>
 
-#include <linux/bits.h>
+#include <linux/bitops.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
@@ -486,7 +486,7 @@ static int fan53555_regulator_register(struct fan53555_device_info *di,
 	rdesc->min_uV = di->vsel_min;
 	rdesc->uV_step = di->vsel_step;
 	rdesc->vsel_reg = di->vol_reg;
-	rdesc->vsel_mask = di->vsel_count - 1;
+	rdesc->vsel_mask = BIT(fls(di->vsel_count - 1)) - 1;
 	rdesc->ramp_reg = di->slew_reg;
 	rdesc->ramp_mask = di->slew_mask;
 	rdesc->ramp_delay_table = di->ramp_delay_table;
