@@ -1626,7 +1626,7 @@ static void sort_contention_result(void)
 static void print_bpf_events(int total, struct lock_contention_fails *fails)
 {
 	/* Output for debug, this have to be removed */
-	int broken = fails->task + fails->stack + fails->time;
+	int broken = fails->task + fails->stack + fails->time + fails->data;
 
 	if (quiet || total == 0 || (broken == 0 && verbose <= 0))
 		return;
@@ -1640,7 +1640,9 @@ static void print_bpf_events(int total, struct lock_contention_fails *fails)
 	pr_info(" %10s: %d\n", "task", fails->task);
 	pr_info(" %10s: %d\n", "stack", fails->stack);
 	pr_info(" %10s: %d\n", "time", fails->time);
+	pr_info(" %10s: %d\n", "data", fails->data);
 }
+
 static void print_contention_result(struct lock_contention *con)
 {
 	struct lock_stat *st;

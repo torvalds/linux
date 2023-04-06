@@ -262,6 +262,7 @@ int lock_contention_read(struct lock_contention *con)
 	con->fails.task = skel->bss->task_fail;
 	con->fails.stack = skel->bss->stack_fail;
 	con->fails.time = skel->bss->time_fail;
+	con->fails.data = skel->bss->data_fail;
 
 	stack_trace = zalloc(stack_size);
 	if (stack_trace == NULL)

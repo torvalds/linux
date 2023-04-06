@@ -124,6 +124,7 @@ int aggr_mode;
 int task_fail;
 int stack_fail;
 int time_fail;
+int data_fail;
 
 static inline int can_record(u64 *ctx)
 {
@@ -380,7 +381,8 @@ int contention_end(u64 *ctx)
 		if (aggr_mode == LOCK_AGGR_ADDR)
 			first.flags |= check_lock_type(pelem->lock, pelem->flags);
 
-		bpf_map_update_elem(&lock_stat, &key, &first, BPF_NOEXIST);
+		if (bpf_map_update_elem(&lock_stat, &key, &first, BPF_NOEXIST) < 0)
+			__sync_fetch_and_add(&data_fail, 1);
 		bpf_map_delete_elem(&tstamp, &pid);
 		return 0;
 	}

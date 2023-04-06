@@ -126,6 +126,7 @@ struct lock_contention_fails {
 	int task;
 	int stack;
 	int time;
+	int data;
 };
 
 struct lock_contention {
