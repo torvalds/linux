@@ -18861,12 +18861,10 @@ skip_full_check:
 	env->prog->aux->verified_insns = env->insn_processed;
 
 	bpf_vlog_finalize(log);
-	if (log->level && bpf_vlog_truncated(log))
+	if (bpf_vlog_truncated(log))
 		ret = -ENOSPC;
-	if (log->level && log->level != BPF_LOG_KERNEL && !log->ubuf) {
+	if (log->level && log->level != BPF_LOG_KERNEL && !log->ubuf)
 		ret = -EFAULT;
-		goto err_release_maps;
-	}
 
 	if (ret)
 		goto err_release_maps;

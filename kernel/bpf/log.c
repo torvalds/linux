@@ -169,7 +169,9 @@ static int bpf_vlog_reverse_ubuf(struct bpf_verifier_log *log, int start, int en
 
 bool bpf_vlog_truncated(const struct bpf_verifier_log *log)
 {
-	if (log->level & BPF_LOG_FIXED)
+	if (!log->level)
+		return false;
+	else if (log->level & BPF_LOG_FIXED)
 		return bpf_log_used(log) >= log->len_total - 1;
 	else
 		return log->start_pos > 0;

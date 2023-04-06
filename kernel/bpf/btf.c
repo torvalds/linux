@@ -5594,7 +5594,7 @@ static struct btf *btf_parse(bpfptr_t btf_data, u32 btf_data_size,
 	}
 
 	bpf_vlog_finalize(log);
-	if (log->level && bpf_vlog_truncated(log)) {
+	if (bpf_vlog_truncated(log)) {
 		err = -ENOSPC;
 		goto errout_meta;
 	}
