@@ -10,10 +10,24 @@
 #include <linux/bpf_verifier.h>
 #include <linux/math64.h>
 
-bool bpf_verifier_log_attr_valid(const struct bpf_verifier_log *log)
+static bool bpf_verifier_log_attr_valid(const struct bpf_verifier_log *log)
 {
 	return log->len_total > 0 && log->len_total <= UINT_MAX >> 2 &&
 	       log->level && log->ubuf && !(log->level & ~BPF_LOG_MASK);
+}
+
+int bpf_vlog_init(struct bpf_verifier_log *log, u32 log_level,
+		  char __user *log_buf, u32 log_size)
+{
+	log->level = log_level;
+	log->ubuf = log_buf;
+	log->len_total = log_size;
+
+	/* log attributes have to be sane */
+	if (!bpf_verifier_log_attr_valid(log))
+		return -EINVAL;
+
+	return 0;
 }
 
 static void bpf_vlog_update_len_max(struct bpf_verifier_log *log, u32 add_len)
@@ -197,24 +211,25 @@ static int bpf_vlog_reverse_ubuf(struct bpf_verifier_log *log, int start, int en
 	return 0;
 }
 
-bool bpf_vlog_truncated(const struct bpf_verifier_log *log)
+static bool bpf_vlog_truncated(const struct bpf_verifier_log *log)
 {
 	return log->len_max > log->len_total;
 }
 
-void bpf_vlog_finalize(struct bpf_verifier_log *log)
+int bpf_vlog_finalize(struct bpf_verifier_log *log, u32 *log_size_actual)
 {
 	u32 sublen;
 	int err;
 
-	if (!log || !log->level || !log->ubuf)
-		return;
-	if ((log->level & BPF_LOG_FIXED) || log->level == BPF_LOG_KERNEL)
-		return;
+	*log_size_actual = 0;
+	if (!log || log->level == 0 || log->level == BPF_LOG_KERNEL)
+		return 0;
 
+	if (!log->ubuf)
+		goto skip_log_rotate;
 	/* If we never truncated log, there is nothing to move around. */
-	if (log->start_pos == 0)
-		return;
+	if ((log->level & BPF_LOG_FIXED) || log->start_pos == 0)
+		goto skip_log_rotate;
 
 	/* Otherwise we need to rotate log contents to make it start from the
 	 * buffer beginning and be a continuous zero-terminated string. Note
@@ -257,6 +272,21 @@ void bpf_vlog_finalize(struct bpf_verifier_log *log)
 	err = err ?: bpf_vlog_reverse_ubuf(log, sublen, log->len_total);
 	if (err)
 		log->ubuf = NULL;
+
+skip_log_rotate:
+	*log_size_actual = log->len_max;
+
+	/* properly initialized log has either both ubuf!=NULL and len_total>0
+	 * or ubuf==NULL and len_total==0, so if this condition doesn't hold,
+	 * we got a fault somewhere along the way, so report it back
+	 */
+	if (!!log->ubuf != !!log->len_total)
+		return -EFAULT;
+
+	if (bpf_vlog_truncated(log))
+		return -ENOSPC;
+
+	return 0;
 }
 
 /* log_level controls verbosity level of eBPF verifier.

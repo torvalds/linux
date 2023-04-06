@@ -518,13 +518,6 @@ struct bpf_verifier_log {
 #define BPF_LOG_MIN_ALIGNMENT 8U
 #define BPF_LOG_ALIGNMENT 40U
 
-static inline bool bpf_verifier_log_full(const struct bpf_verifier_log *log)
-{
-	if (log->level & BPF_LOG_FIXED)
-		return log->end_pos >= log->len_total;
-	return false;
-}
-
 static inline bool bpf_verifier_log_needed(const struct bpf_verifier_log *log)
 {
 	return log && log->level;
@@ -612,16 +605,16 @@ struct bpf_verifier_env {
 	char type_str_buf[TYPE_STR_BUF_LEN];
 };
 
-bool bpf_verifier_log_attr_valid(const struct bpf_verifier_log *log);
 __printf(2, 0) void bpf_verifier_vlog(struct bpf_verifier_log *log,
 				      const char *fmt, va_list args);
 __printf(2, 3) void bpf_verifier_log_write(struct bpf_verifier_env *env,
 					   const char *fmt, ...);
 __printf(2, 3) void bpf_log(struct bpf_verifier_log *log,
 			    const char *fmt, ...);
+int bpf_vlog_init(struct bpf_verifier_log *log, u32 log_level,
+		  char __user *log_buf, u32 log_size);
 void bpf_vlog_reset(struct bpf_verifier_log *log, u64 new_pos);
-void bpf_vlog_finalize(struct bpf_verifier_log *log);
-bool bpf_vlog_truncated(const struct bpf_verifier_log *log);
+int bpf_vlog_finalize(struct bpf_verifier_log *log, u32 *log_size_actual);
 
 static inline struct bpf_func_state *cur_func(struct bpf_verifier_env *env)
 {

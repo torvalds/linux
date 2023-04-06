@@ -18698,8 +18698,8 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr, bpfptr_t uattr, __u3
 {
 	u64 start_time = ktime_get_ns();
 	struct bpf_verifier_env *env;
-	struct bpf_verifier_log *log;
-	int i, len, ret = -EINVAL;
+	int i, len, ret = -EINVAL, err;
+	u32 log_true_size;
 	bool is_priv;
 
 	/* no program is valid */
@@ -18712,7 +18712,6 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr, bpfptr_t uattr, __u3
 	env = kzalloc(sizeof(struct bpf_verifier_env), GFP_KERNEL);
 	if (!env)
 		return -ENOMEM;
-	log = &env->log;
 
 	len = (*prog)->len;
 	env->insn_aux_data =
@@ -18733,20 +18732,14 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr, bpfptr_t uattr, __u3
 	if (!is_priv)
 		mutex_lock(&bpf_verifier_lock);
 
-	if (attr->log_level || attr->log_buf || attr->log_size) {
-		/* user requested verbose verifier output
-		 * and supplied buffer to store the verification trace
-		 */
-		log->level = attr->log_level;
-		log->ubuf = (char __user *) (unsigned long) attr->log_buf;
-		log->len_total = attr->log_size;
-
-		/* log attributes have to be sane */
-		if (!bpf_verifier_log_attr_valid(log)) {
-			ret = -EINVAL;
-			goto err_unlock;
-		}
-	}
+	/* user could have requested verbose verifier output
+	 * and supplied buffer to store the verification trace
+	 */
+	ret = bpf_vlog_init(&env->log, attr->log_level,
+			    (char __user *) (unsigned long) attr->log_buf,
+			    attr->log_size);
+	if (ret)
+		goto err_unlock;
 
 	mark_verifier_state_clean(env);
 
@@ -18860,17 +18853,17 @@ skip_full_check:
 	print_verification_stats(env);
 	env->prog->aux->verified_insns = env->insn_processed;
 
-	bpf_vlog_finalize(log);
+	/* preserve original error even if log finalization is successful */
+	err = bpf_vlog_finalize(&env->log, &log_true_size);
+	if (err)
+		ret = err;
+
 	if (uattr_size >= offsetofend(union bpf_attr, log_true_size) &&
 	    copy_to_bpfptr_offset(uattr, offsetof(union bpf_attr, log_true_size),
-				  &log->len_max, sizeof(log->len_max))) {
+				  &log_true_size, sizeof(log_true_size))) {
 		ret = -EFAULT;
 		goto err_release_maps;
 	}
-	if (bpf_vlog_truncated(log))
-		ret = -ENOSPC;
-	if (log->level && log->level != BPF_LOG_KERNEL && !log->ubuf)
-		ret = -EFAULT;
 
 	if (ret)
 		goto err_release_maps;

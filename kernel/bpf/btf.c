@@ -5504,16 +5504,30 @@ static int btf_check_type_tags(struct btf_verifier_env *env,
 	return 0;
 }
 
+static int finalize_log(struct bpf_verifier_log *log, bpfptr_t uattr, u32 uattr_size)
+{
+	u32 log_true_size;
+	int err;
+
+	err = bpf_vlog_finalize(log, &log_true_size);
+
+	if (uattr_size >= offsetofend(union bpf_attr, btf_log_true_size) &&
+	    copy_to_bpfptr_offset(uattr, offsetof(union bpf_attr, btf_log_true_size),
+				  &log_true_size, sizeof(log_true_size)))
+		err = -EFAULT;
+
+	return err;
+}
+
 static struct btf *btf_parse(const union bpf_attr *attr, bpfptr_t uattr, u32 uattr_size)
 {
 	bpfptr_t btf_data = make_bpfptr(attr->btf, uattr.is_kernel);
 	char __user *log_ubuf = u64_to_user_ptr(attr->btf_log_buf);
 	struct btf_struct_metas *struct_meta_tab;
 	struct btf_verifier_env *env = NULL;
-	struct bpf_verifier_log *log;
 	struct btf *btf = NULL;
 	u8 *data;
-	int err;
+	int err, ret;
 
 	if (attr->btf_size > BTF_MAX_SIZE)
 		return ERR_PTR(-E2BIG);
@@ -5522,21 +5536,13 @@ static struct btf *btf_parse(const union bpf_attr *attr, bpfptr_t uattr, u32 uat
 	if (!env)
 		return ERR_PTR(-ENOMEM);
 
-	log = &env->log;
-	if (attr->btf_log_level || log_ubuf || attr->btf_log_size) {
-		/* user requested verbose verifier output
-		 * and supplied buffer to store the verification trace
-		 */
-		log->level = attr->btf_log_level;
-		log->ubuf = log_ubuf;
-		log->len_total = attr->btf_log_size;
-
-		/* log attributes have to be sane */
-		if (!bpf_verifier_log_attr_valid(log)) {
-			err = -EINVAL;
-			goto errout;
-		}
-	}
+	/* user could have requested verbose verifier output
+	 * and supplied buffer to store the verification trace
+	 */
+	err = bpf_vlog_init(&env->log, attr->btf_log_level,
+			    log_ubuf, attr->btf_log_size);
+	if (err)
+		goto errout_free;
 
 	btf = kzalloc(sizeof(*btf), GFP_KERNEL | __GFP_NOWARN);
 	if (!btf) {
@@ -5577,7 +5583,7 @@ static struct btf *btf_parse(const union bpf_attr *attr, bpfptr_t uattr, u32 uat
 	if (err)
 		goto errout;
 
-	struct_meta_tab = btf_parse_struct_metas(log, btf);
+	struct_meta_tab = btf_parse_struct_metas(&env->log, btf);
 	if (IS_ERR(struct_meta_tab)) {
 		err = PTR_ERR(struct_meta_tab);
 		goto errout;
@@ -5594,21 +5600,9 @@ static struct btf *btf_parse(const union bpf_attr *attr, bpfptr_t uattr, u32 uat
 		}
 	}
 
-	bpf_vlog_finalize(log);
-	if (uattr_size >= offsetofend(union bpf_attr, btf_log_true_size) &&
-	    copy_to_bpfptr_offset(uattr, offsetof(union bpf_attr, btf_log_true_size),
-				  &log->len_max, sizeof(log->len_max))) {
-		err = -EFAULT;
-		goto errout_meta;
-	}
-	if (bpf_vlog_truncated(log)) {
-		err = -ENOSPC;
-		goto errout_meta;
-	}
-	if (log->level && log->level != BPF_LOG_KERNEL && !log->ubuf) {
-		err = -EFAULT;
-		goto errout_meta;
-	}
+	err = finalize_log(&env->log, uattr, uattr_size);
+	if (err)
+		goto errout_free;
 
 	btf_verifier_env_free(env);
 	refcount_set(&btf->refcnt, 1);
@@ -5617,6 +5611,11 @@ static struct btf *btf_parse(const union bpf_attr *attr, bpfptr_t uattr, u32 uat
 errout_meta:
 	btf_free_struct_meta_tab(btf);
 errout:
+	/* overwrite err with -ENOSPC or -EFAULT */
+	ret = finalize_log(&env->log, uattr, uattr_size);
+	if (ret)
+		err = ret;
+errout_free:
 	btf_verifier_env_free(env);
 	if (btf)
 		btf_free(btf);
