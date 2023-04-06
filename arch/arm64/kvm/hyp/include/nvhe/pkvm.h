@@ -152,6 +152,12 @@ static inline bool pkvm_ipa_range_has_pvmfw(struct pkvm_hyp_vm *vm,
 	return ipa_end > pkvm->pvmfw_load_addr && ipa_start < pvmfw_load_end;
 }
 
+static inline void pkvm_set_max_sve_vq(void)
+{
+	sve_cond_update_zcr_vq(sve_vq_from_vl(kvm_host_sve_max_vl) - 1,
+			       SYS_ZCR_EL2);
+}
+
 int pkvm_load_pvmfw_pages(struct pkvm_hyp_vm *vm, u64 ipa, phys_addr_t phys,
 			  u64 size);
 void pkvm_poison_pvmfw_pages(void);
