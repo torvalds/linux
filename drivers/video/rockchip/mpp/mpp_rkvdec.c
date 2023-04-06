@@ -1562,9 +1562,14 @@ static int rkvdec_3036_set_grf(struct mpp_dev *mpp)
 
 		list_for_each_entry_safe(loop, n, &queue->dev_list, queue_link) {
 			if (test_bit(loop->var->device_type, &queue->dev_active_flags)) {
+				mpp_set_grf(loop->grf_info);
+				if (loop->hw_ops->clk_on)
+					loop->hw_ops->clk_on(loop);
 				if (loop->hw_ops->reset)
 					loop->hw_ops->reset(loop);
 				rockchip_iommu_disable(loop->dev);
+				if (loop->hw_ops->clk_off)
+					loop->hw_ops->clk_off(loop);
 				clear_bit(loop->var->device_type, &queue->dev_active_flags);
 			}
 		}
