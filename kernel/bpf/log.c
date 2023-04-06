@@ -12,8 +12,17 @@
 
 static bool bpf_verifier_log_attr_valid(const struct bpf_verifier_log *log)
 {
-	return log->len_total > 0 && log->len_total <= UINT_MAX >> 2 &&
-	       log->level && log->ubuf && !(log->level & ~BPF_LOG_MASK);
+	/* ubuf and len_total should both be specified (or not) together */
+	if (!!log->ubuf != !!log->len_total)
+		return false;
+	/* log buf without log_level is meaningless */
+	if (log->ubuf && log->level == 0)
+		return false;
+	if (log->level & ~BPF_LOG_MASK)
+		return false;
+	if (log->len_total > UINT_MAX >> 2)
+		return false;
+	return true;
 }
 
 int bpf_vlog_init(struct bpf_verifier_log *log, u32 log_level,
@@ -89,9 +98,15 @@ void bpf_verifier_vlog(struct bpf_verifier_log *log, const char *fmt,
 			new_start = new_end - log->len_total;
 		else
 			new_start = log->start_pos;
+
+		log->start_pos = new_start;
+		log->end_pos = new_end - 1; /* don't count terminating '\0' */
+
+		if (!log->ubuf)
+			return;
+
 		new_n = min(n, log->len_total);
 		cur_pos = new_end - new_n;
-
 		div_u64_rem(cur_pos, log->len_total, &buf_start);
 		div_u64_rem(new_end, log->len_total, &buf_end);
 		/* new_end and buf_end are exclusive indices, so if buf_end is
@@ -100,12 +115,6 @@ void bpf_verifier_vlog(struct bpf_verifier_log *log, const char *fmt,
 		 */
 		if (buf_end == 0)
 			buf_end = log->len_total;
-
-		log->start_pos = new_start;
-		log->end_pos = new_end - 1; /* don't count terminating '\0' */
-
-		if (!log->ubuf)
-			return;
 
 		/* if buf_start > buf_end, we wrapped around;
 		 * if buf_start == buf_end, then we fill ubuf completely; we
@@ -156,12 +165,15 @@ void bpf_vlog_reset(struct bpf_verifier_log *log, u64 new_pos)
 	if (log->end_pos < log->start_pos)
 		log->start_pos = log->end_pos;
 
+	if (!log->ubuf)
+		return;
+
 	if (log->level & BPF_LOG_FIXED)
 		pos = log->end_pos + 1;
 	else
 		div_u64_rem(new_pos, log->len_total, &pos);
 
-	if (log->ubuf && pos < log->len_total && put_user(zero, log->ubuf + pos))
+	if (pos < log->len_total && put_user(zero, log->ubuf + pos))
 		log->ubuf = NULL;
 }
 
@@ -211,11 +223,6 @@ static int bpf_vlog_reverse_ubuf(struct bpf_verifier_log *log, int start, int en
 	return 0;
 }
 
-static bool bpf_vlog_truncated(const struct bpf_verifier_log *log)
-{
-	return log->len_max > log->len_total;
-}
-
 int bpf_vlog_finalize(struct bpf_verifier_log *log, u32 *log_size_actual)
 {
 	u32 sublen;
@@ -228,7 +235,7 @@ int bpf_vlog_finalize(struct bpf_verifier_log *log, u32 *log_size_actual)
 	if (!log->ubuf)
 		goto skip_log_rotate;
 	/* If we never truncated log, there is nothing to move around. */
-	if ((log->level & BPF_LOG_FIXED) || log->start_pos == 0)
+	if (log->start_pos == 0)
 		goto skip_log_rotate;
 
 	/* Otherwise we need to rotate log contents to make it start from the
@@ -283,7 +290,8 @@ skip_log_rotate:
 	if (!!log->ubuf != !!log->len_total)
 		return -EFAULT;
 
-	if (bpf_vlog_truncated(log))
+	/* did truncation actually happen? */
+	if (log->ubuf && log->len_max > log->len_total)
 		return -ENOSPC;
 
 	return 0;
