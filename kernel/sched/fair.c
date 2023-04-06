@@ -9331,6 +9331,25 @@ group_type group_classify(unsigned int imbalance_pct,
 }
 
 /**
+ * sched_use_asym_prio - Check whether asym_packing priority must be used
+ * @sd:		The scheduling domain of the load balancing
+ * @cpu:	A CPU
+ *
+ * Always use CPU priority when balancing load between SMT siblings. When
+ * balancing load between cores, it is not sufficient that @cpu is idle. Only
+ * use CPU priority if the whole core is idle.
+ *
+ * Returns: True if the priority of @cpu must be followed. False otherwise.
+ */
+static bool sched_use_asym_prio(struct sched_domain *sd, int cpu)
+{
+	if (!sched_smt_active())
+		return true;
+
+	return sd->flags & SD_SHARE_CPUCAPACITY || is_core_idle(cpu);
+}
+
+/**
  * asym_smt_can_pull_tasks - Check whether the load balancing CPU can pull tasks
  * @dst_cpu:	Destination CPU of the load balancing
  * @sds:	Load-balancing data with statistics of the local group
@@ -9339,6 +9358,9 @@ group_type group_classify(unsigned int imbalance_pct,
  *
  * Check the state of the SMT siblings of both @sds::local and @sg and decide
  * if @dst_cpu can pull tasks.
+ *
+ * This function must be called only if all the SMT siblings of @dst_cpu are
+ * idle, if any.
  *
  * If @dst_cpu does not have SMT siblings, it can pull tasks if two or more of
  * the SMT siblings of @sg are busy. If only one CPU in @sg is busy, pull tasks
@@ -9349,8 +9371,7 @@ group_type group_classify(unsigned int imbalance_pct,
  * Bigger imbalances in the number of busy CPUs will be dealt with in
  * update_sd_pick_busiest().
  *
- * If @sg does not have SMT siblings, only pull tasks if all of the SMT siblings
- * of @dst_cpu are idle and @sg has lower priority.
+ * If @sg does not have SMT siblings, only pull tasks if @sg has lower priority.
  *
  * Return: true if @dst_cpu can pull tasks, false otherwise.
  */
@@ -9398,15 +9419,8 @@ static bool asym_smt_can_pull_tasks(int dst_cpu, struct sd_lb_stats *sds,
 		return false;
 	}
 
-	/*
-	 * @sg does not have SMT siblings. Ensure that @sds::local does not end
-	 * up with more than one busy SMT sibling and only pull tasks if there
-	 * are not busy CPUs (i.e., no CPU has running tasks).
-	 */
-	if (!sds->local_stat.sum_nr_running)
-		return sched_asym_prefer(dst_cpu, sg->asym_prefer_cpu);
-
-	return false;
+	/* If we are here @dst_cpu has SMT siblings and are also idle. */
+	return sched_asym_prefer(dst_cpu, sg->asym_prefer_cpu);
 #else
 	/* Always return false so that callers deal with non-SMT cases. */
 	return false;
@@ -9417,7 +9431,11 @@ static inline bool
 sched_asym(struct lb_env *env, struct sd_lb_stats *sds,  struct sg_lb_stats *sgs,
 	   struct sched_group *group)
 {
-	/* Only do SMT checks if either local or candidate have SMT siblings */
+	/* Ensure that the whole local core is idle, if applicable. */
+	if (!sched_use_asym_prio(env->sd, env->dst_cpu))
+		return false;
+
+	/* Only do SMT checks if either local or candidate have SMT siblings. */
 	if ((sds->local->flags & SD_SHARE_CPUCAPACITY) ||
 	    (group->flags & SD_SHARE_CPUCAPACITY))
 		return asym_smt_can_pull_tasks(env->dst_cpu, sds, sgs, group);
@@ -10632,11 +10650,13 @@ static inline bool
 asym_active_balance(struct lb_env *env)
 {
 	/*
-	 * ASYM_PACKING needs to force migrate tasks from busy but
-	 * lower priority CPUs in order to pack all tasks in the
-	 * highest priority CPUs.
+	 * ASYM_PACKING needs to force migrate tasks from busy but lower
+	 * priority CPUs in order to pack all tasks in the highest priority
+	 * CPUs. When done between cores, do it only if the whole core if the
+	 * whole core is idle.
 	 */
 	return env->idle != CPU_NOT_IDLE && (env->sd->flags & SD_ASYM_PACKING) &&
+	       sched_use_asym_prio(env->sd, env->dst_cpu) &&
 	       sched_asym_prefer(env->dst_cpu, env->src_cpu);
 }
 
@@ -11371,9 +11391,13 @@ static void nohz_balancer_kick(struct rq *rq)
 		 * When ASYM_PACKING; see if there's a more preferred CPU
 		 * currently idle; in which case, kick the ILB to move tasks
 		 * around.
+		 *
+		 * When balancing betwen cores, all the SMT siblings of the
+		 * preferred CPU must be idle.
 		 */
 		for_each_cpu_and(i, sched_domain_span(sd), nohz.idle_cpus_mask) {
-			if (sched_asym_prefer(i, cpu)) {
+			if (sched_use_asym_prio(sd, i) &&
+			    sched_asym_prefer(i, cpu)) {
 				flags = NOHZ_STATS_KICK | NOHZ_BALANCE_KICK;
 				goto unlock;
 			}
