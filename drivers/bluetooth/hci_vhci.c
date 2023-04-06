@@ -323,17 +323,21 @@ static ssize_t force_devcd_write(struct file *file, const char __user *user_buf,
 	struct hci_dev *hdev = data->hdev;
 	struct sk_buff *skb = NULL;
 	struct devcoredump_test_data dump_data;
+	size_t data_size;
 	int ret;
 
-	ret = simple_write_to_buffer(&dump_data, sizeof(dump_data), ppos,
-				     user_buf, count);
-	if (ret < count)
-		return ret;
+	if (count < offsetof(struct devcoredump_test_data, data) ||
+	    count > sizeof(dump_data))
+		return -EINVAL;
 
-	skb = alloc_skb(sizeof(dump_data.data), GFP_ATOMIC);
+	if (copy_from_user(&dump_data, user_buf, count))
+		return -EFAULT;
+
+	data_size = count - offsetof(struct devcoredump_test_data, data);
+	skb = alloc_skb(data_size, GFP_ATOMIC);
 	if (!skb)
 		return -ENOMEM;
-	skb_put_data(skb, &dump_data.data, sizeof(dump_data.data));
+	skb_put_data(skb, &dump_data.data, data_size);
 
 	hci_devcd_register(hdev, vhci_coredump, vhci_coredump_hdr, NULL);
 
