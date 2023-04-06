@@ -128,7 +128,7 @@ static bool acpi_gpio_deferred_req_irqs_done;
 
 static int acpi_gpiochip_find(struct gpio_chip *gc, void *data)
 {
-	return gc->parent && device_match_acpi_handle(gc->parent, data);
+	return ACPI_HANDLE_FWNODE(gc->fwnode) == data;
 }
 
 /**
@@ -645,7 +645,7 @@ static bool acpi_get_driver_gpio_data(struct acpi_device *adev,
 {
 	const struct acpi_gpio_mapping *gm;
 
-	if (!adev->driver_gpios)
+	if (!adev || !adev->driver_gpios)
 		return false;
 
 	for (gm = adev->driver_gpios; gm->name; gm++)
@@ -839,13 +839,10 @@ static int acpi_gpio_property_lookup(struct fwnode_handle *fwnode,
 	ret = __acpi_node_get_property_reference(fwnode, propname, index, 3,
 						 &args);
 	if (ret) {
-		struct acpi_device *adev = to_acpi_device_node(fwnode);
+		struct acpi_device *adev;
 
-		if (!adev)
-			return ret;
-
-		if (!acpi_get_driver_gpio_data(adev, propname, index, &args,
-					       &quirks))
+		adev = to_acpi_device_node(fwnode);
+		if (!acpi_get_driver_gpio_data(adev, propname, index, &args, &quirks))
 			return ret;
 	}
 	/*
@@ -1614,6 +1611,19 @@ static const struct dmi_system_id gpiolib_acpi_quirks[] __initconst = {
 		},
 		.driver_data = &(struct acpi_gpiolib_dmi_quirk) {
 			.ignore_interrupt = "AMDI0030:00@18",
+		},
+	},
+	{
+		/*
+		 * Spurious wakeups from TP_ATTN# pin
+		 * Found in BIOS 1.7.8
+		 * https://gitlab.freedesktop.org/drm/amd/-/issues/1722#note_1720627
+		 */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "NL5xNU"),
+		},
+		.driver_data = &(struct acpi_gpiolib_dmi_quirk) {
+			.ignore_wake = "ELAN0415:00@9",
 		},
 	},
 	{

@@ -623,6 +623,17 @@ config GPIO_SYSCON
 	help
 	  Say yes here to support GPIO functionality though SYSCON driver.
 
+config GPIO_TANGIER
+	tristate
+	select GPIOLIB_IRQCHIP
+	help
+	  GPIO support for Intel Tangier and compatible platforms.
+	  Currently supported:
+	   - Elkhart Lake
+	   - Merrifield
+
+	  If built as a module its name will be gpio-tangier.
+
 config GPIO_TB10X
 	bool
 	select GPIO_GENERIC
@@ -1252,6 +1263,17 @@ config HTC_EGPIO
 	  several HTC phones.  It provides basic support for input
 	  pins, output pins, and IRQs.
 
+config GPIO_ELKHARTLAKE
+	tristate "Intel Elkhart Lake PSE GPIO support"
+	depends on X86 || COMPILE_TEST
+	select GPIO_TANGIER
+	help
+	  Select this option to enable GPIO support for Intel Elkhart Lake
+	  PSE GPIO IP.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called gpio-elkhartlake.
+
 config GPIO_JANZ_TTL
 	tristate "Janz VMOD-TTL Digital IO Module"
 	depends on MFD_JANZ_CMODIO
@@ -1530,7 +1552,7 @@ config GPIO_BT8XX
 config GPIO_MERRIFIELD
 	tristate "Intel Merrifield GPIO support"
 	depends on X86_INTEL_MID
-	select GPIOLIB_IRQCHIP
+	select GPIO_TANGIER
 	help
 	  Say Y here to support Intel Merrifield GPIO.
 
