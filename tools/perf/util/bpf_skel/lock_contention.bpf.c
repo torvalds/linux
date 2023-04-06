@@ -4,6 +4,7 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
+#include <asm-generic/errno-base.h>
 
 #include "lock_data.h"
 
@@ -126,6 +127,9 @@ int stack_fail;
 int time_fail;
 int data_fail;
 
+int task_map_full;
+int data_map_full;
+
 static inline int can_record(u64 *ctx)
 {
 	if (has_cpu) {
@@ -177,11 +181,12 @@ static inline int update_task_data(struct task_struct *task)
 		return -1;
 
 	p = bpf_map_lookup_elem(&task_data, &pid);
-	if (p == NULL) {
+	if (p == NULL && !task_map_full) {
 		struct contention_task_data data = {};
 
 		BPF_CORE_READ_STR_INTO(&data.comm, task, comm);
-		bpf_map_update_elem(&task_data, &pid, &data, BPF_NOEXIST);
+		if (bpf_map_update_elem(&task_data, &pid, &data, BPF_NOEXIST) == -E2BIG)
+			task_map_full = 1;
 	}
 
 	return 0;
@@ -370,6 +375,12 @@ int contention_end(u64 *ctx)
 
 	data = bpf_map_lookup_elem(&lock_stat, &key);
 	if (!data) {
+		if (data_map_full) {
+			bpf_map_delete_elem(&tstamp, &pid);
+			__sync_fetch_and_add(&data_fail, 1);
+			return 0;
+		}
+
 		struct contention_data first = {
 			.total_time = duration,
 			.max_time = duration,
@@ -377,12 +388,17 @@ int contention_end(u64 *ctx)
 			.count = 1,
 			.flags = pelem->flags,
 		};
+		int err;
 
 		if (aggr_mode == LOCK_AGGR_ADDR)
 			first.flags |= check_lock_type(pelem->lock, pelem->flags);
 
-		if (bpf_map_update_elem(&lock_stat, &key, &first, BPF_NOEXIST) < 0)
+		err = bpf_map_update_elem(&lock_stat, &key, &first, BPF_NOEXIST);
+		if (err < 0) {
+			if (err == -E2BIG)
+				data_map_full = 1;
 			__sync_fetch_and_add(&data_fail, 1);
+		}
 		bpf_map_delete_elem(&tstamp, &pid);
 		return 0;
 	}
