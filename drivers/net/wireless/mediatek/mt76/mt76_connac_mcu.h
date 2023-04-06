@@ -127,7 +127,7 @@ struct mt76_connac2_mcu_rxd {
 	u8 rsv1[2];
 	u8 s2d_index;
 
-	u8 tlv[0];
+	u8 tlv[];
 };
 
 struct mt76_connac2_patch_hdr {
