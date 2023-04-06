@@ -290,10 +290,6 @@ int bpf_prog_load(enum bpf_prog_type prog_type,
 
 	if (!!log_buf != !!log_size)
 		return libbpf_err(-EINVAL);
-	if (log_level > (4 | 2 | 1))
-		return libbpf_err(-EINVAL);
-	if (log_level && !log_buf)
-		return libbpf_err(-EINVAL);
 
 	func_info_rec_size = OPTS_GET(opts, func_info_rec_size, 0);
 	func_info = OPTS_GET(opts, func_info, NULL);
