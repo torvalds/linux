@@ -5598,6 +5598,10 @@ static struct btf *btf_parse(bpfptr_t btf_data, u32 btf_data_size,
 		err = -ENOSPC;
 		goto errout_meta;
 	}
+	if (log->level && log->level != BPF_LOG_KERNEL && !log->ubuf) {
+		err = -EFAULT;
+		goto errout_meta;
+	}
 
 	btf_verifier_env_free(env);
 	refcount_set(&btf->refcnt, 1);
