@@ -15,6 +15,7 @@
 #include <linux/clk-provider.h>
 #include <linux/fs.h>
 #include <linux/hrtimer.h>
+#include <linux/irq.h>
 #include <linux/mount.h>
 #include <linux/of_fdt.h>
 #include <linux/radix-tree.h>
@@ -57,6 +58,10 @@ LX_VALUE(SB_NODIRATIME)
 /* linux/htimer.h */
 LX_GDBPARSED(hrtimer_resolution)
 
+/* linux/irq.h */
+LX_GDBPARSED(IRQD_LEVEL)
+LX_GDBPARSED(IRQ_HIDDEN)
+
 /* linux/mount.h */
 LX_VALUE(MNT_NOSUID)
 LX_VALUE(MNT_NODEV)
@@ -85,3 +90,12 @@ LX_CONFIG(CONFIG_HIGH_RES_TIMERS)
 LX_CONFIG(CONFIG_NR_CPUS)
 LX_CONFIG(CONFIG_OF)
 LX_CONFIG(CONFIG_TICK_ONESHOT)
+LX_CONFIG(CONFIG_GENERIC_IRQ_SHOW_LEVEL)
+LX_CONFIG(CONFIG_X86_LOCAL_APIC)
+LX_CONFIG(CONFIG_SMP)
+LX_CONFIG(CONFIG_X86_THERMAL_VECTOR)
+LX_CONFIG(CONFIG_X86_MCE_THRESHOLD)
+LX_CONFIG(CONFIG_X86_MCE_AMD)
+LX_CONFIG(CONFIG_X86_MCE)
+LX_CONFIG(CONFIG_X86_IO_APIC)
+LX_CONFIG(CONFIG_HAVE_KVM)

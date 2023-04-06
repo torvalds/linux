@@ -42,3 +42,4 @@ else:
     import linux.device
     import linux.mm
     import linux.radixtree
+    import linux.interrupts
