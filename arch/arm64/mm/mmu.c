@@ -795,14 +795,14 @@ static void __init map_kernel(pgd_t *pgdp)
 			   &vmlinux_initdata, 0, VM_NO_GUARD);
 	map_kernel_segment(pgdp, _data, _end, PAGE_KERNEL, &vmlinux_data, 0, 0);
 
-	if (!READ_ONCE(pgd_val(*pgd_offset_pgd(pgdp, FIXADDR_START)))) {
+	if (!READ_ONCE(pgd_val(*pgd_offset_pgd(pgdp, FIXADDR_TOT_START)))) {
 		/*
 		 * The fixmap falls in a separate pgd to the kernel, and doesn't
 		 * live in the carveout for the swapper_pg_dir. We can simply
 		 * re-use the existing dir for the fixmap.
 		 */
-		set_pgd(pgd_offset_pgd(pgdp, FIXADDR_START),
-			READ_ONCE(*pgd_offset_k(FIXADDR_START)));
+		set_pgd(pgd_offset_pgd(pgdp, FIXADDR_TOT_START),
+			READ_ONCE(*pgd_offset_k(FIXADDR_TOT_START)));
 	} else if (CONFIG_PGTABLE_LEVELS > 3) {
 		pgd_t *bm_pgdp;
 		p4d_t *bm_p4dp;
@@ -814,9 +814,9 @@ static void __init map_kernel(pgd_t *pgdp)
 		 * entry instead.
 		 */
 		BUG_ON(!IS_ENABLED(CONFIG_ARM64_16K_PAGES));
-		bm_pgdp = pgd_offset_pgd(pgdp, FIXADDR_START);
-		bm_p4dp = p4d_offset(bm_pgdp, FIXADDR_START);
-		bm_pudp = pud_set_fixmap_offset(bm_p4dp, FIXADDR_START);
+		bm_pgdp = pgd_offset_pgd(pgdp, FIXADDR_TOT_START);
+		bm_p4dp = p4d_offset(bm_pgdp, FIXADDR_TOT_START);
+		bm_pudp = pud_set_fixmap_offset(bm_p4dp, FIXADDR_TOT_START);
 		pud_populate(&init_mm, bm_pudp, lm_alias(bm_pmd));
 		pud_clear_fixmap();
 	} else {
@@ -1275,7 +1275,7 @@ void __init early_fixmap_init(void)
 	p4d_t *p4dp, p4d;
 	pud_t *pudp;
 	pmd_t *pmdp;
-	unsigned long addr = FIXADDR_START;
+	unsigned long addr = FIXADDR_TOT_START;
 
 	pgdp = pgd_offset_k(addr);
 	p4dp = p4d_offset(pgdp, addr);
@@ -1306,16 +1306,16 @@ void __init early_fixmap_init(void)
 	BUILD_BUG_ON((__fix_to_virt(FIX_BTMAP_BEGIN) >> PMD_SHIFT)
 		     != (__fix_to_virt(FIX_BTMAP_END) >> PMD_SHIFT));
 
-	if ((pmdp != fixmap_pmd(fix_to_virt(FIX_BTMAP_BEGIN)))
-	     || pmdp != fixmap_pmd(fix_to_virt(FIX_BTMAP_END))) {
+	if ((pmdp != fixmap_pmd(__fix_to_virt(FIX_BTMAP_BEGIN)))
+	     || pmdp != fixmap_pmd(__fix_to_virt(FIX_BTMAP_END))) {
 		WARN_ON(1);
 		pr_warn("pmdp %p != %p, %p\n",
-			pmdp, fixmap_pmd(fix_to_virt(FIX_BTMAP_BEGIN)),
-			fixmap_pmd(fix_to_virt(FIX_BTMAP_END)));
+			pmdp, fixmap_pmd(__fix_to_virt(FIX_BTMAP_BEGIN)),
+			fixmap_pmd(__fix_to_virt(FIX_BTMAP_END)));
 		pr_warn("fix_to_virt(FIX_BTMAP_BEGIN): %08lx\n",
-			fix_to_virt(FIX_BTMAP_BEGIN));
+			__fix_to_virt(FIX_BTMAP_BEGIN));
 		pr_warn("fix_to_virt(FIX_BTMAP_END):   %08lx\n",
-			fix_to_virt(FIX_BTMAP_END));
+			__fix_to_virt(FIX_BTMAP_END));
 
 		pr_warn("FIX_BTMAP_END:       %d\n", FIX_BTMAP_END);
 		pr_warn("FIX_BTMAP_BEGIN:     %d\n", FIX_BTMAP_BEGIN);
