@@ -174,7 +174,7 @@ def pr_cpumask(mask):
     if 0 < extra <= 4:
         chunks[0] = chunks[0][0]  # Cut off the first 0
 
-    return "".join(chunks)
+    return "".join(str(chunks))
 
 
 class LxTimerList(gdb.Command):
