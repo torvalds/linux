@@ -352,16 +352,16 @@ static int __perf_pmu__new_alias(struct list_head *list, int dirfd, char *name,
 	struct perf_pmu_alias *alias;
 	int ret;
 	char newval[256];
-	char *long_desc = NULL, *topic = NULL, *unit = NULL, *pmu_name = NULL;
+	const char *long_desc = NULL, *topic = NULL, *unit = NULL, *pmu_name = NULL;
 	bool deprecated = false, perpkg = false;
 
 	if (pe) {
-		long_desc = (char *)pe->long_desc;
-		topic = (char *)pe->topic;
-		unit = (char *)pe->unit;
+		long_desc = pe->long_desc;
+		topic = pe->topic;
+		unit = pe->unit;
 		perpkg = pe->perpkg;
 		deprecated = pe->deprecated;
-		pmu_name = (char *)pe->pmu;
+		pmu_name = pe->pmu;
 	}
 
 	alias = malloc(sizeof(*alias));
@@ -419,7 +419,7 @@ static int __perf_pmu__new_alias(struct list_head *list, int dirfd, char *name,
 				desc ? strdup(desc) : NULL;
 	alias->topic = topic ? strdup(topic) : NULL;
 	if (unit) {
-		if (perf_pmu__convert_scale(unit, &unit, &alias->scale) < 0)
+		if (perf_pmu__convert_scale(unit, (char **)&unit, &alias->scale) < 0)
 			return -1;
 		snprintf(alias->unit, sizeof(alias->unit), "%s", unit);
 	}
