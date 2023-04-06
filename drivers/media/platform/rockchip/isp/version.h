@@ -421,6 +421,12 @@
  * 13.thunder boot with multi sensor
  * 14.support buf early done
  * 15.fix read BP_WR_CTRL reg
+ *
+ * v2.2.1
+ * 1.rename isp and ispp uapi head
+ * 2.lock for rockit qbuf
+ * 3.fix open video during device register
+ * 4.sync dev register and fast_work
  */
 
 #define RKISP_DRIVER_VERSION RKISP_API_VERSION
