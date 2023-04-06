@@ -229,7 +229,9 @@ bool xe_sched_job_started(struct xe_sched_job *job)
 {
 	struct xe_lrc *lrc = job->engine->lrc;
 
-	return xe_lrc_start_seqno(lrc) >= xe_sched_job_seqno(job);
+	return !__dma_fence_is_later(xe_sched_job_seqno(job),
+				     xe_lrc_start_seqno(lrc),
+				     job->fence->ops);
 }
 
 bool xe_sched_job_completed(struct xe_sched_job *job)
@@ -241,7 +243,8 @@ bool xe_sched_job_completed(struct xe_sched_job *job)
 	 * parallel handshake is done.
 	 */
 
-	return xe_lrc_seqno(lrc) >= xe_sched_job_seqno(job);
+	return !__dma_fence_is_later(xe_sched_job_seqno(job), xe_lrc_seqno(lrc),
+				     job->fence->ops);
 }
 
 void xe_sched_job_arm(struct xe_sched_job *job)
