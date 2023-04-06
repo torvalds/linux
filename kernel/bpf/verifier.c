@@ -18694,7 +18694,7 @@ struct btf *bpf_get_btf_vmlinux(void)
 	return btf_vmlinux;
 }
 
-int bpf_check(struct bpf_prog **prog, union bpf_attr *attr, bpfptr_t uattr)
+int bpf_check(struct bpf_prog **prog, union bpf_attr *attr, bpfptr_t uattr, __u32 uattr_size)
 {
 	u64 start_time = ktime_get_ns();
 	struct bpf_verifier_env *env;
@@ -18861,6 +18861,12 @@ skip_full_check:
 	env->prog->aux->verified_insns = env->insn_processed;
 
 	bpf_vlog_finalize(log);
+	if (uattr_size >= offsetofend(union bpf_attr, log_true_size) &&
+	    copy_to_bpfptr_offset(uattr, offsetof(union bpf_attr, log_true_size),
+				  &log->len_max, sizeof(log->len_max))) {
+		ret = -EFAULT;
+		goto err_release_maps;
+	}
 	if (bpf_vlog_truncated(log))
 		ret = -ENOSPC;
 	if (log->level && log->level != BPF_LOG_KERNEL && !log->ubuf)
