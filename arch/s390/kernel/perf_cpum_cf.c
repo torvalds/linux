@@ -389,8 +389,7 @@ static enum cpumf_ctr_set get_counter_set(u64 event)
 	return set;
 }
 
-static int validate_ctr_version(const struct hw_perf_event *hwc,
-				enum cpumf_ctr_set set)
+static int validate_ctr_version(const u64 config, enum cpumf_ctr_set set)
 {
 	u16 mtdiag_ctl;
 	int err = 0;
@@ -404,18 +403,17 @@ static int validate_ctr_version(const struct hw_perf_event *hwc,
 		break;
 	case CPUMF_CTR_SET_CRYPTO:
 		if ((cpumf_ctr_info.csvn >= 1 && cpumf_ctr_info.csvn <= 5 &&
-		     hwc->config > 79) ||
-		    (cpumf_ctr_info.csvn >= 6 && hwc->config > 83))
+		     config > 79) || (cpumf_ctr_info.csvn >= 6 && config > 83))
 			err = -EOPNOTSUPP;
 		break;
 	case CPUMF_CTR_SET_EXT:
 		if (cpumf_ctr_info.csvn < 1)
 			err = -EOPNOTSUPP;
-		if ((cpumf_ctr_info.csvn == 1 && hwc->config > 159) ||
-		    (cpumf_ctr_info.csvn == 2 && hwc->config > 175) ||
-		    (cpumf_ctr_info.csvn >= 3 && cpumf_ctr_info.csvn <= 5
-		     && hwc->config > 255) ||
-		    (cpumf_ctr_info.csvn >= 6 && hwc->config > 287))
+		if ((cpumf_ctr_info.csvn == 1 && config > 159) ||
+		    (cpumf_ctr_info.csvn == 2 && config > 175) ||
+		    (cpumf_ctr_info.csvn >= 3 && cpumf_ctr_info.csvn <= 5 &&
+		     config > 255) ||
+		    (cpumf_ctr_info.csvn >= 6 && config > 287))
 			err = -EOPNOTSUPP;
 		break;
 	case CPUMF_CTR_SET_MT_DIAG:
@@ -677,7 +675,7 @@ static int __hw_perf_event_init(struct perf_event *event, unsigned int type)
 	/* Finally, validate version and authorization of the counter set */
 	err = validate_ctr_auth(hwc);
 	if (!err)
-		err = validate_ctr_version(hwc, set);
+		err = validate_ctr_version(hwc->config, set);
 
 	return err;
 }
