@@ -568,10 +568,9 @@ static int fan53555_regulator_probe(struct i2c_client *client)
 	if (!pdata)
 		pdata = fan53555_parse_dt(&client->dev, np, &di->desc);
 
-	if (!pdata || !pdata->regulator) {
-		dev_err(&client->dev, "Platform data not found!\n");
-		return -ENODEV;
-	}
+	if (!pdata || !pdata->regulator)
+		return dev_err_probe(&client->dev, -ENODEV,
+				     "Platform data not found!\n");
 
 	di->regulator = pdata->regulator;
 	if (client->dev.of_node) {
@@ -580,10 +579,9 @@ static int fan53555_regulator_probe(struct i2c_client *client)
 	} else {
 		/* if no ramp constraint set, get the pdata ramp_delay */
 		if (!di->regulator->constraints.ramp_delay) {
-			if (pdata->slew_rate >= ARRAY_SIZE(slew_rates)) {
-				dev_err(&client->dev, "Invalid slew_rate\n");
-				return -EINVAL;
-			}
+			if (pdata->slew_rate >= ARRAY_SIZE(slew_rates))
+				return dev_err_probe(&client->dev, -EINVAL,
+						     "Invalid slew_rate\n");
 
 			di->regulator->constraints.ramp_delay
 					= slew_rates[pdata->slew_rate];
@@ -593,34 +591,31 @@ static int fan53555_regulator_probe(struct i2c_client *client)
 	}
 
 	regmap = devm_regmap_init_i2c(client, &fan53555_regmap_config);
-	if (IS_ERR(regmap)) {
-		dev_err(&client->dev, "Failed to allocate regmap!\n");
-		return PTR_ERR(regmap);
-	}
+	if (IS_ERR(regmap))
+		return dev_err_probe(&client->dev, PTR_ERR(regmap),
+				     "Failed to allocate regmap!\n");
+
 	di->dev = &client->dev;
 	i2c_set_clientdata(client, di);
 	/* Get chip ID */
 	ret = regmap_read(regmap, FAN53555_ID1, &val);
-	if (ret < 0) {
-		dev_err(&client->dev, "Failed to get chip ID!\n");
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(&client->dev, ret, "Failed to get chip ID!\n");
+
 	di->chip_id = val & DIE_ID;
 	/* Get chip revision */
 	ret = regmap_read(regmap, FAN53555_ID2, &val);
-	if (ret < 0) {
-		dev_err(&client->dev, "Failed to get chip Rev!\n");
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(&client->dev, ret, "Failed to get chip Rev!\n");
+
 	di->chip_rev = val & DIE_REV;
 	dev_info(&client->dev, "FAN53555 Option[%d] Rev[%d] Detected!\n",
 				di->chip_id, di->chip_rev);
 	/* Device init */
 	ret = fan53555_device_setup(di, pdata);
-	if (ret < 0) {
-		dev_err(&client->dev, "Failed to setup device!\n");
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(&client->dev, ret, "Failed to setup device!\n");
+
 	/* Register regulator */
 	config.dev = di->dev;
 	config.init_data = di->regulator;
@@ -630,9 +625,9 @@ static int fan53555_regulator_probe(struct i2c_client *client)
 
 	ret = fan53555_regulator_register(di, &config);
 	if (ret < 0)
-		dev_err(&client->dev, "Failed to register regulator!\n");
-	return ret;
+		dev_err_probe(&client->dev, ret, "Failed to register regulator!\n");
 
+	return ret;
 }
 
 static const struct i2c_device_id fan53555_id[] = {
