@@ -707,7 +707,7 @@ static u16 rtw89_core_get_data_rate(struct rtw89_dev *rtwdev,
 	else
 		lowest_rate = RTW89_HW_RATE_OFDM6;
 
-	if (!sta->deflink.supp_rates[chan->band_type])
+	if (!sta || !sta->deflink.supp_rates[chan->band_type])
 		return lowest_rate;
 
 	return __ffs(sta->deflink.supp_rates[chan->band_type]) + lowest_rate;
