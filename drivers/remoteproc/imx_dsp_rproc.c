@@ -530,7 +530,7 @@ static int imx_dsp_rproc_mbox_alloc(struct imx_dsp_rproc *priv)
 		ret = PTR_ERR(priv->tx_ch);
 		dev_dbg(cl->dev, "failed to request tx mailbox channel: %d\n",
 			ret);
-		goto err_out;
+		return ret;
 	}
 
 	/* Channel for receiving message */
@@ -539,7 +539,7 @@ static int imx_dsp_rproc_mbox_alloc(struct imx_dsp_rproc *priv)
 		ret = PTR_ERR(priv->rx_ch);
 		dev_dbg(cl->dev, "failed to request rx mailbox channel: %d\n",
 			ret);
-		goto err_out;
+		goto free_channel_tx;
 	}
 
 	cl = &priv->cl_rxdb;
@@ -555,19 +555,15 @@ static int imx_dsp_rproc_mbox_alloc(struct imx_dsp_rproc *priv)
 		ret = PTR_ERR(priv->rxdb_ch);
 		dev_dbg(cl->dev, "failed to request mbox chan rxdb, ret %d\n",
 			ret);
-		goto err_out;
+		goto free_channel_rx;
 	}
 
 	return 0;
 
-err_out:
-	if (!IS_ERR(priv->tx_ch))
-		mbox_free_channel(priv->tx_ch);
-	if (!IS_ERR(priv->rx_ch))
-		mbox_free_channel(priv->rx_ch);
-	if (!IS_ERR(priv->rxdb_ch))
-		mbox_free_channel(priv->rxdb_ch);
-
+free_channel_rx:
+	mbox_free_channel(priv->rx_ch);
+free_channel_tx:
+	mbox_free_channel(priv->tx_ch);
 	return ret;
 }
 
