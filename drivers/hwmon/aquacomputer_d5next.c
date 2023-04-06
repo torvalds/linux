@@ -1038,7 +1038,7 @@ static const struct hwmon_ops aqc_hwmon_ops = {
 	.write = aqc_write
 };
 
-static const struct hwmon_channel_info *aqc_info[] = {
+static const struct hwmon_channel_info * const aqc_info[] = {
 	HWMON_CHANNEL_INFO(temp,
 			   HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_OFFSET,
 			   HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_OFFSET,
