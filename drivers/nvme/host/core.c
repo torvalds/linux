@@ -450,8 +450,8 @@ bool nvme_cancel_request(struct request *req, void *data)
 	dev_dbg_ratelimited(((struct nvme_ctrl *) data)->device,
 				"Cancelling I/O %d", req->tag);
 
-	/* don't abort one completed request */
-	if (blk_mq_request_completed(req))
+	/* don't abort one completed or idle request */
+	if (blk_mq_rq_state(req) != MQ_RQ_IN_FLIGHT)
 		return true;
 
 	nvme_req(req)->status = NVME_SC_HOST_ABORTED_CMD;
