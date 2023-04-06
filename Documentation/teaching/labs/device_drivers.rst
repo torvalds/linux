@@ -186,7 +186,7 @@ The file structure contains, among many fields:
      assigned by the programmer.
    * ``f_pos``, the offset within the file
 
-The inode structure contains, among many information, an ``i_cdev``
+The inode structure contains, among much information, an ``i_cdev``
 field, which is a pointer to the structure that defines the character
 device (when the inode corresponds to a character device).
 
@@ -361,7 +361,7 @@ While the following sequence deletes and unregisters them:
 
 .. **
 
-.. note:: initialization of the struct my_fops used the initialization
+.. note:: Initialization of the struct my_fops used the initialization
           of members by name, defined in C99 standard (see designated
           initializers and the file_operations structure). Structure
           members who do not explicitly appear in this initialization
@@ -376,7 +376,7 @@ Access to the address space of the process
 
 A driver for a device is the interface between an application and hardware. As
 a result, we often have to access user-space data. Accessing it can not be done
-directly (by de-referencing a user-space pointer). Direct access of a
+directly (by dereferencing a user-space pointer). Direct access of a
 user-space pointer can lead to incorrect behavior (depending on architecture, a
 user-space pointer may not be valid or mapped to kernel-space), a kernel oops
 (the user-mode pointer can refer to a non-resident memory area) or security
@@ -479,7 +479,7 @@ Read and write
 ==============
 
 The read and write operations are reaching the device driver as a
-result of a userspace program calling the read or write system calls:
+result of an user-space program calling the read or write system calls:
 
 .. code-block:: c
 
@@ -545,7 +545,7 @@ into account the internal buffer size, user buffer size and the offset:
 .. **
 
 The images below illustrate the read operation and how data is
-transferred between the userspace and the driver:
+transferred between the user-space and the driver:
 
    1. when the driver has enough data available (starting with the OFFSET
       position) to accurately transfer the required size (SIZE) to the user.
@@ -557,7 +557,7 @@ transferred between the userspace and the driver:
    :width: 49 %
 
 We can look at the read operation implemented by the driver as a response to a
-userpace read request. In this case, the driver is responsible for advancing
+user-space read request. In this case, the driver is responsible for advancing
 the offset according to how much it reads and returning the read size (which
 may be less than what is required).
 
@@ -584,7 +584,7 @@ The structure of the write function is similar:
 
 .. **
 
-The write operation will respond to a write request from userspace. In
+The write operation will respond to a write request from user-space. In
 this case, depending on the maximum driver capacity (MAXSIZ), it can
 write more or less than the required size.
 
@@ -618,8 +618,8 @@ or ``copy_from_user``.
 
 Before implementing the ``ioctl`` function, the numbers corresponding to the
 commands must be chosen. One method is to choose consecutive numbers starting
-at 0, but it is recommended to use ``_IOC(dir, type, nr, size)`` macrodefinition
-to generate ioctl codes. The macrodefinition parameters are as follows:
+at 0, but it is recommended to use ``_IOC(dir, type, nr, size)`` macro definition
+to generate ioctl codes. The macro definition parameters are as follows:
 
    * ``dir`` represents the data transfer (``_IOC_NONE`` , ``_IOC_READ``,
      ``_IOC_WRITE``).
@@ -677,7 +677,7 @@ It is often necessary for a thread to wait for an operation to finish,
 but it is desirable that this wait is not busy-waiting. Using waiting
 queues we can block a thread until an event occurs. When the condition
 is satisfied, elsewhere in the kernel, in another process, in an
-interrupt or deferrable work, we will wake-up the process.
+interrupt or deferrable work, we will wake up the process.
 
 A waiting queue is a list of processes that are waiting for a specific
 event. A queue is defined with the ``wait_queue_head_t`` type and can
@@ -958,7 +958,7 @@ For this:
 
           Read the `ioctl`_ section in the lab.
 
-.. note:: The userspace code is compiled automatically at ``make build`` and
+.. note:: The user-space code is compiled automatically at ``make build`` and
           copied at ``make copy``.
 
           Because we need to compile the program for qemu machine which is 32 bit,
@@ -1002,7 +1002,7 @@ Add two ioctl operations to the device driver for queuing.
 
 When the process is added to the queue, it will remain blocked in execution; To
 run the queue command open a new console in the virtual machine with Alt+F2 ;
-You can return to the previous console with Alt+F1 . If you're connected via
+You can return to the previous console with Alt+F1. If you're connected via
 SSH to the virtual machine, open a new console.
 
 .. note:: Read the `ioctl`_ and `Waiting queues`_ sections in the lab.
