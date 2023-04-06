@@ -16,10 +16,26 @@ bool bpf_verifier_log_attr_valid(const struct bpf_verifier_log *log)
 	       log->level && log->ubuf && !(log->level & ~BPF_LOG_MASK);
 }
 
+static void bpf_vlog_update_len_max(struct bpf_verifier_log *log, u32 add_len)
+{
+	/* add_len includes terminal \0, so no need for +1. */
+	u64 len = log->end_pos + add_len;
+
+	/* log->len_max could be larger than our current len due to
+	 * bpf_vlog_reset() calls, so we maintain the max of any length at any
+	 * previous point
+	 */
+	if (len > UINT_MAX)
+		log->len_max = UINT_MAX;
+	else if (len > log->len_max)
+		log->len_max = len;
+}
+
 void bpf_verifier_vlog(struct bpf_verifier_log *log, const char *fmt,
 		       va_list args)
 {
-	unsigned int n;
+	u64 cur_pos;
+	u32 new_n, n;
 
 	n = vscnprintf(log->kbuf, BPF_VERIFIER_TMP_LOG_SIZE, fmt, args);
 
@@ -33,20 +49,26 @@ void bpf_verifier_vlog(struct bpf_verifier_log *log, const char *fmt,
 		return;
 	}
 
+	n += 1; /* include terminating zero */
+	bpf_vlog_update_len_max(log, n);
+
 	if (log->level & BPF_LOG_FIXED) {
-		n = min(log->len_total - bpf_log_used(log) - 1, n);
-		log->kbuf[n] = '\0';
-		n += 1;
+		/* check if we have at least something to put into user buf */
+		new_n = 0;
+		if (log->end_pos < log->len_total) {
+			new_n = min_t(u32, log->len_total - log->end_pos, n);
+			log->kbuf[new_n - 1] = '\0';
+		}
 
-		if (copy_to_user(log->ubuf + log->end_pos, log->kbuf, n))
-			goto fail;
-
+		cur_pos = log->end_pos;
 		log->end_pos += n - 1; /* don't count terminating '\0' */
-	} else {
-		u64 new_end, new_start, cur_pos;
-		u32 buf_start, buf_end, new_n;
 
-		n += 1;
+		if (log->ubuf && new_n &&
+		    copy_to_user(log->ubuf + cur_pos, log->kbuf, new_n))
+			goto fail;
+	} else {
+		u64 new_end, new_start;
+		u32 buf_start, buf_end, new_n;
 
 		new_end = log->end_pos + n;
 		if (new_end - log->start_pos >= log->len_total)
@@ -64,6 +86,12 @@ void bpf_verifier_vlog(struct bpf_verifier_log *log, const char *fmt,
 		 */
 		if (buf_end == 0)
 			buf_end = log->len_total;
+
+		log->start_pos = new_start;
+		log->end_pos = new_end - 1; /* don't count terminating '\0' */
+
+		if (!log->ubuf)
+			return;
 
 		/* if buf_start > buf_end, we wrapped around;
 		 * if buf_start == buf_end, then we fill ubuf completely; we
@@ -88,9 +116,6 @@ void bpf_verifier_vlog(struct bpf_verifier_log *log, const char *fmt,
 					 buf_end))
 				goto fail;
 		}
-
-		log->start_pos = new_start;
-		log->end_pos = new_end - 1; /* don't count terminating '\0' */
 	}
 
 	return;
@@ -116,8 +141,13 @@ void bpf_vlog_reset(struct bpf_verifier_log *log, u64 new_pos)
 	log->end_pos = new_pos;
 	if (log->end_pos < log->start_pos)
 		log->start_pos = log->end_pos;
-	div_u64_rem(new_pos, log->len_total, &pos);
-	if (put_user(zero, log->ubuf + pos))
+
+	if (log->level & BPF_LOG_FIXED)
+		pos = log->end_pos + 1;
+	else
+		div_u64_rem(new_pos, log->len_total, &pos);
+
+	if (log->ubuf && pos < log->len_total && put_user(zero, log->ubuf + pos))
 		log->ubuf = NULL;
 }
 
@@ -169,12 +199,7 @@ static int bpf_vlog_reverse_ubuf(struct bpf_verifier_log *log, int start, int en
 
 bool bpf_vlog_truncated(const struct bpf_verifier_log *log)
 {
-	if (!log->level)
-		return false;
-	else if (log->level & BPF_LOG_FIXED)
-		return bpf_log_used(log) >= log->len_total - 1;
-	else
-		return log->start_pos > 0;
+	return log->len_max > log->len_total;
 }
 
 void bpf_vlog_finalize(struct bpf_verifier_log *log)

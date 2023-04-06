@@ -504,6 +504,7 @@ struct bpf_verifier_log {
 	char __user *ubuf;
 	u32 level;
 	u32 len_total;
+	u32 len_max;
 	char kbuf[BPF_VERIFIER_TMP_LOG_SIZE];
 };
 
@@ -517,23 +518,16 @@ struct bpf_verifier_log {
 #define BPF_LOG_MIN_ALIGNMENT 8U
 #define BPF_LOG_ALIGNMENT 40U
 
-static inline u32 bpf_log_used(const struct bpf_verifier_log *log)
-{
-	return log->end_pos - log->start_pos;
-}
-
 static inline bool bpf_verifier_log_full(const struct bpf_verifier_log *log)
 {
 	if (log->level & BPF_LOG_FIXED)
-		return bpf_log_used(log) >= log->len_total - 1;
+		return log->end_pos >= log->len_total;
 	return false;
 }
 
 static inline bool bpf_verifier_log_needed(const struct bpf_verifier_log *log)
 {
-	return log &&
-		((log->level && log->ubuf && !bpf_verifier_log_full(log)) ||
-		 log->level == BPF_LOG_KERNEL);
+	return log && log->level;
 }
 
 #define BPF_MAX_SUBPROGS 256
