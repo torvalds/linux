@@ -11,6 +11,17 @@
 struct xe_graphics_desc {
 	u8 ver;
 	u8 rel;
+
+	u8 dma_mask_size;	/* available DMA address bits */
+	u8 max_tiles;		/* defaults to 1 if unset */
+	u8 vm_max_level;
+	u8 vram_flags;
+
+	u8 has_asid:1;
+	u8 has_flat_ccs:1;
+	u8 has_link_copy_engine:1;
+	u8 has_range_tlb_invalidation:1;
+	u8 supports_usm:1;
 };
 
 struct xe_media_desc {

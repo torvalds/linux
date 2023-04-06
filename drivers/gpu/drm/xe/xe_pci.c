@@ -53,24 +53,18 @@ struct xe_device_desc {
 	const struct xe_subplatform_desc *subplatforms;
 	const struct xe_gt_desc *extra_gts;
 
-	u8 dma_mask_size; /* available DMA address bits */
-
 	u8 gt; /* GT number, 0 if undefined */
 
 #define DEFINE_FLAG(name) u8 name:1
 	DEV_INFO_FOR_EACH_FLAG(DEFINE_FLAG);
 #undef DEFINE_FLAG
 
-	u8 vram_flags;
-	u8 max_tiles;
-	u8 vm_max_level;
-
-	bool supports_usm;
-	bool has_flat_ccs;
+	/*
+	 * FIXME: Xe doesn't care about presence/lack of 4tile since we can
+	 * already determine that from the graphics IP version.  This flag
+	 * should eventually move entirely into the display code's own logic.
+	 */
 	bool has_4tile;
-	bool has_range_tlb_invalidation;
-	bool has_asid;
-	bool has_link_copy_engine;
 };
 
 #define PLATFORM(x)		\
@@ -82,26 +76,57 @@ struct xe_device_desc {
 static const struct xe_graphics_desc graphics_xelp = {
 	.ver = 12,
 	.rel = 0,
+
+	.dma_mask_size = 39,
+	.vm_max_level = 3,
 };
 
 static const struct xe_graphics_desc graphics_xelpp = {
 	.ver = 12,
 	.rel = 10,
+
+	.dma_mask_size = 39,
+	.vm_max_level = 3,
 };
+
+#define XE_HP_FEATURES \
+	.has_range_tlb_invalidation = true, \
+	.has_flat_ccs = true, \
+	.dma_mask_size = 46, \
+	.vm_max_level = 3
 
 static const struct xe_graphics_desc graphics_xehpg = {
 	.ver = 12,
 	.rel = 55,
+
+	XE_HP_FEATURES,
+	.vram_flags = XE_VRAM_FLAGS_NEED64K,
 };
 
 static const struct xe_graphics_desc graphics_xehpc = {
 	.ver = 12,
 	.rel = 60,
+
+	XE_HP_FEATURES,
+	.dma_mask_size = 52,
+	.max_tiles = 2,
+	.vm_max_level = 4,
+	.vram_flags = XE_VRAM_FLAGS_NEED64K,
+
+	.has_asid = 1,
+	.has_flat_ccs = 0,
+	.has_link_copy_engine = 1,
+	.supports_usm = 1,
 };
 
 static const struct xe_graphics_desc graphics_xelpg = {
 	.ver = 12,
 	.rel = 70,
+
+	XE_HP_FEATURES,
+	.max_tiles = 2,
+
+	.has_flat_ccs = 0,
 };
 
 static const struct xe_media_desc media_xem = {
@@ -119,17 +144,9 @@ static const struct xe_media_desc media_xelpmp = {
 	.rel = 0,
 };
 
-/* Keep in gen based order, and chronological order within a gen */
-#define GEN12_FEATURES \
-	.dma_mask_size = 39, \
-	.max_tiles = 1, \
-	.vm_max_level = 3, \
-	.vram_flags = 0
-
 static const struct xe_device_desc tgl_desc = {
 	.graphics = &graphics_xelp,
 	.media = &media_xem,
-	GEN12_FEATURES,
 	PLATFORM(XE_TIGERLAKE),
 	.require_force_probe = true,
 	.platform_engine_mask =
@@ -141,7 +158,6 @@ static const struct xe_device_desc tgl_desc = {
 static const struct xe_device_desc adl_s_desc = {
 	.graphics = &graphics_xelp,
 	.media = &media_xem,
-	GEN12_FEATURES,
 	PLATFORM(XE_ALDERLAKE_S),
 	.require_force_probe = true,
 	.platform_engine_mask =
@@ -155,7 +171,6 @@ static const u16 adlp_rplu_ids[] = { XE_RPLU_IDS(NOP), 0 };
 static const struct xe_device_desc adl_p_desc = {
 	.graphics = &graphics_xelp,
 	.media = &media_xem,
-	GEN12_FEATURES,
 	PLATFORM(XE_ALDERLAKE_P),
 	.require_force_probe = true,
 	.platform_engine_mask =
@@ -174,7 +189,6 @@ static const struct xe_device_desc adl_p_desc = {
 static const struct xe_device_desc dg1_desc = {
 	.graphics = &graphics_xelpp,
 	.media = &media_xem,
-	GEN12_FEATURES,
 	DGFX_FEATURES,
 	PLATFORM(XE_DG1),
 	.require_force_probe = true,
@@ -183,13 +197,6 @@ static const struct xe_device_desc dg1_desc = {
 		BIT(XE_HW_ENGINE_VECS0) | BIT(XE_HW_ENGINE_VCS0) |
 		BIT(XE_HW_ENGINE_VCS2),
 };
-
-#define XE_HP_FEATURES \
-	.has_range_tlb_invalidation = true, \
-	.has_flat_ccs = true, \
-	.dma_mask_size = 46, \
-	.max_tiles = 1, \
-	.vm_max_level = 3
 
 static const u16 dg2_g10_ids[] = { XE_DG2_G10_IDS(NOP), XE_ATS_M150_IDS(NOP), 0 };
 static const u16 dg2_g11_ids[] = { XE_DG2_G11_IDS(NOP), XE_ATS_M75_IDS(NOP), 0 };
@@ -210,14 +217,12 @@ static const u16 dg2_g12_ids[] = { XE_DG2_G12_IDS(NOP), 0 };
 		BIT(XE_HW_ENGINE_VCS0) | BIT(XE_HW_ENGINE_VCS2) | \
 		BIT(XE_HW_ENGINE_CCS0) | BIT(XE_HW_ENGINE_CCS1) | \
 		BIT(XE_HW_ENGINE_CCS2) | BIT(XE_HW_ENGINE_CCS3), \
-	.vram_flags = XE_VRAM_FLAGS_NEED64K, \
 	.has_4tile = 1
 
 static const struct xe_device_desc ats_m_desc = {
 	.graphics = &graphics_xehpg,
 	.media = &media_xehpm,
 	.require_force_probe = true,
-	XE_HP_FEATURES,
 
 	DG2_FEATURES,
 };
@@ -226,7 +231,6 @@ static const struct xe_device_desc dg2_desc = {
 	.graphics = &graphics_xehpg,
 	.media = &media_xehpm,
 	.require_force_probe = true,
-	XE_HP_FEATURES,
 
 	DG2_FEATURES,
 };
@@ -254,20 +258,11 @@ static const struct xe_gt_desc pvc_gts[] = {
 
 static const __maybe_unused struct xe_device_desc pvc_desc = {
 	.graphics = &graphics_xehpc,
-	XE_HP_FEATURES,
 	DGFX_FEATURES,
 	PLATFORM(XE_PVC),
 	.require_force_probe = true,
 	.extra_gts = pvc_gts,
-	.has_flat_ccs = 0,
 	.platform_engine_mask = PVC_ENGINES,
-	.vram_flags = XE_VRAM_FLAGS_NEED64K,
-	.dma_mask_size = 52,
-	.max_tiles = 2,
-	.vm_max_level = 4,
-	.supports_usm = true,
-	.has_asid = true,
-	.has_link_copy_engine = true,
 };
 
 #define MTL_MEDIA_ENGINES \
@@ -296,10 +291,6 @@ static const struct xe_device_desc mtl_desc = {
 	.graphics = &graphics_xelpg,
 	.media = &media_xelpmp,
 	.require_force_probe = true,
-	.dma_mask_size = 46,
-	.max_tiles = 2,
-	.vm_max_level = 3,
-	.has_range_tlb_invalidation = true,
 	PLATFORM(XE_METEORLAKE),
 	.extra_gts = xelpmp_gts,
 	.platform_engine_mask = MTL_MAIN_ENGINES,
@@ -409,16 +400,16 @@ static void xe_info_init(struct xe_device *xe,
 					 desc->media->rel;
 	xe->info.is_dgfx = desc->is_dgfx;
 	xe->info.platform = desc->platform;
-	xe->info.dma_mask_size = desc->dma_mask_size;
-	xe->info.vram_flags = desc->vram_flags;
-	xe->info.tile_count = desc->max_tiles;
-	xe->info.vm_max_level = desc->vm_max_level;
-	xe->info.supports_usm = desc->supports_usm;
-	xe->info.has_asid = desc->has_asid;
-	xe->info.has_flat_ccs = desc->has_flat_ccs;
+	xe->info.dma_mask_size = desc->graphics->dma_mask_size;
+	xe->info.vram_flags = desc->graphics->vram_flags;
+	xe->info.tile_count = desc->graphics->max_tiles ?: 1;
+	xe->info.vm_max_level = desc->graphics->vm_max_level;
+	xe->info.supports_usm = desc->graphics->supports_usm;
+	xe->info.has_asid = desc->graphics->has_asid;
+	xe->info.has_flat_ccs = desc->graphics->has_flat_ccs;
 	xe->info.has_4tile = desc->has_4tile;
-	xe->info.has_range_tlb_invalidation = desc->has_range_tlb_invalidation;
-	xe->info.has_link_copy_engine = desc->has_link_copy_engine;
+	xe->info.has_range_tlb_invalidation = desc->graphics->has_range_tlb_invalidation;
+	xe->info.has_link_copy_engine = desc->graphics->has_link_copy_engine;
 
 	xe->info.subplatform = subplatform_desc ?
 		subplatform_desc->subplatform : XE_SUBPLATFORM_NONE;
