@@ -606,7 +606,6 @@ early_param("kvm-arm.protected_modules", early_pkvm_modules_cfg);
 
 static void free_modprobe_argv(struct subprocess_info *info)
 {
-	kfree(info->argv[3]);
 	kfree(info->argv);
 }
 
@@ -616,7 +615,7 @@ static void free_modprobe_argv(struct subprocess_info *info)
  * security is enforced by making sure this can be called only when pKVM is
  * enabled, not yet completely initialized.
  */
-static int __init pkvm_request_early_module(char *module_name)
+static int __init pkvm_request_early_module(char *module_name, char *module_path)
 {
 	char *modprobe_path = CONFIG_MODPROBE_PATH;
 	struct subprocess_info *info;
@@ -627,6 +626,7 @@ static int __init pkvm_request_early_module(char *module_name)
 		NULL
 	};
 	char **argv;
+	int idx = 0;
 
 	if (!is_protected_kvm_enabled())
 		return -EACCES;
@@ -634,33 +634,30 @@ static int __init pkvm_request_early_module(char *module_name)
 	if (static_branch_likely(&kvm_protected_mode_initialized))
 		return -EACCES;
 
-	argv = kmalloc(sizeof(char *[5]), GFP_KERNEL);
+	argv = kmalloc(sizeof(char *) * 7, GFP_KERNEL);
 	if (!argv)
 		return -ENOMEM;
 
-	module_name = kstrdup(module_name, GFP_KERNEL);
-	if (!module_name)
-		goto free_argv;
-
-	argv[0] = modprobe_path;
-	argv[1] = "-q";
-	argv[2] = "--";
-	argv[3] = module_name;
-	argv[4] = NULL;
+	argv[idx++] = modprobe_path;
+	argv[idx++] = "-q";
+	if (*module_path != '\0') {
+		argv[idx++] = "-d";
+		argv[idx++] = module_path;
+	}
+	argv[idx++] = "--";
+	argv[idx++] = module_name;
+	argv[idx++] = NULL;
 
 	info = call_usermodehelper_setup(modprobe_path, argv, envp, GFP_KERNEL,
 					 NULL, free_modprobe_argv, NULL);
 	if (!info)
-		goto free_module_name;
+		goto err;
 
 	/* Even with CONFIG_STATIC_USERMODEHELPER we really want this path */
 	info->path = modprobe_path;
 
 	return call_usermodehelper_exec(info, UMH_WAIT_PROC | UMH_KILLABLE);
-
-free_module_name:
-	kfree(module_name);
-free_argv:
+err:
 	kfree(argv);
 
 	return -ENOMEM;
@@ -669,6 +666,7 @@ free_argv:
 int __init pkvm_load_early_modules(void)
 {
 	char *token, *buf = early_pkvm_modules;
+	char *module_path = CONFIG_PKVM_MODULE_PATH;
 	int err;
 
 	while (true) {
@@ -678,7 +676,7 @@ int __init pkvm_load_early_modules(void)
 			break;
 
 		if (*token) {
-			err = pkvm_request_early_module(token);
+			err = pkvm_request_early_module(token, module_path);
 			if (err) {
 				pr_err("Failed to load pkvm module %s: %d\n",
 				       token, err);
