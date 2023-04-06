@@ -177,8 +177,8 @@ static int hda_link_dma_hw_params(struct snd_pcm_substream *substream,
 	format_val = snd_hdac_calc_stream_format(params_rate(params), params_channels(params),
 						 params_format(params), link_bps, 0);
 
-	dev_dbg(bus->dev, "format_val=%d, rate=%d, ch=%d, format=%d\n",
-		format_val, params_rate(params), params_channels(params), params_format(params));
+	dev_dbg(bus->dev, "format_val=%#x, rate=%d, ch=%d, format=%d\n", format_val,
+		params_rate(params), params_channels(params), params_format(params));
 
 	if (ops->setup_hext_stream)
 		ops->setup_hext_stream(sdev, hext_stream, format_val);
