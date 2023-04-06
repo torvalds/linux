@@ -491,25 +491,42 @@ struct bpf_insn_aux_data {
 #define BPF_VERIFIER_TMP_LOG_SIZE	1024
 
 struct bpf_verifier_log {
-	u32 level;
-	char kbuf[BPF_VERIFIER_TMP_LOG_SIZE];
+	/* Logical start and end positions of a "log window" of the verifier log.
+	 * start_pos == 0 means we haven't truncated anything.
+	 * Once truncation starts to happen, start_pos + len_total == end_pos,
+	 * except during log reset situations, in which (end_pos - start_pos)
+	 * might get smaller than len_total (see bpf_vlog_reset()).
+	 * Generally, (end_pos - start_pos) gives number of useful data in
+	 * user log buffer.
+	 */
+	u64 start_pos;
+	u64 end_pos;
 	char __user *ubuf;
-	u32 len_used;
+	u32 level;
 	u32 len_total;
+	char kbuf[BPF_VERIFIER_TMP_LOG_SIZE];
 };
 
 #define BPF_LOG_LEVEL1	1
 #define BPF_LOG_LEVEL2	2
 #define BPF_LOG_STATS	4
+#define BPF_LOG_FIXED	8
 #define BPF_LOG_LEVEL	(BPF_LOG_LEVEL1 | BPF_LOG_LEVEL2)
-#define BPF_LOG_MASK	(BPF_LOG_LEVEL | BPF_LOG_STATS)
+#define BPF_LOG_MASK	(BPF_LOG_LEVEL | BPF_LOG_STATS | BPF_LOG_FIXED)
 #define BPF_LOG_KERNEL	(BPF_LOG_MASK + 1) /* kernel internal flag */
 #define BPF_LOG_MIN_ALIGNMENT 8U
 #define BPF_LOG_ALIGNMENT 40U
 
+static inline u32 bpf_log_used(const struct bpf_verifier_log *log)
+{
+	return log->end_pos - log->start_pos;
+}
+
 static inline bool bpf_verifier_log_full(const struct bpf_verifier_log *log)
 {
-	return log->len_used >= log->len_total - 1;
+	if (log->level & BPF_LOG_FIXED)
+		return bpf_log_used(log) >= log->len_total - 1;
+	return false;
 }
 
 static inline bool bpf_verifier_log_needed(const struct bpf_verifier_log *log)
@@ -596,7 +613,7 @@ struct bpf_verifier_env {
 	u32 scratched_regs;
 	/* Same as scratched_regs but for stack slots */
 	u64 scratched_stack_slots;
-	u32 prev_log_len, prev_insn_print_len;
+	u64 prev_log_pos, prev_insn_print_pos;
 	/* buffer used in reg_type_str() to generate reg_type string */
 	char type_str_buf[TYPE_STR_BUF_LEN];
 };
@@ -608,7 +625,9 @@ __printf(2, 3) void bpf_verifier_log_write(struct bpf_verifier_env *env,
 					   const char *fmt, ...);
 __printf(2, 3) void bpf_log(struct bpf_verifier_log *log,
 			    const char *fmt, ...);
-void bpf_vlog_reset(struct bpf_verifier_log *log, u32 new_pos);
+void bpf_vlog_reset(struct bpf_verifier_log *log, u64 new_pos);
+void bpf_vlog_finalize(struct bpf_verifier_log *log);
+bool bpf_vlog_truncated(const struct bpf_verifier_log *log);
 
 static inline struct bpf_func_state *cur_func(struct bpf_verifier_env *env)
 {

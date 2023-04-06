@@ -24,6 +24,7 @@ static void bad_core_relo(size_t log_buf_size, enum trunc_type trunc_type)
 	bpf_program__set_autoload(skel->progs.bad_relo, true);
 	memset(log_buf, 0, sizeof(log_buf));
 	bpf_program__set_log_buf(skel->progs.bad_relo, log_buf, log_buf_size ?: sizeof(log_buf));
+	bpf_program__set_log_level(skel->progs.bad_relo, 1 | 8); /* BPF_LOG_FIXED to force truncation */
 
 	err = test_log_fixup__load(skel);
 	if (!ASSERT_ERR(err, "load_fail"))

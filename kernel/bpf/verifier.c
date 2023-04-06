@@ -1439,10 +1439,10 @@ static inline u32 vlog_alignment(u32 pos)
 static void print_insn_state(struct bpf_verifier_env *env,
 			     const struct bpf_func_state *state)
 {
-	if (env->prev_log_len && env->prev_log_len == env->log.len_used) {
+	if (env->prev_log_pos && env->prev_log_pos == env->log.end_pos) {
 		/* remove new line character */
-		bpf_vlog_reset(&env->log, env->prev_log_len - 1);
-		verbose(env, "%*c;", vlog_alignment(env->prev_insn_print_len), ' ');
+		bpf_vlog_reset(&env->log, env->prev_log_pos - 1);
+		verbose(env, "%*c;", vlog_alignment(env->prev_insn_print_pos), ' ');
 	} else {
 		verbose(env, "%d:", env->insn_idx);
 	}
@@ -1750,7 +1750,7 @@ static struct bpf_verifier_state *push_stack(struct bpf_verifier_env *env,
 	elem->insn_idx = insn_idx;
 	elem->prev_insn_idx = prev_insn_idx;
 	elem->next = env->head;
-	elem->log_pos = env->log.len_used;
+	elem->log_pos = env->log.end_pos;
 	env->head = elem;
 	env->stack_size++;
 	err = copy_verifier_state(&elem->st, cur);
@@ -2286,7 +2286,7 @@ static struct bpf_verifier_state *push_async_cb(struct bpf_verifier_env *env,
 	elem->insn_idx = insn_idx;
 	elem->prev_insn_idx = prev_insn_idx;
 	elem->next = env->head;
-	elem->log_pos = env->log.len_used;
+	elem->log_pos = env->log.end_pos;
 	env->head = elem;
 	env->stack_size++;
 	if (env->stack_size > BPF_COMPLEXITY_LIMIT_JMP_SEQ) {
@@ -15638,11 +15638,11 @@ static int do_check(struct bpf_verifier_env *env)
 				print_insn_state(env, state->frame[state->curframe]);
 
 			verbose_linfo(env, env->insn_idx, "; ");
-			env->prev_log_len = env->log.len_used;
+			env->prev_log_pos = env->log.end_pos;
 			verbose(env, "%d: ", env->insn_idx);
 			print_bpf_insn(&cbs, insn, env->allow_ptr_leaks);
-			env->prev_insn_print_len = env->log.len_used - env->prev_log_len;
-			env->prev_log_len = env->log.len_used;
+			env->prev_insn_print_pos = env->log.end_pos - env->prev_log_pos;
+			env->prev_log_pos = env->log.end_pos;
 		}
 
 		if (bpf_prog_is_offloaded(env->prog->aux)) {
@@ -18860,7 +18860,8 @@ skip_full_check:
 	print_verification_stats(env);
 	env->prog->aux->verified_insns = env->insn_processed;
 
-	if (log->level && bpf_verifier_log_full(log))
+	bpf_vlog_finalize(log);
+	if (log->level && bpf_vlog_truncated(log))
 		ret = -ENOSPC;
 	if (log->level && !log->ubuf) {
 		ret = -EFAULT;
