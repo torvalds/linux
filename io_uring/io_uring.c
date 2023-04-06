@@ -1306,17 +1306,15 @@ static void io_req_local_work_add(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 
-	percpu_ref_get(&ctx->refs);
-
 	if (!llist_add(&req->io_task_work.node, &ctx->work_llist))
-		goto put_ref;
+		return;
 
 	/* needed for the following wake up */
 	smp_mb__after_atomic();
 
 	if (unlikely(atomic_read(&req->task->io_uring->in_cancel))) {
 		io_move_task_work_from_local(ctx);
-		goto put_ref;
+		return;
 	}
 
 	if (ctx->flags & IORING_SETUP_TASKRUN_FLAG)
@@ -1326,9 +1324,6 @@ static void io_req_local_work_add(struct io_kiocb *req)
 
 	if (READ_ONCE(ctx->cq_waiting))
 		wake_up_state(ctx->submitter_task, TASK_INTERRUPTIBLE);
-
-put_ref:
-	percpu_ref_put(&ctx->refs);
 }
 
 void __io_req_task_work_add(struct io_kiocb *req, bool allow_local)
@@ -1337,7 +1332,9 @@ void __io_req_task_work_add(struct io_kiocb *req, bool allow_local)
 	struct io_ring_ctx *ctx = req->ctx;
 
 	if (allow_local && ctx->flags & IORING_SETUP_DEFER_TASKRUN) {
+		percpu_ref_get(&ctx->refs);
 		io_req_local_work_add(req);
+		percpu_ref_put(&ctx->refs);
 		return;
 	}
 
