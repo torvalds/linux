@@ -4416,9 +4416,12 @@ EXPORT_SYMBOL_GPL(device_destroy);
  * on the same device to ensure that new_name is valid and
  * won't conflict with other devices.
  *
- * Note: Don't call this function.  Currently, the networking layer calls this
- * function, but that will change.  The following text from Kay Sievers offers
- * some insight:
+ * Note: given that some subsystems (networking and infiniband) use this
+ * function, with no immediate plans for this to change, we cannot assume or
+ * require that this function not be called at all.
+ *
+ * However, if you're writing new code, do not call this function. The following
+ * text from Kay Sievers offers some insight:
  *
  * Renaming devices is racy at many levels, symlinks and other stuff are not
  * replaced atomically, and you get a "move" uevent, but it's not easy to
@@ -4431,13 +4434,6 @@ EXPORT_SYMBOL_GPL(device_destroy);
  * the "move" event. It's just a mess, and nothing new should ever rely on
  * kernel device renaming. Besides that, it's not even implemented now for
  * other things than (driver-core wise very simple) network devices.
- *
- * We are currently about to change network renaming in udev to completely
- * disallow renaming of devices in the same namespace as the kernel uses,
- * because we can't solve the problems properly, that arise with swapping names
- * of multiple interfaces without races. Means, renaming of eth[0-9]* will only
- * be allowed to some other name than eth[0-9]*, for the aforementioned
- * reasons.
  *
  * Make up a "real" name in the driver before you register anything, or add
  * some other attributes for userspace to find the device, or use udev to add
