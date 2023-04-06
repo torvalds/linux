@@ -1528,6 +1528,12 @@ static void set_fence_deadline(struct drm_device *dev,
 	for_each_new_crtc_in_state (state, crtc, new_crtc_state, i) {
 		ktime_t v;
 
+		if (drm_atomic_crtc_needs_modeset(new_crtc_state))
+			continue;
+
+		if (!new_crtc_state->active)
+			continue;
+
 		if (drm_crtc_next_vblank_start(crtc, &v))
 			continue;
 

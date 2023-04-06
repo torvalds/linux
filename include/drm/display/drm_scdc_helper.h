@@ -28,6 +28,7 @@
 
 #include <drm/display/drm_scdc.h>
 
+struct drm_connector;
 struct i2c_adapter;
 
 ssize_t drm_scdc_read(struct i2c_adapter *adapter, u8 offset, void *buffer,
@@ -71,9 +72,9 @@ static inline int drm_scdc_writeb(struct i2c_adapter *adapter, u8 offset,
 	return drm_scdc_write(adapter, offset, &value, sizeof(value));
 }
 
-bool drm_scdc_get_scrambling_status(struct i2c_adapter *adapter);
+bool drm_scdc_get_scrambling_status(struct drm_connector *connector);
 
-bool drm_scdc_set_scrambling(struct i2c_adapter *adapter, bool enable);
-bool drm_scdc_set_high_tmds_clock_ratio(struct i2c_adapter *adapter, bool set);
+bool drm_scdc_set_scrambling(struct drm_connector *connector, bool enable);
+bool drm_scdc_set_high_tmds_clock_ratio(struct drm_connector *connector, bool set);
 
 #endif
