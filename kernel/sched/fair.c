@@ -9366,12 +9366,9 @@ static bool sched_use_asym_prio(struct sched_domain *sd, int cpu)
  * the SMT siblings of @sg are busy. If only one CPU in @sg is busy, pull tasks
  * only if @dst_cpu has higher priority.
  *
- * If both @dst_cpu and @sg have SMT siblings, and @sg has exactly one more
- * busy CPU than @sds::local, let @dst_cpu pull tasks if it has higher priority.
- * Bigger imbalances in the number of busy CPUs will be dealt with in
- * update_sd_pick_busiest().
- *
- * If @sg does not have SMT siblings, only pull tasks if @sg has lower priority.
+ * When dealing with SMT cores, only use priorities if the SMT core has exactly
+ * one busy sibling. find_busiest_group() will handle bigger imbalances in the
+ * number of busy CPUs.
  *
  * Return: true if @dst_cpu can pull tasks, false otherwise.
  */
@@ -9380,12 +9377,10 @@ static bool asym_smt_can_pull_tasks(int dst_cpu, struct sd_lb_stats *sds,
 				    struct sched_group *sg)
 {
 #ifdef CONFIG_SCHED_SMT
-	bool local_is_smt, sg_is_smt;
+	bool local_is_smt;
 	int sg_busy_cpus;
 
 	local_is_smt = sds->local->flags & SD_SHARE_CPUCAPACITY;
-	sg_is_smt = sg->flags & SD_SHARE_CPUCAPACITY;
-
 	sg_busy_cpus = sgs->group_weight - sgs->idle_cpus;
 
 	if (!local_is_smt) {
@@ -9406,21 +9401,17 @@ static bool asym_smt_can_pull_tasks(int dst_cpu, struct sd_lb_stats *sds,
 		return sched_asym_prefer(dst_cpu, sg->asym_prefer_cpu);
 	}
 
-	/* @dst_cpu has SMT siblings. */
-
-	if (sg_is_smt) {
-		int local_busy_cpus = sds->local->group_weight -
-				      sds->local_stat.idle_cpus;
-		int busy_cpus_delta = sg_busy_cpus - local_busy_cpus;
-
-		if (busy_cpus_delta == 1)
-			return sched_asym_prefer(dst_cpu, sg->asym_prefer_cpu);
-
+	/*
+	 * If we are here @dst_cpu has SMT siblings and are also idle.
+	 *
+	 * CPU priorities does not make sense for SMT cores with more than one
+	 * busy sibling.
+	 */
+	if (group->flags & SD_SHARE_CPUCAPACITY && sg_busy_cpus != 1)
 		return false;
-	}
 
-	/* If we are here @dst_cpu has SMT siblings and are also idle. */
 	return sched_asym_prefer(dst_cpu, sg->asym_prefer_cpu);
+
 #else
 	/* Always return false so that callers deal with non-SMT cases. */
 	return false;
