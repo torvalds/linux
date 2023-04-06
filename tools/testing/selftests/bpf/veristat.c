@@ -141,11 +141,14 @@ static struct env {
 	bool verbose;
 	bool debug;
 	bool quiet;
-	int log_level;
 	enum resfmt out_fmt;
 	bool show_version;
 	bool comparison_mode;
 	bool replay_mode;
+
+	int log_level;
+	int log_size;
+	bool log_fixed;
 
 	struct verif_stats *prog_stats;
 	int prog_stat_cnt;
@@ -193,12 +196,19 @@ const char argp_program_doc[] =
 "   OR: veristat -C <baseline.csv> <comparison.csv>\n"
 "   OR: veristat -R <results.csv>\n";
 
+enum {
+	OPT_LOG_FIXED = 1000,
+	OPT_LOG_SIZE = 1001,
+};
+
 static const struct argp_option opts[] = {
 	{ NULL, 'h', NULL, OPTION_HIDDEN, "Show the full help" },
 	{ "version", 'V', NULL, 0, "Print version" },
 	{ "verbose", 'v', NULL, 0, "Verbose mode" },
-	{ "log-level", 'l', "LEVEL", 0, "Verifier log level (default 0 for normal mode, 1 for verbose mode)" },
 	{ "debug", 'd', NULL, 0, "Debug mode (turns on libbpf debug logging)" },
+	{ "log-level", 'l', "LEVEL", 0, "Verifier log level (default 0 for normal mode, 1 for verbose mode)" },
+	{ "log-fixed", OPT_LOG_FIXED, NULL, 0, "Disable verifier log rotation" },
+	{ "log-size", OPT_LOG_SIZE, "BYTES", 0, "Customize verifier log size (default to 16MB)" },
 	{ "quiet", 'q', NULL, 0, "Quiet mode" },
 	{ "emit", 'e', "SPEC", 0, "Specify stats to be emitted" },
 	{ "sort", 's', "SPEC", 0, "Specify sort order" },
@@ -260,6 +270,17 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		env.log_level = strtol(arg, NULL, 10);
 		if (errno) {
 			fprintf(stderr, "invalid log level: %s\n", arg);
+			argp_usage(state);
+		}
+		break;
+	case OPT_LOG_FIXED:
+		env.log_fixed = true;
+		break;
+	case OPT_LOG_SIZE:
+		errno = 0;
+		env.log_size = strtol(arg, NULL, 10);
+		if (errno) {
+			fprintf(stderr, "invalid log size: %s\n", arg);
 			argp_usage(state);
 		}
 		break;
@@ -929,8 +950,8 @@ static int process_prog(const char *filename, struct bpf_object *obj, struct bpf
 {
 	const char *prog_name = bpf_program__name(prog);
 	const char *base_filename = basename(filename);
-	size_t buf_sz = sizeof(verif_log_buf);
-	char *buf = verif_log_buf;
+	char *buf;
+	int buf_sz, log_level;
 	struct verif_stats *stats;
 	int err = 0;
 	void *tmp;
@@ -948,17 +969,22 @@ static int process_prog(const char *filename, struct bpf_object *obj, struct bpf
 	memset(stats, 0, sizeof(*stats));
 
 	if (env.verbose) {
-		buf_sz = 16 * 1024 * 1024;
+		buf_sz = env.log_size ? env.log_size : 16 * 1024 * 1024;
 		buf = malloc(buf_sz);
 		if (!buf)
 			return -ENOMEM;
-		bpf_program__set_log_buf(prog, buf, buf_sz);
-		bpf_program__set_log_level(prog, env.log_level | 4); /* stats + log */
+		/* ensure we always request stats */
+		log_level = env.log_level | 4 | (env.log_fixed ? 8 : 0);
 	} else {
-		bpf_program__set_log_buf(prog, buf, buf_sz);
-		bpf_program__set_log_level(prog, 4); /* only verifier stats */
+		buf = verif_log_buf;
+		buf_sz = sizeof(verif_log_buf);
+		/* request only verifier stats */
+		log_level = 4 | (env.log_fixed ? 8 : 0);
 	}
 	verif_log_buf[0] = '\0';
+
+	bpf_program__set_log_buf(prog, buf, buf_sz);
+	bpf_program__set_log_level(prog, log_level);
 
 	/* increase chances of successful BPF object loading */
 	fixup_obj(obj, prog, base_filename);
