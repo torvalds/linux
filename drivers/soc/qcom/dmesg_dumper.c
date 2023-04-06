@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.*/
 
-#include <linux/dma-direct.h>
-#include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/kmsg_dump.h>
 #include <linux/module.h>
@@ -186,7 +184,6 @@ static int qcom_ddump_rm_cb(struct notifier_block *nb, unsigned long cmd,
 	struct qcom_dmesg_dumper *qdd;
 	gh_vmid_t peer_vmid;
 	gh_vmid_t self_vmid;
-	dma_addr_t dma_handle;
 
 	qdd = container_of(nb, struct qcom_dmesg_dumper, rm_nb);
 
@@ -205,13 +202,16 @@ static int qcom_ddump_rm_cb(struct notifier_block *nb, unsigned long cmd,
 		return NOTIFY_DONE;
 
 	if (vm_status_payload->vm_status == GH_RM_VM_STATUS_READY) {
-		qdd->base = dma_alloc_coherent(qdd->dev, qdd->size, &dma_handle, GFP_KERNEL);
-		if (!qdd->base)
-			return -ENOMEM;
+		qdd->base = kzalloc(qdd->size, GFP_KERNEL);
+		if (!qdd->base) {
+			dev_err(qdd->dev, "Failed to alloc memory\n");
+			return NOTIFY_DONE;
+		}
 
-		qdd->res.start = dma_to_phys(qdd->dev, dma_handle);
+		qdd->res.start = virt_to_phys(qdd->base);
 		qdd->res.end = qdd->res.start + qdd->size - 1;
 		if (qcom_ddump_share_mem(qdd, self_vmid, peer_vmid)) {
+			kfree(qdd->base);
 			dev_err(qdd->dev, "Failed to share memory\n");
 			return NOTIFY_DONE;
 		}
@@ -476,6 +476,7 @@ static int qcom_ddump_remove(struct platform_device *pdev)
 	}
 
 	if (qdd->primary_vm) {
+		kfree(qdd->base);
 		gh_rm_unregister_notifier(&qdd->rm_nb);
 	} else {
 		ret = kmsg_dump_unregister(&qdd->dump);
