@@ -663,7 +663,7 @@ static const struct hwmon_ops nzxt_smart2_hwmon_ops = {
 	.write = nzxt_smart2_hwmon_write,
 };
 
-static const struct hwmon_channel_info *nzxt_smart2_channel_info[] = {
+static const struct hwmon_channel_info * const nzxt_smart2_channel_info[] = {
 	HWMON_CHANNEL_INFO(fan, HWMON_F_INPUT | HWMON_F_LABEL,
 			   HWMON_F_INPUT | HWMON_F_LABEL,
 			   HWMON_F_INPUT | HWMON_F_LABEL),
