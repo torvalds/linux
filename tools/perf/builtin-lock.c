@@ -77,7 +77,7 @@ static enum lock_aggr_mode aggr_mode = LOCK_AGGR_ADDR;
 
 static bool needs_callstack(void)
 {
-	return verbose > 0 || !list_empty(&callstack_filters);
+	return !list_empty(&callstack_filters);
 }
 
 static struct thread_stat *thread_stat_find(u32 tid)

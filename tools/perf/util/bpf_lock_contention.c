@@ -346,7 +346,7 @@ int lock_contention_read(struct lock_contention *con)
 		if (data.count)
 			st->avg_wait_time = data.total_time / data.count;
 
-		if (con->save_callstack) {
+		if (con->aggr_mode == LOCK_AGGR_CALLER && verbose > 0) {
 			st->callstack = memdup(stack_trace, stack_size);
 			if (st->callstack == NULL)
 				break;
