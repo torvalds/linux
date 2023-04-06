@@ -24,6 +24,8 @@
 #include "evsel.h"
 #include "pmu.h"
 #include "pmus.h"
+#include "pmu-bison.h"
+#include "pmu-flex.h"
 #include "parse-events.h"
 #include "print-events.h"
 #include "header.h"
@@ -57,9 +59,6 @@ struct perf_pmu_format {
 	struct list_head list;
 };
 
-int perf_pmu_parse(struct list_head *list, char *name);
-extern FILE *perf_pmu_in;
-
 static bool hybrid_scanned;
 
 static struct perf_pmu *perf_pmu__find2(int dirfd, const char *name);
@@ -81,6 +80,8 @@ int perf_pmu__format_parse(int dirfd, struct list_head *head)
 	while (!ret && (evt_ent = readdir(format_dir))) {
 		char *name = evt_ent->d_name;
 		int fd;
+		void *scanner;
+		FILE *file;
 
 		if (!strcmp(name, ".") || !strcmp(name, ".."))
 			continue;
@@ -91,9 +92,22 @@ int perf_pmu__format_parse(int dirfd, struct list_head *head)
 		if (fd < 0)
 			break;
 
-		perf_pmu_in = fdopen(fd, "r");
-		ret = perf_pmu_parse(head, name);
-		fclose(perf_pmu_in);
+		file = fdopen(fd, "r");
+		if (!file) {
+			close(fd);
+			break;
+		}
+
+		ret = perf_pmu_lex_init(&scanner);
+		if (ret) {
+			fclose(file);
+			break;
+		}
+
+		perf_pmu_set_in(file, scanner);
+		ret = perf_pmu_parse(head, name, scanner);
+		perf_pmu_lex_destroy(scanner);
+		fclose(file);
 	}
 
 	closedir(format_dir);
