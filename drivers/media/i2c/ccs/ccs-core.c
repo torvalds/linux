@@ -2894,19 +2894,18 @@ static int ccs_identify_module(struct ccs_sensor *sensor)
 			"smia version %2.2d smiapp version %2.2d\n",
 			minfo->smia_version, minfo->smiapp_version);
 		minfo->name = SMIAPP_NAME;
-	}
-
-	/*
-	 * Some modules have bad data in the lvalues below. Hope the
-	 * rvalues have better stuff. The lvalues are module
-	 * parameters whereas the rvalues are sensor parameters.
-	 */
-	if (minfo->sensor_smia_manufacturer_id &&
-	    !minfo->smia_manufacturer_id && !minfo->model_id) {
-		minfo->smia_manufacturer_id =
-			minfo->sensor_smia_manufacturer_id;
-		minfo->model_id = minfo->sensor_model_id;
-		minfo->revision_number = minfo->sensor_revision_number;
+		/*
+		 * Some modules have bad data in the lvalues below. Hope the
+		 * rvalues have better stuff. The lvalues are module
+		 * parameters whereas the rvalues are sensor parameters.
+		 */
+		if (minfo->sensor_smia_manufacturer_id &&
+		    !minfo->smia_manufacturer_id && !minfo->model_id) {
+			minfo->smia_manufacturer_id =
+				minfo->sensor_smia_manufacturer_id;
+			minfo->model_id = minfo->sensor_model_id;
+			minfo->revision_number = minfo->sensor_revision_number;
+		}
 	}
 
 	for (i = 0; i < ARRAY_SIZE(ccs_module_idents); i++) {
