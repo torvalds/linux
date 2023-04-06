@@ -24,6 +24,7 @@ load(":msm_dtc.bzl", "define_dtc_dist")
 load(":msm_abl.bzl", "define_abl_dist")
 load(":image_opts.bzl", "boot_image_opts")
 load(":target_variants.bzl", "le_variants")
+load(":allyes_images.bzl", "gen_allyes_files")
 
 def _define_build_config(
         msm_target,
@@ -278,4 +279,6 @@ def define_msm_le(
 
     define_dtc_dist(target, msm_target, variant)
 
-    define_extras(target, flavor = "allyes")
+    gen_allyes_files(le_target)
+
+    define_extras(target)
