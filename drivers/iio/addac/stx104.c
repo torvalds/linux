@@ -13,6 +13,7 @@
 #include <linux/ioport.h>
 #include <linux/isa.h>
 #include <linux/kernel.h>
+#include <linux/limits.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/mutex.h>
@@ -181,8 +182,7 @@ static int stx104_write_raw(struct iio_dev *indio_dev,
 		return 0;
 	case IIO_CHAN_INFO_RAW:
 		if (chan->output) {
-			/* DAC can only accept up to a 16-bit value */
-			if ((unsigned int)val > 65535)
+			if (val < 0 || val > U16_MAX)
 				return -EINVAL;
 
 			mutex_lock(&priv->lock);
