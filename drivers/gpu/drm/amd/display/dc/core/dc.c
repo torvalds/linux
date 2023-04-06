@@ -2594,9 +2594,6 @@ static enum surface_update_type check_update_surfaces_for_stream(
 				stream_update->vrr_active_variable))
 			su_flags->bits.fams_changed = 1;
 
-		if (stream_update->crtc_timing_adjust && dc_extended_blank_supported(dc))
-			su_flags->bits.crtc_timing_adjust = 1;
-
 		if (su_flags->raw != 0)
 			overall_type = UPDATE_TYPE_FULL;
 
@@ -4896,22 +4893,4 @@ void dc_notify_vsync_int_state(struct dc *dc, struct dc_stream_state *stream, bo
 
 	if (pipe->stream_res.abm && pipe->stream_res.abm->funcs->set_abm_pause)
 		pipe->stream_res.abm->funcs->set_abm_pause(pipe->stream_res.abm, !enable, i, pipe->stream_res.tg->inst);
-}
-
-/**
- * dc_extended_blank_supported - Decide whether extended blank is supported
- *
- * @dc: [in] Current DC state
- *
- * Extended blank is a freesync optimization feature to be enabled in the
- * future.  During the extra vblank period gained from freesync, we have the
- * ability to enter z9/z10.
- *
- * Return:
- * Indicate whether extended blank is supported (%true or %false)
- */
-bool dc_extended_blank_supported(struct dc *dc)
-{
-	return dc->debug.extended_blank_optimization && !dc->debug.disable_z10
-		&& dc->caps.zstate_support && dc->caps.is_apu;
 }
