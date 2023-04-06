@@ -29,4 +29,6 @@ tegra-drm-y := \
 
 tegra-drm-y += trace.o
 
+tegra-drm-$(CONFIG_DRM_FBDEV_EMULATION) += fbdev.o
+
 obj-$(CONFIG_DRM_TEGRA) += tegra-drm.o
