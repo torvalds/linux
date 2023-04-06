@@ -68,7 +68,7 @@ The main types of deferred work are kernel threads and softirqs. Work
 queues are implemented on top of kernel threads and tasklets and
 timers on top of softirqs. Bottom-half handlers were the first
 implementation of deferred work in Linux, but in the meantime it was
-replaced by softirqs. That is why some of the functions presented
+replaced by softirqs. That is why some functions presented
 contain *bh* in their name.
 
 Softirqs
@@ -134,7 +134,7 @@ context, just like softirqs. The main difference between sofirqs and tasklets
 is that tasklets can be allocated dynamically and thus they can be used
 by device drivers. A tasklet is represented by :c:type:`struct
 tasklet` and as many other kernel structures it needs to be
-initialized before being used. A pre-initialized tasklet can defined
+initialized before being used. A pre-initialized tasklet can be defined
 as following:
 
 .. code-block:: c
@@ -228,7 +228,7 @@ the following formulas are used:
    jiffies_value = seconds_value * HZ ;
    seconds_value = jiffies_value / HZ ;
 
-The kernel mantains a counter that contains the number of jiffies
+The kernel maintains a counter that contains the number of jiffies
 since the last boot, which can be accessed via the :c:macro:`jiffies`
 global variable or macro. We can use it to calculate a time in the
 future for timers:
@@ -250,7 +250,7 @@ To stop a timer, use :c:func:`del_timer` and :c:func:`del_timer_sync`:
    int del_timer(struct timer_list *timer);
    int del_timer_sync(struct timer_list *timer);
 
-Thse functions can be called for both a scheduled timer and an
+These functions can be called for both a scheduled timer and an
 unplanned timer. :c:func:`del_timer_sync` is used to eliminate the
 races that can occur on multiprocessor systems, since at the end of
 the call it is guaranteed that the timer processing function does not
@@ -262,7 +262,7 @@ because if a timer expires after the module is removed, the handler
 function will no longer be loaded into the kernel and a kernel oops
 will be generated.
 
-The usual sequence used to initialize and schedule a one second
+The usual sequence used to initialize and schedule a one-second
 timeout is:
 
 .. code-block:: c
@@ -743,7 +743,7 @@ sections marked with **TODO 1** to complete the task.
 	  the timer we need to use the absolute time of the system (in
 	  the future) in number of ticks. The current time of the
 	  system in the number of ticks is given by :c:type:`jiffies`.
-	  Thus the absolute time we need to pass to the timer is
+	  Thus, the absolute time we need to pass to the timer is
 	  ``jiffies + TIMER_TIMEOUT * HZ``.
 
 	  For more information review the `Timers`_ section.
@@ -761,7 +761,7 @@ skeleton.
 
 We plan to display information about the current process after N
 seconds of receiving a ioctl call from user space. N is transmitted as
-ioctl paramereter.
+ioctl parameter.
 
 Generate the skeleton for the task named **3-4-5-deferred** and
 follow the sections marked with **TODO 1** in the skeleton driver.
@@ -897,7 +897,7 @@ TODOs from the skeleton.
 ------------------------------------------
 
 The purpose of this task is to exercise the synchronization between a
-deferrable action (a timer) and process context. Setup a periodic
+deferrable action (a timer) and process context. Set up a periodic
 timer that monitors a list of processes. If one of the processes
 terminate a message is printed. Processes can be dynamically added to
 the list. Use the *3-4-5-deferred/kernel/* skeleton as a base and
