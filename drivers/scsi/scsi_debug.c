@@ -6992,8 +6992,10 @@ static int __init scsi_debug_init(void)
 	sdebug_add_host = 0;
 
 	queued_cmd_cache = KMEM_CACHE(sdebug_queued_cmd, SLAB_HWCACHE_ALIGN);
-	if (!queued_cmd_cache)
+	if (!queued_cmd_cache) {
+		ret = -ENOMEM;
 		goto driver_unreg;
+	}
 
 	for (k = 0; k < hosts_to_add; k++) {
 		if (want_store && k == 0) {
