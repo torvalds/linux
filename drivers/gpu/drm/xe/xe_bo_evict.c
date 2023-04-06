@@ -63,7 +63,7 @@ int xe_bo_evict_all(struct xe_device *xe)
 		spin_unlock(&xe->pinned.lock);
 
 		xe_bo_lock(bo, &ww, 0, false);
-		ret = xe_bo_evict(bo, true);
+		ret = xe_bo_evict_pinned(bo);
 		xe_bo_unlock(bo, &ww);
 		xe_bo_put(bo);
 		if (ret) {
@@ -97,7 +97,7 @@ int xe_bo_evict_all(struct xe_device *xe)
 		spin_unlock(&xe->pinned.lock);
 
 		xe_bo_lock(bo, &ww, 0, false);
-		ret = xe_bo_evict(bo, true);
+		ret = xe_bo_evict_pinned(bo);
 		xe_bo_unlock(bo, &ww);
 		xe_bo_put(bo);
 		if (ret)
@@ -141,7 +141,7 @@ int xe_bo_restore_kernel(struct xe_device *xe)
 		spin_unlock(&xe->pinned.lock);
 
 		xe_bo_lock(bo, &ww, 0, false);
-		ret = xe_bo_validate(bo, NULL, false);
+		ret = xe_bo_restore_pinned(bo);
 		xe_bo_unlock(bo, &ww);
 		if (ret) {
 			xe_bo_put(bo);
@@ -205,7 +205,7 @@ int xe_bo_restore_user(struct xe_device *xe)
 		spin_unlock(&xe->pinned.lock);
 
 		xe_bo_lock(bo, &ww, 0, false);
-		ret = xe_bo_validate(bo, NULL, false);
+		ret = xe_bo_restore_pinned(bo);
 		xe_bo_unlock(bo, &ww);
 		xe_bo_put(bo);
 		if (ret) {

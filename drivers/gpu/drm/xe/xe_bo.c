@@ -696,6 +696,135 @@ out:
 
 }
 
+/**
+ * xe_bo_evict_pinned() - Evict a pinned VRAM object to system memory
+ * @bo: The buffer object to move.
+ *
+ * On successful completion, the object memory will be moved to sytem memory.
+ * This function blocks until the object has been fully moved.
+ *
+ * This is needed to for special handling of pinned VRAM object during
+ * suspend-resume.
+ *
+ * Return: 0 on success. Negative error code on failure.
+ */
+int xe_bo_evict_pinned(struct xe_bo *bo)
+{
+	struct ttm_place place = {
+		.mem_type = XE_PL_TT,
+	};
+	struct ttm_placement placement = {
+		.placement = &place,
+		.num_placement = 1,
+	};
+	struct ttm_operation_ctx ctx = {
+		.interruptible = false,
+	};
+	struct ttm_resource *new_mem;
+	int ret;
+
+	xe_bo_assert_held(bo);
+
+	if (WARN_ON(!bo->ttm.resource))
+		return -EINVAL;
+
+	if (WARN_ON(!xe_bo_is_pinned(bo)))
+		return -EINVAL;
+
+	if (WARN_ON(!xe_bo_is_vram(bo)))
+		return -EINVAL;
+
+	ret = ttm_bo_mem_space(&bo->ttm, &placement, &new_mem, &ctx);
+	if (ret)
+		return ret;
+
+	if (!bo->ttm.ttm) {
+		bo->ttm.ttm = xe_ttm_tt_create(&bo->ttm, 0);
+		if (!bo->ttm.ttm) {
+			ret = -ENOMEM;
+			goto err_res_free;
+		}
+	}
+
+	ret = ttm_tt_populate(bo->ttm.bdev, bo->ttm.ttm, &ctx);
+	if (ret)
+		goto err_res_free;
+
+	ret = dma_resv_reserve_fences(bo->ttm.base.resv, 1);
+	if (ret)
+		goto err_res_free;
+
+	ret = xe_bo_move(&bo->ttm, false, &ctx, new_mem, NULL);
+	if (ret)
+		goto err_res_free;
+
+	dma_resv_wait_timeout(bo->ttm.base.resv, DMA_RESV_USAGE_KERNEL,
+			      false, MAX_SCHEDULE_TIMEOUT);
+
+	return 0;
+
+err_res_free:
+	ttm_resource_free(&bo->ttm, &new_mem);
+	return ret;
+}
+
+/**
+ * xe_bo_restore_pinned() - Restore a pinned VRAM object
+ * @bo: The buffer object to move.
+ *
+ * On successful completion, the object memory will be moved back to VRAM.
+ * This function blocks until the object has been fully moved.
+ *
+ * This is needed to for special handling of pinned VRAM object during
+ * suspend-resume.
+ *
+ * Return: 0 on success. Negative error code on failure.
+ */
+int xe_bo_restore_pinned(struct xe_bo *bo)
+{
+	struct ttm_operation_ctx ctx = {
+		.interruptible = false,
+	};
+	struct ttm_resource *new_mem;
+	int ret;
+
+	xe_bo_assert_held(bo);
+
+	if (WARN_ON(!bo->ttm.resource))
+		return -EINVAL;
+
+	if (WARN_ON(!xe_bo_is_pinned(bo)))
+		return -EINVAL;
+
+	if (WARN_ON(xe_bo_is_vram(bo) || !bo->ttm.ttm))
+		return -EINVAL;
+
+	ret = ttm_bo_mem_space(&bo->ttm, &bo->placement, &new_mem, &ctx);
+	if (ret)
+		return ret;
+
+	ret = ttm_tt_populate(bo->ttm.bdev, bo->ttm.ttm, &ctx);
+	if (ret)
+		goto err_res_free;
+
+	ret = dma_resv_reserve_fences(bo->ttm.base.resv, 1);
+	if (ret)
+		goto err_res_free;
+
+	ret = xe_bo_move(&bo->ttm, false, &ctx, new_mem, NULL);
+	if (ret)
+		goto err_res_free;
+
+	dma_resv_wait_timeout(bo->ttm.base.resv, DMA_RESV_USAGE_KERNEL,
+			      false, MAX_SCHEDULE_TIMEOUT);
+
+	return 0;
+
+err_res_free:
+	ttm_resource_free(&bo->ttm, &new_mem);
+	return ret;
+}
+
 static unsigned long xe_ttm_io_mem_pfn(struct ttm_buffer_object *ttm_bo,
 				       unsigned long page_offset)
 {
