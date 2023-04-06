@@ -235,6 +235,12 @@ static int max_idle_set(const char *arg, const struct kernel_param *kp)
 		goto skip_limit_set;
 	}
 
+	if (!cpumask_available(idle_injection_cpu_mask)) {
+		ret = allocate_copy_idle_injection_mask(cpu_present_mask);
+		if (ret)
+			goto skip_limit_set;
+	}
+
 	if (check_invalid(idle_injection_cpu_mask, new_max_idle)) {
 		ret = -EINVAL;
 		goto skip_limit_set;
@@ -791,7 +797,8 @@ static int __init powerclamp_init(void)
 		return retval;
 
 	mutex_lock(&powerclamp_lock);
-	retval = allocate_copy_idle_injection_mask(cpu_present_mask);
+	if (!cpumask_available(idle_injection_cpu_mask))
+		retval = allocate_copy_idle_injection_mask(cpu_present_mask);
 	mutex_unlock(&powerclamp_lock);
 
 	if (retval)

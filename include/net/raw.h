@@ -37,7 +37,7 @@ int raw_rcv(struct sock *, struct sk_buff *);
 struct raw_hashinfo {
 	spinlock_t lock;
 
-	struct hlist_nulls_head ht[RAW_HTABLE_SIZE] ____cacheline_aligned;
+	struct hlist_head ht[RAW_HTABLE_SIZE] ____cacheline_aligned;
 };
 
 static inline u32 raw_hashfunc(const struct net *net, u32 proto)
@@ -51,7 +51,7 @@ static inline void raw_hashinfo_init(struct raw_hashinfo *hashinfo)
 
 	spin_lock_init(&hashinfo->lock);
 	for (i = 0; i < RAW_HTABLE_SIZE; i++)
-		INIT_HLIST_NULLS_HEAD(&hashinfo->ht[i], i);
+		INIT_HLIST_HEAD(&hashinfo->ht[i]);
 }
 
 #ifdef CONFIG_PROC_FS

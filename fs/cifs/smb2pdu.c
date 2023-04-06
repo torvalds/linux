@@ -310,7 +310,6 @@ out:
 	case SMB2_READ:
 	case SMB2_WRITE:
 	case SMB2_LOCK:
-	case SMB2_IOCTL:
 	case SMB2_QUERY_DIRECTORY:
 	case SMB2_CHANGE_NOTIFY:
 	case SMB2_QUERY_INFO:
