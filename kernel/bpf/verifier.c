@@ -12651,10 +12651,14 @@ static int is_branch32_taken(struct bpf_reg_state *reg, u32 val, u8 opcode)
 	case BPF_JEQ:
 		if (tnum_is_const(subreg))
 			return !!tnum_equals_const(subreg, val);
+		else if (val < reg->u32_min_value || val > reg->u32_max_value)
+			return 0;
 		break;
 	case BPF_JNE:
 		if (tnum_is_const(subreg))
 			return !tnum_equals_const(subreg, val);
+		else if (val < reg->u32_min_value || val > reg->u32_max_value)
+			return 1;
 		break;
 	case BPF_JSET:
 		if ((~subreg.mask & subreg.value) & val)
@@ -12724,10 +12728,14 @@ static int is_branch64_taken(struct bpf_reg_state *reg, u64 val, u8 opcode)
 	case BPF_JEQ:
 		if (tnum_is_const(reg->var_off))
 			return !!tnum_equals_const(reg->var_off, val);
+		else if (val < reg->umin_value || val > reg->umax_value)
+			return 0;
 		break;
 	case BPF_JNE:
 		if (tnum_is_const(reg->var_off))
 			return !tnum_equals_const(reg->var_off, val);
+		else if (val < reg->umin_value || val > reg->umax_value)
+			return 1;
 		break;
 	case BPF_JSET:
 		if ((~reg->var_off.mask & reg->var_off.value) & val)
@@ -13347,6 +13355,18 @@ static int check_cond_jmp_op(struct bpf_verifier_env *env,
 		pred = is_branch_taken(dst_reg,
 				       src_reg->var_off.value,
 				       opcode,
+				       is_jmp32);
+	} else if (dst_reg->type == SCALAR_VALUE &&
+		   is_jmp32 && tnum_is_const(tnum_subreg(dst_reg->var_off))) {
+		pred = is_branch_taken(src_reg,
+				       tnum_subreg(dst_reg->var_off).value,
+				       flip_opcode(opcode),
+				       is_jmp32);
+	} else if (dst_reg->type == SCALAR_VALUE &&
+		   !is_jmp32 && tnum_is_const(dst_reg->var_off)) {
+		pred = is_branch_taken(src_reg,
+				       dst_reg->var_off.value,
+				       flip_opcode(opcode),
 				       is_jmp32);
 	} else if (reg_is_pkt_pointer_any(dst_reg) &&
 		   reg_is_pkt_pointer_any(src_reg) &&
