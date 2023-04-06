@@ -494,9 +494,13 @@ static int pmu_aliases_parse(int dirfd, struct list_head *head)
 			continue;
 
 		fd = openat(dirfd, name, O_RDONLY);
+		if (fd == -1) {
+			pr_debug("Cannot open %s\n", name);
+			continue;
+		}
 		file = fdopen(fd, "r");
 		if (!file) {
-			pr_debug("Cannot open %s\n", name);
+			close(fd);
 			continue;
 		}
 
@@ -1882,9 +1886,13 @@ int perf_pmu__caps_parse(struct perf_pmu *pmu)
 			continue;
 
 		fd = openat(caps_fd, name, O_RDONLY);
-		file = fdopen(fd, "r");
-		if (!file)
+		if (fd == -1)
 			continue;
+		file = fdopen(fd, "r");
+		if (!file) {
+			close(fd);
+			continue;
+		}
 
 		if (!fgets(value, sizeof(value), file) ||
 		    (perf_pmu__new_caps(&pmu->caps, name, value) < 0)) {
