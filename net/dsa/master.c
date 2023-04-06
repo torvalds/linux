@@ -198,7 +198,7 @@ static void dsa_master_get_strings(struct net_device *dev, uint32_t stringset,
 /* Deny PTP operations on master if there is at least one switch in the tree
  * that is PTP capable.
  */
-int dsa_master_pre_change_hwtstamp(struct net_device *dev,
+int __dsa_master_hwtstamp_validate(struct net_device *dev,
 				   const struct kernel_hwtstamp_config *config,
 				   struct netlink_ext_ack *extack)
 {

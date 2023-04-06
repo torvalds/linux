@@ -7,7 +7,7 @@
 #include <linux/net_tstamp.h>
 #include <linux/wireless.h>
 #include <linux/if_bridge.h>
-#include <net/dsa.h>
+#include <net/dsa_stubs.h>
 #include <net/wext.h>
 
 #include "dev.h"
@@ -259,9 +259,6 @@ static int dev_get_hwtstamp(struct net_device *dev, struct ifreq *ifr)
 
 static int dev_set_hwtstamp(struct net_device *dev, struct ifreq *ifr)
 {
-	struct netdev_notifier_hwtstamp_info info = {
-		.info.dev = dev,
-	};
 	struct kernel_hwtstamp_config kernel_cfg;
 	struct netlink_ext_ack extack = {};
 	struct hwtstamp_config cfg;
@@ -276,12 +273,7 @@ static int dev_set_hwtstamp(struct net_device *dev, struct ifreq *ifr)
 	if (err)
 		return err;
 
-	info.info.extack = &extack;
-	info.config = &kernel_cfg;
-
-	err = call_netdevice_notifiers_info(NETDEV_PRE_CHANGE_HWTSTAMP,
-					    &info.info);
-	err = notifier_to_errno(err);
+	err = dsa_master_hwtstamp_validate(dev, &kernel_cfg, &extack);
 	if (err) {
 		if (extack._msg)
 			netdev_err(dev, "%s\n", extack._msg);
