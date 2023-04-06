@@ -24,6 +24,9 @@ properties:
   clocks:
     minItems: 1
 
+  resets:
+    maxItems: 1
+
   interrupts:
     maxItems: 1
 
@@ -59,6 +62,7 @@ examples:
     i2c@e0004000 {
         compatible = "cdns,i2c-r1p10";
         clocks = <&clkc 38>;
+        resets = <&rstc 288>;
         interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
         reg = <0xe0004000 0x1000>;
         clock-frequency = <400000>;
