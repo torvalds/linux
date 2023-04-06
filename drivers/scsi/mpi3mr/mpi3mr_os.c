@@ -3331,19 +3331,19 @@ static int mpi3mr_get_chain_idx(struct mpi3mr_ioc *mrioc)
 {
 	u8 retry_count = 5;
 	int cmd_idx = -1;
+	unsigned long flags;
 
+	spin_lock_irqsave(&mrioc->chain_buf_lock, flags);
 	do {
-		spin_lock(&mrioc->chain_buf_lock);
 		cmd_idx = find_first_zero_bit(mrioc->chain_bitmap,
 		    mrioc->chain_buf_count);
 		if (cmd_idx < mrioc->chain_buf_count) {
 			set_bit(cmd_idx, mrioc->chain_bitmap);
-			spin_unlock(&mrioc->chain_buf_lock);
 			break;
 		}
-		spin_unlock(&mrioc->chain_buf_lock);
 		cmd_idx = -1;
 	} while (retry_count--);
+	spin_unlock_irqrestore(&mrioc->chain_buf_lock, flags);
 	return cmd_idx;
 }
 
