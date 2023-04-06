@@ -1332,9 +1332,9 @@ void __io_req_task_work_add(struct io_kiocb *req, bool allow_local)
 	struct io_ring_ctx *ctx = req->ctx;
 
 	if (allow_local && ctx->flags & IORING_SETUP_DEFER_TASKRUN) {
-		percpu_ref_get(&ctx->refs);
+		rcu_read_lock();
 		io_req_local_work_add(req);
-		percpu_ref_put(&ctx->refs);
+		rcu_read_unlock();
 		return;
 	}
 
@@ -3051,6 +3051,10 @@ static __cold void io_ring_exit_work(struct work_struct *work)
 	mutex_unlock(&ctx->uring_lock);
 	spin_lock(&ctx->completion_lock);
 	spin_unlock(&ctx->completion_lock);
+
+	/* pairs with RCU read section in io_req_local_work_add() */
+	if (ctx->flags & IORING_SETUP_DEFER_TASKRUN)
+		synchronize_rcu();
 
 	io_ring_ctx_free(ctx);
 }
