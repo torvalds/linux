@@ -4338,7 +4338,7 @@ void dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport(
 				+ v->WritebackChunkSize * 1024.0 / 32.0 / SOCCLK;
 	}
 	if (v->USRRetrainingRequiredFinal)
-		v->Watermark.WritebackUrgentWatermark = v->Watermark.WritebackUrgentWatermark
+		v->Watermark.WritebackDRAMClockChangeWatermark = v->Watermark.WritebackDRAMClockChangeWatermark
 				+ mmSOCParameters.USRRetrainingLatency;
 
 	if (TotalActiveWriteback <= 1) {
