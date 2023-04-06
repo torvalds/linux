@@ -520,6 +520,23 @@
 			};
 		};
 	};
+
+	imx708: imx708@1a {
+		compatible = "sony,imx708";
+		reg = <0x1a>;
+		clocks = <&clk_ext_camera>;
+		reset-gpio = <&gpio 18 0>;
+
+		port {
+			imx708_to_csi2rx0: endpoint {
+				remote-endpoint = <&csi2rx0_from_imx708>;
+				data-lanes = <1 2>;
+				clock-noncontinuous;
+				link-frequencies = /bits/ 64 <450000000>;
+			};
+		};
+	};
+
 };
 
 &sdio0 {
@@ -564,6 +581,16 @@
 			csi2rx0_from_imx219: endpoint@0 {
 				reg = <0>;
 				remote-endpoint = <&imx219_to_csi2rx0>;
+				bus-type = <4>;      /* MIPI CSI-2 D-PHY */
+				clock-lanes = <4>;
+				data-lanes = <0 1>;
+				lane-polarities = <0 0 0>;
+				status = "okay";
+			};
+
+			csi2rx0_from_imx708: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&imx708_to_csi2rx0>;
 				bus-type = <4>;      /* MIPI CSI-2 D-PHY */
 				clock-lanes = <4>;
 				data-lanes = <0 1>;
