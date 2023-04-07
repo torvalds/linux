@@ -28,6 +28,11 @@ enum {
 	WCD_USBSS_AUDIO_FSM,
 };
 
+enum {
+	WCD_USBSS_1_X,
+	WCD_USBSS_2_0,
+};
+
 struct wcd_usbss_reg_mask_val {
 	u16 reg;
 	u8 mask;
@@ -453,6 +458,9 @@ static int wcd_usbss_switch_update_defaults(struct wcd_usbss_ctxt *priv)
 	regmap_update_bits(priv->regmap, WCD_USBSS_EQUALIZER1,
 			WCD_USBSS_EQUALIZER1_EQ_EN_MASK, 0x00);
 	regmap_update_bits(priv->regmap, WCD_USBSS_USB_SS_CNTL, 0x07, 0x05); /* Mode5: USB*/
+	if (wcd_usbss_ctxt_->version == WCD_USBSS_2_0)
+		regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_PMP_OUT1,
+				0x40, 0x00);
 	/* Once plug-out done, restore to MANUAL mode */
 	audio_fsm_mode = WCD_USBSS_AUDIO_MANUAL;
 	return 0;
@@ -650,6 +658,9 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 			/* Update power mode to mode 1 for AATC */
 			regmap_update_bits(wcd_usbss_ctxt_->regmap,
 				WCD_USBSS_USB_SS_CNTL, 0x07, 0x01);
+			if (wcd_usbss_ctxt_->version == WCD_USBSS_2_0)
+				regmap_update_bits(wcd_usbss_ctxt_->regmap,
+						WCD_USBSS_PMP_OUT1, 0x40, 0x40);
 			/* for AATC plug-in, change mode to FSM */
 			audio_fsm_mode = WCD_USBSS_AUDIO_FSM;
 			/* Disable all switches */
@@ -700,6 +711,9 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 			/* Update power mode to mode 1 for AATC */
 			regmap_update_bits(wcd_usbss_ctxt_->regmap,
 				WCD_USBSS_USB_SS_CNTL, 0x07, 0x01);
+			if (wcd_usbss_ctxt_->version == WCD_USBSS_2_0)
+				regmap_update_bits(wcd_usbss_ctxt_->regmap,
+						WCD_USBSS_PMP_OUT1, 0x40, 0x40);
 			/* for GND MIC Swap, change mode to FSM */
 			audio_fsm_mode = WCD_USBSS_AUDIO_FSM;
 			/* Disable all switches */
@@ -730,6 +744,9 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 			/* Update power mode to mode 1 for AATC */
 			regmap_update_bits(wcd_usbss_ctxt_->regmap,
 				WCD_USBSS_USB_SS_CNTL, 0x07, 0x01);
+			if (wcd_usbss_ctxt_->version == WCD_USBSS_2_0)
+				regmap_update_bits(wcd_usbss_ctxt_->regmap,
+						WCD_USBSS_PMP_OUT1, 0x40, 0x40);
 			/* Select MG2, GSBU1 */
 			regmap_update_bits(wcd_usbss_ctxt_->regmap,
 					WCD_USBSS_SWITCH_SELECT0, 0x03, 0x1);
@@ -867,6 +884,7 @@ static int wcd_usbss_probe(struct i2c_client *i2c)
 {
 	struct wcd_usbss_ctxt *priv;
 	int rc = 0, i;
+	unsigned int ver = 0;
 
 	priv = devm_kzalloc(&i2c->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -913,6 +931,12 @@ static int wcd_usbss_probe(struct i2c_client *i2c)
 		dev_err(priv->dev, "Failed to initialize regmap: %d\n", rc);
 		goto err_data;
 	}
+	regmap_read(priv->regmap, WCD_USBSS_CHIP_ID1, &ver);
+	if (ver == 0x1) { /* Harmonium 2.0 */
+		regmap_update_bits(priv->regmap, WCD_USBSS_MG1_EN, 0x2, 0x0);
+		regmap_update_bits(priv->regmap, WCD_USBSS_MG2_EN, 0x2, 0x0);
+	}
+	priv->version = ver;
 
 	devm_regmap_qti_debugfs_register(priv->dev, priv->regmap);
 

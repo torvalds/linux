@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef WCD_USBSS_REGISTERS_H
@@ -63,6 +63,7 @@ enum {
 #define WCD_USBSS_INT_LIN_EN                   (WCD_USBSS_LINEARIZER_BASE+0x01)
 #define WCD_USBSS_COMBINER_IREF_PROG_1         (WCD_USBSS_LINEARIZER_BASE+0x02)
 #define WCD_USBSS_COMBINER_IREF_PROG_2         (WCD_USBSS_LINEARIZER_BASE+0x03)
+#define WCD_USBSS_INTSW_BULK_CTRL              (WCD_USBSS_LINEARIZER_BASE+0x03)
 #define WCD_USBSS_EXTSW_AMP_BIAS               (WCD_USBSS_LINEARIZER_BASE+0x04)
 #define WCD_USBSS_INTSW_ILIFT                  (WCD_USBSS_LINEARIZER_BASE+0x05)
 #define WCD_USBSS_EXT_SW_CTRL_1                (WCD_USBSS_LINEARIZER_BASE+0x06)

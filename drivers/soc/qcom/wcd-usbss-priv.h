@@ -45,6 +45,7 @@ struct wcd_usbss_ctxt {
 	bool standby_enable;
 	bool is_in_standby;
 	struct mutex standby_lock;
+	unsigned int version;
 };
 
 extern struct regmap *wcd_usbss_regmap_init(struct device *dev,
