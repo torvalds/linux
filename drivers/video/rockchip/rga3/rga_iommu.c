@@ -170,6 +170,12 @@ struct rga_mmu_base *rga_mmu_base_init(size_t size)
 	 * size * channel_num * address_size
 	 */
 	order = get_order(size * 3 * sizeof(*mmu_base->buf_virtual));
+	if (order >= MAX_ORDER) {
+		pr_err("Can not alloc pages with order[%d] for mmu_page_table, max_order = %d\n",
+		       order, MAX_ORDER);
+		goto err_free_mmu_base;
+	}
+
 	mmu_base->buf_virtual = (uint32_t *) __get_free_pages(GFP_KERNEL | GFP_DMA32, order);
 	if (mmu_base->buf_virtual == NULL) {
 		pr_err("Can not alloc pages for mmu_page_table\n");
@@ -178,6 +184,12 @@ struct rga_mmu_base *rga_mmu_base_init(size_t size)
 	mmu_base->buf_order = order;
 
 	order = get_order(size * sizeof(*mmu_base->pages));
+	if (order >= MAX_ORDER) {
+		pr_err("Can not alloc pages with order[%d] for mmu_base->pages, max_order = %d\n",
+		       order, MAX_ORDER);
+		goto err_free_buf_virtual;
+	}
+
 	mmu_base->pages = (struct page **)__get_free_pages(GFP_KERNEL | GFP_DMA32, order);
 	if (mmu_base->pages == NULL) {
 		pr_err("Can not alloc pages for mmu_base->pages\n");
