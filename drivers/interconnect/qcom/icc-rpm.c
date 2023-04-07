@@ -204,55 +204,38 @@ static int qcom_icc_qos_set(struct icc_node *node)
 	}
 }
 
-static int qcom_icc_rpm_set(int mas_rpm_id, int slv_rpm_id, u64 sum_bw)
+static int qcom_icc_rpm_set(struct qcom_icc_node *qn, u64 sum_bw)
 {
 	int ret = 0;
 
-	if (mas_rpm_id != -1) {
+	if (qn->qos.ap_owned)
+		return 0;
+
+	if (qn->mas_rpm_id != -1) {
 		ret = qcom_icc_rpm_smd_send(QCOM_SMD_RPM_ACTIVE_STATE,
 					    RPM_BUS_MASTER_REQ,
-					    mas_rpm_id,
+					    qn->mas_rpm_id,
 					    sum_bw);
 		if (ret) {
 			pr_err("qcom_icc_rpm_smd_send mas %d error %d\n",
-			       mas_rpm_id, ret);
+			       qn->mas_rpm_id, ret);
 			return ret;
 		}
 	}
 
-	if (slv_rpm_id != -1) {
+	if (qn->slv_rpm_id != -1) {
 		ret = qcom_icc_rpm_smd_send(QCOM_SMD_RPM_ACTIVE_STATE,
 					    RPM_BUS_SLAVE_REQ,
-					    slv_rpm_id,
+					    qn->slv_rpm_id,
 					    sum_bw);
 		if (ret) {
 			pr_err("qcom_icc_rpm_smd_send slv %d error %d\n",
-			       slv_rpm_id, ret);
+			       qn->slv_rpm_id, ret);
 			return ret;
 		}
 	}
 
 	return ret;
-}
-
-static int __qcom_icc_set(struct icc_node *n, struct qcom_icc_node *qn,
-			  u64 sum_bw)
-{
-	int ret;
-
-	if (!qn->qos.ap_owned) {
-		/* send bandwidth request message to the RPM processor */
-		ret = qcom_icc_rpm_set(qn->mas_rpm_id, qn->slv_rpm_id, sum_bw);
-		if (ret)
-			return ret;
-	} else if (qn->qos.qos_mode != NOC_QOS_MODE_INVALID) {
-		/* set bandwidth directly from the AP */
-		ret = qcom_icc_qos_set(n, sum_bw);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
 }
 
 /**
@@ -370,11 +353,12 @@ static int qcom_icc_set(struct icc_node *src, struct icc_node *dst)
 
 	sum_bw = icc_units_to_bps(max_agg_avg);
 
-	ret = __qcom_icc_set(src, src_qn, sum_bw);
+	ret = qcom_icc_rpm_set(src_qn, sum_bw);
 	if (ret)
 		return ret;
+
 	if (dst_qn) {
-		ret = __qcom_icc_set(dst, dst_qn, sum_bw);
+		ret = qcom_icc_rpm_set(dst_qn, sum_bw);
 		if (ret)
 			return ret;
 	}
@@ -527,6 +511,14 @@ regmap_done:
 
 		for (j = 0; j < qnodes[i]->num_links; j++)
 			icc_link_create(node, qnodes[i]->links[j]);
+
+		/* Set QoS registers (we only need to do it once, generally) */
+		if (qnodes[i]->qos.ap_owned &&
+		    qnodes[i]->qos.qos_mode != NOC_QOS_MODE_INVALID) {
+			ret = qcom_icc_qos_set(node);
+			if (ret)
+				return ret;
+		}
 
 		data->nodes[i] = node;
 	}
