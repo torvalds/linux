@@ -61,6 +61,51 @@ static inline struct idxd_user_context *dev_to_uctx(struct device *dev)
 	return container_of(idxd_dev, struct idxd_user_context, idxd_dev);
 }
 
+static ssize_t cr_faults_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct idxd_user_context *ctx = dev_to_uctx(dev);
+
+	return sysfs_emit(buf, "%llu\n", ctx->counters[COUNTER_FAULTS]);
+}
+static DEVICE_ATTR_RO(cr_faults);
+
+static ssize_t cr_fault_failures_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct idxd_user_context *ctx = dev_to_uctx(dev);
+
+	return sysfs_emit(buf, "%llu\n", ctx->counters[COUNTER_FAULT_FAILS]);
+}
+static DEVICE_ATTR_RO(cr_fault_failures);
+
+static struct attribute *cdev_file_attributes[] = {
+	&dev_attr_cr_faults.attr,
+	&dev_attr_cr_fault_failures.attr,
+	NULL
+};
+
+static umode_t cdev_file_attr_visible(struct kobject *kobj, struct attribute *a, int n)
+{
+	struct device *dev = container_of(kobj, typeof(*dev), kobj);
+	struct idxd_user_context *ctx = dev_to_uctx(dev);
+	struct idxd_wq *wq = ctx->wq;
+
+	if (!wq_pasid_enabled(wq))
+		return 0;
+
+	return a->mode;
+}
+
+static const struct attribute_group cdev_file_attribute_group = {
+	.attrs = cdev_file_attributes,
+	.is_visible = cdev_file_attr_visible,
+};
+
+static const struct attribute_group *cdev_file_attribute_groups[] = {
+	&cdev_file_attribute_group,
+	NULL
+};
+
 static void idxd_file_dev_release(struct device *dev)
 {
 	struct idxd_user_context *ctx = dev_to_uctx(dev);
@@ -100,6 +145,7 @@ static void idxd_file_dev_release(struct device *dev)
 static struct device_type idxd_cdev_file_type = {
 	.name = "idxd_file",
 	.release = idxd_file_dev_release,
+	.groups = cdev_file_attribute_groups,
 };
 
 static void idxd_cdev_dev_release(struct device *dev)
