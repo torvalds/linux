@@ -845,7 +845,6 @@
 				function = "gpio";
 				drive-strength = <2>;
 				bias-pull-down;
-				input-enable;
 			};
 
 			i2c5_default: i2c5-default-state {
