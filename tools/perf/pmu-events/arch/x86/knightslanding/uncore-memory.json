@@ -1,0 +1,38 @@
+[
+    {
+        "BriefDescription": "CAS All",
+        "EventCode": "0x03",
+        "EventName": "UNC_M_CAS_COUNT.ALL",
+        "PerPkg": "1",
+        "UMask": "0x3",
+        "Unit": "iMC_DCLK"
+    },
+    {
+        "BriefDescription": "CAS Reads",
+        "EventCode": "0x03",
+        "EventName": "UNC_M_CAS_COUNT.RD",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC_DCLK"
+    },
+    {
+        "BriefDescription": "CAS Writes",
+        "EventCode": "0x03",
+        "EventName": "UNC_M_CAS_COUNT.WR",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC_DCLK"
+    },
+    {
+        "BriefDescription": "DCLK count",
+        "EventName": "UNC_M_D_CLOCKTICKS",
+        "PerPkg": "1",
+        "Unit": "iMC_DCLK"
+    },
+    {
+        "BriefDescription": "UCLK count",
+        "EventName": "UNC_M_U_CLOCKTICKS",
+        "PerPkg": "1",
+        "Unit": "iMC_UCLK"
+    }
+]
