@@ -50,7 +50,7 @@
 #define NOC_QOS_MODE_FIXED_VAL		0x0
 #define NOC_QOS_MODE_BYPASS_VAL		0x2
 
-static int qcom_icc_set_qnoc_qos(struct icc_node *src, u64 max_bw)
+static int qcom_icc_set_qnoc_qos(struct icc_node *src)
 {
 	struct icc_provider *provider = src->provider;
 	struct qcom_icc_provider *qp = to_qcom_provider(provider);
@@ -95,7 +95,7 @@ static int qcom_icc_bimc_set_qos_health(struct qcom_icc_provider *qp,
 				  mask, val);
 }
 
-static int qcom_icc_set_bimc_qos(struct icc_node *src, u64 max_bw)
+static int qcom_icc_set_bimc_qos(struct icc_node *src)
 {
 	struct qcom_icc_provider *qp;
 	struct qcom_icc_node *qn;
@@ -150,7 +150,7 @@ static int qcom_icc_noc_set_qos_priority(struct qcom_icc_provider *qp,
 				  NOC_QOS_PRIORITY_P0_MASK, qos->prio_level);
 }
 
-static int qcom_icc_set_noc_qos(struct icc_node *src, u64 max_bw)
+static int qcom_icc_set_noc_qos(struct icc_node *src)
 {
 	struct qcom_icc_provider *qp;
 	struct qcom_icc_node *qn;
@@ -187,7 +187,7 @@ static int qcom_icc_set_noc_qos(struct icc_node *src, u64 max_bw)
 				  NOC_QOS_MODEn_MASK, mode);
 }
 
-static int qcom_icc_qos_set(struct icc_node *node, u64 sum_bw)
+static int qcom_icc_qos_set(struct icc_node *node)
 {
 	struct qcom_icc_provider *qp = to_qcom_provider(node->provider);
 	struct qcom_icc_node *qn = node->data;
@@ -196,11 +196,11 @@ static int qcom_icc_qos_set(struct icc_node *node, u64 sum_bw)
 
 	switch (qp->type) {
 	case QCOM_ICC_BIMC:
-		return qcom_icc_set_bimc_qos(node, sum_bw);
+		return qcom_icc_set_bimc_qos(node);
 	case QCOM_ICC_QNOC:
-		return qcom_icc_set_qnoc_qos(node, sum_bw);
+		return qcom_icc_set_qnoc_qos(node);
 	default:
-		return qcom_icc_set_noc_qos(node, sum_bw);
+		return qcom_icc_set_noc_qos(node);
 	}
 }
 
