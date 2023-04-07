@@ -4578,6 +4578,15 @@ static const struct ice_prot_ext_tbl_entry ice_prot_ext[ICE_PROTOCOL_LAST] = {
 	ICE_PROTOCOL_ENTRY(ICE_L2TPV3, 0, 2, 4, 6, 8, 10),
 	ICE_PROTOCOL_ENTRY(ICE_VLAN_EX, 2, 0),
 	ICE_PROTOCOL_ENTRY(ICE_VLAN_IN, 2, 0),
+	ICE_PROTOCOL_ENTRY(ICE_HW_METADATA,
+			   ICE_SOURCE_PORT_MDID_OFFSET,
+			   ICE_PTYPE_MDID_OFFSET,
+			   ICE_PACKET_LENGTH_MDID_OFFSET,
+			   ICE_SOURCE_VSI_MDID_OFFSET,
+			   ICE_PKT_VLAN_MDID_OFFSET,
+			   ICE_PKT_TUNNEL_MDID_OFFSET,
+			   ICE_PKT_TCP_MDID_OFFSET,
+			   ICE_PKT_ERROR_MDID_OFFSET),
 };
 
 static struct ice_protocol_entry ice_prot_id_tbl[ICE_PROTOCOL_LAST] = {
@@ -4602,6 +4611,7 @@ static struct ice_protocol_entry ice_prot_id_tbl[ICE_PROTOCOL_LAST] = {
 	{ ICE_L2TPV3,		ICE_L2TPV3_HW },
 	{ ICE_VLAN_EX,          ICE_VLAN_OF_HW },
 	{ ICE_VLAN_IN,          ICE_VLAN_OL_HW },
+	{ ICE_HW_METADATA,      ICE_META_DATA_ID_HW },
 };
 
 /**
@@ -5260,72 +5270,6 @@ ice_create_recipe_group(struct ice_hw *hw, struct ice_sw_recipe *rm,
 	return status;
 }
 
-/**
- * ice_tun_type_match_word - determine if tun type needs a match mask
- * @tun_type: tunnel type
- * @mask: mask to be used for the tunnel
- */
-static bool ice_tun_type_match_word(enum ice_sw_tunnel_type tun_type, u16 *mask)
-{
-	switch (tun_type) {
-	case ICE_SW_TUN_GENEVE:
-	case ICE_SW_TUN_VXLAN:
-	case ICE_SW_TUN_NVGRE:
-	case ICE_SW_TUN_GTPU:
-	case ICE_SW_TUN_GTPC:
-		*mask = ICE_PKT_TUNNEL_MASK;
-		return true;
-
-	default:
-		*mask = 0;
-		return false;
-	}
-}
-
-/**
- * ice_add_special_words - Add words that are not protocols, such as metadata
- * @rinfo: other information regarding the rule e.g. priority and action info
- * @lkup_exts: lookup word structure
- * @dvm_ena: is double VLAN mode enabled
- */
-static int
-ice_add_special_words(struct ice_adv_rule_info *rinfo,
-		      struct ice_prot_lkup_ext *lkup_exts, bool dvm_ena)
-{
-	u16 mask;
-
-	/* If this is a tunneled packet, then add recipe index to match the
-	 * tunnel bit in the packet metadata flags.
-	 */
-	if (ice_tun_type_match_word(rinfo->tun_type, &mask)) {
-		if (lkup_exts->n_val_words < ICE_MAX_CHAIN_WORDS) {
-			u8 word = lkup_exts->n_val_words++;
-
-			lkup_exts->fv_words[word].prot_id = ICE_META_DATA_ID_HW;
-			lkup_exts->fv_words[word].off =
-				ICE_PKT_TUNNEL_MDID_OFFSET;
-			lkup_exts->field_mask[word] = mask;
-		} else {
-			return -ENOSPC;
-		}
-	}
-
-	if (rinfo->vlan_type != 0 && dvm_ena) {
-		if (lkup_exts->n_val_words < ICE_MAX_CHAIN_WORDS) {
-			u8 word = lkup_exts->n_val_words++;
-
-			lkup_exts->fv_words[word].prot_id = ICE_META_DATA_ID_HW;
-			lkup_exts->fv_words[word].off =
-				ICE_PKT_VLAN_MDID_OFFSET;
-			lkup_exts->field_mask[word] = ICE_PKT_VLAN_MASK;
-		} else {
-			return -ENOSPC;
-		}
-	}
-
-	return 0;
-}
-
 /* ice_get_compat_fv_bitmap - Get compatible field vector bitmap for rule
  * @hw: pointer to hardware structure
  * @rinfo: other information regarding the rule e.g. priority and action info
@@ -5436,13 +5380,6 @@ ice_add_adv_recipe(struct ice_hw *hw, struct ice_adv_lkup_elem *lkups,
 	ice_get_compat_fv_bitmap(hw, rinfo, fv_bitmap);
 
 	status = ice_get_sw_fv_list(hw, lkup_exts, fv_bitmap, &rm->fv_list);
-	if (status)
-		goto err_unroll;
-
-	/* Create any special protocol/offset pairs, such as looking at tunnel
-	 * bits by extracting metadata
-	 */
-	status = ice_add_special_words(rinfo, lkup_exts, ice_is_dvm_ena(hw));
 	if (status)
 		goto err_unroll;
 
@@ -5731,6 +5668,10 @@ ice_fill_adv_dummy_packet(struct ice_adv_lkup_elem *lkups, u16 lkups_cnt,
 		 * was already checked when search for the dummy packet
 		 */
 		type = lkups[i].type;
+		/* metadata isn't present in the packet */
+		if (type == ICE_HW_METADATA)
+			continue;
+
 		for (j = 0; offsets[j].type != ICE_PROTOCOL_LAST; j++) {
 			if (type == offsets[j].type) {
 				offset = offsets[j].offset;
@@ -5866,15 +5807,20 @@ ice_fill_adv_packet_tun(struct ice_hw *hw, enum ice_sw_tunnel_type tun_type,
 
 /**
  * ice_fill_adv_packet_vlan - fill dummy packet with VLAN tag type
+ * @hw: pointer to hw structure
  * @vlan_type: VLAN tag type
  * @pkt: dummy packet to fill in
  * @offsets: offset info for the dummy packet
  */
 static int
-ice_fill_adv_packet_vlan(u16 vlan_type, u8 *pkt,
+ice_fill_adv_packet_vlan(struct ice_hw *hw, u16 vlan_type, u8 *pkt,
 			 const struct ice_dummy_pkt_offsets *offsets)
 {
 	u16 i;
+
+	/* Check if there is something to do */
+	if (!vlan_type || !ice_is_dvm_ena(hw))
+		return 0;
 
 	/* Find VLAN header and insert VLAN TPID */
 	for (i = 0; offsets[i].type != ICE_PROTOCOL_LAST; i++) {
@@ -5892,6 +5838,15 @@ ice_fill_adv_packet_vlan(u16 vlan_type, u8 *pkt,
 	}
 
 	return -EIO;
+}
+
+static bool ice_rules_equal(const struct ice_adv_rule_info *first,
+			    const struct ice_adv_rule_info *second)
+{
+	return first->sw_act.flag == second->sw_act.flag &&
+	       first->tun_type == second->tun_type &&
+	       first->vlan_type == second->vlan_type &&
+	       first->src_vsi == second->src_vsi;
 }
 
 /**
@@ -5927,9 +5882,7 @@ ice_find_adv_rule_entry(struct ice_hw *hw, struct ice_adv_lkup_elem *lkups,
 				lkups_matched = false;
 				break;
 			}
-		if (rinfo->sw_act.flag == list_itr->rule_info.sw_act.flag &&
-		    rinfo->tun_type == list_itr->rule_info.tun_type &&
-		    rinfo->vlan_type == list_itr->rule_info.vlan_type &&
+		if (ice_rules_equal(rinfo, &list_itr->rule_info) &&
 		    lkups_matched)
 			return list_itr;
 	}
@@ -6045,6 +5998,20 @@ ice_adv_add_update_vsi_list(struct ice_hw *hw,
 	return status;
 }
 
+void ice_rule_add_tunnel_metadata(struct ice_adv_lkup_elem *lkup)
+{
+	lkup->type = ICE_HW_METADATA;
+	lkup->m_u.metadata.flags[ICE_PKT_FLAGS_TUNNEL] =
+		cpu_to_be16(ICE_PKT_TUNNEL_MASK);
+}
+
+void ice_rule_add_vlan_metadata(struct ice_adv_lkup_elem *lkup)
+{
+	lkup->type = ICE_HW_METADATA;
+	lkup->m_u.metadata.flags[ICE_PKT_FLAGS_VLAN] =
+		cpu_to_be16(ICE_PKT_VLAN_MASK);
+}
+
 /**
  * ice_add_adv_rule - helper function to create an advanced switch rule
  * @hw: pointer to the hardware structure
@@ -6126,7 +6093,11 @@ ice_add_adv_rule(struct ice_hw *hw, struct ice_adv_lkup_elem *lkups,
 	if (rinfo->sw_act.fltr_act == ICE_FWD_TO_VSI)
 		rinfo->sw_act.fwd_id.hw_vsi_id =
 			ice_get_hw_vsi_num(hw, vsi_handle);
-	rinfo->sw_act.src = ice_get_hw_vsi_num(hw, vsi_handle);
+
+	if (rinfo->src_vsi)
+		rinfo->sw_act.src = ice_get_hw_vsi_num(hw, rinfo->src_vsi);
+	else
+		rinfo->sw_act.src = ice_get_hw_vsi_num(hw, vsi_handle);
 
 	status = ice_add_adv_recipe(hw, lkups, lkups_cnt, rinfo, &rid);
 	if (status)
@@ -6217,22 +6188,16 @@ ice_add_adv_rule(struct ice_hw *hw, struct ice_adv_lkup_elem *lkups,
 	if (status)
 		goto err_ice_add_adv_rule;
 
-	if (rinfo->tun_type != ICE_NON_TUN &&
-	    rinfo->tun_type != ICE_SW_TUN_AND_NON_TUN) {
-		status = ice_fill_adv_packet_tun(hw, rinfo->tun_type,
-						 s_rule->hdr_data,
-						 profile->offsets);
-		if (status)
-			goto err_ice_add_adv_rule;
-	}
+	status = ice_fill_adv_packet_tun(hw, rinfo->tun_type, s_rule->hdr_data,
+					 profile->offsets);
+	if (status)
+		goto err_ice_add_adv_rule;
 
-	if (rinfo->vlan_type != 0 && ice_is_dvm_ena(hw)) {
-		status = ice_fill_adv_packet_vlan(rinfo->vlan_type,
-						  s_rule->hdr_data,
-						  profile->offsets);
-		if (status)
-			goto err_ice_add_adv_rule;
-	}
+	status = ice_fill_adv_packet_vlan(hw, rinfo->vlan_type,
+					  s_rule->hdr_data,
+					  profile->offsets);
+	if (status)
+		goto err_ice_add_adv_rule;
 
 	status = ice_aq_sw_rules(hw, (struct ice_aqc_sw_rules *)s_rule,
 				 rule_buf_sz, 1, ice_aqc_opc_add_sw_rules,
@@ -6474,13 +6439,6 @@ ice_rem_adv_rule(struct ice_hw *hw, struct ice_adv_lkup_elem *lkups,
 		if (!count)
 			return -EIO;
 	}
-
-	/* Create any special protocol/offset pairs, such as looking at tunnel
-	 * bits by extracting metadata
-	 */
-	status = ice_add_special_words(rinfo, &lkup_exts, ice_is_dvm_ena(hw));
-	if (status)
-		return status;
 
 	rid = ice_find_recp(hw, &lkup_exts, rinfo->tun_type);
 	/* If did not find a recipe that match the existing criteria */
