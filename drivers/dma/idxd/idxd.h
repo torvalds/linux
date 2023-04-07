@@ -265,6 +265,8 @@ struct idxd_driver_data {
 	int compl_size;
 	int align;
 	int evl_cr_off;
+	int cr_status_off;
+	int cr_result_off;
 };
 
 struct idxd_evl {
@@ -278,6 +280,7 @@ struct idxd_evl {
 	u16 size;
 	u16 head;
 	unsigned long *bmap;
+	bool batch_fail[IDXD_MAX_BATCH_IDENT];
 };
 
 struct idxd_evl_fault {

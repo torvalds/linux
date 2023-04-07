@@ -35,7 +35,7 @@ union gen_cap_reg {
 		u64 drain_readback:1;
 		u64 rsvd2:3;
 		u64 evl_support:2;
-		u64 rsvd4:1;
+		u64 batch_continuation:1;
 		u64 max_xfer_shift:5;
 		u64 max_batch_shift:4;
 		u64 max_ims_mult:6;
@@ -576,6 +576,8 @@ union evl_status_reg {
 	};
 	u64 bits;
 } __packed;
+
+#define IDXD_MAX_BATCH_IDENT	256
 
 struct __evl_entry {
 	u64 rsvd:2;
