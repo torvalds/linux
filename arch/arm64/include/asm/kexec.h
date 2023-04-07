@@ -102,12 +102,6 @@ void cpu_soft_restart(unsigned long el2_switch, unsigned long entry,
 
 int machine_kexec_post_load(struct kimage *image);
 #define machine_kexec_post_load machine_kexec_post_load
-
-void arch_kexec_protect_crashkres(void);
-#define arch_kexec_protect_crashkres arch_kexec_protect_crashkres
-
-void arch_kexec_unprotect_crashkres(void);
-#define arch_kexec_unprotect_crashkres arch_kexec_unprotect_crashkres
 #endif
 
 #define ARCH_HAS_KIMAGE_ARCH
