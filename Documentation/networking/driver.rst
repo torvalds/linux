@@ -43,7 +43,9 @@ there is no way your device can tell ahead of time when its
 transmit function will become busy.
 
 Instead it must maintain the queue properly.  For example,
-for a driver implementing scatter-gather this means::
+for a driver implementing scatter-gather this means:
+
+.. code-block:: c
 
 	static netdev_tx_t drv_hard_start_xmit(struct sk_buff *skb,
 					       struct net_device *dev)
@@ -51,7 +53,7 @@ for a driver implementing scatter-gather this means::
 		struct drv *dp = netdev_priv(dev);
 
 		lock_tx(dp);
-		...
+		//...
 		/* This is a hard error log it. */
 		if (TX_BUFFS_AVAIL(dp) <= (skb_shinfo(skb)->nr_frags + 1)) {
 			netif_stop_queue(dev);
@@ -61,34 +63,42 @@ for a driver implementing scatter-gather this means::
 			return NETDEV_TX_BUSY;
 		}
 
-		... queue packet to card ...
-		... update tx consumer index ...
+		//... queue packet to card ...
+		//... update tx consumer index ...
 
 		if (TX_BUFFS_AVAIL(dp) <= (MAX_SKB_FRAGS + 1))
 			netif_stop_queue(dev);
 
-		...
+		//...
 		unlock_tx(dp);
-		...
+		//...
 		return NETDEV_TX_OK;
 	}
 
-And then at the end of your TX reclamation event handling::
+And then at the end of your TX reclamation event handling:
+
+.. code-block:: c
 
 	if (netif_queue_stopped(dp->dev) &&
 	    TX_BUFFS_AVAIL(dp) > (MAX_SKB_FRAGS + 1))
 		netif_wake_queue(dp->dev);
 
-For a non-scatter-gather supporting card, the three tests simply become::
+For a non-scatter-gather supporting card, the three tests simply become:
+
+.. code-block:: c
 
 		/* This is a hard error log it. */
 		if (TX_BUFFS_AVAIL(dp) <= 0)
 
-and::
+and:
+
+.. code-block:: c
 
 		if (TX_BUFFS_AVAIL(dp) == 0)
 
-and::
+and:
+
+.. code-block:: c
 
 	if (netif_queue_stopped(dp->dev) &&
 	    TX_BUFFS_AVAIL(dp) > 0)
