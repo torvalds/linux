@@ -173,7 +173,6 @@ static void _rtl92e_dm_pd_th(struct net_device *dev);
 static void _rtl92e_dm_cs_ratio(struct net_device *dev);
 
 static	void _rtl92e_dm_init_cts_to_self(struct net_device *dev);
-static void _rtl92e_dm_init_wa_broadcom_iot(struct net_device *dev);
 
 static void _rtl92e_dm_check_edca_turbo(struct net_device *dev);
 static void _rtl92e_dm_check_rx_path_selection(struct net_device *dev);
@@ -1529,16 +1528,6 @@ static void _rtl92e_dm_cts_to_self(struct net_device *dev)
 		lastTxOkCnt = priv->stats.txbytesunicast;
 		lastRxOkCnt = priv->stats.rxbytesunicast;
 	}
-}
-
-
-static void _rtl92e_dm_init_wa_broadcom_iot(struct net_device *dev)
-{
-	struct r8192_priv *priv = rtllib_priv((struct net_device *)dev);
-	struct rt_hi_throughput *ht_info = priv->rtllib->ht_info;
-
-	ht_info->bWAIotBroadcom = false;
-	ht_info->WAIotTH = WA_IOT_TH_VAL;
 }
 
 static void _rtl92e_dm_check_rf_ctrl_gpio(void *data)
