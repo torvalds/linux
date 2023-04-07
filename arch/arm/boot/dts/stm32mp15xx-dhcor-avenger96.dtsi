@@ -452,7 +452,7 @@
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&usart2_pins_a>;
 	pinctrl-1 = <&usart2_sleep_pins_a>;
-	st,hw-flow-ctrl;
+	uart-has-rtscts;
 	/delete-property/dmas;
 	/delete-property/dma-names;
 	status = "okay";
