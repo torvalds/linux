@@ -31,7 +31,9 @@ union gen_cap_reg {
 		u64 rsvd:3;
 		u64 dest_readback:1;
 		u64 drain_readback:1;
-		u64 rsvd2:6;
+		u64 rsvd2:3;
+		u64 evl_support:2;
+		u64 rsvd4:1;
 		u64 max_xfer_shift:5;
 		u64 max_batch_shift:4;
 		u64 max_ims_mult:6;
@@ -296,6 +298,9 @@ union iaa_cap_reg {
 } __packed;
 
 #define IDXD_IAACAP_OFFSET	0x180
+
+#define IDXD_EVL_SIZE_MIN	0x0040
+#define IDXD_EVL_SIZE_MAX	0xffff
 
 union msix_perm {
 	struct {

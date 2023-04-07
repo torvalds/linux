@@ -144,6 +144,14 @@ Description:	IAA (IAX) capability mask. Exported to user space for application
 		consumption. This attribute should only be visible on IAA devices
 		that are version 2 or later.
 
+What:		/sys/bus/dsa/devices/dsa<m>/event_log_size
+Date:		Sept 14, 2022
+KernelVersion: 6.4.0
+Contact:	dmaengine@vger.kernel.org
+Description:	The event log size to be configured. Default is 64 entries and
+		occupies 4k size if the evl entry is 64 bytes. It's visible
+		only on platforms that support the capability.
+
 What:		/sys/bus/dsa/devices/wq<m>.<n>/block_on_fault
 Date:		Oct 27, 2020
 KernelVersion:	5.11.0

@@ -331,6 +331,23 @@ static void idxd_cleanup_internals(struct idxd_device *idxd)
 	destroy_workqueue(idxd->wq);
 }
 
+static int idxd_init_evl(struct idxd_device *idxd)
+{
+	struct device *dev = &idxd->pdev->dev;
+	struct idxd_evl *evl;
+
+	if (idxd->hw.gen_cap.evl_support == 0)
+		return 0;
+
+	evl = kzalloc_node(sizeof(*evl), GFP_KERNEL, dev_to_node(dev));
+	if (!evl)
+		return -ENOMEM;
+
+	evl->size = IDXD_EVL_SIZE_MIN;
+	idxd->evl = evl;
+	return 0;
+}
+
 static int idxd_setup_internals(struct idxd_device *idxd)
 {
 	struct device *dev = &idxd->pdev->dev;
@@ -356,8 +373,14 @@ static int idxd_setup_internals(struct idxd_device *idxd)
 		goto err_wkq_create;
 	}
 
+	rc = idxd_init_evl(idxd);
+	if (rc < 0)
+		goto err_evl;
+
 	return 0;
 
+ err_evl:
+	destroy_workqueue(idxd->wq);
  err_wkq_create:
 	for (i = 0; i < idxd->max_groups; i++)
 		put_device(group_confdev(idxd->groups[i]));
