@@ -151,9 +151,18 @@ static void edr_handle_event(acpi_handle handle, u32 event, void *data)
 	if (event != ACPI_NOTIFY_DISCONNECT_RECOVER)
 		return;
 
+	/*
+	 * pdev is a Root Port or Downstream Port that is still present and
+	 * has triggered a containment event, e.g., DPC, so its child
+	 * devices have been disconnected (ACPI r6.5, sec 5.6.6).
+	 */
 	pci_info(pdev, "EDR event received\n");
 
-	/* Locate the port which issued EDR event */
+	/*
+	 * Locate the port that experienced the containment event.  pdev
+	 * may be that port or a parent of it (PCI Firmware r3.3, sec
+	 * 4.6.13).
+	 */
 	edev = acpi_dpc_port_get(pdev);
 	if (!edev) {
 		pci_err(pdev, "Firmware failed to locate DPC port\n");
