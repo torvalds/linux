@@ -39,7 +39,6 @@ struct vdpasim_dev_attr {
 	u64 supported_features;
 	size_t alloc_size;
 	size_t config_size;
-	size_t buffer_size;
 	int nvqs;
 	u32 id;
 	u32 ngroups;
@@ -51,6 +50,7 @@ struct vdpasim_dev_attr {
 	int (*get_stats)(struct vdpasim *vdpasim, u16 idx,
 			 struct sk_buff *msg,
 			 struct netlink_ext_ack *extack);
+	void (*free)(struct vdpasim *vdpasim);
 };
 
 /* State of each vdpasim device */
@@ -67,7 +67,6 @@ struct vdpasim {
 	void *config;
 	struct vhost_iotlb *iommu;
 	bool *iommu_pt;
-	void *buffer;
 	u32 status;
 	u32 generation;
 	u64 features;

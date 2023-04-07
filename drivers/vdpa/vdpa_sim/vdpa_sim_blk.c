@@ -43,6 +43,16 @@
 #define VDPASIM_BLK_AS_NUM	1
 #define VDPASIM_BLK_GROUP_NUM	1
 
+struct vdpasim_blk {
+	struct vdpasim vdpasim;
+	void *buffer;
+};
+
+static struct vdpasim_blk *sim_to_blk(struct vdpasim *vdpasim)
+{
+	return container_of(vdpasim, struct vdpasim_blk, vdpasim);
+}
+
 static char vdpasim_blk_id[VIRTIO_BLK_ID_BYTES] = "vdpa_blk_sim";
 
 static bool vdpasim_blk_check_range(struct vdpasim *vdpasim, u64 start_sector,
@@ -78,6 +88,7 @@ static bool vdpasim_blk_check_range(struct vdpasim *vdpasim, u64 start_sector,
 static bool vdpasim_blk_handle_req(struct vdpasim *vdpasim,
 				   struct vdpasim_virtqueue *vq)
 {
+	struct vdpasim_blk *blk = sim_to_blk(vdpasim);
 	size_t pushed = 0, to_pull, to_push;
 	struct virtio_blk_outhdr hdr;
 	bool handled = false;
@@ -144,8 +155,7 @@ static bool vdpasim_blk_handle_req(struct vdpasim *vdpasim,
 		}
 
 		bytes = vringh_iov_push_iotlb(&vq->vring, &vq->in_iov,
-					      vdpasim->buffer + offset,
-					      to_push);
+					      blk->buffer + offset, to_push);
 		if (bytes < 0) {
 			dev_dbg(&vdpasim->vdpa.dev,
 				"vringh_iov_push_iotlb() error: %zd offset: 0x%llx len: 0x%zx\n",
@@ -166,8 +176,7 @@ static bool vdpasim_blk_handle_req(struct vdpasim *vdpasim,
 		}
 
 		bytes = vringh_iov_pull_iotlb(&vq->vring, &vq->out_iov,
-					      vdpasim->buffer + offset,
-					      to_pull);
+					      blk->buffer + offset, to_pull);
 		if (bytes < 0) {
 			dev_dbg(&vdpasim->vdpa.dev,
 				"vringh_iov_pull_iotlb() error: %zd offset: 0x%llx len: 0x%zx\n",
@@ -247,7 +256,7 @@ static bool vdpasim_blk_handle_req(struct vdpasim *vdpasim,
 		}
 
 		if (type == VIRTIO_BLK_T_WRITE_ZEROES) {
-			memset(vdpasim->buffer + offset, 0,
+			memset(blk->buffer + offset, 0,
 			       num_sectors << SECTOR_SHIFT);
 		}
 
@@ -353,6 +362,13 @@ static void vdpasim_blk_get_config(struct vdpasim *vdpasim, void *config)
 
 }
 
+static void vdpasim_blk_free(struct vdpasim *vdpasim)
+{
+	struct vdpasim_blk *blk = sim_to_blk(vdpasim);
+
+	kvfree(blk->buffer);
+}
+
 static void vdpasim_blk_mgmtdev_release(struct device *dev)
 {
 }
@@ -366,6 +382,7 @@ static int vdpasim_blk_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
 			       const struct vdpa_dev_set_config *config)
 {
 	struct vdpasim_dev_attr dev_attr = {};
+	struct vdpasim_blk *blk;
 	struct vdpasim *simdev;
 	int ret;
 
@@ -376,15 +393,24 @@ static int vdpasim_blk_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
 	dev_attr.nvqs = VDPASIM_BLK_VQ_NUM;
 	dev_attr.ngroups = VDPASIM_BLK_GROUP_NUM;
 	dev_attr.nas = VDPASIM_BLK_AS_NUM;
-	dev_attr.alloc_size = sizeof(struct vdpasim);
+	dev_attr.alloc_size = sizeof(struct vdpasim_blk);
 	dev_attr.config_size = sizeof(struct virtio_blk_config);
 	dev_attr.get_config = vdpasim_blk_get_config;
 	dev_attr.work_fn = vdpasim_blk_work;
-	dev_attr.buffer_size = VDPASIM_BLK_CAPACITY << SECTOR_SHIFT;
+	dev_attr.free = vdpasim_blk_free;
 
 	simdev = vdpasim_create(&dev_attr, config);
 	if (IS_ERR(simdev))
 		return PTR_ERR(simdev);
+
+	blk = sim_to_blk(simdev);
+
+	blk->buffer = kvmalloc(VDPASIM_BLK_CAPACITY << SECTOR_SHIFT,
+			       GFP_KERNEL);
+	if (!blk->buffer) {
+		ret = -ENOMEM;
+		goto put_dev;
+	}
 
 	ret = _vdpa_register_device(&simdev->vdpa, VDPASIM_BLK_VQ_NUM);
 	if (ret)
