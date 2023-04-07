@@ -23,7 +23,6 @@
 
 /* Used when a CT send wants to block and / or receive data */
 struct g2h_fence {
-	wait_queue_head_t wq;
 	u32 *response_buffer;
 	u32 seqno;
 	u16 response_len;
@@ -142,6 +141,7 @@ int xe_guc_ct_init(struct xe_guc_ct *ct)
 	ct->fence_context = dma_fence_context_alloc(1);
 	INIT_WORK(&ct->g2h_worker, g2h_worker_func);
 	init_waitqueue_head(&ct->wq);
+	init_waitqueue_head(&ct->g2h_fence_wq);
 
 	primelockdep(ct);
 
@@ -484,7 +484,6 @@ static int __guc_ct_send_locked(struct xe_guc_ct *ct, const u32 *action,
 			void *ptr;
 
 			g2h_fence->seqno = (ct->fence_seqno++ & 0xffff);
-			init_waitqueue_head(&g2h_fence->wq);
 			ptr = xa_store(&ct->fence_lookup,
 				       g2h_fence->seqno,
 				       g2h_fence, GFP_ATOMIC);
@@ -709,7 +708,7 @@ retry_same_fence:
 		return ret;
 	}
 
-	ret = wait_event_timeout(g2h_fence.wq, g2h_fence.done, HZ);
+	ret = wait_event_timeout(ct->g2h_fence_wq, g2h_fence.done, HZ);
 	if (!ret) {
 		drm_err(&xe->drm, "Timed out wait for G2H, fence %u, action %04x",
 			g2h_fence.seqno, action[0]);
@@ -801,7 +800,7 @@ static int parse_g2h_response(struct xe_guc_ct *ct, u32 *msg, u32 len)
 	g2h_fence->done = true;
 	smp_mb();
 
-	wake_up(&g2h_fence->wq);
+	wake_up_all(&ct->g2h_fence_wq);
 
 	return 0;
 }
