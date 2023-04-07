@@ -2726,7 +2726,6 @@
 					pins = "gpio7";
 					function = "dmic1_data";
 					drive-strength = <8>;
-					input-enable;
 				};
 			};
 
@@ -2744,7 +2743,6 @@
 					function = "dmic1_data";
 					drive-strength = <2>;
 					bias-pull-down;
-					input-enable;
 				};
 			};
 
@@ -2760,7 +2758,6 @@
 					pins = "gpio9";
 					function = "dmic2_data";
 					drive-strength = <8>;
-					input-enable;
 				};
 			};
 
@@ -2778,7 +2775,6 @@
 					function = "dmic2_data";
 					drive-strength = <2>;
 					bias-pull-down;
-					input-enable;
 				};
 			};
 
