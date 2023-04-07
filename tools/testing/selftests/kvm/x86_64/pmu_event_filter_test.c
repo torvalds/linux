@@ -77,7 +77,7 @@ static const uint64_t event_list[] = {
  */
 static void guest_gp_handler(struct ex_regs *regs)
 {
-	GUEST_SYNC(0);
+	GUEST_SYNC(-EFAULT);
 }
 
 /*
@@ -92,12 +92,12 @@ static void check_msr(uint32_t msr, uint64_t bits_to_flip)
 
 	wrmsr(msr, v);
 	if (rdmsr(msr) != v)
-		GUEST_SYNC(0);
+		GUEST_SYNC(-EIO);
 
 	v ^= bits_to_flip;
 	wrmsr(msr, v);
 	if (rdmsr(msr) != v)
-		GUEST_SYNC(0);
+		GUEST_SYNC(-EIO);
 }
 
 static uint64_t run_and_measure_loop(uint32_t msr_base)
@@ -114,7 +114,7 @@ static void intel_guest_code(void)
 	check_msr(MSR_CORE_PERF_GLOBAL_CTRL, 1);
 	check_msr(MSR_P6_EVNTSEL0, 0xffff);
 	check_msr(MSR_IA32_PMC0, 0xffff);
-	GUEST_SYNC(1);
+	GUEST_SYNC(0);
 
 	for (;;) {
 		uint64_t count;
@@ -138,7 +138,7 @@ static void amd_guest_code(void)
 {
 	check_msr(MSR_K7_EVNTSEL0, 0xffff);
 	check_msr(MSR_K7_PERFCTR0, 0xffff);
-	GUEST_SYNC(1);
+	GUEST_SYNC(0);
 
 	for (;;) {
 		uint64_t count;
@@ -178,13 +178,13 @@ static uint64_t run_vcpu_to_sync(struct kvm_vcpu *vcpu)
  */
 static bool sanity_check_pmu(struct kvm_vcpu *vcpu)
 {
-	bool success;
+	uint64_t r;
 
 	vm_install_exception_handler(vcpu->vm, GP_VECTOR, guest_gp_handler);
-	success = run_vcpu_to_sync(vcpu);
+	r = run_vcpu_to_sync(vcpu);
 	vm_install_exception_handler(vcpu->vm, GP_VECTOR, NULL);
 
-	return success;
+	return !r;
 }
 
 static struct kvm_pmu_event_filter *alloc_pmu_event_filter(uint32_t nevents)
