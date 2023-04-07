@@ -37,6 +37,7 @@
 #include "rockchip_drm_logo.h"
 
 #include "../drm_crtc_internal.h"
+#include "../drivers/clk/rockchip/clk.h"
 
 #define DRIVER_NAME	"rockchip"
 #define DRIVER_DESC	"RockChip Soc DRM"
@@ -1542,6 +1543,8 @@ static int rockchip_drm_bind(struct device *dev)
 	ret = drm_dev_register(drm_dev, 0);
 	if (ret)
 		goto err_kms_helper_poll_fini;
+
+	rockchip_clk_unprotect();
 
 	return 0;
 err_kms_helper_poll_fini:
