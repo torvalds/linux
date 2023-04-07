@@ -244,14 +244,27 @@ static struct kvm_pmu_event_filter *remove_event(struct kvm_pmu_event_filter *f,
 	return f;
 }
 
+#define ASSERT_PMC_COUNTING_INSTRUCTIONS(count)						\
+do {											\
+	if (count != NUM_BRANCHES)							\
+		pr_info("%s: Branch instructions retired = %lu (expected %u)\n",	\
+			__func__, count, NUM_BRANCHES);					\
+	TEST_ASSERT(count, "Allowed PMU event is not counting.");			\
+} while (0)
+
+#define ASSERT_PMC_NOT_COUNTING_INSTRUCTIONS(count)					\
+do {											\
+	if (count)									\
+		pr_info("%s: Branch instructions retired = %lu (expected 0)\n",		\
+			__func__, count);						\
+	TEST_ASSERT(!count, "Disallowed PMU Event is counting");			\
+} while (0)
+
 static void test_without_filter(struct kvm_vcpu *vcpu)
 {
 	uint64_t count = run_vcpu_to_sync(vcpu);
 
-	if (count != NUM_BRANCHES)
-		pr_info("%s: Branch instructions retired = %lu (expected %u)\n",
-			__func__, count, NUM_BRANCHES);
-	TEST_ASSERT(count, "Allowed PMU event is not counting");
+	ASSERT_PMC_COUNTING_INSTRUCTIONS(count);
 }
 
 static uint64_t test_with_filter(struct kvm_vcpu *vcpu,
@@ -269,12 +282,9 @@ static void test_amd_deny_list(struct kvm_vcpu *vcpu)
 
 	f = create_pmu_event_filter(&event, 1, KVM_PMU_EVENT_DENY, 0);
 	count = test_with_filter(vcpu, f);
-
 	free(f);
-	if (count != NUM_BRANCHES)
-		pr_info("%s: Branch instructions retired = %lu (expected %u)\n",
-			__func__, count, NUM_BRANCHES);
-	TEST_ASSERT(count, "Allowed PMU event is not counting");
+
+	ASSERT_PMC_COUNTING_INSTRUCTIONS(count);
 }
 
 static void test_member_deny_list(struct kvm_vcpu *vcpu)
@@ -283,10 +293,8 @@ static void test_member_deny_list(struct kvm_vcpu *vcpu)
 	uint64_t count = test_with_filter(vcpu, f);
 
 	free(f);
-	if (count)
-		pr_info("%s: Branch instructions retired = %lu (expected 0)\n",
-			__func__, count);
-	TEST_ASSERT(!count, "Disallowed PMU Event is counting");
+
+	ASSERT_PMC_NOT_COUNTING_INSTRUCTIONS(count);
 }
 
 static void test_member_allow_list(struct kvm_vcpu *vcpu)
@@ -295,10 +303,8 @@ static void test_member_allow_list(struct kvm_vcpu *vcpu)
 	uint64_t count = test_with_filter(vcpu, f);
 
 	free(f);
-	if (count != NUM_BRANCHES)
-		pr_info("%s: Branch instructions retired = %lu (expected %u)\n",
-			__func__, count, NUM_BRANCHES);
-	TEST_ASSERT(count, "Allowed PMU event is not counting");
+
+	ASSERT_PMC_COUNTING_INSTRUCTIONS(count);
 }
 
 static void test_not_member_deny_list(struct kvm_vcpu *vcpu)
@@ -310,10 +316,8 @@ static void test_not_member_deny_list(struct kvm_vcpu *vcpu)
 	remove_event(f, AMD_ZEN_BR_RETIRED);
 	count = test_with_filter(vcpu, f);
 	free(f);
-	if (count != NUM_BRANCHES)
-		pr_info("%s: Branch instructions retired = %lu (expected %u)\n",
-			__func__, count, NUM_BRANCHES);
-	TEST_ASSERT(count, "Allowed PMU event is not counting");
+
+	ASSERT_PMC_COUNTING_INSTRUCTIONS(count);
 }
 
 static void test_not_member_allow_list(struct kvm_vcpu *vcpu)
@@ -325,10 +329,8 @@ static void test_not_member_allow_list(struct kvm_vcpu *vcpu)
 	remove_event(f, AMD_ZEN_BR_RETIRED);
 	count = test_with_filter(vcpu, f);
 	free(f);
-	if (count)
-		pr_info("%s: Branch instructions retired = %lu (expected 0)\n",
-			__func__, count);
-	TEST_ASSERT(!count, "Disallowed PMU Event is counting");
+
+	ASSERT_PMC_NOT_COUNTING_INSTRUCTIONS(count);
 }
 
 /*
