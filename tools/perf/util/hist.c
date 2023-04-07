@@ -208,7 +208,7 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 	hists__new_col_len(hists, HISTC_MEM_LOCKED, 6);
 	hists__new_col_len(hists, HISTC_MEM_TLB, 22);
 	hists__new_col_len(hists, HISTC_MEM_SNOOP, 12);
-	hists__new_col_len(hists, HISTC_MEM_LVL, 21 + 3);
+	hists__new_col_len(hists, HISTC_MEM_LVL, 36 + 3);
 	hists__new_col_len(hists, HISTC_LOCAL_WEIGHT, 12);
 	hists__new_col_len(hists, HISTC_GLOBAL_WEIGHT, 12);
 	hists__new_col_len(hists, HISTC_MEM_BLOCKED, 10);
