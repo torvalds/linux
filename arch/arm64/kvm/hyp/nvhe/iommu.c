@@ -14,6 +14,7 @@
 #include <hyp/adjust_pc.h>
 #include <nvhe/iommu.h>
 #include <nvhe/mm.h>
+#include <nvhe/modules.h>
 #include <nvhe/pkvm.h>
 
 #define DRV_ID(drv_addr)			((unsigned long)drv_addr)
@@ -468,6 +469,8 @@ int __pkvm_iommu_finalize(int err)
 	 */
 	if (!ret && err)
 		pkvm_handle_system_misconfiguration(NO_DMA_ISOLATION);
+
+	__pkvm_close_late_module_registration();
 
 	return ret;
 }
