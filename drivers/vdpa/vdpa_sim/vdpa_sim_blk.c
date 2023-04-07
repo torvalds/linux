@@ -46,6 +46,7 @@
 struct vdpasim_blk {
 	struct vdpasim vdpasim;
 	void *buffer;
+	bool shared_backend;
 };
 
 static struct vdpasim_blk *sim_to_blk(struct vdpasim *vdpasim)
@@ -54,6 +55,26 @@ static struct vdpasim_blk *sim_to_blk(struct vdpasim *vdpasim)
 }
 
 static char vdpasim_blk_id[VIRTIO_BLK_ID_BYTES] = "vdpa_blk_sim";
+
+static bool shared_backend;
+module_param(shared_backend, bool, 0444);
+MODULE_PARM_DESC(shared_backend, "Enable the shared backend between virtio-blk devices");
+
+static void *shared_buffer;
+/* mutex to synchronize shared_buffer access */
+static DEFINE_MUTEX(shared_buffer_mutex);
+
+static void vdpasim_blk_buffer_lock(struct vdpasim_blk *blk)
+{
+	if (blk->shared_backend)
+		mutex_lock(&shared_buffer_mutex);
+}
+
+static void vdpasim_blk_buffer_unlock(struct vdpasim_blk *blk)
+{
+	if (blk->shared_backend)
+		mutex_unlock(&shared_buffer_mutex);
+}
 
 static bool vdpasim_blk_check_range(struct vdpasim *vdpasim, u64 start_sector,
 				    u64 num_sectors, u64 max_sectors)
@@ -154,8 +175,10 @@ static bool vdpasim_blk_handle_req(struct vdpasim *vdpasim,
 			break;
 		}
 
+		vdpasim_blk_buffer_lock(blk);
 		bytes = vringh_iov_push_iotlb(&vq->vring, &vq->in_iov,
 					      blk->buffer + offset, to_push);
+		vdpasim_blk_buffer_unlock(blk);
 		if (bytes < 0) {
 			dev_dbg(&vdpasim->vdpa.dev,
 				"vringh_iov_push_iotlb() error: %zd offset: 0x%llx len: 0x%zx\n",
@@ -175,8 +198,10 @@ static bool vdpasim_blk_handle_req(struct vdpasim *vdpasim,
 			break;
 		}
 
+		vdpasim_blk_buffer_lock(blk);
 		bytes = vringh_iov_pull_iotlb(&vq->vring, &vq->out_iov,
 					      blk->buffer + offset, to_pull);
+		vdpasim_blk_buffer_unlock(blk);
 		if (bytes < 0) {
 			dev_dbg(&vdpasim->vdpa.dev,
 				"vringh_iov_pull_iotlb() error: %zd offset: 0x%llx len: 0x%zx\n",
@@ -256,8 +281,10 @@ static bool vdpasim_blk_handle_req(struct vdpasim *vdpasim,
 		}
 
 		if (type == VIRTIO_BLK_T_WRITE_ZEROES) {
+			vdpasim_blk_buffer_lock(blk);
 			memset(blk->buffer + offset, 0,
 			       num_sectors << SECTOR_SHIFT);
+			vdpasim_blk_buffer_unlock(blk);
 		}
 
 		break;
@@ -366,7 +393,8 @@ static void vdpasim_blk_free(struct vdpasim *vdpasim)
 {
 	struct vdpasim_blk *blk = sim_to_blk(vdpasim);
 
-	kvfree(blk->buffer);
+	if (!blk->shared_backend)
+		kvfree(blk->buffer);
 }
 
 static void vdpasim_blk_mgmtdev_release(struct device *dev)
@@ -404,12 +432,17 @@ static int vdpasim_blk_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
 		return PTR_ERR(simdev);
 
 	blk = sim_to_blk(simdev);
+	blk->shared_backend = shared_backend;
 
-	blk->buffer = kvmalloc(VDPASIM_BLK_CAPACITY << SECTOR_SHIFT,
-			       GFP_KERNEL);
-	if (!blk->buffer) {
-		ret = -ENOMEM;
-		goto put_dev;
+	if (blk->shared_backend) {
+		blk->buffer = shared_buffer;
+	} else {
+		blk->buffer = kvmalloc(VDPASIM_BLK_CAPACITY << SECTOR_SHIFT,
+				       GFP_KERNEL);
+		if (!blk->buffer) {
+			ret = -ENOMEM;
+			goto put_dev;
+		}
 	}
 
 	ret = _vdpa_register_device(&simdev->vdpa, VDPASIM_BLK_VQ_NUM);
@@ -461,6 +494,15 @@ static int __init vdpasim_blk_init(void)
 	if (ret)
 		goto parent_err;
 
+	if (shared_backend) {
+		shared_buffer = kvmalloc(VDPASIM_BLK_CAPACITY << SECTOR_SHIFT,
+					 GFP_KERNEL);
+		if (!shared_buffer) {
+			ret = -ENOMEM;
+			goto parent_err;
+		}
+	}
+
 	return 0;
 
 parent_err:
@@ -470,6 +512,7 @@ parent_err:
 
 static void __exit vdpasim_blk_exit(void)
 {
+	kvfree(shared_buffer);
 	vdpa_mgmtdev_unregister(&mgmt_dev);
 	device_unregister(&vdpasim_blk_mgmtdev);
 }
