@@ -11,7 +11,7 @@
 #include "mt8186-afe-common.h"
 #include "mt8186-afe-gpio.h"
 
-struct pinctrl *aud_pinctrl;
+static struct pinctrl *aud_pinctrl;
 
 enum mt8186_afe_gpio {
 	MT8186_AFE_GPIO_CLK_MOSI_OFF,
