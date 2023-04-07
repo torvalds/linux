@@ -816,19 +816,6 @@ rk817_read_or_set_full_charge_on_boot(struct rk817_charger *charger,
 		}
 	}
 
-	regmap_bulk_read(rk808->regmap, RK817_GAS_GAUGE_PWRON_VOL_H,
-			 bulk_reg, 2);
-	tmp = get_unaligned_be16(bulk_reg);
-	boot_voltage = (charger->voltage_k * tmp) + 1000 * charger->voltage_b;
-	regmap_bulk_read(rk808->regmap, RK817_GAS_GAUGE_Q_PRES_H3,
-			 bulk_reg, 4);
-	tmp = get_unaligned_be32(bulk_reg);
-	boot_charge_mah = ADC_TO_CHARGE_UAH(tmp, charger->res_div) / 1000;
-	regmap_bulk_read(rk808->regmap, RK817_GAS_GAUGE_OCV_VOL_H,
-			 bulk_reg, 2);
-	tmp = get_unaligned_be16(bulk_reg);
-	boot_voltage = (charger->voltage_k * tmp) + 1000 * charger->voltage_b;
-
 	/*
 	 * Now we have our full charge capacity and soc, init the columb
 	 * counter.
