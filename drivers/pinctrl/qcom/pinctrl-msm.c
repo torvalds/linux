@@ -517,7 +517,7 @@ static int msm_config_group_set(struct pinctrl_dev *pctldev,
 			 * The points above, explain why this _should_ be a
 			 * no-op. However, for historical reasons and to
 			 * support old device trees, we'll violate the docs
-			 * still affect the output.
+			 * and still affect the output.
 			 *
 			 * It should further be noted that this old historical
 			 * behavior actually overrides arg to 0. That means
