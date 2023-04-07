@@ -52,6 +52,21 @@ struct vxlan_metadata {
 	__u32     gbp;
 };
 
+struct bpf_fou_encap {
+	__be16 sport;
+	__be16 dport;
+};
+
+enum bpf_fou_encap_type {
+	FOU_BPF_ENCAP_FOU,
+	FOU_BPF_ENCAP_GUE,
+};
+
+int bpf_skb_set_fou_encap(struct __sk_buff *skb_ctx,
+			  struct bpf_fou_encap *encap, int type) __ksym;
+int bpf_skb_get_fou_encap(struct __sk_buff *skb_ctx,
+			  struct bpf_fou_encap *encap) __ksym;
+
 struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
 	__uint(max_entries, 1);
@@ -746,6 +761,108 @@ int ipip_get_tunnel(struct __sk_buff *skb)
 	}
 
 	bpf_printk("remote ip 0x%x\n", key.remote_ipv4);
+	return TC_ACT_OK;
+}
+
+SEC("tc")
+int ipip_gue_set_tunnel(struct __sk_buff *skb)
+{
+	struct bpf_tunnel_key key = {};
+	struct bpf_fou_encap encap = {};
+	void *data = (void *)(long)skb->data;
+	struct iphdr *iph = data;
+	void *data_end = (void *)(long)skb->data_end;
+	int ret;
+
+	if (data + sizeof(*iph) > data_end) {
+		log_err(1);
+		return TC_ACT_SHOT;
+	}
+
+	key.tunnel_ttl = 64;
+	if (iph->protocol == IPPROTO_ICMP)
+		key.remote_ipv4 = 0xac100164; /* 172.16.1.100 */
+
+	ret = bpf_skb_set_tunnel_key(skb, &key, sizeof(key), 0);
+	if (ret < 0) {
+		log_err(ret);
+		return TC_ACT_SHOT;
+	}
+
+	encap.sport = 0;
+	encap.dport = bpf_htons(5555);
+
+	ret = bpf_skb_set_fou_encap(skb, &encap, FOU_BPF_ENCAP_GUE);
+	if (ret < 0) {
+		log_err(ret);
+		return TC_ACT_SHOT;
+	}
+
+	return TC_ACT_OK;
+}
+
+SEC("tc")
+int ipip_fou_set_tunnel(struct __sk_buff *skb)
+{
+	struct bpf_tunnel_key key = {};
+	struct bpf_fou_encap encap = {};
+	void *data = (void *)(long)skb->data;
+	struct iphdr *iph = data;
+	void *data_end = (void *)(long)skb->data_end;
+	int ret;
+
+	if (data + sizeof(*iph) > data_end) {
+		log_err(1);
+		return TC_ACT_SHOT;
+	}
+
+	key.tunnel_ttl = 64;
+	if (iph->protocol == IPPROTO_ICMP)
+		key.remote_ipv4 = 0xac100164; /* 172.16.1.100 */
+
+	ret = bpf_skb_set_tunnel_key(skb, &key, sizeof(key), 0);
+	if (ret < 0) {
+		log_err(ret);
+		return TC_ACT_SHOT;
+	}
+
+	encap.sport = 0;
+	encap.dport = bpf_htons(5555);
+
+	ret = bpf_skb_set_fou_encap(skb, &encap, FOU_BPF_ENCAP_FOU);
+	if (ret < 0) {
+		log_err(ret);
+		return TC_ACT_SHOT;
+	}
+
+	return TC_ACT_OK;
+}
+
+SEC("tc")
+int ipip_encap_get_tunnel(struct __sk_buff *skb)
+{
+	int ret;
+	struct bpf_tunnel_key key = {};
+	struct bpf_fou_encap encap = {};
+
+	ret = bpf_skb_get_tunnel_key(skb, &key, sizeof(key), 0);
+	if (ret < 0) {
+		log_err(ret);
+		return TC_ACT_SHOT;
+	}
+
+	ret = bpf_skb_get_fou_encap(skb, &encap);
+	if (ret < 0) {
+		log_err(ret);
+		return TC_ACT_SHOT;
+	}
+
+	if (bpf_ntohs(encap.dport) != 5555)
+		return TC_ACT_SHOT;
+
+	bpf_printk("%d remote ip 0x%x, sport %d, dport %d\n", ret,
+		   key.remote_ipv4, bpf_ntohs(encap.sport),
+		   bpf_ntohs(encap.dport));
 	return TC_ACT_OK;
 }
 
