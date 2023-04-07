@@ -610,6 +610,62 @@ ssize_t erofs_listxattr(struct dentry *dentry,
 	return ret;
 }
 
+void erofs_xattr_prefixes_cleanup(struct super_block *sb)
+{
+	struct erofs_sb_info *sbi = EROFS_SB(sb);
+	int i;
+
+	if (sbi->xattr_prefixes) {
+		for (i = 0; i < sbi->xattr_prefix_count; i++)
+			kfree(sbi->xattr_prefixes[i].prefix);
+		kfree(sbi->xattr_prefixes);
+		sbi->xattr_prefixes = NULL;
+	}
+}
+
+int erofs_xattr_prefixes_init(struct super_block *sb)
+{
+	struct erofs_sb_info *sbi = EROFS_SB(sb);
+	struct erofs_buf buf = __EROFS_BUF_INITIALIZER;
+	erofs_off_t pos = (erofs_off_t)sbi->xattr_prefix_start << 2;
+	struct erofs_xattr_prefix_item *pfs;
+	int ret = 0, i, len;
+
+	if (!sbi->xattr_prefix_count)
+		return 0;
+
+	pfs = kzalloc(sbi->xattr_prefix_count * sizeof(*pfs), GFP_KERNEL);
+	if (!pfs)
+		return -ENOMEM;
+
+	if (erofs_sb_has_fragments(sbi))
+		buf.inode = sbi->packed_inode;
+	else
+		erofs_init_metabuf(&buf, sb);
+
+	for (i = 0; i < sbi->xattr_prefix_count; i++) {
+		void *ptr = erofs_read_metadata(sb, &buf, &pos, &len);
+
+		if (IS_ERR(ptr)) {
+			ret = PTR_ERR(ptr);
+			break;
+		} else if (len < sizeof(*pfs->prefix) ||
+			   len > EROFS_NAME_LEN + sizeof(*pfs->prefix)) {
+			kfree(ptr);
+			ret = -EFSCORRUPTED;
+			break;
+		}
+		pfs[i].prefix = ptr;
+		pfs[i].infix_len = len - sizeof(struct erofs_xattr_long_prefix);
+	}
+
+	erofs_put_metabuf(&buf);
+	sbi->xattr_prefixes = pfs;
+	if (ret)
+		erofs_xattr_prefixes_cleanup(sb);
+	return ret;
+}
+
 #ifdef CONFIG_EROFS_FS_POSIX_ACL
 struct posix_acl *erofs_get_acl(struct inode *inode, int type, bool rcu)
 {

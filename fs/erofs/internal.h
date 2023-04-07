@@ -117,6 +117,11 @@ struct erofs_fscache {
 	char *name;
 };
 
+struct erofs_xattr_prefix_item {
+	struct erofs_xattr_long_prefix *prefix;
+	u8 infix_len;
+};
+
 struct erofs_sb_info {
 	struct erofs_mount_opts opt;	/* options */
 #ifdef CONFIG_EROFS_FS_ZIP
@@ -145,6 +150,9 @@ struct erofs_sb_info {
 	u32 meta_blkaddr;
 #ifdef CONFIG_EROFS_FS_XATTR
 	u32 xattr_blkaddr;
+	u32 xattr_prefix_start;
+	u8 xattr_prefix_count;
+	struct erofs_xattr_prefix_item *xattr_prefixes;
 #endif
 	u16 device_id_mask;	/* valid bits of device id to be used */
 
@@ -440,6 +448,8 @@ extern const struct iomap_ops z_erofs_iomap_report_ops;
 #define EROFS_REG_COOKIE_SHARE		0x0001
 #define EROFS_REG_COOKIE_NEED_NOEXIST	0x0002
 
+void *erofs_read_metadata(struct super_block *sb, struct erofs_buf *buf,
+			  erofs_off_t *offset, int *lengthp);
 void erofs_unmap_metabuf(struct erofs_buf *buf);
 void erofs_put_metabuf(struct erofs_buf *buf);
 void *erofs_bread(struct erofs_buf *buf, erofs_blk_t blkaddr,
