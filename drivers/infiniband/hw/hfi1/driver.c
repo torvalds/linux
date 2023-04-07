@@ -1597,7 +1597,7 @@ static int hfi1_setup_bypass_packet(struct hfi1_packet *packet)
 
 	return 0;
 drop:
-	hfi1_cdbg(PKT, "%s: packet dropped\n", __func__);
+	hfi1_cdbg(PKT, "%s: packet dropped", __func__);
 	ibp->rvp.n_pkt_drops++;
 	return -EINVAL;
 }
