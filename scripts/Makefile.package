@@ -57,16 +57,23 @@ check-git:
 		false; \
 	fi
 
+git-config-tar.gz  = -c tar.tar.gz.command="$(KGZIP)"
+git-config-tar.bz2 = -c tar.tar.bz2.command="$(KBZIP2)"
+git-config-tar.xz  = -c tar.tar.xz.command="$(XZ)"
+git-config-tar.zst = -c tar.tar.zst.command="$(ZSTD)"
+
 quiet_cmd_archive = ARCHIVE $@
-      cmd_archive = git -C $(srctree) archive \
+      cmd_archive = git -C $(srctree) $(git-config-tar$(suffix $@)) archive \
                     --output=$$(realpath $@) --prefix=$(basename $@)/ $(archive-args)
 
 # Linux source tarball
 # ---------------------------------------------------------------------------
 
-targets += linux.tar
-linux.tar: archive-args = $$(cat $<)
-linux.tar: .tmp_HEAD FORCE
+linux-tarballs := $(addprefix linux, .tar.gz)
+
+targets += $(linux-tarballs)
+$(linux-tarballs): archive-args = $$(cat $<)
+$(linux-tarballs): .tmp_HEAD FORCE
 	$(call if_changed,archive)
 
 # rpm-pkg
@@ -186,9 +193,12 @@ perf-archive-args = --add-file=$$(realpath $(word 2, $^)) \
 	--add-file=$$(realpath $(word 3, $^)) \
 	$$(cat $(word 2, $^))^{tree} $$(cat $<)
 
-targets += perf-$(KERNELVERSION).tar
-perf-$(KERNELVERSION).tar: archive-args = $(perf-archive-args)
-perf-$(KERNELVERSION).tar: tools/perf/MANIFEST .tmp_perf/HEAD .tmp_perf/PERF-VERSION-FILE FORCE
+
+perf-tarballs := $(addprefix perf-$(KERNELVERSION), .tar .tar.gz .tar.bz2 .tar.xz .tar.zst)
+
+targets += $(perf-tarballs)
+$(perf-tarballs): archive-args = $(perf-archive-args)
+$(perf-tarballs): tools/perf/MANIFEST .tmp_perf/HEAD .tmp_perf/PERF-VERSION-FILE FORCE
 	$(call if_changed,archive)
 
 PHONY += perf-tar-src-pkg
