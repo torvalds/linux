@@ -214,8 +214,6 @@ void rtl92e_dm_init(struct net_device *dev)
 	_rtl92e_dm_init_fsync(dev);
 	_rtl92e_dm_init_rx_path_selection(dev);
 	_rtl92e_dm_init_cts_to_self(dev);
-	if (IS_HARDWARE_TYPE_8192SE(dev))
-		_rtl92e_dm_init_wa_broadcom_iot(dev);
 
 	INIT_DELAYED_WORK(&priv->gpio_change_rf_wq, (void *)_rtl92e_dm_check_rf_ctrl_gpio);
 }
@@ -816,10 +814,7 @@ static void _rtl92e_dm_check_tx_power_tracking_thermal(struct net_device *dev)
 	static u8	TM_Trigger;
 	u8		TxPowerCheckCnt = 0;
 
-	if (IS_HARDWARE_TYPE_8192SE(dev))
-		TxPowerCheckCnt = 5;
-	else
-		TxPowerCheckCnt = 2;
+	TxPowerCheckCnt = 2;
 	if (!priv->btxpower_tracking)
 		return;
 

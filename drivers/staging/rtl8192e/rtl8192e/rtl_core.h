@@ -52,9 +52,6 @@
 #define DRV_AUTHOR  "<wlanfae@realtek.com>"
 #define DRV_VERSION  "0014.0401.2010"
 
-#define IS_HARDWARE_TYPE_8192SE(_priv)		\
-	(((struct r8192_priv *)rtllib_priv(dev))->card_8192 == NIC_8192SE)
-
 #define TOTAL_CAM_ENTRY		32
 #define CAM_CONTENT_COUNT	8
 
