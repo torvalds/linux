@@ -669,6 +669,10 @@ static int idxd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_dev_register;
 	}
 
+	rc = idxd_device_init_debugfs(idxd);
+	if (rc)
+		dev_warn(dev, "IDXD debugfs failed to setup\n");
+
 	dev_info(&pdev->dev, "Intel(R) Accelerator Device (v%x)\n",
 		 idxd->hw.version);
 
@@ -731,6 +735,7 @@ static void idxd_remove(struct pci_dev *pdev)
 	idxd_shutdown(pdev);
 	if (device_pasid_enabled(idxd))
 		idxd_disable_system_pasid(idxd);
+	idxd_device_remove_debugfs(idxd);
 
 	irq_entry = idxd_get_ie(idxd, 0);
 	free_irq(irq_entry->vector, irq_entry);
@@ -788,6 +793,10 @@ static int __init idxd_init_module(void)
 	if (err)
 		goto err_cdev_register;
 
+	err = idxd_init_debugfs();
+	if (err)
+		goto err_debugfs;
+
 	err = pci_register_driver(&idxd_pci_driver);
 	if (err)
 		goto err_pci_register;
@@ -795,6 +804,8 @@ static int __init idxd_init_module(void)
 	return 0;
 
 err_pci_register:
+	idxd_remove_debugfs();
+err_debugfs:
 	idxd_cdev_remove();
 err_cdev_register:
 	idxd_driver_unregister(&idxd_user_drv);
@@ -815,5 +826,6 @@ static void __exit idxd_exit_module(void)
 	pci_unregister_driver(&idxd_pci_driver);
 	idxd_cdev_remove();
 	perfmon_exit();
+	idxd_remove_debugfs();
 }
 module_exit(idxd_exit_module);
