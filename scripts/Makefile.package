@@ -27,21 +27,6 @@ fi ; \
 tar -I $(KGZIP) -c $(RCS_TAR_IGNORE) -f $(2).tar.gz \
 	--transform 's:^:$(2)/:S' $(TAR_CONTENT) $(3)
 
-# tarball compression
-# ---------------------------------------------------------------------------
-
-%.tar.gz: %.tar
-	$(call cmd,gzip)
-
-%.tar.bz2: %.tar
-	$(call cmd,bzip2)
-
-%.tar.xz: %.tar
-	$(call cmd,xzmisc)
-
-%.tar.zst: %.tar
-	$(call cmd,zstd)
-
 # Git
 # ---------------------------------------------------------------------------
 
@@ -154,10 +139,17 @@ tar-install: FORCE
 	$(Q)$(MAKE) -f $(srctree)/Makefile
 	+$(Q)$(srctree)/scripts/package/buildtar $@
 
-quiet_cmd_tar = TAR     $@
-      cmd_tar = cd $<; tar cf ../$@ --owner=root --group=root --sort=name *
+compress-tar.gz  = -I "$(KGZIP)"
+compress-tar.bz2 = -I "$(KBZIP2)"
+compress-tar.xz  = -I "$(XZ)"
+compress-tar.zst = -I "$(ZSTD)"
 
-linux-$(KERNELRELEASE)-$(ARCH).tar: tar-install
+quiet_cmd_tar = TAR     $@
+      cmd_tar = cd $<; tar cf ../$@ $(compress-tar$(suffix $@)) --owner=root --group=root --sort=name *
+
+dir-tarballs := $(addprefix linux-$(KERNELRELEASE)-$(ARCH), .tar .tar.gz .tar.bz2 .tar.xz .tar.zst)
+
+$(dir-tarballs): tar-install
 	$(call cmd,tar)
 
 PHONY += dir-pkg
