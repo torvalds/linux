@@ -61,6 +61,12 @@
 #define CTF_OFFSET_HOTSPOT		5
 #define CTF_OFFSET_MEM			5
 
+static const int pmfw_decoded_link_speed[5] = {1, 2, 3, 4, 5};
+static const int pmfw_decoded_link_width[7] = {0, 1, 2, 4, 8, 12, 16};
+
+#define DECODE_GEN_SPEED(gen_speed_idx)		(pmfw_decoded_link_speed[gen_speed_idx])
+#define DECODE_LANE_WIDTH(lane_width_idx)	(pmfw_decoded_link_width[lane_width_idx])
+
 struct smu_13_0_max_sustainable_clocks {
 	uint32_t display_clock;
 	uint32_t phy_clock;
