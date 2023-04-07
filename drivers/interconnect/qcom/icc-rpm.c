@@ -449,17 +449,9 @@ int qnoc_probe(struct platform_device *pdev)
 	for (i = 0; i < cd_num; i++)
 		qp->intf_clks[i].id = cds[i];
 
-	if (desc->num_bus_clocks) {
-		cds = desc->bus_clocks;
-		cd_num = desc->num_bus_clocks;
-	} else {
-		cds = bus_clocks;
-		cd_num = ARRAY_SIZE(bus_clocks);
-	}
-
-	for (i = 0; i < cd_num; i++)
-		qp->bus_clks[i].id = cds[i];
-	qp->num_bus_clks = cd_num;
+	qp->num_bus_clks = desc->no_clk_scaling ? 0 : NUM_BUS_CLKS;
+	for (i = 0; i < qp->num_bus_clks; i++)
+		qp->bus_clks[i].id = bus_clocks[i];
 
 	qp->type = desc->type;
 	qp->qos_offset = desc->qos_offset;
