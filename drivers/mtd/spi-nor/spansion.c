@@ -14,15 +14,26 @@
 #define SPINOR_OP_CLSR		0x30	/* Clear status register 1 */
 #define SPINOR_OP_RD_ANY_REG			0x65	/* Read any register */
 #define SPINOR_OP_WR_ANY_REG			0x71	/* Write any register */
-#define SPINOR_REG_CYPRESS_STR1V		0x00800000
-#define SPINOR_REG_CYPRESS_CFR1V		0x00800002
+#define SPINOR_REG_CYPRESS_VREG			0x00800000
+#define SPINOR_REG_CYPRESS_STR1			0x0
+#define SPINOR_REG_CYPRESS_STR1V					\
+	(SPINOR_REG_CYPRESS_VREG + SPINOR_REG_CYPRESS_STR1)
+#define SPINOR_REG_CYPRESS_CFR1			0x2
+#define SPINOR_REG_CYPRESS_CFR1V					\
+	(SPINOR_REG_CYPRESS_VREG + SPINOR_REG_CYPRESS_CFR1)
 #define SPINOR_REG_CYPRESS_CFR1_QUAD_EN		BIT(1)	/* Quad Enable */
-#define SPINOR_REG_CYPRESS_CFR2V		0x00800003
+#define SPINOR_REG_CYPRESS_CFR2			0x3
+#define SPINOR_REG_CYPRESS_CFR2V					\
+	(SPINOR_REG_CYPRESS_VREG + SPINOR_REG_CYPRESS_CFR2)
 #define SPINOR_REG_CYPRESS_CFR2_MEMLAT_11_24	0xb
 #define SPINOR_REG_CYPRESS_CFR2_ADRBYT		BIT(7)
-#define SPINOR_REG_CYPRESS_CFR3V		0x00800004
+#define SPINOR_REG_CYPRESS_CFR3			0x4
+#define SPINOR_REG_CYPRESS_CFR3V					\
+	(SPINOR_REG_CYPRESS_VREG + SPINOR_REG_CYPRESS_CFR3)
 #define SPINOR_REG_CYPRESS_CFR3_PGSZ		BIT(4) /* Page size. */
-#define SPINOR_REG_CYPRESS_CFR5V		0x00800006
+#define SPINOR_REG_CYPRESS_CFR5			0x6
+#define SPINOR_REG_CYPRESS_CFR5V					\
+	(SPINOR_REG_CYPRESS_VREG + SPINOR_REG_CYPRESS_CFR5)
 #define SPINOR_REG_CYPRESS_CFR5_BIT6		BIT(6)
 #define SPINOR_REG_CYPRESS_CFR5_DDR		BIT(1)
 #define SPINOR_REG_CYPRESS_CFR5_OPI		BIT(0)
@@ -301,17 +312,7 @@ static int cypress_nor_set_addr_mode_nbytes(struct spi_nor *nor)
 	return 0;
 }
 
-/**
- * cypress_nor_get_page_size() - Get flash page size configuration.
- * @nor:	pointer to a 'struct spi_nor'
- *
- * The BFPT table advertises a 512B or 256B page size depending on part but the
- * page size is actually configurable (with the default being 256B). Read from
- * CFR3V[4] and set the correct size.
- *
- * Return: 0 on success, -errno otherwise.
- */
-static int cypress_nor_get_page_size(struct spi_nor *nor)
+static int cypress_nor_get_page_size_single_chip(struct spi_nor *nor)
 {
 	struct spi_mem_op op =
 		CYPRESS_NOR_RD_ANY_REG_OP(nor->params->addr_mode_nbytes,
@@ -329,6 +330,54 @@ static int cypress_nor_get_page_size(struct spi_nor *nor)
 		nor->params->page_size = 256;
 
 	return 0;
+}
+
+
+static int cypress_nor_get_page_size_mcp(struct spi_nor *nor)
+{
+	struct spi_mem_op op =
+		CYPRESS_NOR_RD_ANY_REG_OP(nor->params->addr_mode_nbytes,
+					  0, 0, nor->bouncebuf);
+	struct spi_nor_flash_parameter *params = nor->params;
+	int ret;
+	u8 i;
+
+	/*
+	 * Use the minimum common page size configuration. Programming 256-byte
+	 * under 512-byte page size configuration is safe.
+	 */
+	params->page_size = 256;
+	for (i = 0; i < params->n_dice; i++) {
+		op.addr.val = params->vreg_offset[i] + SPINOR_REG_CYPRESS_CFR3;
+
+		ret = spi_nor_read_any_reg(nor, &op, nor->reg_proto);
+		if (ret)
+			return ret;
+
+		if (!(nor->bouncebuf[0] & SPINOR_REG_CYPRESS_CFR3_PGSZ))
+			return 0;
+	}
+
+	params->page_size = 512;
+
+	return 0;
+}
+
+/**
+ * cypress_nor_get_page_size() - Get flash page size configuration.
+ * @nor:	pointer to a 'struct spi_nor'
+ *
+ * The BFPT table advertises a 512B or 256B page size depending on part but the
+ * page size is actually configurable (with the default being 256B). Read from
+ * CFR3V[4] and set the correct size.
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
+static int cypress_nor_get_page_size(struct spi_nor *nor)
+{
+	if (nor->params->n_dice)
+		return cypress_nor_get_page_size_mcp(nor);
+	return cypress_nor_get_page_size_single_chip(nor);
 }
 
 static void cypress_nor_ecc_init(struct spi_nor *nor)
@@ -408,7 +457,7 @@ s25hx_t_post_bfpt_fixup(struct spi_nor *nor,
 	/* Replace Quad Enable with volatile version */
 	nor->params->quad_enable = cypress_nor_quad_enable_volatile;
 
-	return cypress_nor_get_page_size(nor);
+	return 0;
 }
 
 static int s25hx_t_post_sfdp_fixup(struct spi_nor *nor)
@@ -434,7 +483,7 @@ static int s25hx_t_post_sfdp_fixup(struct spi_nor *nor)
 		}
 	}
 
-	return 0;
+	return cypress_nor_get_page_size(nor);
 }
 
 static void s25hx_t_late_init(struct spi_nor *nor)
@@ -494,7 +543,7 @@ static int s28hx_t_post_sfdp_fixup(struct spi_nor *nor)
 	 */
 	nor->params->rdsr_addr_nbytes = 4;
 
-	return 0;
+	return cypress_nor_get_page_size(nor);
 }
 
 static int s28hx_t_post_bfpt_fixup(struct spi_nor *nor,
@@ -507,7 +556,7 @@ static int s28hx_t_post_bfpt_fixup(struct spi_nor *nor,
 	if (ret)
 		return ret;
 
-	return cypress_nor_get_page_size(nor);
+	return 0;
 }
 
 static void s28hx_t_late_init(struct spi_nor *nor)
