@@ -192,9 +192,9 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&tx28_spi_gpio_pins>;
 
-		gpio-sck = <&gpio2 24 GPIO_ACTIVE_HIGH>;
-		gpio-mosi = <&gpio2 25 GPIO_ACTIVE_HIGH>;
-		gpio-miso = <&gpio2 26 GPIO_ACTIVE_HIGH>;
+		sck-gpios = <&gpio2 24 GPIO_ACTIVE_HIGH>;
+		mosi-gpios = <&gpio2 25 GPIO_ACTIVE_HIGH>;
+		miso-gpios = <&gpio2 26 GPIO_ACTIVE_HIGH>;
 		num-chipselects = <3>;
 		cs-gpios = <
 			&gpio2 27 GPIO_ACTIVE_LOW
