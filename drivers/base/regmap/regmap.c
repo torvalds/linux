@@ -814,7 +814,7 @@ struct regmap *__regmap_init(struct device *dev,
 
 	map->format.reg_bytes = DIV_ROUND_UP(config->reg_bits, 8);
 	map->format.pad_bytes = config->pad_bits / 8;
-	map->format.reg_downshift = config->reg_downshift;
+	map->format.reg_shift = config->reg_shift;
 	map->format.val_bytes = DIV_ROUND_UP(config->val_bits, 8);
 	map->format.buf_size = DIV_ROUND_UP(config->reg_bits +
 			config->val_bits + config->pad_bits, 8);
@@ -1679,7 +1679,13 @@ static void regmap_set_work_buf_flag_mask(struct regmap *map, int max_bytes,
 static unsigned int regmap_reg_addr(struct regmap *map, unsigned int reg)
 {
 	reg += map->reg_base;
-	return reg >> map->format.reg_downshift;
+
+	if (map->format.reg_shift > 0)
+		reg >>= map->format.reg_shift;
+	else if (map->format.reg_shift < 0)
+		reg <<= -(map->format.reg_shift);
+
+	return reg;
 }
 
 static int _regmap_raw_write_impl(struct regmap *map, unsigned int reg,

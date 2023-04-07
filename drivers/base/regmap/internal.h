@@ -31,8 +31,8 @@ struct regmap_format {
 	size_t buf_size;
 	size_t reg_bytes;
 	size_t pad_bytes;
-	size_t reg_downshift;
 	size_t val_bytes;
+	s8 reg_shift;
 	void (*format_write)(struct regmap *map,
 			     unsigned int reg, unsigned int val);
 	void (*format_reg)(void *buf, unsigned int reg, unsigned int shift);

@@ -46,6 +46,14 @@ struct sdw_slave;
 #define REGMAP_MDIO_C45_DEVAD_MASK	GENMASK(20, 16)
 #define REGMAP_MDIO_C45_REGNUM_MASK	GENMASK(15, 0)
 
+/*
+ * regmap.reg_shift indicates by how much we must shift registers prior to
+ * performing any operation. It's a signed value, positive numbers means
+ * downshifting the register's address, while negative numbers means upshifting.
+ */
+#define REGMAP_UPSHIFT(s)	(-(s))
+#define REGMAP_DOWNSHIFT(s)	(s)
+
 /* An enum of all the supported cache types */
 enum regcache_type {
 	REGCACHE_NONE,
@@ -246,8 +254,9 @@ typedef void (*regmap_unlock)(void *);
  * @reg_stride: The register address stride. Valid register addresses are a
  *              multiple of this value. If set to 0, a value of 1 will be
  *              used.
- * @reg_downshift: The number of bits to downshift the register before
- *		   performing any operations.
+ * @reg_shift: The number of bits to shift the register before performing any
+ *	       operations. Any positive number will be downshifted, and negative
+ *	       values will be upshifted
  * @reg_base: Value to be added to every register address before performing any
  *	      operation.
  * @pad_bits: Number of bits of padding between register and value.
@@ -381,7 +390,7 @@ struct regmap_config {
 
 	int reg_bits;
 	int reg_stride;
-	int reg_downshift;
+	int reg_shift;
 	unsigned int reg_base;
 	int pad_bits;
 	int val_bits;
