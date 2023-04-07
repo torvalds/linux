@@ -1661,14 +1661,12 @@ static int register_flash_device(struct qti_flash_led *led,
 	setting->step = SAFETY_TIMER_STEP_SIZE * 1000;
 	setting->val = SAFETY_TIMER_DEFAULT_TIMEOUT_MS * 1000;
 
-	rc = led_classdev_flash_register(&led->pdev->dev, &fnode->fdev);
-	if (rc < 0) {
+	rc = devm_led_classdev_flash_register(&led->pdev->dev, &fnode->fdev);
+	if (rc < 0)
 		pr_err("Failed to register flash led device:%s\n",
 			fnode->fdev.led_cdev.name);
-		return rc;
-	}
 
-	return 0;
+	return rc;
 }
 
 static int qti_flash_led_register_device(struct qti_flash_led *led,
@@ -1791,7 +1789,7 @@ static int qti_flash_led_register_device(struct qti_flash_led *led,
 				pr_err("Failed to register flash device %s rc=%d\n",
 					led->fnode[i].fdev.led_cdev.name, rc);
 				of_node_put(temp);
-				goto unreg_led;
+				return rc;
 			}
 			led->fnode[i++].fdev.led_cdev.dev->of_node = temp;
 		} else {
@@ -1801,19 +1799,13 @@ static int qti_flash_led_register_device(struct qti_flash_led *led,
 					led->snode[j].cdev.name, rc);
 				i--;
 				of_node_put(temp);
-				goto unreg_led;
+				return rc;
 			}
 			led->snode[j++].cdev.dev->of_node = temp;
 		}
 	}
 
 	return 0;
-
-unreg_led:
-	while (i >= 0)
-		led_classdev_flash_unregister(&led->fnode[i--].fdev);
-
-	return rc;
 }
 
 static int qti_flash_led_probe(struct platform_device *pdev)
@@ -1877,9 +1869,6 @@ static int qti_flash_led_remove(struct platform_device *pdev)
 			sysfs_remove_file(&led->snode[i].cdev.dev->kobj,
 				&qti_flash_led_attrs[j].attr);
 	}
-
-	for (i = 0; (i < led->num_fnodes); i++)
-		led_classdev_flash_unregister(&led->fnode[i].fdev);
 
 	return 0;
 }
