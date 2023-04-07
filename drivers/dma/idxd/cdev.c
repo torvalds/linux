@@ -49,6 +49,7 @@ struct idxd_user_context {
 	struct idxd_dev idxd_dev;
 	u64 counters[COUNTER_MAX];
 	int id;
+	pid_t pid;
 };
 
 static void idxd_cdev_evl_drain_pasid(struct idxd_wq *wq, u32 pasid);
@@ -78,9 +79,18 @@ static ssize_t cr_fault_failures_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(cr_fault_failures);
 
+static ssize_t pid_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct idxd_user_context *ctx = dev_to_uctx(dev);
+
+	return sysfs_emit(buf, "%u\n", ctx->pid);
+}
+static DEVICE_ATTR_RO(pid);
+
 static struct attribute *cdev_file_attributes[] = {
 	&dev_attr_cr_faults.attr,
 	&dev_attr_cr_fault_failures.attr,
+	&dev_attr_pid.attr,
 	NULL
 };
 
@@ -238,6 +248,7 @@ static int idxd_cdev_open(struct inode *inode, struct file *filp)
 
 	ctx->wq = wq;
 	filp->private_data = ctx;
+	ctx->pid = current->pid;
 
 	if (device_user_pasid_enabled(idxd)) {
 		sva = iommu_sva_bind_device(dev, current->mm);
