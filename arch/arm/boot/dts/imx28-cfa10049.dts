@@ -100,9 +100,9 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi2_pins_cfa10049>;
 		status = "okay";
-		gpio-sck = <&gpio2 16 0>;
-		gpio-mosi = <&gpio2 17 0>;
-		gpio-miso = <&gpio2 18 0>;
+		sck-gpios = <&gpio2 16 0>;
+		mosi-gpios = <&gpio2 17 0>;
+		miso-gpios = <&gpio2 18 0>;
 		cs-gpios = <&gpio3 5 0>;
 		num-chipselects = <1>;
 		#address-cells = <1>;
@@ -124,8 +124,8 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi3_pins_cfa10049>;
 		status = "okay";
-		gpio-sck = <&gpio0 24 0>;
-		gpio-mosi = <&gpio0 28 0>;
+		sck-gpios = <&gpio0 24 0>;
+		mosi-gpios = <&gpio0 28 0>;
 		cs-gpios = <&gpio0 17 0 &gpio0 26 0 &gpio0 27 0>;
 		num-chipselects = <3>;
 		#address-cells = <1>;

@@ -19,9 +19,9 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi2_pins_cfa10055>;
 		status = "okay";
-		gpio-sck = <&gpio2 16 0>;
-		gpio-mosi = <&gpio2 17 0>;
-		gpio-miso = <&gpio2 18 0>;
+		sck-gpios = <&gpio2 16 0>;
+		mosi-gpios = <&gpio2 17 0>;
+		miso-gpios = <&gpio2 18 0>;
 		cs-gpios = <&gpio3 5 0>;
 		num-chipselects = <1>;
 		#address-cells = <1>;
