@@ -20,7 +20,7 @@ void __write_overflow_field(size_t avail, size_t wanted) __compiletime_warning("
 ({								\
 	char *__p = (char *)(p);				\
 	size_t __ret = SIZE_MAX;				\
-	size_t __p_size = __member_size(p);			\
+	const size_t __p_size = __member_size(p);		\
 	if (__p_size != SIZE_MAX &&				\
 	    __builtin_constant_p(*__p)) {			\
 		size_t __p_len = __p_size - 1;			\
@@ -142,7 +142,7 @@ extern char *__underlying_strncpy(char *p, const char *q, __kernel_size_t size) 
 __FORTIFY_INLINE __diagnose_as(__builtin_strncpy, 1, 2, 3)
 char *strncpy(char * const POS p, const char *q, __kernel_size_t size)
 {
-	size_t p_size = __member_size(p);
+	const size_t p_size = __member_size(p);
 
 	if (__compiletime_lessthan(p_size, size))
 		__write_overflow();
@@ -169,7 +169,7 @@ char *strncpy(char * const POS p, const char *q, __kernel_size_t size)
 __FORTIFY_INLINE __diagnose_as(__builtin_strcat, 1, 2)
 char *strcat(char * const POS p, const char *q)
 {
-	size_t p_size = __member_size(p);
+	const size_t p_size = __member_size(p);
 
 	if (p_size == SIZE_MAX)
 		return __underlying_strcat(p, q);
@@ -191,8 +191,8 @@ extern __kernel_size_t __real_strnlen(const char *, __kernel_size_t) __RENAME(st
  */
 __FORTIFY_INLINE __kernel_size_t strnlen(const char * const POS p, __kernel_size_t maxlen)
 {
-	size_t p_size = __member_size(p);
-	size_t p_len = __compiletime_strlen(p);
+	const size_t p_size = __member_size(p);
+	const size_t p_len = __compiletime_strlen(p);
 	size_t ret;
 
 	/* We can take compile-time actions when maxlen is const. */
@@ -233,8 +233,8 @@ __FORTIFY_INLINE __kernel_size_t strnlen(const char * const POS p, __kernel_size
 __FORTIFY_INLINE __diagnose_as(__builtin_strlen, 1)
 __kernel_size_t __fortify_strlen(const char * const POS p)
 {
+	const size_t p_size = __member_size(p);
 	__kernel_size_t ret;
-	size_t p_size = __member_size(p);
 
 	/* Give up if we don't know how large p is. */
 	if (p_size == SIZE_MAX)
@@ -267,8 +267,8 @@ extern size_t __real_strlcpy(char *, const char *, size_t) __RENAME(strlcpy);
  */
 __FORTIFY_INLINE size_t strlcpy(char * const POS p, const char * const POS q, size_t size)
 {
-	size_t p_size = __member_size(p);
-	size_t q_size = __member_size(q);
+	const size_t p_size = __member_size(p);
+	const size_t q_size = __member_size(q);
 	size_t q_len;	/* Full count of source string length. */
 	size_t len;	/* Count of characters going into destination. */
 
@@ -318,10 +318,10 @@ extern ssize_t __real_strscpy(char *, const char *, size_t) __RENAME(strscpy);
  */
 __FORTIFY_INLINE ssize_t strscpy(char * const POS p, const char * const POS q, size_t size)
 {
-	size_t len;
 	/* Use string size rather than possible enclosing struct size. */
-	size_t p_size = __member_size(p);
-	size_t q_size = __member_size(q);
+	const size_t p_size = __member_size(p);
+	const size_t q_size = __member_size(q);
+	size_t len;
 
 	/* If we cannot get size of p and q default to call strscpy. */
 	if (p_size == SIZE_MAX && q_size == SIZE_MAX)
@@ -394,9 +394,9 @@ __FORTIFY_INLINE ssize_t strscpy(char * const POS p, const char * const POS q, s
 __FORTIFY_INLINE __diagnose_as(__builtin_strncat, 1, 2, 3)
 char *strncat(char * const POS p, const char * const POS q, __kernel_size_t count)
 {
+	const size_t p_size = __member_size(p);
+	const size_t q_size = __member_size(q);
 	size_t p_len, copy_len;
-	size_t p_size = __member_size(p);
-	size_t q_size = __member_size(q);
 
 	if (p_size == SIZE_MAX && q_size == SIZE_MAX)
 		return __underlying_strncat(p, q, count);
@@ -639,7 +639,7 @@ __FORTIFY_INLINE bool fortify_memcpy_chk(__kernel_size_t size,
 extern void *__real_memscan(void *, int, __kernel_size_t) __RENAME(memscan);
 __FORTIFY_INLINE void *memscan(void * const POS0 p, int c, __kernel_size_t size)
 {
-	size_t p_size = __struct_size(p);
+	const size_t p_size = __struct_size(p);
 
 	if (__compiletime_lessthan(p_size, size))
 		__read_overflow();
@@ -651,8 +651,8 @@ __FORTIFY_INLINE void *memscan(void * const POS0 p, int c, __kernel_size_t size)
 __FORTIFY_INLINE __diagnose_as(__builtin_memcmp, 1, 2, 3)
 int memcmp(const void * const POS0 p, const void * const POS0 q, __kernel_size_t size)
 {
-	size_t p_size = __struct_size(p);
-	size_t q_size = __struct_size(q);
+	const size_t p_size = __struct_size(p);
+	const size_t q_size = __struct_size(q);
 
 	if (__builtin_constant_p(size)) {
 		if (__compiletime_lessthan(p_size, size))
@@ -668,7 +668,7 @@ int memcmp(const void * const POS0 p, const void * const POS0 q, __kernel_size_t
 __FORTIFY_INLINE __diagnose_as(__builtin_memchr, 1, 2, 3)
 void *memchr(const void * const POS0 p, int c, __kernel_size_t size)
 {
-	size_t p_size = __struct_size(p);
+	const size_t p_size = __struct_size(p);
 
 	if (__compiletime_lessthan(p_size, size))
 		__read_overflow();
@@ -680,7 +680,7 @@ void *memchr(const void * const POS0 p, int c, __kernel_size_t size)
 void *__real_memchr_inv(const void *s, int c, size_t n) __RENAME(memchr_inv);
 __FORTIFY_INLINE void *memchr_inv(const void * const POS0 p, int c, size_t size)
 {
-	size_t p_size = __struct_size(p);
+	const size_t p_size = __struct_size(p);
 
 	if (__compiletime_lessthan(p_size, size))
 		__read_overflow();
@@ -693,7 +693,7 @@ extern void *__real_kmemdup(const void *src, size_t len, gfp_t gfp) __RENAME(kme
 								    __realloc_size(2);
 __FORTIFY_INLINE void *kmemdup(const void * const POS0 p, size_t size, gfp_t gfp)
 {
-	size_t p_size = __struct_size(p);
+	const size_t p_size = __struct_size(p);
 
 	if (__compiletime_lessthan(p_size, size))
 		__read_overflow();
@@ -720,8 +720,8 @@ __FORTIFY_INLINE void *kmemdup(const void * const POS0 p, size_t size, gfp_t gfp
 __FORTIFY_INLINE __diagnose_as(__builtin_strcpy, 1, 2)
 char *strcpy(char * const POS p, const char * const POS q)
 {
-	size_t p_size = __member_size(p);
-	size_t q_size = __member_size(q);
+	const size_t p_size = __member_size(p);
+	const size_t q_size = __member_size(q);
 	size_t size;
 
 	/* If neither buffer size is known, immediately give up. */
