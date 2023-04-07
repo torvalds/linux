@@ -454,7 +454,7 @@ static const struct hwmon_channel_info w1_temp = {
 	.config = w1_temp_config,
 };
 
-static const struct hwmon_channel_info *w1_info[] = {
+static const struct hwmon_channel_info * const w1_info[] = {
 	&w1_temp,
 	NULL
 };
