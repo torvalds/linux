@@ -302,6 +302,16 @@ config BACKLIGHT_QCOM_WLED
 	  If you have the Qualcomm PMIC, say Y to enable a driver for the
 	  WLED block. Currently it supports PM8941 and PMI8998.
 
+config BACKLIGHT_QCOM_SPMI_WLED
+	tristate "Qualcomm Technologies, Inc. WLED Driver"
+	select REGMAP
+	help
+	  If you have the Qualcomm Technologies, Inc. WLED used for backlight
+	  control, say Y to enable a driver for the  WLED block. This driver
+	  provides the interface to the display driver to adjust the brightness
+	  of the display backlight. This supports PMI8998, PM8150L, PM6150L
+	  currently.
+
 config BACKLIGHT_RT4831
 	tristate "Richtek RT4831 Backlight Driver"
 	depends on MFD_RT4831
