@@ -345,6 +345,15 @@ static int idxd_init_evl(struct idxd_device *idxd)
 
 	spin_lock_init(&evl->lock);
 	evl->size = IDXD_EVL_SIZE_MIN;
+
+	idxd->evl_cache = kmem_cache_create(dev_name(idxd_confdev(idxd)),
+					    sizeof(struct idxd_evl_fault) + evl_ent_size(idxd),
+					    0, 0, NULL);
+	if (!idxd->evl_cache) {
+		kfree(evl);
+		return -ENOMEM;
+	}
+
 	idxd->evl = evl;
 	return 0;
 }
