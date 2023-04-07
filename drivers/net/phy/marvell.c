@@ -2735,7 +2735,7 @@ static const struct hwmon_channel_info marvell_hwmon_temp = {
 	.config = marvell_hwmon_temp_config,
 };
 
-static const struct hwmon_channel_info *marvell_hwmon_info[] = {
+static const struct hwmon_channel_info * const marvell_hwmon_info[] = {
 	&marvell_hwmon_chip,
 	&marvell_hwmon_temp,
 	NULL
