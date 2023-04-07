@@ -217,6 +217,49 @@ static void idxd_int_handle_revoke(struct work_struct *work)
 	kfree(revoke);
 }
 
+static void process_evl_entry(struct idxd_device *idxd, struct __evl_entry *entry_head)
+{
+	struct device *dev = &idxd->pdev->dev;
+	u8 status;
+
+	status = DSA_COMP_STATUS(entry_head->error);
+	dev_warn_ratelimited(dev, "Device error %#x operation: %#x fault addr: %#llx\n",
+			     status, entry_head->operation, entry_head->fault_addr);
+}
+
+static void process_evl_entries(struct idxd_device *idxd)
+{
+	union evl_status_reg evl_status;
+	unsigned int h, t;
+	struct idxd_evl *evl = idxd->evl;
+	struct __evl_entry *entry_head;
+	unsigned int ent_size = evl_ent_size(idxd);
+	u32 size;
+
+	evl_status.bits = 0;
+	evl_status.int_pending = 1;
+
+	spin_lock(&evl->lock);
+	/* Clear interrupt pending bit */
+	iowrite32(evl_status.bits_upper32,
+		  idxd->reg_base + IDXD_EVLSTATUS_OFFSET + sizeof(u32));
+	h = evl->head;
+	evl_status.bits = ioread64(idxd->reg_base + IDXD_EVLSTATUS_OFFSET);
+	t = evl_status.tail;
+	size = idxd->evl->size;
+
+	while (h != t) {
+		entry_head = (struct __evl_entry *)(evl->log + (h * ent_size));
+		process_evl_entry(idxd, entry_head);
+		h = (h + 1) % size;
+	}
+
+	evl->head = h;
+	evl_status.head = h;
+	iowrite32(evl_status.bits_lower32, idxd->reg_base + IDXD_EVLSTATUS_OFFSET);
+	spin_unlock(&evl->lock);
+}
+
 irqreturn_t idxd_misc_thread(int vec, void *data)
 {
 	struct idxd_irq_entry *irq_entry = data;
@@ -302,6 +345,11 @@ irqreturn_t idxd_misc_thread(int vec, void *data)
 	if (cause & IDXD_INTC_PERFMON_OVFL) {
 		val |= IDXD_INTC_PERFMON_OVFL;
 		perfmon_counter_overflow(idxd);
+	}
+
+	if (cause & IDXD_INTC_EVL) {
+		val |= IDXD_INTC_EVL;
+		process_evl_entries(idxd);
 	}
 
 	val ^= cause;
