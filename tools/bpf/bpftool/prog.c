@@ -1685,7 +1685,8 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 		}
 
 		bpf_program__set_ifindex(pos, ifindex);
-		bpf_program__set_type(pos, prog_type);
+		if (bpf_program__type(pos) != prog_type)
+			bpf_program__set_type(pos, prog_type);
 		bpf_program__set_expected_attach_type(pos, expected_attach_type);
 	}
 
