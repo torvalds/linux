@@ -1824,18 +1824,22 @@ static int handle_comparison_mode(void)
 			join->stats_b = comp;
 			i++;
 			j++;
-		} else if (comp == &fallback_stats || r < 0) {
+		} else if (base != &fallback_stats && (comp == &fallback_stats || r < 0)) {
 			join->file_name = base->file_name;
 			join->prog_name = base->prog_name;
 			join->stats_a = base;
 			join->stats_b = NULL;
 			i++;
-		} else {
+		} else if (comp != &fallback_stats && (base == &fallback_stats || r > 0)) {
 			join->file_name = comp->file_name;
 			join->prog_name = comp->prog_name;
 			join->stats_a = NULL;
 			join->stats_b = comp;
 			j++;
+		} else {
+			fprintf(stderr, "%s:%d: should never reach here i=%i, j=%i",
+				__FILE__, __LINE__, i, j);
+			return -EINVAL;
 		}
 		env.join_stat_cnt += 1;
 	}
