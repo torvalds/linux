@@ -7,6 +7,7 @@
 #include <linux/kthread.h>
 #include <linux/list.h>
 #include <linux/platform_device.h>
+#include <linux/pm_wakeup.h>
 #include <linux/skbuff.h>
 #include <linux/sizes.h>
 #include <linux/types.h>
@@ -16,6 +17,8 @@
 
 #define QMSGQ_GH_PROTO_VER_1 1
 #define MAX_PKT_SZ  SZ_64K
+
+#define QMSGQ_SKB_WAKEUP_MS 500
 
 enum qmsgq_gh_pkt_type {
 	QMSGQ_GH_TYPE_DATA = 1,
@@ -73,6 +76,7 @@ struct qmsgq_gh_recv_buf {
  * @tx_lock: tx lock to queue only one packet at a time
  * @rx_thread: rx thread to receive incoming packets
  * @ep: qmsq endpoint
+ * @sock_ws: wakeup source
  */
 struct qmsgq_gh_device {
 	struct list_head item;
@@ -84,6 +88,8 @@ struct qmsgq_gh_device {
 	enum gh_msgq_label msgq_label;
 	void *msgq_hdl;
 	struct notifier_block rm_nb;
+
+	struct wakeup_source *sock_ws;
 
 	/* @tx_lock: tx lock to queue only one packet at a time */
 	struct mutex tx_lock;
@@ -207,6 +213,7 @@ static int qmsgq_gh_msgq_recv(void *data)
 			continue;
 
 		qmsgq_process_recv(qdev, buf, size);
+		pm_wakeup_ws_event(qdev->sock_ws, QMSGQ_SKB_WAKEUP_MS, true);
 	}
 	kfree(buf);
 
@@ -429,6 +436,8 @@ static int qmsgq_gh_probe(struct platform_device *pdev)
 
 	//TODO properly set this
 	qdev->peer_cid = 0;
+
+	qdev->sock_ws = wakeup_source_register(NULL, "qmsgq_sock_ws");
 
 	rc = of_property_read_u32(np, "msgq-label", &qdev->msgq_label);
 	if (rc) {
