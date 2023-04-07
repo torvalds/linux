@@ -1552,7 +1552,6 @@
 				function = "gpio";
 				drive-strength = <2>;
 				bias-pull-down;
-				input-enable;
 			};
 
 			blsp2_i2c1_default: blsp2-i2c1-state {
