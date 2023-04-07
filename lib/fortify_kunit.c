@@ -17,8 +17,8 @@
 
 /* Redefine fortify_panic() to track failures. */
 void fortify_add_kunit_error(int write);
-#define fortify_panic(func, write, retfail) do {			\
-	__fortify_report(FORTIFY_REASON(func, write));			\
+#define fortify_panic(func, write, avail, size, retfail) do {		\
+	__fortify_report(FORTIFY_REASON(func, write), avail, size);	\
 	fortify_add_kunit_error(write);					\
 	return (retfail);						\
 } while (0)
