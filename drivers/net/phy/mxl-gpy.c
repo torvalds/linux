@@ -182,7 +182,7 @@ static umode_t gpy_hwmon_is_visible(const void *data,
 	return 0444;
 }
 
-static const struct hwmon_channel_info *gpy_hwmon_info[] = {
+static const struct hwmon_channel_info * const gpy_hwmon_info[] = {
 	HWMON_CHANNEL_INFO(temp, HWMON_T_INPUT),
 	NULL
 };
