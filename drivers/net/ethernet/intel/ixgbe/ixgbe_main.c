@@ -1251,15 +1251,13 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 	if (ring_is_xdp(tx_ring))
 		return !!budget;
 
-	netdev_tx_completed_queue(txring_txq(tx_ring),
-				  total_packets, total_bytes);
-
 #define TX_WAKE_THRESHOLD (DESC_NEEDED * 2)
 	txq = netdev_get_tx_queue(tx_ring->netdev, tx_ring->queue_index);
-	if (total_packets && netif_carrier_ok(tx_ring->netdev) &&
-	    !__netif_txq_maybe_wake(txq, ixgbe_desc_unused(tx_ring),
-				    TX_WAKE_THRESHOLD,
-				    test_bit(__IXGBE_DOWN, &adapter->state)))
+	if (!__netif_txq_completed_wake(txq, total_packets, total_bytes,
+					ixgbe_desc_unused(tx_ring),
+					TX_WAKE_THRESHOLD,
+					netif_carrier_ok(tx_ring->netdev) &&
+					test_bit(__IXGBE_DOWN, &adapter->state)))
 		++tx_ring->tx_stats.restart_queue;
 
 	return !!budget;

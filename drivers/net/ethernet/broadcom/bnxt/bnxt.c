@@ -688,11 +688,11 @@ next_tx_int:
 		dev_kfree_skb_any(skb);
 	}
 
-	netdev_tx_completed_queue(txq, nr_pkts, tx_bytes);
 	txr->tx_cons = cons;
 
-	__netif_txq_maybe_wake(txq, bnxt_tx_avail(bp, txr), bp->tx_wake_thresh,
-			       READ_ONCE(txr->dev_state) != BNXT_DEV_STATE_CLOSING);
+	__netif_txq_completed_wake(txq, nr_pkts, tx_bytes,
+				   bnxt_tx_avail(bp, txr), bp->tx_wake_thresh,
+				   READ_ONCE(txr->dev_state) != BNXT_DEV_STATE_CLOSING);
 }
 
 static struct page *__bnxt_alloc_rx_page(struct bnxt *bp, dma_addr_t *mapping,

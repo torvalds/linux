@@ -38,7 +38,7 @@
 		netif_tx_stop_queue(txq);				\
 		/* Producer index and stop bit must be visible		\
 		 * to consumer before we recheck.			\
-		 * Pairs with a barrier in __netif_txq_maybe_wake().	\
+		 * Pairs with a barrier in __netif_txq_completed_wake(). \
 		 */							\
 		smp_mb__after_atomic();					\
 									\
@@ -82,10 +82,24 @@
 		_res;							\
 	})								\
 
+/* Variant of netdev_tx_completed_queue() which guarantees smp_mb() if
+ * @bytes != 0, regardless of kernel config.
+ */
+static inline void
+netdev_txq_completed_mb(struct netdev_queue *dev_queue,
+			unsigned int pkts, unsigned int bytes)
+{
+	if (IS_ENABLED(CONFIG_BQL))
+		netdev_tx_completed_queue(dev_queue, pkts, bytes);
+	else if (bytes)
+		smp_mb();
+}
 
 /**
- * __netif_txq_maybe_wake() - locklessly wake a Tx queue, if needed
+ * __netif_txq_completed_wake() - locklessly wake a Tx queue, if needed
  * @txq:	struct netdev_queue to stop/start
+ * @pkts:	number of packets completed
+ * @bytes:	number of bytes completed
  * @get_desc:	get current number of free descriptors (see requirements below!)
  * @start_thrs:	minimal number of descriptors to re-enable the queue
  * @down_cond:	down condition, predicate indicating that the queue should
@@ -94,22 +108,27 @@
  * All arguments may be evaluated multiple times.
  * @get_desc must be a formula or a function call, it must always
  * return up-to-date information when evaluated!
+ * Reports completed pkts/bytes to BQL.
  *
  * Returns:
  *	 0 if the queue was woken up
  *	 1 if the queue was already enabled (or disabled but @down_cond is true)
  *	-1 if the queue was left unchanged (@start_thrs not reached)
  */
-#define __netif_txq_maybe_wake(txq, get_desc, start_thrs, down_cond)	\
+#define __netif_txq_completed_wake(txq, pkts, bytes,			\
+				   get_desc, start_thrs, down_cond)	\
 	({								\
 		int _res;						\
 									\
+		/* Report to BQL and piggy back on its barrier.		\
+		 * Barrier makes sure that anybody stopping the queue	\
+		 * after this point sees the new consumer index.	\
+		 * Pairs with barrier in netif_txq_try_stop().		\
+		 */							\
+		netdev_txq_completed_mb(txq, pkts, bytes);		\
+									\
 		_res = -1;						\
-		if (likely(get_desc > start_thrs)) {			\
-			/* Make sure that anybody stopping the queue after \
-			 * this sees the new next_to_clean.		\
-			 */						\
-			smp_mb();					\
+		if (pkts && likely(get_desc > start_thrs)) {		\
 			_res = 1;					\
 			if (unlikely(netif_tx_queue_stopped(txq)) &&	\
 			    !(down_cond)) {				\
@@ -120,8 +139,8 @@
 		_res;							\
 	})
 
-#define netif_txq_maybe_wake(txq, get_desc, start_thrs)		\
-	__netif_txq_maybe_wake(txq, get_desc, start_thrs, false)
+#define netif_txq_completed_wake(txq, pkts, bytes, get_desc, start_thrs) \
+	__netif_txq_completed_wake(txq, pkts, bytes, get_desc, start_thrs, false)
 
 /* subqueue variants follow */
 
