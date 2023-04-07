@@ -5185,20 +5185,20 @@
 
 		intc: interrupt-controller@17a00000 {
 			compatible = "arm,gic-v3";
-			#address-cells = <2>;
-			#size-cells = <2>;
-			ranges;
-			#interrupt-cells = <3>;
-			interrupt-controller;
 			reg = <0 0x17a00000 0 0x10000>,     /* GICD */
 			      <0 0x17a60000 0 0x100000>;    /* GICR * 8 */
 			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_LOW>;
+			#interrupt-cells = <3>;
+			interrupt-controller;
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges;
 
-			gic-its@17a40000 {
+			msi-controller@17a40000 {
 				compatible = "arm,gic-v3-its";
+				reg = <0 0x17a40000 0 0x20000>;
 				msi-controller;
 				#msi-cells = <1>;
-				reg = <0 0x17a40000 0 0x20000>;
 				status = "disabled";
 			};
 		};
