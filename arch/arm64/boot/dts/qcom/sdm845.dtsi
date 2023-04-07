@@ -3186,7 +3186,6 @@
 				function = "gpio";
 				drive-strength = <2>;
 				bias-pull-down;
-				input-enable;
 			};
 
 			quat_mi2s_active: quat-mi2s-active-state {
@@ -3202,7 +3201,6 @@
 				function = "gpio";
 				drive-strength = <2>;
 				bias-pull-down;
-				input-enable;
 			};
 
 			quat_mi2s_sd0_active: quat-mi2s-sd0-active-state {
@@ -3217,7 +3215,6 @@
 				function = "gpio";
 				drive-strength = <2>;
 				bias-pull-down;
-				input-enable;
 			};
 
 			quat_mi2s_sd1_active: quat-mi2s-sd1-active-state {
@@ -3232,7 +3229,6 @@
 				function = "gpio";
 				drive-strength = <2>;
 				bias-pull-down;
-				input-enable;
 			};
 
 			quat_mi2s_sd2_active: quat-mi2s-sd2-active-state {
@@ -3247,7 +3243,6 @@
 				function = "gpio";
 				drive-strength = <2>;
 				bias-pull-down;
-				input-enable;
 			};
 
 			quat_mi2s_sd3_active: quat-mi2s-sd3-active-state {

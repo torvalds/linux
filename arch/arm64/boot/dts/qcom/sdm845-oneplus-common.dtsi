@@ -778,7 +778,6 @@
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
-		input-enable;
 	};
 
 	tri_state_key_default: tri-state-key-default-state {
@@ -807,7 +806,6 @@
 		function = "mdp_vsync";
 		drive-strength = <2>;
 		bias-disable;
-		input-enable;
 	};
 
 	panel_esd_pin: panel-esd-state {
@@ -815,7 +813,6 @@
 		function = "gpio";
 		drive-strength = <2>;
 		bias-pull-down;
-		input-enable;
 	};
 
 	speaker_default: speaker-default-state {
