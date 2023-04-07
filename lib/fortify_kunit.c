@@ -15,8 +15,17 @@
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+/* Redefine fortify_panic() to track failures. */
+void fortify_add_kunit_error(int write);
+#define fortify_panic(func, write, retfail) do {			\
+	__fortify_report(FORTIFY_REASON(func, write));			\
+	fortify_add_kunit_error(write);					\
+	return (retfail);						\
+} while (0)
+
 #include <kunit/device.h>
 #include <kunit/test.h>
+#include <kunit/test-bug.h>
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -27,9 +36,33 @@
 # define __compiletime_strlen __builtin_strlen
 #endif
 
+static struct kunit_resource read_resource;
+static struct kunit_resource write_resource;
+static int fortify_read_overflows;
+static int fortify_write_overflows;
+
 static const char array_of_10[] = "this is 10";
 static const char *ptr_of_11 = "this is 11!";
 static char array_unknown[] = "compiler thinks I might change";
+
+void fortify_add_kunit_error(int write)
+{
+	struct kunit_resource *resource;
+	struct kunit *current_test;
+
+	current_test = kunit_get_current_test();
+	if (!current_test)
+		return;
+
+	resource = kunit_find_named_resource(current_test,
+			write ? "fortify_write_overflows"
+			      : "fortify_read_overflows");
+	if (!resource)
+		return;
+
+	(*(int *)resource->data)++;
+	kunit_put_resource(resource);
+}
 
 static void known_sizes_test(struct kunit *test)
 {
@@ -318,6 +351,14 @@ static int fortify_test_init(struct kunit *test)
 	if (!IS_ENABLED(CONFIG_FORTIFY_SOURCE))
 		kunit_skip(test, "Not built with CONFIG_FORTIFY_SOURCE=y");
 
+	fortify_read_overflows = 0;
+	kunit_add_named_resource(test, NULL, NULL, &read_resource,
+				 "fortify_read_overflows",
+				 &fortify_read_overflows);
+	fortify_write_overflows = 0;
+	kunit_add_named_resource(test, NULL, NULL, &write_resource,
+				 "fortify_write_overflows",
+				 &fortify_write_overflows);
 	return 0;
 }
 
