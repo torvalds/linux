@@ -39,6 +39,7 @@ struct idxd_user_context {
 	struct mm_struct *mm;
 	unsigned int flags;
 	struct iommu_sva *sva;
+	u64 counters[COUNTER_MAX];
 };
 
 static void idxd_cdev_dev_release(struct device *dev)
@@ -81,6 +82,23 @@ static void idxd_xa_pasid_remove(struct idxd_user_context *ctx)
 	if (ptr != (void *)ctx)
 		dev_warn(&wq->idxd->pdev->dev, "xarray cmpxchg failed for pasid %u\n",
 			 ctx->pasid);
+	mutex_unlock(&wq->uc_lock);
+}
+
+void idxd_user_counter_increment(struct idxd_wq *wq, u32 pasid, int index)
+{
+	struct idxd_user_context *ctx;
+
+	if (index >= COUNTER_MAX)
+		return;
+
+	mutex_lock(&wq->uc_lock);
+	ctx = xa_load(&wq->upasid_xa, pasid);
+	if (!ctx) {
+		mutex_unlock(&wq->uc_lock);
+		return;
+	}
+	ctx->counters[index]++;
 	mutex_unlock(&wq->uc_lock);
 }
 

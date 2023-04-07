@@ -240,6 +240,7 @@ static void idxd_evl_fault_work(struct work_struct *work)
 			evl->batch_fail[entry_head->batch_id] = false;
 
 		copy_size = cr_size;
+		idxd_user_counter_increment(wq, entry_head->pasid, COUNTER_FAULTS);
 		break;
 	case DSA_COMP_BATCH_EVL_ERR:
 		bf = &evl->batch_fail[entry_head->batch_id];
@@ -251,6 +252,7 @@ static void idxd_evl_fault_work(struct work_struct *work)
 			*result = 1;
 			*bf = false;
 		}
+		idxd_user_counter_increment(wq, entry_head->pasid, COUNTER_FAULTS);
 		break;
 	case DSA_COMP_DRAIN_EVL:
 		copy_size = cr_size;
@@ -282,6 +284,7 @@ static void idxd_evl_fault_work(struct work_struct *work)
 	switch (fault->status) {
 	case DSA_COMP_CRA_XLAT:
 		if (copied != copy_size) {
+			idxd_user_counter_increment(wq, entry_head->pasid, COUNTER_FAULT_FAILS);
 			dev_dbg_ratelimited(dev, "Failed to write to completion record: (%d:%d)\n",
 					    copy_size, copied);
 			if (entry_head->batch)
@@ -290,6 +293,7 @@ static void idxd_evl_fault_work(struct work_struct *work)
 		break;
 	case DSA_COMP_BATCH_EVL_ERR:
 		if (copied != copy_size) {
+			idxd_user_counter_increment(wq, entry_head->pasid, COUNTER_FAULT_FAILS);
 			dev_dbg_ratelimited(dev, "Failed to write to batch completion record: (%d:%d)\n",
 					    copy_size, copied);
 		}
