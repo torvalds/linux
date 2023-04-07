@@ -343,6 +343,7 @@ static int idxd_init_evl(struct idxd_device *idxd)
 	if (!evl)
 		return -ENOMEM;
 
+	spin_lock_init(&evl->lock);
 	evl->size = IDXD_EVL_SIZE_MIN;
 	idxd->evl = evl;
 	return 0;
