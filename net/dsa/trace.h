@@ -9,7 +9,9 @@
 #define _NET_DSA_TRACE_H
 
 #include <net/dsa.h>
+#include <net/switchdev.h>
 #include <linux/etherdevice.h>
+#include <linux/if_bridge.h>
 #include <linux/refcount.h>
 #include <linux/tracepoint.h>
 
@@ -316,6 +318,122 @@ TRACE_EVENT(dsa_lag_fdb_del_not_found,
 
 	TP_printk("%s addr %pM vid %u db \"%s\"",
 		  __get_str(dev), __entry->addr, __entry->vid, __entry->db_buf)
+);
+
+DECLARE_EVENT_CLASS(dsa_vlan_op_hw,
+
+	TP_PROTO(const struct dsa_port *dp,
+		 const struct switchdev_obj_port_vlan *vlan, int err),
+
+	TP_ARGS(dp, vlan, err),
+
+	TP_STRUCT__entry(
+		__string(dev, dev_name(dp->ds->dev))
+		__string(kind, dsa_port_kind(dp))
+		__field(int, port)
+		__field(u16, vid)
+		__field(u16, flags)
+		__field(bool, changed)
+		__field(int, err)
+	),
+
+	TP_fast_assign(
+		__assign_str(dev, dev_name(dp->ds->dev));
+		__assign_str(kind, dsa_port_kind(dp));
+		__entry->port = dp->index;
+		__entry->vid = vlan->vid;
+		__entry->flags = vlan->flags;
+		__entry->changed = vlan->changed;
+		__entry->err = err;
+	),
+
+	TP_printk("%s %s port %d vid %u%s%s%s",
+		  __get_str(dev), __get_str(kind), __entry->port, __entry->vid,
+		  __entry->flags & BRIDGE_VLAN_INFO_PVID ? " pvid" : "",
+		  __entry->flags & BRIDGE_VLAN_INFO_UNTAGGED ? " untagged" : "",
+		  __entry->changed ? " (changed)" : "")
+);
+
+DEFINE_EVENT(dsa_vlan_op_hw, dsa_vlan_add_hw,
+	     TP_PROTO(const struct dsa_port *dp,
+		      const struct switchdev_obj_port_vlan *vlan, int err),
+	     TP_ARGS(dp, vlan, err));
+
+DEFINE_EVENT(dsa_vlan_op_hw, dsa_vlan_del_hw,
+	     TP_PROTO(const struct dsa_port *dp,
+		      const struct switchdev_obj_port_vlan *vlan, int err),
+	     TP_ARGS(dp, vlan, err));
+
+DECLARE_EVENT_CLASS(dsa_vlan_op_refcount,
+
+	TP_PROTO(const struct dsa_port *dp,
+		 const struct switchdev_obj_port_vlan *vlan,
+		 const refcount_t *refcount),
+
+	TP_ARGS(dp, vlan, refcount),
+
+	TP_STRUCT__entry(
+		__string(dev, dev_name(dp->ds->dev))
+		__string(kind, dsa_port_kind(dp))
+		__field(int, port)
+		__field(u16, vid)
+		__field(u16, flags)
+		__field(bool, changed)
+		__field(unsigned int, refcount)
+	),
+
+	TP_fast_assign(
+		__assign_str(dev, dev_name(dp->ds->dev));
+		__assign_str(kind, dsa_port_kind(dp));
+		__entry->port = dp->index;
+		__entry->vid = vlan->vid;
+		__entry->flags = vlan->flags;
+		__entry->changed = vlan->changed;
+		__entry->refcount = refcount_read(refcount);
+	),
+
+	TP_printk("%s %s port %d vid %u%s%s%s refcount %u",
+		  __get_str(dev), __get_str(kind), __entry->port, __entry->vid,
+		  __entry->flags & BRIDGE_VLAN_INFO_PVID ? " pvid" : "",
+		  __entry->flags & BRIDGE_VLAN_INFO_UNTAGGED ? " untagged" : "",
+		  __entry->changed ? " (changed)" : "", __entry->refcount)
+);
+
+DEFINE_EVENT(dsa_vlan_op_refcount, dsa_vlan_add_bump,
+	     TP_PROTO(const struct dsa_port *dp,
+		      const struct switchdev_obj_port_vlan *vlan,
+		      const refcount_t *refcount),
+	     TP_ARGS(dp, vlan, refcount));
+
+DEFINE_EVENT(dsa_vlan_op_refcount, dsa_vlan_del_drop,
+	     TP_PROTO(const struct dsa_port *dp,
+		      const struct switchdev_obj_port_vlan *vlan,
+		      const refcount_t *refcount),
+	     TP_ARGS(dp, vlan, refcount));
+
+TRACE_EVENT(dsa_vlan_del_not_found,
+
+	TP_PROTO(const struct dsa_port *dp,
+		 const struct switchdev_obj_port_vlan *vlan),
+
+	TP_ARGS(dp, vlan),
+
+	TP_STRUCT__entry(
+		__string(dev, dev_name(dp->ds->dev))
+		__string(kind, dsa_port_kind(dp))
+		__field(int, port)
+		__field(u16, vid)
+	),
+
+	TP_fast_assign(
+		__assign_str(dev, dev_name(dp->ds->dev));
+		__assign_str(kind, dsa_port_kind(dp));
+		__entry->port = dp->index;
+		__entry->vid = vlan->vid;
+	),
+
+	TP_printk("%s %s port %d vid %u",
+		  __get_str(dev), __get_str(kind), __entry->port, __entry->vid)
 );
 
 #endif /* _NET_DSA_TRACE_H */

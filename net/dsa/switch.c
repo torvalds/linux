@@ -695,8 +695,12 @@ static int dsa_port_do_vlan_add(struct dsa_port *dp,
 	int err = 0;
 
 	/* No need to bother with refcounting for user ports. */
-	if (!(dsa_port_is_cpu(dp) || dsa_port_is_dsa(dp)))
-		return ds->ops->port_vlan_add(ds, port, vlan, extack);
+	if (!(dsa_port_is_cpu(dp) || dsa_port_is_dsa(dp))) {
+		err = ds->ops->port_vlan_add(ds, port, vlan, extack);
+		trace_dsa_vlan_add_hw(dp, vlan, err);
+
+		return err;
+	}
 
 	/* No need to propagate on shared ports the existing VLANs that were
 	 * re-notified after just the flags have changed. This would cause a
@@ -711,6 +715,7 @@ static int dsa_port_do_vlan_add(struct dsa_port *dp,
 	v = dsa_vlan_find(&dp->vlans, vlan);
 	if (v) {
 		refcount_inc(&v->refcount);
+		trace_dsa_vlan_add_bump(dp, vlan, &v->refcount);
 		goto out;
 	}
 
@@ -721,6 +726,7 @@ static int dsa_port_do_vlan_add(struct dsa_port *dp,
 	}
 
 	err = ds->ops->port_vlan_add(ds, port, vlan, extack);
+	trace_dsa_vlan_add_hw(dp, vlan, err);
 	if (err) {
 		kfree(v);
 		goto out;
@@ -745,21 +751,29 @@ static int dsa_port_do_vlan_del(struct dsa_port *dp,
 	int err = 0;
 
 	/* No need to bother with refcounting for user ports */
-	if (!(dsa_port_is_cpu(dp) || dsa_port_is_dsa(dp)))
-		return ds->ops->port_vlan_del(ds, port, vlan);
+	if (!(dsa_port_is_cpu(dp) || dsa_port_is_dsa(dp))) {
+		err = ds->ops->port_vlan_del(ds, port, vlan);
+		trace_dsa_vlan_del_hw(dp, vlan, err);
+
+		return err;
+	}
 
 	mutex_lock(&dp->vlans_lock);
 
 	v = dsa_vlan_find(&dp->vlans, vlan);
 	if (!v) {
+		trace_dsa_vlan_del_not_found(dp, vlan);
 		err = -ENOENT;
 		goto out;
 	}
 
-	if (!refcount_dec_and_test(&v->refcount))
+	if (!refcount_dec_and_test(&v->refcount)) {
+		trace_dsa_vlan_del_drop(dp, vlan, &v->refcount);
 		goto out;
+	}
 
 	err = ds->ops->port_vlan_del(ds, port, vlan);
+	trace_dsa_vlan_del_hw(dp, vlan, err);
 	if (err) {
 		refcount_set(&v->refcount, 1);
 		goto out;
