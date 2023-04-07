@@ -7400,6 +7400,11 @@ int msm_pcie_set_target_link_speed(u32 rc_idx, u32 target_link_speed,
 }
 EXPORT_SYMBOL(msm_pcie_set_target_link_speed);
 
+/**
+ * msm_pcie_set_link_bandwidth() - will perform only dynamic GEN speed request
+ * @target_link_speed: input the target link speed
+ * @target_link_width: currently this API does not support dynamic link width change
+ */
 int msm_pcie_set_link_bandwidth(struct pci_dev *pci_dev, u16 target_link_speed,
 				u16 target_link_width)
 {
@@ -7409,7 +7414,6 @@ int msm_pcie_set_link_bandwidth(struct pci_dev *pci_dev, u16 target_link_speed,
 	u16 current_link_speed;
 	u16 current_link_width;
 	bool set_link_speed = true;
-	bool set_link_width = true;
 	int ret;
 
 	if (!pci_dev)
@@ -7434,7 +7438,6 @@ int msm_pcie_set_link_bandwidth(struct pci_dev *pci_dev, u16 target_link_speed,
 
 	current_link_speed = link_status & PCI_EXP_LNKSTA_CLS;
 	current_link_width = link_status & PCI_EXP_LNKSTA_NLW;
-	target_link_width <<= PCI_EXP_LNKSTA_NLW_SHIFT;
 
 	if (target_link_speed == current_link_speed)
 		set_link_speed = false;
@@ -7444,23 +7447,14 @@ int msm_pcie_set_link_bandwidth(struct pci_dev *pci_dev, u16 target_link_speed,
 			pcie_dev->rc_idx, current_link_speed,
 			target_link_speed);
 
-	if (target_link_width == current_link_width)
-		set_link_width = false;
-	else
-		PCIE_DBG(pcie_dev,
-			"PCIe: RC%d: switching from x%d to x%d\n",
-			pcie_dev->rc_idx,
-			current_link_width >> PCI_EXP_LNKSTA_NLW_SHIFT,
-			target_link_width >> PCI_EXP_LNKSTA_NLW_SHIFT);
-
-	if (!set_link_speed && !set_link_width)
+	if (!set_link_speed)
 		return 0;
 
-	if (set_link_width) {
-		ret = msm_pcie_set_link_width(pcie_dev, target_link_width);
-		if (ret)
-			return ret;
-	}
+	PCIE_DBG(pcie_dev,
+			"PCIe: RC%d: current link width:%d max link width:%d\n",
+			pcie_dev->rc_idx,
+			current_link_width >> PCI_EXP_LNKSTA_NLW_SHIFT,
+			pcie_dev->link_width_max);
 
 	if (set_link_speed)
 		msm_pcie_config_clear_set_dword(root_pci_dev,
@@ -7486,13 +7480,10 @@ int msm_pcie_set_link_bandwidth(struct pci_dev *pci_dev, u16 target_link_speed,
 	if (ret)
 		goto out;
 
-	pcie_capability_read_word(root_pci_dev, PCI_EXP_LNKSTA, &link_status);
-	if (pcie_dev->current_link_speed != target_link_speed ||
-		(link_status & PCI_EXP_LNKSTA_NLW) != target_link_width) {
+	if (pcie_dev->current_link_speed != target_link_speed) {
 		PCIE_ERR(pcie_dev,
-			"PCIe: RC%d: failed to switch bandwidth: target speed: %d width: %d\n",
-			pcie_dev->rc_idx, target_link_speed,
-			target_link_width >> PCI_EXP_LNKSTA_NLW_SHIFT);
+			"PCIe: RC%d: failed to switch bandwidth: target speed: %d\n",
+			pcie_dev->rc_idx, target_link_speed);
 		ret = -EIO;
 		goto out;
 	}
