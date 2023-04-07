@@ -95,5 +95,12 @@
 };
 
 &vop {
+	/*
+	 * VOP3_ESMART_8K_MODE = 0,
+	 * VOP3_ESMART_4K_4K_MODE = 1,
+	 * VOP3_ESMART_4K_2K_2K_MODE = 2,
+	 * VOP3_ESMART_2K_2K_2K_2K_MODE = 3,
+	 */
+	esmart_lb_mode = /bits/ 8 <3>;
 	support-multi-area;
 };
