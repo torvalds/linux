@@ -86,7 +86,8 @@ void mxc_isi_channel_m2m_start(struct mxc_isi_pipe *pipe)
 	val = mxc_isi_read(pipe, CHNL_MEM_RD_CTRL);
 	val &= ~CHNL_MEM_RD_CTRL_READ_MEM;
 	mxc_isi_write(pipe, CHNL_MEM_RD_CTRL, val);
-	udelay(300);
+
+	fsleep(300);
 
 	val |= CHNL_MEM_RD_CTRL_READ_MEM;
 	mxc_isi_write(pipe, CHNL_MEM_RD_CTRL, val);
