@@ -57,16 +57,17 @@ check-git:
 		false; \
 	fi
 
+quiet_cmd_archive = ARCHIVE $@
+      cmd_archive = git -C $(srctree) archive \
+                    --output=$$(realpath $@) --prefix=$(basename $@)/ $(archive-args)
+
 # Linux source tarball
 # ---------------------------------------------------------------------------
 
-quiet_cmd_archive_linux = ARCHIVE $@
-      cmd_archive_linux = \
-	git -C $(srctree) archive --output=$$(realpath $@) --prefix=$(basename $@)/ $$(cat $<)
-
 targets += linux.tar
+linux.tar: archive-args = $$(cat $<)
 linux.tar: .tmp_HEAD FORCE
-	$(call if_changed,archive_linux)
+	$(call if_changed,archive)
 
 # rpm-pkg
 # ---------------------------------------------------------------------------
@@ -181,16 +182,14 @@ quiet_cmd_perf_version_file = GEN     $@
 .tmp_perf/PERF-VERSION-FILE: .tmp_HEAD $(srctree)/tools/perf/util/PERF-VERSION-GEN | .tmp_perf
 	$(call cmd,perf_version_file)
 
-quiet_cmd_archive_perf = ARCHIVE $@
-      cmd_archive_perf = \
-	git -C $(srctree) archive --output=$$(realpath $@) --prefix=$(basename $@)/ \
-	--add-file=$$(realpath $(word 2, $^)) \
+perf-archive-args = --add-file=$$(realpath $(word 2, $^)) \
 	--add-file=$$(realpath $(word 3, $^)) \
 	$$(cat $(word 2, $^))^{tree} $$(cat $<)
 
 targets += perf-$(KERNELVERSION).tar
+perf-$(KERNELVERSION).tar: archive-args = $(perf-archive-args)
 perf-$(KERNELVERSION).tar: tools/perf/MANIFEST .tmp_perf/HEAD .tmp_perf/PERF-VERSION-FILE FORCE
-	$(call if_changed,archive_perf)
+	$(call if_changed,archive)
 
 PHONY += perf-tar-src-pkg
 perf-tar-src-pkg: perf-$(KERNELVERSION).tar
