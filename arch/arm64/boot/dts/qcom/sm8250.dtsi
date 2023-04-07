@@ -2433,7 +2433,6 @@
 					pins = "gpio10";
 					function = "wsa_swr_clk";
 					drive-strength = <2>;
-					input-enable;
 					bias-pull-down;
 				};
 
@@ -2441,7 +2440,6 @@
 					pins = "gpio11";
 					function = "wsa_swr_data";
 					drive-strength = <2>;
-					input-enable;
 					bias-pull-down;
 				};
 			};
@@ -2457,7 +2455,6 @@
 					pins = "gpio7";
 					function = "dmic1_data";
 					drive-strength = <8>;
-					input-enable;
 				};
 			};
 
@@ -2475,7 +2472,6 @@
 					function = "dmic1_data";
 					drive-strength = <2>;
 					bias-pull-down;
-					input-enable;
 				};
 			};
 
@@ -2520,7 +2516,6 @@
 					pins = "gpio0";
 					function = "swr_tx_clk";
 					drive-strength = <2>;
-					input-enable;
 					bias-pull-down;
 				};
 
@@ -2528,7 +2523,6 @@
 					pins = "gpio1";
 					function = "swr_tx_data";
 					drive-strength = <2>;
-					input-enable;
 					bias-bus-hold;
 				};
 
@@ -2536,7 +2530,6 @@
 					pins = "gpio2";
 					function = "swr_tx_data";
 					drive-strength = <2>;
-					input-enable;
 					bias-pull-down;
 				};
 			};
