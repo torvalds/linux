@@ -358,7 +358,10 @@ class YnlFamily(SpecFamily):
             bound_f = functools.partial(self._op, op_name)
             setattr(self, op.ident_name, bound_f)
 
-        self.family = GenlFamily(self.yaml['name'])
+        try:
+            self.family = GenlFamily(self.yaml['name'])
+        except KeyError:
+            raise Exception(f"Family '{self.yaml['name']}' not supported by the kernel")
 
     def ntf_subscribe(self, mcast_name):
         if mcast_name not in self.family.genl_family['mcast']:
