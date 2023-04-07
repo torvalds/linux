@@ -246,18 +246,17 @@ static struct kvm_pmu_event_filter *remove_event(struct kvm_pmu_event_filter *f,
 
 #define ASSERT_PMC_COUNTING_INSTRUCTIONS(count)						\
 do {											\
-	if (count != NUM_BRANCHES)							\
+	if (count && count != NUM_BRANCHES)						\
 		pr_info("%s: Branch instructions retired = %lu (expected %u)\n",	\
 			__func__, count, NUM_BRANCHES);					\
-	TEST_ASSERT(count, "Allowed PMU event is not counting.");			\
+	TEST_ASSERT(count, "%s: Branch instructions retired = %lu (expected > 0)",	\
+		    __func__, count);							\
 } while (0)
 
 #define ASSERT_PMC_NOT_COUNTING_INSTRUCTIONS(count)					\
 do {											\
-	if (count)									\
-		pr_info("%s: Branch instructions retired = %lu (expected 0)\n",		\
-			__func__, count);						\
-	TEST_ASSERT(!count, "Disallowed PMU Event is counting");			\
+	TEST_ASSERT(!count, "%s: Branch instructions retired = %lu (expected 0)",	\
+		    __func__, count);							\
 } while (0)
 
 static void test_without_filter(struct kvm_vcpu *vcpu)
