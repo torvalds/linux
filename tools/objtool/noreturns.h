@@ -6,6 +6,7 @@
  *
  * Yes, this is unfortunate.  A better solution is in the works.
  */
+NORETURN(__fortify_panic)
 NORETURN(__kunit_abort)
 NORETURN(__module_put_and_kthread_exit)
 NORETURN(__reiserfs_panic)
@@ -22,7 +23,6 @@ NORETURN(do_exit)
 NORETURN(do_group_exit)
 NORETURN(do_task_dead)
 NORETURN(ex_handler_msr_mce)
-NORETURN(fortify_panic)
 NORETURN(hlt_play_dead)
 NORETURN(hv_ghcb_terminate)
 NORETURN(kthread_complete_and_exit)

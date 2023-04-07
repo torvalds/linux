@@ -2,6 +2,7 @@
 #ifndef _LINUX_FORTIFY_STRING_H_
 #define _LINUX_FORTIFY_STRING_H_
 
+#include <linux/bitfield.h>
 #include <linux/bug.h>
 #include <linux/const.h>
 #include <linux/limits.h>
@@ -9,7 +10,44 @@
 #define __FORTIFY_INLINE extern __always_inline __gnu_inline __overloadable
 #define __RENAME(x) __asm__(#x)
 
-void fortify_panic(const char *name) __noreturn __cold;
+#define FORTIFY_REASON_DIR(r)		FIELD_GET(BIT(0), r)
+#define FORTIFY_REASON_FUNC(r)		FIELD_GET(GENMASK(7, 1), r)
+#define FORTIFY_REASON(func, write)	(FIELD_PREP(BIT(0), write) | \
+					 FIELD_PREP(GENMASK(7, 1), func))
+
+#define fortify_panic(func, write)	\
+	__fortify_panic(FORTIFY_REASON(func, write))
+
+#define FORTIFY_READ		 0
+#define FORTIFY_WRITE		 1
+
+#define EACH_FORTIFY_FUNC(macro)	\
+	macro(strncpy),			\
+	macro(strnlen),			\
+	macro(strlen),			\
+	macro(strscpy),			\
+	macro(strlcat),			\
+	macro(strcat),			\
+	macro(strncat),			\
+	macro(memset),			\
+	macro(memcpy),			\
+	macro(memmove),			\
+	macro(memscan),			\
+	macro(memcmp),			\
+	macro(memchr),			\
+	macro(memchr_inv),		\
+	macro(kmemdup),			\
+	macro(strcpy),			\
+	macro(UNKNOWN),
+
+#define MAKE_FORTIFY_FUNC(func)	FORTIFY_FUNC_##func
+
+enum fortify_func {
+	EACH_FORTIFY_FUNC(MAKE_FORTIFY_FUNC)
+};
+
+void __fortify_report(const u8 reason);
+void __fortify_panic(const u8 reason) __cold __noreturn;
 void __read_overflow(void) __compiletime_error("detected read beyond size of object (1st parameter)");
 void __read_overflow2(void) __compiletime_error("detected read beyond size of object (2nd parameter)");
 void __read_overflow2_field(size_t avail, size_t wanted) __compiletime_warning("detected read beyond size of field (2nd parameter); maybe use struct_group()?");
@@ -143,7 +181,7 @@ char *strncpy(char * const POS p, const char *q, __kernel_size_t size)
 	if (__compiletime_lessthan(p_size, size))
 		__write_overflow();
 	if (p_size < size)
-		fortify_panic(__func__);
+		fortify_panic(FORTIFY_FUNC_strncpy, FORTIFY_WRITE);
 	return __underlying_strncpy(p, q, size);
 }
 
@@ -174,7 +212,7 @@ __FORTIFY_INLINE __kernel_size_t strnlen(const char * const POS p, __kernel_size
 	/* Do not check characters beyond the end of p. */
 	ret = __real_strnlen(p, maxlen < p_size ? maxlen : p_size);
 	if (p_size <= ret && maxlen != ret)
-		fortify_panic(__func__);
+		fortify_panic(FORTIFY_FUNC_strnlen, FORTIFY_READ);
 	return ret;
 }
 
@@ -210,7 +248,7 @@ __kernel_size_t __fortify_strlen(const char * const POS p)
 		return __underlying_strlen(p);
 	ret = strnlen(p, p_size);
 	if (p_size <= ret)
-		fortify_panic(__func__);
+		fortify_panic(FORTIFY_FUNC_strlen, FORTIFY_READ);
 	return ret;
 }
 
@@ -261,7 +299,7 @@ __FORTIFY_INLINE ssize_t sized_strscpy(char * const POS p, const char * const PO
 	 * p_size.
 	 */
 	if (len > p_size)
-		fortify_panic(__func__);
+		fortify_panic(FORTIFY_FUNC_strscpy, FORTIFY_WRITE);
 
 	/*
 	 * We can now safely call vanilla strscpy because we are protected from:
@@ -319,7 +357,7 @@ size_t strlcat(char * const POS p, const char * const POS q, size_t avail)
 
 	/* Give up if string is already overflowed. */
 	if (p_size <= p_len)
-		fortify_panic(__func__);
+		fortify_panic(FORTIFY_FUNC_strlcat, FORTIFY_READ);
 
 	if (actual >= avail) {
 		copy_len = avail - p_len - 1;
@@ -328,7 +366,7 @@ size_t strlcat(char * const POS p, const char * const POS q, size_t avail)
 
 	/* Give up if copy will overflow. */
 	if (p_size <= actual)
-		fortify_panic(__func__);
+		fortify_panic(FORTIFY_FUNC_strlcat, FORTIFY_WRITE);
 	__underlying_memcpy(p + p_len, q, copy_len);
 	p[actual] = '\0';
 
@@ -357,7 +395,7 @@ char *strcat(char * const POS p, const char *q)
 	const size_t p_size = __member_size(p);
 
 	if (strlcat(p, q, p_size) >= p_size)
-		fortify_panic(__func__);
+		fortify_panic(FORTIFY_FUNC_strcat, FORTIFY_WRITE);
 	return p;
 }
 
@@ -393,7 +431,7 @@ char *strncat(char * const POS p, const char * const POS q, __kernel_size_t coun
 	p_len = strlen(p);
 	copy_len = strnlen(q, count);
 	if (p_size < p_len + copy_len + 1)
-		fortify_panic(__func__);
+		fortify_panic(FORTIFY_FUNC_strncat, FORTIFY_WRITE);
 	__underlying_memcpy(p + p_len, q, copy_len);
 	p[p_len + copy_len] = '\0';
 	return p;
@@ -434,7 +472,7 @@ __FORTIFY_INLINE void fortify_memset_chk(__kernel_size_t size,
 	 * lengths are unknown.)
 	 */
 	if (p_size != SIZE_MAX && p_size < size)
-		fortify_panic("memset");
+		fortify_panic(FORTIFY_FUNC_memset, FORTIFY_WRITE);
 }
 
 #define __fortify_memset_chk(p, c, size, p_size, p_size_field) ({	\
@@ -488,7 +526,7 @@ __FORTIFY_INLINE bool fortify_memcpy_chk(__kernel_size_t size,
 					 const size_t q_size,
 					 const size_t p_size_field,
 					 const size_t q_size_field,
-					 const char *func)
+					 const u8 func)
 {
 	if (__builtin_constant_p(size)) {
 		/*
@@ -532,9 +570,10 @@ __FORTIFY_INLINE bool fortify_memcpy_chk(__kernel_size_t size,
 	 * (The SIZE_MAX test is to optimize away checks where the buffer
 	 * lengths are unknown.)
 	 */
-	if ((p_size != SIZE_MAX && p_size < size) ||
-	    (q_size != SIZE_MAX && q_size < size))
-		fortify_panic(func);
+	if (p_size != SIZE_MAX && p_size < size)
+		fortify_panic(func, FORTIFY_WRITE);
+	else if (q_size != SIZE_MAX && q_size < size)
+		fortify_panic(func, FORTIFY_READ);
 
 	/*
 	 * Warn when writing beyond destination field size.
@@ -567,7 +606,7 @@ __FORTIFY_INLINE bool fortify_memcpy_chk(__kernel_size_t size,
 	const size_t __q_size_field = (q_size_field);			\
 	WARN_ONCE(fortify_memcpy_chk(__fortify_size, __p_size,		\
 				     __q_size, __p_size_field,		\
-				     __q_size_field, #op),		\
+				     __q_size_field, FORTIFY_FUNC_ ##op), \
 		  #op ": detected field-spanning write (size %zu) of single %s (size %zu)\n", \
 		  __fortify_size,					\
 		  "field \"" #p "\" at " FILE_LINE,			\
@@ -634,7 +673,7 @@ __FORTIFY_INLINE void *memscan(void * const POS0 p, int c, __kernel_size_t size)
 	if (__compiletime_lessthan(p_size, size))
 		__read_overflow();
 	if (p_size < size)
-		fortify_panic(__func__);
+		fortify_panic(FORTIFY_FUNC_memscan, FORTIFY_READ);
 	return __real_memscan(p, c, size);
 }
 
@@ -651,7 +690,7 @@ int memcmp(const void * const POS0 p, const void * const POS0 q, __kernel_size_t
 			__read_overflow2();
 	}
 	if (p_size < size || q_size < size)
-		fortify_panic(__func__);
+		fortify_panic(FORTIFY_FUNC_memcmp, FORTIFY_READ);
 	return __underlying_memcmp(p, q, size);
 }
 
@@ -663,7 +702,7 @@ void *memchr(const void * const POS0 p, int c, __kernel_size_t size)
 	if (__compiletime_lessthan(p_size, size))
 		__read_overflow();
 	if (p_size < size)
-		fortify_panic(__func__);
+		fortify_panic(FORTIFY_FUNC_memchr, FORTIFY_READ);
 	return __underlying_memchr(p, c, size);
 }
 
@@ -675,7 +714,7 @@ __FORTIFY_INLINE void *memchr_inv(const void * const POS0 p, int c, size_t size)
 	if (__compiletime_lessthan(p_size, size))
 		__read_overflow();
 	if (p_size < size)
-		fortify_panic(__func__);
+		fortify_panic(FORTIFY_FUNC_memchr_inv, FORTIFY_READ);
 	return __real_memchr_inv(p, c, size);
 }
 
@@ -688,7 +727,7 @@ __FORTIFY_INLINE void *kmemdup(const void * const POS0 p, size_t size, gfp_t gfp
 	if (__compiletime_lessthan(p_size, size))
 		__read_overflow();
 	if (p_size < size)
-		fortify_panic(__func__);
+		fortify_panic(FORTIFY_FUNC_kmemdup, FORTIFY_READ);
 	return __real_kmemdup(p, size, gfp);
 }
 
@@ -725,7 +764,7 @@ char *strcpy(char * const POS p, const char * const POS q)
 		__write_overflow();
 	/* Run-time check for dynamic size overflow. */
 	if (p_size < size)
-		fortify_panic(__func__);
+		fortify_panic(FORTIFY_FUNC_strcpy, FORTIFY_WRITE);
 	__underlying_memcpy(p, q, size);
 	return p;
 }

@@ -1008,10 +1008,27 @@ EXPORT_SYMBOL(__read_overflow2_field);
 void __write_overflow_field(size_t avail, size_t wanted) { }
 EXPORT_SYMBOL(__write_overflow_field);
 
-void fortify_panic(const char *name)
+static const char * const fortify_func_name[] = {
+#define MAKE_FORTIFY_FUNC_NAME(func)	[MAKE_FORTIFY_FUNC(func)] = #func
+	EACH_FORTIFY_FUNC(MAKE_FORTIFY_FUNC_NAME)
+#undef  MAKE_FORTIFY_FUNC_NAME
+};
+
+void __fortify_report(const u8 reason)
 {
-	pr_emerg("detected buffer overflow in %s\n", name);
+	const u8 func = FORTIFY_REASON_FUNC(reason);
+	const bool write = FORTIFY_REASON_DIR(reason);
+	const char *name;
+
+	name = fortify_func_name[umin(func, FORTIFY_FUNC_UNKNOWN)];
+	WARN(1, "%s: detected buffer %s overflow\n", name, str_read_write(!write));
+}
+EXPORT_SYMBOL(__fortify_report);
+
+void __fortify_panic(const u8 reason)
+{
+	__fortify_report(reason);
 	BUG();
 }
-EXPORT_SYMBOL(fortify_panic);
+EXPORT_SYMBOL(__fortify_panic);
 #endif /* CONFIG_FORTIFY_SOURCE */
