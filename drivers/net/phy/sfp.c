@@ -1382,7 +1382,7 @@ static const struct hwmon_ops sfp_hwmon_ops = {
 	.read_string = sfp_hwmon_read_string,
 };
 
-static const struct hwmon_channel_info *sfp_hwmon_info[] = {
+static const struct hwmon_channel_info * const sfp_hwmon_info[] = {
 	HWMON_CHANNEL_INFO(chip,
 			   HWMON_C_REGISTER_TZ),
 	HWMON_CHANNEL_INFO(in,
