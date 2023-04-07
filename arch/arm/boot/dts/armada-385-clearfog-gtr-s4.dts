@@ -48,8 +48,13 @@
 
 			port@5 {
 				reg = <5>;
-				label = "cpu";
+				phy-mode = "2500base-x";
 				ethernet = <&eth1>;
+
+				fixed-link {
+					speed = <2500>;
+					full-duplex;
+				};
 			};
 
 		};
