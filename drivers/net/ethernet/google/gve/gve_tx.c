@@ -730,7 +730,7 @@ static int gve_tx_fill_xdp(struct gve_priv *priv, struct gve_tx_ring *tx,
 	u32 reqi = tx->req;
 
 	pad = gve_tx_fifo_pad_alloc_one_frag(&tx->tx_fifo, len);
-	if (pad >= GVE_TX_MAX_HEADER_SIZE)
+	if (pad >= GVE_GQ_TX_MIN_PKT_DESC_BYTES)
 		pad = 0;
 	info = &tx->info[reqi & tx->mask];
 	info->xdp_frame = frame_p;
@@ -810,7 +810,7 @@ int gve_xdp_xmit_one(struct gve_priv *priv, struct gve_tx_ring *tx,
 {
 	int nsegs;
 
-	if (!gve_can_tx(tx, len + GVE_TX_MAX_HEADER_SIZE - 1))
+	if (!gve_can_tx(tx, len + GVE_GQ_TX_MIN_PKT_DESC_BYTES - 1))
 		return -EBUSY;
 
 	nsegs = gve_tx_fill_xdp(priv, tx, data, len, frame_p, false);

@@ -49,8 +49,6 @@
 
 #define GVE_XDP_ACTIONS 5
 
-#define GVE_TX_MAX_HEADER_SIZE 182
-
 #define GVE_GQ_TX_MIN_PKT_DESC_BYTES 182
 
 /* Each slot in the desc ring has a 1:1 mapping to a slot in the data ring */
