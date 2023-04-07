@@ -37,9 +37,9 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     oneOf:
       - const: 0
-        description: select #16, #17, #19 pins
+        description: "select #16, #17, #19 pins"
       - const: 1
-        description: select #3, #4, #5 pins
+        description: "select #3, #4, #5 pins"
 
 required:
   - compatible
