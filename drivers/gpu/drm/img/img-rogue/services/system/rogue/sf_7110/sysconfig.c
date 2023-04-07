@@ -208,7 +208,7 @@ void SysDevHost_Cache_Maintenance(IMG_HANDLE hSysData,
 	switch (eRequestType)
 	{
 		case PVRSRV_CACHE_OP_INVALIDATE:
-			//do_invalid_range(sCPUPhysStart.uiAddr, len);
+			do_sifive_l2_flush64_range(sCPUPhysStart.uiAddr, len);
 			break;
 		case PVRSRV_CACHE_OP_CLEAN:
 		case PVRSRV_CACHE_OP_FLUSH:
