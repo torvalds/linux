@@ -4,6 +4,33 @@
 Softnet Driver Issues
 =====================
 
+Probing guidelines
+==================
+
+Address validation
+------------------
+
+Any hardware layer address you obtain for your device should
+be verified.  For example, for ethernet check it with
+linux/etherdevice.h:is_valid_ether_addr()
+
+Close/stop guidelines
+=====================
+
+Quiescence
+----------
+
+After the ndo_stop routine has been called, the hardware must
+not receive or transmit any data.  All in flight packets must
+be aborted. If necessary, poll or wait for completion of
+any reset commands.
+
+Auto-close
+----------
+
+The ndo_stop routine will be called by unregister_netdevice
+if device is still UP.
+
 Transmit path guidelines
 ========================
 
@@ -89,30 +116,3 @@ to be freed up.
 If you return NETDEV_TX_BUSY from the ndo_start_xmit method, you
 must not keep any reference to that SKB and you must not attempt
 to free it up.
-
-Probing guidelines
-==================
-
-Address validation
-------------------
-
-Any hardware layer address you obtain for your device should
-be verified.  For example, for ethernet check it with
-linux/etherdevice.h:is_valid_ether_addr()
-
-Close/stop guidelines
-=====================
-
-Quiescence
-----------
-
-After the ndo_stop routine has been called, the hardware must
-not receive or transmit any data.  All in flight packets must
-be aborted. If necessary, poll or wait for completion of
-any reset commands.
-
-Auto-close
-----------
-
-The ndo_stop routine will be called by unregister_netdevice
-if device is still UP.
