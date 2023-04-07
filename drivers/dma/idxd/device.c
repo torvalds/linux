@@ -967,11 +967,15 @@ static int idxd_wq_config_write(struct idxd_wq *wq)
 	wq->wqcfg->priority = wq->priority;
 
 	if (idxd->hw.gen_cap.block_on_fault &&
-	    test_bit(WQ_FLAG_BLOCK_ON_FAULT, &wq->flags))
+	    test_bit(WQ_FLAG_BLOCK_ON_FAULT, &wq->flags) &&
+	    !test_bit(WQ_FLAG_PRS_DISABLE, &wq->flags))
 		wq->wqcfg->bof = 1;
 
 	if (idxd->hw.wq_cap.wq_ats_support)
 		wq->wqcfg->wq_ats_disable = test_bit(WQ_FLAG_ATS_DISABLE, &wq->flags);
+
+	if (idxd->hw.wq_cap.wq_prs_support)
+		wq->wqcfg->wq_prs_disable = test_bit(WQ_FLAG_PRS_DISABLE, &wq->flags);
 
 	/* bytes 12-15 */
 	wq->wqcfg->max_xfer_shift = ilog2(wq->max_xfer_bytes);

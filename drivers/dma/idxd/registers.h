@@ -59,7 +59,8 @@ union wq_cap_reg {
 		u64 occupancy:1;
 		u64 occupancy_int:1;
 		u64 op_config:1;
-		u64 rsvd3:9;
+		u64 wq_prs_support:1;
+		u64 rsvd4:8;
 	};
 	u64 bits;
 } __packed;
@@ -371,7 +372,7 @@ union wqcfg {
 		u32 mode:1;	/* shared or dedicated */
 		u32 bof:1;	/* block on fault */
 		u32 wq_ats_disable:1;
-		u32 rsvd2:1;
+		u32 wq_prs_disable:1;
 		u32 priority:4;
 		u32 pasid:20;
 		u32 pasid_en:1;
