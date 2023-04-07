@@ -319,7 +319,7 @@ config PCI_XGENE_MSI
 
 config PCIE_XILINX
 	bool "Xilinx AXI PCIe controller"
-	depends on OF || COMPILE_TEST
+	depends on OF
 	depends on PCI_MSI
 	help
 	  Say 'Y' here if you want kernel to support the Xilinx AXI PCIe
