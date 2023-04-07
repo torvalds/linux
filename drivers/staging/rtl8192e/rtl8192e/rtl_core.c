@@ -2130,7 +2130,6 @@ static int _rtl92e_pci_probe(struct pci_dev *pdev,
 	struct r8192_priv *priv = NULL;
 	unsigned long pmem_start, pmem_len, pmem_flags;
 	int err = -ENOMEM;
-	u8 revision_id;
 
 	if (pci_enable_device(pdev)) {
 		dev_err(&pdev->dev, "Failed to enable PCI device");
@@ -2188,11 +2187,6 @@ static int _rtl92e_pci_probe(struct pci_dev *pdev,
 
 	dev->mem_start = ioaddr;
 	dev->mem_end = ioaddr + pci_resource_len(pdev, 0);
-
-	pci_read_config_byte(pdev, 0x08, &revision_id);
-	/* If the revisionid is 0x10, the device uses rtl8192se. */
-	if (pdev->device == 0x8192 && revision_id == 0x10)
-		goto err_unmap;
 
 	if (!rtl92e_check_adapter(pdev, dev))
 		goto err_unmap;
