@@ -20,6 +20,7 @@ enum scsi_pr_type {
 };
 
 enum scsi_pr_type block_pr_type_to_scsi(enum pr_type type);
+enum pr_type scsi_pr_type_to_block(enum scsi_pr_type type);
 
 static inline unsigned
 scsi_varlen_cdb_length(const void *hdr)
