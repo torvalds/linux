@@ -1490,6 +1490,14 @@ static const struct lpg_data pm8350c_pwm_data = {
 	},
 };
 
+static const struct lpg_data pmk8550_pwm_data = {
+	.num_channels = 2,
+	.channels = (const struct lpg_channel_data[]) {
+		{ .base = 0xe800 },
+		{ .base = 0xe900 },
+	},
+};
+
 static const struct of_device_id lpg_of_table[] = {
 	{ .compatible = "qcom,pm8150b-lpg", .data = &pm8150b_lpg_data },
 	{ .compatible = "qcom,pm8150l-lpg", .data = &pm8150l_lpg_data },
@@ -1500,6 +1508,7 @@ static const struct of_device_id lpg_of_table[] = {
 	{ .compatible = "qcom,pmi8994-lpg", .data = &pmi8994_lpg_data },
 	{ .compatible = "qcom,pmi8998-lpg", .data = &pmi8998_lpg_data },
 	{ .compatible = "qcom,pmc8180c-lpg", .data = &pm8150l_lpg_data },
+	{ .compatible = "qcom,pmk8550-pwm", .data = &pmk8550_pwm_data },
 	{}
 };
 MODULE_DEVICE_TABLE(of, lpg_of_table);
