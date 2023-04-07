@@ -78,10 +78,6 @@ DEFINE_EVENT(hfi1_mmu_rb_template, hfi1_mmu_rb_search,
 	     TP_PROTO(unsigned long addr, unsigned long len),
 	     TP_ARGS(addr, len));
 
-DEFINE_EVENT(hfi1_mmu_rb_template, hfi1_mmu_rb_remove,
-	     TP_PROTO(unsigned long addr, unsigned long len),
-	     TP_ARGS(addr, len));
-
 DEFINE_EVENT(hfi1_mmu_rb_template, hfi1_mmu_mem_invalidate,
 	     TP_PROTO(unsigned long addr, unsigned long len),
 	     TP_ARGS(addr, len));
