@@ -885,7 +885,7 @@ target_fabric_setup_tpg_base_cit(struct target_fabric_configfs *tf)
 {
 	struct config_item_type *cit = &tf->tf_tpg_base_cit;
 	struct configfs_attribute **attrs = NULL;
-	size_t nr_attrs = 1;
+	size_t nr_attrs = 0;
 	int i = 0;
 
 	if (tf->tf_ops->tfc_tpg_base_attrs)
@@ -895,8 +895,8 @@ target_fabric_setup_tpg_base_cit(struct target_fabric_configfs *tf)
 	if (tf->tf_ops->fabric_enable_tpg)
 		nr_attrs++;
 
-	if (nr_attrs == 0)
-		goto done;
+	/* + 1 for target_fabric_tpg_base_attr_rtpi */
+	nr_attrs++;
 
 	/* + 1 for final NULL in the array */
 	attrs = kcalloc(nr_attrs + 1, sizeof(*attrs), GFP_KERNEL);
@@ -912,7 +912,6 @@ target_fabric_setup_tpg_base_cit(struct target_fabric_configfs *tf)
 
 	attrs[i++] = &target_fabric_tpg_base_attr_rtpi;
 
-done:
 	cit->ct_item_ops = &target_fabric_tpg_base_item_ops;
 	cit->ct_attrs = attrs;
 	cit->ct_owner = tf->tf_ops->module;
