@@ -732,6 +732,7 @@ end_set_reg:
 		*dphy_param = sensor->dphy_param;
 		dev_dbg(&sensor->client->dev,
 			"sensor get dphy param\n");
+		break;
 	case RKMODULE_SET_SENSOR_INFOS:
 		sensor_infos = (struct rkmodule_sensor_infos *)arg;
 		ret = sensor_set_sensor_info(sensor_infos);
