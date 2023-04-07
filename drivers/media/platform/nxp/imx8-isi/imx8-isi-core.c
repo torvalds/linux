@@ -16,7 +16,6 @@
 #include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/sys_soc.h>
 #include <linux/types.h>
 
 #include <media/media-device.h>
@@ -244,27 +243,7 @@ static void mxc_isi_v4l2_cleanup(struct mxc_isi_dev *isi)
  * Device information
  */
 
-/* For i.MX8QM/QXP B0 ISI IER version */
-static const struct mxc_isi_ier_reg mxc_imx8_isi_ier_v0 = {
-	.oflw_y_buf_en = { .offset = 16, .mask = 0x10000  },
-	.oflw_u_buf_en = { .offset = 19, .mask = 0x80000  },
-	.oflw_v_buf_en = { .offset = 22, .mask = 0x400000 },
-
-	.excs_oflw_y_buf_en = { .offset = 17, .mask = 0x20000  },
-	.excs_oflw_u_buf_en = { .offset = 20, .mask = 0x100000 },
-	.excs_oflw_v_buf_en = { .offset = 23, .mask = 0x800000 },
-
-	.panic_y_buf_en = {.offset = 18, .mask = 0x40000   },
-	.panic_u_buf_en = {.offset = 21, .mask = 0x200000  },
-	.panic_v_buf_en = {.offset = 24, .mask = 0x1000000 },
-};
-
 /* Panic will assert when the buffers are 50% full */
-static const struct mxc_isi_set_thd mxc_imx8_isi_thd_v0 = {
-	.panic_set_thd_y = { .mask = 0x03, .offset = 0, .threshold = 0x2 },
-	.panic_set_thd_u = { .mask = 0x18, .offset = 3, .threshold = 0x2 },
-	.panic_set_thd_v = { .mask = 0xc0, .offset = 6, .threshold = 0x2 },
-};
 
 /* For i.MX8QXP C0 and i.MX8MN ISI IER version */
 static const struct mxc_isi_ier_reg mxc_imx8_isi_ier_v1 = {
@@ -293,39 +272,6 @@ static const struct mxc_isi_set_thd mxc_imx8_isi_thd_v1 = {
 	.panic_set_thd_y = { .mask = 0x0000f, .offset = 0,  .threshold = 0x7 },
 	.panic_set_thd_u = { .mask = 0x00f00, .offset = 8,  .threshold = 0x7 },
 	.panic_set_thd_v = { .mask = 0xf0000, .offset = 16, .threshold = 0x7 },
-};
-
-static const struct clk_bulk_data mxc_imx8_clks[] = {
-	{ .id = NULL },
-};
-
-/* Chip C0 */
-static const struct mxc_isi_plat_data mxc_imx8_data_v0 = {
-	.model			= MXC_ISI_IMX8,
-	.num_ports		= 5,
-	.num_channels		= 8,
-	.reg_offset		= 0x10000,
-	.ier_reg		= &mxc_imx8_isi_ier_v0,
-	.set_thd		= &mxc_imx8_isi_thd_v0,
-	.clks			= mxc_imx8_clks,
-	.num_clks		= ARRAY_SIZE(mxc_imx8_clks),
-	.buf_active_reverse	= false,
-	.has_gasket		= false,
-	.has_36bit_dma		= false,
-};
-
-static const struct mxc_isi_plat_data mxc_imx8_data_v1 = {
-	.model			= MXC_ISI_IMX8,
-	.num_ports		= 5,
-	.num_channels		= 8,
-	.reg_offset		= 0x10000,
-	.ier_reg		= &mxc_imx8_isi_ier_v1,
-	.set_thd		= &mxc_imx8_isi_thd_v1,
-	.clks			= mxc_imx8_clks,
-	.num_clks		= ARRAY_SIZE(mxc_imx8_clks),
-	.buf_active_reverse	= true,
-	.has_gasket		= false,
-	.has_36bit_dma		= false,
 };
 
 static const struct clk_bulk_data mxc_imx8mn_clks[] = {
@@ -360,53 +306,6 @@ static const struct mxc_isi_plat_data mxc_imx8mp_data = {
 	.has_gasket		= true,
 	.has_36bit_dma		= true,
 };
-
-static const struct soc_device_attribute imx8_soc[] = {
-	{
-		.soc_id   = "i.MX8QXP",
-		.revision = "1.0",
-		.data     = &mxc_imx8_data_v0,
-	}, {
-		.soc_id   = "i.MX8QXP",
-		.revision = "1.1",
-		.data     = &mxc_imx8_data_v0,
-	}, {
-		.soc_id   = "i.MX8QXP",
-		.revision = "1.2",
-	}, {
-		.soc_id   = "i.MX8QM",
-		.revision = "1.0",
-		.data     = &mxc_imx8_data_v0,
-	}, {
-		.soc_id   = "i.MX8QM",
-		.revision = "1.1",
-		.data     = &mxc_imx8_data_v0,
-	}, {
-		.soc_id   = "i.MX8MN",
-		.revision = "1.0",
-	}, {
-		.soc_id   = "i.MX8MP",
-	}, {
-		/* sentinel */
-	}
-};
-
-static int mxc_isi_get_platform_data(struct mxc_isi_dev *isi)
-
-{
-	const struct soc_device_attribute *match;
-
-	isi->pdata = of_device_get_match_data(isi->dev);
-
-	match = soc_device_match(imx8_soc);
-	if (!match)
-		return -EINVAL;
-
-	if (match->data)
-		isi->pdata = match->data;
-
-	return 0;
-}
 
 /* -----------------------------------------------------------------------------
  * Power management
@@ -525,11 +424,7 @@ static int mxc_isi_probe(struct platform_device *pdev)
 	isi->dev = dev;
 	platform_set_drvdata(pdev, isi);
 
-	ret = mxc_isi_get_platform_data(isi);
-	if (ret < 0) {
-		dev_err(dev, "Can't get platform device data\n");
-		return ret;
-	}
+	isi->pdata = of_device_get_match_data(dev);
 
 	isi->pipes = kcalloc(isi->pdata->num_channels, sizeof(isi->pipes[0]),
 			     GFP_KERNEL);
@@ -621,7 +516,6 @@ static int mxc_isi_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id mxc_isi_of_match[] = {
-	{ .compatible = "fsl,imx8-isi", .data = &mxc_imx8_data_v1 },
 	{ .compatible = "fsl,imx8mn-isi", .data = &mxc_imx8mn_data },
 	{ .compatible = "fsl,imx8mp-isi", .data = &mxc_imx8mp_data },
 	{ /* sentinel */ },

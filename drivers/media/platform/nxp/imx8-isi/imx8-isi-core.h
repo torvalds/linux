@@ -148,7 +148,6 @@ struct mxc_isi_set_thd {
 };
 
 enum model {
-	MXC_ISI_IMX8,
 	MXC_ISI_IMX8MN,
 	MXC_ISI_IMX8MP,
 };
