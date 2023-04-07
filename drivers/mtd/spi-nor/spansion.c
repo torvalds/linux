@@ -63,6 +63,84 @@
 		   SPI_MEM_OP_NO_DUMMY,					\
 		   SPI_MEM_OP_NO_DATA)
 
+/**
+ * spansion_nor_clear_sr() - Clear the Status Register.
+ * @nor:	pointer to 'struct spi_nor'.
+ */
+static void spansion_nor_clear_sr(struct spi_nor *nor)
+{
+	int ret;
+
+	if (nor->spimem) {
+		struct spi_mem_op op = SPANSION_CLSR_OP;
+
+		spi_nor_spimem_setup_op(nor, &op, nor->reg_proto);
+
+		ret = spi_mem_exec_op(nor->spimem, &op);
+	} else {
+		ret = spi_nor_controller_ops_write_reg(nor, SPINOR_OP_CLSR,
+						       NULL, 0);
+	}
+
+	if (ret)
+		dev_dbg(nor->dev, "error %d clearing SR\n", ret);
+}
+
+static int cypress_nor_sr_ready_and_clear_reg(struct spi_nor *nor, u64 addr)
+{
+	struct spi_mem_op op =
+		CYPRESS_NOR_RD_ANY_REG_OP(nor->params->addr_mode_nbytes, addr,
+					  0, nor->bouncebuf);
+	int ret;
+
+	ret = spi_nor_read_any_reg(nor, &op, nor->reg_proto);
+	if (ret)
+		return ret;
+
+	if (nor->bouncebuf[0] & (SR_E_ERR | SR_P_ERR)) {
+		if (nor->bouncebuf[0] & SR_E_ERR)
+			dev_err(nor->dev, "Erase Error occurred\n");
+		else
+			dev_err(nor->dev, "Programming Error occurred\n");
+
+		spansion_nor_clear_sr(nor);
+
+		ret = spi_nor_write_disable(nor);
+		if (ret)
+			return ret;
+
+		return -EIO;
+	}
+
+	return !(nor->bouncebuf[0] & SR_WIP);
+}
+/**
+ * cypress_nor_sr_ready_and_clear() - Query the Status Register of each die by
+ * using Read Any Register command to see if the whole flash is ready for new
+ * commands and clear it if there are any errors.
+ * @nor:	pointer to 'struct spi_nor'.
+ *
+ * Return: 1 if ready, 0 if not ready, -errno on errors.
+ */
+static int cypress_nor_sr_ready_and_clear(struct spi_nor *nor)
+{
+	struct spi_nor_flash_parameter *params = nor->params;
+	u64 addr;
+	int ret;
+	u8 i;
+
+	for (i = 0; i < params->n_dice; i++) {
+		addr = params->vreg_offset[i] + SPINOR_REG_CYPRESS_STR1;
+		ret = cypress_nor_sr_ready_and_clear_reg(nor, addr);
+		if (ret < 0)
+			return ret;
+		else if (ret == 0)
+			return 0;
+	}
+
+	return 1;
+}
+
 static int cypress_nor_octal_dtr_en(struct spi_nor *nor)
 {
 	struct spi_mem_op op;
@@ -506,10 +584,16 @@ static int s25hx_t_post_sfdp_fixup(struct spi_nor *nor)
 
 static void s25hx_t_late_init(struct spi_nor *nor)
 {
+	struct spi_nor_flash_parameter *params = nor->params;
+
 	/* Fast Read 4B requires mode cycles */
-	nor->params->reads[SNOR_CMD_READ_FAST].num_mode_clocks = 8;
+	params->reads[SNOR_CMD_READ_FAST].num_mode_clocks = 8;
 
 	cypress_nor_ecc_init(nor);
+
+	/* Replace ready() with multi die version */
+	if (params->n_dice)
+		params->ready = cypress_nor_sr_ready_and_clear;
 }
 
 static struct spi_nor_fixups s25hx_t_fixups = {
@@ -740,29 +824,6 @@ static const struct flash_info spansion_nor_parts[] = {
 		.fixups = &s28hx_t_fixups,
 	},
 };
-
-/**
- * spansion_nor_clear_sr() - Clear the Status Register.
- * @nor:	pointer to 'struct spi_nor'.
- */
-static void spansion_nor_clear_sr(struct spi_nor *nor)
-{
-	int ret;
-
-	if (nor->spimem) {
-		struct spi_mem_op op = SPANSION_CLSR_OP;
-
-		spi_nor_spimem_setup_op(nor, &op, nor->reg_proto);
-
-		ret = spi_mem_exec_op(nor->spimem, &op);
-	} else {
-		ret = spi_nor_controller_ops_write_reg(nor, SPINOR_OP_CLSR,
-						       NULL, 0);
-	}
-
-	if (ret)
-		dev_dbg(nor->dev, "error %d clearing SR\n", ret);
-}
 
 /**
  * spansion_nor_sr_ready_and_clear() - Query the Status Register to see if the
