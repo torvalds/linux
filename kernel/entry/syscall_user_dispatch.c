@@ -87,7 +87,16 @@ static int task_set_syscall_user_dispatch(struct task_struct *task, unsigned lon
 		if (offset && offset + len <= offset)
 			return -EINVAL;
 
-		if (selector && !access_ok(selector, sizeof(*selector)))
+		/*
+		 * access_ok() will clear memory tags for tagged addresses
+		 * if current has memory tagging enabled.
+
+		 * To enable a tracer to set a tracees selector the
+		 * selector address must be untagged for access_ok(),
+		 * otherwise an untagged tracer will always fail to set a
+		 * tagged tracees selector.
+		 */
+		if (selector && !access_ok(untagged_addr(selector), sizeof(*selector)))
 			return -EFAULT;
 
 		break;
