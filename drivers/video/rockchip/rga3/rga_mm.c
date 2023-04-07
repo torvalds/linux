@@ -707,7 +707,7 @@ static int rga_mm_map_phys_addr(struct rga_external_buffer *external_buffer,
 		ret = rga_iommu_map(phys_addr, buffer_size, buffer, scheduler->dev);
 		if (ret < 0) {
 			pr_err("%s core[%d] map phys_addr error!\n", __func__, scheduler->core);
-			return ret;
+			goto free_dma_buffer;
 		}
 	}
 
@@ -719,6 +719,11 @@ static int rga_mm_map_phys_addr(struct rga_external_buffer *external_buffer,
 	internal_buffer->dma_buffer = buffer;
 
 	return 0;
+
+free_dma_buffer:
+	kfree(buffer);
+
+	return ret;
 }
 
 static int rga_mm_unmap_buffer(struct rga_internal_buffer *internal_buffer)
