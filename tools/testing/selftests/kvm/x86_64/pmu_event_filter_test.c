@@ -54,6 +54,21 @@
 
 #define AMD_ZEN_BR_RETIRED EVENT(0xc2, 0)
 
+
+/*
+ * "Retired instructions", from Processor Programming Reference
+ * (PPR) for AMD Family 17h Model 01h, Revision B1 Processors,
+ * Preliminary Processor Programming Reference (PPR) for AMD Family
+ * 17h Model 31h, Revision B0 Processors, and Preliminary Processor
+ * Programming Reference (PPR) for AMD Family 19h Model 01h, Revision
+ * B1 Processors Volume 1 of 2.
+ *                      --- and ---
+ * "Instructions retired", from the Intel SDM, volume 3,
+ * "Pre-defined Architectural Performance Events."
+ */
+
+#define INST_RETIRED EVENT(0xc0, 0)
+
 /*
  * This event list comprises Intel's eight architectural events plus
  * AMD's "retired branch instructions" for Zen[123] (and possibly
@@ -61,7 +76,7 @@
  */
 static const uint64_t event_list[] = {
 	EVENT(0x3c, 0),
-	EVENT(0xc0, 0),
+	INST_RETIRED,
 	EVENT(0x3c, 1),
 	EVENT(0x2e, 0x4f),
 	EVENT(0x2e, 0x41),
@@ -76,6 +91,7 @@ struct {
 	uint64_t stores;
 	uint64_t loads_stores;
 	uint64_t branches_retired;
+	uint64_t instructions_retired;
 } pmc_results;
 
 /*
@@ -110,10 +126,12 @@ static void check_msr(uint32_t msr, uint64_t bits_to_flip)
 static void run_and_measure_loop(uint32_t msr_base)
 {
 	const uint64_t branches_retired = rdmsr(msr_base + 0);
+	const uint64_t insn_retired = rdmsr(msr_base + 1);
 
 	__asm__ __volatile__("loop ." : "+c"((int){NUM_BRANCHES}));
 
 	pmc_results.branches_retired = rdmsr(msr_base + 0) - branches_retired;
+	pmc_results.instructions_retired = rdmsr(msr_base + 1) - insn_retired;
 }
 
 static void intel_guest_code(void)
@@ -127,7 +145,9 @@ static void intel_guest_code(void)
 		wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, 0);
 		wrmsr(MSR_P6_EVNTSEL0, ARCH_PERFMON_EVENTSEL_ENABLE |
 		      ARCH_PERFMON_EVENTSEL_OS | INTEL_BR_RETIRED);
-		wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, 0x1);
+		wrmsr(MSR_P6_EVNTSEL1, ARCH_PERFMON_EVENTSEL_ENABLE |
+		      ARCH_PERFMON_EVENTSEL_OS | INST_RETIRED);
+		wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, 0x3);
 
 		run_and_measure_loop(MSR_IA32_PMC0);
 		GUEST_SYNC(0);
@@ -149,6 +169,8 @@ static void amd_guest_code(void)
 		wrmsr(MSR_K7_EVNTSEL0, 0);
 		wrmsr(MSR_K7_EVNTSEL0, ARCH_PERFMON_EVENTSEL_ENABLE |
 		      ARCH_PERFMON_EVENTSEL_OS | AMD_ZEN_BR_RETIRED);
+		wrmsr(MSR_K7_EVNTSEL1, ARCH_PERFMON_EVENTSEL_ENABLE |
+		      ARCH_PERFMON_EVENTSEL_OS | INST_RETIRED);
 
 		run_and_measure_loop(MSR_K7_PERFCTR0);
 		GUEST_SYNC(0);
@@ -263,20 +285,26 @@ static struct kvm_pmu_event_filter *remove_event(struct kvm_pmu_event_filter *f,
 #define ASSERT_PMC_COUNTING_INSTRUCTIONS()						\
 do {											\
 	uint64_t br = pmc_results.branches_retired;					\
+	uint64_t ir = pmc_results.instructions_retired;					\
 											\
 	if (br && br != NUM_BRANCHES)							\
 		pr_info("%s: Branch instructions retired = %lu (expected %u)\n",	\
 			__func__, br, NUM_BRANCHES);					\
 	TEST_ASSERT(br, "%s: Branch instructions retired = %lu (expected > 0)",		\
 		    __func__, br);							\
+	TEST_ASSERT(ir,	"%s: Instructions retired = %lu (expected > 0)",		\
+		    __func__, ir);							\
 } while (0)
 
 #define ASSERT_PMC_NOT_COUNTING_INSTRUCTIONS()						\
 do {											\
 	uint64_t br = pmc_results.branches_retired;					\
+	uint64_t ir = pmc_results.instructions_retired;					\
 											\
 	TEST_ASSERT(!br, "%s: Branch instructions retired = %lu (expected 0)",		\
 		    __func__, br);							\
+	TEST_ASSERT(!ir, "%s: Instructions retired = %lu (expected 0)",			\
+		    __func__, ir);							\
 } while (0)
 
 static void test_without_filter(struct kvm_vcpu *vcpu)
@@ -329,6 +357,7 @@ static void test_not_member_deny_list(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pmu_event_filter *f = event_filter(KVM_PMU_EVENT_DENY);
 
+	remove_event(f, INST_RETIRED);
 	remove_event(f, INTEL_BR_RETIRED);
 	remove_event(f, AMD_ZEN_BR_RETIRED);
 	test_with_filter(vcpu, f);
@@ -341,6 +370,7 @@ static void test_not_member_allow_list(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pmu_event_filter *f = event_filter(KVM_PMU_EVENT_ALLOW);
 
+	remove_event(f, INST_RETIRED);
 	remove_event(f, INTEL_BR_RETIRED);
 	remove_event(f, AMD_ZEN_BR_RETIRED);
 	test_with_filter(vcpu, f);
