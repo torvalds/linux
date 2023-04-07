@@ -1431,7 +1431,7 @@ static struct target_opcode_descriptor tcm_opcode_write_verify16 = {
 
 static bool tcm_is_ws_enabled(struct se_cmd *cmd)
 {
-	struct sbc_ops *ops = cmd->protocol_data;
+	struct exec_cmd_ops *ops = cmd->protocol_data;
 	struct se_device *dev = cmd->se_dev;
 
 	return (dev->dev_attrib.emulate_tpws && !!ops->execute_unmap) ||
@@ -1544,7 +1544,7 @@ static struct target_opcode_descriptor tcm_opcode_sync_cache16 = {
 
 static bool tcm_is_unmap_enabled(struct se_cmd *cmd)
 {
-	struct sbc_ops *ops = cmd->protocol_data;
+	struct exec_cmd_ops *ops = cmd->protocol_data;
 	struct se_device *dev = cmd->se_dev;
 
 	return ops->execute_unmap && dev->dev_attrib.emulate_tpu;
