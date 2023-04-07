@@ -76,7 +76,8 @@ struct erofs_super_block {
 	__le16 extra_devices;	/* # of devices besides the primary device */
 	__le16 devt_slotoff;	/* startoff = devt_slotoff * devt_slotsize */
 	__u8 dirblkbits;	/* directory block size in bit shift */
-	__u8 reserved[5];
+	__u8 xattr_prefix_count;	/* # of long xattr name prefixes */
+	__le32 xattr_prefix_start;	/* start of long xattr prefixes */
 	__le64 packed_nid;	/* nid of the special packed inode */
 	__u8 reserved2[24];
 };
@@ -211,6 +212,13 @@ struct erofs_xattr_ibody_header {
 #define EROFS_XATTR_INDEX_LUSTRE            5
 #define EROFS_XATTR_INDEX_SECURITY          6
 
+/*
+ * bit 7 of e_name_index is set when it refers to a long xattr name prefix,
+ * while the remained lower bits represent the index of the prefix.
+ */
+#define EROFS_XATTR_LONG_PREFIX		0x80
+#define EROFS_XATTR_LONG_PREFIX_MASK	0x7f
+
 /* xattr entry (for both inline & shared xattrs) */
 struct erofs_xattr_entry {
 	__u8   e_name_len;      /* length of name */
@@ -218,6 +226,12 @@ struct erofs_xattr_entry {
 	__le16 e_value_size;    /* size of attribute value */
 	/* followed by e_name and e_value */
 	char   e_name[];        /* attribute name */
+};
+
+/* long xattr name prefix */
+struct erofs_xattr_long_prefix {
+	__u8   base_index;	/* short xattr name prefix index */
+	char   infix[];		/* infix apart from short prefix */
 };
 
 static inline unsigned int erofs_xattr_ibody_size(__le16 i_xattr_icount)
