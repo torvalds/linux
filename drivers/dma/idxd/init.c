@@ -46,6 +46,7 @@ static struct idxd_driver_data idxd_driver_data[] = {
 		.compl_size = sizeof(struct dsa_completion_record),
 		.align = 32,
 		.dev_type = &dsa_device_type,
+		.evl_cr_off = offsetof(struct dsa_evl_entry, cr),
 	},
 	[IDXD_TYPE_IAX] = {
 		.name_prefix = "iax",
@@ -53,6 +54,7 @@ static struct idxd_driver_data idxd_driver_data[] = {
 		.compl_size = sizeof(struct iax_completion_record),
 		.align = 64,
 		.dev_type = &iax_device_type,
+		.evl_cr_off = offsetof(struct iax_evl_entry, cr),
 	},
 };
 

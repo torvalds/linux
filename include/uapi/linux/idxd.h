@@ -135,6 +135,7 @@ enum dsa_completion_status {
 	DSA_COMP_HW_ERR1,
 	DSA_COMP_HW_ERR_DRB,
 	DSA_COMP_TRANSLATION_FAIL,
+	DSA_COMP_DRAIN_EVL = 0x26,
 };
 
 enum iax_completion_status {
