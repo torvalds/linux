@@ -11,7 +11,9 @@
 #include <linux/fs.h>
 #include <linux/poll.h>
 #include <linux/iommu.h>
+#include <linux/highmem.h>
 #include <uapi/linux/idxd.h>
+#include <linux/xarray.h>
 #include "registers.h"
 #include "idxd.h"
 
@@ -34,6 +36,7 @@ struct idxd_user_context {
 	struct idxd_wq *wq;
 	struct task_struct *task;
 	unsigned int pasid;
+	struct mm_struct *mm;
 	unsigned int flags;
 	struct iommu_sva *sva;
 };
@@ -66,6 +69,19 @@ static inline struct idxd_wq *inode_wq(struct inode *inode)
 	struct idxd_cdev *idxd_cdev = inode_idxd_cdev(inode);
 
 	return idxd_cdev->wq;
+}
+
+static void idxd_xa_pasid_remove(struct idxd_user_context *ctx)
+{
+	struct idxd_wq *wq = ctx->wq;
+	void *ptr;
+
+	mutex_lock(&wq->uc_lock);
+	ptr = xa_cmpxchg(&wq->upasid_xa, ctx->pasid, ctx, NULL, GFP_KERNEL);
+	if (ptr != (void *)ctx)
+		dev_warn(&wq->idxd->pdev->dev, "xarray cmpxchg failed for pasid %u\n",
+			 ctx->pasid);
+	mutex_unlock(&wq->uc_lock);
 }
 
 static int idxd_cdev_open(struct inode *inode, struct file *filp)
@@ -108,20 +124,26 @@ static int idxd_cdev_open(struct inode *inode, struct file *filp)
 
 		pasid = iommu_sva_get_pasid(sva);
 		if (pasid == IOMMU_PASID_INVALID) {
-			iommu_sva_unbind_device(sva);
 			rc = -EINVAL;
-			goto failed;
+			goto failed_get_pasid;
 		}
 
 		ctx->sva = sva;
 		ctx->pasid = pasid;
+		ctx->mm = current->mm;
+
+		mutex_lock(&wq->uc_lock);
+		rc = xa_insert(&wq->upasid_xa, pasid, ctx, GFP_KERNEL);
+		mutex_unlock(&wq->uc_lock);
+		if (rc < 0)
+			dev_warn(dev, "PASID entry already exist in xarray.\n");
 
 		if (wq_dedicated(wq)) {
 			rc = idxd_wq_set_pasid(wq, pasid);
 			if (rc < 0) {
 				iommu_sva_unbind_device(sva);
 				dev_err(dev, "wq set pasid failed: %d\n", rc);
-				goto failed;
+				goto failed_set_pasid;
 			}
 		}
 	}
@@ -130,7 +152,13 @@ static int idxd_cdev_open(struct inode *inode, struct file *filp)
 	mutex_unlock(&wq->wq_lock);
 	return 0;
 
- failed:
+failed_set_pasid:
+	if (device_user_pasid_enabled(idxd))
+		idxd_xa_pasid_remove(ctx);
+failed_get_pasid:
+	if (device_user_pasid_enabled(idxd))
+		iommu_sva_unbind_device(sva);
+failed:
 	mutex_unlock(&wq->wq_lock);
 	kfree(ctx);
 	return rc;
@@ -161,8 +189,10 @@ static int idxd_cdev_release(struct inode *node, struct file *filep)
 		}
 	}
 
-	if (ctx->sva)
+	if (ctx->sva) {
 		iommu_sva_unbind_device(ctx->sva);
+		idxd_xa_pasid_remove(ctx);
+	}
 	kfree(ctx);
 	mutex_lock(&wq->wq_lock);
 	idxd_wq_put(wq);
@@ -417,4 +447,71 @@ void idxd_cdev_remove(void)
 		unregister_chrdev_region(ictx[i].devt, MINORMASK);
 		ida_destroy(&ictx[i].minor_ida);
 	}
+}
+
+/**
+ * idxd_copy_cr - copy completion record to user address space found by wq and
+ *		  PASID
+ * @wq:		work queue
+ * @pasid:	PASID
+ * @addr:	user fault address to write
+ * @cr:		completion record
+ * @len:	number of bytes to copy
+ *
+ * This is called by a work that handles completion record fault.
+ *
+ * Return: number of bytes copied.
+ */
+int idxd_copy_cr(struct idxd_wq *wq, ioasid_t pasid, unsigned long addr,
+		 void *cr, int len)
+{
+	struct device *dev = &wq->idxd->pdev->dev;
+	int left = len, status_size = 1;
+	struct idxd_user_context *ctx;
+	struct mm_struct *mm;
+
+	mutex_lock(&wq->uc_lock);
+
+	ctx = xa_load(&wq->upasid_xa, pasid);
+	if (!ctx) {
+		dev_warn(dev, "No user context\n");
+		goto out;
+	}
+
+	mm = ctx->mm;
+	/*
+	 * The completion record fault handling work is running in kernel
+	 * thread context. It temporarily switches to the mm to copy cr
+	 * to addr in the mm.
+	 */
+	kthread_use_mm(mm);
+	left = copy_to_user((void __user *)addr + status_size, cr + status_size,
+			    len - status_size);
+	/*
+	 * Copy status only after the rest of completion record is copied
+	 * successfully so that the user gets the complete completion record
+	 * when a non-zero status is polled.
+	 */
+	if (!left) {
+		u8 status;
+
+		/*
+		 * Ensure that the completion record's status field is written
+		 * after the rest of the completion record has been written.
+		 * This ensures that the user receives the correct completion
+		 * record information once polling for a non-zero status.
+		 */
+		wmb();
+		status = *(u8 *)cr;
+		if (put_user(status, (u8 __user *)addr))
+			left += status_size;
+	} else {
+		left += status_size;
+	}
+	kthread_unuse_mm(mm);
+
+out:
+	mutex_unlock(&wq->uc_lock);
+
+	return len - left;
 }
