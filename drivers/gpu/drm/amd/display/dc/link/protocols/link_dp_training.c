@@ -212,27 +212,36 @@ enum dpcd_training_patterns
 
 	switch (pattern) {
 	case DP_TRAINING_PATTERN_SEQUENCE_1:
+		DC_LOG_HW_LINK_TRAINING("%s: Using DP training pattern TPS1\n", __func__);
 		dpcd_tr_pattern = DPCD_TRAINING_PATTERN_1;
 		break;
 	case DP_TRAINING_PATTERN_SEQUENCE_2:
+		DC_LOG_HW_LINK_TRAINING("%s: Using DP training pattern TPS2\n", __func__);
 		dpcd_tr_pattern = DPCD_TRAINING_PATTERN_2;
 		break;
 	case DP_TRAINING_PATTERN_SEQUENCE_3:
+		DC_LOG_HW_LINK_TRAINING("%s: Using DP training pattern TPS3\n", __func__);
 		dpcd_tr_pattern = DPCD_TRAINING_PATTERN_3;
 		break;
 	case DP_TRAINING_PATTERN_SEQUENCE_4:
+		DC_LOG_HW_LINK_TRAINING("%s: Using DP training pattern TPS4\n", __func__);
 		dpcd_tr_pattern = DPCD_TRAINING_PATTERN_4;
 		break;
 	case DP_128b_132b_TPS1:
+		DC_LOG_HW_LINK_TRAINING("%s: Using DP 128b/132b training pattern TPS1\n", __func__);
 		dpcd_tr_pattern = DPCD_128b_132b_TPS1;
 		break;
 	case DP_128b_132b_TPS2:
+		DC_LOG_HW_LINK_TRAINING("%s: Using DP 128b/132b training pattern TPS2\n", __func__);
 		dpcd_tr_pattern = DPCD_128b_132b_TPS2;
 		break;
 	case DP_128b_132b_TPS2_CDS:
+		DC_LOG_HW_LINK_TRAINING("%s: Using DP 128b/132b training pattern TPS2 CDS\n",
+					__func__);
 		dpcd_tr_pattern = DPCD_128b_132b_TPS2_CDS;
 		break;
 	case DP_TRAINING_PATTERN_VIDEOIDLE:
+		DC_LOG_HW_LINK_TRAINING("%s: Using DP training pattern videoidle\n", __func__);
 		dpcd_tr_pattern = DPCD_TRAINING_PATTERN_VIDEOIDLE;
 		break;
 	default:
