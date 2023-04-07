@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -199,6 +199,16 @@ static const struct freq_tbl ftbl_video_cc_mvs0_clk_src[] = {
 	{ }
 };
 
+static const struct freq_tbl ftbl_video_cc_mvs0_clk_src_pineapple_v2[] = {
+	F(588000000, P_VIDEO_CC_PLL0_OUT_MAIN, 1, 0, 0),
+	F(900000000, P_VIDEO_CC_PLL0_OUT_MAIN, 1, 0, 0),
+	F(1140000000, P_VIDEO_CC_PLL0_OUT_MAIN, 1, 0, 0),
+	F(1305000000, P_VIDEO_CC_PLL0_OUT_MAIN, 1, 0, 0),
+	F(1440000000, P_VIDEO_CC_PLL0_OUT_MAIN, 1, 0, 0),
+	F(1600000000, P_VIDEO_CC_PLL0_OUT_MAIN, 1, 0, 0),
+	{ }
+};
+
 static struct clk_rcg2 video_cc_mvs0_clk_src = {
 	.cmd_rcgr = 0x8000,
 	.mnd_width = 0,
@@ -231,6 +241,15 @@ static struct clk_rcg2 video_cc_mvs0_clk_src = {
 static const struct freq_tbl ftbl_video_cc_mvs1_clk_src[] = {
 	F(840000000, P_VIDEO_CC_PLL1_OUT_MAIN, 1, 0, 0),
 	F(1050000000, P_VIDEO_CC_PLL1_OUT_MAIN, 1, 0, 0),
+	F(1350000000, P_VIDEO_CC_PLL1_OUT_MAIN, 1, 0, 0),
+	F(1500000000, P_VIDEO_CC_PLL1_OUT_MAIN, 1, 0, 0),
+	F(1650000000, P_VIDEO_CC_PLL1_OUT_MAIN, 1, 0, 0),
+	{ }
+};
+
+static const struct freq_tbl ftbl_video_cc_mvs1_clk_src_pineapple_v2[] = {
+	F(840000000, P_VIDEO_CC_PLL1_OUT_MAIN, 1, 0, 0),
+	F(1110000000, P_VIDEO_CC_PLL1_OUT_MAIN, 1, 0, 0),
 	F(1350000000, P_VIDEO_CC_PLL1_OUT_MAIN, 1, 0, 0),
 	F(1500000000, P_VIDEO_CC_PLL1_OUT_MAIN, 1, 0, 0),
 	F(1650000000, P_VIDEO_CC_PLL1_OUT_MAIN, 1, 0, 0),
@@ -575,9 +594,33 @@ static struct qcom_cc_desc video_cc_pineapple_desc = {
 
 static const struct of_device_id video_cc_pineapple_match_table[] = {
 	{ .compatible = "qcom,pineapple-videocc" },
+	{ .compatible = "qcom,pineapple-videocc-v2" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, video_cc_pineapple_match_table);
+
+static void video_cc_pineapple_fixup_pineapplev2(struct regmap *regmap)
+{
+	video_cc_mvs0_clk_src.freq_tbl = ftbl_video_cc_mvs0_clk_src_pineapple_v2;
+	video_cc_mvs0_clk_src.clkr.vdd_data.rate_max[VDD_LOWER] = 900000000;
+	video_cc_mvs1_clk_src.freq_tbl = ftbl_video_cc_mvs1_clk_src_pineapple_v2;
+	video_cc_mvs1_clk_src.clkr.vdd_data.rate_max[VDD_LOWER] = 1110000000;
+}
+
+static int video_cc_pineapple_fixup(struct platform_device *pdev, struct regmap *regmap)
+{
+	const char *compat = NULL;
+	int compatlen = 0;
+
+	compat = of_get_property(pdev->dev.of_node, "compatible", &compatlen);
+	if (!compat || compatlen <= 0)
+		return -EINVAL;
+
+	if (!strcmp(compat, "qcom,pineapple-videocc-v2"))
+		video_cc_pineapple_fixup_pineapplev2(regmap);
+
+	return 0;
+}
 
 static int video_cc_pineapple_probe(struct platform_device *pdev)
 {
@@ -598,6 +641,10 @@ static int video_cc_pineapple_probe(struct platform_device *pdev)
 
 	clk_lucid_ole_pll_configure(&video_cc_pll0, regmap, &video_cc_pll0_config);
 	clk_lucid_ole_pll_configure(&video_cc_pll1, regmap, &video_cc_pll1_config);
+
+	ret = video_cc_pineapple_fixup(pdev, regmap);
+	if (ret)
+		return ret;
 
 	/*
 	 * Keep clocks always enabled:
@@ -655,4 +702,4 @@ static void __exit video_cc_pineapple_exit(void)
 module_exit(video_cc_pineapple_exit);
 
 MODULE_DESCRIPTION("QTI VIDEO_CC PINEAPPLE Driver");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
