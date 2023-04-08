@@ -101,17 +101,18 @@ static unsigned long stub_func_addr(func_desc_t func)
 /* Like PPC32, we need little trampolines to do > 24-bit jumps (into
    the kernel itself).  But on PPC64, these need to be used for every
    jump, actually, to reset r2 (TOC+0x8000). */
-struct ppc64_stub_entry
-{
-	/* 28 byte jump instruction sequence (7 instructions). We only
-	 * need 6 instructions on ABIv2 but we always allocate 7 so
-	 * so we don't have to modify the trampoline load instruction. */
+struct ppc64_stub_entry {
+	/*
+	 * 28 byte jump instruction sequence (7 instructions) that can
+	 * hold ppc64_stub_insns or stub_insns. Must be 8-byte aligned
+	 * with PCREL kernels that use prefix instructions in the stub.
+	 */
 	u32 jump[7];
 	/* Used by ftrace to identify stubs */
 	u32 magic;
 	/* Data for the above code */
 	func_desc_t funcdata;
-};
+} __aligned(8);
 
 /*
  * PPC64 uses 24 bit jumps, but we need to jump into other modules or
@@ -333,11 +334,21 @@ int module_frob_arch_sections(Elf64_Ehdr *hdr,
 #ifdef CONFIG_MPROFILE_KERNEL
 
 static u32 stub_insns[] = {
+#ifdef CONFIG_PPC_KERNEL_PCREL
+	PPC_RAW_LD(_R12, _R13, offsetof(struct paca_struct, kernelbase)),
+	PPC_RAW_NOP(), /* align the prefix insn */
+	/* paddi r12,r12,addr */
+	PPC_PREFIX_MLS | __PPC_PRFX_R(0),
+	PPC_INST_PADDI | ___PPC_RT(_R12) | ___PPC_RA(_R12),
+	PPC_RAW_MTCTR(_R12),
+	PPC_RAW_BCTR(),
+#else
 	PPC_RAW_LD(_R12, _R13, offsetof(struct paca_struct, kernel_toc)),
 	PPC_RAW_ADDIS(_R12, _R12, 0),
 	PPC_RAW_ADDI(_R12, _R12, 0),
 	PPC_RAW_MTCTR(_R12),
 	PPC_RAW_BCTR(),
+#endif
 };
 
 /*
@@ -358,18 +369,37 @@ static inline int create_ftrace_stub(struct ppc64_stub_entry *entry,
 {
 	long reladdr;
 
-	memcpy(entry->jump, stub_insns, sizeof(stub_insns));
-
-	/* Stub uses address relative to kernel toc (from the paca) */
-	reladdr = addr - kernel_toc_addr();
-	if (reladdr > 0x7FFFFFFF || reladdr < -(0x80000000L)) {
-		pr_err("%s: Address of %ps out of range of kernel_toc.\n",
-							me->name, (void *)addr);
+	if ((unsigned long)entry->jump % 8 != 0) {
+		pr_err("%s: Address of stub entry is not 8-byte aligned\n", me->name);
 		return 0;
 	}
 
-	entry->jump[1] |= PPC_HA(reladdr);
-	entry->jump[2] |= PPC_LO(reladdr);
+	BUILD_BUG_ON(sizeof(stub_insns) > sizeof(entry->jump));
+	memcpy(entry->jump, stub_insns, sizeof(stub_insns));
+
+	if (IS_ENABLED(CONFIG_PPC_KERNEL_PCREL)) {
+		/* Stub uses address relative to kernel base (from the paca) */
+		reladdr = addr - local_paca->kernelbase;
+		if (reladdr > 0x1FFFFFFFFL || reladdr < -0x200000000L) {
+			pr_err("%s: Address of %ps out of range of 34-bit relative address.\n",
+				me->name, (void *)addr);
+			return 0;
+		}
+
+		entry->jump[2] |= IMM_H18(reladdr);
+		entry->jump[3] |= IMM_L(reladdr);
+	} else {
+		/* Stub uses address relative to kernel toc (from the paca) */
+		reladdr = addr - kernel_toc_addr();
+		if (reladdr > 0x7FFFFFFF || reladdr < -(0x80000000L)) {
+			pr_err("%s: Address of %ps out of range of kernel_toc.\n",
+				me->name, (void *)addr);
+			return 0;
+		}
+
+		entry->jump[1] |= PPC_HA(reladdr);
+		entry->jump[2] |= PPC_LO(reladdr);
+	}
 
 	/* Even though we don't use funcdata in the stub, it's needed elsewhere. */
 	entry->funcdata = func_desc(addr);

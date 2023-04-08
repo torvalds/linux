@@ -183,7 +183,11 @@
 /*
  * Used to name C functions called from asm
  */
+#if defined(CONFIG_PPC_KERNEL_PCREL) && !defined(MODULE)
+#define CFUNC(name) name@notoc
+#else
 #define CFUNC(name) name
+#endif
 
 /*
  * We use __powerpc64__ here because we want the compat VDSO to use the 32-bit
@@ -212,6 +216,9 @@
 	.globl name; \
 name:
 
+#if defined(CONFIG_PPC_KERNEL_PCREL) && !defined(MODULE)
+#define _GLOBAL_TOC _GLOBAL
+#else
 #define _GLOBAL_TOC(name) \
 	.align 2 ; \
 	.type name,@function; \
@@ -220,6 +227,7 @@ name: \
 0:	addis r2,r12,(.TOC.-0b)@ha; \
 	addi r2,r2,(.TOC.-0b)@l; \
 	.localentry name,.-name
+#endif
 
 #define DOTSYM(a)	a
 
@@ -351,8 +359,13 @@ n:
 
 #ifdef __powerpc64__
 
+#ifdef CONFIG_PPC_KERNEL_PCREL
+#define __LOAD_PACA_TOC(reg)			\
+	li	reg,-1
+#else
 #define __LOAD_PACA_TOC(reg)			\
 	ld	reg,PACATOC(r13)
+#endif
 
 #define LOAD_PACA_TOC()				\
 	__LOAD_PACA_TOC(r2)
@@ -366,9 +379,15 @@ n:
 	ori	reg, reg, (expr)@l;		\
 	rldimi	reg, tmp, 32, 0
 
+#if defined(CONFIG_PPC_KERNEL_PCREL) && !defined(MODULE)
+#define LOAD_REG_ADDR(reg,name)			\
+	pla	reg,name@pcrel
+
+#else
 #define LOAD_REG_ADDR(reg,name)			\
 	addis	reg,r2,name@toc@ha;		\
 	addi	reg,reg,name@toc@l
+#endif
 
 #ifdef CONFIG_PPC_BOOK3E_64
 /*

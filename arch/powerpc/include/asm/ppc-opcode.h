@@ -120,10 +120,17 @@
  * 16-bit immediate helper macros: HA() is for use with sign-extending instrs
  * (e.g. LD, ADDI).  If the bottom 16 bits is "-ve", add another bit into the
  * top half to negate the effect (i.e. 0xffff + 1 = 0x(1)0000).
+ *
+ * XXX: should these mask out possible sign bits?
  */
 #define IMM_H(i)                ((uintptr_t)(i)>>16)
 #define IMM_HA(i)               (((uintptr_t)(i)>>16) +                       \
 					(((uintptr_t)(i) & 0x8000) >> 15))
+
+/*
+ * 18-bit immediate helper for prefix 18-bit upper immediate si0 field.
+ */
+#define IMM_H18(i)              (((uintptr_t)(i)>>16) & 0x3ffff)
 
 
 /* opcode and xopcode for instructions */
@@ -306,6 +313,7 @@
 #define PPC_PREFIX_8LS			0x04000000
 
 /* Prefixed instructions */
+#define PPC_INST_PADDI			0x38000000
 #define PPC_INST_PLD			0xe4000000
 #define PPC_INST_PSTD			0xf4000000
 

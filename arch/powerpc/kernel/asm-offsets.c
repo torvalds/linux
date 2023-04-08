@@ -185,7 +185,9 @@ int main(void)
 				 offsetof(struct task_struct, thread_info));
 	OFFSET(PACASAVEDMSR, paca_struct, saved_msr);
 	OFFSET(PACAR1, paca_struct, saved_r1);
+#ifndef CONFIG_PPC_KERNEL_PCREL
 	OFFSET(PACATOC, paca_struct, kernel_toc);
+#endif
 	OFFSET(PACAKBASE, paca_struct, kernelbase);
 	OFFSET(PACAKMSR, paca_struct, kernel_msr);
 #ifdef CONFIG_PPC_BOOK3S_64

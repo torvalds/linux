@@ -330,6 +330,12 @@ _GLOBAL(fsl_secondary_thread_init)
  */
 _GLOBAL(generic_secondary_smp_init)
 	FIXUP_ENDIAN
+
+	li	r13,0
+
+	/* Poison TOC */
+	li	r2,-1
+
 	mr	r24,r3
 	mr	r25,r4
 
@@ -527,6 +533,9 @@ __start_initialization_multiplatform:
 
 	/* Zero r13 (paca) so early program check / mce don't use it */
 	li	r13,0
+
+	/* Poison TOC */
+	li	r2,-1
 
 	/*
 	 * Are we booted from a PROM Of-type client-interface ?
@@ -921,6 +930,10 @@ SYM_FUNC_END(enable_64b_mode)
  * this.
  */
 _GLOBAL(relative_toc)
+#ifdef CONFIG_PPC_KERNEL_PCREL
+	tdnei	r2,-1
+	blr
+#else
 	mflr	r0
 	bcl	20,31,$+4
 0:	mflr	r11
@@ -931,6 +944,7 @@ _GLOBAL(relative_toc)
 
 .balign 8
 p_toc:	.8byte	.TOC. - 0b
+#endif
 
 /*
  * This is where the main kernel code starts.
