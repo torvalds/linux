@@ -38,7 +38,6 @@ impl ToTokens for TokenStream {
 /// This is a similar to the
 /// [`quote_spanned!`](https://docs.rs/quote/latest/quote/macro.quote_spanned.html) macro from the
 /// `quote` crate but provides only just enough functionality needed by the current `macros` crate.
-#[allow(unused_macros)]
 macro_rules! quote_spanned {
     ($span:expr => $($tt:tt)*) => {
     #[allow(clippy::vec_init_then_push)]
@@ -137,7 +136,6 @@ macro_rules! quote_spanned {
 /// `macros` crate.
 ///
 /// [`Span::mixed_site()`]: https://doc.rust-lang.org/proc_macro/struct.Span.html#method.mixed_site
-#[allow(unused_macros)]
 macro_rules! quote {
     ($($tt:tt)*) => {
         quote_spanned!(::proc_macro::Span::mixed_site() => $($tt)*)

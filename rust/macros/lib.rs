@@ -7,6 +7,7 @@ mod quote;
 mod concat_idents;
 mod helpers;
 mod module;
+mod pin_data;
 mod vtable;
 
 use proc_macro::TokenStream;
@@ -167,4 +168,32 @@ pub fn vtable(attr: TokenStream, ts: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn concat_idents(ts: TokenStream) -> TokenStream {
     concat_idents::concat_idents(ts)
+}
+
+/// Used to specify the pinning information of the fields of a struct.
+///
+/// This is somewhat similar in purpose as
+/// [pin-project-lite](https://crates.io/crates/pin-project-lite).
+/// Place this macro on a struct definition and then `#[pin]` in front of the attributes of each
+/// field you want to structurally pin.
+///
+/// This macro enables the use of the [`pin_init!`] macro. When pin-initializing a `struct`,
+/// then `#[pin]` directs the type of initializer that is required.
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// #[pin_data]
+/// struct DriverData {
+///     #[pin]
+///     queue: Mutex<Vec<Command>>,
+///     buf: Box<[u8; 1024 * 1024]>,
+/// }
+/// ```
+///
+/// [`pin_init!`]: ../kernel/macro.pin_init.html
+//  ^ cannot use direct link, since `kernel` is not a dependency of `macros`.
+#[proc_macro_attribute]
+pub fn pin_data(inner: TokenStream, item: TokenStream) -> TokenStream {
+    pin_data::pin_data(inner, item)
 }
