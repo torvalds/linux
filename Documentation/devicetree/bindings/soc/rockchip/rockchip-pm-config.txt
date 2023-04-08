@@ -10,6 +10,7 @@ Required properties:
 - "rockchip,pm-rk3368" - for RK3368 SoCs.
 - "rockchip,pm-rk3399" - for RK3399 SoCs.
 - "rockchip,pm-rk3528" - for RK3528 SoCs.
+- "rockchip,pm-rk3562" - for RK3562 SoCs.
 - "rockchip,pm-rk3588" - for RK3588 SoCs.
 - "rockchip,pm-rv1126" - for RV1126 SoCs.
 
@@ -179,6 +180,27 @@ Example:
 			(0
 			| RKPM_CPU0_WKUP_EN
 			| RKPM_GPIO_WKUP_EN
+			)
+		>;
+	};
+
+	rockchip_suspend: rockchip-suspend {
+		compatible = "rockchip,pm-rk3562";
+		status = "okay";
+		rockchip,sleep-debug-en = <1>;
+		rockchip,sleep-mode-config = <
+			(0
+			| RKPM_SLP_DEEP1_MODE
+			| RKPM_SLP_PMIC_LP
+			| RKPM_SLP_HW_PLLS_OFF
+			| RKPM_SLP_PMUALIVE_32K
+			| RKPM_SLP_OSC_DIS
+			| RKPM_SLP_32K_PVTM
+			)
+		>;
+		rockchip,wakeup-config = <
+			(0
+			| RKPM_GPIO0_WKUP_EN
 			)
 		>;
 	};
