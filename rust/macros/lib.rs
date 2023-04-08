@@ -2,6 +2,8 @@
 
 //! Crate for all kernel procedural macros.
 
+#[macro_use]
+mod quote;
 mod concat_idents;
 mod helpers;
 mod module;
