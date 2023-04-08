@@ -62,7 +62,9 @@ void __init mpc85xx_ds_pic_init(void)
 
 	mpic = mpic_alloc(NULL, 0, flags, 0, 256, " OpenPIC  ");
 
-	BUG_ON(mpic == NULL);
+	if (WARN_ON(!mpic))
+		return;
+
 	mpic_init(mpic);
 
 #ifdef CONFIG_PPC_I8259
