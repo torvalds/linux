@@ -24,6 +24,24 @@ struct perf_sample_data___new {
 	__u64 sample_flags;
 } __attribute__((preserve_access_index));
 
+/* new kernel perf_mem_data_src definition */
+union perf_mem_data_src__new {
+	__u64 val;
+	struct {
+		__u64   mem_op:5,	/* type of opcode */
+			mem_lvl:14,	/* memory hierarchy level */
+			mem_snoop:5,	/* snoop mode */
+			mem_lock:2,	/* lock instr */
+			mem_dtlb:7,	/* tlb access */
+			mem_lvl_num:4,	/* memory hierarchy level number */
+			mem_remote:1,   /* remote */
+			mem_snoopx:2,	/* snoop mode, ext */
+			mem_blk:3,	/* access blocked */
+			mem_hops:3,	/* hop level */
+			mem_rsvd:18;
+	};
+};
+
 /* helper function to return the given perf sample data */
 static inline __u64 perf_get_sample(struct bpf_perf_event_data_kern *kctx,
 				    struct perf_bpf_filter_entry *entry)
@@ -89,8 +107,14 @@ static inline __u64 perf_get_sample(struct bpf_perf_event_data_kern *kctx,
 			return kctx->data->data_src.mem_dtlb;
 		if (entry->part == 7)
 			return kctx->data->data_src.mem_blk;
-		if (entry->part == 8)
-			return kctx->data->data_src.mem_hops;
+		if (entry->part == 8) {
+			union perf_mem_data_src__new *data = (void *)&kctx->data->data_src;
+
+			if (bpf_core_field_exists(data->mem_hops))
+				return data->mem_hops;
+
+			return 0;
+		}
 		/* return the whole word */
 		return kctx->data->data_src.val;
 	default:
