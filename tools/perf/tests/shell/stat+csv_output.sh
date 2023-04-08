@@ -9,6 +9,20 @@ set -e
 skip_test=0
 csv_sep=@
 
+stat_output=$(mktemp /tmp/__perf_test.stat_output.csv.XXXXX)
+
+cleanup() {
+  rm -f "${stat_output}"
+
+  trap - EXIT TERM INT
+}
+
+trap_cleanup() {
+  cleanup
+  exit 1
+}
+trap trap_cleanup EXIT TERM INT
+
 function commachecker()
 {
 	local -i cnt=0
@@ -30,9 +44,11 @@ function commachecker()
 
 	while read line
 	do
-		# Check for lines beginning with Failed
-		x=${line:0:6}
-		[ "$x" = "Failed" ] && continue
+		# Ignore initial "started on" comment.
+		x=${line:0:1}
+		[ "$x" = "#" ] && continue
+		# Ignore initial blank line.
+		[ "$line" = "" ] && continue
 
 		# Count the number of commas
 		x=$(echo $line | tr -d -c $csv_sep)
@@ -42,7 +58,7 @@ function commachecker()
 			echo "wrong number of fields. expected $exp in $line" 1>&2
 			exit 1;
 		}
-	done
+	done < "${stat_output}"
 	return 0
 }
 
@@ -55,7 +71,8 @@ function ParanoidAndNotRoot()
 check_no_args()
 {
 	echo -n "Checking CSV output: no args "
-	perf stat -x$csv_sep true 2>&1 | commachecker --no-args
+	perf stat -x$csv_sep -o "${stat_output}" true
+        commachecker --no-args
 	echo "[Success]"
 }
 
@@ -67,27 +84,29 @@ check_system_wide()
 		echo "[Skip] paranoid and not root"
 		return
 	fi
-	perf stat -x$csv_sep -a true 2>&1 | commachecker --system-wide
+	perf stat -x$csv_sep -a -o "${stat_output}" true
+        commachecker --system-wide
 	echo "[Success]"
 }
 
 check_system_wide_no_aggr()
 {
-	echo -n "Checking CSV output: system wide "
+	echo -n "Checking CSV output: system wide no aggregation "
 	if ParanoidAndNotRoot 0
 	then
 		echo "[Skip] paranoid and not root"
 		return
 	fi
-	echo -n "Checking CSV output: system wide no aggregation "
-	perf stat -x$csv_sep -A -a --no-merge true 2>&1 | commachecker --system-wide-no-aggr
+	perf stat -x$csv_sep -A -a --no-merge -o "${stat_output}" true
+        commachecker --system-wide-no-aggr
 	echo "[Success]"
 }
 
 check_interval()
 {
 	echo -n "Checking CSV output: interval "
-	perf stat -x$csv_sep -I 1000 true 2>&1 | commachecker --interval
+	perf stat -x$csv_sep -I 1000 -o "${stat_output}" true
+        commachecker --interval
 	echo "[Success]"
 }
 
@@ -95,7 +114,8 @@ check_interval()
 check_event()
 {
 	echo -n "Checking CSV output: event "
-	perf stat -x$csv_sep -e cpu-clock true 2>&1 | commachecker --event
+	perf stat -x$csv_sep -e cpu-clock -o "${stat_output}" true
+        commachecker --event
 	echo "[Success]"
 }
 
@@ -107,7 +127,8 @@ check_per_core()
 		echo "[Skip] paranoid and not root"
 		return
 	fi
-	perf stat -x$csv_sep --per-core -a true 2>&1 | commachecker --per-core
+	perf stat -x$csv_sep --per-core -a -o "${stat_output}" true
+        commachecker --per-core
 	echo "[Success]"
 }
 
@@ -119,7 +140,8 @@ check_per_thread()
 		echo "[Skip] paranoid and not root"
 		return
 	fi
-	perf stat -x$csv_sep --per-thread -a true 2>&1 | commachecker --per-thread
+	perf stat -x$csv_sep --per-thread -a -o "${stat_output}" true
+        commachecker --per-thread
 	echo "[Success]"
 }
 
@@ -131,7 +153,8 @@ check_per_die()
 		echo "[Skip] paranoid and not root"
 		return
 	fi
-	perf stat -x$csv_sep --per-die -a true 2>&1 | commachecker --per-die
+	perf stat -x$csv_sep --per-die -a -o "${stat_output}" true
+        commachecker --per-die
 	echo "[Success]"
 }
 
@@ -143,7 +166,8 @@ check_per_node()
 		echo "[Skip] paranoid and not root"
 		return
 	fi
-	perf stat -x$csv_sep --per-node -a true 2>&1 | commachecker --per-node
+	perf stat -x$csv_sep --per-node -a -o "${stat_output}" true
+        commachecker --per-node
 	echo "[Success]"
 }
 
@@ -155,7 +179,8 @@ check_per_socket()
 		echo "[Skip] paranoid and not root"
 		return
 	fi
-	perf stat -x$csv_sep --per-socket -a true 2>&1 | commachecker --per-socket
+	perf stat -x$csv_sep --per-socket -a -o "${stat_output}" true
+        commachecker --per-socket
 	echo "[Success]"
 }
 
@@ -202,4 +227,5 @@ then
 else
 	echo "[Skip] Skipping tests for system_wide_no_aggr, per_core, per_die and per_socket since socket id exposed via topology is invalid"
 fi
+cleanup
 exit 0
