@@ -31,6 +31,26 @@
 //!         pin_init!(Self { t, x: 0 })
 //!     }
 //! }
+//!
+//! #[pin_data(PinnedDrop)]
+//! struct Foo {
+//!     a: usize,
+//!     #[pin]
+//!     b: Bar<u32>,
+//! }
+//!
+//! #[pinned_drop]
+//! impl PinnedDrop for Foo {
+//!     fn drop(self: Pin<&mut Self>) {
+//!         println!("{self:p} is getting dropped.");
+//!     }
+//! }
+//!
+//! let a = 42;
+//! let initializer = pin_init!(Foo {
+//!     a,
+//!     b <- Bar::new(36),
+//! });
 //! ```
 //!
 //! This example includes the most common and important features of the pin-init API.
@@ -155,6 +175,14 @@
 //!     #[allow(drop_bounds)]
 //!     impl<T: ::core::ops::Drop> MustNotImplDrop for T {}
 //!     impl<T> MustNotImplDrop for Bar<T> {}
+//!     // Here comes a convenience check, if one implemented `PinnedDrop`, but forgot to add it to
+//!     // `#[pin_data]`, then this will error with the same mechanic as above, this is not needed
+//!     // for safety, but a good sanity check, since no normal code calls `PinnedDrop::drop`.
+//!     #[allow(non_camel_case_types)]
+//!     trait UselessPinnedDropImpl_you_need_to_specify_PinnedDrop {}
+//!     impl<T: ::kernel::init::PinnedDrop>
+//!         UselessPinnedDropImpl_you_need_to_specify_PinnedDrop for T {}
+//!     impl<T> UselessPinnedDropImpl_you_need_to_specify_PinnedDrop for Bar<T> {}
 //! };
 //! ```
 //!
@@ -265,6 +293,210 @@
 //!     }
 //! }
 //! ```
+//!
+//! ## `#[pin_data]` on `Foo`
+//!
+//! Since we already took a look at `#[pin_data]` on `Bar`, this section will only explain the
+//! differences/new things in the expansion of the `Foo` definition:
+//!
+//! ```rust
+//! #[pin_data(PinnedDrop)]
+//! struct Foo {
+//!     a: usize,
+//!     #[pin]
+//!     b: Bar<u32>,
+//! }
+//! ```
+//!
+//! This expands to the following code:
+//!
+//! ```rust
+//! struct Foo {
+//!     a: usize,
+//!     b: Bar<u32>,
+//! }
+//! const _: () = {
+//!     struct __ThePinData {
+//!         __phantom: ::core::marker::PhantomData<fn(Foo) -> Foo>,
+//!     }
+//!     impl ::core::clone::Clone for __ThePinData {
+//!         fn clone(&self) -> Self {
+//!             *self
+//!         }
+//!     }
+//!     impl ::core::marker::Copy for __ThePinData {}
+//!     #[allow(dead_code)]
+//!     impl __ThePinData {
+//!         unsafe fn b<E>(
+//!             self,
+//!             slot: *mut Bar<u32>,
+//!             // Note that this is `PinInit` instead of `Init`, this is because `b` is
+//!             // structurally pinned, as marked by the `#[pin]` attribute.
+//!             init: impl ::kernel::init::PinInit<Bar<u32>, E>,
+//!         ) -> ::core::result::Result<(), E> {
+//!             unsafe { ::kernel::init::PinInit::__pinned_init(init, slot) }
+//!         }
+//!         unsafe fn a<E>(
+//!             self,
+//!             slot: *mut usize,
+//!             init: impl ::kernel::init::Init<usize, E>,
+//!         ) -> ::core::result::Result<(), E> {
+//!             unsafe { ::kernel::init::Init::__init(init, slot) }
+//!         }
+//!     }
+//!     unsafe impl ::kernel::init::__internal::HasPinData for Foo {
+//!         type PinData = __ThePinData;
+//!         unsafe fn __pin_data() -> Self::PinData {
+//!             __ThePinData {
+//!                 __phantom: ::core::marker::PhantomData,
+//!             }
+//!         }
+//!     }
+//!     unsafe impl ::kernel::init::__internal::PinData for __ThePinData {
+//!         type Datee = Foo;
+//!     }
+//!     #[allow(dead_code)]
+//!     struct __Unpin<'__pin> {
+//!         __phantom_pin: ::core::marker::PhantomData<fn(&'__pin ()) -> &'__pin ()>,
+//!         __phantom: ::core::marker::PhantomData<fn(Foo) -> Foo>,
+//!         // Since this field is `#[pin]`, it is listed here.
+//!         b: Bar<u32>,
+//!     }
+//!     #[doc(hidden)]
+//!     impl<'__pin> ::core::marker::Unpin for Foo where __Unpin<'__pin>: ::core::marker::Unpin {}
+//!     // Since we specified `PinnedDrop` as the argument to `#[pin_data]`, we expect `Foo` to
+//!     // implement `PinnedDrop`. Thus we do not need to prevent `Drop` implementations like
+//!     // before, instead we implement it here and delegate to `PinnedDrop`.
+//!     impl ::core::ops::Drop for Foo {
+//!         fn drop(&mut self) {
+//!             // Since we are getting dropped, no one else has a reference to `self` and thus we
+//!             // can assume that we never move.
+//!             let pinned = unsafe { ::core::pin::Pin::new_unchecked(self) };
+//!             // Create the unsafe token that proves that we are inside of a destructor, this
+//!             // type is only allowed to be created in a destructor.
+//!             let token = unsafe { ::kernel::init::__internal::OnlyCallFromDrop::new() };
+//!             ::kernel::init::PinnedDrop::drop(pinned, token);
+//!         }
+//!     }
+//! };
+//! ```
+//!
+//! ## `#[pinned_drop]` on `impl PinnedDrop for Foo`
+//!
+//! This macro is used to implement the `PinnedDrop` trait, since that trait is `unsafe` and has an
+//! extra parameter that should not be used at all. The macro hides that parameter.
+//!
+//! Here is the `PinnedDrop` impl for `Foo`:
+//!
+//! ```rust
+//! #[pinned_drop]
+//! impl PinnedDrop for Foo {
+//!     fn drop(self: Pin<&mut Self>) {
+//!         println!("{self:p} is getting dropped.");
+//!     }
+//! }
+//! ```
+//!
+//! This expands to the following code:
+//!
+//! ```rust
+//! // `unsafe`, full path and the token parameter are added, everything else stays the same.
+//! unsafe impl ::kernel::init::PinnedDrop for Foo {
+//!     fn drop(self: Pin<&mut Self>, _: ::kernel::init::__internal::OnlyCallFromDrop) {
+//!         println!("{self:p} is getting dropped.");
+//!     }
+//! }
+//! ```
+//!
+//! ## `pin_init!` on `Foo`
+//!
+//! Since we already took a look at `pin_init!` on `Bar`, this section will only explain the
+//! differences/new things in the expansion of `pin_init!` on `Foo`:
+//!
+//! ```rust
+//! let a = 42;
+//! let initializer = pin_init!(Foo {
+//!     a,
+//!     b <- Bar::new(36),
+//! });
+//! ```
+//!
+//! This expands to the following code:
+//!
+//! ```rust
+//! let a = 42;
+//! let initializer = {
+//!     struct __InitOk;
+//!     let data = unsafe {
+//!         use ::kernel::init::__internal::HasPinData;
+//!         Foo::__pin_data()
+//!     };
+//!     let init = ::kernel::init::__internal::PinData::make_closure::<
+//!         _,
+//!         __InitOk,
+//!         ::core::convert::Infallible,
+//!     >(data, move |slot| {
+//!         {
+//!             struct __InitOk;
+//!             unsafe { ::core::ptr::write(&raw mut (*slot).a, a) };
+//!             let a = &unsafe { ::kernel::init::__internal::DropGuard::new(&raw mut (*slot).a) };
+//!             let b = Bar::new(36);
+//!             // Here we use `data` to access the correct field and require that `b` is of type
+//!             // `PinInit<Bar<u32>, Infallible>`.
+//!             unsafe { data.b(&raw mut (*slot).b, b)? };
+//!             let b = &unsafe { ::kernel::init::__internal::DropGuard::new(&raw mut (*slot).b) };
+//!
+//!             #[allow(unreachable_code, clippy::diverging_sub_expression)]
+//!             if false {
+//!                 unsafe {
+//!                     ::core::ptr::write(
+//!                         slot,
+//!                         Foo {
+//!                             a: ::core::panic!(),
+//!                             b: ::core::panic!(),
+//!                         },
+//!                     );
+//!                 };
+//!             }
+//!             unsafe { ::kernel::init::__internal::DropGuard::forget(a) };
+//!             unsafe { ::kernel::init::__internal::DropGuard::forget(b) };
+//!         }
+//!         Ok(__InitOk)
+//!     });
+//!     let init = move |slot| -> ::core::result::Result<(), ::core::convert::Infallible> {
+//!         init(slot).map(|__InitOk| ())
+//!     };
+//!     let init = unsafe {
+//!         ::kernel::init::pin_init_from_closure::<_, ::core::convert::Infallible>(init)
+//!     };
+//!     init
+//! };
+//! ```
+
+/// Creates a `unsafe impl<...> PinnedDrop for $type` block.
+///
+/// See [`PinnedDrop`] for more information.
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __pinned_drop {
+    (
+        @impl_sig($($impl_sig:tt)*),
+        @impl_body(
+            $(#[$($attr:tt)*])*
+            fn drop($($sig:tt)*) {
+                $($inner:tt)*
+            }
+        ),
+    ) => {
+        unsafe $($impl_sig)* {
+            // Inherit all attributes and the type/ident tokens for the signature.
+            $(#[$($attr)*])*
+            fn drop($($sig)*, _: $crate::init::__internal::OnlyCallFromDrop) {
+                $($inner)*
+            }
+        }
+    }
+}
 
 /// This macro first parses the struct definition such that it separates pinned and not pinned
 /// fields. Afterwards it declares the struct and implement the `PinData` trait safely.
@@ -653,6 +885,38 @@ macro_rules! __pin_data {
         impl<T: ::core::ops::Drop> MustNotImplDrop for T {}
         impl<$($impl_generics)*> MustNotImplDrop for $name<$($ty_generics)*>
         where $($whr)* {}
+        // We also take care to prevent users from writing a useless `PinnedDrop` implementation.
+        // They might implement `PinnedDrop` correctly for the struct, but forget to give
+        // `PinnedDrop` as the parameter to `#[pin_data]`.
+        #[allow(non_camel_case_types)]
+        trait UselessPinnedDropImpl_you_need_to_specify_PinnedDrop {}
+        impl<T: $crate::init::PinnedDrop>
+            UselessPinnedDropImpl_you_need_to_specify_PinnedDrop for T {}
+        impl<$($impl_generics)*>
+            UselessPinnedDropImpl_you_need_to_specify_PinnedDrop for $name<$($ty_generics)*>
+        where $($whr)* {}
+    };
+    // When `PinnedDrop` was specified we just implement `Drop` and delegate.
+    (drop_prevention:
+        @name($name:ident),
+        @impl_generics($($impl_generics:tt)*),
+        @ty_generics($($ty_generics:tt)*),
+        @where($($whr:tt)*),
+        @pinned_drop(PinnedDrop),
+    ) => {
+        impl<$($impl_generics)*> ::core::ops::Drop for $name<$($ty_generics)*>
+        where $($whr)*
+        {
+            fn drop(&mut self) {
+                // SAFETY: Since this is a destructor, `self` will not move after this function
+                // terminates, since it is inaccessible.
+                let pinned = unsafe { ::core::pin::Pin::new_unchecked(self) };
+                // SAFETY: Since this is a drop function, we can create this token to call the
+                // pinned destructor of this type.
+                let token = unsafe { $crate::init::__internal::OnlyCallFromDrop::new() };
+                $crate::init::PinnedDrop::drop(pinned, token);
+            }
+        }
     };
     // If some other parameter was specified, we emit a readable error.
     (drop_prevention:

@@ -161,3 +161,18 @@ impl<T: ?Sized> Drop for DropGuard<T> {
         }
     }
 }
+
+/// Token used by `PinnedDrop` to prevent calling the function without creating this unsafely
+/// created struct. This is needed, because the `drop` function is safe, but should not be called
+/// manually.
+pub struct OnlyCallFromDrop(());
+
+impl OnlyCallFromDrop {
+    /// # Safety
+    ///
+    /// This function should only be called from the [`Drop::drop`] function and only be used to
+    /// delegate the destruction to the pinned destructor [`PinnedDrop::drop`] of the same type.
+    pub unsafe fn new() -> Self {
+        Self(())
+    }
+}

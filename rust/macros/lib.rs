@@ -8,6 +8,7 @@ mod concat_idents;
 mod helpers;
 mod module;
 mod pin_data;
+mod pinned_drop;
 mod vtable;
 
 use proc_macro::TokenStream;
@@ -180,6 +181,10 @@ pub fn concat_idents(ts: TokenStream) -> TokenStream {
 /// This macro enables the use of the [`pin_init!`] macro. When pin-initializing a `struct`,
 /// then `#[pin]` directs the type of initializer that is required.
 ///
+/// If your `struct` implements `Drop`, then you need to add `PinnedDrop` as arguments to this
+/// macro, and change your `Drop` implementation to `PinnedDrop` annotated with
+/// `#[`[`macro@pinned_drop`]`]`, since dropping pinned values requires extra care.
+///
 /// # Examples
 ///
 /// ```rust,ignore
@@ -191,9 +196,53 @@ pub fn concat_idents(ts: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
+/// ```rust,ignore
+/// #[pin_data(PinnedDrop)]
+/// struct DriverData {
+///     #[pin]
+///     queue: Mutex<Vec<Command>>,
+///     buf: Box<[u8; 1024 * 1024]>,
+///     raw_info: *mut Info,
+/// }
+///
+/// #[pinned_drop]
+/// impl PinnedDrop for DriverData {
+///     fn drop(self: Pin<&mut Self>) {
+///         unsafe { bindings::destroy_info(self.raw_info) };
+///     }
+/// }
+/// ```
+///
 /// [`pin_init!`]: ../kernel/macro.pin_init.html
 //  ^ cannot use direct link, since `kernel` is not a dependency of `macros`.
 #[proc_macro_attribute]
 pub fn pin_data(inner: TokenStream, item: TokenStream) -> TokenStream {
     pin_data::pin_data(inner, item)
+}
+
+/// Used to implement `PinnedDrop` safely.
+///
+/// Only works on structs that are annotated via `#[`[`macro@pin_data`]`]`.
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// #[pin_data(PinnedDrop)]
+/// struct DriverData {
+///     #[pin]
+///     queue: Mutex<Vec<Command>>,
+///     buf: Box<[u8; 1024 * 1024]>,
+///     raw_info: *mut Info,
+/// }
+///
+/// #[pinned_drop]
+/// impl PinnedDrop for DriverData {
+///     fn drop(self: Pin<&mut Self>) {
+///         unsafe { bindings::destroy_info(self.raw_info) };
+///     }
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn pinned_drop(args: TokenStream, input: TokenStream) -> TokenStream {
+    pinned_drop::pinned_drop(args, input)
 }
