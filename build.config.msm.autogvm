@@ -1,0 +1,37 @@
+################################################################################
+## Inheriting configs from ACK
+. ${ROOT_DIR}/common/build.config.common
+. ${ROOT_DIR}/common/build.config.aarch64
+
+################################################################################
+## Variant setup
+MSM_ARCH=autogvm
+VARIANTS=(consolidate gki)
+[ -z "${VARIANT}" ] && VARIANT=gki
+
+if [ -e "${ROOT_DIR}/msm-kernel" -a "${KERNEL_DIR}" = "common" ]; then
+	KERNEL_DIR="msm-kernel"
+fi
+
+BOOT_IMAGE_HEADER_VERSION=4
+BASE_ADDRESS=0x80000000
+PAGE_SIZE=4096
+BUILD_VENDOR_DLKM=1
+SUPER_IMAGE_SIZE=0x10000000
+TRIM_UNUSED_MODULES=1
+PREPARE_SYSTEM_DLKM=1
+BUILD_INIT_BOOT_IMG=1
+SYSTEM_DLKM_MODULES_LIST=${ROOT_DIR}/${KERNEL_DIR}/android/gki_system_dlkm_modules
+[ -z "${DT_OVERLAY_SUPPORT}" ] && DT_OVERLAY_SUPPORT=1
+
+if [ "${KERNEL_CMDLINE_CONSOLE_AUTO}" != "0" ]; then
+	KERNEL_VENDOR_CMDLINE+=' console=ttyAMA0 earlycon=pl011,0x1c090000 androidboot.first_stage_console=1 androidboot.bootdevice=1c170000.virtio_blk '
+fi
+
+KERNEL_VENDOR_CMDLINE+=' bootconfig '
+KERNEL_VENDOR_CMDLINE+=' initcall_debug=1 ignore_loglevel=1 '
+
+################################################################################
+## Inheriting MSM configs
+. ${KERNEL_DIR}/build.config.msm.common
+. ${KERNEL_DIR}/build.config.msm.gki
