@@ -498,6 +498,13 @@ static int palmas_gpadc_get_adc_dt_data(struct platform_device *pdev,
 	return 0;
 }
 
+static void palmas_gpadc_reset(void *data)
+{
+	struct palmas_gpadc *adc = data;
+	if (adc->event0.enabled || adc->event1.enabled)
+		palmas_adc_reset_events(adc);
+}
+
 static int palmas_gpadc_probe(struct platform_device *pdev)
 {
 	struct palmas_gpadc *adc;
@@ -586,6 +593,10 @@ static int palmas_gpadc_probe(struct platform_device *pdev)
 		if (!(adc->adc_info[i].is_uncalibrated))
 			palmas_gpadc_calibrate(adc, i);
 	}
+
+	ret = devm_add_action(&pdev->dev, palmas_gpadc_reset, adc);
+	if (ret)
+		return ret;
 
 	return 0;
 }
