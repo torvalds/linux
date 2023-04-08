@@ -21,9 +21,4 @@ void __init mpc85xx_8259_init(void);
 static inline void __init mpc85xx_8259_init(void) {}
 #endif
 
-void __init mpc85xx_ds_pic_init(void);
-void __init mpc85xx_ds_setup_arch(void);
-void __init mpc85xx_rdb_setup_arch(void);
-void __init mpc85xx_rdb_pic_init(void);
-
 #endif

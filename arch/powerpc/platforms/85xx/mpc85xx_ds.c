@@ -34,7 +34,7 @@
 
 #include "mpc85xx.h"
 
-void __init mpc85xx_ds_pic_init(void)
+static void __init mpc85xx_ds_pic_init(void)
 {
 	struct mpic *mpic;
 	int flags = MPIC_BIG_ENDIAN | MPIC_SINGLE_DEST_CPU;
@@ -55,7 +55,7 @@ void __init mpc85xx_ds_pic_init(void)
 /*
  * Setup the architecture
  */
-void __init mpc85xx_ds_setup_arch(void)
+static void __init mpc85xx_ds_setup_arch(void)
 {
 	if (ppc_md.progress)
 		ppc_md.progress("mpc85xx_ds_setup_arch()", 0);

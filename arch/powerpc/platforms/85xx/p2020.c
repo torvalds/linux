@@ -21,6 +21,32 @@
 #include "smp.h"
 #include "mpc85xx.h"
 
+static void __init p2020_pic_init(void)
+{
+	struct mpic *mpic;
+	int flags = MPIC_BIG_ENDIAN | MPIC_SINGLE_DEST_CPU;
+
+	mpic = mpic_alloc(NULL, 0, flags, 0, 256, " OpenPIC  ");
+
+	if (WARN_ON(!mpic))
+		return;
+
+	mpic_init(mpic);
+	mpc85xx_8259_init();
+}
+
+/*
+ * Setup the architecture
+ */
+static void __init p2020_setup_arch(void)
+{
+	swiotlb_detect_4g();
+	fsl_pci_assign_primary();
+	uli_init();
+	mpc85xx_smp_init();
+	mpc85xx_qe_par_io_init();
+}
+
 #ifdef CONFIG_MPC85xx_DS
 machine_arch_initcall(p2020_ds, mpc85xx_common_publish_devices);
 #endif /* CONFIG_MPC85xx_DS */
@@ -34,8 +60,8 @@ machine_arch_initcall(p2020_rdb_pc, mpc85xx_common_publish_devices);
 define_machine(p2020_ds) {
 	.name			= "P2020 DS",
 	.compatible		= "fsl,P2020DS",
-	.setup_arch		= mpc85xx_ds_setup_arch,
-	.init_IRQ		= mpc85xx_ds_pic_init,
+	.setup_arch		= p2020_setup_arch,
+	.init_IRQ		= p2020_pic_init,
 #ifdef CONFIG_PCI
 	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
 	.pcibios_fixup_phb	= fsl_pcibios_fixup_phb,
@@ -49,8 +75,8 @@ define_machine(p2020_ds) {
 define_machine(p2020_rdb) {
 	.name			= "P2020 RDB",
 	.compatible		= "fsl,P2020RDB",
-	.setup_arch		= mpc85xx_rdb_setup_arch,
-	.init_IRQ		= mpc85xx_rdb_pic_init,
+	.setup_arch		= p2020_setup_arch,
+	.init_IRQ		= p2020_pic_init,
 #ifdef CONFIG_PCI
 	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
 	.pcibios_fixup_phb	= fsl_pcibios_fixup_phb,
@@ -62,8 +88,8 @@ define_machine(p2020_rdb) {
 define_machine(p2020_rdb_pc) {
 	.name			= "P2020RDB-PC",
 	.compatible		= "fsl,P2020RDB-PC",
-	.setup_arch		= mpc85xx_rdb_setup_arch,
-	.init_IRQ		= mpc85xx_rdb_pic_init,
+	.setup_arch		= p2020_setup_arch,
+	.init_IRQ		= p2020_pic_init,
 #ifdef CONFIG_PCI
 	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
 	.pcibios_fixup_phb	= fsl_pcibios_fixup_phb,
