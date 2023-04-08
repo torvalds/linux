@@ -577,8 +577,12 @@ bool rkisp_rockit_ctrl_fps(struct rkisp_stream *stream)
 		}
 	}
 
-	if (dst_fps >= fps_in)
+	if (dst_fps >= fps_in) {
+		/* avoid from small frame rate to big frame rate lead to all buf is discard issue */
+		*is_discard = false;
+		stream_cfg->dst_fps = fps_in;
 		return false;
+	}
 
 	if ((fps_in > 0) && (dst_fps > 0)) {
 		if (*fps_cnt < 0)
