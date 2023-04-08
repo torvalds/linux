@@ -177,6 +177,14 @@
 //! }
 //! ```
 //!
+//! For the special case where initializing a field is a single FFI-function call that cannot fail,
+//! there exist the helper function [`Opaque::ffi_init`]. This function initialize a single
+//! [`Opaque`] field by just delegating to the supplied closure. You can use these in combination
+//! with [`pin_init!`].
+//!
+//! For more information on how to use [`pin_init_from_closure()`], take a look at the uses inside
+//! the `kernel` crate. The [`sync`] module is a good starting point.
+//!
 //! [`sync`]: kernel::sync
 //! [pinning]: https://doc.rust-lang.org/std/pin/index.html
 //! [structurally pinned fields]:
@@ -187,6 +195,7 @@
 //! [`impl PinInit<T, E>`]: PinInit
 //! [`impl Init<T, E>`]: Init
 //! [`Opaque`]: kernel::types::Opaque
+//! [`Opaque::ffi_init`]: kernel::types::Opaque::ffi_init
 //! [`pin_data`]: ::macros::pin_data
 
 use crate::{

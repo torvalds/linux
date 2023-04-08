@@ -2,6 +2,7 @@
 
 //! Kernel types.
 
+use crate::init::{self, PinInit};
 use alloc::boxed::Box;
 use core::{
     cell::UnsafeCell,
@@ -232,6 +233,25 @@ impl<T> Opaque<T> {
     /// Creates an uninitialised value.
     pub const fn uninit() -> Self {
         Self(MaybeUninit::uninit())
+    }
+
+    /// Creates a pin-initializer from the given initializer closure.
+    ///
+    /// The returned initializer calls the given closure with the pointer to the inner `T` of this
+    /// `Opaque`. Since this memory is uninitialized, the closure is not allowed to read from it.
+    ///
+    /// This function is safe, because the `T` inside of an `Opaque` is allowed to be
+    /// uninitialized. Additionally, access to the inner `T` requires `unsafe`, so the caller needs
+    /// to verify at that point that the inner value is valid.
+    pub fn ffi_init(init_func: impl FnOnce(*mut T)) -> impl PinInit<Self> {
+        // SAFETY: We contain a `MaybeUninit`, so it is OK for the `init_func` to not fully
+        // initialize the `T`.
+        unsafe {
+            init::pin_init_from_closure::<_, ::core::convert::Infallible>(move |slot| {
+                init_func(Self::raw_get(slot));
+                Ok(())
+            })
+        }
     }
 
     /// Returns a raw pointer to the opaque data.
