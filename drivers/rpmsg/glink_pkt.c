@@ -166,6 +166,27 @@ static void glink_pkt_kfree_skb(struct glink_pkt_device *gpdev, struct sk_buff *
 	kfree_skb(skb);
 }
 
+static void glink_pkt_clear_queues(struct glink_pkt_device *gpdev)
+{
+	struct sk_buff *skb;
+	unsigned long flags;
+
+	spin_lock_irqsave(&gpdev->queue_lock, flags);
+	if (gpdev->rskb) {
+		glink_pkt_kfree_skb(gpdev, gpdev->rskb);
+		gpdev->rskb = NULL;
+		gpdev->rdata = NULL;
+		gpdev->rdata_len = 0;
+	}
+
+	while ((skb = skb_dequeue(&gpdev->queue)))
+		glink_pkt_kfree_skb(gpdev, skb);
+	while ((skb = skb_dequeue(&gpdev->pending)))
+		glink_pkt_kfree_skb(gpdev, skb);
+
+	spin_unlock_irqrestore(&gpdev->queue_lock, flags);
+}
+
 static int glink_pkt_rpdev_no_copy_cb(struct rpmsg_device *rpdev, void *buf,
 				      int len, void *priv, u32 addr)
 {
@@ -273,6 +294,7 @@ static void glink_pkt_rpdev_remove(struct rpmsg_device *rpdev)
 	struct glink_pkt_device *gpdev = rpdrv_to_gpdev(rpdrv);
 
 	mutex_lock(&gpdev->lock);
+	glink_pkt_clear_queues(gpdev);
 	gpdev->rpdev = NULL;
 	mutex_unlock(&gpdev->lock);
 
@@ -345,7 +367,6 @@ static int glink_pkt_release(struct inode *inode, struct file *file)
 {
 	struct glink_pkt_device *gpdev = cdev_to_gpdev(inode->i_cdev);
 	struct device *dev = &gpdev->dev;
-	struct sk_buff *skb;
 	unsigned long flags;
 
 	GLINK_PKT_INFO("for %s by %s:%d ref_cnt[%d]\n",
@@ -354,21 +375,11 @@ static int glink_pkt_release(struct inode *inode, struct file *file)
 
 	refcount_dec(&gpdev->refcount);
 	if (refcount_read(&gpdev->refcount) == 1) {
+		glink_pkt_clear_queues(gpdev);
+
 		spin_lock_irqsave(&gpdev->queue_lock, flags);
-
-		if (gpdev->rskb) {
-			glink_pkt_kfree_skb(gpdev, gpdev->rskb);
-			gpdev->rskb = NULL;
-			gpdev->rdata = NULL;
-			gpdev->rdata_len = 0;
-		}
-
-		/* Discard all SKBs */
-		while ((skb = skb_dequeue(&gpdev->queue)))
-			glink_pkt_kfree_skb(gpdev, skb);
-
-		wake_up_interruptible(&gpdev->readq);
 		gpdev->sig_change = false;
+		wake_up_interruptible(&gpdev->readq);
 		spin_unlock_irqrestore(&gpdev->queue_lock, flags);
 
 		if (gpdev->drv_registered && gpdev->enable_ch_close) {
