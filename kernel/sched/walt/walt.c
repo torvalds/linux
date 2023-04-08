@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/syscore_ops.h>
@@ -619,6 +619,16 @@ static inline u64 freq_policy_load(struct rq *rq, unsigned int *reason)
 		*reason = CPUFREQ_REASON_SUH;
 	}
 
+	if (wrq->ed_task) {
+		load = mult_frac(load, 100 + sysctl_ed_boost_pct, 100);
+		*reason = CPUFREQ_REASON_EARLY_DET;
+	}
+
+	if (walt_rotation_enabled) {
+		load = sched_ravg_window;
+		*reason = CPUFREQ_REASON_BTR;
+	}
+
 	trace_sched_load_to_gov(rq, aggr_grp_load, tt_load, sched_freq_aggr_en,
 				load, 0, walt_rotation_enabled,
 				sysctl_sched_user_hint, wrq, *reason);
@@ -656,7 +666,6 @@ __cpu_util_freq_walt(int cpu, struct walt_cpu_load *walt_load, unsigned int *rea
 		walt_load->pl = pl;
 		walt_load->ws = walt_load_reported_window;
 		walt_load->rtgb_active = rtgb_active;
-		walt_load->big_task_rotation = walt_rotation_enabled;
 		if (wrq->ed_task)
 			walt_load->ed_active = true;
 		else
@@ -676,15 +685,22 @@ cpu_util_freq_walt(int cpu, struct walt_cpu_load *walt_load, unsigned int *reaso
 	unsigned long util = 0, util_other = 0;
 	unsigned long capacity = capacity_orig_of(cpu);
 	int i, mpct = sysctl_sched_asym_cap_sibling_freq_match_pct;
+	unsigned long max_nl = 0, max_pl = 0;
 
 	if (!cpumask_test_cpu(cpu, &asym_cap_sibling_cpus))
-		return __cpu_util_freq_walt(cpu, walt_load, reason);
+		goto finish;
+
+	if (cpumask_weight(cpu_partial_halt_mask) > 0)
+		goto finish;
 
 	for_each_cpu(i, &asym_cap_sibling_cpus) {
 		if (i == cpu)
 			util = __cpu_util_freq_walt(cpu, walt_load, reason);
-		else
-			util_other = __cpu_util_freq_walt(i, &wl_other, reason);
+		else {
+			util_other = max(util_other, __cpu_util_freq_walt(i, &wl_other, reason));
+			max_nl = max(max_nl, wl_other.nl);
+			max_pl = max(max_pl, wl_other.pl);
+		}
 	}
 
 	if (cpu == cpumask_last(&asym_cap_sibling_cpus))
@@ -692,12 +708,13 @@ cpu_util_freq_walt(int cpu, struct walt_cpu_load *walt_load, unsigned int *reaso
 
 	util = ADJUSTED_ASYM_CAP_CPU_UTIL(util, util_other, mpct);
 
-	walt_load->nl = ADJUSTED_ASYM_CAP_CPU_UTIL(walt_load->nl, wl_other.nl,
+	walt_load->nl = ADJUSTED_ASYM_CAP_CPU_UTIL(walt_load->nl, max_nl,
 						   mpct);
-	walt_load->pl = ADJUSTED_ASYM_CAP_CPU_UTIL(walt_load->pl, wl_other.pl,
+	walt_load->pl = ADJUSTED_ASYM_CAP_CPU_UTIL(walt_load->pl, max_pl,
 						   mpct);
-
 	return (util >= capacity) ? capacity : util;
+finish:
+	return __cpu_util_freq_walt(cpu, walt_load, reason);
 }
 
 /*
@@ -2770,6 +2787,17 @@ static void walt_update_cluster_topology(void)
 
 	if (cpumask_weight(&asym_cap_sibling_cpus) == 1)
 		cpumask_clear(&asym_cap_sibling_cpus);
+
+	if (num_sched_clusters == 4) {
+		cluster = NULL;
+		cpumask_clear(&asym_cap_sibling_cpus);
+		for_each_sched_cluster(cluster) {
+			if (cluster->id != 0 && cluster->id != num_sched_clusters - 1) {
+				cpumask_or(&asym_cap_sibling_cpus,
+					&asym_cap_sibling_cpus, &cluster->cpus);
+			}
+		}
+	}
 
 	init_cpu_array();
 	build_cpu_array();
