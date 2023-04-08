@@ -2272,8 +2272,10 @@ int cmd_stat(int argc, const char **argv)
 			perror("failed to create output file");
 			return -1;
 		}
-		clock_gettime(CLOCK_REALTIME, &tm);
-		fprintf(output, "# started on %s\n", ctime(&tm.tv_sec));
+		if (!stat_config.json_output) {
+			clock_gettime(CLOCK_REALTIME, &tm);
+			fprintf(output, "# started on %s\n", ctime(&tm.tv_sec));
+		}
 	} else if (output_fd > 0) {
 		mode = append_file ? "a" : "w";
 		output = fdopen(output_fd, mode);
