@@ -17,5 +17,7 @@ static inline void __init mpc85xx_qe_par_io_init(void) {}
 
 void __init mpc85xx_ds_pic_init(void);
 void __init mpc85xx_ds_setup_arch(void);
+void __init mpc85xx_rdb_setup_arch(void);
+void __init mpc85xx_rdb_pic_init(void);
 
 #endif
