@@ -16,6 +16,7 @@
 #![feature(coerce_unsized)]
 #![feature(core_ffi_c)]
 #![feature(dispatch_from_dyn)]
+#![feature(explicit_generic_args_with_impl_trait)]
 #![feature(generic_associated_types)]
 #![feature(new_uninit)]
 #![feature(pin_macro)]
@@ -27,11 +28,16 @@
 #[cfg(not(CONFIG_RUST))]
 compile_error!("Missing kernel configuration for conditional compilation");
 
+#[allow(unused_extern_crates)]
+// Allow proc-macros to refer to `::kernel` inside the `kernel` crate (this crate).
+extern crate self as kernel;
+
 #[cfg(not(test))]
 #[cfg(not(testlib))]
 mod allocator;
 mod build_assert;
 pub mod error;
+pub mod init;
 pub mod prelude;
 pub mod print;
 mod static_assert;
