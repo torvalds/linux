@@ -183,7 +183,7 @@
 /*
  * Used to name C functions called from asm
  */
-#if defined(CONFIG_PPC_KERNEL_PCREL) && !defined(MODULE)
+#ifdef CONFIG_PPC_KERNEL_PCREL
 #define CFUNC(name) name@notoc
 #else
 #define CFUNC(name) name
@@ -216,7 +216,7 @@
 	.globl name; \
 name:
 
-#if defined(CONFIG_PPC_KERNEL_PCREL) && !defined(MODULE)
+#ifdef CONFIG_PPC_KERNEL_PCREL
 #define _GLOBAL_TOC _GLOBAL
 #else
 #define _GLOBAL_TOC(name) \
@@ -379,7 +379,7 @@ n:
 	ori	reg, reg, (expr)@l;		\
 	rldimi	reg, tmp, 32, 0
 
-#if defined(CONFIG_PPC_KERNEL_PCREL) && !defined(MODULE)
+#ifdef CONFIG_PPC_KERNEL_PCREL
 #define LOAD_REG_ADDR(reg,name)			\
 	pla	reg,name@pcrel
 

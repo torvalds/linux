@@ -107,9 +107,7 @@ LDFLAGS_vmlinux-$(CONFIG_RELOCATABLE) += -z notext
 LDFLAGS_vmlinux	:= $(LDFLAGS_vmlinux-y)
 
 ifdef CONFIG_PPC64
-ifdef CONFIG_PPC_KERNEL_PCREL
-	KBUILD_CFLAGS_MODULE += $(call cc-option,-mno-pcrel)
-endif
+ifndef CONFIG_PPC_KERNEL_PCREL
 ifeq ($(call cc-option-yn,-mcmodel=medium),y)
 	# -mcmodel=medium breaks modules because it uses 32bit offsets from
 	# the TOC pointer to create pointers where possible. Pointers into the
@@ -122,6 +120,7 @@ ifeq ($(call cc-option-yn,-mcmodel=medium),y)
 	KBUILD_CFLAGS_MODULE += -mcmodel=large
 else
 	export NO_MINIMAL_TOC := -mno-minimal-toc
+endif
 endif
 endif
 
