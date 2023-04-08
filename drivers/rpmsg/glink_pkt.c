@@ -387,11 +387,6 @@ static int glink_pkt_release(struct inode *inode, struct file *file)
 			gpdev->drv_registered = 0;
 		}
 	}
-
-	if (gpdev->drv_registered && gpdev->enable_ch_close) {
-		unregister_rpmsg_driver(&gpdev->drv);
-		gpdev->drv_registered = 0;
-	}
 	put_device(dev);
 
 	return 0;
