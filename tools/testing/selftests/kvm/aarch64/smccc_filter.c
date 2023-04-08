@@ -99,10 +99,18 @@ static void test_filter_reserved_range(void)
 {
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm = setup_vm(&vcpu);
+	uint32_t smc64_fn;
 	int r;
 
 	r = __set_smccc_filter(vm, ARM_SMCCC_ARCH_WORKAROUND_1,
 			       1, KVM_SMCCC_FILTER_DENY);
+	TEST_ASSERT(r < 0 && errno == EEXIST,
+		    "Attempt to filter reserved range should return EEXIST");
+
+	smc64_fn = ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL, ARM_SMCCC_SMC_64,
+				      0, 0);
+
+	r = __set_smccc_filter(vm, smc64_fn, 1, KVM_SMCCC_FILTER_DENY);
 	TEST_ASSERT(r < 0 && errno == EEXIST,
 		    "Attempt to filter reserved range should return EEXIST");
 
