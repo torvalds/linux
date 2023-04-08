@@ -11,6 +11,7 @@
 #include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/soc/rockchip,boot-mode.h>
 #include <dt-bindings/soc/rockchip-system-status.h>
+#include <dt-bindings/suspend/rockchip-rk3562.h>
 #include <dt-bindings/thermal/thermal.h>
 
 / {
@@ -2744,6 +2745,27 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 		};
+	};
+
+	rockchip_suspend: rockchip-suspend {
+		compatible = "rockchip,pm-rk3562";
+		status = "disabled";
+		rockchip,sleep-debug-en = <1>;
+		rockchip,sleep-mode-config = <
+			(0
+			| RKPM_SLP_DEEP1_MODE
+			| RKPM_SLP_PMIC_LP
+			| RKPM_SLP_HW_PLLS_OFF
+			| RKPM_SLP_PMUALIVE_32K
+			| RKPM_SLP_OSC_DIS
+			| RKPM_SLP_32K_PVTM
+			)
+		>;
+		rockchip,wakeup-config = <
+			(0
+			| RKPM_GPIO0_WKUP_EN
+			)
+		>;
 	};
 };
 
