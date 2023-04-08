@@ -517,9 +517,6 @@ static bool __init hv_init_tsc_clocksource(void)
 {
 	union hv_reference_tsc_msr tsc_msr;
 
-	if (!(ms_hyperv.features & HV_MSR_REFERENCE_TSC_AVAILABLE))
-		return false;
-
 	/*
 	 * If Hyper-V offers TSC_INVARIANT, then the virtualized TSC correctly
 	 * handles frequency and offset changes due to live migration,
@@ -535,6 +532,9 @@ static bool __init hv_init_tsc_clocksource(void)
 		hyperv_cs_tsc.rating = 250;
 		hyperv_cs_msr.rating = 250;
 	}
+
+	if (!(ms_hyperv.features & HV_MSR_REFERENCE_TSC_AVAILABLE))
+		return false;
 
 	hv_read_reference_counter = read_hv_clock_tsc;
 
