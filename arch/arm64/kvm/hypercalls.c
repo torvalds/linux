@@ -121,11 +121,17 @@ static bool kvm_smccc_test_fw_bmap(struct kvm_vcpu *vcpu, u32 func_id)
 	}
 }
 
-#define SMCCC_ARCH_RANGE_BEGIN	ARM_SMCCC_VERSION_FUNC_ID
-#define SMCCC_ARCH_RANGE_END				\
-	ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL,		\
-			   ARM_SMCCC_SMC_32,		\
-			   0, ARM_SMCCC_FUNC_MASK)
+#define SMC32_ARCH_RANGE_BEGIN	ARM_SMCCC_VERSION_FUNC_ID
+#define SMC32_ARCH_RANGE_END	ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL,		\
+						   ARM_SMCCC_SMC_32,		\
+						   0, ARM_SMCCC_FUNC_MASK)
+
+#define SMC64_ARCH_RANGE_BEGIN	ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL,		\
+						   ARM_SMCCC_SMC_64,		\
+						   0, 0)
+#define SMC64_ARCH_RANGE_END	ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL,		\
+						   ARM_SMCCC_SMC_64,		\
+						   0, ARM_SMCCC_FUNC_MASK)
 
 static void init_smccc_filter(struct kvm *kvm)
 {
@@ -139,10 +145,17 @@ static void init_smccc_filter(struct kvm *kvm)
 	 * to the guest.
 	 */
 	r = mtree_insert_range(&kvm->arch.smccc_filter,
-			       SMCCC_ARCH_RANGE_BEGIN, SMCCC_ARCH_RANGE_END,
+			       SMC32_ARCH_RANGE_BEGIN, SMC32_ARCH_RANGE_END,
 			       xa_mk_value(KVM_SMCCC_FILTER_HANDLE),
 			       GFP_KERNEL_ACCOUNT);
 	WARN_ON_ONCE(r);
+
+	r = mtree_insert_range(&kvm->arch.smccc_filter,
+			       SMC64_ARCH_RANGE_BEGIN, SMC64_ARCH_RANGE_END,
+			       xa_mk_value(KVM_SMCCC_FILTER_HANDLE),
+			       GFP_KERNEL_ACCOUNT);
+	WARN_ON_ONCE(r);
+
 }
 
 static int kvm_smccc_set_filter(struct kvm *kvm, struct kvm_smccc_filter __user *uaddr)
