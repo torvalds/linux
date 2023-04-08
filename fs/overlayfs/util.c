@@ -145,15 +145,15 @@ void ovl_dentry_update_reval(struct dentry *dentry, struct dentry *realdentry)
 	spin_unlock(&dentry->d_lock);
 }
 
-void ovl_dentry_init_reval(struct dentry *dentry, struct dentry *upperdentry)
+void ovl_dentry_init_reval(struct dentry *dentry, struct dentry *upperdentry,
+			   struct ovl_entry *oe)
 {
-	return ovl_dentry_init_flags(dentry, upperdentry, OVL_D_REVALIDATE);
+	return ovl_dentry_init_flags(dentry, upperdentry, oe, OVL_D_REVALIDATE);
 }
 
 void ovl_dentry_init_flags(struct dentry *dentry, struct dentry *upperdentry,
-			   unsigned int mask)
+			   struct ovl_entry *oe, unsigned int mask)
 {
-	struct ovl_entry *oe = OVL_E(dentry);
 	struct ovl_path *lowerstack = ovl_lowerstack(oe);
 	unsigned int i, flags = 0;
 

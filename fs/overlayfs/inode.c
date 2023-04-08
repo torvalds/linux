@@ -1002,8 +1002,9 @@ void ovl_inode_init(struct inode *inode, struct ovl_inode_params *oip,
 	struct inode *realinode;
 	struct ovl_inode *oi = OVL_I(inode);
 
-	if (oip->upperdentry)
-		oi->__upperdentry = oip->upperdentry;
+	oi->__upperdentry = oip->upperdentry;
+	oi->oe = oip->oe;
+	oi->redirect = oip->redirect;
 	if (oip->lowerpath && oip->lowerpath->dentry) {
 		oi->lowerpath.dentry = dget(oip->lowerpath->dentry);
 		oi->lowerpath.layer = oip->lowerpath->layer;
@@ -1368,6 +1369,7 @@ struct inode *ovl_get_inode(struct super_block *sb,
 			}
 
 			dput(upperdentry);
+			ovl_free_entry(oip->oe);
 			kfree(oip->redirect);
 			goto out;
 		}
@@ -1396,8 +1398,6 @@ struct inode *ovl_get_inode(struct super_block *sb,
 
 	if (oip->index)
 		ovl_set_flag(OVL_INDEX, inode);
-
-	OVL_I(inode)->redirect = oip->redirect;
 
 	if (bylower)
 		ovl_set_flag(OVL_CONST_INO, inode);

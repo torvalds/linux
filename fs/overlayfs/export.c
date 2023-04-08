@@ -286,7 +286,7 @@ static struct dentry *ovl_obtain_alias(struct super_block *sb,
 	struct dentry *lower = lowerpath ? lowerpath->dentry : NULL;
 	struct dentry *upper = upper_alias ?: index;
 	struct dentry *dentry;
-	struct inode *inode;
+	struct inode *inode = NULL;
 	struct ovl_entry *oe;
 	struct ovl_inode_params oip = {
 		.lowerpath = lowerpath,
@@ -298,9 +298,19 @@ static struct dentry *ovl_obtain_alias(struct super_block *sb,
 	if (d_is_dir(upper ?: lower))
 		return ERR_PTR(-EIO);
 
+	oe = ovl_alloc_entry(!!lower);
+	if (!oe)
+		return ERR_PTR(-ENOMEM);
+
 	oip.upperdentry = dget(upper);
+	if (lower) {
+		ovl_lowerstack(oe)->dentry = dget(lower);
+		ovl_lowerstack(oe)->layer = lowerpath->layer;
+	}
+	oip.oe = oe;
 	inode = ovl_get_inode(sb, &oip);
 	if (IS_ERR(inode)) {
+		ovl_free_entry(oe);
 		dput(upper);
 		return ERR_CAST(inode);
 	}
@@ -315,19 +325,11 @@ static struct dentry *ovl_obtain_alias(struct super_block *sb,
 	dentry = d_alloc_anon(inode->i_sb);
 	if (unlikely(!dentry))
 		goto nomem;
-	oe = ovl_alloc_entry(lower ? 1 : 0);
-	if (!oe)
-		goto nomem;
 
-	if (lower) {
-		ovl_lowerstack(oe)->dentry = dget(lower);
-		ovl_lowerstack(oe)->layer = lowerpath->layer;
-	}
-	dentry->d_fsdata = oe;
 	if (upper_alias)
 		ovl_dentry_set_upper_alias(dentry);
 
-	ovl_dentry_init_reval(dentry, upper);
+	ovl_dentry_init_reval(dentry, upper, OVL_I_E(inode));
 
 	return d_instantiate_anon(dentry, inode);
 

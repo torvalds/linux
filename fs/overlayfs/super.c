@@ -59,16 +59,6 @@ module_param_named(metacopy, ovl_metacopy_def, bool, 0644);
 MODULE_PARM_DESC(metacopy,
 		 "Default to on or off for the metadata only copy up feature");
 
-static void ovl_dentry_release(struct dentry *dentry)
-{
-	struct ovl_entry *oe = dentry->d_fsdata;
-
-	if (oe) {
-		ovl_stack_put(ovl_lowerstack(oe), ovl_numlower(oe));
-		kfree_rcu(oe, rcu);
-	}
-}
-
 static struct dentry *ovl_d_real(struct dentry *dentry,
 				 const struct inode *inode)
 {
@@ -162,7 +152,6 @@ static int ovl_dentry_weak_revalidate(struct dentry *dentry, unsigned int flags)
 }
 
 static const struct dentry_operations ovl_dentry_operations = {
-	.d_release = ovl_dentry_release,
 	.d_real = ovl_d_real,
 	.d_revalidate = ovl_dentry_revalidate,
 	.d_weak_revalidate = ovl_dentry_weak_revalidate,
@@ -182,6 +171,7 @@ static struct inode *ovl_alloc_inode(struct super_block *sb)
 	oi->version = 0;
 	oi->flags = 0;
 	oi->__upperdentry = NULL;
+	oi->oe = NULL;
 	oi->lowerpath.dentry = NULL;
 	oi->lowerpath.layer = NULL;
 	oi->lowerdata = NULL;
@@ -205,6 +195,7 @@ static void ovl_destroy_inode(struct inode *inode)
 
 	dput(oi->__upperdentry);
 	dput(oi->lowerpath.dentry);
+	ovl_free_entry(oi->oe);
 	if (S_ISDIR(inode->i_mode))
 		ovl_dir_cache_free(inode);
 	else
@@ -1849,13 +1840,12 @@ static struct dentry *ovl_get_root(struct super_block *sb,
 	struct ovl_inode_params oip = {
 		.upperdentry = upperdentry,
 		.lowerpath = lowerpath,
+		.oe = oe,
 	};
 
 	root = d_make_root(ovl_new_inode(sb, S_IFDIR, 0));
 	if (!root)
 		return NULL;
-
-	root->d_fsdata = oe;
 
 	if (upperdentry) {
 		/* Root inode uses upper st_ino/i_ino */
@@ -1871,7 +1861,7 @@ static struct dentry *ovl_get_root(struct super_block *sb,
 	ovl_dentry_set_flag(OVL_E_CONNECTED, root);
 	ovl_set_upperdata(d_inode(root));
 	ovl_inode_init(d_inode(root), &oip, ino, fsid);
-	ovl_dentry_init_flags(root, upperdentry, DCACHE_OP_WEAK_REVALIDATE);
+	ovl_dentry_init_flags(root, upperdentry, oe, DCACHE_OP_WEAK_REVALIDATE);
 
 	return root;
 }

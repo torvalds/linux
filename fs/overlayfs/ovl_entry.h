@@ -47,6 +47,11 @@ struct ovl_path {
 	struct dentry *dentry;
 };
 
+struct ovl_entry {
+	unsigned int __numlower;
+	struct ovl_path __lowerstack[];
+};
+
 /* private information held for overlayfs's superblock */
 struct ovl_fs {
 	unsigned int numlayer;
@@ -105,18 +110,6 @@ static inline bool ovl_should_sync(struct ovl_fs *ofs)
 	return !ofs->config.ovl_volatile;
 }
 
-/* private information held for every overlayfs dentry */
-struct ovl_entry {
-	union {
-		struct {
-			unsigned long flags;
-		};
-		struct rcu_head rcu;
-	};
-	unsigned int __numlower;
-	struct ovl_path __lowerstack[];
-};
-
 static inline unsigned int ovl_numlower(struct ovl_entry *oe)
 {
 	return oe ? oe->__numlower : 0;
@@ -127,14 +120,10 @@ static inline struct ovl_path *ovl_lowerstack(struct ovl_entry *oe)
 	return ovl_numlower(oe) ? oe->__lowerstack : NULL;
 }
 
-static inline struct ovl_entry *OVL_E(struct dentry *dentry)
-{
-	return (struct ovl_entry *) dentry->d_fsdata;
-}
-
+/* private information held for every overlayfs dentry */
 static inline unsigned long *OVL_E_FLAGS(struct dentry *dentry)
 {
-	return &OVL_E(dentry)->flags;
+	return (unsigned long *) &dentry->d_fsdata;
 }
 
 struct ovl_inode {
@@ -148,6 +137,7 @@ struct ovl_inode {
 	struct inode vfs_inode;
 	struct dentry *__upperdentry;
 	struct ovl_path lowerpath;
+	struct ovl_entry *oe;
 
 	/* synchronize copy up and more */
 	struct mutex lock;
@@ -156,6 +146,16 @@ struct ovl_inode {
 static inline struct ovl_inode *OVL_I(struct inode *inode)
 {
 	return container_of(inode, struct ovl_inode, vfs_inode);
+}
+
+static inline struct ovl_entry *OVL_I_E(struct inode *inode)
+{
+	return inode ? OVL_I(inode)->oe : NULL;
+}
+
+static inline struct ovl_entry *OVL_E(struct dentry *dentry)
+{
+	return OVL_I_E(d_inode(dentry));
 }
 
 static inline struct dentry *ovl_upperdentry_dereference(struct ovl_inode *oi)
