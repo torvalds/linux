@@ -92,7 +92,7 @@ static void __init mpc85xx_rdb_setup_arch(void)
 #endif
 #endif	/* CONFIG_QUICC_ENGINE */
 
-	printk(KERN_INFO "MPC85xx RDB board from Freescale Semiconductor\n");
+	pr_info("MPC85xx RDB board from Freescale Semiconductor\n");
 }
 
 machine_arch_initcall(p2020_rdb, mpc85xx_common_publish_devices);

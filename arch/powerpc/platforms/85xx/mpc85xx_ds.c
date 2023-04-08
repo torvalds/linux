@@ -76,13 +76,13 @@ void __init mpc85xx_ds_pic_init(void)
 	}
 
 	if (cascade_node == NULL) {
-		printk(KERN_DEBUG "Could not find i8259 PIC\n");
+		pr_debug("Could not find i8259 PIC\n");
 		return;
 	}
 
 	cascade_irq = irq_of_parse_and_map(cascade_node, 0);
 	if (!cascade_irq) {
-		printk(KERN_ERR "Failed to map cascade interrupt\n");
+		pr_err("Failed to map cascade interrupt\n");
 		return;
 	}
 
@@ -108,7 +108,7 @@ static void __init mpc85xx_ds_setup_arch(void)
 	uli_init();
 	mpc85xx_smp_init();
 
-	printk("MPC85xx DS board from Freescale Semiconductor\n");
+	pr_info("MPC85xx DS board from Freescale Semiconductor\n");
 }
 
 machine_arch_initcall(mpc8544_ds, mpc85xx_common_publish_devices);
