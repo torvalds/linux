@@ -77,6 +77,7 @@ static struct palmas_gpadc_info palmas_gpadc_info[] = {
 };
 
 struct palmas_adc_event {
+	bool enabled;
 	int channel;
 	int raw_thresh;
 	enum iio_event_direction direction;
@@ -119,8 +120,6 @@ struct palmas_gpadc {
 	struct completion		conv_completion;
 	struct palmas_adc_event		event0;
 	struct palmas_adc_event		event1;
-	bool				event0_enable;
-	bool				event1_enable;
 	int				auto_conversion_period;
 	struct mutex			lock;
 };
@@ -617,7 +616,7 @@ static int palmas_adc_configure_events(struct palmas_gpadc *adc)
 	}
 
 	conv = 0;
-	if (adc->event0_enable) {
+	if (adc->event0.enabled) {
 		struct palmas_adc_event *ev = &adc->event0;
 		int polarity;
 
@@ -653,7 +652,7 @@ static int palmas_adc_configure_events(struct palmas_gpadc *adc)
 		}
 	}
 
-	if (adc->event1_enable) {
+	if (adc->event1.enabled) {
 		struct palmas_adc_event *ev = &adc->event1;
 		int polarity;
 
@@ -728,7 +727,7 @@ static int palmas_gpadc_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct palmas_gpadc *adc = iio_priv(indio_dev);
-	int wakeup = adc->event0_enable || adc->event1_enable;
+	int wakeup = adc->event0.enabled || adc->event1.enabled;
 	int ret;
 
 	if (!device_may_wakeup(dev) || !wakeup)
@@ -738,10 +737,10 @@ static int palmas_gpadc_suspend(struct device *dev)
 	if (ret < 0)
 		return ret;
 
-	if (adc->event0_enable)
+	if (adc->event0.enabled)
 		enable_irq_wake(adc->irq_auto_0);
 
-	if (adc->event1_enable)
+	if (adc->event1.enabled)
 		enable_irq_wake(adc->irq_auto_1);
 
 	return 0;
@@ -751,7 +750,7 @@ static int palmas_gpadc_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct palmas_gpadc *adc = iio_priv(indio_dev);
-	int wakeup = adc->event0_enable || adc->event1_enable;
+	int wakeup = adc->event0.enabled || adc->event1.enabled;
 	int ret;
 
 	if (!device_may_wakeup(dev) || !wakeup)
@@ -761,10 +760,10 @@ static int palmas_gpadc_resume(struct device *dev)
 	if (ret < 0)
 		return ret;
 
-	if (adc->event0_enable)
+	if (adc->event0.enabled)
 		disable_irq_wake(adc->irq_auto_0);
 
-	if (adc->event1_enable)
+	if (adc->event1.enabled)
 		disable_irq_wake(adc->irq_auto_1);
 
 	return 0;
