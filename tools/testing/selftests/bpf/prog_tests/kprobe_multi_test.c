@@ -381,8 +381,10 @@ static int get_syms(char ***symsp, size_t *cntp, bool kernel)
 			continue;
 
 		err = hashmap__add(map, name, 0);
-		if (err == -EEXIST)
+		if (err == -EEXIST) {
+			err = 0;
 			continue;
+		}
 		if (err)
 			goto error;
 
