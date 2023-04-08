@@ -3279,7 +3279,7 @@ add_ptr_to_bulk_krc_lock(struct kfree_rcu_cpu **krcp,
 			// scenarios.
 			bnode = (struct kvfree_rcu_bulk_data *)
 				__get_free_page(GFP_KERNEL | __GFP_NORETRY | __GFP_NOMEMALLOC | __GFP_NOWARN);
-			*krcp = krc_this_cpu_lock(flags);
+			raw_spin_lock_irqsave(&(*krcp)->lock, *flags);
 		}
 
 		if (!bnode)
