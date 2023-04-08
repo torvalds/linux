@@ -34,7 +34,7 @@
  */
 
 
-#define TASKSTATS_VERSION	13
+#define TASKSTATS_VERSION	14
 #define TS_COMM_LEN		32	/* should be >= TASK_COMM_LEN
 					 * in linux/sched.h */
 
@@ -198,6 +198,10 @@ struct taskstats {
 	/* v13: Delay waiting for write-protect copy */
 	__u64    wpcopy_count;
 	__u64    wpcopy_delay_total;
+
+	/* v14: Delay waiting for IRQ/SOFTIRQ */
+	__u64    irq_count;
+	__u64    irq_delay_total;
 };
 
 
