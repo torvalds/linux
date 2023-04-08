@@ -1,15 +1,16 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Broadcom Dongle Host Driver (DHD), Linux monitor network interface
  *
- * Copyright (C) 1999-2019, Broadcom Corporation
- * 
+ * Portions of this code are copyright (c) 2022 Cypress Semiconductor Corporation
+ *
+ * Copyright (C) 1999-2017, Broadcom Corporation
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -17,7 +18,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
+ *
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -25,7 +26,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: wl_linux_mon.c 514727 2014-11-12 03:02:48Z $
+ * $Id: wl_linux_mon.c 576195 2015-08-01 18:21:54Z $
  */
 
 #include <osl.h>
@@ -51,7 +52,7 @@ typedef enum monitor_states
 	MONITOR_STATE_INTERFACE_ADDED = 0x2,
 	MONITOR_STATE_INTERFACE_DELETED = 0x4
 } monitor_states_t;
-int dhd_add_monitor(char *name, struct net_device **new_ndev);
+int dhd_add_monitor(const char *name, struct net_device **new_ndev);
 extern int dhd_start_xmit(struct sk_buff *skb, struct net_device *net);
 int dhd_del_monitor(struct net_device *ndev);
 int dhd_monitor_init(void *dhd_pub);
@@ -62,7 +63,7 @@ int dhd_monitor_uninit(void);
  */
 #ifndef DHD_MAX_IFS
 #define DHD_MAX_IFS 16
-#endif
+#endif // endif
 #define MON_PRINT(format, ...) printk("DHD-MON: %s " format, __func__, ##__VA_ARGS__)
 #define MON_TRACE MON_PRINT
 
@@ -81,7 +82,7 @@ typedef struct dhd_linux_monitor {
 
 static dhd_linux_monitor_t g_monitor;
 
-static struct net_device* lookup_real_netdev(char *name);
+static struct net_device* lookup_real_netdev(const char *name);
 static monitor_interface* ndev_to_monif(struct net_device *ndev);
 static int dhd_mon_if_open(struct net_device *ndev);
 static int dhd_mon_if_stop(struct net_device *ndev);
@@ -97,7 +98,7 @@ static const struct net_device_ops dhd_mon_if_ops = {
 	.ndo_set_rx_mode = dhd_mon_if_set_multicast_list,
 #else
 	.ndo_set_multicast_list = dhd_mon_if_set_multicast_list,
-#endif
+#endif // endif
 	.ndo_set_mac_address 	= dhd_mon_if_change_mac,
 };
 
@@ -108,7 +109,7 @@ static const struct net_device_ops dhd_mon_if_ops = {
 /* Look up dhd's net device table to find a match (e.g. interface "eth0" is a match for "mon.eth0"
  * "p2p-eth0-0" is a match for "mon.p2p-eth0-0")
  */
-static struct net_device* lookup_real_netdev(char *name)
+static struct net_device* lookup_real_netdev(const char *name)
 {
 	struct net_device *ndev_found = NULL;
 
@@ -281,7 +282,7 @@ static int dhd_mon_if_change_mac(struct net_device *ndev, void *addr)
  * Global function definitions (declared in dhd_linux_mon.h)
  */
 
-int dhd_add_monitor(char *name, struct net_device **new_ndev)
+int dhd_add_monitor(const char *name, struct net_device **new_ndev)
 {
 	int i;
 	int idx = -1;

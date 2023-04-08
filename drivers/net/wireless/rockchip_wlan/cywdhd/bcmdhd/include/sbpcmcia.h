@@ -1,15 +1,16 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * BCM43XX Sonics SiliconBackplane PCMCIA core hardware definitions.
  *
- * Copyright (C) 1999-2019, Broadcom Corporation
- * 
+ * Portions of this code are copyright (c) 2022 Cypress Semiconductor Corporation
+ *
+ * Copyright (C) 1999-2017, Broadcom Corporation
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -17,7 +18,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
+ *
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -25,7 +26,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: sbpcmcia.h 521344 2014-12-17 10:03:55Z $
+ * $Id: sbpcmcia.h 647676 2016-07-07 02:59:05Z $
  */
 
 #ifndef	_SBPCMCIA_H
@@ -61,12 +62,10 @@
 #define	COR_BLREN		0x01
 #define	COR_FUNEN		0x01
 
-
 #define	PCICIA_FCSR		(2 / 2)
 #define	PCICIA_PRR		(4 / 2)
 #define	PCICIA_SCR		(6 / 2)
 #define	PCICIA_ESR		(8 / 2)
-
 
 #define PCM_MEMOFF		0x0000
 #define F0_MEMOFF		0x1000
@@ -106,6 +105,34 @@
 #define	SRI_BLANK		0x04
 #define	SRI_OTP			0x80
 
+#define SROM16K_BANK_SEL_MASK		(3 << 11)
+#define SROM16K_BANK_SHFT_MASK		11
+#define SROM16K_ADDR_SEL_MASK	((1 << SROM16K_BANK_SHFT_MASK) - 1)
+#define SROM_PRSNT_MASK		0x1
+#define SROM_SUPPORT_SHIFT_MASK 30
+#define SROM_SUPPORTED	(0x1 << SROM_SUPPORT_SHIFT_MASK)
+#define SROM_SIZE_MASK    0x00000006
+#define SROM_SIZE_2K	2
+#define SROM_SIZE_512	1
+#define SROM_SIZE_128	0
+#define SROM_SIZE_SHFT_MASK  1
+
+/* Standard tuples we know about */
+
+#define CISTPL_NULL		0x00
+#define	CISTPL_END		0xff		/* End of the CIS tuple chain */
+#define CISTPL_OFFSET           0xC0
+
+#define	CISTPL_BRCM_HNBU	0x80
+
+#define HNBU_BOARDREV		0x02	/* One byte board revision */
+
+#define HNBU_BOARDTYPE		0x1b	/* 2 bytes; boardtype */
+
+#define HNBU_HNBUCIS		0x1d	/* what follows is proprietary HNBU CIS format */
+
+#define HNBU_CUSTOM1		0x82	/* 4 byte; For non-BRCM post-mfg additions */
+#define HNBU_CUSTOM2		0x83	/* Reserved; For non-BRCM post-mfg additions */
 
 /* sbtmstatelow */
 #define SBTML_INT_ACK		0x40000		/* ack the sb interrupt */
@@ -113,5 +140,4 @@
 
 /* sbtmstatehigh */
 #define SBTMH_INT_STATUS	0x40000		/* sb interrupt status */
-
 #endif	/* _SBPCMCIA_H */

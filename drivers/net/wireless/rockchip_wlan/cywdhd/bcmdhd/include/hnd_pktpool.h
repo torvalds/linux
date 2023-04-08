@@ -1,15 +1,16 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * HND generic packet pool operation primitives
  *
- * Copyright (C) 1999-2019, Broadcom Corporation
- * 
+ * Portions of this code are copyright (c) 2022 Cypress Semiconductor Corporation
+ *
+ * Copyright (C) 1999-2017, Broadcom Corporation
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -17,7 +18,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
+ *
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -25,7 +26,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: $
+ * $Id: hnd_pktpool.h 633941 2016-04-26 07:04:26Z $
  */
 
 #ifndef _hnd_pktpool_h_
@@ -35,14 +36,14 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif
+#endif // endif
 
 /* mutex macros for thread safe */
 #ifdef HND_PKTPOOL_THREAD_SAFE
 #define HND_PKTPOOL_MUTEX_DECL(mutex)		OSL_EXT_MUTEX_DECL(mutex)
 #else
 #define HND_PKTPOOL_MUTEX_DECL(mutex)
-#endif
+#endif // endif
 
 #ifdef BCMPKTPOOL
 #define POOL_ENAB(pool)		((pool) && (pool)->inited)
@@ -56,6 +57,10 @@ extern "C" {
 #define PKTPOOL_CB_MAX		3
 #define PKTPOOL_CB_MAX_AVL	4
 
+/* REMOVE_RXCPLID is an arg for pktpool callback function for removing rxcplID
+ * and host addr associated with the rxfrag or shared pool buffer during pktpool_reclaim().
+ */
+#define REMOVE_RXCPLID            2
 
 /* forward declaration */
 struct pktpool;
@@ -64,15 +69,15 @@ typedef void (*pktpool_cb_t)(struct pktpool *pool, void *arg);
 typedef struct {
 	pktpool_cb_t cb;
 	void *arg;
+	uint8 refcnt;
 } pktpool_cbinfo_t;
 
 /** PCIe SPLITRX related: call back fn extension to populate host address in pool pkt */
-typedef int (*pktpool_cb_extn_t)(struct pktpool *pool, void *arg1, void* pkt, bool arg2);
+typedef int (*pktpool_cb_extn_t)(struct pktpool *pool, void *arg1, void* pkt, int arg2);
 typedef struct {
 	pktpool_cb_extn_t cb;
 	void *arg;
 } pktpool_cbextn_info_t;
-
 
 #ifdef BCMDBG_POOL
 /* pkt pool debug states */
@@ -111,9 +116,9 @@ typedef struct pktpool {
 
 	void * freelist;        /**< free list: see PKTNEXTFREE(), PKTSETNEXTFREE() */
 	uint16 avail;           /**< number of packets in pool's free list */
-	uint16 len;             /**< number of packets managed by pool */
+	uint16 n_pkts;             /**< number of packets managed by pool */
 	uint16 maxlen;          /**< maximum size of pool <= PKTPOOL_LEN_MAX */
-	uint16 plen;            /**< size of pkt buffer, excluding lbuf|lbuf_frag */
+	uint16 max_pkt_bytes;   /**< size of pkt buffer in [bytes], excluding lbuf|lbuf_frag */
 
 	bool empty;
 	uint8 cbtoggle;
@@ -130,10 +135,9 @@ typedef struct pktpool {
 	pktpool_cbinfo_t dbg_cbs[PKTPOOL_CB_MAX];
 	uint16 dbg_qlen;
 	pktpool_dbg_t dbg_q[PKTPOOL_LEN_MAX + 1];
-#endif
+#endif // endif
 	pktpool_cbinfo_t dmarxfill;
 } pktpool_t;
-
 
 pktpool_t *get_pktpools_registry(int id);
 
@@ -141,18 +145,22 @@ pktpool_t *get_pktpools_registry(int id);
 extern int pktpool_attach(osl_t *osh, uint32 total_pools);
 extern int pktpool_dettach(osl_t *osh); /* Relinquish registry */
 
-extern int pktpool_init(osl_t *osh, pktpool_t *pktp, int *pktplen, int plen, bool istx, uint8 type);
+extern int pktpool_init(osl_t *osh, pktpool_t *pktp, int *n_pkts, int max_pkt_bytes, bool istx,
+	uint8 type);
 extern int pktpool_deinit(osl_t *osh, pktpool_t *pktp);
 extern int pktpool_fill(osl_t *osh, pktpool_t *pktp, bool minimal);
+extern int pktpool_empty(osl_t *osh, pktpool_t *pktp);
+extern uint16 pktpool_reclaim(osl_t *osh, pktpool_t *pktp, uint16 free_cnt);
 extern void* pktpool_get(pktpool_t *pktp);
 extern void pktpool_free(pktpool_t *pktp, void *p);
 extern int pktpool_add(pktpool_t *pktp, void *p);
 extern int pktpool_avail_notify_normal(osl_t *osh, pktpool_t *pktp);
 extern int pktpool_avail_notify_exclusive(osl_t *osh, pktpool_t *pktp, pktpool_cb_t cb);
 extern int pktpool_avail_register(pktpool_t *pktp, pktpool_cb_t cb, void *arg);
+extern int pktpool_avail_deregister(pktpool_t *pktp, pktpool_cb_t cb, void *arg);
 extern int pktpool_empty_register(pktpool_t *pktp, pktpool_cb_t cb, void *arg);
-extern int pktpool_setmaxlen(pktpool_t *pktp, uint16 maxlen);
-extern int pktpool_setmaxlen_strict(osl_t *osh, pktpool_t *pktp, uint16 maxlen);
+extern int pktpool_setmaxlen(pktpool_t *pktp, uint16 max_pkts);
+extern int pktpool_setmaxlen_strict(osl_t *osh, pktpool_t *pktp, uint16 max_pkts);
 extern void pktpool_emptycb_disable(pktpool_t *pktp, bool disable);
 extern bool pktpool_emptycb_disabled(pktpool_t *pktp);
 extern int pktpool_hostaddr_fill_register(pktpool_t *pktp, pktpool_cb_extn_t cb, void *arg1);
@@ -165,11 +173,10 @@ extern int pkpool_haddr_avail_register_cb(pktpool_t *pktp, pktpool_cb_t cb, void
 
 #define POOLSETID(pp, ppid) (POOLPTR(pp)->id = (ppid))
 
-#define pktpool_len(pp)     (POOLPTR(pp)->len)
+#define pktpool_tot_pkts(pp)  (POOLPTR(pp)->n_pkts)   /**< n_pkts = avail + in_use <= max_pkts */
 #define pktpool_avail(pp)   (POOLPTR(pp)->avail)
-#define pktpool_plen(pp)    (POOLPTR(pp)->plen)
-#define pktpool_maxlen(pp)  (POOLPTR(pp)->maxlen)
-
+#define pktpool_max_pkt_bytes(pp)    (POOLPTR(pp)->max_pkt_bytes)
+#define pktpool_max_pkts(pp)  (POOLPTR(pp)->maxlen)
 
 /*
  * ----------------------------------------------------------------------------
@@ -206,21 +213,33 @@ extern pktpool_t *pktpool_shared;
 #ifdef BCMFRAGPOOL
 #define SHARED_FRAG_POOL	(pktpool_shared_lfrag)
 extern pktpool_t *pktpool_shared_lfrag;
-#endif
+#endif // endif
+
+#ifdef BCMRESVFRAGPOOL
+#define RESV_FRAG_POOL		(pktpool_resv_lfrag)
+#define RESV_POOL_INFO		(resv_pool_info)
+#else
+#define RESV_FRAG_POOL		((struct pktpool *)NULL)
+#define RESV_POOL_INFO		(NULL)
+#endif /* BCMRESVFRAGPOOL */
 
 /** PCIe SPLITRX related */
 #define SHARED_RXFRAG_POOL	(pktpool_shared_rxlfrag)
 extern pktpool_t *pktpool_shared_rxlfrag;
 
-void hnd_pktpool_init(osl_t *osh);
-void hnd_pktpool_fill(pktpool_t *pktpool, bool minimal);
+int hnd_pktpool_init(osl_t *osh);
+int hnd_pktpool_fill(pktpool_t *pktpool, bool minimal);
 void hnd_pktpool_refill(bool minimal);
+#ifdef BCMRESVFRAGPOOL
+extern pktpool_t *pktpool_resv_lfrag;
+extern struct resv_info *resv_pool_info;
+#endif /* BCMRESVFRAGPOOL */
 #else /* BCMPKTPOOL */
 #define SHARED_POOL		((struct pktpool *)NULL)
 #endif /* BCMPKTPOOL */
 
 #ifdef __cplusplus
 	}
-#endif
+#endif // endif
 
 #endif /* _hnd_pktpool_h_ */

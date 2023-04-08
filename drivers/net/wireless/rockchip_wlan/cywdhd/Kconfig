@@ -15,11 +15,3 @@ config CYW_BCMDHD
 
 	  If you choose to build a module, it'll be called dhd. Say M if
 	  unsure.
-
-if CYW_BCMDHD
-config SDIO_CIS_CYW43438
-	bool "Cypress 43438 for keepalive"
-config SDIO_CIS_CYW43012
-	bool "Cypress 43012 for keepalive"
-endif
-

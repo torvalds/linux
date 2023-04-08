@@ -1,16 +1,17 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * SDIO spec header file
  * Protocol and standard (common) device definitions
  *
- * Copyright (C) 1999-2019, Broadcom Corporation
- * 
+ * Portions of this code are copyright (c) 2022 Cypress Semiconductor Corporation
+ *
+ * Copyright (C) 1999-2017, Broadcom Corporation
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -18,7 +19,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
+ *
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -26,7 +27,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: sdio.h 514727 2014-11-12 03:02:48Z $
+ * $Id: sdio.h 689948 2017-03-14 05:21:03Z $
  */
 
 #ifndef	_SDIO_H
@@ -89,11 +90,18 @@ typedef volatile struct {
 #define SDIOD_CCCR_INTR_EXTN		0x16
 
 /* Broadcom extensions (corerev >= 1) */
-#define SDIOD_CCCR_BRCM_CARDCAP		0xf0
+#define SDIOD_CCCR_BRCM_CARDCAP					0xf0
 #define SDIOD_CCCR_BRCM_CARDCAP_CMD14_SUPPORT	0x02
-#define SDIOD_CCCR_BRCM_CARDCAP_CMD14_EXT	0x04
-#define SDIOD_CCCR_BRCM_CARDCAP_CMD_NODEC	0x08
-#define SDIOD_CCCR_BRCM_CARDCTL			0xf1
+#define SDIOD_CCCR_BRCM_CARDCAP_CMD14_EXT		0x04
+#define SDIOD_CCCR_BRCM_CARDCAP_CMD_NODEC		0x08
+#define SDIOD_CCCR_BRCM_CARDCAP_CHIPID_PRESENT	0x40
+#define	SDIOD_CCCR_BRCM_CARDCAP_SECURE_MODE		0x80
+
+#define SDIOD_CCCR_BRCM_CARDCTL				0xf1
+#define SDIOD_CCCR_BRCM_CISLOADED			0x1
+#define SDIOD_CCCR_BRCM_WLANRST_ONF0ABORT	0x2
+#define SDIOD_CCCR_BRCM_SDIORST_ONWLANRST	0x20
+
 #define SDIOD_CCCR_BRCM_SEPINT			0xf2
 
 /* cccr_sdio_rev */
@@ -107,6 +115,10 @@ typedef volatile struct {
 /* io_en */
 #define SDIO_FUNC_ENABLE_1	0x02	/* function 1 I/O enable */
 #define SDIO_FUNC_ENABLE_2	0x04	/* function 2 I/O enable */
+#if defined(BT_OVER_SDIO)
+#define SDIO_FUNC_ENABLE_3	0x08	/* function 2 I/O enable */
+#define SDIO_FUNC_DISABLE_3	0xF0	/* function 2 I/O enable */
+#endif /* defined (BT_OVER_SDIO) */
 
 /* io_rdys */
 #define SDIO_FUNC_READY_1	0x02	/* function 1 I/O ready */
@@ -116,7 +128,9 @@ typedef volatile struct {
 #define INTR_CTL_MASTER_EN	0x1	/* interrupt enable master */
 #define INTR_CTL_FUNC1_EN	0x2	/* interrupt enable for function 1 */
 #define INTR_CTL_FUNC2_EN	0x4	/* interrupt enable for function 2 */
-
+#if defined(BT_OVER_SDIO)
+#define INTR_CTL_FUNC3_EN	0x8	/* interrupt enable for function 3 */
+#endif /* defined (BT_OVER_SDIO) */
 /* intr_status */
 #define INTR_STATUS_FUNC1	0x2	/* interrupt pending for function 1 */
 #define INTR_STATUS_FUNC2	0x4	/* interrupt pending for function 2 */
@@ -280,8 +294,6 @@ typedef volatile struct {
 #define CARDREG_STATUS_BIT_IOCURRENTSTATE0	9
 #define CARDREG_STATUS_BIT_FUN_NUM_ERROR	4
 
-
-
 #define SD_CMD_GO_IDLE_STATE		0	/* mandatory for SDIO */
 #define SD_CMD_SEND_OPCOND		1
 #define SD_CMD_MMC_SET_RCA		3
@@ -374,7 +386,6 @@ typedef volatile struct {
 
 #define SD_RSP_R5_ERRBITS		0xCB
 
-
 /* ------------------------------------------------
  *  SDIO Commands and responses
  *
@@ -445,7 +456,6 @@ typedef volatile struct {
 #define CMD52_FUNCTION_S	28
 #define CMD52_RW_FLAG_M		BITFIELD_MASK(1)  /* Bit  31       - R/W flag */
 #define CMD52_RW_FLAG_S		31
-
 
 #define CMD53_BYTE_BLK_CNT_M	BITFIELD_MASK(9) /* Bits [8:0]     - Byte/Block Count of CMD53 */
 #define CMD53_BYTE_BLK_CNT_S	0
@@ -537,7 +547,6 @@ typedef volatile struct {
 #define RSP1_OUT_OF_RANGE_M	BITFIELD_MASK(1)  /* Bit 31   - Cmd arg was out of range */
 #define RSP1_OUT_OF_RANGE_S	31
 
-
 #define RSP5_DATA_M		BITFIELD_MASK(8)  /* Bits [0:7]   - data */
 #define RSP5_DATA_S		0
 #define RSP5_FLAGS_M		BITFIELD_MASK(8)  /* Bit  [15:8]  - Rsp flags */
@@ -621,6 +630,56 @@ typedef volatile struct {
 /* command issue options */
 #define CMD_OPTION_DEFAULT	0
 #define CMD_OPTION_TUNING	1
+
+/* SDIO message exchange registers */
+#define SDIO_FN1_MSG_H2D_REG0	0x10030
+#define SDIO_FN1_MSG_H2D_REG1	0x10034
+#define SDIO_FN1_MSG_D2H_REG0	0x10038
+#define SDIO_FN1_MSG_D2H_REG1	0x1003c
+
+#define CFG_WRITE_BYTE_MASK	0xff
+
+#define HS_POLL_PERIOD_MS 10
+#define D2H_READY_WD_RESET_MS 1		/* 1ms */
+#ifdef BCMQT
+#define D2H_READY_TIMEOUT_MS (1000 * 60 * 3) /* 3 Mins >~ FW download time */
+#define D2H_VALDN_DONE_TIMEOUT_MS (1000 * 60 * 5) /* 5 Mins >~ Validation time */
+#define D2H_TRX_HDR_PARSE_DONE_TIMEOUT_MS (1000 * 60 * 1) /* 1 Mins >~ TRX Parsing */
+#define D2H_READY_WD_RESET_COUNT (84 * 1000) /* ~84secs >~ BL ready time after wd rst */
+#define D2H_READY_WD_RESET_DBG_PRINT_MS (1000) /* 1000ms - DEBUG print at every 1000ms */
+#else
+#define D2H_READY_TIMEOUT_MS (100) /* 100ms >~ FW download time */
+#define D2H_VALDN_DONE_TIMEOUT_MS (250) /* 250ms >~ Validation time */
+#define D2H_TRX_HDR_PARSE_DONE_TIMEOUT_MS (50) /* 50ms >~ TRX Parsing */
+#define D2H_READY_WD_RESET_COUNT (200) /* ~200ms >~ BL ready time after wd rst */
+#define D2H_READY_WD_RESET_DBG_PRINT_MS (10) /* 10ms - DEBUG print at evry 10ms */
+#endif // endif
+
+typedef struct bl_hs_address {
+	volatile void *d2h;
+	volatile void *h2d;
+} hs_addrs_t;
+
+/* [D2H] Dongle to host handshake bits shift */
+enum {
+	D2H_START_SHIFT			= 0,
+	D2H_READY_SHIFT			= 1,
+	D2H_STEADY_SHIFT		= 2,
+	D2H_TRX_HDR_PARSE_DONE_SHIFT	= 3,
+	D2H_VALDN_START_SHIFT		= 4,
+	D2H_VALDN_RESULT_SHIFT		= 5,
+	D2H_VALDN_DONE_SHIFT		= 6
+	/* Bits 31:7 reserved for future */
+};
+
+/* [H2D] Host to dongle handshake bits shift */
+enum {
+	H2D_DL_START_SHIFT		= 0,
+	H2D_DL_DONE_SHIFT		= 1,
+	H2D_DL_NVRAM_DONE_SHIFT		= 2,
+	H2D_BL_RESET_ON_ERROR_SHIFT	= 3
+	/* Bits 31:4 reserved for future */
+};
 
 #endif /* def BCMSDIO */
 #endif /* _SDIO_H */

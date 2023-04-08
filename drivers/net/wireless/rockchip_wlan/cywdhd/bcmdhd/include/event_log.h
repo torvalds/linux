@@ -1,15 +1,16 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * EVENT_LOG system definitions
  *
- * Copyright (C) 1999-2019, Broadcom Corporation
- * 
+ * Portions of this code are copyright (c) 2022 Cypress Semiconductor Corporation
+ *
+ * Copyright (C) 1999-2017, Broadcom Corporation
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -17,7 +18,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
+ *
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -25,15 +26,17 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: event_log.h 241182 2011-02-17 21:50:03Z $
+ * $Id: event_log.h 692339 2017-03-27 17:04:27Z $
  */
 
 #ifndef _EVENT_LOG_H_
 #define _EVENT_LOG_H_
 
 #include <typedefs.h>
-#include <proto/event_log_set.h>
-#include <proto/event_log_tag.h>
+#include <event_log_set.h>
+#include <event_log_tag.h>
+#include <event_log_payload.h>
+#include <osl_decl.h>
 
 /* logstrs header */
 #define LOGSTRS_MAGIC   0x4C4F4753
@@ -42,11 +45,17 @@
 /* We make sure that the block size will fit in a single packet
  *  (allowing for a bit of overhead on each packet
  */
+#if defined(BCMPCIEDEV)
+#define EVENT_LOG_MAX_BLOCK_SIZE	1648
+#else
 #define EVENT_LOG_MAX_BLOCK_SIZE	1400
+#endif // endif
 #define EVENT_LOG_WL_BLOCK_SIZE		0x200
 #define EVENT_LOG_PSM_BLOCK_SIZE	0x200
 #define EVENT_LOG_BUS_BLOCK_SIZE	0x200
 #define EVENT_LOG_ERROR_BLOCK_SIZE	0x200
+/* Maximum event log record payload size = 1016 bytes or 254 words. */
+#define EVENT_LOG_MAX_RECORD_PAYLOAD_SIZE	254
 
 /*
  * There are multiple levels of objects define here:
@@ -91,9 +100,19 @@ typedef struct event_log_block {
 	/* Start of packet sent for log tracing */
 	uint16 pktlen;			/* Size of rest of block */
 	uint16 count;			/* Logtrace counter */
-	uint32 timestamp;		/* Timestamp at start of use */
+	uint32 extra_hdr_info;		/* LSB: 6 bits set id. MSB 24 bits reserved */
 	uint32 event_logs;
 } event_log_block_t;
+#define EVENT_LOG_BLOCK_HDRLEN		8 /* pktlen 2 + count 2 + extra_hdr_info 4 */
+
+#define EVENT_LOG_BLOCK_LEN 12
+
+typedef enum {
+	SET_DESTINATION_INVALID = -1,
+	SET_DESTINATION_HOST = 0,
+	SET_DESTINATION_NONE = 1,
+	SET_DESTINATION_MAX
+} event_log_set_destination_t;
 
 /* There can be multiple event_sets with each logging a set of
  * associated events (i.e, "fast" and "slow" events).
@@ -109,7 +128,12 @@ typedef struct event_log_set {
 	uint16 blockfill_count;		/* Fill count for logtrace */
 	uint32 timestamp;		/* Last timestamp event */
 	uint32 cyclecount;		/* Cycles at last timestamp event */
+	event_log_set_destination_t destination;
+	uint16 size;			/* same size for all buffers in one  set */
 } event_log_set_t;
+
+/* logstr_hdr_flags */
+#define LOGSTRS_ENCRYPTED 0x1
 
 /* Top data structure for access to everything else */
 typedef struct event_log_top {
@@ -121,10 +145,29 @@ typedef struct event_log_top {
 	uint32 logstrs_size;		/* Size of lognums + logstrs area */
 	uint32 timestamp;		/* Last timestamp event */
 	uint32 cyclecount;		/* Cycles at last timestamp event */
-	_EL_SET_PTR sets; 		/* Ptr to array of <num_sets> set ptrs */
+	_EL_SET_PTR sets;		/* Ptr to array of <num_sets> set ptrs */
 } event_log_top_t;
 
+/* structure of the trailing 3 words in logstrs.bin */
+typedef struct {
+	uint32 fw_id;		/* FWID will be written by tool later */
+	uint32 flags;		/* 0th bit indicates whether encrypted or not */
+	/* Keep version and magic last since "header" is appended to the end of logstrs file. */
+	uint32 version;		/* Header version */
+	uint32 log_magic;	/* MAGIC number for verification 'LOGS' */
+} logstr_trailer_t;
+
 /* Data structure of Keeping the Header from logstrs.bin */
+typedef struct {
+	uint32 logstrs_size;    /* Size of the file */
+	uint32 rom_lognums_offset; /* Offset to the ROM lognum */
+	uint32 ram_lognums_offset; /* Offset to the RAM lognum */
+	uint32 rom_logstrs_offset; /* Offset to the ROM logstr */
+	uint32 ram_logstrs_offset; /* Offset to the RAM logstr */
+	logstr_trailer_t trailer;
+} logstr_header_t;
+
+/* Ver 1 Header from logstrs.bin */
 typedef struct {
 	uint32 logstrs_size;    /* Size of the file */
 	uint32 rom_lognums_offset; /* Offset to the ROM lognum */
@@ -134,7 +177,7 @@ typedef struct {
 	/* Keep version and magic last since "header" is appended to the end of logstrs file. */
 	uint32 version;            /* Header version */
 	uint32 log_magic;       /* MAGIC number for verification 'LOGS' */
-} logstr_header_t;
+} logstr_header_v1_t;
 
 /*
  * Use the following macros for generating log events.
@@ -166,7 +209,7 @@ typedef struct {
  *
  */
 
-#ifndef EVENT_LOG_DUMPER
+#if !defined(EVENT_LOG_DUMPER)
 
 #ifndef EVENT_LOG_COMPILE
 
@@ -183,7 +226,10 @@ typedef struct {
 #define EVENT_LOG_FAST_CAST_PAREN_ARGS(tag, pargs)
 #define EVENT_LOG_COMPACT_CAST_PAREN_ARGS(tag, pargs)
 
+#define EVENT_LOG_IS_ON(tag)		0
 #define EVENT_LOG_IS_LOG_ON(tag)	0
+
+#define EVENT_LOG_BUFFER(tag, buf, size)
 
 #else  /* EVENT_LOG_COMPILE */
 
@@ -214,7 +260,6 @@ typedef struct {
 #define _EVENT_LOGD(tag, fmt_num, ...) event_logn(13, tag, fmt_num, __VA_ARGS__)
 #define _EVENT_LOGE(tag, fmt_num, ...) event_logn(14, tag, fmt_num, __VA_ARGS__)
 #define _EVENT_LOGF(tag, fmt_num, ...) event_logn(15, tag, fmt_num, __VA_ARGS__)
-
 
 /* Casting  low level macros */
 #define _EVENT_LOG_CAST0(tag, fmt_num)			\
@@ -264,12 +309,11 @@ typedef struct {
 			       7, 6, 5, 4, 3, 2, 1, 0)			\
 	(tag, (int) &fmtnum , ## __VA_ARGS__)
 
-
 #define EVENT_LOG_FAST(tag, fmt, ...)					\
 	do {								\
 		if (event_log_tag_sets != NULL) {			\
 			uint8 tag_flag = *(event_log_tag_sets + tag);	\
-			if (tag_flag != 0) {				\
+			if ((tag_flag & ~EVENT_LOG_TAG_FLAG_SET_MASK) != 0) {		\
 				_EVENT_LOG(_EVENT_LOG, tag, fmt , ## __VA_ARGS__);	\
 			}						\
 		}							\
@@ -285,7 +329,7 @@ typedef struct {
 	do {								\
 		if (event_log_tag_sets != NULL) {			\
 			uint8 tag_flag = *(event_log_tag_sets + tag);	\
-			if (tag_flag != 0) {				\
+			if ((tag_flag & ~EVENT_LOG_TAG_FLAG_SET_MASK) != 0) {		\
 				_EVENT_LOG(_EVENT_LOG_CAST, tag, fmt , ## __VA_ARGS__);	\
 			}						\
 		}							\
@@ -295,7 +339,6 @@ typedef struct {
 	do {								\
 		_EVENT_LOG(_EVENT_LOG_CAST, tag, fmt , ## __VA_ARGS__);	\
 	} while (0)
-
 
 #define EVENT_LOG(tag, fmt, ...) EVENT_LOG_COMPACT(tag, fmt , ## __VA_ARGS__)
 
@@ -313,23 +356,44 @@ typedef struct {
 #define EVENT_LOG_COMPACT_CAST_PAREN_ARGS(tag, pargs)			\
 		EVENT_LOG_COMPACT_CAST(tag, EVENT_LOG_REMOVE_PAREN(pargs))
 
+/* Minimal event logging. Event log internally calls event_logx()
+ * log return address in caller.
+ * Note that the if(0){..} below is to avoid compiler warnings
+ * due to unused variables caused by this macro
+ */
+#define EVENT_LOG_RA(tag, args)						\
+	do {								\
+		if (0) {						\
+			EVENT_LOG_COMPACT_CAST_PAREN_ARGS(tag, args);	\
+		}							\
+		event_log_caller_return_address(tag);			\
+	} while (0)
 
+#define EVENT_LOG_IS_ON(tag) (*(event_log_tag_sets + (tag)) & ~EVENT_LOG_TAG_FLAG_SET_MASK)
 #define EVENT_LOG_IS_LOG_ON(tag) (*(event_log_tag_sets + (tag)) & EVENT_LOG_TAG_FLAG_LOG)
 
+#define EVENT_LOG_BUFFER(tag, buf, size)	event_log_buffer(tag, buf, size)
 #define EVENT_DUMP	event_log_buffer
 
 extern uint8 *event_log_tag_sets;
 
-#include <siutils.h>
+extern int event_log_init(osl_t *osh);
+extern int event_log_set_init(osl_t *osh, int set_num, int size);
+extern int event_log_set_expand(osl_t *osh, int set_num, int size);
+extern int event_log_set_shrink(osl_t *osh, int set_num, int size);
 
-extern int event_log_init(si_t *sih);
-extern int event_log_set_init(si_t *sih, int set_num, int size);
-extern int event_log_set_expand(si_t *sih, int set_num, int size);
-extern int event_log_set_shrink(si_t *sih, int set_num, int size);
 extern int event_log_tag_start(int tag, int set_num, int flags);
+extern int event_log_tag_set_retrieve(int tag);
 extern int event_log_tag_stop(int tag);
+
+typedef void (*event_log_logtrace_trigger_fn_t)(void *ctx);
+void event_log_set_logtrace_trigger_fn(event_log_logtrace_trigger_fn_t fn, void *ctx);
+
+event_log_top_t *event_log_get_top(void);
+
 extern int event_log_get(int set_num, int buflen, void *buf);
-extern uint8 * event_log_next_logtrace(int set_num);
+
+extern uint8 *event_log_next_logtrace(int set_num);
 
 extern void event_log0(int tag, int fmtNum);
 extern void event_log1(int tag, int fmtNum, uint32 t1);
@@ -340,6 +404,16 @@ extern void event_logn(int num_args, int tag, int fmtNum, ...);
 
 extern void event_log_time_sync(uint32 ms);
 extern void event_log_buffer(int tag, uint8 *buf, int size);
+extern void event_log_caller_return_address(int tag);
+extern int event_log_set_destination_set(int set, event_log_set_destination_t dest);
+extern event_log_set_destination_t event_log_set_destination_get(int set);
+extern int event_log_flush_log_buffer(int set);
+extern uint16 event_log_get_available_space(int set);
+extern bool event_log_is_set_configured(int set_num);
+extern bool event_log_is_tag_valid(int tag);
+/* returns number of blocks available for writing */
+extern int event_log_free_blocks_get(int set);
+extern bool event_log_is_ready(void);
 
 #endif /* EVENT_LOG_DUMPER */
 
@@ -347,4 +421,4 @@ extern void event_log_buffer(int tag, uint8 *buf, int size);
 
 #endif /* __ASSEMBLER__ */
 
-#endif /* _EVENT_LOG_H */
+#endif /* _EVENT_LOG_H_ */

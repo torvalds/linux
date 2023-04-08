@@ -1,18 +1,19 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * SDIO device core hardware definitions.
  * sdio is a portion of the pcmcia core in core rev 3 - rev 8
  *
  * SDIO core support 1bit, 4 bit SDIO mode as well as SPI mode.
  *
- * Copyright (C) 1999-2019, Broadcom Corporation
- * 
+ * Portions of this code are copyright (c) 2022 Cypress Semiconductor Corporation
+ *
+ * Copyright (C) 1999-2017, Broadcom Corporation
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -20,7 +21,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
+ *
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -28,7 +29,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: sbsdio.h 514727 2014-11-12 03:02:48Z $
+ * $Id: sbsdio.h 665717 2016-10-18 23:29:25Z $
  */
 
 #ifndef	_SBSDIO_H
@@ -90,11 +91,6 @@
 #define SROM_BLANK			0x04		/* depreciated in corerev 6 */
 #define	SROM_OTP			0x80		/* OTP present */
 
-/* SBSDIO_CHIP_CTRL */
-#define SBSDIO_CHIP_CTRL_XTAL		0x01		/* or'd with onchip xtal_pu,
-							 * 1: power on oscillator
-							 * (for 4318 only)
-							 */
 /* SBSDIO_WATERMARK */
 #define SBSDIO_WATERMARK_MASK		0x7f		/* number of words - 1 for sd device
 							 * to wait before sending data to host
@@ -121,9 +117,9 @@
 							 * external pads in tri-state; requires
 							 * sdio bus power cycle to clear (rev 9)
 							 */
-#define SBSDIO_DEVCTL_EN_F2_BLK_WATERMARK 0x10  /* Enable function 2 tx for each block */
 #define SBSDIO_DEVCTL_F2WM_ENAB		0x10		/* Enable F2 Watermark */
 #define SBSDIO_DEVCTL_NONDAT_PADS_ISO 	0x20		/* Isolate sdio clk and cmd (non-data) */
+#define SBSDIO_DEVCTL_ADDR_RESET	0x40		/* Reset SB Address to default value */
 
 /* SBSDIO_FUNC1_CHIPCLKCSR */
 #define SBSDIO_FORCE_ALP		0x01		/* Force ALP request to backplane */
@@ -167,7 +163,11 @@
 
 /* direct(mapped) cis space */
 #define SBSDIO_CIS_BASE_COMMON		0x1000		/* MAPPED common CIS address */
+#ifdef BCMSPI
+#define SBSDIO_CIS_SIZE_LIMIT		0x100		/* maximum bytes in one spi CIS */
+#else
 #define SBSDIO_CIS_SIZE_LIMIT		0x200		/* maximum bytes in one CIS */
+#endif /* !BCMSPI */
 #define SBSDIO_OTP_CIS_SIZE_LIMIT       0x078           /* maximum bytes OTP CIS */
 
 #define SBSDIO_CIS_OFT_ADDR_MASK	0x1FFFF		/* cis offset addr is < 17 bits */

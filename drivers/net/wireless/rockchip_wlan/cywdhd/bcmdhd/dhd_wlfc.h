@@ -1,13 +1,14 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 1999-2019, Broadcom Corporation
- * 
+ * Portions of this code are copyright (c) 2022 Cypress Semiconductor Corporation
+ *
+ * Copyright (C) 1999-2017, Broadcom Corporation
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -15,7 +16,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
+ *
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -23,12 +24,11 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_wlfc.h 606400 2015-12-15 09:59:42Z $
+ * $Id: dhd_wlfc.h 690477 2017-03-16 10:17:17Z $
  *
  */
 #ifndef __wlfc_host_driver_definitions_h__
 #define __wlfc_host_driver_definitions_h__
-
 
 /* #define OOO_DEBUG */
 
@@ -85,7 +85,7 @@ typedef struct wlfc_hanger_item {
 	void*	pkt;
 #ifdef PROP_TXSTATUS_DEBUG
 	uint32	push_time;
-#endif
+#endif // endif
 	struct wlfc_hanger_item *next;
 } wlfc_hanger_item_t;
 
@@ -110,22 +110,17 @@ typedef struct wlfc_hanger {
 #define WLFC_PSQ_PREC_COUNT		((AC_COUNT + 1) * 2) /**< 2 for each AC traffic and bc/mc */
 #define WLFC_AFQ_PREC_COUNT		(AC_COUNT + 1)
 
-#define WLFC_PSQ_LEN			2048
+#define WLFC_PSQ_LEN			(4096 * 8)
 
-#ifdef BCMDBUS
-#define WLFC_FLOWCONTROL_HIWATER	512
-#define WLFC_FLOWCONTROL_LOWATER	(WLFC_FLOWCONTROL_HIWATER / 4)
-#else
-#define WLFC_FLOWCONTROL_HIWATER	(2048 - 256)
+#define WLFC_FLOWCONTROL_HIWATER	((4096 * 8) - 256)
 #define WLFC_FLOWCONTROL_LOWATER	256
-#endif
 
 #if (WLFC_FLOWCONTROL_HIWATER >= (WLFC_PSQ_LEN - 256))
 #undef WLFC_FLOWCONTROL_HIWATER
 #define WLFC_FLOWCONTROL_HIWATER	(WLFC_PSQ_LEN - 256)
 #undef WLFC_FLOWCONTROL_LOWATER
 #define WLFC_FLOWCONTROL_LOWATER	(WLFC_FLOWCONTROL_HIWATER / 4)
-#endif
+#endif // endif
 
 #define WLFC_LOG_BUF_SIZE		(1024*1024)
 
@@ -162,13 +157,12 @@ typedef struct wlfc_mac_descriptor {
 	/** flag. TRUE when remote MAC is in suppressed state */
 	uint8 suppressed;
 
-
 #ifdef PROP_TXSTATUS_DEBUG
 	uint32 dstncredit_sent_packets;
 	uint32 dstncredit_acks;
 	uint32 opened_ct;
 	uint32 closed_ct;
-#endif
+#endif // endif
 	struct wlfc_mac_descriptor* prev;
 	struct wlfc_mac_descriptor* next;
 } wlfc_mac_descriptor_t;
@@ -207,6 +201,8 @@ typedef struct athost_wl_stat_counters {
 	uint32	d11_suppress;
 	uint32	wl_suppress;
 	uint32	bad_suppress;
+	uint32	pkt_dropped;
+	uint32	pkt_exptime;
 	uint32	pkt_freed;
 	uint32	pkt_free_err;
 	uint32	psq_wlsup_retx;
@@ -235,7 +231,7 @@ typedef struct athost_wl_stat_counters {
 	uint32	dropped_qfull[6];
 	uint32	signal_only_pkts_sent;
 	uint32	signal_only_pkts_freed;
-#endif
+#endif // endif
 	uint32	cleanup_txq_cnt;
 	uint32	cleanup_psq_cnt;
 	uint32	cleanup_fw_cnt;
@@ -252,8 +248,8 @@ typedef struct athost_wl_stat_counters {
 #define WLFC_HOST_FIFO_CREDIT_INC_SENTCTRS(ctx, ac) do {} while (0)
 #define WLFC_HOST_FIFO_CREDIT_INC_BACKCTRS(ctx, ac) do {} while (0)
 #define WLFC_HOST_FIFO_DROPPEDCTR_INC(ctx, ac) do {} while (0)
-#endif
-
+#endif // endif
+#define WLFC_PACKET_BOUND              10
 #define WLFC_FCMODE_NONE				0
 #define WLFC_FCMODE_IMPLIED_CREDIT		1
 #define WLFC_FCMODE_EXPLICIT_CREDIT		2
@@ -379,7 +375,7 @@ typedef struct dhd_pkttag {
 	/** This 32-bit goes from host to device for every packet. */
 	uint32	htod_tag;
 
-	/** This 16-bit is original seq number for every suppress packet. */
+	/** This 16-bit is original d11seq number for every suppressed packet. */
 	uint16	htod_seq;
 
 	/** This address is mac entry for every packet. */
@@ -510,7 +506,7 @@ typedef struct dhd_pkttag {
 #else
 #define DHD_WLFC_CTRINC_MAC_CLOSE(entry)	do {} while (0)
 #define DHD_WLFC_CTRINC_MAC_OPEN(entry)		do {} while (0)
-#endif
+#endif // endif
 
 #ifdef BCM_OBJECT_TRACE
 #define DHD_PKTTAG_SET_SN(tag, val)		((dhd_pkttag_t*)(tag))->sn = (val)

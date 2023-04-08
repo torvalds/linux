@@ -1,15 +1,16 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Linux cfg80211 driver - Android related functions
  *
- * Copyright (C) 1999-2019, Broadcom Corporation
- * 
+ * Portions of this code are copyright (c) 2022 Cypress Semiconductor Corporation
+ *
+ * Copyright (C) 1999-2017, Broadcom Corporation
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -17,7 +18,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
+ *
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -25,7 +26,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: wl_android.h 587146 2015-09-18 03:50:09Z $
+ * $Id: wl_android.h 794110 2018-12-12 05:03:21Z $
  */
 
 #include <linux/module.h>
@@ -35,25 +36,19 @@
 /* If any feature uses the Generic Netlink Interface, put it here to enable WL_GENL
  * automatically
  */
-#if defined(BT_WIFI_HANDOVER) || defined(WL_NAN)
+#if defined(BT_WIFI_HANDOVER)
 #define WL_GENL
-#endif
+#endif // endif
 
-
+#ifdef WL_GENL
+#include <net/genetlink.h>
+#endif // endif
 
 typedef struct _android_wifi_priv_cmd {
     char *buf;
     int used_len;
     int total_len;
 } android_wifi_priv_cmd;
-
-#ifdef CONFIG_COMPAT
-typedef struct _compat_android_wifi_priv_cmd {
-    compat_caddr_t buf;
-    int used_len;
-    int total_len;
-} compat_android_wifi_priv_cmd;
-#endif /* CONFIG_COMPAT */
 
 /**
  * Android platform dependent functions, feel free to add Android specific functions here
@@ -70,10 +65,53 @@ int wl_android_exit(void);
 void wl_android_post_init(void);
 int wl_android_wifi_on(struct net_device *dev);
 int wl_android_wifi_off(struct net_device *dev, bool on_failure);
-int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd);
+int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr);
 int wl_handle_private_cmd(struct net_device *net, char *command, u32 cmd_len);
 
-s32 wl_netlink_send_msg(int pid, int type, int seq, void *data, size_t size);
+#ifdef WL_GENL
+typedef struct bcm_event_hdr {
+	u16 event_type;
+	u16 len;
+} bcm_event_hdr_t;
+
+/* attributes (variables): the index in this enum is used as a reference for the type,
+ *             userspace application has to indicate the corresponding type
+ *             the policy is used for security considerations
+ */
+enum {
+	BCM_GENL_ATTR_UNSPEC,
+	BCM_GENL_ATTR_STRING,
+	BCM_GENL_ATTR_MSG,
+	__BCM_GENL_ATTR_MAX
+};
+#define BCM_GENL_ATTR_MAX (__BCM_GENL_ATTR_MAX - 1)
+
+/* commands: enumeration of all commands (functions),
+ * used by userspace application to identify command to be ececuted
+ */
+enum {
+	BCM_GENL_CMD_UNSPEC,
+	BCM_GENL_CMD_MSG,
+	__BCM_GENL_CMD_MAX
+};
+#define BCM_GENL_CMD_MAX (__BCM_GENL_CMD_MAX - 1)
+
+/* Enum values used by the BCM supplicant to identify the events */
+enum {
+	BCM_E_UNSPEC,
+	BCM_E_SVC_FOUND,
+	BCM_E_DEV_FOUND,
+	BCM_E_DEV_LOST,
+#ifdef BT_WIFI_HANDOVER
+	BCM_E_DEV_BT_WIFI_HO_REQ,
+#endif // endif
+	BCM_E_MAX
+};
+
+s32 wl_genl_send_msg(struct net_device *ndev, u32 event_type,
+	const u8 *string, u16 len, u8 *hdr, u16 hdrlen);
+#endif /* WL_GENL */
+s32 wl_netlink_send_msg(int pid, int type, int seq, const void *data, size_t size);
 
 /* hostap mac mode */
 #define MACLIST_MODE_DISABLED   0
@@ -93,3 +131,30 @@ s32 wl_netlink_send_msg(int pid, int type, int seq, void *data, size_t size);
 #define MAX_NUM_MAC_FILT        10
 
 int wl_android_set_ap_mac_list(struct net_device *dev, int macmode, struct maclist *maclist);
+#ifdef WL_BCNRECV
+extern int wl_android_bcnrecv_config(struct net_device *ndev, char *data,
+		int total_len);
+extern int wl_android_bcnrecv_stop(struct net_device *ndev, uint reason);
+extern int wl_android_bcnrecv_resume(struct net_device *ndev);
+extern int wl_android_bcnrecv_suspend(struct net_device *ndev);
+extern int wl_android_bcnrecv_event(struct net_device *ndev,
+		uint attr_type, uint status, uint reason, uint8 *data, uint data_len);
+#endif /* WL_BCNRECV */
+#ifdef WL_CAC_TS
+#define TSPEC_UPLINK_DIRECTION (0 << 5)	/* uplink direction traffic stream */
+#define TSPEC_DOWNLINK_DIRECTION (1 << 5)	/* downlink direction traffic stream */
+#define TSPEC_BI_DIRECTION (3 << 5)	/* bi direction traffic stream */
+#define TSPEC_EDCA_ACCESS (1 << 7)	/* EDCA access policy */
+#define TSPEC_UAPSD_PSB (1 << 2)		/* U-APSD power saving behavior */
+#define TSPEC_TSINFO_TID_SHIFT 1		/* TID Shift */
+#define TSPEC_TSINFO_PRIO_SHIFT 3		/* PRIO Shift */
+#define TSPEC_MAX_ACCESS_CATEGORY 3
+#define TSPEC_MAX_USER_PRIO	7
+#define TSPEC_MAX_DIALOG_TOKEN	255
+#define TSPEC_MAX_SURPLUS_BW 12410
+#define TSPEC_MIN_SURPLUS_BW 11210
+#define TSPEC_MAX_MSDU_SIZE 1520
+#define TSPEC_DEF_MEAN_DATA_RATE 120000
+#define TSPEC_DEF_MIN_PHY_RATE 6000000
+#define TSPEC_DEF_DIALOG_TOKEN 7
+#endif /* WL_CAC_TS */

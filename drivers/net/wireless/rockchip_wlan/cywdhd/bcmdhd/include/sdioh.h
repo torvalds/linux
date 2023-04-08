@@ -1,16 +1,17 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * SDIO Host Controller Spec header file
  * Register map and definitions for the Standard Host Controller
  *
- * Copyright (C) 1999-2019, Broadcom Corporation
- * 
+ * Portions of this code are copyright (c) 2022 Cypress Semiconductor Corporation
+ *
+ * Copyright (C) 1999-2017, Broadcom Corporation
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -18,7 +19,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
+ *
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -97,7 +98,6 @@
 #define SD3_Tuning_Info_Register 0x0EC
 #define SD3_WL_BT_reset_register 0x0F0
 
-
 /* preset value indices */
 #define SD3_PRESETVAL_INITIAL_IX	0
 #define SD3_PRESETVAL_DESPEED_IX	1
@@ -141,7 +141,6 @@
 
 #define SDIO_OCR_READ_FAIL	(2)
 
-
 #define CAP_ASYNCINT_SUP_M	BITFIELD_MASK(1)
 #define CAP_ASYNCINT_SUP_S	29
 
@@ -183,6 +182,10 @@
 
 #define CAP3_RETUNING_MODES_M	BITFIELD_MASK(2)
 #define CAP3_RETUNING_MODES_S	(46 - CAP3_MSBits_OFFSET)
+
+#define CAP3_RETUNING_TC_DISABLED	(0x0)
+#define CAP3_RETUNING_TC_1024S		(0xB)
+#define CAP3_RETUNING_TC_OTHER		(0xF)
 
 #define CAP3_CLK_MULT_M		BITFIELD_MASK(8)
 #define CAP3_CLK_MULT_S		(48 - CAP3_MSBits_OFFSET)

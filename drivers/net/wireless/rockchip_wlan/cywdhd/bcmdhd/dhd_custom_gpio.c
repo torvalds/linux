@@ -1,15 +1,16 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Customer code to add GPIO control during WLAN start/stop
  *
- * Copyright (C) 1999-2019, Broadcom Corporation
- * 
+ * Portions of this code are copyright (c) 2022 Cypress Semiconductor Corporation
+ *
+ * Copyright (C) 1999-2017, Broadcom Corporation
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -17,7 +18,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
+ *
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -25,7 +26,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_custom_gpio.c 586390 2015-09-15 10:34:19Z $
+ * $Id: dhd_custom_gpio.c 691191 2017-03-21 07:09:04Z $
  */
 
 #include <typedefs.h>
@@ -39,25 +40,16 @@
 #include <wlioctl.h>
 #if defined(WL_WIRELESS_EXT)
 #include <wl_iw.h>
-#endif
+#endif // endif
 
 #define WL_ERROR(x) printf x
 #define WL_TRACE(x)
 
-#if defined(CUSTOMER_HW2)
-
-
-#endif 
-
-#if defined(OOB_INTR_ONLY)
+#if defined(OOB_INTR_ONLY) || defined(BCMSPI_ANDROID)
 
 #if defined(BCMLXSDMMC)
 extern int sdioh_mmc_irq(int irq);
 #endif /* (BCMLXSDMMC)  */
-
-#if defined(CUSTOMER_HW3)
-#include <mach/gpio.h>
-#endif
 
 /* Customer specific Host GPIO defintion  */
 static int dhd_oob_gpio_num = -1;
@@ -80,7 +72,7 @@ int dhd_customer_oob_irq_map(void *adapter, unsigned long *irq_flags_ptr)
 {
 	int  host_oob_irq = 0;
 
-#if defined(CUSTOMER_HW2)
+#if defined(CUSTOMER_HW2) || defined(BOARD_HIKEY)
 	host_oob_irq = wifi_platform_get_irq_number(adapter, irq_flags_ptr);
 
 #else
@@ -99,16 +91,11 @@ int dhd_customer_oob_irq_map(void *adapter, unsigned long *irq_flags_ptr)
 	WL_ERROR(("%s: customer specific Host GPIO number is (%d)\n",
 	         __FUNCTION__, dhd_oob_gpio_num));
 
-#if defined CUSTOMER_HW3
-	gpio_request(dhd_oob_gpio_num, "oob irq");
-	host_oob_irq = gpio_to_irq(dhd_oob_gpio_num);
-	gpio_direction_input(dhd_oob_gpio_num);
-#endif 
-#endif 
+#endif // endif
 
 	return (host_oob_irq);
 }
-#endif 
+#endif /* defined(OOB_INTR_ONLY) || defined(BCMSPI_ANDROID) */
 
 /* Customer function to control hw specific wlan gpios */
 int
@@ -131,9 +118,10 @@ dhd_custom_get_mac_address(void *adapter, unsigned char *buf)
 		return -EINVAL;
 
 	/* Customer access to MAC address stored outside of DHD driver */
-#if defined(CUSTOMER_HW2) && (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35))
+#if (defined(CUSTOMER_HW2) || defined(BOARD_HIKEY)) && (LINUX_VERSION_CODE >= \
+	KERNEL_VERSION(2, 6, 35))
 	ret = wifi_platform_get_mac_addr(adapter, buf);
-#endif
+#endif // endif
 
 #ifdef EXAMPLE_GET_MAC
 	/* EXAMPLE code */
@@ -146,14 +134,6 @@ dhd_custom_get_mac_address(void *adapter, unsigned char *buf)
 	return ret;
 }
 #endif /* GET_CUSTOM_MAC_ENABLE */
-
-#if !defined(WL_WIRELESS_EXT)
-struct cntry_locales_custom {
-	char iso_abbrev[WLC_CNTRY_BUF_SZ];	/* ISO 3166-1 country abbreviation */
-	char custom_locale[WLC_CNTRY_BUF_SZ];	/* Custom firmware locale */
-	int32 custom_locale_rev;		/* Custom local revisin default -1 */
-};
-#endif /* WL_WIRELESS_EXT */
 
 /* Customized Locale table : OPTIONAL feature */
 const struct cntry_locales_custom translate_custom_table[] = {
@@ -202,10 +182,10 @@ const struct cntry_locales_custom translate_custom_table[] = {
 	{"TR", "TR", 0},
 	{"NO", "NO", 0},
 #endif /* EXMAPLE_TABLE */
-#if defined(CUSTOMER_HW2)
+#if (defined(CUSTOMER_HW2) || defined(BOARD_HIKEY))
 #if defined(BCM4335_CHIP)
 	{"",   "XZ", 11},  /* Universal if Country code is unknown or empty */
-#endif
+#endif // endif
 	{"AE", "AE", 1},
 	{"AR", "AR", 1},
 	{"AT", "AT", 1},
@@ -259,13 +239,8 @@ const struct cntry_locales_custom translate_custom_table[] = {
 	{"PS", "XZ", 11},	/* Universal if Country code is PALESTINIAN TERRITORY, OCCUPIED */
 	{"TL", "XZ", 11},	/* Universal if Country code is TIMOR-LESTE (EAST TIMOR) */
 	{"MH", "XZ", 11},	/* Universal if Country code is MARSHALL ISLANDS */
-#ifdef BCM4330_CHIP
-	{"RU", "RU", 1},
-	{"US", "US", 5}
-#endif
-#endif 
+#endif // endif
 };
-
 
 /* Customized Locale convertor
 *  input : ISO 3166-1 country abbreviation
@@ -273,23 +248,25 @@ const struct cntry_locales_custom translate_custom_table[] = {
 */
 #ifdef CUSTOM_COUNTRY_CODE
 void get_customized_country_code(void *adapter, char *country_iso_code,
-  wl_country_t *cspec, u32 flags)
+	wl_country_t *cspec, u32 flags)
 #else
 void get_customized_country_code(void *adapter, char *country_iso_code, wl_country_t *cspec)
 #endif /* CUSTOM_COUNTRY_CODE */
 {
-#if defined(CUSTOMER_HW2) && (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39))
+#if defined(OEM_ANDROID)
+#if (defined(CUSTOMER_HW2) || defined(BOARD_HIKEY)) && (LINUX_VERSION_CODE >= \
+	KERNEL_VERSION(2, 6, 39))
 
 	struct cntry_locales_custom *cloc_ptr;
 
 	if (!cspec)
 		return;
 #ifdef CUSTOM_COUNTRY_CODE
-	cloc_ptr = wifi_platform_get_country_code(adapter, country_iso_code,
-	           flags);
+	cloc_ptr = wifi_platform_get_country_code(adapter, country_iso_code, flags);
 #else
 	cloc_ptr = wifi_platform_get_country_code(adapter, country_iso_code);
 #endif /* CUSTOM_COUNTRY_CODE */
+
 	if (cloc_ptr) {
 		strlcpy(cspec->ccode, cloc_ptr->custom_locale, WLC_CNTRY_BUF_SZ);
 		cspec->rev = cloc_ptr->custom_locale_rev;
@@ -320,5 +297,8 @@ void get_customized_country_code(void *adapter, char *country_iso_code, wl_count
 	cspec->rev = translate_custom_table[0].custom_locale_rev;
 #endif /* EXMAPLE_TABLE */
 	return;
-#endif /* defined(CUSTOMER_HW2) && (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 36)) */
+#endif	/* (defined(CUSTOMER_HW2) || defined(BOARD_HIKEY)) &&
+	* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 36))
+	*/
+#endif /* OEM_ANDROID */
 }

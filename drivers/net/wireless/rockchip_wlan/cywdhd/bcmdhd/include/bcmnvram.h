@@ -1,15 +1,16 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * NVRAM variable manipulation
  *
- * Copyright (C) 1999-2019, Broadcom Corporation
- * 
+ * Portions of this code are copyright (c) 2022 Cypress Semiconductor Corporation
+ *
+ * Copyright (C) 1999-2017, Broadcom Corporation
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -17,7 +18,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
+ *
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -25,7 +26,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcmnvram.h 514727 2014-11-12 03:02:48Z $
+ * $Id: bcmnvram.h 655606 2016-08-22 17:16:11Z $
  */
 
 #ifndef _bcmnvram_h_
@@ -71,6 +72,7 @@ extern void nvram_restore_var(char *prefix, char *name);
 extern int nvram_init(void *sih);
 extern int nvram_deinit(void *sih);
 
+extern int nvram_file_read(char **nvramp, int *nvraml);
 
 /*
  * Append a chunk of nvram variables to the global list
@@ -78,7 +80,6 @@ extern int nvram_deinit(void *sih);
 extern int nvram_append(void *si, char *vars, uint varsz);
 
 extern void nvram_get_global_vars(char **varlst, uint *varsz);
-
 
 /*
  * Check for reset button press for restoring factory defaults.
@@ -137,6 +138,15 @@ static INLINE int
 nvram_match(const char *name, const char *match)
 {
 	const char *value = nvram_get(name);
+
+	/* In nvramstubs.c builds, nvram_get() is defined as returning zero,
+	* so the return line below never executes the strcmp(),
+	* resulting in 'match' being an unused parameter.
+	* Make a ref to 'match' to quiet the compiler warning.
+	*/
+
+	BCM_REFERENCE(match);
+
 	return (value && !strcmp(value, match));
 }
 
@@ -152,6 +162,7 @@ static INLINE int
 nvram_match_bitflag(const char *name, const int bit, const char *match)
 {
 	const char *value = nvram_get_bitflag(name, bit);
+	BCM_REFERENCE(match);
 	return (value && !strcmp(value, match));
 }
 
@@ -166,6 +177,15 @@ static INLINE int
 nvram_invmatch(const char *name, const char *invmatch)
 {
 	const char *value = nvram_get(name);
+
+	/* In nvramstubs.c builds, nvram_get() is defined as returning zero,
+	* so the return line below never executes the strcmp(),
+	* resulting in 'invmatch' being an unused parameter.
+	* Make a ref to 'invmatch' to quiet the compiler warning.
+	*/
+
+	BCM_REFERENCE(invmatch);
+
 	return (value && strcmp(value, invmatch));
 }
 
@@ -247,7 +267,7 @@ extern int nvram_space;
 /* For CFE builds this gets passed in thru the makefile */
 #ifndef MAX_NVRAM_SPACE
 #define MAX_NVRAM_SPACE		0x10000
-#endif
+#endif // endif
 #define DEF_NVRAM_SPACE		0x8000
 #define ROM_ENVRAM_SPACE	0x1000
 #define NVRAM_LZMA_MAGIC	0x4c5a4d41	/* 'LZMA' */
@@ -265,7 +285,6 @@ extern int nvram_space;
 #define BCM_JUMBO_NVRAM_DELIMIT '\n'
 #define BCM_JUMBO_START "Broadcom Jumbo Nvram file"
 
-
 #if (defined(FAILSAFE_UPGRADE) || defined(CONFIG_FAILSAFE_UPGRADE) || \
 	defined(__CONFIG_FAILSAFE_UPGRADE_SUPPORT__))
 #define IMAGE_SIZE "image_size"
@@ -281,7 +300,7 @@ extern int nvram_space;
 #define IMAGE_SECOND_OFFSET "image_second_offset"
 #define LINUX_FIRST "linux"
 #define LINUX_SECOND "linux2"
-#endif
+#endif // endif
 
 #if (defined(DUAL_IMAGE) || defined(CONFIG_DUAL_IMAGE) || \
 	defined(__CONFIG_DUAL_IMAGE_FLASH_SUPPORT__))

@@ -1,16 +1,17 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Broadcom SiliconBackplane SDIO/PCMCIA hardware-specific
  * device core support
  *
- * Copyright (C) 1999-2019, Broadcom Corporation
- * 
+ * Portions of this code are copyright (c) 2022 Cypress Semiconductor Corporation
+ *
+ * Copyright (C) 1999-2017, Broadcom Corporation
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -18,7 +19,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
+ *
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -26,7 +27,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: sbsdpcmdev.h 514727 2014-11-12 03:02:48Z $
+ * $Id: sbsdpcmdev.h 616398 2016-02-01 09:37:52Z $
  */
 
 #ifndef	_sbsdpcmdev_h_
@@ -39,7 +40,6 @@
 #define	PAD		_XSTR(__LINE__)
 #endif	/* PAD */
 
-
 typedef volatile struct {
 	dma64regs_t	xmt;		/* dma tx */
 	uint32 PAD[2];
@@ -51,21 +51,21 @@ typedef volatile struct {
 typedef volatile struct {
 	dma64p_t dma64regs[2];
 	dma64diag_t dmafifo;		/* DMA Diagnostic Regs, 0x280-0x28c */
-	uint32 PAD[92];
+	uint32 PAD[28];
 } sdiodma64_t;
 
 /* dma32 sdiod corerev == 0 */
 typedef volatile struct {
 	dma32regp_t dma32regs[2];	/* dma tx & rx, 0x200-0x23c */
 	dma32diag_t dmafifo;		/* DMA Diagnostic Regs, 0x240-0x24c */
-	uint32 PAD[108];
+	uint32 PAD[44];
 } sdiodma32_t;
 
 /* dma32 regs for pcmcia core */
 typedef volatile struct {
 	dma32regp_t dmaregs;		/* DMA Regs, 0x200-0x21c, rev8 */
 	dma32diag_t dmafifo;		/* DMA Diagnostic Regs, 0x220-0x22c */
-	uint32 PAD[116];
+	uint32 PAD[52];
 } pcmdma32_t;
 
 /* core registers */
@@ -100,7 +100,9 @@ typedef volatile struct {
 
 	/* synchronized access to registers in SDIO clock domain */
 	uint32 sdioaccess;		/* SdioAccess, 0x050, rev8   */
-	uint32 PAD[3];
+	uint32 PAD[1];
+	uint32 MiscHostAccessIntEn;
+	uint32 PAD[1];
 
 	/* PCMCIA frame control */
 	uint8 pcmciaframectrl;		/* pcmciaFrameCtrl, 0x060, rev8   */
@@ -127,7 +129,9 @@ typedef volatile struct {
 	uint32 writeterm;		/* WriteTermCount, 0x13c, rev8, SDIO: wr frm terminates */
 	uint32 PAD[40];
 	uint32 clockctlstatus;		/* ClockCtlStatus, 0x1e0, rev8 */
-	uint32 PAD[7];
+	uint32 PAD[1];
+	uint32 powerctl;		/* 0x1e8 */
+	uint32 PAD[5];
 
 	/* DMA engines */
 	volatile union {
@@ -135,6 +139,11 @@ typedef volatile struct {
 		sdiodma32_t sdiod32;
 		sdiodma64_t sdiod64;
 	} dma;
+
+	uint32 PAD[12];			/* 0x300-0x32c */
+	uint32 chipid;			/* SDIO ChipID Register, 0x330, rev31 */
+	uint32 eromptr;			/* SDIO EromPtrOffset Register, 0x334, rev31 */
+	uint32 PAD[50];
 
 	/* SDIO/PCMCIA CIS region */
 	char cis[512];			/* 512 byte CIS, 0x400-0x5ff, rev6 */
@@ -234,6 +243,7 @@ typedef volatile struct {
 #define SDA_F1_FBR_SPACE	0x100	/* sdioAccess F1 FBR register space */
 #define SDA_F2_FBR_SPACE	0x200	/* sdioAccess F2 FBR register space */
 #define SDA_F1_REG_SPACE	0x300	/* sdioAccess F1 core-specific register space */
+#define SDA_F3_FBR_SPACE	0x400	/* sdioAccess F3 FBR register space */
 
 /* SDA_F1_REG_SPACE sdioaccess-accessible F1 reg space register offsets */
 #define SDA_CHIPCONTROLDATA	0x006	/* ChipControlData */
@@ -250,6 +260,13 @@ typedef volatile struct {
 #define SDA_SDIOWRFRAMEBCHIGH	0x01a	/* SdioWrFrameBCHigh */
 #define SDA_SDIORDFRAMEBCLOW	0x01b	/* SdioRdFrameBCLow */
 #define SDA_SDIORDFRAMEBCHIGH	0x01c	/* SdioRdFrameBCHigh */
+#define SDA_MESBUSYCNTRL	0x01d	/* mesBusyCntrl */
+#define SDA_WAKEUPCTRL		0x01e	/* WakeupCtrl */
+#define SDA_SLEEPCSR		0x01f	/* sleepCSR */
+
+/* SDA_F1_REG_SPACE register bits */
+/* sleepCSR register */
+#define SDA_SLEEPCSR_KEEP_SDIO_ON	0x1
 
 /* SDA_F2WATERMARK */
 #define SDA_F2WATERMARK_MASK	0x7f	/* F2Watermark Mask */

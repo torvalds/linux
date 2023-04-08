@@ -1,15 +1,16 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * SD-SPI Protocol Conversion - BCMSDH->gSPI Translation Layer
  *
- * Copyright (C) 1999-2019, Broadcom Corporation
- * 
+ * Portions of this code are copyright (c) 2022 Cypress Semiconductor Corporation
+ *
+ * Copyright (C) 1999-2017, Broadcom Corporation
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -17,7 +18,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
+ *
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -33,7 +34,7 @@
 #ifndef SPI_MAX_IOFUNCS
 /* Maximum number of I/O funcs */
 #define SPI_MAX_IOFUNCS		4
-#endif
+#endif // endif
 /* global msglevel for debug messages - bitvals come from sdiovar.h */
 
 #if defined(DHD_DEBUG)
@@ -50,7 +51,7 @@
 #define sd_debug(x)
 #define sd_data(x)
 #define sd_ctrl(x)
-#endif
+#endif // endif
 
 #define sd_log(x)
 
@@ -79,8 +80,11 @@
 struct sdioh_info {
 	uint		cfg_bar;		/* pci cfg address for bar */
 	uint32		caps;			/* cached value of capabilities reg */
+#ifndef BCMSPI_ANDROID
 	void		*bar0;			/* BAR0 for PCI Device */
+#endif /* !BCMSPI_ANDROID */
 	osl_t		*osh;			/* osh handler */
+	void		*bcmsdh;		/* handler to upper layer stack (bcmsdh) */
 	void		*controller;	/* Pointer to SPI Controller's private data struct */
 	uint		lockcount;		/* nest count of spi_lock() calls */
 	bool		client_intr_enabled;	/* interrupt connnected flag */
@@ -104,6 +108,7 @@ struct sdioh_info {
 	bool 		sd_blockmode;		/* sd_blockmode == FALSE => 64 Byte Cmd 53s. */
 						/*  Must be on for sd_multiblock to be effective */
 	bool 		use_client_ints;	/* If this is false, make sure to restore */
+	bool		got_hcint;			/* Host Controller interrupt. */
 						/*  polling hack in wl_linux.c:wl_timer() */
 	int 		adapter_slot;		/* Maybe dealing with multiple slots/controllers */
 	int 		sd_mode;		/* SD1/SD4/SPI */

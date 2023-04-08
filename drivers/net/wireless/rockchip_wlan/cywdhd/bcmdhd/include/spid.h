@@ -1,15 +1,16 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * SPI device spec header file
  *
- * Copyright (C) 1999-2019, Broadcom Corporation
- * 
+ * Portions of this code are copyright (c) 2022 Cypress Semiconductor Corporation
+ *
+ * Copyright (C) 1999-2017, Broadcom Corporation
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -17,7 +18,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
+ *
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -100,6 +101,10 @@ typedef volatile struct {
 #define RESET_ON_BT_BP_RESET	0x8	/* enable reset for BT backplane */
 #define RESET_SPI		0x80	/* reset the above enabled logic */
 
+/* Bit mask for card capability */
+#define SPID_CHIPID_PRESENT		0x20	/* duplicate of cardcapability chipid present */
+#define SPID_SECURE_MODE		0x40	/* duplicate of cardcapability secure mode */
+
 /* Bit mask for SPID_INTR_REG device register */
 #define DATA_UNAVAILABLE	0x0001	/* Requested data not available; Clear by writing a "1" */
 #define F2_F3_FIFO_RD_UNDERFLOW	0x0002
@@ -163,7 +168,12 @@ typedef volatile struct {
 #define SPI_FUNC_2		2
 #define SPI_FUNC_3		3
 
-#define WAIT_F2RXFIFORDY	100
-#define WAIT_F2RXFIFORDY_DELAY	20
+#ifdef BCMQT
+#define WAIT_F2RXFIFORDY        200
+#define WAIT_F2RXFIFORDY_DELAY  100
+#else
+#define WAIT_F2RXFIFORDY        100
+#define WAIT_F2RXFIFORDY_DELAY  20
+#endif // endif
 
 #endif /* _SPI_H */

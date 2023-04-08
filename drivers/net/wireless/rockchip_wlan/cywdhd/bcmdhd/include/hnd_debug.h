@@ -1,15 +1,16 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * HND Run Time Environment debug info area
  *
- * Copyright (C) 1999-2019, Broadcom Corporation
- * 
+ * Portions of this code are copyright (c) 2022 Cypress Semiconductor Corporation
+ *
+ * Copyright (C) 1999-2017, Broadcom Corporation
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -17,7 +18,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
+ *
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -25,7 +26,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: hnd_debug.h 561108 2015-06-03 09:20:16Z $
+ * $Id: hnd_debug.h 688714 2017-03-07 12:15:33Z $
  */
 
 #ifndef	_HND_DEBUG_H
@@ -48,7 +49,7 @@
 
 #ifdef FWID
 extern uint32 gFWID;
-#endif
+#endif // endif
 
 /* Define pointers for use on other systems */
 #define _HD_EVLOG_P	uint32
@@ -77,6 +78,9 @@ typedef struct hnd_ramsize_ptr {
 	uint32	ram_size;
 } hnd_ramsize_ptr_t;
 
+#define  HND_DEBUG_EPIVERS_MAX_STR_LEN	32
+#define  HND_DEBUG_BUILD_SIGNATURE_FWID_LEN	17
+#define  HND_DEBUG_BUILD_SIGNATURE_VER_LEN	22
 typedef struct hnd_debug {
 	uint32	magic;
 #define HND_DEBUG_MAGIC 0x47424544	/* 'DEBG' */
@@ -85,7 +89,7 @@ typedef struct hnd_debug {
 #define HND_DEBUG_VERSION 1
 
 	uint32	fwid;			/* 4 bytes of fw info */
-	char	epivers[32];
+	char	epivers[HND_DEBUG_EPIVERS_MAX_STR_LEN];
 
 	_HD_TRAP_P trap_ptr;		/* trap_t data struct */
 	_HD_CONS_P console;		/* Console  */
@@ -97,6 +101,12 @@ typedef struct hnd_debug {
 	uint32	rom_size;
 
 	_HD_EVLOG_P event_log_top;
+
+	/* To populated fields below,
+	 * INCLUDE_BUILD_SIGNATURE_IN_SOCRAM needs to be enabled
+	 */
+	char fwid_signature[HND_DEBUG_BUILD_SIGNATURE_FWID_LEN]; /* fwid=<FWID> */
+	char ver_signature[HND_DEBUG_BUILD_SIGNATURE_VER_LEN]; /* ver=abc.abc.abc.abc */
 
 } hnd_debug_t;
 
@@ -111,7 +121,6 @@ typedef struct             {    /* Time value with microsecond resolution    */
 	uint32 tv_sec;	/* Seconds                                   */
 	uint32 tv_usec;	/* Microseconds                              */
 } timeval_t;
-
 
 /* Linux/ARM 32 prstatus for notes section */
 typedef struct prstatus {
@@ -133,10 +142,6 @@ typedef struct prstatus {
 	  uint32 uregs[18];
 	  int32 pr_fpvalid;	/* True if math copro being used.  */
 } prstatus_t;
-
-#ifdef __GNUC__
-extern hnd_debug_t *get_hnd_debug_info(void);
-#endif /* __GNUC__ */
 
 /* for mkcore and other utilities use */
 #define DUMP_INFO_PTR_PTR_0   0x74

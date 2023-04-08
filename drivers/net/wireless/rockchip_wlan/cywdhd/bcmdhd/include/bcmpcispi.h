@@ -1,15 +1,16 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Broadcom PCI-SPI Host Controller Register Definitions
  *
- * Copyright (C) 1999-2019, Broadcom Corporation
- * 
+ * Portions of this code are copyright (c) 2022 Cypress Semiconductor Corporation
+ *
+ * Copyright (C) 1999-2017, Broadcom Corporation
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -17,7 +18,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
+ *
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -36,7 +37,6 @@
 #define	_XSTR(line)	_PADLINE(line)
 #define	PAD		_XSTR(__LINE__)
 #endif	/* PAD */
-
 
 typedef volatile struct {
 	uint32 spih_ctrl;		/* 0x00 SPI Control Register */
@@ -147,14 +147,12 @@ typedef volatile struct {
 #define PCI_SYS_ERR_INT_EN	(1 << 4)	/* System Error Interrupt Enable */
 #define PCI_SOFTWARE_RESET	(1U << 31)	/* Software reset of the PCI Core. */
 
-
 /* PCI Core ISR Register bit definitions */
 #define PCI_INT_PROP_ST		(1 << 0)	/* Interrupt Propagation Status */
 #define PCI_WB_ERR_INT_ST	(1 << 1)	/* Wishbone Error Interrupt Status */
 #define PCI_PCI_ERR_INT_ST	(1 << 2)	/* PCI Error Interrupt Status */
 #define PCI_PAR_ERR_INT_ST	(1 << 3)	/* Parity Error Interrupt Status */
 #define PCI_SYS_ERR_INT_ST	(1 << 4)	/* System Error Interrupt Status */
-
 
 /* Registers on the Wishbone bus */
 #define SPIH_CTLR_INTR		(1 << 0)	/* SPI Host Controller Core Interrupt */

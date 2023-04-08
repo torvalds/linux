@@ -1,15 +1,16 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Broadcom AMBA Interconnect definitions.
  *
- * Copyright (C) 1999-2019, Broadcom Corporation
- * 
+ * Portions of this code are copyright (c) 2022 Cypress Semiconductor Corporation
+ *
+ * Copyright (C) 1999-2017, Broadcom Corporation
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -17,7 +18,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
+ *
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -25,7 +26,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: aidmp.h 514727 2014-11-12 03:02:48Z $
+ * $Id: aidmp.h 617751 2016-02-08 09:04:22Z $
  */
 
 #ifndef	_AIDMP_H
@@ -114,7 +115,6 @@
 #define	SD_SZ_MASK		0xfffff000
 #define	SD_SG32			0x00000008
 #define	SD_SZ_ALIGN		0x00000fff
-
 
 #if !defined(_LANGUAGE_ASSEMBLY) && !defined(__ASSEMBLY__)
 
@@ -308,7 +308,6 @@ typedef volatile struct _aidmp {
 #define	AI_OOBDINWIDTH		0x364
 #define	AI_OOBDOUTWIDTH		0x368
 
-
 #define	AI_IOCTRLSET		0x400
 #define	AI_IOCTRLCLEAR		0x404
 #define	AI_IOCTRL		0x408
@@ -374,7 +373,22 @@ typedef volatile struct _aidmp {
 #define AIELD_ERRDONE_MASK	0x3
 
 /* errlogstatus */
-#define AIELS_TIMEOUT_MASK	0x3
+#define AIELS_SLAVE_ERR         0x1
+#define AIELS_TIMEOUT           0x2
+#define AIELS_DECODE            0x3
+#define AIELS_TIMEOUT_MASK      0x3
+
+/* errorlog status bit map, for SW use */
+#define AXI_WRAP_STS_NONE		(0)
+#define AXI_WRAP_STS_TIMEOUT		(1<<0)
+#define AXI_WRAP_STS_SLAVE_ERR		(1<<1)
+#define AXI_WRAP_STS_DECODE_ERR		(1<<2)
+#define AXI_WRAP_STS_PCI_RD_ERR		(1<<3)
+#define AXI_WRAP_STS_WRAP_RD_ERR	(1<<4)
+#define AXI_WRAP_STS_SET_CORE_FAIL	(1<<5)
+
+/* errlogFrags */
+#define AXI_ERRLOG_FLAGS_WRITE_REQ	(1<<24)
 
 /* config */
 #define	AICFG_OOB		0x00000020
@@ -399,5 +413,19 @@ typedef volatile struct _aidmp {
 #define AI_OOBSEL_6_SHIFT	16
 #define AI_OOBSEL_7_SHIFT	24
 #define AI_IOCTRL_ENABLE_D11_PME	(1 << 14)
+
+/* bit Specific for AI_OOBSELOUTB30 */
+#define OOB_B_ALP_REQUEST 0
+#define OOB_B_HT_REQUEST 1
+#define OOB_B_ILP_REQUEST 2
+#define OOB_B_ALP_AVAIL_REQUEST 3
+#define OOB_B_HT_AVAIL_REQUEST 4
+
+/* mask for interrupts from each core to wrapper */
+#define AI_OOBSELINA74_CORE_MASK       0x80808080
+#define AI_OOBSELINA30_CORE_MASK       0x80808080
+
+/* axi id mask in the error log id */
+#define AI_ERRLOGID_AXI_ID_MASK 0x07
 
 #endif	/* _AIDMP_H */

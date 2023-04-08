@@ -1,17 +1,18 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Misc utility routines used by kernel or app-level.
  * Contents are wifi-specific, used by any kernel or app-level
  * software that might want wifi things as it grows.
  *
- * Copyright (C) 1999-2019, Broadcom Corporation
- * 
+ * Portions of this code are copyright (c) 2022 Cypress Semiconductor Corporation
+ *
+ * Copyright (C) 1999-2017, Broadcom Corporation
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -19,7 +20,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
+ *
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -27,7 +28,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcm_app_utils.c 599883 2015-11-17 04:55:57Z $
+ * $Id: bcm_app_utils.c 667243 2016-10-26 11:37:48Z $
  */
 
 #include <typedefs.h>
@@ -43,13 +44,13 @@
 #include <ctype.h>
 #ifndef ASSERT
 #define ASSERT(exp)
-#endif
+#endif // endif
 #endif /* BCMDRIVER */
 #include <bcmwifi_channels.h>
 
 #if defined(WIN32) && (defined(BCMDLL) || defined(WLMDLL))
 #include <bcmstdlib.h>	/* For wl/exe/GNUmakefile.brcm_wlu and GNUmakefile.wlm_dll */
-#endif
+#endif // endif
 
 #include <bcmutils.h>
 #include <wlioctl.h>
@@ -120,7 +121,7 @@ spec_to_chan(chanspec_t chspec)
 
 	center_ch = CHSPEC_CHANNEL(chspec);
 
-	if (CHSPEC_IS20(chspec)) {
+	if (CHSPEC_BW_LE20(chspec)) {
 		return center_ch;
 	} else {
 		/* the lower edge of the wide channel is half the bw from
@@ -281,8 +282,8 @@ cca_analyze(cca_congest_channel_req_t *input[], int num_chans, uint flags, chans
 #define NUM_OF_CNT_IN_WL_CNT_VER_11_T	\
 	((sizeof(wl_cnt_ver_11_t) - 2 * sizeof(uint16)) / sizeof(uint32))
 /* Exclude 64 macstat cnt variables. */
-#define NUM_OF_WLCCNT_IN_WL_CNT_VER_11_T		\
-	(NUM_OF_CNT_IN_WL_CNT_VER_11_T - WL_CNT_MCST_VAR_NUM)
+#define NUM_OF_WLCCNT_IN_WL_CNT_VER_11_T	\
+	((sizeof(wl_cnt_wlc_t)) / sizeof(uint32))
 
 /* Index conversion table from wl_cnt_ver_6_t to wl_cnt_wlc_t */
 static const uint8 wlcntver6t_to_wlcntwlct[NUM_OF_WLCCNT_IN_WL_CNT_VER_6_T] = {
@@ -411,6 +412,8 @@ static const uint8 wlcntver6t_to_wlcntwlct[NUM_OF_WLCCNT_IN_WL_CNT_VER_6_T] = {
 	IDX_IN_WL_CNT_VER_6_T(tkipicverr_mcst),
 	IDX_IN_WL_CNT_VER_6_T(wepexcluded_mcst)
 };
+
+#define INVALID_IDX ((uint8)(-1))
 
 /* Index conversion table from wl_cnt_ver_11_t to wl_cnt_wlc_t */
 static const uint8 wlcntver11t_to_wlcntwlct[NUM_OF_WLCCNT_IN_WL_CNT_VER_11_T] = {
@@ -595,7 +598,18 @@ static const uint8 wlcntver11t_to_wlcntwlct[NUM_OF_WLCCNT_IN_WL_CNT_VER_11_T] = 
 	IDX_IN_WL_CNT_VER_11_T(ampdu_wds),
 	IDX_IN_WL_CNT_VER_11_T(txlost),
 	IDX_IN_WL_CNT_VER_11_T(txdatamcast),
-	IDX_IN_WL_CNT_VER_11_T(txdatabcast)
+	IDX_IN_WL_CNT_VER_11_T(txdatabcast),
+	INVALID_IDX,
+	IDX_IN_WL_CNT_VER_11_T(rxback),
+	IDX_IN_WL_CNT_VER_11_T(txback),
+	INVALID_IDX,
+	INVALID_IDX,
+	INVALID_IDX,
+	INVALID_IDX,
+	IDX_IN_WL_CNT_VER_11_T(txbcast),
+	IDX_IN_WL_CNT_VER_11_T(txdropped),
+	IDX_IN_WL_CNT_VER_11_T(rxbcast),
+	IDX_IN_WL_CNT_VER_11_T(rxdropped)
 };
 
 /* Index conversion table from wl_cnt_ver_11_t to
@@ -738,7 +752,6 @@ static const uint8 wlcntver11t_to_wlcntvle10mcstt[WL_CNT_MCST_VAR_NUM] = {
 	IDX_IN_WL_CNT_VER_11_T(bphy_badplcp)
 };
 
-
 /* Index conversion table from wl_cnt_ver_6_t to wl_cnt_v_le10_mcst_t */
 static const uint8 wlcntver6t_to_wlcntvle10mcstt[WL_CNT_MCST_VAR_NUM] = {
 	IDX_IN_WL_CNT_VER_6_T(txallfrm),
@@ -824,7 +837,7 @@ wl_copy_wlccnt(uint16 cntver, uint32 *dst, uint32 *src, uint8 src_max_idx)
 	if (cntver == WL_CNT_VERSION_6) {
 		for (i = 0; i < NUM_OF_WLCCNT_IN_WL_CNT_VER_6_T; i++) {
 			if (wlcntver6t_to_wlcntwlct[i] >= src_max_idx) {
-			/* src buffer does not have counters from here */
+				/* src buffer does not have counters from here */
 				break;
 			}
 			dst[i] = src[wlcntver6t_to_wlcntwlct[i]];
@@ -832,8 +845,13 @@ wl_copy_wlccnt(uint16 cntver, uint32 *dst, uint32 *src, uint8 src_max_idx)
 	} else {
 		for (i = 0; i < NUM_OF_WLCCNT_IN_WL_CNT_VER_11_T; i++) {
 			if (wlcntver11t_to_wlcntwlct[i] >= src_max_idx) {
-			/* src buffer does not have counters from here */
-				break;
+				if (wlcntver11t_to_wlcntwlct[i] == INVALID_IDX) {
+					continue;
+				}
+				else {
+					/* src buffer does not have counters from here */
+					break;
+				}
 			}
 			dst[i] = src[wlcntver11t_to_wlcntwlct[i]];
 		}
@@ -905,7 +923,7 @@ wl_cntbuf_to_xtlv_format(void *ctx, void *cntbuf, int buflen, uint32 corerev)
 	uint16 mcst_xtlv_id;
 	int res = BCME_OK;
 	wl_cnt_info_t *cntinfo = cntbuf;
-	void *xtlvbuf_p = cntinfo->data;
+	uint8 *xtlvbuf_p = cntinfo->data;
 	uint16 ver = cntinfo->version;
 	uint16 xtlvbuflen = (uint16)buflen;
 	uint16 src_max_idx;
@@ -913,7 +931,7 @@ wl_cntbuf_to_xtlv_format(void *ctx, void *cntbuf, int buflen, uint32 corerev)
 	osl_t *osh = ctx;
 #else
 	BCM_REFERENCE(ctx);
-#endif
+#endif // endif
 
 	if (ver >= WL_CNT_VERSION_XTLV) {
 		/* Already in xtlv format. */
@@ -926,7 +944,7 @@ wl_cntbuf_to_xtlv_format(void *ctx, void *cntbuf, int buflen, uint32 corerev)
 #else
 	wlccnt = (wl_cnt_wlc_t *)malloc(sizeof(*wlccnt));
 	macstat = (uint32 *)malloc(WL_CNT_MCST_STRUCT_SZ);
-#endif
+#endif // endif
 	if (!wlccnt || !macstat) {
 		printf("%s: malloc fail!\n", __FUNCTION__);
 		res = BCME_NOMEM;
@@ -944,12 +962,11 @@ wl_cntbuf_to_xtlv_format(void *ctx, void *cntbuf, int buflen, uint32 corerev)
 
 	/* Exclude version and length fields in either wlc_cnt_ver_6_t or wlc_cnt_ver_11_t */
 	src_max_idx = (cntinfo->datalen - OFFSETOF(wl_cnt_info_t, data)) / sizeof(uint32);
-
 	if (src_max_idx > (uint8)(-1)) {
 		printf("wlcntverXXt_to_wlcntwlct and src_max_idx need"
 			" to be of uint16 instead of uint8\n"
 			"Try updating wl utility to the latest.\n");
-		res = BCME_ERROR;
+		src_max_idx = (uint8)(-1);
 	}
 
 	/* Copy wlc layer counters to wl_cnt_wlc_t */
@@ -1012,6 +1029,6 @@ exit:
 	if (macstat) {
 		free(macstat);
 	}
-#endif
+#endif // endif
 	return res;
 }
