@@ -60,8 +60,22 @@ struct upspec {
 	u8 proto;
 };
 
+struct mlx5_ipsec_lft {
+	u64 hard_packet_limit;
+	u64 soft_packet_limit;
+	u64 numb_rounds_hard;
+	u64 numb_rounds_soft;
+};
+
+struct mlx5_replay_esn {
+	u32 replay_window;
+	u32 esn;
+	u32 esn_msb;
+	u8 overlap : 1;
+	u8 trigger : 1;
+};
+
 struct mlx5_accel_esp_xfrm_attrs {
-	u32   esn;
 	u32   spi;
 	u32   flags;
 	struct aes_gcm_keymat aes_gcm;
@@ -78,15 +92,13 @@ struct mlx5_accel_esp_xfrm_attrs {
 
 	struct upspec upspec;
 	u8 dir : 2;
-	u8 esn_overlap : 1;
-	u8 esn_trigger : 1;
 	u8 type : 2;
+	u8 drop : 1;
 	u8 family;
-	u32 replay_window;
+	struct mlx5_replay_esn replay_esn;
 	u32 authsize;
 	u32 reqid;
-	u64 hard_packet_limit;
-	u64 soft_packet_limit;
+	struct mlx5_ipsec_lft lft;
 };
 
 enum mlx5_ipsec_cap {
@@ -125,8 +137,13 @@ struct mlx5e_ipsec_tx;
 
 struct mlx5e_ipsec_work {
 	struct work_struct work;
-	struct mlx5e_ipsec *ipsec;
-	u32 id;
+	struct mlx5e_ipsec_sa_entry *sa_entry;
+	void *data;
+};
+
+struct mlx5e_ipsec_dwork {
+	struct delayed_work dwork;
+	struct mlx5e_ipsec_sa_entry *sa_entry;
 };
 
 struct mlx5e_ipsec_aso {
@@ -154,7 +171,7 @@ struct mlx5e_ipsec {
 
 struct mlx5e_ipsec_esn_state {
 	u32 esn;
-	u8 trigger: 1;
+	u32 esn_msb;
 	u8 overlap: 1;
 };
 
@@ -165,9 +182,10 @@ struct mlx5e_ipsec_rule {
 	struct mlx5_fc *fc;
 };
 
-struct mlx5e_ipsec_modify_state_work {
-	struct work_struct		work;
-	struct mlx5_accel_esp_xfrm_attrs attrs;
+struct mlx5e_ipsec_limits {
+	u64 round;
+	u8 soft_limit_hit : 1;
+	u8 fix_limit : 1;
 };
 
 struct mlx5e_ipsec_sa_entry {
@@ -180,7 +198,9 @@ struct mlx5e_ipsec_sa_entry {
 	u32 ipsec_obj_id;
 	u32 enc_key_id;
 	struct mlx5e_ipsec_rule ipsec_rule;
-	struct mlx5e_ipsec_modify_state_work modify_work;
+	struct mlx5e_ipsec_work *work;
+	struct mlx5e_ipsec_dwork *dwork;
+	struct mlx5e_ipsec_limits limits;
 };
 
 struct mlx5_accel_pol_xfrm_attrs {
@@ -222,6 +242,7 @@ int mlx5e_accel_ipsec_fs_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry);
 void mlx5e_accel_ipsec_fs_del_rule(struct mlx5e_ipsec_sa_entry *sa_entry);
 int mlx5e_accel_ipsec_fs_add_pol(struct mlx5e_ipsec_pol_entry *pol_entry);
 void mlx5e_accel_ipsec_fs_del_pol(struct mlx5e_ipsec_pol_entry *pol_entry);
+void mlx5e_accel_ipsec_fs_modify(struct mlx5e_ipsec_sa_entry *sa_entry);
 
 int mlx5_ipsec_create_sa_ctx(struct mlx5e_ipsec_sa_entry *sa_entry);
 void mlx5_ipsec_free_sa_ctx(struct mlx5e_ipsec_sa_entry *sa_entry);

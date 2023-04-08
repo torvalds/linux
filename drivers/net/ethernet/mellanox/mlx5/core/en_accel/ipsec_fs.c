@@ -926,9 +926,12 @@ static int rx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 	flow_act.crypto.type = MLX5_FLOW_CONTEXT_ENCRYPT_DECRYPT_TYPE_IPSEC;
 	flow_act.crypto.obj_id = sa_entry->ipsec_obj_id;
 	flow_act.flags |= FLOW_ACT_NO_APPEND;
-	flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
-			   MLX5_FLOW_CONTEXT_ACTION_CRYPTO_DECRYPT |
+	flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_CRYPTO_DECRYPT |
 			   MLX5_FLOW_CONTEXT_ACTION_COUNT;
+	if (attrs->drop)
+		flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_DROP;
+	else
+		flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	dest[0].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 	dest[0].ft = rx->ft.status;
 	dest[1].type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
@@ -1018,9 +1021,13 @@ static int tx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 	flow_act.crypto.type = MLX5_FLOW_CONTEXT_ENCRYPT_DECRYPT_TYPE_IPSEC;
 	flow_act.crypto.obj_id = sa_entry->ipsec_obj_id;
 	flow_act.flags |= FLOW_ACT_NO_APPEND;
-	flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
-			   MLX5_FLOW_CONTEXT_ACTION_CRYPTO_ENCRYPT |
+	flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_CRYPTO_ENCRYPT |
 			   MLX5_FLOW_CONTEXT_ACTION_COUNT;
+	if (attrs->drop)
+		flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_DROP;
+	else
+		flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
+
 	dest[0].ft = tx->ft.status;
 	dest[0].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 	dest[1].type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
@@ -1429,4 +1436,20 @@ err_rx_ipv6:
 err_rx_ipv4:
 	kfree(ipsec->tx);
 	return err;
+}
+
+void mlx5e_accel_ipsec_fs_modify(struct mlx5e_ipsec_sa_entry *sa_entry)
+{
+	struct mlx5e_ipsec_sa_entry sa_entry_shadow = {};
+	int err;
+
+	memcpy(&sa_entry_shadow, sa_entry, sizeof(*sa_entry));
+	memset(&sa_entry_shadow.ipsec_rule, 0x00, sizeof(sa_entry->ipsec_rule));
+
+	err = mlx5e_accel_ipsec_fs_add_rule(&sa_entry_shadow);
+	if (err)
+		return;
+
+	mlx5e_accel_ipsec_fs_del_rule(sa_entry);
+	memcpy(sa_entry, &sa_entry_shadow, sizeof(*sa_entry));
 }
