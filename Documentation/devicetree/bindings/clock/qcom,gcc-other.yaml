@@ -30,7 +30,6 @@ properties:
     enum:
       - qcom,gcc-ipq6018
       - qcom,gcc-mdm9607
-      - qcom,gcc-msm8953
       - qcom,gcc-mdm9615
 
 required:
