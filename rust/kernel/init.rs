@@ -12,7 +12,8 @@
 //!
 //! To initialize a `struct` with an in-place constructor you will need two things:
 //! - an in-place constructor,
-//! - a memory location that can hold your `struct`.
+//! - a memory location that can hold your `struct` (this can be the [stack], an [`Arc<T>`],
+//!   [`UniqueArc<T>`], [`Box<T>`] or any other smart pointer that implements [`InPlaceInit`]).
 //!
 //! To get an in-place constructor there are generally three options:
 //! - directly creating an in-place constructor using the [`pin_init!`] macro,
@@ -180,6 +181,7 @@
 //! [pinning]: https://doc.rust-lang.org/std/pin/index.html
 //! [structurally pinned fields]:
 //!     https://doc.rust-lang.org/std/pin/index.html#pinning-is-structural-for-field
+//! [stack]: crate::stack_pin_init
 //! [`Arc<T>`]: crate::sync::Arc
 //! [`impl PinInit<Foo>`]: PinInit
 //! [`impl PinInit<T, E>`]: PinInit
@@ -201,6 +203,132 @@ use core::{
 pub mod __internal;
 #[doc(hidden)]
 pub mod macros;
+
+/// Initialize and pin a type directly on the stack.
+///
+/// # Examples
+///
+/// ```rust
+/// # #![allow(clippy::disallowed_names, clippy::new_ret_no_self)]
+/// # use kernel::{init, pin_init, stack_pin_init, init::*, sync::Mutex, new_mutex};
+/// # use macros::pin_data;
+/// # use core::pin::Pin;
+/// #[pin_data]
+/// struct Foo {
+///     #[pin]
+///     a: Mutex<usize>,
+///     b: Bar,
+/// }
+///
+/// #[pin_data]
+/// struct Bar {
+///     x: u32,
+/// }
+///
+/// stack_pin_init!(let foo = pin_init!(Foo {
+///     a <- new_mutex!(42),
+///     b: Bar {
+///         x: 64,
+///     },
+/// }));
+/// let foo: Pin<&mut Foo> = foo;
+/// pr_info!("a: {}", &*foo.a.lock());
+/// ```
+///
+/// # Syntax
+///
+/// A normal `let` binding with optional type annotation. The expression is expected to implement
+/// [`PinInit`]/[`Init`] with the error type [`Infallible`]. If you want to use a different error
+/// type, then use [`stack_try_pin_init!`].
+#[macro_export]
+macro_rules! stack_pin_init {
+    (let $var:ident $(: $t:ty)? = $val:expr) => {
+        let val = $val;
+        let mut $var = ::core::pin::pin!($crate::init::__internal::StackInit$(::<$t>)?::uninit());
+        let mut $var = match $crate::init::__internal::StackInit::init($var, val) {
+            Ok(res) => res,
+            Err(x) => {
+                let x: ::core::convert::Infallible = x;
+                match x {}
+            }
+        };
+    };
+}
+
+/// Initialize and pin a type directly on the stack.
+///
+/// # Examples
+///
+/// ```rust
+/// # #![allow(clippy::disallowed_names, clippy::new_ret_no_self)]
+/// # use kernel::{init, pin_init, stack_try_pin_init, init::*, sync::Mutex, new_mutex};
+/// # use macros::pin_data;
+/// # use core::{alloc::AllocError, pin::Pin};
+/// #[pin_data]
+/// struct Foo {
+///     #[pin]
+///     a: Mutex<usize>,
+///     b: Box<Bar>,
+/// }
+///
+/// struct Bar {
+///     x: u32,
+/// }
+///
+/// stack_try_pin_init!(let foo: Result<Pin<&mut Foo>, AllocError> = pin_init!(Foo {
+///     a <- new_mutex!(42),
+///     b: Box::try_new(Bar {
+///         x: 64,
+///     })?,
+/// }));
+/// let foo = foo.unwrap();
+/// pr_info!("a: {}", &*foo.a.lock());
+/// ```
+///
+/// ```rust
+/// # #![allow(clippy::disallowed_names, clippy::new_ret_no_self)]
+/// # use kernel::{init, pin_init, stack_try_pin_init, init::*, sync::Mutex, new_mutex};
+/// # use macros::pin_data;
+/// # use core::{alloc::AllocError, pin::Pin};
+/// #[pin_data]
+/// struct Foo {
+///     #[pin]
+///     a: Mutex<usize>,
+///     b: Box<Bar>,
+/// }
+///
+/// struct Bar {
+///     x: u32,
+/// }
+///
+/// stack_try_pin_init!(let foo: Pin<&mut Foo> =? pin_init!(Foo {
+///     a <- new_mutex!(42),
+///     b: Box::try_new(Bar {
+///         x: 64,
+///     })?,
+/// }));
+/// pr_info!("a: {}", &*foo.a.lock());
+/// # Ok::<_, AllocError>(())
+/// ```
+///
+/// # Syntax
+///
+/// A normal `let` binding with optional type annotation. The expression is expected to implement
+/// [`PinInit`]/[`Init`]. This macro assigns a result to the given variable, adding a `?` after the
+/// `=` will propagate this error.
+#[macro_export]
+macro_rules! stack_try_pin_init {
+    (let $var:ident $(: $t:ty)? = $val:expr) => {
+        let val = $val;
+        let mut $var = ::core::pin::pin!($crate::init::__internal::StackInit$(::<$t>)?::uninit());
+        let mut $var = $crate::init::__internal::StackInit::init($var, val);
+    };
+    (let $var:ident $(: $t:ty)? =? $val:expr) => {
+        let val = $val;
+        let mut $var = ::core::pin::pin!($crate::init::__internal::StackInit$(::<$t>)?::uninit());
+        let mut $var = $crate::init::__internal::StackInit::init($var, val)?;
+    };
+}
 
 /// Construct an in-place, pinned initializer for `struct`s.
 ///
@@ -913,8 +1041,8 @@ macro_rules! try_init {
 /// A pin-initializer for the type `T`.
 ///
 /// To use this initializer, you will need a suitable memory location that can hold a `T`. This can
-/// be [`Box<T>`], [`Arc<T>`], [`UniqueArc<T>`]. Use the [`InPlaceInit::pin_init`] function of a
-/// smart pointer like [`Arc<T>`] on this.
+/// be [`Box<T>`], [`Arc<T>`], [`UniqueArc<T>`] or even the stack (see [`stack_pin_init!`]). Use the
+/// [`InPlaceInit::pin_init`] function of a smart pointer like [`Arc<T>`] on this.
 ///
 /// Also see the [module description](self).
 ///
@@ -949,9 +1077,9 @@ pub unsafe trait PinInit<T: ?Sized, E = Infallible>: Sized {
 /// An initializer for `T`.
 ///
 /// To use this initializer, you will need a suitable memory location that can hold a `T`. This can
-/// be [`Box<T>`], [`Arc<T>`], [`UniqueArc<T>`]. Use the [`InPlaceInit::init`] function of a smart
-/// pointer like [`Arc<T>`] on this. Because [`PinInit<T, E>`] is a super trait, you can
-/// use every function that takes it as well.
+/// be [`Box<T>`], [`Arc<T>`], [`UniqueArc<T>`] or even the stack (see [`stack_pin_init!`]). Use the
+/// [`InPlaceInit::init`] function of a smart pointer like [`Arc<T>`] on this. Because
+/// [`PinInit<T, E>`] is a super trait, you can use every function that takes it as well.
 ///
 /// Also see the [module description](self).
 ///
