@@ -1506,9 +1506,21 @@ static void am65_cpsw_nuss_mac_config(struct phylink_config *config, unsigned in
 	struct am65_cpsw_common *common = port->common;
 
 	if (common->pdata.extra_modes & BIT(state->interface)) {
-		if (state->interface == PHY_INTERFACE_MODE_SGMII)
+		if (state->interface == PHY_INTERFACE_MODE_SGMII) {
 			writel(ADVERTISE_SGMII,
 			       port->sgmii_base + AM65_CPSW_SGMII_MR_ADV_ABILITY_REG);
+			cpsw_sl_ctl_set(port->slave.mac_sl, CPSW_SL_CTL_EXT_EN);
+		} else {
+			cpsw_sl_ctl_clr(port->slave.mac_sl, CPSW_SL_CTL_EXT_EN);
+		}
+
+		if (state->interface == PHY_INTERFACE_MODE_USXGMII) {
+			cpsw_sl_ctl_set(port->slave.mac_sl,
+					CPSW_SL_CTL_XGIG | CPSW_SL_CTL_XGMII_EN);
+		} else {
+			cpsw_sl_ctl_clr(port->slave.mac_sl,
+					CPSW_SL_CTL_XGIG | CPSW_SL_CTL_XGMII_EN);
+		}
 
 		writel(AM65_CPSW_SGMII_CONTROL_MR_AN_ENABLE,
 		       port->sgmii_base + AM65_CPSW_SGMII_CONTROL_REG);
@@ -1523,6 +1535,7 @@ static void am65_cpsw_nuss_mac_link_down(struct phylink_config *config, unsigned
 	struct am65_cpsw_port *port = container_of(slave, struct am65_cpsw_port, slave);
 	struct am65_cpsw_common *common = port->common;
 	struct net_device *ndev = port->ndev;
+	u32 mac_control;
 	int tmo;
 
 	/* disable forwarding */
@@ -1534,7 +1547,14 @@ static void am65_cpsw_nuss_mac_link_down(struct phylink_config *config, unsigned
 	dev_dbg(common->dev, "down msc_sl %08x tmo %d\n",
 		cpsw_sl_reg_read(port->slave.mac_sl, CPSW_SL_MACSTATUS), tmo);
 
-	cpsw_sl_ctl_reset(port->slave.mac_sl);
+	/* All the bits that am65_cpsw_nuss_mac_link_up() can possibly set */
+	mac_control = CPSW_SL_CTL_GMII_EN | CPSW_SL_CTL_GIG | CPSW_SL_CTL_IFCTL_A |
+		      CPSW_SL_CTL_FULLDUPLEX | CPSW_SL_CTL_RX_FLOW_EN | CPSW_SL_CTL_TX_FLOW_EN;
+	/* If interface mode is RGMII, CPSW_SL_CTL_EXT_EN might have been set for 10 Mbps */
+	if (phy_interface_mode_is_rgmii(interface))
+		mac_control |= CPSW_SL_CTL_EXT_EN;
+	/* Only clear those bits that can be set by am65_cpsw_nuss_mac_link_up() */
+	cpsw_sl_ctl_clr(port->slave.mac_sl, mac_control);
 
 	am65_cpsw_qos_link_down(ndev);
 	netif_tx_stop_all_queues(ndev);
@@ -1551,10 +1571,12 @@ static void am65_cpsw_nuss_mac_link_up(struct phylink_config *config, struct phy
 	u32 mac_control = CPSW_SL_CTL_GMII_EN;
 	struct net_device *ndev = port->ndev;
 
+	/* Bring the port out of idle state */
+	cpsw_sl_ctl_clr(port->slave.mac_sl, CPSW_SL_CTL_CMD_IDLE);
+
 	if (speed == SPEED_1000)
 		mac_control |= CPSW_SL_CTL_GIG;
-	if (interface == PHY_INTERFACE_MODE_SGMII)
-		mac_control |= CPSW_SL_CTL_EXT_EN;
+	/* TODO: Verify whether in-band is necessary for 10 Mbps RGMII */
 	if (speed == SPEED_10 && phy_interface_mode_is_rgmii(interface))
 		/* Can be used with in band mode only */
 		mac_control |= CPSW_SL_CTL_EXT_EN;
@@ -2157,7 +2179,8 @@ am65_cpsw_nuss_init_port_ndev(struct am65_cpsw_common *common, u32 port_idx)
 	/* Configuring Phylink */
 	port->slave.phylink_config.dev = &port->ndev->dev;
 	port->slave.phylink_config.type = PHYLINK_NETDEV;
-	port->slave.phylink_config.mac_capabilities = MAC_SYM_PAUSE | MAC_10 | MAC_100 | MAC_1000FD;
+	port->slave.phylink_config.mac_capabilities = MAC_SYM_PAUSE | MAC_10 | MAC_100 |
+						      MAC_1000FD | MAC_5000FD;
 	port->slave.phylink_config.mac_managed_pm = true; /* MAC does PM */
 
 	switch (port->slave.phy_if) {
@@ -2175,6 +2198,7 @@ am65_cpsw_nuss_init_port_ndev(struct am65_cpsw_common *common, u32 port_idx)
 
 	case PHY_INTERFACE_MODE_QSGMII:
 	case PHY_INTERFACE_MODE_SGMII:
+	case PHY_INTERFACE_MODE_USXGMII:
 		if (common->pdata.extra_modes & BIT(port->slave.phy_if)) {
 			__set_bit(port->slave.phy_if,
 				  port->slave.phylink_config.supported_interfaces);
@@ -2796,12 +2820,20 @@ static const struct am65_cpsw_pdata j721e_cpswxg_pdata = {
 	.extra_modes = BIT(PHY_INTERFACE_MODE_QSGMII) | BIT(PHY_INTERFACE_MODE_SGMII),
 };
 
+static const struct am65_cpsw_pdata j784s4_cpswxg_pdata = {
+	.quirks = 0,
+	.ale_dev_id = "am64-cpswxg",
+	.fdqring_mode = K3_RINGACC_RING_MODE_MESSAGE,
+	.extra_modes = BIT(PHY_INTERFACE_MODE_QSGMII) | BIT(PHY_INTERFACE_MODE_USXGMII),
+};
+
 static const struct of_device_id am65_cpsw_nuss_of_mtable[] = {
 	{ .compatible = "ti,am654-cpsw-nuss", .data = &am65x_sr1_0},
 	{ .compatible = "ti,j721e-cpsw-nuss", .data = &j721e_pdata},
 	{ .compatible = "ti,am642-cpsw-nuss", .data = &am64x_cpswxg_pdata},
 	{ .compatible = "ti,j7200-cpswxg-nuss", .data = &j7200_cpswxg_pdata},
 	{ .compatible = "ti,j721e-cpswxg-nuss", .data = &j721e_cpswxg_pdata},
+	{ .compatible = "ti,j784s4-cpswxg-nuss", .data = &j784s4_cpswxg_pdata},
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, am65_cpsw_nuss_of_mtable);
