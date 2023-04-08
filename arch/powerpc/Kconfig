@@ -4,6 +4,9 @@ source "arch/powerpc/platforms/Kconfig.cputype"
 config CC_HAS_ELFV2
 	def_bool PPC64 && $(cc-option, -mabi=elfv2)
 
+config CC_HAS_PREFIXED
+	def_bool PPC64 && $(cc-option, -mcpu=power10 -mprefixed)
+
 config 32BIT
 	bool
 	default y if PPC32

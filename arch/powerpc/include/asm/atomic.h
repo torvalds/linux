@@ -27,14 +27,22 @@ static __inline__ int arch_atomic_read(const atomic_t *v)
 {
 	int t;
 
-	__asm__ __volatile__("lwz%U1%X1 %0,%1" : "=r"(t) : "m<>"(v->counter));
+	/* -mprefixed can generate offsets beyond range, fall back hack */
+	if (IS_ENABLED(CONFIG_PPC_KERNEL_PREFIXED))
+		__asm__ __volatile__("lwz %0,0(%1)" : "=r"(t) : "b"(&v->counter));
+	else
+		__asm__ __volatile__("lwz%U1%X1 %0,%1" : "=r"(t) : "m<>"(v->counter));
 
 	return t;
 }
 
 static __inline__ void arch_atomic_set(atomic_t *v, int i)
 {
-	__asm__ __volatile__("stw%U0%X0 %1,%0" : "=m<>"(v->counter) : "r"(i));
+	/* -mprefixed can generate offsets beyond range, fall back hack */
+	if (IS_ENABLED(CONFIG_PPC_KERNEL_PREFIXED))
+		__asm__ __volatile__("stw %1,0(%2)" : "=m"(v->counter) : "r"(i), "b"(&v->counter));
+	else
+		__asm__ __volatile__("stw%U0%X0 %1,%0" : "=m<>"(v->counter) : "r"(i));
 }
 
 #define ATOMIC_OP(op, asm_op, suffix, sign, ...)			\
@@ -226,14 +234,22 @@ static __inline__ s64 arch_atomic64_read(const atomic64_t *v)
 {
 	s64 t;
 
-	__asm__ __volatile__("ld%U1%X1 %0,%1" : "=r"(t) : "m<>"(v->counter));
+	/* -mprefixed can generate offsets beyond range, fall back hack */
+	if (IS_ENABLED(CONFIG_PPC_KERNEL_PREFIXED))
+		__asm__ __volatile__("ld %0,0(%1)" : "=r"(t) : "b"(&v->counter));
+	else
+		__asm__ __volatile__("ld%U1%X1 %0,%1" : "=r"(t) : "m<>"(v->counter));
 
 	return t;
 }
 
 static __inline__ void arch_atomic64_set(atomic64_t *v, s64 i)
 {
-	__asm__ __volatile__("std%U0%X0 %1,%0" : "=m<>"(v->counter) : "r"(i));
+	/* -mprefixed can generate offsets beyond range, fall back hack */
+	if (IS_ENABLED(CONFIG_PPC_KERNEL_PREFIXED))
+		__asm__ __volatile__("std %1,0(%2)" : "=m"(v->counter) : "r"(i), "b"(&v->counter));
+	else
+		__asm__ __volatile__("std%U0%X0 %1,%0" : "=m<>"(v->counter) : "r"(i));
 }
 
 #define ATOMIC64_OP(op, asm_op)						\
