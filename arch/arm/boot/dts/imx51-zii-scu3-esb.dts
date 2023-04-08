@@ -267,7 +267,6 @@
 
 				port@6 {
 					reg = <6>;
-					label = "cpu";
 					phy-mode = "mii";
 					ethernet = <&fec>;
 

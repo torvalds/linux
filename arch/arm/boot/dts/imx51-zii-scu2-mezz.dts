@@ -82,7 +82,7 @@
 
 				port@4 {
 					reg = <4>;
-					label = "cpu";
+					phy-mode = "rev-mii";
 					ethernet = <&fec>;
 
 					fixed-link {
