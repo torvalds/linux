@@ -811,7 +811,7 @@ static int compute_cluster_nr_misfit_assist(int index)
 	for_each_cpu(cpu, &cluster->assist_cpu_misfit_mask) {
 		if (cpu_partial_halted(cpu))
 			continue;
-		nr_misfit_assist += nr_stats[cpu].nr;
+		nr_misfit_assist += nr_stats[cpu].nr_misfit;
 	}
 
 	return nr_misfit_assist;
