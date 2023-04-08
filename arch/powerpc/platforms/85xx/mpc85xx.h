@@ -15,4 +15,7 @@ extern void mpc85xx_qe_par_io_init(void);
 static inline void __init mpc85xx_qe_par_io_init(void) {}
 #endif
 
+void __init mpc85xx_ds_pic_init(void);
+void __init mpc85xx_ds_setup_arch(void);
+
 #endif

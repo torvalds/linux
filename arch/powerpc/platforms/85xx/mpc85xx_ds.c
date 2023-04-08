@@ -101,7 +101,7 @@ void __init mpc85xx_ds_pic_init(void)
 /*
  * Setup the architecture
  */
-static void __init mpc85xx_ds_setup_arch(void)
+void __init mpc85xx_ds_setup_arch(void)
 {
 	if (ppc_md.progress)
 		ppc_md.progress("mpc85xx_ds_setup_arch()", 0);
@@ -116,7 +116,6 @@ static void __init mpc85xx_ds_setup_arch(void)
 
 machine_arch_initcall(mpc8544_ds, mpc85xx_common_publish_devices);
 machine_arch_initcall(mpc8572_ds, mpc85xx_common_publish_devices);
-machine_arch_initcall(p2020_ds, mpc85xx_common_publish_devices);
 
 define_machine(mpc8544_ds) {
 	.name			= "MPC8544 DS",
@@ -134,19 +133,6 @@ define_machine(mpc8544_ds) {
 define_machine(mpc8572_ds) {
 	.name			= "MPC8572 DS",
 	.compatible		= "fsl,MPC8572DS",
-	.setup_arch		= mpc85xx_ds_setup_arch,
-	.init_IRQ		= mpc85xx_ds_pic_init,
-#ifdef CONFIG_PCI
-	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
-	.pcibios_fixup_phb      = fsl_pcibios_fixup_phb,
-#endif
-	.get_irq		= mpic_get_irq,
-	.progress		= udbg_progress,
-};
-
-define_machine(p2020_ds) {
-	.name			= "P2020 DS",
-	.compatible		= "fsl,P2020DS",
 	.setup_arch		= mpc85xx_ds_setup_arch,
 	.init_IRQ		= mpc85xx_ds_pic_init,
 #ifdef CONFIG_PCI
