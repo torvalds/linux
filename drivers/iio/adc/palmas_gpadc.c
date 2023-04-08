@@ -76,6 +76,12 @@ static struct palmas_gpadc_info palmas_gpadc_info[] = {
 	PALMAS_ADC_INFO(IN15, 0, 0, 0, 0, INVALID, INVALID, true),
 };
 
+struct palmas_adc_wakeup_property {
+	int adc_channel_number;
+	int adc_high_threshold;
+	int adc_low_threshold;
+};
+
 /*
  * struct palmas_gpadc - the palmas_gpadc structure
  * @ch0_current:	channel 0 current source setting
@@ -493,11 +499,6 @@ static int palmas_gpadc_get_adc_dt_data(struct platform_device *pdev,
 	return 0;
 }
 
-static void palmas_disable_wakeup(void *dev)
-{
-	device_wakeup_disable(dev);
-}
-
 static int palmas_gpadc_probe(struct platform_device *pdev)
 {
 	struct palmas_gpadc *adc;
@@ -548,36 +549,6 @@ static int palmas_gpadc_probe(struct platform_device *pdev)
 		return dev_err_probe(adc->dev, ret,
 				     "request irq %d failed\n", adc->irq);
 
-	if (gpadc_pdata->adc_wakeup1_data) {
-		memcpy(&adc->wakeup1_data, gpadc_pdata->adc_wakeup1_data,
-			sizeof(adc->wakeup1_data));
-		adc->wakeup1_enable = true;
-		adc->irq_auto_0 =  platform_get_irq(pdev, 1);
-		ret = devm_request_threaded_irq(&pdev->dev, adc->irq_auto_0,
-						NULL, palmas_gpadc_irq_auto,
-						IRQF_ONESHOT,
-						"palmas-adc-auto-0", adc);
-		if (ret < 0)
-			return dev_err_probe(adc->dev, ret,
-					     "request auto0 irq %d failed\n",
-					     adc->irq_auto_0);
-	}
-
-	if (gpadc_pdata->adc_wakeup2_data) {
-		memcpy(&adc->wakeup2_data, gpadc_pdata->adc_wakeup2_data,
-				sizeof(adc->wakeup2_data));
-		adc->wakeup2_enable = true;
-		adc->irq_auto_1 =  platform_get_irq(pdev, 2);
-		ret = devm_request_threaded_irq(&pdev->dev, adc->irq_auto_1,
-						NULL, palmas_gpadc_irq_auto,
-						IRQF_ONESHOT,
-						"palmas-adc-auto-1", adc);
-		if (ret < 0)
-			return dev_err_probe(adc->dev, ret,
-					     "request auto1 irq %d failed\n",
-					     adc->irq_auto_1);
-	}
-
 	/* set the current source 0 (value 0/5/15/20 uA => 0..3) */
 	if (gpadc_pdata->ch0_current <= 1)
 		adc->ch0_current = PALMAS_ADC_CH0_CURRENT_SRC_0;
@@ -615,15 +586,6 @@ static int palmas_gpadc_probe(struct platform_device *pdev)
 	for (i = 0; i < PALMAS_ADC_CH_MAX; i++) {
 		if (!(adc->adc_info[i].is_uncalibrated))
 			palmas_gpadc_calibrate(adc, i);
-	}
-
-	if (adc->wakeup1_enable || adc->wakeup2_enable) {
-		device_wakeup_enable(&pdev->dev);
-		ret = devm_add_action_or_reset(&pdev->dev,
-					       palmas_disable_wakeup,
-					       &pdev->dev);
-		if (ret)
-			return ret;
 	}
 
 	return 0;
