@@ -76,7 +76,7 @@ static struct palmas_gpadc_info palmas_gpadc_info[] = {
 	PALMAS_ADC_INFO(IN15, 0, 0, 0, 0, INVALID, INVALID, true),
 };
 
-struct palmas_adc_wakeup_property {
+struct palmas_adc_event {
 	int adc_channel_number;
 	int adc_high_threshold;
 	int adc_low_threshold;
@@ -117,10 +117,10 @@ struct palmas_gpadc {
 	int				irq_auto_1;
 	struct palmas_gpadc_info	*adc_info;
 	struct completion		conv_completion;
-	struct palmas_adc_wakeup_property wakeup1_data;
-	struct palmas_adc_wakeup_property wakeup2_data;
-	bool				wakeup1_enable;
-	bool				wakeup2_enable;
+	struct palmas_adc_event		event0;
+	struct palmas_adc_event		event1;
+	bool				event0_enable;
+	bool				event1_enable;
 	int				auto_conversion_period;
 	struct mutex			lock;
 };
@@ -591,7 +591,7 @@ static int palmas_gpadc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int palmas_adc_wakeup_configure(struct palmas_gpadc *adc)
+static int palmas_adc_configure_events(struct palmas_gpadc *adc)
 {
 	int adc_period, conv;
 	int i;
@@ -617,16 +617,16 @@ static int palmas_adc_wakeup_configure(struct palmas_gpadc *adc)
 	}
 
 	conv = 0;
-	if (adc->wakeup1_enable) {
+	if (adc->event0_enable) {
 		int polarity;
 
-		ch0 = adc->wakeup1_data.adc_channel_number;
+		ch0 = adc->event0.adc_channel_number;
 		conv |= PALMAS_GPADC_AUTO_CTRL_AUTO_CONV0_EN;
-		if (adc->wakeup1_data.adc_high_threshold > 0) {
-			thres = adc->wakeup1_data.adc_high_threshold;
+		if (adc->event0.adc_high_threshold > 0) {
+			thres = adc->event0.adc_high_threshold;
 			polarity = 0;
 		} else {
-			thres = adc->wakeup1_data.adc_low_threshold;
+			thres = adc->event0.adc_low_threshold;
 			polarity = PALMAS_GPADC_THRES_CONV0_MSB_THRES_CONV0_POL;
 		}
 
@@ -648,16 +648,16 @@ static int palmas_adc_wakeup_configure(struct palmas_gpadc *adc)
 		}
 	}
 
-	if (adc->wakeup2_enable) {
+	if (adc->event1_enable) {
 		int polarity;
 
-		ch1 = adc->wakeup2_data.adc_channel_number;
+		ch1 = adc->event1.adc_channel_number;
 		conv |= PALMAS_GPADC_AUTO_CTRL_AUTO_CONV1_EN;
-		if (adc->wakeup2_data.adc_high_threshold > 0) {
-			thres = adc->wakeup2_data.adc_high_threshold;
+		if (adc->event1.adc_high_threshold > 0) {
+			thres = adc->event1.adc_high_threshold;
 			polarity = 0;
 		} else {
-			thres = adc->wakeup2_data.adc_low_threshold;
+			thres = adc->event1.adc_low_threshold;
 			polarity = PALMAS_GPADC_THRES_CONV1_MSB_THRES_CONV1_POL;
 		}
 
@@ -696,7 +696,7 @@ static int palmas_adc_wakeup_configure(struct palmas_gpadc *adc)
 	return ret;
 }
 
-static int palmas_adc_wakeup_reset(struct palmas_gpadc *adc)
+static int palmas_adc_reset_events(struct palmas_gpadc *adc)
 {
 	int ret;
 
@@ -718,20 +718,20 @@ static int palmas_gpadc_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct palmas_gpadc *adc = iio_priv(indio_dev);
-	int wakeup = adc->wakeup1_enable || adc->wakeup2_enable;
+	int wakeup = adc->event0_enable || adc->event1_enable;
 	int ret;
 
 	if (!device_may_wakeup(dev) || !wakeup)
 		return 0;
 
-	ret = palmas_adc_wakeup_configure(adc);
+	ret = palmas_adc_configure_events(adc);
 	if (ret < 0)
 		return ret;
 
-	if (adc->wakeup1_enable)
+	if (adc->event0_enable)
 		enable_irq_wake(adc->irq_auto_0);
 
-	if (adc->wakeup2_enable)
+	if (adc->event1_enable)
 		enable_irq_wake(adc->irq_auto_1);
 
 	return 0;
@@ -741,20 +741,20 @@ static int palmas_gpadc_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct palmas_gpadc *adc = iio_priv(indio_dev);
-	int wakeup = adc->wakeup1_enable || adc->wakeup2_enable;
+	int wakeup = adc->event0_enable || adc->event1_enable;
 	int ret;
 
 	if (!device_may_wakeup(dev) || !wakeup)
 		return 0;
 
-	ret = palmas_adc_wakeup_reset(adc);
+	ret = palmas_adc_reset_events(adc);
 	if (ret < 0)
 		return ret;
 
-	if (adc->wakeup1_enable)
+	if (adc->event0_enable)
 		disable_irq_wake(adc->irq_auto_0);
 
-	if (adc->wakeup2_enable)
+	if (adc->event1_enable)
 		disable_irq_wake(adc->irq_auto_1);
 
 	return 0;
