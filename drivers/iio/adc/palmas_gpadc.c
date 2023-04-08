@@ -1133,15 +1133,9 @@ static int palmas_gpadc_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct palmas_gpadc *adc = iio_priv(indio_dev);
-	int wakeup = adc->event0.enabled || adc->event1.enabled;
-	int ret;
 
-	if (!device_may_wakeup(dev) || !wakeup)
+	if (!device_may_wakeup(dev))
 		return 0;
-
-	ret = palmas_adc_configure_events(adc);
-	if (ret < 0)
-		return ret;
 
 	if (adc->event0.enabled)
 		enable_irq_wake(adc->irq_auto_0);
@@ -1156,15 +1150,9 @@ static int palmas_gpadc_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct palmas_gpadc *adc = iio_priv(indio_dev);
-	int wakeup = adc->event0.enabled || adc->event1.enabled;
-	int ret;
 
-	if (!device_may_wakeup(dev) || !wakeup)
+	if (!device_may_wakeup(dev))
 		return 0;
-
-	ret = palmas_adc_reset_events(adc);
-	if (ret < 0)
-		return ret;
 
 	if (adc->event0.enabled)
 		disable_irq_wake(adc->irq_auto_0);
