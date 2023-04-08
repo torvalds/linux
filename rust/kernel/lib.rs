@@ -18,6 +18,7 @@
 #![feature(dispatch_from_dyn)]
 #![feature(generic_associated_types)]
 #![feature(new_uninit)]
+#![feature(pin_macro)]
 #![feature(receiver_trait)]
 #![feature(unsize)]
 
