@@ -60,9 +60,11 @@ static int so2_cdev_open(struct inode *inode, struct file *file)
 
 	file->private_data = data;
 
+#ifndef EXTRA
 	/* TODO 3/2: return immediately if access is != 0, use atomic_cmpxchg */
 	if (atomic_cmpxchg(&data->access, 0, 1) != 0)
 		return -EBUSY;
+#endif
 
 	set_current_state(TASK_INTERRUPTIBLE);
 	schedule_timeout(10 * HZ);
@@ -212,12 +214,12 @@ static int so2_cdev_init(void)
 		/*TODO 4/2: initialize buffer with MESSAGE string */
 		memcpy(devs[i].buffer, MESSAGE, sizeof(MESSAGE));
 		devs[i].size = sizeof(MESSAGE);
+		/* TODO 3/1: set access variable to 0, use atomic_set */
+		atomic_set(&devs[i].access, 0);
 #endif
 		/* TODO 7/2: extra tasks for home */
 		init_waitqueue_head(&devs[i].wq);
 		devs[i].flag = 0;
-		/* TODO 3/1: set access variable to 0, use atomic_set */
-		atomic_set(&devs[i].access, 0);
 		/* TODO 2/2: init and add cdev to kernel core */
 		cdev_init(&devs[i].cdev, &so2_fops);
 		cdev_add(&devs[i].cdev, MKDEV(MY_MAJOR, i), 1);
