@@ -77,9 +77,9 @@ static struct palmas_gpadc_info palmas_gpadc_info[] = {
 };
 
 struct palmas_adc_event {
-	int adc_channel_number;
-	int adc_high_threshold;
-	int adc_low_threshold;
+	int channel;
+	int raw_thresh;
+	enum iio_event_direction direction;
 };
 
 /*
@@ -618,16 +618,21 @@ static int palmas_adc_configure_events(struct palmas_gpadc *adc)
 
 	conv = 0;
 	if (adc->event0_enable) {
+		struct palmas_adc_event *ev = &adc->event0;
 		int polarity;
 
-		ch0 = adc->event0.adc_channel_number;
+		ch0 = ev->channel;
+		thres = ev->raw_thresh;
 		conv |= PALMAS_GPADC_AUTO_CTRL_AUTO_CONV0_EN;
-		if (adc->event0.adc_high_threshold > 0) {
-			thres = adc->event0.adc_high_threshold;
+		switch (ev->direction) {
+		case IIO_EV_DIR_RISING:
 			polarity = 0;
-		} else {
-			thres = adc->event0.adc_low_threshold;
+			break;
+		case IIO_EV_DIR_FALLING:
 			polarity = PALMAS_GPADC_THRES_CONV0_MSB_THRES_CONV0_POL;
+			break;
+		default:
+			return -EINVAL;
 		}
 
 		ret = palmas_write(adc->palmas, PALMAS_GPADC_BASE,
@@ -649,16 +654,21 @@ static int palmas_adc_configure_events(struct palmas_gpadc *adc)
 	}
 
 	if (adc->event1_enable) {
+		struct palmas_adc_event *ev = &adc->event1;
 		int polarity;
 
-		ch1 = adc->event1.adc_channel_number;
+		ch1 = ev->channel;
+		thres = ev->raw_thresh;
 		conv |= PALMAS_GPADC_AUTO_CTRL_AUTO_CONV1_EN;
-		if (adc->event1.adc_high_threshold > 0) {
-			thres = adc->event1.adc_high_threshold;
+		switch (ev->direction) {
+		case IIO_EV_DIR_RISING:
 			polarity = 0;
-		} else {
-			thres = adc->event1.adc_low_threshold;
+			break;
+		case IIO_EV_DIR_FALLING:
 			polarity = PALMAS_GPADC_THRES_CONV1_MSB_THRES_CONV1_POL;
+			break;
+		default:
+			return -EINVAL;
 		}
 
 		ret = palmas_write(adc->palmas, PALMAS_GPADC_BASE,
