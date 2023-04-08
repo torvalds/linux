@@ -515,15 +515,6 @@ __start_initialization_multiplatform:
 	/* Zero r13 (paca) so early program check / mce don't use it */
 	li	r13,0
 
-	/* Get TOC pointer (current runtime address) */
-	bl	relative_toc
-
-	/* find out where we are now */
-	bcl	20,31,$+4
-0:	mflr	r26			/* r26 = runtime addr here */
-	addis	r26,r26,(_stext - 0b)@ha
-	addi	r26,r26,(_stext - 0b)@l	/* current runtime base addr */
-
 	/*
 	 * Are we booted from a PROM Of-type client-interface ?
 	 */
@@ -540,16 +531,38 @@ __start_initialization_multiplatform:
 	mr	r29,r9
 #endif
 
+	/* Get TOC pointer (current runtime address) */
+	bl	relative_toc
+
 #ifdef CONFIG_PPC_BOOK3E_64
 	bl	start_initialization_book3e
 #else
 	bl	start_initialization_book3s
 #endif /* CONFIG_PPC_BOOK3E_64 */
+
+	/* Get TOC pointer */
+	bl	relative_toc
+
+	/* find out where we are now */
+	bcl	20,31,$+4
+0:	mflr	r26			/* r26 = runtime addr here */
+	addis	r26,r26,(_stext - 0b)@ha
+	addi	r26,r26,(_stext - 0b)@l	/* current runtime base addr */
+
 	b	__after_prom_start
 
 __REF
 __boot_from_prom:
 #ifdef CONFIG_PPC_OF_BOOT_TRAMPOLINE
+	/* Get TOC pointer */
+	bl	relative_toc
+
+	/* find out where we are now */
+	bcl	20,31,$+4
+0:	mflr	r26			/* r26 = runtime addr here */
+	addis	r26,r26,(_stext - 0b)@ha
+	addi	r26,r26,(_stext - 0b)@l	/* current runtime base addr */
+
 	/* Save parameters */
 	mr	r31,r3
 	mr	r30,r4
