@@ -181,6 +181,11 @@
 #ifdef __KERNEL__
 
 /*
+ * Used to name C functions called from asm
+ */
+#define CFUNC(name) name
+
+/*
  * We use __powerpc64__ here because we want the compat VDSO to use the 32-bit
  * version below in the else case of the ifdef.
  */

@@ -608,7 +608,7 @@ __boot_from_prom:
 
 	/* Do all of the interaction with OF client interface */
 	mr	r8,r26
-	bl	prom_init
+	bl	CFUNC(prom_init)
 #endif /* #CONFIG_PPC_OF_BOOT_TRAMPOLINE */
 
 	/* We never return. We also hit that trap if trying to boot
@@ -836,7 +836,7 @@ __secondary_start:
 	 * can turn it on below. This is a call to C, which is OK, we're still
 	 * running on the emergency stack.
 	 */
-	bl	early_setup_secondary
+	bl	CFUNC(early_setup_secondary)
 
 	/*
 	 * The primary has initialized our kernel stack for us in the paca, grab
@@ -875,7 +875,7 @@ start_secondary_prolog:
 	LOAD_PACA_TOC()
 	li	r3,0
 	std	r3,0(r1)		/* Zero the stack frame pointer	*/
-	bl	start_secondary
+	bl	CFUNC(start_secondary)
 	b	.
 /*
  * Reset stack pointer and call start_secondary
@@ -886,7 +886,7 @@ _GLOBAL(start_secondary_resume)
 	ld	r1,PACAKSAVE(r13)	/* Reload kernel stack pointer */
 	li	r3,0
 	std	r3,0(r1)		/* Zero the stack frame pointer	*/
-	bl	start_secondary
+	bl	CFUNC(start_secondary)
 	b	.
 #endif
 
@@ -991,7 +991,7 @@ start_here_multiplatform:
 	 */
 
 #ifdef CONFIG_KASAN
-	bl	kasan_early_init
+	bl	CFUNC(kasan_early_init)
 #endif
 	/* Restore parameters passed from prom_init/kexec */
 	mr	r3,r31
@@ -1024,7 +1024,7 @@ start_here_common:
 	stb	r0,PACAIRQHAPPENED(r13)
 
 	/* Generic kernel entry */
-	bl	start_kernel
+	bl	CFUNC(start_kernel)
 
 	/* Not reached */
 0:	trap

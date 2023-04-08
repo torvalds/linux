@@ -38,7 +38,11 @@
 	.else
 	addi		r4, r5, VDSO_DATA_OFFSET
 	.endif
-	bl		DOTSYM(\funct)
+#ifdef __powerpc64__
+	bl		CFUNC(DOTSYM(\funct))
+#else
+	bl		\funct
+#endif
 	PPC_LL		r0, PPC_MIN_STKFRM + PPC_LR_STKOFF(r1)
 #ifdef __powerpc64__
 	PPC_LL		r2, PPC_MIN_STKFRM + STK_GOT(r1)
