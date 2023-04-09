@@ -39,7 +39,6 @@ struct bu18tl82 {
 	struct device_node *dsi_node;
 	struct serdes_init_seq *serdes_init_seq;
 	bool sel_mipi;
-	struct regulator *supply;
 	struct gpio_desc *reset_gpio;
 	struct gpio_desc *enable_gpio;
 };
@@ -202,12 +201,6 @@ static void bu18tl82_bridge_detach(struct drm_bridge *bridge)
 
 static void bu18tl82_bridge_enable(struct drm_bridge *bridge)
 {
-	struct bu18tl82 *bu18tl82 = bridge_to_bu18tl82(bridge);
-	struct serdes_init_seq *init_seq = bu18tl82->serdes_init_seq;
-	int count = init_seq->reg_seq_cnt;
-
-	regmap_multi_reg_write(bu18tl82->regmap, init_seq->reg_sequence, count);
-	mdelay(1000);
 }
 
 static void bu18tl82_bridge_disable(struct drm_bridge *bridge)
@@ -217,26 +210,26 @@ static void bu18tl82_bridge_disable(struct drm_bridge *bridge)
 static void bu18tl82_bridge_pre_enable(struct drm_bridge *bridge)
 {
 	struct bu18tl82 *bu18tl82 = bridge_to_bu18tl82(bridge);
+	struct serdes_init_seq *init_seq = bu18tl82->serdes_init_seq;
 	int ret;
-
-	if (bu18tl82->supply) {
-		ret = regulator_enable(bu18tl82->supply);
-		if (ret < 0)
-			return;
-
-		msleep(120);
-	}
 
 	if (bu18tl82->enable_gpio) {
 		gpiod_direction_output(bu18tl82->enable_gpio, 1);
-		msleep(120);
+		msleep(20);
 	}
 
 	if (bu18tl82->reset_gpio) {
-		gpiod_direction_output(bu18tl82->reset_gpio, 1);
-		msleep(120);
 		gpiod_direction_output(bu18tl82->reset_gpio, 0);
+		msleep(30);
 	}
+
+	ret = regmap_multi_reg_write(bu18tl82->regmap, init_seq->reg_sequence,
+				     init_seq->reg_seq_cnt);
+	if (ret) {
+		dev_err(bu18tl82->dev, "failed to set register setting: %d\n", ret);
+		return;
+	}
+	msleep(160);
 }
 
 static void bu18tl82_bridge_post_disable(struct drm_bridge *bridge)
@@ -248,9 +241,6 @@ static void bu18tl82_bridge_post_disable(struct drm_bridge *bridge)
 
 	if (bu18tl82->enable_gpio)
 		gpiod_direction_output(bu18tl82->enable_gpio, 0);
-
-	if (bu18tl82->supply)
-		regulator_disable(bu18tl82->supply);
 }
 
 static const struct drm_bridge_funcs bu18tl82_bridge_funcs = {
@@ -276,11 +266,6 @@ static int bu18tl82_i2c_probe(struct i2c_client *client,
 
 	bu18tl82->dev = dev;
 	i2c_set_clientdata(client, bu18tl82);
-
-	bu18tl82->supply = devm_regulator_get(dev, "power");
-	if (IS_ERR(bu18tl82->supply))
-		return dev_err_probe(dev, PTR_ERR(bu18tl82->supply),
-				     "failed to get power regulator\n");
 
 	bu18tl82->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_ASIS);
 	if (IS_ERR(bu18tl82->reset_gpio))
