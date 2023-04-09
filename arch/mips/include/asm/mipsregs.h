@@ -1422,10 +1422,12 @@ static inline int mm_insn_16bit(u16 insn)
  */
 
 /* Match an individual register number and assign to \var */
-#define _IFC_REG(n)				\
-	".ifc	\\r, $" #n "\n\t"		\
+#define _IFC_REG_NAME(name, n)			\
+	".ifc	\\r, $" #name "\n\t"		\
 	"\\var	= " #n "\n\t"			\
 	".endif\n\t"
+
+#define _IFC_REG(n)	_IFC_REG_NAME(n, n)
 
 #define _ASM_SET_PARSE_R						\
 	".macro	parse_r var r\n\t"					\
@@ -1438,6 +1440,7 @@ static inline int mm_insn_16bit(u16 insn)
 	_IFC_REG(20) _IFC_REG(21) _IFC_REG(22) _IFC_REG(23)		\
 	_IFC_REG(24) _IFC_REG(25) _IFC_REG(26) _IFC_REG(27)		\
 	_IFC_REG(28) _IFC_REG(29) _IFC_REG(30) _IFC_REG(31)		\
+	_IFC_REG_NAME(sp, 29) _IFC_REG_NAME(fp, 30)			\
 	".iflt	\\var\n\t"						\
 	".error	\"Unable to parse register name \\r\"\n\t"		\
 	".endif\n\t"							\
