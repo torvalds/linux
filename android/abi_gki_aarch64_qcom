@@ -2330,6 +2330,7 @@
   of_graph_parse_endpoint
   of_hwspin_lock_get_id
   of_icc_get
+  of_icc_get_from_provider
   of_icc_xlate_onecell
   of_iomap
   of_irq_find_parent
