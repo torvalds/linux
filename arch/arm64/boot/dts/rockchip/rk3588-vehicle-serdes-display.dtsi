@@ -275,10 +275,6 @@
 	dp2lvds_panel0 {
 		compatible = "simple-panel";
 		backlight = <&dp2lvds_backlight0>;
-		prepare-delay-ms = <120>;
-		enable-delay-ms = <120>;
-		unprepare-delay-ms = <120>;
-		disable-delay-ms = <120>;
 		status = "okay";
 
 		panel-timing {
@@ -307,10 +303,6 @@
 	dp2lvds_panel1 {
 		compatible = "simple-panel";
 		backlight = <&dp2lvds_backlight1>;
-		prepare-delay-ms = <120>;
-		enable-delay-ms = <120>;
-		unprepare-delay-ms = <120>;
-		disable-delay-ms = <120>;
 		status = "okay";
 
 		panel-timing {
@@ -339,10 +331,6 @@
 	edp2lvds_panel0 {
 		compatible = "simple-panel";
 		backlight = <&edp2lvds_backlight0>;
-		prepare-delay-ms = <120>;
-		enable-delay-ms = <120>;
-		unprepare-delay-ms = <120>;
-		disable-delay-ms = <120>;
 		status = "okay";
 
 		panel-timing {
@@ -371,10 +359,6 @@
 	edp2lvds_panel1 {
 		compatible = "simple-panel";
 		backlight = <&edp2lvds_backlight1>;
-		prepare-delay-ms = <120>;
-		enable-delay-ms = <120>;
-		unprepare-delay-ms = <120>;
-		disable-delay-ms = <120>;
 		status = "okay";
 
 		panel-timing {
@@ -892,8 +876,8 @@
 			0013 001a
 			0014 000a
 			0021 0008
-			0023 0003
-			0024 0003
+			0023 0009
+			0024 0009
 			002a 0018
 			002d 0018
 			0030 0018
@@ -1066,8 +1050,8 @@
 			0013 001a
 			0014 000a
 			0021 0008
-			0023 0003
-			0024 0003
+			0023 0009
+			0024 0009
 			002a 0018
 			002e 0004
 			002d 0018
@@ -1470,8 +1454,8 @@
 			0013 001a
 			0014 000a
 			0021 0008
-			0023 0003
-			0024 0003
+			0023 0009
+			0024 0009
 			002a 0018
 			002d 0018
 			0030 0018
@@ -1646,8 +1630,8 @@
 			0013 001a
 			0014 000a
 			0021 0008
-			0023 0003
-			0024 0003
+			0023 0009
+			0024 0009
 			002a 0018
 			002d 0018
 			0030 0018
