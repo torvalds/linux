@@ -22,6 +22,7 @@
 #include <mm/mmu_decl.h>
 #include <asm/udbg.h>
 #include <asm/swiotlb.h>
+#include <asm/ppc-pci.h>
 
 #include <asm/mpic.h>
 
@@ -39,9 +40,6 @@
 #endif
 
 #ifdef CONFIG_PCI
-extern int uli_exclude_device(struct pci_controller *hose,
-				u_char bus, u_char devfn);
-
 static int mpc86xx_exclude_device(struct pci_controller *hose,
 				   u_char bus, u_char devfn)
 {
