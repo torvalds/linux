@@ -27,7 +27,7 @@ static void fprobe_handler(unsigned long ip, unsigned long parent_ip,
 	struct rethook_node *rh = NULL;
 	struct fprobe *fp;
 	void *entry_data = NULL;
-	int bit, ret;
+	int bit, ret = 0;
 
 	fp = container_of(ops, struct fprobe, ops);
 	if (fprobe_disabled(fp))
