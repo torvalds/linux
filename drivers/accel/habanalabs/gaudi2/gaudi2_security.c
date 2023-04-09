@@ -3443,15 +3443,6 @@ static int gaudi2_init_protection_bits(struct hl_device *hdev)
 				ARRAY_SIZE(gaudi2_pb_thermal_sensor0), NULL, HL_PB_NA);
 	}
 
-	/* HBM */
-	/* Temporarily skip until SW-63348 is solved
-	 * instance_offset = mmHBM1_MC0_BASE - mmHBM0_MC0_BASE;
-	 * rc |= hl_init_pb_with_mask(hdev, HL_PB_SHARED, HL_PB_NA, GAUDI2_HBM_NUM,
-	 *		instance_offset, gaudi2_pb_hbm,
-	 *		ARRAY_SIZE(gaudi2_pb_hbm), NULL, HL_PB_NA,
-	 *		prop->dram_enabled_mask);
-	 */
-
 	/* Scheduler ARCs */
 	instance_offset = mmARC_FARM_ARC1_AUX_BASE - mmARC_FARM_ARC0_AUX_BASE;
 	rc |= hl_init_pb_ranges(hdev, HL_PB_SHARED, HL_PB_NA,
