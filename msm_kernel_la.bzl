@@ -450,7 +450,7 @@ def define_msm_la(
         build_boot = False if define_abi_targets else True,
         build_dtbo = True if dtbo_list else False,
         build_initramfs = True,
-        build_vendor_boot = True if dtbo_list else False,
+        build_vendor_boot = True,
         dtbo_list = dtbo_list,
         vendor_ramdisk_binaries = vendor_ramdisk_binaries,
         gki_ramdisk_prebuilt_binary = gki_ramdisk_prebuilt_binary,
