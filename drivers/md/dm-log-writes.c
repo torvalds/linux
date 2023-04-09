@@ -937,19 +937,7 @@ static struct target_type log_writes_target = {
 	.dax_zero_page_range = log_writes_dax_zero_page_range,
 	.dax_recovery_write = log_writes_dax_recovery_write,
 };
-
-static int __init dm_log_writes_init(void)
-{
-	return dm_register_target(&log_writes_target);
-}
-
-static void __exit dm_log_writes_exit(void)
-{
-	dm_unregister_target(&log_writes_target);
-}
-
-module_init(dm_log_writes_init);
-module_exit(dm_log_writes_exit);
+module_dm(log_writes);
 
 MODULE_DESCRIPTION(DM_NAME " log writes target");
 MODULE_AUTHOR("Josef Bacik <jbacik@fb.com>");

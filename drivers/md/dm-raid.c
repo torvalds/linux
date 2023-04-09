@@ -4077,23 +4077,7 @@ static struct target_type raid_target = {
 	.preresume = raid_preresume,
 	.resume = raid_resume,
 };
-
-static int __init dm_raid_init(void)
-{
-	DMINFO("Loading target version %u.%u.%u",
-	       raid_target.version[0],
-	       raid_target.version[1],
-	       raid_target.version[2]);
-	return dm_register_target(&raid_target);
-}
-
-static void __exit dm_raid_exit(void)
-{
-	dm_unregister_target(&raid_target);
-}
-
-module_init(dm_raid_init);
-module_exit(dm_raid_exit);
+module_dm(raid);
 
 module_param(devices_handle_discard_safely, bool, 0644);
 MODULE_PARM_DESC(devices_handle_discard_safely,

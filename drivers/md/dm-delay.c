@@ -367,20 +367,7 @@ static struct target_type delay_target = {
 	.status	     = delay_status,
 	.iterate_devices = delay_iterate_devices,
 };
-
-static int __init dm_delay_init(void)
-{
-	return dm_register_target(&delay_target);
-}
-
-static void __exit dm_delay_exit(void)
-{
-	dm_unregister_target(&delay_target);
-}
-
-/* Module hooks */
-module_init(dm_delay_init);
-module_exit(dm_delay_exit);
+module_dm(delay);
 
 MODULE_DESCRIPTION(DM_NAME " delay target");
 MODULE_AUTHOR("Heinz Mauelshagen <mauelshagen@redhat.com>");

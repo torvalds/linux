@@ -1514,19 +1514,7 @@ static struct target_type verity_target = {
 	.iterate_devices = verity_iterate_devices,
 	.io_hints	= verity_io_hints,
 };
-
-static int __init dm_verity_init(void)
-{
-	return dm_register_target(&verity_target);
-}
-
-static void __exit dm_verity_exit(void)
-{
-	dm_unregister_target(&verity_target);
-}
-
-module_init(dm_verity_init);
-module_exit(dm_verity_exit);
+module_dm(verity);
 
 MODULE_AUTHOR("Mikulas Patocka <mpatocka@redhat.com>");
 MODULE_AUTHOR("Mandeep Baines <msb@chromium.org>");

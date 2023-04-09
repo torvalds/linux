@@ -75,19 +75,7 @@ static struct target_type zero_target = {
 	.map    = zero_map,
 	.io_hints = zero_io_hints,
 };
-
-static int __init dm_zero_init(void)
-{
-	return dm_register_target(&zero_target);
-}
-
-static void __exit dm_zero_exit(void)
-{
-	dm_unregister_target(&zero_target);
-}
-
-module_init(dm_zero_init)
-module_exit(dm_zero_exit)
+module_dm(zero);
 
 MODULE_AUTHOR("Jana Saout <jana@saout.de>");
 MODULE_DESCRIPTION(DM_NAME " dummy target returning zeros");

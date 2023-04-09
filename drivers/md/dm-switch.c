@@ -565,19 +565,7 @@ static struct target_type switch_target = {
 	.prepare_ioctl = switch_prepare_ioctl,
 	.iterate_devices = switch_iterate_devices,
 };
-
-static int __init dm_switch_init(void)
-{
-	return dm_register_target(&switch_target);
-}
-
-static void __exit dm_switch_exit(void)
-{
-	dm_unregister_target(&switch_target);
-}
-
-module_init(dm_switch_init);
-module_exit(dm_switch_exit);
+module_dm(switch);
 
 MODULE_DESCRIPTION(DM_NAME " dynamic path switching target");
 MODULE_AUTHOR("Kevin D. O'Kelley <Kevin_OKelley@dell.com>");

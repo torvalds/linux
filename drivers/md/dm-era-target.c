@@ -1753,19 +1753,7 @@ static struct target_type era_target = {
 	.iterate_devices = era_iterate_devices,
 	.io_hints = era_io_hints
 };
-
-static int __init dm_era_init(void)
-{
-	return dm_register_target(&era_target);
-}
-
-static void __exit dm_era_exit(void)
-{
-	dm_unregister_target(&era_target);
-}
-
-module_init(dm_era_init);
-module_exit(dm_era_exit);
+module_dm(era);
 
 MODULE_DESCRIPTION(DM_NAME " era target");
 MODULE_AUTHOR("Joe Thornber <ejt@redhat.com>");

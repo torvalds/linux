@@ -506,20 +506,7 @@ static struct target_type flakey_target = {
 	.prepare_ioctl = flakey_prepare_ioctl,
 	.iterate_devices = flakey_iterate_devices,
 };
-
-static int __init dm_flakey_init(void)
-{
-	return dm_register_target(&flakey_target);
-}
-
-static void __exit dm_flakey_exit(void)
-{
-	dm_unregister_target(&flakey_target);
-}
-
-/* Module hooks */
-module_init(dm_flakey_init);
-module_exit(dm_flakey_exit);
+module_dm(flakey);
 
 MODULE_DESCRIPTION(DM_NAME " flakey target");
 MODULE_AUTHOR("Joe Thornber <dm-devel@redhat.com>");

@@ -570,19 +570,7 @@ static struct target_type dust_target = {
 	.status = dust_status,
 	.prepare_ioctl = dust_prepare_ioctl,
 };
-
-static int __init dm_dust_init(void)
-{
-	return dm_register_target(&dust_target);
-}
-
-static void __exit dm_dust_exit(void)
-{
-	dm_unregister_target(&dust_target);
-}
-
-module_init(dm_dust_init);
-module_exit(dm_dust_exit);
+module_dm(dust);
 
 MODULE_DESCRIPTION(DM_NAME " dust test target");
 MODULE_AUTHOR("Bryan Gurney <dm-devel@redhat.com>");
