@@ -39,7 +39,7 @@ static irqreturn_t snet_cfg_irq_hndlr(int irq, void *data)
 {
 	struct snet *snet = data;
 	/* Call callback if any */
-	if (snet->cb.callback)
+	if (likely(snet->cb.callback))
 		return snet->cb.callback(snet->cb.private);
 
 	return IRQ_HANDLED;
@@ -49,7 +49,7 @@ static irqreturn_t snet_vq_irq_hndlr(int irq, void *data)
 {
 	struct snet_vq *vq = data;
 	/* Call callback if any */
-	if (vq->cb.callback)
+	if (likely(vq->cb.callback))
 		return vq->cb.callback(vq->cb.private);
 
 	return IRQ_HANDLED;
@@ -106,7 +106,7 @@ static void snet_kick_vq(struct vdpa_device *vdev, u16 idx)
 {
 	struct snet *snet = vdpa_to_snet(vdev);
 	/* not ready - ignore */
-	if (!snet->vqs[idx]->ready)
+	if (unlikely(!snet->vqs[idx]->ready))
 		return;
 
 	iowrite32(SNET_KICK_VAL, snet->vqs[idx]->kick_ptr);
