@@ -38,8 +38,6 @@
 #define AMD_PMC_SCRATCH_REG_YC		0xD14
 
 /* STB Registers */
-#define AMD_PMC_STB_INDEX_ADDRESS	0xF8
-#define AMD_PMC_STB_INDEX_DATA		0xFC
 #define AMD_PMC_STB_PMI_0		0x03E30600
 #define AMD_PMC_STB_S2IDLE_PREPARE	0xC6000001
 #define AMD_PMC_STB_S2IDLE_RESTORE	0xC6000002
@@ -923,17 +921,9 @@ static int amd_pmc_write_stb(struct amd_pmc_dev *dev, u32 data)
 {
 	int err;
 
-	err = pci_write_config_dword(dev->rdev, AMD_PMC_STB_INDEX_ADDRESS, AMD_PMC_STB_PMI_0);
+	err = amd_smn_write(0, AMD_PMC_STB_PMI_0, data);
 	if (err) {
-		dev_err(dev->dev, "failed to write addr in stb: 0x%X\n",
-			AMD_PMC_STB_INDEX_ADDRESS);
-		return pcibios_err_to_errno(err);
-	}
-
-	err = pci_write_config_dword(dev->rdev, AMD_PMC_STB_INDEX_DATA, data);
-	if (err) {
-		dev_err(dev->dev, "failed to write data in stb: 0x%X\n",
-			AMD_PMC_STB_INDEX_DATA);
+		dev_err(dev->dev, "failed to write data in stb: 0x%X\n", AMD_PMC_STB_PMI_0);
 		return pcibios_err_to_errno(err);
 	}
 
@@ -944,18 +934,10 @@ static int amd_pmc_read_stb(struct amd_pmc_dev *dev, u32 *buf)
 {
 	int i, err;
 
-	err = pci_write_config_dword(dev->rdev, AMD_PMC_STB_INDEX_ADDRESS, AMD_PMC_STB_PMI_0);
-	if (err) {
-		dev_err(dev->dev, "error writing addr to stb: 0x%X\n",
-			AMD_PMC_STB_INDEX_ADDRESS);
-		return pcibios_err_to_errno(err);
-	}
-
 	for (i = 0; i < FIFO_SIZE; i++) {
-		err = pci_read_config_dword(dev->rdev, AMD_PMC_STB_INDEX_DATA, buf++);
+		err = amd_smn_read(0, AMD_PMC_STB_PMI_0, buf++);
 		if (err) {
-			dev_err(dev->dev, "error reading data from stb: 0x%X\n",
-				AMD_PMC_STB_INDEX_DATA);
+			dev_err(dev->dev, "error reading data from stb: 0x%X\n", AMD_PMC_STB_PMI_0);
 			return pcibios_err_to_errno(err);
 		}
 	}
