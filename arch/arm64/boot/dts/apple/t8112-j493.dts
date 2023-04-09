@@ -11,6 +11,7 @@
 
 #include "t8112.dtsi"
 #include "t8112-jxxx.dtsi"
+#include <dt-bindings/leds/common.h>
 
 / {
 	compatible = "apple,j493", "apple,t8112", "apple,arm-platform";
@@ -19,6 +20,18 @@
 	aliases {
 		bluetooth0 = &bluetooth0;
 		wifi0 = &wifi0;
+	};
+
+	led-controller {
+		compatible = "pwm-leds";
+		led-0 {
+			pwms = <&fpwm1 0 40000>;
+			label = "kbd_backlight";
+			function = LED_FUNCTION_KBD_BACKLIGHT;
+			color = <LED_COLOR_ID_WHITE>;
+			max-brightness = <255>;
+			default-state = "keep";
+		};
 	};
 };
 
@@ -48,5 +61,9 @@
 };
 
 &i2c4 {
+	status = "okay";
+};
+
+&fpwm1 {
 	status = "okay";
 };
