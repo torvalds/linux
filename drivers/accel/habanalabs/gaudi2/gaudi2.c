@@ -3630,8 +3630,8 @@ static int gaudi2_sw_init(struct hl_device *hdev)
 special_blocks_free:
 	gaudi2_special_blocks_iterator_free(hdev);
 free_scratchpad_mem:
-	hl_asic_dma_pool_free(hdev, gaudi2->scratchpad_kernel_address,
-				gaudi2->scratchpad_bus_address);
+	hl_asic_dma_free_coherent(hdev, PAGE_SIZE, gaudi2->scratchpad_kernel_address,
+				  gaudi2->scratchpad_bus_address);
 free_virt_msix_db_mem:
 	hl_cpu_accessible_dma_pool_free(hdev, prop->pmmu.page_size, gaudi2->virt_msix_db_cpu_addr);
 free_cpu_accessible_dma_pool:
