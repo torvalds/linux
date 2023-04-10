@@ -250,10 +250,19 @@
 
 		pinctrl {
 			compatible = "maxim,max96755f-pinctrl";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c2_max96755f_pinctrl_hog>;
+
+			i2c2_max96755f_pinctrl_hog: hog {
+				i2c {
+					groups = "I2C";
+					function = "I2C";
+				};
+			};
 
 			i2c2_max96755f_panel_pins: panel-pins {
 				bl-pwm {
-					pins = "gpio18";
+					pins = "MFP18";
 					function = "GPIO_TX_0";
 				};
 			};
@@ -323,10 +332,19 @@
 
 		pinctrl {
 			compatible = "maxim,max96745-pinctrl";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c3_max96745_pinctrl_hog>;
+
+			i2c3_max96745_pinctrl_hog: hog {
+				i2c {
+					groups = "I2C";
+					function = "I2C";
+				};
+			};
 
 			i2c3_max96745_panel_pins: panel-pins {
 				bl-pwm {
-					pins = "gpio0";
+					pins = "MFP0";
 					function = "GPIO_TX_A_0";
 				};
 			};
@@ -395,10 +413,19 @@
 
 		pinctrl {
 			compatible = "maxim,max96745-pinctrl";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c5_max96745_pinctrl_hog>;
+
+			i2c5_max96745_pinctrl_hog: hog {
+				i2c {
+					groups = "I2C";
+					function = "I2C";
+				};
+			};
 
 			i2c5_max96745_panel_pins: panel-pins {
 				bl-pwm {
-					pins = "gpio0";
+					pins = "MFP0";
 					function = "GPIO_TX_A_0";
 				};
 			};
@@ -468,10 +495,20 @@
 
 		pinctrl {
 			compatible = "maxim,max96755f-pinctrl";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c6_max96755f_pinctrl_hog>;
+
+			i2c6_max96755f_pinctrl_hog: hog {
+				i2c {
+					groups = "I2C";
+					function = "I2C";
+				};
+			};
+
 
 			i2c6_max96755f_panel_pins: panel-pins {
 				bl-pwm {
-					pins = "gpio18";
+					pins = "MFP18";
 					function = "GPIO_TX_0";
 				};
 			};
@@ -541,10 +578,19 @@
 
 		pinctrl {
 			compatible = "maxim,max96745-pinctrl";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c7_max96745_pinctrl_hog>;
+
+			i2c7_max96745_pinctrl_hog: hog {
+				i2c {
+					groups = "I2C";
+					function = "I2C";
+				};
+			};
 
 			i2c7_max96745_panel_pins: panel-pins {
 				bl-pwm {
-					pins = "gpio0";
+					pins = "MFP0";
 					function = "GPIO_TX_A_0";
 				};
 			};
@@ -614,10 +660,19 @@
 
 		pinctrl {
 			compatible = "maxim,max96745-pinctrl";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c8_max96745_pinctrl_hog>;
+
+			i2c8_max96745_pinctrl_hog: hog {
+				i2c {
+					groups = "I2C";
+					function = "I2C";
+				};
+			};
 
 			i2c8_max96745_panel_pins: panel-pins {
 				bl-pwm {
-					pins = "gpio0";
+					pins = "MFP0";
 					function = "GPIO_TX_A_0";
 				};
 			};
