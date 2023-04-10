@@ -257,8 +257,9 @@ struct dmub_feature_caps {
 	 */
 	uint8_t psr;
 	uint8_t fw_assisted_mclk_switch;
+	uint8_t reserved[4];
 	uint8_t subvp_psr_support;
-	uint8_t reserved[5];
+	uint8_t gecc_enable;
 };
 
 struct dmub_visual_confirm_color {
