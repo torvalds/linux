@@ -61,8 +61,6 @@ struct xe_device {
 		u32 media_verx100;
 		/** @mem_region_mask: mask of valid memory regions */
 		u32 mem_region_mask;
-		/** @is_dgfx: is discrete device */
-		bool is_dgfx;
 		/** @platform: XE platform enum */
 		enum xe_platform platform;
 		/** @subplatform: XE subplatform enum */
@@ -81,20 +79,23 @@ struct xe_device {
 		u8 tile_count;
 		/** @vm_max_level: Max VM level */
 		u8 vm_max_level;
+
+		/** @is_dgfx: is discrete device */
+		u8 is_dgfx:1;
 		/** @supports_usm: Supports unified shared memory */
-		bool supports_usm;
+		u8 supports_usm:1;
 		/** @has_asid: Has address space ID */
-		bool has_asid;
+		u8 has_asid:1;
 		/** @enable_guc: GuC submission enabled */
-		bool enable_guc;
+		u8 enable_guc:1;
 		/** @has_flat_ccs: Whether flat CCS metadata is used */
-		bool has_flat_ccs;
+		u8 has_flat_ccs:1;
 		/** @has_4tile: Whether tile-4 tiling is supported */
-		bool has_4tile;
+		u8 has_4tile:1;
 		/** @has_range_tlb_invalidation: Has range based TLB invalidations */
-		bool has_range_tlb_invalidation;
+		u8 has_range_tlb_invalidation:1;
 		/** @has_link_copy_engines: Whether the platform has link copy engines */
-		bool has_link_copy_engine;
+		u8 has_link_copy_engine:1;
 	} info;
 
 	/** @irq: device interrupt state */
