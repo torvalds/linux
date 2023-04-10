@@ -587,16 +587,52 @@ static void aspeed_i3c_master_iba_ctrl(struct aspeed_i3c_master *master, bool ct
 		      master->regs + DEVICE_CTRL);
 }
 
-static void aspeed_i3c_master_disable(struct aspeed_i3c_master *master)
+static int aspeed_i3c_master_disable(struct aspeed_i3c_master *master)
 {
+	if (master->secondary)
+		aspeed_i3c_isolate_scl_sda(master, true);
 	writel(readl(master->regs + DEVICE_CTRL) & ~DEV_CTRL_ENABLE,
 	       master->regs + DEVICE_CTRL);
+	if (master->secondary) {
+		aspeed_i3c_toggle_scl_in(master, 8);
+		if (readl(master->regs + DEVICE_CTRL) & DEV_CTRL_ENABLE) {
+			dev_warn(master->dev,
+					"Failed to disable controller");
+			aspeed_i3c_isolate_scl_sda(master, false);
+			return -EACCES;
+		}
+		aspeed_i3c_isolate_scl_sda(master, false);
+	}
+	return 0;
 }
 
-static void aspeed_i3c_master_enable(struct aspeed_i3c_master *master)
+static int aspeed_i3c_master_enable(struct aspeed_i3c_master *master)
 {
+	u32 wait_enable_us;
+
+	if (master->secondary)
+		aspeed_i3c_isolate_scl_sda(master, true);
 	writel(readl(master->regs + DEVICE_CTRL) | DEV_CTRL_ENABLE,
 	       master->regs + DEVICE_CTRL);
+	if (master->secondary) {
+		wait_enable_us =
+			DIV_ROUND_UP(master->timing.core_period *
+					     FIELD_GET(GENMASK(31, 16),
+						       readl(master->regs +
+							     BUS_FREE_TIMING)),
+				     NSEC_PER_USEC);
+		udelay(wait_enable_us);
+		aspeed_i3c_toggle_scl_in(master, 8);
+		if (!(readl(master->regs + DEVICE_CTRL) & DEV_CTRL_ENABLE)) {
+			dev_warn(master->dev, "Failed to enable controller");
+			aspeed_i3c_isolate_scl_sda(master, false);
+			return -EACCES;
+		}
+		aspeed_i3c_gen_stop_to_internal(master);
+		aspeed_i3c_isolate_scl_sda(master, false);
+	}
+
+	return 0;
 }
 
 static void aspeed_i3c_master_resume(struct aspeed_i3c_master *master)
@@ -1287,7 +1323,7 @@ static int aspeed_i3c_master_bus_init(struct i3c_master_controller *m)
 	struct aspeed_i3c_master *master = to_aspeed_i3c_master(m);
 	struct i3c_bus *bus = i3c_master_get_bus(m);
 	struct i3c_device_info info = { };
-	u32 thld_ctrl, wait_enable_us;
+	u32 thld_ctrl;
 	int ret;
 
 	aspeed_i3c_master_set_role(master);
@@ -1369,27 +1405,9 @@ static int aspeed_i3c_master_bus_init(struct i3c_master_controller *m)
 		   DEV_CTRL_HOT_JOIN_NACK |
 		   DEV_CRTL_IBI_PAYLOAD_EN);
 
-	if (master->secondary)
-		aspeed_i3c_isolate_scl_sda(master, true);
-	aspeed_i3c_master_enable(master);
-	if (master->secondary) {
-		wait_enable_us =
-			DIV_ROUND_UP(master->timing.core_period *
-					     FIELD_GET(GENMASK(31, 16),
-						       readl(master->regs +
-							     BUS_FREE_TIMING)),
-				     NSEC_PER_USEC);
-		udelay(wait_enable_us);
-		aspeed_i3c_toggle_scl_in(master, 8);
-		if (!(readl(master->regs + DEVICE_CTRL) & DEV_CTRL_ENABLE)) {
-			dev_warn(master->dev, "failed to enable controller");
-			aspeed_i3c_isolate_scl_sda(master, false);
-			return -EACCES;
-		}
-		aspeed_i3c_gen_stop_to_internal(master);
-		aspeed_i3c_isolate_scl_sda(master, false);
-	}
-
+	ret = aspeed_i3c_master_enable(master);
+	if (ret)
+		return ret;
 	/* workaround for aspeed slave devices.  The aspeed slave devices need
 	 * for a dummy ccc and resume before accessing. Hide this workarond here
 	 * and later the i3c subsystem code will do the rstdaa again.
@@ -2536,34 +2554,15 @@ static int aspeed_i3c_master_send_sir(struct i3c_master_controller *m,
 
 static int aspeed_i3c_slave_reset_queue(struct aspeed_i3c_master *master)
 {
-	u32 wait_enable_us;
 	int ret = 0;
 
-	aspeed_i3c_isolate_scl_sda(master, true);
-	aspeed_i3c_master_disable(master);
-	aspeed_i3c_toggle_scl_in(master, 8);
-	if (readl(master->regs + DEVICE_CTRL) & DEV_CTRL_ENABLE) {
-		dev_warn(master->dev,
-			 "Master read timeout: failed to disable controller");
-		ret = -EACCES;
-		goto reset_finished;
-	}
+	ret = aspeed_i3c_master_disable(master);
+	if (ret)
+		return ret;
 	writel(RESET_CTRL_QUEUES, master->regs + RESET_CTRL);
-	aspeed_i3c_master_enable(master);
-	wait_enable_us = DIV_ROUND_UP(
-		master->timing.core_period *
-			FIELD_GET(GENMASK(31, 16),
-				  readl(master->regs + BUS_FREE_TIMING)),
-		NSEC_PER_USEC);
-	udelay(wait_enable_us);
-	aspeed_i3c_toggle_scl_in(master, 8);
-	if (!(readl(master->regs + DEVICE_CTRL) & DEV_CTRL_ENABLE)) {
-		dev_warn(master->dev,
-			 "Master read timeout: failed to enable controller");
-		ret = -EACCES;
-	}
-reset_finished:
-	aspeed_i3c_isolate_scl_sda(master, false);
+	ret = aspeed_i3c_master_enable(master);
+	if (ret)
+		return ret;
 	return ret;
 }
 
