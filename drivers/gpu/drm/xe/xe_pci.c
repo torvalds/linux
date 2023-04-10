@@ -55,6 +55,7 @@ struct xe_device_desc {
 	 * should eventually move entirely into the display code's own logic.
 	 */
 	u8 has_4tile:1;
+	u8 has_llc:1;
 };
 
 #define PLATFORM(x)		\
@@ -172,6 +173,7 @@ static const struct xe_device_desc tgl_desc = {
 	.graphics = &graphics_xelp,
 	.media = &media_xem,
 	PLATFORM(XE_TIGERLAKE),
+	.has_llc = 1,
 	.require_force_probe = true,
 };
 
@@ -179,6 +181,7 @@ static const struct xe_device_desc adl_s_desc = {
 	.graphics = &graphics_xelp,
 	.media = &media_xem,
 	PLATFORM(XE_ALDERLAKE_S),
+	.has_llc = 1,
 	.require_force_probe = true,
 };
 
@@ -188,6 +191,7 @@ static const struct xe_device_desc adl_p_desc = {
 	.graphics = &graphics_xelp,
 	.media = &media_xem,
 	PLATFORM(XE_ALDERLAKE_P),
+	.has_llc = 1,
 	.require_force_probe = true,
 	.subplatforms = (const struct xe_subplatform_desc[]) {
 		{ XE_SUBPLATFORM_ADLP_RPLU, "RPLU", adlp_rplu_ids },
@@ -491,6 +495,7 @@ static int xe_info_init(struct xe_device *xe,
 	xe->info.graphics_name = graphics_desc->name;
 	xe->info.media_name = media_desc ? media_desc->name : "none";
 	xe->info.has_4tile = desc->has_4tile;
+	xe->info.has_llc = desc->has_llc;
 
 	xe->info.dma_mask_size = graphics_desc->dma_mask_size;
 	xe->info.vram_flags = graphics_desc->vram_flags;
