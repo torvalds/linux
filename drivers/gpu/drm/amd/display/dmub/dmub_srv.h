@@ -332,6 +332,8 @@ struct dmub_srv_hw_funcs {
 	void (*setup_mailbox)(struct dmub_srv *dmub,
 			      const struct dmub_region *inbox1);
 
+	uint32_t (*get_inbox1_wptr)(struct dmub_srv *dmub);
+
 	uint32_t (*get_inbox1_rptr)(struct dmub_srv *dmub);
 
 	void (*set_inbox1_wptr)(struct dmub_srv *dmub, uint32_t wptr_offset);
@@ -589,6 +591,18 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
  *   DMUB_STATUS_INVALID - unspecified error
  */
 enum dmub_status dmub_srv_hw_reset(struct dmub_srv *dmub);
+
+/**
+ * dmub_srv_sync_inbox1() - sync sw state with hw state
+ * @dmub: the dmub service
+ *
+ * Sync sw state with hw state when resume from S0i3
+ *
+ * Return:
+ *   DMUB_STATUS_OK - success
+ *   DMUB_STATUS_INVALID - unspecified error
+ */
+enum dmub_status dmub_srv_sync_inbox1(struct dmub_srv *dmub);
 
 /**
  * dmub_srv_cmd_queue() - queues a command to the DMUB

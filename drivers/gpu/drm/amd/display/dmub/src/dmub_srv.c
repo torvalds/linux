@@ -167,6 +167,7 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 		funcs->backdoor_load = dmub_dcn20_backdoor_load;
 		funcs->setup_windows = dmub_dcn20_setup_windows;
 		funcs->setup_mailbox = dmub_dcn20_setup_mailbox;
+		funcs->get_inbox1_wptr = dmub_dcn20_get_inbox1_wptr;
 		funcs->get_inbox1_rptr = dmub_dcn20_get_inbox1_rptr;
 		funcs->set_inbox1_wptr = dmub_dcn20_set_inbox1_wptr;
 		funcs->is_supported = dmub_dcn20_is_supported;
@@ -243,6 +244,7 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 		funcs->backdoor_load = dmub_dcn31_backdoor_load;
 		funcs->setup_windows = dmub_dcn31_setup_windows;
 		funcs->setup_mailbox = dmub_dcn31_setup_mailbox;
+		funcs->get_inbox1_wptr = dmub_dcn31_get_inbox1_wptr;
 		funcs->get_inbox1_rptr = dmub_dcn31_get_inbox1_rptr;
 		funcs->set_inbox1_wptr = dmub_dcn31_set_inbox1_wptr;
 		funcs->setup_out_mailbox = dmub_dcn31_setup_out_mailbox;
@@ -281,6 +283,7 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 		funcs->backdoor_load_zfb_mode = dmub_dcn32_backdoor_load_zfb_mode;
 		funcs->setup_windows = dmub_dcn32_setup_windows;
 		funcs->setup_mailbox = dmub_dcn32_setup_mailbox;
+		funcs->get_inbox1_wptr = dmub_dcn32_get_inbox1_wptr;
 		funcs->get_inbox1_rptr = dmub_dcn32_get_inbox1_rptr;
 		funcs->set_inbox1_wptr = dmub_dcn32_set_inbox1_wptr;
 		funcs->setup_out_mailbox = dmub_dcn32_setup_out_mailbox;
@@ -662,6 +665,20 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 		dmub->hw_funcs.reset_release(dmub);
 
 	dmub->hw_init = true;
+
+	return DMUB_STATUS_OK;
+}
+
+enum dmub_status dmub_srv_sync_inbox1(struct dmub_srv *dmub)
+{
+	if (!dmub->sw_init)
+		return DMUB_STATUS_INVALID;
+
+	if (dmub->hw_funcs.get_inbox1_rptr && dmub->hw_funcs.get_inbox1_wptr) {
+		dmub->inbox1_rb.rptr = dmub->hw_funcs.get_inbox1_rptr(dmub);
+		dmub->inbox1_rb.wrpt = dmub->hw_funcs.get_inbox1_wptr(dmub);
+		dmub->inbox1_last_wptr = dmub->inbox1_rb.wrpt;
+	}
 
 	return DMUB_STATUS_OK;
 }
