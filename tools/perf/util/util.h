@@ -18,6 +18,8 @@
 extern const char perf_usage_string[];
 extern const char perf_more_info_string[];
 
+extern const char *input_name;
+
 /* General helper functions */
 void usage(const char *err) __noreturn;
 void die(const char *err, ...) __noreturn __printf(1, 2);

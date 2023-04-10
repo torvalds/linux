@@ -8,7 +8,6 @@
 #define MAX_NR_CPUS			2048
 #endif
 
-extern const char *input_name;
 extern bool perf_host, perf_guest;
 
 enum perf_affinity {

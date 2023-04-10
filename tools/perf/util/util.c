@@ -28,6 +28,8 @@
  * XXX We need to find a better place for these things...
  */
 
+const char *input_name;
+
 bool perf_singlethreaded = true;
 
 void perf_set_singlethreaded(void)

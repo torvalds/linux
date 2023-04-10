@@ -4,7 +4,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include "builtin.h"
-#include "perf.h"
 
 #include <subcmd/parse-options.h>
 #include "util/auxtrace.h"
@@ -22,6 +21,7 @@
 #include "util/pmu-hybrid.h"
 #include "util/sample.h"
 #include "util/string2.h"
+#include "util/util.h"
 #include <linux/err.h>
 
 #define MEM_OPERATION_LOAD	0x1

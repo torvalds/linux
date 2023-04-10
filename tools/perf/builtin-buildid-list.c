@@ -8,7 +8,6 @@
  * Copyright (C) 2009, Arnaldo Carvalho de Melo <acme@redhat.com>
  */
 #include "builtin.h"
-#include "perf.h"
 #include "util/build-id.h"
 #include "util/debug.h"
 #include "util/dso.h"
@@ -18,6 +17,7 @@
 #include "util/session.h"
 #include "util/symbol.h"
 #include "util/data.h"
+#include "util/util.h"
 #include <errno.h>
 #include <inttypes.h>
 #include <linux/err.h>

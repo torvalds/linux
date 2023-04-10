@@ -15,7 +15,6 @@
 #include <linux/zalloc.h>
 #include "util/symbol.h"
 
-#include "perf.h"
 #include "util/debug.h"
 
 #include "util/evlist.h"
@@ -36,6 +35,7 @@
 #include "util/block-range.h"
 #include "util/map_symbol.h"
 #include "util/branch.h"
+#include "util/util.h"
 
 #include <dlfcn.h>
 #include <errno.h>

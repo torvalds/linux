@@ -41,10 +41,10 @@
 #include "symbol.h"
 #include "ui/ui.h"
 #include "ui/progress.h"
-#include "../perf.h"
 #include "pmu.h"
 #include "pmu-hybrid.h"
 #include "string2.h"
+#include "util/util.h"
 
 struct c2c_hists {
 	struct hists		hists;

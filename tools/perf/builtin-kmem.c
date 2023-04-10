@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "builtin.h"
-#include "perf.h"
 
 #include "util/dso.h"
 #include "util/evlist.h"
@@ -24,6 +23,7 @@
 
 #include "util/debug.h"
 #include "util/string2.h"
+#include "util/util.h"
 
 #include <linux/kernel.h>
 #include <linux/numa.h>

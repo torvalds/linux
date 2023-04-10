@@ -40,7 +40,6 @@
 #include <linux/zalloc.h>
 
 static int use_pager = -1;
-const char *input_name;
 
 struct cmd_struct {
 	const char *cmd;
