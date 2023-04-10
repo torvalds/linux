@@ -209,6 +209,7 @@ struct dc_color_caps {
 struct dc_dmub_caps {
 	bool psr;
 	bool mclk_sw;
+	bool subvp_psr;
 };
 
 struct dc_caps {
