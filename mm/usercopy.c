@@ -173,7 +173,7 @@ static inline void check_heap_object(const void *ptr, unsigned long n,
 		return;
 	}
 
-	if (is_vmalloc_addr(ptr)) {
+	if (is_vmalloc_addr(ptr) && !pagefault_disabled()) {
 		struct vmap_area *area = find_vmap_area(addr);
 
 		if (!area)
