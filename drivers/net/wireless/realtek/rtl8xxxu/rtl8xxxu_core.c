@@ -1663,6 +1663,8 @@ int rtl8xxxu_config_endpoints_no_sie(struct rtl8xxxu_priv *priv)
 	struct device *dev = &priv->udev->dev;
 
 	switch (priv->nr_out_eps) {
+	case 6:
+	case 5:
 	case 4:
 	case 3:
 		priv->ep_tx_low_queue = 1;
