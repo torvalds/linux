@@ -114,7 +114,8 @@ void rtw89_leave_ps_mode(struct rtw89_dev *rtwdev)
 	__rtw89_leave_ps_mode(rtwdev);
 }
 
-void rtw89_enter_lps(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
+void rtw89_enter_lps(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+		     bool ps_mode)
 {
 	lockdep_assert_held(&rtwdev->mutex);
 
@@ -122,7 +123,8 @@ void rtw89_enter_lps(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 		return;
 
 	__rtw89_enter_lps(rtwdev, rtwvif->mac_id);
-	__rtw89_enter_ps_mode(rtwdev, rtwvif);
+	if (ps_mode)
+		__rtw89_enter_ps_mode(rtwdev, rtwvif);
 }
 
 static void rtw89_leave_lps_vif(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)

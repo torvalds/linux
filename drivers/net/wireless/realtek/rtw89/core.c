@@ -2503,7 +2503,7 @@ static void rtw89_vif_enter_lps(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwv
 
 	if (rtwvif->stats.tx_tfc_lv == RTW89_TFC_IDLE &&
 	    rtwvif->stats.rx_tfc_lv == RTW89_TFC_IDLE)
-		rtw89_enter_lps(rtwdev, rtwvif);
+		rtw89_enter_lps(rtwdev, rtwvif, true);
 }
 
 static void rtw89_enter_lps_track(struct rtw89_dev *rtwdev)
