@@ -161,7 +161,7 @@ static int xe_migrate_prepare_vm(struct xe_gt *gt, struct xe_migrate *m,
 	u32 num_entries = NUM_PT_SLOTS, num_level = vm->pt_root[id]->level;
 	u32 map_ofs, level, i;
 	struct xe_device *xe = gt_to_xe(m->gt);
-	struct xe_bo *bo, *batch = gt->kernel_bb_pool.bo;
+	struct xe_bo *bo, *batch = gt->kernel_bb_pool->bo;
 	u64 entry;
 	int ret;
 
@@ -229,7 +229,7 @@ static int xe_migrate_prepare_vm(struct xe_gt *gt, struct xe_migrate *m,
 		m->batch_base_ofs = xe_migrate_vram_ofs(batch_addr);
 
 		if (xe->info.supports_usm) {
-			batch = gt->usm.bb_pool.bo;
+			batch = gt->usm.bb_pool->bo;
 			batch_addr = xe_bo_addr(batch, 0, GEN8_PAGE_SIZE,
 						&is_vram);
 			m->usm_batch_base_ofs = xe_migrate_vram_ofs(batch_addr);

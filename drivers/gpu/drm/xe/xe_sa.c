@@ -33,13 +33,18 @@ static void xe_sa_bo_manager_fini(struct drm_device *drm, void *arg)
 	sa_manager->bo = NULL;
 }
 
-int xe_sa_bo_manager_init(struct xe_gt *gt,
-			  struct xe_sa_manager *sa_manager,
-			  u32 size, u32 align)
+struct xe_sa_manager *xe_sa_bo_manager_init(struct xe_gt *gt, u32 size, u32 align)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	u32 managed_size = size - SZ_4K;
 	struct xe_bo *bo;
+	int ret;
+
+	struct xe_sa_manager *sa_manager = drmm_kzalloc(&gt_to_xe(gt)->drm,
+							sizeof(*sa_manager),
+							GFP_KERNEL);
+	if (!sa_manager)
+		return ERR_PTR(-ENOMEM);
 
 	sa_manager->bo = NULL;
 
@@ -49,7 +54,7 @@ int xe_sa_bo_manager_init(struct xe_gt *gt,
 	if (IS_ERR(bo)) {
 		drm_err(&xe->drm, "failed to allocate bo for sa manager: %ld\n",
 			PTR_ERR(bo));
-		return PTR_ERR(bo);
+		return (struct xe_sa_manager *)bo;
 	}
 	sa_manager->bo = bo;
 
@@ -61,15 +66,19 @@ int xe_sa_bo_manager_init(struct xe_gt *gt,
 		if (!sa_manager->cpu_ptr) {
 			xe_bo_unpin_map_no_vm(sa_manager->bo);
 			sa_manager->bo = NULL;
-			return -ENOMEM;
+			return ERR_PTR(-ENOMEM);
 		}
 	} else {
 		sa_manager->cpu_ptr = bo->vmap.vaddr;
 		memset(sa_manager->cpu_ptr, 0, bo->ttm.base.size);
 	}
 
-	return drmm_add_action_or_reset(&xe->drm, xe_sa_bo_manager_fini,
-					sa_manager);
+	ret = drmm_add_action_or_reset(&xe->drm, xe_sa_bo_manager_fini,
+				       sa_manager);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return sa_manager;
 }
 
 struct drm_suballoc *xe_sa_bo_new(struct xe_sa_manager *sa_manager,

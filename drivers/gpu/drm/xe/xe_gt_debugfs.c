@@ -66,8 +66,8 @@ static int sa_info(struct seq_file *m, void *data)
 	struct xe_gt *gt = node_to_gt(m->private);
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	drm_suballoc_dump_debug_info(&gt->kernel_bb_pool.base, &p,
-				     gt->kernel_bb_pool.gpu_addr);
+	drm_suballoc_dump_debug_info(&gt->kernel_bb_pool->base, &p,
+				     gt->kernel_bb_pool->gpu_addr);
 
 	return 0;
 }

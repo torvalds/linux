@@ -214,7 +214,7 @@ struct xe_gt {
 		 * behind any user operations which may have resulted in a
 		 * fault.
 		 */
-		struct xe_sa_manager bb_pool;
+		struct xe_sa_manager *bb_pool;
 		/**
 		 * @reserved_bcs_instance: reserved BCS instance used for USM
 		 * operations (e.g. mmigrations, fixing page tables)
@@ -304,8 +304,12 @@ struct xe_gt {
 	/** @hw_engines: hardware engines on the GT */
 	struct xe_hw_engine hw_engines[XE_NUM_HW_ENGINES];
 
-	/** @kernel_bb_pool: Pool from which batchbuffers are allocated */
-	struct xe_sa_manager kernel_bb_pool;
+	/**
+	 * @kernel_bb_pool: Pool from which batchbuffers are allocated.
+	 *
+	 * Media GT shares a pool with its primary GT.
+	 */
+	struct xe_sa_manager *kernel_bb_pool;
 
 	/** @migrate: Migration helper for vram blits and clearing */
 	struct xe_migrate *migrate;

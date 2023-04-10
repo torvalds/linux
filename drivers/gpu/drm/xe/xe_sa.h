@@ -11,9 +11,7 @@ struct dma_fence;
 struct xe_bo;
 struct xe_gt;
 
-int xe_sa_bo_manager_init(struct xe_gt *gt,
-			  struct xe_sa_manager *sa_manager,
-			  u32 size, u32 align);
+struct xe_sa_manager *xe_sa_bo_manager_init(struct xe_gt *gt, u32 size, u32 align);
 
 struct drm_suballoc *xe_sa_bo_new(struct xe_sa_manager *sa_manager,
 				  u32 size);
