@@ -844,6 +844,7 @@ struct v4l2_pix_format {
 /* Flags */
 #define V4L2_PIX_FMT_FLAG_PREMUL_ALPHA	0x00000001
 #define V4L2_PIX_FMT_FLAG_SET_CSC	0x00000002
+#define V4L2_PIX_FMT_FLAG_PARTIAL_JPG	0x00000004
 
 /*
  *	F O R M A T   E N U M E R A T I O N
