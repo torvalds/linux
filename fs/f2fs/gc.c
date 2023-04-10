@@ -1616,14 +1616,14 @@ next_step:
 			int err;
 
 			if (S_ISREG(inode->i_mode)) {
-				if (!f2fs_down_write_trylock(&fi->i_gc_rwsem[READ])) {
+				if (!f2fs_down_write_trylock(&fi->i_gc_rwsem[WRITE])) {
 					sbi->skipped_gc_rwsem++;
 					continue;
 				}
 				if (!f2fs_down_write_trylock(
-						&fi->i_gc_rwsem[WRITE])) {
+						&fi->i_gc_rwsem[READ])) {
 					sbi->skipped_gc_rwsem++;
-					f2fs_up_write(&fi->i_gc_rwsem[READ]);
+					f2fs_up_write(&fi->i_gc_rwsem[WRITE]);
 					continue;
 				}
 				locked = true;
@@ -1646,8 +1646,8 @@ next_step:
 				submitted++;
 
 			if (locked) {
-				f2fs_up_write(&fi->i_gc_rwsem[WRITE]);
 				f2fs_up_write(&fi->i_gc_rwsem[READ]);
+				f2fs_up_write(&fi->i_gc_rwsem[WRITE]);
 			}
 
 			stat_inc_data_blk_count(sbi, 1, gc_type);
