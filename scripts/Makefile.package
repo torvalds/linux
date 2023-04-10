@@ -94,7 +94,7 @@ binrpm-pkg:
 		$(UTS_MACHINE)-linux -bb $(objtree)/binkernel.spec
 
 quiet_cmd_debianize = GEN     $@
-      cmd_debianize = $(srctree)/scripts/package/mkdebian
+      cmd_debianize = $(srctree)/scripts/package/mkdebian $(mkdebian-opts)
 
 debian: FORCE
 	$(call cmd,debianize)
@@ -103,6 +103,7 @@ PHONY += debian-orig
 debian-orig: private source = $(shell dpkg-parsechangelog -S Source)
 debian-orig: private version = $(shell dpkg-parsechangelog -S Version | sed 's/-[^-]*$$//')
 debian-orig: private orig-name = $(source)_$(version).orig.tar.gz
+debian-orig: mkdebian-opts = --need-source
 debian-orig: linux.tar.gz debian
 	$(Q)if [ "$(df  --output=target .. 2>/dev/null)" = "$(df --output=target $< 2>/dev/null)" ]; then \
 		ln -f $< ../$(orig-name); \
