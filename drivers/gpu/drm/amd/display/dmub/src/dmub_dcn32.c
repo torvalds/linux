@@ -439,6 +439,7 @@ void dmub_dcn32_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_diagnosti
 	diag_data->scratch[13] = REG_READ(DMCUB_SCRATCH13);
 	diag_data->scratch[14] = REG_READ(DMCUB_SCRATCH14);
 	diag_data->scratch[15] = REG_READ(DMCUB_SCRATCH15);
+	diag_data->scratch[16] = REG_READ(DMCUB_SCRATCH16);
 
 	diag_data->undefined_address_fault_addr = REG_READ(DMCUB_UNDEFINED_ADDRESS_FAULT_ADDR);
 	diag_data->inst_fetch_fault_addr = REG_READ(DMCUB_INST_FETCH_FAULT_ADDR);
@@ -469,6 +470,8 @@ void dmub_dcn32_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_diagnosti
 
 	REG_GET(DMCUB_REGION3_CW6_TOP_ADDRESS, DMCUB_REGION3_CW6_ENABLE, &is_cw6_enabled);
 	diag_data->is_cw6_enabled = is_cw6_enabled;
+
+	diag_data->gpint_datain0 = REG_READ(DMCUB_GPINT_DATAIN0);
 }
 void dmub_dcn32_configure_dmub_in_system_memory(struct dmub_srv *dmub)
 {

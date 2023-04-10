@@ -271,7 +271,7 @@ struct dmub_srv_hw_params {
  */
 struct dmub_diagnostic_data {
 	uint32_t dmcub_version;
-	uint32_t scratch[16];
+	uint32_t scratch[17];
 	uint32_t pc;
 	uint32_t undefined_address_fault_addr;
 	uint32_t inst_fetch_fault_addr;
@@ -282,6 +282,7 @@ struct dmub_diagnostic_data {
 	uint32_t inbox0_rptr;
 	uint32_t inbox0_wptr;
 	uint32_t inbox0_size;
+	uint32_t gpint_datain0;
 	uint8_t is_dmcub_enabled : 1;
 	uint8_t is_dmcub_soft_reset : 1;
 	uint8_t is_dmcub_secure_reset : 1;
