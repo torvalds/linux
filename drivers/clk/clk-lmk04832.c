@@ -1522,8 +1522,8 @@ static int lmk04832_probe(struct spi_device *spi)
 	}
 
 	lmk->clk_data->num = info->num_channels;
-	ret = of_clk_add_hw_provider(lmk->dev->of_node, of_clk_hw_onecell_get,
-				     lmk->clk_data);
+	ret = devm_of_clk_add_hw_provider(lmk->dev, of_clk_hw_onecell_get,
+					  lmk->clk_data);
 	if (ret) {
 		dev_err(lmk->dev, "failed to add provider (%d)\n", ret);
 		goto err_disable_vco;
@@ -1547,7 +1547,6 @@ static void lmk04832_remove(struct spi_device *spi)
 	struct lmk04832 *lmk = spi_get_drvdata(spi);
 
 	clk_disable_unprepare(lmk->oscin);
-	of_clk_del_provider(spi->dev.of_node);
 }
 
 static const struct spi_device_id lmk04832_id[] = {
