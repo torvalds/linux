@@ -4074,8 +4074,6 @@ static int __init amd64_edac_init(void)
 	amd64_err("%s on 32-bit is unsupported. USE AT YOUR OWN RISK!\n", EDAC_MOD_STR);
 #endif
 
-	printk(KERN_INFO "AMD64 EDAC driver v%s\n", EDAC_AMD64_VERSION);
-
 	return 0;
 
 err_pci:
@@ -4121,7 +4119,7 @@ module_exit(amd64_edac_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("SoftwareBitMaker: Doug Thompson, Dave Peterson, Thayne Harbaugh; AMD");
-MODULE_DESCRIPTION("MC support for AMD64 memory controllers - " EDAC_AMD64_VERSION);
+MODULE_DESCRIPTION("MC support for AMD64 memory controllers");
 
 module_param(edac_op_state, int, 0444);
 MODULE_PARM_DESC(edac_op_state, "EDAC Error Reporting state: 0=Poll,1=NMI");
