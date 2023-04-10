@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/of_device.h>
 #include <linux/of_platform.h>
 
 MODULE_DESCRIPTION("Broadcom's specific AMBA driver");
