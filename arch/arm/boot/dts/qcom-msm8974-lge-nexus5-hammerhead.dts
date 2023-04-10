@@ -592,7 +592,6 @@
 		pins = "gpio73";
 		function = "gpio";
 		bias-disable;
-		input-enable;
 	};
 
 	touch_pin: touch-state {
@@ -602,7 +601,6 @@
 
 			drive-strength = <2>;
 			bias-disable;
-			input-enable;
 		};
 
 		reset-pins {
