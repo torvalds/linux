@@ -210,7 +210,7 @@ int xe_pcode_init_min_freq_table(struct xe_gt *gt, u32 min_gt_freq,
 	int ret;
 	u32 freq;
 
-	if (IS_DGFX(gt_to_xe(gt)))
+	if (!gt_to_xe(gt)->info.has_llc)
 		return 0;
 
 	if (max_gt_freq <= min_gt_freq)
