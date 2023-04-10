@@ -63,7 +63,6 @@ static DEFINE_IDA(glink_pkt_minor_ida);
  * struct glink_pkt - driver context, relates rpdev to cdev
  * @dev:	glink pkt device
  * @cdev:	cdev for the glink pkt device
- * @drv:	rpmsg driver for registering to rpmsg bus
  * @lock:	synchronization of @rpdev and @open_tout modifications
  * @ch_open:	wait object for opening the glink channel
  * @refcount:	count how many userspace clients have handles
@@ -74,6 +73,10 @@ static DEFINE_IDA(glink_pkt_minor_ida);
  * @readq:	wait object for incoming queue
  * @sig_change:	flag to indicate serial signal change
  * @fragmented_read: set from dt node for partial read
+ * @enable_ch_close: set from dt node for unregister driver on close syscall
+ * @drv_lock:	lock to protect rpmsg driver variable
+ * @drv:	rpmsg driver for registering to rpmsg bus
+ * @drv_registered: status of rpmsg driver
  * @dev_name:	/dev/@dev_name for glink_pkt device
  * @ch_name:	glink channel to match to
  * @edge:	glink edge to match to
@@ -85,7 +88,6 @@ static DEFINE_IDA(glink_pkt_minor_ida);
 struct glink_pkt_device {
 	struct device dev;
 	struct cdev cdev;
-	struct rpmsg_driver drv;
 
 	struct mutex lock;
 	struct completion ch_open;
@@ -100,7 +102,11 @@ struct glink_pkt_device {
 	int sig_change;
 	bool fragmented_read;
 	bool enable_ch_close;
-	int drv_registered;
+
+	struct mutex drv_lock;
+	struct rpmsg_driver drv;
+	bool drv_registered;
+
 	const char *dev_name;
 	const char *ch_name;
 	const char *edge;
@@ -305,6 +311,31 @@ static void glink_pkt_rpdev_remove(struct rpmsg_device *rpdev)
 	wake_up_interruptible(&gpdev->readq);
 }
 
+static int glink_pkt_drv_try_register(struct glink_pkt_device *gpdev)
+{
+	int ret = 0;
+
+	mutex_lock(&gpdev->drv_lock);
+	if (!gpdev->drv_registered) {
+		ret = register_rpmsg_driver(&gpdev->drv);
+		if (!ret)
+			gpdev->drv_registered = true;
+	}
+	mutex_unlock(&gpdev->drv_lock);
+
+	return ret;
+}
+
+static void glink_pkt_drv_try_unregister(struct glink_pkt_device *gpdev)
+{
+	mutex_lock(&gpdev->drv_lock);
+	if (gpdev->drv_registered) {
+		unregister_rpmsg_driver(&gpdev->drv);
+		gpdev->drv_registered = false;
+	}
+	mutex_unlock(&gpdev->drv_lock);
+}
+
 /**
  * glink_pkt_open() - open() syscall for the glink_pkt device
  * inode:	Pointer to the inode structure.
@@ -328,17 +359,14 @@ static int glink_pkt_open(struct inode *inode, struct file *file)
 		       gpdev->ch_name, current->comm,
 		       task_pid_nr(current), refcount_read(&gpdev->refcount));
 
-	if (!gpdev->drv_registered && gpdev->enable_ch_close) {
-		register_rpmsg_driver(&gpdev->drv);
-		gpdev->drv_registered = 1;
-	}
+	if (gpdev->enable_ch_close)
+		glink_pkt_drv_try_register(gpdev);
 
 	ret = wait_for_completion_interruptible_timeout(&gpdev->ch_open, tout);
 	if (ret <= 0) {
-		if (gpdev->drv_registered && gpdev->enable_ch_close) {
-			unregister_rpmsg_driver(&gpdev->drv);
-			gpdev->drv_registered = 0;
-		}
+		if (gpdev->enable_ch_close)
+			glink_pkt_drv_try_unregister(gpdev);
+
 		refcount_dec(&gpdev->refcount);
 		put_device(dev);
 		GLINK_PKT_INFO("timeout for %s by %s:%d\n", gpdev->ch_name,
@@ -382,10 +410,8 @@ static int glink_pkt_release(struct inode *inode, struct file *file)
 		wake_up_interruptible(&gpdev->readq);
 		spin_unlock_irqrestore(&gpdev->queue_lock, flags);
 
-		if (gpdev->drv_registered && gpdev->enable_ch_close) {
-			unregister_rpmsg_driver(&gpdev->drv);
-			gpdev->drv_registered = 0;
-		}
+		if (gpdev->enable_ch_close)
+			glink_pkt_drv_try_unregister(gpdev);
 	}
 	put_device(dev);
 
@@ -1080,9 +1106,7 @@ static int glink_pkt_init_rpmsg(struct glink_pkt_device *gpdev)
 	rpdrv->id_table = match;
 	rpdrv->drv.name = drv_name;
 
-	register_rpmsg_driver(rpdrv);
-
-	return 0;
+	return glink_pkt_drv_try_register(gpdev);
 }
 
 /**
@@ -1121,6 +1145,7 @@ static int glink_pkt_create_device(struct device *parent,
 	}
 
 	mutex_init(&gpdev->lock);
+	mutex_init(&gpdev->drv_lock);
 	refcount_set(&gpdev->refcount, 1);
 	init_completion(&gpdev->ch_open);
 
@@ -1172,10 +1197,9 @@ static int glink_pkt_create_device(struct device *parent,
 		GLINK_PKT_ERR("device_create_file failed for %s\n",
 			      gpdev->dev_name);
 
-	if (glink_pkt_init_rpmsg(gpdev)) {
-		gpdev->drv_registered = 1;
+	ret = glink_pkt_init_rpmsg(gpdev);
+	if (ret)
 		goto free_dev;
-	}
 
 	return 0;
 
