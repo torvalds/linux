@@ -1541,6 +1541,9 @@ void evsel__exit(struct evsel *evsel)
 
 void evsel__delete(struct evsel *evsel)
 {
+	if (!evsel)
+		return;
+
 	evsel__exit(evsel);
 	free(evsel);
 }
