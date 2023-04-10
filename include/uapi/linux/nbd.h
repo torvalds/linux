@@ -12,7 +12,7 @@
  * 2004/02/19 Paul Clements
  *            Removed PARANOIA, plus various cleanup and comments
  * 2023 Copyright Red Hat
- *            Link to userspace extensions.
+ *            Link to userspace extensions, favor cookie over handle.
  */
 
 #ifndef _UAPILINUX_NBD_H
@@ -81,7 +81,10 @@ enum {
 struct nbd_request {
 	__be32 magic;	/* NBD_REQUEST_MAGIC	*/
 	__be32 type;	/* See NBD_CMD_*	*/
-	char handle[8];
+	union {
+		__be64 cookie;	/* Opaque identifier for request	*/
+		char handle[8];	/* older spelling of cookie		*/
+	};
 	__be64 from;
 	__be32 len;
 } __attribute__((packed));
@@ -93,6 +96,9 @@ struct nbd_request {
 struct nbd_reply {
 	__be32 magic;		/* NBD_REPLY_MAGIC	*/
 	__be32 error;		/* 0 = ok, else error	*/
-	char handle[8];		/* handle you got from request	*/
+	union {
+		__be64 cookie;	/* Opaque identifier from request	*/
+		char handle[8];	/* older spelling of cookie		*/
+	};
 };
 #endif /* _UAPILINUX_NBD_H */
