@@ -1923,6 +1923,11 @@ struct rtl8xxxu_fileops {
 	u8 has_tx_report:1;
 	u8 gen2_thermal_meter:1;
 	u8 needs_full_init:1;
+	u8 init_reg_rxfltmap:1;
+	u8 init_reg_pkt_life_time:1;
+	u8 init_reg_hmtfr:1;
+	u8 ampdu_max_time;
+	u8 ustime_tsf_edca;
 	u32 adda_1t_init;
 	u32 adda_1t_path_on;
 	u32 adda_2t_path_on_a;

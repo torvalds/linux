@@ -1883,6 +1883,7 @@ struct rtl8xxxu_fileops rtl8188eu_fops = {
 	.rx_desc_size = sizeof(struct rtl8xxxu_rxdesc16),
 	.tx_desc_size = sizeof(struct rtl8xxxu_txdesc32),
 	.has_tx_report = 1,
+	.init_reg_pkt_life_time = 1,
 	.gen2_thermal_meter = 1,
 	.adda_1t_init = 0x0b1b25a0,
 	.adda_1t_path_on = 0x0bdb25a0,
