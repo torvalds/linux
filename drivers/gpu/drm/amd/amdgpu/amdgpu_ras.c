@@ -2430,6 +2430,13 @@ static void amdgpu_ras_check_supported(struct amdgpu_device *adev)
 			else
 				adev->ras_hw_enabled &= ~(1 << AMDGPU_RAS_BLOCK__VCN |
 							1 << AMDGPU_RAS_BLOCK__JPEG);
+
+			/*
+			 * XGMI RAS is not supported if xgmi num physical nodes
+			 * is zero
+			 */
+			if (!adev->gmc.xgmi.num_physical_nodes)
+				adev->ras_hw_enabled &= ~(1 << AMDGPU_RAS_BLOCK__XGMI_WAFL);
 		} else {
 			dev_info(adev->dev, "SRAM ECC is not presented.\n");
 		}
