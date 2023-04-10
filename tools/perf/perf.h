@@ -18,5 +18,4 @@ enum perf_affinity {
 	PERF_AFFINITY_MAX
 };
 
-extern int version_verbose;
 #endif
