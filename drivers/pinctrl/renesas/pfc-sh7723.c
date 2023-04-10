@@ -1784,7 +1784,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PSD3_PSD2_FN1, PSD3_PSD2_FN2, 0, 0,
 		PSD1_PSD0_FN1, PSD1_PSD0_FN2, 0, 0 ))
 	},
-	{}
+	{ /* sentinel */ }
 };
 
 static const struct pinmux_data_reg pinmux_data_regs[] = {
@@ -1880,7 +1880,7 @@ static const struct pinmux_data_reg pinmux_data_regs[] = {
 		PTZ7_DATA, PTZ6_DATA, PTZ5_DATA, PTZ4_DATA,
 		PTZ3_DATA, PTZ2_DATA, PTZ1_DATA, PTZ0_DATA ))
 	},
-	{ },
+	{ /* sentinel */ }
 };
 
 const struct sh_pfc_soc_info sh7723_pinmux_info = {

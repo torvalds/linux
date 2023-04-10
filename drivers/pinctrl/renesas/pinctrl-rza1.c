@@ -1388,7 +1388,7 @@ static const struct of_device_id rza1_pinctrl_of_match[] = {
 		.compatible	= "renesas,r7s72102-ports",
 		.data		= &rza1l_pmx_conf,
 	},
-	{ }
+	{ /* sentinel */ }
 };
 
 static struct platform_driver rza1_pinctrl_driver = {
