@@ -10,7 +10,6 @@
 
 extern const char *input_name;
 extern bool perf_host, perf_guest;
-extern const char perf_version_string[];
 
 enum perf_affinity {
 	PERF_AFFINITY_SYS = 0,

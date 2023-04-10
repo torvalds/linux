@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "builtin.h"
-#include "perf.h"
 #include "color.h"
+#include "util/header.h"
 #include <tools/config.h>
 #include <stdbool.h>
 #include <stdio.h>
