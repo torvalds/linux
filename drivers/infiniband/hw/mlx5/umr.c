@@ -381,7 +381,8 @@ static void mlx5r_umr_set_access_flags(struct mlx5_ib_dev *dev,
 				       unsigned int access_flags)
 {
 	bool ro_read = (access_flags & IB_ACCESS_RELAXED_ORDERING) &&
-		       pcie_relaxed_ordering_enabled(dev->mdev->pdev);
+		       (MLX5_CAP_GEN(dev->mdev, relaxed_ordering_read) ||
+			pcie_relaxed_ordering_enabled(dev->mdev->pdev));
 
 	MLX5_SET(mkc, seg, a, !!(access_flags & IB_ACCESS_REMOTE_ATOMIC));
 	MLX5_SET(mkc, seg, rw, !!(access_flags & IB_ACCESS_REMOTE_WRITE));
