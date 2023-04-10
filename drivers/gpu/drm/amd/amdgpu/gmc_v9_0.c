@@ -1346,6 +1346,9 @@ gmc_v9_0_get_memory_partition(struct amdgpu_device *adev, u32 *supp_modes)
 static enum amdgpu_memory_partition
 gmc_v9_0_query_memory_partition(struct amdgpu_device *adev)
 {
+	if (amdgpu_sriov_vf(adev))
+		return AMDGPU_NPS1_PARTITION_MODE;
+
 	return gmc_v9_0_get_memory_partition(adev, NULL);
 }
 
@@ -1897,7 +1900,10 @@ static int gmc_v9_0_init_mem_ranges(struct amdgpu_device *adev)
 	else
 		gmc_v9_0_init_sw_mem_ranges(adev, adev->gmc.mem_partitions);
 
-	valid = gmc_v9_0_validate_partition_info(adev);
+	if (amdgpu_sriov_vf(adev))
+		valid = true;
+	else
+		valid = gmc_v9_0_validate_partition_info(adev);
 	if (!valid) {
 		/* TODO: handle invalid case */
 		dev_WARN(adev->dev,
