@@ -22512,9 +22512,8 @@ S:	Maintained
 F:	drivers/media/rc/winbond-cir.c
 
 WINSYSTEMS EBC-C384 WATCHDOG DRIVER
-M:	William Breathitt Gray <william.gray@linaro.org>
 L:	linux-watchdog@vger.kernel.org
-S:	Maintained
+S:	Orphan
 F:	drivers/watchdog/ebc-c384_wdt.c
 
 WINSYSTEMS WS16C48 GPIO DRIVER
