@@ -49,7 +49,6 @@
 		gpioext1-pins {
 			pins = "gpio2";
 			function = "gpio";
-			input-enable;
 			bias-disable;
 		};
 	};
