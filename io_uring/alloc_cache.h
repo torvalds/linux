@@ -27,6 +27,7 @@ static inline struct io_cache_entry *io_alloc_cache_get(struct io_alloc_cache *c
 		struct hlist_node *node = cache->list.first;
 
 		hlist_del(node);
+		cache->nr_cached--;
 		return container_of(node, struct io_cache_entry, node);
 	}
 

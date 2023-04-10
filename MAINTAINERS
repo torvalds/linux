@@ -73,7 +73,7 @@ Tips for patch submitters
 	and ideally, should come with a patch proposal. Please do not send
 	automated reports to this list either. Such bugs will be handled
 	better and faster in the usual public places. See
-	Documentation/admin-guide/security-bugs.rst for details.
+	Documentation/process/security-bugs.rst for details.
 
 8.	Happy hacking.
 
@@ -8216,6 +8216,7 @@ F:	drivers/net/ethernet/freescale/dpaa
 
 FREESCALE QORIQ DPAA FMAN DRIVER
 M:	Madalin Bucur <madalin.bucur@nxp.com>
+R:	Sean Anderson <sean.anderson@seco.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/net/fsl-fman.txt
@@ -14656,10 +14657,8 @@ F:	net/ipv4/nexthop.c
 
 NFC SUBSYSTEM
 M:	Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>
-L:	linux-nfc@lists.01.org (subscribers-only)
 L:	netdev@vger.kernel.org
 S:	Maintained
-B:	mailto:linux-nfc@lists.01.org
 F:	Documentation/devicetree/bindings/net/nfc/
 F:	drivers/nfc/
 F:	include/linux/platform_data/nfcmrvl.h
@@ -14670,7 +14669,6 @@ F:	net/nfc/
 NFC VIRTUAL NCI DEVICE DRIVER
 M:	Bongsu Jeon <bongsu.jeon@samsung.com>
 L:	netdev@vger.kernel.org
-L:	linux-nfc@lists.01.org (subscribers-only)
 S:	Supported
 F:	drivers/nfc/virtual_ncidev.c
 F:	tools/testing/selftests/nci/
@@ -15042,7 +15040,6 @@ F:	Documentation/devicetree/bindings/sound/nxp,tfa989x.yaml
 F:	sound/soc/codecs/tfa989x.c
 
 NXP-NCI NFC DRIVER
-L:	linux-nfc@lists.01.org (subscribers-only)
 S:	Orphan
 F:	Documentation/devicetree/bindings/net/nfc/nxp,nci.yaml
 F:	drivers/nfc/nxp-nci
@@ -18291,8 +18288,9 @@ F:	drivers/s390/block/dasd*
 F:	include/linux/dasd_mod.h
 
 S390 IOMMU (PCI)
+M:	Niklas Schnelle <schnelle@linux.ibm.com>
 M:	Matthew Rosato <mjrosato@linux.ibm.com>
-M:	Gerald Schaefer <gerald.schaefer@linux.ibm.com>
+R:	Gerald Schaefer <gerald.schaefer@linux.ibm.com>
 L:	linux-s390@vger.kernel.org
 S:	Supported
 F:	drivers/iommu/s390-iommu.c
@@ -18487,7 +18485,6 @@ F:	include/media/drv-intf/s3c_camif.h
 
 SAMSUNG S3FWRN5 NFC DRIVER
 M:	Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>
-L:	linux-nfc@lists.01.org (subscribers-only)
 S:	Maintained
 F:	Documentation/devicetree/bindings/net/nfc/samsung,s3fwrn5.yaml
 F:	drivers/nfc/s3fwrn5
@@ -18802,7 +18799,7 @@ F:	include/uapi/linux/sed*
 SECURITY CONTACT
 M:	Security Officers <security@kernel.org>
 S:	Supported
-F:	Documentation/admin-guide/security-bugs.rst
+F:	Documentation/process/security-bugs.rst
 
 SECURITY SUBSYSTEM
 M:	Paul Moore <paul@paul-moore.com>
@@ -20645,7 +20642,6 @@ F:	sound/soc/codecs/tscs*.h
 TENSILICA XTENSA PORT (xtensa)
 M:	Chris Zankel <chris@zankel.net>
 M:	Max Filippov <jcmvbkbc@gmail.com>
-L:	linux-xtensa@linux-xtensa.org
 S:	Maintained
 T:	git https://github.com/jcmvbkbc/linux-xtensa.git
 F:	arch/xtensa/
@@ -20981,7 +20977,6 @@ F:	drivers/iio/magnetometer/tmag5273.c
 TI TRF7970A NFC DRIVER
 M:	Mark Greer <mgreer@animalcreek.com>
 L:	linux-wireless@vger.kernel.org
-L:	linux-nfc@lists.01.org (subscribers-only)
 S:	Supported
 F:	Documentation/devicetree/bindings/net/nfc/ti,trf7970a.yaml
 F:	drivers/nfc/trf7970a.c
@@ -23038,7 +23033,6 @@ F:	drivers/gpio/gpio-xra1403.c
 
 XTENSA XTFPGA PLATFORM SUPPORT
 M:	Max Filippov <jcmvbkbc@gmail.com>
-L:	linux-xtensa@linux-xtensa.org
 S:	Maintained
 F:	drivers/spi/spi-xtensa-xtfpga.c
 F:	sound/soc/xtensa/xtfpga-i2s.c

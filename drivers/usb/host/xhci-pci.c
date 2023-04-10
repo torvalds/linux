@@ -969,7 +969,6 @@ static struct pci_driver xhci_pci_driver = {
 	.shutdown = 	usb_hcd_pci_shutdown,
 	.driver = {
 		.pm = pm_ptr(&usb_hcd_pci_pm_ops),
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
 

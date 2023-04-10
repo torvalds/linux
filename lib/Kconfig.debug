@@ -1143,7 +1143,7 @@ menu "Scheduler Debugging"
 
 config SCHED_DEBUG
 	bool "Collect scheduler debugging info"
-	depends on DEBUG_KERNEL && PROC_FS
+	depends on DEBUG_KERNEL && DEBUG_FS
 	default y
 	help
 	  If you say Y here, the /sys/kernel/debug/sched file will be provided
@@ -1392,7 +1392,7 @@ config LOCKDEP_STACK_TRACE_HASH_BITS
 	range 10 30
 	default 14
 	help
-	  Try increasing this value if you need large MAX_STACK_TRACE_ENTRIES.
+	  Try increasing this value if you need large STACK_TRACE_HASH_SIZE.
 
 config LOCKDEP_CIRCULAR_QUEUE_BITS
 	int "Bitsize for elements in circular_queue struct"
