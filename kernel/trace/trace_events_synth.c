@@ -44,14 +44,21 @@ enum { ERRORS };
 
 static const char *err_text[] = { ERRORS };
 
+static DEFINE_MUTEX(lastcmd_mutex);
 static char *last_cmd;
 
 static int errpos(const char *str)
 {
-	if (!str || !last_cmd)
-		return 0;
+	int ret = 0;
 
-	return err_pos(last_cmd, str);
+	mutex_lock(&lastcmd_mutex);
+	if (!str || !last_cmd)
+		goto out;
+
+	ret = err_pos(last_cmd, str);
+ out:
+	mutex_unlock(&lastcmd_mutex);
+	return ret;
 }
 
 static void last_cmd_set(const char *str)
@@ -59,18 +66,22 @@ static void last_cmd_set(const char *str)
 	if (!str)
 		return;
 
+	mutex_lock(&lastcmd_mutex);
 	kfree(last_cmd);
-
 	last_cmd = kstrdup(str, GFP_KERNEL);
+	mutex_unlock(&lastcmd_mutex);
 }
 
 static void synth_err(u8 err_type, u16 err_pos)
 {
+	mutex_lock(&lastcmd_mutex);
 	if (!last_cmd)
-		return;
+		goto out;
 
 	tracing_log_err(NULL, "synthetic_events", last_cmd, err_text,
 			err_type, err_pos);
+ out:
+	mutex_unlock(&lastcmd_mutex);
 }
 
 static int create_synth_event(const char *raw_command);

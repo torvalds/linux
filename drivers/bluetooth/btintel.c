@@ -26,7 +26,14 @@
 #define ECDSA_HEADER_LEN	320
 
 #define BTINTEL_PPAG_NAME   "PPAG"
-#define BTINTEL_PPAG_PREFIX "\\_SB_.PCI0.XHCI.RHUB"
+
+/* structure to store the PPAG data read from ACPI table */
+struct btintel_ppag {
+	u32	domain;
+	u32     mode;
+	acpi_status status;
+	struct hci_dev *hdev;
+};
 
 #define CMD_WRITE_BOOT_PARAMS	0xfc0e
 struct cmd_write_boot_params {
@@ -1295,17 +1302,16 @@ static acpi_status btintel_ppag_callback(acpi_handle handle, u32 lvl, void *data
 
 	status = acpi_get_name(handle, ACPI_FULL_PATHNAME, &string);
 	if (ACPI_FAILURE(status)) {
-		bt_dev_warn(hdev, "ACPI Failure: %s", acpi_format_exception(status));
+		bt_dev_warn(hdev, "PPAG-BT: ACPI Failure: %s", acpi_format_exception(status));
 		return status;
 	}
 
-	if (strncmp(BTINTEL_PPAG_PREFIX, string.pointer,
-		    strlen(BTINTEL_PPAG_PREFIX))) {
+	len = strlen(string.pointer);
+	if (len < strlen(BTINTEL_PPAG_NAME)) {
 		kfree(string.pointer);
 		return AE_OK;
 	}
 
-	len = strlen(string.pointer);
 	if (strncmp((char *)string.pointer + len - 4, BTINTEL_PPAG_NAME, 4)) {
 		kfree(string.pointer);
 		return AE_OK;
@@ -1314,7 +1320,8 @@ static acpi_status btintel_ppag_callback(acpi_handle handle, u32 lvl, void *data
 
 	status = acpi_evaluate_object(handle, NULL, NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
-		bt_dev_warn(hdev, "ACPI Failure: %s", acpi_format_exception(status));
+		ppag->status = status;
+		bt_dev_warn(hdev, "PPAG-BT: ACPI Failure: %s", acpi_format_exception(status));
 		return status;
 	}
 
@@ -1323,8 +1330,9 @@ static acpi_status btintel_ppag_callback(acpi_handle handle, u32 lvl, void *data
 
 	if (p->type != ACPI_TYPE_PACKAGE || p->package.count != 2) {
 		kfree(buffer.pointer);
-		bt_dev_warn(hdev, "Invalid object type: %d or package count: %d",
+		bt_dev_warn(hdev, "PPAG-BT: Invalid object type: %d or package count: %d",
 			    p->type, p->package.count);
+		ppag->status = AE_ERROR;
 		return AE_ERROR;
 	}
 
@@ -1335,6 +1343,7 @@ static acpi_status btintel_ppag_callback(acpi_handle handle, u32 lvl, void *data
 
 	ppag->domain = (u32)p->package.elements[0].integer.value;
 	ppag->mode = (u32)p->package.elements[1].integer.value;
+	ppag->status = AE_OK;
 	kfree(buffer.pointer);
 	return AE_CTRL_TERMINATE;
 }
@@ -2314,12 +2323,12 @@ error:
 
 static void btintel_set_ppag(struct hci_dev *hdev, struct intel_version_tlv *ver)
 {
-	acpi_status status;
 	struct btintel_ppag ppag;
 	struct sk_buff *skb;
 	struct btintel_loc_aware_reg ppag_cmd;
+	acpi_handle handle;
 
-    /* PPAG is not supported if CRF is HrP2, Jfp2, JfP1 */
+	/* PPAG is not supported if CRF is HrP2, Jfp2, JfP1 */
 	switch (ver->cnvr_top & 0xFFF) {
 	case 0x504:     /* Hrp2 */
 	case 0x202:     /* Jfp2 */
@@ -2327,29 +2336,35 @@ static void btintel_set_ppag(struct hci_dev *hdev, struct intel_version_tlv *ver
 		return;
 	}
 
+	handle = ACPI_HANDLE(GET_HCIDEV_DEV(hdev));
+	if (!handle) {
+		bt_dev_info(hdev, "No support for BT device in ACPI firmware");
+		return;
+	}
+
 	memset(&ppag, 0, sizeof(ppag));
 
 	ppag.hdev = hdev;
-	status = acpi_walk_namespace(ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
-				     ACPI_UINT32_MAX, NULL,
-				     btintel_ppag_callback, &ppag, NULL);
+	ppag.status = AE_NOT_FOUND;
+	acpi_walk_namespace(ACPI_TYPE_PACKAGE, handle, 1, NULL,
+			    btintel_ppag_callback, &ppag, NULL);
 
-	if (ACPI_FAILURE(status)) {
-		/* Do not log warning message if ACPI entry is not found */
-		if (status == AE_NOT_FOUND)
+	if (ACPI_FAILURE(ppag.status)) {
+		if (ppag.status == AE_NOT_FOUND) {
+			bt_dev_dbg(hdev, "PPAG-BT: ACPI entry not found");
 			return;
-		bt_dev_warn(hdev, "PPAG: ACPI Failure: %s", acpi_format_exception(status));
+		}
 		return;
 	}
 
 	if (ppag.domain != 0x12) {
-		bt_dev_warn(hdev, "PPAG-BT Domain disabled");
+		bt_dev_warn(hdev, "PPAG-BT: domain is not bluetooth");
 		return;
 	}
 
 	/* PPAG mode, BIT0 = 0 Disabled, BIT0 = 1 Enabled */
 	if (!(ppag.mode & BIT(0))) {
-		bt_dev_dbg(hdev, "PPAG disabled");
+		bt_dev_dbg(hdev, "PPAG-BT: disabled");
 		return;
 	}
 

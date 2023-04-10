@@ -1642,7 +1642,7 @@ static int veth_xdp_rx_timestamp(const struct xdp_md *ctx, u64 *timestamp)
 	struct veth_xdp_buff *_ctx = (void *)ctx;
 
 	if (!_ctx->skb)
-		return -EOPNOTSUPP;
+		return -ENODATA;
 
 	*timestamp = skb_hwtstamps(_ctx->skb)->hwtstamp;
 	return 0;
@@ -1653,7 +1653,7 @@ static int veth_xdp_rx_hash(const struct xdp_md *ctx, u32 *hash)
 	struct veth_xdp_buff *_ctx = (void *)ctx;
 
 	if (!_ctx->skb)
-		return -EOPNOTSUPP;
+		return -ENODATA;
 
 	*hash = skb_get_hash(_ctx->skb);
 	return 0;
