@@ -326,7 +326,6 @@ static void init_idisk_time(struct inode *inode)
 	fi->i_disk_time[0] = inode->i_atime;
 	fi->i_disk_time[1] = inode->i_ctime;
 	fi->i_disk_time[2] = inode->i_mtime;
-	fi->i_disk_time[3] = fi->i_crtime;
 }
 
 static int do_read_inode(struct inode *inode)
