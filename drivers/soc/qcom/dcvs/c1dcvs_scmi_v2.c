@@ -198,8 +198,8 @@ static ssize_t store_##name(struct kobject *kobj,			\
 {									\
 	int ret, i = 0;							\
 	char *s = kstrdup(buf, GFP_KERNEL);				\
-	unsigned int msg[2] = {0};						\
-	char *str;							\
+	unsigned int msg[2] = {0};					\
+	char *str, *s_orig = s;						\
 									\
 	while (((str = strsep(&s, " ")) != NULL) && i < 2) {		\
 		ret = kstrtouint(str, 10, &msg[i]);			\
@@ -212,8 +212,8 @@ static ssize_t store_##name(struct kobject *kobj,			\
 									\
 	pr_info("Input threshold :%lu for cluster :%lu\n", msg[1], msg[0]);\
 	ret = set_##name(msg, sizeof(msg));				\
-out:		\
-	kfree(s);		\
+out:									\
+	kfree(s_orig);							\
 	return ((ret < 0) ? ret : count);				\
 }									\
 
