@@ -23,6 +23,7 @@
 #include "util/data.h"
 #include "util/ordered-events.h"
 #include "util/kvm-stat.h"
+#include "util/util.h"
 #include "ui/browsers/hists.h"
 #include "ui/progress.h"
 #include "ui/ui.h"
