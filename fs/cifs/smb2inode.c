@@ -107,6 +107,7 @@ static int smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 
 	vars->oparms = (struct cifs_open_parms) {
 		.tcon = tcon,
+		.path = full_path,
 		.desired_access = desired_access,
 		.disposition = create_disposition,
 		.create_options = cifs_create_options(cifs_sb, create_options),

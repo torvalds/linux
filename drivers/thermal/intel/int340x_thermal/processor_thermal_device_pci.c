@@ -153,7 +153,6 @@ static int sys_set_trip_temp(struct thermal_zone_device *tzd, int trip, int temp
 		cancel_delayed_work_sync(&pci_info->work);
 		proc_thermal_mmio_write(pci_info, PROC_THERMAL_MMIO_INT_ENABLE_0, 0);
 		proc_thermal_mmio_write(pci_info, PROC_THERMAL_MMIO_THRES_0, 0);
-		thermal_zone_device_disable(tzd);
 		pci_info->stored_thres = 0;
 		return 0;
 	}
