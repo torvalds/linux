@@ -1511,7 +1511,7 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 
 	u8         log_max_eq_sz[0x8];
 	u8         relaxed_ordering_write[0x1];
-	u8         relaxed_ordering_read[0x1];
+	u8         relaxed_ordering_read_pci_enabled[0x1];
 	u8         log_max_mkey[0x6];
 	u8         reserved_at_f0[0x6];
 	u8	   terminate_scatter_list_mkey[0x1];
@@ -1727,7 +1727,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 
 	u8         reserved_at_320[0x3];
 	u8         log_max_transport_domain[0x5];
-	u8         reserved_at_328[0x3];
+	u8         reserved_at_328[0x2];
+	u8	   relaxed_ordering_read[0x1];
 	u8         log_max_pd[0x5];
 	u8         reserved_at_330[0x9];
 	u8         q_counter_aggregation[0x1];
