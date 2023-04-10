@@ -52,7 +52,6 @@ static int max96745_pinmux_set_mux(struct pinctrl_dev *pctldev,
 	if (!grp)
 		return -EINVAL;
 
-
 	if (func->data) {
 		struct max96745_function_data *data = func->data;
 
@@ -82,9 +81,6 @@ static int max96745_pinmux_set_mux(struct pinctrl_dev *pctldev,
 		}
 	}
 
-	dev_info(mpctl->dev, "enable function %s group %s\n",
-		 func->name, grp->name);
-
 	return 0;
 }
 
@@ -104,62 +100,62 @@ static const struct pinctrl_ops max96745_pinctrl_ops = {
 };
 
 static const struct pinctrl_pin_desc max96745_pins_desc[] = {
-	PINCTRL_PIN(0, "gpio0"),
-	PINCTRL_PIN(1, "gpio1"),
-	PINCTRL_PIN(2, "gpio2"),
-	PINCTRL_PIN(3, "gpio3"),
-	PINCTRL_PIN(4, "gpio4"),
-	PINCTRL_PIN(5, "gpio5"),
-	PINCTRL_PIN(6, "gpio6"),
-	PINCTRL_PIN(7, "gpio7"),
-	PINCTRL_PIN(8, "gpio8"),
-	PINCTRL_PIN(9, "gpio9"),
-	PINCTRL_PIN(10, "gpio10"),
-	PINCTRL_PIN(11, "gpio11"),
-	PINCTRL_PIN(12, "gpio12"),
-	PINCTRL_PIN(13, "gpio13"),
-	PINCTRL_PIN(14, "gpio14"),
-	PINCTRL_PIN(15, "gpio15"),
-	PINCTRL_PIN(16, "gpio16"),
-	PINCTRL_PIN(17, "gpio17"),
-	PINCTRL_PIN(18, "gpio18"),
-	PINCTRL_PIN(19, "gpio19"),
-	PINCTRL_PIN(20, "gpio20"),
-	PINCTRL_PIN(21, "gpio21"),
-	PINCTRL_PIN(22, "gpio22"),
-	PINCTRL_PIN(23, "gpio23"),
-	PINCTRL_PIN(24, "gpio24"),
-	PINCTRL_PIN(25, "gpio25"),
+	PINCTRL_PIN(0, "MFP0"),
+	PINCTRL_PIN(1, "MFP1"),
+	PINCTRL_PIN(2, "MFP2"),
+	PINCTRL_PIN(3, "MFP3"),
+	PINCTRL_PIN(4, "MFP4"),
+	PINCTRL_PIN(5, "MFP5"),
+	PINCTRL_PIN(6, "MFP6"),
+	PINCTRL_PIN(7, "MFP7"),
+	PINCTRL_PIN(8, "MFP8"),
+	PINCTRL_PIN(9, "MFP9"),
+	PINCTRL_PIN(10, "MFP10"),
+	PINCTRL_PIN(11, "MFP11"),
+	PINCTRL_PIN(12, "MFP12"),
+	PINCTRL_PIN(13, "MFP13"),
+	PINCTRL_PIN(14, "MFP14"),
+	PINCTRL_PIN(15, "MFP15"),
+	PINCTRL_PIN(16, "MFP16"),
+	PINCTRL_PIN(17, "MFP17"),
+	PINCTRL_PIN(18, "MFP18"),
+	PINCTRL_PIN(19, "MFP19"),
+	PINCTRL_PIN(20, "MFP20"),
+	PINCTRL_PIN(21, "MFP21"),
+	PINCTRL_PIN(22, "MFP22"),
+	PINCTRL_PIN(23, "MFP23"),
+	PINCTRL_PIN(24, "MFP24"),
+	PINCTRL_PIN(25, "MFP25"),
 };
 
-static int gpio0_pins[] = {0};
-static int gpio1_pins[] = {1};
-static int gpio2_pins[] = {2};
-static int gpio3_pins[] = {3};
-static int gpio4_pins[] = {4};
-static int gpio5_pins[] = {5};
-static int gpio6_pins[] = {6};
-static int gpio7_pins[] = {7};
-static int gpio8_pins[] = {8};
-static int gpio9_pins[] = {9};
-static int gpio10_pins[] = {10};
-static int gpio11_pins[] = {11};
-static int gpio12_pins[] = {12};
-static int gpio13_pins[] = {13};
-static int gpio14_pins[] = {14};
-static int gpio15_pins[] = {15};
-static int gpio16_pins[] = {16};
-static int gpio17_pins[] = {17};
-static int gpio18_pins[] = {18};
-static int gpio19_pins[] = {19};
-static int gpio20_pins[] = {20};
-static int gpio21_pins[] = {21};
-static int gpio22_pins[] = {22};
-static int gpio23_pins[] = {23};
-static int gpio24_pins[] = {24};
-static int gpio25_pins[] = {25};
-static int i2c_pins[] = {3, 7};
-static int uart_pins[] = {3, 7};
+static int MFP0_pins[] = {0};
+static int MFP1_pins[] = {1};
+static int MFP2_pins[] = {2};
+static int MFP3_pins[] = {3};
+static int MFP4_pins[] = {4};
+static int MFP5_pins[] = {5};
+static int MFP6_pins[] = {6};
+static int MFP7_pins[] = {7};
+static int MFP8_pins[] = {8};
+static int MFP9_pins[] = {9};
+static int MFP10_pins[] = {10};
+static int MFP11_pins[] = {11};
+static int MFP12_pins[] = {12};
+static int MFP13_pins[] = {13};
+static int MFP14_pins[] = {14};
+static int MFP15_pins[] = {15};
+static int MFP16_pins[] = {16};
+static int MFP17_pins[] = {17};
+static int MFP18_pins[] = {18};
+static int MFP19_pins[] = {19};
+static int MFP20_pins[] = {20};
+static int MFP21_pins[] = {21};
+static int MFP22_pins[] = {22};
+static int MFP23_pins[] = {23};
+static int MFP24_pins[] = {24};
+static int MFP25_pins[] = {25};
+static int I2C_pins[] = {3, 7};
+static int UART_pins[] = {3, 7};
 
 #define GROUP_DESC(nm) \
 { \
@@ -169,52 +165,52 @@ static int uart_pins[] = {3, 7};
 }
 
 static const struct group_desc max96745_groups[] = {
-	GROUP_DESC(gpio0),
-	GROUP_DESC(gpio1),
-	GROUP_DESC(gpio2),
-	GROUP_DESC(gpio3),
-	GROUP_DESC(gpio4),
-	GROUP_DESC(gpio5),
-	GROUP_DESC(gpio6),
-	GROUP_DESC(gpio7),
-	GROUP_DESC(gpio8),
-	GROUP_DESC(gpio9),
-	GROUP_DESC(gpio10),
-	GROUP_DESC(gpio11),
-	GROUP_DESC(gpio12),
-	GROUP_DESC(gpio13),
-	GROUP_DESC(gpio14),
-	GROUP_DESC(gpio15),
-	GROUP_DESC(gpio16),
-	GROUP_DESC(gpio17),
-	GROUP_DESC(gpio18),
-	GROUP_DESC(gpio19),
-	GROUP_DESC(gpio20),
-	GROUP_DESC(gpio21),
-	GROUP_DESC(gpio22),
-	GROUP_DESC(gpio23),
-	GROUP_DESC(gpio24),
-	GROUP_DESC(gpio25),
-	GROUP_DESC(i2c),
-	GROUP_DESC(uart),
+	GROUP_DESC(MFP0),
+	GROUP_DESC(MFP1),
+	GROUP_DESC(MFP2),
+	GROUP_DESC(MFP3),
+	GROUP_DESC(MFP4),
+	GROUP_DESC(MFP5),
+	GROUP_DESC(MFP6),
+	GROUP_DESC(MFP7),
+	GROUP_DESC(MFP8),
+	GROUP_DESC(MFP9),
+	GROUP_DESC(MFP10),
+	GROUP_DESC(MFP11),
+	GROUP_DESC(MFP12),
+	GROUP_DESC(MFP13),
+	GROUP_DESC(MFP14),
+	GROUP_DESC(MFP15),
+	GROUP_DESC(MFP16),
+	GROUP_DESC(MFP17),
+	GROUP_DESC(MFP18),
+	GROUP_DESC(MFP19),
+	GROUP_DESC(MFP20),
+	GROUP_DESC(MFP21),
+	GROUP_DESC(MFP22),
+	GROUP_DESC(MFP23),
+	GROUP_DESC(MFP24),
+	GROUP_DESC(MFP25),
+	GROUP_DESC(I2C),
+	GROUP_DESC(UART),
 };
 
-static const char *gpio_groups[] = {
-	"gpio0", "gpio1", "gpio2", "gpio3", "gpio4",
-	"gpio5", "gpio6", "gpio7", "gpio8", "gpio9",
-	"gpio10", "gpio11", "gpio12", "gpio13", "gpio14",
-	"gpio15", "gpio16", "gpio17", "gpio18", "gpio19",
-	"gpio20", "gpio21", "gpio22", "gpio23", "gpio24",
-	"gpio25",
+static const char *MFP_groups[] = {
+	"MFP0", "MFP1", "MFP2", "MFP3", "MFP4",
+	"MFP5", "MFP6", "MFP7", "MFP8", "MFP9",
+	"MFP10", "MFP11", "MFP12", "MFP13", "MFP14",
+	"MFP15", "MFP16", "MFP17", "MFP18", "MFP19",
+	"MFP20", "MFP21", "MFP22", "MFP23", "MFP24",
+	"MFP25",
 };
-static const char *i2c_groups[] = { "i2c" };
-static const char *uart_groups[] = { "uart" };
+static const char *I2C_groups[] = { "I2C" };
+static const char *UART_groups[] = { "UART" };
 
 #define FUNCTION_DESC_GPIO_TX_A(id) \
 { \
 	.name = "GPIO_TX_A_"#id, \
-	.group_names = gpio_groups, \
-	.num_group_names = ARRAY_SIZE(gpio_groups), \
+	.group_names = MFP_groups, \
+	.num_group_names = ARRAY_SIZE(MFP_groups), \
 	.data = (void *)(const struct max96745_function_data []) { \
 		{ .gpio_out_dis = 1, .gpio_tx_en_a = 1, \
 		  .gpio_io_rx_en = 1, .gpio_tx_id = id } \
@@ -224,8 +220,8 @@ static const char *uart_groups[] = { "uart" };
 #define FUNCTION_DESC_GPIO_TX_B(id) \
 { \
 	.name = "GPIO_TX_B_"#id, \
-	.group_names = gpio_groups, \
-	.num_group_names = ARRAY_SIZE(gpio_groups), \
+	.group_names = MFP_groups, \
+	.num_group_names = ARRAY_SIZE(MFP_groups), \
 	.data = (void *)(const struct max96745_function_data []) { \
 		{ .gpio_out_dis = 1, .gpio_tx_en_b = 1, \
 		  .gpio_io_rx_en = 1, .gpio_tx_id = id } \
@@ -235,8 +231,8 @@ static const char *uart_groups[] = { "uart" };
 #define FUNCTION_DESC_GPIO_RX_A(id) \
 { \
 	.name = "GPIO_RX_A_"#id, \
-	.group_names = gpio_groups, \
-	.num_group_names = ARRAY_SIZE(gpio_groups), \
+	.group_names = MFP_groups, \
+	.num_group_names = ARRAY_SIZE(MFP_groups), \
 	.data = (void *)(const struct max96745_function_data []) { \
 		{ .gpio_rx_en_a = 1, .gpio_rx_id = id } \
 	}, \
@@ -245,8 +241,8 @@ static const char *uart_groups[] = { "uart" };
 #define FUNCTION_DESC_GPIO_RX_B(id) \
 { \
 	.name = "GPIO_RX_B_"#id, \
-	.group_names = gpio_groups, \
-	.num_group_names = ARRAY_SIZE(gpio_groups), \
+	.group_names = MFP_groups, \
+	.num_group_names = ARRAY_SIZE(MFP_groups), \
 	.data = (void *)(const struct max96745_function_data []) { \
 		{ .gpio_rx_en_b = 1, .gpio_rx_id = id } \
 	}, \
@@ -255,18 +251,18 @@ static const char *uart_groups[] = { "uart" };
 #define FUNCTION_DESC_GPIO() \
 { \
 	.name = "GPIO", \
-	.group_names = gpio_groups, \
-	.num_group_names = ARRAY_SIZE(gpio_groups), \
+	.group_names = MFP_groups, \
+	.num_group_names = ARRAY_SIZE(MFP_groups), \
 	.data = (void *)(const struct max96745_function_data []) { \
 		{ } \
 	}, \
 } \
 
-#define FUNCTION_DESC(fname, gname) \
+#define FUNCTION_DESC(nm) \
 { \
-	.name = #fname, \
-	.group_names = gname##_groups, \
-	.num_group_names = ARRAY_SIZE(gname##_groups), \
+	.name = #nm, \
+	.group_names = nm##_groups, \
+	.num_group_names = ARRAY_SIZE(nm##_groups), \
 } \
 
 static const struct function_desc max96745_functions[] = {
@@ -399,8 +395,8 @@ static const struct function_desc max96745_functions[] = {
 	FUNCTION_DESC_GPIO_RX_B(30),
 	FUNCTION_DESC_GPIO_RX_B(31),
 	FUNCTION_DESC_GPIO(),
-	FUNCTION_DESC(I2C, i2c),
-	FUNCTION_DESC(UART, uart),
+	FUNCTION_DESC(I2C),
+	FUNCTION_DESC(UART),
 };
 
 static int max96745_pinctrl_probe(struct platform_device *pdev)
