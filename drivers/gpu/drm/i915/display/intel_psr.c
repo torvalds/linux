@@ -2873,12 +2873,10 @@ static int intel_psr_status(struct seq_file *m, struct intel_dp *intel_dp)
 	/*
 	 * SKL+ Perf counter is reset to 0 everytime DC state is entered
 	 */
-	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
-		val = intel_de_read(dev_priv,
-				    EDP_PSR_PERF_CNT(intel_dp->psr.transcoder));
-		seq_printf(m, "Performance counter: %u\n",
-			   REG_FIELD_GET(EDP_PSR_PERF_CNT_MASK, val));
-	}
+	val = intel_de_read(dev_priv,
+			    EDP_PSR_PERF_CNT(intel_dp->psr.transcoder));
+	seq_printf(m, "Performance counter: %u\n",
+		   REG_FIELD_GET(EDP_PSR_PERF_CNT_MASK, val));
 
 	if (psr->debug & I915_PSR_DEBUG_IRQ) {
 		seq_printf(m, "Last attempted entry at: %lld\n",
