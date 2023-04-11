@@ -44,6 +44,7 @@ mod static_assert;
 pub mod std_vendor;
 pub mod str;
 pub mod sync;
+pub mod task;
 pub mod types;
 
 #[doc(hidden)]
