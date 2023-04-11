@@ -404,6 +404,13 @@ static const struct aspeed_video_config ast2600_config = {
 	.compare_only = AST2600_VE_CTRL_EN_COMPARE_ONLY,
 };
 
+static const struct aspeed_video_config ast2700_config = {
+	.version = 7,
+	.jpeg_mode = AST2500_VE_SEQ_CTRL_JPEG_MODE,
+	.comp_size_read = AST2600_VE_COMP_SIZE_READ_BACK,
+	.compare_only = AST2600_VE_CTRL_EN_COMPARE_ONLY,
+};
+
 static const u32 aspeed_video_jpeg_header[ASPEED_VIDEO_JPEG_HEADER_SIZE] = {
 	0xe0ffd8ff, 0x464a1000, 0x01004649, 0x60000101, 0x00006000, 0x0f00feff,
 	0x00002d05, 0x00000000, 0x00000000, 0x00dbff00
@@ -550,6 +557,22 @@ static bool aspeed_video_alloc_buf(struct aspeed_video *video,
 static void aspeed_video_free_buf(struct aspeed_video *video,
 				  struct aspeed_video_addr *addr);
 
+/**
+ * _make_addr - make address fit for ast2700
+ * @addr: dma address for hardware to work
+ *
+ * Return: 32bit format of address
+ */
+static inline u32 _make_addr(dma_addr_t addr)
+{
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+	// In ast2700, it store higt byte[35:32] in low byte[3:0]
+	return (addr >> 32) | (u32)(addr);
+#else
+	return addr;
+#endif
+}
+
 static void aspeed_video_init_jpeg_table(u32 *table, bool yuv420)
 {
 	int i;
@@ -692,7 +715,7 @@ static int aspeed_video_start_frame(struct aspeed_video *video)
 			dev_err(video->dev, "don't start frame\n");
 			return -ENOMEM;
 		}
-		aspeed_video_write(video, VE_BCD_ADDR, video->bcd.dma);
+		aspeed_video_write(video, VE_BCD_ADDR, _make_addr(video->bcd.dma));
 		v4l2_dbg(1, debug, &video->v4l2_dev, "bcd addr(%pad) size(%d)\n",
 			 &video->bcd.dma, video->bcd.size);
 	} else if (!bcd_buf_need && video->bcd.size) {
@@ -706,7 +729,7 @@ static int aspeed_video_start_frame(struct aspeed_video *video)
 		regmap_read(video->gfx, GFX_DISPLAY_ADDR, &val);
 		aspeed_video_write(video, VE_TGS_0, val);
 	} else if (video->input == VIDEO_INPUT_MEM) {
-		aspeed_video_write(video, VE_TGS_0, video->dbg_src.dma);
+		aspeed_video_write(video, VE_TGS_0, _make_addr(video->dbg_src.dma));
 	}
 
 	spin_lock_irqsave(&video->lock, flags);
@@ -724,7 +747,7 @@ static int aspeed_video_start_frame(struct aspeed_video *video)
 
 	aspeed_video_write(video, VE_COMP_PROC_OFFSET, 0);
 	aspeed_video_write(video, VE_COMP_OFFSET, 0);
-	aspeed_video_write(video, VE_COMP_ADDR, addr);
+	aspeed_video_write(video, VE_COMP_ADDR, _make_addr(addr));
 
 	aspeed_video_update(video, VE_INTERRUPT_CTRL, 0,
 			    VE_INTERRUPT_COMP_COMPLETE);
@@ -925,11 +948,11 @@ static void aspeed_video_swap_src_buf(struct aspeed_video *v)
 		memset((u8 *)v->bcd.virt, 0x00, VE_BCD_BUFF_SIZE);
 
 	if (v->sequence & 0x01) {
-		aspeed_video_write(v, VE_SRC0_ADDR, v->srcs[1].dma);
-		aspeed_video_write(v, VE_SRC1_ADDR, v->srcs[0].dma);
+		aspeed_video_write(v, VE_SRC0_ADDR, _make_addr(v->srcs[1].dma));
+		aspeed_video_write(v, VE_SRC1_ADDR, _make_addr(v->srcs[0].dma));
 	} else {
-		aspeed_video_write(v, VE_SRC0_ADDR, v->srcs[0].dma);
-		aspeed_video_write(v, VE_SRC1_ADDR, v->srcs[1].dma);
+		aspeed_video_write(v, VE_SRC0_ADDR, _make_addr(v->srcs[0].dma));
+		aspeed_video_write(v, VE_SRC1_ADDR, _make_addr(v->srcs[1].dma));
 	}
 }
 
@@ -1490,8 +1513,8 @@ static void aspeed_video_set_resolution(struct aspeed_video *video)
 			 &video->srcs[0].dma, video->srcs[0].size);
 		v4l2_dbg(1, debug, &video->v4l2_dev, "src buf1 addr(%pad) size(%d)\n",
 			 &video->srcs[1].dma, video->srcs[1].size);
-		aspeed_video_write(video, VE_SRC0_ADDR, video->srcs[0].dma);
-		aspeed_video_write(video, VE_SRC1_ADDR, video->srcs[1].dma);
+		aspeed_video_write(video, VE_SRC0_ADDR, _make_addr(video->srcs[0].dma));
+		aspeed_video_write(video, VE_SRC1_ADDR, _make_addr(video->srcs[1].dma));
 	}
 
 	return;
@@ -2502,6 +2525,7 @@ static int aspeed_video_init(struct aspeed_video *video)
 	int irq;
 	int rc;
 	struct device *dev = video->dev;
+	unsigned int mask_size = (video->version >= 7) ? 64 : 32;
 
 	irq = irq_of_parse_and_map(dev->of_node, 0);
 	if (!irq) {
@@ -2547,7 +2571,7 @@ static int aspeed_video_init(struct aspeed_video *video)
 
 	of_reserved_mem_device_init(dev);
 
-	rc = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
+	rc = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(mask_size));
 	if (rc) {
 		dev_err(dev, "Failed to set DMA mask\n");
 		goto err_release_reserved_mem;
@@ -2579,6 +2603,7 @@ static const struct of_device_id aspeed_video_of_match[] = {
 	{ .compatible = "aspeed,ast2400-video-engine", .data = &ast2400_config },
 	{ .compatible = "aspeed,ast2500-video-engine", .data = &ast2500_config },
 	{ .compatible = "aspeed,ast2600-video-engine", .data = &ast2600_config },
+	{ .compatible = "aspeed,ast2700-video-engine", .data = &ast2700_config },
 	{}
 };
 MODULE_DEVICE_TABLE(of, aspeed_video_of_match);
@@ -2609,6 +2634,13 @@ static int aspeed_video_probe(struct platform_device *pdev)
 	if (video->version == 6) {
 		video->scu = syscon_regmap_lookup_by_compatible("aspeed,ast2600-scu");
 		video->gfx = syscon_regmap_lookup_by_compatible("aspeed,ast2600-gfx");
+		if (IS_ERR(video->scu))
+			dev_err(video->dev, "can't find regmap for scu");
+		if (IS_ERR(video->gfx))
+			dev_err(video->dev, "can't find regmap for gfx");
+	} else if (video->version == 7) {
+		video->scu = syscon_regmap_lookup_by_compatible("aspeed,ast2700-scu");
+		video->gfx = syscon_regmap_lookup_by_compatible("aspeed,ast2700-gfx");
 		if (IS_ERR(video->scu))
 			dev_err(video->dev, "can't find regmap for scu");
 		if (IS_ERR(video->gfx))
