@@ -19,6 +19,10 @@
  */
 #define HV_IOAPIC_BASE_ADDRESS 0xfec00000
 
+#define HV_VTL_NORMAL 0x0
+#define HV_VTL_SECURE 0x1
+#define HV_VTL_MGMT   0x2
+
 union hv_ghcb;
 
 DECLARE_STATIC_KEY_FALSE(isolation_type_snp);
@@ -275,6 +279,12 @@ static inline void hv_set_non_nested_register(unsigned int reg, u64 value) { }
 static inline u64 hv_get_non_nested_register(unsigned int reg) { return 0; }
 #endif /* CONFIG_HYPERV */
 
+
+#ifdef CONFIG_HYPERV_VTL_MODE
+void __init hv_vtl_init_platform(void);
+#else
+static inline void __init hv_vtl_init_platform(void) {}
+#endif
 
 #include <asm-generic/mshyperv.h>
 
