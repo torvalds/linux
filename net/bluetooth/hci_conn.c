@@ -330,8 +330,11 @@ static void hci_add_sco(struct hci_conn *conn, __u16 handle)
 static bool find_next_esco_param(struct hci_conn *conn,
 				 const struct sco_param *esco_param, int size)
 {
+	if (!conn->parent)
+		return false;
+
 	for (; conn->attempt <= size; conn->attempt++) {
-		if (lmp_esco_2m_capable(conn->link) ||
+		if (lmp_esco_2m_capable(conn->parent) ||
 		    (esco_param[conn->attempt - 1].pkt_type & ESCO_2EV3))
 			break;
 		BT_DBG("hcon %p skipped attempt %d, eSCO 2M not supported",
@@ -461,7 +464,7 @@ static int hci_enhanced_setup_sync(struct hci_dev *hdev, void *data)
 		break;
 
 	case BT_CODEC_CVSD:
-		if (lmp_esco_capable(conn->link)) {
+		if (conn->parent && lmp_esco_capable(conn->parent)) {
 			if (!find_next_esco_param(conn, esco_param_cvsd,
 						  ARRAY_SIZE(esco_param_cvsd)))
 				return -EINVAL;
@@ -531,7 +534,7 @@ static bool hci_setup_sync_conn(struct hci_conn *conn, __u16 handle)
 		param = &esco_param_msbc[conn->attempt - 1];
 		break;
 	case SCO_AIRMODE_CVSD:
-		if (lmp_esco_capable(conn->link)) {
+		if (conn->parent && lmp_esco_capable(conn->parent)) {
 			if (!find_next_esco_param(conn, esco_param_cvsd,
 						  ARRAY_SIZE(esco_param_cvsd)))
 				return false;
@@ -637,21 +640,22 @@ void hci_le_start_enc(struct hci_conn *conn, __le16 ediv, __le64 rand,
 /* Device _must_ be locked */
 void hci_sco_setup(struct hci_conn *conn, __u8 status)
 {
-	struct hci_conn *sco = conn->link;
+	struct hci_link *link;
 
-	if (!sco)
+	link = list_first_entry_or_null(&conn->link_list, struct hci_link, list);
+	if (!link || !link->conn)
 		return;
 
 	BT_DBG("hcon %p", conn);
 
 	if (!status) {
 		if (lmp_esco_capable(conn->hdev))
-			hci_setup_sync(sco, conn->handle);
+			hci_setup_sync(link->conn, conn->handle);
 		else
-			hci_add_sco(sco, conn->handle);
+			hci_add_sco(link->conn, conn->handle);
 	} else {
-		hci_connect_cfm(sco, status);
-		hci_conn_del(sco);
+		hci_connect_cfm(link->conn, status);
+		hci_conn_del(link->conn);
 	}
 }
 
@@ -1042,6 +1046,7 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst,
 	skb_queue_head_init(&conn->data_q);
 
 	INIT_LIST_HEAD(&conn->chan_list);
+	INIT_LIST_HEAD(&conn->link_list);
 
 	INIT_DELAYED_WORK(&conn->disc_work, hci_conn_timeout);
 	INIT_DELAYED_WORK(&conn->auto_accept_work, hci_conn_auto_accept);
@@ -1069,15 +1074,39 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst,
 	return conn;
 }
 
-static bool hci_conn_unlink(struct hci_conn *conn)
+static void hci_conn_unlink(struct hci_conn *conn)
 {
-	if (!conn->link)
-		return false;
+	struct hci_dev *hdev = conn->hdev;
 
-	conn->link->link = NULL;
+	bt_dev_dbg(hdev, "hcon %p", conn);
+
+	if (!conn->parent) {
+		struct hci_link *link, *t;
+
+		list_for_each_entry_safe(link, t, &conn->link_list, list)
+			hci_conn_unlink(link->conn);
+
+		return;
+	}
+
+	if (!conn->link)
+		return;
+
+	hci_conn_put(conn->parent);
+	conn->parent = NULL;
+
+	list_del_rcu(&conn->link->list);
+	synchronize_rcu();
+
+	kfree(conn->link);
 	conn->link = NULL;
 
-	return true;
+	/* Due to race, SCO connection might be not established
+	 * yet at this point. Delete it now, otherwise it is
+	 * possible for it to be stuck and can't be deleted.
+	 */
+	if (conn->handle == HCI_CONN_HANDLE_UNSET)
+		hci_conn_del(conn);
 }
 
 int hci_conn_del(struct hci_conn *conn)
@@ -1091,18 +1120,7 @@ int hci_conn_del(struct hci_conn *conn)
 	cancel_delayed_work_sync(&conn->idle_work);
 
 	if (conn->type == ACL_LINK) {
-		struct hci_conn *link = conn->link;
-
-		if (link) {
-			hci_conn_unlink(conn);
-			/* Due to race, SCO connection might be not established
-			 * yet at this point. Delete it now, otherwise it is
-			 * possible for it to be stuck and can't be deleted.
-			 */
-			if (link->handle == HCI_CONN_HANDLE_UNSET)
-				hci_conn_del(link);
-		}
-
+		hci_conn_unlink(conn);
 		/* Unacked frames */
 		hdev->acl_cnt += conn->sent;
 	} else if (conn->type == LE_LINK) {
@@ -1113,7 +1131,7 @@ int hci_conn_del(struct hci_conn *conn)
 		else
 			hdev->acl_cnt += conn->sent;
 	} else {
-		struct hci_conn *acl = conn->link;
+		struct hci_conn *acl = conn->parent;
 
 		if (acl) {
 			hci_conn_unlink(conn);
@@ -1600,11 +1618,40 @@ struct hci_conn *hci_connect_acl(struct hci_dev *hdev, bdaddr_t *dst,
 	return acl;
 }
 
+static struct hci_link *hci_conn_link(struct hci_conn *parent,
+				      struct hci_conn *conn)
+{
+	struct hci_dev *hdev = parent->hdev;
+	struct hci_link *link;
+
+	bt_dev_dbg(hdev, "parent %p hcon %p", parent, conn);
+
+	if (conn->link)
+		return conn->link;
+
+	if (conn->parent)
+		return NULL;
+
+	link = kzalloc(sizeof(*link), GFP_KERNEL);
+	if (!link)
+		return NULL;
+
+	link->conn = hci_conn_hold(conn);
+	conn->link = link;
+	conn->parent = hci_conn_get(parent);
+
+	/* Use list_add_tail_rcu append to the list */
+	list_add_tail_rcu(&link->list, &parent->link_list);
+
+	return link;
+}
+
 struct hci_conn *hci_connect_sco(struct hci_dev *hdev, int type, bdaddr_t *dst,
 				 __u16 setting, struct bt_codec *codec)
 {
 	struct hci_conn *acl;
 	struct hci_conn *sco;
+	struct hci_link *link;
 
 	acl = hci_connect_acl(hdev, dst, BT_SECURITY_LOW, HCI_AT_NO_BONDING,
 			      CONN_REASON_SCO_CONNECT);
@@ -1620,10 +1667,12 @@ struct hci_conn *hci_connect_sco(struct hci_dev *hdev, int type, bdaddr_t *dst,
 		}
 	}
 
-	acl->link = sco;
-	sco->link = acl;
-
-	hci_conn_hold(sco);
+	link = hci_conn_link(acl, sco);
+	if (!link) {
+		hci_conn_drop(acl);
+		hci_conn_drop(sco);
+		return NULL;
+	}
 
 	sco->setting = setting;
 	sco->codec = *codec;
@@ -1890,7 +1939,7 @@ static int hci_create_cis_sync(struct hci_dev *hdev, void *data)
 	u8 cig;
 
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.cis[0].acl_handle = cpu_to_le16(conn->link->handle);
+	cmd.cis[0].acl_handle = cpu_to_le16(conn->parent->handle);
 	cmd.cis[0].cis_handle = cpu_to_le16(conn->handle);
 	cmd.cp.num_cis++;
 	cig = conn->iso_qos.ucast.cig;
@@ -1903,11 +1952,12 @@ static int hci_create_cis_sync(struct hci_dev *hdev, void *data)
 		struct hci_cis *cis = &cmd.cis[cmd.cp.num_cis];
 
 		if (conn == data || conn->type != ISO_LINK ||
-		    conn->state == BT_CONNECTED || conn->iso_qos.ucast.cig != cig)
+		    conn->state == BT_CONNECTED ||
+		    conn->iso_qos.ucast.cig != cig)
 			continue;
 
 		/* Check if all CIS(s) belonging to a CIG are ready */
-		if (!conn->link || conn->link->state != BT_CONNECTED ||
+		if (!conn->parent || conn->parent->state != BT_CONNECTED ||
 		    conn->state != BT_CONNECT) {
 			cmd.cp.num_cis = 0;
 			break;
@@ -1924,7 +1974,7 @@ static int hci_create_cis_sync(struct hci_dev *hdev, void *data)
 		 * command have been generated, the Controller shall return the
 		 * error code Command Disallowed (0x0C).
 		 */
-		cis->acl_handle = cpu_to_le16(conn->link->handle);
+		cis->acl_handle = cpu_to_le16(conn->parent->handle);
 		cis->cis_handle = cpu_to_le16(conn->handle);
 		cmd.cp.num_cis++;
 	}
@@ -1943,15 +1993,33 @@ static int hci_create_cis_sync(struct hci_dev *hdev, void *data)
 int hci_le_create_cis(struct hci_conn *conn)
 {
 	struct hci_conn *cis;
+	struct hci_link *link, *t;
 	struct hci_dev *hdev = conn->hdev;
 	int err;
 
+	bt_dev_dbg(hdev, "hcon %p", conn);
+
 	switch (conn->type) {
 	case LE_LINK:
-		if (!conn->link || conn->state != BT_CONNECTED)
+		if (conn->state != BT_CONNECTED || list_empty(&conn->link_list))
 			return -EINVAL;
-		cis = conn->link;
-		break;
+
+		cis = NULL;
+
+		/* hci_conn_link uses list_add_tail_rcu so the list is in
+		 * the same order as the connections are requested.
+		 */
+		list_for_each_entry_safe(link, t, &conn->link_list, list) {
+			if (link->conn->state == BT_BOUND) {
+				err = hci_le_create_cis(link->conn);
+				if (err)
+					return err;
+
+				cis = link->conn;
+			}
+		}
+
+		return cis ? 0 : -EINVAL;
 	case ISO_LINK:
 		cis = conn;
 		break;
@@ -2172,6 +2240,7 @@ struct hci_conn *hci_connect_cis(struct hci_dev *hdev, bdaddr_t *dst,
 {
 	struct hci_conn *le;
 	struct hci_conn *cis;
+	struct hci_link *link;
 
 	if (hci_dev_test_flag(hdev, HCI_ADVERTISING))
 		le = hci_connect_le(hdev, dst, dst_type, false,
@@ -2197,16 +2266,18 @@ struct hci_conn *hci_connect_cis(struct hci_dev *hdev, bdaddr_t *dst,
 		return cis;
 	}
 
-	le->link = cis;
-	cis->link = le;
-
-	hci_conn_hold(cis);
+	link = hci_conn_link(le, cis);
+	if (!link) {
+		hci_conn_drop(le);
+		hci_conn_drop(cis);
+		return NULL;
+	}
 
 	/* If LE is already connected and CIS handle is already set proceed to
 	 * Create CIS immediately.
 	 */
 	if (le->state == BT_CONNECTED && cis->handle != HCI_CONN_HANDLE_UNSET)
-		hci_le_create_cis(le);
+		hci_le_create_cis(cis);
 
 	return cis;
 }

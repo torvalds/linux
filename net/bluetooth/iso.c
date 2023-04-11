@@ -1657,8 +1657,12 @@ static void iso_connect_cfm(struct hci_conn *hcon, __u8 status)
 
 		/* Check if LE link has failed */
 		if (status) {
-			if (hcon->link)
-				iso_conn_del(hcon->link, bt_to_errno(status));
+			struct hci_link *link, *t;
+
+			list_for_each_entry_safe(link, t, &hcon->link_list,
+						 list)
+				iso_conn_del(link->conn, bt_to_errno(status));
+
 			return;
 		}
 
