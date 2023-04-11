@@ -50,6 +50,7 @@ description: |
         qcm2290
         qdu1000
         qrb2210
+        qrb4210
         qru1000
         sa8155p
         sa8540p
@@ -97,6 +98,7 @@ description: |
         liquid
         mtp
         qrd
+        rb2
         ride
         sbc
         x100
@@ -872,6 +874,12 @@ properties:
       - items:
           - enum:
               - oneplus,billie2
+          - const: qcom,sm4250
+
+      - items:
+          - enum:
+              - qcom,qrb4210-rb2
+          - const: qcom,qrb4210
           - const: qcom,sm4250
 
       - items:
