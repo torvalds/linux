@@ -866,7 +866,8 @@ static void cs35l56_dsp_work(struct work_struct *work)
 	unsigned int val;
 	int ret = 0;
 
-	if (!wait_for_completion_timeout(&cs35l56->init_completion,
+	if (!cs35l56->init_done &&
+	    !wait_for_completion_timeout(&cs35l56->init_completion,
 					 msecs_to_jiffies(5000))) {
 		dev_err(cs35l56->dev, "%s: init_completion timed out\n", __func__);
 		goto complete;
