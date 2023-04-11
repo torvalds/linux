@@ -2037,8 +2037,7 @@ __bpf_kfunc void bpf_task_release(struct task_struct *p)
  */
 __bpf_kfunc struct cgroup *bpf_cgroup_acquire(struct cgroup *cgrp)
 {
-	cgroup_get(cgrp);
-	return cgrp;
+	return cgroup_tryget(cgrp) ? cgrp : NULL;
 }
 
 /**
@@ -2314,7 +2313,7 @@ BTF_ID_FLAGS(func, bpf_rbtree_add)
 BTF_ID_FLAGS(func, bpf_rbtree_first, KF_RET_NULL)
 
 #ifdef CONFIG_CGROUPS
-BTF_ID_FLAGS(func, bpf_cgroup_acquire, KF_ACQUIRE | KF_TRUSTED_ARGS)
+BTF_ID_FLAGS(func, bpf_cgroup_acquire, KF_ACQUIRE | KF_RCU | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_cgroup_kptr_get, KF_ACQUIRE | KF_KPTR_GET | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_cgroup_release, KF_RELEASE)
 BTF_ID_FLAGS(func, bpf_cgroup_ancestor, KF_ACQUIRE | KF_RCU | KF_RET_NULL)

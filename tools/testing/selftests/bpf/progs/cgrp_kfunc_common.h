@@ -61,6 +61,11 @@ static inline int cgrps_kfunc_map_insert(struct cgroup *cgrp)
 	}
 
 	acquired = bpf_cgroup_acquire(cgrp);
+	if (!acquired) {
+		bpf_map_delete_elem(&__cgrps_kfunc_map, &id);
+		return -ENOENT;
+	}
+
 	old = bpf_kptr_xchg(&v->cgrp, acquired);
 	if (old) {
 		bpf_cgroup_release(old);

@@ -38,7 +38,10 @@ int BPF_PROG(test_cgrp_acquire_release_argument, struct cgroup *cgrp, const char
 		return 0;
 
 	acquired = bpf_cgroup_acquire(cgrp);
-	bpf_cgroup_release(acquired);
+	if (!acquired)
+		err = 1;
+	else
+		bpf_cgroup_release(acquired);
 
 	return 0;
 }

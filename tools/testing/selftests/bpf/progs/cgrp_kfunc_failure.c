@@ -41,6 +41,23 @@ int BPF_PROG(cgrp_kfunc_acquire_untrusted, struct cgroup *cgrp, const char *path
 
 	/* Can't invoke bpf_cgroup_acquire() on an untrusted pointer. */
 	acquired = bpf_cgroup_acquire(v->cgrp);
+	if (acquired)
+		bpf_cgroup_release(acquired);
+
+	return 0;
+}
+
+SEC("tp_btf/cgroup_mkdir")
+__failure __msg("Possibly NULL pointer passed to trusted arg0")
+int BPF_PROG(cgrp_kfunc_acquire_no_null_check, struct cgroup *cgrp, const char *path)
+{
+	struct cgroup *acquired;
+
+	acquired = bpf_cgroup_acquire(cgrp);
+	/*
+	 * Can't invoke bpf_cgroup_release() without checking the return value
+	 * of bpf_cgroup_acquire().
+	 */
 	bpf_cgroup_release(acquired);
 
 	return 0;
@@ -54,7 +71,8 @@ int BPF_PROG(cgrp_kfunc_acquire_fp, struct cgroup *cgrp, const char *path)
 
 	/* Can't invoke bpf_cgroup_acquire() on a random frame pointer. */
 	acquired = bpf_cgroup_acquire((struct cgroup *)&stack_cgrp);
-	bpf_cgroup_release(acquired);
+	if (acquired)
+		bpf_cgroup_release(acquired);
 
 	return 0;
 }
@@ -67,7 +85,8 @@ int BPF_PROG(cgrp_kfunc_acquire_unsafe_kretprobe, struct cgroup *cgrp)
 
 	/* Can't acquire an untrusted struct cgroup * pointer. */
 	acquired = bpf_cgroup_acquire(cgrp);
-	bpf_cgroup_release(acquired);
+	if (acquired)
+		bpf_cgroup_release(acquired);
 
 	return 0;
 }
@@ -80,7 +99,8 @@ int BPF_PROG(cgrp_kfunc_acquire_trusted_walked, struct cgroup *cgrp, const char 
 
 	/* Can't invoke bpf_cgroup_acquire() on a pointer obtained from walking a trusted cgroup. */
 	acquired = bpf_cgroup_acquire(cgrp->old_dom_cgrp);
-	bpf_cgroup_release(acquired);
+	if (acquired)
+		bpf_cgroup_release(acquired);
 
 	return 0;
 }
@@ -93,9 +113,8 @@ int BPF_PROG(cgrp_kfunc_acquire_null, struct cgroup *cgrp, const char *path)
 
 	/* Can't invoke bpf_cgroup_acquire() on a NULL pointer. */
 	acquired = bpf_cgroup_acquire(NULL);
-	if (!acquired)
-		return 0;
-	bpf_cgroup_release(acquired);
+	if (acquired)
+		bpf_cgroup_release(acquired);
 
 	return 0;
 }
@@ -137,6 +156,8 @@ int BPF_PROG(cgrp_kfunc_get_non_kptr_acquired, struct cgroup *cgrp, const char *
 	struct cgroup *kptr, *acquired;
 
 	acquired = bpf_cgroup_acquire(cgrp);
+	if (!acquired)
+		return 0;
 
 	/* Cannot use bpf_cgroup_kptr_get() on a non-map-value, even if the kptr was acquired. */
 	kptr = bpf_cgroup_kptr_get(&acquired);
@@ -256,6 +277,8 @@ int BPF_PROG(cgrp_kfunc_release_null, struct cgroup *cgrp, const char *path)
 		return -ENOENT;
 
 	acquired = bpf_cgroup_acquire(cgrp);
+	if (!acquired)
+		return -ENOENT;
 
 	old = bpf_kptr_xchg(&v->cgrp, acquired);
 
