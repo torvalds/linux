@@ -3972,15 +3972,22 @@ static int rtnl_dump_all(struct sk_buff *skb, struct netlink_callback *cb)
 struct sk_buff *rtmsg_ifinfo_build_skb(int type, struct net_device *dev,
 				       unsigned int change,
 				       u32 event, gfp_t flags, int *new_nsid,
-				       int new_ifindex, u32 portid, u32 seq)
+				       int new_ifindex, u32 portid,
+				       const struct nlmsghdr *nlh)
 {
 	struct net *net = dev_net(dev);
 	struct sk_buff *skb;
 	int err = -ENOBUFS;
+	u32 seq = 0;
 
 	skb = nlmsg_new(if_nlmsg_size(dev, 0), flags);
 	if (skb == NULL)
 		goto errout;
+
+	if (nlmsg_report(nlh))
+		seq = nlmsg_seq(nlh);
+	else
+		portid = 0;
 
 	err = rtnl_fill_ifinfo(skb, dev, dev_net(dev),
 			       type, portid, seq, change, 0, 0, event,
@@ -4017,7 +4024,7 @@ static void rtmsg_ifinfo_event(int type, struct net_device *dev,
 		return;
 
 	skb = rtmsg_ifinfo_build_skb(type, dev, change, event, flags, new_nsid,
-				     new_ifindex, portid, nlmsg_seq(nlh));
+				     new_ifindex, portid, nlh);
 	if (skb)
 		rtmsg_ifinfo_send(skb, dev, flags, portid, nlh);
 }

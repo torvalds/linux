@@ -10847,7 +10847,7 @@ void unregister_netdevice_many_notify(struct list_head *head,
 		    dev->rtnl_link_state == RTNL_LINK_INITIALIZED)
 			skb = rtmsg_ifinfo_build_skb(RTM_DELLINK, dev, ~0U, 0,
 						     GFP_KERNEL, NULL, 0,
-						     portid, nlmsg_seq(nlh));
+						     portid, nlh);
 
 		/*
 		 *	Flush the unicast and multicast chains
