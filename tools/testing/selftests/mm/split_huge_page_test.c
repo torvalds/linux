@@ -300,6 +300,10 @@ int main(int argc, char **argv)
 	pagesize = getpagesize();
 	pageshift = ffs(pagesize) - 1;
 	pmd_pagesize = read_pmd_pagesize();
+	if (!pmd_pagesize) {
+		printf("Reading PMD pagesize failed\n");
+		exit(EXIT_FAILURE);
+	}
 
 	split_pmd_thp();
 	split_pte_mapped_thp();

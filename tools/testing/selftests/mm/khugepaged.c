@@ -1476,6 +1476,10 @@ int main(int argc, const char **argv)
 
 	page_size = getpagesize();
 	hpage_pmd_size = read_pmd_pagesize();
+	if (!hpage_pmd_size) {
+		printf("Reading PMD pagesize failed");
+		exit(EXIT_FAILURE);
+	}
 	hpage_pmd_nr = hpage_pmd_size / page_size;
 
 	default_settings.khugepaged.max_ptes_none = hpage_pmd_nr - 1;

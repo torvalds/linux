@@ -45,34 +45,6 @@ static size_t hugetlbsizes[10];
 static int gup_fd;
 static bool has_huge_zeropage;
 
-static void detect_thpsize(void)
-{
-	int fd = open("/sys/kernel/mm/transparent_hugepage/hpage_pmd_size",
-		      O_RDONLY);
-	size_t size = 0;
-	char buf[15];
-	int ret;
-
-	if (fd < 0)
-		return;
-
-	ret = pread(fd, buf, sizeof(buf), 0);
-	if (ret > 0 && ret < sizeof(buf)) {
-		buf[ret] = 0;
-
-		size = strtoul(buf, NULL, 10);
-		if (size < pagesize)
-			size = 0;
-		if (size > 0) {
-			thpsize = size;
-			ksft_print_msg("[INFO] detected THP size: %zu KiB\n",
-				       thpsize / 1024);
-		}
-	}
-
-	close(fd);
-}
-
 static void detect_huge_zeropage(void)
 {
 	int fd = open("/sys/kernel/mm/transparent_hugepage/use_zero_page",
@@ -1741,7 +1713,10 @@ int main(int argc, char **argv)
 	int err;
 
 	pagesize = getpagesize();
-	detect_thpsize();
+	thpsize = read_pmd_pagesize();
+	if (thpsize)
+		ksft_print_msg("[INFO] detected THP size: %zu KiB\n",
+			       thpsize / 1024);
 	detect_hugetlbsizes();
 	detect_huge_zeropage();
 

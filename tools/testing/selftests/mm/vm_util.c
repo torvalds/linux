@@ -84,12 +84,12 @@ uint64_t read_pmd_pagesize(void)
 
 	fd = open(PMD_SIZE_FILE_PATH, O_RDONLY);
 	if (fd == -1)
-		ksft_exit_fail_msg("Open hpage_pmd_size failed\n");
+		return 0;
 
 	num_read = read(fd, buf, 19);
 	if (num_read < 1) {
 		close(fd);
-		ksft_exit_fail_msg("Read hpage_pmd_size failed\n");
+		return 0;
 	}
 	buf[num_read] = '\0';
 	close(fd);
