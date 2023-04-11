@@ -1968,6 +1968,41 @@ static int analogix_dp_bridge_init(struct analogix_dp_device *dp)
 	return 0;
 }
 
+static u32 analogix_dp_parse_link_frequencies(struct analogix_dp_device *dp)
+{
+	struct device_node *node = dp->dev->of_node;
+	struct device_node *endpoint;
+	u64 frequency = 0;
+	int cnt;
+
+	endpoint = of_graph_get_endpoint_by_regs(node, 1, 0);
+	if (!endpoint)
+		return 0;
+
+	cnt = of_property_count_u64_elems(endpoint, "link-frequencies");
+	if (cnt > 0)
+		of_property_read_u64_index(endpoint, "link-frequencies",
+					   cnt - 1, &frequency);
+	of_node_put(endpoint);
+
+	if (!frequency)
+		return 0;
+
+	do_div(frequency, 10 * 1000);	/* symbol rate kbytes */
+
+	switch (frequency) {
+	case 162000:
+	case 270000:
+	case 540000:
+		break;
+	default:
+		dev_err(dp->dev, "invalid link frequency value: %lld\n", frequency);
+		return 0;
+	}
+
+	return frequency;
+}
+
 static int analogix_dp_dt_parse_pdata(struct analogix_dp_device *dp)
 {
 	struct device_node *dp_node = dp->dev->of_node;
@@ -2003,24 +2038,9 @@ static int analogix_dp_dt_parse_pdata(struct analogix_dp_device *dp)
 		break;
 	}
 
-	if (!of_property_read_u32(dp_node, "max-link-rate", &max_link_rate)) {
-		switch (max_link_rate) {
-		case 1620:
-		case 2700:
-		case 5400:
-			break;
-		default:
-			dev_err(dp->dev, "invalid max-link-rate value: %d\n",
-				max_link_rate);
-			return -EINVAL;
-		}
-
-		max_link_rate *= 100;
-
-		if (max_link_rate < drm_dp_bw_code_to_link_rate(video_info->max_link_rate))
-			video_info->max_link_rate =
-				drm_dp_link_rate_to_bw_code(max_link_rate);
-	}
+	max_link_rate = analogix_dp_parse_link_frequencies(dp);
+	if (max_link_rate && max_link_rate < drm_dp_bw_code_to_link_rate(video_info->max_link_rate))
+		video_info->max_link_rate = drm_dp_link_rate_to_bw_code(max_link_rate);
 
 	video_info->video_bist_enable =
 		of_property_read_bool(dp_node, "analogix,video-bist-enable");
