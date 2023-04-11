@@ -667,7 +667,14 @@ typedef enum {
 
 #define PP_NUM_RTAVFS_PWL_ZONES 5
 
-
+#define PP_OD_FEATURE_GFX_VF_CURVE_BIT  0
+#define PP_OD_FEATURE_PPT_BIT       2
+#define PP_OD_FEATURE_FAN_CURVE_BIT 3
+#define PP_OD_FEATURE_GFXCLK_BIT      7
+#define PP_OD_FEATURE_UCLK_BIT      8
+#define PP_OD_FEATURE_ZERO_FAN_BIT      9
+#define PP_OD_FEATURE_TEMPERATURE_BIT 10
+#define PP_OD_FEATURE_COUNT 13
 
 // VBIOS or PPLIB configures telemetry slope and offset. Only slope expected to be set for SVI3
 // Slope Q1.7, Offset Q1.2
@@ -689,10 +696,8 @@ typedef struct {
 
   //Voltage control
   int16_t                VoltageOffsetPerZoneBoundary[PP_NUM_OD_VF_CURVE_POINTS];
-  uint16_t               VddGfxVmax;         // in mV
 
-  uint8_t                IdlePwrSavingFeaturesCtrl;
-  uint8_t                RuntimePwrSavingFeaturesCtrl;
+  uint32_t               Reserved;
 
   //Frequency changes
   int16_t                GfxclkFmin;           // MHz
@@ -729,10 +734,9 @@ typedef struct {
   uint32_t FeatureCtrlMask;
 
   int16_t VoltageOffsetPerZoneBoundary;
-  uint16_t               VddGfxVmax;         // in mV
+  uint16_t               Reserved1;
 
-  uint8_t                IdlePwrSavingFeaturesCtrl;
-  uint8_t                RuntimePwrSavingFeaturesCtrl;
+  uint16_t               Reserved2;
 
   int16_t               GfxclkFmin;           // MHz
   int16_t               GfxclkFmax;           // MHz
