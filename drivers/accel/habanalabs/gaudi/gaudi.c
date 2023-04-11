@@ -114,13 +114,6 @@ static u32 gaudi_stream_master[GAUDI_STREAM_MASTER_ARR_SIZE] = {
 	GAUDI_QUEUE_ID_DMA_1_3
 };
 
-static const char gaudi_irq_name[GAUDI_MSI_ENTRIES][GAUDI_MAX_STRING_LEN] = {
-		"gaudi cq 0_0", "gaudi cq 0_1", "gaudi cq 0_2", "gaudi cq 0_3",
-		"gaudi cq 1_0", "gaudi cq 1_1", "gaudi cq 1_2", "gaudi cq 1_3",
-		"gaudi cq 5_0", "gaudi cq 5_1", "gaudi cq 5_2", "gaudi cq 5_3",
-		"gaudi cpu eq"
-};
-
 static const u8 gaudi_dma_assignment[GAUDI_DMA_MAX] = {
 	[GAUDI_PCI_DMA_1] = GAUDI_ENGINE_ID_DMA_0,
 	[GAUDI_PCI_DMA_2] = GAUDI_ENGINE_ID_DMA_1,
