@@ -15,6 +15,14 @@ static bool gsi_reg_id_valid(struct gsi *gsi, enum gsi_reg_id reg_id)
 	switch (reg_id) {
 	case INTER_EE_SRC_CH_IRQ_MSK:
 	case INTER_EE_SRC_EV_CH_IRQ_MSK:
+		return gsi->version >= IPA_VERSION_3_5;
+
+	case HW_PARAM_2:
+		return gsi->version >= IPA_VERSION_3_5_1;
+
+	case HW_PARAM_4:
+		return gsi->version >= IPA_VERSION_5_0;
+
 	case CH_C_CNTXT_0:
 	case CH_C_CNTXT_1:
 	case CH_C_CNTXT_2:
@@ -43,7 +51,6 @@ static bool gsi_reg_id_valid(struct gsi *gsi, enum gsi_reg_id reg_id)
 	case CH_CMD:
 	case EV_CH_CMD:
 	case GENERIC_CMD:
-	case HW_PARAM_2:
 	case CNTXT_TYPE_IRQ:
 	case CNTXT_TYPE_IRQ_MSK:
 	case CNTXT_SRC_CH_IRQ:

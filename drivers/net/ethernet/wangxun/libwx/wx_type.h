@@ -222,7 +222,7 @@
 #define WX_PX_INTA                   0x110
 #define WX_PX_GPIE                   0x118
 #define WX_PX_GPIE_MODEL             BIT(0)
-#define WX_PX_IC                     0x120
+#define WX_PX_IC(_i)                 (0x120 + (_i) * 4)
 #define WX_PX_IMS(_i)                (0x140 + (_i) * 4)
 #define WX_PX_IMC(_i)                (0x150 + (_i) * 4)
 #define WX_PX_ISB_ADDR_L             0x160

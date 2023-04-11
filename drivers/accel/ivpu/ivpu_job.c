@@ -489,12 +489,12 @@ unlock_reservations:
 
 int ivpu_submit_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 {
-	int ret = 0;
 	struct ivpu_file_priv *file_priv = file->driver_priv;
 	struct ivpu_device *vdev = file_priv->vdev;
 	struct drm_ivpu_submit *params = data;
 	struct ivpu_job *job;
 	u32 *buf_handles;
+	int idx, ret;
 
 	if (params->engine > DRM_IVPU_ENGINE_COPY)
 		return -EINVAL;
@@ -523,6 +523,11 @@ int ivpu_submit_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 		goto free_handles;
 	}
 
+	if (!drm_dev_enter(&vdev->drm, &idx)) {
+		ret = -ENODEV;
+		goto free_handles;
+	}
+
 	ivpu_dbg(vdev, JOB, "Submit ioctl: ctx %u buf_count %u\n",
 		 file_priv->ctx.id, params->buffer_count);
 
@@ -530,7 +535,7 @@ int ivpu_submit_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	if (!job) {
 		ivpu_err(vdev, "Failed to create job\n");
 		ret = -ENOMEM;
-		goto free_handles;
+		goto dev_exit;
 	}
 
 	ret = ivpu_job_prepare_bos_for_submit(file, job, buf_handles, params->buffer_count,
@@ -548,6 +553,8 @@ int ivpu_submit_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 
 job_put:
 	job_put(job);
+dev_exit:
+	drm_dev_exit(idx);
 free_handles:
 	kfree(buf_handles);
 

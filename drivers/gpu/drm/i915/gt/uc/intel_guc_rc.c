@@ -11,20 +11,9 @@
 
 static bool __guc_rc_supported(struct intel_guc *guc)
 {
-	struct intel_gt *gt = guc_to_gt(guc);
-
-	/*
-	 * Wa_14017073508: mtl
-	 * Do not enable gucrc to avoid additional interrupts which
-	 * may disrupt pcode wa.
-	 */
-	if (IS_MTL_GRAPHICS_STEP(gt->i915, P, STEP_A0, STEP_B0) &&
-	    gt->type == GT_MEDIA)
-		return false;
-
 	/* GuC RC is unavailable for pre-Gen12 */
 	return guc->submission_supported &&
-		GRAPHICS_VER(gt->i915) >= 12;
+		GRAPHICS_VER(guc_to_gt(guc)->i915) >= 12;
 }
 
 static bool __guc_rc_selected(struct intel_guc *guc)

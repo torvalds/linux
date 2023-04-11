@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
 
 import argparse
 import collections
@@ -1931,9 +1931,14 @@ def render_uapi(family, cw):
 
             if const.get('render-max', False):
                 cw.nl()
-                max_name = c_upper(name_pfx + 'max')
-                cw.p('__' + max_name + ',')
-                cw.p(max_name + ' = (__' + max_name + ' - 1)')
+                if const['type'] == 'flags':
+                    max_name = c_upper(name_pfx + 'mask')
+                    max_val = f' = {enum.get_mask()},'
+                    cw.p(max_name + max_val)
+                else:
+                    max_name = c_upper(name_pfx + 'max')
+                    cw.p('__' + max_name + ',')
+                    cw.p(max_name + ' = (__' + max_name + ' - 1)')
             cw.block_end(line=';')
             cw.nl()
         elif const['type'] == 'const':
@@ -2054,6 +2059,10 @@ def main():
 
     try:
         parsed = Family(args.spec)
+        if parsed.license != '((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)':
+            print('Spec license:', parsed.license)
+            print('License must be: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)')
+            os.sys.exit(1)
     except yaml.YAMLError as exc:
         print(exc)
         os.sys.exit(1)
@@ -2062,13 +2071,10 @@ def main():
     cw = CodeWriter(BaseNlLib(), out_file)
 
     _, spec_kernel = find_kernel_root(args.spec)
-    if args.mode == 'uapi':
-        cw.p('/* SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause */')
+    if args.mode == 'uapi' or args.header:
+        cw.p(f'/* SPDX-License-Identifier: {parsed.license} */')
     else:
-        if args.header:
-            cw.p('/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */')
-        else:
-            cw.p('// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause')
+        cw.p(f'// SPDX-License-Identifier: {parsed.license}')
     cw.p("/* Do not edit directly, auto-generated from: */")
     cw.p(f"/*\t{spec_kernel} */")
     cw.p(f"/* YNL-GEN {args.mode} {'header' if args.header else 'source'} */")
