@@ -3335,6 +3335,7 @@ static inline void netif_tx_wake_all_queues(struct net_device *dev)
 
 static __always_inline void netif_tx_stop_queue(struct netdev_queue *dev_queue)
 {
+	/* Must be an atomic op see netif_txq_try_stop() */
 	set_bit(__QUEUE_STATE_DRV_XOFF, &dev_queue->state);
 }
 
@@ -3531,7 +3532,7 @@ static inline void netdev_tx_completed_queue(struct netdev_queue *dev_queue,
 	 * netdev_tx_sent_queue will miss the update and cause the queue to
 	 * be stopped forever
 	 */
-	smp_mb();
+	smp_mb(); /* NOTE: netdev_txq_completed_mb() assumes this exists */
 
 	if (unlikely(dql_avail(&dev_queue->dql) < 0))
 		return;

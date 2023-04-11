@@ -56,6 +56,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <net/page_pool.h>
 #include <linux/align.h>
+#include <net/netdev_queues.h>
 
 #include "bnxt_hsi.h"
 #include "bnxt.h"
@@ -331,26 +332,6 @@ static void bnxt_txr_db_kick(struct bnxt *bp, struct bnxt_tx_ring_info *txr,
 	txr->kick_pending = 0;
 }
 
-static bool bnxt_txr_netif_try_stop_queue(struct bnxt *bp,
-					  struct bnxt_tx_ring_info *txr,
-					  struct netdev_queue *txq)
-{
-	netif_tx_stop_queue(txq);
-
-	/* netif_tx_stop_queue() must be done before checking
-	 * tx index in bnxt_tx_avail() below, because in
-	 * bnxt_tx_int(), we update tx index before checking for
-	 * netif_tx_queue_stopped().
-	 */
-	smp_mb();
-	if (bnxt_tx_avail(bp, txr) >= bp->tx_wake_thresh) {
-		netif_tx_wake_queue(txq);
-		return false;
-	}
-
-	return true;
-}
-
 static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct bnxt *bp = netdev_priv(dev);
@@ -384,7 +365,8 @@ static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (net_ratelimit() && txr->kick_pending)
 			netif_warn(bp, tx_err, dev,
 				   "bnxt: ring busy w/ flush pending!\n");
-		if (bnxt_txr_netif_try_stop_queue(bp, txr, txq))
+		if (!netif_txq_try_stop(txq, bnxt_tx_avail(bp, txr),
+					bp->tx_wake_thresh))
 			return NETDEV_TX_BUSY;
 	}
 
@@ -614,7 +596,8 @@ tx_done:
 		if (netdev_xmit_more() && !tx_buf->is_push)
 			bnxt_txr_db_kick(bp, txr, prod);
 
-		bnxt_txr_netif_try_stop_queue(bp, txr, txq);
+		netif_txq_try_stop(txq, bnxt_tx_avail(bp, txr),
+				   bp->tx_wake_thresh);
 	}
 	return NETDEV_TX_OK;
 
@@ -705,20 +688,11 @@ next_tx_int:
 		dev_kfree_skb_any(skb);
 	}
 
-	netdev_tx_completed_queue(txq, nr_pkts, tx_bytes);
 	txr->tx_cons = cons;
 
-	/* Need to make the tx_cons update visible to bnxt_start_xmit()
-	 * before checking for netif_tx_queue_stopped().  Without the
-	 * memory barrier, there is a small possibility that bnxt_start_xmit()
-	 * will miss it and cause the queue to be stopped forever.
-	 */
-	smp_mb();
-
-	if (unlikely(netif_tx_queue_stopped(txq)) &&
-	    bnxt_tx_avail(bp, txr) >= bp->tx_wake_thresh &&
-	    READ_ONCE(txr->dev_state) != BNXT_DEV_STATE_CLOSING)
-		netif_tx_wake_queue(txq);
+	__netif_txq_completed_wake(txq, nr_pkts, tx_bytes,
+				   bnxt_tx_avail(bp, txr), bp->tx_wake_thresh,
+				   READ_ONCE(txr->dev_state) != BNXT_DEV_STATE_CLOSING);
 }
 
 static struct page *__bnxt_alloc_rx_page(struct bnxt *bp, dma_addr_t *mapping,
