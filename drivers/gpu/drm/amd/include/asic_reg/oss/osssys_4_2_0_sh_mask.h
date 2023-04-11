@@ -349,6 +349,17 @@
 #define IH_DOORBELL_RPTR_RING2__ENABLE__SHIFT                                                                 0x1c
 #define IH_DOORBELL_RPTR_RING2__OFFSET_MASK                                                                   0x03FFFFFFL
 #define IH_DOORBELL_RPTR_RING2__ENABLE_MASK                                                                   0x10000000L
+//IH_RETRY_INT_CAM_CNTL
+#define IH_RETRY_INT_CAM_CNTL__CAM_SIZE__SHIFT                                                                0x0
+#define IH_RETRY_INT_CAM_CNTL__BACK_PRESSURE_SKID_VALUE__SHIFT                                                0x8
+#define IH_RETRY_INT_CAM_CNTL__ENABLE__SHIFT                                                                  0x10
+#define IH_RETRY_INT_CAM_CNTL__BACK_PRESSURE_ENABLE__SHIFT                                                    0x11
+#define IH_RETRY_INT_CAM_CNTL__PER_VF_ENTRY_SIZE__SHIFT                                                       0x14
+#define IH_RETRY_INT_CAM_CNTL__CAM_SIZE_MASK                                                                  0x0000001FL
+#define IH_RETRY_INT_CAM_CNTL__BACK_PRESSURE_SKID_VALUE_MASK                                                  0x00003F00L
+#define IH_RETRY_INT_CAM_CNTL__ENABLE_MASK                                                                    0x00010000L
+#define IH_RETRY_INT_CAM_CNTL__BACK_PRESSURE_ENABLE_MASK                                                      0x00020000L
+#define IH_RETRY_INT_CAM_CNTL__PER_VF_ENTRY_SIZE_MASK                                                         0x00300000L
 //IH_VERSION
 #define IH_VERSION__MINVER__SHIFT                                                                             0x0
 #define IH_VERSION__MAJVER__SHIFT                                                                             0x8
