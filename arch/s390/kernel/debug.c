@@ -60,7 +60,7 @@ typedef struct {
 	 * except of floats, and long long (32 bit)
 	 *
 	 */
-	long args[0];
+	long args[];
 } debug_sprintf_entry_t;
 
 /* internal function prototyes */
