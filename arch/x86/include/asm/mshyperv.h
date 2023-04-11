@@ -29,6 +29,11 @@ typedef int (*hyperv_fill_flush_list_func)(
 
 void hyperv_vector_handler(struct pt_regs *regs);
 
+static inline unsigned char hv_get_nmi_reason(void)
+{
+	return 0;
+}
+
 #if IS_ENABLED(CONFIG_HYPERV)
 extern int hyperv_init_cpuhp;
 
