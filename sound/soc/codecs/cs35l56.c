@@ -946,6 +946,7 @@ static void cs35l56_dsp_work(struct work_struct *work)
 		goto err_unlock;
 	}
 
+	regmap_clear_bits(cs35l56->regmap, CS35L56_PROTECTION_STATUS, CS35L56_FIRMWARE_MISSING);
 	cs35l56->fw_patched = true;
 
 err_unlock:
@@ -1026,6 +1027,8 @@ static const struct snd_soc_component_driver soc_component_dev_cs35l56 = {
 	.num_controls = ARRAY_SIZE(cs35l56_controls),
 
 	.set_bias_level = cs35l56_set_bias_level,
+
+	.suspend_bias_off = 1, /* see cs35l56_system_resume() */
 };
 
 static const struct reg_sequence cs35l56_hibernate_seq[] = {
@@ -1156,6 +1159,47 @@ err:
 }
 EXPORT_SYMBOL_NS_GPL(cs35l56_runtime_resume_common, SND_SOC_CS35L56_CORE);
 
+static int cs35l56_is_fw_reload_needed(struct cs35l56_private *cs35l56)
+{
+	unsigned int val;
+	int ret;
+
+	/* Nothing to re-patch if we haven't done any patching yet. */
+	if (!cs35l56->fw_patched)
+		return false;
+
+	/*
+	 * If we have control of RESET we will have asserted it so the firmware
+	 * will need re-patching.
+	 */
+	if (cs35l56->reset_gpio)
+		return true;
+
+	/*
+	 * In secure mode FIRMWARE_MISSING is cleared by the BIOS loader so
+	 * can't be used here to test for memory retention.
+	 * Assume that tuning must be re-loaded.
+	 */
+	if (cs35l56->secured)
+		return true;
+
+	ret = pm_runtime_resume_and_get(cs35l56->dev);
+	if (ret) {
+		dev_err(cs35l56->dev, "Failed to runtime_get: %d\n", ret);
+		return ret;
+	}
+
+	ret = regmap_read(cs35l56->regmap, CS35L56_PROTECTION_STATUS, &val);
+	if (ret)
+		dev_err(cs35l56->dev, "Failed to read PROTECTION_STATUS: %d\n", ret);
+	else
+		ret = !!(val & CS35L56_FIRMWARE_MISSING);
+
+	pm_runtime_put_autosuspend(cs35l56->dev);
+
+	return ret;
+}
+
 int cs35l56_system_suspend(struct device *dev)
 {
 	struct cs35l56_private *cs35l56 = dev_get_drvdata(dev);
@@ -1273,7 +1317,28 @@ int cs35l56_system_resume(struct device *dev)
 	if (cs35l56->irq)
 		enable_irq(cs35l56->irq);
 
-	return ret;
+	if (ret)
+		return ret;
+
+	/* Firmware won't have been loaded if the component hasn't probed */
+	if (!cs35l56->component)
+		return 0;
+
+	ret = cs35l56_is_fw_reload_needed(cs35l56);
+	dev_dbg(cs35l56->dev, "fw_reload_needed: %d\n", ret);
+	if (ret < 1)
+		return ret;
+
+	cs35l56->fw_patched = false;
+	init_completion(&cs35l56->dsp_ready_completion);
+	queue_work(cs35l56->dsp_wq, &cs35l56->dsp_work);
+
+	/*
+	 * suspend_bias_off ensures we are now in BIAS_OFF so there will be
+	 * a BIAS_OFF->BIAS_STANDBY transition to complete dsp patching.
+	 */
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(cs35l56_system_resume);
 
