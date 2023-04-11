@@ -373,10 +373,16 @@ static void ilk_assign_csc(struct intel_crtc_state *crtc_state)
 	bool limited_color_range = ilk_csc_limited_range(crtc_state);
 
 	if (crtc_state->hw.ctm) {
+		drm_WARN_ON(&i915->drm, !crtc_state->csc_enable);
+
 		ilk_csc_convert_ctm(crtc_state, &crtc_state->csc, limited_color_range);
 	} else if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB) {
+		drm_WARN_ON(&i915->drm, !crtc_state->csc_enable);
+
 		ilk_csc_copy(i915, &crtc_state->csc, &ilk_csc_matrix_rgb_to_ycbcr);
 	} else if (limited_color_range) {
+		drm_WARN_ON(&i915->drm, !crtc_state->csc_enable);
+
 		ilk_csc_copy(i915, &crtc_state->csc, &ilk_csc_matrix_limited_range);
 	} else if (crtc_state->csc_enable) {
 		/*
@@ -405,17 +411,29 @@ static void icl_assign_csc(struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
 
-	if (crtc_state->hw.ctm)
-		ilk_csc_convert_ctm(crtc_state, &crtc_state->csc, false);
-	else
-		intel_csc_clear(&crtc_state->csc);
+	if (crtc_state->hw.ctm) {
+		drm_WARN_ON(&i915->drm, (crtc_state->csc_mode & ICL_CSC_ENABLE) == 0);
 
-	if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB)
+		ilk_csc_convert_ctm(crtc_state, &crtc_state->csc, false);
+	} else {
+		drm_WARN_ON(&i915->drm, (crtc_state->csc_mode & ICL_CSC_ENABLE) != 0);
+
+		intel_csc_clear(&crtc_state->csc);
+	}
+
+	if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB) {
+		drm_WARN_ON(&i915->drm, (crtc_state->csc_mode & ICL_OUTPUT_CSC_ENABLE) == 0);
+
 		ilk_csc_copy(i915, &crtc_state->output_csc, &ilk_csc_matrix_rgb_to_ycbcr);
-	else if (crtc_state->limited_color_range)
+	} else if (crtc_state->limited_color_range) {
+		drm_WARN_ON(&i915->drm, (crtc_state->csc_mode & ICL_OUTPUT_CSC_ENABLE) == 0);
+
 		ilk_csc_copy(i915, &crtc_state->output_csc, &ilk_csc_matrix_limited_range);
-	else
+	} else {
+		drm_WARN_ON(&i915->drm, (crtc_state->csc_mode & ICL_OUTPUT_CSC_ENABLE) != 0);
+
 		intel_csc_clear(&crtc_state->output_csc);
+	}
 }
 
 static void icl_load_csc_matrix(const struct intel_crtc_state *crtc_state)
@@ -474,10 +492,17 @@ static void chv_load_cgm_csc(struct intel_crtc *crtc,
 
 static void chv_assign_csc(struct intel_crtc_state *crtc_state)
 {
-	if (crtc_state->hw.ctm)
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+
+	if (crtc_state->hw.ctm) {
+		drm_WARN_ON(&i915->drm, (crtc_state->cgm_mode & CGM_PIPE_MODE_CSC) == 0);
+
 		chv_cgm_csc_convert_ctm(crtc_state, &crtc_state->csc);
-	else
+	} else {
+		drm_WARN_ON(&i915->drm, (crtc_state->cgm_mode & CGM_PIPE_MODE_CSC) != 0);
+
 		intel_csc_clear(&crtc_state->csc);
+	}
 }
 
 /* convert hw value with given bit_precision to lut property val */
