@@ -29,6 +29,7 @@
 #define MAGNO_EN	BIT(2)
 #define HPD_EN		BIT(16)
 #define ALS_EN		BIT(19)
+#define ACS_EN		BIT(22)
 
 static int sensor_mask_override = -1;
 module_param_named(sensor_mask, sensor_mask_override, int, 0444);
@@ -232,6 +233,9 @@ int amd_mp2_get_sensor_num(struct amd_mp2_dev *privdata, u8 *sensor_id)
 
 	if (HPD_EN & activestatus)
 		sensor_id[num_of_sensors++] = HPD_IDX;
+
+	if (ACS_EN & activestatus)
+		sensor_id[num_of_sensors++] = ACS_IDX;
 
 	return num_of_sensors;
 }
