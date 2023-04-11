@@ -832,19 +832,13 @@ int __io_scm_file_account(struct io_ring_ctx *ctx, struct file *file)
 	return 0;
 }
 
-static void io_rsrc_file_put(struct io_ring_ctx *ctx, struct io_rsrc_put *prsrc)
+static __cold void io_rsrc_file_scm_put(struct io_ring_ctx *ctx, struct file *file)
 {
-	struct file *file = prsrc->file;
 #if defined(CONFIG_UNIX)
 	struct sock *sock = ctx->ring_sock->sk;
 	struct sk_buff_head list, *head = &sock->sk_receive_queue;
 	struct sk_buff *skb;
 	int i;
-
-	if (!io_file_need_scm(file)) {
-		fput(file);
-		return;
-	}
 
 	__skb_queue_head_init(&list);
 
@@ -895,9 +889,17 @@ static void io_rsrc_file_put(struct io_ring_ctx *ctx, struct io_rsrc_put *prsrc)
 			__skb_queue_tail(head, skb);
 		spin_unlock_irq(&head->lock);
 	}
-#else
-	fput(file);
 #endif
+}
+
+static void io_rsrc_file_put(struct io_ring_ctx *ctx, struct io_rsrc_put *prsrc)
+{
+	struct file *file = prsrc->file;
+
+	if (likely(!io_file_need_scm(file)))
+		fput(file);
+	else
+		io_rsrc_file_scm_put(ctx, file);
 }
 
 int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
