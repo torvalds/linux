@@ -11360,6 +11360,97 @@ static void post_buf_empty_work_event(struct work_struct *work)
 	}
 }
 
+static bool vop2_plane_mask_check(struct vop2 *vop2)
+{
+	const struct vop2_data *vop2_data = vop2->data;
+	u32 plane_mask = 0;
+	int i;
+
+	/*
+	 * For RK3568 and RK3588, all windows need to be assigned to
+	 * one of all vps, and two of vps can not share the same window.
+	 */
+	if (vop2->version != VOP_VERSION_RK3568 && vop2->version != VOP_VERSION_RK3588)
+		return true;
+
+	for (i = 0; i < vop2_data->nr_vps; i++) {
+		if (plane_mask & vop2->vps[i].plane_mask) {
+			DRM_WARN("the same window can't be assigned to two vp\n");
+			return false;
+		}
+		plane_mask |= vop2->vps[i].plane_mask;
+	}
+
+	if (hweight32(plane_mask) != vop2_data->nr_layers ||
+	    plane_mask != vop2_data->plane_mask_base) {
+		DRM_WARN("all windows should be assigned, full plane mask: 0x%x, current plane mask: 0x%x\n",
+			 vop2_data->plane_mask_base, plane_mask);
+		return false;
+	}
+
+	return true;
+}
+
+static uint32_t vop2_vp_plane_mask_to_bitmap(const struct vop2_vp_plane_mask *vp_plane_mask)
+{
+	int layer_phy_id = 0;
+	int plane_mask = 0;
+	int i;
+
+	for (i = 0; i < vp_plane_mask->attached_layers_nr; i++) {
+		layer_phy_id = vp_plane_mask->attached_layers[i];
+		plane_mask |= BIT(layer_phy_id);
+	}
+
+	return plane_mask;
+}
+
+static bool vop2_get_vp_of_status(struct device_node *vp_node)
+{
+	struct device_node *vp_sub_node;
+	struct device_node *remote_node;
+	bool vp_enable = false;
+
+	for_each_child_of_node(vp_node, vp_sub_node) {
+		remote_node = of_graph_get_remote_endpoint(vp_sub_node);
+		vp_enable |= of_device_is_available(remote_node);
+	}
+
+	return vp_enable;
+}
+
+static void vop2_plane_mask_assign(struct vop2 *vop2, struct device_node *vop_out_node)
+{
+	const struct vop2_data *vop2_data = vop2->data;
+	const struct vop2_vp_plane_mask *plane_mask;
+	struct device_node *child;
+	int active_vp_num = 0;
+	int vp_id;
+	int i = 0;
+
+	for_each_child_of_node(vop_out_node, child) {
+		if (vop2_get_vp_of_status(child))
+			active_vp_num++;
+	}
+
+	if (vop2_soc_is_rk3566() && active_vp_num > 2)
+		DRM_WARN("RK3566 only support 2 vps\n");
+	plane_mask = vop2_data->plane_mask;
+	plane_mask += (active_vp_num - 1) * ROCKCHIP_MAX_CRTC;
+
+	for_each_child_of_node(vop_out_node, child) {
+		of_property_read_u32(child, "reg", &vp_id);
+		if (vop2_get_vp_of_status(child)) {
+			vop2->vps[vp_id].plane_mask = vop2_vp_plane_mask_to_bitmap(&plane_mask[i]);
+			vop2->vps[vp_id].primary_plane_phy_id = plane_mask[i].primary_plane_id;
+			i++;
+		} else {
+			vop2->vps[vp_id].plane_mask = 0;
+			vop2->vps[vp_id].primary_plane_phy_id = ROCKCHIP_VOP2_PHY_ID_INVALID;
+		}
+	}
+}
+
 static int vop2_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -11538,10 +11629,17 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 				if (!of_property_read_u32(mcu_timing_node, "mcu-hold-mode", &val))
 					vop2->vps[vp_id].mcu_timing.mcu_hold_mode = val;
 			}
+		}
 
+		if (!vop2_plane_mask_check(vop2)) {
+			DRM_WARN("use default plane mask\n");
+			vop2_plane_mask_assign(vop2, vop_out_node);
+		}
+
+		for (i = 0; i < vop2->data->nr_vps; i++) {
 			DRM_DEV_INFO(dev, "vp%d assign plane mask: 0x%x, primary plane phy id: %d\n",
-				     vp_id, vop2->vps[vp_id].plane_mask,
-				     vop2->vps[vp_id].primary_plane_phy_id);
+				     i, vop2->vps[i].plane_mask,
+				     vop2->vps[i].primary_plane_phy_id);
 		}
 	}
 

@@ -3665,6 +3665,173 @@ static const struct vop_dump_regs rk3588_dump_regs[] = {
 	{ RK3568_HDR_LUT_CTRL, "HDR", {0}, 0 },
 };
 
+#define RK3568_PLANE_MASK_BASE \
+	(BIT(ROCKCHIP_VOP2_CLUSTER0) | BIT(ROCKCHIP_VOP2_CLUSTER1) | \
+	 BIT(ROCKCHIP_VOP2_ESMART0)  | BIT(ROCKCHIP_VOP2_ESMART1)  | \
+	 BIT(ROCKCHIP_VOP2_SMART0)   | BIT(ROCKCHIP_VOP2_SMART1))
+
+#define RK3588_PLANE_MASK_BASE \
+	(BIT(ROCKCHIP_VOP2_CLUSTER0) | BIT(ROCKCHIP_VOP2_CLUSTER1) | \
+	 BIT(ROCKCHIP_VOP2_CLUSTER2) | BIT(ROCKCHIP_VOP2_CLUSTER3) | \
+	 BIT(ROCKCHIP_VOP2_ESMART0)  | BIT(ROCKCHIP_VOP2_ESMART1)  | \
+	 BIT(ROCKCHIP_VOP2_ESMART2)  | BIT(ROCKCHIP_VOP2_ESMART3))
+
+static struct vop2_vp_plane_mask rk3568_vp_plane_mask[ROCKCHIP_MAX_CRTC][ROCKCHIP_MAX_CRTC] = {
+	{ /* one display policy */
+		{/* main display */
+			.primary_plane_id = ROCKCHIP_VOP2_SMART0,
+			.attached_layers_nr = 6,
+			.attached_layers = {
+				  ROCKCHIP_VOP2_CLUSTER0, ROCKCHIP_VOP2_ESMART0, ROCKCHIP_VOP2_SMART0,
+				  ROCKCHIP_VOP2_CLUSTER1, ROCKCHIP_VOP2_ESMART1, ROCKCHIP_VOP2_SMART1
+				},
+		},
+		{/* second display */},
+		{/* third  display */},
+		{/* fourth display */},
+	},
+
+	{ /* two display policy */
+		{/* main display */
+			.primary_plane_id = ROCKCHIP_VOP2_SMART0,
+			.attached_layers_nr = 3,
+			.attached_layers = {
+				  ROCKCHIP_VOP2_CLUSTER0, ROCKCHIP_VOP2_ESMART0, ROCKCHIP_VOP2_SMART0
+				},
+		},
+
+		{/* second display */
+			.primary_plane_id = ROCKCHIP_VOP2_SMART1,
+			.attached_layers_nr = 3,
+			.attached_layers = {
+				  ROCKCHIP_VOP2_CLUSTER1, ROCKCHIP_VOP2_ESMART1, ROCKCHIP_VOP2_SMART1
+				},
+		},
+		{/* third  display */},
+		{/* fourth display */},
+	},
+
+	{ /* three display policy */
+		{/* main display */
+			.primary_plane_id = ROCKCHIP_VOP2_SMART0,
+			.attached_layers_nr = 3,
+			.attached_layers = {
+				  ROCKCHIP_VOP2_CLUSTER0, ROCKCHIP_VOP2_ESMART0, ROCKCHIP_VOP2_SMART0
+				},
+		},
+
+		{/* second display */
+			.primary_plane_id = ROCKCHIP_VOP2_SMART1,
+			.attached_layers_nr = 2,
+			.attached_layers = {
+				  ROCKCHIP_VOP2_CLUSTER1, ROCKCHIP_VOP2_SMART1
+				},
+		},
+
+		{/* third  display */
+			.primary_plane_id = ROCKCHIP_VOP2_ESMART1,
+			.attached_layers_nr = 1,
+			.attached_layers = { ROCKCHIP_VOP2_ESMART1 },
+		},
+
+		{/* fourth display */},
+	},
+
+	{/* reserved for four display policy */},
+};
+
+static struct vop2_vp_plane_mask rk3588_vp_plane_mask[ROCKCHIP_MAX_CRTC][ROCKCHIP_MAX_CRTC] = {
+	{ /* one display policy */
+		{/* main display */
+			.primary_plane_id = ROCKCHIP_VOP2_ESMART0,
+			.attached_layers_nr = 8,
+			.attached_layers = {
+				  ROCKCHIP_VOP2_CLUSTER0, ROCKCHIP_VOP2_ESMART0, ROCKCHIP_VOP2_ESMART2,
+				  ROCKCHIP_VOP2_CLUSTER1, ROCKCHIP_VOP2_ESMART1, ROCKCHIP_VOP2_ESMART3,
+				  ROCKCHIP_VOP2_CLUSTER2, ROCKCHIP_VOP2_CLUSTER3
+			},
+		},
+		{/* second display */},
+		{/* third  display */},
+		{/* fourth display */},
+	},
+
+	{ /* two display policy */
+		{/* main display */
+			.primary_plane_id = ROCKCHIP_VOP2_ESMART0,
+			.attached_layers_nr = 4,
+			.attached_layers = {
+				  ROCKCHIP_VOP2_CLUSTER0, ROCKCHIP_VOP2_ESMART0,
+				  ROCKCHIP_VOP2_CLUSTER1, ROCKCHIP_VOP2_ESMART1
+			},
+		},
+
+		{/* second display */
+			.primary_plane_id = ROCKCHIP_VOP2_ESMART2,
+			.attached_layers_nr = 4,
+			.attached_layers = {
+				  ROCKCHIP_VOP2_CLUSTER2, ROCKCHIP_VOP2_ESMART2,
+				  ROCKCHIP_VOP2_CLUSTER3, ROCKCHIP_VOP2_ESMART3
+			},
+		},
+		{/* third  display */},
+		{/* fourth display */},
+	},
+
+	{ /* three display policy */
+		{/* main display */
+			.primary_plane_id = ROCKCHIP_VOP2_ESMART0,
+			.attached_layers_nr = 3,
+			.attached_layers = {
+				  ROCKCHIP_VOP2_CLUSTER0, ROCKCHIP_VOP2_CLUSTER1, ROCKCHIP_VOP2_ESMART0
+			},
+		},
+
+		{/* second display */
+			.primary_plane_id = ROCKCHIP_VOP2_ESMART1,
+			.attached_layers_nr = 3,
+			.attached_layers = {
+				  ROCKCHIP_VOP2_CLUSTER2, ROCKCHIP_VOP2_CLUSTER3, ROCKCHIP_VOP2_ESMART1
+			},
+		},
+
+		{/* third  display */
+			.primary_plane_id = ROCKCHIP_VOP2_ESMART2,
+			.attached_layers_nr = 2,
+			.attached_layers = { ROCKCHIP_VOP2_ESMART2, ROCKCHIP_VOP2_ESMART3 },
+		},
+
+		{/* fourth display */},
+	},
+
+	{ /* four display policy */
+		{/* main display */
+			.primary_plane_id = ROCKCHIP_VOP2_ESMART0,
+			.attached_layers_nr = 2,
+			.attached_layers = { ROCKCHIP_VOP2_CLUSTER0, ROCKCHIP_VOP2_ESMART0 },
+		},
+
+		{/* second display */
+			.primary_plane_id = ROCKCHIP_VOP2_ESMART1,
+			.attached_layers_nr = 2,
+			.attached_layers = { ROCKCHIP_VOP2_CLUSTER1, ROCKCHIP_VOP2_ESMART1 },
+		},
+
+		{/* third  display */
+			.primary_plane_id = ROCKCHIP_VOP2_ESMART2,
+			.attached_layers_nr = 2,
+			.attached_layers = { ROCKCHIP_VOP2_CLUSTER2, ROCKCHIP_VOP2_ESMART2 },
+		},
+
+		{/* fourth display */
+			.primary_plane_id = ROCKCHIP_VOP2_ESMART3,
+			.attached_layers_nr = 2,
+			.attached_layers = { ROCKCHIP_VOP2_CLUSTER3, ROCKCHIP_VOP2_ESMART3 },
+		},
+	},
+
+};
+
 static const struct vop2_data rk3528_vop = {
 	.version = VOP_VERSION_RK3528,
 	.nr_vps = 2,
@@ -3725,6 +3892,8 @@ static const struct vop2_data rk3568_vop = {
 	.win_size = ARRAY_SIZE(rk3568_vop_win_data),
 	.dump_regs = rk3568_dump_regs,
 	.dump_regs_size = ARRAY_SIZE(rk3568_dump_regs),
+	.plane_mask = rk3568_vp_plane_mask[0],
+	.plane_mask_base = RK3568_PLANE_MASK_BASE,
 };
 
 static const struct vop2_data rk3588_vop = {
@@ -3761,6 +3930,8 @@ static const struct vop2_data rk3588_vop = {
 	.nr_mem_pgs = ARRAY_SIZE(rk3588_vop_mem_pg_data),
 	.dump_regs = rk3588_dump_regs,
 	.dump_regs_size = ARRAY_SIZE(rk3588_dump_regs),
+	.plane_mask = rk3588_vp_plane_mask[0],
+	.plane_mask_base = RK3588_PLANE_MASK_BASE,
 };
 
 static const struct of_device_id vop2_dt_match[] = {
