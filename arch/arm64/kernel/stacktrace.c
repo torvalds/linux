@@ -25,8 +25,9 @@
  *
  * The regs must be on a stack currently owned by the calling task.
  */
-static __always_inline void unwind_init_from_regs(struct unwind_state *state,
-						  struct pt_regs *regs)
+static __always_inline void
+unwind_init_from_regs(struct unwind_state *state,
+		      struct pt_regs *regs)
 {
 	unwind_init_common(state, current);
 
@@ -42,7 +43,8 @@ static __always_inline void unwind_init_from_regs(struct unwind_state *state,
  *
  * The function which invokes this must be noinline.
  */
-static __always_inline void unwind_init_from_caller(struct unwind_state *state)
+static __always_inline void
+unwind_init_from_caller(struct unwind_state *state)
 {
 	unwind_init_common(state, current);
 
@@ -60,8 +62,9 @@ static __always_inline void unwind_init_from_caller(struct unwind_state *state)
  * duration of the unwind, or the unwind will be bogus. It is never valid to
  * call this for the current task.
  */
-static __always_inline void unwind_init_from_task(struct unwind_state *state,
-						  struct task_struct *task)
+static __always_inline void
+unwind_init_from_task(struct unwind_state *state,
+		      struct task_struct *task)
 {
 	unwind_init_common(state, task);
 
@@ -102,7 +105,8 @@ unwind_recover_return_address(struct unwind_state *state)
  * records (e.g. a cycle), determined based on the location and fp value of A
  * and the location (but not the fp value) of B.
  */
-static int notrace unwind_next(struct unwind_state *state)
+static __always_inline int
+unwind_next(struct unwind_state *state)
 {
 	struct task_struct *tsk = state->task;
 	unsigned long fp = state->fp;
@@ -120,10 +124,10 @@ static int notrace unwind_next(struct unwind_state *state)
 
 	return unwind_recover_return_address(state);
 }
-NOKPROBE_SYMBOL(unwind_next);
 
-static void notrace unwind(struct unwind_state *state,
-			   stack_trace_consume_fn consume_entry, void *cookie)
+static __always_inline void
+unwind(struct unwind_state *state, stack_trace_consume_fn consume_entry,
+       void *cookie)
 {
 	if (unwind_recover_return_address(state))
 		return;
@@ -138,7 +142,6 @@ static void notrace unwind(struct unwind_state *state,
 			break;
 	}
 }
-NOKPROBE_SYMBOL(unwind);
 
 /*
  * Per-cpu stacks are only accessible when unwinding the current task in a
