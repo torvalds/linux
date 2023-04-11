@@ -1000,6 +1000,15 @@ config REGULATOR_PWM
 	  This driver supports PWM controlled voltage regulators. PWM
 	  duty cycle can increase or decrease the voltage.
 
+config REGULATOR_QCOM_PM8008
+	tristate "Qualcomm Technologies, Inc. PM8008 PMIC regulators"
+	depends on MFD_I2C_PMIC
+	help
+	  This driver provides support for the voltage regulators and top-level
+	  chip enablement of Qualcomm Technologies, Inc. PM8008 PMIC chips.
+	  When all seven of the PM8008 LDO regulators are disabled, the PM8008
+	  is put into a low power state.
+
 config REGULATOR_QCOM_RPM
 	tristate "Qualcomm RPM regulator driver"
 	depends on MFD_QCOM_RPM
