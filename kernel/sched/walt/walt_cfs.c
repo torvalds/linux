@@ -333,7 +333,8 @@ static void walt_find_best_target(struct sched_domain *sd,
 				available_idle_cpu(prev_cpu) &&
 				cpumask_test_cpu(prev_cpu, p->cpus_ptr) &&
 				!cpu_halted(prev_cpu) &&
-				(order_index == 0 || !cpu_partial_halted(prev_cpu))) {
+				(order_index == 0 || !cpu_partial_halted(prev_cpu)) &&
+				!is_reserved(prev_cpu)) {
 		fbt_env->fastpath = PREV_CPU_FASTPATH;
 		cpumask_set_cpu(prev_cpu, candidates);
 		goto out;
