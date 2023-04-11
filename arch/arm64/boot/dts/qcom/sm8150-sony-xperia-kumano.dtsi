@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 #include "sm8150.dtsi"
 #include "pm8150.dtsi"
@@ -79,6 +80,66 @@
 			linux,can-disable;
 			wakeup-source;
 		};
+	};
+
+	cam0_vdig_vreg: cam0-vdig-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "camera0_vdig_vreg";
+		gpio = <&tlmm 22 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-0 = <&main_cam_pwr_en>;
+		pinctrl-names = "default";
+	};
+
+	cam1_vdig_vreg: cam1-vdig-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "camera1_vdig_vreg";
+		gpio = <&tlmm 79 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-0 = <&sub_cam_pwr_en>;
+		pinctrl-names = "default";
+	};
+
+	cam2_vdig_vreg: cam2-vdig-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "camera2_vdig_vreg";
+		gpio = <&tlmm 25 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-0 = <&chat_cam_pwr_en>;
+		pinctrl-names = "default";
+	};
+
+	cam3_vdig_vreg: cam3-vdig-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "camera3_vdig_vreg";
+		gpio = <&pm8150_gpios 7 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-0 = <&supwc_pwr_en>;
+		pinctrl-names = "default";
+	};
+
+	cam_vmdr_vreg: cam-vmdr-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "camera_vmdr_vreg";
+		gpio = <&pm8150l_gpios 3 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-0 = <&main_cam_pwr_vmdr_en>;
+		pinctrl-names = "default";
+	};
+
+	rgbcir_vreg: rgbcir-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "rgbcir_vreg";
+		gpio = <&tlmm 29 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-0 = <&rgbc_ir_pwr_en>;
+		pinctrl-names = "default";
 	};
 
 	vph_pwr: vph-pwr-regulator {
@@ -474,6 +535,15 @@
 		bias-pull-up;
 		input-enable;
 	};
+
+	supwc_pwr_en: supwc-pwr-en-state {
+		pins = "gpio7";
+		function = "normal";
+		qcom,drive-strength = <1>;
+		power-source = <1>;
+		drive-push-pull;
+		output-low;
+	};
 };
 
 &pm8150b_gpios {
@@ -520,6 +590,15 @@
 			  "NC", /* GPIO_10 */
 			  "NC",
 			  "NC";
+
+	main_cam_pwr_vmdr_en: main-cam-pwr-vmdr-en-state {
+		pins = "gpio3";
+		function = "normal";
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
+		power-source = <0>;
+		drive-push-pull;
+		output-low;
+	};
 };
 
 &pon_pwrkey {
@@ -716,6 +795,37 @@
 			  "WL_CMD_DATA_CHAIN1",
 			  "WL_BT_COEX_CLK",
 			  "WL_BT_COEX_DATA";
+
+	main_cam_pwr_en: main-cam-pwr-en-state {
+		pins = "gpio22";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		output-low;
+	};
+
+	chat_cam_pwr_en: chat-cam-pwr-en-state {
+		pins = "gpio25";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		output-low;
+	};
+
+	rgbc_ir_pwr_en: rgbc-ir-pwr-en-state {
+		pins = "gpio29";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		output-low;
+	};
+
+	sub_cam_pwr_en: sub-cam-pwr-en-state {
+		pins = "gpio79";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
 };
 
 &uart2 {
