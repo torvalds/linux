@@ -218,6 +218,7 @@ static struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx)
 			return NULL;
 	}
 
+	ref_node->rsrc_data = NULL;
 	ref_node->refs = 1;
 	INIT_LIST_HEAD(&ref_node->node);
 	INIT_LIST_HEAD(&ref_node->item_list);
