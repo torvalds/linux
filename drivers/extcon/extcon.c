@@ -245,7 +245,7 @@ static DEFINE_MUTEX(extcon_dev_list_lock);
 
 static int check_mutually_exclusive(struct extcon_dev *edev, u32 new_state)
 {
-	int i = 0;
+	int i;
 
 	if (!edev->mutually_exclusive)
 		return 0;
@@ -1246,7 +1246,7 @@ static int extcon_alloc_groups(struct extcon_dev *edev)
  */
 int extcon_dev_register(struct extcon_dev *edev)
 {
-	int ret, index = 0;
+	int ret, index;
 
 	ret = create_extcon_class();
 	if (ret < 0)
@@ -1255,7 +1255,7 @@ int extcon_dev_register(struct extcon_dev *edev)
 	if (!edev || !edev->supported_cable)
 		return -EINVAL;
 
-	for (; edev->supported_cable[index] != EXTCON_NONE; index++);
+	for (index = 0; edev->supported_cable[index] != EXTCON_NONE; index++);
 
 	edev->max_supported = index;
 	if (index > SUPPORTED_CABLE_MAX) {
