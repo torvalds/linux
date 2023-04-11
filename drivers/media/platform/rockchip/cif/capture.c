@@ -5268,13 +5268,24 @@ static int rkcif_stream_start(struct rkcif_stream *stream, unsigned int mode)
 	}
 
 	if (stream->dma_en) {
-		if (dev->chip_id < CHIP_RK1808_CIF)
+		if (dev->chip_id < CHIP_RK1808_CIF) {
 			rkcif_assign_new_buffer_oneframe(stream,
 							 RKCIF_YUV_ADDR_STATE_INIT);
-		else
-			rkcif_assign_new_buffer_pingpong(stream,
-							 RKCIF_YUV_ADDR_STATE_INIT,
-							 stream->id);
+		} else {
+			if (mode == RKCIF_STREAM_MODE_CAPTURE)
+				rkcif_assign_new_buffer_pingpong(stream,
+						 RKCIF_YUV_ADDR_STATE_INIT,
+						 stream->id);
+			else if (mode == RKCIF_STREAM_MODE_TOISP ||
+				 mode == RKCIF_STREAM_MODE_TOISP_RDBK)
+				rkcif_assign_new_buffer_pingpong_toisp(stream,
+						       RKCIF_YUV_ADDR_STATE_INIT,
+						       stream->id);
+			else if (mode == RKCIF_STREAM_MODE_ROCKIT)
+				rkcif_assign_new_buffer_pingpong_rockit(stream,
+							RKCIF_YUV_ADDR_STATE_INIT,
+							stream->id);
+		}
 	}
 	rkcif_write_register_or(dev, CIF_REG_DVP_INTEN,
 				DVP_DMA_END_INTSTAT(stream->id) |
@@ -9843,8 +9854,19 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 				intstat &= ~DVP_ALL_END_ID3;
 				break;
 			}
-			if (stream->dma_en)
-				rkcif_update_stream(cif_dev, stream, ch_id);
+			if (stream->dma_en & RKCIF_DMAEN_BY_VICAP) {
+				if (cif_dev->sync_cfg.type == RKCIF_NOSYNC_MODE)
+					is_update = true;
+				else
+					is_update = rkcif_check_buffer_prepare(stream);
+				if (is_update)
+					rkcif_update_stream(cif_dev, stream, ch_id);
+			} else if (stream->dma_en & RKCIF_DMAEN_BY_ISP) {
+				rkcif_update_stream_toisp(cif_dev, stream, ch_id);
+			} else if (stream->dma_en & RKCIF_DMAEN_BY_ROCKIT) {
+				rkcif_update_stream_rockit(cif_dev, stream, ch_id);
+			}
+
 			if (stream->to_en_dma)
 				rkcif_enable_dma_capture(stream, false);
 			if (stream->to_stop_dma) {
