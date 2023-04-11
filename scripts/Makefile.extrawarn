@@ -48,7 +48,7 @@ else
 ifdef CONFIG_CC_IS_CLANG
 KBUILD_CFLAGS += -Wno-initializer-overrides
 # Clang before clang-16 would warn on default argument promotions.
-ifneq ($(call clang-min-version, 170000),y)
+ifneq ($(call clang-min-version, 180000),y)
 # Disable -Wformat
 KBUILD_CFLAGS += -Wno-format
 # Then re-enable flags that were part of the -Wformat group that aren't
