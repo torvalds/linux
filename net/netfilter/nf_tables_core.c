@@ -205,7 +205,6 @@ static noinline void nft_update_chain_stats(const struct nft_chain *chain,
 struct nft_jumpstack {
 	const struct nft_chain *chain;
 	const struct nft_rule_dp *rule;
-	const struct nft_rule_dp *last_rule;
 };
 
 static void expr_call_ops_eval(const struct nft_expr *expr,
@@ -259,9 +258,9 @@ unsigned int
 nft_do_chain(struct nft_pktinfo *pkt, void *priv)
 {
 	const struct nft_chain *chain = priv, *basechain = chain;
-	const struct nft_rule_dp *rule, *last_rule;
 	const struct net *net = nft_net(pkt);
 	const struct nft_expr *expr, *last;
+	const struct nft_rule_dp *rule;
 	struct nft_regs regs = {};
 	unsigned int stackptr = 0;
 	struct nft_jumpstack jumpstack[NFT_JUMP_STACK_SIZE];
@@ -279,10 +278,9 @@ do_chain:
 		blob = rcu_dereference(chain->blob_gen_0);
 
 	rule = (struct nft_rule_dp *)blob->data;
-	last_rule = (void *)blob->data + blob->size;
 next_rule:
 	regs.verdict.code = NFT_CONTINUE;
-	for (; rule < last_rule; rule = nft_rule_next(rule)) {
+	for (; !rule->is_last ; rule = nft_rule_next(rule)) {
 		nft_rule_dp_for_each_expr(expr, last, rule) {
 			if (expr->ops == &nft_cmp_fast_ops)
 				nft_cmp_fast_eval(expr, &regs);
@@ -327,7 +325,6 @@ next_rule:
 			return NF_DROP;
 		jumpstack[stackptr].chain = chain;
 		jumpstack[stackptr].rule = nft_rule_next(rule);
-		jumpstack[stackptr].last_rule = last_rule;
 		stackptr++;
 		fallthrough;
 	case NFT_GOTO:
@@ -344,7 +341,6 @@ next_rule:
 		stackptr--;
 		chain = jumpstack[stackptr].chain;
 		rule = jumpstack[stackptr].rule;
-		last_rule = jumpstack[stackptr].last_rule;
 		goto next_rule;
 	}
 
