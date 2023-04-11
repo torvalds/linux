@@ -1457,6 +1457,7 @@ static void rtw89_vif_rx_stats_iter(void *data, u8 *mac,
 	struct rtw89_rx_desc_info *desc_info = iter_data->desc_info;
 	struct sk_buff *skb = iter_data->skb;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	struct rtw89_rx_phy_ppdu *phy_ppdu = iter_data->phy_ppdu;
 	const u8 *bssid = iter_data->bssid;
 
 	if (rtwdev->scanning &&
@@ -1475,8 +1476,11 @@ static void rtw89_vif_rx_stats_iter(void *data, u8 *mac,
 	if (!ether_addr_equal(vif->bss_conf.bssid, bssid))
 		return;
 
-	if (ieee80211_is_beacon(hdr->frame_control))
+	if (ieee80211_is_beacon(hdr->frame_control)) {
+		if (vif->type == NL80211_IFTYPE_STATION)
+			rtw89_fw_h2c_rssi_offload(rtwdev, phy_ppdu);
 		pkt_stat->beacon_nr++;
+	}
 
 	if (!ether_addr_equal(vif->addr, hdr->addr1))
 		return;
@@ -2539,6 +2543,9 @@ int rtw89_core_sta_disassoc(struct rtw89_dev *rtwdev,
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
 	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
 
+	if (vif->type == NL80211_IFTYPE_STATION)
+		rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, vif, false);
+
 	rtwdev->total_sta_assoc--;
 	if (sta->tdls)
 		rtwvif->tdls_peer--;
@@ -3415,6 +3422,8 @@ static int rtw89_core_register_hw(struct rtw89_dev *rtwdev)
 	ieee80211_hw_set(hw, SINGLE_SCAN_ON_ALL_BANDS);
 	ieee80211_hw_set(hw, SUPPORTS_MULTI_BSSID);
 	ieee80211_hw_set(hw, WANT_MONITOR_VIF);
+	if (RTW89_CHK_FW_FEATURE(BEACON_FILTER, &rtwdev->fw))
+		ieee80211_hw_set(hw, CONNECTION_MONITOR);
 
 	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 				     BIT(NL80211_IFTYPE_AP) |

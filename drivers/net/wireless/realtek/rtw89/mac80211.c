@@ -114,6 +114,11 @@ static int rtw89_ops_add_interface(struct ieee80211_hw *hw,
 		    vif->addr, vif->type, vif->p2p);
 
 	mutex_lock(&rtwdev->mutex);
+
+	if (RTW89_CHK_FW_FEATURE(BEACON_FILTER, &rtwdev->fw))
+		vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER |
+				     IEEE80211_VIF_SUPPORTS_CQM_RSSI;
+
 	rtwvif->rtwdev = rtwdev;
 	list_add_tail(&rtwvif->list, &rtwdev->rtwvifs_list);
 	INIT_WORK(&rtwvif->update_beacon_work, rtw89_core_update_beacon_work);
@@ -424,6 +429,9 @@ static void rtw89_ops_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_P2P_PS)
 		rtw89_process_p2p_ps(rtwdev, vif);
+
+	if (changed & BSS_CHANGED_CQM)
+		rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, vif, true);
 
 	mutex_unlock(&rtwdev->mutex);
 }

@@ -4238,6 +4238,64 @@ rtw89_mac_c2h_scanofld_rsp(struct rtw89_dev *rtwdev, struct sk_buff *c2h,
 }
 
 static void
+rtw89_mac_bcn_fltr_rpt(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+		       struct sk_buff *skb)
+{
+	struct ieee80211_vif *vif = rtwvif_to_vif_safe(rtwvif);
+	enum nl80211_cqm_rssi_threshold_event nl_event;
+	const struct rtw89_c2h_mac_bcnfltr_rpt *c2h =
+		(const struct rtw89_c2h_mac_bcnfltr_rpt *)skb->data;
+	u8 type, event, mac_id;
+	s8 sig;
+
+	type = le32_get_bits(c2h->w2, RTW89_C2H_MAC_BCNFLTR_RPT_W2_TYPE);
+	sig = le32_get_bits(c2h->w2, RTW89_C2H_MAC_BCNFLTR_RPT_W2_MA) - MAX_RSSI;
+	event = le32_get_bits(c2h->w2, RTW89_C2H_MAC_BCNFLTR_RPT_W2_EVENT);
+	mac_id = le32_get_bits(c2h->w2, RTW89_C2H_MAC_BCNFLTR_RPT_W2_MACID);
+
+	if (mac_id != rtwvif->mac_id)
+		return;
+
+	rtw89_debug(rtwdev, RTW89_DBG_FW,
+		    "C2H bcnfltr rpt macid: %d, type: %d, ma: %d, event: %d\n",
+		    mac_id, type, sig, event);
+
+	switch (type) {
+	case RTW89_BCN_FLTR_BEACON_LOSS:
+		if (!rtwdev->scanning)
+			ieee80211_connection_loss(vif);
+		else
+			rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, vif, true);
+		return;
+	case RTW89_BCN_FLTR_NOTIFY:
+		nl_event = NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH;
+		break;
+	case RTW89_BCN_FLTR_RSSI:
+		if (event == RTW89_BCN_FLTR_RSSI_LOW)
+			nl_event = NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW;
+		else if (event == RTW89_BCN_FLTR_RSSI_HIGH)
+			nl_event = NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH;
+		else
+			return;
+		break;
+	default:
+		return;
+	}
+
+	ieee80211_cqm_rssi_notify(vif, nl_event, sig, GFP_KERNEL);
+}
+
+static void
+rtw89_mac_c2h_bcn_fltr_rpt(struct rtw89_dev *rtwdev, struct sk_buff *c2h,
+			   u32 len)
+{
+	struct rtw89_vif *rtwvif;
+
+	rtw89_for_each_rtwvif(rtwdev, rtwvif)
+		rtw89_mac_bcn_fltr_rpt(rtwdev, rtwvif, c2h);
+}
+
+static void
 rtw89_mac_c2h_rec_ack(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
 {
 	rtw89_debug(rtwdev, RTW89_DBG_FW,
@@ -4457,6 +4515,7 @@ void (* const rtw89_mac_c2h_ofld_handler[])(struct rtw89_dev *rtwdev,
 	[RTW89_MAC_C2H_FUNC_MACID_PAUSE] = rtw89_mac_c2h_macid_pause,
 	[RTW89_MAC_C2H_FUNC_SCANOFLD_RSP] = rtw89_mac_c2h_scanofld_rsp,
 	[RTW89_MAC_C2H_FUNC_TSF32_TOGL_RPT] = rtw89_mac_c2h_tsf32_toggle_rpt,
+	[RTW89_MAC_C2H_FUNC_BCNFLTR_RPT] = rtw89_mac_c2h_bcn_fltr_rpt,
 };
 
 static

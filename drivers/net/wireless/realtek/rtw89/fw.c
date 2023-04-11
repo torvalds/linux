@@ -266,6 +266,7 @@ static const struct __fw_feat_cfg fw_feat_tbl[] = {
 	__CFG_FW_FEAT(RTL8852C, ge, 0, 27, 34, 0, TX_WAKE),
 	__CFG_FW_FEAT(RTL8852C, ge, 0, 27, 36, 0, SCAN_OFFLOAD),
 	__CFG_FW_FEAT(RTL8852C, ge, 0, 27, 40, 0, CRASH_TRIGGER),
+	__CFG_FW_FEAT(RTL8852C, ge, 0, 27, 56, 10, BEACON_FILTER),
 };
 
 static void rtw89_fw_recognize_features(struct rtw89_dev *rtwdev)
@@ -1723,6 +1724,106 @@ int rtw89_fw_h2c_set_ofld_cfg(struct rtw89_dev *rtwdev)
 			      H2C_CAT_MAC, H2C_CL_MAC_FW_OFLD,
 			      H2C_FUNC_OFLD_CFG, 0, 1,
 			      H2C_OFLD_CFG_LEN);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+fail:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}
+
+int rtw89_fw_h2c_set_bcn_fltr_cfg(struct rtw89_dev *rtwdev,
+				  struct ieee80211_vif *vif,
+				  bool connect)
+{
+	struct rtw89_vif *rtwvif = vif_to_rtwvif_safe(vif);
+	struct ieee80211_bss_conf *bss_conf = vif ? &vif->bss_conf : NULL;
+	struct rtw89_h2c_bcnfltr *h2c;
+	u32 len = sizeof(*h2c);
+	struct sk_buff *skb;
+	int ret;
+
+	if (!RTW89_CHK_FW_FEATURE(BEACON_FILTER, &rtwdev->fw))
+		return -EINVAL;
+
+	if (!rtwvif || !bss_conf || rtwvif->net_type != RTW89_NET_TYPE_INFRA)
+		return -EINVAL;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for h2c bcn filter\n");
+		return -ENOMEM;
+	}
+
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_bcnfltr *)skb->data;
+
+	h2c->w0 = le32_encode_bits(connect, RTW89_H2C_BCNFLTR_W0_MON_RSSI) |
+		  le32_encode_bits(connect, RTW89_H2C_BCNFLTR_W0_MON_BCN) |
+		  le32_encode_bits(connect, RTW89_H2C_BCNFLTR_W0_MON_EN) |
+		  le32_encode_bits(RTW89_BCN_FLTR_OFFLOAD_MODE_DEFAULT,
+				   RTW89_H2C_BCNFLTR_W0_MODE) |
+		  le32_encode_bits(RTW89_BCN_LOSS_CNT, RTW89_H2C_BCNFLTR_W0_BCN_LOSS_CNT) |
+		  le32_encode_bits(bss_conf->cqm_rssi_hyst, RTW89_H2C_BCNFLTR_W0_RSSI_HYST) |
+		  le32_encode_bits(bss_conf->cqm_rssi_thold + MAX_RSSI,
+				   RTW89_H2C_BCNFLTR_W0_RSSI_THRESHOLD) |
+		  le32_encode_bits(rtwvif->mac_id, RTW89_H2C_BCNFLTR_W0_MAC_ID);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC, H2C_CL_MAC_FW_OFLD,
+			      H2C_FUNC_CFG_BCNFLTR, 0, 1, len);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+fail:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}
+
+int rtw89_fw_h2c_rssi_offload(struct rtw89_dev *rtwdev,
+			      struct rtw89_rx_phy_ppdu *phy_ppdu)
+{
+	struct rtw89_h2c_ofld_rssi *h2c;
+	u32 len = sizeof(*h2c);
+	struct sk_buff *skb;
+	s8 rssi;
+	int ret;
+
+	if (!RTW89_CHK_FW_FEATURE(BEACON_FILTER, &rtwdev->fw))
+		return -EINVAL;
+
+	if (!phy_ppdu)
+		return -EINVAL;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for h2c rssi\n");
+		return -ENOMEM;
+	}
+
+	rssi = phy_ppdu->rssi_avg >> RSSI_FACTOR;
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_ofld_rssi *)skb->data;
+
+	h2c->w0 = le32_encode_bits(phy_ppdu->mac_id, RTW89_H2C_OFLD_RSSI_W0_MACID) |
+		  le32_encode_bits(1, RTW89_H2C_OFLD_RSSI_W0_NUM);
+	h2c->w1 = le32_encode_bits(rssi, RTW89_H2C_OFLD_RSSI_W1_VAL);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC, H2C_CL_MAC_FW_OFLD,
+			      H2C_FUNC_OFLD_RSSI, 0, 1, len);
 
 	ret = rtw89_h2c_tx(rtwdev, skb, false);
 	if (ret) {
