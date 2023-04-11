@@ -43,7 +43,7 @@
  * LOCKING:
  * There are three level of locking required by epoll :
  *
- * 1) epmutex (mutex)
+ * 1) epnested_mutex (mutex)
  * 2) ep->mtx (mutex)
  * 3) ep->lock (rwlock)
  *
@@ -57,8 +57,8 @@
  * we need a lock that will allow us to sleep. This lock is a
  * mutex (ep->mtx). It is acquired during the event transfer loop,
  * during epoll_ctl(EPOLL_CTL_DEL) and during eventpoll_release_file().
- * The epmutex is acquired when inserting an epoll fd onto another epoll
- * fd. We do this so that we walk the epoll tree and ensure that this
+ * The epnested_mutex is acquired when inserting an epoll fd onto another
+ * epoll fd. We do this so that we walk the epoll tree and ensure that this
  * insertion does not create a cycle of epoll file descriptors, which
  * could lead to deadlock. We need a global mutex to prevent two
  * simultaneous inserts (A into B and B into A) from racing and
@@ -74,9 +74,9 @@
  * of epoll file descriptors, we use the current recursion depth as
  * the lockdep subkey.
  * It is possible to drop the "ep->mtx" and to use the global
- * mutex "epmutex" (together with "ep->lock") to have it working,
+ * mutex "epnested_mutex" (together with "ep->lock") to have it working,
  * but having "ep->mtx" will make the interface more scalable.
- * Events that require holding "epmutex" are very rare, while for
+ * Events that require holding "epnested_mutex" are very rare, while for
  * normal operations the epoll private "ep->mtx" will guarantee
  * a better scalability.
  */
@@ -248,7 +248,7 @@ struct ep_pqueue {
 static long max_user_watches __read_mostly;
 
 /* Used for cycles detection */
-static DEFINE_MUTEX(epmutex);
+static DEFINE_MUTEX(epnested_mutex);
 
 static u64 loop_check_gen = 0;
 
@@ -263,7 +263,7 @@ static struct kmem_cache *pwq_cache __read_mostly;
 
 /*
  * List of files with newly added links, where we may need to limit the number
- * of emanating paths. Protected by the epmutex.
+ * of emanating paths. Protected by the epnested_mutex.
  */
 struct epitems_head {
 	struct hlist_head epitems;
@@ -1337,7 +1337,7 @@ static void ep_rbtree_insert(struct eventpoll *ep, struct epitem *epi)
  * is connected to n file sources. In this case each file source has 1 path
  * of length 1. Thus, the numbers below should be more than sufficient. These
  * path limits are enforced during an EPOLL_CTL_ADD operation, since a modify
- * and delete can't add additional paths. Protected by the epmutex.
+ * and delete can't add additional paths. Protected by the epnested_mutex.
  */
 static const int path_limits[PATH_ARR_SIZE] = { 1000, 500, 100, 50, 10 };
 static int path_count[PATH_ARR_SIZE];
@@ -2167,7 +2167,7 @@ int do_epoll_ctl(int epfd, int op, int fd, struct epoll_event *epds,
 	 * We do not need to take the global 'epumutex' on EPOLL_CTL_ADD when
 	 * the epoll file descriptor is attaching directly to a wakeup source,
 	 * unless the epoll file descriptor is nested. The purpose of taking the
-	 * 'epmutex' on add is to prevent complex toplogies such as loops and
+	 * 'epnested_mutex' on add is to prevent complex toplogies such as loops and
 	 * deep wakeup paths from forming in parallel through multiple
 	 * EPOLL_CTL_ADD operations.
 	 */
@@ -2178,7 +2178,7 @@ int do_epoll_ctl(int epfd, int op, int fd, struct epoll_event *epds,
 		if (READ_ONCE(f.file->f_ep) || ep->gen == loop_check_gen ||
 		    is_file_epoll(tf.file)) {
 			mutex_unlock(&ep->mtx);
-			error = epoll_mutex_lock(&epmutex, 0, nonblock);
+			error = epoll_mutex_lock(&epnested_mutex, 0, nonblock);
 			if (error)
 				goto error_tgt_fput;
 			loop_check_gen++;
@@ -2239,7 +2239,7 @@ error_tgt_fput:
 	if (full_check) {
 		clear_tfile_check_list();
 		loop_check_gen++;
-		mutex_unlock(&epmutex);
+		mutex_unlock(&epnested_mutex);
 	}
 
 	fdput(tf);
