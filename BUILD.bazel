@@ -311,9 +311,64 @@ define_db845c(
     ],
 )
 
+_ROCKPI4_MODULE_OUTS = [
+    # keep sorted
+    "drivers/block/virtio_blk.ko",
+    "drivers/char/hw_random/virtio-rng.ko",
+    "drivers/clk/clk-rk808.ko",
+    "drivers/cpufreq/cpufreq-dt.ko",
+    "drivers/dma/pl330.ko",
+    "drivers/gpu/drm/bridge/analogix/analogix_dp.ko",
+    "drivers/gpu/drm/bridge/synopsys/dw-hdmi.ko",
+    "drivers/gpu/drm/bridge/synopsys/dw-mipi-dsi.ko",
+    "drivers/gpu/drm/display/drm_display_helper.ko",
+    "drivers/gpu/drm/drm_dma_helper.ko",
+    "drivers/gpu/drm/rockchip/rockchipdrm.ko",
+    "drivers/i2c/busses/i2c-rk3x.ko",
+    "drivers/iio/adc/rockchip_saradc.ko",
+    "drivers/iio/buffer/industrialio-triggered-buffer.ko",
+    "drivers/iio/buffer/kfifo_buf.ko",
+    "drivers/mfd/rk808.ko",
+    "drivers/mmc/core/pwrseq_simple.ko",
+    "drivers/mmc/host/cqhci.ko",
+    "drivers/mmc/host/dw_mmc.ko",
+    "drivers/mmc/host/dw_mmc-pltfm.ko",
+    "drivers/mmc/host/dw_mmc-rockchip.ko",
+    "drivers/mmc/host/sdhci-of-arasan.ko",
+    "drivers/net/ethernet/stmicro/stmmac/dwmac-rk.ko",
+    "drivers/net/ethernet/stmicro/stmmac/stmmac.ko",
+    "drivers/net/ethernet/stmicro/stmmac/stmmac-platform.ko",
+    "drivers/net/net_failover.ko",
+    "drivers/net/pcs/pcs_xpcs.ko",
+    "drivers/net/virtio_net.ko",
+    "drivers/pci/controller/pcie-rockchip-host.ko",
+    "drivers/phy/rockchip/phy-rockchip-emmc.ko",
+    "drivers/phy/rockchip/phy-rockchip-inno-usb2.ko",
+    "drivers/phy/rockchip/phy-rockchip-pcie.ko",
+    "drivers/phy/rockchip/phy-rockchip-typec.ko",
+    "drivers/pwm/pwm-rockchip.ko",
+    "drivers/regulator/fan53555.ko",
+    "drivers/regulator/pwm-regulator.ko",
+    "drivers/regulator/rk808-regulator.ko",
+    "drivers/rtc/rtc-rk808.ko",
+    "drivers/soc/rockchip/io-domain.ko",
+    "drivers/thermal/rockchip_thermal.ko",
+    "drivers/usb/host/ohci-hcd.ko",
+    "drivers/usb/host/ohci-platform.ko",
+    "drivers/virtio/virtio_pci.ko",
+    "drivers/virtio/virtio_pci_legacy_dev.ko",
+    "drivers/virtio/virtio_pci_modern_dev.ko",
+    "net/core/failover.ko",
+]
+
+_ROCKPI4_WATCHDOG_MODULE_OUTS = [
+    # keep sorted
+    "drivers/watchdog/dw_wdt.ko",
+]
+
 # TODO(b/258259749): Convert rockpi4 to mixed build
 kernel_build(
-    name = "rockpi4",
+    name = "rockpi4_no_kgdb",
     outs = [
         "Image",
         "System.map",
@@ -330,56 +385,37 @@ kernel_build(
         "modules",
         "rk3399-rock-pi-4b.dtb",
     ],
-    module_outs = COMMON_GKI_MODULES_LIST + [
-        # keep sorted
-        "drivers/block/virtio_blk.ko",
-        "drivers/char/hw_random/virtio-rng.ko",
-        "drivers/clk/clk-rk808.ko",
-        "drivers/cpufreq/cpufreq-dt.ko",
-        "drivers/dma/pl330.ko",
-        "drivers/gpu/drm/bridge/analogix/analogix_dp.ko",
-        "drivers/gpu/drm/bridge/synopsys/dw-hdmi.ko",
-        "drivers/gpu/drm/bridge/synopsys/dw-mipi-dsi.ko",
-        "drivers/gpu/drm/display/drm_display_helper.ko",
-        "drivers/gpu/drm/drm_dma_helper.ko",
-        "drivers/gpu/drm/rockchip/rockchipdrm.ko",
-        "drivers/i2c/busses/i2c-rk3x.ko",
-        "drivers/iio/adc/rockchip_saradc.ko",
-        "drivers/iio/buffer/industrialio-triggered-buffer.ko",
-        "drivers/iio/buffer/kfifo_buf.ko",
-        "drivers/mfd/rk808.ko",
-        "drivers/mmc/core/pwrseq_simple.ko",
-        "drivers/mmc/host/cqhci.ko",
-        "drivers/mmc/host/dw_mmc.ko",
-        "drivers/mmc/host/dw_mmc-pltfm.ko",
-        "drivers/mmc/host/dw_mmc-rockchip.ko",
-        "drivers/mmc/host/sdhci-of-arasan.ko",
-        "drivers/net/ethernet/stmicro/stmmac/dwmac-rk.ko",
-        "drivers/net/ethernet/stmicro/stmmac/stmmac.ko",
-        "drivers/net/ethernet/stmicro/stmmac/stmmac-platform.ko",
-        "drivers/net/net_failover.ko",
-        "drivers/net/pcs/pcs_xpcs.ko",
-        "drivers/net/virtio_net.ko",
-        "drivers/pci/controller/pcie-rockchip-host.ko",
-        "drivers/phy/rockchip/phy-rockchip-emmc.ko",
-        "drivers/phy/rockchip/phy-rockchip-inno-usb2.ko",
-        "drivers/phy/rockchip/phy-rockchip-pcie.ko",
-        "drivers/phy/rockchip/phy-rockchip-typec.ko",
-        "drivers/pwm/pwm-rockchip.ko",
-        "drivers/regulator/fan53555.ko",
-        "drivers/regulator/pwm-regulator.ko",
-        "drivers/regulator/rk808-regulator.ko",
-        "drivers/rtc/rtc-rk808.ko",
-        "drivers/soc/rockchip/io-domain.ko",
-        "drivers/thermal/rockchip_thermal.ko",
-        "drivers/usb/host/ohci-hcd.ko",
-        "drivers/usb/host/ohci-platform.ko",
-        "drivers/virtio/virtio_pci.ko",
-        "drivers/virtio/virtio_pci_legacy_dev.ko",
-        "drivers/virtio/virtio_pci_modern_dev.ko",
-        "drivers/watchdog/dw_wdt.ko",
-        "net/core/failover.ko",
+    module_outs = COMMON_GKI_MODULES_LIST + _ROCKPI4_MODULE_OUTS + _ROCKPI4_WATCHDOG_MODULE_OUTS,
+)
+
+# TODO(b/258259749): Convert rockpi4 to mixed build
+kernel_build(
+    name = "rockpi4_with_kgdb",
+    outs = [
+        "Image",
+        "System.map",
+        "modules.builtin",
+        "modules.builtin.modinfo",
+        "rk3399-rock-pi-4b.dtb",
+        "vmlinux",
+        "vmlinux.symvers",
     ],
+    build_config = "build.config.rockpi4",
+    dtstree = "//common-modules/virtual-device:rockpi4_dts",
+    make_goals = [
+        "Image",
+        "modules",
+        "rk3399-rock-pi-4b.dtb",
+    ],
+    module_outs = COMMON_GKI_MODULES_LIST + _ROCKPI4_MODULE_OUTS,
+)
+
+alias(
+    name = "rockpi4",
+    actual = select({
+        "//build/kernel/kleaf:kgdb_is_true": "rockpi4_with_kgdb",
+        "//conditions:default": "rockpi4_no_kgdb",
+    }),
 )
 
 kernel_modules_install(
