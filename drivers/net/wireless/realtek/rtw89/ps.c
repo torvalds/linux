@@ -155,6 +155,9 @@ void rtw89_enter_ips(struct rtw89_dev *rtwdev)
 
 	set_bit(RTW89_FLAG_INACTIVE_PS, rtwdev->flags);
 
+	if (!test_bit(RTW89_FLAG_POWERON, rtwdev->flags))
+		return;
+
 	rtw89_for_each_rtwvif(rtwdev, rtwvif)
 		rtw89_mac_vif_deinit(rtwdev, rtwvif);
 
@@ -165,6 +168,9 @@ void rtw89_leave_ips(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_vif *rtwvif;
 	int ret;
+
+	if (test_bit(RTW89_FLAG_POWERON, rtwdev->flags))
+		return;
 
 	ret = rtw89_core_start(rtwdev);
 	if (ret)
