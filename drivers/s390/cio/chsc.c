@@ -1171,7 +1171,7 @@ int __init chsc_get_cssid_iid(int idx, u8 *cssid, u8 *iid)
 			u8 cssid;
 			u8 iid;
 			u32 : 16;
-		} list[0];
+		} list[];
 	} *sdcal_area;
 	int ret;
 
