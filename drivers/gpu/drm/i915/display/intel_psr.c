@@ -419,7 +419,7 @@ static u32 intel_psr1_get_tp_time(struct intel_dp *intel_dp)
 	u32 val = 0;
 
 	if (DISPLAY_VER(dev_priv) >= 11)
-		val |= EDP_PSR_TP4_TIME_0US;
+		val |= EDP_PSR_TP4_TIME_0us;
 
 	if (dev_priv->params.psr_safest_params) {
 		val |= EDP_PSR_TP1_TIME_2500us;
@@ -448,9 +448,9 @@ static u32 intel_psr1_get_tp_time(struct intel_dp *intel_dp)
 check_tp3_sel:
 	if (intel_dp_source_supports_tps3(dev_priv) &&
 	    drm_dp_tps3_supported(intel_dp->dpcd))
-		val |= EDP_PSR_TP1_TP3_SEL;
+		val |= EDP_PSR_TP_TP1_TP3;
 	else
-		val |= EDP_PSR_TP1_TP2_SEL;
+		val |= EDP_PSR_TP_TP1_TP2;
 
 	return val;
 }
@@ -479,9 +479,9 @@ static void hsw_activate_psr1(struct intel_dp *intel_dp)
 	u32 max_sleep_time = 0x1f;
 	u32 val = EDP_PSR_ENABLE;
 
-	val |= psr_compute_idle_frames(intel_dp) << EDP_PSR_IDLE_FRAME_SHIFT;
+	val |= EDP_PSR_IDLE_FRAMES(psr_compute_idle_frames(intel_dp));
 
-	val |= max_sleep_time << EDP_PSR_MAX_SLEEP_TIME_SHIFT;
+	val |= EDP_PSR_MAX_SLEEP_TIME(max_sleep_time);
 	if (IS_HASWELL(dev_priv))
 		val |= EDP_PSR_MIN_LINK_ENTRY_TIME_8_LINES;
 
@@ -536,7 +536,7 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	u32 val = EDP_PSR2_ENABLE;
 
-	val |= psr_compute_idle_frames(intel_dp) << EDP_PSR2_IDLE_FRAME_SHIFT;
+	val |= EDP_PSR2_IDLE_FRAMES(psr_compute_idle_frames(intel_dp));
 
 	if (DISPLAY_VER(dev_priv) <= 13 && !IS_ALDERLAKE_P(dev_priv))
 		val |= EDP_SU_TRACK_ENABLE;
@@ -570,15 +570,13 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 		 * Still using the default IO_BUFFER_WAKE and FAST_WAKE, see
 		 * comments bellow for more information
 		 */
-		u32 tmp;
+		int tmp;
 
 		tmp = map[intel_dp->psr.io_wake_lines - TGL_EDP_PSR2_IO_BUFFER_WAKE_MIN_LINES];
-		tmp = tmp << TGL_EDP_PSR2_IO_BUFFER_WAKE_SHIFT;
-		val |= tmp;
+		val |= TGL_EDP_PSR2_IO_BUFFER_WAKE(tmp + TGL_EDP_PSR2_IO_BUFFER_WAKE_MIN_LINES);
 
 		tmp = map[intel_dp->psr.fast_wake_lines - TGL_EDP_PSR2_FAST_WAKE_MIN_LINES];
-		tmp = tmp << TGL_EDP_PSR2_FAST_WAKE_MIN_SHIFT;
-		val |= tmp;
+		val |= TGL_EDP_PSR2_FAST_WAKE(tmp + TGL_EDP_PSR2_FAST_WAKE_MIN_LINES);
 	} else if (DISPLAY_VER(dev_priv) >= 12) {
 		val |= TGL_EDP_PSR2_IO_BUFFER_WAKE(intel_dp->psr.io_wake_lines);
 		val |= TGL_EDP_PSR2_FAST_WAKE(intel_dp->psr.fast_wake_lines);
@@ -634,9 +632,9 @@ static void psr2_program_idle_frames(struct intel_dp *intel_dp,
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 
-	idle_frames <<=  EDP_PSR2_IDLE_FRAME_SHIFT;
 	intel_de_rmw(dev_priv, EDP_PSR2_CTL(intel_dp->psr.transcoder),
-		     EDP_PSR2_IDLE_FRAME_MASK, idle_frames);
+		     EDP_PSR2_IDLE_FRAMES_MASK,
+		     EDP_PSR2_IDLE_FRAMES(idle_frames));
 }
 
 static void tgl_psr2_enable_dc3co(struct intel_dp *intel_dp)
@@ -1107,8 +1105,7 @@ void intel_psr_get_config(struct intel_encoder *encoder,
 
 	if (DISPLAY_VER(dev_priv) >= 12) {
 		val = intel_de_read(dev_priv, TRANS_EXITLINE(intel_dp->psr.transcoder));
-		val &= EXITLINE_MASK;
-		pipe_config->dc3co_exitline = val;
+		pipe_config->dc3co_exitline = REG_FIELD_GET(EXITLINE_MASK, val);
 	}
 unlock:
 	mutex_unlock(&intel_dp->psr.lock);
@@ -2738,8 +2735,7 @@ psr_source_status(struct intel_dp *intel_dp, struct seq_file *m)
 		};
 		val = intel_de_read(dev_priv,
 				    EDP_PSR_STATUS(intel_dp->psr.transcoder));
-		status_val = (val & EDP_PSR_STATUS_STATE_MASK) >>
-			      EDP_PSR_STATUS_STATE_SHIFT;
+		status_val = REG_FIELD_GET(EDP_PSR_STATUS_STATE_MASK, val);
 		if (status_val < ARRAY_SIZE(live_status))
 			status = live_status[status_val];
 	}
@@ -2801,8 +2797,8 @@ static int intel_psr_status(struct seq_file *m, struct intel_dp *intel_dp)
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 		val = intel_de_read(dev_priv,
 				    EDP_PSR_PERF_CNT(intel_dp->psr.transcoder));
-		val &= EDP_PSR_PERF_CNT_MASK;
-		seq_printf(m, "Performance counter: %u\n", val);
+		seq_printf(m, "Performance counter: %u\n",
+			   REG_FIELD_GET(EDP_PSR_PERF_CNT_MASK, val));
 	}
 
 	if (psr->debug & I915_PSR_DEBUG_IRQ) {
