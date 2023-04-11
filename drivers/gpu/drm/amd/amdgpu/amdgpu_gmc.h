@@ -70,6 +70,7 @@ struct amdgpu_gmc_fault {
 	uint64_t	timestamp:48;
 	uint64_t	next:AMDGPU_GMC_FAULT_RING_ORDER;
 	atomic64_t	key;
+	uint64_t	timestamp_expiry:48;
 };
 
 /*
