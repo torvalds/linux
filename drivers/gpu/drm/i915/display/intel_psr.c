@@ -85,6 +85,91 @@
  * use page flips.
  */
 
+/*
+ * Description of PSR mask bits:
+ *
+ * EDP_PSR_DEBUG[16]/EDP_PSR_DEBUG_MASK_DISP_REG_WRITE (hsw-skl):
+ *
+ *  When unmasked (nearly) all display register writes (eg. even
+ *  SWF) trigger a PSR exit. Some registers are excluded from this
+ *  and they have a more specific mask (described below). On icl+
+ *  this bit no longer exists and is effectively always set.
+ *
+ * PIPE_MISC[21]/PIPE_MISC_PSR_MASK_PIPE_REG_WRITE (skl+):
+ *
+ *  When unmasked (nearly) all pipe/plane register writes
+ *  trigger a PSR exit. Some plane registers are excluded from this
+ *  and they have a more specific mask (described below).
+ *
+ * CHICKEN_PIPESL_1[11]/SKL_PSR_MASK_PLANE_FLIP (skl+):
+ * PIPE_MISC[23]/PIPE_MISC_PSR_MASK_PRIMARY_FLIP (bdw):
+ * EDP_PSR_DEBUG[23]/EDP_PSR_DEBUG_MASK_PRIMARY_FLIP (hsw):
+ *
+ *  When unmasked PRI_SURF/PLANE_SURF writes trigger a PSR exit.
+ *  SPR_SURF/CURBASE are not included in this and instead are
+ *  controlled by PIPE_MISC_PSR_MASK_PIPE_REG_WRITE (skl+) or
+ *  EDP_PSR_DEBUG_MASK_DISP_REG_WRITE (hsw/bdw).
+ *
+ * PIPE_MISC[22]/PIPE_MISC_PSR_MASK_SPRITE_ENABLE (bdw):
+ * EDP_PSR_DEBUG[21]/EDP_PSR_DEBUG_MASK_SPRITE_ENABLE (hsw):
+ *
+ *  When unmasked PSR is blocked as long as the sprite
+ *  plane is enabled. skl+ with their universal planes no
+ *  longer have a mask bit like this, and no plane being
+ *  enabledb blocks PSR.
+ *
+ * PIPE_MISC[21]/PIPE_MISC_PSR_MASK_CURSOR_MOVE (bdw):
+ * EDP_PSR_DEBUG[20]/EDP_PSR_DEBUG_MASK_CURSOR_MOVE (hsw):
+ *
+ *  When umasked CURPOS writes trigger a PSR exit. On skl+
+ *  this doesn't exit but CURPOS is included in the
+ *  PIPE_MISC_PSR_MASK_PIPE_REG_WRITE mask.
+ *
+ * PIPE_MISC[20]/PIPE_MISC_PSR_MASK_VBLANK_VSYNC_INT (bdw+):
+ * EDP_PSR_DEBUG[19]/EDP_PSR_DEBUG_MASK_VBLANK_VSYNC_INT (hsw):
+ *
+ *  When unmasked PSR is blocked as long as vblank and/or vsync
+ *  interrupt is unmasked in IMR *and* enabled in IER.
+ *
+ * CHICKEN_TRANS[30]/SKL_UNMASK_VBL_TO_PIPE_IN_SRD (skl+):
+ * CHICKEN_PAR1_1[15]/HSW_MASK_VBL_TO_PIPE_IN_SRD (hsw/bdw):
+ *
+ *  Selectcs whether PSR exit generates an extra vblank before
+ *  the first frame is transmitted. Also note the opposite polarity
+ *  if the bit on hsw/bdw vs. skl+ (masked==generate the extra vblank,
+ *  unmasked==do not generate the extra vblank).
+ *
+ *  With DC states enabled the extra vblank happens after link training,
+ *  with DC states disabled it happens immediately upuon PSR exit trigger.
+ *  No idea as of now why there is a difference. HSW/BDW (which don't
+ *  even have DMC) always generate it after link training. Go figure.
+ *
+ *  Unfortunately CHICKEN_TRANS itself seems to be double buffered
+ *  and thus won't latch until the first vblank. So with DC states
+ *  enabled the register effctively uses the reset value during DC5
+ *  exit+PSR exit sequence, and thus the bit does nothing until
+ *  latched by the vblank that it was trying to prevent from being
+ *  generated in the first place. So we should probably call this
+ *  one a chicken/egg bit instead on skl+.
+ *
+ *  In standby mode (as opposed to link-off) this makes no difference
+ *  as the timing generator keeps running the whole time generating
+ *  normal periodic vblanks.
+ *
+ *  WaPsrDPAMaskVBlankInSRD asks us to set the bit on hsw/bdw,
+ *  and doing so makes the behaviour match the skl+ reset value.
+ *
+ * CHICKEN_PIPESL_1[0]/BDW_UNMASK_VBL_TO_REGS_IN_SRD (bdw):
+ * CHICKEN_PIPESL_1[15]/HSW_UNMASK_VBL_TO_REGS_IN_SRD (hsw):
+ *
+ *  On BDW without this bit is no vblanks whatsoever are
+ *  generated after PSR exit. On HSW this has no apparant effect.
+ *  WaPsrDPRSUnmaskVBlankInSRD says to set this.
+ *
+ * The rest of the bits are more self-explanatory and/or
+ * irrelevant for normal operation.
+ */
+
 static bool psr_global_enabled(struct intel_dp *intel_dp)
 {
 	struct intel_connector *connector = intel_dp->attached_connector;
