@@ -6,7 +6,7 @@
 #include "rk3126c-evb-ddr3-v10-linux.dts"
 / {
 	chosen {
-		bootargs = "ubi.mtd=7 root=ubi0:rootfs rootfstype=ubifs";
+		bootargs = "earlycon=uart8250,mmio32,0x20068000 console=ttyFIQ0 ubi.mtd=7 root=ubi0:rootfs rootfstype=ubifs";
 	};
 };
 
