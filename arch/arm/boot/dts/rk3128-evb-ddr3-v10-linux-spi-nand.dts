@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd
+ */
+/dts-v1/;
+#include "rk3128-evb-ddr3-v10-linux.dts"
+/ {
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0x20068000 console=ttyFIQ0 root=PARTUUID=614e0000-0000-4b53-8000-1d28000054a9 rootwait";
+	};
+};
+
+&emmc {
+	status = "disabled";
+};
+
+&sfc {
+	status = "okay";
+};
