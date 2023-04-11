@@ -33,6 +33,7 @@ static void amd_start_sensor(struct amd_mp2_dev *privdata, struct amd_mp2_sensor
 	cmd_base.ul = 0;
 	cmd_base.cmd.cmd_id = ENABLE_SENSOR;
 	cmd_base.cmd.intr_disable = 0;
+	cmd_base.cmd.sub_cmd_value = 1;
 	cmd_base.cmd.sensor_id = info.sensor_idx;
 
 	writel(cmd_base.ul, privdata->mmio + AMD_C2P_MSG(0));
@@ -45,6 +46,7 @@ static void amd_stop_sensor(struct amd_mp2_dev *privdata, u16 sensor_idx)
 	cmd_base.ul = 0;
 	cmd_base.cmd.cmd_id = DISABLE_SENSOR;
 	cmd_base.cmd.intr_disable = 0;
+	cmd_base.cmd.sub_cmd_value = 1;
 	cmd_base.cmd.sensor_id = sensor_idx;
 
 	writeq(0x0, privdata->mmio + AMD_C2P_MSG(1));
