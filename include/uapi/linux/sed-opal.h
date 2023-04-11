@@ -161,6 +161,18 @@ struct opal_status {
 	__u32 reserved;
 };
 
+/*
+ * Geometry Reporting per TCG Storage OPAL SSC
+ * section 3.1.1.4
+ */
+struct opal_geometry {
+	__u8 align;
+	__u32 logical_block_size;
+	__u64 alignment_granularity;
+	__u64 lowest_aligned_lba;
+	__u8  __align[3];
+};
+
 #define IOC_OPAL_SAVE		    _IOW('p', 220, struct opal_lock_unlock)
 #define IOC_OPAL_LOCK_UNLOCK	    _IOW('p', 221, struct opal_lock_unlock)
 #define IOC_OPAL_TAKE_OWNERSHIP	    _IOW('p', 222, struct opal_key)
@@ -179,5 +191,6 @@ struct opal_status {
 #define IOC_OPAL_GENERIC_TABLE_RW   _IOW('p', 235, struct opal_read_write_table)
 #define IOC_OPAL_GET_STATUS         _IOR('p', 236, struct opal_status)
 #define IOC_OPAL_GET_LR_STATUS      _IOW('p', 237, struct opal_lr_status)
+#define IOC_OPAL_GET_GEOMETRY       _IOR('p', 238, struct opal_geometry)
 
 #endif /* _UAPI_SED_OPAL_H */

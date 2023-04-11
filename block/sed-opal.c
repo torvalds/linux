@@ -83,8 +83,10 @@ struct opal_dev {
 	u16 comid;
 	u32 hsn;
 	u32 tsn;
-	u64 align;
+	u64 align; /* alignment granularity */
 	u64 lowest_lba;
+	u32 logical_block_size;
+	u8  align_required; /* ALIGN: 0 or 1 */
 
 	size_t pos;
 	u8 *cmd;
@@ -409,6 +411,8 @@ static void check_geometry(struct opal_dev *dev, const void *data)
 
 	dev->align = be64_to_cpu(geo->alignment_granularity);
 	dev->lowest_lba = be64_to_cpu(geo->lowest_aligned_lba);
+	dev->logical_block_size = be32_to_cpu(geo->logical_block_size);
+	dev->align_required = geo->reserved01 & 1;
 }
 
 static int execute_step(struct opal_dev *dev,
@@ -2956,6 +2960,26 @@ static int opal_get_status(struct opal_dev *dev, void __user *data)
 	return 0;
 }
 
+static int opal_get_geometry(struct opal_dev *dev, void __user *data)
+{
+	struct opal_geometry geo = {0};
+
+	if (check_opal_support(dev))
+		return -EINVAL;
+
+	geo.align = dev->align_required;
+	geo.logical_block_size = dev->logical_block_size;
+	geo.alignment_granularity =  dev->align;
+	geo.lowest_aligned_lba = dev->lowest_lba;
+
+	if (copy_to_user(data, &geo, sizeof(geo))) {
+		pr_debug("Error copying geometry data to userspace\n");
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
 int sed_ioctl(struct opal_dev *dev, unsigned int cmd, void __user *arg)
 {
 	void *p;
@@ -3028,6 +3052,9 @@ int sed_ioctl(struct opal_dev *dev, unsigned int cmd, void __user *arg)
 		break;
 	case IOC_OPAL_GET_LR_STATUS:
 		ret = opal_locking_range_status(dev, p, arg);
+		break;
+	case IOC_OPAL_GET_GEOMETRY:
+		ret = opal_get_geometry(dev, arg);
 		break;
 	default:
 		break;
