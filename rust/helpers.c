@@ -22,12 +22,19 @@
 #include <linux/build_bug.h>
 #include <linux/err.h>
 #include <linux/refcount.h>
+#include <linux/mutex.h>
 
 __noreturn void rust_helper_BUG(void)
 {
 	BUG();
 }
 EXPORT_SYMBOL_GPL(rust_helper_BUG);
+
+void rust_helper_mutex_lock(struct mutex *lock)
+{
+	mutex_lock(lock);
+}
+EXPORT_SYMBOL_GPL(rust_helper_mutex_lock);
 
 refcount_t rust_helper_REFCOUNT_INIT(int n)
 {
