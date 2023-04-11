@@ -74,7 +74,7 @@ pub struct Lock<T: ?Sized, B: Backend> {
     _pin: PhantomPinned,
 
     /// The data protected by the lock.
-    data: UnsafeCell<T>,
+    pub(crate) data: UnsafeCell<T>,
 }
 
 // SAFETY: `Lock` can be transferred across thread boundaries iff the data it protects can.
