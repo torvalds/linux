@@ -148,7 +148,7 @@ struct tbnet_ring {
 /**
  * struct tbnet - ThunderboltIP network driver private data
  * @svc: XDomain service the driver is bound to
- * @xd: XDomain the service blongs to
+ * @xd: XDomain the service belongs to
  * @handler: ThunderboltIP configuration protocol handler
  * @dev: Networking device
  * @napi: NAPI structure for Rx polling
@@ -1030,7 +1030,7 @@ static bool tbnet_xmit_csum_and_map(struct tbnet *net, struct sk_buff *skb,
 	/* Data points on the beginning of packet.
 	 * Check is the checksum absolute place in the packet.
 	 * ipcso will update IP checksum.
-	 * tucso will update TCP/UPD checksum.
+	 * tucso will update TCP/UDP checksum.
 	 */
 	if (protocol == htons(ETH_P_IP)) {
 		__sum16 *ipcso = dest + ((void *)&(ip_hdr(skb)->check) - data);
