@@ -31,6 +31,7 @@
     },
     {
         "BriefDescription": "This event counts the cycles the integer divider is busy.",
+        "CounterMask": "1",
         "EventCode": "0xb0",
         "EventName": "ARITH.IDIV_ACTIVE",
         "SampleAfterValue": "1000003",
@@ -1079,9 +1080,10 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "MISC2_RETIRED.LFENCE",
+        "BriefDescription": "LFENCE instructions retired",
         "EventCode": "0xe0",
         "EventName": "MISC2_RETIRED.LFENCE",
+        "PublicDescription": "number of LFENCE retired instructions",
         "SampleAfterValue": "400009",
         "UMask": "0x20",
         "Unit": "cpu_core"
