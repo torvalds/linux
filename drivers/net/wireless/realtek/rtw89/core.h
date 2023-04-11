@@ -569,6 +569,7 @@ enum rtw89_sub_entity_idx {
 	RTW89_SUB_ENTITY_0 = 0,
 
 	NUM_OF_RTW89_SUB_ENTITY,
+	RTW89_SUB_ENTITY_IDLE = NUM_OF_RTW89_SUB_ENTITY,
 };
 
 enum rtw89_rf_path {
@@ -2597,6 +2598,7 @@ struct rtw89_sta {
 	struct rtw89_addr_cam_entry addr_cam; /* AP mode or TDLS peer only */
 	struct rtw89_bssid_cam_entry bssid_cam; /* TDLS peer only */
 	struct list_head ba_cam_list;
+	struct sk_buff_head roc_queue;
 
 	bool use_cfg_mask;
 	struct cfg80211_bitrate_mask mask;
@@ -2634,11 +2636,28 @@ struct rtw89_tx_skb_data {
 	u8 hci_priv[];
 };
 
+#define RTW89_ROC_IDLE_TIMEOUT 500
+#define RTW89_ROC_TX_TIMEOUT 30
+enum rtw89_roc_state {
+	RTW89_ROC_IDLE,
+	RTW89_ROC_NORMAL,
+	RTW89_ROC_MGMT,
+};
+
+struct rtw89_roc {
+	struct ieee80211_channel chan;
+	struct delayed_work roc_work;
+	enum ieee80211_roc_type type;
+	enum rtw89_roc_state state;
+	int duration;
+};
+
 #define RTW89_P2P_MAX_NOA_NUM 2
 
 struct rtw89_vif {
 	struct list_head list;
 	struct rtw89_dev *rtwdev;
+	struct rtw89_roc roc;
 	enum rtw89_sub_entity_idx sub_entity_idx;
 
 	u8 mac_id;
@@ -2654,6 +2673,7 @@ struct rtw89_vif {
 	u8 bcn_hit_cond;
 	u8 hit_rule;
 	u8 last_noa_nr;
+	bool offchan;
 	bool trigger;
 	bool lsig_txop;
 	u8 tgt_ind;
@@ -3370,9 +3390,11 @@ struct rtw89_hal {
 	bool tx_path_diversity;
 	bool support_cckpd;
 	bool support_igi;
+	atomic_t roc_entity_idx;
 
 	DECLARE_BITMAP(entity_map, NUM_OF_RTW89_SUB_ENTITY);
 	struct rtw89_sub_entity sub[NUM_OF_RTW89_SUB_ENTITY];
+	struct cfg80211_chan_def roc_chandef;
 
 	bool entity_active;
 	enum rtw89_entity_mode entity_mode;
@@ -4035,6 +4057,7 @@ struct rtw89_dev {
 	struct delayed_work coex_rfk_chk_work;
 	struct delayed_work cfo_track_work;
 	struct delayed_work forbid_ba_work;
+	struct delayed_work roc_work;
 	struct rtw89_ppdu_sts_info ppdu_sts;
 	u8 total_sta_assoc;
 	bool scanning;
@@ -4550,6 +4573,10 @@ const struct cfg80211_chan_def *rtw89_chandef_get(struct rtw89_dev *rtwdev,
 						  enum rtw89_sub_entity_idx idx)
 {
 	struct rtw89_hal *hal = &rtwdev->hal;
+	enum rtw89_sub_entity_idx roc_idx = atomic_read(&hal->roc_entity_idx);
+
+	if (roc_idx == idx)
+		return &hal->roc_chandef;
 
 	return &hal->sub[idx].chandef;
 }
@@ -4936,6 +4963,9 @@ void rtw89_complete_cond(struct rtw89_wait_info *wait, unsigned int cond,
 int rtw89_core_start(struct rtw89_dev *rtwdev);
 void rtw89_core_stop(struct rtw89_dev *rtwdev);
 void rtw89_core_update_beacon_work(struct work_struct *work);
+void rtw89_roc_work(struct work_struct *work);
+void rtw89_roc_start(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);
+void rtw89_roc_end(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);
 void rtw89_core_scan_start(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 			   const u8 *mac_addr, bool hw_scan);
 void rtw89_core_scan_complete(struct rtw89_dev *rtwdev,

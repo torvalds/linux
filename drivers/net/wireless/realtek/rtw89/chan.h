@@ -45,6 +45,9 @@ bool rtw89_assign_entity_chan(struct rtw89_dev *rtwdev,
 void rtw89_config_entity_chandef(struct rtw89_dev *rtwdev,
 				 enum rtw89_sub_entity_idx idx,
 				 const struct cfg80211_chan_def *chandef);
+void rtw89_config_roc_chandef(struct rtw89_dev *rtwdev,
+			      enum rtw89_sub_entity_idx idx,
+			      const struct cfg80211_chan_def *chandef);
 void rtw89_entity_init(struct rtw89_dev *rtwdev);
 enum rtw89_entity_mode rtw89_entity_recalc(struct rtw89_dev *rtwdev);
 int rtw89_chanctx_ops_add(struct rtw89_dev *rtwdev,

@@ -15,4 +15,20 @@ void rtw89_leave_ips(struct rtw89_dev *rtwdev);
 void rtw89_set_coex_ctrl_lps(struct rtw89_dev *rtwdev, bool btc_ctrl);
 void rtw89_process_p2p_ps(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif);
 
+static inline void rtw89_leave_ips_by_hwflags(struct rtw89_dev *rtwdev)
+{
+	struct ieee80211_hw *hw = rtwdev->hw;
+
+	if (hw->conf.flags & IEEE80211_CONF_IDLE)
+		rtw89_leave_ips(rtwdev);
+}
+
+static inline void rtw89_enter_ips_by_hwflags(struct rtw89_dev *rtwdev)
+{
+	struct ieee80211_hw *hw = rtwdev->hw;
+
+	if (hw->conf.flags & IEEE80211_CONF_IDLE)
+		rtw89_enter_ips(rtwdev);
+}
+
 #endif
