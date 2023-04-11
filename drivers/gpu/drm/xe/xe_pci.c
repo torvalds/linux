@@ -177,6 +177,13 @@ static const struct xe_device_desc tgl_desc = {
 	.require_force_probe = true,
 };
 
+static const struct xe_device_desc rkl_desc = {
+	.graphics = &graphics_xelp,
+	.media = &media_xem,
+	PLATFORM(XE_ROCKETLAKE),
+	.require_force_probe = true,
+};
+
 static const struct xe_device_desc adl_s_desc = {
 	.graphics = &graphics_xelp,
 	.media = &media_xem,
@@ -300,6 +307,7 @@ static struct gmdid_map media_ip_map[] = {
  */
 static const struct pci_device_id pciidlist[] = {
 	XE_TGL_IDS(INTEL_VGA_DEVICE, &tgl_desc),
+	XE_RKL_IDS(INTEL_VGA_DEVICE, &rkl_desc),
 	XE_ADLS_IDS(INTEL_VGA_DEVICE, &adl_s_desc),
 	XE_ADLP_IDS(INTEL_VGA_DEVICE, &adl_p_desc),
 	XE_DG1_IDS(INTEL_VGA_DEVICE, &dg1_desc),
