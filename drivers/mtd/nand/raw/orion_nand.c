@@ -205,7 +205,7 @@ no_dev:
 	return ret;
 }
 
-static int orion_nand_remove(struct platform_device *pdev)
+static void orion_nand_remove(struct platform_device *pdev)
 {
 	struct orion_nand_info *info = platform_get_drvdata(pdev);
 	struct nand_chip *chip = &info->chip;
@@ -217,8 +217,6 @@ static int orion_nand_remove(struct platform_device *pdev)
 	nand_cleanup(chip);
 
 	clk_disable_unprepare(info->clk);
-
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -230,7 +228,7 @@ MODULE_DEVICE_TABLE(of, orion_nand_of_match_table);
 #endif
 
 static struct platform_driver orion_nand_driver = {
-	.remove		= orion_nand_remove,
+	.remove_new	= orion_nand_remove,
 	.driver		= {
 		.name	= "orion_nand",
 		.of_match_table = of_match_ptr(orion_nand_of_match_table),

@@ -3314,7 +3314,7 @@ err_core_clk:
 	return ret;
 }
 
-static int qcom_nandc_remove(struct platform_device *pdev)
+static void qcom_nandc_remove(struct platform_device *pdev)
 {
 	struct qcom_nand_controller *nandc = platform_get_drvdata(pdev);
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -3336,8 +3336,6 @@ static int qcom_nandc_remove(struct platform_device *pdev)
 
 	dma_unmap_resource(&pdev->dev, nandc->base_dma, resource_size(res),
 			   DMA_BIDIRECTIONAL, 0);
-
-	return 0;
 }
 
 static const struct qcom_nandc_props ipq806x_nandc_props = {
@@ -3404,7 +3402,7 @@ static struct platform_driver qcom_nandc_driver = {
 		.of_match_table = qcom_nandc_of_match,
 	},
 	.probe   = qcom_nandc_probe,
-	.remove  = qcom_nandc_remove,
+	.remove_new = qcom_nandc_remove,
 };
 module_platform_driver(qcom_nandc_driver);
 

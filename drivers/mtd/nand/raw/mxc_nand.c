@@ -1821,7 +1821,7 @@ escan:
 	return err;
 }
 
-static int mxcnd_remove(struct platform_device *pdev)
+static void mxcnd_remove(struct platform_device *pdev)
 {
 	struct mxc_nand_host *host = platform_get_drvdata(pdev);
 	struct nand_chip *chip = &host->nand;
@@ -1832,8 +1832,6 @@ static int mxcnd_remove(struct platform_device *pdev)
 	nand_cleanup(chip);
 	if (host->clk_act)
 		clk_disable_unprepare(host->clk);
-
-	return 0;
 }
 
 static struct platform_driver mxcnd_driver = {
@@ -1842,7 +1840,7 @@ static struct platform_driver mxcnd_driver = {
 		   .of_match_table = mxcnd_dt_ids,
 	},
 	.probe = mxcnd_probe,
-	.remove = mxcnd_remove,
+	.remove_new = mxcnd_remove,
 };
 module_platform_driver(mxcnd_driver);
 
