@@ -875,7 +875,7 @@ static void cs35l56_dsp_work(struct work_struct *work)
 		goto complete;
 	}
 
-	if (!cs35l56->init_done || cs35l56->removing)
+	if (!cs35l56->init_done)
 		goto complete;
 
 	cs35l56->dsp.part = devm_kasprintf(cs35l56->dev, GFP_KERNEL, "cs35l56%s-%02x",
@@ -925,9 +925,6 @@ static void cs35l56_dsp_work(struct work_struct *work)
 		goto err;
 	}
 
-	if (cs35l56->removing)
-		goto err;
-
 	mutex_lock(&cs35l56->irq_lock);
 
 	init_completion(&cs35l56->init_completion);
@@ -975,7 +972,6 @@ static int cs35l56_component_probe(struct snd_soc_component *component)
 
 	BUILD_BUG_ON(ARRAY_SIZE(cs35l56_tx_input_texts) != ARRAY_SIZE(cs35l56_tx_input_values));
 
-	cs35l56->removing = false;
 	cs35l56->component = component;
 	wm_adsp2_component_probe(&cs35l56->dsp, component);
 
@@ -992,8 +988,6 @@ static void cs35l56_component_remove(struct snd_soc_component *component)
 {
 	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(component);
 
-	cs35l56->removing = true;
-	complete(&cs35l56->init_completion);
 	cancel_work_sync(&cs35l56->dsp_work);
 }
 

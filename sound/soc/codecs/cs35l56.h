@@ -49,7 +49,6 @@ struct cs35l56_private {
 	bool soft_resetting;
 	bool init_done;
 	bool sdw_attached;
-	bool removing;
 	bool fw_patched;
 	bool can_hibernate;
 	struct completion init_completion;
