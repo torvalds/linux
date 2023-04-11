@@ -3225,6 +3225,10 @@ static void fill_page_cache_func(struct work_struct *work)
 static void
 run_page_cache_worker(struct kfree_rcu_cpu *krcp)
 {
+	// If cache disabled, bail out.
+	if (!rcu_min_cached_objs)
+		return;
+
 	if (rcu_scheduler_active == RCU_SCHEDULER_RUNNING &&
 			!atomic_xchg(&krcp->work_in_progress, 1)) {
 		if (atomic_read(&krcp->backoff_page_cache_fill)) {
