@@ -133,7 +133,7 @@ struct sfh_mag_data {
 
 struct sfh_als_data {
 	struct sfh_common_data commondata;
-	u16 lux;
+	u32 lux;
 };
 
 struct hpd_status {
