@@ -456,6 +456,17 @@
 };
 
 &pm8150_gpios {
+	gpio-line-names = "VOL_DOWN_N", /* GPIO_1 */
+			  "",
+			  "NC",
+			  "NC",
+			  "",
+			  "NC",
+			  "SUPWC_PWR_EN",
+			  "",
+			  "NC",
+			  "NC"; /* GPIO_10 */
+
 	vol_down_n: vol-down-n-state {
 		pins = "gpio1";
 		function = "normal";
@@ -466,6 +477,19 @@
 };
 
 &pm8150b_gpios {
+	gpio-line-names = "SNAPSHOT_N", /* GPIO_1 */
+			  "FOCUS_N",
+			  "NC",
+			  "NC",
+			  "RF_LCD_ID_EN",
+			  "NC",
+			  "TS_VDDH_EN",
+			  "LCD_ID",
+			  "",
+			  "NC", /* GPIO_10 */
+			  "NC",
+			  "RF_ID";
+
 	snapshot_n: snapshot-n-state {
 		pins = "gpio1";
 		function = "normal";
@@ -481,6 +505,21 @@
 		bias-pull-up;
 		input-enable;
 	};
+};
+
+&pm8150l_gpios {
+	gpio-line-names = "TS_VDDIO_EN", /* GPIO_1 */
+			  "NC",
+			  "MAIN_CAM_PWR_VMDR_EN",
+			  "NC",
+			  "",
+			  "NC",
+			  "NC",
+			  "FP_LDO_EN",
+			  "NC",
+			  "NC", /* GPIO_10 */
+			  "NC",
+			  "NC";
 };
 
 &pon_pwrkey {
