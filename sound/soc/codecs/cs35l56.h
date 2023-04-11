@@ -68,6 +68,12 @@ extern const struct dev_pm_ops cs35l56_pm_ops_i2c_spi;
 
 int cs35l56_runtime_suspend(struct device *dev);
 int cs35l56_runtime_resume_common(struct cs35l56_private *cs35l56);
+int cs35l56_system_suspend(struct device *dev);
+int cs35l56_system_suspend_late(struct device *dev);
+int cs35l56_system_suspend_no_irq(struct device *dev);
+int cs35l56_system_resume_no_irq(struct device *dev);
+int cs35l56_system_resume_early(struct device *dev);
+int cs35l56_system_resume(struct device *dev);
 irqreturn_t cs35l56_irq(int irq, void *data);
 int cs35l56_irq_request(struct cs35l56_private *cs35l56);
 int cs35l56_common_probe(struct cs35l56_private *cs35l56);

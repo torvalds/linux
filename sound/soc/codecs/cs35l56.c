@@ -11,8 +11,10 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/gpio/consumer.h>
+#include <linux/interrupt.h>
 #include <linux/math.h>
 #include <linux/module.h>
+#include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
@@ -1160,6 +1162,127 @@ err:
 }
 EXPORT_SYMBOL_NS_GPL(cs35l56_runtime_resume_common, SND_SOC_CS35L56_CORE);
 
+int cs35l56_system_suspend(struct device *dev)
+{
+	struct cs35l56_private *cs35l56 = dev_get_drvdata(dev);
+
+	dev_dbg(dev, "system_suspend\n");
+
+	if (cs35l56->component)
+		flush_work(&cs35l56->dsp_work);
+
+	/*
+	 * The interrupt line is normally shared, but after we start suspending
+	 * we can't check if our device is the source of an interrupt, and can't
+	 * clear it. Prevent this race by temporarily disabling the parent irq
+	 * until we reach _no_irq.
+	 */
+	if (cs35l56->irq)
+		disable_irq(cs35l56->irq);
+
+	return pm_runtime_force_suspend(dev);
+}
+EXPORT_SYMBOL_GPL(cs35l56_system_suspend);
+
+int cs35l56_system_suspend_late(struct device *dev)
+{
+	struct cs35l56_private *cs35l56 = dev_get_drvdata(dev);
+
+	dev_dbg(dev, "system_suspend_late\n");
+
+	/*
+	 * Assert RESET before removing supplies.
+	 * RESET is usually shared by all amps so it must not be asserted until
+	 * all driver instances have done their suspend() stage.
+	 */
+	if (cs35l56->reset_gpio) {
+		gpiod_set_value_cansleep(cs35l56->reset_gpio, 0);
+		usleep_range(CS35L56_RESET_PULSE_MIN_US, CS35L56_RESET_PULSE_MIN_US + 400);
+	}
+
+	regulator_bulk_disable(ARRAY_SIZE(cs35l56->supplies), cs35l56->supplies);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cs35l56_system_suspend_late);
+
+int cs35l56_system_suspend_no_irq(struct device *dev)
+{
+	struct cs35l56_private *cs35l56 = dev_get_drvdata(dev);
+
+	dev_dbg(dev, "system_suspend_no_irq\n");
+
+	/* Handlers are now disabled so the parent IRQ can safely be re-enabled. */
+	if (cs35l56->irq)
+		enable_irq(cs35l56->irq);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cs35l56_system_suspend_no_irq);
+
+int cs35l56_system_resume_no_irq(struct device *dev)
+{
+	struct cs35l56_private *cs35l56 = dev_get_drvdata(dev);
+
+	dev_dbg(dev, "system_resume_no_irq\n");
+
+	/*
+	 * WAKE interrupts unmask if the CS35L56 hibernates, which can cause
+	 * spurious interrupts, and the interrupt line is normally shared.
+	 * We can't check if our device is the source of an interrupt, and can't
+	 * clear it, until it has fully resumed. Prevent this race by temporarily
+	 * disabling the parent irq until we complete resume().
+	 */
+	if (cs35l56->irq)
+		disable_irq(cs35l56->irq);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cs35l56_system_resume_no_irq);
+
+int cs35l56_system_resume_early(struct device *dev)
+{
+	struct cs35l56_private *cs35l56 = dev_get_drvdata(dev);
+	int ret;
+
+	dev_dbg(dev, "system_resume_early\n");
+
+	/* Ensure a spec-compliant RESET pulse. */
+	if (cs35l56->reset_gpio) {
+		gpiod_set_value_cansleep(cs35l56->reset_gpio, 0);
+		usleep_range(CS35L56_RESET_PULSE_MIN_US, CS35L56_RESET_PULSE_MIN_US + 400);
+	}
+
+	/* Enable supplies before releasing RESET. */
+	ret = regulator_bulk_enable(ARRAY_SIZE(cs35l56->supplies), cs35l56->supplies);
+	if (ret) {
+		dev_err(dev, "system_resume_early failed to enable supplies: %d\n", ret);
+		return ret;
+	}
+
+	/* Release shared RESET before drivers start resume(). */
+	gpiod_set_value_cansleep(cs35l56->reset_gpio, 1);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cs35l56_system_resume_early);
+
+int cs35l56_system_resume(struct device *dev)
+{
+	struct cs35l56_private *cs35l56 = dev_get_drvdata(dev);
+	int ret;
+
+	dev_dbg(dev, "system_resume\n");
+
+	/* Undo pm_runtime_force_suspend() before re-enabling the irq */
+	ret = pm_runtime_force_resume(dev);
+	if (cs35l56->irq)
+		enable_irq(cs35l56->irq);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(cs35l56_system_resume);
+
 static int cs35l56_dsp_init(struct cs35l56_private *cs35l56)
 {
 	struct wm_adsp *dsp;
@@ -1457,6 +1580,9 @@ EXPORT_SYMBOL_NS_GPL(cs35l56_remove, SND_SOC_CS35L56_CORE);
 
 const struct dev_pm_ops cs35l56_pm_ops_i2c_spi = {
 	SET_RUNTIME_PM_OPS(cs35l56_runtime_suspend, cs35l56_runtime_resume_i2c_spi, NULL)
+	SYSTEM_SLEEP_PM_OPS(cs35l56_system_suspend, cs35l56_system_resume)
+	LATE_SYSTEM_SLEEP_PM_OPS(cs35l56_system_suspend_late, cs35l56_system_resume_early)
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(cs35l56_system_suspend_no_irq, cs35l56_system_resume_no_irq)
 };
 EXPORT_SYMBOL_NS_GPL(cs35l56_pm_ops_i2c_spi, SND_SOC_CS35L56_CORE);
 
