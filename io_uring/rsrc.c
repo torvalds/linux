@@ -204,7 +204,7 @@ void io_rsrc_node_ref_zero(struct io_rsrc_node *node)
 	}
 }
 
-static struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx)
+struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx)
 {
 	struct io_rsrc_node *ref_node;
 	struct io_cache_entry *entry;
@@ -231,23 +231,18 @@ void io_rsrc_node_switch(struct io_ring_ctx *ctx,
 			 struct io_rsrc_data *data_to_kill)
 	__must_hold(&ctx->uring_lock)
 {
-	WARN_ON_ONCE(io_alloc_cache_empty(&ctx->rsrc_node_cache));
-	WARN_ON_ONCE(data_to_kill && !ctx->rsrc_node);
+	struct io_rsrc_node *node = ctx->rsrc_node;
+	struct io_rsrc_node *backup = io_rsrc_node_alloc(ctx);
 
-	if (data_to_kill) {
-		struct io_rsrc_node *rsrc_node = ctx->rsrc_node;
+	if (WARN_ON_ONCE(!backup))
+		return;
 
-		rsrc_node->rsrc_data = data_to_kill;
-		list_add_tail(&rsrc_node->node, &ctx->rsrc_ref_list);
-
-		data_to_kill->refs++;
-		/* put master ref */
-		io_put_rsrc_node(ctx, rsrc_node);
-		ctx->rsrc_node = NULL;
-	}
-
-	if (!ctx->rsrc_node)
-		ctx->rsrc_node = io_rsrc_node_alloc(ctx);
+	data_to_kill->refs++;
+	node->rsrc_data = data_to_kill;
+	list_add_tail(&node->node, &ctx->rsrc_ref_list);
+	/* put master ref */
+	io_put_rsrc_node(ctx, node);
+	ctx->rsrc_node = backup;
 }
 
 int io_rsrc_node_switch_start(struct io_ring_ctx *ctx)
@@ -921,9 +916,6 @@ int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 		return -EMFILE;
 	if (nr_args > rlimit(RLIMIT_NOFILE))
 		return -EMFILE;
-	ret = io_rsrc_node_switch_start(ctx);
-	if (ret)
-		return ret;
 	ret = io_rsrc_data_alloc(ctx, io_rsrc_file_put, tags, nr_args,
 				 &ctx->file_data);
 	if (ret)
@@ -978,7 +970,6 @@ int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 
 	/* default it to the whole table */
 	io_file_table_set_alloc_range(ctx, 0, ctx->nr_user_files);
-	io_rsrc_node_switch(ctx, NULL);
 	return 0;
 fail:
 	__io_sqe_files_unregister(ctx);
@@ -1260,9 +1251,6 @@ int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 		return -EBUSY;
 	if (!nr_args || nr_args > IORING_MAX_REG_BUFFERS)
 		return -EINVAL;
-	ret = io_rsrc_node_switch_start(ctx);
-	if (ret)
-		return ret;
 	ret = io_rsrc_data_alloc(ctx, io_rsrc_buf_put, tags, nr_args, &data);
 	if (ret)
 		return ret;
@@ -1300,8 +1288,6 @@ int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 	ctx->buf_data = data;
 	if (ret)
 		__io_sqe_buffers_unregister(ctx);
-	else
-		io_rsrc_node_switch(ctx, NULL);
 	return ret;
 }
 

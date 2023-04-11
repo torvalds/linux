@@ -3881,11 +3881,10 @@ static __cold int io_uring_create(unsigned entries, struct io_uring_params *p,
 	ret = io_sq_offload_create(ctx, p);
 	if (ret)
 		goto err;
-	/* always set a rsrc node */
-	ret = io_rsrc_node_switch_start(ctx);
+
+	ret = io_rsrc_init(ctx);
 	if (ret)
 		goto err;
-	io_rsrc_node_switch(ctx, NULL);
 
 	memset(&p->sq_off, 0, sizeof(p->sq_off));
 	p->sq_off.head = offsetof(struct io_rings, sq.head);

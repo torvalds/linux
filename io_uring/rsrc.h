@@ -74,6 +74,7 @@ void io_rsrc_put_work(struct work_struct *work);
 void io_wait_rsrc_data(struct io_rsrc_data *data);
 void io_rsrc_node_destroy(struct io_ring_ctx *ctx, struct io_rsrc_node *ref_node);
 int io_rsrc_node_switch_start(struct io_ring_ctx *ctx);
+struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx);
 int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx,
 			  struct io_rsrc_node *node, void *rsrc);
 void io_rsrc_node_switch(struct io_ring_ctx *ctx,
@@ -162,6 +163,12 @@ static inline u64 *io_get_tag_slot(struct io_rsrc_data *data, unsigned int idx)
 	unsigned int table_idx = idx >> IO_RSRC_TAG_TABLE_SHIFT;
 
 	return &data->tags[table_idx][off];
+}
+
+static inline int io_rsrc_init(struct io_ring_ctx *ctx)
+{
+	ctx->rsrc_node = io_rsrc_node_alloc(ctx);
+	return ctx->rsrc_node ? 0 : -ENOMEM;
 }
 
 int io_files_update(struct io_kiocb *req, unsigned int issue_flags);
