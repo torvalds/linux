@@ -42,6 +42,7 @@
 #include <linux/ctype.h>
 #include <linux/mm.h>
 #include <linux/math.h>
+#include <linux/nospec.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
@@ -3717,8 +3718,8 @@ static int gsmld_ioctl(struct tty_struct *tty, unsigned int cmd,
 	struct gsm_config_ext ce;
 	struct gsm_dlci_config dc;
 	struct gsm_mux *gsm = tty->disc_data;
+	unsigned int base, addr;
 	struct gsm_dlci *dlci;
-	unsigned int base;
 
 	switch (cmd) {
 	case GSMIOC_GETCONF:
@@ -3747,9 +3748,10 @@ static int gsmld_ioctl(struct tty_struct *tty, unsigned int cmd,
 			return -EFAULT;
 		if (dc.channel == 0 || dc.channel >= NUM_DLCI)
 			return -EINVAL;
-		dlci = gsm->dlci[dc.channel];
+		addr = array_index_nospec(dc.channel, NUM_DLCI);
+		dlci = gsm->dlci[addr];
 		if (!dlci) {
-			dlci = gsm_dlci_alloc(gsm, dc.channel);
+			dlci = gsm_dlci_alloc(gsm, addr);
 			if (!dlci)
 				return -ENOMEM;
 		}
@@ -3762,9 +3764,10 @@ static int gsmld_ioctl(struct tty_struct *tty, unsigned int cmd,
 			return -EFAULT;
 		if (dc.channel == 0 || dc.channel >= NUM_DLCI)
 			return -EINVAL;
-		dlci = gsm->dlci[dc.channel];
+		addr = array_index_nospec(dc.channel, NUM_DLCI);
+		dlci = gsm->dlci[addr];
 		if (!dlci) {
-			dlci = gsm_dlci_alloc(gsm, dc.channel);
+			dlci = gsm_dlci_alloc(gsm, addr);
 			if (!dlci)
 				return -ENOMEM;
 		}
