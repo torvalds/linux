@@ -39,10 +39,10 @@
 		#size-cells = <1>;
 		ranges;
 
-		cma_region: region@88000000 {
+		cma_region: region@63000000 {
 			compatible = "shared-dma-pool";
 			reusable;
-			reg = <0x88000000 0x1800000>;
+			reg = <0x63000000 0x1800000>;
 		};
 
 		ramoops: ramoops@62e00000 {
