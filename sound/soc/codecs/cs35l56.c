@@ -1108,10 +1108,8 @@ int cs35l56_runtime_resume_common(struct cs35l56_private *cs35l56)
 	unsigned int val;
 	int ret;
 
-	if (!cs35l56->can_hibernate) {
-		regcache_cache_only(cs35l56->regmap, false);
+	if (!cs35l56->can_hibernate)
 		goto out_sync;
-	}
 
 	if (!cs35l56->sdw_peripheral) {
 		/*
@@ -1126,6 +1124,7 @@ int cs35l56_runtime_resume_common(struct cs35l56_private *cs35l56)
 			     CS35L56_CONTROL_PORT_READY_US + 400);
 	}
 
+out_sync:
 	regcache_cache_only(cs35l56->regmap, false);
 
 	ret = cs35l56_wait_for_firmware_boot(cs35l56);
@@ -1138,7 +1137,6 @@ int cs35l56_runtime_resume_common(struct cs35l56_private *cs35l56)
 	if (ret)
 		goto err;
 
-out_sync:
 	/* BOOT_DONE will be 1 if the amp reset */
 	regmap_read(cs35l56->regmap, CS35L56_IRQ1_EINT_4, &val);
 	if (val & CS35L56_OTP_BOOT_DONE_MASK) {
