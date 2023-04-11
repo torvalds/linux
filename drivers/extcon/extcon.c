@@ -1098,8 +1098,7 @@ static int extcon_alloc_cables(struct extcon_dev *edev)
 	if (!edev->max_supported)
 		return 0;
 
-	edev->cables = kcalloc(edev->max_supported,
-			       sizeof(struct extcon_cable),
+	edev->cables = kcalloc(edev->max_supported, sizeof(*edev->cables),
 			       GFP_KERNEL);
 	if (!edev->cables)
 		return -ENOMEM;
@@ -1161,14 +1160,12 @@ static int extcon_alloc_muex(struct extcon_dev *edev)
 	for (index = 0; edev->mutually_exclusive[index]; index++)
 		;
 
-	edev->attrs_muex = kcalloc(index + 1,
-				   sizeof(struct attribute *),
+	edev->attrs_muex = kcalloc(index + 1, sizeof(*edev->attrs_muex),
 				   GFP_KERNEL);
 	if (!edev->attrs_muex)
 		return -ENOMEM;
 
-	edev->d_attrs_muex = kcalloc(index,
-				     sizeof(struct device_attribute),
+	edev->d_attrs_muex = kcalloc(index, sizeof(*edev->d_attrs_muex),
 				     GFP_KERNEL);
 	if (!edev->d_attrs_muex) {
 		kfree(edev->attrs_muex);
@@ -1214,8 +1211,8 @@ static int extcon_alloc_groups(struct extcon_dev *edev)
 		return 0;
 
 	edev->extcon_dev_type.groups = kcalloc(edev->max_supported + 2,
-			sizeof(struct attribute_group *),
-			GFP_KERNEL);
+					  sizeof(*edev->extcon_dev_type.groups),
+					  GFP_KERNEL);
 	if (!edev->extcon_dev_type.groups)
 		return -ENOMEM;
 
