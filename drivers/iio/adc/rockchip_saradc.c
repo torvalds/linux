@@ -544,7 +544,7 @@ static ssize_t saradc_test_chn_store(struct device *dev,
 		return size;
 	}
 
-	if (!info->test && val < SARADC_CTRL_CHN_MASK) {
+	if (!info->test && val <= SARADC_CTRL_CHN_MASK) {
 		info->test = true;
 		info->chn = val;
 		mod_delayed_work(info->wq, &info->work, msecs_to_jiffies(100));
