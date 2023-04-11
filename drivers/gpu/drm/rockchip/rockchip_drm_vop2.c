@@ -1762,21 +1762,6 @@ static void vop2_power_domain_off_work(struct work_struct *work)
 	spin_unlock(&pd->lock);
 }
 
-static void vop2_power_domain_esmat_off(struct drm_crtc *crtc)
-{	struct vop2_video_port *vp = to_vop2_video_port(crtc);
-	struct vop2 *vop2 = vp->vop2;
-	struct vop2_power_domain *pd;
-
-	pd = vop2_find_pd_by_id(vop2, VOP2_PD_ESMART);
-	if (vop2_power_domain_status(pd)) {
-		vop2_power_domain_off(pd);
-		vop2_cfg_done(crtc);
-		vop2_wait_power_domain_off(pd);
-		pd->vp_mask = 0;
-		pd->ref_count = 0;
-	}
-}
-
 static void vop2_win_enable(struct vop2_win *win)
 {
 	/*
@@ -1796,6 +1781,9 @@ static void vop2_win_enable(struct vop2_win *win)
 	 */
 	if (!VOP_WIN_GET_REG_BAK(win->vop2, win, enable)) {
 		if (win->pd) {
+			if (win->pd->data->id == VOP2_PD_ESMART)
+				return;
+
 			vop2_power_domain_get(win->pd);
 			win->pd->vp_mask |= win->vp_mask;
 		}
@@ -3901,7 +3889,8 @@ static void vop2_power_domain_off_by_disabled_vp(struct vop2_power_domain *pd)
 	int ret;
 
 	if (pd->data->id == VOP2_PD_CLUSTER0 || pd->data->id == VOP2_PD_CLUSTER1 ||
-	    pd->data->id == VOP2_PD_CLUSTER2 || pd->data->id == VOP2_PD_CLUSTER3) {
+	    pd->data->id == VOP2_PD_CLUSTER2 || pd->data->id == VOP2_PD_CLUSTER3 ||
+	    pd->data->id == VOP2_PD_ESMART) {
 		phys_id = ffs(pd->data->module_id_mask) - 1;
 		win = vop2_find_win_by_phys_id(vop2, phys_id);
 		vp_id = ffs(win->vp_mask) - 1;
@@ -4324,15 +4313,6 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 	if (vp_data->feature & VOP_FEATURE_VIVID_HDR)
 		VOP_MODULE_SET(vop2, vp, hdr_lut_update_en, 0);
 	vop2_disable_all_planes_for_crtc(crtc);
-
-	/*
-	 * A workaround for RK3588's PD_ESMART, we can't
-	 * dynamic turn on/off it at runtime, so it can
-	 * only be turn down when the whole VOP_PD off.
-	 * see vop2_power_domain_put at vop2_win_disable
-	 */
-	if (vop2->version == VOP_VERSION_RK3588 && vop2->enable_count == 1)
-		vop2_power_domain_esmat_off(crtc);
 
 	if (vop2->dscs[vcstate->dsc_id].enabled &&
 	    vop2->dscs[vcstate->dsc_id].attach_vp_id == vp->id &&
