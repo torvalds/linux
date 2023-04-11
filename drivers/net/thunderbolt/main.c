@@ -991,8 +991,10 @@ static bool tbnet_xmit_csum_and_map(struct tbnet *net, struct sk_buff *skb,
 {
 	struct thunderbolt_ip_frame_header *hdr = page_address(frames[0]->page);
 	struct device *dma_dev = tb_ring_dma_device(net->tx_ring.ring);
-	__wsum wsum = htonl(skb->len - skb_transport_offset(skb));
 	unsigned int i, len, offset = skb_transport_offset(skb);
+	/* Remove payload length from checksum */
+	u32 paylen = skb->len - skb_transport_offset(skb);
+	__wsum wsum = (__force __wsum)htonl(paylen);
 	__be16 protocol = skb->protocol;
 	void *data = skb->data;
 	void *dest = hdr + 1;
