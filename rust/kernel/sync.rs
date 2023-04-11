@@ -8,6 +8,7 @@
 use crate::types::Opaque;
 
 mod arc;
+pub mod lock;
 
 pub use arc::{Arc, ArcBorrow, UniqueArc};
 
@@ -25,7 +26,6 @@ impl LockClassKey {
         Self(Opaque::uninit())
     }
 
-    #[allow(dead_code)]
     pub(crate) fn as_ptr(&self) -> *mut bindings::lock_class_key {
         self.0.get()
     }
