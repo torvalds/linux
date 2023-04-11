@@ -222,7 +222,7 @@ uint32_t rockchip_drm_of_find_possible_crtcs(struct drm_device *dev,
 		remote_port = of_graph_get_remote_port(ep);
 		if (!remote_port) {
 			of_node_put(ep);
-			return 0;
+			continue;
 		}
 
 		possible_crtcs |= drm_of_crtc_port_mask(dev, remote_port);
