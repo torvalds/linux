@@ -213,7 +213,7 @@
 
 		port {
 			panel_in_edp: endpoint {
-				remote-endpoint = <&edp_out_panel>;
+				remote-endpoint = <&edp0_out>;
 			};
 		};
 	};
@@ -328,6 +328,10 @@
 	status = "okay";
 };
 
+&dp0_out {
+	link-frequencies = /bits/ 64 <5400000000>;
+};
+
 &dp0_in_vp1 {
 	status = "okay";
 };
@@ -336,20 +340,14 @@
 	support-psr;
 	force-hpd;
 	status = "okay";
-
-	ports {
-		port@1 {
-			reg = <1>;
-
-			edp_out_panel: endpoint {
-				remote-endpoint = <&panel_in_edp>;
-			};
-		};
-	};
 };
 
 &edp0_in_vp2 {
 	status = "okay";
+};
+
+&edp0_out {
+	remote-endpoint = <&panel_in_edp>;
 };
 
 &fiq_debugger {
@@ -1228,7 +1226,6 @@
 };
 
 &usbdp_phy0_dp {
-	max-link-rate = <5400>;	/* Maximum link rate supported by PHY (in Mbps) */
 	status = "okay";
 };
 
