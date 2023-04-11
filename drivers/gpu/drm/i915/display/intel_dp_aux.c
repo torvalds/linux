@@ -268,6 +268,11 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 
 	intel_pps_check_power_unlocked(intel_dp);
 
+	/*
+	 * FIXME PSR should be disabled here to prevent
+	 * it using the same AUX CH simultaneously
+	 */
+
 	/* Try to wait for any previous AUX channel activity */
 	for (try = 0; try < 3; try++) {
 		status = intel_de_read_notrace(i915, ch_ctl);
