@@ -164,9 +164,29 @@ static bool nft_trace_have_verdict_chain(struct nft_traceinfo *info)
 	return true;
 }
 
+static const struct nft_chain *nft_trace_get_chain(const struct nft_traceinfo *info)
+{
+	const struct nft_rule_dp *rule = info->rule;
+	const struct nft_rule_dp_last *last;
+
+	if (!rule)
+		return &info->basechain->chain;
+
+	while (!rule->is_last)
+		rule = nft_rule_next(rule);
+
+	last = (const struct nft_rule_dp_last *)rule;
+
+	if (WARN_ON_ONCE(!last->chain))
+		return &info->basechain->chain;
+
+	return last->chain;
+}
+
 void nft_trace_notify(struct nft_traceinfo *info)
 {
 	const struct nft_pktinfo *pkt = info->pkt;
+	const struct nft_chain *chain;
 	struct nlmsghdr *nlh;
 	struct sk_buff *skb;
 	unsigned int size;
@@ -176,9 +196,11 @@ void nft_trace_notify(struct nft_traceinfo *info)
 	if (!nfnetlink_has_listeners(nft_net(pkt), NFNLGRP_NFTRACE))
 		return;
 
+	chain = nft_trace_get_chain(info);
+
 	size = nlmsg_total_size(sizeof(struct nfgenmsg)) +
-		nla_total_size(strlen(info->chain->table->name)) +
-		nla_total_size(strlen(info->chain->name)) +
+		nla_total_size(strlen(chain->table->name)) +
+		nla_total_size(strlen(chain->name)) +
 		nla_total_size_64bit(sizeof(__be64)) +	/* rule handle */
 		nla_total_size(sizeof(__be32)) +	/* trace type */
 		nla_total_size(0) +			/* VERDICT, nested */
@@ -217,10 +239,10 @@ void nft_trace_notify(struct nft_traceinfo *info)
 	if (nla_put_u32(skb, NFTA_TRACE_ID, info->skbid))
 		goto nla_put_failure;
 
-	if (nla_put_string(skb, NFTA_TRACE_CHAIN, info->chain->name))
+	if (nla_put_string(skb, NFTA_TRACE_CHAIN, chain->name))
 		goto nla_put_failure;
 
-	if (nla_put_string(skb, NFTA_TRACE_TABLE, info->chain->table->name))
+	if (nla_put_string(skb, NFTA_TRACE_TABLE, chain->table->name))
 		goto nla_put_failure;
 
 	if (nf_trace_fill_rule_info(skb, info))

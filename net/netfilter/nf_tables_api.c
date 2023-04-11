@@ -2110,13 +2110,6 @@ static void nft_chain_release_hook(struct nft_chain_hook *hook)
 	module_put(hook->type->owner);
 }
 
-struct nft_rule_dp_last {
-	struct nft_rule_dp end;	/* end of nft_rule_blob marker */
-	struct rcu_head h;
-	struct nft_rule_blob *blob;
-	const struct nft_chain *chain;	/* for tracing */
-};
-
 static void nft_last_rule(const struct nft_chain *chain, const void *ptr)
 {
 	struct nft_rule_dp_last *lrule;

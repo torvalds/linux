@@ -1046,6 +1046,18 @@ struct nft_rule_dp {
 		__attribute__((aligned(__alignof__(struct nft_expr))));
 };
 
+struct nft_rule_dp_last {
+	struct nft_rule_dp end;		/* end of nft_rule_blob marker */
+	struct rcu_head h;		/* call_rcu head */
+	struct nft_rule_blob *blob;	/* ptr to free via call_rcu */
+	const struct nft_chain *chain;	/* for nftables tracing */
+};
+
+static inline const struct nft_rule_dp *nft_rule_next(const struct nft_rule_dp *rule)
+{
+	return (void *)rule + sizeof(*rule) + rule->dlen;
+}
+
 struct nft_rule_blob {
 	unsigned long			size;
 	unsigned char			data[]
@@ -1396,7 +1408,6 @@ void nft_unregister_flowtable_type(struct nf_flowtable_type *type);
  *	@packet_dumped: packet headers sent in a previous traceinfo message
  *	@pkt: pktinfo currently processed
  *	@basechain: base chain currently processed
- *	@chain: chain currently processed
  *	@rule:  rule that was evaluated
  *	@verdict: verdict given by rule
  */
@@ -1408,7 +1419,6 @@ struct nft_traceinfo {
 	u32				skbid;
 	const struct nft_pktinfo	*pkt;
 	const struct nft_base_chain	*basechain;
-	const struct nft_chain		*chain;
 	const struct nft_rule_dp	*rule;
 	const struct nft_verdict	*verdict;
 };
