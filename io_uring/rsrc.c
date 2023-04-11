@@ -230,7 +230,7 @@ void io_rsrc_node_switch(struct io_ring_ctx *ctx,
 			 struct io_rsrc_data *data_to_kill)
 	__must_hold(&ctx->uring_lock)
 {
-	WARN_ON_ONCE(!ctx->rsrc_backup_node);
+	WARN_ON_ONCE(io_alloc_cache_empty(&ctx->rsrc_node_cache));
 	WARN_ON_ONCE(data_to_kill && !ctx->rsrc_node);
 
 	if (data_to_kill) {
@@ -245,18 +245,20 @@ void io_rsrc_node_switch(struct io_ring_ctx *ctx,
 		ctx->rsrc_node = NULL;
 	}
 
-	if (!ctx->rsrc_node) {
-		ctx->rsrc_node = ctx->rsrc_backup_node;
-		ctx->rsrc_backup_node = NULL;
-	}
+	if (!ctx->rsrc_node)
+		ctx->rsrc_node = io_rsrc_node_alloc(ctx);
 }
 
 int io_rsrc_node_switch_start(struct io_ring_ctx *ctx)
 {
-	if (ctx->rsrc_backup_node)
-		return 0;
-	ctx->rsrc_backup_node = io_rsrc_node_alloc(ctx);
-	return ctx->rsrc_backup_node ? 0 : -ENOMEM;
+	if (io_alloc_cache_empty(&ctx->rsrc_node_cache)) {
+		struct io_rsrc_node *node = kzalloc(sizeof(*node), GFP_KERNEL);
+
+		if (!node)
+			return -ENOMEM;
+		io_alloc_cache_put(&ctx->rsrc_node_cache, &node->cache);
+	}
+	return 0;
 }
 
 __cold static int io_rsrc_ref_quiesce(struct io_rsrc_data *data,

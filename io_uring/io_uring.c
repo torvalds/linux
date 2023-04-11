@@ -2852,8 +2852,6 @@ static __cold void io_ring_ctx_free(struct io_ring_ctx *ctx)
 	/* there are no registered resources left, nobody uses it */
 	if (ctx->rsrc_node)
 		io_rsrc_node_destroy(ctx, ctx->rsrc_node);
-	if (ctx->rsrc_backup_node)
-		io_rsrc_node_destroy(ctx, ctx->rsrc_backup_node);
 
 	WARN_ON_ONCE(!list_empty(&ctx->rsrc_ref_list));
 

@@ -23,6 +23,11 @@ static inline bool io_alloc_cache_put(struct io_alloc_cache *cache,
 	return false;
 }
 
+static inline bool io_alloc_cache_empty(struct io_alloc_cache *cache)
+{
+	return !cache->list.next;
+}
+
 static inline struct io_cache_entry *io_alloc_cache_get(struct io_alloc_cache *cache)
 {
 	if (cache->list.next) {
