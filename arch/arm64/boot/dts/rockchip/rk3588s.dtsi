@@ -4255,7 +4255,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			dp0_in: port@0 {
+			port@0 {
 				reg = <0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -4277,6 +4277,12 @@
 					remote-endpoint = <&vp2_out_dp0>;
 					status = "disabled";
 				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				dp0_out: endpoint { };
 			};
 		};
 	};
@@ -4390,7 +4396,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			edp0_in: port@0 {
+			port@0 {
 				reg = <0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -4412,6 +4418,12 @@
 					remote-endpoint = <&vp2_out_edp0>;
 					status = "disabled";
 				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				edp0_out: endpoint { };
 			};
 		};
 	};
