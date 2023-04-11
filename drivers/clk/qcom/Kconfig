@@ -445,6 +445,15 @@ config SA_GCC_8775P
 	  Say Y if you want to use peripheral devices such as UART, SPI,
 	  I2C, USB, UFS, SDCC, etc.
 
+config SA_GPUCC_8775P
+	tristate "SA8775P Graphics clock controller"
+	select QCOM_GDSC
+	select SA_GCC_8775P
+	help
+	  Support for the graphics clock controller on SA8775P devices.
+	  Say Y if you want to support graphics controller devices and
+	  functionality such as 3D graphics.
+
 config SC_GCC_7180
 	tristate "SC7180 Global Clock Controller"
 	select QCOM_GDSC
