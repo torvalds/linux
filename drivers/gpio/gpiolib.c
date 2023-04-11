@@ -702,7 +702,6 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 			       struct lock_class_key *lock_key,
 			       struct lock_class_key *request_key)
 {
-	struct fwnode_handle *fwnode = NULL;
 	struct gpio_device *gdev;
 	unsigned long flags;
 	unsigned int i;
@@ -710,12 +709,12 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 	int base = 0;
 	int ret = 0;
 
-	/* If the calling driver did not initialize firmware node, do it here */
-	if (gc->fwnode)
-		fwnode = gc->fwnode;
-	else if (gc->parent)
-		fwnode = dev_fwnode(gc->parent);
-	gc->fwnode = fwnode;
+	/*
+	 * If the calling driver did not initialize firmware node, do it here
+	 * using the parent device, if any.
+	 */
+	if (!gc->fwnode && gc->parent)
+		gc->fwnode = dev_fwnode(gc->parent);
 
 	/*
 	 * First: allocate and populate the internal stat container, and
