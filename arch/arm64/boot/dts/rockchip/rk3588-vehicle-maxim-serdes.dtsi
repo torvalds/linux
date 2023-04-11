@@ -69,20 +69,15 @@
 	split-mode;
 	force-hpd;
 	status = "okay";
-
-	ports {
-		port@1 {
-			reg = <1>;
-
-			dp0_out: endpoint {
-				remote-endpoint = <&i2c3_max96745_in>;
-			};
-		};
-	};
 };
 
 &dp0_in_vp0 {
 	status = "okay";
+};
+
+&dp0_out {
+	link-frequencies = /bits/ 64 <2700000000>;
+	remote-endpoint = <&i2c3_max96745_in>;
 };
 
 &usbdp_phy0 {
@@ -91,7 +86,6 @@
 };
 
 &usbdp_phy0_dp {
-	max-link-rate = <2700>;	/* Maximum link rate supported by PHY (in Mbps) */
 	status = "okay";
 };
 
@@ -103,16 +97,11 @@
 &dp1 {
 	force-hpd;
 	status = "okay";
+};
 
-	ports {
-		port@1 {
-			reg = <1>;
-
-			dp1_out: endpoint {
-				remote-endpoint = <&i2c8_max96745_in>;
-			};
-		};
-	};
+&dp1_out {
+	link-frequencies = /bits/ 64 <2700000000>;
+	remote-endpoint = <&i2c8_max96745_in>;
 };
 
 &usbdp_phy1 {
@@ -121,7 +110,6 @@
 };
 
 &usbdp_phy1_dp {
-	max-link-rate = <2700>;	/* Maximum link rate supported by PHY (in Mbps) */
 	status = "okay";
 };
 
@@ -188,18 +176,12 @@
 &edp0 {
 	split-mode;
 	force-hpd;
-	max-link-rate = <2700>;
 	status = "okay";
+};
 
-	ports {
-		port@1 {
-			reg = <1>;
-
-			edp0_out: endpoint {
-				remote-endpoint = <&i2c5_max96745_in>;
-			};
-		};
-	};
+&edp0_out {
+	link-frequencies = /bits/ 64 <2700000000>;
+	remote-endpoint = <&i2c5_max96745_in>;
 };
 
 &hdptxphy0 {
@@ -217,18 +199,12 @@
 
 &edp1 {
 	force-hpd;
-	max-link-rate = <2700>;
 	status = "okay";
+};
 
-	ports {
-		port@1 {
-			reg = <1>;
-
-			edp1_out: endpoint {
-				remote-endpoint = <&i2c7_max96745_in>;
-			};
-		};
-	};
+&edp1_out {
+	link-frequencies = /bits/ 64 <2700000000>;
+	remote-endpoint = <&i2c7_max96745_in>;
 };
 
 &hdptxphy1 {
