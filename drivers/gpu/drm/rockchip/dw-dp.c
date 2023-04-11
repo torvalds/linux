@@ -396,6 +396,8 @@ struct dw_dp {
 	struct rockchip_drm_sub_dev sub_dev;
 	struct dw_dp_hdcp hdcp;
 	int eotf_type;
+
+	u32 max_link_rate;
 };
 
 struct dw_dp_state {
@@ -1469,7 +1471,7 @@ static int dw_dp_link_probe(struct dw_dp *dp)
 			!!(dpcd & DP_VSC_SDP_EXT_FOR_COLORIMETRY_SUPPORTED);
 
 	link->revision = link->dpcd[DP_DPCD_REV];
-	link->rate = min_t(u32, dp->phy->attrs.max_link_rate * 100,
+	link->rate = min_t(u32, min(dp->max_link_rate, dp->phy->attrs.max_link_rate * 100),
 			   drm_dp_max_link_rate(link->dpcd));
 	link->lanes = min_t(u8, phy_get_bus_width(dp->phy),
 			    drm_dp_max_lane_count(link->dpcd));
@@ -3933,6 +3935,53 @@ static const struct regmap_config dw_dp_regmap_config = {
 	.rd_table = &dw_dp_readable_table,
 };
 
+static u32 dw_dp_parse_link_frequencies(struct dw_dp *dp)
+{
+	struct device_node *node = dp->dev->of_node;
+	struct device_node *endpoint;
+	u64 frequency = 0;
+	int cnt;
+
+	endpoint = of_graph_get_endpoint_by_regs(node, 1, 0);
+	if (!endpoint)
+		return 0;
+
+	cnt = of_property_count_u64_elems(endpoint, "link-frequencies");
+	if (cnt > 0)
+		of_property_read_u64_index(endpoint, "link-frequencies",
+					   cnt - 1, &frequency);
+	of_node_put(endpoint);
+
+	if (!frequency)
+		return 0;
+
+	do_div(frequency, 10 * 1000);	/* symbol rate kbytes */
+
+	switch (frequency) {
+	case 162000:
+	case 270000:
+	case 540000:
+	case 810000:
+		break;
+	default:
+		dev_err(dp->dev, "invalid link frequency value: %llu\n", frequency);
+		return 0;
+	}
+
+	return frequency;
+}
+
+static int dw_dp_parse_dt(struct dw_dp *dp)
+{
+	dp->force_hpd = device_property_read_bool(dp->dev, "force-hpd");
+
+	dp->max_link_rate = dw_dp_parse_link_frequencies(dp);
+	if (!dp->max_link_rate)
+		dp->max_link_rate = 810000;
+
+	return 0;
+}
+
 static int dw_dp_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -3951,6 +4000,10 @@ static int dw_dp_probe(struct platform_device *pdev)
 	dp->id = id;
 	dp->dev = dev;
 	dp->video.pixel_mode = DPTX_MP_QUAD_PIXEL;
+
+	ret = dw_dp_parse_dt(dp);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to parse DT\n");
 
 	mutex_init(&dp->irq_lock);
 	INIT_WORK(&dp->hpd_work, dw_dp_hpd_work);
@@ -4075,8 +4128,6 @@ static int dw_dp_probe(struct platform_device *pdev)
 	dp->bridge.type = DRM_MODE_CONNECTOR_DisplayPort;
 
 	platform_set_drvdata(pdev, dp);
-
-	dp->force_hpd = device_property_read_bool(dev, "force-hpd");
 
 	if (device_property_read_bool(dev, "split-mode")) {
 		struct dw_dp *secondary = dw_dp_find_by_id(dev->driver, !dp->id);
