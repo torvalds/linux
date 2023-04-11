@@ -140,39 +140,6 @@ static void notrace unwind(struct unwind_state *state,
 }
 NOKPROBE_SYMBOL(unwind);
 
-static bool dump_backtrace_entry(void *arg, unsigned long where)
-{
-	char *loglvl = arg;
-	printk("%s %pSb\n", loglvl, (void *)where);
-	return true;
-}
-
-void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk,
-		    const char *loglvl)
-{
-	pr_debug("%s(regs = %p tsk = %p)\n", __func__, regs, tsk);
-
-	if (regs && user_mode(regs))
-		return;
-
-	if (!tsk)
-		tsk = current;
-
-	if (!try_get_task_stack(tsk))
-		return;
-
-	printk("%sCall trace:\n", loglvl);
-	arch_stack_walk(dump_backtrace_entry, (void *)loglvl, tsk, regs);
-
-	put_task_stack(tsk);
-}
-
-void show_stack(struct task_struct *tsk, unsigned long *sp, const char *loglvl)
-{
-	dump_backtrace(NULL, tsk, loglvl);
-	barrier();
-}
-
 /*
  * Per-cpu stacks are only accessible when unwinding the current task in a
  * non-preemptible context.
@@ -236,4 +203,37 @@ noinline noinstr void arch_stack_walk(stack_trace_consume_fn consume_entry,
 	}
 
 	unwind(&state, consume_entry, cookie);
+}
+
+static bool dump_backtrace_entry(void *arg, unsigned long where)
+{
+	char *loglvl = arg;
+	printk("%s %pSb\n", loglvl, (void *)where);
+	return true;
+}
+
+void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk,
+		    const char *loglvl)
+{
+	pr_debug("%s(regs = %p tsk = %p)\n", __func__, regs, tsk);
+
+	if (regs && user_mode(regs))
+		return;
+
+	if (!tsk)
+		tsk = current;
+
+	if (!try_get_task_stack(tsk))
+		return;
+
+	printk("%sCall trace:\n", loglvl);
+	arch_stack_walk(dump_backtrace_entry, (void *)loglvl, tsk, regs);
+
+	put_task_stack(tsk);
+}
+
+void show_stack(struct task_struct *tsk, unsigned long *sp, const char *loglvl)
+{
+	dump_backtrace(NULL, tsk, loglvl);
+	barrier();
 }
