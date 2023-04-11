@@ -916,13 +916,17 @@ static int compute_cluster_nr_busy(int index)
 	cluster->active_cpus = get_active_cpu_count(cluster);
 	thres_idx = cluster->active_cpus ? cluster->active_cpus - 1 : 0;
 	list_for_each_entry(c, &cluster->lru, sib) {
-		if (c->busy_pct >= cluster->busy_up_thres[thres_idx] ||
-		    sched_cpu_high_irqload(c->cpu))
-			c->is_busy = true;
-		else if (c->busy_pct < cluster->busy_down_thres[thres_idx])
+		if (cpu_partial_halted(c->cpu)) {
 			c->is_busy = false;
+		} else {
+			if (c->busy_pct >= cluster->busy_up_thres[thres_idx] ||
+			    sched_cpu_high_irqload(c->cpu))
+				c->is_busy = true;
+			else if (c->busy_pct < cluster->busy_down_thres[thres_idx])
+				c->is_busy = false;
 
-		nr_busy += c->is_busy;
+			nr_busy += c->is_busy;
+		}
 	}
 
 	return nr_busy;
