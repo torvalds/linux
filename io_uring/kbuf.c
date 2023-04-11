@@ -218,14 +218,12 @@ static int __io_remove_buffers(struct io_ring_ctx *ctx,
 	if (bl->is_mapped) {
 		i = bl->buf_ring->tail - bl->head;
 		if (bl->is_mmap) {
-			if (bl->buf_ring) {
-				struct page *page;
+			struct page *page;
 
-				page = virt_to_head_page(bl->buf_ring);
-				if (put_page_testzero(page))
-					free_compound_page(page);
-				bl->buf_ring = NULL;
-			}
+			page = virt_to_head_page(bl->buf_ring);
+			if (put_page_testzero(page))
+				free_compound_page(page);
+			bl->buf_ring = NULL;
 			bl->is_mmap = 0;
 		} else if (bl->buf_nr_pages) {
 			int j;
