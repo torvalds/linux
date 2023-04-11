@@ -32,6 +32,23 @@
 static int cs35l56_dsp_event(struct snd_soc_dapm_widget *w,
 			     struct snd_kcontrol *kcontrol, int event);
 
+static int cs35l56_mbox_send(struct cs35l56_private *cs35l56, unsigned int command)
+{
+	unsigned int val;
+	int ret;
+
+	regmap_write(cs35l56->regmap, CS35L56_DSP_VIRTUAL1_MBOX_1, command);
+	ret = regmap_read_poll_timeout(cs35l56->regmap, CS35L56_DSP_VIRTUAL1_MBOX_1,
+				       val, (val == 0),
+				       CS35L56_MBOX_POLL_US, CS35L56_MBOX_TIMEOUT_US);
+	if (ret) {
+		dev_warn(cs35l56->dev, "MBOX command %#x failed: %d\n", command, ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static int cs35l56_wait_dsp_ready(struct cs35l56_private *cs35l56)
 {
 	int ret;
@@ -182,9 +199,44 @@ static SOC_VALUE_ENUM_SINGLE_DECL(cs35l56_sdw1tx6_enum,
 static const struct snd_kcontrol_new sdw1_tx6_mux =
 	SOC_DAPM_ENUM("SDW1TX6 SRC", cs35l56_sdw1tx6_enum);
 
+static int cs35l56_play_event(struct snd_soc_dapm_widget *w,
+			      struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(component);
+	unsigned int val;
+	int ret;
+
+	dev_dbg(cs35l56->dev, "play: %d\n", event);
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		/* Don't wait for ACK, we check in POST_PMU that it completed */
+		return regmap_write(cs35l56->regmap, CS35L56_DSP_VIRTUAL1_MBOX_1,
+				    CS35L56_MBOX_CMD_AUDIO_PLAY);
+	case SND_SOC_DAPM_POST_PMU:
+		/* Wait for firmware to enter PS0 power state */
+		ret = regmap_read_poll_timeout(cs35l56->regmap,
+					       CS35L56_TRANSDUCER_ACTUAL_PS,
+					       val, (val == CS35L56_PS0),
+					       CS35L56_PS0_POLL_US,
+					       CS35L56_PS0_TIMEOUT_US);
+		if (ret)
+			dev_err(cs35l56->dev, "PS0 wait failed: %d\n", ret);
+		return ret;
+	case SND_SOC_DAPM_POST_PMD:
+		return cs35l56_mbox_send(cs35l56, CS35L56_MBOX_CMD_AUDIO_PAUSE);
+	default:
+		return 0;
+	}
+}
+
 static const struct snd_soc_dapm_widget cs35l56_dapm_widgets[] = {
 	SND_SOC_DAPM_REGULATOR_SUPPLY("VDD_B", 0, 0),
 	SND_SOC_DAPM_REGULATOR_SUPPLY("VDD_AMP", 0, 0),
+
+	SND_SOC_DAPM_SUPPLY("PLAY", SND_SOC_NOPM, 0, 0, cs35l56_play_event,
+			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 
 	SND_SOC_DAPM_OUT_DRV("AMP", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_OUTPUT("SPK"),
@@ -252,6 +304,9 @@ static const struct snd_soc_dapm_route cs35l56_audio_map[] = {
 	{ "AMP", NULL, "VDD_B" },
 	{ "AMP", NULL, "VDD_AMP" },
 
+	{ "ASP1 Playback", NULL, "PLAY" },
+	{ "SDW1 Playback", NULL, "PLAY" },
+
 	{ "ASP1RX1", NULL, "ASP1 Playback" },
 	{ "ASP1RX2", NULL, "ASP1 Playback" },
 	{ "DSP1", NULL, "ASP1RX1" },
@@ -287,23 +342,6 @@ static const struct snd_soc_dapm_route cs35l56_audio_map[] = {
 	{ "SDW1 Capture", NULL, "SDW1 TX5 Source" },
 	{ "SDW1 Capture", NULL, "SDW1 TX6 Source" },
 };
-
-static int cs35l56_mbox_send(struct cs35l56_private *cs35l56, unsigned int command)
-{
-	unsigned int val;
-	int ret;
-
-	regmap_write(cs35l56->regmap, CS35L56_DSP_VIRTUAL1_MBOX_1, command);
-	ret = regmap_read_poll_timeout(cs35l56->regmap, CS35L56_DSP_VIRTUAL1_MBOX_1,
-				       val, (val == 0),
-				       CS35L56_MBOX_POLL_US, CS35L56_MBOX_TIMEOUT_US);
-	if (ret) {
-		dev_warn(cs35l56->dev, "MBOX command %#x failed: %d\n", command, ret);
-		return ret;
-	}
-
-	return 0;
-}
 
 static int cs35l56_dsp_event(struct snd_soc_dapm_widget *w,
 			     struct snd_kcontrol *kcontrol, int event)
@@ -611,43 +649,11 @@ static int cs35l56_asp_dai_set_sysclk(struct snd_soc_dai *dai,
 	return 0;
 }
 
-static int cs35l56_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
-{
-	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(dai->component);
-	unsigned int val;
-	int ret;
-
-	dev_dbg(cs35l56->dev, "%s: %d %s\n", __func__, stream, mute ? "mute" : "unmute");
-
-	if (stream != SNDRV_PCM_STREAM_PLAYBACK)
-		return 0;
-
-	if (mute) {
-		ret = cs35l56_mbox_send(cs35l56, CS35L56_MBOX_CMD_AUDIO_PAUSE);
-	} else {
-		ret = cs35l56_mbox_send(cs35l56, CS35L56_MBOX_CMD_AUDIO_PLAY);
-		if (ret == 0) {
-			/* Wait for firmware to enter PS0 power state */
-			ret = regmap_read_poll_timeout(cs35l56->regmap,
-						       CS35L56_TRANSDUCER_ACTUAL_PS,
-						       val, (val == CS35L56_PS0),
-						       CS35L56_PS0_POLL_US,
-						       CS35L56_PS0_TIMEOUT_US);
-			if (ret)
-				dev_err(cs35l56->dev, "PS0 wait failed: %d\n", ret);
-			ret = 0;
-		}
-	}
-
-	return ret;
-}
-
 static const struct snd_soc_dai_ops cs35l56_ops = {
 	.set_fmt = cs35l56_asp_dai_set_fmt,
 	.set_tdm_slot = cs35l56_asp_dai_set_tdm_slot,
 	.hw_params = cs35l56_asp_dai_hw_params,
 	.set_sysclk = cs35l56_asp_dai_set_sysclk,
-	.mute_stream = cs35l56_mute_stream,
 };
 
 static void cs35l56_sdw_dai_shutdown(struct snd_pcm_substream *substream,
@@ -749,7 +755,6 @@ static const struct snd_soc_dai_ops cs35l56_sdw_dai_ops = {
 	.shutdown = cs35l56_sdw_dai_shutdown,
 	.hw_params = cs35l56_sdw_dai_hw_params,
 	.hw_free = cs35l56_sdw_dai_hw_free,
-	.mute_stream = cs35l56_mute_stream,
 	.set_stream = cs35l56_sdw_dai_set_stream,
 };
 
