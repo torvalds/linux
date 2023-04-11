@@ -20,6 +20,7 @@
  *			{0x3, 0x6, 0x5, 0}. If it is {0xFFFFFFFF, 0}, there
  *			can be no simultaneous connections.
  * @dev:		Device of this extcon.
+ * @id:			Unique device ID of this extcon.
  * @state:		Attach/detach state of this extcon. Do not provide at
  *			register-time.
  * @nh_all:		Notifier for the state change events for all supported
@@ -46,6 +47,7 @@ struct extcon_dev {
 
 	/* Internal data. Please do not set. */
 	struct device dev;
+	unsigned int id;
 	struct raw_notifier_head nh_all;
 	struct raw_notifier_head *nh;
 	struct list_head entry;

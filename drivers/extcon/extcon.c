@@ -16,6 +16,7 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
+#include <linux/idr.h>
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/fs.h>
@@ -238,6 +239,7 @@ struct extcon_cable {
 
 static struct class *extcon_class;
 
+static DEFINE_IDA(extcon_dev_ids);
 static LIST_HEAD(extcon_dev_list);
 static DEFINE_MUTEX(extcon_dev_list_lock);
 
@@ -1248,7 +1250,6 @@ static int extcon_alloc_groups(struct extcon_dev *edev)
 int extcon_dev_register(struct extcon_dev *edev)
 {
 	int ret, index = 0;
-	static atomic_t edev_no = ATOMIC_INIT(-1);
 
 	ret = create_extcon_class();
 	if (ret < 0)
@@ -1275,8 +1276,14 @@ int extcon_dev_register(struct extcon_dev *edev)
 			"extcon device name is null\n");
 		return -EINVAL;
 	}
-	dev_set_name(&edev->dev, "extcon%lu",
-			(unsigned long)atomic_inc_return(&edev_no));
+
+	ret = ida_alloc(&extcon_dev_ids, GFP_KERNEL);
+	if (ret < 0)
+		return ret;
+
+	edev->id = ret;
+
+	dev_set_name(&edev->dev, "extcon%d", edev->id);
 
 	ret = extcon_alloc_cables(edev);
 	if (ret < 0)
@@ -1339,6 +1346,7 @@ err_alloc_muex:
 	if (edev->max_supported)
 		kfree(edev->cables);
 err_alloc_cables:
+	ida_free(&extcon_dev_ids, edev->id);
 
 	return ret;
 }
@@ -1366,6 +1374,8 @@ void extcon_dev_unregister(struct extcon_dev *edev)
 		dev_err(&edev->dev, "Failed to unregister extcon_dev\n");
 		return;
 	}
+
+	ida_free(&extcon_dev_ids, edev->id);
 
 	device_unregister(&edev->dev);
 
