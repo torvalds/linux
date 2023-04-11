@@ -400,7 +400,7 @@ static void cros_ec_cleanup_console_log(struct cros_ec_debugfs *debug_info)
 	}
 }
 
-/**
+/*
  * Returns the size of the panicinfo data fetched from the EC
  */
 static int cros_ec_get_panicinfo(struct cros_ec_device *ec_dev, uint8_t *data,
