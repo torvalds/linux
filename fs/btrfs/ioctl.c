@@ -649,6 +649,8 @@ static noinline int create_subvol(struct mnt_idmap *idmap,
 	}
 	trans->block_rsv = &block_rsv;
 	trans->bytes_reserved = block_rsv.size;
+	/* Tree log can't currently deal with an inode which is a new root. */
+	btrfs_set_log_full_commit(trans);
 
 	ret = btrfs_qgroup_inherit(trans, 0, objectid, inherit);
 	if (ret)
@@ -757,10 +759,7 @@ out:
 	trans->bytes_reserved = 0;
 	btrfs_subvolume_release_metadata(root, &block_rsv);
 
-	if (ret)
-		btrfs_end_transaction(trans);
-	else
-		ret = btrfs_commit_transaction(trans);
+	btrfs_end_transaction(trans);
 out_new_inode_args:
 	btrfs_new_inode_args_destroy(&new_inode_args);
 out_inode:
