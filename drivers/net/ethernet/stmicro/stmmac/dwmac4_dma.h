@@ -220,19 +220,31 @@
 #define DMA_CHAN0_DBG_STAT_RPS_SHIFT	8
 
 int dwmac4_dma_reset(void __iomem *ioaddr);
-void dwmac4_enable_dma_irq(void __iomem *ioaddr, u32 chan, bool rx, bool tx);
-void dwmac410_enable_dma_irq(void __iomem *ioaddr, u32 chan, bool rx, bool tx);
-void dwmac4_disable_dma_irq(void __iomem *ioaddr, u32 chan, bool rx, bool tx);
-void dwmac410_disable_dma_irq(void __iomem *ioaddr, u32 chan, bool rx, bool tx);
-void dwmac4_dma_start_tx(void __iomem *ioaddr, u32 chan);
-void dwmac4_dma_stop_tx(void __iomem *ioaddr, u32 chan);
-void dwmac4_dma_start_rx(void __iomem *ioaddr, u32 chan);
-void dwmac4_dma_stop_rx(void __iomem *ioaddr, u32 chan);
-int dwmac4_dma_interrupt(void __iomem *ioaddr,
+void dwmac4_enable_dma_irq(struct stmmac_priv *priv, void __iomem *ioaddr,
+			   u32 chan, bool rx, bool tx);
+void dwmac410_enable_dma_irq(struct stmmac_priv *priv, void __iomem *ioaddr,
+			     u32 chan, bool rx, bool tx);
+void dwmac4_disable_dma_irq(struct stmmac_priv *priv, void __iomem *ioaddr,
+			    u32 chan, bool rx, bool tx);
+void dwmac410_disable_dma_irq(struct stmmac_priv *priv, void __iomem *ioaddr,
+			      u32 chan, bool rx, bool tx);
+void dwmac4_dma_start_tx(struct stmmac_priv *priv, void __iomem *ioaddr,
+			 u32 chan);
+void dwmac4_dma_stop_tx(struct stmmac_priv *priv, void __iomem *ioaddr,
+			u32 chan);
+void dwmac4_dma_start_rx(struct stmmac_priv *priv, void __iomem *ioaddr,
+			 u32 chan);
+void dwmac4_dma_stop_rx(struct stmmac_priv *priv, void __iomem *ioaddr,
+			u32 chan);
+int dwmac4_dma_interrupt(struct stmmac_priv *priv, void __iomem *ioaddr,
 			 struct stmmac_extra_stats *x, u32 chan, u32 dir);
-void dwmac4_set_rx_ring_len(void __iomem *ioaddr, u32 len, u32 chan);
-void dwmac4_set_tx_ring_len(void __iomem *ioaddr, u32 len, u32 chan);
-void dwmac4_set_rx_tail_ptr(void __iomem *ioaddr, u32 tail_ptr, u32 chan);
-void dwmac4_set_tx_tail_ptr(void __iomem *ioaddr, u32 tail_ptr, u32 chan);
+void dwmac4_set_rx_ring_len(struct stmmac_priv *priv, void __iomem *ioaddr,
+			    u32 len, u32 chan);
+void dwmac4_set_tx_ring_len(struct stmmac_priv *priv, void __iomem *ioaddr,
+			    u32 len, u32 chan);
+void dwmac4_set_rx_tail_ptr(struct stmmac_priv *priv, void __iomem *ioaddr,
+			    u32 tail_ptr, u32 chan);
+void dwmac4_set_tx_tail_ptr(struct stmmac_priv *priv, void __iomem *ioaddr,
+			    u32 tail_ptr, u32 chan);
 
 #endif /* __DWMAC4_DMA_H__ */
