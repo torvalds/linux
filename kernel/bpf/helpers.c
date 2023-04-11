@@ -2041,37 +2041,6 @@ __bpf_kfunc struct cgroup *bpf_cgroup_acquire(struct cgroup *cgrp)
 }
 
 /**
- * bpf_cgroup_kptr_get - Acquire a reference on a struct cgroup kptr. A cgroup
- * kptr acquired by this kfunc which is not subsequently stored in a map, must
- * be released by calling bpf_cgroup_release().
- * @cgrpp: A pointer to a cgroup kptr on which a reference is being acquired.
- */
-__bpf_kfunc struct cgroup *bpf_cgroup_kptr_get(struct cgroup **cgrpp)
-{
-	struct cgroup *cgrp;
-
-	rcu_read_lock();
-	/* Another context could remove the cgroup from the map and release it
-	 * at any time, including after we've done the lookup above. This is
-	 * safe because we're in an RCU read region, so the cgroup is
-	 * guaranteed to remain valid until at least the rcu_read_unlock()
-	 * below.
-	 */
-	cgrp = READ_ONCE(*cgrpp);
-
-	if (cgrp && !cgroup_tryget(cgrp))
-		/* If the cgroup had been removed from the map and freed as
-		 * described above, cgroup_tryget() will return false. The
-		 * cgroup will be freed at some point after the current RCU gp
-		 * has ended, so just return NULL to the user.
-		 */
-		cgrp = NULL;
-	rcu_read_unlock();
-
-	return cgrp;
-}
-
-/**
  * bpf_cgroup_release - Release the reference acquired on a cgroup.
  * If this kfunc is invoked in an RCU read region, the cgroup is guaranteed to
  * not be freed until the current grace period has ended, even if its refcount
@@ -2314,7 +2283,6 @@ BTF_ID_FLAGS(func, bpf_rbtree_first, KF_RET_NULL)
 
 #ifdef CONFIG_CGROUPS
 BTF_ID_FLAGS(func, bpf_cgroup_acquire, KF_ACQUIRE | KF_RCU | KF_RET_NULL)
-BTF_ID_FLAGS(func, bpf_cgroup_kptr_get, KF_ACQUIRE | KF_KPTR_GET | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_cgroup_release, KF_RELEASE)
 BTF_ID_FLAGS(func, bpf_cgroup_ancestor, KF_ACQUIRE | KF_RCU | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_cgroup_from_id, KF_ACQUIRE | KF_RET_NULL)

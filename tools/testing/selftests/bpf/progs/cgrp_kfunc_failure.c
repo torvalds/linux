@@ -134,59 +134,6 @@ int BPF_PROG(cgrp_kfunc_acquire_unreleased, struct cgroup *cgrp, const char *pat
 }
 
 SEC("tp_btf/cgroup_mkdir")
-__failure __msg("arg#0 expected pointer to map value")
-int BPF_PROG(cgrp_kfunc_get_non_kptr_param, struct cgroup *cgrp, const char *path)
-{
-	struct cgroup *kptr;
-
-	/* Cannot use bpf_cgroup_kptr_get() on a non-kptr, even on a valid cgroup. */
-	kptr = bpf_cgroup_kptr_get(&cgrp);
-	if (!kptr)
-		return 0;
-
-	bpf_cgroup_release(kptr);
-
-	return 0;
-}
-
-SEC("tp_btf/cgroup_mkdir")
-__failure __msg("arg#0 expected pointer to map value")
-int BPF_PROG(cgrp_kfunc_get_non_kptr_acquired, struct cgroup *cgrp, const char *path)
-{
-	struct cgroup *kptr, *acquired;
-
-	acquired = bpf_cgroup_acquire(cgrp);
-	if (!acquired)
-		return 0;
-
-	/* Cannot use bpf_cgroup_kptr_get() on a non-map-value, even if the kptr was acquired. */
-	kptr = bpf_cgroup_kptr_get(&acquired);
-	bpf_cgroup_release(acquired);
-	if (!kptr)
-		return 0;
-
-	bpf_cgroup_release(kptr);
-
-	return 0;
-}
-
-SEC("tp_btf/cgroup_mkdir")
-__failure __msg("arg#0 expected pointer to map value")
-int BPF_PROG(cgrp_kfunc_get_null, struct cgroup *cgrp, const char *path)
-{
-	struct cgroup *kptr;
-
-	/* Cannot use bpf_cgroup_kptr_get() on a NULL pointer. */
-	kptr = bpf_cgroup_kptr_get(NULL);
-	if (!kptr)
-		return 0;
-
-	bpf_cgroup_release(kptr);
-
-	return 0;
-}
-
-SEC("tp_btf/cgroup_mkdir")
 __failure __msg("Unreleased reference")
 int BPF_PROG(cgrp_kfunc_xchg_unreleased, struct cgroup *cgrp, const char *path)
 {
@@ -207,8 +154,8 @@ int BPF_PROG(cgrp_kfunc_xchg_unreleased, struct cgroup *cgrp, const char *path)
 }
 
 SEC("tp_btf/cgroup_mkdir")
-__failure __msg("Unreleased reference")
-int BPF_PROG(cgrp_kfunc_get_unreleased, struct cgroup *cgrp, const char *path)
+__failure __msg("must be referenced or trusted")
+int BPF_PROG(cgrp_kfunc_rcu_get_release, struct cgroup *cgrp, const char *path)
 {
 	struct cgroup *kptr;
 	struct __cgrps_kfunc_map_value *v;
@@ -217,11 +164,12 @@ int BPF_PROG(cgrp_kfunc_get_unreleased, struct cgroup *cgrp, const char *path)
 	if (!v)
 		return 0;
 
-	kptr = bpf_cgroup_kptr_get(&v->cgrp);
-	if (!kptr)
-		return 0;
-
-	/* Kptr acquired above is never released. */
+	bpf_rcu_read_lock();
+	kptr = v->cgrp;
+	if (kptr)
+		/* Can't release a cgroup kptr stored in a map. */
+		bpf_cgroup_release(kptr);
+	bpf_rcu_read_unlock();
 
 	return 0;
 }

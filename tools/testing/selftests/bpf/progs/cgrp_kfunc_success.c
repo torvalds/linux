@@ -126,13 +126,11 @@ int BPF_PROG(test_cgrp_get_release, struct cgroup *cgrp, const char *path)
 		return 0;
 	}
 
-	kptr = bpf_cgroup_kptr_get(&v->cgrp);
-	if (!kptr) {
+	bpf_rcu_read_lock();
+	kptr = v->cgrp;
+	if (!kptr)
 		err = 3;
-		return 0;
-	}
-
-	bpf_cgroup_release(kptr);
+	bpf_rcu_read_unlock();
 
 	return 0;
 }
