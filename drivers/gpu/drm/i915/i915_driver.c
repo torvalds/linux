@@ -718,8 +718,6 @@ i915_driver_create(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	const struct intel_device_info *match_info =
 		(struct intel_device_info *)ent->driver_data;
-	struct intel_device_info *device_info;
-	struct intel_runtime_info *runtime;
 	struct drm_i915_private *i915;
 
 	i915 = devm_drm_dev_alloc(&pdev->dev, &i915_drm_driver,
@@ -732,14 +730,8 @@ i915_driver_create(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Device parameters start as a copy of module parameters. */
 	i915_params_copy(&i915->params, &i915_modparams);
 
-	/* Setup the write-once "constant" device info */
-	device_info = mkwrite_device_info(i915);
-	memcpy(device_info, match_info, sizeof(*device_info));
-
-	/* Initialize initial runtime info from static const data and pdev. */
-	runtime = RUNTIME_INFO(i915);
-	memcpy(runtime, &INTEL_INFO(i915)->__runtime, sizeof(*runtime));
-	runtime->device_id = pdev->device;
+	/* Set up device info and initial runtime info. */
+	intel_device_info_driver_create(i915, pdev->device, match_info);
 
 	return i915;
 }

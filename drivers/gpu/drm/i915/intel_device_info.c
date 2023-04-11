@@ -381,6 +381,13 @@ void intel_device_info_runtime_init_early(struct drm_i915_private *i915)
 	intel_device_info_subplatform_init(i915);
 }
 
+/* FIXME: Remove this, and make device info a const pointer to rodata. */
+static struct intel_device_info *
+mkwrite_device_info(struct drm_i915_private *i915)
+{
+	return (struct intel_device_info *)INTEL_INFO(i915);
+}
+
 /**
  * intel_device_info_runtime_init - initialize runtime info
  * @dev_priv: the i915 device
@@ -546,6 +553,28 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 	if (!dev_priv->params.nuclear_pageflip &&
 	    DISPLAY_VER(dev_priv) < 5 && !IS_G4X(dev_priv))
 		dev_priv->drm.driver_features &= ~DRIVER_ATOMIC;
+}
+
+/*
+ * Set up device info and initial runtime info at driver create.
+ *
+ * Note: i915 is only an allocated blob of memory at this point.
+ */
+void intel_device_info_driver_create(struct drm_i915_private *i915,
+				     u16 device_id,
+				     const struct intel_device_info *match_info)
+{
+	struct intel_device_info *info;
+	struct intel_runtime_info *runtime;
+
+	/* Setup the write-once "constant" device info */
+	info = mkwrite_device_info(i915);
+	memcpy(info, match_info, sizeof(*info));
+
+	/* Initialize initial runtime info from static const data and pdev. */
+	runtime = RUNTIME_INFO(i915);
+	memcpy(runtime, &INTEL_INFO(i915)->__runtime, sizeof(*runtime));
+	runtime->device_id = device_id;
 }
 
 void intel_driver_caps_print(const struct intel_driver_caps *caps,
