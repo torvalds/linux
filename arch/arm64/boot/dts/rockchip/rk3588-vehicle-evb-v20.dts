@@ -7,10 +7,23 @@
 /dts-v1/;
 
 #include "rk3588-vehicle-evb-v20.dtsi"
+#include "rk3588-vehicle-evb-mipi-nvp6188.dtsi"
+#include "rk3588-vehicle-evb-image-reverse.dtsi"
 #include "rk3588-vehicle-serdes-display-v20.dtsi"
 #include "rk3588-android.dtsi"
 
 / {
 	model = "Rockchip RK3588 VEHICLE EVB V20 Board";
 	compatible = "rockchip,rk3588-vehicle-evb-v20", "rockchip,rk3588";
+};
+
+&cif_sensor {
+	nvp6188 {
+		powerdown-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&nvp6188 {
+	pinctrl-0 = <&mipim1_camera3_clk>;
+	reset-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
 };
