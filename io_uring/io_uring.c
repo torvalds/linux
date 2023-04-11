@@ -425,7 +425,7 @@ static void io_prep_async_work(struct io_kiocb *req)
 	if (req->file && !io_req_ffs_set(req))
 		req->flags |= io_file_get_flags(req->file) << REQ_F_SUPPORT_NOWAIT_BIT;
 
-	if (req->flags & REQ_F_ISREG) {
+	if (req->file && (req->flags & REQ_F_ISREG)) {
 		bool should_hash = def->hash_reg_file;
 
 		/* don't serialize this request if the fs doesn't need it */
