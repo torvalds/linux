@@ -815,4 +815,5 @@ void bpf_counter__destroy(struct evsel *evsel)
 		return;
 	evsel->bpf_counter_ops->destroy(evsel);
 	evsel->bpf_counter_ops = NULL;
+	evsel->bpf_skel = NULL;
 }
