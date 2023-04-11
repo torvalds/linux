@@ -918,6 +918,14 @@
 		     &i2s1m0_sdo0>;
 };
 
+&iep {
+	status = "okay";
+};
+
+&iep_mmu {
+	status = "okay";
+};
+
 &jpegd {
 	status = "okay";
 };
