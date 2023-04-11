@@ -94,6 +94,8 @@ bool io_match_task_safe(struct io_kiocb *head, struct task_struct *task,
 
 #define io_lockdep_assert_cq_locked(ctx)				\
 	do {								\
+		lockdep_assert(in_task());				\
+									\
 		if (ctx->flags & IORING_SETUP_IOPOLL) {			\
 			lockdep_assert_held(&ctx->uring_lock);		\
 		} else if (!ctx->task_complete) {			\
