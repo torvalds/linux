@@ -3795,7 +3795,7 @@ static void vop2_initial(struct drm_crtc *crtc)
 
 		if (is_vop3(vop2)) {
 			VOP_CTRL_SET(vop2, dsp_vs_t_sel, 0);
-			VOP_CTRL_SET(vop2, esmart_lb_mode, vop2->data->esmart_lb_mode);
+			VOP_CTRL_SET(vop2, esmart_lb_mode, vop2->esmart_lb_mode);
 		}
 
 		/*
