@@ -3547,7 +3547,7 @@ static int vop2_crtc_atomic_cubic_lut_set(struct drm_crtc *crtc,
 		*cubic_lut_kvaddr = 0;
 	}
 
-	VOP_MODULE_SET(vop2, vp, lut_dma_rid, vp->lut_dma_rid - vp->id);
+	VOP_MODULE_SET(vop2, vp, lut_dma_rid, vp->lut_dma_rid);
 	VOP_MODULE_SET(vop2, vp, cubic_lut_mst, cubic_lut_mst);
 	VOP_MODULE_SET(vop2, vp, cubic_lut_update_en, 1);
 	VOP_MODULE_SET(vop2, vp, cubic_lut_en, 1);
@@ -3557,7 +3557,6 @@ static int vop2_crtc_atomic_cubic_lut_set(struct drm_crtc *crtc,
 		const struct vop2_video_port_data *vp_data = &vop2->data->vp[vp->id];
 		struct vop2_video_port *splice_vp = &vop2->vps[vp_data->splice_vp_id];
 
-		VOP_MODULE_SET(vop2, splice_vp, lut_dma_rid, splice_vp->lut_dma_rid - splice_vp->id);
 		VOP_MODULE_SET(vop2, splice_vp, cubic_lut_mst, cubic_lut_mst);
 		VOP_MODULE_SET(vop2, splice_vp, cubic_lut_update_en, 1);
 		VOP_MODULE_SET(vop2, splice_vp, cubic_lut_en, 1);
