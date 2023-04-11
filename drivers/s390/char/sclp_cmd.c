@@ -241,7 +241,7 @@ struct attach_storage_sccb {
 	u16 :16;
 	u16 assigned;
 	u32 :32;
-	u32 entries[0];
+	u32 entries[];
 } __packed;
 
 static int sclp_attach_storage(u8 id)
