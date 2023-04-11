@@ -981,7 +981,7 @@
         "EventName": "UNC_CHA_CORE_SNP.REMOTE_GTONE",
         "PerPkg": "1",
         "PublicDescription": "Core Cross Snoops Issued : Multiple Snoop Targets from Remote : Counts the number of transactions that trigger a configurable number of cross snoops.  Cores are snooped if the transaction looks up the cache and determines that it is necessary based on the operation type and what CoreValid bits are set.  For example, if 2 CV bits are set on a data read, the cores must have the data in S state so it is not necessary to snoop them.  However, if only 1 CV bit is set the core my have modified the data.  If the transaction was an RFO, it would need to invalidate the lines.  This event can be filtered based on who triggered the initial snoop(s).",
-        "UMask": "0x22",
+        "UMask": "0x12",
         "Unit": "CHA"
     },
     {
