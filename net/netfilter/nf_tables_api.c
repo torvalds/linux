@@ -2110,38 +2110,41 @@ static void nft_chain_release_hook(struct nft_chain_hook *hook)
 	module_put(hook->type->owner);
 }
 
-struct nft_rules_old {
+struct nft_rule_dp_last {
+	struct nft_rule_dp end;	/* end of nft_rule_blob marker */
 	struct rcu_head h;
 	struct nft_rule_blob *blob;
+	const struct nft_chain *chain;	/* for tracing */
 };
 
-static void nft_last_rule(struct nft_rule_blob *blob, const void *ptr)
+static void nft_last_rule(const struct nft_chain *chain, const void *ptr)
 {
-	struct nft_rule_dp *prule;
+	struct nft_rule_dp_last *lrule;
 
-	prule = (struct nft_rule_dp *)ptr;
-	prule->is_last = 1;
+	BUILD_BUG_ON(offsetof(struct nft_rule_dp_last, end) != 0);
+
+	lrule = (struct nft_rule_dp_last *)ptr;
+	lrule->end.is_last = 1;
+	lrule->chain = chain;
 	/* blob size does not include the trailer rule */
 }
 
-static struct nft_rule_blob *nf_tables_chain_alloc_rules(unsigned int size)
+static struct nft_rule_blob *nf_tables_chain_alloc_rules(const struct nft_chain *chain,
+							 unsigned int size)
 {
 	struct nft_rule_blob *blob;
 
-	/* size must include room for the last rule */
-	if (size < offsetof(struct nft_rule_dp, data))
-		return NULL;
-
-	size += sizeof(struct nft_rule_blob) + sizeof(struct nft_rules_old);
 	if (size > INT_MAX)
 		return NULL;
+
+	size += sizeof(struct nft_rule_blob) + sizeof(struct nft_rule_dp_last);
 
 	blob = kvmalloc(size, GFP_KERNEL_ACCOUNT);
 	if (!blob)
 		return NULL;
 
 	blob->size = 0;
-	nft_last_rule(blob, blob->data);
+	nft_last_rule(chain, blob->data);
 
 	return blob;
 }
@@ -2220,7 +2223,6 @@ static int nf_tables_addchain(struct nft_ctx *ctx, u8 family, u8 genmask,
 	struct nft_rule_blob *blob;
 	struct nft_trans *trans;
 	struct nft_chain *chain;
-	unsigned int data_size;
 	int err;
 
 	if (table->use == UINT_MAX)
@@ -2308,8 +2310,7 @@ static int nf_tables_addchain(struct nft_ctx *ctx, u8 family, u8 genmask,
 		chain->udlen = nla_len(nla[NFTA_CHAIN_USERDATA]);
 	}
 
-	data_size = offsetof(struct nft_rule_dp, data);	/* last rule */
-	blob = nf_tables_chain_alloc_rules(data_size);
+	blob = nf_tables_chain_alloc_rules(chain, 0);
 	if (!blob) {
 		err = -ENOMEM;
 		goto err_destroy_chain;
@@ -8817,9 +8818,8 @@ static int nf_tables_commit_chain_prepare(struct net *net, struct nft_chain *cha
 				return -ENOMEM;
 		}
 	}
-	data_size += offsetof(struct nft_rule_dp, data);	/* last rule */
 
-	chain->blob_next = nf_tables_chain_alloc_rules(data_size);
+	chain->blob_next = nf_tables_chain_alloc_rules(chain, data_size);
 	if (!chain->blob_next)
 		return -ENOMEM;
 
@@ -8864,12 +8864,11 @@ static int nf_tables_commit_chain_prepare(struct net *net, struct nft_chain *cha
 		chain->blob_next->size += (unsigned long)(data - (void *)prule);
 	}
 
-	prule = (struct nft_rule_dp *)data;
-	data += offsetof(struct nft_rule_dp, data);
 	if (WARN_ON_ONCE(data > data_boundary))
 		return -ENOMEM;
 
-	nft_last_rule(chain->blob_next, prule);
+	prule = (struct nft_rule_dp *)data;
+	nft_last_rule(chain, prule);
 
 	return 0;
 }
@@ -8890,22 +8889,22 @@ static void nf_tables_commit_chain_prepare_cancel(struct net *net)
 	}
 }
 
-static void __nf_tables_commit_chain_free_rules_old(struct rcu_head *h)
+static void __nf_tables_commit_chain_free_rules(struct rcu_head *h)
 {
-	struct nft_rules_old *o = container_of(h, struct nft_rules_old, h);
+	struct nft_rule_dp_last *l = container_of(h, struct nft_rule_dp_last, h);
 
-	kvfree(o->blob);
+	kvfree(l->blob);
 }
 
 static void nf_tables_commit_chain_free_rules_old(struct nft_rule_blob *blob)
 {
-	struct nft_rules_old *old;
+	struct nft_rule_dp_last *last;
 
-	/* rcu_head is after end marker */
-	old = (void *)blob + sizeof(*blob) + blob->size;
-	old->blob = blob;
+	/* last rule trailer is after end marker */
+	last = (void *)blob + sizeof(*blob) + blob->size;
+	last->blob = blob;
 
-	call_rcu(&old->h, __nf_tables_commit_chain_free_rules_old);
+	call_rcu(&last->h, __nf_tables_commit_chain_free_rules);
 }
 
 static void nf_tables_commit_chain(struct net *net, struct nft_chain *chain)
