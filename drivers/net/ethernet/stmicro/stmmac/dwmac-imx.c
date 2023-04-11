@@ -31,6 +31,12 @@
 #define GPR_ENET_QOS_CLK_TX_CLK_SEL	(0x1 << 20)
 #define GPR_ENET_QOS_RGMII_EN		(0x1 << 21)
 
+#define MX93_GPR_ENET_QOS_INTF_MODE_MASK	GENMASK(3, 0)
+#define MX93_GPR_ENET_QOS_INTF_SEL_MII		(0x0 << 1)
+#define MX93_GPR_ENET_QOS_INTF_SEL_RMII		(0x4 << 1)
+#define MX93_GPR_ENET_QOS_INTF_SEL_RGMII	(0x1 << 1)
+#define MX93_GPR_ENET_QOS_CLK_GEN_EN		(0x1 << 0)
+
 struct imx_dwmac_ops {
 	u32 addr_width;
 	bool mac_rgmii_txclk_auto_adj;
@@ -89,6 +95,35 @@ imx8dxl_set_intf_mode(struct plat_stmmacenet_data *plat_dat)
 	/* TBD: depends on imx8dxl scu interfaces to be upstreamed */
 	return ret;
 }
+
+static int imx93_set_intf_mode(struct plat_stmmacenet_data *plat_dat)
+{
+	struct imx_priv_data *dwmac = plat_dat->bsp_priv;
+	int val;
+
+	switch (plat_dat->interface) {
+	case PHY_INTERFACE_MODE_MII:
+		val = MX93_GPR_ENET_QOS_INTF_SEL_MII;
+		break;
+	case PHY_INTERFACE_MODE_RMII:
+		val = MX93_GPR_ENET_QOS_INTF_SEL_RMII;
+		break;
+	case PHY_INTERFACE_MODE_RGMII:
+	case PHY_INTERFACE_MODE_RGMII_ID:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+	case PHY_INTERFACE_MODE_RGMII_TXID:
+		val = MX93_GPR_ENET_QOS_INTF_SEL_RGMII;
+		break;
+	default:
+		dev_dbg(dwmac->dev, "imx dwmac doesn't support %d interface\n",
+			 plat_dat->interface);
+		return -EINVAL;
+	}
+
+	val |= MX93_GPR_ENET_QOS_CLK_GEN_EN;
+	return regmap_update_bits(dwmac->intf_regmap, dwmac->intf_reg_off,
+				  MX93_GPR_ENET_QOS_INTF_MODE_MASK, val);
+};
 
 static int imx_dwmac_clks_config(void *priv, bool enabled)
 {
@@ -178,8 +213,7 @@ imx_dwmac_parse_dt(struct imx_priv_data *dwmac, struct device *dev)
 	struct device_node *np = dev->of_node;
 	int err = 0;
 
-	if (of_get_property(np, "snps,rmii_refclk_ext", NULL))
-		dwmac->rmii_refclk_ext = true;
+	dwmac->rmii_refclk_ext = of_property_read_bool(np, "snps,rmii_refclk_ext");
 
 	dwmac->clk_tx = devm_clk_get(dev, "tx");
 	if (IS_ERR(dwmac->clk_tx)) {
@@ -188,7 +222,9 @@ imx_dwmac_parse_dt(struct imx_priv_data *dwmac, struct device *dev)
 	}
 
 	dwmac->clk_mem = NULL;
-	if (of_machine_is_compatible("fsl,imx8dxl")) {
+
+	if (of_machine_is_compatible("fsl,imx8dxl") ||
+	    of_machine_is_compatible("fsl,imx93")) {
 		dwmac->clk_mem = devm_clk_get(dev, "mem");
 		if (IS_ERR(dwmac->clk_mem)) {
 			dev_err(dev, "failed to get mem clock\n");
@@ -196,10 +232,11 @@ imx_dwmac_parse_dt(struct imx_priv_data *dwmac, struct device *dev)
 		}
 	}
 
-	if (of_machine_is_compatible("fsl,imx8mp")) {
-		/* Binding doc describes the property:
-		   is required by i.MX8MP.
-		   is optional for i.MX8DXL.
+	if (of_machine_is_compatible("fsl,imx8mp") ||
+	    of_machine_is_compatible("fsl,imx93")) {
+		/* Binding doc describes the propety:
+		 * is required by i.MX8MP, i.MX93.
+		 * is optinoal for i.MX8DXL.
 		 */
 		dwmac->intf_regmap = syscon_regmap_lookup_by_phandle(np, "intf_mode");
 		if (IS_ERR(dwmac->intf_regmap))
@@ -251,7 +288,7 @@ static int imx_dwmac_probe(struct platform_device *pdev)
 		goto err_parse_dt;
 	}
 
-	plat_dat->addr64 = dwmac->ops->addr_width;
+	plat_dat->host_dma_width = dwmac->ops->addr_width;
 	plat_dat->init = imx_dwmac_init;
 	plat_dat->exit = imx_dwmac_exit;
 	plat_dat->clks_config = imx_dwmac_clks_config;
@@ -296,9 +333,16 @@ static struct imx_dwmac_ops imx8dxl_dwmac_data = {
 	.set_intf_mode = imx8dxl_set_intf_mode,
 };
 
+static struct imx_dwmac_ops imx93_dwmac_data = {
+	.addr_width = 32,
+	.mac_rgmii_txclk_auto_adj = true,
+	.set_intf_mode = imx93_set_intf_mode,
+};
+
 static const struct of_device_id imx_dwmac_match[] = {
 	{ .compatible = "nxp,imx8mp-dwmac-eqos", .data = &imx8mp_dwmac_data },
 	{ .compatible = "nxp,imx8dxl-dwmac-eqos", .data = &imx8dxl_dwmac_data },
+	{ .compatible = "nxp,imx93-dwmac-eqos", .data = &imx93_dwmac_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, imx_dwmac_match);

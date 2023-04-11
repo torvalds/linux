@@ -251,16 +251,16 @@ static void coda_evict_inode(struct inode *inode)
 	coda_cache_clear_inode(inode);
 }
 
-int coda_getattr(struct user_namespace *mnt_userns, const struct path *path,
+int coda_getattr(struct mnt_idmap *idmap, const struct path *path,
 		 struct kstat *stat, u32 request_mask, unsigned int flags)
 {
 	int err = coda_revalidate_inode(d_inode(path->dentry));
 	if (!err)
-		generic_fillattr(&init_user_ns, d_inode(path->dentry), stat);
+		generic_fillattr(&nop_mnt_idmap, d_inode(path->dentry), stat);
 	return err;
 }
 
-int coda_setattr(struct user_namespace *mnt_userns, struct dentry *de,
+int coda_setattr(struct mnt_idmap *idmap, struct dentry *de,
 		 struct iattr *iattr)
 {
 	struct inode *inode = d_inode(de);

@@ -168,9 +168,12 @@ bool page_vma_mapped_walk(struct page_vma_mapped_walk *pvmw)
 		/* The only possible mapping was handled on last iteration */
 		if (pvmw->pte)
 			return not_found(pvmw);
-
-		/* when pud is not present, pte will be NULL */
-		pvmw->pte = huge_pte_offset(mm, pvmw->address, size);
+		/*
+		 * All callers that get here will already hold the
+		 * i_mmap_rwsem.  Therefore, no additional locks need to be
+		 * taken before calling hugetlb_walk().
+		 */
+		pvmw->pte = hugetlb_walk(vma, pvmw->address, size);
 		if (!pvmw->pte)
 			return false;
 

@@ -73,6 +73,7 @@ int mlx5e_port_query_buffer(struct mlx5e_priv *priv,
 			  port_buffer->buffer[i].lossy);
 	}
 
+	port_buffer->headroom_size = total_used;
 	port_buffer->port_buffer_size =
 		MLX5_GET(pbmc_reg, out, port_buffer_size) * port_buff_cell_sz;
 	port_buffer->spare_buffer_size =
@@ -86,15 +87,203 @@ out:
 	return err;
 }
 
+struct mlx5e_buffer_pool {
+	u32 infi_size;
+	u32 size;
+	u32 buff_occupancy;
+};
+
+static int mlx5e_port_query_pool(struct mlx5_core_dev *mdev,
+				 struct mlx5e_buffer_pool *buffer_pool,
+				 u32 desc, u8 dir, u8 pool_idx)
+{
+	u32 out[MLX5_ST_SZ_DW(sbpr_reg)] = {};
+	int err;
+
+	err = mlx5e_port_query_sbpr(mdev, desc, dir, pool_idx, out,
+				    sizeof(out));
+	if (err)
+		return err;
+
+	buffer_pool->size = MLX5_GET(sbpr_reg, out, size);
+	buffer_pool->infi_size = MLX5_GET(sbpr_reg, out, infi_size);
+	buffer_pool->buff_occupancy = MLX5_GET(sbpr_reg, out, buff_occupancy);
+
+	return err;
+}
+
+enum {
+	MLX5_INGRESS_DIR = 0,
+	MLX5_EGRESS_DIR = 1,
+};
+
+enum {
+	MLX5_LOSSY_POOL = 0,
+	MLX5_LOSSLESS_POOL = 1,
+};
+
+/* No limit on usage of shared buffer pool (max_buff=0) */
+#define MLX5_SB_POOL_NO_THRESHOLD  0
+/* Shared buffer pool usage threshold when calculated
+ * dynamically in alpha units. alpha=13 is equivalent to
+ * HW_alpha of  [(1/128) * 2 ^ (alpha-1)] = 32, where HW_alpha
+ * equates to the following portion of the shared buffer pool:
+ * [32 / (1 + n * 32)] While *n* is the number of buffers
+ * that are using the shared buffer pool.
+ */
+#define MLX5_SB_POOL_THRESHOLD 13
+
+/* Shared buffer class management parameters */
+struct mlx5_sbcm_params {
+	u8 pool_idx;
+	u8 max_buff;
+	u8 infi_size;
+};
+
+static const struct mlx5_sbcm_params sbcm_default = {
+	.pool_idx = MLX5_LOSSY_POOL,
+	.max_buff = MLX5_SB_POOL_NO_THRESHOLD,
+	.infi_size = 0,
+};
+
+static const struct mlx5_sbcm_params sbcm_lossy = {
+	.pool_idx = MLX5_LOSSY_POOL,
+	.max_buff = MLX5_SB_POOL_NO_THRESHOLD,
+	.infi_size = 1,
+};
+
+static const struct mlx5_sbcm_params sbcm_lossless = {
+	.pool_idx = MLX5_LOSSLESS_POOL,
+	.max_buff = MLX5_SB_POOL_THRESHOLD,
+	.infi_size = 0,
+};
+
+static const struct mlx5_sbcm_params sbcm_lossless_no_threshold = {
+	.pool_idx = MLX5_LOSSLESS_POOL,
+	.max_buff = MLX5_SB_POOL_NO_THRESHOLD,
+	.infi_size = 1,
+};
+
+/**
+ * select_sbcm_params() - selects the shared buffer pool configuration
+ *
+ * @buffer: <input> port buffer to retrieve params of
+ * @lossless_buff_count: <input> number of lossless buffers in total
+ *
+ * The selection is based on the following rules:
+ * 1. If buffer size is 0, no shared buffer pool is used.
+ * 2. If buffer is lossy, use lossy shared buffer pool.
+ * 3. If there are more than 1 lossless buffers, use lossless shared buffer pool
+ *    with threshold.
+ * 4. If there is only 1 lossless buffer, use lossless shared buffer pool
+ *    without threshold.
+ *
+ * @return const struct mlx5_sbcm_params* selected values
+ */
+static const struct mlx5_sbcm_params *
+select_sbcm_params(struct mlx5e_bufferx_reg *buffer, u8 lossless_buff_count)
+{
+	if (buffer->size == 0)
+		return &sbcm_default;
+
+	if (buffer->lossy)
+		return &sbcm_lossy;
+
+	if (lossless_buff_count > 1)
+		return &sbcm_lossless;
+
+	return &sbcm_lossless_no_threshold;
+}
+
+static int port_update_pool_cfg(struct mlx5_core_dev *mdev,
+				struct mlx5e_port_buffer *port_buffer)
+{
+	const struct mlx5_sbcm_params *p;
+	u8 lossless_buff_count = 0;
+	int err;
+	int i;
+
+	if (!MLX5_CAP_GEN(mdev, sbcam_reg))
+		return 0;
+
+	for (i = 0; i < MLX5E_MAX_BUFFER; i++)
+		lossless_buff_count += ((port_buffer->buffer[i].size) &&
+				       (!(port_buffer->buffer[i].lossy)));
+
+	for (i = 0; i < MLX5E_MAX_BUFFER; i++) {
+		p = select_sbcm_params(&port_buffer->buffer[i], lossless_buff_count);
+		err = mlx5e_port_set_sbcm(mdev, 0, i,
+					  MLX5_INGRESS_DIR,
+					  p->infi_size,
+					  p->max_buff,
+					  p->pool_idx);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static int port_update_shared_buffer(struct mlx5_core_dev *mdev,
+				     u32 current_headroom_size,
+				     u32 new_headroom_size)
+{
+	struct mlx5e_buffer_pool lossless_ipool;
+	struct mlx5e_buffer_pool lossy_epool;
+	u32 lossless_ipool_size;
+	u32 shared_buffer_size;
+	u32 total_buffer_size;
+	u32 lossy_epool_size;
+	int err;
+
+	if (!MLX5_CAP_GEN(mdev, sbcam_reg))
+		return 0;
+
+	err = mlx5e_port_query_pool(mdev, &lossy_epool, 0, MLX5_EGRESS_DIR,
+				    MLX5_LOSSY_POOL);
+	if (err)
+		return err;
+
+	err = mlx5e_port_query_pool(mdev, &lossless_ipool, 0, MLX5_INGRESS_DIR,
+				    MLX5_LOSSLESS_POOL);
+	if (err)
+		return err;
+
+	total_buffer_size = current_headroom_size + lossy_epool.size +
+			    lossless_ipool.size;
+	shared_buffer_size = total_buffer_size - new_headroom_size;
+
+	if (shared_buffer_size < 4) {
+		pr_err("Requested port buffer is too large, not enough space left for shared buffer\n");
+		return -EINVAL;
+	}
+
+	/* Total shared buffer size is split in a ratio of 3:1 between
+	 * lossy and lossless pools respectively.
+	 */
+	lossy_epool_size = (shared_buffer_size / 4) * 3;
+	lossless_ipool_size = shared_buffer_size / 4;
+
+	mlx5e_port_set_sbpr(mdev, 0, MLX5_EGRESS_DIR, MLX5_LOSSY_POOL, 0,
+			    lossy_epool_size);
+	mlx5e_port_set_sbpr(mdev, 0, MLX5_INGRESS_DIR, MLX5_LOSSLESS_POOL, 0,
+			    lossless_ipool_size);
+	return 0;
+}
+
 static int port_set_buffer(struct mlx5e_priv *priv,
 			   struct mlx5e_port_buffer *port_buffer)
 {
 	u16 port_buff_cell_sz = priv->dcbx.port_buff_cell_sz;
 	struct mlx5_core_dev *mdev = priv->mdev;
 	int sz = MLX5_ST_SZ_BYTES(pbmc_reg);
+	u32 new_headroom_size = 0;
+	u32 current_headroom_size;
 	void *in;
 	int err;
 	int i;
+
+	current_headroom_size = port_buffer->headroom_size;
 
 	in = kzalloc(sz, GFP_KERNEL);
 	if (!in)
@@ -110,6 +299,7 @@ static int port_set_buffer(struct mlx5e_priv *priv,
 		u64 xoff = port_buffer->buffer[i].xoff;
 		u64 xon = port_buffer->buffer[i].xon;
 
+		new_headroom_size += size;
 		do_div(size, port_buff_cell_sz);
 		do_div(xoff, port_buff_cell_sz);
 		do_div(xon, port_buff_cell_sz);
@@ -118,6 +308,17 @@ static int port_set_buffer(struct mlx5e_priv *priv,
 		MLX5_SET(bufferx_reg, buffer, xoff_threshold, xoff);
 		MLX5_SET(bufferx_reg, buffer, xon_threshold, xon);
 	}
+
+	new_headroom_size /= port_buff_cell_sz;
+	current_headroom_size /= port_buff_cell_sz;
+	err = port_update_shared_buffer(priv->mdev, current_headroom_size,
+					new_headroom_size);
+	if (err)
+		goto out;
+
+	err = port_update_pool_cfg(priv->mdev, port_buffer);
+	if (err)
+		goto out;
 
 	err = mlx5e_port_set_pbmc(mdev, in);
 out:
@@ -174,6 +375,7 @@ static int update_xoff_threshold(struct mlx5e_port_buffer *port_buffer,
 
 /**
  *	update_buffer_lossy	- Update buffer configuration based on pfc
+ *	@mdev: port function core device
  *	@max_mtu: netdev's max_mtu
  *	@pfc_en: <input> current pfc configuration
  *	@buffer: <input> current prio to buffer mapping
@@ -192,7 +394,8 @@ static int update_xoff_threshold(struct mlx5e_port_buffer *port_buffer,
  *	@return: 0 if no error,
  *	sets change to true if buffer configuration was modified.
  */
-static int update_buffer_lossy(unsigned int max_mtu,
+static int update_buffer_lossy(struct mlx5_core_dev *mdev,
+			       unsigned int max_mtu,
 			       u8 pfc_en, u8 *buffer, u32 xoff, u16 port_buff_cell_sz,
 			       struct mlx5e_port_buffer *port_buffer,
 			       bool *change)
@@ -229,6 +432,10 @@ static int update_buffer_lossy(unsigned int max_mtu,
 	}
 
 	if (changed) {
+		err = port_update_pool_cfg(mdev, port_buffer);
+		if (err)
+			return err;
+
 		err = update_xoff_threshold(port_buffer, xoff, max_mtu, port_buff_cell_sz);
 		if (err)
 			return err;
@@ -293,23 +500,30 @@ int mlx5e_port_manual_buffer_config(struct mlx5e_priv *priv,
 	}
 
 	if (change & MLX5E_PORT_BUFFER_PFC) {
+		mlx5e_dbg(HW, priv, "%s: requested PFC per priority bitmask: 0x%x\n",
+			  __func__, pfc->pfc_en);
 		err = mlx5e_port_query_priority2buffer(priv->mdev, buffer);
 		if (err)
 			return err;
 
-		err = update_buffer_lossy(max_mtu, pfc->pfc_en, buffer, xoff, port_buff_cell_sz,
-					  &port_buffer, &update_buffer);
+		err = update_buffer_lossy(priv->mdev, max_mtu, pfc->pfc_en, buffer, xoff,
+					  port_buff_cell_sz, &port_buffer,
+					  &update_buffer);
 		if (err)
 			return err;
 	}
 
 	if (change & MLX5E_PORT_BUFFER_PRIO2BUFFER) {
 		update_prio2buffer = true;
+		for (i = 0; i < MLX5E_MAX_BUFFER; i++)
+			mlx5e_dbg(HW, priv, "%s: requested to map prio[%d] to buffer %d\n",
+				  __func__, i, prio2buffer[i]);
+
 		err = fill_pfc_en(priv->mdev, &curr_pfc_en);
 		if (err)
 			return err;
 
-		err = update_buffer_lossy(max_mtu, curr_pfc_en, prio2buffer, xoff,
+		err = update_buffer_lossy(priv->mdev, max_mtu, curr_pfc_en, prio2buffer, xoff,
 					  port_buff_cell_sz, &port_buffer, &update_buffer);
 		if (err)
 			return err;

@@ -33,13 +33,71 @@ static bool is_dual_plane(enum surface_pixel_format format)
 	return format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN || format == SURFACE_PIXEL_FORMAT_GRPH_RGBE_ALPHA;
 }
 
+
+uint32_t dcn32_helper_mall_bytes_to_ways(
+		struct dc *dc,
+		uint32_t total_size_in_mall_bytes)
+{
+	uint32_t cache_lines_used, lines_per_way, total_cache_lines, num_ways;
+
+	/* add 2 lines for worst case alignment */
+	cache_lines_used = total_size_in_mall_bytes / dc->caps.cache_line_size + 2;
+
+	total_cache_lines = dc->caps.max_cab_allocation_bytes / dc->caps.cache_line_size;
+	lines_per_way = total_cache_lines / dc->caps.cache_num_ways;
+	num_ways = cache_lines_used / lines_per_way;
+	if (cache_lines_used % lines_per_way > 0)
+		num_ways++;
+
+	return num_ways;
+}
+
+uint32_t dcn32_helper_calculate_mall_bytes_for_cursor(
+		struct dc *dc,
+		struct pipe_ctx *pipe_ctx,
+		bool ignore_cursor_buf)
+{
+	struct hubp *hubp = pipe_ctx->plane_res.hubp;
+	uint32_t cursor_size = hubp->curs_attr.pitch * hubp->curs_attr.height;
+	uint32_t cursor_mall_size_bytes = 0;
+
+	switch (pipe_ctx->stream->cursor_attributes.color_format) {
+	case CURSOR_MODE_MONO:
+		cursor_size /= 2;
+		break;
+	case CURSOR_MODE_COLOR_1BIT_AND:
+	case CURSOR_MODE_COLOR_PRE_MULTIPLIED_ALPHA:
+	case CURSOR_MODE_COLOR_UN_PRE_MULTIPLIED_ALPHA:
+		cursor_size *= 4;
+		break;
+
+	case CURSOR_MODE_COLOR_64BIT_FP_PRE_MULTIPLIED:
+	case CURSOR_MODE_COLOR_64BIT_FP_UN_PRE_MULTIPLIED:
+		cursor_size *= 8;
+		break;
+	}
+
+	/* only count if cursor is enabled, and if additional allocation needed outside of the
+	 * DCN cursor buffer
+	 */
+	if (pipe_ctx->stream->cursor_position.enable && (ignore_cursor_buf ||
+			cursor_size > 16384)) {
+		/* cursor_num_mblk = CEILING(num_cursors*cursor_width*cursor_width*cursor_Bpe/mblk_bytes, 1)
+		 * Note: add 1 mblk in case of cursor misalignment
+		 */
+		cursor_mall_size_bytes = ((cursor_size + DCN3_2_MALL_MBLK_SIZE_BYTES - 1) /
+				DCN3_2_MALL_MBLK_SIZE_BYTES + 1) * DCN3_2_MALL_MBLK_SIZE_BYTES;
+	}
+
+	return cursor_mall_size_bytes;
+}
+
 /**
  * ********************************************************************************************
  * dcn32_helper_calculate_num_ways_for_subvp: Calculate number of ways needed for SubVP
  *
- * This function first checks the bytes required per pixel on the SubVP pipe, then calculates
- * the total number of pixels required in the SubVP MALL region. These are used to calculate
- * the number of cache lines used (then number of ways required) for SubVP MCLK switching.
+ * Gets total allocation required for the phantom viewport calculated by DML in bytes and
+ * converts to number of cache ways.
  *
  * @param [in] dc: current dc state
  * @param [in] context: new dc state
@@ -48,106 +106,19 @@ static bool is_dual_plane(enum surface_pixel_format format)
  *
  * ********************************************************************************************
  */
-uint32_t dcn32_helper_calculate_num_ways_for_subvp(struct dc *dc, struct dc_state *context)
+uint32_t dcn32_helper_calculate_num_ways_for_subvp(
+		struct dc *dc,
+		struct dc_state *context)
 {
-	uint32_t num_ways = 0;
-	uint32_t bytes_per_pixel = 0;
-	uint32_t cache_lines_used = 0;
-	uint32_t lines_per_way = 0;
-	uint32_t total_cache_lines = 0;
-	uint32_t bytes_in_mall = 0;
-	uint32_t num_mblks = 0;
-	uint32_t cache_lines_per_plane = 0;
-	uint32_t i = 0, j = 0;
-	uint16_t mblk_width = 0;
-	uint16_t mblk_height = 0;
-	uint32_t full_vp_width_blk_aligned = 0;
-	uint32_t full_vp_height_blk_aligned = 0;
-	uint32_t mall_alloc_width_blk_aligned = 0;
-	uint32_t mall_alloc_height_blk_aligned = 0;
-	uint16_t full_vp_height = 0;
-	bool subvp_in_use = false;
-
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
-
-		/* Find the phantom pipes.
-		 * - For pipe split case we need to loop through the bottom and next ODM
-		 *   pipes or only half the viewport size is counted
-		 */
-		if (pipe->stream && pipe->plane_state &&
-				pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) {
-			struct pipe_ctx *main_pipe = NULL;
-
-			subvp_in_use = true;
-			/* Get full viewport height from main pipe (required for MBLK calculation) */
-			for (j = 0; j < dc->res_pool->pipe_count; j++) {
-				main_pipe = &context->res_ctx.pipe_ctx[j];
-				if (main_pipe->stream == pipe->stream->mall_stream_config.paired_stream) {
-					full_vp_height = main_pipe->plane_res.scl_data.viewport.height;
-					break;
-				}
-			}
-
-			bytes_per_pixel = pipe->plane_state->format >= SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616 ? 8 : 4;
-			mblk_width = DCN3_2_MBLK_WIDTH;
-			mblk_height = bytes_per_pixel == 4 ? DCN3_2_MBLK_HEIGHT_4BPE : DCN3_2_MBLK_HEIGHT_8BPE;
-
-			/* full_vp_width_blk_aligned = FLOOR(vp_x_start + full_vp_width + blk_width - 1, blk_width) -
-			 * FLOOR(vp_x_start, blk_width)
-			 */
-			full_vp_width_blk_aligned = ((pipe->plane_res.scl_data.viewport.x +
-					pipe->plane_res.scl_data.viewport.width + mblk_width - 1) / mblk_width * mblk_width) -
-					(pipe->plane_res.scl_data.viewport.x / mblk_width * mblk_width);
-
-			/* full_vp_height_blk_aligned = FLOOR(vp_y_start + full_vp_height + blk_height - 1, blk_height) -
-			 * FLOOR(vp_y_start, blk_height)
-			 */
-			full_vp_height_blk_aligned = ((pipe->plane_res.scl_data.viewport.y +
-					full_vp_height + mblk_height - 1) / mblk_height * mblk_height) -
-					(pipe->plane_res.scl_data.viewport.y / mblk_height * mblk_height);
-
-			/* mall_alloc_width_blk_aligned_l/c = full_vp_width_blk_aligned_l/c */
-			mall_alloc_width_blk_aligned = full_vp_width_blk_aligned;
-
-			/* mall_alloc_height_blk_aligned_l/c = CEILING(sub_vp_height_l/c - 1, blk_height_l/c) + blk_height_l/c */
-			mall_alloc_height_blk_aligned = (pipe->plane_res.scl_data.viewport.height - 1 + mblk_height - 1) /
-					mblk_height * mblk_height + mblk_height;
-
-			/* full_mblk_width_ub_l/c = mall_alloc_width_blk_aligned_l/c;
-			 * full_mblk_height_ub_l/c = mall_alloc_height_blk_aligned_l/c;
-			 * num_mblk_l/c = (full_mblk_width_ub_l/c / mblk_width_l/c) * (full_mblk_height_ub_l/c / mblk_height_l/c);
-			 * (Should be divisible, but round up if not)
-			 */
-			num_mblks = ((mall_alloc_width_blk_aligned + mblk_width - 1) / mblk_width) *
-					((mall_alloc_height_blk_aligned + mblk_height - 1) / mblk_height);
-
-			/*For DCC:
-			 * meta_num_mblk = CEILING(meta_pitch*full_vp_height*Bpe/256/mblk_bytes, 1)
-			 */
-			if (pipe->plane_state->dcc.enable)
-				num_mblks += (pipe->plane_state->dcc.meta_pitch * pipe->plane_res.scl_data.viewport.height * bytes_per_pixel +
-								(256 * DCN3_2_MALL_MBLK_SIZE_BYTES) - 1) / (256 * DCN3_2_MALL_MBLK_SIZE_BYTES);
-
-			bytes_in_mall = num_mblks * DCN3_2_MALL_MBLK_SIZE_BYTES;
-			// cache lines used is total bytes / cache_line size. Add +2 for worst case alignment
-			// (MALL is 64-byte aligned)
-			cache_lines_per_plane = bytes_in_mall / dc->caps.cache_line_size + 2;
-
-			cache_lines_used += cache_lines_per_plane;
+	if (context->bw_ctx.bw.dcn.mall_subvp_size_bytes > 0) {
+		if (dc->debug.force_subvp_num_ways) {
+			return dc->debug.force_subvp_num_ways;
+		} else {
+			return dcn32_helper_mall_bytes_to_ways(dc, context->bw_ctx.bw.dcn.mall_subvp_size_bytes);
 		}
+	} else {
+		return 0;
 	}
-
-	total_cache_lines = dc->caps.max_cab_allocation_bytes / dc->caps.cache_line_size;
-	lines_per_way = total_cache_lines / dc->caps.cache_num_ways;
-	num_ways = cache_lines_used / lines_per_way;
-	if (cache_lines_used % lines_per_way > 0)
-		num_ways++;
-
-	if (subvp_in_use && dc->debug.force_subvp_num_ways > 0)
-		num_ways = dc->debug.force_subvp_num_ways;
-
-	return num_ways;
 }
 
 void dcn32_merge_pipes_for_subvp(struct dc *dc,
@@ -265,8 +236,28 @@ bool dcn32_is_center_timing(struct pipe_ctx *pipe)
 			is_center_timing = true;
 		}
 	}
+
+	if (pipe->plane_state) {
+		if (pipe->stream->timing.v_addressable != pipe->plane_state->dst_rect.height &&
+				pipe->stream->timing.v_addressable != pipe->plane_state->src_rect.height) {
+			is_center_timing = true;
+		}
+	}
+
 	return is_center_timing;
 }
+
+bool dcn32_is_psr_capable(struct pipe_ctx *pipe)
+{
+	bool psr_capable = false;
+
+	if (pipe->stream && pipe->stream->link->psr_settings.psr_version != DC_PSR_VERSION_UNSUPPORTED) {
+		psr_capable = true;
+	}
+	return psr_capable;
+}
+
+#define DCN3_2_NEW_DET_OVERRIDE_MIN_MULTIPLIER 7
 
 /**
  * *******************************************************************************************
@@ -279,13 +270,24 @@ bool dcn32_is_center_timing(struct pipe_ctx *pipe)
  * If there is a plane that's driven by more than 1 pipe (i.e. pipe split), then the
  * number of DET for that given plane will be split among the pipes driving that plane.
  *
- *
  * High level algorithm:
  * 1. Split total DET among number of streams
  * 2. For each stream, split DET among the planes
  * 3. For each plane, check if there is a pipe split. If yes, split the DET allocation
  *    among those pipes.
  * 4. Assign the DET override to the DML pipes.
+ *
+ * Special cases:
+ *
+ * For two displays that have a large difference in pixel rate, we may experience
+ *  underflow on the larger display when we divide the DET equally. For this, we
+ *  will implement a modified algorithm to assign more DET to larger display.
+ *
+ * 1. Calculate difference in pixel rates ( multiplier ) between two displays
+ * 2. If the multiplier exceeds DCN3_2_NEW_DET_OVERRIDE_MIN_MULTIPLIER, then
+ *    implement the modified DET override algorithm.
+ * 3. Assign smaller DET size for lower pixel display and higher DET size for
+ *    higher pixel display
  *
  * @param [in]: dc: Current DC state
  * @param [in]: context: New DC state to be programmed
@@ -306,11 +308,31 @@ void dcn32_determine_det_override(struct dc *dc,
 	struct dc_plane_state *current_plane = NULL;
 	uint8_t stream_count = 0;
 
+	int phy_pix_clk_mult, lower_mode_stream_index;
+	int phy_pix_clk[MAX_PIPES] = {0};
+	bool use_new_det_override_algorithm = false;
+
 	for (i = 0; i < context->stream_count; i++) {
 		/* Don't count SubVP streams for DET allocation */
 		if (context->streams[i]->mall_stream_config.type != SUBVP_PHANTOM) {
+			phy_pix_clk[i] = context->streams[i]->phy_pix_clk;
 			stream_count++;
 		}
+	}
+
+	/* Check for special case with two displays, one with much higher pixel rate */
+	if (stream_count == 2) {
+		ASSERT((phy_pix_clk[0] > 0) && (phy_pix_clk[1] > 0));
+		if (phy_pix_clk[0] < phy_pix_clk[1]) {
+			lower_mode_stream_index = 0;
+			phy_pix_clk_mult = phy_pix_clk[1] / phy_pix_clk[0];
+		} else {
+			lower_mode_stream_index = 1;
+			phy_pix_clk_mult = phy_pix_clk[0] / phy_pix_clk[1];
+		}
+
+		if (phy_pix_clk_mult >= DCN3_2_NEW_DET_OVERRIDE_MIN_MULTIPLIER)
+			use_new_det_override_algorithm = true;
 	}
 
 	if (stream_count > 0) {
@@ -318,6 +340,14 @@ void dcn32_determine_det_override(struct dc *dc,
 		for (i = 0; i < context->stream_count; i++) {
 			if (context->streams[i]->mall_stream_config.type == SUBVP_PHANTOM)
 				continue;
+
+			if (use_new_det_override_algorithm) {
+				if (i == lower_mode_stream_index)
+					stream_segments = 4;
+				else
+					stream_segments = 14;
+			}
+
 			if (context->stream_status[i].plane_count > 0)
 				plane_segments = stream_segments / context->stream_status[i].plane_count;
 			else

@@ -241,24 +241,34 @@ void kunit_mem_assert_format(const struct kunit_assert *assert,
 	mem_assert = container_of(assert, struct kunit_mem_assert,
 				  assert);
 
-	string_stream_add(stream,
-			  KUNIT_SUBTEST_INDENT "Expected %s %s %s, but\n",
-			  mem_assert->text->left_text,
-			  mem_assert->text->operation,
-			  mem_assert->text->right_text);
+	if (!mem_assert->left_value) {
+		string_stream_add(stream,
+				  KUNIT_SUBTEST_INDENT "Expected %s is not null, but is\n",
+				  mem_assert->text->left_text);
+	} else if (!mem_assert->right_value) {
+		string_stream_add(stream,
+				  KUNIT_SUBTEST_INDENT "Expected %s is not null, but is\n",
+				  mem_assert->text->right_text);
+	} else {
+		string_stream_add(stream,
+				KUNIT_SUBTEST_INDENT "Expected %s %s %s, but\n",
+				mem_assert->text->left_text,
+				mem_assert->text->operation,
+				mem_assert->text->right_text);
 
-	string_stream_add(stream, KUNIT_SUBSUBTEST_INDENT "%s ==\n",
-			  mem_assert->text->left_text);
-	kunit_assert_hexdump(stream, mem_assert->left_value,
-			     mem_assert->right_value, mem_assert->size);
+		string_stream_add(stream, KUNIT_SUBSUBTEST_INDENT "%s ==\n",
+				mem_assert->text->left_text);
+		kunit_assert_hexdump(stream, mem_assert->left_value,
+					mem_assert->right_value, mem_assert->size);
 
-	string_stream_add(stream, "\n");
+		string_stream_add(stream, "\n");
 
-	string_stream_add(stream, KUNIT_SUBSUBTEST_INDENT "%s ==\n",
-			  mem_assert->text->right_text);
-	kunit_assert_hexdump(stream, mem_assert->right_value,
-			     mem_assert->left_value, mem_assert->size);
+		string_stream_add(stream, KUNIT_SUBSUBTEST_INDENT "%s ==\n",
+				mem_assert->text->right_text);
+		kunit_assert_hexdump(stream, mem_assert->right_value,
+					mem_assert->left_value, mem_assert->size);
 
-	kunit_assert_print_msg(message, stream);
+		kunit_assert_print_msg(message, stream);
+	}
 }
 EXPORT_SYMBOL_GPL(kunit_mem_assert_format);

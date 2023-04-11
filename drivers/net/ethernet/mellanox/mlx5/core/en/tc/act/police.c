@@ -34,12 +34,6 @@ static int police_act_validate(const struct flow_action_entry *act,
 		return -EOPNOTSUPP;
 	}
 
-	if (act->police.rate_pkt_ps) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "QoS offload not support packets per second");
-		return -EOPNOTSUPP;
-	}
-
 	return 0;
 }
 
@@ -184,7 +178,6 @@ tc_act_police_stats(struct mlx5e_priv *priv,
 	meter = mlx5e_tc_meter_get(priv->mdev, &params);
 	if (IS_ERR(meter)) {
 		NL_SET_ERR_MSG_MOD(fl_act->extack, "Failed to get flow meter");
-		mlx5_core_err(priv->mdev, "Failed to get flow meter %d\n", params.index);
 		return PTR_ERR(meter);
 	}
 

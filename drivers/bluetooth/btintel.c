@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <linux/firmware.h>
 #include <linux/regmap.h>
+#include <linux/acpi.h>
 #include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
@@ -23,6 +24,16 @@
 #define CSS_HEADER_OFFSET	8
 #define ECDSA_OFFSET		644
 #define ECDSA_HEADER_LEN	320
+
+#define BTINTEL_PPAG_NAME   "PPAG"
+
+/* structure to store the PPAG data read from ACPI table */
+struct btintel_ppag {
+	u32	domain;
+	u32     mode;
+	acpi_status status;
+	struct hci_dev *hdev;
+};
 
 #define CMD_WRITE_BOOT_PARAMS	0xfc0e
 struct cmd_write_boot_params {
@@ -1278,6 +1289,65 @@ static int btintel_read_debug_features(struct hci_dev *hdev,
 	return 0;
 }
 
+static acpi_status btintel_ppag_callback(acpi_handle handle, u32 lvl, void *data,
+					 void **ret)
+{
+	acpi_status status;
+	size_t len;
+	struct btintel_ppag *ppag = data;
+	union acpi_object *p, *elements;
+	struct acpi_buffer string = {ACPI_ALLOCATE_BUFFER, NULL};
+	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
+	struct hci_dev *hdev = ppag->hdev;
+
+	status = acpi_get_name(handle, ACPI_FULL_PATHNAME, &string);
+	if (ACPI_FAILURE(status)) {
+		bt_dev_warn(hdev, "PPAG-BT: ACPI Failure: %s", acpi_format_exception(status));
+		return status;
+	}
+
+	len = strlen(string.pointer);
+	if (len < strlen(BTINTEL_PPAG_NAME)) {
+		kfree(string.pointer);
+		return AE_OK;
+	}
+
+	if (strncmp((char *)string.pointer + len - 4, BTINTEL_PPAG_NAME, 4)) {
+		kfree(string.pointer);
+		return AE_OK;
+	}
+	kfree(string.pointer);
+
+	status = acpi_evaluate_object(handle, NULL, NULL, &buffer);
+	if (ACPI_FAILURE(status)) {
+		ppag->status = status;
+		bt_dev_warn(hdev, "PPAG-BT: ACPI Failure: %s", acpi_format_exception(status));
+		return status;
+	}
+
+	p = buffer.pointer;
+	ppag = (struct btintel_ppag *)data;
+
+	if (p->type != ACPI_TYPE_PACKAGE || p->package.count != 2) {
+		kfree(buffer.pointer);
+		bt_dev_warn(hdev, "PPAG-BT: Invalid object type: %d or package count: %d",
+			    p->type, p->package.count);
+		ppag->status = AE_ERROR;
+		return AE_ERROR;
+	}
+
+	elements = p->package.elements;
+
+	/* PPAG table is located at element[1] */
+	p = &elements[1];
+
+	ppag->domain = (u32)p->package.elements[0].integer.value;
+	ppag->mode = (u32)p->package.elements[1].integer.value;
+	ppag->status = AE_OK;
+	kfree(buffer.pointer);
+	return AE_CTRL_TERMINATE;
+}
+
 static int btintel_set_debug_features(struct hci_dev *hdev,
 			       const struct intel_debug_features *features)
 {
@@ -2251,6 +2321,64 @@ error:
 	return err;
 }
 
+static void btintel_set_ppag(struct hci_dev *hdev, struct intel_version_tlv *ver)
+{
+	struct btintel_ppag ppag;
+	struct sk_buff *skb;
+	struct btintel_loc_aware_reg ppag_cmd;
+	acpi_handle handle;
+
+	/* PPAG is not supported if CRF is HrP2, Jfp2, JfP1 */
+	switch (ver->cnvr_top & 0xFFF) {
+	case 0x504:     /* Hrp2 */
+	case 0x202:     /* Jfp2 */
+	case 0x201:     /* Jfp1 */
+		return;
+	}
+
+	handle = ACPI_HANDLE(GET_HCIDEV_DEV(hdev));
+	if (!handle) {
+		bt_dev_info(hdev, "No support for BT device in ACPI firmware");
+		return;
+	}
+
+	memset(&ppag, 0, sizeof(ppag));
+
+	ppag.hdev = hdev;
+	ppag.status = AE_NOT_FOUND;
+	acpi_walk_namespace(ACPI_TYPE_PACKAGE, handle, 1, NULL,
+			    btintel_ppag_callback, &ppag, NULL);
+
+	if (ACPI_FAILURE(ppag.status)) {
+		if (ppag.status == AE_NOT_FOUND) {
+			bt_dev_dbg(hdev, "PPAG-BT: ACPI entry not found");
+			return;
+		}
+		return;
+	}
+
+	if (ppag.domain != 0x12) {
+		bt_dev_warn(hdev, "PPAG-BT: domain is not bluetooth");
+		return;
+	}
+
+	/* PPAG mode, BIT0 = 0 Disabled, BIT0 = 1 Enabled */
+	if (!(ppag.mode & BIT(0))) {
+		bt_dev_dbg(hdev, "PPAG-BT: disabled");
+		return;
+	}
+
+	ppag_cmd.mcc = cpu_to_le32(0);
+	ppag_cmd.sel = cpu_to_le32(0); /* 0 - Enable , 1 - Disable, 2 - Testing mode */
+	ppag_cmd.delta = cpu_to_le32(0);
+	skb = __hci_cmd_sync(hdev, 0xfe19, sizeof(ppag_cmd), &ppag_cmd, HCI_CMD_TIMEOUT);
+	if (IS_ERR(skb)) {
+		bt_dev_warn(hdev, "Failed to send PPAG Enable (%ld)", PTR_ERR(skb));
+		return;
+	}
+	kfree_skb(skb);
+}
+
 static int btintel_bootloader_setup_tlv(struct hci_dev *hdev,
 					struct intel_version_tlv *ver)
 {
@@ -2296,6 +2424,9 @@ static int btintel_bootloader_setup_tlv(struct hci_dev *hdev,
 	btintel_configure_offload(hdev);
 
 	hci_dev_clear_flag(hdev, HCI_QUALITY_REPORT);
+
+	/* Set PPAG feature */
+	btintel_set_ppag(hdev, ver);
 
 	/* Read the Intel version information after loading the FW  */
 	err = btintel_read_version_tlv(hdev, &new_ver);

@@ -135,6 +135,7 @@ static void init_mqd(struct mqd_manager *mm, void **mqd,
 {
 	uint64_t addr;
 	struct v9_mqd *m;
+	struct amdgpu_device *adev = (struct amdgpu_device *)mm->dev->adev;
 
 	m = (struct v9_mqd *) mqd_mem_obj->cpu_ptr;
 	addr = mqd_mem_obj->gpu_addr;
@@ -167,6 +168,20 @@ static void init_mqd(struct mqd_manager *mm, void **mqd,
 	if (q->format == KFD_QUEUE_FORMAT_AQL) {
 		m->cp_hqd_aql_control =
 			1 << CP_HQD_AQL_CONTROL__CONTROL0__SHIFT;
+		if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 3)) {
+			/* On GC 9.4.3, DW 41 is re-purposed as
+			 * compute_tg_chunk_size.
+			 * TODO: review this setting when active CUs in the
+			 * partition play a role
+			 */
+			m->compute_static_thread_mgmt_se6 = 1;
+		}
+	} else {
+		/* PM4 queue */
+		if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 3)) {
+			m->compute_static_thread_mgmt_se6 = 0;
+			/* TODO: program pm4_target_xcc */
+		}
 	}
 
 	if (q->tba_addr) {

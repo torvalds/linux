@@ -385,7 +385,7 @@ err:
 }
 
 static bool acpi_gpio_irq_is_wake(struct device *parent,
-				  struct acpi_resource_gpio *agpio)
+				  const struct acpi_resource_gpio *agpio)
 {
 	unsigned int pin = agpio->pin_table[0];
 
@@ -534,6 +534,9 @@ void acpi_gpiochip_request_interrupts(struct gpio_chip *chip)
 
 	status = acpi_get_data(handle, acpi_gpio_chip_dh, (void **)&acpi_gpio);
 	if (ACPI_FAILURE(status))
+		return;
+
+	if (acpi_quirk_skip_gpio_event_handlers())
 		return;
 
 	acpi_walk_resources(handle, METHOD_NAME__AEI,
@@ -778,7 +781,7 @@ static int acpi_populate_gpio_lookup(struct acpi_resource *ares, void *data)
 		lookup->info.pin_config = agpio->pin_config;
 		lookup->info.debounce = agpio->debounce_timeout;
 		lookup->info.gpioint = gpioint;
-		lookup->info.wake_capable = agpio->wake_capable == ACPI_WAKE_CAPABLE;
+		lookup->info.wake_capable = acpi_gpio_irq_is_wake(&lookup->info.adev->dev, agpio);
 
 		/*
 		 * Polarity and triggering are only specified for GpioInt
@@ -1104,7 +1107,8 @@ int acpi_dev_gpio_irq_wake_get_by(struct acpi_device *adev, const char *name, in
 				dev_dbg(&adev->dev, "IRQ %d already in use\n", irq);
 			}
 
-			if (wake_capable)
+			/* avoid suspend issues with GPIOs when systems are using S3 */
+			if (wake_capable && acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0)
 				*wake_capable = info.wake_capable;
 
 			return irq;
@@ -1387,16 +1391,6 @@ void acpi_gpiochip_remove(struct gpio_chip *chip)
 	kfree(acpi_gpio);
 }
 
-void acpi_gpio_dev_init(struct gpio_chip *gc, struct gpio_device *gdev)
-{
-	/* Set default fwnode to parent's one if present */
-	if (gc->parent)
-		ACPI_COMPANION_SET(&gdev->dev, ACPI_COMPANION(gc->parent));
-
-	if (gc->fwnode)
-		device_set_node(&gdev->dev, gc->fwnode);
-}
-
 static int acpi_gpio_package_count(const union acpi_object *obj)
 {
 	const union acpi_object *element = obj->package.elements;
@@ -1621,6 +1615,31 @@ static const struct dmi_system_id gpiolib_acpi_quirks[] __initconst = {
 		},
 		.driver_data = &(struct acpi_gpiolib_dmi_quirk) {
 			.ignore_interrupt = "AMDI0030:00@18",
+		},
+	},
+	{
+		/*
+		 * Spurious wakeups from TP_ATTN# pin
+		 * Found in BIOS 1.7.8
+		 * https://gitlab.freedesktop.org/drm/amd/-/issues/1722#note_1720627
+		 */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "NL5xRU"),
+		},
+		.driver_data = &(struct acpi_gpiolib_dmi_quirk) {
+			.ignore_wake = "ELAN0415:00@9",
+		},
+	},
+	{
+		/*
+		 * Spurious wakeups from TP_ATTN# pin
+		 * Found in BIOS 1.7.7
+		 */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "NH5xAx"),
+		},
+		.driver_data = &(struct acpi_gpiolib_dmi_quirk) {
+			.ignore_wake = "SYNA1202:00@16",
 		},
 	},
 	{} /* Terminating entry */

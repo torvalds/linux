@@ -58,12 +58,12 @@ static struct {
 	TEST(inner_map, pop_front)
 	TEST(inner_map, pop_back)
 #undef TEST
-	{ "map_compat_kprobe", "tracing progs cannot use bpf_list_head yet" },
-	{ "map_compat_kretprobe", "tracing progs cannot use bpf_list_head yet" },
-	{ "map_compat_tp", "tracing progs cannot use bpf_list_head yet" },
-	{ "map_compat_perf", "tracing progs cannot use bpf_list_head yet" },
-	{ "map_compat_raw_tp", "tracing progs cannot use bpf_list_head yet" },
-	{ "map_compat_raw_tp_w", "tracing progs cannot use bpf_list_head yet" },
+	{ "map_compat_kprobe", "tracing progs cannot use bpf_{list_head,rb_root} yet" },
+	{ "map_compat_kretprobe", "tracing progs cannot use bpf_{list_head,rb_root} yet" },
+	{ "map_compat_tp", "tracing progs cannot use bpf_{list_head,rb_root} yet" },
+	{ "map_compat_perf", "tracing progs cannot use bpf_{list_head,rb_root} yet" },
+	{ "map_compat_raw_tp", "tracing progs cannot use bpf_{list_head,rb_root} yet" },
+	{ "map_compat_raw_tp_w", "tracing progs cannot use bpf_{list_head,rb_root} yet" },
 	{ "obj_type_id_oor", "local type ID argument must be in range [0, U32_MAX]" },
 	{ "obj_new_no_composite", "bpf_obj_new type ID argument must be of a struct" },
 	{ "obj_new_no_struct", "bpf_obj_new type ID argument must be of a struct" },
@@ -78,8 +78,6 @@ static struct {
 	{ "direct_write_head", "direct access to bpf_list_head is disallowed" },
 	{ "direct_read_node", "direct access to bpf_list_node is disallowed" },
 	{ "direct_write_node", "direct access to bpf_list_node is disallowed" },
-	{ "write_after_push_front", "only read is supported" },
-	{ "write_after_push_back", "only read is supported" },
 	{ "use_after_unlock_push_front", "invalid mem access 'scalar'" },
 	{ "use_after_unlock_push_back", "invalid mem access 'scalar'" },
 	{ "double_push_front", "arg#1 expected pointer to allocated object" },
@@ -714,6 +712,43 @@ static void test_btf(void)
 
 		err = btf__load_into_kernel(btf);
 		ASSERT_EQ(err, -ELOOP, "check btf");
+		btf__free(btf);
+		break;
+	}
+
+	while (test__start_subtest("btf: list_node and rb_node in same struct")) {
+		btf = init_btf();
+		if (!ASSERT_OK_PTR(btf, "init_btf"))
+			break;
+
+		id = btf__add_struct(btf, "bpf_rb_node", 24);
+		if (!ASSERT_EQ(id, 5, "btf__add_struct bpf_rb_node"))
+			break;
+		id = btf__add_struct(btf, "bar", 40);
+		if (!ASSERT_EQ(id, 6, "btf__add_struct bar"))
+			break;
+		err = btf__add_field(btf, "a", LIST_NODE, 0, 0);
+		if (!ASSERT_OK(err, "btf__add_field bar::a"))
+			break;
+		err = btf__add_field(btf, "c", 5, 128, 0);
+		if (!ASSERT_OK(err, "btf__add_field bar::c"))
+			break;
+
+		id = btf__add_struct(btf, "foo", 20);
+		if (!ASSERT_EQ(id, 7, "btf__add_struct foo"))
+			break;
+		err = btf__add_field(btf, "a", LIST_HEAD, 0, 0);
+		if (!ASSERT_OK(err, "btf__add_field foo::a"))
+			break;
+		err = btf__add_field(btf, "b", SPIN_LOCK, 128, 0);
+		if (!ASSERT_OK(err, "btf__add_field foo::b"))
+			break;
+		id = btf__add_decl_tag(btf, "contains:bar:a", 7, 0);
+		if (!ASSERT_EQ(id, 8, "btf__add_decl_tag contains:bar:a"))
+			break;
+
+		err = btf__load_into_kernel(btf);
+		ASSERT_EQ(err, -EINVAL, "check btf");
 		btf__free(btf);
 		break;
 	}

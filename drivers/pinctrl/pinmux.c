@@ -744,10 +744,8 @@ static ssize_t pinmux_select(struct file *file, const char __user *user_buf,
 	}
 
 	ret = pinctrl_get_group_selector(pctldev, gname);
-	if (ret < 0) {
-		dev_err(pctldev->dev, "failed to get group selector for %s", gname);
+	if (ret < 0)
 		goto exit_free_buf;
-	}
 	gsel = ret;
 
 	ret = pmxops->set_mux(pctldev, fsel, gsel);

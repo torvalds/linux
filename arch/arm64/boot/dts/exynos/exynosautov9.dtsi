@@ -370,17 +370,20 @@
 		};
 
 		syscon_fsys2: syscon@17c20000 {
-			compatible = "samsung,exynosautov9-sysreg", "syscon";
+			compatible = "samsung,exynosautov9-fsys2-sysreg",
+				     "samsung,exynosautov9-sysreg", "syscon";
 			reg = <0x17c20000 0x1000>;
 		};
 
 		syscon_peric0: syscon@10220000 {
-			compatible = "samsung,exynosautov9-sysreg", "syscon";
+			compatible = "samsung,exynosautov9-peric0-sysreg",
+				     "samsung,exynosautov9-sysreg", "syscon";
 			reg = <0x10220000 0x2000>;
 		};
 
 		syscon_peric1: syscon@10820000 {
-			compatible = "samsung,exynosautov9-sysreg", "syscon";
+			compatible = "samsung,exynosautov9-peric1-sysreg",
+				     "samsung,exynosautov9-sysreg", "syscon";
 			reg = <0x10820000 0x2000>;
 		};
 

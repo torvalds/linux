@@ -271,14 +271,15 @@ cifs_query_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 	int buf_type = CIFS_NO_BUFFER;
 	FILE_ALL_INFO file_info;
 
-	oparms.tcon = tcon;
-	oparms.cifs_sb = cifs_sb;
-	oparms.desired_access = GENERIC_READ;
-	oparms.create_options = cifs_create_options(cifs_sb, CREATE_NOT_DIR);
-	oparms.disposition = FILE_OPEN;
-	oparms.path = path;
-	oparms.fid = &fid;
-	oparms.reconnect = false;
+	oparms = (struct cifs_open_parms) {
+		.tcon = tcon,
+		.cifs_sb = cifs_sb,
+		.desired_access = GENERIC_READ,
+		.create_options = cifs_create_options(cifs_sb, CREATE_NOT_DIR),
+		.disposition = FILE_OPEN,
+		.path = path,
+		.fid = &fid,
+	};
 
 	rc = CIFS_open(xid, &oparms, &oplock, &file_info);
 	if (rc)
@@ -313,14 +314,15 @@ cifs_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 	struct cifs_open_parms oparms;
 	struct cifs_io_parms io_parms = {0};
 
-	oparms.tcon = tcon;
-	oparms.cifs_sb = cifs_sb;
-	oparms.desired_access = GENERIC_WRITE;
-	oparms.create_options = cifs_create_options(cifs_sb, CREATE_NOT_DIR);
-	oparms.disposition = FILE_CREATE;
-	oparms.path = path;
-	oparms.fid = &fid;
-	oparms.reconnect = false;
+	oparms = (struct cifs_open_parms) {
+		.tcon = tcon,
+		.cifs_sb = cifs_sb,
+		.desired_access = GENERIC_WRITE,
+		.create_options = cifs_create_options(cifs_sb, CREATE_NOT_DIR),
+		.disposition = FILE_CREATE,
+		.path = path,
+		.fid = &fid,
+	};
 
 	rc = CIFS_open(xid, &oparms, &oplock, NULL);
 	if (rc)
@@ -355,13 +357,15 @@ smb3_query_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 	__u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
 	struct smb2_file_all_info *pfile_info = NULL;
 
-	oparms.tcon = tcon;
-	oparms.cifs_sb = cifs_sb;
-	oparms.desired_access = GENERIC_READ;
-	oparms.create_options = cifs_create_options(cifs_sb, CREATE_NOT_DIR);
-	oparms.disposition = FILE_OPEN;
-	oparms.fid = &fid;
-	oparms.reconnect = false;
+	oparms = (struct cifs_open_parms) {
+		.tcon = tcon,
+		.cifs_sb = cifs_sb,
+		.path = path,
+		.desired_access = GENERIC_READ,
+		.create_options = cifs_create_options(cifs_sb, CREATE_NOT_DIR),
+		.disposition = FILE_OPEN,
+		.fid = &fid,
+	};
 
 	utf16_path = cifs_convert_path_to_utf16(path, cifs_sb);
 	if (utf16_path == NULL)
@@ -421,13 +425,16 @@ smb3_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 	if (!utf16_path)
 		return -ENOMEM;
 
-	oparms.tcon = tcon;
-	oparms.cifs_sb = cifs_sb;
-	oparms.desired_access = GENERIC_WRITE;
-	oparms.create_options = cifs_create_options(cifs_sb, CREATE_NOT_DIR);
-	oparms.disposition = FILE_CREATE;
-	oparms.fid = &fid;
-	oparms.reconnect = false;
+	oparms = (struct cifs_open_parms) {
+		.tcon = tcon,
+		.cifs_sb = cifs_sb,
+		.path = path,
+		.desired_access = GENERIC_WRITE,
+		.create_options = cifs_create_options(cifs_sb, CREATE_NOT_DIR),
+		.disposition = FILE_CREATE,
+		.fid = &fid,
+		.mode = 0644,
+	};
 
 	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, NULL,
 		       NULL, NULL);
@@ -568,7 +575,7 @@ cifs_hl_exit:
 }
 
 int
-cifs_symlink(struct user_namespace *mnt_userns, struct inode *inode,
+cifs_symlink(struct mnt_idmap *idmap, struct inode *inode,
 	     struct dentry *direntry, const char *symname)
 {
 	int rc = -EOPNOTSUPP;

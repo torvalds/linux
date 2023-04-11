@@ -169,7 +169,7 @@ static void surface_platform_profile_remove(struct ssam_device *sdev)
 }
 
 static const struct ssam_device_id ssam_platform_profile_match[] = {
-	{ SSAM_SDEV(TMP, 0x01, 0x00, 0x01) },
+	{ SSAM_SDEV(TMP, SAM, 0x00, 0x01) },
 	{ },
 };
 MODULE_DEVICE_TABLE(ssam, ssam_platform_profile_match);

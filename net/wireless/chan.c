@@ -1460,3 +1460,72 @@ struct cfg80211_chan_def *wdev_chandef(struct wireless_dev *wdev,
 	}
 }
 EXPORT_SYMBOL(wdev_chandef);
+
+struct cfg80211_per_bw_puncturing_values {
+	u8 len;
+	const u16 *valid_values;
+};
+
+static const u16 puncturing_values_80mhz[] = {
+	0x8, 0x4, 0x2, 0x1
+};
+
+static const u16 puncturing_values_160mhz[] = {
+	 0x80, 0x40, 0x20, 0x10, 0x8, 0x4, 0x2, 0x1, 0xc0, 0x30, 0xc, 0x3
+};
+
+static const u16 puncturing_values_320mhz[] = {
+	0xc000, 0x3000, 0xc00, 0x300, 0xc0, 0x30, 0xc, 0x3, 0xf000, 0xf00,
+	0xf0, 0xf, 0xfc00, 0xf300, 0xf0c0, 0xf030, 0xf00c, 0xf003, 0xc00f,
+	0x300f, 0xc0f, 0x30f, 0xcf, 0x3f
+};
+
+#define CFG80211_PER_BW_VALID_PUNCTURING_VALUES(_bw) \
+	{ \
+		.len = ARRAY_SIZE(puncturing_values_ ## _bw ## mhz), \
+		.valid_values = puncturing_values_ ## _bw ## mhz \
+	}
+
+static const struct cfg80211_per_bw_puncturing_values per_bw_puncturing[] = {
+	CFG80211_PER_BW_VALID_PUNCTURING_VALUES(80),
+	CFG80211_PER_BW_VALID_PUNCTURING_VALUES(160),
+	CFG80211_PER_BW_VALID_PUNCTURING_VALUES(320)
+};
+
+bool cfg80211_valid_disable_subchannel_bitmap(u16 *bitmap,
+					      const struct cfg80211_chan_def *chandef)
+{
+	u32 idx, i, start_freq;
+
+	switch (chandef->width) {
+	case NL80211_CHAN_WIDTH_80:
+		idx = 0;
+		start_freq = chandef->center_freq1 - 40;
+		break;
+	case NL80211_CHAN_WIDTH_160:
+		idx = 1;
+		start_freq = chandef->center_freq1 - 80;
+		break;
+	case NL80211_CHAN_WIDTH_320:
+		idx = 2;
+		start_freq = chandef->center_freq1 - 160;
+		break;
+	default:
+		*bitmap = 0;
+		break;
+	}
+
+	if (!*bitmap)
+		return true;
+
+	/* check if primary channel is punctured */
+	if (*bitmap & (u16)BIT((chandef->chan->center_freq - start_freq) / 20))
+		return false;
+
+	for (i = 0; i < per_bw_puncturing[idx].len; i++)
+		if (per_bw_puncturing[idx].valid_values[i] == *bitmap)
+			return true;
+
+	return false;
+}
+EXPORT_SYMBOL(cfg80211_valid_disable_subchannel_bitmap);

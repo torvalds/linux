@@ -1528,7 +1528,7 @@ static int mip4_probe(struct i2c_client *client)
 	return 0;
 }
 
-static int __maybe_unused mip4_suspend(struct device *dev)
+static int mip4_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct mip4_ts *ts = i2c_get_clientdata(client);
@@ -1546,7 +1546,7 @@ static int __maybe_unused mip4_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused mip4_resume(struct device *dev)
+static int mip4_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct mip4_ts *ts = i2c_get_clientdata(client);
@@ -1564,7 +1564,7 @@ static int __maybe_unused mip4_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(mip4_pm_ops, mip4_suspend, mip4_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(mip4_pm_ops, mip4_suspend, mip4_resume);
 
 #ifdef CONFIG_OF
 static const struct of_device_id mip4_of_match[] = {
@@ -1595,7 +1595,7 @@ static struct i2c_driver mip4_driver = {
 		.name = MIP4_DEVICE_NAME,
 		.of_match_table = of_match_ptr(mip4_of_match),
 		.acpi_match_table = ACPI_PTR(mip4_acpi_match),
-		.pm = &mip4_pm_ops,
+		.pm = pm_sleep_ptr(&mip4_pm_ops),
 	},
 };
 module_i2c_driver(mip4_driver);

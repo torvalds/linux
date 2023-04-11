@@ -796,21 +796,16 @@ static int tegra_xudc_get_phy_index(struct tegra_xudc *xudc,
 	return -1;
 }
 
-static int tegra_xudc_vbus_notify(struct notifier_block *nb,
-					 unsigned long action, void *data)
+static void tegra_xudc_update_data_role(struct tegra_xudc *xudc,
+					      struct usb_phy *usbphy)
 {
-	struct tegra_xudc *xudc = container_of(nb, struct tegra_xudc,
-					       vbus_nb);
-	struct usb_phy *usbphy = (struct usb_phy *)data;
 	int phy_index;
-
-	dev_dbg(xudc->dev, "%s(): event is %d\n", __func__, usbphy->last_event);
 
 	if ((xudc->device_mode && usbphy->last_event == USB_EVENT_VBUS) ||
 	    (!xudc->device_mode && usbphy->last_event != USB_EVENT_VBUS)) {
 		dev_dbg(xudc->dev, "Same role(%d) received. Ignore",
 			xudc->device_mode);
-		return NOTIFY_OK;
+		return;
 	}
 
 	xudc->device_mode = (usbphy->last_event == USB_EVENT_VBUS) ? true :
@@ -826,6 +821,18 @@ static int tegra_xudc_vbus_notify(struct notifier_block *nb,
 		xudc->curr_usbphy = usbphy;
 		schedule_work(&xudc->usb_role_sw_work);
 	}
+}
+
+static int tegra_xudc_vbus_notify(struct notifier_block *nb,
+					 unsigned long action, void *data)
+{
+	struct tegra_xudc *xudc = container_of(nb, struct tegra_xudc,
+					       vbus_nb);
+	struct usb_phy *usbphy = (struct usb_phy *)data;
+
+	dev_dbg(xudc->dev, "%s(): event is %d\n", __func__, usbphy->last_event);
+
+	tegra_xudc_update_data_role(xudc, usbphy);
 
 	return NOTIFY_OK;
 }
@@ -3521,7 +3528,7 @@ static int tegra_xudc_phy_get(struct tegra_xudc *xudc)
 			/* Get usb-phy, if utmi phy is available */
 			xudc->usbphy[i] = devm_usb_get_phy_by_node(xudc->dev,
 						xudc->utmi_phy[i]->dev.of_node,
-						&xudc->vbus_nb);
+						NULL);
 			if (IS_ERR(xudc->usbphy[i])) {
 				err = PTR_ERR(xudc->usbphy[i]);
 				dev_err_probe(xudc->dev, err,
@@ -3660,6 +3667,19 @@ static struct tegra_xudc_soc tegra194_xudc_soc_data = {
 	.has_ipfs = false,
 };
 
+static struct tegra_xudc_soc tegra234_xudc_soc_data = {
+	.clock_names = tegra186_xudc_clock_names,
+	.num_clks = ARRAY_SIZE(tegra186_xudc_clock_names),
+	.num_phys = 4,
+	.u1_enable = true,
+	.u2_enable = true,
+	.lpm_enable = true,
+	.invalid_seq_num = false,
+	.pls_quirk = false,
+	.port_reset_quirk = false,
+	.has_ipfs = false,
+};
+
 static const struct of_device_id tegra_xudc_of_match[] = {
 	{
 		.compatible = "nvidia,tegra210-xudc",
@@ -3672,6 +3692,10 @@ static const struct of_device_id tegra_xudc_of_match[] = {
 	{
 		.compatible = "nvidia,tegra194-xudc",
 		.data = &tegra194_xudc_soc_data
+	},
+	{
+		.compatible = "nvidia,tegra234-xudc",
+		.data = &tegra234_xudc_soc_data
 	},
 	{ }
 };
@@ -3854,6 +3878,14 @@ static int tegra_xudc_probe(struct platform_device *pdev)
 	if (err) {
 		dev_err(&pdev->dev, "failed to add USB gadget: %d\n", err);
 		goto free_eps;
+	}
+
+	for (i = 0; i < xudc->soc->num_phys; i++) {
+		if (!xudc->usbphy[i])
+			continue;
+
+		usb_register_notifier(xudc->usbphy[i], &xudc->vbus_nb);
+		tegra_xudc_update_data_role(xudc, xudc->usbphy[i]);
 	}
 
 	return 0;

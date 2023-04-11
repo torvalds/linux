@@ -1572,7 +1572,7 @@ static int elants_i2c_probe(struct i2c_client *client)
 	return 0;
 }
 
-static int __maybe_unused elants_i2c_suspend(struct device *dev)
+static int elants_i2c_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct elants_data *ts = i2c_get_clientdata(client);
@@ -1611,7 +1611,7 @@ static int __maybe_unused elants_i2c_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused elants_i2c_resume(struct device *dev)
+static int elants_i2c_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct elants_data *ts = i2c_get_clientdata(client);
@@ -1644,8 +1644,8 @@ static int __maybe_unused elants_i2c_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(elants_i2c_pm_ops,
-			 elants_i2c_suspend, elants_i2c_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(elants_i2c_pm_ops,
+				elants_i2c_suspend, elants_i2c_resume);
 
 static const struct i2c_device_id elants_i2c_id[] = {
 	{ DEVICE_NAME, EKTH3500 },
@@ -1677,7 +1677,7 @@ static struct i2c_driver elants_i2c_driver = {
 	.id_table = elants_i2c_id,
 	.driver = {
 		.name = DEVICE_NAME,
-		.pm = &elants_i2c_pm_ops,
+		.pm = pm_sleep_ptr(&elants_i2c_pm_ops),
 		.acpi_match_table = ACPI_PTR(elants_acpi_id),
 		.of_match_table = of_match_ptr(elants_of_match),
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,

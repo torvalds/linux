@@ -17,7 +17,6 @@
 #include "intel_gt_print.h"
 #include "intel_gt_requests.h"
 #include "intel_llc.h"
-#include "intel_pm.h"
 #include "intel_rc6.h"
 #include "intel_rps.h"
 #include "intel_wakeref.h"

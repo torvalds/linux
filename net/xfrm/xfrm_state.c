@@ -577,7 +577,7 @@ static enum hrtimer_restart xfrm_timer_handler(struct hrtimer *me)
 	if (x->km.state == XFRM_STATE_EXPIRED)
 		goto expired;
 	if (x->lft.hard_add_expires_seconds) {
-		long tmo = x->lft.hard_add_expires_seconds +
+		time64_t tmo = x->lft.hard_add_expires_seconds +
 			x->curlft.add_time - now;
 		if (tmo <= 0) {
 			if (x->xflags & XFRM_SOFT_EXPIRE) {
@@ -594,8 +594,8 @@ static enum hrtimer_restart xfrm_timer_handler(struct hrtimer *me)
 			next = tmo;
 	}
 	if (x->lft.hard_use_expires_seconds) {
-		long tmo = x->lft.hard_use_expires_seconds +
-			(x->curlft.use_time ? : now) - now;
+		time64_t tmo = x->lft.hard_use_expires_seconds +
+			(READ_ONCE(x->curlft.use_time) ? : now) - now;
 		if (tmo <= 0)
 			goto expired;
 		if (tmo < next)
@@ -604,7 +604,7 @@ static enum hrtimer_restart xfrm_timer_handler(struct hrtimer *me)
 	if (x->km.dying)
 		goto resched;
 	if (x->lft.soft_add_expires_seconds) {
-		long tmo = x->lft.soft_add_expires_seconds +
+		time64_t tmo = x->lft.soft_add_expires_seconds +
 			x->curlft.add_time - now;
 		if (tmo <= 0) {
 			warn = 1;
@@ -616,8 +616,8 @@ static enum hrtimer_restart xfrm_timer_handler(struct hrtimer *me)
 		}
 	}
 	if (x->lft.soft_use_expires_seconds) {
-		long tmo = x->lft.soft_use_expires_seconds +
-			(x->curlft.use_time ? : now) - now;
+		time64_t tmo = x->lft.soft_use_expires_seconds +
+			(READ_ONCE(x->curlft.use_time) ? : now) - now;
 		if (tmo <= 0)
 			warn = 1;
 		else if (tmo < next)
@@ -1274,7 +1274,7 @@ found:
 			xso->real_dev = xdo->real_dev;
 			netdev_tracker_alloc(xso->dev, &xso->dev_tracker,
 					     GFP_ATOMIC);
-			error = xso->dev->xfrmdev_ops->xdo_dev_state_add(x);
+			error = xso->dev->xfrmdev_ops->xdo_dev_state_add(x, NULL);
 			if (error) {
 				xso->dir = 0;
 				netdev_put(xso->dev, &xso->dev_tracker);
@@ -1906,7 +1906,7 @@ out:
 
 		hrtimer_start(&x1->mtimer, ktime_set(1, 0),
 			      HRTIMER_MODE_REL_SOFT);
-		if (x1->curlft.use_time)
+		if (READ_ONCE(x1->curlft.use_time))
 			xfrm_state_check_expire(x1);
 
 		if (x->props.smark.m || x->props.smark.v || x->if_id) {
@@ -1940,8 +1940,8 @@ int xfrm_state_check_expire(struct xfrm_state *x)
 {
 	xfrm_dev_state_update_curlft(x);
 
-	if (!x->curlft.use_time)
-		x->curlft.use_time = ktime_get_real_seconds();
+	if (!READ_ONCE(x->curlft.use_time))
+		WRITE_ONCE(x->curlft.use_time, ktime_get_real_seconds());
 
 	if (x->curlft.bytes >= x->lft.hard_byte_limit ||
 	    x->curlft.packets >= x->lft.hard_packet_limit) {
@@ -2812,11 +2812,6 @@ int __xfrm_init_state(struct xfrm_state *x, bool init_replay, bool offload,
 		inner_mode = xfrm_get_mode(x->props.mode, x->props.family);
 		if (inner_mode == NULL) {
 			NL_SET_ERR_MSG(extack, "Requested mode not found");
-			goto error;
-		}
-
-		if (!(inner_mode->flags & XFRM_MODE_FLAG_TUNNEL)) {
-			NL_SET_ERR_MSG(extack, "Only tunnel modes can accommodate an AF_UNSPEC selector");
 			goto error;
 		}
 

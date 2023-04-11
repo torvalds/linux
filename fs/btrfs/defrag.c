@@ -358,8 +358,10 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 		goto out;
 
 	path = btrfs_alloc_path();
-	if (!path)
-		return -ENOMEM;
+	if (!path) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	level = btrfs_header_level(root->node);
 
@@ -763,7 +765,7 @@ again:
 			break;
 
 		unlock_page(page);
-		btrfs_start_ordered_extent(ordered, 1);
+		btrfs_start_ordered_extent(ordered);
 		btrfs_put_ordered_extent(ordered);
 		lock_page(page);
 		/*
@@ -997,7 +999,7 @@ next:
 }
 
 #define CLUSTER_SIZE	(SZ_256K)
-static_assert(IS_ALIGNED(CLUSTER_SIZE, PAGE_SIZE));
+static_assert(PAGE_ALIGNED(CLUSTER_SIZE));
 
 /*
  * Defrag one contiguous target range.

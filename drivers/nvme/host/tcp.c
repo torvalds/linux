@@ -14,6 +14,7 @@
 #include <linux/blk-mq.h>
 #include <crypto/hash.h>
 #include <net/busy_poll.h>
+#include <trace/events/sock.h>
 
 #include "nvme.h"
 #include "fabrics.h"
@@ -205,6 +206,18 @@ static inline u8 nvme_tcp_hdgst_len(struct nvme_tcp_queue *queue)
 static inline u8 nvme_tcp_ddgst_len(struct nvme_tcp_queue *queue)
 {
 	return queue->data_digest ? NVME_TCP_DIGEST_LENGTH : 0;
+}
+
+static inline void *nvme_tcp_req_cmd_pdu(struct nvme_tcp_request *req)
+{
+	return req->pdu;
+}
+
+static inline void *nvme_tcp_req_data_pdu(struct nvme_tcp_request *req)
+{
+	/* use the pdu space in the back for the data pdu */
+	return req->pdu + sizeof(struct nvme_tcp_cmd_pdu) -
+		sizeof(struct nvme_tcp_data_pdu);
 }
 
 static inline size_t nvme_tcp_inline_data_size(struct nvme_tcp_request *req)
@@ -613,7 +626,7 @@ static int nvme_tcp_handle_comp(struct nvme_tcp_queue *queue,
 
 static void nvme_tcp_setup_h2c_data_pdu(struct nvme_tcp_request *req)
 {
-	struct nvme_tcp_data_pdu *data = req->pdu;
+	struct nvme_tcp_data_pdu *data = nvme_tcp_req_data_pdu(req);
 	struct nvme_tcp_queue *queue = req->queue;
 	struct request *rq = blk_mq_rq_from_pdu(req);
 	u32 h2cdata_sent = req->pdu_len;
@@ -905,6 +918,8 @@ static void nvme_tcp_data_ready(struct sock *sk)
 {
 	struct nvme_tcp_queue *queue;
 
+	trace_sk_data_ready(sk);
+
 	read_lock_bh(&sk->sk_callback_lock);
 	queue = sk->sk_user_data;
 	if (likely(queue && queue->rd_enabled) &&
@@ -1035,7 +1050,7 @@ static int nvme_tcp_try_send_data(struct nvme_tcp_request *req)
 static int nvme_tcp_try_send_cmd_pdu(struct nvme_tcp_request *req)
 {
 	struct nvme_tcp_queue *queue = req->queue;
-	struct nvme_tcp_cmd_pdu *pdu = req->pdu;
+	struct nvme_tcp_cmd_pdu *pdu = nvme_tcp_req_cmd_pdu(req);
 	bool inline_data = nvme_tcp_has_inline_data(req);
 	u8 hdgst = nvme_tcp_hdgst_len(queue);
 	int len = sizeof(*pdu) + hdgst - req->offset;
@@ -1074,7 +1089,7 @@ static int nvme_tcp_try_send_cmd_pdu(struct nvme_tcp_request *req)
 static int nvme_tcp_try_send_data_pdu(struct nvme_tcp_request *req)
 {
 	struct nvme_tcp_queue *queue = req->queue;
-	struct nvme_tcp_data_pdu *pdu = req->pdu;
+	struct nvme_tcp_data_pdu *pdu = nvme_tcp_req_data_pdu(req);
 	u8 hdgst = nvme_tcp_hdgst_len(queue);
 	int len = sizeof(*pdu) - req->offset + hdgst;
 	int ret;
@@ -2281,11 +2296,14 @@ static enum blk_eh_timer_return nvme_tcp_timeout(struct request *rq)
 {
 	struct nvme_tcp_request *req = blk_mq_rq_to_pdu(rq);
 	struct nvme_ctrl *ctrl = &req->queue->ctrl->ctrl;
-	struct nvme_tcp_cmd_pdu *pdu = req->pdu;
+	struct nvme_tcp_cmd_pdu *pdu = nvme_tcp_req_cmd_pdu(req);
+	u8 opc = pdu->cmd.common.opcode, fctype = pdu->cmd.fabrics.fctype;
+	int qid = nvme_tcp_queue_id(req->queue);
 
 	dev_warn(ctrl->device,
-		"queue %d: timeout request %#x type %d\n",
-		nvme_tcp_queue_id(req->queue), rq->tag, pdu->hdr.type);
+		"queue %d: timeout cid %#x type %d opcode %#x (%s)\n",
+		nvme_tcp_queue_id(req->queue), nvme_cid(rq), pdu->hdr.type,
+		opc, nvme_opcode_str(qid, opc, fctype));
 
 	if (ctrl->state != NVME_CTRL_LIVE) {
 		/*
@@ -2317,7 +2335,7 @@ static blk_status_t nvme_tcp_map_data(struct nvme_tcp_queue *queue,
 			struct request *rq)
 {
 	struct nvme_tcp_request *req = blk_mq_rq_to_pdu(rq);
-	struct nvme_tcp_cmd_pdu *pdu = req->pdu;
+	struct nvme_tcp_cmd_pdu *pdu = nvme_tcp_req_cmd_pdu(req);
 	struct nvme_command *c = &pdu->cmd;
 
 	c->common.flags |= NVME_CMD_SGL_METABUF;
@@ -2337,7 +2355,7 @@ static blk_status_t nvme_tcp_setup_cmd_pdu(struct nvme_ns *ns,
 		struct request *rq)
 {
 	struct nvme_tcp_request *req = blk_mq_rq_to_pdu(rq);
-	struct nvme_tcp_cmd_pdu *pdu = req->pdu;
+	struct nvme_tcp_cmd_pdu *pdu = nvme_tcp_req_cmd_pdu(req);
 	struct nvme_tcp_queue *queue = req->queue;
 	u8 hdgst = nvme_tcp_hdgst_len(queue), ddgst = 0;
 	blk_status_t ret;
@@ -2486,6 +2504,10 @@ static int nvme_tcp_get_address(struct nvme_ctrl *ctrl, char *buf, int size)
 
 	len = nvmf_get_address(ctrl, buf, size);
 
+	mutex_lock(&queue->queue_lock);
+
+	if (!test_bit(NVME_TCP_Q_LIVE, &queue->flags))
+		goto done;
 	ret = kernel_getsockname(queue->sock, (struct sockaddr *)&src_addr);
 	if (ret > 0) {
 		if (len > 0)
@@ -2493,6 +2515,8 @@ static int nvme_tcp_get_address(struct nvme_ctrl *ctrl, char *buf, int size)
 		len += scnprintf(buf + len, size - len, "%ssrc_addr=%pISc\n",
 				(len) ? "," : "", &src_addr);
 	}
+done:
+	mutex_unlock(&queue->queue_lock);
 
 	return len;
 }
@@ -2670,6 +2694,15 @@ static struct nvmf_transport_ops nvme_tcp_transport = {
 
 static int __init nvme_tcp_init_module(void)
 {
+	BUILD_BUG_ON(sizeof(struct nvme_tcp_hdr) != 8);
+	BUILD_BUG_ON(sizeof(struct nvme_tcp_cmd_pdu) != 72);
+	BUILD_BUG_ON(sizeof(struct nvme_tcp_data_pdu) != 24);
+	BUILD_BUG_ON(sizeof(struct nvme_tcp_rsp_pdu) != 24);
+	BUILD_BUG_ON(sizeof(struct nvme_tcp_r2t_pdu) != 24);
+	BUILD_BUG_ON(sizeof(struct nvme_tcp_icreq_pdu) != 128);
+	BUILD_BUG_ON(sizeof(struct nvme_tcp_icresp_pdu) != 128);
+	BUILD_BUG_ON(sizeof(struct nvme_tcp_term_pdu) != 24);
+
 	nvme_tcp_wq = alloc_workqueue("nvme_tcp_wq",
 			WQ_MEM_RECLAIM | WQ_HIGHPRI, 0);
 	if (!nvme_tcp_wq)

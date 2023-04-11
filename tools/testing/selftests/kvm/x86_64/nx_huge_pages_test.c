@@ -241,7 +241,7 @@ int main(int argc, char **argv)
 	while ((opt = getopt(argc, argv, "hp:t:r")) != -1) {
 		switch (opt) {
 		case 'p':
-			reclaim_period_ms = atoi_non_negative("Reclaim period", optarg);
+			reclaim_period_ms = atoi_positive("Reclaim period", optarg);
 			break;
 		case 't':
 			token = atoi_paranoid(optarg);

@@ -9,7 +9,9 @@
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_fdi.h"
+#include "intel_fdi_regs.h"
 #include "intel_lvds.h"
+#include "intel_lvds_regs.h"
 #include "intel_pch_display.h"
 #include "intel_pch_refclk.h"
 #include "intel_pps.h"
@@ -219,20 +221,20 @@ static void ilk_pch_transcoder_set_timings(const struct intel_crtc_state *crtc_s
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 
 	intel_de_write(dev_priv, PCH_TRANS_HTOTAL(pch_transcoder),
-		       intel_de_read(dev_priv, HTOTAL(cpu_transcoder)));
+		       intel_de_read(dev_priv, TRANS_HTOTAL(cpu_transcoder)));
 	intel_de_write(dev_priv, PCH_TRANS_HBLANK(pch_transcoder),
-		       intel_de_read(dev_priv, HBLANK(cpu_transcoder)));
+		       intel_de_read(dev_priv, TRANS_HBLANK(cpu_transcoder)));
 	intel_de_write(dev_priv, PCH_TRANS_HSYNC(pch_transcoder),
-		       intel_de_read(dev_priv, HSYNC(cpu_transcoder)));
+		       intel_de_read(dev_priv, TRANS_HSYNC(cpu_transcoder)));
 
 	intel_de_write(dev_priv, PCH_TRANS_VTOTAL(pch_transcoder),
-		       intel_de_read(dev_priv, VTOTAL(cpu_transcoder)));
+		       intel_de_read(dev_priv, TRANS_VTOTAL(cpu_transcoder)));
 	intel_de_write(dev_priv, PCH_TRANS_VBLANK(pch_transcoder),
-		       intel_de_read(dev_priv, VBLANK(cpu_transcoder)));
+		       intel_de_read(dev_priv, TRANS_VBLANK(cpu_transcoder)));
 	intel_de_write(dev_priv, PCH_TRANS_VSYNC(pch_transcoder),
-		       intel_de_read(dev_priv, VSYNC(cpu_transcoder)));
+		       intel_de_read(dev_priv, TRANS_VSYNC(cpu_transcoder)));
 	intel_de_write(dev_priv, PCH_TRANS_VSYNCSHIFT(pch_transcoder),
-		       intel_de_read(dev_priv, VSYNCSHIFT(cpu_transcoder)));
+		       intel_de_read(dev_priv, TRANS_VSYNCSHIFT(cpu_transcoder)));
 }
 
 static void ilk_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
@@ -266,7 +268,7 @@ static void ilk_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
 
 	reg = PCH_TRANSCONF(pipe);
 	val = intel_de_read(dev_priv, reg);
-	pipeconf_val = intel_de_read(dev_priv, PIPECONF(pipe));
+	pipeconf_val = intel_de_read(dev_priv, TRANSCONF(pipe));
 
 	if (HAS_PCH_IBX(dev_priv)) {
 		/* Configure frame start delay to match the CPU */
@@ -278,15 +280,15 @@ static void ilk_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
 		 * that in pipeconf reg. For HDMI we must use 8bpc
 		 * here for both 8bpc and 12bpc.
 		 */
-		val &= ~PIPECONF_BPC_MASK;
+		val &= ~TRANSCONF_BPC_MASK;
 		if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
-			val |= PIPECONF_BPC_8;
+			val |= TRANSCONF_BPC_8;
 		else
-			val |= pipeconf_val & PIPECONF_BPC_MASK;
+			val |= pipeconf_val & TRANSCONF_BPC_MASK;
 	}
 
 	val &= ~TRANS_INTERLACE_MASK;
-	if ((pipeconf_val & PIPECONF_INTERLACE_MASK_ILK) == PIPECONF_INTERLACE_IF_ID_ILK) {
+	if ((pipeconf_val & TRANSCONF_INTERLACE_MASK_ILK) == TRANSCONF_INTERLACE_IF_ID_ILK) {
 		if (HAS_PCH_IBX(dev_priv) &&
 		    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_SDVO))
 			val |= TRANS_INTERLACE_LEGACY_VSYNC_IBX;
@@ -307,7 +309,6 @@ static void ilk_disable_pch_transcoder(struct intel_crtc *crtc)
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 	i915_reg_t reg;
-	u32 val;
 
 	/* FDI relies on the transcoder */
 	assert_fdi_tx_disabled(dev_priv, pipe);
@@ -317,21 +318,16 @@ static void ilk_disable_pch_transcoder(struct intel_crtc *crtc)
 	assert_pch_ports_disabled(dev_priv, pipe);
 
 	reg = PCH_TRANSCONF(pipe);
-	val = intel_de_read(dev_priv, reg);
-	val &= ~TRANS_ENABLE;
-	intel_de_write(dev_priv, reg, val);
+	intel_de_rmw(dev_priv, reg, TRANS_ENABLE, 0);
 	/* wait for PCH transcoder off, transcoder state */
 	if (intel_de_wait_for_clear(dev_priv, reg, TRANS_STATE_ENABLE, 50))
 		drm_err(&dev_priv->drm, "failed to disable transcoder %c\n",
 			pipe_name(pipe));
 
-	if (HAS_PCH_CPT(dev_priv)) {
+	if (HAS_PCH_CPT(dev_priv))
 		/* Workaround: Clear the timing override chicken bit again. */
-		reg = TRANS_CHICKEN2(pipe);
-		val = intel_de_read(dev_priv, reg);
-		val &= ~TRANS_CHICKEN2_TIMING_OVERRIDE;
-		intel_de_write(dev_priv, reg, val);
-	}
+		intel_de_rmw(dev_priv, TRANS_CHICKEN2(pipe),
+			     TRANS_CHICKEN2_TIMING_OVERRIDE, 0);
 }
 
 void ilk_pch_pre_enable(struct intel_atomic_state *state,
@@ -414,7 +410,7 @@ void ilk_pch_enable(struct intel_atomic_state *state,
 	    intel_crtc_has_dp_encoder(crtc_state)) {
 		const struct drm_display_mode *adjusted_mode =
 			&crtc_state->hw.adjusted_mode;
-		u32 bpc = (intel_de_read(dev_priv, PIPECONF(pipe)) & PIPECONF_BPC_MASK) >> 5;
+		u32 bpc = (intel_de_read(dev_priv, TRANSCONF(pipe)) & TRANSCONF_BPC_MASK) >> 5;
 		i915_reg_t reg = TRANS_DP_CTL(pipe);
 		enum port port;
 
@@ -456,21 +452,14 @@ void ilk_pch_post_disable(struct intel_atomic_state *state,
 	ilk_disable_pch_transcoder(crtc);
 
 	if (HAS_PCH_CPT(dev_priv)) {
-		i915_reg_t reg;
-		u32 temp;
-
 		/* disable TRANS_DP_CTL */
-		reg = TRANS_DP_CTL(pipe);
-		temp = intel_de_read(dev_priv, reg);
-		temp &= ~(TRANS_DP_OUTPUT_ENABLE |
-			  TRANS_DP_PORT_SEL_MASK);
-		temp |= TRANS_DP_PORT_SEL_NONE;
-		intel_de_write(dev_priv, reg, temp);
+		intel_de_rmw(dev_priv, TRANS_DP_CTL(pipe),
+			     TRANS_DP_OUTPUT_ENABLE | TRANS_DP_PORT_SEL_MASK,
+			     TRANS_DP_PORT_SEL_NONE);
 
 		/* disable DPLL_SEL */
-		temp = intel_de_read(dev_priv, PCH_DPLL_SEL);
-		temp &= ~(TRANS_DPLL_ENABLE(pipe) | TRANS_DPLLB_SEL(pipe));
-		intel_de_write(dev_priv, PCH_DPLL_SEL, temp);
+		intel_de_rmw(dev_priv, PCH_DPLL_SEL,
+			     TRANS_DPLL_ENABLE(pipe) | TRANS_DPLLB_SEL(pipe), 0);
 	}
 
 	ilk_fdi_pll_disable(crtc);
@@ -565,9 +554,9 @@ static void lpt_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
 	intel_de_write(dev_priv, TRANS_CHICKEN2(PIPE_A), val);
 
 	val = TRANS_ENABLE;
-	pipeconf_val = intel_de_read(dev_priv, PIPECONF(cpu_transcoder));
+	pipeconf_val = intel_de_read(dev_priv, TRANSCONF(cpu_transcoder));
 
-	if ((pipeconf_val & PIPECONF_INTERLACE_MASK_HSW) == PIPECONF_INTERLACE_IF_ID_ILK)
+	if ((pipeconf_val & TRANSCONF_INTERLACE_MASK_HSW) == TRANSCONF_INTERLACE_IF_ID_ILK)
 		val |= TRANS_INTERLACE_INTERLACED;
 	else
 		val |= TRANS_INTERLACE_PROGRESSIVE;
@@ -580,20 +569,14 @@ static void lpt_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
 
 static void lpt_disable_pch_transcoder(struct drm_i915_private *dev_priv)
 {
-	u32 val;
-
-	val = intel_de_read(dev_priv, LPT_TRANSCONF);
-	val &= ~TRANS_ENABLE;
-	intel_de_write(dev_priv, LPT_TRANSCONF, val);
+	intel_de_rmw(dev_priv, LPT_TRANSCONF, TRANS_ENABLE, 0);
 	/* wait for PCH transcoder off, transcoder state */
 	if (intel_de_wait_for_clear(dev_priv, LPT_TRANSCONF,
 				    TRANS_STATE_ENABLE, 50))
 		drm_err(&dev_priv->drm, "Failed to disable PCH transcoder\n");
 
 	/* Workaround: clear timing override bit. */
-	val = intel_de_read(dev_priv, TRANS_CHICKEN2(PIPE_A));
-	val &= ~TRANS_CHICKEN2_TIMING_OVERRIDE;
-	intel_de_write(dev_priv, TRANS_CHICKEN2(PIPE_A), val);
+	intel_de_rmw(dev_priv, TRANS_CHICKEN2(PIPE_A), TRANS_CHICKEN2_TIMING_OVERRIDE, 0);
 }
 
 void lpt_pch_enable(struct intel_atomic_state *state,

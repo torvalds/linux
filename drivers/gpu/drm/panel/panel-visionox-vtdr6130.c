@@ -243,16 +243,8 @@ static int visionox_vtdr6130_bl_update_status(struct backlight_device *bl)
 {
 	struct mipi_dsi_device *dsi = bl_get_data(bl);
 	u16 brightness = backlight_get_brightness(bl);
-	/* Panel needs big-endian order of brightness value */
-	u8 payload[2] = { brightness >> 8, brightness & 0xff };
-	int ret;
 
-	ret = mipi_dsi_dcs_write(dsi, MIPI_DCS_SET_DISPLAY_BRIGHTNESS,
-				 payload, sizeof(payload));
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return mipi_dsi_dcs_set_display_brightness_large(dsi, brightness);
 }
 
 static const struct backlight_ops visionox_vtdr6130_bl_ops = {

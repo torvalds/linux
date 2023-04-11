@@ -139,10 +139,7 @@ int drm_mode_destroy_dumb(struct drm_device *dev, u32 handle,
 	if (!dev->driver->dumb_create)
 		return -ENOSYS;
 
-	if (dev->driver->dumb_destroy)
-		return dev->driver->dumb_destroy(file_priv, dev, handle);
-	else
-		return drm_gem_dumb_destroy(file_priv, dev, handle);
+	return drm_gem_handle_delete(file_priv, handle);
 }
 
 int drm_mode_destroy_dumb_ioctl(struct drm_device *dev,

@@ -20,6 +20,7 @@ config MEMSTICK_UNSAFE_RESUME
 config MSPRO_BLOCK
 	tristate "MemoryStick Pro block device driver"
 	depends on BLOCK
+	imply IOSCHED_BFQ
 	help
 	  Say Y here to enable the MemoryStick Pro block device driver
 	  support. This provides a block device driver, which you can use
@@ -29,6 +30,7 @@ config MSPRO_BLOCK
 config MS_BLOCK
 	tristate "MemoryStick Standard device driver"
 	depends on BLOCK
+	imply IOSCHED_BFQ
 	help
 	  Say Y here to enable the MemoryStick Standard device driver
 	  support. This provides a block device driver, which you can use

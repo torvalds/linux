@@ -22,6 +22,13 @@ intel_de_read8(struct drm_i915_private *i915, i915_reg_t reg)
 	return intel_uncore_read8(&i915->uncore, reg);
 }
 
+static inline u64
+intel_de_read64_2x32(struct drm_i915_private *i915,
+		     i915_reg_t lower_reg, i915_reg_t upper_reg)
+{
+	return intel_uncore_read64_2x32(&i915->uncore, lower_reg, upper_reg);
+}
+
 static inline void
 intel_de_posting_read(struct drm_i915_private *i915, i915_reg_t reg)
 {

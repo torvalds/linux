@@ -51,38 +51,9 @@ void enable_surface_flip_reporting(struct dc_plane_state *plane_state,
 #include "clock_source.h"
 #include "audio.h"
 #include "dm_pp_smu.h"
-#ifdef CONFIG_DRM_AMD_DC_HDCP
 #include "dm_cp_psp.h"
-#endif
 #include "link_hwss.h"
 
-/************ link *****************/
-struct link_init_data {
-	const struct dc *dc;
-	struct dc_context *ctx; /* TODO: remove 'dal' when DC is complete. */
-	uint32_t connector_index; /* this will be mapped to the HPD pins */
-	uint32_t link_index; /* this is mapped to DAL display_index
-				TODO: remove it when DC is complete. */
-	bool is_dpia_link;
-};
-
-struct dc_link *link_create(const struct link_init_data *init_params);
-void link_destroy(struct dc_link **link);
-
-enum dc_status dc_link_validate_mode_timing(
-		const struct dc_stream_state *stream,
-		struct dc_link *link,
-		const struct dc_crtc_timing *timing);
-
-void core_link_resume(struct dc_link *link);
-
-void core_link_enable_stream(
-		struct dc_state *state,
-		struct pipe_ctx *pipe_ctx);
-
-void core_link_disable_stream(struct pipe_ctx *pipe_ctx);
-
-void core_link_set_avmute(struct pipe_ctx *pipe_ctx, bool enable);
 /********** DAL Core*********************/
 #include "transform.h"
 #include "dpp.h"
@@ -450,10 +421,11 @@ struct pipe_ctx {
 	struct _vcs_dpi_display_e2e_pipe_params_st dml_input;
 	int det_buffer_size_kb;
 	bool unbounded_req;
+	unsigned int surface_size_in_mall_bytes;
 
-	union pipe_update_flags update_flags;
 	struct dwbc *dwbc;
 	struct mcif_wb *mcif_wb;
+	union pipe_update_flags update_flags;
 };
 
 /* Data used for dynamic link encoder assignment.
@@ -507,6 +479,9 @@ struct dcn_bw_output {
 	struct dcn_watermark_set watermarks;
 	struct dcn_bw_writeback bw_writeback;
 	int compbuf_size_kb;
+	unsigned int mall_ss_size_bytes;
+	unsigned int mall_ss_psr_active_size_bytes;
+	unsigned int mall_subvp_size_bytes;
 	unsigned int legacy_svp_drr_stream_index;
 	bool legacy_svp_drr_stream_index_valid;
 };

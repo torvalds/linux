@@ -1001,6 +1001,8 @@ struct iwl_trans_txqs {
  *	This mode is set dynamically, depending on the WoWLAN values
  *	configured from the userspace at runtime.
  * @iwl_trans_txqs: transport tx queues data.
+ * @mbx_addr_0_step: step address data 0
+ * @mbx_addr_1_step: step address data 1
  */
 struct iwl_trans {
 	bool csme_own;
@@ -1057,6 +1059,8 @@ struct iwl_trans {
 
 	const char *name;
 	struct iwl_trans_txqs txqs;
+	u32 mbx_addr_0_step;
+	u32 mbx_addr_1_step;
 
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */

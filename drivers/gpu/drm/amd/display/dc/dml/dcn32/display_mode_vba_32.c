@@ -24,7 +24,6 @@
  */
 
 #include "dc.h"
-#include "dc_link.h"
 #include "../display_mode_lib.h"
 #include "display_mode_vba_32.h"
 #include "../dml_inline_defs.h"
@@ -387,6 +386,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 				mode_lib->vba.NumberOfActiveSurfaces,
 				mode_lib->vba.MALLAllocatedForDCNFinal,
 				mode_lib->vba.UseMALLForStaticScreen,
+				mode_lib->vba.UsesMALLForPStateChange,
 				mode_lib->vba.DCCEnable,
 				mode_lib->vba.ViewportStationary,
 				mode_lib->vba.ViewportXStartY,
@@ -411,6 +411,8 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 				v->BlockWidthC,
 				v->BlockHeightY,
 				v->BlockHeightC,
+				mode_lib->vba.DCCMetaPitchY,
+				mode_lib->vba.DCCMetaPitchC,
 
 				/* Output */
 				v->SurfaceSizeInMALL,
@@ -687,7 +689,8 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 						mode_lib->vba.PixelClock,
 						mode_lib->vba.VRatio,
 						mode_lib->vba.VRatioChroma,
-						mode_lib->vba.UsesMALLForPStateChange);
+						mode_lib->vba.UsesMALLForPStateChange,
+						mode_lib->vba.UseUnboundedRequesting);
 
 	for (k = 0; k < mode_lib->vba.NumberOfActiveSurfaces; ++k) {
 		v->MaxVStartupLines[k] = ((mode_lib->vba.Interlace[k] &&
@@ -893,8 +896,8 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 			if (v->DestinationLinesForPrefetch[k] < 2)
 				DestinationLineTimesForPrefetchLessThan2 = true;
 
-			if (v->VRatioPrefetchY[k] > __DML_MAX_VRATIO_PRE__
-					|| v->VRatioPrefetchC[k] > __DML_MAX_VRATIO_PRE__)
+			if (v->VRatioPrefetchY[k] > v->MaxVRatioPre
+					|| v->VRatioPrefetchC[k] > v->MaxVRatioPre)
 				VRatioPrefetchMoreThanMax = true;
 
 			//bool DestinationLinesToRequestVMInVBlankEqualOrMoreThan32 = false;
@@ -939,6 +942,9 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 					v->UrgBurstFactorLumaPre,
 					v->UrgBurstFactorChromaPre,
 					v->UrgBurstFactorCursorPre,
+					v->PrefetchBandwidth,
+					v->VRatio,
+					v->MaxVRatioPre,
 
 					/* output */
 					&MaxTotalRDBandwidth,
@@ -969,6 +975,9 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 					v->dummy_vars.DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation.dummy_unit_vector,
 					v->dummy_vars.DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation.dummy_unit_vector,
 					v->dummy_vars.DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation.dummy_unit_vector,
+					v->PrefetchBandwidth,
+					v->VRatio,
+					v->MaxVRatioPre,
 
 					/* output */
 					&v->dummy_vars.DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation.dummy_single[0],
@@ -1636,9 +1645,14 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 static void mode_support_configuration(struct vba_vars_st *v,
 				  struct display_mode_lib *mode_lib)
 {
-	int i, j;
+	int i, j, start_state;
 
-	for (i = v->soc.num_states - 1; i >= 0; i--) {
+	if (mode_lib->validate_max_state)
+		start_state = v->soc.num_states - 1;
+	else
+		start_state = 0;
+
+	for (i = v->soc.num_states - 1; i >= start_state; i--) {
 		for (j = 0; j < 2; j++) {
 			if (mode_lib->vba.ScaleRatioAndTapsSupport == true
 				&& mode_lib->vba.SourceFormatPixelAndScanSupport == true
@@ -1724,6 +1738,7 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 		start_state = v->soc.num_states - 1;
 	else
 		start_state = 0;
+
 	/*Scale Ratio, taps Support Check*/
 
 	mode_lib->vba.ScaleRatioAndTapsSupport = true;
@@ -2338,8 +2353,7 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 
 			if (mode_lib->vba.DSCEnable[k] && mode_lib->vba.ForcedOutputLinkBPP[k] != 0)
 				mode_lib->vba.DSCOnlyIfNecessaryWithBPP = true;
-			if ((mode_lib->vba.DSCEnable[k] || mode_lib->vba.DSCEnable[k])
-					&& mode_lib->vba.OutputFormat[k] == dm_n422
+			if (mode_lib->vba.DSCEnable[k] && mode_lib->vba.OutputFormat[k] == dm_n422
 					&& !mode_lib->vba.DSC422NativeSupport)
 				mode_lib->vba.DSC422NativeNotSupported = true;
 
@@ -2629,6 +2643,7 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 			mode_lib->vba.NumberOfActiveSurfaces,
 			mode_lib->vba.MALLAllocatedForDCNFinal,
 			mode_lib->vba.UseMALLForStaticScreen,
+			mode_lib->vba.UsesMALLForPStateChange,
 			mode_lib->vba.DCCEnable,
 			mode_lib->vba.ViewportStationary,
 			mode_lib->vba.ViewportXStartY,
@@ -2653,6 +2668,8 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 			mode_lib->vba.MacroTileWidthC,
 			mode_lib->vba.MacroTileHeightY,
 			mode_lib->vba.MacroTileHeightC,
+			mode_lib->vba.DCCMetaPitchY,
+			mode_lib->vba.DCCMetaPitchC,
 
 			/* Output */
 			mode_lib->vba.SurfaceSizeInMALL,
@@ -3199,7 +3216,8 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 					mode_lib->vba.PixelClock,
 					mode_lib->vba.VRatio,
 					mode_lib->vba.VRatioChroma,
-					mode_lib->vba.UsesMALLForPStateChange);
+					mode_lib->vba.UsesMALLForPStateChange,
+					mode_lib->vba.UseUnboundedRequesting);
 
 			v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.VMDataOnlyReturnBWPerState = dml32_get_return_bw_mbps_vm_only(&mode_lib->vba.soc, i,
 					mode_lib->vba.DCFCLKState[i][j], mode_lib->vba.FabricClockPerState[i],
@@ -3361,6 +3379,9 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 							mode_lib->vba.UrgentBurstFactorLumaPre,
 							mode_lib->vba.UrgentBurstFactorChromaPre,
 							mode_lib->vba.UrgentBurstFactorCursorPre,
+							v->PrefetchBW,
+							v->VRatio,
+							v->MaxVRatioPre,
 
 							/* output */
 							&v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_single[0],   // Single  *PrefetchBandwidth
@@ -3385,8 +3406,8 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 
 				mode_lib->vba.VRatioInPrefetchSupported[i][j] = true;
 				for (k = 0; k <= mode_lib->vba.NumberOfActiveSurfaces - 1; k++) {
-					if (mode_lib->vba.VRatioPreY[i][j][k] > __DML_MAX_VRATIO_PRE__
-							|| mode_lib->vba.VRatioPreC[i][j][k] > __DML_MAX_VRATIO_PRE__
+					if (mode_lib->vba.VRatioPreY[i][j][k] > mode_lib->vba.MaxVRatioPre
+							|| mode_lib->vba.VRatioPreC[i][j][k] > mode_lib->vba.MaxVRatioPre
 							|| mode_lib->vba.NoTimeForPrefetch[i][j][k] == true) {
 						mode_lib->vba.VRatioInPrefetchSupported[i][j] = false;
 					}
@@ -3642,7 +3663,6 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 			if (mode_lib->vba.SourcePixelFormat[k] != dm_444_64
 					&& mode_lib->vba.SourcePixelFormat[k] != dm_444_32
 					&& mode_lib->vba.SourcePixelFormat[k] != dm_444_16
-					&& mode_lib->vba.SourcePixelFormat[k] != dm_444_16
 					&& mode_lib->vba.SourcePixelFormat[k] != dm_444_8
 					&& mode_lib->vba.SourcePixelFormat[k] != dm_rgbe) {
 				if (mode_lib->vba.ViewportWidthChroma[k] > mode_lib->vba.SurfaceWidthC[k]
@@ -3659,7 +3679,7 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 
 	MaximumMPCCombine = 0;
 
-	for (i = v->soc.num_states; i >= 0; i--) {
+	for (i = v->soc.num_states; i >= start_state; i--) {
 		if (i == v->soc.num_states || mode_lib->vba.ModeSupport[i][0] == true ||
 				mode_lib->vba.ModeSupport[i][1] == true) {
 			mode_lib->vba.VoltageLevel = i;

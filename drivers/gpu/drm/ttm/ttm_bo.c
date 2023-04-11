@@ -84,6 +84,7 @@ EXPORT_SYMBOL(ttm_bo_move_to_lru_tail);
  * ttm_bo_set_bulk_move - update BOs bulk move object
  *
  * @bo: The buffer object.
+ * @bulk: bulk move structure
  *
  * Update the BOs bulk move object, making sure that resources are added/removed
  * as well. A bulk move allows to move many resource on the LRU at once,
@@ -120,8 +121,7 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 	bool old_use_tt, new_use_tt;
 	int ret;
 
-	old_use_tt = bo->resource &&
-		ttm_manager_type(bdev, bo->resource->mem_type)->use_tt;
+	old_use_tt = !bo->resource || ttm_manager_type(bdev, bo->resource->mem_type)->use_tt;
 	new_use_tt = ttm_manager_type(bdev, mem->mem_type)->use_tt;
 
 	ttm_bo_unmap_virtual(bo);
@@ -295,8 +295,6 @@ static int ttm_bo_cleanup_refs(struct ttm_buffer_object *bo,
 	if (unlock_resv)
 		dma_resv_unlock(bo->base.resv);
 
-	ttm_bo_put(bo);
-
 	return 0;
 }
 
@@ -465,7 +463,8 @@ bounce:
 	if (ret == -EMULTIHOP) {
 		ret = ttm_bo_bounce_temp_buffer(bo, &evict_mem, ctx, &hop);
 		if (ret) {
-			pr_err("Buffer eviction failed\n");
+			if (ret != -ERESTARTSYS && ret != -EINTR)
+				pr_err("Buffer eviction failed\n");
 			ttm_resource_free(bo, &evict_mem);
 			goto out;
 		}
@@ -748,7 +747,7 @@ static int ttm_bo_mem_force_space(struct ttm_buffer_object *bo,
  *
  * @bo: Pointer to a struct ttm_buffer_object. the data of which
  * we want to allocate space for.
- * @proposed_placement: Proposed new placement for the buffer object.
+ * @placement: Proposed new placement for the buffer object.
  * @mem: A struct ttm_resource.
  * @ctx: if and how to sleep, lock buffers and alloc memory
  *
@@ -894,14 +893,18 @@ int ttm_bo_validate(struct ttm_buffer_object *bo,
 	if (!placement->num_placement && !placement->num_busy_placement)
 		return ttm_bo_pipeline_gutting(bo);
 
-	/*
-	 * Check whether we need to move buffer.
-	 */
-	if (!bo->resource || !ttm_resource_compat(bo->resource, placement)) {
-		ret = ttm_bo_move_buffer(bo, placement, ctx);
-		if (ret)
-			return ret;
-	}
+	/* Check whether we need to move buffer. */
+	if (bo->resource && ttm_resource_compat(bo->resource, placement))
+		return 0;
+
+	/* Moving of pinned BOs is forbidden */
+	if (bo->pin_count)
+		return -EINVAL;
+
+	ret = ttm_bo_move_buffer(bo, placement, ctx);
+	if (ret)
+		return ret;
+
 	/*
 	 * We might need to add a TTM.
 	 */
@@ -953,7 +956,6 @@ int ttm_bo_init_reserved(struct ttm_device *bdev, struct ttm_buffer_object *bo,
 			 struct sg_table *sg, struct dma_resv *resv,
 			 void (*destroy) (struct ttm_buffer_object *))
 {
-	static const struct ttm_place sys_mem = { .mem_type = TTM_PL_SYSTEM };
 	int ret;
 
 	kref_init(&bo->kref);
@@ -969,12 +971,6 @@ int ttm_bo_init_reserved(struct ttm_device *bdev, struct ttm_buffer_object *bo,
 	else
 		bo->base.resv = &bo->base._resv;
 	atomic_inc(&ttm_glob.bo_count);
-
-	ret = ttm_resource_alloc(bo, &sys_mem, &bo->resource);
-	if (unlikely(ret)) {
-		ttm_bo_put(bo);
-		return ret;
-	}
 
 	/*
 	 * For ttm_bo_type_device buffers, allocate
@@ -1087,46 +1083,34 @@ void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo)
 EXPORT_SYMBOL(ttm_bo_unmap_virtual);
 
 /**
- * ttm_bo_wait - wait for buffer idle.
+ * ttm_bo_wait_ctx - wait for buffer idle.
  *
  * @bo:  The buffer object.
- * @interruptible:  Use interruptible wait.
- * @no_wait:  Return immediately if buffer is busy.
+ * @ctx: defines how to wait
  *
- * This function must be called with the bo::mutex held, and makes
- * sure any previous rendering to the buffer is completed.
- * Note: It might be necessary to block validations before the
- * wait by reserving the buffer.
- * Returns -EBUSY if no_wait is true and the buffer is busy.
- * Returns -ERESTARTSYS if interrupted by a signal.
+ * Waits for the buffer to be idle. Used timeout depends on the context.
+ * Returns -EBUSY if wait timed outt, -ERESTARTSYS if interrupted by a signal or
+ * zero on success.
  */
-int ttm_bo_wait(struct ttm_buffer_object *bo,
-		bool interruptible, bool no_wait)
+int ttm_bo_wait_ctx(struct ttm_buffer_object *bo, struct ttm_operation_ctx *ctx)
 {
-	long timeout = 15 * HZ;
+	long ret;
 
-	if (no_wait) {
-		if (dma_resv_test_signaled(bo->base.resv, DMA_RESV_USAGE_BOOKKEEP))
+	if (ctx->no_wait_gpu) {
+		if (dma_resv_test_signaled(bo->base.resv,
+					   DMA_RESV_USAGE_BOOKKEEP))
 			return 0;
 		else
 			return -EBUSY;
 	}
 
-	timeout = dma_resv_wait_timeout(bo->base.resv, DMA_RESV_USAGE_BOOKKEEP,
-					interruptible, timeout);
-	if (timeout < 0)
-		return timeout;
-
-	if (timeout == 0)
+	ret = dma_resv_wait_timeout(bo->base.resv, DMA_RESV_USAGE_BOOKKEEP,
+				    ctx->interruptible, 15 * HZ);
+	if (unlikely(ret < 0))
+		return ret;
+	if (unlikely(ret == 0))
 		return -EBUSY;
-
 	return 0;
-}
-EXPORT_SYMBOL(ttm_bo_wait);
-
-int ttm_bo_wait_ctx(struct ttm_buffer_object *bo, struct ttm_operation_ctx *ctx)
-{
-	return ttm_bo_wait(bo, ctx->interruptible, ctx->no_wait_gpu);
 }
 EXPORT_SYMBOL(ttm_bo_wait_ctx);
 
@@ -1135,7 +1119,7 @@ int ttm_bo_swapout(struct ttm_buffer_object *bo, struct ttm_operation_ctx *ctx,
 {
 	struct ttm_place place;
 	bool locked;
-	int ret;
+	long ret;
 
 	/*
 	 * While the bo may already reside in SYSTEM placement, set

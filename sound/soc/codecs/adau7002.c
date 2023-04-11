@@ -100,11 +100,6 @@ static int adau7002_probe(struct platform_device *pdev)
 			&adau7002_dai, 1);
 }
 
-static int adau7002_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 #ifdef CONFIG_OF
 static const struct of_device_id adau7002_dt_ids[] = {
 	{ .compatible = "adi,adau7002", },
@@ -128,7 +123,6 @@ static struct platform_driver adau7002_driver = {
 		.acpi_match_table = ACPI_PTR(adau7002_acpi_match),
 	},
 	.probe = adau7002_probe,
-	.remove = adau7002_remove,
 };
 module_platform_driver(adau7002_driver);
 

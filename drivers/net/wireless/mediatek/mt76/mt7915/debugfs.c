@@ -811,7 +811,7 @@ mt7915_hw_queue_read(struct seq_file *s, u32 size,
 		if (val & BIT(map[i].index))
 			continue;
 
-		ctrl = BIT(31) | (map[i].pid << 10) | (map[i].qid << 24);
+		ctrl = BIT(31) | (map[i].pid << 10) | ((u32)map[i].qid << 24);
 		mt76_wr(dev, MT_FL_Q0_CTRL, ctrl);
 
 		head = mt76_get_field(dev, MT_FL_Q2_CTRL,
@@ -996,7 +996,7 @@ mt7915_rate_txpower_get(struct file *file, char __user *user_buf,
 
 	ret = mt7915_mcu_get_txpower_sku(phy, txpwr, sizeof(txpwr));
 	if (ret)
-		return ret;
+		goto out;
 
 	/* Txpower propagation path: TMAC -> TXV -> BBP */
 	len += scnprintf(buf + len, sz - len,
@@ -1047,6 +1047,8 @@ mt7915_rate_txpower_get(struct file *file, char __user *user_buf,
 			 mt76_get_field(dev, reg, MT_WF_PHY_TPC_POWER));
 
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+
+out:
 	kfree(buf);
 	return ret;
 }

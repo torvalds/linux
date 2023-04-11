@@ -513,36 +513,44 @@ int tb_wait_for_port(struct tb_port *port, bool wait_if_unplugged)
 
 	while (retries--) {
 		state = tb_port_state(port);
-		if (state < 0)
-			return state;
-		if (state == TB_PORT_DISABLED) {
+		switch (state) {
+		case TB_PORT_DISABLED:
 			tb_port_dbg(port, "is disabled (state: 0)\n");
 			return 0;
-		}
-		if (state == TB_PORT_UNPLUGGED) {
+
+		case TB_PORT_UNPLUGGED:
 			if (wait_if_unplugged) {
 				/* used during resume */
 				tb_port_dbg(port,
 					    "is unplugged (state: 7), retrying...\n");
 				msleep(100);
-				continue;
+				break;
 			}
 			tb_port_dbg(port, "is unplugged (state: 7)\n");
 			return 0;
-		}
-		if (state == TB_PORT_UP) {
-			tb_port_dbg(port, "is connected, link is up (state: 2)\n");
+
+		case TB_PORT_UP:
+		case TB_PORT_TX_CL0S:
+		case TB_PORT_RX_CL0S:
+		case TB_PORT_CL1:
+		case TB_PORT_CL2:
+			tb_port_dbg(port, "is connected, link is up (state: %d)\n", state);
 			return 1;
+
+		default:
+			if (state < 0)
+				return state;
+
+			/*
+			 * After plug-in the state is TB_PORT_CONNECTING. Give it some
+			 * time.
+			 */
+			tb_port_dbg(port,
+				    "is connected, link is not up (state: %d), retrying...\n",
+				    state);
+			msleep(100);
 		}
 
-		/*
-		 * After plug-in the state is TB_PORT_CONNECTING. Give it some
-		 * time.
-		 */
-		tb_port_dbg(port,
-			    "is connected, link is not up (state: %d), retrying...\n",
-			    state);
-		msleep(100);
 	}
 	tb_port_warn(port,
 		     "failed to reach state TB_PORT_UP. Ignoring port...\n");
@@ -2176,9 +2184,9 @@ static void tb_switch_release(struct device *dev)
 	kfree(sw);
 }
 
-static int tb_switch_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int tb_switch_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct tb_switch *sw = tb_to_switch(dev);
+	const struct tb_switch *sw = tb_to_switch(dev);
 	const char *type;
 
 	if (sw->config.thunderbolt_version == USB4_VERSION_1_0) {
@@ -2960,8 +2968,6 @@ int tb_switch_add(struct tb_switch *sw)
 			dev_warn(&sw->dev, "reading DROM failed: %d\n", ret);
 		tb_sw_dbg(sw, "uid: %#llx\n", sw->uid);
 
-		tb_check_quirks(sw);
-
 		ret = tb_switch_set_uuid(sw);
 		if (ret) {
 			dev_err(&sw->dev, "failed to set UUID\n");
@@ -2979,6 +2985,8 @@ int tb_switch_add(struct tb_switch *sw)
 				return ret;
 			}
 		}
+
+		tb_check_quirks(sw);
 
 		tb_switch_default_link_ports(sw);
 

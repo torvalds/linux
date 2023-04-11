@@ -109,6 +109,7 @@ static void igb_free_all_rx_resources(struct igb_adapter *);
 static void igb_setup_mrqc(struct igb_adapter *);
 static int igb_probe(struct pci_dev *, const struct pci_device_id *);
 static void igb_remove(struct pci_dev *pdev);
+static void igb_init_queue_configuration(struct igb_adapter *adapter);
 static int igb_sw_init(struct igb_adapter *);
 int igb_open(struct net_device *);
 int igb_close(struct net_device *);
@@ -175,9 +176,7 @@ static void igb_nfc_filter_restore(struct igb_adapter *adapter);
 
 #ifdef CONFIG_PCI_IOV
 static int igb_vf_configure(struct igb_adapter *adapter, int vf);
-static int igb_pci_enable_sriov(struct pci_dev *dev, int num_vfs);
-static int igb_disable_sriov(struct pci_dev *dev);
-static int igb_pci_disable_sriov(struct pci_dev *dev);
+static int igb_disable_sriov(struct pci_dev *dev, bool reinit);
 #endif
 
 static int igb_suspend(struct device *);
@@ -2256,6 +2255,30 @@ static void igb_enable_mas(struct igb_adapter *adapter)
 	}
 }
 
+#ifdef CONFIG_IGB_HWMON
+/**
+ *  igb_set_i2c_bb - Init I2C interface
+ *  @hw: pointer to hardware structure
+ **/
+static void igb_set_i2c_bb(struct e1000_hw *hw)
+{
+	u32 ctrl_ext;
+	s32 i2cctl;
+
+	ctrl_ext = rd32(E1000_CTRL_EXT);
+	ctrl_ext |= E1000_CTRL_I2C_ENA;
+	wr32(E1000_CTRL_EXT, ctrl_ext);
+	wrfl();
+
+	i2cctl = rd32(E1000_I2CPARAMS);
+	i2cctl |= E1000_I2CBB_EN
+		| E1000_I2C_CLK_OE_N
+		| E1000_I2C_DATA_OE_N;
+	wr32(E1000_I2CPARAMS, i2cctl);
+	wrfl();
+}
+#endif
+
 void igb_reset(struct igb_adapter *adapter)
 {
 	struct pci_dev *pdev = adapter->pdev;
@@ -2400,7 +2423,8 @@ void igb_reset(struct igb_adapter *adapter)
 			 * interface.
 			 */
 			if (adapter->ets)
-				mac->ops.init_thermal_sensor_thresh(hw);
+				igb_set_i2c_bb(hw);
+			mac->ops.init_thermal_sensor_thresh(hw);
 		}
 	}
 #endif
@@ -2810,6 +2834,22 @@ static int igb_offload_txtime(struct igb_adapter *adapter,
 	return 0;
 }
 
+static int igb_tc_query_caps(struct igb_adapter *adapter,
+			     struct tc_query_caps_base *base)
+{
+	switch (base->type) {
+	case TC_SETUP_QDISC_TAPRIO: {
+		struct tc_taprio_caps *caps = base->caps;
+
+		caps->broken_mqprio = true;
+
+		return 0;
+	}
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static LIST_HEAD(igb_block_cb_list);
 
 static int igb_setup_tc(struct net_device *dev, enum tc_setup_type type,
@@ -2818,6 +2858,8 @@ static int igb_setup_tc(struct net_device *dev, enum tc_setup_type type,
 	struct igb_adapter *adapter = netdev_priv(dev);
 
 	switch (type) {
+	case TC_QUERY_CAPS:
+		return igb_tc_query_caps(adapter, type_data);
 	case TC_SETUP_QDISC_CBS:
 		return igb_offload_cbs(adapter, type_data);
 	case TC_SETUP_BLOCK:
@@ -2871,8 +2913,14 @@ static int igb_xdp_setup(struct net_device *dev, struct netdev_bpf *bpf)
 		bpf_prog_put(old_prog);
 
 	/* bpf is just replaced, RXQ and MTU are already setup */
-	if (!need_reset)
+	if (!need_reset) {
 		return 0;
+	} else {
+		if (prog)
+			xdp_features_set_redirect_target(dev, true);
+		else
+			xdp_features_clear_redirect_target(dev);
+	}
 
 	if (running)
 		igb_open(dev);
@@ -3117,20 +3165,11 @@ static void igb_init_mas(struct igb_adapter *adapter)
  **/
 static s32 igb_init_i2c(struct igb_adapter *adapter)
 {
-	struct e1000_hw *hw = &adapter->hw;
 	s32 status = 0;
-	s32 i2cctl;
 
 	/* I2C interface supported on i350 devices */
 	if (adapter->hw.mac.type != e1000_i350)
 		return 0;
-
-	i2cctl = rd32(E1000_I2CPARAMS);
-	i2cctl |= E1000_I2CBB_EN
-		| E1000_I2C_CLK_OUT | E1000_I2C_CLK_OE_N
-		| E1000_I2C_DATA_OUT | E1000_I2C_DATA_OE_N;
-	wr32(E1000_I2CPARAMS, i2cctl);
-	wrfl();
 
 	/* Initialize the i2c bus which is controlled by the registers.
 	 * This bus will use the i2c_algo_bit structure that implements
@@ -3193,8 +3232,6 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	err = pci_request_mem_regions(pdev, igb_driver_name);
 	if (err)
 		goto err_pci_reg;
-
-	pci_enable_pcie_error_reporting(pdev);
 
 	pci_set_master(pdev);
 	pci_save_state(pdev);
@@ -3317,6 +3354,7 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->priv_flags |= IFF_SUPP_NOFCS;
 
 	netdev->priv_flags |= IFF_UNICAST_FLT;
+	netdev->xdp_features = NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT;
 
 	/* MTU range: 68 - 9216 */
 	netdev->min_mtu = ETH_MIN_MTU;
@@ -3521,6 +3559,12 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			adapter->ets = true;
 		else
 			adapter->ets = false;
+		/* Only enable I2C bit banging if an external thermal
+		 * sensor is supported.
+		 */
+		if (adapter->ets)
+			igb_set_i2c_bb(hw);
+		hw->mac.ops.init_thermal_sensor_thresh(hw);
 		if (igb_sysfs_init(adapter))
 			dev_err(&pdev->dev,
 				"failed to allocate sysfs resources\n");
@@ -3620,13 +3664,12 @@ err_sw_init:
 	kfree(adapter->shadow_vfta);
 	igb_clear_interrupt_scheme(adapter);
 #ifdef CONFIG_PCI_IOV
-	igb_disable_sriov(pdev);
+	igb_disable_sriov(pdev, false);
 #endif
 	pci_iounmap(pdev, adapter->io_addr);
 err_ioremap:
 	free_netdev(netdev);
 err_alloc_etherdev:
-	pci_disable_pcie_error_reporting(pdev);
 	pci_release_mem_regions(pdev);
 err_pci_reg:
 err_dma:
@@ -3635,7 +3678,38 @@ err_dma:
 }
 
 #ifdef CONFIG_PCI_IOV
-static int igb_disable_sriov(struct pci_dev *pdev)
+static int igb_sriov_reinit(struct pci_dev *dev)
+{
+	struct net_device *netdev = pci_get_drvdata(dev);
+	struct igb_adapter *adapter = netdev_priv(netdev);
+	struct pci_dev *pdev = adapter->pdev;
+
+	rtnl_lock();
+
+	if (netif_running(netdev))
+		igb_close(netdev);
+	else
+		igb_reset(adapter);
+
+	igb_clear_interrupt_scheme(adapter);
+
+	igb_init_queue_configuration(adapter);
+
+	if (igb_init_interrupt_scheme(adapter, true)) {
+		rtnl_unlock();
+		dev_err(&pdev->dev, "Unable to allocate memory for queues\n");
+		return -ENOMEM;
+	}
+
+	if (netif_running(netdev))
+		igb_open(netdev);
+
+	rtnl_unlock();
+
+	return 0;
+}
+
+static int igb_disable_sriov(struct pci_dev *pdev, bool reinit)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct igb_adapter *adapter = netdev_priv(netdev);
@@ -3669,10 +3743,10 @@ static int igb_disable_sriov(struct pci_dev *pdev)
 		adapter->flags |= IGB_FLAG_DMAC;
 	}
 
-	return 0;
+	return reinit ? igb_sriov_reinit(pdev) : 0;
 }
 
-static int igb_enable_sriov(struct pci_dev *pdev, int num_vfs)
+static int igb_enable_sriov(struct pci_dev *pdev, int num_vfs, bool reinit)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct igb_adapter *adapter = netdev_priv(netdev);
@@ -3737,12 +3811,6 @@ static int igb_enable_sriov(struct pci_dev *pdev, int num_vfs)
 			"Unable to allocate memory for VF MAC filter list\n");
 	}
 
-	/* only call pci_enable_sriov() if no VFs are allocated already */
-	if (!old_vfs) {
-		err = pci_enable_sriov(pdev, adapter->vfs_allocated_count);
-		if (err)
-			goto err_out;
-	}
 	dev_info(&pdev->dev, "%d VFs allocated\n",
 		 adapter->vfs_allocated_count);
 	for (i = 0; i < adapter->vfs_allocated_count; i++)
@@ -3750,6 +3818,17 @@ static int igb_enable_sriov(struct pci_dev *pdev, int num_vfs)
 
 	/* DMA Coalescing is not supported in IOV mode. */
 	adapter->flags &= ~IGB_FLAG_DMAC;
+
+	if (reinit) {
+		err = igb_sriov_reinit(pdev);
+		if (err)
+			goto err_out;
+	}
+
+	/* only call pci_enable_sriov() if no VFs are allocated already */
+	if (!old_vfs)
+		err = pci_enable_sriov(pdev, adapter->vfs_allocated_count);
+
 	goto out;
 
 err_out:
@@ -3819,9 +3898,7 @@ static void igb_remove(struct pci_dev *pdev)
 	igb_release_hw_control(adapter);
 
 #ifdef CONFIG_PCI_IOV
-	rtnl_lock();
-	igb_disable_sriov(pdev);
-	rtnl_unlock();
+	igb_disable_sriov(pdev, false);
 #endif
 
 	unregister_netdev(netdev);
@@ -3836,8 +3913,6 @@ static void igb_remove(struct pci_dev *pdev)
 	kfree(adapter->mac_table);
 	kfree(adapter->shadow_vfta);
 	free_netdev(netdev);
-
-	pci_disable_pcie_error_reporting(pdev);
 
 	pci_disable_device(pdev);
 }
@@ -3869,7 +3944,7 @@ static void igb_probe_vfs(struct igb_adapter *adapter)
 	igb_reset_interrupt_capability(adapter);
 
 	pci_sriov_set_totalvfs(pdev, 7);
-	igb_enable_sriov(pdev, max_vfs);
+	igb_enable_sriov(pdev, max_vfs, false);
 
 #endif /* CONFIG_PCI_IOV */
 }
@@ -6794,7 +6869,7 @@ static void igb_perout(struct igb_adapter *adapter, int tsintr_tt)
 	struct timespec64 ts;
 	u32 tsauxc;
 
-	if (pin < 0 || pin >= IGB_N_PEROUT)
+	if (pin < 0 || pin >= IGB_N_SDP)
 		return;
 
 	spin_lock(&adapter->tmreg_lock);
@@ -6802,7 +6877,7 @@ static void igb_perout(struct igb_adapter *adapter, int tsintr_tt)
 	if (hw->mac.type == e1000_82580 ||
 	    hw->mac.type == e1000_i354 ||
 	    hw->mac.type == e1000_i350) {
-		s64 ns = timespec64_to_ns(&adapter->perout[pin].period);
+		s64 ns = timespec64_to_ns(&adapter->perout[tsintr_tt].period);
 		u32 systiml, systimh, level_mask, level, rem;
 		u64 systim, now;
 
@@ -6850,8 +6925,8 @@ static void igb_perout(struct igb_adapter *adapter, int tsintr_tt)
 		ts.tv_nsec = (u32)systim;
 		ts.tv_sec  = ((u32)(systim >> 32)) & 0xFF;
 	} else {
-		ts = timespec64_add(adapter->perout[pin].start,
-				    adapter->perout[pin].period);
+		ts = timespec64_add(adapter->perout[tsintr_tt].start,
+				    adapter->perout[tsintr_tt].period);
 	}
 
 	/* u32 conversion of tv_sec is safe until y2106 */
@@ -6860,7 +6935,7 @@ static void igb_perout(struct igb_adapter *adapter, int tsintr_tt)
 	tsauxc = rd32(E1000_TSAUXC);
 	tsauxc |= TSAUXC_EN_TT0;
 	wr32(E1000_TSAUXC, tsauxc);
-	adapter->perout[pin].start = ts;
+	adapter->perout[tsintr_tt].start = ts;
 
 	spin_unlock(&adapter->tmreg_lock);
 }
@@ -6874,7 +6949,7 @@ static void igb_extts(struct igb_adapter *adapter, int tsintr_tt)
 	struct ptp_clock_event event;
 	struct timespec64 ts;
 
-	if (pin < 0 || pin >= IGB_N_EXTTS)
+	if (pin < 0 || pin >= IGB_N_SDP)
 		return;
 
 	if (hw->mac.type == e1000_82580 ||
@@ -9478,71 +9553,17 @@ static void igb_shutdown(struct pci_dev *pdev)
 	}
 }
 
-#ifdef CONFIG_PCI_IOV
-static int igb_sriov_reinit(struct pci_dev *dev)
-{
-	struct net_device *netdev = pci_get_drvdata(dev);
-	struct igb_adapter *adapter = netdev_priv(netdev);
-	struct pci_dev *pdev = adapter->pdev;
-
-	rtnl_lock();
-
-	if (netif_running(netdev))
-		igb_close(netdev);
-	else
-		igb_reset(adapter);
-
-	igb_clear_interrupt_scheme(adapter);
-
-	igb_init_queue_configuration(adapter);
-
-	if (igb_init_interrupt_scheme(adapter, true)) {
-		rtnl_unlock();
-		dev_err(&pdev->dev, "Unable to allocate memory for queues\n");
-		return -ENOMEM;
-	}
-
-	if (netif_running(netdev))
-		igb_open(netdev);
-
-	rtnl_unlock();
-
-	return 0;
-}
-
-static int igb_pci_disable_sriov(struct pci_dev *dev)
-{
-	int err = igb_disable_sriov(dev);
-
-	if (!err)
-		err = igb_sriov_reinit(dev);
-
-	return err;
-}
-
-static int igb_pci_enable_sriov(struct pci_dev *dev, int num_vfs)
-{
-	int err = igb_enable_sriov(dev, num_vfs);
-
-	if (err)
-		goto out;
-
-	err = igb_sriov_reinit(dev);
-	if (!err)
-		return num_vfs;
-
-out:
-	return err;
-}
-
-#endif
 static int igb_pci_sriov_configure(struct pci_dev *dev, int num_vfs)
 {
 #ifdef CONFIG_PCI_IOV
-	if (num_vfs == 0)
-		return igb_pci_disable_sriov(dev);
-	else
-		return igb_pci_enable_sriov(dev, num_vfs);
+	int err;
+
+	if (num_vfs == 0) {
+		return igb_disable_sriov(dev, true);
+	} else {
+		err = igb_enable_sriov(dev, num_vfs, true);
+		return err ? err : num_vfs;
+	}
 #endif
 	return 0;
 }

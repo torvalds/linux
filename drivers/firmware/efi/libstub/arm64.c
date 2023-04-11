@@ -16,17 +16,43 @@
 
 static bool system_needs_vamap(void)
 {
-	const u8 *type1_family = efi_get_smbios_string(1, family);
+	const struct efi_smbios_type4_record *record;
+	const u32 __aligned(1) *socid;
+	const u8 *version;
 
 	/*
-	 * Ampere Altra machines crash in SetTime() if SetVirtualAddressMap()
-	 * has not been called prior.
+	 * Ampere eMAG, Altra, and Altra Max machines crash in SetTime() if
+	 * SetVirtualAddressMap() has not been called prior. Most Altra systems
+	 * can be identified by the SMCCC soc ID, which is conveniently exposed
+	 * via the type 4 SMBIOS records. Otherwise, test the processor version
+	 * field. eMAG systems all appear to have the processor version field
+	 * set to "eMAG".
 	 */
-	if (!type1_family || strcmp(type1_family, "Altra"))
+	record = (struct efi_smbios_type4_record *)efi_get_smbios_record(4);
+	if (!record)
 		return false;
 
-	efi_warn("Working around broken SetVirtualAddressMap()\n");
-	return true;
+	socid = (u32 *)record->processor_id;
+	switch (*socid & 0xffff000f) {
+		static char const altra[] = "Ampere(TM) Altra(TM) Processor";
+		static char const emag[] = "eMAG";
+
+	default:
+		version = efi_get_smbios_string(&record->header, 4,
+						processor_version);
+		if (!version || (strncmp(version, altra, sizeof(altra) - 1) &&
+				 strncmp(version, emag, sizeof(emag) - 1)))
+			break;
+
+		fallthrough;
+
+	case 0x0a160001:	// Altra
+	case 0x0a160002:	// Altra Max
+		efi_warn("Working around broken SetVirtualAddressMap()\n");
+		return true;
+	}
+
+	return false;
 }
 
 efi_status_t check_platform_features(void)
@@ -56,6 +82,12 @@ efi_status_t check_platform_features(void)
 	return EFI_SUCCESS;
 }
 
+#ifdef CONFIG_ARM64_WORKAROUND_CLEAN_CACHE
+#define DCTYPE	"civac"
+#else
+#define DCTYPE	"cvau"
+#endif
+
 void efi_cache_sync_image(unsigned long image_base,
 			  unsigned long alloc_size,
 			  unsigned long code_size)
@@ -64,13 +96,38 @@ void efi_cache_sync_image(unsigned long image_base,
 	u64 lsize = 4 << cpuid_feature_extract_unsigned_field(ctr,
 						CTR_EL0_DminLine_SHIFT);
 
-	do {
-		asm("dc civac, %0" :: "r"(image_base));
-		image_base += lsize;
-		alloc_size -= lsize;
-	} while (alloc_size >= lsize);
+	/* only perform the cache maintenance if needed for I/D coherency */
+	if (!(ctr & BIT(CTR_EL0_IDC_SHIFT))) {
+		do {
+			asm("dc " DCTYPE ", %0" :: "r"(image_base));
+			image_base += lsize;
+			code_size -= lsize;
+		} while (code_size >= lsize);
+	}
 
 	asm("ic ialluis");
 	dsb(ish);
 	isb();
+}
+
+unsigned long __weak primary_entry_offset(void)
+{
+	/*
+	 * By default, we can invoke the kernel via the branch instruction in
+	 * the image header, so offset #0. This will be overridden by the EFI
+	 * stub build that is linked into the core kernel, as in that case, the
+	 * image header may not have been loaded into memory, or may be mapped
+	 * with non-executable permissions.
+	 */
+       return 0;
+}
+
+void __noreturn efi_enter_kernel(unsigned long entrypoint,
+				 unsigned long fdt_addr,
+				 unsigned long fdt_size)
+{
+	void (* __noreturn enter_kernel)(u64, u64, u64, u64);
+
+	enter_kernel = (void *)entrypoint + primary_entry_offset();
+	enter_kernel(fdt_addr, 0, 0, 0);
 }

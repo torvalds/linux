@@ -192,6 +192,8 @@ properties:
       - innolux,n125hce-gn1
         # InnoLux 15.6" WXGA TFT LCD panel
       - innolux,n156bge-l21
+        # Innolux P120ZDG-BF1 12.02 inch eDP 2K display panel
+      - innolux,p120zdg-bf1
         # Innolux Corporation 7.0" WSVGA (1024x600) TFT LCD panel
       - innolux,zj070na-01p
         # King & Display KD116N21-30NV-A010 eDP TFT LCD panel

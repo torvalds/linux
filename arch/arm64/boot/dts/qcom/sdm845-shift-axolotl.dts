@@ -54,7 +54,7 @@
 		key-vol-up {
 			label = "volume_up";
 			linux,code = <KEY_VOLUMEUP>;
-			gpios = <&pm8998_gpio 6 GPIO_ACTIVE_LOW>;
+			gpios = <&pm8998_gpios 6 GPIO_ACTIVE_LOW>;
 			debounce-interval = <15>;
 		};
 	};
@@ -111,7 +111,7 @@
 };
 
 &apps_rsc {
-	pm8998-rpmh-regulators {
+	regulators-0 {
 		compatible = "qcom,pm8998-rpmh-regulators";
 		qcom,pmic-id = "a";
 
@@ -376,7 +376,7 @@
 		};
 	};
 
-	pmi8998-rpmh-regulators {
+	regulators-1 {
 		compatible = "qcom,pmi8998-rpmh-regulators";
 		qcom,pmic-id = "b";
 
@@ -390,7 +390,7 @@
 		};
 	};
 
-	pm8005-rpmh-regulators {
+	regulators-2 {
 		compatible = "qcom,pm8005-rpmh-regulators";
 		qcom,pmic-id = "c";
 
@@ -495,10 +495,10 @@
 };
 
 &ipa {
-	status = "okay";
-
+	qcom,gsi-loader = "self";
 	memory-region = <&ipa_fw_mem>;
 	firmware-name = "qcom/sdm845/axolotl/ipa_fws.mbn";
+	status = "okay";
 };
 
 &mdss {
@@ -510,7 +510,7 @@
 	firmware-name = "qcom/sdm845/axolotl/mba.mbn", "qcom/sdm845/axolotl/modem.mbn";
 };
 
-&pm8998_gpio {
+&pm8998_gpios {
 	volume_up_gpio: pm8998-gpio6-state {
 		pinconf {
 			pins = "gpio6";
@@ -522,14 +522,9 @@
 	};
 };
 
-&pm8998_pon {
-	volume_down_resin: resin {
-		compatible = "qcom,pm8941-resin";
-		interrupts = <0x0 0x8 1 IRQ_TYPE_EDGE_BOTH>;
-		debounce = <15625>;
-		bias-pull-up;
-		linux,code = <KEY_VOLUMEDOWN>;
-	};
+&pm8998_resin {
+	linux,code = <KEY_VOLUMEDOWN>;
+	status = "okay";
 };
 
 &pmi8998_lpg {
@@ -559,18 +554,14 @@
 	};
 };
 
-&qup_uart9_default {
-	pinconf-rx {
-		pins = "gpio5";
-		drive-strength = <2>;
-		bias-pull-up;
-	};
+&qup_uart9_rx {
+	drive-strength = <2>;
+	bias-pull-up;
+};
 
-	pinconf-tx {
-		pins = "gpio4";
-		drive-strength = <2>;
-		bias-disable;
-	};
+&qup_uart9_tx {
+	drive-strength = <2>;
+	bias-disable;
 };
 
 &qupv3_id_0 {
@@ -584,110 +575,62 @@
 &tlmm {
 	gpio-reserved-ranges = <0 4>, <81 4>;
 
-	sde_dsi_active: sde-dsi-active {
-		mux {
-			pins = "gpio6", "gpio11";
-			function = "gpio";
-		};
-
-		config {
-			pins = "gpio6", "gpio11";
-			drive-strength = <8>;
-			bias-disable;
-		};
+	sde_dsi_active: sde-dsi-active-state {
+		pins = "gpio6", "gpio11";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-disable;
 	};
 
-	sde_dsi_suspend: sde-dsi-suspend {
-		mux {
-			pins = "gpio6", "gpio11";
-			function = "gpio";
-		};
-
-		config {
-			pins = "gpio6", "gpio11";
-			drive-strength = <2>;
-			bias-pull-down;
-		};
+	sde_dsi_suspend: sde-dsi-suspend-state {
+		pins = "gpio6", "gpio11";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
 	};
 
-	sde_te_active: sde-te-active {
-		mux {
-			pins = "gpio10";
-			function = "mdp_vsync";
-		};
-
-		config {
-			pins = "gpio10";
-			drive-strength = <2>;
-			bias-pull-down;
-		};
+	sde_te_active: sde-te-active-state {
+		pins = "gpio10";
+		function = "mdp_vsync";
+		drive-strength = <2>;
+		bias-pull-down;
 	};
 
-	sde_te_suspend: sde-te-suspend {
-		mux {
-			pins = "gpio10";
-			function = "mdp_vsync";
-		};
-
-		config {
-			pins = "gpio10";
-			drive-strength = <2>;
-			bias-pull-down;
-		};
+	sde_te_suspend: sde-te-suspend-state {
+		pins = "gpio10";
+		function = "mdp_vsync";
+		drive-strength = <2>;
+		bias-pull-down;
 	};
 
-	ts_int_active: ts-int-active {
-		mux {
-			pins = "gpio125";
-			function = "gpio";
-		};
-
-		config {
-			pins = "gpio125";
-			drive-strength = <8>;
-			bias-pull-up;
-			input-enable;
-		};
+	ts_int_active: ts-int-active-state {
+		pins = "gpio125";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-pull-up;
+		input-enable;
 	};
 
-	ts_int_suspend: ts-int-suspend {
-		mux {
-			pins = "gpio125";
-			function = "gpio";
-		};
-
-		config {
-			pins = "gpio125";
-			drive-strength = <2>;
-			bias-pull-down;
-			input-enable;
-		};
+	ts_int_suspend: ts-int-suspend-state {
+		pins = "gpio125";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
+		input-enable;
 	};
 
-	ts_reset_active: ts-reset-active {
-		mux {
-			pins = "gpio99";
-			function = "gpio";
-		};
-
-		config {
-			pins = "gpio99";
-			drive-strength = <8>;
-			bias-pull-up;
-		};
+	ts_reset_active: ts-reset-active-state {
+		pins = "gpio99";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-pull-up;
 	};
 
-	ts_reset_suspend: ts-reset-suspend {
-		mux {
-			pins = "gpio99";
-			function = "gpio";
-		};
-
-		config {
-			pins = "gpio99";
-			drive-strength = <2>;
-			bias-pull-down;
-		};
+	ts_reset_suspend: ts-reset-suspend-state {
+		pins = "gpio99";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
 	};
 };
 

@@ -7,8 +7,6 @@
 
 #include <subcmd/parse-options.h>
 
-extern const struct option check_options[];
-
 struct opts {
 	/* actions: */
 	bool dump_orc;

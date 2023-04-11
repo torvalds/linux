@@ -95,12 +95,9 @@ void intel_connector_destroy(struct drm_connector *connector)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 
-	kfree(intel_connector->detect_edid);
+	drm_edid_free(intel_connector->detect_edid);
 
 	intel_hdcp_cleanup(intel_connector);
-
-	if (!IS_ERR_OR_NULL(intel_connector->edid))
-		kfree(intel_connector->edid);
 
 	intel_panel_fini(intel_connector);
 

@@ -4,6 +4,7 @@
  * Copyright (c) 2017 Microsemi Corporation
  * Copyright 2022 NXP
  */
+#include <linux/ethtool_netlink.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
@@ -54,6 +55,29 @@ enum ocelot_stat {
 	OCELOT_STAT_RX_GREEN_PRIO_5,
 	OCELOT_STAT_RX_GREEN_PRIO_6,
 	OCELOT_STAT_RX_GREEN_PRIO_7,
+	OCELOT_STAT_RX_ASSEMBLY_ERRS,
+	OCELOT_STAT_RX_SMD_ERRS,
+	OCELOT_STAT_RX_ASSEMBLY_OK,
+	OCELOT_STAT_RX_MERGE_FRAGMENTS,
+	OCELOT_STAT_RX_PMAC_OCTETS,
+	OCELOT_STAT_RX_PMAC_UNICAST,
+	OCELOT_STAT_RX_PMAC_MULTICAST,
+	OCELOT_STAT_RX_PMAC_BROADCAST,
+	OCELOT_STAT_RX_PMAC_SHORTS,
+	OCELOT_STAT_RX_PMAC_FRAGMENTS,
+	OCELOT_STAT_RX_PMAC_JABBERS,
+	OCELOT_STAT_RX_PMAC_CRC_ALIGN_ERRS,
+	OCELOT_STAT_RX_PMAC_SYM_ERRS,
+	OCELOT_STAT_RX_PMAC_64,
+	OCELOT_STAT_RX_PMAC_65_127,
+	OCELOT_STAT_RX_PMAC_128_255,
+	OCELOT_STAT_RX_PMAC_256_511,
+	OCELOT_STAT_RX_PMAC_512_1023,
+	OCELOT_STAT_RX_PMAC_1024_1526,
+	OCELOT_STAT_RX_PMAC_1527_MAX,
+	OCELOT_STAT_RX_PMAC_PAUSE,
+	OCELOT_STAT_RX_PMAC_CONTROL,
+	OCELOT_STAT_RX_PMAC_LONGS,
 	OCELOT_STAT_TX_OCTETS,
 	OCELOT_STAT_TX_UNICAST,
 	OCELOT_STAT_TX_MULTICAST,
@@ -85,6 +109,20 @@ enum ocelot_stat {
 	OCELOT_STAT_TX_GREEN_PRIO_6,
 	OCELOT_STAT_TX_GREEN_PRIO_7,
 	OCELOT_STAT_TX_AGED,
+	OCELOT_STAT_TX_MM_HOLD,
+	OCELOT_STAT_TX_MERGE_FRAGMENTS,
+	OCELOT_STAT_TX_PMAC_OCTETS,
+	OCELOT_STAT_TX_PMAC_UNICAST,
+	OCELOT_STAT_TX_PMAC_MULTICAST,
+	OCELOT_STAT_TX_PMAC_BROADCAST,
+	OCELOT_STAT_TX_PMAC_PAUSE,
+	OCELOT_STAT_TX_PMAC_64,
+	OCELOT_STAT_TX_PMAC_65_127,
+	OCELOT_STAT_TX_PMAC_128_255,
+	OCELOT_STAT_TX_PMAC_256_511,
+	OCELOT_STAT_TX_PMAC_512_1023,
+	OCELOT_STAT_TX_PMAC_1024_1526,
+	OCELOT_STAT_TX_PMAC_1527_MAX,
 	OCELOT_STAT_DROP_LOCAL,
 	OCELOT_STAT_DROP_TAIL,
 	OCELOT_STAT_DROP_YELLOW_PRIO_0,
@@ -220,6 +258,7 @@ struct ocelot_stat_layout {
 struct ocelot_stats_region {
 	struct list_head node;
 	u32 base;
+	enum ocelot_stat first_stat;
 	int count;
 	u32 *buf;
 };
@@ -227,6 +266,56 @@ struct ocelot_stats_region {
 static const struct ocelot_stat_layout ocelot_stats_layout[OCELOT_NUM_STATS] = {
 	OCELOT_COMMON_STATS,
 };
+
+static const struct ocelot_stat_layout ocelot_mm_stats_layout[OCELOT_NUM_STATS] = {
+	OCELOT_COMMON_STATS,
+	OCELOT_STAT(RX_ASSEMBLY_ERRS),
+	OCELOT_STAT(RX_SMD_ERRS),
+	OCELOT_STAT(RX_ASSEMBLY_OK),
+	OCELOT_STAT(RX_MERGE_FRAGMENTS),
+	OCELOT_STAT(TX_MERGE_FRAGMENTS),
+	OCELOT_STAT(TX_MM_HOLD),
+	OCELOT_STAT(RX_PMAC_OCTETS),
+	OCELOT_STAT(RX_PMAC_UNICAST),
+	OCELOT_STAT(RX_PMAC_MULTICAST),
+	OCELOT_STAT(RX_PMAC_BROADCAST),
+	OCELOT_STAT(RX_PMAC_SHORTS),
+	OCELOT_STAT(RX_PMAC_FRAGMENTS),
+	OCELOT_STAT(RX_PMAC_JABBERS),
+	OCELOT_STAT(RX_PMAC_CRC_ALIGN_ERRS),
+	OCELOT_STAT(RX_PMAC_SYM_ERRS),
+	OCELOT_STAT(RX_PMAC_64),
+	OCELOT_STAT(RX_PMAC_65_127),
+	OCELOT_STAT(RX_PMAC_128_255),
+	OCELOT_STAT(RX_PMAC_256_511),
+	OCELOT_STAT(RX_PMAC_512_1023),
+	OCELOT_STAT(RX_PMAC_1024_1526),
+	OCELOT_STAT(RX_PMAC_1527_MAX),
+	OCELOT_STAT(RX_PMAC_PAUSE),
+	OCELOT_STAT(RX_PMAC_CONTROL),
+	OCELOT_STAT(RX_PMAC_LONGS),
+	OCELOT_STAT(TX_PMAC_OCTETS),
+	OCELOT_STAT(TX_PMAC_UNICAST),
+	OCELOT_STAT(TX_PMAC_MULTICAST),
+	OCELOT_STAT(TX_PMAC_BROADCAST),
+	OCELOT_STAT(TX_PMAC_PAUSE),
+	OCELOT_STAT(TX_PMAC_64),
+	OCELOT_STAT(TX_PMAC_65_127),
+	OCELOT_STAT(TX_PMAC_128_255),
+	OCELOT_STAT(TX_PMAC_256_511),
+	OCELOT_STAT(TX_PMAC_512_1023),
+	OCELOT_STAT(TX_PMAC_1024_1526),
+	OCELOT_STAT(TX_PMAC_1527_MAX),
+};
+
+static const struct ocelot_stat_layout *
+ocelot_get_stats_layout(struct ocelot *ocelot)
+{
+	if (ocelot->mm_supported)
+		return ocelot_mm_stats_layout;
+
+	return ocelot_stats_layout;
+}
 
 /* Read the counters from hardware and keep them in region->buf.
  * Caller must hold &ocelot->stat_view_lock.
@@ -254,11 +343,12 @@ static int ocelot_port_update_stats(struct ocelot *ocelot, int port)
  */
 static void ocelot_port_transfer_stats(struct ocelot *ocelot, int port)
 {
-	unsigned int idx = port * OCELOT_NUM_STATS;
 	struct ocelot_stats_region *region;
 	int j;
 
 	list_for_each_entry(region, &ocelot->stats_regions, node) {
+		unsigned int idx = port * OCELOT_NUM_STATS + region->first_stat;
+
 		for (j = 0; j < region->count; j++) {
 			u64 *stat = &ocelot->stats[idx + j];
 			u64 val = region->buf[j];
@@ -268,8 +358,6 @@ static void ocelot_port_transfer_stats(struct ocelot *ocelot, int port)
 
 			*stat = (*stat & ~(u64)U32_MAX) + val;
 		}
-
-		idx += region->count;
 	}
 }
 
@@ -306,17 +394,20 @@ static void ocelot_check_stats_work(struct work_struct *work)
 
 void ocelot_get_strings(struct ocelot *ocelot, int port, u32 sset, u8 *data)
 {
+	const struct ocelot_stat_layout *layout;
 	int i;
 
 	if (sset != ETH_SS_STATS)
 		return;
 
+	layout = ocelot_get_stats_layout(ocelot);
+
 	for (i = 0; i < OCELOT_NUM_STATS; i++) {
-		if (ocelot_stats_layout[i].name[0] == '\0')
+		if (layout[i].name[0] == '\0')
 			continue;
 
-		memcpy(data + i * ETH_GSTRING_LEN, ocelot_stats_layout[i].name,
-		       ETH_GSTRING_LEN);
+		memcpy(data, layout[i].name, ETH_GSTRING_LEN);
+		data += ETH_GSTRING_LEN;
 	}
 }
 EXPORT_SYMBOL(ocelot_get_strings);
@@ -350,13 +441,16 @@ out_unlock:
 
 int ocelot_get_sset_count(struct ocelot *ocelot, int port, int sset)
 {
+	const struct ocelot_stat_layout *layout;
 	int i, num_stats = 0;
 
 	if (sset != ETH_SS_STATS)
 		return -EOPNOTSUPP;
 
+	layout = ocelot_get_stats_layout(ocelot);
+
 	for (i = 0; i < OCELOT_NUM_STATS; i++)
-		if (ocelot_stats_layout[i].name[0] != '\0')
+		if (layout[i].name[0] != '\0')
 			num_stats++;
 
 	return num_stats;
@@ -366,14 +460,17 @@ EXPORT_SYMBOL(ocelot_get_sset_count);
 static void ocelot_port_ethtool_stats_cb(struct ocelot *ocelot, int port,
 					 void *priv)
 {
+	const struct ocelot_stat_layout *layout;
 	u64 *data = priv;
 	int i;
+
+	layout = ocelot_get_stats_layout(ocelot);
 
 	/* Copy all supported counters */
 	for (i = 0; i < OCELOT_NUM_STATS; i++) {
 		int index = port * OCELOT_NUM_STATS + i;
 
-		if (ocelot_stats_layout[i].name[0] == '\0')
+		if (layout[i].name[0] == '\0')
 			continue;
 
 		*data++ = ocelot->stats[index];
@@ -395,13 +492,62 @@ static void ocelot_port_pause_stats_cb(struct ocelot *ocelot, int port, void *pr
 	pause_stats->rx_pause_frames = s[OCELOT_STAT_RX_PAUSE];
 }
 
+static void ocelot_port_pmac_pause_stats_cb(struct ocelot *ocelot, int port,
+					    void *priv)
+{
+	u64 *s = &ocelot->stats[port * OCELOT_NUM_STATS];
+	struct ethtool_pause_stats *pause_stats = priv;
+
+	pause_stats->tx_pause_frames = s[OCELOT_STAT_TX_PMAC_PAUSE];
+	pause_stats->rx_pause_frames = s[OCELOT_STAT_RX_PMAC_PAUSE];
+}
+
+static void ocelot_port_mm_stats_cb(struct ocelot *ocelot, int port,
+				    void *priv)
+{
+	u64 *s = &ocelot->stats[port * OCELOT_NUM_STATS];
+	struct ethtool_mm_stats *stats = priv;
+
+	stats->MACMergeFrameAssErrorCount = s[OCELOT_STAT_RX_ASSEMBLY_ERRS];
+	stats->MACMergeFrameSmdErrorCount = s[OCELOT_STAT_RX_SMD_ERRS];
+	stats->MACMergeFrameAssOkCount = s[OCELOT_STAT_RX_ASSEMBLY_OK];
+	stats->MACMergeFragCountRx = s[OCELOT_STAT_RX_MERGE_FRAGMENTS];
+	stats->MACMergeFragCountTx = s[OCELOT_STAT_TX_MERGE_FRAGMENTS];
+	stats->MACMergeHoldCount = s[OCELOT_STAT_TX_MM_HOLD];
+}
+
 void ocelot_port_get_pause_stats(struct ocelot *ocelot, int port,
 				 struct ethtool_pause_stats *pause_stats)
 {
-	ocelot_port_stats_run(ocelot, port, pause_stats,
-			      ocelot_port_pause_stats_cb);
+	struct net_device *dev;
+
+	switch (pause_stats->src) {
+	case ETHTOOL_MAC_STATS_SRC_EMAC:
+		ocelot_port_stats_run(ocelot, port, pause_stats,
+				      ocelot_port_pause_stats_cb);
+		break;
+	case ETHTOOL_MAC_STATS_SRC_PMAC:
+		if (ocelot->mm_supported)
+			ocelot_port_stats_run(ocelot, port, pause_stats,
+					      ocelot_port_pmac_pause_stats_cb);
+		break;
+	case ETHTOOL_MAC_STATS_SRC_AGGREGATE:
+		dev = ocelot->ops->port_to_netdev(ocelot, port);
+		ethtool_aggregate_pause_stats(dev, pause_stats);
+		break;
+	}
 }
 EXPORT_SYMBOL_GPL(ocelot_port_get_pause_stats);
+
+void ocelot_port_get_mm_stats(struct ocelot *ocelot, int port,
+			      struct ethtool_mm_stats *stats)
+{
+	if (!ocelot->mm_supported)
+		return;
+
+	ocelot_port_stats_run(ocelot, port, stats, ocelot_port_mm_stats_cb);
+}
+EXPORT_SYMBOL_GPL(ocelot_port_get_mm_stats);
 
 static const struct ethtool_rmon_hist_range ocelot_rmon_ranges[] = {
 	{   64,    64 },
@@ -441,14 +587,57 @@ static void ocelot_port_rmon_stats_cb(struct ocelot *ocelot, int port, void *pri
 	rmon_stats->hist_tx[6] = s[OCELOT_STAT_TX_1024_1526];
 }
 
+static void ocelot_port_pmac_rmon_stats_cb(struct ocelot *ocelot, int port,
+					   void *priv)
+{
+	u64 *s = &ocelot->stats[port * OCELOT_NUM_STATS];
+	struct ethtool_rmon_stats *rmon_stats = priv;
+
+	rmon_stats->undersize_pkts = s[OCELOT_STAT_RX_PMAC_SHORTS];
+	rmon_stats->oversize_pkts = s[OCELOT_STAT_RX_PMAC_LONGS];
+	rmon_stats->fragments = s[OCELOT_STAT_RX_PMAC_FRAGMENTS];
+	rmon_stats->jabbers = s[OCELOT_STAT_RX_PMAC_JABBERS];
+
+	rmon_stats->hist[0] = s[OCELOT_STAT_RX_PMAC_64];
+	rmon_stats->hist[1] = s[OCELOT_STAT_RX_PMAC_65_127];
+	rmon_stats->hist[2] = s[OCELOT_STAT_RX_PMAC_128_255];
+	rmon_stats->hist[3] = s[OCELOT_STAT_RX_PMAC_256_511];
+	rmon_stats->hist[4] = s[OCELOT_STAT_RX_PMAC_512_1023];
+	rmon_stats->hist[5] = s[OCELOT_STAT_RX_PMAC_1024_1526];
+	rmon_stats->hist[6] = s[OCELOT_STAT_RX_PMAC_1527_MAX];
+
+	rmon_stats->hist_tx[0] = s[OCELOT_STAT_TX_PMAC_64];
+	rmon_stats->hist_tx[1] = s[OCELOT_STAT_TX_PMAC_65_127];
+	rmon_stats->hist_tx[2] = s[OCELOT_STAT_TX_PMAC_128_255];
+	rmon_stats->hist_tx[3] = s[OCELOT_STAT_TX_PMAC_128_255];
+	rmon_stats->hist_tx[4] = s[OCELOT_STAT_TX_PMAC_256_511];
+	rmon_stats->hist_tx[5] = s[OCELOT_STAT_TX_PMAC_512_1023];
+	rmon_stats->hist_tx[6] = s[OCELOT_STAT_TX_PMAC_1024_1526];
+}
+
 void ocelot_port_get_rmon_stats(struct ocelot *ocelot, int port,
 				struct ethtool_rmon_stats *rmon_stats,
 				const struct ethtool_rmon_hist_range **ranges)
 {
+	struct net_device *dev;
+
 	*ranges = ocelot_rmon_ranges;
 
-	ocelot_port_stats_run(ocelot, port, rmon_stats,
-			      ocelot_port_rmon_stats_cb);
+	switch (rmon_stats->src) {
+	case ETHTOOL_MAC_STATS_SRC_EMAC:
+		ocelot_port_stats_run(ocelot, port, rmon_stats,
+				      ocelot_port_rmon_stats_cb);
+		break;
+	case ETHTOOL_MAC_STATS_SRC_PMAC:
+		if (ocelot->mm_supported)
+			ocelot_port_stats_run(ocelot, port, rmon_stats,
+					      ocelot_port_pmac_rmon_stats_cb);
+		break;
+	case ETHTOOL_MAC_STATS_SRC_AGGREGATE:
+		dev = ocelot->ops->port_to_netdev(ocelot, port);
+		ethtool_aggregate_rmon_stats(dev, rmon_stats);
+		break;
+	}
 }
 EXPORT_SYMBOL_GPL(ocelot_port_get_rmon_stats);
 
@@ -460,11 +649,35 @@ static void ocelot_port_ctrl_stats_cb(struct ocelot *ocelot, int port, void *pri
 	ctrl_stats->MACControlFramesReceived = s[OCELOT_STAT_RX_CONTROL];
 }
 
+static void ocelot_port_pmac_ctrl_stats_cb(struct ocelot *ocelot, int port,
+					   void *priv)
+{
+	u64 *s = &ocelot->stats[port * OCELOT_NUM_STATS];
+	struct ethtool_eth_ctrl_stats *ctrl_stats = priv;
+
+	ctrl_stats->MACControlFramesReceived = s[OCELOT_STAT_RX_PMAC_CONTROL];
+}
+
 void ocelot_port_get_eth_ctrl_stats(struct ocelot *ocelot, int port,
 				    struct ethtool_eth_ctrl_stats *ctrl_stats)
 {
-	ocelot_port_stats_run(ocelot, port, ctrl_stats,
-			      ocelot_port_ctrl_stats_cb);
+	struct net_device *dev;
+
+	switch (ctrl_stats->src) {
+	case ETHTOOL_MAC_STATS_SRC_EMAC:
+		ocelot_port_stats_run(ocelot, port, ctrl_stats,
+				      ocelot_port_ctrl_stats_cb);
+		break;
+	case ETHTOOL_MAC_STATS_SRC_PMAC:
+		if (ocelot->mm_supported)
+			ocelot_port_stats_run(ocelot, port, ctrl_stats,
+					      ocelot_port_pmac_ctrl_stats_cb);
+		break;
+	case ETHTOOL_MAC_STATS_SRC_AGGREGATE:
+		dev = ocelot->ops->port_to_netdev(ocelot, port);
+		ethtool_aggregate_ctrl_stats(dev, ctrl_stats);
+		break;
+	}
 }
 EXPORT_SYMBOL_GPL(ocelot_port_get_eth_ctrl_stats);
 
@@ -510,11 +723,60 @@ static void ocelot_port_mac_stats_cb(struct ocelot *ocelot, int port, void *priv
 	mac_stats->AlignmentErrors = s[OCELOT_STAT_RX_CRC_ALIGN_ERRS];
 }
 
+static void ocelot_port_pmac_mac_stats_cb(struct ocelot *ocelot, int port,
+					  void *priv)
+{
+	u64 *s = &ocelot->stats[port * OCELOT_NUM_STATS];
+	struct ethtool_eth_mac_stats *mac_stats = priv;
+
+	mac_stats->OctetsTransmittedOK = s[OCELOT_STAT_TX_PMAC_OCTETS];
+	mac_stats->FramesTransmittedOK = s[OCELOT_STAT_TX_PMAC_64] +
+					 s[OCELOT_STAT_TX_PMAC_65_127] +
+					 s[OCELOT_STAT_TX_PMAC_128_255] +
+					 s[OCELOT_STAT_TX_PMAC_256_511] +
+					 s[OCELOT_STAT_TX_PMAC_512_1023] +
+					 s[OCELOT_STAT_TX_PMAC_1024_1526] +
+					 s[OCELOT_STAT_TX_PMAC_1527_MAX];
+	mac_stats->OctetsReceivedOK = s[OCELOT_STAT_RX_PMAC_OCTETS];
+	mac_stats->FramesReceivedOK = s[OCELOT_STAT_RX_PMAC_64] +
+				      s[OCELOT_STAT_RX_PMAC_65_127] +
+				      s[OCELOT_STAT_RX_PMAC_128_255] +
+				      s[OCELOT_STAT_RX_PMAC_256_511] +
+				      s[OCELOT_STAT_RX_PMAC_512_1023] +
+				      s[OCELOT_STAT_RX_PMAC_1024_1526] +
+				      s[OCELOT_STAT_RX_PMAC_1527_MAX];
+	mac_stats->MulticastFramesXmittedOK = s[OCELOT_STAT_TX_PMAC_MULTICAST];
+	mac_stats->BroadcastFramesXmittedOK = s[OCELOT_STAT_TX_PMAC_BROADCAST];
+	mac_stats->MulticastFramesReceivedOK = s[OCELOT_STAT_RX_PMAC_MULTICAST];
+	mac_stats->BroadcastFramesReceivedOK = s[OCELOT_STAT_RX_PMAC_BROADCAST];
+	mac_stats->FrameTooLongErrors = s[OCELOT_STAT_RX_PMAC_LONGS];
+	/* Sadly, C_RX_CRC is the sum of FCS and alignment errors, they are not
+	 * counted individually.
+	 */
+	mac_stats->FrameCheckSequenceErrors = s[OCELOT_STAT_RX_PMAC_CRC_ALIGN_ERRS];
+	mac_stats->AlignmentErrors = s[OCELOT_STAT_RX_PMAC_CRC_ALIGN_ERRS];
+}
+
 void ocelot_port_get_eth_mac_stats(struct ocelot *ocelot, int port,
 				   struct ethtool_eth_mac_stats *mac_stats)
 {
-	ocelot_port_stats_run(ocelot, port, mac_stats,
-			      ocelot_port_mac_stats_cb);
+	struct net_device *dev;
+
+	switch (mac_stats->src) {
+	case ETHTOOL_MAC_STATS_SRC_EMAC:
+		ocelot_port_stats_run(ocelot, port, mac_stats,
+				      ocelot_port_mac_stats_cb);
+		break;
+	case ETHTOOL_MAC_STATS_SRC_PMAC:
+		if (ocelot->mm_supported)
+			ocelot_port_stats_run(ocelot, port, mac_stats,
+					      ocelot_port_pmac_mac_stats_cb);
+		break;
+	case ETHTOOL_MAC_STATS_SRC_AGGREGATE:
+		dev = ocelot->ops->port_to_netdev(ocelot, port);
+		ethtool_aggregate_mac_stats(dev, mac_stats);
+		break;
+	}
 }
 EXPORT_SYMBOL_GPL(ocelot_port_get_eth_mac_stats);
 
@@ -526,11 +788,35 @@ static void ocelot_port_phy_stats_cb(struct ocelot *ocelot, int port, void *priv
 	phy_stats->SymbolErrorDuringCarrier = s[OCELOT_STAT_RX_SYM_ERRS];
 }
 
+static void ocelot_port_pmac_phy_stats_cb(struct ocelot *ocelot, int port,
+					  void *priv)
+{
+	u64 *s = &ocelot->stats[port * OCELOT_NUM_STATS];
+	struct ethtool_eth_phy_stats *phy_stats = priv;
+
+	phy_stats->SymbolErrorDuringCarrier = s[OCELOT_STAT_RX_PMAC_SYM_ERRS];
+}
+
 void ocelot_port_get_eth_phy_stats(struct ocelot *ocelot, int port,
 				   struct ethtool_eth_phy_stats *phy_stats)
 {
-	ocelot_port_stats_run(ocelot, port, phy_stats,
-			      ocelot_port_phy_stats_cb);
+	struct net_device *dev;
+
+	switch (phy_stats->src) {
+	case ETHTOOL_MAC_STATS_SRC_EMAC:
+		ocelot_port_stats_run(ocelot, port, phy_stats,
+				      ocelot_port_phy_stats_cb);
+		break;
+	case ETHTOOL_MAC_STATS_SRC_PMAC:
+		if (ocelot->mm_supported)
+			ocelot_port_stats_run(ocelot, port, phy_stats,
+					      ocelot_port_pmac_phy_stats_cb);
+		break;
+	case ETHTOOL_MAC_STATS_SRC_AGGREGATE:
+		dev = ocelot->ops->port_to_netdev(ocelot, port);
+		ethtool_aggregate_phy_stats(dev, phy_stats);
+		break;
+	}
 }
 EXPORT_SYMBOL_GPL(ocelot_port_get_eth_phy_stats);
 
@@ -602,16 +888,20 @@ EXPORT_SYMBOL(ocelot_port_get_stats64);
 static int ocelot_prepare_stats_regions(struct ocelot *ocelot)
 {
 	struct ocelot_stats_region *region = NULL;
+	const struct ocelot_stat_layout *layout;
 	unsigned int last = 0;
 	int i;
 
 	INIT_LIST_HEAD(&ocelot->stats_regions);
 
+	layout = ocelot_get_stats_layout(ocelot);
+
 	for (i = 0; i < OCELOT_NUM_STATS; i++) {
-		if (!ocelot_stats_layout[i].reg)
+		if (!layout[i].reg)
 			continue;
 
-		if (region && ocelot_stats_layout[i].reg == last + 4) {
+		if (region && ocelot->map[SYS][layout[i].reg & REG_MASK] ==
+		    ocelot->map[SYS][last & REG_MASK] + 4) {
 			region->count++;
 		} else {
 			region = devm_kzalloc(ocelot->dev, sizeof(*region),
@@ -620,17 +910,18 @@ static int ocelot_prepare_stats_regions(struct ocelot *ocelot)
 				return -ENOMEM;
 
 			/* enum ocelot_stat must be kept sorted in the same
-			 * order as ocelot_stats_layout[i].reg in order to have
-			 * efficient bulking
+			 * order as layout[i].reg in order to have efficient
+			 * bulking
 			 */
-			WARN_ON(last >= ocelot_stats_layout[i].reg);
+			WARN_ON(last >= layout[i].reg);
 
-			region->base = ocelot_stats_layout[i].reg;
+			region->base = layout[i].reg;
+			region->first_stat = i;
 			region->count = 1;
 			list_add_tail(&region->node, &ocelot->stats_regions);
 		}
 
-		last = ocelot_stats_layout[i].reg;
+		last = layout[i].reg;
 	}
 
 	list_for_each_entry(region, &ocelot->stats_regions, node) {

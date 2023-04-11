@@ -3,6 +3,7 @@
 config EXFAT_FS
 	tristate "exFAT filesystem support"
 	select NLS
+	select LEGACY_DIRECT_IO
 	help
 	  This allows you to mount devices formatted with the exFAT file system.
 	  exFAT is typically used on SD-Cards or USB sticks.

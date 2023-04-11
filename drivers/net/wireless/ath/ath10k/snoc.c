@@ -1639,7 +1639,7 @@ static int ath10k_fw_init(struct ath10k *ar)
 
 	ret = iommu_map(iommu_dom, ar_snoc->fw.fw_start_addr,
 			ar->msa.paddr, ar->msa.mem_size,
-			IOMMU_READ | IOMMU_WRITE);
+			IOMMU_READ | IOMMU_WRITE, GFP_KERNEL);
 	if (ret) {
 		ath10k_err(ar, "failed to map firmware region: %d\n", ret);
 		goto err_iommu_detach;

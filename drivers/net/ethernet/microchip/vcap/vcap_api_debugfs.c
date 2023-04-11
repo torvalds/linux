@@ -44,11 +44,14 @@ static void vcap_debugfs_show_rule_keyfield(struct vcap_control *vctrl,
 			out->prf(out->dst, "%pI4h/%pI4h", &data->u32.value,
 				 &data->u32.mask);
 		} else if (key == VCAP_KF_ETYPE ||
-			   key == VCAP_KF_IF_IGR_PORT_MASK) {
+			   key == VCAP_KF_IF_IGR_PORT_MASK ||
+			   key == VCAP_KF_IF_EGR_PORT_MASK) {
 			hex = true;
 		} else {
 			u32 fmsk = (1 << keyfield[key].width) - 1;
 
+			if (keyfield[key].width == 32)
+				fmsk = ~0;
 			out->prf(out->dst, "%u/%u", data->u32.value & fmsk,
 				 data->u32.mask & fmsk);
 		}
@@ -152,37 +155,48 @@ vcap_debugfs_show_rule_actionfield(struct vcap_control *vctrl,
 	out->prf(out->dst, "\n");
 }
 
+static int vcap_debugfs_show_keysets(struct vcap_rule_internal *ri,
+				     struct vcap_output_print *out)
+{
+	struct vcap_admin *admin = ri->admin;
+	enum vcap_keyfield_set keysets[10];
+	struct vcap_keyset_list matches;
+	int err;
+
+	matches.keysets = keysets;
+	matches.cnt = 0;
+	matches.max = ARRAY_SIZE(keysets);
+
+	if (ri->state == VCAP_RS_DISABLED)
+		err = vcap_rule_get_keysets(ri, &matches);
+	else
+		err = vcap_find_keystream_keysets(ri->vctrl, admin->vtype,
+						  admin->cache.keystream,
+						  admin->cache.maskstream,
+						  false, 0, &matches);
+	if (err) {
+		pr_err("%s:%d: could not find valid keysets: %d\n",
+		       __func__, __LINE__, err);
+		return err;
+	}
+
+	out->prf(out->dst, "  keysets:");
+	for (int idx = 0; idx < matches.cnt; ++idx)
+		out->prf(out->dst, " %s",
+			 vcap_keyset_name(ri->vctrl, matches.keysets[idx]));
+	out->prf(out->dst, "\n");
+	return 0;
+}
+
 static int vcap_debugfs_show_rule_keyset(struct vcap_rule_internal *ri,
 					 struct vcap_output_print *out)
 {
 	struct vcap_control *vctrl = ri->vctrl;
 	struct vcap_admin *admin = ri->admin;
-	enum vcap_keyfield_set keysets[10];
 	const struct vcap_field *keyfield;
-	enum vcap_type vt = admin->vtype;
 	struct vcap_client_keyfield *ckf;
-	struct vcap_keyset_list matches;
-	u32 *maskstream;
-	u32 *keystream;
-	int res;
 
-	keystream = admin->cache.keystream;
-	maskstream = admin->cache.maskstream;
-	matches.keysets = keysets;
-	matches.cnt = 0;
-	matches.max = ARRAY_SIZE(keysets);
-	res = vcap_find_keystream_keysets(vctrl, vt, keystream, maskstream,
-					  false, 0, &matches);
-	if (res < 0) {
-		pr_err("%s:%d: could not find valid keysets: %d\n",
-		       __func__, __LINE__, res);
-		return -EINVAL;
-	}
-	out->prf(out->dst, "  keysets:");
-	for (int idx = 0; idx < matches.cnt; ++idx)
-		out->prf(out->dst, " %s",
-			 vcap_keyset_name(vctrl, matches.keysets[idx]));
-	out->prf(out->dst, "\n");
+	vcap_debugfs_show_keysets(ri, out);
 	out->prf(out->dst, "  keyset_sw: %d\n", ri->keyset_sw);
 	out->prf(out->dst, "  keyset_sw_regs: %d\n", ri->keyset_sw_regs);
 
@@ -233,6 +247,18 @@ static void vcap_show_admin_rule(struct vcap_control *vctrl,
 	out->prf(out->dst, "  chain_id: %d\n", ri->data.vcap_chain_id);
 	out->prf(out->dst, "  user: %d\n", ri->data.user);
 	out->prf(out->dst, "  priority: %d\n", ri->data.priority);
+	out->prf(out->dst, "  state: ");
+	switch (ri->state) {
+	case VCAP_RS_PERMANENT:
+		out->prf(out->dst, "permanent\n");
+		break;
+	case VCAP_RS_DISABLED:
+		out->prf(out->dst, "disabled\n");
+		break;
+	case VCAP_RS_ENABLED:
+		out->prf(out->dst, "enabled\n");
+		break;
+	}
 	vcap_debugfs_show_rule_keyset(ri, out);
 	vcap_debugfs_show_rule_actionset(ri, out);
 }
@@ -254,6 +280,7 @@ static void vcap_show_admin_info(struct vcap_control *vctrl,
 	out->prf(out->dst, "version: %d\n", vcap->version);
 	out->prf(out->dst, "vtype: %d\n", admin->vtype);
 	out->prf(out->dst, "vinst: %d\n", admin->vinst);
+	out->prf(out->dst, "ingress: %d\n", admin->ingress);
 	out->prf(out->dst, "first_cid: %d\n", admin->first_cid);
 	out->prf(out->dst, "last_cid: %d\n", admin->last_cid);
 	out->prf(out->dst, "lookups: %d\n", admin->lookups);
@@ -272,7 +299,7 @@ static int vcap_show_admin(struct vcap_control *vctrl,
 
 	vcap_show_admin_info(vctrl, admin, out);
 	list_for_each_entry(elem, &admin->rules, list) {
-		vrule = vcap_get_rule(vctrl, elem->data.id);
+		vrule = vcap_decode_rule(elem);
 		if (IS_ERR_OR_NULL(vrule)) {
 			ret = PTR_ERR(vrule);
 			break;
@@ -381,8 +408,12 @@ static int vcap_debugfs_show(struct seq_file *m, void *unused)
 		.prf = (void *)seq_printf,
 		.dst = m,
 	};
+	int ret;
 
-	return vcap_show_admin(info->vctrl, info->admin, &out);
+	mutex_lock(&info->admin->lock);
+	ret = vcap_show_admin(info->vctrl, info->admin, &out);
+	mutex_unlock(&info->admin->lock);
+	return ret;
 }
 DEFINE_SHOW_ATTRIBUTE(vcap_debugfs);
 
@@ -394,8 +425,12 @@ static int vcap_raw_debugfs_show(struct seq_file *m, void *unused)
 		.prf = (void *)seq_printf,
 		.dst = m,
 	};
+	int ret;
 
-	return vcap_show_admin_raw(info->vctrl, info->admin, &out);
+	mutex_lock(&info->admin->lock);
+	ret = vcap_show_admin_raw(info->vctrl, info->admin, &out);
+	mutex_unlock(&info->admin->lock);
+	return ret;
 }
 DEFINE_SHOW_ATTRIBUTE(vcap_raw_debugfs);
 

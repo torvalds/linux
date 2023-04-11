@@ -615,7 +615,6 @@ struct omap_hwmod *omap_hwmod_lookup(const char *name);
 int omap_hwmod_for_each(int (*fn)(struct omap_hwmod *oh, void *data),
 			void *data);
 
-int __init omap_hwmod_setup_one(const char *name);
 int omap_hwmod_parse_module_range(struct omap_hwmod *oh,
 				  struct device_node *np,
 				  struct resource *res);
@@ -638,12 +637,6 @@ void omap_hwmod_write(u32 v, struct omap_hwmod *oh, u16 reg_offs);
 u32 omap_hwmod_read(struct omap_hwmod *oh, u16 reg_offs);
 int omap_hwmod_softreset(struct omap_hwmod *oh);
 
-int omap_hwmod_count_resources(struct omap_hwmod *oh, unsigned long flags);
-int omap_hwmod_fill_resources(struct omap_hwmod *oh, struct resource *res);
-int omap_hwmod_get_resource_byname(struct omap_hwmod *oh, unsigned int type,
-				   const char *name, struct resource *res);
-
-struct powerdomain *omap_hwmod_get_pwrdm(struct omap_hwmod *oh);
 void __iomem *omap_hwmod_get_mpu_rt_va(struct omap_hwmod *oh);
 
 int omap_hwmod_for_each_by_class(const char *classname,
@@ -652,11 +645,8 @@ int omap_hwmod_for_each_by_class(const char *classname,
 				 void *user);
 
 int omap_hwmod_set_postsetup_state(struct omap_hwmod *oh, u8 state);
-int omap_hwmod_get_context_loss_count(struct omap_hwmod *oh);
 
 extern void __init omap_hwmod_init(void);
-
-const char *omap_hwmod_get_main_clk(struct omap_hwmod *oh);
 
 #else	/* CONFIG_OMAP_HWMOD */
 
@@ -670,25 +660,14 @@ omap_hwmod_for_each_by_class(const char *classname,
 #endif	/* CONFIG_OMAP_HWMOD */
 
 /*
- *
- */
-
-void omap_hwmod_rtc_unlock(struct omap_hwmod *oh);
-void omap_hwmod_rtc_lock(struct omap_hwmod *oh);
-
-/*
  * Chip variant-specific hwmod init routines - XXX should be converted
  * to use initcalls once the initial boot ordering is straightened out
  */
 extern int omap2420_hwmod_init(void);
 extern int omap2430_hwmod_init(void);
 extern int omap3xxx_hwmod_init(void);
-extern int omap44xx_hwmod_init(void);
-extern int am33xx_hwmod_init(void);
 extern int dm814x_hwmod_init(void);
 extern int dm816x_hwmod_init(void);
-extern int dra7xx_hwmod_init(void);
-int am43xx_hwmod_init(void);
 
 extern int __init omap_hwmod_register_links(struct omap_hwmod_ocp_if **ois);
 

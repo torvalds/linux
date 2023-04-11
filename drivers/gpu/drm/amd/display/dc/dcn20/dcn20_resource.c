@@ -62,7 +62,6 @@
 #include "dml/display_mode_vba.h"
 #include "dcn20_dccg.h"
 #include "dcn20_vmid.h"
-#include "dc_link_ddc.h"
 #include "dce/dce_panel_cntl.h"
 
 #include "navi10_ip_offset.h"
@@ -90,6 +89,7 @@
 
 #include "amdgpu_socbb.h"
 
+#include "link.h"
 #define DC_LOGGER_INIT(logger)
 
 #ifndef mmDP0_DP_DPHY_INTERNAL_CTRL
@@ -670,8 +670,6 @@ static const struct resource_caps res_cap_nv10 = {
 
 static const struct dc_plane_cap plane_cap = {
 	.type = DC_PLANE_TYPE_DCN_UNIVERSAL,
-	.blends_with_above = true,
-	.blends_with_below = true,
 	.per_pixel_alpha = true,
 
 	.pixel_format_support = {
@@ -714,7 +712,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.timing_trace = false,
 		.clock_trace = true,
 		.disable_pplib_clock_request = true,
-		.pipe_split_policy = MPC_SPLIT_AVOID_MULT_DISP,
+		.pipe_split_policy = MPC_SPLIT_DYNAMIC,
 		.force_single_disp_pipe_split = false,
 		.disable_dcc = DCC_ENABLE,
 		.vsr_support = true,
@@ -1213,8 +1211,11 @@ static void dcn20_resource_destruct(struct dcn20_resource_pool *pool)
 	if (pool->base.pp_smu != NULL)
 		dcn20_pp_smu_destroy(&pool->base.pp_smu);
 
-	if (pool->base.oem_device != NULL)
-		dal_ddc_service_destroy(&pool->base.oem_device);
+	if (pool->base.oem_device != NULL) {
+		struct dc *dc = pool->base.oem_device->ctx->dc;
+
+		dc->link_srv->destroy_ddc_service(&pool->base.oem_device);
+	}
 }
 
 struct hubp *dcn20_hubp_create(
@@ -2225,14 +2226,10 @@ enum dc_status dcn20_patch_unknown_plane_state(struct dc_plane_state *plane_stat
 	enum surface_pixel_format surf_pix_format = plane_state->format;
 	unsigned int bpp = resource_pixel_format_to_bpp(surf_pix_format);
 
-	enum swizzle_mode_values swizzle = DC_SW_LINEAR;
-
+	plane_state->tiling_info.gfx9.swizzle = DC_SW_64KB_S;
 	if (bpp == 64)
-		swizzle = DC_SW_64KB_D;
-	else
-		swizzle = DC_SW_64KB_S;
+		plane_state->tiling_info.gfx9.swizzle = DC_SW_64KB_D;
 
-	plane_state->tiling_info.gfx9.swizzle = swizzle;
 	return DC_OK;
 }
 
@@ -2769,7 +2766,7 @@ static bool dcn20_resource_construct(
 		ddc_init_data.id.id = dc->ctx->dc_bios->fw_info.oem_i2c_obj_id;
 		ddc_init_data.id.enum_id = 0;
 		ddc_init_data.id.type = OBJECT_TYPE_GENERIC;
-		pool->base.oem_device = dal_ddc_service_create(&ddc_init_data);
+		pool->base.oem_device = dc->link_srv->create_ddc_service(&ddc_init_data);
 	} else {
 		pool->base.oem_device = NULL;
 	}

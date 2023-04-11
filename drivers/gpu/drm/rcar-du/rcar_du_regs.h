@@ -283,12 +283,8 @@
 #define DPLLCR			0x20044
 #define DPLLCR_CODE		(0x95 << 24)
 #define DPLLCR_PLCS1		(1 << 23)
-/*
- * PLCS0 is bit 21, but H3 ES1.x requires bit 20 to be set as well. As bit 20
- * isn't implemented by other SoC in the Gen3 family it can safely be set
- * unconditionally.
- */
-#define DPLLCR_PLCS0		(3 << 20)
+#define DPLLCR_PLCS0_PLL	(1 << 21)
+#define DPLLCR_PLCS0_H3ES1X_PLL1	(1 << 20)
 #define DPLLCR_CLKE		(1 << 18)
 #define DPLLCR_FDPLL(n)		((n) << 12)
 #define DPLLCR_N(n)		((n) << 5)
@@ -515,19 +511,19 @@
  */
 
 #define DORCR			0x11000
-#define DORCR_PG2T		(1 << 30)
-#define DORCR_DK2S		(1 << 28)
-#define DORCR_PG2D_DS1		(0 << 24)
-#define DORCR_PG2D_DS2		(1 << 24)
-#define DORCR_PG2D_FIX0		(2 << 24)
-#define DORCR_PG2D_DOOR		(3 << 24)
-#define DORCR_PG2D_MASK		(3 << 24)
-#define DORCR_DR1D		(1 << 21)
-#define DORCR_PG1D_DS1		(0 << 16)
-#define DORCR_PG1D_DS2		(1 << 16)
-#define DORCR_PG1D_FIX0		(2 << 16)
-#define DORCR_PG1D_DOOR		(3 << 16)
-#define DORCR_PG1D_MASK		(3 << 16)
+#define DORCR_PG1T		(1 << 30)
+#define DORCR_DK1S		(1 << 28)
+#define DORCR_PG1D_DS0		(0 << 24)
+#define DORCR_PG1D_DS1		(1 << 24)
+#define DORCR_PG1D_FIX0		(2 << 24)
+#define DORCR_PG1D_DOOR		(3 << 24)
+#define DORCR_PG1D_MASK		(3 << 24)
+#define DORCR_DR0D		(1 << 21)
+#define DORCR_PG0D_DS0		(0 << 16)
+#define DORCR_PG0D_DS1		(1 << 16)
+#define DORCR_PG0D_FIX0		(2 << 16)
+#define DORCR_PG0D_DOOR		(3 << 16)
+#define DORCR_PG0D_MASK		(3 << 16)
 #define DORCR_RGPV		(1 << 4)
 #define DORCR_DPRS		(1 << 0)
 

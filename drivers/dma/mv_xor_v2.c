@@ -714,7 +714,6 @@ static int mv_xor_v2_resume(struct platform_device *dev)
 static int mv_xor_v2_probe(struct platform_device *pdev)
 {
 	struct mv_xor_v2_device *xor_dev;
-	struct resource *res;
 	int i, ret = 0;
 	struct dma_device *dma_dev;
 	struct mv_xor_v2_sw_desc *sw_desc;
@@ -726,13 +725,11 @@ static int mv_xor_v2_probe(struct platform_device *pdev)
 	if (!xor_dev)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	xor_dev->dma_base = devm_ioremap_resource(&pdev->dev, res);
+	xor_dev->dma_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(xor_dev->dma_base))
 		return PTR_ERR(xor_dev->dma_base);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	xor_dev->glob_base = devm_ioremap_resource(&pdev->dev, res);
+	xor_dev->glob_base = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(xor_dev->glob_base))
 		return PTR_ERR(xor_dev->glob_base);
 

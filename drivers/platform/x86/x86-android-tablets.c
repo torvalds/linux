@@ -187,7 +187,7 @@ struct x86_dev_info {
 /* Generic / shared charger / battery settings */
 static const char * const tusb1211_chg_det_psy[] = { "tusb1211-charger-detect" };
 static const char * const bq24190_psy[] = { "bq24190-charger" };
-static const char * const bq25890_psy[] = { "bq25890-charger" };
+static const char * const bq25890_psy[] = { "bq25890-charger-0" };
 
 static const struct property_entry fg_bq24190_supply_props[] = {
 	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", bq24190_psy),

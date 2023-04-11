@@ -442,6 +442,26 @@ union efi_dxe_services_table {
 	} mixed_mode;
 };
 
+typedef union efi_memory_attribute_protocol efi_memory_attribute_protocol_t;
+
+union efi_memory_attribute_protocol {
+	struct {
+		efi_status_t (__efiapi *get_memory_attributes)(
+			efi_memory_attribute_protocol_t *, efi_physical_addr_t, u64, u64 *);
+
+		efi_status_t (__efiapi *set_memory_attributes)(
+			efi_memory_attribute_protocol_t *, efi_physical_addr_t, u64, u64);
+
+		efi_status_t (__efiapi *clear_memory_attributes)(
+			efi_memory_attribute_protocol_t *, efi_physical_addr_t, u64, u64);
+	};
+	struct {
+		u32 get_memory_attributes;
+		u32 set_memory_attributes;
+		u32 clear_memory_attributes;
+	} mixed_mode;
+};
+
 typedef union efi_uga_draw_protocol efi_uga_draw_protocol_t;
 
 union efi_uga_draw_protocol {
@@ -1042,6 +1062,7 @@ efi_enable_reset_attack_mitigation(void) { }
 void efi_retrieve_tpm2_eventlog(void);
 
 struct screen_info *alloc_screen_info(void);
+struct screen_info *__alloc_screen_info(void);
 void free_screen_info(struct screen_info *si);
 
 void efi_cache_sync_image(unsigned long image_base,
@@ -1053,6 +1074,8 @@ struct efi_smbios_record {
 	u8	length;
 	u16	handle;
 };
+
+const struct efi_smbios_record *efi_get_smbios_record(u8 type);
 
 struct efi_smbios_type1_record {
 	struct efi_smbios_record	header;
@@ -1067,13 +1090,48 @@ struct efi_smbios_type1_record {
 	u8				family;
 };
 
-#define efi_get_smbios_string(__type, __name) ({			\
-	int size = sizeof(struct efi_smbios_type ## __type ## _record);	\
+struct efi_smbios_type4_record {
+	struct efi_smbios_record	header;
+
+	u8				socket;
+	u8				processor_type;
+	u8				processor_family;
+	u8				processor_manufacturer;
+	u8				processor_id[8];
+	u8				processor_version;
+	u8				voltage;
+	u16				external_clock;
+	u16				max_speed;
+	u16				current_speed;
+	u8				status;
+	u8				processor_upgrade;
+	u16				l1_cache_handle;
+	u16				l2_cache_handle;
+	u16				l3_cache_handle;
+	u8				serial_number;
+	u8				asset_tag;
+	u8				part_number;
+	u8				core_count;
+	u8				enabled_core_count;
+	u8				thread_count;
+	u16				processor_characteristics;
+	u16				processor_family2;
+	u16				core_count2;
+	u16				enabled_core_count2;
+	u16				thread_count2;
+	u16				thread_enabled;
+};
+
+#define efi_get_smbios_string(__record, __type, __name) ({		\
 	int off = offsetof(struct efi_smbios_type ## __type ## _record,	\
 			   __name);					\
-	__efi_get_smbios_string(__type, off, size);			\
+	__efi_get_smbios_string((__record), __type, off);		\
 })
 
-const u8 *__efi_get_smbios_string(u8 type, int offset, int recsize);
+const u8 *__efi_get_smbios_string(const struct efi_smbios_record *record,
+				  u8 type, int offset);
+
+void efi_remap_image(unsigned long image_base, unsigned alloc_size,
+		     unsigned long code_size);
 
 #endif

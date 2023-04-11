@@ -273,8 +273,6 @@ static void sdma_v6_0_ring_emit_ib(struct amdgpu_ring *ring,
  * sdma_v6_0_ring_emit_mem_sync - flush the IB by graphics cache rinse
  *
  * @ring: amdgpu ring pointer
- * @job: job to retrieve vmid from
- * @ib: IB object to schedule
  *
  * flush the IB by graphics cache rinse.
  */
@@ -326,7 +324,9 @@ static void sdma_v6_0_ring_emit_hdp_flush(struct amdgpu_ring *ring)
  * sdma_v6_0_ring_emit_fence - emit a fence on the DMA ring
  *
  * @ring: amdgpu ring pointer
- * @fence: amdgpu fence object
+ * @addr: address
+ * @seq: fence seq number
+ * @flags: fence flags
  *
  * Add a DMA fence packet to the ring to write
  * the fence seq number and DMA trap packet to generate
@@ -1060,10 +1060,9 @@ static void sdma_v6_0_vm_copy_pte(struct amdgpu_ib *ib,
  *
  * @ib: indirect buffer to fill with commands
  * @pe: addr of the page entry
- * @addr: dst addr to write into pe
+ * @value: dst addr to write into pe
  * @count: number of page entries to update
  * @incr: increase next addr by incr bytes
- * @flags: access flags
  *
  * Update PTEs by writing them manually using sDMA.
  */
@@ -1167,7 +1166,6 @@ static void sdma_v6_0_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
  * sdma_v6_0_ring_emit_vm_flush - vm flush using sDMA
  *
  * @ring: amdgpu_ring pointer
- * @vm: amdgpu_vm pointer
  *
  * Update the page table base and flush the VM TLB
  * using sDMA.
@@ -1211,6 +1209,24 @@ static void sdma_v6_0_ring_emit_reg_write_reg_wait(struct amdgpu_ring *ring,
 	amdgpu_ring_emit_reg_wait(ring, reg1, mask, mask);
 }
 
+static struct amdgpu_sdma_ras sdma_v6_0_3_ras = {
+	.ras_block = {
+		.ras_late_init = amdgpu_ras_block_late_init,
+	},
+};
+
+static void sdma_v6_0_set_ras_funcs(struct amdgpu_device *adev)
+{
+	switch (adev->ip_versions[SDMA0_HWIP][0]) {
+	case IP_VERSION(6, 0, 3):
+		adev->sdma.ras = &sdma_v6_0_3_ras;
+		break;
+	default:
+		break;
+	}
+
+}
+
 static int sdma_v6_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -1220,6 +1236,7 @@ static int sdma_v6_0_early_init(void *handle)
 	sdma_v6_0_set_vm_pte_funcs(adev);
 	sdma_v6_0_set_irq_funcs(adev);
 	sdma_v6_0_set_mqd_funcs(adev);
+	sdma_v6_0_set_ras_funcs(adev);
 
 	return 0;
 }
@@ -1262,6 +1279,11 @@ static int sdma_v6_0_sw_init(void *handle)
 				     AMDGPU_RING_PRIO_DEFAULT, NULL);
 		if (r)
 			return r;
+	}
+
+	if (amdgpu_sdma_ras_sw_init(adev)) {
+		dev_err(adev->dev, "Failed to initialize sdma ras block!\n");
+		return -EINVAL;
 	}
 
 	return r;
@@ -1403,10 +1425,12 @@ static int sdma_v6_0_set_trap_irq_state(struct amdgpu_device *adev,
 
 	u32 reg_offset = sdma_v6_0_get_reg_offset(adev, type, regSDMA0_CNTL);
 
-	sdma_cntl = RREG32(reg_offset);
-	sdma_cntl = REG_SET_FIELD(sdma_cntl, SDMA0_CNTL, TRAP_ENABLE,
-		       state == AMDGPU_IRQ_STATE_ENABLE ? 1 : 0);
-	WREG32(reg_offset, sdma_cntl);
+	if (!amdgpu_sriov_vf(adev)) {
+		sdma_cntl = RREG32(reg_offset);
+		sdma_cntl = REG_SET_FIELD(sdma_cntl, SDMA0_CNTL, TRAP_ENABLE,
+				state == AMDGPU_IRQ_STATE_ENABLE ? 1 : 0);
+		WREG32(reg_offset, sdma_cntl);
+	}
 
 	return 0;
 }
@@ -1565,10 +1589,11 @@ static void sdma_v6_0_set_irq_funcs(struct amdgpu_device *adev)
 /**
  * sdma_v6_0_emit_copy_buffer - copy buffer using the sDMA engine
  *
- * @ring: amdgpu_ring structure holding ring information
+ * @ib: indirect buffer to fill with commands
  * @src_offset: src GPU address
  * @dst_offset: dst GPU address
  * @byte_count: number of bytes to xfer
+ * @tmz: if a secure copy should be used
  *
  * Copy GPU buffers using the DMA engine.
  * Used by the amdgpu ttm implementation to move pages if
@@ -1594,7 +1619,7 @@ static void sdma_v6_0_emit_copy_buffer(struct amdgpu_ib *ib,
 /**
  * sdma_v6_0_emit_fill_buffer - fill buffer using the sDMA engine
  *
- * @ring: amdgpu_ring structure holding ring information
+ * @ib: indirect buffer to fill
  * @src_data: value to write to buffer
  * @dst_offset: dst GPU address
  * @byte_count: number of bytes to xfer

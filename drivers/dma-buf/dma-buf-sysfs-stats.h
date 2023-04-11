@@ -13,7 +13,7 @@
 int dma_buf_init_sysfs_statistics(void);
 void dma_buf_uninit_sysfs_statistics(void);
 
-int dma_buf_stats_setup(struct dma_buf *dmabuf);
+int dma_buf_stats_setup(struct dma_buf *dmabuf, struct file *file);
 
 void dma_buf_stats_teardown(struct dma_buf *dmabuf);
 #else
@@ -25,7 +25,7 @@ static inline int dma_buf_init_sysfs_statistics(void)
 
 static inline void dma_buf_uninit_sysfs_statistics(void) {}
 
-static inline int dma_buf_stats_setup(struct dma_buf *dmabuf)
+static inline int dma_buf_stats_setup(struct dma_buf *dmabuf, struct file *file)
 {
 	return 0;
 }

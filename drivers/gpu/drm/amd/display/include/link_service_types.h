@@ -34,10 +34,6 @@
 struct ddc;
 struct irq_manager;
 
-enum {
-	MAX_CONTROLLER_NUM = 6
-};
-
 enum dp_power_state {
 	DP_POWER_STATE_D0 = 1,
 	DP_POWER_STATE_D3
@@ -58,28 +54,6 @@ enum {
 	DATA_EFFICIENCY_8b_10b_x10000 = 8000, /* 80% data efficiency */
 	DATA_EFFICIENCY_8b_10b_FEC_EFFICIENCY_x100 = 97, /* 97% data efficiency when FEC is enabled */
 	DATA_EFFICIENCY_128b_132b_x10000 = 9646, /* 96.71% data efficiency x 99.75% downspread factor */
-};
-
-enum link_training_result {
-	LINK_TRAINING_SUCCESS,
-	LINK_TRAINING_CR_FAIL_LANE0,
-	LINK_TRAINING_CR_FAIL_LANE1,
-	LINK_TRAINING_CR_FAIL_LANE23,
-	/* CR DONE bit is cleared during EQ step */
-	LINK_TRAINING_EQ_FAIL_CR,
-	/* CR DONE bit is cleared but LANE0_CR_DONE is set during EQ step */
-	LINK_TRAINING_EQ_FAIL_CR_PARTIAL,
-	/* other failure during EQ step */
-	LINK_TRAINING_EQ_FAIL_EQ,
-	LINK_TRAINING_LQA_FAIL,
-	/* one of the CR,EQ or symbol lock is dropped */
-	LINK_TRAINING_LINK_LOSS,
-	/* Abort link training (because sink unplugged) */
-	LINK_TRAINING_ABORT,
-	DP_128b_132b_LT_FAILED,
-	DP_128b_132b_MAX_LOOP_COUNT_REACHED,
-	DP_128b_132b_CHANNEL_EQ_DONE_TIMEOUT,
-	DP_128b_132b_CDS_DONE_TIMEOUT,
 };
 
 enum lttpr_mode {

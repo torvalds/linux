@@ -60,6 +60,7 @@ struct intel_opregion {
 #ifdef CONFIG_ACPI
 
 int intel_opregion_setup(struct drm_i915_private *dev_priv);
+void intel_opregion_cleanup(struct drm_i915_private *i915);
 
 void intel_opregion_register(struct drm_i915_private *dev_priv);
 void intel_opregion_unregister(struct drm_i915_private *dev_priv);
@@ -74,7 +75,7 @@ int intel_opregion_notify_encoder(struct intel_encoder *intel_encoder,
 int intel_opregion_notify_adapter(struct drm_i915_private *dev_priv,
 				  pci_power_t state);
 int intel_opregion_get_panel_type(struct drm_i915_private *dev_priv);
-struct edid *intel_opregion_get_edid(struct intel_connector *connector);
+const struct drm_edid *intel_opregion_get_edid(struct intel_connector *connector);
 
 bool intel_opregion_headless_sku(struct drm_i915_private *i915);
 
@@ -83,6 +84,10 @@ bool intel_opregion_headless_sku(struct drm_i915_private *i915);
 static inline int intel_opregion_setup(struct drm_i915_private *dev_priv)
 {
 	return 0;
+}
+
+static inline void intel_opregion_cleanup(struct drm_i915_private *i915)
+{
 }
 
 static inline void intel_opregion_register(struct drm_i915_private *dev_priv)
@@ -123,7 +128,7 @@ static inline int intel_opregion_get_panel_type(struct drm_i915_private *dev)
 	return -ENODEV;
 }
 
-static inline struct edid *
+static inline const struct drm_edid *
 intel_opregion_get_edid(struct intel_connector *connector)
 {
 	return NULL;

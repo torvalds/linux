@@ -368,8 +368,10 @@ static int da8xx_musb_init(struct musb *musb)
 
 	/* Returns zero if e.g. not clocked */
 	rev = musb_readl(reg_base, DA8XX_USB_REVISION_REG);
-	if (!rev)
+	if (!rev) {
+		ret = -ENODEV;
 		goto fail;
+	}
 
 	musb->xceiv = usb_get_phy(USB_PHY_TYPE_USB2);
 	if (IS_ERR_OR_NULL(musb->xceiv)) {

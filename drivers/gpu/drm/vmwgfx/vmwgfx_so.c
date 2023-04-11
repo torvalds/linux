@@ -24,6 +24,7 @@
  *
  **************************************************************************/
 
+#include "vmwgfx_bo.h"
 #include "vmwgfx_drv.h"
 #include "vmwgfx_resource_priv.h"
 #include "vmwgfx_so.h"
@@ -81,10 +82,11 @@ static void vmw_view_commit_notify(struct vmw_resource *res,
 
 static const struct vmw_res_func vmw_view_func = {
 	.res_type = vmw_res_view,
-	.needs_backup = false,
+	.needs_guest_memory = false,
 	.may_evict = false,
 	.type_name = "DX view",
-	.backup_placement = NULL,
+	.domain = VMW_BO_DOMAIN_SYS,
+	.busy_domain = VMW_BO_DOMAIN_SYS,
 	.create = vmw_view_create,
 	.commit_notify = vmw_view_commit_notify,
 };

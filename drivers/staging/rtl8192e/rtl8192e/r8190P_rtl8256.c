@@ -21,7 +21,7 @@ void rtl92e_set_bandwidth(struct net_device *dev,
 		return;
 	}
 
-	for (eRFPath = 0; eRFPath < priv->NumTotalRFPath; eRFPath++) {
+	for (eRFPath = 0; eRFPath < priv->num_total_rf_path; eRFPath++) {
 		if (!rtl92e_is_legal_rf_path(dev, eRFPath))
 			continue;
 
@@ -63,14 +63,14 @@ bool rtl92e_config_rf(struct net_device *dev)
 	u8	ConstRetryTimes = 5, RetryTimes = 5;
 	u8 ret = 0;
 
-	priv->NumTotalRFPath = RTL819X_TOTAL_RF_PATH;
+	priv->num_total_rf_path = RTL819X_TOTAL_RF_PATH;
 
 	for (eRFPath = (enum rf90_radio_path)RF90_PATH_A;
-	     eRFPath < priv->NumTotalRFPath; eRFPath++) {
+	     eRFPath < priv->num_total_rf_path; eRFPath++) {
 		if (!rtl92e_is_legal_rf_path(dev, eRFPath))
 			continue;
 
-		pPhyReg = &priv->PHYRegDef[eRFPath];
+		pPhyReg = &priv->phy_reg_def[eRFPath];
 
 		switch (eRFPath) {
 		case RF90_PATH_A:
@@ -150,11 +150,11 @@ void rtl92e_set_cck_tx_power(struct net_device *dev, u8 powerlevel)
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	TxAGC = powerlevel;
-	if (priv->bDynamicTxLowPower) {
-		if (priv->CustomerID == RT_CID_819x_Netcore)
+	if (priv->dynamic_tx_low_pwr) {
+		if (priv->customer_id == RT_CID_819X_NETCORE)
 			TxAGC = 0x22;
 		else
-			TxAGC += priv->CckPwEnl;
+			TxAGC += priv->cck_pwr_enl;
 	}
 	if (TxAGC > 0x24)
 		TxAGC = 0x24;
@@ -169,7 +169,7 @@ void rtl92e_set_ofdm_tx_power(struct net_device *dev, u8 powerlevel)
 	u16 RegOffset[6] = {0xe00, 0xe04, 0xe10, 0xe14, 0xe18, 0xe1c};
 	u8 byte0, byte1, byte2, byte3;
 
-	powerBase0 = powerlevel + priv->LegacyHTTxPowerDiff;
+	powerBase0 = powerlevel + priv->legacy_ht_tx_pwr_diff;
 	powerBase0 = (powerBase0 << 24) | (powerBase0 << 16) |
 		     (powerBase0 << 8) | powerBase0;
 	powerBase1 = powerlevel;
@@ -177,7 +177,7 @@ void rtl92e_set_ofdm_tx_power(struct net_device *dev, u8 powerlevel)
 		     (powerBase1 << 8) | powerBase1;
 
 	for (index = 0; index < 6; index++) {
-		writeVal = (u32)(priv->MCSTxPowerLevelOriginalOffset[index] +
+		writeVal = (u32)(priv->mcs_tx_pwr_level_org_offset[index] +
 			   ((index < 2) ? powerBase0 : powerBase1));
 		byte0 = writeVal & 0x7f;
 		byte1 = (writeVal & 0x7f00) >> 8;
@@ -195,10 +195,10 @@ void rtl92e_set_ofdm_tx_power(struct net_device *dev, u8 powerlevel)
 		if (index == 3) {
 			writeVal_tmp = (byte3 << 24) | (byte2 << 16) |
 				       (byte1 << 8) | byte0;
-			priv->Pwr_Track = writeVal_tmp;
+			priv->pwr_track = writeVal_tmp;
 		}
 
-		if (priv->bDynamicTxHighPower)
+		if (priv->dynamic_tx_high_pwr)
 			writeVal = 0x03030303;
 		else
 			writeVal = (byte3 << 24) | (byte2 << 16) |

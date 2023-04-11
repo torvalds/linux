@@ -10,7 +10,7 @@ PHONY := __archpost
 __archpost:
 
 -include include/config/auto.conf
-include scripts/Kbuild.include
+include $(srctree)/scripts/Kbuild.include
 
 CMD_LS3_LLSC = arch/mips/tools/loongson3-llsc-check
 quiet_cmd_ls3_llsc = LLSCCHK $@

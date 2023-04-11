@@ -21,6 +21,7 @@ static const struct __base mt7996_reg_base[] = {
 	[WF_ETBF_BASE]		= { { 0x820ea000, 0x820fa000, 0x830ea000 } },
 	[WF_LPON_BASE]		= { { 0x820eb000, 0x820fb000, 0x830eb000 } },
 	[WF_MIB_BASE]		= { { 0x820ed000, 0x820fd000, 0x830ed000 } },
+	[WF_RATE_BASE]		= { { 0x820ee000, 0x820fe000, 0x830ee000 } },
 };
 
 static const struct __map mt7996_reg_map[] = {
@@ -149,7 +150,7 @@ static u32 __mt7996_reg_addr(struct mt7996_dev *dev, u32 addr)
 
 	if (dev_is_pci(dev->mt76.dev) &&
 	    ((addr >= MT_CBTOP1_PHY_START && addr <= MT_CBTOP1_PHY_END) ||
-	     (addr >= MT_CBTOP2_PHY_START && addr <= MT_CBTOP2_PHY_END)))
+	    addr >= MT_CBTOP2_PHY_START))
 		return mt7996_reg_map_l1(dev, addr);
 
 	/* CONN_INFRA: covert to phyiscal addr and use layer 1 remap */
@@ -317,7 +318,7 @@ struct mt7996_dev *mt7996_mmio_probe(struct device *pdev,
 {
 	static const struct mt76_driver_ops drv_ops = {
 		/* txwi_size = txd size + txp size */
-		.txwi_size = MT_TXD_SIZE + sizeof(struct mt7996_txp),
+		.txwi_size = MT_TXD_SIZE + sizeof(struct mt76_connac_fw_txp),
 		.drv_flags = MT_DRV_TXWI_NO_FREE |
 			     MT_DRV_HW_MGMT_TXQ,
 		.survey_flags = SURVEY_INFO_TIME_TX |
@@ -325,7 +326,7 @@ struct mt7996_dev *mt7996_mmio_probe(struct device *pdev,
 				SURVEY_INFO_TIME_BSS_RX,
 		.token_size = MT7996_TOKEN_SIZE,
 		.tx_prepare_skb = mt7996_tx_prepare_skb,
-		.tx_complete_skb = mt7996_tx_complete_skb,
+		.tx_complete_skb = mt76_connac_tx_complete_skb,
 		.rx_skb = mt7996_queue_rx_skb,
 		.rx_check = mt7996_rx_check,
 		.rx_poll_complete = mt7996_rx_poll_complete,

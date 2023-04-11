@@ -19,6 +19,31 @@
 #include "node.h"
 #include <trace/events/f2fs.h>
 
+bool sanity_check_extent_cache(struct inode *inode)
+{
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	struct f2fs_inode_info *fi = F2FS_I(inode);
+	struct extent_info *ei;
+
+	if (!fi->extent_tree[EX_READ])
+		return true;
+
+	ei = &fi->extent_tree[EX_READ]->largest;
+
+	if (ei->len &&
+		(!f2fs_is_valid_blkaddr(sbi, ei->blk,
+					DATA_GENERIC_ENHANCE) ||
+		!f2fs_is_valid_blkaddr(sbi, ei->blk + ei->len - 1,
+					DATA_GENERIC_ENHANCE))) {
+		set_sbi_flag(sbi, SBI_NEED_FSCK);
+		f2fs_warn(sbi, "%s: inode (ino=%lx) extent info [%u, %u, %u] is incorrect, run fsck to fix",
+			  __func__, inode->i_ino,
+			  ei->blk, ei->fofs, ei->len);
+		return false;
+	}
+	return true;
+}
+
 static void __set_extent_info(struct extent_info *ei,
 				unsigned int fofs, unsigned int len,
 				block_t blk, bool keep_clen,
@@ -233,7 +258,7 @@ struct rb_node **f2fs_lookup_rb_tree_for_insert(struct f2fs_sb_info *sbi,
  * @prev_ex: extent before ofs
  * @next_ex: extent after ofs
  * @insert_p: insert point for new extent at ofs
- * in order to simpfy the insertion after.
+ * in order to simplify the insertion after.
  * tree must stay unchanged between lookup and insertion.
  */
 struct rb_entry *f2fs_lookup_rb_tree_ret(struct rb_root_cached *root,
@@ -546,7 +571,8 @@ static bool __lookup_extent_tree(struct inode *inode, pgoff_t pgofs,
 	struct extent_node *en;
 	bool ret = false;
 
-	f2fs_bug_on(sbi, !et);
+	if (!et)
+		return false;
 
 	trace_f2fs_lookup_extent_tree_start(inode, pgofs, type);
 
@@ -717,7 +743,7 @@ static void __update_extent_tree_range(struct inode *inode,
 	if (!en)
 		en = next_en;
 
-	/* 2. invlidate all extent nodes in range [fofs, fofs + len - 1] */
+	/* 2. invalidate all extent nodes in range [fofs, fofs + len - 1] */
 	while (en && en->ei.fofs < end) {
 		unsigned int org_end;
 		int parts = 0;	/* # of parts current extent split into */
@@ -870,23 +896,34 @@ unlock_out:
 }
 #endif
 
-static unsigned long long __calculate_block_age(unsigned long long new,
+static unsigned long long __calculate_block_age(struct f2fs_sb_info *sbi,
+						unsigned long long new,
 						unsigned long long old)
 {
-	unsigned long long diff;
+	unsigned int rem_old, rem_new;
+	unsigned long long res;
+	unsigned int weight = sbi->last_age_weight;
 
-	diff = (new >= old) ? new - (new - old) : new + (old - new);
+	res = div_u64_rem(new, 100, &rem_new) * (100 - weight)
+		+ div_u64_rem(old, 100, &rem_old) * weight;
 
-	return div_u64(diff * LAST_AGE_WEIGHT, 100);
+	if (rem_new)
+		res += rem_new * (100 - weight) / 100;
+	if (rem_old)
+		res += rem_old * weight / 100;
+
+	return res;
 }
 
 /* This returns a new age and allocated blocks in ei */
-static int __get_new_block_age(struct inode *inode, struct extent_info *ei)
+static int __get_new_block_age(struct inode *inode, struct extent_info *ei,
+						block_t blkaddr)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	loff_t f_size = i_size_read(inode);
 	unsigned long long cur_blocks =
 				atomic64_read(&sbi->allocated_data_blocks);
+	struct extent_info tei = *ei;	/* only fofs and len are valid */
 
 	/*
 	 * When I/O is not aligned to a PAGE_SIZE, update will happen to the last
@@ -894,20 +931,20 @@ static int __get_new_block_age(struct inode *inode, struct extent_info *ei)
 	 * block here.
 	 */
 	if ((f_size >> PAGE_SHIFT) == ei->fofs && f_size & (PAGE_SIZE - 1) &&
-			ei->blk == NEW_ADDR)
+			blkaddr == NEW_ADDR)
 		return -EINVAL;
 
-	if (__lookup_extent_tree(inode, ei->fofs, ei, EX_BLOCK_AGE)) {
+	if (__lookup_extent_tree(inode, ei->fofs, &tei, EX_BLOCK_AGE)) {
 		unsigned long long cur_age;
 
-		if (cur_blocks >= ei->last_blocks)
-			cur_age = cur_blocks - ei->last_blocks;
+		if (cur_blocks >= tei.last_blocks)
+			cur_age = cur_blocks - tei.last_blocks;
 		else
 			/* allocated_data_blocks overflow */
-			cur_age = ULLONG_MAX - ei->last_blocks + cur_blocks;
+			cur_age = ULLONG_MAX - tei.last_blocks + cur_blocks;
 
-		if (ei->age)
-			ei->age = __calculate_block_age(cur_age, ei->age);
+		if (tei.age)
+			ei->age = __calculate_block_age(sbi, cur_age, tei.age);
 		else
 			ei->age = cur_age;
 		ei->last_blocks = cur_blocks;
@@ -915,14 +952,14 @@ static int __get_new_block_age(struct inode *inode, struct extent_info *ei)
 		return 0;
 	}
 
-	f2fs_bug_on(sbi, ei->blk == NULL_ADDR);
+	f2fs_bug_on(sbi, blkaddr == NULL_ADDR);
 
 	/* the data block was allocated for the first time */
-	if (ei->blk == NEW_ADDR)
+	if (blkaddr == NEW_ADDR)
 		goto out;
 
-	if (__is_valid_data_blkaddr(ei->blk) &&
-			!f2fs_is_valid_blkaddr(sbi, ei->blk, DATA_GENERIC_ENHANCE)) {
+	if (__is_valid_data_blkaddr(blkaddr) &&
+	    !f2fs_is_valid_blkaddr(sbi, blkaddr, DATA_GENERIC_ENHANCE)) {
 		f2fs_bug_on(sbi, 1);
 		return -EINVAL;
 	}
@@ -938,7 +975,7 @@ out:
 
 static void __update_extent_cache(struct dnode_of_data *dn, enum extent_type type)
 {
-	struct extent_info ei;
+	struct extent_info ei = {};
 
 	if (!__may_extent_tree(dn->inode, type))
 		return;
@@ -953,8 +990,7 @@ static void __update_extent_cache(struct dnode_of_data *dn, enum extent_type typ
 		else
 			ei.blk = dn->data_blkaddr;
 	} else if (type == EX_BLOCK_AGE) {
-		ei.blk = dn->data_blkaddr;
-		if (__get_new_block_age(dn->inode, &ei))
+		if (__get_new_block_age(dn->inode, &ei, dn->data_blkaddr))
 			return;
 	}
 	__update_extent_tree_range(dn->inode, &ei, type);
@@ -1043,6 +1079,17 @@ bool f2fs_lookup_read_extent_cache(struct inode *inode, pgoff_t pgofs,
 		return false;
 
 	return __lookup_extent_tree(inode, pgofs, ei, EX_READ);
+}
+
+bool f2fs_lookup_read_extent_cache_block(struct inode *inode, pgoff_t index,
+				block_t *blkaddr)
+{
+	struct extent_info ei = {};
+
+	if (!f2fs_lookup_read_extent_cache(inode, index, &ei))
+		return false;
+	*blkaddr = ei.blk + index - ei.fofs;
+	return true;
 }
 
 void f2fs_update_read_extent_cache(struct dnode_of_data *dn)
@@ -1224,6 +1271,7 @@ void f2fs_init_extent_cache_info(struct f2fs_sb_info *sbi)
 	atomic64_set(&sbi->allocated_data_blocks, 0);
 	sbi->hot_data_age_threshold = DEF_HOT_DATA_AGE_THRESHOLD;
 	sbi->warm_data_age_threshold = DEF_WARM_DATA_AGE_THRESHOLD;
+	sbi->last_age_weight = LAST_AGE_WEIGHT;
 }
 
 int __init f2fs_create_extent_cache(void)

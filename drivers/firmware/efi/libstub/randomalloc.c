@@ -101,6 +101,7 @@ efi_status_t efi_random_alloc(unsigned long size,
 	 * to calculate the randomly chosen address, and allocate it directly
 	 * using EFI_ALLOCATE_ADDRESS.
 	 */
+	status = EFI_OUT_OF_RESOURCES;
 	for (map_offset = 0; map_offset < map->map_size; map_offset += map->desc_size) {
 		efi_memory_desc_t *md = (void *)map->map + map_offset;
 		efi_physical_addr_t target;

@@ -6,7 +6,6 @@ menuconfig BLOCK
        bool "Enable the block layer" if EXPERT
        default y
        select SBITMAP
-       select SRCU
        help
 	 Provide block layer support for the kernel.
 
@@ -204,9 +203,6 @@ config BLK_INLINE_ENCRYPTION_FALLBACK
 	  encryption hardware is not present.
 
 source "block/partitions/Kconfig"
-
-config BLOCK_COMPAT
-	def_bool COMPAT
 
 config BLK_MQ_PCI
 	def_bool PCI

@@ -12,7 +12,7 @@
  */
 /* Return the length of string -- including null terminal byte */
 static nokprobe_inline int
-kern_fetch_store_strlen_user(unsigned long addr)
+fetch_store_strlen_user(unsigned long addr)
 {
 	const void __user *uaddr =  (__force const void __user *)addr;
 	int ret;
@@ -29,14 +29,14 @@ kern_fetch_store_strlen_user(unsigned long addr)
 
 /* Return the length of string -- including null terminal byte */
 static nokprobe_inline int
-kern_fetch_store_strlen(unsigned long addr)
+fetch_store_strlen(unsigned long addr)
 {
 	int ret, len = 0;
 	u8 c;
 
 #ifdef CONFIG_ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE
 	if (addr < TASK_SIZE)
-		return kern_fetch_store_strlen_user(addr);
+		return fetch_store_strlen_user(addr);
 #endif
 
 	do {
@@ -63,7 +63,7 @@ static nokprobe_inline void set_data_loc(int ret, void *dest, void *__dest, void
  * with max length and relative data location.
  */
 static nokprobe_inline int
-kern_fetch_store_string_user(unsigned long addr, void *dest, void *base)
+fetch_store_string_user(unsigned long addr, void *dest, void *base)
 {
 	const void __user *uaddr =  (__force const void __user *)addr;
 	int maxlen = get_loc_len(*(u32 *)dest);
@@ -86,7 +86,7 @@ kern_fetch_store_string_user(unsigned long addr, void *dest, void *base)
  * length and relative data location.
  */
 static nokprobe_inline int
-kern_fetch_store_string(unsigned long addr, void *dest, void *base)
+fetch_store_string(unsigned long addr, void *dest, void *base)
 {
 	int maxlen = get_loc_len(*(u32 *)dest);
 	void *__dest;
@@ -94,7 +94,7 @@ kern_fetch_store_string(unsigned long addr, void *dest, void *base)
 
 #ifdef CONFIG_ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE
 	if ((unsigned long)addr < TASK_SIZE)
-		return kern_fetch_store_string_user(addr, dest, base);
+		return fetch_store_string_user(addr, dest, base);
 #endif
 
 	if (unlikely(!maxlen))
@@ -110,6 +110,24 @@ kern_fetch_store_string(unsigned long addr, void *dest, void *base)
 	set_data_loc(ret, dest, __dest, base, maxlen);
 
 	return ret;
+}
+
+static nokprobe_inline int
+probe_mem_read_user(void *dest, void *src, size_t size)
+{
+	const void __user *uaddr =  (__force const void __user *)src;
+
+	return copy_from_user_nofault(dest, uaddr, size);
+}
+
+static nokprobe_inline int
+probe_mem_read(void *dest, void *src, size_t size)
+{
+#ifdef CONFIG_ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE
+	if ((unsigned long)src < TASK_SIZE)
+		return probe_mem_read_user(dest, src, size);
+#endif
+	return copy_from_kernel_nofault(dest, src, size);
 }
 
 #endif /* __TRACE_PROBE_KERNEL_H_ */

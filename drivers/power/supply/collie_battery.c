@@ -404,7 +404,7 @@ static int collie_bat_probe(struct ucb1x00_dev *dev)
 		goto err_psy_reg_bu;
 	}
 
-	ret = request_irq(gpio_to_irq(COLLIE_GPIO_CO),
+	ret = request_irq(gpiod_to_irq(collie_bat_main.gpio_full),
 				collie_bat_gpio_isr,
 				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 				"main full", &collie_bat_main);
@@ -440,7 +440,7 @@ err_put_gpio_full:
 
 static void collie_bat_remove(struct ucb1x00_dev *dev)
 {
-	free_irq(gpio_to_irq(COLLIE_GPIO_CO), &collie_bat_main);
+	free_irq(gpiod_to_irq(collie_bat_main.gpio_full), &collie_bat_main);
 	power_supply_unregister(collie_bat_bu.psy);
 	power_supply_unregister(collie_bat_main.psy);
 

@@ -350,6 +350,8 @@ int msm_dsi_dphy_timing_calc_v3(struct msm_dsi_dphy_timing *timing,
 		timing->shared_timings.clk_pre_inc_by_2 = 0;
 	}
 
+	timing->shared_timings.byte_intf_clk_div_2 = true;
+
 	timing->ta_go = 3;
 	timing->ta_sure = 0;
 	timing->ta_get = 4;
@@ -453,6 +455,8 @@ int msm_dsi_dphy_timing_calc_v4(struct msm_dsi_dphy_timing *timing,
 	tmin = DIV_ROUND_UP(temp, 16 * ui) - 1;
 	tmax = 255;
 	timing->shared_timings.clk_pre = DIV_ROUND_UP((tmax - tmin) * 125, 10000) + tmin;
+
+	timing->shared_timings.byte_intf_clk_div_2 = true;
 
 	DBG("%d, %d, %d, %d, %d, %d, %d, %d, %d, %d",
 		timing->shared_timings.clk_pre, timing->shared_timings.clk_post,
@@ -569,6 +573,14 @@ static const struct of_device_id dsi_phy_dt_match[] = {
 	  .data = &dsi_phy_7nm_8150_cfgs },
 	{ .compatible = "qcom,sc7280-dsi-phy-7nm",
 	  .data = &dsi_phy_7nm_7280_cfgs },
+	{ .compatible = "qcom,sm6375-dsi-phy-7nm",
+	  .data = &dsi_phy_7nm_6375_cfgs },
+	{ .compatible = "qcom,sm8350-dsi-phy-5nm",
+	  .data = &dsi_phy_5nm_8350_cfgs },
+	{ .compatible = "qcom,sm8450-dsi-phy-5nm",
+	  .data = &dsi_phy_5nm_8450_cfgs },
+	{ .compatible = "qcom,sm8550-dsi-phy-4nm",
+	  .data = &dsi_phy_4nm_8550_cfgs },
 #endif
 	{}
 };

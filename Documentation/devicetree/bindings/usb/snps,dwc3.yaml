@@ -91,6 +91,16 @@ properties:
         - usb2-phy
         - usb3-phy
 
+  power-domains:
+    description:
+      The DWC3 has 2 power-domains. The power management unit (PMU) and
+      everything else. The PMU is typically always powered and may not have an
+      entry.
+    minItems: 1
+    items:
+      - description: Core
+      - description: Power management unit
+
   resets:
     minItems: 1
 

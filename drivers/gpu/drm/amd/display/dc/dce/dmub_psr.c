@@ -33,6 +33,9 @@
 
 #define MAX_PIPES 6
 
+static const uint8_t DP_SINK_DEVICE_STR_ID_1[] = {7, 1, 8, 7, 3};
+static const uint8_t DP_SINK_DEVICE_STR_ID_2[] = {7, 1, 8, 7, 5};
+
 /*
  * Convert dmcub psr state to dmcu psr state.
  */
@@ -215,7 +218,7 @@ static void dmub_psr_enable(struct dmub_psr *dmub, bool enable, bool wait, uint8
 					break;
 			}
 
-			udelay(500);
+			fsleep(500);
 		}
 
 		/* assert if max retry hit */
@@ -250,7 +253,7 @@ static void dmub_psr_set_level(struct dmub_psr *dmub, uint16_t psr_level, uint8_
 	dc_dmub_srv_wait_idle(dc->dmub_srv);
 }
 
-/**
+/*
  * Set PSR vtotal requirement for FreeSync PSR.
  */
 static void dmub_psr_set_sink_vtotal_in_psr_active(struct dmub_psr *dmub,
@@ -417,6 +420,7 @@ static bool dmub_psr_copy_settings(struct dmub_psr *dmub,
 	copy_settings_data->relock_delay_frame_cnt = 0;
 	if (link->dpcd_caps.sink_dev_id == DP_BRANCH_DEVICE_ID_001CF8)
 		copy_settings_data->relock_delay_frame_cnt = 2;
+	copy_settings_data->dsc_slice_height = psr_context->dsc_slice_height;
 
 	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd);
 	dc_dmub_srv_cmd_execute(dc->dmub_srv);

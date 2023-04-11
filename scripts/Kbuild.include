@@ -99,11 +99,11 @@ define filechk
 	$(check-FORCE)
 	$(Q)set -e;						\
 	mkdir -p $(dir $@);					\
-	trap "rm -f $(dot-target).tmp" EXIT;			\
-	{ $(filechk_$(1)); } > $(dot-target).tmp;		\
-	if [ ! -r $@ ] || ! cmp -s $@ $(dot-target).tmp; then	\
+	trap "rm -f $(tmp-target)" EXIT;			\
+	{ $(filechk_$(1)); } > $(tmp-target);			\
+	if [ ! -r $@ ] || ! cmp -s $@ $(tmp-target); then	\
 		$(kecho) '  UPD     $@';			\
-		mv -f $(dot-target).tmp $@;			\
+		mv -f $(tmp-target) $@;				\
 	fi
 endef
 
@@ -125,15 +125,15 @@ dtbinst := -f $(srctree)/scripts/Makefile.dtbinst obj
 # $(Q)$(MAKE) $(clean)=dir
 clean := -f $(srctree)/scripts/Makefile.clean obj
 
-# echo command.
-# Short version is used, if $(quiet) equals `quiet_', otherwise full one.
-echo-cmd = $(if $($(quiet)cmd_$(1)),\
-	echo '  $(call escsq,$($(quiet)cmd_$(1)))$(echo-why)';)
-
-# sink stdout for 'make -s'
-       redirect :=
- quiet_redirect :=
-silent_redirect := exec >/dev/null;
+# pring log
+#
+# If quiet is "silent_", print nothing and sink stdout
+# If quiet is "quiet_", print short log
+# If quiet is empty, print short log and whole command
+silent_log_print = exec >/dev/null;
+ quiet_log_print = $(if $(quiet_cmd_$1), echo '  $(call escsq,$(quiet_cmd_$1)$(why))';)
+       log_print = echo '$(pound) $(call escsq,$(or $(quiet_cmd_$1),cmd_$1 $@)$(why))'; \
+                   echo '  $(call escsq,$(cmd_$1))';
 
 # Delete the target on interruption
 #
@@ -156,8 +156,8 @@ delete-on-interrupt = \
 		$(foreach sig, HUP INT QUIT TERM PIPE, \
 			trap 'rm -f $@; trap - $(sig); kill -s $(sig) $$$$' $(sig);))
 
-# printing commands
-cmd = @set -e; $(echo-cmd) $($(quiet)redirect) $(delete-on-interrupt) $(cmd_$(1))
+# print and execute commands
+cmd = @$(if $(cmd_$(1)),set -e; $($(quiet)log_print) $(delete-on-interrupt) $(cmd_$(1)),:)
 
 ###
 # if_changed      - execute command if any prerequisite is newer than
@@ -170,10 +170,14 @@ cmd = @set -e; $(echo-cmd) $($(quiet)redirect) $(delete-on-interrupt) $(cmd_$(1)
 ifneq ($(KBUILD_NOCMDDEP),1)
 # Check if both commands are the same including their order. Result is empty
 # string if equal. User may override this check using make KBUILD_NOCMDDEP=1
-cmd-check = $(filter-out $(subst $(space),$(space_escape),$(strip $(cmd_$@))), \
+# If the target does not exist, the *.cmd file should not be included so
+# $(savedcmd_$@) gets empty. Then, target will be built even if $(newer-prereqs)
+# happens to become empty.
+cmd-check = $(filter-out $(subst $(space),$(space_escape),$(strip $(savedcmd_$@))), \
                          $(subst $(space),$(space_escape),$(strip $(cmd_$1))))
 else
-cmd-check = $(if $(strip $(cmd_$@)),,1)
+# We still need to detect missing targets.
+cmd-check = $(if $(strip $(savedcmd_$@)),,1)
 endif
 
 # Replace >$< with >$$< to preserve $ when reloading the .cmd file
@@ -186,6 +190,8 @@ make-cmd = $(call escsq,$(subst $(pound),$$(pound),$(subst $$,$$$$,$(cmd_$(1))))
 
 # Find any prerequisites that are newer than target or that do not exist.
 # PHONY targets skipped in both cases.
+# If there is no prerequisite other than phony targets, $(newer-prereqs) becomes
+# empty even if the target does not exist. cmd-check saves this corner case.
 newer-prereqs = $(filter-out $(PHONY),$?)
 
 # It is a typical mistake to forget the FORCE prerequisite. Check it here so
@@ -199,7 +205,7 @@ if_changed = $(if $(if-changed-cond),$(cmd_and_savecmd),@:)
 
 cmd_and_savecmd =                                                            \
 	$(cmd);                                                              \
-	printf '%s\n' 'cmd_$@ := $(make-cmd)' > $(dot-target).cmd
+	printf '%s\n' 'savedcmd_$@ := $(make-cmd)' > $(dot-target).cmd
 
 # Execute the command and also postprocess generated .d dependencies file.
 if_changed_dep = $(if $(if-changed-cond),$(cmd_and_fixdep),@:)
@@ -233,13 +239,13 @@ if_changed_rule = $(if $(if-changed-cond),$(rule_$(1)),@:)
 # (5) No dir/.target.cmd file (used to store command line)
 # (6) No dir/.target.cmd file and target not listed in $(targets)
 #     This is a good hint that there is a bug in the kbuild file
-ifeq ($(KBUILD_VERBOSE),2)
-why =                                                                        \
+ifneq ($(findstring 2, $(KBUILD_VERBOSE)),)
+_why =                                                                        \
     $(if $(filter $@, $(PHONY)),- due to target is PHONY,                    \
         $(if $(wildcard $@),                                                 \
             $(if $(newer-prereqs),- due to: $(newer-prereqs),                \
                 $(if $(cmd-check),                                           \
-                    $(if $(cmd_$@),- due to command line change,             \
+                    $(if $(savedcmd_$@),- due to command line change,        \
                         $(if $(filter $@, $(targets)),                       \
                             - due to missing .cmd file,                      \
                             - due to $(notdir $@) not in $$(targets)         \
@@ -251,7 +257,7 @@ why =                                                                        \
          )                                                                   \
      )
 
-echo-why = $(call escsq, $(strip $(why)))
+why = $(space)$(strip $(_why))
 endif
 
 ###############################################################################

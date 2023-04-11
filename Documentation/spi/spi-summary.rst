@@ -105,7 +105,7 @@ find isn't necessarily helpful.  The four modes combine two mode bits:
  - CPHA indicates the clock phase used to sample data; CPHA=0 says
    sample on the leading edge, CPHA=1 means the trailing edge.
 
-   Since the signal needs to stablize before it's sampled, CPHA=0
+   Since the signal needs to stabilize before it's sampled, CPHA=0
    implies that its data is written half a clock before the first
    clock edge.  The chipselect may have made it become available.
 

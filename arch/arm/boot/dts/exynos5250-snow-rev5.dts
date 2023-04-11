@@ -27,7 +27,7 @@
 		};
 
 		codec {
-			sound-dai = <&max98090 0>, <&hdmi>;
+			sound-dai = <&max98090>, <&hdmi>;
 		};
 	};
 };
@@ -42,7 +42,7 @@
 		pinctrl-0 = <&max98090_irq>;
 		clocks = <&pmu_system_controller 0>;
 		clock-names = "mclk";
-		#sound-dai-cells = <1>;
+		#sound-dai-cells = <0>;
 	};
 };
 

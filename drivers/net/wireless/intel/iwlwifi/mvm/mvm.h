@@ -501,7 +501,7 @@ struct iwl_mvm_tt_mgmt {
  * @tzone: thermal zone device data
 */
 struct iwl_mvm_thermal_device {
-	s16 temp_trips[IWL_MAX_DTS_TRIPS];
+	struct thermal_trip trips[IWL_MAX_DTS_TRIPS];
 	u8 fw_trips_index[IWL_MAX_DTS_TRIPS];
 	struct thermal_zone_device *tzone;
 };
@@ -729,7 +729,10 @@ struct iwl_mvm_txq {
 	struct list_head list;
 	u16 txq_id;
 	atomic_t tx_request;
-	bool stopped;
+#define IWL_MVM_TXQ_STATE_STOP_FULL	0
+#define IWL_MVM_TXQ_STATE_STOP_REDIRECT	1
+#define IWL_MVM_TXQ_STATE_READY		2
+	unsigned long state;
 };
 
 static inline struct iwl_mvm_txq *
@@ -827,6 +830,7 @@ struct iwl_mvm {
 		struct iwl_mvm_tvqm_txq_info tvqm_info[IWL_MAX_TVQM_QUEUES];
 	};
 	struct work_struct add_stream_wk; /* To add streams to queues */
+	spinlock_t add_stream_lock;
 
 	const char *nvm_file_name;
 	struct iwl_nvm_data *nvm_data;

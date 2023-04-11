@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 // Copyright (c) 2019 Mellanox Technologies.
 
+#include <linux/debugfs.h>
 #include "en_accel/ktls.h"
 #include "en_accel/ktls_txrx.h"
 #include "en_accel/ktls_utils.h"
@@ -97,7 +98,7 @@ struct mlx5e_ktls_offload_context_tx {
 	struct tls_offload_context_tx *tx_ctx;
 	struct mlx5_core_dev *mdev;
 	struct mlx5e_tls_sw_stats *sw_stats;
-	u32 key_id;
+	struct mlx5_crypto_dek *dek;
 	u8 create_err : 1;
 };
 
@@ -456,6 +457,7 @@ int mlx5e_ktls_add_tx(struct net_device *netdev, struct sock *sk,
 	struct mlx5e_ktls_offload_context_tx *priv_tx;
 	struct mlx5e_tls_tx_pool *pool;
 	struct tls_context *tls_ctx;
+	struct mlx5_crypto_dek *dek;
 	struct mlx5e_priv *priv;
 	int err;
 
@@ -467,11 +469,6 @@ int mlx5e_ktls_add_tx(struct net_device *netdev, struct sock *sk,
 	if (IS_ERR(priv_tx))
 		return PTR_ERR(priv_tx);
 
-	err = mlx5_ktls_create_key(pool->mdev, crypto_info, &priv_tx->key_id);
-	if (err)
-		goto err_create_key;
-
-	priv_tx->expected_seq = start_offload_tcp_sn;
 	switch (crypto_info->cipher_type) {
 	case TLS_CIPHER_AES_GCM_128:
 		priv_tx->crypto_info.crypto_info_128 =
@@ -484,8 +481,18 @@ int mlx5e_ktls_add_tx(struct net_device *netdev, struct sock *sk,
 	default:
 		WARN_ONCE(1, "Unsupported cipher type %u\n",
 			  crypto_info->cipher_type);
-		return -EOPNOTSUPP;
+		err = -EOPNOTSUPP;
+		goto err_pool_push;
 	}
+
+	dek = mlx5_ktls_create_key(priv->tls->dek_pool, crypto_info);
+	if (IS_ERR(dek)) {
+		err = PTR_ERR(dek);
+		goto err_pool_push;
+	}
+
+	priv_tx->dek = dek;
+	priv_tx->expected_seq = start_offload_tcp_sn;
 	priv_tx->tx_ctx = tls_offload_ctx_tx(tls_ctx);
 
 	mlx5e_set_ktls_tx_priv_ctx(tls_ctx, priv_tx);
@@ -495,7 +502,7 @@ int mlx5e_ktls_add_tx(struct net_device *netdev, struct sock *sk,
 
 	return 0;
 
-err_create_key:
+err_pool_push:
 	pool_push(pool, priv_tx);
 	return err;
 }
@@ -511,7 +518,7 @@ void mlx5e_ktls_del_tx(struct net_device *netdev, struct tls_context *tls_ctx)
 	pool = priv->tls->tx_pool;
 
 	atomic64_inc(&priv_tx->sw_stats->tx_tls_del);
-	mlx5_ktls_destroy_key(priv_tx->mdev, priv_tx->key_id);
+	mlx5_ktls_destroy_key(priv->tls->dek_pool, priv_tx->dek);
 	pool_push(pool, priv_tx);
 }
 
@@ -550,8 +557,9 @@ post_static_params(struct mlx5e_txqsq *sq,
 	pi = mlx5e_txqsq_get_next_pi(sq, num_wqebbs);
 	wqe = MLX5E_TLS_FETCH_SET_STATIC_PARAMS_WQE(sq, pi);
 	mlx5e_ktls_build_static_params(wqe, sq->pc, sq->sqn, &priv_tx->crypto_info,
-				       priv_tx->tisn, priv_tx->key_id, 0, fence,
-				       TLS_OFFLOAD_CTX_DIR_TX);
+				       priv_tx->tisn,
+				       mlx5_crypto_dek_get_id(priv_tx->dek),
+				       0, fence, TLS_OFFLOAD_CTX_DIR_TX);
 	tx_fill_wi(sq, pi, num_wqebbs, 0, NULL);
 	sq->pc += num_wqebbs;
 }
@@ -886,14 +894,30 @@ err_out:
 	return false;
 }
 
+static void mlx5e_tls_tx_debugfs_init(struct mlx5e_tls *tls,
+				      struct dentry *dfs_root)
+{
+	if (IS_ERR_OR_NULL(dfs_root))
+		return;
+
+	tls->debugfs.dfs_tx = debugfs_create_dir("tx", dfs_root);
+
+	debugfs_create_size_t("pool_size", 0400, tls->debugfs.dfs_tx,
+			      &tls->tx_pool->size);
+}
+
 int mlx5e_ktls_init_tx(struct mlx5e_priv *priv)
 {
+	struct mlx5e_tls *tls = priv->tls;
+
 	if (!mlx5e_is_ktls_tx(priv->mdev))
 		return 0;
 
 	priv->tls->tx_pool = mlx5e_tls_tx_pool_init(priv->mdev, &priv->tls->sw_stats);
 	if (!priv->tls->tx_pool)
 		return -ENOMEM;
+
+	mlx5e_tls_tx_debugfs_init(tls, tls->debugfs.dfs);
 
 	return 0;
 }
@@ -902,6 +926,9 @@ void mlx5e_ktls_cleanup_tx(struct mlx5e_priv *priv)
 {
 	if (!mlx5e_is_ktls_tx(priv->mdev))
 		return;
+
+	debugfs_remove_recursive(priv->tls->debugfs.dfs_tx);
+	priv->tls->debugfs.dfs_tx = NULL;
 
 	mlx5e_tls_tx_pool_cleanup(priv->tls->tx_pool);
 	priv->tls->tx_pool = NULL;

@@ -824,8 +824,6 @@ static const struct resource_caps res_cap_dcn31 = {
 
 static const struct dc_plane_cap plane_cap = {
 	.type = DC_PLANE_TYPE_DCN_UNIVERSAL,
-	.blends_with_above = true,
-	.blends_with_below = true,
 	.per_pixel_alpha = true,
 
 	.pixel_format_support = {
@@ -1776,7 +1774,7 @@ static bool dcn316_resource_construct(
 	pool->base.mpcc_count = pool->base.res_cap->num_timing_generator;
 	dc->caps.max_downscale_ratio = 600;
 	dc->caps.i2c_speed_in_khz = 100;
-	dc->caps.i2c_speed_in_khz_hdcp = 100;
+	dc->caps.i2c_speed_in_khz_hdcp = 5; /*1.5 w/a applied by default*/
 	dc->caps.max_cursor_size = 256;
 	dc->caps.min_horizontal_blanking_period = 80;
 	dc->caps.dmdata_alloc_size = 2048;

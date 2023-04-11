@@ -346,3 +346,29 @@ struct_size() and flex_array_size() helpers::
         instance->count = count;
 
         memcpy(instance->items, source, flex_array_size(instance, items, instance->count));
+
+There are two special cases of replacement where the DECLARE_FLEX_ARRAY()
+helper needs to be used. (Note that it is named __DECLARE_FLEX_ARRAY() for
+use in UAPI headers.) Those cases are when the flexible array is either
+alone in a struct or is part of a union. These are disallowed by the C99
+specification, but for no technical reason (as can be seen by both the
+existing use of such arrays in those places and the work-around that
+DECLARE_FLEX_ARRAY() uses). For example, to convert this::
+
+	struct something {
+		...
+		union {
+			struct type1 one[0];
+			struct type2 two[0];
+		};
+	};
+
+The helper must be used::
+
+	struct something {
+		...
+		union {
+			DECLARE_FLEX_ARRAY(struct type1, one);
+			DECLARE_FLEX_ARRAY(struct type2, two);
+		};
+	};

@@ -543,6 +543,7 @@ static inline int ensure_good_fd(int fd)
 		fd = fcntl(fd, F_DUPFD_CLOEXEC, 3);
 		saved_errno = errno;
 		close(old_fd);
+		errno = saved_errno;
 		if (fd < 0) {
 			pr_warn("failed to dup FD %d to FD > 2: %d\n", old_fd, -saved_errno);
 			errno = saved_errno;

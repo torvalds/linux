@@ -151,6 +151,7 @@ static void configure_pte_for_fw_loading(int type, int num_pages, struct acp_dev
 int acp_dsp_pre_fw_run(struct snd_sof_dev *sdev)
 {
 	struct pci_dev *pci = to_pci_dev(sdev->dev);
+	const struct sof_amd_acp_desc *desc = get_chip_info(sdev->pdata);
 	struct acp_dev_data *adata;
 	unsigned int src_addr, size_fw;
 	u32 page_count, dma_size;
@@ -182,6 +183,12 @@ int acp_dsp_pre_fw_run(struct snd_sof_dev *sdev)
 	ret = acp_dma_status(adata, 0);
 	if (ret < 0)
 		dev_err(sdev->dev, "acp dma transfer status: %d\n", ret);
+
+	if (desc->rev > 3) {
+		/* Cache Window enable */
+		snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_DSP0_CACHE_OFFSET0, desc->sram_pte_offset);
+		snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_DSP0_CACHE_SIZE0, SRAM1_SIZE | BIT(31));
+	}
 
 	/* Free memory once DMA is complete */
 	dma_size =  (PAGE_ALIGN(sdev->basefw.fw->size) >> PAGE_SHIFT) * ACP_PAGE_SIZE;

@@ -56,5 +56,6 @@ enum mt76_mcu_evt_type {
 int mt76_dma_rx_poll(struct napi_struct *napi, int budget);
 void mt76_dma_attach(struct mt76_dev *dev);
 void mt76_dma_cleanup(struct mt76_dev *dev);
+int mt76_dma_wed_setup(struct mt76_dev *dev, struct mt76_queue *q, bool reset);
 
 #endif

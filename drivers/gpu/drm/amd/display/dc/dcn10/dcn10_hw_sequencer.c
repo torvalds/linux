@@ -45,7 +45,6 @@
 #include "dcn10_hubp.h"
 #include "dcn10_hubbub.h"
 #include "dcn10_cm_common.h"
-#include "dc_link_dp.h"
 #include "dccg.h"
 #include "clk_mgr.h"
 #include "link_hwss.h"
@@ -56,8 +55,7 @@
 #include "dce/dmub_hw_lock_mgr.h"
 #include "dc_trace.h"
 #include "dce/dmub_outbox.h"
-#include "inc/dc_link_dp.h"
-#include "inc/link_dpcd.h"
+#include "link.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -728,11 +726,15 @@ void dcn10_hubp_pg_control(
 	}
 }
 
-static void power_on_plane(
+static void power_on_plane_resources(
 	struct dce_hwseq *hws,
 	int plane_id)
 {
 	DC_LOGGER_INIT(hws->ctx->logger);
+
+	if (hws->funcs.dpp_root_clock_control)
+		hws->funcs.dpp_root_clock_control(hws, plane_id, true);
+
 	if (REG(DC_IP_REQUEST_CNTL)) {
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
 				IP_REQUEST_EN, 1);
@@ -921,7 +923,7 @@ enum dc_status dcn10_enable_stream_timing(
 	if (false == pipe_ctx->clock_source->funcs->program_pix_clk(
 			pipe_ctx->clock_source,
 			&pipe_ctx->stream_res.pix_clk_params,
-			dp_get_link_encoding_format(&pipe_ctx->link_config.dp_link_settings),
+			dc->link_srv->dp_get_encoding_format(&pipe_ctx->link_config.dp_link_settings),
 			&pipe_ctx->pll_settings)) {
 		BREAK_TO_DEBUGGER();
 		return DC_ERROR_UNEXPECTED;
@@ -1019,7 +1021,7 @@ static void dcn10_reset_back_end_for_pipe(
 		 * VBIOS lit up eDP, so check link status too.
 		 */
 		if (!pipe_ctx->stream->dpms_off || link->link_status.link_active)
-			core_link_disable_stream(pipe_ctx);
+			dc->link_srv->set_dpms_off(pipe_ctx);
 		else if (pipe_ctx->stream_res.audio)
 			dc->hwss.disable_audio_stream(pipe_ctx);
 
@@ -1239,11 +1241,15 @@ void dcn10_plane_atomic_power_down(struct dc *dc,
 			hws->funcs.hubp_pg_control(hws, hubp->inst, false);
 
 		dpp->funcs->dpp_reset(dpp);
+
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
 				IP_REQUEST_EN, 0);
 		DC_LOG_DEBUG(
 				"Power gated front end %d\n", hubp->inst);
 	}
+
+	if (hws->funcs.dpp_root_clock_control)
+		hws->funcs.dpp_root_clock_control(hws, dpp->inst, false);
 }
 
 /* disable HW used by plane.
@@ -1566,7 +1572,7 @@ void dcn10_init_hw(struct dc *dc)
 	}
 
 	/* we want to turn off all dp displays before doing detection */
-	dc_link_blank_all_dp_displays(dc);
+	dc->link_srv->blank_all_dp_displays(dc);
 
 	if (hws->funcs.enable_power_gating_plane)
 		hws->funcs.enable_power_gating_plane(dc->hwseq, true);
@@ -1640,7 +1646,7 @@ void dcn10_power_down_on_boot(struct dc *dc)
 	int edp_num;
 	int i = 0;
 
-	get_edp_links(dc, edp_links, &edp_num);
+	dc_get_edp_links(dc, edp_links, &edp_num);
 	if (edp_num)
 		edp_link = edp_links[0];
 
@@ -2464,7 +2470,7 @@ static void dcn10_enable_plane(
 
 	undo_DEGVIDCN10_253_wa(dc);
 
-	power_on_plane(dc->hwseq,
+	power_on_plane_resources(dc->hwseq,
 		pipe_ctx->plane_res.hubp->inst);
 
 	/* enable DCFCLK current DCHUB */
@@ -2901,7 +2907,7 @@ void dcn10_blank_pixel_data(
 			dc->hwss.set_pipe(pipe_ctx);
 			stream_res->abm->funcs->set_abm_level(stream_res->abm, stream->abm_level);
 		}
-	} else if (blank) {
+	} else {
 		dc->hwss.set_abm_immediate_disable(pipe_ctx);
 		if (stream_res->tg->funcs->set_blank) {
 			stream_res->tg->funcs->wait_for_state(stream_res->tg, CRTC_STATE_VBLANK);
@@ -3225,12 +3231,16 @@ static void dcn10_config_stereo_parameters(
 			timing_3d_format == TIMING_3D_FORMAT_INBAND_FA ||
 			timing_3d_format == TIMING_3D_FORMAT_DP_HDMI_INBAND_FA ||
 			timing_3d_format == TIMING_3D_FORMAT_SIDEBAND_FA) {
-			enum display_dongle_type dongle = \
-					stream->link->ddc->dongle_type;
-			if (dongle == DISPLAY_DONGLE_DP_VGA_CONVERTER ||
-				dongle == DISPLAY_DONGLE_DP_DVI_CONVERTER ||
-				dongle == DISPLAY_DONGLE_DP_HDMI_CONVERTER)
-				flags->DISABLE_STEREO_DP_SYNC = 1;
+
+			if (stream->link && stream->link->ddc) {
+				enum display_dongle_type dongle = \
+						stream->link->ddc->dongle_type;
+
+				if (dongle == DISPLAY_DONGLE_DP_VGA_CONVERTER ||
+					dongle == DISPLAY_DONGLE_DP_DVI_CONVERTER ||
+					dongle == DISPLAY_DONGLE_DP_HDMI_CONVERTER)
+					flags->DISABLE_STEREO_DP_SYNC = 1;
+			}
 		}
 		flags->RIGHT_EYE_POLARITY =\
 				stream->timing.flags.RIGHT_EYE_3D_POLARITY;
@@ -3383,7 +3393,9 @@ static bool dcn10_can_pipe_disable_cursor(struct pipe_ctx *pipe_ctx)
 	for (test_pipe = pipe_ctx->top_pipe; test_pipe;
 	     test_pipe = test_pipe->top_pipe) {
 		// Skip invisible layer and pipe-split plane on same layer
-		if (!test_pipe->plane_state->visible || test_pipe->plane_state->layer_index == cur_layer)
+		if (!test_pipe->plane_state ||
+		    !test_pipe->plane_state->visible ||
+		    test_pipe->plane_state->layer_index == cur_layer)
 			continue;
 
 		r2 = test_pipe->plane_res.scl_data.recout;
@@ -3626,7 +3638,7 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 						(int)hubp->curs_attr.width || pos_cpy.x
 						<= (int)hubp->curs_attr.width +
 						pipe_ctx->plane_state->src_rect.x) {
-						pos_cpy.x = temp_x + viewport_width;
+						pos_cpy.x = 2 * viewport_width - temp_x;
 					}
 				}
 			} else {

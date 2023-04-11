@@ -1070,9 +1070,9 @@ static int rockchip_i2s_tdm_dai_probe(struct snd_soc_dai *dai)
 	struct rk_i2s_tdm_dev *i2s_tdm = snd_soc_dai_get_drvdata(dai);
 
 	if (i2s_tdm->has_capture)
-		dai->capture_dma_data = &i2s_tdm->capture_dma_data;
+		snd_soc_dai_dma_data_set_capture(dai,  &i2s_tdm->capture_dma_data);
 	if (i2s_tdm->has_playback)
-		dai->playback_dma_data = &i2s_tdm->playback_dma_data;
+		snd_soc_dai_dma_data_set_playback(dai, &i2s_tdm->playback_dma_data);
 
 	if (i2s_tdm->mclk_calibrate)
 		snd_soc_add_dai_controls(dai, &rockchip_i2s_tdm_compensation_control, 1);

@@ -562,7 +562,7 @@ static int zinitix_ts_probe(struct i2c_client *client)
 	return 0;
 }
 
-static int __maybe_unused zinitix_suspend(struct device *dev)
+static int zinitix_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct bt541_ts_data *bt541 = i2c_get_clientdata(client);
@@ -577,7 +577,7 @@ static int __maybe_unused zinitix_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused zinitix_resume(struct device *dev)
+static int zinitix_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct bt541_ts_data *bt541 = i2c_get_clientdata(client);
@@ -593,7 +593,7 @@ static int __maybe_unused zinitix_resume(struct device *dev)
 	return ret;
 }
 
-static SIMPLE_DEV_PM_OPS(zinitix_pm_ops, zinitix_suspend, zinitix_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(zinitix_pm_ops, zinitix_suspend, zinitix_resume);
 
 #ifdef CONFIG_OF
 static const struct of_device_id zinitix_of_match[] = {
@@ -620,7 +620,7 @@ static struct i2c_driver zinitix_ts_driver = {
 	.probe_new = zinitix_ts_probe,
 	.driver = {
 		.name = "Zinitix-TS",
-		.pm = &zinitix_pm_ops,
+		.pm = pm_sleep_ptr(&zinitix_pm_ops),
 		.of_match_table = of_match_ptr(zinitix_of_match),
 	},
 };

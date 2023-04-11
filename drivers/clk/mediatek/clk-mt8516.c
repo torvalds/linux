@@ -691,11 +691,12 @@ static void __init mtk_topckgen_init(struct device_node *node)
 
 	mtk_clk_register_fixed_clks(fixed_clks, ARRAY_SIZE(fixed_clks),
 				    clk_data);
-	mtk_clk_register_gates(node, top_clks, ARRAY_SIZE(top_clks), clk_data);
+	mtk_clk_register_gates(NULL, node, top_clks, ARRAY_SIZE(top_clks), clk_data);
 
 	mtk_clk_register_factors(top_divs, ARRAY_SIZE(top_divs), clk_data);
-	mtk_clk_register_composites(top_muxes, ARRAY_SIZE(top_muxes), base,
-		&mt8516_clk_lock, clk_data);
+	mtk_clk_register_composites(NULL, top_muxes,
+				    ARRAY_SIZE(top_muxes), base,
+				    &mt8516_clk_lock, clk_data);
 	mtk_clk_register_dividers(top_adj_divs, ARRAY_SIZE(top_adj_divs),
 				base, &mt8516_clk_lock, clk_data);
 
@@ -720,8 +721,9 @@ static void __init mtk_infracfg_init(struct device_node *node)
 
 	clk_data = mtk_alloc_clk_data(CLK_IFR_NR_CLK);
 
-	mtk_clk_register_composites(ifr_muxes, ARRAY_SIZE(ifr_muxes), base,
-		&mt8516_clk_lock, clk_data);
+	mtk_clk_register_composites(NULL, ifr_muxes,
+				    ARRAY_SIZE(ifr_muxes), base,
+				    &mt8516_clk_lock, clk_data);
 
 	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
 	if (r)

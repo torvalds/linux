@@ -26,7 +26,6 @@
 #include "dcn31/dcn31_hpo_dp_link_encoder.h"
 #include "dcn32_hpo_dp_link_encoder.h"
 #include "reg_helper.h"
-#include "dc_link.h"
 #include "stream_encoder.h"
 
 #define DC_LOGGER \

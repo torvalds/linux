@@ -105,7 +105,7 @@ static const struct clk_ops system_ops = {
 
 struct clk_hw * __init
 at91_clk_register_system(struct regmap *regmap, const char *name,
-			 const char *parent_name, u8 id)
+			 const char *parent_name, u8 id, unsigned long flags)
 {
 	struct clk_system *sys;
 	struct clk_hw *hw;
@@ -123,7 +123,7 @@ at91_clk_register_system(struct regmap *regmap, const char *name,
 	init.ops = &system_ops;
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
-	init.flags = CLK_SET_RATE_PARENT;
+	init.flags = CLK_SET_RATE_PARENT | flags;
 
 	sys->id = id;
 	sys->hw.init = &init;

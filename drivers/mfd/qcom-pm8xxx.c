@@ -510,7 +510,6 @@ static int pm8xxx_probe(struct platform_device *pdev)
 	struct regmap *regmap;
 	int irq, rc;
 	unsigned int val;
-	u32 rev;
 	struct pm_irq_chip *chip;
 
 	data = of_device_get_match_data(&pdev->dev);
@@ -535,7 +534,6 @@ static int pm8xxx_probe(struct platform_device *pdev)
 		return rc;
 	}
 	pr_info("PMIC revision 1: %02X\n", val);
-	rev = val;
 
 	/* Read PMIC chip revision 2 */
 	rc = regmap_read(regmap, REG_HWREV_2, &val);
@@ -545,7 +543,6 @@ static int pm8xxx_probe(struct platform_device *pdev)
 		return rc;
 	}
 	pr_info("PMIC revision 2: %02X\n", val);
-	rev |= val << BITS_PER_BYTE;
 
 	chip = devm_kzalloc(&pdev->dev,
 			    struct_size(chip, config, data->num_irqs),

@@ -35,8 +35,8 @@
 #include <drm/drm_edid.h>
 
 #include "i915_drv.h"
-#include "i915_reg.h"
 #include "i915_irq.h"
+#include "i915_reg.h"
 #include "intel_connector.h"
 #include "intel_crtc.h"
 #include "intel_de.h"
@@ -44,6 +44,7 @@
 #include "intel_dpll.h"
 #include "intel_hotplug.h"
 #include "intel_tv.h"
+#include "intel_tv_regs.h"
 
 enum tv_margin {
 	TV_MARGIN_LEFT, TV_MARGIN_TOP,
@@ -930,8 +931,7 @@ intel_enable_tv(struct intel_atomic_state *state,
 	/* Prevents vblank waits from timing out in intel_tv_detect_type() */
 	intel_crtc_wait_for_next_vblank(to_intel_crtc(pipe_config->uapi.crtc));
 
-	intel_de_write(dev_priv, TV_CTL,
-		       intel_de_read(dev_priv, TV_CTL) | TV_ENC_ENABLE);
+	intel_de_rmw(dev_priv, TV_CTL, 0, TV_ENC_ENABLE);
 }
 
 static void
@@ -943,8 +943,7 @@ intel_disable_tv(struct intel_atomic_state *state,
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
-	intel_de_write(dev_priv, TV_CTL,
-		       intel_de_read(dev_priv, TV_CTL) & ~TV_ENC_ENABLE);
+	intel_de_rmw(dev_priv, TV_CTL, TV_ENC_ENABLE, 0);
 }
 
 static const struct tv_mode *intel_tv_mode_find(const struct drm_connector_state *conn_state)

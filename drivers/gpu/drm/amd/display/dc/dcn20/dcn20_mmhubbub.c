@@ -297,7 +297,7 @@ void mcifwb2_dump_frame(struct mcif_wb *mcif_wb,
 	dump_info->size		= dest_height * (mcif_params->luma_pitch + mcif_params->chroma_pitch);
 }
 
-const struct mcif_wb_funcs dcn20_mmhubbub_funcs = {
+static const struct mcif_wb_funcs dcn20_mmhubbub_funcs = {
 	.enable_mcif		= mmhubbub2_enable_mcif,
 	.disable_mcif		= mmhubbub2_disable_mcif,
 	.config_mcif_buf	= mmhubbub2_config_mcif_buf,

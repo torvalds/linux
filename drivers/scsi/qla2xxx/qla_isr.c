@@ -45,7 +45,7 @@ qla27xx_process_purex_fpin(struct scsi_qla_host *vha, struct purex_item *item)
 	ql_dump_buffer(ql_dbg_init + ql_dbg_verbose, vha, 0x508f,
 		       pkt, pkt_size);
 
-	fc_host_fpin_rcv(vha->host, pkt_size, (char *)pkt);
+	fc_host_fpin_rcv(vha->host, pkt_size, (char *)pkt, 0);
 }
 
 const char *const port_state_str[] = {
@@ -1900,6 +1900,8 @@ qla2x00_get_sp_from_handle(scsi_qla_host_t *vha, const char *func,
 	}
 
 	req->outstanding_cmds[index] = NULL;
+
+	qla_put_fw_resources(sp->qpair, &sp->iores);
 	return sp;
 }
 
@@ -3197,7 +3199,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 		}
 		return;
 	}
-	qla_put_iocbs(sp->qpair, &sp->iores);
+	qla_put_fw_resources(sp->qpair, &sp->iores);
 
 	if (sp->cmd_type != TYPE_SRB) {
 		req->outstanding_cmds[handle] = NULL;
@@ -3361,8 +3363,6 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 				ql_log(ql_log_warn, fcport->vha, 0x301d,
 				       "Dropped frame(s) detected (0x%x of 0x%x bytes).\n",
 				       resid, scsi_bufflen(cp));
-
-				vha->interface_err_cnt++;
 
 				res = DID_ERROR << 16 | lscsi_status;
 				goto check_scsi_status;
@@ -3618,7 +3618,6 @@ qla2x00_error_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, sts_entry_t *pkt)
 	default:
 		sp = qla2x00_get_sp_from_handle(vha, func, req, pkt);
 		if (sp) {
-			qla_put_iocbs(sp->qpair, &sp->iores);
 			sp->done(sp, res);
 			return 0;
 		}
@@ -3771,7 +3770,6 @@ void qla24xx_process_response_queue(struct scsi_qla_host *vha,
 
 	if (rsp->qpair->cpuid != smp_processor_id() || !rsp->qpair->rcv_intr) {
 		rsp->qpair->rcv_intr = 1;
-		qla_cpu_update(rsp->qpair, smp_processor_id());
 	}
 
 #define __update_rsp_in(_is_shadow_hba, _rsp, _rsp_in)			\
@@ -4379,6 +4377,7 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 	for (i = 0; i < ha->msix_count; i++) {
 		qentry = &ha->msix_entries[i];
 		qentry->vector = pci_irq_vector(ha->pdev, i);
+		qentry->vector_base0 = i;
 		qentry->entry = i;
 		qentry->have_irq = 0;
 		qentry->in_use = 0;
@@ -4606,5 +4605,6 @@ int qla25xx_request_irq(struct qla_hw_data *ha, struct qla_qpair *qpair,
 	}
 	msix->have_irq = 1;
 	msix->handle = qpair;
+	qla_mapq_init_qp_cpu_map(ha, msix, qpair);
 	return ret;
 }

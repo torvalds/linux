@@ -1101,41 +1101,34 @@ intel_opregion_get_panel_type(struct drm_i915_private *dev_priv)
  * The EDID in the OpRegion, or NULL if there is none or it's invalid.
  *
  */
-struct edid *intel_opregion_get_edid(struct intel_connector *intel_connector)
+const struct drm_edid *intel_opregion_get_edid(struct intel_connector *intel_connector)
 {
 	struct drm_connector *connector = &intel_connector->base;
 	struct drm_i915_private *i915 = to_i915(connector->dev);
 	struct intel_opregion *opregion = &i915->display.opregion;
-	const void *in_edid;
-	const struct edid *edid;
-	struct edid *new_edid;
+	const struct drm_edid *drm_edid;
+	const void *edid;
 	int len;
 
 	if (!opregion->asle_ext)
 		return NULL;
 
-	in_edid = opregion->asle_ext->bddc;
+	edid = opregion->asle_ext->bddc;
 
 	/* Validity corresponds to number of 128-byte blocks */
 	len = (opregion->asle_ext->phed & ASLE_PHED_EDID_VALID_MASK) * 128;
-	if (!len || !memchr_inv(in_edid, 0, len))
+	if (!len || !memchr_inv(edid, 0, len))
 		return NULL;
 
-	edid = in_edid;
+	drm_edid = drm_edid_alloc(edid, len);
 
-	if (len < EDID_LENGTH * (1 + edid->extensions)) {
-		drm_dbg_kms(&i915->drm, "Invalid EDID in ACPI OpRegion (Mailbox #5): too short\n");
-		return NULL;
-	}
-	new_edid = drm_edid_duplicate(edid);
-	if (!new_edid)
-		return NULL;
-	if (!drm_edid_is_valid(new_edid)) {
-		kfree(new_edid);
+	if (!drm_edid_valid(drm_edid)) {
 		drm_dbg_kms(&i915->drm, "Invalid EDID in ACPI OpRegion (Mailbox #5)\n");
-		return NULL;
+		drm_edid_free(drm_edid);
+		drm_edid = NULL;
 	}
-	return new_edid;
+
+	return drm_edid;
 }
 
 bool intel_opregion_headless_sku(struct drm_i915_private *i915)
@@ -1166,12 +1159,9 @@ void intel_opregion_register(struct drm_i915_private *i915)
 	intel_opregion_resume(i915);
 }
 
-void intel_opregion_resume(struct drm_i915_private *i915)
+static void intel_opregion_resume_display(struct drm_i915_private *i915)
 {
 	struct intel_opregion *opregion = &i915->display.opregion;
-
-	if (!opregion->header)
-		return;
 
 	if (opregion->acpi) {
 		intel_didl_outputs(i915);
@@ -1193,8 +1183,32 @@ void intel_opregion_resume(struct drm_i915_private *i915)
 
 	/* Some platforms abuse the _DSM to enable MUX */
 	intel_dsm_get_bios_data_funcs_supported(i915);
+}
+
+void intel_opregion_resume(struct drm_i915_private *i915)
+{
+	struct intel_opregion *opregion = &i915->display.opregion;
+
+	if (!opregion->header)
+		return;
+
+	if (HAS_DISPLAY(i915))
+		intel_opregion_resume_display(i915);
 
 	intel_opregion_notify_adapter(i915, PCI_D0);
+}
+
+static void intel_opregion_suspend_display(struct drm_i915_private *i915)
+{
+	struct intel_opregion *opregion = &i915->display.opregion;
+
+	if (opregion->asle)
+		opregion->asle->ardy = ASLE_ARDY_NOT_READY;
+
+	cancel_work_sync(&i915->display.opregion.asle_work);
+
+	if (opregion->acpi)
+		opregion->acpi->drdy = 0;
 }
 
 void intel_opregion_suspend(struct drm_i915_private *i915, pci_power_t state)
@@ -1206,13 +1220,8 @@ void intel_opregion_suspend(struct drm_i915_private *i915, pci_power_t state)
 
 	intel_opregion_notify_adapter(i915, state);
 
-	if (opregion->asle)
-		opregion->asle->ardy = ASLE_ARDY_NOT_READY;
-
-	cancel_work_sync(&i915->display.opregion.asle_work);
-
-	if (opregion->acpi)
-		opregion->acpi->drdy = 0;
+	if (HAS_DISPLAY(i915))
+		intel_opregion_suspend_display(i915);
 }
 
 void intel_opregion_unregister(struct drm_i915_private *i915)
@@ -1228,6 +1237,14 @@ void intel_opregion_unregister(struct drm_i915_private *i915)
 		unregister_acpi_notifier(&opregion->acpi_notifier);
 		opregion->acpi_notifier.notifier_call = NULL;
 	}
+}
+
+void intel_opregion_cleanup(struct drm_i915_private *i915)
+{
+	struct intel_opregion *opregion = &i915->display.opregion;
+
+	if (!opregion->header)
+		return;
 
 	/* just clear all opregion memory pointers now */
 	memunmap(opregion->header);

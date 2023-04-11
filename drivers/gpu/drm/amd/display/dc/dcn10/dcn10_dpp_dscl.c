@@ -581,7 +581,7 @@ static void dpp1_dscl_set_manual_ratio_init(
  * dpp1_dscl_set_recout - Set the first pixel of RECOUT in the OTG active area
  *
  * @dpp: DPP data struct
- * @recount: Rectangle information
+ * @recout: Rectangle information
  *
  * This function sets the MPC RECOUT_START and RECOUT_SIZE registers based on
  * the values specified in the recount parameter.
@@ -654,6 +654,10 @@ void dpp1_dscl_set_scaler_manual_scale(struct dpp *dpp_base,
 		AUTOCAL_MODE, AUTOCAL_MODE_OFF,
 		AUTOCAL_NUM_PIPE, 0,
 		AUTOCAL_PIPE_ID, 0);
+
+	/*clean scaler boundary mode when Autocal off*/
+	REG_SET(DSCL_CONTROL, 0,
+		SCL_BOUNDARY_MODE, 0);
 
 	/* Recout */
 	dpp1_dscl_set_recout(dpp, &scl_data->recout);

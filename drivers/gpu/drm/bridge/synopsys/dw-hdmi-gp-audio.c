@@ -172,18 +172,16 @@ static int snd_dw_hdmi_probe(struct platform_device *pdev)
 	return PTR_ERR_OR_ZERO(dw->audio_pdev);
 }
 
-static int snd_dw_hdmi_remove(struct platform_device *pdev)
+static void snd_dw_hdmi_remove(struct platform_device *pdev)
 {
 	struct snd_dw_hdmi *dw = platform_get_drvdata(pdev);
 
 	platform_device_unregister(dw->audio_pdev);
-
-	return 0;
 }
 
 static struct platform_driver snd_dw_hdmi_driver = {
 	.probe	= snd_dw_hdmi_probe,
-	.remove	= snd_dw_hdmi_remove,
+	.remove_new = snd_dw_hdmi_remove,
 	.driver	= {
 		.name = DRIVER_NAME,
 	},

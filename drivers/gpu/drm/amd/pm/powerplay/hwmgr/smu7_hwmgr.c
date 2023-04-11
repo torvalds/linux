@@ -22,7 +22,6 @@
  */
 #include "pp_debug.h"
 #include <linux/delay.h>
-#include <linux/fb.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
@@ -1505,12 +1504,6 @@ static void smu7_populate_umdpstate_clocks(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	struct smu7_dpm_table *golden_dpm_table = &data->golden_dpm_table;
-	struct phm_clock_voltage_dependency_table *vddc_dependency_on_sclk =
-			hwmgr->dyn_state.vddc_dependency_on_sclk;
-	struct phm_ppt_v1_information *table_info =
-			(struct phm_ppt_v1_information *)(hwmgr->pptable);
-	struct phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_on_sclk =
-			table_info->vdd_dep_on_sclk;
 	int32_t tmp_sclk, count, percentage;
 
 	if (golden_dpm_table->mclk_table.count == 1) {
@@ -1525,6 +1518,9 @@ static void smu7_populate_umdpstate_clocks(struct pp_hwmgr *hwmgr)
 	tmp_sclk = hwmgr->pstate_mclk * percentage / 100;
 
 	if (hwmgr->pp_table_version == PP_TABLE_V0) {
+		struct phm_clock_voltage_dependency_table *vddc_dependency_on_sclk =
+			hwmgr->dyn_state.vddc_dependency_on_sclk;
+
 		for (count = vddc_dependency_on_sclk->count - 1; count >= 0; count--) {
 			if (tmp_sclk >= vddc_dependency_on_sclk->entries[count].clk) {
 				hwmgr->pstate_sclk = vddc_dependency_on_sclk->entries[count].clk;
@@ -1537,6 +1533,11 @@ static void smu7_populate_umdpstate_clocks(struct pp_hwmgr *hwmgr)
 		hwmgr->pstate_sclk_peak =
 			vddc_dependency_on_sclk->entries[vddc_dependency_on_sclk->count - 1].clk;
 	} else if (hwmgr->pp_table_version == PP_TABLE_V1) {
+		struct phm_ppt_v1_information *table_info =
+			(struct phm_ppt_v1_information *)(hwmgr->pptable);
+		struct phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_on_sclk =
+			table_info->vdd_dep_on_sclk;
+
 		for (count = vdd_dep_on_sclk->count - 1; count >= 0; count--) {
 			if (tmp_sclk >= vdd_dep_on_sclk->entries[count].clk) {
 				hwmgr->pstate_sclk = vdd_dep_on_sclk->entries[count].clk;
@@ -4203,7 +4204,7 @@ static int smu7_freeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 
 	if ((0 == data->sclk_dpm_key_disabled) &&
 		(data->need_update_smu7_dpm_table &
-			(DPMTABLE_OD_UPDATE_SCLK + DPMTABLE_UPDATE_SCLK))) {
+			(DPMTABLE_OD_UPDATE_SCLK | DPMTABLE_UPDATE_SCLK))) {
 		PP_ASSERT_WITH_CODE(true == smum_is_dpm_running(hwmgr),
 				"Trying to freeze SCLK DPM when DPM is disabled",
 				);
@@ -4260,7 +4261,7 @@ static int smu7_populate_and_upload_sclk_mclk_dpm_levels(
 	}
 
 	if (data->need_update_smu7_dpm_table &
-			(DPMTABLE_OD_UPDATE_SCLK + DPMTABLE_UPDATE_SCLK)) {
+			(DPMTABLE_OD_UPDATE_SCLK | DPMTABLE_UPDATE_SCLK)) {
 		result = smum_populate_all_graphic_levels(hwmgr);
 		PP_ASSERT_WITH_CODE((0 == result),
 				"Failed to populate SCLK during PopulateNewDPMClocksStates Function!",
@@ -4268,7 +4269,7 @@ static int smu7_populate_and_upload_sclk_mclk_dpm_levels(
 	}
 
 	if (data->need_update_smu7_dpm_table &
-			(DPMTABLE_OD_UPDATE_MCLK + DPMTABLE_UPDATE_MCLK)) {
+			(DPMTABLE_OD_UPDATE_MCLK | DPMTABLE_UPDATE_MCLK)) {
 		/*populate MCLK dpm table to SMU7 */
 		result = smum_populate_all_memory_levels(hwmgr);
 		PP_ASSERT_WITH_CODE((0 == result),
@@ -4359,7 +4360,7 @@ static int smu7_unfreeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 
 	if ((0 == data->sclk_dpm_key_disabled) &&
 		(data->need_update_smu7_dpm_table &
-		(DPMTABLE_OD_UPDATE_SCLK + DPMTABLE_UPDATE_SCLK))) {
+		(DPMTABLE_OD_UPDATE_SCLK | DPMTABLE_UPDATE_SCLK))) {
 
 		PP_ASSERT_WITH_CODE(true == smum_is_dpm_running(hwmgr),
 				"Trying to Unfreeze SCLK DPM when DPM is disabled",

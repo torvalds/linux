@@ -85,31 +85,31 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_leds>;
 
-		j14-pin1 {
+		led-j14-pin1 {
 			gpios = <&gpio1 2 GPIO_ACTIVE_LOW>;
 			retain-state-suspended;
 			default-state = "off";
 		};
 
-		j14-pin3 {
+		led-j14-pin3 {
 			gpios = <&gpio1 3 GPIO_ACTIVE_LOW>;
 			retain-state-suspended;
 			default-state = "off";
 		};
 
-		j14-pins8-9 {
+		led-j14-pins8-9 {
 			gpios = <&gpio3 29 GPIO_ACTIVE_LOW>;
 			retain-state-suspended;
 			default-state = "off";
 		};
 
-		j46-pin2 {
+		led-j46-pin2 {
 			gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;
 			retain-state-suspended;
 			default-state = "off";
 		};
 
-		j46-pin3 {
+		led-j46-pin3 {
 			gpios = <&gpio1 8 GPIO_ACTIVE_LOW>;
 			retain-state-suspended;
 			default-state = "off";

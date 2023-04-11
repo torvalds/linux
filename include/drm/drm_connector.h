@@ -304,9 +304,6 @@ struct drm_hdmi_info {
 	 */
 	unsigned long y420_cmdb_modes[BITS_TO_LONGS(256)];
 
-	/** @y420_cmdb_map: bitmap of SVD index, to extraxt vcb modes */
-	u64 y420_cmdb_map;
-
 	/** @y420_dc_modes: bitmap of deep color support index */
 	u8 y420_dc_modes;
 
@@ -721,6 +718,21 @@ struct drm_display_info {
 	 * monitor's default value is used instead.
 	 */
 	u32 max_dsc_bpp;
+
+	/**
+	 * @vics: Array of vics_len VICs. Internal to EDID parsing.
+	 */
+	u8 *vics;
+
+	/**
+	 * @vics_len: Number of elements in vics. Internal to EDID parsing.
+	 */
+	int vics_len;
+
+	/**
+	 * @quirks: EDID based quirks. Internal to EDID parsing.
+	 */
+	u32 quirks;
 };
 
 int drm_display_info_set_bus_formats(struct drm_display_info *info,

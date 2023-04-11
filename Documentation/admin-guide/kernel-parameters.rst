@@ -142,7 +142,6 @@ parameter is applicable::
 	NFS	Appropriate NFS support is enabled.
 	OF	Devicetree is enabled.
 	PV_OPS	A paravirtualized kernel is enabled.
-	PARIDE	The ParIDE (parallel port IDE) subsystem is enabled.
 	PARISC	The PA-RISC architecture is enabled.
 	PCI	PCI bus support is enabled.
 	PCIE	PCI Express support is enabled.

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018-2022 Linaro Ltd.
+ * Copyright (C) 2018-2023 Linaro Ltd.
  */
 #ifndef _GSI_H_
 #define _GSI_H_
@@ -140,8 +140,9 @@ struct gsi_evt_ring {
 struct gsi {
 	struct device *dev;		/* Same as IPA device */
 	enum ipa_version version;
-	void __iomem *virt_raw;		/* I/O mapped address range */
-	void __iomem *virt;		/* Adjusted for most registers */
+	void __iomem *virt;		/* I/O mapped registers */
+	const struct regs *regs;
+
 	u32 irq;
 	u32 channel_count;
 	u32 evt_ring_count;

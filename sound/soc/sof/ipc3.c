@@ -847,7 +847,7 @@ static void ipc3_period_elapsed(struct snd_sof_dev *sdev, u32 msg_id)
 	}
 
 	stream = &spcm->stream[direction];
-	ret = snd_sof_ipc_msg_data(sdev, stream->substream, &posn, sizeof(posn));
+	ret = snd_sof_ipc_msg_data(sdev, stream, &posn, sizeof(posn));
 	if (ret < 0) {
 		dev_warn(sdev->dev, "failed to read stream position: %d\n", ret);
 		return;
@@ -882,7 +882,7 @@ static void ipc3_xrun(struct snd_sof_dev *sdev, u32 msg_id)
 	}
 
 	stream = &spcm->stream[direction];
-	ret = snd_sof_ipc_msg_data(sdev, stream->substream, &posn, sizeof(posn));
+	ret = snd_sof_ipc_msg_data(sdev, stream, &posn, sizeof(posn));
 	if (ret < 0) {
 		dev_warn(sdev->dev, "failed to read overrun position: %d\n", ret);
 		return;
@@ -970,8 +970,9 @@ static void sof_ipc3_rx_msg(struct snd_sof_dev *sdev)
 		return;
 	}
 
-	if (hdr.size < sizeof(hdr)) {
-		dev_err(sdev->dev, "The received message size is invalid\n");
+	if (hdr.size < sizeof(hdr) || hdr.size > SOF_IPC_MSG_MAX_SIZE) {
+		dev_err(sdev->dev, "The received message size is invalid: %u\n",
+			hdr.size);
 		return;
 	}
 
@@ -1077,10 +1078,28 @@ static int sof_ipc3_ctx_restore(struct snd_sof_dev *sdev)
 	return sof_ipc3_ctx_ipc(sdev, SOF_IPC_PM_CTX_RESTORE);
 }
 
+static int sof_ipc3_set_pm_gate(struct snd_sof_dev *sdev, u32 flags)
+{
+	struct sof_ipc_pm_gate pm_gate;
+	struct sof_ipc_reply reply;
+
+	memset(&pm_gate, 0, sizeof(pm_gate));
+
+	/* configure pm_gate ipc message */
+	pm_gate.hdr.size = sizeof(pm_gate);
+	pm_gate.hdr.cmd = SOF_IPC_GLB_PM_MSG | SOF_IPC_PM_GATE;
+	pm_gate.flags = flags;
+
+	/* send pm_gate ipc to dsp */
+	return sof_ipc_tx_message_no_pm(sdev->ipc, &pm_gate, sizeof(pm_gate),
+					&reply, sizeof(reply));
+}
+
 static const struct sof_ipc_pm_ops ipc3_pm_ops = {
 	.ctx_save = sof_ipc3_ctx_save,
 	.ctx_restore = sof_ipc3_ctx_restore,
 	.set_core_state = sof_ipc3_set_core_state,
+	.set_pm_gate = sof_ipc3_set_pm_gate,
 };
 
 const struct sof_ipc_ops ipc3_ops = {

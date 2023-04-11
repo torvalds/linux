@@ -33,14 +33,17 @@ mt7921_acpi_read(struct mt7921_dev *dev, u8 *method, u8 **tbl, u32 *len)
 	    sar_root->package.elements[0].type != ACPI_TYPE_INTEGER) {
 		dev_err(mdev->dev, "sar cnt = %d\n",
 			sar_root->package.count);
+		ret = -EINVAL;
 		goto free;
 	}
 
 	if (!*tbl) {
 		*tbl = devm_kzalloc(mdev->dev, sar_root->package.count,
 				    GFP_KERNEL);
-		if (!*tbl)
+		if (!*tbl) {
+			ret = -ENOMEM;
 			goto free;
+		}
 	}
 	if (len)
 		*len = sar_root->package.count;
@@ -52,9 +55,9 @@ mt7921_acpi_read(struct mt7921_dev *dev, u8 *method, u8 **tbl, u32 *len)
 			break;
 		*(*tbl + i) = (u8)sar_unit->integer.value;
 	}
-free:
 	ret = (i == sar_root->package.count) ? 0 : -EINVAL;
 
+free:
 	kfree(sar_root);
 
 	return ret;
@@ -135,6 +138,22 @@ mt7921_asar_acpi_read_mtgs(struct mt7921_dev *dev, u8 **table, u8 version)
 	return ret;
 }
 
+/* MTFG : Flag Table */
+static int
+mt7921_asar_acpi_read_mtfg(struct mt7921_dev *dev, u8 **table)
+{
+	int len, ret;
+
+	ret = mt7921_acpi_read(dev, MT7921_ACPI_MTFG, table, &len);
+	if (ret)
+		return ret;
+
+	if (len < MT7921_ASAR_MIN_FG)
+		ret = -EINVAL;
+
+	return ret;
+}
+
 int mt7921_init_acpi_sar(struct mt7921_dev *dev)
 {
 	struct mt7921_acpi_sar *asar;
@@ -162,6 +181,12 @@ int mt7921_init_acpi_sar(struct mt7921_dev *dev)
 		asar->geo = NULL;
 	}
 
+	/* MTFG is optional */
+	ret = mt7921_asar_acpi_read_mtfg(dev, (u8 **)&asar->fg);
+	if (ret) {
+		devm_kfree(dev->mt76.dev, asar->fg);
+		asar->fg = NULL;
+	}
 	dev->phy.acpisar = asar;
 
 	return 0;
@@ -279,4 +304,37 @@ int mt7921_init_acpi_sar_power(struct mt7921_phy *phy, bool set_default)
 	}
 
 	return 0;
+}
+
+u8 mt7921_acpi_get_flags(struct mt7921_phy *phy)
+{
+	struct mt7921_asar_fg *fg;
+	struct {
+		u8 acpi_idx;
+		u8 chip_idx;
+	} map[] = {
+		{1, 1},
+		{4, 2},
+	};
+	u8 flags = BIT(0);
+	int i, j;
+
+	if (!phy->acpisar)
+		return 0;
+
+	fg = phy->acpisar->fg;
+	if (!fg)
+		return flags;
+
+	/* pickup necessary settings per device and
+	 * translate the index of bitmap for chip command.
+	 */
+	for (i = 0; i < fg->nr_flag; i++)
+		for (j = 0; j < ARRAY_SIZE(map); j++)
+			if (fg->flag[i] == map[j].acpi_idx) {
+				flags |= BIT(map[j].chip_idx);
+				break;
+			}
+
+	return flags;
 }

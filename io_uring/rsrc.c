@@ -410,7 +410,7 @@ __cold static int io_rsrc_data_alloc(struct io_ring_ctx *ctx,
 				     unsigned nr, struct io_rsrc_data **pdata)
 {
 	struct io_rsrc_data *data;
-	int ret = -ENOMEM;
+	int ret = 0;
 	unsigned i;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
@@ -794,6 +794,7 @@ void __io_sqe_files_unregister(struct io_ring_ctx *ctx)
 	}
 #endif
 	io_free_file_tables(&ctx->file_table);
+	io_file_table_set_alloc_range(ctx, 0, 0);
 	io_rsrc_data_free(ctx->file_data);
 	ctx->file_data = NULL;
 	ctx->nr_user_files = 0;
@@ -1162,14 +1163,17 @@ struct page **io_pin_pages(unsigned long ubuf, unsigned long len, int *npages)
 	pret = pin_user_pages(ubuf, nr_pages, FOLL_WRITE | FOLL_LONGTERM,
 			      pages, vmas);
 	if (pret == nr_pages) {
+		struct file *file = vmas[0]->vm_file;
+
 		/* don't support file backed memory */
 		for (i = 0; i < nr_pages; i++) {
-			struct vm_area_struct *vma = vmas[i];
-
-			if (vma_is_shmem(vma))
+			if (vmas[i]->vm_file != file) {
+				ret = -EINVAL;
+				break;
+			}
+			if (!file)
 				continue;
-			if (vma->vm_file &&
-			    !is_file_hugepages(vma->vm_file)) {
+			if (!vma_is_shmem(vmas[i]) && !is_file_hugepages(file)) {
 				ret = -EOPNOTSUPP;
 				break;
 			}
@@ -1207,6 +1211,7 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,
 	unsigned long off;
 	size_t size;
 	int ret, nr_pages, i;
+	struct folio *folio = NULL;
 
 	*pimu = ctx->dummy_ubuf;
 	if (!iov->iov_base)
@@ -1221,6 +1226,27 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,
 		goto done;
 	}
 
+	/* If it's a huge page, try to coalesce them into a single bvec entry */
+	if (nr_pages > 1) {
+		folio = page_folio(pages[0]);
+		for (i = 1; i < nr_pages; i++) {
+			if (page_folio(pages[i]) != folio) {
+				folio = NULL;
+				break;
+			}
+		}
+		if (folio) {
+			/*
+			 * The pages are bound to the folio, it doesn't
+			 * actually unpin them but drops all but one reference,
+			 * which is usually put down by io_buffer_unmap().
+			 * Note, needs a better helper.
+			 */
+			unpin_user_pages(&pages[1], nr_pages - 1);
+			nr_pages = 1;
+		}
+	}
+
 	imu = kvmalloc(struct_size(imu, bvec, nr_pages), GFP_KERNEL);
 	if (!imu)
 		goto done;
@@ -1233,22 +1259,25 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,
 
 	off = (unsigned long) iov->iov_base & ~PAGE_MASK;
 	size = iov->iov_len;
-	for (i = 0; i < nr_pages; i++) {
-		size_t vec_len;
-
-		vec_len = min_t(size_t, size, PAGE_SIZE - off);
-		imu->bvec[i].bv_page = pages[i];
-		imu->bvec[i].bv_len = vec_len;
-		imu->bvec[i].bv_offset = off;
-		off = 0;
-		size -= vec_len;
-	}
 	/* store original address for later verification */
 	imu->ubuf = (unsigned long) iov->iov_base;
 	imu->ubuf_end = imu->ubuf + iov->iov_len;
 	imu->nr_bvecs = nr_pages;
 	*pimu = imu;
 	ret = 0;
+
+	if (folio) {
+		bvec_set_page(&imu->bvec[0], pages[0], size, off);
+		goto done;
+	}
+	for (i = 0; i < nr_pages; i++) {
+		size_t vec_len;
+
+		vec_len = min_t(size_t, size, PAGE_SIZE - off);
+		bvec_set_page(&imu->bvec[i], pages[i], vec_len, off);
+		off = 0;
+		size -= vec_len;
+	}
 done:
 	if (ret)
 		kvfree(imu);
@@ -1337,7 +1366,7 @@ int io_import_fixed(int ddir, struct iov_iter *iter,
 		return -EFAULT;
 
 	/*
-	 * May not be a start of buffer, set size appropriately
+	 * Might not be a start of buffer, set size appropriately
 	 * and advance us to the beginning.
 	 */
 	offset = buf_addr - imu->ubuf;
@@ -1363,7 +1392,15 @@ int io_import_fixed(int ddir, struct iov_iter *iter,
 		const struct bio_vec *bvec = imu->bvec;
 
 		if (offset <= bvec->bv_len) {
-			iov_iter_advance(iter, offset);
+			/*
+			 * Note, huge pages buffers consists of one large
+			 * bvec entry and should always go this way. The other
+			 * branch doesn't expect non PAGE_SIZE'd chunks.
+			 */
+			iter->bvec = bvec;
+			iter->nr_segs = bvec->bv_len;
+			iter->count -= offset;
+			iter->iov_offset = offset;
 		} else {
 			unsigned long seg_skip;
 

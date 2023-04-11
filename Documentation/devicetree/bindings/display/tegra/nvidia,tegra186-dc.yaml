@@ -60,13 +60,13 @@ properties:
   nvidia,outputs:
     description: A list of phandles of outputs that this display
       controller can drive.
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    $ref: /schemas/types.yaml#/definitions/phandle-array
 
   nvidia,head:
     description: The number of the display controller head. This
       is used to setup the various types of output to receive
       video data from the given head.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
 
 additionalProperties: false
 

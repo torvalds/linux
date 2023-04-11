@@ -110,7 +110,7 @@ out:
 	return ret;
 }
 
-int btrfs_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
+int btrfs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		  struct posix_acl *acl, int type)
 {
 	int ret;
@@ -118,7 +118,7 @@ int btrfs_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
 	umode_t old_mode = inode->i_mode;
 
 	if (type == ACL_TYPE_ACCESS && acl) {
-		ret = posix_acl_update_mode(mnt_userns, inode,
+		ret = posix_acl_update_mode(idmap, inode,
 					    &inode->i_mode, &acl);
 		if (ret)
 			return ret;

@@ -2163,7 +2163,7 @@ static void perf_group_detach(struct perf_event *event)
 		/* Inherit group flags from the previous leader */
 		sibling->group_caps = event->group_caps;
 
-		if (!RB_EMPTY_NODE(&event->group_node)) {
+		if (sibling->attach_state & PERF_ATTACH_CONTEXT) {
 			add_event_to_groups(sibling, event->ctx);
 
 			if (sibling->state == PERF_EVENT_STATE_ACTIVE)
@@ -3872,7 +3872,7 @@ ctx_sched_in(struct perf_event_context *ctx, enum event_type_t event_type)
 	if (likely(!ctx->nr_events))
 		return;
 
-	if (is_active ^ EVENT_TIME) {
+	if (!(is_active & EVENT_TIME)) {
 		/* start ctx time */
 		__update_context_time(ctx, false);
 		perf_cgroup_set_timestamp(cpuctx);
@@ -4813,19 +4813,17 @@ find_get_pmu_context(struct pmu *pmu, struct perf_event_context *ctx,
 
 		cpc = per_cpu_ptr(pmu->cpu_pmu_context, event->cpu);
 		epc = &cpc->epc;
-
+		raw_spin_lock_irq(&ctx->lock);
 		if (!epc->ctx) {
 			atomic_set(&epc->refcount, 1);
 			epc->embedded = 1;
-			raw_spin_lock_irq(&ctx->lock);
 			list_add(&epc->pmu_ctx_entry, &ctx->pmu_ctx_list);
 			epc->ctx = ctx;
-			raw_spin_unlock_irq(&ctx->lock);
 		} else {
 			WARN_ON_ONCE(epc->ctx != ctx);
 			atomic_inc(&epc->refcount);
 		}
-
+		raw_spin_unlock_irq(&ctx->lock);
 		return epc;
 	}
 
@@ -4896,32 +4894,29 @@ static void free_epc_rcu(struct rcu_head *head)
 
 static void put_pmu_ctx(struct perf_event_pmu_context *epc)
 {
+	struct perf_event_context *ctx = epc->ctx;
 	unsigned long flags;
 
-	if (!atomic_dec_and_test(&epc->refcount))
+	/*
+	 * XXX
+	 *
+	 * lockdep_assert_held(&ctx->mutex);
+	 *
+	 * can't because of the call-site in _free_event()/put_event()
+	 * which isn't always called under ctx->mutex.
+	 */
+	if (!atomic_dec_and_raw_lock_irqsave(&epc->refcount, &ctx->lock, flags))
 		return;
 
-	if (epc->ctx) {
-		struct perf_event_context *ctx = epc->ctx;
+	WARN_ON_ONCE(list_empty(&epc->pmu_ctx_entry));
 
-		/*
-		 * XXX
-		 *
-		 * lockdep_assert_held(&ctx->mutex);
-		 *
-		 * can't because of the call-site in _free_event()/put_event()
-		 * which isn't always called under ctx->mutex.
-		 */
-
-		WARN_ON_ONCE(list_empty(&epc->pmu_ctx_entry));
-		raw_spin_lock_irqsave(&ctx->lock, flags);
-		list_del_init(&epc->pmu_ctx_entry);
-		epc->ctx = NULL;
-		raw_spin_unlock_irqrestore(&ctx->lock, flags);
-	}
+	list_del_init(&epc->pmu_ctx_entry);
+	epc->ctx = NULL;
 
 	WARN_ON_ONCE(!list_empty(&epc->pinned_active));
 	WARN_ON_ONCE(!list_empty(&epc->flexible_active));
+
+	raw_spin_unlock_irqrestore(&ctx->lock, flags);
 
 	if (epc->embedded)
 		return;
@@ -6573,7 +6568,7 @@ aux_unlock:
 	 * Since pinned accounting is per vm we cannot allow fork() to copy our
 	 * vma.
 	 */
-	vma->vm_flags |= VM_DONTCOPY | VM_DONTEXPAND | VM_DONTDUMP;
+	vm_flags_set(vma, VM_DONTCOPY | VM_DONTEXPAND | VM_DONTDUMP);
 	vma->vm_ops = &perf_mmap_vmops;
 
 	if (event->pmu->event_mapped)
@@ -7046,13 +7041,20 @@ out_put:
 	ring_buffer_put(rb);
 }
 
-static void __perf_event_header__init_id(struct perf_event_header *header,
-					 struct perf_sample_data *data,
+/*
+ * A set of common sample data types saved even for non-sample records
+ * when event->attr.sample_id_all is set.
+ */
+#define PERF_SAMPLE_ID_ALL  (PERF_SAMPLE_TID | PERF_SAMPLE_TIME |	\
+			     PERF_SAMPLE_ID | PERF_SAMPLE_STREAM_ID |	\
+			     PERF_SAMPLE_CPU | PERF_SAMPLE_IDENTIFIER)
+
+static void __perf_event_header__init_id(struct perf_sample_data *data,
 					 struct perf_event *event,
 					 u64 sample_type)
 {
 	data->type = event->attr.sample_type;
-	header->size += event->id_header_size;
+	data->sample_flags |= data->type & PERF_SAMPLE_ID_ALL;
 
 	if (sample_type & PERF_SAMPLE_TID) {
 		/* namespace issues */
@@ -7079,8 +7081,10 @@ void perf_event_header__init_id(struct perf_event_header *header,
 				struct perf_sample_data *data,
 				struct perf_event *event)
 {
-	if (event->attr.sample_id_all)
-		__perf_event_header__init_id(header, data, event, event->attr.sample_type);
+	if (event->attr.sample_id_all) {
+		header->size += event->id_header_size;
+		__perf_event_header__init_id(data, event, event->attr.sample_type);
+	}
 }
 
 static void __perf_event__output_id_sample(struct perf_output_handle *handle,
@@ -7310,7 +7314,7 @@ void perf_output_sample(struct perf_output_handle *handle,
 	}
 
 	if (sample_type & PERF_SAMPLE_BRANCH_STACK) {
-		if (data->sample_flags & PERF_SAMPLE_BRANCH_STACK) {
+		if (data->br_stack) {
 			size_t size;
 
 			size = data->br_stack->nr
@@ -7554,83 +7558,68 @@ perf_callchain(struct perf_event *event, struct pt_regs *regs)
 	return callchain ?: &__empty_callchain;
 }
 
-void perf_prepare_sample(struct perf_event_header *header,
-			 struct perf_sample_data *data,
+static __always_inline u64 __cond_set(u64 flags, u64 s, u64 d)
+{
+	return d * !!(flags & s);
+}
+
+void perf_prepare_sample(struct perf_sample_data *data,
 			 struct perf_event *event,
 			 struct pt_regs *regs)
 {
 	u64 sample_type = event->attr.sample_type;
 	u64 filtered_sample_type;
 
-	header->type = PERF_RECORD_SAMPLE;
-	header->size = sizeof(*header) + event->header_size;
-
-	header->misc = 0;
-	header->misc |= perf_misc_flags(regs);
-
 	/*
-	 * Clear the sample flags that have already been done by the
-	 * PMU driver.
+	 * Add the sample flags that are dependent to others.  And clear the
+	 * sample flags that have already been done by the PMU driver.
 	 */
-	filtered_sample_type = sample_type & ~data->sample_flags;
-	__perf_event_header__init_id(header, data, event, filtered_sample_type);
+	filtered_sample_type = sample_type;
+	filtered_sample_type |= __cond_set(sample_type, PERF_SAMPLE_CODE_PAGE_SIZE,
+					   PERF_SAMPLE_IP);
+	filtered_sample_type |= __cond_set(sample_type, PERF_SAMPLE_DATA_PAGE_SIZE |
+					   PERF_SAMPLE_PHYS_ADDR, PERF_SAMPLE_ADDR);
+	filtered_sample_type |= __cond_set(sample_type, PERF_SAMPLE_STACK_USER,
+					   PERF_SAMPLE_REGS_USER);
+	filtered_sample_type &= ~data->sample_flags;
 
-	if (sample_type & (PERF_SAMPLE_IP | PERF_SAMPLE_CODE_PAGE_SIZE))
+	if (filtered_sample_type == 0) {
+		/* Make sure it has the correct data->type for output */
+		data->type = event->attr.sample_type;
+		return;
+	}
+
+	__perf_event_header__init_id(data, event, filtered_sample_type);
+
+	if (filtered_sample_type & PERF_SAMPLE_IP) {
 		data->ip = perf_instruction_pointer(regs);
-
-	if (sample_type & PERF_SAMPLE_CALLCHAIN) {
-		int size = 1;
-
-		if (filtered_sample_type & PERF_SAMPLE_CALLCHAIN)
-			data->callchain = perf_callchain(event, regs);
-
-		size += data->callchain->nr;
-
-		header->size += size * sizeof(u64);
+		data->sample_flags |= PERF_SAMPLE_IP;
 	}
 
-	if (sample_type & PERF_SAMPLE_RAW) {
-		struct perf_raw_record *raw = data->raw;
-		int size;
+	if (filtered_sample_type & PERF_SAMPLE_CALLCHAIN)
+		perf_sample_save_callchain(data, event, regs);
 
-		if (raw && (data->sample_flags & PERF_SAMPLE_RAW)) {
-			struct perf_raw_frag *frag = &raw->frag;
-			u32 sum = 0;
-
-			do {
-				sum += frag->size;
-				if (perf_raw_frag_last(frag))
-					break;
-				frag = frag->next;
-			} while (1);
-
-			size = round_up(sum + sizeof(u32), sizeof(u64));
-			raw->size = size - sizeof(u32);
-			frag->pad = raw->size - sum;
-		} else {
-			size = sizeof(u64);
-			data->raw = NULL;
-		}
-
-		header->size += size;
+	if (filtered_sample_type & PERF_SAMPLE_RAW) {
+		data->raw = NULL;
+		data->dyn_size += sizeof(u64);
+		data->sample_flags |= PERF_SAMPLE_RAW;
 	}
 
-	if (sample_type & PERF_SAMPLE_BRANCH_STACK) {
-		int size = sizeof(u64); /* nr */
-		if (data->sample_flags & PERF_SAMPLE_BRANCH_STACK) {
-			if (branch_sample_hw_index(event))
-				size += sizeof(u64);
-
-			size += data->br_stack->nr
-			      * sizeof(struct perf_branch_entry);
-		}
-		header->size += size;
+	if (filtered_sample_type & PERF_SAMPLE_BRANCH_STACK) {
+		data->br_stack = NULL;
+		data->dyn_size += sizeof(u64);
+		data->sample_flags |= PERF_SAMPLE_BRANCH_STACK;
 	}
 
-	if (sample_type & (PERF_SAMPLE_REGS_USER | PERF_SAMPLE_STACK_USER))
+	if (filtered_sample_type & PERF_SAMPLE_REGS_USER)
 		perf_sample_regs_user(&data->regs_user, regs);
 
-	if (sample_type & PERF_SAMPLE_REGS_USER) {
+	/*
+	 * It cannot use the filtered_sample_type here as REGS_USER can be set
+	 * by STACK_USER (using __cond_set() above) and we don't want to update
+	 * the dyn_size if it's not requested by users.
+	 */
+	if ((sample_type & ~data->sample_flags) & PERF_SAMPLE_REGS_USER) {
 		/* regs dump ABI info */
 		int size = sizeof(u64);
 
@@ -7639,10 +7628,11 @@ void perf_prepare_sample(struct perf_event_header *header,
 			size += hweight64(mask) * sizeof(u64);
 		}
 
-		header->size += size;
+		data->dyn_size += size;
+		data->sample_flags |= PERF_SAMPLE_REGS_USER;
 	}
 
-	if (sample_type & PERF_SAMPLE_STACK_USER) {
+	if (filtered_sample_type & PERF_SAMPLE_STACK_USER) {
 		/*
 		 * Either we need PERF_SAMPLE_STACK_USER bit to be always
 		 * processed as the last one or have additional check added
@@ -7650,9 +7640,10 @@ void perf_prepare_sample(struct perf_event_header *header,
 		 * up the rest of the sample size.
 		 */
 		u16 stack_size = event->attr.sample_stack_user;
+		u16 header_size = perf_sample_data_size(data, event);
 		u16 size = sizeof(u64);
 
-		stack_size = perf_sample_ustack_size(stack_size, header->size,
+		stack_size = perf_sample_ustack_size(stack_size, header_size,
 						     data->regs_user.regs);
 
 		/*
@@ -7664,24 +7655,31 @@ void perf_prepare_sample(struct perf_event_header *header,
 			size += sizeof(u64) + stack_size;
 
 		data->stack_user_size = stack_size;
-		header->size += size;
+		data->dyn_size += size;
+		data->sample_flags |= PERF_SAMPLE_STACK_USER;
 	}
 
-	if (filtered_sample_type & PERF_SAMPLE_WEIGHT_TYPE)
+	if (filtered_sample_type & PERF_SAMPLE_WEIGHT_TYPE) {
 		data->weight.full = 0;
-
-	if (filtered_sample_type & PERF_SAMPLE_DATA_SRC)
-		data->data_src.val = PERF_MEM_NA;
-
-	if (filtered_sample_type & PERF_SAMPLE_TRANSACTION)
-		data->txn = 0;
-
-	if (sample_type & (PERF_SAMPLE_ADDR | PERF_SAMPLE_PHYS_ADDR | PERF_SAMPLE_DATA_PAGE_SIZE)) {
-		if (filtered_sample_type & PERF_SAMPLE_ADDR)
-			data->addr = 0;
+		data->sample_flags |= PERF_SAMPLE_WEIGHT_TYPE;
 	}
 
-	if (sample_type & PERF_SAMPLE_REGS_INTR) {
+	if (filtered_sample_type & PERF_SAMPLE_DATA_SRC) {
+		data->data_src.val = PERF_MEM_NA;
+		data->sample_flags |= PERF_SAMPLE_DATA_SRC;
+	}
+
+	if (filtered_sample_type & PERF_SAMPLE_TRANSACTION) {
+		data->txn = 0;
+		data->sample_flags |= PERF_SAMPLE_TRANSACTION;
+	}
+
+	if (filtered_sample_type & PERF_SAMPLE_ADDR) {
+		data->addr = 0;
+		data->sample_flags |= PERF_SAMPLE_ADDR;
+	}
+
+	if (filtered_sample_type & PERF_SAMPLE_REGS_INTR) {
 		/* regs dump ABI info */
 		int size = sizeof(u64);
 
@@ -7693,20 +7691,23 @@ void perf_prepare_sample(struct perf_event_header *header,
 			size += hweight64(mask) * sizeof(u64);
 		}
 
-		header->size += size;
+		data->dyn_size += size;
+		data->sample_flags |= PERF_SAMPLE_REGS_INTR;
 	}
 
-	if (sample_type & PERF_SAMPLE_PHYS_ADDR &&
-	    filtered_sample_type & PERF_SAMPLE_PHYS_ADDR)
+	if (filtered_sample_type & PERF_SAMPLE_PHYS_ADDR) {
 		data->phys_addr = perf_virt_to_phys(data->addr);
+		data->sample_flags |= PERF_SAMPLE_PHYS_ADDR;
+	}
 
 #ifdef CONFIG_CGROUP_PERF
-	if (sample_type & PERF_SAMPLE_CGROUP) {
+	if (filtered_sample_type & PERF_SAMPLE_CGROUP) {
 		struct cgroup *cgrp;
 
 		/* protected by RCU */
 		cgrp = task_css_check(current, perf_event_cgrp_id, 1)->cgroup;
 		data->cgroup = cgroup_id(cgrp);
+		data->sample_flags |= PERF_SAMPLE_CGROUP;
 	}
 #endif
 
@@ -7715,16 +7716,21 @@ void perf_prepare_sample(struct perf_event_header *header,
 	 * require PERF_SAMPLE_ADDR, kernel implicitly retrieve the data->addr,
 	 * but the value will not dump to the userspace.
 	 */
-	if (sample_type & PERF_SAMPLE_DATA_PAGE_SIZE)
+	if (filtered_sample_type & PERF_SAMPLE_DATA_PAGE_SIZE) {
 		data->data_page_size = perf_get_page_size(data->addr);
+		data->sample_flags |= PERF_SAMPLE_DATA_PAGE_SIZE;
+	}
 
-	if (sample_type & PERF_SAMPLE_CODE_PAGE_SIZE)
+	if (filtered_sample_type & PERF_SAMPLE_CODE_PAGE_SIZE) {
 		data->code_page_size = perf_get_page_size(data->ip);
+		data->sample_flags |= PERF_SAMPLE_CODE_PAGE_SIZE;
+	}
 
-	if (sample_type & PERF_SAMPLE_AUX) {
+	if (filtered_sample_type & PERF_SAMPLE_AUX) {
 		u64 size;
+		u16 header_size = perf_sample_data_size(data, event);
 
-		header->size += sizeof(u64); /* size */
+		header_size += sizeof(u64); /* size */
 
 		/*
 		 * Given the 16bit nature of header::size, an AUX sample can
@@ -7732,14 +7738,26 @@ void perf_prepare_sample(struct perf_event_header *header,
 		 * Make sure this doesn't happen by using up to U16_MAX bytes
 		 * per sample in total (rounded down to 8 byte boundary).
 		 */
-		size = min_t(size_t, U16_MAX - header->size,
+		size = min_t(size_t, U16_MAX - header_size,
 			     event->attr.aux_sample_size);
 		size = rounddown(size, 8);
 		size = perf_prepare_sample_aux(event, data, size);
 
-		WARN_ON_ONCE(size + header->size > U16_MAX);
-		header->size += size;
+		WARN_ON_ONCE(size + header_size > U16_MAX);
+		data->dyn_size += size + sizeof(u64); /* size above */
+		data->sample_flags |= PERF_SAMPLE_AUX;
 	}
+}
+
+void perf_prepare_header(struct perf_event_header *header,
+			 struct perf_sample_data *data,
+			 struct perf_event *event,
+			 struct pt_regs *regs)
+{
+	header->type = PERF_RECORD_SAMPLE;
+	header->size = perf_sample_data_size(data, event);
+	header->misc = perf_misc_flags(regs);
+
 	/*
 	 * If you're adding more sample types here, you likely need to do
 	 * something about the overflowing header::size, like repurpose the
@@ -7767,7 +7785,8 @@ __perf_event_output(struct perf_event *event,
 	/* protect the callchain buffers */
 	rcu_read_lock();
 
-	perf_prepare_sample(&header, data, event, regs);
+	perf_prepare_sample(data, event, regs);
+	perf_prepare_header(&header, data, event, regs);
 
 	err = output_begin(&handle, data, event, header.size);
 	if (err)
@@ -9168,7 +9187,7 @@ static void perf_event_bpf_output(struct perf_event *event, void *data)
 
 	perf_event_header__init_id(&bpf_event->event_id.header,
 				   &sample, event);
-	ret = perf_output_begin(&handle, data, event,
+	ret = perf_output_begin(&handle, &sample, event,
 				bpf_event->event_id.header.size);
 	if (ret)
 		return;
@@ -9399,6 +9418,7 @@ void perf_report_aux_output_id(struct perf_event *event, u64 hw_id)
 
 	perf_output_end(&handle);
 }
+EXPORT_SYMBOL_GPL(perf_report_aux_output_id);
 
 static int
 __perf_event_account_interrupt(struct perf_event *event, int throttle)
@@ -10125,8 +10145,7 @@ void perf_tp_event(u16 event_type, u64 count, void *record, int entry_size,
 	};
 
 	perf_sample_data_init(&data, 0, 0);
-	data.raw = &raw;
-	data.sample_flags |= PERF_SAMPLE_RAW;
+	perf_sample_save_raw_data(&data, &raw);
 
 	perf_trace_buf_update(record, event_type);
 
@@ -10333,13 +10352,7 @@ static void bpf_overflow_handler(struct perf_event *event,
 	rcu_read_lock();
 	prog = READ_ONCE(event->prog);
 	if (prog) {
-		if (prog->call_get_stack &&
-		    (event->attr.sample_type & PERF_SAMPLE_CALLCHAIN) &&
-		    !(data->sample_flags & PERF_SAMPLE_CALLCHAIN)) {
-			data->callchain = perf_callchain(event, regs);
-			data->sample_flags |= PERF_SAMPLE_CALLCHAIN;
-		}
-
+		perf_prepare_sample(data, event, regs);
 		ret = bpf_prog_run(prog, &ctx);
 	}
 	rcu_read_unlock();

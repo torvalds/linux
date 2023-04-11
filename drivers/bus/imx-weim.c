@@ -204,8 +204,8 @@ static int weim_parse_dt(struct platform_device *pdev)
 	const struct of_device_id *of_id = of_match_device(weim_id_table,
 							   &pdev->dev);
 	const struct imx_weim_devtype *devtype = of_id->data;
+	int ret = 0, have_child = 0;
 	struct device_node *child;
-	int ret, have_child = 0;
 	struct weim_priv *priv;
 	void __iomem *base;
 	u32 reg;
@@ -263,7 +263,6 @@ static int weim_parse_dt(struct platform_device *pdev)
 static int weim_probe(struct platform_device *pdev)
 {
 	struct weim_priv *priv;
-	struct resource *res;
 	struct clk *clk;
 	void __iomem *base;
 	int ret;
@@ -273,8 +272,7 @@ static int weim_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	/* get the resource */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 

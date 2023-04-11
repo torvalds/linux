@@ -673,6 +673,7 @@ void amdgpu_vm_pt_free_work(struct work_struct *work)
  * @adev: amdgpu device structure
  * @vm: amdgpu vm structure
  * @start: optional cursor where to start freeing PDs/PTs
+ * @unlocked: vm resv unlock status
  *
  * Free the page directory or page table level and all sub levels.
  */
@@ -974,7 +975,7 @@ int amdgpu_vm_ptes_update(struct amdgpu_vm_update_params *params,
 			trace_amdgpu_vm_update_ptes(params, frag_start, upd_end,
 						    min(nptes, 32u), dst, incr,
 						    upd_flags,
-						    vm->task_info.pid,
+						    vm->task_info.tgid,
 						    vm->immediate.fence_context);
 			amdgpu_vm_pte_update_flags(params, to_amdgpu_bo_vm(pt),
 						   cursor.level, pe_start, dst,

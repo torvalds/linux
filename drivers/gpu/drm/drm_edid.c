@@ -96,7 +96,6 @@ struct detailed_mode_closure {
 	struct drm_connector *connector;
 	const struct drm_edid *drm_edid;
 	bool preferred;
-	u32 quirks;
 	int modes;
 };
 
@@ -2797,7 +2796,7 @@ u32 drm_edid_get_panel_id(struct i2c_adapter *adapter)
 	 * the EDID then we'll just return 0.
 	 */
 
-	base_block = kmalloc(EDID_LENGTH, GFP_KERNEL);
+	base_block = kzalloc(EDID_LENGTH, GFP_KERNEL);
 	if (!base_block)
 		return 0;
 
@@ -2887,9 +2886,9 @@ static u32 edid_get_quirks(const struct drm_edid *drm_edid)
  * Walk the mode list for connector, clearing the preferred status on existing
  * modes and setting it anew for the right mode ala quirks.
  */
-static void edid_fixup_preferred(struct drm_connector *connector,
-				 u32 quirks)
+static void edid_fixup_preferred(struct drm_connector *connector)
 {
+	const struct drm_display_info *info = &connector->display_info;
 	struct drm_display_mode *t, *cur_mode, *preferred_mode;
 	int target_refresh = 0;
 	int cur_vrefresh, preferred_vrefresh;
@@ -2897,9 +2896,9 @@ static void edid_fixup_preferred(struct drm_connector *connector,
 	if (list_empty(&connector->probed_modes))
 		return;
 
-	if (quirks & EDID_QUIRK_PREFER_LARGE_60)
+	if (info->quirks & EDID_QUIRK_PREFER_LARGE_60)
 		target_refresh = 60;
-	if (quirks & EDID_QUIRK_PREFER_LARGE_75)
+	if (info->quirks & EDID_QUIRK_PREFER_LARGE_75)
 		target_refresh = 75;
 
 	preferred_mode = list_first_entry(&connector->probed_modes,
@@ -3401,9 +3400,9 @@ drm_mode_do_interlace_quirk(struct drm_display_mode *mode,
  */
 static struct drm_display_mode *drm_mode_detailed(struct drm_connector *connector,
 						  const struct drm_edid *drm_edid,
-						  const struct detailed_timing *timing,
-						  u32 quirks)
+						  const struct detailed_timing *timing)
 {
+	const struct drm_display_info *info = &connector->display_info;
 	struct drm_device *dev = connector->dev;
 	struct drm_display_mode *mode;
 	const struct detailed_pixel_timing *pt = &timing->data.pixel_data;
@@ -3425,10 +3424,6 @@ static struct drm_display_mode *drm_mode_detailed(struct drm_connector *connecto
 			    connector->base.id, connector->name);
 		return NULL;
 	}
-	if (!(pt->misc & DRM_EDID_PT_SEPARATE_SYNC)) {
-		drm_dbg_kms(dev, "[CONNECTOR:%d:%s] Composite sync not supported\n",
-			    connector->base.id, connector->name);
-	}
 
 	/* it is incorrect if hsync/vsync width is zero */
 	if (!hsync_pulse_width || !vsync_pulse_width) {
@@ -3437,7 +3432,7 @@ static struct drm_display_mode *drm_mode_detailed(struct drm_connector *connecto
 		return NULL;
 	}
 
-	if (quirks & EDID_QUIRK_FORCE_REDUCED_BLANKING) {
+	if (info->quirks & EDID_QUIRK_FORCE_REDUCED_BLANKING) {
 		mode = drm_cvt_mode(dev, hactive, vactive, 60, true, false, false);
 		if (!mode)
 			return NULL;
@@ -3449,7 +3444,7 @@ static struct drm_display_mode *drm_mode_detailed(struct drm_connector *connecto
 	if (!mode)
 		return NULL;
 
-	if (quirks & EDID_QUIRK_135_CLOCK_TOO_HIGH)
+	if (info->quirks & EDID_QUIRK_135_CLOCK_TOO_HIGH)
 		mode->clock = 1088 * 10;
 	else
 		mode->clock = le16_to_cpu(timing->pixel_clock) * 10;
@@ -3472,25 +3467,42 @@ static struct drm_display_mode *drm_mode_detailed(struct drm_connector *connecto
 
 	drm_mode_do_interlace_quirk(mode, pt);
 
-	if (quirks & EDID_QUIRK_DETAILED_SYNC_PP) {
+	if (info->quirks & EDID_QUIRK_DETAILED_SYNC_PP) {
 		mode->flags |= DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC;
 	} else {
-		mode->flags |= (pt->misc & DRM_EDID_PT_HSYNC_POSITIVE) ?
-			DRM_MODE_FLAG_PHSYNC : DRM_MODE_FLAG_NHSYNC;
-		mode->flags |= (pt->misc & DRM_EDID_PT_VSYNC_POSITIVE) ?
-			DRM_MODE_FLAG_PVSYNC : DRM_MODE_FLAG_NVSYNC;
+		switch (pt->misc & DRM_EDID_PT_SYNC_MASK) {
+		case DRM_EDID_PT_ANALOG_CSYNC:
+		case DRM_EDID_PT_BIPOLAR_ANALOG_CSYNC:
+			drm_dbg_kms(dev, "[CONNECTOR:%d:%s] Analog composite sync!\n",
+				    connector->base.id, connector->name);
+			mode->flags |= DRM_MODE_FLAG_CSYNC | DRM_MODE_FLAG_NCSYNC;
+			break;
+		case DRM_EDID_PT_DIGITAL_CSYNC:
+			drm_dbg_kms(dev, "[CONNECTOR:%d:%s] Digital composite sync!\n",
+				    connector->base.id, connector->name);
+			mode->flags |= DRM_MODE_FLAG_CSYNC;
+			mode->flags |= (pt->misc & DRM_EDID_PT_HSYNC_POSITIVE) ?
+				DRM_MODE_FLAG_PCSYNC : DRM_MODE_FLAG_NCSYNC;
+			break;
+		case DRM_EDID_PT_DIGITAL_SEPARATE_SYNC:
+			mode->flags |= (pt->misc & DRM_EDID_PT_HSYNC_POSITIVE) ?
+				DRM_MODE_FLAG_PHSYNC : DRM_MODE_FLAG_NHSYNC;
+			mode->flags |= (pt->misc & DRM_EDID_PT_VSYNC_POSITIVE) ?
+				DRM_MODE_FLAG_PVSYNC : DRM_MODE_FLAG_NVSYNC;
+			break;
+		}
 	}
 
 set_size:
 	mode->width_mm = pt->width_mm_lo | (pt->width_height_mm_hi & 0xf0) << 4;
 	mode->height_mm = pt->height_mm_lo | (pt->width_height_mm_hi & 0xf) << 8;
 
-	if (quirks & EDID_QUIRK_DETAILED_IN_CM) {
+	if (info->quirks & EDID_QUIRK_DETAILED_IN_CM) {
 		mode->width_mm *= 10;
 		mode->height_mm *= 10;
 	}
 
-	if (quirks & EDID_QUIRK_DETAILED_USE_MAXIMUM_SIZE) {
+	if (info->quirks & EDID_QUIRK_DETAILED_USE_MAXIMUM_SIZE) {
 		mode->width_mm = drm_edid->edid->width_cm * 10;
 		mode->height_mm = drm_edid->edid->height_cm * 10;
 	}
@@ -4003,8 +4015,7 @@ do_detailed_mode(const struct detailed_timing *timing, void *c)
 		return;
 
 	newmode = drm_mode_detailed(closure->connector,
-				    closure->drm_edid, timing,
-				    closure->quirks);
+				    closure->drm_edid, timing);
 	if (!newmode)
 		return;
 
@@ -4027,15 +4038,13 @@ do_detailed_mode(const struct detailed_timing *timing, void *c)
  * add_detailed_modes - Add modes from detailed timings
  * @connector: attached connector
  * @drm_edid: EDID block to scan
- * @quirks: quirks to apply
  */
 static int add_detailed_modes(struct drm_connector *connector,
-			      const struct drm_edid *drm_edid, u32 quirks)
+			      const struct drm_edid *drm_edid)
 {
 	struct detailed_mode_closure closure = {
 		.connector = connector,
 		.drm_edid = drm_edid,
-		.quirks = quirks,
 	};
 
 	if (drm_edid->edid->revision >= 4)
@@ -4468,28 +4477,20 @@ static u8 svd_to_vic(u8 svd)
 	return svd;
 }
 
+/*
+ * Return a display mode for the 0-based vic_index'th VIC across all CTA VDBs in
+ * the EDID, or NULL on errors.
+ */
 static struct drm_display_mode *
-drm_display_mode_from_vic_index(struct drm_connector *connector,
-				const u8 *video_db, u8 video_len,
-				u8 video_index)
+drm_display_mode_from_vic_index(struct drm_connector *connector, int vic_index)
 {
+	const struct drm_display_info *info = &connector->display_info;
 	struct drm_device *dev = connector->dev;
-	struct drm_display_mode *newmode;
-	u8 vic;
 
-	if (video_db == NULL || video_index >= video_len)
+	if (!info->vics || vic_index >= info->vics_len || !info->vics[vic_index])
 		return NULL;
 
-	/* CEA modes are numbered 1..127 */
-	vic = svd_to_vic(video_db[video_index]);
-	if (!drm_valid_cea_vic(vic))
-		return NULL;
-
-	newmode = drm_mode_duplicate(dev, cea_mode_for_vic(vic));
-	if (!newmode)
-		return NULL;
-
-	return newmode;
+	return drm_display_mode_from_cea_vic(dev, info->vics[vic_index]);
 }
 
 /*
@@ -4505,10 +4506,8 @@ drm_display_mode_from_vic_index(struct drm_connector *connector,
 static int do_y420vdb_modes(struct drm_connector *connector,
 			    const u8 *svds, u8 svds_len)
 {
-	int modes = 0, i;
 	struct drm_device *dev = connector->dev;
-	struct drm_display_info *info = &connector->display_info;
-	struct drm_hdmi_info *hdmi = &info->hdmi;
+	int modes = 0, i;
 
 	for (i = 0; i < svds_len; i++) {
 		u8 vic = svd_to_vic(svds[i]);
@@ -4520,33 +4519,11 @@ static int do_y420vdb_modes(struct drm_connector *connector,
 		newmode = drm_mode_duplicate(dev, cea_mode_for_vic(vic));
 		if (!newmode)
 			break;
-		bitmap_set(hdmi->y420_vdb_modes, vic, 1);
 		drm_mode_probed_add(connector, newmode);
 		modes++;
 	}
 
-	if (modes > 0)
-		info->color_formats |= DRM_COLOR_FORMAT_YCBCR420;
 	return modes;
-}
-
-/*
- * drm_add_cmdb_modes - Add a YCBCR 420 mode into bitmap
- * @connector: connector corresponding to the HDMI sink
- * @vic: CEA vic for the video mode to be added in the map
- *
- * Makes an entry for a videomode in the YCBCR 420 bitmap
- */
-static void
-drm_add_cmdb_modes(struct drm_connector *connector, u8 svd)
-{
-	u8 vic = svd_to_vic(svd);
-	struct drm_hdmi_info *hdmi = &connector->display_info.hdmi;
-
-	if (!drm_valid_cea_vic(vic))
-		return;
-
-	bitmap_set(hdmi->y420_cmdb_modes, vic, 1);
 }
 
 /**
@@ -4577,29 +4554,20 @@ drm_display_mode_from_cea_vic(struct drm_device *dev,
 }
 EXPORT_SYMBOL(drm_display_mode_from_cea_vic);
 
-static int
-do_cea_modes(struct drm_connector *connector, const u8 *db, u8 len)
+/* Add modes based on VICs parsed in parse_cta_vdb() */
+static int add_cta_vdb_modes(struct drm_connector *connector)
 {
+	const struct drm_display_info *info = &connector->display_info;
 	int i, modes = 0;
-	struct drm_hdmi_info *hdmi = &connector->display_info.hdmi;
 
-	for (i = 0; i < len; i++) {
+	if (!info->vics)
+		return 0;
+
+	for (i = 0; i < info->vics_len; i++) {
 		struct drm_display_mode *mode;
 
-		mode = drm_display_mode_from_vic_index(connector, db, len, i);
+		mode = drm_display_mode_from_vic_index(connector, i);
 		if (mode) {
-			/*
-			 * YCBCR420 capability block contains a bitmap which
-			 * gives the index of CEA modes from CEA VDB, which
-			 * can support YCBCR 420 sampling output also (apart
-			 * from RGB/YCBCR444 etc).
-			 * For example, if the bit 0 in bitmap is set,
-			 * first mode in VDB can support YCBCR420 output too.
-			 * Add YCBCR420 modes only if sink is HDMI 2.0 capable.
-			 */
-			if (i < 64 && hdmi->y420_cmdb_map & (1ULL << i))
-				drm_add_cmdb_modes(connector, db[i]);
-
 			drm_mode_probed_add(connector, mode);
 			modes++;
 		}
@@ -4693,15 +4661,13 @@ static int add_hdmi_mode(struct drm_connector *connector, u8 vic)
 }
 
 static int add_3d_struct_modes(struct drm_connector *connector, u16 structure,
-			       const u8 *video_db, u8 video_len, u8 video_index)
+			       int vic_index)
 {
 	struct drm_display_mode *newmode;
 	int modes = 0;
 
 	if (structure & (1 << 0)) {
-		newmode = drm_display_mode_from_vic_index(connector, video_db,
-							  video_len,
-							  video_index);
+		newmode = drm_display_mode_from_vic_index(connector, vic_index);
 		if (newmode) {
 			newmode->flags |= DRM_MODE_FLAG_3D_FRAME_PACKING;
 			drm_mode_probed_add(connector, newmode);
@@ -4709,9 +4675,7 @@ static int add_3d_struct_modes(struct drm_connector *connector, u16 structure,
 		}
 	}
 	if (structure & (1 << 6)) {
-		newmode = drm_display_mode_from_vic_index(connector, video_db,
-							  video_len,
-							  video_index);
+		newmode = drm_display_mode_from_vic_index(connector, vic_index);
 		if (newmode) {
 			newmode->flags |= DRM_MODE_FLAG_3D_TOP_AND_BOTTOM;
 			drm_mode_probed_add(connector, newmode);
@@ -4719,9 +4683,7 @@ static int add_3d_struct_modes(struct drm_connector *connector, u16 structure,
 		}
 	}
 	if (structure & (1 << 8)) {
-		newmode = drm_display_mode_from_vic_index(connector, video_db,
-							  video_len,
-							  video_index);
+		newmode = drm_display_mode_from_vic_index(connector, vic_index);
 		if (newmode) {
 			newmode->flags |= DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF;
 			drm_mode_probed_add(connector, newmode);
@@ -4730,6 +4692,26 @@ static int add_3d_struct_modes(struct drm_connector *connector, u16 structure,
 	}
 
 	return modes;
+}
+
+static bool hdmi_vsdb_latency_present(const u8 *db)
+{
+	return db[8] & BIT(7);
+}
+
+static bool hdmi_vsdb_i_latency_present(const u8 *db)
+{
+	return hdmi_vsdb_latency_present(db) && db[8] & BIT(6);
+}
+
+static int hdmi_vsdb_latency_length(const u8 *db)
+{
+	if (hdmi_vsdb_i_latency_present(db))
+		return 4;
+	else if (hdmi_vsdb_latency_present(db))
+		return 2;
+	else
+		return 0;
 }
 
 /*
@@ -4742,10 +4724,8 @@ static int add_3d_struct_modes(struct drm_connector *connector, u16 structure,
  * also adds the stereo 3d modes when applicable.
  */
 static int
-do_hdmi_vsdb_modes(struct drm_connector *connector, const u8 *db, u8 len,
-		   const u8 *video_db, u8 video_len)
+do_hdmi_vsdb_modes(struct drm_connector *connector, const u8 *db, u8 len)
 {
-	struct drm_display_info *info = &connector->display_info;
 	int modes = 0, offset = 0, i, multi_present = 0, multi_len;
 	u8 vic_len, hdmi_3d_len = 0;
 	u16 mask;
@@ -4758,13 +4738,7 @@ do_hdmi_vsdb_modes(struct drm_connector *connector, const u8 *db, u8 len,
 	if (!(db[8] & (1 << 5)))
 		goto out;
 
-	/* Latency_Fields_Present */
-	if (db[8] & (1 << 7))
-		offset += 2;
-
-	/* I_Latency_Fields_Present */
-	if (db[8] & (1 << 6))
-		offset += 2;
+	offset += hdmi_vsdb_latency_length(db);
 
 	/* the declared length is not long enough for the 2 first bytes
 	 * of additional video format capabilities */
@@ -4818,9 +4792,7 @@ do_hdmi_vsdb_modes(struct drm_connector *connector, const u8 *db, u8 len,
 		for (i = 0; i < 16; i++) {
 			if (mask & (1 << i))
 				modes += add_3d_struct_modes(connector,
-						structure_all,
-						video_db,
-						video_len, i);
+							     structure_all, i);
 		}
 	}
 
@@ -4857,8 +4829,6 @@ do_hdmi_vsdb_modes(struct drm_connector *connector, const u8 *db, u8 len,
 
 		if (newflag != 0) {
 			newmode = drm_display_mode_from_vic_index(connector,
-								  video_db,
-								  video_len,
 								  vic_index);
 
 			if (newmode) {
@@ -4873,8 +4843,6 @@ do_hdmi_vsdb_modes(struct drm_connector *connector, const u8 *db, u8 len,
 	}
 
 out:
-	if (modes > 0)
-		info->has_hdmi_infoframe = true;
 	return modes;
 }
 
@@ -5204,20 +5172,26 @@ static int edid_hfeeodb_extension_block_count(const struct edid *edid)
 	return cta[4 + 2];
 }
 
-static void drm_parse_y420cmdb_bitmap(struct drm_connector *connector,
-				      const u8 *db)
+/*
+ * CTA-861 YCbCr 4:2:0 Capability Map Data Block (CTA Y420CMDB)
+ *
+ * Y420CMDB contains a bitmap which gives the index of CTA modes from CTA VDB,
+ * which can support YCBCR 420 sampling output also (apart from RGB/YCBCR444
+ * etc). For example, if the bit 0 in bitmap is set, first mode in VDB can
+ * support YCBCR420 output too.
+ */
+static void parse_cta_y420cmdb(struct drm_connector *connector,
+			       const struct cea_db *db, u64 *y420cmdb_map)
 {
 	struct drm_display_info *info = &connector->display_info;
-	struct drm_hdmi_info *hdmi = &info->hdmi;
-	u8 map_len = cea_db_payload_len(db) - 1;
-	u8 count;
+	int i, map_len = cea_db_payload_len(db) - 1;
+	const u8 *data = cea_db_data(db) + 1;
 	u64 map = 0;
 
 	if (map_len == 0) {
 		/* All CEA modes support ycbcr420 sampling also.*/
-		hdmi->y420_cmdb_map = U64_MAX;
-		info->color_formats |= DRM_COLOR_FORMAT_YCBCR420;
-		return;
+		map = U64_MAX;
+		goto out;
 	}
 
 	/*
@@ -5235,13 +5209,14 @@ static void drm_parse_y420cmdb_bitmap(struct drm_connector *connector,
 	if (WARN_ON_ONCE(map_len > 8))
 		map_len = 8;
 
-	for (count = 0; count < map_len; count++)
-		map |= (u64)db[2 + count] << (8 * count);
+	for (i = 0; i < map_len; i++)
+		map |= (u64)data[i] << (8 * i);
 
+out:
 	if (map)
 		info->color_formats |= DRM_COLOR_FORMAT_YCBCR420;
 
-	hdmi->y420_cmdb_map = map;
+	*y420cmdb_map = map;
 }
 
 static int add_cea_modes(struct drm_connector *connector,
@@ -5249,21 +5224,16 @@ static int add_cea_modes(struct drm_connector *connector,
 {
 	const struct cea_db *db;
 	struct cea_db_iter iter;
-	int modes = 0;
+	int modes;
+
+	/* CTA VDB block VICs parsed earlier */
+	modes = add_cta_vdb_modes(connector);
 
 	cea_db_iter_edid_begin(drm_edid, &iter);
 	cea_db_iter_for_each(db, &iter) {
-		const u8 *hdmi = NULL, *video = NULL;
-		u8 hdmi_len = 0, video_len = 0;
-
-		if (cea_db_tag(db) == CTA_DB_VIDEO) {
-			video = cea_db_data(db);
-			video_len = cea_db_payload_len(db);
-			modes += do_cea_modes(connector, video, video_len);
-		} else if (cea_db_is_hdmi_vsdb(db)) {
-			/* FIXME: Switch to use cea_db_data() */
-			hdmi = (const u8 *)db;
-			hdmi_len = cea_db_payload_len(db);
+		if (cea_db_is_hdmi_vsdb(db)) {
+			modes += do_hdmi_vsdb_modes(connector, (const u8 *)db,
+						    cea_db_payload_len(db));
 		} else if (cea_db_is_y420vdb(db)) {
 			const u8 *vdb420 = cea_db_data(db) + 1;
 
@@ -5271,15 +5241,6 @@ static int add_cea_modes(struct drm_connector *connector,
 			modes += do_y420vdb_modes(connector, vdb420,
 						  cea_db_payload_len(db) - 1);
 		}
-
-		/*
-		 * We parse the HDMI VSDB after having added the cea modes as we
-		 * will be patching their flags when the sink supports stereo
-		 * 3D.
-		 */
-		if (hdmi)
-			modes += do_hdmi_vsdb_modes(connector, hdmi, hdmi_len,
-						    video, video_len);
 	}
 	cea_db_iter_end(&iter);
 
@@ -5416,6 +5377,7 @@ drm_parse_hdr_metadata_block(struct drm_connector *connector, const u8 *db)
 	}
 }
 
+/* HDMI Vendor-Specific Data Block (HDMI VSDB, H14b-VSDB) */
 static void
 drm_parse_hdmi_vsdb_audio(struct drm_connector *connector, const u8 *db)
 {
@@ -5423,18 +5385,18 @@ drm_parse_hdmi_vsdb_audio(struct drm_connector *connector, const u8 *db)
 
 	if (len >= 6 && (db[6] & (1 << 7)))
 		connector->eld[DRM_ELD_SAD_COUNT_CONN_TYPE] |= DRM_ELD_SUPPORTS_AI;
-	if (len >= 8) {
-		connector->latency_present[0] = db[8] >> 7;
-		connector->latency_present[1] = (db[8] >> 6) & 1;
-	}
-	if (len >= 9)
+
+	if (len >= 10 && hdmi_vsdb_latency_present(db)) {
+		connector->latency_present[0] = true;
 		connector->video_latency[0] = db[9];
-	if (len >= 10)
 		connector->audio_latency[0] = db[10];
-	if (len >= 11)
+	}
+
+	if (len >= 12 && hdmi_vsdb_i_latency_present(db)) {
+		connector->latency_present[1] = true;
 		connector->video_latency[1] = db[11];
-	if (len >= 12)
 		connector->audio_latency[1] = db[12];
+	}
 
 	drm_dbg_kms(connector->dev,
 		    "[CONNECTOR:%d:%s] HDMI: latency present %d %d, video latency %d %d, audio latency %d %d\n",
@@ -5532,8 +5494,6 @@ static void drm_edid_to_eld(struct drm_connector *connector,
 	uint8_t *eld = connector->eld;
 	int total_sad_count = 0;
 	int mnl;
-
-	clear_eld(connector);
 
 	if (!drm_edid)
 		return;
@@ -5864,6 +5824,92 @@ drm_default_rgb_quant_range(const struct drm_display_mode *mode)
 }
 EXPORT_SYMBOL(drm_default_rgb_quant_range);
 
+/* CTA-861 Video Data Block (CTA VDB) */
+static void parse_cta_vdb(struct drm_connector *connector, const struct cea_db *db)
+{
+	struct drm_display_info *info = &connector->display_info;
+	int i, vic_index, len = cea_db_payload_len(db);
+	const u8 *svds = cea_db_data(db);
+	u8 *vics;
+
+	if (!len)
+		return;
+
+	/* Gracefully handle multiple VDBs, however unlikely that is */
+	vics = krealloc(info->vics, info->vics_len + len, GFP_KERNEL);
+	if (!vics)
+		return;
+
+	vic_index = info->vics_len;
+	info->vics_len += len;
+	info->vics = vics;
+
+	for (i = 0; i < len; i++) {
+		u8 vic = svd_to_vic(svds[i]);
+
+		if (!drm_valid_cea_vic(vic))
+			vic = 0;
+
+		info->vics[vic_index++] = vic;
+	}
+}
+
+/*
+ * Update y420_cmdb_modes based on previously parsed CTA VDB and Y420CMDB.
+ *
+ * Translate the y420cmdb_map based on VIC indexes to y420_cmdb_modes indexed
+ * using the VICs themselves.
+ */
+static void update_cta_y420cmdb(struct drm_connector *connector, u64 y420cmdb_map)
+{
+	struct drm_display_info *info = &connector->display_info;
+	struct drm_hdmi_info *hdmi = &info->hdmi;
+	int i, len = min_t(int, info->vics_len, BITS_PER_TYPE(y420cmdb_map));
+
+	for (i = 0; i < len; i++) {
+		u8 vic = info->vics[i];
+
+		if (vic && y420cmdb_map & BIT_ULL(i))
+			bitmap_set(hdmi->y420_cmdb_modes, vic, 1);
+	}
+}
+
+static bool cta_vdb_has_vic(const struct drm_connector *connector, u8 vic)
+{
+	const struct drm_display_info *info = &connector->display_info;
+	int i;
+
+	if (!vic || !info->vics)
+		return false;
+
+	for (i = 0; i < info->vics_len; i++) {
+		if (info->vics[i] == vic)
+			return true;
+	}
+
+	return false;
+}
+
+/* CTA-861-H YCbCr 4:2:0 Video Data Block (CTA Y420VDB) */
+static void parse_cta_y420vdb(struct drm_connector *connector,
+			      const struct cea_db *db)
+{
+	struct drm_display_info *info = &connector->display_info;
+	struct drm_hdmi_info *hdmi = &info->hdmi;
+	const u8 *svds = cea_db_data(db) + 1;
+	int i;
+
+	for (i = 0; i < cea_db_payload_len(db) - 1; i++) {
+		u8 vic = svd_to_vic(svds[i]);
+
+		if (!drm_valid_cea_vic(vic))
+			continue;
+
+		bitmap_set(hdmi->y420_vdb_modes, vic, 1);
+		info->color_formats |= DRM_COLOR_FORMAT_YCBCR420;
+	}
+}
+
 static void drm_parse_vcdb(struct drm_connector *connector, const u8 *db)
 {
 	struct drm_display_info *info = &connector->display_info;
@@ -5995,14 +6041,14 @@ static void drm_parse_dsc_info(struct drm_hdmi_dsc_cap *hdmi_dsc,
 static void drm_parse_hdmi_forum_scds(struct drm_connector *connector,
 				      const u8 *hf_scds)
 {
-	struct drm_display_info *display = &connector->display_info;
-	struct drm_hdmi_info *hdmi = &display->hdmi;
+	struct drm_display_info *info = &connector->display_info;
+	struct drm_hdmi_info *hdmi = &info->hdmi;
 	struct drm_hdmi_dsc_cap *hdmi_dsc = &hdmi->dsc_cap;
 	int max_tmds_clock = 0;
 	u8 max_frl_rate = 0;
 	bool dsc_support = false;
 
-	display->has_hdmi_infoframe = true;
+	info->has_hdmi_infoframe = true;
 
 	if (hf_scds[6] & 0x80) {
 		hdmi->scdc.supported = true;
@@ -6026,7 +6072,7 @@ static void drm_parse_hdmi_forum_scds(struct drm_connector *connector,
 		max_tmds_clock = hf_scds[5] * 5000;
 
 		if (max_tmds_clock > 340000) {
-			display->max_tmds_clock = max_tmds_clock;
+			info->max_tmds_clock = max_tmds_clock;
 		}
 
 		if (scdc->supported) {
@@ -6117,6 +6163,7 @@ static void drm_parse_hdmi_deep_color_info(struct drm_connector *connector,
 	}
 }
 
+/* HDMI Vendor-Specific Data Block (HDMI VSDB, H14b-VSDB) */
 static void
 drm_parse_hdmi_vsdb_video(struct drm_connector *connector, const u8 *db)
 {
@@ -6129,6 +6176,15 @@ drm_parse_hdmi_vsdb_video(struct drm_connector *connector, const u8 *db)
 		info->dvi_dual = db[6] & 1;
 	if (len >= 7)
 		info->max_tmds_clock = db[7] * 5000;
+
+	/*
+	 * Try to infer whether the sink supports HDMI infoframes.
+	 *
+	 * HDMI infoframe support was first added in HDMI 1.4. Assume the sink
+	 * supports infoframes if HDMI_Video_present is set.
+	 */
+	if (len >= 8 && db[8] & BIT(5))
+		info->has_hdmi_infoframe = true;
 
 	drm_dbg_kms(connector->dev, "[CONNECTOR:%d:%s] HDMI: DVI dual %d, max TMDS clock %d kHz\n",
 		    connector->base.id, connector->name,
@@ -6165,6 +6221,7 @@ static void drm_parse_cea_ext(struct drm_connector *connector,
 	const struct cea_db *db;
 	struct cea_db_iter iter;
 	const u8 *edid_ext;
+	u64 y420cmdb_map = 0;
 
 	drm_edid_iter_begin(drm_edid, &edid_iter);
 	drm_edid_iter_for_each(edid_ext, &edid_iter) {
@@ -6202,13 +6259,20 @@ static void drm_parse_cea_ext(struct drm_connector *connector,
 		else if (cea_db_is_microsoft_vsdb(db))
 			drm_parse_microsoft_vsdb(connector, data);
 		else if (cea_db_is_y420cmdb(db))
-			drm_parse_y420cmdb_bitmap(connector, data);
+			parse_cta_y420cmdb(connector, db, &y420cmdb_map);
+		else if (cea_db_is_y420vdb(db))
+			parse_cta_y420vdb(connector, db);
 		else if (cea_db_is_vcdb(db))
 			drm_parse_vcdb(connector, data);
 		else if (cea_db_is_hdmi_hdr_metadata_block(db))
 			drm_parse_hdr_metadata_block(connector, data);
+		else if (cea_db_tag(db) == CTA_DB_VIDEO)
+			parse_cta_vdb(connector, db);
 	}
 	cea_db_iter_end(&iter);
+
+	if (y420cmdb_map)
+		update_cta_y420cmdb(connector, y420cmdb_map);
 }
 
 static
@@ -6374,17 +6438,52 @@ static void drm_reset_display_info(struct drm_connector *connector)
 	info->mso_stream_count = 0;
 	info->mso_pixel_overlap = 0;
 	info->max_dsc_bpp = 0;
+
+	kfree(info->vics);
+	info->vics = NULL;
+	info->vics_len = 0;
+
+	info->quirks = 0;
 }
 
-static u32 update_display_info(struct drm_connector *connector,
-			       const struct drm_edid *drm_edid)
+static void update_displayid_info(struct drm_connector *connector,
+				  const struct drm_edid *drm_edid)
 {
 	struct drm_display_info *info = &connector->display_info;
-	const struct edid *edid = drm_edid->edid;
+	const struct displayid_block *block;
+	struct displayid_iter iter;
 
-	u32 quirks = edid_get_quirks(drm_edid);
+	displayid_iter_edid_begin(drm_edid, &iter);
+	displayid_iter_for_each(block, &iter) {
+		if (displayid_version(&iter) == DISPLAY_ID_STRUCTURE_VER_20 &&
+		    (displayid_primary_use(&iter) == PRIMARY_USE_HEAD_MOUNTED_VR ||
+		     displayid_primary_use(&iter) == PRIMARY_USE_HEAD_MOUNTED_AR))
+			info->non_desktop = true;
+
+		/*
+		 * We're only interested in the base section here, no need to
+		 * iterate further.
+		 */
+		break;
+	}
+	displayid_iter_end(&iter);
+}
+
+static void update_display_info(struct drm_connector *connector,
+				const struct drm_edid *drm_edid)
+{
+	struct drm_display_info *info = &connector->display_info;
+	const struct edid *edid;
 
 	drm_reset_display_info(connector);
+	clear_eld(connector);
+
+	if (!drm_edid)
+		return;
+
+	edid = drm_edid->edid;
+
+	info->quirks = edid_get_quirks(drm_edid);
 
 	info->width_mm = edid->width_cm * 10;
 	info->height_mm = edid->height_cm * 10;
@@ -6399,6 +6498,8 @@ static u32 update_display_info(struct drm_connector *connector,
 
 	info->color_formats |= DRM_COLOR_FORMAT_RGB444;
 	drm_parse_cea_ext(connector, drm_edid);
+
+	update_displayid_info(connector, drm_edid);
 
 	/*
 	 * Digital sink with "DFP 1.x compliant TMDS" according to EDID 1.3?
@@ -6456,17 +6557,30 @@ static u32 update_display_info(struct drm_connector *connector,
 	drm_update_mso(connector, drm_edid);
 
 out:
-	if (quirks & EDID_QUIRK_NON_DESKTOP) {
+	if (info->quirks & EDID_QUIRK_NON_DESKTOP) {
 		drm_dbg_kms(connector->dev, "[CONNECTOR:%d:%s] Non-desktop display%s\n",
 			    connector->base.id, connector->name,
 			    info->non_desktop ? " (redundant quirk)" : "");
 		info->non_desktop = true;
 	}
 
-	if (quirks & EDID_QUIRK_CAP_DSC_15BPP)
+	if (info->quirks & EDID_QUIRK_CAP_DSC_15BPP)
 		info->max_dsc_bpp = 15;
 
-	return quirks;
+	if (info->quirks & EDID_QUIRK_FORCE_6BPC)
+		info->bpc = 6;
+
+	if (info->quirks & EDID_QUIRK_FORCE_8BPC)
+		info->bpc = 8;
+
+	if (info->quirks & EDID_QUIRK_FORCE_10BPC)
+		info->bpc = 10;
+
+	if (info->quirks & EDID_QUIRK_FORCE_12BPC)
+		info->bpc = 12;
+
+	/* Depends on info->cea_rev set by drm_parse_cea_ext() above */
+	drm_edid_to_eld(connector, drm_edid);
 }
 
 static struct drm_display_mode *drm_mode_displayid_detailed(struct drm_device *dev,
@@ -6561,27 +6675,14 @@ static int add_displayid_detailed_modes(struct drm_connector *connector,
 	return num_modes;
 }
 
-static int _drm_edid_connector_update(struct drm_connector *connector,
-				      const struct drm_edid *drm_edid)
+static int _drm_edid_connector_add_modes(struct drm_connector *connector,
+					 const struct drm_edid *drm_edid)
 {
+	const struct drm_display_info *info = &connector->display_info;
 	int num_modes = 0;
-	u32 quirks;
 
-	if (!drm_edid) {
-		drm_reset_display_info(connector);
-		clear_eld(connector);
+	if (!drm_edid)
 		return 0;
-	}
-
-	/*
-	 * CEA-861-F adds ycbcr capability map block, for HDMI 2.0 sinks.
-	 * To avoid multiple parsing of same block, lets parse that map
-	 * from sink info, before parsing CEA modes.
-	 */
-	quirks = update_display_info(connector, drm_edid);
-
-	/* Depends on info->cea_rev set by update_display_info() above */
-	drm_edid_to_eld(connector, drm_edid);
 
 	/*
 	 * EDID spec says modes should be preferred in this order:
@@ -6597,7 +6698,7 @@ static int _drm_edid_connector_update(struct drm_connector *connector,
 	 *
 	 * XXX order for additional mode types in extension blocks?
 	 */
-	num_modes += add_detailed_modes(connector, drm_edid, quirks);
+	num_modes += add_detailed_modes(connector, drm_edid);
 	num_modes += add_cvt_modes(connector, drm_edid);
 	num_modes += add_standard_modes(connector, drm_edid);
 	num_modes += add_established_modes(connector, drm_edid);
@@ -6607,20 +6708,8 @@ static int _drm_edid_connector_update(struct drm_connector *connector,
 	if (drm_edid->edid->features & DRM_EDID_FEATURE_CONTINUOUS_FREQ)
 		num_modes += add_inferred_modes(connector, drm_edid);
 
-	if (quirks & (EDID_QUIRK_PREFER_LARGE_60 | EDID_QUIRK_PREFER_LARGE_75))
-		edid_fixup_preferred(connector, quirks);
-
-	if (quirks & EDID_QUIRK_FORCE_6BPC)
-		connector->display_info.bpc = 6;
-
-	if (quirks & EDID_QUIRK_FORCE_8BPC)
-		connector->display_info.bpc = 8;
-
-	if (quirks & EDID_QUIRK_FORCE_10BPC)
-		connector->display_info.bpc = 10;
-
-	if (quirks & EDID_QUIRK_FORCE_12BPC)
-		connector->display_info.bpc = 12;
+	if (info->quirks & (EDID_QUIRK_PREFER_LARGE_60 | EDID_QUIRK_PREFER_LARGE_75))
+		edid_fixup_preferred(connector);
 
 	return num_modes;
 }
@@ -6684,49 +6773,54 @@ out:
  * @connector: Connector
  * @drm_edid: EDID
  *
- * Update the connector mode list, display info, ELD, HDR metadata, relevant
- * properties, etc. from the passed in EDID.
+ * Update the connector display info, ELD, HDR metadata, relevant properties,
+ * etc. from the passed in EDID.
  *
  * If EDID is NULL, reset the information.
  *
- * Return: The number of modes added or 0 if we couldn't find any.
+ * Must be called before calling drm_edid_connector_add_modes().
+ *
+ * Return: 0 on success, negative error on errors.
  */
 int drm_edid_connector_update(struct drm_connector *connector,
 			      const struct drm_edid *drm_edid)
 {
-	int count;
-
-	count = _drm_edid_connector_update(connector, drm_edid);
-
-	_drm_update_tile_info(connector, drm_edid);
-
-	/* Note: Ignore errors for now. */
-	_drm_edid_connector_property_update(connector, drm_edid);
-
-	return count;
-}
-EXPORT_SYMBOL(drm_edid_connector_update);
-
-static int _drm_connector_update_edid_property(struct drm_connector *connector,
-					       const struct drm_edid *drm_edid)
-{
-	/*
-	 * Set the display info, using edid if available, otherwise resetting
-	 * the values to defaults. This duplicates the work done in
-	 * drm_add_edid_modes, but that function is not consistently called
-	 * before this one in all drivers and the computation is cheap enough
-	 * that it seems better to duplicate it rather than attempt to ensure
-	 * some arbitrary ordering of calls.
-	 */
-	if (drm_edid)
-		update_display_info(connector, drm_edid);
-	else
-		drm_reset_display_info(connector);
+	update_display_info(connector, drm_edid);
 
 	_drm_update_tile_info(connector, drm_edid);
 
 	return _drm_edid_connector_property_update(connector, drm_edid);
 }
+EXPORT_SYMBOL(drm_edid_connector_update);
+
+/**
+ * drm_edid_connector_add_modes - Update probed modes from the EDID property
+ * @connector: Connector
+ *
+ * Add the modes from the previously updated EDID property to the connector
+ * probed modes list.
+ *
+ * drm_edid_connector_update() must have been called before this to update the
+ * EDID property.
+ *
+ * Return: The number of modes added, or 0 if we couldn't find any.
+ */
+int drm_edid_connector_add_modes(struct drm_connector *connector)
+{
+	const struct drm_edid *drm_edid = NULL;
+	int count;
+
+	if (connector->edid_blob_ptr)
+		drm_edid = drm_edid_alloc(connector->edid_blob_ptr->data,
+					  connector->edid_blob_ptr->length);
+
+	count = _drm_edid_connector_add_modes(connector, drm_edid);
+
+	drm_edid_free(drm_edid);
+
+	return count;
+}
+EXPORT_SYMBOL(drm_edid_connector_add_modes);
 
 /**
  * drm_connector_update_edid_property - update the edid property of a connector
@@ -6749,8 +6843,7 @@ int drm_connector_update_edid_property(struct drm_connector *connector,
 {
 	struct drm_edid drm_edid;
 
-	return _drm_connector_update_edid_property(connector,
-						   drm_edid_legacy_init(&drm_edid, edid));
+	return drm_edid_connector_update(connector, drm_edid_legacy_init(&drm_edid, edid));
 }
 EXPORT_SYMBOL(drm_connector_update_edid_property);
 
@@ -6763,13 +6856,14 @@ EXPORT_SYMBOL(drm_connector_update_edid_property);
  * &drm_display_info structure and ELD in @connector with any information which
  * can be derived from the edid.
  *
- * This function is deprecated. Use drm_edid_connector_update() instead.
+ * This function is deprecated. Use drm_edid_connector_add_modes() instead.
  *
  * Return: The number of modes added or 0 if we couldn't find any.
  */
 int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 {
-	struct drm_edid drm_edid;
+	struct drm_edid _drm_edid;
+	const struct drm_edid *drm_edid;
 
 	if (edid && !drm_edid_is_valid(edid)) {
 		drm_warn(connector->dev, "[CONNECTOR:%d:%s] EDID invalid.\n",
@@ -6777,8 +6871,11 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 		edid = NULL;
 	}
 
-	return _drm_edid_connector_update(connector,
-					  drm_edid_legacy_init(&drm_edid, edid));
+	drm_edid = drm_edid_legacy_init(&_drm_edid, edid);
+
+	update_display_info(connector, drm_edid);
+
+	return _drm_edid_connector_add_modes(connector, drm_edid);
 }
 EXPORT_SYMBOL(drm_add_edid_modes);
 
@@ -6885,8 +6982,6 @@ static u8 drm_mode_hdmi_vic(const struct drm_connector *connector,
 static u8 drm_mode_cea_vic(const struct drm_connector *connector,
 			   const struct drm_display_mode *mode)
 {
-	u8 vic;
-
 	/*
 	 * HDMI spec says if a mode is found in HDMI 1.4b 4K modes
 	 * we should send its VIC in vendor infoframes, else send the
@@ -6896,14 +6991,23 @@ static u8 drm_mode_cea_vic(const struct drm_connector *connector,
 	if (drm_mode_hdmi_vic(connector, mode))
 		return 0;
 
-	vic = drm_match_cea_mode(mode);
+	return drm_match_cea_mode(mode);
+}
 
-	/*
-	 * HDMI 1.4 VIC range: 1 <= VIC <= 64 (CEA-861-D) but
-	 * HDMI 2.0 VIC range: 1 <= VIC <= 107 (CEA-861-F). So we
-	 * have to make sure we dont break HDMI 1.4 sinks.
-	 */
-	if (!is_hdmi2_sink(connector) && vic > 64)
+/*
+ * Avoid sending VICs defined in HDMI 2.0 in AVI infoframes to sinks that
+ * conform to HDMI 1.4.
+ *
+ * HDMI 1.4 (CTA-861-D) VIC range: [1..64]
+ * HDMI 2.0 (CTA-861-F) VIC range: [1..107]
+ *
+ * If the sink lists the VIC in CTA VDB, assume it's fine, regardless of HDMI
+ * version.
+ */
+static u8 vic_for_avi_infoframe(const struct drm_connector *connector, u8 vic)
+{
+	if (!is_hdmi2_sink(connector) && vic > 64 &&
+	    !cta_vdb_has_vic(connector, vic))
 		return 0;
 
 	return vic;
@@ -6978,7 +7082,7 @@ drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
 		picture_aspect = HDMI_PICTURE_ASPECT_NONE;
 	}
 
-	frame->video_code = vic;
+	frame->video_code = vic_for_avi_infoframe(connector, vic);
 	frame->picture_aspect = picture_aspect;
 	frame->active_aspect = HDMI_ACTIVE_ASPECT_PICTURE;
 	frame->scan_mode = HDMI_SCAN_MODE_UNDERSCAN;
@@ -7176,6 +7280,15 @@ static void drm_parse_tiled_block(struct drm_connector *connector,
 	}
 }
 
+static bool displayid_is_tiled_block(const struct displayid_iter *iter,
+				     const struct displayid_block *block)
+{
+	return (displayid_version(iter) == DISPLAY_ID_STRUCTURE_VER_12 &&
+		block->tag == DATA_BLOCK_TILED_DISPLAY) ||
+		(displayid_version(iter) == DISPLAY_ID_STRUCTURE_VER_20 &&
+		 block->tag == DATA_BLOCK_2_TILED_DISPLAY_TOPOLOGY);
+}
+
 static void _drm_update_tile_info(struct drm_connector *connector,
 				  const struct drm_edid *drm_edid)
 {
@@ -7186,7 +7299,7 @@ static void _drm_update_tile_info(struct drm_connector *connector,
 
 	displayid_iter_edid_begin(drm_edid, &iter);
 	displayid_iter_for_each(block, &iter) {
-		if (block->tag == DATA_BLOCK_TILED_DISPLAY)
+		if (displayid_is_tiled_block(&iter, block))
 			drm_parse_tiled_block(connector, block);
 	}
 	displayid_iter_end(&iter);

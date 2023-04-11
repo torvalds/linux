@@ -756,19 +756,20 @@ static int bpf_trace_copy_string(char *buf, void *unsafe_ptr, char fmt_ptype,
 /* Per-cpu temp buffers used by printf-like helpers to store the bprintf binary
  * arguments representation.
  */
-#define MAX_BPRINTF_BUF_LEN	512
+#define MAX_BPRINTF_BIN_ARGS	512
 
 /* Support executing three nested bprintf helper calls on a given CPU */
 #define MAX_BPRINTF_NEST_LEVEL	3
 struct bpf_bprintf_buffers {
-	char tmp_bufs[MAX_BPRINTF_NEST_LEVEL][MAX_BPRINTF_BUF_LEN];
+	char bin_args[MAX_BPRINTF_BIN_ARGS];
+	char buf[MAX_BPRINTF_BUF];
 };
-static DEFINE_PER_CPU(struct bpf_bprintf_buffers, bpf_bprintf_bufs);
+
+static DEFINE_PER_CPU(struct bpf_bprintf_buffers[MAX_BPRINTF_NEST_LEVEL], bpf_bprintf_bufs);
 static DEFINE_PER_CPU(int, bpf_bprintf_nest_level);
 
-static int try_get_fmt_tmp_buf(char **tmp_buf)
+static int try_get_buffers(struct bpf_bprintf_buffers **bufs)
 {
-	struct bpf_bprintf_buffers *bufs;
 	int nest_level;
 
 	preempt_disable();
@@ -778,18 +779,19 @@ static int try_get_fmt_tmp_buf(char **tmp_buf)
 		preempt_enable();
 		return -EBUSY;
 	}
-	bufs = this_cpu_ptr(&bpf_bprintf_bufs);
-	*tmp_buf = bufs->tmp_bufs[nest_level - 1];
+	*bufs = this_cpu_ptr(&bpf_bprintf_bufs[nest_level - 1]);
 
 	return 0;
 }
 
-void bpf_bprintf_cleanup(void)
+void bpf_bprintf_cleanup(struct bpf_bprintf_data *data)
 {
-	if (this_cpu_read(bpf_bprintf_nest_level)) {
-		this_cpu_dec(bpf_bprintf_nest_level);
-		preempt_enable();
-	}
+	if (!data->bin_args && !data->buf)
+		return;
+	if (WARN_ON_ONCE(this_cpu_read(bpf_bprintf_nest_level) == 0))
+		return;
+	this_cpu_dec(bpf_bprintf_nest_level);
+	preempt_enable();
 }
 
 /*
@@ -798,18 +800,20 @@ void bpf_bprintf_cleanup(void)
  * Returns a negative value if fmt is an invalid format string or 0 otherwise.
  *
  * This can be used in two ways:
- * - Format string verification only: when bin_args is NULL
+ * - Format string verification only: when data->get_bin_args is false
  * - Arguments preparation: in addition to the above verification, it writes in
- *   bin_args a binary representation of arguments usable by bstr_printf where
- *   pointers from BPF have been sanitized.
+ *   data->bin_args a binary representation of arguments usable by bstr_printf
+ *   where pointers from BPF have been sanitized.
  *
  * In argument preparation mode, if 0 is returned, safe temporary buffers are
  * allocated and bpf_bprintf_cleanup should be called to free them after use.
  */
 int bpf_bprintf_prepare(char *fmt, u32 fmt_size, const u64 *raw_args,
-			u32 **bin_args, u32 num_args)
+			u32 num_args, struct bpf_bprintf_data *data)
 {
+	bool get_buffers = (data->get_bin_args && num_args) || data->get_buf;
 	char *unsafe_ptr = NULL, *tmp_buf = NULL, *tmp_buf_end, *fmt_end;
+	struct bpf_bprintf_buffers *buffers = NULL;
 	size_t sizeof_cur_arg, sizeof_cur_ip;
 	int err, i, num_spec = 0;
 	u64 cur_arg;
@@ -820,13 +824,18 @@ int bpf_bprintf_prepare(char *fmt, u32 fmt_size, const u64 *raw_args,
 		return -EINVAL;
 	fmt_size = fmt_end - fmt;
 
-	if (bin_args) {
-		if (num_args && try_get_fmt_tmp_buf(&tmp_buf))
-			return -EBUSY;
+	if (get_buffers && try_get_buffers(&buffers))
+		return -EBUSY;
 
-		tmp_buf_end = tmp_buf + MAX_BPRINTF_BUF_LEN;
-		*bin_args = (u32 *)tmp_buf;
+	if (data->get_bin_args) {
+		if (num_args)
+			tmp_buf = buffers->bin_args;
+		tmp_buf_end = tmp_buf + MAX_BPRINTF_BIN_ARGS;
+		data->bin_args = (u32 *)tmp_buf;
 	}
+
+	if (data->get_buf)
+		data->buf = buffers->buf;
 
 	for (i = 0; i < fmt_size; i++) {
 		if ((!isprint(fmt[i]) && !isspace(fmt[i])) || !isascii(fmt[i])) {
@@ -1021,31 +1030,33 @@ nocopy_fmt:
 	err = 0;
 out:
 	if (err)
-		bpf_bprintf_cleanup();
+		bpf_bprintf_cleanup(data);
 	return err;
 }
 
 BPF_CALL_5(bpf_snprintf, char *, str, u32, str_size, char *, fmt,
-	   const void *, data, u32, data_len)
+	   const void *, args, u32, data_len)
 {
+	struct bpf_bprintf_data data = {
+		.get_bin_args	= true,
+	};
 	int err, num_args;
-	u32 *bin_args;
 
 	if (data_len % 8 || data_len > MAX_BPRINTF_VARARGS * 8 ||
-	    (data_len && !data))
+	    (data_len && !args))
 		return -EINVAL;
 	num_args = data_len / 8;
 
 	/* ARG_PTR_TO_CONST_STR guarantees that fmt is zero-terminated so we
 	 * can safely give an unbounded size.
 	 */
-	err = bpf_bprintf_prepare(fmt, UINT_MAX, data, &bin_args, num_args);
+	err = bpf_bprintf_prepare(fmt, UINT_MAX, args, num_args, &data);
 	if (err < 0)
 		return err;
 
-	err = bstr_printf(str, str_size, fmt, bin_args);
+	err = bstr_printf(str, str_size, fmt, data.bin_args);
 
-	bpf_bprintf_cleanup();
+	bpf_bprintf_cleanup(&data);
 
 	return err + 1;
 }
@@ -1745,12 +1756,12 @@ unlock:
 	while (head != orig_head) {
 		void *obj = head;
 
-		obj -= field->list_head.node_offset;
+		obj -= field->graph_root.node_offset;
 		head = head->next;
 		/* The contained type can also have resources, including a
 		 * bpf_list_head which needs to be freed.
 		 */
-		bpf_obj_free_fields(field->list_head.value_rec, obj);
+		bpf_obj_free_fields(field->graph_root.value_rec, obj);
 		/* bpf_mem_free requires migrate_disable(), since we can be
 		 * called from map free path as well apart from BPF program (as
 		 * part of map ops doing bpf_obj_free_fields).
@@ -1761,11 +1772,51 @@ unlock:
 	}
 }
 
+/* Like rbtree_postorder_for_each_entry_safe, but 'pos' and 'n' are
+ * 'rb_node *', so field name of rb_node within containing struct is not
+ * needed.
+ *
+ * Since bpf_rb_tree's node type has a corresponding struct btf_field with
+ * graph_root.node_offset, it's not necessary to know field name
+ * or type of node struct
+ */
+#define bpf_rbtree_postorder_for_each_entry_safe(pos, n, root) \
+	for (pos = rb_first_postorder(root); \
+	    pos && ({ n = rb_next_postorder(pos); 1; }); \
+	    pos = n)
+
+void bpf_rb_root_free(const struct btf_field *field, void *rb_root,
+		      struct bpf_spin_lock *spin_lock)
+{
+	struct rb_root_cached orig_root, *root = rb_root;
+	struct rb_node *pos, *n;
+	void *obj;
+
+	BUILD_BUG_ON(sizeof(struct rb_root_cached) > sizeof(struct bpf_rb_root));
+	BUILD_BUG_ON(__alignof__(struct rb_root_cached) > __alignof__(struct bpf_rb_root));
+
+	__bpf_spin_lock_irqsave(spin_lock);
+	orig_root = *root;
+	*root = RB_ROOT_CACHED;
+	__bpf_spin_unlock_irqrestore(spin_lock);
+
+	bpf_rbtree_postorder_for_each_entry_safe(pos, n, &orig_root.rb_root) {
+		obj = pos;
+		obj -= field->graph_root.node_offset;
+
+		bpf_obj_free_fields(field->graph_root.value_rec, obj);
+
+		migrate_disable();
+		bpf_mem_free(&bpf_global_ma, obj);
+		migrate_enable();
+	}
+}
+
 __diag_push();
 __diag_ignore_all("-Wmissing-prototypes",
 		  "Global functions as their definitions will be in vmlinux BTF");
 
-void *bpf_obj_new_impl(u64 local_type_id__k, void *meta__ign)
+__bpf_kfunc void *bpf_obj_new_impl(u64 local_type_id__k, void *meta__ign)
 {
 	struct btf_struct_meta *meta = meta__ign;
 	u64 size = local_type_id__k;
@@ -1779,7 +1830,7 @@ void *bpf_obj_new_impl(u64 local_type_id__k, void *meta__ign)
 	return p;
 }
 
-void bpf_obj_drop_impl(void *p__alloc, void *meta__ign)
+__bpf_kfunc void bpf_obj_drop_impl(void *p__alloc, void *meta__ign)
 {
 	struct btf_struct_meta *meta = meta__ign;
 	void *p = p__alloc;
@@ -1800,12 +1851,12 @@ static void __bpf_list_add(struct bpf_list_node *node, struct bpf_list_head *hea
 	tail ? list_add_tail(n, h) : list_add(n, h);
 }
 
-void bpf_list_push_front(struct bpf_list_head *head, struct bpf_list_node *node)
+__bpf_kfunc void bpf_list_push_front(struct bpf_list_head *head, struct bpf_list_node *node)
 {
 	return __bpf_list_add(node, head, false);
 }
 
-void bpf_list_push_back(struct bpf_list_head *head, struct bpf_list_node *node)
+__bpf_kfunc void bpf_list_push_back(struct bpf_list_head *head, struct bpf_list_node *node)
 {
 	return __bpf_list_add(node, head, true);
 }
@@ -1823,14 +1874,64 @@ static struct bpf_list_node *__bpf_list_del(struct bpf_list_head *head, bool tai
 	return (struct bpf_list_node *)n;
 }
 
-struct bpf_list_node *bpf_list_pop_front(struct bpf_list_head *head)
+__bpf_kfunc struct bpf_list_node *bpf_list_pop_front(struct bpf_list_head *head)
 {
 	return __bpf_list_del(head, false);
 }
 
-struct bpf_list_node *bpf_list_pop_back(struct bpf_list_head *head)
+__bpf_kfunc struct bpf_list_node *bpf_list_pop_back(struct bpf_list_head *head)
 {
 	return __bpf_list_del(head, true);
+}
+
+__bpf_kfunc struct bpf_rb_node *bpf_rbtree_remove(struct bpf_rb_root *root,
+						  struct bpf_rb_node *node)
+{
+	struct rb_root_cached *r = (struct rb_root_cached *)root;
+	struct rb_node *n = (struct rb_node *)node;
+
+	rb_erase_cached(n, r);
+	RB_CLEAR_NODE(n);
+	return (struct bpf_rb_node *)n;
+}
+
+/* Need to copy rbtree_add_cached's logic here because our 'less' is a BPF
+ * program
+ */
+static void __bpf_rbtree_add(struct bpf_rb_root *root, struct bpf_rb_node *node,
+			     void *less)
+{
+	struct rb_node **link = &((struct rb_root_cached *)root)->rb_root.rb_node;
+	bpf_callback_t cb = (bpf_callback_t)less;
+	struct rb_node *parent = NULL;
+	bool leftmost = true;
+
+	while (*link) {
+		parent = *link;
+		if (cb((uintptr_t)node, (uintptr_t)parent, 0, 0, 0)) {
+			link = &parent->rb_left;
+		} else {
+			link = &parent->rb_right;
+			leftmost = false;
+		}
+	}
+
+	rb_link_node((struct rb_node *)node, parent, link);
+	rb_insert_color_cached((struct rb_node *)node,
+			       (struct rb_root_cached *)root, leftmost);
+}
+
+__bpf_kfunc void bpf_rbtree_add(struct bpf_rb_root *root, struct bpf_rb_node *node,
+				bool (less)(struct bpf_rb_node *a, const struct bpf_rb_node *b))
+{
+	__bpf_rbtree_add(root, node, (void *)less);
+}
+
+__bpf_kfunc struct bpf_rb_node *bpf_rbtree_first(struct bpf_rb_root *root)
+{
+	struct rb_root_cached *r = (struct rb_root_cached *)root;
+
+	return (struct bpf_rb_node *)rb_first_cached(r);
 }
 
 /**
@@ -1839,7 +1940,7 @@ struct bpf_list_node *bpf_list_pop_back(struct bpf_list_head *head)
  * bpf_task_release().
  * @p: The task on which a reference is being acquired.
  */
-struct task_struct *bpf_task_acquire(struct task_struct *p)
+__bpf_kfunc struct task_struct *bpf_task_acquire(struct task_struct *p)
 {
 	return get_task_struct(p);
 }
@@ -1850,7 +1951,7 @@ struct task_struct *bpf_task_acquire(struct task_struct *p)
  * released by calling bpf_task_release().
  * @p: The task on which a reference is being acquired.
  */
-struct task_struct *bpf_task_acquire_not_zero(struct task_struct *p)
+__bpf_kfunc struct task_struct *bpf_task_acquire_not_zero(struct task_struct *p)
 {
 	/* For the time being this function returns NULL, as it's not currently
 	 * possible to safely acquire a reference to a task with RCU protection
@@ -1902,7 +2003,7 @@ struct task_struct *bpf_task_acquire_not_zero(struct task_struct *p)
  * be released by calling bpf_task_release().
  * @pp: A pointer to a task kptr on which a reference is being acquired.
  */
-struct task_struct *bpf_task_kptr_get(struct task_struct **pp)
+__bpf_kfunc struct task_struct *bpf_task_kptr_get(struct task_struct **pp)
 {
 	/* We must return NULL here until we have clarity on how to properly
 	 * leverage RCU for ensuring a task's lifetime. See the comment above
@@ -1915,7 +2016,7 @@ struct task_struct *bpf_task_kptr_get(struct task_struct **pp)
  * bpf_task_release - Release the reference acquired on a task.
  * @p: The task on which a reference is being released.
  */
-void bpf_task_release(struct task_struct *p)
+__bpf_kfunc void bpf_task_release(struct task_struct *p)
 {
 	if (!p)
 		return;
@@ -1930,7 +2031,7 @@ void bpf_task_release(struct task_struct *p)
  * calling bpf_cgroup_release().
  * @cgrp: The cgroup on which a reference is being acquired.
  */
-struct cgroup *bpf_cgroup_acquire(struct cgroup *cgrp)
+__bpf_kfunc struct cgroup *bpf_cgroup_acquire(struct cgroup *cgrp)
 {
 	cgroup_get(cgrp);
 	return cgrp;
@@ -1942,7 +2043,7 @@ struct cgroup *bpf_cgroup_acquire(struct cgroup *cgrp)
  * be released by calling bpf_cgroup_release().
  * @cgrpp: A pointer to a cgroup kptr on which a reference is being acquired.
  */
-struct cgroup *bpf_cgroup_kptr_get(struct cgroup **cgrpp)
+__bpf_kfunc struct cgroup *bpf_cgroup_kptr_get(struct cgroup **cgrpp)
 {
 	struct cgroup *cgrp;
 
@@ -1974,7 +2075,7 @@ struct cgroup *bpf_cgroup_kptr_get(struct cgroup **cgrpp)
  * drops to 0.
  * @cgrp: The cgroup on which a reference is being released.
  */
-void bpf_cgroup_release(struct cgroup *cgrp)
+__bpf_kfunc void bpf_cgroup_release(struct cgroup *cgrp)
 {
 	if (!cgrp)
 		return;
@@ -1989,7 +2090,7 @@ void bpf_cgroup_release(struct cgroup *cgrp)
  * @cgrp: The cgroup for which we're performing a lookup.
  * @level: The level of ancestor to look up.
  */
-struct cgroup *bpf_cgroup_ancestor(struct cgroup *cgrp, int level)
+__bpf_kfunc struct cgroup *bpf_cgroup_ancestor(struct cgroup *cgrp, int level)
 {
 	struct cgroup *ancestor;
 
@@ -2008,7 +2109,7 @@ struct cgroup *bpf_cgroup_ancestor(struct cgroup *cgrp, int level)
  * stored in a map, or released with bpf_task_release().
  * @pid: The pid of the task being looked up.
  */
-struct task_struct *bpf_task_from_pid(s32 pid)
+__bpf_kfunc struct task_struct *bpf_task_from_pid(s32 pid)
 {
 	struct task_struct *p;
 
@@ -2021,22 +2122,22 @@ struct task_struct *bpf_task_from_pid(s32 pid)
 	return p;
 }
 
-void *bpf_cast_to_kern_ctx(void *obj)
+__bpf_kfunc void *bpf_cast_to_kern_ctx(void *obj)
 {
 	return obj;
 }
 
-void *bpf_rdonly_cast(void *obj__ign, u32 btf_id__k)
+__bpf_kfunc void *bpf_rdonly_cast(void *obj__ign, u32 btf_id__k)
 {
 	return obj__ign;
 }
 
-void bpf_rcu_read_lock(void)
+__bpf_kfunc void bpf_rcu_read_lock(void)
 {
 	rcu_read_lock();
 }
 
-void bpf_rcu_read_unlock(void)
+__bpf_kfunc void bpf_rcu_read_unlock(void)
 {
 	rcu_read_unlock();
 }
@@ -2057,6 +2158,10 @@ BTF_ID_FLAGS(func, bpf_task_acquire, KF_ACQUIRE | KF_TRUSTED_ARGS)
 BTF_ID_FLAGS(func, bpf_task_acquire_not_zero, KF_ACQUIRE | KF_RCU | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_task_kptr_get, KF_ACQUIRE | KF_KPTR_GET | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_task_release, KF_RELEASE)
+BTF_ID_FLAGS(func, bpf_rbtree_remove, KF_ACQUIRE)
+BTF_ID_FLAGS(func, bpf_rbtree_add)
+BTF_ID_FLAGS(func, bpf_rbtree_first, KF_RET_NULL)
+
 #ifdef CONFIG_CGROUPS
 BTF_ID_FLAGS(func, bpf_cgroup_acquire, KF_ACQUIRE | KF_TRUSTED_ARGS)
 BTF_ID_FLAGS(func, bpf_cgroup_kptr_get, KF_ACQUIRE | KF_KPTR_GET | KF_RET_NULL)

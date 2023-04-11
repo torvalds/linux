@@ -34,15 +34,20 @@ static int smbd_post_recv(
 		struct smbd_response *response);
 
 static int smbd_post_send_empty(struct smbd_connection *info);
-static int smbd_post_send_data(
-		struct smbd_connection *info,
-		struct kvec *iov, int n_vec, int remaining_data_length);
-static int smbd_post_send_page(struct smbd_connection *info,
-		struct page *page, unsigned long offset,
-		size_t size, int remaining_data_length);
 
 static void destroy_mr_list(struct smbd_connection *info);
 static int allocate_mr_list(struct smbd_connection *info);
+
+struct smb_extract_to_rdma {
+	struct ib_sge		*sge;
+	unsigned int		nr_sge;
+	unsigned int		max_sge;
+	struct ib_device	*device;
+	u32			local_dma_lkey;
+	enum dma_data_direction	direction;
+};
+static ssize_t smb_extract_iter_to_rdma(struct iov_iter *iter, size_t len,
+					struct smb_extract_to_rdma *rdma);
 
 /* SMBD version number */
 #define SMBD_V1	0x0100
@@ -823,16 +828,16 @@ static int smbd_post_send(struct smbd_connection *info,
 	return rc;
 }
 
-static int smbd_post_send_sgl(struct smbd_connection *info,
-	struct scatterlist *sgl, int data_length, int remaining_data_length)
+static int smbd_post_send_iter(struct smbd_connection *info,
+			       struct iov_iter *iter,
+			       int *_remaining_data_length)
 {
-	int num_sgs;
 	int i, rc;
 	int header_length;
+	int data_length;
 	struct smbd_request *request;
 	struct smbd_data_transfer *packet;
-	int new_credits;
-	struct scatterlist *sg;
+	int new_credits = 0;
 
 wait_credit:
 	/* Wait for send credits. A SMBD packet needs one credit */
@@ -876,6 +881,30 @@ wait_send_queue:
 	}
 
 	request->info = info;
+	memset(request->sge, 0, sizeof(request->sge));
+
+	/* Fill in the data payload to find out how much data we can add */
+	if (iter) {
+		struct smb_extract_to_rdma extract = {
+			.nr_sge		= 1,
+			.max_sge	= SMBDIRECT_MAX_SEND_SGE,
+			.sge		= request->sge,
+			.device		= info->id->device,
+			.local_dma_lkey	= info->pd->local_dma_lkey,
+			.direction	= DMA_TO_DEVICE,
+		};
+
+		rc = smb_extract_iter_to_rdma(iter, *_remaining_data_length,
+					      &extract);
+		if (rc < 0)
+			goto err_dma;
+		data_length = rc;
+		request->num_sge = extract.nr_sge;
+		*_remaining_data_length -= data_length;
+	} else {
+		data_length = 0;
+		request->num_sge = 1;
+	}
 
 	/* Fill in the packet header */
 	packet = smbd_request_payload(request);
@@ -897,7 +926,7 @@ wait_send_queue:
 	else
 		packet->data_offset = cpu_to_le32(24);
 	packet->data_length = cpu_to_le32(data_length);
-	packet->remaining_data_length = cpu_to_le32(remaining_data_length);
+	packet->remaining_data_length = cpu_to_le32(*_remaining_data_length);
 	packet->padding = 0;
 
 	log_outgoing(INFO, "credits_requested=%d credits_granted=%d data_offset=%d data_length=%d remaining_data_length=%d\n",
@@ -913,7 +942,6 @@ wait_send_queue:
 	if (!data_length)
 		header_length = offsetof(struct smbd_data_transfer, padding);
 
-	request->num_sge = 1;
 	request->sge[0].addr = ib_dma_map_single(info->id->device,
 						 (void *)packet,
 						 header_length,
@@ -926,23 +954,6 @@ wait_send_queue:
 
 	request->sge[0].length = header_length;
 	request->sge[0].lkey = info->pd->local_dma_lkey;
-
-	/* Fill in the packet data payload */
-	num_sgs = sgl ? sg_nents(sgl) : 0;
-	for_each_sg(sgl, sg, num_sgs, i) {
-		request->sge[i+1].addr =
-			ib_dma_map_page(info->id->device, sg_page(sg),
-			       sg->offset, sg->length, DMA_TO_DEVICE);
-		if (ib_dma_mapping_error(
-				info->id->device, request->sge[i+1].addr)) {
-			rc = -EIO;
-			request->sge[i+1].addr = 0;
-			goto err_dma;
-		}
-		request->sge[i+1].length = sg->length;
-		request->sge[i+1].lkey = info->pd->local_dma_lkey;
-		request->num_sge++;
-	}
 
 	rc = smbd_post_send(info, request);
 	if (!rc)
@@ -976,61 +987,16 @@ err_wait_credit:
 }
 
 /*
- * Send a page
- * page: the page to send
- * offset: offset in the page to send
- * size: length in the page to send
- * remaining_data_length: remaining data to send in this payload
- */
-static int smbd_post_send_page(struct smbd_connection *info, struct page *page,
-		unsigned long offset, size_t size, int remaining_data_length)
-{
-	struct scatterlist sgl;
-
-	sg_init_table(&sgl, 1);
-	sg_set_page(&sgl, page, size, offset);
-
-	return smbd_post_send_sgl(info, &sgl, size, remaining_data_length);
-}
-
-/*
  * Send an empty message
  * Empty message is used to extend credits to peer to for keep live
  * while there is no upper layer payload to send at the time
  */
 static int smbd_post_send_empty(struct smbd_connection *info)
 {
+	int remaining_data_length = 0;
+
 	info->count_send_empty++;
-	return smbd_post_send_sgl(info, NULL, 0, 0);
-}
-
-/*
- * Send a data buffer
- * iov: the iov array describing the data buffers
- * n_vec: number of iov array
- * remaining_data_length: remaining data to send following this packet
- * in segmented SMBD packet
- */
-static int smbd_post_send_data(
-	struct smbd_connection *info, struct kvec *iov, int n_vec,
-	int remaining_data_length)
-{
-	int i;
-	u32 data_length = 0;
-	struct scatterlist sgl[SMBDIRECT_MAX_SEND_SGE - 1];
-
-	if (n_vec > SMBDIRECT_MAX_SEND_SGE - 1) {
-		cifs_dbg(VFS, "Can't fit data to SGL, n_vec=%d\n", n_vec);
-		return -EINVAL;
-	}
-
-	sg_init_table(sgl, n_vec);
-	for (i = 0; i < n_vec; i++) {
-		data_length += iov[i].iov_len;
-		sg_set_buf(&sgl[i], iov[i].iov_base, iov[i].iov_len);
-	}
-
-	return smbd_post_send_sgl(info, sgl, data_length, remaining_data_length);
+	return smbd_post_send_iter(info, NULL, &remaining_data_length);
 }
 
 /*
@@ -1405,6 +1371,7 @@ void smbd_destroy(struct TCP_Server_Info *server)
 	destroy_workqueue(info->workqueue);
 	log_rdma_event(INFO,  "rdma session destroyed\n");
 	kfree(info);
+	server->smbd_conn = NULL;
 }
 
 /*
@@ -1699,6 +1666,7 @@ static struct smbd_connection *_smbd_get_connection(
 
 allocate_mr_failed:
 	/* At this point, need to a full transport shutdown */
+	server->smbd_conn = info;
 	smbd_destroy(server);
 	return NULL;
 
@@ -1984,18 +1952,10 @@ int smbd_send(struct TCP_Server_Info *server,
 	int num_rqst, struct smb_rqst *rqst_array)
 {
 	struct smbd_connection *info = server->smbd_conn;
-	struct kvec vecs[SMBDIRECT_MAX_SEND_SGE - 1];
-	int nvecs;
-	int size;
-	unsigned int buflen, remaining_data_length;
-	unsigned int offset, remaining_vec_data_length;
-	int start, i, j;
-	int max_iov_size =
-		info->max_send_size - sizeof(struct smbd_data_transfer);
-	struct kvec *iov;
-	int rc;
 	struct smb_rqst *rqst;
-	int rqst_idx;
+	struct iov_iter iter;
+	unsigned int remaining_data_length, klen;
+	int rc, i, rqst_idx;
 
 	if (info->transport_status != SMBD_CONNECTED)
 		return -EAGAIN;
@@ -2022,84 +1982,36 @@ int smbd_send(struct TCP_Server_Info *server,
 	rqst_idx = 0;
 	do {
 		rqst = &rqst_array[rqst_idx];
-		iov = rqst->rq_iov;
 
 		cifs_dbg(FYI, "Sending smb (RDMA): idx=%d smb_len=%lu\n",
-			rqst_idx, smb_rqst_len(server, rqst));
-		remaining_vec_data_length = 0;
-		for (i = 0; i < rqst->rq_nvec; i++) {
-			remaining_vec_data_length += iov[i].iov_len;
-			dump_smb(iov[i].iov_base, iov[i].iov_len);
+			 rqst_idx, smb_rqst_len(server, rqst));
+		for (i = 0; i < rqst->rq_nvec; i++)
+			dump_smb(rqst->rq_iov[i].iov_base, rqst->rq_iov[i].iov_len);
+
+		log_write(INFO, "RDMA-WR[%u] nvec=%d len=%u iter=%zu rqlen=%lu\n",
+			  rqst_idx, rqst->rq_nvec, remaining_data_length,
+			  iov_iter_count(&rqst->rq_iter), smb_rqst_len(server, rqst));
+
+		/* Send the metadata pages. */
+		klen = 0;
+		for (i = 0; i < rqst->rq_nvec; i++)
+			klen += rqst->rq_iov[i].iov_len;
+		iov_iter_kvec(&iter, ITER_SOURCE, rqst->rq_iov, rqst->rq_nvec, klen);
+
+		rc = smbd_post_send_iter(info, &iter, &remaining_data_length);
+		if (rc < 0)
+			break;
+
+		if (iov_iter_count(&rqst->rq_iter) > 0) {
+			/* And then the data pages if there are any */
+			rc = smbd_post_send_iter(info, &rqst->rq_iter,
+						 &remaining_data_length);
+			if (rc < 0)
+				break;
 		}
 
-		log_write(INFO, "rqst_idx=%d nvec=%d rqst->rq_npages=%d rq_pagesz=%d rq_tailsz=%d buflen=%lu\n",
-			  rqst_idx, rqst->rq_nvec,
-			  rqst->rq_npages, rqst->rq_pagesz,
-			  rqst->rq_tailsz, smb_rqst_len(server, rqst));
-
-		start = 0;
-		offset = 0;
-		do {
-			buflen = 0;
-			i = start;
-			j = 0;
-			while (i < rqst->rq_nvec &&
-				j < SMBDIRECT_MAX_SEND_SGE - 1 &&
-				buflen < max_iov_size) {
-
-				vecs[j].iov_base = iov[i].iov_base + offset;
-				if (buflen + iov[i].iov_len > max_iov_size) {
-					vecs[j].iov_len =
-						max_iov_size - iov[i].iov_len;
-					buflen = max_iov_size;
-					offset = vecs[j].iov_len;
-				} else {
-					vecs[j].iov_len =
-						iov[i].iov_len - offset;
-					buflen += vecs[j].iov_len;
-					offset = 0;
-					++i;
-				}
-				++j;
-			}
-
-			remaining_vec_data_length -= buflen;
-			remaining_data_length -= buflen;
-			log_write(INFO, "sending %s iov[%d] from start=%d nvecs=%d remaining_data_length=%d\n",
-					remaining_vec_data_length > 0 ?
-						"partial" : "complete",
-					rqst->rq_nvec, start, j,
-					remaining_data_length);
-
-			start = i;
-			rc = smbd_post_send_data(info, vecs, j, remaining_data_length);
-			if (rc)
-				goto done;
-		} while (remaining_vec_data_length > 0);
-
-		/* now sending pages if there are any */
-		for (i = 0; i < rqst->rq_npages; i++) {
-			rqst_page_get_length(rqst, i, &buflen, &offset);
-			nvecs = (buflen + max_iov_size - 1) / max_iov_size;
-			log_write(INFO, "sending pages buflen=%d nvecs=%d\n",
-				buflen, nvecs);
-			for (j = 0; j < nvecs; j++) {
-				size = min_t(unsigned int, max_iov_size, remaining_data_length);
-				remaining_data_length -= size;
-				log_write(INFO, "sending pages i=%d offset=%d size=%d remaining_data_length=%d\n",
-					  i, j * max_iov_size + offset, size,
-					  remaining_data_length);
-				rc = smbd_post_send_page(
-					info, rqst->rq_pages[i],
-					j*max_iov_size + offset,
-					size, remaining_data_length);
-				if (rc)
-					goto done;
-			}
-		}
 	} while (++rqst_idx < num_rqst);
 
-done:
 	/*
 	 * As an optimization, we don't wait for individual I/O to finish
 	 * before sending the next one.
@@ -2190,10 +2102,10 @@ static void destroy_mr_list(struct smbd_connection *info)
 	cancel_work_sync(&info->mr_recovery_work);
 	list_for_each_entry_safe(mr, tmp, &info->mr_list, list) {
 		if (mr->state == MR_INVALIDATED)
-			ib_dma_unmap_sg(info->id->device, mr->sgl,
-				mr->sgl_count, mr->dir);
+			ib_dma_unmap_sg(info->id->device, mr->sgt.sgl,
+				mr->sgt.nents, mr->dir);
 		ib_dereg_mr(mr->mr);
-		kfree(mr->sgl);
+		kfree(mr->sgt.sgl);
 		kfree(mr);
 	}
 }
@@ -2216,6 +2128,7 @@ static int allocate_mr_list(struct smbd_connection *info)
 	atomic_set(&info->mr_ready_count, 0);
 	atomic_set(&info->mr_used_count, 0);
 	init_waitqueue_head(&info->wait_for_mr_cleanup);
+	INIT_WORK(&info->mr_recovery_work, smbd_mr_recovery_work);
 	/* Allocate more MRs (2x) than hardware responder_resources */
 	for (i = 0; i < info->responder_resources * 2; i++) {
 		smbdirect_mr = kzalloc(sizeof(*smbdirect_mr), GFP_KERNEL);
@@ -2228,11 +2141,10 @@ static int allocate_mr_list(struct smbd_connection *info)
 				    info->mr_type, info->max_frmr_depth);
 			goto out;
 		}
-		smbdirect_mr->sgl = kcalloc(
-					info->max_frmr_depth,
-					sizeof(struct scatterlist),
-					GFP_KERNEL);
-		if (!smbdirect_mr->sgl) {
+		smbdirect_mr->sgt.sgl = kcalloc(info->max_frmr_depth,
+						sizeof(struct scatterlist),
+						GFP_KERNEL);
+		if (!smbdirect_mr->sgt.sgl) {
 			log_rdma_mr(ERR, "failed to allocate sgl\n");
 			ib_dereg_mr(smbdirect_mr->mr);
 			goto out;
@@ -2243,15 +2155,15 @@ static int allocate_mr_list(struct smbd_connection *info)
 		list_add_tail(&smbdirect_mr->list, &info->mr_list);
 		atomic_inc(&info->mr_ready_count);
 	}
-	INIT_WORK(&info->mr_recovery_work, smbd_mr_recovery_work);
 	return 0;
 
 out:
 	kfree(smbdirect_mr);
 
 	list_for_each_entry_safe(smbdirect_mr, tmp, &info->mr_list, list) {
+		list_del(&smbdirect_mr->list);
 		ib_dereg_mr(smbdirect_mr->mr);
-		kfree(smbdirect_mr->sgl);
+		kfree(smbdirect_mr->sgt.sgl);
 		kfree(smbdirect_mr);
 	}
 	return -ENOMEM;
@@ -2304,26 +2216,45 @@ again:
 }
 
 /*
+ * Transcribe the pages from an iterator into an MR scatterlist.
+ */
+static int smbd_iter_to_mr(struct smbd_connection *info,
+			   struct iov_iter *iter,
+			   struct sg_table *sgt,
+			   unsigned int max_sg)
+{
+	int ret;
+
+	memset(sgt->sgl, 0, max_sg * sizeof(struct scatterlist));
+
+	ret = netfs_extract_iter_to_sg(iter, iov_iter_count(iter), sgt, max_sg, 0);
+	WARN_ON(ret < 0);
+	if (sgt->nents > 0)
+		sg_mark_end(&sgt->sgl[sgt->nents - 1]);
+	return ret;
+}
+
+/*
  * Register memory for RDMA read/write
- * pages[]: the list of pages to register memory with
- * num_pages: the number of pages to register
- * tailsz: if non-zero, the bytes to register in the last page
+ * iter: the buffer to register memory with
  * writing: true if this is a RDMA write (SMB read), false for RDMA read
  * need_invalidate: true if this MR needs to be locally invalidated after I/O
  * return value: the MR registered, NULL if failed.
  */
-struct smbd_mr *smbd_register_mr(
-	struct smbd_connection *info, struct page *pages[], int num_pages,
-	int offset, int tailsz, bool writing, bool need_invalidate)
+struct smbd_mr *smbd_register_mr(struct smbd_connection *info,
+				 struct iov_iter *iter,
+				 bool writing, bool need_invalidate)
 {
 	struct smbd_mr *smbdirect_mr;
-	int rc, i;
+	int rc, num_pages;
 	enum dma_data_direction dir;
 	struct ib_reg_wr *reg_wr;
 
+	num_pages = iov_iter_npages(iter, info->max_frmr_depth + 1);
 	if (num_pages > info->max_frmr_depth) {
 		log_rdma_mr(ERR, "num_pages=%d max_frmr_depth=%d\n",
 			num_pages, info->max_frmr_depth);
+		WARN_ON_ONCE(1);
 		return NULL;
 	}
 
@@ -2332,45 +2263,31 @@ struct smbd_mr *smbd_register_mr(
 		log_rdma_mr(ERR, "get_mr returning NULL\n");
 		return NULL;
 	}
-	smbdirect_mr->need_invalidate = need_invalidate;
-	smbdirect_mr->sgl_count = num_pages;
-	sg_init_table(smbdirect_mr->sgl, num_pages);
 
-	log_rdma_mr(INFO, "num_pages=0x%x offset=0x%x tailsz=0x%x\n",
-			num_pages, offset, tailsz);
-
-	if (num_pages == 1) {
-		sg_set_page(&smbdirect_mr->sgl[0], pages[0], tailsz, offset);
-		goto skip_multiple_pages;
-	}
-
-	/* We have at least two pages to register */
-	sg_set_page(
-		&smbdirect_mr->sgl[0], pages[0], PAGE_SIZE - offset, offset);
-	i = 1;
-	while (i < num_pages - 1) {
-		sg_set_page(&smbdirect_mr->sgl[i], pages[i], PAGE_SIZE, 0);
-		i++;
-	}
-	sg_set_page(&smbdirect_mr->sgl[i], pages[i],
-		tailsz ? tailsz : PAGE_SIZE, 0);
-
-skip_multiple_pages:
 	dir = writing ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
 	smbdirect_mr->dir = dir;
-	rc = ib_dma_map_sg(info->id->device, smbdirect_mr->sgl, num_pages, dir);
+	smbdirect_mr->need_invalidate = need_invalidate;
+	smbdirect_mr->sgt.nents = 0;
+	smbdirect_mr->sgt.orig_nents = 0;
+
+	log_rdma_mr(INFO, "num_pages=0x%x count=0x%zx depth=%u\n",
+		    num_pages, iov_iter_count(iter), info->max_frmr_depth);
+	smbd_iter_to_mr(info, iter, &smbdirect_mr->sgt, info->max_frmr_depth);
+
+	rc = ib_dma_map_sg(info->id->device, smbdirect_mr->sgt.sgl,
+			   smbdirect_mr->sgt.nents, dir);
 	if (!rc) {
 		log_rdma_mr(ERR, "ib_dma_map_sg num_pages=%x dir=%x rc=%x\n",
 			num_pages, dir, rc);
 		goto dma_map_error;
 	}
 
-	rc = ib_map_mr_sg(smbdirect_mr->mr, smbdirect_mr->sgl, num_pages,
-		NULL, PAGE_SIZE);
-	if (rc != num_pages) {
+	rc = ib_map_mr_sg(smbdirect_mr->mr, smbdirect_mr->sgt.sgl,
+			  smbdirect_mr->sgt.nents, NULL, PAGE_SIZE);
+	if (rc != smbdirect_mr->sgt.nents) {
 		log_rdma_mr(ERR,
-			"ib_map_mr_sg failed rc = %d num_pages = %x\n",
-			rc, num_pages);
+			"ib_map_mr_sg failed rc = %d nents = %x\n",
+			rc, smbdirect_mr->sgt.nents);
 		goto map_mr_error;
 	}
 
@@ -2402,8 +2319,8 @@ skip_multiple_pages:
 
 	/* If all failed, attempt to recover this MR by setting it MR_ERROR*/
 map_mr_error:
-	ib_dma_unmap_sg(info->id->device, smbdirect_mr->sgl,
-		smbdirect_mr->sgl_count, smbdirect_mr->dir);
+	ib_dma_unmap_sg(info->id->device, smbdirect_mr->sgt.sgl,
+			smbdirect_mr->sgt.nents, smbdirect_mr->dir);
 
 dma_map_error:
 	smbdirect_mr->state = MR_ERROR;
@@ -2470,8 +2387,8 @@ int smbd_deregister_mr(struct smbd_mr *smbdirect_mr)
 
 	if (smbdirect_mr->state == MR_INVALIDATED) {
 		ib_dma_unmap_sg(
-			info->id->device, smbdirect_mr->sgl,
-			smbdirect_mr->sgl_count,
+			info->id->device, smbdirect_mr->sgt.sgl,
+			smbdirect_mr->sgt.nents,
 			smbdirect_mr->dir);
 		smbdirect_mr->state = MR_READY;
 		if (atomic_inc_return(&info->mr_ready_count) == 1)
@@ -2488,4 +2405,207 @@ done:
 		wake_up(&info->wait_for_mr_cleanup);
 
 	return rc;
+}
+
+static bool smb_set_sge(struct smb_extract_to_rdma *rdma,
+			struct page *lowest_page, size_t off, size_t len)
+{
+	struct ib_sge *sge = &rdma->sge[rdma->nr_sge];
+	u64 addr;
+
+	addr = ib_dma_map_page(rdma->device, lowest_page,
+			       off, len, rdma->direction);
+	if (ib_dma_mapping_error(rdma->device, addr))
+		return false;
+
+	sge->addr   = addr;
+	sge->length = len;
+	sge->lkey   = rdma->local_dma_lkey;
+	rdma->nr_sge++;
+	return true;
+}
+
+/*
+ * Extract page fragments from a BVEC-class iterator and add them to an RDMA
+ * element list.  The pages are not pinned.
+ */
+static ssize_t smb_extract_bvec_to_rdma(struct iov_iter *iter,
+					struct smb_extract_to_rdma *rdma,
+					ssize_t maxsize)
+{
+	const struct bio_vec *bv = iter->bvec;
+	unsigned long start = iter->iov_offset;
+	unsigned int i;
+	ssize_t ret = 0;
+
+	for (i = 0; i < iter->nr_segs; i++) {
+		size_t off, len;
+
+		len = bv[i].bv_len;
+		if (start >= len) {
+			start -= len;
+			continue;
+		}
+
+		len = min_t(size_t, maxsize, len - start);
+		off = bv[i].bv_offset + start;
+
+		if (!smb_set_sge(rdma, bv[i].bv_page, off, len))
+			return -EIO;
+
+		ret += len;
+		maxsize -= len;
+		if (rdma->nr_sge >= rdma->max_sge || maxsize <= 0)
+			break;
+		start = 0;
+	}
+
+	return ret;
+}
+
+/*
+ * Extract fragments from a KVEC-class iterator and add them to an RDMA list.
+ * This can deal with vmalloc'd buffers as well as kmalloc'd or static buffers.
+ * The pages are not pinned.
+ */
+static ssize_t smb_extract_kvec_to_rdma(struct iov_iter *iter,
+					struct smb_extract_to_rdma *rdma,
+					ssize_t maxsize)
+{
+	const struct kvec *kv = iter->kvec;
+	unsigned long start = iter->iov_offset;
+	unsigned int i;
+	ssize_t ret = 0;
+
+	for (i = 0; i < iter->nr_segs; i++) {
+		struct page *page;
+		unsigned long kaddr;
+		size_t off, len, seg;
+
+		len = kv[i].iov_len;
+		if (start >= len) {
+			start -= len;
+			continue;
+		}
+
+		kaddr = (unsigned long)kv[i].iov_base + start;
+		off = kaddr & ~PAGE_MASK;
+		len = min_t(size_t, maxsize, len - start);
+		kaddr &= PAGE_MASK;
+
+		maxsize -= len;
+		do {
+			seg = min_t(size_t, len, PAGE_SIZE - off);
+
+			if (is_vmalloc_or_module_addr((void *)kaddr))
+				page = vmalloc_to_page((void *)kaddr);
+			else
+				page = virt_to_page(kaddr);
+
+			if (!smb_set_sge(rdma, page, off, seg))
+				return -EIO;
+
+			ret += seg;
+			len -= seg;
+			kaddr += PAGE_SIZE;
+			off = 0;
+		} while (len > 0 && rdma->nr_sge < rdma->max_sge);
+
+		if (rdma->nr_sge >= rdma->max_sge || maxsize <= 0)
+			break;
+		start = 0;
+	}
+
+	return ret;
+}
+
+/*
+ * Extract folio fragments from an XARRAY-class iterator and add them to an
+ * RDMA list.  The folios are not pinned.
+ */
+static ssize_t smb_extract_xarray_to_rdma(struct iov_iter *iter,
+					  struct smb_extract_to_rdma *rdma,
+					  ssize_t maxsize)
+{
+	struct xarray *xa = iter->xarray;
+	struct folio *folio;
+	loff_t start = iter->xarray_start + iter->iov_offset;
+	pgoff_t index = start / PAGE_SIZE;
+	ssize_t ret = 0;
+	size_t off, len;
+	XA_STATE(xas, xa, index);
+
+	rcu_read_lock();
+
+	xas_for_each(&xas, folio, ULONG_MAX) {
+		if (xas_retry(&xas, folio))
+			continue;
+		if (WARN_ON(xa_is_value(folio)))
+			break;
+		if (WARN_ON(folio_test_hugetlb(folio)))
+			break;
+
+		off = offset_in_folio(folio, start);
+		len = min_t(size_t, maxsize, folio_size(folio) - off);
+
+		if (!smb_set_sge(rdma, folio_page(folio, 0), off, len)) {
+			rcu_read_unlock();
+			return -EIO;
+		}
+
+		maxsize -= len;
+		ret += len;
+		if (rdma->nr_sge >= rdma->max_sge || maxsize <= 0)
+			break;
+	}
+
+	rcu_read_unlock();
+	return ret;
+}
+
+/*
+ * Extract page fragments from up to the given amount of the source iterator
+ * and build up an RDMA list that refers to all of those bits.  The RDMA list
+ * is appended to, up to the maximum number of elements set in the parameter
+ * block.
+ *
+ * The extracted page fragments are not pinned or ref'd in any way; if an
+ * IOVEC/UBUF-type iterator is to be used, it should be converted to a
+ * BVEC-type iterator and the pages pinned, ref'd or otherwise held in some
+ * way.
+ */
+static ssize_t smb_extract_iter_to_rdma(struct iov_iter *iter, size_t len,
+					struct smb_extract_to_rdma *rdma)
+{
+	ssize_t ret;
+	int before = rdma->nr_sge;
+
+	switch (iov_iter_type(iter)) {
+	case ITER_BVEC:
+		ret = smb_extract_bvec_to_rdma(iter, rdma, len);
+		break;
+	case ITER_KVEC:
+		ret = smb_extract_kvec_to_rdma(iter, rdma, len);
+		break;
+	case ITER_XARRAY:
+		ret = smb_extract_xarray_to_rdma(iter, rdma, len);
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		return -EIO;
+	}
+
+	if (ret > 0) {
+		iov_iter_advance(iter, ret);
+	} else if (ret < 0) {
+		while (rdma->nr_sge > before) {
+			struct ib_sge *sge = &rdma->sge[rdma->nr_sge--];
+
+			ib_dma_unmap_single(rdma->device, sge->addr, sge->length,
+					    rdma->direction);
+			sge->addr = 0;
+		}
+	}
+
+	return ret;
 }

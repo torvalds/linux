@@ -444,11 +444,8 @@ static bool intel_dvo_init_dev(struct drm_i915_private *dev_priv,
 	 * the clock enabled before we attempt to initialize
 	 * the device.
 	 */
-	for_each_pipe(dev_priv, pipe) {
-		dpll[pipe] = intel_de_read(dev_priv, DPLL(pipe));
-		intel_de_write(dev_priv, DPLL(pipe),
-			       dpll[pipe] | DPLL_DVO_2X_MODE);
-	}
+	for_each_pipe(dev_priv, pipe)
+		dpll[pipe] = intel_de_rmw(dev_priv, DPLL(pipe), 0, DPLL_DVO_2X_MODE);
 
 	ret = dvo->dev_ops->init(&intel_dvo->dev, i2c);
 
@@ -554,6 +551,6 @@ void intel_dvo_init(struct drm_i915_private *i915)
 		 */
 		intel_panel_add_encoder_fixed_mode(connector, encoder);
 
-		intel_panel_init(connector);
+		intel_panel_init(connector, NULL);
 	}
 }

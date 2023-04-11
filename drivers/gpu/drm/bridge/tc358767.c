@@ -1264,10 +1264,10 @@ static int tc_dsi_rx_enable(struct tc_data *tc)
 	u32 value;
 	int ret;
 
-	regmap_write(tc->regmap, PPI_D0S_CLRSIPOCOUNT, 5);
-	regmap_write(tc->regmap, PPI_D1S_CLRSIPOCOUNT, 5);
-	regmap_write(tc->regmap, PPI_D2S_CLRSIPOCOUNT, 5);
-	regmap_write(tc->regmap, PPI_D3S_CLRSIPOCOUNT, 5);
+	regmap_write(tc->regmap, PPI_D0S_CLRSIPOCOUNT, 25);
+	regmap_write(tc->regmap, PPI_D1S_CLRSIPOCOUNT, 25);
+	regmap_write(tc->regmap, PPI_D2S_CLRSIPOCOUNT, 25);
+	regmap_write(tc->regmap, PPI_D3S_CLRSIPOCOUNT, 25);
 	regmap_write(tc->regmap, PPI_D0S_ATMR, 0);
 	regmap_write(tc->regmap, PPI_D1S_ATMR, 0);
 	regmap_write(tc->regmap, PPI_TX_RX_TA, TTA_GET | TTA_SURE);
@@ -1896,10 +1896,10 @@ static int tc_mipi_dsi_host_attach(struct tc_data *tc)
 				     "failed to create dsi device\n");
 
 	tc->dsi = dsi;
-
 	dsi->lanes = dsi_lanes;
 	dsi->format = MIPI_DSI_FMT_RGB888;
-	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE;
+	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
+			  MIPI_DSI_MODE_LPM | MIPI_DSI_CLOCK_NON_CONTINUOUS;
 
 	ret = mipi_dsi_attach(dsi);
 	if (ret < 0) {

@@ -10,8 +10,10 @@ ret=0
 
 PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=no}
 IP="ip -netns testns"
+IP_PEER="ip -netns peerns"
 
 RTABLE=100
+RTABLE_PEER=101
 GW_IP4=192.51.100.2
 SRC_IP=192.51.100.3
 GW_IP6=2001:db8:1::2
@@ -20,7 +22,9 @@ SRC_IP6=2001:db8:1::3
 DEV_ADDR=192.51.100.1
 DEV_ADDR6=2001:db8:1::1
 DEV=dummy0
-TESTS="fib_rule6 fib_rule4"
+TESTS="fib_rule6 fib_rule4 fib_rule6_connect fib_rule4_connect"
+
+SELFTEST_PATH=""
 
 log_test()
 {
@@ -52,6 +56,31 @@ log_section()
 	echo "######################################################################"
 }
 
+check_nettest()
+{
+	if which nettest > /dev/null 2>&1; then
+		return 0
+	fi
+
+	# Add the selftest directory to PATH if not already done
+	if [ "${SELFTEST_PATH}" = "" ]; then
+		SELFTEST_PATH="$(dirname $0)"
+		PATH="${PATH}:${SELFTEST_PATH}"
+
+		# Now retry with the new path
+		if which nettest > /dev/null 2>&1; then
+			return 0
+		fi
+
+		if [ "${ret}" -eq 0 ]; then
+			ret="${ksft_skip}"
+		fi
+		echo "nettest not found (try 'make -C ${SELFTEST_PATH} nettest')"
+	fi
+
+	return 1
+}
+
 setup()
 {
 	set -e
@@ -70,6 +99,39 @@ cleanup()
 {
 	$IP link del dev dummy0 &> /dev/null
 	ip netns del testns
+}
+
+setup_peer()
+{
+	set -e
+
+	ip netns add peerns
+	$IP_PEER link set dev lo up
+
+	ip link add name veth0 netns testns type veth \
+		peer name veth1 netns peerns
+	$IP link set dev veth0 up
+	$IP_PEER link set dev veth1 up
+
+	$IP address add 192.0.2.10 peer 192.0.2.11/32 dev veth0
+	$IP_PEER address add 192.0.2.11 peer 192.0.2.10/32 dev veth1
+
+	$IP address add 2001:db8::10 peer 2001:db8::11/128 dev veth0 nodad
+	$IP_PEER address add 2001:db8::11 peer 2001:db8::10/128 dev veth1 nodad
+
+	$IP_PEER address add 198.51.100.11/32 dev lo
+	$IP route add table $RTABLE_PEER 198.51.100.11/32 via 192.0.2.11
+
+	$IP_PEER address add 2001:db8::1:11/128 dev lo
+	$IP route add table $RTABLE_PEER 2001:db8::1:11/128 via 2001:db8::11
+
+	set +e
+}
+
+cleanup_peer()
+{
+	$IP link del dev veth0
+	ip netns del peerns
 }
 
 fib_check_iproute_support()
@@ -190,6 +252,37 @@ fib_rule6_test()
 	fi
 }
 
+# Verify that the IPV6_TCLASS option of UDPv6 and TCPv6 sockets is properly
+# taken into account when connecting the socket and when sending packets.
+fib_rule6_connect_test()
+{
+	local dsfield
+
+	if ! check_nettest; then
+		echo "SKIP: Could not run test without nettest tool"
+		return
+	fi
+
+	setup_peer
+	$IP -6 rule add dsfield 0x04 table $RTABLE_PEER
+
+	# Combine the base DS Field value (0x04) with all possible ECN values
+	# (Not-ECT: 0, ECT(1): 1, ECT(0): 2, CE: 3).
+	# The ECN bits shouldn't influence the result of the test.
+	for dsfield in 0x04 0x05 0x06 0x07; do
+		nettest -q -6 -B -t 5 -N testns -O peerns -U -D \
+			-Q "${dsfield}" -l 2001:db8::1:11 -r 2001:db8::1:11
+		log_test $? 0 "rule6 dsfield udp connect (dsfield ${dsfield})"
+
+		nettest -q -6 -B -t 5 -N testns -O peerns -Q "${dsfield}" \
+			-l 2001:db8::1:11 -r 2001:db8::1:11
+		log_test $? 0 "rule6 dsfield tcp connect (dsfield ${dsfield})"
+	done
+
+	$IP -6 rule del dsfield 0x04 table $RTABLE_PEER
+	cleanup_peer
+}
+
 fib_rule4_del()
 {
 	$IP rule del $1
@@ -296,6 +389,37 @@ fib_rule4_test()
 	fi
 }
 
+# Verify that the IP_TOS option of UDPv4 and TCPv4 sockets is properly taken
+# into account when connecting the socket and when sending packets.
+fib_rule4_connect_test()
+{
+	local dsfield
+
+	if ! check_nettest; then
+		echo "SKIP: Could not run test without nettest tool"
+		return
+	fi
+
+	setup_peer
+	$IP -4 rule add dsfield 0x04 table $RTABLE_PEER
+
+	# Combine the base DS Field value (0x04) with all possible ECN values
+	# (Not-ECT: 0, ECT(1): 1, ECT(0): 2, CE: 3).
+	# The ECN bits shouldn't influence the result of the test.
+	for dsfield in 0x04 0x05 0x06 0x07; do
+		nettest -q -B -t 5 -N testns -O peerns -D -U -Q "${dsfield}" \
+			-l 198.51.100.11 -r 198.51.100.11
+		log_test $? 0 "rule4 dsfield udp connect (dsfield ${dsfield})"
+
+		nettest -q -B -t 5 -N testns -O peerns -Q "${dsfield}" \
+			-l 198.51.100.11 -r 198.51.100.11
+		log_test $? 0 "rule4 dsfield tcp connect (dsfield ${dsfield})"
+	done
+
+	$IP -4 rule del dsfield 0x04 table $RTABLE_PEER
+	cleanup_peer
+}
+
 run_fibrule_tests()
 {
 	log_section "IPv4 fib rule"
@@ -345,6 +469,8 @@ do
 	case $t in
 	fib_rule6_test|fib_rule6)		fib_rule6_test;;
 	fib_rule4_test|fib_rule4)		fib_rule4_test;;
+	fib_rule6_connect_test|fib_rule6_connect)	fib_rule6_connect_test;;
+	fib_rule4_connect_test|fib_rule4_connect)	fib_rule4_connect_test;;
 
 	help) echo "Test names: $TESTS"; exit 0;;
 

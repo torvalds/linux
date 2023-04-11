@@ -94,23 +94,23 @@ enum dmub_status dmub_srv_stat_get_notification(struct dmub_srv *dmub,
 		break;
 	case DMUB_OUT_CMD__DPIA_NOTIFICATION:
 		notify->type = DMUB_NOTIFICATION_DPIA_NOTIFICATION;
-		notify->link_index = cmd.dpia_notify.payload.header.instance;
+		notify->link_index = cmd.dpia_notification.payload.header.instance;
 
-		if (cmd.dpia_notify.payload.header.type == DPIA_NOTIFY__BW_ALLOCATION) {
+		if (cmd.dpia_notification.payload.header.type == DPIA_NOTIFY__BW_ALLOCATION) {
 
-			if (cmd.dpia_notify.payload.data.dpia_bw_alloc.bits.bw_request_failed) {
+			notify->dpia_notification.payload.data.dpia_bw_alloc.estimated_bw =
+					cmd.dpia_notification.payload.data.dpia_bw_alloc.estimated_bw;
+			notify->dpia_notification.payload.data.dpia_bw_alloc.allocated_bw =
+					cmd.dpia_notification.payload.data.dpia_bw_alloc.allocated_bw;
+
+			if (cmd.dpia_notification.payload.data.dpia_bw_alloc.bits.bw_request_failed)
 				notify->result = DPIA_BW_REQ_FAILED;
-			} else if (cmd.dpia_notify.payload.data.dpia_bw_alloc.bits.bw_request_succeeded) {
+			else if (cmd.dpia_notification.payload.data.dpia_bw_alloc.bits.bw_request_succeeded)
 				notify->result = DPIA_BW_REQ_SUCCESS;
-				notify->bw_alloc_reply.allocated_bw =
-						cmd.dpia_notify.payload.data.dpia_bw_alloc.allocated_bw;
-			} else if (cmd.dpia_notify.payload.data.dpia_bw_alloc.bits.est_bw_changed) {
+			else if (cmd.dpia_notification.payload.data.dpia_bw_alloc.bits.est_bw_changed)
 				notify->result = DPIA_EST_BW_CHANGED;
-				notify->bw_alloc_reply.estimated_bw =
-						cmd.dpia_notify.payload.data.dpia_bw_alloc.estimated_bw;
-			} else if (cmd.dpia_notify.payload.data.dpia_bw_alloc.bits.bw_alloc_cap_changed) {
+			else if (cmd.dpia_notification.payload.data.dpia_bw_alloc.bits.bw_alloc_cap_changed)
 				notify->result = DPIA_BW_ALLOC_CAPS_CHANGED;
-			}
 		}
 		break;
 	default:

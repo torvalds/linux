@@ -276,7 +276,8 @@ enum nla_policy_validation {
  *                         Note that in the interest of code simplicity and
  *                         struct size both limits are s16, so you cannot
  *                         enforce a range that doesn't fall within the range
- *                         of s16 - do that as usual in the code instead.
+ *                         of s16 - do that using the NLA_POLICY_FULL_RANGE()
+ *                         or NLA_POLICY_FULL_RANGE_SIGNED() macros instead.
  *                         Use the NLA_POLICY_MIN(), NLA_POLICY_MAX() and
  *                         NLA_POLICY_RANGE() macros.
  *    NLA_U8,

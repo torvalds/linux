@@ -15,10 +15,6 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	pwm@7000a000 {
-		status = "okay";
-	};
-
 	host1x@50000000 {
 		dc@54200000 {
 			rgb {
@@ -26,6 +22,10 @@
 				nvidia,panel = <&panel>;
 			};
 		};
+	};
+
+	pwm@7000a000 {
+		status = "okay";
 	};
 
 	i2c@7000c000 {

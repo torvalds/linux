@@ -31,7 +31,7 @@ Description Table).  The XSDT always points to the FADT (Fixed ACPI
 Description Table) using its first entry, the data within the FADT
 includes various fixed-length entries that describe fixed ACPI features
 of the hardware.  The FADT contains a pointer to the DSDT
-(Differentiated System Descripition Table).  The XSDT also contains
+(Differentiated System Description Table).  The XSDT also contains
 entries pointing to possibly multiple SSDTs (Secondary System
 Description Table).
 

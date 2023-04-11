@@ -97,6 +97,10 @@
 #define VC5_HDMI_GCP_WORD_1_GCP_SUBPACKET_BYTE_1_SHIFT	8
 #define VC5_HDMI_GCP_WORD_1_GCP_SUBPACKET_BYTE_1_MASK	VC4_MASK(15, 8)
 
+#define VC5_HDMI_GCP_WORD_1_GCP_SUBPACKET_BYTE_0_MASK	VC4_MASK(7, 0)
+#define VC5_HDMI_GCP_WORD_1_GCP_SUBPACKET_BYTE_0_SET_AVMUTE	BIT(0)
+#define VC5_HDMI_GCP_WORD_1_GCP_SUBPACKET_BYTE_0_CLEAR_AVMUTE	BIT(4)
+
 # define VC4_HD_M_SW_RST			BIT(2)
 # define VC4_HD_M_ENABLE			BIT(0)
 
@@ -881,7 +885,8 @@ static void vc4_hdmi_set_infoframes(struct drm_encoder *encoder)
 static void vc4_hdmi_enable_scrambling(struct drm_encoder *encoder)
 {
 	struct vc4_hdmi *vc4_hdmi = encoder_to_vc4_hdmi(encoder);
-	struct drm_device *drm = vc4_hdmi->connector.dev;
+	struct drm_connector *connector = &vc4_hdmi->connector;
+	struct drm_device *drm = connector->dev;
 	const struct drm_display_mode *mode = &vc4_hdmi->saved_adjusted_mode;
 	unsigned long flags;
 	int idx;
@@ -899,8 +904,8 @@ static void vc4_hdmi_enable_scrambling(struct drm_encoder *encoder)
 	if (!drm_dev_enter(drm, &idx))
 		return;
 
-	drm_scdc_set_high_tmds_clock_ratio(vc4_hdmi->ddc, true);
-	drm_scdc_set_scrambling(vc4_hdmi->ddc, true);
+	drm_scdc_set_high_tmds_clock_ratio(connector, true);
+	drm_scdc_set_scrambling(connector, true);
 
 	spin_lock_irqsave(&vc4_hdmi->hw_lock, flags);
 	HDMI_WRITE(HDMI_SCRAMBLER_CTL, HDMI_READ(HDMI_SCRAMBLER_CTL) |
@@ -918,7 +923,8 @@ static void vc4_hdmi_enable_scrambling(struct drm_encoder *encoder)
 static void vc4_hdmi_disable_scrambling(struct drm_encoder *encoder)
 {
 	struct vc4_hdmi *vc4_hdmi = encoder_to_vc4_hdmi(encoder);
-	struct drm_device *drm = vc4_hdmi->connector.dev;
+	struct drm_connector *connector = &vc4_hdmi->connector;
+	struct drm_device *drm = connector->dev;
 	unsigned long flags;
 	int idx;
 
@@ -940,8 +946,8 @@ static void vc4_hdmi_disable_scrambling(struct drm_encoder *encoder)
 		   ~VC5_HDMI_SCRAMBLER_CTL_ENABLE);
 	spin_unlock_irqrestore(&vc4_hdmi->hw_lock, flags);
 
-	drm_scdc_set_scrambling(vc4_hdmi->ddc, false);
-	drm_scdc_set_high_tmds_clock_ratio(vc4_hdmi->ddc, false);
+	drm_scdc_set_scrambling(connector, false);
+	drm_scdc_set_high_tmds_clock_ratio(connector, false);
 
 	drm_dev_exit(idx);
 }
@@ -951,12 +957,13 @@ static void vc4_hdmi_scrambling_wq(struct work_struct *work)
 	struct vc4_hdmi *vc4_hdmi = container_of(to_delayed_work(work),
 						 struct vc4_hdmi,
 						 scrambling_work);
+	struct drm_connector *connector = &vc4_hdmi->connector;
 
-	if (drm_scdc_get_scrambling_status(vc4_hdmi->ddc))
+	if (drm_scdc_get_scrambling_status(connector))
 		return;
 
-	drm_scdc_set_high_tmds_clock_ratio(vc4_hdmi->ddc, true);
-	drm_scdc_set_scrambling(vc4_hdmi->ddc, true);
+	drm_scdc_set_high_tmds_clock_ratio(connector, true);
+	drm_scdc_set_scrambling(connector, true);
 
 	queue_delayed_work(system_wq, &vc4_hdmi->scrambling_work,
 			   msecs_to_jiffies(SCRAMBLING_POLLING_DELAY_MS));
@@ -1316,7 +1323,6 @@ static void vc5_hdmi_set_timings(struct vc4_hdmi *vc4_hdmi,
 					VC4_HDMI_VERTB_VBP));
 	unsigned long flags;
 	unsigned char gcp;
-	bool gcp_en;
 	u32 reg;
 	int idx;
 
@@ -1351,16 +1357,13 @@ static void vc5_hdmi_set_timings(struct vc4_hdmi *vc4_hdmi,
 	switch (vc4_state->output_bpc) {
 	case 12:
 		gcp = 6;
-		gcp_en = true;
 		break;
 	case 10:
 		gcp = 5;
-		gcp_en = true;
 		break;
 	case 8:
 	default:
-		gcp = 4;
-		gcp_en = false;
+		gcp = 0;
 		break;
 	}
 
@@ -1369,8 +1372,7 @@ static void vc5_hdmi_set_timings(struct vc4_hdmi *vc4_hdmi,
 	 * doesn't signal in GCP.
 	 */
 	if (vc4_state->output_format == VC4_HDMI_OUTPUT_YUV422) {
-		gcp = 4;
-		gcp_en = false;
+		gcp = 0;
 	}
 
 	reg = HDMI_READ(HDMI_DEEP_COLOR_CONFIG_1);
@@ -1383,11 +1385,12 @@ static void vc5_hdmi_set_timings(struct vc4_hdmi *vc4_hdmi,
 	reg = HDMI_READ(HDMI_GCP_WORD_1);
 	reg &= ~VC5_HDMI_GCP_WORD_1_GCP_SUBPACKET_BYTE_1_MASK;
 	reg |= VC4_SET_FIELD(gcp, VC5_HDMI_GCP_WORD_1_GCP_SUBPACKET_BYTE_1);
+	reg &= ~VC5_HDMI_GCP_WORD_1_GCP_SUBPACKET_BYTE_0_MASK;
+	reg |= VC5_HDMI_GCP_WORD_1_GCP_SUBPACKET_BYTE_0_CLEAR_AVMUTE;
 	HDMI_WRITE(HDMI_GCP_WORD_1, reg);
 
 	reg = HDMI_READ(HDMI_GCP_CONFIG);
-	reg &= ~VC5_HDMI_GCP_CONFIG_GCP_ENABLE;
-	reg |= gcp_en ? VC5_HDMI_GCP_CONFIG_GCP_ENABLE : 0;
+	reg |= VC5_HDMI_GCP_CONFIG_GCP_ENABLE;
 	HDMI_WRITE(HDMI_GCP_CONFIG, reg);
 
 	reg = HDMI_READ(HDMI_MISC_CONTROL);
@@ -1466,6 +1469,12 @@ static void vc4_hdmi_encoder_pre_crtc_configure(struct drm_encoder *encoder,
 	if (!drm_dev_enter(drm, &idx))
 		goto out;
 
+	ret = pm_runtime_resume_and_get(&vc4_hdmi->pdev->dev);
+	if (ret < 0) {
+		DRM_ERROR("Failed to retain power domain: %d\n", ret);
+		goto err_dev_exit;
+	}
+
 	/*
 	 * As stated in RPi's vc4 firmware "HDMI state machine (HSM) clock must
 	 * be faster than pixel clock, infinitesimally faster, tested in
@@ -1482,17 +1491,13 @@ static void vc4_hdmi_encoder_pre_crtc_configure(struct drm_encoder *encoder,
 	 * Additionally, the AXI clock needs to be at least 25% of
 	 * pixel clock, but HSM ends up being the limiting factor.
 	 */
-	hsm_rate = max_t(unsigned long, 120000000, (tmds_char_rate / 100) * 101);
+	hsm_rate = max_t(unsigned long,
+			 HSM_MIN_CLOCK_FREQ,
+			 (tmds_char_rate / 100) * 101);
 	ret = clk_set_min_rate(vc4_hdmi->hsm_clock, hsm_rate);
 	if (ret) {
 		DRM_ERROR("Failed to set HSM clock rate: %d\n", ret);
-		goto err_dev_exit;
-	}
-
-	ret = pm_runtime_resume_and_get(&vc4_hdmi->pdev->dev);
-	if (ret < 0) {
-		DRM_ERROR("Failed to retain power domain: %d\n", ret);
-		goto err_dev_exit;
+		goto err_put_runtime_pm;
 	}
 
 	ret = clk_set_rate(vc4_hdmi->pixel_clock, tmds_char_rate);
@@ -3018,13 +3023,14 @@ static int vc4_hdmi_cec_init(struct vc4_hdmi *vc4_hdmi)
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	if (!of_find_property(dev->of_node, "interrupts", NULL)) {
+	if (!of_property_present(dev->of_node, "interrupts")) {
 		dev_warn(dev, "'interrupts' DT property is missing, no CEC\n");
 		return 0;
 	}
 
 	vc4_hdmi->cec_adap = cec_allocate_adapter(&vc4_hdmi_cec_adap_ops,
-						  vc4_hdmi, "vc4",
+						  vc4_hdmi,
+						  vc4_hdmi->variant->card_name,
 						  CEC_CAP_DEFAULTS |
 						  CEC_CAP_CONNECTOR_INFO, 1);
 	ret = PTR_ERR_OR_ZERO(vc4_hdmi->cec_adap);
@@ -3187,15 +3193,8 @@ static int vc4_hdmi_init_resources(struct drm_device *drm,
 		DRM_ERROR("Failed to get HDMI state machine clock\n");
 		return PTR_ERR(vc4_hdmi->hsm_clock);
 	}
-
 	vc4_hdmi->audio_clock = vc4_hdmi->hsm_clock;
 	vc4_hdmi->cec_clock = vc4_hdmi->hsm_clock;
-
-	vc4_hdmi->hsm_rpm_clock = devm_clk_get(dev, "hdmi");
-	if (IS_ERR(vc4_hdmi->hsm_rpm_clock)) {
-		DRM_ERROR("Failed to get HDMI state machine clock\n");
-		return PTR_ERR(vc4_hdmi->hsm_rpm_clock);
-	}
 
 	return 0;
 }
@@ -3279,12 +3278,6 @@ static int vc5_hdmi_init_resources(struct drm_device *drm,
 		return PTR_ERR(vc4_hdmi->hsm_clock);
 	}
 
-	vc4_hdmi->hsm_rpm_clock = devm_clk_get(dev, "hdmi");
-	if (IS_ERR(vc4_hdmi->hsm_rpm_clock)) {
-		DRM_ERROR("Failed to get HDMI state machine clock\n");
-		return PTR_ERR(vc4_hdmi->hsm_rpm_clock);
-	}
-
 	vc4_hdmi->pixel_bvb_clock = devm_clk_get(dev, "bvb");
 	if (IS_ERR(vc4_hdmi->pixel_bvb_clock)) {
 		DRM_ERROR("Failed to get pixel bvb clock\n");
@@ -3348,7 +3341,7 @@ static int vc4_hdmi_runtime_suspend(struct device *dev)
 {
 	struct vc4_hdmi *vc4_hdmi = dev_get_drvdata(dev);
 
-	clk_disable_unprepare(vc4_hdmi->hsm_rpm_clock);
+	clk_disable_unprepare(vc4_hdmi->hsm_clock);
 
 	return 0;
 }
@@ -3361,16 +3354,7 @@ static int vc4_hdmi_runtime_resume(struct device *dev)
 	unsigned long rate;
 	int ret;
 
-	/*
-	 * The HSM clock is in the HDMI power domain, so we need to set
-	 * its frequency while the power domain is active so that it
-	 * keeps its rate.
-	 */
-	ret = clk_set_min_rate(vc4_hdmi->hsm_rpm_clock, HSM_MIN_CLOCK_FREQ);
-	if (ret)
-		return ret;
-
-	ret = clk_prepare_enable(vc4_hdmi->hsm_rpm_clock);
+	ret = clk_prepare_enable(vc4_hdmi->hsm_clock);
 	if (ret)
 		return ret;
 
@@ -3383,7 +3367,7 @@ static int vc4_hdmi_runtime_resume(struct device *dev)
 	 * case, it will lead to a silent CPU stall. Let's make sure we
 	 * prevent such a case.
 	 */
-	rate = clk_get_rate(vc4_hdmi->hsm_rpm_clock);
+	rate = clk_get_rate(vc4_hdmi->hsm_clock);
 	if (!rate) {
 		ret = -EINVAL;
 		goto err_disable_clk;

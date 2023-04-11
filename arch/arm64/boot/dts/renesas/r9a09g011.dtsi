@@ -69,6 +69,54 @@
 			clock-names = "clk";
 		};
 
+		sdhi0: mmc@85000000 {
+			compatible = "renesas,sdhi-r9a09g011",
+				     "renesas,rcar-gen3-sdhi";
+			reg = <0x0 0x85000000 0 0x2000>;
+			interrupts = <GIC_SPI 356 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 357 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD R9A09G011_SDI0_IMCLK>,
+				 <&cpg CPG_MOD R9A09G011_SDI0_CLK_HS>,
+				 <&cpg CPG_MOD R9A09G011_SDI0_IMCLK2>,
+				 <&cpg CPG_MOD R9A09G011_SDI0_ACLK>;
+			clock-names = "core", "clkh", "cd", "aclk";
+			resets = <&cpg R9A09G011_SDI0_IXRST>;
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		sdhi1: mmc@85010000  {
+			compatible = "renesas,sdhi-r9a09g011",
+				     "renesas,rcar-gen3-sdhi";
+			reg = <0x0 0x85010000 0 0x2000>;
+			interrupts = <GIC_SPI 358 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 359 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD R9A09G011_SDI1_IMCLK>,
+				 <&cpg CPG_MOD R9A09G011_SDI1_CLK_HS>,
+				 <&cpg CPG_MOD R9A09G011_SDI1_IMCLK2>,
+				 <&cpg CPG_MOD R9A09G011_SDI1_ACLK>;
+			clock-names = "core", "clkh", "cd", "aclk";
+			resets = <&cpg R9A09G011_SDI1_IXRST>;
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		emmc: mmc@85020000  {
+			compatible = "renesas,sdhi-r9a09g011",
+				     "renesas,rcar-gen3-sdhi";
+			reg = <0x0 0x85020000 0 0x2000>;
+			interrupts = <GIC_SPI 354 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 355 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD R9A09G011_EMM_IMCLK>,
+				 <&cpg CPG_MOD R9A09G011_EMM_CLK_HS>,
+				 <&cpg CPG_MOD R9A09G011_EMM_IMCLK2>,
+				 <&cpg CPG_MOD R9A09G011_EMM_ACLK>;
+			clock-names = "core", "clkh", "cd", "aclk";
+			resets = <&cpg R9A09G011_EMM_IXRST>;
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
 		avb: ethernet@a3300000 {
 			compatible = "renesas,etheravb-r9a09g011","renesas,etheravb-rzv2m";
 			reg = <0 0xa3300000 0 0x800>;
@@ -117,7 +165,7 @@
 			power-domains = <&cpg>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			status = "disable";
+			status = "disabled";
 		};
 
 		cpg: clock-controller@a3500000 {
@@ -128,6 +176,14 @@
 			#clock-cells = <2>;
 			#reset-cells = <1>;
 			#power-domain-cells = <0>;
+		};
+
+		pwc: pwc@a3700000 {
+			compatible = "renesas,r9a09g011-pwc", "renesas,rzv2m-pwc";
+			reg = <0 0xa3700000 0 0x800>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			status = "disabled";
 		};
 
 		sys: system-controller@a3f03000 {

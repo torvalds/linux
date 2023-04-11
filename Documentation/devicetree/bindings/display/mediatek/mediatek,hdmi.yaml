@@ -50,7 +50,7 @@ properties:
       - const: hdmi
 
   mediatek,syscon-hdmi:
-    $ref: '/schemas/types.yaml#/definitions/phandle-array'
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       - items:
           - description: phandle to system configuration registers

@@ -391,7 +391,7 @@ static int sun8i_mixer_bind(struct device *dev, struct device *master,
 	mixer->engine.ops = &sun8i_engine_ops;
 	mixer->engine.node = dev->of_node;
 
-	if (of_find_property(dev->of_node, "iommus", NULL)) {
+	if (of_property_present(dev->of_node, "iommus")) {
 		/*
 		 * This assume we have the same DMA constraints for
 		 * all our the mixers in our pipeline. This sounds

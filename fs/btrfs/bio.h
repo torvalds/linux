@@ -26,32 +26,23 @@ struct btrfs_fs_info;
 typedef void (*btrfs_bio_end_io_t)(struct btrfs_bio *bbio);
 
 /*
- * Additional info to pass along bio.
- *
- * Mostly for btrfs specific features like csum and mirror_num.
+ * Highlevel btrfs I/O structure.  It is allocated by btrfs_bio_alloc and
+ * passed to btrfs_submit_bio for mapping to the physical devices.
  */
 struct btrfs_bio {
-	unsigned int mirror_num:7;
-
-	/*
-	 * Extra indicator for metadata bios.
-	 * For some btrfs bios they use pages without a mapping, thus
-	 * we can not rely on page->mapping->host to determine if
-	 * it's a metadata bio.
-	 */
-	unsigned int is_metadata:1;
-	struct bvec_iter iter;
-
-	/* for direct I/O */
+	/* Inode and offset into it that this I/O operates on. */
+	struct btrfs_inode *inode;
 	u64 file_offset;
 
-	/* @device is for stripe IO submission. */
-	struct btrfs_device *device;
 	union {
-		/* For data checksum verification. */
+		/*
+		 * Data checksumming and original I/O information for internal
+		 * use in the btrfs_submit_bio machinery.
+		 */
 		struct {
 			u8 *csum;
 			u8 csum_inline[BTRFS_BIO_INLINE_CSUM_SIZE];
+			struct bvec_iter saved_iter;
 		};
 
 		/* For metadata parentness verification. */
@@ -62,7 +53,9 @@ struct btrfs_bio {
 	btrfs_bio_end_io_t end_io;
 	void *private;
 
-	/* For read end I/O handling */
+	/* For internal use in read end I/O handling */
+	unsigned int mirror_num;
+	atomic_t pending_ios;
 	struct work_struct end_io_work;
 
 	/*
@@ -80,11 +73,11 @@ static inline struct btrfs_bio *btrfs_bio(struct bio *bio)
 int __init btrfs_bioset_init(void);
 void __cold btrfs_bioset_exit(void);
 
+void btrfs_bio_init(struct btrfs_bio *bbio, struct btrfs_inode *inode,
+		    btrfs_bio_end_io_t end_io, void *private);
 struct bio *btrfs_bio_alloc(unsigned int nr_vecs, blk_opf_t opf,
+			    struct btrfs_inode *inode,
 			    btrfs_bio_end_io_t end_io, void *private);
-struct bio *btrfs_bio_clone_partial(struct bio *orig, u64 offset, u64 size,
-				    btrfs_bio_end_io_t end_io, void *private);
-
 
 static inline void btrfs_bio_end_io(struct btrfs_bio *bbio, blk_status_t status)
 {
@@ -92,34 +85,10 @@ static inline void btrfs_bio_end_io(struct btrfs_bio *bbio, blk_status_t status)
 	bbio->end_io(bbio);
 }
 
-static inline void btrfs_bio_free_csum(struct btrfs_bio *bbio)
-{
-	if (bbio->is_metadata)
-		return;
-	if (bbio->csum != bbio->csum_inline) {
-		kfree(bbio->csum);
-		bbio->csum = NULL;
-	}
-}
+/* Bio only refers to one ordered extent. */
+#define REQ_BTRFS_ONE_ORDERED			REQ_DRV
 
-/*
- * Iterate through a btrfs_bio (@bbio) on a per-sector basis.
- *
- * bvl        - struct bio_vec
- * bbio       - struct btrfs_bio
- * iters      - struct bvec_iter
- * bio_offset - unsigned int
- */
-#define btrfs_bio_for_each_sector(fs_info, bvl, bbio, iter, bio_offset)	\
-	for ((iter) = (bbio)->iter, (bio_offset) = 0;			\
-	     (iter).bi_size &&					\
-	     (((bvl) = bio_iter_iovec((&(bbio)->bio), (iter))), 1);	\
-	     (bio_offset) += fs_info->sectorsize,			\
-	     bio_advance_iter_single(&(bbio)->bio, &(iter),		\
-	     (fs_info)->sectorsize))
-
-void btrfs_submit_bio(struct btrfs_fs_info *fs_info, struct bio *bio,
-		      int mirror_num);
+void btrfs_submit_bio(struct bio *bio, int mirror_num);
 int btrfs_repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 start,
 			    u64 length, u64 logical, struct page *page,
 			    unsigned int pg_offset, int mirror_num);

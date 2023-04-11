@@ -73,17 +73,17 @@ config SERIAL_AMBA_PL011_CONSOLE
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
 
-config SERIAL_EARLYCON_ARM_SEMIHOST
-	bool "Early console using ARM semihosting"
-	depends on ARM64 || ARM
+config SERIAL_EARLYCON_SEMIHOST
+	bool "Early console using Arm compatible semihosting"
+	depends on ARM64 || ARM || RISCV
 	select SERIAL_CORE
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_EARLYCON
 	help
-	  Support for early debug console using ARM semihosting. This enables
-	  the console before standard serial driver is probed. This is enabled
-	  with "earlycon=smh" on the kernel command line. The console is
-	  enabled when early_param is processed.
+	  Support for early debug console using Arm compatible semihosting.
+	  This enables the console before standard serial driver is probed.
+	  This is enabled with "earlycon=smh" on the kernel command line.
+	  The console is enabled when early_param is processed.
 
 config SERIAL_EARLYCON_RISCV_SBI
 	bool "Early console using RISC-V SBI"
@@ -242,23 +242,23 @@ config SERIAL_SAMSUNG
 	select SERIAL_CORE
 	help
 	  Support for the on-chip UARTs on the Samsung
-	  S3C24xx/S3C64xx/S5Pv210/Exynos and Apple M1 SoCs, providing
+	  S3C64xx/S5Pv210/Exynos and Apple M1 SoCs, providing
 	  /dev/ttySAC0, 1 and 2 (note, some machines may not provide all of
 	  these ports, depending on how the serial port pins are configured.
+
 	  Choose Y/M here only if you build for such SoC.
 
 config SERIAL_SAMSUNG_UARTS_4
 	bool
 	depends on SERIAL_SAMSUNG
-	default y if !(CPU_S3C2410 || CPU_S3C2412 || CPU_S3C2440 || CPU_S3C2442)
+	default y
 	help
 	  Internal node for the common case of 4 Samsung compatible UARTs
 
 config SERIAL_SAMSUNG_UARTS
 	int
 	depends on SERIAL_SAMSUNG
-	default 4 if SERIAL_SAMSUNG_UARTS_4 || CPU_S3C2416
-	default 3
+	default 4
 	help
 	  Select the number of available UART ports for the Samsung S3C
 	  serial driver
@@ -1313,7 +1313,7 @@ config SERIAL_FSL_LPUART
 
 config SERIAL_FSL_LPUART_CONSOLE
 	bool "Console on Freescale lpuart serial port"
-	depends on SERIAL_FSL_LPUART
+	depends on SERIAL_FSL_LPUART=y
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_EARLYCON
 	help
@@ -1507,7 +1507,7 @@ config SERIAL_MILBEAUT_USIO_CONSOLE
 config SERIAL_LITEUART
 	tristate "LiteUART serial port support"
 	depends on HAS_IOMEM
-	depends on OF || COMPILE_TEST
+	depends on OF
 	depends on LITEX || COMPILE_TEST
 	select SERIAL_CORE
 	help

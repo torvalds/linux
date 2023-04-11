@@ -14,7 +14,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
-#include <linux/qcom_scm.h>
+#include <linux/firmware/qcom/qcom_scm.h>
 #include <linux/reboot.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
@@ -310,6 +310,8 @@ static int msm_config_reg(struct msm_pinctrl *pctrl,
 	case PIN_CONFIG_BIAS_PULL_UP:
 		*bit = g->pull_bit;
 		*mask = 3;
+		if (g->i2c_pull_bit)
+			*mask |= BIT(g->i2c_pull_bit) >> *bit;
 		break;
 	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
 		*bit = g->od_bit;
@@ -336,6 +338,7 @@ static int msm_config_reg(struct msm_pinctrl *pctrl,
 #define MSM_KEEPER		2
 #define MSM_PULL_UP_NO_KEEPER	2
 #define MSM_PULL_UP		3
+#define MSM_I2C_STRONG_PULL_UP	2200
 
 static unsigned msm_regval_to_drive(u32 val)
 {
@@ -387,6 +390,8 @@ static int msm_config_group_get(struct pinctrl_dev *pctldev,
 	case PIN_CONFIG_BIAS_PULL_UP:
 		if (pctrl->soc->pull_no_keeper)
 			arg = arg == MSM_PULL_UP_NO_KEEPER;
+		else if (arg & BIT(g->i2c_pull_bit))
+			arg = MSM_I2C_STRONG_PULL_UP;
 		else
 			arg = arg == MSM_PULL_UP;
 		if (!arg)
@@ -467,6 +472,8 @@ static int msm_config_group_set(struct pinctrl_dev *pctldev,
 		case PIN_CONFIG_BIAS_PULL_UP:
 			if (pctrl->soc->pull_no_keeper)
 				arg = MSM_PULL_UP_NO_KEEPER;
+			else if (g->i2c_pull_bit && arg == MSM_I2C_STRONG_PULL_UP)
+				arg = BIT(g->i2c_pull_bit) | MSM_PULL_UP;
 			else
 				arg = MSM_PULL_UP;
 			break;
@@ -1350,7 +1357,7 @@ static int msm_gpio_init(struct msm_pinctrl *pctrl)
 	girq = &chip->irq;
 	gpio_irq_chip_set_chip(girq, &msm_gpio_irq_chip);
 	girq->parent_handler = msm_gpio_irq_handler;
-	girq->fwnode = pctrl->dev->fwnode;
+	girq->fwnode = dev_fwnode(pctrl->dev);
 	girq->num_parents = 1;
 	girq->parents = devm_kcalloc(pctrl->dev, 1, sizeof(*girq->parents),
 				     GFP_KERNEL);

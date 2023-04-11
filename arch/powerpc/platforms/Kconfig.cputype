@@ -118,19 +118,18 @@ endchoice
 
 choice
 	prompt "CPU selection"
-	default GENERIC_CPU
 	help
 	  This will create a kernel which is optimised for a particular CPU.
 	  The resulting kernel may not run on other CPUs, so use this with care.
 
 	  If unsure, select Generic.
 
-config GENERIC_CPU
+config POWERPC64_CPU
 	bool "Generic (POWER5 and PowerPC 970 and above)"
 	depends on PPC_BOOK3S_64 && !CPU_LITTLE_ENDIAN
 	select PPC_64S_HASH_MMU
 
-config GENERIC_CPU
+config POWERPC64_CPU
 	bool "Generic (POWER8 and above)"
 	depends on PPC_BOOK3S_64 && CPU_LITTLE_ENDIAN
 	select ARCH_HAS_FAST_MULTIPLIER
@@ -144,6 +143,7 @@ config POWERPC_CPU
 config CELL_CPU
 	bool "Cell Broadband Engine"
 	depends on PPC_BOOK3S_64 && !CPU_LITTLE_ENDIAN
+	depends on !CC_IS_CLANG
 	select PPC_64S_HASH_MMU
 
 config PPC_970_CPU
@@ -188,11 +188,13 @@ config E5500_CPU
 config E6500_CPU
 	bool "Freescale e6500"
 	depends on PPC64 && PPC_E500
+	depends on !CC_IS_CLANG
 	select PPC_HAS_LBARX_LHARX
 
 config 405_CPU
 	bool "40x family"
 	depends on 40x
+	depends on !CC_IS_CLANG
 
 config 440_CPU
 	bool "440 (44x family)"
@@ -201,22 +203,27 @@ config 440_CPU
 config 464_CPU
 	bool "464 (44x family)"
 	depends on 44x
+	depends on !CC_IS_CLANG
 
 config 476_CPU
 	bool "476 (47x family)"
 	depends on PPC_47x
+	depends on !CC_IS_CLANG
 
 config 860_CPU
 	bool "8xx family"
 	depends on PPC_8xx
+	depends on !CC_IS_CLANG
 
 config E300C2_CPU
 	bool "e300c2 (832x)"
 	depends on PPC_BOOK3S_32
+	depends on !CC_IS_CLANG
 
 config E300C3_CPU
 	bool "e300c3 (831x)"
 	depends on PPC_BOOK3S_32
+	depends on !CC_IS_CLANG
 
 config G4_CPU
 	bool "G4 (74xx)"
@@ -233,13 +240,12 @@ config E500MC_CPU
 
 config TOOLCHAIN_DEFAULT_CPU
 	bool "Rely on the toolchain's implicit default CPU"
-	depends on PPC32
 
 endchoice
 
 config TARGET_CPU_BOOL
 	bool
-	default !GENERIC_CPU && !TOOLCHAIN_DEFAULT_CPU
+	default !TOOLCHAIN_DEFAULT_CPU
 
 config TARGET_CPU
 	string
@@ -251,6 +257,10 @@ config TARGET_CPU
 	default "power8" if POWER8_CPU
 	default "power9" if POWER9_CPU
 	default "power10" if POWER10_CPU
+	default "e5500" if E5500_CPU
+	default "e6500" if E6500_CPU
+	default "power4" if POWERPC64_CPU && !CPU_LITTLE_ENDIAN
+	default "power8" if POWERPC64_CPU && CPU_LITTLE_ENDIAN
 	default "405" if 405_CPU
 	default "440" if 440_CPU
 	default "464" if 464_CPU

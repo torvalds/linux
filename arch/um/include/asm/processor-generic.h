@@ -91,7 +91,7 @@ struct cpuinfo_um {
 
 extern struct cpuinfo_um boot_cpu_data;
 
-#define cpu_data (&boot_cpu_data)
+#define cpu_data(cpu)    boot_cpu_data
 #define current_cpu_data boot_cpu_data
 #define cache_line_size()	(boot_cpu_data.cache_alignment)
 

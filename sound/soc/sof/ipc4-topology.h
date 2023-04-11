@@ -46,12 +46,14 @@
 #define SOF_IPC4_NODE_INDEX_INTEL_SSP(x) (((x) & 0xf) << 4)
 
 /* Node ID for DMIC type DAI copiers */
-#define SOF_IPC4_NODE_INDEX_INTEL_DMIC(x) (((x) & 0x7) << 5)
+#define SOF_IPC4_NODE_INDEX_INTEL_DMIC(x) ((x) & 0x7)
 
 #define SOF_IPC4_GAIN_ALL_CHANNELS_MASK 0xffffffff
 #define SOF_IPC4_VOL_ZERO_DB	0x7fffffff
 
 #define ALH_MAX_NUMBER_OF_GTW   16
+
+#define SOF_IPC4_INVALID_NODE_ID	0xffffffff
 
 /*
  * The base of multi-gateways. Multi-gateways addressing starts from
@@ -64,6 +66,52 @@
 /* A magic number from FW */
 #define ALH_MULTI_GTW_COUNT	8
 
+enum sof_ipc4_copier_module_config_params {
+/*
+ * Use LARGE_CONFIG_SET to initialize timestamp event. Ipc mailbox must
+ * contain properly built CopierConfigTimestampInitData struct.
+ */
+	SOF_IPC4_COPIER_MODULE_CFG_PARAM_TIMESTAMP_INIT = 1,
+/*
+ * Use LARGE_CONFIG_SET to initialize copier sink. Ipc mailbox must contain
+ * properly built CopierConfigSetSinkFormat struct.
+ */
+	SOF_IPC4_COPIER_MODULE_CFG_PARAM_SET_SINK_FORMAT,
+/*
+ * Use LARGE_CONFIG_SET to initialize and enable on Copier data segment
+ * event. Ipc mailbox must contain properly built DataSegmentEnabled struct.
+ */
+	SOF_IPC4_COPIER_MODULE_CFG_PARAM_DATA_SEGMENT_ENABLED,
+/*
+ * Use LARGE_CONFIG_GET to retrieve Linear Link Position (LLP) value for non
+ * HD-A gateways.
+ */
+	SOF_IPC4_COPIER_MODULE_CFG_PARAM_LLP_READING,
+/*
+ * Use LARGE_CONFIG_GET to retrieve Linear Link Position (LLP) value for non
+ * HD-A gateways and corresponding total processed data
+ */
+	SOF_IPC4_COPIER_MODULE_CFG_PARAM_LLP_READING_EXTENDED,
+/*
+ * Use LARGE_CONFIG_SET to setup attenuation on output pins. Data is just uint32_t.
+ * note Config is only allowed when output pin is set up for 32bit and source
+ * is connected to Gateway
+ */
+	SOF_IPC4_COPIER_MODULE_CFG_ATTENUATION,
+};
+
+struct sof_ipc4_copier_config_set_sink_format {
+/* Id of sink */
+	u32 sink_id;
+/*
+ * Input format used by the source
+ * attention must be the same as present if already initialized.
+ */
+	struct sof_ipc4_audio_format source_fmt;
+/* Output format used by the sink */
+	struct sof_ipc4_audio_format sink_fmt;
+} __packed __aligned(4);
+
 /**
  * struct sof_ipc4_pipeline - pipeline config data
  * @priority: Priority of this pipeline
@@ -71,6 +119,7 @@
  * @mem_usage: Memory usage
  * @state: Pipeline state
  * @msg: message structure for pipeline
+ * @skip_during_fe_trigger: skip triggering this pipeline during the FE DAI trigger
  */
 struct sof_ipc4_pipeline {
 	uint32_t priority;
@@ -78,7 +127,18 @@ struct sof_ipc4_pipeline {
 	uint32_t mem_usage;
 	int state;
 	struct sof_ipc4_msg msg;
+	bool skip_during_fe_trigger;
 };
+
+/**
+ * struct sof_ipc4_multi_pipeline_data - multi pipeline trigger IPC data
+ * @count: Number of pipelines to be triggered
+ * @pipeline_ids: Flexible array of IDs of the pipelines to be triggered
+ */
+struct ipc4_pipeline_set_state_data {
+	u32 count;
+	DECLARE_FLEX_ARRAY(u32, pipeline_ids);
+} __packed;
 
 /**
  * struct sof_ipc4_available_audio_format - Available audio formats
@@ -217,14 +277,16 @@ struct sof_ipc4_control_data {
  * @init_val: Initial value
  * @curve_type: Curve type
  * @reserved: reserved for future use
- * @curve_duration: Curve duration
+ * @curve_duration_l: Curve duration low part
+ * @curve_duration_h: Curve duration high part
  */
 struct sof_ipc4_gain_data {
 	uint32_t channels;
 	uint32_t init_val;
 	uint32_t curve_type;
 	uint32_t reserved;
-	uint32_t curve_duration;
+	uint32_t curve_duration_l;
+	uint32_t curve_duration_h;
 } __aligned(8);
 
 /**

@@ -8,13 +8,6 @@
 OBJECTS := head_32.o misc.o cache.o piggy.o \
            ashiftrt.o ashldi3.o ashrsi3.o ashlsi3.o lshrsi3.o
 
-# These were previously generated files. When you are building the kernel
-# with O=, make sure to remove the stale files in the output tree. Otherwise,
-# the build system wrongly compiles the stale ones.
-ifdef building_out_of_srctree
-$(shell rm -f $(addprefix $(obj)/, ashiftrt.S ashldi3.c ashrsi3.S ashlsi3.S lshrsi3.S))
-endif
-
 targets := vmlinux vmlinux.bin vmlinux.bin.gz vmlinux.bin.bz2 \
            vmlinux.bin.lzma vmlinux.bin.xz vmlinux.bin.lzo $(OBJECTS)
 

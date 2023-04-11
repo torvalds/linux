@@ -52,7 +52,6 @@
 #include "i915_irq.h"
 #include "i915_scheduler.h"
 #include "intel_mchbar_regs.h"
-#include "intel_pm.h"
 
 static inline struct drm_i915_private *node_to_i915(struct drm_info_node *node)
 {
@@ -668,13 +667,14 @@ i915_drop_caches_get(void *data, u64 *val)
 
 	return 0;
 }
+
 static int
 gt_drop_caches(struct intel_gt *gt, u64 val)
 {
 	int ret;
 
 	if (val & DROP_RESET_ACTIVE &&
-	    wait_for(intel_engines_are_idle(gt), I915_IDLE_ENGINES_TIMEOUT))
+	    wait_for(intel_engines_are_idle(gt), 200))
 		intel_gt_set_wedged(gt);
 
 	if (val & DROP_RETIRE)
@@ -790,7 +790,6 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_sseu_status", i915_sseu_status, 0},
 	{"i915_rps_boost_info", i915_rps_boost_info, 0},
 };
-#define I915_DEBUGFS_ENTRIES ARRAY_SIZE(i915_debugfs_list)
 
 static const struct i915_debugfs_files {
 	const char *name;
@@ -823,6 +822,6 @@ void i915_debugfs_register(struct drm_i915_private *dev_priv)
 	}
 
 	drm_debugfs_create_files(i915_debugfs_list,
-				 I915_DEBUGFS_ENTRIES,
+				 ARRAY_SIZE(i915_debugfs_list),
 				 minor->debugfs_root, minor);
 }

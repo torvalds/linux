@@ -35,7 +35,6 @@
 #include <drm/drm_edid.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_fixed.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_probe_helper.h>
 #include <linux/i2c.h>
@@ -550,8 +549,8 @@ struct amdgpu_mst_connector {
 
 	struct drm_dp_mst_topology_mgr mst_mgr;
 	struct amdgpu_dm_dp_aux dm_dp_aux;
-	struct drm_dp_mst_port *port;
-	struct amdgpu_connector *mst_port;
+	struct drm_dp_mst_port *mst_output_port;
+	struct amdgpu_connector *mst_root;
 	bool is_mst_connector;
 	struct amdgpu_encoder *mst_encoder;
 };

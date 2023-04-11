@@ -6,6 +6,19 @@ Description:
 		device at boot. It is equivalent to WDIOC_GETBOOTSTATUS of
 		ioctl interface.
 
+What:		/sys/class/watchdog/watchdogn/options
+Date:		April 2023
+Contact:	Thomas Weißschuh
+Description:
+		It is a read only file. It contains options of watchdog device.
+
+What:		/sys/class/watchdog/watchdogn/fw_version
+Date:		April 2023
+Contact:	Thomas Weißschuh
+Description:
+		It is a read only file. It contains firmware version of
+		watchdog device.
+
 What:		/sys/class/watchdog/watchdogn/identity
 Date:		August 2015
 Contact:	Wim Van Sebroeck <wim@iguana.be>

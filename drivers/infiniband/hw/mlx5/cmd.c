@@ -5,34 +5,41 @@
 
 #include "cmd.h"
 
-int mlx5_cmd_dump_fill_mkey(struct mlx5_core_dev *dev, u32 *mkey)
+int mlx5r_cmd_query_special_mkeys(struct mlx5_ib_dev *dev)
 {
 	u32 out[MLX5_ST_SZ_DW(query_special_contexts_out)] = {};
 	u32 in[MLX5_ST_SZ_DW(query_special_contexts_in)] = {};
+	bool is_terminate, is_dump, is_null;
 	int err;
+
+	is_terminate = MLX5_CAP_GEN(dev->mdev, terminate_scatter_list_mkey);
+	is_dump = MLX5_CAP_GEN(dev->mdev, dump_fill_mkey);
+	is_null = MLX5_CAP_GEN(dev->mdev, null_mkey);
+
+	dev->mkeys.terminate_scatter_list_mkey = MLX5_TERMINATE_SCATTER_LIST_LKEY;
+	if (!is_terminate && !is_dump && !is_null)
+		return 0;
 
 	MLX5_SET(query_special_contexts_in, in, opcode,
 		 MLX5_CMD_OP_QUERY_SPECIAL_CONTEXTS);
-	err = mlx5_cmd_exec_inout(dev, query_special_contexts, in, out);
-	if (!err)
-		*mkey = MLX5_GET(query_special_contexts_out, out,
-				 dump_fill_mkey);
-	return err;
-}
+	err = mlx5_cmd_exec_inout(dev->mdev, query_special_contexts, in, out);
+	if (err)
+		return err;
 
-int mlx5_cmd_null_mkey(struct mlx5_core_dev *dev, u32 *null_mkey)
-{
-	u32 out[MLX5_ST_SZ_DW(query_special_contexts_out)] = {};
-	u32 in[MLX5_ST_SZ_DW(query_special_contexts_in)] = {};
-	int err;
+	if (is_dump)
+		dev->mkeys.dump_fill_mkey = MLX5_GET(query_special_contexts_out,
+						     out, dump_fill_mkey);
 
-	MLX5_SET(query_special_contexts_in, in, opcode,
-		 MLX5_CMD_OP_QUERY_SPECIAL_CONTEXTS);
-	err = mlx5_cmd_exec_inout(dev, query_special_contexts, in, out);
-	if (!err)
-		*null_mkey = MLX5_GET(query_special_contexts_out, out,
-				      null_mkey);
-	return err;
+	if (is_null)
+		dev->mkeys.null_mkey = cpu_to_be32(
+			MLX5_GET(query_special_contexts_out, out, null_mkey));
+
+	if (is_terminate)
+		dev->mkeys.terminate_scatter_list_mkey =
+			cpu_to_be32(MLX5_GET(query_special_contexts_out, out,
+					     terminate_scatter_list_mkey));
+
+	return 0;
 }
 
 int mlx5_cmd_query_cong_params(struct mlx5_core_dev *dev, int cong_point,

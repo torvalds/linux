@@ -1068,7 +1068,7 @@ static void __init sama7g5_pmc_setup(struct device_node *np)
 	for (i = 0; i < ARRAY_SIZE(sama7g5_systemck); i++) {
 		hw = at91_clk_register_system(regmap, sama7g5_systemck[i].n,
 					      sama7g5_systemck[i].p,
-					      sama7g5_systemck[i].id);
+					      sama7g5_systemck[i].id, 0);
 		if (IS_ERR(hw))
 			goto err_free;
 
@@ -1083,7 +1083,7 @@ static void __init sama7g5_pmc_setup(struct device_node *np)
 						sama7g5_periphck[i].id,
 						&sama7g5_periphck[i].r,
 						sama7g5_periphck[i].chgp ? 0 :
-						INT_MIN);
+						INT_MIN, 0);
 		if (IS_ERR(hw))
 			goto err_free;
 

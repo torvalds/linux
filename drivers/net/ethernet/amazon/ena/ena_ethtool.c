@@ -850,10 +850,19 @@ static int ena_set_channels(struct net_device *netdev,
 	struct ena_adapter *adapter = netdev_priv(netdev);
 	u32 count = channels->combined_count;
 	/* The check for max value is already done in ethtool */
-	if (count < ENA_MIN_NUM_IO_QUEUES ||
-	    (ena_xdp_present(adapter) &&
-	    !ena_xdp_legal_queue_count(adapter, count)))
+	if (count < ENA_MIN_NUM_IO_QUEUES)
 		return -EINVAL;
+
+	if (!ena_xdp_legal_queue_count(adapter, count)) {
+		if (ena_xdp_present(adapter))
+			return -EINVAL;
+
+		xdp_clear_features_flag(netdev);
+	} else {
+		xdp_set_features_flag(netdev,
+				      NETDEV_XDP_ACT_BASIC |
+				      NETDEV_XDP_ACT_REDIRECT);
+	}
 
 	return ena_update_queue_count(adapter, count);
 }
@@ -887,11 +896,7 @@ static int ena_set_tunable(struct net_device *netdev,
 	switch (tuna->id) {
 	case ETHTOOL_RX_COPYBREAK:
 		len = *(u32 *)data;
-		if (len > adapter->netdev->mtu) {
-			ret = -EINVAL;
-			break;
-		}
-		adapter->rx_copybreak = len;
+		ret = ena_set_rx_copybreak(adapter, len);
 		break;
 	default:
 		ret = -EINVAL;

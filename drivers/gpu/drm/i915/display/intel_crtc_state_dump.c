@@ -3,6 +3,8 @@
  * Copyright © 2022 Intel Corporation
  */
 
+#include <drm/drm_edid.h>
+
 #include "i915_drv.h"
 #include "intel_crtc_state_dump.h"
 #include "intel_display_types.h"
@@ -12,14 +14,16 @@
 static void intel_dump_crtc_timings(struct drm_i915_private *i915,
 				    const struct drm_display_mode *mode)
 {
-	drm_dbg_kms(&i915->drm, "crtc timings: %d %d %d %d %d %d %d %d %d, "
-		    "type: 0x%x flags: 0x%x\n",
+	drm_dbg_kms(&i915->drm, "crtc timings: clock=%d, "
+		    "hd=%d hb=%d-%d hs=%d-%d ht=%d, "
+		    "vd=%d vb=%d-%d vs=%d-%d vt=%d, "
+		    "flags=0x%x\n",
 		    mode->crtc_clock,
-		    mode->crtc_hdisplay, mode->crtc_hsync_start,
-		    mode->crtc_hsync_end, mode->crtc_htotal,
-		    mode->crtc_vdisplay, mode->crtc_vsync_start,
-		    mode->crtc_vsync_end, mode->crtc_vtotal,
-		    mode->type, mode->flags);
+		    mode->crtc_hdisplay, mode->crtc_hblank_start, mode->crtc_hblank_end,
+		    mode->crtc_hsync_start, mode->crtc_hsync_end, mode->crtc_htotal,
+		    mode->crtc_vdisplay, mode->crtc_vblank_start, mode->crtc_vblank_end,
+		    mode->crtc_vsync_start, mode->crtc_vsync_end, mode->crtc_vtotal,
+		    mode->flags);
 }
 
 static void
@@ -54,6 +58,17 @@ intel_dump_dp_vsc_sdp(struct drm_i915_private *i915,
 		return;
 
 	drm_dp_vsc_sdp_log(KERN_DEBUG, i915->drm.dev, vsc);
+}
+
+static void
+intel_dump_buffer(struct drm_i915_private *i915,
+		  const char *prefix, const u8 *buf, size_t len)
+{
+	if (!drm_debug_enabled(DRM_UT_KMS))
+		return;
+
+	print_hex_dump(KERN_DEBUG, prefix, DUMP_PREFIX_NONE,
+		       16, 0, buf, len, false);
 }
 
 #define OUTPUT_TYPE(x) [INTEL_OUTPUT_ ## x] = #x
@@ -108,7 +123,7 @@ static const char * const output_format_str[] = {
 	[INTEL_OUTPUT_FORMAT_YCBCR444] = "YCBCR4:4:4",
 };
 
-static const char *output_formats(enum intel_output_format format)
+const char *intel_output_format_name(enum intel_output_format format)
 {
 	if (format >= ARRAY_SIZE(output_format_str))
 		return "invalid";
@@ -166,7 +181,7 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 		    "active: %s, output_types: %s (0x%x), output format: %s\n",
 		    str_yes_no(pipe_config->hw.active),
 		    buf, pipe_config->output_types,
-		    output_formats(pipe_config->output_format));
+		    intel_output_format_name(pipe_config->output_format));
 
 	drm_dbg_kms(&i915->drm,
 		    "cpu_transcoder: %s, pipe bpp: %i, dithering: %i\n",
@@ -235,6 +250,10 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 	if (pipe_config->infoframes.enable &
 	    intel_hdmi_infoframe_enable(DP_SDP_VSC))
 		intel_dump_dp_vsc_sdp(i915, &pipe_config->infoframes.vsc);
+
+	if (pipe_config->has_audio)
+		intel_dump_buffer(i915, "ELD: ", pipe_config->eld,
+				  drm_eld_size(pipe_config->eld));
 
 	drm_dbg_kms(&i915->drm, "vrr: %s, vmin: %d, vmax: %d, pipeline full: %d, guardband: %d flipline: %d, vmin vblank: %d, vmax vblank: %d\n",
 		    str_yes_no(pipe_config->vrr.enable),

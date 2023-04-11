@@ -61,28 +61,23 @@ examples:
   - |
     // The UniPhier usb2-phy should be a subnode of a "syscon" compatible node.
 
-    soc-glue@5f800000 {
-        compatible = "socionext,uniphier-ld11-soc-glue", "simple-mfd", "syscon";
-        reg = <0x5f800000 0x2000>;
+    usb-hub {
+        compatible = "socionext,uniphier-ld11-usb2-phy";
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-        usb-controller {
-            compatible = "socionext,uniphier-ld11-usb2-phy";
-            #address-cells = <1>;
-            #size-cells = <0>;
+        usb_phy0: phy@0 {
+            reg = <0>;
+            #phy-cells = <0>;
+        };
 
-            usb_phy0: phy@0 {
-                reg = <0>;
-                #phy-cells = <0>;
-            };
+        usb_phy1: phy@1 {
+            reg = <1>;
+            #phy-cells = <0>;
+        };
 
-            usb_phy1: phy@1 {
-                reg = <1>;
-                #phy-cells = <0>;
-            };
-
-            usb_phy2: phy@2 {
-                reg = <2>;
-                #phy-cells = <0>;
-            };
+        usb_phy2: phy@2 {
+            reg = <2>;
+            #phy-cells = <0>;
         };
     };

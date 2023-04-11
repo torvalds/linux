@@ -255,21 +255,6 @@ static int sprd_iommu_attach_device(struct iommu_domain *domain,
 	return 0;
 }
 
-static void sprd_iommu_detach_device(struct iommu_domain *domain,
-					     struct device *dev)
-{
-	struct sprd_iommu_domain *dom = to_sprd_domain(domain);
-	struct sprd_iommu_device *sdev = dom->sdev;
-	size_t pgt_size = sprd_iommu_pgt_size(domain);
-
-	if (!sdev)
-		return;
-
-	dma_free_coherent(sdev->dev, pgt_size, dom->pgt_va, dom->pgt_pa);
-	sprd_iommu_hw_en(sdev, false);
-	dom->sdev = NULL;
-}
-
 static int sprd_iommu_map(struct iommu_domain *domain, unsigned long iova,
 			  phys_addr_t paddr, size_t pgsize, size_t pgcount,
 			  int prot, gfp_t gfp, size_t *mapped)
@@ -414,7 +399,6 @@ static const struct iommu_ops sprd_iommu_ops = {
 	.owner		= THIS_MODULE,
 	.default_domain_ops = &(const struct iommu_domain_ops) {
 		.attach_dev	= sprd_iommu_attach_device,
-		.detach_dev	= sprd_iommu_detach_device,
 		.map_pages	= sprd_iommu_map,
 		.unmap_pages	= sprd_iommu_unmap,
 		.iotlb_sync_map	= sprd_iommu_sync_map,

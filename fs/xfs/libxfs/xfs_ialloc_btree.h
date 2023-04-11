@@ -46,12 +46,10 @@ struct xfs_perag;
 		 (maxrecs) * sizeof(xfs_inobt_key_t) + \
 		 ((index) - 1) * sizeof(xfs_inobt_ptr_t)))
 
-extern struct xfs_btree_cur *xfs_inobt_init_cursor(struct xfs_mount *mp,
-		struct xfs_trans *tp, struct xfs_buf *agbp,
-		struct xfs_perag *pag, xfs_btnum_t btnum);
-struct xfs_btree_cur *xfs_inobt_stage_cursor(struct xfs_mount *mp,
-		struct xbtree_afakeroot *afake, struct xfs_perag *pag,
-		xfs_btnum_t btnum);
+extern struct xfs_btree_cur *xfs_inobt_init_cursor(struct xfs_perag *pag,
+		struct xfs_trans *tp, struct xfs_buf *agbp, xfs_btnum_t btnum);
+struct xfs_btree_cur *xfs_inobt_stage_cursor(struct xfs_perag *pag,
+		struct xbtree_afakeroot *afake, xfs_btnum_t btnum);
 extern int xfs_inobt_maxrecs(struct xfs_mount *, int, int);
 
 /* ir_holemask to inode allocation bitmap conversion */
@@ -64,13 +62,13 @@ int xfs_inobt_rec_check_count(struct xfs_mount *,
 #define xfs_inobt_rec_check_count(mp, rec)	0
 #endif	/* DEBUG */
 
-int xfs_finobt_calc_reserves(struct xfs_mount *mp, struct xfs_trans *tp,
-		struct xfs_perag *pag, xfs_extlen_t *ask, xfs_extlen_t *used);
+int xfs_finobt_calc_reserves(struct xfs_perag *perag, struct xfs_trans *tp,
+		xfs_extlen_t *ask, xfs_extlen_t *used);
 extern xfs_extlen_t xfs_iallocbt_calc_size(struct xfs_mount *mp,
 		unsigned long long len);
-int xfs_inobt_cur(struct xfs_mount *mp, struct xfs_trans *tp,
-		struct xfs_perag *pag, xfs_btnum_t btnum,
-		struct xfs_btree_cur **curpp, struct xfs_buf **agi_bpp);
+int xfs_inobt_cur(struct xfs_perag *pag, struct xfs_trans *tp,
+		xfs_btnum_t btnum, struct xfs_btree_cur **curpp,
+		struct xfs_buf **agi_bpp);
 
 void xfs_inobt_commit_staged_btree(struct xfs_btree_cur *cur,
 		struct xfs_trans *tp, struct xfs_buf *agbp);

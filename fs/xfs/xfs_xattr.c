@@ -133,7 +133,7 @@ xfs_xattr_get(const struct xattr_handler *handler, struct dentry *unused,
 
 static int
 xfs_xattr_set(const struct xattr_handler *handler,
-	      struct user_namespace *mnt_userns, struct dentry *unused,
+	      struct mnt_idmap *idmap, struct dentry *unused,
 	      struct inode *inode, const char *name, const void *value,
 	      size_t size, int flags)
 {

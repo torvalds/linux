@@ -1536,32 +1536,32 @@ static enum es_result vc_handle_mmio_movs(struct es_em_ctxt *ctxt,
 static enum es_result vc_handle_mmio(struct ghcb *ghcb, struct es_em_ctxt *ctxt)
 {
 	struct insn *insn = &ctxt->insn;
+	enum insn_mmio_type mmio;
 	unsigned int bytes = 0;
-	enum mmio_type mmio;
 	enum es_result ret;
 	u8 sign_byte;
 	long *reg_data;
 
 	mmio = insn_decode_mmio(insn, &bytes);
-	if (mmio == MMIO_DECODE_FAILED)
+	if (mmio == INSN_MMIO_DECODE_FAILED)
 		return ES_DECODE_FAILED;
 
-	if (mmio != MMIO_WRITE_IMM && mmio != MMIO_MOVS) {
+	if (mmio != INSN_MMIO_WRITE_IMM && mmio != INSN_MMIO_MOVS) {
 		reg_data = insn_get_modrm_reg_ptr(insn, ctxt->regs);
 		if (!reg_data)
 			return ES_DECODE_FAILED;
 	}
 
 	switch (mmio) {
-	case MMIO_WRITE:
+	case INSN_MMIO_WRITE:
 		memcpy(ghcb->shared_buffer, reg_data, bytes);
 		ret = vc_do_mmio(ghcb, ctxt, bytes, false);
 		break;
-	case MMIO_WRITE_IMM:
+	case INSN_MMIO_WRITE_IMM:
 		memcpy(ghcb->shared_buffer, insn->immediate1.bytes, bytes);
 		ret = vc_do_mmio(ghcb, ctxt, bytes, false);
 		break;
-	case MMIO_READ:
+	case INSN_MMIO_READ:
 		ret = vc_do_mmio(ghcb, ctxt, bytes, true);
 		if (ret)
 			break;
@@ -1572,7 +1572,7 @@ static enum es_result vc_handle_mmio(struct ghcb *ghcb, struct es_em_ctxt *ctxt)
 
 		memcpy(reg_data, ghcb->shared_buffer, bytes);
 		break;
-	case MMIO_READ_ZERO_EXTEND:
+	case INSN_MMIO_READ_ZERO_EXTEND:
 		ret = vc_do_mmio(ghcb, ctxt, bytes, true);
 		if (ret)
 			break;
@@ -1581,7 +1581,7 @@ static enum es_result vc_handle_mmio(struct ghcb *ghcb, struct es_em_ctxt *ctxt)
 		memset(reg_data, 0, insn->opnd_bytes);
 		memcpy(reg_data, ghcb->shared_buffer, bytes);
 		break;
-	case MMIO_READ_SIGN_EXTEND:
+	case INSN_MMIO_READ_SIGN_EXTEND:
 		ret = vc_do_mmio(ghcb, ctxt, bytes, true);
 		if (ret)
 			break;
@@ -1600,7 +1600,7 @@ static enum es_result vc_handle_mmio(struct ghcb *ghcb, struct es_em_ctxt *ctxt)
 		memset(reg_data, sign_byte, insn->opnd_bytes);
 		memcpy(reg_data, ghcb->shared_buffer, bytes);
 		break;
-	case MMIO_MOVS:
+	case INSN_MMIO_MOVS:
 		ret = vc_handle_mmio_movs(ctxt, bytes);
 		break;
 	default:
@@ -2183,9 +2183,6 @@ int snp_issue_guest_request(u64 exit_code, struct snp_req_data *input, unsigned 
 	struct ghcb *ghcb;
 	int ret;
 
-	if (!cc_platform_has(CC_ATTR_GUEST_SEV_SNP))
-		return -ENODEV;
-
 	if (!fw_err)
 		return -EINVAL;
 
@@ -2212,15 +2209,26 @@ int snp_issue_guest_request(u64 exit_code, struct snp_req_data *input, unsigned 
 	if (ret)
 		goto e_put;
 
-	if (ghcb->save.sw_exit_info_2) {
+	*fw_err = ghcb->save.sw_exit_info_2;
+	switch (*fw_err) {
+	case 0:
+		break;
+
+	case SNP_GUEST_REQ_ERR_BUSY:
+		ret = -EAGAIN;
+		break;
+
+	case SNP_GUEST_REQ_INVALID_LEN:
 		/* Number of expected pages are returned in RBX */
-		if (exit_code == SVM_VMGEXIT_EXT_GUEST_REQUEST &&
-		    ghcb->save.sw_exit_info_2 == SNP_GUEST_REQ_INVALID_LEN)
+		if (exit_code == SVM_VMGEXIT_EXT_GUEST_REQUEST) {
 			input->data_npages = ghcb_get_rbx(ghcb);
-
-		*fw_err = ghcb->save.sw_exit_info_2;
-
+			ret = -ENOSPC;
+			break;
+		}
+		fallthrough;
+	default:
 		ret = -EIO;
+		break;
 	}
 
 e_put:

@@ -465,7 +465,7 @@ l2_inv_gp:
 	mov	r12, #0x2
 	smc	#0			@ Call SMI monitor (smieq)
 logic_l1_restore:
-	adr	r0, l2dis_3630_offset	@ adress for offset
+	adr	r0, l2dis_3630_offset	@ address for offset
 	ldr	r1, [r0]		@ value for offset
 	ldr	r1, [r0, r1]		@ value at l2dis_3630
 	cmp	r1, #0x1		@ Test if L2 re-enable needed on 3630

@@ -58,9 +58,9 @@ perf_dump_aux_verify() {
 	# compiler may produce different code depending on the compiler and
 	# optimization options, so this is rough just to see if we're
 	# either missing almost all the data or all of it
-	ATOM_FX_NUM=`grep I_ATOM_F "$DUMP" | wc -l`
-	ASYNC_NUM=`grep I_ASYNC "$DUMP" | wc -l`
-	TRACE_INFO_NUM=`grep I_TRACE_INFO "$DUMP" | wc -l`
+	ATOM_FX_NUM=$(grep -c I_ATOM_F "$DUMP")
+	ASYNC_NUM=$(grep -c I_ASYNC "$DUMP")
+	TRACE_INFO_NUM=$(grep -c I_TRACE_INFO "$DUMP")
 	rm -f "$DUMP"
 
 	# Arguments provide minimums for a pass
@@ -96,18 +96,18 @@ perf_dump_aux_tid_verify() {
 
 	# The TID test tools will print a TID per stdout line that are being
 	# tested
-	TIDS=`cat "$2"`
+	TIDS=$(cat "$2")
 	# Scan the perf report to find the TIDs that are actually CID in hex
 	# and build a list of the ones found
-	FOUND_TIDS=`perf report --stdio --dump -i "$1" | \
+	FOUND_TIDS=$(perf report --stdio --dump -i "$1" | \
 			grep -o "CID=0x[0-9a-z]\+" | sed 's/CID=//g' | \
-			uniq | sort | uniq`
+			uniq | sort | uniq)
 	# No CID=xxx found - maybe your kernel is reporting these as
 	# VMID=xxx so look there
 	if test -z "$FOUND_TIDS"; then
-		FOUND_TIDS=`perf report --stdio --dump -i "$1" | \
+		FOUND_TIDS=$(perf report --stdio --dump -i "$1" | \
 				grep -o "VMID=0x[0-9a-z]\+" | sed 's/VMID=//g' | \
-				uniq | sort | uniq`
+				uniq | sort | uniq)
 	fi
 
 	# Iterate over the list of TIDs that the test says it has and find
@@ -116,7 +116,7 @@ perf_dump_aux_tid_verify() {
 	for TID2 in $TIDS; do
 		FOUND=""
 		for TIDHEX in $FOUND_TIDS; do
-			TID=`printf "%i" $TIDHEX`
+			TID=$(printf "%i" $TIDHEX)
 			if test "$TID" -eq "$TID2"; then
 				FOUND="y"
 				break

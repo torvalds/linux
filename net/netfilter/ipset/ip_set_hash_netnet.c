@@ -166,13 +166,12 @@ static int
 hash_netnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 		  enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
 {
-	const struct hash_netnet4 *h = set->data;
+	struct hash_netnet4 *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_netnet4_elem e = { };
 	struct ip_set_ext ext = IP_SET_INIT_UEXT(set);
 	u32 ip = 0, ip_to = 0;
-	u32 ip2 = 0, ip2_from = 0, ip2_to = 0, ipn;
-	u64 n = 0, m = 0;
+	u32 ip2 = 0, ip2_from = 0, ip2_to = 0, i = 0;
 	int ret;
 
 	if (tb[IPSET_ATTR_LINENO])
@@ -248,19 +247,6 @@ hash_netnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 	} else {
 		ip_set_mask_from_to(ip2_from, ip2_to, e.cidr[1]);
 	}
-	ipn = ip;
-	do {
-		ipn = ip_set_range_to_cidr(ipn, ip_to, &e.cidr[0]);
-		n++;
-	} while (ipn++ < ip_to);
-	ipn = ip2_from;
-	do {
-		ipn = ip_set_range_to_cidr(ipn, ip2_to, &e.cidr[1]);
-		m++;
-	} while (ipn++ < ip2_to);
-
-	if (n*m > IPSET_MAX_RANGE)
-		return -ERANGE;
 
 	if (retried) {
 		ip = ntohl(h->next.ip[0]);
@@ -273,7 +259,12 @@ hash_netnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 		e.ip[0] = htonl(ip);
 		ip = ip_set_range_to_cidr(ip, ip_to, &e.cidr[0]);
 		do {
+			i++;
 			e.ip[1] = htonl(ip2);
+			if (i > IPSET_MAX_RANGE) {
+				hash_netnet4_data_next(&h->next, &e);
+				return -ERANGE;
+			}
 			ip2 = ip_set_range_to_cidr(ip2, ip2_to, &e.cidr[1]);
 			ret = adtfn(set, &e, &ext, &ext, flags);
 			if (ret && !ip_set_eexist(ret, flags))

@@ -7,14 +7,8 @@ on the Qualcomm Hexagon core.
 	Usage: required
 	Value type: <string>
 	Definition: must be one of:
-		    "qcom,q6v5-pil",
 		    "qcom,ipq8074-wcss-pil"
 		    "qcom,qcs404-wcss-pil"
-		    "qcom,msm8916-mss-pil",
-		    "qcom,msm8974-mss-pil"
-		    "qcom,msm8996-mss-pil"
-		    "qcom,msm8998-mss-pil"
-		    "qcom,sdm845-mss-pil"
 
 - reg:
 	Usage: required
@@ -35,26 +29,7 @@ on the Qualcomm Hexagon core.
 - interrupt-names:
 	Usage: required
 	Value type: <stringlist>
-	Definition: The interrupts needed depends on the compatible
-		    string:
-	qcom,q6v5-pil:
-	qcom,ipq8074-wcss-pil:
-	qcom,qcs404-wcss-pil:
-	qcom,msm8916-mss-pil:
-	qcom,msm8974-mss-pil:
-		    must be "wdog", "fatal", "ready", "handover", "stop-ack"
-	qcom,msm8996-mss-pil:
-	qcom,msm8998-mss-pil:
-	qcom,sdm845-mss-pil:
-		    must be "wdog", "fatal", "ready", "handover", "stop-ack",
-		    "shutdown-ack"
-
-- firmware-name:
-	Usage: optional
-	Value type: <stringlist>
-	Definition: must list the relative firmware image paths for mba and
-		    modem. They are used for booting and authenticating the
-		    Hexagon core.
+	Definition: must be "wdog", "fatal", "ready", "handover", "stop-ack"
 
 - clocks:
 	Usage: required
@@ -72,67 +47,23 @@ on the Qualcomm Hexagon core.
 		    "gcc_axim_cbcr", "lcc_ahbfabric_cbc", "tcsr_lcc_cbc",
 		    "lcc_abhs_cbc", "lcc_tcm_slave_cbc", "lcc_abhm_cbc",
 		    "lcc_axim_cbc", "lcc_bcr_sleep"
-	qcom,q6v5-pil:
-	qcom,msm8916-mss-pil:
-	qcom,msm8974-mss-pil:
-		    must be "iface", "bus", "mem", "xo"
-	qcom,msm8996-mss-pil:
-		    must be "iface", "bus", "mem", "xo", "gpll0_mss",
-		    "snoc_axi", "mnoc_axi", "pnoc", "qdss"
-	qcom,msm8998-mss-pil:
-		    must be "iface", "bus", "mem", "xo", "gpll0_mss",
-		    "snoc_axi", "mnoc_axi", "qdss"
-	qcom,sdm845-mss-pil:
-		    must be "iface", "bus", "mem", "xo", "gpll0_mss",
-		    "snoc_axi", "mnoc_axi", "prng"
 
 - resets:
 	Usage: required
 	Value type: <phandle>
-	Definition: reference to the reset-controller for the modem sub-system
-		    reference to the list of 3 reset-controllers for the
+	Definition: reference to the list of 3 reset-controllers for the
 		    wcss sub-system
-		    reference to the list of 2 reset-controllers for the modem
-		    sub-system on SDM845 SoCs
 
 - reset-names:
 	Usage: required
 	Value type: <stringlist>
-	Definition: must be "mss_restart" for the modem sub-system
-		    must be "wcss_aon_reset", "wcss_reset", "wcss_q6_reset"
+	Definition: must be "wcss_aon_reset", "wcss_reset", "wcss_q6_reset"
 		    for the wcss sub-system
-		    must be "mss_restart", "pdc_reset" for the modem
-		    sub-system on SDM845 SoCs
 
-For devices where the mba and mpss sub-nodes are not specified, mba/mpss region
-should be referenced as follows:
 - memory-region:
 	Usage: required
 	Value type: <phandle>
-	Definition: reference to the reserved-memory for the mba region followed
-		    by the mpss region
-
-For the compatible strings below the following supplies are required:
-  "qcom,q6v5-pil"
-  "qcom,msm8916-mss-pil",
-- cx-supply: (deprecated, use power domain instead)
-- mx-supply: (deprecated, use power domain instead)
-- pll-supply:
-	Usage: required
-	Value type: <phandle>
-	Definition: reference to the regulators to be held on behalf of the
-		    booting of the Hexagon core
-
-For the compatible string below the following supplies are required:
-  "qcom,msm8974-mss-pil"
-- cx-supply: (deprecated, use power domain instead)
-- mss-supply:
-- mx-supply: (deprecated, use power domain instead)
-- pll-supply:
-	Usage: required
-	Value type: <phandle>
-	Definition: reference to the regulators to be held on behalf of the
-		    booting of the Hexagon core
+	Definition: reference to wcss reserved-memory region.
 
 For the compatible string below the following supplies are required:
   "qcom,qcs404-wcss-pil"
@@ -141,39 +72,6 @@ For the compatible string below the following supplies are required:
 	Value type: <phandle>
 	Definition: reference to the regulators to be held on behalf of the
 		    booting of the Hexagon core
-
-For the compatible string below the following supplies are required:
-  "qcom,msm8996-mss-pil"
-- pll-supply:
-	Usage: required
-	Value type: <phandle>
-	Definition: reference to the regulators to be held on behalf of the
-		    booting of the Hexagon core
-
-- power-domains:
-	Usage: required
-	Value type: <phandle>
-	Definition: reference to power-domains that match power-domain-names
-
-- power-domain-names:
-	Usage: required
-	Value type: <stringlist>
-	Definition: The power-domains needed depend on the compatible string:
-	qcom,ipq8074-wcss-pil:
-		    no power-domain names required
-	qcom,q6v5-pil:
-	qcom,msm8916-mss-pil:
-	qcom,msm8974-mss-pil:
-	qcom,msm8996-mss-pil:
-	qcom,msm8998-mss-pil:
-		    must be "cx", "mx"
-	qcom,sdm845-mss-pil:
-		    must be "cx", "mx", "mss"
-
-- qcom,qmp:
-	Usage: optional
-	Value type: <phandle>
-	Definition: reference to the AOSS side-channel message RAM.
 
 - qcom,smem-states:
 	Usage: required
@@ -190,15 +88,8 @@ For the compatible string below the following supplies are required:
 	Usage: required
 	Value type: <prop-encoded-array>
 	Definition: a phandle reference to a syscon representing TCSR followed
-		    by the three offsets within syscon for q6, modem and nc
+		    by the three offsets within syscon for q6, wcss and nc
 		    halt registers.
-
-The Hexagon node must contain iommus property as described in ../iommu/iommu.txt
-on platforms which do not have TrustZone.
-
-= SUBNODES:
-The Hexagon node must contain two subnodes, named "mba" and "mpss" representing
-the memory regions used by the Hexagon firmware. Each sub-node must contain:
 
 - memory-region:
 	Usage: required
@@ -209,56 +100,3 @@ The Hexagon node may also have an subnode named either "smd-edge" or
 "glink-edge" that describes the communication edge, channels and devices
 related to the Hexagon.  See ../soc/qcom/qcom,smd.yaml and
 ../soc/qcom/qcom,glink.txt for details on how to describe these.
-
-= EXAMPLE
-The following example describes the resources needed to boot control the
-Hexagon, as it is found on MSM8974 boards.
-
-	remoteproc@fc880000 {
-		compatible = "qcom,msm8974-mss-pil";
-		reg = <0xfc880000 0x100>, <0xfc820000 0x020>;
-		reg-names = "qdsp6", "rmb";
-
-		interrupts-extended = <&intc GIC_SPI 24 IRQ_TYPE_EDGE_RISING>,
-				      <&modem_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
-				      <&modem_smp2p_in 1 IRQ_TYPE_EDGE_RISING>,
-				      <&modem_smp2p_in 2 IRQ_TYPE_EDGE_RISING>,
-				      <&modem_smp2p_in 3 IRQ_TYPE_EDGE_RISING>;
-		interrupt-names = "wdog", "fatal", "ready", "handover", "stop-ack";
-
-		clocks = <&gcc GCC_MSS_Q6_BIMC_AXI_CLK>,
-			 <&gcc GCC_MSS_CFG_AHB_CLK>,
-			 <&gcc GCC_BOOT_ROM_AHB_CLK>,
-			 <&xo_board>;
-		clock-names = "iface", "bus", "mem", "xo";
-
-		resets = <&gcc GCC_MSS_RESTART>;
-		reset-names = "mss_restart";
-
-		cx-supply = <&pm8841_s2>;
-		mss-supply = <&pm8841_s3>;
-		mx-supply = <&pm8841_s1>;
-		pll-supply = <&pm8941_l12>;
-
-		qcom,halt-regs = <&tcsr_mutex_block 0x1180 0x1200 0x1280>;
-
-		qcom,smem-states = <&modem_smp2p_out 0>;
-		qcom,smem-state-names = "stop";
-
-		mba {
-			memory-region = <&mba_region>;
-		};
-
-		mpss {
-			memory-region = <&mpss_region>;
-		};
-
-		smd-edge {
-			interrupts = <GIC_SPI 25 IRQ_TYPE_EDGE_RISING>;
-
-			qcom,ipc = <&apcs 8 12>;
-			qcom,smd-edge = <0>;
-
-			label = "modem";
-		};
-	};

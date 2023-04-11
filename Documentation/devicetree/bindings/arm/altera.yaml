@@ -31,6 +31,7 @@ properties:
       - description: Mercury+ AA1 boards
         items:
           - enum:
+              - enclustra,mercury-pe1
               - google,chameleon-v3
           - const: enclustra,mercury-aa1
           - const: altr,socfpga-arria10

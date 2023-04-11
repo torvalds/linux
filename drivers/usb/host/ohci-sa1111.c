@@ -125,10 +125,7 @@ static int sa1111_start_hc(struct sa1111_dev *dev)
 
 	dev_dbg(&dev->dev, "starting SA-1111 OHCI USB Controller\n");
 
-	if (machine_is_xp860() ||
-	    machine_is_assabet() ||
-	    machine_is_pfs168() ||
-	    machine_is_badge4())
+	if (machine_is_assabet())
 		usb_rst = USB_RESET_PWRSENSELOW | USB_RESET_PWRCTRLLOW;
 
 	/*

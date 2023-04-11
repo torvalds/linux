@@ -37,6 +37,14 @@ config DRM_PANEL_ASUS_Z00T_TM5P5_NT35596
 	  NT35596 1080x1920 video mode panel as found in some Asus
 	  Zenfone 2 Laser Z00T devices.
 
+config DRM_PANEL_AUO_A030JTN01
+	tristate "AUO A030JTN01"
+	depends on SPI
+	select REGMAP_SPI
+	help
+	  Say Y here to enable support for the AUO A030JTN01 320x480 3.0" panel
+	  as found in the YLM RS-97 handheld gaming console.
+
 config DRM_PANEL_BOE_BF060Y8M_AJ0
 	tristate "Boe BF060Y8M-AJ0 panel"
 	depends on OF
@@ -310,6 +318,17 @@ config DRM_PANEL_LG_LG4573
 	  Say Y here if you want to enable support for LG4573 RGB panel.
 	  To compile this driver as a module, choose M here.
 
+config DRM_PANEL_MAGNACHIP_D53E6EA8966
+	tristate "Magnachip D53E6EA8966 DSI panel"
+	depends on OF && SPI
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	select DRM_MIPI_DBI
+	help
+	  DRM panel driver for the Samsung AMS495QA01 panel controlled
+	  with the Magnachip D53E6EA8966 panel IC. This panel receives
+	  video data via DSI but commands via 9-bit SPI using DBI.
+
 config DRM_PANEL_NEC_NL8048HL11
 	tristate "NEC NL8048HL11 RGB panel"
 	depends on GPIOLIB && OF && SPI
@@ -368,6 +387,16 @@ config DRM_PANEL_NOVATEK_NT35950
 	  around the Novatek NT35950 display controller, such as some
 	  Sharp panels used in Sony Xperia Z5 Premium and XZ Premium
 	  mobile phones.
+
+config DRM_PANEL_NOVATEK_NT36523
+	tristate "Novatek NT36523 panel driver"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for the panels built
+	  around the Novatek NT36523 display controller, such as some
+	  Boe panels used in Xiaomi Mi Pad 5 and 5 Pro tablets.
 
 config DRM_PANEL_NOVATEK_NT36672A
 	tristate "Novatek NT36672A DSI panel"
@@ -677,6 +706,16 @@ config DRM_PANEL_SONY_ACX565AKM
 	  Say Y here if you want to enable support for the Sony ACX565AKM
 	  800x600 3.5" panel (found on the Nokia N900).
 
+config DRM_PANEL_SONY_TD4353_JDI
+	tristate "Sony TD4353 JDI panel"
+	depends on GPIOLIB && OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for the Sony Tama
+	  TD4353 JDI command mode panel as found on some Sony Xperia
+	  XZ2 and XZ2 Compact smartphones.
+
 config DRM_PANEL_SONY_TULIP_TRULY_NT35521
 	tristate "Sony Tulip Truly NT35521 panel"
 	depends on GPIOLIB && OF
@@ -742,6 +781,7 @@ config DRM_PANEL_VISIONOX_VTDR6130
 	tristate "Visionox VTDR6130"
 	depends on OF
 	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
 	help
 	  Say Y here if you want to enable support for Visionox
 	  VTDR6130 1080x2400 AMOLED DSI panel.

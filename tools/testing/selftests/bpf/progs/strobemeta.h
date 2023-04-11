@@ -135,7 +135,7 @@ struct strobe_value_loc {
 	 * tpidr_el0 for aarch64).
 	 * TLS_IMM_EXEC: absolute address of GOT entry containing offset
 	 * from thread pointer;
-	 * TLS_GENERAL_DYN: absolute addres of double GOT entry
+	 * TLS_GENERAL_DYN: absolute address of double GOT entry
 	 * containing tls_index_t struct;
 	 */
 	int64_t offset;

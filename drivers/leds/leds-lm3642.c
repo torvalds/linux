@@ -289,8 +289,7 @@ static struct attribute *lm3642_torch_attrs[] = {
 };
 ATTRIBUTE_GROUPS(lm3642_torch);
 
-static int lm3642_probe(struct i2c_client *client,
-				  const struct i2c_device_id *id)
+static int lm3642_probe(struct i2c_client *client)
 {
 	struct lm3642_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct lm3642_chip_data *chip;
@@ -402,7 +401,7 @@ static struct i2c_driver lm3642_i2c_driver = {
 		   .name = LM3642_NAME,
 		   .pm = NULL,
 		   },
-	.probe = lm3642_probe,
+	.probe_new = lm3642_probe,
 	.remove = lm3642_remove,
 	.id_table = lm3642_id,
 };

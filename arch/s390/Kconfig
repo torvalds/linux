@@ -125,8 +125,8 @@ config S390
 	select ARCH_WANTS_DYNAMIC_TASK_STRUCT
 	select ARCH_WANTS_NO_INSTR
 	select ARCH_WANT_DEFAULT_BPF_JIT
-	select ARCH_WANT_IPC_PARSE_VERSION
 	select ARCH_WANT_HUGETLB_PAGE_OPTIMIZE_VMEMMAP
+	select ARCH_WANT_IPC_PARSE_VERSION
 	select BUILDTIME_TABLE_SORT
 	select CLONE_BACKWARDS2
 	select DMA_OPS if PCI
@@ -199,6 +199,7 @@ config S390
 	select HAVE_PERF_USER_STACK_DUMP
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_RELIABLE_STACKTRACE
+	select HAVE_RETHOOK
 	select HAVE_RSEQ
 	select HAVE_SAMPLE_FTRACE_DIRECT
 	select HAVE_SAMPLE_FTRACE_DIRECT_MULTI
@@ -209,9 +210,9 @@ config S390
 	select HAVE_VIRT_CPU_ACCOUNTING_IDLE
 	select IOMMU_HELPER		if PCI
 	select IOMMU_SUPPORT		if PCI
+	select MMU_GATHER_MERGE_VMAS
 	select MMU_GATHER_NO_GATHER
 	select MMU_GATHER_RCU_TABLE_FREE
-	select MMU_GATHER_MERGE_VMAS
 	select MODULES_USE_ELF_RELA
 	select NEED_DMA_MAP_STATE	if PCI
 	select NEED_PER_CPU_EMBED_FIRST_CHUNK
@@ -713,7 +714,9 @@ config EADM_SCH
 config VFIO_CCW
 	def_tristate n
 	prompt "Support for VFIO-CCW subchannels"
-	depends on S390_CCW_IOMMU && VFIO_MDEV
+	depends on S390_CCW_IOMMU
+	depends on VFIO
+	select VFIO_MDEV
 	help
 	  This driver allows usage of I/O subchannels via VFIO-CCW.
 
@@ -723,8 +726,10 @@ config VFIO_CCW
 config VFIO_AP
 	def_tristate n
 	prompt "VFIO support for AP devices"
-	depends on S390_AP_IOMMU && VFIO_MDEV && KVM
+	depends on S390_AP_IOMMU && KVM
+	depends on VFIO
 	depends on ZCRYPT
+	select VFIO_MDEV
 	help
 	  This driver grants access to Adjunct Processor (AP) devices
 	  via the VFIO mediated device interface.

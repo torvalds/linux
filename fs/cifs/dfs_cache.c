@@ -49,17 +49,6 @@ struct cache_entry {
 	struct cache_dfs_tgt *tgthint;
 };
 
-/* List of referral server sessions per dfs mount */
-struct mount_group {
-	struct list_head list;
-	uuid_t id;
-	struct cifs_ses *sessions[CACHE_MAX_ENTRIES];
-	int num_sessions;
-	spinlock_t lock;
-	struct list_head refresh_list;
-	struct kref refcount;
-};
-
 static struct kmem_cache *cache_slab __read_mostly;
 static struct workqueue_struct *dfscache_wq __read_mostly;
 
@@ -76,84 +65,9 @@ static atomic_t cache_count;
 static struct hlist_head cache_htable[CACHE_HTABLE_SIZE];
 static DECLARE_RWSEM(htable_rw_lock);
 
-static LIST_HEAD(mount_group_list);
-static DEFINE_MUTEX(mount_group_list_lock);
-
 static void refresh_cache_worker(struct work_struct *work);
 
 static DECLARE_DELAYED_WORK(refresh_task, refresh_cache_worker);
-
-static void __mount_group_release(struct mount_group *mg)
-{
-	int i;
-
-	for (i = 0; i < mg->num_sessions; i++)
-		cifs_put_smb_ses(mg->sessions[i]);
-	kfree(mg);
-}
-
-static void mount_group_release(struct kref *kref)
-{
-	struct mount_group *mg = container_of(kref, struct mount_group, refcount);
-
-	mutex_lock(&mount_group_list_lock);
-	list_del(&mg->list);
-	mutex_unlock(&mount_group_list_lock);
-	__mount_group_release(mg);
-}
-
-static struct mount_group *find_mount_group_locked(const uuid_t *id)
-{
-	struct mount_group *mg;
-
-	list_for_each_entry(mg, &mount_group_list, list) {
-		if (uuid_equal(&mg->id, id))
-			return mg;
-	}
-	return ERR_PTR(-ENOENT);
-}
-
-static struct mount_group *__get_mount_group_locked(const uuid_t *id)
-{
-	struct mount_group *mg;
-
-	mg = find_mount_group_locked(id);
-	if (!IS_ERR(mg))
-		return mg;
-
-	mg = kmalloc(sizeof(*mg), GFP_KERNEL);
-	if (!mg)
-		return ERR_PTR(-ENOMEM);
-	kref_init(&mg->refcount);
-	uuid_copy(&mg->id, id);
-	mg->num_sessions = 0;
-	spin_lock_init(&mg->lock);
-	list_add(&mg->list, &mount_group_list);
-	return mg;
-}
-
-static struct mount_group *get_mount_group(const uuid_t *id)
-{
-	struct mount_group *mg;
-
-	mutex_lock(&mount_group_list_lock);
-	mg = __get_mount_group_locked(id);
-	if (!IS_ERR(mg))
-		kref_get(&mg->refcount);
-	mutex_unlock(&mount_group_list_lock);
-
-	return mg;
-}
-
-static void free_mount_group_list(void)
-{
-	struct mount_group *mg, *tmp_mg;
-
-	list_for_each_entry_safe(mg, tmp_mg, &mount_group_list, list) {
-		list_del_init(&mg->list);
-		__mount_group_release(mg);
-	}
-}
 
 /**
  * dfs_cache_canonical_path - get a canonical DFS path
@@ -269,7 +183,7 @@ static int dfscache_proc_show(struct seq_file *m, void *v)
 			list_for_each_entry(t, &ce->tlist, list) {
 				seq_printf(m, "  %s%s\n",
 					   t->name,
-					   ce->tgthint == t ? " (target hint)" : "");
+					   READ_ONCE(ce->tgthint) == t ? " (target hint)" : "");
 			}
 		}
 	}
@@ -321,7 +235,7 @@ static inline void dump_tgts(const struct cache_entry *ce)
 	cifs_dbg(FYI, "target list:\n");
 	list_for_each_entry(t, &ce->tlist, list) {
 		cifs_dbg(FYI, "  %s%s\n", t->name,
-			 ce->tgthint == t ? " (target hint)" : "");
+			 READ_ONCE(ce->tgthint) == t ? " (target hint)" : "");
 	}
 }
 
@@ -427,7 +341,7 @@ static int cache_entry_hash(const void *data, int size, unsigned int *hash)
 /* Return target hint of a DFS cache entry */
 static inline char *get_tgt_name(const struct cache_entry *ce)
 {
-	struct cache_dfs_tgt *t = ce->tgthint;
+	struct cache_dfs_tgt *t = READ_ONCE(ce->tgthint);
 
 	return t ? t->name : ERR_PTR(-ENOENT);
 }
@@ -470,6 +384,7 @@ static struct cache_dfs_tgt *alloc_target(const char *name, int path_consumed)
 static int copy_ref_data(const struct dfs_info3_param *refs, int numrefs,
 			 struct cache_entry *ce, const char *tgthint)
 {
+	struct cache_dfs_tgt *target;
 	int i;
 
 	ce->ttl = max_t(int, refs[0].ttl, CACHE_MIN_TTL);
@@ -496,8 +411,9 @@ static int copy_ref_data(const struct dfs_info3_param *refs, int numrefs,
 		ce->numtgts++;
 	}
 
-	ce->tgthint = list_first_entry_or_null(&ce->tlist,
-					       struct cache_dfs_tgt, list);
+	target = list_first_entry_or_null(&ce->tlist, struct cache_dfs_tgt,
+					  list);
+	WRITE_ONCE(ce->tgthint, target);
 
 	return 0;
 }
@@ -558,7 +474,8 @@ static void remove_oldest_entry_locked(void)
 }
 
 /* Add a new DFS cache entry */
-static int add_cache_entry_locked(struct dfs_info3_param *refs, int numrefs)
+static struct cache_entry *add_cache_entry_locked(struct dfs_info3_param *refs,
+						  int numrefs)
 {
 	int rc;
 	struct cache_entry *ce;
@@ -573,11 +490,11 @@ static int add_cache_entry_locked(struct dfs_info3_param *refs, int numrefs)
 
 	rc = cache_entry_hash(refs[0].path_name, strlen(refs[0].path_name), &hash);
 	if (rc)
-		return rc;
+		return ERR_PTR(rc);
 
 	ce = alloc_cache_entry(refs, numrefs);
 	if (IS_ERR(ce))
-		return PTR_ERR(ce);
+		return ce;
 
 	spin_lock(&cache_ttl_lock);
 	if (!cache_ttl) {
@@ -594,7 +511,7 @@ static int add_cache_entry_locked(struct dfs_info3_param *refs, int numrefs)
 
 	atomic_inc(&cache_count);
 
-	return 0;
+	return ce;
 }
 
 /* Check if two DFS paths are equal.  @s1 and @s2 are expected to be in @cache_cp's charset */
@@ -641,7 +558,9 @@ static struct cache_entry *__lookup_cache_entry(const char *path, unsigned int h
  *
  * Use whole path components in the match.  Must be called with htable_rw_lock held.
  *
+ * Return cached entry if successful.
  * Return ERR_PTR(-ENOENT) if the entry is not found.
+ * Return error ptr otherwise.
  */
 static struct cache_entry *lookup_cache_entry(const char *path)
 {
@@ -699,7 +618,6 @@ void dfs_cache_destroy(void)
 {
 	cancel_delayed_work_sync(&refresh_task);
 	unload_nls(cache_cp);
-	free_mount_group_list();
 	flush_cache_ents();
 	kmem_cache_destroy(cache_slab);
 	destroy_workqueue(dfscache_wq);
@@ -711,14 +629,15 @@ void dfs_cache_destroy(void)
 static int update_cache_entry_locked(struct cache_entry *ce, const struct dfs_info3_param *refs,
 				     int numrefs)
 {
+	struct cache_dfs_tgt *target;
+	char *th = NULL;
 	int rc;
-	char *s, *th = NULL;
 
 	WARN_ON(!rwsem_is_locked(&htable_rw_lock));
 
-	if (ce->tgthint) {
-		s = ce->tgthint->name;
-		th = kstrdup(s, GFP_ATOMIC);
+	target = READ_ONCE(ce->tgthint);
+	if (target) {
+		th = kstrdup(target->name, GFP_ATOMIC);
 		if (!th)
 			return -ENOMEM;
 	}
@@ -767,51 +686,75 @@ static int get_dfs_referral(const unsigned int xid, struct cifs_ses *ses, const 
  *
  * For interlinks, cifs_mount() and expand_dfs_referral() are supposed to
  * handle them properly.
+ *
+ * On success, return entry with acquired lock for reading, otherwise error ptr.
  */
-static int cache_refresh_path(const unsigned int xid, struct cifs_ses *ses, const char *path)
+static struct cache_entry *cache_refresh_path(const unsigned int xid,
+					      struct cifs_ses *ses,
+					      const char *path,
+					      bool force_refresh)
 {
-	int rc;
-	struct cache_entry *ce;
 	struct dfs_info3_param *refs = NULL;
+	struct cache_entry *ce;
 	int numrefs = 0;
-	bool newent = false;
+	int rc;
 
 	cifs_dbg(FYI, "%s: search path: %s\n", __func__, path);
 
-	down_write(&htable_rw_lock);
+	down_read(&htable_rw_lock);
 
 	ce = lookup_cache_entry(path);
 	if (!IS_ERR(ce)) {
-		if (!cache_entry_expired(ce)) {
-			dump_ce(ce);
-			up_write(&htable_rw_lock);
-			return 0;
-		}
-	} else {
-		newent = true;
+		if (!force_refresh && !cache_entry_expired(ce))
+			return ce;
+	} else if (PTR_ERR(ce) != -ENOENT) {
+		up_read(&htable_rw_lock);
+		return ce;
 	}
 
 	/*
-	 * Either the entry was not found, or it is expired.
+	 * Unlock shared access as we don't want to hold any locks while getting
+	 * a new referral.  The @ses used for performing the I/O could be
+	 * reconnecting and it acquires @htable_rw_lock to look up the dfs cache
+	 * in order to failover -- if necessary.
+	 */
+	up_read(&htable_rw_lock);
+
+	/*
+	 * Either the entry was not found, or it is expired, or it is a forced
+	 * refresh.
 	 * Request a new DFS referral in order to create or update a cache entry.
 	 */
 	rc = get_dfs_referral(xid, ses, path, &refs, &numrefs);
-	if (rc)
-		goto out_unlock;
+	if (rc) {
+		ce = ERR_PTR(rc);
+		goto out;
+	}
 
 	dump_refs(refs, numrefs);
 
-	if (!newent) {
-		rc = update_cache_entry_locked(ce, refs, numrefs);
-		goto out_unlock;
+	down_write(&htable_rw_lock);
+	/* Re-check as another task might have it added or refreshed already */
+	ce = lookup_cache_entry(path);
+	if (!IS_ERR(ce)) {
+		if (force_refresh || cache_entry_expired(ce)) {
+			rc = update_cache_entry_locked(ce, refs, numrefs);
+			if (rc)
+				ce = ERR_PTR(rc);
+		}
+	} else if (PTR_ERR(ce) == -ENOENT) {
+		ce = add_cache_entry_locked(refs, numrefs);
 	}
 
-	rc = add_cache_entry_locked(refs, numrefs);
+	if (IS_ERR(ce)) {
+		up_write(&htable_rw_lock);
+		goto out;
+	}
 
-out_unlock:
-	up_write(&htable_rw_lock);
+	downgrade_write(&htable_rw_lock);
+out:
 	free_dfs_info_array(refs, numrefs);
-	return rc;
+	return ce;
 }
 
 /*
@@ -878,7 +821,7 @@ static int get_targets(struct cache_entry *ce, struct dfs_cache_tgt_list *tl)
 		}
 		it->it_path_consumed = t->path_consumed;
 
-		if (ce->tgthint == t)
+		if (READ_ONCE(ce->tgthint) == t)
 			list_add(&it->it_list, head);
 		else
 			list_add_tail(&it->it_list, head);
@@ -931,15 +874,8 @@ int dfs_cache_find(const unsigned int xid, struct cifs_ses *ses, const struct nl
 	if (IS_ERR(npath))
 		return PTR_ERR(npath);
 
-	rc = cache_refresh_path(xid, ses, npath);
-	if (rc)
-		goto out_free_path;
-
-	down_read(&htable_rw_lock);
-
-	ce = lookup_cache_entry(npath);
+	ce = cache_refresh_path(xid, ses, npath, false);
 	if (IS_ERR(ce)) {
-		up_read(&htable_rw_lock);
 		rc = PTR_ERR(ce);
 		goto out_free_path;
 	}
@@ -1003,72 +939,6 @@ out_unlock:
 }
 
 /**
- * dfs_cache_update_tgthint - update target hint of a DFS cache entry
- *
- * If it doesn't find the cache entry, then it will get a DFS referral for @path
- * and create a new entry.
- *
- * In case the cache entry exists but expired, it will get a DFS referral
- * for @path and then update the respective cache entry.
- *
- * @xid: syscall id
- * @ses: smb session
- * @cp: codepage
- * @remap: type of character remapping for paths
- * @path: path to lookup in DFS referral cache
- * @it: DFS target iterator
- *
- * Return zero if the target hint was updated successfully, otherwise non-zero.
- */
-int dfs_cache_update_tgthint(const unsigned int xid, struct cifs_ses *ses,
-			     const struct nls_table *cp, int remap, const char *path,
-			     const struct dfs_cache_tgt_iterator *it)
-{
-	int rc;
-	const char *npath;
-	struct cache_entry *ce;
-	struct cache_dfs_tgt *t;
-
-	npath = dfs_cache_canonical_path(path, cp, remap);
-	if (IS_ERR(npath))
-		return PTR_ERR(npath);
-
-	cifs_dbg(FYI, "%s: update target hint - path: %s\n", __func__, npath);
-
-	rc = cache_refresh_path(xid, ses, npath);
-	if (rc)
-		goto out_free_path;
-
-	down_write(&htable_rw_lock);
-
-	ce = lookup_cache_entry(npath);
-	if (IS_ERR(ce)) {
-		rc = PTR_ERR(ce);
-		goto out_unlock;
-	}
-
-	t = ce->tgthint;
-
-	if (likely(!strcasecmp(it->it_name, t->name)))
-		goto out_unlock;
-
-	list_for_each_entry(t, &ce->tlist, list) {
-		if (!strcasecmp(t->name, it->it_name)) {
-			ce->tgthint = t;
-			cifs_dbg(FYI, "%s: new target hint: %s\n", __func__,
-				 it->it_name);
-			break;
-		}
-	}
-
-out_unlock:
-	up_write(&htable_rw_lock);
-out_free_path:
-	kfree(npath);
-	return rc;
-}
-
-/**
  * dfs_cache_noreq_update_tgthint - update target hint of a DFS cache entry
  * without sending any requests to the currently connected server.
  *
@@ -1092,21 +962,20 @@ void dfs_cache_noreq_update_tgthint(const char *path, const struct dfs_cache_tgt
 
 	cifs_dbg(FYI, "%s: path: %s\n", __func__, path);
 
-	if (!down_write_trylock(&htable_rw_lock))
-		return;
+	down_read(&htable_rw_lock);
 
 	ce = lookup_cache_entry(path);
 	if (IS_ERR(ce))
 		goto out_unlock;
 
-	t = ce->tgthint;
+	t = READ_ONCE(ce->tgthint);
 
 	if (unlikely(!strcasecmp(it->it_name, t->name)))
 		goto out_unlock;
 
 	list_for_each_entry(t, &ce->tlist, list) {
 		if (!strcasecmp(t->name, it->it_name)) {
-			ce->tgthint = t;
+			WRITE_ONCE(ce->tgthint, t);
 			cifs_dbg(FYI, "%s: new target hint: %s\n", __func__,
 				 it->it_name);
 			break;
@@ -1114,7 +983,7 @@ void dfs_cache_noreq_update_tgthint(const char *path, const struct dfs_cache_tgt
 	}
 
 out_unlock:
-	up_write(&htable_rw_lock);
+	up_read(&htable_rw_lock);
 }
 
 /**
@@ -1153,54 +1022,6 @@ int dfs_cache_get_tgt_referral(const char *path, const struct dfs_cache_tgt_iter
 out_unlock:
 	up_read(&htable_rw_lock);
 	return rc;
-}
-
-/**
- * dfs_cache_add_refsrv_session - add SMB session of referral server
- *
- * @mount_id: mount group uuid to lookup.
- * @ses: reference counted SMB session of referral server.
- */
-void dfs_cache_add_refsrv_session(const uuid_t *mount_id, struct cifs_ses *ses)
-{
-	struct mount_group *mg;
-
-	if (WARN_ON_ONCE(!mount_id || uuid_is_null(mount_id) || !ses))
-		return;
-
-	mg = get_mount_group(mount_id);
-	if (WARN_ON_ONCE(IS_ERR(mg)))
-		return;
-
-	spin_lock(&mg->lock);
-	if (mg->num_sessions < ARRAY_SIZE(mg->sessions))
-		mg->sessions[mg->num_sessions++] = ses;
-	spin_unlock(&mg->lock);
-	kref_put(&mg->refcount, mount_group_release);
-}
-
-/**
- * dfs_cache_put_refsrv_sessions - put all referral server sessions
- *
- * Put all SMB sessions from the given mount group id.
- *
- * @mount_id: mount group uuid to lookup.
- */
-void dfs_cache_put_refsrv_sessions(const uuid_t *mount_id)
-{
-	struct mount_group *mg;
-
-	if (!mount_id || uuid_is_null(mount_id))
-		return;
-
-	mutex_lock(&mount_group_list_lock);
-	mg = find_mount_group_locked(mount_id);
-	if (IS_ERR(mg)) {
-		mutex_unlock(&mount_group_list_lock);
-		return;
-	}
-	mutex_unlock(&mount_group_list_lock);
-	kref_put(&mg->refcount, mount_group_release);
 }
 
 /* Extract share from DFS target and return a pointer to prefix path or NULL */
@@ -1299,7 +1120,6 @@ static bool target_share_equal(struct TCP_Server_Info *server, const char *s1, c
 	 * Resolve share's hostname and check if server address matches.  Otherwise just ignore it
 	 * as we could not have upcall to resolve hostname or failed to convert ip address.
 	 */
-	match = true;
 	extract_unc_hostname(s1, &host, &hostlen);
 	scnprintf(unc, sizeof(unc), "\\\\%.*s", (int)hostlen, host);
 
@@ -1321,35 +1141,37 @@ static bool target_share_equal(struct TCP_Server_Info *server, const char *s1, c
  * Mark dfs tcon for reconnecting when the currently connected tcon does not match any of the new
  * target shares in @refs.
  */
-static void mark_for_reconnect_if_needed(struct cifs_tcon *tcon, struct dfs_cache_tgt_list *tl,
-					 const struct dfs_info3_param *refs, int numrefs)
+static void mark_for_reconnect_if_needed(struct TCP_Server_Info *server,
+					 struct dfs_cache_tgt_list *old_tl,
+					 struct dfs_cache_tgt_list *new_tl)
 {
-	struct dfs_cache_tgt_iterator *it;
-	int i;
+	struct dfs_cache_tgt_iterator *oit, *nit;
 
-	for (it = dfs_cache_get_tgt_iterator(tl); it; it = dfs_cache_get_next_tgt(tl, it)) {
-		for (i = 0; i < numrefs; i++) {
-			if (target_share_equal(tcon->ses->server, dfs_cache_get_tgt_name(it),
-					       refs[i].node_name))
+	for (oit = dfs_cache_get_tgt_iterator(old_tl); oit;
+	     oit = dfs_cache_get_next_tgt(old_tl, oit)) {
+		for (nit = dfs_cache_get_tgt_iterator(new_tl); nit;
+		     nit = dfs_cache_get_next_tgt(new_tl, nit)) {
+			if (target_share_equal(server,
+					       dfs_cache_get_tgt_name(oit),
+					       dfs_cache_get_tgt_name(nit)))
 				return;
 		}
 	}
 
 	cifs_dbg(FYI, "%s: no cached or matched targets. mark dfs share for reconnect.\n", __func__);
-	cifs_signal_cifsd_for_reconnect(tcon->ses->server, true);
+	cifs_signal_cifsd_for_reconnect(server, true);
 }
 
 /* Refresh dfs referral of tcon and mark it for reconnect if needed */
 static int __refresh_tcon(const char *path, struct cifs_tcon *tcon, bool force_refresh)
 {
-	struct dfs_cache_tgt_list tl = DFS_CACHE_TGT_LIST_INIT(tl);
+	struct dfs_cache_tgt_list old_tl = DFS_CACHE_TGT_LIST_INIT(old_tl);
+	struct dfs_cache_tgt_list new_tl = DFS_CACHE_TGT_LIST_INIT(new_tl);
 	struct cifs_ses *ses = CIFS_DFS_ROOT_SES(tcon->ses);
 	struct cifs_tcon *ipc = ses->tcon_ipc;
-	struct dfs_info3_param *refs = NULL;
 	bool needs_refresh = false;
 	struct cache_entry *ce;
 	unsigned int xid;
-	int numrefs = 0;
 	int rc = 0;
 
 	xid = get_xid();
@@ -1358,9 +1180,8 @@ static int __refresh_tcon(const char *path, struct cifs_tcon *tcon, bool force_r
 	ce = lookup_cache_entry(path);
 	needs_refresh = force_refresh || IS_ERR(ce) || cache_entry_expired(ce);
 	if (!IS_ERR(ce)) {
-		rc = get_targets(ce, &tl);
-		if (rc)
-			cifs_dbg(FYI, "%s: could not get dfs targets: %d\n", __func__, rc);
+		rc = get_targets(ce, &old_tl);
+		cifs_dbg(FYI, "%s: get_targets: %d\n", __func__, rc);
 	}
 	up_read(&htable_rw_lock);
 
@@ -1370,33 +1191,25 @@ static int __refresh_tcon(const char *path, struct cifs_tcon *tcon, bool force_r
 	}
 
 	spin_lock(&ipc->tc_lock);
-	if (ses->ses_status != SES_GOOD || ipc->status != TID_GOOD) {
+	if (ipc->status != TID_GOOD) {
 		spin_unlock(&ipc->tc_lock);
 		cifs_dbg(FYI, "%s: skip cache refresh due to disconnected ipc\n", __func__);
 		goto out;
 	}
 	spin_unlock(&ipc->tc_lock);
 
-	rc = get_dfs_referral(xid, ses, path, &refs, &numrefs);
-	if (!rc) {
-		/* Create or update a cache entry with the new referral */
-		dump_refs(refs, numrefs);
-
-		down_write(&htable_rw_lock);
-		ce = lookup_cache_entry(path);
-		if (IS_ERR(ce))
-			add_cache_entry_locked(refs, numrefs);
-		else if (force_refresh || cache_entry_expired(ce))
-			update_cache_entry_locked(ce, refs, numrefs);
-		up_write(&htable_rw_lock);
-
-		mark_for_reconnect_if_needed(tcon, &tl, refs, numrefs);
+	ce = cache_refresh_path(xid, ses, path, true);
+	if (!IS_ERR(ce)) {
+		rc = get_targets(ce, &new_tl);
+		up_read(&htable_rw_lock);
+		cifs_dbg(FYI, "%s: get_targets: %d\n", __func__, rc);
+		mark_for_reconnect_if_needed(tcon->ses->server, &old_tl, &new_tl);
 	}
 
 out:
 	free_xid(xid);
-	dfs_cache_free_tgts(&tl);
-	free_dfs_info_array(refs, numrefs);
+	dfs_cache_free_tgts(&old_tl);
+	dfs_cache_free_tgts(&new_tl);
 	return rc;
 }
 
@@ -1435,11 +1248,6 @@ int dfs_cache_remount_fs(struct cifs_sb_info *cifs_sb)
 	if (!server->origin_fullpath) {
 		cifs_dbg(FYI, "%s: not a dfs mount\n", __func__);
 		return 0;
-	}
-
-	if (uuid_is_null(&cifs_sb->dfs_mount_id)) {
-		cifs_dbg(FYI, "%s: no dfs mount group id\n", __func__);
-		return -EINVAL;
 	}
 	/*
 	 * After reconnecting to a different server, unique ids won't match anymore, so we disable

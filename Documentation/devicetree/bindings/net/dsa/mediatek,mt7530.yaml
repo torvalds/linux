@@ -24,56 +24,46 @@ description: |
 
   There is only the standalone version of MT7531.
 
-  Port 5 on MT7530 has got various ways of configuration.
-
-  For standalone MT7530:
+  Port 5 on MT7530 has got various ways of configuration:
 
     - Port 5 can be used as a CPU port.
 
-    - PHY 0 or 4 of the switch can be muxed to connect to the gmac of the SoC
-      which port 5 is wired to. Usually used for connecting the wan port
-      directly to the CPU to achieve 2 Gbps routing in total.
+    - PHY 0 or 4 of the switch can be muxed to gmac5 of the switch. Therefore,
+      the gmac of the SoC which is wired to port 5 can connect to the PHY.
+      This is usually used for connecting the wan port directly to the CPU to
+      achieve 2 Gbps routing in total.
 
-      The driver looks up the reg on the ethernet-phy node which the phy-handle
-      property refers to on the gmac node to mux the specified phy.
+      The driver looks up the reg on the ethernet-phy node, which the phy-handle
+      property on the gmac node refers to, to mux the specified phy.
 
       The driver requires the gmac of the SoC to have "mediatek,eth-mac" as the
-      compatible string and the reg must be 1. So, for now, only gmac1 of an
+      compatible string and the reg must be 1. So, for now, only gmac1 of a
       MediaTek SoC can benefit this. Banana Pi BPI-R2 suits this.
-      Check out example 5 for a similar configuration.
-
-    - Port 5 can be wired to an external phy. Port 5 becomes a DSA slave.
-      Check out example 7 for a similar configuration.
-
-  For multi-chip module MT7530:
-
-    - Port 5 can be used as a CPU port.
-
-    - PHY 0 or 4 of the switch can be muxed to connect to gmac1 of the SoC.
-      Usually used for connecting the wan port directly to the CPU to achieve 2
-      Gbps routing in total.
-
-      The driver looks up the reg on the ethernet-phy node which the phy-handle
-      property refers to on the gmac node to mux the specified phy.
 
       For the MT7621 SoCs, rgmii2 group must be claimed with rgmii2 function.
+
       Check out example 5.
 
-    - In case of an external phy wired to gmac1 of the SoC, port 5 must not be
-      enabled.
+    - For the multi-chip module MT7530, in case of an external phy wired to
+      gmac1 of the SoC, port 5 must not be enabled.
 
       In case of muxing PHY 0 or 4, the external phy must not be enabled.
 
       For the MT7621 SoCs, rgmii2 group must be claimed with rgmii2 function.
+
       Check out example 6.
 
-    - Port 5 can be muxed to an external phy. Port 5 becomes a DSA slave.
-      The external phy must be wired TX to TX to gmac1 of the SoC for this to
-      work. Ubiquiti EdgeRouter X SFP is wired this way.
+    - Port 5 can be wired to an external phy. Port 5 becomes a DSA slave.
 
-      Muxing PHY 0 or 4 won't work when the external phy is connected TX to TX.
+      For the multi-chip module MT7530, the external phy must be wired TX to TX
+      to gmac1 of the SoC for this to work. Ubiquiti EdgeRouter X SFP is wired
+      this way.
+
+      For the multi-chip module MT7530, muxing PHY 0 or 4 won't work when the
+      external phy is connected TX to TX.
 
       For the MT7621 SoCs, rgmii2 group must be claimed with gpio function.
+
       Check out example 7.
 
 properties:
@@ -157,9 +147,6 @@ patternProperties:
     patternProperties:
       "^(ethernet-)?port@[0-9]+$":
         type: object
-        description: Ethernet switch ports
-
-        unevaluatedProperties: false
 
         properties:
           reg:
@@ -168,7 +155,6 @@ patternProperties:
               for user ports.
 
         allOf:
-          - $ref: dsa-port.yaml#
           - if:
               required: [ ethernet ]
             then:
@@ -238,7 +224,7 @@ $defs:
                       - sgmii
 
 allOf:
-  - $ref: dsa.yaml#
+  - $ref: dsa.yaml#/$defs/ethernet-ports
   - if:
       required:
         - mediatek,mcm
@@ -605,7 +591,7 @@ examples:
                         label = "lan4";
                     };
 
-                    /* Commented out, phy4 is muxed to gmac1.
+                    /* Commented out, phy4 is connected to gmac1.
                     port@4 {
                         reg = <4>;
                         label = "wan";

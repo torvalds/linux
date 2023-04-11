@@ -224,7 +224,6 @@ void machine_kexec_cleanup(struct kimage *image)
 void arch_crash_save_vmcoreinfo(void)
 {
 	struct lowcore *abs_lc;
-	unsigned long flags;
 
 	VMCOREINFO_SYMBOL(lowcore_ptr);
 	VMCOREINFO_SYMBOL(high_memory);
@@ -232,9 +231,9 @@ void arch_crash_save_vmcoreinfo(void)
 	vmcoreinfo_append_str("SAMODE31=%lx\n", __samode31);
 	vmcoreinfo_append_str("EAMODE31=%lx\n", __eamode31);
 	vmcoreinfo_append_str("KERNELOFFSET=%lx\n", kaslr_offset());
-	abs_lc = get_abs_lowcore(&flags);
+	abs_lc = get_abs_lowcore();
 	abs_lc->vmcore_info = paddr_vmcoreinfo_note();
-	put_abs_lowcore(abs_lc, flags);
+	put_abs_lowcore(abs_lc);
 }
 
 void machine_shutdown(void)

@@ -35,6 +35,7 @@
 #include <net/sock.h>
 #include <linux/in.h>
 #include <linux/export.h>
+#include <linux/sched/clock.h>
 #include <linux/time.h>
 #include <linux/rds.h>
 

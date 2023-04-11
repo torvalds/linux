@@ -25,7 +25,7 @@
 
 #include "i915_reg_defs.h"
 
-#include "intel_display.h"
+#include "intel_display_limits.h"
 
 enum drm_connector_status;
 struct drm_display_mode;

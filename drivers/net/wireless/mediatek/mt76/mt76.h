@@ -202,7 +202,7 @@ struct mt76_queue {
 
 	dma_addr_t desc_dma;
 	struct sk_buff *rx_head;
-	struct page_frag_cache rx_page;
+	struct page_pool *page_pool;
 };
 
 struct mt76_mcu_ops {
@@ -264,12 +264,15 @@ enum mt76_phy_type {
 	MT_PHY_TYPE_HE_EXT_SU,
 	MT_PHY_TYPE_HE_TB,
 	MT_PHY_TYPE_HE_MU,
-	__MT_PHY_TYPE_HE_MAX,
+	MT_PHY_TYPE_EHT_SU = 13,
+	MT_PHY_TYPE_EHT_TRIG,
+	MT_PHY_TYPE_EHT_MU,
+	__MT_PHY_TYPE_MAX,
 };
 
 struct mt76_sta_stats {
-	u64 tx_mode[__MT_PHY_TYPE_HE_MAX];
-	u64 tx_bw[4];		/* 20, 40, 80, 160 */
+	u64 tx_mode[__MT_PHY_TYPE_MAX];
+	u64 tx_bw[5];		/* 20, 40, 80, 160, 320 */
 	u64 tx_nss[4];		/* 1, 2, 3, 4 */
 	u64 tx_mcs[16];		/* mcs idx */
 	u64 tx_bytes;
@@ -291,7 +294,7 @@ enum mt76_wcid_flags {
 	MT_WCID_FLAG_HDR_TRANS,
 };
 
-#define MT76_N_WCIDS 544
+#define MT76_N_WCIDS 1088
 
 /* stored in ieee80211_tx_info::hw_queue */
 #define MT_TX_HW_QUEUE_PHY		GENMASK(3, 2)
@@ -399,6 +402,7 @@ struct mt76_tx_cb {
 
 enum {
 	MT76_STATE_INITIALIZED,
+	MT76_STATE_REGISTERED,
 	MT76_STATE_RUNNING,
 	MT76_STATE_MCU_RUNNING,
 	MT76_SCANNING,
@@ -413,6 +417,7 @@ enum {
 	MT76_STATE_SUSPEND,
 	MT76_STATE_ROC,
 	MT76_STATE_PM,
+	MT76_STATE_WED_RESET,
 };
 
 struct mt76_hw_cap {
@@ -591,6 +596,8 @@ struct mt76_mmio {
 	u32 irqmask;
 
 	struct mtk_wed_device wed;
+	struct completion wed_reset;
+	struct completion wed_reset_complete;
 };
 
 struct mt76_rx_status {
@@ -731,6 +738,13 @@ struct mt76_phy {
 	} rx_amsdu[__MT_RXQ_MAX];
 
 	struct mt76_freq_range_power *frp;
+
+	struct {
+		struct led_classdev cdev;
+		char name[32];
+		bool al;
+		u8 pin;
+	} leds;
 };
 
 struct mt76_dev {
@@ -812,11 +826,6 @@ struct mt76_dev {
 
 	u32 debugfs_reg;
 
-	struct led_classdev led_cdev;
-	char led_name[32];
-	bool led_al;
-	u8 led_pin;
-
 	u8 csa_complete;
 
 	u32 rxfilter;
@@ -886,7 +895,6 @@ extern struct ieee80211_rate mt76_rates[12];
 
 
 #define mt76_mcu_restart(dev, ...)	(dev)->mt76.mcu_ops->mcu_restart(&((dev)->mt76))
-#define __mt76_mcu_restart(dev, ...)	(dev)->mcu_ops->mcu_restart((dev))
 
 #define mt76_set(dev, offset, val)	mt76_rmw(dev, offset, 0, val)
 #define mt76_clear(dev, offset, val)	mt76_rmw(dev, offset, val, 0)
@@ -907,10 +915,11 @@ bool __mt76_poll(struct mt76_dev *dev, u32 offset, u32 mask, u32 val,
 
 #define mt76_poll(dev, ...) __mt76_poll(&((dev)->mt76), __VA_ARGS__)
 
-bool __mt76_poll_msec(struct mt76_dev *dev, u32 offset, u32 mask, u32 val,
-		      int timeout);
-
-#define mt76_poll_msec(dev, ...) __mt76_poll_msec(&((dev)->mt76), __VA_ARGS__)
+bool ____mt76_poll_msec(struct mt76_dev *dev, u32 offset, u32 mask, u32 val,
+			int timeout, int kick);
+#define __mt76_poll_msec(...)         ____mt76_poll_msec(__VA_ARGS__, 10)
+#define mt76_poll_msec(dev, ...)      ____mt76_poll_msec(&((dev)->mt76), __VA_ARGS__, 10)
+#define mt76_poll_msec_tick(dev, ...) ____mt76_poll_msec(&((dev)->mt76), __VA_ARGS__)
 
 void mt76_mmio_init(struct mt76_dev *dev, void __iomem *regs);
 void mt76_pci_disable_aspm(struct pci_dev *pdev);
@@ -1267,6 +1276,7 @@ mt76_tx_status_get_hw(struct mt76_dev *dev, struct sk_buff *skb)
 void mt76_put_txwi(struct mt76_dev *dev, struct mt76_txwi_cache *t);
 void mt76_put_rxwi(struct mt76_dev *dev, struct mt76_txwi_cache *t);
 struct mt76_txwi_cache *mt76_get_rxwi(struct mt76_dev *dev);
+void mt76_free_pending_rxwi(struct mt76_dev *dev);
 void mt76_rx_complete(struct mt76_dev *dev, struct sk_buff_head *frames,
 		      struct napi_struct *napi);
 void mt76_rx_poll_complete(struct mt76_dev *dev, enum mt76_rxq_id q,
@@ -1309,8 +1319,9 @@ mt76u_bulk_msg(struct mt76_dev *dev, void *data, int len, int *actual_len,
 	return usb_bulk_msg(udev, pipe, data, len, actual_len, timeout);
 }
 
+void mt76_ethtool_page_pool_stats(struct mt76_dev *dev, u64 *data, int *index);
 void mt76_ethtool_worker(struct mt76_ethtool_worker_info *wi,
-			 struct mt76_sta_stats *stats);
+			 struct mt76_sta_stats *stats, bool eht);
 int mt76_skb_adjust_pad(struct sk_buff *skb, int pad);
 int __mt76u_vendor_request(struct mt76_dev *dev, u8 req, u8 req_type,
 			   u16 val, u16 offset, void *buf, size_t len);
@@ -1407,6 +1418,12 @@ s8 mt76_get_rate_power_limits(struct mt76_phy *phy,
 			      struct mt76_power_limits *dest,
 			      s8 target_power);
 
+static inline bool mt76_queue_is_wed_rx(struct mt76_queue *q)
+{
+	return (q->flags & MT_QFLAG_WED) &&
+	       FIELD_GET(MT_QFLAG_WED_TYPE, q->flags) == MT76_WED_Q_RX;
+}
+
 struct mt76_txwi_cache *
 mt76_token_release(struct mt76_dev *dev, int token, bool *wake);
 int mt76_token_consume(struct mt76_dev *dev, struct mt76_txwi_cache **ptxwi);
@@ -1414,6 +1431,25 @@ void __mt76_set_tx_blocked(struct mt76_dev *dev, bool blocked);
 struct mt76_txwi_cache *mt76_rx_token_release(struct mt76_dev *dev, int token);
 int mt76_rx_token_consume(struct mt76_dev *dev, void *ptr,
 			  struct mt76_txwi_cache *r, dma_addr_t phys);
+int mt76_create_page_pool(struct mt76_dev *dev, struct mt76_queue *q);
+static inline void mt76_put_page_pool_buf(void *buf, bool allow_direct)
+{
+	struct page *page = virt_to_head_page(buf);
+
+	page_pool_put_full_page(page->pp, page, allow_direct);
+}
+
+static inline void *
+mt76_get_page_pool_buf(struct mt76_queue *q, u32 *offset, u32 size)
+{
+	struct page *page;
+
+	page = page_pool_dev_alloc_frag(q->page_pool, offset, size);
+	if (!page)
+		return NULL;
+
+	return page_address(page) + *offset;
+}
 
 static inline void mt76_set_tx_blocked(struct mt76_dev *dev, bool blocked)
 {

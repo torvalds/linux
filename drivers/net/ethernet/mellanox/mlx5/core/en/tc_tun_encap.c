@@ -222,7 +222,7 @@ void mlx5e_tc_encap_flows_del(struct mlx5e_priv *priv,
 	int err;
 
 	list_for_each_entry(flow, flow_list, tmp_list) {
-		if (!mlx5e_is_offloaded_flow(flow) || flow_flag_test(flow, SLOW))
+		if (!mlx5e_is_offloaded_flow(flow))
 			continue;
 
 		attr = mlx5e_tc_get_encap_attr(flow);
@@ -230,6 +230,13 @@ void mlx5e_tc_encap_flows_del(struct mlx5e_priv *priv,
 		/* mark the flow's encap dest as non-valid */
 		esw_attr->dests[flow->tmp_entry_index].flags &= ~MLX5_ESW_DEST_ENCAP_VALID;
 		esw_attr->dests[flow->tmp_entry_index].pkt_reformat = NULL;
+
+		/* Clear pkt_reformat before checking slow path flag. Because
+		 * in next iteration, the same flow is already set slow path
+		 * flag, but still need to clear the pkt_reformat.
+		 */
+		if (flow_flag_test(flow, SLOW))
+			continue;
 
 		/* update from encap rule to slow path rule */
 		spec = &flow->attr->parse_attr->spec;
@@ -1342,7 +1349,8 @@ static void mlx5e_invalidate_encap(struct mlx5e_priv *priv,
 			mlx5e_tc_unoffload_from_slow_path(esw, flow);
 		else
 			mlx5e_tc_unoffload_fdb_rules(esw, flow, flow->attr);
-		mlx5_modify_header_dealloc(priv->mdev, attr->modify_hdr);
+
+		mlx5e_tc_detach_mod_hdr(priv, flow, attr);
 		attr->modify_hdr = NULL;
 
 		esw_attr->dests[flow->tmp_entry_index].flags &=
@@ -1398,7 +1406,7 @@ static void mlx5e_reoffload_encap(struct mlx5e_priv *priv,
 			continue;
 		}
 
-		err = mlx5e_tc_add_flow_mod_hdr(priv, flow, attr);
+		err = mlx5e_tc_attach_mod_hdr(priv, flow, attr);
 		if (err) {
 			mlx5_core_warn(priv->mdev, "Failed to update flow mod_hdr err=%d",
 				       err);

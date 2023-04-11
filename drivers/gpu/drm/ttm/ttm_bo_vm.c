@@ -218,14 +218,21 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 	prot = ttm_io_prot(bo, bo->resource, prot);
 	if (!bo->resource->bus.is_iomem) {
 		struct ttm_operation_ctx ctx = {
-			.interruptible = false,
+			.interruptible = true,
 			.no_wait_gpu = false,
 			.force_alloc = true
 		};
 
 		ttm = bo->ttm;
-		if (ttm_tt_populate(bdev, bo->ttm, &ctx))
-			return VM_FAULT_OOM;
+		err = ttm_tt_populate(bdev, bo->ttm, &ctx);
+		if (err) {
+			if (err == -EINTR || err == -ERESTARTSYS ||
+			    err == -EAGAIN)
+				return VM_FAULT_NOPAGE;
+
+			pr_debug("TTM fault hit %pe.\n", ERR_PTR(err));
+			return VM_FAULT_SIGBUS;
+		}
 	} else {
 		/* Iomem should not be marked encrypted */
 		prot = pgprot_decrypted(prot);
@@ -471,8 +478,7 @@ int ttm_bo_mmap_obj(struct vm_area_struct *vma, struct ttm_buffer_object *bo)
 
 	vma->vm_private_data = bo;
 
-	vma->vm_flags |= VM_PFNMAP;
-	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
+	vm_flags_set(vma, VM_PFNMAP | VM_IO | VM_DONTEXPAND | VM_DONTDUMP);
 	return 0;
 }
 EXPORT_SYMBOL(ttm_bo_mmap_obj);

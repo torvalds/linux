@@ -383,7 +383,7 @@ struct brcmf_cfg80211_info {
 struct brcmf_tlv {
 	u8 id;
 	u8 len;
-	u8 data[1];
+	u8 data[];
 };
 
 static inline struct wiphy *cfg_to_wiphy(struct brcmf_cfg80211_info *cfg)

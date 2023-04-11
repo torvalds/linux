@@ -43,12 +43,12 @@ examples:
        #address-cells = <1>;
        #size-cells = <0>;
 
-       temp_sensor@0 {
-         compatible = "maxim,max31865";
-         reg = <0>;
-         spi-max-frequency = <400000>;
-         spi-cpha;
-         maxim,3-wire;
+       temperature-sensor@0 {
+           compatible = "maxim,max31865";
+           reg = <0>;
+           spi-max-frequency = <400000>;
+           spi-cpha;
+           maxim,3-wire;
        };
     };
 ...

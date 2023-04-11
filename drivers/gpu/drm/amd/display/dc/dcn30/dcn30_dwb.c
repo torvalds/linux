@@ -220,7 +220,7 @@ void dwb3_set_denorm(struct dwbc *dwbc, struct dc_dwb_params *params)
 }
 
 
-const struct dwbc_funcs dcn30_dwbc_funcs = {
+static const struct dwbc_funcs dcn30_dwbc_funcs = {
 	.get_caps		= dwb3_get_caps,
 	.enable			= dwb3_enable,
 	.disable		= dwb3_disable,

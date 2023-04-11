@@ -127,11 +127,11 @@ extern struct kmem_cache *kernfs_node_cache, *kernfs_iattrs_cache;
  */
 extern const struct xattr_handler *kernfs_xattr_handlers[];
 void kernfs_evict_inode(struct inode *inode);
-int kernfs_iop_permission(struct user_namespace *mnt_userns,
+int kernfs_iop_permission(struct mnt_idmap *idmap,
 			  struct inode *inode, int mask);
-int kernfs_iop_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+int kernfs_iop_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		       struct iattr *iattr);
-int kernfs_iop_getattr(struct user_namespace *mnt_userns,
+int kernfs_iop_getattr(struct mnt_idmap *idmap,
 		       const struct path *path, struct kstat *stat,
 		       u32 request_mask, unsigned int query_flags);
 ssize_t kernfs_iop_listxattr(struct dentry *dentry, char *buf, size_t size);

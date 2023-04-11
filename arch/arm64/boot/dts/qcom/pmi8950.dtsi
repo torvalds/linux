@@ -47,7 +47,7 @@
 			adc-chan@a {
 				reg = <VADC_REF_1250MV>;
 				qcom,pre-scaling = <1 1>;
-				label = "ref_1250v";
+				label = "ref_1250mv";
 			};
 
 			adc-chan@d {
@@ -67,11 +67,11 @@
 			#interrupt-cells = <2>;
 		};
 
-		pmi8950_gpio: gpio@c000 {
+		pmi8950_gpios: gpio@c000 {
 			compatible = "qcom,pmi8950-gpio", "qcom,spmi-gpio";
 			reg = <0xc000>;
 			gpio-controller;
-			gpio-ranges = <&pmi8950_gpio 0 0 2>;
+			gpio-ranges = <&pmi8950_gpios 0 0 2>;
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;

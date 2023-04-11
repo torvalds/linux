@@ -238,8 +238,7 @@ static int clps711x_fb_probe(struct platform_device *pdev)
 	info->fix.mmio_start = res->start;
 	info->fix.mmio_len = resource_size(res);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	info->screen_base = devm_ioremap_resource(dev, res);
+	info->screen_base = devm_platform_get_and_ioremap_resource(pdev, 1, &res);
 	if (IS_ERR(info->screen_base)) {
 		ret = PTR_ERR(info->screen_base);
 		goto out_fb_release;
@@ -251,16 +250,8 @@ static int clps711x_fb_probe(struct platform_device *pdev)
 		goto out_fb_release;
 	}
 
-	info->apertures = alloc_apertures(1);
-	if (!info->apertures) {
-		ret = -ENOMEM;
-		goto out_fb_release;
-	}
-
 	cfb->buffsize = resource_size(res);
 	info->fix.smem_start = res->start;
-	info->apertures->ranges[0].base = info->fix.smem_start;
-	info->apertures->ranges[0].size = cfb->buffsize;
 
 	cfb->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(cfb->clk)) {
@@ -345,7 +336,7 @@ static int clps711x_fb_probe(struct platform_device *pdev)
 				       &clps711x_lcd_ops);
 	if (!IS_ERR(lcd))
 		return 0;
-	
+
 	ret = PTR_ERR(lcd);
 	unregister_framebuffer(info);
 

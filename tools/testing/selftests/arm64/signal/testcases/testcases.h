@@ -18,6 +18,7 @@
 #define SVE_CTX		(1 << 1)
 #define ZA_CTX		(1 << 2)
 #define EXTRA_CTX	(1 << 3)
+#define ZT_CTX		(1 << 4)
 
 #define KSFT_BAD_MAGIC	0xdeadbeef
 

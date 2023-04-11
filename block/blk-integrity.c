@@ -356,7 +356,7 @@ static const struct sysfs_ops integrity_ops = {
 	.store	= &integrity_attr_store,
 };
 
-static struct kobj_type integrity_ktype = {
+static const struct kobj_type integrity_ktype = {
 	.default_groups = integrity_groups,
 	.sysfs_ops	= &integrity_ops,
 };

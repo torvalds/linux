@@ -17,6 +17,7 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/slab.h>
 
 #include "renesas-cpg-mssr.h"
@@ -27,6 +28,152 @@ static const struct rcar_gen4_cpg_pll_config *cpg_pll_config __initdata;
 static unsigned int cpg_clk_extalr __initdata;
 static u32 cpg_mode __initdata;
 
+#define CPG_PLLECR		0x0820	/* PLL Enable Control Register */
+
+#define CPG_PLLECR_PLLST(n)	BIT(8 + ((n) < 3 ? (n) - 1 : \
+					 (n) > 3 ? (n) + 1 : n)) /* PLLn Circuit Status */
+
+#define CPG_PLL1CR0		0x830	/* PLLn Control Registers */
+#define CPG_PLL1CR1		0x8b0
+#define CPG_PLL2CR0		0x834
+#define CPG_PLL2CR1		0x8b8
+#define CPG_PLL3CR0		0x83c
+#define CPG_PLL3CR1		0x8c0
+#define CPG_PLL4CR0		0x844
+#define CPG_PLL4CR1		0x8c8
+#define CPG_PLL6CR0		0x84c
+#define CPG_PLL6CR1		0x8d8
+
+#define CPG_PLLxCR0_KICK	BIT(31)
+#define CPG_PLLxCR0_NI		GENMASK(27, 20)	/* Integer mult. factor */
+#define CPG_PLLxCR0_SSMODE	GENMASK(18, 16)	/* PLL mode */
+#define CPG_PLLxCR0_SSMODE_FM	BIT(18)	/* Fractional Multiplication */
+#define CPG_PLLxCR0_SSMODE_DITH	BIT(17) /* Frequency Dithering */
+#define CPG_PLLxCR0_SSMODE_CENT	BIT(16)	/* Center (vs. Down) Spread Dithering */
+#define CPG_PLLxCR0_SSFREQ	GENMASK(14, 8)	/* SSCG Modulation Frequency */
+#define CPG_PLLxCR0_SSDEPT	GENMASK(6, 0)	/* SSCG Modulation Depth */
+
+#define SSMODE_FM		BIT(2)	/* Fractional Multiplication */
+#define SSMODE_DITHER		BIT(1)	/* Frequency Dithering */
+#define SSMODE_CENTER		BIT(0)	/* Center (vs. Down) Spread Dithering */
+
+/* PLL Clocks */
+struct cpg_pll_clk {
+	struct clk_hw hw;
+	void __iomem *pllcr0_reg;
+	void __iomem *pllecr_reg;
+	u32 pllecr_pllst_mask;
+};
+
+#define to_pll_clk(_hw)   container_of(_hw, struct cpg_pll_clk, hw)
+
+static unsigned long cpg_pll_clk_recalc_rate(struct clk_hw *hw,
+					     unsigned long parent_rate)
+{
+	struct cpg_pll_clk *pll_clk = to_pll_clk(hw);
+	unsigned int mult;
+
+	mult = FIELD_GET(CPG_PLLxCR0_NI, readl(pll_clk->pllcr0_reg)) + 1;
+
+	return parent_rate * mult * 2;
+}
+
+static int cpg_pll_clk_determine_rate(struct clk_hw *hw,
+				      struct clk_rate_request *req)
+{
+	unsigned int min_mult, max_mult, mult;
+	unsigned long prate;
+
+	prate = req->best_parent_rate * 2;
+	min_mult = max(div64_ul(req->min_rate, prate), 1ULL);
+	max_mult = min(div64_ul(req->max_rate, prate), 256ULL);
+	if (max_mult < min_mult)
+		return -EINVAL;
+
+	mult = DIV_ROUND_CLOSEST_ULL(req->rate, prate);
+	mult = clamp(mult, min_mult, max_mult);
+
+	req->rate = prate * mult;
+	return 0;
+}
+
+static int cpg_pll_clk_set_rate(struct clk_hw *hw, unsigned long rate,
+				unsigned long parent_rate)
+{
+	struct cpg_pll_clk *pll_clk = to_pll_clk(hw);
+	unsigned int mult;
+	u32 val;
+
+	mult = DIV_ROUND_CLOSEST_ULL(rate, parent_rate * 2);
+	mult = clamp(mult, 1U, 256U);
+
+	if (readl(pll_clk->pllcr0_reg) & CPG_PLLxCR0_KICK)
+		return -EBUSY;
+
+	cpg_reg_modify(pll_clk->pllcr0_reg, CPG_PLLxCR0_NI,
+		       FIELD_PREP(CPG_PLLxCR0_NI, mult - 1));
+
+	/*
+	 * Set KICK bit in PLLxCR0 to update hardware setting and wait for
+	 * clock change completion.
+	 */
+	cpg_reg_modify(pll_clk->pllcr0_reg, 0, CPG_PLLxCR0_KICK);
+
+	/*
+	 * Note: There is no HW information about the worst case latency.
+	 *
+	 * Using experimental measurements, it seems that no more than
+	 * ~45 µs are needed, independently of the CPU rate.
+	 * Since this value might be dependent on external xtal rate, pll
+	 * rate or even the other emulation clocks rate, use 1000 as a
+	 * "super" safe value.
+	 */
+	return readl_poll_timeout(pll_clk->pllecr_reg, val,
+				  val & pll_clk->pllecr_pllst_mask, 0, 1000);
+}
+
+static const struct clk_ops cpg_pll_clk_ops = {
+	.recalc_rate = cpg_pll_clk_recalc_rate,
+	.determine_rate = cpg_pll_clk_determine_rate,
+	.set_rate = cpg_pll_clk_set_rate,
+};
+
+static struct clk * __init cpg_pll_clk_register(const char *name,
+						const char *parent_name,
+						void __iomem *base,
+						unsigned int cr0_offset,
+						unsigned int cr1_offset,
+						unsigned int index)
+
+{
+	struct cpg_pll_clk *pll_clk;
+	struct clk_init_data init = {};
+	struct clk *clk;
+
+	pll_clk = kzalloc(sizeof(*pll_clk), GFP_KERNEL);
+	if (!pll_clk)
+		return ERR_PTR(-ENOMEM);
+
+	init.name = name;
+	init.ops = &cpg_pll_clk_ops;
+	init.parent_names = &parent_name;
+	init.num_parents = 1;
+
+	pll_clk->hw.init = &init;
+	pll_clk->pllcr0_reg = base + cr0_offset;
+	pll_clk->pllecr_reg = base + CPG_PLLECR;
+	pll_clk->pllecr_pllst_mask = CPG_PLLECR_PLLST(index);
+
+	/* Disable Fractional Multiplication and Frequency Dithering */
+	writel(0, base + cr1_offset);
+	cpg_reg_modify(pll_clk->pllcr0_reg, CPG_PLLxCR0_SSMODE, 0);
+
+	clk = clk_register(NULL, &pll_clk->hw);
+	if (IS_ERR(clk))
+		kfree(pll_clk);
+
+	return clk;
+}
 /*
  * Z0 Clock & Z1 Clock
  */
@@ -204,6 +351,15 @@ struct clk * __init rcar_gen4_cpg_clk_register(struct device *dev,
 		mult = cpg_pll_config->pll1_mult;
 		div = cpg_pll_config->pll1_div;
 		break;
+
+	case CLK_TYPE_GEN4_PLL2_VAR:
+		/*
+		 * PLL2 is implemented as a custom clock, to change the
+		 * multiplier when cpufreq changes between normal and boost
+		 * modes.
+		 */
+		return cpg_pll_clk_register(core->name, __clk_get_name(parent),
+					    base, CPG_PLL2CR0, CPG_PLL2CR1, 2);
 
 	case CLK_TYPE_GEN4_PLL2:
 		mult = cpg_pll_config->pll2_mult;

@@ -574,7 +574,6 @@ static int mtk_build_gpiochip(struct mtk_pinctrl *hw)
 	chip->set_config	= mtk_gpio_set_config;
 	chip->base		= -1;
 	chip->ngpio		= hw->soc->npins;
-	chip->of_gpio_n_cells	= 2;
 
 	ret = gpiochip_add_data(chip, hw);
 	if (ret < 0)

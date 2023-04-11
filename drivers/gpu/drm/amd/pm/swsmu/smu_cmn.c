@@ -404,6 +404,12 @@ int smu_cmn_send_debug_smc_msg(struct smu_context *smu,
 	return __smu_cmn_send_debug_msg(smu, msg, 0);
 }
 
+int smu_cmn_send_debug_smc_msg_with_param(struct smu_context *smu,
+			 uint32_t msg, uint32_t param)
+{
+	return __smu_cmn_send_debug_msg(smu, msg, param);
+}
+
 int smu_cmn_to_asic_specific_index(struct smu_context *smu,
 				   enum smu_cmn2asic_mapping_type type,
 				   uint32_t index)
@@ -472,13 +478,13 @@ int smu_cmn_to_asic_specific_index(struct smu_context *smu,
 		return mapping.map_to;
 
 	case CMN2ASIC_MAPPING_WORKLOAD:
-		if (index > PP_SMC_POWER_PROFILE_WINDOW3D ||
+		if (index >= PP_SMC_POWER_PROFILE_COUNT ||
 		    !smu->workload_map)
 			return -EINVAL;
 
 		mapping = smu->workload_map[index];
 		if (!mapping.valid_mapping)
-			return -EINVAL;
+			return -ENOTSUPP;
 
 		return mapping.map_to;
 

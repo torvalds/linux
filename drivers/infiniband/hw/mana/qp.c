@@ -289,7 +289,7 @@ static int mana_ib_create_qp_raw(struct ib_qp *ibqp, struct ib_pd *ibpd,
 
 	/* IB ports start with 1, MANA Ethernet ports start with 0 */
 	port = ucmd.port;
-	if (ucmd.port > mc->num_ports)
+	if (port < 1 || port > mc->num_ports)
 		return -EINVAL;
 
 	if (attr->cap.max_send_wr > MAX_SEND_BUFFERS_PER_QUEUE) {

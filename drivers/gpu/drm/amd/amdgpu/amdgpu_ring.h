@@ -27,6 +27,7 @@
 #include <drm/amdgpu_drm.h>
 #include <drm/gpu_scheduler.h>
 #include <drm/drm_print.h>
+#include <drm/drm_suballoc.h>
 
 struct amdgpu_device;
 struct amdgpu_ring;
@@ -92,7 +93,7 @@ enum amdgpu_ib_pool_type {
 };
 
 struct amdgpu_ib {
-	struct amdgpu_sa_bo		*sa_bo;
+	struct drm_suballoc		*sa_bo;
 	uint32_t			length_dw;
 	uint64_t			gpu_addr;
 	uint32_t			*ptr;
@@ -295,7 +296,7 @@ struct amdgpu_ring {
 #define amdgpu_ring_parse_cs(r, p, job, ib) ((r)->funcs->parse_cs((p), (job), (ib)))
 #define amdgpu_ring_patch_cs_in_place(r, p, job, ib) ((r)->funcs->patch_cs_in_place((p), (job), (ib)))
 #define amdgpu_ring_test_ring(r) (r)->funcs->test_ring((r))
-#define amdgpu_ring_test_ib(r, t) (r)->funcs->test_ib((r), (t))
+#define amdgpu_ring_test_ib(r, t) ((r)->funcs->test_ib ? (r)->funcs->test_ib((r), (t)) : 0)
 #define amdgpu_ring_get_rptr(r) (r)->funcs->get_rptr((r))
 #define amdgpu_ring_get_wptr(r) (r)->funcs->get_wptr((r))
 #define amdgpu_ring_set_wptr(r) (r)->funcs->set_wptr((r))
