@@ -90,16 +90,15 @@ static void usage(void)
 	exit(1);
 }
 
-static void uffd_stats_reset(struct uffd_stats *uffd_stats,
-			     unsigned long n_cpus)
+static void uffd_stats_reset(struct uffd_args *args, unsigned long n_cpus)
 {
 	int i;
 
 	for (i = 0; i < n_cpus; i++) {
-		uffd_stats[i].cpu = i;
-		uffd_stats[i].missing_faults = 0;
-		uffd_stats[i].wp_faults = 0;
-		uffd_stats[i].minor_faults = 0;
+		args[i].cpu = i;
+		args[i].missing_faults = 0;
+		args[i].wp_faults = 0;
+		args[i].minor_faults = 0;
 	}
 }
 
@@ -163,7 +162,7 @@ pthread_mutex_t uffd_read_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static void *uffd_read_thread(void *arg)
 {
-	struct uffd_stats *stats = (struct uffd_stats *)arg;
+	struct uffd_args *args = (struct uffd_args *)arg;
 	struct uffd_msg msg;
 
 	pthread_mutex_unlock(&uffd_read_mutex);
@@ -172,7 +171,7 @@ static void *uffd_read_thread(void *arg)
 	for (;;) {
 		if (uffd_read_msg(uffd, &msg))
 			continue;
-		uffd_handle_page_fault(&msg, stats);
+		uffd_handle_page_fault(&msg, args);
 	}
 
 	return NULL;
@@ -210,7 +209,7 @@ static void *background_thread(void *arg)
 	return NULL;
 }
 
-static int stress(struct uffd_stats *uffd_stats)
+static int stress(struct uffd_args *args)
 {
 	unsigned long cpu;
 	pthread_t locking_threads[nr_cpus];
@@ -225,12 +224,12 @@ static int stress(struct uffd_stats *uffd_stats)
 		if (bounces & BOUNCE_POLL) {
 			if (pthread_create(&uffd_threads[cpu], &attr,
 					   uffd_poll_thread,
-					   (void *)&uffd_stats[cpu]))
+					   (void *)&args[cpu]))
 				return 1;
 		} else {
 			if (pthread_create(&uffd_threads[cpu], &attr,
 					   uffd_read_thread,
-					   (void *)&uffd_stats[cpu]))
+					   (void *)&args[cpu]))
 				return 1;
 			pthread_mutex_lock(&uffd_read_mutex);
 		}
@@ -264,7 +263,7 @@ static int stress(struct uffd_stats *uffd_stats)
 			if (write(pipefd[cpu*2+1], &c, 1) != 1)
 				err("pipefd write error");
 			if (pthread_join(uffd_threads[cpu],
-					 (void *)&uffd_stats[cpu]))
+					 (void *)&args[cpu]))
 				return 1;
 		} else {
 			if (pthread_cancel(uffd_threads[cpu]))
@@ -493,7 +492,7 @@ static int userfaultfd_events_test(void)
 	int err, features;
 	pid_t pid;
 	char c;
-	struct uffd_stats stats = { 0 };
+	struct uffd_args args = { 0 };
 
 	printf("testing events (fork, remap, remove): ");
 	fflush(stdout);
@@ -508,7 +507,7 @@ static int userfaultfd_events_test(void)
 			  true, test_uffdio_wp, false))
 		err("register failure");
 
-	if (pthread_create(&uffd_mon, &attr, uffd_poll_thread, &stats))
+	if (pthread_create(&uffd_mon, &attr, uffd_poll_thread, &args))
 		err("uffd_poll_thread create");
 
 	pid = fork();
@@ -526,9 +525,9 @@ static int userfaultfd_events_test(void)
 	if (pthread_join(uffd_mon, NULL))
 		return 1;
 
-	uffd_stats_report(&stats, 1);
+	uffd_stats_report(&args, 1);
 
-	return stats.missing_faults != nr_pages;
+	return args.missing_faults != nr_pages;
 }
 
 static int userfaultfd_sig_test(void)
@@ -538,7 +537,7 @@ static int userfaultfd_sig_test(void)
 	int err, features;
 	pid_t pid;
 	char c;
-	struct uffd_stats stats = { 0 };
+	struct uffd_args args = { 0 };
 
 	printf("testing signal delivery: ");
 	fflush(stdout);
@@ -557,7 +556,7 @@ static int userfaultfd_sig_test(void)
 
 	uffd_test_ops->release_pages(area_dst);
 
-	if (pthread_create(&uffd_mon, &attr, uffd_poll_thread, &stats))
+	if (pthread_create(&uffd_mon, &attr, uffd_poll_thread, &args))
 		err("uffd_poll_thread create");
 
 	pid = fork();
@@ -606,7 +605,7 @@ static int userfaultfd_minor_test(void)
 	unsigned long p;
 	pthread_t uffd_mon;
 	char c;
-	struct uffd_stats stats = { 0 };
+	struct uffd_args args = { 0 };
 
 	if (!test_uffdio_minor)
 		return 0;
@@ -629,7 +628,7 @@ static int userfaultfd_minor_test(void)
 		       page_size);
 	}
 
-	if (pthread_create(&uffd_mon, &attr, uffd_poll_thread, &stats))
+	if (pthread_create(&uffd_mon, &attr, uffd_poll_thread, &args))
 		err("uffd_poll_thread create");
 
 	/*
@@ -645,7 +644,7 @@ static int userfaultfd_minor_test(void)
 	if (pthread_join(uffd_mon, NULL))
 		return 1;
 
-	uffd_stats_report(&stats, 1);
+	uffd_stats_report(&args, 1);
 
 	if (test_collapse) {
 		printf("testing collapse of uffd memory into PMD-mapped THPs:");
@@ -664,7 +663,7 @@ static int userfaultfd_minor_test(void)
 		printf(" done.\n");
 	}
 
-	return stats.missing_faults != 0 || stats.minor_faults != nr_pages;
+	return args.missing_faults != 0 || args.minor_faults != nr_pages;
 }
 
 static int pagemap_open(void)
@@ -822,7 +821,7 @@ static int userfaultfd_stress(void)
 {
 	void *area;
 	unsigned long nr;
-	struct uffd_stats uffd_stats[nr_cpus];
+	struct uffd_args args[nr_cpus];
 	uint64_t mem_size = nr_pages * page_size;
 
 	uffd_test_ctx_init(UFFD_FEATURE_WP_UNPOPULATED);
@@ -894,10 +893,10 @@ static int userfaultfd_stress(void)
 		 */
 		uffd_test_ops->release_pages(area_dst);
 
-		uffd_stats_reset(uffd_stats, nr_cpus);
+		uffd_stats_reset(args, nr_cpus);
 
 		/* bounce pass */
-		if (stress(uffd_stats))
+		if (stress(args))
 			return 1;
 
 		/* Clear all the write protections if there is any */
@@ -926,7 +925,7 @@ static int userfaultfd_stress(void)
 
 		swap(area_src_alias, area_dst_alias);
 
-		uffd_stats_report(uffd_stats, nr_cpus);
+		uffd_stats_report(args, nr_cpus);
 	}
 
 	if (test_type == TEST_ANON) {

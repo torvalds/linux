@@ -70,7 +70,7 @@
 						  -  1)))
 
 /* Userfaultfd test statistics */
-struct uffd_stats {
+struct uffd_args {
 	int cpu;
 	unsigned long missing_faults;
 	unsigned long wp_faults;
@@ -98,12 +98,12 @@ extern uffd_test_ops_t shmem_uffd_test_ops;
 extern uffd_test_ops_t hugetlb_uffd_test_ops;
 extern uffd_test_ops_t *uffd_test_ops;
 
-void uffd_stats_report(struct uffd_stats *stats, int n_cpus);
+void uffd_stats_report(struct uffd_args *args, int n_cpus);
 void uffd_test_ctx_init(uint64_t features);
 void userfaultfd_open(uint64_t *features);
 int uffd_read_msg(int ufd, struct uffd_msg *msg);
 void wp_range(int ufd, __u64 start, __u64 len, bool wp);
-void uffd_handle_page_fault(struct uffd_msg *msg, struct uffd_stats *stats);
+void uffd_handle_page_fault(struct uffd_msg *msg, struct uffd_args *args);
 int __copy_page(int ufd, unsigned long offset, bool retry);
 int copy_page(int ufd, unsigned long offset);
 void *uffd_poll_thread(void *arg);

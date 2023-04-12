@@ -186,34 +186,34 @@ struct uffd_test_ops hugetlb_uffd_test_ops = {
 	.check_pmd_mapping = NULL,
 };
 
-void uffd_stats_report(struct uffd_stats *stats, int n_cpus)
+void uffd_stats_report(struct uffd_args *args, int n_cpus)
 {
 	int i;
 	unsigned long long miss_total = 0, wp_total = 0, minor_total = 0;
 
 	for (i = 0; i < n_cpus; i++) {
-		miss_total += stats[i].missing_faults;
-		wp_total += stats[i].wp_faults;
-		minor_total += stats[i].minor_faults;
+		miss_total += args[i].missing_faults;
+		wp_total += args[i].wp_faults;
+		minor_total += args[i].minor_faults;
 	}
 
 	printf("userfaults: ");
 	if (miss_total) {
 		printf("%llu missing (", miss_total);
 		for (i = 0; i < n_cpus; i++)
-			printf("%lu+", stats[i].missing_faults);
+			printf("%lu+", args[i].missing_faults);
 		printf("\b) ");
 	}
 	if (wp_total) {
 		printf("%llu wp (", wp_total);
 		for (i = 0; i < n_cpus; i++)
-			printf("%lu+", stats[i].wp_faults);
+			printf("%lu+", args[i].wp_faults);
 		printf("\b) ");
 	}
 	if (minor_total) {
 		printf("%llu minor (", minor_total);
 		for (i = 0; i < n_cpus; i++)
-			printf("%lu+", stats[i].minor_faults);
+			printf("%lu+", args[i].minor_faults);
 		printf("\b)");
 	}
 	printf("\n");
@@ -397,7 +397,7 @@ int uffd_read_msg(int ufd, struct uffd_msg *msg)
 	return 0;
 }
 
-void uffd_handle_page_fault(struct uffd_msg *msg, struct uffd_stats *stats)
+void uffd_handle_page_fault(struct uffd_msg *msg, struct uffd_args *args)
 {
 	unsigned long offset;
 
@@ -407,7 +407,7 @@ void uffd_handle_page_fault(struct uffd_msg *msg, struct uffd_stats *stats)
 	if (msg->arg.pagefault.flags & UFFD_PAGEFAULT_FLAG_WP) {
 		/* Write protect page faults */
 		wp_range(uffd, msg->arg.pagefault.address, page_size, false);
-		stats->wp_faults++;
+		args->wp_faults++;
 	} else if (msg->arg.pagefault.flags & UFFD_PAGEFAULT_FLAG_MINOR) {
 		uint8_t *area;
 		int b;
@@ -430,7 +430,7 @@ void uffd_handle_page_fault(struct uffd_msg *msg, struct uffd_stats *stats)
 		for (b = 0; b < page_size; ++b)
 			area[b] = ~area[b];
 		continue_range(uffd, msg->arg.pagefault.address, page_size);
-		stats->minor_faults++;
+		args->minor_faults++;
 	} else {
 		/*
 		 * Missing page faults.
@@ -460,14 +460,14 @@ void uffd_handle_page_fault(struct uffd_msg *msg, struct uffd_stats *stats)
 		offset &= ~(page_size-1);
 
 		if (copy_page(uffd, offset))
-			stats->missing_faults++;
+			args->missing_faults++;
 	}
 }
 
 void *uffd_poll_thread(void *arg)
 {
-	struct uffd_stats *stats = (struct uffd_stats *)arg;
-	unsigned long cpu = stats->cpu;
+	struct uffd_args *args = (struct uffd_args *)arg;
+	unsigned long cpu = args->cpu;
 	struct pollfd pollfd[2];
 	struct uffd_msg msg;
 	struct uffdio_register uffd_reg;
@@ -502,7 +502,7 @@ void *uffd_poll_thread(void *arg)
 			err("unexpected msg event %u\n", msg.event);
 			break;
 		case UFFD_EVENT_PAGEFAULT:
-			uffd_handle_page_fault(&msg, stats);
+			uffd_handle_page_fault(&msg, args);
 			break;
 		case UFFD_EVENT_FORK:
 			close(uffd);
