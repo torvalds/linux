@@ -479,7 +479,7 @@ static void arm_spe_recording_free(struct auxtrace_record *itr)
 	struct arm_spe_recording *sper =
 			container_of(itr, struct arm_spe_recording, itr);
 
-	free(sper->wrapped);
+	zfree(&sper->wrapped);
 	free(sper);
 }
 
