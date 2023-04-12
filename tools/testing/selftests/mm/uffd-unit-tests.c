@@ -18,6 +18,9 @@
 #define  MEM_HUGETLB                      BIT_ULL(3)
 #define  MEM_HUGETLB_PRIVATE              BIT_ULL(4)
 
+#define  MEM_ALL  (MEM_ANON | MEM_SHMEM | MEM_SHMEM_PRIVATE | \
+		   MEM_HUGETLB | MEM_HUGETLB_PRIVATE)
+
 struct mem_type {
 	const char *name;
 	unsigned int mem_flag;
@@ -426,6 +429,237 @@ void uffd_minor_collapse_test(void)
 	uffd_minor_test_common(true, false);
 }
 
+static sigjmp_buf jbuf, *sigbuf;
+
+static void sighndl(int sig, siginfo_t *siginfo, void *ptr)
+{
+	if (sig == SIGBUS) {
+		if (sigbuf)
+			siglongjmp(*sigbuf, 1);
+		abort();
+	}
+}
+
+/*
+ * For non-cooperative userfaultfd test we fork() a process that will
+ * generate pagefaults, will mremap the area monitored by the
+ * userfaultfd and at last this process will release the monitored
+ * area.
+ * For the anonymous and shared memory the area is divided into two
+ * parts, the first part is accessed before mremap, and the second
+ * part is accessed after mremap. Since hugetlbfs does not support
+ * mremap, the entire monitored area is accessed in a single pass for
+ * HUGETLB_TEST.
+ * The release of the pages currently generates event for shmem and
+ * anonymous memory (UFFD_EVENT_REMOVE), hence it is not checked
+ * for hugetlb.
+ * For signal test(UFFD_FEATURE_SIGBUS), signal_test = 1, we register
+ * monitored area, generate pagefaults and test that signal is delivered.
+ * Use UFFDIO_COPY to allocate missing page and retry. For signal_test = 2
+ * test robustness use case - we release monitored area, fork a process
+ * that will generate pagefaults and verify signal is generated.
+ * This also tests UFFD_FEATURE_EVENT_FORK event along with the signal
+ * feature. Using monitor thread, verify no userfault events are generated.
+ */
+static int faulting_process(int signal_test, bool wp)
+{
+	unsigned long nr, i;
+	unsigned long long count;
+	unsigned long split_nr_pages;
+	unsigned long lastnr;
+	struct sigaction act;
+	volatile unsigned long signalled = 0;
+
+	split_nr_pages = (nr_pages + 1) / 2;
+
+	if (signal_test) {
+		sigbuf = &jbuf;
+		memset(&act, 0, sizeof(act));
+		act.sa_sigaction = sighndl;
+		act.sa_flags = SA_SIGINFO;
+		if (sigaction(SIGBUS, &act, 0))
+			err("sigaction");
+		lastnr = (unsigned long)-1;
+	}
+
+	for (nr = 0; nr < split_nr_pages; nr++) {
+		volatile int steps = 1;
+		unsigned long offset = nr * page_size;
+
+		if (signal_test) {
+			if (sigsetjmp(*sigbuf, 1) != 0) {
+				if (steps == 1 && nr == lastnr)
+					err("Signal repeated");
+
+				lastnr = nr;
+				if (signal_test == 1) {
+					if (steps == 1) {
+						/* This is a MISSING request */
+						steps++;
+						if (copy_page(uffd, offset, wp))
+							signalled++;
+					} else {
+						/* This is a WP request */
+						assert(steps == 2);
+						wp_range(uffd,
+							 (__u64)area_dst +
+							 offset,
+							 page_size, false);
+					}
+				} else {
+					signalled++;
+					continue;
+				}
+			}
+		}
+
+		count = *area_count(area_dst, nr);
+		if (count != count_verify[nr])
+			err("nr %lu memory corruption %llu %llu\n",
+			    nr, count, count_verify[nr]);
+		/*
+		 * Trigger write protection if there is by writing
+		 * the same value back.
+		 */
+		*area_count(area_dst, nr) = count;
+	}
+
+	if (signal_test)
+		return signalled != split_nr_pages;
+
+	area_dst = mremap(area_dst, nr_pages * page_size,  nr_pages * page_size,
+			  MREMAP_MAYMOVE | MREMAP_FIXED, area_src);
+	if (area_dst == MAP_FAILED)
+		err("mremap");
+	/* Reset area_src since we just clobbered it */
+	area_src = NULL;
+
+	for (; nr < nr_pages; nr++) {
+		count = *area_count(area_dst, nr);
+		if (count != count_verify[nr]) {
+			err("nr %lu memory corruption %llu %llu\n",
+			    nr, count, count_verify[nr]);
+		}
+		/*
+		 * Trigger write protection if there is by writing
+		 * the same value back.
+		 */
+		*area_count(area_dst, nr) = count;
+	}
+
+	uffd_test_ops->release_pages(area_dst);
+
+	for (nr = 0; nr < nr_pages; nr++)
+		for (i = 0; i < page_size; i++)
+			if (*(area_dst + nr * page_size + i) != 0)
+				err("page %lu offset %lu is not zero", nr, i);
+
+	return 0;
+}
+
+static void uffd_sigbus_test_common(bool wp)
+{
+	unsigned long userfaults;
+	pthread_t uffd_mon;
+	pid_t pid;
+	int err;
+	char c;
+	struct uffd_args args = { 0 };
+
+	fcntl(uffd, F_SETFL, uffd_flags | O_NONBLOCK);
+
+	if (uffd_register(uffd, area_dst, nr_pages * page_size,
+			  true, wp, false))
+		err("register failure");
+
+	if (faulting_process(1, wp))
+		err("faulting process failed");
+
+	uffd_test_ops->release_pages(area_dst);
+
+	args.apply_wp = wp;
+	if (pthread_create(&uffd_mon, NULL, uffd_poll_thread, &args))
+		err("uffd_poll_thread create");
+
+	pid = fork();
+	if (pid < 0)
+		err("fork");
+
+	if (!pid)
+		exit(faulting_process(2, wp));
+
+	waitpid(pid, &err, 0);
+	if (err)
+		err("faulting process failed");
+	if (write(pipefd[1], &c, sizeof(c)) != sizeof(c))
+		err("pipe write");
+	if (pthread_join(uffd_mon, (void **)&userfaults))
+		err("pthread_join()");
+
+	if (userfaults)
+		uffd_test_fail("Signal test failed, userfaults: %ld", userfaults);
+	else
+		uffd_test_pass();
+}
+
+static void uffd_sigbus_test(void)
+{
+	uffd_sigbus_test_common(false);
+}
+
+static void uffd_sigbus_wp_test(void)
+{
+	uffd_sigbus_test_common(true);
+}
+
+static void uffd_events_test_common(bool wp)
+{
+	pthread_t uffd_mon;
+	pid_t pid;
+	int err;
+	char c;
+	struct uffd_args args = { 0 };
+
+	fcntl(uffd, F_SETFL, uffd_flags | O_NONBLOCK);
+	if (uffd_register(uffd, area_dst, nr_pages * page_size,
+			  true, wp, false))
+		err("register failure");
+
+	args.apply_wp = wp;
+	if (pthread_create(&uffd_mon, NULL, uffd_poll_thread, &args))
+		err("uffd_poll_thread create");
+
+	pid = fork();
+	if (pid < 0)
+		err("fork");
+
+	if (!pid)
+		exit(faulting_process(0, wp));
+
+	waitpid(pid, &err, 0);
+	if (err)
+		err("faulting process failed");
+	if (write(pipefd[1], &c, sizeof(c)) != sizeof(c))
+		err("pipe write");
+	if (pthread_join(uffd_mon, NULL))
+		err("pthread_join()");
+
+	if (args.missing_faults != nr_pages)
+		uffd_test_fail("Fault counts wrong");
+	else
+		uffd_test_pass();
+}
+
+static void uffd_events_test(void)
+{
+	uffd_events_test_common(false);
+}
+
+static void uffd_events_wp_test(void)
+{
+	uffd_events_test_common(true);
+}
+
 uffd_test_case_t uffd_tests[] = {
 	{
 		.name = "pagemap",
@@ -462,6 +696,36 @@ uffd_test_case_t uffd_tests[] = {
 		.mem_targets = MEM_SHMEM,
 		/* We can't test MADV_COLLAPSE, so try our luck */
 		.uffd_feature_required = UFFD_FEATURE_MINOR_SHMEM,
+	},
+	{
+		.name = "sigbus",
+		.uffd_fn = uffd_sigbus_test,
+		.mem_targets = MEM_ALL,
+		.uffd_feature_required = UFFD_FEATURE_SIGBUS |
+		UFFD_FEATURE_EVENT_FORK,
+	},
+	{
+		.name = "sigbus-wp",
+		.uffd_fn = uffd_sigbus_wp_test,
+		.mem_targets = MEM_ALL,
+		.uffd_feature_required = UFFD_FEATURE_SIGBUS |
+		UFFD_FEATURE_EVENT_FORK | UFFD_FEATURE_PAGEFAULT_FLAG_WP,
+	},
+	{
+		.name = "events",
+		.uffd_fn = uffd_events_test,
+		.mem_targets = MEM_ALL,
+		.uffd_feature_required = UFFD_FEATURE_EVENT_FORK |
+		UFFD_FEATURE_EVENT_REMAP | UFFD_FEATURE_EVENT_REMOVE,
+	},
+	{
+		.name = "events-wp",
+		.uffd_fn = uffd_events_wp_test,
+		.mem_targets = MEM_ALL,
+		.uffd_feature_required = UFFD_FEATURE_EVENT_FORK |
+		UFFD_FEATURE_EVENT_REMAP | UFFD_FEATURE_EVENT_REMOVE |
+		UFFD_FEATURE_PAGEFAULT_FLAG_WP |
+		UFFD_FEATURE_WP_HUGETLBFS_SHMEM,
 	},
 };
 
