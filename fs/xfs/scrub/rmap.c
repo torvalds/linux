@@ -93,41 +93,16 @@ xchk_rmapbt_rec(
 	struct xchk_btree	*bs,
 	const union xfs_btree_rec *rec)
 {
-	struct xfs_mount	*mp = bs->cur->bc_mp;
 	struct xfs_rmap_irec	irec;
-	struct xfs_perag	*pag = bs->cur->bc_ag.pag;
 	bool			non_inode;
 	bool			is_unwritten;
 	bool			is_bmbt;
 	bool			is_attr;
 
-	if (xfs_rmap_btrec_to_irec(rec, &irec) != NULL) {
+	if (xfs_rmap_btrec_to_irec(rec, &irec) != NULL ||
+	    xfs_rmap_check_irec(bs->cur, &irec) != NULL) {
 		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 		return 0;
-	}
-
-	/* Check extent. */
-	if (irec.rm_startblock + irec.rm_blockcount <= irec.rm_startblock)
-		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
-
-	if (irec.rm_owner == XFS_RMAP_OWN_FS) {
-		/*
-		 * xfs_verify_agbno returns false for static fs metadata.
-		 * Since that only exists at the start of the AG, validate
-		 * that by hand.
-		 */
-		if (irec.rm_startblock != 0 ||
-		    irec.rm_blockcount != XFS_AGFL_BLOCK(mp) + 1)
-			xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
-	} else {
-		/*
-		 * Otherwise we must point somewhere past the static metadata
-		 * but before the end of the FS.  Run the regular check.
-		 */
-		if (!xfs_verify_agbno(pag, irec.rm_startblock) ||
-		    !xfs_verify_agbno(pag, irec.rm_startblock +
-				irec.rm_blockcount - 1))
-			xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 	}
 
 	/* Check flags. */
@@ -147,16 +122,6 @@ xchk_rmapbt_rec(
 
 	if (non_inode && (is_bmbt || is_unwritten || is_attr))
 		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
-
-	if (!non_inode) {
-		if (!xfs_verify_ino(mp, irec.rm_owner))
-			xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
-	} else {
-		/* Non-inode owner within the magic values? */
-		if (irec.rm_owner <= XFS_RMAP_OWN_MIN ||
-		    irec.rm_owner > XFS_RMAP_OWN_FS)
-			xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
-	}
 
 	xchk_rmapbt_xref(bs->sc, &irec);
 	return 0;
