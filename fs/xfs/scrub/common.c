@@ -487,6 +487,8 @@ xchk_perag_drain_and_lock(
 			sa->agi_bp = NULL;
 		}
 
+		if (!(sc->flags & XCHK_FSGATES_DRAIN))
+			return -EDEADLOCK;
 		error = xfs_perag_intent_drain(sa->pag);
 		if (error == -ERESTARTSYS)
 			error = -EINTR;
@@ -1004,4 +1006,26 @@ xchk_start_reaping(
 		xfs_blockgc_start(sc->mp);
 	}
 	sc->flags &= ~XCHK_REAPING_DISABLED;
+}
+
+/*
+ * Enable filesystem hooks (i.e. runtime code patching) before starting a scrub
+ * operation.  Callers must not hold any locks that intersect with the CPU
+ * hotplug lock (e.g. writeback locks) because code patching must halt the CPUs
+ * to change kernel code.
+ */
+void
+xchk_fsgates_enable(
+	struct xfs_scrub	*sc,
+	unsigned int		scrub_fsgates)
+{
+	ASSERT(!(scrub_fsgates & ~XCHK_FSGATES_ALL));
+	ASSERT(!(sc->flags & scrub_fsgates));
+
+	trace_xchk_fsgates_enable(sc, scrub_fsgates);
+
+	if (scrub_fsgates & XCHK_FSGATES_DRAIN)
+		xfs_drain_wait_enable();
+
+	sc->flags |= scrub_fsgates;
 }

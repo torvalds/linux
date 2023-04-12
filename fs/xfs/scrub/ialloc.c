@@ -32,6 +32,8 @@ int
 xchk_setup_ag_iallocbt(
 	struct xfs_scrub	*sc)
 {
+	if (xchk_need_intent_drain(sc))
+		xchk_fsgates_enable(sc, XCHK_FSGATES_DRAIN);
 	return xchk_setup_ag_btree(sc, sc->flags & XCHK_TRY_HARDER);
 }
 

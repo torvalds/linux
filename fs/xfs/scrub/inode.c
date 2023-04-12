@@ -32,6 +32,9 @@ xchk_setup_inode(
 {
 	int			error;
 
+	if (xchk_need_intent_drain(sc))
+		xchk_fsgates_enable(sc, XCHK_FSGATES_DRAIN);
+
 	/*
 	 * Try to get the inode.  If the verifiers fail, we try again
 	 * in raw mode.

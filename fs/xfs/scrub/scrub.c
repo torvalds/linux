@@ -145,6 +145,21 @@ xchk_probe(
 
 /* Scrub setup and teardown */
 
+static inline void
+xchk_fsgates_disable(
+	struct xfs_scrub	*sc)
+{
+	if (!(sc->flags & XCHK_FSGATES_ALL))
+		return;
+
+	trace_xchk_fsgates_disable(sc, sc->flags & XCHK_FSGATES_ALL);
+
+	if (sc->flags & XCHK_FSGATES_DRAIN)
+		xfs_drain_wait_disable();
+
+	sc->flags &= ~XCHK_FSGATES_ALL;
+}
+
 /* Free all the resources and finish the transactions. */
 STATIC int
 xchk_teardown(
@@ -177,6 +192,8 @@ xchk_teardown(
 		kvfree(sc->buf);
 		sc->buf = NULL;
 	}
+
+	xchk_fsgates_disable(sc);
 	return error;
 }
 
@@ -191,25 +208,25 @@ static const struct xchk_meta_ops meta_scrub_ops[] = {
 	},
 	[XFS_SCRUB_TYPE_SB] = {		/* superblock */
 		.type	= ST_PERAG,
-		.setup	= xchk_setup_fs,
+		.setup	= xchk_setup_agheader,
 		.scrub	= xchk_superblock,
 		.repair	= xrep_superblock,
 	},
 	[XFS_SCRUB_TYPE_AGF] = {	/* agf */
 		.type	= ST_PERAG,
-		.setup	= xchk_setup_fs,
+		.setup	= xchk_setup_agheader,
 		.scrub	= xchk_agf,
 		.repair	= xrep_agf,
 	},
 	[XFS_SCRUB_TYPE_AGFL]= {	/* agfl */
 		.type	= ST_PERAG,
-		.setup	= xchk_setup_fs,
+		.setup	= xchk_setup_agheader,
 		.scrub	= xchk_agfl,
 		.repair	= xrep_agfl,
 	},
 	[XFS_SCRUB_TYPE_AGI] = {	/* agi */
 		.type	= ST_PERAG,
-		.setup	= xchk_setup_fs,
+		.setup	= xchk_setup_agheader,
 		.scrub	= xchk_agi,
 		.repair	= xrep_agi,
 	},

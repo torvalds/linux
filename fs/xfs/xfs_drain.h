@@ -25,6 +25,9 @@ struct xfs_defer_drain {
 void xfs_defer_drain_init(struct xfs_defer_drain *dr);
 void xfs_defer_drain_free(struct xfs_defer_drain *dr);
 
+void xfs_drain_wait_disable(void);
+void xfs_drain_wait_enable(void);
+
 /*
  * Deferred Work Intent Drains
  * ===========================

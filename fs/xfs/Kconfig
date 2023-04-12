@@ -95,6 +95,7 @@ config XFS_RT
 
 config XFS_DRAIN_INTENTS
 	bool
+	select JUMP_LABEL if HAVE_ARCH_JUMP_LABEL
 
 config XFS_ONLINE_SCRUB
 	bool "XFS online metadata check support"

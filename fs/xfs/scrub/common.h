@@ -72,6 +72,7 @@ bool xchk_should_check_xref(struct xfs_scrub *sc, int *error,
 			   struct xfs_btree_cur **curpp);
 
 /* Setup functions */
+int xchk_setup_agheader(struct xfs_scrub *sc);
 int xchk_setup_fs(struct xfs_scrub *sc);
 int xchk_setup_ag_allocbt(struct xfs_scrub *sc);
 int xchk_setup_ag_iallocbt(struct xfs_scrub *sc);
@@ -150,5 +151,19 @@ int xchk_metadata_inode_forks(struct xfs_scrub *sc);
 int xchk_ilock_inverted(struct xfs_inode *ip, uint lock_mode);
 void xchk_stop_reaping(struct xfs_scrub *sc);
 void xchk_start_reaping(struct xfs_scrub *sc);
+
+/*
+ * Setting up a hook to wait for intents to drain is costly -- we have to take
+ * the CPU hotplug lock and force an i-cache flush on all CPUs once to set it
+ * up, and again to tear it down.  These costs add up quickly, so we only want
+ * to enable the drain waiter if the drain actually detected a conflict with
+ * running intent chains.
+ */
+static inline bool xchk_need_intent_drain(struct xfs_scrub *sc)
+{
+	return sc->flags & XCHK_TRY_HARDER;
+}
+
+void xchk_fsgates_enable(struct xfs_scrub *sc, unsigned int scrub_fshooks);
 
 #endif	/* __XFS_SCRUB_COMMON_H__ */

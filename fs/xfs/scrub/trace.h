@@ -96,6 +96,12 @@ TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_FSCOUNTERS);
 	{ XFS_SCRUB_OFLAG_WARNING,		"warning" }, \
 	{ XFS_SCRUB_OFLAG_NO_REPAIR_NEEDED,	"norepair" }
 
+#define XFS_SCRUB_STATE_STRINGS \
+	{ XCHK_TRY_HARDER,			"try_harder" }, \
+	{ XCHK_REAPING_DISABLED,		"reaping_disabled" }, \
+	{ XCHK_FSGATES_DRAIN,			"fsgates_drain" }, \
+	{ XREP_ALREADY_FIXED,			"already_fixed" }
+
 DECLARE_EVENT_CLASS(xchk_class,
 	TP_PROTO(struct xfs_inode *ip, struct xfs_scrub_metadata *sm,
 		 int error),
@@ -141,6 +147,33 @@ DEFINE_SCRUB_EVENT(xchk_done);
 DEFINE_SCRUB_EVENT(xchk_deadlock_retry);
 DEFINE_SCRUB_EVENT(xrep_attempt);
 DEFINE_SCRUB_EVENT(xrep_done);
+
+DECLARE_EVENT_CLASS(xchk_fsgate_class,
+	TP_PROTO(struct xfs_scrub *sc, unsigned int fsgate_flags),
+	TP_ARGS(sc, fsgate_flags),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(unsigned int, type)
+		__field(unsigned int, fsgate_flags)
+	),
+	TP_fast_assign(
+		__entry->dev = sc->mp->m_super->s_dev;
+		__entry->type = sc->sm->sm_type;
+		__entry->fsgate_flags = fsgate_flags;
+	),
+	TP_printk("dev %d:%d type %s fsgates '%s'",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __print_symbolic(__entry->type, XFS_SCRUB_TYPE_STRINGS),
+		  __print_flags(__entry->fsgate_flags, "|", XFS_SCRUB_STATE_STRINGS))
+)
+
+#define DEFINE_SCRUB_FSHOOK_EVENT(name) \
+DEFINE_EVENT(xchk_fsgate_class, name, \
+	TP_PROTO(struct xfs_scrub *sc, unsigned int fsgates_flags), \
+	TP_ARGS(sc, fsgates_flags))
+
+DEFINE_SCRUB_FSHOOK_EVENT(xchk_fsgates_enable);
+DEFINE_SCRUB_FSHOOK_EVENT(xchk_fsgates_disable);
 
 TRACE_EVENT(xchk_op_error,
 	TP_PROTO(struct xfs_scrub *sc, xfs_agnumber_t agno,
