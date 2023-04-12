@@ -959,6 +959,8 @@ struct rtw89_btc_ant_info {
 
 	u8 single_pos: 1;/* Single antenna at S0 or S1 */
 	u8 diversity: 1;
+	u8 btg_pos: 2;
+	u8 stream_cnt: 4;
 };
 
 enum rtw89_tfc_dir {
@@ -1415,8 +1417,9 @@ struct rtw89_btc_module {
 	u8 bt_solo: 1;
 	u8 bt_pos: 1;
 	u8 switch_type: 1;
+	u8 wa_type: 3;
 
-	u8 rsvd;
+	u8 kt_ver_adie;
 };
 
 #define RTW89_BTC_DM_MAXSTEP 30

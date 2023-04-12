@@ -2197,85 +2197,44 @@ static inline void RTW89_SET_FWCMD_CXHDR_LEN(void *cmd, u8 val)
 	u8p_replace_bits((u8 *)(cmd) + 1, val, GENMASK(7, 0));
 }
 
-static inline void RTW89_SET_FWCMD_CXINIT_ANT_TYPE(void *cmd, u8 val)
-{
-	u8p_replace_bits((u8 *)(cmd) + 2, val, GENMASK(7, 0));
-}
+struct rtw89_h2c_cxhdr {
+	u8 type;
+	u8 len;
+} __packed;
 
-static inline void RTW89_SET_FWCMD_CXINIT_ANT_NUM(void *cmd, u8 val)
-{
-	u8p_replace_bits((u8 *)(cmd) + 3, val, GENMASK(7, 0));
-}
+#define H2C_LEN_CXDRVHDR sizeof(struct rtw89_h2c_cxhdr)
 
-static inline void RTW89_SET_FWCMD_CXINIT_ANT_ISO(void *cmd, u8 val)
-{
-	u8p_replace_bits((u8 *)(cmd) + 4, val, GENMASK(7, 0));
-}
+struct rtw89_h2c_cxinit {
+	struct rtw89_h2c_cxhdr hdr;
+	u8 ant_type;
+	u8 ant_num;
+	u8 ant_iso;
+	u8 ant_info;
+	u8 mod_rfe;
+	u8 mod_cv;
+	u8 mod_info;
+	u8 mod_adie_kt;
+	u8 wl_gch;
+	u8 info;
+	u8 rsvd;
+	u8 rsvd1;
+} __packed;
 
-static inline void RTW89_SET_FWCMD_CXINIT_ANT_POS(void *cmd, u8 val)
-{
-	u8p_replace_bits((u8 *)(cmd) + 5, val, BIT(0));
-}
+#define RTW89_H2C_CXINIT_ANT_INFO_POS BIT(0)
+#define RTW89_H2C_CXINIT_ANT_INFO_DIVERSITY BIT(1)
+#define RTW89_H2C_CXINIT_ANT_INFO_BTG_POS GENMASK(3, 2)
+#define RTW89_H2C_CXINIT_ANT_INFO_STREAM_CNT GENMASK(7, 4)
 
-static inline void RTW89_SET_FWCMD_CXINIT_ANT_DIVERSITY(void *cmd, u8 val)
-{
-	u8p_replace_bits((u8 *)(cmd) + 5, val, BIT(1));
-}
+#define RTW89_H2C_CXINIT_MOD_INFO_BT_SOLO BIT(0)
+#define RTW89_H2C_CXINIT_MOD_INFO_BT_POS BIT(1)
+#define RTW89_H2C_CXINIT_MOD_INFO_SW_TYPE BIT(2)
+#define RTW89_H2C_CXINIT_MOD_INFO_WA_TYPE GENMASK(5, 3)
 
-static inline void RTW89_SET_FWCMD_CXINIT_MOD_RFE(void *cmd, u8 val)
-{
-	u8p_replace_bits((u8 *)(cmd) + 6, val, GENMASK(7, 0));
-}
-
-static inline void RTW89_SET_FWCMD_CXINIT_MOD_CV(void *cmd, u8 val)
-{
-	u8p_replace_bits((u8 *)(cmd) + 7, val, GENMASK(7, 0));
-}
-
-static inline void RTW89_SET_FWCMD_CXINIT_MOD_BT_SOLO(void *cmd, u8 val)
-{
-	u8p_replace_bits((u8 *)(cmd) + 8, val, BIT(0));
-}
-
-static inline void RTW89_SET_FWCMD_CXINIT_MOD_BT_POS(void *cmd, u8 val)
-{
-	u8p_replace_bits((u8 *)(cmd) + 8, val, BIT(1));
-}
-
-static inline void RTW89_SET_FWCMD_CXINIT_MOD_SW_TYPE(void *cmd, u8 val)
-{
-	u8p_replace_bits((u8 *)(cmd) + 8, val, BIT(2));
-}
-
-static inline void RTW89_SET_FWCMD_CXINIT_WL_GCH(void *cmd, u8 val)
-{
-	u8p_replace_bits((u8 *)(cmd) + 10, val, GENMASK(7, 0));
-}
-
-static inline void RTW89_SET_FWCMD_CXINIT_WL_ONLY(void *cmd, u8 val)
-{
-	u8p_replace_bits((u8 *)(cmd) + 11, val, BIT(0));
-}
-
-static inline void RTW89_SET_FWCMD_CXINIT_WL_INITOK(void *cmd, u8 val)
-{
-	u8p_replace_bits((u8 *)(cmd) + 11, val, BIT(1));
-}
-
-static inline void RTW89_SET_FWCMD_CXINIT_DBCC_EN(void *cmd, u8 val)
-{
-	u8p_replace_bits((u8 *)(cmd) + 11, val, BIT(2));
-}
-
-static inline void RTW89_SET_FWCMD_CXINIT_CX_OTHER(void *cmd, u8 val)
-{
-	u8p_replace_bits((u8 *)(cmd) + 11, val, BIT(3));
-}
-
-static inline void RTW89_SET_FWCMD_CXINIT_BT_ONLY(void *cmd, u8 val)
-{
-	u8p_replace_bits((u8 *)(cmd) + 11, val, BIT(4));
-}
+#define RTW89_H2C_CXINIT_INFO_WL_ONLY BIT(0)
+#define RTW89_H2C_CXINIT_INFO_WL_INITOK BIT(1)
+#define RTW89_H2C_CXINIT_INFO_DBCC_EN BIT(2)
+#define RTW89_H2C_CXINIT_INFO_CX_OTHER BIT(3)
+#define RTW89_H2C_CXINIT_INFO_BT_ONLY BIT(4)
 
 static inline void RTW89_SET_FWCMD_CXROLE_CONNECT_CNT(void *cmd, u8 val)
 {
