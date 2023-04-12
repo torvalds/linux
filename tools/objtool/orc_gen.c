@@ -47,8 +47,7 @@ static int init_orc_entry(struct orc_entry *orc, struct cfi_state *cfi,
 		orc->type = ORC_TYPE_REGS_PARTIAL;
 		break;
 	default:
-		WARN_FUNC("unknown unwind hint type %d",
-			  insn->sec, insn->offset, cfi->type);
+		WARN_INSN(insn, "unknown unwind hint type %d", cfi->type);
 		return -1;
 	}
 
@@ -80,8 +79,7 @@ static int init_orc_entry(struct orc_entry *orc, struct cfi_state *cfi,
 		orc->sp_reg = ORC_REG_DX;
 		break;
 	default:
-		WARN_FUNC("unknown CFA base reg %d",
-			  insn->sec, insn->offset, cfi->cfa.base);
+		WARN_INSN(insn, "unknown CFA base reg %d", cfi->cfa.base);
 		return -1;
 	}
 
@@ -96,8 +94,7 @@ static int init_orc_entry(struct orc_entry *orc, struct cfi_state *cfi,
 		orc->bp_reg = ORC_REG_BP;
 		break;
 	default:
-		WARN_FUNC("unknown BP base reg %d",
-			  insn->sec, insn->offset, bp->base);
+		WARN_INSN(insn, "unknown BP base reg %d", bp->base);
 		return -1;
 	}
 
