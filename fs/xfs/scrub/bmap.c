@@ -34,7 +34,7 @@ xchk_setup_inode_bmap(
 	if (xchk_need_intent_drain(sc))
 		xchk_fsgates_enable(sc, XCHK_FSGATES_DRAIN);
 
-	error = xchk_get_inode(sc);
+	error = xchk_iget_for_scrubbing(sc);
 	if (error)
 		goto out;
 

@@ -832,12 +832,14 @@ xchk_install_handle_inode(
 }
 
 /*
- * Given an inode and the scrub control structure, grab either the
- * inode referenced in the control structure or the inode passed in.
- * The inode is not locked.
+ * In preparation to scrub metadata structures that hang off of an inode,
+ * grab either the inode referenced in the scrub control structure or the
+ * inode passed in.  If the inumber does not reference an allocated inode
+ * record, the function returns ENOENT to end the scrub early.  The inode
+ * is not locked.
  */
 int
-xchk_get_inode(
+xchk_iget_for_scrubbing(
 	struct xfs_scrub	*sc)
 {
 	struct xfs_imap		imap;
@@ -994,7 +996,7 @@ xchk_setup_inode_contents(
 {
 	int			error;
 
-	error = xchk_get_inode(sc);
+	error = xchk_iget_for_scrubbing(sc);
 	if (error)
 		return error;
 

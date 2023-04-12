@@ -39,7 +39,7 @@ xchk_setup_inode(
 	 * Try to get the inode.  If the verifiers fail, we try again
 	 * in raw mode.
 	 */
-	error = xchk_get_inode(sc);
+	error = xchk_iget_for_scrubbing(sc);
 	switch (error) {
 	case 0:
 		break;
