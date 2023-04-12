@@ -128,10 +128,16 @@ xchk_xattr_listent(
 		return;
 	}
 
+	/* Only one namespace bit allowed. */
+	if (hweight32(flags & XFS_ATTR_NSP_ONDISK_MASK) > 1) {
+		xchk_fblock_set_corrupt(sx->sc, XFS_ATTR_FORK, args.blkno);
+		goto fail_xref;
+	}
+
 	/* Does this name make sense? */
 	if (!xfs_attr_namecheck(name, namelen)) {
 		xchk_fblock_set_corrupt(sx->sc, XFS_ATTR_FORK, args.blkno);
-		return;
+		goto fail_xref;
 	}
 
 	/*
