@@ -381,9 +381,15 @@ static void rockchip_dp_drm_encoder_disable(struct drm_encoder *encoder,
 {
 	struct rockchip_dp_device *dp = to_dp(encoder);
 	struct drm_crtc *crtc;
+	struct drm_crtc *old_crtc = encoder->crtc;
 	struct drm_crtc_state *new_crtc_state = NULL;
+	struct rockchip_crtc_state *s = to_rockchip_crtc_state(old_crtc->state);
 	int ret;
 
+	if (dp->plat_data.split_mode)
+		s->output_if &= ~(VOP_OUTPUT_IF_eDP1 | VOP_OUTPUT_IF_eDP0);
+	else
+		s->output_if &= ~(dp->id ? VOP_OUTPUT_IF_eDP1 : VOP_OUTPUT_IF_eDP0);
 	crtc = rockchip_dp_drm_get_new_crtc(encoder, state);
 	/* No crtc means we're doing a full shutdown */
 	if (!crtc)
