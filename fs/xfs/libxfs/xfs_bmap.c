@@ -1171,6 +1171,12 @@ xfs_iread_extents(
 		goto out;
 	}
 	ASSERT(ir.loaded == xfs_iext_count(ifp));
+	/*
+	 * Use release semantics so that we can use acquire semantics in
+	 * xfs_need_iread_extents and be guaranteed to see a valid mapping tree
+	 * after that load.
+	 */
+	smp_store_release(&ifp->if_needextents, 0);
 	return 0;
 out:
 	xfs_iext_destroy(ifp);
