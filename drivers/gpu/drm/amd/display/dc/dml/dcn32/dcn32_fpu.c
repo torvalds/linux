@@ -1141,7 +1141,7 @@ static void dcn32_full_validate_bw_helper(struct dc *dc,
 	 * 4. Display configuration passes validation
 	 * 5. (Config doesn't support MCLK in VACTIVE/VBLANK || dc->debug.force_subvp_mclk_switch)
 	 */
-	if (!dc->debug.force_disable_subvp && dcn32_all_pipes_have_stream_and_plane(dc, context) &&
+	if (!dc->debug.force_disable_subvp && !dc->caps.dmub_caps.gecc_enable && dcn32_all_pipes_have_stream_and_plane(dc, context) &&
 	    !dcn32_mpo_in_use(context) && !dcn32_any_surfaces_rotated(dc, context) &&
 		(*vlevel == context->bw_ctx.dml.soc.num_states ||
 	    vba->DRAMClockChangeSupport[*vlevel][vba->maxMpcComb] == dm_dram_clock_change_unsupported ||

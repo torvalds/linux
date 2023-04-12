@@ -210,6 +210,7 @@ struct dc_dmub_caps {
 	bool psr;
 	bool mclk_sw;
 	bool subvp_psr;
+	bool gecc_enable;
 };
 
 struct dc_caps {
