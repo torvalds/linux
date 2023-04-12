@@ -475,7 +475,10 @@ static void dw_mipi_dsi2_encoder_disable(struct drm_encoder *encoder)
 	if (!crtc->state->active_changed)
 		return;
 
-	s->output_if &= ~(dsi2->id ? VOP_OUTPUT_IF_MIPI1 : VOP_OUTPUT_IF_MIPI0);
+	if (dsi2->slave)
+		s->output_if &= ~(VOP_OUTPUT_IF_MIPI1 | VOP_OUTPUT_IF_MIPI0);
+	else
+		s->output_if &= ~(dsi2->id ? VOP_OUTPUT_IF_MIPI1 : VOP_OUTPUT_IF_MIPI0);
 }
 
 static void dw_mipi_dsi2_get_lane_rate(struct dw_mipi_dsi2 *dsi2)
