@@ -835,10 +835,10 @@ void __init init_cpu_topology(void)
 	if (ret) {
 		/*
 		 * Discard anything that was parsed if we hit an error so we
-		 * don't use partial information.
+		 * don't use partial information. But do not return yet to give
+		 * arch-specific early cache level detection a chance to run.
 		 */
 		reset_cpu_topology();
-		return;
 	}
 
 	for_each_possible_cpu(cpu) {
