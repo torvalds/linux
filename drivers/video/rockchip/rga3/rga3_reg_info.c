@@ -1028,6 +1028,9 @@ static void RGA3_set_reg_overlap_info(u8 *base, struct rga3_req *msg)
 	u32 *bRGA3_OVLP_OFF;
 
 	u32 reg;
+	union rga3_color_ctrl top_color_ctrl, bottom_color_ctrl;
+	union rga3_alpha_ctrl top_alpha_ctrl, bottom_alpha_ctrl;
+	struct rga_alpha_config *config;
 
 	bRGA_OVERLAP_TOP_CTRL = (u32 *) (base + RGA3_OVLP_TOP_CTRL_OFFSET);
 	bRGA_OVERLAP_BOT_CTRL = (u32 *) (base + RGA3_OVLP_BOT_CTRL_OFFSET);
@@ -1039,98 +1042,137 @@ static void RGA3_set_reg_overlap_info(u8 *base, struct rga3_req *msg)
 
 	/* Alpha blend */
 	/*bot -> win0(dst), top -> win1(src). */
-	reg = 0;
-	reg =
-		((reg & (~m_RGA3_OVLP_TOP_CTRL_SW_TOP_COLOR_M0)) |
-		 (s_RGA3_OVLP_TOP_CTRL_SW_TOP_COLOR_M0
-		 (msg->alpha_mode_0 >> 7)));
-	reg =
-		((reg & (~m_RGA3_OVLP_TOP_CTRL_SW_TOP_ALPHA_M0)) |
-		 (s_RGA3_OVLP_TOP_CTRL_SW_TOP_ALPHA_M0
-		 (msg->alpha_mode_0 >> 0)));
-	reg =
-		((reg & (~m_RGA3_OVLP_TOP_CTRL_SW_TOP_BLEND_M0)) |
-		 (s_RGA3_OVLP_TOP_CTRL_SW_TOP_BLEND_M0
-		 (msg->alpha_mode_0 >> 1)));
-	reg =
-		((reg & (~m_RGA3_OVLP_TOP_CTRL_SW_TOP_ALPHA_CAL_M0)) |
-		 (s_RGA3_OVLP_TOP_CTRL_SW_TOP_ALPHA_CAL_M0
-		 (msg->alpha_mode_0 >> 3)));
-	reg =
-		((reg & (~m_RGA3_OVLP_TOP_CTRL_SW_TOP_FACTOR_M0)) |
-		 (s_RGA3_OVLP_TOP_CTRL_SW_TOP_FACTOR_M0
-		 (msg->alpha_mode_0 >> 4)));
-	reg =
-		((reg & (~m_RGA3_OVLP_TOP_CTRL_SW_TOP_GLOBAL_ALPHA)) |
-		 (s_RGA3_OVLP_TOP_CTRL_SW_TOP_GLOBAL_ALPHA
-		 (msg->win1_a_global_val)));
-	*bRGA_OVERLAP_TOP_CTRL = reg;
+	top_color_ctrl.value = 0;
+	bottom_color_ctrl.value = 0;
+	top_alpha_ctrl.value = 0;
+	bottom_alpha_ctrl.value = 0;
+	config = &msg->alpha_config;
 
-	reg = 0;
-	reg =
-		((reg & (~m_RGA3_OVLP_BOT_CTRL_SW_BOT_COLOR_M0)) |
-		 (s_RGA3_OVLP_BOT_CTRL_SW_BOT_COLOR_M0
-		 (msg->alpha_mode_0 >> 15)));
-	reg =
-		((reg & (~m_RGA3_OVLP_BOT_CTRL_SW_BOT_ALPHA_M0)) |
-		 (s_RGA3_OVLP_BOT_CTRL_SW_BOT_ALPHA_M0
-		 (msg->alpha_mode_0 >> 8)));
-	reg =
-		((reg & (~m_RGA3_OVLP_BOT_CTRL_SW_BOT_BLEND_M0)) |
-		 (s_RGA3_OVLP_BOT_CTRL_SW_BOT_BLEND_M0
-		 (msg->alpha_mode_0 >> 9)));
-	reg =
-		((reg & (~m_RGA3_OVLP_BOT_CTRL_SW_BOT_ALPHA_CAL_M0)) |
-		 (s_RGA3_OVLP_BOT_CTRL_SW_BOT_ALPHA_CAL_M0
-		 (msg->alpha_mode_0 >> 11)));
-	reg =
-		((reg & (~m_RGA3_OVLP_BOT_CTRL_SW_BOT_FACTOR_M0)) |
-		 (s_RGA3_OVLP_BOT_CTRL_SW_BOT_FACTOR_M0
-		 (msg->alpha_mode_0 >> 12)));
-	reg =
-		((reg & (~m_RGA3_OVLP_BOT_CTRL_SW_BOT_GLOBAL_ALPHA)) |
-		 (s_RGA3_OVLP_BOT_CTRL_SW_BOT_GLOBAL_ALPHA
-		 (msg->win0_a_global_val)));
-	*bRGA_OVERLAP_BOT_CTRL = reg;
+	if (config->fg_pixel_alpha_en)
+		top_color_ctrl.bits.blend_mode =
+			config->fg_global_alpha_en ? RGA_ALPHA_PER_PIXEL_GLOBAL :
+			RGA_ALPHA_PER_PIXEL;
+	else
+		top_color_ctrl.bits.blend_mode = RGA_ALPHA_GLOBAL;
 
-	reg = 0;
-	reg =
-		((reg & (~m_RGA3_OVLP_TOP_ALPHA_SW_TOP_ALPHA_M1)) |
-		 (s_RGA3_OVLP_TOP_ALPHA_SW_TOP_ALPHA_M1
-		 (msg->alpha_mode_1 >> 0)));
-	reg =
-		((reg & (~m_RGA3_OVLP_TOP_ALPHA_SW_TOP_BLEND_M1)) |
-		 (s_RGA3_OVLP_TOP_ALPHA_SW_TOP_BLEND_M1
-		 (msg->alpha_mode_1 >> 1)));
-	reg =
-		((reg & (~m_RGA3_OVLP_TOP_ALPHA_SW_TOP_ALPHA_CAL_M1)) |
-		 (s_RGA3_OVLP_TOP_ALPHA_SW_TOP_ALPHA_CAL_M1
-		 (msg->alpha_mode_1 >> 3)));
-	reg =
-		((reg & (~m_RGA3_OVLP_TOP_ALPHA_SW_TOP_FACTOR_M1)) |
-		 (s_RGA3_OVLP_TOP_ALPHA_SW_TOP_FACTOR_M1
-		 (msg->alpha_mode_1 >> 4)));
-	*bRGA_OVERLAP_TOP_ALPHA = reg;
+	if (config->bg_pixel_alpha_en)
+		bottom_color_ctrl.bits.blend_mode =
+			config->bg_global_alpha_en ? RGA_ALPHA_PER_PIXEL_GLOBAL :
+			RGA_ALPHA_PER_PIXEL;
+	else
+		bottom_color_ctrl.bits.blend_mode = RGA_ALPHA_GLOBAL;
 
-	reg = 0;
-	reg =
-		((reg & (~m_RGA3_OVLP_BOT_ALPHA_SW_BOT_ALPHA_M1)) |
-		 (s_RGA3_OVLP_BOT_ALPHA_SW_BOT_ALPHA_M1
-		 (msg->alpha_mode_1 >> 8)));
-	reg =
-		((reg & (~m_RGA3_OVLP_BOT_ALPHA_SW_BOT_BLEND_M1)) |
-		 (s_RGA3_OVLP_BOT_ALPHA_SW_BOT_BLEND_M1
-		 (msg->alpha_mode_1 >> 9)));
-	reg =
-		((reg & (~m_RGA3_OVLP_BOT_ALPHA_SW_BOT_ALPHA_CAL_M1)) |
-		 (s_RGA3_OVLP_BOT_ALPHA_SW_BOT_ALPHA_CAL_M1
-		 (msg->alpha_mode_1 >> 11)));
-	reg =
-		((reg & (~m_RGA3_OVLP_BOT_ALPHA_SW_BOT_FACTOR_M1)) |
-		 (s_RGA3_OVLP_BOT_ALPHA_SW_BOT_FACTOR_M1
-		 (msg->alpha_mode_1 >> 12)));
+	/*
+	 * Since the hardware uses 256 as 1, the original alpha value needs to
+	 * be + (alpha >> 7).
+	 */
+	top_color_ctrl.bits.alpha_cal_mode = RGA_ALPHA_SATURATION;
+	bottom_color_ctrl.bits.alpha_cal_mode = RGA_ALPHA_SATURATION;
 
-	*bRGA_OVERLAP_BOT_ALPHA = reg;
+	top_color_ctrl.bits.global_alpha = config->fg_global_alpha_value;
+	bottom_color_ctrl.bits.global_alpha = config->fg_global_alpha_value;
+
+	/* porter duff alpha enable */
+	switch (config->mode) {
+	case RGA_ALPHA_BLEND_SRC:
+		/*
+		 * SRC mode:
+		 *	Sf = 1, Df = 0；
+		 *	[Rc,Ra] = [Sc,Sa]；
+		 */
+		top_color_ctrl.bits.alpha_mode = RGA_ALPHA_STRAIGHT;
+		top_color_ctrl.bits.factor_mode = RGA_ALPHA_ONE;
+
+		bottom_color_ctrl.bits.alpha_mode = RGA_ALPHA_STRAIGHT;
+		bottom_color_ctrl.bits.factor_mode = RGA_ALPHA_ZERO;
+
+		break;
+
+	case RGA_ALPHA_BLEND_DST:
+		/*
+		 * SRC mode:
+		 *	Sf = 0, Df = 1；
+		 *	[Rc,Ra] = [Dc,Da]；
+		 */
+		top_color_ctrl.bits.alpha_mode = RGA_ALPHA_STRAIGHT;
+		top_color_ctrl.bits.factor_mode = RGA_ALPHA_ZERO;
+
+		bottom_color_ctrl.bits.alpha_mode = RGA_ALPHA_STRAIGHT;
+		bottom_color_ctrl.bits.factor_mode = RGA_ALPHA_ONE;
+
+		break;
+
+	case RGA_ALPHA_BLEND_SRC_OVER:
+		/*
+		 * SRC-OVER mode:
+		 *	Sf = 1, Df = (1 - Sa)
+		 *	[Rc,Ra] = [ Sc + (1 - Sa) * Dc, Sa + (1 - Sa) * Da ]
+		 */
+		top_color_ctrl.bits.alpha_mode = RGA_ALPHA_STRAIGHT;
+		top_color_ctrl.bits.factor_mode = RGA_ALPHA_ONE;
+
+		bottom_color_ctrl.bits.alpha_mode = RGA_ALPHA_STRAIGHT;
+		bottom_color_ctrl.bits.factor_mode = RGA_ALPHA_OPPOSITE_INVERSE;
+
+		break;
+
+	case RGA_ALPHA_BLEND_DST_OVER:
+		/*
+		 * DST-OVER mode:
+		 *	Sf = (1 - Da) , Df = 1
+		 *	[Rc,Ra] = [ Sc * (1 - Da) + Dc, Sa * (1 - Da) + Da ]
+		 */
+		top_color_ctrl.bits.alpha_mode = RGA_ALPHA_STRAIGHT;
+		top_color_ctrl.bits.factor_mode = RGA_ALPHA_OPPOSITE_INVERSE;
+
+		bottom_color_ctrl.bits.alpha_mode = RGA_ALPHA_STRAIGHT;
+		bottom_color_ctrl.bits.factor_mode = RGA_ALPHA_ONE;
+
+		break;
+
+	default:
+		break;
+	}
+
+	if (!config->enable && msg->abb_alpha_pass) {
+		/*
+		 * enabled by default bot_blend_m1 && bot_alpha_cal_m1 for src channel(win0)
+		 * In ABB mode, the number will be fetched according to 16*16, so it needs to
+		 * be enabled top_blend_m1 && top_alpha_cal_m1 for dst channel(wr).
+		 */
+		top_color_ctrl.bits.color_mode = RGA_ALPHA_PRE_MULTIPLIED;
+
+		top_alpha_ctrl.bits.blend_mode = RGA_ALPHA_PER_PIXEL;
+		top_alpha_ctrl.bits.alpha_cal_mode = RGA_ALPHA_NO_SATURATION;
+
+		bottom_color_ctrl.bits.color_mode = RGA_ALPHA_PRE_MULTIPLIED;
+
+		bottom_alpha_ctrl.bits.blend_mode = RGA_ALPHA_PER_PIXEL;
+		bottom_alpha_ctrl.bits.alpha_cal_mode = RGA_ALPHA_NO_SATURATION;
+	} else {
+		top_color_ctrl.bits.color_mode =
+			config->fg_pre_multiplied ?
+				RGA_ALPHA_PRE_MULTIPLIED : RGA_ALPHA_NO_PRE_MULTIPLIED;
+
+		top_alpha_ctrl.bits.blend_mode = top_color_ctrl.bits.blend_mode;
+		top_alpha_ctrl.bits.alpha_cal_mode = top_color_ctrl.bits.alpha_cal_mode;
+		top_alpha_ctrl.bits.alpha_mode = top_color_ctrl.bits.alpha_mode;
+		top_alpha_ctrl.bits.factor_mode = top_color_ctrl.bits.factor_mode;
+
+		bottom_color_ctrl.bits.color_mode =
+			config->bg_pre_multiplied ?
+				RGA_ALPHA_PRE_MULTIPLIED : RGA_ALPHA_NO_PRE_MULTIPLIED;
+
+		bottom_alpha_ctrl.bits.blend_mode = bottom_color_ctrl.bits.blend_mode;
+		bottom_alpha_ctrl.bits.alpha_cal_mode = bottom_color_ctrl.bits.alpha_cal_mode;
+		bottom_alpha_ctrl.bits.alpha_mode = bottom_color_ctrl.bits.alpha_mode;
+		bottom_alpha_ctrl.bits.factor_mode = bottom_color_ctrl.bits.factor_mode;
+	}
+
+	*bRGA_OVERLAP_TOP_CTRL = top_color_ctrl.value;
+	*bRGA_OVERLAP_BOT_CTRL = bottom_color_ctrl.value;
+	*bRGA_OVERLAP_TOP_ALPHA = top_alpha_ctrl.value;
+	*bRGA_OVERLAP_BOT_ALPHA = bottom_alpha_ctrl.value;
 
 	/* set RGA_OVERLAP_CTRL */
 	reg = 0;
@@ -1166,9 +1208,8 @@ static void RGA3_set_reg_overlap_info(u8 *base, struct rga3_req *msg)
 	 * warning: if m1 & m0 need config split，need to redesign
 	 * this judge, which consider RGBA8888 format
 	 */
-	if (msg->alpha_mode_1 > 0 && msg->alpha_mode_0 > 0)
-		reg = ((reg & (~m_RGA3_OVLP_CTRL_SW_TOP_ALPHA_EN)) |
-			 (s_RGA3_OVLP_CTRL_SW_TOP_ALPHA_EN(1)));
+	reg = ((reg & (~m_RGA3_OVLP_CTRL_SW_TOP_ALPHA_EN)) |
+	       (s_RGA3_OVLP_CTRL_SW_TOP_ALPHA_EN(config->enable)));
 
 	*bRGA_OVERLAP_CTRL = reg;
 
@@ -1261,7 +1302,6 @@ static void set_wr_info(struct rga_req *req_rga, struct rga3_req *req)
 /* TODO: common part */
 static void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 {
-	u16 alpha_mode_0, alpha_mode_1;
 	struct rga_img_info_t tmp;
 
 	req->render_mode = BITBLT_MODE;
@@ -1324,8 +1364,8 @@ static void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 	if (!(req_rga->alpha_rop_flag & 1)) {
 		if (!rga_is_alpha_format(req_rga->src.format) &&
 		    rga_is_alpha_format(req_rga->dst.format)) {
-			req->win0_a_global_val = 0xff;
-			req->win1_a_global_val = 0xff;
+			req->alpha_config.fg_global_alpha_value = 0xff;
+			req->alpha_config.bg_global_alpha_value = 0xff;
 		}
 	}
 
@@ -1345,7 +1385,7 @@ static void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 		 * be enabled top_blend_m1 && top_alpha_cal_m1 for dst channel(wr).
 		 */
 		if (rga_is_alpha_format(req_rga->src.format))
-			req->alpha_mode_1 = 0x0a0a;
+			req->abb_alpha_pass = true;
 
 		set_win_info(&req->win0, &req_rga->src);
 
@@ -1375,7 +1415,7 @@ static void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 		 * be enabled bot_blend_m1 && bot_alpha_cal_m1 for src1/dst channel(win0).
 		 */
 		if (rga_is_alpha_format(req_rga->src.format))
-			req->alpha_mode_1 = 0x0a0a;
+			req->abb_alpha_pass = true;
 
 		if (req_rga->pat.yrgb_addr != 0) {
 			if (req_rga->src.yrgb_addr == req_rga->dst.yrgb_addr) {
@@ -1478,102 +1518,58 @@ static void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 	/* Alpha blend mode */
 	if (((req_rga->alpha_rop_flag) & 1)) {
 		if ((req_rga->alpha_rop_flag >> 3) & 1) {
+			req->alpha_config.enable = true;
+
+			if ((req_rga->alpha_rop_flag >> 9) & 1) {
+				req->alpha_config.fg_pre_multiplied = false;
+				req->alpha_config.bg_pre_multiplied = false;
+			} else {
+				req->alpha_config.fg_pre_multiplied = true;
+				req->alpha_config.bg_pre_multiplied = true;
+			}
+
+			req->alpha_config.fg_pixel_alpha_en = rga_is_alpha_format(req->win1.format);
+			req->alpha_config.bg_pixel_alpha_en = rga_is_alpha_format(req->win0.format);
+
+			req->alpha_config.fg_global_alpha_en = false;
+			req->alpha_config.bg_global_alpha_en = false;
+
+			req->alpha_config.fg_global_alpha_value = req_rga->alpha_global_value;
+			req->alpha_config.bg_global_alpha_value = req_rga->alpha_global_value;
+
 			/* porter duff alpha enable */
 			switch (req_rga->PD_mode) {
 			/* dst = 0 */
 			case 0:
 				break;
-			/* dst = src */
 			case 1:
-				req->alpha_mode_0 = 0x0212;
-				req->alpha_mode_1 = 0x0212;
+				req->alpha_config.mode = RGA_ALPHA_BLEND_SRC;
 				break;
-			/* dst = dst */
 			case 2:
-				req->alpha_mode_0 = 0x1202;
-				req->alpha_mode_1 = 0x1202;
+				req->alpha_config.mode = RGA_ALPHA_BLEND_DST;
 				break;
-			/* dst = (256*sc + (256 - sa)*dc) >> 8 */
 			case 3:
 				if ((req_rga->alpha_rop_mode & 3) == 0) {
 					/* both use globalAlpha. */
-					alpha_mode_0 = 0x3010;
-					alpha_mode_1 = 0x3010;
+					req->alpha_config.fg_global_alpha_en = true;
+					req->alpha_config.bg_global_alpha_en = true;
 				} else if ((req_rga->alpha_rop_mode & 3) == 1) {
 					/* Do not use globalAlpha. */
-					alpha_mode_0 = 0x3212;
-					alpha_mode_1 = 0x3212;
-				} else if ((req_rga->alpha_rop_mode & 3) == 2) {
-					/*
-					 * dst use globalAlpha,
-					 * and dst has pixelAlpha.
-					 */
-					alpha_mode_0 = 0x3014;
-					alpha_mode_1 = 0x3014;
+					req->alpha_config.fg_global_alpha_en = false;
+					req->alpha_config.bg_global_alpha_en = false;
 				} else {
-					/*
-					 * dst use globalAlpha,
-					 * and dst does not have pixelAlpha.
-					 */
-					alpha_mode_0 = 0x3012;
-					alpha_mode_1 = 0x3012;
+					/* dst use globalAlpha */
+					req->alpha_config.fg_global_alpha_en = false;
+					req->alpha_config.bg_global_alpha_en = true;
 				}
-				req->alpha_mode_0 = alpha_mode_0;
-				req->alpha_mode_1 = alpha_mode_1;
+
+				req->alpha_config.mode = RGA_ALPHA_BLEND_SRC_OVER;
 				break;
-			/* dst = (sc*(256-da) + 256*dc) >> 8 */
 			case 4:
-				/* Do not use globalAlpha. */
-				req->alpha_mode_0 = 0x1232;
-				req->alpha_mode_1 = 0x1232;
-				break;
-			/* dst = (da*sc) >> 8 */
-			case 5:
-				break;
-			/* dst = (sa*dc) >> 8 */
-			case 6:
-				break;
-			/* dst = ((256-da)*sc) >> 8 */
-			case 7:
-				break;
-			/* dst = ((256-sa)*dc) >> 8 */
-			case 8:
-				break;
-			/* dst = (da*sc + (256-sa)*dc) >> 8 */
-			case 9:
-				req->alpha_mode_0 = 0x3040;
-				req->alpha_mode_1 = 0x3040;
-				break;
-			/* dst = ((256-da)*sc + (sa*dc)) >> 8 */
-			case 10:
-				break;
-			/* dst = ((256-da)*sc + (256-sa)*dc) >> 8 */
-			case 11:
-				break;
-			case 12:
-				req->alpha_mode_0 = 0x0010;
-				req->alpha_mode_1 = 0x0820;
+				req->alpha_config.mode = RGA_ALPHA_BLEND_DST_OVER;
 				break;
 			default:
 				break;
-			}
-			/* Real color mode */
-			if ((req_rga->alpha_rop_flag >> 9) & 1) {
-				if (req->alpha_mode_0 & (0x01 << 1))
-					req->alpha_mode_0 |= (1 << 7);
-				if (req->alpha_mode_0 & (0x01 << 9))
-					req->alpha_mode_0 |= (1 << 15);
-			}
-		} else {
-			if ((req_rga->alpha_rop_mode & 3) == 0) {
-				req->alpha_mode_0 = 0x3040;
-				req->alpha_mode_1 = 0x3040;
-			} else if ((req_rga->alpha_rop_mode & 3) == 1) {
-				req->alpha_mode_0 = 0x3042;
-				req->alpha_mode_1 = 0x3242;
-			} else if ((req_rga->alpha_rop_mode & 3) == 2) {
-				req->alpha_mode_0 = 0x3044;
-				req->alpha_mode_1 = 0x3044;
 			}
 		}
 	}

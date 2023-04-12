@@ -489,6 +489,32 @@
 #define RGA3_ROT_BIT_X_MIRROR			BIT(1)
 #define RGA3_ROT_BIT_Y_MIRROR			BIT(2)
 
+union rga3_color_ctrl {
+	uint32_t value;
+	struct {
+		uint32_t color_mode:1;
+		uint32_t alpha_mode:1;
+		uint32_t blend_mode:2;
+		uint32_t alpha_cal_mode:1;
+		uint32_t factor_mode:3;
+
+		uint32_t reserved:8;
+
+		uint32_t global_alpha:8;
+	} bits;
+};
+
+union rga3_alpha_ctrl {
+	uint32_t value;
+	struct {
+		uint32_t reserved:1;
+		uint32_t alpha_mode:1;
+		uint32_t blend_mode:2;
+		uint32_t alpha_cal_mode:1;
+		uint32_t factor_mode:3;
+	} bits;
+};
+
 extern const struct rga_backend_ops rga3_ops;
 
 #endif

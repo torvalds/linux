@@ -849,6 +849,11 @@ struct rga3_req {
 	u16 alpha_mode_0;
 	u16 alpha_mode_1;
 
+	struct rga_alpha_config alpha_config;
+
+	/* for abb mode presever alpha. */
+	bool abb_alpha_pass;
+
 	u8 scale_bicu_mode;
 
 	u32 color_key_max;
