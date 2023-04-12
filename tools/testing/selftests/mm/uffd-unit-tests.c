@@ -329,6 +329,103 @@ static void uffd_pagemap_test(void)
 	uffd_test_pass();
 }
 
+static void check_memory_contents(char *p)
+{
+	unsigned long i, j;
+	uint8_t expected_byte;
+
+	for (i = 0; i < nr_pages; ++i) {
+		expected_byte = ~((uint8_t)(i % ((uint8_t)-1)));
+		for (j = 0; j < page_size; j++) {
+			uint8_t v = *(uint8_t *)(p + (i * page_size) + j);
+			if (v != expected_byte)
+				err("unexpected page contents");
+		}
+	}
+}
+
+static void uffd_minor_test_common(bool test_collapse, bool test_wp)
+{
+	unsigned long p;
+	pthread_t uffd_mon;
+	char c;
+	struct uffd_args args = { 0 };
+
+	/*
+	 * NOTE: MADV_COLLAPSE is not yet compatible with WP, so testing
+	 * both do not make much sense.
+	 */
+	assert(!(test_collapse && test_wp));
+
+	if (uffd_register(uffd, area_dst_alias, nr_pages * page_size,
+			  /* NOTE! MADV_COLLAPSE may not work with uffd-wp */
+			  false, test_wp, true))
+		err("register failure");
+
+	/*
+	 * After registering with UFFD, populate the non-UFFD-registered side of
+	 * the shared mapping. This should *not* trigger any UFFD minor faults.
+	 */
+	for (p = 0; p < nr_pages; ++p)
+		memset(area_dst + (p * page_size), p % ((uint8_t)-1),
+		       page_size);
+
+	args.apply_wp = test_wp;
+	if (pthread_create(&uffd_mon, NULL, uffd_poll_thread, &args))
+		err("uffd_poll_thread create");
+
+	/*
+	 * Read each of the pages back using the UFFD-registered mapping. We
+	 * expect that the first time we touch a page, it will result in a minor
+	 * fault. uffd_poll_thread will resolve the fault by bit-flipping the
+	 * page's contents, and then issuing a CONTINUE ioctl.
+	 */
+	check_memory_contents(area_dst_alias);
+
+	if (write(pipefd[1], &c, sizeof(c)) != sizeof(c))
+		err("pipe write");
+	if (pthread_join(uffd_mon, NULL))
+		err("join() failed");
+
+	if (test_collapse) {
+		if (madvise(area_dst_alias, nr_pages * page_size,
+			    MADV_COLLAPSE)) {
+			/* It's fine to fail for this one... */
+			uffd_test_skip("MADV_COLLAPSE failed");
+			return;
+		}
+
+		uffd_test_ops->check_pmd_mapping(area_dst,
+						 nr_pages * page_size /
+						 read_pmd_pagesize());
+		/*
+		 * This won't cause uffd-fault - it purely just makes sure there
+		 * was no corruption.
+		 */
+		check_memory_contents(area_dst_alias);
+	}
+
+	if (args.missing_faults != 0 || args.minor_faults != nr_pages)
+		uffd_test_fail("stats check error");
+	else
+		uffd_test_pass();
+}
+
+void uffd_minor_test(void)
+{
+	uffd_minor_test_common(false, false);
+}
+
+void uffd_minor_wp_test(void)
+{
+	uffd_minor_test_common(false, true);
+}
+
+void uffd_minor_collapse_test(void)
+{
+	uffd_minor_test_common(true, false);
+}
+
 uffd_test_case_t uffd_tests[] = {
 	{
 		.name = "pagemap",
@@ -342,6 +439,29 @@ uffd_test_case_t uffd_tests[] = {
 		.mem_targets = MEM_ANON,
 		.uffd_feature_required =
 		UFFD_FEATURE_PAGEFAULT_FLAG_WP | UFFD_FEATURE_WP_UNPOPULATED,
+	},
+	{
+		.name = "minor",
+		.uffd_fn = uffd_minor_test,
+		.mem_targets = MEM_SHMEM | MEM_HUGETLB,
+		.uffd_feature_required =
+		UFFD_FEATURE_MINOR_HUGETLBFS | UFFD_FEATURE_MINOR_SHMEM,
+	},
+	{
+		.name = "minor-wp",
+		.uffd_fn = uffd_minor_wp_test,
+		.mem_targets = MEM_SHMEM | MEM_HUGETLB,
+		.uffd_feature_required =
+		UFFD_FEATURE_MINOR_HUGETLBFS | UFFD_FEATURE_MINOR_SHMEM |
+		UFFD_FEATURE_PAGEFAULT_FLAG_WP,
+	},
+	{
+		.name = "minor-collapse",
+		.uffd_fn = uffd_minor_collapse_test,
+		/* MADV_COLLAPSE only works with shmem */
+		.mem_targets = MEM_SHMEM,
+		/* We can't test MADV_COLLAPSE, so try our luck */
+		.uffd_feature_required = UFFD_FEATURE_MINOR_SHMEM,
 	},
 };
 

@@ -52,8 +52,6 @@ pthread_attr_t attr;
 #define swap(a, b) \
 	do { typeof(a) __tmp = (a); (a) = (b); (b) = __tmp; } while (0)
 
-#define factor_of_2(x) ((x) ^ ((x) & ((x) - 1)))
-
 const char *examples =
     "# Run anonymous memory test on 100MiB region with 99999 bounces:\n"
     "./userfaultfd anon 100 99999\n\n"
@@ -79,8 +77,6 @@ static void usage(void)
 		"Supported mods:\n");
 	fprintf(stderr, "\tsyscall - Use userfaultfd(2) (default)\n");
 	fprintf(stderr, "\tdev - Use /dev/userfaultfd instead of userfaultfd(2)\n");
-	fprintf(stderr, "\tcollapse - Test MADV_COLLAPSE of UFFDIO_REGISTER_MODE_MINOR\n"
-		"memory\n");
 	fprintf(stderr, "\nExample test mod usage:\n");
 	fprintf(stderr, "# Run anonymous memory test with /dev/userfaultfd:\n");
 	fprintf(stderr, "./userfaultfd anon:dev 100 99999\n\n");
@@ -584,92 +580,6 @@ static int userfaultfd_sig_test(void)
 	return userfaults != 0;
 }
 
-void check_memory_contents(char *p)
-{
-	unsigned long i;
-	uint8_t expected_byte;
-	void *expected_page;
-
-	if (posix_memalign(&expected_page, page_size, page_size))
-		err("out of memory");
-
-	for (i = 0; i < nr_pages; ++i) {
-		expected_byte = ~((uint8_t)(i % ((uint8_t)-1)));
-		memset(expected_page, expected_byte, page_size);
-		if (my_bcmp(expected_page, p + (i * page_size), page_size))
-			err("unexpected page contents after minor fault");
-	}
-
-	free(expected_page);
-}
-
-static int userfaultfd_minor_test(void)
-{
-	unsigned long p;
-	pthread_t uffd_mon;
-	char c;
-	struct uffd_args args = { 0 };
-
-	if (!test_uffdio_minor)
-		return 0;
-
-	printf("testing minor faults: ");
-	fflush(stdout);
-
-	uffd_test_ctx_init(uffd_minor_feature());
-
-	if (uffd_register(uffd, area_dst_alias, nr_pages * page_size,
-			  false, test_uffdio_wp, true))
-		err("register failure");
-
-	/*
-	 * After registering with UFFD, populate the non-UFFD-registered side of
-	 * the shared mapping. This should *not* trigger any UFFD minor faults.
-	 */
-	for (p = 0; p < nr_pages; ++p) {
-		memset(area_dst + (p * page_size), p % ((uint8_t)-1),
-		       page_size);
-	}
-
-	args.apply_wp = test_uffdio_wp;
-	if (pthread_create(&uffd_mon, &attr, uffd_poll_thread, &args))
-		err("uffd_poll_thread create");
-
-	/*
-	 * Read each of the pages back using the UFFD-registered mapping. We
-	 * expect that the first time we touch a page, it will result in a minor
-	 * fault. uffd_poll_thread will resolve the fault by bit-flipping the
-	 * page's contents, and then issuing a CONTINUE ioctl.
-	 */
-	check_memory_contents(area_dst_alias);
-
-	if (write(pipefd[1], &c, sizeof(c)) != sizeof(c))
-		err("pipe write");
-	if (pthread_join(uffd_mon, NULL))
-		return 1;
-
-	uffd_stats_report(&args, 1);
-
-	if (test_collapse) {
-		printf("testing collapse of uffd memory into PMD-mapped THPs:");
-		if (madvise(area_dst_alias, nr_pages * page_size,
-			    MADV_COLLAPSE))
-			err("madvise(MADV_COLLAPSE)");
-
-		uffd_test_ops->check_pmd_mapping(area_dst,
-						 nr_pages * page_size /
-						 read_pmd_pagesize());
-		/*
-		 * This won't cause uffd-fault - it purely just makes sure there
-		 * was no corruption.
-		 */
-		check_memory_contents(area_dst_alias);
-		printf(" done.\n");
-	}
-
-	return args.missing_faults != 0 || args.minor_faults != nr_pages;
-}
-
 static int userfaultfd_stress(void)
 {
 	void *area;
@@ -782,7 +692,7 @@ static int userfaultfd_stress(void)
 	}
 
 	return userfaultfd_zeropage_test() || userfaultfd_sig_test()
-		|| userfaultfd_events_test() || userfaultfd_minor_test();
+	    || userfaultfd_events_test();
 }
 
 static void set_test_type(const char *type)
@@ -797,13 +707,10 @@ static void set_test_type(const char *type)
 		map_shared = true;
 		test_type = TEST_HUGETLB;
 		uffd_test_ops = &hugetlb_uffd_test_ops;
-		/* Minor faults require shared hugetlb; only enable here. */
-		test_uffdio_minor = true;
 	} else if (!strcmp(type, "shmem")) {
 		map_shared = true;
 		test_type = TEST_SHMEM;
 		uffd_test_ops = &shmem_uffd_test_ops;
-		test_uffdio_minor = true;
 	}
 }
 
@@ -821,17 +728,12 @@ static void parse_test_type_arg(const char *raw_type)
 			test_dev_userfaultfd = true;
 		else if (!strcmp(token, "syscall"))
 			test_dev_userfaultfd = false;
-		else if (!strcmp(token, "collapse"))
-			test_collapse = true;
 		else
 			err("unrecognized test mod '%s'", token);
 	}
 
 	if (!test_type)
 		err("failed to parse test type argument: '%s'", raw_type);
-
-	if (test_collapse && test_type != TEST_SHMEM)
-		err("Unsupported test: %s", raw_type);
 
 	if (test_type == TEST_HUGETLB)
 		page_size = default_huge_page_size();
@@ -854,8 +756,6 @@ static void parse_test_type_arg(const char *raw_type)
 
 	test_uffdio_wp = test_uffdio_wp &&
 		(features & UFFD_FEATURE_PAGEFAULT_FLAG_WP);
-	test_uffdio_minor = test_uffdio_minor &&
-		(features & uffd_minor_feature());
 
 	close(uffd);
 	uffd = -1;
@@ -872,7 +772,6 @@ static void sigalrm(int sig)
 int main(int argc, char **argv)
 {
 	size_t bytes;
-	size_t hpage_size = read_pmd_pagesize();
 
 	if (argc < 4)
 		usage();
@@ -884,36 +783,8 @@ int main(int argc, char **argv)
 	parse_test_type_arg(argv[1]);
 	bytes = atol(argv[2]) * 1024 * 1024;
 
-	if (test_collapse && bytes & (hpage_size - 1))
-		err("MiB must be multiple of %lu if :collapse mod set",
-		    hpage_size >> 20);
-
 	nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 
-	if (test_collapse) {
-		/* nr_cpus must divide (bytes / page_size), otherwise,
-		 * area allocations of (nr_pages * paze_size) won't be a
-		 * multiple of hpage_size, even if bytes is a multiple of
-		 * hpage_size.
-		 *
-		 * This means that nr_cpus must divide (N * (2 << (H-P))
-		 * where:
-		 *	bytes = hpage_size * N
-		 *	hpage_size = 2 << H
-		 *	page_size = 2 << P
-		 *
-		 * And we want to chose nr_cpus to be the largest value
-		 * satisfying this constraint, not larger than the number
-		 * of online CPUs. Unfortunately, prime factorization of
-		 * N and nr_cpus may be arbitrary, so have to search for it.
-		 * Instead, just use the highest power of 2 dividing both
-		 * nr_cpus and (bytes / page_size).
-		 */
-		int x = factor_of_2(nr_cpus);
-		int y = factor_of_2(bytes / page_size);
-
-		nr_cpus = x < y ? x : y;
-	}
 	nr_pages_per_cpu = bytes / page_size / nr_cpus;
 	if (!nr_pages_per_cpu) {
 		_err("invalid MiB");

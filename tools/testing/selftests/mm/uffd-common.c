@@ -13,8 +13,8 @@ volatile bool test_uffdio_copy_eexist = true;
 unsigned long nr_cpus, nr_pages, nr_pages_per_cpu, page_size;
 char *area_src, *area_src_alias, *area_dst, *area_dst_alias, *area_remap;
 int uffd = -1, uffd_flags, finished, *pipefd, test_type;
-bool map_shared, test_collapse, test_dev_userfaultfd;
-bool test_uffdio_wp = true, test_uffdio_minor = false;
+bool map_shared, test_dev_userfaultfd;
+bool test_uffdio_wp = true;
 unsigned long long *count_verify;
 uffd_test_ops_t *uffd_test_ops;
 
@@ -128,15 +128,14 @@ static int shmem_allocate_area(void **alloc_area, bool is_src)
 	char *p = NULL, *p_alias = NULL;
 	int mem_fd = uffd_mem_fd_create(bytes * 2, false);
 
-	if (test_collapse) {
-		p = BASE_PMD_ADDR;
-		if (!is_src)
-			/* src map + alias + interleaved hpages */
-			p += 2 * (bytes + hpage_size);
-		p_alias = p;
-		p_alias += bytes;
-		p_alias += hpage_size;  /* Prevent src/dst VMA merge */
-	}
+	/* TODO: clean this up.  Use a static addr is ugly */
+	p = BASE_PMD_ADDR;
+	if (!is_src)
+		/* src map + alias + interleaved hpages */
+		p += 2 * (bytes + hpage_size);
+	p_alias = p;
+	p_alias += bytes;
+	p_alias += hpage_size;  /* Prevent src/dst VMA merge */
 
 	*alloc_area = mmap(p, bytes, PROT_READ | PROT_WRITE, MAP_SHARED,
 			   mem_fd, offset);
@@ -144,7 +143,7 @@ static int shmem_allocate_area(void **alloc_area, bool is_src)
 		*alloc_area = NULL;
 		return -errno;
 	}
-	if (test_collapse && *alloc_area != p)
+	if (*alloc_area != p)
 		err("mmap of memfd failed at %p", p);
 
 	area_alias = mmap(p_alias, bytes, PROT_READ | PROT_WRITE, MAP_SHARED,
@@ -154,7 +153,7 @@ static int shmem_allocate_area(void **alloc_area, bool is_src)
 		*alloc_area = NULL;
 		return -errno;
 	}
-	if (test_collapse && area_alias != p_alias)
+	if (area_alias != p_alias)
 		err("mmap of anonymous memory failed at %p", p_alias);
 
 	if (is_src)
