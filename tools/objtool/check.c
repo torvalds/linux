@@ -4117,6 +4117,7 @@ static bool ignore_unreachable_insn(struct objtool_file *file, struct instructio
 static int add_prefix_symbol(struct objtool_file *file, struct symbol *func)
 {
 	struct instruction *insn, *prev;
+	struct cfi_state *cfi;
 
 	insn = find_insn(file, func->sec, func->offset);
 	if (!insn)
@@ -4144,6 +4145,19 @@ static int add_prefix_symbol(struct objtool_file *file, struct symbol *func)
 
 	if (!prev)
 		return -1;
+
+	if (!insn->cfi) {
+		/*
+		 * This can happen if stack validation isn't enabled or the
+		 * function is annotated with STACK_FRAME_NON_STANDARD.
+		 */
+		return 0;
+	}
+
+	/* Propagate insn->cfi to the prefix code */
+	cfi = cfi_hash_find_or_add(insn->cfi);
+	for (; prev != insn; prev = next_insn_same_sec(file, prev))
+		prev->cfi = cfi;
 
 	return 0;
 }
