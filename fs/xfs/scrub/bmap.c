@@ -635,28 +635,28 @@ xchk_bmap_check_ag_rmaps(
 	return error;
 }
 
-/* Make sure each rmap has a corresponding bmbt entry. */
-STATIC int
-xchk_bmap_check_rmaps(
-	struct xfs_scrub	*sc,
-	int			whichfork)
+/*
+ * Decide if we want to walk every rmap btree in the fs to make sure that each
+ * rmap for this file fork has corresponding bmbt entries.
+ */
+static bool
+xchk_bmap_want_check_rmaps(
+	struct xchk_bmap_info	*info)
 {
-	struct xfs_ifork	*ifp = xfs_ifork_ptr(sc->ip, whichfork);
-	struct xfs_perag	*pag;
-	xfs_agnumber_t		agno;
+	struct xfs_scrub	*sc = info->sc;
+	struct xfs_ifork	*ifp;
 	bool			zero_size;
-	int			error;
 
-	if (!xfs_has_rmapbt(sc->mp) ||
-	    whichfork == XFS_COW_FORK ||
-	    (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
-		return 0;
+	if (!xfs_has_rmapbt(sc->mp))
+		return false;
+	if (info->whichfork == XFS_COW_FORK)
+		return false;
+	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
+		return false;
 
 	/* Don't support realtime rmap checks yet. */
-	if (XFS_IS_REALTIME_INODE(sc->ip) && whichfork == XFS_DATA_FORK)
-		return 0;
-
-	ASSERT(xfs_ifork_ptr(sc->ip, whichfork) != NULL);
+	if (info->is_rt)
+		return false;
 
 	/*
 	 * Only do this for complex maps that are in btree format, or for
@@ -666,14 +666,28 @@ xchk_bmap_check_rmaps(
 	 * reattached.
 	 */
 
-	if (whichfork == XFS_DATA_FORK)
+	if (info->whichfork == XFS_DATA_FORK)
 		zero_size = i_size_read(VFS_I(sc->ip)) == 0;
 	else
 		zero_size = false;
 
+	ifp = xfs_ifork_ptr(sc->ip, info->whichfork);
 	if (ifp->if_format != XFS_DINODE_FMT_BTREE &&
 	    (zero_size || ifp->if_nextents > 0))
-		return 0;
+		return false;
+
+	return true;
+}
+
+/* Make sure each rmap has a corresponding bmbt entry. */
+STATIC int
+xchk_bmap_check_rmaps(
+	struct xfs_scrub	*sc,
+	int			whichfork)
+{
+	struct xfs_perag	*pag;
+	xfs_agnumber_t		agno;
+	int			error;
 
 	for_each_perag(sc->mp, agno, pag) {
 		error = xchk_bmap_check_ag_rmaps(sc, whichfork, pag);
@@ -915,9 +929,11 @@ xchk_bmap(
 		memcpy(&info.prev_rec, &irec, sizeof(struct xfs_bmbt_irec));
 	}
 
-	error = xchk_bmap_check_rmaps(sc, whichfork);
-	if (!xchk_fblock_xref_process_error(sc, whichfork, 0, &error))
-		goto out;
+	if (xchk_bmap_want_check_rmaps(&info)) {
+		error = xchk_bmap_check_rmaps(sc, whichfork);
+		if (!xchk_fblock_xref_process_error(sc, whichfork, 0, &error))
+			goto out;
+	}
 out:
 	return error;
 }
