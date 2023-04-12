@@ -53,6 +53,13 @@
 		};
 	};
 
+	minidump: minidump {
+		compatible = "rockchip,minidump";
+		smem-region = <&minidump_smem>;
+		minidump-region = <&minidump_mem>;
+		status = "disabled";
+	};
+
 	reserved-memory {
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -90,6 +97,18 @@
 			pmsg-size = <0x30000>;
 			ftrace-size = <0x00000>;
 			record-size = <0x14000>;
+		};
+
+		minidump_smem: minidump-smem@1f0000 {
+			reg = <0x0 0x1f0000 0x0 0x100>;		/* do not change */
+			no-map;
+			status = "disabled";
+		};
+
+		minidump_mem: minidump-mem@c000000 {
+			reg = <0x0 0x0c000000 0x0 0x2000000>;	/* changing according to your project */
+			no-map;
+			status = "disabled";
 		};
 	};
 
