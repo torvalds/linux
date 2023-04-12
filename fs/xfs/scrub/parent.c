@@ -63,30 +63,6 @@ xchk_parent_actor(
 	return 0;
 }
 
-/* Count the number of dentries in the parent dir that point to this inode. */
-STATIC int
-xchk_parent_count_parent_dentries(
-	struct xfs_scrub	*sc,
-	struct xfs_inode	*parent,
-	xfs_nlink_t		*nlink)
-{
-	struct xchk_parent_ctx	spc = {
-		.sc		= sc,
-		.nlink		= 0,
-	};
-	uint			lock_mode;
-	int			error = 0;
-
-	lock_mode = xfs_ilock_data_map_shared(parent);
-	error = xchk_dir_walk(sc, parent, xchk_parent_actor, &spc);
-	xfs_iunlock(parent, lock_mode);
-	if (error)
-		return error;
-
-	*nlink = spc.nlink;
-	return error;
-}
-
 /*
  * Given the inode number of the alleged parent of the inode being
  * scrubbed, try to validate that the parent has exactly one directory
@@ -98,10 +74,14 @@ xchk_parent_validate(
 	xfs_ino_t		dnum,
 	bool			*try_again)
 {
+	struct xchk_parent_ctx	spc = {
+		.sc		= sc,
+		.nlink		= 0,
+	};
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_inode	*dp = NULL;
 	xfs_nlink_t		expected_nlink;
-	xfs_nlink_t		nlink;
+	uint			lock_mode;
 	int			error = 0;
 
 	*try_again = false;
@@ -156,11 +136,13 @@ xchk_parent_validate(
 	 * the child inodes.
 	 */
 	if (xfs_ilock_nowait(dp, XFS_IOLOCK_SHARED)) {
-		error = xchk_parent_count_parent_dentries(sc, dp, &nlink);
+		lock_mode = xfs_ilock_data_map_shared(dp);
+		error = xchk_dir_walk(sc, dp, xchk_parent_actor, &spc);
+		xfs_iunlock(dp, lock_mode);
 		if (!xchk_fblock_xref_process_error(sc, XFS_DATA_FORK, 0,
 				&error))
 			goto out_unlock;
-		if (nlink != expected_nlink)
+		if (spc.nlink != expected_nlink)
 			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
 		goto out_unlock;
 	}
@@ -178,7 +160,9 @@ xchk_parent_validate(
 		goto out_rele;
 
 	/* Go looking for our dentry. */
-	error = xchk_parent_count_parent_dentries(sc, dp, &nlink);
+	lock_mode = xfs_ilock_data_map_shared(dp);
+	error = xchk_dir_walk(sc, dp, xchk_parent_actor, &spc);
+	xfs_iunlock(dp, lock_mode);
 	if (!xchk_fblock_xref_process_error(sc, XFS_DATA_FORK, 0, &error))
 		goto out_unlock;
 
@@ -213,7 +197,7 @@ xchk_parent_validate(
 	 * '..' didn't change, so check that there was only one entry
 	 * for us in the parent.
 	 */
-	if (nlink != expected_nlink)
+	if (spc.nlink != expected_nlink)
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
 	return error;
 
