@@ -232,7 +232,7 @@ void uffd_stats_report(struct uffd_args *args, int n_cpus)
 	printf("\n");
 }
 
-void userfaultfd_open(uint64_t *features)
+int userfaultfd_open(uint64_t *features)
 {
 	struct uffdio_api uffdio_api;
 
@@ -241,18 +241,19 @@ void userfaultfd_open(uint64_t *features)
 	else
 		uffd = uffd_open_sys(UFFD_FLAGS);
 	if (uffd < 0)
-		err("uffd open failed (dev=%d)", test_dev_userfaultfd);
+		return -1;
 	uffd_flags = fcntl(uffd, F_GETFD, NULL);
 
 	uffdio_api.api = UFFD_API;
 	uffdio_api.features = *features;
 	if (ioctl(uffd, UFFDIO_API, &uffdio_api))
-		err("UFFDIO_API failed.\nPlease make sure to "
-		    "run with either root or ptrace capability.");
+		/* Probably lack of CAP_PTRACE? */
+		return -1;
 	if (uffdio_api.api != UFFD_API)
 		err("UFFDIO_API error: %" PRIu64, (uint64_t)uffdio_api.api);
 
 	*features = uffdio_api.features;
+	return 0;
 }
 
 static inline void munmap_area(void **area)
@@ -295,7 +296,7 @@ static void uffd_test_ctx_clear(void)
 	munmap_area((void **)&area_remap);
 }
 
-int uffd_test_ctx_init(uint64_t features)
+int uffd_test_ctx_init(uint64_t features, const char **errmsg)
 {
 	unsigned long nr, cpu;
 	int ret;
@@ -303,13 +304,19 @@ int uffd_test_ctx_init(uint64_t features)
 	uffd_test_ctx_clear();
 
 	ret = uffd_test_ops->allocate_area((void **)&area_src, true);
-	if (ret)
+	ret |= uffd_test_ops->allocate_area((void **)&area_dst, false);
+	if (ret) {
+		if (errmsg)
+			*errmsg = "memory allocation failed";
 		return ret;
-	ret = uffd_test_ops->allocate_area((void **)&area_dst, false);
-	if (ret)
-		return ret;
+	}
 
-	userfaultfd_open(&features);
+	ret = userfaultfd_open(&features);
+	if (ret) {
+		if (errmsg)
+			*errmsg = "possible lack of priviledge";
+		return ret;
+	}
 
 	count_verify = malloc(nr_pages * sizeof(unsigned long long));
 	if (!count_verify)

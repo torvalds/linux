@@ -172,7 +172,8 @@ out:
  * This function initializes the global variables.  TODO: remove global
  * vars and then remove this.
  */
-static int uffd_setup_environment(uffd_test_case_t *test, mem_type_t *mem_type)
+static int uffd_setup_environment(uffd_test_case_t *test, mem_type_t *mem_type,
+				  const char **errmsg)
 {
 	map_shared = mem_type->shared;
 	uffd_test_ops = mem_type->mem_ops;
@@ -186,7 +187,7 @@ static int uffd_setup_environment(uffd_test_case_t *test, mem_type_t *mem_type)
 	/* TODO: remove this global var.. it's so ugly */
 	nr_cpus = 1;
 
-	return uffd_test_ctx_init(test->uffd_feature_required);
+	return uffd_test_ctx_init(test->uffd_feature_required, errmsg);
 }
 
 static bool uffd_feature_supported(uffd_test_case_t *test)
@@ -835,6 +836,7 @@ int main(int argc, char *argv[])
 	uffd_test_case_t *test;
 	mem_type_t *mem_type;
 	char test_name[128];
+	const char *errmsg;
 	int has_uffd;
 	int i, j;
 
@@ -860,8 +862,8 @@ int main(int argc, char *argv[])
 				uffd_test_skip("feature missing");
 				continue;
 			}
-			if (uffd_setup_environment(test, mem_type)) {
-				uffd_test_skip("environment setup failed");
+			if (uffd_setup_environment(test, mem_type, &errmsg)) {
+				uffd_test_skip(errmsg);
 				continue;
 			}
 			test->uffd_fn();

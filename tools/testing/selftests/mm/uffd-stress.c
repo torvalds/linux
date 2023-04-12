@@ -271,7 +271,8 @@ static int userfaultfd_stress(void)
 	struct uffd_args args[nr_cpus];
 	uint64_t mem_size = nr_pages * page_size;
 
-	uffd_test_ctx_init(UFFD_FEATURE_WP_UNPOPULATED);
+	if (uffd_test_ctx_init(UFFD_FEATURE_WP_UNPOPULATED, NULL))
+		err("context init failed");
 
 	if (posix_memalign(&area, page_size, page_size))
 		err("out of memory");
@@ -435,7 +436,8 @@ static void parse_test_type_arg(const char *raw_type)
 	 * feature.
 	 */
 
-	userfaultfd_open(&features);
+	if (userfaultfd_open(&features))
+		err("Userfaultfd open failed");
 
 	test_uffdio_wp = test_uffdio_wp &&
 		(features & UFFD_FEATURE_PAGEFAULT_FLAG_WP);
