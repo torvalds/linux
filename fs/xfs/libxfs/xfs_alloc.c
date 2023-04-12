@@ -233,6 +233,34 @@ xfs_alloc_update(
 	return xfs_btree_update(cur, &rec);
 }
 
+/* Convert the ondisk btree record to its incore representation. */
+void
+xfs_alloc_btrec_to_irec(
+	const union xfs_btree_rec	*rec,
+	struct xfs_alloc_rec_incore	*irec)
+{
+	irec->ar_startblock = be32_to_cpu(rec->alloc.ar_startblock);
+	irec->ar_blockcount = be32_to_cpu(rec->alloc.ar_blockcount);
+}
+
+/* Simple checks for free space records. */
+xfs_failaddr_t
+xfs_alloc_check_irec(
+	struct xfs_btree_cur		*cur,
+	const struct xfs_alloc_rec_incore *irec)
+{
+	struct xfs_perag		*pag = cur->bc_ag.pag;
+
+	if (irec->ar_blockcount == 0)
+		return __this_address;
+
+	/* check for valid extent range, including overflow */
+	if (!xfs_verify_agbext(pag, irec->ar_startblock, irec->ar_blockcount))
+		return __this_address;
+
+	return NULL;
+}
+
 /*
  * Get the data from the pointed-to record.
  */
@@ -243,34 +271,34 @@ xfs_alloc_get_rec(
 	xfs_extlen_t		*len,	/* output: length of extent */
 	int			*stat)	/* output: success/failure */
 {
+	struct xfs_alloc_rec_incore irec;
 	struct xfs_mount	*mp = cur->bc_mp;
 	struct xfs_perag	*pag = cur->bc_ag.pag;
 	union xfs_btree_rec	*rec;
+	xfs_failaddr_t		fa;
 	int			error;
 
 	error = xfs_btree_get_rec(cur, &rec, stat);
 	if (error || !(*stat))
 		return error;
 
-	*bno = be32_to_cpu(rec->alloc.ar_startblock);
-	*len = be32_to_cpu(rec->alloc.ar_blockcount);
-
-	if (*len == 0)
+	xfs_alloc_btrec_to_irec(rec, &irec);
+	fa = xfs_alloc_check_irec(cur, &irec);
+	if (fa)
 		goto out_bad_rec;
 
-	/* check for valid extent range, including overflow */
-	if (!xfs_verify_agbext(pag, *bno, *len))
-		goto out_bad_rec;
-
+	*bno = irec.ar_startblock;
+	*len = irec.ar_blockcount;
 	return 0;
 
 out_bad_rec:
 	xfs_warn(mp,
-		"%s Freespace BTree record corruption in AG %d detected!",
+		"%s Freespace BTree record corruption in AG %d detected at %pS!",
 		cur->bc_btnum == XFS_BTNUM_BNO ? "Block" : "Size",
-		pag->pag_agno);
+		pag->pag_agno, fa);
 	xfs_warn(mp,
-		"start block 0x%x block count 0x%x", *bno, *len);
+		"start block 0x%x block count 0x%x", irec.ar_startblock,
+		irec.ar_blockcount);
 	return -EFSCORRUPTED;
 }
 
@@ -3665,8 +3693,10 @@ xfs_alloc_query_range_helper(
 	struct xfs_alloc_query_range_info	*query = priv;
 	struct xfs_alloc_rec_incore		irec;
 
-	irec.ar_startblock = be32_to_cpu(rec->alloc.ar_startblock);
-	irec.ar_blockcount = be32_to_cpu(rec->alloc.ar_blockcount);
+	xfs_alloc_btrec_to_irec(rec, &irec);
+	if (xfs_alloc_check_irec(cur, &irec) != NULL)
+		return -EFSCORRUPTED;
+
 	return query->fn(cur, &irec, query->priv);
 }
 

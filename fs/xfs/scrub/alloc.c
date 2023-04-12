@@ -78,9 +78,11 @@ xchk_allocbt_xref_other(
 STATIC void
 xchk_allocbt_xref(
 	struct xfs_scrub	*sc,
-	xfs_agblock_t		agbno,
-	xfs_extlen_t		len)
+	const struct xfs_alloc_rec_incore *irec)
 {
+	xfs_agblock_t		agbno = irec->ar_startblock;
+	xfs_extlen_t		len = irec->ar_blockcount;
+
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
 
@@ -93,20 +95,18 @@ xchk_allocbt_xref(
 /* Scrub a bnobt/cntbt record. */
 STATIC int
 xchk_allocbt_rec(
-	struct xchk_btree	*bs,
-	const union xfs_btree_rec *rec)
+	struct xchk_btree		*bs,
+	const union xfs_btree_rec	*rec)
 {
-	struct xfs_perag	*pag = bs->cur->bc_ag.pag;
-	xfs_agblock_t		bno;
-	xfs_extlen_t		len;
+	struct xfs_alloc_rec_incore	irec;
 
-	bno = be32_to_cpu(rec->alloc.ar_startblock);
-	len = be32_to_cpu(rec->alloc.ar_blockcount);
-
-	if (!xfs_verify_agbext(pag, bno, len))
+	xfs_alloc_btrec_to_irec(rec, &irec);
+	if (xfs_alloc_check_irec(bs->cur, &irec) != NULL) {
 		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
+		return 0;
+	}
 
-	xchk_allocbt_xref(bs->sc, bno, len);
+	xchk_allocbt_xref(bs->sc, &irec);
 
 	return 0;
 }

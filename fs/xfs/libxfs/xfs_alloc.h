@@ -181,6 +181,12 @@ xfs_alloc_get_rec(
 	xfs_extlen_t		*len,	/* output: length of extent */
 	int			*stat);	/* output: success/failure */
 
+union xfs_btree_rec;
+void xfs_alloc_btrec_to_irec(const union xfs_btree_rec *rec,
+		struct xfs_alloc_rec_incore *irec);
+xfs_failaddr_t xfs_alloc_check_irec(struct xfs_btree_cur *cur,
+		const struct xfs_alloc_rec_incore *irec);
+
 int xfs_read_agf(struct xfs_perag *pag, struct xfs_trans *tp, int flags,
 		struct xfs_buf **agfbpp);
 int xfs_alloc_read_agf(struct xfs_perag *pag, struct xfs_trans *tp, int flags,
