@@ -2020,8 +2020,8 @@ int perf_pmu__cpus_match(struct perf_pmu *pmu, struct perf_cpu_map *cpus,
 			matched_cpus->map[matched_nr++] = cpu;
 	}
 
-	unmatched_cpus->nr = unmatched_nr;
-	matched_cpus->nr = matched_nr;
+	perf_cpu_map__set_nr(unmatched_cpus, unmatched_nr);
+	perf_cpu_map__set_nr(matched_cpus, matched_nr);
 	*mcpus_ptr = matched_cpus;
 	*ucpus_ptr = unmatched_cpus;
 	return 0;
