@@ -308,6 +308,7 @@ xchk_bmap_iextent_xref(
 	struct xchk_bmap_info	*info,
 	struct xfs_bmbt_irec	*irec)
 {
+	struct xfs_owner_info	oinfo;
 	struct xfs_mount	*mp = info->sc->mp;
 	xfs_agnumber_t		agno;
 	xfs_agblock_t		agbno;
@@ -328,19 +329,30 @@ xchk_bmap_iextent_xref(
 	xchk_bmap_xref_rmap(info, irec, agbno);
 	switch (info->whichfork) {
 	case XFS_DATA_FORK:
-		if (!xfs_is_reflink_inode(info->sc->ip))
+		if (!xfs_is_reflink_inode(info->sc->ip)) {
+			xfs_rmap_ino_owner(&oinfo, info->sc->ip->i_ino,
+					info->whichfork, irec->br_startoff);
+			xchk_xref_is_only_owned_by(info->sc, agbno,
+					irec->br_blockcount, &oinfo);
 			xchk_xref_is_not_shared(info->sc, agbno,
 					irec->br_blockcount);
+		}
 		xchk_xref_is_not_cow_staging(info->sc, agbno,
 				irec->br_blockcount);
 		break;
 	case XFS_ATTR_FORK:
+		xfs_rmap_ino_owner(&oinfo, info->sc->ip->i_ino,
+				info->whichfork, irec->br_startoff);
+		xchk_xref_is_only_owned_by(info->sc, agbno, irec->br_blockcount,
+				&oinfo);
 		xchk_xref_is_not_shared(info->sc, agbno,
 				irec->br_blockcount);
 		xchk_xref_is_not_cow_staging(info->sc, agbno,
 				irec->br_blockcount);
 		break;
 	case XFS_COW_FORK:
+		xchk_xref_is_only_owned_by(info->sc, agbno, irec->br_blockcount,
+				&XFS_RMAP_OINFO_COW);
 		xchk_xref_is_cow_staging(info->sc, agbno,
 				irec->br_blockcount);
 		xchk_xref_is_not_shared(info->sc, agbno,
