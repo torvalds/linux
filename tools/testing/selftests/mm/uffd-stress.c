@@ -655,7 +655,7 @@ static int userfaultfd_minor_test(void)
 
 		uffd_test_ops->check_pmd_mapping(area_dst,
 						 nr_pages * page_size /
-						 hpage_size);
+						 read_pmd_pagesize());
 		/*
 		 * This won't cause uffd-fault - it purely just makes sure there
 		 * was no corruption.
@@ -997,7 +997,7 @@ static void parse_test_type_arg(const char *raw_type)
 		err("Unsupported test: %s", raw_type);
 
 	if (test_type == TEST_HUGETLB)
-		page_size = hpage_size;
+		page_size = default_huge_page_size();
 	else
 		page_size = sysconf(_SC_PAGE_SIZE);
 
@@ -1035,6 +1035,7 @@ static void sigalrm(int sig)
 int main(int argc, char **argv)
 {
 	size_t bytes;
+	size_t hpage_size = read_pmd_pagesize();
 
 	if (argc < 4)
 		usage();
@@ -1043,7 +1044,6 @@ int main(int argc, char **argv)
 		err("failed to arm SIGALRM");
 	alarm(ALARM_INTERVAL_SECS);
 
-	hpage_size = default_huge_page_size();
 	parse_test_type_arg(argv[1]);
 	bytes = atol(argv[2]) * 1024 * 1024;
 
