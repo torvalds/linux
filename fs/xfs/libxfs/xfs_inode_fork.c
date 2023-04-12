@@ -140,7 +140,8 @@ xfs_iformat_extents(
 				xfs_inode_verifier_error(ip, -EFSCORRUPTED,
 						"xfs_iformat_extents(2)",
 						dp, sizeof(*dp), fa);
-				return -EFSCORRUPTED;
+				return xfs_bmap_complain_bad_rec(ip, whichfork,
+						fa, &new);
 			}
 
 			xfs_iext_insert(ip, &icur, &new, state);
