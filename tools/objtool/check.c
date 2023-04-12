@@ -1279,6 +1279,8 @@ static const char *uaccess_safe_builtin[] = {
 	"__ubsan_handle_type_mismatch_v1",
 	"__ubsan_handle_shift_out_of_bounds",
 	"__ubsan_handle_load_invalid_value",
+	/* STACKLEAK */
+	"stackleak_track_stack",
 	/* misc */
 	"csum_partial_copy_generic",
 	"copy_mc_fragile",
