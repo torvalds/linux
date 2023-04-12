@@ -30,6 +30,9 @@ TRACE_DEFINE_ENUM(XFS_BTNUM_FINOi);
 TRACE_DEFINE_ENUM(XFS_BTNUM_RMAPi);
 TRACE_DEFINE_ENUM(XFS_BTNUM_REFCi);
 
+TRACE_DEFINE_ENUM(XFS_REFC_DOMAIN_SHARED);
+TRACE_DEFINE_ENUM(XFS_REFC_DOMAIN_COW);
+
 TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_PROBE);
 TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_SB);
 TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_AGF);
@@ -655,6 +658,38 @@ TRACE_EVENT(xchk_fscounters_within_range,
 		  __entry->expected,
 		  __entry->curr_value,
 		  __entry->old_value)
+)
+
+TRACE_EVENT(xchk_refcount_incorrect,
+	TP_PROTO(struct xfs_perag *pag, const struct xfs_refcount_irec *irec,
+		 xfs_nlink_t seen),
+	TP_ARGS(pag, irec, seen),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(enum xfs_refc_domain, domain)
+		__field(xfs_agblock_t, startblock)
+		__field(xfs_extlen_t, blockcount)
+		__field(xfs_nlink_t, refcount)
+		__field(xfs_nlink_t, seen)
+	),
+	TP_fast_assign(
+		__entry->dev = pag->pag_mount->m_super->s_dev;
+		__entry->agno = pag->pag_agno;
+		__entry->domain = irec->rc_domain;
+		__entry->startblock = irec->rc_startblock;
+		__entry->blockcount = irec->rc_blockcount;
+		__entry->refcount = irec->rc_refcount;
+		__entry->seen = seen;
+	),
+	TP_printk("dev %d:%d agno 0x%x dom %s agbno 0x%x fsbcount 0x%x refcount %u seen %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __print_symbolic(__entry->domain, XFS_REFC_DOMAIN_STRINGS),
+		  __entry->startblock,
+		  __entry->blockcount,
+		  __entry->refcount,
+		  __entry->seen)
 )
 
 /* repair tracepoints */
