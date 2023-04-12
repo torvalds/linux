@@ -44,8 +44,7 @@ xchk_xattr_buf_cleanup(
 static int
 xchk_setup_xattr_buf(
 	struct xfs_scrub	*sc,
-	size_t			value_size,
-	gfp_t			flags)
+	size_t			value_size)
 {
 	size_t			bmp_sz;
 	struct xchk_xattr_buf	*ab = sc->buf;
@@ -56,17 +55,17 @@ xchk_setup_xattr_buf(
 	if (ab)
 		goto resize_value;
 
-	ab = kvzalloc(sizeof(struct xchk_xattr_buf), flags);
+	ab = kvzalloc(sizeof(struct xchk_xattr_buf), XCHK_GFP_FLAGS);
 	if (!ab)
 		return -ENOMEM;
 	sc->buf = ab;
 	sc->buf_cleanup = xchk_xattr_buf_cleanup;
 
-	ab->usedmap = kvmalloc(bmp_sz, flags);
+	ab->usedmap = kvmalloc(bmp_sz, XCHK_GFP_FLAGS);
 	if (!ab->usedmap)
 		return -ENOMEM;
 
-	ab->freemap = kvmalloc(bmp_sz, flags);
+	ab->freemap = kvmalloc(bmp_sz, XCHK_GFP_FLAGS);
 	if (!ab->freemap)
 		return -ENOMEM;
 
@@ -80,7 +79,7 @@ resize_value:
 		ab->value_sz = 0;
 	}
 
-	new_val = kvmalloc(value_size, flags);
+	new_val = kvmalloc(value_size, XCHK_GFP_FLAGS);
 	if (!new_val)
 		return -ENOMEM;
 
@@ -102,8 +101,7 @@ xchk_setup_xattr(
 	 * without the inode lock held, which means we can sleep.
 	 */
 	if (sc->flags & XCHK_TRY_HARDER) {
-		error = xchk_setup_xattr_buf(sc, XATTR_SIZE_MAX,
-				XCHK_GFP_FLAGS);
+		error = xchk_setup_xattr_buf(sc, XATTR_SIZE_MAX);
 		if (error)
 			return error;
 	}
@@ -181,7 +179,7 @@ xchk_xattr_listent(
 	 * doesn't work, we overload the seen_enough variable to convey
 	 * the error message back to the main scrub function.
 	 */
-	error = xchk_setup_xattr_buf(sx->sc, valuelen, XCHK_GFP_FLAGS);
+	error = xchk_setup_xattr_buf(sx->sc, valuelen);
 	if (error == -ENOMEM)
 		error = -EDEADLOCK;
 	if (error) {
@@ -354,7 +352,7 @@ xchk_xattr_block(
 		return 0;
 
 	/* Allocate memory for block usage checking. */
-	error = xchk_setup_xattr_buf(ds->sc, 0, XCHK_GFP_FLAGS);
+	error = xchk_setup_xattr_buf(ds->sc, 0);
 	if (error == -ENOMEM)
 		return -EDEADLOCK;
 	if (error)
