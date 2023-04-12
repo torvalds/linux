@@ -463,28 +463,19 @@ static int uffdio_zeropage(int ufd, unsigned long offset)
 /* exercise UFFDIO_ZEROPAGE */
 static int userfaultfd_zeropage_test(void)
 {
-	struct uffdio_register uffdio_register;
-
 	printf("testing UFFDIO_ZEROPAGE: ");
 	fflush(stdout);
 
 	uffd_test_ctx_init(0);
 
-	uffdio_register.range.start = (unsigned long) area_dst;
-	uffdio_register.range.len = nr_pages * page_size;
-	uffdio_register.mode = UFFDIO_REGISTER_MODE_MISSING;
-	if (test_uffdio_wp)
-		uffdio_register.mode |= UFFDIO_REGISTER_MODE_WP;
-	if (ioctl(uffd, UFFDIO_REGISTER, &uffdio_register))
+	if (uffd_register(uffd, area_dst, nr_pages * page_size,
+			  true, test_uffdio_wp, false))
 		err("register failure");
-
-	assert_expected_ioctls_present(
-		uffdio_register.mode, uffdio_register.ioctls);
 
 	if (area_dst_alias) {
 		/* Needed this to test zeropage-retry on shared memory */
-		uffdio_register.range.start = (unsigned long) area_dst_alias;
-		if (ioctl(uffd, UFFDIO_REGISTER, &uffdio_register))
+		if (uffd_register(uffd, area_dst_alias, nr_pages * page_size,
+				  true, test_uffdio_wp, false))
 			err("register failure");
 	}
 
@@ -498,7 +489,6 @@ static int userfaultfd_zeropage_test(void)
 
 static int userfaultfd_events_test(void)
 {
-	struct uffdio_register uffdio_register;
 	pthread_t uffd_mon;
 	int err, features;
 	pid_t pid;
@@ -514,16 +504,9 @@ static int userfaultfd_events_test(void)
 
 	fcntl(uffd, F_SETFL, uffd_flags | O_NONBLOCK);
 
-	uffdio_register.range.start = (unsigned long) area_dst;
-	uffdio_register.range.len = nr_pages * page_size;
-	uffdio_register.mode = UFFDIO_REGISTER_MODE_MISSING;
-	if (test_uffdio_wp)
-		uffdio_register.mode |= UFFDIO_REGISTER_MODE_WP;
-	if (ioctl(uffd, UFFDIO_REGISTER, &uffdio_register))
+	if (uffd_register(uffd, area_dst, nr_pages * page_size,
+			  true, test_uffdio_wp, false))
 		err("register failure");
-
-	assert_expected_ioctls_present(
-		uffdio_register.mode, uffdio_register.ioctls);
 
 	if (pthread_create(&uffd_mon, &attr, uffd_poll_thread, &stats))
 		err("uffd_poll_thread create");
@@ -550,7 +533,6 @@ static int userfaultfd_events_test(void)
 
 static int userfaultfd_sig_test(void)
 {
-	struct uffdio_register uffdio_register;
 	unsigned long userfaults;
 	pthread_t uffd_mon;
 	int err, features;
@@ -566,16 +548,9 @@ static int userfaultfd_sig_test(void)
 
 	fcntl(uffd, F_SETFL, uffd_flags | O_NONBLOCK);
 
-	uffdio_register.range.start = (unsigned long) area_dst;
-	uffdio_register.range.len = nr_pages * page_size;
-	uffdio_register.mode = UFFDIO_REGISTER_MODE_MISSING;
-	if (test_uffdio_wp)
-		uffdio_register.mode |= UFFDIO_REGISTER_MODE_WP;
-	if (ioctl(uffd, UFFDIO_REGISTER, &uffdio_register))
+	if (uffd_register(uffd, area_dst, nr_pages * page_size,
+			  true, test_uffdio_wp, false))
 		err("register failure");
-
-	assert_expected_ioctls_present(
-		uffdio_register.mode, uffdio_register.ioctls);
 
 	if (faulting_process(1))
 		err("faulting process failed");
@@ -629,7 +604,6 @@ void check_memory_contents(char *p)
 static int userfaultfd_minor_test(void)
 {
 	unsigned long p;
-	struct uffdio_register uffdio_register;
 	pthread_t uffd_mon;
 	char c;
 	struct uffd_stats stats = { 0 };
@@ -642,16 +616,9 @@ static int userfaultfd_minor_test(void)
 
 	uffd_test_ctx_init(uffd_minor_feature());
 
-	uffdio_register.range.start = (unsigned long)area_dst_alias;
-	uffdio_register.range.len = nr_pages * page_size;
-	uffdio_register.mode = UFFDIO_REGISTER_MODE_MINOR;
-	if (test_uffdio_wp)
-		uffdio_register.mode |= UFFDIO_REGISTER_MODE_WP;
-	if (ioctl(uffd, UFFDIO_REGISTER, &uffdio_register))
+	if (uffd_register(uffd, area_dst_alias, nr_pages * page_size,
+			  false, test_uffdio_wp, true))
 		err("register failure");
-
-	assert_expected_ioctls_present(
-		uffdio_register.mode, uffdio_register.ioctls);
 
 	/*
 	 * After registering with UFFD, populate the non-UFFD-registered side of
@@ -777,7 +744,6 @@ static void userfaultfd_wp_unpopulated_test(int pagemap_fd)
 
 static void userfaultfd_pagemap_test(unsigned int test_pgsize)
 {
-	struct uffdio_register uffdio_register;
 	int pagemap_fd;
 	uint64_t value;
 
@@ -805,10 +771,8 @@ static void userfaultfd_pagemap_test(unsigned int test_pgsize)
 			err("madvise(MADV_NOHUGEPAGE) failed");
 	}
 
-	uffdio_register.range.start = (unsigned long) area_dst;
-	uffdio_register.range.len = nr_pages * page_size;
-	uffdio_register.mode = UFFDIO_REGISTER_MODE_WP;
-	if (ioctl(uffd, UFFDIO_REGISTER, &uffdio_register))
+	if (uffd_register(uffd, area_dst, nr_pages * page_size,
+			  false, true, false))
 		err("register failed");
 
 	pagemap_fd = pagemap_open();
@@ -858,8 +822,8 @@ static int userfaultfd_stress(void)
 {
 	void *area;
 	unsigned long nr;
-	struct uffdio_register uffdio_register;
 	struct uffd_stats uffd_stats[nr_cpus];
+	uint64_t mem_size = nr_pages * page_size;
 
 	uffd_test_ctx_init(UFFD_FEATURE_WP_UNPOPULATED);
 
@@ -894,20 +858,13 @@ static int userfaultfd_stress(void)
 			fcntl(uffd, F_SETFL, uffd_flags & ~O_NONBLOCK);
 
 		/* register */
-		uffdio_register.range.start = (unsigned long) area_dst;
-		uffdio_register.range.len = nr_pages * page_size;
-		uffdio_register.mode = UFFDIO_REGISTER_MODE_MISSING;
-		if (test_uffdio_wp)
-			uffdio_register.mode |= UFFDIO_REGISTER_MODE_WP;
-		if (ioctl(uffd, UFFDIO_REGISTER, &uffdio_register))
+		if (uffd_register(uffd, area_dst, mem_size,
+				  true, test_uffdio_wp, false))
 			err("register failure");
-		assert_expected_ioctls_present(
-			uffdio_register.mode, uffdio_register.ioctls);
 
 		if (area_dst_alias) {
-			uffdio_register.range.start = (unsigned long)
-				area_dst_alias;
-			if (ioctl(uffd, UFFDIO_REGISTER, &uffdio_register))
+			if (uffd_register(uffd, area_dst_alias, mem_size,
+					  true, test_uffdio_wp, false))
 				err("register failure alias");
 		}
 
@@ -949,12 +906,10 @@ static int userfaultfd_stress(void)
 				 nr_pages * page_size, false);
 
 		/* unregister */
-		if (ioctl(uffd, UFFDIO_UNREGISTER, &uffdio_register.range))
+		if (uffd_unregister(uffd, area_dst, mem_size))
 			err("unregister failure");
 		if (area_dst_alias) {
-			uffdio_register.range.start = (unsigned long) area_dst;
-			if (ioctl(uffd, UFFDIO_UNREGISTER,
-				  &uffdio_register.range))
+			if (uffd_unregister(uffd, area_dst_alias, mem_size))
 				err("unregister failure alias");
 		}
 

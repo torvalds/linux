@@ -101,8 +101,6 @@ extern uffd_test_ops_t *uffd_test_ops;
 void uffd_stats_report(struct uffd_stats *stats, int n_cpus);
 void uffd_test_ctx_init(uint64_t features);
 void userfaultfd_open(uint64_t *features);
-uint64_t get_expected_ioctls(uint64_t mode);
-void assert_expected_ioctls_present(uint64_t mode, uint64_t ioctls);
 int uffd_read_msg(int ufd, struct uffd_msg *msg);
 void wp_range(int ufd, __u64 start, __u64 len, bool wp);
 void uffd_handle_page_fault(struct uffd_msg *msg, struct uffd_stats *stats);
