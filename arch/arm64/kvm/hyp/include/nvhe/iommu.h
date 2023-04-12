@@ -81,14 +81,15 @@ struct pkvm_iommu {
 	void *va;
 	size_t size;
 	bool powered;
+	u8 flags;
 	char data[];
 };
 
 int __pkvm_iommu_driver_init(struct pkvm_iommu_driver *drv, void *data, size_t size);
 int __pkvm_iommu_register(unsigned long dev_id, unsigned long drv_id,
 			  phys_addr_t dev_pa, size_t dev_size,
-			  unsigned long parent_id,
-			  void *kern_mem_va, size_t mem_size);
+			  unsigned long parent_id, u8 flags,
+			  void *kern_mem_va);
 int __pkvm_iommu_pm_notify(unsigned long dev_id,
 			   enum pkvm_iommu_pm_event event);
 int __pkvm_iommu_finalize(int err);

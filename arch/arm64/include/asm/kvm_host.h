@@ -394,8 +394,8 @@ struct pkvm_iommu_driver {
 };
 
 int pkvm_iommu_driver_init(u64 drv, void *data, size_t size);
-int pkvm_iommu_register(struct device *dev, u64 drv,
-			phys_addr_t pa, size_t size, struct device *parent);
+int pkvm_iommu_register(struct device *dev, u64 drv, phys_addr_t pa,
+			size_t size, struct device *parent, u8 flags);
 int pkvm_iommu_suspend(struct device *dev);
 int pkvm_iommu_resume(struct device *dev);
 
