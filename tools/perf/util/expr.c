@@ -86,8 +86,8 @@ void ids__free(struct hashmap *ids)
 		return;
 
 	hashmap__for_each_entry(ids, cur, bkt) {
-		free((void *)cur->pkey);
-		free((void *)cur->pvalue);
+		zfree(&cur->pkey);
+		zfree(&cur->pvalue);
 	}
 
 	hashmap__free(ids);
@@ -311,8 +311,8 @@ void expr__ctx_clear(struct expr_parse_ctx *ctx)
 	size_t bkt;
 
 	hashmap__for_each_entry(ctx->ids, cur, bkt) {
-		free((void *)cur->pkey);
-		free(cur->pvalue);
+		zfree(&cur->pkey);
+		zfree(&cur->pvalue);
 	}
 	hashmap__clear(ctx->ids);
 }
@@ -325,10 +325,10 @@ void expr__ctx_free(struct expr_parse_ctx *ctx)
 	if (!ctx)
 		return;
 
-	free(ctx->sctx.user_requested_cpu_list);
+	zfree(&ctx->sctx.user_requested_cpu_list);
 	hashmap__for_each_entry(ctx->ids, cur, bkt) {
-		free((void *)cur->pkey);
-		free(cur->pvalue);
+		zfree(&cur->pkey);
+		zfree(&cur->pvalue);
 	}
 	hashmap__free(ctx->ids);
 	free(ctx);
