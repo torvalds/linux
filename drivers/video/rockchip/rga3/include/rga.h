@@ -734,30 +734,6 @@ struct rga2_req {
 	/* ([7] = 1 gradient fill mode sel) */
 	u16 alpha_rop_flag;
 
-	/* [0]	 SrcAlphaMode0		 */
-	/* [2:1] SrcGlobalAlphaMode0	*/
-	/* [3]	 SrcAlphaSelectMode0	*/
-	/* [6:4] SrcFactorMode0		 */
-	/* [7]	 SrcColorMode		 */
-
-	/* [8]	 DstAlphaMode0		 */
-	/* [10:9] DstGlobalAlphaMode0	*/
-	/* [11]	DstAlphaSelectMode0	*/
-	/* [14:12] DstFactorMode0		 */
-	/* [15]	DstColorMode0		 */
-	u16 alpha_mode_0;
-
-	/* [0]	 SrcAlphaMode1		 */
-	/* [2:1] SrcGlobalAlphaMode1	*/
-	/* [3]	 SrcAlphaSelectMode1	*/
-	/* [6:4] SrcFactorMode1		 */
-
-	/* [8]	 DstAlphaMode1		 */
-	/* [10:9] DstGlobalAlphaMode1	*/
-	/* [11]	DstAlphaSelectMode1	*/
-	/* [14:12] DstFactorMode1		 */
-	u16 alpha_mode_1;
-
 	struct rga_alpha_config alpha_config;
 
 	/* 0 1 2 3 */
@@ -845,9 +821,6 @@ struct rga3_req {
 	u8 rotate_mode;
 
 	u16 alpha_rop_flag;
-
-	u16 alpha_mode_0;
-	u16 alpha_mode_1;
 
 	struct rga_alpha_config alpha_config;
 
