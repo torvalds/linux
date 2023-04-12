@@ -560,7 +560,16 @@ int
 xchk_xattr(
 	struct xfs_scrub		*sc)
 {
-	struct xchk_xattr		sx;
+	struct xchk_xattr		sx = {
+		.sc			= sc,
+		.context		= {
+			.dp		= sc->ip,
+			.tp		= sc->tp,
+			.resynch	= 1,
+			.put_listent	= xchk_xattr_listent,
+			.allow_incomplete = true,
+		},
+	};
 	xfs_dablk_t			last_checked = -1U;
 	int				error = 0;
 
@@ -581,22 +590,13 @@ xchk_xattr(
 		error = xchk_da_btree(sc, XFS_ATTR_FORK, xchk_xattr_rec,
 				&last_checked);
 	if (error)
-		goto out;
+		return error;
 
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
-		goto out;
-
-	/* Check that every attr key can also be looked up by hash. */
-	memset(&sx, 0, sizeof(sx));
-	sx.context.dp = sc->ip;
-	sx.context.resynch = 1;
-	sx.context.put_listent = xchk_xattr_listent;
-	sx.context.tp = sc->tp;
-	sx.context.allow_incomplete = true;
-	sx.sc = sc;
+		return 0;
 
 	/*
-	 * Look up every xattr in this file by name.
+	 * Look up every xattr in this file by name and hash.
 	 *
 	 * Use the backend implementation of xfs_attr_list to call
 	 * xchk_xattr_listent on every attribute key in this inode.
@@ -613,11 +613,11 @@ xchk_xattr(
 	 */
 	error = xfs_attr_list_ilocked(&sx.context);
 	if (!xchk_fblock_process_error(sc, XFS_ATTR_FORK, 0, &error))
-		goto out;
+		return error;
 
 	/* Did our listent function try to return any errors? */
 	if (sx.context.seen_enough < 0)
-		error = sx.context.seen_enough;
-out:
-	return error;
+		return sx.context.seen_enough;
+
+	return 0;
 }
