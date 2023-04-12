@@ -201,6 +201,14 @@ xchk_xattr_listent(
 	}
 
 	/*
+	 * Local xattr values are stored in the attr leaf block, so we don't
+	 * need to retrieve the value from a remote block to detect corruption
+	 * problems.
+	 */
+	if (flags & XFS_ATTR_LOCAL)
+		goto fail_xref;
+
+	/*
 	 * Try to allocate enough memory to extrat the attr value.  If that
 	 * doesn't work, we overload the seen_enough variable to convey
 	 * the error message back to the main scrub function.
