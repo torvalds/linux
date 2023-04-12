@@ -106,18 +106,7 @@ TEST_FILES += va_128TBswitch.sh
 
 include ../lib.mk
 
-$(OUTPUT)/cow: vm_util.c
-$(OUTPUT)/khugepaged: vm_util.c
-$(OUTPUT)/ksm_functional_tests: vm_util.c
-$(OUTPUT)/madv_populate: vm_util.c
-$(OUTPUT)/mkdirty: vm_util.c
-$(OUTPUT)/soft-dirty: vm_util.c
-$(OUTPUT)/split_huge_page_test: vm_util.c
-$(OUTPUT)/userfaultfd: vm_util.c
-$(OUTPUT)/gup_test: vm_util.c
-$(OUTPUT)/mrelease_test: vm_util.c
-$(OUTPUT)/transhuge-stress: vm_util.c
-$(OUTPUT)/ksm_tests: vm_util.c
+$(TEST_GEN_PROGS): vm_util.c
 
 ifeq ($(MACHINE),x86_64)
 BINARIES_32 := $(patsubst %,$(OUTPUT)/%,$(BINARIES_32))
