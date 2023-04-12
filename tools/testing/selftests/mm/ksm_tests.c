@@ -12,7 +12,7 @@
 
 #include "../kselftest.h"
 #include <include/vdso/time64.h>
-#include "util.h"
+#include "vm_util.h"
 
 #define KSM_SYSFS_PATH "/sys/kernel/mm/ksm/"
 #define KSM_FP(s) (KSM_SYSFS_PATH s)

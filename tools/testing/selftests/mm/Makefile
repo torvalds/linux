@@ -113,6 +113,10 @@ $(OUTPUT)/mkdirty: vm_util.c
 $(OUTPUT)/soft-dirty: vm_util.c
 $(OUTPUT)/split_huge_page_test: vm_util.c
 $(OUTPUT)/userfaultfd: vm_util.c
+$(OUTPUT)/gup_test: vm_util.c
+$(OUTPUT)/mrelease_test: vm_util.c
+$(OUTPUT)/transhuge-stress: vm_util.c
+$(OUTPUT)/ksm_tests: vm_util.c
 
 ifeq ($(MACHINE),x86_64)
 BINARIES_32 := $(patsubst %,$(OUTPUT)/%,$(BINARIES_32))
