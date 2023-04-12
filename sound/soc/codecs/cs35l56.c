@@ -11,8 +11,10 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/gpio/consumer.h>
+#include <linux/interrupt.h>
 #include <linux/math.h>
 #include <linux/module.h>
+#include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
@@ -31,6 +33,23 @@
 
 static int cs35l56_dsp_event(struct snd_soc_dapm_widget *w,
 			     struct snd_kcontrol *kcontrol, int event);
+
+static int cs35l56_mbox_send(struct cs35l56_private *cs35l56, unsigned int command)
+{
+	unsigned int val;
+	int ret;
+
+	regmap_write(cs35l56->regmap, CS35L56_DSP_VIRTUAL1_MBOX_1, command);
+	ret = regmap_read_poll_timeout(cs35l56->regmap, CS35L56_DSP_VIRTUAL1_MBOX_1,
+				       val, (val == 0),
+				       CS35L56_MBOX_POLL_US, CS35L56_MBOX_TIMEOUT_US);
+	if (ret) {
+		dev_warn(cs35l56->dev, "MBOX command %#x failed: %d\n", command, ret);
+		return ret;
+	}
+
+	return 0;
+}
 
 static int cs35l56_wait_dsp_ready(struct cs35l56_private *cs35l56)
 {
@@ -182,9 +201,44 @@ static SOC_VALUE_ENUM_SINGLE_DECL(cs35l56_sdw1tx6_enum,
 static const struct snd_kcontrol_new sdw1_tx6_mux =
 	SOC_DAPM_ENUM("SDW1TX6 SRC", cs35l56_sdw1tx6_enum);
 
+static int cs35l56_play_event(struct snd_soc_dapm_widget *w,
+			      struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(component);
+	unsigned int val;
+	int ret;
+
+	dev_dbg(cs35l56->dev, "play: %d\n", event);
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		/* Don't wait for ACK, we check in POST_PMU that it completed */
+		return regmap_write(cs35l56->regmap, CS35L56_DSP_VIRTUAL1_MBOX_1,
+				    CS35L56_MBOX_CMD_AUDIO_PLAY);
+	case SND_SOC_DAPM_POST_PMU:
+		/* Wait for firmware to enter PS0 power state */
+		ret = regmap_read_poll_timeout(cs35l56->regmap,
+					       CS35L56_TRANSDUCER_ACTUAL_PS,
+					       val, (val == CS35L56_PS0),
+					       CS35L56_PS0_POLL_US,
+					       CS35L56_PS0_TIMEOUT_US);
+		if (ret)
+			dev_err(cs35l56->dev, "PS0 wait failed: %d\n", ret);
+		return ret;
+	case SND_SOC_DAPM_POST_PMD:
+		return cs35l56_mbox_send(cs35l56, CS35L56_MBOX_CMD_AUDIO_PAUSE);
+	default:
+		return 0;
+	}
+}
+
 static const struct snd_soc_dapm_widget cs35l56_dapm_widgets[] = {
 	SND_SOC_DAPM_REGULATOR_SUPPLY("VDD_B", 0, 0),
 	SND_SOC_DAPM_REGULATOR_SUPPLY("VDD_AMP", 0, 0),
+
+	SND_SOC_DAPM_SUPPLY("PLAY", SND_SOC_NOPM, 0, 0, cs35l56_play_event,
+			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 
 	SND_SOC_DAPM_OUT_DRV("AMP", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_OUTPUT("SPK"),
@@ -252,6 +306,9 @@ static const struct snd_soc_dapm_route cs35l56_audio_map[] = {
 	{ "AMP", NULL, "VDD_B" },
 	{ "AMP", NULL, "VDD_AMP" },
 
+	{ "ASP1 Playback", NULL, "PLAY" },
+	{ "SDW1 Playback", NULL, "PLAY" },
+
 	{ "ASP1RX1", NULL, "ASP1 Playback" },
 	{ "ASP1RX2", NULL, "ASP1 Playback" },
 	{ "DSP1", NULL, "ASP1RX1" },
@@ -287,23 +344,6 @@ static const struct snd_soc_dapm_route cs35l56_audio_map[] = {
 	{ "SDW1 Capture", NULL, "SDW1 TX5 Source" },
 	{ "SDW1 Capture", NULL, "SDW1 TX6 Source" },
 };
-
-static int cs35l56_mbox_send(struct cs35l56_private *cs35l56, unsigned int command)
-{
-	unsigned int val;
-	int ret;
-
-	regmap_write(cs35l56->regmap, CS35L56_DSP_VIRTUAL1_MBOX_1, command);
-	ret = regmap_read_poll_timeout(cs35l56->regmap, CS35L56_DSP_VIRTUAL1_MBOX_1,
-				       val, (val == 0),
-				       CS35L56_MBOX_POLL_US, CS35L56_MBOX_TIMEOUT_US);
-	if (ret) {
-		dev_warn(cs35l56->dev, "MBOX command %#x failed: %d\n", command, ret);
-		return ret;
-	}
-
-	return 0;
-}
 
 static int cs35l56_dsp_event(struct snd_soc_dapm_widget *w,
 			     struct snd_kcontrol *kcontrol, int event)
@@ -611,43 +651,11 @@ static int cs35l56_asp_dai_set_sysclk(struct snd_soc_dai *dai,
 	return 0;
 }
 
-static int cs35l56_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
-{
-	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(dai->component);
-	unsigned int val;
-	int ret;
-
-	dev_dbg(cs35l56->dev, "%s: %d %s\n", __func__, stream, mute ? "mute" : "unmute");
-
-	if (stream != SNDRV_PCM_STREAM_PLAYBACK)
-		return 0;
-
-	if (mute) {
-		ret = cs35l56_mbox_send(cs35l56, CS35L56_MBOX_CMD_AUDIO_PAUSE);
-	} else {
-		ret = cs35l56_mbox_send(cs35l56, CS35L56_MBOX_CMD_AUDIO_PLAY);
-		if (ret == 0) {
-			/* Wait for firmware to enter PS0 power state */
-			ret = regmap_read_poll_timeout(cs35l56->regmap,
-						       CS35L56_TRANSDUCER_ACTUAL_PS,
-						       val, (val == CS35L56_PS0),
-						       CS35L56_PS0_POLL_US,
-						       CS35L56_PS0_TIMEOUT_US);
-			if (ret)
-				dev_err(cs35l56->dev, "PS0 wait failed: %d\n", ret);
-			ret = 0;
-		}
-	}
-
-	return ret;
-}
-
 static const struct snd_soc_dai_ops cs35l56_ops = {
 	.set_fmt = cs35l56_asp_dai_set_fmt,
 	.set_tdm_slot = cs35l56_asp_dai_set_tdm_slot,
 	.hw_params = cs35l56_asp_dai_hw_params,
 	.set_sysclk = cs35l56_asp_dai_set_sysclk,
-	.mute_stream = cs35l56_mute_stream,
 };
 
 static void cs35l56_sdw_dai_shutdown(struct snd_pcm_substream *substream,
@@ -749,7 +757,6 @@ static const struct snd_soc_dai_ops cs35l56_sdw_dai_ops = {
 	.shutdown = cs35l56_sdw_dai_shutdown,
 	.hw_params = cs35l56_sdw_dai_hw_params,
 	.hw_free = cs35l56_sdw_dai_hw_free,
-	.mute_stream = cs35l56_mute_stream,
 	.set_stream = cs35l56_sdw_dai_set_stream,
 };
 
@@ -861,13 +868,14 @@ static void cs35l56_dsp_work(struct work_struct *work)
 	unsigned int val;
 	int ret = 0;
 
-	if (!wait_for_completion_timeout(&cs35l56->init_completion,
+	if (!cs35l56->init_done &&
+	    !wait_for_completion_timeout(&cs35l56->init_completion,
 					 msecs_to_jiffies(5000))) {
 		dev_err(cs35l56->dev, "%s: init_completion timed out\n", __func__);
 		goto complete;
 	}
 
-	if (!cs35l56->init_done || cs35l56->removing)
+	if (!cs35l56->init_done)
 		goto complete;
 
 	cs35l56->dsp.part = devm_kasprintf(cs35l56->dev, GFP_KERNEL, "cs35l56%s-%02x",
@@ -917,9 +925,6 @@ static void cs35l56_dsp_work(struct work_struct *work)
 		goto err;
 	}
 
-	if (cs35l56->removing)
-		goto err;
-
 	mutex_lock(&cs35l56->irq_lock);
 
 	init_completion(&cs35l56->init_completion);
@@ -941,6 +946,7 @@ static void cs35l56_dsp_work(struct work_struct *work)
 		goto err_unlock;
 	}
 
+	regmap_clear_bits(cs35l56->regmap, CS35L56_PROTECTION_STATUS, CS35L56_FIRMWARE_MISSING);
 	cs35l56->fw_patched = true;
 
 err_unlock:
@@ -967,7 +973,6 @@ static int cs35l56_component_probe(struct snd_soc_component *component)
 
 	BUILD_BUG_ON(ARRAY_SIZE(cs35l56_tx_input_texts) != ARRAY_SIZE(cs35l56_tx_input_values));
 
-	cs35l56->removing = false;
 	cs35l56->component = component;
 	wm_adsp2_component_probe(&cs35l56->dsp, component);
 
@@ -984,8 +989,6 @@ static void cs35l56_component_remove(struct snd_soc_component *component)
 {
 	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(component);
 
-	cs35l56->removing = true;
-	complete(&cs35l56->init_completion);
 	cancel_work_sync(&cs35l56->dsp_work);
 }
 
@@ -1024,6 +1027,8 @@ static const struct snd_soc_component_driver soc_component_dev_cs35l56 = {
 	.num_controls = ARRAY_SIZE(cs35l56_controls),
 
 	.set_bias_level = cs35l56_set_bias_level,
+
+	.suspend_bias_off = 1, /* see cs35l56_system_resume() */
 };
 
 static const struct reg_sequence cs35l56_hibernate_seq[] = {
@@ -1102,10 +1107,8 @@ int cs35l56_runtime_resume_common(struct cs35l56_private *cs35l56)
 	unsigned int val;
 	int ret;
 
-	if (!cs35l56->can_hibernate) {
-		regcache_cache_only(cs35l56->regmap, false);
+	if (!cs35l56->can_hibernate)
 		goto out_sync;
-	}
 
 	if (!cs35l56->sdw_peripheral) {
 		/*
@@ -1120,6 +1123,7 @@ int cs35l56_runtime_resume_common(struct cs35l56_private *cs35l56)
 			     CS35L56_CONTROL_PORT_READY_US + 400);
 	}
 
+out_sync:
 	regcache_cache_only(cs35l56->regmap, false);
 
 	ret = cs35l56_wait_for_firmware_boot(cs35l56);
@@ -1132,7 +1136,6 @@ int cs35l56_runtime_resume_common(struct cs35l56_private *cs35l56)
 	if (ret)
 		goto err;
 
-out_sync:
 	/* BOOT_DONE will be 1 if the amp reset */
 	regmap_read(cs35l56->regmap, CS35L56_IRQ1_EINT_4, &val);
 	if (val & CS35L56_OTP_BOOT_DONE_MASK) {
@@ -1155,6 +1158,189 @@ err:
 	return ret;
 }
 EXPORT_SYMBOL_NS_GPL(cs35l56_runtime_resume_common, SND_SOC_CS35L56_CORE);
+
+static int cs35l56_is_fw_reload_needed(struct cs35l56_private *cs35l56)
+{
+	unsigned int val;
+	int ret;
+
+	/* Nothing to re-patch if we haven't done any patching yet. */
+	if (!cs35l56->fw_patched)
+		return false;
+
+	/*
+	 * If we have control of RESET we will have asserted it so the firmware
+	 * will need re-patching.
+	 */
+	if (cs35l56->reset_gpio)
+		return true;
+
+	/*
+	 * In secure mode FIRMWARE_MISSING is cleared by the BIOS loader so
+	 * can't be used here to test for memory retention.
+	 * Assume that tuning must be re-loaded.
+	 */
+	if (cs35l56->secured)
+		return true;
+
+	ret = pm_runtime_resume_and_get(cs35l56->dev);
+	if (ret) {
+		dev_err(cs35l56->dev, "Failed to runtime_get: %d\n", ret);
+		return ret;
+	}
+
+	ret = regmap_read(cs35l56->regmap, CS35L56_PROTECTION_STATUS, &val);
+	if (ret)
+		dev_err(cs35l56->dev, "Failed to read PROTECTION_STATUS: %d\n", ret);
+	else
+		ret = !!(val & CS35L56_FIRMWARE_MISSING);
+
+	pm_runtime_put_autosuspend(cs35l56->dev);
+
+	return ret;
+}
+
+int cs35l56_system_suspend(struct device *dev)
+{
+	struct cs35l56_private *cs35l56 = dev_get_drvdata(dev);
+
+	dev_dbg(dev, "system_suspend\n");
+
+	if (cs35l56->component)
+		flush_work(&cs35l56->dsp_work);
+
+	/*
+	 * The interrupt line is normally shared, but after we start suspending
+	 * we can't check if our device is the source of an interrupt, and can't
+	 * clear it. Prevent this race by temporarily disabling the parent irq
+	 * until we reach _no_irq.
+	 */
+	if (cs35l56->irq)
+		disable_irq(cs35l56->irq);
+
+	return pm_runtime_force_suspend(dev);
+}
+EXPORT_SYMBOL_GPL(cs35l56_system_suspend);
+
+int cs35l56_system_suspend_late(struct device *dev)
+{
+	struct cs35l56_private *cs35l56 = dev_get_drvdata(dev);
+
+	dev_dbg(dev, "system_suspend_late\n");
+
+	/*
+	 * Assert RESET before removing supplies.
+	 * RESET is usually shared by all amps so it must not be asserted until
+	 * all driver instances have done their suspend() stage.
+	 */
+	if (cs35l56->reset_gpio) {
+		gpiod_set_value_cansleep(cs35l56->reset_gpio, 0);
+		usleep_range(CS35L56_RESET_PULSE_MIN_US, CS35L56_RESET_PULSE_MIN_US + 400);
+	}
+
+	regulator_bulk_disable(ARRAY_SIZE(cs35l56->supplies), cs35l56->supplies);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cs35l56_system_suspend_late);
+
+int cs35l56_system_suspend_no_irq(struct device *dev)
+{
+	struct cs35l56_private *cs35l56 = dev_get_drvdata(dev);
+
+	dev_dbg(dev, "system_suspend_no_irq\n");
+
+	/* Handlers are now disabled so the parent IRQ can safely be re-enabled. */
+	if (cs35l56->irq)
+		enable_irq(cs35l56->irq);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cs35l56_system_suspend_no_irq);
+
+int cs35l56_system_resume_no_irq(struct device *dev)
+{
+	struct cs35l56_private *cs35l56 = dev_get_drvdata(dev);
+
+	dev_dbg(dev, "system_resume_no_irq\n");
+
+	/*
+	 * WAKE interrupts unmask if the CS35L56 hibernates, which can cause
+	 * spurious interrupts, and the interrupt line is normally shared.
+	 * We can't check if our device is the source of an interrupt, and can't
+	 * clear it, until it has fully resumed. Prevent this race by temporarily
+	 * disabling the parent irq until we complete resume().
+	 */
+	if (cs35l56->irq)
+		disable_irq(cs35l56->irq);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cs35l56_system_resume_no_irq);
+
+int cs35l56_system_resume_early(struct device *dev)
+{
+	struct cs35l56_private *cs35l56 = dev_get_drvdata(dev);
+	int ret;
+
+	dev_dbg(dev, "system_resume_early\n");
+
+	/* Ensure a spec-compliant RESET pulse. */
+	if (cs35l56->reset_gpio) {
+		gpiod_set_value_cansleep(cs35l56->reset_gpio, 0);
+		usleep_range(CS35L56_RESET_PULSE_MIN_US, CS35L56_RESET_PULSE_MIN_US + 400);
+	}
+
+	/* Enable supplies before releasing RESET. */
+	ret = regulator_bulk_enable(ARRAY_SIZE(cs35l56->supplies), cs35l56->supplies);
+	if (ret) {
+		dev_err(dev, "system_resume_early failed to enable supplies: %d\n", ret);
+		return ret;
+	}
+
+	/* Release shared RESET before drivers start resume(). */
+	gpiod_set_value_cansleep(cs35l56->reset_gpio, 1);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cs35l56_system_resume_early);
+
+int cs35l56_system_resume(struct device *dev)
+{
+	struct cs35l56_private *cs35l56 = dev_get_drvdata(dev);
+	int ret;
+
+	dev_dbg(dev, "system_resume\n");
+
+	/* Undo pm_runtime_force_suspend() before re-enabling the irq */
+	ret = pm_runtime_force_resume(dev);
+	if (cs35l56->irq)
+		enable_irq(cs35l56->irq);
+
+	if (ret)
+		return ret;
+
+	/* Firmware won't have been loaded if the component hasn't probed */
+	if (!cs35l56->component)
+		return 0;
+
+	ret = cs35l56_is_fw_reload_needed(cs35l56);
+	dev_dbg(cs35l56->dev, "fw_reload_needed: %d\n", ret);
+	if (ret < 1)
+		return ret;
+
+	cs35l56->fw_patched = false;
+	init_completion(&cs35l56->dsp_ready_completion);
+	queue_work(cs35l56->dsp_wq, &cs35l56->dsp_work);
+
+	/*
+	 * suspend_bias_off ensures we are now in BIAS_OFF so there will be
+	 * a BIAS_OFF->BIAS_STANDBY transition to complete dsp patching.
+	 */
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cs35l56_system_resume);
 
 static int cs35l56_dsp_init(struct cs35l56_private *cs35l56)
 {
@@ -1453,6 +1639,9 @@ EXPORT_SYMBOL_NS_GPL(cs35l56_remove, SND_SOC_CS35L56_CORE);
 
 const struct dev_pm_ops cs35l56_pm_ops_i2c_spi = {
 	SET_RUNTIME_PM_OPS(cs35l56_runtime_suspend, cs35l56_runtime_resume_i2c_spi, NULL)
+	SYSTEM_SLEEP_PM_OPS(cs35l56_system_suspend, cs35l56_system_resume)
+	LATE_SYSTEM_SLEEP_PM_OPS(cs35l56_system_suspend_late, cs35l56_system_resume_early)
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(cs35l56_system_suspend_no_irq, cs35l56_system_resume_no_irq)
 };
 EXPORT_SYMBOL_NS_GPL(cs35l56_pm_ops_i2c_spi, SND_SOC_CS35L56_CORE);
 
