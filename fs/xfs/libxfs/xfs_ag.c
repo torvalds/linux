@@ -81,6 +81,19 @@ xfs_perag_get_tag(
 	return pag;
 }
 
+/* Get a passive reference to the given perag. */
+struct xfs_perag *
+xfs_perag_hold(
+	struct xfs_perag	*pag)
+{
+	ASSERT(atomic_read(&pag->pag_ref) > 0 ||
+	       atomic_read(&pag->pag_active_ref) > 0);
+
+	trace_xfs_perag_hold(pag, _RET_IP_);
+	atomic_inc(&pag->pag_ref);
+	return pag;
+}
+
 void
 xfs_perag_put(
 	struct xfs_perag	*pag)
