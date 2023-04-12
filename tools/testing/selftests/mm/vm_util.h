@@ -6,6 +6,14 @@
 #include <string.h> /* ffsl() */
 #include <unistd.h> /* _SC_PAGESIZE */
 
+#define BIT_ULL(nr)                   (1ULL << (nr))
+#define PM_SOFT_DIRTY                 BIT_ULL(55)
+#define PM_MMAP_EXCLUSIVE             BIT_ULL(56)
+#define PM_UFFD_WP                    BIT_ULL(57)
+#define PM_FILE                       BIT_ULL(61)
+#define PM_SWAP                       BIT_ULL(62)
+#define PM_PRESENT                    BIT_ULL(63)
+
 extern unsigned int __page_size;
 extern unsigned int __page_shift;
 
