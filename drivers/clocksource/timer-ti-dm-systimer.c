@@ -261,8 +261,10 @@ static void __init dmtimer_systimer_assign_alwon(void)
 		if (of_address_to_resource(np, 0, &res))
 			continue;
 
+		pa = res.start;
+
 		/* Quirky omap3 boards must use dmtimer12 */
-		if (quirk_unreliable_oscillator && res.start == 0x48318000)
+		if (quirk_unreliable_oscillator && pa == 0x48318000)
 			continue;
 
 		of_node_put(np);
