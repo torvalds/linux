@@ -5030,6 +5030,9 @@ struct xfs_btree_has_records {
 	union xfs_btree_key		start_key;
 	union xfs_btree_key		end_key;
 
+	/* Mask for key comparisons, if desired. */
+	const union xfs_btree_key	*key_mask;
+
 	/* Highest record key we've seen so far. */
 	union xfs_btree_key		high_key;
 
@@ -5057,7 +5060,8 @@ xfs_btree_has_records_helper(
 		 * then there is a hole at the start of the search range.
 		 * Classify this as sparse and stop immediately.
 		 */
-		if (xfs_btree_keycmp_lt(cur, &info->start_key, &rec_key))
+		if (xfs_btree_masked_keycmp_lt(cur, &info->start_key, &rec_key,
+					info->key_mask))
 			return -ECANCELED;
 	} else {
 		/*
@@ -5068,7 +5072,7 @@ xfs_btree_has_records_helper(
 		 * signal corruption.
 		 */
 		key_contig = cur->bc_ops->keys_contiguous(cur, &info->high_key,
-					&rec_key);
+					&rec_key, info->key_mask);
 		if (key_contig == XBTREE_KEY_OVERLAP &&
 				!(cur->bc_flags & XFS_BTREE_OVERLAPPING))
 			return -EFSCORRUPTED;
@@ -5081,7 +5085,8 @@ xfs_btree_has_records_helper(
 	 * remember it for later.
 	 */
 	cur->bc_ops->init_high_key_from_rec(&rec_high_key, rec);
-	if (xfs_btree_keycmp_gt(cur, &rec_high_key, &info->high_key))
+	if (xfs_btree_masked_keycmp_gt(cur, &rec_high_key, &info->high_key,
+				info->key_mask))
 		info->high_key = rec_high_key; /* struct copy */
 
 	return 0;
@@ -5092,16 +5097,26 @@ xfs_btree_has_records_helper(
  * map to any records; is fully mapped to records; or is partially mapped to
  * records.  This is the btree record equivalent to determining if a file is
  * sparse.
+ *
+ * For most btree types, the record scan should use all available btree key
+ * fields to compare the keys encountered.  These callers should pass NULL for
+ * @mask.  However, some callers (e.g.  scanning physical space in the rmapbt)
+ * want to ignore some part of the btree record keyspace when performing the
+ * comparison.  These callers should pass in a union xfs_btree_key object with
+ * the fields that *should* be a part of the comparison set to any nonzero
+ * value, and the rest zeroed.
  */
 int
 xfs_btree_has_records(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_irec	*low,
 	const union xfs_btree_irec	*high,
+	const union xfs_btree_key	*mask,
 	enum xbtree_recpacking		*outcome)
 {
 	struct xfs_btree_has_records	info = {
 		.outcome		= XBTREE_RECPACKING_EMPTY,
+		.key_mask		= mask,
 	};
 	int				error;
 
@@ -5129,7 +5144,8 @@ xfs_btree_has_records(
 	 * the end of the search range, classify this as full.  Otherwise,
 	 * there is a hole at the end of the search range.
 	 */
-	if (xfs_btree_keycmp_ge(cur, &info.high_key, &info.end_key))
+	if (xfs_btree_masked_keycmp_ge(cur, &info.high_key, &info.end_key,
+				mask))
 		info.outcome = XBTREE_RECPACKING_FULL;
 
 out:

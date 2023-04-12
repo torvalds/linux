@@ -2721,6 +2721,9 @@ xfs_rmap_has_records(
 	xfs_extlen_t		len,
 	enum xbtree_recpacking	*outcome)
 {
+	union xfs_btree_key	mask = {
+		.rmap.rm_startblock = cpu_to_be32(-1U),
+	};
 	union xfs_btree_irec	low;
 	union xfs_btree_irec	high;
 
@@ -2729,7 +2732,7 @@ xfs_rmap_has_records(
 	memset(&high, 0xFF, sizeof(high));
 	high.r.rm_startblock = bno + len - 1;
 
-	return xfs_btree_has_records(cur, &low, &high, outcome);
+	return xfs_btree_has_records(cur, &low, &high, &mask, outcome);
 }
 
 /*

@@ -3764,7 +3764,7 @@ xfs_alloc_has_records(
 	memset(&high, 0xFF, sizeof(high));
 	high.a.ar_startblock = bno + len - 1;
 
-	return xfs_btree_has_records(cur, &low, &high, outcome);
+	return xfs_btree_has_records(cur, &low, &high, NULL, outcome);
 }
 
 /*

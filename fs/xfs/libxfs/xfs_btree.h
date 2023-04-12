@@ -161,11 +161,14 @@ struct xfs_btree_ops {
 
 	/*
 	 * Difference between key2 and key1 -- positive if key1 > key2,
-	 * negative if key1 < key2, and zero if equal.
+	 * negative if key1 < key2, and zero if equal.  If the @mask parameter
+	 * is non NULL, each key field to be used in the comparison must
+	 * contain a nonzero value.
 	 */
 	int64_t (*diff_two_keys)(struct xfs_btree_cur *cur,
 				 const union xfs_btree_key *key1,
-				 const union xfs_btree_key *key2);
+				 const union xfs_btree_key *key2,
+				 const union xfs_btree_key *mask);
 
 	const struct xfs_buf_ops	*buf_ops;
 
@@ -187,10 +190,13 @@ struct xfs_btree_ops {
 	 * @key1 < K < @key2.  To determine if two btree records are
 	 * immediately adjacent, @key1 should be the high key of the first
 	 * record and @key2 should be the low key of the second record.
+	 * If the @mask parameter is non NULL, each key field to be used in the
+	 * comparison must contain a nonzero value.
 	 */
 	enum xbtree_key_contig (*keys_contiguous)(struct xfs_btree_cur *cur,
 			       const union xfs_btree_key *key1,
-			       const union xfs_btree_key *key2);
+			       const union xfs_btree_key *key2,
+			       const union xfs_btree_key *mask);
 };
 
 /*
@@ -581,6 +587,7 @@ typedef bool (*xfs_btree_key_gap_fn)(struct xfs_btree_cur *cur,
 int xfs_btree_has_records(struct xfs_btree_cur *cur,
 		const union xfs_btree_irec *low,
 		const union xfs_btree_irec *high,
+		const union xfs_btree_key *mask,
 		enum xbtree_recpacking *outcome);
 
 bool xfs_btree_has_more_records(struct xfs_btree_cur *cur);
@@ -593,7 +600,7 @@ xfs_btree_keycmp_lt(
 	const union xfs_btree_key	*key1,
 	const union xfs_btree_key	*key2)
 {
-	return cur->bc_ops->diff_two_keys(cur, key1, key2) < 0;
+	return cur->bc_ops->diff_two_keys(cur, key1, key2, NULL) < 0;
 }
 
 static inline bool
@@ -602,7 +609,7 @@ xfs_btree_keycmp_gt(
 	const union xfs_btree_key	*key1,
 	const union xfs_btree_key	*key2)
 {
-	return cur->bc_ops->diff_two_keys(cur, key1, key2) > 0;
+	return cur->bc_ops->diff_two_keys(cur, key1, key2, NULL) > 0;
 }
 
 static inline bool
@@ -611,7 +618,7 @@ xfs_btree_keycmp_eq(
 	const union xfs_btree_key	*key1,
 	const union xfs_btree_key	*key2)
 {
-	return cur->bc_ops->diff_two_keys(cur, key1, key2) == 0;
+	return cur->bc_ops->diff_two_keys(cur, key1, key2, NULL) == 0;
 }
 
 static inline bool
@@ -639,6 +646,37 @@ xfs_btree_keycmp_ne(
 	const union xfs_btree_key	*key2)
 {
 	return !xfs_btree_keycmp_eq(cur, key1, key2);
+}
+
+/* Masked key comparison helpers */
+static inline bool
+xfs_btree_masked_keycmp_lt(
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_key	*key1,
+	const union xfs_btree_key	*key2,
+	const union xfs_btree_key	*mask)
+{
+	return cur->bc_ops->diff_two_keys(cur, key1, key2, mask) < 0;
+}
+
+static inline bool
+xfs_btree_masked_keycmp_gt(
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_key	*key1,
+	const union xfs_btree_key	*key2,
+	const union xfs_btree_key	*mask)
+{
+	return cur->bc_ops->diff_two_keys(cur, key1, key2, mask) > 0;
+}
+
+static inline bool
+xfs_btree_masked_keycmp_ge(
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_key	*key1,
+	const union xfs_btree_key	*key2,
+	const union xfs_btree_key	*mask)
+{
+	return !xfs_btree_masked_keycmp_lt(cur, key1, key2, mask);
 }
 
 /* Does this cursor point to the last block in the given level? */

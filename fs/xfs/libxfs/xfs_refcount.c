@@ -2019,7 +2019,7 @@ xfs_refcount_has_records(
 	high.rc.rc_startblock = bno + len - 1;
 	low.rc.rc_domain = high.rc.rc_domain = domain;
 
-	return xfs_btree_has_records(cur, &low, &high, outcome);
+	return xfs_btree_has_records(cur, &low, &high, NULL, outcome);
 }
 
 int __init

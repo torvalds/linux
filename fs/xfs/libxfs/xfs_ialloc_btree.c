@@ -269,10 +269,13 @@ STATIC int64_t
 xfs_inobt_diff_two_keys(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*k1,
-	const union xfs_btree_key	*k2)
+	const union xfs_btree_key	*k2,
+	const union xfs_btree_key	*mask)
 {
+	ASSERT(!mask || mask->inobt.ir_startino);
+
 	return (int64_t)be32_to_cpu(k1->inobt.ir_startino) -
-			  be32_to_cpu(k2->inobt.ir_startino);
+			be32_to_cpu(k2->inobt.ir_startino);
 }
 
 static xfs_failaddr_t
@@ -387,8 +390,11 @@ STATIC enum xbtree_key_contig
 xfs_inobt_keys_contiguous(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*key1,
-	const union xfs_btree_key	*key2)
+	const union xfs_btree_key	*key2,
+	const union xfs_btree_key	*mask)
 {
+	ASSERT(!mask || mask->inobt.ir_startino);
+
 	return xbtree_key_contig(be32_to_cpu(key1->inobt.ir_startino),
 				 be32_to_cpu(key2->inobt.ir_startino));
 }

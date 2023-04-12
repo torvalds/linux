@@ -260,19 +260,26 @@ STATIC int64_t
 xfs_bnobt_diff_two_keys(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*k1,
-	const union xfs_btree_key	*k2)
+	const union xfs_btree_key	*k2,
+	const union xfs_btree_key	*mask)
 {
+	ASSERT(!mask || mask->alloc.ar_startblock);
+
 	return (int64_t)be32_to_cpu(k1->alloc.ar_startblock) -
-			  be32_to_cpu(k2->alloc.ar_startblock);
+			be32_to_cpu(k2->alloc.ar_startblock);
 }
 
 STATIC int64_t
 xfs_cntbt_diff_two_keys(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*k1,
-	const union xfs_btree_key	*k2)
+	const union xfs_btree_key	*k2,
+	const union xfs_btree_key	*mask)
 {
 	int64_t				diff;
+
+	ASSERT(!mask || (mask->alloc.ar_blockcount &&
+			 mask->alloc.ar_startblock));
 
 	diff =  be32_to_cpu(k1->alloc.ar_blockcount) -
 		be32_to_cpu(k2->alloc.ar_blockcount);
@@ -427,8 +434,11 @@ STATIC enum xbtree_key_contig
 xfs_allocbt_keys_contiguous(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*key1,
-	const union xfs_btree_key	*key2)
+	const union xfs_btree_key	*key2,
+	const union xfs_btree_key	*mask)
 {
+	ASSERT(!mask || mask->alloc.ar_startblock);
+
 	return xbtree_key_contig(be32_to_cpu(key1->alloc.ar_startblock),
 				 be32_to_cpu(key2->alloc.ar_startblock));
 }
