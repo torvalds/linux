@@ -30,11 +30,11 @@ u64 xe_ggtt_pte_encode(struct xe_bo *bo, u64 bo_offset)
 	u64 pte;
 	bool is_vram;
 
-	pte = xe_bo_addr(bo, bo_offset, GEN8_PAGE_SIZE, &is_vram);
-	pte |= GEN8_PAGE_PRESENT;
+	pte = xe_bo_addr(bo, bo_offset, XE_PAGE_SIZE, &is_vram);
+	pte |= XE_PAGE_PRESENT;
 
 	if (is_vram)
-		pte |= GEN12_GGTT_PTE_LM;
+		pte |= XE_GGTT_PTE_LM;
 
 	/* FIXME: vfunc + pass in caching rules */
 	if (xe->info.platform == XE_METEORLAKE) {
@@ -56,10 +56,10 @@ static unsigned int probe_gsm_size(struct pci_dev *pdev)
 
 void xe_ggtt_set_pte(struct xe_ggtt *ggtt, u64 addr, u64 pte)
 {
-	XE_BUG_ON(addr & GEN8_PTE_MASK);
+	XE_BUG_ON(addr & XE_PTE_MASK);
 	XE_BUG_ON(addr >= ggtt->size);
 
-	writeq(pte, &ggtt->gsm[addr >> GEN8_PTE_SHIFT]);
+	writeq(pte, &ggtt->gsm[addr >> XE_PTE_SHIFT]);
 }
 
 static void xe_ggtt_clear(struct xe_ggtt *ggtt, u64 start, u64 size)
@@ -76,7 +76,7 @@ static void xe_ggtt_clear(struct xe_ggtt *ggtt, u64 start, u64 size)
 
 	while (start < end) {
 		xe_ggtt_set_pte(ggtt, start, scratch_pte);
-		start += GEN8_PAGE_SIZE;
+		start += XE_PAGE_SIZE;
 	}
 }
 
@@ -107,7 +107,7 @@ int xe_ggtt_init_noalloc(struct xe_gt *gt, struct xe_ggtt *ggtt)
 	}
 
 	ggtt->gsm = gt->mmio.regs + SZ_8M;
-	ggtt->size = (gsm_size / 8) * (u64)GEN8_PAGE_SIZE;
+	ggtt->size = (gsm_size / 8) * (u64) XE_PAGE_SIZE;
 
 	if (IS_DGFX(xe) && xe->info.vram_flags & XE_VRAM_FLAGS_NEED64K)
 		ggtt->flags |= XE_GGTT_FLAGS_64K;
@@ -167,7 +167,7 @@ int xe_ggtt_init(struct xe_gt *gt, struct xe_ggtt *ggtt)
 	else
 		flags |= XE_BO_CREATE_VRAM_IF_DGFX(gt);
 
-	ggtt->scratch = xe_bo_create_pin_map(xe, gt, NULL, GEN8_PAGE_SIZE,
+	ggtt->scratch = xe_bo_create_pin_map(xe, gt, NULL, XE_PAGE_SIZE,
 					     ttm_bo_type_kernel,
 					     flags);
 
@@ -224,8 +224,8 @@ void xe_ggtt_printk(struct xe_ggtt *ggtt, const char *prefix)
 	scratch_pte = xe_ggtt_pte_encode(ggtt->scratch, 0);
 
 	printk("%sGlobal GTT:", prefix);
-	for (addr = 0; addr < ggtt->size; addr += GEN8_PAGE_SIZE) {
-		unsigned int i = addr / GEN8_PAGE_SIZE;
+	for (addr = 0; addr < ggtt->size; addr += XE_PAGE_SIZE) {
+		unsigned int i = addr / XE_PAGE_SIZE;
 
 		XE_BUG_ON(addr > U32_MAX);
 		if (ggtt->gsm[i] == scratch_pte)
@@ -261,7 +261,7 @@ void xe_ggtt_map_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
 	u64 start = bo->ggtt_node.start;
 	u64 offset, pte;
 
-	for (offset = 0; offset < bo->size; offset += GEN8_PAGE_SIZE) {
+	for (offset = 0; offset < bo->size; offset += XE_PAGE_SIZE) {
 		pte = xe_ggtt_pte_encode(bo, offset);
 		xe_ggtt_set_pte(ggtt, start + offset, pte);
 	}
@@ -309,7 +309,7 @@ int xe_ggtt_insert_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
 {
 	u64 alignment;
 
-	alignment = GEN8_PAGE_SIZE;
+	alignment = XE_PAGE_SIZE;
 	if (xe_bo_is_vram(bo) && ggtt->flags & XE_GGTT_FLAGS_64K)
 		alignment = SZ_64K;
 

@@ -147,7 +147,7 @@ static int xe_migrate_create_cleared_bo(struct xe_migrate *m, struct xe_vm *vm)
 		return PTR_ERR(m->cleared_bo);
 
 	xe_map_memset(xe, &m->cleared_bo->vmap, 0, 0x00, cleared_size);
-	vram_addr = xe_bo_addr(m->cleared_bo, 0, GEN8_PAGE_SIZE, &is_vram);
+	vram_addr = xe_bo_addr(m->cleared_bo, 0, XE_PAGE_SIZE, &is_vram);
 	XE_BUG_ON(!is_vram);
 	m->cleared_vram_ofs = xe_migrate_vram_ofs(vram_addr);
 
@@ -166,9 +166,9 @@ static int xe_migrate_prepare_vm(struct xe_gt *gt, struct xe_migrate *m,
 	int ret;
 
 	/* Can't bump NUM_PT_SLOTS too high */
-	BUILD_BUG_ON(NUM_PT_SLOTS > SZ_2M/GEN8_PAGE_SIZE);
+	BUILD_BUG_ON(NUM_PT_SLOTS > SZ_2M/XE_PAGE_SIZE);
 	/* Must be a multiple of 64K to support all platforms */
-	BUILD_BUG_ON(NUM_PT_SLOTS * GEN8_PAGE_SIZE % SZ_64K);
+	BUILD_BUG_ON(NUM_PT_SLOTS * XE_PAGE_SIZE % SZ_64K);
 	/* And one slot reserved for the 4KiB page table updates */
 	BUILD_BUG_ON(!(NUM_KERNEL_PDE & 1));
 
@@ -176,7 +176,7 @@ static int xe_migrate_prepare_vm(struct xe_gt *gt, struct xe_migrate *m,
 	XE_BUG_ON(m->batch_base_ofs + batch->size >= SZ_2M);
 
 	bo = xe_bo_create_pin_map(vm->xe, m->gt, vm,
-				  num_entries * GEN8_PAGE_SIZE,
+				  num_entries * XE_PAGE_SIZE,
 				  ttm_bo_type_kernel,
 				  XE_BO_CREATE_VRAM_IF_DGFX(m->gt) |
 				  XE_BO_CREATE_PINNED_BIT);
@@ -189,14 +189,14 @@ static int xe_migrate_prepare_vm(struct xe_gt *gt, struct xe_migrate *m,
 		return ret;
 	}
 
-	entry = gen8_pde_encode(bo, bo->size - GEN8_PAGE_SIZE, XE_CACHE_WB);
+	entry = gen8_pde_encode(bo, bo->size - XE_PAGE_SIZE, XE_CACHE_WB);
 	xe_pt_write(xe, &vm->pt_root[id]->bo->vmap, 0, entry);
 
-	map_ofs = (num_entries - num_level) * GEN8_PAGE_SIZE;
+	map_ofs = (num_entries - num_level) * XE_PAGE_SIZE;
 
 	/* Map the entire BO in our level 0 pt */
 	for (i = 0, level = 0; i < num_entries; level++) {
-		entry = gen8_pte_encode(NULL, bo, i * GEN8_PAGE_SIZE,
+		entry = gen8_pte_encode(NULL, bo, i * XE_PAGE_SIZE,
 					XE_CACHE_WB, 0, 0);
 
 		xe_map_wr(xe, &bo->vmap, map_ofs + level * 8, u64, entry);
@@ -211,10 +211,10 @@ static int xe_migrate_prepare_vm(struct xe_gt *gt, struct xe_migrate *m,
 		XE_BUG_ON(xe->info.supports_usm);
 
 		/* Write out batch too */
-		m->batch_base_ofs = NUM_PT_SLOTS * GEN8_PAGE_SIZE;
+		m->batch_base_ofs = NUM_PT_SLOTS * XE_PAGE_SIZE;
 		for (i = 0; i < batch->size;
-		     i += vm->flags & XE_VM_FLAGS_64K ? GEN8_64K_PAGE_SIZE :
-			     GEN8_PAGE_SIZE) {
+		     i += vm->flags & XE_VM_FLAGS_64K ? XE_64K_PAGE_SIZE :
+		     XE_PAGE_SIZE) {
 			entry = gen8_pte_encode(NULL, batch, i,
 						XE_CACHE_WB, 0, 0);
 
@@ -224,13 +224,13 @@ static int xe_migrate_prepare_vm(struct xe_gt *gt, struct xe_migrate *m,
 		}
 	} else {
 		bool is_vram;
-		u64 batch_addr = xe_bo_addr(batch, 0, GEN8_PAGE_SIZE, &is_vram);
+		u64 batch_addr = xe_bo_addr(batch, 0, XE_PAGE_SIZE, &is_vram);
 
 		m->batch_base_ofs = xe_migrate_vram_ofs(batch_addr);
 
 		if (xe->info.supports_usm) {
 			batch = gt->usm.bb_pool->bo;
-			batch_addr = xe_bo_addr(batch, 0, GEN8_PAGE_SIZE,
+			batch_addr = xe_bo_addr(batch, 0, XE_PAGE_SIZE,
 						&is_vram);
 			m->usm_batch_base_ofs = xe_migrate_vram_ofs(batch_addr);
 		}
@@ -240,20 +240,20 @@ static int xe_migrate_prepare_vm(struct xe_gt *gt, struct xe_migrate *m,
 		u32 flags = 0;
 
 		if (vm->flags & XE_VM_FLAGS_64K && level == 1)
-			flags = GEN12_PDE_64K;
+			flags = XE_PDE_64K;
 
 		entry = gen8_pde_encode(bo, map_ofs + (level - 1) *
-					GEN8_PAGE_SIZE, XE_CACHE_WB);
-		xe_map_wr(xe, &bo->vmap, map_ofs + GEN8_PAGE_SIZE * level, u64,
+					XE_PAGE_SIZE, XE_CACHE_WB);
+		xe_map_wr(xe, &bo->vmap, map_ofs + XE_PAGE_SIZE * level, u64,
 			  entry | flags);
 	}
 
 	/* Write PDE's that point to our BO. */
 	for (i = 0; i < num_entries - num_level; i++) {
-		entry = gen8_pde_encode(bo, i * GEN8_PAGE_SIZE,
+		entry = gen8_pde_encode(bo, i * XE_PAGE_SIZE,
 					XE_CACHE_WB);
 
-		xe_map_wr(xe, &bo->vmap, map_ofs + GEN8_PAGE_SIZE +
+		xe_map_wr(xe, &bo->vmap, map_ofs + XE_PAGE_SIZE +
 			  (i + 1) * 8, u64, entry);
 	}
 
@@ -262,9 +262,9 @@ static int xe_migrate_prepare_vm(struct xe_gt *gt, struct xe_migrate *m,
 		u64 pos, ofs, flags;
 
 		level = 2;
-		ofs = map_ofs + GEN8_PAGE_SIZE * level + 256 * 8;
-		flags = GEN8_PAGE_RW | GEN8_PAGE_PRESENT | PPAT_CACHED |
-			GEN12_PPGTT_PTE_LM | GEN8_PDPE_PS_1G;
+		ofs = map_ofs + XE_PAGE_SIZE * level + 256 * 8;
+		flags = XE_PAGE_RW | XE_PAGE_PRESENT | PPAT_CACHED |
+			XE_PPGTT_PTE_LM | XE_PDPE_PS_1G;
 
 		/*
 		 * Use 1GB pages, it shouldn't matter the physical amount of
@@ -294,10 +294,10 @@ static int xe_migrate_prepare_vm(struct xe_gt *gt, struct xe_migrate *m,
 	 * the different addresses in VM.
 	 */
 #define NUM_VMUSA_UNIT_PER_PAGE	32
-#define VM_SA_UPDATE_UNIT_SIZE	(GEN8_PAGE_SIZE / NUM_VMUSA_UNIT_PER_PAGE)
+#define VM_SA_UPDATE_UNIT_SIZE		(XE_PAGE_SIZE / NUM_VMUSA_UNIT_PER_PAGE)
 #define NUM_VMUSA_WRITES_PER_UNIT	(VM_SA_UPDATE_UNIT_SIZE / sizeof(u64))
 	drm_suballoc_manager_init(&m->vm_update_sa,
-				  (map_ofs / GEN8_PAGE_SIZE - NUM_KERNEL_PDE) *
+				  (map_ofs / XE_PAGE_SIZE - NUM_KERNEL_PDE) *
 				  NUM_VMUSA_UNIT_PER_PAGE, 0);
 
 	m->pt_bo = bo;
@@ -403,7 +403,7 @@ static u32 pte_update_size(struct xe_migrate *m,
 	if (!is_vram) {
 		/* Clip L0 to available size */
 		u64 size = min(*L0, (u64)avail_pts * SZ_2M);
-		u64 num_4k_pages = DIV_ROUND_UP(size, GEN8_PAGE_SIZE);
+		u64 num_4k_pages = DIV_ROUND_UP(size, XE_PAGE_SIZE);
 
 		*L0 = size;
 		*L0_ofs = xe_migrate_vm_addr(pt_ofs, 0);
@@ -433,7 +433,7 @@ static void emit_pte(struct xe_migrate *m,
 		     u32 size, struct xe_bo *bo)
 {
 	u32 ptes;
-	u64 ofs = at_pt * GEN8_PAGE_SIZE;
+	u64 ofs = at_pt * XE_PAGE_SIZE;
 	u64 cur_ofs;
 
 	/*
@@ -443,7 +443,7 @@ static void emit_pte(struct xe_migrate *m,
 	 * on running tests.
 	 */
 
-	ptes = DIV_ROUND_UP(size, GEN8_PAGE_SIZE);
+	ptes = DIV_ROUND_UP(size, XE_PAGE_SIZE);
 
 	while (ptes) {
 		u32 chunk = min(0x1ffU, ptes);
@@ -466,13 +466,13 @@ static void emit_pte(struct xe_migrate *m,
 				if ((m->eng->vm->flags & XE_VM_FLAGS_64K) &&
 				    !(cur_ofs & (16 * 8 - 1))) {
 					XE_WARN_ON(!IS_ALIGNED(addr, SZ_64K));
-					addr |= GEN12_PTE_PS64;
+					addr |= XE_PTE_PS64;
 				}
 
 				addr += vram_region_io_offset(bo->ttm.resource);
-				addr |= GEN12_PPGTT_PTE_LM;
+				addr |= XE_PPGTT_PTE_LM;
 			}
-			addr |= PPAT_CACHED | GEN8_PAGE_PRESENT | GEN8_PAGE_RW;
+			addr |= PPAT_CACHED | XE_PAGE_PRESENT | XE_PAGE_RW;
 			bb->cs[bb->len++] = lower_32_bits(addr);
 			bb->cs[bb->len++] = upper_32_bits(addr);
 
@@ -697,7 +697,8 @@ struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
 		bb->cs[bb->len++] = MI_BATCH_BUFFER_END;
 		update_idx = bb->len;
 
-		emit_copy(gt, bb, src_L0_ofs, dst_L0_ofs, src_L0, GEN8_PAGE_SIZE);
+		emit_copy(gt, bb, src_L0_ofs, dst_L0_ofs, src_L0,
+			  XE_PAGE_SIZE);
 		flush_flags = xe_migrate_ccs_copy(m, bb, src_L0_ofs, src_is_vram,
 						  dst_L0_ofs, dst_is_vram,
 						  src_L0, ccs_ofs, copy_ccs);
@@ -915,7 +916,7 @@ struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 		bb->cs[bb->len++] = MI_BATCH_BUFFER_END;
 		update_idx = bb->len;
 
-		emit_clear(gt, bb, clear_L0_ofs, clear_L0, GEN8_PAGE_SIZE,
+		emit_clear(gt, bb, clear_L0_ofs, clear_L0, XE_PAGE_SIZE,
 			   clear_vram);
 		if (xe_device_has_flat_ccs(xe) && clear_vram) {
 			emit_copy_ccs(gt, bb, clear_L0_ofs, true,
@@ -985,7 +986,7 @@ static void write_pgtable(struct xe_gt *gt, struct xe_bb *bb, u64 ppgtt_ofs,
 		bool is_vram;
 
 		ppgtt_ofs = xe_migrate_vram_ofs(xe_bo_addr(update->pt_bo, 0,
-							   GEN8_PAGE_SIZE,
+							   XE_PAGE_SIZE,
 							   &is_vram));
 		XE_BUG_ON(!is_vram);
 	}
@@ -1202,7 +1203,7 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 		/* Map our PT's to gtt */
 		bb->cs[bb->len++] = MI_STORE_DATA_IMM | BIT(21) |
 			(num_updates * 2 + 1);
-		bb->cs[bb->len++] = ppgtt_ofs * GEN8_PAGE_SIZE + page_ofs;
+		bb->cs[bb->len++] = ppgtt_ofs * XE_PAGE_SIZE + page_ofs;
 		bb->cs[bb->len++] = 0; /* upper_32_bits */
 
 		for (i = 0; i < num_updates; i++) {
@@ -1220,9 +1221,9 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 		update_idx = bb->len;
 
 		addr = xe_migrate_vm_addr(ppgtt_ofs, 0) +
-			(page_ofs / sizeof(u64)) * GEN8_PAGE_SIZE;
+			(page_ofs / sizeof(u64)) * XE_PAGE_SIZE;
 		for (i = 0; i < num_updates; i++)
-			write_pgtable(m->gt, bb, addr + i * GEN8_PAGE_SIZE,
+			write_pgtable(m->gt, bb, addr + i * XE_PAGE_SIZE,
 				      &updates[i], pt_update);
 	} else {
 		/* phys pages, no preamble required */

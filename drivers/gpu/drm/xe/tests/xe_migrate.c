@@ -265,7 +265,7 @@ static void xe_migrate_sanity_test(struct xe_migrate *m, struct kunit *test)
 		goto vunmap;
 	}
 
-	pt = xe_bo_create_pin_map(xe, m->gt, m->eng->vm, GEN8_PAGE_SIZE,
+	pt = xe_bo_create_pin_map(xe, m->gt, m->eng->vm, XE_PAGE_SIZE,
 				  ttm_bo_type_kernel,
 				  XE_BO_CREATE_VRAM_IF_DGFX(m->gt) |
 				  XE_BO_CREATE_PINNED_BIT);
@@ -294,20 +294,21 @@ static void xe_migrate_sanity_test(struct xe_migrate *m, struct kunit *test)
 	}
 
 	kunit_info(test, "Starting tests, top level PT addr: %lx, special pagetable base addr: %lx\n",
-		   (unsigned long)xe_bo_main_addr(m->eng->vm->pt_root[id]->bo, GEN8_PAGE_SIZE),
-		   (unsigned long)xe_bo_main_addr(m->pt_bo, GEN8_PAGE_SIZE));
+		   (unsigned long)xe_bo_main_addr(m->eng->vm->pt_root[id]->bo, XE_PAGE_SIZE),
+		   (unsigned long)xe_bo_main_addr(m->pt_bo, XE_PAGE_SIZE));
 
 	/* First part of the test, are we updating our pagetable bo with a new entry? */
-	xe_map_wr(xe, &bo->vmap, GEN8_PAGE_SIZE * (NUM_KERNEL_PDE - 1), u64, 0xdeaddeadbeefbeef);
+	xe_map_wr(xe, &bo->vmap, XE_PAGE_SIZE * (NUM_KERNEL_PDE - 1), u64,
+		  0xdeaddeadbeefbeef);
 	expected = gen8_pte_encode(NULL, pt, 0, XE_CACHE_WB, 0, 0);
 	if (m->eng->vm->flags & XE_VM_FLAGS_64K)
-		expected |= GEN12_PTE_PS64;
+		expected |= XE_PTE_PS64;
 	xe_res_first(pt->ttm.resource, 0, pt->size, &src_it);
 	emit_pte(m, bb, NUM_KERNEL_PDE - 1, xe_bo_is_vram(pt),
-		 &src_it, GEN8_PAGE_SIZE, pt);
+		 &src_it, XE_PAGE_SIZE, pt);
 	run_sanity_job(m, xe, bb, bb->len, "Writing PTE for our fake PT", test);
 
-	retval = xe_map_rd(xe, &bo->vmap, GEN8_PAGE_SIZE * (NUM_KERNEL_PDE - 1),
+	retval = xe_map_rd(xe, &bo->vmap, XE_PAGE_SIZE * (NUM_KERNEL_PDE - 1),
 			   u64);
 	check(retval, expected, "PTE entry write", test);
 

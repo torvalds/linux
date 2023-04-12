@@ -39,32 +39,32 @@
 #define PPAT_CACHED                     BIT_ULL(7)
 #define PPAT_DISPLAY_ELLC               BIT_ULL(4)
 
-#define GEN8_PTE_SHIFT			12
-#define GEN8_PAGE_SIZE			(1 << GEN8_PTE_SHIFT)
-#define GEN8_PTE_MASK			(GEN8_PAGE_SIZE - 1)
-#define GEN8_PDE_SHIFT			(GEN8_PTE_SHIFT - 3)
-#define GEN8_PDES			(1 << GEN8_PDE_SHIFT)
-#define GEN8_PDE_MASK			(GEN8_PDES - 1)
+#define XE_PTE_SHIFT			12
+#define XE_PAGE_SIZE			(1 << XE_PTE_SHIFT)
+#define XE_PTE_MASK			(XE_PAGE_SIZE - 1)
+#define XE_PDE_SHIFT			(XE_PTE_SHIFT - 3)
+#define XE_PDES				(1 << XE_PDE_SHIFT)
+#define XE_PDE_MASK			(XE_PDES - 1)
 
-#define GEN8_64K_PTE_SHIFT		16
-#define GEN8_64K_PAGE_SIZE		(1 << GEN8_64K_PTE_SHIFT)
-#define GEN8_64K_PTE_MASK		(GEN8_64K_PAGE_SIZE - 1)
-#define GEN8_64K_PDE_MASK		(GEN8_PDE_MASK >> 4)
+#define XE_64K_PTE_SHIFT		16
+#define XE_64K_PAGE_SIZE		(1 << XE_64K_PTE_SHIFT)
+#define XE_64K_PTE_MASK			(XE_64K_PAGE_SIZE - 1)
+#define XE_64K_PDE_MASK			(XE_PDE_MASK >> 4)
 
-#define GEN8_PDE_PS_2M			BIT_ULL(7)
-#define GEN8_PDPE_PS_1G			BIT_ULL(7)
-#define GEN8_PDE_IPS_64K		BIT_ULL(11)
+#define XE_PDE_PS_2M			BIT_ULL(7)
+#define XE_PDPE_PS_1G			BIT_ULL(7)
+#define XE_PDE_IPS_64K			BIT_ULL(11)
 
-#define GEN12_GGTT_PTE_LM		BIT_ULL(1)
-#define GEN12_USM_PPGTT_PTE_AE		BIT_ULL(10)
-#define GEN12_PPGTT_PTE_LM		BIT_ULL(11)
-#define GEN12_PDE_64K			BIT_ULL(6)
-#define GEN12_PTE_PS64                  BIT_ULL(8)
+#define XE_GGTT_PTE_LM			BIT_ULL(1)
+#define XE_USM_PPGTT_PTE_AE		BIT_ULL(10)
+#define XE_PPGTT_PTE_LM			BIT_ULL(11)
+#define XE_PDE_64K			BIT_ULL(6)
+#define XE_PTE_PS64			BIT_ULL(8)
 
-#define GEN8_PAGE_PRESENT		BIT_ULL(0)
-#define GEN8_PAGE_RW			BIT_ULL(1)
+#define XE_PAGE_PRESENT			BIT_ULL(0)
+#define XE_PAGE_RW			BIT_ULL(1)
 
-#define PTE_READ_ONLY			BIT(0)
+#define XE_PTE_READ_ONLY		BIT(0)
 
 #define XE_PL_SYSTEM		TTM_PL_SYSTEM
 #define XE_PL_TT		TTM_PL_TT

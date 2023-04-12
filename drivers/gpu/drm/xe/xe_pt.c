@@ -63,8 +63,8 @@ u64 gen8_pde_encode(struct xe_bo *bo, u64 bo_offset,
 	u64 pde;
 	bool is_vram;
 
-	pde = xe_bo_addr(bo, bo_offset, GEN8_PAGE_SIZE, &is_vram);
-	pde |= GEN8_PAGE_PRESENT | GEN8_PAGE_RW;
+	pde = xe_bo_addr(bo, bo_offset, XE_PAGE_SIZE, &is_vram);
+	pde |= XE_PAGE_PRESENT | XE_PAGE_RW;
 
 	XE_WARN_ON(IS_DGFX(xe_bo_device(bo)) && !is_vram);
 
@@ -100,10 +100,10 @@ static dma_addr_t vma_addr(struct xe_vma *vma, u64 offset,
 static u64 __gen8_pte_encode(u64 pte, enum xe_cache_level cache, u32 flags,
 			     u32 pt_level)
 {
-	pte |= GEN8_PAGE_PRESENT | GEN8_PAGE_RW;
+	pte |= XE_PAGE_PRESENT | XE_PAGE_RW;
 
-	if (unlikely(flags & PTE_READ_ONLY))
-		pte &= ~GEN8_PAGE_RW;
+	if (unlikely(flags & XE_PTE_READ_ONLY))
+		pte &= ~XE_PAGE_RW;
 
 	/* FIXME: I don't think the PPAT handling is correct for MTL */
 
@@ -120,9 +120,9 @@ static u64 __gen8_pte_encode(u64 pte, enum xe_cache_level cache, u32 flags,
 	}
 
 	if (pt_level == 1)
-		pte |= GEN8_PDE_PS_2M;
+		pte |= XE_PDE_PS_2M;
 	else if (pt_level == 2)
-		pte |= GEN8_PDPE_PS_1G;
+		pte |= XE_PDPE_PS_1G;
 
 	/* XXX: Does hw support 1 GiB pages? */
 	XE_BUG_ON(pt_level > 2);
@@ -152,14 +152,14 @@ u64 gen8_pte_encode(struct xe_vma *vma, struct xe_bo *bo,
 	bool is_vram;
 
 	if (vma)
-		pte = vma_addr(vma, offset, GEN8_PAGE_SIZE, &is_vram);
+		pte = vma_addr(vma, offset, XE_PAGE_SIZE, &is_vram);
 	else
-		pte = xe_bo_addr(bo, offset, GEN8_PAGE_SIZE, &is_vram);
+		pte = xe_bo_addr(bo, offset, XE_PAGE_SIZE, &is_vram);
 
 	if (is_vram) {
-		pte |= GEN12_PPGTT_PTE_LM;
+		pte |= XE_PPGTT_PTE_LM;
 		if (vma && vma->use_atomic_access_pte_bit)
-			pte |= GEN12_USM_PPGTT_PTE_AE;
+			pte |= XE_USM_PPGTT_PTE_AE;
 	}
 
 	return __gen8_pte_encode(pte, cache, flags, pt_level);
@@ -210,7 +210,7 @@ struct xe_pt *xe_pt_create(struct xe_vm *vm, struct xe_gt *gt,
 	int err;
 
 	size = !level ?  sizeof(struct xe_pt) : sizeof(struct xe_pt_dir) +
-		GEN8_PDES * sizeof(struct xe_ptw *);
+		XE_PDES * sizeof(struct xe_ptw *);
 	pt = kzalloc(size, GFP_KERNEL);
 	if (!pt)
 		return ERR_PTR(-ENOMEM);
@@ -264,7 +264,7 @@ void xe_pt_populate_empty(struct xe_gt *gt, struct xe_vm *vm,
 		xe_map_memset(vm->xe, map, 0, 0, SZ_4K);
 	} else {
 		empty = __xe_pt_empty_pte(gt, vm, pt->level);
-		for (i = 0; i < GEN8_PDES; i++)
+		for (i = 0; i < XE_PDES; i++)
 			xe_pt_write(vm->xe, map, i, empty);
 	}
 }
@@ -279,7 +279,7 @@ void xe_pt_populate_empty(struct xe_gt *gt, struct xe_vm *vm,
  */
 unsigned int xe_pt_shift(unsigned int level)
 {
-	return GEN8_PTE_SHIFT + GEN8_PDE_SHIFT * level;
+	return XE_PTE_SHIFT + XE_PDE_SHIFT * level;
 }
 
 /**
@@ -306,7 +306,7 @@ void xe_pt_destroy(struct xe_pt *pt, u32 flags, struct llist_head *deferred)
 	if (pt->level > 0 && pt->num_live) {
 		struct xe_pt_dir *pt_dir = as_xe_pt_dir(pt);
 
-		for (i = 0; i < GEN8_PDES; i++) {
+		for (i = 0; i < XE_PDES; i++) {
 			if (xe_pt_entry(pt_dir, i))
 				xe_pt_destroy(xe_pt_entry(pt_dir, i), flags,
 					      deferred);
@@ -488,7 +488,7 @@ xe_pt_new_shared(struct xe_walk_update *wupd, struct xe_pt *parent,
 	entry->qwords = 0;
 
 	if (alloc_entries) {
-		entry->pt_entries = kmalloc_array(GEN8_PDES,
+		entry->pt_entries = kmalloc_array(XE_PDES,
 						  sizeof(*entry->pt_entries),
 						  GFP_KERNEL);
 		if (!entry->pt_entries)
@@ -648,7 +648,7 @@ xe_pt_stage_bind_entry(struct xe_ptw *parent, pgoff_t offset,
 		 */
 		if (level == 0 && !xe_parent->is_compact) {
 			if (xe_pt_is_pte_ps64K(addr, next, xe_walk))
-				pte |= GEN12_PTE_PS64;
+				pte |= XE_PTE_PS64;
 			else if (XE_WARN_ON(xe_walk->needs_64K))
 				return -EINVAL;
 		}
@@ -698,7 +698,7 @@ xe_pt_stage_bind_entry(struct xe_ptw *parent, pgoff_t offset,
 		if (GRAPHICS_VERx100(xe_walk->gt->xe) >= 1250 && level == 1 &&
 		    covers && xe_pt_scan_64K(addr, next, xe_walk)) {
 			walk->shifts = xe_compact_pt_shifts;
-			flags |= GEN12_PDE_64K;
+			flags |= XE_PDE_64K;
 			xe_child->is_compact = true;
 		}
 
@@ -760,9 +760,9 @@ xe_pt_stage_bind(struct xe_gt *gt, struct xe_vma *vma,
 	if (is_vram) {
 		struct xe_gt *bo_gt = xe_bo_to_gt(bo);
 
-		xe_walk.default_pte = GEN12_PPGTT_PTE_LM;
+		xe_walk.default_pte = XE_PPGTT_PTE_LM;
 		if (vma && vma->use_atomic_access_pte_bit)
-			xe_walk.default_pte |= GEN12_USM_PPGTT_PTE_AE;
+			xe_walk.default_pte |= XE_USM_PPGTT_PTE_AE;
 		xe_walk.dma_offset = bo_gt->mem.vram.io_start -
 			gt_to_xe(gt)->mem.vram.io_start;
 		xe_walk.cache = XE_CACHE_WB;

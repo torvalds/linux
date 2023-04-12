@@ -59,7 +59,7 @@ int xe_vma_userptr_pin_pages(struct xe_vma *vma)
 	bool in_kthread = !current->mm;
 	unsigned long notifier_seq;
 	int pinned, ret, i;
-	bool read_only = vma->pte_flags & PTE_READ_ONLY;
+	bool read_only = vma->pte_flags & XE_PTE_READ_ONLY;
 
 	lockdep_assert_held(&vm->lock);
 	XE_BUG_ON(!xe_vma_is_userptr(vma));
@@ -844,7 +844,7 @@ static struct xe_vma *xe_vma_create(struct xe_vm *vm,
 	vma->start = start;
 	vma->end = end;
 	if (read_only)
-		vma->pte_flags = PTE_READ_ONLY;
+		vma->pte_flags = XE_PTE_READ_ONLY;
 
 	if (gt_mask) {
 		vma->gt_mask = gt_mask;
@@ -899,7 +899,7 @@ static void xe_vma_destroy_late(struct xe_vma *vma)
 {
 	struct xe_vm *vm = vma->vm;
 	struct xe_device *xe = vm->xe;
-	bool read_only = vma->pte_flags & PTE_READ_ONLY;
+	bool read_only = vma->pte_flags & XE_PTE_READ_ONLY;
 
 	if (xe_vma_is_userptr(vma)) {
 		if (vma->userptr.sg) {
@@ -1960,7 +1960,7 @@ int xe_vm_create_ioctl(struct drm_device *dev, void *data,
 
 #if IS_ENABLED(CONFIG_DRM_XE_DEBUG_MEM)
 	/* Warning: Security issue - never enable by default */
-	args->reserved[0] = xe_bo_main_addr(vm->pt_root[0]->bo, GEN8_PAGE_SIZE);
+	args->reserved[0] = xe_bo_main_addr(vm->pt_root[0]->bo, XE_PAGE_SIZE);
 #endif
 
 	return 0;
@@ -2617,7 +2617,7 @@ static struct xe_vma *vm_unbind_lookup_vmas(struct xe_vm *vm,
 					  first->userptr.ptr,
 					  first->start,
 					  lookup->start - 1,
-					  (first->pte_flags & PTE_READ_ONLY),
+					  (first->pte_flags & XE_PTE_READ_ONLY),
 					  first->gt_mask);
 		if (first->bo)
 			xe_bo_unlock(first->bo, &ww);
@@ -2648,7 +2648,7 @@ static struct xe_vma *vm_unbind_lookup_vmas(struct xe_vm *vm,
 					 last->userptr.ptr + chunk,
 					 last->start + chunk,
 					 last->end,
-					 (last->pte_flags & PTE_READ_ONLY),
+					 (last->pte_flags & XE_PTE_READ_ONLY),
 					 last->gt_mask);
 		if (last->bo)
 			xe_bo_unlock(last->bo, &ww);
@@ -3405,7 +3405,8 @@ int xe_analyze_vm(struct drm_printer *p, struct xe_vm *vm, int gt_id)
 		return 0;
 	}
 	if (vm->pt_root[gt_id]) {
-		addr = xe_bo_addr(vm->pt_root[gt_id]->bo, 0, GEN8_PAGE_SIZE, &is_vram);
+		addr = xe_bo_addr(vm->pt_root[gt_id]->bo, 0, XE_PAGE_SIZE,
+				  &is_vram);
 		drm_printf(p, " VM root: A:0x%llx %s\n", addr, is_vram ? "VRAM" : "SYS");
 	}
 
@@ -3416,10 +3417,11 @@ int xe_analyze_vm(struct drm_printer *p, struct xe_vm *vm, int gt_id)
 		if (is_userptr) {
 			struct xe_res_cursor cur;
 
-			xe_res_first_sg(vma->userptr.sg, 0, GEN8_PAGE_SIZE, &cur);
+			xe_res_first_sg(vma->userptr.sg, 0, XE_PAGE_SIZE,
+					&cur);
 			addr = xe_res_dma(&cur);
 		} else {
-			addr = xe_bo_addr(vma->bo, 0, GEN8_PAGE_SIZE, &is_vram);
+			addr = xe_bo_addr(vma->bo, 0, XE_PAGE_SIZE, &is_vram);
 		}
 		drm_printf(p, " [%016llx-%016llx] S:0x%016llx A:%016llx %s\n",
 			   vma->start, vma->end, vma->end - vma->start + 1ull,
