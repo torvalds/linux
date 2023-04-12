@@ -29,6 +29,8 @@ xchk_xattr_buf_cleanup(
 
 	kvfree(ab->freemap);
 	ab->freemap = NULL;
+	kvfree(ab->usedmap);
+	ab->usedmap = NULL;
 }
 
 /*
@@ -42,19 +44,13 @@ xchk_setup_xattr_buf(
 	size_t			value_size,
 	gfp_t			flags)
 {
-	size_t			sz;
+	size_t			sz = value_size;
 	size_t			bmp_sz;
 	struct xchk_xattr_buf	*ab = sc->buf;
+	unsigned long		*old_usedmap = NULL;
 	unsigned long		*old_freemap = NULL;
 
 	bmp_sz = sizeof(long) * BITS_TO_LONGS(sc->mp->m_attr_geo->blksize);
-
-	/*
-	 * We need enough space to read an xattr value from the file or enough
-	 * space to hold one copy of the xattr free space bitmap.  We don't
-	 * need the buffer space for both purposes at the same time.
-	 */
-	sz = max_t(size_t, bmp_sz, value_size);
 
 	/*
 	 * If there's already a buffer, figure out if we need to reallocate it
@@ -64,6 +60,7 @@ xchk_setup_xattr_buf(
 		if (sz <= ab->sz)
 			return 0;
 		old_freemap = ab->freemap;
+		old_usedmap = ab->usedmap;
 		kvfree(ab);
 		sc->buf = NULL;
 	}
@@ -78,6 +75,14 @@ xchk_setup_xattr_buf(
 	ab->sz = sz;
 	sc->buf = ab;
 	sc->buf_cleanup = xchk_xattr_buf_cleanup;
+
+	if (old_usedmap) {
+		ab->usedmap = old_usedmap;
+	} else {
+		ab->usedmap = kvmalloc(bmp_sz, flags);
+		if (!ab->usedmap)
+			return -ENOMEM;
+	}
 
 	if (old_freemap) {
 		ab->freemap = old_freemap;
@@ -243,7 +248,6 @@ xchk_xattr_set_map(
 STATIC bool
 xchk_xattr_check_freemap(
 	struct xfs_scrub		*sc,
-	unsigned long			*map,
 	struct xfs_attr3_icleaf_hdr	*leafhdr)
 {
 	struct xchk_xattr_buf		*ab = sc->buf;
@@ -260,7 +264,7 @@ xchk_xattr_check_freemap(
 	}
 
 	/* Look for bits that are set in freemap and are marked in use. */
-	return !bitmap_intersects(ab->freemap, map, mapsize);
+	return !bitmap_intersects(ab->freemap, ab->usedmap, mapsize);
 }
 
 /*
@@ -280,7 +284,7 @@ xchk_xattr_entry(
 	__u32				*last_hashval)
 {
 	struct xfs_mount		*mp = ds->state->mp;
-	unsigned long			*usedmap = xchk_xattr_usedmap(ds->sc);
+	struct xchk_xattr_buf		*ab = ds->sc->buf;
 	char				*name_end;
 	struct xfs_attr_leaf_name_local	*lentry;
 	struct xfs_attr_leaf_name_remote *rentry;
@@ -320,7 +324,7 @@ xchk_xattr_entry(
 	if (name_end > buf_end)
 		xchk_da_set_corrupt(ds, level);
 
-	if (!xchk_xattr_set_map(ds->sc, usedmap, nameidx, namesize))
+	if (!xchk_xattr_set_map(ds->sc, ab->usedmap, nameidx, namesize))
 		xchk_da_set_corrupt(ds, level);
 	if (!(ds->sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
 		*usedbytes += namesize;
@@ -340,7 +344,7 @@ xchk_xattr_block(
 	struct xfs_attr_leafblock	*leaf = bp->b_addr;
 	struct xfs_attr_leaf_entry	*ent;
 	struct xfs_attr_leaf_entry	*entries;
-	unsigned long			*usedmap;
+	struct xchk_xattr_buf		*ab = ds->sc->buf;
 	char				*buf_end;
 	size_t				off;
 	__u32				last_hashval = 0;
@@ -358,10 +362,9 @@ xchk_xattr_block(
 		return -EDEADLOCK;
 	if (error)
 		return error;
-	usedmap = xchk_xattr_usedmap(ds->sc);
 
 	*last_checked = blk->blkno;
-	bitmap_zero(usedmap, mp->m_attr_geo->blksize);
+	bitmap_zero(ab->usedmap, mp->m_attr_geo->blksize);
 
 	/* Check all the padding. */
 	if (xfs_has_crc(ds->sc->mp)) {
@@ -385,7 +388,7 @@ xchk_xattr_block(
 		xchk_da_set_corrupt(ds, level);
 	if (leafhdr.firstused < hdrsize)
 		xchk_da_set_corrupt(ds, level);
-	if (!xchk_xattr_set_map(ds->sc, usedmap, 0, hdrsize))
+	if (!xchk_xattr_set_map(ds->sc, ab->usedmap, 0, hdrsize))
 		xchk_da_set_corrupt(ds, level);
 
 	if (ds->sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
@@ -399,7 +402,7 @@ xchk_xattr_block(
 	for (i = 0, ent = entries; i < leafhdr.count; ent++, i++) {
 		/* Mark the leaf entry itself. */
 		off = (char *)ent - (char *)leaf;
-		if (!xchk_xattr_set_map(ds->sc, usedmap, off,
+		if (!xchk_xattr_set_map(ds->sc, ab->usedmap, off,
 				sizeof(xfs_attr_leaf_entry_t))) {
 			xchk_da_set_corrupt(ds, level);
 			goto out;
@@ -413,7 +416,7 @@ xchk_xattr_block(
 			goto out;
 	}
 
-	if (!xchk_xattr_check_freemap(ds->sc, usedmap, &leafhdr))
+	if (!xchk_xattr_check_freemap(ds->sc, &leafhdr))
 		xchk_da_set_corrupt(ds, level);
 
 	if (leafhdr.usedbytes != usedbytes)
