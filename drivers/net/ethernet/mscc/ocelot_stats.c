@@ -395,7 +395,7 @@ static void ocelot_check_stats_work(struct work_struct *work)
 void ocelot_get_strings(struct ocelot *ocelot, int port, u32 sset, u8 *data)
 {
 	const struct ocelot_stat_layout *layout;
-	int i;
+	enum ocelot_stat i;
 
 	if (sset != ETH_SS_STATS)
 		return;
@@ -442,7 +442,8 @@ out_unlock:
 int ocelot_get_sset_count(struct ocelot *ocelot, int port, int sset)
 {
 	const struct ocelot_stat_layout *layout;
-	int i, num_stats = 0;
+	enum ocelot_stat i;
+	int num_stats = 0;
 
 	if (sset != ETH_SS_STATS)
 		return -EOPNOTSUPP;
@@ -461,8 +462,8 @@ static void ocelot_port_ethtool_stats_cb(struct ocelot *ocelot, int port,
 					 void *priv)
 {
 	const struct ocelot_stat_layout *layout;
+	enum ocelot_stat i;
 	u64 *data = priv;
-	int i;
 
 	layout = ocelot_get_stats_layout(ocelot);
 
@@ -890,7 +891,7 @@ static int ocelot_prepare_stats_regions(struct ocelot *ocelot)
 	struct ocelot_stats_region *region = NULL;
 	const struct ocelot_stat_layout *layout;
 	enum ocelot_reg last = 0;
-	int i;
+	enum ocelot_stat i;
 
 	INIT_LIST_HEAD(&ocelot->stats_regions);
 
