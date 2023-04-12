@@ -937,7 +937,7 @@ static void __init print_unknown_bootoptions(void)
 	memblock_free(unknown_options, len);
 }
 
-asmlinkage __visible void __init __no_sanitize_address start_kernel(void)
+asmlinkage __visible void __init __no_sanitize_address __noreturn start_kernel(void)
 {
 	char *command_line;
 	char *after_dashes;
