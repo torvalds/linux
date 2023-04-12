@@ -350,6 +350,7 @@ xfs_trans_free_extent(
 	struct xfs_owner_info		oinfo = { };
 	struct xfs_mount		*mp = tp->t_mountp;
 	struct xfs_extent		*extp;
+	struct xfs_perag		*pag;
 	uint				next_extent;
 	xfs_agnumber_t			agno = XFS_FSB_TO_AGNO(mp,
 							xefi->xefi_startblock);
@@ -366,9 +367,12 @@ xfs_trans_free_extent(
 	trace_xfs_bmap_free_deferred(tp->t_mountp, agno, 0, agbno,
 			xefi->xefi_blockcount);
 
-	error = __xfs_free_extent(tp, xefi->xefi_startblock,
-			xefi->xefi_blockcount, &oinfo, XFS_AG_RESV_NONE,
+	pag = xfs_perag_get(mp, agno);
+	error = __xfs_free_extent(tp, pag, agbno, xefi->xefi_blockcount,
+			&oinfo, XFS_AG_RESV_NONE,
 			xefi->xefi_flags & XFS_EFI_SKIP_DISCARD);
+	xfs_perag_put(pag);
+
 	/*
 	 * Mark the transaction dirty, even on error. This ensures the
 	 * transaction is aborted, which:

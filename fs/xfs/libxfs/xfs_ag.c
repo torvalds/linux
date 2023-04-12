@@ -1043,10 +1043,8 @@ xfs_ag_extend_space(
 	if (error)
 		return error;
 
-	error = xfs_free_extent(tp, XFS_AGB_TO_FSB(pag->pag_mount, pag->pag_agno,
-					be32_to_cpu(agf->agf_length) - len),
-				len, &XFS_RMAP_OINFO_SKIP_UPDATE,
-				XFS_AG_RESV_NONE);
+	error = xfs_free_extent(tp, pag, be32_to_cpu(agf->agf_length) - len,
+			len, &XFS_RMAP_OINFO_SKIP_UPDATE, XFS_AG_RESV_NONE);
 	if (error)
 		return error;
 

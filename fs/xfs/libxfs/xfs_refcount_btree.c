@@ -112,8 +112,9 @@ xfs_refcountbt_free_block(
 			XFS_FSB_TO_AGBNO(cur->bc_mp, fsbno), 1);
 	be32_add_cpu(&agf->agf_refcount_blocks, -1);
 	xfs_alloc_log_agf(cur->bc_tp, agbp, XFS_AGF_REFCOUNT_BLOCKS);
-	error = xfs_free_extent(cur->bc_tp, fsbno, 1, &XFS_RMAP_OINFO_REFC,
-			XFS_AG_RESV_METADATA);
+	error = xfs_free_extent(cur->bc_tp, cur->bc_ag.pag,
+			XFS_FSB_TO_AGBNO(cur->bc_mp, fsbno), 1,
+			&XFS_RMAP_OINFO_REFC, XFS_AG_RESV_METADATA);
 	if (error)
 		return error;
 
