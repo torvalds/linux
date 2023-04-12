@@ -342,10 +342,10 @@ xchk_xattr_block(
 
 	/* Check all the padding. */
 	if (xfs_has_crc(ds->sc->mp)) {
-		struct xfs_attr3_leafblock	*leaf = bp->b_addr;
+		struct xfs_attr3_leafblock	*leaf3 = bp->b_addr;
 
-		if (leaf->hdr.pad1 != 0 || leaf->hdr.pad2 != 0 ||
-		    leaf->hdr.info.hdr.pad != 0)
+		if (leaf3->hdr.pad1 != 0 || leaf3->hdr.pad2 != 0 ||
+		    leaf3->hdr.info.hdr.pad != 0)
 			xchk_da_set_corrupt(ds, level);
 	} else {
 		if (leaf->hdr.pad1 != 0 || leaf->hdr.info.pad != 0)
