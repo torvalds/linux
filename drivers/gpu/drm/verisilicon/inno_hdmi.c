@@ -84,7 +84,7 @@ static const struct pre_pll_config pre_pll_cfg_table[] = {
 };
 
 static const struct post_pll_config post_pll_cfg_table[] = {
-	{25200000,	1, 80, 7, 3, 1},
+	{25200000,	1, 80, 13, 3, 1},
 	{27000000,	1, 40, 11, 3, 1},
 	{27027000,	1, 40, 11, 3, 1},
 	{33750000,	1, 40, 8, 3, 1},
@@ -224,9 +224,6 @@ static void inno_hdmi_config_pll(struct inno_hdmi *hdmi)
 		 hdmi->post_cfg->postdiv : 0x00;
 	u8 reg_1aa_value = hdmi->post_cfg->post_div_en ?
 		 0x0e : 0x02;
-	if(1 == hdmi->hdmi_data.vic){
-		reg_1ad_value = 0x0d;
-	}
 
 	const reg_value_t cfg_pll_data[] = {
 		{0x1a0, 0x01},
