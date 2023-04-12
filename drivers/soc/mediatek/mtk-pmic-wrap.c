@@ -47,6 +47,7 @@
 
 /* macro for device wrapper default value */
 #define PWRAP_DEW_READ_TEST_VAL		0x5aa5
+#define PWRAP_DEW_COMP_READ_TEST_VAL	0xa55a
 #define PWRAP_DEW_WRITE_TEST_VAL	0xa55a
 
 /* macro for manual command */
@@ -1222,12 +1223,16 @@ struct pwrap_slv_regops {
  * struct pwrap_slv_type - PMIC device wrapper definitions
  * @dew_regs:      Device Wrapper (DeW) register offsets
  * @type:          PMIC Type (model)
+ * @comp_dew_regs: Device Wrapper (DeW) register offsets for companion device
+ * @comp_type:     Companion PMIC Type (model)
  * @regops:        Register R/W ops
  * @caps:          Capability flags for the target device
  */
 struct pwrap_slv_type {
 	const u32 *dew_regs;
 	enum pmic_type type;
+	const u32 *comp_dew_regs;
+	enum pmic_type comp_type;
 	const struct pwrap_slv_regops *regops;
 	u32 caps;
 };
@@ -1548,9 +1553,12 @@ static int pwrap_init_dual_io(struct pmic_wrapper *wrp)
 {
 	int ret;
 	bool read_ok, tmp;
+	bool comp_read_ok = true;
 
 	/* Enable dual IO mode */
 	pwrap_write(wrp, wrp->slave->dew_regs[PWRAP_DEW_DIO_EN], 1);
+	if (wrp->slave->comp_dew_regs)
+		pwrap_write(wrp, wrp->slave->comp_dew_regs[PWRAP_DEW_DIO_EN], 1);
 
 	/* Check IDLE & INIT_DONE in advance */
 	ret = readx_poll_timeout(pwrap_is_fsm_idle_and_sync_idle, wrp, tmp, tmp,
@@ -1564,8 +1572,14 @@ static int pwrap_init_dual_io(struct pmic_wrapper *wrp)
 
 	/* Read Test */
 	read_ok = pwrap_pmic_read_test(wrp, wrp->slave->dew_regs, PWRAP_DEW_READ_TEST_VAL);
-	if (!read_ok) {
-		dev_err(wrp->dev, "Read failed on DIO mode.\n");
+	if (wrp->slave->comp_dew_regs)
+		comp_read_ok = pwrap_pmic_read_test(wrp, wrp->slave->comp_dew_regs,
+						    PWRAP_DEW_COMP_READ_TEST_VAL);
+	if (!read_ok || !comp_read_ok) {
+		dev_err(wrp->dev, "Read failed on DIO mode. Main PMIC %s%s\n",
+			!read_ok ? "fail" : "success",
+			wrp->slave->comp_dew_regs && !comp_read_ok ?
+			", Companion PMIC fail" : "");
 		return -EFAULT;
 	}
 
@@ -1640,17 +1654,39 @@ static bool pwrap_is_cipher_ready(struct pmic_wrapper *wrp)
 	return pwrap_readl(wrp, PWRAP_CIPHER_RDY) & 1;
 }
 
-static bool pwrap_is_pmic_cipher_ready(struct pmic_wrapper *wrp)
+static bool __pwrap_is_pmic_cipher_ready(struct pmic_wrapper *wrp, const u32 *dew_regs)
 {
 	u32 rdata;
 	int ret;
 
-	ret = pwrap_read(wrp, wrp->slave->dew_regs[PWRAP_DEW_CIPHER_RDY],
-			 &rdata);
+	ret = pwrap_read(wrp, dew_regs[PWRAP_DEW_CIPHER_RDY], &rdata);
 	if (ret)
 		return false;
 
 	return rdata == 1;
+}
+
+
+static bool pwrap_is_pmic_cipher_ready(struct pmic_wrapper *wrp)
+{
+	bool ret = __pwrap_is_pmic_cipher_ready(wrp, wrp->slave->dew_regs);
+
+	if (!ret)
+		return ret;
+
+	/* If there's any companion, wait for it to be ready too */
+	if (wrp->slave->comp_dew_regs)
+		ret = __pwrap_is_pmic_cipher_ready(wrp, wrp->slave->comp_dew_regs);
+
+	return ret;
+}
+
+static void pwrap_config_cipher(struct pmic_wrapper *wrp, const u32 *dew_regs)
+{
+	pwrap_write(wrp, dew_regs[PWRAP_DEW_CIPHER_SWRST], 0x1);
+	pwrap_write(wrp, dew_regs[PWRAP_DEW_CIPHER_SWRST], 0x0);
+	pwrap_write(wrp, dew_regs[PWRAP_DEW_CIPHER_KEY_SEL], 0x1);
+	pwrap_write(wrp, dew_regs[PWRAP_DEW_CIPHER_IV_SEL], 0x2);
 }
 
 static int pwrap_init_cipher(struct pmic_wrapper *wrp)
@@ -1689,10 +1725,11 @@ static int pwrap_init_cipher(struct pmic_wrapper *wrp)
 	}
 
 	/* Config cipher mode @PMIC */
-	pwrap_write(wrp, wrp->slave->dew_regs[PWRAP_DEW_CIPHER_SWRST], 0x1);
-	pwrap_write(wrp, wrp->slave->dew_regs[PWRAP_DEW_CIPHER_SWRST], 0x0);
-	pwrap_write(wrp, wrp->slave->dew_regs[PWRAP_DEW_CIPHER_KEY_SEL], 0x1);
-	pwrap_write(wrp, wrp->slave->dew_regs[PWRAP_DEW_CIPHER_IV_SEL], 0x2);
+	pwrap_config_cipher(wrp, wrp->slave->dew_regs);
+
+	/* If there is any companion PMIC, configure cipher mode there too */
+	if (wrp->slave->comp_type > 0)
+		pwrap_config_cipher(wrp, wrp->slave->comp_dew_regs);
 
 	switch (wrp->slave->type) {
 	case PMIC_MT6397:
@@ -1754,6 +1791,7 @@ static int pwrap_init_cipher(struct pmic_wrapper *wrp)
 
 static int pwrap_init_security(struct pmic_wrapper *wrp)
 {
+	u32 crc_val;
 	int ret;
 
 	/* Enable encryption */
@@ -1762,14 +1800,21 @@ static int pwrap_init_security(struct pmic_wrapper *wrp)
 		return ret;
 
 	/* Signature checking - using CRC */
-	if (pwrap_write(wrp,
-			wrp->slave->dew_regs[PWRAP_DEW_CRC_EN], 0x1))
-		return -EFAULT;
+	ret = pwrap_write(wrp, wrp->slave->dew_regs[PWRAP_DEW_CRC_EN], 0x1);
+	if (ret == 0 && wrp->slave->comp_dew_regs)
+		ret = pwrap_write(wrp, wrp->slave->comp_dew_regs[PWRAP_DEW_CRC_EN], 0x1);
 
 	pwrap_writel(wrp, 0x1, PWRAP_CRC_EN);
 	pwrap_writel(wrp, 0x0, PWRAP_SIG_MODE);
-	pwrap_writel(wrp, wrp->slave->dew_regs[PWRAP_DEW_CRC_VAL],
-		     PWRAP_SIG_ADR);
+
+	/* CRC value */
+	crc_val = wrp->slave->dew_regs[PWRAP_DEW_CRC_VAL];
+	if (wrp->slave->comp_dew_regs)
+		crc_val |= wrp->slave->comp_dew_regs[PWRAP_DEW_CRC_VAL] << 16;
+
+	pwrap_writel(wrp, crc_val, PWRAP_SIG_ADR);
+
+	/* PMIC Wrapper Arbiter priority */
 	pwrap_writel(wrp,
 		     wrp->master->arb_en_all, PWRAP_HIPRIO_ARB_EN);
 
