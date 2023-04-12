@@ -12,6 +12,7 @@
 #include "tests.h"
 #include <api/io.h>
 #include <linux/kernel.h>
+#include <linux/zalloc.h>
 
 #define TEMPL "/tmp/perf-test-XXXXXX"
 
@@ -79,7 +80,7 @@ static int setup_test(char path[PATH_MAX], const char *contents,
 
 static void cleanup_test(char path[PATH_MAX], struct io *io)
 {
-	free(io->buf);
+	zfree(&io->buf);
 	close(io->fd);
 	unlink(path);
 }
