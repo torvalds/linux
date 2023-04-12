@@ -2580,28 +2580,6 @@ void dcn20_reset_hw_ctx_wrap(
 	}
 }
 
-void dcn20_update_visual_confirm_color(struct dc *dc, struct pipe_ctx *pipe_ctx, struct tg_color *color, int mpcc_id)
-{
-	struct mpc *mpc = dc->res_pool->mpc;
-
-	// input to MPCC is always RGB, by default leave black_color at 0
-	if (dc->debug.visual_confirm == VISUAL_CONFIRM_HDR)
-		get_hdr_visual_confirm_color(pipe_ctx, color);
-	else if (dc->debug.visual_confirm == VISUAL_CONFIRM_SURFACE)
-		get_surface_visual_confirm_color(pipe_ctx, color);
-	else if (dc->debug.visual_confirm == VISUAL_CONFIRM_MPCTREE)
-		get_mpctree_visual_confirm_color(pipe_ctx, color);
-	else if (dc->debug.visual_confirm == VISUAL_CONFIRM_SWIZZLE)
-		get_surface_tile_visual_confirm_color(pipe_ctx, color);
-	else if (dc->debug.visual_confirm == VISUAL_CONFIRM_SUBVP)
-		get_subvp_visual_confirm_color(dc, pipe_ctx, color);
-
-	if (mpc->funcs->set_bg_color) {
-		memcpy(&pipe_ctx->plane_state->visual_confirm_color, color, sizeof(struct tg_color));
-		mpc->funcs->set_bg_color(mpc, color, mpcc_id);
-	}
-}
-
 void dcn20_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
@@ -2657,7 +2635,7 @@ void dcn20_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	if (!pipe_ctx->plane_state->update_flags.bits.full_update &&
 		!pipe_ctx->update_flags.bits.mpcc) {
 		mpc->funcs->update_blending(mpc, &blnd_cfg, mpcc_id);
-		dc->hwss.update_visual_confirm_color(dc, pipe_ctx, &blnd_cfg.black_color, mpcc_id);
+		dc->hwss.update_visual_confirm_color(dc, pipe_ctx, mpcc_id);
 		return;
 	}
 
@@ -2679,7 +2657,7 @@ void dcn20_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 			NULL,
 			hubp->inst,
 			mpcc_id);
-	dc->hwss.update_visual_confirm_color(dc, pipe_ctx, &blnd_cfg.black_color, mpcc_id);
+	dc->hwss.update_visual_confirm_color(dc, pipe_ctx, mpcc_id);
 
 	ASSERT(new_mpcc != NULL);
 	hubp->opp_id = pipe_ctx->stream_res.opp->inst;

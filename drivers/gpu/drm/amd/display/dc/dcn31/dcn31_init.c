@@ -110,7 +110,7 @@ static const struct hw_sequencer_funcs dcn31_funcs = {
 	.set_disp_pattern_generator = dcn30_set_disp_pattern_generator,
 	.optimize_pwr_state = dcn21_optimize_pwr_state,
 	.exit_optimized_pwr_state = dcn21_exit_optimized_pwr_state,
-	.update_visual_confirm_color = dcn20_update_visual_confirm_color,
+	.update_visual_confirm_color = dcn10_update_visual_confirm_color,
 };
 
 static const struct hwseq_private_funcs dcn31_private_funcs = {

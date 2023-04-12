@@ -2602,23 +2602,15 @@ static void dcn10_update_dpp(struct dpp *dpp, struct dc_plane_state *plane_state
 		dpp->funcs->dpp_program_bias_and_scale(dpp, &bns_params);
 }
 
-void dcn10_update_visual_confirm_color(struct dc *dc, struct pipe_ctx *pipe_ctx, struct tg_color *color, int mpcc_id)
+void dcn10_update_visual_confirm_color(struct dc *dc,
+		struct pipe_ctx *pipe_ctx,
+		int mpcc_id)
 {
 	struct mpc *mpc = dc->res_pool->mpc;
 
-	if (dc->debug.visual_confirm == VISUAL_CONFIRM_HDR)
-		get_hdr_visual_confirm_color(pipe_ctx, color);
-	else if (dc->debug.visual_confirm == VISUAL_CONFIRM_SURFACE)
-		get_surface_visual_confirm_color(pipe_ctx, color);
-	else if (dc->debug.visual_confirm == VISUAL_CONFIRM_SWIZZLE)
-		get_surface_tile_visual_confirm_color(pipe_ctx, color);
-	else
-		color_space_to_black_color(
-				dc, pipe_ctx->stream->output_color_space, color);
-
 	if (mpc->funcs->set_bg_color) {
-		memcpy(&pipe_ctx->plane_state->visual_confirm_color, color, sizeof(struct tg_color));
-		mpc->funcs->set_bg_color(mpc, color, mpcc_id);
+		memcpy(&pipe_ctx->plane_state->visual_confirm_color, &(pipe_ctx->visual_confirm_color), sizeof(struct tg_color));
+		mpc->funcs->set_bg_color(mpc, &(pipe_ctx->visual_confirm_color), mpcc_id);
 	}
 }
 
@@ -2671,7 +2663,7 @@ void dcn10_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	/* If there is no full update, don't need to touch MPC tree*/
 	if (!pipe_ctx->plane_state->update_flags.bits.full_update) {
 		mpc->funcs->update_blending(mpc, &blnd_cfg, mpcc_id);
-		dc->hwss.update_visual_confirm_color(dc, pipe_ctx, &blnd_cfg.black_color, mpcc_id);
+		dc->hwss.update_visual_confirm_color(dc, pipe_ctx, mpcc_id);
 		return;
 	}
 
@@ -2693,7 +2685,7 @@ void dcn10_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 			NULL,
 			hubp->inst,
 			mpcc_id);
-	dc->hwss.update_visual_confirm_color(dc, pipe_ctx, &blnd_cfg.black_color, mpcc_id);
+	dc->hwss.update_visual_confirm_color(dc, pipe_ctx, mpcc_id);
 
 	ASSERT(new_mpcc != NULL);
 	hubp->opp_id = pipe_ctx->stream_res.opp->inst;

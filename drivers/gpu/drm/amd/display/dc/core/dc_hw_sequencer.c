@@ -421,6 +421,7 @@ void get_hdr_visual_confirm_color(
 
 void get_subvp_visual_confirm_color(
 		struct dc *dc,
+		struct dc_state *context,
 		struct pipe_ctx *pipe_ctx,
 		struct tg_color *color)
 {
@@ -428,15 +429,17 @@ void get_subvp_visual_confirm_color(
 	bool enable_subvp = false;
 	int i;
 
-	if (!dc->ctx || !dc->ctx->dmub_srv || !pipe_ctx)
+	if (!dc->ctx || !dc->ctx->dmub_srv || !pipe_ctx || !context)
 		return;
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
 		if (pipe->stream && pipe->stream->mall_stream_config.paired_stream &&
 		    pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
 			/* SubVP enable - red */
+			color->color_g_y = 0;
+			color->color_b_cb = 0;
 			color->color_r_cr = color_value;
 			enable_subvp = true;
 
@@ -448,12 +451,51 @@ void get_subvp_visual_confirm_color(
 
 	if (enable_subvp && pipe_ctx->stream->mall_stream_config.type == SUBVP_NONE) {
 		color->color_r_cr = 0;
-		if (pipe_ctx->stream->ignore_msa_timing_param == 1)
+		if (pipe_ctx->stream->allow_freesync == 1) {
 			/* SubVP enable and DRR on - green */
+			color->color_b_cb = 0;
 			color->color_g_y = color_value;
-		else
+		} else {
 			/* SubVP enable and No DRR - blue */
+			color->color_g_y = 0;
 			color->color_b_cb = color_value;
+		}
+	}
+}
+
+void get_mclk_switch_visual_confirm_color(
+		struct dc *dc,
+		struct dc_state *context,
+		struct pipe_ctx *pipe_ctx,
+		struct tg_color *color)
+{
+	uint32_t color_value = MAX_TG_COLOR_VALUE;
+	struct vba_vars_st *vba = &context->bw_ctx.dml.vba;
+
+	if (!dc->ctx || !dc->ctx->dmub_srv || !pipe_ctx || !vba || !context)
+		return;
+
+	if (vba->DRAMClockChangeSupport[vba->VoltageLevel][vba->maxMpcComb] !=
+			dm_dram_clock_change_unsupported) {
+		/* MCLK switching is supported */
+		if (!pipe_ctx->has_vactive_margin) {
+			/* In Vblank - yellow */
+			color->color_r_cr = color_value;
+			color->color_g_y = color_value;
+
+			if (context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching) {
+				/* FPO + Vblank - cyan */
+				color->color_r_cr = 0;
+				color->color_g_y  = color_value;
+				color->color_b_cb = color_value;
+			}
+		} else {
+			/* In Vactive - pink */
+			color->color_r_cr = color_value;
+			color->color_b_cb = color_value;
+		}
+		/* SubVP */
+		get_subvp_visual_confirm_color(dc, context, pipe_ctx, color);
 	}
 }
 

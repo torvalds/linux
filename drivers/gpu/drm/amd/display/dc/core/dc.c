@@ -1119,6 +1119,33 @@ static void phantom_pipe_blank(
 		hws->funcs.wait_for_blank_complete(opp);
 }
 
+static void dc_update_viusal_confirm_color(struct dc *dc, struct dc_state *context, struct pipe_ctx *pipe_ctx)
+{
+	if (dc->ctx->dce_version >= DCN_VERSION_1_0) {
+		memset(&pipe_ctx->visual_confirm_color, 0, sizeof(struct tg_color));
+
+		if (dc->debug.visual_confirm == VISUAL_CONFIRM_HDR)
+			get_hdr_visual_confirm_color(pipe_ctx, &(pipe_ctx->visual_confirm_color));
+		else if (dc->debug.visual_confirm == VISUAL_CONFIRM_SURFACE)
+			get_surface_visual_confirm_color(pipe_ctx, &(pipe_ctx->visual_confirm_color));
+		else if (dc->debug.visual_confirm == VISUAL_CONFIRM_SWIZZLE)
+			get_surface_tile_visual_confirm_color(pipe_ctx, &(pipe_ctx->visual_confirm_color));
+		else {
+			if (dc->ctx->dce_version < DCN_VERSION_2_0)
+				color_space_to_black_color(
+					dc, pipe_ctx->stream->output_color_space, &(pipe_ctx->visual_confirm_color));
+		}
+		if (dc->ctx->dce_version >= DCN_VERSION_2_0) {
+			if (dc->debug.visual_confirm == VISUAL_CONFIRM_MPCTREE)
+				get_mpctree_visual_confirm_color(pipe_ctx, &(pipe_ctx->visual_confirm_color));
+			else if (dc->debug.visual_confirm == VISUAL_CONFIRM_SUBVP)
+				get_subvp_visual_confirm_color(dc, context, pipe_ctx, &(pipe_ctx->visual_confirm_color));
+			else if (dc->debug.visual_confirm == VISUAL_CONFIRM_MCLK_SWITCH)
+				get_mclk_switch_visual_confirm_color(dc, context, pipe_ctx, &(pipe_ctx->visual_confirm_color));
+		}
+	}
+}
+
 static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 {
 	int i, j;
@@ -1188,6 +1215,9 @@ static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 			}
 			dc_rem_all_planes_for_stream(dc, old_stream, dangling_context);
 			disable_all_writeback_pipes_for_stream(dc, old_stream, dangling_context);
+
+			if (pipe->stream && pipe->plane_state)
+				dc_update_viusal_confirm_color(dc, context, pipe);
 
 			if (dc->hwss.apply_ctx_for_surface) {
 				apply_ctx_interdependent_lock(dc, dc->current_state, old_stream, true);
@@ -3456,6 +3486,14 @@ static void commit_planes_for_stream(struct dc *dc,
 		}
 	}
 
+	if (dc->debug.visual_confirm)
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
+			struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+
+			if (pipe->stream && pipe->plane_state)
+				dc_update_viusal_confirm_color(dc, context, pipe);
+		}
+
 	if (stream->test_pattern.type != DP_TEST_PATTERN_VIDEO_MODE) {
 		struct pipe_ctx *mpcc_pipe;
 		struct pipe_ctx *odm_pipe;
@@ -3539,15 +3577,14 @@ static void commit_planes_for_stream(struct dc *dc,
 		for (j = 0; j < dc->res_pool->pipe_count; j++) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
 
-			if (dc->debug.visual_confirm == VISUAL_CONFIRM_SUBVP &&
+			if ((dc->debug.visual_confirm == VISUAL_CONFIRM_SUBVP ||
+				dc->debug.visual_confirm == VISUAL_CONFIRM_MCLK_SWITCH) &&
 				pipe_ctx->stream && pipe_ctx->plane_state) {
-				/* Only update visual confirm for SUBVP here.
+				/* Only update visual confirm for SUBVP and Mclk switching here.
 				 * The bar appears on all pipes, so we need to update the bar on all displays,
 				 * so the information doesn't get stale.
 				 */
-				struct mpcc_blnd_cfg blnd_cfg = { 0 };
-
-				dc->hwss.update_visual_confirm_color(dc, pipe_ctx, &blnd_cfg.black_color,
+				dc->hwss.update_visual_confirm_color(dc, pipe_ctx,
 						pipe_ctx->plane_res.hubp->inst);
 			}
 		}

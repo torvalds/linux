@@ -257,7 +257,6 @@ struct hw_sequencer_funcs {
 
 	void (*update_visual_confirm_color)(struct dc *dc,
 			struct pipe_ctx *pipe_ctx,
-			struct tg_color *color,
 			int mpcc_id);
 
 	void (*update_phantom_vp_position)(struct dc *dc,
@@ -294,6 +293,7 @@ void get_surface_visual_confirm_color(
 
 void get_subvp_visual_confirm_color(
 	struct dc *dc,
+	struct dc_state *context,
 	struct pipe_ctx *pipe_ctx,
 	struct tg_color *color);
 
@@ -306,4 +306,11 @@ void get_mpctree_visual_confirm_color(
 void get_surface_tile_visual_confirm_color(
 		struct pipe_ctx *pipe_ctx,
 		struct tg_color *color);
+
+void get_mclk_switch_visual_confirm_color(
+		struct dc *dc,
+		struct dc_state *context,
+		struct pipe_ctx *pipe_ctx,
+		struct tg_color *color);
+
 #endif /* __DC_HW_SEQUENCER_H__ */

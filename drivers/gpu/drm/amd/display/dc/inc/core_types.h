@@ -426,6 +426,8 @@ struct pipe_ctx {
 	struct dwbc *dwbc;
 	struct mcif_wb *mcif_wb;
 	union pipe_update_flags update_flags;
+	struct tg_color visual_confirm_color;
+	bool has_vactive_margin;
 };
 
 /* Data used for dynamic link encoder assignment.

@@ -1324,6 +1324,7 @@ static void dcn32_calculate_dlg_params(struct dc *dc, struct dc_state *context,
 	int i, pipe_idx, active_hubp_count = 0;
 	bool usr_retraining_support = false;
 	bool unbounded_req_enabled = false;
+	struct vba_vars_st *vba = &context->bw_ctx.dml.vba;
 
 	dc_assert_fp_enabled();
 
@@ -1404,6 +1405,11 @@ static void dcn32_calculate_dlg_params(struct dc *dc, struct dc_state *context,
 		context->res_ctx.pipe_ctx[i].pipe_dlg_param = pipes[pipe_idx].pipe.dest;
 
 		context->res_ctx.pipe_ctx[i].surface_size_in_mall_bytes = get_surface_size_in_mall(&context->bw_ctx.dml, pipes, pipe_cnt, pipe_idx);
+
+		if (vba->ActiveDRAMClockChangeLatencyMarginPerState[vba->VoltageLevel][vba->maxMpcComb][vba->pipe_plane[pipe_idx]] > 0)
+			context->res_ctx.pipe_ctx[i].has_vactive_margin = true;
+		else
+			context->res_ctx.pipe_ctx[i].has_vactive_margin = false;
 
 		/* MALL Allocation Sizes */
 		/* count from active, top pipes per plane only */
@@ -2015,6 +2021,7 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 				maxMpcComb = context->bw_ctx.dml.vba.maxMpcComb;
 				dcfclk_from_fw_based_mclk_switching = context->bw_ctx.dml.vba.DCFCLKState[vlevel][context->bw_ctx.dml.vba.maxMpcComb];
 				pstate_en = true;
+				context->bw_ctx.dml.vba.DRAMClockChangeSupport[vlevel][maxMpcComb] = dm_dram_clock_change_vblank;
 			} else {
 				/* Restore FCLK latency and re-run validation to go back to original validation
 				 * output if we find that enabling FPO does not give us any benefit (i.e. lower

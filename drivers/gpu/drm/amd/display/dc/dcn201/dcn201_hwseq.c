@@ -496,7 +496,7 @@ void dcn201_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 
 	/* If there is no full update, don't need to touch MPC tree*/
 	if (!pipe_ctx->plane_state->update_flags.bits.full_update) {
-		dc->hwss.update_visual_confirm_color(dc, pipe_ctx, &blnd_cfg.black_color, mpcc_id);
+		dc->hwss.update_visual_confirm_color(dc, pipe_ctx, mpcc_id);
 		mpc->funcs->update_blending(mpc, &blnd_cfg, mpcc_id);
 		return;
 	}
@@ -521,7 +521,7 @@ void dcn201_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 					dc->res_pool->mpc, mpcc_id);
 
 	/* Call MPC to insert new plane */
-	dc->hwss.update_visual_confirm_color(dc, pipe_ctx, &blnd_cfg.black_color, mpcc_id);
+	dc->hwss.update_visual_confirm_color(dc, pipe_ctx, mpcc_id);
 	new_mpcc = mpc->funcs->insert_plane(dc->res_pool->mpc,
 			mpc_tree_params,
 			&blnd_cfg,
