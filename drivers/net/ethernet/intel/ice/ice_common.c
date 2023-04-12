@@ -1992,19 +1992,19 @@ ice_acquire_res_exit:
  */
 void ice_release_res(struct ice_hw *hw, enum ice_aq_res_ids res)
 {
-	u32 total_delay = 0;
+	unsigned long timeout;
 	int status;
-
-	status = ice_aq_release_res(hw, res, 0, NULL);
 
 	/* there are some rare cases when trying to release the resource
 	 * results in an admin queue timeout, so handle them correctly
 	 */
-	while ((status == -EIO) && (total_delay < ICE_CTL_Q_SQ_CMD_TIMEOUT)) {
-		mdelay(1);
+	timeout = jiffies + 10 * ICE_CTL_Q_SQ_CMD_TIMEOUT;
+	do {
 		status = ice_aq_release_res(hw, res, 0, NULL);
-		total_delay++;
-	}
+		if (status != -EIO)
+			break;
+		usleep_range(1000, 2000);
+	} while (time_before(jiffies, timeout));
 }
 
 /**

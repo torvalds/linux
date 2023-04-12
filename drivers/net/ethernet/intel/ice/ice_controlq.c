@@ -964,7 +964,7 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 	struct ice_aq_desc *desc_on_ring;
 	bool cmd_completed = false;
 	struct ice_sq_cd *details;
-	u32 total_delay = 0;
+	unsigned long timeout;
 	int status = 0;
 	u16 retval = 0;
 	u32 val = 0;
@@ -1057,13 +1057,14 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 		cq->sq.next_to_use = 0;
 	wr32(hw, cq->sq.tail, cq->sq.next_to_use);
 
+	timeout = jiffies + ICE_CTL_Q_SQ_CMD_TIMEOUT;
 	do {
 		if (ice_sq_done(hw, cq))
 			break;
 
-		udelay(ICE_CTL_Q_SQ_CMD_USEC);
-		total_delay++;
-	} while (total_delay < ICE_CTL_Q_SQ_CMD_TIMEOUT);
+		usleep_range(ICE_CTL_Q_SQ_CMD_USEC,
+			     ICE_CTL_Q_SQ_CMD_USEC * 3 / 2);
+	} while (time_before(jiffies, timeout));
 
 	/* if ready, copy the desc back to temp */
 	if (ice_sq_done(hw, cq)) {
