@@ -88,7 +88,6 @@ static bool test_dev_userfaultfd;
 /* exercise the test_uffdio_*_eexist every ALARM_INTERVAL_SECS */
 #define ALARM_INTERVAL_SECS 10
 static volatile bool test_uffdio_copy_eexist = true;
-static volatile bool test_uffdio_zeropage_eexist = true;
 /* Whether to test uffd write-protection */
 static bool test_uffdio_wp = true;
 /* Whether to test uffd minor faults */
@@ -1114,7 +1113,7 @@ static void retry_uffdio_zeropage(int ufd,
 	}
 }
 
-static int __uffdio_zeropage(int ufd, unsigned long offset, bool retry)
+static int __uffdio_zeropage(int ufd, unsigned long offset)
 {
 	struct uffdio_zeropage uffdio_zeropage;
 	int ret;
@@ -1138,11 +1137,8 @@ static int __uffdio_zeropage(int ufd, unsigned long offset, bool retry)
 		if (res != page_size) {
 			err("UFFDIO_ZEROPAGE unexpected size");
 		} else {
-			if (test_uffdio_zeropage_eexist && retry) {
-				test_uffdio_zeropage_eexist = false;
-				retry_uffdio_zeropage(ufd, &uffdio_zeropage,
-						      offset);
-			}
+			retry_uffdio_zeropage(ufd, &uffdio_zeropage,
+					      offset);
 			return 1;
 		}
 	} else
@@ -1153,7 +1149,7 @@ static int __uffdio_zeropage(int ufd, unsigned long offset, bool retry)
 
 static int uffdio_zeropage(int ufd, unsigned long offset)
 {
-	return __uffdio_zeropage(ufd, offset, false);
+	return __uffdio_zeropage(ufd, offset);
 }
 
 /* exercise UFFDIO_ZEROPAGE */
@@ -1176,6 +1172,13 @@ static int userfaultfd_zeropage_test(void)
 
 	assert_expected_ioctls_present(
 		uffdio_register.mode, uffdio_register.ioctls);
+
+	if (area_dst_alias) {
+		/* Needed this to test zeropage-retry on shared memory */
+		uffdio_register.range.start = (unsigned long) area_dst_alias;
+		if (ioctl(uffd, UFFDIO_REGISTER, &uffdio_register))
+			err("register failure");
+	}
 
 	if (uffdio_zeropage(uffd, 0))
 		if (my_bcmp(area_dst, zeropage, page_size))
@@ -1763,7 +1766,6 @@ static void sigalrm(int sig)
 	if (sig != SIGALRM)
 		abort();
 	test_uffdio_copy_eexist = true;
-	test_uffdio_zeropage_eexist = true;
 	alarm(ALARM_INTERVAL_SECS);
 }
 
