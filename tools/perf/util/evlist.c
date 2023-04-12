@@ -2325,7 +2325,7 @@ int evlist__parse_event_enable_time(struct evlist *evlist, struct record_opts *o
 close_timerfd:
 	close(eet->timerfd);
 free_eet_times:
-	free(eet->times);
+	zfree(&eet->times);
 free_eet:
 	free(eet);
 	return err;
@@ -2407,7 +2407,7 @@ void event_enable_timer__exit(struct event_enable_timer **ep)
 {
 	if (!ep || !*ep)
 		return;
-	free((*ep)->times);
+	zfree(&(*ep)->times);
 	zfree(ep);
 }
 
