@@ -5,6 +5,9 @@
 # Kselftest framework requirement - SKIP code is 4.
 ksft_skip=4
 
+count_pass=0
+count_fail=0
+count_skip=0
 exitcode=0
 
 usage() {
@@ -149,11 +152,14 @@ run_test() {
 		"$@"
 		local ret=$?
 		if [ $ret -eq 0 ]; then
+			count_pass=$(( count_pass + 1 ))
 			echo "[PASS]"
 		elif [ $ret -eq $ksft_skip ]; then
+			count_skip=$(( count_skip + 1 ))
 			echo "[SKIP]"
 			exitcode=$ksft_skip
 		else
+			count_fail=$(( count_fail + 1 ))
 			echo "[FAIL]"
 			exitcode=1
 		fi
@@ -278,5 +284,7 @@ CATEGORY="soft_dirty" run_test ./soft-dirty
 
 # COW tests
 CATEGORY="cow" run_test ./cow
+
+echo "SUMMARY: PASS=${count_pass} SKIP=${count_skip} FAIL=${count_fail}"
 
 exit $exitcode
