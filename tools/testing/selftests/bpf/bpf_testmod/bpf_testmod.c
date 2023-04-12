@@ -130,7 +130,11 @@ bpf_testmod_test_btf_type_tag_percpu_2(struct bpf_testmod_btf_type_tag_3 *arg) {
 
 noinline int bpf_testmod_loop_test(int n)
 {
-	int i, sum = 0;
+	/* Make sum volatile, so smart compilers, such as clang, will not
+	 * optimize the code by removing the loop.
+	 */
+	volatile int sum = 0;
+	int i;
 
 	/* the primary goal of this test is to test LBR. Create a lot of
 	 * branches in the function, so we can catch it easily.
