@@ -39,7 +39,7 @@ enum {
 struct dmabuf_page_pool {
 	int count[POOL_TYPE_SIZE];
 	struct list_head items[POOL_TYPE_SIZE];
-	struct spinlock lock;
+	spinlock_t lock;
 	gfp_t gfp_mask;
 	unsigned int order;
 	struct list_head list;
