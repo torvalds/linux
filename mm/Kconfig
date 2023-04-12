@@ -479,6 +479,12 @@ config SPARSEMEM_VMEMMAP
 	  SPARSEMEM_VMEMMAP uses a virtually mapped memmap to optimise
 	  pfn_to_page and page_to_pfn operations.  This is the most
 	  efficient option when sufficient kernel resources are available.
+#
+# Select this config option from the architecture Kconfig, if it is preferred
+# to enable the feature of HugeTLB/dev_dax vmemmap optimization.
+#
+config ARCH_WANT_OPTIMIZE_VMEMMAP
+	bool
 
 config HAVE_MEMBLOCK_PHYS_MAP
 	bool
