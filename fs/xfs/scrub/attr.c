@@ -346,17 +346,9 @@ xchk_xattr_block(
 	unsigned int			usedbytes = 0;
 	unsigned int			hdrsize;
 	int				i;
-	int				error;
 
 	if (*last_checked == blk->blkno)
 		return 0;
-
-	/* Allocate memory for block usage checking. */
-	error = xchk_setup_xattr_buf(ds->sc, 0);
-	if (error == -ENOMEM)
-		return -EDEADLOCK;
-	if (error)
-		return error;
 
 	*last_checked = blk->blkno;
 	bitmap_zero(ab->usedmap, mp->m_attr_geo->blksize);
@@ -506,6 +498,13 @@ xchk_xattr(
 
 	if (!xfs_inode_hasattr(sc->ip))
 		return -ENOENT;
+
+	/* Allocate memory for xattr checking. */
+	error = xchk_setup_xattr_buf(sc, 0);
+	if (error == -ENOMEM)
+		return -EDEADLOCK;
+	if (error)
+		return error;
 
 	memset(&sx, 0, sizeof(sx));
 	/* Check attribute tree structure */
