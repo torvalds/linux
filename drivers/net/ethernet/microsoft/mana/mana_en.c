@@ -1185,10 +1185,10 @@ static void mana_post_pkt_rxq(struct mana_rxq *rxq)
 	WARN_ON_ONCE(recv_buf_oob->wqe_inf.wqe_size_in_bu != 1);
 }
 
-static struct sk_buff *mana_build_skb(void *buf_va, uint pkt_len,
-				      struct xdp_buff *xdp)
+static struct sk_buff *mana_build_skb(struct mana_rxq *rxq, void *buf_va,
+				      uint pkt_len, struct xdp_buff *xdp)
 {
-	struct sk_buff *skb = napi_build_skb(buf_va, PAGE_SIZE);
+	struct sk_buff *skb = napi_build_skb(buf_va, rxq->alloc_size);
 
 	if (!skb)
 		return NULL;
@@ -1196,10 +1196,11 @@ static struct sk_buff *mana_build_skb(void *buf_va, uint pkt_len,
 	if (xdp->data_hard_start) {
 		skb_reserve(skb, xdp->data - xdp->data_hard_start);
 		skb_put(skb, xdp->data_end - xdp->data);
-	} else {
-		skb_reserve(skb, XDP_PACKET_HEADROOM);
-		skb_put(skb, pkt_len);
+		return skb;
 	}
+
+	skb_reserve(skb, rxq->headroom);
+	skb_put(skb, pkt_len);
 
 	return skb;
 }
@@ -1233,7 +1234,7 @@ static void mana_rx_skb(void *buf_va, struct mana_rxcomp_oob *cqe,
 	if (act != XDP_PASS && act != XDP_TX)
 		goto drop_xdp;
 
-	skb = mana_build_skb(buf_va, pkt_len, &xdp);
+	skb = mana_build_skb(rxq, buf_va, pkt_len, &xdp);
 
 	if (!skb)
 		goto drop;
@@ -1301,6 +1302,14 @@ static void *mana_get_rxfrag(struct mana_rxq *rxq, struct device *dev,
 	if (rxq->xdp_save_va) {
 		va = rxq->xdp_save_va;
 		rxq->xdp_save_va = NULL;
+	} else if (rxq->alloc_size > PAGE_SIZE) {
+		if (is_napi)
+			va = napi_alloc_frag(rxq->alloc_size);
+		else
+			va = netdev_alloc_frag(rxq->alloc_size);
+
+		if (!va)
+			return NULL;
 	} else {
 		page = dev_alloc_page();
 		if (!page)
@@ -1309,7 +1318,7 @@ static void *mana_get_rxfrag(struct mana_rxq *rxq, struct device *dev,
 		va = page_to_virt(page);
 	}
 
-	*da = dma_map_single(dev, va + XDP_PACKET_HEADROOM, rxq->datasize,
+	*da = dma_map_single(dev, va + rxq->headroom, rxq->datasize,
 			     DMA_FROM_DEVICE);
 
 	if (dma_mapping_error(dev, *da)) {
@@ -1732,7 +1741,7 @@ static int mana_alloc_rx_wqe(struct mana_port_context *apc,
 	u32 buf_idx;
 	int ret;
 
-	WARN_ON(rxq->datasize == 0 || rxq->datasize > PAGE_SIZE);
+	WARN_ON(rxq->datasize == 0);
 
 	*rxq_size = 0;
 	*cq_size = 0;
@@ -1788,6 +1797,7 @@ static struct mana_rxq *mana_create_rxq(struct mana_port_context *apc,
 	struct gdma_dev *gd = apc->ac->gdma_dev;
 	struct mana_obj_spec wq_spec;
 	struct mana_obj_spec cq_spec;
+	unsigned int mtu = ndev->mtu;
 	struct gdma_queue_spec spec;
 	struct mana_cq *cq = NULL;
 	struct gdma_context *gc;
@@ -1807,7 +1817,15 @@ static struct mana_rxq *mana_create_rxq(struct mana_port_context *apc,
 	rxq->rxq_idx = rxq_idx;
 	rxq->rxobj = INVALID_MANA_HANDLE;
 
-	rxq->datasize = ALIGN(ETH_FRAME_LEN, 64);
+	rxq->datasize = ALIGN(mtu + ETH_HLEN, 64);
+
+	if (mtu > MANA_XDP_MTU_MAX) {
+		rxq->alloc_size = mtu + MANA_RXBUF_PAD;
+		rxq->headroom = 0;
+	} else {
+		rxq->alloc_size = mtu + MANA_RXBUF_PAD + XDP_PACKET_HEADROOM;
+		rxq->headroom = XDP_PACKET_HEADROOM;
+	}
 
 	err = mana_alloc_rx_wqe(apc, rxq, &rq_size, &cq_size);
 	if (err)
