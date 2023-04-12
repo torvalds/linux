@@ -18,6 +18,7 @@
 #include "xfs_bit.h"
 #include "xfs_alloc.h"
 #include "xfs_alloc_btree.h"
+#include "xfs_ialloc_btree.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/btree.h"
@@ -56,6 +57,7 @@ struct xchk_rmap {
 	struct xagb_bitmap	fs_owned;
 	struct xagb_bitmap	log_owned;
 	struct xagb_bitmap	ag_owned;
+	struct xagb_bitmap	inobt_owned;
 
 	/* Did we complete the AG space metadata bitmaps? */
 	bool			bitmaps_complete;
@@ -299,6 +301,9 @@ xchk_rmapbt_mark_bitmap(
 	case XFS_RMAP_OWN_AG:
 		bmp = &cr->ag_owned;
 		break;
+	case XFS_RMAP_OWN_INOBT:
+		bmp = &cr->inobt_owned;
+		break;
 	}
 
 	if (!bmp)
@@ -430,6 +435,31 @@ xchk_rmapbt_walk_ag_metadata(
 	error = xfs_agfl_walk(sc->mp, agf, agfl_bp, xchk_rmapbt_walk_agfl,
 			&cr->ag_owned);
 	xfs_trans_brelse(sc->tp, agfl_bp);
+	if (error)
+		goto out;
+
+	/* OWN_INOBT: inobt, finobt */
+	cur = sc->sa.ino_cur;
+	if (!cur)
+		cur = xfs_inobt_init_cursor(sc->sa.pag, sc->tp, sc->sa.agi_bp,
+				XFS_BTNUM_INO);
+	error = xagb_bitmap_set_btblocks(&cr->inobt_owned, cur);
+	if (cur != sc->sa.ino_cur)
+		xfs_btree_del_cursor(cur, error);
+	if (error)
+		goto out;
+
+	if (xfs_has_finobt(sc->mp)) {
+		cur = sc->sa.fino_cur;
+		if (!cur)
+			cur = xfs_inobt_init_cursor(sc->sa.pag, sc->tp,
+					sc->sa.agi_bp, XFS_BTNUM_FINO);
+		error = xagb_bitmap_set_btblocks(&cr->inobt_owned, cur);
+		if (cur != sc->sa.fino_cur)
+			xfs_btree_del_cursor(cur, error);
+		if (error)
+			goto out;
+	}
 
 out:
 	/*
@@ -475,6 +505,9 @@ xchk_rmapbt_check_bitmaps(
 
 	if (xagb_bitmap_hweight(&cr->ag_owned) != 0)
 		xchk_btree_xref_set_corrupt(sc, cur, level);
+
+	if (xagb_bitmap_hweight(&cr->inobt_owned) != 0)
+		xchk_btree_xref_set_corrupt(sc, cur, level);
 }
 
 /* Scrub the rmap btree for some AG. */
@@ -492,6 +525,7 @@ xchk_rmapbt(
 	xagb_bitmap_init(&cr->fs_owned);
 	xagb_bitmap_init(&cr->log_owned);
 	xagb_bitmap_init(&cr->ag_owned);
+	xagb_bitmap_init(&cr->inobt_owned);
 
 	error = xchk_rmapbt_walk_ag_metadata(sc, cr);
 	if (error)
@@ -505,6 +539,7 @@ xchk_rmapbt(
 	xchk_rmapbt_check_bitmaps(sc, cr);
 
 out:
+	xagb_bitmap_destroy(&cr->inobt_owned);
 	xagb_bitmap_destroy(&cr->ag_owned);
 	xagb_bitmap_destroy(&cr->log_owned);
 	xagb_bitmap_destroy(&cr->fs_owned);
