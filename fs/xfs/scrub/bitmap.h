@@ -39,4 +39,52 @@ int xbitmap_walk_bits(struct xbitmap *bitmap, xbitmap_walk_bits_fn fn,
 
 bool xbitmap_empty(struct xbitmap *bitmap);
 
+/* Bitmaps, but for type-checked for xfs_agblock_t */
+
+struct xagb_bitmap {
+	struct xbitmap	agbitmap;
+};
+
+static inline void xagb_bitmap_init(struct xagb_bitmap *bitmap)
+{
+	xbitmap_init(&bitmap->agbitmap);
+}
+
+static inline void xagb_bitmap_destroy(struct xagb_bitmap *bitmap)
+{
+	xbitmap_destroy(&bitmap->agbitmap);
+}
+
+static inline int xagb_bitmap_clear(struct xagb_bitmap *bitmap,
+		xfs_agblock_t start, xfs_extlen_t len)
+{
+	return xbitmap_clear(&bitmap->agbitmap, start, len);
+}
+static inline int xagb_bitmap_set(struct xagb_bitmap *bitmap,
+		xfs_agblock_t start, xfs_extlen_t len)
+{
+	return xbitmap_set(&bitmap->agbitmap, start, len);
+}
+
+static inline int xagb_bitmap_disunion(struct xagb_bitmap *bitmap,
+		struct xagb_bitmap *sub)
+{
+	return xbitmap_disunion(&bitmap->agbitmap, &sub->agbitmap);
+}
+
+static inline uint32_t xagb_bitmap_hweight(struct xagb_bitmap *bitmap)
+{
+	return xbitmap_hweight(&bitmap->agbitmap);
+}
+static inline bool xagb_bitmap_empty(struct xagb_bitmap *bitmap)
+{
+	return xbitmap_empty(&bitmap->agbitmap);
+}
+
+static inline int xagb_bitmap_walk(struct xagb_bitmap *bitmap,
+		xbitmap_walk_fn fn, void *priv)
+{
+	return xbitmap_walk(&bitmap->agbitmap, fn, priv);
+}
+
 #endif	/* __XFS_SCRUB_BITMAP_H__ */
