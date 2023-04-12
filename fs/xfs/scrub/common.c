@@ -75,6 +75,7 @@ __xchk_process_error(
 	case 0:
 		return true;
 	case -EDEADLOCK:
+	case -ECHRNG:
 		/* Used to restart an op with deadlock avoidance. */
 		trace_xchk_deadlock_retry(
 				sc->ip ? sc->ip : XFS_I(file_inode(sc->file)),
@@ -130,6 +131,7 @@ __xchk_fblock_process_error(
 	case 0:
 		return true;
 	case -EDEADLOCK:
+	case -ECHRNG:
 		/* Used to restart an op with deadlock avoidance. */
 		trace_xchk_deadlock_retry(sc->ip, sc->sm, *error);
 		break;
@@ -488,7 +490,7 @@ xchk_perag_drain_and_lock(
 		}
 
 		if (!(sc->flags & XCHK_FSGATES_DRAIN))
-			return -EDEADLOCK;
+			return -ECHRNG;
 		error = xfs_perag_intent_drain(sa->pag);
 		if (error == -ERESTARTSYS)
 			error = -EINTR;

@@ -161,7 +161,7 @@ void xchk_start_reaping(struct xfs_scrub *sc);
  */
 static inline bool xchk_need_intent_drain(struct xfs_scrub *sc)
 {
-	return sc->flags & XCHK_TRY_HARDER;
+	return sc->flags & XCHK_NEED_DRAIN;
 }
 
 void xchk_fsgates_enable(struct xfs_scrub *sc, unsigned int scrub_fshooks);
