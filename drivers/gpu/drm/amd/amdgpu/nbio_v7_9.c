@@ -265,7 +265,7 @@ static void nbio_v7_9_ih_doorbell_range(struct amdgpu_device *adev,
 		ih_doorbell_range = REG_SET_FIELD(ih_doorbell_range,
 				DOORBELL0_CTRL_ENTRY_0,
 				BIF_DOORBELL0_RANGE_SIZE_ENTRY,
-				0x4);
+				0x8);
 
 		ih_doorbell_ctrl = REG_SET_FIELD(ih_doorbell_ctrl,
 				S2A_DOORBELL_ENTRY_1_CTRL,
@@ -278,7 +278,7 @@ static void nbio_v7_9_ih_doorbell_range(struct amdgpu_device *adev,
 				S2A_DOORBELL_PORT1_RANGE_OFFSET, 0);
 		ih_doorbell_ctrl = REG_SET_FIELD(ih_doorbell_ctrl,
 				S2A_DOORBELL_ENTRY_1_CTRL,
-				S2A_DOORBELL_PORT1_RANGE_SIZE, 0x4);
+				S2A_DOORBELL_PORT1_RANGE_SIZE, 0x8);
 		ih_doorbell_ctrl = REG_SET_FIELD(ih_doorbell_ctrl,
 				S2A_DOORBELL_ENTRY_1_CTRL,
 				S2A_DOORBELL_PORT1_AWADDR_31_28_VALUE, 0);

@@ -334,7 +334,8 @@ static int vega20_ih_irq_init(struct amdgpu_device *adev)
 		vega20_setup_retry_doorbell(adev->irq.retry_cam_doorbell_index));
 
 	/* Enable IH Retry CAM */
-	if (adev->ip_versions[OSSSYS_HWIP][0] == IP_VERSION(4, 4, 0))
+	if (adev->ip_versions[OSSSYS_HWIP][0] == IP_VERSION(4, 4, 0) ||
+	    adev->ip_versions[OSSSYS_HWIP][0] == IP_VERSION(4, 4, 2))
 		WREG32_FIELD15(OSSSYS, 0, IH_RETRY_INT_CAM_CNTL_ALDEBARAN,
 			       ENABLE, 1);
 	else
