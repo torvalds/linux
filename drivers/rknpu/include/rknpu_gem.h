@@ -48,6 +48,7 @@ struct rknpu_gem_object {
 	unsigned int flags;
 	unsigned long size;
 	unsigned long sram_size;
+	unsigned long nbuf_size;
 	struct rknpu_mm_obj *sram_obj;
 	dma_addr_t iova_start;
 	unsigned long iova_size;
@@ -59,6 +60,11 @@ struct rknpu_gem_object {
 	struct page **pages;
 	struct sg_table *sgt;
 	struct drm_mm_node mm_node;
+};
+
+enum rknpu_cache_type {
+	RKNPU_CACHE_SRAM = 1 << 0,
+	RKNPU_CACHE_NBUF = 1 << 1,
 };
 
 /* create a new buffer with gem object */

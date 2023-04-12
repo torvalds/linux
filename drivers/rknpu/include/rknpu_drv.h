@@ -30,10 +30,10 @@
 
 #define DRIVER_NAME "rknpu"
 #define DRIVER_DESC "RKNPU driver"
-#define DRIVER_DATE "20230202"
+#define DRIVER_DATE "20230428"
 #define DRIVER_MAJOR 0
 #define DRIVER_MINOR 8
-#define DRIVER_PATCHLEVEL 5
+#define DRIVER_PATCHLEVEL 8
 
 #define LOG_TAG "RKNPU"
 
@@ -73,6 +73,8 @@ struct rknpu_config {
 	const struct rknpu_reset_data *resets;
 	int num_irqs;
 	int num_resets;
+	__u64 nbuf_phyaddr;
+	__u64 nbuf_size;
 };
 
 struct rknpu_timer {
@@ -149,10 +151,19 @@ struct rknpu_device {
 	ktime_t kt;
 	phys_addr_t sram_start;
 	phys_addr_t sram_end;
+	phys_addr_t nbuf_start;
+	phys_addr_t nbuf_end;
 	uint32_t sram_size;
+	uint32_t nbuf_size;
 	void __iomem *sram_base_io;
+	void __iomem *nbuf_base_io;
 	struct rknpu_mm *sram_mm;
 	unsigned long power_put_delay;
+};
+
+struct rknpu_session {
+	struct rknpu_device *rknpu_dev;
+	struct list_head list;
 };
 
 int rknpu_power_get(struct rknpu_device *rknpu_dev);

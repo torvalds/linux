@@ -15,7 +15,8 @@
 #include "rknpu_ioctl.h"
 #include "rknpu_mem.h"
 
-int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, unsigned long data)
+int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, unsigned long data,
+			   struct file *file)
 {
 	struct rknpu_mem_create args;
 	int ret = -EINVAL;
@@ -27,6 +28,7 @@ int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, unsigned long data)
 	struct page **pages;
 	struct page *page;
 	struct rknpu_mem_object *rknpu_obj = NULL;
+	struct rknpu_session *session = NULL;
 	int i, fd;
 	unsigned int length, page_count;
 
@@ -65,6 +67,8 @@ int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, unsigned long data)
 						  O_CLOEXEC | O_RDWR, 0x0,
 						  dev_name(rknpu_dev->dev));
 		if (IS_ERR(dmabuf)) {
+			LOG_ERROR("dmabuf alloc failed, args.size = %llu\n",
+				  args.size);
 			ret = PTR_ERR(dmabuf);
 			goto err_free_obj;
 		}
@@ -74,6 +78,7 @@ int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, unsigned long data)
 
 		fd = dma_buf_fd(dmabuf, O_CLOEXEC | O_RDWR);
 		if (fd < 0) {
+			LOG_ERROR("dmabuf fd get failed\n");
 			ret = -EFAULT;
 			goto err_free_dma_buf;
 		}
@@ -81,12 +86,14 @@ int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, unsigned long data)
 
 	attachment = dma_buf_attach(dmabuf, rknpu_dev->dev);
 	if (IS_ERR(attachment)) {
+		LOG_ERROR("dma_buf_attach failed\n");
 		ret = PTR_ERR(attachment);
 		goto err_free_dma_buf;
 	}
 
 	table = dma_buf_map_attachment(attachment, DMA_BIDIRECTIONAL);
 	if (IS_ERR(table)) {
+		LOG_ERROR("dma_buf_attach failed\n");
 		dma_buf_detach(dmabuf, attachment);
 		ret = PTR_ERR(table);
 		goto err_free_dma_buf;
@@ -103,6 +110,7 @@ int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, unsigned long data)
 	page_count = length >> PAGE_SHIFT;
 	pages = kmalloc_array(page_count, sizeof(struct page), GFP_KERNEL);
 	if (!pages) {
+		LOG_ERROR("alloc pages failed\n");
 		ret = -ENOMEM;
 		goto err_detach_dma_buf;
 	}
@@ -112,6 +120,7 @@ int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, unsigned long data)
 
 	rknpu_obj->kv_addr = vmap(pages, page_count, VM_MAP, PAGE_KERNEL);
 	if (!rknpu_obj->kv_addr) {
+		LOG_ERROR("vmap pages addr failed\n");
 		ret = -ENOMEM;
 		goto err_free_pages;
 	}
@@ -141,6 +150,18 @@ int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, unsigned long data)
 	dma_buf_unmap_attachment(attachment, table, DMA_BIDIRECTIONAL);
 	dma_buf_detach(dmabuf, attachment);
 
+	spin_lock(&rknpu_dev->lock);
+
+	session = file->private_data;
+	if (!session) {
+		spin_unlock(&rknpu_dev->lock);
+		ret = -EFAULT;
+		goto err_unmap_kv_addr;
+	}
+	list_add_tail(&rknpu_obj->head, &session->list);
+
+	spin_unlock(&rknpu_dev->lock);
+
 	return 0;
 
 err_unmap_kv_addr:
@@ -166,11 +187,12 @@ err_free_obj:
 	return ret;
 }
 
-int rknpu_mem_destroy_ioctl(struct rknpu_device *rknpu_dev, unsigned long data)
+int rknpu_mem_destroy_ioctl(struct rknpu_device *rknpu_dev, unsigned long data,
+			    struct file *file)
 {
-	struct rknpu_mem_object *rknpu_obj = NULL;
+	struct rknpu_mem_object *rknpu_obj, *entry, *q;
+	struct rknpu_session *session = NULL;
 	struct rknpu_mem_destroy args;
-	struct dma_buf *dmabuf;
 	int ret = -EFAULT;
 
 	if (unlikely(copy_from_user(&args, (struct rknpu_mem_destroy *)data,
@@ -188,19 +210,35 @@ int rknpu_mem_destroy_ioctl(struct rknpu_device *rknpu_dev, unsigned long data)
 	}
 
 	rknpu_obj = (struct rknpu_mem_object *)(uintptr_t)args.obj_addr;
-	dmabuf = rknpu_obj->dmabuf;
 	LOG_DEBUG(
 		"free args.handle: %d, rknpu_obj: %#llx, rknpu_obj->dma_addr: %#llx\n",
 		args.handle, (__u64)(uintptr_t)rknpu_obj,
 		(__u64)rknpu_obj->dma_addr);
 
-	vunmap(rknpu_obj->kv_addr);
-	rknpu_obj->kv_addr = NULL;
+	spin_lock(&rknpu_dev->lock);
+	session = file->private_data;
+	if (!session) {
+		spin_unlock(&rknpu_dev->lock);
+		ret = -EFAULT;
+		return ret;
+	}
+	list_for_each_entry_safe(entry, q, &session->list, head) {
+		if (entry == rknpu_obj) {
+			list_del(&entry->head);
+			break;
+		}
+	}
+	spin_unlock(&rknpu_dev->lock);
 
-	if (!rknpu_obj->owner)
-		dma_buf_put(dmabuf);
+	if (rknpu_obj == entry) {
+		vunmap(rknpu_obj->kv_addr);
+		rknpu_obj->kv_addr = NULL;
 
-	kfree(rknpu_obj);
+		if (!rknpu_obj->owner)
+			dma_buf_put(rknpu_obj->dmabuf);
+
+		kfree(rknpu_obj);
+	}
 
 	return 0;
 }
@@ -209,11 +247,9 @@ int rknpu_mem_destroy_ioctl(struct rknpu_device *rknpu_dev, unsigned long data)
  * begin cpu access => for_cpu = true
  * end cpu access => for_cpu = false
  */
-static void __maybe_unused rknpu_dma_buf_sync(struct rknpu_device *rknpu_dev,
-					      struct rknpu_mem_object *rknpu_obj,
-					      u32 offset, u32 length,
-					      enum dma_data_direction dir,
-					      bool for_cpu)
+static void __maybe_unused rknpu_dma_buf_sync(
+	struct rknpu_device *rknpu_dev, struct rknpu_mem_object *rknpu_obj,
+	u32 offset, u32 length, enum dma_data_direction dir, bool for_cpu)
 {
 	struct device *dev = rknpu_dev->dev;
 	struct sg_table *sgt = rknpu_obj->sgt;
@@ -278,14 +314,12 @@ int rknpu_mem_sync_ioctl(struct rknpu_device *rknpu_dev, unsigned long data)
 
 #ifndef CONFIG_DMABUF_PARTIAL
 	if (args.flags & RKNPU_MEM_SYNC_TO_DEVICE) {
-		rknpu_dma_buf_sync(rknpu_dev, rknpu_obj,
-				   args.offset, args.size, DMA_TO_DEVICE,
-				   false);
+		rknpu_dma_buf_sync(rknpu_dev, rknpu_obj, args.offset, args.size,
+				   DMA_TO_DEVICE, false);
 	}
 	if (args.flags & RKNPU_MEM_SYNC_FROM_DEVICE) {
-		rknpu_dma_buf_sync(rknpu_dev, rknpu_obj,
-				   args.offset, args.size, DMA_FROM_DEVICE,
-				   true);
+		rknpu_dma_buf_sync(rknpu_dev, rknpu_obj, args.offset, args.size,
+				   DMA_FROM_DEVICE, true);
 	}
 #else
 	if (args.flags & RKNPU_MEM_SYNC_TO_DEVICE) {

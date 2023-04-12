@@ -33,11 +33,14 @@ struct rknpu_mem_object {
 	struct page **pages;
 	struct sg_table *sgt;
 	struct dma_buf *dmabuf;
+	struct list_head head;
 	unsigned int owner;
 };
 
-int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, unsigned long data);
-int rknpu_mem_destroy_ioctl(struct rknpu_device *rknpu_dev, unsigned long data);
+int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, unsigned long data,
+			   struct file *file);
+int rknpu_mem_destroy_ioctl(struct rknpu_device *rknpu_dev, unsigned long data,
+			    struct file *file);
 int rknpu_mem_sync_ioctl(struct rknpu_device *rknpu_dev, unsigned long data);
 
 #endif

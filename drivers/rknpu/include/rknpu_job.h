@@ -43,8 +43,8 @@ struct rknpu_job {
 	struct dma_fence *fence;
 	ktime_t timestamp;
 	uint32_t use_core_num;
-	uint32_t run_count;
-	uint32_t interrupt_count;
+	atomic_t run_count;
+	atomic_t interrupt_count;
 	ktime_t hw_recoder_time;
 };
 

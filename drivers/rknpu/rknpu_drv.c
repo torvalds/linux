@@ -116,7 +116,9 @@ static const struct rknpu_config rk356x_rknpu_config = {
 	.irqs = rknpu_irqs,
 	.resets = rknpu_resets,
 	.num_irqs = ARRAY_SIZE(rknpu_irqs),
-	.num_resets = ARRAY_SIZE(rknpu_resets)
+	.num_resets = ARRAY_SIZE(rknpu_resets),
+	.nbuf_phyaddr = 0,
+	.nbuf_size = 0
 };
 
 static const struct rknpu_config rk3588_rknpu_config = {
@@ -132,7 +134,9 @@ static const struct rknpu_config rk3588_rknpu_config = {
 	.irqs = rk3588_npu_irqs,
 	.resets = rk3588_npu_resets,
 	.num_irqs = ARRAY_SIZE(rk3588_npu_irqs),
-	.num_resets = ARRAY_SIZE(rk3588_npu_resets)
+	.num_resets = ARRAY_SIZE(rk3588_npu_resets),
+	.nbuf_phyaddr = 0,
+	.nbuf_size = 0
 };
 
 static const struct rknpu_config rv1106_rknpu_config = {
@@ -148,7 +152,9 @@ static const struct rknpu_config rv1106_rknpu_config = {
 	.irqs = rknpu_irqs,
 	.resets = rknpu_resets,
 	.num_irqs = ARRAY_SIZE(rknpu_irqs),
-	.num_resets = ARRAY_SIZE(rknpu_resets)
+	.num_resets = ARRAY_SIZE(rknpu_resets),
+	.nbuf_phyaddr = 0,
+	.nbuf_size = 0
 };
 
 static const struct rknpu_config rk3562_rknpu_config = {
@@ -164,7 +170,9 @@ static const struct rknpu_config rk3562_rknpu_config = {
 	.irqs = rknpu_irqs,
 	.resets = rknpu_resets,
 	.num_irqs = ARRAY_SIZE(rknpu_irqs),
-	.num_resets = ARRAY_SIZE(rknpu_resets)
+	.num_resets = ARRAY_SIZE(rknpu_resets),
+	.nbuf_phyaddr = 0xfe400000,
+	.nbuf_size = 256 * 1024
 };
 
 /* driver probe and init */
@@ -353,11 +361,56 @@ static int rknpu_action(struct rknpu_device *rknpu_dev,
 #ifdef CONFIG_ROCKCHIP_RKNPU_DMA_HEAP
 static int rknpu_open(struct inode *inode, struct file *file)
 {
+	struct rknpu_device *rknpu_dev =
+		container_of(file->private_data, struct rknpu_device, miscdev);
+	struct rknpu_session *session = NULL;
+
+	session = kzalloc(sizeof(*session), GFP_KERNEL);
+	if (!session) {
+		LOG_ERROR("rknpu session alloc failed\n");
+		return -ENOMEM;
+	}
+
+	session->rknpu_dev = rknpu_dev;
+	INIT_LIST_HEAD(&session->list);
+
+	file->private_data = (void *)session;
+
 	return nonseekable_open(inode, file);
 }
 
 static int rknpu_release(struct inode *inode, struct file *file)
 {
+	struct rknpu_mem_object *entry;
+	struct rknpu_session *session = file->private_data;
+	struct rknpu_device *rknpu_dev = session->rknpu_dev;
+	LIST_HEAD(local_list);
+
+	spin_lock(&rknpu_dev->lock);
+	list_replace_init(&session->list, &local_list);
+	file->private_data = NULL;
+	spin_unlock(&rknpu_dev->lock);
+
+	while (!list_empty(&local_list)) {
+		entry = list_first_entry(&local_list, struct rknpu_mem_object,
+					 head);
+
+		LOG_DEBUG(
+			"Fd close free rknpu_obj: %#llx, rknpu_obj->dma_addr: %#llx\n",
+			(__u64)(uintptr_t)entry, (__u64)entry->dma_addr);
+
+		vunmap(entry->kv_addr);
+		entry->kv_addr = NULL;
+
+		if (!entry->owner)
+			dma_buf_put(entry->dmabuf);
+
+		list_del(&entry->head);
+		kfree(entry);
+	}
+
+	kfree(session);
+
 	return 0;
 }
 
@@ -389,8 +442,12 @@ static int rknpu_action_ioctl(struct rknpu_device *rknpu_dev,
 static long rknpu_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 {
 	long ret = -EINVAL;
-	struct rknpu_device *rknpu_dev =
-		container_of(file->private_data, struct rknpu_device, miscdev);
+	struct rknpu_device *rknpu_dev = NULL;
+
+	if (!file->private_data)
+		return -EINVAL;
+
+	rknpu_dev = ((struct rknpu_session *)file->private_data)->rknpu_dev;
 
 	rknpu_power_get(rknpu_dev);
 
@@ -402,12 +459,12 @@ static long rknpu_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 		ret = rknpu_submit_ioctl(rknpu_dev, arg);
 		break;
 	case IOCTL_RKNPU_MEM_CREATE:
-		ret = rknpu_mem_create_ioctl(rknpu_dev, arg);
+		ret = rknpu_mem_create_ioctl(rknpu_dev, arg, file);
 		break;
 	case RKNPU_MEM_MAP:
 		break;
 	case IOCTL_RKNPU_MEM_DESTROY:
-		ret = rknpu_mem_destroy_ioctl(rknpu_dev, arg);
+		ret = rknpu_mem_destroy_ioctl(rknpu_dev, arg, file);
 		break;
 	case IOCTL_RKNPU_MEM_SYNC:
 		ret = rknpu_mem_sync_ioctl(rknpu_dev, arg);
@@ -1603,6 +1660,31 @@ static int rknpu_find_sram_resource(struct rknpu_device *rknpu_dev)
 	return 0;
 }
 
+static int rknpu_find_nbuf_resource(struct rknpu_device *rknpu_dev)
+{
+	struct device *dev = rknpu_dev->dev;
+
+	if (rknpu_dev->config->nbuf_size == 0)
+		return -EINVAL;
+
+	rknpu_dev->nbuf_start = rknpu_dev->config->nbuf_phyaddr;
+	rknpu_dev->nbuf_size = rknpu_dev->config->nbuf_size;
+	rknpu_dev->nbuf_base_io =
+		devm_ioremap(dev, rknpu_dev->nbuf_start, rknpu_dev->nbuf_size);
+	if (IS_ERR(rknpu_dev->nbuf_base_io)) {
+		LOG_DEV_ERROR(dev, "failed to remap nbuf base io!\n");
+		rknpu_dev->nbuf_base_io = NULL;
+	}
+
+	rknpu_dev->nbuf_end = rknpu_dev->nbuf_start + rknpu_dev->nbuf_size;
+
+	LOG_DEV_INFO(dev, "nbuf region: [%pa, %pa), nbuf size: %#x\n",
+		     &rknpu_dev->nbuf_start, &rknpu_dev->nbuf_end,
+		     rknpu_dev->nbuf_size);
+
+	return 0;
+}
+
 static int rknpu_probe(struct platform_device *pdev)
 {
 	struct resource *res = NULL;
@@ -1819,7 +1901,8 @@ static int rknpu_probe(struct platform_device *pdev)
 	INIT_DEFERRABLE_WORK(&rknpu_dev->power_off_work,
 			     rknpu_power_off_delay_work);
 
-	if (IS_ENABLED(CONFIG_ROCKCHIP_RKNPU_SRAM) && rknpu_dev->iommu_en) {
+	if (IS_ENABLED(CONFIG_NO_GKI) &&
+	    IS_ENABLED(CONFIG_ROCKCHIP_RKNPU_SRAM) && rknpu_dev->iommu_en) {
 		if (!rknpu_find_sram_resource(rknpu_dev)) {
 			ret = rknpu_mm_create(rknpu_dev->sram_size, PAGE_SIZE,
 					      &rknpu_dev->sram_mm);
@@ -1829,6 +1912,10 @@ static int rknpu_probe(struct platform_device *pdev)
 			LOG_DEV_WARN(dev, "could not find sram resource!\n");
 		}
 	}
+
+	if (IS_ENABLED(CONFIG_NO_GKI) && rknpu_dev->iommu_en &&
+	    rknpu_dev->config->nbuf_size > 0)
+		rknpu_find_nbuf_resource(rknpu_dev);
 
 	rknpu_power_off(rknpu_dev);
 	atomic_set(&rknpu_dev->power_refcount, 0);
