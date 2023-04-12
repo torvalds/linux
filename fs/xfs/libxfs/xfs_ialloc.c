@@ -2641,44 +2641,50 @@ xfs_ialloc_read_agi(
 	return 0;
 }
 
-/* Is there an inode record covering a given range of inode numbers? */
-int
-xfs_ialloc_has_inode_record(
-	struct xfs_btree_cur	*cur,
-	xfs_agino_t		low,
-	xfs_agino_t		high,
-	bool			*exists)
+/* How many inodes are backed by inode clusters ondisk? */
+STATIC int
+xfs_ialloc_count_ondisk(
+	struct xfs_btree_cur		*cur,
+	xfs_agino_t			low,
+	xfs_agino_t			high,
+	unsigned int			*allocated)
 {
 	struct xfs_inobt_rec_incore	irec;
-	xfs_agino_t		agino;
-	uint16_t		holemask;
-	int			has_record;
-	int			i;
-	int			error;
+	unsigned int			ret = 0;
+	int				has_record;
+	int				error;
 
-	*exists = false;
 	error = xfs_inobt_lookup(cur, low, XFS_LOOKUP_LE, &has_record);
-	while (error == 0 && has_record) {
+	if (error)
+		return error;
+
+	while (has_record) {
+		unsigned int		i, hole_idx;
+
 		error = xfs_inobt_get_rec(cur, &irec, &has_record);
-		if (error || irec.ir_startino > high)
+		if (error)
+			return error;
+		if (irec.ir_startino > high)
 			break;
 
-		agino = irec.ir_startino;
-		holemask = irec.ir_holemask;
-		for (i = 0; i < XFS_INOBT_HOLEMASK_BITS; holemask >>= 1,
-				i++, agino += XFS_INODES_PER_HOLEMASK_BIT) {
-			if (holemask & 1)
+		for (i = 0; i < XFS_INODES_PER_CHUNK; i++) {
+			if (irec.ir_startino + i < low)
 				continue;
-			if (agino + XFS_INODES_PER_HOLEMASK_BIT > low &&
-					agino <= high) {
-				*exists = true;
-				return 0;
-			}
+			if (irec.ir_startino + i > high)
+				break;
+
+			hole_idx = i / XFS_INODES_PER_HOLEMASK_BIT;
+			if (!(irec.ir_holemask & (1U << hole_idx)))
+				ret++;
 		}
 
 		error = xfs_btree_increment(cur, 0, &has_record);
+		if (error)
+			return error;
 	}
-	return error;
+
+	*allocated = ret;
+	return 0;
 }
 
 /* Is there an inode record covering a given extent? */
@@ -2687,15 +2693,27 @@ xfs_ialloc_has_inodes_at_extent(
 	struct xfs_btree_cur	*cur,
 	xfs_agblock_t		bno,
 	xfs_extlen_t		len,
-	bool			*exists)
+	enum xbtree_recpacking	*outcome)
 {
-	xfs_agino_t		low;
-	xfs_agino_t		high;
+	xfs_agino_t		agino;
+	xfs_agino_t		last_agino;
+	unsigned int		allocated;
+	int			error;
 
-	low = XFS_AGB_TO_AGINO(cur->bc_mp, bno);
-	high = XFS_AGB_TO_AGINO(cur->bc_mp, bno + len) - 1;
+	agino = XFS_AGB_TO_AGINO(cur->bc_mp, bno);
+	last_agino = XFS_AGB_TO_AGINO(cur->bc_mp, bno + len) - 1;
 
-	return xfs_ialloc_has_inode_record(cur, low, high, exists);
+	error = xfs_ialloc_count_ondisk(cur, agino, last_agino, &allocated);
+	if (error)
+		return error;
+
+	if (allocated == 0)
+		*outcome = XBTREE_RECPACKING_EMPTY;
+	else if (allocated == last_agino - agino + 1)
+		*outcome = XBTREE_RECPACKING_FULL;
+	else
+		*outcome = XBTREE_RECPACKING_SPARSE;
+	return 0;
 }
 
 struct xfs_ialloc_count_inodes {

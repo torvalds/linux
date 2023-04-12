@@ -765,18 +765,18 @@ xchk_xref_inode_check(
 	xfs_agblock_t		agbno,
 	xfs_extlen_t		len,
 	struct xfs_btree_cur	**icur,
-	bool			should_have_inodes)
+	enum xbtree_recpacking	expected)
 {
-	bool			has_inodes;
+	enum xbtree_recpacking	outcome;
 	int			error;
 
 	if (!(*icur) || xchk_skip_xref(sc->sm))
 		return;
 
-	error = xfs_ialloc_has_inodes_at_extent(*icur, agbno, len, &has_inodes);
+	error = xfs_ialloc_has_inodes_at_extent(*icur, agbno, len, &outcome);
 	if (!xchk_should_check_xref(sc, &error, icur))
 		return;
-	if (has_inodes != should_have_inodes)
+	if (outcome != expected)
 		xchk_btree_xref_set_corrupt(sc, *icur, 0);
 }
 
@@ -787,8 +787,10 @@ xchk_xref_is_not_inode_chunk(
 	xfs_agblock_t		agbno,
 	xfs_extlen_t		len)
 {
-	xchk_xref_inode_check(sc, agbno, len, &sc->sa.ino_cur, false);
-	xchk_xref_inode_check(sc, agbno, len, &sc->sa.fino_cur, false);
+	xchk_xref_inode_check(sc, agbno, len, &sc->sa.ino_cur,
+			XBTREE_RECPACKING_EMPTY);
+	xchk_xref_inode_check(sc, agbno, len, &sc->sa.fino_cur,
+			XBTREE_RECPACKING_EMPTY);
 }
 
 /* xref check that the extent is covered by inodes */
@@ -798,5 +800,6 @@ xchk_xref_is_inode_chunk(
 	xfs_agblock_t		agbno,
 	xfs_extlen_t		len)
 {
-	xchk_xref_inode_check(sc, agbno, len, &sc->sa.ino_cur, true);
+	xchk_xref_inode_check(sc, agbno, len, &sc->sa.ino_cur,
+			XBTREE_RECPACKING_FULL);
 }
