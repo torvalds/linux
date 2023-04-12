@@ -12,6 +12,10 @@ struct {
 	__type(value, __u32);
 } xsk SEC(".maps");
 
+__u64 pkts_skip = 0;
+__u64 pkts_fail = 0;
+__u64 pkts_redir = 0;
+
 extern int bpf_xdp_metadata_rx_timestamp(const struct xdp_md *ctx,
 					 __u64 *timestamp) __ksym;
 extern int bpf_xdp_metadata_rx_hash(const struct xdp_md *ctx,
@@ -26,7 +30,7 @@ int rx(struct xdp_md *ctx)
 	struct udphdr *udp = NULL;
 	struct iphdr *iph = NULL;
 	struct xdp_meta *meta;
-	int ret;
+	int err;
 
 	data = (void *)(long)ctx->data;
 	data_end = (void *)(long)ctx->data_end;
@@ -46,17 +50,20 @@ int rx(struct xdp_md *ctx)
 			udp = NULL;
 	}
 
-	if (!udp)
+	if (!udp) {
+		__sync_add_and_fetch(&pkts_skip, 1);
 		return XDP_PASS;
+	}
 
-	if (udp->dest != bpf_htons(9091))
+	/* Forwarding UDP:9091 to AF_XDP */
+	if (udp->dest != bpf_htons(9091)) {
+		__sync_add_and_fetch(&pkts_skip, 1);
 		return XDP_PASS;
+	}
 
-	bpf_printk("forwarding UDP:9091 to AF_XDP");
-
-	ret = bpf_xdp_adjust_meta(ctx, -(int)sizeof(struct xdp_meta));
-	if (ret != 0) {
-		bpf_printk("bpf_xdp_adjust_meta returned %d", ret);
+	err = bpf_xdp_adjust_meta(ctx, -(int)sizeof(struct xdp_meta));
+	if (err) {
+		__sync_add_and_fetch(&pkts_fail, 1);
 		return XDP_PASS;
 	}
 
@@ -65,20 +72,19 @@ int rx(struct xdp_md *ctx)
 	meta = data_meta;
 
 	if (meta + 1 > data) {
-		bpf_printk("bpf_xdp_adjust_meta doesn't appear to work");
+		__sync_add_and_fetch(&pkts_fail, 1);
 		return XDP_PASS;
 	}
 
-	if (!bpf_xdp_metadata_rx_timestamp(ctx, &meta->rx_timestamp))
-		bpf_printk("populated rx_timestamp with %llu", meta->rx_timestamp);
-	else
+	err = bpf_xdp_metadata_rx_timestamp(ctx, &meta->rx_timestamp);
+	if (err)
 		meta->rx_timestamp = 0; /* Used by AF_XDP as not avail signal */
 
-	if (!bpf_xdp_metadata_rx_hash(ctx, &meta->rx_hash))
-		bpf_printk("populated rx_hash with %u", meta->rx_hash);
-	else
+	err = bpf_xdp_metadata_rx_hash(ctx, &meta->rx_hash);
+	if (err)
 		meta->rx_hash = 0; /* Used by AF_XDP as not avail signal */
 
+	__sync_add_and_fetch(&pkts_redir, 1);
 	return bpf_redirect_map(&xsk, ctx->rx_queue_index, XDP_PASS);
 }
 
