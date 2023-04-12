@@ -198,8 +198,9 @@ unsigned long default_huge_page_size(void)
 	return hps;
 }
 
-int uffd_register(int uffd, void *addr, uint64_t len,
-		  bool miss, bool wp, bool minor)
+/* If `ioctls' non-NULL, the allowed ioctls will be returned into the var */
+int uffd_register_with_ioctls(int uffd, void *addr, uint64_t len,
+			      bool miss, bool wp, bool minor, uint64_t *ioctls)
 {
 	struct uffdio_register uffdio_register = { 0 };
 	uint64_t mode = 0;
@@ -218,8 +219,17 @@ int uffd_register(int uffd, void *addr, uint64_t len,
 
 	if (ioctl(uffd, UFFDIO_REGISTER, &uffdio_register) == -1)
 		ret = -errno;
+	else if (ioctls)
+		*ioctls = uffdio_register.ioctls;
 
 	return ret;
+}
+
+int uffd_register(int uffd, void *addr, uint64_t len,
+		  bool miss, bool wp, bool minor)
+{
+	return uffd_register_with_ioctls(uffd, addr, len,
+					 miss, wp, minor, NULL);
 }
 
 int uffd_unregister(int uffd, void *addr, uint64_t len)

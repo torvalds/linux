@@ -109,15 +109,6 @@ static inline uint64_t uffd_minor_feature(void)
 		return 0;
 }
 
-static int my_bcmp(char *str1, char *str2, size_t n)
-{
-	unsigned long i;
-	for (i = 0; i < n; i++)
-		if (str1[i] != str2[i])
-			return 1;
-	return 0;
-}
-
 static void *locking_thread(void *arg)
 {
 	unsigned long cpu = (unsigned long) arg;
@@ -273,89 +264,6 @@ static int stress(struct uffd_args *args)
 	return 0;
 }
 
-static void retry_uffdio_zeropage(int ufd,
-				  struct uffdio_zeropage *uffdio_zeropage,
-				  unsigned long offset)
-{
-	uffd_test_ops->alias_mapping(&uffdio_zeropage->range.start,
-				     uffdio_zeropage->range.len,
-				     offset);
-	if (ioctl(ufd, UFFDIO_ZEROPAGE, uffdio_zeropage)) {
-		if (uffdio_zeropage->zeropage != -EEXIST)
-			err("UFFDIO_ZEROPAGE error: %"PRId64,
-			    (int64_t)uffdio_zeropage->zeropage);
-	} else {
-		err("UFFDIO_ZEROPAGE error: %"PRId64,
-		    (int64_t)uffdio_zeropage->zeropage);
-	}
-}
-
-static int __uffdio_zeropage(int ufd, unsigned long offset)
-{
-	struct uffdio_zeropage uffdio_zeropage;
-	int ret;
-	bool has_zeropage = !(test_type == TEST_HUGETLB);
-	__s64 res;
-
-	if (offset >= nr_pages * page_size)
-		err("unexpected offset %lu", offset);
-	uffdio_zeropage.range.start = (unsigned long) area_dst + offset;
-	uffdio_zeropage.range.len = page_size;
-	uffdio_zeropage.mode = 0;
-	ret = ioctl(ufd, UFFDIO_ZEROPAGE, &uffdio_zeropage);
-	res = uffdio_zeropage.zeropage;
-	if (ret) {
-		/* real retval in ufdio_zeropage.zeropage */
-		if (has_zeropage)
-			err("UFFDIO_ZEROPAGE error: %"PRId64, (int64_t)res);
-		else if (res != -EINVAL)
-			err("UFFDIO_ZEROPAGE not -EINVAL");
-	} else if (has_zeropage) {
-		if (res != page_size) {
-			err("UFFDIO_ZEROPAGE unexpected size");
-		} else {
-			retry_uffdio_zeropage(ufd, &uffdio_zeropage,
-					      offset);
-			return 1;
-		}
-	} else
-		err("UFFDIO_ZEROPAGE succeeded");
-
-	return 0;
-}
-
-static int uffdio_zeropage(int ufd, unsigned long offset)
-{
-	return __uffdio_zeropage(ufd, offset);
-}
-
-/* exercise UFFDIO_ZEROPAGE */
-static int userfaultfd_zeropage_test(void)
-{
-	printf("testing UFFDIO_ZEROPAGE: ");
-	fflush(stdout);
-
-	uffd_test_ctx_init(0);
-
-	if (uffd_register(uffd, area_dst, nr_pages * page_size,
-			  true, test_uffdio_wp, false))
-		err("register failure");
-
-	if (area_dst_alias) {
-		/* Needed this to test zeropage-retry on shared memory */
-		if (uffd_register(uffd, area_dst_alias, nr_pages * page_size,
-				  true, test_uffdio_wp, false))
-			err("register failure");
-	}
-
-	if (uffdio_zeropage(uffd, 0))
-		if (my_bcmp(area_dst, zeropage, page_size))
-			err("zeropage is not zero");
-
-	printf("done.\n");
-	return 0;
-}
-
 static int userfaultfd_stress(void)
 {
 	void *area;
@@ -467,7 +375,7 @@ static int userfaultfd_stress(void)
 		uffd_stats_report(args, nr_cpus);
 	}
 
-	return userfaultfd_zeropage_test();
+	return 0;
 }
 
 static void set_test_type(const char *type)

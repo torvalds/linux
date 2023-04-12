@@ -660,7 +660,100 @@ static void uffd_events_wp_test(void)
 	uffd_events_test_common(true);
 }
 
+static void retry_uffdio_zeropage(int ufd,
+				  struct uffdio_zeropage *uffdio_zeropage)
+{
+	uffd_test_ops->alias_mapping(&uffdio_zeropage->range.start,
+				     uffdio_zeropage->range.len,
+				     0);
+	if (ioctl(ufd, UFFDIO_ZEROPAGE, uffdio_zeropage)) {
+		if (uffdio_zeropage->zeropage != -EEXIST)
+			err("UFFDIO_ZEROPAGE error: %"PRId64,
+			    (int64_t)uffdio_zeropage->zeropage);
+	} else {
+		err("UFFDIO_ZEROPAGE error: %"PRId64,
+		    (int64_t)uffdio_zeropage->zeropage);
+	}
+}
+
+static bool do_uffdio_zeropage(int ufd, bool has_zeropage)
+{
+	struct uffdio_zeropage uffdio_zeropage = { 0 };
+	int ret;
+	__s64 res;
+
+	uffdio_zeropage.range.start = (unsigned long) area_dst;
+	uffdio_zeropage.range.len = page_size;
+	uffdio_zeropage.mode = 0;
+	ret = ioctl(ufd, UFFDIO_ZEROPAGE, &uffdio_zeropage);
+	res = uffdio_zeropage.zeropage;
+	if (ret) {
+		/* real retval in ufdio_zeropage.zeropage */
+		if (has_zeropage)
+			err("UFFDIO_ZEROPAGE error: %"PRId64, (int64_t)res);
+		else if (res != -EINVAL)
+			err("UFFDIO_ZEROPAGE not -EINVAL");
+	} else if (has_zeropage) {
+		if (res != page_size)
+			err("UFFDIO_ZEROPAGE unexpected size");
+		else
+			retry_uffdio_zeropage(ufd, &uffdio_zeropage);
+		return true;
+	} else
+		err("UFFDIO_ZEROPAGE succeeded");
+
+	return false;
+}
+
+/*
+ * Registers a range with MISSING mode only for zeropage test.  Return true
+ * if UFFDIO_ZEROPAGE supported, false otherwise. Can't use uffd_register()
+ * because we want to detect .ioctls along the way.
+ */
+static bool
+uffd_register_detect_zeropage(int uffd, void *addr, uint64_t len)
+{
+	uint64_t ioctls = 0;
+
+	if (uffd_register_with_ioctls(uffd, addr, len, true,
+				      false, false, &ioctls))
+		err("zeropage register fail");
+
+	return ioctls & (1 << _UFFDIO_ZEROPAGE);
+}
+
+/* exercise UFFDIO_ZEROPAGE */
+static void uffd_zeropage_test(void)
+{
+	bool has_zeropage;
+	int i;
+
+	has_zeropage = uffd_register_detect_zeropage(uffd, area_dst, page_size);
+	if (area_dst_alias)
+		/* Ignore the retval; we already have it */
+		uffd_register_detect_zeropage(uffd, area_dst_alias, page_size);
+
+	if (do_uffdio_zeropage(uffd, has_zeropage))
+		for (i = 0; i < page_size; i++)
+			if (area_dst[i] != 0)
+				err("data non-zero at offset %d\n", i);
+
+	if (uffd_unregister(uffd, area_dst, page_size))
+		err("unregister");
+
+	if (area_dst_alias && uffd_unregister(uffd, area_dst_alias, page_size))
+		err("unregister");
+
+	uffd_test_pass();
+}
+
 uffd_test_case_t uffd_tests[] = {
+	{
+		.name = "zeropage",
+		.uffd_fn = uffd_zeropage_test,
+		.mem_targets = MEM_ALL,
+		.uffd_feature_required = 0,
+	},
 	{
 		.name = "pagemap",
 		.uffd_fn = uffd_pagemap_test,
