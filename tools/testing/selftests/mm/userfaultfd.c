@@ -1118,7 +1118,7 @@ static int __uffdio_zeropage(int ufd, unsigned long offset, bool retry)
 {
 	struct uffdio_zeropage uffdio_zeropage;
 	int ret;
-	bool has_zeropage = get_expected_ioctls(0) & (1 << _UFFDIO_ZEROPAGE);
+	bool has_zeropage = !(test_type == TEST_HUGETLB);
 	__s64 res;
 
 	if (offset >= nr_pages * page_size)
