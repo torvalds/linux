@@ -459,7 +459,6 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 	bool update_uclk = false, update_fclk = false;
 	bool p_state_change_support;
 	bool fclk_p_state_change_support;
-	int total_plane_count;
 
 	if (dc->work_arounds.skip_clock_update)
 		return;
@@ -488,8 +487,7 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 
 		clk_mgr_base->clks.fclk_prev_p_state_change_support = clk_mgr_base->clks.fclk_p_state_change_support;
 
-		total_plane_count = clk_mgr_helper_get_active_plane_cnt(dc, context);
-		fclk_p_state_change_support = new_clocks->fclk_p_state_change_support || (total_plane_count == 0);
+		fclk_p_state_change_support = new_clocks->fclk_p_state_change_support;
 
 		if (should_update_pstate_support(safe_to_lower, fclk_p_state_change_support, clk_mgr_base->clks.fclk_p_state_change_support)) {
 			clk_mgr_base->clks.fclk_p_state_change_support = fclk_p_state_change_support;
@@ -528,8 +526,7 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 			dcn32_smu_send_cab_for_uclk_message(clk_mgr, clk_mgr_base->clks.num_ways);
 		}
 
-
-		p_state_change_support = new_clocks->p_state_change_support || (total_plane_count == 0);
+		p_state_change_support = new_clocks->p_state_change_support;
 		if (should_update_pstate_support(safe_to_lower, p_state_change_support, clk_mgr_base->clks.p_state_change_support)) {
 			clk_mgr_base->clks.p_state_change_support = p_state_change_support;
 
