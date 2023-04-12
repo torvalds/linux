@@ -471,6 +471,12 @@ xchk_bmapbt_rec(
 		return 0;
 
 	xfs_bmbt_disk_get_all(&rec->bmbt, &irec);
+	if (xfs_bmap_validate_extent(ip, info->whichfork, &irec) != NULL) {
+		xchk_fblock_set_corrupt(bs->sc, info->whichfork,
+				irec.br_startoff);
+		return 0;
+	}
+
 	if (!xfs_iext_lookup_extent(ip, ifp, irec.br_startoff, &icur,
 				&iext_irec) ||
 	    irec.br_startoff != iext_irec.br_startoff ||
