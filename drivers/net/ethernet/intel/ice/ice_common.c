@@ -2000,7 +2000,7 @@ void ice_release_res(struct ice_hw *hw, enum ice_aq_res_ids res)
 	/* there are some rare cases when trying to release the resource
 	 * results in an admin queue timeout, so handle them correctly
 	 */
-	while ((status == -EIO) && (total_delay < hw->adminq.sq_cmd_timeout)) {
+	while ((status == -EIO) && (total_delay < ICE_CTL_Q_SQ_CMD_TIMEOUT)) {
 		mdelay(1);
 		status = ice_aq_release_res(hw, res, 0, NULL);
 		total_delay++;

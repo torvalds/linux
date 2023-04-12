@@ -637,9 +637,6 @@ static int ice_init_ctrlq(struct ice_hw *hw, enum ice_ctl_q q_type)
 		return -EIO;
 	}
 
-	/* setup SQ command write back timeout */
-	cq->sq_cmd_timeout = ICE_CTL_Q_SQ_CMD_TIMEOUT;
-
 	/* allocate the ATQ */
 	ret_code = ice_init_sq(hw, cq);
 	if (ret_code)
@@ -1066,7 +1063,7 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 
 		udelay(ICE_CTL_Q_SQ_CMD_USEC);
 		total_delay++;
-	} while (total_delay < cq->sq_cmd_timeout);
+	} while (total_delay < ICE_CTL_Q_SQ_CMD_TIMEOUT);
 
 	/* if ready, copy the desc back to temp */
 	if (ice_sq_done(hw, cq)) {
