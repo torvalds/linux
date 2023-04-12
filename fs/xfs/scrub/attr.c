@@ -38,6 +38,29 @@ xchk_xattr_buf_cleanup(
 }
 
 /*
+ * Allocate the free space bitmap if we're trying harder; there are leaf blocks
+ * in the attr fork; or we can't tell if there are leaf blocks.
+ */
+static inline bool
+xchk_xattr_want_freemap(
+	struct xfs_scrub	*sc)
+{
+	struct xfs_ifork	*ifp;
+
+	if (sc->flags & XCHK_TRY_HARDER)
+		return true;
+
+	if (!sc->ip)
+		return true;
+
+	ifp = xfs_ifork_ptr(sc->ip, XFS_ATTR_FORK);
+	if (!ifp)
+		return false;
+
+	return xfs_ifork_has_extents(ifp);
+}
+
+/*
  * Allocate enough memory to hold an attr value and attr block bitmaps,
  * reallocating the buffer if necessary.  Buffer contents are not preserved
  * across a reallocation.
@@ -66,9 +89,11 @@ xchk_setup_xattr_buf(
 	if (!ab->usedmap)
 		return -ENOMEM;
 
-	ab->freemap = kvmalloc(bmp_sz, XCHK_GFP_FLAGS);
-	if (!ab->freemap)
-		return -ENOMEM;
+	if (xchk_xattr_want_freemap(sc)) {
+		ab->freemap = kvmalloc(bmp_sz, XCHK_GFP_FLAGS);
+		if (!ab->freemap)
+			return -ENOMEM;
+	}
 
 resize_value:
 	if (ab->value_sz >= value_size)
