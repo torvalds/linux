@@ -50,6 +50,7 @@ enum xfs_refcount_intent_type {
 
 struct xfs_refcount_intent {
 	struct list_head			ri_list;
+	struct xfs_perag			*ri_pag;
 	enum xfs_refcount_intent_type		ri_type;
 	xfs_extlen_t				ri_blockcount;
 	xfs_fsblock_t				ri_startblock;
@@ -66,6 +67,9 @@ xfs_refcount_check_domain(
 		return false;
 	return true;
 }
+
+void xfs_refcount_update_get_group(struct xfs_mount *mp,
+		struct xfs_refcount_intent *ri);
 
 void xfs_refcount_increase_extent(struct xfs_trans *tp,
 		struct xfs_bmbt_irec *irec);
