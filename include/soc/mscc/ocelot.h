@@ -940,15 +940,17 @@ struct ocelot_policer {
 	__ocelot_target_write_ix(ocelot, target, val, reg, 0)
 
 /* I/O */
-u32 ocelot_port_readl(struct ocelot_port *port, u32 reg);
-void ocelot_port_writel(struct ocelot_port *port, u32 val, u32 reg);
-void ocelot_port_rmwl(struct ocelot_port *port, u32 val, u32 mask, u32 reg);
-int __ocelot_bulk_read_ix(struct ocelot *ocelot, u32 reg, u32 offset, void *buf,
-			  int count);
-u32 __ocelot_read_ix(struct ocelot *ocelot, u32 reg, u32 offset);
-void __ocelot_write_ix(struct ocelot *ocelot, u32 val, u32 reg, u32 offset);
-void __ocelot_rmw_ix(struct ocelot *ocelot, u32 val, u32 mask, u32 reg,
-		     u32 offset);
+u32 ocelot_port_readl(struct ocelot_port *port, enum ocelot_reg reg);
+void ocelot_port_writel(struct ocelot_port *port, u32 val, enum ocelot_reg reg);
+void ocelot_port_rmwl(struct ocelot_port *port, u32 val, u32 mask,
+		      enum ocelot_reg reg);
+int __ocelot_bulk_read_ix(struct ocelot *ocelot, enum ocelot_reg reg,
+			  u32 offset, void *buf, int count);
+u32 __ocelot_read_ix(struct ocelot *ocelot, enum ocelot_reg reg, u32 offset);
+void __ocelot_write_ix(struct ocelot *ocelot, u32 val, enum ocelot_reg reg,
+		       u32 offset);
+void __ocelot_rmw_ix(struct ocelot *ocelot, u32 val, u32 mask,
+		     enum ocelot_reg reg, u32 offset);
 u32 __ocelot_target_read_ix(struct ocelot *ocelot, enum ocelot_target target,
 			    u32 reg, u32 offset);
 void __ocelot_target_write_ix(struct ocelot *ocelot, enum ocelot_target target,

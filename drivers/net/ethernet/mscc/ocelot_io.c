@@ -10,8 +10,8 @@
 
 #include "ocelot.h"
 
-int __ocelot_bulk_read_ix(struct ocelot *ocelot, u32 reg, u32 offset, void *buf,
-			  int count)
+int __ocelot_bulk_read_ix(struct ocelot *ocelot, enum ocelot_reg reg,
+			  u32 offset, void *buf, int count)
 {
 	u16 target = reg >> TARGET_OFFSET;
 
@@ -23,7 +23,7 @@ int __ocelot_bulk_read_ix(struct ocelot *ocelot, u32 reg, u32 offset, void *buf,
 }
 EXPORT_SYMBOL_GPL(__ocelot_bulk_read_ix);
 
-u32 __ocelot_read_ix(struct ocelot *ocelot, u32 reg, u32 offset)
+u32 __ocelot_read_ix(struct ocelot *ocelot, enum ocelot_reg reg, u32 offset)
 {
 	u16 target = reg >> TARGET_OFFSET;
 	u32 val;
@@ -36,7 +36,8 @@ u32 __ocelot_read_ix(struct ocelot *ocelot, u32 reg, u32 offset)
 }
 EXPORT_SYMBOL_GPL(__ocelot_read_ix);
 
-void __ocelot_write_ix(struct ocelot *ocelot, u32 val, u32 reg, u32 offset)
+void __ocelot_write_ix(struct ocelot *ocelot, u32 val, enum ocelot_reg reg,
+		       u32 offset)
 {
 	u16 target = reg >> TARGET_OFFSET;
 
@@ -47,8 +48,8 @@ void __ocelot_write_ix(struct ocelot *ocelot, u32 val, u32 reg, u32 offset)
 }
 EXPORT_SYMBOL_GPL(__ocelot_write_ix);
 
-void __ocelot_rmw_ix(struct ocelot *ocelot, u32 val, u32 mask, u32 reg,
-		     u32 offset)
+void __ocelot_rmw_ix(struct ocelot *ocelot, u32 val, u32 mask,
+		     enum ocelot_reg reg, u32 offset)
 {
 	u16 target = reg >> TARGET_OFFSET;
 
@@ -60,7 +61,7 @@ void __ocelot_rmw_ix(struct ocelot *ocelot, u32 val, u32 mask, u32 reg,
 }
 EXPORT_SYMBOL_GPL(__ocelot_rmw_ix);
 
-u32 ocelot_port_readl(struct ocelot_port *port, u32 reg)
+u32 ocelot_port_readl(struct ocelot_port *port, enum ocelot_reg reg)
 {
 	struct ocelot *ocelot = port->ocelot;
 	u16 target = reg >> TARGET_OFFSET;
@@ -73,7 +74,7 @@ u32 ocelot_port_readl(struct ocelot_port *port, u32 reg)
 }
 EXPORT_SYMBOL_GPL(ocelot_port_readl);
 
-void ocelot_port_writel(struct ocelot_port *port, u32 val, u32 reg)
+void ocelot_port_writel(struct ocelot_port *port, u32 val, enum ocelot_reg reg)
 {
 	struct ocelot *ocelot = port->ocelot;
 	u16 target = reg >> TARGET_OFFSET;
@@ -84,7 +85,8 @@ void ocelot_port_writel(struct ocelot_port *port, u32 val, u32 reg)
 }
 EXPORT_SYMBOL_GPL(ocelot_port_writel);
 
-void ocelot_port_rmwl(struct ocelot_port *port, u32 val, u32 mask, u32 reg)
+void ocelot_port_rmwl(struct ocelot_port *port, u32 val, u32 mask,
+		      enum ocelot_reg reg)
 {
 	u32 cur = ocelot_port_readl(port, reg);
 
