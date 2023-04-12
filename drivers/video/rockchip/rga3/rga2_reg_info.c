@@ -2209,11 +2209,14 @@ static void print_debug_info(struct rga2_req *req)
 	pr_info("mmu: src=%.2x src1=%.2x dst=%.2x els=%.2x\n",
 		req->mmu_info.src0_mmu_flag, req->mmu_info.src1_mmu_flag,
 		req->mmu_info.dst_mmu_flag, req->mmu_info.els_mmu_flag);
-	pr_info("alpha: flag %x mode0=%x mode1=%x\n", req->alpha_rop_flag,
-		req->alpha_mode_0, req->alpha_mode_1);
-	pr_info("blend mode is %s\n",
-		rga_get_blend_mode_str(req->alpha_rop_flag, req->alpha_mode_0,
-					req->alpha_mode_1));
+	pr_info("alpha: flag %x mode=%s\n",
+		req->alpha_rop_flag, rga_get_blend_mode_str(req->alpha_config.mode));
+	pr_info("alpha: pre_multi=[%d,%d] pixl=[%d,%d] glb=[%d,%d]\n",
+		req->alpha_config.fg_pre_multiplied, req->alpha_config.bg_pre_multiplied,
+		req->alpha_config.fg_pixel_alpha_en, req->alpha_config.bg_pixel_alpha_en,
+		req->alpha_config.fg_global_alpha_en, req->alpha_config.bg_global_alpha_en);
+	pr_info("alpha: fg_global_alpha=%x bg_global_alpha=%x\n",
+		req->alpha_config.fg_global_alpha_value, req->alpha_config.bg_global_alpha_value);
 	pr_info("yuv2rgb mode is %x\n", req->yuv2rgb_mode);
 }
 
