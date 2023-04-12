@@ -1311,10 +1311,10 @@ static void guest_session__exit(struct guest_session *gs)
 		if (gs->tmp_fd >= 0)
 			close(gs->tmp_fd);
 		unlink(gs->tmp_file_name);
-		free(gs->tmp_file_name);
+		zfree(&gs->tmp_file_name);
 	}
-	free(gs->vcpu);
-	free(gs->perf_data_file);
+	zfree(&gs->vcpu);
+	zfree(&gs->perf_data_file);
 }
 
 static void get_tsc_conv(struct perf_tsc_conversion *tc, struct perf_record_time_conv *time_conv)
