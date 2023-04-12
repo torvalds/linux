@@ -33,52 +33,23 @@ xchk_setup_directory(
 /* Scrub a directory entry. */
 
 /* Check that an inode's mode matches a given XFS_DIR3_FT_* type. */
-STATIC int
+STATIC void
 xchk_dir_check_ftype(
 	struct xfs_scrub	*sc,
 	xfs_fileoff_t		offset,
-	xfs_ino_t		inum,
+	struct xfs_inode	*ip,
 	int			ftype)
 {
 	struct xfs_mount	*mp = sc->mp;
-	struct xfs_inode	*ip;
-	int			error = 0;
 
 	if (!xfs_has_ftype(mp)) {
 		if (ftype != XFS_DIR3_FT_UNKNOWN && ftype != XFS_DIR3_FT_DIR)
 			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
-		goto out;
+		return;
 	}
-
-	/*
-	 * Grab the inode pointed to by the dirent.  We release the
-	 * inode before we cancel the scrub transaction.  Since we're
-	 * don't know a priori that releasing the inode won't trigger
-	 * eofblocks cleanup (which allocates what would be a nested
-	 * transaction), we can't use DONTCACHE here because DONTCACHE
-	 * inodes can trigger immediate inactive cleanup of the inode.
-	 * Use UNTRUSTED here to check the allocation status of the inode in
-	 * the inode btrees.
-	 *
-	 * If _iget returns -EINVAL or -ENOENT then the child inode number is
-	 * garbage and the directory is corrupt.  If the _iget returns
-	 * -EFSCORRUPTED or -EFSBADCRC then the child is corrupt which is a
-	 *  cross referencing error.  Any other error is an operational error.
-	 */
-	error = xfs_iget(mp, sc->tp, inum, XFS_IGET_UNTRUSTED, 0, &ip);
-	if (error == -EINVAL || error == -ENOENT) {
-		error = -EFSCORRUPTED;
-		xchk_fblock_process_error(sc, XFS_DATA_FORK, 0, &error);
-		goto out;
-	}
-	if (!xchk_fblock_xref_process_error(sc, XFS_DATA_FORK, offset, &error))
-		goto out;
 
 	if (xfs_mode_to_ftype(VFS_I(ip)->i_mode) != ftype)
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
-	xfs_irele(ip);
-out:
-	return error;
 }
 
 /*
@@ -97,9 +68,9 @@ xchk_dir_actor(
 	void			*priv)
 {
 	struct xfs_mount	*mp = dp->i_mount;
+	struct xfs_inode	*ip;
 	xfs_ino_t		lookup_ino;
 	xfs_dablk_t		offset;
-	bool			checked_ftype = false;
 	int			error = 0;
 
 	offset = xfs_dir2_db_to_da(mp->m_dir_geo,
@@ -122,9 +93,6 @@ xchk_dir_actor(
 
 	if (!strncmp(".", name->name, name->len)) {
 		/* If this is "." then check that the inum matches the dir. */
-		if (xfs_has_ftype(mp) && name->type != XFS_DIR3_FT_DIR)
-			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
-		checked_ftype = true;
 		if (ino != dp->i_ino)
 			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
 	} else if (!strncmp("..", name->name, name->len)) {
@@ -132,9 +100,6 @@ xchk_dir_actor(
 		 * If this is ".." in the root inode, check that the inum
 		 * matches this dir.
 		 */
-		if (xfs_has_ftype(mp) && name->type != XFS_DIR3_FT_DIR)
-			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
-		checked_ftype = true;
 		if (dp->i_ino == mp->m_sb.sb_rootino && ino != dp->i_ino)
 			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
 	}
@@ -151,14 +116,32 @@ xchk_dir_actor(
 		return -ECANCELED;
 	}
 
-	/* Verify the file type.  This function absorbs error codes. */
-	if (!checked_ftype) {
-		error = xchk_dir_check_ftype(sc, offset, lookup_ino,
-				name->type);
-		if (error)
-			goto out;
+	/*
+	 * Grab the inode pointed to by the dirent.  We release the
+	 * inode before we cancel the scrub transaction.  Since we're
+	 * don't know a priori that releasing the inode won't trigger
+	 * eofblocks cleanup (which allocates what would be a nested
+	 * transaction), we can't use DONTCACHE here because DONTCACHE
+	 * inodes can trigger immediate inactive cleanup of the inode.
+	 * Use UNTRUSTED here to check the allocation status of the inode in
+	 * the inode btrees.
+	 *
+	 * If _iget returns -EINVAL or -ENOENT then the child inode number is
+	 * garbage and the directory is corrupt.  If the _iget returns
+	 * -EFSCORRUPTED or -EFSBADCRC then the child is corrupt which is a
+	 *  cross referencing error.  Any other error is an operational error.
+	 */
+	error = xfs_iget(mp, sc->tp, ino, XFS_IGET_UNTRUSTED, 0, &ip);
+	if (error == -EINVAL || error == -ENOENT) {
+		error = -EFSCORRUPTED;
+		xchk_fblock_process_error(sc, XFS_DATA_FORK, 0, &error);
+		goto out;
 	}
+	if (!xchk_fblock_xref_process_error(sc, XFS_DATA_FORK, offset, &error))
+		goto out;
 
+	xchk_dir_check_ftype(sc, offset, ip, name->type);
+	xfs_irele(ip);
 out:
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return -ECANCELED;
