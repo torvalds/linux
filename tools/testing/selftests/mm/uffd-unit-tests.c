@@ -9,6 +9,66 @@
 
 #ifdef __NR_userfaultfd
 
+/* The unit test doesn't need a large or random size, make it 32MB for now */
+#define  UFFD_TEST_MEM_SIZE               (32UL << 20)
+
+#define  MEM_ANON                         BIT_ULL(0)
+#define  MEM_SHMEM                        BIT_ULL(1)
+#define  MEM_SHMEM_PRIVATE                BIT_ULL(2)
+#define  MEM_HUGETLB                      BIT_ULL(3)
+#define  MEM_HUGETLB_PRIVATE              BIT_ULL(4)
+
+struct mem_type {
+	const char *name;
+	unsigned int mem_flag;
+	uffd_test_ops_t *mem_ops;
+	bool shared;
+};
+typedef struct mem_type mem_type_t;
+
+mem_type_t mem_types[] = {
+	{
+		.name = "anon",
+		.mem_flag = MEM_ANON,
+		.mem_ops = &anon_uffd_test_ops,
+		.shared = false,
+	},
+	{
+		.name = "shmem",
+		.mem_flag = MEM_SHMEM,
+		.mem_ops = &shmem_uffd_test_ops,
+		.shared = true,
+	},
+	{
+		.name = "shmem-private",
+		.mem_flag = MEM_SHMEM_PRIVATE,
+		.mem_ops = &shmem_uffd_test_ops,
+		.shared = false,
+	},
+	{
+		.name = "hugetlb",
+		.mem_flag = MEM_HUGETLB,
+		.mem_ops = &hugetlb_uffd_test_ops,
+		.shared = true,
+	},
+	{
+		.name = "hugetlb-private",
+		.mem_flag = MEM_HUGETLB_PRIVATE,
+		.mem_ops = &hugetlb_uffd_test_ops,
+		.shared = false,
+	},
+};
+
+/* Returns: UFFD_TEST_* */
+typedef void (*uffd_test_fn)(void);
+
+typedef struct {
+	const char *name;
+	uffd_test_fn uffd_fn;
+	unsigned int mem_targets;
+	uint64_t uffd_feature_required;
+} uffd_test_case_t;
+
 static void uffd_test_report(void)
 {
 	printf("Userfaults unit tests: pass=%u, skip=%u, fail=%u (total=%u)\n",
@@ -105,9 +165,50 @@ out:
 	return 1;
 }
 
+/*
+ * This function initializes the global variables.  TODO: remove global
+ * vars and then remove this.
+ */
+static int uffd_setup_environment(uffd_test_case_t *test, mem_type_t *mem_type)
+{
+	map_shared = mem_type->shared;
+	uffd_test_ops = mem_type->mem_ops;
+
+	if (mem_type->mem_flag & (MEM_HUGETLB_PRIVATE | MEM_HUGETLB))
+		page_size = default_huge_page_size();
+	else
+		page_size = psize();
+
+	nr_pages = UFFD_TEST_MEM_SIZE / page_size;
+	/* TODO: remove this global var.. it's so ugly */
+	nr_cpus = 1;
+
+	return uffd_test_ctx_init(test->uffd_feature_required);
+}
+
+static bool uffd_feature_supported(uffd_test_case_t *test)
+{
+	uint64_t features;
+
+	if (uffd_get_features(&features))
+		return false;
+
+	return (features & test->uffd_feature_required) ==
+	    test->uffd_feature_required;
+}
+
+uffd_test_case_t uffd_tests[] = {
+};
+
 int main(int argc, char *argv[])
 {
+	int n_tests = sizeof(uffd_tests) / sizeof(uffd_test_case_t);
+	int n_mems = sizeof(mem_types) / sizeof(mem_type_t);
+	uffd_test_case_t *test;
+	mem_type_t *mem_type;
+	char test_name[128];
 	int has_uffd;
+	int i, j;
 
 	has_uffd = test_uffd_api(false);
 	has_uffd |= test_uffd_api(true);
@@ -116,6 +217,29 @@ int main(int argc, char *argv[])
 		printf("Userfaultfd not supported or unprivileged, skip all tests\n");
 		exit(KSFT_SKIP);
 	}
+
+	for (i = 0; i < n_tests; i++) {
+		test = &uffd_tests[i];
+		for (j = 0; j < n_mems; j++) {
+			mem_type = &mem_types[j];
+			if (!(test->mem_targets & mem_type->mem_flag))
+				continue;
+			snprintf(test_name, sizeof(test_name),
+				 "%s on %s", test->name, mem_type->name);
+
+			uffd_test_start(test_name);
+			if (!uffd_feature_supported(test)) {
+				uffd_test_skip("feature missing");
+				continue;
+			}
+			if (uffd_setup_environment(test, mem_type)) {
+				uffd_test_skip("environment setup failed");
+				continue;
+			}
+			test->uffd_fn();
+		}
+	}
+
 	uffd_test_report();
 
 	return ksft_get_fail_cnt() ? KSFT_FAIL : KSFT_PASS;
