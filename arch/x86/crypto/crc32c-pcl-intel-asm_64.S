@@ -168,7 +168,8 @@ continue_block:
 	xor     crc2, crc2
 
 	## branch into array
-	mov	jump_table(,%rax,8), %bufp
+	leaq	jump_table(%rip), %bufp
+	mov	(%bufp,%rax,8), %bufp
 	JMP_NOSPEC bufp
 
 	################################################################
