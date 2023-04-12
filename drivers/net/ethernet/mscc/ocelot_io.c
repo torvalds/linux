@@ -13,25 +13,26 @@
 int __ocelot_bulk_read_ix(struct ocelot *ocelot, enum ocelot_reg reg,
 			  u32 offset, void *buf, int count)
 {
-	u16 target = reg >> TARGET_OFFSET;
+	enum ocelot_target target;
+	u32 addr;
 
+	ocelot_reg_to_target_addr(ocelot, reg, &target, &addr);
 	WARN_ON(!target);
 
-	return regmap_bulk_read(ocelot->targets[target],
-				ocelot->map[target][reg & REG_MASK] + offset,
+	return regmap_bulk_read(ocelot->targets[target], addr + offset,
 				buf, count);
 }
 EXPORT_SYMBOL_GPL(__ocelot_bulk_read_ix);
 
 u32 __ocelot_read_ix(struct ocelot *ocelot, enum ocelot_reg reg, u32 offset)
 {
-	u16 target = reg >> TARGET_OFFSET;
-	u32 val;
+	enum ocelot_target target;
+	u32 addr, val;
 
+	ocelot_reg_to_target_addr(ocelot, reg, &target, &addr);
 	WARN_ON(!target);
 
-	regmap_read(ocelot->targets[target],
-		    ocelot->map[target][reg & REG_MASK] + offset, &val);
+	regmap_read(ocelot->targets[target], addr + offset, &val);
 	return val;
 }
 EXPORT_SYMBOL_GPL(__ocelot_read_ix);
@@ -39,25 +40,26 @@ EXPORT_SYMBOL_GPL(__ocelot_read_ix);
 void __ocelot_write_ix(struct ocelot *ocelot, u32 val, enum ocelot_reg reg,
 		       u32 offset)
 {
-	u16 target = reg >> TARGET_OFFSET;
+	enum ocelot_target target;
+	u32 addr;
 
+	ocelot_reg_to_target_addr(ocelot, reg, &target, &addr);
 	WARN_ON(!target);
 
-	regmap_write(ocelot->targets[target],
-		     ocelot->map[target][reg & REG_MASK] + offset, val);
+	regmap_write(ocelot->targets[target], addr + offset, val);
 }
 EXPORT_SYMBOL_GPL(__ocelot_write_ix);
 
 void __ocelot_rmw_ix(struct ocelot *ocelot, u32 val, u32 mask,
 		     enum ocelot_reg reg, u32 offset)
 {
-	u16 target = reg >> TARGET_OFFSET;
+	enum ocelot_target target;
+	u32 addr;
 
+	ocelot_reg_to_target_addr(ocelot, reg, &target, &addr);
 	WARN_ON(!target);
 
-	regmap_update_bits(ocelot->targets[target],
-			   ocelot->map[target][reg & REG_MASK] + offset,
-			   mask, val);
+	regmap_update_bits(ocelot->targets[target], addr + offset, mask, val);
 }
 EXPORT_SYMBOL_GPL(__ocelot_rmw_ix);
 

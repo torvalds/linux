@@ -74,6 +74,15 @@ struct ocelot_multicast {
 	struct ocelot_pgid *pgid;
 };
 
+static inline void ocelot_reg_to_target_addr(struct ocelot *ocelot,
+					     enum ocelot_reg reg,
+					     enum ocelot_target *target,
+					     u32 *addr)
+{
+	*target = reg >> TARGET_OFFSET;
+	*addr = ocelot->map[*target][reg & REG_MASK];
+}
+
 int ocelot_bridge_num_find(struct ocelot *ocelot,
 			   const struct net_device *bridge);
 
