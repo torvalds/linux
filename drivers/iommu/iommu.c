@@ -87,6 +87,7 @@ static const char * const iommu_group_resv_type_string[] = {
 
 static int iommu_bus_notifier(struct notifier_block *nb,
 			      unsigned long action, void *data);
+static void iommu_release_device(struct device *dev);
 static int iommu_alloc_default_domain(struct iommu_group *group,
 				      struct device *dev);
 static struct iommu_domain *__iommu_domain_alloc(struct bus_type *bus,
@@ -493,7 +494,7 @@ static void __iommu_group_release_device(struct iommu_group *group,
 	kobject_put(group->devices_kobj);
 }
 
-void iommu_release_device(struct device *dev)
+static void iommu_release_device(struct device *dev)
 {
 	struct iommu_group *group = dev->iommu_group;
 	struct group_device *device;
