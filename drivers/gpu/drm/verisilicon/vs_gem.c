@@ -121,7 +121,7 @@ static int vs_gem_alloc_buf(struct vs_gem_object *vs_obj)
 						&vs_obj->dma_addr, GFP_KERNEL,
 						vs_obj->dma_attrs);
 
-	DRM_DEV_DEBUG(dev->dev,"Allocated coherent memory, vaddr: 0x%0llX, paddr: 0x%0llX, size: %d\n",
+	DRM_DEV_DEBUG(dev->dev,"Allocated coherent memory, vaddr: 0x%0llX, paddr: 0x%0llX, size: %lu\n",
 		(u64)vs_obj->cookie,vs_obj->dma_addr,vs_obj->size);
 	if (!vs_obj->cookie) {
 #ifdef CONFIG_VERISILICON_MMU

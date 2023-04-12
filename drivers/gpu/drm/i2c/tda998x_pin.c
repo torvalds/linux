@@ -11,13 +11,6 @@
 #define DRIVER_MINOR	0
 #define DRIVER_VERSION	"v1.0.0"
 
-static struct drm_driver starfive_drm_driver = {
-	.name	= DRIVER_NAME,
-	.desc	= DRIVER_DESC,
-	.date	= DRIVER_DATE,
-	.major	= DRIVER_MAJOR,
-	.minor	= DRIVER_MINOR,
-};
 
 static int starfive_drm_platform_probe(struct platform_device *pdev)
 {
