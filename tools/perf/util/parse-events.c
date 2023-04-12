@@ -2020,7 +2020,7 @@ int perf_pmu__test_parse_init(void)
 
 err_free:
 	for (j = 0, tmp = list; j < i; j++, tmp++)
-		free(tmp->symbol);
+		zfree(&tmp->symbol);
 	free(list);
 	return -ENOMEM;
 }
