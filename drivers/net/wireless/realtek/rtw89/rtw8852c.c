@@ -2576,6 +2576,9 @@ static const struct rtw89_btc_fbtc_mreg rtw89_btc_8852c_mon_reg[] = {
 	RTW89_DEF_FBTC_MREG(REG_MAC, 4, 0xd200),
 	RTW89_DEF_FBTC_MREG(REG_MAC, 4, 0xd220),
 	RTW89_DEF_FBTC_MREG(REG_BB, 4, 0x980),
+	RTW89_DEF_FBTC_MREG(REG_BB, 4, 0x4aa4),
+	RTW89_DEF_FBTC_MREG(REG_BB, 4, 0x4778),
+	RTW89_DEF_FBTC_MREG(REG_BB, 4, 0x476c),
 };
 
 static

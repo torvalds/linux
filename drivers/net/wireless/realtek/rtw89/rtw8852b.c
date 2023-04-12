@@ -364,7 +364,9 @@ static const struct rtw89_btc_fbtc_mreg rtw89_btc_8852b_mon_reg[] = {
 	RTW89_DEF_FBTC_MREG(REG_MAC, 4, 0xd200),
 	RTW89_DEF_FBTC_MREG(REG_MAC, 4, 0xd220),
 	RTW89_DEF_FBTC_MREG(REG_BB, 4, 0x980),
-	RTW89_DEF_FBTC_MREG(REG_BT_MODEM, 4, 0x178),
+	RTW89_DEF_FBTC_MREG(REG_BB, 4, 0x4738),
+	RTW89_DEF_FBTC_MREG(REG_BB, 4, 0x4688),
+	RTW89_DEF_FBTC_MREG(REG_BB, 4, 0x4694),
 };
 
 static const u8 rtw89_btc_8852b_wl_rssi_thres[BTC_WL_RSSI_THMAX] = {70, 60, 50, 40};
