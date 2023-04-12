@@ -18,6 +18,7 @@
 #include "slave.h"
 #include "switch.h"
 #include "tag_8021q.h"
+#include "trace.h"
 
 static unsigned int dsa_switch_fastest_ageing_time(struct dsa_switch *ds,
 						   unsigned int ageing_time)
@@ -164,14 +165,20 @@ static int dsa_port_do_mdb_add(struct dsa_port *dp,
 	int err = 0;
 
 	/* No need to bother with refcounting for user ports */
-	if (!(dsa_port_is_cpu(dp) || dsa_port_is_dsa(dp)))
-		return ds->ops->port_mdb_add(ds, port, mdb, db);
+	if (!(dsa_port_is_cpu(dp) || dsa_port_is_dsa(dp))) {
+		err = ds->ops->port_mdb_add(ds, port, mdb, db);
+		trace_dsa_mdb_add_hw(dp, mdb->addr, mdb->vid, &db, err);
+
+		return err;
+	}
 
 	mutex_lock(&dp->addr_lists_lock);
 
 	a = dsa_mac_addr_find(&dp->mdbs, mdb->addr, mdb->vid, db);
 	if (a) {
 		refcount_inc(&a->refcount);
+		trace_dsa_mdb_add_bump(dp, mdb->addr, mdb->vid, &db,
+				       &a->refcount);
 		goto out;
 	}
 
@@ -182,6 +189,7 @@ static int dsa_port_do_mdb_add(struct dsa_port *dp,
 	}
 
 	err = ds->ops->port_mdb_add(ds, port, mdb, db);
+	trace_dsa_mdb_add_hw(dp, mdb->addr, mdb->vid, &db, err);
 	if (err) {
 		kfree(a);
 		goto out;
@@ -209,21 +217,30 @@ static int dsa_port_do_mdb_del(struct dsa_port *dp,
 	int err = 0;
 
 	/* No need to bother with refcounting for user ports */
-	if (!(dsa_port_is_cpu(dp) || dsa_port_is_dsa(dp)))
-		return ds->ops->port_mdb_del(ds, port, mdb, db);
+	if (!(dsa_port_is_cpu(dp) || dsa_port_is_dsa(dp))) {
+		err = ds->ops->port_mdb_del(ds, port, mdb, db);
+		trace_dsa_mdb_del_hw(dp, mdb->addr, mdb->vid, &db, err);
+
+		return err;
+	}
 
 	mutex_lock(&dp->addr_lists_lock);
 
 	a = dsa_mac_addr_find(&dp->mdbs, mdb->addr, mdb->vid, db);
 	if (!a) {
+		trace_dsa_mdb_del_not_found(dp, mdb->addr, mdb->vid, &db);
 		err = -ENOENT;
 		goto out;
 	}
 
-	if (!refcount_dec_and_test(&a->refcount))
+	if (!refcount_dec_and_test(&a->refcount)) {
+		trace_dsa_mdb_del_drop(dp, mdb->addr, mdb->vid, &db,
+				       &a->refcount);
 		goto out;
+	}
 
 	err = ds->ops->port_mdb_del(ds, port, mdb, db);
+	trace_dsa_mdb_del_hw(dp, mdb->addr, mdb->vid, &db, err);
 	if (err) {
 		refcount_set(&a->refcount, 1);
 		goto out;
@@ -247,14 +264,19 @@ static int dsa_port_do_fdb_add(struct dsa_port *dp, const unsigned char *addr,
 	int err = 0;
 
 	/* No need to bother with refcounting for user ports */
-	if (!(dsa_port_is_cpu(dp) || dsa_port_is_dsa(dp)))
-		return ds->ops->port_fdb_add(ds, port, addr, vid, db);
+	if (!(dsa_port_is_cpu(dp) || dsa_port_is_dsa(dp))) {
+		err = ds->ops->port_fdb_add(ds, port, addr, vid, db);
+		trace_dsa_fdb_add_hw(dp, addr, vid, &db, err);
+
+		return err;
+	}
 
 	mutex_lock(&dp->addr_lists_lock);
 
 	a = dsa_mac_addr_find(&dp->fdbs, addr, vid, db);
 	if (a) {
 		refcount_inc(&a->refcount);
+		trace_dsa_fdb_add_bump(dp, addr, vid, &db, &a->refcount);
 		goto out;
 	}
 
@@ -265,6 +287,7 @@ static int dsa_port_do_fdb_add(struct dsa_port *dp, const unsigned char *addr,
 	}
 
 	err = ds->ops->port_fdb_add(ds, port, addr, vid, db);
+	trace_dsa_fdb_add_hw(dp, addr, vid, &db, err);
 	if (err) {
 		kfree(a);
 		goto out;
@@ -291,21 +314,29 @@ static int dsa_port_do_fdb_del(struct dsa_port *dp, const unsigned char *addr,
 	int err = 0;
 
 	/* No need to bother with refcounting for user ports */
-	if (!(dsa_port_is_cpu(dp) || dsa_port_is_dsa(dp)))
-		return ds->ops->port_fdb_del(ds, port, addr, vid, db);
+	if (!(dsa_port_is_cpu(dp) || dsa_port_is_dsa(dp))) {
+		err = ds->ops->port_fdb_del(ds, port, addr, vid, db);
+		trace_dsa_fdb_del_hw(dp, addr, vid, &db, err);
+
+		return err;
+	}
 
 	mutex_lock(&dp->addr_lists_lock);
 
 	a = dsa_mac_addr_find(&dp->fdbs, addr, vid, db);
 	if (!a) {
+		trace_dsa_fdb_del_not_found(dp, addr, vid, &db);
 		err = -ENOENT;
 		goto out;
 	}
 
-	if (!refcount_dec_and_test(&a->refcount))
+	if (!refcount_dec_and_test(&a->refcount)) {
+		trace_dsa_fdb_del_drop(dp, addr, vid, &db, &a->refcount);
 		goto out;
+	}
 
 	err = ds->ops->port_fdb_del(ds, port, addr, vid, db);
+	trace_dsa_fdb_del_hw(dp, addr, vid, &db, err);
 	if (err) {
 		refcount_set(&a->refcount, 1);
 		goto out;
@@ -332,6 +363,8 @@ static int dsa_switch_do_lag_fdb_add(struct dsa_switch *ds, struct dsa_lag *lag,
 	a = dsa_mac_addr_find(&lag->fdbs, addr, vid, db);
 	if (a) {
 		refcount_inc(&a->refcount);
+		trace_dsa_lag_fdb_add_bump(lag->dev, addr, vid, &db,
+					   &a->refcount);
 		goto out;
 	}
 
@@ -342,6 +375,7 @@ static int dsa_switch_do_lag_fdb_add(struct dsa_switch *ds, struct dsa_lag *lag,
 	}
 
 	err = ds->ops->lag_fdb_add(ds, *lag, addr, vid, db);
+	trace_dsa_lag_fdb_add_hw(lag->dev, addr, vid, &db, err);
 	if (err) {
 		kfree(a);
 		goto out;
@@ -370,14 +404,19 @@ static int dsa_switch_do_lag_fdb_del(struct dsa_switch *ds, struct dsa_lag *lag,
 
 	a = dsa_mac_addr_find(&lag->fdbs, addr, vid, db);
 	if (!a) {
+		trace_dsa_lag_fdb_del_not_found(lag->dev, addr, vid, &db);
 		err = -ENOENT;
 		goto out;
 	}
 
-	if (!refcount_dec_and_test(&a->refcount))
+	if (!refcount_dec_and_test(&a->refcount)) {
+		trace_dsa_lag_fdb_del_drop(lag->dev, addr, vid, &db,
+					   &a->refcount);
 		goto out;
+	}
 
 	err = ds->ops->lag_fdb_del(ds, *lag, addr, vid, db);
+	trace_dsa_lag_fdb_del_hw(lag->dev, addr, vid, &db, err);
 	if (err) {
 		refcount_set(&a->refcount, 1);
 		goto out;
@@ -656,8 +695,12 @@ static int dsa_port_do_vlan_add(struct dsa_port *dp,
 	int err = 0;
 
 	/* No need to bother with refcounting for user ports. */
-	if (!(dsa_port_is_cpu(dp) || dsa_port_is_dsa(dp)))
-		return ds->ops->port_vlan_add(ds, port, vlan, extack);
+	if (!(dsa_port_is_cpu(dp) || dsa_port_is_dsa(dp))) {
+		err = ds->ops->port_vlan_add(ds, port, vlan, extack);
+		trace_dsa_vlan_add_hw(dp, vlan, err);
+
+		return err;
+	}
 
 	/* No need to propagate on shared ports the existing VLANs that were
 	 * re-notified after just the flags have changed. This would cause a
@@ -672,6 +715,7 @@ static int dsa_port_do_vlan_add(struct dsa_port *dp,
 	v = dsa_vlan_find(&dp->vlans, vlan);
 	if (v) {
 		refcount_inc(&v->refcount);
+		trace_dsa_vlan_add_bump(dp, vlan, &v->refcount);
 		goto out;
 	}
 
@@ -682,6 +726,7 @@ static int dsa_port_do_vlan_add(struct dsa_port *dp,
 	}
 
 	err = ds->ops->port_vlan_add(ds, port, vlan, extack);
+	trace_dsa_vlan_add_hw(dp, vlan, err);
 	if (err) {
 		kfree(v);
 		goto out;
@@ -706,21 +751,29 @@ static int dsa_port_do_vlan_del(struct dsa_port *dp,
 	int err = 0;
 
 	/* No need to bother with refcounting for user ports */
-	if (!(dsa_port_is_cpu(dp) || dsa_port_is_dsa(dp)))
-		return ds->ops->port_vlan_del(ds, port, vlan);
+	if (!(dsa_port_is_cpu(dp) || dsa_port_is_dsa(dp))) {
+		err = ds->ops->port_vlan_del(ds, port, vlan);
+		trace_dsa_vlan_del_hw(dp, vlan, err);
+
+		return err;
+	}
 
 	mutex_lock(&dp->vlans_lock);
 
 	v = dsa_vlan_find(&dp->vlans, vlan);
 	if (!v) {
+		trace_dsa_vlan_del_not_found(dp, vlan);
 		err = -ENOENT;
 		goto out;
 	}
 
-	if (!refcount_dec_and_test(&v->refcount))
+	if (!refcount_dec_and_test(&v->refcount)) {
+		trace_dsa_vlan_del_drop(dp, vlan, &v->refcount);
 		goto out;
+	}
 
 	err = ds->ops->port_vlan_del(ds, port, vlan);
+	trace_dsa_vlan_del_hw(dp, vlan, err);
 	if (err) {
 		refcount_set(&v->refcount, 1);
 		goto out;
