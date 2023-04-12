@@ -119,6 +119,9 @@ check_mkimage()
 		echo '"mkimage" command not found - U-Boot images will not be built' >&2
 		exit 1;
 	fi
+	if ${MKIMAGE} 2>&1 | grep -q "\[-B size\]"; then
+		MKIMAGE_ARG="-B 0x200 ${MKIMAGE_ARG}"
+	fi
 }
 
 unpack_itb()
