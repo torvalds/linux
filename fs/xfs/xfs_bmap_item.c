@@ -373,7 +373,15 @@ xfs_bmap_update_get_group(
 	xfs_agnumber_t		agno;
 
 	agno = XFS_FSB_TO_AGNO(mp, bi->bi_bmap.br_startblock);
-	bi->bi_pag = xfs_perag_get(mp, agno);
+
+	/*
+	 * Bump the intent count on behalf of the deferred rmap and refcount
+	 * intent items that that we can queue when we finish this bmap work.
+	 * This new intent item will bump the intent count before the bmap
+	 * intent drops the intent count, ensuring that the intent count
+	 * remains nonzero across the transaction roll.
+	 */
+	bi->bi_pag = xfs_perag_intent_get(mp, agno);
 }
 
 /* Release a passive AG ref after finishing mapping work. */
@@ -381,7 +389,7 @@ static inline void
 xfs_bmap_update_put_group(
 	struct xfs_bmap_intent	*bi)
 {
-	xfs_perag_put(bi->bi_pag);
+	xfs_perag_intent_put(bi->bi_pag);
 }
 
 /* Process a deferred rmap update. */

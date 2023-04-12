@@ -396,25 +396,18 @@ want_ag_read_header_failure(
 }
 
 /*
- * Grab the perag structure and all the headers for an AG.
+ * Grab the AG header buffers for the attached perag structure.
  *
  * The headers should be released by xchk_ag_free, but as a fail safe we attach
  * all the buffers we grab to the scrub transaction so they'll all be freed
- * when we cancel it.  Returns ENOENT if we can't grab the perag structure.
+ * when we cancel it.
  */
-int
-xchk_ag_read_headers(
+static inline int
+xchk_perag_read_headers(
 	struct xfs_scrub	*sc,
-	xfs_agnumber_t		agno,
 	struct xchk_ag		*sa)
 {
-	struct xfs_mount	*mp = sc->mp;
 	int			error;
-
-	ASSERT(!sa->pag);
-	sa->pag = xfs_perag_get(mp, agno);
-	if (!sa->pag)
-		return -ENOENT;
 
 	error = xfs_ialloc_read_agi(sa->pag, sc->tp, &sa->agi_bp);
 	if (error && want_ag_read_header_failure(sc, XFS_SCRUB_TYPE_AGI))
@@ -425,6 +418,102 @@ xchk_ag_read_headers(
 		return error;
 
 	return 0;
+}
+
+/*
+ * Grab the AG headers for the attached perag structure and wait for pending
+ * intents to drain.
+ */
+static int
+xchk_perag_drain_and_lock(
+	struct xfs_scrub	*sc)
+{
+	struct xchk_ag		*sa = &sc->sa;
+	int			error = 0;
+
+	ASSERT(sa->pag != NULL);
+	ASSERT(sa->agi_bp == NULL);
+	ASSERT(sa->agf_bp == NULL);
+
+	do {
+		if (xchk_should_terminate(sc, &error))
+			return error;
+
+		error = xchk_perag_read_headers(sc, sa);
+		if (error)
+			return error;
+
+		/*
+		 * If we've grabbed an inode for scrubbing then we assume that
+		 * holding its ILOCK will suffice to coordinate with any intent
+		 * chains involving this inode.
+		 */
+		if (sc->ip)
+			return 0;
+
+		/*
+		 * Decide if this AG is quiet enough for all metadata to be
+		 * consistent with each other.  XFS allows the AG header buffer
+		 * locks to cycle across transaction rolls while processing
+		 * chains of deferred ops, which means that there could be
+		 * other threads in the middle of processing a chain of
+		 * deferred ops.  For regular operations we are careful about
+		 * ordering operations to prevent collisions between threads
+		 * (which is why we don't need a per-AG lock), but scrub and
+		 * repair have to serialize against chained operations.
+		 *
+		 * We just locked all the AG headers buffers; now take a look
+		 * to see if there are any intents in progress.  If there are,
+		 * drop the AG headers and wait for the intents to drain.
+		 * Since we hold all the AG header locks for the duration of
+		 * the scrub, this is the only time we have to sample the
+		 * intents counter; any threads increasing it after this point
+		 * can't possibly be in the middle of a chain of AG metadata
+		 * updates.
+		 *
+		 * Obviously, this should be slanted against scrub and in favor
+		 * of runtime threads.
+		 */
+		if (!xfs_perag_intent_busy(sa->pag))
+			return 0;
+
+		if (sa->agf_bp) {
+			xfs_trans_brelse(sc->tp, sa->agf_bp);
+			sa->agf_bp = NULL;
+		}
+
+		if (sa->agi_bp) {
+			xfs_trans_brelse(sc->tp, sa->agi_bp);
+			sa->agi_bp = NULL;
+		}
+
+		error = xfs_perag_intent_drain(sa->pag);
+		if (error == -ERESTARTSYS)
+			error = -EINTR;
+	} while (!error);
+
+	return error;
+}
+
+/*
+ * Grab the per-AG structure, grab all AG header buffers, and wait until there
+ * aren't any pending intents.  Returns -ENOENT if we can't grab the perag
+ * structure.
+ */
+int
+xchk_ag_read_headers(
+	struct xfs_scrub	*sc,
+	xfs_agnumber_t		agno,
+	struct xchk_ag		*sa)
+{
+	struct xfs_mount	*mp = sc->mp;
+
+	ASSERT(!sa->pag);
+	sa->pag = xfs_perag_get(mp, agno);
+	if (!sa->pag)
+		return -ENOENT;
+
+	return xchk_perag_drain_and_lock(sc);
 }
 
 /* Release all the AG btree cursors. */

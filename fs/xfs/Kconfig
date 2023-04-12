@@ -93,10 +93,14 @@ config XFS_RT
 
 	  If unsure, say N.
 
+config XFS_DRAIN_INTENTS
+	bool
+
 config XFS_ONLINE_SCRUB
 	bool "XFS online metadata check support"
 	default n
 	depends on XFS_FS
+	select XFS_DRAIN_INTENTS
 	help
 	  If you say Y here you will be able to check metadata on a
 	  mounted XFS filesystem.  This feature is intended to reduce
