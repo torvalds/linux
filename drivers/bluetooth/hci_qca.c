@@ -1891,7 +1891,7 @@ static const struct qca_device_data qca_soc_data_wcn6750 __maybe_unused = {
 	.capabilities = QCA_CAP_WIDEBAND_SPEECH | QCA_CAP_VALID_LE_STATES,
 };
 
-static const struct qca_device_data qca_soc_data_wcn6855 = {
+static const struct qca_device_data qca_soc_data_wcn6855 __maybe_unused = {
 	.soc_type = QCA_WCN6855,
 	.vregs = (struct qca_vreg []) {
 		{ "vddio", 5000 },
