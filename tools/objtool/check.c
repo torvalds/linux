@@ -4114,52 +4114,59 @@ static bool ignore_unreachable_insn(struct objtool_file *file, struct instructio
 	return false;
 }
 
-static int add_prefix_symbol(struct objtool_file *file, struct symbol *func,
-			     struct instruction *insn)
+static int add_prefix_symbol(struct objtool_file *file, struct symbol *func)
 {
-	if (!opts.prefix)
-		return 0;
+	struct instruction *insn, *prev;
 
-	for (;;) {
-		struct instruction *prev = prev_insn_same_sec(file, insn);
+	insn = find_insn(file, func->sec, func->offset);
+	if (!insn)
+		return -1;
+
+	for (prev = prev_insn_same_sec(file, insn);
+	     prev;
+	     prev = prev_insn_same_sec(file, prev)) {
 		u64 offset;
 
-		if (!prev)
-			break;
-
 		if (prev->type != INSN_NOP)
-			break;
+			return -1;
 
 		offset = func->offset - prev->offset;
-		if (offset >= opts.prefix) {
-			if (offset == opts.prefix) {
-				/*
-				 * Since the sec->symbol_list is ordered by
-				 * offset (see elf_add_symbol()) the added
-				 * symbol will not be seen by the iteration in
-				 * validate_section().
-				 *
-				 * Hence the lack of list_for_each_entry_safe()
-				 * there.
-				 *
-				 * The direct concequence is that prefix symbols
-				 * don't get visited (because pointless), except
-				 * for the logic in ignore_unreachable_insn()
-				 * that needs the terminating insn to be visited
-				 * otherwise it will report the hole.
-				 *
-				 * Hence mark the first instruction of the
-				 * prefix symbol as visisted.
-				 */
-				prev->visited |= VISITED_BRANCH;
-				elf_create_prefix_symbol(file->elf, func, opts.prefix);
-			}
-			break;
-		}
-		insn = prev;
+
+		if (offset > opts.prefix)
+			return -1;
+
+		if (offset < opts.prefix)
+			continue;
+
+		elf_create_prefix_symbol(file->elf, func, opts.prefix);
+		break;
 	}
 
+	if (!prev)
+		return -1;
+
 	return 0;
+}
+
+static int add_prefix_symbols(struct objtool_file *file)
+{
+	struct section *sec;
+	struct symbol *func;
+	int warnings = 0;
+
+	for_each_sec(file, sec) {
+		if (!(sec->sh.sh_flags & SHF_EXECINSTR))
+			continue;
+
+		sec_for_each_sym(sec, func) {
+			if (func->type != STT_FUNC)
+				continue;
+
+			add_prefix_symbol(file, func);
+		}
+	}
+
+	return warnings;
 }
 
 static int validate_symbol(struct objtool_file *file, struct section *sec,
@@ -4179,8 +4186,6 @@ static int validate_symbol(struct objtool_file *file, struct section *sec,
 	insn = find_insn(file, sec, sym->offset);
 	if (!insn || insn->ignore || insn->visited)
 		return 0;
-
-	add_prefix_symbol(file, sym, insn);
 
 	state->uaccess = sym->uaccess_safe;
 
@@ -4618,6 +4623,13 @@ int check(struct objtool_file *file)
 		ret = create_mcount_loc_sections(file);
 		if (ret < 0)
 			goto out;
+		warnings += ret;
+	}
+
+	if (opts.prefix) {
+		ret = add_prefix_symbols(file);
+		if (ret < 0)
+			return ret;
 		warnings += ret;
 	}
 
