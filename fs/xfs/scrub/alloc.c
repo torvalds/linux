@@ -90,6 +90,7 @@ xchk_allocbt_xref(
 	xchk_xref_is_not_inode_chunk(sc, agbno, len);
 	xchk_xref_has_no_owner(sc, agbno, len);
 	xchk_xref_is_not_shared(sc, agbno, len);
+	xchk_xref_is_not_cow_staging(sc, agbno, len);
 }
 
 /* Scrub a bnobt/cntbt record. */

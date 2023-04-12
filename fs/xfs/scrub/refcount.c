@@ -555,3 +555,24 @@ xchk_xref_is_not_shared(
 	if (outcome != XBTREE_RECPACKING_EMPTY)
 		xchk_btree_xref_set_corrupt(sc, sc->sa.refc_cur, 0);
 }
+
+/* xref check that the extent is not being used for CoW staging. */
+void
+xchk_xref_is_not_cow_staging(
+	struct xfs_scrub	*sc,
+	xfs_agblock_t		agbno,
+	xfs_extlen_t		len)
+{
+	enum xbtree_recpacking	outcome;
+	int			error;
+
+	if (!sc->sa.refc_cur || xchk_skip_xref(sc->sm))
+		return;
+
+	error = xfs_refcount_has_records(sc->sa.refc_cur, XFS_REFC_DOMAIN_COW,
+			agbno, len, &outcome);
+	if (!xchk_should_check_xref(sc, &error, &sc->sa.refc_cur))
+		return;
+	if (outcome != XBTREE_RECPACKING_EMPTY)
+		xchk_btree_xref_set_corrupt(sc, sc->sa.refc_cur, 0);
+}
