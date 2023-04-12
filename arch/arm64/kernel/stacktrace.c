@@ -120,7 +120,7 @@ unwind_next(struct unwind_state *state)
 	if (err)
 		return err;
 
-	state->pc = ptrauth_strip_insn_pac(state->pc);
+	state->pc = ptrauth_strip_kernel_insn_pac(state->pc);
 
 	return unwind_recover_return_address(state);
 }

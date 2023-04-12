@@ -97,11 +97,6 @@ extern int ptrauth_set_enabled_keys(struct task_struct *tsk, unsigned long keys,
 				    unsigned long enabled);
 extern int ptrauth_get_enabled_keys(struct task_struct *tsk);
 
-static inline unsigned long ptrauth_strip_insn_pac(unsigned long ptr)
-{
-	return ptrauth_clear_pac(ptr);
-}
-
 static __always_inline void ptrauth_enable(void)
 {
 	if (!system_supports_address_auth())
@@ -133,7 +128,6 @@ static __always_inline void ptrauth_enable(void)
 #define ptrauth_prctl_reset_keys(tsk, arg)	(-EINVAL)
 #define ptrauth_set_enabled_keys(tsk, keys, enabled)	(-EINVAL)
 #define ptrauth_get_enabled_keys(tsk)	(-EINVAL)
-#define ptrauth_strip_insn_pac(lr)	(lr)
 #define ptrauth_suspend_exit()
 #define ptrauth_thread_init_user()
 #define ptrauth_thread_switch_user(tsk)

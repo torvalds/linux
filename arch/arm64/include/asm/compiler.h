@@ -15,15 +15,33 @@
 #define ptrauth_user_pac_mask()		GENMASK_ULL(54, vabits_actual)
 #define ptrauth_kernel_pac_mask()	GENMASK_ULL(63, vabits_actual)
 
-/* Valid for EL0 TTBR0 and EL1 TTBR1 instruction pointers */
-#define ptrauth_clear_pac(ptr)						\
-	((ptr & BIT_ULL(55)) ? (ptr | ptrauth_kernel_pac_mask()) :	\
-			       (ptr & ~ptrauth_user_pac_mask()))
+#define xpaclri(ptr)							\
+({									\
+	register unsigned long __xpaclri_ptr asm("x30") = (ptr);	\
+									\
+	asm(								\
+	ARM64_ASM_PREAMBLE						\
+	"	hint	#7\n"						\
+	: "+r" (__xpaclri_ptr));					\
+									\
+	__xpaclri_ptr;							\
+})
 
-#if defined(CONFIG_ARM64_PTR_AUTH_KERNEL) &&				\
-    !defined(CONFIG_BUILTIN_RETURN_ADDRESS_STRIPS_PAC)
+#ifdef CONFIG_ARM64_PTR_AUTH_KERNEL
+#define ptrauth_strip_kernel_insn_pac(ptr)	xpaclri(ptr)
+#else
+#define ptrauth_strip_kernel_insn_pac(ptr)	(ptr)
+#endif
+
+#ifdef CONFIG_ARM64_PTR_AUTH
+#define ptrauth_strip_user_insn_pac(ptr)	xpaclri(ptr)
+#else
+#define ptrauth_strip_user_insn_pac(ptr)	(ptr)
+#endif
+
+#if !defined(CONFIG_BUILTIN_RETURN_ADDRESS_STRIPS_PAC)
 #define __builtin_return_address(val)					\
-	(void *)(ptrauth_clear_pac((unsigned long)__builtin_return_address(val)))
+	(void *)(ptrauth_strip_kernel_insn_pac((unsigned long)__builtin_return_address(val)))
 #endif
 
 #endif /* __ASM_COMPILER_H */
