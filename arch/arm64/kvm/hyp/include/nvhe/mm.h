@@ -16,6 +16,7 @@ extern const struct pkvm_module_ops module_ops;
 
 int hyp_create_pcpu_fixmap(void);
 void *hyp_fixmap_map(phys_addr_t phys);
+void *hyp_fixmap_map_nc(phys_addr_t phys);
 void hyp_fixmap_unmap(void);
 void hyp_poison_page(phys_addr_t phys);
 

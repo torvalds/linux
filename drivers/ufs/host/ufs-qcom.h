@@ -105,10 +105,6 @@ enum {
 #define TMRLUT_HW_CGC_EN	BIT(6)
 #define OCSC_HW_CGC_EN		BIT(7)
 
-/* bit definitions for REG_UFS_PARAM0 */
-#define MAX_HS_GEAR_MASK	GENMASK(6, 4)
-#define UFS_QCOM_MAX_GEAR(x)	FIELD_GET(MAX_HS_GEAR_MASK, (x))
-
 /* bit definition for UFS_UFS_TEST_BUS_CTRL_n */
 #define TEST_BUS_SUB_SEL_MASK	GENMASK(4, 0)  /* All XXX_SEL fields are 5 bits wide */
 
@@ -221,8 +217,6 @@ struct ufs_qcom_host {
 	struct reset_controller_dev rcdev;
 
 	struct gpio_desc *device_reset;
-
-	u32 hs_gear;
 
 	int esi_base;
 	bool esi_enabled;

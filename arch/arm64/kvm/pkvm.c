@@ -514,6 +514,11 @@ static int __init finalize_pkvm(void)
 		pkvm_firmware_rmem_clear();
 	}
 
+#ifdef CONFIG_ANDROID_ARM64_WORKAROUND_DMA_BEYOND_POC
+	if (!ret)
+		ret = pkvm_register_early_nc_mappings();
+#endif
+
 	return ret;
 }
 device_initcall_sync(finalize_pkvm);

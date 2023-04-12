@@ -309,12 +309,29 @@ void *hyp_fixmap_map(phys_addr_t phys)
 	return (void *)slot->addr + offset_in_page(phys);
 }
 
+#define KVM_PTE_LEAF_ATTR_LO_S1_ATTRIDX	GENMASK(4, 2)
+void *hyp_fixmap_map_nc(phys_addr_t phys)
+{
+	struct hyp_fixmap_slot *slot = this_cpu_ptr(&fixmap_slots);
+	kvm_pte_t pte, *ptep = slot->ptep;
+
+	pte = *ptep;
+	pte &= ~kvm_phys_to_pte(KVM_PHYS_INVALID);
+	pte |= kvm_phys_to_pte(phys) | KVM_PTE_VALID |
+	       FIELD_PREP(KVM_PTE_LEAF_ATTR_LO_S1_ATTRIDX, MT_NORMAL_NC);
+	WRITE_ONCE(*ptep, pte);
+	dsb(ishst);
+
+	return (void *)slot->addr;
+}
+
 static void fixmap_clear_slot(struct hyp_fixmap_slot *slot)
 {
 	kvm_pte_t *ptep = slot->ptep;
 	u64 addr = slot->addr;
 
-	WRITE_ONCE(*ptep, *ptep & ~KVM_PTE_VALID);
+	/* Zap the memory type too. MT_NORMAL is 0 so the fixmap is cacheable by default */
+	WRITE_ONCE(*ptep, *ptep & ~(KVM_PTE_VALID | KVM_PTE_LEAF_ATTR_LO_S1_ATTRIDX));
 
 	/*
 	 * Irritatingly, the architecture requires that we use inner-shareable

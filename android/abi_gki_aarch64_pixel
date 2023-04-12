@@ -1682,6 +1682,7 @@
   strspn
   strstr
   subsys_system_register
+  suspend_set_ops
   __sw_hweight32
   __sw_hweight64
   sync_blockdev
@@ -1967,6 +1968,7 @@
   vmap
   vmf_insert_pfn_prot
   vprintk
+  vprintk_emit
   vring_del_virtqueue
   vring_interrupt
   vring_new_virtqueue
