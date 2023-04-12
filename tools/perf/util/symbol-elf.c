@@ -396,7 +396,7 @@ static bool get_ifunc_name(Elf *elf, struct dso *dso, GElf_Ehdr *ehdr,
 
 static void exit_rel(struct rel_info *ri)
 {
-	free(ri->sorted);
+	zfree(&ri->sorted);
 }
 
 static bool get_plt_sizes(struct dso *dso, GElf_Ehdr *ehdr, GElf_Shdr *shdr_plt,
@@ -460,7 +460,7 @@ struct rela_dyn_info {
 
 static void exit_rela_dyn(struct rela_dyn_info *di)
 {
-	free(di->sorted);
+	zfree(&di->sorted);
 }
 
 static int cmp_offset(const void *a, const void *b)
