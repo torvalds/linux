@@ -36,10 +36,10 @@ xchk_setup_xattr_buf(
 
 	/*
 	 * We need enough space to read an xattr value from the file or enough
-	 * space to hold three copies of the xattr free space bitmap.  We don't
+	 * space to hold two copies of the xattr free space bitmap.  We don't
 	 * need the buffer space for both purposes at the same time.
 	 */
-	sz = 3 * sizeof(long) * BITS_TO_LONGS(sc->mp->m_attr_geo->blksize);
+	sz = 2 * sizeof(long) * BITS_TO_LONGS(sc->mp->m_attr_geo->blksize);
 	sz = max_t(size_t, sz, value_size);
 
 	/*
@@ -223,7 +223,6 @@ xchk_xattr_check_freemap(
 	struct xfs_attr3_icleaf_hdr	*leafhdr)
 {
 	unsigned long			*freemap = xchk_xattr_freemap(sc);
-	unsigned long			*dstmap = xchk_xattr_dstmap(sc);
 	unsigned int			mapsize = sc->mp->m_attr_geo->blksize;
 	int				i;
 
@@ -237,7 +236,7 @@ xchk_xattr_check_freemap(
 	}
 
 	/* Look for bits that are set in freemap and are marked in use. */
-	return bitmap_and(dstmap, freemap, map, mapsize) == 0;
+	return !bitmap_intersects(freemap, map, mapsize);
 }
 
 /*
