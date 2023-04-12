@@ -3246,8 +3246,8 @@ static int pmbus_irq_setup(struct i2c_client *client, struct pmbus_data *data)
 	}
 
 	/* Register notifiers */
-	err = devm_request_threaded_irq(dev, client->irq, NULL, pmbus_fault_handler, 0,
-					"pmbus-irq", data);
+	err = devm_request_threaded_irq(dev, client->irq, NULL, pmbus_fault_handler,
+					IRQF_ONESHOT, "pmbus-irq", data);
 	if (err) {
 		dev_err(dev, "failed to request an irq %d\n", err);
 		return err;
