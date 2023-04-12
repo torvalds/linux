@@ -62,13 +62,14 @@ xfs_rmap_irec_offset_pack(
 	return x;
 }
 
-static inline int
+static inline xfs_failaddr_t
 xfs_rmap_irec_offset_unpack(
 	__u64			offset,
 	struct xfs_rmap_irec	*irec)
 {
 	if (offset & ~(XFS_RMAP_OFF_MASK | XFS_RMAP_OFF_FLAGS))
-		return -EFSCORRUPTED;
+		return __this_address;
+
 	irec->rm_offset = XFS_RMAP_OFF(offset);
 	irec->rm_flags = 0;
 	if (offset & XFS_RMAP_OFF_ATTR_FORK)
@@ -77,7 +78,7 @@ xfs_rmap_irec_offset_unpack(
 		irec->rm_flags |= XFS_RMAP_BMBT_BLOCK;
 	if (offset & XFS_RMAP_OFF_UNWRITTEN)
 		irec->rm_flags |= XFS_RMAP_UNWRITTEN;
-	return 0;
+	return NULL;
 }
 
 static inline void
@@ -192,7 +193,7 @@ int xfs_rmap_lookup_le_range(struct xfs_btree_cur *cur, xfs_agblock_t bno,
 int xfs_rmap_compare(const struct xfs_rmap_irec *a,
 		const struct xfs_rmap_irec *b);
 union xfs_btree_rec;
-int xfs_rmap_btrec_to_irec(const union xfs_btree_rec *rec,
+xfs_failaddr_t xfs_rmap_btrec_to_irec(const union xfs_btree_rec *rec,
 		struct xfs_rmap_irec *irec);
 int xfs_rmap_has_record(struct xfs_btree_cur *cur, xfs_agblock_t bno,
 		xfs_extlen_t len, bool *exists);

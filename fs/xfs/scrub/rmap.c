@@ -100,11 +100,11 @@ xchk_rmapbt_rec(
 	bool			is_unwritten;
 	bool			is_bmbt;
 	bool			is_attr;
-	int			error;
 
-	error = xfs_rmap_btrec_to_irec(rec, &irec);
-	if (!xchk_btree_process_error(bs->sc, bs->cur, 0, &error))
-		goto out;
+	if (xfs_rmap_btrec_to_irec(rec, &irec) != NULL) {
+		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
+		return 0;
+	}
 
 	/* Check extent. */
 	if (irec.rm_startblock + irec.rm_blockcount <= irec.rm_startblock)
@@ -159,8 +159,7 @@ xchk_rmapbt_rec(
 	}
 
 	xchk_rmapbt_xref(bs->sc, &irec);
-out:
-	return error;
+	return 0;
 }
 
 /* Scrub the rmap btree for some AG. */
