@@ -1399,19 +1399,6 @@ static int pagemap_open(void)
 	return fd;
 }
 
-static uint64_t pagemap_read_vaddr(int fd, void *vaddr)
-{
-	uint64_t value;
-	int ret;
-
-	ret = pread(fd, &value, sizeof(uint64_t),
-		    ((uint64_t)vaddr >> 12) * sizeof(uint64_t));
-	if (ret != sizeof(uint64_t))
-		err("pread() on pagemap failed");
-
-	return value;
-}
-
 /* This macro let __LINE__ works in err() */
 #define  pagemap_check_wp(value, wp) do {				\
 		if (!!(value & PM_UFFD_WP) != wp)			\
@@ -1427,7 +1414,7 @@ static int pagemap_test_fork(bool present)
 	if (!child) {
 		/* Open the pagemap fd of the child itself */
 		fd = pagemap_open();
-		value = pagemap_read_vaddr(fd, area_dst);
+		value = pagemap_get_entry(fd, area_dst);
 		/*
 		 * After fork() uffd-wp bit should be gone as long as we're
 		 * without UFFD_FEATURE_EVENT_FORK
@@ -1446,24 +1433,24 @@ static void userfaultfd_wp_unpopulated_test(int pagemap_fd)
 
 	/* Test applying pte marker to anon unpopulated */
 	wp_range(uffd, (uint64_t)area_dst, page_size, true);
-	value = pagemap_read_vaddr(pagemap_fd, area_dst);
+	value = pagemap_get_entry(pagemap_fd, area_dst);
 	pagemap_check_wp(value, true);
 
 	/* Test unprotect on anon pte marker */
 	wp_range(uffd, (uint64_t)area_dst, page_size, false);
-	value = pagemap_read_vaddr(pagemap_fd, area_dst);
+	value = pagemap_get_entry(pagemap_fd, area_dst);
 	pagemap_check_wp(value, false);
 
 	/* Test zap on anon marker */
 	wp_range(uffd, (uint64_t)area_dst, page_size, true);
 	if (madvise(area_dst, page_size, MADV_DONTNEED))
 		err("madvise(MADV_DONTNEED) failed");
-	value = pagemap_read_vaddr(pagemap_fd, area_dst);
+	value = pagemap_get_entry(pagemap_fd, area_dst);
 	pagemap_check_wp(value, false);
 
 	/* Test fault in after marker removed */
 	*area_dst = 1;
-	value = pagemap_read_vaddr(pagemap_fd, area_dst);
+	value = pagemap_get_entry(pagemap_fd, area_dst);
 	pagemap_check_wp(value, false);
 	/* Drop it to make pte none again */
 	if (madvise(area_dst, page_size, MADV_DONTNEED))
@@ -1522,7 +1509,7 @@ static void userfaultfd_pagemap_test(unsigned int test_pgsize)
 	/* Touch the page */
 	*area_dst = 1;
 	wp_range(uffd, (uint64_t)area_dst, test_pgsize, true);
-	value = pagemap_read_vaddr(pagemap_fd, area_dst);
+	value = pagemap_get_entry(pagemap_fd, area_dst);
 	pagemap_check_wp(value, true);
 	/* Make sure uffd-wp bit dropped when fork */
 	if (pagemap_test_fork(true))
@@ -1536,7 +1523,7 @@ static void userfaultfd_pagemap_test(unsigned int test_pgsize)
 		err("madvise(MADV_PAGEOUT) failed");
 
 	/* Uffd-wp should persist even swapped out */
-	value = pagemap_read_vaddr(pagemap_fd, area_dst);
+	value = pagemap_get_entry(pagemap_fd, area_dst);
 	pagemap_check_wp(value, true);
 	/* Make sure uffd-wp bit dropped when fork */
 	if (pagemap_test_fork(false))
@@ -1544,12 +1531,12 @@ static void userfaultfd_pagemap_test(unsigned int test_pgsize)
 
 	/* Unprotect; this tests swap pte modifications */
 	wp_range(uffd, (uint64_t)area_dst, page_size, false);
-	value = pagemap_read_vaddr(pagemap_fd, area_dst);
+	value = pagemap_get_entry(pagemap_fd, area_dst);
 	pagemap_check_wp(value, false);
 
 	/* Fault in the page from disk */
 	*area_dst = 2;
-	value = pagemap_read_vaddr(pagemap_fd, area_dst);
+	value = pagemap_get_entry(pagemap_fd, area_dst);
 	pagemap_check_wp(value, false);
 
 	close(pagemap_fd);
