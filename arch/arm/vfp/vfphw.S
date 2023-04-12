@@ -75,8 +75,6 @@
 @  lr  = unrecognised instruction return address
 @  IRQs enabled.
 ENTRY(vfp_support_entry)
-	local_bh_disable r1, r4
-
 	ldr	r11, [r1, #TI_CPU]	@ CPU number
 	add	r10, r1, #TI_VFPSTATE	@ r10 = workspace
 
@@ -179,9 +177,12 @@ vfp_hw_state_valid:
 					@ else it's one 32-bit instruction, so
 					@ always subtract 4 from the following
 					@ instruction address.
-	local_bh_enable_ti r10, r4
-	ret	r3			@ we think we have handled things
 
+	mov	lr, r3			@ we think we have handled things
+local_bh_enable_and_ret:
+	adr	r0, .
+	mov	r1, #SOFTIRQ_DISABLE_OFFSET
+	b	__local_bh_enable_ip	@ tail call
 
 look_for_VFP_exceptions:
 	@ Check for synchronous or asynchronous exception
@@ -204,8 +205,7 @@ skip:
 	@ not recognised by VFP
 
 	DBGSTR	"not VFP"
-	local_bh_enable_ti r10, r4
-	ret	lr
+	b	local_bh_enable_and_ret
 
 process_exception:
 	DBGSTR	"bounce"
