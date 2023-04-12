@@ -10,9 +10,18 @@
   alloc_etherdev_mqs
   alloc_io_pgtable_ops
   alloc_netdev_mqs
+  alloc_workqueue
+  alt_cb_patch_nops
+  __arch_copy_from_user
+  __arch_copy_to_user
+  __arm_smccc_smc
   backlight_device_register
   backlight_device_unregister
   bcmp
+  bpf_trace_run1
+  bpf_trace_run2
+  bpf_trace_run3
+  bpf_trace_run5
   bus_unregister
   bus_unregister_notifier
   cache_line_size
@@ -59,6 +68,13 @@
   cfg80211_remain_on_channel_expired
   cfg80211_report_wowlan_wakeup
   cfg80211_roamed
+  __check_object_size
+  clk_bulk_disable
+  clk_bulk_enable
+  clk_bulk_prepare
+  clk_bulk_unprepare
+  clk_disable
+  clk_enable
   clk_get
   __clk_get_hw
   __clk_get_name
@@ -73,6 +89,29 @@
   clk_hw_unregister
   clk_is_match
   clk_notifier_register
+  clk_prepare
+  clk_put
+  clk_round_rate
+  clk_set_parent
+  clk_set_rate
+  clk_unprepare
+  complete
+  completion_done
+  __const_udelay
+  cpu_hwcaps
+  cpu_latency_qos_add_request
+  cpu_latency_qos_remove_request
+  cpu_number
+  __cpu_online_mask
+  _ctype
+  debugfs_create_dir
+  debugfs_create_file
+  debugfs_remove
+  default_llseek
+  default_wake_function
+  delayed_work_timer_fn
+  del_timer
+  destroy_workqueue
   _dev_crit
   dev_driver_string
   _dev_err
@@ -123,6 +162,8 @@
   __devm_drm_dev_alloc
   devm_drm_of_get_bridge
   devm_drm_panel_bridge_add_typed
+  devm_extcon_dev_allocate
+  devm_extcon_dev_register
   devm_free_irq
   devm_fwnode_pwm_get
   devm_get_clk_from_child
@@ -148,10 +189,38 @@
   devm_kmemdup
   devm_krealloc
   devm_kstrdup
+  devm_kvasprintf
   devm_led_classdev_register_ext
   devm_mbox_controller_register
   devm_mfd_add_devices
   devm_mipi_dsi_attach
+  devm_pinctrl_get
+  devm_platform_get_and_ioremap_resource
+  devm_platform_ioremap_resource
+  __devm_regmap_init
+  __devm_regmap_init_i2c
+  __devm_regmap_init_mmio_clk
+  devm_regulator_bulk_get
+  devm_regulator_get
+  devm_regulator_register_notifier
+  devm_request_threaded_irq
+  __devm_reset_control_get
+  devm_snd_dmaengine_pcm_register
+  devm_snd_soc_register_card
+  devm_snd_soc_register_component
+  dev_pm_domain_attach_by_id
+  dev_pm_domain_detach
+  _dev_printk
+  _dev_warn
+  dma_map_sg_attrs
+  dma_mmap_attrs
+  dma_release_channel
+  dma_request_chan
+  __dma_request_channel
+  dma_set_coherent_mask
+  dma_set_mask
+  dma_unmap_sg_attrs
+  dpcm_end_walk_at_be
   drm_bridge_attach
   drm_bridge_chain_enable
   drm_bridge_connector_enable_hpd
@@ -307,6 +376,7 @@
   free_pages_exact
   free_percpu
   free_percpu_irq
+  fwnode_property_read_u32_array
   gcd
   generic_device_group
   generic_handle_domain_irq
@@ -353,11 +423,14 @@
   gpio_free
   gpio_request
   gpio_to_desc
+  guid_null
   handle_edge_irq
   handle_level_irq
   handle_nested_irq
   handle_simple_irq
   handle_sysrq
+  hdmi_audio_infoframe_init
+  hex_dump_to_buffer
   hrtimer_cancel
   hrtimer_init
   hrtimer_start_range_ns
@@ -617,6 +690,31 @@
   of_alias_get_id
   of_can_transceiver
   of_clk_add_hw_provider
+  of_count_phandle_with_args
+  of_device_get_match_data
+  of_device_is_available
+  of_device_is_compatible
+  of_find_device_by_node
+  of_find_i2c_device_by_node
+  of_find_node_by_name
+  of_find_node_opts_by_path
+  of_find_property
+  of_get_child_by_name
+  of_get_named_gpio_flags
+  of_get_next_available_child
+  of_get_next_child
+  of_get_parent
+  of_get_property
+  of_machine_is_compatible
+  of_match_device
+  of_node_name_eq
+  __of_parse_phandle_with_args
+  of_property_count_elems_of_size
+  of_property_match_string
+  of_property_read_string
+  of_property_read_u32_index
+  of_property_read_variable_u32_array
+  of_reserved_mem_device_init_by_idx
   page_pool_destroy
   page_pool_put_defragged_page
   panic
@@ -775,8 +873,10 @@
   register_syscore_ops
   register_virtio_device
   register_virtio_driver
+  regmap_add_irq_chip
   regmap_bulk_read
   regmap_bulk_write
+  regmap_del_irq_chip
   regmap_field_read
   regmap_field_update_bits_base
   regmap_get_device
@@ -784,10 +884,12 @@
   regmap_raw_write
   regmap_read
   regmap_register_patch
+  regmap_reinit_cache
   regmap_update_bits_base
   regmap_write
   regulator_bulk_disable
   regulator_bulk_enable
+  regulator_bulk_free
   regulator_bulk_get
   regulator_disable
   regulator_disable_regmap
@@ -889,6 +991,164 @@
   sg_init_table
   sg_next
   __sg_page_iter_next
+  simple_open
+  simple_read_from_buffer
+  simple_write_to_buffer
+  single_open
+  single_release
+  snd_compr_malloc_pages
+  snd_ctl_add
+  snd_ctl_boolean_mono_info
+  snd_ctl_boolean_stereo_info
+  snd_ctl_new1
+  snd_ctl_notify
+  snd_ctl_notify_one
+  snd_dma_alloc_dir_pages
+  snd_dma_buffer_sync
+  snd_dmaengine_pcm_prepare_slave_config
+  snd_dmaengine_pcm_refine_runtime_hwparams
+  snd_dmaengine_pcm_set_config_from_dai_data
+  snd_dma_free_pages
+  snd_hwparams_to_dma_slave_config
+  snd_interval_ranges
+  snd_interval_refine
+  snd_pcm_add_chmap_ctls
+  snd_pcm_create_iec958_consumer_default
+  snd_pcm_fill_iec958_consumer
+  snd_pcm_fill_iec958_consumer_hw_params
+  snd_pcm_format_big_endian
+  snd_pcm_format_linear
+  snd_pcm_format_physical_width
+  snd_pcm_format_unsigned
+  snd_pcm_format_width
+  snd_pcm_hw_constraint_eld
+  snd_pcm_hw_constraint_integer
+  snd_pcm_hw_constraint_list
+  snd_pcm_hw_constraint_mask64
+  snd_pcm_hw_constraint_minmax
+  snd_pcm_hw_constraint_ratnums
+  snd_pcm_hw_constraint_step
+  snd_pcm_hw_rule_add
+  snd_pcm_period_elapsed
+  snd_pcm_set_managed_buffer
+  snd_pcm_set_managed_buffer_all
+  snd_sgbuf_get_addr
+  snd_soc_add_component_controls
+  snd_soc_add_dai_controls
+  snd_soc_bytes_get
+  snd_soc_bytes_info
+  snd_soc_bytes_put
+  snd_soc_card_get_kcontrol
+  snd_soc_card_jack_new_pins
+  snd_soc_component_init_regmap
+  snd_soc_component_read
+  snd_soc_component_set_jack
+  snd_soc_component_set_sysclk
+  snd_soc_component_update_bits
+  snd_soc_component_write
+  snd_soc_dai_active
+  snd_soc_daifmt_clock_provider_flipped
+  snd_soc_daifmt_clock_provider_from_bitmap
+  snd_soc_daifmt_parse_clock_provider_raw
+  snd_soc_daifmt_parse_format
+  snd_soc_dai_link_set_capabilities
+  snd_soc_dai_set_bclk_ratio
+  snd_soc_dai_set_fmt
+  snd_soc_dai_set_pll
+  snd_soc_dai_set_sysclk
+  snd_soc_dai_set_tdm_slot
+  snd_soc_dapm_add_routes
+  snd_soc_dapm_dai_free_widgets
+  snd_soc_dapm_dai_get_connected_widgets
+  snd_soc_dapm_del_routes
+  snd_soc_dapm_disable_pin
+  snd_soc_dapm_disable_pin_unlocked
+  snd_soc_dapm_enable_pin
+  snd_soc_dapm_force_bias_level
+  snd_soc_dapm_force_enable_pin
+  snd_soc_dapm_force_enable_pin_unlocked
+  snd_soc_dapm_get_enum_double
+  snd_soc_dapm_get_volsw
+  snd_soc_dapm_ignore_suspend
+  snd_soc_dapm_kcontrol_dapm
+  snd_soc_dapm_new_controls
+  snd_soc_dapm_put_enum_double
+  snd_soc_dapm_put_volsw
+  snd_soc_dapm_sync
+  snd_soc_dapm_sync_unlocked
+  snd_soc_dpcm_get_substream
+  snd_soc_get_dai_name
+  snd_soc_get_enum_double
+  snd_soc_get_pcm_runtime
+  snd_soc_get_volsw
+  snd_soc_get_volsw_range
+  snd_soc_get_volsw_sx
+  snd_soc_info_enum_double
+  snd_soc_info_volsw
+  snd_soc_info_volsw_range
+  snd_soc_info_volsw_sx
+  snd_soc_info_xr_sx
+  snd_soc_jack_add_gpios
+  snd_soc_jack_notifier_register
+  snd_soc_jack_report
+  snd_soc_limit_volume
+  snd_soc_lookup_component
+  snd_soc_lookup_component_nolocked
+  snd_soc_of_get_dai_link_codecs
+  snd_soc_of_get_dai_name
+  snd_soc_of_parse_audio_routing
+  snd_soc_of_parse_audio_simple_widgets
+  snd_soc_of_parse_aux_devs
+  snd_soc_of_parse_card_name
+  snd_soc_of_parse_node_prefix
+  snd_soc_of_parse_pin_switches
+  snd_soc_of_parse_tdm_slot
+  snd_soc_params_to_bclk
+  snd_soc_params_to_frame_size
+  snd_soc_pm_ops
+  snd_soc_put_enum_double
+  snd_soc_put_volsw
+  snd_soc_put_volsw_range
+  snd_soc_put_volsw_sx
+  snd_soc_rtdcom_lookup
+  snd_soc_runtime_calc_hw
+  snd_soc_set_runtime_hwparams
+  snd_soc_tplg_component_load
+  snd_soc_tplg_component_remove
+  snd_soc_tplg_widget_bind_event
+  snprintf
+  sprintf
+  sscanf
+  __stack_chk_fail
+  strchr
+  strcmp
+  strcpy
+  strlen
+  strncmp
+  strncpy
+  strnlen
+  strrchr
+  strsep
+  strstr
+  __sw_hweight8
+  syscon_node_to_regmap
+  syscon_regmap_lookup_by_compatible
+  syscon_regmap_lookup_by_phandle
+  sysfs_create_group
+  sysfs_remove_group
+  system_power_efficient_wq
+  system_wq
+  trace_event_buffer_commit
+  trace_event_buffer_reserve
+  trace_event_printf
+  trace_event_raw_init
+  trace_event_reg
+  trace_handle_return
+  trace_raw_output_prep
+  __trace_trigger_soft_disabled
+  try_wait_for_completion
+  unregister_rpmsg_driver
+  usleep_range_state
   virtqueue_detach_unused_buf
   virtqueue_disable_cb
   virtqueue_enable_cb
