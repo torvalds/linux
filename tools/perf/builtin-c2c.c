@@ -165,8 +165,8 @@ static void *c2c_he_zalloc(size_t size)
 	return &c2c_he->he;
 
 out_free:
-	free(c2c_he->nodeset);
-	free(c2c_he->cpuset);
+	zfree(&c2c_he->nodeset);
+	zfree(&c2c_he->cpuset);
 	free(c2c_he);
 	return NULL;
 }
@@ -178,13 +178,13 @@ static void c2c_he_free(void *he)
 	c2c_he = container_of(he, struct c2c_hist_entry, he);
 	if (c2c_he->hists) {
 		hists__delete_entries(&c2c_he->hists->hists);
-		free(c2c_he->hists);
+		zfree(&c2c_he->hists);
 	}
 
-	free(c2c_he->cpuset);
-	free(c2c_he->nodeset);
-	free(c2c_he->nodestr);
-	free(c2c_he->node_stats);
+	zfree(&c2c_he->cpuset);
+	zfree(&c2c_he->nodeset);
+	zfree(&c2c_he->nodestr);
+	zfree(&c2c_he->node_stats);
 	free(c2c_he);
 }
 
