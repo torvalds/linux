@@ -178,6 +178,13 @@ static const struct {
 	{ "nokaslr",			"kaslr.disabled=1" },
 };
 
+static int __init parse_nokaslr(char *unused)
+{
+	/* nokaslr param handling is done by early cpufeature code */
+	return 0;
+}
+early_param("nokaslr", parse_nokaslr);
+
 static int __init find_field(const char *cmdline,
 			     const struct ftr_set_desc *reg, int f, u64 *v)
 {
