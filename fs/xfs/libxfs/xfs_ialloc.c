@@ -1978,8 +1978,6 @@ xfs_difree_inobt(
 	 */
 	if (!xfs_has_ikeep(mp) && rec.ir_free == XFS_INOBT_ALL_FREE &&
 	    mp->m_sb.sb_inopblock <= XFS_INODES_PER_CHUNK) {
-		struct xfs_perag	*pag = agbp->b_pag;
-
 		xic->deleted = true;
 		xic->first_ino = XFS_AGINO_TO_INO(mp, pag->pag_agno,
 				rec.ir_startino);
