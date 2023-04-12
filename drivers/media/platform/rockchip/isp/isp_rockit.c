@@ -167,16 +167,6 @@ int rkisp_rockit_buf_queue(struct rockit_cfg *input_rockit_cfg)
 
 		for (i = 0; i < stream->out_isp_fmt.mplanes; i++)
 			isprk_buf->isp_buf.buff_addr[i] = isprk_buf->buff_addr;
-		if (stream->out_isp_fmt.mplanes == 1) {
-			for (i = 0; i < stream->out_isp_fmt.cplanes - 1; i++) {
-				height = stream->out_fmt.height;
-				offset = (i == 0) ?
-					stream->out_fmt.plane_fmt[i].bytesperline * height :
-					stream->out_fmt.plane_fmt[i].sizeimage;
-				isprk_buf->isp_buf.buff_addr[i + 1] =
-					isprk_buf->isp_buf.buff_addr[i] + offset;
-			}
-		}
 	}
 
 	if (stream_cfg->is_discard && stream->streaming)
@@ -196,9 +186,21 @@ int rkisp_rockit_buf_queue(struct rockit_cfg *input_rockit_cfg)
 		return -EINVAL;
 	}
 
+	if (stream->out_isp_fmt.mplanes == 1) {
+		for (i = 0; i < stream->out_isp_fmt.cplanes - 1; i++) {
+			height = stream->out_fmt.height;
+			offset = (i == 0) ?
+				stream->out_fmt.plane_fmt[i].bytesperline * height :
+				stream->out_fmt.plane_fmt[i].sizeimage;
+			isprk_buf->isp_buf.buff_addr[i + 1] =
+				isprk_buf->isp_buf.buff_addr[i] + offset;
+		}
+	}
+
 	v4l2_dbg(2, rkisp_debug, &ispdev->v4l2_dev,
-		 "stream:%d rockit_queue buf:%p addr:0x%x\n",
-		 stream->id, isprk_buf, isprk_buf->isp_buf.buff_addr[0]);
+		 "stream:%d rockit_queue buf:%p y:0x%x uv:0x%x\n",
+		 stream->id, isprk_buf,
+		 isprk_buf->isp_buf.buff_addr[0], isprk_buf->isp_buf.buff_addr[1]);
 
 	/* single sensor with pingpong buf, update next if need */
 	if (stream->ispdev->hw_dev->is_single &&
