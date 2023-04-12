@@ -39,6 +39,12 @@ struct xchk_rmap {
 	 * allocations that cannot be shared.
 	 */
 	struct xfs_rmap_irec	overlap_rec;
+
+	/*
+	 * The previous rmapbt record, so that we can check for two records
+	 * that could be one.
+	 */
+	struct xfs_rmap_irec	prev_rec;
 };
 
 /* Cross-reference a rmap against the refcount btree. */
@@ -198,6 +204,51 @@ set_prev:
 	memcpy(&cr->overlap_rec, irec, sizeof(struct xfs_rmap_irec));
 }
 
+/* Decide if two reverse-mapping records can be merged. */
+static inline bool
+xchk_rmap_mergeable(
+	struct xchk_rmap		*cr,
+	const struct xfs_rmap_irec	*r2)
+{
+	const struct xfs_rmap_irec	*r1 = &cr->prev_rec;
+
+	/* Ignore if prev_rec is not yet initialized. */
+	if (cr->prev_rec.rm_blockcount == 0)
+		return false;
+
+	if (r1->rm_owner != r2->rm_owner)
+		return false;
+	if (r1->rm_startblock + r1->rm_blockcount != r2->rm_startblock)
+		return false;
+	if ((unsigned long long)r1->rm_blockcount + r2->rm_blockcount >
+	    XFS_RMAP_LEN_MAX)
+		return false;
+	if (XFS_RMAP_NON_INODE_OWNER(r2->rm_owner))
+		return true;
+	/* must be an inode owner below here */
+	if (r1->rm_flags != r2->rm_flags)
+		return false;
+	if (r1->rm_flags & XFS_RMAP_BMBT_BLOCK)
+		return true;
+	return r1->rm_offset + r1->rm_blockcount == r2->rm_offset;
+}
+
+/* Flag failures for records that could be merged. */
+STATIC void
+xchk_rmapbt_check_mergeable(
+	struct xchk_btree		*bs,
+	struct xchk_rmap		*cr,
+	const struct xfs_rmap_irec	*irec)
+{
+	if (bs->sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
+		return;
+
+	if (xchk_rmap_mergeable(cr, irec))
+		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
+
+	memcpy(&cr->prev_rec, irec, sizeof(struct xfs_rmap_irec));
+}
+
 /* Scrub an rmapbt record. */
 STATIC int
 xchk_rmapbt_rec(
@@ -214,6 +265,7 @@ xchk_rmapbt_rec(
 	}
 
 	xchk_rmapbt_check_unwritten_in_keyflags(bs);
+	xchk_rmapbt_check_mergeable(bs, cr, &irec);
 	xchk_rmapbt_check_overlapping(bs, cr, &irec);
 	xchk_rmapbt_xref(bs->sc, &irec);
 	return 0;
