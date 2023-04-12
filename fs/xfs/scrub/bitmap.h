@@ -108,4 +108,7 @@ static inline int xagb_bitmap_walk(struct xagb_bitmap *bitmap,
 	return xbitmap_walk(&bitmap->agbitmap, fn, priv);
 }
 
+int xagb_bitmap_set_btblocks(struct xagb_bitmap *bitmap,
+		struct xfs_btree_cur *cur);
+
 #endif	/* __XFS_SCRUB_BITMAP_H__ */
