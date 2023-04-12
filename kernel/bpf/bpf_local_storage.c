@@ -157,6 +157,9 @@ static void bpf_local_storage_free(struct bpf_local_storage *local_storage,
 				   struct bpf_local_storage_map *smap,
 				   bool bpf_ma, bool reuse_now)
 {
+	if (!local_storage)
+		return;
+
 	if (!bpf_ma) {
 		__bpf_local_storage_free(local_storage, reuse_now);
 		return;
