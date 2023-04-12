@@ -645,7 +645,6 @@ xchk_bmap_want_check_rmaps(
 {
 	struct xfs_scrub	*sc = info->sc;
 	struct xfs_ifork	*ifp;
-	bool			zero_size;
 
 	if (!xfs_has_rmapbt(sc->mp))
 		return false;
@@ -659,24 +658,23 @@ xchk_bmap_want_check_rmaps(
 		return false;
 
 	/*
-	 * Only do this for complex maps that are in btree format, or for
-	 * situations where we would seem to have a size but zero extents.
-	 * The inode repair code can zap broken iforks, which means we have
-	 * to flag this bmap as corrupt if there are rmaps that need to be
-	 * reattached.
+	 * The inode repair code zaps broken inode forks by resetting them back
+	 * to EXTENTS format and zero extent records.  If we encounter a fork
+	 * in this state along with evidence that the fork isn't supposed to be
+	 * empty, we need to scan the reverse mappings to decide if we're going
+	 * to rebuild the fork.  Data forks with nonzero file size are scanned.
+	 * xattr forks are never empty of content, so they are always scanned.
 	 */
-
-	if (info->whichfork == XFS_DATA_FORK)
-		zero_size = i_size_read(VFS_I(sc->ip)) == 0;
-	else
-		zero_size = false;
-
 	ifp = xfs_ifork_ptr(sc->ip, info->whichfork);
-	if (ifp->if_format != XFS_DINODE_FMT_BTREE &&
-	    (zero_size || ifp->if_nextents > 0))
-		return false;
+	if (ifp->if_format == XFS_DINODE_FMT_EXTENTS && ifp->if_nextents == 0) {
+		if (info->whichfork == XFS_DATA_FORK &&
+		    i_size_read(VFS_I(sc->ip)) == 0)
+			return false;
 
-	return true;
+		return true;
+	}
+
+	return false;
 }
 
 /* Make sure each rmap has a corresponding bmbt entry. */
