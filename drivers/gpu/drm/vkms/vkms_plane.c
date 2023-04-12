@@ -132,7 +132,6 @@ static int vkms_plane_atomic_check(struct drm_plane *plane,
 	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
 										 plane);
 	struct drm_crtc_state *crtc_state;
-	bool can_position = false;
 	int ret;
 
 	if (!new_plane_state->fb || WARN_ON(!new_plane_state->crtc))
@@ -143,19 +142,12 @@ static int vkms_plane_atomic_check(struct drm_plane *plane,
 	if (IS_ERR(crtc_state))
 		return PTR_ERR(crtc_state);
 
-	if (plane->type != DRM_PLANE_TYPE_PRIMARY)
-		can_position = true;
-
 	ret = drm_atomic_helper_check_plane_state(new_plane_state, crtc_state,
 						  DRM_PLANE_NO_SCALING,
 						  DRM_PLANE_NO_SCALING,
-						  can_position, true);
+						  true, true);
 	if (ret != 0)
 		return ret;
-
-	/* for now primary plane must be visible and full screen */
-	if (!new_plane_state->visible && !can_position)
-		return -EINVAL;
 
 	return 0;
 }
