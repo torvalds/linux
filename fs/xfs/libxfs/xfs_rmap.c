@@ -254,6 +254,11 @@ xfs_rmap_check_irec(
 	if (!is_inode && (is_bmbt || is_unwritten || is_attr))
 		return __this_address;
 
+	/* Check for a valid fork offset, if applicable. */
+	if (is_inode && !is_bmbt &&
+	    !xfs_verify_fileext(mp, irec->rm_offset, irec->rm_blockcount))
+		return __this_address;
+
 	return NULL;
 }
 
