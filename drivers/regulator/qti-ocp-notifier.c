@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved. */
+/* Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved. */
 
 #include <linux/err.h>
 #include <linux/idr.h>
@@ -107,12 +107,12 @@ static int ocp_notifier_log_event(struct ocp_notifier_dev *ocp_dev,
 		return ret;
 
 	if (name) {
-		pr_err("%s name=%s, ppid=0x%03X, mode=%u\n",
+		pr_err_ratelimited("%s name=%s, ppid=0x%03X, mode=%u\n",
 			label, name, entry->ppid, entry->mode_at_ocp);
 		ipc_log_string(log_info->ipc_log, "%s name=%s, ppid=0x%03X, mode=%u\n",
 			label, name, entry->ppid, entry->mode_at_ocp);
 	} else {
-		pr_err("%s ppid=0x%03X, mode=%u\n",
+		pr_err_ratelimited("%s ppid=0x%03X, mode=%u\n",
 			label, entry->ppid, entry->mode_at_ocp);
 		ipc_log_string(log_info->ipc_log, "%s ppid=0x%03X, mode=%u\n",
 			label, entry->ppid, entry->mode_at_ocp);
