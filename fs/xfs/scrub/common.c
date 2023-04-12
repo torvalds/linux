@@ -817,7 +817,7 @@ again:
 }
 
 /* Install an inode that we opened by handle for scrubbing. */
-static int
+int
 xchk_install_handle_inode(
 	struct xfs_scrub	*sc,
 	struct xfs_inode	*ip)
