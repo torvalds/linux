@@ -165,48 +165,6 @@ xchk_bmap_get_rmap(
 	return has_rmap;
 }
 
-static inline bool
-xchk_bmap_has_prev(
-	struct xchk_bmap_info	*info,
-	struct xfs_bmbt_irec	*irec)
-{
-	struct xfs_bmbt_irec	got;
-	struct xfs_ifork	*ifp;
-
-	ifp = xfs_ifork_ptr(info->sc->ip, info->whichfork);
-
-	if (!xfs_iext_peek_prev_extent(ifp, &info->icur, &got))
-		return false;
-	if (got.br_startoff + got.br_blockcount != irec->br_startoff)
-		return false;
-	if (got.br_startblock + got.br_blockcount != irec->br_startblock)
-		return false;
-	if (got.br_state != irec->br_state)
-		return false;
-	return true;
-}
-
-static inline bool
-xchk_bmap_has_next(
-	struct xchk_bmap_info	*info,
-	struct xfs_bmbt_irec	*irec)
-{
-	struct xfs_bmbt_irec	got;
-	struct xfs_ifork	*ifp;
-
-	ifp = xfs_ifork_ptr(info->sc->ip, info->whichfork);
-
-	if (!xfs_iext_peek_next_extent(ifp, &info->icur, &got))
-		return false;
-	if (irec->br_startoff + irec->br_blockcount != got.br_startoff)
-		return false;
-	if (irec->br_startblock + irec->br_blockcount != got.br_startblock)
-		return false;
-	if (got.br_state != irec->br_state)
-		return false;
-	return true;
-}
-
 /* Make sure that we have rmapbt records for this extent. */
 STATIC void
 xchk_bmap_xref_rmap(
@@ -277,31 +235,20 @@ xchk_bmap_xref_rmap(
 				irec->br_startoff);
 
 	/*
-	 * If the rmap starts before this bmbt record, make sure there's a bmbt
-	 * record for the previous offset that is contiguous with this mapping.
-	 * Skip this for CoW fork extents because the refcount btree (and not
-	 * the inode) is the ondisk owner for those extents.
+	 * The rmap must correspond exactly with this bmbt record.  Skip this
+	 * for CoW fork extents because the refcount btree (and not the inode)
+	 * is the ondisk owner for those extents.
 	 */
-	if (info->whichfork != XFS_COW_FORK && rmap.rm_startblock < agbno &&
-	    !xchk_bmap_has_prev(info, irec)) {
-		xchk_fblock_xref_set_corrupt(info->sc, info->whichfork,
-				irec->br_startoff);
-		return;
-	}
+	if (info->whichfork != XFS_COW_FORK) {
+		if (rmap.rm_startblock != agbno)
+			xchk_fblock_xref_set_corrupt(info->sc, info->whichfork,
+					irec->br_startoff);
 
-	/*
-	 * If the rmap ends after this bmbt record, make sure there's a bmbt
-	 * record for the next offset that is contiguous with this mapping.
-	 * Skip this for CoW fork extents because the refcount btree (and not
-	 * the inode) is the ondisk owner for those extents.
-	 */
-	rmap_end = (unsigned long long)rmap.rm_startblock + rmap.rm_blockcount;
-	if (info->whichfork != XFS_COW_FORK &&
-	    rmap_end > agbno + irec->br_blockcount &&
-	    !xchk_bmap_has_next(info, irec)) {
-		xchk_fblock_xref_set_corrupt(info->sc, info->whichfork,
-				irec->br_startoff);
-		return;
+		rmap_end = (unsigned long long)rmap.rm_startblock +
+					       rmap.rm_blockcount;
+		if (rmap_end != agbno + irec->br_blockcount)
+			xchk_fblock_xref_set_corrupt(info->sc, info->whichfork,
+					irec->br_startoff);
 	}
 }
 
@@ -428,15 +375,7 @@ xchk_bmap_iextent(
 
 	xchk_bmap_dirattr_extent(ip, info, irec);
 
-	/* There should never be a "hole" extent in either extent list. */
-	if (irec->br_startblock == HOLESTARTBLOCK)
-		xchk_fblock_set_corrupt(info->sc, info->whichfork,
-				irec->br_startoff);
-
 	/* Make sure the extent points to a valid place. */
-	if (irec->br_blockcount > XFS_MAX_BMBT_EXTLEN)
-		xchk_fblock_set_corrupt(info->sc, info->whichfork,
-				irec->br_startoff);
 	if (info->is_rt &&
 	    !xfs_verify_rtext(mp, irec->br_startblock, irec->br_blockcount))
 		xchk_fblock_set_corrupt(info->sc, info->whichfork,
@@ -740,6 +679,90 @@ xchk_bmap_iextent_delalloc(
 				irec->br_startoff);
 }
 
+/* Decide if this individual fork mapping is ok. */
+static bool
+xchk_bmap_iext_mapping(
+	struct xchk_bmap_info		*info,
+	const struct xfs_bmbt_irec	*irec)
+{
+	/* There should never be a "hole" extent in either extent list. */
+	if (irec->br_startblock == HOLESTARTBLOCK)
+		return false;
+	if (irec->br_blockcount > XFS_MAX_BMBT_EXTLEN)
+		return false;
+	return true;
+}
+
+/* Are these two mappings contiguous with each other? */
+static inline bool
+xchk_are_bmaps_contiguous(
+	const struct xfs_bmbt_irec	*b1,
+	const struct xfs_bmbt_irec	*b2)
+{
+	/* Don't try to combine unallocated mappings. */
+	if (!xfs_bmap_is_real_extent(b1))
+		return false;
+	if (!xfs_bmap_is_real_extent(b2))
+		return false;
+
+	/* Does b2 come right after b1 in the logical and physical range? */
+	if (b1->br_startoff + b1->br_blockcount != b2->br_startoff)
+		return false;
+	if (b1->br_startblock + b1->br_blockcount != b2->br_startblock)
+		return false;
+	if (b1->br_state != b2->br_state)
+		return false;
+	return true;
+}
+
+/*
+ * Walk the incore extent records, accumulating consecutive contiguous records
+ * into a single incore mapping.  Returns true if @irec has been set to a
+ * mapping or false if there are no more mappings.  Caller must ensure that
+ * @info.icur is zeroed before the first call.
+ */
+static int
+xchk_bmap_iext_iter(
+	struct xchk_bmap_info	*info,
+	struct xfs_bmbt_irec	*irec)
+{
+	struct xfs_bmbt_irec	got;
+	struct xfs_ifork	*ifp;
+
+	ifp = xfs_ifork_ptr(info->sc->ip, info->whichfork);
+
+	/* Advance to the next iextent record and check the mapping. */
+	xfs_iext_next(ifp, &info->icur);
+	if (!xfs_iext_get_extent(ifp, &info->icur, irec))
+		return false;
+
+	if (!xchk_bmap_iext_mapping(info, irec)) {
+		xchk_fblock_set_corrupt(info->sc, info->whichfork,
+				irec->br_startoff);
+		return false;
+	}
+
+	/*
+	 * Iterate subsequent iextent records and merge them with the one
+	 * that we just read, if possible.
+	 */
+	while (xfs_iext_peek_next_extent(ifp, &info->icur, &got)) {
+		if (!xchk_are_bmaps_contiguous(irec, &got))
+			break;
+
+		if (!xchk_bmap_iext_mapping(info, &got)) {
+			xchk_fblock_set_corrupt(info->sc, info->whichfork,
+					got.br_startoff);
+			return false;
+		}
+
+		irec->br_blockcount += got.br_blockcount;
+		xfs_iext_next(ifp, &info->icur);
+	}
+
+	return true;
+}
+
 /*
  * Scrub an inode fork's block mappings.
  *
@@ -819,9 +842,15 @@ xchk_bmap(
 	if (!xchk_fblock_process_error(sc, whichfork, 0, &error))
 		goto out;
 
-	/* Scrub extent records. */
-	ifp = xfs_ifork_ptr(ip, whichfork);
-	for_each_xfs_iext(ifp, &info.icur, &irec) {
+	/*
+	 * Scrub extent records.  We use a special iterator function here that
+	 * combines adjacent mappings if they are logically and physically
+	 * contiguous.   For large allocations that require multiple bmbt
+	 * records, this reduces the number of cross-referencing calls, which
+	 * reduces runtime.  Cross referencing with the rmap is simpler because
+	 * the rmap must match the combined mapping exactly.
+	 */
+	while (xchk_bmap_iext_iter(&info, &irec)) {
 		if (xchk_should_terminate(sc, &error) ||
 		    (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
 			goto out;
