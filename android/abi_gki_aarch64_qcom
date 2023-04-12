@@ -2344,7 +2344,6 @@
   of_machine_is_compatible
   of_match_device
   of_match_node
-  of_mdiobus_register
   of_modalias_node
   of_n_addr_cells
   of_node_name_eq
