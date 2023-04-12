@@ -1277,104 +1277,141 @@ static void RGA2_set_reg_alpha_info(u8 *base, struct rga2_req *msg)
 	u32 *bRGA_ALPHA_CTRL0;
 	u32 *bRGA_ALPHA_CTRL1;
 	u32 *bRGA_FADING_CTRL;
-	u32 reg0 = 0;
-	u32 reg1 = 0;
+	u32 reg = 0;
+	union rga2_color_ctrl color_ctrl;
+	union rga2_alpha_ctrl alpha_ctrl;
+	struct rga_alpha_config *config;
 
 	bRGA_ALPHA_CTRL0 = (u32 *) (base + RGA2_ALPHA_CTRL0_OFFSET);
 	bRGA_ALPHA_CTRL1 = (u32 *) (base + RGA2_ALPHA_CTRL1_OFFSET);
 	bRGA_FADING_CTRL = (u32 *) (base + RGA2_FADING_CTRL_OFFSET);
 
-	reg0 =
-		((reg0 & (~m_RGA2_ALPHA_CTRL0_SW_ALPHA_ROP_0)) |
+	color_ctrl.value = 0;
+	alpha_ctrl.value = 0;
+	config = &msg->alpha_config;
+
+	color_ctrl.bits.src_color_mode =
+		config->fg_pre_multiplied ? RGA_ALPHA_PRE_MULTIPLIED : RGA_ALPHA_NO_PRE_MULTIPLIED;
+	color_ctrl.bits.dst_color_mode =
+		config->bg_pre_multiplied ? RGA_ALPHA_PRE_MULTIPLIED : RGA_ALPHA_NO_PRE_MULTIPLIED;
+
+	if (config->fg_pixel_alpha_en)
+		color_ctrl.bits.src_blend_mode =
+			config->fg_global_alpha_en ? RGA_ALPHA_PER_PIXEL_GLOBAL :
+			RGA_ALPHA_PER_PIXEL;
+	else
+		color_ctrl.bits.src_blend_mode = RGA_ALPHA_GLOBAL;
+
+	if (config->bg_pixel_alpha_en)
+		color_ctrl.bits.dst_blend_mode =
+			config->bg_global_alpha_en ? RGA_ALPHA_PER_PIXEL_GLOBAL :
+			RGA_ALPHA_PER_PIXEL;
+	else
+		color_ctrl.bits.dst_blend_mode = RGA_ALPHA_GLOBAL;
+
+	/*
+	 * Since the hardware uses 256 as 1, the original alpha value needs to
+	 * be + (alpha >> 7).
+	 */
+	color_ctrl.bits.src_alpha_cal_mode = RGA_ALPHA_SATURATION;
+	color_ctrl.bits.dst_alpha_cal_mode = RGA_ALPHA_SATURATION;
+
+	/* porter duff alpha enable */
+	switch (config->mode) {
+	case RGA_ALPHA_BLEND_SRC:
+		/*
+		 * SRC mode:
+		 *	Sf = 1, Df = 0；
+		 *	[Rc,Ra] = [Sc,Sa]；
+		 */
+		color_ctrl.bits.src_alpha_mode = RGA_ALPHA_STRAIGHT;
+		color_ctrl.bits.src_factor_mode = RGA_ALPHA_ONE;
+
+		color_ctrl.bits.dst_alpha_mode = RGA_ALPHA_STRAIGHT;
+		color_ctrl.bits.dst_factor_mode = RGA_ALPHA_ZERO;
+
+		break;
+
+	case RGA_ALPHA_BLEND_DST:
+		/*
+		 * SRC mode:
+		 *	Sf = 0, Df = 1；
+		 *	[Rc,Ra] = [Dc,Da]；
+		 */
+		color_ctrl.bits.src_alpha_mode = RGA_ALPHA_STRAIGHT;
+		color_ctrl.bits.src_factor_mode = RGA_ALPHA_ZERO;
+
+		color_ctrl.bits.dst_alpha_mode = RGA_ALPHA_STRAIGHT;
+		color_ctrl.bits.dst_factor_mode = RGA_ALPHA_ONE;
+
+		break;
+
+	case RGA_ALPHA_BLEND_SRC_OVER:
+		/*
+		 * SRC-OVER mode:
+		 *	Sf = 1, Df = (1 - Sa)
+		 *	[Rc,Ra] = [ Sc + (1 - Sa) * Dc, Sa + (1 - Sa) * Da ]
+		 */
+		color_ctrl.bits.src_alpha_mode = RGA_ALPHA_STRAIGHT;
+		color_ctrl.bits.src_factor_mode = RGA_ALPHA_ONE;
+
+		color_ctrl.bits.dst_alpha_mode = RGA_ALPHA_STRAIGHT;
+		color_ctrl.bits.dst_factor_mode = RGA_ALPHA_OPPOSITE_INVERSE;
+
+		break;
+
+	case RGA_ALPHA_BLEND_DST_OVER:
+		/*
+		 * DST-OVER mode:
+		 *	Sf = (1 - Da) , Df = 1
+		 *	[Rc,Ra] = [ Sc * (1 - Da) + Dc, Sa * (1 - Da) + Da ]
+		 */
+		color_ctrl.bits.src_alpha_mode = RGA_ALPHA_STRAIGHT;
+		color_ctrl.bits.src_factor_mode = RGA_ALPHA_OPPOSITE_INVERSE;
+
+		color_ctrl.bits.dst_alpha_mode = RGA_ALPHA_STRAIGHT;
+		color_ctrl.bits.dst_factor_mode = RGA_ALPHA_ONE;
+
+		break;
+
+	default:
+		break;
+	}
+
+	alpha_ctrl.bits.src_blend_mode = color_ctrl.bits.src_blend_mode;
+	alpha_ctrl.bits.dst_blend_mode = color_ctrl.bits.dst_blend_mode;
+
+	alpha_ctrl.bits.src_alpha_cal_mode = color_ctrl.bits.src_alpha_cal_mode;
+	alpha_ctrl.bits.dst_alpha_cal_mode = color_ctrl.bits.dst_alpha_cal_mode;
+
+	alpha_ctrl.bits.src_alpha_mode = color_ctrl.bits.src_alpha_mode;
+	alpha_ctrl.bits.src_factor_mode = color_ctrl.bits.src_factor_mode;
+
+	alpha_ctrl.bits.dst_alpha_mode = color_ctrl.bits.dst_alpha_mode;
+	alpha_ctrl.bits.dst_factor_mode = color_ctrl.bits.dst_factor_mode;
+
+	reg =
+		((reg & (~m_RGA2_ALPHA_CTRL0_SW_ALPHA_ROP_0)) |
 		 (s_RGA2_ALPHA_CTRL0_SW_ALPHA_ROP_0(msg->alpha_rop_flag)));
-	reg0 =
-		((reg0 & (~m_RGA2_ALPHA_CTRL0_SW_ALPHA_ROP_SEL)) |
+	reg =
+		((reg & (~m_RGA2_ALPHA_CTRL0_SW_ALPHA_ROP_SEL)) |
 		 (s_RGA2_ALPHA_CTRL0_SW_ALPHA_ROP_SEL
 		 (msg->alpha_rop_flag >> 1)));
-	reg0 =
-		((reg0 & (~m_RGA2_ALPHA_CTRL0_SW_ROP_MODE)) |
+	reg =
+		((reg & (~m_RGA2_ALPHA_CTRL0_SW_ROP_MODE)) |
 		 (s_RGA2_ALPHA_CTRL0_SW_ROP_MODE(msg->rop_mode)));
-	reg0 =
-		((reg0 & (~m_RGA2_ALPHA_CTRL0_SW_SRC_GLOBAL_ALPHA)) |
+	reg =
+		((reg & (~m_RGA2_ALPHA_CTRL0_SW_SRC_GLOBAL_ALPHA)) |
 		 (s_RGA2_ALPHA_CTRL0_SW_SRC_GLOBAL_ALPHA
-		 (msg->src_a_global_val)));
-	reg0 =
-		((reg0 & (~m_RGA2_ALPHA_CTRL0_SW_DST_GLOBAL_ALPHA)) |
+		 ((uint8_t)config->fg_global_alpha_value)));
+	reg =
+		((reg & (~m_RGA2_ALPHA_CTRL0_SW_DST_GLOBAL_ALPHA)) |
 		 (s_RGA2_ALPHA_CTRL0_SW_DST_GLOBAL_ALPHA
-		 (msg->dst_a_global_val)));
+		 ((uint8_t)config->bg_global_alpha_value)));
 
-	reg1 =
-		((reg1 & (~m_RGA2_ALPHA_CTRL1_SW_DST_COLOR_M0)) |
-		 (s_RGA2_ALPHA_CTRL1_SW_DST_COLOR_M0
-		 (msg->alpha_mode_0 >> 15)));
-	reg1 =
-		((reg1 & (~m_RGA2_ALPHA_CTRL1_SW_SRC_COLOR_M0)) |
-		 (s_RGA2_ALPHA_CTRL1_SW_SRC_COLOR_M0
-		 (msg->alpha_mode_0 >> 7)));
-	reg1 =
-		((reg1 & (~m_RGA2_ALPHA_CTRL1_SW_DST_FACTOR_M0)) |
-		 (s_RGA2_ALPHA_CTRL1_SW_DST_FACTOR_M0
-		 (msg->alpha_mode_0 >> 12)));
-	reg1 =
-		((reg1 & (~m_RGA2_ALPHA_CTRL1_SW_SRC_FACTOR_M0)) |
-		 (s_RGA2_ALPHA_CTRL1_SW_SRC_FACTOR_M0
-		 (msg->alpha_mode_0 >> 4)));
-	reg1 =
-		((reg1 & (~m_RGA2_ALPHA_CTRL1_SW_DST_ALPHA_CAL_M0)) |
-		 (s_RGA2_ALPHA_CTRL1_SW_DST_ALPHA_CAL_M0
-		 (msg->alpha_mode_0 >> 11)));
-	reg1 =
-		((reg1 & (~m_RGA2_ALPHA_CTRL1_SW_SRC_ALPHA_CAL_M0)) |
-		 (s_RGA2_ALPHA_CTRL1_SW_SRC_ALPHA_CAL_M0
-		 (msg->alpha_mode_0 >> 3)));
-	reg1 =
-		((reg1 & (~m_RGA2_ALPHA_CTRL1_SW_DST_BLEND_M0)) |
-		 (s_RGA2_ALPHA_CTRL1_SW_DST_BLEND_M0
-		 (msg->alpha_mode_0 >> 9)));
-	reg1 =
-		((reg1 & (~m_RGA2_ALPHA_CTRL1_SW_SRC_BLEND_M0)) |
-		 (s_RGA2_ALPHA_CTRL1_SW_SRC_BLEND_M0
-		 (msg->alpha_mode_0 >> 1)));
-	reg1 =
-		((reg1 & (~m_RGA2_ALPHA_CTRL1_SW_DST_ALPHA_M0)) |
-		 (s_RGA2_ALPHA_CTRL1_SW_DST_ALPHA_M0
-		 (msg->alpha_mode_0 >> 8)));
-	reg1 =
-		((reg1 & (~m_RGA2_ALPHA_CTRL1_SW_SRC_ALPHA_M0)) |
-		 (s_RGA2_ALPHA_CTRL1_SW_SRC_ALPHA_M0
-		 (msg->alpha_mode_0 >> 0)));
+	*bRGA_ALPHA_CTRL0 = reg;
+	*bRGA_ALPHA_CTRL1 = color_ctrl.value | (alpha_ctrl.value << 16);
 
-	reg1 =
-		((reg1 & (~m_RGA2_ALPHA_CTRL1_SW_DST_FACTOR_M1)) |
-		 (s_RGA2_ALPHA_CTRL1_SW_DST_FACTOR_M1
-		 (msg->alpha_mode_1 >> 12)));
-	reg1 =
-		((reg1 & (~m_RGA2_ALPHA_CTRL1_SW_SRC_FACTOR_M1)) |
-		 (s_RGA2_ALPHA_CTRL1_SW_SRC_FACTOR_M1
-		 (msg->alpha_mode_1 >> 4)));
-	reg1 =
-		((reg1 & (~m_RGA2_ALPHA_CTRL1_SW_DST_ALPHA_CAL_M1)) |
-		 (s_RGA2_ALPHA_CTRL1_SW_DST_ALPHA_CAL_M1
-		 (msg->alpha_mode_1 >> 11)));
-	reg1 =
-		((reg1 & (~m_RGA2_ALPHA_CTRL1_SW_SRC_ALPHA_CAL_M1)) |
-		 (s_RGA2_ALPHA_CTRL1_SW_SRC_ALPHA_CAL_M1
-		 (msg->alpha_mode_1 >> 3)));
-	reg1 =
-		((reg1 & (~m_RGA2_ALPHA_CTRL1_SW_DST_BLEND_M1)) |
-		 (s_RGA2_ALPHA_CTRL1_SW_DST_BLEND_M1(msg->alpha_mode_1 >> 9)));
-	reg1 =
-		((reg1 & (~m_RGA2_ALPHA_CTRL1_SW_SRC_BLEND_M1)) |
-		 (s_RGA2_ALPHA_CTRL1_SW_SRC_BLEND_M1(msg->alpha_mode_1 >> 1)));
-	reg1 =
-		((reg1 & (~m_RGA2_ALPHA_CTRL1_SW_DST_ALPHA_M1)) |
-		 (s_RGA2_ALPHA_CTRL1_SW_DST_ALPHA_M1(msg->alpha_mode_1 >> 8)));
-	reg1 =
-		((reg1 & (~m_RGA2_ALPHA_CTRL1_SW_SRC_ALPHA_M1)) |
-		 (s_RGA2_ALPHA_CTRL1_SW_SRC_ALPHA_M1(msg->alpha_mode_1 >> 0)));
-
-	*bRGA_ALPHA_CTRL0 = reg0;
-	*bRGA_ALPHA_CTRL1 = reg1;
 
 	if ((msg->alpha_rop_flag >> 2) & 1) {
 		*bRGA_FADING_CTRL = (1 << 24) | (msg->fading_b_value << 16) |
@@ -1776,8 +1813,6 @@ static int rga2_gen_reg_info(u8 *base, struct rga2_req *msg)
 static void rga_cmd_to_rga2_cmd(struct rga_scheduler_t *scheduler,
 				struct rga_req *req_rga, struct rga2_req *req)
 {
-	u16 alpha_mode_0, alpha_mode_1;
-
 	if (req_rga->render_mode == 6)
 		req->render_mode = UPDATE_PALETTE_TABLE_MODE;
 	else if (req_rga->render_mode == 7)
@@ -1918,109 +1953,67 @@ static void rga_cmd_to_rga2_cmd(struct rga_scheduler_t *scheduler,
 
 	if (((req_rga->alpha_rop_flag) & 1)) {
 		if ((req_rga->alpha_rop_flag >> 3) & 1) {
+			req->alpha_config.enable = true;
+
+			if ((req_rga->alpha_rop_flag >> 9) & 1) {
+				req->alpha_config.fg_pre_multiplied = false;
+				req->alpha_config.bg_pre_multiplied = false;
+			} else if (req->osd_info.enable) {
+				req->alpha_config.fg_pre_multiplied = true;
+				/* set dst(osd_block) real color mode */
+				req->alpha_config.bg_pre_multiplied = false;
+			} else {
+				req->alpha_config.fg_pre_multiplied = true;
+				req->alpha_config.bg_pre_multiplied = true;
+			}
+
+			req->alpha_config.fg_pixel_alpha_en = rga_is_alpha_format(req->src.format);
+			if (req->bitblt_mode)
+				req->alpha_config.bg_pixel_alpha_en =
+					rga_is_alpha_format(req->src1.format);
+			else
+				req->alpha_config.bg_pixel_alpha_en =
+					rga_is_alpha_format(req->dst.format);
+
+			req->alpha_config.fg_global_alpha_en = false;
+			req->alpha_config.bg_global_alpha_en = false;
+
+			req->alpha_config.fg_global_alpha_value = req_rga->alpha_global_value;
+			req->alpha_config.bg_global_alpha_value = req_rga->alpha_global_value;
+
 			/* porter duff alpha enable */
 			switch (req_rga->PD_mode) {
 			/* dst = 0 */
 			case 0:
 				break;
-			/* dst = src */
 			case 1:
-				req->alpha_mode_0 = 0x0212;
-				req->alpha_mode_1 = 0x0212;
+				req->alpha_config.mode = RGA_ALPHA_BLEND_SRC;
 				break;
-			/* dst = dst */
 			case 2:
-				req->alpha_mode_0 = 0x1202;
-				req->alpha_mode_1 = 0x1202;
+				req->alpha_config.mode = RGA_ALPHA_BLEND_DST;
 				break;
-			/* dst = (256*sc + (256 - sa)*dc) >> 8 */
 			case 3:
 				if ((req_rga->alpha_rop_mode & 3) == 0) {
 					/* both use globalAlpha. */
-					alpha_mode_0 = 0x3010;
-					alpha_mode_1 = 0x3010;
+					req->alpha_config.fg_global_alpha_en = true;
+					req->alpha_config.bg_global_alpha_en = true;
 				} else if ((req_rga->alpha_rop_mode & 3) == 1) {
 					/* Do not use globalAlpha. */
-					alpha_mode_0 = 0x3212;
-					alpha_mode_1 = 0x3212;
-				} else if ((req_rga->alpha_rop_mode & 3) == 2) {
-					/*
-					 * dst use globalAlpha,
-					 * and dst has pixelAlpha.
-					 */
-					alpha_mode_0 = 0x3014;
-					alpha_mode_1 = 0x3014;
+					req->alpha_config.fg_global_alpha_en = false;
+					req->alpha_config.bg_global_alpha_en = false;
 				} else {
-					/*
-					 * dst use globalAlpha, and
-					 * dst does not have pixelAlpha.
-					 */
-					alpha_mode_0 = 0x3012;
-					alpha_mode_1 = 0x3012;
+					/* dst use globalAlpha */
+					req->alpha_config.fg_global_alpha_en = false;
+					req->alpha_config.bg_global_alpha_en = true;
 				}
-				req->alpha_mode_0 = alpha_mode_0;
-				req->alpha_mode_1 = alpha_mode_1;
+
+				req->alpha_config.mode = RGA_ALPHA_BLEND_SRC_OVER;
 				break;
-			/* dst = (sc*(256-da) + 256*dc) >> 8 */
 			case 4:
-				/* Do not use globalAlpha. */
-				req->alpha_mode_0 = 0x1232;
-				req->alpha_mode_1 = 0x1232;
-				break;
-			/* dst = (da*sc) >> 8 */
-			case 5:
-				break;
-			/* dst = (sa*dc) >> 8 */
-			case 6:
-				break;
-			/* dst = ((256-da)*sc) >> 8 */
-			case 7:
-				break;
-			/* dst = ((256-sa)*dc) >> 8 */
-			case 8:
-				break;
-			/* dst = (da*sc + (256-sa)*dc) >> 8 */
-			case 9:
-				req->alpha_mode_0 = 0x3040;
-				req->alpha_mode_1 = 0x3040;
-				break;
-			/* dst = ((256-da)*sc + (sa*dc)) >> 8 */
-			case 10:
-				break;
-			/* dst = ((256-da)*sc + (256-sa)*dc) >> 8 */
-			case 11:
-				break;
-			case 12:
-				req->alpha_mode_0 = 0x0010;
-				req->alpha_mode_1 = 0x0820;
+				req->alpha_config.mode = RGA_ALPHA_BLEND_DST_OVER;
 				break;
 			default:
 				break;
-			}
-
-			if (req->osd_info.enable) {
-				/* set dst(osd_block) real color mode */
-				if (req->alpha_mode_0 & (0x01 << 9))
-					req->alpha_mode_0 |= (1 << 15);
-			}
-
-			/* Real color mode */
-			if ((req_rga->alpha_rop_flag >> 9) & 1) {
-				if (req->alpha_mode_0 & (0x01 << 1))
-					req->alpha_mode_0 |= (1 << 7);
-				if (req->alpha_mode_0 & (0x01 << 9))
-					req->alpha_mode_0 |= (1 << 15);
-			}
-		} else {
-			if ((req_rga->alpha_rop_mode & 3) == 0) {
-				req->alpha_mode_0 = 0x3040;
-				req->alpha_mode_1 = 0x3040;
-			} else if ((req_rga->alpha_rop_mode & 3) == 1) {
-				req->alpha_mode_0 = 0x3042;
-				req->alpha_mode_1 = 0x3242;
-			} else if ((req_rga->alpha_rop_mode & 3) == 2) {
-				req->alpha_mode_0 = 0x3044;
-				req->alpha_mode_1 = 0x3044;
 			}
 		}
 	}

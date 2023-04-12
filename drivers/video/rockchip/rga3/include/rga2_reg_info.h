@@ -434,6 +434,43 @@
 
 #define RGA2_VSP_BICUBIC_LIMIT				1996
 
+union rga2_color_ctrl {
+	uint32_t value;
+	struct {
+		uint32_t dst_color_mode:1;
+		uint32_t src_color_mode:1;
+
+		uint32_t dst_factor_mode:3;
+		uint32_t src_factor_mode:3;
+
+		uint32_t dst_alpha_cal_mode:1;
+		uint32_t src_alpha_cal_mode:1;
+
+		uint32_t dst_blend_mode:2;
+		uint32_t src_blend_mode:2;
+
+		uint32_t dst_alpha_mode:1;
+		uint32_t src_alpha_mode:1;
+	} bits;
+};
+
+union rga2_alpha_ctrl {
+	uint32_t value;
+	struct {
+		uint32_t dst_factor_mode:3;
+		uint32_t src_factor_mode:3;
+
+		uint32_t dst_alpha_cal_mode:1;
+		uint32_t src_alpha_cal_mode:1;
+
+		uint32_t dst_blend_mode:2;
+		uint32_t src_blend_mode:2;
+
+		uint32_t dst_alpha_mode:1;
+		uint32_t src_alpha_mode:1;
+	} bits;
+};
+
 extern const struct rga_backend_ops rga2_ops;
 
 #endif
