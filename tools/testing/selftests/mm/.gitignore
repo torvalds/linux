@@ -36,3 +36,5 @@ split_huge_page_test
 ksm_tests
 local_config.h
 local_config.mk
+ksm_functional_tests
+mdwe_test
