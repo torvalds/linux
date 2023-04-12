@@ -8,13 +8,6 @@
 #define ARM64_ASM_PREAMBLE
 #endif
 
-/*
- * The EL0/EL1 pointer bits used by a pointer authentication code.
- * This is dependent on TBI0/TBI1 being enabled, or bits 63:56 would also apply.
- */
-#define ptrauth_user_pac_mask()		GENMASK_ULL(54, vabits_actual)
-#define ptrauth_kernel_pac_mask()	GENMASK_ULL(63, vabits_actual)
-
 #define xpaclri(ptr)							\
 ({									\
 	register unsigned long __xpaclri_ptr asm("x30") = (ptr);	\

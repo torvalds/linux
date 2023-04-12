@@ -10,6 +10,13 @@
 #include <asm/memory.h>
 #include <asm/sysreg.h>
 
+/*
+ * The EL0/EL1 pointer bits used by a pointer authentication code.
+ * This is dependent on TBI0/TBI1 being enabled, or bits 63:56 would also apply.
+ */
+#define ptrauth_user_pac_mask()		GENMASK_ULL(54, vabits_actual)
+#define ptrauth_kernel_pac_mask()	GENMASK_ULL(63, vabits_actual)
+
 #define PR_PAC_ENABLED_KEYS_MASK                                               \
 	(PR_PAC_APIAKEY | PR_PAC_APIBKEY | PR_PAC_APDAKEY | PR_PAC_APDBKEY)
 
