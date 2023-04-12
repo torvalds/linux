@@ -144,6 +144,23 @@ xfs_refcount_check_irec(
 	return NULL;
 }
 
+static inline int
+xfs_refcount_complain_bad_rec(
+	struct xfs_btree_cur		*cur,
+	xfs_failaddr_t			fa,
+	const struct xfs_refcount_irec	*irec)
+{
+	struct xfs_mount		*mp = cur->bc_mp;
+
+	xfs_warn(mp,
+ "Refcount BTree record corruption in AG %d detected at %pS!",
+				cur->bc_ag.pag->pag_agno, fa);
+	xfs_warn(mp,
+		"Start block 0x%x, block count 0x%x, references 0x%x",
+		irec->rc_startblock, irec->rc_blockcount, irec->rc_refcount);
+	return -EFSCORRUPTED;
+}
+
 /*
  * Get the data from the pointed-to record.
  */
@@ -153,8 +170,6 @@ xfs_refcount_get_rec(
 	struct xfs_refcount_irec	*irec,
 	int				*stat)
 {
-	struct xfs_mount		*mp = cur->bc_mp;
-	struct xfs_perag		*pag = cur->bc_ag.pag;
 	union xfs_btree_rec		*rec;
 	xfs_failaddr_t			fa;
 	int				error;
@@ -166,19 +181,10 @@ xfs_refcount_get_rec(
 	xfs_refcount_btrec_to_irec(rec, irec);
 	fa = xfs_refcount_check_irec(cur, irec);
 	if (fa)
-		goto out_bad_rec;
+		return xfs_refcount_complain_bad_rec(cur, fa, irec);
 
-	trace_xfs_refcount_get(cur->bc_mp, pag->pag_agno, irec);
+	trace_xfs_refcount_get(cur->bc_mp, cur->bc_ag.pag->pag_agno, irec);
 	return 0;
-
-out_bad_rec:
-	xfs_warn(mp,
-		"Refcount BTree record corruption in AG %d detected at %pS!",
-		pag->pag_agno, fa);
-	xfs_warn(mp,
-		"Start block 0x%x, block count 0x%x, references 0x%x",
-		irec->rc_startblock, irec->rc_blockcount, irec->rc_refcount);
-	return -EFSCORRUPTED;
 }
 
 /*

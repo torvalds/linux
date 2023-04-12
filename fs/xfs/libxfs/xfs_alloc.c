@@ -261,6 +261,24 @@ xfs_alloc_check_irec(
 	return NULL;
 }
 
+static inline int
+xfs_alloc_complain_bad_rec(
+	struct xfs_btree_cur		*cur,
+	xfs_failaddr_t			fa,
+	const struct xfs_alloc_rec_incore *irec)
+{
+	struct xfs_mount		*mp = cur->bc_mp;
+
+	xfs_warn(mp,
+		"%s Freespace BTree record corruption in AG %d detected at %pS!",
+		cur->bc_btnum == XFS_BTNUM_BNO ? "Block" : "Size",
+		cur->bc_ag.pag->pag_agno, fa);
+	xfs_warn(mp,
+		"start block 0x%x block count 0x%x", irec->ar_startblock,
+		irec->ar_blockcount);
+	return -EFSCORRUPTED;
+}
+
 /*
  * Get the data from the pointed-to record.
  */
@@ -272,8 +290,6 @@ xfs_alloc_get_rec(
 	int			*stat)	/* output: success/failure */
 {
 	struct xfs_alloc_rec_incore irec;
-	struct xfs_mount	*mp = cur->bc_mp;
-	struct xfs_perag	*pag = cur->bc_ag.pag;
 	union xfs_btree_rec	*rec;
 	xfs_failaddr_t		fa;
 	int			error;
@@ -285,21 +301,11 @@ xfs_alloc_get_rec(
 	xfs_alloc_btrec_to_irec(rec, &irec);
 	fa = xfs_alloc_check_irec(cur, &irec);
 	if (fa)
-		goto out_bad_rec;
+		return xfs_alloc_complain_bad_rec(cur, fa, &irec);
 
 	*bno = irec.ar_startblock;
 	*len = irec.ar_blockcount;
 	return 0;
-
-out_bad_rec:
-	xfs_warn(mp,
-		"%s Freespace BTree record corruption in AG %d detected at %pS!",
-		cur->bc_btnum == XFS_BTNUM_BNO ? "Block" : "Size",
-		pag->pag_agno, fa);
-	xfs_warn(mp,
-		"start block 0x%x block count 0x%x", irec.ar_startblock,
-		irec.ar_blockcount);
-	return -EFSCORRUPTED;
 }
 
 /*
@@ -3692,10 +3698,12 @@ xfs_alloc_query_range_helper(
 {
 	struct xfs_alloc_query_range_info	*query = priv;
 	struct xfs_alloc_rec_incore		irec;
+	xfs_failaddr_t				fa;
 
 	xfs_alloc_btrec_to_irec(rec, &irec);
-	if (xfs_alloc_check_irec(cur, &irec) != NULL)
-		return -EFSCORRUPTED;
+	fa = xfs_alloc_check_irec(cur, &irec);
+	if (fa)
+		return xfs_alloc_complain_bad_rec(cur, fa, &irec);
 
 	return query->fn(cur, &irec, query->priv);
 }
