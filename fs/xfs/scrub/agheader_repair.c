@@ -663,7 +663,7 @@ xrep_agfl_fill(
 }
 
 /* Write out a totally new AGFL. */
-STATIC void
+STATIC int
 xrep_agfl_init_header(
 	struct xfs_scrub	*sc,
 	struct xfs_buf		*agfl_bp,
@@ -676,6 +676,7 @@ xrep_agfl_init_header(
 	};
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_agfl		*agfl;
+	int			error;
 
 	ASSERT(flcount <= xfs_agfl_size(mp));
 
@@ -697,12 +698,15 @@ xrep_agfl_init_header(
 	xbitmap_init(&af.used_extents);
 	af.agfl_bno = xfs_buf_to_agfl_bno(agfl_bp),
 	xbitmap_walk(agfl_extents, xrep_agfl_fill, &af);
-	xbitmap_disunion(agfl_extents, &af.used_extents);
+	error = xbitmap_disunion(agfl_extents, &af.used_extents);
+	if (error)
+		return error;
 
 	/* Write new AGFL to disk. */
 	xfs_trans_buf_set_type(sc->tp, agfl_bp, XFS_BLFT_AGFL_BUF);
 	xfs_trans_log_buf(sc->tp, agfl_bp, 0, BBTOB(agfl_bp->b_length) - 1);
 	xbitmap_destroy(&af.used_extents);
+	return 0;
 }
 
 /* Repair the AGFL. */
@@ -755,7 +759,9 @@ xrep_agfl(
 	 * buffers until we know that part works.
 	 */
 	xrep_agfl_update_agf(sc, agf_bp, flcount);
-	xrep_agfl_init_header(sc, agfl_bp, &agfl_extents, flcount);
+	error = xrep_agfl_init_header(sc, agfl_bp, &agfl_extents, flcount);
+	if (error)
+		goto err;
 
 	/*
 	 * Ok, the AGFL should be ready to go now.  Roll the transaction to
