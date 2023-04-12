@@ -56,6 +56,10 @@
 #undef CREATE_TRACE_POINTS
 #include <trace/hooks/debug.h>
 
+#if IS_ENABLED(CONFIG_ROCKCHIP_MINIDUMP)
+#include <soc/rockchip/rk_minidump.h>
+#endif
+
 DEFINE_PER_CPU_READ_MOSTLY(int, cpu_number);
 EXPORT_PER_CPU_SYMBOL(cpu_number);
 EXPORT_TRACEPOINT_SYMBOL_GPL(ipi_raise);
@@ -916,6 +920,9 @@ static void do_handle_IPI(int ipinr)
 
 	case IPI_CPU_STOP:
 		trace_android_vh_ipi_stop_rcuidle(get_irq_regs());
+#if IS_ENABLED(CONFIG_ROCKCHIP_MINIDUMP)
+		rk_minidump_update_cpu_regs(get_irq_regs());
+#endif
 		local_cpu_stop();
 		break;
 
