@@ -12,11 +12,31 @@
 volatile bool test_uffdio_copy_eexist = true;
 unsigned long nr_cpus, nr_pages, nr_pages_per_cpu, page_size, hpage_size;
 char *area_src, *area_src_alias, *area_dst, *area_dst_alias, *area_remap;
-int mem_fd, uffd = -1, uffd_flags, finished, *pipefd, test_type;
+int uffd = -1, uffd_flags, finished, *pipefd, test_type;
 bool map_shared, test_collapse, test_dev_userfaultfd;
 bool test_uffdio_wp = true, test_uffdio_minor = false;
 unsigned long long *count_verify;
 uffd_test_ops_t *uffd_test_ops;
+
+static int uffd_mem_fd_create(off_t mem_size, bool hugetlb)
+{
+	unsigned int memfd_flags = 0;
+	int mem_fd;
+
+	if (hugetlb)
+		memfd_flags = MFD_HUGETLB;
+	mem_fd = memfd_create("uffd-test", memfd_flags);
+	if (mem_fd < 0)
+		err("memfd_create");
+	if (ftruncate(mem_fd, mem_size))
+		err("ftruncate");
+	if (fallocate(mem_fd,
+		      FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE, 0,
+		      mem_size))
+		err("fallocate");
+
+	return mem_fd;
+}
 
 static void anon_release_pages(char *rel_area)
 {
@@ -51,6 +71,7 @@ static void hugetlb_allocate_area(void **alloc_area, bool is_src)
 	off_t offset = is_src ? 0 : size;
 	void *area_alias = NULL;
 	char **alloc_area_alias;
+	int mem_fd = uffd_mem_fd_create(size * 2, true);
 
 	*alloc_area = mmap(NULL, size, PROT_READ | PROT_WRITE,
 			   (map_shared ? MAP_SHARED : MAP_PRIVATE) |
@@ -73,6 +94,8 @@ static void hugetlb_allocate_area(void **alloc_area, bool is_src)
 	}
 	if (area_alias)
 		*alloc_area_alias = area_alias;
+
+	close(mem_fd);
 }
 
 static void hugetlb_alias_mapping(__u64 *start, size_t len, unsigned long offset)
@@ -95,6 +118,7 @@ static void shmem_allocate_area(void **alloc_area, bool is_src)
 	size_t bytes = nr_pages * page_size;
 	unsigned long offset = is_src ? 0 : bytes;
 	char *p = NULL, *p_alias = NULL;
+	int mem_fd = uffd_mem_fd_create(bytes * 2, false);
 
 	if (test_collapse) {
 		p = BASE_PMD_ADDR;
@@ -124,6 +148,8 @@ static void shmem_allocate_area(void **alloc_area, bool is_src)
 		area_src_alias = area_alias;
 	else
 		area_dst_alias = area_alias;
+
+	close(mem_fd);
 }
 
 static void shmem_alias_mapping(__u64 *start, size_t len, unsigned long offset)
