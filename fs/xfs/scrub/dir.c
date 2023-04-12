@@ -57,13 +57,15 @@ xchk_dir_check_ftype(
 	 * eofblocks cleanup (which allocates what would be a nested
 	 * transaction), we can't use DONTCACHE here because DONTCACHE
 	 * inodes can trigger immediate inactive cleanup of the inode.
+	 * Use UNTRUSTED here to check the allocation status of the inode in
+	 * the inode btrees.
 	 *
 	 * If _iget returns -EINVAL or -ENOENT then the child inode number is
 	 * garbage and the directory is corrupt.  If the _iget returns
 	 * -EFSCORRUPTED or -EFSBADCRC then the child is corrupt which is a
 	 *  cross referencing error.  Any other error is an operational error.
 	 */
-	error = xfs_iget(mp, sc->tp, inum, 0, 0, &ip);
+	error = xfs_iget(mp, sc->tp, inum, XFS_IGET_UNTRUSTED, 0, &ip);
 	if (error == -EINVAL || error == -ENOENT) {
 		error = -EFSCORRUPTED;
 		xchk_fblock_process_error(sc, XFS_DATA_FORK, 0, &error);
