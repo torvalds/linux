@@ -764,6 +764,7 @@ xchk_bmap_iext_iter(
 {
 	struct xfs_bmbt_irec	got;
 	struct xfs_ifork	*ifp;
+	xfs_filblks_t		prev_len;
 
 	ifp = xfs_ifork_ptr(info->sc->ip, info->whichfork);
 
@@ -782,6 +783,7 @@ xchk_bmap_iext_iter(
 	 * Iterate subsequent iextent records and merge them with the one
 	 * that we just read, if possible.
 	 */
+	prev_len = irec->br_blockcount;
 	while (xfs_iext_peek_next_extent(ifp, &info->icur, &got)) {
 		if (!xchk_are_bmaps_contiguous(irec, &got))
 			break;
@@ -792,7 +794,16 @@ xchk_bmap_iext_iter(
 			return false;
 		}
 
+		/*
+		 * Notify the user of mergeable records in the data or attr
+		 * forks.  CoW forks only exist in memory so we ignore them.
+		 */
+		if (info->whichfork != XFS_COW_FORK &&
+		    prev_len + got.br_blockcount > BMBT_BLOCKCOUNT_MASK)
+			xchk_ino_set_preen(info->sc, info->sc->ip->i_ino);
+
 		irec->br_blockcount += got.br_blockcount;
+		prev_len = got.br_blockcount;
 		xfs_iext_next(ifp, &info->icur);
 	}
 
