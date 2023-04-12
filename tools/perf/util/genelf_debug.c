@@ -11,6 +11,7 @@
  * @author Philippe Elie
  */
 #include <linux/compiler.h>
+#include <linux/zalloc.h>
 #include <sys/types.h>
 #include <stdio.h>
 #include <getopt.h>
@@ -90,7 +91,7 @@ buffer_ext_init(struct buffer_ext *be)
 static void
 buffer_ext_exit(struct buffer_ext *be)
 {
-	free(be->data);
+	zfree(&be->data);
 }
 
 static inline size_t
