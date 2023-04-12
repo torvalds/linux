@@ -60,6 +60,9 @@ static bool mtl_dsp_check_ipc_irq(struct snd_sof_dev *sdev)
 	u32 irq_status;
 	u32 hfintipptr;
 
+	if (sdev->dspless_mode_selected)
+		return false;
+
 	/* read Interrupt IP Pointer */
 	hfintipptr = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_HFINTIPPTR) & MTL_HFINTIPPTR_PTR_MASK;
 	irq_status = snd_sof_dsp_read(sdev, HDA_DSP_BAR, hfintipptr + MTL_DSP_IRQSTS);
@@ -120,6 +123,9 @@ static void mtl_enable_ipc_interrupts(struct snd_sof_dev *sdev)
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	const struct sof_intel_dsp_desc *chip = hda->desc;
 
+	if (sdev->dspless_mode_selected)
+		return;
+
 	/* enable IPC DONE and BUSY interrupts */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, chip->ipc_ctl,
 				MTL_DSP_REG_HFIPCXCTL_BUSY | MTL_DSP_REG_HFIPCXCTL_DONE,
@@ -130,6 +136,9 @@ static void mtl_disable_ipc_interrupts(struct snd_sof_dev *sdev)
 {
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	const struct sof_intel_dsp_desc *chip = hda->desc;
+
+	if (sdev->dspless_mode_selected)
+		return;
 
 	/* disable IPC DONE and BUSY interrupts */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, chip->ipc_ctl,
@@ -142,6 +151,9 @@ static void mtl_enable_sdw_irq(struct snd_sof_dev *sdev, bool enable)
 	u32 mask;
 	u32 val;
 	int ret;
+
+	if (sdev->dspless_mode_selected)
+		return;
 
 	/* Enable/Disable SoundWire interrupt */
 	mask = MTL_DSP_REG_HfSNDWIE_IE_MASK;
@@ -169,6 +181,9 @@ static int mtl_enable_interrupts(struct snd_sof_dev *sdev, bool enable)
 	u32 mask;
 	u32 val;
 	int ret;
+
+	if (sdev->dspless_mode_selected)
+		return 0;
 
 	/* read Interrupt IP Pointer */
 	hfintipptr = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_HFINTIPPTR) & MTL_HFINTIPPTR_PTR_MASK;
