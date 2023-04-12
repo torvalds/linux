@@ -145,7 +145,7 @@ enum ocelot_stat {
 };
 
 struct ocelot_stat_layout {
-	u32 reg;
+	enum ocelot_reg reg;
 	char name[ETH_GSTRING_LEN];
 };
 
@@ -257,7 +257,7 @@ struct ocelot_stat_layout {
 
 struct ocelot_stats_region {
 	struct list_head node;
-	u32 base;
+	enum ocelot_reg base;
 	enum ocelot_stat first_stat;
 	int count;
 	u32 *buf;
@@ -889,7 +889,7 @@ static int ocelot_prepare_stats_regions(struct ocelot *ocelot)
 {
 	struct ocelot_stats_region *region = NULL;
 	const struct ocelot_stat_layout *layout;
-	unsigned int last = 0;
+	enum ocelot_reg last = 0;
 	int i;
 
 	INIT_LIST_HEAD(&ocelot->stats_regions);
