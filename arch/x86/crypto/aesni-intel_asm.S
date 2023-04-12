@@ -2717,7 +2717,7 @@ SYM_FUNC_END(aesni_cts_cbc_dec)
  *	BSWAP_MASK == endian swapping mask
  */
 SYM_FUNC_START_LOCAL(_aesni_inc_init)
-	movaps .Lbswap_mask, BSWAP_MASK
+	movaps .Lbswap_mask(%rip), BSWAP_MASK
 	movaps IV, CTR
 	pshufb BSWAP_MASK, CTR
 	mov $1, TCTR_LOW

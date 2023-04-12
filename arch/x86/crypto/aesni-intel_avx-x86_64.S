@@ -154,30 +154,6 @@ SHIFT_MASK:      .octa     0x0f0e0d0c0b0a09080706050403020100
 ALL_F:           .octa     0xffffffffffffffffffffffffffffffff
                  .octa     0x00000000000000000000000000000000
 
-.section .rodata
-.align 16
-.type aad_shift_arr, @object
-.size aad_shift_arr, 272
-aad_shift_arr:
-        .octa     0xffffffffffffffffffffffffffffffff
-        .octa     0xffffffffffffffffffffffffffffff0C
-        .octa     0xffffffffffffffffffffffffffff0D0C
-        .octa     0xffffffffffffffffffffffffff0E0D0C
-        .octa     0xffffffffffffffffffffffff0F0E0D0C
-        .octa     0xffffffffffffffffffffff0C0B0A0908
-        .octa     0xffffffffffffffffffff0D0C0B0A0908
-        .octa     0xffffffffffffffffff0E0D0C0B0A0908
-        .octa     0xffffffffffffffff0F0E0D0C0B0A0908
-        .octa     0xffffffffffffff0C0B0A090807060504
-        .octa     0xffffffffffff0D0C0B0A090807060504
-        .octa     0xffffffffff0E0D0C0B0A090807060504
-        .octa     0xffffffff0F0E0D0C0B0A090807060504
-        .octa     0xffffff0C0B0A09080706050403020100
-        .octa     0xffff0D0C0B0A09080706050403020100
-        .octa     0xff0E0D0C0B0A09080706050403020100
-        .octa     0x0F0E0D0C0B0A09080706050403020100
-
-
 .text
 
 
@@ -646,11 +622,13 @@ _get_AAD_rest4\@:
 _get_AAD_rest0\@:
 	/* finalize: shift out the extra bytes we read, and align
 	left. since pslldq can only shift by an immediate, we use
-	vpshufb and an array of shuffle masks */
-	movq    %r12, %r11
-	salq    $4, %r11
-	vmovdqu  aad_shift_arr(%r11), \T1
-	vpshufb \T1, \T7, \T7
+	vpshufb and a pair of shuffle masks */
+	leaq	ALL_F(%rip), %r11
+	subq	%r12, %r11
+	vmovdqu	16(%r11), \T1
+	andq	$~3, %r11
+	vpshufb (%r11), \T7, \T7
+	vpand	\T1, \T7, \T7
 _get_AAD_rest_final\@:
 	vpshufb SHUF_MASK(%rip), \T7, \T7
 	vpxor   \T8, \T7, \T7
