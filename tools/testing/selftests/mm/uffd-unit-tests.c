@@ -62,8 +62,14 @@ mem_type_t mem_types[] = {
 	},
 };
 
+/* Arguments to be passed over to each uffd unit test */
+struct uffd_test_args {
+	mem_type_t *mem_type;
+};
+typedef struct uffd_test_args uffd_test_args_t;
+
 /* Returns: UFFD_TEST_* */
-typedef void (*uffd_test_fn)(void);
+typedef void (*uffd_test_fn)(uffd_test_args_t *);
 
 typedef struct {
 	const char *name;
@@ -172,8 +178,9 @@ out:
  * This function initializes the global variables.  TODO: remove global
  * vars and then remove this.
  */
-static int uffd_setup_environment(uffd_test_case_t *test, mem_type_t *mem_type,
-				  const char **errmsg)
+static int
+uffd_setup_environment(uffd_test_args_t *args, uffd_test_case_t *test,
+		       mem_type_t *mem_type, const char **errmsg)
 {
 	map_shared = mem_type->shared;
 	uffd_test_ops = mem_type->mem_ops;
@@ -186,6 +193,9 @@ static int uffd_setup_environment(uffd_test_case_t *test, mem_type_t *mem_type,
 	nr_pages = UFFD_TEST_MEM_SIZE / page_size;
 	/* TODO: remove this global var.. it's so ugly */
 	nr_cpus = 1;
+
+	/* Initialize test arguments */
+	args->mem_type = mem_type;
 
 	return uffd_test_ctx_init(test->uffd_feature_required, errmsg);
 }
@@ -239,7 +249,7 @@ static int pagemap_test_fork(bool present)
 	return result;
 }
 
-static void uffd_wp_unpopulated_test(void)
+static void uffd_wp_unpopulated_test(uffd_test_args_t *args)
 {
 	uint64_t value;
 	int pagemap_fd;
@@ -285,7 +295,7 @@ static void uffd_wp_unpopulated_test(void)
 	uffd_test_pass();
 }
 
-static void uffd_pagemap_test(void)
+static void uffd_pagemap_test(uffd_test_args_t *args)
 {
 	int pagemap_fd;
 	uint64_t value;
@@ -415,17 +425,17 @@ static void uffd_minor_test_common(bool test_collapse, bool test_wp)
 		uffd_test_pass();
 }
 
-void uffd_minor_test(void)
+void uffd_minor_test(uffd_test_args_t *args)
 {
 	uffd_minor_test_common(false, false);
 }
 
-void uffd_minor_wp_test(void)
+void uffd_minor_wp_test(uffd_test_args_t *args)
 {
 	uffd_minor_test_common(false, true);
 }
 
-void uffd_minor_collapse_test(void)
+void uffd_minor_collapse_test(uffd_test_args_t *args)
 {
 	uffd_minor_test_common(true, false);
 }
@@ -603,12 +613,12 @@ static void uffd_sigbus_test_common(bool wp)
 		uffd_test_pass();
 }
 
-static void uffd_sigbus_test(void)
+static void uffd_sigbus_test(uffd_test_args_t *args)
 {
 	uffd_sigbus_test_common(false);
 }
 
-static void uffd_sigbus_wp_test(void)
+static void uffd_sigbus_wp_test(uffd_test_args_t *args)
 {
 	uffd_sigbus_test_common(true);
 }
@@ -651,12 +661,12 @@ static void uffd_events_test_common(bool wp)
 		uffd_test_pass();
 }
 
-static void uffd_events_test(void)
+static void uffd_events_test(uffd_test_args_t *args)
 {
 	uffd_events_test_common(false);
 }
 
-static void uffd_events_wp_test(void)
+static void uffd_events_wp_test(uffd_test_args_t *args)
 {
 	uffd_events_test_common(true);
 }
@@ -724,7 +734,7 @@ uffd_register_detect_zeropage(int uffd, void *addr, uint64_t len)
 }
 
 /* exercise UFFDIO_ZEROPAGE */
-static void uffd_zeropage_test(void)
+static void uffd_zeropage_test(uffd_test_args_t *args)
 {
 	bool has_zeropage;
 	int i;
@@ -748,7 +758,77 @@ static void uffd_zeropage_test(void)
 	uffd_test_pass();
 }
 
+/*
+ * Test the returned uffdio_register.ioctls with different register modes.
+ * Note that _UFFDIO_ZEROPAGE is tested separately in the zeropage test.
+ */
+static void
+do_register_ioctls_test(uffd_test_args_t *args, bool miss, bool wp, bool minor)
+{
+	uint64_t ioctls = 0, expected = BIT_ULL(_UFFDIO_WAKE);
+	mem_type_t *mem_type = args->mem_type;
+	int ret;
+
+	ret = uffd_register_with_ioctls(uffd, area_dst, page_size,
+					miss, wp, minor, &ioctls);
+
+	/*
+	 * Handle special cases of UFFDIO_REGISTER here where it should
+	 * just fail with -EINVAL first..
+	 *
+	 * Case 1: register MINOR on anon
+	 * Case 2: register with no mode selected
+	 */
+	if ((minor && (mem_type->mem_flag == MEM_ANON)) ||
+	    (!miss && !wp && !minor)) {
+		if (ret != -EINVAL)
+			err("register (miss=%d, wp=%d, minor=%d) failed "
+			    "with wrong errno=%d", miss, wp, minor, ret);
+		return;
+	}
+
+	/* UFFDIO_REGISTER should succeed, then check ioctls returned */
+	if (miss)
+		expected |= BIT_ULL(_UFFDIO_COPY);
+	if (wp)
+		expected |= BIT_ULL(_UFFDIO_WRITEPROTECT);
+	if (minor)
+		expected |= BIT_ULL(_UFFDIO_CONTINUE);
+
+	if ((ioctls & expected) != expected)
+		err("unexpected uffdio_register.ioctls "
+		    "(miss=%d, wp=%d, minor=%d): expected=0x%"PRIx64", "
+		    "returned=0x%"PRIx64, miss, wp, minor, expected, ioctls);
+
+	if (uffd_unregister(uffd, area_dst, page_size))
+		err("unregister");
+}
+
+static void uffd_register_ioctls_test(uffd_test_args_t *args)
+{
+	int miss, wp, minor;
+
+	for (miss = 0; miss <= 1; miss++)
+		for (wp = 0; wp <= 1; wp++)
+			for (minor = 0; minor <= 1; minor++)
+				do_register_ioctls_test(args, miss, wp, minor);
+
+	uffd_test_pass();
+}
+
 uffd_test_case_t uffd_tests[] = {
+	{
+		/* Test returned uffdio_register.ioctls. */
+		.name = "register-ioctls",
+		.uffd_fn = uffd_register_ioctls_test,
+		.mem_targets = MEM_ALL,
+		.uffd_feature_required = UFFD_FEATURE_MISSING_HUGETLBFS |
+		UFFD_FEATURE_MISSING_SHMEM |
+		UFFD_FEATURE_PAGEFAULT_FLAG_WP |
+		UFFD_FEATURE_WP_HUGETLBFS_SHMEM |
+		UFFD_FEATURE_MINOR_HUGETLBFS |
+		UFFD_FEATURE_MINOR_SHMEM,
+	},
 	{
 		.name = "zeropage",
 		.uffd_fn = uffd_zeropage_test,
@@ -835,6 +915,7 @@ int main(int argc, char *argv[])
 	int n_mems = sizeof(mem_types) / sizeof(mem_type_t);
 	uffd_test_case_t *test;
 	mem_type_t *mem_type;
+	uffd_test_args_t args;
 	char test_name[128];
 	const char *errmsg;
 	int has_uffd;
@@ -862,11 +943,12 @@ int main(int argc, char *argv[])
 				uffd_test_skip("feature missing");
 				continue;
 			}
-			if (uffd_setup_environment(test, mem_type, &errmsg)) {
+			if (uffd_setup_environment(&args, test, mem_type,
+						   &errmsg)) {
 				uffd_test_skip(errmsg);
 				continue;
 			}
-			test->uffd_fn();
+			test->uffd_fn(&args);
 		}
 	}
 
