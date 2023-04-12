@@ -279,6 +279,8 @@ config RK_MEMBLOCK_PROCFS
 	  Extend memblock procfs to show size of each memblock, and shows the
 	  result of total size by KiB format.
 
+source "drivers/soc/rockchip/minidump/Kconfig"
+
 endmenu
 
 endif

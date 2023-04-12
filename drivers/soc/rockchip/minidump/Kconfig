@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+menu "Rockchip Minidump drivers"
+
+config ROCKCHIP_MINIDUMP
+	tristate "Rockchip Minidump Support"
+	depends on ARM64
+	help
+	  This enables minidump feature. It allows various clients to
+	  register to dump their state at system bad state (panic/WDT,etc.,).
+	  Minidump would dump all registered entries, only when DLOAD mode
+	  is enabled.
+
+config ROCKCHIP_MINIDUMP_MAX_ENTRIES
+	int "Minidump Maximum num of entries"
+	default 128
+	depends on ROCKCHIP_MINIDUMP
+	help
+	  This defines maximum number of entries to be allocated for application
+	  subsystem in Minidump table.
+
+config ROCKCHIP_MINIDUMP_PANIC_DUMP
+	bool "Rockchip Minidump Panic Dump"
+	depends on ROCKCHIP_MINIDUMP
+	select ROCKCHIP_MINIDUMP_PANIC_CPU_CONTEXT
+	help
+	  This enables panic dump.
+
+config ROCKCHIP_DYN_MINIDUMP_STACK
+	bool "Rockchip Minidump Stack Dump"
+	depends on ROCKCHIP_MINIDUMP
+	help
+	  This enables stack dump.
+
+config ROCKCHIP_MINIDUMP_PANIC_CPU_CONTEXT
+	bool "Rockchip Minidump Cpu Context Dump"
+	depends on ROCKCHIP_MINIDUMP_PANIC_DUMP
+	help
+	  This enables cpu context dump.
+endmenu
