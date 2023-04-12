@@ -470,7 +470,7 @@ static int decode_instructions(struct objtool_file *file)
 
 //		printf("%s: last chunk used: %d\n", sec->name, (int)idx);
 
-		list_for_each_entry(func, &sec->symbol_list, list) {
+		sec_for_each_sym(sec, func) {
 			if (func->type != STT_NOTYPE && func->type != STT_FUNC)
 				continue;
 
@@ -924,7 +924,7 @@ static int create_ibt_endbr_seal_sections(struct objtool_file *file)
 
 static int create_cfi_sections(struct objtool_file *file)
 {
-	struct section *sec, *s;
+	struct section *sec;
 	struct symbol *sym;
 	unsigned int *loc;
 	int idx;
@@ -937,19 +937,14 @@ static int create_cfi_sections(struct objtool_file *file)
 	}
 
 	idx = 0;
-	for_each_sec(file, s) {
-		if (!s->text)
+	for_each_sym(file, sym) {
+		if (sym->type != STT_FUNC)
 			continue;
 
-		list_for_each_entry(sym, &s->symbol_list, list) {
-			if (sym->type != STT_FUNC)
-				continue;
+		if (strncmp(sym->name, "__cfi_", 6))
+			continue;
 
-			if (strncmp(sym->name, "__cfi_", 6))
-				continue;
-
-			idx++;
-		}
+		idx++;
 	}
 
 	sec = elf_create_section(file->elf, ".cfi_sites", 0, sizeof(unsigned int), idx);
@@ -957,28 +952,23 @@ static int create_cfi_sections(struct objtool_file *file)
 		return -1;
 
 	idx = 0;
-	for_each_sec(file, s) {
-		if (!s->text)
+	for_each_sym(file, sym) {
+		if (sym->type != STT_FUNC)
 			continue;
 
-		list_for_each_entry(sym, &s->symbol_list, list) {
-			if (sym->type != STT_FUNC)
-				continue;
+		if (strncmp(sym->name, "__cfi_", 6))
+			continue;
 
-			if (strncmp(sym->name, "__cfi_", 6))
-				continue;
+		loc = (unsigned int *)sec->data->d_buf + idx;
+		memset(loc, 0, sizeof(unsigned int));
 
-			loc = (unsigned int *)sec->data->d_buf + idx;
-			memset(loc, 0, sizeof(unsigned int));
+		if (elf_add_reloc_to_insn(file->elf, sec,
+					  idx * sizeof(unsigned int),
+					  R_X86_64_PC32,
+					  sym->sec, sym->offset))
+			return -1;
 
-			if (elf_add_reloc_to_insn(file->elf, sec,
-						  idx * sizeof(unsigned int),
-						  R_X86_64_PC32,
-						  s, sym->offset))
-				return -1;
-
-			idx++;
-		}
+		idx++;
 	}
 
 	return 0;
@@ -2207,23 +2197,20 @@ static int add_func_jump_tables(struct objtool_file *file,
  */
 static int add_jump_table_alts(struct objtool_file *file)
 {
-	struct section *sec;
 	struct symbol *func;
 	int ret;
 
 	if (!file->rodata)
 		return 0;
 
-	for_each_sec(file, sec) {
-		list_for_each_entry(func, &sec->symbol_list, list) {
-			if (func->type != STT_FUNC)
-				continue;
+	for_each_sym(file, func) {
+		if (func->type != STT_FUNC)
+			continue;
 
-			mark_func_jump_tables(file, func);
-			ret = add_func_jump_tables(file, func);
-			if (ret)
-				return ret;
-		}
+		mark_func_jump_tables(file, func);
+		ret = add_func_jump_tables(file, func);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -2535,30 +2522,27 @@ static bool is_profiling_func(const char *name)
 
 static int classify_symbols(struct objtool_file *file)
 {
-	struct section *sec;
 	struct symbol *func;
 
-	for_each_sec(file, sec) {
-		list_for_each_entry(func, &sec->symbol_list, list) {
-			if (func->bind != STB_GLOBAL)
-				continue;
+	for_each_sym(file, func) {
+		if (func->bind != STB_GLOBAL)
+			continue;
 
-			if (!strncmp(func->name, STATIC_CALL_TRAMP_PREFIX_STR,
-				     strlen(STATIC_CALL_TRAMP_PREFIX_STR)))
-				func->static_call_tramp = true;
+		if (!strncmp(func->name, STATIC_CALL_TRAMP_PREFIX_STR,
+			     strlen(STATIC_CALL_TRAMP_PREFIX_STR)))
+			func->static_call_tramp = true;
 
-			if (arch_is_retpoline(func))
-				func->retpoline_thunk = true;
+		if (arch_is_retpoline(func))
+			func->retpoline_thunk = true;
 
-			if (arch_is_rethunk(func))
-				func->return_thunk = true;
+		if (arch_is_rethunk(func))
+			func->return_thunk = true;
 
-			if (arch_ftrace_match(func->name))
-				func->fentry = true;
+		if (arch_ftrace_match(func->name))
+			func->fentry = true;
 
-			if (is_profiling_func(func->name))
-				func->profiling_func = true;
-		}
+		if (is_profiling_func(func->name))
+			func->profiling_func = true;
 	}
 
 	return 0;
@@ -4213,7 +4197,7 @@ static int validate_section(struct objtool_file *file, struct section *sec)
 	struct symbol *func;
 	int warnings = 0;
 
-	list_for_each_entry(func, &sec->symbol_list, list) {
+	sec_for_each_sym(sec, func) {
 		if (func->type != STT_FUNC)
 			continue;
 
