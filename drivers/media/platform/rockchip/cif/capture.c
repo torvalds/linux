@@ -3888,7 +3888,7 @@ static void rkcif_check_buffer_update_pingpong(struct rkcif_stream *stream,
 				stream->to_stop_dma = 0;
 				wake_up(&stream->wq_stopped);
 			} else {
-				stream->to_en_dma = true;
+				stream->to_en_dma = RKCIF_DMAEN_BY_VICAP;
 			}
 		}
 		if (stream->lack_buf_cnt)
@@ -8148,11 +8148,11 @@ static void rkcif_update_stream(struct rkcif_device *cif_dev,
 		ret = rkcif_assign_new_buffer_pingpong(stream,
 					 RKCIF_YUV_ADDR_STATE_UPDATE,
 					 mipi_id);
-		if (ret)
+		if (ret && cif_dev->chip_id != CHIP_RV1106_CIF)
 			return;
 	} else {
 		ret = rkcif_update_new_buffer_wake_up_mode(stream);
-		if (ret)
+		if (ret && cif_dev->chip_id != CHIP_RV1106_CIF)
 			return;
 	}
 	if (!stream->is_line_wake_up && stream->dma_en & RKCIF_DMAEN_BY_VICAP)
