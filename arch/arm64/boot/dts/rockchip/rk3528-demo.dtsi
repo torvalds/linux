@@ -255,6 +255,11 @@
 	status = "okay";
 };
 
+&gpu_bus {
+	bus-supply = <&vdd_logic>;
+	status = "okay";
+};
+
 &hdmi {
 	status = "okay";
 };
