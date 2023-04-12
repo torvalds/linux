@@ -13,6 +13,9 @@
 #include "scrub/scrub.h"
 #include "scrub/bitmap.h"
 
+#define for_each_xbitmap_extent(bex, n, bitmap) \
+	list_for_each_entry_safe((bex), (n), &(bitmap)->list, list)
+
 /*
  * Set a range of this bitmap.  Caller must ensure the range is not set.
  *
@@ -312,4 +315,60 @@ xbitmap_hweight(
 		ret += bmr->len;
 
 	return ret;
+}
+
+/* Call a function for every run of set bits in this bitmap. */
+int
+xbitmap_walk(
+	struct xbitmap		*bitmap,
+	xbitmap_walk_fn	fn,
+	void			*priv)
+{
+	struct xbitmap_range	*bex, *n;
+	int			error = 0;
+
+	for_each_xbitmap_extent(bex, n, bitmap) {
+		error = fn(bex->start, bex->len, priv);
+		if (error)
+			break;
+	}
+
+	return error;
+}
+
+struct xbitmap_walk_bits {
+	xbitmap_walk_bits_fn	fn;
+	void			*priv;
+};
+
+/* Walk all the bits in a run. */
+static int
+xbitmap_walk_bits_in_run(
+	uint64_t			start,
+	uint64_t			len,
+	void				*priv)
+{
+	struct xbitmap_walk_bits	*wb = priv;
+	uint64_t			i;
+	int				error = 0;
+
+	for (i = start; i < start + len; i++) {
+		error = wb->fn(i, wb->priv);
+		if (error)
+			break;
+	}
+
+	return error;
+}
+
+/* Call a function for every set bit in this bitmap. */
+int
+xbitmap_walk_bits(
+	struct xbitmap			*bitmap,
+	xbitmap_walk_bits_fn		fn,
+	void				*priv)
+{
+	struct xbitmap_walk_bits	wb = {.fn = fn, .priv = priv};
+
+	return xbitmap_walk(bitmap, xbitmap_walk_bits_in_run, &wb);
 }
