@@ -109,6 +109,27 @@ void amdgpu_mm_wdoorbell64(struct amdgpu_device *adev, u32 index, u64 v)
 }
 
 /**
+ * amdgpu_doorbell_index_on_bar - Find doorbell's absolute offset in BAR
+ *
+ * @adev: amdgpu_device pointer
+ * @db_bo: doorbell object's bo
+ * @db_index: doorbell relative index in this doorbell object
+ *
+ * returns doorbell's absolute index in BAR
+ */
+uint32_t amdgpu_doorbell_index_on_bar(struct amdgpu_device *adev,
+				       struct amdgpu_bo *db_bo,
+				       uint32_t doorbell_index)
+{
+	int db_bo_offset;
+
+	db_bo_offset = amdgpu_bo_gpu_offset_no_check(db_bo);
+
+	/* doorbell index is 32 bit but doorbell's size is 64-bit, so *2 */
+	return db_bo_offset / sizeof(u32) + doorbell_index * 2;
+}
+
+/**
  * amdgpu_doorbell_create_kernel_doorbells - Create kernel doorbells for graphics
  *
  * @adev: amdgpu_device pointer
