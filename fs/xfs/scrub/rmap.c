@@ -94,34 +94,12 @@ xchk_rmapbt_rec(
 	const union xfs_btree_rec *rec)
 {
 	struct xfs_rmap_irec	irec;
-	bool			non_inode;
-	bool			is_unwritten;
-	bool			is_bmbt;
-	bool			is_attr;
 
 	if (xfs_rmap_btrec_to_irec(rec, &irec) != NULL ||
 	    xfs_rmap_check_irec(bs->cur, &irec) != NULL) {
 		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 		return 0;
 	}
-
-	/* Check flags. */
-	non_inode = XFS_RMAP_NON_INODE_OWNER(irec.rm_owner);
-	is_bmbt = irec.rm_flags & XFS_RMAP_BMBT_BLOCK;
-	is_attr = irec.rm_flags & XFS_RMAP_ATTR_FORK;
-	is_unwritten = irec.rm_flags & XFS_RMAP_UNWRITTEN;
-
-	if (is_bmbt && irec.rm_offset != 0)
-		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
-
-	if (non_inode && irec.rm_offset != 0)
-		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
-
-	if (is_unwritten && (is_bmbt || non_inode || is_attr))
-		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
-
-	if (non_inode && (is_bmbt || is_unwritten || is_attr))
-		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 
 	xchk_rmapbt_xref(bs->sc, &irec);
 	return 0;
