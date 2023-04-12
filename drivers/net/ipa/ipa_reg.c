@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019-2022 Linaro Ltd.
+ * Copyright (C) 2019-2023 Linaro Ltd.
  */
 
 #include <linux/io.h>
@@ -15,6 +15,17 @@ static bool ipa_reg_id_valid(struct ipa *ipa, enum ipa_reg_id reg_id)
 	enum ipa_version version = ipa->version;
 
 	switch (reg_id) {
+	case FILT_ROUT_HASH_EN:
+		return version == IPA_VERSION_4_2;
+
+	case FILT_ROUT_HASH_FLUSH:
+		return version < IPA_VERSION_5_0 && version != IPA_VERSION_4_2;
+
+	case FILT_ROUT_CACHE_FLUSH:
+	case ENDP_FILTER_CACHE_CFG:
+	case ENDP_ROUTER_CACHE_CFG:
+		return version >= IPA_VERSION_5_0;
+
 	case IPA_BCR:
 	case COUNTER_CFG:
 		return version < IPA_VERSION_4_5;
@@ -32,14 +43,17 @@ static bool ipa_reg_id_valid(struct ipa *ipa, enum ipa_reg_id reg_id)
 	case SRC_RSRC_GRP_45_RSRC_TYPE:
 	case DST_RSRC_GRP_45_RSRC_TYPE:
 		return version <= IPA_VERSION_3_1 ||
-		       version == IPA_VERSION_4_5;
+		       version == IPA_VERSION_4_5 ||
+		       version == IPA_VERSION_5_0;
 
 	case SRC_RSRC_GRP_67_RSRC_TYPE:
 	case DST_RSRC_GRP_67_RSRC_TYPE:
-		return version <= IPA_VERSION_3_1;
+		return version <= IPA_VERSION_3_1 ||
+		       version == IPA_VERSION_5_0;
 
 	case ENDP_FILTER_ROUTER_HSH_CFG:
-		return version != IPA_VERSION_4_2;
+		return version < IPA_VERSION_5_0 &&
+			version != IPA_VERSION_4_2;
 
 	case IRQ_SUSPEND_EN:
 	case IRQ_SUSPEND_CLR:
@@ -51,10 +65,6 @@ static bool ipa_reg_id_valid(struct ipa *ipa, enum ipa_reg_id reg_id)
 	case SHARED_MEM_SIZE:
 	case QSB_MAX_WRITES:
 	case QSB_MAX_READS:
-	case FILT_ROUT_HASH_EN:
-	case FILT_ROUT_CACHE_CFG:
-	case FILT_ROUT_HASH_FLUSH:
-	case FILT_ROUT_CACHE_FLUSH:
 	case STATE_AGGR_ACTIVE:
 	case LOCAL_PKT_PROC_CNTXT:
 	case AGGR_FORCE_CLOSE:
@@ -76,8 +86,6 @@ static bool ipa_reg_id_valid(struct ipa *ipa, enum ipa_reg_id reg_id)
 	case ENDP_INIT_RSRC_GRP:
 	case ENDP_INIT_SEQ:
 	case ENDP_STATUS:
-	case ENDP_FILTER_CACHE_CFG:
-	case ENDP_ROUTER_CACHE_CFG:
 	case IPA_IRQ_STTS:
 	case IPA_IRQ_EN:
 	case IPA_IRQ_CLR:

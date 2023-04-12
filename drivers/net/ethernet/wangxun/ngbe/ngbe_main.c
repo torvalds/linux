@@ -352,7 +352,7 @@ static void ngbe_up(struct wx *wx)
 	netif_tx_start_all_queues(wx->netdev);
 
 	/* clear any pending interrupts, may auto mask */
-	rd32(wx, WX_PX_IC);
+	rd32(wx, WX_PX_IC(0));
 	rd32(wx, WX_PX_MISC_IC);
 	ngbe_irq_enable(wx, true);
 	if (wx->gpio_ctrl)

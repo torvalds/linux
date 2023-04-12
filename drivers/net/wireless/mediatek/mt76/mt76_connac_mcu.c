@@ -1221,6 +1221,9 @@ EXPORT_SYMBOL_GPL(mt76_connac_mcu_sta_ba_tlv);
 
 int mt76_connac_mcu_sta_wed_update(struct mt76_dev *dev, struct sk_buff *skb)
 {
+	if (!mt76_is_mmio(dev))
+		return 0;
+
 	if (!mtk_wed_device_active(&dev->mmio.wed))
 		return 0;
 

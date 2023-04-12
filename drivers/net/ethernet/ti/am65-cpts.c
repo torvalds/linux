@@ -636,6 +636,10 @@ static void am65_cpts_perout_enable_hw(struct am65_cpts *cpts,
 		val = lower_32_bits(cycles);
 		am65_cpts_write32(cpts, val, genf[req->index].length);
 
+		am65_cpts_write32(cpts, 0, genf[req->index].control);
+		am65_cpts_write32(cpts, 0, genf[req->index].ppm_hi);
+		am65_cpts_write32(cpts, 0, genf[req->index].ppm_low);
+
 		cpts->genf_enable |= BIT(req->index);
 	} else {
 		am65_cpts_write32(cpts, 0, genf[req->index].length);
