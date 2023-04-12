@@ -38,6 +38,7 @@
 #include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/zalloc.h>
 #include <subcmd/parse-options.h>
 #include <subcmd/run-command.h>
 
@@ -1881,7 +1882,7 @@ symbol__disassemble_bpf_image(struct symbol *sym,
 	if (dl)
 		annotation_line__add(&dl->al, &notes->src->source);
 
-	free(args->line);
+	zfree(&args->line);
 	return 0;
 }
 
