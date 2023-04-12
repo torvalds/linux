@@ -2279,7 +2279,8 @@ do {								\
 static
 s8 rtw8852b_btc_get_bt_rssi(struct rtw89_dev *rtwdev, s8 val)
 {
-	return clamp_t(s8, val, -100, 0) + 100;
+	/* +6 for compensate offset */
+	return clamp_t(s8, val + 6, -100, 0) + 100;
 }
 
 static

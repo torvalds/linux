@@ -1832,7 +1832,8 @@ rtw8852a_btc_set_wl_txpwr_ctrl(struct rtw89_dev *rtwdev, u32 txpwr_val)
 static
 s8 rtw8852a_btc_get_bt_rssi(struct rtw89_dev *rtwdev, s8 val)
 {
-	return clamp_t(s8, val, -100, 0) + 100;
+	/* +6 for compensate offset */
+	return clamp_t(s8, val + 6, -100, 0) + 100;
 }
 
 static struct rtw89_btc_rf_trx_para rtw89_btc_8852a_rf_ul[] = {
