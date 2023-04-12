@@ -1104,6 +1104,37 @@
 		};
 	};
 
+	gpu_bus: gpu-bus {
+		compatible = "rockchip,rk3528-bus";
+		rockchip,busfreq-policy = "clkfreq";
+		clocks = <&scmi_clk SCMI_CLK_GPU>;
+		clock-names = "bus";
+		operating-points-v2 = <&gpu_bus_opp_table>;
+		status = "disabled";
+	};
+
+	gpu_bus_opp_table: gpu-bus-opp-table {
+		compatible = "operating-points-v2";
+
+		nvmem-cells = <&log_leakage>;
+		nvmem-cell-names = "leakage";
+
+		rockchip,leakage-voltage-sel = <
+			1   22   0
+			23  254  1
+		>;
+
+		opp-700000000 {
+			opp-hz = /bits/ 64 <700000000>;
+			opp-microvolt = <850000 850000 1000000>;
+		};
+		opp-800000000 {
+			opp-hz = /bits/ 64 <800000000>;
+			opp-microvolt = <875000 875000 1000000>;
+			opp-microvolt-L1 = <850000 850000 1000000>;
+		};
+	};
+
 	rkvdec: rkvdec@ff740100 {
 		compatible = "rockchip,rkv-decoder-rk3528", "rockchip,rkv-decoder-v2";
 		reg = <0x0 0xff740100 0x0 0x400>, <0x0 0xff740000 0x0 0x100>;
