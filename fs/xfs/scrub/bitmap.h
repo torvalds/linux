@@ -38,6 +38,7 @@ int xbitmap_walk_bits(struct xbitmap *bitmap, xbitmap_walk_bits_fn fn,
 		void *priv);
 
 bool xbitmap_empty(struct xbitmap *bitmap);
+bool xbitmap_test(struct xbitmap *bitmap, uint64_t start, uint64_t *len);
 
 /* Bitmaps, but for type-checked for xfs_agblock_t */
 
@@ -64,6 +65,26 @@ static inline int xagb_bitmap_set(struct xagb_bitmap *bitmap,
 		xfs_agblock_t start, xfs_extlen_t len)
 {
 	return xbitmap_set(&bitmap->agbitmap, start, len);
+}
+
+static inline bool
+xagb_bitmap_test(
+	struct xagb_bitmap	*bitmap,
+	xfs_agblock_t		start,
+	xfs_extlen_t		*len)
+{
+	uint64_t		biglen = *len;
+	bool			ret;
+
+	ret = xbitmap_test(&bitmap->agbitmap, start, &biglen);
+
+	if (start + biglen >= UINT_MAX) {
+		ASSERT(0);
+		biglen = UINT_MAX - start;
+	}
+
+	*len = biglen;
+	return ret;
 }
 
 static inline int xagb_bitmap_disunion(struct xagb_bitmap *bitmap,
