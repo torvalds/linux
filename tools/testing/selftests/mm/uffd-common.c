@@ -13,7 +13,7 @@ volatile bool test_uffdio_copy_eexist = true;
 unsigned long nr_cpus, nr_pages, nr_pages_per_cpu, page_size;
 char *area_src, *area_src_alias, *area_dst, *area_dst_alias, *area_remap;
 int uffd = -1, uffd_flags, finished, *pipefd, test_type;
-bool map_shared, test_dev_userfaultfd;
+bool map_shared;
 bool test_uffdio_wp = true;
 unsigned long long *count_verify;
 uffd_test_ops_t *uffd_test_ops;
@@ -236,10 +236,7 @@ int userfaultfd_open(uint64_t *features)
 {
 	struct uffdio_api uffdio_api;
 
-	if (test_dev_userfaultfd)
-		uffd = uffd_open_dev(UFFD_FLAGS);
-	else
-		uffd = uffd_open_sys(UFFD_FLAGS);
+	uffd = uffd_open(UFFD_FLAGS);
 	if (uffd < 0)
 		return -1;
 	uffd_flags = fcntl(uffd, F_GETFD, NULL);

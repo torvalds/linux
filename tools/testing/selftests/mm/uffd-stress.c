@@ -55,8 +55,6 @@ pthread_attr_t attr;
 const char *examples =
     "# Run anonymous memory test on 100MiB region with 99999 bounces:\n"
     "./userfaultfd anon 100 99999\n\n"
-    "# Run the same anonymous memory test, but using /dev/userfaultfd:\n"
-    "./userfaultfd anon:dev 100 99999\n\n"
     "# Run share memory test on 1GiB region with 99 bounces:\n"
     "./userfaultfd shmem 1000 99\n\n"
     "# Run hugetlb memory test on 256MiB region with 50 bounces:\n"
@@ -69,18 +67,9 @@ const char *examples =
 
 static void usage(void)
 {
-	fprintf(stderr, "\nUsage: ./userfaultfd <test type> <MiB> <bounces> "
-		"[hugetlbfs_file]\n\n");
+	fprintf(stderr, "\nUsage: ./userfaultfd <test type> <MiB> <bounces>\n\n");
 	fprintf(stderr, "Supported <test type>: anon, hugetlb, "
 		"hugetlb_shared, shmem\n\n");
-	fprintf(stderr, "'Test mods' can be joined to the test type string with a ':'. "
-		"Supported mods:\n");
-	fprintf(stderr, "\tsyscall - Use userfaultfd(2) (default)\n");
-	fprintf(stderr, "\tdev - Use /dev/userfaultfd instead of userfaultfd(2)\n");
-	fprintf(stderr, "\nExample test mod usage:\n");
-	fprintf(stderr, "# Run anonymous memory test with /dev/userfaultfd:\n");
-	fprintf(stderr, "./userfaultfd anon:dev 100 99999\n\n");
-
 	fprintf(stderr, "Examples:\n\n");
 	fprintf(stderr, "%s", examples);
 	exit(1);
@@ -400,21 +389,9 @@ static void set_test_type(const char *type)
 
 static void parse_test_type_arg(const char *raw_type)
 {
-	char *buf = strdup(raw_type);
 	uint64_t features = UFFD_API_FEATURES;
 
-	while (buf) {
-		const char *token = strsep(&buf, ":");
-
-		if (!test_type)
-			set_test_type(token);
-		else if (!strcmp(token, "dev"))
-			test_dev_userfaultfd = true;
-		else if (!strcmp(token, "syscall"))
-			test_dev_userfaultfd = false;
-		else
-			err("unrecognized test mod '%s'", token);
-	}
+	set_test_type(raw_type);
 
 	if (!test_type)
 		err("failed to parse test type argument: '%s'", raw_type);
