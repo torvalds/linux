@@ -398,7 +398,7 @@ static void __cpu_try_die(int cpu)
  * Kill the calling secondary CPU, early in bringup before it is turned
  * online.
  */
-void cpu_die_early(void)
+void __noreturn cpu_die_early(void)
 {
 	int cpu = smp_processor_id();
 
@@ -816,7 +816,7 @@ void arch_irq_work_raise(void)
 }
 #endif
 
-static void local_cpu_stop(void)
+static void __noreturn local_cpu_stop(void)
 {
 	set_cpu_online(smp_processor_id(), false);
 
@@ -839,7 +839,7 @@ void panic_smp_self_stop(void)
 static atomic_t waiting_for_crash_ipi = ATOMIC_INIT(0);
 #endif
 
-static void ipi_cpu_crash_stop(unsigned int cpu, struct pt_regs *regs)
+static void __noreturn ipi_cpu_crash_stop(unsigned int cpu, struct pt_regs *regs)
 {
 #ifdef CONFIG_KEXEC_CORE
 	crash_save_cpu(regs, cpu);
@@ -854,6 +854,8 @@ static void ipi_cpu_crash_stop(unsigned int cpu, struct pt_regs *regs)
 
 	/* just in case */
 	cpu_park_loop();
+#else
+	BUG();
 #endif
 }
 
