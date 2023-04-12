@@ -3,6 +3,8 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <linux/userfaultfd.h>
+#include <sys/syscall.h>
+#include <unistd.h>
 #include "../kselftest.h"
 #include "vm_util.h"
 
@@ -229,4 +231,26 @@ int uffd_unregister(int uffd, void *addr, uint64_t len)
 		ret = -errno;
 
 	return ret;
+}
+
+int uffd_open_dev(unsigned int flags)
+{
+	int fd, uffd;
+
+	fd = open("/dev/userfaultfd", O_RDWR | O_CLOEXEC);
+	if (fd < 0)
+		return fd;
+	uffd = ioctl(fd, USERFAULTFD_IOC_NEW, flags);
+	close(fd);
+
+	return uffd;
+}
+
+int uffd_open_sys(unsigned int flags)
+{
+#ifdef __NR_userfaultfd
+	return syscall(__NR_userfaultfd, flags);
+#else
+	return -1;
+#endif
 }

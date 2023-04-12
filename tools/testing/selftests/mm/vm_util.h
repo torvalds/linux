@@ -48,6 +48,8 @@ unsigned long default_huge_page_size(void);
 int uffd_register(int uffd, void *addr, uint64_t len,
 		  bool miss, bool wp, bool minor);
 int uffd_unregister(int uffd, void *addr, uint64_t len);
+int uffd_open_dev(unsigned int flags);
+int uffd_open_sys(unsigned int flags);
 
 /*
  * On ppc64 this will only work with radix 2M hugepage size
