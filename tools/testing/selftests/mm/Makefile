@@ -20,7 +20,7 @@ MACHINE ?= $(shell echo $(uname_M) | sed -e 's/aarch64.*/arm64/' -e 's/ppc64.*/p
 # Avoid accidental wrong builds, due to built-in rules working just a little
 # bit too well--but not quite as well as required for our situation here.
 #
-# In other words, "make userfaultfd" is supposed to fail to build at all,
+# In other words, "make $SOME_TEST" is supposed to fail to build at all,
 # because this Makefile only supports either "make" (all), or "make /full/path".
 # However,  the built-in rules, if not suppressed, will pick up CFLAGS and the
 # initial LDLIBS (but not the target-specific LDLIBS, because those are only
@@ -57,7 +57,8 @@ TEST_GEN_PROGS += mremap_test
 TEST_GEN_PROGS += on-fault-limit
 TEST_GEN_PROGS += thuge-gen
 TEST_GEN_PROGS += transhuge-stress
-TEST_GEN_PROGS += userfaultfd
+TEST_GEN_PROGS += uffd-stress
+TEST_GEN_PROGS += uffd-unit-tests
 TEST_GEN_PROGS += soft-dirty
 TEST_GEN_PROGS += split_huge_page_test
 TEST_GEN_PROGS += ksm_tests
@@ -108,7 +109,8 @@ include ../lib.mk
 
 $(TEST_GEN_PROGS): vm_util.c
 
-$(OUTPUT)/userfaultfd: uffd-common.c
+$(OUTPUT)/uffd-stress: uffd-common.c
+$(OUTPUT)/uffd-unit-tests: uffd-common.c
 
 ifeq ($(MACHINE),x86_64)
 BINARIES_32 := $(patsubst %,$(OUTPUT)/%,$(BINARIES_32))

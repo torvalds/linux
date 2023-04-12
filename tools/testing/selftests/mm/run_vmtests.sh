@@ -196,14 +196,16 @@ CATEGORY="gup_test" run_test ./gup_test -a
 # Dump pages 0, 19, and 4096, using pin_user_pages:
 CATEGORY="gup_test" run_test ./gup_test -ct -F 0x1 0 19 0x1000
 
+CATEGORY="userfaultfd" run_test ./uffd-unit-tests
 uffd_mods=("" ":dev")
+uffd_stress_bin=./uffd-stress
 for mod in "${uffd_mods[@]}"; do
-	CATEGORY="userfaultfd" run_test ./userfaultfd anon${mod} 20 16
+	CATEGORY="userfaultfd" run_test ${uffd_stress_bin} anon${mod} 20 16
 	# Hugetlb tests require source and destination huge pages. Pass in half
 	# the size ($half_ufd_size_MB), which is used for *each*.
-	CATEGORY="userfaultfd" run_test ./userfaultfd hugetlb${mod} "$half_ufd_size_MB" 32
-	CATEGORY="userfaultfd" run_test ./userfaultfd hugetlb_shared${mod} "$half_ufd_size_MB" 32
-	CATEGORY="userfaultfd" run_test ./userfaultfd shmem${mod} 20 16
+	CATEGORY="userfaultfd" run_test ${uffd_stress_bin} hugetlb${mod} "$half_ufd_size_MB" 32
+	CATEGORY="userfaultfd" run_test ${uffd_stress_bin} hugetlb_shared${mod} "$half_ufd_size_MB" 32
+	CATEGORY="userfaultfd" run_test ${uffd_stress_bin} shmem${mod} 20 16
 done
 
 #cleanup
