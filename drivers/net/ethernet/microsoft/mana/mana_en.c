@@ -1188,7 +1188,7 @@ static void mana_post_pkt_rxq(struct mana_rxq *rxq)
 static struct sk_buff *mana_build_skb(void *buf_va, uint pkt_len,
 				      struct xdp_buff *xdp)
 {
-	struct sk_buff *skb = build_skb(buf_va, PAGE_SIZE);
+	struct sk_buff *skb = napi_build_skb(buf_va, PAGE_SIZE);
 
 	if (!skb)
 		return NULL;
