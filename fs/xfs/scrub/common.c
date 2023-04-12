@@ -988,7 +988,11 @@ xchk_irele(
 	xfs_irele(ip);
 }
 
-/* Set us up to scrub a file's contents. */
+/*
+ * Set us up to scrub metadata mapped by a file's fork.  Callers must not use
+ * this to operate on user-accessible regular file data because the MMAPLOCK is
+ * not taken.
+ */
 int
 xchk_setup_inode_contents(
 	struct xfs_scrub	*sc,
@@ -1000,9 +1004,10 @@ xchk_setup_inode_contents(
 	if (error)
 		return error;
 
-	/* Got the inode, lock it and we're ready to go. */
-	sc->ilock_flags = XFS_IOLOCK_EXCL | XFS_MMAPLOCK_EXCL;
+	/* Lock the inode so the VFS cannot touch this file. */
+	sc->ilock_flags = XFS_IOLOCK_EXCL;
 	xfs_ilock(sc->ip, sc->ilock_flags);
+
 	error = xchk_trans_alloc(sc, resblks);
 	if (error)
 		goto out;
