@@ -28,4 +28,6 @@ struct perf_cpu_map *perf_cpu_map__alloc(int nr_cpus);
 int perf_cpu_map__idx(const struct perf_cpu_map *cpus, struct perf_cpu cpu);
 bool perf_cpu_map__is_subset(const struct perf_cpu_map *a, const struct perf_cpu_map *b);
 
+void perf_cpu_map__set_nr(struct perf_cpu_map *map, int nr_cpus);
+
 #endif /* __LIBPERF_INTERNAL_CPUMAP_H */
