@@ -20,7 +20,10 @@
 	((ptr & BIT_ULL(55)) ? (ptr | ptrauth_kernel_pac_mask()) :	\
 			       (ptr & ~ptrauth_user_pac_mask()))
 
+#if defined(CONFIG_ARM64_PTR_AUTH_KERNEL) &&				\
+    !defined(CONFIG_BUILTIN_RETURN_ADDRESS_STRIPS_PAC)
 #define __builtin_return_address(val)					\
 	(void *)(ptrauth_clear_pac((unsigned long)__builtin_return_address(val)))
+#endif
 
 #endif /* __ASM_COMPILER_H */
