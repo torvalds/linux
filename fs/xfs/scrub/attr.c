@@ -15,6 +15,7 @@
 #include "xfs_da_btree.h"
 #include "xfs_attr.h"
 #include "xfs_attr_leaf.h"
+#include "xfs_attr_sf.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/dabtree.h"
@@ -487,6 +488,73 @@ out:
 	return error;
 }
 
+/* Check space usage of shortform attrs. */
+STATIC int
+xchk_xattr_check_sf(
+	struct xfs_scrub		*sc)
+{
+	struct xchk_xattr_buf		*ab = sc->buf;
+	struct xfs_attr_shortform	*sf;
+	struct xfs_attr_sf_entry	*sfe;
+	struct xfs_attr_sf_entry	*next;
+	struct xfs_ifork		*ifp;
+	unsigned char			*end;
+	int				i;
+	int				error = 0;
+
+	ifp = xfs_ifork_ptr(sc->ip, XFS_ATTR_FORK);
+
+	bitmap_zero(ab->usedmap, ifp->if_bytes);
+	sf = (struct xfs_attr_shortform *)sc->ip->i_af.if_u1.if_data;
+	end = (unsigned char *)ifp->if_u1.if_data + ifp->if_bytes;
+	xchk_xattr_set_map(sc, ab->usedmap, 0, sizeof(sf->hdr));
+
+	sfe = &sf->list[0];
+	if ((unsigned char *)sfe > end) {
+		xchk_fblock_set_corrupt(sc, XFS_ATTR_FORK, 0);
+		return 0;
+	}
+
+	for (i = 0; i < sf->hdr.count; i++) {
+		unsigned char		*name = sfe->nameval;
+		unsigned char		*value = &sfe->nameval[sfe->namelen];
+
+		if (xchk_should_terminate(sc, &error))
+			return error;
+
+		next = xfs_attr_sf_nextentry(sfe);
+		if ((unsigned char *)next > end) {
+			xchk_fblock_set_corrupt(sc, XFS_ATTR_FORK, 0);
+			break;
+		}
+
+		if (!xchk_xattr_set_map(sc, ab->usedmap,
+				(char *)sfe - (char *)sf,
+				sizeof(struct xfs_attr_sf_entry))) {
+			xchk_fblock_set_corrupt(sc, XFS_ATTR_FORK, 0);
+			break;
+		}
+
+		if (!xchk_xattr_set_map(sc, ab->usedmap,
+				(char *)name - (char *)sf,
+				sfe->namelen)) {
+			xchk_fblock_set_corrupt(sc, XFS_ATTR_FORK, 0);
+			break;
+		}
+
+		if (!xchk_xattr_set_map(sc, ab->usedmap,
+				(char *)value - (char *)sf,
+				sfe->valuelen)) {
+			xchk_fblock_set_corrupt(sc, XFS_ATTR_FORK, 0);
+			break;
+		}
+
+		sfe = next;
+	}
+
+	return 0;
+}
+
 /* Scrub the extended attribute metadata. */
 int
 xchk_xattr(
@@ -506,10 +574,12 @@ xchk_xattr(
 	if (error)
 		return error;
 
-	memset(&sx, 0, sizeof(sx));
-	/* Check attribute tree structure */
-	error = xchk_da_btree(sc, XFS_ATTR_FORK, xchk_xattr_rec,
-			&last_checked);
+	/* Check the physical structure of the xattr. */
+	if (sc->ip->i_af.if_format == XFS_DINODE_FMT_LOCAL)
+		error = xchk_xattr_check_sf(sc);
+	else
+		error = xchk_da_btree(sc, XFS_ATTR_FORK, xchk_xattr_rec,
+				&last_checked);
 	if (error)
 		goto out;
 
@@ -517,6 +587,7 @@ xchk_xattr(
 		goto out;
 
 	/* Check that every attr key can also be looked up by hash. */
+	memset(&sx, 0, sizeof(sx));
 	sx.context.dp = sc->ip;
 	sx.context.resynch = 1;
 	sx.context.put_listent = xchk_xattr_listent;

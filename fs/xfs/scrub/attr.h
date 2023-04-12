@@ -10,7 +10,7 @@
  * Temporary storage for online scrub and repair of extended attributes.
  */
 struct xchk_xattr_buf {
-	/* Bitmap of used space in xattr leaf blocks. */
+	/* Bitmap of used space in xattr leaf blocks and shortform forks. */
 	unsigned long		*usedmap;
 
 	/* Bitmap of free space in xattr leaf blocks. */
