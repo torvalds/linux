@@ -901,6 +901,17 @@ static int ocelot_prepare_stats_regions(struct ocelot *ocelot)
 		if (!layout[i].reg)
 			continue;
 
+		/* enum ocelot_stat must be kept sorted in the same order
+		 * as the addresses behind layout[i].reg in order to have
+		 * efficient bulking
+		 */
+		if (last) {
+			WARN(ocelot->map[SYS][last & REG_MASK] >= ocelot->map[SYS][layout[i].reg & REG_MASK],
+			     "reg 0x%x had address 0x%x but reg 0x%x has address 0x%x, bulking broken!",
+			     last, ocelot->map[SYS][last & REG_MASK],
+			     layout[i].reg, ocelot->map[SYS][layout[i].reg & REG_MASK]);
+		}
+
 		if (region && ocelot->map[SYS][layout[i].reg & REG_MASK] ==
 		    ocelot->map[SYS][last & REG_MASK] + 4) {
 			region->count++;
@@ -909,12 +920,6 @@ static int ocelot_prepare_stats_regions(struct ocelot *ocelot)
 					      GFP_KERNEL);
 			if (!region)
 				return -ENOMEM;
-
-			/* enum ocelot_stat must be kept sorted in the same
-			 * order as layout[i].reg in order to have efficient
-			 * bulking
-			 */
-			WARN_ON(last >= layout[i].reg);
 
 			region->base = layout[i].reg;
 			region->first_stat = i;
