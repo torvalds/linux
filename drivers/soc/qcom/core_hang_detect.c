@@ -30,6 +30,8 @@
 #define MODULE_NAME	"msm_hang_detect"
 #define MAX_SYSFS_LEN 12
 
+#define MAX_CHD_PERCPU_INFO_ARGS	2
+
 struct hang_detect {
 	phys_addr_t threshold[NR_CPUS];
 	phys_addr_t config[NR_CPUS];
@@ -252,13 +254,13 @@ static const struct of_device_id msm_hang_detect_table[] = {
 
 static int msm_hang_detect_probe(struct platform_device *pdev)
 {
-	struct device_node *cpu_node;
 	struct device_node *node = pdev->dev.of_node;
 	struct hang_detect *hang_det = NULL;
-	int cpu, ret, cpu_count = 0, num_regs = 0, cluster_cpu_count = 0;
+	int ret, cluster_cpu_count = 0;
+	int cpu, num_cpu, entry, num_chd_entry;
 	const char *name;
-	u32 *treg, *creg;
 	u32 fw_cluster_id;
+	struct of_phandle_args chd_entry;
 
 	if (!pdev->dev.of_node || !enable)
 		return -ENODEV;
@@ -272,56 +274,6 @@ static int msm_hang_detect_probe(struct platform_device *pdev)
 	name = of_get_property(node, "label", NULL);
 	if (!name) {
 		pr_err("%s: Can't get label property\n", __func__);
-		return -EINVAL;
-	}
-
-	num_regs = of_property_count_u32_elems(node, "qcom,threshold-arr");
-	if (num_regs < 0) {
-		pr_err("%s: Can't get qcom,threshold-arr property\n", __func__);
-		return -EINVAL;
-	}
-	if (num_regs > nr_cpu_ids) {
-		/* limit num of regs to nr_cpu_ids */
-		num_regs = nr_cpu_ids;
-	} else if (num_regs < nr_cpu_ids) {
-		pr_err("%s: expected = %d elements in qcom,threshold-arr\n",
-			__func__, nr_cpu_ids);
-		return -EINVAL;
-	}
-
-	ret = of_property_count_u32_elems(node, "qcom,config-arr");
-	if (ret < 0) {
-		pr_err("%s: Can't get qcom,config-arr property\n", __func__);
-		return -EINVAL;
-	}
-	if (ret < num_regs) {
-		pr_err("%s: expected minimum %d elements in qcom,config-arr\n",
-			__func__, num_regs);
-		return -EINVAL;
-	}
-
-	treg = kzalloc(sizeof(*treg) * num_regs, GFP_KERNEL);
-	if (!treg)
-		return -ENOMEM;
-	ret = of_property_read_u32_array(node, "qcom,threshold-arr",
-			treg, num_regs);
-	if (ret) {
-		pr_err("%s: Can't get qcom,threshold-arr property\n", __func__);
-		kfree(treg);
-		return -EINVAL;
-	}
-
-	creg = kzalloc(sizeof(*creg) * num_regs, GFP_KERNEL);
-	if (!creg) {
-		kfree(treg);
-		return -ENOMEM;
-	}
-	ret = of_property_read_u32_array(node, "qcom,config-arr",
-		creg, num_regs);
-	if (ret) {
-		pr_err("%s: Can't get qcom,config-arr property\n", __func__);
-		kfree(treg);
-		kfree(creg);
 		return -EINVAL;
 	}
 
@@ -346,20 +298,37 @@ static int msm_hang_detect_probe(struct platform_device *pdev)
 
 	}
 
-	for_each_possible_cpu(cpu) {
-		cpu_node = of_get_cpu_node(cpu, NULL);
-		if (cpu_node != NULL) {
-			hang_det->threshold[cpu] = treg[cpu];
-			hang_det->config[cpu] = creg[cpu];
-			cpu_count++;
+	num_chd_entry =
+		of_count_phandle_with_args(node, "qcom,chd-percpu-info", NULL);
+	if (num_chd_entry <= 0) {
+		pr_err("%s: Failed to get qcom,chd-percpu-info DT property\n",
+				__func__);
+		return -EINVAL;
+	}
+	num_chd_entry /= (MAX_CHD_PERCPU_INFO_ARGS + 1);
+
+	for (entry = 0, num_cpu = 0; entry < num_chd_entry; entry++) {
+		ret = of_parse_phandle_with_fixed_args(node, "qcom,chd-percpu-info",
+					MAX_CHD_PERCPU_INFO_ARGS, entry, &chd_entry);
+		if (ret) {
+			pr_err("%s: Failed to get qcom,chd-percpu-info DT list: entry %d\n",
+					__func__, entry);
+			return -EINVAL;
 		}
+
+		/* Adding only entries who's cpu nodes are available */
+		cpu = of_cpu_node_to_id(chd_entry.np);
+		if (cpu >= 0) {
+			hang_det->threshold[cpu] = chd_entry.args[0];
+			hang_det->config[cpu] = chd_entry.args[1];
+			num_cpu++;
+		}
+		of_node_put(chd_entry.np);
 	}
 
-	kfree(treg);
-	kfree(creg);
-
-	if (cpu_count == 0) {
-		pr_err("%s: Unable to find any CPU\n", __func__);
+	if (num_cpu != nr_cpu_ids) {
+		pr_err("%s: Unable to find enough data for CPUs: %d != %d\n",
+				__func__, num_cpu, nr_cpu_ids);
 		return -EINVAL;
 	}
 
