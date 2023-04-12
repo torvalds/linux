@@ -1374,6 +1374,118 @@ static void RGA2_set_reg_alpha_info(u8 *base, struct rga2_req *msg)
 
 		break;
 
+	case RGA_ALPHA_BLEND_SRC_IN:
+		/*
+		 * SRC-IN mode:
+		 *	Sf = Da , Df = 0
+		 *	[Rc,Ra] = [ Sc * Da, Sa * Da ]
+		 */
+		color_ctrl.bits.src_alpha_mode = RGA_ALPHA_STRAIGHT;
+		color_ctrl.bits.src_factor_mode = RGA_ALPHA_OPPOSITE;
+
+		color_ctrl.bits.dst_alpha_mode = RGA_ALPHA_STRAIGHT;
+		color_ctrl.bits.dst_factor_mode = RGA_ALPHA_ZERO;
+
+		break;
+
+	case RGA_ALPHA_BLEND_DST_IN:
+		/*
+		 * DST-IN mode:
+		 *	Sf = 0 , Df = Sa
+		 *	[Rc,Ra] = [ Dc * Sa, Da * Sa ]
+		 */
+		color_ctrl.bits.src_alpha_mode = RGA_ALPHA_STRAIGHT;
+		color_ctrl.bits.src_factor_mode = RGA_ALPHA_ZERO;
+
+		color_ctrl.bits.dst_alpha_mode = RGA_ALPHA_STRAIGHT;
+		color_ctrl.bits.dst_factor_mode = RGA_ALPHA_OPPOSITE;
+
+		break;
+
+	case RGA_ALPHA_BLEND_SRC_OUT:
+		/*
+		 * SRC-OUT mode:
+		 *	Sf = (1 - Da) , Df = 0
+		 *	[Rc,Ra] = [ Sc * (1 - Da), Sa * (1 - Da) ]
+		 */
+		color_ctrl.bits.src_alpha_mode = RGA_ALPHA_STRAIGHT;
+		color_ctrl.bits.src_factor_mode = RGA_ALPHA_OPPOSITE_INVERSE;
+
+		color_ctrl.bits.dst_alpha_mode = RGA_ALPHA_STRAIGHT;
+		color_ctrl.bits.dst_factor_mode = RGA_ALPHA_ZERO;
+
+		break;
+
+	case RGA_ALPHA_BLEND_DST_OUT:
+		/*
+		 * DST-OUT mode:
+		 *	Sf = 0 , Df = (1 - Sa)
+		 *	[Rc,Ra] = [ Dc * (1 - Sa), Da * (1 - Sa) ]
+		 */
+		color_ctrl.bits.src_alpha_mode = RGA_ALPHA_STRAIGHT;
+		color_ctrl.bits.src_factor_mode = RGA_ALPHA_ZERO;
+
+		color_ctrl.bits.dst_alpha_mode = RGA_ALPHA_STRAIGHT;
+		color_ctrl.bits.dst_factor_mode = RGA_ALPHA_OPPOSITE_INVERSE;
+
+		break;
+
+	case RGA_ALPHA_BLEND_SRC_ATOP:
+		/*
+		 * SRC-ATOP mode:
+		 *	Sf = Da , Df = (1 - Sa)
+		 *	[Rc,Ra] = [ Sc * Da + Dc * (1 - Sa), Sa * Da + Da * (1 - Sa) ]
+		 */
+		color_ctrl.bits.src_alpha_mode = RGA_ALPHA_STRAIGHT;
+		color_ctrl.bits.src_factor_mode = RGA_ALPHA_OPPOSITE;
+
+		color_ctrl.bits.dst_alpha_mode = RGA_ALPHA_STRAIGHT;
+		color_ctrl.bits.dst_factor_mode = RGA_ALPHA_OPPOSITE_INVERSE;
+
+		break;
+
+	case RGA_ALPHA_BLEND_DST_ATOP:
+		/*
+		 * DST-ATOP mode:
+		 *	Sf = (1 - Da) , Df = Sa
+		 *	[Rc,Ra] = [ Sc * (1 - Da) + Dc * Sa, Sa * (1 - Da) + Da * Sa ]
+		 */
+		color_ctrl.bits.src_alpha_mode = RGA_ALPHA_STRAIGHT;
+		color_ctrl.bits.src_factor_mode = RGA_ALPHA_OPPOSITE_INVERSE;
+
+		color_ctrl.bits.dst_alpha_mode = RGA_ALPHA_STRAIGHT;
+		color_ctrl.bits.dst_factor_mode = RGA_ALPHA_OPPOSITE;
+
+		break;
+
+	case RGA_ALPHA_BLEND_XOR:
+		/*
+		 * DST-XOR mode:
+		 *	Sf = (1 - Da) , Df = (1 - Sa)
+		 *	[Rc,Ra] = [ Sc * (1 - Da) + Dc * (1 - Sa), Sa * (1 - Da) + Da * (1 - Sa) ]
+		 */
+		color_ctrl.bits.src_alpha_mode = RGA_ALPHA_STRAIGHT;
+		color_ctrl.bits.src_factor_mode = RGA_ALPHA_OPPOSITE_INVERSE;
+
+		color_ctrl.bits.dst_alpha_mode = RGA_ALPHA_STRAIGHT;
+		color_ctrl.bits.dst_factor_mode = RGA_ALPHA_OPPOSITE_INVERSE;
+
+		break;
+
+	case RGA_ALPHA_BLEND_CLEAR:
+		/*
+		 * DST-CLEAR mode:
+		 *	Sf = 0 , Df = 0
+		 *	[Rc,Ra] = [ 0, 0 ]
+		 */
+		color_ctrl.bits.src_alpha_mode = RGA_ALPHA_STRAIGHT;
+		color_ctrl.bits.src_factor_mode = RGA_ALPHA_ZERO;
+
+		color_ctrl.bits.dst_alpha_mode = RGA_ALPHA_STRAIGHT;
+		color_ctrl.bits.dst_factor_mode = RGA_ALPHA_ZERO;
+
+		break;
+
 	default:
 		break;
 	}
@@ -2011,6 +2123,30 @@ static void rga_cmd_to_rga2_cmd(struct rga_scheduler_t *scheduler,
 				break;
 			case 4:
 				req->alpha_config.mode = RGA_ALPHA_BLEND_DST_OVER;
+				break;
+			case 5:
+				req->alpha_config.mode = RGA_ALPHA_BLEND_SRC_IN;
+				break;
+			case 6:
+				req->alpha_config.mode = RGA_ALPHA_BLEND_DST_IN;
+				break;
+			case 7:
+				req->alpha_config.mode = RGA_ALPHA_BLEND_SRC_OUT;
+				break;
+			case 8:
+				req->alpha_config.mode = RGA_ALPHA_BLEND_DST_OUT;
+				break;
+			case 9:
+				req->alpha_config.mode = RGA_ALPHA_BLEND_SRC_ATOP;
+				break;
+			case 10:
+				req->alpha_config.mode = RGA_ALPHA_BLEND_DST_ATOP;
+				break;
+			case 11:
+				req->alpha_config.mode = RGA_ALPHA_BLEND_XOR;
+				break;
+			case 12:
+				req->alpha_config.mode = RGA_ALPHA_BLEND_CLEAR;
 				break;
 			default:
 				break;
