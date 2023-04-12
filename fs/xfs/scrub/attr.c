@@ -20,6 +20,17 @@
 #include "scrub/dabtree.h"
 #include "scrub/attr.h"
 
+/* Free the buffers linked from the xattr buffer. */
+static void
+xchk_xattr_buf_cleanup(
+	void			*priv)
+{
+	struct xchk_xattr_buf	*ab = priv;
+
+	kvfree(ab->freemap);
+	ab->freemap = NULL;
+}
+
 /*
  * Allocate enough memory to hold an attr value and attr block bitmaps,
  * reallocating the buffer if necessary.  Buffer contents are not preserved
@@ -32,15 +43,18 @@ xchk_setup_xattr_buf(
 	gfp_t			flags)
 {
 	size_t			sz;
+	size_t			bmp_sz;
 	struct xchk_xattr_buf	*ab = sc->buf;
+	unsigned long		*old_freemap = NULL;
+
+	bmp_sz = sizeof(long) * BITS_TO_LONGS(sc->mp->m_attr_geo->blksize);
 
 	/*
 	 * We need enough space to read an xattr value from the file or enough
-	 * space to hold two copies of the xattr free space bitmap.  We don't
+	 * space to hold one copy of the xattr free space bitmap.  We don't
 	 * need the buffer space for both purposes at the same time.
 	 */
-	sz = 2 * sizeof(long) * BITS_TO_LONGS(sc->mp->m_attr_geo->blksize);
-	sz = max_t(size_t, sz, value_size);
+	sz = max_t(size_t, bmp_sz, value_size);
 
 	/*
 	 * If there's already a buffer, figure out if we need to reallocate it
@@ -49,6 +63,7 @@ xchk_setup_xattr_buf(
 	if (ab) {
 		if (sz <= ab->sz)
 			return 0;
+		old_freemap = ab->freemap;
 		kvfree(ab);
 		sc->buf = NULL;
 	}
@@ -60,9 +75,18 @@ xchk_setup_xattr_buf(
 	ab = kvmalloc(sizeof(*ab) + sz, flags);
 	if (!ab)
 		return -ENOMEM;
-
 	ab->sz = sz;
 	sc->buf = ab;
+	sc->buf_cleanup = xchk_xattr_buf_cleanup;
+
+	if (old_freemap) {
+		ab->freemap = old_freemap;
+	} else {
+		ab->freemap = kvmalloc(bmp_sz, flags);
+		if (!ab->freemap)
+			return -ENOMEM;
+	}
+
 	return 0;
 }
 
@@ -222,21 +246,21 @@ xchk_xattr_check_freemap(
 	unsigned long			*map,
 	struct xfs_attr3_icleaf_hdr	*leafhdr)
 {
-	unsigned long			*freemap = xchk_xattr_freemap(sc);
+	struct xchk_xattr_buf		*ab = sc->buf;
 	unsigned int			mapsize = sc->mp->m_attr_geo->blksize;
 	int				i;
 
 	/* Construct bitmap of freemap contents. */
-	bitmap_zero(freemap, mapsize);
+	bitmap_zero(ab->freemap, mapsize);
 	for (i = 0; i < XFS_ATTR_LEAF_MAPSIZE; i++) {
-		if (!xchk_xattr_set_map(sc, freemap,
+		if (!xchk_xattr_set_map(sc, ab->freemap,
 				leafhdr->freemap[i].base,
 				leafhdr->freemap[i].size))
 			return false;
 	}
 
 	/* Look for bits that are set in freemap and are marked in use. */
-	return !bitmap_intersects(freemap, map, mapsize);
+	return !bitmap_intersects(ab->freemap, map, mapsize);
 }
 
 /*

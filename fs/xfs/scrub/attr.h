@@ -10,6 +10,9 @@
  * Temporary storage for online scrub and repair of extended attributes.
  */
 struct xchk_xattr_buf {
+	/* Bitmap of free space in xattr leaf blocks. */
+	unsigned long		*freemap;
+
 	/* Size of @buf, in bytes. */
 	size_t			sz;
 
@@ -20,8 +23,7 @@ struct xchk_xattr_buf {
 	 *
 	 * Each bitmap contains enough bits to track every byte in an attr
 	 * block (rounded up to the size of an unsigned long).  The attr block
-	 * used space bitmap starts at the beginning of the buffer; the free
-	 * space bitmap follows immediately after.
+	 * used space bitmap starts at the beginning of the buffer.
 	 */
 	uint8_t			buf[];
 };
@@ -44,15 +46,6 @@ xchk_xattr_usedmap(
 	struct xchk_xattr_buf	*ab = sc->buf;
 
 	return (unsigned long *)ab->buf;
-}
-
-/* A bitmap of free space computed by walking attr leaf block free info. */
-static inline unsigned long *
-xchk_xattr_freemap(
-	struct xfs_scrub	*sc)
-{
-	return xchk_xattr_usedmap(sc) +
-			BITS_TO_LONGS(sc->mp->m_attr_geo->blksize);
 }
 
 #endif	/* __XFS_SCRUB_ATTR_H__ */

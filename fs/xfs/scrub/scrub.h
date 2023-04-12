@@ -77,7 +77,17 @@ struct xfs_scrub {
 	 */
 	struct xfs_inode		*ip;
 
+	/* Kernel memory buffer used by scrubbers; freed at teardown. */
 	void				*buf;
+
+	/*
+	 * Clean up resources owned by whatever is in the buffer.  Cleanup can
+	 * be deferred with this hook as a means for scrub functions to pass
+	 * data to repair functions.  This function must not free the buffer
+	 * itself.
+	 */
+	void				(*buf_cleanup)(void *buf);
+
 	uint				ilock_flags;
 
 	/* See the XCHK/XREP state flags below. */

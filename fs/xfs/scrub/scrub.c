@@ -189,7 +189,10 @@ xchk_teardown(
 	if (sc->flags & XCHK_REAPING_DISABLED)
 		xchk_start_reaping(sc);
 	if (sc->buf) {
+		if (sc->buf_cleanup)
+			sc->buf_cleanup(sc->buf);
 		kvfree(sc->buf);
+		sc->buf_cleanup = NULL;
 		sc->buf = NULL;
 	}
 
