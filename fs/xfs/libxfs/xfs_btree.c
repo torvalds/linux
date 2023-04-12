@@ -2067,8 +2067,7 @@ xfs_btree_get_leaf_keys(
 		for (n = 2; n <= xfs_btree_get_numrecs(block); n++) {
 			rec = xfs_btree_rec_addr(cur, n, block);
 			cur->bc_ops->init_high_key_from_rec(&hkey, rec);
-			if (cur->bc_ops->diff_two_keys(cur, &hkey, &max_hkey)
-					> 0)
+			if (xfs_btree_keycmp_gt(cur, &hkey, &max_hkey))
 				max_hkey = hkey;
 		}
 
@@ -2096,7 +2095,7 @@ xfs_btree_get_node_keys(
 		max_hkey = xfs_btree_high_key_addr(cur, 1, block);
 		for (n = 2; n <= xfs_btree_get_numrecs(block); n++) {
 			hkey = xfs_btree_high_key_addr(cur, n, block);
-			if (cur->bc_ops->diff_two_keys(cur, hkey, max_hkey) > 0)
+			if (xfs_btree_keycmp_gt(cur, hkey, max_hkey))
 				max_hkey = hkey;
 		}
 
@@ -2183,8 +2182,8 @@ __xfs_btree_updkeys(
 		nlkey = xfs_btree_key_addr(cur, ptr, block);
 		nhkey = xfs_btree_high_key_addr(cur, ptr, block);
 		if (!force_all &&
-		    !(cur->bc_ops->diff_two_keys(cur, nlkey, lkey) != 0 ||
-		      cur->bc_ops->diff_two_keys(cur, nhkey, hkey) != 0))
+		    xfs_btree_keycmp_eq(cur, nlkey, lkey) &&
+		    xfs_btree_keycmp_eq(cur, nhkey, hkey))
 			break;
 		xfs_btree_copy_keys(cur, nlkey, lkey, 1);
 		xfs_btree_log_keys(cur, bp, ptr, ptr);
@@ -4716,7 +4715,6 @@ xfs_btree_simple_query_range(
 {
 	union xfs_btree_rec		*recp;
 	union xfs_btree_key		rec_key;
-	int64_t				diff;
 	int				stat;
 	bool				firstrec = true;
 	int				error;
@@ -4746,20 +4744,17 @@ xfs_btree_simple_query_range(
 		if (error || !stat)
 			break;
 
-		/* Skip if high_key(rec) < low_key. */
+		/* Skip if low_key > high_key(rec). */
 		if (firstrec) {
 			cur->bc_ops->init_high_key_from_rec(&rec_key, recp);
 			firstrec = false;
-			diff = cur->bc_ops->diff_two_keys(cur, low_key,
-					&rec_key);
-			if (diff > 0)
+			if (xfs_btree_keycmp_gt(cur, low_key, &rec_key))
 				goto advloop;
 		}
 
-		/* Stop if high_key < low_key(rec). */
+		/* Stop if low_key(rec) > high_key. */
 		cur->bc_ops->init_key_from_rec(&rec_key, recp);
-		diff = cur->bc_ops->diff_two_keys(cur, &rec_key, high_key);
-		if (diff > 0)
+		if (xfs_btree_keycmp_gt(cur, &rec_key, high_key))
 			break;
 
 		/* Callback */
@@ -4813,8 +4808,6 @@ xfs_btree_overlapped_query_range(
 	union xfs_btree_key		*hkp;
 	union xfs_btree_rec		*recp;
 	struct xfs_btree_block		*block;
-	int64_t				ldiff;
-	int64_t				hdiff;
 	int				level;
 	struct xfs_buf			*bp;
 	int				i;
@@ -4854,25 +4847,23 @@ pop_up:
 					block);
 
 			cur->bc_ops->init_high_key_from_rec(&rec_hkey, recp);
-			ldiff = cur->bc_ops->diff_two_keys(cur, &rec_hkey,
-					low_key);
-
 			cur->bc_ops->init_key_from_rec(&rec_key, recp);
-			hdiff = cur->bc_ops->diff_two_keys(cur, high_key,
-					&rec_key);
 
 			/*
+			 * If (query's high key < record's low key), then there
+			 * are no more interesting records in this block.  Pop
+			 * up to the leaf level to find more record blocks.
+			 *
 			 * If (record's high key >= query's low key) and
 			 *    (query's high key >= record's low key), then
 			 * this record overlaps the query range; callback.
 			 */
-			if (ldiff >= 0 && hdiff >= 0) {
+			if (xfs_btree_keycmp_lt(cur, high_key, &rec_key))
+				goto pop_up;
+			if (xfs_btree_keycmp_ge(cur, &rec_hkey, low_key)) {
 				error = fn(cur, recp, priv);
 				if (error)
 					break;
-			} else if (hdiff < 0) {
-				/* Record is larger than high key; pop. */
-				goto pop_up;
 			}
 			cur->bc_levels[level].ptr++;
 			continue;
@@ -4884,15 +4875,18 @@ pop_up:
 				block);
 		pp = xfs_btree_ptr_addr(cur, cur->bc_levels[level].ptr, block);
 
-		ldiff = cur->bc_ops->diff_two_keys(cur, hkp, low_key);
-		hdiff = cur->bc_ops->diff_two_keys(cur, high_key, lkp);
-
 		/*
+		 * If (query's high key < pointer's low key), then there are no
+		 * more interesting keys in this block.  Pop up one leaf level
+		 * to continue looking for records.
+		 *
 		 * If (pointer's high key >= query's low key) and
 		 *    (query's high key >= pointer's low key), then
 		 * this record overlaps the query range; follow pointer.
 		 */
-		if (ldiff >= 0 && hdiff >= 0) {
+		if (xfs_btree_keycmp_lt(cur, high_key, lkp))
+			goto pop_up;
+		if (xfs_btree_keycmp_ge(cur, hkp, low_key)) {
 			level--;
 			error = xfs_btree_lookup_get_block(cur, level, pp,
 					&block);
@@ -4907,9 +4901,6 @@ pop_up:
 #endif
 			cur->bc_levels[level].ptr = 1;
 			continue;
-		} else if (hdiff < 0) {
-			/* The low key is larger than the upper range; pop. */
-			goto pop_up;
 		}
 		cur->bc_levels[level].ptr++;
 	}
@@ -4971,8 +4962,8 @@ xfs_btree_query_range(
 	xfs_btree_key_from_irec(cur, &high_key, high_rec);
 	xfs_btree_key_from_irec(cur, &low_key, low_rec);
 
-	/* Enforce low key < high key. */
-	if (cur->bc_ops->diff_two_keys(cur, &low_key, &high_key) > 0)
+	/* Enforce low key <= high key. */
+	if (!xfs_btree_keycmp_le(cur, &low_key, &high_key))
 		return -EINVAL;
 
 	if (!(cur->bc_flags & XFS_BTREE_OVERLAPPING))

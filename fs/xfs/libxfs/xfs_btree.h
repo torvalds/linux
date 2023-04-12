@@ -546,6 +546,61 @@ int xfs_btree_has_record(struct xfs_btree_cur *cur,
 bool xfs_btree_has_more_records(struct xfs_btree_cur *cur);
 struct xfs_ifork *xfs_btree_ifork_ptr(struct xfs_btree_cur *cur);
 
+/* Key comparison helpers */
+static inline bool
+xfs_btree_keycmp_lt(
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_key	*key1,
+	const union xfs_btree_key	*key2)
+{
+	return cur->bc_ops->diff_two_keys(cur, key1, key2) < 0;
+}
+
+static inline bool
+xfs_btree_keycmp_gt(
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_key	*key1,
+	const union xfs_btree_key	*key2)
+{
+	return cur->bc_ops->diff_two_keys(cur, key1, key2) > 0;
+}
+
+static inline bool
+xfs_btree_keycmp_eq(
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_key	*key1,
+	const union xfs_btree_key	*key2)
+{
+	return cur->bc_ops->diff_two_keys(cur, key1, key2) == 0;
+}
+
+static inline bool
+xfs_btree_keycmp_le(
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_key	*key1,
+	const union xfs_btree_key	*key2)
+{
+	return !xfs_btree_keycmp_gt(cur, key1, key2);
+}
+
+static inline bool
+xfs_btree_keycmp_ge(
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_key	*key1,
+	const union xfs_btree_key	*key2)
+{
+	return !xfs_btree_keycmp_lt(cur, key1, key2);
+}
+
+static inline bool
+xfs_btree_keycmp_ne(
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_key	*key1,
+	const union xfs_btree_key	*key2)
+{
+	return !xfs_btree_keycmp_eq(cur, key1, key2);
+}
+
 /* Does this cursor point to the last block in the given level? */
 static inline bool
 xfs_btree_islastblock(
