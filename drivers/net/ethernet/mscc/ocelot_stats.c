@@ -925,6 +925,15 @@ static int ocelot_prepare_stats_regions(struct ocelot *ocelot)
 	}
 
 	list_for_each_entry(region, &ocelot->stats_regions, node) {
+		enum ocelot_target target;
+		u32 addr;
+
+		ocelot_reg_to_target_addr(ocelot, region->base, &target,
+					  &addr);
+
+		dev_dbg(ocelot->dev,
+			"region of %d contiguous counters starting with SYS:STAT:CNT[0x%03x]\n",
+			region->count, addr / 4);
 		region->buf = devm_kcalloc(ocelot->dev, region->count,
 					   sizeof(*region->buf), GFP_KERNEL);
 		if (!region->buf)
