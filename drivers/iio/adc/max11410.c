@@ -682,7 +682,7 @@ static irqreturn_t max11410_interrupt(int irq, void *dev_id)
 	struct max11410_state *st = iio_priv(indio_dev);
 
 	if (iio_buffer_enabled(indio_dev))
-		iio_trigger_poll_chained(st->trig);
+		iio_trigger_poll_nested(st->trig);
 	else
 		complete(&st->completion);
 

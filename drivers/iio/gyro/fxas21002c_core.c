@@ -813,7 +813,7 @@ static irqreturn_t fxas21002c_data_rdy_thread(int irq, void *private)
 	if (!data_ready)
 		return IRQ_NONE;
 
-	iio_trigger_poll_chained(data->dready_trig);
+	iio_trigger_poll_nested(data->dready_trig);
 
 	return IRQ_HANDLED;
 }
