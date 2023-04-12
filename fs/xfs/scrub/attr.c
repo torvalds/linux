@@ -31,6 +31,9 @@ xchk_xattr_buf_cleanup(
 	ab->freemap = NULL;
 	kvfree(ab->usedmap);
 	ab->usedmap = NULL;
+	kvfree(ab->value);
+	ab->value = NULL;
+	ab->value_sz = 0;
 }
 
 /*
@@ -44,54 +47,45 @@ xchk_setup_xattr_buf(
 	size_t			value_size,
 	gfp_t			flags)
 {
-	size_t			sz = value_size;
 	size_t			bmp_sz;
 	struct xchk_xattr_buf	*ab = sc->buf;
-	unsigned long		*old_usedmap = NULL;
-	unsigned long		*old_freemap = NULL;
+	void			*new_val;
 
 	bmp_sz = sizeof(long) * BITS_TO_LONGS(sc->mp->m_attr_geo->blksize);
 
-	/*
-	 * If there's already a buffer, figure out if we need to reallocate it
-	 * to accommodate a larger size.
-	 */
-	if (ab) {
-		if (sz <= ab->sz)
-			return 0;
-		old_freemap = ab->freemap;
-		old_usedmap = ab->usedmap;
-		kvfree(ab);
-		sc->buf = NULL;
-	}
+	if (ab)
+		goto resize_value;
 
-	/*
-	 * Don't zero the buffer upon allocation to avoid runtime overhead.
-	 * All users must be careful never to read uninitialized contents.
-	 */
-	ab = kvmalloc(sizeof(*ab) + sz, flags);
+	ab = kvzalloc(sizeof(struct xchk_xattr_buf), flags);
 	if (!ab)
 		return -ENOMEM;
-	ab->sz = sz;
 	sc->buf = ab;
 	sc->buf_cleanup = xchk_xattr_buf_cleanup;
 
-	if (old_usedmap) {
-		ab->usedmap = old_usedmap;
-	} else {
-		ab->usedmap = kvmalloc(bmp_sz, flags);
-		if (!ab->usedmap)
-			return -ENOMEM;
+	ab->usedmap = kvmalloc(bmp_sz, flags);
+	if (!ab->usedmap)
+		return -ENOMEM;
+
+	ab->freemap = kvmalloc(bmp_sz, flags);
+	if (!ab->freemap)
+		return -ENOMEM;
+
+resize_value:
+	if (ab->value_sz >= value_size)
+		return 0;
+
+	if (ab->value) {
+		kvfree(ab->value);
+		ab->value = NULL;
+		ab->value_sz = 0;
 	}
 
-	if (old_freemap) {
-		ab->freemap = old_freemap;
-	} else {
-		ab->freemap = kvmalloc(bmp_sz, flags);
-		if (!ab->freemap)
-			return -ENOMEM;
-	}
+	new_val = kvmalloc(value_size, flags);
+	if (!new_val)
+		return -ENOMEM;
 
+	ab->value = new_val;
+	ab->value_sz = value_size;
 	return 0;
 }
 
@@ -140,11 +134,24 @@ xchk_xattr_listent(
 	int				namelen,
 	int				valuelen)
 {
+	struct xfs_da_args		args = {
+		.op_flags		= XFS_DA_OP_NOTIME,
+		.attr_filter		= flags & XFS_ATTR_NSP_ONDISK_MASK,
+		.geo			= context->dp->i_mount->m_attr_geo,
+		.whichfork		= XFS_ATTR_FORK,
+		.dp			= context->dp,
+		.name			= name,
+		.namelen		= namelen,
+		.hashval		= xfs_da_hashname(name, namelen),
+		.trans			= context->tp,
+		.valuelen		= valuelen,
+	};
+	struct xchk_xattr_buf		*ab;
 	struct xchk_xattr		*sx;
-	struct xfs_da_args		args = { NULL };
 	int				error = 0;
 
 	sx = container_of(context, struct xchk_xattr, context);
+	ab = sx->sc->buf;
 
 	if (xchk_should_terminate(sx->sc, &error)) {
 		context->seen_enough = error;
@@ -182,17 +189,7 @@ xchk_xattr_listent(
 		return;
 	}
 
-	args.op_flags = XFS_DA_OP_NOTIME;
-	args.attr_filter = flags & XFS_ATTR_NSP_ONDISK_MASK;
-	args.geo = context->dp->i_mount->m_attr_geo;
-	args.whichfork = XFS_ATTR_FORK;
-	args.dp = context->dp;
-	args.name = name;
-	args.namelen = namelen;
-	args.hashval = xfs_da_hashname(args.name, args.namelen);
-	args.trans = context->tp;
-	args.value = xchk_xattr_valuebuf(sx->sc);
-	args.valuelen = valuelen;
+	args.value = ab->value;
 
 	error = xfs_attr_get_ilocked(&args);
 	/* ENODATA means the hash lookup failed and the attr is bad */

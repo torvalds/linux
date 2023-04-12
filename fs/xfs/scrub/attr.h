@@ -16,24 +16,9 @@ struct xchk_xattr_buf {
 	/* Bitmap of free space in xattr leaf blocks. */
 	unsigned long		*freemap;
 
-	/* Size of @buf, in bytes. */
-	size_t			sz;
-
-	/*
-	 * Memory buffer -- used for extracting attr values while walking the
-	 * attributes.
-	 */
-	uint8_t			buf[];
+	/* Memory buffer used to extract xattr values. */
+	void			*value;
+	size_t			value_sz;
 };
-
-/* A place to store attribute values. */
-static inline uint8_t *
-xchk_xattr_valuebuf(
-	struct xfs_scrub	*sc)
-{
-	struct xchk_xattr_buf	*ab = sc->buf;
-
-	return ab->buf;
-}
 
 #endif	/* __XFS_SCRUB_ATTR_H__ */
