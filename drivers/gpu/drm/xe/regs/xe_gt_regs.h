@@ -345,8 +345,8 @@
 
 #define GEN6_GT_CORE_STATUS			_MMIO(0x138060)
 #define   RCN_MASK				REG_GENMASK(2, 0)
-#define   GEN6_RC0				0
-#define   GEN6_RC6				3
+#define   GT_RC0				0
+#define   GT_RC6				3
 
 #define GEN6_GT_GFX_RC6_LOCKED			_MMIO(0x138104)
 #define GEN6_GT_GFX_RC6				_MMIO(0x138108)

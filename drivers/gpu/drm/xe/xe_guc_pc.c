@@ -592,9 +592,9 @@ static ssize_t rc_status_show(struct device *dev,
 	xe_device_mem_access_put(gt_to_xe(gt));
 
 	switch (REG_FIELD_GET(RCN_MASK, reg)) {
-	case GEN6_RC6:
+	case GT_RC6:
 		return sysfs_emit(buff, "rc6\n");
-	case GEN6_RC0:
+	case GT_RC0:
 		return sysfs_emit(buff, "rc0\n");
 	default:
 		return -ENOENT;
