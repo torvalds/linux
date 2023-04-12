@@ -276,7 +276,7 @@ xchk_iallocbt_chunk(
 		xchk_inobt_chunk_xref_finobt(sc, irec, agino, nr_inodes);
 	else
 		xchk_finobt_chunk_xref_inobt(sc, irec, agino, nr_inodes);
-	xchk_xref_is_owned_by(sc, agbno, len, &XFS_RMAP_OINFO_INODES);
+	xchk_xref_is_only_owned_by(sc, agbno, len, &XFS_RMAP_OINFO_INODES);
 	xchk_xref_is_not_shared(sc, agbno, len);
 	xchk_xref_is_not_cow_staging(sc, agbno, len);
 	return true;
@@ -428,7 +428,7 @@ xchk_iallocbt_check_cluster(
 		return 0;
 	}
 
-	xchk_xref_is_owned_by(bs->sc, agbno, M_IGEO(mp)->blocks_per_cluster,
+	xchk_xref_is_only_owned_by(bs->sc, agbno, M_IGEO(mp)->blocks_per_cluster,
 			&XFS_RMAP_OINFO_INODES);
 
 	/* Grab the inode cluster buffer. */

@@ -402,7 +402,7 @@ xchk_btree_check_block_owner(
 	if (!bs->sc->sa.bno_cur && btnum == XFS_BTNUM_BNO)
 		bs->cur = NULL;
 
-	xchk_xref_is_owned_by(bs->sc, agbno, 1, bs->oinfo);
+	xchk_xref_is_only_owned_by(bs->sc, agbno, 1, bs->oinfo);
 	if (!bs->sc->sa.rmap_cur && btnum == XFS_BTNUM_RMAP)
 		bs->cur = NULL;
 

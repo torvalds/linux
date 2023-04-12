@@ -167,38 +167,29 @@ xchk_rmapbt(
 			&XFS_RMAP_OINFO_AG, NULL);
 }
 
-/* xref check that the extent is owned by a given owner */
-static inline void
-xchk_xref_check_owner(
-	struct xfs_scrub		*sc,
-	xfs_agblock_t			bno,
-	xfs_extlen_t			len,
-	const struct xfs_owner_info	*oinfo,
-	bool				should_have_rmap)
-{
-	bool				has_rmap;
-	int				error;
-
-	if (!sc->sa.rmap_cur || xchk_skip_xref(sc->sm))
-		return;
-
-	error = xfs_rmap_record_exists(sc->sa.rmap_cur, bno, len, oinfo,
-			&has_rmap);
-	if (!xchk_should_check_xref(sc, &error, &sc->sa.rmap_cur))
-		return;
-	if (has_rmap != should_have_rmap)
-		xchk_btree_xref_set_corrupt(sc, sc->sa.rmap_cur, 0);
-}
-
-/* xref check that the extent is owned by a given owner */
+/* xref check that the extent is owned only by a given owner */
 void
-xchk_xref_is_owned_by(
+xchk_xref_is_only_owned_by(
 	struct xfs_scrub		*sc,
 	xfs_agblock_t			bno,
 	xfs_extlen_t			len,
 	const struct xfs_owner_info	*oinfo)
 {
-	xchk_xref_check_owner(sc, bno, len, oinfo, true);
+	struct xfs_rmap_matches		res;
+	int				error;
+
+	if (!sc->sa.rmap_cur || xchk_skip_xref(sc->sm))
+		return;
+
+	error = xfs_rmap_count_owners(sc->sa.rmap_cur, bno, len, oinfo, &res);
+	if (!xchk_should_check_xref(sc, &error, &sc->sa.rmap_cur))
+		return;
+	if (res.matches != 1)
+		xchk_btree_xref_set_corrupt(sc, sc->sa.rmap_cur, 0);
+	if (res.bad_non_owner_matches)
+		xchk_btree_xref_set_corrupt(sc, sc->sa.rmap_cur, 0);
+	if (res.non_owner_matches)
+		xchk_btree_xref_set_corrupt(sc, sc->sa.rmap_cur, 0);
 }
 
 /* xref check that the extent is not owned by a given owner */
@@ -209,7 +200,19 @@ xchk_xref_is_not_owned_by(
 	xfs_extlen_t			len,
 	const struct xfs_owner_info	*oinfo)
 {
-	xchk_xref_check_owner(sc, bno, len, oinfo, false);
+	struct xfs_rmap_matches		res;
+	int				error;
+
+	if (!sc->sa.rmap_cur || xchk_skip_xref(sc->sm))
+		return;
+
+	error = xfs_rmap_count_owners(sc->sa.rmap_cur, bno, len, oinfo, &res);
+	if (!xchk_should_check_xref(sc, &error, &sc->sa.rmap_cur))
+		return;
+	if (res.matches != 0)
+		xchk_btree_xref_set_corrupt(sc, sc->sa.rmap_cur, 0);
+	if (res.bad_non_owner_matches)
+		xchk_btree_xref_set_corrupt(sc, sc->sa.rmap_cur, 0);
 }
 
 /* xref check that the extent has no reverse mapping at all */
