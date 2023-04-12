@@ -72,6 +72,8 @@
 /* Userfaultfd test statistics */
 struct uffd_args {
 	int cpu;
+	/* Whether apply wr-protects when installing pages */
+	bool apply_wp;
 	unsigned long missing_faults;
 	unsigned long wp_faults;
 	unsigned long minor_faults;
@@ -104,8 +106,8 @@ void userfaultfd_open(uint64_t *features);
 int uffd_read_msg(int ufd, struct uffd_msg *msg);
 void wp_range(int ufd, __u64 start, __u64 len, bool wp);
 void uffd_handle_page_fault(struct uffd_msg *msg, struct uffd_args *args);
-int __copy_page(int ufd, unsigned long offset, bool retry);
-int copy_page(int ufd, unsigned long offset);
+int __copy_page(int ufd, unsigned long offset, bool retry, bool wp);
+int copy_page(int ufd, unsigned long offset, bool wp);
 void *uffd_poll_thread(void *arg);
 
 #define TEST_ANON	1

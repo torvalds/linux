@@ -353,7 +353,7 @@ void wp_range(int ufd, __u64 start, __u64 len, bool wp)
 		err("clear WP failed: address=0x%"PRIx64, (uint64_t)start);
 }
 
-static void continue_range(int ufd, __u64 start, __u64 len)
+static void continue_range(int ufd, __u64 start, __u64 len, bool wp)
 {
 	struct uffdio_continue req;
 	int ret;
@@ -361,7 +361,7 @@ static void continue_range(int ufd, __u64 start, __u64 len)
 	req.range.start = start;
 	req.range.len = len;
 	req.mode = 0;
-	if (test_uffdio_wp)
+	if (wp)
 		req.mode |= UFFDIO_CONTINUE_MODE_WP;
 
 	if (ioctl(ufd, UFFDIO_CONTINUE, &req))
@@ -429,7 +429,8 @@ void uffd_handle_page_fault(struct uffd_msg *msg, struct uffd_args *args)
 				    area_dst_alias));
 		for (b = 0; b < page_size; ++b)
 			area[b] = ~area[b];
-		continue_range(uffd, msg->arg.pagefault.address, page_size);
+		continue_range(uffd, msg->arg.pagefault.address, page_size,
+			       args->apply_wp);
 		args->minor_faults++;
 	} else {
 		/*
@@ -459,7 +460,7 @@ void uffd_handle_page_fault(struct uffd_msg *msg, struct uffd_args *args)
 		offset = (char *)(unsigned long)msg->arg.pagefault.address - area_dst;
 		offset &= ~(page_size-1);
 
-		if (copy_page(uffd, offset))
+		if (copy_page(uffd, offset, args->apply_wp))
 			args->missing_faults++;
 	}
 }
@@ -555,7 +556,7 @@ static void wake_range(int ufd, unsigned long addr, unsigned long len)
 			addr), exit(1);
 }
 
-int __copy_page(int ufd, unsigned long offset, bool retry)
+int __copy_page(int ufd, unsigned long offset, bool retry, bool wp)
 {
 	struct uffdio_copy uffdio_copy;
 
@@ -564,7 +565,7 @@ int __copy_page(int ufd, unsigned long offset, bool retry)
 	uffdio_copy.dst = (unsigned long) area_dst + offset;
 	uffdio_copy.src = (unsigned long) area_src + offset;
 	uffdio_copy.len = page_size;
-	if (test_uffdio_wp)
+	if (wp)
 		uffdio_copy.mode = UFFDIO_COPY_MODE_WP;
 	else
 		uffdio_copy.mode = 0;
@@ -587,7 +588,7 @@ int __copy_page(int ufd, unsigned long offset, bool retry)
 	return 0;
 }
 
-int copy_page(int ufd, unsigned long offset)
+int copy_page(int ufd, unsigned long offset, bool wp)
 {
-	return __copy_page(ufd, offset, false);
+	return __copy_page(ufd, offset, false, wp);
 }

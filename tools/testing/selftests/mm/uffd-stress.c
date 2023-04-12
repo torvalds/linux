@@ -96,6 +96,7 @@ static void uffd_stats_reset(struct uffd_args *args, unsigned long n_cpus)
 
 	for (i = 0; i < n_cpus; i++) {
 		args[i].cpu = i;
+		args[i].apply_wp = test_uffdio_wp;
 		args[i].missing_faults = 0;
 		args[i].wp_faults = 0;
 		args[i].minor_faults = 0;
@@ -155,7 +156,7 @@ static void *locking_thread(void *arg)
 
 static int copy_page_retry(int ufd, unsigned long offset)
 {
-	return __copy_page(ufd, offset, true);
+	return __copy_page(ufd, offset, true, test_uffdio_wp);
 }
 
 pthread_mutex_t uffd_read_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -308,7 +309,7 @@ static void sighndl(int sig, siginfo_t *siginfo, void *ptr)
  * This also tests UFFD_FEATURE_EVENT_FORK event along with the signal
  * feature. Using monitor thread, verify no userfault events are generated.
  */
-static int faulting_process(int signal_test)
+static int faulting_process(int signal_test, bool wp)
 {
 	unsigned long nr;
 	unsigned long long count;
@@ -343,7 +344,7 @@ static int faulting_process(int signal_test)
 					if (steps == 1) {
 						/* This is a MISSING request */
 						steps++;
-						if (copy_page(uffd, offset))
+						if (copy_page(uffd, offset, wp))
 							signalled++;
 					} else {
 						/* This is a WP request */
@@ -507,6 +508,7 @@ static int userfaultfd_events_test(void)
 			  true, test_uffdio_wp, false))
 		err("register failure");
 
+	args.apply_wp = test_uffdio_wp;
 	if (pthread_create(&uffd_mon, &attr, uffd_poll_thread, &args))
 		err("uffd_poll_thread create");
 
@@ -515,7 +517,7 @@ static int userfaultfd_events_test(void)
 		err("fork");
 
 	if (!pid)
-		exit(faulting_process(0));
+		exit(faulting_process(0, test_uffdio_wp));
 
 	waitpid(pid, &err, 0);
 	if (err)
@@ -551,11 +553,12 @@ static int userfaultfd_sig_test(void)
 			  true, test_uffdio_wp, false))
 		err("register failure");
 
-	if (faulting_process(1))
+	if (faulting_process(1, test_uffdio_wp))
 		err("faulting process failed");
 
 	uffd_test_ops->release_pages(area_dst);
 
+	args.apply_wp = test_uffdio_wp;
 	if (pthread_create(&uffd_mon, &attr, uffd_poll_thread, &args))
 		err("uffd_poll_thread create");
 
@@ -564,7 +567,7 @@ static int userfaultfd_sig_test(void)
 		err("fork");
 
 	if (!pid)
-		exit(faulting_process(2));
+		exit(faulting_process(2, test_uffdio_wp));
 
 	waitpid(pid, &err, 0);
 	if (err)
@@ -628,6 +631,7 @@ static int userfaultfd_minor_test(void)
 		       page_size);
 	}
 
+	args.apply_wp = test_uffdio_wp;
 	if (pthread_create(&uffd_mon, &attr, uffd_poll_thread, &args))
 		err("uffd_poll_thread create");
 
