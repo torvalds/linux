@@ -64,6 +64,9 @@ void memstress_guest_code(uint32_t vcpu_idx)
 	GUEST_ASSERT(vcpu_args->vcpu_idx == vcpu_idx);
 
 	while (true) {
+		for (i = 0; i < sizeof(memstress_args); i += args->guest_page_size)
+			(void) *((volatile char *)args + i);
+
 		for (i = 0; i < pages; i++) {
 			if (args->random_access)
 				page = guest_random_u32(&rand_state) % pages;
