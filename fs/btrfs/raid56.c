@@ -2376,23 +2376,6 @@ struct btrfs_raid_bio *raid56_parity_alloc_scrub_rbio(struct bio *bio,
 	return rbio;
 }
 
-/* Used for both parity scrub and missing. */
-void raid56_add_scrub_pages(struct btrfs_raid_bio *rbio, struct page *page,
-			    unsigned int pgoff, u64 logical)
-{
-	const u32 sectorsize = rbio->bioc->fs_info->sectorsize;
-	int stripe_offset;
-	int index;
-
-	ASSERT(logical >= rbio->bioc->full_stripe_logical);
-	ASSERT(logical + sectorsize <= rbio->bioc->full_stripe_logical +
-				       BTRFS_STRIPE_LEN * rbio->nr_data);
-	stripe_offset = (int)(logical - rbio->bioc->full_stripe_logical);
-	index = stripe_offset / sectorsize;
-	rbio->bio_sectors[index].page = page;
-	rbio->bio_sectors[index].pgoff = pgoff;
-}
-
 /*
  * We just scrub the parity that we have correct data on the same horizontal,
  * so we needn't allocate all pages for all the stripes.
@@ -2763,34 +2746,4 @@ void raid56_parity_submit_scrub_rbio(struct btrfs_raid_bio *rbio)
 {
 	if (!lock_stripe_add(rbio))
 		start_async_work(rbio, scrub_rbio_work_locked);
-}
-
-/* The following code is used for dev replace of a missing RAID 5/6 device. */
-
-struct btrfs_raid_bio *
-raid56_alloc_missing_rbio(struct bio *bio, struct btrfs_io_context *bioc)
-{
-	struct btrfs_fs_info *fs_info = bioc->fs_info;
-	struct btrfs_raid_bio *rbio;
-
-	rbio = alloc_rbio(fs_info, bioc);
-	if (IS_ERR(rbio))
-		return NULL;
-
-	rbio->operation = BTRFS_RBIO_REBUILD_MISSING;
-	bio_list_add(&rbio->bio_list, bio);
-	/*
-	 * This is a special bio which is used to hold the completion handler
-	 * and make the scrub rbio is similar to the other types
-	 */
-	ASSERT(!bio->bi_iter.bi_size);
-
-	set_rbio_range_error(rbio, bio);
-
-	return rbio;
-}
-
-void raid56_submit_missing_rbio(struct btrfs_raid_bio *rbio)
-{
-	start_async_work(rbio, recover_rbio_work);
 }
