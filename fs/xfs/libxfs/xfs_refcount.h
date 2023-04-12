@@ -111,9 +111,9 @@ extern int xfs_refcount_recover_cow_leftovers(struct xfs_mount *mp,
  */
 #define XFS_REFCOUNT_ITEM_OVERHEAD	32
 
-extern int xfs_refcount_has_record(struct xfs_btree_cur *cur,
+extern int xfs_refcount_has_records(struct xfs_btree_cur *cur,
 		enum xfs_refc_domain domain, xfs_agblock_t bno,
-		xfs_extlen_t len, bool *exists);
+		xfs_extlen_t len, enum xbtree_recpacking *outcome);
 union xfs_btree_rec;
 extern void xfs_refcount_btrec_to_irec(const union xfs_btree_rec *rec,
 		struct xfs_refcount_irec *irec);

@@ -90,6 +90,27 @@ uint32_t xfs_btree_magic(int crc, xfs_btnum_t btnum);
 #define XFS_BTREE_STATS_ADD(cur, stat, val)	\
 	XFS_STATS_ADD_OFF((cur)->bc_mp, (cur)->bc_statoff + __XBTS_ ## stat, val)
 
+enum xbtree_key_contig {
+	XBTREE_KEY_GAP = 0,
+	XBTREE_KEY_CONTIGUOUS,
+	XBTREE_KEY_OVERLAP,
+};
+
+/*
+ * Decide if these two numeric btree key fields are contiguous, overlapping,
+ * or if there's a gap between them.  @x should be the field from the high
+ * key and @y should be the field from the low key.
+ */
+static inline enum xbtree_key_contig xbtree_key_contig(uint64_t x, uint64_t y)
+{
+	x++;
+	if (x < y)
+		return XBTREE_KEY_GAP;
+	if (x == y)
+		return XBTREE_KEY_CONTIGUOUS;
+	return XBTREE_KEY_OVERLAP;
+}
+
 struct xfs_btree_ops {
 	/* size of the key and record structures */
 	size_t	key_len;
@@ -157,6 +178,19 @@ struct xfs_btree_ops {
 	int	(*recs_inorder)(struct xfs_btree_cur *cur,
 				const union xfs_btree_rec *r1,
 				const union xfs_btree_rec *r2);
+
+	/*
+	 * Are these two btree keys immediately adjacent?
+	 *
+	 * Given two btree keys @key1 and @key2, decide if it is impossible for
+	 * there to be a third btree key K satisfying the relationship
+	 * @key1 < K < @key2.  To determine if two btree records are
+	 * immediately adjacent, @key1 should be the high key of the first
+	 * record and @key2 should be the low key of the second record.
+	 */
+	enum xbtree_key_contig (*keys_contiguous)(struct xfs_btree_cur *cur,
+			       const union xfs_btree_key *key1,
+			       const union xfs_btree_key *key2);
 };
 
 /*
@@ -540,9 +574,15 @@ void xfs_btree_get_keys(struct xfs_btree_cur *cur,
 		struct xfs_btree_block *block, union xfs_btree_key *key);
 union xfs_btree_key *xfs_btree_high_key_from_key(struct xfs_btree_cur *cur,
 		union xfs_btree_key *key);
-int xfs_btree_has_record(struct xfs_btree_cur *cur,
+typedef bool (*xfs_btree_key_gap_fn)(struct xfs_btree_cur *cur,
+		const union xfs_btree_key *key1,
+		const union xfs_btree_key *key2);
+
+int xfs_btree_has_records(struct xfs_btree_cur *cur,
 		const union xfs_btree_irec *low,
-		const union xfs_btree_irec *high, bool *exists);
+		const union xfs_btree_irec *high,
+		enum xbtree_recpacking *outcome);
+
 bool xfs_btree_has_more_records(struct xfs_btree_cur *cur);
 struct xfs_ifork *xfs_btree_ifork_ptr(struct xfs_btree_cur *cur);
 

@@ -3745,13 +3745,16 @@ xfs_alloc_query_all(
 	return xfs_btree_query_all(cur, xfs_alloc_query_range_helper, &query);
 }
 
-/* Is there a record covering a given extent? */
+/*
+ * Scan part of the keyspace of the free space and tell us if the area has no
+ * records, is fully mapped by records, or is partially filled.
+ */
 int
-xfs_alloc_has_record(
+xfs_alloc_has_records(
 	struct xfs_btree_cur	*cur,
 	xfs_agblock_t		bno,
 	xfs_extlen_t		len,
-	bool			*exists)
+	enum xbtree_recpacking	*outcome)
 {
 	union xfs_btree_irec	low;
 	union xfs_btree_irec	high;
@@ -3761,7 +3764,7 @@ xfs_alloc_has_record(
 	memset(&high, 0xFF, sizeof(high));
 	high.a.ar_startblock = bno + len - 1;
 
-	return xfs_btree_has_record(cur, &low, &high, exists);
+	return xfs_btree_has_records(cur, &low, &high, outcome);
 }
 
 /*

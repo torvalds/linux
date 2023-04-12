@@ -5025,34 +5025,116 @@ xfs_btree_diff_two_ptrs(
 	return (int64_t)be32_to_cpu(a->s) - be32_to_cpu(b->s);
 }
 
-/* If there's an extent, we're done. */
+struct xfs_btree_has_records {
+	/* Keys for the start and end of the range we want to know about. */
+	union xfs_btree_key		start_key;
+	union xfs_btree_key		end_key;
+
+	/* Highest record key we've seen so far. */
+	union xfs_btree_key		high_key;
+
+	enum xbtree_recpacking		outcome;
+};
+
 STATIC int
-xfs_btree_has_record_helper(
+xfs_btree_has_records_helper(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_rec	*rec,
 	void				*priv)
 {
-	return -ECANCELED;
+	union xfs_btree_key		rec_key;
+	union xfs_btree_key		rec_high_key;
+	struct xfs_btree_has_records	*info = priv;
+	enum xbtree_key_contig		key_contig;
+
+	cur->bc_ops->init_key_from_rec(&rec_key, rec);
+
+	if (info->outcome == XBTREE_RECPACKING_EMPTY) {
+		info->outcome = XBTREE_RECPACKING_SPARSE;
+
+		/*
+		 * If the first record we find does not overlap the start key,
+		 * then there is a hole at the start of the search range.
+		 * Classify this as sparse and stop immediately.
+		 */
+		if (xfs_btree_keycmp_lt(cur, &info->start_key, &rec_key))
+			return -ECANCELED;
+	} else {
+		/*
+		 * If a subsequent record does not overlap with the any record
+		 * we've seen so far, there is a hole in the middle of the
+		 * search range.  Classify this as sparse and stop.
+		 * If the keys overlap and this btree does not allow overlap,
+		 * signal corruption.
+		 */
+		key_contig = cur->bc_ops->keys_contiguous(cur, &info->high_key,
+					&rec_key);
+		if (key_contig == XBTREE_KEY_OVERLAP &&
+				!(cur->bc_flags & XFS_BTREE_OVERLAPPING))
+			return -EFSCORRUPTED;
+		if (key_contig == XBTREE_KEY_GAP)
+			return -ECANCELED;
+	}
+
+	/*
+	 * If high_key(rec) is larger than any other high key we've seen,
+	 * remember it for later.
+	 */
+	cur->bc_ops->init_high_key_from_rec(&rec_high_key, rec);
+	if (xfs_btree_keycmp_gt(cur, &rec_high_key, &info->high_key))
+		info->high_key = rec_high_key; /* struct copy */
+
+	return 0;
 }
 
-/* Is there a record covering a given range of keys? */
+/*
+ * Scan part of the keyspace of a btree and tell us if that keyspace does not
+ * map to any records; is fully mapped to records; or is partially mapped to
+ * records.  This is the btree record equivalent to determining if a file is
+ * sparse.
+ */
 int
-xfs_btree_has_record(
+xfs_btree_has_records(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_irec	*low,
 	const union xfs_btree_irec	*high,
-	bool				*exists)
+	enum xbtree_recpacking		*outcome)
 {
+	struct xfs_btree_has_records	info = {
+		.outcome		= XBTREE_RECPACKING_EMPTY,
+	};
 	int				error;
 
-	error = xfs_btree_query_range(cur, low, high,
-			&xfs_btree_has_record_helper, NULL);
-	if (error == -ECANCELED) {
-		*exists = true;
-		return 0;
+	/* Not all btrees support this operation. */
+	if (!cur->bc_ops->keys_contiguous) {
+		ASSERT(0);
+		return -EOPNOTSUPP;
 	}
-	*exists = false;
-	return error;
+
+	xfs_btree_key_from_irec(cur, &info.start_key, low);
+	xfs_btree_key_from_irec(cur, &info.end_key, high);
+
+	error = xfs_btree_query_range(cur, low, high,
+			xfs_btree_has_records_helper, &info);
+	if (error == -ECANCELED)
+		goto out;
+	if (error)
+		return error;
+
+	if (info.outcome == XBTREE_RECPACKING_EMPTY)
+		goto out;
+
+	/*
+	 * If the largest high_key(rec) we saw during the walk is greater than
+	 * the end of the search range, classify this as full.  Otherwise,
+	 * there is a hole at the end of the search range.
+	 */
+	if (xfs_btree_keycmp_ge(cur, &info.high_key, &info.end_key))
+		info.outcome = XBTREE_RECPACKING_FULL;
+
+out:
+	*outcome = info.outcome;
+	return 0;
 }
 
 /* Are there more records in this btree? */

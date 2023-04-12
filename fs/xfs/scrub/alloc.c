@@ -144,15 +144,15 @@ xchk_xref_is_used_space(
 	xfs_agblock_t		agbno,
 	xfs_extlen_t		len)
 {
-	bool			is_freesp;
+	enum xbtree_recpacking	outcome;
 	int			error;
 
 	if (!sc->sa.bno_cur || xchk_skip_xref(sc->sm))
 		return;
 
-	error = xfs_alloc_has_record(sc->sa.bno_cur, agbno, len, &is_freesp);
+	error = xfs_alloc_has_records(sc->sa.bno_cur, agbno, len, &outcome);
 	if (!xchk_should_check_xref(sc, &error, &sc->sa.bno_cur))
 		return;
-	if (is_freesp)
+	if (outcome != XBTREE_RECPACKING_EMPTY)
 		xchk_btree_xref_set_corrupt(sc, sc->sa.bno_cur, 0);
 }

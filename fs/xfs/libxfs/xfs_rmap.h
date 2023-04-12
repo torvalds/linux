@@ -198,8 +198,8 @@ xfs_failaddr_t xfs_rmap_btrec_to_irec(const union xfs_btree_rec *rec,
 xfs_failaddr_t xfs_rmap_check_irec(struct xfs_btree_cur *cur,
 		const struct xfs_rmap_irec *irec);
 
-int xfs_rmap_has_record(struct xfs_btree_cur *cur, xfs_agblock_t bno,
-		xfs_extlen_t len, bool *exists);
+int xfs_rmap_has_records(struct xfs_btree_cur *cur, xfs_agblock_t bno,
+		xfs_extlen_t len, enum xbtree_recpacking *outcome);
 int xfs_rmap_record_exists(struct xfs_btree_cur *cur, xfs_agblock_t bno,
 		xfs_extlen_t len, const struct xfs_owner_info *oinfo,
 		bool *has_rmap);

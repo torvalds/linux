@@ -2709,13 +2709,17 @@ xfs_rmap_compare(
 		return 0;
 }
 
-/* Is there a record covering a given extent? */
+/*
+ * Scan the physical storage part of the keyspace of the reverse mapping index
+ * and tell us if the area has no records, is fully mapped by records, or is
+ * partially filled.
+ */
 int
-xfs_rmap_has_record(
+xfs_rmap_has_records(
 	struct xfs_btree_cur	*cur,
 	xfs_agblock_t		bno,
 	xfs_extlen_t		len,
-	bool			*exists)
+	enum xbtree_recpacking	*outcome)
 {
 	union xfs_btree_irec	low;
 	union xfs_btree_irec	high;
@@ -2725,7 +2729,7 @@ xfs_rmap_has_record(
 	memset(&high, 0xFF, sizeof(high));
 	high.r.rm_startblock = bno + len - 1;
 
-	return xfs_btree_has_record(cur, &low, &high, exists);
+	return xfs_btree_has_records(cur, &low, &high, outcome);
 }
 
 /*
