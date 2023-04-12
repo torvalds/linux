@@ -780,7 +780,13 @@ uffd_test_case_t uffd_tests[] = {
 		.mem_targets = MEM_SHMEM | MEM_HUGETLB,
 		.uffd_feature_required =
 		UFFD_FEATURE_MINOR_HUGETLBFS | UFFD_FEATURE_MINOR_SHMEM |
-		UFFD_FEATURE_PAGEFAULT_FLAG_WP,
+		UFFD_FEATURE_PAGEFAULT_FLAG_WP |
+		/*
+		 * HACK: here we leveraged WP_UNPOPULATED to detect whether
+		 * minor mode supports wr-protect.  There's no feature flag
+		 * for it so this is the best we can test against.
+		 */
+		UFFD_FEATURE_WP_UNPOPULATED,
 	},
 	{
 		.name = "minor-collapse",
