@@ -30,7 +30,7 @@ static int check_maps(struct map_def *merged, unsigned int size, struct maps *ma
 			if (map__start(map) != merged[i].start ||
 			    map__end(map) != merged[i].end ||
 			    strcmp(map__dso(map)->name, merged[i].name) ||
-			    refcount_read(&map->refcnt) != 1) {
+			    refcount_read(map__refcnt(map)) != 1) {
 				failed = true;
 			}
 			i++;
@@ -50,7 +50,7 @@ static int check_maps(struct map_def *merged, unsigned int size, struct maps *ma
 				map__start(map),
 				map__end(map),
 				map__dso(map)->name,
-				refcount_read(&map->refcnt));
+				refcount_read(map__refcnt(map)));
 		}
 	}
 	return failed ? TEST_FAIL : TEST_OK;

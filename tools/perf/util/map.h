@@ -97,6 +97,11 @@ static inline bool map__priv(const struct map *map)
 	return map->priv;
 }
 
+static inline refcount_t *map__refcnt(struct map *map)
+{
+	return &map->refcnt;
+}
+
 static inline size_t map__size(const struct map *map)
 {
 	return map__end(map) - map__start(map);
