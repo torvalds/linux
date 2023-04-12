@@ -972,8 +972,7 @@ static struct perf_pmu *pmu_lookup(int dirfd, const char *lookup_name)
 
 	return pmu;
 err:
-	if (pmu->name)
-		free(pmu->name);
+	zfree(&pmu->name);
 	free(pmu);
 	return NULL;
 }
@@ -1519,7 +1518,7 @@ void perf_pmu__del_formats(struct list_head *formats)
 
 	list_for_each_entry_safe(fmt, tmp, formats, list) {
 		list_del(&fmt->list);
-		free(fmt->name);
+		zfree(&fmt->name);
 		free(fmt);
 	}
 }
@@ -1866,8 +1865,8 @@ static void perf_pmu__del_caps(struct perf_pmu *pmu)
 
 	list_for_each_entry_safe(caps, tmp, &pmu->caps, list) {
 		list_del(&caps->list);
-		free(caps->name);
-		free(caps->value);
+		zfree(&caps->name);
+		zfree(&caps->value);
 		free(caps);
 	}
 }
@@ -2089,9 +2088,9 @@ static void perf_pmu__delete(struct perf_pmu *pmu)
 
 	perf_cpu_map__put(pmu->cpus);
 
-	free(pmu->default_config);
-	free(pmu->name);
-	free(pmu->alias_name);
+	zfree(&pmu->default_config);
+	zfree(&pmu->name);
+	zfree(&pmu->alias_name);
 	free(pmu);
 }
 
