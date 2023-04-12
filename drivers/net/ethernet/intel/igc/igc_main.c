@@ -2411,6 +2411,8 @@ static int igc_xdp_xmit_back(struct igc_adapter *adapter, struct xdp_buff *xdp)
 	nq = txring_txq(ring);
 
 	__netif_tx_lock(nq, cpu);
+	/* Avoid transmit queue timeout since we share it with the slow path */
+	txq_trans_cond_update(nq);
 	res = igc_xdp_init_tx_descriptor(ring, xdpf);
 	__netif_tx_unlock(nq);
 	return res;
@@ -2828,6 +2830,9 @@ static void igc_xdp_xmit_zc(struct igc_ring *ring)
 		return;
 
 	__netif_tx_lock(nq, cpu);
+
+	/* Avoid transmit queue timeout since we share it with the slow path */
+	txq_trans_cond_update(nq);
 
 	budget = igc_desc_unused(ring);
 
@@ -6353,6 +6358,9 @@ static int igc_xdp_xmit(struct net_device *dev, int num_frames,
 	nq = txring_txq(ring);
 
 	__netif_tx_lock(nq, cpu);
+
+	/* Avoid transmit queue timeout since we share it with the slow path */
+	txq_trans_cond_update(nq);
 
 	drops = 0;
 	for (i = 0; i < num_frames; i++) {
