@@ -73,6 +73,11 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&accel_pins>;
 	};
+
+	magnetometer@12 {
+		compatible = "bosch,bmm150";
+		reg = <0x12>;
+	};
 };
 
 &i2c2 {
