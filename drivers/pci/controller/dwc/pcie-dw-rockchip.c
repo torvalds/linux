@@ -2396,6 +2396,9 @@ std_rc_done:
 			goto err;
 	}
 
+	if (rk_pcie->pci->pp.msi_irq > 0)
+		dw_pcie_msi_init(&rk_pcie->pci->pp);
+
 	return 0;
 err:
 	rk_pcie_disable_power(rk_pcie);
