@@ -2,8 +2,8 @@
 Assignment 2 - Driver UART
 ==========================
 
--  Deadline: :command:`Tuesday, 19 April 2022, 23:00`
--  This assignment can be made in teams (max 2). Only one of them must submit the assignment, and the names of the student should be listed in a README file.
+-  Deadline: :command:`Sunday, 30 April 2023, 23:00`
+-  The assigment is individual
 
 Assignment's Objectives
 =======================
@@ -58,7 +58,7 @@ Implementation Details
    -  to learn how to pass parameters in Linux, see `tldp <https://tldp.org/LDP/lkmpg/2.6/html/x323.html>`__
    -  the default values are `major=42` and `option=OPTION_BOTH`.
 -  the interrupt number associated with COM1 is 4 (`IRQ_COM1`) and the interrupt number associated with COM2 is 3 (`IRQ_COM2`)
--  `the header <https://github.com/linux-kernel-labs/linux/blob/master/tools/labs/templates/assignments/2-uart/uart16550.h>`__ with the definitions needed for special operations;
+-  `the header <https://gitlab.cs.pub.ro/so2/2-uart/-/blob/master/src/uart16550.h>`__ with the definitions needed for special operations;
 -  a starting point in implementing read / write routines is the `example <https://ocw.cs.pub.ro/courses/so2/laboratoare/lab04?&#sincronizare_-_cozi_de_asteptare>`__ of uppercase / lowercase character device driver; the only difference is that you have to use two buffers, one for read and one for write;
 -  you can use `kfifo <https://lwn.net/Articles/347619/>`__ for buffers;
 -  you do not have to use deferred functions to read / write data from / to ports (you can do everything from interrupt context);
@@ -72,19 +72,20 @@ Implementation Details
 
 Testing
 =======
-In order to simplify the assignment evaluation process, but also to reduce the mistakes of the
-submitted assignments, the assignment evaluation will be done automatically with with the help of
-public tests that are in the new infrastructure. For local testing, use the following commands:
+In order to simplify the assignment evaluation process, but also to reduce the mistakes of the submitted assignments,
+the assignment evaluation will be done automatically with the help of a
+`test script <https://gitlab.cs.pub.ro/so2/2-uart/-/blob/master/checker/2-uart-checker/_checker>`__ called `_checker`.
+The test script assumes that the kernel module is called `uart16550.ko`.
 
-.. code-block:: console
+QuickStart
+==========
 
-   $ git clone https://github.com/linux-kernel-labs/linux.git
-   $ cd linux/tools/labs
-   $ LABS=assignments/2-uart make skels
-   $ #the development of the assignment will be written in the 2-uart directory
-   $ make build
-   $ make copy
-   $ make boot
+It is mandatory to start the implementation of the assignment from the code skeleton found in the `src <https://gitlab.cs.pub.ro/so2/2-uart/-/tree/master/src>`__ directory.
+There is only one header in the skeleton called `uart16550.h <https://gitlab.cs.pub.ro/so2/2-uart/-/blob/master/src/uart16550.h>`__.
+You will provide the rest of the implementation. You can add as many `*.c`` sources and additional `*.h`` headers.
+You should also provide a Kbuild file that will compile the kernel module called `uart16550.ko`.
+Follow the instructions in the `README.md file <https://gitlab.cs.pub.ro/so2/2-uart/-/blob/master/README.md>`__ of the `assignment's repo <https://gitlab.cs.pub.ro/so2/2-uart>`__.
+
 
 Tips
 ----
@@ -127,10 +128,10 @@ and if the assigment does not pass all the tests, the grade will may decrease mo
 Submitting the assigment
 ------------------------
 
-The assignment archive will be submitted to vmchecker, according to the rules on the
-`rules page <https://ocw.cs.pub.ro/courses/so2/reguli-notare#reguli_de_trimitere_a_temelor>`__.
+The assignment will be graded automatically using the `vmchecker-next <https://github.com/systems-cs-pub-ro/vmchecker-next/wiki/Student-Handbook>`__ infrastructure.
+The submission will be made on moodle on the `course's page <https://curs.upb.ro/2022/course/view.php?id=5121>`__ to the related assignment.
+You will find the submission details in the `README.md file <https://gitlab.cs.pub.ro/so2/2-uart/-/blob/master/README.md>`__ of the `repo <https://gitlab.cs.pub.ro/so2/2-uart>`__.
 
-From the vmchecker interface choose the `Driver UART` option for this assigment.
 
 Resources
 =========
@@ -141,24 +142,11 @@ Resources
 -  `alternative documentation <https://en.wikibooks.org/wiki/Serial_Programming/8250_UART_Programming>`__
 
 We recommend that you use gitlab to store your homework. Follow the directions in
-`README <https://github.com/systems-cs-pub-ro/so2-assignments/blob/master/README.md>`__
-and on the dedicated `git wiki page <https://ocw.cs.pub.ro/courses/so2/teme/folosire-gitlab>`__.
+`README <https://gitlab.cs.pub.ro/so2/2-uart/-/blob/master/README.md>`__.
 
-The resources for the assignment can also be found in the `so2-assignments <https://github.com/systems-cs-pub-ro/so2-assignments>`__ repo on GitHub.
-The repo contains a `Bash script <https://github.com/systems-cs-pub-ro/so2-assignments/blob/master/so2-create-repo.sh>`__
-that helps you create a private repository on the faculty `GitLab <https://gitlab.cs.pub.ro/users/sign_in>`__ instance.
-Follow the tips from the `README <https://github.com/systems-cs-pub-ro/so2-assignments/blob/master/README.md>`__ and
-on the dedicated `Wiki page <https://ocw.cs.pub.ro/courses/so2/teme/folosire-gitlab>`__.
 
 Questions
 =========
 
-For questions about the assigment, you can consult the mailing `list archives <http://cursuri.cs.pub.ro/pipermail/so2/>`__
-or send an e-mail (you must be `registered <http://cursuri.cs.pub.ro/cgi-bin/mailman/listinfo/so2>`__).
-Please follow and follow `the tips for use of the list <https://ocw.cs.pub.ro/courses/so2/resurse/lista-discutii#mailing-list-guidelines>`__.
-
-Before you ask a question, make sure that:
-
-   - you have read the statement of the assigment well
-   - the question is not already presented on the `FAQ page <https://ocw.cs.pub.ro/courses/so2/teme/tema2/faq>`__
-   - the answer cannot be found in the `mailing list archives <http://cursuri.cs.pub.ro/pipermail/so2/>`__
+For questions about the topic, you can consult the mailing `list archives <http://cursuri.cs.pub.ro/pipermail/so2/>`__
+or you can write a question on the dedicated Teams channel.
