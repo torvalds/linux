@@ -28,6 +28,10 @@ struct bpf_testmod_struct_arg_2 {
 	long b;
 };
 
+__diag_push();
+__diag_ignore_all("-Wmissing-prototypes",
+		  "Global functions as their definitions will be in bpf_testmod.ko BTF");
+
 noinline int
 bpf_testmod_test_struct_arg_1(struct bpf_testmod_struct_arg_2 a, int b, int c) {
 	bpf_testmod_test_struct_arg_result = a.a + a.b  + b + c;
@@ -174,6 +178,8 @@ noinline int bpf_testmod_fentry_test3(char a, int b, u64 c)
 {
 	return a + b + c;
 }
+
+__diag_pop();
 
 int bpf_testmod_fentry_ok;
 
