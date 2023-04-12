@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2017 Oracle.  All Rights Reserved.
- * Author: Darrick J. Wong <darrick.wong@oracle.com>
+ * Author: Darrick J. Wong <djwong@kernel.org>
  *
  * NOTE: none of these tracepoints shall be considered a stable kernel ABI
  * as they can change at any time.  See xfs_trace.h for documentation of
