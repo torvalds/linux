@@ -165,7 +165,7 @@ xchk_bmap_get_rmap(
 	return has_rmap;
 }
 
-/* Make sure that we have rmapbt records for this extent. */
+/* Make sure that we have rmapbt records for this data/attr fork extent. */
 STATIC void
 xchk_bmap_xref_rmap(
 	struct xchk_bmap_info	*info,
@@ -174,41 +174,39 @@ xchk_bmap_xref_rmap(
 {
 	struct xfs_rmap_irec	rmap;
 	unsigned long long	rmap_end;
-	uint64_t		owner;
+	uint64_t		owner = info->sc->ip->i_ino;
 
 	if (!info->sc->sa.rmap_cur || xchk_skip_xref(info->sc->sm))
 		return;
-
-	if (info->whichfork == XFS_COW_FORK)
-		owner = XFS_RMAP_OWN_COW;
-	else
-		owner = info->sc->ip->i_ino;
 
 	/* Find the rmap record for this irec. */
 	if (!xchk_bmap_get_rmap(info, irec, agbno, owner, &rmap))
 		return;
 
-	/* Check the rmap. */
-	rmap_end = (unsigned long long)rmap.rm_startblock + rmap.rm_blockcount;
-	if (rmap.rm_startblock > agbno ||
-	    agbno + irec->br_blockcount > rmap_end)
+	/*
+	 * The rmap must be an exact match for this incore file mapping record,
+	 * which may have arisen from multiple ondisk records.
+	 */
+	if (rmap.rm_startblock != agbno)
 		xchk_fblock_xref_set_corrupt(info->sc, info->whichfork,
 				irec->br_startoff);
 
-	/*
-	 * Check the logical offsets if applicable.  CoW staging extents
-	 * don't track logical offsets since the mappings only exist in
-	 * memory.
-	 */
-	if (info->whichfork != XFS_COW_FORK) {
-		rmap_end = (unsigned long long)rmap.rm_offset +
-				rmap.rm_blockcount;
-		if (rmap.rm_offset > irec->br_startoff ||
-		    irec->br_startoff + irec->br_blockcount > rmap_end)
-			xchk_fblock_xref_set_corrupt(info->sc,
-					info->whichfork, irec->br_startoff);
-	}
+	rmap_end = (unsigned long long)rmap.rm_startblock + rmap.rm_blockcount;
+	if (rmap_end != agbno + irec->br_blockcount)
+		xchk_fblock_xref_set_corrupt(info->sc, info->whichfork,
+				irec->br_startoff);
 
+	/* Check the logical offsets. */
+	if (rmap.rm_offset != irec->br_startoff)
+		xchk_fblock_xref_set_corrupt(info->sc, info->whichfork,
+				irec->br_startoff);
+
+	rmap_end = (unsigned long long)rmap.rm_offset + rmap.rm_blockcount;
+	if (rmap_end != irec->br_startoff + irec->br_blockcount)
+		xchk_fblock_xref_set_corrupt(info->sc, info->whichfork,
+				irec->br_startoff);
+
+	/* Check the owner */
 	if (rmap.rm_owner != owner)
 		xchk_fblock_xref_set_corrupt(info->sc, info->whichfork,
 				irec->br_startoff);
@@ -220,8 +218,7 @@ xchk_bmap_xref_rmap(
 	 * records because the blocks are owned (on-disk) by the refcountbt,
 	 * which doesn't track unwritten state.
 	 */
-	if (owner != XFS_RMAP_OWN_COW &&
-	    !!(irec->br_state == XFS_EXT_UNWRITTEN) !=
+	if (!!(irec->br_state == XFS_EXT_UNWRITTEN) !=
 	    !!(rmap.rm_flags & XFS_RMAP_UNWRITTEN))
 		xchk_fblock_xref_set_corrupt(info->sc, info->whichfork,
 				irec->br_startoff);
@@ -233,23 +230,60 @@ xchk_bmap_xref_rmap(
 	if (rmap.rm_flags & XFS_RMAP_BMBT_BLOCK)
 		xchk_fblock_xref_set_corrupt(info->sc, info->whichfork,
 				irec->br_startoff);
+}
+
+/* Make sure that we have rmapbt records for this COW fork extent. */
+STATIC void
+xchk_bmap_xref_rmap_cow(
+	struct xchk_bmap_info	*info,
+	struct xfs_bmbt_irec	*irec,
+	xfs_agblock_t		agbno)
+{
+	struct xfs_rmap_irec	rmap;
+	unsigned long long	rmap_end;
+	uint64_t		owner = XFS_RMAP_OWN_COW;
+
+	if (!info->sc->sa.rmap_cur || xchk_skip_xref(info->sc->sm))
+		return;
+
+	/* Find the rmap record for this irec. */
+	if (!xchk_bmap_get_rmap(info, irec, agbno, owner, &rmap))
+		return;
 
 	/*
-	 * The rmap must correspond exactly with this bmbt record.  Skip this
-	 * for CoW fork extents because the refcount btree (and not the inode)
-	 * is the ondisk owner for those extents.
+	 * CoW staging extents are owned by the refcount btree, so the rmap
+	 * can start before and end after the physical space allocated to this
+	 * mapping.  There are no offsets to check.
 	 */
-	if (info->whichfork != XFS_COW_FORK) {
-		if (rmap.rm_startblock != agbno)
-			xchk_fblock_xref_set_corrupt(info->sc, info->whichfork,
-					irec->br_startoff);
+	if (rmap.rm_startblock > agbno)
+		xchk_fblock_xref_set_corrupt(info->sc, info->whichfork,
+				irec->br_startoff);
 
-		rmap_end = (unsigned long long)rmap.rm_startblock +
-					       rmap.rm_blockcount;
-		if (rmap_end != agbno + irec->br_blockcount)
-			xchk_fblock_xref_set_corrupt(info->sc, info->whichfork,
-					irec->br_startoff);
-	}
+	rmap_end = (unsigned long long)rmap.rm_startblock + rmap.rm_blockcount;
+	if (rmap_end < agbno + irec->br_blockcount)
+		xchk_fblock_xref_set_corrupt(info->sc, info->whichfork,
+				irec->br_startoff);
+
+	/* Check the owner */
+	if (rmap.rm_owner != owner)
+		xchk_fblock_xref_set_corrupt(info->sc, info->whichfork,
+				irec->br_startoff);
+
+	/*
+	 * No flags allowed.  Note that the (in-memory) CoW fork distinguishes
+	 * between unwritten and written extents, but we don't track that in
+	 * the rmap records because the blocks are owned (on-disk) by the
+	 * refcountbt, which doesn't track unwritten state.
+	 */
+	if (rmap.rm_flags & XFS_RMAP_ATTR_FORK)
+		xchk_fblock_xref_set_corrupt(info->sc, info->whichfork,
+				irec->br_startoff);
+	if (rmap.rm_flags & XFS_RMAP_BMBT_BLOCK)
+		xchk_fblock_xref_set_corrupt(info->sc, info->whichfork,
+				irec->br_startoff);
+	if (rmap.rm_flags & XFS_RMAP_UNWRITTEN)
+		xchk_fblock_xref_set_corrupt(info->sc, info->whichfork,
+				irec->br_startoff);
 }
 
 /* Cross-reference a single rtdev extent record. */
@@ -288,9 +322,9 @@ xchk_bmap_iextent_xref(
 
 	xchk_xref_is_used_space(info->sc, agbno, len);
 	xchk_xref_is_not_inode_chunk(info->sc, agbno, len);
-	xchk_bmap_xref_rmap(info, irec, agbno);
 	switch (info->whichfork) {
 	case XFS_DATA_FORK:
+		xchk_bmap_xref_rmap(info, irec, agbno);
 		if (!xfs_is_reflink_inode(info->sc->ip)) {
 			xfs_rmap_ino_owner(&oinfo, info->sc->ip->i_ino,
 					info->whichfork, irec->br_startoff);
@@ -303,6 +337,7 @@ xchk_bmap_iextent_xref(
 				irec->br_blockcount);
 		break;
 	case XFS_ATTR_FORK:
+		xchk_bmap_xref_rmap(info, irec, agbno);
 		xfs_rmap_ino_owner(&oinfo, info->sc->ip->i_ino,
 				info->whichfork, irec->br_startoff);
 		xchk_xref_is_only_owned_by(info->sc, agbno, irec->br_blockcount,
@@ -313,6 +348,7 @@ xchk_bmap_iextent_xref(
 				irec->br_blockcount);
 		break;
 	case XFS_COW_FORK:
+		xchk_bmap_xref_rmap_cow(info, irec, agbno);
 		xchk_xref_is_only_owned_by(info->sc, agbno, irec->br_blockcount,
 				&XFS_RMAP_OINFO_COW);
 		xchk_xref_is_cow_staging(info->sc, agbno,
