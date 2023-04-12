@@ -1968,6 +1968,7 @@
   dmabuf_page_pool_create
   dmabuf_page_pool_destroy
   dmabuf_page_pool_free
+  dmabuf_page_pool_get_size
   dma_heap_add
   dma_heap_get_dev
   dma_heap_get_name
