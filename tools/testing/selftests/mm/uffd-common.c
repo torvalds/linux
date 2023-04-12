@@ -44,10 +44,15 @@ static void anon_release_pages(char *rel_area)
 		err("madvise(MADV_DONTNEED) failed");
 }
 
-static void anon_allocate_area(void **alloc_area, bool is_src)
+static int anon_allocate_area(void **alloc_area, bool is_src)
 {
 	*alloc_area = mmap(NULL, nr_pages * page_size, PROT_READ | PROT_WRITE,
 			   MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+	if (*alloc_area == MAP_FAILED) {
+		*alloc_area = NULL;
+		return -errno;
+	}
+	return 0;
 }
 
 static void noop_alias_mapping(__u64 *start, size_t len, unsigned long offset)
@@ -65,7 +70,7 @@ static void hugetlb_release_pages(char *rel_area)
 	}
 }
 
-static void hugetlb_allocate_area(void **alloc_area, bool is_src)
+static int hugetlb_allocate_area(void **alloc_area, bool is_src)
 {
 	off_t size = nr_pages * page_size;
 	off_t offset = is_src ? 0 : size;
@@ -77,14 +82,16 @@ static void hugetlb_allocate_area(void **alloc_area, bool is_src)
 			   (map_shared ? MAP_SHARED : MAP_PRIVATE) |
 			   (is_src ? 0 : MAP_NORESERVE),
 			   mem_fd, offset);
-	if (*alloc_area == MAP_FAILED)
-		err("mmap of hugetlbfs file failed");
+	if (*alloc_area == MAP_FAILED) {
+		*alloc_area = NULL;
+		return -errno;
+	}
 
 	if (map_shared) {
 		area_alias = mmap(NULL, size, PROT_READ | PROT_WRITE,
 				  MAP_SHARED, mem_fd, offset);
 		if (area_alias == MAP_FAILED)
-			err("mmap of hugetlb file alias failed");
+			return -errno;
 	}
 
 	if (is_src) {
@@ -96,6 +103,7 @@ static void hugetlb_allocate_area(void **alloc_area, bool is_src)
 		*alloc_area_alias = area_alias;
 
 	close(mem_fd);
+	return 0;
 }
 
 static void hugetlb_alias_mapping(__u64 *start, size_t len, unsigned long offset)
@@ -112,7 +120,7 @@ static void shmem_release_pages(char *rel_area)
 		err("madvise(MADV_REMOVE) failed");
 }
 
-static void shmem_allocate_area(void **alloc_area, bool is_src)
+static int shmem_allocate_area(void **alloc_area, bool is_src)
 {
 	void *area_alias = NULL;
 	size_t bytes = nr_pages * page_size, hpage_size = read_pmd_pagesize();
@@ -132,15 +140,20 @@ static void shmem_allocate_area(void **alloc_area, bool is_src)
 
 	*alloc_area = mmap(p, bytes, PROT_READ | PROT_WRITE, MAP_SHARED,
 			   mem_fd, offset);
-	if (*alloc_area == MAP_FAILED)
-		err("mmap of memfd failed");
+	if (*alloc_area == MAP_FAILED) {
+		*alloc_area = NULL;
+		return -errno;
+	}
 	if (test_collapse && *alloc_area != p)
 		err("mmap of memfd failed at %p", p);
 
 	area_alias = mmap(p_alias, bytes, PROT_READ | PROT_WRITE, MAP_SHARED,
 			  mem_fd, offset);
-	if (area_alias == MAP_FAILED)
-		err("mmap of memfd alias failed");
+	if (area_alias == MAP_FAILED) {
+		munmap(*alloc_area, bytes);
+		*alloc_area = NULL;
+		return -errno;
+	}
 	if (test_collapse && area_alias != p_alias)
 		err("mmap of anonymous memory failed at %p", p_alias);
 
@@ -150,6 +163,7 @@ static void shmem_allocate_area(void **alloc_area, bool is_src)
 		area_dst_alias = area_alias;
 
 	close(mem_fd);
+	return 0;
 }
 
 static void shmem_alias_mapping(__u64 *start, size_t len, unsigned long offset)
@@ -282,14 +296,19 @@ static void uffd_test_ctx_clear(void)
 	munmap_area((void **)&area_remap);
 }
 
-void uffd_test_ctx_init(uint64_t features)
+int uffd_test_ctx_init(uint64_t features)
 {
 	unsigned long nr, cpu;
+	int ret;
 
 	uffd_test_ctx_clear();
 
-	uffd_test_ops->allocate_area((void **)&area_src, true);
-	uffd_test_ops->allocate_area((void **)&area_dst, false);
+	ret = uffd_test_ops->allocate_area((void **)&area_src, true);
+	if (ret)
+		return ret;
+	ret = uffd_test_ops->allocate_area((void **)&area_dst, false);
+	if (ret)
+		return ret;
 
 	userfaultfd_open(&features);
 
@@ -337,6 +356,8 @@ void uffd_test_ctx_init(uint64_t features)
 	for (cpu = 0; cpu < nr_cpus; cpu++)
 		if (pipe2(&pipefd[cpu * 2], O_CLOEXEC | O_NONBLOCK))
 			err("pipe");
+
+	return 0;
 }
 
 void wp_range(int ufd, __u64 start, __u64 len, bool wp)

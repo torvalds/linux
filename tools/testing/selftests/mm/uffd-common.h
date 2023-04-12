@@ -80,7 +80,7 @@ struct uffd_args {
 };
 
 struct uffd_test_ops {
-	void (*allocate_area)(void **alloc_area, bool is_src);
+	int (*allocate_area)(void **alloc_area, bool is_src);
 	void (*release_pages)(char *rel_area);
 	void (*alias_mapping)(__u64 *start, size_t len, unsigned long offset);
 	void (*check_pmd_mapping)(void *p, int expect_nr_hpages);
@@ -101,7 +101,7 @@ extern uffd_test_ops_t hugetlb_uffd_test_ops;
 extern uffd_test_ops_t *uffd_test_ops;
 
 void uffd_stats_report(struct uffd_args *args, int n_cpus);
-void uffd_test_ctx_init(uint64_t features);
+int uffd_test_ctx_init(uint64_t features);
 void userfaultfd_open(uint64_t *features);
 int uffd_read_msg(int ufd, struct uffd_msg *msg);
 void wp_range(int ufd, __u64 start, __u64 len, bool wp);
