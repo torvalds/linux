@@ -127,7 +127,7 @@ static void default_print_event(void *ps, const char *pmu_name, const char *topi
 	if (strcmp(print_state->last_topic, topic ?: "")) {
 		if (topic)
 			printf("\n%s:\n", topic);
-		free(print_state->last_topic);
+		zfree(&print_state->last_topic);
 		print_state->last_topic = strdup(topic ?: "");
 	}
 
@@ -197,7 +197,7 @@ static void default_print_metric(void *ps,
 			else
 				printf("%s\n", group);
 		}
-		free(print_state->last_metricgroups);
+		zfree(&print_state->last_metricgroups);
 		print_state->last_metricgroups = strdup(group ?: "");
 	}
 	if (!print_state->metrics)
