@@ -615,6 +615,8 @@ struct ufs_qcom_host {
 
 	int esi_base;
 	bool esi_enabled;
+
+	bool bypass_pbl_rst_wa;
 };
 
 static inline u32
