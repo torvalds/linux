@@ -112,6 +112,9 @@ static int amdgpu_cs_p1_ib(struct amdgpu_cs_parser *p,
 	if (r < 0)
 		return r;
 
+	if (num_ibs[r] >= amdgpu_ring_max_ibs(chunk_ib->ip_type))
+		return -EINVAL;
+
 	++(num_ibs[r]);
 	p->gang_leader_idx = r;
 	return 0;
