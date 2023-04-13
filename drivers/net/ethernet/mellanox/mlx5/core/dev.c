@@ -59,9 +59,6 @@ bool mlx5_eth_supported(struct mlx5_core_dev *dev)
 	if (!IS_ENABLED(CONFIG_MLX5_CORE_EN))
 		return false;
 
-	if (mlx5_core_is_management_pf(dev))
-		return false;
-
 	if (MLX5_CAP_GEN(dev, port_type) != MLX5_CAP_PORT_TYPE_ETH)
 		return false;
 
@@ -199,9 +196,6 @@ static bool is_mp_supported(struct mlx5_core_dev *dev)
 bool mlx5_rdma_supported(struct mlx5_core_dev *dev)
 {
 	if (!IS_ENABLED(CONFIG_MLX5_INFINIBAND))
-		return false;
-
-	if (mlx5_core_is_management_pf(dev))
 		return false;
 
 	if (dev->priv.flags & MLX5_PRIV_FLAGS_DISABLE_IB_ADEV)
