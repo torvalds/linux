@@ -274,6 +274,8 @@ static int nvdec_load_falcon_firmware(struct nvdec *nvdec)
 			return err;
 	} else {
 		virt = tegra_drm_alloc(tegra, size, &iova);
+		if (IS_ERR(virt))
+			return PTR_ERR(virt);
 	}
 
 	nvdec->falcon.firmware.virt = virt;
