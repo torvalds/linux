@@ -7,6 +7,8 @@
 
 #include <linux/auxiliary_bus.h>
 
+#include <soc/starfive/reset-starfive-jh71x0.h>
+
 #include "reset-starfive-jh71x0.h"
 
 #include <dt-bindings/reset/starfive,jh7110-crg.h>
@@ -33,14 +35,15 @@ static int jh7110_reset_probe(struct auxiliary_device *adev,
 			      const struct auxiliary_device_id *id)
 {
 	struct jh7110_reset_info *info = (struct jh7110_reset_info *)(id->driver_data);
-	void __iomem **base = (void __iomem **)dev_get_drvdata(adev->dev.parent);
+	struct jh71x0_reset_adev *rdev = to_jh71x0_reset_adev(adev);
+	void __iomem *base = rdev->base;
 
 	if (!info || !base)
 		return -ENODEV;
 
 	return reset_starfive_jh71x0_register(&adev->dev, adev->dev.parent->of_node,
-					      *base + info->assert_offset,
-					      *base + info->status_offset,
+					      base + info->assert_offset,
+					      base + info->status_offset,
 					      NULL,
 					      info->nr_resets,
 					      NULL);

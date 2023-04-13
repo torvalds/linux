@@ -11,6 +11,9 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
+
+#include <soc/starfive/reset-starfive-jh71x0.h>
 
 #include <dt-bindings/clock/starfive,jh7110-crg.h>
 
@@ -335,26 +338,32 @@ static void jh7110_reset_unregister_adev(void *_adev)
 	struct auxiliary_device *adev = _adev;
 
 	auxiliary_device_delete(adev);
+	auxiliary_device_uninit(adev);
 }
 
 static void jh7110_reset_adev_release(struct device *dev)
 {
 	struct auxiliary_device *adev = to_auxiliary_dev(dev);
+	struct jh71x0_reset_adev *rdev = to_jh71x0_reset_adev(adev);
 
-	auxiliary_device_uninit(adev);
+	kfree(rdev);
 }
 
 int jh7110_reset_controller_register(struct jh71x0_clk_priv *priv,
 				     const char *adev_name,
 				     u32 adev_id)
 {
+	struct jh71x0_reset_adev *rdev;
 	struct auxiliary_device *adev;
 	int ret;
 
-	adev = devm_kzalloc(priv->dev, sizeof(*adev), GFP_KERNEL);
-	if (!adev)
+	rdev = kzalloc(sizeof(*rdev), GFP_KERNEL);
+	if (!rdev)
 		return -ENOMEM;
 
+	rdev->base = priv->base;
+
+	adev = &rdev->adev;
 	adev->name = adev_name;
 	adev->dev.parent = priv->dev;
 	adev->dev.release = jh7110_reset_adev_release;
