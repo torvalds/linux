@@ -117,21 +117,15 @@ xchk_dir_actor(
 	}
 
 	/*
-	 * Grab the inode pointed to by the dirent.  We release the
-	 * inode before we cancel the scrub transaction.  Since we're
-	 * don't know a priori that releasing the inode won't trigger
-	 * eofblocks cleanup (which allocates what would be a nested
-	 * transaction), we can't use DONTCACHE here because DONTCACHE
-	 * inodes can trigger immediate inactive cleanup of the inode.
-	 * Use UNTRUSTED here to check the allocation status of the inode in
-	 * the inode btrees.
+	 * Grab the inode pointed to by the dirent.  We release the inode
+	 * before we cancel the scrub transaction.
 	 *
 	 * If _iget returns -EINVAL or -ENOENT then the child inode number is
 	 * garbage and the directory is corrupt.  If the _iget returns
 	 * -EFSCORRUPTED or -EFSBADCRC then the child is corrupt which is a
 	 *  cross referencing error.  Any other error is an operational error.
 	 */
-	error = xfs_iget(mp, sc->tp, ino, XFS_IGET_UNTRUSTED, 0, &ip);
+	error = xchk_iget(sc, ino, &ip);
 	if (error == -EINVAL || error == -ENOENT) {
 		error = -EFSCORRUPTED;
 		xchk_fblock_process_error(sc, XFS_DATA_FORK, 0, &error);
@@ -141,7 +135,7 @@ xchk_dir_actor(
 		goto out;
 
 	xchk_dir_check_ftype(sc, offset, ip, name->type);
-	xfs_irele(ip);
+	xchk_irele(sc, ip);
 out:
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return -ECANCELED;

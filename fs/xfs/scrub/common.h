@@ -32,6 +32,8 @@ xchk_should_terminate(
 }
 
 int xchk_trans_alloc(struct xfs_scrub *sc, uint resblks);
+void xchk_trans_cancel(struct xfs_scrub *sc);
+
 bool xchk_process_error(struct xfs_scrub *sc, xfs_agnumber_t agno,
 		xfs_agblock_t bno, int *error);
 bool xchk_fblock_process_error(struct xfs_scrub *sc, int whichfork,
@@ -133,9 +135,15 @@ int xchk_count_rmap_ownedby_ag(struct xfs_scrub *sc, struct xfs_btree_cur *cur,
 		const struct xfs_owner_info *oinfo, xfs_filblks_t *blocks);
 
 int xchk_setup_ag_btree(struct xfs_scrub *sc, bool force_log);
-int xchk_get_inode(struct xfs_scrub *sc);
+int xchk_iget_for_scrubbing(struct xfs_scrub *sc);
 int xchk_setup_inode_contents(struct xfs_scrub *sc, unsigned int resblks);
 void xchk_buffer_recheck(struct xfs_scrub *sc, struct xfs_buf *bp);
+
+int xchk_iget(struct xfs_scrub *sc, xfs_ino_t inum, struct xfs_inode **ipp);
+int xchk_iget_agi(struct xfs_scrub *sc, xfs_ino_t inum,
+		struct xfs_buf **agi_bpp, struct xfs_inode **ipp);
+void xchk_irele(struct xfs_scrub *sc, struct xfs_inode *ip);
+int xchk_install_handle_inode(struct xfs_scrub *sc, struct xfs_inode *ip);
 
 /*
  * Don't bother cross-referencing if we already found corruption or cross

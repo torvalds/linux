@@ -127,20 +127,15 @@ xchk_parent_validate(
 	expected_nlink = VFS_I(sc->ip)->i_nlink == 0 ? 0 : 1;
 
 	/*
-	 * Grab this parent inode.  We release the inode before we
-	 * cancel the scrub transaction.  Since we're don't know a
-	 * priori that releasing the inode won't trigger eofblocks
-	 * cleanup (which allocates what would be a nested transaction)
-	 * if the parent pointer erroneously points to a file, we
-	 * can't use DONTCACHE here because DONTCACHE inodes can trigger
-	 * immediate inactive cleanup of the inode.
+	 * Grab the parent directory inode.  This must be released before we
+	 * cancel the scrub transaction.
 	 *
 	 * If _iget returns -EINVAL or -ENOENT then the parent inode number is
 	 * garbage and the directory is corrupt.  If the _iget returns
 	 * -EFSCORRUPTED or -EFSBADCRC then the parent is corrupt which is a
 	 *  cross referencing error.  Any other error is an operational error.
 	 */
-	error = xfs_iget(mp, sc->tp, parent_ino, XFS_IGET_UNTRUSTED, 0, &dp);
+	error = xchk_iget(sc, parent_ino, &dp);
 	if (error == -EINVAL || error == -ENOENT) {
 		error = -EFSCORRUPTED;
 		xchk_fblock_process_error(sc, XFS_DATA_FORK, 0, &error);
@@ -176,7 +171,7 @@ xchk_parent_validate(
 out_unlock:
 	xfs_iunlock(dp, lock_mode);
 out_rele:
-	xfs_irele(dp);
+	xchk_irele(sc, dp);
 	return error;
 }
 
