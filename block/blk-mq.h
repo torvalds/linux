@@ -65,8 +65,6 @@ void blk_mq_free_map_and_rqs(struct blk_mq_tag_set *set,
 /*
  * Internal helpers for request insertion into sw queues
  */
-void __blk_mq_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
-				bool at_head);
 void blk_mq_request_bypass_insert(struct request *rq, bool at_head,
 				  bool run_queue);
 

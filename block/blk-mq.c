@@ -2463,17 +2463,6 @@ static inline void __blk_mq_insert_req_list(struct blk_mq_hw_ctx *hctx,
 		list_add_tail(&rq->queuelist, &ctx->rq_lists[type]);
 }
 
-void __blk_mq_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
-			     bool at_head)
-{
-	struct blk_mq_ctx *ctx = rq->mq_ctx;
-
-	lockdep_assert_held(&ctx->lock);
-
-	__blk_mq_insert_req_list(hctx, rq, at_head);
-	blk_mq_hctx_mark_pending(hctx, ctx);
-}
-
 /**
  * blk_mq_request_bypass_insert - Insert a request at dispatch list.
  * @rq: Pointer to request to be inserted.
@@ -2598,7 +2587,8 @@ static void blk_mq_insert_request(struct request *rq, bool at_head,
 		e->type->ops.insert_requests(hctx, &list, at_head);
 	} else {
 		spin_lock(&ctx->lock);
-		__blk_mq_insert_request(hctx, rq, at_head);
+		__blk_mq_insert_req_list(hctx, rq, at_head);
+		blk_mq_hctx_mark_pending(hctx, ctx);
 		spin_unlock(&ctx->lock);
 	}
 
