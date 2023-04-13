@@ -49,12 +49,6 @@ config MPC834x_ITX
 	  Be aware that PCI initialization is the bootloader's
 	  responsibility.
 
-config MPC836x_MDS
-	bool "Freescale MPC836x MDS"
-	select DEFAULT_UIMAGE
-	help
-	  This option enables support for the MPC836x MDS Processor Board.
-
 config MPC836x_RDK
 	bool "Freescale/Logic MPC836x RDK"
 	select DEFAULT_UIMAGE
