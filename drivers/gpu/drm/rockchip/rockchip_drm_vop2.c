@@ -10449,6 +10449,18 @@ static bool vop3_ignore_plane(struct vop2 *vop2, struct vop2_win *win)
 		return false;
 }
 
+static u32 vop3_esmart_linebuffer_size(struct vop2 *vop2, struct vop2_win *win)
+{
+	if (!is_vop3(vop2) || vop2_cluster_window(win))
+		return vop2->data->max_output.width;
+
+	if (vop2->esmart_lb_mode == VOP3_ESMART_2K_2K_2K_2K_MODE ||
+	    (vop2->esmart_lb_mode == VOP3_ESMART_4K_2K_2K_MODE && win->phys_id != ROCKCHIP_VOP2_ESMART0))
+		return vop2->data->max_output.width / 2;
+	else
+		return vop2->data->max_output.width;
+}
+
 static void vop3_init_esmart_scale_engine(struct vop2 *vop2)
 {
 	u8 scale_engine_num = 0;
@@ -10531,7 +10543,7 @@ static int vop2_plane_init(struct vop2 *vop2, struct vop2_win *win, unsigned lon
 							  "INPUT_WIDTH", 0, max_width);
 	win->input_height_prop = drm_property_create_range(vop2->drm_dev, DRM_MODE_PROP_IMMUTABLE,
 							   "INPUT_HEIGHT", 0, max_height);
-	max_width = vop2->data->max_output.width;
+	max_width = vop3_esmart_linebuffer_size(vop2, win);
 	max_height = vop2->data->max_output.height;
 	if (win->feature & WIN_FEATURE_CLUSTER_SUB)
 		max_width >>= 1;
