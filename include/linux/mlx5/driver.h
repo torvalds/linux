@@ -807,6 +807,8 @@ struct mlx5_core_dev {
 	struct mlx5_thermal	*thermal;
 #ifdef CONFIG_MLX5_MACSEC
 	struct mlx5_macsec_fs *macsec_fs;
+	/* MACsec notifier chain to sync MACsec core and IB database */
+	struct blocking_notifier_head macsec_nh;
 #endif
 };
 
