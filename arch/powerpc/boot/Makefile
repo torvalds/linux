@@ -334,7 +334,6 @@ image-$(CONFIG_PQ2FADS)			+= cuImage.pq2fads
 image-$(CONFIG_EP8248E)			+= dtbImage.ep8248e
 
 # Board ports in arch/powerpc/platform/83xx/Kconfig
-image-$(CONFIG_MPC832x_MDS)		+= cuImage.mpc832x_mds
 image-$(CONFIG_MPC832x_RDB)		+= cuImage.mpc832x_rdb
 image-$(CONFIG_MPC834x_ITX)		+= cuImage.mpc8349emitx \
 					   cuImage.mpc8349emitxgp
