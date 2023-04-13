@@ -836,9 +836,11 @@ static ssize_t iolatency_set_limit(struct kernfs_open_file *of, char *buf,
 	u64 oldval;
 	int ret;
 
-	ret = blkg_conf_prep(blkcg, &blkcg_policy_iolatency, buf, &ctx);
+	blkg_conf_init(&ctx, buf);
+
+	ret = blkg_conf_prep(blkcg, &blkcg_policy_iolatency, &ctx);
 	if (ret)
-		return ret;
+		goto out;
 
 	iolat = blkg_to_lat(ctx.blkg);
 	p = ctx.body;
@@ -874,7 +876,7 @@ static ssize_t iolatency_set_limit(struct kernfs_open_file *of, char *buf,
 		iolatency_clear_scaling(blkg);
 	ret = 0;
 out:
-	blkg_conf_finish(&ctx);
+	blkg_conf_exit(&ctx);
 	return ret ?: nbytes;
 }
 

@@ -206,15 +206,17 @@ void blkcg_print_blkgs(struct seq_file *sf, struct blkcg *blkcg,
 u64 __blkg_prfill_u64(struct seq_file *sf, struct blkg_policy_data *pd, u64 v);
 
 struct blkg_conf_ctx {
+	char				*input;
+	char				*body;
 	struct block_device		*bdev;
 	struct blkcg_gq			*blkg;
-	char				*body;
 };
 
-struct block_device *blkcg_conf_open_bdev(char **inputp);
+void blkg_conf_init(struct blkg_conf_ctx *ctx, char *input);
+int blkg_conf_open_bdev(struct blkg_conf_ctx *ctx);
 int blkg_conf_prep(struct blkcg *blkcg, const struct blkcg_policy *pol,
-		   char *input, struct blkg_conf_ctx *ctx);
-void blkg_conf_finish(struct blkg_conf_ctx *ctx);
+		   struct blkg_conf_ctx *ctx);
+void blkg_conf_exit(struct blkg_conf_ctx *ctx);
 
 /**
  * bio_issue_as_root_blkg - see if this bio needs to be issued as root blkg
