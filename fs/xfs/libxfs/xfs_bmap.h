@@ -145,7 +145,7 @@ static inline int xfs_bmapi_whichfork(uint32_t bmapi_flags)
 	{ BMAP_COWFORK,		"COW" }
 
 /* Return true if the extent is an allocated extent, written or not. */
-static inline bool xfs_bmap_is_real_extent(struct xfs_bmbt_irec *irec)
+static inline bool xfs_bmap_is_real_extent(const struct xfs_bmbt_irec *irec)
 {
 	return irec->br_startblock != HOLESTARTBLOCK &&
 		irec->br_startblock != DELAYSTARTBLOCK &&
