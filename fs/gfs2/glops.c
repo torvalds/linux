@@ -535,12 +535,13 @@ static void inode_go_dump(struct seq_file *seq, struct gfs2_glock *gl,
 			  const char *fs_id_buf)
 {
 	struct gfs2_inode *ip = gl->gl_object;
-	struct inode *inode = &ip->i_inode;
+	struct inode *inode;
 	unsigned long nrpages;
 
 	if (ip == NULL)
 		return;
 
+	inode = &ip->i_inode;
 	xa_lock_irq(&inode->i_data.i_pages);
 	nrpages = inode->i_data.nrpages;
 	xa_unlock_irq(&inode->i_data.i_pages);
