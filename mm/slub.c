@@ -5612,12 +5612,6 @@ static ssize_t cpu_slabs_show(struct kmem_cache *s, char *buf)
 }
 SLAB_ATTR_RO(cpu_slabs);
 
-static ssize_t objects_show(struct kmem_cache *s, char *buf)
-{
-	return show_slab_objects(s, buf, SO_ALL|SO_OBJECTS);
-}
-SLAB_ATTR_RO(objects);
-
 static ssize_t objects_partial_show(struct kmem_cache *s, char *buf)
 {
 	return show_slab_objects(s, buf, SO_PARTIAL|SO_OBJECTS);
@@ -5711,6 +5705,12 @@ static ssize_t total_objects_show(struct kmem_cache *s, char *buf)
 	return show_slab_objects(s, buf, SO_ALL|SO_TOTAL);
 }
 SLAB_ATTR_RO(total_objects);
+
+static ssize_t objects_show(struct kmem_cache *s, char *buf)
+{
+	return show_slab_objects(s, buf, SO_ALL|SO_OBJECTS);
+}
+SLAB_ATTR_RO(objects);
 
 static ssize_t sanity_checks_show(struct kmem_cache *s, char *buf)
 {
@@ -5943,7 +5943,6 @@ static struct attribute *slab_attrs[] = {
 	&order_attr.attr,
 	&min_partial_attr.attr,
 	&cpu_partial_attr.attr,
-	&objects_attr.attr,
 	&objects_partial_attr.attr,
 	&partial_attr.attr,
 	&cpu_slabs_attr.attr,
@@ -5957,6 +5956,7 @@ static struct attribute *slab_attrs[] = {
 	&slabs_cpu_partial_attr.attr,
 #ifdef CONFIG_SLUB_DEBUG
 	&total_objects_attr.attr,
+	&objects_attr.attr,
 	&slabs_attr.attr,
 	&sanity_checks_attr.attr,
 	&trace_attr.attr,
