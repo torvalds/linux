@@ -230,15 +230,13 @@ void io_rsrc_node_switch(struct io_ring_ctx *ctx,
 	ctx->rsrc_node = backup;
 }
 
-int io_rsrc_node_switch_start(struct io_ring_ctx *ctx)
+int __io_rsrc_node_switch_start(struct io_ring_ctx *ctx)
 {
-	if (io_alloc_cache_empty(&ctx->rsrc_node_cache)) {
-		struct io_rsrc_node *node = kzalloc(sizeof(*node), GFP_KERNEL);
+	struct io_rsrc_node *node = kzalloc(sizeof(*node), GFP_KERNEL);
 
-		if (!node)
-			return -ENOMEM;
-		io_alloc_cache_put(&ctx->rsrc_node_cache, &node->cache);
-	}
+	if (!node)
+		return -ENOMEM;
+	io_alloc_cache_put(&ctx->rsrc_node_cache, &node->cache);
 	return 0;
 }
 
