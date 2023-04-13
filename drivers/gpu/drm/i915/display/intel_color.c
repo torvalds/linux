@@ -568,29 +568,41 @@ static void icl_load_csc_matrix(const struct intel_crtc_state *crtc_state)
 		icl_update_output_csc(crtc, &crtc_state->output_csc);
 }
 
+static u16 ctm_to_twos_complement(u64 coeff, int int_bits, int frac_bits)
+{
+	s64 c = CTM_COEFF_ABS(coeff);
+
+	/* leave an extra bit for rounding */
+	c >>= 32 - frac_bits - 1;
+
+	/* round and drop the extra bit */
+	c = (c + 1) >> 1;
+
+	if (CTM_COEFF_NEGATIVE(coeff))
+		c = -c;
+
+	c = clamp(c, -(s64)BIT(int_bits + frac_bits - 1),
+		  (s64)(BIT(int_bits + frac_bits - 1) - 1));
+
+	return c & (BIT(int_bits + frac_bits) - 1);
+}
+
+/*
+ * CHV Color Gamut Mapping (CGM) CSC
+ * |r|   | c0 c1 c2 |   |r|
+ * |g| = | c3 c4 c5 | x |g|
+ * |b|   | c6 c7 c8 |   |b|
+ *
+ * Coefficients are two's complement s4.12.
+ */
 static void chv_cgm_csc_convert_ctm(const struct intel_crtc_state *crtc_state,
 				    struct intel_csc_matrix *csc)
 {
 	const struct drm_color_ctm *ctm = crtc_state->hw.ctm->data;
 	int i;
 
-	for (i = 0; i < 9; i++) {
-		u64 abs_coeff = ((1ULL << 63) - 1) & ctm->matrix[i];
-
-		/* Round coefficient. */
-		abs_coeff += 1 << (32 - 13);
-		/* Clamp to hardware limits. */
-		abs_coeff = clamp_val(abs_coeff, 0, CTM_COEFF_8_0 - 1);
-
-		csc->coeff[i] = 0;
-
-		/* Write coefficients in S3.12 format. */
-		if (ctm->matrix[i] & (1ULL << 63))
-			csc->coeff[i] |= 1 << 15;
-
-		csc->coeff[i] |= ((abs_coeff >> 32) & 7) << 12;
-		csc->coeff[i] |= (abs_coeff >> 20) & 0xfff;
-	}
+	for (i = 0; i < 9; i++)
+		csc->coeff[i] = ctm_to_twos_complement(ctm->matrix[i], 4, 12);
 }
 
 static void chv_load_cgm_csc(struct intel_crtc *crtc,
