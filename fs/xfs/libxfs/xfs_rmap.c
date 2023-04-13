@@ -193,7 +193,7 @@ done:
 }
 
 /* Convert an internal btree record to an rmap record. */
-int
+xfs_failaddr_t
 xfs_rmap_btrec_to_irec(
 	const union xfs_btree_rec	*rec,
 	struct xfs_rmap_irec		*irec)
@@ -205,6 +205,54 @@ xfs_rmap_btrec_to_irec(
 			irec);
 }
 
+/* Simple checks for rmap records. */
+xfs_failaddr_t
+xfs_rmap_check_irec(
+	struct xfs_btree_cur		*cur,
+	const struct xfs_rmap_irec	*irec)
+{
+	struct xfs_mount		*mp = cur->bc_mp;
+
+	if (irec->rm_blockcount == 0)
+		return __this_address;
+	if (irec->rm_startblock <= XFS_AGFL_BLOCK(mp)) {
+		if (irec->rm_owner != XFS_RMAP_OWN_FS)
+			return __this_address;
+		if (irec->rm_blockcount != XFS_AGFL_BLOCK(mp) + 1)
+			return __this_address;
+	} else {
+		/* check for valid extent range, including overflow */
+		if (!xfs_verify_agbext(cur->bc_ag.pag, irec->rm_startblock,
+						       irec->rm_blockcount))
+			return __this_address;
+	}
+
+	if (!(xfs_verify_ino(mp, irec->rm_owner) ||
+	      (irec->rm_owner <= XFS_RMAP_OWN_FS &&
+	       irec->rm_owner >= XFS_RMAP_OWN_MIN)))
+		return __this_address;
+
+	return NULL;
+}
+
+static inline int
+xfs_rmap_complain_bad_rec(
+	struct xfs_btree_cur		*cur,
+	xfs_failaddr_t			fa,
+	const struct xfs_rmap_irec	*irec)
+{
+	struct xfs_mount		*mp = cur->bc_mp;
+
+	xfs_warn(mp,
+		"Reverse Mapping BTree record corruption in AG %d detected at %pS!",
+		cur->bc_ag.pag->pag_agno, fa);
+	xfs_warn(mp,
+		"Owner 0x%llx, flags 0x%x, start block 0x%x block count 0x%x",
+		irec->rm_owner, irec->rm_flags, irec->rm_startblock,
+		irec->rm_blockcount);
+	return -EFSCORRUPTED;
+}
+
 /*
  * Get the data from the pointed-to record.
  */
@@ -214,47 +262,21 @@ xfs_rmap_get_rec(
 	struct xfs_rmap_irec	*irec,
 	int			*stat)
 {
-	struct xfs_mount	*mp = cur->bc_mp;
-	struct xfs_perag	*pag = cur->bc_ag.pag;
 	union xfs_btree_rec	*rec;
+	xfs_failaddr_t		fa;
 	int			error;
 
 	error = xfs_btree_get_rec(cur, &rec, stat);
 	if (error || !*stat)
 		return error;
 
-	if (xfs_rmap_btrec_to_irec(rec, irec))
-		goto out_bad_rec;
-
-	if (irec->rm_blockcount == 0)
-		goto out_bad_rec;
-	if (irec->rm_startblock <= XFS_AGFL_BLOCK(mp)) {
-		if (irec->rm_owner != XFS_RMAP_OWN_FS)
-			goto out_bad_rec;
-		if (irec->rm_blockcount != XFS_AGFL_BLOCK(mp) + 1)
-			goto out_bad_rec;
-	} else {
-		/* check for valid extent range, including overflow */
-		if (!xfs_verify_agbext(pag, irec->rm_startblock,
-					    irec->rm_blockcount))
-			goto out_bad_rec;
-	}
-
-	if (!(xfs_verify_ino(mp, irec->rm_owner) ||
-	      (irec->rm_owner <= XFS_RMAP_OWN_FS &&
-	       irec->rm_owner >= XFS_RMAP_OWN_MIN)))
-		goto out_bad_rec;
+	fa = xfs_rmap_btrec_to_irec(rec, irec);
+	if (!fa)
+		fa = xfs_rmap_check_irec(cur, irec);
+	if (fa)
+		return xfs_rmap_complain_bad_rec(cur, fa, irec);
 
 	return 0;
-out_bad_rec:
-	xfs_warn(mp,
-		"Reverse Mapping BTree record corruption in AG %d detected!",
-		pag->pag_agno);
-	xfs_warn(mp,
-		"Owner 0x%llx, flags 0x%x, start block 0x%x block count 0x%x",
-		irec->rm_owner, irec->rm_flags, irec->rm_startblock,
-		irec->rm_blockcount);
-	return -EFSCORRUPTED;
 }
 
 struct xfs_find_left_neighbor_info {
@@ -2320,11 +2342,14 @@ xfs_rmap_query_range_helper(
 {
 	struct xfs_rmap_query_range_info	*query = priv;
 	struct xfs_rmap_irec			irec;
-	int					error;
+	xfs_failaddr_t				fa;
 
-	error = xfs_rmap_btrec_to_irec(rec, &irec);
-	if (error)
-		return error;
+	fa = xfs_rmap_btrec_to_irec(rec, &irec);
+	if (!fa)
+		fa = xfs_rmap_check_irec(cur, &irec);
+	if (fa)
+		return xfs_rmap_complain_bad_rec(cur, fa, &irec);
+
 	return query->fn(cur, &irec, query->priv);
 }
 

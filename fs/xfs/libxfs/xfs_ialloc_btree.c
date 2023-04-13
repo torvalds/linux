@@ -608,7 +608,7 @@ xfs_iallocbt_maxlevels_ondisk(void)
  */
 uint64_t
 xfs_inobt_irec_to_allocmask(
-	struct xfs_inobt_rec_incore	*rec)
+	const struct xfs_inobt_rec_incore	*rec)
 {
 	uint64_t			bitmap = 0;
 	uint64_t			inodespbit;

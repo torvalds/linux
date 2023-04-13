@@ -119,15 +119,6 @@ xchk_iallocbt_chunk(
 	return true;
 }
 
-/* Count the number of free inodes. */
-static unsigned int
-xchk_iallocbt_freecount(
-	xfs_inofree_t			freemask)
-{
-	BUILD_BUG_ON(sizeof(freemask) != sizeof(__u64));
-	return hweight64(freemask);
-}
-
 /*
  * Check that an inode's allocation status matches ir_free in the inobt
  * record.  First we try querying the in-core inode state, and if the inode
@@ -431,24 +422,17 @@ xchk_iallocbt_rec(
 	int				holecount;
 	int				i;
 	int				error = 0;
-	unsigned int			real_freecount;
 	uint16_t			holemask;
 
 	xfs_inobt_btrec_to_irec(mp, rec, &irec);
-
-	if (irec.ir_count > XFS_INODES_PER_CHUNK ||
-	    irec.ir_freecount > XFS_INODES_PER_CHUNK)
+	if (xfs_inobt_check_irec(bs->cur, &irec) != NULL) {
 		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
-
-	real_freecount = irec.ir_freecount +
-			(XFS_INODES_PER_CHUNK - irec.ir_count);
-	if (real_freecount != xchk_iallocbt_freecount(irec.ir_free))
-		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
+		return 0;
+	}
 
 	agino = irec.ir_startino;
 	/* Record has to be properly aligned within the AG. */
-	if (!xfs_verify_agino(pag, agino) ||
-	    !xfs_verify_agino(pag, agino + XFS_INODES_PER_CHUNK - 1)) {
+	if (!xfs_verify_agino(pag, agino + XFS_INODES_PER_CHUNK - 1)) {
 		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 		goto out;
 	}
