@@ -10,6 +10,7 @@
 #include "lib/fs_chains.h"
 
 #define NUM_IPSEC_FTE BIT(15)
+#define MLX5_REFORMAT_TYPE_ADD_ESP_TRANSPORT_SIZE 16
 
 struct mlx5e_ipsec_fc {
 	struct mlx5_fc *cnt;
@@ -836,40 +837,80 @@ static int setup_modify_header(struct mlx5_core_dev *mdev, u32 val, u8 dir,
 	return 0;
 }
 
+static int
+setup_pkt_transport_reformat(struct mlx5_accel_esp_xfrm_attrs *attrs,
+			     struct mlx5_pkt_reformat_params *reformat_params)
+{
+	u8 *reformatbf;
+	__be32 spi;
+
+	switch (attrs->dir) {
+	case XFRM_DEV_OFFLOAD_IN:
+		reformat_params->type = MLX5_REFORMAT_TYPE_DEL_ESP_TRANSPORT;
+		break;
+	case XFRM_DEV_OFFLOAD_OUT:
+		if (attrs->family == AF_INET)
+			reformat_params->type =
+				MLX5_REFORMAT_TYPE_ADD_ESP_TRANSPORT_OVER_IPV4;
+		else
+			reformat_params->type =
+				MLX5_REFORMAT_TYPE_ADD_ESP_TRANSPORT_OVER_IPV6;
+
+		reformatbf = kzalloc(MLX5_REFORMAT_TYPE_ADD_ESP_TRANSPORT_SIZE,
+				     GFP_KERNEL);
+		if (!reformatbf)
+			return -ENOMEM;
+
+		/* convert to network format */
+		spi = htonl(attrs->spi);
+		memcpy(reformatbf, &spi, sizeof(spi));
+
+		reformat_params->param_0 = attrs->authsize;
+		reformat_params->size =
+			MLX5_REFORMAT_TYPE_ADD_ESP_TRANSPORT_SIZE;
+		reformat_params->data = reformatbf;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int setup_pkt_reformat(struct mlx5_core_dev *mdev,
 			      struct mlx5_accel_esp_xfrm_attrs *attrs,
 			      struct mlx5_flow_act *flow_act)
 {
-	enum mlx5_flow_namespace_type ns_type = MLX5_FLOW_NAMESPACE_EGRESS;
 	struct mlx5_pkt_reformat_params reformat_params = {};
 	struct mlx5_pkt_reformat *pkt_reformat;
-	u8 reformatbf[16] = {};
-	__be32 spi;
+	enum mlx5_flow_namespace_type ns_type;
+	int ret;
 
-	if (attrs->dir == XFRM_DEV_OFFLOAD_IN) {
-		reformat_params.type = MLX5_REFORMAT_TYPE_DEL_ESP_TRANSPORT;
+	switch (attrs->dir) {
+	case XFRM_DEV_OFFLOAD_IN:
 		ns_type = MLX5_FLOW_NAMESPACE_KERNEL;
-		goto cmd;
+		break;
+	case XFRM_DEV_OFFLOAD_OUT:
+		ns_type = MLX5_FLOW_NAMESPACE_EGRESS;
+		break;
+	default:
+		return -EINVAL;
 	}
 
-	if (attrs->family == AF_INET)
-		reformat_params.type =
-			MLX5_REFORMAT_TYPE_ADD_ESP_TRANSPORT_OVER_IPV4;
-	else
-		reformat_params.type =
-			MLX5_REFORMAT_TYPE_ADD_ESP_TRANSPORT_OVER_IPV6;
+	switch (attrs->mode) {
+	case XFRM_MODE_TRANSPORT:
+		ret = setup_pkt_transport_reformat(attrs, &reformat_params);
+		break;
+	default:
+		ret = -EINVAL;
+	}
 
-	/* convert to network format */
-	spi = htonl(attrs->spi);
-	memcpy(reformatbf, &spi, 4);
+	if (ret)
+		return ret;
 
-	reformat_params.param_0 = attrs->authsize;
-	reformat_params.size = sizeof(reformatbf);
-	reformat_params.data = &reformatbf;
-
-cmd:
 	pkt_reformat =
 		mlx5_packet_reformat_alloc(mdev, &reformat_params, ns_type);
+	kfree(reformat_params.data);
 	if (IS_ERR(pkt_reformat))
 		return PTR_ERR(pkt_reformat);
 

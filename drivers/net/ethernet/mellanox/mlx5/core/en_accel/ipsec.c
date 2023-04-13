@@ -297,6 +297,7 @@ void mlx5e_ipsec_build_accel_xfrm_attrs(struct mlx5e_ipsec_sa_entry *sa_entry,
 	attrs->upspec.sport = ntohs(x->sel.sport);
 	attrs->upspec.sport_mask = ntohs(x->sel.sport_mask);
 	attrs->upspec.proto = x->sel.proto;
+	attrs->mode = x->props.mode;
 
 	mlx5e_ipsec_init_limits(sa_entry, attrs);
 }

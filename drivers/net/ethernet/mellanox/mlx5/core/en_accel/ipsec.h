@@ -77,7 +77,7 @@ struct mlx5_replay_esn {
 
 struct mlx5_accel_esp_xfrm_attrs {
 	u32   spi;
-	u32   flags;
+	u32   mode;
 	struct aes_gcm_keymat aes_gcm;
 
 	union {
