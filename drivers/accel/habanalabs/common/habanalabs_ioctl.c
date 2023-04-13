@@ -842,15 +842,15 @@ static int hw_err_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 	struct hw_err_info *info;
 	int rc;
 
-	if ((!user_buf_size) || (!user_buf))
+	if (!user_buf)
 		return -EINVAL;
-
-	if (user_buf_size < sizeof(struct hl_info_hw_err_event))
-		return -ENOMEM;
 
 	info = &hdev->captured_err_info.hw_err;
 	if (!info->event_info_available)
-		return -ENOENT;
+		return 0;
+
+	if (user_buf_size < sizeof(struct hl_info_hw_err_event))
+		return -ENOMEM;
 
 	rc = copy_to_user(user_buf, &info->event, sizeof(struct hl_info_hw_err_event));
 	return rc ? -EFAULT : 0;
@@ -864,15 +864,15 @@ static int fw_err_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 	struct fw_err_info *info;
 	int rc;
 
-	if ((!user_buf_size) || (!user_buf))
+	if (!user_buf)
 		return -EINVAL;
-
-	if (user_buf_size < sizeof(struct hl_info_fw_err_event))
-		return -ENOMEM;
 
 	info = &hdev->captured_err_info.fw_err;
 	if (!info->event_info_available)
-		return -ENOENT;
+		return 0;
+
+	if (user_buf_size < sizeof(struct hl_info_fw_err_event))
+		return -ENOMEM;
 
 	rc = copy_to_user(user_buf, &info->event, sizeof(struct hl_info_fw_err_event));
 	return rc ? -EFAULT : 0;
