@@ -6,7 +6,6 @@
  */
 #include <linux/kernel.h>
 #include <linux/rculist.h>
-#include <linux/blk-mq.h>
 
 #include "blk-stat.h"
 #include "blk-mq.h"

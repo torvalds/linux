@@ -68,7 +68,6 @@
 #include <linux/bio.h>
 #include <linux/blkdev.h>
 #include <linux/gfp.h>
-#include <linux/blk-mq.h>
 #include <linux/part_stat.h>
 
 #include "blk.h"

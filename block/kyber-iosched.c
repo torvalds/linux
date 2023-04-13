@@ -8,7 +8,6 @@
 
 #include <linux/kernel.h>
 #include <linux/blkdev.h>
-#include <linux/blk-mq.h>
 #include <linux/module.h>
 #include <linux/sbitmap.h>
 

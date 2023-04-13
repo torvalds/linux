@@ -6,7 +6,6 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/blk-mq.h>
 #include <linux/list_sort.h>
 
 #include <trace/events/block.h>
