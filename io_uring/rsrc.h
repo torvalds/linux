@@ -48,7 +48,6 @@ struct io_rsrc_node {
 	struct list_head		node;
 	struct llist_node		llist;
 	int				refs;
-	bool				done;
 
 	/*
 	 * Keeps a list of struct io_rsrc_put to be completed. Each entry

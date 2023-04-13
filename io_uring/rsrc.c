@@ -191,14 +191,12 @@ void io_rsrc_node_ref_zero(struct io_rsrc_node *node)
 {
 	struct io_ring_ctx *ctx = node->rsrc_data->ctx;
 
-	node->done = true;
 	while (!list_empty(&ctx->rsrc_ref_list)) {
 		node = list_first_entry(&ctx->rsrc_ref_list,
 					    struct io_rsrc_node, node);
 		/* recycle ref nodes in order */
-		if (!node->done)
+		if (node->refs)
 			break;
-
 		list_del(&node->node);
 		__io_rsrc_put_work(node);
 	}
@@ -222,7 +220,6 @@ struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx)
 	ref_node->refs = 1;
 	INIT_LIST_HEAD(&ref_node->node);
 	INIT_LIST_HEAD(&ref_node->item_list);
-	ref_node->done = false;
 	ref_node->inline_items = 0;
 	return ref_node;
 }
