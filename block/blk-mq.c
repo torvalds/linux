@@ -1427,20 +1427,21 @@ static void blk_mq_requeue_work(struct work_struct *work)
 	spin_unlock_irq(&q->requeue_lock);
 
 	list_for_each_entry_safe(rq, next, &rq_list, queuelist) {
-		if (!(rq->rq_flags & (RQF_SOFTBARRIER | RQF_DONTPREP)))
-			continue;
-
-		rq->rq_flags &= ~RQF_SOFTBARRIER;
-		list_del_init(&rq->queuelist);
 		/*
-		 * If RQF_DONTPREP, rq has contained some driver specific
-		 * data, so insert it to hctx dispatch list to avoid any
-		 * merge.
+		 * If RQF_DONTPREP ist set, the request has been started by the
+		 * driver already and might have driver-specific data allocated
+		 * already.  Insert it into the hctx dispatch list to avoid
+		 * block layer merges for the request.
 		 */
-		if (rq->rq_flags & RQF_DONTPREP)
+		if (rq->rq_flags & RQF_DONTPREP) {
+			rq->rq_flags &= ~RQF_SOFTBARRIER;
+			list_del_init(&rq->queuelist);
 			blk_mq_request_bypass_insert(rq, false, false);
-		else
+		} else if (rq->rq_flags & RQF_SOFTBARRIER) {
+			rq->rq_flags &= ~RQF_SOFTBARRIER;
+			list_del_init(&rq->queuelist);
 			blk_mq_insert_request(rq, true, false, false);
+		}
 	}
 
 	while (!list_empty(&rq_list)) {
