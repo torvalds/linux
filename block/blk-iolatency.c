@@ -755,7 +755,7 @@ static void blkiolatency_enable_work_fn(struct work_struct *work)
 	}
 }
 
-int blk_iolatency_init(struct gendisk *disk)
+static int blk_iolatency_init(struct gendisk *disk)
 {
 	struct blk_iolatency *blkiolat;
 	int ret;
@@ -824,6 +824,29 @@ static void iolatency_clear_scaling(struct blkcg_gq *blkg)
 	}
 }
 
+static int blk_iolatency_try_init(struct blkg_conf_ctx *ctx)
+{
+	static DEFINE_MUTEX(init_mutex);
+	int ret;
+
+	ret = blkg_conf_open_bdev(ctx);
+	if (ret)
+		return ret;
+
+	/*
+	 * blk_iolatency_init() may fail after rq_qos_add() succeeds which can
+	 * confuse iolat_rq_qos() test. Make the test and init atomic.
+	 */
+	mutex_lock(&init_mutex);
+
+	if (!iolat_rq_qos(ctx->bdev->bd_queue))
+		ret = blk_iolatency_init(ctx->bdev->bd_disk);
+
+	mutex_unlock(&init_mutex);
+
+	return ret;
+}
+
 static ssize_t iolatency_set_limit(struct kernfs_open_file *of, char *buf,
 			     size_t nbytes, loff_t off)
 {
@@ -837,6 +860,10 @@ static ssize_t iolatency_set_limit(struct kernfs_open_file *of, char *buf,
 	int ret;
 
 	blkg_conf_init(&ctx, buf);
+
+	ret = blk_iolatency_try_init(&ctx);
+	if (ret)
+		goto out;
 
 	ret = blkg_conf_prep(blkcg, &blkcg_policy_iolatency, &ctx);
 	if (ret)
