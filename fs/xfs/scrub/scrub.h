@@ -172,6 +172,8 @@ void xchk_xref_is_cow_staging(struct xfs_scrub *sc, xfs_agblock_t bno,
 		xfs_extlen_t len);
 void xchk_xref_is_not_shared(struct xfs_scrub *sc, xfs_agblock_t bno,
 		xfs_extlen_t len);
+void xchk_xref_is_not_cow_staging(struct xfs_scrub *sc, xfs_agblock_t bno,
+		xfs_extlen_t len);
 #ifdef CONFIG_XFS_RT
 void xchk_xref_is_used_rt_space(struct xfs_scrub *sc, xfs_rtblock_t rtbno,
 		xfs_extlen_t len);

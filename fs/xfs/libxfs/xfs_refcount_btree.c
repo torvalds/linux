@@ -202,10 +202,13 @@ STATIC int64_t
 xfs_refcountbt_diff_two_keys(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*k1,
-	const union xfs_btree_key	*k2)
+	const union xfs_btree_key	*k2,
+	const union xfs_btree_key	*mask)
 {
+	ASSERT(!mask || mask->refc.rc_startblock);
+
 	return (int64_t)be32_to_cpu(k1->refc.rc_startblock) -
-			  be32_to_cpu(k2->refc.rc_startblock);
+			be32_to_cpu(k2->refc.rc_startblock);
 }
 
 STATIC xfs_failaddr_t
@@ -300,6 +303,19 @@ xfs_refcountbt_recs_inorder(
 		be32_to_cpu(r2->refc.rc_startblock);
 }
 
+STATIC enum xbtree_key_contig
+xfs_refcountbt_keys_contiguous(
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_key	*key1,
+	const union xfs_btree_key	*key2,
+	const union xfs_btree_key	*mask)
+{
+	ASSERT(!mask || mask->refc.rc_startblock);
+
+	return xbtree_key_contig(be32_to_cpu(key1->refc.rc_startblock),
+				 be32_to_cpu(key2->refc.rc_startblock));
+}
+
 static const struct xfs_btree_ops xfs_refcountbt_ops = {
 	.rec_len		= sizeof(struct xfs_refcount_rec),
 	.key_len		= sizeof(struct xfs_refcount_key),
@@ -319,6 +335,7 @@ static const struct xfs_btree_ops xfs_refcountbt_ops = {
 	.diff_two_keys		= xfs_refcountbt_diff_two_keys,
 	.keys_inorder		= xfs_refcountbt_keys_inorder,
 	.recs_inorder		= xfs_refcountbt_recs_inorder,
+	.keys_contiguous	= xfs_refcountbt_keys_contiguous,
 };
 
 /*

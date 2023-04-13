@@ -269,10 +269,13 @@ STATIC int64_t
 xfs_inobt_diff_two_keys(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*k1,
-	const union xfs_btree_key	*k2)
+	const union xfs_btree_key	*k2,
+	const union xfs_btree_key	*mask)
 {
+	ASSERT(!mask || mask->inobt.ir_startino);
+
 	return (int64_t)be32_to_cpu(k1->inobt.ir_startino) -
-			  be32_to_cpu(k2->inobt.ir_startino);
+			be32_to_cpu(k2->inobt.ir_startino);
 }
 
 static xfs_failaddr_t
@@ -383,6 +386,19 @@ xfs_inobt_recs_inorder(
 		be32_to_cpu(r2->inobt.ir_startino);
 }
 
+STATIC enum xbtree_key_contig
+xfs_inobt_keys_contiguous(
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_key	*key1,
+	const union xfs_btree_key	*key2,
+	const union xfs_btree_key	*mask)
+{
+	ASSERT(!mask || mask->inobt.ir_startino);
+
+	return xbtree_key_contig(be32_to_cpu(key1->inobt.ir_startino),
+				 be32_to_cpu(key2->inobt.ir_startino));
+}
+
 static const struct xfs_btree_ops xfs_inobt_ops = {
 	.rec_len		= sizeof(xfs_inobt_rec_t),
 	.key_len		= sizeof(xfs_inobt_key_t),
@@ -402,6 +418,7 @@ static const struct xfs_btree_ops xfs_inobt_ops = {
 	.diff_two_keys		= xfs_inobt_diff_two_keys,
 	.keys_inorder		= xfs_inobt_keys_inorder,
 	.recs_inorder		= xfs_inobt_recs_inorder,
+	.keys_contiguous	= xfs_inobt_keys_contiguous,
 };
 
 static const struct xfs_btree_ops xfs_finobt_ops = {
@@ -423,6 +440,7 @@ static const struct xfs_btree_ops xfs_finobt_ops = {
 	.diff_two_keys		= xfs_inobt_diff_two_keys,
 	.keys_inorder		= xfs_inobt_keys_inorder,
 	.recs_inorder		= xfs_inobt_recs_inorder,
+	.keys_contiguous	= xfs_inobt_keys_contiguous,
 };
 
 /*

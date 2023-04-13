@@ -328,11 +328,16 @@ xchk_bmap_iextent_xref(
 	xchk_bmap_xref_rmap(info, irec, agbno);
 	switch (info->whichfork) {
 	case XFS_DATA_FORK:
-		if (xfs_is_reflink_inode(info->sc->ip))
-			break;
-		fallthrough;
+		if (!xfs_is_reflink_inode(info->sc->ip))
+			xchk_xref_is_not_shared(info->sc, agbno,
+					irec->br_blockcount);
+		xchk_xref_is_not_cow_staging(info->sc, agbno,
+				irec->br_blockcount);
+		break;
 	case XFS_ATTR_FORK:
 		xchk_xref_is_not_shared(info->sc, agbno,
+				irec->br_blockcount);
+		xchk_xref_is_not_cow_staging(info->sc, agbno,
 				irec->br_blockcount);
 		break;
 	case XFS_COW_FORK:

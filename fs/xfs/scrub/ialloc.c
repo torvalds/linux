@@ -115,7 +115,7 @@ xchk_iallocbt_chunk(
 		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 
 	xchk_iallocbt_chunk_xref(bs->sc, irec, agino, bno, len);
-
+	xchk_xref_is_not_cow_staging(bs->sc, bno, len);
 	return true;
 }
 

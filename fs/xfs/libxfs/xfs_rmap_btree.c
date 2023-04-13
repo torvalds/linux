@@ -273,31 +273,43 @@ STATIC int64_t
 xfs_rmapbt_diff_two_keys(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*k1,
-	const union xfs_btree_key	*k2)
+	const union xfs_btree_key	*k2,
+	const union xfs_btree_key	*mask)
 {
 	const struct xfs_rmap_key	*kp1 = &k1->rmap;
 	const struct xfs_rmap_key	*kp2 = &k2->rmap;
 	int64_t				d;
 	__u64				x, y;
 
+	/* Doesn't make sense to mask off the physical space part */
+	ASSERT(!mask || mask->rmap.rm_startblock);
+
 	d = (int64_t)be32_to_cpu(kp1->rm_startblock) -
-		       be32_to_cpu(kp2->rm_startblock);
+		     be32_to_cpu(kp2->rm_startblock);
 	if (d)
 		return d;
 
-	x = be64_to_cpu(kp1->rm_owner);
-	y = be64_to_cpu(kp2->rm_owner);
-	if (x > y)
-		return 1;
-	else if (y > x)
-		return -1;
+	if (!mask || mask->rmap.rm_owner) {
+		x = be64_to_cpu(kp1->rm_owner);
+		y = be64_to_cpu(kp2->rm_owner);
+		if (x > y)
+			return 1;
+		else if (y > x)
+			return -1;
+	}
 
-	x = offset_keymask(be64_to_cpu(kp1->rm_offset));
-	y = offset_keymask(be64_to_cpu(kp2->rm_offset));
-	if (x > y)
-		return 1;
-	else if (y > x)
-		return -1;
+	if (!mask || mask->rmap.rm_offset) {
+		/* Doesn't make sense to allow offset but not owner */
+		ASSERT(!mask || mask->rmap.rm_owner);
+
+		x = offset_keymask(be64_to_cpu(kp1->rm_offset));
+		y = offset_keymask(be64_to_cpu(kp2->rm_offset));
+		if (x > y)
+			return 1;
+		else if (y > x)
+			return -1;
+	}
+
 	return 0;
 }
 
@@ -444,6 +456,26 @@ xfs_rmapbt_recs_inorder(
 	return 0;
 }
 
+STATIC enum xbtree_key_contig
+xfs_rmapbt_keys_contiguous(
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_key	*key1,
+	const union xfs_btree_key	*key2,
+	const union xfs_btree_key	*mask)
+{
+	ASSERT(!mask || mask->rmap.rm_startblock);
+
+	/*
+	 * We only support checking contiguity of the physical space component.
+	 * If any callers ever need more specificity than that, they'll have to
+	 * implement it here.
+	 */
+	ASSERT(!mask || (!mask->rmap.rm_owner && !mask->rmap.rm_offset));
+
+	return xbtree_key_contig(be32_to_cpu(key1->rmap.rm_startblock),
+				 be32_to_cpu(key2->rmap.rm_startblock));
+}
+
 static const struct xfs_btree_ops xfs_rmapbt_ops = {
 	.rec_len		= sizeof(struct xfs_rmap_rec),
 	.key_len		= 2 * sizeof(struct xfs_rmap_key),
@@ -463,6 +495,7 @@ static const struct xfs_btree_ops xfs_rmapbt_ops = {
 	.diff_two_keys		= xfs_rmapbt_diff_two_keys,
 	.keys_inorder		= xfs_rmapbt_keys_inorder,
 	.recs_inorder		= xfs_rmapbt_recs_inorder,
+	.keys_contiguous	= xfs_rmapbt_keys_contiguous,
 };
 
 static struct xfs_btree_cur *
