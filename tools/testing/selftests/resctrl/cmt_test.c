@@ -132,13 +132,12 @@ int cmt_resctrl_val(int cpu_no, int n, char **benchmark_cmd)
 
 	ret = resctrl_val(benchmark_cmd, &param);
 	if (ret)
-		return ret;
+		goto out;
 
 	ret = check_results(&param, n);
-	if (ret)
-		return ret;
 
+out:
 	cmt_test_cleanup();
 
-	return 0;
+	return ret;
 }
