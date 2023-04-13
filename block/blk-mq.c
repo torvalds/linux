@@ -2497,9 +2497,9 @@ void blk_mq_request_bypass_insert(struct request *rq, bool at_head,
 		blk_mq_run_hw_queue(hctx, false);
 }
 
-void blk_mq_insert_requests(struct blk_mq_hw_ctx *hctx, struct blk_mq_ctx *ctx,
-			    struct list_head *list, bool run_queue_async)
-
+static void blk_mq_insert_requests(struct blk_mq_hw_ctx *hctx,
+		struct blk_mq_ctx *ctx, struct list_head *list,
+		bool run_queue_async)
 {
 	struct request *rq;
 	enum hctx_type type = hctx->type;
@@ -2725,7 +2725,16 @@ static void blk_mq_dispatch_plug_list(struct blk_plug *plug, bool from_sched)
 
 	plug->mq_list = requeue_list;
 	trace_block_unplug(this_hctx->queue, depth, !from_sched);
-	blk_mq_sched_insert_requests(this_hctx, this_ctx, &list, from_sched);
+
+	percpu_ref_get(&this_hctx->queue->q_usage_counter);
+	if (this_hctx->queue->elevator) {
+		this_hctx->queue->elevator->type->ops.insert_requests(this_hctx,
+				&list, false);
+		blk_mq_run_hw_queue(this_hctx, from_sched);
+	} else {
+		blk_mq_insert_requests(this_hctx, this_ctx, &list, from_sched);
+	}
+	percpu_ref_put(&this_hctx->queue->q_usage_counter);
 }
 
 void blk_mq_flush_plug_list(struct blk_plug *plug, bool from_schedule)

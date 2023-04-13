@@ -455,30 +455,6 @@ run:
 		blk_mq_run_hw_queue(hctx, async);
 }
 
-void blk_mq_sched_insert_requests(struct blk_mq_hw_ctx *hctx,
-				  struct blk_mq_ctx *ctx,
-				  struct list_head *list, bool run_queue_async)
-{
-	struct elevator_queue *e;
-	struct request_queue *q = hctx->queue;
-
-	/*
-	 * blk_mq_sched_insert_requests() is called from flush plug
-	 * context only, and hold one usage counter to prevent queue
-	 * from being released.
-	 */
-	percpu_ref_get(&q->q_usage_counter);
-
-	e = hctx->queue->elevator;
-	if (e) {
-		e->type->ops.insert_requests(hctx, list, false);
-		blk_mq_run_hw_queue(hctx, run_queue_async);
-	} else {
-		blk_mq_insert_requests(hctx, ctx, list, run_queue_async);
-	}
-	percpu_ref_put(&q->q_usage_counter);
-}
-
 static int blk_mq_sched_alloc_map_and_rqs(struct request_queue *q,
 					  struct blk_mq_hw_ctx *hctx,
 					  unsigned int hctx_idx)
