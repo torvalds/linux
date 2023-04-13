@@ -605,6 +605,16 @@ static void chv_cgm_csc_convert_ctm(const struct intel_crtc_state *crtc_state,
 		csc->coeff[i] = ctm_to_twos_complement(ctm->matrix[i], 4, 12);
 }
 
+#define CHV_CGM_CSC_COEFF_1_0 (1 << 12)
+
+static const struct intel_csc_matrix chv_cgm_csc_matrix_identity = {
+	.coeff = {
+		CHV_CGM_CSC_COEFF_1_0, 0, 0,
+		0, CHV_CGM_CSC_COEFF_1_0, 0,
+		0, 0, CHV_CGM_CSC_COEFF_1_0,
+	},
+};
+
 static void chv_load_cgm_csc(struct intel_crtc *crtc,
 			     const struct intel_csc_matrix *csc)
 {
@@ -667,9 +677,9 @@ static void chv_assign_csc(struct intel_crtc_state *crtc_state)
 
 		chv_cgm_csc_convert_ctm(crtc_state, &crtc_state->csc);
 	} else {
-		drm_WARN_ON(&i915->drm, (crtc_state->cgm_mode & CGM_PIPE_MODE_CSC) != 0);
+		drm_WARN_ON(&i915->drm, (crtc_state->cgm_mode & CGM_PIPE_MODE_CSC) == 0);
 
-		intel_csc_clear(&crtc_state->csc);
+		crtc_state->csc = chv_cgm_csc_matrix_identity;
 	}
 }
 
@@ -2032,6 +2042,13 @@ static u32 chv_cgm_mode(const struct intel_crtc_state *crtc_state)
 	if (crtc_state->hw.gamma_lut &&
 	    !lut_is_legacy(crtc_state->hw.gamma_lut))
 		cgm_mode |= CGM_PIPE_MODE_GAMMA;
+
+	/*
+	 * Toggling the CGM CSC on/off outside of the tiny window
+	 * between start of vblank and frame start causes underruns.
+	 * Always enable the CGM CSC as a workaround.
+	 */
+	cgm_mode |= CGM_PIPE_MODE_CSC;
 
 	return cgm_mode;
 }
