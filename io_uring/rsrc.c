@@ -469,7 +469,6 @@ static int __io_sqe_buffers_update(struct io_ring_ctx *ctx,
 
 	for (done = 0; done < nr_args; done++) {
 		struct io_mapped_ubuf *imu;
-		int offset = up->offset + done;
 		u64 tag = 0;
 
 		err = io_copy_iov(ctx, &iov, iovs, done);
@@ -490,7 +489,7 @@ static int __io_sqe_buffers_update(struct io_ring_ctx *ctx,
 		if (err)
 			break;
 
-		i = array_index_nospec(offset, ctx->nr_user_bufs);
+		i = array_index_nospec(up->offset + done, ctx->nr_user_bufs);
 		if (ctx->user_bufs[i] != ctx->dummy_ubuf) {
 			err = io_queue_rsrc_removal(ctx->buf_data, i,
 						    ctx->rsrc_node, ctx->user_bufs[i]);
