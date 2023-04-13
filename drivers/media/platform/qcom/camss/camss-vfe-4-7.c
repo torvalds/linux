@@ -768,20 +768,20 @@ static void vfe_set_demux_cfg(struct vfe_device *vfe, struct vfe_line *line)
 	writel_relaxed(val, vfe->base + VFE_0_DEMUX_GAIN_1);
 
 	switch (line->fmt[MSM_VFE_PAD_SINK].code) {
-	case MEDIA_BUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_YUYV8_1X16:
 		even_cfg = VFE_0_DEMUX_EVEN_CFG_PATTERN_YUYV;
 		odd_cfg = VFE_0_DEMUX_ODD_CFG_PATTERN_YUYV;
 		break;
-	case MEDIA_BUS_FMT_YVYU8_2X8:
+	case MEDIA_BUS_FMT_YVYU8_1X16:
 		even_cfg = VFE_0_DEMUX_EVEN_CFG_PATTERN_YVYU;
 		odd_cfg = VFE_0_DEMUX_ODD_CFG_PATTERN_YVYU;
 		break;
-	case MEDIA_BUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_1X16:
 	default:
 		even_cfg = VFE_0_DEMUX_EVEN_CFG_PATTERN_UYVY;
 		odd_cfg = VFE_0_DEMUX_ODD_CFG_PATTERN_UYVY;
 		break;
-	case MEDIA_BUS_FMT_VYUY8_2X8:
+	case MEDIA_BUS_FMT_VYUY8_1X16:
 		even_cfg = VFE_0_DEMUX_EVEN_CFG_PATTERN_VYUY;
 		odd_cfg = VFE_0_DEMUX_ODD_CFG_PATTERN_VYUY;
 		break;
@@ -941,17 +941,17 @@ static void vfe_set_camif_cfg(struct vfe_device *vfe, struct vfe_line *line)
 	u32 val;
 
 	switch (line->fmt[MSM_VFE_PAD_SINK].code) {
-	case MEDIA_BUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_YUYV8_1X16:
 		val = VFE_0_CORE_CFG_PIXEL_PATTERN_YCBYCR;
 		break;
-	case MEDIA_BUS_FMT_YVYU8_2X8:
+	case MEDIA_BUS_FMT_YVYU8_1X16:
 		val = VFE_0_CORE_CFG_PIXEL_PATTERN_YCRYCB;
 		break;
-	case MEDIA_BUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_1X16:
 	default:
 		val = VFE_0_CORE_CFG_PIXEL_PATTERN_CBYCRY;
 		break;
-	case MEDIA_BUS_FMT_VYUY8_2X8:
+	case MEDIA_BUS_FMT_VYUY8_1X16:
 		val = VFE_0_CORE_CFG_PIXEL_PATTERN_CRYCBY;
 		break;
 	}

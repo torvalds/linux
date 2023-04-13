@@ -106,10 +106,10 @@ enum ispif_intf_cmd {
 };
 
 static const u32 ispif_formats_8x16[] = {
-	MEDIA_BUS_FMT_UYVY8_2X8,
-	MEDIA_BUS_FMT_VYUY8_2X8,
-	MEDIA_BUS_FMT_YUYV8_2X8,
-	MEDIA_BUS_FMT_YVYU8_2X8,
+	MEDIA_BUS_FMT_UYVY8_1X16,
+	MEDIA_BUS_FMT_VYUY8_1X16,
+	MEDIA_BUS_FMT_YUYV8_1X16,
+	MEDIA_BUS_FMT_YVYU8_1X16,
 	MEDIA_BUS_FMT_SBGGR8_1X8,
 	MEDIA_BUS_FMT_SGBRG8_1X8,
 	MEDIA_BUS_FMT_SGRBG8_1X8,
@@ -126,10 +126,10 @@ static const u32 ispif_formats_8x16[] = {
 };
 
 static const u32 ispif_formats_8x96[] = {
-	MEDIA_BUS_FMT_UYVY8_2X8,
-	MEDIA_BUS_FMT_VYUY8_2X8,
-	MEDIA_BUS_FMT_YUYV8_2X8,
-	MEDIA_BUS_FMT_YVYU8_2X8,
+	MEDIA_BUS_FMT_UYVY8_1X16,
+	MEDIA_BUS_FMT_VYUY8_1X16,
+	MEDIA_BUS_FMT_YUYV8_1X16,
+	MEDIA_BUS_FMT_YVYU8_1X16,
 	MEDIA_BUS_FMT_SBGGR8_1X8,
 	MEDIA_BUS_FMT_SGBRG8_1X8,
 	MEDIA_BUS_FMT_SGRBG8_1X8,
@@ -911,7 +911,7 @@ static void ispif_try_format(struct ispif_line *line,
 
 		/* If not found, use UYVY as default */
 		if (i >= line->nformats)
-			fmt->code = MEDIA_BUS_FMT_UYVY8_2X8;
+			fmt->code = MEDIA_BUS_FMT_UYVY8_1X16;
 
 		fmt->width = clamp_t(u32, fmt->width, 1, 8191);
 		fmt->height = clamp_t(u32, fmt->height, 1, 8191);
@@ -1078,7 +1078,7 @@ static int ispif_init_formats(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 		.which = fh ? V4L2_SUBDEV_FORMAT_TRY :
 			      V4L2_SUBDEV_FORMAT_ACTIVE,
 		.format = {
-			.code = MEDIA_BUS_FMT_UYVY8_2X8,
+			.code = MEDIA_BUS_FMT_UYVY8_1X16,
 			.width = 1920,
 			.height = 1080
 		}

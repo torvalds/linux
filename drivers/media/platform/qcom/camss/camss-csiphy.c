@@ -30,10 +30,10 @@ struct csiphy_format {
 };
 
 static const struct csiphy_format csiphy_formats_8x16[] = {
-	{ MEDIA_BUS_FMT_UYVY8_2X8, 8 },
-	{ MEDIA_BUS_FMT_VYUY8_2X8, 8 },
-	{ MEDIA_BUS_FMT_YUYV8_2X8, 8 },
-	{ MEDIA_BUS_FMT_YVYU8_2X8, 8 },
+	{ MEDIA_BUS_FMT_UYVY8_1X16, 8 },
+	{ MEDIA_BUS_FMT_VYUY8_1X16, 8 },
+	{ MEDIA_BUS_FMT_YUYV8_1X16, 8 },
+	{ MEDIA_BUS_FMT_YVYU8_1X16, 8 },
 	{ MEDIA_BUS_FMT_SBGGR8_1X8, 8 },
 	{ MEDIA_BUS_FMT_SGBRG8_1X8, 8 },
 	{ MEDIA_BUS_FMT_SGRBG8_1X8, 8 },
@@ -50,10 +50,10 @@ static const struct csiphy_format csiphy_formats_8x16[] = {
 };
 
 static const struct csiphy_format csiphy_formats_8x96[] = {
-	{ MEDIA_BUS_FMT_UYVY8_2X8, 8 },
-	{ MEDIA_BUS_FMT_VYUY8_2X8, 8 },
-	{ MEDIA_BUS_FMT_YUYV8_2X8, 8 },
-	{ MEDIA_BUS_FMT_YVYU8_2X8, 8 },
+	{ MEDIA_BUS_FMT_UYVY8_1X16, 8 },
+	{ MEDIA_BUS_FMT_VYUY8_1X16, 8 },
+	{ MEDIA_BUS_FMT_YUYV8_1X16, 8 },
+	{ MEDIA_BUS_FMT_YVYU8_1X16, 8 },
 	{ MEDIA_BUS_FMT_SBGGR8_1X8, 8 },
 	{ MEDIA_BUS_FMT_SGBRG8_1X8, 8 },
 	{ MEDIA_BUS_FMT_SGRBG8_1X8, 8 },
@@ -74,10 +74,10 @@ static const struct csiphy_format csiphy_formats_8x96[] = {
 };
 
 static const struct csiphy_format csiphy_formats_sdm845[] = {
-	{ MEDIA_BUS_FMT_UYVY8_2X8, 8 },
-	{ MEDIA_BUS_FMT_VYUY8_2X8, 8 },
-	{ MEDIA_BUS_FMT_YUYV8_2X8, 8 },
-	{ MEDIA_BUS_FMT_YVYU8_2X8, 8 },
+	{ MEDIA_BUS_FMT_UYVY8_1X16, 8 },
+	{ MEDIA_BUS_FMT_VYUY8_1X16, 8 },
+	{ MEDIA_BUS_FMT_YUYV8_1X16, 8 },
+	{ MEDIA_BUS_FMT_YVYU8_1X16, 8 },
 	{ MEDIA_BUS_FMT_SBGGR8_1X8, 8 },
 	{ MEDIA_BUS_FMT_SGBRG8_1X8, 8 },
 	{ MEDIA_BUS_FMT_SGRBG8_1X8, 8 },
@@ -357,7 +357,7 @@ static void csiphy_try_format(struct csiphy_device *csiphy,
 
 		/* If not found, use UYVY as default */
 		if (i >= csiphy->nformats)
-			fmt->code = MEDIA_BUS_FMT_UYVY8_2X8;
+			fmt->code = MEDIA_BUS_FMT_UYVY8_1X16;
 
 		fmt->width = clamp_t(u32, fmt->width, 1, 8191);
 		fmt->height = clamp_t(u32, fmt->height, 1, 8191);
@@ -527,7 +527,7 @@ static int csiphy_init_formats(struct v4l2_subdev *sd,
 		.which = fh ? V4L2_SUBDEV_FORMAT_TRY :
 			      V4L2_SUBDEV_FORMAT_ACTIVE,
 		.format = {
-			.code = MEDIA_BUS_FMT_UYVY8_2X8,
+			.code = MEDIA_BUS_FMT_UYVY8_1X16,
 			.width = 1920,
 			.height = 1080
 		}

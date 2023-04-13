@@ -37,10 +37,10 @@ struct vfe_format {
 };
 
 static const struct vfe_format formats_rdi_8x16[] = {
-	{ MEDIA_BUS_FMT_UYVY8_2X8, 8 },
-	{ MEDIA_BUS_FMT_VYUY8_2X8, 8 },
-	{ MEDIA_BUS_FMT_YUYV8_2X8, 8 },
-	{ MEDIA_BUS_FMT_YVYU8_2X8, 8 },
+	{ MEDIA_BUS_FMT_UYVY8_1X16, 8 },
+	{ MEDIA_BUS_FMT_VYUY8_1X16, 8 },
+	{ MEDIA_BUS_FMT_YUYV8_1X16, 8 },
+	{ MEDIA_BUS_FMT_YVYU8_1X16, 8 },
 	{ MEDIA_BUS_FMT_SBGGR8_1X8, 8 },
 	{ MEDIA_BUS_FMT_SGBRG8_1X8, 8 },
 	{ MEDIA_BUS_FMT_SGRBG8_1X8, 8 },
@@ -57,17 +57,17 @@ static const struct vfe_format formats_rdi_8x16[] = {
 };
 
 static const struct vfe_format formats_pix_8x16[] = {
-	{ MEDIA_BUS_FMT_UYVY8_2X8, 8 },
-	{ MEDIA_BUS_FMT_VYUY8_2X8, 8 },
-	{ MEDIA_BUS_FMT_YUYV8_2X8, 8 },
-	{ MEDIA_BUS_FMT_YVYU8_2X8, 8 },
+	{ MEDIA_BUS_FMT_UYVY8_1X16, 8 },
+	{ MEDIA_BUS_FMT_VYUY8_1X16, 8 },
+	{ MEDIA_BUS_FMT_YUYV8_1X16, 8 },
+	{ MEDIA_BUS_FMT_YVYU8_1X16, 8 },
 };
 
 static const struct vfe_format formats_rdi_8x96[] = {
-	{ MEDIA_BUS_FMT_UYVY8_2X8, 8 },
-	{ MEDIA_BUS_FMT_VYUY8_2X8, 8 },
-	{ MEDIA_BUS_FMT_YUYV8_2X8, 8 },
-	{ MEDIA_BUS_FMT_YVYU8_2X8, 8 },
+	{ MEDIA_BUS_FMT_UYVY8_1X16, 8 },
+	{ MEDIA_BUS_FMT_VYUY8_1X16, 8 },
+	{ MEDIA_BUS_FMT_YUYV8_1X16, 8 },
+	{ MEDIA_BUS_FMT_YVYU8_1X16, 8 },
 	{ MEDIA_BUS_FMT_SBGGR8_1X8, 8 },
 	{ MEDIA_BUS_FMT_SGBRG8_1X8, 8 },
 	{ MEDIA_BUS_FMT_SGRBG8_1X8, 8 },
@@ -90,17 +90,17 @@ static const struct vfe_format formats_rdi_8x96[] = {
 };
 
 static const struct vfe_format formats_pix_8x96[] = {
-	{ MEDIA_BUS_FMT_UYVY8_2X8, 8 },
-	{ MEDIA_BUS_FMT_VYUY8_2X8, 8 },
-	{ MEDIA_BUS_FMT_YUYV8_2X8, 8 },
-	{ MEDIA_BUS_FMT_YVYU8_2X8, 8 },
+	{ MEDIA_BUS_FMT_UYVY8_1X16, 8 },
+	{ MEDIA_BUS_FMT_VYUY8_1X16, 8 },
+	{ MEDIA_BUS_FMT_YUYV8_1X16, 8 },
+	{ MEDIA_BUS_FMT_YVYU8_1X16, 8 },
 };
 
 static const struct vfe_format formats_rdi_845[] = {
-	{ MEDIA_BUS_FMT_UYVY8_2X8, 8 },
-	{ MEDIA_BUS_FMT_VYUY8_2X8, 8 },
-	{ MEDIA_BUS_FMT_YUYV8_2X8, 8 },
-	{ MEDIA_BUS_FMT_YVYU8_2X8, 8 },
+	{ MEDIA_BUS_FMT_UYVY8_1X16, 8 },
+	{ MEDIA_BUS_FMT_VYUY8_1X16, 8 },
+	{ MEDIA_BUS_FMT_YUYV8_1X16, 8 },
+	{ MEDIA_BUS_FMT_YVYU8_1X16, 8 },
 	{ MEDIA_BUS_FMT_SBGGR8_1X8, 8 },
 	{ MEDIA_BUS_FMT_SGBRG8_1X8, 8 },
 	{ MEDIA_BUS_FMT_SGRBG8_1X8, 8 },
@@ -172,40 +172,40 @@ static u32 vfe_src_pad_code(struct vfe_line *line, u32 sink_code,
 
 	if (vfe->camss->version == CAMSS_8x16)
 		switch (sink_code) {
-		case MEDIA_BUS_FMT_YUYV8_2X8:
+		case MEDIA_BUS_FMT_YUYV8_1X16:
 		{
 			u32 src_code[] = {
-				MEDIA_BUS_FMT_YUYV8_2X8,
+				MEDIA_BUS_FMT_YUYV8_1X16,
 				MEDIA_BUS_FMT_YUYV8_1_5X8,
 			};
 
 			return vfe_find_code(src_code, ARRAY_SIZE(src_code),
 					     index, src_req_code);
 		}
-		case MEDIA_BUS_FMT_YVYU8_2X8:
+		case MEDIA_BUS_FMT_YVYU8_1X16:
 		{
 			u32 src_code[] = {
-				MEDIA_BUS_FMT_YVYU8_2X8,
+				MEDIA_BUS_FMT_YVYU8_1X16,
 				MEDIA_BUS_FMT_YVYU8_1_5X8,
 			};
 
 			return vfe_find_code(src_code, ARRAY_SIZE(src_code),
 					     index, src_req_code);
 		}
-		case MEDIA_BUS_FMT_UYVY8_2X8:
+		case MEDIA_BUS_FMT_UYVY8_1X16:
 		{
 			u32 src_code[] = {
-				MEDIA_BUS_FMT_UYVY8_2X8,
+				MEDIA_BUS_FMT_UYVY8_1X16,
 				MEDIA_BUS_FMT_UYVY8_1_5X8,
 			};
 
 			return vfe_find_code(src_code, ARRAY_SIZE(src_code),
 					     index, src_req_code);
 		}
-		case MEDIA_BUS_FMT_VYUY8_2X8:
+		case MEDIA_BUS_FMT_VYUY8_1X16:
 		{
 			u32 src_code[] = {
-				MEDIA_BUS_FMT_VYUY8_2X8,
+				MEDIA_BUS_FMT_VYUY8_1X16,
 				MEDIA_BUS_FMT_VYUY8_1_5X8,
 			};
 
@@ -223,52 +223,52 @@ static u32 vfe_src_pad_code(struct vfe_line *line, u32 sink_code,
 		 vfe->camss->version == CAMSS_845 ||
 		 vfe->camss->version == CAMSS_8250)
 		switch (sink_code) {
-		case MEDIA_BUS_FMT_YUYV8_2X8:
+		case MEDIA_BUS_FMT_YUYV8_1X16:
 		{
 			u32 src_code[] = {
-				MEDIA_BUS_FMT_YUYV8_2X8,
-				MEDIA_BUS_FMT_YVYU8_2X8,
-				MEDIA_BUS_FMT_UYVY8_2X8,
-				MEDIA_BUS_FMT_VYUY8_2X8,
+				MEDIA_BUS_FMT_YUYV8_1X16,
+				MEDIA_BUS_FMT_YVYU8_1X16,
+				MEDIA_BUS_FMT_UYVY8_1X16,
+				MEDIA_BUS_FMT_VYUY8_1X16,
 				MEDIA_BUS_FMT_YUYV8_1_5X8,
 			};
 
 			return vfe_find_code(src_code, ARRAY_SIZE(src_code),
 					     index, src_req_code);
 		}
-		case MEDIA_BUS_FMT_YVYU8_2X8:
+		case MEDIA_BUS_FMT_YVYU8_1X16:
 		{
 			u32 src_code[] = {
-				MEDIA_BUS_FMT_YVYU8_2X8,
-				MEDIA_BUS_FMT_YUYV8_2X8,
-				MEDIA_BUS_FMT_UYVY8_2X8,
-				MEDIA_BUS_FMT_VYUY8_2X8,
+				MEDIA_BUS_FMT_YVYU8_1X16,
+				MEDIA_BUS_FMT_YUYV8_1X16,
+				MEDIA_BUS_FMT_UYVY8_1X16,
+				MEDIA_BUS_FMT_VYUY8_1X16,
 				MEDIA_BUS_FMT_YVYU8_1_5X8,
 			};
 
 			return vfe_find_code(src_code, ARRAY_SIZE(src_code),
 					     index, src_req_code);
 		}
-		case MEDIA_BUS_FMT_UYVY8_2X8:
+		case MEDIA_BUS_FMT_UYVY8_1X16:
 		{
 			u32 src_code[] = {
-				MEDIA_BUS_FMT_UYVY8_2X8,
-				MEDIA_BUS_FMT_YUYV8_2X8,
-				MEDIA_BUS_FMT_YVYU8_2X8,
-				MEDIA_BUS_FMT_VYUY8_2X8,
+				MEDIA_BUS_FMT_UYVY8_1X16,
+				MEDIA_BUS_FMT_YUYV8_1X16,
+				MEDIA_BUS_FMT_YVYU8_1X16,
+				MEDIA_BUS_FMT_VYUY8_1X16,
 				MEDIA_BUS_FMT_UYVY8_1_5X8,
 			};
 
 			return vfe_find_code(src_code, ARRAY_SIZE(src_code),
 					     index, src_req_code);
 		}
-		case MEDIA_BUS_FMT_VYUY8_2X8:
+		case MEDIA_BUS_FMT_VYUY8_1X16:
 		{
 			u32 src_code[] = {
-				MEDIA_BUS_FMT_VYUY8_2X8,
-				MEDIA_BUS_FMT_YUYV8_2X8,
-				MEDIA_BUS_FMT_YVYU8_2X8,
-				MEDIA_BUS_FMT_UYVY8_2X8,
+				MEDIA_BUS_FMT_VYUY8_1X16,
+				MEDIA_BUS_FMT_YUYV8_1X16,
+				MEDIA_BUS_FMT_YVYU8_1X16,
+				MEDIA_BUS_FMT_UYVY8_1X16,
 				MEDIA_BUS_FMT_VYUY8_1_5X8,
 			};
 
@@ -845,7 +845,7 @@ static void vfe_try_format(struct vfe_line *line,
 
 		/* If not found, use UYVY as default */
 		if (i >= line->nformats)
-			fmt->code = MEDIA_BUS_FMT_UYVY8_2X8;
+			fmt->code = MEDIA_BUS_FMT_UYVY8_1X16;
 
 		fmt->width = clamp_t(u32, fmt->width, 1, 8191);
 		fmt->height = clamp_t(u32, fmt->height, 1, 8191);
@@ -1262,7 +1262,7 @@ static int vfe_init_formats(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 		.which = fh ? V4L2_SUBDEV_FORMAT_TRY :
 			      V4L2_SUBDEV_FORMAT_ACTIVE,
 		.format = {
-			.code = MEDIA_BUS_FMT_UYVY8_2X8,
+			.code = MEDIA_BUS_FMT_UYVY8_1X16,
 			.width = 1920,
 			.height = 1080
 		}
