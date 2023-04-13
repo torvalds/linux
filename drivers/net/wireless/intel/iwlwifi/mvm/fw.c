@@ -321,6 +321,8 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	static const u16 alive_cmd[] = { UCODE_ALIVE_NTFY };
 	bool run_in_rfkill =
 		ucode_type == IWL_UCODE_INIT || iwl_mvm_has_unified_ucode(mvm);
+	u8 count;
+	struct iwl_pc_data *pc_data;
 
 	if (ucode_type == IWL_UCODE_REGULAR &&
 	    iwl_fw_dbg_conf_usniffer(mvm->fw, FW_DBG_START_FROM_ALIVE) &&
@@ -393,6 +395,14 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 
 		/* LMAC/UMAC PC info */
 		if (trans->trans_cfg->device_family >=
+					IWL_DEVICE_FAMILY_22000) {
+			pc_data = trans->dbg.pc_data;
+			for (count = 0; count < trans->dbg.num_pc;
+			     count++, pc_data++)
+				IWL_ERR(mvm, "%s: 0x%x\n",
+					pc_data->pc_name,
+					pc_data->pc_address);
+		} else if (trans->trans_cfg->device_family >=
 					IWL_DEVICE_FAMILY_9000) {
 			IWL_ERR(mvm, "UMAC PC: 0x%x\n",
 				iwl_read_umac_prph(trans,
