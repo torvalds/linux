@@ -144,6 +144,10 @@ struct mlx5e_ipsec_work {
 	void *data;
 };
 
+struct mlx5e_ipsec_netevent_data {
+	u8 addr[ETH_ALEN];
+};
+
 struct mlx5e_ipsec_dwork {
 	struct delayed_work dwork;
 	struct mlx5e_ipsec_sa_entry *sa_entry;
@@ -169,6 +173,7 @@ struct mlx5e_ipsec {
 	struct mlx5e_ipsec_tx *tx;
 	struct mlx5e_ipsec_aso *aso;
 	struct notifier_block nb;
+	struct notifier_block netevent_nb;
 	struct mlx5_ipsec_fs *roce;
 };
 
