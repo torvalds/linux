@@ -275,7 +275,7 @@ static int hantro_try_fmt(const struct hantro_ctx *ctx,
 			  struct v4l2_pix_format_mplane *pix_mp,
 			  enum v4l2_buf_type type)
 {
-	const struct hantro_fmt *fmt, *vpu_fmt;
+	const struct hantro_fmt *fmt;
 	bool capture = V4L2_TYPE_IS_CAPTURE(type);
 	bool coded;
 
@@ -295,11 +295,7 @@ static int hantro_try_fmt(const struct hantro_ctx *ctx,
 
 	if (coded) {
 		pix_mp->num_planes = 1;
-		vpu_fmt = fmt;
-	} else if (ctx->is_encoder) {
-		vpu_fmt = ctx->vpu_dst_fmt;
-	} else {
-		vpu_fmt = fmt;
+	} else if (!ctx->is_encoder) {
 		/*
 		 * Width/height on the CAPTURE end of a decoder are ignored and
 		 * replaced by the OUTPUT ones.
@@ -311,7 +307,7 @@ static int hantro_try_fmt(const struct hantro_ctx *ctx,
 	pix_mp->field = V4L2_FIELD_NONE;
 
 	v4l2_apply_frmsize_constraints(&pix_mp->width, &pix_mp->height,
-				       &vpu_fmt->frmsize);
+				       &fmt->frmsize);
 
 	if (!coded) {
 		/* Fill remaining fields */
