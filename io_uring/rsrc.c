@@ -158,6 +158,7 @@ static void io_rsrc_put_work_one(struct io_rsrc_data *rsrc_data,
 static void __io_rsrc_put_work(struct io_rsrc_node *ref_node)
 {
 	struct io_rsrc_data *rsrc_data = ref_node->rsrc_data;
+	struct io_ring_ctx *ctx = rsrc_data->ctx;
 	struct io_rsrc_put *prsrc, *tmp;
 
 	if (ref_node->inline_items)
@@ -171,13 +172,13 @@ static void __io_rsrc_put_work(struct io_rsrc_node *ref_node)
 
 	io_rsrc_node_destroy(rsrc_data->ctx, ref_node);
 	if (io_put_rsrc_data_ref(rsrc_data))
-		complete(&rsrc_data->done);
+		wake_up_all(&ctx->rsrc_quiesce_wq);
 }
 
 void io_wait_rsrc_data(struct io_rsrc_data *data)
 {
-	if (data && !io_put_rsrc_data_ref(data))
-		wait_for_completion(&data->done);
+	if (data)
+		WARN_ON_ONCE(!io_put_rsrc_data_ref(data));
 }
 
 void io_rsrc_node_destroy(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
@@ -257,6 +258,7 @@ int io_rsrc_node_switch_start(struct io_ring_ctx *ctx)
 __cold static int io_rsrc_ref_quiesce(struct io_rsrc_data *data,
 				      struct io_ring_ctx *ctx)
 {
+	DEFINE_WAIT(we);
 	int ret;
 
 	/* As we may drop ->uring_lock, other task may have started quiesce */
@@ -273,7 +275,9 @@ __cold static int io_rsrc_ref_quiesce(struct io_rsrc_data *data,
 
 	data->quiesce = true;
 	do {
+		prepare_to_wait(&ctx->rsrc_quiesce_wq, &we, TASK_INTERRUPTIBLE);
 		mutex_unlock(&ctx->uring_lock);
+
 		ret = io_run_task_work_sig(ctx);
 		if (ret < 0) {
 			mutex_lock(&ctx->uring_lock);
@@ -285,12 +289,15 @@ __cold static int io_rsrc_ref_quiesce(struct io_rsrc_data *data,
 			}
 			break;
 		}
-		wait_for_completion_interruptible(&data->done);
+
+		schedule();
+		__set_current_state(TASK_RUNNING);
 		mutex_lock(&ctx->uring_lock);
 		ret = 0;
 	} while (data->refs);
-	data->quiesce = false;
 
+	finish_wait(&ctx->rsrc_quiesce_wq, &we);
+	data->quiesce = false;
 	return ret;
 }
 
@@ -366,7 +373,6 @@ __cold static int io_rsrc_data_alloc(struct io_ring_ctx *ctx,
 				goto fail;
 		}
 	}
-	init_completion(&data->done);
 	*pdata = data;
 	return 0;
 fail:

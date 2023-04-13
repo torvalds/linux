@@ -35,7 +35,6 @@ struct io_rsrc_data {
 	u64				**tags;
 	unsigned int			nr;
 	rsrc_put_fn			*do_put;
-	struct completion		done;
 	int				refs;
 	bool				quiesce;
 };
