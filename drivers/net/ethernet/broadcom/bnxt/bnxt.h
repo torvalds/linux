@@ -2231,13 +2231,12 @@ struct bnxt {
 #define SFF_MODULE_ID_QSFP28			0x11
 #define BNXT_MAX_PHY_I2C_RESP_SIZE		64
 
-static inline u32 bnxt_tx_avail(struct bnxt *bp, struct bnxt_tx_ring_info *txr)
+static inline u32 bnxt_tx_avail(struct bnxt *bp,
+				const struct bnxt_tx_ring_info *txr)
 {
-	/* Tell compiler to fetch tx indices from memory. */
-	barrier();
+	u32 used = READ_ONCE(txr->tx_prod) - READ_ONCE(txr->tx_cons);
 
-	return bp->tx_ring_size -
-		((txr->tx_prod - txr->tx_cons) & bp->tx_ring_mask);
+	return bp->tx_ring_size - (used & bp->tx_ring_mask);
 }
 
 static inline void bnxt_writeq(struct bnxt *bp, u64 val,
