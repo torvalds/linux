@@ -6224,7 +6224,7 @@ static int __init slab_sysfs_init(void)
 	if (!slab_kset) {
 		mutex_unlock(&slab_mutex);
 		pr_err("Cannot register slab subsystem.\n");
-		return -ENOSYS;
+		return -ENOMEM;
 	}
 
 	slab_state = FULL;
