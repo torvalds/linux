@@ -102,6 +102,8 @@
 #define CSR_LTR_LONG_VAL_AD_SNOOP_VAL		0x000003ff
 #define CSR_LTR_LONG_VAL_AD_SCALE_USEC		2
 
+#define CSR_LTR_LAST_MSG			(CSR_BASE + 0x0DC)
+
 /* GIO Chicken Bits (PCI Express bus link power management) */
 #define CSR_GIO_CHICKEN_BITS    (CSR_BASE+0x100)
 
