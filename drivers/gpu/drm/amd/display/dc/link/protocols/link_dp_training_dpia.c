@@ -401,6 +401,7 @@ static enum link_training_result dpia_training_cr_non_transparent(
 
 		/* Check if clock recovery successful. */
 		if (dp_is_cr_done(lane_count, dpcd_lane_status)) {
+			DC_LOG_HW_LINK_TRAINING("%s: Clock recovery OK\n", __func__);
 			result = LINK_TRAINING_SUCCESS;
 			break;
 		}
@@ -508,6 +509,7 @@ static enum link_training_result dpia_training_cr_transparent(
 
 		/* Check if clock recovery successful. */
 		if (dp_is_cr_done(lane_count, dpcd_lane_status)) {
+			DC_LOG_HW_LINK_TRAINING("%s: Clock recovery OK\n", __func__);
 			result = LINK_TRAINING_SUCCESS;
 			break;
 		}
