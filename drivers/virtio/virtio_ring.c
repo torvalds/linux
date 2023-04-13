@@ -2762,6 +2762,23 @@ void vring_del_virtqueue(struct virtqueue *_vq)
 }
 EXPORT_SYMBOL_GPL(vring_del_virtqueue);
 
+u32 vring_notification_data(struct virtqueue *_vq)
+{
+	struct vring_virtqueue *vq = to_vvq(_vq);
+	u16 next;
+
+	if (vq->packed_ring)
+		next = (vq->packed.next_avail_idx &
+				~(-(1 << VRING_PACKED_EVENT_F_WRAP_CTR))) |
+			vq->packed.avail_wrap_counter <<
+				VRING_PACKED_EVENT_F_WRAP_CTR;
+	else
+		next = vq->split.avail_idx_shadow;
+
+	return next << 16 | _vq->index;
+}
+EXPORT_SYMBOL_GPL(vring_notification_data);
+
 /* Manipulates transport-specific feature bits. */
 void vring_transport_features(struct virtio_device *vdev)
 {
@@ -2780,6 +2797,8 @@ void vring_transport_features(struct virtio_device *vdev)
 		case VIRTIO_F_RING_PACKED:
 			break;
 		case VIRTIO_F_ORDER_PLATFORM:
+			break;
+		case VIRTIO_F_NOTIFICATION_DATA:
 			break;
 		default:
 			/* We don't understand this bit. */
