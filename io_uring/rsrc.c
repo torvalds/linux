@@ -272,8 +272,8 @@ __cold static int io_rsrc_ref_quiesce(struct io_rsrc_data *data,
 		return 0;
 
 	data->quiesce = true;
-	mutex_unlock(&ctx->uring_lock);
 	do {
+		mutex_unlock(&ctx->uring_lock);
 		ret = io_run_task_work_sig(ctx);
 		if (ret < 0) {
 			mutex_lock(&ctx->uring_lock);
@@ -285,18 +285,10 @@ __cold static int io_rsrc_ref_quiesce(struct io_rsrc_data *data,
 			}
 			break;
 		}
-		ret = wait_for_completion_interruptible(&data->done);
-		if (!ret) {
-			mutex_lock(&ctx->uring_lock);
-			if (!data->refs)
-				break;
-			/*
-			 * it has been revived by another thread while
-			 * we were unlocked
-			 */
-			mutex_unlock(&ctx->uring_lock);
-		}
-	} while (1);
+		wait_for_completion_interruptible(&data->done);
+		mutex_lock(&ctx->uring_lock);
+		ret = 0;
+	} while (data->refs);
 	data->quiesce = false;
 
 	return ret;
