@@ -450,9 +450,7 @@ xfs_inobt_init_common(
 	if (xfs_has_crc(mp))
 		cur->bc_flags |= XFS_BTREE_CRC_BLOCKS;
 
-	/* take a reference for the cursor */
-	atomic_inc(&pag->pag_ref);
-	cur->bc_ag.pag = pag;
+	cur->bc_ag.pag = xfs_perag_hold(pag);
 	return cur;
 }
 

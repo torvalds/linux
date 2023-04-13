@@ -460,10 +460,7 @@ xfs_rmapbt_init_common(
 	cur->bc_statoff = XFS_STATS_CALC_INDEX(xs_rmap_2);
 	cur->bc_ops = &xfs_rmapbt_ops;
 
-	/* take a reference for the cursor */
-	atomic_inc(&pag->pag_ref);
-	cur->bc_ag.pag = pag;
-
+	cur->bc_ag.pag = xfs_perag_hold(pag);
 	return cur;
 }
 

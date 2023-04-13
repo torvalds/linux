@@ -340,10 +340,7 @@ xfs_refcountbt_init_common(
 
 	cur->bc_flags |= XFS_BTREE_CRC_BLOCKS;
 
-	/* take a reference for the cursor */
-	atomic_inc(&pag->pag_ref);
-	cur->bc_ag.pag = pag;
-
+	cur->bc_ag.pag = xfs_perag_hold(pag);
 	cur->bc_ag.refc.nr_ops = 0;
 	cur->bc_ag.refc.shape_changes = 0;
 	cur->bc_ops = &xfs_refcountbt_ops;
