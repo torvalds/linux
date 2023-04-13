@@ -439,7 +439,7 @@ static int update_cpucp_sample_ms(unsigned int val)
 
 	for (i = 0; i < MAX_MEMLAT_GRPS; i++) {
 		grp = memlat_data->groups[i];
-		if (grp->cpucp_enabled)
+		if (grp && grp->cpucp_enabled)
 			break;
 	}
 	if (i == MAX_MEMLAT_GRPS)
@@ -529,7 +529,7 @@ static ssize_t store_cpucp_log_level(struct kobject *kobj,
 
 	for (i = 0; i < MAX_MEMLAT_GRPS; i++) {
 		grp = memlat_data->groups[i];
-		if (grp->cpucp_enabled)
+		if (grp && grp->cpucp_enabled)
 			break;
 	}
 	if (i == MAX_MEMLAT_GRPS)
