@@ -1056,7 +1056,11 @@ static int pcie_ep_mmap(struct file *file, struct vm_area_struct *vma)
 
 	vma->vm_flags |= VM_IO;
 	vma->vm_flags |= (VM_DONTEXPAND | VM_DONTDUMP);
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+
+	if (rockchip->cur_mmap_res == PCIE_EP_MMAP_RESOURCE_BAR2)
+		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+	else
+		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
 	err = remap_pfn_range(vma, vma->vm_start,
 			      __phys_to_pfn(addr),
