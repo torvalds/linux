@@ -6,6 +6,8 @@
 #include "i915_reg.h"
 #include "intel_cx0_phy.h"
 #include "intel_cx0_phy_regs.h"
+#include "intel_ddi.h"
+#include "intel_ddi_buf_trans.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
@@ -290,6 +292,97 @@ static void intel_cx0_rmw(struct drm_i915_private *i915, enum port port,
 
 	for_each_cx0_lane_in_mask(lane_mask, lane)
 		__intel_cx0_rmw(i915, port, lane, addr, clear, set, committed);
+}
+
+static u8 intel_c10_get_tx_vboost_lvl(const struct intel_crtc_state *crtc_state)
+{
+	if (intel_crtc_has_dp_encoder(crtc_state)) {
+		if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP) &&
+		    (crtc_state->port_clock == 540000 ||
+		     crtc_state->port_clock == 810000))
+			return 5;
+		else
+			return 4;
+	} else {
+		return 5;
+	}
+}
+
+static u8 intel_c10_get_tx_term_ctl(const struct intel_crtc_state *crtc_state)
+{
+	if (intel_crtc_has_dp_encoder(crtc_state)) {
+		if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP) &&
+		    (crtc_state->port_clock == 540000 ||
+		     crtc_state->port_clock == 810000))
+			return 5;
+		else
+			return 2;
+	} else {
+		return 6;
+	}
+}
+
+void intel_cx0_phy_set_signal_levels(struct intel_encoder *encoder,
+				     const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	const struct intel_ddi_buf_trans *trans;
+	enum phy phy = intel_port_to_phy(i915, encoder->port);
+	intel_wakeref_t wakeref;
+	int n_entries, ln;
+
+	wakeref = intel_cx0_phy_transaction_begin(encoder);
+
+	trans = encoder->get_buf_trans(encoder, crtc_state, &n_entries);
+	if (drm_WARN_ON_ONCE(&i915->drm, !trans)) {
+		intel_cx0_phy_transaction_end(encoder, wakeref);
+		return;
+	}
+
+	if (intel_is_c10phy(i915, phy)) {
+		intel_cx0_rmw(i915, encoder->port, INTEL_CX0_BOTH_LANES, PHY_C10_VDR_CONTROL(1),
+			      0, C10_VDR_CTRL_MSGBUS_ACCESS, MB_WRITE_COMMITTED);
+		intel_cx0_rmw(i915, encoder->port, INTEL_CX0_BOTH_LANES, PHY_C10_VDR_CMN(3),
+			      C10_CMN3_TXVBOOST_MASK,
+			      C10_CMN3_TXVBOOST(intel_c10_get_tx_vboost_lvl(crtc_state)),
+			      MB_WRITE_UNCOMMITTED);
+		intel_cx0_rmw(i915, encoder->port, INTEL_CX0_BOTH_LANES, PHY_C10_VDR_TX(1),
+			      C10_TX1_TERMCTL_MASK,
+			      C10_TX1_TERMCTL(intel_c10_get_tx_term_ctl(crtc_state)),
+			      MB_WRITE_COMMITTED);
+	}
+
+	for (ln = 0; ln < crtc_state->lane_count; ln++) {
+		int level = intel_ddi_level(encoder, crtc_state, ln);
+		int lane, tx;
+
+		lane = ln / 2;
+		tx = ln % 2;
+
+		intel_cx0_rmw(i915, encoder->port, BIT(lane), PHY_CX0_VDROVRD_CTL(lane, tx, 0),
+			      C10_PHY_OVRD_LEVEL_MASK,
+			      C10_PHY_OVRD_LEVEL(trans->entries[level].snps.pre_cursor),
+			      MB_WRITE_COMMITTED);
+		intel_cx0_rmw(i915, encoder->port, BIT(lane), PHY_CX0_VDROVRD_CTL(lane, tx, 1),
+			      C10_PHY_OVRD_LEVEL_MASK,
+			      C10_PHY_OVRD_LEVEL(trans->entries[level].snps.vswing),
+			      MB_WRITE_COMMITTED);
+		intel_cx0_rmw(i915, encoder->port, BIT(lane), PHY_CX0_VDROVRD_CTL(lane, tx, 2),
+			      C10_PHY_OVRD_LEVEL_MASK,
+			      C10_PHY_OVRD_LEVEL(trans->entries[level].snps.post_cursor),
+			      MB_WRITE_COMMITTED);
+	}
+
+	/* Write Override enables in 0xD71 */
+	intel_cx0_rmw(i915, encoder->port, INTEL_CX0_BOTH_LANES, PHY_C10_VDR_OVRD,
+		      0, PHY_C10_VDR_OVRD_TX1 | PHY_C10_VDR_OVRD_TX2,
+		      MB_WRITE_COMMITTED);
+
+	if (intel_is_c10phy(i915, phy))
+		intel_cx0_rmw(i915, encoder->port, INTEL_CX0_BOTH_LANES, PHY_C10_VDR_CONTROL(1),
+			      0, C10_VDR_CTRL_UPDATE_CFG, MB_WRITE_COMMITTED);
+
+	intel_cx0_phy_transaction_end(encoder, wakeref);
 }
 
 /*
@@ -766,10 +859,8 @@ static void intel_program_port_clock_ctl(struct intel_encoder *encoder,
 	val |= crtc_state->cx0pll_state.ssc_enabled ? XELPDP_SSC_ENABLE_PLLB : 0;
 
 	intel_de_rmw(i915, XELPDP_PORT_CLOCK_CTL(encoder->port),
-		     XELPDP_LANE1_PHY_CLOCK_SELECT |
-		     XELPDP_FORWARD_CLOCK_UNGATE |
-		     XELPDP_DDI_CLOCK_SELECT_MASK |
-		     XELPDP_SSC_ENABLE_PLLB, val);
+		     XELPDP_LANE1_PHY_CLOCK_SELECT | XELPDP_FORWARD_CLOCK_UNGATE |
+		     XELPDP_DDI_CLOCK_SELECT_MASK | XELPDP_SSC_ENABLE_PLLB, val);
 }
 
 static u32 intel_cx0_get_powerdown_update(u8 lane_mask)
@@ -1144,7 +1235,8 @@ static void intel_c10pll_disable(struct intel_encoder *encoder)
 
 	/* 7. Program PORT_CLOCK_CTL register to disable and gate clocks. */
 	intel_de_rmw(i915, XELPDP_PORT_CLOCK_CTL(encoder->port),
-		     XELPDP_DDI_CLOCK_SELECT_MASK |
+		     XELPDP_DDI_CLOCK_SELECT_MASK, 0);
+	intel_de_rmw(i915, XELPDP_PORT_CLOCK_CTL(encoder->port),
 		     XELPDP_FORWARD_CLOCK_UNGATE, 0);
 }
 

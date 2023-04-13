@@ -144,6 +144,8 @@
 #define   C10_CMN3_TXVBOOST(val)	REG_FIELD_PREP8(C10_CMN3_TXVBOOST_MASK, val)
 #define PHY_C10_VDR_TX(idx)		(0xC30 + (idx))
 #define   C10_TX0_TX_MPLLB_SEL		REG_BIT(4)
+#define   C10_TX1_TERMCTL_MASK		REG_GENMASK8(7, 5)
+#define   C10_TX1_TERMCTL(val)		REG_FIELD_PREP8(C10_TX1_TERMCTL_MASK, val)
 #define PHY_C10_VDR_CONTROL(idx)	(0xC70 + (idx) - 1)
 #define   C10_VDR_CTRL_MSGBUS_ACCESS	REG_BIT8(2)
 #define   C10_VDR_CTRL_MASTER_LANE	REG_BIT8(1)
@@ -151,9 +153,15 @@
 #define PHY_C10_VDR_CUSTOM_WIDTH	0xD02
 #define   C10_VDR_CUSTOM_WIDTH_MASK    REG_GENMASK(1, 0)
 #define   C10_VDR_CUSTOM_WIDTH_8_10    REG_FIELD_PREP(C10_VDR_CUSTOM_WIDTH_MASK, 0)
-
-/* PHY_C10_VDR_PLL0 */
-#define PLL_C10_MPLL_SSC_EN             REG_BIT8(0)
+#define PHY_C10_VDR_OVRD		0xD71
+#define   PHY_C10_VDR_OVRD_TX1		REG_BIT8(0)
+#define   PHY_C10_VDR_OVRD_TX2		REG_BIT8(2)
+#define PHY_C10_VDR_PRE_OVRD_TX1	0xD80
+#define C10_PHY_OVRD_LEVEL_MASK		REG_GENMASK8(5, 0)
+#define C10_PHY_OVRD_LEVEL(val)		REG_FIELD_PREP8(C10_PHY_OVRD_LEVEL_MASK, val)
+#define PHY_CX0_VDROVRD_CTL(lane, tx, control)				\
+					(PHY_C10_VDR_PRE_OVRD_TX1 +	\
+					 ((lane) ^ (tx)) * 0x10 + (control))
 
 /* PIPE SPEC Defined Registers */
 #define PHY_CX0_TX_CONTROL(tx, control)	(0x400 + ((tx) - 1) * 0x200 + (control))

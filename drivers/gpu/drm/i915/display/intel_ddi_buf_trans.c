@@ -1035,6 +1035,25 @@ static const struct intel_ddi_buf_trans dg2_snps_trans_uhbr = {
 	.num_entries = ARRAY_SIZE(_dg2_snps_trans_uhbr),
 };
 
+static const union intel_ddi_buf_trans_entry _mtl_c10_trans_dp14[] = {
+	{ .snps = { 26, 0, 0  } },      /* preset 0 */
+	{ .snps = { 33, 0, 6  } },      /* preset 1 */
+	{ .snps = { 38, 0, 11 } },      /* preset 2 */
+	{ .snps = { 43, 0, 19 } },      /* preset 3 */
+	{ .snps = { 39, 0, 0  } },      /* preset 4 */
+	{ .snps = { 45, 0, 7  } },      /* preset 5 */
+	{ .snps = { 46, 0, 13 } },      /* preset 6 */
+	{ .snps = { 46, 0, 0  } },      /* preset 7 */
+	{ .snps = { 55, 0, 7  } },      /* preset 8 */
+	{ .snps = { 62, 0, 0  } },      /* preset 9 */
+};
+
+static const struct intel_ddi_buf_trans mtl_cx0c10_trans = {
+	.entries = _mtl_c10_trans_dp14,
+	.num_entries = ARRAY_SIZE(_mtl_c10_trans_dp14),
+	.hdmi_default_entry = ARRAY_SIZE(_mtl_c10_trans_dp14) - 1,
+};
+
 bool is_hobl_buf_trans(const struct intel_ddi_buf_trans *table)
 {
 	return table == &tgl_combo_phy_trans_edp_hbr2_hobl;
@@ -1606,12 +1625,22 @@ dg2_get_snps_buf_trans(struct intel_encoder *encoder,
 		return intel_get_buf_trans(&dg2_snps_trans, n_entries);
 }
 
+static const struct intel_ddi_buf_trans *
+mtl_get_cx0_buf_trans(struct intel_encoder *encoder,
+		      const struct intel_crtc_state *crtc_state,
+		      int *n_entries)
+{
+	return intel_get_buf_trans(&mtl_cx0c10_trans, n_entries);
+}
+
 void intel_ddi_buf_trans_init(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	enum phy phy = intel_port_to_phy(i915, encoder->port);
 
-	if (IS_DG2(i915)) {
+	if (DISPLAY_VER(i915) >= 14) {
+		encoder->get_buf_trans = mtl_get_cx0_buf_trans;
+	} else if (IS_DG2(i915)) {
 		encoder->get_buf_trans = dg2_get_snps_buf_trans;
 	} else if (IS_ALDERLAKE_P(i915)) {
 		if (intel_phy_is_combo(i915, phy))
