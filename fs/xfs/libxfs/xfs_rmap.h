@@ -162,7 +162,11 @@ struct xfs_rmap_intent {
 	int					ri_whichfork;
 	uint64_t				ri_owner;
 	struct xfs_bmbt_irec			ri_bmap;
+	struct xfs_perag			*ri_pag;
 };
+
+void xfs_rmap_update_get_group(struct xfs_mount *mp,
+		struct xfs_rmap_intent *ri);
 
 /* functions for updating the rmapbt based on bmbt map/unmap operations */
 void xfs_rmap_map_extent(struct xfs_trans *tp, struct xfs_inode *ip,

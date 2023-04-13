@@ -141,7 +141,8 @@ int xfs_alloc_vextent_first_ag(struct xfs_alloc_arg *args,
 int				/* error */
 __xfs_free_extent(
 	struct xfs_trans	*tp,	/* transaction pointer */
-	xfs_fsblock_t		bno,	/* starting block number of extent */
+	struct xfs_perag	*pag,
+	xfs_agblock_t		agbno,
 	xfs_extlen_t		len,	/* length of extent */
 	const struct xfs_owner_info	*oinfo,	/* extent owner */
 	enum xfs_ag_resv_type	type,	/* block reservation type */
@@ -150,12 +151,13 @@ __xfs_free_extent(
 static inline int
 xfs_free_extent(
 	struct xfs_trans	*tp,
-	xfs_fsblock_t		bno,
+	struct xfs_perag	*pag,
+	xfs_agblock_t		agbno,
 	xfs_extlen_t		len,
 	const struct xfs_owner_info	*oinfo,
 	enum xfs_ag_resv_type	type)
 {
-	return __xfs_free_extent(tp, bno, len, oinfo, type, false);
+	return __xfs_free_extent(tp, pag, agbno, len, oinfo, type, false);
 }
 
 int				/* error */
@@ -235,8 +237,12 @@ struct xfs_extent_free_item {
 	uint64_t		xefi_owner;
 	xfs_fsblock_t		xefi_startblock;/* starting fs block number */
 	xfs_extlen_t		xefi_blockcount;/* number of blocks in extent */
+	struct xfs_perag	*xefi_pag;
 	unsigned int		xefi_flags;
 };
+
+void xfs_extent_free_get_group(struct xfs_mount *mp,
+		struct xfs_extent_free_item *xefi);
 
 #define XFS_EFI_SKIP_DISCARD	(1U << 0) /* don't issue discard */
 #define XFS_EFI_ATTR_FORK	(1U << 1) /* freeing attr fork block */
