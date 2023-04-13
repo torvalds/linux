@@ -685,7 +685,6 @@ int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx,
 {
 	u64 *tag_slot = io_get_tag_slot(data, idx);
 	struct io_rsrc_put *prsrc;
-	bool inline_item = true;
 
 	if (!node->inline_items) {
 		prsrc = &node->item;
@@ -694,14 +693,12 @@ int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx,
 		prsrc = kzalloc(sizeof(*prsrc), GFP_KERNEL);
 		if (!prsrc)
 			return -ENOMEM;
-		inline_item = false;
+		list_add(&prsrc->list, &node->item_list);
 	}
 
 	prsrc->tag = *tag_slot;
 	*tag_slot = 0;
 	prsrc->rsrc = rsrc;
-	if (!inline_item)
-		list_add(&prsrc->list, &node->item_list);
 	return 0;
 }
 
