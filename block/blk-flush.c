@@ -389,6 +389,7 @@ void blk_insert_flush(struct request *rq)
 	unsigned long fflags = q->queue_flags;	/* may change, cache */
 	unsigned int policy = blk_flush_policy(fflags, rq);
 	struct blk_flush_queue *fq = blk_get_flush_queue(q, rq->mq_ctx);
+	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
 
 	/*
 	 * @policy now records what operations need to be done.  Adjust
@@ -425,7 +426,8 @@ void blk_insert_flush(struct request *rq)
 	 */
 	if ((policy & REQ_FSEQ_DATA) &&
 	    !(policy & (REQ_FSEQ_PREFLUSH | REQ_FSEQ_POSTFLUSH))) {
-		blk_mq_request_bypass_insert(rq, false, true);
+		blk_mq_request_bypass_insert(rq, false);
+		blk_mq_run_hw_queue(hctx, false);
 		return;
 	}
 

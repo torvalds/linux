@@ -1442,7 +1442,7 @@ static void blk_mq_requeue_work(struct work_struct *work)
 		if (rq->rq_flags & RQF_DONTPREP) {
 			rq->rq_flags &= ~RQF_SOFTBARRIER;
 			list_del_init(&rq->queuelist);
-			blk_mq_request_bypass_insert(rq, false, false);
+			blk_mq_request_bypass_insert(rq, false);
 		} else if (rq->rq_flags & RQF_SOFTBARRIER) {
 			rq->rq_flags &= ~RQF_SOFTBARRIER;
 			list_del_init(&rq->queuelist);
@@ -2457,13 +2457,11 @@ static void blk_mq_run_work_fn(struct work_struct *work)
  * blk_mq_request_bypass_insert - Insert a request at dispatch list.
  * @rq: Pointer to request to be inserted.
  * @at_head: true if the request should be inserted at the head of the list.
- * @run_queue: If we should run the hardware queue after inserting the request.
  *
  * Should only be used carefully, when the caller knows we want to
  * bypass a potential IO scheduler on the target device.
  */
-void blk_mq_request_bypass_insert(struct request *rq, bool at_head,
-				  bool run_queue)
+void blk_mq_request_bypass_insert(struct request *rq, bool at_head)
 {
 	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
 
@@ -2473,9 +2471,6 @@ void blk_mq_request_bypass_insert(struct request *rq, bool at_head,
 	else
 		list_add_tail(&rq->queuelist, &hctx->dispatch);
 	spin_unlock(&hctx->lock);
-
-	if (run_queue)
-		blk_mq_run_hw_queue(hctx, false);
 }
 
 static void blk_mq_insert_requests(struct blk_mq_hw_ctx *hctx,
@@ -2530,7 +2525,7 @@ static void blk_mq_insert_request(struct request *rq, bool at_head)
 		 * and it is added to the scheduler queue, there is no chance to
 		 * dispatch it given we prioritize requests in hctx->dispatch.
 		 */
-		blk_mq_request_bypass_insert(rq, at_head, false);
+		blk_mq_request_bypass_insert(rq, at_head);
 	} else if (rq->rq_flags & RQF_FLUSH_SEQ) {
 		/*
 		 * Firstly normal IO request is inserted to scheduler queue or
@@ -2553,7 +2548,7 @@ static void blk_mq_insert_request(struct request *rq, bool at_head)
 		 * Simply queue flush rq to the front of hctx->dispatch so that
 		 * intensive flush workloads can benefit in case of NCQ HW.
 		 */
-		blk_mq_request_bypass_insert(rq, true, false);
+		blk_mq_request_bypass_insert(rq, true);
 	} else if (q->elevator) {
 		LIST_HEAD(list);
 
@@ -2673,7 +2668,8 @@ static void blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
 		break;
 	case BLK_STS_RESOURCE:
 	case BLK_STS_DEV_RESOURCE:
-		blk_mq_request_bypass_insert(rq, false, true);
+		blk_mq_request_bypass_insert(rq, false);
+		blk_mq_run_hw_queue(hctx, false);
 		break;
 	default:
 		blk_mq_end_request(rq, ret);
@@ -2720,7 +2716,8 @@ static void blk_mq_plug_issue_direct(struct blk_plug *plug)
 			break;
 		case BLK_STS_RESOURCE:
 		case BLK_STS_DEV_RESOURCE:
-			blk_mq_request_bypass_insert(rq, false, true);
+			blk_mq_request_bypass_insert(rq, false);
+			blk_mq_run_hw_queue(hctx, false);
 			goto out;
 		default:
 			blk_mq_end_request(rq, ret);
@@ -2838,8 +2835,9 @@ static void blk_mq_try_issue_list_directly(struct blk_mq_hw_ctx *hctx,
 			break;
 		case BLK_STS_RESOURCE:
 		case BLK_STS_DEV_RESOURCE:
-			blk_mq_request_bypass_insert(rq, false,
-						     list_empty(list));
+			blk_mq_request_bypass_insert(rq, false);
+			if (list_empty(list))
+				blk_mq_run_hw_queue(hctx, false);
 			goto out;
 		default:
 			blk_mq_end_request(rq, ret);
