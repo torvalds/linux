@@ -5,7 +5,6 @@
 #include <linux/blkdev.h>
 #include <linux/pm_runtime.h>
 #include "blk-mq.h"
-#include "blk-mq-tag.h"
 
 /**
  * blk_pm_runtime_init - Block layer runtime PM initialization routine

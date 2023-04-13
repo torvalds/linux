@@ -4,7 +4,6 @@
 
 #include "elevator.h"
 #include "blk-mq.h"
-#include "blk-mq-tag.h"
 
 #define MAX_SCHED_RQ (16 * BLKDEV_DEFAULT_RQ)
 
