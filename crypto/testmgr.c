@@ -4645,6 +4645,12 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.hash = __VECS(aes_cmac128_tv_template)
 		}
 	}, {
+		.alg = "cmac(camellia)",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = __VECS(camellia_cmac128_tv_template)
+		}
+	}, {
 		.alg = "cmac(des3_ede)",
 		.test = alg_test_hash,
 		.suite = {
