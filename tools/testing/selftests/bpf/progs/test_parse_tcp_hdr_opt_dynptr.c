@@ -30,7 +30,7 @@ __u32 server_id;
 static int parse_hdr_opt(struct bpf_dynptr *ptr, __u32 *off, __u8 *hdr_bytes_remaining,
 			 __u32 *server_id)
 {
-	__u8 *tcp_opt, kind, hdr_len;
+	__u8 kind, hdr_len;
 	__u8 buffer[sizeof(kind) + sizeof(hdr_len) + sizeof(*server_id)];
 	__u8 *data;
 

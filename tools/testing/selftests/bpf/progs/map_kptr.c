@@ -515,7 +515,6 @@ int test_ls_map_kptr_ref1(void *ctx)
 {
 	struct task_struct *current;
 	struct map_value *v;
-	int ret;
 
 	current = bpf_get_current_task_btf();
 	if (!current)
@@ -534,7 +533,6 @@ int test_ls_map_kptr_ref2(void *ctx)
 {
 	struct task_struct *current;
 	struct map_value *v;
-	int ret;
 
 	current = bpf_get_current_task_btf();
 	if (!current)
@@ -550,7 +548,6 @@ int test_ls_map_kptr_ref_del(void *ctx)
 {
 	struct task_struct *current;
 	struct map_value *v;
-	int ret;
 
 	current = bpf_get_current_task_btf();
 	if (!current)

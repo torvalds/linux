@@ -20,6 +20,7 @@ struct array_map {
 } array_map SEC(".maps");
 
 extern struct prog_test_ref_kfunc *bpf_kfunc_call_test_acquire(unsigned long *sp) __ksym;
+extern void bpf_kfunc_call_test_release(struct prog_test_ref_kfunc *p) __ksym;
 extern struct prog_test_ref_kfunc *
 bpf_kfunc_call_test_kptr_get(struct prog_test_ref_kfunc **p, int a, int b) __ksym;
 
@@ -439,6 +440,28 @@ int kptr_get_ref_state(struct __sk_buff *ctx)
 		return 0;
 
 	bpf_kfunc_call_test_kptr_get(&v->ref_ptr, 0, 0);
+	return 0;
+}
+
+SEC("?tc")
+__failure __msg("Possibly NULL pointer passed to helper arg2")
+int kptr_xchg_possibly_null(struct __sk_buff *ctx)
+{
+	struct prog_test_ref_kfunc *p;
+	struct map_value *v;
+	int key = 0;
+
+	v = bpf_map_lookup_elem(&array_map, &key);
+	if (!v)
+		return 0;
+
+	p = bpf_kfunc_call_test_acquire(&(unsigned long){0});
+
+	/* PTR_TO_BTF_ID | PTR_MAYBE_NULL passed to bpf_kptr_xchg() */
+	p = bpf_kptr_xchg(&v->ref_ptr, p);
+	if (p)
+		bpf_kfunc_call_test_release(p);
+
 	return 0;
 }
 

@@ -96,13 +96,20 @@ struct bpf_prog_load_opts {
 	__u32 log_level;
 	__u32 log_size;
 	char *log_buf;
+	/* output: actual total log contents size (including termintaing zero).
+	 * It could be both larger than original log_size (if log was
+	 * truncated), or smaller (if log buffer wasn't filled completely).
+	 * If kernel doesn't support this feature, log_size is left unchanged.
+	 */
+	__u32 log_true_size;
+	size_t :0;
 };
-#define bpf_prog_load_opts__last_field log_buf
+#define bpf_prog_load_opts__last_field log_true_size
 
 LIBBPF_API int bpf_prog_load(enum bpf_prog_type prog_type,
 			     const char *prog_name, const char *license,
 			     const struct bpf_insn *insns, size_t insn_cnt,
-			     const struct bpf_prog_load_opts *opts);
+			     struct bpf_prog_load_opts *opts);
 
 /* Flags to direct loading requirements */
 #define MAPS_RELAX_COMPAT	0x01
@@ -117,11 +124,18 @@ struct bpf_btf_load_opts {
 	char *log_buf;
 	__u32 log_level;
 	__u32 log_size;
+	/* output: actual total log contents size (including termintaing zero).
+	 * It could be both larger than original log_size (if log was
+	 * truncated), or smaller (if log buffer wasn't filled completely).
+	 * If kernel doesn't support this feature, log_size is left unchanged.
+	 */
+	__u32 log_true_size;
+	size_t :0;
 };
-#define bpf_btf_load_opts__last_field log_size
+#define bpf_btf_load_opts__last_field log_true_size
 
 LIBBPF_API int bpf_btf_load(const void *btf_data, size_t btf_size,
-			    const struct bpf_btf_load_opts *opts);
+			    struct bpf_btf_load_opts *opts);
 
 LIBBPF_API int bpf_map_update_elem(int fd, const void *key, const void *value,
 				   __u64 flags);
@@ -336,8 +350,9 @@ struct bpf_link_update_opts {
 	size_t sz; /* size of this struct for forward/backward compatibility */
 	__u32 flags;	   /* extra flags */
 	__u32 old_prog_fd; /* expected old program FD */
+	__u32 old_map_fd;  /* expected old map FD */
 };
-#define bpf_link_update_opts__last_field old_prog_fd
+#define bpf_link_update_opts__last_field old_map_fd
 
 LIBBPF_API int bpf_link_update(int link_fd, int new_prog_fd,
 			       const struct bpf_link_update_opts *opts);

@@ -17,8 +17,6 @@ SEC("cgroup/recvmsg4")
 int recvmsg4_prog(struct bpf_sock_addr *ctx)
 {
 	struct bpf_sock *sk;
-	__u32 user_ip4;
-	__u16 user_port;
 
 	sk = ctx->sk;
 	if (!sk)

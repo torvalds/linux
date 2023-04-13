@@ -7,6 +7,7 @@
 #include <stdbool.h>
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
+#include "bpf_misc.h"
 
 #define FUNCTION_NAME_LEN 64
 #define FILE_NAME_LEN 128
@@ -294,17 +295,22 @@ int __on_event(struct bpf_raw_tracepoint_args *ctx)
 	if (ctx.done)
 		return 0;
 #else
-#ifdef NO_UNROLL
+#if defined(USE_ITER)
+/* no for loop, no unrolling */
+#elif defined(NO_UNROLL)
 #pragma clang loop unroll(disable)
-#else
-#ifdef UNROLL_COUNT
+#elif defined(UNROLL_COUNT)
 #pragma clang loop unroll_count(UNROLL_COUNT)
 #else
 #pragma clang loop unroll(full)
-#endif
 #endif /* NO_UNROLL */
 		/* Unwind python stack */
+#ifdef USE_ITER
+		int i;
+		bpf_for(i, 0, STACK_MAX_LEN) {
+#else /* !USE_ITER */
 		for (int i = 0; i < STACK_MAX_LEN; ++i) {
+#endif
 			if (frame_ptr && get_frame_data(frame_ptr, pidData, &frame, &sym)) {
 				int32_t new_symbol_id = *symbol_counter * 64 + cur_cpu;
 				int32_t *symbol_id = bpf_map_lookup_elem(&symbolmap, &sym);
@@ -339,7 +345,7 @@ int __on_event(struct bpf_raw_tracepoint_args *ctx)
 SEC("raw_tracepoint/kfree_skb")
 int on_event(struct bpf_raw_tracepoint_args* ctx)
 {
-	int i, ret = 0;
+	int ret = 0;
 	ret |= __on_event(ctx);
 	ret |= __on_event(ctx);
 	ret |= __on_event(ctx);

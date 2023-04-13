@@ -215,6 +215,16 @@ static void xdp_test_run_teardown(struct xdp_test_data *xdp)
 	kfree(xdp->skbs);
 }
 
+static bool frame_was_changed(const struct xdp_page_head *head)
+{
+	/* xdp_scrub_frame() zeroes the data pointer, flags is the last field,
+	 * i.e. has the highest chances to be overwritten. If those two are
+	 * untouched, it's most likely safe to skip the context reset.
+	 */
+	return head->frame->data != head->orig_ctx.data ||
+	       head->frame->flags != head->orig_ctx.flags;
+}
+
 static bool ctx_was_changed(struct xdp_page_head *head)
 {
 	return head->orig_ctx.data != head->ctx.data ||
@@ -224,7 +234,7 @@ static bool ctx_was_changed(struct xdp_page_head *head)
 
 static void reset_ctx(struct xdp_page_head *head)
 {
-	if (likely(!ctx_was_changed(head)))
+	if (likely(!frame_was_changed(head) && !ctx_was_changed(head)))
 		return;
 
 	head->ctx.data = head->orig_ctx.data;
@@ -538,6 +548,11 @@ int noinline bpf_fentry_test8(struct bpf_fentry_test_t *arg)
 	return (long)arg->a;
 }
 
+__bpf_kfunc u32 bpf_fentry_test9(u32 *a)
+{
+	return *a;
+}
+
 __bpf_kfunc int bpf_modify_return_test(int a, int *b)
 {
 	*b += 1;
@@ -565,6 +580,11 @@ long noinline bpf_kfunc_call_test4(signed char a, short b, int c, long d)
 	 * b and c on platforms where this is required (e.g. s390x).
 	 */
 	return (long)a + (long)b + (long)c + d;
+}
+
+int noinline bpf_fentry_shadow_test(int a)
+{
+	return a + 1;
 }
 
 struct prog_test_member1 {
@@ -598,6 +618,11 @@ bpf_kfunc_call_test_acquire(unsigned long *scalar_ptr)
 	return &prog_test_struct;
 }
 
+__bpf_kfunc void bpf_kfunc_call_test_offset(struct prog_test_ref_kfunc *p)
+{
+	WARN_ON_ONCE(1);
+}
+
 __bpf_kfunc struct prog_test_member *
 bpf_kfunc_call_memb_acquire(void)
 {
@@ -607,9 +632,6 @@ bpf_kfunc_call_memb_acquire(void)
 
 __bpf_kfunc void bpf_kfunc_call_test_release(struct prog_test_ref_kfunc *p)
 {
-	if (!p)
-		return;
-
 	refcount_dec(&p->cnt);
 }
 
@@ -795,6 +817,7 @@ BTF_ID_FLAGS(func, bpf_kfunc_call_test_mem_len_fail2)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test_ref, KF_TRUSTED_ARGS | KF_RCU)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test_destructive, KF_DESTRUCTIVE)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test_static_unused_arg)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_offset)
 BTF_SET8_END(test_sk_check_kfunc_ids)
 
 static void *bpf_test_init(const union bpf_attr *kattr, u32 user_size,
@@ -844,7 +867,8 @@ int bpf_prog_test_run_tracing(struct bpf_prog *prog,
 		    bpf_fentry_test5(11, (void *)12, 13, 14, 15) != 65 ||
 		    bpf_fentry_test6(16, (void *)17, 18, 19, (void *)20, 21) != 111 ||
 		    bpf_fentry_test7((struct bpf_fentry_test_t *)0) != 0 ||
-		    bpf_fentry_test8(&arg) != 0)
+		    bpf_fentry_test8(&arg) != 0 ||
+		    bpf_fentry_test9(&retval) != 0)
 			goto out;
 		break;
 	case BPF_MODIFY_RETURN:

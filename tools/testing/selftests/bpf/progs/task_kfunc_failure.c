@@ -40,6 +40,9 @@ int BPF_PROG(task_kfunc_acquire_untrusted, struct task_struct *task, u64 clone_f
 
 	/* Can't invoke bpf_task_acquire() on an untrusted pointer. */
 	acquired = bpf_task_acquire(v->task);
+	if (!acquired)
+		return 0;
+
 	bpf_task_release(acquired);
 
 	return 0;
@@ -53,37 +56,48 @@ int BPF_PROG(task_kfunc_acquire_fp, struct task_struct *task, u64 clone_flags)
 
 	/* Can't invoke bpf_task_acquire() on a random frame pointer. */
 	acquired = bpf_task_acquire((struct task_struct *)&stack_task);
+	if (!acquired)
+		return 0;
+
 	bpf_task_release(acquired);
 
 	return 0;
 }
 
 SEC("kretprobe/free_task")
-__failure __msg("reg type unsupported for arg#0 function")
+__failure __msg("calling kernel function bpf_task_acquire is not allowed")
 int BPF_PROG(task_kfunc_acquire_unsafe_kretprobe, struct task_struct *task, u64 clone_flags)
 {
 	struct task_struct *acquired;
 
+	/* Can't call bpf_task_acquire() or bpf_task_release() in an untrusted prog. */
 	acquired = bpf_task_acquire(task);
-	/* Can't release a bpf_task_acquire()'d task without a NULL check. */
+	if (!acquired)
+		return 0;
 	bpf_task_release(acquired);
 
 	return 0;
 }
 
-SEC("tp_btf/task_newtask")
-__failure __msg("R1 must be referenced or trusted")
-int BPF_PROG(task_kfunc_acquire_trusted_walked, struct task_struct *task, u64 clone_flags)
+SEC("kretprobe/free_task")
+__failure __msg("calling kernel function bpf_task_acquire is not allowed")
+int BPF_PROG(task_kfunc_acquire_unsafe_kretprobe_rcu, struct task_struct *task, u64 clone_flags)
 {
 	struct task_struct *acquired;
 
-	/* Can't invoke bpf_task_acquire() on a trusted pointer obtained from walking a struct. */
-	acquired = bpf_task_acquire(task->group_leader);
-	bpf_task_release(acquired);
+	bpf_rcu_read_lock();
+	if (!task) {
+		bpf_rcu_read_unlock();
+		return 0;
+	}
+	/* Can't call bpf_task_acquire() or bpf_task_release() in an untrusted prog. */
+	acquired = bpf_task_acquire(task);
+	if (acquired)
+		bpf_task_release(acquired);
+	bpf_rcu_read_unlock();
 
 	return 0;
 }
-
 
 SEC("tp_btf/task_newtask")
 __failure __msg("Possibly NULL pointer passed to trusted arg0")
@@ -109,57 +123,7 @@ int BPF_PROG(task_kfunc_acquire_unreleased, struct task_struct *task, u64 clone_
 	acquired = bpf_task_acquire(task);
 
 	/* Acquired task is never released. */
-
-	return 0;
-}
-
-SEC("tp_btf/task_newtask")
-__failure __msg("arg#0 expected pointer to map value")
-int BPF_PROG(task_kfunc_get_non_kptr_param, struct task_struct *task, u64 clone_flags)
-{
-	struct task_struct *kptr;
-
-	/* Cannot use bpf_task_kptr_get() on a non-kptr, even on a valid task. */
-	kptr = bpf_task_kptr_get(&task);
-	if (!kptr)
-		return 0;
-
-	bpf_task_release(kptr);
-
-	return 0;
-}
-
-SEC("tp_btf/task_newtask")
-__failure __msg("arg#0 expected pointer to map value")
-int BPF_PROG(task_kfunc_get_non_kptr_acquired, struct task_struct *task, u64 clone_flags)
-{
-	struct task_struct *kptr, *acquired;
-
-	acquired = bpf_task_acquire(task);
-
-	/* Cannot use bpf_task_kptr_get() on a non-kptr, even if it was acquired. */
-	kptr = bpf_task_kptr_get(&acquired);
-	bpf_task_release(acquired);
-	if (!kptr)
-		return 0;
-
-	bpf_task_release(kptr);
-
-	return 0;
-}
-
-SEC("tp_btf/task_newtask")
-__failure __msg("arg#0 expected pointer to map value")
-int BPF_PROG(task_kfunc_get_null, struct task_struct *task, u64 clone_flags)
-{
-	struct task_struct *kptr;
-
-	/* Cannot use bpf_task_kptr_get() on a NULL pointer. */
-	kptr = bpf_task_kptr_get(NULL);
-	if (!kptr)
-		return 0;
-
-	bpf_task_release(kptr);
+	__sink(acquired);
 
 	return 0;
 }
@@ -185,27 +149,20 @@ int BPF_PROG(task_kfunc_xchg_unreleased, struct task_struct *task, u64 clone_fla
 }
 
 SEC("tp_btf/task_newtask")
-__failure __msg("Unreleased reference")
-int BPF_PROG(task_kfunc_get_unreleased, struct task_struct *task, u64 clone_flags)
+__failure __msg("Possibly NULL pointer passed to trusted arg0")
+int BPF_PROG(task_kfunc_acquire_release_no_null_check, struct task_struct *task, u64 clone_flags)
 {
-	struct task_struct *kptr;
-	struct __tasks_kfunc_map_value *v;
+	struct task_struct *acquired;
 
-	v = insert_lookup_task(task);
-	if (!v)
-		return 0;
-
-	kptr = bpf_task_kptr_get(&v->task);
-	if (!kptr)
-		return 0;
-
-	/* Kptr acquired above is never released. */
+	acquired = bpf_task_acquire(task);
+	/* Can't invoke bpf_task_release() on an acquired task without a NULL check. */
+	bpf_task_release(acquired);
 
 	return 0;
 }
 
 SEC("tp_btf/task_newtask")
-__failure __msg("arg#0 is untrusted_ptr_or_null_ expected ptr_ or socket")
+__failure __msg("Possibly NULL pointer passed to trusted arg0")
 int BPF_PROG(task_kfunc_release_untrusted, struct task_struct *task, u64 clone_flags)
 {
 	struct __tasks_kfunc_map_value *v;
@@ -233,7 +190,7 @@ int BPF_PROG(task_kfunc_release_fp, struct task_struct *task, u64 clone_flags)
 }
 
 SEC("tp_btf/task_newtask")
-__failure __msg("arg#0 is ptr_or_null_ expected ptr_ or socket")
+__failure __msg("Possibly NULL pointer passed to trusted arg0")
 int BPF_PROG(task_kfunc_release_null, struct task_struct *task, u64 clone_flags)
 {
 	struct __tasks_kfunc_map_value local, *v;
@@ -255,11 +212,12 @@ int BPF_PROG(task_kfunc_release_null, struct task_struct *task, u64 clone_flags)
 		return -ENOENT;
 
 	acquired = bpf_task_acquire(task);
+	if (!acquired)
+		return -EEXIST;
 
 	old = bpf_kptr_xchg(&v->task, acquired);
 
 	/* old cannot be passed to bpf_task_release() without a NULL check. */
-	bpf_task_release(old);
 	bpf_task_release(old);
 
 	return 0;
@@ -276,7 +234,7 @@ int BPF_PROG(task_kfunc_release_unacquired, struct task_struct *task, u64 clone_
 }
 
 SEC("tp_btf/task_newtask")
-__failure __msg("arg#0 is ptr_or_null_ expected ptr_ or socket")
+__failure __msg("Possibly NULL pointer passed to trusted arg0")
 int BPF_PROG(task_kfunc_from_pid_no_null_check, struct task_struct *task, u64 clone_flags)
 {
 	struct task_struct *acquired;
@@ -297,6 +255,72 @@ int BPF_PROG(task_kfunc_from_lsm_task_free, struct task_struct *task)
 
 	/* the argument of lsm task_free hook is untrusted. */
 	acquired = bpf_task_acquire(task);
+	if (!acquired)
+		return 0;
+
 	bpf_task_release(acquired);
+	return 0;
+}
+
+SEC("tp_btf/task_newtask")
+__failure __msg("access beyond the end of member comm")
+int BPF_PROG(task_access_comm1, struct task_struct *task, u64 clone_flags)
+{
+	bpf_strncmp(task->comm, 17, "foo");
+	return 0;
+}
+
+SEC("tp_btf/task_newtask")
+__failure __msg("access beyond the end of member comm")
+int BPF_PROG(task_access_comm2, struct task_struct *task, u64 clone_flags)
+{
+	bpf_strncmp(task->comm + 1, 16, "foo");
+	return 0;
+}
+
+SEC("tp_btf/task_newtask")
+__failure __msg("write into memory")
+int BPF_PROG(task_access_comm3, struct task_struct *task, u64 clone_flags)
+{
+	bpf_probe_read_kernel(task->comm, 16, task->comm);
+	return 0;
+}
+
+SEC("fentry/__set_task_comm")
+__failure __msg("R1 type=ptr_ expected")
+int BPF_PROG(task_access_comm4, struct task_struct *task, const char *buf, bool exec)
+{
+	/*
+	 * task->comm is a legacy ptr_to_btf_id. The verifier cannot guarantee
+	 * its safety. Hence it cannot be accessed with normal load insns.
+	 */
+	bpf_strncmp(task->comm, 16, "foo");
+	return 0;
+}
+
+SEC("tp_btf/task_newtask")
+__failure __msg("R1 must be referenced or trusted")
+int BPF_PROG(task_kfunc_release_in_map, struct task_struct *task, u64 clone_flags)
+{
+	struct task_struct *local;
+	struct __tasks_kfunc_map_value *v;
+
+	if (tasks_kfunc_map_insert(task))
+		return 0;
+
+	v = tasks_kfunc_map_value_lookup(task);
+	if (!v)
+		return 0;
+
+	bpf_rcu_read_lock();
+	local = v->task;
+	if (!local) {
+		bpf_rcu_read_unlock();
+		return 0;
+	}
+	/* Can't release a kptr that's still stored in a map. */
+	bpf_task_release(local);
+	bpf_rcu_read_unlock();
+
 	return 0;
 }

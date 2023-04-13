@@ -24,7 +24,6 @@ void bpf_rcu_read_unlock(void) __ksym;
 SEC("?iter.s/cgroup")
 int cgroup_iter(struct bpf_iter__cgroup *ctx)
 {
-	struct seq_file *seq = ctx->meta->seq;
 	struct cgroup *cgrp = ctx->cgroup;
 	long *ptr;
 

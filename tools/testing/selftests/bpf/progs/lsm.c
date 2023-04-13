@@ -4,12 +4,12 @@
  * Copyright 2020 Google LLC.
  */
 
-#include "bpf_misc.h"
 #include "vmlinux.h"
+#include <errno.h>
 #include <bpf/bpf_core_read.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
-#include <errno.h>
+#include "bpf_misc.h"
 
 struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);

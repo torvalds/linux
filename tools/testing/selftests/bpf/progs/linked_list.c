@@ -313,7 +313,6 @@ SEC("tc")
 int map_list_push_pop_multiple(void *ctx)
 {
 	struct map_value *v;
-	int ret;
 
 	v = bpf_map_lookup_elem(&array_map, &(int){0});
 	if (!v)
@@ -326,7 +325,6 @@ int inner_map_list_push_pop_multiple(void *ctx)
 {
 	struct map_value *v;
 	void *map;
-	int ret;
 
 	map = bpf_map_lookup_elem(&map_of_maps, &(int){0});
 	if (!map)
@@ -352,7 +350,6 @@ SEC("tc")
 int map_list_in_list(void *ctx)
 {
 	struct map_value *v;
-	int ret;
 
 	v = bpf_map_lookup_elem(&array_map, &(int){0});
 	if (!v)
@@ -365,7 +362,6 @@ int inner_map_list_in_list(void *ctx)
 {
 	struct map_value *v;
 	void *map;
-	int ret;
 
 	map = bpf_map_lookup_elem(&map_of_maps, &(int){0});
 	if (!map)

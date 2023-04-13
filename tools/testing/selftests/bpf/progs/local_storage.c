@@ -16,6 +16,7 @@ char _license[] SEC("license") = "GPL";
 int monitored_pid = 0;
 int inode_storage_result = -1;
 int sk_storage_result = -1;
+int task_storage_result = -1;
 
 struct local_storage {
 	struct inode *exec_inode;
@@ -50,26 +51,57 @@ struct {
 	__type(value, struct local_storage);
 } task_storage_map SEC(".maps");
 
+struct {
+	__uint(type, BPF_MAP_TYPE_TASK_STORAGE);
+	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__type(key, int);
+	__type(value, struct local_storage);
+} task_storage_map2 SEC(".maps");
+
 SEC("lsm/inode_unlink")
 int BPF_PROG(unlink_hook, struct inode *dir, struct dentry *victim)
 {
 	__u32 pid = bpf_get_current_pid_tgid() >> 32;
+	struct bpf_local_storage *local_storage;
 	struct local_storage *storage;
+	struct task_struct *task;
 	bool is_self_unlink;
 
 	if (pid != monitored_pid)
 		return 0;
 
-	storage = bpf_task_storage_get(&task_storage_map,
-				       bpf_get_current_task_btf(), 0, 0);
-	if (storage) {
-		/* Don't let an executable delete itself */
-		is_self_unlink = storage->exec_inode == victim->d_inode;
-		if (is_self_unlink)
-			return -EPERM;
-	}
+	task = bpf_get_current_task_btf();
+	if (!task)
+		return 0;
 
-	return 0;
+	task_storage_result = -1;
+
+	storage = bpf_task_storage_get(&task_storage_map, task, 0, 0);
+	if (!storage)
+		return 0;
+
+	/* Don't let an executable delete itself */
+	is_self_unlink = storage->exec_inode == victim->d_inode;
+
+	storage = bpf_task_storage_get(&task_storage_map2, task, 0,
+				       BPF_LOCAL_STORAGE_GET_F_CREATE);
+	if (!storage || storage->value)
+		return 0;
+
+	if (bpf_task_storage_delete(&task_storage_map, task))
+		return 0;
+
+	/* Ensure that the task_storage_map is disconnected from the storage.
+	 * The storage memory should not be freed back to the
+	 * bpf_mem_alloc.
+	 */
+	local_storage = task->bpf_storage;
+	if (!local_storage || local_storage->smap)
+		return 0;
+
+	task_storage_result = 0;
+
+	return is_self_unlink ? -EPERM : 0;
 }
 
 SEC("lsm.s/inode_rename")
@@ -77,7 +109,6 @@ int BPF_PROG(inode_rename, struct inode *old_dir, struct dentry *old_dentry,
 	     struct inode *new_dir, struct dentry *new_dentry,
 	     unsigned int flags)
 {
-	__u32 pid = bpf_get_current_pid_tgid() >> 32;
 	struct local_storage *storage;
 	int err;
 
@@ -109,18 +140,17 @@ int BPF_PROG(socket_bind, struct socket *sock, struct sockaddr *address,
 {
 	__u32 pid = bpf_get_current_pid_tgid() >> 32;
 	struct local_storage *storage;
-	int err;
 
 	if (pid != monitored_pid)
 		return 0;
 
-	storage = bpf_sk_storage_get(&sk_storage_map, sock->sk, 0,
-				     BPF_LOCAL_STORAGE_GET_F_CREATE);
+	storage = bpf_sk_storage_get(&sk_storage_map, sock->sk, 0, 0);
 	if (!storage)
 		return 0;
 
+	sk_storage_result = -1;
 	if (storage->value != DUMMY_STORAGE_VALUE)
-		sk_storage_result = -1;
+		return 0;
 
 	/* This tests that we can associate multiple elements
 	 * with the local storage.
@@ -130,14 +160,22 @@ int BPF_PROG(socket_bind, struct socket *sock, struct sockaddr *address,
 	if (!storage)
 		return 0;
 
-	err = bpf_sk_storage_delete(&sk_storage_map, sock->sk);
-	if (err)
+	if (bpf_sk_storage_delete(&sk_storage_map2, sock->sk))
 		return 0;
 
-	err = bpf_sk_storage_delete(&sk_storage_map2, sock->sk);
-	if (!err)
-		sk_storage_result = err;
+	storage = bpf_sk_storage_get(&sk_storage_map2, sock->sk, 0,
+				     BPF_LOCAL_STORAGE_GET_F_CREATE);
+	if (!storage)
+		return 0;
 
+	if (bpf_sk_storage_delete(&sk_storage_map, sock->sk))
+		return 0;
+
+	/* Ensure that the sk_storage_map is disconnected from the storage. */
+	if (!sock->sk->sk_bpf_storage || sock->sk->sk_bpf_storage->smap)
+		return 0;
+
+	sk_storage_result = 0;
 	return 0;
 }
 

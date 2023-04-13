@@ -101,6 +101,8 @@ typedef int (*libbpf_print_fn_t)(enum libbpf_print_level level,
  * be used for libbpf warnings and informational messages.
  * @param fn The log print function. If NULL, libbpf won't print anything.
  * @return Pointer to old print function.
+ *
+ * This function is thread-safe.
  */
 LIBBPF_API libbpf_print_fn_t libbpf_set_print(libbpf_print_fn_t fn);
 
@@ -719,6 +721,7 @@ bpf_program__attach_freplace(const struct bpf_program *prog,
 struct bpf_map;
 
 LIBBPF_API struct bpf_link *bpf_map__attach_struct_ops(const struct bpf_map *map);
+LIBBPF_API int bpf_link__update_map(struct bpf_link *link, const struct bpf_map *map);
 
 struct bpf_iter_attach_opts {
 	size_t sz; /* size of this struct for forward/backward compatibility */

@@ -776,3 +776,73 @@ const struct bpf_func_proto bpf_loop_proto = {
 	.arg3_type	= ARG_PTR_TO_STACK_OR_NULL,
 	.arg4_type	= ARG_ANYTHING,
 };
+
+struct bpf_iter_num_kern {
+	int cur; /* current value, inclusive */
+	int end; /* final value, exclusive */
+} __aligned(8);
+
+__diag_push();
+__diag_ignore_all("-Wmissing-prototypes",
+		  "Global functions as their definitions will be in vmlinux BTF");
+
+__bpf_kfunc int bpf_iter_num_new(struct bpf_iter_num *it, int start, int end)
+{
+	struct bpf_iter_num_kern *s = (void *)it;
+
+	BUILD_BUG_ON(sizeof(struct bpf_iter_num_kern) != sizeof(struct bpf_iter_num));
+	BUILD_BUG_ON(__alignof__(struct bpf_iter_num_kern) != __alignof__(struct bpf_iter_num));
+
+	BTF_TYPE_EMIT(struct btf_iter_num);
+
+	/* start == end is legit, it's an empty range and we'll just get NULL
+	 * on first (and any subsequent) bpf_iter_num_next() call
+	 */
+	if (start > end) {
+		s->cur = s->end = 0;
+		return -EINVAL;
+	}
+
+	/* avoid overflows, e.g., if start == INT_MIN and end == INT_MAX */
+	if ((s64)end - (s64)start > BPF_MAX_LOOPS) {
+		s->cur = s->end = 0;
+		return -E2BIG;
+	}
+
+	/* user will call bpf_iter_num_next() first,
+	 * which will set s->cur to exactly start value;
+	 * underflow shouldn't matter
+	 */
+	s->cur = start - 1;
+	s->end = end;
+
+	return 0;
+}
+
+__bpf_kfunc int *bpf_iter_num_next(struct bpf_iter_num* it)
+{
+	struct bpf_iter_num_kern *s = (void *)it;
+
+	/* check failed initialization or if we are done (same behavior);
+	 * need to be careful about overflow, so convert to s64 for checks,
+	 * e.g., if s->cur == s->end == INT_MAX, we can't just do
+	 * s->cur + 1 >= s->end
+	 */
+	if ((s64)(s->cur + 1) >= s->end) {
+		s->cur = s->end = 0;
+		return NULL;
+	}
+
+	s->cur++;
+
+	return &s->cur;
+}
+
+__bpf_kfunc void bpf_iter_num_destroy(struct bpf_iter_num *it)
+{
+	struct bpf_iter_num_kern *s = (void *)it;
+
+	s->cur = s->end = 0;
+}
+
+__diag_pop();

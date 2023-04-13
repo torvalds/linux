@@ -116,6 +116,7 @@ static const char * const attach_type_name[] = {
 	[BPF_SK_REUSEPORT_SELECT_OR_MIGRATE]	= "sk_reuseport_select_or_migrate",
 	[BPF_PERF_EVENT]		= "perf_event",
 	[BPF_TRACE_KPROBE_MULTI]	= "trace_kprobe_multi",
+	[BPF_STRUCT_OPS]		= "struct_ops",
 };
 
 static const char * const link_type_name[] = {
@@ -215,9 +216,10 @@ static libbpf_print_fn_t __libbpf_pr = __base_pr;
 
 libbpf_print_fn_t libbpf_set_print(libbpf_print_fn_t fn)
 {
-	libbpf_print_fn_t old_print_fn = __libbpf_pr;
+	libbpf_print_fn_t old_print_fn;
 
-	__libbpf_pr = fn;
+	old_print_fn = __atomic_exchange_n(&__libbpf_pr, fn, __ATOMIC_RELAXED);
+
 	return old_print_fn;
 }
 
@@ -226,8 +228,10 @@ void libbpf_print(enum libbpf_print_level level, const char *format, ...)
 {
 	va_list args;
 	int old_errno;
+	libbpf_print_fn_t print_fn;
 
-	if (!__libbpf_pr)
+	print_fn = __atomic_load_n(&__libbpf_pr, __ATOMIC_RELAXED);
+	if (!print_fn)
 		return;
 
 	old_errno = errno;
@@ -315,8 +319,8 @@ enum reloc_type {
 	RELO_LD64,
 	RELO_CALL,
 	RELO_DATA,
-	RELO_EXTERN_VAR,
-	RELO_EXTERN_FUNC,
+	RELO_EXTERN_LD64,
+	RELO_EXTERN_CALL,
 	RELO_SUBPROG_ADDR,
 	RELO_CORE,
 };
@@ -467,6 +471,7 @@ struct bpf_struct_ops {
 #define KCONFIG_SEC ".kconfig"
 #define KSYMS_SEC ".ksyms"
 #define STRUCT_OPS_SEC ".struct_ops"
+#define STRUCT_OPS_LINK_SEC ".struct_ops.link"
 
 enum libbpf_map_type {
 	LIBBPF_MAP_UNSPEC,
@@ -596,6 +601,7 @@ struct elf_state {
 	Elf64_Ehdr *ehdr;
 	Elf_Data *symbols;
 	Elf_Data *st_ops_data;
+	Elf_Data *st_ops_link_data;
 	size_t shstrndx; /* section index for section name strings */
 	size_t strtabidx;
 	struct elf_sec_desc *secs;
@@ -605,6 +611,7 @@ struct elf_state {
 	int text_shndx;
 	int symbols_shndx;
 	int st_ops_shndx;
+	int st_ops_link_shndx;
 };
 
 struct usdt_manager;
@@ -1118,7 +1125,8 @@ static int bpf_object__init_kern_struct_ops_maps(struct bpf_object *obj)
 	return 0;
 }
 
-static int bpf_object__init_struct_ops_maps(struct bpf_object *obj)
+static int init_struct_ops_maps(struct bpf_object *obj, const char *sec_name,
+				int shndx, Elf_Data *data, __u32 map_flags)
 {
 	const struct btf_type *type, *datasec;
 	const struct btf_var_secinfo *vsi;
@@ -1129,15 +1137,15 @@ static int bpf_object__init_struct_ops_maps(struct bpf_object *obj)
 	struct bpf_map *map;
 	__u32 i;
 
-	if (obj->efile.st_ops_shndx == -1)
+	if (shndx == -1)
 		return 0;
 
 	btf = obj->btf;
-	datasec_id = btf__find_by_name_kind(btf, STRUCT_OPS_SEC,
+	datasec_id = btf__find_by_name_kind(btf, sec_name,
 					    BTF_KIND_DATASEC);
 	if (datasec_id < 0) {
 		pr_warn("struct_ops init: DATASEC %s not found\n",
-			STRUCT_OPS_SEC);
+			sec_name);
 		return -EINVAL;
 	}
 
@@ -1150,7 +1158,7 @@ static int bpf_object__init_struct_ops_maps(struct bpf_object *obj)
 		type_id = btf__resolve_type(obj->btf, vsi->type);
 		if (type_id < 0) {
 			pr_warn("struct_ops init: Cannot resolve var type_id %u in DATASEC %s\n",
-				vsi->type, STRUCT_OPS_SEC);
+				vsi->type, sec_name);
 			return -EINVAL;
 		}
 
@@ -1169,7 +1177,7 @@ static int bpf_object__init_struct_ops_maps(struct bpf_object *obj)
 		if (IS_ERR(map))
 			return PTR_ERR(map);
 
-		map->sec_idx = obj->efile.st_ops_shndx;
+		map->sec_idx = shndx;
 		map->sec_offset = vsi->offset;
 		map->name = strdup(var_name);
 		if (!map->name)
@@ -1179,6 +1187,7 @@ static int bpf_object__init_struct_ops_maps(struct bpf_object *obj)
 		map->def.key_size = sizeof(int);
 		map->def.value_size = type->size;
 		map->def.max_entries = 1;
+		map->def.map_flags = map_flags;
 
 		map->st_ops = calloc(1, sizeof(*map->st_ops));
 		if (!map->st_ops)
@@ -1191,14 +1200,14 @@ static int bpf_object__init_struct_ops_maps(struct bpf_object *obj)
 		if (!st_ops->data || !st_ops->progs || !st_ops->kern_func_off)
 			return -ENOMEM;
 
-		if (vsi->offset + type->size > obj->efile.st_ops_data->d_size) {
+		if (vsi->offset + type->size > data->d_size) {
 			pr_warn("struct_ops init: var %s is beyond the end of DATASEC %s\n",
-				var_name, STRUCT_OPS_SEC);
+				var_name, sec_name);
 			return -EINVAL;
 		}
 
 		memcpy(st_ops->data,
-		       obj->efile.st_ops_data->d_buf + vsi->offset,
+		       data->d_buf + vsi->offset,
 		       type->size);
 		st_ops->tname = tname;
 		st_ops->type = type;
@@ -1209,6 +1218,19 @@ static int bpf_object__init_struct_ops_maps(struct bpf_object *obj)
 	}
 
 	return 0;
+}
+
+static int bpf_object_init_struct_ops(struct bpf_object *obj)
+{
+	int err;
+
+	err = init_struct_ops_maps(obj, STRUCT_OPS_SEC, obj->efile.st_ops_shndx,
+				   obj->efile.st_ops_data, 0);
+	err = err ?: init_struct_ops_maps(obj, STRUCT_OPS_LINK_SEC,
+					  obj->efile.st_ops_link_shndx,
+					  obj->efile.st_ops_link_data,
+					  BPF_F_LINK);
+	return err;
 }
 
 static struct bpf_object *bpf_object__new(const char *path,
@@ -1247,6 +1269,7 @@ static struct bpf_object *bpf_object__new(const char *path,
 	obj->efile.obj_buf_sz = obj_buf_sz;
 	obj->efile.btf_maps_shndx = -1;
 	obj->efile.st_ops_shndx = -1;
+	obj->efile.st_ops_link_shndx = -1;
 	obj->kconfig_map_idx = -1;
 
 	obj->kern_version = get_kernel_version();
@@ -1264,6 +1287,7 @@ static void bpf_object__elf_finish(struct bpf_object *obj)
 	obj->efile.elf = NULL;
 	obj->efile.symbols = NULL;
 	obj->efile.st_ops_data = NULL;
+	obj->efile.st_ops_link_data = NULL;
 
 	zfree(&obj->efile.secs);
 	obj->efile.sec_cnt = 0;
@@ -2618,7 +2642,7 @@ static int bpf_object__init_maps(struct bpf_object *obj,
 	err = bpf_object__init_user_btf_maps(obj, strict, pin_root_path);
 	err = err ?: bpf_object__init_global_data_maps(obj);
 	err = err ?: bpf_object__init_kconfig_map(obj);
-	err = err ?: bpf_object__init_struct_ops_maps(obj);
+	err = err ?: bpf_object_init_struct_ops(obj);
 
 	return err;
 }
@@ -2752,12 +2776,13 @@ static bool libbpf_needs_btf(const struct bpf_object *obj)
 {
 	return obj->efile.btf_maps_shndx >= 0 ||
 	       obj->efile.st_ops_shndx >= 0 ||
+	       obj->efile.st_ops_link_shndx >= 0 ||
 	       obj->nr_extern > 0;
 }
 
 static bool kernel_needs_btf(const struct bpf_object *obj)
 {
-	return obj->efile.st_ops_shndx >= 0;
+	return obj->efile.st_ops_shndx >= 0 || obj->efile.st_ops_link_shndx >= 0;
 }
 
 static int bpf_object__init_btf(struct bpf_object *obj,
@@ -3450,6 +3475,9 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 			} else if (strcmp(name, STRUCT_OPS_SEC) == 0) {
 				obj->efile.st_ops_data = data;
 				obj->efile.st_ops_shndx = idx;
+			} else if (strcmp(name, STRUCT_OPS_LINK_SEC) == 0) {
+				obj->efile.st_ops_link_data = data;
+				obj->efile.st_ops_link_shndx = idx;
 			} else {
 				pr_info("elf: skipping unrecognized data section(%d) %s\n",
 					idx, name);
@@ -3464,6 +3492,7 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 			/* Only do relo for section with exec instructions */
 			if (!section_have_execinstr(obj, targ_sec_idx) &&
 			    strcmp(name, ".rel" STRUCT_OPS_SEC) &&
+			    strcmp(name, ".rel" STRUCT_OPS_LINK_SEC) &&
 			    strcmp(name, ".rel" MAPS_ELF_SEC)) {
 				pr_info("elf: skipping relo section(%d) %s for section(%d) %s\n",
 					idx, name, targ_sec_idx,
@@ -4009,9 +4038,9 @@ static int bpf_program__record_reloc(struct bpf_program *prog,
 		pr_debug("prog '%s': found extern #%d '%s' (sym %d) for insn #%u\n",
 			 prog->name, i, ext->name, ext->sym_idx, insn_idx);
 		if (insn->code == (BPF_JMP | BPF_CALL))
-			reloc_desc->type = RELO_EXTERN_FUNC;
+			reloc_desc->type = RELO_EXTERN_CALL;
 		else
-			reloc_desc->type = RELO_EXTERN_VAR;
+			reloc_desc->type = RELO_EXTERN_LD64;
 		reloc_desc->insn_idx = insn_idx;
 		reloc_desc->sym_off = i; /* sym_off stores extern index */
 		return 0;
@@ -5855,7 +5884,7 @@ bpf_object__relocate_data(struct bpf_object *obj, struct bpf_program *prog)
 						   relo->map_idx, map);
 			}
 			break;
-		case RELO_EXTERN_VAR:
+		case RELO_EXTERN_LD64:
 			ext = &obj->externs[relo->sym_off];
 			if (ext->type == EXT_KCFG) {
 				if (obj->gen_loader) {
@@ -5877,7 +5906,7 @@ bpf_object__relocate_data(struct bpf_object *obj, struct bpf_program *prog)
 				}
 			}
 			break;
-		case RELO_EXTERN_FUNC:
+		case RELO_EXTERN_CALL:
 			ext = &obj->externs[relo->sym_off];
 			insn[0].src_reg = BPF_PSEUDO_KFUNC_CALL;
 			if (ext->is_set) {
@@ -6115,7 +6144,7 @@ bpf_object__reloc_code(struct bpf_object *obj, struct bpf_program *main_prog,
 			continue;
 
 		relo = find_prog_insn_relo(prog, insn_idx);
-		if (relo && relo->type == RELO_EXTERN_FUNC)
+		if (relo && relo->type == RELO_EXTERN_CALL)
 			/* kfunc relocations will be handled later
 			 * in bpf_object__relocate_data()
 			 */
@@ -6610,7 +6639,7 @@ static int bpf_object__collect_relos(struct bpf_object *obj)
 			return -LIBBPF_ERRNO__INTERNAL;
 		}
 
-		if (idx == obj->efile.st_ops_shndx)
+		if (idx == obj->efile.st_ops_shndx || idx == obj->efile.st_ops_link_shndx)
 			err = bpf_object__collect_st_ops_relos(obj, shdr, data);
 		else if (idx == obj->efile.btf_maps_shndx)
 			err = bpf_object__collect_map_relos(obj, shdr, data);
@@ -7070,18 +7099,21 @@ static int bpf_program_record_relos(struct bpf_program *prog)
 	for (i = 0; i < prog->nr_reloc; i++) {
 		struct reloc_desc *relo = &prog->reloc_desc[i];
 		struct extern_desc *ext = &obj->externs[relo->sym_off];
+		int kind;
 
 		switch (relo->type) {
-		case RELO_EXTERN_VAR:
+		case RELO_EXTERN_LD64:
 			if (ext->type != EXT_KSYM)
 				continue;
+			kind = btf_is_var(btf__type_by_id(obj->btf, ext->btf_id)) ?
+				BTF_KIND_VAR : BTF_KIND_FUNC;
 			bpf_gen__record_extern(obj->gen_loader, ext->name,
 					       ext->is_weak, !ext->ksym.type_id,
-					       BTF_KIND_VAR, relo->insn_idx);
+					       true, kind, relo->insn_idx);
 			break;
-		case RELO_EXTERN_FUNC:
+		case RELO_EXTERN_CALL:
 			bpf_gen__record_extern(obj->gen_loader, ext->name,
-					       ext->is_weak, false, BTF_KIND_FUNC,
+					       ext->is_weak, false, false, BTF_KIND_FUNC,
 					       relo->insn_idx);
 			break;
 		case RELO_CORE: {
@@ -7533,6 +7565,12 @@ static int bpf_object__resolve_ksym_func_btf_id(struct bpf_object *obj,
 	ext->is_set = true;
 	ext->ksym.kernel_btf_id = kfunc_id;
 	ext->ksym.btf_fd_idx = mod_btf ? mod_btf->fd_array_idx : 0;
+	/* Also set kernel_btf_obj_fd to make sure that bpf_object__relocate_data()
+	 * populates FD into ld_imm64 insn when it's used to point to kfunc.
+	 * {kernel_btf_id, btf_fd_idx} -> fixup bpf_call.
+	 * {kernel_btf_id, kernel_btf_obj_fd} -> fixup ld_imm64.
+	 */
+	ext->ksym.kernel_btf_obj_fd = mod_btf ? mod_btf->fd : 0;
 	pr_debug("extern (func ksym) '%s': resolved to kernel [%d]\n",
 		 ext->name, kfunc_id);
 
@@ -7677,6 +7715,37 @@ static int bpf_object__resolve_externs(struct bpf_object *obj,
 	return 0;
 }
 
+static void bpf_map_prepare_vdata(const struct bpf_map *map)
+{
+	struct bpf_struct_ops *st_ops;
+	__u32 i;
+
+	st_ops = map->st_ops;
+	for (i = 0; i < btf_vlen(st_ops->type); i++) {
+		struct bpf_program *prog = st_ops->progs[i];
+		void *kern_data;
+		int prog_fd;
+
+		if (!prog)
+			continue;
+
+		prog_fd = bpf_program__fd(prog);
+		kern_data = st_ops->kern_vdata + st_ops->kern_func_off[i];
+		*(unsigned long *)kern_data = prog_fd;
+	}
+}
+
+static int bpf_object_prepare_struct_ops(struct bpf_object *obj)
+{
+	int i;
+
+	for (i = 0; i < obj->nr_maps; i++)
+		if (bpf_map__is_struct_ops(&obj->maps[i]))
+			bpf_map_prepare_vdata(&obj->maps[i]);
+
+	return 0;
+}
+
 static int bpf_object_load(struct bpf_object *obj, int extra_log_level, const char *target_btf_path)
 {
 	int err, i;
@@ -7702,6 +7771,7 @@ static int bpf_object_load(struct bpf_object *obj, int extra_log_level, const ch
 	err = err ? : bpf_object__relocate(obj, obj->btf_custom_path ? : target_btf_path);
 	err = err ? : bpf_object__load_progs(obj, extra_log_level);
 	err = err ? : bpf_object_init_prog_arrays(obj);
+	err = err ? : bpf_object_prepare_struct_ops(obj);
 
 	if (obj->gen_loader) {
 		/* reset FDs */
@@ -8398,6 +8468,7 @@ int bpf_program__set_type(struct bpf_program *prog, enum bpf_prog_type type)
 		return libbpf_err(-EBUSY);
 
 	prog->type = type;
+	prog->sec_def = NULL;
 	return 0;
 }
 
@@ -8811,6 +8882,7 @@ const char *libbpf_bpf_prog_type_str(enum bpf_prog_type t)
 }
 
 static struct bpf_map *find_struct_ops_map_by_offset(struct bpf_object *obj,
+						     int sec_idx,
 						     size_t offset)
 {
 	struct bpf_map *map;
@@ -8820,7 +8892,8 @@ static struct bpf_map *find_struct_ops_map_by_offset(struct bpf_object *obj,
 		map = &obj->maps[i];
 		if (!bpf_map__is_struct_ops(map))
 			continue;
-		if (map->sec_offset <= offset &&
+		if (map->sec_idx == sec_idx &&
+		    map->sec_offset <= offset &&
 		    offset - map->sec_offset < map->def.value_size)
 			return map;
 	}
@@ -8862,7 +8935,7 @@ static int bpf_object__collect_st_ops_relos(struct bpf_object *obj,
 		}
 
 		name = elf_sym_str(obj, sym->st_name) ?: "<?>";
-		map = find_struct_ops_map_by_offset(obj, rel->r_offset);
+		map = find_struct_ops_map_by_offset(obj, shdr->sh_info, rel->r_offset);
 		if (!map) {
 			pr_warn("struct_ops reloc: cannot find map at rel->r_offset %zu\n",
 				(size_t)rel->r_offset);
@@ -8929,8 +9002,9 @@ static int bpf_object__collect_st_ops_relos(struct bpf_object *obj,
 		}
 
 		/* struct_ops BPF prog can be re-used between multiple
-		 * .struct_ops as long as it's the same struct_ops struct
-		 * definition and the same function pointer field
+		 * .struct_ops & .struct_ops.link as long as it's the
+		 * same struct_ops struct definition and the same
+		 * function pointer field
 		 */
 		if (prog->attach_btf_id != st_ops->type_id ||
 		    prog->expected_attach_type != member_idx) {
@@ -9912,16 +9986,20 @@ static int append_to_file(const char *file, const char *fmt, ...)
 {
 	int fd, n, err = 0;
 	va_list ap;
+	char buf[1024];
+
+	va_start(ap, fmt);
+	n = vsnprintf(buf, sizeof(buf), fmt, ap);
+	va_end(ap);
+
+	if (n < 0 || n >= sizeof(buf))
+		return -EINVAL;
 
 	fd = open(file, O_WRONLY | O_APPEND | O_CLOEXEC, 0);
 	if (fd < 0)
 		return -errno;
 
-	va_start(ap, fmt);
-	n = vdprintf(fd, fmt, ap);
-	va_end(ap);
-
-	if (n < 0)
+	if (write(fd, buf, n) < 0)
 		err = -errno;
 
 	close(fd);
@@ -11566,22 +11644,30 @@ struct bpf_link *bpf_program__attach(const struct bpf_program *prog)
 	return link;
 }
 
+struct bpf_link_struct_ops {
+	struct bpf_link link;
+	int map_fd;
+};
+
 static int bpf_link__detach_struct_ops(struct bpf_link *link)
 {
+	struct bpf_link_struct_ops *st_link;
 	__u32 zero = 0;
 
-	if (bpf_map_delete_elem(link->fd, &zero))
-		return -errno;
+	st_link = container_of(link, struct bpf_link_struct_ops, link);
 
-	return 0;
+	if (st_link->map_fd < 0)
+		/* w/o a real link */
+		return bpf_map_delete_elem(link->fd, &zero);
+
+	return close(link->fd);
 }
 
 struct bpf_link *bpf_map__attach_struct_ops(const struct bpf_map *map)
 {
-	struct bpf_struct_ops *st_ops;
-	struct bpf_link *link;
-	__u32 i, zero = 0;
-	int err;
+	struct bpf_link_struct_ops *link;
+	__u32 zero = 0;
+	int err, fd;
 
 	if (!bpf_map__is_struct_ops(map) || map->fd == -1)
 		return libbpf_err_ptr(-EINVAL);
@@ -11590,31 +11676,72 @@ struct bpf_link *bpf_map__attach_struct_ops(const struct bpf_map *map)
 	if (!link)
 		return libbpf_err_ptr(-EINVAL);
 
-	st_ops = map->st_ops;
-	for (i = 0; i < btf_vlen(st_ops->type); i++) {
-		struct bpf_program *prog = st_ops->progs[i];
-		void *kern_data;
-		int prog_fd;
-
-		if (!prog)
-			continue;
-
-		prog_fd = bpf_program__fd(prog);
-		kern_data = st_ops->kern_vdata + st_ops->kern_func_off[i];
-		*(unsigned long *)kern_data = prog_fd;
-	}
-
-	err = bpf_map_update_elem(map->fd, &zero, st_ops->kern_vdata, 0);
-	if (err) {
-		err = -errno;
+	/* kern_vdata should be prepared during the loading phase. */
+	err = bpf_map_update_elem(map->fd, &zero, map->st_ops->kern_vdata, 0);
+	/* It can be EBUSY if the map has been used to create or
+	 * update a link before.  We don't allow updating the value of
+	 * a struct_ops once it is set.  That ensures that the value
+	 * never changed.  So, it is safe to skip EBUSY.
+	 */
+	if (err && (!(map->def.map_flags & BPF_F_LINK) || err != -EBUSY)) {
 		free(link);
 		return libbpf_err_ptr(err);
 	}
 
-	link->detach = bpf_link__detach_struct_ops;
-	link->fd = map->fd;
+	link->link.detach = bpf_link__detach_struct_ops;
 
-	return link;
+	if (!(map->def.map_flags & BPF_F_LINK)) {
+		/* w/o a real link */
+		link->link.fd = map->fd;
+		link->map_fd = -1;
+		return &link->link;
+	}
+
+	fd = bpf_link_create(map->fd, 0, BPF_STRUCT_OPS, NULL);
+	if (fd < 0) {
+		free(link);
+		return libbpf_err_ptr(fd);
+	}
+
+	link->link.fd = fd;
+	link->map_fd = map->fd;
+
+	return &link->link;
+}
+
+/*
+ * Swap the back struct_ops of a link with a new struct_ops map.
+ */
+int bpf_link__update_map(struct bpf_link *link, const struct bpf_map *map)
+{
+	struct bpf_link_struct_ops *st_ops_link;
+	__u32 zero = 0;
+	int err;
+
+	if (!bpf_map__is_struct_ops(map) || map->fd < 0)
+		return -EINVAL;
+
+	st_ops_link = container_of(link, struct bpf_link_struct_ops, link);
+	/* Ensure the type of a link is correct */
+	if (st_ops_link->map_fd < 0)
+		return -EINVAL;
+
+	err = bpf_map_update_elem(map->fd, &zero, map->st_ops->kern_vdata, 0);
+	/* It can be EBUSY if the map has been used to create or
+	 * update a link before.  We don't allow updating the value of
+	 * a struct_ops once it is set.  That ensures that the value
+	 * never changed.  So, it is safe to skip EBUSY.
+	 */
+	if (err && err != -EBUSY)
+		return err;
+
+	err = bpf_link_update(link->fd, map->fd, NULL);
+	if (err < 0)
+		return err;
+
+	st_ops_link->map_fd = map->fd;
+
+	return 0;
 }
 
 typedef enum bpf_perf_event_ret (*bpf_perf_event_print_t)(struct perf_event_header *hdr,

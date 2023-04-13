@@ -557,7 +557,6 @@ SEC("?tc")
 int incorrect_head_off2(void *ctx)
 {
 	struct foo *f;
-	struct bar *b;
 
 	f = bpf_obj_new(typeof(*f));
 	if (!f)

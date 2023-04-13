@@ -1318,11 +1318,6 @@ struct task_struct {
 
 	struct tlbflush_unmap_batch	tlb_ubc;
 
-	union {
-		refcount_t		rcu_users;
-		struct rcu_head		rcu;
-	};
-
 	/* Cache last used pipe for splice(): */
 	struct pipe_inode_info		*splice_pipe;
 
@@ -1459,6 +1454,8 @@ struct task_struct {
 	unsigned long			saved_state_change;
 # endif
 #endif
+	struct rcu_head			rcu;
+	refcount_t			rcu_users;
 	int				pagefault_disabled;
 #ifdef CONFIG_MMU
 	struct task_struct		*oom_reaper_list;

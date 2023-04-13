@@ -110,7 +110,6 @@ int err_modify_sk_pointer(struct __sk_buff *skb)
 {
 	struct bpf_sock_tuple tuple = {};
 	struct bpf_sock *sk;
-	__u32 family;
 
 	sk = bpf_sk_lookup_tcp(skb, &tuple, sizeof(tuple), BPF_F_CURRENT_NETNS, 0);
 	if (sk) {
@@ -125,7 +124,6 @@ int err_modify_sk_or_null_pointer(struct __sk_buff *skb)
 {
 	struct bpf_sock_tuple tuple = {};
 	struct bpf_sock *sk;
-	__u32 family;
 
 	sk = bpf_sk_lookup_tcp(skb, &tuple, sizeof(tuple), BPF_F_CURRENT_NETNS, 0);
 	sk += 1;

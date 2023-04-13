@@ -938,6 +938,19 @@ struct sk_buff {
 	__u8			ip_summed:2;
 	__u8			ooo_okay:1;
 
+	/* private: */
+	__u8			__mono_tc_offset[0];
+	/* public: */
+	__u8			mono_delivery_time:1;	/* See SKB_MONO_DELIVERY_TIME_MASK */
+#ifdef CONFIG_NET_CLS_ACT
+	__u8			tc_at_ingress:1;	/* See TC_AT_INGRESS_MASK */
+	__u8			tc_skip_classify:1;
+#endif
+	__u8			remcsum_offload:1;
+	__u8			csum_complete_sw:1;
+	__u8			csum_level:2;
+	__u8			dst_pending_confirm:1;
+
 	__u8			l4_hash:1;
 	__u8			sw_hash:1;
 	__u8			wifi_acked_valid:1;
@@ -947,19 +960,6 @@ struct sk_buff {
 	__u8			encapsulation:1;
 	__u8			encap_hdr_csum:1;
 	__u8			csum_valid:1;
-
-	/* private: */
-	__u8			__pkt_vlan_present_offset[0];
-	/* public: */
-	__u8			remcsum_offload:1;
-	__u8			csum_complete_sw:1;
-	__u8			csum_level:2;
-	__u8			dst_pending_confirm:1;
-	__u8			mono_delivery_time:1;	/* See SKB_MONO_DELIVERY_TIME_MASK */
-#ifdef CONFIG_NET_CLS_ACT
-	__u8			tc_skip_classify:1;
-	__u8			tc_at_ingress:1;	/* See TC_AT_INGRESS_MASK */
-#endif
 #ifdef CONFIG_IPV6_NDISC_NODETYPE
 	__u8			ndisc_nodetype:2;
 #endif
@@ -1066,13 +1066,13 @@ struct sk_buff {
  * around, you also must adapt these constants.
  */
 #ifdef __BIG_ENDIAN_BITFIELD
-#define TC_AT_INGRESS_MASK		(1 << 0)
-#define SKB_MONO_DELIVERY_TIME_MASK	(1 << 2)
+#define SKB_MONO_DELIVERY_TIME_MASK	(1 << 7)
+#define TC_AT_INGRESS_MASK		(1 << 6)
 #else
-#define TC_AT_INGRESS_MASK		(1 << 7)
-#define SKB_MONO_DELIVERY_TIME_MASK	(1 << 5)
+#define SKB_MONO_DELIVERY_TIME_MASK	(1 << 0)
+#define TC_AT_INGRESS_MASK		(1 << 1)
 #endif
-#define PKT_VLAN_PRESENT_OFFSET	offsetof(struct sk_buff, __pkt_vlan_present_offset)
+#define SKB_BF_MONO_TC_OFFSET		offsetof(struct sk_buff, __mono_tc_offset)
 
 #ifdef __KERNEL__
 /*
@@ -5063,12 +5063,12 @@ static inline u64 skb_get_kcov_handle(struct sk_buff *skb)
 #endif
 }
 
-#ifdef CONFIG_PAGE_POOL
 static inline void skb_mark_for_recycle(struct sk_buff *skb)
 {
+#ifdef CONFIG_PAGE_POOL
 	skb->pp_recycle = 1;
-}
 #endif
+}
 
 #endif	/* __KERNEL__ */
 #endif	/* _LINUX_SKBUFF_H */
