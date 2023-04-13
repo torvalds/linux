@@ -75,7 +75,7 @@ static int i2c_hid_of_probe(struct i2c_client *client)
 	int ret;
 	u32 val;
 
-	ihid_of = devm_kzalloc(&client->dev, sizeof(*ihid_of), GFP_KERNEL);
+	ihid_of = devm_kzalloc(dev, sizeof(*ihid_of), GFP_KERNEL);
 	if (!ihid_of)
 		return -ENOMEM;
 
@@ -84,24 +84,21 @@ static int i2c_hid_of_probe(struct i2c_client *client)
 
 	ret = of_property_read_u32(dev->of_node, "hid-descr-addr", &val);
 	if (ret) {
-		dev_err(&client->dev, "HID register address not provided\n");
+		dev_err(dev, "HID register address not provided\n");
 		return -ENODEV;
 	}
 	if (val >> 16) {
-		dev_err(&client->dev, "Bad HID register address: 0x%08x\n",
-			val);
+		dev_err(dev, "Bad HID register address: 0x%08x\n", val);
 		return -EINVAL;
 	}
 	hid_descriptor_address = val;
 
-	if (!device_property_read_u32(&client->dev, "post-power-on-delay-ms",
-				      &val))
+	if (!device_property_read_u32(dev, "post-power-on-delay-ms", &val))
 		ihid_of->post_power_delay_ms = val;
 
 	ihid_of->supplies[0].supply = "vdd";
 	ihid_of->supplies[1].supply = "vddl";
-	ret = devm_regulator_bulk_get(&client->dev,
-				      ARRAY_SIZE(ihid_of->supplies),
+	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(ihid_of->supplies),
 				      ihid_of->supplies);
 	if (ret)
 		return ret;
