@@ -151,11 +151,12 @@ xchk_btree_rec(
 
 	trace_xchk_btree_rec(bs->sc, cur, 0);
 
-	/* If this isn't the first record, are they in order? */
-	if (cur->bc_levels[0].ptr > 1 &&
+	/* Are all records across all record blocks in order? */
+	if (bs->lastrec_valid &&
 	    !cur->bc_ops->recs_inorder(cur, &bs->lastrec, rec))
 		xchk_btree_set_corrupt(bs->sc, cur, 0);
 	memcpy(&bs->lastrec, rec, cur->bc_ops->rec_len);
+	bs->lastrec_valid = true;
 
 	if (cur->bc_nlevels == 1)
 		return;
@@ -198,11 +199,12 @@ xchk_btree_key(
 
 	trace_xchk_btree_key(bs->sc, cur, level);
 
-	/* If this isn't the first key, are they in order? */
-	if (cur->bc_levels[level].ptr > 1 &&
-	    !cur->bc_ops->keys_inorder(cur, &bs->lastkey[level - 1], key))
+	/* Are all low keys across all node blocks in order? */
+	if (bs->lastkey[level - 1].valid &&
+	    !cur->bc_ops->keys_inorder(cur, &bs->lastkey[level - 1].key, key))
 		xchk_btree_set_corrupt(bs->sc, cur, level);
-	memcpy(&bs->lastkey[level - 1], key, cur->bc_ops->key_len);
+	memcpy(&bs->lastkey[level - 1].key, key, cur->bc_ops->key_len);
+	bs->lastkey[level - 1].valid = true;
 
 	if (level + 1 >= cur->bc_nlevels)
 		return;
@@ -530,6 +532,48 @@ xchk_btree_check_minrecs(
 }
 
 /*
+ * If this btree block has a parent, make sure that the parent's keys capture
+ * the keyspace contained in this block.
+ */
+STATIC void
+xchk_btree_block_check_keys(
+	struct xchk_btree	*bs,
+	int			level,
+	struct xfs_btree_block	*block)
+{
+	union xfs_btree_key	block_key;
+	union xfs_btree_key	*block_high_key;
+	union xfs_btree_key	*parent_low_key, *parent_high_key;
+	struct xfs_btree_cur	*cur = bs->cur;
+	struct xfs_btree_block	*parent_block;
+	struct xfs_buf		*bp;
+
+	if (level == cur->bc_nlevels - 1)
+		return;
+
+	xfs_btree_get_keys(cur, block, &block_key);
+
+	/* Make sure the low key of this block matches the parent. */
+	parent_block = xfs_btree_get_block(cur, level + 1, &bp);
+	parent_low_key = xfs_btree_key_addr(cur, cur->bc_levels[level + 1].ptr,
+			parent_block);
+	if (cur->bc_ops->diff_two_keys(cur, &block_key, parent_low_key)) {
+		xchk_btree_set_corrupt(bs->sc, bs->cur, level);
+		return;
+	}
+
+	if (!(cur->bc_flags & XFS_BTREE_OVERLAPPING))
+		return;
+
+	/* Make sure the high key of this block matches the parent. */
+	parent_high_key = xfs_btree_high_key_addr(cur,
+			cur->bc_levels[level + 1].ptr, parent_block);
+	block_high_key = xfs_btree_high_key_from_key(cur, &block_key);
+	if (cur->bc_ops->diff_two_keys(cur, block_high_key, parent_high_key))
+		xchk_btree_set_corrupt(bs->sc, bs->cur, level);
+}
+
+/*
  * Grab and scrub a btree block given a btree pointer.  Returns block
  * and buffer pointers (if applicable) if they're ok to use.
  */
@@ -580,7 +624,12 @@ xchk_btree_get_block(
 	 * Check the block's siblings; this function absorbs error codes
 	 * for us.
 	 */
-	return xchk_btree_block_check_siblings(bs, *pblock);
+	error = xchk_btree_block_check_siblings(bs, *pblock);
+	if (error)
+		return error;
+
+	xchk_btree_block_check_keys(bs, level, *pblock);
+	return 0;
 }
 
 /*
