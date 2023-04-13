@@ -1136,6 +1136,23 @@ config SOCIONEXT_SYNQUACER_PREITS
 
 	  If unsure, say Y.
 
+config ANDROID_ARM64_WORKAROUND_DMA_BEYOND_POC
+	bool "Remove cacheable aliases of non-cacheable DMA buffers at stage-2"
+	default y
+	depends on KVM
+	help
+	  Some SoCs integrate non-coherent DMA-capable peripherals beyond
+	  the Point of Coherency (PoC), resulting in loss of coherency
+	  with non-cacheable mappings on the CPU in the presence of a
+	  cacheable alias.
+
+	  This workaround provides a mechanism (controlled by the kernel
+	  command-line) to remap pages as non-cacheable in pKVM's stage-2
+	  mapping for the host, thereby removing any cacheable aliases
+	  that may be present in the stage-1 mapping.
+
+	  If unsure, say Y.
+
 endmenu # "ARM errata workarounds via the alternatives framework"
 
 choice

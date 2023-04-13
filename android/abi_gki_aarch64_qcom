@@ -91,6 +91,7 @@
   bit_wait
   bit_wait_timeout
   __blk_alloc_disk
+  blkdev_get_by_dev
   blk_execute_rq
   blk_execute_rq_nowait
   __blk_mq_alloc_disk
@@ -130,7 +131,6 @@
   blk_rq_map_user_io
   blk_rq_unmap_user
   blk_status_to_errno
-  blkdev_get_by_dev
   blocking_notifier_call_chain
   blocking_notifier_chain_register
   blocking_notifier_chain_unregister
@@ -924,6 +924,7 @@
   drm_atomic_get_crtc_state
   drm_atomic_get_new_connector_for_encoder
   drm_atomic_get_new_private_obj_state
+  drm_atomic_get_old_private_obj_state
   drm_atomic_get_plane_state
   drm_atomic_get_private_obj_state
   drm_atomic_helper_bridge_destroy_state
@@ -1093,8 +1094,6 @@
   drm_modeset_unlock_all
   drm_mode_sort
   drm_mode_vrefresh
-  drm_mode_prune_invalid
-  drm_connector_list_update
   drm_object_attach_property
   drm_object_property_set_value
   drm_of_component_match_add
@@ -1739,6 +1738,7 @@
   input_unregister_device
   input_unregister_handle
   input_unregister_handler
+  insert_resource
   interval_tree_insert
   interval_tree_iter_first
   interval_tree_iter_next
@@ -2136,7 +2136,9 @@
   module_put
   __module_put_and_kthread_exit
   __msecs_to_jiffies
+  msi_first_desc
   msi_get_virq
+  msi_next_desc
   msleep
   msleep_interruptible
   mtree_load
@@ -2603,11 +2605,11 @@
   power_supply_get_drvdata
   power_supply_get_property
   power_supply_put
-  power_supply_reg_notifier
   power_supply_register
+  power_supply_reg_notifier
   power_supply_set_property
-  power_supply_unreg_notifier
   power_supply_unregister
+  power_supply_unreg_notifier
   ppp_channel_index
   ppp_dev_name
   ppp_input
@@ -2864,6 +2866,7 @@
   remove_cpu
   remove_memory
   remove_proc_entry
+  remove_resource
   remove_wait_queue
   report_iommu_fault
   request_any_context_irq
@@ -3090,7 +3093,6 @@
   show_regs
   si_mem_available
   si_meminfo
-  si_swapinfo
   simple_attr_open
   simple_attr_read
   simple_attr_release
@@ -3101,6 +3103,7 @@
   single_open
   single_open_size
   single_release
+  si_swapinfo
   sk_alloc
   skb_add_rx_frag
   skb_append_pagefrags
@@ -3163,6 +3166,8 @@
   smp_call_function
   smp_call_function_single
   smp_call_function_single_async
+  snd_ctl_remove
+  snd_hwdep_new
   snd_info_create_card_entry
   snd_info_create_module_entry
   snd_info_free_entry
@@ -3171,6 +3176,9 @@
   snd_jack_set_key
   snd_pcm_format_width
   _snd_pcm_hw_params_any
+  snd_pcm_set_managed_buffer
+  snd_pcm_std_chmaps
+  snd_pcm_stop
   snd_soc_add_component_controls
   snd_soc_card_get_kcontrol
   snd_soc_card_jack_new
@@ -3235,6 +3243,7 @@
   sock_edemux
   sock_efree
   sockfd_lookup
+  sock_gen_put
   sock_gettstamp
   sock_i_ino
   sock_init_data
@@ -3352,8 +3361,6 @@
   synchronize_rcu_tasks_trace
   synchronize_srcu
   synchronize_srcu_expedited
-  sync_file_create
-  sync_file_get_fence
   synth_event_create
   synth_event_delete
   syscon_node_to_regmap
@@ -3402,6 +3409,7 @@
   tasklist_lock
   __task_pid_nr_ns
   __task_rq_lock
+  task_rq_lock
   tcp_hashinfo
   thermal_cdev_update
   thermal_cooling_device_register
@@ -3493,12 +3501,12 @@
   __traceiter_android_rvh_select_fallback_rq
   __traceiter_android_rvh_select_task_rq_fair
   __traceiter_android_rvh_select_task_rq_rt
-  __traceiter_android_rvh_shmem_get_folio
   __traceiter_android_rvh_set_balance_anon_file_reclaim
   __traceiter_android_rvh_set_cpus_allowed_by_task
   __traceiter_android_rvh_setscheduler
   __traceiter_android_rvh_set_task_cpu
   __traceiter_android_rvh_set_user_nice
+  __traceiter_android_rvh_shmem_get_folio
   __traceiter_android_rvh_show_max_freq
   __traceiter_android_rvh_tick_entry
   __traceiter_android_rvh_try_to_wake_up
@@ -3622,12 +3630,12 @@
   __tracepoint_android_rvh_select_fallback_rq
   __tracepoint_android_rvh_select_task_rq_fair
   __tracepoint_android_rvh_select_task_rq_rt
-  __tracepoint_android_rvh_shmem_get_folio
   __tracepoint_android_rvh_set_balance_anon_file_reclaim
   __tracepoint_android_rvh_set_cpus_allowed_by_task
   __tracepoint_android_rvh_setscheduler
   __tracepoint_android_rvh_set_task_cpu
   __tracepoint_android_rvh_set_user_nice
+  __tracepoint_android_rvh_shmem_get_folio
   __tracepoint_android_rvh_show_max_freq
   __tracepoint_android_rvh_tick_entry
   __tracepoint_android_rvh_try_to_wake_up
@@ -3791,6 +3799,10 @@
   ufshcd_get_local_unipro_ver
   ufshcd_hba_stop
   ufshcd_hold
+  ufshcd_mcq_config_esi
+  ufshcd_mcq_enable_esi
+  ufshcd_mcq_poll_cqe_nolock
+  ufshcd_mcq_write_cqis
   ufshcd_pltfrm_init
   ufshcd_pltfrm_shutdown
   ufshcd_query_attr
@@ -3802,8 +3814,11 @@
   ufshcd_runtime_resume
   ufshcd_runtime_suspend
   ufshcd_suspend_prepare
+  ufshcd_system_freeze
+  ufshcd_system_restore
   ufshcd_system_resume
   ufshcd_system_suspend
+  ufshcd_system_thaw
   ufshcd_uic_hibern8_enter
   ufshcd_uic_hibern8_exit
   __uio_register_device
@@ -3966,6 +3981,7 @@
   v4l2_fh_del
   v4l2_fh_exit
   v4l2_fh_init
+  v4l2_fh_is_singular
   v4l2_fh_open
   v4l2_fh_release
   v4l2_m2m_ctx_init
@@ -4068,9 +4084,11 @@
   vm_insert_page
   vm_iomap_memory
   vm_map_pages
+  vm_map_ram
   vm_mmap
   vm_munmap
   vm_node_stat
+  vm_unmap_ram
   vm_zone_stat
   vprintk
   vring_create_virtqueue

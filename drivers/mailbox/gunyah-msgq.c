@@ -139,9 +139,6 @@ int gh_msgq_init(struct device *parent, struct gh_msgq *msgq, struct mbox_client
 	    (rx_ghrsc && rx_ghrsc->type != GH_RESOURCE_TYPE_MSGQ_RX))
 		return -EINVAL;
 
-	if (!gh_api_has_feature(GH_FEATURE_MSGQUEUE))
-		return -EOPNOTSUPP;
-
 	msgq->tx_ghrsc = tx_ghrsc;
 	msgq->rx_ghrsc = rx_ghrsc;
 

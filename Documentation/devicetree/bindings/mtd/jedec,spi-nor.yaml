@@ -84,6 +84,13 @@ patternProperties:
   "^otp(-[0-9]+)?$":
     type: object
 
+  spi-cpol: true
+  spi-cpha: true
+
+dependencies:
+  spi-cpol: [ spi-cpha ]
+  spi-cpha: [ spi-cpol ]
+
 unevaluatedProperties: false
 
 examples:
