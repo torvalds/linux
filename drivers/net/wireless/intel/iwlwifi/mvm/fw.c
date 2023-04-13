@@ -672,6 +672,13 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm)
 		goto error;
 	}
 
+	ret = iwl_send_phy_cfg_cmd(mvm);
+	if (ret) {
+		IWL_ERR(mvm, "Failed to run PHY configuration: %d\n",
+			ret);
+		goto error;
+	}
+
 	/* We wait for the INIT complete notification */
 	ret = iwl_wait_notification(&mvm->notif_wait, &init_wait,
 				    MVM_UCODE_ALIVE_TIMEOUT);
@@ -1538,11 +1545,10 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		ret = iwl_send_phy_db_data(mvm->phy_db);
 		if (ret)
 			goto error;
+		ret = iwl_send_phy_cfg_cmd(mvm);
+		if (ret)
+			goto error;
 	}
-
-	ret = iwl_send_phy_cfg_cmd(mvm);
-	if (ret)
-		goto error;
 
 	ret = iwl_mvm_send_bt_init_conf(mvm);
 	if (ret)
