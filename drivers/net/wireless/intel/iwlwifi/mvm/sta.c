@@ -2231,11 +2231,13 @@ static int iwl_mvm_add_int_sta_with_queue(struct iwl_mvm *mvm, int macidx,
 int iwl_mvm_add_aux_sta(struct iwl_mvm *mvm, u32 lmac_id)
 {
 	int ret;
+	u32 qmask = mvm->aux_queue == IWL_MVM_INVALID_QUEUE ? 0 :
+		BIT(mvm->aux_queue);
 
 	lockdep_assert_held(&mvm->mutex);
 
 	/* Allocate aux station and assign to it the aux queue */
-	ret = iwl_mvm_allocate_int_sta(mvm, &mvm->aux_sta, BIT(mvm->aux_queue),
+	ret = iwl_mvm_allocate_int_sta(mvm, &mvm->aux_sta, qmask,
 				       NL80211_IFTYPE_UNSPECIFIED,
 				       IWL_STA_AUX_ACTIVITY);
 	if (ret)
