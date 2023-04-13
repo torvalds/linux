@@ -44,8 +44,7 @@
 
 static DEFINE_PER_CPU(struct llist_head, blk_cpu_done);
 
-static void blk_mq_insert_request(struct request *rq, bool at_head,
-		bool run_queue, bool async);
+static void blk_mq_insert_request(struct request *rq, bool at_head);
 static void blk_mq_try_issue_list_directly(struct blk_mq_hw_ctx *hctx,
 		struct list_head *list);
 
@@ -1292,6 +1291,8 @@ static void blk_add_rq_to_plug(struct blk_plug *plug, struct request *rq)
  */
 void blk_execute_rq_nowait(struct request *rq, bool at_head)
 {
+	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
+
 	WARN_ON(irqs_disabled());
 	WARN_ON(!blk_rq_is_passthrough(rq));
 
@@ -1302,10 +1303,13 @@ void blk_execute_rq_nowait(struct request *rq, bool at_head)
 	 * device, directly accessing the plug instead of using blk_mq_plug()
 	 * should not have any consequences.
 	 */
-	if (current->plug && !at_head)
+	if (current->plug && !at_head) {
 		blk_add_rq_to_plug(current->plug, rq);
-	else
-		blk_mq_insert_request(rq, at_head, true, false);
+		return;
+	}
+
+	blk_mq_insert_request(rq, at_head);
+	blk_mq_run_hw_queue(hctx, false);
 }
 EXPORT_SYMBOL_GPL(blk_execute_rq_nowait);
 
@@ -1355,6 +1359,7 @@ static void blk_rq_poll_completion(struct request *rq, struct completion *wait)
  */
 blk_status_t blk_execute_rq(struct request *rq, bool at_head)
 {
+	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
 	struct blk_rq_wait wait = {
 		.done = COMPLETION_INITIALIZER_ONSTACK(wait.done),
 	};
@@ -1366,7 +1371,8 @@ blk_status_t blk_execute_rq(struct request *rq, bool at_head)
 	rq->end_io = blk_end_sync_rq;
 
 	blk_account_io_start(rq);
-	blk_mq_insert_request(rq, at_head, true, false);
+	blk_mq_insert_request(rq, at_head);
+	blk_mq_run_hw_queue(hctx, false);
 
 	if (blk_rq_is_poll(rq)) {
 		blk_rq_poll_completion(rq, &wait.done);
@@ -1440,14 +1446,14 @@ static void blk_mq_requeue_work(struct work_struct *work)
 		} else if (rq->rq_flags & RQF_SOFTBARRIER) {
 			rq->rq_flags &= ~RQF_SOFTBARRIER;
 			list_del_init(&rq->queuelist);
-			blk_mq_insert_request(rq, true, false, false);
+			blk_mq_insert_request(rq, true);
 		}
 	}
 
 	while (!list_empty(&rq_list)) {
 		rq = list_entry(rq_list.next, struct request, queuelist);
 		list_del_init(&rq->queuelist);
-		blk_mq_insert_request(rq, false, false, false);
+		blk_mq_insert_request(rq, false);
 	}
 
 	blk_mq_run_hw_queues(q, false);
@@ -2507,8 +2513,7 @@ out:
 	blk_mq_run_hw_queue(hctx, run_queue_async);
 }
 
-static void blk_mq_insert_request(struct request *rq, bool at_head,
-		bool run_queue, bool async)
+static void blk_mq_insert_request(struct request *rq, bool at_head)
 {
 	struct request_queue *q = rq->q;
 	struct blk_mq_ctx *ctx = rq->mq_ctx;
@@ -2568,9 +2573,6 @@ static void blk_mq_insert_request(struct request *rq, bool at_head,
 		blk_mq_hctx_mark_pending(hctx, ctx);
 		spin_unlock(&ctx->lock);
 	}
-
-	if (run_queue)
-		blk_mq_run_hw_queue(hctx, async);
 }
 
 static void blk_mq_bio_to_request(struct request *rq, struct bio *bio,
@@ -2655,12 +2657,13 @@ static void blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
 	blk_status_t ret;
 
 	if (blk_mq_hctx_stopped(hctx) || blk_queue_quiesced(rq->q)) {
-		blk_mq_insert_request(rq, false, false, false);
+		blk_mq_insert_request(rq, false);
 		return;
 	}
 
 	if ((rq->rq_flags & RQF_ELV) || !blk_mq_get_budget_and_tag(rq)) {
-		blk_mq_insert_request(rq, false, true, false);
+		blk_mq_insert_request(rq, false);
+		blk_mq_run_hw_queue(hctx, false);
 		return;
 	}
 
@@ -2683,7 +2686,7 @@ static blk_status_t blk_mq_request_issue_directly(struct request *rq, bool last)
 	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
 
 	if (blk_mq_hctx_stopped(hctx) || blk_queue_quiesced(rq->q)) {
-		blk_mq_insert_request(rq, false, false, false);
+		blk_mq_insert_request(rq, false);
 		return BLK_STS_OK;
 	}
 
@@ -2963,6 +2966,7 @@ void blk_mq_submit_bio(struct bio *bio)
 	struct request_queue *q = bdev_get_queue(bio->bi_bdev);
 	struct blk_plug *plug = blk_mq_plug(bio);
 	const int is_sync = op_is_sync(bio->bi_opf);
+	struct blk_mq_hw_ctx *hctx;
 	struct request *rq;
 	unsigned int nr_segs = 1;
 	blk_status_t ret;
@@ -3007,15 +3011,19 @@ void blk_mq_submit_bio(struct bio *bio)
 		return;
 	}
 
-	if (plug)
+	if (plug) {
 		blk_add_rq_to_plug(plug, rq);
-	else if ((rq->rq_flags & RQF_ELV) ||
-		 (rq->mq_hctx->dispatch_busy &&
-		  (q->nr_hw_queues == 1 || !is_sync)))
-		blk_mq_insert_request(rq, false, true, true);
-	else
-		blk_mq_run_dispatch_ops(rq->q,
-				blk_mq_try_issue_directly(rq->mq_hctx, rq));
+		return;
+	}
+
+	hctx = rq->mq_hctx;
+	if ((rq->rq_flags & RQF_ELV) ||
+	    (hctx->dispatch_busy && (q->nr_hw_queues == 1 || !is_sync))) {
+		blk_mq_insert_request(rq, false);
+		blk_mq_run_hw_queue(hctx, true);
+	} else {
+		blk_mq_run_dispatch_ops(q, blk_mq_try_issue_directly(hctx, rq));
+	}
 }
 
 #ifdef CONFIG_BLK_MQ_STACKING
