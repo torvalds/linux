@@ -1872,7 +1872,7 @@ retry:
 	if (gc_type == FG_GC) {
 		sbi->cur_victim_sec = NULL_SEGNO;
 
-		if (!has_not_enough_free_secs(sbi, sec_freed, 0)) {
+		if (has_enough_free_secs(sbi, sec_freed, 0)) {
 			if (!gc_control->no_bg_gc &&
 			    sec_freed < gc_control->nr_free_secs)
 				goto go_gc_more;
@@ -1886,7 +1886,7 @@ retry:
 			ret = f2fs_write_checkpoint(sbi, &cpc);
 			goto stop;
 		}
-	} else if (!has_not_enough_free_secs(sbi, 0, 0)) {
+	} else if (has_enough_free_secs(sbi, 0, 0)) {
 		goto stop;
 	}
 
