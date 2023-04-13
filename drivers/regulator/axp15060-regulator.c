@@ -274,9 +274,17 @@ static const struct regulator_desc axp15060_regulators[] = {
 			AXP15060_VOL_CTRL_ALDO_3, AXP15060_ALDO3_V_OUT_MASK,
 			AXP15060_ON_OFF_CTRL_2, AXP15060_PWR_OUT_ALDO3_MASK),
 
+	AXP15060_DESC(ALDO4, "sdio_vdd", 700, 3300, 100,
+			AXP15060_VOL_CTRL_ALDO_4, AXP15060_ALDO4_V_OUT_MASK,
+			AXP15060_ON_OFF_CTRL_2, AXP15060_PWR_OUT_ALDO4_MASK),
+
 	AXP15060_DESC(ALDO5, "hdmi_0p9", 700, 3300, 100,
 			AXP15060_VOL_CTRL_ALDO_5, AXP15060_ALDO5_V_OUT_MASK,
 			AXP15060_ON_OFF_CTRL_2, AXP15060_PWR_OUT_ALDO5_MASK),
+
+	AXP15060_DESC(DCDC1, "vcc_3v3", 1500, 3400, 100,
+		 AXP15060_VOL_CTRL_DCDC_1, AXP15060_DCDC1_V_OUT_MASK,
+		 AXP15060_ON_OFF_CTRL_1, AXP15060_PWR_OUT_DCDC1_MASK),
 
 	AXP15060_DESC_RANGES(DCDC2, "cpu_vdd",
 				axp15060_dcdc2_ranges, AXP15060_DCDC2_NUM_VOLTAGES,
@@ -287,7 +295,9 @@ static const struct regulator_desc axp15060_regulators[] = {
 static struct of_regulator_match axp15060_matches[] = {
 	{ .name = "mipi_0p9", },
 	{ .name = "hdmi_1p8", },
+	{ .name = "sdio_vdd", },
 	{ .name = "hdmi_0p9", },
+	{ .name = "vcc_3v3", },
 	{ .name = "cpu_vdd", },
 };
 
