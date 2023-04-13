@@ -430,7 +430,7 @@ static int jpeg_v4_0_start_sriov(struct amdgpu_device *adev)
 		MMSCH_COMMAND__END;
 
 	header.version = MMSCH_VERSION;
-	header.total_size = sizeof(struct mmsch_v4_0_init_header) >> 2;
+	header.total_size = RREG32_SOC15(VCN, 0, regMMSCH_VF_CTX_SIZE);
 
 	header.jpegdec.init_status = 0;
 	header.jpegdec.table_offset = 0;
