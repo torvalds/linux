@@ -374,7 +374,7 @@ xfs_refcount_update_get_group(
 	xfs_agnumber_t			agno;
 
 	agno = XFS_FSB_TO_AGNO(mp, ri->ri_startblock);
-	ri->ri_pag = xfs_perag_get(mp, agno);
+	ri->ri_pag = xfs_perag_intent_get(mp, agno);
 }
 
 /* Release a passive AG ref after finishing refcounting work. */
@@ -382,7 +382,7 @@ static inline void
 xfs_refcount_update_put_group(
 	struct xfs_refcount_intent	*ri)
 {
-	xfs_perag_put(ri->ri_pag);
+	xfs_perag_intent_put(ri->ri_pag);
 }
 
 /* Process a deferred refcount update. */

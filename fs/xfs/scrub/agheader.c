@@ -18,6 +18,15 @@
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 
+int
+xchk_setup_agheader(
+	struct xfs_scrub	*sc)
+{
+	if (xchk_need_intent_drain(sc))
+		xchk_fsgates_enable(sc, XCHK_FSGATES_DRAIN);
+	return xchk_setup_fs(sc);
+}
+
 /* Superblock */
 
 /* Cross-reference with the other btrees. */

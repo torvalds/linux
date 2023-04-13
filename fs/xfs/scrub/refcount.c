@@ -7,12 +7,15 @@
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
+#include "xfs_trans_resv.h"
+#include "xfs_mount.h"
 #include "xfs_btree.h"
 #include "xfs_rmap.h"
 #include "xfs_refcount.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/btree.h"
+#include "scrub/trace.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
 #include "xfs_ag.h"
@@ -24,6 +27,8 @@ int
 xchk_setup_ag_refcountbt(
 	struct xfs_scrub	*sc)
 {
+	if (xchk_need_intent_drain(sc))
+		xchk_fsgates_enable(sc, XCHK_FSGATES_DRAIN);
 	return xchk_setup_ag_btree(sc, false);
 }
 
@@ -300,8 +305,10 @@ xchk_refcountbt_xref_rmap(
 		goto out_free;
 
 	xchk_refcountbt_process_rmap_fragments(&refchk);
-	if (irec->rc_refcount != refchk.seen)
+	if (irec->rc_refcount != refchk.seen) {
+		trace_xchk_refcount_incorrect(sc->sa.pag, irec, refchk.seen);
 		xchk_btree_xref_set_corrupt(sc, sc->sa.rmap_cur, 0);
+	}
 
 out_free:
 	list_for_each_entry_safe(frag, n, &refchk.fragments, list) {
