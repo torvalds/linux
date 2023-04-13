@@ -1932,63 +1932,7 @@ bool hci_iso_setup_path(struct hci_conn *conn)
 
 static int hci_create_cis_sync(struct hci_dev *hdev, void *data)
 {
-	struct {
-		struct hci_cp_le_create_cis cp;
-		struct hci_cis cis[0x1f];
-	} cmd;
-	struct hci_conn *conn = data;
-	u8 cig;
-
-	memset(&cmd, 0, sizeof(cmd));
-	cmd.cis[0].acl_handle = cpu_to_le16(conn->parent->handle);
-	cmd.cis[0].cis_handle = cpu_to_le16(conn->handle);
-	cmd.cp.num_cis++;
-	cig = conn->iso_qos.ucast.cig;
-
-	hci_dev_lock(hdev);
-
-	rcu_read_lock();
-
-	list_for_each_entry_rcu(conn, &hdev->conn_hash.list, list) {
-		struct hci_cis *cis = &cmd.cis[cmd.cp.num_cis];
-
-		if (conn == data || conn->type != ISO_LINK ||
-		    conn->state == BT_CONNECTED ||
-		    conn->iso_qos.ucast.cig != cig)
-			continue;
-
-		/* Check if all CIS(s) belonging to a CIG are ready */
-		if (!conn->parent || conn->parent->state != BT_CONNECTED ||
-		    conn->state != BT_CONNECT) {
-			cmd.cp.num_cis = 0;
-			break;
-		}
-
-		/* Group all CIS with state BT_CONNECT since the spec don't
-		 * allow to send them individually:
-		 *
-		 * BLUETOOTH CORE SPECIFICATION Version 5.3 | Vol 4, Part E
-		 * page 2566:
-		 *
-		 * If the Host issues this command before all the
-		 * HCI_LE_CIS_Established events from the previous use of the
-		 * command have been generated, the Controller shall return the
-		 * error code Command Disallowed (0x0C).
-		 */
-		cis->acl_handle = cpu_to_le16(conn->parent->handle);
-		cis->cis_handle = cpu_to_le16(conn->handle);
-		cmd.cp.num_cis++;
-	}
-
-	rcu_read_unlock();
-
-	hci_dev_unlock(hdev);
-
-	if (!cmd.cp.num_cis)
-		return 0;
-
-	return hci_send_cmd(hdev, HCI_OP_LE_CREATE_CIS, sizeof(cmd.cp) +
-			    sizeof(cmd.cis[0]) * cmd.cp.num_cis, &cmd);
+	return hci_le_create_cis_sync(hdev, data);
 }
 
 int hci_le_create_cis(struct hci_conn *conn)
