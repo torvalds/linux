@@ -110,7 +110,7 @@ static void verif_log_subtest(const char *name, bool expect_load_error, int log_
 		}
 		if (!ASSERT_EQ(strlen(logs.buf), 24, "log_fixed_25"))
 			goto cleanup;
-		if (!ASSERT_STRNEQ(logs.buf, logs.reference, 24, op_name))
+		if (!ASSERT_STRNEQ(logs.buf, logs.reference, 24, "log_fixed_contents_25"))
 			goto cleanup;
 	}
 
