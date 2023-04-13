@@ -2138,24 +2138,6 @@ out:
 	return true;
 }
 
-/**
- * __blk_mq_run_hw_queue - Run a hardware queue.
- * @hctx: Pointer to the hardware queue to run.
- *
- * Send pending requests to the hardware.
- */
-static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
-{
-	/*
-	 * We can't run the queue inline with ints disabled. Ensure that
-	 * we catch bad users of this early.
-	 */
-	WARN_ON_ONCE(in_interrupt());
-
-	blk_mq_run_dispatch_ops(hctx->queue,
-			blk_mq_sched_dispatch_requests(hctx));
-}
-
 static inline int blk_mq_first_mapped_cpu(struct blk_mq_hw_ctx *hctx)
 {
 	int cpu = cpumask_first_and(hctx->cpumask, cpu_online_mask);
@@ -2241,6 +2223,11 @@ void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
 	bool need_run;
 
 	/*
+	 * We can't run the queue inline with interrupts disabled.
+	 */
+	WARN_ON_ONCE(!async && in_interrupt());
+
+	/*
 	 * When queue is quiesced, we may be switching io scheduler, or
 	 * updating nr_hw_queues, or other things, and we can't run queue
 	 * any more, even __blk_mq_hctx_has_pending() can't be called safely.
@@ -2261,7 +2248,8 @@ void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
 		return;
 	}
 
-	__blk_mq_run_hw_queue(hctx);
+	blk_mq_run_dispatch_ops(hctx->queue,
+				blk_mq_sched_dispatch_requests(hctx));
 }
 EXPORT_SYMBOL(blk_mq_run_hw_queue);
 
@@ -2429,7 +2417,8 @@ static void blk_mq_run_work_fn(struct work_struct *work)
 	struct blk_mq_hw_ctx *hctx =
 		container_of(work, struct blk_mq_hw_ctx, run_work.work);
 
-	__blk_mq_run_hw_queue(hctx);
+	blk_mq_run_dispatch_ops(hctx->queue,
+				blk_mq_sched_dispatch_requests(hctx));
 }
 
 /**
