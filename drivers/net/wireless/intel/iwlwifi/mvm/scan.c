@@ -2081,6 +2081,11 @@ static u8 iwl_mvm_scan_umac_flags2(struct iwl_mvm *mvm,
 				IWL_UMAC_SCAN_GEN_PARAMS_FLAGS2_RESPECT_P2P_GO_HB;
 	}
 
+	if (params->scan_6ghz &&
+	    fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_SCAN_DONT_TOGGLE_ANT))
+		flags |= IWL_UMAC_SCAN_GEN_PARAMS_FLAGS2_DONT_TOGGLE_ANT;
+
 	return flags;
 }
 
