@@ -1553,6 +1553,15 @@ config REGULATOR_WM8994
 	  This driver provides support for the voltage regulators on the
 	  WM8994 CODEC.
 
+config REGULATOR_REFGEN
+	tristate "Qualcomm Technologies, Inc. REFGEN regulator driver"
+	depends on OF
+	help
+	  This driver supports control of the REFGEN reference bias generator
+	  block found on some Qualcomm Technologies Inc. SoCs.  A REFGEN
+	  is used by various PHY blocks found inside of the SoC.  It supports
+	  enable/disable control.
+
 config REGULATOR_QCOM_LABIBB
 	tristate "QCOM LAB/IBB regulator support"
 	depends on SPMI || COMPILE_TEST
