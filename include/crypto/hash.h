@@ -152,6 +152,7 @@ struct ahash_request {
  * @exit_tfm: Deinitialize the cryptographic transformation object.
  *	      This is a counterpart to @init_tfm, used to remove
  *	      various changes set in @init_tfm.
+ * @clone_tfm: Copy transform into new object, may allocate memory.
  * @halg: see struct hash_alg_common
  */
 struct ahash_alg {
@@ -166,6 +167,7 @@ struct ahash_alg {
 		      unsigned int keylen);
 	int (*init_tfm)(struct crypto_ahash *tfm);
 	void (*exit_tfm)(struct crypto_ahash *tfm);
+	int (*clone_tfm)(struct crypto_ahash *dst, struct crypto_ahash *src);
 
 	struct hash_alg_common halg;
 };
@@ -209,6 +211,7 @@ struct shash_desc {
  * @exit_tfm: Deinitialize the cryptographic transformation object.
  *	      This is a counterpart to @init_tfm, used to remove
  *	      various changes set in @init_tfm.
+ * @clone_tfm: Copy transform into new object, may allocate memory.
  * @digestsize: see struct ahash_alg
  * @statesize: see struct ahash_alg
  * @descsize: Size of the operational state for the message digest. This state
@@ -234,6 +237,7 @@ struct shash_alg {
 		      unsigned int keylen);
 	int (*init_tfm)(struct crypto_shash *tfm);
 	void (*exit_tfm)(struct crypto_shash *tfm);
+	int (*clone_tfm)(struct crypto_shash *dst, struct crypto_shash *src);
 
 	unsigned int descsize;
 
@@ -296,6 +300,8 @@ static inline struct crypto_ahash *__crypto_ahash_cast(struct crypto_tfm *tfm)
  */
 struct crypto_ahash *crypto_alloc_ahash(const char *alg_name, u32 type,
 					u32 mask);
+
+struct crypto_ahash *crypto_clone_ahash(struct crypto_ahash *tfm);
 
 static inline struct crypto_tfm *crypto_ahash_tfm(struct crypto_ahash *tfm)
 {
@@ -760,6 +766,8 @@ static inline void ahash_request_set_crypt(struct ahash_request *req,
  */
 struct crypto_shash *crypto_alloc_shash(const char *alg_name, u32 type,
 					u32 mask);
+
+struct crypto_shash *crypto_clone_shash(struct crypto_shash *tfm);
 
 int crypto_has_shash(const char *alg_name, u32 type, u32 mask);
 

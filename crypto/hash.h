@@ -31,6 +31,10 @@ static inline int crypto_hash_report_stat(struct sk_buff *skb,
 	return nla_put(skb, CRYPTOCFGA_STAT_HASH, sizeof(rhash), &rhash);
 }
 
+int crypto_init_shash_ops_async(struct crypto_tfm *tfm);
+struct crypto_ahash *crypto_clone_shash_ops_async(struct crypto_ahash *nhash,
+						  struct crypto_ahash *hash);
+
 int hash_prepare_alg(struct hash_alg_common *alg);
 
 #endif	/* _LOCAL_CRYPTO_HASH_H */

@@ -445,6 +445,24 @@ int crypto_init_shash_ops_async(struct crypto_tfm *tfm)
 	return 0;
 }
 
+struct crypto_ahash *crypto_clone_shash_ops_async(struct crypto_ahash *nhash,
+						  struct crypto_ahash *hash)
+{
+	struct crypto_shash **nctx = crypto_ahash_ctx(nhash);
+	struct crypto_shash **ctx = crypto_ahash_ctx(hash);
+	struct crypto_shash *shash;
+
+	shash = crypto_clone_shash(*ctx);
+	if (IS_ERR(shash)) {
+		crypto_free_ahash(nhash);
+		return ERR_CAST(shash);
+	}
+
+	*nctx = shash;
+
+	return nhash;
+}
+
 static void crypto_shash_exit_tfm(struct crypto_tfm *tfm)
 {
 	struct crypto_shash *hash = __crypto_shash_cast(tfm);
@@ -563,6 +581,40 @@ int crypto_has_shash(const char *alg_name, u32 type, u32 mask)
 	return crypto_type_has_alg(alg_name, &crypto_shash_type, type, mask);
 }
 EXPORT_SYMBOL_GPL(crypto_has_shash);
+
+struct crypto_shash *crypto_clone_shash(struct crypto_shash *hash)
+{
+	struct crypto_tfm *tfm = crypto_shash_tfm(hash);
+	struct shash_alg *alg = crypto_shash_alg(hash);
+	struct crypto_shash *nhash;
+	int err;
+
+	if (!crypto_shash_alg_has_setkey(alg)) {
+		tfm = crypto_tfm_get(tfm);
+		if (IS_ERR(tfm))
+			return ERR_CAST(tfm);
+
+		return hash;
+	}
+
+	if (!alg->clone_tfm)
+		return ERR_PTR(-ENOSYS);
+
+	nhash = crypto_clone_tfm(&crypto_shash_type, tfm);
+	if (IS_ERR(nhash))
+		return nhash;
+
+	nhash->descsize = hash->descsize;
+
+	err = alg->clone_tfm(nhash, hash);
+	if (err) {
+		crypto_free_shash(nhash);
+		return ERR_PTR(err);
+	}
+
+	return nhash;
+}
+EXPORT_SYMBOL_GPL(crypto_clone_shash);
 
 int hash_prepare_alg(struct hash_alg_common *alg)
 {

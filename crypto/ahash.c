@@ -543,6 +543,57 @@ int crypto_has_ahash(const char *alg_name, u32 type, u32 mask)
 }
 EXPORT_SYMBOL_GPL(crypto_has_ahash);
 
+struct crypto_ahash *crypto_clone_ahash(struct crypto_ahash *hash)
+{
+	struct hash_alg_common *halg = crypto_hash_alg_common(hash);
+	struct crypto_tfm *tfm = crypto_ahash_tfm(hash);
+	struct crypto_ahash *nhash;
+	struct ahash_alg *alg;
+	int err;
+
+	if (!crypto_hash_alg_has_setkey(halg)) {
+		tfm = crypto_tfm_get(tfm);
+		if (IS_ERR(tfm))
+			return ERR_CAST(tfm);
+
+		return hash;
+	}
+
+	nhash = crypto_clone_tfm(&crypto_ahash_type, tfm);
+
+	if (IS_ERR(nhash))
+		return nhash;
+
+	nhash->init = hash->init;
+	nhash->update = hash->update;
+	nhash->final = hash->final;
+	nhash->finup = hash->finup;
+	nhash->digest = hash->digest;
+	nhash->export = hash->export;
+	nhash->import = hash->import;
+	nhash->setkey = hash->setkey;
+	nhash->reqsize = hash->reqsize;
+
+	if (tfm->__crt_alg->cra_type != &crypto_ahash_type)
+		return crypto_clone_shash_ops_async(nhash, hash);
+
+	err = -ENOSYS;
+	alg = crypto_ahash_alg(hash);
+	if (!alg->clone_tfm)
+		goto out_free_nhash;
+
+	err = alg->clone_tfm(nhash, hash);
+	if (err)
+		goto out_free_nhash;
+
+	return nhash;
+
+out_free_nhash:
+	crypto_free_ahash(nhash);
+	return ERR_PTR(err);
+}
+EXPORT_SYMBOL_GPL(crypto_clone_ahash);
+
 static int ahash_prepare_alg(struct ahash_alg *alg)
 {
 	struct crypto_alg *base = &alg->halg.base;
