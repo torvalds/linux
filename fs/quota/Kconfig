@@ -28,7 +28,7 @@ config QUOTA_NETLINK_INTERFACE
 
 config PRINT_QUOTA_WARNING
 	bool "Print quota warnings to console (OBSOLETE)"
-	depends on QUOTA
+	depends on QUOTA && BROKEN
 	default y
 	help
 	  If you say Y here, quota warnings (about exceeding softlimit, reaching
