@@ -16,6 +16,7 @@
 #include "xfs_dir2_priv.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
+#include "scrub/readdir.h"
 
 /* Set us up to scrub parents. */
 int
@@ -30,39 +31,36 @@ xchk_setup_parent(
 /* Look for an entry in a parent pointing to this inode. */
 
 struct xchk_parent_ctx {
-	struct dir_context	dc;
 	struct xfs_scrub	*sc;
-	xfs_ino_t		ino;
 	xfs_nlink_t		nlink;
-	bool			cancelled;
 };
 
 /* Look for a single entry in a directory pointing to an inode. */
-STATIC bool
+STATIC int
 xchk_parent_actor(
-	struct dir_context	*dc,
-	const char		*name,
-	int			namelen,
-	loff_t			pos,
-	u64			ino,
-	unsigned		type)
+	struct xfs_scrub	*sc,
+	struct xfs_inode	*dp,
+	xfs_dir2_dataptr_t	dapos,
+	const struct xfs_name	*name,
+	xfs_ino_t		ino,
+	void			*priv)
 {
-	struct xchk_parent_ctx	*spc;
+	struct xchk_parent_ctx	*spc = priv;
 	int			error = 0;
 
-	spc = container_of(dc, struct xchk_parent_ctx, dc);
-	if (spc->ino == ino)
+	/* Does this name make sense? */
+	if (!xfs_dir2_namecheck(name->name, name->len))
+		error = -EFSCORRUPTED;
+	if (!xchk_fblock_xref_process_error(sc, XFS_DATA_FORK, 0, &error))
+		return error;
+
+	if (sc->ip->i_ino == ino)
 		spc->nlink++;
 
-	/*
-	 * If we're facing a fatal signal, bail out.  Store the cancellation
-	 * status separately because the VFS readdir code squashes error codes
-	 * into short directory reads.
-	 */
 	if (xchk_should_terminate(spc->sc, &error))
-		spc->cancelled = true;
+		return error;
 
-	return !error;
+	return 0;
 }
 
 /* Count the number of dentries in the parent dir that point to this inode. */
@@ -73,50 +71,19 @@ xchk_parent_count_parent_dentries(
 	xfs_nlink_t		*nlink)
 {
 	struct xchk_parent_ctx	spc = {
-		.dc.actor	= xchk_parent_actor,
-		.ino		= sc->ip->i_ino,
 		.sc		= sc,
+		.nlink		= 0,
 	};
-	size_t			bufsize;
-	loff_t			oldpos;
 	uint			lock_mode;
 	int			error = 0;
 
-	/*
-	 * If there are any blocks, read-ahead block 0 as we're almost
-	 * certain to have the next operation be a read there.  This is
-	 * how we guarantee that the parent's extent map has been loaded,
-	 * if there is one.
-	 */
 	lock_mode = xfs_ilock_data_map_shared(parent);
-	if (parent->i_df.if_nextents > 0)
-		error = xfs_dir3_data_readahead(parent, 0, 0);
+	error = xchk_dir_walk(sc, parent, xchk_parent_actor, &spc);
 	xfs_iunlock(parent, lock_mode);
 	if (error)
 		return error;
 
-	/*
-	 * Iterate the parent dir to confirm that there is
-	 * exactly one entry pointing back to the inode being
-	 * scanned.
-	 */
-	bufsize = (size_t)min_t(loff_t, XFS_READDIR_BUFSIZE,
-			parent->i_disk_size);
-	oldpos = 0;
-	while (true) {
-		error = xfs_readdir(sc->tp, parent, &spc.dc, bufsize);
-		if (error)
-			goto out;
-		if (spc.cancelled) {
-			error = -EAGAIN;
-			goto out;
-		}
-		if (oldpos == spc.dc.pos)
-			break;
-		oldpos = spc.dc.pos;
-	}
 	*nlink = spc.nlink;
-out:
 	return error;
 }
 
