@@ -643,11 +643,17 @@ static inline bool has_not_enough_free_secs(struct f2fs_sb_info *sbi,
 	return !curseg_space;
 }
 
+static inline bool has_enough_free_secs(struct f2fs_sb_info *sbi,
+					int freed, int needed)
+{
+	return !has_not_enough_free_secs(sbi, freed, needed);
+}
+
 static inline bool f2fs_is_checkpoint_ready(struct f2fs_sb_info *sbi)
 {
 	if (likely(!is_sbi_flag_set(sbi, SBI_CP_DISABLED)))
 		return true;
-	if (likely(!has_not_enough_free_secs(sbi, 0, 0)))
+	if (likely(has_enough_free_secs(sbi, 0, 0)))
 		return true;
 	return false;
 }
