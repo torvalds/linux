@@ -54,6 +54,9 @@ LX_VALUE(SB_NODIRATIME)
 /* linux/htimer.h */
 LX_GDBPARSED(hrtimer_resolution)
 
+/* linux/module.h */
+LX_GDBPARSED(MOD_TEXT)
+
 /* linux/mount.h */
 LX_VALUE(MNT_NOSUID)
 LX_VALUE(MNT_NODEV)
