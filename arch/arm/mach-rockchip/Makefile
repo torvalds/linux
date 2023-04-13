@@ -2,5 +2,11 @@
 CFLAGS_platsmp.o := -march=armv7-a
 
 obj-$(CONFIG_ARCH_ROCKCHIP) += rockchip.o
-obj-$(CONFIG_PM_SLEEP) += pm.o sleep.o
+
+ifdef CONFIG_PM_SLEEP
+obj-$(CONFIG_CPU_RK3288) += pm.o sleep.o
+obj-$(CONFIG_CPU_RV1106) += rv1106_pm.o rv1106_sleep.o rkpm_helpers.o	\
+			    rkpm_uart.o rkpm_gicv2.o
+endif
+
 obj-$(CONFIG_SMP) += headsmp.o platsmp.o
