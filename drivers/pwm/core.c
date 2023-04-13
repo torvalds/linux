@@ -28,12 +28,11 @@
 static DEFINE_MUTEX(pwm_lookup_lock);
 static LIST_HEAD(pwm_lookup_list);
 
-/* protects access to pwm_chips, allocated_pwms, and pwm_tree */
+/* protects access to pwm_chips and allocated_pwms */
 static DEFINE_MUTEX(pwm_lock);
 
 static LIST_HEAD(pwm_chips);
 static DECLARE_BITMAP(allocated_pwms, MAX_PWMS);
-static RADIX_TREE(pwm_tree, GFP_KERNEL);
 
 /* Called with pwm_lock held */
 static int alloc_pwms(unsigned int count)
@@ -54,14 +53,6 @@ static int alloc_pwms(unsigned int count)
 /* Called with pwm_lock held */
 static void free_pwms(struct pwm_chip *chip)
 {
-	unsigned int i;
-
-	for (i = 0; i < chip->npwm; i++) {
-		struct pwm_device *pwm = &chip->pwms[i];
-
-		radix_tree_delete(&pwm_tree, pwm->pwm);
-	}
-
 	bitmap_clear(allocated_pwms, chip->base, chip->npwm);
 
 	kfree(chip->pwms);
@@ -302,8 +293,6 @@ int pwmchip_add(struct pwm_chip *chip)
 		pwm->chip = chip;
 		pwm->pwm = chip->base + i;
 		pwm->hwpwm = i;
-
-		radix_tree_insert(&pwm_tree, pwm->pwm, pwm);
 	}
 
 	list_add(&chip->list, &pwm_chips);
