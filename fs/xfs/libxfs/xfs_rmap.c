@@ -2735,65 +2735,141 @@ xfs_rmap_has_records(
 	return xfs_btree_has_records(cur, &low, &high, &mask, outcome);
 }
 
-/*
- * Is there a record for this owner completely covering a given physical
- * extent?  If so, *has_rmap will be set to true.  If there is no record
- * or the record only covers part of the range, we set *has_rmap to false.
- * This function doesn't perform range lookups or offset checks, so it is
- * not suitable for checking data fork blocks.
- */
-int
-xfs_rmap_record_exists(
-	struct xfs_btree_cur		*cur,
+struct xfs_rmap_ownercount {
+	/* Owner that we're looking for. */
+	struct xfs_rmap_irec	good;
+
+	/* rmap search keys */
+	struct xfs_rmap_irec	low;
+	struct xfs_rmap_irec	high;
+
+	struct xfs_rmap_matches	*results;
+
+	/* Stop early if we find a nonmatch? */
+	bool			stop_on_nonmatch;
+};
+
+/* Does this rmap represent space that can have multiple owners? */
+static inline bool
+xfs_rmap_shareable(
+	struct xfs_mount		*mp,
+	const struct xfs_rmap_irec	*rmap)
+{
+	if (!xfs_has_reflink(mp))
+		return false;
+	if (XFS_RMAP_NON_INODE_OWNER(rmap->rm_owner))
+		return false;
+	if (rmap->rm_flags & (XFS_RMAP_ATTR_FORK |
+			      XFS_RMAP_BMBT_BLOCK))
+		return false;
+	return true;
+}
+
+static inline void
+xfs_rmap_ownercount_init(
+	struct xfs_rmap_ownercount	*roc,
 	xfs_agblock_t			bno,
 	xfs_extlen_t			len,
 	const struct xfs_owner_info	*oinfo,
-	bool				*has_rmap)
+	struct xfs_rmap_matches		*results)
 {
-	uint64_t			owner;
-	uint64_t			offset;
-	unsigned int			flags;
-	int				has_record;
-	struct xfs_rmap_irec		irec;
-	int				error;
+	memset(roc, 0, sizeof(*roc));
+	roc->results = results;
 
-	xfs_owner_info_unpack(oinfo, &owner, &offset, &flags);
-	ASSERT(XFS_RMAP_NON_INODE_OWNER(owner) ||
-	       (flags & XFS_RMAP_BMBT_BLOCK));
+	roc->low.rm_startblock = bno;
+	memset(&roc->high, 0xFF, sizeof(roc->high));
+	roc->high.rm_startblock = bno + len - 1;
 
-	error = xfs_rmap_lookup_le(cur, bno, owner, offset, flags, &irec,
-			&has_record);
-	if (error)
-		return error;
-	if (!has_record) {
-		*has_rmap = false;
-		return 0;
-	}
-
-	*has_rmap = (irec.rm_owner == owner && irec.rm_startblock <= bno &&
-		     irec.rm_startblock + irec.rm_blockcount >= bno + len);
-	return 0;
+	memset(results, 0, sizeof(*results));
+	roc->good.rm_startblock = bno;
+	roc->good.rm_blockcount = len;
+	roc->good.rm_owner = oinfo->oi_owner;
+	roc->good.rm_offset = oinfo->oi_offset;
+	if (oinfo->oi_flags & XFS_OWNER_INFO_ATTR_FORK)
+		roc->good.rm_flags |= XFS_RMAP_ATTR_FORK;
+	if (oinfo->oi_flags & XFS_OWNER_INFO_BMBT_BLOCK)
+		roc->good.rm_flags |= XFS_RMAP_BMBT_BLOCK;
 }
 
-struct xfs_rmap_key_state {
-	uint64_t			owner;
-	uint64_t			offset;
-	unsigned int			flags;
-};
-
-/* For each rmap given, figure out if it doesn't match the key we want. */
+/* Figure out if this is a match for the owner. */
 STATIC int
-xfs_rmap_has_other_keys_helper(
+xfs_rmap_count_owners_helper(
 	struct xfs_btree_cur		*cur,
 	const struct xfs_rmap_irec	*rec,
 	void				*priv)
 {
-	struct xfs_rmap_key_state	*rks = priv;
+	struct xfs_rmap_ownercount	*roc = priv;
+	struct xfs_rmap_irec		check = *rec;
+	unsigned int			keyflags;
+	bool				filedata;
+	int64_t				delta;
 
-	if (rks->owner == rec->rm_owner && rks->offset == rec->rm_offset &&
-	    ((rks->flags & rec->rm_flags) & XFS_RMAP_KEY_FLAGS) == rks->flags)
-		return 0;
-	return -ECANCELED;
+	filedata = !XFS_RMAP_NON_INODE_OWNER(check.rm_owner) &&
+		   !(check.rm_flags & XFS_RMAP_BMBT_BLOCK);
+
+	/* Trim the part of check that comes before the comparison range. */
+	delta = (int64_t)roc->good.rm_startblock - check.rm_startblock;
+	if (delta > 0) {
+		check.rm_startblock += delta;
+		check.rm_blockcount -= delta;
+		if (filedata)
+			check.rm_offset += delta;
+	}
+
+	/* Trim the part of check that comes after the comparison range. */
+	delta = (check.rm_startblock + check.rm_blockcount) -
+		(roc->good.rm_startblock + roc->good.rm_blockcount);
+	if (delta > 0)
+		check.rm_blockcount -= delta;
+
+	/* Don't care about unwritten status for establishing ownership. */
+	keyflags = check.rm_flags & (XFS_RMAP_ATTR_FORK | XFS_RMAP_BMBT_BLOCK);
+
+	if (check.rm_startblock	== roc->good.rm_startblock &&
+	    check.rm_blockcount	== roc->good.rm_blockcount &&
+	    check.rm_owner	== roc->good.rm_owner &&
+	    check.rm_offset	== roc->good.rm_offset &&
+	    keyflags		== roc->good.rm_flags) {
+		roc->results->matches++;
+	} else {
+		roc->results->non_owner_matches++;
+		if (xfs_rmap_shareable(cur->bc_mp, &roc->good) ^
+		    xfs_rmap_shareable(cur->bc_mp, &check))
+			roc->results->bad_non_owner_matches++;
+	}
+
+	if (roc->results->non_owner_matches && roc->stop_on_nonmatch)
+		return -ECANCELED;
+
+	return 0;
+}
+
+/* Count the number of owners and non-owners of this range of blocks. */
+int
+xfs_rmap_count_owners(
+	struct xfs_btree_cur		*cur,
+	xfs_agblock_t			bno,
+	xfs_extlen_t			len,
+	const struct xfs_owner_info	*oinfo,
+	struct xfs_rmap_matches		*results)
+{
+	struct xfs_rmap_ownercount	roc;
+	int				error;
+
+	xfs_rmap_ownercount_init(&roc, bno, len, oinfo, results);
+	error = xfs_rmap_query_range(cur, &roc.low, &roc.high,
+			xfs_rmap_count_owners_helper, &roc);
+	if (error)
+		return error;
+
+	/*
+	 * There can't be any non-owner rmaps that conflict with the given
+	 * owner if we didn't find any rmaps matching the owner.
+	 */
+	if (!results->matches)
+		results->bad_non_owner_matches = 0;
+
+	return 0;
 }
 
 /*
@@ -2806,28 +2882,26 @@ xfs_rmap_has_other_keys(
 	xfs_agblock_t			bno,
 	xfs_extlen_t			len,
 	const struct xfs_owner_info	*oinfo,
-	bool				*has_rmap)
+	bool				*has_other)
 {
-	struct xfs_rmap_irec		low = {0};
-	struct xfs_rmap_irec		high;
-	struct xfs_rmap_key_state	rks;
+	struct xfs_rmap_matches		res;
+	struct xfs_rmap_ownercount	roc;
 	int				error;
 
-	xfs_owner_info_unpack(oinfo, &rks.owner, &rks.offset, &rks.flags);
-	*has_rmap = false;
+	xfs_rmap_ownercount_init(&roc, bno, len, oinfo, &res);
+	roc.stop_on_nonmatch = true;
 
-	low.rm_startblock = bno;
-	memset(&high, 0xFF, sizeof(high));
-	high.rm_startblock = bno + len - 1;
-
-	error = xfs_rmap_query_range(cur, &low, &high,
-			xfs_rmap_has_other_keys_helper, &rks);
+	error = xfs_rmap_query_range(cur, &roc.low, &roc.high,
+			xfs_rmap_count_owners_helper, &roc);
 	if (error == -ECANCELED) {
-		*has_rmap = true;
+		*has_other = true;
 		return 0;
 	}
+	if (error)
+		return error;
 
-	return error;
+	*has_other = false;
+	return 0;
 }
 
 const struct xfs_owner_info XFS_RMAP_OINFO_SKIP_UPDATE = {

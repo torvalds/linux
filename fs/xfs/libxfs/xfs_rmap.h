@@ -200,12 +200,24 @@ xfs_failaddr_t xfs_rmap_check_irec(struct xfs_btree_cur *cur,
 
 int xfs_rmap_has_records(struct xfs_btree_cur *cur, xfs_agblock_t bno,
 		xfs_extlen_t len, enum xbtree_recpacking *outcome);
-int xfs_rmap_record_exists(struct xfs_btree_cur *cur, xfs_agblock_t bno,
+
+struct xfs_rmap_matches {
+	/* Number of owner matches. */
+	unsigned long long	matches;
+
+	/* Number of non-owner matches. */
+	unsigned long long	non_owner_matches;
+
+	/* Number of non-owner matches that conflict with the owner matches. */
+	unsigned long long	bad_non_owner_matches;
+};
+
+int xfs_rmap_count_owners(struct xfs_btree_cur *cur, xfs_agblock_t bno,
 		xfs_extlen_t len, const struct xfs_owner_info *oinfo,
-		bool *has_rmap);
+		struct xfs_rmap_matches *rmatch);
 int xfs_rmap_has_other_keys(struct xfs_btree_cur *cur, xfs_agblock_t bno,
 		xfs_extlen_t len, const struct xfs_owner_info *oinfo,
-		bool *has_rmap);
+		bool *has_other);
 int xfs_rmap_map_raw(struct xfs_btree_cur *cur, struct xfs_rmap_irec *rmap);
 
 extern const struct xfs_owner_info XFS_RMAP_OINFO_SKIP_UPDATE;
