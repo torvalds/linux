@@ -446,6 +446,21 @@ static int cryptd_hash_init_tfm(struct crypto_ahash *tfm)
 	return 0;
 }
 
+static int cryptd_hash_clone_tfm(struct crypto_ahash *ntfm,
+				 struct crypto_ahash *tfm)
+{
+	struct cryptd_hash_ctx *nctx = crypto_ahash_ctx(ntfm);
+	struct cryptd_hash_ctx *ctx = crypto_ahash_ctx(tfm);
+	struct crypto_shash *hash;
+
+	hash = crypto_clone_shash(ctx->child);
+	if (IS_ERR(hash))
+		return PTR_ERR(hash);
+
+	nctx->child = hash;
+	return 0;
+}
+
 static void cryptd_hash_exit_tfm(struct crypto_ahash *tfm)
 {
 	struct cryptd_hash_ctx *ctx = crypto_ahash_ctx(tfm);
@@ -678,6 +693,7 @@ static int cryptd_create_hash(struct crypto_template *tmpl, struct rtattr **tb,
 	inst->alg.halg.base.cra_ctxsize = sizeof(struct cryptd_hash_ctx);
 
 	inst->alg.init_tfm = cryptd_hash_init_tfm;
+	inst->alg.clone_tfm = cryptd_hash_clone_tfm;
 	inst->alg.exit_tfm = cryptd_hash_exit_tfm;
 
 	inst->alg.init   = cryptd_hash_init_enqueue;
