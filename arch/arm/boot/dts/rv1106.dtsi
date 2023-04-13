@@ -437,6 +437,11 @@
 		};
 	};
 
+	pmu: power-management@ff300000 {
+		compatible = "rockchip,rv1106-pmu", "syscon";
+		reg = <0xff300000 0x1000>;
+	};
+
 	i2c0: i2c@ff310000 {
 		compatible = "rockchip,rv1106-i2c", "rockchip,rk3399-i2c";
 		reg = <0xff310000 0x1000>;
