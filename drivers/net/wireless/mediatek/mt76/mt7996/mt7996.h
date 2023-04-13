@@ -45,6 +45,7 @@
 
 /* NOTE: used to map mt76_rates. idx may change if firmware expands table */
 #define MT7996_BASIC_RATES_TBL		11
+#define MT7996_BEACON_RATES_TBL		25
 
 struct mt7996_vif;
 struct mt7996_sta;
@@ -126,6 +127,7 @@ struct mt7996_vif {
 
 	u8 basic_rates_idx;
 	u8 mcast_rates_idx;
+	u8 beacon_rates_idx;
 };
 
 /* per-phy stats.  */
