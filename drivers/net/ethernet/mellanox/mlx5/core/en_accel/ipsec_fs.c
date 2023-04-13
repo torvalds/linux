@@ -4,6 +4,7 @@
 #include <linux/netdevice.h>
 #include "en.h"
 #include "en/fs.h"
+#include "eswitch.h"
 #include "ipsec.h"
 #include "fs_core.h"
 #include "lib/ipsec_fs_roce.h"
@@ -38,6 +39,7 @@ struct mlx5e_ipsec_rx {
 	struct mlx5e_ipsec_rule status;
 	struct mlx5e_ipsec_fc *fc;
 	struct mlx5_fs_chains *chains;
+	u8 allow_tunnel_mode : 1;
 };
 
 struct mlx5e_ipsec_tx {
@@ -47,6 +49,7 @@ struct mlx5e_ipsec_tx {
 	struct mlx5_flow_namespace *ns;
 	struct mlx5e_ipsec_fc *fc;
 	struct mlx5_fs_chains *chains;
+	u8 allow_tunnel_mode : 1;
 };
 
 /* IPsec RX flow steering */
@@ -254,7 +257,8 @@ static void rx_destroy(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 	mlx5_del_flow_rules(rx->sa.rule);
 	mlx5_destroy_flow_group(rx->sa.group);
 	mlx5_destroy_flow_table(rx->ft.sa);
-
+	if (rx->allow_tunnel_mode)
+		mlx5_eswitch_unblock_encap(mdev);
 	mlx5_del_flow_rules(rx->status.rule);
 	mlx5_modify_header_dealloc(mdev, rx->status.modify_hdr);
 	mlx5_destroy_flow_table(rx->ft.status);
@@ -305,6 +309,8 @@ static int rx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 
 	/* Create FT */
 	if (mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_TUNNEL)
+		rx->allow_tunnel_mode = mlx5_eswitch_block_encap(mdev);
+	if (rx->allow_tunnel_mode)
 		flags = MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT;
 	ft = ipsec_ft_create(ns, MLX5E_ACCEL_FS_ESP_FT_LEVEL, MLX5E_NIC_PRIO, 2,
 			     flags);
@@ -362,6 +368,8 @@ err_pol_ft:
 err_fs:
 	mlx5_destroy_flow_table(rx->ft.sa);
 err_fs_ft:
+	if (rx->allow_tunnel_mode)
+		mlx5_eswitch_unblock_encap(mdev);
 	mlx5_del_flow_rules(rx->status.rule);
 	mlx5_modify_header_dealloc(mdev, rx->status.modify_hdr);
 err_add:
@@ -496,7 +504,8 @@ err_rule:
 }
 
 /* IPsec TX flow steering */
-static void tx_destroy(struct mlx5e_ipsec_tx *tx, struct mlx5_ipsec_fs *roce)
+static void tx_destroy(struct mlx5_core_dev *mdev, struct mlx5e_ipsec_tx *tx,
+		       struct mlx5_ipsec_fs *roce)
 {
 	mlx5_ipsec_fs_roce_tx_destroy(roce);
 	if (tx->chains) {
@@ -508,6 +517,8 @@ static void tx_destroy(struct mlx5e_ipsec_tx *tx, struct mlx5_ipsec_fs *roce)
 	}
 
 	mlx5_destroy_flow_table(tx->ft.sa);
+	if (tx->allow_tunnel_mode)
+		mlx5_eswitch_unblock_encap(mdev);
 	mlx5_del_flow_rules(tx->status.rule);
 	mlx5_destroy_flow_table(tx->ft.status);
 }
@@ -530,6 +541,8 @@ static int tx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec_tx *tx,
 		goto err_status_rule;
 
 	if (mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_TUNNEL)
+		tx->allow_tunnel_mode = mlx5_eswitch_block_encap(mdev);
+	if (tx->allow_tunnel_mode)
 		flags = MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT;
 	ft = ipsec_ft_create(tx->ns, 1, 0, 4, flags);
 	if (IS_ERR(ft)) {
@@ -581,6 +594,8 @@ err_roce:
 err_pol_ft:
 	mlx5_destroy_flow_table(tx->ft.sa);
 err_sa_ft:
+	if (tx->allow_tunnel_mode)
+		mlx5_eswitch_unblock_encap(mdev);
 	mlx5_del_flow_rules(tx->status.rule);
 err_status_rule:
 	mlx5_destroy_flow_table(tx->ft.status);
@@ -609,7 +624,7 @@ static void tx_put(struct mlx5e_ipsec *ipsec, struct mlx5e_ipsec_tx *tx)
 	if (--tx->ft.refcnt)
 		return;
 
-	tx_destroy(tx, ipsec->roce);
+	tx_destroy(ipsec->mdev, tx, ipsec->roce);
 }
 
 static struct mlx5_flow_table *tx_ft_get_policy(struct mlx5_core_dev *mdev,
@@ -1602,4 +1617,16 @@ void mlx5e_accel_ipsec_fs_modify(struct mlx5e_ipsec_sa_entry *sa_entry)
 
 	mlx5e_accel_ipsec_fs_del_rule(sa_entry);
 	memcpy(sa_entry, &sa_entry_shadow, sizeof(*sa_entry));
+}
+
+bool mlx5e_ipsec_fs_tunnel_enabled(struct mlx5e_ipsec_sa_entry *sa_entry)
+{
+	struct mlx5e_ipsec_rx *rx =
+		ipsec_rx(sa_entry->ipsec, sa_entry->attrs.family);
+	struct mlx5e_ipsec_tx *tx = sa_entry->ipsec->tx;
+
+	if (sa_entry->attrs.dir == XFRM_DEV_OFFLOAD_OUT)
+		return tx->allow_tunnel_mode;
+
+	return rx->allow_tunnel_mode;
 }
