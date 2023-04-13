@@ -1327,6 +1327,7 @@ static void rfc6803_encrypt_case(struct kunit *test)
 	if (!gk5e)
 		kunit_skip(test, "Encryption type is not available");
 
+	memset(usage_data, 0, sizeof(usage_data));
 	usage.data[3] = param->constant;
 
 	Ke.len = gk5e->Ke_length;
