@@ -39,18 +39,6 @@ config MPC832x_RDB
 	help
 	  This option enables support for the MPC8323 RDB board.
 
-config MPC834x_MDS
-	bool "Freescale MPC834x MDS"
-	select DEFAULT_UIMAGE
-	select PPC_MPC834x
-	help
-	  This option enables support for the MPC 834x MDS evaluation board.
-
-	  Be aware that PCI buses can only function when MDS board is plugged
-	  into the PIB (Platform IO Board) board from Freescale which provide
-	  3 PCI slots.  The PIBs PCI initialization is the bootloader's
-	  responsibility.
-
 config MPC834x_ITX
 	bool "Freescale MPC834x ITX"
 	select DEFAULT_UIMAGE
