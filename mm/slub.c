@@ -1344,14 +1344,6 @@ static void remove_full(struct kmem_cache *s, struct kmem_cache_node *n, struct 
 	list_del(&slab->slab_list);
 }
 
-/* Tracking of the number of slabs for debugging purposes */
-static inline unsigned long slabs_node(struct kmem_cache *s, int node)
-{
-	struct kmem_cache_node *n = get_node(s, node);
-
-	return atomic_long_read(&n->nr_slabs);
-}
-
 static inline unsigned long node_nr_slabs(struct kmem_cache_node *n)
 {
 	return atomic_long_read(&n->nr_slabs);
@@ -1722,8 +1714,6 @@ slab_flags_t kmem_cache_flags(unsigned int object_size,
 
 #define disable_higher_order_debug 0
 
-static inline unsigned long slabs_node(struct kmem_cache *s, int node)
-							{ return 0; }
 static inline unsigned long node_nr_slabs(struct kmem_cache_node *n)
 							{ return 0; }
 static inline void inc_slabs_node(struct kmem_cache *s, int node,
@@ -4598,7 +4588,7 @@ bool __kmem_cache_empty(struct kmem_cache *s)
 	struct kmem_cache_node *n;
 
 	for_each_kmem_cache_node(s, node, n)
-		if (n->nr_partial || slabs_node(s, node))
+		if (n->nr_partial || node_nr_slabs(n))
 			return false;
 	return true;
 }
@@ -4615,7 +4605,7 @@ int __kmem_cache_shutdown(struct kmem_cache *s)
 	/* Attempt to free all objects */
 	for_each_kmem_cache_node(s, node, n) {
 		free_partial(s, n);
-		if (n->nr_partial || slabs_node(s, node))
+		if (n->nr_partial || node_nr_slabs(n))
 			return 1;
 	}
 	return 0;
@@ -4828,7 +4818,7 @@ static int __kmem_cache_do_shrink(struct kmem_cache *s)
 		list_for_each_entry_safe(slab, t, &discard, slab_list)
 			free_slab(s, slab);
 
-		if (slabs_node(s, node))
+		if (node_nr_slabs(n))
 			ret = 1;
 	}
 
