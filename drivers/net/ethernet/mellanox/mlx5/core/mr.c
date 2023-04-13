@@ -32,6 +32,7 @@
 
 #include <linux/kernel.h>
 #include <linux/mlx5/driver.h>
+#include <linux/mlx5/qp.h>
 #include "mlx5_core.h"
 
 int mlx5_core_create_mkey(struct mlx5_core_dev *dev, u32 *mkey, u32 *in,
@@ -122,3 +123,23 @@ int mlx5_core_destroy_psv(struct mlx5_core_dev *dev, int psv_num)
 	return mlx5_cmd_exec_in(dev, destroy_psv, in);
 }
 EXPORT_SYMBOL(mlx5_core_destroy_psv);
+
+__be32 mlx5_core_get_terminate_scatter_list_mkey(struct mlx5_core_dev *dev)
+{
+	u32 out[MLX5_ST_SZ_DW(query_special_contexts_out)] = {};
+	u32 in[MLX5_ST_SZ_DW(query_special_contexts_in)] = {};
+	u32 mkey;
+
+	if (!MLX5_CAP_GEN(dev, terminate_scatter_list_mkey))
+		return MLX5_TERMINATE_SCATTER_LIST_LKEY;
+
+	MLX5_SET(query_special_contexts_in, in, opcode,
+		 MLX5_CMD_OP_QUERY_SPECIAL_CONTEXTS);
+	if (mlx5_cmd_exec_inout(dev, query_special_contexts, in, out))
+		return MLX5_TERMINATE_SCATTER_LIST_LKEY;
+
+	mkey = MLX5_GET(query_special_contexts_out, out,
+			terminate_scatter_list_mkey);
+	return cpu_to_be32(mkey);
+}
+EXPORT_SYMBOL(mlx5_core_get_terminate_scatter_list_mkey);
