@@ -273,6 +273,11 @@ __cold static int io_rsrc_ref_quiesce(struct io_rsrc_data *data,
 	if (io_put_rsrc_data_ref(data))
 		return 0;
 
+	if (ctx->flags & IORING_SETUP_DEFER_TASKRUN) {
+		atomic_set(&ctx->cq_wait_nr, 1);
+		smp_mb();
+	}
+
 	data->quiesce = true;
 	do {
 		prepare_to_wait(&ctx->rsrc_quiesce_wq, &we, TASK_INTERRUPTIBLE);
@@ -298,6 +303,10 @@ __cold static int io_rsrc_ref_quiesce(struct io_rsrc_data *data,
 
 	finish_wait(&ctx->rsrc_quiesce_wq, &we);
 	data->quiesce = false;
+	if (ctx->flags & IORING_SETUP_DEFER_TASKRUN) {
+		atomic_set(&ctx->cq_wait_nr, 0);
+		smp_mb();
+	}
 	return ret;
 }
 
