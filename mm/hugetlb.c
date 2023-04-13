@@ -5097,10 +5097,14 @@ again:
 					ret = PTR_ERR(new_folio);
 					break;
 				}
-				copy_user_large_folio(new_folio,
+				ret = copy_user_large_folio(new_folio,
 						      page_folio(ptepage),
 						      addr, dst_vma);
 				put_page(ptepage);
+				if (ret) {
+					folio_put(new_folio);
+					break;
+				}
 
 				/* Install the new hugetlb folio if src pte stable */
 				dst_ptl = huge_pte_lock(h, dst, dst_pte);
@@ -5617,7 +5621,10 @@ retry_avoidcopy:
 		goto out_release_all;
 	}
 
-	copy_user_large_folio(new_folio, page_folio(old_page), address, vma);
+	if (copy_user_large_folio(new_folio, page_folio(old_page), address, vma)) {
+		ret = VM_FAULT_HWPOISON_LARGE;
+		goto out_release_all;
+	}
 	__folio_mark_uptodate(new_folio);
 
 	mmu_notifier_range_init(&range, MMU_NOTIFY_CLEAR, 0, mm, haddr,
@@ -6260,9 +6267,13 @@ int hugetlb_mfill_atomic_pte(pte_t *dst_pte,
 			*foliop = NULL;
 			goto out;
 		}
-		copy_user_large_folio(folio, *foliop, dst_addr, dst_vma);
+		ret = copy_user_large_folio(folio, *foliop, dst_addr, dst_vma);
 		folio_put(*foliop);
 		*foliop = NULL;
+		if (ret) {
+			folio_put(folio);
+			goto out;
+		}
 	}
 
 	/*

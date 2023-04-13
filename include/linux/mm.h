@@ -3693,9 +3693,9 @@ extern const struct attribute_group memory_failure_attr_group;
 extern void clear_huge_page(struct page *page,
 			    unsigned long addr_hint,
 			    unsigned int pages_per_huge_page);
-void copy_user_large_folio(struct folio *dst, struct folio *src,
-			   unsigned long addr_hint,
-			   struct vm_area_struct *vma);
+int copy_user_large_folio(struct folio *dst, struct folio *src,
+			  unsigned long addr_hint,
+			  struct vm_area_struct *vma);
 long copy_folio_from_user(struct folio *dst_folio,
 			   const void __user *usr_src,
 			   bool allow_pagefault);
