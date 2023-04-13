@@ -2089,8 +2089,11 @@ int jbd2_journal_load(journal_t *journal)
 
 	/* Let the recovery code check whether it needs to recover any
 	 * data from the journal. */
-	if (jbd2_journal_recover(journal))
-		goto recovery_error;
+	err = jbd2_journal_recover(journal);
+	if (err) {
+		pr_warn("JBD2: journal recovery failed\n");
+		return err;
+	}
 
 	if (journal->j_failed_commit) {
 		printk(KERN_ERR "JBD2: journal transaction %u on %s "
@@ -2107,15 +2110,14 @@ int jbd2_journal_load(journal_t *journal)
 	/* OK, we've finished with the dynamic journal bits:
 	 * reinitialise the dynamic contents of the superblock in memory
 	 * and reset them on disk. */
-	if (journal_reset(journal))
-		goto recovery_error;
+	err = journal_reset(journal);
+	if (err) {
+		pr_warn("JBD2: journal reset failed\n");
+		return err;
+	}
 
 	journal->j_flags |= JBD2_LOADED;
 	return 0;
-
-recovery_error:
-	printk(KERN_WARNING "JBD2: recovery failed\n");
-	return -EIO;
 }
 
 /**
