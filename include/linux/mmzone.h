@@ -443,18 +443,14 @@ enum {
 struct lru_gen_mm_state {
 	/* set to max_seq after each iteration */
 	unsigned long seq;
-	/* where the current iteration continues (inclusive) */
+	/* where the current iteration continues after */
 	struct list_head *head;
-	/* where the last iteration ended (exclusive) */
+	/* where the last iteration ended before */
 	struct list_head *tail;
-	/* to wait for the last page table walker to finish */
-	struct wait_queue_head wait;
 	/* Bloom filters flip after each iteration */
 	unsigned long *filters[NR_BLOOM_FILTERS];
 	/* the mm stats for debugging */
 	unsigned long stats[NR_HIST_GENS][NR_MM_STATS];
-	/* the number of concurrent page table walkers */
-	int nr_walkers;
 };
 
 struct lru_gen_mm_walk {
