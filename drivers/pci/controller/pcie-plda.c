@@ -765,8 +765,7 @@ int plda_gpio_init(struct plda_pcie *pcie)
 static void plda_pcie_hw_init(struct plda_pcie *pcie)
 {
 	unsigned int value;
-	int i, ret;
-	struct device *dev = &pcie->pdev->dev;
+	int i;
 
 	if (pcie->power_gpio)
 		gpiod_set_value_cansleep(pcie->power_gpio, 1);
