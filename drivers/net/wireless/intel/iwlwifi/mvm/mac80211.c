@@ -1065,6 +1065,9 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 	mvm->rx_ba_sessions = 0;
 	mvm->fwrt.dump.conf = FW_DBG_INVALID;
 	mvm->monitor_on = false;
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	mvm->beacon_inject_active = false;
+#endif
 
 	/* keep statistics ticking */
 	iwl_mvm_accu_radio_stats(mvm);
