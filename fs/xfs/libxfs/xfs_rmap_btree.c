@@ -156,6 +156,16 @@ xfs_rmapbt_get_maxrecs(
 	return cur->bc_mp->m_rmap_mxr[level != 0];
 }
 
+/*
+ * Convert the ondisk record's offset field into the ondisk key's offset field.
+ * Fork and bmbt are significant parts of the rmap record key, but written
+ * status is merely a record attribute.
+ */
+static inline __be64 ondisk_rec_offset_to_key(const union xfs_btree_rec *rec)
+{
+	return rec->rmap.rm_offset & ~cpu_to_be64(XFS_RMAP_OFF_UNWRITTEN);
+}
+
 STATIC void
 xfs_rmapbt_init_key_from_rec(
 	union xfs_btree_key		*key,
@@ -163,7 +173,7 @@ xfs_rmapbt_init_key_from_rec(
 {
 	key->rmap.rm_startblock = rec->rmap.rm_startblock;
 	key->rmap.rm_owner = rec->rmap.rm_owner;
-	key->rmap.rm_offset = rec->rmap.rm_offset;
+	key->rmap.rm_offset = ondisk_rec_offset_to_key(rec);
 }
 
 /*
@@ -186,7 +196,7 @@ xfs_rmapbt_init_high_key_from_rec(
 	key->rmap.rm_startblock = rec->rmap.rm_startblock;
 	be32_add_cpu(&key->rmap.rm_startblock, adj);
 	key->rmap.rm_owner = rec->rmap.rm_owner;
-	key->rmap.rm_offset = rec->rmap.rm_offset;
+	key->rmap.rm_offset = ondisk_rec_offset_to_key(rec);
 	if (XFS_RMAP_NON_INODE_OWNER(be64_to_cpu(rec->rmap.rm_owner)) ||
 	    XFS_RMAP_IS_BMBT_BLOCK(be64_to_cpu(rec->rmap.rm_offset)))
 		return;
@@ -219,6 +229,16 @@ xfs_rmapbt_init_ptr_from_cur(
 	ptr->s = agf->agf_roots[cur->bc_btnum];
 }
 
+/*
+ * Mask the appropriate parts of the ondisk key field for a key comparison.
+ * Fork and bmbt are significant parts of the rmap record key, but written
+ * status is merely a record attribute.
+ */
+static inline uint64_t offset_keymask(uint64_t offset)
+{
+	return offset & ~XFS_RMAP_OFF_UNWRITTEN;
+}
+
 STATIC int64_t
 xfs_rmapbt_key_diff(
 	struct xfs_btree_cur		*cur,
@@ -240,8 +260,8 @@ xfs_rmapbt_key_diff(
 	else if (y > x)
 		return -1;
 
-	x = XFS_RMAP_OFF(be64_to_cpu(kp->rm_offset));
-	y = rec->rm_offset;
+	x = offset_keymask(be64_to_cpu(kp->rm_offset));
+	y = offset_keymask(xfs_rmap_irec_offset_pack(rec));
 	if (x > y)
 		return 1;
 	else if (y > x)
@@ -272,8 +292,8 @@ xfs_rmapbt_diff_two_keys(
 	else if (y > x)
 		return -1;
 
-	x = XFS_RMAP_OFF(be64_to_cpu(kp1->rm_offset));
-	y = XFS_RMAP_OFF(be64_to_cpu(kp2->rm_offset));
+	x = offset_keymask(be64_to_cpu(kp1->rm_offset));
+	y = offset_keymask(be64_to_cpu(kp2->rm_offset));
 	if (x > y)
 		return 1;
 	else if (y > x)
@@ -387,8 +407,8 @@ xfs_rmapbt_keys_inorder(
 		return 1;
 	else if (a > b)
 		return 0;
-	a = XFS_RMAP_OFF(be64_to_cpu(k1->rmap.rm_offset));
-	b = XFS_RMAP_OFF(be64_to_cpu(k2->rmap.rm_offset));
+	a = offset_keymask(be64_to_cpu(k1->rmap.rm_offset));
+	b = offset_keymask(be64_to_cpu(k2->rmap.rm_offset));
 	if (a <= b)
 		return 1;
 	return 0;
@@ -417,8 +437,8 @@ xfs_rmapbt_recs_inorder(
 		return 1;
 	else if (a > b)
 		return 0;
-	a = XFS_RMAP_OFF(be64_to_cpu(r1->rmap.rm_offset));
-	b = XFS_RMAP_OFF(be64_to_cpu(r2->rmap.rm_offset));
+	a = offset_keymask(be64_to_cpu(r1->rmap.rm_offset));
+	b = offset_keymask(be64_to_cpu(r2->rmap.rm_offset));
 	if (a <= b)
 		return 1;
 	return 0;

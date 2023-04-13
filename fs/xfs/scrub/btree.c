@@ -119,6 +119,16 @@ xchk_btree_xref_set_corrupt(
 			__return_address);
 }
 
+void
+xchk_btree_set_preen(
+	struct xfs_scrub	*sc,
+	struct xfs_btree_cur	*cur,
+	int			level)
+{
+	__xchk_btree_set_corrupt(sc, cur, level, XFS_SCRUB_OFLAG_PREEN,
+			__return_address);
+}
+
 /*
  * Make sure this record is in order and doesn't stray outside of the parent
  * keys.

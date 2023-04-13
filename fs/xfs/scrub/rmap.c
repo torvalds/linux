@@ -87,6 +87,58 @@ xchk_rmapbt_xref(
 		xchk_rmapbt_xref_refc(sc, irec);
 }
 
+/*
+ * Check for bogus UNWRITTEN flags in the rmapbt node block keys.
+ *
+ * In reverse mapping records, the file mapping extent state
+ * (XFS_RMAP_OFF_UNWRITTEN) is a record attribute, not a key field.  It is not
+ * involved in lookups in any way.  In older kernels, the functions that
+ * convert rmapbt records to keys forgot to filter out the extent state bit,
+ * even though the key comparison functions have filtered the flag correctly.
+ * If we spot an rmap key with the unwritten bit set in rm_offset, we should
+ * mark the btree as needing optimization to rebuild the btree without those
+ * flags.
+ */
+STATIC void
+xchk_rmapbt_check_unwritten_in_keyflags(
+	struct xchk_btree	*bs)
+{
+	struct xfs_scrub	*sc = bs->sc;
+	struct xfs_btree_cur	*cur = bs->cur;
+	struct xfs_btree_block	*keyblock;
+	union xfs_btree_key	*lkey, *hkey;
+	__be64			badflag = cpu_to_be64(XFS_RMAP_OFF_UNWRITTEN);
+	unsigned int		level;
+
+	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_PREEN)
+		return;
+
+	for (level = 1; level < cur->bc_nlevels; level++) {
+		struct xfs_buf	*bp;
+		unsigned int	ptr;
+
+		/* Only check the first time we've seen this node block. */
+		if (cur->bc_levels[level].ptr > 1)
+			continue;
+
+		keyblock = xfs_btree_get_block(cur, level, &bp);
+		for (ptr = 1; ptr <= be16_to_cpu(keyblock->bb_numrecs); ptr++) {
+			lkey = xfs_btree_key_addr(cur, ptr, keyblock);
+
+			if (lkey->rmap.rm_offset & badflag) {
+				xchk_btree_set_preen(sc, cur, level);
+				break;
+			}
+
+			hkey = xfs_btree_high_key_addr(cur, ptr, keyblock);
+			if (hkey->rmap.rm_offset & badflag) {
+				xchk_btree_set_preen(sc, cur, level);
+				break;
+			}
+		}
+	}
+}
+
 /* Scrub an rmapbt record. */
 STATIC int
 xchk_rmapbt_rec(
@@ -101,6 +153,7 @@ xchk_rmapbt_rec(
 		return 0;
 	}
 
+	xchk_rmapbt_check_unwritten_in_keyflags(bs);
 	xchk_rmapbt_xref(bs->sc, &irec);
 	return 0;
 }
