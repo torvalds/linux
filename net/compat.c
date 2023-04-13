@@ -211,6 +211,7 @@ int cmsghdr_from_user_compat_to_kern(struct msghdr *kmsg, struct sock *sk,
 		goto Einval;
 
 	/* Ok, looks like we made it.  Hook it up and return success. */
+	kmsg->msg_control_is_user = false;
 	kmsg->msg_control = kcmsg_base;
 	kmsg->msg_controllen = kcmlen;
 	return 0;
