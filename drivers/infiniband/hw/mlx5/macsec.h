@@ -14,12 +14,16 @@ struct mlx5_reserved_gids;
 
 int mlx5r_add_gid_macsec_operations(const struct ib_gid_attr *attr);
 void mlx5r_del_gid_macsec_operations(const struct ib_gid_attr *attr);
-int mlx5r_macsec_alloc_gids(struct mlx5_ib_dev *dev);
+int mlx5r_macsec_init_gids_and_devlist(struct mlx5_ib_dev *dev);
 void mlx5r_macsec_dealloc_gids(struct mlx5_ib_dev *dev);
+void mlx5r_macsec_event_register(struct mlx5_ib_dev *dev);
+void mlx5r_macsec_event_unregister(struct mlx5_ib_dev *dev);
 #else
 static inline int mlx5r_add_gid_macsec_operations(const struct ib_gid_attr *attr) { return 0; }
 static inline void mlx5r_del_gid_macsec_operations(const struct ib_gid_attr *attr) {}
-static inline int mlx5r_macsec_alloc_gids(struct mlx5_ib_dev *dev) { return 0; }
+static inline int mlx5r_macsec_init_gids_and_devlist(struct mlx5_ib_dev *dev) { return 0; }
 static inline void mlx5r_macsec_dealloc_gids(struct mlx5_ib_dev *dev) {}
+static inline void mlx5r_macsec_event_register(struct mlx5_ib_dev *dev) {}
+static inline void mlx5r_macsec_event_unregister(struct mlx5_ib_dev *dev) {}
 #endif
 #endif /* __MLX5_MACSEC_H__ */

@@ -1325,6 +1325,7 @@ static inline bool mlx5_get_roce_state(struct mlx5_core_dev *dev)
 	return mlx5_is_roce_on(dev);
 }
 
+#ifdef CONFIG_MLX5_MACSEC
 static inline bool mlx5e_is_macsec_device(const struct mlx5_core_dev *mdev)
 {
 	if (!(MLX5_CAP_GEN_64(mdev, general_obj_types) &
@@ -1363,11 +1364,12 @@ static inline bool mlx5_is_macsec_roce_supported(struct mlx5_core_dev *mdev)
 	if (((MLX5_CAP_GEN_2(mdev, flow_table_type_2_type) &
 	     NIC_RDMA_BOTH_DIRS_CAPS) != NIC_RDMA_BOTH_DIRS_CAPS) ||
 	     !MLX5_CAP_FLOWTABLE_RDMA_TX(mdev, max_modify_header_actions) ||
-	     !mlx5e_is_macsec_device(mdev))
+	     !mlx5e_is_macsec_device(mdev) || !mdev->macsec_fs)
 		return false;
 
 	return true;
 }
+#endif
 
 enum {
 	MLX5_OCTWORD = 16,
