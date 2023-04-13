@@ -356,9 +356,13 @@ static int iwl_mvm_disable_txq(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 					     SCD_QUEUE_CONFIG_CMD);
 			struct iwl_scd_queue_cfg_cmd remove_cmd = {
 				.operation = cpu_to_le32(IWL_SCD_QUEUE_REMOVE),
-				.u.remove.tid = cpu_to_le32(tid),
 				.u.remove.sta_mask = cpu_to_le32(BIT(sta_id)),
 			};
+
+			if (tid == IWL_MAX_TID_COUNT)
+				tid = IWL_MGMT_TID;
+
+			remove_cmd.u.remove.tid = cpu_to_le32(tid);
 
 			ret = iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0,
 						   sizeof(remove_cmd),

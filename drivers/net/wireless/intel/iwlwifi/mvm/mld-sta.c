@@ -268,6 +268,9 @@ static int iwl_mvm_mld_disable_txq(struct iwl_mvm *mvm, int sta_id,
 	int queue = *queueptr;
 	int ret = 0;
 
+	if (tid == IWL_MAX_TID_COUNT)
+		tid = IWL_MGMT_TID;
+
 	if (mvm->sta_remove_requires_queue_remove) {
 		u32 cmd_id = WIDE_ID(DATA_PATH_GROUP,
 				     SCD_QUEUE_CONFIG_CMD);
