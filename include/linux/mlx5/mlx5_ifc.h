@@ -463,9 +463,11 @@ struct mlx5_ifc_flow_table_prop_layout_bits {
 	u8         max_ft_level[0x8];
 
 	u8         reformat_add_esp_trasport[0x1];
-	u8         reserved_at_41[0x2];
+	u8         reformat_l2_to_l3_esp_tunnel[0x1];
+	u8         reserved_at_42[0x1];
 	u8         reformat_del_esp_trasport[0x1];
-	u8         reserved_at_44[0x2];
+	u8         reformat_l3_esp_tunnel_to_l2[0x1];
+	u8         reserved_at_45[0x1];
 	u8         execute_aso[0x1];
 	u8         reserved_at_47[0x19];
 
@@ -6630,7 +6632,9 @@ enum mlx5_reformat_ctx_type {
 	MLX5_REFORMAT_TYPE_L3_TUNNEL_TO_L2 = 0x3,
 	MLX5_REFORMAT_TYPE_L2_TO_L3_TUNNEL = 0x4,
 	MLX5_REFORMAT_TYPE_ADD_ESP_TRANSPORT_OVER_IPV4 = 0x5,
+	MLX5_REFORMAT_TYPE_L2_TO_L3_ESP_TUNNEL = 0x6,
 	MLX5_REFORMAT_TYPE_DEL_ESP_TRANSPORT = 0x8,
+	MLX5_REFORMAT_TYPE_L3_ESP_TUNNEL_TO_L2 = 0x9,
 	MLX5_REFORMAT_TYPE_ADD_ESP_TRANSPORT_OVER_IPV6 = 0xb,
 	MLX5_REFORMAT_TYPE_INSERT_HDR = 0xf,
 	MLX5_REFORMAT_TYPE_REMOVE_HDR = 0x10,
