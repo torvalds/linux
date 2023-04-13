@@ -1419,7 +1419,7 @@ void blk_mq_requeue_request(struct request *rq, bool kick_requeue_list)
 	/* this request will be re-inserted to io scheduler queue */
 	blk_mq_sched_requeue_request(rq);
 
-	blk_mq_add_to_requeue_list(rq, true);
+	blk_mq_add_to_requeue_list(rq, BLK_MQ_INSERT_AT_HEAD);
 
 	if (kick_requeue_list)
 		blk_mq_kick_requeue_list(q);
@@ -1464,7 +1464,7 @@ static void blk_mq_requeue_work(struct work_struct *work)
 	blk_mq_run_hw_queues(q, false);
 }
 
-void blk_mq_add_to_requeue_list(struct request *rq, bool at_head)
+void blk_mq_add_to_requeue_list(struct request *rq, blk_insert_t insert_flags)
 {
 	struct request_queue *q = rq->q;
 	unsigned long flags;
@@ -1476,7 +1476,7 @@ void blk_mq_add_to_requeue_list(struct request *rq, bool at_head)
 	BUG_ON(rq->rq_flags & RQF_SOFTBARRIER);
 
 	spin_lock_irqsave(&q->requeue_lock, flags);
-	if (at_head) {
+	if (insert_flags & BLK_MQ_INSERT_AT_HEAD) {
 		rq->rq_flags |= RQF_SOFTBARRIER;
 		list_add(&rq->queuelist, &q->requeue_list);
 	} else {
