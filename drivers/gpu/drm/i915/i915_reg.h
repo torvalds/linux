@@ -2544,6 +2544,7 @@
 #define   TRANSCONF_MSA_TIMING_DELAY_MASK	REG_GENMASK(19, 18) /* ilk/snb/ivb */
 #define   TRANSCONF_MSA_TIMING_DELAY(x)		REG_FIELD_PREP(TRANSCONF_MSA_TIMING_DELAY_MASK, (x))
 #define   TRANSCONF_CXSR_DOWNCLOCK		REG_BIT(16)
+#define   TRANSCONF_WGC_ENABLE			REG_BIT(15) /* vlv/chv only */
 #define   TRANSCONF_REFRESH_RATE_ALT_VLV		REG_BIT(14)
 #define   TRANSCONF_COLOR_RANGE_SELECT		REG_BIT(13)
 #define   TRANSCONF_OUTPUT_COLORSPACE_MASK	REG_GENMASK(12, 11) /* ilk-ivb */
@@ -6437,6 +6438,20 @@ enum skl_power_gate {
 #define PLANE_CSC_POSTOFF(pipe, plane, index)	_MMIO_PLANE(plane, _PLANE_CSC_POSTOFF_HI_1(pipe) + \
 							    (index) * 4, _PLANE_CSC_POSTOFF_HI_2(pipe) + \
 							    (index) * 4)
+
+#define _PIPE_A_WGC_C01_C00	0x600B0 /* s2.10 */
+#define _PIPE_A_WGC_C02		0x600B4 /* s2.10 */
+#define _PIPE_A_WGC_C11_C10	0x600B8 /* s2.10 */
+#define _PIPE_A_WGC_C12		0x600BC /* s2.10 */
+#define _PIPE_A_WGC_C21_C20	0x600C0 /* s2.10 */
+#define _PIPE_A_WGC_C22		0x600C4 /* s2.10 */
+
+#define PIPE_WGC_C01_C00(pipe)		_MMIO_TRANS2(pipe, _PIPE_A_WGC_C01_C00)
+#define PIPE_WGC_C02(pipe)		_MMIO_TRANS2(pipe, _PIPE_A_WGC_C02)
+#define PIPE_WGC_C11_C10(pipe)		_MMIO_TRANS2(pipe, _PIPE_A_WGC_C11_C10)
+#define PIPE_WGC_C12(pipe)		_MMIO_TRANS2(pipe, _PIPE_A_WGC_C12)
+#define PIPE_WGC_C21_C20(pipe)		_MMIO_TRANS2(pipe, _PIPE_A_WGC_C21_C20)
+#define PIPE_WGC_C22(pipe)		_MMIO_TRANS2(pipe, _PIPE_A_WGC_C22)
 
 /* pipe CSC & degamma/gamma LUTs on CHV */
 #define _CGM_PIPE_A_CSC_COEFF01	(VLV_DISPLAY_BASE + 0x67900)

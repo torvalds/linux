@@ -588,6 +588,98 @@ static u16 ctm_to_twos_complement(u64 coeff, int int_bits, int frac_bits)
 }
 
 /*
+ * VLV/CHV Wide Gamut Color Correction (WGC) CSC
+ * |r|   | c0 c1 c2 |   |r|
+ * |g| = | c3 c4 c5 | x |g|
+ * |b|   | c6 c7 c8 |   |b|
+ *
+ * Coefficients are two's complement s2.10.
+ */
+static void vlv_wgc_csc_convert_ctm(const struct intel_crtc_state *crtc_state,
+				    struct intel_csc_matrix *csc)
+{
+	const struct drm_color_ctm *ctm = crtc_state->hw.ctm->data;
+	int i;
+
+	for (i = 0; i < 9; i++)
+		csc->coeff[i] = ctm_to_twos_complement(ctm->matrix[i], 2, 10);
+}
+
+static void vlv_load_wgc_csc(struct intel_crtc *crtc,
+			     const struct intel_csc_matrix *csc)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+
+	intel_de_write_fw(dev_priv, PIPE_WGC_C01_C00(pipe),
+			  csc->coeff[1] << 16 | csc->coeff[0]);
+	intel_de_write_fw(dev_priv, PIPE_WGC_C02(pipe),
+			  csc->coeff[2]);
+
+	intel_de_write_fw(dev_priv, PIPE_WGC_C11_C10(pipe),
+			  csc->coeff[4] << 16 | csc->coeff[3]);
+	intel_de_write_fw(dev_priv, PIPE_WGC_C12(pipe),
+			  csc->coeff[5]);
+
+	intel_de_write_fw(dev_priv, PIPE_WGC_C21_C20(pipe),
+			  csc->coeff[7] << 16 | csc->coeff[6]);
+	intel_de_write_fw(dev_priv, PIPE_WGC_C22(pipe),
+			  csc->coeff[8]);
+}
+
+static void vlv_read_wgc_csc(struct intel_crtc *crtc,
+			     struct intel_csc_matrix *csc)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+	u32 tmp;
+
+	tmp = intel_de_read_fw(dev_priv, PIPE_WGC_C01_C00(pipe));
+	csc->coeff[0] = tmp & 0xffff;
+	csc->coeff[1] = tmp >> 16;
+
+	tmp = intel_de_read_fw(dev_priv, PIPE_WGC_C02(pipe));
+	csc->coeff[2] = tmp & 0xffff;
+
+	tmp = intel_de_read_fw(dev_priv, PIPE_WGC_C11_C10(pipe));
+	csc->coeff[3] = tmp & 0xffff;
+	csc->coeff[4] = tmp >> 16;
+
+	tmp = intel_de_read_fw(dev_priv, PIPE_WGC_C12(pipe));
+	csc->coeff[5] = tmp & 0xffff;
+
+	tmp = intel_de_read_fw(dev_priv, PIPE_WGC_C21_C20(pipe));
+	csc->coeff[6] = tmp & 0xffff;
+	csc->coeff[7] = tmp >> 16;
+
+	tmp = intel_de_read_fw(dev_priv, PIPE_WGC_C22(pipe));
+	csc->coeff[8] = tmp & 0xffff;
+}
+
+static void vlv_read_csc(struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+
+	if (crtc_state->wgc_enable)
+		vlv_read_wgc_csc(crtc, &crtc_state->csc);
+}
+
+static void vlv_assign_csc(struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+
+	if (crtc_state->hw.ctm) {
+		drm_WARN_ON(&i915->drm, !crtc_state->wgc_enable);
+
+		vlv_wgc_csc_convert_ctm(crtc_state, &crtc_state->csc);
+	} else {
+		drm_WARN_ON(&i915->drm, crtc_state->wgc_enable);
+
+		intel_csc_clear(&crtc_state->csc);
+	}
+}
+
+/*
  * CHV Color Gamut Mapping (CGM) CSC
  * |r|   | c0 c1 c2 |   |r|
  * |g| = | c3 c4 c5 | x |g|
@@ -671,6 +763,8 @@ static void chv_read_csc(struct intel_crtc_state *crtc_state)
 static void chv_assign_csc(struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+
+	drm_WARN_ON(&i915->drm, crtc_state->wgc_enable);
 
 	if (crtc_state->hw.ctm) {
 		drm_WARN_ON(&i915->drm, (crtc_state->cgm_mode & CGM_PIPE_MODE_CSC) == 0);
@@ -1574,6 +1668,16 @@ static void icl_load_luts(const struct intel_crtc_state *crtc_state)
 	}
 }
 
+static void vlv_load_luts(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+
+	if (crtc_state->wgc_enable)
+		vlv_load_wgc_csc(crtc, &crtc_state->csc);
+
+	i965_load_luts(crtc_state);
+}
+
 static u32 chv_cgm_degamma_ldw(const struct drm_color_lut *color)
 {
 	return REG_FIELD_PREP(CGM_PIPE_DEGAMMA_GREEN_LDW_MASK, drm_color_lut_extract(color->green, 14)) |
@@ -1728,6 +1832,18 @@ static bool intel_can_preload_luts(const struct intel_crtc_state *new_crtc_state
 		!old_crtc_state->pre_csc_lut;
 }
 
+static bool vlv_can_preload_luts(const struct intel_crtc_state *new_crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->uapi.crtc);
+	struct intel_atomic_state *state =
+		to_intel_atomic_state(new_crtc_state->uapi.state);
+	const struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
+
+	return !old_crtc_state->wgc_enable &&
+		!old_crtc_state->post_csc_lut;
+}
+
 static bool chv_can_preload_luts(const struct intel_crtc_state *new_crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->uapi.crtc);
@@ -1744,7 +1860,7 @@ static bool chv_can_preload_luts(const struct intel_crtc_state *new_crtc_state)
 	if (old_crtc_state->cgm_mode || new_crtc_state->cgm_mode)
 		return false;
 
-	return !old_crtc_state->post_csc_lut;
+	return vlv_can_preload_luts(new_crtc_state);
 }
 
 int intel_color_check(struct intel_crtc_state *crtc_state)
@@ -2031,6 +2147,39 @@ static int i9xx_color_check(struct intel_crtc_state *crtc_state)
 	return 0;
 }
 
+/*
+ * VLV color pipeline:
+ * u0.10 -> WGC csc -> u0.10 -> pipe gamma -> u0.10
+ */
+static int vlv_color_check(struct intel_crtc_state *crtc_state)
+{
+	int ret;
+
+	ret = check_luts(crtc_state);
+	if (ret)
+		return ret;
+
+	crtc_state->gamma_enable =
+		crtc_state->hw.gamma_lut &&
+		!crtc_state->c8_planes;
+
+	crtc_state->gamma_mode = i9xx_gamma_mode(crtc_state);
+
+	crtc_state->wgc_enable = crtc_state->hw.ctm;
+
+	ret = intel_color_add_affected_planes(crtc_state);
+	if (ret)
+		return ret;
+
+	intel_assign_luts(crtc_state);
+
+	vlv_assign_csc(crtc_state);
+
+	crtc_state->preload_luts = vlv_can_preload_luts(crtc_state);
+
+	return 0;
+}
+
 static u32 chv_cgm_mode(const struct intel_crtc_state *crtc_state)
 {
 	u32 cgm_mode = 0;
@@ -2080,6 +2229,12 @@ static int chv_color_check(struct intel_crtc_state *crtc_state)
 	crtc_state->gamma_mode = GAMMA_MODE_MODE_8BIT;
 
 	crtc_state->cgm_mode = chv_cgm_mode(crtc_state);
+
+	/*
+	 * We always bypass the WGC CSC and use the CGM CSC
+	 * instead since it has degamma and better precision.
+	 */
+	crtc_state->wgc_enable = false;
 
 	ret = intel_color_add_affected_planes(crtc_state);
 	if (ret)
@@ -3395,6 +3550,15 @@ static const struct intel_color_funcs chv_color_funcs = {
 	.read_csc = chv_read_csc,
 };
 
+static const struct intel_color_funcs vlv_color_funcs = {
+	.color_check = vlv_color_check,
+	.color_commit_arm = i9xx_color_commit_arm,
+	.load_luts = vlv_load_luts,
+	.read_luts = i965_read_luts,
+	.lut_equal = i965_lut_equal,
+	.read_csc = vlv_read_csc,
+};
+
 static const struct intel_color_funcs i965_color_funcs = {
 	.color_check = i9xx_color_check,
 	.color_commit_arm = i9xx_color_commit_arm,
@@ -3502,7 +3666,7 @@ void intel_color_crtc_init(struct intel_crtc *crtc)
 
 	gamma_lut_size = DISPLAY_INFO(i915)->color.gamma_lut_size;
 	degamma_lut_size = DISPLAY_INFO(i915)->color.degamma_lut_size;
-	has_ctm = DISPLAY_VER(i915) >= 5 && !IS_VALLEYVIEW(i915);
+	has_ctm = DISPLAY_VER(i915) >= 5;
 
 	/*
 	 * "DPALETTE_A: NOTE: The 8-bit (non-10-bit) mode is the
@@ -3541,6 +3705,8 @@ void intel_color_init_hooks(struct drm_i915_private *i915)
 	if (HAS_GMCH(i915)) {
 		if (IS_CHERRYVIEW(i915))
 			i915->display.funcs.color = &chv_color_funcs;
+		else if (IS_VALLEYVIEW(i915))
+			i915->display.funcs.color = &vlv_color_funcs;
 		else if (DISPLAY_VER(i915) >= 4)
 			i915->display.funcs.color = &i965_color_funcs;
 		else

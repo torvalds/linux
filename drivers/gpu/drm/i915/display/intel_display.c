@@ -2740,6 +2740,9 @@ void i9xx_set_pipeconf(const struct intel_crtc_state *crtc_state)
 
 	val |= TRANSCONF_GAMMA_MODE(crtc_state->gamma_mode);
 
+	if (crtc_state->wgc_enable)
+		val |= TRANSCONF_WGC_ENABLE;
+
 	val |= TRANSCONF_FRAME_START_DELAY(crtc_state->framestart_delay - 1);
 
 	intel_de_write(dev_priv, TRANSCONF(cpu_transcoder), val);
@@ -2933,6 +2936,10 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 	pipe_config->gamma_mode = REG_FIELD_GET(TRANSCONF_GAMMA_MODE_MASK_I9XX, tmp);
 
 	pipe_config->framestart_delay = REG_FIELD_GET(TRANSCONF_FRAME_START_DELAY_MASK, tmp) + 1;
+
+	if ((IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
+	    (tmp & TRANSCONF_WGC_ENABLE))
+		pipe_config->wgc_enable = true;
 
 	if (IS_CHERRYVIEW(dev_priv))
 		pipe_config->cgm_mode = intel_de_read(dev_priv,
@@ -5277,6 +5284,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 			PIPE_CONF_CHECK_X(csc_mode);
 		PIPE_CONF_CHECK_BOOL(gamma_enable);
 		PIPE_CONF_CHECK_BOOL(csc_enable);
+		PIPE_CONF_CHECK_BOOL(wgc_enable);
 
 		PIPE_CONF_CHECK_I(linetime);
 		PIPE_CONF_CHECK_I(ips_linetime);

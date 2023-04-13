@@ -1343,6 +1343,9 @@ struct intel_crtc_state {
 	/* enable pipe csc? */
 	bool csc_enable;
 
+	/* enable vlv/chv wgc csc? */
+	bool wgc_enable;
+
 	/* big joiner pipe bitmask */
 	u8 bigjoiner_pipes;
 

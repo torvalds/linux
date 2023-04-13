@@ -184,7 +184,7 @@ ilk_dump_csc(struct drm_i915_private *i915, const char *name,
 }
 
 static void
-chv_dump_csc(struct drm_i915_private *i915, const char *name,
+vlv_dump_csc(struct drm_i915_private *i915, const char *name,
 	     const struct intel_csc_matrix *csc)
 {
 	int i;
@@ -371,7 +371,9 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 	if (!HAS_GMCH(i915))
 		ilk_dump_csc(i915, "pipe csc", &pipe_config->csc);
 	else if (IS_CHERRYVIEW(i915))
-		chv_dump_csc(i915, "cgm csc", &pipe_config->csc);
+		vlv_dump_csc(i915, "cgm csc", &pipe_config->csc);
+	else if (IS_VALLEYVIEW(i915))
+		vlv_dump_csc(i915, "wgc csc", &pipe_config->csc);
 
 dump_planes:
 	if (!state)
