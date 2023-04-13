@@ -47,13 +47,12 @@ struct iwl_nvm_data {
 	struct ieee80211_supported_band bands[NUM_NL80211_BANDS];
 
 	/*
-	 * iftype data for low (2.4 GHz) and high (5 and 6 GHz) bands,
-	 * we can use the same for 5 and 6 GHz bands because they have
-	 * the same data
+	 * iftype data for low (2.4 GHz) high (5 GHz) and uhb (6 GHz) bands
 	 */
 	struct {
 		struct ieee80211_sband_iftype_data low[2];
 		struct ieee80211_sband_iftype_data high[2];
+		struct ieee80211_sband_iftype_data uhb[2];
 	} iftd;
 
 	struct ieee80211_channel channels[];

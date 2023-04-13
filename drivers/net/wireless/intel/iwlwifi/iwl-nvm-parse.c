@@ -860,7 +860,10 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 	/* Advertise an A-MPDU exponent extension based on
 	 * operating band
 	 */
-	if (sband->band != NL80211_BAND_2GHZ)
+	if (sband->band == NL80211_BAND_6GHZ && iftype_data->eht_cap.has_eht)
+		iftype_data->he_cap.he_cap_elem.mac_cap_info[3] |=
+			IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_EXT_2;
+	else if (sband->band != NL80211_BAND_2GHZ)
 		iftype_data->he_cap.he_cap_elem.mac_cap_info[3] |=
 			IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_EXT_1;
 	else
@@ -996,14 +999,17 @@ static void iwl_init_he_hw_capab(struct iwl_trans *trans,
 
 	BUILD_BUG_ON(sizeof(data->iftd.low) != sizeof(iwl_he_eht_capa));
 	BUILD_BUG_ON(sizeof(data->iftd.high) != sizeof(iwl_he_eht_capa));
+	BUILD_BUG_ON(sizeof(data->iftd.uhb) != sizeof(iwl_he_eht_capa));
 
 	switch (sband->band) {
 	case NL80211_BAND_2GHZ:
 		iftype_data = data->iftd.low;
 		break;
 	case NL80211_BAND_5GHZ:
-	case NL80211_BAND_6GHZ:
 		iftype_data = data->iftd.high;
+		break;
+	case NL80211_BAND_6GHZ:
+		iftype_data = data->iftd.uhb;
 		break;
 	default:
 		WARN_ON(1);
