@@ -204,8 +204,7 @@ struct dw_hdmi_plat_data {
 	void *priv_data;
 
 	/* Platform-specific mode validation (optional). */
-	enum drm_mode_status (*mode_valid)(struct drm_connector *connector,
-					   void *data,
+	enum drm_mode_status (*mode_valid)(struct dw_hdmi *hdmi, void *data,
 					   const struct drm_display_info *info,
 					   const struct drm_display_mode *mode);
 
