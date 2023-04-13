@@ -252,6 +252,17 @@ void mt7996_mac_enable_rtscts(struct mt7996_dev *dev,
 		mt76_clear(dev, addr, BIT(5));
 }
 
+void mt7996_mac_set_fixed_rate_table(struct mt7996_dev *dev,
+				     u8 tbl_idx, u16 rate_idx)
+{
+	u32 ctrl = MT_WTBL_ITCR_WR | MT_WTBL_ITCR_EXEC | tbl_idx;
+
+	mt76_wr(dev, MT_WTBL_ITDR0, rate_idx);
+	/* use wtbl spe idx */
+	mt76_wr(dev, MT_WTBL_ITDR1, MT_WTBL_SPE_IDX_SEL);
+	mt76_wr(dev, MT_WTBL_ITCR, ctrl);
+}
+
 static void
 mt7996_mac_decode_he_radiotap_ru(struct mt76_rx_status *status,
 				 struct ieee80211_radiotap_he *he,
@@ -985,7 +996,7 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_vif *vif = info->control.vif;
-	struct mt76_phy *mphy = &dev->mphy;
+	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
 	u8 band_idx = (info->hw_queue & MT_TX_HW_QUEUE_PHY) >> 2;
 	u8 p_fmt, q_idx, omac_idx = 0, wmm_idx = 0;
 	bool is_8023 = info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP;
@@ -997,14 +1008,10 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
 					 BSS_CHANGED_FILS_DISCOVERY));
 
 	if (vif) {
-		struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
-
 		omac_idx = mvif->mt76.omac_idx;
 		wmm_idx = mvif->mt76.wmm_idx;
 		band_idx = mvif->mt76.band_idx;
 	}
-
-	mphy = mt76_dev_phy(&dev->mt76, band_idx);
 
 	if (inband_disc) {
 		p_fmt = MT_TX_TYPE_FW;
@@ -1063,18 +1070,9 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
 		mt7996_mac_write_txwi_80211(dev, txwi, skb, key);
 
 	if (txwi[1] & cpu_to_le32(MT_TXD1_FIXED_RATE)) {
-		/* Fixed rata is available just for 802.11 txd */
-		struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-		bool multicast = is_multicast_ether_addr(hdr->addr1);
-		u16 rate = mt76_connac2_mac_tx_rate_val(mphy, vif, beacon,
-							multicast);
+		u8 idx = mvif->basic_rates_idx;
 
-		/* fix to bw 20 */
-		val = MT_TXD6_FIXED_BW |
-		      FIELD_PREP(MT_TXD6_BW, 0) |
-		      FIELD_PREP(MT_TXD6_TX_RATE, rate);
-
-		txwi[6] |= cpu_to_le32(val);
+		txwi[6] |= FIELD_PREP(MT_TXD6_TX_RATE, idx);
 		txwi[3] |= cpu_to_le32(MT_TXD3_BA_DISABLE);
 	}
 }

@@ -255,6 +255,20 @@ mt7996_mac_init_band(struct mt7996_dev *dev, u8 band)
 	mt76_rmw(dev, MT_WTBLOFF_RSCR(band), mask, set);
 }
 
+static void mt7996_mac_init_basic_rates(struct mt7996_dev *dev)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(mt76_rates); i++) {
+		u16 rate = mt76_rates[i].hw_value;
+		u16 idx = MT7996_BASIC_RATES_TBL + i;
+
+		rate = FIELD_PREP(MT_TX_RATE_MODE, rate >> 8) |
+		       FIELD_PREP(MT_TX_RATE_IDX, rate & GENMASK(7, 0));
+		mt7996_mac_set_fixed_rate_table(dev, idx, rate);
+	}
+}
+
 void mt7996_mac_init(struct mt7996_dev *dev)
 {
 #define HIF_TXD_V2_1	4
@@ -287,6 +301,8 @@ void mt7996_mac_init(struct mt7996_dev *dev)
 
 	for (i = MT_BAND0; i <= MT_BAND2; i++)
 		mt7996_mac_init_band(dev, i);
+
+	mt7996_mac_init_basic_rates(dev);
 }
 
 int mt7996_txbf_init(struct mt7996_dev *dev)

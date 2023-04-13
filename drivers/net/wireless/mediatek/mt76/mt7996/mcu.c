@@ -597,25 +597,23 @@ mt7996_mcu_bss_he_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
 }
 
 static void
-mt7996_mcu_bss_bmc_tlv(struct sk_buff *skb, struct mt7996_phy *phy)
+mt7996_mcu_bss_bmc_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
+		       struct mt7996_phy *phy)
 {
+	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
 	struct bss_rate_tlv *bmc;
 	struct cfg80211_chan_def *chandef = &phy->mt76->chandef;
 	enum nl80211_band band = chandef->chan->band;
 	struct tlv *tlv;
+	u8 idx = mvif->basic_rates_idx;
 
 	tlv = mt7996_mcu_add_uni_tlv(skb, UNI_BSS_INFO_RATE, sizeof(*bmc));
 
 	bmc = (struct bss_rate_tlv *)tlv;
-	if (band == NL80211_BAND_2GHZ) {
-		bmc->short_preamble = true;
-	} else {
-		bmc->bc_trans = cpu_to_le16(0x8080);
-		bmc->mc_trans = cpu_to_le16(0x8080);
-		bmc->bc_fixed_rate = 1;
-		bmc->mc_fixed_rate = 1;
-		bmc->short_preamble = 1;
-	}
+
+	bmc->short_preamble = (band == NL80211_BAND_2GHZ);
+	bmc->bc_fixed_rate = idx;
+	bmc->mc_fixed_rate = idx;
 }
 
 static void
@@ -823,7 +821,7 @@ int mt7996_mcu_add_bss_info(struct mt7996_phy *phy,
 
 	if (enable) {
 		mt7996_mcu_bss_rfch_tlv(skb, vif, phy);
-		mt7996_mcu_bss_bmc_tlv(skb, phy);
+		mt7996_mcu_bss_bmc_tlv(skb, vif, phy);
 		mt7996_mcu_bss_ra_tlv(skb, vif, phy);
 		mt7996_mcu_bss_txcmd_tlv(skb, true);
 

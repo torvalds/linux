@@ -5,6 +5,7 @@
 
 #include "mt7996.h"
 #include "mcu.h"
+#include "mac.h"
 
 static bool mt7996_dev_running(struct mt7996_dev *dev)
 {
@@ -218,6 +219,11 @@ static int mt7996_add_interface(struct ieee80211_hw *hw,
 	    (!mvif->mt76.omac_idx || mvif->mt76.omac_idx > 3))
 		vif->offload_flags = 0;
 	vif->offload_flags |= IEEE80211_OFFLOAD_ENCAP_4ADDR;
+
+	if (phy->mt76->chandef.chan->band != NL80211_BAND_2GHZ)
+		mvif->basic_rates_idx = MT7996_BASIC_RATES_TBL + 4;
+	else
+		mvif->basic_rates_idx = MT7996_BASIC_RATES_TBL;
 
 	mt7996_init_bitrate_mask(vif);
 
@@ -496,11 +502,30 @@ mt7996_update_bss_color(struct ieee80211_hw *hw,
 	}
 }
 
+static u8
+mt7996_get_rates_table(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+{
+	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
+	struct mt76_phy *mphy = hw->priv;
+	u16 rate;
+	u8 i, idx;
+
+	rate = mt76_connac2_mac_tx_rate_val(mphy, vif, false, false);
+
+	idx = FIELD_GET(MT_TX_RATE_IDX, rate);
+	for (i = 0; i < ARRAY_SIZE(mt76_rates); i++)
+		if ((mt76_rates[i].hw_value & GENMASK(7, 0)) == idx)
+			return MT7996_BASIC_RATES_TBL + i;
+
+	return mvif->basic_rates_idx;
+}
+
 static void mt7996_bss_info_changed(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
 				    struct ieee80211_bss_conf *info,
 				    u64 changed)
 {
+	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
 	struct mt7996_phy *phy = mt7996_hw_phy(hw);
 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
 
@@ -531,6 +556,9 @@ static void mt7996_bss_info_changed(struct ieee80211_hw *hw,
 			mt7996_mac_set_timing(phy);
 		}
 	}
+
+	if (changed & BSS_CHANGED_BASIC_RATES)
+		mvif->basic_rates_idx = mt7996_get_rates_table(hw, vif);
 
 	if (changed & BSS_CHANGED_BEACON_ENABLED && info->enable_beacon) {
 		mt7996_mcu_add_bss_info(phy, vif, true);
@@ -891,6 +919,7 @@ mt7996_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 	mt7996_set_stream_vht_txbf_caps(phy);
 	mt7996_set_stream_he_eht_caps(phy);
 
+	/* TODO: update bmc_wtbl spe_idx when antenna changes */
 	mutex_unlock(&dev->mt76.mutex);
 
 	return 0;

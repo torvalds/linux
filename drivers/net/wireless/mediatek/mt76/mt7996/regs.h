@@ -228,6 +228,13 @@ enum base_rev {
 #define MT_WTBL_UPDATE_ADM_COUNT_CLEAR		BIT(14)
 #define MT_WTBL_UPDATE_BUSY			BIT(31)
 
+#define MT_WTBL_ITCR				MT_WTBLON_TOP(0x3b0)
+#define MT_WTBL_ITCR_WR				BIT(16)
+#define MT_WTBL_ITCR_EXEC			BIT(31)
+#define MT_WTBL_ITDR0				MT_WTBLON_TOP(0x3b8)
+#define MT_WTBL_ITDR1				MT_WTBLON_TOP(0x3bc)
+#define MT_WTBL_SPE_IDX_SEL			BIT(6)
+
 /* WTBL */
 #define MT_WTBL_BASE				0x820d8000
 #define MT_WTBL_LMAC_ID				GENMASK(14, 8)
