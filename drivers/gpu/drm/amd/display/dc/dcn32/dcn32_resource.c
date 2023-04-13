@@ -729,6 +729,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.disable_fpo_vactive = false,
 	.disable_boot_optimizations = false,
 	.disable_subvp_high_refresh = true,
+	.disable_dp_plus_plus_wa = true,
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
