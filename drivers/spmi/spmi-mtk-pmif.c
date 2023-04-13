@@ -503,7 +503,7 @@ err_put_ctrl:
 	return err;
 }
 
-static int mtk_spmi_remove(struct platform_device *pdev)
+static void mtk_spmi_remove(struct platform_device *pdev)
 {
 	struct spmi_controller *ctrl = platform_get_drvdata(pdev);
 	struct pmif *arb = spmi_controller_get_drvdata(ctrl);
@@ -511,7 +511,6 @@ static int mtk_spmi_remove(struct platform_device *pdev)
 	clk_bulk_disable_unprepare(arb->nclks, arb->clks);
 	spmi_controller_remove(ctrl);
 	spmi_controller_put(ctrl);
-	return 0;
 }
 
 static const struct of_device_id mtk_spmi_match_table[] = {
@@ -533,7 +532,7 @@ static struct platform_driver mtk_spmi_driver = {
 		.of_match_table = of_match_ptr(mtk_spmi_match_table),
 	},
 	.probe		= mtk_spmi_probe,
-	.remove		= mtk_spmi_remove,
+	.remove_new	= mtk_spmi_remove,
 };
 module_platform_driver(mtk_spmi_driver);
 
