@@ -2212,31 +2212,6 @@ select_cpu:
 }
 
 /**
- * __blk_mq_delay_run_hw_queue - Run (or schedule to run) a hardware queue.
- * @hctx: Pointer to the hardware queue to run.
- * @async: If we want to run the queue asynchronously.
- * @msecs: Milliseconds of delay to wait before running the queue.
- *
- * If !@async, try to run the queue now. Else, run the queue asynchronously and
- * with a delay of @msecs.
- */
-static void __blk_mq_delay_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async,
-					unsigned long msecs)
-{
-	if (!async && !(hctx->flags & BLK_MQ_F_BLOCKING)) {
-		if (cpumask_test_cpu(raw_smp_processor_id(), hctx->cpumask)) {
-			__blk_mq_run_hw_queue(hctx);
-			return;
-		}
-	}
-
-	if (unlikely(blk_mq_hctx_stopped(hctx)))
-		return;
-	kblockd_mod_delayed_work_on(blk_mq_hctx_next_cpu(hctx), &hctx->run_work,
-				    msecs_to_jiffies(msecs));
-}
-
-/**
  * blk_mq_delay_run_hw_queue - Run a hardware queue asynchronously.
  * @hctx: Pointer to the hardware queue to run.
  * @msecs: Milliseconds of delay to wait before running the queue.
@@ -2245,7 +2220,10 @@ static void __blk_mq_delay_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async,
  */
 void blk_mq_delay_run_hw_queue(struct blk_mq_hw_ctx *hctx, unsigned long msecs)
 {
-	__blk_mq_delay_run_hw_queue(hctx, true, msecs);
+	if (unlikely(blk_mq_hctx_stopped(hctx)))
+		return;
+	kblockd_mod_delayed_work_on(blk_mq_hctx_next_cpu(hctx), &hctx->run_work,
+				    msecs_to_jiffies(msecs));
 }
 EXPORT_SYMBOL(blk_mq_delay_run_hw_queue);
 
@@ -2274,8 +2252,16 @@ void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
 		need_run = !blk_queue_quiesced(hctx->queue) &&
 		blk_mq_hctx_has_pending(hctx));
 
-	if (need_run)
-		__blk_mq_delay_run_hw_queue(hctx, async, 0);
+	if (!need_run)
+		return;
+
+	if (async || (hctx->flags & BLK_MQ_F_BLOCKING) ||
+	    !cpumask_test_cpu(raw_smp_processor_id(), hctx->cpumask)) {
+		blk_mq_delay_run_hw_queue(hctx, 0);
+		return;
+	}
+
+	__blk_mq_run_hw_queue(hctx);
 }
 EXPORT_SYMBOL(blk_mq_run_hw_queue);
 
