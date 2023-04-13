@@ -188,7 +188,8 @@ static void blk_flush_complete_seq(struct request *rq,
 
 	case REQ_FSEQ_DATA:
 		list_move_tail(&rq->flush.list, &fq->flush_data_in_flight);
-		blk_mq_add_to_requeue_list(rq, true, true);
+		blk_mq_add_to_requeue_list(rq, true);
+		blk_mq_kick_requeue_list(q);
 		break;
 
 	case REQ_FSEQ_DONE:
@@ -345,7 +346,8 @@ static void blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq,
 	smp_wmb();
 	req_ref_set(flush_rq, 1);
 
-	blk_mq_add_to_requeue_list(flush_rq, false, true);
+	blk_mq_add_to_requeue_list(flush_rq, false);
+	blk_mq_kick_requeue_list(q);
 }
 
 static enum rq_end_io_ret mq_flush_data_end_io(struct request *rq,
