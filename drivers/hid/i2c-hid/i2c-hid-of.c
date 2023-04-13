@@ -21,6 +21,7 @@
 
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/gpio/consumer.h>
 #include <linux/hid.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
@@ -35,8 +36,10 @@ struct i2c_hid_of {
 	struct i2chid_ops ops;
 
 	struct i2c_client *client;
+	struct gpio_desc *reset_gpio;
 	struct regulator_bulk_data supplies[2];
 	int post_power_delay_ms;
+	int post_reset_delay_ms;
 };
 
 static int i2c_hid_of_power_up(struct i2chid_ops *ops)
@@ -55,6 +58,10 @@ static int i2c_hid_of_power_up(struct i2chid_ops *ops)
 	if (ihid_of->post_power_delay_ms)
 		msleep(ihid_of->post_power_delay_ms);
 
+	gpiod_set_value_cansleep(ihid_of->reset_gpio, 0);
+	if (ihid_of->post_reset_delay_ms)
+		msleep(ihid_of->post_reset_delay_ms);
+
 	return 0;
 }
 
@@ -62,6 +69,7 @@ static void i2c_hid_of_power_down(struct i2chid_ops *ops)
 {
 	struct i2c_hid_of *ihid_of = container_of(ops, struct i2c_hid_of, ops);
 
+	gpiod_set_value_cansleep(ihid_of->reset_gpio, 1);
 	regulator_bulk_disable(ARRAY_SIZE(ihid_of->supplies),
 			       ihid_of->supplies);
 }
@@ -95,6 +103,19 @@ static int i2c_hid_of_probe(struct i2c_client *client)
 
 	if (!device_property_read_u32(dev, "post-power-on-delay-ms", &val))
 		ihid_of->post_power_delay_ms = val;
+
+	/*
+	 * Note this is a kernel internal device-property set by x86 platform code,
+	 * this MUST not be used in devicetree files without first adding it to
+	 * the DT bindings.
+	 */
+	if (!device_property_read_u32(dev, "post-reset-deassert-delay-ms", &val))
+		ihid_of->post_reset_delay_ms = val;
+
+	/* Start out with reset asserted */
+	ihid_of->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(ihid_of->reset_gpio))
+		return PTR_ERR(ihid_of->reset_gpio);
 
 	ihid_of->supplies[0].supply = "vdd";
 	ihid_of->supplies[1].supply = "vddl";
