@@ -152,8 +152,8 @@ def main():
     global args
     args = parser.parse_args()
 
-    spec = '/usr/local/google/home/sdf/src/linux/Documentation/netlink/specs/ethtool.yaml'
-    schema = '/usr/local/google/home/sdf/src/linux/Documentation/netlink/genetlink-legacy.yaml'
+    spec = '../../../Documentation/netlink/specs/ethtool.yaml'
+    schema = '../../../Documentation/netlink/genetlink-legacy.yaml'
 
     ynl = YnlFamily(spec, schema)
 
