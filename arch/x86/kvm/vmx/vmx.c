@@ -5402,7 +5402,13 @@ static int handle_set_cr4(struct kvm_vcpu *vcpu, unsigned long val)
 
 static int handle_desc(struct kvm_vcpu *vcpu)
 {
-	WARN_ON(!(vcpu->arch.cr4 & X86_CR4_UMIP));
+	/*
+	 * UMIP emulation relies on intercepting writes to CR4.UMIP, i.e. this
+	 * and other code needs to be updated if UMIP can be guest owned.
+	 */
+	BUILD_BUG_ON(KVM_POSSIBLE_CR4_GUEST_BITS & X86_CR4_UMIP);
+
+	WARN_ON_ONCE(!kvm_is_cr4_bit_set(vcpu, X86_CR4_UMIP));
 	return kvm_emulate_instruction(vcpu, 0);
 }
 
