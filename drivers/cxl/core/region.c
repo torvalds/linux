@@ -134,8 +134,12 @@ static int cxl_region_decode_reset(struct cxl_region *cxlr, int count)
 		struct cxl_endpoint_decoder *cxled = p->targets[i];
 		struct cxl_memdev *cxlmd = cxled_to_memdev(cxled);
 		struct cxl_port *iter = cxled_to_port(cxled);
+		struct cxl_dev_state *cxlds = cxlmd->cxlds;
 		struct cxl_ep *ep;
 		int rc = 0;
+
+		if (cxlds->rcd)
+			goto endpoint_reset;
 
 		while (!is_cxl_root(to_cxl_port(iter->dev.parent)))
 			iter = to_cxl_port(iter->dev.parent);
@@ -153,6 +157,7 @@ static int cxl_region_decode_reset(struct cxl_region *cxlr, int count)
 				return rc;
 		}
 
+endpoint_reset:
 		rc = cxled->cxld.reset(&cxled->cxld);
 		if (rc)
 			return rc;
@@ -1199,6 +1204,7 @@ static void cxl_region_teardown_targets(struct cxl_region *cxlr)
 {
 	struct cxl_region_params *p = &cxlr->params;
 	struct cxl_endpoint_decoder *cxled;
+	struct cxl_dev_state *cxlds;
 	struct cxl_memdev *cxlmd;
 	struct cxl_port *iter;
 	struct cxl_ep *ep;
@@ -1214,6 +1220,10 @@ static void cxl_region_teardown_targets(struct cxl_region *cxlr)
 	for (i = 0; i < p->nr_targets; i++) {
 		cxled = p->targets[i];
 		cxlmd = cxled_to_memdev(cxled);
+		cxlds = cxlmd->cxlds;
+
+		if (cxlds->rcd)
+			continue;
 
 		iter = cxled_to_port(cxled);
 		while (!is_cxl_root(to_cxl_port(iter->dev.parent)))
@@ -1229,14 +1239,24 @@ static int cxl_region_setup_targets(struct cxl_region *cxlr)
 {
 	struct cxl_region_params *p = &cxlr->params;
 	struct cxl_endpoint_decoder *cxled;
+	struct cxl_dev_state *cxlds;
+	int i, rc, rch = 0, vh = 0;
 	struct cxl_memdev *cxlmd;
 	struct cxl_port *iter;
 	struct cxl_ep *ep;
-	int i, rc;
 
 	for (i = 0; i < p->nr_targets; i++) {
 		cxled = p->targets[i];
 		cxlmd = cxled_to_memdev(cxled);
+		cxlds = cxlmd->cxlds;
+
+		/* validate that all targets agree on topology */
+		if (!cxlds->rcd) {
+			vh++;
+		} else {
+			rch++;
+			continue;
+		}
 
 		iter = cxled_to_port(cxled);
 		while (!is_cxl_root(to_cxl_port(iter->dev.parent)))
@@ -1254,6 +1274,12 @@ static int cxl_region_setup_targets(struct cxl_region *cxlr)
 				return rc;
 			}
 		}
+	}
+
+	if (rch && vh) {
+		dev_err(&cxlr->dev, "mismatched CXL topologies detected\n");
+		cxl_region_teardown_targets(cxlr);
+		return -ENXIO;
 	}
 
 	return 0;
@@ -1648,6 +1674,7 @@ static int cxl_region_attach(struct cxl_region *cxlr,
 		if (rc)
 			goto err_decrement;
 		p->state = CXL_CONFIG_ACTIVE;
+		set_bit(CXL_REGION_F_INCOHERENT, &cxlr->flags);
 	}
 
 	cxled->cxld.interleave_ways = p->interleave_ways;
@@ -1749,8 +1776,6 @@ static int attach_target(struct cxl_region *cxlr,
 
 	down_read(&cxl_dpa_rwsem);
 	rc = cxl_region_attach(cxlr, cxled, pos);
-	if (rc == 0)
-		set_bit(CXL_REGION_F_INCOHERENT, &cxlr->flags);
 	up_read(&cxl_dpa_rwsem);
 	up_write(&cxl_region_rwsem);
 	return rc;
@@ -2251,7 +2276,7 @@ static struct cxl_pmem_region *cxl_pmem_region_alloc(struct cxl_region *cxlr)
 		 * bridge for one device is the same for all.
 		 */
 		if (i == 0) {
-			cxl_nvb = cxl_find_nvdimm_bridge(&cxlmd->dev);
+			cxl_nvb = cxl_find_nvdimm_bridge(cxlmd);
 			if (!cxl_nvb) {
 				cxlr_pmem = ERR_PTR(-ENODEV);
 				goto out;

@@ -1251,7 +1251,7 @@ static ssize_t ffs_epfile_read_iter(struct kiocb *kiocb, struct iov_iter *to)
 	p->kiocb = kiocb;
 	if (p->aio) {
 		p->to_free = dup_iter(&p->data, to, GFP_KERNEL);
-		if (!p->to_free) {
+		if (!iter_is_ubuf(&p->data) && !p->to_free) {
 			kfree(p);
 			return -ENOMEM;
 		}

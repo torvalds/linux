@@ -36,6 +36,8 @@ static __u8 *topre_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 static const struct hid_device_id topre_id_table[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_TOPRE,
 			 USB_DEVICE_ID_TOPRE_REALFORCE_R2_108) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_TOPRE,
+			 USB_DEVICE_ID_TOPRE_REALFORCE_R2_87) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, topre_id_table);

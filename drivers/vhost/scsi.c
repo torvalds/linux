@@ -125,7 +125,6 @@ struct vhost_scsi_tpg {
 	struct se_portal_group se_tpg;
 	/* Pointer back to vhost_scsi, protected by tv_tpg_mutex */
 	struct vhost_scsi *vhost_scsi;
-	struct list_head tmf_queue;
 };
 
 struct vhost_scsi_tport {
@@ -206,10 +205,8 @@ struct vhost_scsi {
 
 struct vhost_scsi_tmf {
 	struct vhost_work vwork;
-	struct vhost_scsi_tpg *tpg;
 	struct vhost_scsi *vhost;
 	struct vhost_scsi_virtqueue *svq;
-	struct list_head queue_entry;
 
 	struct se_cmd se_cmd;
 	u8 scsi_resp;
@@ -352,12 +349,9 @@ static void vhost_scsi_release_cmd_res(struct se_cmd *se_cmd)
 
 static void vhost_scsi_release_tmf_res(struct vhost_scsi_tmf *tmf)
 {
-	struct vhost_scsi_tpg *tpg = tmf->tpg;
 	struct vhost_scsi_inflight *inflight = tmf->inflight;
 
-	mutex_lock(&tpg->tv_tpg_mutex);
-	list_add_tail(&tpg->tmf_queue, &tmf->queue_entry);
-	mutex_unlock(&tpg->tv_tpg_mutex);
+	kfree(tmf);
 	vhost_scsi_put_inflight(inflight);
 }
 
@@ -1194,19 +1188,11 @@ vhost_scsi_handle_tmf(struct vhost_scsi *vs, struct vhost_scsi_tpg *tpg,
 		goto send_reject;
 	}
 
-	mutex_lock(&tpg->tv_tpg_mutex);
-	if (list_empty(&tpg->tmf_queue)) {
-		pr_err("Missing reserve TMF. Could not handle LUN RESET.\n");
-		mutex_unlock(&tpg->tv_tpg_mutex);
+	tmf = kzalloc(sizeof(*tmf), GFP_KERNEL);
+	if (!tmf)
 		goto send_reject;
-	}
 
-	tmf = list_first_entry(&tpg->tmf_queue, struct vhost_scsi_tmf,
-			       queue_entry);
-	list_del_init(&tmf->queue_entry);
-	mutex_unlock(&tpg->tv_tpg_mutex);
-
-	tmf->tpg = tpg;
+	vhost_work_init(&tmf->vwork, vhost_scsi_tmf_resp_work);
 	tmf->vhost = vs;
 	tmf->svq = svq;
 	tmf->resp_iov = vq->iov[vc->out];
@@ -1658,7 +1644,10 @@ undepend:
 	for (i = 0; i < VHOST_SCSI_MAX_TARGET; i++) {
 		tpg = vs_tpg[i];
 		if (tpg) {
+			mutex_lock(&tpg->tv_tpg_mutex);
+			tpg->vhost_scsi = NULL;
 			tpg->tv_tpg_vhost_count--;
+			mutex_unlock(&tpg->tv_tpg_mutex);
 			target_undepend_item(&tpg->se_tpg.tpg_group.cg_item);
 		}
 	}
@@ -2032,19 +2021,11 @@ static int vhost_scsi_port_link(struct se_portal_group *se_tpg,
 {
 	struct vhost_scsi_tpg *tpg = container_of(se_tpg,
 				struct vhost_scsi_tpg, se_tpg);
-	struct vhost_scsi_tmf *tmf;
-
-	tmf = kzalloc(sizeof(*tmf), GFP_KERNEL);
-	if (!tmf)
-		return -ENOMEM;
-	INIT_LIST_HEAD(&tmf->queue_entry);
-	vhost_work_init(&tmf->vwork, vhost_scsi_tmf_resp_work);
 
 	mutex_lock(&vhost_scsi_mutex);
 
 	mutex_lock(&tpg->tv_tpg_mutex);
 	tpg->tv_tpg_port_count++;
-	list_add_tail(&tmf->queue_entry, &tpg->tmf_queue);
 	mutex_unlock(&tpg->tv_tpg_mutex);
 
 	vhost_scsi_hotplug(tpg, lun);
@@ -2059,16 +2040,11 @@ static void vhost_scsi_port_unlink(struct se_portal_group *se_tpg,
 {
 	struct vhost_scsi_tpg *tpg = container_of(se_tpg,
 				struct vhost_scsi_tpg, se_tpg);
-	struct vhost_scsi_tmf *tmf;
 
 	mutex_lock(&vhost_scsi_mutex);
 
 	mutex_lock(&tpg->tv_tpg_mutex);
 	tpg->tv_tpg_port_count--;
-	tmf = list_first_entry(&tpg->tmf_queue, struct vhost_scsi_tmf,
-			       queue_entry);
-	list_del(&tmf->queue_entry);
-	kfree(tmf);
 	mutex_unlock(&tpg->tv_tpg_mutex);
 
 	vhost_scsi_hotunplug(tpg, lun);
@@ -2329,7 +2305,6 @@ vhost_scsi_make_tpg(struct se_wwn *wwn, const char *name)
 	}
 	mutex_init(&tpg->tv_tpg_mutex);
 	INIT_LIST_HEAD(&tpg->tv_tpg_list);
-	INIT_LIST_HEAD(&tpg->tmf_queue);
 	tpg->tport = tport;
 	tpg->tport_tpgt = tpgt;
 
