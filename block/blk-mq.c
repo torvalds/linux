@@ -2624,13 +2624,27 @@ static blk_status_t __blk_mq_issue_directly(struct blk_mq_hw_ctx *hctx,
 	return ret;
 }
 
+static bool blk_mq_get_budget_and_tag(struct request *rq)
+{
+	int budget_token;
+
+	budget_token = blk_mq_get_dispatch_budget(rq->q);
+	if (budget_token < 0)
+		return false;
+	blk_mq_set_rq_budget_token(rq, budget_token);
+	if (!blk_mq_get_driver_tag(rq)) {
+		blk_mq_put_dispatch_budget(rq->q, budget_token);
+		return false;
+	}
+	return true;
+}
+
 static blk_status_t __blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
 						struct request *rq,
 						bool bypass_insert, bool last)
 {
 	struct request_queue *q = rq->q;
 	bool run_queue = true;
-	int budget_token;
 
 	/*
 	 * RCU or SRCU read lock is needed before checking quiesced flag.
@@ -2648,16 +2662,8 @@ static blk_status_t __blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
 	if ((rq->rq_flags & RQF_ELV) && !bypass_insert)
 		goto insert;
 
-	budget_token = blk_mq_get_dispatch_budget(q);
-	if (budget_token < 0)
+	if (!blk_mq_get_budget_and_tag(rq))
 		goto insert;
-
-	blk_mq_set_rq_budget_token(rq, budget_token);
-
-	if (!blk_mq_get_driver_tag(rq)) {
-		blk_mq_put_dispatch_budget(q, budget_token);
-		goto insert;
-	}
 
 	return __blk_mq_issue_directly(hctx, rq, last);
 insert:
