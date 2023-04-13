@@ -989,6 +989,18 @@ struct intel_csc_matrix {
 	u16 postoff[3];
 };
 
+struct intel_c10pll_state {
+	u32 clock; /* in KHz */
+	u8 tx;
+	u8 cmn;
+	u8 pll[20];
+};
+
+struct intel_cx0pll_state {
+	struct intel_c10pll_state c10;
+	bool ssc_enabled;
+};
+
 struct intel_crtc_state {
 	/*
 	 * uapi (drm) state. This is the software state shown to userspace.
@@ -1134,6 +1146,7 @@ struct intel_crtc_state {
 	union {
 		struct intel_dpll_hw_state dpll_hw_state;
 		struct intel_mpllb_state mpllb_state;
+		struct intel_cx0pll_state cx0pll_state;
 	};
 
 	/*

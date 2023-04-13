@@ -39,6 +39,7 @@
 #include "intel_combo_phy_regs.h"
 #include "intel_connector.h"
 #include "intel_crtc.h"
+#include "intel_cx0_phy.h"
 #include "intel_ddi.h"
 #include "intel_ddi_buf_trans.h"
 #include "intel_de.h"
@@ -3488,6 +3489,21 @@ void intel_ddi_get_clock(struct intel_encoder *encoder,
 						     &crtc_state->dpll_hw_state);
 }
 
+static void mtl_ddi_get_config(struct intel_encoder *encoder,
+			       struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	enum phy phy = intel_port_to_phy(i915, encoder->port);
+
+	drm_WARN_ON(&i915->drm, !intel_is_c10phy(i915, phy));
+
+	intel_c10pll_readout_hw_state(encoder, &crtc_state->cx0pll_state.c10);
+	intel_c10pll_dump_hw_state(i915, &crtc_state->cx0pll_state.c10);
+	crtc_state->port_clock = intel_c10pll_calc_port_clock(encoder, &crtc_state->cx0pll_state.c10);
+
+	intel_ddi_get_config(encoder, crtc_state);
+}
+
 static void dg2_ddi_get_config(struct intel_encoder *encoder,
 				struct intel_crtc_state *crtc_state)
 {
@@ -4396,7 +4412,11 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	encoder->cloneable = 0;
 	encoder->pipe_mask = ~0;
 
-	if (IS_DG2(dev_priv)) {
+	if (DISPLAY_VER(dev_priv) >= 14) {
+		encoder->enable_clock = intel_cx0pll_enable;
+		encoder->disable_clock = intel_cx0pll_disable;
+		encoder->get_config = mtl_ddi_get_config;
+	} else if (IS_DG2(dev_priv)) {
 		encoder->enable_clock = intel_mpllb_enable;
 		encoder->disable_clock = intel_mpllb_disable;
 		encoder->get_config = dg2_ddi_get_config;

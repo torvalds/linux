@@ -11,6 +11,7 @@
 #include "intel_atomic.h"
 #include "intel_crtc.h"
 #include "intel_crtc_state_dump.h"
+#include "intel_cx0_phy.h"
 #include "intel_display.h"
 #include "intel_display_types.h"
 #include "intel_fdi.h"
@@ -236,6 +237,7 @@ void intel_modeset_verify_crtc(struct intel_crtc *crtc,
 	verify_crtc_state(crtc, old_crtc_state, new_crtc_state);
 	intel_shared_dpll_state_verify(crtc, old_crtc_state, new_crtc_state);
 	intel_mpllb_state_verify(state, new_crtc_state);
+	intel_c10pll_state_verify(state, new_crtc_state);
 }
 
 void intel_modeset_verify_disabled(struct drm_i915_private *dev_priv,
