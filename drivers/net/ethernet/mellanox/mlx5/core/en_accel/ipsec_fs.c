@@ -11,6 +11,7 @@
 
 #define NUM_IPSEC_FTE BIT(15)
 #define MLX5_REFORMAT_TYPE_ADD_ESP_TRANSPORT_SIZE 16
+#define IPSEC_TUNNEL_DEFAULT_TTL 0x40
 
 struct mlx5e_ipsec_fc {
 	struct mlx5_fc *cnt;
@@ -842,11 +843,30 @@ setup_pkt_tunnel_reformat(struct mlx5_core_dev *mdev,
 			  struct mlx5_accel_esp_xfrm_attrs *attrs,
 			  struct mlx5_pkt_reformat_params *reformat_params)
 {
+	struct ip_esp_hdr *esp_hdr;
+	struct ipv6hdr *ipv6hdr;
 	struct ethhdr *eth_hdr;
+	struct iphdr *iphdr;
 	char *reformatbf;
 	size_t bfflen;
+	void *hdr;
 
 	bfflen = sizeof(*eth_hdr);
+
+	if (attrs->dir == XFRM_DEV_OFFLOAD_OUT) {
+		bfflen += sizeof(*esp_hdr) + 8;
+
+		switch (attrs->family) {
+		case AF_INET:
+			bfflen += sizeof(*iphdr);
+			break;
+		case AF_INET6:
+			bfflen += sizeof(*ipv6hdr);
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
 
 	reformatbf = kzalloc(bfflen, GFP_KERNEL);
 	if (!reformatbf)
@@ -870,6 +890,38 @@ setup_pkt_tunnel_reformat(struct mlx5_core_dev *mdev,
 	switch (attrs->dir) {
 	case XFRM_DEV_OFFLOAD_IN:
 		reformat_params->type = MLX5_REFORMAT_TYPE_L3_ESP_TUNNEL_TO_L2;
+		break;
+	case XFRM_DEV_OFFLOAD_OUT:
+		reformat_params->type = MLX5_REFORMAT_TYPE_L2_TO_L3_ESP_TUNNEL;
+		reformat_params->param_0 = attrs->authsize;
+
+		hdr = reformatbf + sizeof(*eth_hdr);
+		switch (attrs->family) {
+		case AF_INET:
+			iphdr = (struct iphdr *)hdr;
+			memcpy(&iphdr->saddr, &attrs->saddr.a4, 4);
+			memcpy(&iphdr->daddr, &attrs->daddr.a4, 4);
+			iphdr->version = 4;
+			iphdr->ihl = 5;
+			iphdr->ttl = IPSEC_TUNNEL_DEFAULT_TTL;
+			iphdr->protocol = IPPROTO_ESP;
+			hdr += sizeof(*iphdr);
+			break;
+		case AF_INET6:
+			ipv6hdr = (struct ipv6hdr *)hdr;
+			memcpy(&ipv6hdr->saddr, &attrs->saddr.a6, 16);
+			memcpy(&ipv6hdr->daddr, &attrs->daddr.a6, 16);
+			ipv6hdr->nexthdr = IPPROTO_ESP;
+			ipv6hdr->version = 6;
+			ipv6hdr->hop_limit = IPSEC_TUNNEL_DEFAULT_TTL;
+			hdr += sizeof(*ipv6hdr);
+			break;
+		default:
+			goto free_reformatbf;
+		}
+
+		esp_hdr = (struct ip_esp_hdr *)hdr;
+		esp_hdr->spi = htonl(attrs->spi);
 		break;
 	default:
 		goto free_reformatbf;

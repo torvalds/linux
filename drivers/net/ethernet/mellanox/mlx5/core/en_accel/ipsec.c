@@ -271,6 +271,18 @@ static void mlx5e_ipsec_init_macs(struct mlx5e_ipsec_sa_entry *sa_entry,
 		neigh_ha_snapshot(addr, n, netdev);
 		ether_addr_copy(attrs->smac, addr);
 		break;
+	case XFRM_DEV_OFFLOAD_OUT:
+		ether_addr_copy(attrs->smac, addr);
+		n = neigh_lookup(&arp_tbl, &attrs->daddr.a4, netdev);
+		if (!n) {
+			n = neigh_create(&arp_tbl, &attrs->daddr.a4, netdev);
+			if (IS_ERR(n))
+				return;
+			neigh_event_send(n, NULL);
+		}
+		neigh_ha_snapshot(addr, n, netdev);
+		ether_addr_copy(attrs->dmac, addr);
+		break;
 	default:
 		return;
 	}
