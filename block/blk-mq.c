@@ -44,7 +44,7 @@
 
 static DEFINE_PER_CPU(struct llist_head, blk_cpu_done);
 
-static void blk_mq_insert_request(struct request *rq, bool at_head);
+static void blk_mq_insert_request(struct request *rq, blk_insert_t flags);
 static void blk_mq_try_issue_list_directly(struct blk_mq_hw_ctx *hctx,
 		struct list_head *list);
 
@@ -1308,7 +1308,7 @@ void blk_execute_rq_nowait(struct request *rq, bool at_head)
 		return;
 	}
 
-	blk_mq_insert_request(rq, at_head);
+	blk_mq_insert_request(rq, at_head ? BLK_MQ_INSERT_AT_HEAD : 0);
 	blk_mq_run_hw_queue(hctx, false);
 }
 EXPORT_SYMBOL_GPL(blk_execute_rq_nowait);
@@ -1371,7 +1371,7 @@ blk_status_t blk_execute_rq(struct request *rq, bool at_head)
 	rq->end_io = blk_end_sync_rq;
 
 	blk_account_io_start(rq);
-	blk_mq_insert_request(rq, at_head);
+	blk_mq_insert_request(rq, at_head ? BLK_MQ_INSERT_AT_HEAD : 0);
 	blk_mq_run_hw_queue(hctx, false);
 
 	if (blk_rq_is_poll(rq)) {
@@ -1451,14 +1451,14 @@ static void blk_mq_requeue_work(struct work_struct *work)
 		} else if (rq->rq_flags & RQF_SOFTBARRIER) {
 			rq->rq_flags &= ~RQF_SOFTBARRIER;
 			list_del_init(&rq->queuelist);
-			blk_mq_insert_request(rq, true);
+			blk_mq_insert_request(rq, BLK_MQ_INSERT_AT_HEAD);
 		}
 	}
 
 	while (!list_empty(&rq_list)) {
 		rq = list_entry(rq_list.next, struct request, queuelist);
 		list_del_init(&rq->queuelist);
-		blk_mq_insert_request(rq, false);
+		blk_mq_insert_request(rq, 0);
 	}
 
 	blk_mq_run_hw_queues(q, false);
@@ -2509,7 +2509,7 @@ out:
 	blk_mq_run_hw_queue(hctx, run_queue_async);
 }
 
-static void blk_mq_insert_request(struct request *rq, bool at_head)
+static void blk_mq_insert_request(struct request *rq, blk_insert_t flags)
 {
 	struct request_queue *q = rq->q;
 	struct blk_mq_ctx *ctx = rq->mq_ctx;
@@ -2526,7 +2526,7 @@ static void blk_mq_insert_request(struct request *rq, bool at_head)
 		 * and it is added to the scheduler queue, there is no chance to
 		 * dispatch it given we prioritize requests in hctx->dispatch.
 		 */
-		blk_mq_request_bypass_insert(rq, at_head);
+		blk_mq_request_bypass_insert(rq, flags & BLK_MQ_INSERT_AT_HEAD);
 	} else if (rq->rq_flags & RQF_FLUSH_SEQ) {
 		/*
 		 * Firstly normal IO request is inserted to scheduler queue or
@@ -2556,12 +2556,13 @@ static void blk_mq_insert_request(struct request *rq, bool at_head)
 		WARN_ON_ONCE(rq->tag != BLK_MQ_NO_TAG);
 
 		list_add(&rq->queuelist, &list);
-		q->elevator->type->ops.insert_requests(hctx, &list, at_head);
+		q->elevator->type->ops.insert_requests(hctx, &list,
+				flags & BLK_MQ_INSERT_AT_HEAD);
 	} else {
 		trace_block_rq_insert(rq);
 
 		spin_lock(&ctx->lock);
-		if (at_head)
+		if (flags & BLK_MQ_INSERT_AT_HEAD)
 			list_add(&rq->queuelist, &ctx->rq_lists[hctx->type]);
 		else
 			list_add_tail(&rq->queuelist,
@@ -2653,12 +2654,12 @@ static void blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
 	blk_status_t ret;
 
 	if (blk_mq_hctx_stopped(hctx) || blk_queue_quiesced(rq->q)) {
-		blk_mq_insert_request(rq, false);
+		blk_mq_insert_request(rq, 0);
 		return;
 	}
 
 	if ((rq->rq_flags & RQF_ELV) || !blk_mq_get_budget_and_tag(rq)) {
-		blk_mq_insert_request(rq, false);
+		blk_mq_insert_request(rq, 0);
 		blk_mq_run_hw_queue(hctx, false);
 		return;
 	}
@@ -2683,7 +2684,7 @@ static blk_status_t blk_mq_request_issue_directly(struct request *rq, bool last)
 	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
 
 	if (blk_mq_hctx_stopped(hctx) || blk_queue_quiesced(rq->q)) {
-		blk_mq_insert_request(rq, false);
+		blk_mq_insert_request(rq, 0);
 		return BLK_STS_OK;
 	}
 
@@ -3018,7 +3019,7 @@ void blk_mq_submit_bio(struct bio *bio)
 	hctx = rq->mq_hctx;
 	if ((rq->rq_flags & RQF_ELV) ||
 	    (hctx->dispatch_busy && (q->nr_hw_queues == 1 || !is_sync))) {
-		blk_mq_insert_request(rq, false);
+		blk_mq_insert_request(rq, 0);
 		blk_mq_run_hw_queue(hctx, true);
 	} else {
 		blk_mq_run_dispatch_ops(q, blk_mq_try_issue_directly(hctx, rq));
