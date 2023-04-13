@@ -1070,7 +1070,13 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
 		mt7996_mac_write_txwi_80211(dev, txwi, skb, key);
 
 	if (txwi[1] & cpu_to_le32(MT_TXD1_FIXED_RATE)) {
+		struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+		bool mcast = ieee80211_is_data(hdr->frame_control) &&
+			     is_multicast_ether_addr(hdr->addr1);
 		u8 idx = mvif->basic_rates_idx;
+
+		if (mcast && mvif->mcast_rates_idx)
+			idx = mvif->mcast_rates_idx;
 
 		txwi[6] |= FIELD_PREP(MT_TXD6_TX_RATE, idx);
 		txwi[3] |= cpu_to_le32(MT_TXD3_BA_DISABLE);

@@ -503,14 +503,15 @@ mt7996_update_bss_color(struct ieee80211_hw *hw,
 }
 
 static u8
-mt7996_get_rates_table(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+mt7996_get_rates_table(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		       bool mcast)
 {
 	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
 	struct mt76_phy *mphy = hw->priv;
 	u16 rate;
 	u8 i, idx;
 
-	rate = mt76_connac2_mac_tx_rate_val(mphy, vif, false, false);
+	rate = mt76_connac2_mac_tx_rate_val(mphy, vif, false, mcast);
 
 	idx = FIELD_GET(MT_TX_RATE_IDX, rate);
 	for (i = 0; i < ARRAY_SIZE(mt76_rates); i++)
@@ -557,8 +558,13 @@ static void mt7996_bss_info_changed(struct ieee80211_hw *hw,
 		}
 	}
 
+	if (changed & BSS_CHANGED_MCAST_RATE)
+		mvif->mcast_rates_idx =
+			mt7996_get_rates_table(hw, vif, true);
+
 	if (changed & BSS_CHANGED_BASIC_RATES)
-		mvif->basic_rates_idx = mt7996_get_rates_table(hw, vif);
+		mvif->basic_rates_idx =
+			mt7996_get_rates_table(hw, vif, false);
 
 	if (changed & BSS_CHANGED_BEACON_ENABLED && info->enable_beacon) {
 		mt7996_mcu_add_bss_info(phy, vif, true);

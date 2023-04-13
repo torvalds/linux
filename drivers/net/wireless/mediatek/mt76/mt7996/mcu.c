@@ -605,7 +605,8 @@ mt7996_mcu_bss_bmc_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
 	struct cfg80211_chan_def *chandef = &phy->mt76->chandef;
 	enum nl80211_band band = chandef->chan->band;
 	struct tlv *tlv;
-	u8 idx = mvif->basic_rates_idx;
+	u8 idx = mvif->mcast_rates_idx ?
+		 mvif->mcast_rates_idx : mvif->basic_rates_idx;
 
 	tlv = mt7996_mcu_add_uni_tlv(skb, UNI_BSS_INFO_RATE, sizeof(*bmc));
 

@@ -125,6 +125,7 @@ struct mt7996_vif {
 	struct cfg80211_bitrate_mask bitrate_mask;
 
 	u8 basic_rates_idx;
+	u8 mcast_rates_idx;
 };
 
 /* per-phy stats.  */
