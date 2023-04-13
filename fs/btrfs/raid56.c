@@ -2747,3 +2747,48 @@ void raid56_parity_submit_scrub_rbio(struct btrfs_raid_bio *rbio)
 	if (!lock_stripe_add(rbio))
 		start_async_work(rbio, scrub_rbio_work_locked);
 }
+
+/*
+ * This is for scrub call sites where we already have correct data contents.
+ * This allows us to avoid reading data stripes again.
+ *
+ * Unfortunately here we have to do page copy, other than reusing the pages.
+ * This is due to the fact rbio has its own page management for its cache.
+ */
+void raid56_parity_cache_data_pages(struct btrfs_raid_bio *rbio,
+				    struct page **data_pages, u64 data_logical)
+{
+	const u64 offset_in_full_stripe = data_logical -
+					  rbio->bioc->full_stripe_logical;
+	const int page_index = offset_in_full_stripe >> PAGE_SHIFT;
+	const u32 sectorsize = rbio->bioc->fs_info->sectorsize;
+	const u32 sectors_per_page = PAGE_SIZE / sectorsize;
+	int ret;
+
+	/*
+	 * If we hit ENOMEM temporarily, but later at
+	 * raid56_parity_submit_scrub_rbio() time it succeeded, we just do
+	 * the extra read, not a big deal.
+	 *
+	 * If we hit ENOMEM later at raid56_parity_submit_scrub_rbio() time,
+	 * the bio would got proper error number set.
+	 */
+	ret = alloc_rbio_data_pages(rbio);
+	if (ret < 0)
+		return;
+
+	/* data_logical must be at stripe boundary and inside the full stripe. */
+	ASSERT(IS_ALIGNED(offset_in_full_stripe, BTRFS_STRIPE_LEN));
+	ASSERT(offset_in_full_stripe < (rbio->nr_data << BTRFS_STRIPE_LEN_SHIFT));
+
+	for (int page_nr = 0; page_nr < (BTRFS_STRIPE_LEN >> PAGE_SHIFT); page_nr++) {
+		struct page *dst = rbio->stripe_pages[page_nr + page_index];
+		struct page *src = data_pages[page_nr];
+
+		memcpy_page(dst, 0, src, 0, PAGE_SIZE);
+		for (int sector_nr = sectors_per_page * page_index;
+		     sector_nr < sectors_per_page * (page_index + 1);
+		     sector_nr++)
+			rbio->stripe_sectors[sector_nr].uptodate = true;
+	}
+}

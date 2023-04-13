@@ -1972,6 +1972,13 @@ static int scrub_raid56_parity_stripe(struct scrub_ctx *sctx,
 		btrfs_bio_counter_dec(fs_info);
 		goto out;
 	}
+	/* Use the recovered stripes as cache to avoid read them from disk again. */
+	for (int i = 0; i < data_stripes; i++) {
+		stripe = &sctx->raid56_data_stripes[i];
+
+		raid56_parity_cache_data_pages(rbio, stripe->pages,
+				full_stripe_start + (i << BTRFS_STRIPE_LEN_SHIFT));
+	}
 	raid56_parity_submit_scrub_rbio(rbio);
 	wait_for_completion_io(&io_done);
 	ret = blk_status_to_errno(bio->bi_status);
