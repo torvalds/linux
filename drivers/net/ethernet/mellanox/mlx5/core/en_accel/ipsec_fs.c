@@ -838,6 +838,53 @@ static int setup_modify_header(struct mlx5_core_dev *mdev, u32 val, u8 dir,
 }
 
 static int
+setup_pkt_tunnel_reformat(struct mlx5_core_dev *mdev,
+			  struct mlx5_accel_esp_xfrm_attrs *attrs,
+			  struct mlx5_pkt_reformat_params *reformat_params)
+{
+	struct ethhdr *eth_hdr;
+	char *reformatbf;
+	size_t bfflen;
+
+	bfflen = sizeof(*eth_hdr);
+
+	reformatbf = kzalloc(bfflen, GFP_KERNEL);
+	if (!reformatbf)
+		return -ENOMEM;
+
+	eth_hdr = (struct ethhdr *)reformatbf;
+	switch (attrs->family) {
+	case AF_INET:
+		eth_hdr->h_proto = htons(ETH_P_IP);
+		break;
+	case AF_INET6:
+		eth_hdr->h_proto = htons(ETH_P_IPV6);
+		break;
+	default:
+		goto free_reformatbf;
+	}
+
+	ether_addr_copy(eth_hdr->h_dest, attrs->dmac);
+	ether_addr_copy(eth_hdr->h_source, attrs->smac);
+
+	switch (attrs->dir) {
+	case XFRM_DEV_OFFLOAD_IN:
+		reformat_params->type = MLX5_REFORMAT_TYPE_L3_ESP_TUNNEL_TO_L2;
+		break;
+	default:
+		goto free_reformatbf;
+	}
+
+	reformat_params->size = bfflen;
+	reformat_params->data = reformatbf;
+	return 0;
+
+free_reformatbf:
+	kfree(reformatbf);
+	return -EINVAL;
+}
+
+static int
 setup_pkt_transport_reformat(struct mlx5_accel_esp_xfrm_attrs *attrs,
 			     struct mlx5_pkt_reformat_params *reformat_params)
 {
@@ -900,6 +947,9 @@ static int setup_pkt_reformat(struct mlx5_core_dev *mdev,
 	switch (attrs->mode) {
 	case XFRM_MODE_TRANSPORT:
 		ret = setup_pkt_transport_reformat(attrs, &reformat_params);
+		break;
+	case XFRM_MODE_TUNNEL:
+		ret = setup_pkt_tunnel_reformat(mdev, attrs, &reformat_params);
 		break;
 	default:
 		ret = -EINVAL;

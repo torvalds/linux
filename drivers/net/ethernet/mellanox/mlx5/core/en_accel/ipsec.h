@@ -99,6 +99,8 @@ struct mlx5_accel_esp_xfrm_attrs {
 	u32 authsize;
 	u32 reqid;
 	struct mlx5_ipsec_lft lft;
+	u8 smac[ETH_ALEN];
+	u8 dmac[ETH_ALEN];
 };
 
 enum mlx5_ipsec_cap {

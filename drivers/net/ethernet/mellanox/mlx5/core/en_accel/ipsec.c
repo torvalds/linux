@@ -242,6 +242,41 @@ static void mlx5e_ipsec_init_limits(struct mlx5e_ipsec_sa_entry *sa_entry,
 	attrs->lft.numb_rounds_soft = (u64)n;
 }
 
+static void mlx5e_ipsec_init_macs(struct mlx5e_ipsec_sa_entry *sa_entry,
+				  struct mlx5_accel_esp_xfrm_attrs *attrs)
+{
+	struct mlx5_core_dev *mdev = mlx5e_ipsec_sa2dev(sa_entry);
+	struct xfrm_state *x = sa_entry->x;
+	struct net_device *netdev;
+	struct neighbour *n;
+	u8 addr[ETH_ALEN];
+
+	if (attrs->mode != XFRM_MODE_TUNNEL &&
+	    attrs->type != XFRM_DEV_OFFLOAD_PACKET)
+		return;
+
+	netdev = x->xso.real_dev;
+
+	mlx5_query_mac_address(mdev, addr);
+	switch (attrs->dir) {
+	case XFRM_DEV_OFFLOAD_IN:
+		ether_addr_copy(attrs->dmac, addr);
+		n = neigh_lookup(&arp_tbl, &attrs->saddr.a4, netdev);
+		if (!n) {
+			n = neigh_create(&arp_tbl, &attrs->saddr.a4, netdev);
+			if (IS_ERR(n))
+				return;
+			neigh_event_send(n, NULL);
+		}
+		neigh_ha_snapshot(addr, n, netdev);
+		ether_addr_copy(attrs->smac, addr);
+		break;
+	default:
+		return;
+	}
+	neigh_release(n);
+}
+
 void mlx5e_ipsec_build_accel_xfrm_attrs(struct mlx5e_ipsec_sa_entry *sa_entry,
 					struct mlx5_accel_esp_xfrm_attrs *attrs)
 {
@@ -300,6 +335,7 @@ void mlx5e_ipsec_build_accel_xfrm_attrs(struct mlx5e_ipsec_sa_entry *sa_entry,
 	attrs->mode = x->props.mode;
 
 	mlx5e_ipsec_init_limits(sa_entry, attrs);
+	mlx5e_ipsec_init_macs(sa_entry, attrs);
 }
 
 static int mlx5e_xfrm_validate_state(struct mlx5_core_dev *mdev,
