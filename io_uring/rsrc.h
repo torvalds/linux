@@ -35,7 +35,6 @@ struct io_rsrc_data {
 	u64				**tags;
 	unsigned int			nr;
 	rsrc_put_fn			*do_put;
-	int				refs;
 	bool				quiesce;
 };
 
@@ -69,7 +68,6 @@ struct io_mapped_ubuf {
 void io_rsrc_put_tw(struct callback_head *cb);
 void io_rsrc_node_ref_zero(struct io_rsrc_node *node);
 void io_rsrc_put_work(struct work_struct *work);
-void io_wait_rsrc_data(struct io_rsrc_data *data);
 void io_rsrc_node_destroy(struct io_ring_ctx *ctx, struct io_rsrc_node *ref_node);
 int io_rsrc_node_switch_start(struct io_ring_ctx *ctx);
 struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx);

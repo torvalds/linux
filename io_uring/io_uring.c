@@ -2831,8 +2831,8 @@ static __cold void io_ring_ctx_free(struct io_ring_ctx *ctx)
 {
 	io_sq_thread_finish(ctx);
 	/* __io_rsrc_put_work() may need uring_lock to progress, wait w/o it */
-	io_wait_rsrc_data(ctx->buf_data);
-	io_wait_rsrc_data(ctx->file_data);
+	if (WARN_ON_ONCE(!list_empty(&ctx->rsrc_ref_list)))
+		return;
 
 	mutex_lock(&ctx->uring_lock);
 	if (ctx->buf_data)

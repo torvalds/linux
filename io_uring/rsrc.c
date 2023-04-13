@@ -31,11 +31,6 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,
 #define IORING_MAX_FIXED_FILES	(1U << 20)
 #define IORING_MAX_REG_BUFFERS	(1U << 14)
 
-static inline bool io_put_rsrc_data_ref(struct io_rsrc_data *rsrc_data)
-{
-	return !--rsrc_data->refs;
-}
-
 int __io_account_mem(struct user_struct *user, unsigned long nr_pages)
 {
 	unsigned long page_limit, cur_pages, new_pages;
@@ -158,7 +153,6 @@ static void io_rsrc_put_work_one(struct io_rsrc_data *rsrc_data,
 static void __io_rsrc_put_work(struct io_rsrc_node *ref_node)
 {
 	struct io_rsrc_data *rsrc_data = ref_node->rsrc_data;
-	struct io_ring_ctx *ctx = rsrc_data->ctx;
 	struct io_rsrc_put *prsrc, *tmp;
 
 	if (ref_node->inline_items)
@@ -171,14 +165,6 @@ static void __io_rsrc_put_work(struct io_rsrc_node *ref_node)
 	}
 
 	io_rsrc_node_destroy(rsrc_data->ctx, ref_node);
-	if (io_put_rsrc_data_ref(rsrc_data))
-		wake_up_all(&ctx->rsrc_quiesce_wq);
-}
-
-void io_wait_rsrc_data(struct io_rsrc_data *data)
-{
-	if (data)
-		WARN_ON_ONCE(!io_put_rsrc_data_ref(data));
 }
 
 void io_rsrc_node_destroy(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
@@ -201,6 +187,8 @@ void io_rsrc_node_ref_zero(struct io_rsrc_node *node)
 		list_del(&node->node);
 		__io_rsrc_put_work(node);
 	}
+	if (list_empty(&ctx->rsrc_ref_list) && unlikely(ctx->rsrc_quiesce))
+		wake_up_all(&ctx->rsrc_quiesce_wq);
 }
 
 struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx)
@@ -235,7 +223,6 @@ void io_rsrc_node_switch(struct io_ring_ctx *ctx,
 	if (WARN_ON_ONCE(!backup))
 		return;
 
-	data_to_kill->refs++;
 	node->rsrc_data = data_to_kill;
 	list_add_tail(&node->node, &ctx->rsrc_ref_list);
 	/* put master ref */
@@ -269,8 +256,7 @@ __cold static int io_rsrc_ref_quiesce(struct io_rsrc_data *data,
 		return ret;
 	io_rsrc_node_switch(ctx, data);
 
-	/* kill initial ref */
-	if (io_put_rsrc_data_ref(data))
+	if (list_empty(&ctx->rsrc_ref_list))
 		return 0;
 
 	if (ctx->flags & IORING_SETUP_DEFER_TASKRUN) {
@@ -278,6 +264,7 @@ __cold static int io_rsrc_ref_quiesce(struct io_rsrc_data *data,
 		smp_mb();
 	}
 
+	ctx->rsrc_quiesce++;
 	data->quiesce = true;
 	do {
 		prepare_to_wait(&ctx->rsrc_quiesce_wq, &we, TASK_INTERRUPTIBLE);
@@ -286,12 +273,8 @@ __cold static int io_rsrc_ref_quiesce(struct io_rsrc_data *data,
 		ret = io_run_task_work_sig(ctx);
 		if (ret < 0) {
 			mutex_lock(&ctx->uring_lock);
-			if (!data->refs) {
+			if (list_empty(&ctx->rsrc_ref_list))
 				ret = 0;
-			} else {
-				/* restore the master reference */
-				data->refs++;
-			}
 			break;
 		}
 
@@ -299,10 +282,12 @@ __cold static int io_rsrc_ref_quiesce(struct io_rsrc_data *data,
 		__set_current_state(TASK_RUNNING);
 		mutex_lock(&ctx->uring_lock);
 		ret = 0;
-	} while (data->refs);
+	} while (!list_empty(&ctx->rsrc_ref_list));
 
 	finish_wait(&ctx->rsrc_quiesce_wq, &we);
 	data->quiesce = false;
+	ctx->rsrc_quiesce--;
+
 	if (ctx->flags & IORING_SETUP_DEFER_TASKRUN) {
 		atomic_set(&ctx->cq_wait_nr, 0);
 		smp_mb();
@@ -371,7 +356,6 @@ __cold static int io_rsrc_data_alloc(struct io_ring_ctx *ctx,
 	data->nr = nr;
 	data->ctx = ctx;
 	data->do_put = do_put;
-	data->refs = 1;
 	if (utags) {
 		ret = -EFAULT;
 		for (i = 0; i < nr; i++) {
