@@ -2345,6 +2345,8 @@ static u32 iwl_dump_ini_file_name_info(struct iwl_fw_runtime *fwrt,
 	/* add the dump file name extension tlv to the list */
 	list_add_tail(&entry->list, list);
 
+	fwrt->trans->dbg.dump_file_name_ext_valid = false;
+
 	return entry->size;
 }
 
