@@ -103,7 +103,11 @@ xfs_inobt_check_irec(
 {
 	uint64_t			realfree;
 
+	/* Record has to be properly aligned within the AG. */
 	if (!xfs_verify_agino(cur->bc_ag.pag, irec->ir_startino))
+		return __this_address;
+	if (!xfs_verify_agino(cur->bc_ag.pag,
+				irec->ir_startino + XFS_INODES_PER_CHUNK - 1))
 		return __this_address;
 	if (irec->ir_count < XFS_INODES_PER_HOLEMASK_BIT ||
 	    irec->ir_count > XFS_INODES_PER_CHUNK)
