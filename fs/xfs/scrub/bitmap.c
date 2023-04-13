@@ -6,6 +6,7 @@
 #include "xfs.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
+#include "xfs_bit.h"
 #include "xfs_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
@@ -262,6 +263,38 @@ xbitmap_disunion(
  * For the 300th record we just exit, with the list being [1, 4, 2, 3].
  */
 
+/* Mark a btree block to the agblock bitmap. */
+STATIC int
+xagb_bitmap_visit_btblock(
+	struct xfs_btree_cur	*cur,
+	int			level,
+	void			*priv)
+{
+	struct xagb_bitmap	*bitmap = priv;
+	struct xfs_buf		*bp;
+	xfs_fsblock_t		fsbno;
+	xfs_agblock_t		agbno;
+
+	xfs_btree_get_block(cur, level, &bp);
+	if (!bp)
+		return 0;
+
+	fsbno = XFS_DADDR_TO_FSB(cur->bc_mp, xfs_buf_daddr(bp));
+	agbno = XFS_FSB_TO_AGBNO(cur->bc_mp, fsbno);
+
+	return xagb_bitmap_set(bitmap, agbno, 1);
+}
+
+/* Mark all (per-AG) btree blocks in the agblock bitmap. */
+int
+xagb_bitmap_set_btblocks(
+	struct xagb_bitmap	*bitmap,
+	struct xfs_btree_cur	*cur)
+{
+	return xfs_btree_visit_blocks(cur, xagb_bitmap_visit_btblock,
+			XFS_BTREE_VISIT_ALL, bitmap);
+}
+
 /*
  * Record all the buffers pointed to by the btree cursor.  Callers already
  * engaged in a btree walk should call this function to capture the list of
@@ -395,4 +428,26 @@ xbitmap_empty(
 	struct xbitmap		*bitmap)
 {
 	return bitmap->xb_root.rb_root.rb_node == NULL;
+}
+
+/* Is the start of the range set or clear?  And for how long? */
+bool
+xbitmap_test(
+	struct xbitmap		*bitmap,
+	uint64_t		start,
+	uint64_t		*len)
+{
+	struct xbitmap_node	*bn;
+	uint64_t		last = start + *len - 1;
+
+	bn = xbitmap_tree_iter_first(&bitmap->xb_root, start, last);
+	if (!bn)
+		return false;
+	if (bn->bn_start <= start) {
+		if (bn->bn_last < last)
+			*len = bn->bn_last - start + 1;
+		return true;
+	}
+	*len = bn->bn_start - start;
+	return false;
 }

@@ -148,6 +148,7 @@ xfs-y				+= $(addprefix scrub/, \
 				   agheader.o \
 				   alloc.o \
 				   attr.o \
+				   bitmap.o \
 				   bmap.o \
 				   btree.o \
 				   common.o \
@@ -172,7 +173,6 @@ xfs-$(CONFIG_XFS_QUOTA)		+= scrub/quota.o
 ifeq ($(CONFIG_XFS_ONLINE_REPAIR),y)
 xfs-y				+= $(addprefix scrub/, \
 				   agheader_repair.o \
-				   bitmap.o \
 				   repair.o \
 				   )
 endif

@@ -7,15 +7,23 @@
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
+#include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
+#include "xfs_trans.h"
 #include "xfs_btree.h"
 #include "xfs_rmap.h"
 #include "xfs_refcount.h"
+#include "xfs_ag.h"
+#include "xfs_bit.h"
+#include "xfs_alloc.h"
+#include "xfs_alloc_btree.h"
+#include "xfs_ialloc_btree.h"
+#include "xfs_refcount_btree.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/btree.h"
-#include "xfs_ag.h"
+#include "scrub/bitmap.h"
 
 /*
  * Set us up to scrub reverse mapping btrees.
@@ -45,6 +53,16 @@ struct xchk_rmap {
 	 * that could be one.
 	 */
 	struct xfs_rmap_irec	prev_rec;
+
+	/* Bitmaps containing all blocks for each type of AG metadata. */
+	struct xagb_bitmap	fs_owned;
+	struct xagb_bitmap	log_owned;
+	struct xagb_bitmap	ag_owned;
+	struct xagb_bitmap	inobt_owned;
+	struct xagb_bitmap	refcbt_owned;
+
+	/* Did we complete the AG space metadata bitmaps? */
+	bool			bitmaps_complete;
 };
 
 /* Cross-reference a rmap against the refcount btree. */
@@ -249,6 +267,77 @@ xchk_rmapbt_check_mergeable(
 	memcpy(&cr->prev_rec, irec, sizeof(struct xfs_rmap_irec));
 }
 
+/* Compare an rmap for AG metadata against the metadata walk. */
+STATIC int
+xchk_rmapbt_mark_bitmap(
+	struct xchk_btree		*bs,
+	struct xchk_rmap		*cr,
+	const struct xfs_rmap_irec	*irec)
+{
+	struct xfs_scrub		*sc = bs->sc;
+	struct xagb_bitmap		*bmp = NULL;
+	xfs_extlen_t			fsbcount = irec->rm_blockcount;
+
+	/*
+	 * Skip corrupt records.  It is essential that we detect records in the
+	 * btree that cannot overlap but do, flag those as CORRUPT, and skip
+	 * the bitmap comparison to avoid generating false XCORRUPT reports.
+	 */
+	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
+		return 0;
+
+	/*
+	 * If the AG metadata walk didn't complete, there's no point in
+	 * comparing against partial results.
+	 */
+	if (!cr->bitmaps_complete)
+		return 0;
+
+	switch (irec->rm_owner) {
+	case XFS_RMAP_OWN_FS:
+		bmp = &cr->fs_owned;
+		break;
+	case XFS_RMAP_OWN_LOG:
+		bmp = &cr->log_owned;
+		break;
+	case XFS_RMAP_OWN_AG:
+		bmp = &cr->ag_owned;
+		break;
+	case XFS_RMAP_OWN_INOBT:
+		bmp = &cr->inobt_owned;
+		break;
+	case XFS_RMAP_OWN_REFC:
+		bmp = &cr->refcbt_owned;
+		break;
+	}
+
+	if (!bmp)
+		return 0;
+
+	if (xagb_bitmap_test(bmp, irec->rm_startblock, &fsbcount)) {
+		/*
+		 * The start of this reverse mapping corresponds to a set
+		 * region in the bitmap.  If the mapping covers more area than
+		 * the set region, then it covers space that wasn't found by
+		 * the AG metadata walk.
+		 */
+		if (fsbcount < irec->rm_blockcount)
+			xchk_btree_xref_set_corrupt(bs->sc,
+					bs->sc->sa.rmap_cur, 0);
+	} else {
+		/*
+		 * The start of this reverse mapping does not correspond to a
+		 * completely set region in the bitmap.  The region wasn't
+		 * fully set by walking the AG metadata, so this is a
+		 * cross-referencing corruption.
+		 */
+		xchk_btree_xref_set_corrupt(bs->sc, bs->sc->sa.rmap_cur, 0);
+	}
+
+	/* Unset the region so that we can detect missing rmap records. */
+	return xagb_bitmap_clear(bmp, irec->rm_startblock, irec->rm_blockcount);
+}
+
 /* Scrub an rmapbt record. */
 STATIC int
 xchk_rmapbt_rec(
@@ -268,7 +357,178 @@ xchk_rmapbt_rec(
 	xchk_rmapbt_check_mergeable(bs, cr, &irec);
 	xchk_rmapbt_check_overlapping(bs, cr, &irec);
 	xchk_rmapbt_xref(bs->sc, &irec);
+
+	return xchk_rmapbt_mark_bitmap(bs, cr, &irec);
+}
+
+/* Add an AGFL block to the rmap list. */
+STATIC int
+xchk_rmapbt_walk_agfl(
+	struct xfs_mount	*mp,
+	xfs_agblock_t		agbno,
+	void			*priv)
+{
+	struct xagb_bitmap	*bitmap = priv;
+
+	return xagb_bitmap_set(bitmap, agbno, 1);
+}
+
+/*
+ * Set up bitmaps mapping all the AG metadata to compare with the rmapbt
+ * records.
+ *
+ * Grab our own btree cursors here if the scrub setup function didn't give us a
+ * btree cursor due to reports of poor health.  We need to find out if the
+ * rmapbt disagrees with primary metadata btrees to tag the rmapbt as being
+ * XCORRUPT.
+ */
+STATIC int
+xchk_rmapbt_walk_ag_metadata(
+	struct xfs_scrub	*sc,
+	struct xchk_rmap	*cr)
+{
+	struct xfs_mount	*mp = sc->mp;
+	struct xfs_buf		*agfl_bp;
+	struct xfs_agf		*agf = sc->sa.agf_bp->b_addr;
+	struct xfs_btree_cur	*cur;
+	int			error;
+
+	/* OWN_FS: AG headers */
+	error = xagb_bitmap_set(&cr->fs_owned, XFS_SB_BLOCK(mp),
+			XFS_AGFL_BLOCK(mp) - XFS_SB_BLOCK(mp) + 1);
+	if (error)
+		goto out;
+
+	/* OWN_LOG: Internal log */
+	if (xfs_ag_contains_log(mp, sc->sa.pag->pag_agno)) {
+		error = xagb_bitmap_set(&cr->log_owned,
+				XFS_FSB_TO_AGBNO(mp, mp->m_sb.sb_logstart),
+				mp->m_sb.sb_logblocks);
+		if (error)
+			goto out;
+	}
+
+	/* OWN_AG: bnobt, cntbt, rmapbt, and AGFL */
+	cur = sc->sa.bno_cur;
+	if (!cur)
+		cur = xfs_allocbt_init_cursor(sc->mp, sc->tp, sc->sa.agf_bp,
+				sc->sa.pag, XFS_BTNUM_BNO);
+	error = xagb_bitmap_set_btblocks(&cr->ag_owned, cur);
+	if (cur != sc->sa.bno_cur)
+		xfs_btree_del_cursor(cur, error);
+	if (error)
+		goto out;
+
+	cur = sc->sa.cnt_cur;
+	if (!cur)
+		cur = xfs_allocbt_init_cursor(sc->mp, sc->tp, sc->sa.agf_bp,
+				sc->sa.pag, XFS_BTNUM_CNT);
+	error = xagb_bitmap_set_btblocks(&cr->ag_owned, cur);
+	if (cur != sc->sa.cnt_cur)
+		xfs_btree_del_cursor(cur, error);
+	if (error)
+		goto out;
+
+	error = xagb_bitmap_set_btblocks(&cr->ag_owned, sc->sa.rmap_cur);
+	if (error)
+		goto out;
+
+	error = xfs_alloc_read_agfl(sc->sa.pag, sc->tp, &agfl_bp);
+	if (error)
+		goto out;
+
+	error = xfs_agfl_walk(sc->mp, agf, agfl_bp, xchk_rmapbt_walk_agfl,
+			&cr->ag_owned);
+	xfs_trans_brelse(sc->tp, agfl_bp);
+	if (error)
+		goto out;
+
+	/* OWN_INOBT: inobt, finobt */
+	cur = sc->sa.ino_cur;
+	if (!cur)
+		cur = xfs_inobt_init_cursor(sc->sa.pag, sc->tp, sc->sa.agi_bp,
+				XFS_BTNUM_INO);
+	error = xagb_bitmap_set_btblocks(&cr->inobt_owned, cur);
+	if (cur != sc->sa.ino_cur)
+		xfs_btree_del_cursor(cur, error);
+	if (error)
+		goto out;
+
+	if (xfs_has_finobt(sc->mp)) {
+		cur = sc->sa.fino_cur;
+		if (!cur)
+			cur = xfs_inobt_init_cursor(sc->sa.pag, sc->tp,
+					sc->sa.agi_bp, XFS_BTNUM_FINO);
+		error = xagb_bitmap_set_btblocks(&cr->inobt_owned, cur);
+		if (cur != sc->sa.fino_cur)
+			xfs_btree_del_cursor(cur, error);
+		if (error)
+			goto out;
+	}
+
+	/* OWN_REFC: refcountbt */
+	if (xfs_has_reflink(sc->mp)) {
+		cur = sc->sa.refc_cur;
+		if (!cur)
+			cur = xfs_refcountbt_init_cursor(sc->mp, sc->tp,
+					sc->sa.agf_bp, sc->sa.pag);
+		error = xagb_bitmap_set_btblocks(&cr->refcbt_owned, cur);
+		if (cur != sc->sa.refc_cur)
+			xfs_btree_del_cursor(cur, error);
+		if (error)
+			goto out;
+	}
+
+out:
+	/*
+	 * If there's an error, set XFAIL and disable the bitmap
+	 * cross-referencing checks, but proceed with the scrub anyway.
+	 */
+	if (error)
+		xchk_btree_xref_process_error(sc, sc->sa.rmap_cur,
+				sc->sa.rmap_cur->bc_nlevels - 1, &error);
+	else
+		cr->bitmaps_complete = true;
 	return 0;
+}
+
+/*
+ * Check for set regions in the bitmaps; if there are any, the rmap records do
+ * not describe all the AG metadata.
+ */
+STATIC void
+xchk_rmapbt_check_bitmaps(
+	struct xfs_scrub	*sc,
+	struct xchk_rmap	*cr)
+{
+	struct xfs_btree_cur	*cur = sc->sa.rmap_cur;
+	unsigned int		level;
+
+	if (sc->sm->sm_flags & (XFS_SCRUB_OFLAG_CORRUPT |
+				XFS_SCRUB_OFLAG_XFAIL))
+		return;
+	if (!cur)
+		return;
+	level = cur->bc_nlevels - 1;
+
+	/*
+	 * Any bitmap with bits still set indicates that the reverse mapping
+	 * doesn't cover the entire primary structure.
+	 */
+	if (xagb_bitmap_hweight(&cr->fs_owned) != 0)
+		xchk_btree_xref_set_corrupt(sc, cur, level);
+
+	if (xagb_bitmap_hweight(&cr->log_owned) != 0)
+		xchk_btree_xref_set_corrupt(sc, cur, level);
+
+	if (xagb_bitmap_hweight(&cr->ag_owned) != 0)
+		xchk_btree_xref_set_corrupt(sc, cur, level);
+
+	if (xagb_bitmap_hweight(&cr->inobt_owned) != 0)
+		xchk_btree_xref_set_corrupt(sc, cur, level);
+
+	if (xagb_bitmap_hweight(&cr->refcbt_owned) != 0)
+		xchk_btree_xref_set_corrupt(sc, cur, level);
 }
 
 /* Scrub the rmap btree for some AG. */
@@ -283,8 +543,29 @@ xchk_rmapbt(
 	if (!cr)
 		return -ENOMEM;
 
+	xagb_bitmap_init(&cr->fs_owned);
+	xagb_bitmap_init(&cr->log_owned);
+	xagb_bitmap_init(&cr->ag_owned);
+	xagb_bitmap_init(&cr->inobt_owned);
+	xagb_bitmap_init(&cr->refcbt_owned);
+
+	error = xchk_rmapbt_walk_ag_metadata(sc, cr);
+	if (error)
+		goto out;
+
 	error = xchk_btree(sc, sc->sa.rmap_cur, xchk_rmapbt_rec,
 			&XFS_RMAP_OINFO_AG, cr);
+	if (error)
+		goto out;
+
+	xchk_rmapbt_check_bitmaps(sc, cr);
+
+out:
+	xagb_bitmap_destroy(&cr->refcbt_owned);
+	xagb_bitmap_destroy(&cr->inobt_owned);
+	xagb_bitmap_destroy(&cr->ag_owned);
+	xagb_bitmap_destroy(&cr->log_owned);
+	xagb_bitmap_destroy(&cr->fs_owned);
 	kfree(cr);
 	return error;
 }
