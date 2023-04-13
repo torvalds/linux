@@ -2506,37 +2506,26 @@ out:
 	blk_mq_run_hw_queue(hctx, run_queue_async);
 }
 
-static bool blk_mq_sched_bypass_insert(struct blk_mq_hw_ctx *hctx,
-				       struct request *rq)
-{
-	/*
-	 * dispatch flush and passthrough rq directly
-	 *
-	 * passthrough request has to be added to hctx->dispatch directly.
-	 * For some reason, device may be in one situation which can't
-	 * handle FS request, so STS_RESOURCE is always returned and the
-	 * FS request will be added to hctx->dispatch. However passthrough
-	 * request may be required at that time for fixing the problem. If
-	 * passthrough request is added to scheduler queue, there isn't any
-	 * chance to dispatch it given we prioritize requests in hctx->dispatch.
-	 */
-	if ((rq->rq_flags & RQF_FLUSH_SEQ) || blk_rq_is_passthrough(rq))
-		return true;
-
-	return false;
-}
-
 static void blk_mq_insert_request(struct request *rq, bool at_head,
 		bool run_queue, bool async)
 {
 	struct request_queue *q = rq->q;
-	struct elevator_queue *e = q->elevator;
 	struct blk_mq_ctx *ctx = rq->mq_ctx;
 	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
 
-	WARN_ON(e && (rq->tag != BLK_MQ_NO_TAG));
-
-	if (blk_mq_sched_bypass_insert(hctx, rq)) {
+	if (blk_rq_is_passthrough(rq)) {
+		/*
+		 * Passthrough request have to be added to hctx->dispatch
+		 * directly.  The device may be in a situation where it can't
+		 * handle FS request, and always returns BLK_STS_RESOURCE for
+		 * them, which gets them added to hctx->dispatch.
+		 *
+		 * If a passthrough request is required to unblock the queues,
+		 * and it is added to the scheduler queue, there is no chance to
+		 * dispatch it given we prioritize requests in hctx->dispatch.
+		 */
+		blk_mq_request_bypass_insert(rq, at_head, false);
+	} else if (rq->rq_flags & RQF_FLUSH_SEQ) {
 		/*
 		 * Firstly normal IO request is inserted to scheduler queue or
 		 * sw queue, meantime we add flush request to dispatch queue(
@@ -2558,16 +2547,14 @@ static void blk_mq_insert_request(struct request *rq, bool at_head,
 		 * Simply queue flush rq to the front of hctx->dispatch so that
 		 * intensive flush workloads can benefit in case of NCQ HW.
 		 */
-		at_head = (rq->rq_flags & RQF_FLUSH_SEQ) ? true : at_head;
-		blk_mq_request_bypass_insert(rq, at_head, false);
-		goto run;
-	}
-
-	if (e) {
+		blk_mq_request_bypass_insert(rq, true, false);
+	} else if (q->elevator) {
 		LIST_HEAD(list);
 
+		WARN_ON_ONCE(rq->tag != BLK_MQ_NO_TAG);
+
 		list_add(&rq->queuelist, &list);
-		e->type->ops.insert_requests(hctx, &list, at_head);
+		q->elevator->type->ops.insert_requests(hctx, &list, at_head);
 	} else {
 		trace_block_rq_insert(rq);
 
@@ -2581,7 +2568,6 @@ static void blk_mq_insert_request(struct request *rq, bool at_head,
 		spin_unlock(&ctx->lock);
 	}
 
-run:
 	if (run_queue)
 		blk_mq_run_hw_queue(hctx, async);
 }
