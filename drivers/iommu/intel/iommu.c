@@ -4707,7 +4707,6 @@ static int intel_iommu_disable_iopf(struct device *dev)
 {
 	struct device_domain_info *info = dev_iommu_priv_get(dev);
 	struct intel_iommu *iommu = info->iommu;
-	int ret;
 
 	if (!info->pri_enabled)
 		return -EINVAL;
@@ -4723,15 +4722,15 @@ static int intel_iommu_disable_iopf(struct device *dev)
 	pci_disable_pri(to_pci_dev(dev));
 	info->pri_enabled = 0;
 
-	ret = iommu_unregister_device_fault_handler(dev);
-	if (ret)
-		return ret;
+	/*
+	 * With PRI disabled and outstanding PRQs drained, unregistering
+	 * fault handler and removing device from iopf queue should never
+	 * fail.
+	 */
+	WARN_ON(iommu_unregister_device_fault_handler(dev));
+	WARN_ON(iopf_queue_remove_device(iommu->iopf_queue, dev));
 
-	ret = iopf_queue_remove_device(iommu->iopf_queue, dev);
-	if (ret)
-		iommu_register_device_fault_handler(dev, iommu_queue_iopf, dev);
-
-	return ret;
+	return 0;
 }
 
 static int
