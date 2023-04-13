@@ -32,14 +32,6 @@ static void sb(void)
 #endif
 }
 
-static void ctrl_handler(int signo)
-{
-	free(startptr);
-	printf("\nEnding\n");
-	sb();
-	exit(EXIT_SUCCESS);
-}
-
 static void cl_flush(void *p)
 {
 #if defined(__i386) || defined(__x86_64)
@@ -200,12 +192,6 @@ int run_fill_buf(unsigned long span, int malloc_and_init_memory,
 {
 	unsigned long long cache_size = span;
 	int ret;
-
-	/* set up ctrl-c handler */
-	if (signal(SIGINT, ctrl_handler) == SIG_ERR)
-		printf("Failed to catch SIGINT!\n");
-	if (signal(SIGHUP, ctrl_handler) == SIG_ERR)
-		printf("Failed to catch SIGHUP!\n");
 
 	ret = fill_cache(cache_size, malloc_and_init_memory, memflush, op,
 			 resctrl_val);
