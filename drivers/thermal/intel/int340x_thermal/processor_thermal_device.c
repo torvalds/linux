@@ -337,7 +337,8 @@ int proc_thermal_mmio_add(struct pci_dev *pdev,
 	}
 
 	if (feature_mask & PROC_THERMAL_FEATURE_FIVR ||
-	    feature_mask & PROC_THERMAL_FEATURE_DVFS) {
+	    feature_mask & PROC_THERMAL_FEATURE_DVFS ||
+	    feature_mask & PROC_THERMAL_FEATURE_DLVR) {
 		ret = proc_thermal_rfim_add(pdev, proc_priv);
 		if (ret) {
 			dev_err(&pdev->dev, "failed to add RFIM interface\n");

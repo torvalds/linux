@@ -184,8 +184,9 @@ ABI.
 DPTF Processor thermal RFIM interface
 --------------------------------------------
 
-RFIM interface allows adjustment of FIVR (Fully Integrated Voltage Regulator)
-and DDR (Double Data Rate)frequencies to avoid RF interference with WiFi and 5G.
+RFIM interface allows adjustment of FIVR (Fully Integrated Voltage Regulator),
+DDR (Double Data Rate) and DLVR (Digital Linear Voltage Regulator)
+frequencies to avoid RF interference with WiFi and 5G.
 
 Switching voltage regulators (VR) generate radiated EMI or RFI at the
 fundamental frequency and its harmonics. Some harmonics may interfere
@@ -195,6 +196,15 @@ methods is requesting SOC integrated VR (IVR) switching frequency to a
 small % and shift away the switching noise harmonic interference from
 radio channels.  OEM or ODMs can use the driver to control SOC IVR
 operation within the range where it does not impact IVR performance.
+
+Some products use DLVR instead of FIVR as switching voltage regulator.
+In this case attributes of DLVR must be adjusted instead of FIVR.
+
+While shifting the frequencies additional clock noise can be introduced,
+which is compensated by adjusting Spread spectrum percent. This helps
+to reduce the clock noise to meet regulatory compliance. This spreading
+% increases bandwidth of signal transmission and hence reduces the
+effects of interference, noise and signal fading.
 
 DRAM devices of DDR IO interface and their power plane can generate EMI
 at the data rates. Similar to IVR control mechanism, Intel offers a
@@ -263,6 +273,38 @@ DVFS attributes
 
 ``rfi_disable (RW)``
 	Disable DDR rate change feature
+
+DLVR attributes
+
+:file:`/sys/bus/pci/devices/0000\:00\:04.0/dlvr/`
+
+``dlvr_hardware_rev`` (RO)
+	DLVR hardware revision.
+
+``dlvr_freq_mhz`` (RO)
+	Current DLVR PLL frequency in MHz.
+
+``dlvr_freq_select`` (RW)
+	Sets DLVR PLL clock frequency. Once set, and enabled via
+	dlvr_rfim_enable, the dlvr_freq_mhz will show the current
+	DLVR PLL frequency.
+
+``dlvr_pll_busy`` (RO)
+	PLL can't accept frequency change when set.
+
+``dlvr_rfim_enable`` (RW)
+	0: Disable RF frequency hopping, 1: Enable RF frequency hopping.
+
+``dlvr_spread_spectrum_pct`` (RW)
+	Sets DLVR spread spectrum percent value.
+
+``dlvr_control_mode`` (RW)
+        Specifies how frequencies are spread using spread spectrum.
+        0: Down spread,
+        1: Spread in the Center.
+
+``dlvr_control_lock`` (RW)
+    1: future writes are ignored.
 
 DPTF Power supply and Battery Interface
 ----------------------------------------
