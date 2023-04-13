@@ -1806,6 +1806,8 @@
   tty_insert_flip_string_fixed_flag
   tty_kref_put
   tty_port_tty_get
+  typec_mux_get_drvdata
+  typec_mux_register
   typec_switch_get_drvdata
   typec_switch_register
   typec_switch_unregister
