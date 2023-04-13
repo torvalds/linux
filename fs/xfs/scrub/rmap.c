@@ -32,6 +32,21 @@ xchk_setup_ag_rmapbt(
 
 /* Reverse-mapping scrubber. */
 
+struct xchk_rmap {
+	/*
+	 * The furthest-reaching of the rmapbt records that we've already
+	 * processed.  This enables us to detect overlapping records for space
+	 * allocations that cannot be shared.
+	 */
+	struct xfs_rmap_irec	overlap_rec;
+
+	/*
+	 * The previous rmapbt record, so that we can check for two records
+	 * that could be one.
+	 */
+	struct xfs_rmap_irec	prev_rec;
+};
+
 /* Cross-reference a rmap against the refcount btree. */
 STATIC void
 xchk_rmapbt_xref_refc(
@@ -139,12 +154,108 @@ xchk_rmapbt_check_unwritten_in_keyflags(
 	}
 }
 
+static inline bool
+xchk_rmapbt_is_shareable(
+	struct xfs_scrub		*sc,
+	const struct xfs_rmap_irec	*irec)
+{
+	if (!xfs_has_reflink(sc->mp))
+		return false;
+	if (XFS_RMAP_NON_INODE_OWNER(irec->rm_owner))
+		return false;
+	if (irec->rm_flags & (XFS_RMAP_BMBT_BLOCK | XFS_RMAP_ATTR_FORK |
+			      XFS_RMAP_UNWRITTEN))
+		return false;
+	return true;
+}
+
+/* Flag failures for records that overlap but cannot. */
+STATIC void
+xchk_rmapbt_check_overlapping(
+	struct xchk_btree		*bs,
+	struct xchk_rmap		*cr,
+	const struct xfs_rmap_irec	*irec)
+{
+	xfs_agblock_t			pnext, inext;
+
+	if (bs->sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
+		return;
+
+	/* No previous record? */
+	if (cr->overlap_rec.rm_blockcount == 0)
+		goto set_prev;
+
+	/* Do overlap_rec and irec overlap? */
+	pnext = cr->overlap_rec.rm_startblock + cr->overlap_rec.rm_blockcount;
+	if (pnext <= irec->rm_startblock)
+		goto set_prev;
+
+	/* Overlap is only allowed if both records are data fork mappings. */
+	if (!xchk_rmapbt_is_shareable(bs->sc, &cr->overlap_rec) ||
+	    !xchk_rmapbt_is_shareable(bs->sc, irec))
+		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
+
+	/* Save whichever rmap record extends furthest. */
+	inext = irec->rm_startblock + irec->rm_blockcount;
+	if (pnext > inext)
+		return;
+
+set_prev:
+	memcpy(&cr->overlap_rec, irec, sizeof(struct xfs_rmap_irec));
+}
+
+/* Decide if two reverse-mapping records can be merged. */
+static inline bool
+xchk_rmap_mergeable(
+	struct xchk_rmap		*cr,
+	const struct xfs_rmap_irec	*r2)
+{
+	const struct xfs_rmap_irec	*r1 = &cr->prev_rec;
+
+	/* Ignore if prev_rec is not yet initialized. */
+	if (cr->prev_rec.rm_blockcount == 0)
+		return false;
+
+	if (r1->rm_owner != r2->rm_owner)
+		return false;
+	if (r1->rm_startblock + r1->rm_blockcount != r2->rm_startblock)
+		return false;
+	if ((unsigned long long)r1->rm_blockcount + r2->rm_blockcount >
+	    XFS_RMAP_LEN_MAX)
+		return false;
+	if (XFS_RMAP_NON_INODE_OWNER(r2->rm_owner))
+		return true;
+	/* must be an inode owner below here */
+	if (r1->rm_flags != r2->rm_flags)
+		return false;
+	if (r1->rm_flags & XFS_RMAP_BMBT_BLOCK)
+		return true;
+	return r1->rm_offset + r1->rm_blockcount == r2->rm_offset;
+}
+
+/* Flag failures for records that could be merged. */
+STATIC void
+xchk_rmapbt_check_mergeable(
+	struct xchk_btree		*bs,
+	struct xchk_rmap		*cr,
+	const struct xfs_rmap_irec	*irec)
+{
+	if (bs->sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
+		return;
+
+	if (xchk_rmap_mergeable(cr, irec))
+		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
+
+	memcpy(&cr->prev_rec, irec, sizeof(struct xfs_rmap_irec));
+}
+
 /* Scrub an rmapbt record. */
 STATIC int
 xchk_rmapbt_rec(
 	struct xchk_btree	*bs,
 	const union xfs_btree_rec *rec)
 {
+	struct xchk_rmap	*cr = bs->private;
 	struct xfs_rmap_irec	irec;
 
 	if (xfs_rmap_btrec_to_irec(rec, &irec) != NULL ||
@@ -154,6 +265,8 @@ xchk_rmapbt_rec(
 	}
 
 	xchk_rmapbt_check_unwritten_in_keyflags(bs);
+	xchk_rmapbt_check_mergeable(bs, cr, &irec);
+	xchk_rmapbt_check_overlapping(bs, cr, &irec);
 	xchk_rmapbt_xref(bs->sc, &irec);
 	return 0;
 }
@@ -163,8 +276,17 @@ int
 xchk_rmapbt(
 	struct xfs_scrub	*sc)
 {
-	return xchk_btree(sc, sc->sa.rmap_cur, xchk_rmapbt_rec,
-			&XFS_RMAP_OINFO_AG, NULL);
+	struct xchk_rmap	*cr;
+	int			error;
+
+	cr = kzalloc(sizeof(struct xchk_rmap), XCHK_GFP_FLAGS);
+	if (!cr)
+		return -ENOMEM;
+
+	error = xchk_btree(sc, sc->sa.rmap_cur, xchk_rmapbt_rec,
+			&XFS_RMAP_OINFO_AG, cr);
+	kfree(cr);
+	return error;
 }
 
 /* xref check that the extent is owned only by a given owner */

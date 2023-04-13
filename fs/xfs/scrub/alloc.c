@@ -31,6 +31,12 @@ xchk_setup_ag_allocbt(
 }
 
 /* Free space btree scrubber. */
+
+struct xchk_alloc {
+	/* Previous free space extent. */
+	struct xfs_alloc_rec_incore	prev;
+};
+
 /*
  * Ensure there's a corresponding cntbt/bnobt record matching this
  * bnobt/cntbt record, respectively.
@@ -93,6 +99,24 @@ xchk_allocbt_xref(
 	xchk_xref_is_not_cow_staging(sc, agbno, len);
 }
 
+/* Flag failures for records that could be merged. */
+STATIC void
+xchk_allocbt_mergeable(
+	struct xchk_btree	*bs,
+	struct xchk_alloc	*ca,
+	const struct xfs_alloc_rec_incore *irec)
+{
+	if (bs->sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
+		return;
+
+	if (ca->prev.ar_blockcount > 0 &&
+	    ca->prev.ar_startblock + ca->prev.ar_blockcount == irec->ar_startblock &&
+	    ca->prev.ar_blockcount + irec->ar_blockcount < (uint32_t)~0U)
+		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
+
+	memcpy(&ca->prev, irec, sizeof(*irec));
+}
+
 /* Scrub a bnobt/cntbt record. */
 STATIC int
 xchk_allocbt_rec(
@@ -100,6 +124,7 @@ xchk_allocbt_rec(
 	const union xfs_btree_rec	*rec)
 {
 	struct xfs_alloc_rec_incore	irec;
+	struct xchk_alloc	*ca = bs->private;
 
 	xfs_alloc_btrec_to_irec(rec, &irec);
 	if (xfs_alloc_check_irec(bs->cur, &irec) != NULL) {
@@ -107,6 +132,7 @@ xchk_allocbt_rec(
 		return 0;
 	}
 
+	xchk_allocbt_mergeable(bs, ca, &irec);
 	xchk_allocbt_xref(bs->sc, &irec);
 
 	return 0;
@@ -118,10 +144,11 @@ xchk_allocbt(
 	struct xfs_scrub	*sc,
 	xfs_btnum_t		which)
 {
+	struct xchk_alloc	ca = { };
 	struct xfs_btree_cur	*cur;
 
 	cur = which == XFS_BTNUM_BNO ? sc->sa.bno_cur : sc->sa.cnt_cur;
-	return xchk_btree(sc, cur, xchk_allocbt_rec, &XFS_RMAP_OINFO_AG, NULL);
+	return xchk_btree(sc, cur, xchk_allocbt_rec, &XFS_RMAP_OINFO_AG, &ca);
 }
 
 int
