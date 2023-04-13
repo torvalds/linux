@@ -149,6 +149,14 @@ struct vdpa_map_file {
  * @kick_vq:			Kick the virtqueue
  *				@vdev: vdpa device
  *				@idx: virtqueue index
+ * @kick_vq_with_data:		Kick the virtqueue and supply extra data
+ *				(only if VIRTIO_F_NOTIFICATION_DATA is negotiated)
+ *				@vdev: vdpa device
+ *				@data for split virtqueue:
+ *				16 bits vqn and 16 bits next available index.
+ *				@data for packed virtqueue:
+ *				16 bits vqn, 15 least significant bits of
+ *				next available index and 1 bit next_wrap.
  * @set_vq_cb:			Set the interrupt callback function for
  *				a virtqueue
  *				@vdev: vdpa device
@@ -329,6 +337,7 @@ struct vdpa_config_ops {
 			      u64 device_area);
 	void (*set_vq_num)(struct vdpa_device *vdev, u16 idx, u32 num);
 	void (*kick_vq)(struct vdpa_device *vdev, u16 idx);
+	void (*kick_vq_with_data)(struct vdpa_device *vdev, u32 data);
 	void (*set_vq_cb)(struct vdpa_device *vdev, u16 idx,
 			  struct vdpa_callback *cb);
 	void (*set_vq_ready)(struct vdpa_device *vdev, u16 idx, bool ready);
