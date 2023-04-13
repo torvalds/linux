@@ -288,11 +288,29 @@ int mt76_connac_init_tx_queues(struct mt76_phy *phy, int idx, int n_desc,
 }
 EXPORT_SYMBOL_GPL(mt76_connac_init_tx_queues);
 
+#define __bitrate_mask_check(_mcs, _mode)				\
+({									\
+	u8 i = 0;							\
+	for (nss = 0; i < ARRAY_SIZE(mask->control[band]._mcs); i++) {	\
+		if (!mask->control[band]._mcs[i])			\
+			continue;					\
+		if (hweight16(mask->control[band]._mcs[i]) == 1) {	\
+			mode = MT_PHY_TYPE_##_mode;			\
+			rateidx = ffs(mask->control[band]._mcs[i]) - 1;	\
+			if (mode == MT_PHY_TYPE_HT)			\
+				rateidx += 8 * i;			\
+			else						\
+				nss = i + 1;				\
+			goto out;					\
+		}							\
+	}								\
+})
+
 u16 mt76_connac2_mac_tx_rate_val(struct mt76_phy *mphy,
 				 struct ieee80211_vif *vif,
 				 bool beacon, bool mcast)
 {
-	u8 mode = 0, band = mphy->chandef.chan->band;
+	u8 nss = 0, mode = 0, band = mphy->chandef.chan->band;
 	int rateidx = 0, mcast_rate;
 
 	if (!vif)
@@ -307,19 +325,12 @@ u16 mt76_connac2_mac_tx_rate_val(struct mt76_phy *mphy,
 		struct cfg80211_bitrate_mask *mask;
 
 		mask = &vif->bss_conf.beacon_tx_rate;
-		if (hweight16(mask->control[band].he_mcs[0]) == 1) {
-			rateidx = ffs(mask->control[band].he_mcs[0]) - 1;
-			mode = MT_PHY_TYPE_HE_SU;
-			goto out;
-		} else if (hweight16(mask->control[band].vht_mcs[0]) == 1) {
-			rateidx = ffs(mask->control[band].vht_mcs[0]) - 1;
-			mode = MT_PHY_TYPE_VHT;
-			goto out;
-		} else if (hweight8(mask->control[band].ht_mcs[0]) == 1) {
-			rateidx = ffs(mask->control[band].ht_mcs[0]) - 1;
-			mode = MT_PHY_TYPE_HT;
-			goto out;
-		} else if (hweight32(mask->control[band].legacy) == 1) {
+
+		__bitrate_mask_check(he_mcs, HE_SU);
+		__bitrate_mask_check(vht_mcs, VHT);
+		__bitrate_mask_check(ht_mcs, HT);
+
+		if (hweight32(mask->control[band].legacy) == 1) {
 			rateidx = ffs(mask->control[band].legacy) - 1;
 			goto legacy;
 		}
@@ -335,9 +346,9 @@ legacy:
 	rateidx = mt76_calculate_default_rate(mphy, rateidx);
 	mode = rateidx >> 8;
 	rateidx &= GENMASK(7, 0);
-
 out:
-	return FIELD_PREP(MT_TX_RATE_IDX, rateidx) |
+	return FIELD_PREP(MT_TX_RATE_NSS, nss) |
+	       FIELD_PREP(MT_TX_RATE_IDX, rateidx) |
 	       FIELD_PREP(MT_TX_RATE_MODE, mode);
 }
 EXPORT_SYMBOL_GPL(mt76_connac2_mac_tx_rate_val);
