@@ -44,6 +44,9 @@
 
 static DEFINE_PER_CPU(struct llist_head, blk_cpu_done);
 
+static void blk_mq_try_issue_list_directly(struct blk_mq_hw_ctx *hctx,
+		struct list_head *list);
+
 static inline struct blk_mq_hw_ctx *blk_qc_to_hctx(struct request_queue *q,
 		blk_qc_t qc)
 {
@@ -2495,11 +2498,22 @@ void blk_mq_request_bypass_insert(struct request *rq, bool at_head,
 }
 
 void blk_mq_insert_requests(struct blk_mq_hw_ctx *hctx, struct blk_mq_ctx *ctx,
-			    struct list_head *list)
+			    struct list_head *list, bool run_queue_async)
 
 {
 	struct request *rq;
 	enum hctx_type type = hctx->type;
+
+	/*
+	 * Try to issue requests directly if the hw queue isn't busy to save an
+	 * extra enqueue & dequeue to the sw queue.
+	 */
+	if (!hctx->dispatch_busy && !run_queue_async) {
+		blk_mq_run_dispatch_ops(hctx->queue,
+			blk_mq_try_issue_list_directly(hctx, list));
+		if (list_empty(list))
+			goto out;
+	}
 
 	/*
 	 * preemption doesn't flush plug list, so it's possible ctx->cpu is
@@ -2514,6 +2528,8 @@ void blk_mq_insert_requests(struct blk_mq_hw_ctx *hctx, struct blk_mq_ctx *ctx,
 	list_splice_tail_init(list, &ctx->rq_lists[type]);
 	blk_mq_hctx_mark_pending(hctx, ctx);
 	spin_unlock(&ctx->lock);
+out:
+	blk_mq_run_hw_queue(hctx, run_queue_async);
 }
 
 static void blk_mq_bio_to_request(struct request *rq, struct bio *bio,
@@ -2755,7 +2771,7 @@ void blk_mq_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 	} while (!rq_list_empty(plug->mq_list));
 }
 
-void blk_mq_try_issue_list_directly(struct blk_mq_hw_ctx *hctx,
+static void blk_mq_try_issue_list_directly(struct blk_mq_hw_ctx *hctx,
 		struct list_head *list)
 {
 	int queued = 0;
