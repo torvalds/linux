@@ -423,18 +423,19 @@ err_unlock:
 }
 EXPORT_SYMBOL_NS_GPL(cs35l56_irq, SND_SOC_CS35L56_CORE);
 
-int cs35l56_irq_request(struct cs35l56_private *cs35l56)
+int cs35l56_irq_request(struct cs35l56_private *cs35l56, int irq)
 {
 	int ret;
 
-	if (!cs35l56->irq)
+	if (!irq)
 		return 0;
 
-	ret = devm_request_threaded_irq(cs35l56->dev, cs35l56->irq, NULL,
-					cs35l56_irq,
+	ret = devm_request_threaded_irq(cs35l56->dev, irq, NULL, cs35l56_irq,
 					IRQF_ONESHOT | IRQF_SHARED | IRQF_TRIGGER_LOW,
 					"cs35l56", cs35l56);
-	if (ret < 0)
+	if (!ret)
+		cs35l56->irq = irq;
+	else
 		dev_err(cs35l56->dev, "Failed to get IRQ: %d\n", ret);
 
 	return ret;
