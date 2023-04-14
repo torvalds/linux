@@ -148,6 +148,20 @@
 		regulator-boot-on;
 	};
 
+	vtt_supply: regulator-5 {
+		compatible = "regulator-fixed";
+		regulator-name = "vtt";
+		pinctrl-names = "default";
+		pinctrl-0 = <&ddr_vtt_pins_default>;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&main_gpio0 12 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vsys_3v3>;
+		enable-active-high;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
 	leds {
 		compatible = "gpio-leds";
 
@@ -336,6 +350,12 @@
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x025c, PIN_INPUT, 0) /* (D17) MCAN1_RX */
 			AM64X_IOPAD(0x0258, PIN_OUTPUT, 0) /* (C17) MCAN1_TX */
+		>;
+	};
+
+	ddr_vtt_pins_default: ddr-vtt-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x0030, PIN_OUTPUT_PULLUP, 7) /* (L18) OSPI0_CSN1.GPIO0_12 */
 		>;
 	};
 };
