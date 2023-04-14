@@ -47,7 +47,10 @@ description: |
         msm8996
         msm8998
         qcs404
+        qcm2290
         qdu1000
+        qrb2210
+        qrb4210
         qru1000
         sa8155p
         sa8540p
@@ -84,6 +87,7 @@ description: |
         adp
         ap-al02-c7
         ap-mi01.2
+        ap-mi01.6
         cdp
         cp01-c1
         dragonboard
@@ -94,6 +98,7 @@ description: |
         liquid
         mtp
         qrd
+        rb2
         ride
         sbc
         x100
@@ -328,6 +333,7 @@ properties:
       - items:
           - enum:
               - qcom,ipq5332-ap-mi01.2
+              - qcom,ipq5332-ap-mi01.6
           - const: qcom,ipq5332
 
       - items:
@@ -353,6 +359,13 @@ properties:
           - const: swir,mangoh-green-wp8548
           - const: swir,wp8548
           - const: qcom,mdm9615
+
+      - description: Qualcomm Technologies, Inc. Robotics RB1
+        items:
+          - enum:
+              - qcom,qrb2210-rb1
+          - const: qcom,qrb2210
+          - const: qcom,qcm2290
 
       - description: Qualcomm Technologies, Inc. Distributed Unit 1000 platform
         items:
@@ -865,6 +878,12 @@ properties:
 
       - items:
           - enum:
+              - qcom,qrb4210-rb2
+          - const: qcom,qrb4210
+          - const: qcom,sm4250
+
+      - items:
+          - enum:
               - lenovo,j606f
           - const: qcom,sm6115p
           - const: qcom,sm6115
@@ -872,6 +891,7 @@ properties:
       - items:
           - enum:
               - sony,pdx201
+              - xiaomi,laurel-sprout
           - const: qcom,sm6125
 
       - items:
