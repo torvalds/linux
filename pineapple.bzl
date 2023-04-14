@@ -250,6 +250,7 @@ def define_pineapple():
         "net/qrtr/qrtr-gunyah.ko",
         "net/qrtr/qrtr-mhi.ko",
         "net/qrtr/qrtr-smd.ko",
+		"sound/usb/snd-usb-audio-qmi.ko",
     ]
 
     _pineapple_consolidate_in_tree_modules = _pineapple_in_tree_modules + [

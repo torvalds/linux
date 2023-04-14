@@ -1314,7 +1314,7 @@ static int _snd_pcm_hw_param_set(struct snd_pcm_hw_params *params,
 	return changed;
 }
 
-bool snd_usb_pcm_has_fixed_rate(struct snd_usb_substream *subs)
+bool _snd_usb_pcm_has_fixed_rate(struct snd_usb_substream *subs)
 {
 	const struct audioformat *fp;
 	struct snd_usb_audio *chip;
@@ -1393,7 +1393,7 @@ static int enable_audio_stream(struct snd_usb_substream *subs,
 		if (subs->data_endpoint)
 			close_endpoints(chip, subs);
 
-		fixed_rate = snd_usb_pcm_has_fixed_rate(subs);
+		fixed_rate = _snd_usb_pcm_has_fixed_rate(subs);
 		subs->data_endpoint = snd_usb_endpoint_open(chip, fmt,
 				&params, false, fixed_rate);
 		if (!subs->data_endpoint) {
