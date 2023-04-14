@@ -94,7 +94,7 @@
 		};
 	};
 
-	vusb_main: fixed-regulator-vusb-main5v0 {
+	vusb_main: regulator-0 {
 		/* USB MAIN INPUT 5V DC */
 		compatible = "regulator-fixed";
 		regulator-name = "vusb_main5v0";
@@ -104,7 +104,7 @@
 		regulator-boot-on;
 	};
 
-	vcc_3v3_sys: fixedregulator-vcc-3v3-sys {
+	vcc_3v3_sys: regulator-1 {
 		/* output of LP8733xx */
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_3v3_sys";
@@ -115,7 +115,7 @@
 		regulator-boot-on;
 	};
 
-	vdd_mmc1: fixed-regulator-sd {
+	vdd_mmc1: regulator-2 {
 		/* TPS2051BD */
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_mmc1";
@@ -127,7 +127,7 @@
 		gpio = <&exp1 3 GPIO_ACTIVE_HIGH>;
 	};
 
-	com8_ls_en: regulator-1 {
+	com8_ls_en: regulator-3 {
 		compatible = "regulator-fixed";
 		regulator-name = "com8_ls_en";
 		regulator-min-microvolt = <3300000>;
@@ -139,7 +139,7 @@
 		gpio = <&main_gpio0 62 GPIO_ACTIVE_LOW>;
 	};
 
-	wlan_en: regulator-2 {
+	wlan_en: regulator-4 {
 		/* output of SN74AVC4T245RSVR */
 		compatible = "regulator-fixed";
 		regulator-name = "wlan_en";
