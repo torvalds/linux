@@ -868,5 +868,5 @@ int rtw_hw_scan_offload(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
 			bool enable);
 void rtw_hw_scan_status_report(struct rtw_dev *rtwdev, struct sk_buff *skb);
 void rtw_hw_scan_chan_switch(struct rtw_dev *rtwdev, struct sk_buff *skb);
-void rtw_hw_scan_abort(struct rtw_dev *rtwdev, struct ieee80211_vif *vif);
+void rtw_hw_scan_abort(struct rtw_dev *rtwdev);
 #endif

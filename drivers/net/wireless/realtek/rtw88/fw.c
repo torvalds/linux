@@ -2163,8 +2163,10 @@ out:
 	return ret;
 }
 
-void rtw_hw_scan_abort(struct rtw_dev *rtwdev, struct ieee80211_vif *vif)
+void rtw_hw_scan_abort(struct rtw_dev *rtwdev)
 {
+	struct ieee80211_vif *vif = rtwdev->scan_info.scanning_vif;
+
 	if (!rtw_fw_feature_check(&rtwdev->fw, FW_FEATURE_SCAN_OFFLOAD))
 		return;
 
