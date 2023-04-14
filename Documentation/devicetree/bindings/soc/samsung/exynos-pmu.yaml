@@ -48,6 +48,9 @@ properties:
           - const: syscon
       - items:
           - enum:
+              - samsung,exynos3250-pmu
+              - samsung,exynos4210-pmu
+              - samsung,exynos4412-pmu
               - samsung,exynos5250-pmu
               - samsung,exynos5420-pmu
               - samsung,exynos5433-pmu
@@ -138,17 +141,33 @@ allOf:
         compatible:
           contains:
             enum:
+              - samsung,exynos3250-pmu
+              - samsung,exynos4210-pmu
+              - samsung,exynos4412-pmu
+              - samsung,exynos5250-pmu
+              - samsung,exynos5420-pmu
+              - samsung,exynos5433-pmu
+    then:
+      properties:
+        mipi-phy: true
+    else:
+      properties:
+        mipi-phy: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
               - samsung,exynos5250-pmu
               - samsung,exynos5420-pmu
               - samsung,exynos5433-pmu
     then:
       properties:
         dp-phy: true
-        mipi-phy: true
     else:
       properties:
         dp-phy: false
-        mipi-phy: false
 
 examples:
   - |

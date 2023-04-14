@@ -23,6 +23,11 @@
 		reg = <0x40000000 0x80000000>;
 	};
 
+	aliases {
+		mmc0 = &mmc_0;
+		mmc1 = &mmc_2;
+	};
+
 	chosen {
 		stdout-path = "serial2:115200n8";
 	};
@@ -192,12 +197,15 @@
 		vddio-supply = <&vcc_1v8_reg>;
 		vddlvds-supply = <&vcc_3v3_reg>;
 		reset-gpios = <&gpd1 6 GPIO_ACTIVE_LOW>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		port@1 {
-			reg = <1>;
-			bridge_out_ep: endpoint {
-				remote-endpoint = <&panel_ep>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			port@1 {
+				reg = <1>;
+				bridge_out_ep: endpoint {
+					remote-endpoint = <&panel_ep>;
+				};
 			};
 		};
 	};
@@ -586,6 +594,7 @@
 	pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_bus4 &sd0_bus8>;
 	bus-width = <8>;
 	cap-mmc-highspeed;
+	mmc-ddr-1_8v;
 };
 
 &mmc_2 {
