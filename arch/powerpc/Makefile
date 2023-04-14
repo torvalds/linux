@@ -263,6 +263,9 @@ ppc64_guest_defconfig:
 generated_configs += pseries_le_defconfig
 pseries_le_defconfig: ppc64le_guest_defconfig
 
+generated_configs += pseries_defconfig
+pseries_defconfig: ppc64le_guest_defconfig
+
 generated_configs += powernv_be_defconfig
 powernv_be_defconfig:
 	$(call merge_into_defconfig,powernv_defconfig,be)
