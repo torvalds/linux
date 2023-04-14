@@ -1506,6 +1506,7 @@ struct dc_link {
 		/* Forced DPIA into TBT3 compatibility mode. */
 		bool dpia_forced_tbt3_mode;
 		bool dongle_mode_timing_override;
+		bool blank_stream_on_ocs_change;
 	} wa_flags;
 	struct link_mst_stream_allocation_table mst_stream_alloc_table;
 
