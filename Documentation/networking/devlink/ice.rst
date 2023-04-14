@@ -7,6 +7,21 @@ ice devlink support
 This document describes the devlink features implemented by the ``ice``
 device driver.
 
+Parameters
+==========
+
+.. list-table:: Generic parameters implemented
+
+   * - Name
+     - Mode
+     - Notes
+   * - ``enable_roce``
+     - runtime
+     - mutually exclusive with ``enable_iwarp``
+   * - ``enable_iwarp``
+     - runtime
+     - mutually exclusive with ``enable_roce``
+
 Info versions
 =============
 
