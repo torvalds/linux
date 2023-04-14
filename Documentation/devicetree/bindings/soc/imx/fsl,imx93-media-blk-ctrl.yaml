@@ -60,7 +60,7 @@ examples:
     #include <dt-bindings/clock/imx93-clock.h>
     #include <dt-bindings/power/fsl,imx93-power.h>
 
-    media_blk_ctrl: system-controller@4ac10000 {
+    system-controller@4ac10000 {
       compatible = "fsl,imx93-media-blk-ctrl", "syscon";
       reg = <0x4ac10000 0x10000>;
       power-domains = <&mediamix>;
