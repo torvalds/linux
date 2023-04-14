@@ -1396,6 +1396,21 @@ static int xpad_start_xbox_one(struct usb_xpad *xpad)
 	unsigned long flags;
 	int retval;
 
+	if (usb_ifnum_to_if(xpad->udev, GIP_WIRED_INTF_AUDIO)) {
+		/*
+		 * Explicitly disable the audio interface. This is needed
+		 * for some controllers, such as the PowerA Enhanced Wired
+		 * Controller for Series X|S (0x20d6:0x200e) to report the
+		 * guide button.
+		 */
+		retval = usb_set_interface(xpad->udev,
+					   GIP_WIRED_INTF_AUDIO, 0);
+		if (retval)
+			dev_warn(&xpad->dev->dev,
+				 "unable to disable audio interface: %d\n",
+				 retval);
+	}
+
 	spin_lock_irqsave(&xpad->odata_lock, flags);
 
 	/*
