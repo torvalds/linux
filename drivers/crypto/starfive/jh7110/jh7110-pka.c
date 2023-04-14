@@ -1,21 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright 2021 StarFive, Inc <huan.feng@starfivetech.com>
+ * StarFive Public Key Algo acceleration driver
  *
- * THE PRESENT SOFTWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING
- * CUSTOMERS WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER
- * FOR THEM TO SAVE TIME. AS A RESULT, STARFIVE SHALL NOT BE HELD LIABLE
- * FOR ANY DIRECT, INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY
- * CLAIMS ARISING FROM THE CONTENT OF SUCH SOFTWARE AND/OR THE USE MADE
- * BY CUSTOMERS OF THE CODING INFORMATION CONTAINED HEREIN IN CONNECTION
- * WITH THEIR PRODUCTS.
+ * Copyright (c) 2022 StarFive Technology Co., Ltd.
  */
+
 #include <linux/mod_devicetable.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/iopoll.h>
 #include <linux/crypto.h>
 #include <linux/io.h>
+#include <linux/module.h>
 
 #include <linux/delay.h>
 #include <linux/dma-direct.h>
@@ -731,3 +727,7 @@ void jh7110_pka_unregister_algs(void)
 {
 	crypto_unregister_akcipher(&jh7110_rsa);
 }
+
+MODULE_DESCRIPTION("Public Key Algo acceleration driver for StarFive JH7110 SoC");
+MODULE_AUTHOR("Jia Jie Ho <jiajie.ho@starfivetech.com>");
+MODULE_LICENSE("GPL");

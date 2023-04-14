@@ -1,17 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright 2021 StarFive, Inc <william.qiu@starfivetech.com>
- * Copyright 2021 StarFive, Inc <huan.feng@starfivetech.com>
+ * Cryptographic API.
  *
- * THE PRESENT SOFTWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING
- * CUSTOMERS WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER
- * FOR THEM TO SAVE TIME. AS A RESULT, STARFIVE SHALL NOT BE HELD LIABLE
- * FOR ANY DIRECT, INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY
- * CLAIMS ARISING FROM THE CONTENT OF SUCH SOFTWARE AND/OR THE USE MADE
- * BY CUSTOMERS OF THE CODING INFORMATION CONTAINED HEREIN IN CONNECTION
- * WITH THEIR PRODUCTS.
+ * Support for StarFive hardware cryptographic engine.
+ * Copyright (c) 2022 StarFive Technology Co., Ltd.
+ *
  */
-
 
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -413,8 +407,6 @@ static const struct dev_pm_ops jh7110_cryp_pm_ops = {
 			   jh7110_cryp_runtime_resume, NULL)
 };
 
-
-
 static struct platform_driver jh7110_cryp_driver = {
 	.probe  = jh7110_cryp_probe,
 	.remove = jh7110_cryp_remove,
@@ -427,6 +419,6 @@ static struct platform_driver jh7110_cryp_driver = {
 
 module_platform_driver(jh7110_cryp_driver);
 
+MODULE_DESCRIPTION("StarFive Cryptographic Module");
+MODULE_AUTHOR("Jia Jie Ho <jiajie.ho@starfivetech.com>");
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Huan Feng <huan.feng@starfivetech.com>");
-MODULE_DESCRIPTION("Starfive JH7110 CRYP SHA and AES driver");
