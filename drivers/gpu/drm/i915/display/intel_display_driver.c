@@ -7,8 +7,10 @@
  * details here.
  */
 
+#include <linux/vga_switcheroo.h>
 #include <acpi/video.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_privacy_screen_consumer.h>
 #include <drm/drm_probe_helper.h>
 
 #include "i915_drv.h"
@@ -18,6 +20,27 @@
 #include "intel_display_driver.h"
 #include "intel_fbdev.h"
 #include "intel_opregion.h"
+
+bool intel_modeset_probe_defer(struct pci_dev *pdev)
+{
+	struct drm_privacy_screen *privacy_screen;
+
+	/*
+	 * apple-gmux is needed on dual GPU MacBook Pro
+	 * to probe the panel if we're the inactive GPU.
+	 */
+	if (vga_switcheroo_client_probe_defer(pdev))
+		return true;
+
+	/* If the LCD panel has a privacy-screen, wait for it */
+	privacy_screen = drm_privacy_screen_get(&pdev->dev, NULL);
+	if (IS_ERR(privacy_screen) && PTR_ERR(privacy_screen) == -EPROBE_DEFER)
+		return true;
+
+	drm_privacy_screen_put(privacy_screen);
+
+	return false;
+}
 
 void intel_display_driver_register(struct drm_i915_private *i915)
 {
