@@ -19,9 +19,8 @@
 #include <linux/string.h>
 #include <linux/sysfs.h>
 
-#include <trace/events/thermal.h>
-
 #include "thermal_core.h"
+#include "thermal_trace.h"
 
 int get_tz_trend(struct thermal_zone_device *tz, int trip)
 {

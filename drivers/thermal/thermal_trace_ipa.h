@@ -84,5 +84,11 @@ TRACE_EVENT(thermal_power_allocator_pid,
 );
 #endif /* _TRACE_THERMAL_POWER_ALLOCATOR_H */
 
+#undef TRACE_INCLUDE_PATH
+#define TRACE_INCLUDE_PATH .
+
+#undef TRACE_INCLUDE_FILE
+#define TRACE_INCLUDE_FILE thermal_trace_ipa
+
 /* This part must be outside protection */
 #include <trace/define_trace.h>
