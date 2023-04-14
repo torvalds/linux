@@ -32,6 +32,7 @@
 #include "intel_display_types.h"
 #include "intel_dmc.h"
 #include "intel_dp.h"
+#include "intel_dpll.h"
 #include "intel_dpll_mgr.h"
 #include "intel_fb.h"
 #include "intel_fbc.h"
@@ -167,6 +168,19 @@ static void intel_plane_possible_crtcs_init(struct drm_i915_private *dev_priv)
 
 		plane->base.possible_crtcs = drm_crtc_mask(&crtc->base);
 	}
+}
+
+void intel_display_driver_early_probe(struct drm_i915_private *i915)
+{
+	if (!HAS_DISPLAY(i915))
+		return;
+
+	intel_color_init_hooks(i915);
+	intel_init_cdclk_hooks(i915);
+	intel_audio_hooks_init(i915);
+	intel_dpll_init_clock_hook(i915);
+	intel_init_display_hooks(i915);
+	intel_fdi_init_hook(i915);
 }
 
 /* part #1: call before irq install */

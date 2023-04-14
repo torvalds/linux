@@ -252,7 +252,7 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 	intel_detect_pch(dev_priv);
 
 	intel_irq_init(dev_priv);
-	intel_init_display_hooks(dev_priv);
+	intel_display_driver_early_probe(dev_priv);
 	intel_clock_gating_hooks_init(dev_priv);
 
 	intel_detect_preproduction_hw(dev_priv);

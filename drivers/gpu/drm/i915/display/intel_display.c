@@ -8019,15 +8019,6 @@ static const struct intel_display_funcs i9xx_display_funcs = {
  */
 void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 {
-	if (!HAS_DISPLAY(dev_priv))
-		return;
-
-	intel_color_init_hooks(dev_priv);
-	intel_init_cdclk_hooks(dev_priv);
-	intel_audio_hooks_init(dev_priv);
-
-	intel_dpll_init_clock_hook(dev_priv);
-
 	if (DISPLAY_VER(dev_priv) >= 9) {
 		dev_priv->display.funcs.display = &skl_display_funcs;
 	} else if (HAS_DDI(dev_priv)) {
@@ -8040,8 +8031,6 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 	} else {
 		dev_priv->display.funcs.display = &i9xx_display_funcs;
 	}
-
-	intel_fdi_init_hook(dev_priv);
 }
 
 int intel_initial_commit(struct drm_device *dev)
