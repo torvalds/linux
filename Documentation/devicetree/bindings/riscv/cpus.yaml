@@ -35,6 +35,7 @@ properties:
               - sifive,e7
               - sifive,e71
               - sifive,rocket0
+              - sifive,s7
               - sifive,u5
               - sifive,u54
               - sifive,u7
