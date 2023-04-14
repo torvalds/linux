@@ -478,6 +478,7 @@
 	pwm0: pwm@ff350000 {
 		compatible = "rockchip,rv1106-pwm", "rockchip,rk3328-pwm";
 		reg = <0xff350000 0x10>;
+		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm0m0_pins>;
@@ -489,6 +490,7 @@
 	pwm1: pwm@ff350010 {
 		compatible = "rockchip,rv1106-pwm", "rockchip,rk3328-pwm";
 		reg = <0xff350010 0x10>;
+		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm1m0_pins>;
@@ -500,6 +502,7 @@
 	pwm2: pwm@ff350020 {
 		compatible = "rockchip,rv1106-pwm", "rockchip,rk3328-pwm";
 		reg = <0xff350020 0x10>;
+		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm2m0_pins>;
@@ -524,6 +527,7 @@
 	pwm4: pwm@ff360000 {
 		compatible = "rockchip,rv1106-pwm", "rockchip,rk3328-pwm";
 		reg = <0xff360000 0x10>;
+		interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm4m0_pins>;
@@ -535,6 +539,7 @@
 	pwm5: pwm@ff360010 {
 		compatible = "rockchip,rv1106-pwm", "rockchip,rk3328-pwm";
 		reg = <0xff360010 0x10>;
+		interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm5m0_pins>;
@@ -546,6 +551,7 @@
 	pwm6: pwm@ff360020 {
 		compatible = "rockchip,rv1106-pwm", "rockchip,rk3328-pwm";
 		reg = <0xff360020 0x10>;
+		interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm6m0_pins>;
@@ -824,6 +830,7 @@
 	pwm8: pwm@ff490000 {
 		compatible = "rockchip,rv1106-pwm", "rockchip,rk3328-pwm";
 		reg = <0xff490000 0x10>;
+		interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm8m0_pins>;
@@ -835,6 +842,7 @@
 	pwm9: pwm@ff490010 {
 		compatible = "rockchip,rv1106-pwm", "rockchip,rk3328-pwm";
 		reg = <0xff490010 0x10>;
+		interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm9m0_pins>;
@@ -846,6 +854,7 @@
 	pwm10: pwm@ff490020 {
 		compatible = "rockchip,rv1106-pwm", "rockchip,rk3328-pwm";
 		reg = <0xff490020 0x10>;
+		interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm10m0_pins>;
