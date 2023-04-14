@@ -875,13 +875,6 @@ static void cs35l56_dsp_work(struct work_struct *work)
 	unsigned int val;
 	int ret = 0;
 
-	if (!cs35l56->init_done &&
-	    !wait_for_completion_timeout(&cs35l56->init_completion,
-					 msecs_to_jiffies(5000))) {
-		dev_err(cs35l56->dev, "%s: init_completion timed out\n", __func__);
-		goto complete;
-	}
-
 	if (!cs35l56->init_done)
 		goto complete;
 
@@ -979,6 +972,12 @@ static int cs35l56_component_probe(struct snd_soc_component *component)
 	struct dentry *debugfs_root = component->debugfs_root;
 
 	BUILD_BUG_ON(ARRAY_SIZE(cs35l56_tx_input_texts) != ARRAY_SIZE(cs35l56_tx_input_values));
+
+	if (!wait_for_completion_timeout(&cs35l56->init_completion,
+					 msecs_to_jiffies(5000))) {
+		dev_err(cs35l56->dev, "%s: init_completion timed out\n", __func__);
+		return -ENODEV;
+	}
 
 	cs35l56->component = component;
 	wm_adsp2_component_probe(&cs35l56->dsp, component);
