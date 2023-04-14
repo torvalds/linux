@@ -679,6 +679,11 @@ static int tegra_get_gpiochip_from_name(struct gpio_chip *chip, void *data)
 	return !strcmp(chip->label, data);
 }
 
+static int tegra_gpiochip_match(struct gpio_chip *chip, void *data)
+{
+	return chip->fwnode == of_node_to_fwnode(data);
+}
+
 static int tegra_hte_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -687,6 +692,7 @@ static int tegra_hte_probe(struct platform_device *pdev)
 	struct device *dev;
 	struct tegra_hte_soc *hte_dev;
 	struct hte_chip *gc;
+	struct device_node *gpio_ctrl;
 
 	dev = &pdev->dev;
 
@@ -754,15 +760,23 @@ static int tegra_hte_probe(struct platform_device *pdev)
 		gc->match_from_linedata = tegra_hte_match_from_linedata;
 
 		if (of_device_is_compatible(dev->of_node,
-					    "nvidia,tegra194-gte-aon"))
+					    "nvidia,tegra194-gte-aon")) {
 			hte_dev->c = gpiochip_find("tegra194-gpio-aon",
 						tegra_get_gpiochip_from_name);
-		else if (of_device_is_compatible(dev->of_node,
-						 "nvidia,tegra234-gte-aon"))
-			hte_dev->c = gpiochip_find("tegra234-gpio-aon",
-						tegra_get_gpiochip_from_name);
-		else
-			return -ENODEV;
+		} else {
+			gpio_ctrl = of_parse_phandle(dev->of_node,
+						     "nvidia,gpio-controller",
+						     0);
+			if (!gpio_ctrl) {
+				dev_err(dev,
+					"gpio controller node not found\n");
+				return -ENODEV;
+			}
+
+			hte_dev->c = gpiochip_find(gpio_ctrl,
+						   tegra_gpiochip_match);
+			of_node_put(gpio_ctrl);
+		}
 
 		if (!hte_dev->c)
 			return dev_err_probe(dev, -EPROBE_DEFER,
