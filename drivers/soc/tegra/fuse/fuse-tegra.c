@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2013-2022, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2013-2023, NVIDIA CORPORATION.  All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -166,7 +166,7 @@ static int tegra_fuse_probe(struct platform_device *pdev)
 	nvmem.nkeepout = fuse->soc->num_keepouts;
 	nvmem.type = NVMEM_TYPE_OTP;
 	nvmem.read_only = true;
-	nvmem.root_only = true;
+	nvmem.root_only = false;
 	nvmem.reg_read = tegra_fuse_read;
 	nvmem.size = fuse->soc->info->size;
 	nvmem.word_size = 4;
