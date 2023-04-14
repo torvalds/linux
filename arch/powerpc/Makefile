@@ -258,11 +258,11 @@ ppc64le_defconfig:
 
 generated_configs += ppc64le_guest_defconfig
 ppc64le_guest_defconfig:
-	$(call merge_into_defconfig,ppc64_defconfig,le guest)
+	$(call merge_into_defconfig,ppc64_defconfig,le guest kvm_guest)
 
 generated_configs += ppc64_guest_defconfig
 ppc64_guest_defconfig:
-	$(call merge_into_defconfig,ppc64_defconfig,be guest)
+	$(call merge_into_defconfig,ppc64_defconfig,be guest kvm_guest)
 
 generated_configs += powernv_be_defconfig
 powernv_be_defconfig:
