@@ -2813,7 +2813,7 @@ int rtw89_mac_resume_sch_tx_v1(struct rtw89_dev *rtwdev, u8 mac_idx, u32 tx_en)
 }
 EXPORT_SYMBOL(rtw89_mac_resume_sch_tx_v1);
 
-u16 rtw89_mac_dle_buf_req(struct rtw89_dev *rtwdev, u16 buf_len, bool wd)
+int rtw89_mac_dle_buf_req(struct rtw89_dev *rtwdev, u16 buf_len, bool wd, u16 *pkt_id)
 {
 	u32 val, reg;
 	int ret;
@@ -2828,9 +2828,13 @@ u16 rtw89_mac_dle_buf_req(struct rtw89_dev *rtwdev, u16 buf_len, bool wd)
 	ret = read_poll_timeout(rtw89_read32, val, val & B_AX_WD_BUF_STAT_DONE,
 				1, 2000, false, rtwdev, reg);
 	if (ret)
-		return 0xffff;
+		return ret;
 
-	return FIELD_GET(B_AX_WD_BUF_STAT_PKTID_MASK, val);
+	*pkt_id = FIELD_GET(B_AX_WD_BUF_STAT_PKTID_MASK, val);
+	if (*pkt_id == S_WD_BUF_STAT_PKTID_INVALID)
+		return -ENOENT;
+
+	return 0;
 }
 
 int rtw89_mac_set_cpuio(struct rtw89_dev *rtwdev,
@@ -2907,10 +2911,10 @@ static int dle_quota_change(struct rtw89_dev *rtwdev, enum rtw89_qta_mode mode)
 
 	dle_quota_cfg(rtwdev, cfg, INVALID_QT_WCPU);
 
-	pkt_id = rtw89_mac_dle_buf_req(rtwdev, 0x20, true);
-	if (pkt_id == 0xffff) {
+	ret = rtw89_mac_dle_buf_req(rtwdev, 0x20, true, &pkt_id);
+	if (ret) {
 		rtw89_err(rtwdev, "[ERR]WDE DLE buf req\n");
-		return -ENOMEM;
+		return ret;
 	}
 
 	ctrl_para.cmd_type = CPUIO_OP_CMD_ENQ_TO_HEAD;
@@ -2925,10 +2929,10 @@ static int dle_quota_change(struct rtw89_dev *rtwdev, enum rtw89_qta_mode mode)
 		return -EFAULT;
 	}
 
-	pkt_id = rtw89_mac_dle_buf_req(rtwdev, 0x20, false);
-	if (pkt_id == 0xffff) {
+	ret = rtw89_mac_dle_buf_req(rtwdev, 0x20, false, &pkt_id);
+	if (ret) {
 		rtw89_err(rtwdev, "[ERR]PLE DLE buf req\n");
-		return -ENOMEM;
+		return ret;
 	}
 
 	ctrl_para.cmd_type = CPUIO_OP_CMD_ENQ_TO_HEAD;
