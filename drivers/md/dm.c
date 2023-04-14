@@ -1614,21 +1614,23 @@ static blk_status_t __process_abnormal_io(struct clone_info *ci,
 {
 	unsigned int num_bios = 0;
 	unsigned int max_granularity = 0;
+	struct queue_limits *limits = dm_get_queue_limits(ti->table->md);
 
 	switch (bio_op(ci->bio)) {
 	case REQ_OP_DISCARD:
 		num_bios = ti->num_discard_bios;
-		if (ti->max_discard_granularity) {
-			struct queue_limits *limits =
-				dm_get_queue_limits(ti->table->md);
+		if (ti->max_discard_granularity)
 			max_granularity = limits->max_discard_sectors;
-		}
 		break;
 	case REQ_OP_SECURE_ERASE:
 		num_bios = ti->num_secure_erase_bios;
+		if (ti->max_secure_erase_granularity)
+			max_granularity = limits->max_secure_erase_sectors;
 		break;
 	case REQ_OP_WRITE_ZEROES:
 		num_bios = ti->num_write_zeroes_bios;
+		if (ti->max_write_zeroes_granularity)
+			max_granularity = limits->max_write_zeroes_sectors;
 		break;
 	default:
 		break;
