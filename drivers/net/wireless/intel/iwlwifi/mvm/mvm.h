@@ -1401,24 +1401,8 @@ static inline bool iwl_mvm_has_new_rx_api(struct iwl_mvm *mvm)
 
 static inline bool iwl_mvm_has_mld_api(const struct iwl_fw *fw)
 {
-	return (iwl_fw_lookup_cmd_ver(fw, LINK_CONFIG_CMD,
-				      IWL_FW_CMD_VER_UNKNOWN) !=
-				IWL_FW_CMD_VER_UNKNOWN) &&
-		(iwl_fw_lookup_cmd_ver(fw, MAC_CONFIG_CMD,
-				       IWL_FW_CMD_VER_UNKNOWN) !=
-				IWL_FW_CMD_VER_UNKNOWN) &&
-		(iwl_fw_lookup_cmd_ver(fw, STA_CONFIG_CMD,
-				       IWL_FW_CMD_VER_UNKNOWN) !=
-				IWL_FW_CMD_VER_UNKNOWN) &&
-		(iwl_fw_lookup_cmd_ver(fw, AUX_STA_CMD,
-				       IWL_FW_CMD_VER_UNKNOWN) !=
-				IWL_FW_CMD_VER_UNKNOWN) &&
-		(iwl_fw_lookup_cmd_ver(fw, STA_REMOVE_CMD,
-				       IWL_FW_CMD_VER_UNKNOWN) !=
-				IWL_FW_CMD_VER_UNKNOWN) &&
-		(iwl_fw_lookup_cmd_ver(fw, STA_DISABLE_TX_CMD,
-				       IWL_FW_CMD_VER_UNKNOWN) !=
-				IWL_FW_CMD_VER_UNKNOWN);
+	return fw_has_capa(&fw->ucode_capa,
+			   IWL_UCODE_TLV_CAPA_MLD_API_SUPPORT);
 }
 
 static inline bool iwl_mvm_has_new_tx_api(struct iwl_mvm *mvm)
