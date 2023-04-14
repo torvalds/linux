@@ -11,7 +11,8 @@ VERBOSE=0
 TRACING=0
 
 tests="
-	netlink_checks				ovsnl: validate netlink attrs and settings"
+	netlink_checks				ovsnl: validate netlink attrs and settings
+	upcall_interfaces			ovs: test the upcall interfaces"
 
 info() {
     [ $VERBOSE = 0 ] || echo $*
@@ -72,7 +73,15 @@ ovs_add_dp () {
 
 ovs_add_if () {
 	info "Adding IF to DP: br:$2 if:$3"
-	ovs_sbx "$1" python3 $ovs_base/ovs-dpctl.py add-if "$2" "$3" || return 1
+	if [ "$4" != "-u" ]; then
+		ovs_sbx "$1" python3 $ovs_base/ovs-dpctl.py add-if "$2" "$3" \
+		    || return 1
+	else
+		python3 $ovs_base/ovs-dpctl.py add-if \
+		    -u "$2" "$3" >$ovs_dir/$3.out 2>$ovs_dir/$3.err &
+		pid=$!
+		on_exit "ovs_sbx $1 kill -TERM $pid 2>/dev/null"
+	fi
 }
 
 ovs_del_if () {
@@ -106,7 +115,12 @@ ovs_add_netns_and_veths () {
 		    || return 1
 	fi
 
-	ovs_add_if "$1" "$2" "$4" || return 1
+	if [ "$7" != "-u" ]; then
+		ovs_add_if "$1" "$2" "$4" || return 1
+	else
+		ovs_add_if "$1" "$2" "$4" -u || return 1
+	fi
+
 	[ $TRACING -eq 1 ] && ovs_netns_spawn_daemon "$1" "$ns" \
 			tcpdump -i any -s 65535
 
@@ -156,6 +170,24 @@ test_netlink_checks () {
 	    wc -l) == 2 ] || \
 	      return 1
 
+	return 0
+}
+
+test_upcall_interfaces() {
+	sbx_add "test_upcall_interfaces" || return 1
+
+	info "setting up new DP"
+	ovs_add_dp "test_upcall_interfaces" ui0 -V 2:1 || return 1
+
+	ovs_add_netns_and_veths "test_upcall_interfaces" ui0 upc left0 l0 \
+	    172.31.110.1/24 -u || return 1
+
+	sleep 1
+	info "sending arping"
+	ip netns exec upc arping -I l0 172.31.110.20 -c 1 \
+	    >$ovs_dir/arping.stdout 2>$ovs_dir/arping.stderr
+
+	grep -E "MISS upcall\[0/yes\]: .*arp\(sip=172.31.110.1,tip=172.31.110.20,op=1,sha=" $ovs_dir/left0.out >/dev/null 2>&1 || return 1
 	return 0
 }
 
