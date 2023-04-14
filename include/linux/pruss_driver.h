@@ -33,6 +33,33 @@ enum pruss_gp_mux_sel {
 };
 
 /*
+ * enum pruss_gpi_mode - PRUSS GPI configuration modes, used
+ *			 to program the PRUSS_GPCFG0/1 registers
+ */
+enum pruss_gpi_mode {
+	PRUSS_GPI_MODE_DIRECT,
+	PRUSS_GPI_MODE_PARALLEL,
+	PRUSS_GPI_MODE_28BIT_SHIFT,
+	PRUSS_GPI_MODE_MII,
+	PRUSS_GPI_MODE_MAX,
+};
+
+/**
+ * enum pru_type - PRU core type identifier
+ *
+ * @PRU_TYPE_PRU: Programmable Real-time Unit
+ * @PRU_TYPE_RTU: Auxiliary Programmable Real-Time Unit
+ * @PRU_TYPE_TX_PRU: Transmit Programmable Real-Time Unit
+ * @PRU_TYPE_MAX: just keep this one at the end
+ */
+enum pru_type {
+	PRU_TYPE_PRU,
+	PRU_TYPE_RTU,
+	PRU_TYPE_TX_PRU,
+	PRU_TYPE_MAX,
+};
+
+/*
  * enum pruss_mem - PRUSS memory range identifiers
  */
 enum pruss_mem {
@@ -86,6 +113,11 @@ int pruss_release_mem_region(struct pruss *pruss,
 			     struct pruss_mem_region *region);
 int pruss_cfg_get_gpmux(struct pruss *pruss, enum pruss_pru_id pru_id, u8 *mux);
 int pruss_cfg_set_gpmux(struct pruss *pruss, enum pruss_pru_id pru_id, u8 mux);
+int pruss_cfg_gpimode(struct pruss *pruss, enum pruss_pru_id pru_id,
+		      enum pruss_gpi_mode mode);
+int pruss_cfg_miirt_enable(struct pruss *pruss, bool enable);
+int pruss_cfg_xfr_enable(struct pruss *pruss, enum pru_type pru_type,
+			 bool enable);
 
 #else
 
@@ -117,6 +149,25 @@ static inline int pruss_cfg_get_gpmux(struct pruss *pruss,
 
 static inline int pruss_cfg_set_gpmux(struct pruss *pruss,
 				      enum pruss_pru_id pru_id, u8 mux)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
+
+static inline int pruss_cfg_gpimode(struct pruss *pruss,
+				    enum pruss_pru_id pru_id,
+				    enum pruss_gpi_mode mode)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
+
+static inline int pruss_cfg_miirt_enable(struct pruss *pruss, bool enable)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
+
+static inline int pruss_cfg_xfr_enable(struct pruss *pruss,
+				       enum pru_type pru_type,
+				       bool enable);
 {
 	return ERR_PTR(-EOPNOTSUPP);
 }

@@ -213,6 +213,77 @@ int pruss_cfg_set_gpmux(struct pruss *pruss, enum pruss_pru_id pru_id, u8 mux)
 }
 EXPORT_SYMBOL_GPL(pruss_cfg_set_gpmux);
 
+/**
+ * pruss_cfg_gpimode() - set the GPI mode of the PRU
+ * @pruss: the pruss instance handle
+ * @pru_id: id of the PRU core within the PRUSS
+ * @mode: GPI mode to set
+ *
+ * Sets the GPI mode for a given PRU by programming the
+ * corresponding PRUSS_CFG_GPCFGx register
+ *
+ * Return: 0 on success, or an error code otherwise
+ */
+int pruss_cfg_gpimode(struct pruss *pruss, enum pruss_pru_id pru_id,
+		      enum pruss_gpi_mode mode)
+{
+	if (pru_id >= PRUSS_NUM_PRUS || mode >= PRUSS_GPI_MODE_MAX)
+		return -EINVAL;
+
+	return pruss_cfg_update(pruss, PRUSS_CFG_GPCFG(pru_id),
+				PRUSS_GPCFG_PRU_GPI_MODE_MASK,
+				mode << PRUSS_GPCFG_PRU_GPI_MODE_SHIFT);
+}
+EXPORT_SYMBOL_GPL(pruss_cfg_gpimode);
+
+/**
+ * pruss_cfg_miirt_enable() - Enable/disable MII RT Events
+ * @pruss: the pruss instance
+ * @enable: enable/disable
+ *
+ * Enable/disable the MII RT Events for the PRUSS.
+ *
+ * Return: 0 on success, or an error code otherwise
+ */
+int pruss_cfg_miirt_enable(struct pruss *pruss, bool enable)
+{
+	u32 set = enable ? PRUSS_MII_RT_EVENT_EN : 0;
+
+	return pruss_cfg_update(pruss, PRUSS_CFG_MII_RT,
+				PRUSS_MII_RT_EVENT_EN, set);
+}
+EXPORT_SYMBOL_GPL(pruss_cfg_miirt_enable);
+
+/**
+ * pruss_cfg_xfr_enable() - Enable/disable XIN XOUT shift functionality
+ * @pruss: the pruss instance
+ * @pru_type: PRU core type identifier
+ * @enable: enable/disable
+ *
+ * Return: 0 on success, or an error code otherwise
+ */
+int pruss_cfg_xfr_enable(struct pruss *pruss, enum pru_type pru_type,
+			 bool enable)
+{
+	u32 mask, set;
+
+	switch (pru_type) {
+	case PRU_TYPE_PRU:
+		mask = PRUSS_SPP_XFER_SHIFT_EN;
+		break;
+	case PRU_TYPE_RTU:
+		mask = PRUSS_SPP_RTU_XFR_SHIFT_EN;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	set = enable ? mask : 0;
+
+	return pruss_cfg_update(pruss, PRUSS_CFG_SPP, mask, set);
+}
+EXPORT_SYMBOL_GPL(pruss_cfg_xfr_enable);
+
 static void pruss_of_free_clk_provider(void *data)
 {
 	struct device_node *clk_mux_np = data;
