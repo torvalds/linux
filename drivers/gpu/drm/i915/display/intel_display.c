@@ -833,7 +833,7 @@ void intel_display_finish_reset(struct drm_i915_private *i915)
 		 * so need a full re-initialization.
 		 */
 		intel_pps_unlock_regs_wa(i915);
-		intel_modeset_init_hw(i915);
+		intel_display_driver_init_hw(i915);
 		intel_clock_gating_init(i915);
 		intel_hpd_init(i915);
 

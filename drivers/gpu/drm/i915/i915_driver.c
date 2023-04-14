@@ -743,7 +743,7 @@ i915_driver_create(struct pci_dev *pdev, const struct pci_device_id *ent)
  * @ent: matching PCI ID entry
  *
  * The driver probe routine has to do several things:
- *   - drive output discovery via intel_modeset_init()
+ *   - drive output discovery via intel_display_driver_probe()
  *   - initialize the memory manager
  *   - allocate initial config memory
  *   - setup the DRM framebuffer with the allocated memory
@@ -781,7 +781,7 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret < 0)
 		goto out_cleanup_mmio;
 
-	ret = intel_modeset_init_noirq(i915);
+	ret = intel_display_driver_probe_noirq(i915);
 	if (ret < 0)
 		goto out_cleanup_hw;
 
@@ -789,7 +789,7 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		goto out_cleanup_modeset;
 
-	ret = intel_modeset_init_nogem(i915);
+	ret = intel_display_driver_probe_nogem(i915);
 	if (ret)
 		goto out_cleanup_irq;
 
@@ -799,7 +799,7 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	intel_pxp_init(i915);
 
-	ret = intel_modeset_init(i915);
+	ret = intel_display_driver_probe(i915);
 	if (ret)
 		goto out_cleanup_gem;
 
@@ -819,14 +819,14 @@ out_cleanup_gem:
 	i915_gem_driver_release(i915);
 out_cleanup_modeset2:
 	/* FIXME clean up the error path */
-	intel_modeset_driver_remove(i915);
+	intel_display_driver_remove(i915);
 	intel_irq_uninstall(i915);
-	intel_modeset_driver_remove_noirq(i915);
+	intel_display_driver_remove_noirq(i915);
 	goto out_cleanup_modeset;
 out_cleanup_irq:
 	intel_irq_uninstall(i915);
 out_cleanup_modeset:
-	intel_modeset_driver_remove_nogem(i915);
+	intel_display_driver_remove_nogem(i915);
 out_cleanup_hw:
 	i915_driver_hw_remove(i915);
 	intel_memory_regions_driver_release(i915);
@@ -862,16 +862,16 @@ void i915_driver_remove(struct drm_i915_private *i915)
 
 	intel_gvt_driver_remove(i915);
 
-	intel_modeset_driver_remove(i915);
+	intel_display_driver_remove(i915);
 
 	intel_irq_uninstall(i915);
 
-	intel_modeset_driver_remove_noirq(i915);
+	intel_display_driver_remove_noirq(i915);
 
 	i915_reset_error_state(i915);
 	i915_gem_driver_remove(i915);
 
-	intel_modeset_driver_remove_nogem(i915);
+	intel_display_driver_remove_nogem(i915);
 
 	i915_driver_hw_remove(i915);
 
@@ -1224,7 +1224,7 @@ static int i915_drm_resume(struct drm_device *dev)
 	 *
 	 * drm_mode_config_reset() needs AUX interrupts.
 	 *
-	 * Modeset enabling in intel_modeset_init_hw() also needs working
+	 * Modeset enabling in intel_display_driver_init_hw() also needs working
 	 * interrupts.
 	 */
 	intel_runtime_pm_enable_interrupts(dev_priv);
@@ -1234,7 +1234,8 @@ static int i915_drm_resume(struct drm_device *dev)
 
 	i915_gem_resume(dev_priv);
 
-	intel_modeset_init_hw(dev_priv);
+	intel_display_driver_init_hw(dev_priv);
+
 	intel_clock_gating_init(dev_priv);
 	intel_hpd_init(dev_priv);
 

@@ -72,7 +72,7 @@ bool intel_display_driver_probe_defer(struct pci_dev *pdev)
 	return false;
 }
 
-void intel_modeset_init_hw(struct drm_i915_private *i915)
+void intel_display_driver_init_hw(struct drm_i915_private *i915)
 {
 	struct intel_cdclk_state *cdclk_state;
 
@@ -170,7 +170,7 @@ static void intel_plane_possible_crtcs_init(struct drm_i915_private *dev_priv)
 }
 
 /* part #1: call before irq install */
-int intel_modeset_init_noirq(struct drm_i915_private *i915)
+int intel_display_driver_probe_noirq(struct drm_i915_private *i915)
 {
 	int ret;
 
@@ -246,7 +246,7 @@ cleanup_bios:
 }
 
 /* part #2: call after irq install, but before gem init */
-int intel_modeset_init_nogem(struct drm_i915_private *i915)
+int intel_display_driver_probe_nogem(struct drm_i915_private *i915)
 {
 	struct drm_device *dev = &i915->drm;
 	enum pipe pipe;
@@ -281,7 +281,7 @@ int intel_modeset_init_nogem(struct drm_i915_private *i915)
 	intel_fdi_pll_freq_update(i915);
 
 	intel_update_czclk(i915);
-	intel_modeset_init_hw(i915);
+	intel_display_driver_init_hw(i915);
 	intel_dpll_update_ref_clks(i915);
 
 	intel_hdcp_component_init(i915);
@@ -318,7 +318,7 @@ int intel_modeset_init_nogem(struct drm_i915_private *i915)
 }
 
 /* part #3: call after gem init */
-int intel_modeset_init(struct drm_i915_private *i915)
+int intel_display_driver_probe(struct drm_i915_private *i915)
 {
 	int ret;
 
@@ -382,7 +382,7 @@ void intel_display_driver_register(struct drm_i915_private *i915)
 }
 
 /* part #1: call before irq uninstall */
-void intel_modeset_driver_remove(struct drm_i915_private *i915)
+void intel_display_driver_remove(struct drm_i915_private *i915)
 {
 	if (!HAS_DISPLAY(i915))
 		return;
@@ -402,7 +402,7 @@ void intel_modeset_driver_remove(struct drm_i915_private *i915)
 }
 
 /* part #2: call after irq uninstall */
-void intel_modeset_driver_remove_noirq(struct drm_i915_private *i915)
+void intel_display_driver_remove_noirq(struct drm_i915_private *i915)
 {
 	if (!HAS_DISPLAY(i915))
 		return;
@@ -436,7 +436,7 @@ void intel_modeset_driver_remove_noirq(struct drm_i915_private *i915)
 }
 
 /* part #3: call after gem init */
-void intel_modeset_driver_remove_nogem(struct drm_i915_private *i915)
+void intel_display_driver_remove_nogem(struct drm_i915_private *i915)
 {
 	intel_dmc_fini(i915);
 
