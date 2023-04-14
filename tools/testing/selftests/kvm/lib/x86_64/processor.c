@@ -731,7 +731,7 @@ void __vm_xsave_require_permission(uint64_t xfeature, const char *name)
 	rc = syscall(SYS_arch_prctl, ARCH_GET_XCOMP_GUEST_PERM, &bitmask);
 	TEST_ASSERT(rc == 0, "prctl(ARCH_GET_XCOMP_GUEST_PERM) error: %ld", rc);
 	TEST_ASSERT(bitmask & xfeature,
-		    "'%s' (0x%lx) not permitted after prctl(ARCH_REQ_XCOMP_GUEST_PERM) perrmited=0x%lx",
+		    "'%s' (0x%lx) not permitted after prctl(ARCH_REQ_XCOMP_GUEST_PERM) permitted=0x%lx",
 		    name, xfeature, bitmask);
 }
 
