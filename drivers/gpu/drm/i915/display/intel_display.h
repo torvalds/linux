@@ -63,6 +63,7 @@ struct intel_power_domain_mask;
 struct intel_remapped_info;
 struct intel_rotation_info;
 struct pci_dev;
+struct work_struct;
 
 
 #define pipe_name(p) ((p) + 'A')
@@ -521,13 +522,6 @@ void intel_plane_fixup_bitmasks(struct intel_crtc_state *crtc_state);
 void intel_update_watermarks(struct drm_i915_private *i915);
 
 /* modesetting */
-void intel_modeset_init_hw(struct drm_i915_private *i915);
-int intel_modeset_init_noirq(struct drm_i915_private *i915);
-int intel_modeset_init_nogem(struct drm_i915_private *i915);
-int intel_modeset_init(struct drm_i915_private *i915);
-void intel_modeset_driver_remove(struct drm_i915_private *i915);
-void intel_modeset_driver_remove_noirq(struct drm_i915_private *i915);
-void intel_modeset_driver_remove_nogem(struct drm_i915_private *i915);
 void intel_display_resume(struct drm_device *dev);
 int intel_modeset_all_pipes(struct intel_atomic_state *state,
 			    const char *reason);
@@ -535,6 +529,19 @@ void intel_modeset_get_crtc_power_domains(struct intel_crtc_state *crtc_state,
 					  struct intel_power_domain_mask *old_domains);
 void intel_modeset_put_crtc_power_domains(struct intel_crtc *crtc,
 					  struct intel_power_domain_mask *domains);
+
+/* interface for intel_display_driver.c */
+void intel_setup_outputs(struct drm_i915_private *i915);
+int intel_initial_commit(struct drm_device *dev);
+void intel_panel_sanitize_ssc(struct drm_i915_private *i915);
+void intel_update_czclk(struct drm_i915_private *i915);
+void intel_atomic_helper_free_state_worker(struct work_struct *work);
+enum drm_mode_status intel_mode_valid(struct drm_device *dev,
+				      const struct drm_display_mode *mode);
+int intel_atomic_commit(struct drm_device *dev, struct drm_atomic_state *_state,
+			bool nonblock);
+
+void intel_hpd_poll_fini(struct drm_i915_private *i915);
 
 /* modesetting asserts */
 void assert_transcoder(struct drm_i915_private *dev_priv,
