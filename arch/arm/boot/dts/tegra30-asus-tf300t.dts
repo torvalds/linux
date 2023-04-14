@@ -128,8 +128,8 @@
 			micdet-delay = <100>;
 
 			gpio-cfg = <
-				0xffffffff /* don't touch */
-				0xffffffff /* don't touch */
+				0x00000600 /* DMIC_LR, output */
+				0x00000680 /* DMIC_DAT, input */
 				0x00000000 /* Speaker-enable GPIO, output, low */
 				0xffffffff /* don't touch */
 				0xffffffff /* don't touch */
@@ -1023,12 +1023,10 @@
 			"Int Spk", "RON",
 			"Int Spk", "LOP",
 			"Int Spk", "LON",
-			"IN1L", "Mic Jack",
 			"IN2L", "Mic Jack",
 			"DMICDAT", "Int Mic";
 
 		nvidia,audio-codec = <&wm8903>;
 		nvidia,spkr-en-gpios = <&wm8903 2 GPIO_ACTIVE_HIGH>;
-		nvidia,headset;
 	};
 };
