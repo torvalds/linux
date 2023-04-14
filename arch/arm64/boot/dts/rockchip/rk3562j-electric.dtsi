@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include "rk3562j.dtsi"
+
+&cpu0_opp_table {
+	/*
+	 * Max CPU frequency is 1.8GHz for the overdrive mode,
+	 * but it will reduce chip lifetime.
+	 */
+	/delete-node/ opp-408000000;
+	/delete-node/ opp-600000000;
+	/delete-node/ opp-816000000;
+	/delete-node/ opp-1008000000;
+};
