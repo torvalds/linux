@@ -1072,6 +1072,15 @@ static void dm_io_dec_pending(struct dm_io *io, blk_status_t error)
 	__dm_io_dec_pending(io);
 }
 
+/*
+ * The queue_limits are only valid as long as you have a reference
+ * count on 'md'. But _not_ imposing verification to avoid atomic_read(),
+ */
+static inline struct queue_limits *dm_get_queue_limits(struct mapped_device *md)
+{
+	return &md->queue->limits;
+}
+
 void disable_discard(struct mapped_device *md)
 {
 	struct queue_limits *limits = dm_get_queue_limits(md);
@@ -2310,17 +2319,6 @@ struct target_type *dm_get_immutable_target_type(struct mapped_device *md)
 {
 	return md->immutable_target_type;
 }
-
-/*
- * The queue_limits are only valid as long as you have a reference
- * count on 'md'.
- */
-struct queue_limits *dm_get_queue_limits(struct mapped_device *md)
-{
-	BUG_ON(!atomic_read(&md->holders));
-	return &md->queue->limits;
-}
-EXPORT_SYMBOL_GPL(dm_get_queue_limits);
 
 /*
  * Setup the DM device's queue based on md's type

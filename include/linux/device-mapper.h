@@ -530,8 +530,6 @@ int __init dm_early_create(struct dm_ioctl *dmi,
 			   struct dm_target_spec **spec_array,
 			   char **target_params_array);
 
-struct queue_limits *dm_get_queue_limits(struct mapped_device *md);
-
 /*
  * Geometry functions.
  */
