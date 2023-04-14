@@ -193,7 +193,7 @@ static int mrq_debug_read(struct tegra_bpmp *bpmp, const char *name,
 		},
 	};
 	u32 fd = 0, len = 0;
-	int remaining, err;
+	int remaining, err, close_err;
 
 	mutex_lock(&bpmp_debug_lock);
 	err = mrq_debug_open(bpmp, name, &fd, &len, 0);
@@ -231,7 +231,9 @@ static int mrq_debug_read(struct tegra_bpmp *bpmp, const char *name,
 	*nbytes = len;
 
 close:
-	err = mrq_debug_close(bpmp, fd);
+	close_err = mrq_debug_close(bpmp, fd);
+	if (!err)
+		err = close_err;
 out:
 	mutex_unlock(&bpmp_debug_lock);
 	return err;
@@ -319,7 +321,7 @@ static int bpmp_debug_show(struct seq_file *m, void *p)
 		},
 	};
 	u32 fd = 0, len = 0;
-	int remaining, err;
+	int remaining, err, close_err;
 
 	filename = get_filename(bpmp, file, fnamebuf, sizeof(fnamebuf));
 	if (!filename)
@@ -353,7 +355,9 @@ static int bpmp_debug_show(struct seq_file *m, void *p)
 	}
 
 close:
-	err = mrq_debug_close(bpmp, fd);
+	close_err = mrq_debug_close(bpmp, fd);
+	if (!err)
+		err = close_err;
 out:
 	mutex_unlock(&bpmp_debug_lock);
 	return err;
