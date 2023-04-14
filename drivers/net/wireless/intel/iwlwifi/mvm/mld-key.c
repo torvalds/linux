@@ -41,6 +41,8 @@ static u32 iwl_mvm_get_sec_flags(struct iwl_mvm *mvm,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	u32 flags = 0;
 
+	lockdep_assert_held(&mvm->mutex);
+
 	if (!(keyconf->flags & IEEE80211_KEY_FLAG_PAIRWISE))
 		flags |= IWL_SEC_KEY_FLAG_MCAST_KEY;
 
@@ -68,18 +70,11 @@ static u32 iwl_mvm_get_sec_flags(struct iwl_mvm *mvm,
 		break;
 	}
 
-	rcu_read_lock();
-	if (!sta && vif->type == NL80211_IFTYPE_STATION &&
-	    mvmvif->deflink.ap_sta_id != IWL_MVM_INVALID_STA) {
-		u8 sta_id = mvmvif->deflink.ap_sta_id;
-
-		sta = rcu_dereference_check(mvm->fw_id_to_mac_id[sta_id],
-					    lockdep_is_held(&mvm->mutex));
-	}
+	if (!sta && vif->type == NL80211_IFTYPE_STATION)
+		sta = mvmvif->ap_sta;
 
 	if (!IS_ERR_OR_NULL(sta) && sta->mfp)
 		flags |= IWL_SEC_KEY_FLAG_MFP;
-	rcu_read_unlock();
 
 	return flags;
 }

@@ -434,6 +434,8 @@ struct iwl_mvm_vif {
 	/* TCP Checksum Offload */
 	netdev_features_t features;
 
+	struct ieee80211_sta *ap_sta;
+
 	/* we can only have 2 GTK + 2 IGTK active at a time */
 	struct ieee80211_key_conf *ap_early_keys[4];
 
