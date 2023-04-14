@@ -623,8 +623,9 @@ static void acpi_sb_notify(acpi_handle handle, u32 event, void *data)
 	if (event == ACPI_SB_NOTIFY_SHUTDOWN_REQUEST) {
 		if (!work_busy(&acpi_sb_work))
 			schedule_work(&acpi_sb_work);
-	} else
+	} else {
 		pr_warn("event %x is not supported by \\_SB device\n", event);
+	}
 }
 
 static int __init acpi_setup_sb_notify_handler(void)
