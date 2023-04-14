@@ -1137,10 +1137,6 @@ void mod_freesync_handle_preflip(struct mod_freesync *mod_freesync,
 
 	if (in_out_vrr->supported &&
 			in_out_vrr->state == VRR_STATE_ACTIVE_VARIABLE) {
-		unsigned int oldest_index = plane->time.index + 1;
-
-		if (oldest_index >= DC_PLANE_UPDATE_TIMES_MAX)
-			oldest_index = 0;
 
 		last_render_time_in_us = curr_time_stamp_in_us -
 				plane->time.prev_update_time_in_us;
