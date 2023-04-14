@@ -451,7 +451,7 @@
 	 * PM8901 supplies "preliminary regulators" whatever
 	 * that means
 	 */
-	pm8901-regulators {
+	regulators-0 {
 		vdd_l0-supply = <&pm8901_s4>;
 		vdd_l1-supply = <&vph>;
 		vdd_l2-supply = <&vph>;
@@ -537,7 +537,7 @@
 
 	};
 
-	pm8058-regulators {
+	regulators-1 {
 		vdd_l0_l1_lvs-supply = <&pm8058_s3>;
 		vdd_l2_l11_l12-supply = <&vph>;
 		vdd_l3_l4_l5-supply = <&vph>;
