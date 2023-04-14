@@ -180,7 +180,10 @@ void ast_set_dp501_video_output(struct drm_device *dev, u8 mode)
 
 static u32 get_fw_base(struct ast_private *ast)
 {
-	return ast_mindwm(ast, 0x1e6e2104) & 0x7fffffff;
+	if (ast->chip == AST2500)
+		return ast_mindwm(ast, 0x1e6e2104) & 0xfffffffe;
+	else
+		return ast_mindwm(ast, 0x1e6e2104) & 0x7fffffff;
 }
 
 bool ast_backup_fw(struct drm_device *dev, u8 *addr, u32 size)
@@ -213,8 +216,8 @@ static bool ast_launch_m68k(struct drm_device *dev)
 	if (ast->config_mode != ast_use_p2a)
 		return false;
 
-	data = ast_mindwm(ast, 0x1e6e2100) & 0x01;
-	if (!data) {
+	data = ast_mindwm(ast, 0x1e6e2100) & 0x03;
+	if (data != 1) {
 
 		if (ast->dp501_fw_addr) {
 			fw_addr = ast->dp501_fw_addr;
@@ -230,21 +233,15 @@ static bool ast_launch_m68k(struct drm_device *dev)
 		/* Get BootAddress */
 		ast_moutdwm(ast, 0x1e6e2000, 0x1688a8a8);
 		data = ast_mindwm(ast, 0x1e6e0004);
-		switch (data & 0x03) {
-		case 0:
-			boot_address = 0x44000000;
-			break;
-		default:
-		case 1:
-			boot_address = 0x48000000;
-			break;
-		case 2:
-			boot_address = 0x50000000;
-			break;
-		case 3:
-			boot_address = 0x60000000;
-			break;
-		}
+		if (ast->chip == AST2500)
+			boot_address = 0x8000000;		/* 128MB */
+		else
+			boot_address = 0x4000000;		/* 64MB */
+		boot_address <<= (data & 0x03);
+		if (ast->chip == AST2500)
+			boot_address |= 0x80000000;		/* Base = 0x80000000 */
+		else
+			boot_address |= 0x40000000;		/* Base = 0x40000000 */
 		boot_address -= 0x200000; /* -2MB */
 
 		/* copy image to buffer */
@@ -257,7 +254,10 @@ static bool ast_launch_m68k(struct drm_device *dev)
 		ast_moutdwm(ast, 0x1e6e2000, 0x1688a8a8);
 
 		/* Launch FW */
-		ast_moutdwm(ast, 0x1e6e2104, 0x80000000 + boot_address);
+		if (ast->chip == AST2500)
+			ast_moutdwm(ast, 0x1e6e2104, boot_address | 0x00000001);
+		else
+			ast_moutdwm(ast, 0x1e6e2104, boot_address | 0x80000000);
 		ast_moutdwm(ast, 0x1e6e2100, 1);
 
 		/* Update Scratch */
@@ -270,64 +270,6 @@ static bool ast_launch_m68k(struct drm_device *dev)
 		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x99, jreg);
 	}
 	return true;
-}
-
-u8 ast_get_dp501_max_clk(struct drm_device *dev)
-{
-	struct ast_private *ast = to_ast_private(dev);
-	u32 boot_address, offset, data;
-	u8 linkcap[4], linkrate, linklanes, maxclk = 0xff;
-	u32 *plinkcap;
-
-	if (ast->config_mode == ast_use_p2a) {
-		boot_address = get_fw_base(ast);
-
-		/* validate FW version */
-		offset = AST_DP501_GBL_VERSION;
-		data = ast_mindwm(ast, boot_address + offset);
-		if ((data & AST_DP501_FW_VERSION_MASK) != AST_DP501_FW_VERSION_1) /* version: 1x */
-			return maxclk;
-
-		/* Read Link Capability */
-		offset  = AST_DP501_LINKRATE;
-		plinkcap = (u32 *)linkcap;
-		*plinkcap  = ast_mindwm(ast, boot_address + offset);
-		if (linkcap[2] == 0) {
-			linkrate = linkcap[0];
-			linklanes = linkcap[1];
-			data = (linkrate == 0x0a) ? (90 * linklanes) : (54 * linklanes);
-			if (data > 0xff)
-				data = 0xff;
-			maxclk = (u8)data;
-		}
-	} else {
-		if (!ast->dp501_fw_buf)
-			return AST_DP501_DEFAULT_DCLK;	/* 1024x768 as default */
-
-		/* dummy read */
-		offset = 0x0000;
-		data = readl(ast->dp501_fw_buf + offset);
-
-		/* validate FW version */
-		offset = AST_DP501_GBL_VERSION;
-		data = readl(ast->dp501_fw_buf + offset);
-		if ((data & AST_DP501_FW_VERSION_MASK) != AST_DP501_FW_VERSION_1) /* version: 1x */
-			return maxclk;
-
-		/* Read Link Capability */
-		offset = AST_DP501_LINKRATE;
-		plinkcap = (u32 *)linkcap;
-		*plinkcap = readl(ast->dp501_fw_buf + offset);
-		if (linkcap[2] == 0) {
-			linkrate = linkcap[0];
-			linklanes = linkcap[1];
-			data = (linkrate == 0x0a) ? (90 * linklanes) : (54 * linklanes);
-			if (data > 0xff)
-				data = 0xff;
-			maxclk = (u8)data;
-		}
-	}
-	return maxclk;
 }
 
 bool ast_dp501_read_edid(struct drm_device *dev, u8 *ediddata)
@@ -495,7 +437,7 @@ void ast_init_3rdtx(struct drm_device *dev)
 	struct ast_private *ast = to_ast_private(dev);
 	u8 jreg;
 
-	if (ast->chip == AST2300 || ast->chip == AST2400) {
+	if (ast->chip == AST2300 || ast->chip == AST2400 || ast->chip == AST2500) {
 		jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd1, 0xff);
 		switch (jreg & 0x0e) {
 		case 0x04:
@@ -503,6 +445,7 @@ void ast_init_3rdtx(struct drm_device *dev)
 			break;
 		case 0x08:
 			ast_launch_m68k(dev);
+			ast_init_dvo(dev);
 			break;
 		case 0x0c:
 			ast_init_dvo(dev);

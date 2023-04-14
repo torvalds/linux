@@ -92,6 +92,7 @@ int ast_mm_init(struct ast_private *ast)
 	int ret;
 
 	vram_size = ast_get_vram_size(ast);
+	drm_info(dev, "Available graphics memory: %d KB\n", vram_size / 1024);
 
 	ret = drmm_vram_helper_init(dev, pci_resource_start(pdev, 0), vram_size);
 	if (ret) {

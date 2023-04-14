@@ -44,11 +44,11 @@
 
 #define DRIVER_NAME		"ast"
 #define DRIVER_DESC		"AST"
-#define DRIVER_DATE		"20220630"
+#define DRIVER_DATE	  "20230414"
 
-#define DRIVER_MAJOR		1
-#define DRIVER_MINOR		13
-#define DRIVER_PATCHLEVEL	1
+#define DRIVER_MAJOR	1
+#define DRIVER_MINOR	14
+#define DRIVER_PATCHLEVEL	0
 
 #define PCI_CHIP_AST2000 0x2000
 #define PCI_CHIP_AST2100 0x2010
@@ -82,6 +82,8 @@ enum ast_tx_chip {
 #define AST_DRAM_4Gx16   7
 #define AST_DRAM_8Gx16   8
 
+#define MAX_COLOR_LUT_ENTRIES 256
+
 /*
  * Cursor plane
  */
@@ -91,8 +93,6 @@ enum ast_tx_chip {
 
 #define AST_HWC_SIZE		(AST_MAX_HWC_WIDTH * AST_MAX_HWC_HEIGHT * 2)
 #define AST_HWC_SIGNATURE_SIZE	32
-
-#define AST_DEFAULT_HWC_NUM	2
 
 /* define for signature structure */
 #define AST_HWC_SIGNATURE_CHECKSUM	0x00
@@ -106,13 +106,9 @@ enum ast_tx_chip {
 struct ast_cursor_plane {
 	struct drm_plane base;
 
-	struct {
-		struct drm_gem_vram_object *gbo;
-		struct dma_buf_map map;
-		u64 off;
-	} hwc[AST_DEFAULT_HWC_NUM];
-
-	unsigned int next_hwc_index;
+	struct drm_gem_vram_object *gbo;
+	struct dma_buf_map map;
+	u64 off;
 };
 
 static inline struct ast_cursor_plane *
@@ -149,6 +145,7 @@ to_ast_connector(struct drm_connector *connector)
 struct ast_private {
 	struct drm_device base;
 
+	struct mutex ioregs_lock; /* Protects access to I/O registers in ioregs */
 	void __iomem *regs;
 	void __iomem *ioregs;
 	void __iomem *dp501_fw_buf;
@@ -167,7 +164,6 @@ struct ast_private {
 	struct drm_encoder encoder;
 	struct ast_connector connector;
 
-	bool support_wide_screen;
 	bool RefCLK25MHz;
 	enum {
 		ast_use_p2a,
@@ -176,12 +172,8 @@ struct ast_private {
 	} config_mode;
 
 	enum ast_tx_chip tx_chip_type;
-	u8 dp501_maxclk;
 	u8 *dp501_fw_addr;
 	const struct firmware *dp501_fw;	/* dp501 fw */
-
-    // ASTDP
-	u8 ASTDP_State;
 };
 
 static inline struct ast_private *to_ast_private(struct drm_device *dev)
@@ -328,12 +320,15 @@ struct ast_crtc_state {
 
 int ast_mode_config_init(struct ast_private *ast);
 
+#define AST_VPLL_REF_CLOCK_25M		BIT(2)
+#define AST_VPLL_REF_CLOCK_24M		0
+
 #define AST_MM_ALIGN_SHIFT 4
 #define AST_MM_ALIGN_MASK ((1 << AST_MM_ALIGN_SHIFT) - 1)
 
 #define AST_DP501_FW_VERSION_MASK	GENMASK(7, 4)
 #define AST_DP501_FW_VERSION_1		BIT(4)
-#define AST_DP501_PNP_CONNECTED		BIT(1)
+#define AST_DP501_PNP_CONNECTED		BIT(0)
 
 #define AST_DP501_DEFAULT_DCLK	65
 
@@ -408,7 +403,7 @@ int ast_mode_config_init(struct ast_private *ast);
  */
 #define ASTDP_MISC0_24bpp			BIT(5)
 #define ASTDP_MISC1				0
-#define ASTDP_CLEAR_MASK			GENMASK(7, 0)
+#define ASTDP_AND_CLEAR_MASK			0
 
 /*
  * ASTDP resoultion table:
@@ -464,12 +459,11 @@ void ast_patch_ahb_2500(struct ast_private *ast);
 void ast_set_dp501_video_output(struct drm_device *dev, u8 mode);
 bool ast_backup_fw(struct drm_device *dev, u8 *addr, u32 size);
 bool ast_dp501_read_edid(struct drm_device *dev, u8 *ediddata);
-u8 ast_get_dp501_max_clk(struct drm_device *dev);
 void ast_init_3rdtx(struct drm_device *dev);
 
 /* aspeed DP */
 int ast_astdp_read_edid(struct drm_device *dev, u8 *ediddata);
-void ast_dp_launch(struct drm_device *dev, u8 bPower);
+void ast_dp_launch(struct drm_device *dev);
 void ast_dp_power_on_off(struct drm_device *dev, bool no);
 void ast_dp_set_on_off(struct drm_device *dev, bool no);
 void ast_dp_set_mode(struct drm_crtc *crtc, struct ast_vbios_mode_info *vbios_mode);

@@ -47,7 +47,7 @@
 #define SyncPN			(PVSync | NHSync)
 #define SyncNP			(NVSync | PHSync)
 #define SyncNN			(NVSync | NHSync)
-#define AST2500PreCatchCRT		0x00004000
+#define AST2500PreCatchCRT	0x00004000
 
 /* DCLK Index */
 #define VCLK25_175     		0x00
@@ -77,7 +77,7 @@
 #define VCLK119     		0x17
 #define VCLK85_5     		0x18
 #define VCLK97_75     		0x19
-#define VCLK118_25			0x1A
+#define VCLK118_25		0x1A
 
 static const struct ast_vbios_dclk_info dclk_table[] = {
 	{0x2C, 0xE7, 0x03},			/* 00: VCLK25_175	*/
@@ -134,7 +134,7 @@ static const struct ast_vbios_dclk_info dclk_table_25MHz[] = {
 	{0x11, 0x63, 0x80},			/* 15: VCLK71           */
 	{0x47, 0x6a, 0x80},			/* 16: VCLK88.75        */
 	{0x13, 0x44, 0x80},			/* 17: VCLK119          */
-	{0x29, 0x66, 0x80},		    /* 18: VCLK85_5         */
+	{0x29, 0x66, 0x80},			/* 18: VCLK85_5         */
 	{0x2f, 0x66, 0x80},			/* 19: VCLK97_75 */
 	{0x21, 0x47, 0x80},			/* 1A: VCLK118_25 */
 };
@@ -194,7 +194,7 @@ static const struct ast_vbios_dclk_info dclk_table_ast2500_25MHz[] = {
 	{0x47, 0x6c, 0x80},			/* 15: VCLK71           */
 	{0x25, 0x65, 0x80},			/* 16: VCLK88.75        */
 	{0x38, 0x60, 0x42},			/* 17: VCLK119          */
-	{0x32, 0x67, 0x80},		    /* 18: VCLK85_5         */
+	{0x32, 0x67, 0x80},			/* 18: VCLK85_5         */
 	{0x6a, 0x6d, 0x80},			/* 19: VCLK97_75 */
 	{0x41, 0x20, 0x43},			/* 1A: VCLK118_25 */
 };
