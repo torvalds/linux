@@ -78,7 +78,7 @@ EXPORT_SYMBOL_GPL(snd_ac97_reset);
 /*
  * Let drivers decide whether they want to support given codec from their
  * probe method. Drivers have direct access to the struct snd_ac97
- * structure and may  decide based on the id field amongst other things.
+ * structure and may decide based on the id field amongst other things.
  */
 static int ac97_bus_match(struct device *dev, struct device_driver *drv)
 {
