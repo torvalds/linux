@@ -9,7 +9,6 @@
 #include <linux/types.h>
 
 struct drm_atomic_state;
-struct drm_device;
 struct drm_i915_private;
 struct drm_modeset_acquire_ctx;
 struct pci_dev;
@@ -24,13 +23,13 @@ void intel_display_driver_remove(struct drm_i915_private *i915);
 void intel_display_driver_remove_noirq(struct drm_i915_private *i915);
 void intel_display_driver_remove_nogem(struct drm_i915_private *i915);
 void intel_display_driver_unregister(struct drm_i915_private *i915);
-int intel_display_suspend(struct drm_device *dev);
-void intel_display_resume(struct drm_device *dev);
+int intel_display_driver_suspend(struct drm_i915_private *i915);
+void intel_display_driver_resume(struct drm_i915_private *i915);
 
 /* interface for intel_display_reset.c */
-int __intel_display_resume(struct drm_i915_private *i915,
-			   struct drm_atomic_state *state,
-			   struct drm_modeset_acquire_ctx *ctx);
+int __intel_display_driver_resume(struct drm_i915_private *i915,
+				  struct drm_atomic_state *state,
+				  struct drm_modeset_acquire_ctx *ctx);
 
 #endif /* __INTEL_DISPLAY_DRIVER_H__ */
 
