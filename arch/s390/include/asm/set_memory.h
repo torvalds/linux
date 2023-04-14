@@ -12,6 +12,8 @@ enum {
 	_SET_MEMORY_NX_BIT,
 	_SET_MEMORY_X_BIT,
 	_SET_MEMORY_4K_BIT,
+	_SET_MEMORY_INV_BIT,
+	_SET_MEMORY_DEF_BIT,
 };
 
 #define SET_MEMORY_RO	BIT(_SET_MEMORY_RO_BIT)
@@ -19,6 +21,8 @@ enum {
 #define SET_MEMORY_NX	BIT(_SET_MEMORY_NX_BIT)
 #define SET_MEMORY_X	BIT(_SET_MEMORY_X_BIT)
 #define SET_MEMORY_4K	BIT(_SET_MEMORY_4K_BIT)
+#define SET_MEMORY_INV	BIT(_SET_MEMORY_INV_BIT)
+#define SET_MEMORY_DEF	BIT(_SET_MEMORY_DEF_BIT)
 
 int __set_memory(unsigned long addr, int numpages, unsigned long flags);
 
@@ -57,5 +61,8 @@ static inline int set_memory_4k(unsigned long addr, int numpages)
 {
 	return __set_memory(addr, numpages, SET_MEMORY_4K);
 }
+
+int set_direct_map_invalid_noflush(struct page *page);
+int set_direct_map_default_noflush(struct page *page);
 
 #endif
