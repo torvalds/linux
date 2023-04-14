@@ -1255,8 +1255,7 @@ int iwl_mvm_tx_skb_sta(struct iwl_mvm *mvm, struct sk_buff *skb,
 	if (ret)
 		return ret;
 
-	if (WARN_ON(skb_queue_empty(&mpdus_skbs)))
-		return ret;
+	WARN_ON(skb_queue_empty(&mpdus_skbs));
 
 	while (!skb_queue_empty(&mpdus_skbs)) {
 		skb = __skb_dequeue(&mpdus_skbs);
