@@ -258,6 +258,8 @@ static int gem_hw_timestamp(struct macb *bp, u32 dma_desc_ts_1,
 	 */
 	gem_tsu_get_time(&bp->ptp_clock_info, &tsu, NULL);
 
+	ts->tv_sec |= ((~GEM_DMA_SEC_MASK) & tsu.tv_sec);
+
 	/* If the top bit is set in the timestamp,
 	 * but not in 1588 timer, it has rolled over,
 	 * so subtract max size
@@ -265,8 +267,6 @@ static int gem_hw_timestamp(struct macb *bp, u32 dma_desc_ts_1,
 	if ((ts->tv_sec & (GEM_DMA_SEC_TOP >> 1)) &&
 	    !(tsu.tv_sec & (GEM_DMA_SEC_TOP >> 1)))
 		ts->tv_sec -= GEM_DMA_SEC_TOP;
-
-	ts->tv_sec += ((~GEM_DMA_SEC_MASK) & tsu.tv_sec);
 
 	return 0;
 }
