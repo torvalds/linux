@@ -94,7 +94,7 @@
 		};
 	};
 
-	evm_12v0: fixedregulator-evm12v0 {
+	evm_12v0: regulator-0 {
 		/* main DC jack */
 		compatible = "regulator-fixed";
 		regulator-name = "evm_12v0";
@@ -104,7 +104,7 @@
 		regulator-boot-on;
 	};
 
-	vsys_5v0: fixedregulator-vsys5v0 {
+	vsys_5v0: regulator-1 {
 		/* output of LM5140 */
 		compatible = "regulator-fixed";
 		regulator-name = "vsys_5v0";
@@ -115,7 +115,7 @@
 		regulator-boot-on;
 	};
 
-	vsys_3v3: fixedregulator-vsys3v3 {
+	vsys_3v3: regulator-2 {
 		/* output of LM5140 */
 		compatible = "regulator-fixed";
 		regulator-name = "vsys_3v3";
@@ -126,7 +126,7 @@
 		regulator-boot-on;
 	};
 
-	vdd_mmc1: fixed-regulator-sd {
+	vdd_mmc1: regulator-3 {
 		/* TPS2051BD */
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_mmc1";
@@ -138,7 +138,7 @@
 		gpio = <&exp1 6 GPIO_ACTIVE_HIGH>;
 	};
 
-	vddb: fixedregulator-vddb {
+	vddb: regulator-4 {
 		compatible = "regulator-fixed";
 		regulator-name = "vddb_3v3_display";
 		regulator-min-microvolt = <3300000>;
