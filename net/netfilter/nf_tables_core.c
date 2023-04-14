@@ -43,6 +43,7 @@ static inline void nf_skip_indirect_calls_enable(void) { }
 
 static noinline void __nft_trace_packet(const struct nft_pktinfo *pkt,
 					const struct nft_verdict *verdict,
+					const struct nft_rule_dp *rule,
 					struct nft_traceinfo *info,
 					enum nft_trace_types type)
 {
@@ -51,7 +52,7 @@ static noinline void __nft_trace_packet(const struct nft_pktinfo *pkt,
 
 	info->type = type;
 
-	nft_trace_notify(pkt, verdict, info);
+	nft_trace_notify(pkt, verdict, rule, info);
 }
 
 static inline void nft_trace_packet(const struct nft_pktinfo *pkt,
@@ -62,8 +63,7 @@ static inline void nft_trace_packet(const struct nft_pktinfo *pkt,
 {
 	if (static_branch_unlikely(&nft_trace_enabled)) {
 		info->nf_trace = pkt->skb->nf_trace;
-		info->rule = rule;
-		__nft_trace_packet(pkt, verdict, info, type);
+		__nft_trace_packet(pkt, verdict, rule, info, type);
 	}
 }
 
@@ -110,6 +110,7 @@ static void nft_cmp16_fast_eval(const struct nft_expr *expr,
 
 static noinline void __nft_trace_verdict(const struct nft_pktinfo *pkt,
 					 struct nft_traceinfo *info,
+					 const struct nft_rule_dp *rule,
 					 const struct nft_regs *regs)
 {
 	enum nft_trace_types type;
@@ -131,7 +132,7 @@ static noinline void __nft_trace_verdict(const struct nft_pktinfo *pkt,
 		break;
 	}
 
-	__nft_trace_packet(pkt, &regs->verdict, info, type);
+	__nft_trace_packet(pkt, &regs->verdict, rule, info, type);
 }
 
 static inline void nft_trace_verdict(const struct nft_pktinfo *pkt,
@@ -139,10 +140,8 @@ static inline void nft_trace_verdict(const struct nft_pktinfo *pkt,
 				     const struct nft_rule_dp *rule,
 				     const struct nft_regs *regs)
 {
-	if (static_branch_unlikely(&nft_trace_enabled)) {
-		info->rule = rule;
-		__nft_trace_verdict(pkt, info, regs);
-	}
+	if (static_branch_unlikely(&nft_trace_enabled))
+		__nft_trace_verdict(pkt, info, rule, regs);
 }
 
 static bool nft_payload_fast_eval(const struct nft_expr *expr,
