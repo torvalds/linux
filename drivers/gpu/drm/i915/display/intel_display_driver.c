@@ -21,7 +21,7 @@
 #include "intel_fbdev.h"
 #include "intel_opregion.h"
 
-bool intel_modeset_probe_defer(struct pci_dev *pdev)
+bool intel_display_driver_probe_defer(struct pci_dev *pdev)
 {
 	struct drm_privacy_screen *privacy_screen;
 

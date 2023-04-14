@@ -11,7 +11,7 @@
 struct drm_i915_private;
 struct pci_dev;
 
-bool intel_modeset_probe_defer(struct pci_dev *pdev);
+bool intel_display_driver_probe_defer(struct pci_dev *pdev);
 void intel_display_driver_register(struct drm_i915_private *i915);
 void intel_display_driver_unregister(struct drm_i915_private *i915);
 
