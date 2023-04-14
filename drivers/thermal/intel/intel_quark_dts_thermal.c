@@ -120,7 +120,7 @@ static DEFINE_MUTEX(dts_update_mutex);
 static int soc_dts_enable(struct thermal_zone_device *tzd)
 {
 	u32 out;
-	struct soc_sensor_entry *aux_entry = tzd->devdata;
+	struct soc_sensor_entry *aux_entry = thermal_zone_device_priv(tzd);
 	int ret;
 
 	ret = iosf_mbi_read(QRK_MBI_UNIT_RMU, MBI_REG_READ,
@@ -148,7 +148,7 @@ static int soc_dts_enable(struct thermal_zone_device *tzd)
 static int soc_dts_disable(struct thermal_zone_device *tzd)
 {
 	u32 out;
-	struct soc_sensor_entry *aux_entry = tzd->devdata;
+	struct soc_sensor_entry *aux_entry = thermal_zone_device_priv(tzd);
 	int ret;
 
 	ret = iosf_mbi_read(QRK_MBI_UNIT_RMU, MBI_REG_READ,
@@ -250,7 +250,7 @@ failed:
 static inline int sys_set_trip_temp(struct thermal_zone_device *tzd, int trip,
 				int temp)
 {
-	return update_trip_temp(tzd->devdata, trip, temp);
+	return update_trip_temp(thermal_zone_device_priv(tzd), trip, temp);
 }
 
 static int sys_get_curr_temp(struct thermal_zone_device *tzd,

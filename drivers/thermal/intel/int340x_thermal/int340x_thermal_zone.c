@@ -14,7 +14,7 @@
 static int int340x_thermal_get_zone_temp(struct thermal_zone_device *zone,
 					 int *temp)
 {
-	struct int34x_thermal_zone *d = zone->devdata;
+	struct int34x_thermal_zone *d = thermal_zone_device_priv(zone);
 	unsigned long long tmp;
 	acpi_status status;
 
@@ -41,7 +41,7 @@ static int int340x_thermal_get_zone_temp(struct thermal_zone_device *zone,
 static int int340x_thermal_set_trip_temp(struct thermal_zone_device *zone,
 					 int trip, int temp)
 {
-	struct int34x_thermal_zone *d = zone->devdata;
+	struct int34x_thermal_zone *d = thermal_zone_device_priv(zone);
 	char name[] = {'P', 'A', 'T', '0' + trip, '\0'};
 	acpi_status status;
 
