@@ -2058,6 +2058,7 @@ struct rtw_dev {
 
 	bool need_rfk;
 	struct completion fw_scan_density;
+	bool ap_active;
 
 	/* hci related data, must be last */
 	u8 priv[] __aligned(sizeof(void *));

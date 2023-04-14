@@ -449,10 +449,22 @@ static int rtw_ops_start_ap(struct ieee80211_hw *hw,
 	const struct rtw_chip_info *chip = rtwdev->chip;
 
 	mutex_lock(&rtwdev->mutex);
+	rtwdev->ap_active = true;
 	chip->ops->phy_calibration(rtwdev);
 	mutex_unlock(&rtwdev->mutex);
 
 	return 0;
+}
+
+static void rtw_ops_stop_ap(struct ieee80211_hw *hw,
+			    struct ieee80211_vif *vif,
+			    struct ieee80211_bss_conf *link_conf)
+{
+	struct rtw_dev *rtwdev = hw->priv;
+
+	mutex_lock(&rtwdev->mutex);
+	rtwdev->ap_active = false;
+	mutex_unlock(&rtwdev->mutex);
 }
 
 static int rtw_ops_conf_tx(struct ieee80211_hw *hw,
@@ -916,6 +928,7 @@ const struct ieee80211_ops rtw_ops = {
 	.configure_filter	= rtw_ops_configure_filter,
 	.bss_info_changed	= rtw_ops_bss_info_changed,
 	.start_ap		= rtw_ops_start_ap,
+	.stop_ap		= rtw_ops_stop_ap,
 	.conf_tx		= rtw_ops_conf_tx,
 	.sta_add		= rtw_ops_sta_add,
 	.sta_remove		= rtw_ops_sta_remove,

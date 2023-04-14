@@ -257,7 +257,7 @@ static void rtw_watch_dog_work(struct work_struct *work)
 	 * threshold.
 	 */
 	if (rtwdev->ps_enabled && data.rtwvif && !ps_active &&
-	    !rtwdev->beacon_loss)
+	    !rtwdev->beacon_loss && !rtwdev->ap_active)
 		rtw_enter_lps(rtwdev, data.rtwvif->port);
 
 	rtwdev->watch_dog_cnt++;
