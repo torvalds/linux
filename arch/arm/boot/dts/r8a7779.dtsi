@@ -324,6 +324,69 @@
 		status = "disabled";
 	};
 
+	pwm0: pwm@ffe50000 {
+		compatible = "renesas,pwm-r8a7779", "renesas,pwm-rcar";
+		reg = <0xffe50000 0x8>;
+		clocks = <&mstp0_clks R8A7779_CLK_PWM>;
+		power-domains = <&sysc R8A7779_PD_ALWAYS_ON>;
+		#pwm-cells = <2>;
+		status = "disabled";
+	};
+
+	pwm1: pwm@ffe51000 {
+		compatible = "renesas,pwm-r8a7779", "renesas,pwm-rcar";
+		reg = <0xffe51000 0x8>;
+		clocks = <&mstp0_clks R8A7779_CLK_PWM>;
+		power-domains = <&sysc R8A7779_PD_ALWAYS_ON>;
+		#pwm-cells = <2>;
+		status = "disabled";
+	};
+
+	pwm2: pwm@ffe52000 {
+		compatible = "renesas,pwm-r8a7779", "renesas,pwm-rcar";
+		reg = <0xffe52000 0x8>;
+		clocks = <&mstp0_clks R8A7779_CLK_PWM>;
+		power-domains = <&sysc R8A7779_PD_ALWAYS_ON>;
+		#pwm-cells = <2>;
+		status = "disabled";
+	};
+
+	pwm3: pwm@ffe53000 {
+		compatible = "renesas,pwm-r8a7779", "renesas,pwm-rcar";
+		reg = <0xffe53000 0x8>;
+		clocks = <&mstp0_clks R8A7779_CLK_PWM>;
+		power-domains = <&sysc R8A7779_PD_ALWAYS_ON>;
+		#pwm-cells = <2>;
+		status = "disabled";
+	};
+
+	pwm4: pwm@ffe54000 {
+		compatible = "renesas,pwm-r8a7779", "renesas,pwm-rcar";
+		reg = <0xffe54000 0x8>;
+		clocks = <&mstp0_clks R8A7779_CLK_PWM>;
+		power-domains = <&sysc R8A7779_PD_ALWAYS_ON>;
+		#pwm-cells = <2>;
+		status = "disabled";
+	};
+
+	pwm5: pwm@ffe55000 {
+		compatible = "renesas,pwm-r8a7779", "renesas,pwm-rcar";
+		reg = <0xffe55000 0x8>;
+		clocks = <&mstp0_clks R8A7779_CLK_PWM>;
+		power-domains = <&sysc R8A7779_PD_ALWAYS_ON>;
+		#pwm-cells = <2>;
+		status = "disabled";
+	};
+
+	pwm6: pwm@ffe56000 {
+		compatible = "renesas,pwm-r8a7779", "renesas,pwm-rcar";
+		reg = <0xffe56000 0x8>;
+		clocks = <&mstp0_clks R8A7779_CLK_PWM>;
+		power-domains = <&sysc R8A7779_PD_ALWAYS_ON>;
+		#pwm-cells = <2>;
+		status = "disabled";
+	};
+
 	pfc: pinctrl@fffc0000 {
 		compatible = "renesas,pfc-r8a7779";
 		reg = <0xfffc0000 0x23c>;
@@ -554,7 +617,8 @@
 			compatible = "renesas,r8a7779-mstp-clocks",
 				     "renesas,cpg-mstp-clocks";
 			reg = <0xffc80030 4>;
-			clocks = <&cpg_clocks R8A7779_CLK_S>,
+			clocks = <&cpg_clocks R8A7779_CLK_P>,
+				 <&cpg_clocks R8A7779_CLK_S>,
 				 <&cpg_clocks R8A7779_CLK_P>,
 				 <&cpg_clocks R8A7779_CLK_P>,
 				 <&cpg_clocks R8A7779_CLK_P>,
@@ -572,20 +636,21 @@
 				 <&cpg_clocks R8A7779_CLK_P>;
 			#clock-cells = <1>;
 			clock-indices = <
-				R8A7779_CLK_HSPI R8A7779_CLK_TMU2
-				R8A7779_CLK_TMU1 R8A7779_CLK_TMU0
-				R8A7779_CLK_HSCIF1 R8A7779_CLK_HSCIF0
-				R8A7779_CLK_SCIF5 R8A7779_CLK_SCIF4
-				R8A7779_CLK_SCIF3 R8A7779_CLK_SCIF2
-				R8A7779_CLK_SCIF1 R8A7779_CLK_SCIF0
-				R8A7779_CLK_I2C3 R8A7779_CLK_I2C2
-				R8A7779_CLK_I2C1 R8A7779_CLK_I2C0
+				R8A7779_CLK_PWM R8A7779_CLK_HSPI
+				R8A7779_CLK_TMU2 R8A7779_CLK_TMU1
+				R8A7779_CLK_TMU0 R8A7779_CLK_HSCIF1
+				R8A7779_CLK_HSCIF0 R8A7779_CLK_SCIF5
+				R8A7779_CLK_SCIF4 R8A7779_CLK_SCIF3
+				R8A7779_CLK_SCIF2 R8A7779_CLK_SCIF1
+				R8A7779_CLK_SCIF0 R8A7779_CLK_I2C3
+				R8A7779_CLK_I2C2 R8A7779_CLK_I2C1
+				R8A7779_CLK_I2C0
 			>;
 			clock-output-names =
-				"hspi", "tmu2", "tmu1", "tmu0", "hscif1",
-				"hscif0", "scif5", "scif4", "scif3", "scif2",
-				"scif1", "scif0", "i2c3", "i2c2", "i2c1",
-				"i2c0";
+				"pwm", "hspi", "tmu2", "tmu1", "tmu0",
+				"hscif1", "hscif0", "scif5", "scif4", "scif3",
+				"scif2", "scif1", "scif0", "i2c3", "i2c2",
+				"i2c1", "i2c0";
 		};
 		mstp1_clks: clocks@ffc80034 {
 			compatible = "renesas,r8a7779-mstp-clocks",
