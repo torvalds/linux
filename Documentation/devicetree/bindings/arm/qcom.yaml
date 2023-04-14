@@ -30,8 +30,10 @@ description: |
         apq8084
         apq8096
         ipq4018
+        ipq5332
         ipq6018
         ipq8074
+        ipq9574
         mdm9615
         msm8226
         msm8916
@@ -80,6 +82,8 @@ description: |
   The 'board' element must be one of the following strings:
 
         adp
+        ap-al02-c7
+        ap-mi01.2
         cdp
         cp01-c1
         dragonboard
@@ -226,6 +230,7 @@ properties:
               - thwc,uf896
               - thwc,ufi001c
               - wingtech,wt88047
+              - yiming,uz801-v3
           - const: qcom,msm8916
 
       - items:
@@ -322,6 +327,11 @@ properties:
 
       - items:
           - enum:
+              - qcom,ipq5332-ap-mi01.2
+          - const: qcom,ipq5332
+
+      - items:
+          - enum:
               - mikrotik,rb3011
               - qcom,ipq8064-ap148
           - const: qcom,ipq8064
@@ -332,6 +342,11 @@ properties:
               - qcom,ipq8074-hk10-c1
               - qcom,ipq8074-hk10-c2
           - const: qcom,ipq8074
+
+      - items:
+          - enum:
+              - qcom,ipq9574-ap-al02-c7
+          - const: qcom,ipq9574
 
       - description: Sierra Wireless MangOH Green with WP8548 Module
         items:
@@ -913,6 +928,7 @@ properties:
       - items:
           - enum:
               - qcom,sm8550-mtp
+              - qcom,sm8550-qrd
           - const: qcom,sm8550
 
   # Board compatibles go above

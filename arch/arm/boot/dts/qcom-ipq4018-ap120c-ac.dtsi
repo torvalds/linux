@@ -8,6 +8,14 @@
 	model = "ALFA Network AP120C-AC";
 	compatible = "alfa-network,ap120c-ac", "qcom,ipq4018";
 
+	aliases {
+		serial0 = &blsp1_uart1;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
 	keys {
 		compatible = "gpio-keys";
 
@@ -68,7 +76,7 @@
 		};
 	};
 
-	usb-power {
+	usb-power-hog {
 		line-name = "USB-power";
 		gpios = <1 GPIO_ACTIVE_HIGH>;
 		gpio-hog;
@@ -162,6 +170,17 @@
 				label = "ART";
 				reg = <0x00170000 0x00010000>;
 				read-only;
+				compatible = "nvmem-cells";
+				#address-cells = <1>;
+				#size-cells = <1>;
+
+				precal_art_1000: precal@1000 {
+					reg = <0x1000 0x2f20>;
+				};
+
+				precal_art_5000: precal@5000 {
+					reg = <0x5000 0x2f20>;
+				};
 			};
 
 			partition@180000 {
@@ -178,7 +197,7 @@
 		};
 	};
 
-	nand@1 {
+	flash@1 {
 		compatible = "spi-nand";
 		reg = <1>;
 		spi-max-frequency = <40000000>;
@@ -225,10 +244,14 @@
 
 &wifi0 {
 	status = "okay";
+	nvmem-cell-names = "pre-calibration";
+	nvmem-cells = <&precal_art_1000>;
 };
 
 &wifi1 {
 	status = "okay";
+	nvmem-cell-names = "pre-calibration";
+	nvmem-cells = <&precal_art_5000>;
 	qcom,ath10k-calibration-variant = "ALFA-Network-AP120C-AC";
 };
 
