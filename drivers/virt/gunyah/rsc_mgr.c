@@ -230,7 +230,7 @@ static int gh_rm_irq_domain_alloc(struct irq_domain *d, unsigned int virq, unsig
 	u32 gh_virq = spec->gh_virq;
 	int ret;
 
-	if (nr_irqs != 1 || gh_virq == U32_MAX)
+	if (nr_irqs != 1)
 		return -EINVAL;
 
 	chip_data = kzalloc(sizeof(*chip_data), GFP_KERNEL);
@@ -263,16 +263,13 @@ err_free_irq_data:
 
 static void gh_rm_irq_domain_free_single(struct irq_domain *d, unsigned int virq)
 {
-	struct gh_irq_chip_data *chip_data;
 	struct irq_data *irq_data;
 
 	irq_data = irq_domain_get_irq_data(d, virq);
 	if (!irq_data)
 		return;
 
-	chip_data = irq_data->chip_data;
-
-	kfree(chip_data);
+	kfree(irq_data->chip_data);
 	irq_data->chip_data = NULL;
 }
 
@@ -292,6 +289,7 @@ static const struct irq_domain_ops gh_rm_irq_domain_ops = {
 struct gh_resource *gh_rm_alloc_resource(struct gh_rm *rm, struct gh_rm_hyp_resource *hyp_resource)
 {
 	struct gh_resource *ghrsc;
+	int ret;
 
 	ghrsc = kzalloc(sizeof(*ghrsc), GFP_KERNEL);
 	if (!ghrsc)
@@ -301,17 +299,18 @@ struct gh_resource *gh_rm_alloc_resource(struct gh_rm *rm, struct gh_rm_hyp_reso
 	ghrsc->capid = le64_to_cpu(hyp_resource->cap_id);
 	ghrsc->irq = IRQ_NOTCONNECTED;
 	ghrsc->rm_label = le32_to_cpu(hyp_resource->resource_label);
-	if (hyp_resource->virq && le32_to_cpu(hyp_resource->virq) != U32_MAX) {
+	if (hyp_resource->virq) {
 		struct gh_irq_chip_data irq_data = {
 			.gh_virq = le32_to_cpu(hyp_resource->virq),
 		};
 
-		ghrsc->irq = irq_domain_alloc_irqs(rm->irq_domain, 1, NUMA_NO_NODE, &irq_data);
-		if (ghrsc->irq < 0) {
+		ret = irq_domain_alloc_irqs(rm->irq_domain, 1, NUMA_NO_NODE, &irq_data);
+		if (ret < 0) {
 			dev_err(rm->dev,
 				"Failed to allocate interrupt for resource %d label: %d: %d\n",
 				ghrsc->type, ghrsc->rm_label, ghrsc->irq);
-			ghrsc->irq = IRQ_NOTCONNECTED;
+		} else {
+			ghrsc->irq = ret;
 		}
 	}
 

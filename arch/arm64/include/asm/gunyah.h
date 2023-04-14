@@ -10,7 +10,8 @@
 
 static inline int arch_gh_fill_irq_fwspec_params(u32 virq, struct irq_fwspec *fwspec)
 {
-	if (virq < 32 || virq > 1019)
+	/* Assume that Gunyah gave us an SPI; defensively check it */
+	if (WARN_ON(virq < 32 || virq > 1019))
 		return -EINVAL;
 
 	fwspec->param_count = 3;
