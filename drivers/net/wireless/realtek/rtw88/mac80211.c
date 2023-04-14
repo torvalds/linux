@@ -155,25 +155,30 @@ static int rtw_ops_add_interface(struct ieee80211_hw *hw,
 	struct rtw_vif *rtwvif = (struct rtw_vif *)vif->drv_priv;
 	enum rtw_net_type net_type;
 	u32 config = 0;
-	u8 port = 0;
+	u8 port;
 	u8 bcn_ctrl = 0;
 
 	if (rtw_fw_feature_check(&rtwdev->fw, FW_FEATURE_BCN_FILTER))
 		vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER |
 				     IEEE80211_VIF_SUPPORTS_CQM_RSSI;
-	rtwvif->port = port;
 	rtwvif->stats.tx_unicast = 0;
 	rtwvif->stats.rx_unicast = 0;
 	rtwvif->stats.tx_cnt = 0;
 	rtwvif->stats.rx_cnt = 0;
 	rtwvif->scan_req = NULL;
 	memset(&rtwvif->bfee, 0, sizeof(struct rtw_bfee));
-	rtwvif->conf = &rtw_vif_port[port];
 	rtw_txq_init(rtwdev, vif->txq);
 	INIT_LIST_HEAD(&rtwvif->rsvd_page_list);
 
 	mutex_lock(&rtwdev->mutex);
 
+	port = find_first_zero_bit(rtwdev->hw_port, RTW_PORT_NUM);
+	if (port >= RTW_PORT_NUM)
+		return -EINVAL;
+	set_bit(port, rtwdev->hw_port);
+
+	rtwvif->port = port;
+	rtwvif->conf = &rtw_vif_port[port];
 	rtw_leave_lps_deep(rtwdev);
 
 	switch (vif->type) {
@@ -195,6 +200,7 @@ static int rtw_ops_add_interface(struct ieee80211_hw *hw,
 		break;
 	default:
 		WARN_ON(1);
+		clear_bit(rtwvif->port, rtwdev->hw_port);
 		mutex_unlock(&rtwdev->mutex);
 		return -EINVAL;
 	}
@@ -236,6 +242,7 @@ static void rtw_ops_remove_interface(struct ieee80211_hw *hw,
 	rtwvif->bcn_ctrl = 0;
 	config |= PORT_SET_BCN_CTRL;
 	rtw_vif_port_config(rtwdev, rtwvif, config);
+	clear_bit(rtwvif->port, rtwdev->hw_port);
 
 	mutex_unlock(&rtwdev->mutex);
 }

@@ -395,6 +395,15 @@ enum rtw_snr {
 	RTW_SNR_NUM
 };
 
+enum rtw_port {
+	RTW_PORT_0 = 0,
+	RTW_PORT_1 = 1,
+	RTW_PORT_2 = 2,
+	RTW_PORT_3 = 3,
+	RTW_PORT_4 = 4,
+	RTW_PORT_NUM
+};
+
 enum rtw_wow_flags {
 	RTW_WOW_FLAG_EN_MAGIC_PKT,
 	RTW_WOW_FLAG_EN_REKEY_PKT,
@@ -2036,6 +2045,7 @@ struct rtw_dev {
 	u8 sta_cnt;
 	u32 rts_threshold;
 
+	DECLARE_BITMAP(hw_port, RTW_PORT_NUM);
 	DECLARE_BITMAP(mac_id_map, RTW_MAX_MAC_ID_NUM);
 	DECLARE_BITMAP(flags, NUM_OF_RTW_FLAGS);
 
