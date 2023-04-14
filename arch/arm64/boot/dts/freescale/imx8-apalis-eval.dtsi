@@ -1,0 +1,144 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright 2022 Toradex
+ */
+
+/ {
+	aliases {
+		rtc0 = &rtc_i2c;
+		rtc1 = &rtc;
+	};
+
+	reg_usb_host_vbus: regulator-usb-host-vbus {
+		regulator-name = "VCC USBH2(ABCD) / USBH(3|4)";
+	};
+};
+
+&adc0 {
+	status = "okay";
+};
+
+&adc1 {
+	status = "okay";
+};
+
+/* TODO: Audio Mixer */
+
+/* TODO: Asynchronous Sample Rate Converter (ASRC) */
+
+/* TODO: Display Controller */
+
+/* TODO: DPU */
+
+/* Apalis ETH1 */
+&fec1 {
+	status = "okay";
+};
+
+/* Apalis CAN1 */
+&flexcan1 {
+	status = "okay";
+};
+
+/* Apalis CAN2 */
+&flexcan2 {
+	status = "okay";
+};
+
+/* TODO: GPU */
+
+/* Apalis I2C1 */
+&i2c2 {
+	status = "okay";
+
+	/* M41T0M6 real time clock on carrier board */
+	rtc_i2c: rtc@68 {
+		status = "okay";
+	};
+};
+
+/* Apalis I2C3 (CAM) */
+&i2c3 {
+	status = "okay";
+};
+
+/* Apalis SPI1 */
+&lpspi0 {
+	status = "okay";
+};
+
+/* Apalis SPI2 */
+&lpspi2 {
+	status = "okay";
+};
+
+/* Apalis UART3 */
+&lpuart0 {
+	status = "okay";
+};
+
+/* Apalis UART1 */
+&lpuart1 {
+	status = "okay";
+};
+
+/* Apalis UART4 */
+&lpuart2 {
+	status = "okay";
+};
+
+/* Apalis UART2 */
+&lpuart3 {
+	status = "okay";
+};
+
+/* Apalis PWM3, MXM3 pin 6 */
+&lsio_pwm0 {
+	status = "okay";
+};
+
+/* Apalis PWM4, MXM3 pin 8 */
+&lsio_pwm1 {
+	status = "okay";
+};
+
+/* Apalis PWM1, MXM3 pin 2 */
+&lsio_pwm2 {
+	status = "okay";
+};
+
+/* Apalis PWM2, MXM3 pin 4 */
+&lsio_pwm3 {
+	status = "okay";
+};
+
+/* TODO: Apalis PCIE1 */
+
+/* TODO: Apalis BKL1_PWM */
+
+/* TODO: Apalis DAP1 */
+
+/* TODO: Apalis Analogue Audio */
+
+/* TODO: Apalis SATA1 */
+
+/* TODO: Apalis SPDIF1 */
+
+/* TODO: Apalis USBH2, Apalis USBH3 and on-module Wi-Fi via on-module HSIC Hub */
+
+/* Apalis USBO1 */
+&usbotg1 {
+	status = "okay";
+};
+
+/* TODO: Apalis USBH4 SuperSpeed */
+
+/* Apalis MMC1 */
+&usdhc2 {
+	status = "okay";
+};
+
+/* Apalis SD1 */
+&usdhc3 {
+	status = "okay";
+};
