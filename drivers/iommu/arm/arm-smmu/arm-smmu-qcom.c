@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/acpi.h>
@@ -331,6 +331,7 @@ static int qcom_smmu_cfg_probe(struct arm_smmu_device *smmu)
 			smmu->smrs[i].id = FIELD_GET(ARM_SMMU_SMR_ID, smr);
 			smmu->smrs[i].mask = FIELD_GET(ARM_SMMU_SMR_MASK, smr);
 			smmu->smrs[i].valid = true;
+			smmu->smrs[i].used = true;
 
 			smmu->s2crs[i].type = S2CR_TYPE_BYPASS;
 			smmu->s2crs[i].privcfg = S2CR_PRIVCFG_DEFAULT;
