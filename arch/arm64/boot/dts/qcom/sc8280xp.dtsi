@@ -2515,7 +2515,6 @@
 			status = "disabled";
 		};
 
-		/* RX */
 		swr1: soundwire-controller@3210000 {
 			compatible = "qcom,soundwire-v1.6.0";
 			reg = <0 0x03210000 0 0x2000>;
@@ -2590,13 +2589,13 @@
 			status = "disabled";
 		};
 
-		/* WSA */
 		swr0: soundwire-controller@3250000 {
 			reg = <0 0x03250000 0 0x2000>;
 			compatible = "qcom,soundwire-v1.6.0";
 			interrupts = <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&wsamacro>;
 			clock-names = "iface";
+			label = "WSA";
 
 			qcom,din-ports = <2>;
 			qcom,dout-ports = <6>;
@@ -2618,12 +2617,11 @@
 			status = "disabled";
 		};
 
-		/* TX */
 		swr2: soundwire-controller@3330000 {
 			compatible = "qcom,soundwire-v1.6.0";
 			reg = <0 0x03330000 0 0x2000>;
-			interrupts-extended = <&intc GIC_SPI 959 IRQ_TYPE_LEVEL_HIGH>,
-					      <&intc GIC_SPI 520 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 959 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 520 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "core", "wakeup";
 
 			clocks = <&txmacro>;
@@ -2728,7 +2726,6 @@
 					pins = "gpio7";
 					function = "dmic1_data";
 					drive-strength = <8>;
-					input-enable;
 				};
 			};
 
@@ -2746,7 +2743,6 @@
 					function = "dmic1_data";
 					drive-strength = <2>;
 					bias-pull-down;
-					input-enable;
 				};
 			};
 
@@ -2762,7 +2758,6 @@
 					pins = "gpio9";
 					function = "dmic2_data";
 					drive-strength = <8>;
-					input-enable;
 				};
 			};
 
@@ -2780,7 +2775,6 @@
 					function = "dmic2_data";
 					drive-strength = <2>;
 					bias-pull-down;
-					input-enable;
 				};
 			};
 

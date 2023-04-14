@@ -1786,7 +1786,6 @@
 				      "aggre0",
 				      "aggre1";
 
-			iommus = <&apps_smmu 0x1c00 0x7f>;
 			iommu-map = <0x0   &apps_smmu 0x1c00 0x1>,
 				    <0x100 &apps_smmu 0x1c01 0x1>;
 
@@ -1899,7 +1898,6 @@
 				      "ddrss_sf_tbu",
 				      "aggre1";
 
-			iommus = <&apps_smmu 0x1c80 0x7f>;
 			iommu-map = <0x0   &apps_smmu 0x1c80 0x1>,
 				    <0x100 &apps_smmu 0x1c81 0x1>;
 
@@ -2135,13 +2133,13 @@
 			#sound-dai-cells = <1>;
 		};
 
-		/* WSA2 */
 		swr4: soundwire-controller@31f0000 {
 			compatible = "qcom,soundwire-v1.7.0";
 			reg = <0 0x031f0000 0 0x2000>;
 			interrupts = <GIC_SPI 171 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&wsa2macro>;
 			clock-names = "iface";
+			label = "WSA2";
 
 			qcom,din-ports = <2>;
 			qcom,dout-ports = <6>;
@@ -2250,13 +2248,13 @@
 			#sound-dai-cells = <1>;
 		};
 
-		/* WSA */
 		swr0: soundwire-controller@3250000 {
 			compatible = "qcom,soundwire-v1.7.0";
 			reg = <0 0x03250000 0 0x2000>;
 			interrupts = <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&wsamacro>;
 			clock-names = "iface";
+			label = "WSA";
 
 			qcom,din-ports = <2>;
 			qcom,dout-ports = <6>;
@@ -2280,8 +2278,8 @@
 		swr2: soundwire-controller@33b0000 {
 			compatible = "qcom,soundwire-v1.7.0";
 			reg = <0 0x033b0000 0 0x2000>;
-			interrupts-extended = <&intc GIC_SPI 496 IRQ_TYPE_LEVEL_HIGH>,
-					      <&intc GIC_SPI 520 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 496 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 520 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "core", "wakeup";
 
 			clocks = <&vamacro>;
@@ -3690,7 +3688,6 @@
 					pins = "gpio7";
 					function = "dmic1_data";
 					drive-strength = <8>;
-					input-enable;
 				};
 			};
 
@@ -3706,7 +3703,6 @@
 					pins = "gpio9";
 					function = "dmic2_data";
 					drive-strength = <8>;
-					input-enable;
 				};
 			};
 

@@ -844,7 +844,6 @@
 		function = "gpio";
 		bias-pull-up;
 		drive-strength = <2>;
-		input-enable;
 	};
 
 	chat_cam_pwr_en: chat-cam-pwr-en-default-state {
@@ -873,7 +872,6 @@
 		function = "gpio";
 		bias-disable;
 		drive-strength = <2>;
-		input-enable;
 	};
 
 	ts_int_n: ts-int-n-state {

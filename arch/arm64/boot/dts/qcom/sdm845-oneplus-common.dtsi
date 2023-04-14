@@ -550,6 +550,11 @@
 	bias-disable;
 };
 
+&slpi_pas {
+	firmware-name = "qcom/sdm845/oneplus6/slpi.mbn";
+	status = "okay";
+};
+
 &sound {
 	compatible = "qcom,sdm845-sndcard";
 	pinctrl-0 = <&quat_mi2s_active &quat_mi2s_sd0_active &quat_mi2s_sd1_active>;
@@ -773,7 +778,6 @@
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
-		input-enable;
 	};
 
 	tri_state_key_default: tri-state-key-default-state {
@@ -802,7 +806,6 @@
 		function = "mdp_vsync";
 		drive-strength = <2>;
 		bias-disable;
-		input-enable;
 	};
 
 	panel_esd_pin: panel-esd-state {
@@ -810,17 +813,14 @@
 		function = "gpio";
 		drive-strength = <2>;
 		bias-pull-down;
-		input-enable;
 	};
 
 	speaker_default: speaker-default-state {
-		mux {
-			pins = "gpio69";
-			function = "gpio";
-			drive-strength = <16>;
-			bias-pull-up;
-			output-high;
-		};
+		pins = "gpio69";
+		function = "gpio";
+		drive-strength = <16>;
+		bias-pull-up;
+		output-high;
 	};
 };
 

@@ -481,7 +481,6 @@
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
-		input-enable;
 	};
 
 	ts_reset_active: ts-reset-active-state {

@@ -640,7 +640,6 @@
 		function = "gpio";
 		bias-disable;
 		drive-strength = <2>;
-		input-enable;
 	};
 
 	ts_int_n: ts-int-n-state {

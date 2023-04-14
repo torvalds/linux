@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * IPQ5332 AP-MI01.2 board device tree source
+ * IPQ5332 RDP468 board device tree source
  *
  * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
@@ -10,8 +10,8 @@
 #include "ipq5332.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. IPQ5332 MI01.2";
-	compatible = "qcom,ipq5332-ap-mi01.2", "qcom,ipq5332";
+	model = "Qualcomm Technologies, Inc. IPQ5332 MI01.6";
+	compatible = "qcom,ipq5332-ap-mi01.6", "qcom,ipq5332";
 
 	aliases {
 		serial0 = &blsp1_uart0;
@@ -28,11 +28,18 @@
 	status = "okay";
 };
 
-&blsp1_i2c1 {
-	clock-frequency  = <400000>;
-	pinctrl-0 = <&i2c_1_pins>;
+&blsp1_spi0 {
+	pinctrl-0 = <&spi_0_data_clk_pins &spi_0_cs_pins>;
 	pinctrl-names = "default";
 	status = "okay";
+
+	flash@0 {
+		compatible = "micron,n25q128a11", "jedec,spi-nor";
+		reg = <0>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		spi-max-frequency = <50000000>;
+	};
 };
 
 &sdhc {
@@ -57,13 +64,6 @@
 /* PINCTRL */
 
 &tlmm {
-	i2c_1_pins: i2c-1-state {
-		pins = "gpio29", "gpio30";
-		function = "blsp1_i2c0";
-		drive-strength = <8>;
-		bias-pull-up;
-	};
-
 	sdc_default_state: sdc-default-state {
 		clk-pins {
 			pins = "gpio13";
@@ -85,5 +85,19 @@
 			drive-strength = <8>;
 			bias-pull-up;
 		};
+	};
+
+	spi_0_data_clk_pins: spi-0-data-clk-state {
+		pins = "gpio14", "gpio15", "gpio16";
+		function = "blsp0_spi";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
+
+	spi_0_cs_pins: spi-0-cs-state {
+		pins = "gpio17";
+		function = "blsp0_spi";
+		drive-strength = <2>;
+		bias-pull-up;
 	};
 };

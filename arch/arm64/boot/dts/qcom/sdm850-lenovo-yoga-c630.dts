@@ -606,7 +606,6 @@
 		pins = "gpio37";
 		function = "gpio";
 
-		input-enable;
 		bias-pull-up;
 		drive-strength = <2>;
 	};
@@ -615,7 +614,6 @@
 		pins = "gpio125";
 		function = "gpio";
 
-		input-enable;
 		bias-pull-up;
 		drive-strength = <2>;
 	};
@@ -624,7 +622,6 @@
 		pins = "gpio92";
 		function = "gpio";
 
-		input-enable;
 		bias-pull-up;
 		drive-strength = <2>;
 	};
@@ -633,7 +630,6 @@
 		pins = "gpio124";
 		function = "gpio";
 
-		input-enable;
 		bias-disable;
 	};
 
@@ -641,7 +637,6 @@
 		pins = "gpio95";
 		function = "gpio";
 
-		input-enable;
 		bias-disable;
 	};
 };
