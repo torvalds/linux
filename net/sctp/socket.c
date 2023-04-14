@@ -5195,7 +5195,7 @@ int sctp_get_sctp_info(struct sock *sk, struct sctp_association *asoc,
 	mask = asoc->peer.ecn_capable << 1;
 	mask = (mask | asoc->peer.ipv4_address) << 1;
 	mask = (mask | asoc->peer.ipv6_address) << 1;
-	mask = (mask | asoc->peer.hostname_address) << 1;
+	mask = mask << 1;
 	mask = (mask | asoc->peer.asconf_capable) << 1;
 	mask = (mask | asoc->peer.prsctp_capable) << 1;
 	mask = (mask | asoc->peer.auth_capable);
