@@ -323,9 +323,6 @@ static int change_page_attr(unsigned long addr, unsigned long end,
 	int rc = -EINVAL;
 	pgd_t *pgdp;
 
-	if (addr == end)
-		return 0;
-	mutex_lock(&cpa_mutex);
 	pgdp = pgd_offset_k(addr);
 	do {
 		if (pgd_none(*pgdp))
@@ -336,18 +333,66 @@ static int change_page_attr(unsigned long addr, unsigned long end,
 			break;
 		cond_resched();
 	} while (pgdp++, addr = next, addr < end && !rc);
-	mutex_unlock(&cpa_mutex);
+	return rc;
+}
+
+static int change_page_attr_alias(unsigned long addr, unsigned long end,
+				  unsigned long flags)
+{
+	unsigned long alias, offset, va_start, va_end;
+	struct vm_struct *area;
+	int rc = 0;
+
+	/*
+	 * Changes to read-only permissions on kernel VA mappings are also
+	 * applied to the kernel direct mapping. Execute permissions are
+	 * intentionally not transferred to keep all allocated pages within
+	 * the direct mapping non-executable.
+	 */
+	flags &= SET_MEMORY_RO | SET_MEMORY_RW;
+	if (!flags)
+		return 0;
+	area = NULL;
+	while (addr < end) {
+		if (!area)
+			area = find_vm_area((void *)addr);
+		if (!area || !(area->flags & VM_ALLOC))
+			return 0;
+		va_start = (unsigned long)area->addr;
+		va_end = va_start + area->nr_pages * PAGE_SIZE;
+		offset = (addr - va_start) >> PAGE_SHIFT;
+		alias = (unsigned long)page_address(area->pages[offset]);
+		rc = change_page_attr(alias, alias + PAGE_SIZE, flags);
+		if (rc)
+			break;
+		addr += PAGE_SIZE;
+		if (addr >= va_end)
+			area = NULL;
+	}
 	return rc;
 }
 
 int __set_memory(unsigned long addr, int numpages, unsigned long flags)
 {
+	unsigned long end;
+	int rc;
+
 	if (!MACHINE_HAS_NX)
 		flags &= ~(SET_MEMORY_NX | SET_MEMORY_X);
 	if (!flags)
 		return 0;
+	if (!numpages)
+		return 0;
 	addr &= PAGE_MASK;
-	return change_page_attr(addr, addr + numpages * PAGE_SIZE, flags);
+	end = addr + numpages * PAGE_SIZE;
+	mutex_lock(&cpa_mutex);
+	rc = change_page_attr(addr, end, flags);
+	if (rc)
+		goto out;
+	rc = change_page_attr_alias(addr, end, flags);
+out:
+	mutex_unlock(&cpa_mutex);
+	return rc;
 }
 
 int set_direct_map_invalid_noflush(struct page *page)
