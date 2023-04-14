@@ -118,9 +118,9 @@ struct crypt_ctl {
 	u8 mode;		/* NPE_OP_*  operation mode */
 #endif
 	u8 iv[MAX_IVLEN];	/* IV for CBC mode or CTR IV for CTR mode */
-	dma_addr_t icv_rev_aes;	/* icv or rev aes */
-	dma_addr_t src_buf;
-	dma_addr_t dst_buf;
+	u32 icv_rev_aes;	/* icv or rev aes */
+	u32 src_buf;
+	u32 dst_buf;
 #ifdef __ARMEB__
 	u16 auth_offs;		/* Authentication start offset */
 	u16 auth_len;		/* Authentication data length */
@@ -263,7 +263,8 @@ static int setup_crypt_desc(void)
 {
 	struct device *dev = &pdev->dev;
 
-	BUILD_BUG_ON(!IS_ENABLED(CONFIG_COMPILE_TEST) &&
+	BUILD_BUG_ON(!(IS_ENABLED(CONFIG_COMPILE_TEST) &&
+		       IS_ENABLED(CONFIG_64BIT)) &&
 		     sizeof(struct crypt_ctl) != 64);
 	crypt_virt = dma_alloc_coherent(dev,
 					NPE_QLEN * sizeof(struct crypt_ctl),
@@ -1170,10 +1171,11 @@ static int aead_perform(struct aead_request *req, int encrypt,
 	}
 
 	if (unlikely(lastlen < authsize)) {
+		dma_addr_t dma;
 		/* The 12 hmac bytes are scattered,
 		 * we need to copy them into a safe buffer */
-		req_ctx->hmac_virt = dma_pool_alloc(buffer_pool, flags,
-						    &crypt->icv_rev_aes);
+		req_ctx->hmac_virt = dma_pool_alloc(buffer_pool, flags, &dma);
+		crypt->icv_rev_aes = dma;
 		if (unlikely(!req_ctx->hmac_virt))
 			goto free_buf_dst;
 		if (!encrypt) {
