@@ -24,9 +24,11 @@ properties:
           - qcom,scm-apq8064
           - qcom,scm-apq8084
           - qcom,scm-ipq4019
+          - qcom,scm-ipq5332
           - qcom,scm-ipq6018
           - qcom,scm-ipq806x
           - qcom,scm-ipq8074
+          - qcom,scm-ipq9574
           - qcom,scm-mdm9607
           - qcom,scm-msm8226
           - qcom,scm-msm8660
@@ -42,6 +44,7 @@ properties:
           - qcom,scm-sa8775p
           - qcom,scm-sc7180
           - qcom,scm-sc7280
+          - qcom,scm-sc8180x
           - qcom,scm-sc8280xp
           - qcom,scm-sdm670
           - qcom,scm-sdm845
@@ -166,6 +169,7 @@ allOf:
           compatible:
             contains:
               enum:
+                - qcom,scm-qdu1000
                 - qcom,scm-sm8450
                 - qcom,scm-sm8550
     then:
