@@ -1102,10 +1102,10 @@ static int iwl_mvm_mac_ctxt_send_beacon_v9(struct iwl_mvm *mvm,
 						sizeof(beacon_cmd));
 }
 
-int iwl_mvm_mac_ctxt_send_beacon(struct iwl_mvm *mvm,
-				 struct ieee80211_vif *vif,
-				 struct sk_buff *beacon,
-				 struct ieee80211_bss_conf *link_conf)
+static int iwl_mvm_mac_ctxt_send_beacon(struct iwl_mvm *mvm,
+					struct ieee80211_vif *vif,
+					struct sk_buff *beacon,
+					struct ieee80211_bss_conf *link_conf)
 {
 	if (WARN_ON(!beacon))
 		return -EINVAL;

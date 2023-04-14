@@ -1780,10 +1780,6 @@ int iwl_mvm_mac_ctxt_remove(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_mac_ctxt_beacon_changed(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif,
 				    struct ieee80211_bss_conf *link_conf);
-int iwl_mvm_mac_ctxt_send_beacon(struct iwl_mvm *mvm,
-				 struct ieee80211_vif *vif,
-				 struct sk_buff *beacon,
-				 struct ieee80211_bss_conf *link_conf);
 int iwl_mvm_mac_ctxt_send_beacon_cmd(struct iwl_mvm *mvm,
 				     struct sk_buff *beacon,
 				     void *data, int len);
