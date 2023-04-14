@@ -70,7 +70,7 @@
 			gpios = <&pm7325_gpios 6 GPIO_ACTIVE_LOW>;
 			linux,input-type = <1>;
 			linux,code = <KEY_VOLUMEUP>;
-			gpio-key,wakeup;
+			wakeup-source;
 			debounce-interval = <15>;
 			linux,can-disable;
 		};
@@ -184,7 +184,7 @@
 };
 
 &apps_rsc {
-	pm7325-regulators {
+	regulators-0 {
 		compatible = "qcom,pm7325-rpmh-regulators";
 		qcom,pmic-id = "b";
 
@@ -279,7 +279,7 @@
 		};
 	};
 
-	pm8350c-regulators {
+	regulators-1 {
 		compatible = "qcom,pm8350c-rpmh-regulators";
 		qcom,pmic-id = "c";
 

@@ -503,7 +503,7 @@
 				bits = <1 7>;
 			};
 
-			tsens_mode: mode@ec {
+			tsens_mode: mode@ef {
 				reg = <0xef 0x1>;
 				bits = <5 3>;
 			};
@@ -1870,7 +1870,7 @@
 			};
 		};
 
-		pronto: remoteproc@a21b000 {
+		wcnss: remoteproc@a21b000 {
 			compatible = "qcom,pronto-v2-pil", "qcom,pronto";
 			reg = <0x0a204000 0x2000>, <0x0a202000 0x1000>, <0x0a21b000 0x3000>;
 			reg-names = "ccu", "dxe", "pmu";
@@ -1896,9 +1896,8 @@
 
 			status = "disabled";
 
-			iris {
-				compatible = "qcom,wcn3620";
-
+			wcnss_iris: iris {
+				/* Separate chip, compatible is board-specific */
 				clocks = <&rpmcc RPM_SMD_RF_CLK2>;
 				clock-names = "xo";
 			};
@@ -1916,13 +1915,13 @@
 					compatible = "qcom,wcnss";
 					qcom,smd-channels = "WCNSS_CTRL";
 
-					qcom,mmio = <&pronto>;
+					qcom,mmio = <&wcnss>;
 
-					bluetooth {
+					wcnss_bt: bluetooth {
 						compatible = "qcom,wcnss-bt";
 					};
 
-					wifi {
+					wcnss_wifi: wifi {
 						compatible = "qcom,wcnss-wlan";
 
 						interrupts = <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>,
@@ -2180,7 +2179,6 @@
 				};
 			};
 		};
-
 	};
 
 	timer {

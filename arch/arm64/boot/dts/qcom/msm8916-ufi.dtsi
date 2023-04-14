@@ -92,17 +92,10 @@
 };
 
 &mpss {
-	pinctrl-0 = <&sim_ctrl_default>;
-	pinctrl-names = "default";
-
 	status = "okay";
 };
 
 &pm8916_usbin {
-	status = "okay";
-};
-
-&pronto {
 	status = "okay";
 };
 
@@ -123,6 +116,14 @@
 
 &usb_hs_phy {
 	extcon = <&pm8916_usbin>;
+};
+
+&wcnss {
+	status = "okay";
+};
+
+&wcnss_iris {
+	compatible = "qcom,wcn3620";
 };
 
 &smd_rpm_regulators {
@@ -239,12 +240,5 @@
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
-	};
-
-	sim_ctrl_default: sim-ctrl-default-state {
-		function = "gpio";
-		drive-strength = <2>;
-		bias-disable;
-		output-low;
 	};
 };
