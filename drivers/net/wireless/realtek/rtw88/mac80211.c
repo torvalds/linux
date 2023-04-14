@@ -212,6 +212,7 @@ static int rtw_ops_add_interface(struct ieee80211_hw *hw,
 	rtwvif->bcn_ctrl = bcn_ctrl;
 	config |= PORT_SET_BCN_CTRL;
 	rtw_vif_port_config(rtwdev, rtwvif, config);
+	rtw_core_port_switch(rtwdev, vif);
 
 	mutex_unlock(&rtwdev->mutex);
 
