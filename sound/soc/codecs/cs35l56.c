@@ -1590,7 +1590,7 @@ post_soft_reset:
 }
 EXPORT_SYMBOL_NS_GPL(cs35l56_init, SND_SOC_CS35L56_CORE);
 
-int cs35l56_remove(struct cs35l56_private *cs35l56)
+void cs35l56_remove(struct cs35l56_private *cs35l56)
 {
 	cs35l56->init_done = false;
 
@@ -1613,8 +1613,6 @@ int cs35l56_remove(struct cs35l56_private *cs35l56)
 
 	gpiod_set_value_cansleep(cs35l56->reset_gpio, 0);
 	regulator_bulk_disable(ARRAY_SIZE(cs35l56->supplies), cs35l56->supplies);
-
-	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(cs35l56_remove, SND_SOC_CS35L56_CORE);
 
