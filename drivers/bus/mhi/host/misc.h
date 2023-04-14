@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved. */
+/* Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved. */
 
 #ifndef _MHI_CORE_MISC_H_
 #define _MHI_CORE_MISC_H_
@@ -75,6 +75,24 @@ enum mhi_bw_scale_req_status {
 	TIMESYNC_CFG_CHAN_DB_ID_SHIFT) & TIMESYNC_CFG_CHAN_DB_ID_MASK | \
 	(1 << TIMESYNC_CFG_ENABLED_SHIFT) & TIMESYNC_CFG_ENABLED_MASK | \
 	((er_index) << TIMESYNC_CFG_ER_ID_SHIFT) & TIMESYNC_CFG_ER_ID_MASK)
+
+/* MHI WLAN specific offsets */
+#define MHI_HOST_NOTIFY_CFG_OFFSET (0x04)
+#define MHI_HOST_NOTIFY_ENABLE (1)
+#define MHI_HOST_NOTIFY_DB (124)
+#define MHI_HOST_NOTIFY_CAP_ID (6)
+#define MHI_HOST_NOTIFY_CFG_ENABLED_MASK (0x80000000)
+#define MHI_HOST_NOTIFY_CFG_ENABLED_SHIFT (31)
+#define MHI_HOST_NOTIFY_CFG_CHAN_DB_ID_MASK (0x000000FF)
+#define MHI_HOST_NOTIFY_CFG_CHAN_DB_ID_SHIFT (0)
+#define MHI_HOST_NOTIFY_ENABLE_SETUP ((MHI_HOST_NOTIFY_ENABLE << \
+					MHI_HOST_NOTIFY_CFG_ENABLED_SHIFT) & \
+					(MHI_HOST_NOTIFY_CFG_ENABLED_MASK))
+#define MHI_HOST_NOTIFY_DB_SETUP ((MHI_HOST_NOTIFY_DB << \
+					MHI_HOST_NOTIFY_CFG_CHAN_DB_ID_SHIFT) & \
+					(MHI_HOST_NOTIFY_CFG_CHAN_DB_ID_MASK))
+#define MHI_HOST_NOTIFY_CFG_SETUP ((MHI_HOST_NOTIFY_ENABLE_SETUP) | \
+					(MHI_HOST_NOTIFY_DB_SETUP))
 
 #define MHI_VERB(dev, fmt, ...) do { \
 	struct mhi_private *mhi_priv = \

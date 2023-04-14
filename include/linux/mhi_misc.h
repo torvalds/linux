@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved. */
+/* Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved. */
 
 #ifndef _MHI_MISC_H_
 #define _MHI_MISC_H_
@@ -314,6 +314,13 @@ void mhi_controller_set_loglevel(struct mhi_controller *mhi_cntrl,
  * @mhi_cntrl: MHI controller
  */
 int mhi_get_soc_info(struct mhi_controller *mhi_cntrl);
+
+/**
+ * mhi_host_notify_db_disable_trace - Host notification to ring channel DB
+ * to MHI device to stop tracing due SMMU fault
+ * @mhi_cntrl: MHI controller
+ */
+int mhi_host_notify_db_disable_trace(struct mhi_controller *mhi_cntrl);
 
 #else
 
@@ -662,6 +669,16 @@ void mhi_controller_set_loglevel(struct mhi_controller *mhi_cntrl,
 int mhi_get_soc_info(struct mhi_controller *mhi_cntrl)
 {
 	return -EINVAL;
+}
+
+/**
+ * mhi_host_notify_db_disable_trace - Host notification to ring channel DB
+ * to MHI device to stop tracing due SMMU fault
+ * @mhi_cntrl: MHI controller
+ */
+int mhi_host_notify_db_disable_trace(struct mhi_controller *mhi_cntrl)
+{
+	return -EPERM;
 }
 
 #endif /* CONFIG_MHI_BUS_MISC */
