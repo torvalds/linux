@@ -50,7 +50,6 @@ class ovs_dp_msg(genlmsg):
 
 
 class OvsDatapath(GenericNetlinkSocket):
-
     OVS_DP_F_VPORT_PIDS = 1 << 1
     OVS_DP_F_DISPATCH_UPCALL_PER_CPU = 1 << 3
 
@@ -170,6 +169,12 @@ class OvsDatapath(GenericNetlinkSocket):
 
 
 class OvsVport(GenericNetlinkSocket):
+    OVS_VPORT_TYPE_NETDEV = 1
+    OVS_VPORT_TYPE_INTERNAL = 2
+    OVS_VPORT_TYPE_GRE = 3
+    OVS_VPORT_TYPE_VXLAN = 4
+    OVS_VPORT_TYPE_GENEVE = 5
+
     class ovs_vport_msg(ovs_dp_msg):
         nla_map = (
             ("OVS_VPORT_ATTR_UNSPEC", "none"),
@@ -197,17 +202,30 @@ class OvsVport(GenericNetlinkSocket):
             )
 
     def type_to_str(vport_type):
-        if vport_type == 1:
+        if vport_type == OvsVport.OVS_VPORT_TYPE_NETDEV:
             return "netdev"
-        elif vport_type == 2:
+        elif vport_type == OvsVport.OVS_VPORT_TYPE_INTERNAL:
             return "internal"
-        elif vport_type == 3:
+        elif vport_type == OvsVport.OVS_VPORT_TYPE_GRE:
             return "gre"
-        elif vport_type == 4:
+        elif vport_type == OvsVport.OVS_VPORT_TYPE_VXLAN:
             return "vxlan"
-        elif vport_type == 5:
+        elif vport_type == OvsVport.OVS_VPORT_TYPE_GENEVE:
             return "geneve"
-        return "unknown:%d" % vport_type
+        raise ValueError("Unknown vport type:%d" % vport_type)
+
+    def str_to_type(vport_type):
+        if vport_type == "netdev":
+            return OvsVport.OVS_VPORT_TYPE_NETDEV
+        elif vport_type == "internal":
+            return OvsVport.OVS_VPORT_TYPE_INTERNAL
+        elif vport_type == "gre":
+            return OvsVport.OVS_VPORT_TYPE_INTERNAL
+        elif vport_type == "vxlan":
+            return OvsVport.OVS_VPORT_TYPE_VXLAN
+        elif vport_type == "geneve":
+            return OvsVport.OVS_VPORT_TYPE_GENEVE
+        raise ValueError("Unknown vport type: '%s'" % vport_type)
 
     def __init__(self):
         GenericNetlinkSocket.__init__(self)
@@ -238,8 +256,51 @@ class OvsVport(GenericNetlinkSocket):
                 raise ne
         return reply
 
+    def attach(self, dpindex, vport_ifname, ptype):
+        msg = OvsVport.ovs_vport_msg()
 
-def print_ovsdp_full(dp_lookup_rep, ifindex, ndb=NDB()):
+        msg["cmd"] = OVS_VPORT_CMD_NEW
+        msg["version"] = OVS_DATAPATH_VERSION
+        msg["reserved"] = 0
+        msg["dpifindex"] = dpindex
+        port_type = OvsVport.str_to_type(ptype)
+
+        msg["attrs"].append(["OVS_VPORT_ATTR_TYPE", port_type])
+        msg["attrs"].append(["OVS_VPORT_ATTR_NAME", vport_ifname])
+        msg["attrs"].append(["OVS_VPORT_ATTR_UPCALL_PID", [self.pid]])
+
+        try:
+            reply = self.nlm_request(
+                msg, msg_type=self.prid, msg_flags=NLM_F_REQUEST | NLM_F_ACK
+            )
+            reply = reply[0]
+        except NetlinkError as ne:
+            raise ne
+        return reply
+
+    def detach(self, dpindex, vport_ifname):
+        msg = OvsVport.ovs_vport_msg()
+
+        msg["cmd"] = OVS_VPORT_CMD_DEL
+        msg["version"] = OVS_DATAPATH_VERSION
+        msg["reserved"] = 0
+        msg["dpifindex"] = dpindex
+        msg["attrs"].append(["OVS_VPORT_ATTR_NAME", vport_ifname])
+
+        try:
+            reply = self.nlm_request(
+                msg, msg_type=self.prid, msg_flags=NLM_F_REQUEST | NLM_F_ACK
+            )
+            reply = reply[0]
+        except NetlinkError as ne:
+            if ne.code == errno.ENODEV:
+                reply = None
+            else:
+                raise ne
+        return reply
+
+
+def print_ovsdp_full(dp_lookup_rep, ifindex, ndb=NDB(), vpl=OvsVport()):
     dp_name = dp_lookup_rep.get_attr("OVS_DP_ATTR_NAME")
     base_stats = dp_lookup_rep.get_attr("OVS_DP_ATTR_STATS")
     megaflow_stats = dp_lookup_rep.get_attr("OVS_DP_ATTR_MEGAFLOW_STATS")
@@ -265,7 +326,6 @@ def print_ovsdp_full(dp_lookup_rep, ifindex, ndb=NDB()):
         print("  features: 0x%X" % user_features)
 
     # port print out
-    vpl = OvsVport()
     for iface in ndb.interfaces:
         rep = vpl.info(iface.ifname, ifindex)
         if rep is not None:
@@ -312,9 +372,25 @@ def main(argv):
     deldpcmd = subparsers.add_parser("del-dp")
     deldpcmd.add_argument("deldp", help="Datapath Name")
 
+    addifcmd = subparsers.add_parser("add-if")
+    addifcmd.add_argument("dpname", help="Datapath Name")
+    addifcmd.add_argument("addif", help="Interface name for adding")
+    addifcmd.add_argument(
+        "-t",
+        "--ptype",
+        type=str,
+        default="netdev",
+        choices=["netdev", "internal"],
+        help="Interface type (default netdev)",
+    )
+    delifcmd = subparsers.add_parser("del-if")
+    delifcmd.add_argument("dpname", help="Datapath Name")
+    delifcmd.add_argument("delif", help="Interface name for adding")
+
     args = parser.parse_args()
 
     ovsdp = OvsDatapath()
+    ovsvp = OvsVport()
     ndb = NDB()
 
     if hasattr(args, "showdp"):
@@ -328,7 +404,7 @@ def main(argv):
 
             if rep is not None:
                 found = True
-                print_ovsdp_full(rep, iface.index, ndb)
+                print_ovsdp_full(rep, iface.index, ndb, ovsvp)
 
         if not found:
             msg = "No DP found"
@@ -343,6 +419,28 @@ def main(argv):
             print("DP '%s' added" % args.adddp)
     elif hasattr(args, "deldp"):
         ovsdp.destroy(args.deldp)
+    elif hasattr(args, "addif"):
+        rep = ovsdp.info(args.dpname, 0)
+        if rep is None:
+            print("DP '%s' not found." % args.dpname)
+            return 1
+        rep = ovsvp.attach(rep["dpifindex"], args.addif, args.ptype)
+        msg = "vport '%s'" % args.addif
+        if rep and rep["header"]["error"] is None:
+            msg += " added."
+        else:
+            msg += " failed to add."
+    elif hasattr(args, "delif"):
+        rep = ovsdp.info(args.dpname, 0)
+        if rep is None:
+            print("DP '%s' not found." % args.dpname)
+            return 1
+        rep = ovsvp.detach(rep["dpifindex"], args.delif)
+        msg = "vport '%s'" % args.delif
+        if rep and rep["header"]["error"] is None:
+            msg += " removed."
+        else:
+            msg += " failed to remove."
 
     return 0
 

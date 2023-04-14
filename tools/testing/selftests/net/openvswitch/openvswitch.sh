@@ -70,6 +70,49 @@ ovs_add_dp () {
 	on_exit "ovs_sbx $sbxname python3 $ovs_base/ovs-dpctl.py del-dp $1;"
 }
 
+ovs_add_if () {
+	info "Adding IF to DP: br:$2 if:$3"
+	ovs_sbx "$1" python3 $ovs_base/ovs-dpctl.py add-if "$2" "$3" || return 1
+}
+
+ovs_del_if () {
+	info "Deleting IF from DP: br:$2 if:$3"
+	ovs_sbx "$1" python3 $ovs_base/ovs-dpctl.py del-if "$2" "$3" || return 1
+}
+
+ovs_netns_spawn_daemon() {
+	sbx=$1
+	shift
+	netns=$1
+	shift
+	info "spawning cmd: $*"
+	ip netns exec $netns $*  >> $ovs_dir/stdout  2>> $ovs_dir/stderr &
+	pid=$!
+	ovs_sbx "$sbx" on_exit "kill -TERM $pid 2>/dev/null"
+}
+
+ovs_add_netns_and_veths () {
+	info "Adding netns attached: sbx:$1 dp:$2 {$3, $4, $5}"
+	ovs_sbx "$1" ip netns add "$3" || return 1
+	on_exit "ovs_sbx $1 ip netns del $3"
+	ovs_sbx "$1" ip link add "$4" type veth peer name "$5" || return 1
+	on_exit "ovs_sbx $1 ip link del $4 >/dev/null 2>&1"
+	ovs_sbx "$1" ip link set "$4" up || return 1
+	ovs_sbx "$1" ip link set "$5" netns "$3" || return 1
+	ovs_sbx "$1" ip netns exec "$3" ip link set "$5" up || return 1
+
+	if [ "$6" != "" ]; then
+		ovs_sbx "$1" ip netns exec "$3" ip addr add "$6" dev "$5" \
+		    || return 1
+	fi
+
+	ovs_add_if "$1" "$2" "$4" || return 1
+	[ $TRACING -eq 1 ] && ovs_netns_spawn_daemon "$1" "$ns" \
+			tcpdump -i any -s 65535
+
+	return 0
+}
+
 usage() {
 	echo
 	echo "$0 [OPTIONS] [TEST]..."
@@ -100,6 +143,18 @@ test_netlink_checks () {
 		info "failed - gen warning"
 		return 1
 	fi
+
+	ovs_add_netns_and_veths "test_netlink_checks" nv0 left left0 l0 || \
+	    return 1
+	ovs_add_netns_and_veths "test_netlink_checks" nv0 right right0 r0 || \
+	    return 1
+	[ $(python3 $ovs_base/ovs-dpctl.py show nv0 | grep port | \
+	    wc -l) == 3 ] || \
+	      return 1
+	ovs_del_if "test_netlink_checks" nv0 right0 || return 1
+	[ $(python3 $ovs_base/ovs-dpctl.py show nv0 | grep port | \
+	    wc -l) == 2 ] || \
+	      return 1
 
 	return 0
 }
