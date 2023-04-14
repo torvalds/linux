@@ -380,7 +380,7 @@ static void gh_rm_notif_work(struct work_struct *work)
 
 	blocking_notifier_call_chain(&rm->nh, connection->msg_id, connection->payload);
 
-	gh_rm_put(rm);
+	put_device(rm->dev);
 	kfree(connection->payload);
 	kfree(connection);
 }
@@ -401,14 +401,14 @@ static void gh_rm_process_notif(struct gh_rm *rm, void *msg, size_t msg_size)
 	connection->type = RM_RPC_TYPE_NOTIF;
 	connection->msg_id = hdr->msg_id;
 
-	gh_rm_get(rm);
+	get_device(rm->dev);
 	connection->notification.rm = rm;
 	INIT_WORK(&connection->notification.work, gh_rm_notif_work);
 
 	ret = gh_rm_init_connection_payload(connection, msg, sizeof(*hdr), msg_size);
 	if (ret) {
 		dev_err(rm->dev, "Failed to initialize connection for notification: %d\n", ret);
-		gh_rm_put(rm);
+		put_device(rm->dev);
 		kfree(connection);
 		return;
 	}
@@ -482,7 +482,7 @@ static void gh_rm_try_complete_connection(struct gh_rm *rm)
 		schedule_work(&connection->notification.work);
 		break;
 	default:
-		dev_err_ratelimited(rm->dev, "Invalid message type (%d) received\n",
+		dev_err_ratelimited(rm->dev, "Invalid message type (%u) received\n",
 					connection->type);
 		gh_rm_abort_connection(rm);
 		break;
@@ -536,11 +536,11 @@ static void gh_rm_msgq_tx_done(struct mbox_client *cl, void *mssg, int r)
 }
 
 static int gh_rm_send_request(struct gh_rm *rm, u32 message_id,
-			      const void *req_buff, size_t req_buf_size,
+			      const void *req_buf, size_t req_buf_size,
 			      struct gh_rm_connection *connection)
 {
 	size_t buf_size_remaining = req_buf_size;
-	const void *req_buf_curr = req_buff;
+	const void *req_buf_curr = req_buf;
 	struct gh_msgq_tx_data *msg;
 	struct gh_rm_rpc_hdr *hdr, hdr_template;
 	u32 cont_fragments = 0;
@@ -549,8 +549,8 @@ static int gh_rm_send_request(struct gh_rm *rm, u32 message_id,
 	int ret;
 
 	if (req_buf_size > GH_RM_MAX_NUM_FRAGMENTS * GH_RM_MAX_MSG_SIZE) {
-		dev_warn(rm->dev, "Limit exceeded for the number of fragments: %u\n",
-			cont_fragments);
+		dev_warn(rm->dev, "Limit (%lu bytes) exceeded for the maximum message size: %lu\n",
+			GH_RM_MAX_NUM_FRAGMENTS * GH_RM_MAX_MSG_SIZE, req_buf_size);
 		dump_stack();
 		return -E2BIG;
 	}
@@ -560,7 +560,7 @@ static int gh_rm_send_request(struct gh_rm *rm, u32 message_id,
 
 	hdr_template.api = RM_RPC_API;
 	hdr_template.type = FIELD_PREP(RM_RPC_TYPE_MASK, RM_RPC_TYPE_REQUEST) |
-			FIELD_PREP(RM_RPC_FRAGMENTS_MASK, cont_fragments);
+				FIELD_PREP(RM_RPC_FRAGMENTS_MASK, cont_fragments);
 	hdr_template.seq = cpu_to_le16(connection->reply.seq);
 	hdr_template.msg_id = cpu_to_le32(message_id);
 
@@ -568,7 +568,6 @@ static int gh_rm_send_request(struct gh_rm *rm, u32 message_id,
 	if (ret)
 		return ret;
 
-	/* Consider also the 'request' packet for the loop count */
 	do {
 		msg = kmem_cache_zalloc(rm->cache, GFP_KERNEL);
 		if (!msg) {
@@ -577,11 +576,11 @@ static int gh_rm_send_request(struct gh_rm *rm, u32 message_id,
 		}
 
 		/* Fill header */
-		hdr = (struct gh_rm_rpc_hdr *)msg->data;
+		hdr = (struct gh_rm_rpc_hdr *)&msg->data[0];
 		*hdr = hdr_template;
 
 		/* Copy payload */
-		payload = hdr + 1;
+		payload = &msg->data[0] + sizeof(*hdr);
 		payload_size = min(buf_size_remaining, GH_RM_MAX_MSG_SIZE);
 		memcpy(payload, req_buf_curr, payload_size);
 		req_buf_curr += payload_size;
@@ -615,23 +614,23 @@ out:
  * gh_rm_call: Achieve request-response type communication with RPC
  * @rm: Pointer to Gunyah resource manager internal data
  * @message_id: The RM RPC message-id
- * @req_buff: Request buffer that contains the payload
+ * @req_buf: Request buffer that contains the payload
  * @req_buf_size: Total size of the payload
  * @resp_buf: Pointer to a response buffer
  * @resp_buf_size: Size of the response buffer
  *
- * Make a request to the RM-VM and wait for reply back. For a successful
+ * Make a request to the Resource Manager and wait for reply back. For a successful
  * response, the function returns the payload. The size of the payload is set in
- * resp_buf_size. The resp_buf should be freed by the caller when 0 is returned
+ * resp_buf_size. The resp_buf must be freed by the caller when 0 is returned
  * and resp_buf_size != 0.
  *
- * req_buff should be not NULL for req_buf_size >0. If req_buf_size == 0,
- * req_buff *can* be NULL and no additional payload is sent.
+ * req_buf should be not NULL for req_buf_size >0. If req_buf_size == 0,
+ * req_buf *can* be NULL and no additional payload is sent.
  *
  * Context: Process context. Will sleep waiting for reply.
  * Return: 0 on success. <0 if error.
  */
-int gh_rm_call(struct gh_rm *rm, u32 message_id, void *req_buff, size_t req_buf_size,
+int gh_rm_call(struct gh_rm *rm, u32 message_id, void *req_buf, size_t req_buf_size,
 		void **resp_buf, size_t *resp_buf_size)
 {
 	struct gh_rm_connection *connection;
@@ -639,7 +638,7 @@ int gh_rm_call(struct gh_rm *rm, u32 message_id, void *req_buff, size_t req_buf_
 	int ret;
 
 	/* message_id 0 is reserved. req_buf_size implies req_buf is not NULL */
-	if (!message_id || (!req_buff && req_buf_size) || !rm)
+	if (!rm || !message_id || (!req_buf && req_buf_size))
 		return -EINVAL;
 
 
@@ -660,7 +659,7 @@ int gh_rm_call(struct gh_rm *rm, u32 message_id, void *req_buff, size_t req_buf_
 	connection->reply.seq = lower_16_bits(seq_id);
 
 	/* Send the request to the Resource Manager */
-	ret = gh_rm_send_request(rm, message_id, req_buff, req_buf_size, connection);
+	ret = gh_rm_send_request(rm, message_id, req_buf, req_buf_size, connection);
 	if (ret < 0)
 		goto out;
 
