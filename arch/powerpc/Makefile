@@ -248,10 +248,6 @@ bootwrapper_install:
 
 include $(srctree)/scripts/Makefile.defconf
 
-generated_configs += pseries_le_defconfig
-pseries_le_defconfig:
-	$(call merge_into_defconfig,pseries_defconfig,le)
-
 generated_configs += ppc64le_defconfig
 ppc64le_defconfig:
 	$(call merge_into_defconfig,ppc64_defconfig,le)
@@ -263,6 +259,9 @@ ppc64le_guest_defconfig:
 generated_configs += ppc64_guest_defconfig
 ppc64_guest_defconfig:
 	$(call merge_into_defconfig,ppc64_defconfig,be guest kvm_guest)
+
+generated_configs += pseries_le_defconfig
+pseries_le_defconfig: ppc64le_guest_defconfig
 
 generated_configs += powernv_be_defconfig
 powernv_be_defconfig:
