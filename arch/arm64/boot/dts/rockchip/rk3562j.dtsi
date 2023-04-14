@@ -1,0 +1,112 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ */
+
+#include "rk3562.dtsi"
+
+/ {
+	can0: can@ff600000 {
+		compatible = "rockchip,rk3562-can";
+		reg = <0x0 0xff600000 0x0 0x1000>;
+		interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru CLK_CAN0>, <&cru PCLK_CAN0>;
+		clock-names = "baudclk", "apb_pclk";
+		resets = <&cru SRST_CAN0>, <&cru SRST_P_CAN0>;
+		reset-names = "can", "can-apb";
+		status = "disabled";
+	};
+
+	can1: can@ff610000 {
+		compatible = "rockchip,rk3562-can";
+		reg = <0x0 0xff610000 0x0 0x1000>;
+		interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru CLK_CAN1>, <&cru PCLK_CAN1>;
+		clock-names = "baudclk", "apb_pclk";
+		resets = <&cru SRST_CAN1>, <&cru SRST_P_CAN1>;
+		reset-names = "can", "can-apb";
+		status = "disabled";
+	};
+};
+
+&cpu0_opp_table {
+	/delete-node/ mbist-vmin;
+	/*
+	 * Max CPU frequency is 1.8GHz for the overdrive mode,
+	 * but it will reduce chip lifetime.
+	 */
+	/delete-node/ opp-1416000000;
+	/delete-node/ opp-1608000000;
+	/delete-node/ opp-1800000000;
+	/delete-node/ opp-2016000000;
+	opp-408000000 {
+		opp-microvolt = <850000 850000 1150000>;
+	};
+	opp-600000000 {
+		opp-microvolt = <850000 850000 1150000>;
+	};
+	opp-816000000 {
+		opp-microvolt = <850000 850000 1150000>;
+	};
+	opp-1008000000 {
+		opp-microvolt = <850000 850000 1150000>;
+	};
+	opp-1200000000 {
+		opp-microvolt-L4 = <850000 850000 1150000>;
+	};
+};
+
+&gpu_opp_table {
+	/delete-node/ mbist-vmin;
+	/*
+	 * Max GPU frequency is 900MHz for the overdrive mode,
+	 * but it will reduce chip lifetime.
+	 */
+	/delete-node/ opp-800000000;
+	/delete-node/ opp-900000000;
+	opp-300000000 {
+		opp-microvolt = <850000 850000 1000000>;
+	};
+	opp-400000000 {
+		opp-microvolt = <850000 850000 1000000>;
+	};
+	opp-500000000 {
+		opp-microvolt = <850000 850000 1000000>;
+	};
+	opp-600000000 {
+		opp-microvolt = <850000 850000 1000000>;
+	};
+	opp-700000000 {
+		opp-microvolt-L3 = <850000 850000 1000000>;
+		opp-microvolt-L4 = <850000 850000 1000000>;
+	};
+};
+
+&npu_opp_table {
+	/delete-node/ mbist-vmin;
+	/*
+	 * Max NPU frequency is 900MHz for the overdrive mode,
+	 * but it will reduce chip lifetime.
+	 */
+	/delete-node/ opp-800000000;
+	/delete-node/ opp-900000000;
+	/delete-node/ opp-1000000000;
+	opp-300000000 {
+		opp-microvolt = <850000 850000 1000000>;
+	};
+	opp-400000000 {
+		opp-microvolt = <850000 850000 1000000>;
+	};
+	opp-500000000 {
+		opp-microvolt = <850000 850000 1000000>;
+	};
+	opp-600000000 {
+		opp-microvolt-L2 = <850000 850000 1000000>;
+		opp-microvolt-L3 = <850000 850000 1000000>;
+		opp-microvolt-L4 = <850000 850000 1000000>;
+	};
+	opp-700000000 {
+		opp-microvolt-L4 = <850000 850000 1000000>;
+		status = "disabled";
+	};
+};
