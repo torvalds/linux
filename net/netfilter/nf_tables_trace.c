@@ -183,9 +183,9 @@ static const struct nft_chain *nft_trace_get_chain(const struct nft_traceinfo *i
 	return last->chain;
 }
 
-void nft_trace_notify(struct nft_traceinfo *info)
+void nft_trace_notify(const struct nft_pktinfo *pkt,
+		      struct nft_traceinfo *info)
 {
-	const struct nft_pktinfo *pkt = info->pkt;
 	const struct nft_chain *chain;
 	struct nlmsghdr *nlh;
 	struct sk_buff *skb;
@@ -305,7 +305,6 @@ void nft_trace_init(struct nft_traceinfo *info, const struct nft_pktinfo *pkt,
 	info->trace = true;
 	info->nf_trace = pkt->skb->nf_trace;
 	info->packet_dumped = false;
-	info->pkt = pkt;
 	info->verdict = verdict;
 
 	net_get_random_once(&trace_key, sizeof(trace_key));

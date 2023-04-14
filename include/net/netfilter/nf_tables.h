@@ -1408,7 +1408,6 @@ void nft_unregister_flowtable_type(struct nf_flowtable_type *type);
  *	@type: event type (enum nft_trace_types)
  *	@skbid: hash of skb to be used as trace id
  *	@packet_dumped: packet headers sent in a previous traceinfo message
- *	@pkt: pktinfo currently processed
  *	@basechain: base chain currently processed
  *	@rule:  rule that was evaluated
  *	@verdict: verdict given by rule
@@ -1419,7 +1418,6 @@ struct nft_traceinfo {
 	bool				packet_dumped;
 	enum nft_trace_types		type:8;
 	u32				skbid;
-	const struct nft_pktinfo	*pkt;
 	const struct nft_base_chain	*basechain;
 	const struct nft_rule_dp	*rule;
 	const struct nft_verdict	*verdict;
@@ -1429,7 +1427,8 @@ void nft_trace_init(struct nft_traceinfo *info, const struct nft_pktinfo *pkt,
 		    const struct nft_verdict *verdict,
 		    const struct nft_chain *basechain);
 
-void nft_trace_notify(struct nft_traceinfo *info);
+void nft_trace_notify(const struct nft_pktinfo *pkt,
+		      struct nft_traceinfo *info);
 
 #define MODULE_ALIAS_NFT_CHAIN(family, name) \
 	MODULE_ALIAS("nft-chain-" __stringify(family) "-" name)

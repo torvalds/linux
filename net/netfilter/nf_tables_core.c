@@ -41,7 +41,8 @@ static inline bool nf_skip_indirect_calls(void) { return false; }
 static inline void nf_skip_indirect_calls_enable(void) { }
 #endif
 
-static noinline void __nft_trace_packet(struct nft_traceinfo *info,
+static noinline void __nft_trace_packet(const struct nft_pktinfo *pkt,
+					struct nft_traceinfo *info,
 					enum nft_trace_types type)
 {
 	if (!info->trace || !info->nf_trace)
@@ -49,7 +50,7 @@ static noinline void __nft_trace_packet(struct nft_traceinfo *info,
 
 	info->type = type;
 
-	nft_trace_notify(info);
+	nft_trace_notify(pkt, info);
 }
 
 static inline void nft_trace_packet(const struct nft_pktinfo *pkt,
@@ -60,7 +61,7 @@ static inline void nft_trace_packet(const struct nft_pktinfo *pkt,
 	if (static_branch_unlikely(&nft_trace_enabled)) {
 		info->nf_trace = pkt->skb->nf_trace;
 		info->rule = rule;
-		__nft_trace_packet(info, type);
+		__nft_trace_packet(pkt, info, type);
 	}
 }
 
@@ -105,7 +106,8 @@ static void nft_cmp16_fast_eval(const struct nft_expr *expr,
 	regs->verdict.code = NFT_BREAK;
 }
 
-static noinline void __nft_trace_verdict(struct nft_traceinfo *info,
+static noinline void __nft_trace_verdict(const struct nft_pktinfo *pkt,
+					 struct nft_traceinfo *info,
 					 const struct nft_regs *regs)
 {
 	enum nft_trace_types type;
@@ -123,20 +125,21 @@ static noinline void __nft_trace_verdict(struct nft_traceinfo *info,
 		type = NFT_TRACETYPE_RULE;
 
 		if (info->trace)
-			info->nf_trace = info->pkt->skb->nf_trace;
+			info->nf_trace = pkt->skb->nf_trace;
 		break;
 	}
 
-	__nft_trace_packet(info, type);
+	__nft_trace_packet(pkt, info, type);
 }
 
-static inline void nft_trace_verdict(struct nft_traceinfo *info,
+static inline void nft_trace_verdict(const struct nft_pktinfo *pkt,
+				     struct nft_traceinfo *info,
 				     const struct nft_rule_dp *rule,
 				     const struct nft_regs *regs)
 {
 	if (static_branch_unlikely(&nft_trace_enabled)) {
 		info->rule = rule;
-		__nft_trace_verdict(info, regs);
+		__nft_trace_verdict(pkt, info, regs);
 	}
 }
 
@@ -300,7 +303,7 @@ next_rule:
 		break;
 	}
 
-	nft_trace_verdict(&info, rule, &regs);
+	nft_trace_verdict(pkt, &info, rule, &regs);
 
 	switch (regs.verdict.code & NF_VERDICT_MASK) {
 	case NF_ACCEPT:
