@@ -468,8 +468,6 @@ intel_framebuffer_create(struct drm_i915_gem_object *obj,
 
 bool intel_fuzzy_clock_check(int clock1, int clock2);
 
-void intel_display_prepare_reset(struct drm_i915_private *dev_priv);
-void intel_display_finish_reset(struct drm_i915_private *dev_priv);
 void intel_zero_m_n(struct intel_link_m_n *m_n);
 void intel_set_m_n(struct drm_i915_private *i915,
 		   const struct intel_link_m_n *m_n,
@@ -542,6 +540,12 @@ int intel_atomic_commit(struct drm_device *dev, struct drm_atomic_state *_state,
 			bool nonblock);
 
 void intel_hpd_poll_fini(struct drm_i915_private *i915);
+
+/* interface for intel_display_reset.c */
+int
+__intel_display_resume(struct drm_i915_private *i915,
+		       struct drm_atomic_state *state,
+		       struct drm_modeset_acquire_ctx *ctx);
 
 /* modesetting asserts */
 void assert_transcoder(struct drm_i915_private *dev_priv,
