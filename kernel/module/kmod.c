@@ -1,6 +1,9 @@
 /*
  * kmod - the kernel module loader
+ *
+ * Copyright (C) 2023 Luis Chamberlain <mcgrof@kernel.org>
  */
+
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/sched/task.h>
@@ -27,6 +30,7 @@
 #include <linux/uaccess.h>
 
 #include <trace/events/module.h>
+#include "internal.h"
 
 /*
  * Assuming:
@@ -65,7 +69,7 @@ static void free_modprobe_argv(struct subprocess_info *info)
 	kfree(info->argv);
 }
 
-static int call_modprobe(char *module_name, int wait)
+static int call_modprobe(char *orig_module_name, int wait)
 {
 	struct subprocess_info *info;
 	static char *envp[] = {
@@ -74,12 +78,14 @@ static int call_modprobe(char *module_name, int wait)
 		"PATH=/sbin:/usr/sbin:/bin:/usr/bin",
 		NULL
 	};
+	char *module_name;
+	int ret;
 
 	char **argv = kmalloc(sizeof(char *[5]), GFP_KERNEL);
 	if (!argv)
 		goto out;
 
-	module_name = kstrdup(module_name, GFP_KERNEL);
+	module_name = kstrdup(orig_module_name, GFP_KERNEL);
 	if (!module_name)
 		goto free_argv;
 
@@ -94,13 +100,16 @@ static int call_modprobe(char *module_name, int wait)
 	if (!info)
 		goto free_module_name;
 
-	return call_usermodehelper_exec(info, wait | UMH_KILLABLE);
+	ret = call_usermodehelper_exec(info, wait | UMH_KILLABLE);
+	kmod_dup_request_announce(orig_module_name, ret);
+	return ret;
 
 free_module_name:
 	kfree(module_name);
 free_argv:
 	kfree(argv);
 out:
+	kmod_dup_request_announce(orig_module_name, -ENOMEM);
 	return -ENOMEM;
 }
 
@@ -124,7 +133,7 @@ int __request_module(bool wait, const char *fmt, ...)
 {
 	va_list args;
 	char module_name[MODULE_NAME_LEN];
-	int ret;
+	int ret, dup_ret;
 
 	/*
 	 * We don't allow synchronous module loading from async.  Module
@@ -156,8 +165,14 @@ int __request_module(bool wait, const char *fmt, ...)
 
 	trace_module_request(module_name, wait, _RET_IP_);
 
+	if (kmod_dup_request_exists_wait(module_name, wait, &dup_ret)) {
+		ret = dup_ret;
+		goto out;
+	}
+
 	ret = call_modprobe(module_name, wait ? UMH_WAIT_PROC : UMH_WAIT_EXEC);
 
+out:
 	up(&kmod_concurrent_max);
 
 	return ret;

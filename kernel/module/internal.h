@@ -3,6 +3,7 @@
  *
  * Copyright (C) 2012 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
+ * Copyright (C) 2023 Luis Chamberlain <mcgrof@kernel.org>
  */
 
 #include <linux/elf.h>
@@ -220,6 +221,20 @@ static inline void mod_stat_bump_becoming(struct load_info *info, int flags)
 }
 
 #endif /* CONFIG_MODULE_STATS */
+
+#ifdef CONFIG_MODULE_DEBUG_AUTOLOAD_DUPS
+bool kmod_dup_request_exists_wait(char *module_name, bool wait, int *dup_ret);
+void kmod_dup_request_announce(char *module_name, int ret);
+#else
+static inline bool kmod_dup_request_exists_wait(char *module_name, bool wait, int *dup_ret)
+{
+	return false;
+}
+
+static inline void kmod_dup_request_announce(char *module_name, int ret)
+{
+}
+#endif
 
 #ifdef CONFIG_MODULE_UNLOAD_TAINT_TRACKING
 struct mod_unload_taint {
