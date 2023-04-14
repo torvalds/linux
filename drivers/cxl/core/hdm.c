@@ -130,6 +130,14 @@ static bool should_emulate_decoders(struct cxl_endpoint_dvsec_info *info)
 	 */
 	for (i = 0; i < cxlhdm->decoder_count; i++) {
 		ctrl = readl(hdm + CXL_HDM_DECODER0_CTRL_OFFSET(i));
+		dev_dbg(&info->port->dev,
+			"decoder%d.%d: committed: %ld base: %#x_%.8x size: %#x_%.8x\n",
+			info->port->id, i,
+			FIELD_GET(CXL_HDM_DECODER0_CTRL_COMMITTED, ctrl),
+			readl(hdm + CXL_HDM_DECODER0_BASE_HIGH_OFFSET(i)),
+			readl(hdm + CXL_HDM_DECODER0_BASE_LOW_OFFSET(i)),
+			readl(hdm + CXL_HDM_DECODER0_SIZE_HIGH_OFFSET(i)),
+			readl(hdm + CXL_HDM_DECODER0_SIZE_LOW_OFFSET(i)));
 		if (FIELD_GET(CXL_HDM_DECODER0_CTRL_COMMITTED, ctrl))
 			return false;
 	}
@@ -867,6 +875,10 @@ static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 				 &cxld->interleave_granularity);
 	if (rc)
 		return rc;
+
+	dev_dbg(&port->dev, "decoder%d.%d: range: %#llx-%#llx iw: %d ig: %d\n",
+		port->id, cxld->id, cxld->hpa_range.start, cxld->hpa_range.end,
+		cxld->interleave_ways, cxld->interleave_granularity);
 
 	if (!info) {
 		lo = readl(hdm + CXL_HDM_DECODER0_TL_LOW(which));
