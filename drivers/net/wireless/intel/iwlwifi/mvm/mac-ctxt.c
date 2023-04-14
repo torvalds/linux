@@ -870,9 +870,9 @@ static u32 iwl_mvm_find_ie_offset(u8 *beacon, u8 eid, u32 frame_size)
 	return ie - beacon;
 }
 
-static u8 iwl_mvm_mac_ctxt_get_lowest_rate(struct iwl_mvm *mvm,
-					   struct ieee80211_tx_info *info,
-					   struct ieee80211_vif *vif)
+u8 iwl_mvm_mac_ctxt_get_lowest_rate(struct iwl_mvm *mvm,
+				    struct ieee80211_tx_info *info,
+				    struct ieee80211_vif *vif)
 {
 	struct ieee80211_supported_band *sband;
 	unsigned long basic = vif->bss_conf.basic_rates;
@@ -892,7 +892,9 @@ static u8 iwl_mvm_mac_ctxt_get_lowest_rate(struct iwl_mvm *mvm,
 		}
 	}
 
-	if (info->band == NL80211_BAND_2GHZ && !vif->p2p) {
+	if (info->band == NL80211_BAND_2GHZ && !vif->p2p &&
+	    vif->type != NL80211_IFTYPE_P2P_DEVICE &&
+	    !(info->flags & IEEE80211_TX_CTL_NO_CCK_RATE)) {
 		if (lowest_cck != IWL_RATE_COUNT)
 			rate = lowest_cck;
 		else if (lowest_ofdm != IWL_RATE_COUNT)

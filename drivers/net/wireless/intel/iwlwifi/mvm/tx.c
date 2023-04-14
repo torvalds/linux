@@ -329,23 +329,23 @@ static u32 iwl_mvm_get_tx_rate(struct iwl_mvm *mvm,
 			  sta ? iwl_mvm_sta_from_mac80211(sta)->sta_state : -1);
 
 		rate_idx = info->control.rates[0].idx;
+
+		/* For non 2 GHZ band, remap mac80211 rate indices into driver
+		 * indices.
+		 */
+		if (info->band != NL80211_BAND_2GHZ ||
+		    (info->flags & IEEE80211_TX_CTL_NO_CCK_RATE))
+			rate_idx += IWL_FIRST_OFDM_RATE;
+
+		/* For 2.4 GHZ band, check that there is no need to remap */
+		BUILD_BUG_ON(IWL_FIRST_CCK_RATE != 0);
 	}
 
 	/* if the rate isn't a well known legacy rate, take the lowest one */
 	if (rate_idx < 0 || rate_idx >= IWL_RATE_COUNT_LEGACY)
-		rate_idx = rate_lowest_index(
-				&mvm->nvm_data->bands[info->band], sta);
-
-	/*
-	 * For non 2 GHZ band, remap mac80211 rate
-	 * indices into driver indices
-	 */
-	if (info->band != NL80211_BAND_2GHZ ||
-	    (info->flags & IEEE80211_TX_CTL_NO_CCK_RATE))
-		rate_idx += IWL_FIRST_OFDM_RATE;
-
-	/* For 2.4 GHZ band, check that there is no need to remap */
-	BUILD_BUG_ON(IWL_FIRST_CCK_RATE != 0);
+		rate_idx = iwl_mvm_mac_ctxt_get_lowest_rate(mvm,
+							    info,
+							    info->control.vif);
 
 	/* Get PLCP rate for tx_cmd->rate_n_flags */
 	rate_plcp = iwl_mvm_mac80211_idx_to_hwrate(mvm->fw, rate_idx);
