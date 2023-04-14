@@ -168,7 +168,7 @@ static inline int zcrypt_type6_crt_key(struct ica_rsa_modexpo_crt *crt, void *p)
 		struct t6_keyblock_hdr t6_hdr;
 		struct cca_token_hdr token;
 		struct cca_pvt_ext_crt_sec pvt;
-		char key_parts[0];
+		char key_parts[];
 	} __packed *key = p;
 	struct cca_public_sec *pub;
 	int short_len, long_len, pad_len, key_len, size;

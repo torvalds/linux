@@ -208,7 +208,7 @@ static int icamex_msg_to_type6mex_msgx(struct zcrypt_queue *zq,
 		struct CPRBX cprbx;
 		struct function_and_rules_block fr;
 		unsigned short length;
-		char text[0];
+		char text[];
 	} __packed * msg = ap_msg->msg;
 	int size;
 
@@ -278,7 +278,7 @@ static int icacrt_msg_to_type6crt_msgx(struct zcrypt_queue *zq,
 		struct CPRBX cprbx;
 		struct function_and_rules_block fr;
 		unsigned short length;
-		char text[0];
+		char text[];
 	} __packed * msg = ap_msg->msg;
 	int size;
 
