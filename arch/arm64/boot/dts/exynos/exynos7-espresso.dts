@@ -17,9 +17,9 @@
 	compatible = "samsung,exynos7-espresso", "samsung,exynos7";
 
 	aliases {
+		mmc0 = &mmc_0;
+		mmc2 = &mmc_2;
 		serial0 = &serial_2;
-		mshc0 = &mmc_0;
-		mshc2 = &mmc_2;
 	};
 
 	chosen {
@@ -362,6 +362,7 @@
 &mmc_0 {
 	status = "okay";
 	cap-mmc-highspeed;
+	mmc-ddr-1_8v;
 	mmc-hs200-1_8v;
 	non-removable;
 	card-detect-delay = <200>;
