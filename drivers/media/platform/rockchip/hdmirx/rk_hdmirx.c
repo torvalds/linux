@@ -54,6 +54,10 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "debug level (0-3)");
 
+static bool low_latency;
+module_param(low_latency, bool, 0644);
+MODULE_PARM_DESC(low_latency, "low_latency en(0-1)");
+
 #define	RK_HDMIRX_DRVNAME		"rk_hdmirx"
 #define EDID_NUM_BLOCKS_MAX		2
 #define EDID_BLOCK_SIZE			128
@@ -2059,6 +2063,7 @@ static int hdmirx_start_streaming(struct vb2_queue *queue, unsigned int count)
 	struct v4l2_dv_timings timings = hdmirx_dev->timings;
 	struct v4l2_bt_timings *bt = &timings.bt;
 	int line_flag;
+	int delay_line;
 	uint32_t touch_flag;
 
 	if (!hdmirx_dev->get_timing) {
@@ -2110,12 +2115,19 @@ static int hdmirx_start_streaming(struct vb2_queue *queue, unsigned int count)
 
 	if (bt->height) {
 		if (bt->interlaced == V4L2_DV_INTERLACED)
-			line_flag = bt->height / 4;
-		else
 			line_flag = bt->height / 2;
+		else
+			line_flag = bt->height;
+
+		if (low_latency && hdmirx_dev->fps >= 59)
+			delay_line = 10;
+		else
+			delay_line = line_flag * 2 / 3;
+
+		v4l2_info(v4l2_dev, "%s: delay_line:%d\n", __func__, delay_line);
 		hdmirx_update_bits(hdmirx_dev, DMA_CONFIG7,
 				LINE_FLAG_NUM_MASK,
-				LINE_FLAG_NUM(line_flag));
+				LINE_FLAG_NUM(delay_line));
 	} else {
 		v4l2_err(v4l2_dev, "height err: %d\n", bt->height);
 	}
@@ -2644,6 +2656,9 @@ static void dma_idle_int_handler(struct rk_hdmirx_dev *hdmirx_dev, bool *handled
 		v4l2_dbg(1, debug, v4l2_dev,
 			 "%s: last time have no line_flag_irq\n", __func__);
 
+	if (low_latency)
+		goto DMA_IDLE_OUT;
+
 	if (stream->line_flag_int_cnt <= FILTER_FRAME_CNT)
 		goto DMA_IDLE_OUT;
 
@@ -2684,6 +2699,7 @@ static void line_flag_int_handler(struct rk_hdmirx_dev *hdmirx_dev, bool *handle
 	struct v4l2_dv_timings timings = hdmirx_dev->timings;
 	struct v4l2_bt_timings *bt = &timings.bt;
 	u32 dma_cfg6;
+	struct vb2_v4l2_buffer *vb_done = NULL;
 
 	stream->line_flag_int_cnt++;
 	if (!(stream->irq_stat) && !(stream->irq_stat & HDMIRX_DMA_IDLE_INT))
@@ -2711,14 +2727,29 @@ static void line_flag_int_handler(struct rk_hdmirx_dev *hdmirx_dev, bool *handle
 			}
 			spin_unlock(&stream->vbq_lock);
 
-			if (stream->next_buf) {
-				hdmirx_writel(hdmirx_dev, DMA_CONFIG2,
-					stream->next_buf->buff_addr[HDMIRX_PLANE_Y]);
-				hdmirx_writel(hdmirx_dev, DMA_CONFIG3,
-					stream->next_buf->buff_addr[HDMIRX_PLANE_CBCR]);
-			} else {
-				v4l2_dbg(3, debug, v4l2_dev,
-					 "%s: No buffer is available\n", __func__);
+		}
+
+		if (stream->next_buf) {
+			hdmirx_writel(hdmirx_dev, DMA_CONFIG2,
+				stream->next_buf->buff_addr[HDMIRX_PLANE_Y]);
+			hdmirx_writel(hdmirx_dev, DMA_CONFIG3,
+				stream->next_buf->buff_addr[HDMIRX_PLANE_CBCR]);
+
+			if (low_latency) {
+				if (stream->curr_buf)
+					vb_done = &stream->curr_buf->vb;
+
+				if (vb_done) {
+					vb_done->vb2_buf.timestamp = ktime_get_ns();
+					vb_done->sequence = stream->frame_idx;
+					hdmirx_vb_done(stream, vb_done);
+					stream->frame_idx++;
+					if (stream->frame_idx == 30)
+						v4l2_info(v4l2_dev, "rcv frames\n");
+				}
+
+				stream->curr_buf = stream->next_buf;
+				stream->next_buf = NULL;
 			}
 		}
 	} else {
