@@ -35,6 +35,8 @@ properties:
       - mediatek,mt8188-disp-mutex
       - mediatek,mt8192-disp-mutex
       - mediatek,mt8195-disp-mutex
+      - mediatek,mt8195-vpp-mutex
+      - mediatek,mt8365-disp-mutex
 
   reg:
     maxItems: 1
@@ -70,12 +72,30 @@ properties:
       4 arguments defined in this property. Each GCE subsys id is mapping to
       a client defined in the header include/dt-bindings/gce/<chip>-gce.h.
 
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - mediatek,mt2701-disp-mutex
+              - mediatek,mt2712-disp-mutex
+              - mediatek,mt6795-disp-mutex
+              - mediatek,mt8173-disp-mutex
+              - mediatek,mt8186-disp-mutex
+              - mediatek,mt8186-mdp3-mutex
+              - mediatek,mt8192-disp-mutex
+              - mediatek,mt8195-disp-mutex
+    then:
+      required:
+        - clocks
+
+
 required:
   - compatible
   - reg
   - interrupts
   - power-domains
-  - clocks
 
 additionalProperties: false
 
