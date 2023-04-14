@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 //
-// Copyright (C) 2015-2018 Y Soft Corporation, a.s.
+// Copyright (C) 2021 Y Soft Corporation, a.s.
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
@@ -24,6 +24,19 @@
 		num-interpolated-steps = <8>;
 		power-supply = <&sw2_reg>;
 		status = "disabled";
+	};
+
+	gpio_keys: gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpio_keys>;
+		status = "disabled";
+
+		button {
+			label = "Factory RESET";
+			linux,code = <BTN_0>;
+			gpios = <&gpio1 0 GPIO_ACTIVE_LOW>;
+		};
 	};
 
 	lcd_display: display {
@@ -56,6 +69,7 @@
 		compatible = "dataimage,scf0700c48ggu18";
 		power-supply = <&sw2_reg>;
 		backlight = <&backlight>;
+		enable-gpios = <&gpio3 7 GPIO_ACTIVE_HIGH>;
 		status = "disabled";
 
 		port {
@@ -63,18 +77,6 @@
 				remote-endpoint = <&lcd_display_out>;
 			};
 		};
-	};
-
-	reg_pcie: regulator-pcie {
-		compatible = "regulator-fixed";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_pcie_reg>;
-		regulator-name = "MPCIE_3V3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		gpio = <&gpio3 19 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-		status = "disabled";
 	};
 
 	reg_usb_h1_vbus: regulator-usb-h1-vbus {
@@ -117,17 +119,9 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		phy_port2: phy@1 {
-			reg = <1>;
-		};
-
-		phy_port3: phy@2 {
-			reg = <2>;
-		};
-
-		switch@10 {
-			compatible = "qca,qca8334";
-			reg = <10>;
+		switch@0 {
+			compatible = "marvell,mv88e6085";
+			reg = <0>;
 			reset-gpios = <&gpio1 25 GPIO_ACTIVE_LOW>;
 
 			switch_ports: ports {
@@ -146,27 +140,33 @@
 					};
 				};
 
-				eth2: port@2 {
-					reg = <2>;
+				eth2: port@1 {
+					reg = <1>;
 					label = "eth2";
-					phy-handle = <&phy_port2>;
+					phy-handle = <&phy_port1>;
 				};
 
-				eth1: port@3 {
-					reg = <3>;
+				eth1: port@2 {
+					reg = <2>;
 					label = "eth1";
-					phy-handle = <&phy_port3>;
+					phy-handle = <&phy_port2>;
+				};
+			};
+
+			mdio {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				phy_port1: switchphy@11 {
+					reg = <0x11>;
+				};
+
+				phy_port2: switchphy@12 {
+					reg = <0x12>;
 				};
 			};
 		};
 	};
-};
-
-&hdmi {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_hdmi_cec>;
-	ddc-i2c-bus = <&i2c2>;
-	status = "disabled";
 };
 
 &i2c2 {
@@ -315,13 +315,18 @@
 		touchscreen-size-y = <480>;
 		status = "disabled";
 	};
+
+	rtc: rtc@68 {
+		compatible = "dallas,ds1341";
+		reg = <0x68>;
+	};
 };
 
 &i2c3 {
 	clock-frequency = <100000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c3>;
-	status = "okay";
+	status = "disabled";
 
 	oled_1309: oled@3c {
 		compatible = "solomon,ssd1309fb-i2c";
@@ -360,6 +365,8 @@
 
 	touchkeys: keys@5a {
 		compatible = "fsl,mpr121-touchkey";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_touchkeys>;
 		reg = <0x5a>;
 		vdd-supply = <&sw2_reg>;
 		autorepeat;
@@ -394,9 +401,9 @@
 		>;
 	};
 
-	pinctrl_hdmi_cec: hdmicecgrp {
+	pinctrl_gpio_keys: gpiokeysgrp {
 		fsl,pins = <
-			MX6QDL_PAD_EIM_A25__HDMI_TX_CEC_LINE	0x1b898
+			MX6QDL_PAD_GPIO_0__GPIO1_IO00	0x1b0b0
 		>;
 	};
 
@@ -416,6 +423,7 @@
 
 	pinctrl_ipu1: ipu1grp {
 		fsl,pins = <
+			MX6QDL_PAD_EIM_DA7__GPIO3_IO07                  0x1b0b0
 			MX6QDL_PAD_DI0_DISP_CLK__IPU1_DI0_DISP_CLK	0x10
 			MX6QDL_PAD_DI0_PIN2__IPU1_DI0_PIN02		0x10
 			MX6QDL_PAD_DI0_PIN3__IPU1_DI0_PIN03		0x10
@@ -446,20 +454,6 @@
 		>;
 	};
 
-	pinctrl_pcie: pciegrp {
-		fsl,pins = <
-			MX6QDL_PAD_GPIO_17__GPIO7_IO12		0x1b098
-			MX6QDL_PAD_KEY_COL4__GPIO4_IO14		0x1b098
-			MX6QDL_PAD_CSI0_DATA_EN__GPIO5_IO20	0x1b098
-		>;
-	};
-
-	pinctrl_pcie_reg: pciereggrp {
-		fsl,pins = <
-			MX6QDL_PAD_EIM_D19__GPIO3_IO19	0x1b098
-		>;
-	};
-
 	pinctrl_pmic: pmicgrp {
 		fsl,pins = <
 			MX6QDL_PAD_GPIO_18__GPIO7_IO13	0x1b098
@@ -476,6 +470,13 @@
 		fsl,pins = <
 			MX6QDL_PAD_GPIO_19__GPIO4_IO05	0x1b098
 			MX6QDL_PAD_GPIO_2__GPIO1_IO02	0x1b098
+		>;
+	};
+
+	pinctrl_touchkeys: touchkeysgrp {
+		fsl,pins = <
+			MX6QDL_PAD_GPIO_17__GPIO7_IO12	0x1b098
+			MX6QDL_PAD_GPIO_5__GPIO1_IO05	0x1b098
 		>;
 	};
 
@@ -518,19 +519,6 @@
 		>;
 	};
 
-	pinctrl_usdhc3: usdhc3grp {
-		fsl,pins = <
-			MX6QDL_PAD_EIM_A16__GPIO2_IO22	0x1b018
-			MX6QDL_PAD_SD3_RST__GPIO7_IO08	0x1b018
-			MX6QDL_PAD_SD3_CMD__SD3_CMD	0x17059
-			MX6QDL_PAD_SD3_CLK__SD3_CLK	0x10059
-			MX6QDL_PAD_SD3_DAT0__SD3_DATA0	0x17059
-			MX6QDL_PAD_SD3_DAT1__SD3_DATA1	0x17059
-			MX6QDL_PAD_SD3_DAT2__SD3_DATA2	0x17059
-			MX6QDL_PAD_SD3_DAT3__SD3_DATA3	0x17059
-		>;
-	};
-
 	pinctrl_usdhc4: usdhc4grp {
 		fsl,pins = <
 			MX6QDL_PAD_SD4_CMD__SD4_CMD	0x1f069
@@ -557,14 +545,6 @@
 	remote-endpoint = <&lcd_display_in>;
 };
 
-&pcie {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_pcie>;
-	reset-gpio = <&gpio7 12 GPIO_ACTIVE_LOW>;
-	vpcie-supply = <&reg_pcie>;
-	status = "disabled";
-};
-
 &pwm1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm1>;
@@ -580,7 +560,7 @@
 &uart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart2>;
-	status = "okay";
+	status = "disabled";
 };
 
 &usbh1 {
@@ -609,19 +589,6 @@
 
 &usbphy2 {
 	fsl,tx-d-cal = <109>;
-	status = "disabled";
-};
-
-&usdhc3 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usdhc3>;
-	bus-width = <4>;
-	cd-gpios = <&gpio7 8 GPIO_ACTIVE_LOW>;
-	wp-gpios = <&gpio2 22 GPIO_ACTIVE_HIGH>;
-	no-1-8-v;
-	keep-power-in-suspend;
-	wakeup-source;
-	vmmc-supply = <&sw2_reg>;
 	status = "disabled";
 };
 

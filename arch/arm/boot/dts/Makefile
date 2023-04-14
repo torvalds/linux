@@ -561,7 +561,9 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6dl-wandboard-revd1.dtb \
 	imx6dl-yapp4-draco.dtb \
 	imx6dl-yapp4-hydra.dtb \
+	imx6dl-yapp4-lynx.dtb \
 	imx6dl-yapp4-orion.dtb \
+	imx6dl-yapp4-phoenix.dtb \
 	imx6dl-yapp4-ursa.dtb \
 	imx6q-apalis-eval.dtb \
 	imx6q-apalis-ixora.dtb \
@@ -668,6 +670,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6q-wandboard-revb1.dtb \
 	imx6q-wandboard-revd1.dtb \
 	imx6q-yapp4-crux.dtb \
+	imx6q-yapp4-pegasus.dtb \
 	imx6q-zii-rdu2.dtb \
 	imx6qp-mba6b.dtb \
 	imx6qp-nitrogen6_max.dtb \
@@ -683,6 +686,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6qp-vicutp.dtb \
 	imx6qp-wandboard-revd1.dtb \
 	imx6qp-yapp4-crux-plus.dtb \
+	imx6qp-yapp4-pegasus-plus.dtb \
 	imx6qp-zii-rdu2.dtb \
 	imx6s-dhcom-drc02.dtb
 dtb-$(CONFIG_SOC_IMX6SL) += \
@@ -690,6 +694,7 @@ dtb-$(CONFIG_SOC_IMX6SL) += \
 	imx6sl-kobo-aura2.dtb \
 	imx6sl-tolino-shine2hd.dtb \
 	imx6sl-tolino-shine3.dtb \
+	imx6sl-tolino-vision.dtb \
 	imx6sl-tolino-vision5.dtb \
 	imx6sl-warp.dtb
 dtb-$(CONFIG_SOC_IMX6SLL) += \
@@ -755,6 +760,10 @@ dtb-$(CONFIG_SOC_IMX6UL) += \
 	imx6ull-phytec-segin-lc-rdk-nand.dtb \
 	imx6ull-phytec-tauri-emmc.dtb \
 	imx6ull-phytec-tauri-nand.dtb \
+	imx6ull-tarragon-master.dtb \
+	imx6ull-tarragon-micro.dtb \
+	imx6ull-tarragon-slave.dtb \
+	imx6ull-tarragon-slavext.dtb \
 	imx6ull-tqma6ull2-mba6ulx.dtb \
 	imx6ull-tqma6ull2l-mba6ulx.dtb \
 	imx6ulz-14x14-evk.dtb \
