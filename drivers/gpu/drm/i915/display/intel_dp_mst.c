@@ -674,6 +674,13 @@ static void intel_mst_pre_pll_enable_dp(struct intel_atomic_state *state,
 	if (intel_dp->active_mst_links == 0)
 		dig_port->base.pre_pll_enable(state, &dig_port->base,
 						    pipe_config, NULL);
+	else
+		/*
+		 * The port PLL state needs to get updated for secondary
+		 * streams as for the primary stream.
+		 */
+		intel_ddi_update_active_dpll(state, &dig_port->base,
+					     to_intel_crtc(pipe_config->uapi.crtc));
 }
 
 static void intel_mst_pre_enable_dp(struct intel_atomic_state *state,
