@@ -19,47 +19,27 @@
 
 #include "vm_mgr.h"
 
-static DEFINE_XARRAY(functions);
+static void gh_vm_free(struct work_struct *work);
 
-int gh_vm_function_register(struct gh_vm_function *fn)
+static DEFINE_XARRAY(gh_vm_functions);
+
+static void gh_vm_put_function(struct gh_vm_function *fn)
 {
-	if (!fn->bind || !fn->unbind)
-		return -EINVAL;
-
-	return xa_err(xa_store(&functions, fn->type, fn, GFP_KERNEL));
+	module_put(fn->mod);
 }
-EXPORT_SYMBOL_GPL(gh_vm_function_register);
-
-static void gh_vm_remove_function_instance(struct gh_vm_function_instance *inst)
-	__must_hold(&inst->ghvm->fn_lock)
-{
-	inst->fn->unbind(inst);
-	list_del(&inst->vm_list);
-	module_put(inst->fn->mod);
-	kfree(inst->argp);
-	kfree(inst);
-}
-
-void gh_vm_function_unregister(struct gh_vm_function *fn)
-{
-	/* Expecting unregister to only come when unloading a module */
-	WARN_ON(fn->mod && module_refcount(fn->mod));
-	xa_erase(&functions, fn->type);
-}
-EXPORT_SYMBOL_GPL(gh_vm_function_unregister);
 
 static struct gh_vm_function *gh_vm_get_function(u32 type)
 {
 	struct gh_vm_function *fn;
 	int r;
 
-	fn = xa_load(&functions, type);
+	fn = xa_load(&gh_vm_functions, type);
 	if (!fn) {
 		r = request_module("ghfunc:%d", type);
 		if (r)
-			return ERR_PTR(r);
+			return ERR_PTR(r > 0 ? -r : r);
 
-		fn = xa_load(&functions, type);
+		fn = xa_load(&gh_vm_functions, type);
 	}
 
 	if (!fn || !try_module_get(fn->mod))
@@ -68,14 +48,36 @@ static struct gh_vm_function *gh_vm_get_function(u32 type)
 	return fn;
 }
 
-static long gh_vm_add_function(struct gh_vm *ghvm, struct gh_fn_desc *f)
+static void gh_vm_remove_function_instance(struct gh_vm_function_instance *inst)
+	__must_hold(&inst->ghvm->fn_lock)
+{
+	inst->fn->unbind(inst);
+	list_del(&inst->vm_list);
+	gh_vm_put_function(inst->fn);
+	kfree(inst->argp);
+	kfree(inst);
+}
+
+static void gh_vm_remove_functions(struct gh_vm *ghvm)
+{
+	struct gh_vm_function_instance *inst, *iiter;
+
+	mutex_lock(&ghvm->fn_lock);
+	list_for_each_entry_safe(inst, iiter, &ghvm->functions, vm_list) {
+		gh_vm_remove_function_instance(inst);
+	}
+	mutex_unlock(&ghvm->fn_lock);
+}
+
+static long gh_vm_add_function_instance(struct gh_vm *ghvm, struct gh_fn_desc *f)
 {
 	struct gh_vm_function_instance *inst;
 	void __user *argp;
 	long r = 0;
 
 	if (f->arg_size > GH_FN_MAX_ARG_SIZE) {
-		dev_err(ghvm->parent, "%s: arg_size > %d\n", __func__, GH_FN_MAX_ARG_SIZE);
+		dev_err_ratelimited(ghvm->parent, "%s: arg_size > %d\n",
+					__func__, GH_FN_MAX_ARG_SIZE);
 		return -EINVAL;
 	}
 
@@ -110,7 +112,8 @@ static long gh_vm_add_function(struct gh_vm *ghvm, struct gh_fn_desc *f)
 	mutex_lock(&ghvm->fn_lock);
 	r = inst->fn->bind(inst);
 	if (r < 0) {
-		module_put(inst->fn->mod);
+		mutex_unlock(&ghvm->fn_lock);
+		gh_vm_put_function(inst->fn);
 		goto free_arg;
 	}
 
@@ -125,7 +128,7 @@ free:
 	return r;
 }
 
-static long gh_vm_rm_function(struct gh_vm *ghvm, struct gh_fn_desc *f)
+static long gh_vm_rm_function_instance(struct gh_vm *ghvm, struct gh_fn_desc *f)
 {
 	struct gh_vm_function_instance *inst, *iter;
 	void __user *user_argp;
@@ -150,11 +153,13 @@ static long gh_vm_rm_function(struct gh_vm *ghvm, struct gh_fn_desc *f)
 			goto out;
 		}
 
+		r = -ENOENT;
 		list_for_each_entry_safe(inst, iter, &ghvm->functions, vm_list) {
 			if (inst->fn->type == f->type &&
-			    f->arg_size == inst->arg_size &&
-			    !memcmp(argp, inst->argp, f->arg_size))
+				inst->fn->compare(inst, argp, f->arg_size)) {
 				gh_vm_remove_function_instance(inst);
+				r = 0;
+			}
 		}
 
 		kfree(argp);
@@ -164,6 +169,23 @@ out:
 	mutex_unlock(&ghvm->fn_lock);
 	return r;
 }
+
+int gh_vm_function_register(struct gh_vm_function *fn)
+{
+	if (!fn->bind || !fn->unbind)
+		return -EINVAL;
+
+	return xa_err(xa_store(&gh_vm_functions, fn->type, fn, GFP_KERNEL));
+}
+EXPORT_SYMBOL_GPL(gh_vm_function_register);
+
+void gh_vm_function_unregister(struct gh_vm_function *fn)
+{
+	/* Expecting unregister to only come when unloading a module */
+	WARN_ON(fn->mod && module_refcount(fn->mod));
+	xa_erase(&gh_vm_functions, fn->type);
+}
+EXPORT_SYMBOL_GPL(gh_vm_function_unregister);
 
 int gh_vm_add_resource_ticket(struct gh_vm *ghvm, struct gh_vm_resource_ticket *ticket)
 {
@@ -189,7 +211,7 @@ int gh_vm_add_resource_ticket(struct gh_vm *ghvm, struct gh_vm_resource_ticket *
 
 	list_for_each_entry(ghrsc, &ghvm->resources, list) {
 		if (ghrsc->type == ticket->resource_type && ghrsc->rm_label == ticket->label) {
-			if (!ticket->populate(ticket, ghrsc))
+			if (ticket->populate(ticket, ghrsc))
 				list_move(&ghrsc->list, &ticket->resources);
 		}
 	}
@@ -395,7 +417,6 @@ static void gh_vm_stop(struct gh_vm *ghvm)
 static void gh_vm_free(struct work_struct *work)
 {
 	struct gh_vm *ghvm = container_of(work, struct gh_vm, free_work);
-	struct gh_vm_function_instance *inst, *iiter;
 	struct gh_vm_resource_ticket *ticket, *titer;
 	struct gh_resource *ghrsc, *riter;
 	struct gh_vm_mem *mapping, *tmp;
@@ -407,11 +428,7 @@ static void gh_vm_free(struct work_struct *work)
 		fallthrough;
 	case GH_RM_VM_STATUS_INIT_FAILED:
 	case GH_RM_VM_STATUS_EXITED:
-		mutex_lock(&ghvm->fn_lock);
-		list_for_each_entry_safe(inst, iiter, &ghvm->functions, vm_list) {
-			gh_vm_remove_function_instance(inst);
-		}
-		mutex_unlock(&ghvm->fn_lock);
+		gh_vm_remove_functions(ghvm);
 
 		mutex_lock(&ghvm->resources_lock);
 		if (!list_empty(&ghvm->resource_tickets)) {
@@ -728,21 +745,16 @@ static long gh_vm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (copy_from_user(&f, argp, sizeof(f)))
 			return -EFAULT;
 
-		r = gh_vm_add_function(ghvm, &f);
+		r = gh_vm_add_function_instance(ghvm, &f);
 		break;
 	}
 	case GH_VM_REMOVE_FUNCTION: {
-		struct gh_fn_desc *f;
+		struct gh_fn_desc f;
 
-		f = kzalloc(sizeof(*f), GFP_KERNEL);
-		if (!f)
-			return -ENOMEM;
-
-		if (copy_from_user(f, argp, sizeof(*f)))
+		if (copy_from_user(&f, argp, sizeof(f)))
 			return -EFAULT;
 
-		r = gh_vm_rm_function(ghvm, f);
-		kfree(f);
+		r = gh_vm_rm_function_instance(ghvm, &f);
 		break;
 	}
 	default:

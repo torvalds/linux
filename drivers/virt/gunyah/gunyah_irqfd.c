@@ -159,6 +159,19 @@ static void gh_irqfd_unbind(struct gh_vm_function_instance *f)
 	kfree(irqfd);
 }
 
-DECLARE_GH_VM_FUNCTION_INIT(irqfd, GH_FN_IRQFD, gh_irqfd_bind, gh_irqfd_unbind);
+static bool gh_irqfd_compare(const struct gh_vm_function_instance *f,
+				const void *arg, size_t size)
+{
+	const struct gh_fn_irqfd_arg *instance = f->argp,
+					 *other = arg;
+
+	if (sizeof(*other) != size)
+		return false;
+
+	return instance->label == other->label;
+}
+
+DECLARE_GH_VM_FUNCTION_INIT(irqfd, GH_FN_IRQFD, 2, gh_irqfd_bind, gh_irqfd_unbind,
+				gh_irqfd_compare);
 MODULE_DESCRIPTION("Gunyah irqfds");
 MODULE_LICENSE("GPL");

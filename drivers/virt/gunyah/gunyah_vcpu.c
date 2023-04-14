@@ -457,6 +457,18 @@ static void gh_vcpu_unbind(struct gh_vm_function_instance *f)
 	kref_put(&vcpu->kref, vcpu_release);
 }
 
-DECLARE_GH_VM_FUNCTION_INIT(vcpu, GH_FN_VCPU, gh_vcpu_bind, gh_vcpu_unbind);
+static bool gh_vcpu_compare(const struct gh_vm_function_instance *f,
+				const void *arg, size_t size)
+{
+	const struct gh_fn_vcpu_arg *instance = f->argp,
+					 *other = arg;
+
+	if (sizeof(*other) != size)
+		return false;
+
+	return instance->id == other->id;
+}
+
+DECLARE_GH_VM_FUNCTION_INIT(vcpu, GH_FN_VCPU, 1, gh_vcpu_bind, gh_vcpu_unbind, gh_vcpu_compare);
 MODULE_DESCRIPTION("Gunyah vCPU Driver");
 MODULE_LICENSE("GPL");

@@ -111,7 +111,20 @@ static void gh_ioevent_unbind(struct gh_vm_function_instance *f)
 	kfree(iofd);
 }
 
-DECLARE_GH_VM_FUNCTION_INIT(ioeventfd, GH_FN_IOEVENTFD,
-				gh_ioeventfd_bind, gh_ioevent_unbind);
+static bool gh_ioevent_compare(const struct gh_vm_function_instance *f,
+				const void *arg, size_t size)
+{
+	const struct gh_fn_ioeventfd_arg *instance = f->argp,
+					 *other = arg;
+
+	if (sizeof(*other) != size)
+		return false;
+
+	return instance->addr == other->addr;
+}
+
+DECLARE_GH_VM_FUNCTION_INIT(ioeventfd, GH_FN_IOEVENTFD, 3,
+				gh_ioeventfd_bind, gh_ioevent_unbind,
+				gh_ioevent_compare);
 MODULE_DESCRIPTION("Gunyah ioeventfds");
 MODULE_LICENSE("GPL");
