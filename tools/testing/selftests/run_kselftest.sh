@@ -26,6 +26,7 @@ Usage: $0 [OPTIONS]
   -l | --list			List the available collection:test entries
   -d | --dry-run		Don't actually run any tests
   -h | --help			Show this usage info
+  -o | --override-timeout	Number of seconds after which we timeout
 EOF
 	exit $1
 }
@@ -33,6 +34,7 @@ EOF
 COLLECTIONS=""
 TESTS=""
 dryrun=""
+kselftest_override_timeout=""
 while true; do
 	case "$1" in
 		-s | --summary)
@@ -51,6 +53,9 @@ while true; do
 		-d | --dry-run)
 			dryrun="echo"
 			shift ;;
+		-o | --override-timeout)
+			kselftest_override_timeout="$2"
+			shift 2 ;;
 		-h | --help)
 			usage 0 ;;
 		"")
