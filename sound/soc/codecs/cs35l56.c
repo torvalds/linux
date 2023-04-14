@@ -51,21 +51,10 @@ static int cs35l56_mbox_send(struct cs35l56_private *cs35l56, unsigned int comma
 	return 0;
 }
 
-static int cs35l56_wait_dsp_ready(struct cs35l56_private *cs35l56)
+static void cs35l56_wait_dsp_ready(struct cs35l56_private *cs35l56)
 {
-	int ret;
-
-	if (!cs35l56->fw_patched) {
-		/* block until firmware download completes */
-		ret = wait_for_completion_timeout(&cs35l56->dsp_ready_completion,
-						  msecs_to_jiffies(25000));
-		if (!ret) {
-			dev_err(cs35l56->dev, "dsp_ready_completion timeout\n");
-			return -ETIMEDOUT;
-		}
-	}
-
-	return 0;
+	/* Wait for patching to complete */
+	flush_work(&cs35l56->dsp_work);
 }
 
 static int cs35l56_dspwait_get_volsw(struct snd_kcontrol *kcontrol,
@@ -73,11 +62,8 @@ static int cs35l56_dspwait_get_volsw(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(component);
-	int ret = cs35l56_wait_dsp_ready(cs35l56);
 
-	if (ret)
-		return ret;
-
+	cs35l56_wait_dsp_ready(cs35l56);
 	return snd_soc_get_volsw(kcontrol, ucontrol);
 }
 
@@ -86,11 +72,8 @@ static int cs35l56_dspwait_put_volsw(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(component);
-	int ret = cs35l56_wait_dsp_ready(cs35l56);
 
-	if (ret)
-		return ret;
-
+	cs35l56_wait_dsp_ready(cs35l56);
 	return snd_soc_put_volsw(kcontrol, ucontrol);
 }
 
@@ -876,13 +859,13 @@ static void cs35l56_dsp_work(struct work_struct *work)
 	int ret = 0;
 
 	if (!cs35l56->init_done)
-		goto complete;
+		return;
 
 	cs35l56->dsp.part = devm_kasprintf(cs35l56->dev, GFP_KERNEL, "cs35l56%s-%02x",
 					   cs35l56->secured ? "s" : "", cs35l56->rev);
 
 	if (!cs35l56->dsp.part)
-		goto complete;
+		return;
 
 	pm_runtime_get_sync(cs35l56->dev);
 
@@ -961,9 +944,6 @@ err:
 		sdw_write_no_pm(cs35l56->sdw_peripheral, CS35L56_SDW_GEN_INT_MASK_1,
 				CS35L56_SDW_INT_MASK_CODEC_IRQ);
 	}
-
-complete:
-	complete_all(&cs35l56->dsp_ready_completion);
 }
 
 static int cs35l56_component_probe(struct snd_soc_component *component)
@@ -1002,7 +982,6 @@ static int cs35l56_set_bias_level(struct snd_soc_component *component,
 				  enum snd_soc_bias_level level)
 {
 	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(component);
-	int ret = 0;
 
 	switch (level) {
 	case SND_SOC_BIAS_STANDBY:
@@ -1011,14 +990,14 @@ static int cs35l56_set_bias_level(struct snd_soc_component *component,
 		 * BIAS_OFF to BIAS_STANDBY
 		 */
 		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF)
-			ret = cs35l56_wait_dsp_ready(cs35l56);
+			cs35l56_wait_dsp_ready(cs35l56);
 
 		break;
 	default:
 		break;
 	}
 
-	return ret;
+	return 0;
 }
 
 static const struct snd_soc_component_driver soc_component_dev_cs35l56 = {
@@ -1336,7 +1315,6 @@ int cs35l56_system_resume(struct device *dev)
 		return ret;
 
 	cs35l56->fw_patched = false;
-	init_completion(&cs35l56->dsp_ready_completion);
 	queue_work(cs35l56->dsp_wq, &cs35l56->dsp_work);
 
 	/*
@@ -1358,7 +1336,6 @@ static int cs35l56_dsp_init(struct cs35l56_private *cs35l56)
 		return -ENOMEM;
 
 	INIT_WORK(&cs35l56->dsp_work, cs35l56_dsp_work);
-	init_completion(&cs35l56->dsp_ready_completion);
 
 	dsp = &cs35l56->dsp;
 	dsp->part = "cs35l56";

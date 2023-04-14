@@ -34,7 +34,6 @@ struct cs35l56_private {
 	struct wm_adsp dsp; /* must be first member */
 	struct work_struct dsp_work;
 	struct workqueue_struct *dsp_wq;
-	struct completion dsp_ready_completion;
 	struct mutex irq_lock;
 	struct snd_soc_component *component;
 	struct device *dev;
