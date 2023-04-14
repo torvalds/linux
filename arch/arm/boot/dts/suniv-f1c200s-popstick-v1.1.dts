@@ -1,28 +1,39 @@
-// SPDX-License-Identifier: (GPL-2.0+ OR X11)
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright 2018 Icenowy Zheng <icenowy@aosc.io>
+ * Copyright 2022 Icenowy Zheng <uwu@icenowy.me>
  */
 
 /dts-v1/;
 #include "suniv-f1c100s.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/leds/common.h>
 
 / {
-	model = "Lichee Pi Nano";
-	compatible = "licheepi,licheepi-nano", "allwinner,suniv-f1c100s";
+	model = "Popcorn Computer PopStick v1.1";
+	compatible = "sourceparts,popstick-v1.1", "sourceparts,popstick",
+		     "allwinner,suniv-f1c200s", "allwinner,suniv-f1c100s";
 
 	aliases {
-		mmc0 = &mmc0;
 		serial0 = &uart0;
-		spi0 = &spi0;
 	};
 
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
 
-	reg_vcc3v3: vcc3v3 {
+	leds {
+		compatible = "gpio-leds";
+
+		led {
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_GREEN>;
+			gpios = <&pio 4 6 GPIO_ACTIVE_HIGH>; /* PE6 */
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	reg_vcc3v3: regulator-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3";
 		regulator-min-microvolt = <3300000>;
@@ -31,11 +42,15 @@
 };
 
 &mmc0 {
-	broken-cd;
+	cd-gpios = <&pio 4 3 GPIO_ACTIVE_LOW>; /* PE3 */
 	bus-width = <4>;
 	disable-wp;
-	status = "okay";
 	vmmc-supply = <&reg_vcc3v3>;
+	status = "okay";
+};
+
+&otg_sram {
+	status = "okay";
 };
 
 &spi0 {
@@ -44,16 +59,10 @@
 	status = "okay";
 
 	flash@0 {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		compatible = "winbond,w25q128", "jedec,spi-nor";
+		compatible = "spi-nand";
 		reg = <0>;
 		spi-max-frequency = <40000000>;
 	};
-};
-
-&otg_sram {
-	status = "okay";
 };
 
 &uart0 {
@@ -63,11 +72,10 @@
 };
 
 &usb_otg {
-	dr_mode = "otg";
+	dr_mode = "peripheral";
 	status = "okay";
 };
 
 &usbphy {
-	usb0_id_det-gpios = <&pio 4 2 GPIO_ACTIVE_HIGH>; /* PE2 */
 	status = "okay";
 };
