@@ -2201,4 +2201,6 @@ void rtw_update_channel(struct rtw_dev *rtwdev, u8 center_channel,
 			u8 primary_channel, enum rtw_supported_band band,
 			enum rtw_bandwidth bandwidth);
 void rtw_core_port_switch(struct rtw_dev *rtwdev, struct ieee80211_vif *vif);
+bool rtw_core_check_sta_active(struct rtw_dev *rtwdev);
+void rtw_core_enable_beacon(struct rtw_dev *rtwdev, bool enable);
 #endif

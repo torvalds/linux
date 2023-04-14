@@ -830,6 +830,9 @@ void rtw_set_channel(struct rtw_dev *rtwdev)
 
 	rtw_update_channel(rtwdev, center_chan, primary_chan, band, bandwidth);
 
+	if (rtwdev->scan_info.op_chan)
+		rtw_store_op_chan(rtwdev, true);
+
 	chip->ops->set_channel(rtwdev, center_chan, bandwidth,
 			       hal->current_primary_channel_index);
 
@@ -2328,6 +2331,42 @@ void rtw_core_port_switch(struct rtw_dev *rtwdev, struct ieee80211_vif *vif)
 	iter_data.rtwdev = rtwdev;
 	iter_data.rtwvif_ap = rtwvif;
 	rtw_iterate_vifs(rtwdev, rtw_port_switch_iter, &iter_data);
+}
+
+static void rtw_check_sta_active_iter(void *data, u8 *mac,
+				      struct ieee80211_vif *vif)
+{
+	struct rtw_vif *rtwvif = (struct rtw_vif *)vif->drv_priv;
+	bool *active = data;
+
+	if (*active)
+		return;
+
+	if (vif->type != NL80211_IFTYPE_STATION)
+		return;
+
+	if (vif->cfg.assoc || !is_zero_ether_addr(rtwvif->bssid))
+		*active = true;
+}
+
+bool rtw_core_check_sta_active(struct rtw_dev *rtwdev)
+{
+	bool sta_active = false;
+
+	rtw_iterate_vifs(rtwdev, rtw_check_sta_active_iter, &sta_active);
+
+	return rtwdev->ap_active || sta_active;
+}
+
+void rtw_core_enable_beacon(struct rtw_dev *rtwdev, bool enable)
+{
+	if (!rtwdev->ap_active)
+		return;
+
+	if (enable)
+		rtw_write32_set(rtwdev, REG_BCN_CTRL, BIT_EN_BCN_FUNCTION);
+	else
+		rtw_write32_clr(rtwdev, REG_BCN_CTRL, BIT_EN_BCN_FUNCTION);
 }
 
 MODULE_AUTHOR("Realtek Corporation");

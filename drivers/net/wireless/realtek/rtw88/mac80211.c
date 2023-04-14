@@ -404,7 +404,7 @@ static void rtw_ops_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_BSSID) {
 		ether_addr_copy(rtwvif->bssid, conf->bssid);
 		config |= PORT_SET_BSSID;
-		if (is_zero_ether_addr(rtwvif->bssid))
+		if (!rtw_core_check_sta_active(rtwdev))
 			rtw_clear_op_chan(rtwdev);
 		else
 			rtw_store_op_chan(rtwdev, true);
@@ -452,6 +452,7 @@ static int rtw_ops_start_ap(struct ieee80211_hw *hw,
 
 	mutex_lock(&rtwdev->mutex);
 	rtwdev->ap_active = true;
+	rtw_store_op_chan(rtwdev, true);
 	chip->ops->phy_calibration(rtwdev);
 	mutex_unlock(&rtwdev->mutex);
 
@@ -466,6 +467,8 @@ static void rtw_ops_stop_ap(struct ieee80211_hw *hw,
 
 	mutex_lock(&rtwdev->mutex);
 	rtwdev->ap_active = false;
+	if (!rtw_core_check_sta_active(rtwdev))
+		rtw_clear_op_chan(rtwdev);
 	mutex_unlock(&rtwdev->mutex);
 }
 
