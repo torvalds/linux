@@ -106,6 +106,8 @@
 	l.mtspr r0,r3,SPR_EPCR_BASE				;\
 	l.lwz   r3,PT_SR(r1)					;\
 	l.mtspr r0,r3,SPR_ESR_BASE				;\
+	l.lwz	r3,PT_FPCSR(r1)					;\
+	l.mtspr	r0,r3,SPR_FPCSR					;\
 	l.lwz   r2,PT_GPR2(r1)					;\
 	l.lwz   r3,PT_GPR3(r1)					;\
 	l.lwz   r4,PT_GPR4(r1)					;\
@@ -175,6 +177,8 @@ handler:							;\
 	/* r30 already save */					;\
 	l.sw    PT_GPR31(r1),r31					;\
 	TRACE_IRQS_OFF_ENTRY						;\
+	l.mfspr	r30,r0,SPR_FPCSR				;\
+	l.sw	PT_FPCSR(r1),r30				;\
 	/* Store -1 in orig_gpr11 for non-syscall exceptions */	;\
 	l.addi	r30,r0,-1					;\
 	l.sw	PT_ORIG_GPR11(r1),r30
@@ -215,6 +219,8 @@ handler:							;\
 	/* Store -1 in orig_gpr11 for non-syscall exceptions */	;\
 	l.addi	r30,r0,-1					;\
 	l.sw	PT_ORIG_GPR11(r1),r30				;\
+	l.mfspr	r30,r0,SPR_FPCSR				;\
+	l.sw	PT_FPCSR(r1),r30				;\
 	l.addi	r3,r1,0						;\
 	/* r4 is exception EA */				;\
 	l.addi	r5,r0,vector					;\
@@ -1087,6 +1093,10 @@ ENTRY(_switch)
 	l.sw    PT_GPR28(r1),r28
 	l.sw    PT_GPR30(r1),r30
 
+	/* Store the old FPU state to new pt_regs */
+	l.mfspr	r29,r0,SPR_FPCSR
+	l.sw	PT_FPCSR(r1),r29
+
 	l.addi	r11,r10,0			/* Save old 'current' to 'last' return value*/
 
 	/* We use thread_info->ksp for storing the address of the above
@@ -1108,6 +1118,10 @@ ENTRY(_switch)
 	/* Restore the old value of thread_info->ksp */
 	l.lwz	r29,PT_SP(r1)
 	l.sw	TI_KSP(r10),r29
+
+	/* Restore the old value of FPCSR */
+	l.lwz	r29,PT_FPCSR(r1)
+	l.mtspr	r0,r29,SPR_FPCSR
 
 	/* ...and restore the registers, except r11 because the return value
 	 * has already been set above.
