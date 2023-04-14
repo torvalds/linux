@@ -2007,6 +2007,11 @@ void intel_mpllb_state_verify(struct intel_atomic_state *state,
 	if (!new_crtc_state->hw.active)
 		return;
 
+	/* intel_get_crtc_new_encoder() only works for modeset/fastset commits */
+	if (!intel_crtc_needs_modeset(new_crtc_state) &&
+	    !intel_crtc_needs_fastset(new_crtc_state))
+		return;
+
 	encoder = intel_get_crtc_new_encoder(state, new_crtc_state);
 	intel_mpllb_readout_hw_state(encoder, &mpllb_hw_state);
 
