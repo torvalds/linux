@@ -2977,30 +2977,6 @@ static void rockchip_dmcfreq_parse_dt(struct rockchip_dmcfreq *dmcfreq)
 		dmcfreq->touchboostpulse_duration_val = 500 * USEC_PER_MSEC;
 }
 
-static int rockchip_dmcfreq_set_volt_only(struct rockchip_dmcfreq *dmcfreq)
-{
-	struct device *dev = dmcfreq->dev;
-	struct dev_pm_opp *opp;
-	unsigned long opp_volt, opp_rate = dmcfreq->rate;
-	int ret;
-
-	opp = devfreq_recommended_opp(dev, &opp_rate, 0);
-	if (IS_ERR(opp)) {
-		dev_err(dev, "Failed to find opp for %lu Hz\n", opp_rate);
-		return PTR_ERR(opp);
-	}
-	opp_volt = dev_pm_opp_get_voltage(opp);
-	dev_pm_opp_put(opp);
-
-	ret = regulator_set_voltage(dmcfreq->vdd_center, opp_volt, INT_MAX);
-	if (ret) {
-		dev_err(dev, "Cannot set voltage %lu uV\n", opp_volt);
-		return ret;
-	}
-
-	return 0;
-}
-
 static int rockchip_dmcfreq_add_devfreq(struct rockchip_dmcfreq *dmcfreq)
 {
 	struct devfreq_dev_profile *devp = &rockchip_devfreq_dmc_profile;
@@ -3039,14 +3015,16 @@ static void rockchip_dmcfreq_register_notifier(struct rockchip_dmcfreq *dmcfreq)
 {
 	int ret;
 
-	if (vop_register_dmc())
-		dev_err(dmcfreq->dev, "fail to register notify to vop.\n");
+	if (dmcfreq->system_status_en || dmcfreq->info.auto_freq_en) {
+		if (vop_register_dmc())
+			dev_err(dmcfreq->dev, "fail to register notify to vop.\n");
 
-	dmcfreq->status_nb.notifier_call =
-		rockchip_dmcfreq_system_status_notifier;
-	ret = rockchip_register_system_status_notifier(&dmcfreq->status_nb);
-	if (ret)
-		dev_err(dmcfreq->dev, "failed to register system_status nb\n");
+		dmcfreq->status_nb.notifier_call =
+			rockchip_dmcfreq_system_status_notifier;
+		ret = rockchip_register_system_status_notifier(&dmcfreq->status_nb);
+		if (ret)
+			dev_err(dmcfreq->dev, "failed to register system_status nb\n");
+	}
 
 	dmcfreq->panic_nb.notifier_call = rockchip_dmcfreq_panic_notifier;
 	ret = atomic_notifier_chain_register(&panic_notifier_list,
@@ -3338,13 +3316,16 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 		return ret;
 
 	rockchip_dmcfreq_parse_dt(data);
+
+	platform_set_drvdata(pdev, data);
+
 	if (!data->system_status_en && !data->info.auto_freq_en) {
 		dev_info(dev, "don't add devfreq feature\n");
-		return rockchip_dmcfreq_set_volt_only(data);
+		rockchip_dmcfreq_register_notifier(data);
+		return 0;
 	}
 
 	cpu_latency_qos_add_request(&pm_qos, PM_QOS_DEFAULT_VALUE);
-	platform_set_drvdata(pdev, data);
 
 	ret = devfreq_add_governor(&devfreq_dmc_ondemand);
 	if (ret)
