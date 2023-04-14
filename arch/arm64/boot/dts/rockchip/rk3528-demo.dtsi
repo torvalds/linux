@@ -258,6 +258,10 @@
 	status = "okay";
 };
 
+&dfi {
+	status = "okay";
+};
+
 &display_subsystem {
 	status = "okay";
 };
