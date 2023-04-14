@@ -11,7 +11,6 @@
 #include <linux/gunyah_rsc_mgr.h>
 #include <linux/gunyah_vm_mgr.h>
 #include <linux/miscdevice.h>
-#include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/xarray.h>
 
@@ -442,7 +441,6 @@ static void gh_vm_stop(struct gh_vm *ghvm)
 static void gh_vm_free(struct work_struct *work)
 {
 	struct gh_vm *ghvm = container_of(work, struct gh_vm, free_work);
-	struct gh_vm_mem *mapping, *tmp;
 	int ret;
 
 	switch (ghvm->vm_status) {
@@ -466,12 +464,7 @@ static void gh_vm_free(struct work_struct *work)
 			wait_event(ghvm->vm_status_wait, ghvm->vm_status == GH_RM_VM_STATUS_RESET);
 		}
 
-		mutex_lock(&ghvm->mm_lock);
-		list_for_each_entry_safe(mapping, tmp, &ghvm->memory_mappings, list) {
-			gh_vm_mem_reclaim(ghvm, mapping);
-			kfree(mapping);
-		}
-		mutex_unlock(&ghvm->mm_lock);
+		gh_vm_mem_reclaim(ghvm);
 		fallthrough;
 	case GH_RM_VM_STATUS_NO_STATE:
 		ret = gh_rm_dealloc_vmid(ghvm->rm, ghvm->vmid);
@@ -544,6 +537,8 @@ static __must_check struct gh_vm *gh_vm_alloc(struct gh_rm *rm)
 		return ERR_PTR(ret);
 	}
 
+	mmgrab(current->mm);
+	ghvm->mm = current->mm;
 	mutex_init(&ghvm->mm_lock);
 	INIT_LIST_HEAD(&ghvm->memory_mappings);
 	init_rwsem(&ghvm->status_lock);
@@ -586,8 +581,8 @@ static int gh_vm_start(struct gh_vm *ghvm)
 		if (ret) {
 			dev_warn(ghvm->parent, "Failed to %s parcel %d: %d\n",
 				mapping->share_type == VM_MEM_LEND ? "lend" : "share",
-				mapping->parcel.label,
-				ret);
+				mapping->parcel.label, ret);
+			mutex_unlock(&ghvm->mm_lock);
 			goto err;
 		}
 	}
@@ -711,6 +706,10 @@ static long gh_vm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case GH_VM_SET_USER_MEM_REGION: {
 		struct gh_userspace_memory_region region;
 
+		/* only allow owner task to add memory */
+		if (ghvm->mm != current->mm)
+			return -EPERM;
+
 		if (copy_from_user(&region, argp, sizeof(region)))
 			return -EFAULT;
 
@@ -727,7 +726,6 @@ static long gh_vm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (copy_from_user(&dtb_config, argp, sizeof(dtb_config)))
 			return -EFAULT;
 
-		dtb_config.size = PAGE_ALIGN(dtb_config.size);
 		if (dtb_config.guest_phys_addr + dtb_config.size < dtb_config.guest_phys_addr)
 			return -EOVERFLOW;
 

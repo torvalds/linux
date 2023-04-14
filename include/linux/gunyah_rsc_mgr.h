@@ -81,16 +81,16 @@ enum gh_rm_mem_type {
 };
 
 /*
- * struct gh_rm_mem_parcel - Package info about memory to be lent/shared/donated/reclaimed
+ * struct gh_rm_mem_parcel - Info about memory to be lent/shared/donated/reclaimed
  * @mem_type: The type of memory: normal (DDR) or IO
  * @label: An client-specified identifier which can be used by the other VMs to identify the purpose
  *         of the memory parcel.
+ * @n_acl_entries: Count of the number of entries in the @acl_entries array.
  * @acl_entries: An array of access control entries. Each entry specifies a VM and what access
  *               is allowed for the memory parcel.
- * @n_acl_entries: Count of the number of entries in the `acl_entries` array.
- * @mem_entries: An list of regions to be associated with the memory parcel. Addresses should be
+ * @n_mem_entries: Count of the number of entries in the @mem_entries array.
+ * @mem_entries: An array of regions to be associated with the memory parcel. Addresses should be
  *               (intermediate) physical addresses from Linux's perspective.
- * @n_mem_entries: Count of the number of entries in the `mem_entries` array.
  * @mem_handle: On success, filled with memory handle that RM allocates for this memory parcel
  */
 struct gh_rm_mem_parcel {
