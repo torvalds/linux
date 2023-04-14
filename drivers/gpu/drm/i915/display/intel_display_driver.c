@@ -466,3 +466,104 @@ void intel_display_driver_unregister(struct drm_i915_private *i915)
 	acpi_video_unregister();
 	intel_opregion_unregister(i915);
 }
+
+/*
+ * turn all crtc's off, but do not adjust state
+ * This has to be paired with a call to intel_modeset_setup_hw_state.
+ */
+int intel_display_suspend(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_atomic_state *state;
+	int ret;
+
+	if (!HAS_DISPLAY(dev_priv))
+		return 0;
+
+	state = drm_atomic_helper_suspend(dev);
+	ret = PTR_ERR_OR_ZERO(state);
+	if (ret)
+		drm_err(&dev_priv->drm, "Suspending crtc's failed with %i\n",
+			ret);
+	else
+		dev_priv->display.restore.modeset_state = state;
+	return ret;
+}
+
+int
+__intel_display_resume(struct drm_i915_private *i915,
+		       struct drm_atomic_state *state,
+		       struct drm_modeset_acquire_ctx *ctx)
+{
+	struct drm_crtc_state *crtc_state;
+	struct drm_crtc *crtc;
+	int ret, i;
+
+	intel_modeset_setup_hw_state(i915, ctx);
+	intel_vga_redisable(i915);
+
+	if (!state)
+		return 0;
+
+	/*
+	 * We've duplicated the state, pointers to the old state are invalid.
+	 *
+	 * Don't attempt to use the old state until we commit the duplicated state.
+	 */
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
+		/*
+		 * Force recalculation even if we restore
+		 * current state. With fast modeset this may not result
+		 * in a modeset when the state is compatible.
+		 */
+		crtc_state->mode_changed = true;
+	}
+
+	/* ignore any reset values/BIOS leftovers in the WM registers */
+	if (!HAS_GMCH(i915))
+		to_intel_atomic_state(state)->skip_intermediate_wm = true;
+
+	ret = drm_atomic_helper_commit_duplicated_state(state, ctx);
+
+	drm_WARN_ON(&i915->drm, ret == -EDEADLK);
+
+	return ret;
+}
+
+void intel_display_resume(struct drm_device *dev)
+{
+	struct drm_i915_private *i915 = to_i915(dev);
+	struct drm_atomic_state *state = i915->display.restore.modeset_state;
+	struct drm_modeset_acquire_ctx ctx;
+	int ret;
+
+	if (!HAS_DISPLAY(i915))
+		return;
+
+	i915->display.restore.modeset_state = NULL;
+	if (state)
+		state->acquire_ctx = &ctx;
+
+	drm_modeset_acquire_init(&ctx, 0);
+
+	while (1) {
+		ret = drm_modeset_lock_all_ctx(dev, &ctx);
+		if (ret != -EDEADLK)
+			break;
+
+		drm_modeset_backoff(&ctx);
+	}
+
+	if (!ret)
+		ret = __intel_display_resume(i915, state, &ctx);
+
+	skl_watermark_ipc_update(i915);
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
+
+	if (ret)
+		drm_err(&i915->drm,
+			"Restoring old state failed with %i\n", ret);
+	if (state)
+		drm_atomic_state_put(state);
+}
