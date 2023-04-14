@@ -42,6 +42,7 @@ static inline void nf_skip_indirect_calls_enable(void) { }
 #endif
 
 static noinline void __nft_trace_packet(const struct nft_pktinfo *pkt,
+					const struct nft_verdict *verdict,
 					struct nft_traceinfo *info,
 					enum nft_trace_types type)
 {
@@ -50,10 +51,11 @@ static noinline void __nft_trace_packet(const struct nft_pktinfo *pkt,
 
 	info->type = type;
 
-	nft_trace_notify(pkt, info);
+	nft_trace_notify(pkt, verdict, info);
 }
 
 static inline void nft_trace_packet(const struct nft_pktinfo *pkt,
+				    struct nft_verdict *verdict,
 				    struct nft_traceinfo *info,
 				    const struct nft_rule_dp *rule,
 				    enum nft_trace_types type)
@@ -61,7 +63,7 @@ static inline void nft_trace_packet(const struct nft_pktinfo *pkt,
 	if (static_branch_unlikely(&nft_trace_enabled)) {
 		info->nf_trace = pkt->skb->nf_trace;
 		info->rule = rule;
-		__nft_trace_packet(pkt, info, type);
+		__nft_trace_packet(pkt, verdict, info, type);
 	}
 }
 
@@ -129,7 +131,7 @@ static noinline void __nft_trace_verdict(const struct nft_pktinfo *pkt,
 		break;
 	}
 
-	__nft_trace_packet(pkt, info, type);
+	__nft_trace_packet(pkt, &regs->verdict, info, type);
 }
 
 static inline void nft_trace_verdict(const struct nft_pktinfo *pkt,
@@ -264,7 +266,7 @@ nft_do_chain(struct nft_pktinfo *pkt, void *priv)
 
 	info.trace = false;
 	if (static_branch_unlikely(&nft_trace_enabled))
-		nft_trace_init(&info, pkt, &regs.verdict, basechain);
+		nft_trace_init(&info, pkt, basechain);
 do_chain:
 	if (genbit)
 		blob = rcu_dereference(chain->blob_gen_1);
@@ -296,7 +298,7 @@ next_rule:
 			nft_trace_copy_nftrace(pkt, &info);
 			continue;
 		case NFT_CONTINUE:
-			nft_trace_packet(pkt, &info, rule,
+			nft_trace_packet(pkt, &regs.verdict,  &info, rule,
 					 NFT_TRACETYPE_RULE);
 			continue;
 		}
@@ -336,7 +338,7 @@ next_rule:
 		goto next_rule;
 	}
 
-	nft_trace_packet(pkt, &info, NULL, NFT_TRACETYPE_POLICY);
+	nft_trace_packet(pkt, &regs.verdict, &info, NULL, NFT_TRACETYPE_POLICY);
 
 	if (static_branch_unlikely(&nft_counters_enabled))
 		nft_update_chain_stats(basechain, pkt);

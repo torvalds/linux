@@ -1410,7 +1410,6 @@ void nft_unregister_flowtable_type(struct nf_flowtable_type *type);
  *	@packet_dumped: packet headers sent in a previous traceinfo message
  *	@basechain: base chain currently processed
  *	@rule:  rule that was evaluated
- *	@verdict: verdict given by rule
  */
 struct nft_traceinfo {
 	bool				trace;
@@ -1420,14 +1419,13 @@ struct nft_traceinfo {
 	u32				skbid;
 	const struct nft_base_chain	*basechain;
 	const struct nft_rule_dp	*rule;
-	const struct nft_verdict	*verdict;
 };
 
 void nft_trace_init(struct nft_traceinfo *info, const struct nft_pktinfo *pkt,
-		    const struct nft_verdict *verdict,
 		    const struct nft_chain *basechain);
 
 void nft_trace_notify(const struct nft_pktinfo *pkt,
+		      const struct nft_verdict *verdict,
 		      struct nft_traceinfo *info);
 
 #define MODULE_ALIAS_NFT_CHAIN(family, name) \
