@@ -190,11 +190,11 @@ EXPORT_SYMBOL_GPL(gh_vm_function_unregister);
 int gh_vm_add_resource_ticket(struct gh_vm *ghvm, struct gh_vm_resource_ticket *ticket)
 {
 	struct gh_vm_resource_ticket *iter;
-	struct gh_resource *ghrsc;
+	struct gh_resource *ghrsc, *rsc_iter;
 	int ret = 0;
 
 	mutex_lock(&ghvm->resources_lock);
-	list_for_each_entry(iter, &ghvm->resource_tickets, list) {
+	list_for_each_entry(iter, &ghvm->resource_tickets, vm_list) {
 		if (iter->resource_type == ticket->resource_type && iter->label == ticket->label) {
 			ret = -EEXIST;
 			goto out;
@@ -206,10 +206,10 @@ int gh_vm_add_resource_ticket(struct gh_vm *ghvm, struct gh_vm_resource_ticket *
 		goto out;
 	}
 
-	list_add(&ticket->list, &ghvm->resource_tickets);
+	list_add(&ticket->vm_list, &ghvm->resource_tickets);
 	INIT_LIST_HEAD(&ticket->resources);
 
-	list_for_each_entry(ghrsc, &ghvm->resources, list) {
+	list_for_each_entry_safe(ghrsc, rsc_iter, &ghvm->resources, list) {
 		if (ghrsc->type == ticket->resource_type && ghrsc->rm_label == ticket->label) {
 			if (ticket->populate(ticket, ghrsc))
 				list_move(&ghrsc->list, &ticket->resources);
@@ -232,7 +232,7 @@ void gh_vm_remove_resource_ticket(struct gh_vm *ghvm, struct gh_vm_resource_tick
 	}
 
 	module_put(ticket->owner);
-	list_del(&ticket->list);
+	list_del(&ticket->vm_list);
 	mutex_unlock(&ghvm->resources_lock);
 }
 EXPORT_SYMBOL_GPL(gh_vm_remove_resource_ticket);
@@ -242,16 +242,41 @@ static void gh_vm_add_resource(struct gh_vm *ghvm, struct gh_resource *ghrsc)
 	struct gh_vm_resource_ticket *ticket;
 
 	mutex_lock(&ghvm->resources_lock);
-	list_for_each_entry(ticket, &ghvm->resource_tickets, list) {
+	list_for_each_entry(ticket, &ghvm->resource_tickets, vm_list) {
 		if (ghrsc->type == ticket->resource_type && ghrsc->rm_label == ticket->label) {
-			if (!ticket->populate(ticket, ghrsc)) {
+			if (ticket->populate(ticket, ghrsc))
 				list_add(&ghrsc->list, &ticket->resources);
-				goto found;
-			}
+			else
+				list_add(&ghrsc->list, &ghvm->resources);
+			/* unconditonal -- we prevent multiple identical
+			 * resource tickets so there will not be some other
+			 * ticket elsewhere in the list if populate() failed.
+			 */
+			goto found;
 		}
 	}
 	list_add(&ghrsc->list, &ghvm->resources);
 found:
+	mutex_unlock(&ghvm->resources_lock);
+}
+
+static void gh_vm_clean_resources(struct gh_vm *ghvm)
+{
+	struct gh_vm_resource_ticket *ticket, *titer;
+	struct gh_resource *ghrsc, *riter;
+
+	mutex_lock(&ghvm->resources_lock);
+	if (!list_empty(&ghvm->resource_tickets)) {
+		dev_warn(ghvm->parent, "Dangling resource tickets:\n");
+		list_for_each_entry_safe(ticket, titer, &ghvm->resource_tickets, vm_list) {
+			dev_warn(ghvm->parent, "  %pS\n", ticket->populate);
+			gh_vm_remove_resource_ticket(ghvm, ticket);
+		}
+	}
+
+	list_for_each_entry_safe(ghrsc, riter, &ghvm->resources, list) {
+		gh_rm_free_resource(ghrsc);
+	}
 	mutex_unlock(&ghvm->resources_lock);
 }
 
@@ -417,8 +442,6 @@ static void gh_vm_stop(struct gh_vm *ghvm)
 static void gh_vm_free(struct work_struct *work)
 {
 	struct gh_vm *ghvm = container_of(work, struct gh_vm, free_work);
-	struct gh_vm_resource_ticket *ticket, *titer;
-	struct gh_resource *ghrsc, *riter;
 	struct gh_vm_mem *mapping, *tmp;
 	int ret;
 
@@ -429,20 +452,7 @@ static void gh_vm_free(struct work_struct *work)
 	case GH_RM_VM_STATUS_INIT_FAILED:
 	case GH_RM_VM_STATUS_EXITED:
 		gh_vm_remove_functions(ghvm);
-
-		mutex_lock(&ghvm->resources_lock);
-		if (!list_empty(&ghvm->resource_tickets)) {
-			dev_warn(ghvm->parent, "Dangling resource tickets:\n");
-			list_for_each_entry_safe(ticket, titer, &ghvm->resource_tickets, list) {
-				dev_warn(ghvm->parent, "  %pS\n", ticket->populate);
-				gh_vm_remove_resource_ticket(ghvm, ticket);
-			}
-		}
-
-		list_for_each_entry_safe(ghrsc, riter, &ghvm->resources, list) {
-			gh_rm_free_resource(ghrsc);
-		}
-		mutex_unlock(&ghvm->resources_lock);
+		gh_vm_clean_resources(ghvm);
 
 		/* vm_status == LOAD if user creates VM, but then destroys it
 		 * without ever trying to start it. In that case, we have only

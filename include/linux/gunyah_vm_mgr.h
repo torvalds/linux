@@ -85,13 +85,13 @@ void gh_vm_function_unregister(struct gh_vm_function *f);
 	MODULE_ALIAS_GH_VM_FUNCTION(_type, _idx)
 
 struct gh_vm_resource_ticket {
-	struct list_head list; /* for gh_vm's resources list */
-	struct list_head resources; /* for gh_resources's list */
+	struct list_head vm_list; /* for gh_vm's resource tickets list */
+	struct list_head resources; /* resources associated with this ticket */
 	enum gh_resource_type resource_type;
 	u32 label;
 
 	struct module *owner;
-	int (*populate)(struct gh_vm_resource_ticket *ticket, struct gh_resource *ghrsc);
+	bool (*populate)(struct gh_vm_resource_ticket *ticket, struct gh_resource *ghrsc);
 	void (*unpopulate)(struct gh_vm_resource_ticket *ticket, struct gh_resource *ghrsc);
 };
 

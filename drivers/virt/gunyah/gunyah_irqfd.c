@@ -54,7 +54,7 @@ static void irqfd_ptable_queue_proc(struct file *file, wait_queue_head_t *wqh, p
 	add_wait_queue(wqh, &irq_ctx->wait);
 }
 
-static int gh_irqfd_populate(struct gh_vm_resource_ticket *ticket, struct gh_resource *ghrsc)
+static bool gh_irqfd_populate(struct gh_vm_resource_ticket *ticket, struct gh_resource *ghrsc)
 {
 	struct gh_irqfd *irqfd = container_of(ticket, struct gh_irqfd, ticket);
 	u64 enable_mask = GH_BELL_NONBLOCK;
@@ -64,7 +64,7 @@ static int gh_irqfd_populate(struct gh_vm_resource_ticket *ticket, struct gh_res
 	if (irqfd->ghrsc) {
 		pr_warn("irqfd%d already got a Gunyah resource. Check if multiple resources with same label were configured.\n",
 			irqfd->ticket.label);
-		return -1;
+		return false;
 	}
 
 	irqfd->ghrsc = ghrsc;
@@ -75,7 +75,7 @@ static int gh_irqfd_populate(struct gh_vm_resource_ticket *ticket, struct gh_res
 				irqfd->ticket.label);
 	}
 
-	return 0;
+	return true;
 }
 
 static void gh_irqfd_unpopulate(struct gh_vm_resource_ticket *ticket, struct gh_resource *ghrsc)

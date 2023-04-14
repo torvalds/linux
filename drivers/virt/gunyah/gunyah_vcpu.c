@@ -323,14 +323,16 @@ static const struct file_operations gh_vcpu_fops = {
 	.mmap = gh_vcpu_mmap,
 };
 
-static int gh_vcpu_populate(struct gh_vm_resource_ticket *ticket, struct gh_resource *ghrsc)
+static bool gh_vcpu_populate(struct gh_vm_resource_ticket *ticket, struct gh_resource *ghrsc)
 {
 	struct gh_vcpu *vcpu = container_of(ticket, struct gh_vcpu, ticket);
 	int ret;
 
 	mutex_lock(&vcpu->run_lock);
 	if (vcpu->rsc) {
-		ret = -1;
+		pr_warn("vcpu%d already got a Gunyah resource. Check if multiple resources with same label were configured.\n",
+			vcpu->ticket.label);
+		ret = -EEXIST;
 		goto out;
 	}
 
@@ -344,7 +346,7 @@ static int gh_vcpu_populate(struct gh_vm_resource_ticket *ticket, struct gh_reso
 
 out:
 	mutex_unlock(&vcpu->run_lock);
-	return ret;
+	return !ret;
 }
 
 static void gh_vcpu_unpopulate(struct gh_vm_resource_ticket *ticket,
