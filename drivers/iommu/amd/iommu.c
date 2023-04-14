@@ -1611,6 +1611,11 @@ static void set_dte_entry(struct amd_iommu *iommu, u16 devid,
 		tmp = DTE_GCR3_VAL_C(gcr3) << DTE_GCR3_SHIFT_C;
 		flags    |= tmp;
 
+		if (amd_iommu_gpt_level == PAGE_MODE_5_LEVEL) {
+			dev_table[devid].data[2] |=
+				((u64)GUEST_PGTABLE_5_LEVEL << DTE_GPT_LEVEL_SHIFT);
+		}
+
 		if (domain->flags & PD_GIOV_MASK)
 			pte_root |= DTE_FLAG_GIOV;
 	}
@@ -1661,6 +1666,10 @@ static void do_attach(struct iommu_dev_data *dev_data,
 	/* Update data structures */
 	dev_data->domain = domain;
 	list_add(&dev_data->list, &domain->dev_list);
+
+	/* Update NUMA Node ID */
+	if (domain->nid == NUMA_NO_NODE)
+		domain->nid = dev_to_node(dev_data->dev);
 
 	/* Do reference counting */
 	domain->dev_iommu[iommu->index] += 1;
@@ -2094,6 +2103,8 @@ static struct protection_domain *protection_domain_alloc(unsigned int type)
 	/* No need to allocate io pgtable ops in passthrough mode */
 	if (type == IOMMU_DOMAIN_IDENTITY)
 		return domain;
+
+	domain->nid = NUMA_NO_NODE;
 
 	pgtbl_ops = alloc_io_pgtable_ops(pgtable, &domain->iop.pgtbl_cfg, domain);
 	if (!pgtbl_ops) {

@@ -40,7 +40,7 @@
 #include <linux/io.h>
 #include <linux/hardirq.h>
 #include <linux/atomic.h>
-#include <linux/ioasid.h>
+#include <linux/iommu.h>
 
 #include <asm/stacktrace.h>
 #include <asm/processor.h>

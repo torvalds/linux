@@ -97,6 +97,7 @@
 #include <linux/io_uring.h>
 #include <linux/bpf.h>
 #include <linux/stackprotector.h>
+#include <linux/iommu.h>
 
 #include <asm/pgalloc.h>
 #include <linux/uaccess.h>
