@@ -1459,7 +1459,8 @@ int vehicle_flinger_reverse_close(bool android_is_ready)
 	struct flinger *flg = flinger;
 
 	flg->running = false;
-	rockchip_drm_direct_show_disable_plane(flg->drm_dev, flg->plane);
+	if (flg->drm_dev && flg->plane)
+		rockchip_drm_direct_show_disable_plane(flg->drm_dev, flg->plane);
 	VEHICLE_DG("%s(%d) done\n", __func__, __LINE__);
 
 	return 0;
