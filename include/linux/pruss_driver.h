@@ -9,7 +9,9 @@
 #ifndef _PRUSS_DRIVER_H_
 #define _PRUSS_DRIVER_H_
 
+#include <linux/remoteproc/pruss.h>
 #include <linux/types.h>
+#include <linux/err.h>
 
 /*
  * enum pruss_mem - PRUSS memory range identifiers
@@ -50,5 +52,21 @@ struct pruss {
 	struct clk *core_clk_mux;
 	struct clk *iep_clk_mux;
 };
+
+#if IS_ENABLED(CONFIG_TI_PRUSS)
+
+struct pruss *pruss_get(struct rproc *rproc);
+void pruss_put(struct pruss *pruss);
+
+#else
+
+static inline struct pruss *pruss_get(struct rproc *rproc)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
+
+static inline void pruss_put(struct pruss *pruss) { }
+
+#endif /* CONFIG_TI_PRUSS */
 
 #endif	/* _PRUSS_DRIVER_H_ */
