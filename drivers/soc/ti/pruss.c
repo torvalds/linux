@@ -21,6 +21,7 @@
 #include <linux/regmap.h>
 #include <linux/remoteproc.h>
 #include <linux/slab.h>
+#include "pruss.h"
 
 /**
  * struct pruss_private_data - PRUSS driver private data
@@ -167,6 +168,50 @@ int pruss_release_mem_region(struct pruss *pruss,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(pruss_release_mem_region);
+
+/**
+ * pruss_cfg_get_gpmux() - get the current GPMUX value for a PRU device
+ * @pruss: pruss instance
+ * @pru_id: PRU identifier (0-1)
+ * @mux: pointer to store the current mux value into
+ *
+ * Return: 0 on success, or an error code otherwise
+ */
+int pruss_cfg_get_gpmux(struct pruss *pruss, enum pruss_pru_id pru_id, u8 *mux)
+{
+	int ret;
+	u32 val;
+
+	if (pru_id >= PRUSS_NUM_PRUS || !mux)
+		return -EINVAL;
+
+	ret = pruss_cfg_read(pruss, PRUSS_CFG_GPCFG(pru_id), &val);
+	if (!ret)
+		*mux = (u8)((val & PRUSS_GPCFG_PRU_MUX_SEL_MASK) >>
+			    PRUSS_GPCFG_PRU_MUX_SEL_SHIFT);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(pruss_cfg_get_gpmux);
+
+/**
+ * pruss_cfg_set_gpmux() - set the GPMUX value for a PRU device
+ * @pruss: pruss instance
+ * @pru_id: PRU identifier (0-1)
+ * @mux: new mux value for PRU
+ *
+ * Return: 0 on success, or an error code otherwise
+ */
+int pruss_cfg_set_gpmux(struct pruss *pruss, enum pruss_pru_id pru_id, u8 mux)
+{
+	if (mux >= PRUSS_GP_MUX_SEL_MAX ||
+	    pru_id >= PRUSS_NUM_PRUS)
+		return -EINVAL;
+
+	return pruss_cfg_update(pruss, PRUSS_CFG_GPCFG(pru_id),
+				PRUSS_GPCFG_PRU_MUX_SEL_MASK,
+				(u32)mux << PRUSS_GPCFG_PRU_MUX_SEL_SHIFT);
+}
+EXPORT_SYMBOL_GPL(pruss_cfg_set_gpmux);
 
 static void pruss_of_free_clk_provider(void *data)
 {
