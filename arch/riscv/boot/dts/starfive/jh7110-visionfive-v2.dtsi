@@ -151,16 +151,6 @@
 		};
 	};
 
-	csi_pins: csi-pins {
-		csi-pins-pwdn {
-			starfive,pins = <PAD_GPIO18>;
-			starfive,pinmux = <PAD_GPIO18_FUNC_SEL 0>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
-			starfive,pin-gpio-dout = <GPO_HIGH>;
-			starfive,pin-gpio-doen = <OEN_LOW>;
-		};
-	};
-
 	pwmdac0_pins: pwmdac0-pins {
 		pwmdac0-pins-left {
 			starfive,pins = <PAD_GPIO33>;
@@ -517,10 +507,8 @@
 		reg = <0x10>;
 		clocks = <&clk_ext_camera>;
 		clock-names = "xclk";
-		//reset-gpio = <&gpio 18 0>;
+		reset-gpio = <&gpio 18 0>;
 		//DOVDD-supply = <&v2v8>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&csi_pins>;
 		rotation = <0>;
 		orientation = <1>; //CAMERA_ORIENTATION_BACK
 
