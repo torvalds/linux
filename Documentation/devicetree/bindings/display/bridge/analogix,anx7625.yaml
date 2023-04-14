@@ -16,8 +16,7 @@ description: |
 
 properties:
   compatible:
-    items:
-      - const: analogix,anx7625
+    const: analogix,anx7625
 
   reg:
     maxItems: 1
