@@ -26,6 +26,8 @@
 #define mlx5dr_info(dmn, arg...) mlx5_core_info((dmn)->mdev, ##arg)
 #define mlx5dr_dbg(dmn, arg...) mlx5_core_dbg((dmn)->mdev, ##arg)
 
+struct mlx5dr_ptrn_mgr;
+
 static inline bool dr_is_flex_parser_0_id(u8 parser_id)
 {
 	return parser_id <= DR_STE_MAX_FLEX_0_ID;
@@ -66,6 +68,7 @@ enum mlx5dr_icm_chunk_size {
 enum mlx5dr_icm_type {
 	DR_ICM_TYPE_STE,
 	DR_ICM_TYPE_MODIFY_ACTION,
+	DR_ICM_TYPE_MODIFY_HDR_PTRN,
 };
 
 static inline enum mlx5dr_icm_chunk_size
@@ -861,6 +864,8 @@ struct mlx5dr_cmd_caps {
 	u64 esw_tx_drop_address;
 	u32 log_icm_size;
 	u64 hdr_modify_icm_addr;
+	u32 log_modify_pattern_icm_size;
+	u64 hdr_modify_pattern_icm_addr;
 	u32 flex_protocols;
 	u8 flex_parser_id_icmp_dw0;
 	u8 flex_parser_id_icmp_dw1;
@@ -910,6 +915,7 @@ struct mlx5dr_domain_info {
 	u32 max_send_wr;
 	u32 max_log_sw_icm_sz;
 	u32 max_log_action_icm_sz;
+	u32 max_log_modify_hdr_pattern_icm_sz;
 	struct mlx5dr_domain_rx_tx rx;
 	struct mlx5dr_domain_rx_tx tx;
 	struct mlx5dr_cmd_caps caps;
@@ -928,6 +934,7 @@ struct mlx5dr_domain {
 	struct mlx5dr_send_info_pool *send_info_pool_tx;
 	struct kmem_cache *chunks_kmem_cache;
 	struct kmem_cache *htbls_kmem_cache;
+	struct mlx5dr_ptrn_mgr *ptrn_mgr;
 	struct mlx5dr_send_ring *send_ring;
 	struct mlx5dr_domain_info info;
 	struct xarray csum_fts_xa;
@@ -1525,5 +1532,9 @@ static inline bool mlx5dr_supp_match_ranges(struct mlx5_core_dev *dev)
 	       (MLX5_CAP_GEN_64(dev, match_definer_format_supported) &
 			(1ULL << MLX5_IFC_DEFINER_FORMAT_ID_SELECT));
 }
+
+bool mlx5dr_domain_is_support_ptrn_arg(struct mlx5dr_domain *dmn);
+struct mlx5dr_ptrn_mgr *mlx5dr_ptrn_mgr_create(struct mlx5dr_domain *dmn);
+void mlx5dr_ptrn_mgr_destroy(struct mlx5dr_ptrn_mgr *mgr);
 
 #endif  /* _DR_TYPES_H_ */

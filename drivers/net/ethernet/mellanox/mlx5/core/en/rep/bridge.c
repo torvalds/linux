@@ -220,6 +220,7 @@ mlx5_esw_bridge_port_obj_add(struct net_device *dev,
 	struct netlink_ext_ack *extack = switchdev_notifier_info_to_extack(&port_obj_info->info);
 	const struct switchdev_obj *obj = port_obj_info->obj;
 	const struct switchdev_obj_port_vlan *vlan;
+	const struct switchdev_obj_port_mdb *mdb;
 	u16 vport_num, esw_owner_vhca_id;
 	int err;
 
@@ -235,6 +236,11 @@ mlx5_esw_bridge_port_obj_add(struct net_device *dev,
 		err = mlx5_esw_bridge_port_vlan_add(vport_num, esw_owner_vhca_id, vlan->vid,
 						    vlan->flags, br_offloads, extack);
 		break;
+	case SWITCHDEV_OBJ_ID_PORT_MDB:
+		mdb = SWITCHDEV_OBJ_PORT_MDB(obj);
+		err = mlx5_esw_bridge_port_mdb_add(dev, vport_num, esw_owner_vhca_id, mdb->addr,
+						   mdb->vid, br_offloads, extack);
+		break;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -248,6 +254,7 @@ mlx5_esw_bridge_port_obj_del(struct net_device *dev,
 {
 	const struct switchdev_obj *obj = port_obj_info->obj;
 	const struct switchdev_obj_port_vlan *vlan;
+	const struct switchdev_obj_port_mdb *mdb;
 	u16 vport_num, esw_owner_vhca_id;
 
 	if (!mlx5_esw_bridge_rep_vport_num_vhca_id_get(dev, br_offloads->esw, &vport_num,
@@ -260,6 +267,11 @@ mlx5_esw_bridge_port_obj_del(struct net_device *dev,
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
 		vlan = SWITCHDEV_OBJ_PORT_VLAN(obj);
 		mlx5_esw_bridge_port_vlan_del(vport_num, esw_owner_vhca_id, vlan->vid, br_offloads);
+		break;
+	case SWITCHDEV_OBJ_ID_PORT_MDB:
+		mdb = SWITCHDEV_OBJ_PORT_MDB(obj);
+		mlx5_esw_bridge_port_mdb_del(dev, vport_num, esw_owner_vhca_id, mdb->addr, mdb->vid,
+					     br_offloads);
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -305,6 +317,10 @@ mlx5_esw_bridge_port_obj_attr_set(struct net_device *dev,
 						     esw_owner_vhca_id,
 						     attr->u.vlan_protocol,
 						     br_offloads);
+		break;
+	case SWITCHDEV_ATTR_ID_BRIDGE_MC_DISABLED:
+		err = mlx5_esw_bridge_mcast_set(vport_num, esw_owner_vhca_id,
+						!attr->u.mc_disabled, br_offloads);
 		break;
 	default:
 		err = -EOPNOTSUPP;

@@ -18,7 +18,12 @@ struct dr_data_seg {
 	unsigned int send_flags;
 };
 
+enum send_info_type {
+	WRITE_ICM = 0,
+};
+
 struct postsend_info {
+	enum send_info_type type;
 	struct dr_data_seg write;
 	struct dr_data_seg read;
 	u64 remote_addr;
@@ -402,10 +407,12 @@ static void dr_rdma_segments(struct mlx5dr_qp *dr_qp, u64 remote_addr,
 
 static void dr_post_send(struct mlx5dr_qp *dr_qp, struct postsend_info *send_info)
 {
-	dr_rdma_segments(dr_qp, send_info->remote_addr, send_info->rkey,
-			 &send_info->write, MLX5_OPCODE_RDMA_WRITE, false);
-	dr_rdma_segments(dr_qp, send_info->remote_addr, send_info->rkey,
-			 &send_info->read, MLX5_OPCODE_RDMA_READ, true);
+	if (send_info->type == WRITE_ICM) {
+		dr_rdma_segments(dr_qp, send_info->remote_addr, send_info->rkey,
+				 &send_info->write, MLX5_OPCODE_RDMA_WRITE, false);
+		dr_rdma_segments(dr_qp, send_info->remote_addr, send_info->rkey,
+				 &send_info->read, MLX5_OPCODE_RDMA_READ, true);
+	}
 }
 
 /**
@@ -476,9 +483,26 @@ static int dr_handle_pending_wc(struct mlx5dr_domain *dmn,
 	return 0;
 }
 
-static void dr_fill_data_segs(struct mlx5dr_send_ring *send_ring,
-			      struct postsend_info *send_info)
+static void dr_fill_write_icm_segs(struct mlx5dr_domain *dmn,
+				   struct mlx5dr_send_ring *send_ring,
+				   struct postsend_info *send_info)
 {
+	u32 buff_offset;
+
+	if (send_info->write.length > dmn->info.max_inline_size) {
+		buff_offset = (send_ring->tx_head &
+			       (dmn->send_ring->signal_th - 1)) *
+			      send_ring->max_post_send_size;
+		/* Copy to ring mr */
+		memcpy(send_ring->buf + buff_offset,
+		       (void *)(uintptr_t)send_info->write.addr,
+		       send_info->write.length);
+		send_info->write.addr = (uintptr_t)send_ring->mr->dma_addr + buff_offset;
+		send_info->write.lkey = send_ring->mr->mkey;
+
+		send_ring->tx_head++;
+	}
+
 	send_ring->pending_wqe++;
 
 	if (send_ring->pending_wqe % send_ring->signal_th == 0)
@@ -496,11 +520,18 @@ static void dr_fill_data_segs(struct mlx5dr_send_ring *send_ring,
 		send_info->read.send_flags = 0;
 }
 
+static void dr_fill_data_segs(struct mlx5dr_domain *dmn,
+			      struct mlx5dr_send_ring *send_ring,
+			      struct postsend_info *send_info)
+{
+	if (send_info->type == WRITE_ICM)
+		dr_fill_write_icm_segs(dmn, send_ring, send_info);
+}
+
 static int dr_postsend_icm_data(struct mlx5dr_domain *dmn,
 				struct postsend_info *send_info)
 {
 	struct mlx5dr_send_ring *send_ring = dmn->send_ring;
-	u32 buff_offset;
 	int ret;
 
 	if (unlikely(dmn->mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR ||
@@ -517,20 +548,7 @@ static int dr_postsend_icm_data(struct mlx5dr_domain *dmn,
 	if (ret)
 		goto out_unlock;
 
-	if (send_info->write.length > dmn->info.max_inline_size) {
-		buff_offset = (send_ring->tx_head &
-			       (dmn->send_ring->signal_th - 1)) *
-			send_ring->max_post_send_size;
-		/* Copy to ring mr */
-		memcpy(send_ring->buf + buff_offset,
-		       (void *)(uintptr_t)send_info->write.addr,
-		       send_info->write.length);
-		send_info->write.addr = (uintptr_t)send_ring->mr->dma_addr + buff_offset;
-		send_info->write.lkey = send_ring->mr->mkey;
-	}
-
-	send_ring->tx_head++;
-	dr_fill_data_segs(send_ring, send_info);
+	dr_fill_data_segs(dmn, send_ring, send_info);
 	dr_post_send(send_ring->qp, send_info);
 
 out_unlock:
