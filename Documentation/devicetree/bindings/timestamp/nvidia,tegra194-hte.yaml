@@ -42,10 +42,13 @@ properties:
 
   nvidia,slices:
     $ref: /schemas/types.yaml#/definitions/uint32
+    deprecated: true
     description:
       HTE lines are arranged in 32 bit slice where each bit represents different
       line/signal that it can enable/configure for the timestamp. It is u32
-      property and the value depends on the HTE instance in the chip.
+      property and the value depends on the HTE instance in the chip. The AON
+      GTE instances for both Tegra194 and Tegra234 has 3 slices. The Tegra194
+      LIC instance has 11 slices and Tegra234 LIC has 17 slices.
     enum: [3, 11, 17]
 
   nvidia,gpio-controller:
@@ -66,7 +69,6 @@ required:
   - compatible
   - reg
   - interrupts
-  - nvidia,slices
   - "#timestamp-cells"
 
 allOf:
@@ -123,7 +125,6 @@ examples:
               reg = <0xc1e0000 0x10000>;
               interrupts = <0 13 0x4>;
               nvidia,int-threshold = <1>;
-              nvidia,slices = <3>;
               #timestamp-cells = <1>;
     };
 
@@ -133,7 +134,6 @@ examples:
               reg = <0x3aa0000 0x10000>;
               interrupts = <0 11 0x4>;
               nvidia,int-threshold = <1>;
-              nvidia,slices = <11>;
               #timestamp-cells = <1>;
     };
 
