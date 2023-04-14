@@ -3,17 +3,10 @@
  * This header provides constants for pinctrl bindings for TI's K3 SoC
  * family.
  *
- * Copyright (C) 2018-2021 Texas Instruments Incorporated - https://www.ti.com/
+ * Copyright (C) 2018-2023 Texas Instruments Incorporated - https://www.ti.com/
  */
-#ifndef _DT_BINDINGS_PINCTRL_TI_K3_H
-#define _DT_BINDINGS_PINCTRL_TI_K3_H
-
-/*
- * These bindings are deprecated, because they do not match the actual
- * concept of bindings but rather contain pure register values.
- * Instead include the header in the DTS source directory.
- */
-#warning "These bindings are deprecated. Instead, use the header in the DTS source directory."
+#ifndef DTS_ARM64_TI_K3_PINCTRL_H
+#define DTS_ARM64_TI_K3_PINCTRL_H
 
 #define PULLUDEN_SHIFT		(16)
 #define PULLTYPESEL_SHIFT	(17)
