@@ -67,10 +67,8 @@ static inline void nft_trace_packet(const struct nft_pktinfo *pkt,
 static inline void nft_trace_copy_nftrace(const struct nft_pktinfo *pkt,
 					  struct nft_traceinfo *info)
 {
-	if (static_branch_unlikely(&nft_trace_enabled)) {
-		if (info->trace)
-			info->nf_trace = pkt->skb->nf_trace;
-	}
+	if (static_branch_unlikely(&nft_trace_enabled))
+		info->nf_trace = pkt->skb->nf_trace;
 }
 
 static void nft_bitwise_fast_eval(const struct nft_expr *expr,
