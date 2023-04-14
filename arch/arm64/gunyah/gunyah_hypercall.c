@@ -8,18 +8,14 @@
 #include <linux/gunyah.h>
 #include <linux/uuid.h>
 
-static const uuid_t gh_known_uuids[] = {
-	/* Qualcomm's version of Gunyah {19bd54bd-0b37-571b-946f-609b54539de6} */
-	UUID_INIT(0x19bd54bd, 0x0b37, 0x571b, 0x94, 0x6f, 0x60, 0x9b, 0x54, 0x53, 0x9d, 0xe6),
-	/* Standard version of Gunyah {c1d58fcd-a453-5fdb-9265-ce36673d5f14} */
-	UUID_INIT(0xc1d58fcd, 0xa453, 0x5fdb, 0x92, 0x65, 0xce, 0x36, 0x67, 0x3d, 0x5f, 0x14),
-};
+/* {c1d58fcd-a453-5fdb-9265-ce36673d5f14} */
+static const uuid_t GUNYAH_UUID =
+	UUID_INIT(0xc1d58fcd, 0xa453, 0x5fdb, 0x92, 0x65, 0xce, 0x36, 0x67, 0x3d, 0x5f, 0x14);
 
 bool arch_is_gh_guest(void)
 {
 	struct arm_smccc_res res;
 	uuid_t uuid;
-	int i;
 
 	arm_smccc_1_1_hvc(ARM_SMCCC_VENDOR_HYP_CALL_UID_FUNC_ID, &res);
 
@@ -28,11 +24,7 @@ bool arch_is_gh_guest(void)
 	((u32 *)&uuid.b[0])[2] = lower_32_bits(res.a2);
 	((u32 *)&uuid.b[0])[3] = lower_32_bits(res.a3);
 
-	for (i = 0; i < ARRAY_SIZE(gh_known_uuids); i++)
-		if (uuid_equal(&uuid, &gh_known_uuids[i]))
-			return true;
-
-	return false;
+	return uuid_equal(&uuid, &GUNYAH_UUID);
 }
 EXPORT_SYMBOL_GPL(arch_is_gh_guest);
 
