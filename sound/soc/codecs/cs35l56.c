@@ -835,6 +835,12 @@ static int cs35l56_wait_for_firmware_boot(struct cs35l56_private *cs35l56)
 	return 0;
 }
 
+static inline void cs35l56_wait_min_reset_pulse(void)
+{
+	/* Satisfy minimum reset pulse width spec */
+	usleep_range(CS35L56_RESET_PULSE_MIN_US, 2 * CS35L56_RESET_PULSE_MIN_US);
+}
+
 static const struct reg_sequence cs35l56_system_reset_seq[] = {
 	REG_SEQ0(CS35L56_DSP_VIRTUAL1_MBOX_1, CS35L56_MBOX_CMD_SYSTEM_RESET),
 };
@@ -1236,7 +1242,7 @@ int cs35l56_system_suspend_late(struct device *dev)
 	 */
 	if (cs35l56->reset_gpio) {
 		gpiod_set_value_cansleep(cs35l56->reset_gpio, 0);
-		usleep_range(CS35L56_RESET_PULSE_MIN_US, CS35L56_RESET_PULSE_MIN_US + 400);
+		cs35l56_wait_min_reset_pulse();
 	}
 
 	regulator_bulk_disable(ARRAY_SIZE(cs35l56->supplies), cs35l56->supplies);
@@ -1289,7 +1295,7 @@ int cs35l56_system_resume_early(struct device *dev)
 	/* Ensure a spec-compliant RESET pulse. */
 	if (cs35l56->reset_gpio) {
 		gpiod_set_value_cansleep(cs35l56->reset_gpio, 0);
-		usleep_range(CS35L56_RESET_PULSE_MIN_US, CS35L56_RESET_PULSE_MIN_US + 400);
+		cs35l56_wait_min_reset_pulse();
 	}
 
 	/* Enable supplies before releasing RESET. */
@@ -1440,9 +1446,7 @@ int cs35l56_common_probe(struct cs35l56_private *cs35l56)
 		return dev_err_probe(cs35l56->dev, ret, "Failed to enable supplies\n");
 
 	if (cs35l56->reset_gpio) {
-		/* satisfy minimum reset pulse width spec */
-		usleep_range(CS35L56_RESET_PULSE_MIN_US,
-			     CS35L56_RESET_PULSE_MIN_US + 400);
+		cs35l56_wait_min_reset_pulse();
 		gpiod_set_value_cansleep(cs35l56->reset_gpio, 1);
 	}
 
