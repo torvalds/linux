@@ -1119,7 +1119,7 @@ static int set_trx_fifo_info(struct rtw_dev *rtwdev)
 	u8 csi_buf_pg_num = chip->csi_buf_pg_num;
 
 	/* config rsvd page num */
-	fifo->rsvd_drv_pg_num = 8;
+	fifo->rsvd_drv_pg_num = chip->rsvd_drv_pg_num;
 	fifo->txff_pg_num = chip->txff_size >> 7;
 	if (rtw_chip_wcpu_11n(rtwdev))
 		fifo->rsvd_pg_num = fifo->rsvd_drv_pg_num;
