@@ -180,6 +180,8 @@ static struct aa_perms *compute_xmatch_perms(struct aa_dfa *xmatch)
 	state_count = xmatch->tables[YYTD_ID_BASE]->td_lolen;
 	/* DFAs are restricted from having a state_count of less than 2 */
 	perms = kvcalloc(state_count, sizeof(struct aa_perms), GFP_KERNEL);
+	if (!perms)
+		return NULL;
 
 	/* zero init so skip the trap state (state == 0) */
 	for (state = 1; state < state_count; state++)
