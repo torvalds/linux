@@ -28,6 +28,9 @@ static DEFINE_PER_CPU(struct cpu_cacheinfo, ci_cpu_cacheinfo);
 #define per_cpu_cacheinfo_idx(cpu, idx)		\
 				(per_cpu_cacheinfo(cpu) + (idx))
 
+/* Set if no cache information is found in DT/ACPI. */
+static bool use_arch_info;
+
 struct cpu_cacheinfo *get_cpu_cacheinfo(unsigned int cpu)
 {
 	return ci_cacheinfo(cpu);
@@ -40,7 +43,8 @@ static inline bool cache_leaves_are_shared(struct cacheinfo *this_leaf,
 	 * For non DT/ACPI systems, assume unique level 1 caches,
 	 * system-wide shared caches for all other levels.
 	 */
-	if (!(IS_ENABLED(CONFIG_OF) || IS_ENABLED(CONFIG_ACPI)))
+	if (!(IS_ENABLED(CONFIG_OF) || IS_ENABLED(CONFIG_ACPI)) ||
+	    use_arch_info)
 		return (this_leaf->level != 1) && (sib_leaf->level != 1);
 
 	if ((sib_leaf->attributes & CACHE_ID) &&
@@ -343,6 +347,10 @@ static int cache_setup_properties(unsigned int cpu)
 	else if (!acpi_disabled)
 		ret = cache_setup_acpi(cpu);
 
+	// Assume there is no cache information available in DT/ACPI from now.
+	if (ret && use_arch_cache_info())
+		use_arch_info = true;
+
 	return ret;
 }
 
@@ -361,7 +369,7 @@ static int cache_shared_cpu_map_setup(unsigned int cpu)
 	 * to update the shared cpu_map if the cache attributes were
 	 * populated early before all the cpus are brought online
 	 */
-	if (!last_level_cache_is_valid(cpu)) {
+	if (!last_level_cache_is_valid(cpu) && !use_arch_info) {
 		ret = cache_setup_properties(cpu);
 		if (ret)
 			return ret;
