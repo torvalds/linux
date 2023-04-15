@@ -1,12 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * drivers/w1/masters/omap_hdq.c
- *
  * Copyright (C) 2007,2012 Texas Instruments, Inc.
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2. This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
- *
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
