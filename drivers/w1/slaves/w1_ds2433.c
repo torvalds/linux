@@ -98,7 +98,8 @@ static ssize_t eeprom_read(struct file *filp, struct kobject *kobj,
 	u8 wrbuf[3];
 #endif
 
-	if ((count = w1_f23_fix_count(off, count, W1_EEPROM_SIZE)) == 0)
+	count = w1_f23_fix_count(off, count, W1_EEPROM_SIZE);
+	if (!count)
 		return 0;
 
 	mutex_lock(&sl->master->bus_mutex);
@@ -208,7 +209,8 @@ static ssize_t eeprom_write(struct file *filp, struct kobject *kobj,
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
 	int addr, len, idx;
 
-	if ((count = w1_f23_fix_count(off, count, W1_EEPROM_SIZE)) == 0)
+	count = w1_f23_fix_count(off, count, W1_EEPROM_SIZE);
+	if (!count)
 		return 0;
 
 #ifdef CONFIG_W1_SLAVE_DS2433_CRC
