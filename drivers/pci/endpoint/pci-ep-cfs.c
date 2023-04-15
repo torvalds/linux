@@ -509,6 +509,42 @@ static const struct config_item_type pci_epf_type = {
 	.ct_owner	= THIS_MODULE,
 };
 
+/**
+ * pci_epf_type_add_cfs() - Help function drivers to expose function specific
+ *                          attributes in configfs
+ * @epf: the EPF device that has to be configured using configfs
+ * @group: the parent configfs group (corresponding to entries in
+ *         pci_epf_device_id)
+ *
+ * Invoke to expose function specific attributes in configfs.
+ *
+ * Return: A pointer to a config_group structure or NULL if the function driver
+ * does not have anything to expose (attributes configured by user) or if
+ * the function driver does not implement the add_cfs() method.
+ *
+ * Returns an error pointer if this function is called for an unbound EPF device
+ * or if the EPF driver add_cfs() method fails.
+ */
+static struct config_group *pci_epf_type_add_cfs(struct pci_epf *epf,
+						 struct config_group *group)
+{
+	struct config_group *epf_type_group;
+
+	if (!epf->driver) {
+		dev_err(&epf->dev, "epf device not bound to driver\n");
+		return NULL;
+	}
+
+	if (!epf->driver->ops->add_cfs)
+		return NULL;
+
+	mutex_lock(&epf->lock);
+	epf_type_group = epf->driver->ops->add_cfs(epf, group);
+	mutex_unlock(&epf->lock);
+
+	return epf_type_group;
+}
+
 static void pci_ep_cfs_add_type_group(struct pci_epf_group *epf_group)
 {
 	struct config_group *group;
