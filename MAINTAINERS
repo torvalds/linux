@@ -22436,7 +22436,7 @@ S:	Orphan
 F:	drivers/mmc/host/vub300.c
 
 W1 DALLAS'S 1-WIRE BUS
-M:	Evgeniy Polyakov <zbr@ioremap.net>
+M:	Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>
 S:	Maintained
 F:	Documentation/devicetree/bindings/w1/
 F:	Documentation/w1/
