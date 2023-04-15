@@ -36,7 +36,7 @@ MODULE_PARM_DESC(active_pullup, "Active pullup (apply to all buses): " \
 
 /* extra configurations - e.g. 1WS */
 static int extra_config;
-module_param(extra_config, int, S_IRUGO | S_IWUSR);
+module_param(extra_config, int, 0644);
 MODULE_PARM_DESC(extra_config, "Extra Configuration settings 1=APU,2=PPM,3=SPU,8=1WS");
 
 /*

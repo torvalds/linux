@@ -99,7 +99,7 @@ static struct bin_attribute w1_f12_sysfs_bin_files[NB_SYSFS_BIN_FILES] = {
 	{
 		.attr = {
 			.name = "state",
-			.mode = S_IRUGO,
+			.mode = 0444,
 		},
 		.size = 1,
 		.read = w1_f12_read_state,
@@ -107,7 +107,7 @@ static struct bin_attribute w1_f12_sysfs_bin_files[NB_SYSFS_BIN_FILES] = {
 	{
 		.attr = {
 			.name = "output",
-			.mode = S_IRUGO | S_IWUSR | S_IWGRP,
+			.mode = 0664,
 		},
 		.size = 1,
 		.write = w1_f12_write_output,

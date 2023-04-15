@@ -128,7 +128,7 @@ out:
 	return bytes_written;
 }
 
-static BIN_ATTR(output, S_IRUGO | S_IWUSR | S_IWGRP, NULL, output_write, 1);
+static BIN_ATTR(output, 0664, NULL, output_write, 1);
 
 static struct bin_attribute *w1_f3a_bin_attrs[] = {
 	&bin_attr_state,

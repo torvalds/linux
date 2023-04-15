@@ -48,7 +48,7 @@
 static DECLARE_WAIT_QUEUE_HEAD(hdq_wait_queue);
 
 static int w1_id;
-module_param(w1_id, int, S_IRUSR);
+module_param(w1_id, int, 0400);
 MODULE_PARM_DESC(w1_id, "1-wire id for the slave detection in HDQ mode");
 
 struct hdq_data {
