@@ -104,8 +104,8 @@ SYM_FUNC_START(copy_user_generic_unrolled)
 SYM_FUNC_END(copy_user_generic_unrolled)
 EXPORT_SYMBOL(copy_user_generic_unrolled)
 
-/* Some CPUs run faster using the string copy instructions.
- * This is also a lot simpler. Use them when possible.
+/*
+ * Some CPUs support FSRM for Fast Short REP MOVS.
  *
  * Only 4GB of copy is supported. This shouldn't be a problem
  * because the kernel normally only writes from/to page sized chunks
@@ -122,58 +122,21 @@ EXPORT_SYMBOL(copy_user_generic_unrolled)
  * Output:
  * eax uncopied bytes or 0 if successful.
  */
-SYM_FUNC_START(copy_user_generic_string)
+SYM_FUNC_START(copy_user_fast_string)
 	ASM_STAC
-	cmpl $8,%edx
-	jb 2f		/* less than 8 bytes, go to byte copy loop */
-	ALIGN_DESTINATION
-	movl %edx,%ecx
-	shrl $3,%ecx
-	andl $7,%edx
-1:	rep movsq
-2:	movl %edx,%ecx
-3:	rep movsb
-	xorl %eax,%eax
-	ASM_CLAC
-	RET
-
-11:	leal (%rdx,%rcx,8),%ecx
-12:	movl %ecx,%edx		/* ecx is zerorest also */
-	jmp .Lcopy_user_handle_tail
-
-	_ASM_EXTABLE_CPY(1b, 11b)
-	_ASM_EXTABLE_CPY(3b, 12b)
-SYM_FUNC_END(copy_user_generic_string)
-EXPORT_SYMBOL(copy_user_generic_string)
-
-/*
- * Some CPUs are adding enhanced REP MOVSB/STOSB instructions.
- * It's recommended to use enhanced REP MOVSB/STOSB if it's enabled.
- *
- * Input:
- * rdi destination
- * rsi source
- * rdx count
- *
- * Output:
- * eax uncopied bytes or 0 if successful.
- */
-SYM_FUNC_START(copy_user_enhanced_fast_string)
-	ASM_STAC
-	/* CPUs without FSRM should avoid rep movsb for short copies */
-	ALTERNATIVE "cmpl $64, %edx; jb copy_user_short_string", "", X86_FEATURE_FSRM
 	movl %edx,%ecx
 1:	rep movsb
 	xorl %eax,%eax
 	ASM_CLAC
 	RET
 
-12:	movl %ecx,%edx		/* ecx is zerorest also */
-	jmp .Lcopy_user_handle_tail
+12:	movl %ecx,%eax		/* ecx is zerorest also */
+	ASM_CLAC
+	RET
 
 	_ASM_EXTABLE_CPY(1b, 12b)
-SYM_FUNC_END(copy_user_enhanced_fast_string)
-EXPORT_SYMBOL(copy_user_enhanced_fast_string)
+SYM_FUNC_END(copy_user_fast_string)
+EXPORT_SYMBOL(copy_user_fast_string)
 
 /*
  * Try to copy last bytes and clear the rest if needed.
