@@ -63,7 +63,7 @@ struct matrox_device {
  *
  * Port mapping.
  */
-static __inline__ u8 matrox_w1_read_reg(struct matrox_device *dev, u8 reg)
+static inline u8 matrox_w1_read_reg(struct matrox_device *dev, u8 reg)
 {
 	u8 ret;
 
@@ -74,7 +74,7 @@ static __inline__ u8 matrox_w1_read_reg(struct matrox_device *dev, u8 reg)
 	return ret;
 }
 
-static __inline__ void matrox_w1_write_reg(struct matrox_device *dev, u8 reg, u8 val)
+static inline void matrox_w1_write_reg(struct matrox_device *dev, u8 reg, u8 val)
 {
 	writeb(reg, dev->port_index);
 	writeb(val, dev->port_data);
