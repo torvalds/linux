@@ -120,16 +120,16 @@ nouveau_debugfs_pstate_get(struct seq_file *m, void *data)
 
 		if (state >= 0) {
 			if (info.ustate_ac == state)
-				seq_printf(m, " AC");
+				seq_puts(m, " AC");
 			if (info.ustate_dc == state)
-				seq_printf(m, " DC");
+				seq_puts(m, " DC");
 			if (info.pstate == state)
-				seq_printf(m, " *");
+				seq_puts(m, " *");
 		} else {
 			if (info.ustate_ac < -1)
-				seq_printf(m, " AC");
+				seq_puts(m, " AC");
 			if (info.ustate_dc < -1)
-				seq_printf(m, " DC");
+				seq_puts(m, " DC");
 		}
 
 		seq_putc(m, '\n');
