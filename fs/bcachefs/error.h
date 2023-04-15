@@ -104,6 +104,7 @@ struct fsck_err_state {
 	u64			nr;
 	bool			ratelimited;
 	int			ret;
+	int			fix;
 	char			*last_msg;
 };
 
