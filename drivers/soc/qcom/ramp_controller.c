@@ -308,12 +308,15 @@ static int qcom_ramp_controller_probe(struct platform_device *pdev)
 	return qcom_ramp_controller_start(qrc);
 }
 
-static int qcom_ramp_controller_remove(struct platform_device *pdev)
+static void qcom_ramp_controller_remove(struct platform_device *pdev)
 {
 	struct qcom_ramp_controller *qrc = platform_get_drvdata(pdev);
+	int ret;
 
-	return rc_write_cfg(qrc, qrc->desc->cfg_ramp_dis,
-			    RC_DCVS_CFG_SID, qrc->desc->num_ramp_dis);
+	ret = rc_write_cfg(qrc, qrc->desc->cfg_ramp_dis,
+			   RC_DCVS_CFG_SID, qrc->desc->num_ramp_dis);
+	if (ret)
+		dev_err(&pdev->dev, "Failed to send disable sequence\n");
 }
 
 static const struct of_device_id qcom_ramp_controller_match_table[] = {
@@ -329,7 +332,7 @@ static struct platform_driver qcom_ramp_controller_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe  = qcom_ramp_controller_probe,
-	.remove = qcom_ramp_controller_remove,
+	.remove_new = qcom_ramp_controller_remove,
 };
 
 static int __init qcom_ramp_controller_init(void)
