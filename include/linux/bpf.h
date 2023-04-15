@@ -355,6 +355,34 @@ static inline u32 btf_field_type_align(enum btf_field_type type)
 	}
 }
 
+static inline void bpf_obj_init_field(const struct btf_field *field, void *addr)
+{
+	memset(addr, 0, field->size);
+
+	switch (field->type) {
+	case BPF_REFCOUNT:
+		refcount_set((refcount_t *)addr, 1);
+		break;
+	case BPF_RB_NODE:
+		RB_CLEAR_NODE((struct rb_node *)addr);
+		break;
+	case BPF_LIST_HEAD:
+	case BPF_LIST_NODE:
+		INIT_LIST_HEAD((struct list_head *)addr);
+		break;
+	case BPF_RB_ROOT:
+		/* RB_ROOT_CACHED 0-inits, no need to do anything after memset */
+	case BPF_SPIN_LOCK:
+	case BPF_TIMER:
+	case BPF_KPTR_UNREF:
+	case BPF_KPTR_REF:
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		return;
+	}
+}
+
 static inline bool btf_record_has_field(const struct btf_record *rec, enum btf_field_type type)
 {
 	if (IS_ERR_OR_NULL(rec))
@@ -369,10 +397,7 @@ static inline void bpf_obj_init(const struct btf_record *rec, void *obj)
 	if (IS_ERR_OR_NULL(rec))
 		return;
 	for (i = 0; i < rec->cnt; i++)
-		memset(obj + rec->fields[i].offset, 0, rec->fields[i].size);
-
-	if (rec->refcount_off >= 0)
-		refcount_set((refcount_t *)(obj + rec->refcount_off), 1);
+		bpf_obj_init_field(&rec->fields[i], obj + rec->fields[i].offset);
 }
 
 /* 'dst' must be a temporary buffer and should not point to memory that is being
