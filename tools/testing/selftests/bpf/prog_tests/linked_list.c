@@ -84,11 +84,11 @@ static struct {
 	{ "double_push_back", "arg#1 expected pointer to allocated object" },
 	{ "no_node_value_type", "bpf_list_node not found at offset=0" },
 	{ "incorrect_value_type",
-	  "operation on bpf_list_head expects arg#1 bpf_list_node at offset=0 in struct foo, "
+	  "operation on bpf_list_head expects arg#1 bpf_list_node at offset=40 in struct foo, "
 	  "but arg is at offset=0 in struct bar" },
 	{ "incorrect_node_var_off", "variable ptr_ access var_off=(0x0; 0xffffffff) disallowed" },
-	{ "incorrect_node_off1", "bpf_list_node not found at offset=1" },
-	{ "incorrect_node_off2", "arg#1 offset=40, but expected bpf_list_node at offset=0 in struct foo" },
+	{ "incorrect_node_off1", "bpf_list_node not found at offset=41" },
+	{ "incorrect_node_off2", "arg#1 offset=0, but expected bpf_list_node at offset=40 in struct foo" },
 	{ "no_head_type", "bpf_list_head not found at offset=0" },
 	{ "incorrect_head_var_off1", "R1 doesn't have constant offset" },
 	{ "incorrect_head_var_off2", "variable ptr_ access var_off=(0x0; 0xffffffff) disallowed" },

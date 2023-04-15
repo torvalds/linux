@@ -22,7 +22,7 @@ struct foo {
 struct map_value {
 	struct bpf_spin_lock lock;
 	int data;
-	struct bpf_list_head head __contains(foo, node);
+	struct bpf_list_head head __contains(foo, node2);
 };
 
 struct array_map {
@@ -50,7 +50,7 @@ struct {
 #define private(name) SEC(".bss." #name) __hidden __attribute__((aligned(8)))
 
 private(A) struct bpf_spin_lock glock;
-private(A) struct bpf_list_head ghead __contains(foo, node);
+private(A) struct bpf_list_head ghead __contains(foo, node2);
 private(B) struct bpf_spin_lock glock2;
 
 #endif
