@@ -156,6 +156,28 @@ static struct ieee80211_rate rtw89_bitrates[] = {
 	{ .bitrate = 540, .hw_value = 0x0b, },
 };
 
+static const struct ieee80211_iface_limit rtw89_iface_limits[] = {
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_STATION),
+	},
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_P2P_CLIENT) |
+			 BIT(NL80211_IFTYPE_P2P_GO) |
+			 BIT(NL80211_IFTYPE_AP),
+	},
+};
+
+static const struct ieee80211_iface_combination rtw89_iface_combs[] = {
+	{
+		.limits = rtw89_iface_limits,
+		.n_limits = ARRAY_SIZE(rtw89_iface_limits),
+		.max_interfaces = 2,
+		.num_different_channels = 1,
+	}
+};
+
 bool rtw89_ra_report_to_bitrate(struct rtw89_dev *rtwdev, u8 rpt_rate, u16 *bitrate)
 {
 	struct ieee80211_rate rate;
@@ -3833,6 +3855,9 @@ struct rtw89_dev *rtw89_alloc_ieee80211_hw(struct device *device,
 	hw = ieee80211_alloc_hw(driver_data_size, ops);
 	if (!hw)
 		goto err;
+
+	hw->wiphy->iface_combinations = rtw89_iface_combs;
+	hw->wiphy->n_iface_combinations = ARRAY_SIZE(rtw89_iface_combs);
 
 	rtwdev = hw->priv;
 	rtwdev->hw = hw;
