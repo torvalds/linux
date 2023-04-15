@@ -676,41 +676,39 @@ static void pci_epf_test_cmd_handler(struct work_struct *work)
 		goto reset_handler;
 	}
 
-	if ((command & COMMAND_RAISE_LEGACY_IRQ) ||
-	    (command & COMMAND_RAISE_MSI_IRQ) ||
-	    (command & COMMAND_RAISE_MSIX_IRQ)) {
+	switch (command) {
+	case COMMAND_RAISE_LEGACY_IRQ:
+	case COMMAND_RAISE_MSI_IRQ:
+	case COMMAND_RAISE_MSIX_IRQ:
 		pci_epf_test_raise_irq(epf_test, reg);
-		goto reset_handler;
-	}
-
-	if (command & COMMAND_WRITE) {
+		break;
+	case COMMAND_WRITE:
 		ret = pci_epf_test_write(epf_test, reg);
 		if (ret)
 			reg->status |= STATUS_WRITE_FAIL;
 		else
 			reg->status |= STATUS_WRITE_SUCCESS;
 		pci_epf_test_raise_irq(epf_test, reg);
-		goto reset_handler;
-	}
-
-	if (command & COMMAND_READ) {
+		break;
+	case COMMAND_READ:
 		ret = pci_epf_test_read(epf_test, reg);
 		if (!ret)
 			reg->status |= STATUS_READ_SUCCESS;
 		else
 			reg->status |= STATUS_READ_FAIL;
 		pci_epf_test_raise_irq(epf_test, reg);
-		goto reset_handler;
-	}
-
-	if (command & COMMAND_COPY) {
+		break;
+	case COMMAND_COPY:
 		ret = pci_epf_test_copy(epf_test, reg);
 		if (!ret)
 			reg->status |= STATUS_COPY_SUCCESS;
 		else
 			reg->status |= STATUS_COPY_FAIL;
 		pci_epf_test_raise_irq(epf_test, reg);
-		goto reset_handler;
+		break;
+	default:
+		dev_err(dev, "Invalid command 0x%x\n", command);
+		break;
 	}
 
 reset_handler:
