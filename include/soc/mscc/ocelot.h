@@ -744,7 +744,6 @@ struct ocelot_mirror {
 };
 
 struct ocelot_mm_state {
-	struct mutex lock;
 	enum ethtool_mm_verify_status verify_status;
 	bool tx_active;
 };

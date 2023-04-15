@@ -56,8 +56,6 @@ static void ocelot_mm_update_port_status(struct ocelot *ocelot, int port)
 	enum ethtool_mm_verify_status verify_status;
 	u32 val;
 
-	mutex_lock(&mm->lock);
-
 	val = ocelot_port_readl(ocelot_port, DEV_MM_STATUS);
 
 	verify_status = ocelot_mm_verify_status(val);
@@ -88,16 +86,18 @@ static void ocelot_mm_update_port_status(struct ocelot *ocelot, int port)
 	}
 
 	ocelot_port_writel(ocelot_port, val, DEV_MM_STATUS);
-
-	mutex_unlock(&mm->lock);
 }
 
 void ocelot_mm_irq(struct ocelot *ocelot)
 {
 	int port;
 
+	mutex_lock(&ocelot->fwd_domain_lock);
+
 	for (port = 0; port < ocelot->num_phys_ports; port++)
 		ocelot_mm_update_port_status(ocelot, port);
+
+	mutex_unlock(&ocelot->fwd_domain_lock);
 }
 EXPORT_SYMBOL_GPL(ocelot_mm_irq);
 
@@ -107,13 +107,10 @@ int ocelot_port_set_mm(struct ocelot *ocelot, int port,
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	u32 mm_enable = 0, verify_disable = 0, add_frag_size;
-	struct ocelot_mm_state *mm;
 	int err;
 
 	if (!ocelot->mm_supported)
 		return -EOPNOTSUPP;
-
-	mm = &ocelot->mm[port];
 
 	err = ethtool_mm_frag_size_min_to_add(cfg->tx_min_frag_size,
 					      &add_frag_size, extack);
@@ -129,7 +126,7 @@ int ocelot_port_set_mm(struct ocelot *ocelot, int port,
 	if (!cfg->verify_enabled)
 		verify_disable = DEV_MM_CONFIG_VERIF_CONFIG_PRM_VERIFY_DIS;
 
-	mutex_lock(&mm->lock);
+	mutex_lock(&ocelot->fwd_domain_lock);
 
 	ocelot_port_rmwl(ocelot_port, mm_enable,
 			 DEV_MM_CONFIG_ENABLE_CONFIG_MM_TX_ENA |
@@ -148,7 +145,7 @@ int ocelot_port_set_mm(struct ocelot *ocelot, int port,
 		       QSYS_PREEMPTION_CFG,
 		       port);
 
-	mutex_unlock(&mm->lock);
+	mutex_unlock(&ocelot->fwd_domain_lock);
 
 	return 0;
 }
@@ -166,7 +163,7 @@ int ocelot_port_get_mm(struct ocelot *ocelot, int port,
 
 	mm = &ocelot->mm[port];
 
-	mutex_lock(&mm->lock);
+	mutex_lock(&ocelot->fwd_domain_lock);
 
 	val = ocelot_port_readl(ocelot_port, DEV_MM_ENABLE_CONFIG);
 	state->pmac_enabled = !!(val & DEV_MM_CONFIG_ENABLE_CONFIG_MM_RX_ENA);
@@ -185,7 +182,7 @@ int ocelot_port_get_mm(struct ocelot *ocelot, int port,
 	state->verify_status = mm->verify_status;
 	state->tx_active = mm->tx_active;
 
-	mutex_unlock(&mm->lock);
+	mutex_unlock(&ocelot->fwd_domain_lock);
 
 	return 0;
 }
@@ -209,7 +206,6 @@ int ocelot_mm_init(struct ocelot *ocelot)
 		u32 val;
 
 		mm = &ocelot->mm[port];
-		mutex_init(&mm->lock);
 		ocelot_port = ocelot->ports[port];
 
 		/* Update initial status variable for the
