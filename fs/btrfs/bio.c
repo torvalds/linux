@@ -635,7 +635,7 @@ static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 	struct btrfs_fs_info *fs_info = bbio->fs_info;
 	struct btrfs_bio *orig_bbio = bbio;
 	struct bio *bio = &bbio->bio;
-	u64 logical = bio->bi_iter.bi_sector << 9;
+	u64 logical = bio->bi_iter.bi_sector << SECTOR_SHIFT;
 	u64 length = bio->bi_iter.bi_size;
 	u64 map_length = length;
 	bool use_append = btrfs_use_zone_append(bbio);

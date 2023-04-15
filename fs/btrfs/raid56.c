@@ -1079,7 +1079,7 @@ static int rbio_add_io_sector(struct btrfs_raid_bio *rbio,
 
 	/* see if we can add this page onto our existing bio */
 	if (last) {
-		u64 last_end = last->bi_iter.bi_sector << 9;
+		u64 last_end = last->bi_iter.bi_sector << SECTOR_SHIFT;
 		last_end += last->bi_iter.bi_size;
 
 		/*
