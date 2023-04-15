@@ -325,8 +325,8 @@ static void pci_epf_test_print_rate(const char *ops, u64 size,
 		(u64)ts.tv_sec, (u32)ts.tv_nsec, rate / 1024);
 }
 
-static int pci_epf_test_copy(struct pci_epf_test *epf_test,
-			     struct pci_epf_test_reg *reg)
+static void pci_epf_test_copy(struct pci_epf_test *epf_test,
+			      struct pci_epf_test_reg *reg)
 {
 	int ret;
 	bool use_dma;
@@ -420,11 +420,14 @@ err_src_addr:
 	pci_epc_mem_free_addr(epc, src_phys_addr, src_addr, reg->size);
 
 err:
-	return ret;
+	if (!ret)
+		reg->status |= STATUS_COPY_SUCCESS;
+	else
+		reg->status |= STATUS_COPY_FAIL;
 }
 
-static int pci_epf_test_read(struct pci_epf_test *epf_test,
-			     struct pci_epf_test_reg *reg)
+static void pci_epf_test_read(struct pci_epf_test *epf_test,
+			      struct pci_epf_test_reg *reg)
 {
 	int ret;
 	void __iomem *src_addr;
@@ -509,11 +512,14 @@ err_addr:
 	pci_epc_mem_free_addr(epc, phys_addr, src_addr, reg->size);
 
 err:
-	return ret;
+	if (!ret)
+		reg->status |= STATUS_READ_SUCCESS;
+	else
+		reg->status |= STATUS_READ_FAIL;
 }
 
-static int pci_epf_test_write(struct pci_epf_test *epf_test,
-			      struct pci_epf_test_reg *reg)
+static void pci_epf_test_write(struct pci_epf_test *epf_test,
+			       struct pci_epf_test_reg *reg)
 {
 	int ret;
 	void __iomem *dst_addr;
@@ -604,7 +610,10 @@ err_addr:
 	pci_epc_mem_free_addr(epc, phys_addr, dst_addr, reg->size);
 
 err:
-	return ret;
+	if (!ret)
+		reg->status |= STATUS_WRITE_SUCCESS;
+	else
+		reg->status |= STATUS_WRITE_FAIL;
 }
 
 static void pci_epf_test_raise_irq(struct pci_epf_test *epf_test,
@@ -655,7 +664,6 @@ static void pci_epf_test_raise_irq(struct pci_epf_test *epf_test,
 
 static void pci_epf_test_cmd_handler(struct work_struct *work)
 {
-	int ret;
 	u32 command;
 	struct pci_epf_test *epf_test = container_of(work, struct pci_epf_test,
 						     cmd_handler.work);
@@ -683,27 +691,15 @@ static void pci_epf_test_cmd_handler(struct work_struct *work)
 		pci_epf_test_raise_irq(epf_test, reg);
 		break;
 	case COMMAND_WRITE:
-		ret = pci_epf_test_write(epf_test, reg);
-		if (ret)
-			reg->status |= STATUS_WRITE_FAIL;
-		else
-			reg->status |= STATUS_WRITE_SUCCESS;
+		pci_epf_test_write(epf_test, reg);
 		pci_epf_test_raise_irq(epf_test, reg);
 		break;
 	case COMMAND_READ:
-		ret = pci_epf_test_read(epf_test, reg);
-		if (!ret)
-			reg->status |= STATUS_READ_SUCCESS;
-		else
-			reg->status |= STATUS_READ_FAIL;
+		pci_epf_test_read(epf_test, reg);
 		pci_epf_test_raise_irq(epf_test, reg);
 		break;
 	case COMMAND_COPY:
-		ret = pci_epf_test_copy(epf_test, reg);
-		if (!ret)
-			reg->status |= STATUS_COPY_SUCCESS;
-		else
-			reg->status |= STATUS_COPY_FAIL;
+		pci_epf_test_copy(epf_test, reg);
 		pci_epf_test_raise_irq(epf_test, reg);
 		break;
 	default:
