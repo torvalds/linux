@@ -1960,7 +1960,8 @@ config FAIL_SUNRPC
 
 config FAULT_INJECTION_CONFIGFS
 	bool "Configfs interface for fault-injection capabilities"
-	depends on FAULT_INJECTION && CONFIGFS_FS
+	depends on FAULT_INJECTION
+	select CONFIGFS_FS
 	help
 	  This option allows configfs-based drivers to dynamically configure
 	  fault-injection via configfs.  Each parameter for driver-specific
