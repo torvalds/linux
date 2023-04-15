@@ -122,13 +122,8 @@ static int matrox_w1_probe(struct pci_dev *pdev, const struct pci_device_id *ent
 
 	dev = kzalloc(sizeof(struct matrox_device) +
 		       sizeof(struct w1_bus_master), GFP_KERNEL);
-	if (!dev) {
-		dev_err(&pdev->dev,
-			"%s: Failed to create new matrox_device object.\n",
-			__func__);
+	if (!dev)
 		return -ENOMEM;
-	}
-
 
 	dev->bus_master = (struct w1_bus_master *)(dev + 1);
 
