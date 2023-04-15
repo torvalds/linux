@@ -2610,12 +2610,9 @@ static const struct felix_info felix_info_vsc9959 = {
 static irqreturn_t felix_irq_handler(int irq, void *data)
 {
 	struct ocelot *ocelot = (struct ocelot *)data;
-	int port;
 
 	ocelot_get_txtstamp(ocelot);
-
-	for (port = 0; port < ocelot->num_phys_ports; port++)
-		ocelot_port_mm_irq(ocelot, port);
+	ocelot_mm_irq(ocelot);
 
 	return IRQ_HANDLED;
 }

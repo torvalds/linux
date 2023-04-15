@@ -1148,7 +1148,7 @@ int ocelot_vcap_policer_add(struct ocelot *ocelot, u32 pol_ix,
 			    struct ocelot_policer *pol);
 int ocelot_vcap_policer_del(struct ocelot *ocelot, u32 pol_ix);
 
-void ocelot_port_mm_irq(struct ocelot *ocelot, int port);
+void ocelot_mm_irq(struct ocelot *ocelot);
 int ocelot_port_set_mm(struct ocelot *ocelot, int port,
 		       struct ethtool_mm_cfg *cfg,
 		       struct netlink_ext_ack *extack);

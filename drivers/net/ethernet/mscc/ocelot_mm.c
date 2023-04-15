@@ -49,7 +49,7 @@ static enum ethtool_mm_verify_status ocelot_mm_verify_status(u32 val)
 	}
 }
 
-void ocelot_port_mm_irq(struct ocelot *ocelot, int port)
+static void ocelot_mm_update_port_status(struct ocelot *ocelot, int port)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	struct ocelot_mm_state *mm = &ocelot->mm[port];
@@ -91,7 +91,15 @@ void ocelot_port_mm_irq(struct ocelot *ocelot, int port)
 
 	mutex_unlock(&mm->lock);
 }
-EXPORT_SYMBOL_GPL(ocelot_port_mm_irq);
+
+void ocelot_mm_irq(struct ocelot *ocelot)
+{
+	int port;
+
+	for (port = 0; port < ocelot->num_phys_ports; port++)
+		ocelot_mm_update_port_status(ocelot, port);
+}
+EXPORT_SYMBOL_GPL(ocelot_mm_irq);
 
 int ocelot_port_set_mm(struct ocelot *ocelot, int port,
 		       struct ethtool_mm_cfg *cfg,
