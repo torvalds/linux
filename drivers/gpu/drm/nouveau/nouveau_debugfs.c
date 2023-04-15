@@ -144,7 +144,6 @@ nouveau_debugfs_pstate_set(struct file *file, const char __user *ubuf,
 	struct seq_file *m = file->private_data;
 	struct drm_device *drm = m->private;
 	struct nouveau_debugfs *debugfs = nouveau_debugfs(drm);
-	struct nvif_object *ctrl = &debugfs->ctrl;
 	struct nvif_control_pstate_user_v0 args = { .pwrsrc = -EINVAL };
 	char buf[32] = {}, *tmp, *cur = buf;
 	long value, ret;
@@ -188,7 +187,8 @@ nouveau_debugfs_pstate_set(struct file *file, const char __user *ubuf,
 		return ret;
 	}
 
-	ret = nvif_mthd(ctrl, NVIF_CONTROL_PSTATE_USER, &args, sizeof(args));
+	ret = nvif_mthd(&debugfs->ctrl, NVIF_CONTROL_PSTATE_USER,
+			&args, sizeof(args));
 	pm_runtime_put_autosuspend(drm->dev);
 	if (ret < 0)
 		return ret;
