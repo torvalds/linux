@@ -27,6 +27,7 @@ copy_user_generic(void *to, const void *from, unsigned len)
 {
 	unsigned ret;
 
+	stac();
 	/*
 	 * If CPU has FSRM feature, use 'rep movs'.
 	 * Otherwise, use copy_user_generic_unrolled.
@@ -38,6 +39,7 @@ copy_user_generic(void *to, const void *from, unsigned len)
 				     "=d" (len)),
 			 "1" (to), "2" (from), "3" (len)
 			 : "memory", "rcx", "r8", "r9", "r10", "r11");
+	clac();
 	return ret;
 }
 
@@ -64,8 +66,12 @@ static inline int
 __copy_from_user_inatomic_nocache(void *dst, const void __user *src,
 				  unsigned size)
 {
+	long ret;
 	kasan_check_write(dst, size);
-	return __copy_user_nocache(dst, src, size, 0);
+	stac();
+	ret = __copy_user_nocache(dst, src, size, 0);
+	clac();
+	return ret;
 }
 
 static inline int

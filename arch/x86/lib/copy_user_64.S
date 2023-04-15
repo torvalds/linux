@@ -51,7 +51,6 @@
  * eax uncopied bytes or 0 if successful.
  */
 SYM_FUNC_START(copy_user_generic_unrolled)
-	ASM_STAC
 	cmpl $8,%edx
 	jb .Lcopy_user_short_string_bytes
 	ALIGN_DESTINATION
@@ -123,15 +122,12 @@ EXPORT_SYMBOL(copy_user_generic_unrolled)
  * eax uncopied bytes or 0 if successful.
  */
 SYM_FUNC_START(copy_user_fast_string)
-	ASM_STAC
 	movl %edx,%ecx
 1:	rep movsb
 	xorl %eax,%eax
-	ASM_CLAC
 	RET
 
 12:	movl %ecx,%eax		/* ecx is zerorest also */
-	ASM_CLAC
 	RET
 
 	_ASM_EXTABLE_CPY(1b, 12b)
@@ -160,12 +156,10 @@ SYM_CODE_START_LOCAL(.Lcopy_user_handle_tail)
 	movl %edx,%ecx
 1:	rep movsb
 2:	mov %ecx,%eax
-	ASM_CLAC
 	RET
 
 3:
 	movl %edx,%eax
-	ASM_CLAC
 	RET
 
 	_ASM_EXTABLE_CPY(1b, 2b)
@@ -209,7 +203,6 @@ SYM_CODE_START_LOCAL(copy_user_short_string)
 	decl %ecx
 	jnz 21b
 23:	xor %eax,%eax
-	ASM_CLAC
 	RET
 
 40:	leal (%rdx,%rcx,8),%edx
@@ -233,8 +226,6 @@ SYM_CODE_END(copy_user_short_string)
  *  - Require 4-byte alignment when size is 4 bytes.
  */
 SYM_FUNC_START(__copy_user_nocache)
-	ASM_STAC
-
 	/* If size is less than 8 bytes, go to 4-byte copy */
 	cmpl $8,%edx
 	jb .L_4b_nocache_copy_entry
@@ -327,7 +318,6 @@ SYM_FUNC_START(__copy_user_nocache)
 	/* Finished copying; fence the prior stores */
 .L_finish_copy:
 	xorl %eax,%eax
-	ASM_CLAC
 	sfence
 	RET
 
