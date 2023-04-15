@@ -132,7 +132,7 @@ nouveau_debugfs_pstate_get(struct seq_file *m, void *data)
 				seq_printf(m, " DC");
 		}
 
-		seq_printf(m, "\n");
+		seq_putc(m, '\n');
 	}
 
 	return 0;
