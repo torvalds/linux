@@ -58,6 +58,12 @@
 
 #define RING_BBADDR(base)			XE_REG((base) + 0x140)
 #define RING_BBADDR_UDW(base)			XE_REG((base) + 0x168)
+
+/* Handling MOCS value in BLIT_CCTL like it was done CMD_CCTL */
+#define BLIT_CCTL(base)				XE_REG((base) + 0x204)
+#define   BLIT_CCTL_DST_MOCS_MASK		REG_GENMASK(14, 9)
+#define   BLIT_CCTL_SRC_MOCS_MASK		REG_GENMASK(6, 1)
+
 #define RING_EXECLIST_STATUS_LO(base)		XE_REG((base) + 0x234)
 #define RING_EXECLIST_STATUS_HI(base)		XE_REG((base) + 0x234 + 4)
 

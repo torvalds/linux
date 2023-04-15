@@ -17,6 +17,7 @@ void xe_hw_engine_enable_ring(struct xe_hw_engine *hwe);
 void xe_hw_engine_print_state(struct xe_hw_engine *hwe, struct drm_printer *p);
 u32 xe_hw_engine_mask_per_class(struct xe_gt *gt,
 				enum xe_engine_class engine_class);
+void xe_hw_engine_setup_default_lrc_state(struct xe_hw_engine *hwe);
 
 bool xe_hw_engine_is_reserved(struct xe_hw_engine *hwe);
 static inline bool xe_hw_engine_is_valid(struct xe_hw_engine *hwe)
