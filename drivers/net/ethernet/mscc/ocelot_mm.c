@@ -205,6 +205,7 @@ int ocelot_port_get_mm(struct ocelot *ocelot, int port,
 	state->tx_min_frag_size = ethtool_mm_frag_size_add_to_min(add_frag_size);
 	state->rx_min_frag_size = ETH_ZLEN;
 
+	ocelot_mm_update_port_status(ocelot, port);
 	state->verify_status = mm->verify_status;
 	state->tx_active = mm->tx_active;
 
