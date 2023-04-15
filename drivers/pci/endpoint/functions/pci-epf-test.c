@@ -325,7 +325,8 @@ static void pci_epf_test_print_rate(const char *ops, u64 size,
 		(u64)ts.tv_sec, (u32)ts.tv_nsec, rate / 1024);
 }
 
-static int pci_epf_test_copy(struct pci_epf_test *epf_test)
+static int pci_epf_test_copy(struct pci_epf_test *epf_test,
+			     struct pci_epf_test_reg *reg)
 {
 	int ret;
 	bool use_dma;
@@ -337,8 +338,6 @@ static int pci_epf_test_copy(struct pci_epf_test *epf_test)
 	struct pci_epf *epf = epf_test->epf;
 	struct device *dev = &epf->dev;
 	struct pci_epc *epc = epf->epc;
-	enum pci_barno test_reg_bar = epf_test->test_reg_bar;
-	struct pci_epf_test_reg *reg = epf_test->reg[test_reg_bar];
 
 	src_addr = pci_epc_mem_alloc_addr(epc, &src_phys_addr, reg->size);
 	if (!src_addr) {
@@ -424,7 +423,8 @@ err:
 	return ret;
 }
 
-static int pci_epf_test_read(struct pci_epf_test *epf_test)
+static int pci_epf_test_read(struct pci_epf_test *epf_test,
+			     struct pci_epf_test_reg *reg)
 {
 	int ret;
 	void __iomem *src_addr;
@@ -438,8 +438,6 @@ static int pci_epf_test_read(struct pci_epf_test *epf_test)
 	struct device *dev = &epf->dev;
 	struct pci_epc *epc = epf->epc;
 	struct device *dma_dev = epf->epc->dev.parent;
-	enum pci_barno test_reg_bar = epf_test->test_reg_bar;
-	struct pci_epf_test_reg *reg = epf_test->reg[test_reg_bar];
 
 	src_addr = pci_epc_mem_alloc_addr(epc, &phys_addr, reg->size);
 	if (!src_addr) {
@@ -514,7 +512,8 @@ err:
 	return ret;
 }
 
-static int pci_epf_test_write(struct pci_epf_test *epf_test)
+static int pci_epf_test_write(struct pci_epf_test *epf_test,
+			      struct pci_epf_test_reg *reg)
 {
 	int ret;
 	void __iomem *dst_addr;
@@ -527,8 +526,6 @@ static int pci_epf_test_write(struct pci_epf_test *epf_test)
 	struct device *dev = &epf->dev;
 	struct pci_epc *epc = epf->epc;
 	struct device *dma_dev = epf->epc->dev.parent;
-	enum pci_barno test_reg_bar = epf_test->test_reg_bar;
-	struct pci_epf_test_reg *reg = epf_test->reg[test_reg_bar];
 
 	dst_addr = pci_epc_mem_alloc_addr(epc, &phys_addr, reg->size);
 	if (!dst_addr) {
@@ -673,7 +670,7 @@ static void pci_epf_test_cmd_handler(struct work_struct *work)
 	}
 
 	if (command & COMMAND_WRITE) {
-		ret = pci_epf_test_write(epf_test);
+		ret = pci_epf_test_write(epf_test, reg);
 		if (ret)
 			reg->status |= STATUS_WRITE_FAIL;
 		else
@@ -684,7 +681,7 @@ static void pci_epf_test_cmd_handler(struct work_struct *work)
 	}
 
 	if (command & COMMAND_READ) {
-		ret = pci_epf_test_read(epf_test);
+		ret = pci_epf_test_read(epf_test, reg);
 		if (!ret)
 			reg->status |= STATUS_READ_SUCCESS;
 		else
@@ -695,7 +692,7 @@ static void pci_epf_test_cmd_handler(struct work_struct *work)
 	}
 
 	if (command & COMMAND_COPY) {
-		ret = pci_epf_test_copy(epf_test);
+		ret = pci_epf_test_copy(epf_test, reg);
 		if (!ret)
 			reg->status |= STATUS_COPY_SUCCESS;
 		else
