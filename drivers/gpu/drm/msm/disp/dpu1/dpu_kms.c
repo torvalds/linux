@@ -617,6 +617,44 @@ static int _dpu_kms_initialize_displayport(struct drm_device *dev,
 	return 0;
 }
 
+static int _dpu_kms_initialize_hdmi(struct drm_device *dev,
+				    struct msm_drm_private *priv,
+				    struct dpu_kms *dpu_kms)
+{
+	struct drm_encoder *encoder = NULL;
+	struct msm_display_info info;
+	int rc;
+
+	if (!priv->hdmi)
+		return 0;
+
+	encoder = dpu_encoder_init(dev, DRM_MODE_ENCODER_TMDS);
+	if (IS_ERR(encoder)) {
+		DPU_ERROR("encoder init failed for HDMI display\n");
+		return PTR_ERR(encoder);
+	}
+
+	memset(&info, 0, sizeof(info));
+	rc = msm_hdmi_modeset_init(priv->hdmi, dev, encoder);
+	if (rc) {
+		DPU_ERROR("modeset_init failed for DP, rc = %d\n", rc);
+		drm_encoder_cleanup(encoder);
+		return rc;
+	}
+
+	info.num_of_h_tiles = 1;
+	info.h_tile_instance[0] = 0;
+	info.intf_type = INTF_HDMI;
+	rc = dpu_encoder_setup(dev, encoder, &info);
+	if (rc) {
+		DPU_ERROR("failed to setup DPU encoder %d: rc:%d\n",
+			  encoder->base.id, rc);
+		return rc;
+	}
+
+	return 0;
+}
+
 static int _dpu_kms_initialize_writeback(struct drm_device *dev,
 		struct msm_drm_private *priv, struct dpu_kms *dpu_kms,
 		const u32 *wb_formats, int n_formats)
@@ -680,6 +718,12 @@ static int _dpu_kms_setup_displays(struct drm_device *dev,
 	rc = _dpu_kms_initialize_displayport(dev, priv, dpu_kms);
 	if (rc) {
 		DPU_ERROR("initialize_DP failed, rc = %d\n", rc);
+		return rc;
+	}
+
+	rc = _dpu_kms_initialize_hdmi(dev, priv, dpu_kms);
+	if (rc) {
+		DPU_ERROR("initialize HDMI failed, rc = %d\n", rc);
 		return rc;
 	}
 
