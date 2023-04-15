@@ -2546,44 +2546,51 @@ fail:
 	return ret;
 }
 
-#define H2C_LEN_SCAN_OFFLOAD 28
 int rtw89_fw_h2c_scan_offload(struct rtw89_dev *rtwdev,
 			      struct rtw89_scan_option *option,
 			      struct rtw89_vif *rtwvif)
 {
 	struct rtw89_chan *op = &rtwdev->scan_info.op_chan;
+	struct rtw89_h2c_scanofld *h2c;
+	u32 len = sizeof(*h2c);
 	struct sk_buff *skb;
-	u8 *cmd;
 	int ret;
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_LEN_SCAN_OFFLOAD);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for h2c scan offload\n");
 		return -ENOMEM;
 	}
-	skb_put(skb, H2C_LEN_SCAN_OFFLOAD);
-	cmd = skb->data;
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_scanofld *)skb->data;
 
-	RTW89_SET_FWCMD_SCANOFLD_MACID(cmd, rtwvif->mac_id);
-	RTW89_SET_FWCMD_SCANOFLD_PORT_ID(cmd, rtwvif->port);
-	RTW89_SET_FWCMD_SCANOFLD_BAND(cmd, RTW89_PHY_0);
-	RTW89_SET_FWCMD_SCANOFLD_OPERATION(cmd, option->enable);
-	RTW89_SET_FWCMD_SCANOFLD_NOTIFY_END(cmd, true);
-	RTW89_SET_FWCMD_SCANOFLD_TARGET_CH_MODE(cmd, option->target_ch_mode);
-	RTW89_SET_FWCMD_SCANOFLD_START_MODE(cmd, RTW89_SCAN_IMMEDIATE);
-	RTW89_SET_FWCMD_SCANOFLD_SCAN_TYPE(cmd, RTW89_SCAN_ONCE);
+	h2c->w0 = le32_encode_bits(rtwvif->mac_id, RTW89_H2C_SCANOFLD_W0_MACID) |
+		  le32_encode_bits(rtwvif->port, RTW89_H2C_SCANOFLD_W0_PORT_ID) |
+		  le32_encode_bits(RTW89_PHY_0, RTW89_H2C_SCANOFLD_W0_BAND) |
+		  le32_encode_bits(option->enable, RTW89_H2C_SCANOFLD_W0_OPERATION);
+
+	h2c->w1 = le32_encode_bits(true, RTW89_H2C_SCANOFLD_W1_NOTIFY_END) |
+		  le32_encode_bits(option->target_ch_mode,
+				   RTW89_H2C_SCANOFLD_W1_TARGET_CH_MODE) |
+		  le32_encode_bits(RTW89_SCAN_IMMEDIATE,
+				   RTW89_H2C_SCANOFLD_W1_START_MODE) |
+		  le32_encode_bits(RTW89_SCAN_ONCE, RTW89_H2C_SCANOFLD_W1_SCAN_TYPE);
+
 	if (option->target_ch_mode) {
-		RTW89_SET_FWCMD_SCANOFLD_TARGET_CH_BW(cmd, op->band_width);
-		RTW89_SET_FWCMD_SCANOFLD_TARGET_PRI_CH(cmd,
-						       op->primary_channel);
-		RTW89_SET_FWCMD_SCANOFLD_TARGET_CENTRAL_CH(cmd, op->channel);
-		RTW89_SET_FWCMD_SCANOFLD_TARGET_CH_BAND(cmd, op->band_type);
+		h2c->w1 |= le32_encode_bits(op->band_width,
+					    RTW89_H2C_SCANOFLD_W1_TARGET_CH_BW) |
+			   le32_encode_bits(op->primary_channel,
+					    RTW89_H2C_SCANOFLD_W1_TARGET_PRI_CH) |
+			   le32_encode_bits(op->channel,
+					    RTW89_H2C_SCANOFLD_W1_TARGET_CENTRAL_CH);
+		h2c->w0 |= le32_encode_bits(op->band_type,
+					    RTW89_H2C_SCANOFLD_W0_TARGET_CH_BAND);
 	}
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_MAC, H2C_CL_MAC_FW_OFLD,
 			      H2C_FUNC_SCANOFLD, 1, 1,
-			      H2C_LEN_SCAN_OFFLOAD);
+			      len);
 
 	ret = rtw89_h2c_tx(rtwdev, skb, false);
 	if (ret) {

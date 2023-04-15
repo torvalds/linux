@@ -2731,96 +2731,32 @@ static inline void RTW89_SET_FWCMD_CHINFO_POWER_IDX(void *cmd, u32 val)
 	le32p_replace_bits((__le32 *)((u8 *)(cmd) + 16), val, GENMASK(15, 0));
 }
 
-static inline void RTW89_SET_FWCMD_SCANOFLD_MACID(void *cmd, u32 val)
-{
-	le32p_replace_bits((__le32 *)((u8 *)(cmd)), val, GENMASK(7, 0));
-}
+struct rtw89_h2c_scanofld {
+	__le32 w0;
+	__le32 w1;
+	__le32 w2;
+	__le32 tsf_high;
+	__le32 tsf_low;
+	__le32 w5;
+	__le32 w6;
+} __packed;
 
-static inline void RTW89_SET_FWCMD_SCANOFLD_NORM_CY(void *cmd, u32 val)
-{
-	le32p_replace_bits((__le32 *)((u8 *)(cmd)), val, GENMASK(15, 8));
-}
-
-static inline void RTW89_SET_FWCMD_SCANOFLD_PORT_ID(void *cmd, u32 val)
-{
-	le32p_replace_bits((__le32 *)((u8 *)(cmd)), val, GENMASK(18, 16));
-}
-
-static inline void RTW89_SET_FWCMD_SCANOFLD_BAND(void *cmd, u32 val)
-{
-	le32p_replace_bits((__le32 *)((u8 *)(cmd)), val, BIT(19));
-}
-
-static inline void RTW89_SET_FWCMD_SCANOFLD_OPERATION(void *cmd, u32 val)
-{
-	le32p_replace_bits((__le32 *)((u8 *)(cmd)), val, GENMASK(21, 20));
-}
-
-static inline void RTW89_SET_FWCMD_SCANOFLD_TARGET_CH_BAND(void *cmd, u32 val)
-{
-	le32p_replace_bits((__le32 *)((u8 *)(cmd)), val, GENMASK(23, 22));
-}
-
-static inline void RTW89_SET_FWCMD_SCANOFLD_NOTIFY_END(void *cmd, u32 val)
-{
-	le32p_replace_bits((__le32 *)((u8 *)(cmd) + 4), val, BIT(0));
-}
-
-static inline void RTW89_SET_FWCMD_SCANOFLD_TARGET_CH_MODE(void *cmd, u32 val)
-{
-	le32p_replace_bits((__le32 *)((u8 *)(cmd) + 4), val, BIT(1));
-}
-
-static inline void RTW89_SET_FWCMD_SCANOFLD_START_MODE(void *cmd, u32 val)
-{
-	le32p_replace_bits((__le32 *)((u8 *)(cmd) + 4), val, BIT(2));
-}
-
-static inline void RTW89_SET_FWCMD_SCANOFLD_SCAN_TYPE(void *cmd, u32 val)
-{
-	le32p_replace_bits((__le32 *)((u8 *)(cmd) + 4), val, GENMASK(4, 3));
-}
-
-static inline void RTW89_SET_FWCMD_SCANOFLD_TARGET_CH_BW(void *cmd, u32 val)
-{
-	le32p_replace_bits((__le32 *)((u8 *)(cmd) + 4), val, GENMASK(7, 5));
-}
-
-static inline void RTW89_SET_FWCMD_SCANOFLD_TARGET_PRI_CH(void *cmd, u32 val)
-{
-	le32p_replace_bits((__le32 *)((u8 *)(cmd) + 4), val, GENMASK(15, 8));
-}
-
-static inline void RTW89_SET_FWCMD_SCANOFLD_TARGET_CENTRAL_CH(void *cmd,
-							      u32 val)
-{
-	le32p_replace_bits((__le32 *)((u8 *)(cmd) + 4), val, GENMASK(23, 16));
-}
-
-static inline void RTW89_SET_FWCMD_SCANOFLD_PROBE_REQ_PKT_ID(void *cmd, u32 val)
-{
-	le32p_replace_bits((__le32 *)((u8 *)(cmd) + 4), val, GENMASK(31, 24));
-}
-
-static inline void RTW89_SET_FWCMD_SCANOFLD_NORM_PD(void *cmd, u32 val)
-{
-	le32p_replace_bits((__le32 *)((u8 *)(cmd) + 8), val, GENMASK(15, 0));
-}
-
-static inline void RTW89_SET_FWCMD_SCANOFLD_SLOW_PD(void *cmd, u32 val)
-{
-	le32p_replace_bits((__le32 *)((u8 *)(cmd) + 8), val, GENMASK(23, 16));
-}
-
-static inline void RTW89_SET_FWCMD_SCANOFLD_TSF_HIGH(void *cmd, u32 val)
-{
-	le32p_replace_bits((__le32 *)((u8 *)(cmd) + 12), val, GENMASK(31, 0));
-}
-
-static inline void RTW89_SET_FWCMD_SCANOFLD_TSF_SLOW(void *cmd, u32 val)
-{
-	le32p_replace_bits((__le32 *)((u8 *)(cmd) + 16), val, GENMASK(31, 0));
-}
+#define RTW89_H2C_SCANOFLD_W0_MACID GENMASK(7, 0)
+#define RTW89_H2C_SCANOFLD_W0_NORM_CY GENMASK(15, 8)
+#define RTW89_H2C_SCANOFLD_W0_PORT_ID GENMASK(18, 16)
+#define RTW89_H2C_SCANOFLD_W0_BAND BIT(19)
+#define RTW89_H2C_SCANOFLD_W0_OPERATION GENMASK(21, 20)
+#define RTW89_H2C_SCANOFLD_W0_TARGET_CH_BAND GENMASK(23, 22)
+#define RTW89_H2C_SCANOFLD_W1_NOTIFY_END BIT(0)
+#define RTW89_H2C_SCANOFLD_W1_TARGET_CH_MODE BIT(1)
+#define RTW89_H2C_SCANOFLD_W1_START_MODE BIT(2)
+#define RTW89_H2C_SCANOFLD_W1_SCAN_TYPE GENMASK(4, 3)
+#define RTW89_H2C_SCANOFLD_W1_TARGET_CH_BW GENMASK(7, 5)
+#define RTW89_H2C_SCANOFLD_W1_TARGET_PRI_CH GENMASK(15, 8)
+#define RTW89_H2C_SCANOFLD_W1_TARGET_CENTRAL_CH GENMASK(23, 16)
+#define RTW89_H2C_SCANOFLD_W1_PROBE_REQ_PKT_ID GENMASK(31, 24)
+#define RTW89_H2C_SCANOFLD_W2_NORM_PD GENMASK(15, 0)
+#define RTW89_H2C_SCANOFLD_W2_SLOW_PD GENMASK(23, 16)
 
 static inline void RTW89_SET_FWCMD_P2P_MACID(void *cmd, u32 val)
 {
