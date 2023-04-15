@@ -982,9 +982,14 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 				goto fail;
 			}
 		}
-	} else
+	} else {
 		rules->policy.dfa = aa_get_dfa(nulldfa);
-
+		rules->policy.perms = kcalloc(2, sizeof(struct aa_perms),
+					      GFP_KERNEL);
+		if (!rules->policy.perms)
+			goto fail;
+		rules->policy.size = 2;
+	}
 	/* get file rules */
 	error = unpack_pdb(e, &rules->file, false, true, &info);
 	if (error) {
@@ -1001,9 +1006,22 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 		   rules->policy.start[AA_CLASS_FILE]) {
 		rules->file.dfa = aa_get_dfa(rules->policy.dfa);
 		rules->file.start[AA_CLASS_FILE] = rules->policy.start[AA_CLASS_FILE];
-	} else
+		rules->file.perms = kcalloc(rules->policy.size,
+					    sizeof(struct aa_perms),
+					    GFP_KERNEL);
+		if (!rules->file.perms)
+			goto fail;
+		memcpy(rules->file.perms, rules->policy.perms,
+		       rules->policy.size * sizeof(struct aa_perms));
+		rules->file.size = rules->policy.size;
+	} else {
 		rules->file.dfa = aa_get_dfa(nulldfa);
-
+		rules->file.perms = kcalloc(2, sizeof(struct aa_perms),
+					    GFP_KERNEL);
+		if (!rules->file.perms)
+			goto fail;
+		rules->file.size = 2;
+	}
 	error = -EPROTO;
 	if (aa_unpack_nameX(e, AA_STRUCT, "data")) {
 		info = "out of memory";
