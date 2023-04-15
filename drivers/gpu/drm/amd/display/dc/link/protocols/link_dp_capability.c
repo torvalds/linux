@@ -1552,6 +1552,9 @@ static bool retrieve_link_cap(struct dc_link *link)
 	int i;
 	struct dp_sink_hw_fw_revision dp_hw_fw_revision;
 	const uint32_t post_oui_delay = 30; // 30ms
+	bool is_fec_supported = false;
+	bool is_dsc_basic_supported = false;
+	bool is_dsc_passthrough_supported = false;
 
 	memset(dpcd_data, '\0', sizeof(dpcd_data));
 	memset(&down_strm_port_count,
@@ -1694,6 +1697,7 @@ static bool retrieve_link_cap(struct dc_link *link)
 
 	/* TODO - decouple raw mst capability from policy decision */
 	link->dpcd_caps.is_mst_capable = read_is_mst_supported(link);
+	DC_LOG_DC("%s: MST_Support: %s\n", __func__, str_yes_no(link->dpcd_caps.is_mst_capable));
 
 	get_active_converter_info(ds_port.byte, link);
 
@@ -1801,6 +1805,18 @@ static bool retrieve_link_cap(struct dc_link *link)
 				DP_DSC_SUPPORT,
 				link->dpcd_caps.dsc_caps.dsc_basic_caps.raw,
 				sizeof(link->dpcd_caps.dsc_caps.dsc_basic_caps.raw));
+		if (status == DC_OK) {
+			is_fec_supported = link->dpcd_caps.fec_cap.bits.FEC_CAPABLE;
+			is_dsc_basic_supported = link->dpcd_caps.dsc_caps.dsc_basic_caps.fields.dsc_support.DSC_SUPPORT;
+			is_dsc_passthrough_supported = link->dpcd_caps.dsc_caps.dsc_basic_caps.fields.dsc_support.DSC_PASSTHROUGH_SUPPORT;
+			DC_LOG_DC("%s: FEC_Sink_Support: %s\n", __func__,
+				  str_yes_no(is_fec_supported));
+			DC_LOG_DC("%s: DSC_Basic_Sink_Support: %s\n", __func__,
+				  str_yes_no(is_dsc_basic_supported));
+			if (link->dpcd_caps.is_mst_capable)
+				DC_LOG_DC("%s: DSC_Passthrough_Sink_Support: %s\n", __func__,
+					  str_yes_no(is_dsc_passthrough_supported));
+		}
 		if (link->dpcd_caps.dongle_type != DISPLAY_DONGLE_NONE) {
 			status = core_link_read_dpcd(
 					link,
