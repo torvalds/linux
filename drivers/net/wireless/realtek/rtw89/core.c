@@ -360,6 +360,15 @@ void rtw89_set_channel(struct rtw89_dev *rtwdev)
 	rtw89_set_entity_state(rtwdev, true);
 }
 
+void rtw89_get_channel(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+		       struct rtw89_chan *chan)
+{
+	const struct cfg80211_chan_def *chandef;
+
+	chandef = rtw89_chandef_get(rtwdev, rtwvif->sub_entity_idx);
+	rtw89_get_channel_params(chandef, chan);
+}
+
 static enum rtw89_core_tx_type
 rtw89_core_get_tx_type(struct rtw89_dev *rtwdev,
 		       struct sk_buff *skb)

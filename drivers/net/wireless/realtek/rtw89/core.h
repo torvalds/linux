@@ -3936,10 +3936,7 @@ struct rtw89_early_h2c {
 struct rtw89_hw_scan_info {
 	struct ieee80211_vif *scanning_vif;
 	struct list_head pkt_list[NUM_NL80211_BANDS];
-	u8 op_pri_ch;
-	u8 op_chan;
-	u8 op_bw;
-	u8 op_band;
+	struct rtw89_chan op_chan;
 	u32 last_chan_idx;
 };
 
@@ -4981,6 +4978,8 @@ void rtw89_free_ieee80211_hw(struct rtw89_dev *rtwdev);
 void rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev);
 void rtw89_get_default_chandef(struct cfg80211_chan_def *chandef);
 void rtw89_set_channel(struct rtw89_dev *rtwdev);
+void rtw89_get_channel(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+		       struct rtw89_chan *chan);
 u8 rtw89_core_acquire_bit_map(unsigned long *addr, unsigned long size);
 void rtw89_core_release_bit_map(unsigned long *addr, u8 bit);
 void rtw89_core_release_all_bits_map(unsigned long *addr, unsigned int nbits);

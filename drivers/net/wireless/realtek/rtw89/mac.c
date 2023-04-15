@@ -4194,9 +4194,9 @@ rtw89_mac_c2h_macid_pause(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len
 
 static bool rtw89_is_op_chan(struct rtw89_dev *rtwdev, u8 band, u8 channel)
 {
-	struct rtw89_hw_scan_info *scan_info = &rtwdev->scan_info;
+	const struct rtw89_chan *op = &rtwdev->scan_info.op_chan;
 
-	return band == scan_info->op_band && channel == scan_info->op_pri_ch;
+	return band == op->band_type && channel == op->primary_channel;
 }
 
 static void
@@ -4246,11 +4246,15 @@ rtw89_mac_c2h_scanofld_rsp(struct rtw89_dev *rtwdev, struct sk_buff *c2h,
 		}
 		break;
 	case RTW89_SCAN_ENTER_CH_NOTIFY:
-		rtw89_chan_create(&new, chan, chan, band, RTW89_CHANNEL_WIDTH_20);
-		rtw89_assign_entity_chan(rtwdev, RTW89_SUB_ENTITY_0, &new);
 		if (rtw89_is_op_chan(rtwdev, band, chan)) {
-			rtw89_store_op_chan(rtwdev, false);
+			rtw89_assign_entity_chan(rtwdev, rtwvif->sub_entity_idx,
+						 &rtwdev->scan_info.op_chan);
 			ieee80211_wake_queues(rtwdev->hw);
+		} else {
+			rtw89_chan_create(&new, chan, chan, band,
+					  RTW89_CHANNEL_WIDTH_20);
+			rtw89_assign_entity_chan(rtwdev, rtwvif->sub_entity_idx,
+						 &new);
 		}
 		break;
 	default:
