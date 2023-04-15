@@ -5,6 +5,7 @@
 
 #ifndef _NOLIBC_ARCH_S390_H
 #define _NOLIBC_ARCH_S390_H
+#include <asm/signal.h>
 #include <asm/unistd.h>
 
 /* The struct returned by the stat() syscall, equivalent to stat64(). The
@@ -223,4 +224,12 @@ void *sys_mmap(void *addr, size_t length, int prot, int flags, int fd,
 	return (void *)my_syscall1(__NR_mmap, &args);
 }
 #define sys_mmap sys_mmap
+
+static __attribute__((unused))
+pid_t sys_fork(void)
+{
+	return my_syscall5(__NR_clone, 0, SIGCHLD, 0, 0, 0);
+}
+#define sys_fork sys_fork
+
 #endif /* _NOLIBC_ARCH_S390_H */

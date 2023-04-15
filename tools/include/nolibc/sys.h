@@ -336,6 +336,7 @@ void exit(int status)
  * pid_t fork(void);
  */
 
+#ifndef sys_fork
 static __attribute__((unused))
 pid_t sys_fork(void)
 {
@@ -351,6 +352,7 @@ pid_t sys_fork(void)
 #error Neither __NR_clone nor __NR_fork defined, cannot implement sys_fork()
 #endif
 }
+#endif
 
 static __attribute__((unused))
 pid_t fork(void)
