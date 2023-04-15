@@ -99,8 +99,10 @@ static ssize_t output_write(struct file *filp, struct kobject *kobj,
 	if (w1_reset_select_slave(sl))
 		goto out;
 
-	/* according to the DS2413 datasheet the most significant 6 bits
-	   should be set to "1"s, so do it now */
+	/*
+	 * according to the DS2413 datasheet the most significant 6 bits
+	 * should be set to "1"s, so do it now
+	 */
 	*buf = *buf | 0xFC;
 
 	while (retries--) {

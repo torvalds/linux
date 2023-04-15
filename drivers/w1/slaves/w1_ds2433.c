@@ -115,7 +115,7 @@ static ssize_t eeprom_read(struct file *filp, struct kobject *kobj,
 	}
 	memcpy(buf, &data->memory[off], count);
 
-#else 	/* CONFIG_W1_SLAVE_DS2433_CRC */
+#else	/* CONFIG_W1_SLAVE_DS2433_CRC */
 
 	/* read directly from the EEPROM */
 	if (w1_reset_select_slave(sl)) {

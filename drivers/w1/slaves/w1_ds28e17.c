@@ -59,7 +59,7 @@ MODULE_PARM_DESC(stretch, "Default I2C stretch value to be set when a DS28E17 is
 /*
  * Maximum number of I2C bytes to transfer within one CRC16 protected onewire
  * command.
- * */
+ */
 #define W1_F19_WRITE_DATA_LIMIT 255
 
 /* Maximum number of I2C bytes to read with one onewire command. */

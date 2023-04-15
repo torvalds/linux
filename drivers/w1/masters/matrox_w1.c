@@ -39,8 +39,7 @@
 #define MATROX_GET_DATA			0x2B
 #define MATROX_CURSOR_CTL		0x06
 
-struct matrox_device
-{
+struct matrox_device {
 	void __iomem *base_addr;
 	void __iomem *port_index;
 	void __iomem *port_data;

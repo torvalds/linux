@@ -198,8 +198,10 @@ static int w1_f1C_write(struct w1_slave *sl, int addr, int len, const u8 *data)
 	wrbuf[3] = es;
 
 	for (i = 0; i < sizeof(wrbuf); ++i) {
-		/* issue 10ms strong pullup (or delay) on the last byte
-		   for writing the data from the scratchpad to EEPROM */
+		/*
+		 * issue 10ms strong pullup (or delay) on the last byte
+		 * for writing the data from the scratchpad to EEPROM
+		 */
 		if (w1_strong_pullup && i == sizeof(wrbuf)-1)
 			w1_next_pullup(sl->master, tm);
 
