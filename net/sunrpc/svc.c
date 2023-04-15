@@ -878,13 +878,12 @@ EXPORT_SYMBOL_GPL(svc_rqst_replace_page);
  */
 void svc_rqst_release_pages(struct svc_rqst *rqstp)
 {
-	while (rqstp->rq_next_page != rqstp->rq_respages) {
-		struct page **pp = --rqstp->rq_next_page;
+	int i, count = rqstp->rq_next_page - rqstp->rq_respages;
 
-		if (*pp) {
-			put_page(*pp);
-			*pp = NULL;
-		}
+	if (count) {
+		release_pages(rqstp->rq_respages, count);
+		for (i = 0; i < count; i++)
+			rqstp->rq_respages[i] = NULL;
 	}
 }
 
