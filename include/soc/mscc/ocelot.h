@@ -749,6 +749,8 @@ struct ocelot_mm_state {
 	enum ethtool_mm_verify_status verify_status;
 	bool tx_enabled;
 	bool tx_active;
+	u8 preemptible_tcs;
+	u8 active_preemptible_tcs;
 };
 
 struct ocelot_port;
@@ -1158,6 +1160,7 @@ int ocelot_port_get_mm(struct ocelot *ocelot, int port,
 		       struct ethtool_mm_state *state);
 int ocelot_port_mqprio(struct ocelot *ocelot, int port,
 		       struct tc_mqprio_qopt_offload *mqprio);
+void ocelot_port_update_preemptible_tcs(struct ocelot *ocelot, int port);
 
 #if IS_ENABLED(CONFIG_BRIDGE_MRP)
 int ocelot_mrp_add(struct ocelot *ocelot, int port,

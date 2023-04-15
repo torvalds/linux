@@ -1006,7 +1006,12 @@ void ocelot_phylink_mac_link_up(struct ocelot *ocelot, int port,
 	 */
 	if (ocelot->ops->cut_through_fwd) {
 		mutex_lock(&ocelot->fwd_domain_lock);
-		ocelot->ops->cut_through_fwd(ocelot);
+		/* Workaround for hardware bug - FP doesn't work
+		 * at all link speeds for all PHY modes. The function
+		 * below also calls ocelot->ops->cut_through_fwd(),
+		 * so we don't need to do it twice.
+		 */
+		ocelot_port_update_active_preemptible_tcs(ocelot, port);
 		mutex_unlock(&ocelot->fwd_domain_lock);
 	}
 
@@ -2705,6 +2710,7 @@ static void ocelot_port_reset_mqprio(struct ocelot *ocelot, int port)
 	struct net_device *dev = ocelot->ops->port_to_netdev(ocelot, port);
 
 	netdev_reset_tc(dev);
+	ocelot_port_change_fp(ocelot, port, 0);
 }
 
 int ocelot_port_mqprio(struct ocelot *ocelot, int port,
@@ -2740,6 +2746,8 @@ int ocelot_port_mqprio(struct ocelot *ocelot, int port,
 	err = netif_set_real_num_tx_queues(dev, num_tc);
 	if (err)
 		goto err_reset_tc;
+
+	ocelot_port_change_fp(ocelot, port, mqprio->preemptible_tcs);
 
 	return 0;
 

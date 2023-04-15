@@ -49,6 +49,59 @@ static enum ethtool_mm_verify_status ocelot_mm_verify_status(u32 val)
 	}
 }
 
+void ocelot_port_update_active_preemptible_tcs(struct ocelot *ocelot, int port)
+{
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
+	struct ocelot_mm_state *mm = &ocelot->mm[port];
+	u32 val = 0;
+
+	lockdep_assert_held(&ocelot->fwd_domain_lock);
+
+	/* Only commit preemptible TCs when MAC Merge is active.
+	 * On NXP LS1028A, when using QSGMII, the port hangs if transmitting
+	 * preemptible frames at any other link speed than gigabit, so avoid
+	 * preemption at lower speeds in this PHY mode.
+	 */
+	if ((ocelot_port->phy_mode != PHY_INTERFACE_MODE_QSGMII ||
+	     ocelot_port->speed == SPEED_1000) && mm->tx_active)
+		val = mm->preemptible_tcs;
+
+	/* Cut through switching doesn't work for preemptible priorities,
+	 * so first make sure it is disabled.
+	 */
+	mm->active_preemptible_tcs = val;
+	ocelot->ops->cut_through_fwd(ocelot);
+
+	dev_dbg(ocelot->dev,
+		"port %d %s/%s, MM TX %s, preemptible TCs 0x%x, active 0x%x\n",
+		port, phy_modes(ocelot_port->phy_mode),
+		phy_speed_to_str(ocelot_port->speed),
+		mm->tx_active ? "active" : "inactive", mm->preemptible_tcs,
+		mm->active_preemptible_tcs);
+
+	ocelot_rmw_rix(ocelot, QSYS_PREEMPTION_CFG_P_QUEUES(val),
+		       QSYS_PREEMPTION_CFG_P_QUEUES_M,
+		       QSYS_PREEMPTION_CFG, port);
+}
+
+void ocelot_port_change_fp(struct ocelot *ocelot, int port,
+			   unsigned long preemptible_tcs)
+{
+	struct ocelot_mm_state *mm = &ocelot->mm[port];
+
+	mutex_lock(&ocelot->fwd_domain_lock);
+
+	if (mm->preemptible_tcs == preemptible_tcs)
+		goto out_unlock;
+
+	mm->preemptible_tcs = preemptible_tcs;
+
+	ocelot_port_update_active_preemptible_tcs(ocelot, port);
+
+out_unlock:
+	mutex_unlock(&ocelot->fwd_domain_lock);
+}
+
 static void ocelot_mm_update_port_status(struct ocelot *ocelot, int port)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
@@ -74,6 +127,7 @@ static void ocelot_mm_update_port_status(struct ocelot *ocelot, int port)
 
 		dev_dbg(ocelot->dev, "Port %d TX preemption %s\n",
 			port, mm->tx_active ? "active" : "inactive");
+		ocelot_port_update_active_preemptible_tcs(ocelot, port);
 
 		ack |= DEV_MM_STAT_MM_STATUS_PRMPT_ACTIVE_STICKY;
 	}
