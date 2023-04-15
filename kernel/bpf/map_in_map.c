@@ -56,18 +56,6 @@ struct bpf_map *bpf_map_meta_alloc(int inner_map_ufd)
 		ret = PTR_ERR(inner_map_meta->record);
 		goto free;
 	}
-	if (inner_map_meta->record) {
-		struct btf_field_offs *field_offs;
-		/* If btf_record is !IS_ERR_OR_NULL, then field_offs is always
-		 * valid.
-		 */
-		field_offs = kmemdup(inner_map->field_offs, sizeof(*inner_map->field_offs), GFP_KERNEL | __GFP_NOWARN);
-		if (!field_offs) {
-			ret = -ENOMEM;
-			goto free_rec;
-		}
-		inner_map_meta->field_offs = field_offs;
-	}
 	/* Note: We must use the same BTF, as we also used btf_record_dup above
 	 * which relies on BTF being same for both maps, as some members like
 	 * record->fields.list_head have pointers like value_rec pointing into
@@ -88,8 +76,6 @@ struct bpf_map *bpf_map_meta_alloc(int inner_map_ufd)
 
 	fdput(f);
 	return inner_map_meta;
-free_rec:
-	btf_record_free(inner_map_meta->record);
 free:
 	kfree(inner_map_meta);
 put:
@@ -99,7 +85,6 @@ put:
 
 void bpf_map_meta_free(struct bpf_map *map_meta)
 {
-	kfree(map_meta->field_offs);
 	bpf_map_free_record(map_meta);
 	btf_put(map_meta->btf);
 	kfree(map_meta);

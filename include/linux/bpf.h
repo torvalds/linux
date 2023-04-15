@@ -210,6 +210,7 @@ struct btf_field_graph_root {
 
 struct btf_field {
 	u32 offset;
+	u32 size;
 	enum btf_field_type type;
 	union {
 		struct btf_field_kptr kptr;
@@ -223,12 +224,6 @@ struct btf_record {
 	int spin_lock_off;
 	int timer_off;
 	struct btf_field fields[];
-};
-
-struct btf_field_offs {
-	u32 cnt;
-	u32 field_off[BTF_FIELDS_MAX];
-	u8 field_sz[BTF_FIELDS_MAX];
 };
 
 struct bpf_map {
@@ -257,7 +252,6 @@ struct bpf_map {
 	struct obj_cgroup *objcg;
 #endif
 	char name[BPF_OBJ_NAME_LEN];
-	struct btf_field_offs *field_offs;
 	/* The 3rd and 4th cacheline with misc members to avoid false sharing
 	 * particularly with refcounting.
 	 */
@@ -360,14 +354,14 @@ static inline bool btf_record_has_field(const struct btf_record *rec, enum btf_f
 	return rec->field_mask & type;
 }
 
-static inline void bpf_obj_init(const struct btf_field_offs *foffs, void *obj)
+static inline void bpf_obj_init(const struct btf_record *rec, void *obj)
 {
 	int i;
 
-	if (!foffs)
+	if (IS_ERR_OR_NULL(rec))
 		return;
-	for (i = 0; i < foffs->cnt; i++)
-		memset(obj + foffs->field_off[i], 0, foffs->field_sz[i]);
+	for (i = 0; i < rec->cnt; i++)
+		memset(obj + rec->fields[i].offset, 0, rec->fields[i].size);
 }
 
 /* 'dst' must be a temporary buffer and should not point to memory that is being
@@ -379,7 +373,7 @@ static inline void bpf_obj_init(const struct btf_field_offs *foffs, void *obj)
  */
 static inline void check_and_init_map_value(struct bpf_map *map, void *dst)
 {
-	bpf_obj_init(map->field_offs, dst);
+	bpf_obj_init(map->record, dst);
 }
 
 /* memcpy that is used with 8-byte aligned pointers, power-of-8 size and
@@ -399,14 +393,14 @@ static inline void bpf_long_memcpy(void *dst, const void *src, u32 size)
 }
 
 /* copy everything but bpf_spin_lock, bpf_timer, and kptrs. There could be one of each. */
-static inline void bpf_obj_memcpy(struct btf_field_offs *foffs,
+static inline void bpf_obj_memcpy(struct btf_record *rec,
 				  void *dst, void *src, u32 size,
 				  bool long_memcpy)
 {
 	u32 curr_off = 0;
 	int i;
 
-	if (likely(!foffs)) {
+	if (IS_ERR_OR_NULL(rec)) {
 		if (long_memcpy)
 			bpf_long_memcpy(dst, src, round_up(size, 8));
 		else
@@ -414,49 +408,49 @@ static inline void bpf_obj_memcpy(struct btf_field_offs *foffs,
 		return;
 	}
 
-	for (i = 0; i < foffs->cnt; i++) {
-		u32 next_off = foffs->field_off[i];
+	for (i = 0; i < rec->cnt; i++) {
+		u32 next_off = rec->fields[i].offset;
 		u32 sz = next_off - curr_off;
 
 		memcpy(dst + curr_off, src + curr_off, sz);
-		curr_off += foffs->field_sz[i] + sz;
+		curr_off += rec->fields[i].size + sz;
 	}
 	memcpy(dst + curr_off, src + curr_off, size - curr_off);
 }
 
 static inline void copy_map_value(struct bpf_map *map, void *dst, void *src)
 {
-	bpf_obj_memcpy(map->field_offs, dst, src, map->value_size, false);
+	bpf_obj_memcpy(map->record, dst, src, map->value_size, false);
 }
 
 static inline void copy_map_value_long(struct bpf_map *map, void *dst, void *src)
 {
-	bpf_obj_memcpy(map->field_offs, dst, src, map->value_size, true);
+	bpf_obj_memcpy(map->record, dst, src, map->value_size, true);
 }
 
-static inline void bpf_obj_memzero(struct btf_field_offs *foffs, void *dst, u32 size)
+static inline void bpf_obj_memzero(struct btf_record *rec, void *dst, u32 size)
 {
 	u32 curr_off = 0;
 	int i;
 
-	if (likely(!foffs)) {
+	if (IS_ERR_OR_NULL(rec)) {
 		memset(dst, 0, size);
 		return;
 	}
 
-	for (i = 0; i < foffs->cnt; i++) {
-		u32 next_off = foffs->field_off[i];
+	for (i = 0; i < rec->cnt; i++) {
+		u32 next_off = rec->fields[i].offset;
 		u32 sz = next_off - curr_off;
 
 		memset(dst + curr_off, 0, sz);
-		curr_off += foffs->field_sz[i] + sz;
+		curr_off += rec->fields[i].size + sz;
 	}
 	memset(dst + curr_off, 0, size - curr_off);
 }
 
 static inline void zero_map_value(struct bpf_map *map, void *dst)
 {
-	bpf_obj_memzero(map->field_offs, dst, map->value_size);
+	bpf_obj_memzero(map->record, dst, map->value_size);
 }
 
 void copy_map_value_locked(struct bpf_map *map, void *dst, void *src,

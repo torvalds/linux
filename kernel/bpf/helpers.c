@@ -1893,7 +1893,7 @@ __bpf_kfunc void *bpf_obj_new_impl(u64 local_type_id__k, void *meta__ign)
 	if (!p)
 		return NULL;
 	if (meta)
-		bpf_obj_init(meta->field_offs, p);
+		bpf_obj_init(meta->record, p);
 	return p;
 }
 
