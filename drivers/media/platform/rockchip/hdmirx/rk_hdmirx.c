@@ -4316,7 +4316,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 		hdmirx_dev->cec_notifier = cec_notifier_conn_register(dev, NULL, NULL);
 		if (!hdmirx_dev->cec_notifier) {
 			ret = -ENOMEM;
-			goto err_hdl;
+			goto err_unreg_video_dev;
 		}
 
 		irq = platform_get_irq_byname(pdev, "cec");
@@ -4324,7 +4324,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 			dev_err(dev, "get hdmi cec irq failed!\n");
 			cec_notifier_conn_unregister(hdmirx_dev->cec_notifier);
 			ret = irq;
-			goto err_hdl;
+			goto err_unreg_video_dev;
 		}
 		cpumask_clear(&cpumask);
 		cpumask_set_cpu(hdmirx_dev->bound_cpu, &cpumask);
