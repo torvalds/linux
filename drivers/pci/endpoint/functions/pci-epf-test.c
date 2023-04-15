@@ -295,34 +295,23 @@ static void pci_epf_test_clean_dma_chan(struct pci_epf_test *epf_test)
 	return;
 }
 
-static void pci_epf_test_print_rate(const char *ops, u64 size,
+static void pci_epf_test_print_rate(struct pci_epf_test *epf_test,
+				    const char *op, u64 size,
 				    struct timespec64 *start,
 				    struct timespec64 *end, bool dma)
 {
-	struct timespec64 ts;
-	u64 rate, ns;
-
-	ts = timespec64_sub(*end, *start);
-
-	/* convert both size (stored in 'rate') and time in terms of 'ns' */
-	ns = timespec64_to_ns(&ts);
-	rate = size * NSEC_PER_SEC;
-
-	/* Divide both size (stored in 'rate') and ns by a common factor */
-	while (ns > UINT_MAX) {
-		rate >>= 1;
-		ns >>= 1;
-	}
-
-	if (!ns)
-		return;
+	struct timespec64 ts = timespec64_sub(*end, *start);
+	u64 rate = 0, ns;
 
 	/* calculate the rate */
-	do_div(rate, (uint32_t)ns);
+	ns = timespec64_to_ns(&ts);
+	if (ns)
+		rate = div64_u64(size * NSEC_PER_SEC, ns * 1000);
 
-	pr_info("\n%s => Size: %llu bytes\t DMA: %s\t Time: %llu.%09u seconds\t"
-		"Rate: %llu KB/s\n", ops, size, dma ? "YES" : "NO",
-		(u64)ts.tv_sec, (u32)ts.tv_nsec, rate / 1024);
+	dev_info(&epf_test->epf->dev,
+		 "%s => Size: %llu B, DMA: %s, Time: %llu.%09u s, Rate: %llu KB/s\n",
+		 op, size, dma ? "YES" : "NO",
+		 (u64)ts.tv_sec, (u32)ts.tv_nsec, rate);
 }
 
 static void pci_epf_test_copy(struct pci_epf_test *epf_test,
@@ -397,7 +386,7 @@ static void pci_epf_test_copy(struct pci_epf_test *epf_test,
 		kfree(buf);
 	}
 	ktime_get_ts64(&end);
-	pci_epf_test_print_rate("COPY", reg->size, &start, &end,
+	pci_epf_test_print_rate(epf_test, "COPY", reg->size, &start, &end,
 				reg->flags & FLAG_USE_DMA);
 
 err_map_addr:
@@ -481,7 +470,7 @@ static void pci_epf_test_read(struct pci_epf_test *epf_test,
 		ktime_get_ts64(&end);
 	}
 
-	pci_epf_test_print_rate("READ", reg->size, &start, &end,
+	pci_epf_test_print_rate(epf_test, "READ", reg->size, &start, &end,
 				reg->flags & FLAG_USE_DMA);
 
 	crc32 = crc32_le(~0, buf, reg->size);
@@ -570,7 +559,7 @@ static void pci_epf_test_write(struct pci_epf_test *epf_test,
 		ktime_get_ts64(&end);
 	}
 
-	pci_epf_test_print_rate("WRITE", reg->size, &start, &end,
+	pci_epf_test_print_rate(epf_test, "WRITE", reg->size, &start, &end,
 				reg->flags & FLAG_USE_DMA);
 
 	/*
