@@ -84,6 +84,7 @@ properties:
           - st,lps35hw
       - description: IMUs
         enum:
+          - st,lsm303d-imu
           - st,lsm9ds0-imu
       - description: Deprecated bindings
         enum:
