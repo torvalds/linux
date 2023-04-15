@@ -1917,6 +1917,20 @@ __bpf_kfunc void bpf_obj_drop_impl(void *p__alloc, void *meta__ign)
 	__bpf_obj_drop_impl(p, meta ? meta->record : NULL);
 }
 
+__bpf_kfunc void *bpf_refcount_acquire_impl(void *p__refcounted_kptr, void *meta__ign)
+{
+	struct btf_struct_meta *meta = meta__ign;
+	struct bpf_refcount *ref;
+
+	/* Could just cast directly to refcount_t *, but need some code using
+	 * bpf_refcount type so that it is emitted in vmlinux BTF
+	 */
+	ref = (struct bpf_refcount *)p__refcounted_kptr + meta->record->refcount_off;
+
+	refcount_inc((refcount_t *)ref);
+	return (void *)p__refcounted_kptr;
+}
+
 static void __bpf_list_add(struct bpf_list_node *node, struct bpf_list_head *head, bool tail)
 {
 	struct list_head *n = (void *)node, *h = (void *)head;
@@ -2276,6 +2290,7 @@ BTF_ID_FLAGS(func, crash_kexec, KF_DESTRUCTIVE)
 #endif
 BTF_ID_FLAGS(func, bpf_obj_new_impl, KF_ACQUIRE | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_obj_drop_impl, KF_RELEASE)
+BTF_ID_FLAGS(func, bpf_refcount_acquire_impl, KF_ACQUIRE)
 BTF_ID_FLAGS(func, bpf_list_push_front)
 BTF_ID_FLAGS(func, bpf_list_push_back)
 BTF_ID_FLAGS(func, bpf_list_pop_front, KF_ACQUIRE | KF_RET_NULL)

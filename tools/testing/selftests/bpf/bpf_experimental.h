@@ -38,6 +38,19 @@ extern void bpf_obj_drop_impl(void *kptr, void *meta) __ksym;
 #define bpf_obj_drop(kptr) bpf_obj_drop_impl(kptr, NULL)
 
 /* Description
+ *	Increment the refcount on a refcounted local kptr, turning the
+ *	non-owning reference input into an owning reference in the process.
+ *
+ *	The 'meta' parameter is a hidden argument that is ignored.
+ * Returns
+ *	An owning reference to the object pointed to by 'kptr'
+ */
+extern void *bpf_refcount_acquire_impl(void *kptr, void *meta) __ksym;
+
+/* Convenience macro to wrap over bpf_refcount_acquire_impl */
+#define bpf_refcount_acquire(kptr) bpf_refcount_acquire_impl(kptr, NULL)
+
+/* Description
  *	Add a new entry to the beginning of the BPF linked list.
  * Returns
  *	Void.
