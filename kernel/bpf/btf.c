@@ -3391,6 +3391,7 @@ static int btf_get_field_type(const char *name, u32 field_mask, u32 *seen_mask,
 	field_mask_test_name(BPF_LIST_NODE, "bpf_list_node");
 	field_mask_test_name(BPF_RB_ROOT,   "bpf_rb_root");
 	field_mask_test_name(BPF_RB_NODE,   "bpf_rb_node");
+	field_mask_test_name(BPF_REFCOUNT,  "bpf_refcount");
 
 	/* Only return BPF_KPTR when all other types with matchable names fail */
 	if (field_mask & BPF_KPTR) {
@@ -3439,6 +3440,7 @@ static int btf_find_struct_field(const struct btf *btf,
 		case BPF_TIMER:
 		case BPF_LIST_NODE:
 		case BPF_RB_NODE:
+		case BPF_REFCOUNT:
 			ret = btf_find_struct(btf, member_type, off, sz, field_type,
 					      idx < info_cnt ? &info[idx] : &tmp);
 			if (ret < 0)
@@ -3504,6 +3506,7 @@ static int btf_find_datasec_var(const struct btf *btf, const struct btf_type *t,
 		case BPF_TIMER:
 		case BPF_LIST_NODE:
 		case BPF_RB_NODE:
+		case BPF_REFCOUNT:
 			ret = btf_find_struct(btf, var_type, off, sz, field_type,
 					      idx < info_cnt ? &info[idx] : &tmp);
 			if (ret < 0)
@@ -3734,6 +3737,7 @@ struct btf_record *btf_parse_fields(const struct btf *btf, const struct btf_type
 
 	rec->spin_lock_off = -EINVAL;
 	rec->timer_off = -EINVAL;
+	rec->refcount_off = -EINVAL;
 	for (i = 0; i < cnt; i++) {
 		field_type_size = btf_field_type_size(info_arr[i].type);
 		if (info_arr[i].off + field_type_size > value_size) {
@@ -3762,6 +3766,11 @@ struct btf_record *btf_parse_fields(const struct btf *btf, const struct btf_type
 			WARN_ON_ONCE(rec->timer_off >= 0);
 			/* Cache offset for faster lookup at runtime */
 			rec->timer_off = rec->fields[i].offset;
+			break;
+		case BPF_REFCOUNT:
+			WARN_ON_ONCE(rec->refcount_off >= 0);
+			/* Cache offset for faster lookup at runtime */
+			rec->refcount_off = rec->fields[i].offset;
 			break;
 		case BPF_KPTR_UNREF:
 		case BPF_KPTR_REF:
@@ -5308,6 +5317,7 @@ static const char *alloc_obj_fields[] = {
 	"bpf_list_node",
 	"bpf_rb_root",
 	"bpf_rb_node",
+	"bpf_refcount",
 };
 
 static struct btf_struct_metas *
@@ -5381,7 +5391,7 @@ btf_parse_struct_metas(struct bpf_verifier_log *log, struct btf *btf)
 		type = &tab->types[tab->cnt];
 		type->btf_id = i;
 		record = btf_parse_fields(btf, t, BPF_SPIN_LOCK | BPF_LIST_HEAD | BPF_LIST_NODE |
-						  BPF_RB_ROOT | BPF_RB_NODE, t->size);
+						  BPF_RB_ROOT | BPF_RB_NODE | BPF_REFCOUNT, t->size);
 		/* The record cannot be unset, treat it as an error if so */
 		if (IS_ERR_OR_NULL(record)) {
 			ret = PTR_ERR_OR_ZERO(record) ?: -EFAULT;

@@ -552,6 +552,7 @@ void btf_record_free(struct btf_record *rec)
 		case BPF_RB_NODE:
 		case BPF_SPIN_LOCK:
 		case BPF_TIMER:
+		case BPF_REFCOUNT:
 			/* Nothing to release */
 			break;
 		default:
@@ -599,6 +600,7 @@ struct btf_record *btf_record_dup(const struct btf_record *rec)
 		case BPF_RB_NODE:
 		case BPF_SPIN_LOCK:
 		case BPF_TIMER:
+		case BPF_REFCOUNT:
 			/* Nothing to acquire */
 			break;
 		default:
@@ -705,6 +707,7 @@ void bpf_obj_free_fields(const struct btf_record *rec, void *obj)
 			break;
 		case BPF_LIST_NODE:
 		case BPF_RB_NODE:
+		case BPF_REFCOUNT:
 			break;
 		default:
 			WARN_ON_ONCE(1);
@@ -1032,7 +1035,7 @@ static int map_check_btf(struct bpf_map *map, const struct btf *btf,
 
 	map->record = btf_parse_fields(btf, value_type,
 				       BPF_SPIN_LOCK | BPF_TIMER | BPF_KPTR | BPF_LIST_HEAD |
-				       BPF_RB_ROOT,
+				       BPF_RB_ROOT | BPF_REFCOUNT,
 				       map->value_size);
 	if (!IS_ERR_OR_NULL(map->record)) {
 		int i;
@@ -1071,6 +1074,7 @@ static int map_check_btf(struct bpf_map *map, const struct btf *btf,
 				break;
 			case BPF_KPTR_UNREF:
 			case BPF_KPTR_REF:
+			case BPF_REFCOUNT:
 				if (map->map_type != BPF_MAP_TYPE_HASH &&
 				    map->map_type != BPF_MAP_TYPE_PERCPU_HASH &&
 				    map->map_type != BPF_MAP_TYPE_LRU_HASH &&

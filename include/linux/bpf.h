@@ -187,6 +187,7 @@ enum btf_field_type {
 	BPF_RB_NODE    = (1 << 7),
 	BPF_GRAPH_NODE_OR_ROOT = BPF_LIST_NODE | BPF_LIST_HEAD |
 				 BPF_RB_NODE | BPF_RB_ROOT,
+	BPF_REFCOUNT   = (1 << 8),
 };
 
 typedef void (*btf_dtor_kfunc_t)(void *);
@@ -223,6 +224,7 @@ struct btf_record {
 	u32 field_mask;
 	int spin_lock_off;
 	int timer_off;
+	int refcount_off;
 	struct btf_field fields[];
 };
 
@@ -293,6 +295,8 @@ static inline const char *btf_field_type_name(enum btf_field_type type)
 		return "bpf_rb_root";
 	case BPF_RB_NODE:
 		return "bpf_rb_node";
+	case BPF_REFCOUNT:
+		return "bpf_refcount";
 	default:
 		WARN_ON_ONCE(1);
 		return "unknown";
@@ -317,6 +321,8 @@ static inline u32 btf_field_type_size(enum btf_field_type type)
 		return sizeof(struct bpf_rb_root);
 	case BPF_RB_NODE:
 		return sizeof(struct bpf_rb_node);
+	case BPF_REFCOUNT:
+		return sizeof(struct bpf_refcount);
 	default:
 		WARN_ON_ONCE(1);
 		return 0;
@@ -341,6 +347,8 @@ static inline u32 btf_field_type_align(enum btf_field_type type)
 		return __alignof__(struct bpf_rb_root);
 	case BPF_RB_NODE:
 		return __alignof__(struct bpf_rb_node);
+	case BPF_REFCOUNT:
+		return __alignof__(struct bpf_refcount);
 	default:
 		WARN_ON_ONCE(1);
 		return 0;
