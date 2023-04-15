@@ -613,6 +613,7 @@ static void pci_epf_test_raise_irq(struct pci_epf_test *epf_test,
 	struct pci_epf *epf = epf_test->epf;
 	struct device *dev = &epf->dev;
 	struct pci_epc *epc = epf->epc;
+	int count;
 
 	reg->status |= STATUS_IRQ_RAISED;
 
@@ -622,10 +623,22 @@ static void pci_epf_test_raise_irq(struct pci_epf_test *epf_test,
 				  PCI_EPC_IRQ_LEGACY, 0);
 		break;
 	case IRQ_TYPE_MSI:
+		count = pci_epc_get_msi(epc, epf->func_no, epf->vfunc_no);
+		if (reg->irq_number > count || count <= 0) {
+			dev_err(dev, "Invalid MSI IRQ number %d / %d\n",
+				reg->irq_number, count);
+			return;
+		}
 		pci_epc_raise_irq(epc, epf->func_no, epf->vfunc_no,
 				  PCI_EPC_IRQ_MSI, reg->irq_number);
 		break;
 	case IRQ_TYPE_MSIX:
+		count = pci_epc_get_msix(epc, epf->func_no, epf->vfunc_no);
+		if (reg->irq_number > count || count <= 0) {
+			dev_err(dev, "Invalid MSIX IRQ number %d / %d\n",
+				reg->irq_number, count);
+			return;
+		}
 		pci_epc_raise_irq(epc, epf->func_no, epf->vfunc_no,
 				  PCI_EPC_IRQ_MSIX, reg->irq_number);
 		break;
@@ -638,13 +651,11 @@ static void pci_epf_test_raise_irq(struct pci_epf_test *epf_test,
 static void pci_epf_test_cmd_handler(struct work_struct *work)
 {
 	int ret;
-	int count;
 	u32 command;
 	struct pci_epf_test *epf_test = container_of(work, struct pci_epf_test,
 						     cmd_handler.work);
 	struct pci_epf *epf = epf_test->epf;
 	struct device *dev = &epf->dev;
-	struct pci_epc *epc = epf->epc;
 	enum pci_barno test_reg_bar = epf_test->test_reg_bar;
 	struct pci_epf_test_reg *reg = epf_test->reg[test_reg_bar];
 
@@ -660,10 +671,10 @@ static void pci_epf_test_cmd_handler(struct work_struct *work)
 		goto reset_handler;
 	}
 
-	if (command & COMMAND_RAISE_LEGACY_IRQ) {
-		reg->status = STATUS_IRQ_RAISED;
-		pci_epc_raise_irq(epc, epf->func_no, epf->vfunc_no,
-				  PCI_EPC_IRQ_LEGACY, 0);
+	if ((command & COMMAND_RAISE_LEGACY_IRQ) ||
+	    (command & COMMAND_RAISE_MSI_IRQ) ||
+	    (command & COMMAND_RAISE_MSIX_IRQ)) {
+		pci_epf_test_raise_irq(epf_test, reg);
 		goto reset_handler;
 	}
 
@@ -694,26 +705,6 @@ static void pci_epf_test_cmd_handler(struct work_struct *work)
 		else
 			reg->status |= STATUS_COPY_FAIL;
 		pci_epf_test_raise_irq(epf_test, reg);
-		goto reset_handler;
-	}
-
-	if (command & COMMAND_RAISE_MSI_IRQ) {
-		count = pci_epc_get_msi(epc, epf->func_no, epf->vfunc_no);
-		if (reg->irq_number > count || count <= 0)
-			goto reset_handler;
-		reg->status = STATUS_IRQ_RAISED;
-		pci_epc_raise_irq(epc, epf->func_no, epf->vfunc_no,
-				  PCI_EPC_IRQ_MSI, reg->irq_number);
-		goto reset_handler;
-	}
-
-	if (command & COMMAND_RAISE_MSIX_IRQ) {
-		count = pci_epc_get_msix(epc, epf->func_no, epf->vfunc_no);
-		if (reg->irq_number > count || count <= 0)
-			goto reset_handler;
-		reg->status = STATUS_IRQ_RAISED;
-		pci_epc_raise_irq(epc, epf->func_no, epf->vfunc_no,
-				  PCI_EPC_IRQ_MSIX, reg->irq_number);
 		goto reset_handler;
 	}
 
