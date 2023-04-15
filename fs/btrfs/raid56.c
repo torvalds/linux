@@ -1099,7 +1099,7 @@ static int rbio_add_io_sector(struct btrfs_raid_bio *rbio,
 	bio = bio_alloc(stripe->dev->bdev,
 			max(BTRFS_STRIPE_LEN >> PAGE_SHIFT, 1),
 			op, GFP_NOFS);
-	bio->bi_iter.bi_sector = disk_start >> 9;
+	bio->bi_iter.bi_sector = disk_start >> SECTOR_SHIFT;
 	bio->bi_private = rbio;
 
 	__bio_add_page(bio, sector->page, sectorsize, sector->pgoff);

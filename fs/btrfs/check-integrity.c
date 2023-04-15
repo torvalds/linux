@@ -1565,7 +1565,7 @@ static int btrfsic_read_block(struct btrfsic_state *state,
 
 		bio = bio_alloc(block_ctx->dev->bdev, num_pages - i,
 				REQ_OP_READ, GFP_NOFS);
-		bio->bi_iter.bi_sector = dev_bytenr >> 9;
+		bio->bi_iter.bi_sector = dev_bytenr >> SECTOR_SHIFT;
 
 		for (j = i; j < num_pages; j++) {
 			ret = bio_add_page(bio, block_ctx->pagev[j],
