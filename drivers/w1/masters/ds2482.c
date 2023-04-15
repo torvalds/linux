@@ -15,7 +15,6 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
-#include <asm/delay.h>
 
 #include <linux/w1.h>
 
