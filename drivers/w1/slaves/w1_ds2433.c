@@ -42,7 +42,7 @@ struct w1_f23_data {
 	u32	validcrc;
 };
 
-/**
+/*
  * Check the file size bounds and adjusts count as needed.
  * This would not be needed if the file size didn't reset to 0 after a write.
  */
@@ -138,16 +138,17 @@ out_up:
 }
 
 /**
- * Writes to the scratchpad and reads it back for verification.
+ * w1_f23_write() - Writes to the scratchpad and reads it back for verification.
+ * @sl:		The slave structure
+ * @addr:	Address for the write
+ * @len:	length must be <= (W1_PAGE_SIZE - (addr & W1_PAGE_MASK))
+ * @data:	The data to write
+ *
  * Then copies the scratchpad to EEPROM.
  * The data must be on one page.
  * The master must be locked.
  *
- * @param sl	The slave structure
- * @param addr	Address for the write
- * @param len   length must be <= (W1_PAGE_SIZE - (addr & W1_PAGE_MASK))
- * @param data	The data to write
- * @return	0=Success -1=failure
+ * Return:	0=Success, -1=failure
  */
 static int w1_f23_write(struct w1_slave *sl, int addr, int len, const u8 *data)
 {
