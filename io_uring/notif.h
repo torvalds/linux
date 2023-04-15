@@ -7,6 +7,7 @@
 
 #include "rsrc.h"
 
+#define IO_NOTIF_UBUF_FLAGS	(SKBFL_ZEROCOPY_FRAG | SKBFL_DONT_ORPHAN)
 #define IO_NOTIF_SPLICE_BATCH	32
 
 struct io_notif_data {

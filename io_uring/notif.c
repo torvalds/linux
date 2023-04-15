@@ -79,7 +79,7 @@ struct io_kiocb *io_alloc_notif(struct io_ring_ctx *ctx)
 	notif->io_task_work.func = io_req_task_complete;
 
 	nd = io_notif_to_data(notif);
-	nd->uarg.flags = SKBFL_ZEROCOPY_FRAG | SKBFL_DONT_ORPHAN;
+	nd->uarg.flags = IO_NOTIF_UBUF_FLAGS;
 	nd->uarg.callback = io_tx_ubuf_callback;
 	refcount_set(&nd->uarg.refcnt, 1);
 	return notif;
