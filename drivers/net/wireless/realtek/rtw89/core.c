@@ -2494,8 +2494,10 @@ static bool rtw89_traffic_stats_track(struct rtw89_dev *rtwdev)
 	bool tfc_changed;
 
 	tfc_changed = rtw89_traffic_stats_calc(rtwdev, &rtwdev->stats);
-	rtw89_for_each_rtwvif(rtwdev, rtwvif)
+	rtw89_for_each_rtwvif(rtwdev, rtwvif) {
 		rtw89_traffic_stats_calc(rtwdev, &rtwvif->stats);
+		rtw89_fw_h2c_tp_offload(rtwdev, rtwvif);
+	}
 
 	return tfc_changed;
 }

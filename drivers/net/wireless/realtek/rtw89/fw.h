@@ -3361,6 +3361,14 @@ struct rtw89_h2c_ofld_rssi {
 #define RTW89_H2C_OFLD_RSSI_W0_NUM GENMASK(15, 8)
 #define RTW89_H2C_OFLD_RSSI_W1_VAL GENMASK(7, 0)
 
+struct rtw89_h2c_ofld {
+	__le32 w0;
+} __packed;
+
+#define RTW89_H2C_OFLD_W0_MAC_ID GENMASK(7, 0)
+#define RTW89_H2C_OFLD_W0_TX_TP GENMASK(17, 8)
+#define RTW89_H2C_OFLD_W0_RX_TP GENMASK(27, 18)
+
 #define RTW89_FW_HDR_SIZE 32
 #define RTW89_FW_SECTION_HDR_SIZE 16
 
@@ -3499,6 +3507,7 @@ struct rtw89_fw_h2c_rf_reg_info {
 #define H2C_FUNC_PKT_DROP		0x1b
 #define H2C_FUNC_CFG_BCNFLTR		0x1e
 #define H2C_FUNC_OFLD_RSSI		0x1f
+#define H2C_FUNC_OFLD_TP		0x20
 
 /* CLASS 10 - Security CAM */
 #define H2C_CL_MAC_SEC_CAM		0xa
@@ -3605,6 +3614,7 @@ int rtw89_fw_h2c_set_bcn_fltr_cfg(struct rtw89_dev *rtwdev,
 				  bool connect);
 int rtw89_fw_h2c_rssi_offload(struct rtw89_dev *rtwdev,
 			      struct rtw89_rx_phy_ppdu *phy_ppdu);
+int rtw89_fw_h2c_tp_offload(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);
 int rtw89_fw_h2c_ra(struct rtw89_dev *rtwdev, struct rtw89_ra_info *ra, bool csi);
 int rtw89_fw_h2c_cxdrv_init(struct rtw89_dev *rtwdev);
 int rtw89_fw_h2c_cxdrv_role(struct rtw89_dev *rtwdev);
