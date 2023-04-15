@@ -745,6 +745,7 @@ struct ocelot_mirror {
 
 struct ocelot_mm_state {
 	enum ethtool_mm_verify_status verify_status;
+	bool tx_enabled;
 	bool tx_active;
 };
 

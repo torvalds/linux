@@ -54,7 +54,10 @@ static void ocelot_mm_update_port_status(struct ocelot *ocelot, int port)
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	struct ocelot_mm_state *mm = &ocelot->mm[port];
 	enum ethtool_mm_verify_status verify_status;
-	u32 val;
+	u32 val, ack = 0;
+
+	if (!mm->tx_enabled)
+		return;
 
 	val = ocelot_port_readl(ocelot_port, DEV_MM_STATUS);
 
@@ -71,21 +74,28 @@ static void ocelot_mm_update_port_status(struct ocelot *ocelot, int port)
 
 		dev_dbg(ocelot->dev, "Port %d TX preemption %s\n",
 			port, mm->tx_active ? "active" : "inactive");
+
+		ack |= DEV_MM_STAT_MM_STATUS_PRMPT_ACTIVE_STICKY;
 	}
 
 	if (val & DEV_MM_STAT_MM_STATUS_UNEXP_RX_PFRM_STICKY) {
 		dev_err(ocelot->dev,
 			"Unexpected P-frame received on port %d while verification was unsuccessful or not yet verified\n",
 			port);
+
+		ack |= DEV_MM_STAT_MM_STATUS_UNEXP_RX_PFRM_STICKY;
 	}
 
 	if (val & DEV_MM_STAT_MM_STATUS_UNEXP_TX_PFRM_STICKY) {
 		dev_err(ocelot->dev,
 			"Unexpected P-frame requested to be transmitted on port %d while verification was unsuccessful or not yet verified, or MM_TX_ENA=0\n",
 			port);
+
+		ack |= DEV_MM_STAT_MM_STATUS_UNEXP_TX_PFRM_STICKY;
 	}
 
-	ocelot_port_writel(ocelot_port, val, DEV_MM_STATUS);
+	if (ack)
+		ocelot_port_writel(ocelot_port, ack, DEV_MM_STATUS);
 }
 
 void ocelot_mm_irq(struct ocelot *ocelot)
@@ -107,10 +117,13 @@ int ocelot_port_set_mm(struct ocelot *ocelot, int port,
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	u32 mm_enable = 0, verify_disable = 0, add_frag_size;
+	struct ocelot_mm_state *mm;
 	int err;
 
 	if (!ocelot->mm_supported)
 		return -EOPNOTSUPP;
+
+	mm = &ocelot->mm[port];
 
 	err = ethtool_mm_frag_size_min_to_add(cfg->tx_min_frag_size,
 					      &add_frag_size, extack);
@@ -144,6 +157,19 @@ int ocelot_port_set_mm(struct ocelot *ocelot, int port,
 		       QSYS_PREEMPTION_CFG_MM_ADD_FRAG_SIZE_M,
 		       QSYS_PREEMPTION_CFG,
 		       port);
+
+	/* The switch will emit an IRQ when TX is disabled, to notify that it
+	 * has become inactive. We optimize ocelot_mm_update_port_status() to
+	 * not bother processing MM IRQs at all for ports with TX disabled,
+	 * but we need to ACK this IRQ now, while mm->tx_enabled is still set,
+	 * otherwise we get an IRQ storm.
+	 */
+	if (mm->tx_enabled && !cfg->tx_enabled) {
+		ocelot_mm_update_port_status(ocelot, port);
+		WARN_ON(mm->tx_active);
+	}
+
+	mm->tx_enabled = cfg->tx_enabled;
 
 	mutex_unlock(&ocelot->fwd_domain_lock);
 
