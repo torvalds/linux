@@ -370,6 +370,9 @@ static inline void bpf_obj_init(const struct btf_record *rec, void *obj)
 		return;
 	for (i = 0; i < rec->cnt; i++)
 		memset(obj + rec->fields[i].offset, 0, rec->fields[i].size);
+
+	if (rec->refcount_off >= 0)
+		refcount_set((refcount_t *)(obj + rec->refcount_off), 1);
 }
 
 /* 'dst' must be a temporary buffer and should not point to memory that is being

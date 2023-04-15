@@ -1798,6 +1798,8 @@ bpf_base_func_proto(enum bpf_func_id func_id)
 	}
 }
 
+void __bpf_obj_drop_impl(void *p, const struct btf_record *rec);
+
 void bpf_list_head_free(const struct btf_field *field, void *list_head,
 			struct bpf_spin_lock *spin_lock)
 {
@@ -1828,13 +1830,8 @@ unlock:
 		/* The contained type can also have resources, including a
 		 * bpf_list_head which needs to be freed.
 		 */
-		bpf_obj_free_fields(field->graph_root.value_rec, obj);
-		/* bpf_mem_free requires migrate_disable(), since we can be
-		 * called from map free path as well apart from BPF program (as
-		 * part of map ops doing bpf_obj_free_fields).
-		 */
 		migrate_disable();
-		bpf_mem_free(&bpf_global_ma, obj);
+		__bpf_obj_drop_impl(obj, field->graph_root.value_rec);
 		migrate_enable();
 	}
 }
@@ -1871,10 +1868,9 @@ void bpf_rb_root_free(const struct btf_field *field, void *rb_root,
 		obj = pos;
 		obj -= field->graph_root.node_offset;
 
-		bpf_obj_free_fields(field->graph_root.value_rec, obj);
 
 		migrate_disable();
-		bpf_mem_free(&bpf_global_ma, obj);
+		__bpf_obj_drop_impl(obj, field->graph_root.value_rec);
 		migrate_enable();
 	}
 }
@@ -1897,8 +1893,17 @@ __bpf_kfunc void *bpf_obj_new_impl(u64 local_type_id__k, void *meta__ign)
 	return p;
 }
 
+/* Must be called under migrate_disable(), as required by bpf_mem_free */
 void __bpf_obj_drop_impl(void *p, const struct btf_record *rec)
 {
+	if (rec && rec->refcount_off >= 0 &&
+	    !refcount_dec_and_test((refcount_t *)(p + rec->refcount_off))) {
+		/* Object is refcounted and refcount_dec didn't result in 0
+		 * refcount. Return without freeing the object
+		 */
+		return;
+	}
+
 	if (rec)
 		bpf_obj_free_fields(rec, p);
 	bpf_mem_free(&bpf_global_ma, p);
