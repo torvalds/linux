@@ -3243,14 +3243,14 @@ __dw_hdmi_probe(struct platform_device *pdev,
 		hdmi->regs = devm_ioremap_resource(dev, iores);
 		if (IS_ERR(hdmi->regs)) {
 			ret = PTR_ERR(hdmi->regs);
-			goto err_res;
+			goto err_ddc;
 		}
 
 		hdmi->regm = devm_regmap_init_mmio(dev, hdmi->regs, reg_config);
 		if (IS_ERR(hdmi->regm)) {
 			dev_err(dev, "Failed to configure regmap\n");
 			ret = PTR_ERR(hdmi->regm);
-			goto err_res;
+			goto err_ddc;
 		}
 	} else {
 		hdmi->regm = plat_data->regm;
@@ -3258,7 +3258,7 @@ __dw_hdmi_probe(struct platform_device *pdev,
 
 	ret = dw_hdmi_detect_phy(hdmi);
 	if (ret < 0)
-		goto err_res;
+		goto err_ddc;
 
 	hdmi_writel(hdmi, 0, MAINUNIT_0_INT_MASK_N);
 	hdmi_writel(hdmi, 0, MAINUNIT_1_INT_MASK_N);
@@ -3269,57 +3269,6 @@ __dw_hdmi_probe(struct platform_device *pdev,
 	}
 
 	hdmi->sink_is_hdmi = true;
-
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		ret = irq;
-		goto err_res;
-	}
-
-	hdmi->avp_irq = irq;
-	ret = devm_request_threaded_irq(dev, hdmi->avp_irq,
-					dw_hdmi_qp_avp_hardirq,
-					dw_hdmi_qp_avp_irq, IRQF_SHARED,
-					dev_name(dev), hdmi);
-	if (ret)
-		goto err_res;
-
-	irq = platform_get_irq(pdev, 1);
-	if (irq < 0) {
-		ret = irq;
-		goto err_res;
-	}
-
-	cec.irq = irq;
-
-	irq = platform_get_irq(pdev, 2);
-	if (irq < 0) {
-		ret = irq;
-		goto err_res;
-	}
-
-	hdmi->earc_irq = irq;
-	ret = devm_request_threaded_irq(dev, hdmi->earc_irq,
-					dw_hdmi_qp_earc_hardirq,
-					dw_hdmi_qp_earc_irq, IRQF_SHARED,
-					dev_name(dev), hdmi);
-	if (ret)
-		goto err_res;
-
-	irq = platform_get_irq(pdev, 3);
-	if (irq < 0) {
-		ret = irq;
-		goto err_res;
-	}
-
-	hdmi->main_irq = irq;
-	ret = devm_request_threaded_irq(dev, hdmi->main_irq,
-					dw_hdmi_qp_main_hardirq, NULL,
-					IRQF_SHARED, dev_name(dev), hdmi);
-	if (ret)
-		goto err_res;
-
-	hdmi_init_clk_regenerator(hdmi);
 
 	/* If DDC bus is not specified, try to register HDMI I2C bus */
 	if (!hdmi->ddc) {
@@ -3337,6 +3286,18 @@ __dw_hdmi_probe(struct platform_device *pdev,
 					 &hdmi->i2c->scl_low_ns))
 			hdmi->i2c->scl_low_ns = 4916;
 	}
+
+	/* Reset HDMI DDC I2C master controller and mute I2CM interrupts */
+	if (hdmi->i2c)
+		dw_hdmi_i2c_init(hdmi);
+
+	init_completion(&hdmi->flt_cmp);
+	init_completion(&hdmi->earc_cmp);
+
+	if (of_property_read_bool(np, "scramble-low-rates"))
+		hdmi->scramble_low_rates = true;
+
+	hdmi_init_clk_regenerator(hdmi);
 
 	hdmi->bridge.driver_private = hdmi;
 	hdmi->bridge.funcs = &dw_hdmi_bridge_funcs;
@@ -3370,13 +3331,13 @@ __dw_hdmi_probe(struct platform_device *pdev,
 	if (IS_ERR(hdmi->extcon)) {
 		dev_err(hdmi->dev, "allocate extcon failed\n");
 		ret = PTR_ERR(hdmi->extcon);
-		goto err_res;
+		goto err_aud;
 	}
 
 	ret = devm_extcon_dev_register(hdmi->dev, hdmi->extcon);
 	if (ret) {
 		dev_err(hdmi->dev, "failed to register extcon: %d\n", ret);
-		goto err_res;
+		goto err_aud;
 	}
 
 	ret = extcon_set_property_capability(hdmi->extcon, EXTCON_DISP_HDMI,
@@ -3384,7 +3345,7 @@ __dw_hdmi_probe(struct platform_device *pdev,
 	if (ret) {
 		dev_err(hdmi->dev,
 			"failed to set USB property capability: %d\n", ret);
-		goto err_res;
+		goto err_aud;
 	}
 
 	if (of_property_read_bool(np, "cec-enable")) {
@@ -3398,25 +3359,80 @@ __dw_hdmi_probe(struct platform_device *pdev,
 		hdmi->cec = platform_device_register_full(&pdevinfo);
 	}
 
-	/* Reset HDMI DDC I2C master controller and mute I2CM interrupts */
-	if (hdmi->i2c)
-		dw_hdmi_i2c_init(hdmi);
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		ret = irq;
+		goto err_cec;
+	}
 
-	init_completion(&hdmi->flt_cmp);
-	init_completion(&hdmi->earc_cmp);
+	hdmi->avp_irq = irq;
+	ret = devm_request_threaded_irq(dev, hdmi->avp_irq,
+					dw_hdmi_qp_avp_hardirq,
+					dw_hdmi_qp_avp_irq, IRQF_SHARED,
+					dev_name(dev), hdmi);
+	if (ret)
+		goto err_cec;
 
-	if (of_property_read_bool(np, "scramble-low-rates"))
-		hdmi->scramble_low_rates = true;
+	irq = platform_get_irq(pdev, 1);
+	if (irq < 0) {
+		ret = irq;
+		goto err_cec;
+	}
+
+	cec.irq = irq;
+
+	irq = platform_get_irq(pdev, 2);
+	if (irq < 0) {
+		ret = irq;
+		goto err_cec;
+	}
+
+	hdmi->earc_irq = irq;
+	ret = devm_request_threaded_irq(dev, hdmi->earc_irq,
+					dw_hdmi_qp_earc_hardirq,
+					dw_hdmi_qp_earc_irq, IRQF_SHARED,
+					dev_name(dev), hdmi);
+	if (ret)
+		goto err_cec;
+
+	irq = platform_get_irq(pdev, 3);
+	if (irq < 0) {
+		ret = irq;
+		goto err_cec;
+	}
+
+	hdmi->main_irq = irq;
+	ret = devm_request_threaded_irq(dev, hdmi->main_irq,
+					dw_hdmi_qp_main_hardirq, NULL,
+					IRQF_SHARED, dev_name(dev), hdmi);
+	if (ret)
+		goto err_cec;
 
 	dw_hdmi_register_debugfs(dev, hdmi);
 
 	return hdmi;
 
-err_res:
+err_cec:
+	if (!IS_ERR(hdmi->cec))
+		platform_device_unregister(hdmi->cec);
+
+err_aud:
+	if (hdmi->audio && !IS_ERR(hdmi->audio))
+		platform_device_unregister(hdmi->audio);
+
+err_ddc:
 	if (hdmi->i2c)
 		i2c_del_adapter(&hdmi->i2c->adap);
 	else
 		i2c_put_adapter(hdmi->ddc);
+
+	if (!hdmi->plat_data->first_screen) {
+		dw_hdmi_destroy_properties(hdmi);
+		hdmi->connector.funcs->destroy(&hdmi->connector);
+	}
+
+	if (hdmi->bridge.encoder && !hdmi->plat_data->first_screen)
+		hdmi->bridge.encoder->funcs->destroy(hdmi->bridge.encoder);
 
 	return ERR_PTR(ret);
 }
