@@ -2000,6 +2000,12 @@ __bpf_kfunc struct bpf_rb_node *bpf_rbtree_remove(struct bpf_rb_root *root,
 	struct rb_root_cached *r = (struct rb_root_cached *)root;
 	struct rb_node *n = (struct rb_node *)node;
 
+	if (!n->__rb_parent_color)
+		RB_CLEAR_NODE(n);
+
+	if (RB_EMPTY_NODE(n))
+		return NULL;
+
 	rb_erase_cached(n, r);
 	RB_CLEAR_NODE(n);
 	return (struct bpf_rb_node *)n;
@@ -2328,7 +2334,7 @@ BTF_ID_FLAGS(func, bpf_list_pop_front, KF_ACQUIRE | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_list_pop_back, KF_ACQUIRE | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_task_acquire, KF_ACQUIRE | KF_RCU | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_task_release, KF_RELEASE)
-BTF_ID_FLAGS(func, bpf_rbtree_remove, KF_ACQUIRE)
+BTF_ID_FLAGS(func, bpf_rbtree_remove, KF_ACQUIRE | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_rbtree_add_impl)
 BTF_ID_FLAGS(func, bpf_rbtree_first, KF_RET_NULL)
 
