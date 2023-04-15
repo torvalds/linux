@@ -613,9 +613,14 @@ static void pci_epf_test_raise_irq(struct pci_epf_test *epf_test,
 	struct pci_epf *epf = epf_test->epf;
 	struct device *dev = &epf->dev;
 	struct pci_epc *epc = epf->epc;
+	u32 status = reg->status | STATUS_IRQ_RAISED;
 	int count;
 
-	reg->status |= STATUS_IRQ_RAISED;
+	/*
+	 * Set the status before raising the IRQ to ensure that the host sees
+	 * the updated value when it gets the IRQ.
+	 */
+	WRITE_ONCE(reg->status, status);
 
 	switch (reg->irq_type) {
 	case IRQ_TYPE_LEGACY:
@@ -659,12 +664,12 @@ static void pci_epf_test_cmd_handler(struct work_struct *work)
 	enum pci_barno test_reg_bar = epf_test->test_reg_bar;
 	struct pci_epf_test_reg *reg = epf_test->reg[test_reg_bar];
 
-	command = reg->command;
+	command = READ_ONCE(reg->command);
 	if (!command)
 		goto reset_handler;
 
-	reg->command = 0;
-	reg->status = 0;
+	WRITE_ONCE(reg->command, 0);
+	WRITE_ONCE(reg->status, 0);
 
 	if (reg->irq_type > IRQ_TYPE_MSIX) {
 		dev_err(dev, "Failed to detect IRQ type\n");
