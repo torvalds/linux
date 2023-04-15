@@ -303,7 +303,7 @@ static int sfctemp_probe(struct platform_device *pdev)
 
 	ret = sfctemp_enable(sfctemp);
 	if (ret)
-		return dev_err_probe(dev, ret, "error enabling temperature sensor: %d\n", ret);
+		return dev_err_probe(dev, ret, "error enabling temperature sensor\n");
 
 	hwmon_dev = devm_hwmon_device_register_with_info(dev, "sfctemp", sfctemp,
 							 &sfctemp_chip_info, NULL);
