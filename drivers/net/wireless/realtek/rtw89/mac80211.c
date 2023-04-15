@@ -105,7 +105,8 @@ static int rtw89_ops_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	if ((changed & IEEE80211_CONF_CHANGE_IDLE) &&
-	    (hw->conf.flags & IEEE80211_CONF_IDLE))
+	    (hw->conf.flags & IEEE80211_CONF_IDLE) &&
+	    !rtwdev->scanning)
 		rtw89_enter_ips(rtwdev);
 
 	mutex_unlock(&rtwdev->mutex);
