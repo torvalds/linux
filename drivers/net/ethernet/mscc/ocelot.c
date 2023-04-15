@@ -8,6 +8,7 @@
 #include <linux/if_bridge.h>
 #include <linux/iopoll.h>
 #include <linux/phy/phy.h>
+#include <net/pkt_sched.h>
 #include <soc/mscc/ocelot_hsio.h>
 #include <soc/mscc/ocelot_vcap.h>
 #include "ocelot.h"
@@ -2698,6 +2699,55 @@ void ocelot_port_mirror_del(struct ocelot *ocelot, int from, bool ingress)
 	ocelot_mirror_put(ocelot);
 }
 EXPORT_SYMBOL_GPL(ocelot_port_mirror_del);
+
+static void ocelot_port_reset_mqprio(struct ocelot *ocelot, int port)
+{
+	struct net_device *dev = ocelot->ops->port_to_netdev(ocelot, port);
+
+	netdev_reset_tc(dev);
+}
+
+int ocelot_port_mqprio(struct ocelot *ocelot, int port,
+		       struct tc_mqprio_qopt_offload *mqprio)
+{
+	struct net_device *dev = ocelot->ops->port_to_netdev(ocelot, port);
+	struct netlink_ext_ack *extack = mqprio->extack;
+	struct tc_mqprio_qopt *qopt = &mqprio->qopt;
+	int num_tc = qopt->num_tc;
+	int tc, err;
+
+	if (!num_tc) {
+		ocelot_port_reset_mqprio(ocelot, port);
+		return 0;
+	}
+
+	err = netdev_set_num_tc(dev, num_tc);
+	if (err)
+		return err;
+
+	for (tc = 0; tc < num_tc; tc++) {
+		if (qopt->count[tc] != 1) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Only one TXQ per TC supported");
+			return -EINVAL;
+		}
+
+		err = netdev_set_tc_queue(dev, tc, 1, qopt->offset[tc]);
+		if (err)
+			goto err_reset_tc;
+	}
+
+	err = netif_set_real_num_tx_queues(dev, num_tc);
+	if (err)
+		goto err_reset_tc;
+
+	return 0;
+
+err_reset_tc:
+	ocelot_port_reset_mqprio(ocelot, port);
+	return err;
+}
+EXPORT_SYMBOL_GPL(ocelot_port_mqprio);
 
 void ocelot_init_port(struct ocelot *ocelot, int port)
 {
