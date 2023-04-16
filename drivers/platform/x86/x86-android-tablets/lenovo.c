@@ -41,10 +41,13 @@ static struct lp855x_platform_data lenovo_lp8557_pdata = {
 /* Lenovo Yoga Book X90F / X90L's Android factory img has everything hardcoded */
 
 /*
- * The HiDeep IST940E touchscreen comes up in HID mode and could alternatively
- * be used in I2C-HID mode (I2C-HID descriptor reg 0x0020) if i2c-hid-of.c is
- * modified to use generic (non-OF) device-properties and thought to deal with
- * the reset GPIO. "hideep,force-native-protocol" resets it to native mode.
+ * The HiDeep IST940E touchscreen comes up in I2C-HID mode. The native protocol
+ * reports ABS_MT_PRESSURE and ABS_MT_TOUCH_MAJOR which are not reported in HID
+ * mode, so using native mode is preferred.
+ * It could alternatively be used in HID mode by changing the properties to:
+ *	PROPERTY_ENTRY_U32("hid-descr-addr", 0x0020),
+ *	PROPERTY_ENTRY_U32("post-reset-deassert-delay-ms", 120),
+ * and changing board_info.type to "hid-over-i2c".
  */
 static const struct property_entry lenovo_yb1_x90_hideep_ts_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-size-x", 1200),
