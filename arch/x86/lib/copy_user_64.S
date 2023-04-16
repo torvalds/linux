@@ -45,13 +45,29 @@
  * Input:
  * rdi destination
  * rsi source
- * rdx count
+ * rcx count
  *
  * Output:
- * eax uncopied bytes or 0 if successful.
+ * rcx uncopied bytes or 0 if successful.
+ *
+ * NOTE! The calling convention is very intentionally the same as
+ * for 'rep movs', so that we can rewrite the function call with
+ * just a plain 'rep movs' on machines that have FSRM.
+ *
+ * HOWEVER! This function ends up having a lot of the code common
+ * with __copy_user_nocache(), which is a normal C function, and
+ * has a similar calling convention, but gets the 'count' in %rdx,
+ * and returns the result in %rax.
+ *
+ * To share as much code as possible, we end up returning the
+ * result in *both* %rcx/%rax, and we also move the initial count
+ * into %rdx.
+ *
+ * We can clobber rdx/rsi/rdi and r8-r11
  */
 SYM_FUNC_START(copy_user_generic_unrolled)
-	cmpl $8,%edx
+	movl %ecx,%edx
+	cmpl $8,%ecx
 	jb .Lcopy_user_short_string_bytes
 	ALIGN_DESTINATION
 	movl %edx,%ecx
@@ -104,37 +120,6 @@ SYM_FUNC_END(copy_user_generic_unrolled)
 EXPORT_SYMBOL(copy_user_generic_unrolled)
 
 /*
- * Some CPUs support FSRM for Fast Short REP MOVS.
- *
- * Only 4GB of copy is supported. This shouldn't be a problem
- * because the kernel normally only writes from/to page sized chunks
- * even if user space passed a longer buffer.
- * And more would be dangerous because both Intel and AMD have
- * errata with rep movsq > 4GB. If someone feels the need to fix
- * this please consider this.
- *
- * Input:
- * rdi destination
- * rsi source
- * rdx count
- *
- * Output:
- * eax uncopied bytes or 0 if successful.
- */
-SYM_FUNC_START(copy_user_fast_string)
-	movl %edx,%ecx
-1:	rep movsb
-	xorl %eax,%eax
-	RET
-
-12:	movl %ecx,%eax		/* ecx is zerorest also */
-	RET
-
-	_ASM_EXTABLE_CPY(1b, 12b)
-SYM_FUNC_END(copy_user_fast_string)
-EXPORT_SYMBOL(copy_user_fast_string)
-
-/*
  * Try to copy last bytes and clear the rest if needed.
  * Since protection fault in copy_from/to_user is not a normal situation,
  * it is not necessary to optimize tail handling.
@@ -160,6 +145,7 @@ SYM_CODE_START_LOCAL(.Lcopy_user_handle_tail)
 
 3:
 	movl %edx,%eax
+	movl %edx,%ecx
 	RET
 
 	_ASM_EXTABLE_CPY(1b, 2b)
@@ -203,6 +189,7 @@ SYM_CODE_START_LOCAL(copy_user_short_string)
 	decl %ecx
 	jnz 21b
 23:	xor %eax,%eax
+	xor %ecx,%ecx
 	RET
 
 40:	leal (%rdx,%rcx,8),%edx

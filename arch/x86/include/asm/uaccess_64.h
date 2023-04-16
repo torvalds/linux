@@ -18,29 +18,26 @@
 
 /* Handles exceptions in both to and from, but doesn't do access_ok */
 __must_check unsigned long
-copy_user_fast_string(void *to, const void *from, unsigned len);
-__must_check unsigned long
 copy_user_generic_unrolled(void *to, const void *from, unsigned len);
 
 static __always_inline __must_check unsigned long
-copy_user_generic(void *to, const void *from, unsigned len)
+copy_user_generic(void *to, const void *from, unsigned long len)
 {
-	unsigned ret;
-
 	stac();
 	/*
 	 * If CPU has FSRM feature, use 'rep movs'.
 	 * Otherwise, use copy_user_generic_unrolled.
 	 */
-	alternative_call(copy_user_generic_unrolled,
-			 copy_user_fast_string,
-			 X86_FEATURE_FSRM,
-			 ASM_OUTPUT2("=a" (ret), "=D" (to), "=S" (from),
-				     "=d" (len)),
-			 "1" (to), "2" (from), "3" (len)
-			 : "memory", "rcx", "r8", "r9", "r10", "r11");
+	asm volatile(
+		"1:\n\t"
+		ALTERNATIVE("rep movsb",
+			    "call copy_user_generic_unrolled", ALT_NOT(X86_FEATURE_FSRM))
+		"2:\n"
+		_ASM_EXTABLE_UA(1b, 2b)
+		:"+c" (len), "+D" (to), "+S" (from), ASM_CALL_CONSTRAINT
+		: : "memory", "rax", "rdx", "r8", "r9", "r10", "r11");
 	clac();
-	return ret;
+	return len;
 }
 
 static __always_inline __must_check unsigned long
