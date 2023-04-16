@@ -299,7 +299,7 @@ int iwl_mvm_mld_add_aux_sta(struct iwl_mvm *mvm, u32 lmac_id)
 				       IWL_MAX_TID_COUNT, NULL);
 }
 
-static int iwl_mvm_mld_disable_txq(struct iwl_mvm *mvm, int sta_id,
+static int iwl_mvm_mld_disable_txq(struct iwl_mvm *mvm, u32 sta_mask,
 				   u16 *queueptr, u8 tid)
 {
 	int queue = *queueptr;
@@ -314,7 +314,7 @@ static int iwl_mvm_mld_disable_txq(struct iwl_mvm *mvm, int sta_id,
 		struct iwl_scd_queue_cfg_cmd remove_cmd = {
 			.operation = cpu_to_le32(IWL_SCD_QUEUE_REMOVE),
 			.u.remove.tid = cpu_to_le32(tid),
-			.u.remove.sta_mask = cpu_to_le32(BIT(sta_id)),
+			.u.remove.sta_mask = cpu_to_le32(sta_mask),
 		};
 
 		ret = iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0,
@@ -344,7 +344,7 @@ static int iwl_mvm_mld_rm_int_sta(struct iwl_mvm *mvm,
 	if (flush)
 		iwl_mvm_flush_sta(mvm, int_sta, true);
 
-	iwl_mvm_mld_disable_txq(mvm, int_sta->sta_id, queuptr, tid);
+	iwl_mvm_mld_disable_txq(mvm, BIT(int_sta->sta_id), queuptr, tid);
 
 	ret = iwl_mvm_mld_rm_sta_from_fw(mvm, int_sta->sta_id);
 	if (ret)
@@ -760,6 +760,7 @@ static void iwl_mvm_mld_disable_sta_queues(struct iwl_mvm *mvm,
 					   struct ieee80211_sta *sta)
 {
 	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
+	u32 sta_mask = iwl_mvm_sta_fw_id_mask(mvm, sta, -1);
 	int i;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -768,7 +769,7 @@ static void iwl_mvm_mld_disable_sta_queues(struct iwl_mvm *mvm,
 		if (mvm_sta->tid_data[i].txq_id == IWL_MVM_INVALID_QUEUE)
 			continue;
 
-		iwl_mvm_mld_disable_txq(mvm, mvm_sta->deflink.sta_id,
+		iwl_mvm_mld_disable_txq(mvm, sta_mask,
 					&mvm_sta->tid_data[i].txq_id, i);
 		mvm_sta->tid_data[i].txq_id = IWL_MVM_INVALID_QUEUE;
 	}
