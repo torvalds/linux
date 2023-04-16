@@ -882,7 +882,10 @@ iwl_mvm_mld_change_vif_links(struct ieee80211_hw *hw,
 				n_active++;
 		}
 
-		if (n_active > 1)
+		if (vif->type == NL80211_IFTYPE_AP &&
+		    n_active > mvm->fw->ucode_capa.num_beacons)
+			return -EOPNOTSUPP;
+		else if (n_active > 1)
 			return -EOPNOTSUPP;
 	}
 
