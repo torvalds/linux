@@ -2016,6 +2016,8 @@ bool dcn30_can_support_mclk_switch_using_fw_based_vblank_stretch(struct dc *dc, 
 	if (context->streams[0]->vrr_active_variable)
 		return false;
 
+	context->streams[0]->fpo_in_use = true;
+
 	return true;
 }
 

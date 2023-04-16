@@ -530,6 +530,8 @@ struct radeon_gem {
 
 extern const struct drm_gem_object_funcs radeon_gem_object_funcs;
 
+int radeon_align_pitch(struct radeon_device *rdev, int width, int cpp, bool tiled);
+
 int radeon_gem_init(struct radeon_device *rdev);
 void radeon_gem_fini(struct radeon_device *rdev);
 int radeon_gem_object_create(struct radeon_device *rdev, unsigned long size,

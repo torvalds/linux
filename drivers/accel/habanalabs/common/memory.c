@@ -605,6 +605,7 @@ static u64 get_va_block(struct hl_device *hdev,
 	bool is_align_pow_2  = is_power_of_2(va_range->page_size);
 	bool is_hint_dram_addr = hl_is_dram_va(hdev, hint_addr);
 	bool force_hint = flags & HL_MEM_FORCE_HINT;
+	int rc;
 
 	if (is_align_pow_2)
 		align_mask = ~((u64)va_block_align - 1);
@@ -722,9 +723,13 @@ static u64 get_va_block(struct hl_device *hdev,
 		kfree(new_va_block);
 	}
 
-	if (add_prev)
-		add_va_block_locked(hdev, &va_range->list, prev_start,
-				prev_end);
+	if (add_prev) {
+		rc = add_va_block_locked(hdev, &va_range->list, prev_start, prev_end);
+		if (rc) {
+			reserved_valid_start = 0;
+			goto out;
+		}
+	}
 
 	print_va_list_locked(hdev, &va_range->list);
 out:

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0
  *
- * Copyright 2020-2022 HabanaLabs, Ltd.
+ * Copyright 2020-2023 HabanaLabs, Ltd.
  * All Rights Reserved.
  *
  */
@@ -542,6 +542,8 @@
 #define HBM_MC_SPI_THR_DIS_ENG_MASK		BIT(2)
 #define HBM_MC_SPI_IEEE1500_COMP_MASK		BIT(3)
 #define HBM_MC_SPI_IEEE1500_PAUSED_MASK		BIT(4)
+
+#define ARC_FARM_OFFSET (mmARC_FARM_ARC1_AUX_BASE - mmARC_FARM_ARC0_AUX_BASE)
 
 #include "nic0_qpc0_regs.h"
 #include "nic0_qm0_regs.h"

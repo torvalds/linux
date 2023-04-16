@@ -167,6 +167,7 @@ enum intel_ppgtt_type {
 	func(has_mslice_steering); \
 	func(has_oa_bpc_reporting); \
 	func(has_oa_slice_contrib_limits); \
+	func(has_oam); \
 	func(has_one_eu_per_fuse_bit); \
 	func(has_pxp); \
 	func(has_rc6); \
@@ -192,7 +193,6 @@ enum intel_ppgtt_type {
 	func(has_hotplug); \
 	func(has_hti); \
 	func(has_ipc); \
-	func(has_modular_fia); \
 	func(has_overlay); \
 	func(has_psr); \
 	func(has_psr_hw_tracking); \

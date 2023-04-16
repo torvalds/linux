@@ -888,6 +888,10 @@ static bool dc_construct_ctx(struct dc *dc,
 
 	dc->ctx = dc_ctx;
 
+	dc->link_srv = link_create_link_service();
+	if (!dc->link_srv)
+		return false;
+
 	return true;
 }
 
@@ -984,8 +988,6 @@ static bool dc_construct(struct dc *dc,
 		ASSERT_CRITICAL(false);
 		goto fail;
 	}
-
-	dc->link_srv = link_create_link_service();
 
 	dc->res_pool = dc_create_resource_pool(dc, init_params, dc_ctx->dce_version);
 	if (!dc->res_pool)
@@ -3492,22 +3494,6 @@ static void commit_planes_for_stream(struct dc *dc,
 
 	dc_dmub_update_dirty_rect(dc, surface_count, stream, srf_updates, context);
 
-	if (update_type != UPDATE_TYPE_FAST) {
-		for (i = 0; i < dc->res_pool->pipe_count; i++) {
-			struct pipe_ctx *new_pipe = &context->res_ctx.pipe_ctx[i];
-
-			if ((new_pipe->stream && new_pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) ||
-					subvp_prev_use) {
-				// If old context or new context has phantom pipes, apply
-				// the phantom timings now. We can't change the phantom
-				// pipe configuration safely without driver acquiring
-				// the DMCUB lock first.
-				dc->hwss.apply_ctx_to_hw(dc, context);
-				break;
-			}
-		}
-	}
-
 	// Stream updates
 	if (stream_update)
 		commit_planes_do_stream_update(dc, stream, stream_update, update_type, context);
@@ -3723,6 +3709,9 @@ static void commit_planes_for_stream(struct dc *dc,
 		}
 	}
 
+	if (update_type != UPDATE_TYPE_FAST)
+		dc->hwss.post_unlock_program_front_end(dc, context);
+
 	if (subvp_prev_use && !subvp_curr_use) {
 		/* If disabling subvp, disable phantom streams after front end
 		 * programming has completed (we turn on phantom OTG in order
@@ -3732,15 +3721,8 @@ static void commit_planes_for_stream(struct dc *dc,
 	}
 
 	if (update_type != UPDATE_TYPE_FAST)
-		dc->hwss.post_unlock_program_front_end(dc, context);
-	if (update_type != UPDATE_TYPE_FAST)
 		if (dc->hwss.commit_subvp_config)
 			dc->hwss.commit_subvp_config(dc, context);
-
-	if (update_type != UPDATE_TYPE_FAST)
-		if (dc->hwss.commit_subvp_config)
-			dc->hwss.commit_subvp_config(dc, context);
-
 	/* Since phantom pipe programming is moved to post_unlock_program_front_end,
 	 * move the SubVP lock to after the phantom pipes have been setup
 	 */

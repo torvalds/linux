@@ -45,7 +45,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.227"
+#define DC_VER "3.2.229"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -873,6 +873,8 @@ struct dc_debug_options {
 	bool dig_fifo_off_in_blank;
 	bool temp_mst_deallocation_sequence;
 	bool override_dispclk_programming;
+	bool disable_fpo_optimizations;
+	bool support_eDP1_5;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;
@@ -1768,8 +1770,7 @@ void dc_restore_link_res_map(const struct dc *dc, uint32_t *map);
 bool dc_link_update_dsc_config(struct pipe_ctx *pipe_ctx);
 
 /* translate a raw link rate data to bandwidth in kbps */
-uint32_t dc_link_bw_kbps_from_raw_frl_link_rate_data(
-		struct dc *dc, uint8_t bw);
+uint32_t dc_link_bw_kbps_from_raw_frl_link_rate_data(const struct dc *dc, uint8_t bw);
 
 /* determine the optimal bandwidth given link and required bw.
  * @link - current detected link
@@ -2028,6 +2029,19 @@ void dc_link_handle_usb4_bw_alloc_response(struct dc_link *link,
  */
 int dc_link_dp_dpia_handle_usb4_bandwidth_allocation_for_link(
 		struct dc_link *link, int peak_bw);
+
+/*
+ * Validate the BW of all the valid DPIA links to make sure it doesn't exceed
+ * available BW for each host router
+ *
+ * @dc: pointer to dc struct
+ * @stream: pointer to all possible streams
+ * @num_streams: number of valid DPIA streams
+ *
+ * return: TRUE if bw used by DPIAs doesn't exceed available BW else return FALSE
+ */
+bool dc_link_validate(struct dc *dc, const struct dc_stream_state *streams,
+		const unsigned int count);
 
 /* Sink Interfaces - A sink corresponds to a display output device */
 

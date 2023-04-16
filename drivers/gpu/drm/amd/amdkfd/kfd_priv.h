@@ -207,7 +207,8 @@ enum cache_policy {
 #define KFD_GC_VERSION(dev) ((dev)->adev->ip_versions[GC_HWIP][0])
 #define KFD_IS_SOC15(dev)   ((KFD_GC_VERSION(dev)) >= (IP_VERSION(9, 0, 1)))
 #define KFD_SUPPORT_XNACK_PER_PROCESS(dev)\
-		(KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 2))
+	((KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 2)) ||	\
+	 (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 3)))
 
 struct kfd_event_interrupt_class {
 	bool (*interrupt_isr)(struct kfd_dev *dev,

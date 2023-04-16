@@ -79,11 +79,11 @@
 #include "soc/intel_dram.h"
 #include "soc/intel_gmch.h"
 
-#include "i915_file_private.h"
 #include "i915_debugfs.h"
 #include "i915_driver.h"
 #include "i915_drm_client.h"
 #include "i915_drv.h"
+#include "i915_file_private.h"
 #include "i915_getparam.h"
 #include "i915_hwmon.h"
 #include "i915_ioc32.h"
@@ -97,11 +97,11 @@
 #include "i915_sysfs.h"
 #include "i915_utils.h"
 #include "i915_vgpu.h"
+#include "intel_clock_gating.h"
 #include "intel_gvt.h"
 #include "intel_memory_region.h"
 #include "intel_pci_config.h"
 #include "intel_pcode.h"
-#include "intel_pm.h"
 #include "intel_region_ttm.h"
 #include "vlv_suspend.h"
 
@@ -252,7 +252,7 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 
 	intel_irq_init(dev_priv);
 	intel_init_display_hooks(dev_priv);
-	intel_init_clock_gating_hooks(dev_priv);
+	intel_clock_gating_hooks_init(dev_priv);
 
 	intel_detect_preproduction_hw(dev_priv);
 
@@ -469,7 +469,9 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 	if (ret)
 		return ret;
 
-	i915_perf_init(dev_priv);
+	ret = i915_perf_init(dev_priv);
+	if (ret)
+		return ret;
 
 	ret = i915_ggtt_probe_hw(dev_priv);
 	if (ret)
@@ -1242,7 +1244,7 @@ static int i915_drm_resume(struct drm_device *dev)
 	i915_gem_resume(dev_priv);
 
 	intel_modeset_init_hw(dev_priv);
-	intel_init_clock_gating(dev_priv);
+	intel_clock_gating_init(dev_priv);
 	intel_hpd_init(dev_priv);
 
 	/* MST sideband requires HPD interrupts enabled */

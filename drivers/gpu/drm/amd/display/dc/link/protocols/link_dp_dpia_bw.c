@@ -33,10 +33,6 @@
 #define DC_LOGGER \
 	link->ctx->logger
 
-/* Number of Host Routers per motherboard is 2 */
-#define MAX_HR_NUM			2
-/* Number of DPIA per host router is 2 */
-#define MAX_DPIA_NUM		(MAX_HR_NUM * 2)
 #define Kbps_TO_Gbps (1000 * 1000)
 
 // ------------------------------------------------------------------
@@ -379,9 +375,8 @@ void dpia_handle_bw_alloc_response(struct dc_link *link, uint8_t bw, uint8_t res
 		// 1. If due to unplug of other sink
 		if (estimated == host_router_total_estimated_bw) {
 			// First update the estimated & max_bw fields
-			if (link->dpia_bw_alloc_config.estimated_bw < estimated) {
+			if (link->dpia_bw_alloc_config.estimated_bw < estimated)
 				link->dpia_bw_alloc_config.estimated_bw = estimated;
-			}
 		}
 		// 2. If due to realloc bw btw 2 dpia due to plug OR realloc unused Bw
 		else {
@@ -464,7 +459,7 @@ int link_dp_dpia_allocate_usb4_bandwidth_for_stream(struct dc_link *link, int re
 out:
 	return ret;
 }
-bool dpia_validate_usb4_bw(struct dc_link **link, int *bw_needed_per_dpia, uint8_t num_dpias)
+bool dpia_validate_usb4_bw(struct dc_link **link, int *bw_needed_per_dpia, const unsigned int num_dpias)
 {
 	bool ret = true;
 	int bw_needed_per_hr[MAX_HR_NUM] = { 0, 0 };

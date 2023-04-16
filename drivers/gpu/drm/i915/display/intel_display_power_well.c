@@ -15,6 +15,7 @@
 #include "intel_dkl_phy.h"
 #include "intel_dkl_phy_regs.h"
 #include "intel_dmc.h"
+#include "intel_dp_aux_regs.h"
 #include "intel_dpio_phy.h"
 #include "intel_dpll.h"
 #include "intel_hotplug.h"
@@ -818,8 +819,10 @@ void gen9_enable_dc5(struct drm_i915_private *dev_priv)
 static void assert_can_enable_dc6(struct drm_i915_private *dev_priv)
 {
 	drm_WARN_ONCE(&dev_priv->drm,
-		      intel_de_read(dev_priv, UTIL_PIN_CTL) & UTIL_PIN_ENABLE,
-		      "Backlight is not disabled.\n");
+		      (intel_de_read(dev_priv, UTIL_PIN_CTL) &
+		       (UTIL_PIN_ENABLE | UTIL_PIN_MODE_MASK)) ==
+		      (UTIL_PIN_ENABLE | UTIL_PIN_MODE_PWM),
+		      "Utility pin enabled in PWM mode\n");
 	drm_WARN_ONCE(&dev_priv->drm,
 		      (intel_de_read(dev_priv, DC_STATE_EN) &
 		       DC_STATE_EN_UPTO_DC6),

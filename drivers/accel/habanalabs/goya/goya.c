@@ -473,6 +473,7 @@ int goya_set_fixed_properties(struct hl_device *hdev)
 
 	prop->first_available_user_interrupt = USHRT_MAX;
 	prop->tpc_interrupt_id = USHRT_MAX;
+	prop->eq_interrupt_id = GOYA_EVENT_QUEUE_MSIX_IDX;
 
 	for (i = 0 ; i < HL_MAX_DCORES ; i++)
 		prop->first_available_cq[i] = USHRT_MAX;

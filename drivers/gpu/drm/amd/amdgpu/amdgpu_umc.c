@@ -232,7 +232,7 @@ int amdgpu_umc_ras_sw_init(struct amdgpu_device *adev)
 	if (!ras->ras_block.ras_late_init)
 		ras->ras_block.ras_late_init = amdgpu_umc_ras_late_init;
 
-	if (ras->ras_block.ras_cb)
+	if (!ras->ras_block.ras_cb)
 		ras->ras_block.ras_cb = amdgpu_umc_process_ras_data_cb;
 
 	return 0;

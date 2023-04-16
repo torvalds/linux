@@ -44,6 +44,7 @@
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_fdi.h"
+#include "intel_fdi_regs.h"
 #include "intel_fifo_underrun.h"
 #include "intel_gmbus.h"
 #include "intel_hotplug.h"

@@ -100,7 +100,6 @@ static void intel_crtc_disable_noatomic(struct intel_crtc *crtc,
 
 	intel_fbc_disable(crtc);
 	intel_update_watermarks(i915);
-	intel_disable_shared_dpll(crtc_state);
 
 	intel_display_power_put_all_in_set(i915, &crtc->enabled_power_domains);
 

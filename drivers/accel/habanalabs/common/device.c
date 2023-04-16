@@ -1271,7 +1271,6 @@ int hl_device_resume(struct hl_device *hdev)
 	return 0;
 
 disable_device:
-	pci_clear_master(hdev->pdev);
 	pci_disable_device(hdev->pdev);
 
 	return rc;
@@ -1381,6 +1380,34 @@ static void device_disable_open_processes(struct hl_device *hdev, bool control_d
 	mutex_unlock(fd_lock);
 }
 
+static void send_disable_pci_access(struct hl_device *hdev, u32 flags)
+{
+	/* If reset is due to heartbeat, device CPU is no responsive in
+	 * which case no point sending PCI disable message to it.
+	 */
+	if ((flags & HL_DRV_RESET_HARD) &&
+			!(flags & (HL_DRV_RESET_HEARTBEAT | HL_DRV_RESET_BYPASS_REQ_TO_FW))) {
+		/* Disable PCI access from device F/W so he won't send
+		 * us additional interrupts. We disable MSI/MSI-X at
+		 * the halt_engines function and we can't have the F/W
+		 * sending us interrupts after that. We need to disable
+		 * the access here because if the device is marked
+		 * disable, the message won't be send. Also, in case
+		 * of heartbeat, the device CPU is marked as disable
+		 * so this message won't be sent
+		 */
+		if (hl_fw_send_pci_access_msg(hdev, CPUCP_PACKET_DISABLE_PCI_ACCESS, 0x0)) {
+			dev_warn(hdev->dev, "Failed to disable FW's PCI access\n");
+			return;
+		}
+
+		/* verify that last EQs are handled before disabled is set */
+		if (hdev->cpu_queues_enable)
+			synchronize_irq(pci_irq_vector(hdev->pdev,
+					hdev->asic_prop.eq_interrupt_id));
+	}
+}
+
 static void handle_reset_trigger(struct hl_device *hdev, u32 flags)
 {
 	u32 cur_reset_trigger = HL_RESET_TRIGGER_DEFAULT;
@@ -1418,28 +1445,6 @@ static void handle_reset_trigger(struct hl_device *hdev, u32 flags)
 		hdev->reset_info.reset_trigger_repeated = 0;
 	} else {
 		hdev->reset_info.reset_trigger_repeated = 1;
-	}
-
-	/* If reset is due to heartbeat, device CPU is no responsive in
-	 * which case no point sending PCI disable message to it.
-	 *
-	 * If F/W is performing the reset, no need to send it a message to disable
-	 * PCI access
-	 */
-	if ((flags & HL_DRV_RESET_HARD) &&
-			!(flags & (HL_DRV_RESET_HEARTBEAT | HL_DRV_RESET_BYPASS_REQ_TO_FW))) {
-		/* Disable PCI access from device F/W so he won't send
-		 * us additional interrupts. We disable MSI/MSI-X at
-		 * the halt_engines function and we can't have the F/W
-		 * sending us interrupts after that. We need to disable
-		 * the access here because if the device is marked
-		 * disable, the message won't be send. Also, in case
-		 * of heartbeat, the device CPU is marked as disable
-		 * so this message won't be sent
-		 */
-		if (hl_fw_send_pci_access_msg(hdev, CPUCP_PACKET_DISABLE_PCI_ACCESS, 0x0))
-			dev_warn(hdev->dev,
-				"Failed to disable FW's PCI access\n");
 	}
 }
 
@@ -1561,6 +1566,7 @@ do_reset:
 
 escalate_reset_flow:
 		handle_reset_trigger(hdev, flags);
+		send_disable_pci_access(hdev, flags);
 
 		/* This also blocks future CS/VM/JOB completion operations */
 		hdev->disabled = true;
@@ -1823,9 +1829,7 @@ kill_processes:
 			dev_info(hdev->dev, "Performing hard reset scheduled during compute reset\n");
 			flags = hdev->reset_info.hard_reset_schedule_flags;
 			hdev->reset_info.hard_reset_schedule_flags = 0;
-			hdev->disabled = true;
 			hard_reset = true;
-			handle_reset_trigger(hdev, flags);
 			goto escalate_reset_flow;
 		}
 	}

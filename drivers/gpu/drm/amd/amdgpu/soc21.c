@@ -754,6 +754,14 @@ static int soc21_common_late_init(void *handle)
 							     sriov_vcn_4_0_0_video_codecs_decode_array_vcn0,
 							     ARRAY_SIZE(sriov_vcn_4_0_0_video_codecs_decode_array_vcn0));
 		}
+	} else {
+		if (adev->nbio.ras &&
+		    adev->nbio.ras_err_event_athub_irq.funcs)
+			/* don't need to fail gpu late init
+			 * if enabling athub_err_event interrupt failed
+			 * nbio v4_3 only support fatal error hanlding
+			 * just enable the interrupt directly */
+			amdgpu_irq_get(adev, &adev->nbio.ras_err_event_athub_irq, 0);
 	}
 
 	return 0;
@@ -801,8 +809,13 @@ static int soc21_common_hw_fini(void *handle)
 	/* disable the doorbell aperture */
 	soc21_enable_doorbell_aperture(adev, false);
 
-	if (amdgpu_sriov_vf(adev))
+	if (amdgpu_sriov_vf(adev)) {
 		xgpu_nv_mailbox_put_irq(adev);
+	} else {
+		if (adev->nbio.ras &&
+		    adev->nbio.ras_err_event_athub_irq.funcs)
+			amdgpu_irq_put(adev, &adev->nbio.ras_err_event_athub_irq, 0);
+	}
 
 	return 0;
 }

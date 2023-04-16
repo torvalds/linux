@@ -6,7 +6,6 @@
 #ifndef __INTEL_TC_H__
 #define __INTEL_TC_H__
 
-#include <linux/mutex.h>
 #include <linux/types.h>
 
 struct intel_crtc_state;
@@ -37,7 +36,8 @@ void intel_tc_port_get_link(struct intel_digital_port *dig_port,
 void intel_tc_port_put_link(struct intel_digital_port *dig_port);
 bool intel_tc_port_ref_held(struct intel_digital_port *dig_port);
 
-void intel_tc_port_init(struct intel_digital_port *dig_port, bool is_legacy);
+int intel_tc_port_init(struct intel_digital_port *dig_port, bool is_legacy);
+void intel_tc_port_cleanup(struct intel_digital_port *dig_port);
 
 bool intel_tc_cold_requires_aux_pw(struct intel_digital_port *dig_port);
 
