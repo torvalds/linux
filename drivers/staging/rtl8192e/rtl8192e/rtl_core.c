@@ -2301,22 +2301,6 @@ bool rtl92e_enable_nic(struct net_device *dev)
 	return init_status;
 }
 
-bool rtl92e_disable_nic(struct net_device *dev)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-	u8 tmp_state = 0;
-
-	priv->bdisable_nic = true;
-	tmp_state = priv->rtllib->state;
-	rtllib_softmac_stop_protocol(priv->rtllib, 0, false);
-	priv->rtllib->state = tmp_state;
-	_rtl92e_cancel_deferred_work(priv);
-	rtl92e_irq_disable(dev);
-
-	rtl92e_stop_adapter(dev, false);
-	return true;
-}
-
 module_pci_driver(rtl8192_pci_driver);
 
 void rtl92e_check_rfctrl_gpio_timer(struct timer_list *t)
