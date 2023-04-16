@@ -479,7 +479,7 @@ __bch2_alloc_to_v4_mut(struct btree_trans *trans, struct bkey_s_c k)
 {
 	struct bkey_i_alloc_v4 *ret;
 
-	ret = bch2_trans_kmalloc(trans, sizeof(struct bkey_i_alloc_v4));
+	ret = bch2_trans_kmalloc(trans, max(bkey_bytes(k.k), sizeof(struct bkey_i_alloc_v4)));
 	if (IS_ERR(ret))
 		return ret;
 
