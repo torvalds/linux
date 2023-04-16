@@ -4,6 +4,16 @@
  */
 #include "mvm.h"
 
+static void iwl_mvm_mld_set_he_support(struct iwl_mvm *mvm,
+				       struct ieee80211_vif *vif,
+				       struct iwl_mac_config_cmd *cmd)
+{
+	if (vif->type == NL80211_IFTYPE_AP)
+		cmd->he_ap_support = cpu_to_le16(1);
+	else
+		cmd->he_support = cpu_to_le16(1);
+}
+
 static void iwl_mvm_mld_mac_ctxt_cmd_common(struct iwl_mvm *mvm,
 					    struct ieee80211_vif *vif,
 					    struct iwl_mac_config_cmd *cmd,
@@ -41,7 +51,7 @@ static void iwl_mvm_mld_mac_ctxt_cmd_common(struct iwl_mvm *mvm,
 	 * and enable both when we have MLO.
 	 */
 	if (vif->valid_links) {
-		cmd->he_support = cpu_to_le32(1);
+		iwl_mvm_mld_set_he_support(mvm, vif, cmd);
 		cmd->eht_support = cpu_to_le32(1);
 		return;
 	}
@@ -53,7 +63,7 @@ static void iwl_mvm_mld_mac_ctxt_cmd_common(struct iwl_mvm *mvm,
 			continue;
 
 		if (link_conf->he_support)
-			cmd->he_support = cpu_to_le32(1);
+			iwl_mvm_mld_set_he_support(mvm, vif, cmd);
 
 		/* it's not reasonable to have EHT without HE and FW API doesn't
 		 * support it. Ignore EHT in this case.

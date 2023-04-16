@@ -278,6 +278,7 @@ enum iwl_mac_config_filter_flags {
  * @reserved_for_local_mld_addr: reserved
  * @filter_flags: combination of &enum iwl_mac_config_filter_flags
  * @he_support: does this MAC support HE
+ * @he_ap_support: HE AP enabled, "pseudo HE", no trigger frame handling
  * @eht_support: does this MAC support EHT. Requires he_support
  * @nic_not_ack_enabled: mark that the NIC doesn't support receiving
  *	ACK-enabled AGG, (i.e. both BACK and non-BACK frames in single AGG).
@@ -296,7 +297,8 @@ struct iwl_mac_config_cmd {
 	u8 local_mld_addr[6];
 	__le16 reserved_for_local_mld_addr;
 	__le32 filter_flags;
-	__le32 he_support;
+	__le16 he_support;
+	__le16 he_ap_support;
 	__le32 eht_support;
 	__le32 nic_not_ack_enabled;
 	/* MAC_CONTEXT_CONFIG_SPECIFIC_DATA_API_U_VER_1 */
