@@ -10,6 +10,21 @@ menuconfig COUNTER
 	  interface. You only need to enable this, if you also want to enable
 	  one or more of the counter device drivers below.
 
+config I8254
+	tristate
+	select COUNTER
+	select REGMAP
+	help
+	  Enables support for the i8254 interface library functions. The i8254
+	  interface library provides functions to facilitate communication with
+	  interfaces compatible with the venerable Intel 8254 Programmable
+	  Interval Timer (PIT). The Intel 825x family of chips was first
+	  released in the early 1980s but compatible interfaces are nowadays
+	  typically found embedded in larger VLSI processing chips and FPGA
+	  components.
+
+	  If built as a module its name will be i8254.
+
 if COUNTER
 
 config 104_QUAD_8
