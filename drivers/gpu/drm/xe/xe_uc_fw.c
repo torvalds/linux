@@ -8,11 +8,11 @@
 
 #include <drm/drm_managed.h>
 
+#include "regs/xe_guc_regs.h"
 #include "xe_bo.h"
 #include "xe_device_types.h"
 #include "xe_force_wake.h"
 #include "xe_gt.h"
-#include "xe_guc_reg.h"
 #include "xe_map.h"
 #include "xe_mmio.h"
 #include "xe_uc_fw.h"

@@ -3,8 +3,8 @@
  * Copyright © 2022 Intel Corporation
  */
 
-#ifndef _XE_GUC_REG_H_
-#define _XE_GUC_REG_H_
+#ifndef _XE_GUC_REGS_H_
+#define _XE_GUC_REGS_H_
 
 #include <linux/compiler.h>
 #include <linux/types.h>

@@ -6,6 +6,7 @@
 #include "xe_guc.h"
 
 #include "regs/xe_gt_regs.h"
+#include "regs/xe_guc_regs.h"
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_force_wake.h"
@@ -15,7 +16,6 @@
 #include "xe_guc_hwconfig.h"
 #include "xe_guc_log.h"
 #include "xe_guc_pc.h"
-#include "xe_guc_reg.h"
 #include "xe_guc_submit.h"
 #include "xe_mmio.h"
 #include "xe_platform_types.h"
