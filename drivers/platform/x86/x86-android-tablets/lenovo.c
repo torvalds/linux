@@ -255,8 +255,19 @@ static struct x86_gpio_button lenovo_yoga_tab2_830_1050_lid = {
 /* This gets filled by lenovo_yoga_tab2_830_1050_init() */
 static struct rmi_device_platform_data lenovo_yoga_tab2_830_1050_rmi_pdata = { };
 
-static const struct x86_i2c_client_info lenovo_yoga_tab2_830_1050_i2c_clients[] __initconst = {
+static struct x86_i2c_client_info lenovo_yoga_tab2_830_1050_i2c_clients[] __initdata = {
 	{
+		/*
+		 * This must be the first entry because lenovo_yoga_tab2_830_1050_init()
+		 * may update its swnode. LSM303DA accelerometer + magnetometer.
+		 */
+		.board_info = {
+			.type = "lsm303d",
+			.addr = 0x1d,
+			.dev_name = "lsm303d",
+		},
+		.adapter_path = "\\_SB_.I2C5",
+	}, {
 		/* bq24292i battery charger */
 		.board_info = {
 			.type = "bq24190",
@@ -357,7 +368,24 @@ const struct x86_dev_info lenovo_yoga_tab2_830_1050_info __initconst = {
  * The Lenovo Yoga Tablet 2 830 and 1050 (8" vs 10") versions use the same
  * mainboard, but the 830 uses a portrait LCD panel with a landscape touchscreen,
  * requiring the touchscreen driver to adjust the touch-coords to match the LCD.
+ * And requiring the accelerometer to have a mount-matrix set to correct for
+ * the 90° rotation of the LCD vs the frame.
  */
+static const char * const lenovo_yoga_tab2_830_lms303d_mount_matrix[] = {
+	"0", "1", "0",
+	"-1", "0", "0",
+	"0", "0", "1"
+};
+
+static const struct property_entry lenovo_yoga_tab2_830_lms303d_props[] = {
+	PROPERTY_ENTRY_STRING_ARRAY("mount-matrix", lenovo_yoga_tab2_830_lms303d_mount_matrix),
+	{ }
+};
+
+static const struct software_node lenovo_yoga_tab2_830_lms303d_node = {
+	.properties = lenovo_yoga_tab2_830_lms303d_props,
+};
+
 static int __init lenovo_yoga_tab2_830_1050_init_touchscreen(void)
 {
 	struct gpio_desc *gpiod;
@@ -375,6 +403,8 @@ static int __init lenovo_yoga_tab2_830_1050_init_touchscreen(void)
 		pr_info("detected Lenovo Yoga Tablet 2 830F/L\n");
 		lenovo_yoga_tab2_830_1050_rmi_pdata.sensor_pdata.axis_align.swap_axes = true;
 		lenovo_yoga_tab2_830_1050_rmi_pdata.sensor_pdata.axis_align.flip_y = true;
+		lenovo_yoga_tab2_830_1050_i2c_clients[0].board_info.swnode =
+			&lenovo_yoga_tab2_830_lms303d_node;
 	}
 
 	return 0;
