@@ -240,8 +240,9 @@ iwl_mvm_scan_type _iwl_mvm_get_scan_type(struct iwl_mvm *mvm,
 		 * set all scan requests as fast-balance scan
 		 */
 		if (vif && vif->type == NL80211_IFTYPE_STATION &&
-		    vif->bss_conf.dtim_period < 220 &&
-		    data.is_dcm_with_p2p_go)
+		    data.is_dcm_with_p2p_go &&
+		    ((vif->bss_conf.beacon_int *
+		      vif->bss_conf.dtim_period) < 220))
 			return IWL_SCAN_TYPE_FAST_BALANCE;
 	}
 
