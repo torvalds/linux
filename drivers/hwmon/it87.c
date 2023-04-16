@@ -162,8 +162,11 @@ static inline void superio_exit(int ioreg, bool noexit)
 #define IT8623E_DEVID 0x8623
 #define IT8628E_DEVID 0x8628
 #define IT87952E_DEVID 0x8695
-#define IT87_ACT_REG  0x30
-#define IT87_BASE_REG 0x60
+
+/* Logical device 4 (Environmental Monitor) registers */
+#define IT87_ACT_REG	0x30
+#define IT87_BASE_REG	0x60
+#define IT87_SPECIAL_CFG_REG	0xf3	/* special configuration register */
 
 /* Logical device 7 registers (IT8712F and later) */
 #define IT87_SIO_GPIO1_REG	0x25
@@ -284,6 +287,8 @@ struct it87_devices {
 	u32 features;
 	u8 peci_mask;
 	u8 old_peci_mask;
+	u8 smbus_bitmap;	/* SMBus enable bits in extra config register */
+	u8 ec_special_config;
 };
 
 #define FEAT_12MV_ADC		BIT(0)
@@ -533,6 +538,8 @@ struct it87_sio_data {
 	u8 skip_fan;
 	u8 skip_pwm;
 	u8 skip_temp;
+	u8 smbus_bitmap;
+	u8 ec_special_config;
 };
 
 /*
@@ -546,6 +553,9 @@ struct it87_data {
 	u32 features;
 	u8 peci_mask;
 	u8 old_peci_mask;
+
+	u8 smbus_bitmap;	/* !=0 if SMBus needs to be disabled */
+	u8 ec_special_config;	/* EC special config register restore value */
 
 	unsigned short addr;
 	const char *name;
@@ -700,6 +710,39 @@ static const unsigned int pwm_freq[8] = {
 	1500000,
 	750000,
 };
+
+static int smbus_disable(struct it87_data *data)
+{
+	int err;
+
+	if (data->smbus_bitmap) {
+		err = superio_enter(data->sioaddr);
+		if (err)
+			return err;
+		superio_select(data->sioaddr, PME);
+		superio_outb(data->sioaddr, IT87_SPECIAL_CFG_REG,
+			     data->ec_special_config & ~data->smbus_bitmap);
+		superio_exit(data->sioaddr, has_conf_noexit(data));
+	}
+	return 0;
+}
+
+static int smbus_enable(struct it87_data *data)
+{
+	int err;
+
+	if (data->smbus_bitmap) {
+		err = superio_enter(data->sioaddr);
+		if (err)
+			return err;
+
+		superio_select(data->sioaddr, PME);
+		superio_outb(data->sioaddr, IT87_SPECIAL_CFG_REG,
+			     data->ec_special_config);
+		superio_exit(data->sioaddr, has_conf_noexit(data));
+	}
+	return 0;
+}
 
 /*
  * Must be called with data->update_lock held, except during initialization.
@@ -2859,6 +2902,15 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 	if (dmi_data)
 		sio_data->skip_pwm |= dmi_data->skip_pwm;
 
+	if (config->smbus_bitmap) {
+		u8 reg;
+
+		superio_select(sioaddr, PME);
+		reg = superio_inb(sioaddr, IT87_SPECIAL_CFG_REG);
+		sio_data->ec_special_config = reg;
+		sio_data->smbus_bitmap = reg & config->smbus_bitmap;
+	}
+
 exit:
 	superio_exit(sioaddr, config ? has_conf_noexit(config) : false);
 	return err;
@@ -3094,6 +3146,8 @@ static int it87_probe(struct platform_device *pdev)
 	data->addr = res->start;
 	data->sioaddr = sio_data->sioaddr;
 	data->type = sio_data->type;
+	data->smbus_bitmap = sio_data->smbus_bitmap;
+	data->ec_special_config = sio_data->ec_special_config;
 	data->features = it87_devices[sio_data->type].features;
 	data->peci_mask = it87_devices[sio_data->type].peci_mask;
 	data->old_peci_mask = it87_devices[sio_data->type].old_peci_mask;
