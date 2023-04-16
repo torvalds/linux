@@ -40,6 +40,16 @@ static struct lp855x_platform_data lenovo_lp8557_pdata = {
 
 /* Lenovo Yoga Book X90F / X90L's Android factory img has everything hardcoded */
 
+static const struct property_entry lenovo_yb1_x90_wacom_props[] = {
+	PROPERTY_ENTRY_U32("hid-descr-addr", 0x0001),
+	PROPERTY_ENTRY_U32("post-reset-deassert-delay-ms", 150),
+	{ }
+};
+
+static const struct software_node lenovo_yb1_x90_wacom_node = {
+	.properties = lenovo_yb1_x90_wacom_props,
+};
+
 /*
  * The HiDeep IST940E touchscreen comes up in I2C-HID mode. The native protocol
  * reports ABS_MT_PRESSURE and ABS_MT_TOUCH_MAJOR which are not reported in HID
@@ -87,6 +97,22 @@ static const struct x86_i2c_client_info lenovo_yb1_x90_i2c_clients[] __initconst
 			.polarity = ACPI_ACTIVE_LOW,
 		},
 	}, {
+		/* Wacom Digitizer in keyboard half */
+		.board_info = {
+			.type = "hid-over-i2c",
+			.addr = 0x09,
+			.dev_name = "wacom",
+			.swnode = &lenovo_yb1_x90_wacom_node,
+		},
+		.adapter_path = "\\_SB_.PCI0.I2C4",
+		.irq_data = {
+			.type = X86_ACPI_IRQ_TYPE_GPIOINT,
+			.chip = "INT33FF:01",
+			.index = 49,
+			.trigger = ACPI_LEVEL_SENSITIVE,
+			.polarity = ACPI_ACTIVE_LOW,
+		},
+	}, {
 		/* LP8557 Backlight controller */
 		.board_info = {
 			.type = "lp8557",
@@ -131,9 +157,18 @@ static struct gpiod_lookup_table lenovo_yb1_x90_hideep_gpios = {
 	},
 };
 
+static struct gpiod_lookup_table lenovo_yb1_x90_wacom_gpios = {
+	.dev_id = "i2c-wacom",
+	.table = {
+		GPIO_LOOKUP("INT33FF:00", 82, "reset", GPIO_ACTIVE_LOW),
+		{ }
+	},
+};
+
 static struct gpiod_lookup_table * const lenovo_yb1_x90_gpios[] = {
 	&lenovo_yb1_x90_hideep_gpios,
 	&lenovo_yb1_x90_goodix_gpios,
+	&lenovo_yb1_x90_wacom_gpios,
 	NULL
 };
 
