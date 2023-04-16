@@ -874,13 +874,40 @@ u8 iwl_mvm_mac_ctxt_get_lowest_rate(struct iwl_mvm *mvm,
 				    struct ieee80211_tx_info *info,
 				    struct ieee80211_vif *vif)
 {
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct ieee80211_supported_band *sband;
 	unsigned long basic = vif->bss_conf.basic_rates;
 	u16 lowest_cck = IWL_RATE_COUNT, lowest_ofdm = IWL_RATE_COUNT;
+	u32 link_id = u32_get_bits(info->control.flags,
+				   IEEE80211_TX_CTRL_MLO_LINK);
+	u8 band = info->band;
 	u8 rate;
 	u32 i;
 
-	sband = mvm->hw->wiphy->bands[info->band];
+	if (link_id == IEEE80211_LINK_UNSPECIFIED && vif->valid_links) {
+		for (i = 0; i < ARRAY_SIZE(mvmvif->link); i++) {
+			if (!mvmvif->link[i])
+				continue;
+			/* shouldn't do this when >1 link is active */
+			WARN_ON_ONCE(link_id != IEEE80211_LINK_UNSPECIFIED);
+			link_id = i;
+		}
+	}
+
+	if (link_id < IEEE80211_LINK_UNSPECIFIED) {
+		struct ieee80211_bss_conf *link_conf;
+
+		rcu_read_lock();
+		link_conf = rcu_dereference(vif->link_conf[link_id]);
+		if (link_conf) {
+			basic = link_conf->basic_rates;
+			if (link_conf->chandef.chan)
+				band = link_conf->chandef.chan->band;
+		}
+		rcu_read_unlock();
+	}
+
+	sband = mvm->hw->wiphy->bands[band];
 	for_each_set_bit(i, &basic, BITS_PER_LONG) {
 		u16 hw = sband->bitrates[i].hw_value;
 
@@ -892,7 +919,7 @@ u8 iwl_mvm_mac_ctxt_get_lowest_rate(struct iwl_mvm *mvm,
 		}
 	}
 
-	if (info->band == NL80211_BAND_2GHZ && !vif->p2p &&
+	if (band == NL80211_BAND_2GHZ && !vif->p2p &&
 	    vif->type != NL80211_IFTYPE_P2P_DEVICE &&
 	    !(info->flags & IEEE80211_TX_CTL_NO_CCK_RATE)) {
 		if (lowest_cck != IWL_RATE_COUNT)
