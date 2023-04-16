@@ -1798,6 +1798,8 @@ bpf_base_func_proto(enum bpf_func_id func_id)
 	}
 }
 
+void __bpf_obj_drop_impl(void *p, const struct btf_record *rec);
+
 void bpf_list_head_free(const struct btf_field *field, void *list_head,
 			struct bpf_spin_lock *spin_lock)
 {
@@ -1828,13 +1830,8 @@ unlock:
 		/* The contained type can also have resources, including a
 		 * bpf_list_head which needs to be freed.
 		 */
-		bpf_obj_free_fields(field->graph_root.value_rec, obj);
-		/* bpf_mem_free requires migrate_disable(), since we can be
-		 * called from map free path as well apart from BPF program (as
-		 * part of map ops doing bpf_obj_free_fields).
-		 */
 		migrate_disable();
-		bpf_mem_free(&bpf_global_ma, obj);
+		__bpf_obj_drop_impl(obj, field->graph_root.value_rec);
 		migrate_enable();
 	}
 }
@@ -1871,10 +1868,9 @@ void bpf_rb_root_free(const struct btf_field *field, void *rb_root,
 		obj = pos;
 		obj -= field->graph_root.node_offset;
 
-		bpf_obj_free_fields(field->graph_root.value_rec, obj);
 
 		migrate_disable();
-		bpf_mem_free(&bpf_global_ma, obj);
+		__bpf_obj_drop_impl(obj, field->graph_root.value_rec);
 		migrate_enable();
 	}
 }
@@ -1893,12 +1889,21 @@ __bpf_kfunc void *bpf_obj_new_impl(u64 local_type_id__k, void *meta__ign)
 	if (!p)
 		return NULL;
 	if (meta)
-		bpf_obj_init(meta->field_offs, p);
+		bpf_obj_init(meta->record, p);
 	return p;
 }
 
+/* Must be called under migrate_disable(), as required by bpf_mem_free */
 void __bpf_obj_drop_impl(void *p, const struct btf_record *rec)
 {
+	if (rec && rec->refcount_off >= 0 &&
+	    !refcount_dec_and_test((refcount_t *)(p + rec->refcount_off))) {
+		/* Object is refcounted and refcount_dec didn't result in 0
+		 * refcount. Return without freeing the object
+		 */
+		return;
+	}
+
 	if (rec)
 		bpf_obj_free_fields(rec, p);
 	bpf_mem_free(&bpf_global_ma, p);
@@ -1912,31 +1917,68 @@ __bpf_kfunc void bpf_obj_drop_impl(void *p__alloc, void *meta__ign)
 	__bpf_obj_drop_impl(p, meta ? meta->record : NULL);
 }
 
-static void __bpf_list_add(struct bpf_list_node *node, struct bpf_list_head *head, bool tail)
+__bpf_kfunc void *bpf_refcount_acquire_impl(void *p__refcounted_kptr, void *meta__ign)
+{
+	struct btf_struct_meta *meta = meta__ign;
+	struct bpf_refcount *ref;
+
+	/* Could just cast directly to refcount_t *, but need some code using
+	 * bpf_refcount type so that it is emitted in vmlinux BTF
+	 */
+	ref = (struct bpf_refcount *)p__refcounted_kptr + meta->record->refcount_off;
+
+	refcount_inc((refcount_t *)ref);
+	return (void *)p__refcounted_kptr;
+}
+
+static int __bpf_list_add(struct bpf_list_node *node, struct bpf_list_head *head,
+			  bool tail, struct btf_record *rec, u64 off)
 {
 	struct list_head *n = (void *)node, *h = (void *)head;
 
+	/* If list_head was 0-initialized by map, bpf_obj_init_field wasn't
+	 * called on its fields, so init here
+	 */
 	if (unlikely(!h->next))
 		INIT_LIST_HEAD(h);
-	if (unlikely(!n->next))
-		INIT_LIST_HEAD(n);
+	if (!list_empty(n)) {
+		/* Only called from BPF prog, no need to migrate_disable */
+		__bpf_obj_drop_impl(n - off, rec);
+		return -EINVAL;
+	}
+
 	tail ? list_add_tail(n, h) : list_add(n, h);
+
+	return 0;
 }
 
-__bpf_kfunc void bpf_list_push_front(struct bpf_list_head *head, struct bpf_list_node *node)
+__bpf_kfunc int bpf_list_push_front_impl(struct bpf_list_head *head,
+					 struct bpf_list_node *node,
+					 void *meta__ign, u64 off)
 {
-	return __bpf_list_add(node, head, false);
+	struct btf_struct_meta *meta = meta__ign;
+
+	return __bpf_list_add(node, head, false,
+			      meta ? meta->record : NULL, off);
 }
 
-__bpf_kfunc void bpf_list_push_back(struct bpf_list_head *head, struct bpf_list_node *node)
+__bpf_kfunc int bpf_list_push_back_impl(struct bpf_list_head *head,
+					struct bpf_list_node *node,
+					void *meta__ign, u64 off)
 {
-	return __bpf_list_add(node, head, true);
+	struct btf_struct_meta *meta = meta__ign;
+
+	return __bpf_list_add(node, head, true,
+			      meta ? meta->record : NULL, off);
 }
 
 static struct bpf_list_node *__bpf_list_del(struct bpf_list_head *head, bool tail)
 {
 	struct list_head *n, *h = (void *)head;
 
+	/* If list_head was 0-initialized by map, bpf_obj_init_field wasn't
+	 * called on its fields, so init here
+	 */
 	if (unlikely(!h->next))
 		INIT_LIST_HEAD(h);
 	if (list_empty(h))
@@ -1962,6 +2004,9 @@ __bpf_kfunc struct bpf_rb_node *bpf_rbtree_remove(struct bpf_rb_root *root,
 	struct rb_root_cached *r = (struct rb_root_cached *)root;
 	struct rb_node *n = (struct rb_node *)node;
 
+	if (RB_EMPTY_NODE(n))
+		return NULL;
+
 	rb_erase_cached(n, r);
 	RB_CLEAR_NODE(n);
 	return (struct bpf_rb_node *)n;
@@ -1970,13 +2015,19 @@ __bpf_kfunc struct bpf_rb_node *bpf_rbtree_remove(struct bpf_rb_root *root,
 /* Need to copy rbtree_add_cached's logic here because our 'less' is a BPF
  * program
  */
-static void __bpf_rbtree_add(struct bpf_rb_root *root, struct bpf_rb_node *node,
-			     void *less)
+static int __bpf_rbtree_add(struct bpf_rb_root *root, struct bpf_rb_node *node,
+			    void *less, struct btf_record *rec, u64 off)
 {
 	struct rb_node **link = &((struct rb_root_cached *)root)->rb_root.rb_node;
+	struct rb_node *parent = NULL, *n = (struct rb_node *)node;
 	bpf_callback_t cb = (bpf_callback_t)less;
-	struct rb_node *parent = NULL;
 	bool leftmost = true;
+
+	if (!RB_EMPTY_NODE(n)) {
+		/* Only called from BPF prog, no need to migrate_disable */
+		__bpf_obj_drop_impl(n - off, rec);
+		return -EINVAL;
+	}
 
 	while (*link) {
 		parent = *link;
@@ -1988,15 +2039,18 @@ static void __bpf_rbtree_add(struct bpf_rb_root *root, struct bpf_rb_node *node,
 		}
 	}
 
-	rb_link_node((struct rb_node *)node, parent, link);
-	rb_insert_color_cached((struct rb_node *)node,
-			       (struct rb_root_cached *)root, leftmost);
+	rb_link_node(n, parent, link);
+	rb_insert_color_cached(n, (struct rb_root_cached *)root, leftmost);
+	return 0;
 }
 
-__bpf_kfunc void bpf_rbtree_add(struct bpf_rb_root *root, struct bpf_rb_node *node,
-				bool (less)(struct bpf_rb_node *a, const struct bpf_rb_node *b))
+__bpf_kfunc int bpf_rbtree_add_impl(struct bpf_rb_root *root, struct bpf_rb_node *node,
+				    bool (less)(struct bpf_rb_node *a, const struct bpf_rb_node *b),
+				    void *meta__ign, u64 off)
 {
-	__bpf_rbtree_add(root, node, (void *)less);
+	struct btf_struct_meta *meta = meta__ign;
+
+	return __bpf_rbtree_add(root, node, (void *)less, meta ? meta->record : NULL, off);
 }
 
 __bpf_kfunc struct bpf_rb_node *bpf_rbtree_first(struct bpf_rb_root *root)
@@ -2271,14 +2325,15 @@ BTF_ID_FLAGS(func, crash_kexec, KF_DESTRUCTIVE)
 #endif
 BTF_ID_FLAGS(func, bpf_obj_new_impl, KF_ACQUIRE | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_obj_drop_impl, KF_RELEASE)
-BTF_ID_FLAGS(func, bpf_list_push_front)
-BTF_ID_FLAGS(func, bpf_list_push_back)
+BTF_ID_FLAGS(func, bpf_refcount_acquire_impl, KF_ACQUIRE)
+BTF_ID_FLAGS(func, bpf_list_push_front_impl)
+BTF_ID_FLAGS(func, bpf_list_push_back_impl)
 BTF_ID_FLAGS(func, bpf_list_pop_front, KF_ACQUIRE | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_list_pop_back, KF_ACQUIRE | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_task_acquire, KF_ACQUIRE | KF_RCU | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_task_release, KF_RELEASE)
-BTF_ID_FLAGS(func, bpf_rbtree_remove, KF_ACQUIRE)
-BTF_ID_FLAGS(func, bpf_rbtree_add)
+BTF_ID_FLAGS(func, bpf_rbtree_remove, KF_ACQUIRE | KF_RET_NULL)
+BTF_ID_FLAGS(func, bpf_rbtree_add_impl)
 BTF_ID_FLAGS(func, bpf_rbtree_first, KF_RET_NULL)
 
 #ifdef CONFIG_CGROUPS

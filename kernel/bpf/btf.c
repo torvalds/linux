@@ -1666,10 +1666,8 @@ static void btf_struct_metas_free(struct btf_struct_metas *tab)
 
 	if (!tab)
 		return;
-	for (i = 0; i < tab->cnt; i++) {
+	for (i = 0; i < tab->cnt; i++)
 		btf_record_free(tab->types[i].record);
-		kfree(tab->types[i].field_offs);
-	}
 	kfree(tab);
 }
 
@@ -3393,6 +3391,7 @@ static int btf_get_field_type(const char *name, u32 field_mask, u32 *seen_mask,
 	field_mask_test_name(BPF_LIST_NODE, "bpf_list_node");
 	field_mask_test_name(BPF_RB_ROOT,   "bpf_rb_root");
 	field_mask_test_name(BPF_RB_NODE,   "bpf_rb_node");
+	field_mask_test_name(BPF_REFCOUNT,  "bpf_refcount");
 
 	/* Only return BPF_KPTR when all other types with matchable names fail */
 	if (field_mask & BPF_KPTR) {
@@ -3441,6 +3440,7 @@ static int btf_find_struct_field(const struct btf *btf,
 		case BPF_TIMER:
 		case BPF_LIST_NODE:
 		case BPF_RB_NODE:
+		case BPF_REFCOUNT:
 			ret = btf_find_struct(btf, member_type, off, sz, field_type,
 					      idx < info_cnt ? &info[idx] : &tmp);
 			if (ret < 0)
@@ -3506,6 +3506,7 @@ static int btf_find_datasec_var(const struct btf *btf, const struct btf_type *t,
 		case BPF_TIMER:
 		case BPF_LIST_NODE:
 		case BPF_RB_NODE:
+		case BPF_REFCOUNT:
 			ret = btf_find_struct(btf, var_type, off, sz, field_type,
 					      idx < info_cnt ? &info[idx] : &tmp);
 			if (ret < 0)
@@ -3700,12 +3701,24 @@ static int btf_parse_rb_root(const struct btf *btf, struct btf_field *field,
 					    __alignof__(struct bpf_rb_node));
 }
 
+static int btf_field_cmp(const void *_a, const void *_b, const void *priv)
+{
+	const struct btf_field *a = (const struct btf_field *)_a;
+	const struct btf_field *b = (const struct btf_field *)_b;
+
+	if (a->offset < b->offset)
+		return -1;
+	else if (a->offset > b->offset)
+		return 1;
+	return 0;
+}
+
 struct btf_record *btf_parse_fields(const struct btf *btf, const struct btf_type *t,
 				    u32 field_mask, u32 value_size)
 {
 	struct btf_field_info info_arr[BTF_FIELDS_MAX];
+	u32 next_off = 0, field_type_size;
 	struct btf_record *rec;
-	u32 next_off = 0;
 	int ret, i, cnt;
 
 	ret = btf_find_field(btf, t, field_mask, info_arr, ARRAY_SIZE(info_arr));
@@ -3724,8 +3737,10 @@ struct btf_record *btf_parse_fields(const struct btf *btf, const struct btf_type
 
 	rec->spin_lock_off = -EINVAL;
 	rec->timer_off = -EINVAL;
+	rec->refcount_off = -EINVAL;
 	for (i = 0; i < cnt; i++) {
-		if (info_arr[i].off + btf_field_type_size(info_arr[i].type) > value_size) {
+		field_type_size = btf_field_type_size(info_arr[i].type);
+		if (info_arr[i].off + field_type_size > value_size) {
 			WARN_ONCE(1, "verifier bug off %d size %d", info_arr[i].off, value_size);
 			ret = -EFAULT;
 			goto end;
@@ -3734,11 +3749,12 @@ struct btf_record *btf_parse_fields(const struct btf *btf, const struct btf_type
 			ret = -EEXIST;
 			goto end;
 		}
-		next_off = info_arr[i].off + btf_field_type_size(info_arr[i].type);
+		next_off = info_arr[i].off + field_type_size;
 
 		rec->field_mask |= info_arr[i].type;
 		rec->fields[i].offset = info_arr[i].off;
 		rec->fields[i].type = info_arr[i].type;
+		rec->fields[i].size = field_type_size;
 
 		switch (info_arr[i].type) {
 		case BPF_SPIN_LOCK:
@@ -3750,6 +3766,11 @@ struct btf_record *btf_parse_fields(const struct btf *btf, const struct btf_type
 			WARN_ON_ONCE(rec->timer_off >= 0);
 			/* Cache offset for faster lookup at runtime */
 			rec->timer_off = rec->fields[i].offset;
+			break;
+		case BPF_REFCOUNT:
+			WARN_ON_ONCE(rec->refcount_off >= 0);
+			/* Cache offset for faster lookup at runtime */
+			rec->refcount_off = rec->fields[i].offset;
 			break;
 		case BPF_KPTR_UNREF:
 		case BPF_KPTR_REF:
@@ -3784,29 +3805,15 @@ struct btf_record *btf_parse_fields(const struct btf *btf, const struct btf_type
 		goto end;
 	}
 
-	/* need collection identity for non-owning refs before allowing this
-	 *
-	 * Consider a node type w/ both list and rb_node fields:
-	 *   struct node {
-	 *     struct bpf_list_node l;
-	 *     struct bpf_rb_node r;
-	 *   }
-	 *
-	 * Used like so:
-	 *   struct node *n = bpf_obj_new(....);
-	 *   bpf_list_push_front(&list_head, &n->l);
-	 *   bpf_rbtree_remove(&rb_root, &n->r);
-	 *
-	 * It should not be possible to rbtree_remove the node since it hasn't
-	 * been added to a tree. But push_front converts n to a non-owning
-	 * reference, and rbtree_remove accepts the non-owning reference to
-	 * a type w/ bpf_rb_node field.
-	 */
-	if (btf_record_has_field(rec, BPF_LIST_NODE) &&
+	if (rec->refcount_off < 0 &&
+	    btf_record_has_field(rec, BPF_LIST_NODE) &&
 	    btf_record_has_field(rec, BPF_RB_NODE)) {
 		ret = -EINVAL;
 		goto end;
 	}
+
+	sort_r(rec->fields, rec->cnt, sizeof(struct btf_field), btf_field_cmp,
+	       NULL, rec);
 
 	return rec;
 end:
@@ -3887,61 +3894,6 @@ int btf_check_and_fixup_fields(const struct btf *btf, struct btf_record *rec)
 			return -ELOOP;
 	}
 	return 0;
-}
-
-static int btf_field_offs_cmp(const void *_a, const void *_b, const void *priv)
-{
-	const u32 a = *(const u32 *)_a;
-	const u32 b = *(const u32 *)_b;
-
-	if (a < b)
-		return -1;
-	else if (a > b)
-		return 1;
-	return 0;
-}
-
-static void btf_field_offs_swap(void *_a, void *_b, int size, const void *priv)
-{
-	struct btf_field_offs *foffs = (void *)priv;
-	u32 *off_base = foffs->field_off;
-	u32 *a = _a, *b = _b;
-	u8 *sz_a, *sz_b;
-
-	sz_a = foffs->field_sz + (a - off_base);
-	sz_b = foffs->field_sz + (b - off_base);
-
-	swap(*a, *b);
-	swap(*sz_a, *sz_b);
-}
-
-struct btf_field_offs *btf_parse_field_offs(struct btf_record *rec)
-{
-	struct btf_field_offs *foffs;
-	u32 i, *off;
-	u8 *sz;
-
-	BUILD_BUG_ON(ARRAY_SIZE(foffs->field_off) != ARRAY_SIZE(foffs->field_sz));
-	if (IS_ERR_OR_NULL(rec))
-		return NULL;
-
-	foffs = kzalloc(sizeof(*foffs), GFP_KERNEL | __GFP_NOWARN);
-	if (!foffs)
-		return ERR_PTR(-ENOMEM);
-
-	off = foffs->field_off;
-	sz = foffs->field_sz;
-	for (i = 0; i < rec->cnt; i++) {
-		off[i] = rec->fields[i].offset;
-		sz[i] = btf_field_type_size(rec->fields[i].type);
-	}
-	foffs->cnt = rec->cnt;
-
-	if (foffs->cnt == 1)
-		return foffs;
-	sort_r(foffs->field_off, foffs->cnt, sizeof(foffs->field_off[0]),
-	       btf_field_offs_cmp, btf_field_offs_swap, foffs);
-	return foffs;
 }
 
 static void __btf_struct_show(const struct btf *btf, const struct btf_type *t,
@@ -5348,6 +5300,7 @@ static const char *alloc_obj_fields[] = {
 	"bpf_list_node",
 	"bpf_rb_root",
 	"bpf_rb_node",
+	"bpf_refcount",
 };
 
 static struct btf_struct_metas *
@@ -5386,7 +5339,6 @@ btf_parse_struct_metas(struct bpf_verifier_log *log, struct btf *btf)
 	for (i = 1; i < n; i++) {
 		struct btf_struct_metas *new_tab;
 		const struct btf_member *member;
-		struct btf_field_offs *foffs;
 		struct btf_struct_meta *type;
 		struct btf_record *record;
 		const struct btf_type *t;
@@ -5422,23 +5374,13 @@ btf_parse_struct_metas(struct bpf_verifier_log *log, struct btf *btf)
 		type = &tab->types[tab->cnt];
 		type->btf_id = i;
 		record = btf_parse_fields(btf, t, BPF_SPIN_LOCK | BPF_LIST_HEAD | BPF_LIST_NODE |
-						  BPF_RB_ROOT | BPF_RB_NODE, t->size);
+						  BPF_RB_ROOT | BPF_RB_NODE | BPF_REFCOUNT, t->size);
 		/* The record cannot be unset, treat it as an error if so */
 		if (IS_ERR_OR_NULL(record)) {
 			ret = PTR_ERR_OR_ZERO(record) ?: -EFAULT;
 			goto free;
 		}
-		foffs = btf_parse_field_offs(record);
-		/* We need the field_offs to be valid for a valid record,
-		 * either both should be set or both should be unset.
-		 */
-		if (IS_ERR_OR_NULL(foffs)) {
-			btf_record_free(record);
-			ret = -EFAULT;
-			goto free;
-		}
 		type->record = record;
-		type->field_offs = foffs;
 		tab->cnt++;
 	}
 	return tab;
