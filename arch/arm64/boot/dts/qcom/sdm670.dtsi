@@ -42,7 +42,7 @@
 				compatible = "cache";
 				next-level-cache = <&L3_0>;
 				L3_0: l3-cache {
-				      compatible = "cache";
+					compatible = "cache";
 				};
 			};
 		};

@@ -110,8 +110,8 @@
 				cache-level = <2>;
 				next-level-cache = <&L3_0>;
 				L3_0: l3-cache {
-				      compatible = "cache";
-				      cache-level = <3>;
+					compatible = "cache";
+					cache-level = <3>;
 				};
 			};
 		};
