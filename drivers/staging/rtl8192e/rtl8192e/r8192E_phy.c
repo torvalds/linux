@@ -1089,14 +1089,7 @@ static bool _rtl92e_set_rf_power_state(struct net_device *dev,
 			if (i >= MAX_DOZE_WAITING_TIMES_9x)
 				break;
 		}
-		if (psc->RegRfPsLevel & RT_RF_OFF_LEVL_HALT_NIC &&
-		    !RT_IN_PS_LEVEL(psc, RT_RF_OFF_LEVL_HALT_NIC)) {
-			rtl92e_disable_nic(dev);
-			RT_SET_PS_LEVEL(psc, RT_RF_OFF_LEVL_HALT_NIC);
-		} else if (!(psc->RegRfPsLevel &
-			   RT_RF_OFF_LEVL_HALT_NIC)) {
-			rtl92e_set_rf_off(dev);
-		}
+		rtl92e_set_rf_off(dev);
 		break;
 	default:
 		bResult = false;

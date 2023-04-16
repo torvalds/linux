@@ -1237,7 +1237,6 @@ struct rt_pwr_save_ctrl {
 	u8				LPSAwakeIntvl;
 
 	u32				CurPsLevel;
-	u32				RegRfPsLevel;
 };
 
 #define RT_RF_CHANGE_SOURCE u32
