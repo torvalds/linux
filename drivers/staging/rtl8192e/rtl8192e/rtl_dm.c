@@ -1826,7 +1826,6 @@ static void _rtl92e_dm_init_fsync(struct net_device *dev)
 	priv->rtllib->fsync_firstdiff_ratethreshold = 100;
 	priv->rtllib->fsync_seconddiff_ratethreshold = 200;
 	priv->rtllib->fsync_state = Default_Fsync;
-	priv->frame_sync_monitor = 1;
 
 	timer_setup(&priv->fsync_timer, _rtl92e_dm_fsync_timer_callback, 0);
 }
@@ -2053,12 +2052,10 @@ static void _rtl92e_dm_check_fsync(struct net_device *dev)
 
 			}
 		}
-		if (priv->frame_sync_monitor) {
-			if (reg_c38_State != RegC38_Fsync_AP_BCM) {
-				rtl92e_writeb(dev, rOFDM0_RxDetector3, 0x95);
+		if (reg_c38_State != RegC38_Fsync_AP_BCM) {
+			rtl92e_writeb(dev, rOFDM0_RxDetector3, 0x95);
 
-				reg_c38_State = RegC38_Fsync_AP_BCM;
-			}
+			reg_c38_State = RegC38_Fsync_AP_BCM;
 		}
 	} else {
 		switch (priv->rtllib->fsync_state) {
@@ -2075,50 +2072,40 @@ static void _rtl92e_dm_check_fsync(struct net_device *dev)
 			break;
 		}
 
-		if (priv->frame_sync_monitor) {
-			if (priv->rtllib->state == RTLLIB_LINKED) {
-				if (priv->undecorated_smoothed_pwdb <=
-				    RegC38_TH) {
-					if (reg_c38_State !=
-					    RegC38_NonFsync_Other_AP) {
-						rtl92e_writeb(dev,
-							      rOFDM0_RxDetector3,
-							      0x90);
+		if (priv->rtllib->state == RTLLIB_LINKED) {
+			if (priv->undecorated_smoothed_pwdb <=
+			    RegC38_TH) {
+				if (reg_c38_State !=
+				    RegC38_NonFsync_Other_AP) {
+					rtl92e_writeb(dev,
+						      rOFDM0_RxDetector3,
+						      0x90);
 
-						reg_c38_State =
-						     RegC38_NonFsync_Other_AP;
-					}
-				} else if (priv->undecorated_smoothed_pwdb >=
-					   (RegC38_TH+5)) {
-					if (reg_c38_State) {
-						rtl92e_writeb(dev,
-							rOFDM0_RxDetector3,
-							priv->framesync);
-						reg_c38_State = RegC38_Default;
-					}
+					reg_c38_State =
+					     RegC38_NonFsync_Other_AP;
 				}
-			} else {
+			} else if (priv->undecorated_smoothed_pwdb >=
+				   (RegC38_TH+5)) {
 				if (reg_c38_State) {
-					rtl92e_writeb(dev, rOFDM0_RxDetector3,
-						      priv->framesync);
+					rtl92e_writeb(dev,
+						rOFDM0_RxDetector3,
+						priv->framesync);
 					reg_c38_State = RegC38_Default;
 				}
 			}
+		} else {
+			if (reg_c38_State) {
+				rtl92e_writeb(dev, rOFDM0_RxDetector3,
+					      priv->framesync);
+				reg_c38_State = RegC38_Default;
+			}
 		}
 	}
-	if (priv->frame_sync_monitor) {
-		if (priv->reset_count != reset_cnt) {
-			rtl92e_writeb(dev, rOFDM0_RxDetector3,
-				       priv->framesync);
-			reg_c38_State = RegC38_Default;
-			reset_cnt = priv->reset_count;
-		}
-	} else {
-		if (reg_c38_State) {
-			rtl92e_writeb(dev, rOFDM0_RxDetector3,
-				       priv->framesync);
-			reg_c38_State = RegC38_Default;
-		}
+	if (priv->reset_count != reset_cnt) {
+		rtl92e_writeb(dev, rOFDM0_RxDetector3,
+			       priv->framesync);
+		reg_c38_State = RegC38_Default;
+		reset_cnt = priv->reset_count;
 	}
 }
 
