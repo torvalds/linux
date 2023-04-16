@@ -83,7 +83,7 @@ __copy_from_user_flushcache(void *dst, const void __user *src, unsigned size)
  */
 
 __must_check unsigned long
-clear_user_original(void __user *addr, unsigned long len);
+rep_stos_alternative(void __user *addr, unsigned long len);
 
 static __always_inline __must_check unsigned long __clear_user(void __user *addr, unsigned long size)
 {
@@ -97,7 +97,7 @@ static __always_inline __must_check unsigned long __clear_user(void __user *addr
 	asm volatile(
 		"1:\n\t"
 		ALTERNATIVE("rep stosb",
-			    "call clear_user_original", ALT_NOT(X86_FEATURE_FSRS))
+			    "call rep_stos_alternative", ALT_NOT(X86_FEATURE_FSRS))
 		"2:\n"
 	       _ASM_EXTABLE_UA(1b, 2b)
 	       : "+c" (size), "+D" (addr), ASM_CALL_CONSTRAINT
