@@ -567,7 +567,7 @@ int mlx5_irqs_request_vectors(struct mlx5_core_dev *dev, u16 *cpus, int nirqs,
 	struct mlx5_irq *irq;
 	int i;
 
-	af_desc.is_managed = 1;
+	af_desc.is_managed = false;
 	for (i = 0; i < nirqs; i++) {
 		cpumask_set_cpu(cpus[i], &af_desc.mask);
 		irq = mlx5_irq_request(dev, i + 1, &af_desc, rmap);
