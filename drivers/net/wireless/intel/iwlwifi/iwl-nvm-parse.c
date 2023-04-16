@@ -938,6 +938,10 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 		}
 	}
 
+	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210 && !is_ap)
+		iftype_data->he_cap.he_cap_elem.phy_cap_info[2] |=
+			IEEE80211_HE_PHY_CAP2_UL_MU_FULL_MU_MIMO;
+
 	switch (CSR_HW_RFID_TYPE(trans->hw_rf_id)) {
 	case IWL_CFG_RF_TYPE_GF:
 	case IWL_CFG_RF_TYPE_MR:
