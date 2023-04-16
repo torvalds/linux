@@ -1367,6 +1367,8 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	else
 		memset(&mvm->rx_stats, 0, sizeof(struct mvm_statistics_rx));
 
+	iwl_mvm_ftm_initiator_smooth_config(mvm);
+
 	iwl_mvm_init_time_sync(&mvm->time_sync);
 
 	mvm->debugfs_dir = dbgfs_dir;
