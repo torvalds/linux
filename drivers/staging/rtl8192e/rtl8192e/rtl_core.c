@@ -785,7 +785,6 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 	priv->rtllib->short_slot = 1;
 	priv->promisc = (dev->flags & IFF_PROMISC) ? 1 : 0;
 	priv->bcck_in_ch14 = false;
-	priv->bfsync_processing  = false;
 	priv->cck_present_attn = 0;
 	priv->rfa_txpowertrackingindex = 0;
 	priv->rfc_txpowertrackingindex = 0;

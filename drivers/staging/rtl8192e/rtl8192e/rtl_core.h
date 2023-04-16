@@ -357,7 +357,6 @@ struct r8192_priv {
 	u8		rfa_txpowertrackingindex_real;
 	u8		rfa_txpowertracking_default;
 	u8		rfc_txpowertrackingindex;
-	u8		rfc_txpowertrackingindex_real;
 	bool		btxpower_tracking;
 	bool		bcck_in_ch14;
 
@@ -376,7 +375,6 @@ struct r8192_priv {
 	bool		bcurrent_turbo_EDCA;
 	bool		bis_cur_rdlstate;
 
-	bool		bfsync_processing;
 	u32		rate_record;
 	u32		rate_count_diff_rec;
 	u32		continue_diff_count;

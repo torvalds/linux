@@ -998,7 +998,6 @@ void rtl92e_dm_backup_state(struct net_device *dev)
 	u32 bit_mask = bMaskByte0;
 
 	priv->bswitch_fsync  = false;
-	priv->bfsync_processing = false;
 
 	if (dm_digtable.dig_algorithm == DIG_ALGO_BY_RSSI)
 		return;
