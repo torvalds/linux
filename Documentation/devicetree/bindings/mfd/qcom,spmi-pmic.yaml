@@ -138,6 +138,10 @@ patternProperties:
     type: object
     $ref: /schemas/pinctrl/qcom,pmic-gpio.yaml#
 
+  "^led-controller@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/leds/qcom,spmi-flash-led.yaml#
+
   "^nvram@[0-9a-f]+$":
     type: object
     $ref: /schemas/nvmem/qcom,spmi-sdam.yaml#
