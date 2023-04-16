@@ -521,6 +521,10 @@
 	vdd3-supply = <&vreg_l5b_3p1>;
 };
 
+&pcie_1_phy_aux_clk {
+	clock-frequency = <1000>;
+};
+
 &qupv3_id_0 {
 	status = "okay";
 };
