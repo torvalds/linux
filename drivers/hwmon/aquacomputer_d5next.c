@@ -29,12 +29,14 @@
 #define USB_PRODUCT_ID_FARBWERK360	0xf010
 #define USB_PRODUCT_ID_OCTO		0xf011
 #define USB_PRODUCT_ID_HIGHFLOWNEXT	0xf012
+#define USB_PRODUCT_ID_AQUASTREAMXT	0xf0b6
 #define USB_PRODUCT_ID_AQUASTREAMULT	0xf00b
 #define USB_PRODUCT_ID_POWERADJUST3	0xf0bd
 
 enum kinds {
 	d5next, farbwerk, farbwerk360, octo, quadro,
-	highflownext, aquaero, poweradjust3, aquastreamult
+	highflownext, aquaero, poweradjust3, aquastreamult,
+	aquastreamxt
 };
 
 static const char *const aqc_device_names[] = {
@@ -44,6 +46,7 @@ static const char *const aqc_device_names[] = {
 	[octo] = "octo",
 	[quadro] = "quadro",
 	[highflownext] = "highflownext",
+	[aquastreamxt] = "aquastreamxt",
 	[aquaero] = "aquaero",
 	[aquastreamult] = "aquastreamultimate",
 	[poweradjust3] = "poweradjust3"
@@ -77,6 +80,8 @@ static u8 aquaero_secondary_ctrl_report[] = {
 };
 
 /* Report IDs for legacy devices */
+#define AQUASTREAMXT_STATUS_REPORT_ID	0x04
+
 #define POWERADJUST3_STATUS_REPORT_ID	0x03
 
 /* Data types for reading and writing control reports */
@@ -230,6 +235,24 @@ static u16 quadro_ctrl_fan_offsets[] = { 0x37, 0x8c, 0xe1, 0x136 }; /* Fan speed
 #define HIGHFLOWNEXT_CONDUCTIVITY	95
 #define HIGHFLOWNEXT_5V_VOLTAGE		97
 #define HIGHFLOWNEXT_5V_VOLTAGE_USB	99
+
+/* Specs of the Aquastream XT pump */
+#define AQUASTREAMXT_SERIAL_START		0x3a
+#define AQUASTREAMXT_FIRMWARE_VERSION		0x32
+#define AQUASTREAMXT_NUM_FANS			2
+#define AQUASTREAMXT_NUM_SENSORS		3
+#define AQUASTREAMXT_FAN_STOPPED		0x4
+#define AQUASTREAMXT_PUMP_CONVERSION_CONST	45000000
+#define AQUASTREAMXT_FAN_CONVERSION_CONST	5646000
+#define AQUASTREAMXT_SENSOR_REPORT_SIZE		0x42
+
+/* Sensor report offsets and info for Aquastream XT */
+#define AQUASTREAMXT_SENSOR_START		0xd
+#define AQUASTREAMXT_FAN_VOLTAGE_OFFSET		0x7
+#define AQUASTREAMXT_FAN_STATUS_OFFSET		0x1d
+#define AQUASTREAMXT_PUMP_VOLTAGE_OFFSET	0x9
+#define AQUASTREAMXT_PUMP_CURR_OFFSET		0xb
+static u16 aquastreamxt_sensor_fan_offsets[] = { 0x13, 0x1b };
 
 /* Specs of the Poweradjust 3 */
 #define POWERADJUST3_NUM_SENSORS	1
@@ -388,6 +411,13 @@ static const char *const label_highflownext_voltage[] = {
 	"+5V USB voltage"
 };
 
+/* Labels for Aquastream XT */
+static const char *const label_aquastreamxt_temp_sensors[] = {
+	"Fan IC temp",
+	"External sensor",
+	"Coolant temp"
+};
+
 /* Labels for Aquastream Ultimate */
 static const char *const label_aquastreamult_temp[] = {
 	"Coolant temp",
@@ -529,6 +559,22 @@ static int aqc_pwm_to_percent(long val)
 		return -EINVAL;
 
 	return DIV_ROUND_CLOSEST(val * 100 * 100, 255);
+}
+
+/* Converts raw value for Aquastream XT pump speed to RPM */
+static int aqc_aquastreamxt_convert_pump_rpm(u16 val)
+{
+	if (val > 0)
+		return DIV_ROUND_CLOSEST(AQUASTREAMXT_PUMP_CONVERSION_CONST, val);
+	return 0;
+}
+
+/* Converts raw value for Aquastream XT fan speed to RPM */
+static int aqc_aquastreamxt_convert_fan_rpm(u16 val)
+{
+	if (val > 0)
+		return DIV_ROUND_CLOSEST(AQUASTREAMXT_FAN_CONVERSION_CONST, val);
+	return 0;
 }
 
 /* Expects the mutex to be locked */
@@ -734,6 +780,8 @@ static umode_t aqc_is_visible(const void *data, enum hwmon_sensor_types type, u3
 			if (channel == 0)
 				return 0444;
 			break;
+		case aquastreamxt:
+			break;
 		default:
 			if (channel < priv->num_fans)
 				return 0444;
@@ -745,6 +793,11 @@ static umode_t aqc_is_visible(const void *data, enum hwmon_sensor_types type, u3
 		case aquastreamult:
 			/* Special case to support pump and fan current */
 			if (channel < 2)
+				return 0444;
+			break;
+		case aquastreamxt:
+			/* Special case to support pump current */
+			if (channel == 0)
 				return 0444;
 			break;
 		default:
@@ -797,6 +850,43 @@ static int aqc_legacy_read(struct aqc_data *priv)
 		sensor_value = get_unaligned_le16(priv->buffer + priv->temp_sensor_start_offset +
 						  i * AQC_SENSOR_SIZE);
 		priv->temp_input[i] = sensor_value * 10;
+	}
+
+	/* Special-case sensor readings */
+	switch (priv->kind) {
+	case aquastreamxt:
+		/* Info provided with every report */
+		priv->serial_number[0] = get_unaligned_le16(priv->buffer +
+							    priv->serial_number_start_offset);
+		priv->firmware_version =
+			get_unaligned_le16(priv->buffer + priv->firmware_version_offset);
+
+		/* Read pump speed in RPM */
+		sensor_value = get_unaligned_le16(priv->buffer + priv->fan_sensor_offsets[0]);
+		priv->speed_input[0] = aqc_aquastreamxt_convert_pump_rpm(sensor_value);
+
+		/* Read fan speed in RPM, if available */
+		sensor_value = get_unaligned_le16(priv->buffer + AQUASTREAMXT_FAN_STATUS_OFFSET);
+		if (sensor_value == AQUASTREAMXT_FAN_STOPPED) {
+			priv->speed_input[1] = 0;
+		} else {
+			sensor_value =
+				get_unaligned_le16(priv->buffer + priv->fan_sensor_offsets[1]);
+			priv->speed_input[1] = aqc_aquastreamxt_convert_fan_rpm(sensor_value);
+		}
+
+		/* Calculation derived from linear regression */
+		sensor_value = get_unaligned_le16(priv->buffer + AQUASTREAMXT_PUMP_CURR_OFFSET);
+		priv->current_input[0] = DIV_ROUND_CLOSEST(sensor_value * 176, 100) - 52;
+
+		sensor_value = get_unaligned_le16(priv->buffer + AQUASTREAMXT_PUMP_VOLTAGE_OFFSET);
+		priv->voltage_input[0] = DIV_ROUND_CLOSEST(sensor_value * 1000, 61);
+
+		sensor_value = get_unaligned_le16(priv->buffer + AQUASTREAMXT_FAN_VOLTAGE_OFFSET);
+		priv->voltage_input[1] = DIV_ROUND_CLOSEST(sensor_value * 1000, 63);
+		break;
+	default:
+		break;
 	}
 
 	priv->updated = jiffies;
@@ -1481,6 +1571,21 @@ static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		priv->power_label = label_highflownext_power;
 		priv->voltage_label = label_highflownext_voltage;
 		break;
+	case USB_PRODUCT_ID_AQUASTREAMXT:
+		priv->kind = aquastreamxt;
+
+		priv->num_fans = AQUASTREAMXT_NUM_FANS;
+		priv->fan_sensor_offsets = aquastreamxt_sensor_fan_offsets;
+
+		priv->num_temp_sensors = AQUASTREAMXT_NUM_SENSORS;
+		priv->temp_sensor_start_offset = AQUASTREAMXT_SENSOR_START;
+		priv->buffer_size = AQUASTREAMXT_SENSOR_REPORT_SIZE;
+
+		priv->temp_label = label_aquastreamxt_temp_sensors;
+		priv->speed_label = label_d5next_speeds;
+		priv->voltage_label = label_d5next_voltages;
+		priv->current_label = label_d5next_current;
+		break;
 	case USB_PRODUCT_ID_AQUASTREAMULT:
 		priv->kind = aquastreamult;
 
@@ -1525,6 +1630,12 @@ static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		break;
 	case poweradjust3:
 		priv->status_report_id = POWERADJUST3_STATUS_REPORT_ID;
+		break;
+	case aquastreamxt:
+		priv->serial_number_start_offset = AQUASTREAMXT_SERIAL_START;
+		priv->firmware_version_offset = AQUASTREAMXT_FIRMWARE_VERSION;
+
+		priv->status_report_id = AQUASTREAMXT_STATUS_REPORT_ID;
 		break;
 	default:
 		priv->serial_number_start_offset = AQC_SERIAL_START;
@@ -1596,6 +1707,7 @@ static const struct hid_device_id aqc_table[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_AQUACOMPUTER, USB_PRODUCT_ID_OCTO) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_AQUACOMPUTER, USB_PRODUCT_ID_QUADRO) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_AQUACOMPUTER, USB_PRODUCT_ID_HIGHFLOWNEXT) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_AQUACOMPUTER, USB_PRODUCT_ID_AQUASTREAMXT) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_AQUACOMPUTER, USB_PRODUCT_ID_AQUASTREAMULT) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_AQUACOMPUTER, USB_PRODUCT_ID_POWERADJUST3) },
 	{ }
