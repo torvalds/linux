@@ -105,6 +105,7 @@ int xe_sync_entry_parse(struct xe_device *xe, struct xe_file *xef,
 {
 	struct drm_xe_sync sync_in;
 	int err;
+	bool signal;
 
 	if (copy_from_user(&sync_in, sync_user, sizeof(*sync_user)))
 		return -EFAULT;
@@ -113,9 +114,10 @@ int xe_sync_entry_parse(struct xe_device *xe, struct xe_file *xef,
 			 ~(SYNC_FLAGS_TYPE_MASK | DRM_XE_SYNC_SIGNAL)))
 		return -EINVAL;
 
+	signal = sync_in.flags & DRM_XE_SYNC_SIGNAL;
 	switch (sync_in.flags & SYNC_FLAGS_TYPE_MASK) {
 	case DRM_XE_SYNC_SYNCOBJ:
-		if (XE_IOCTL_ERR(xe, no_dma_fences))
+		if (XE_IOCTL_ERR(xe, no_dma_fences && signal))
 			return -ENOTSUPP;
 
 		if (XE_IOCTL_ERR(xe, upper_32_bits(sync_in.addr)))
@@ -125,7 +127,7 @@ int xe_sync_entry_parse(struct xe_device *xe, struct xe_file *xef,
 		if (XE_IOCTL_ERR(xe, !sync->syncobj))
 			return -ENOENT;
 
-		if (!(sync_in.flags & DRM_XE_SYNC_SIGNAL)) {
+		if (!signal) {
 			sync->fence = drm_syncobj_fence_get(sync->syncobj);
 			if (XE_IOCTL_ERR(xe, !sync->fence))
 				return -EINVAL;
@@ -133,7 +135,7 @@ int xe_sync_entry_parse(struct xe_device *xe, struct xe_file *xef,
 		break;
 
 	case DRM_XE_SYNC_TIMELINE_SYNCOBJ:
-		if (XE_IOCTL_ERR(xe, no_dma_fences))
+		if (XE_IOCTL_ERR(xe, no_dma_fences && signal))
 			return -ENOTSUPP;
 
 		if (XE_IOCTL_ERR(xe, upper_32_bits(sync_in.addr)))
@@ -146,7 +148,7 @@ int xe_sync_entry_parse(struct xe_device *xe, struct xe_file *xef,
 		if (XE_IOCTL_ERR(xe, !sync->syncobj))
 			return -ENOENT;
 
-		if (sync_in.flags & DRM_XE_SYNC_SIGNAL) {
+		if (signal) {
 			sync->chain_fence = dma_fence_chain_alloc();
 			if (!sync->chain_fence)
 				return -ENOMEM;
@@ -168,7 +170,7 @@ int xe_sync_entry_parse(struct xe_device *xe, struct xe_file *xef,
 		break;
 
 	case DRM_XE_SYNC_USER_FENCE:
-		if (XE_IOCTL_ERR(xe, !(sync_in.flags & DRM_XE_SYNC_SIGNAL)))
+		if (XE_IOCTL_ERR(xe, !signal))
 			return -ENOTSUPP;
 
 		if (XE_IOCTL_ERR(xe, sync_in.addr & 0x7))
