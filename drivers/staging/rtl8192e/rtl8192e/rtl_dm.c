@@ -1539,8 +1539,6 @@ static void _rtl92e_dm_check_rf_ctrl_gpio(void *data)
 	enum rt_rf_power_state rf_power_state_to_set;
 	bool bActuallySet = false;
 
-	bActuallySet = false;
-
 	if ((priv->up_first_time == 1) || (priv->being_init_adapter))
 		return;
 
