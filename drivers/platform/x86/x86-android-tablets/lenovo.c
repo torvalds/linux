@@ -140,6 +140,13 @@ static const struct x86_i2c_client_info lenovo_yb1_x90_i2c_clients[] __initconst
 	},
 };
 
+static const struct platform_device_info lenovo_yb1_x90_pdevs[] __initconst = {
+	{
+		.name = "yogabook-touch-kbd-digitizer-switch",
+		.id = PLATFORM_DEVID_NONE,
+	},
+};
+
 static struct gpiod_lookup_table lenovo_yb1_x90_goodix_gpios = {
 	.dev_id = "i2c-goodix_ts",
 	.table = {
@@ -194,6 +201,8 @@ static int __init lenovo_yb1_x90_init(void)
 const struct x86_dev_info lenovo_yogabook_x90_info __initconst = {
 	.i2c_client_info = lenovo_yb1_x90_i2c_clients,
 	.i2c_client_count = ARRAY_SIZE(lenovo_yb1_x90_i2c_clients),
+	.pdev_info = lenovo_yb1_x90_pdevs,
+	.pdev_count = ARRAY_SIZE(lenovo_yb1_x90_pdevs),
 	.gpiod_lookup_tables = lenovo_yb1_x90_gpios,
 	.init = lenovo_yb1_x90_init,
 };
