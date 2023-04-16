@@ -4,6 +4,43 @@
  */
 #include "mvm.h"
 #include "time-sync.h"
+#include "sta.h"
+
+u32 iwl_mvm_sta_fw_id_mask(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
+			   int filter_link_id)
+{
+	struct iwl_mvm_sta *mvmsta;
+	unsigned int link_id;
+	u32 result = 0;
+
+	if (!sta)
+		return 0;
+
+	mvmsta = iwl_mvm_sta_from_mac80211(sta);
+
+	/* it's easy when the STA is not an MLD */
+	if (!sta->valid_links)
+		return BIT(mvmsta->deflink.sta_id);
+
+	/* but if it is an MLD, get the mask of all the FW STAs it has ... */
+	for (link_id = 0; link_id < ARRAY_SIZE(mvmsta->link); link_id++) {
+		struct iwl_mvm_link_sta *link_sta;
+
+		/* unless we have a specific link in mind */
+		if (filter_link_id >= 0 && link_id != filter_link_id)
+			continue;
+
+		link_sta =
+			rcu_dereference_check(mvmsta->link[link_id],
+					      lockdep_is_held(&mvm->mutex));
+		if (!link_sta)
+			continue;
+
+		result |= BIT(link_sta->sta_id);
+	}
+
+	return result;
+}
 
 static int iwl_mvm_mld_send_sta_cmd(struct iwl_mvm *mvm,
 				    struct iwl_mvm_sta_cfg_cmd *cmd)

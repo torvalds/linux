@@ -15,10 +15,6 @@ static u32 iwl_mvm_get_sec_sta_mask(struct iwl_mvm *mvm,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_vif_link_info *link_info = &mvmvif->deflink;
-	struct iwl_mvm_link_sta *link_sta;
-	struct iwl_mvm_sta *mvmsta;
-	u32 result = 0;
-	int link_id;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -49,33 +45,10 @@ static u32 iwl_mvm_get_sec_sta_mask(struct iwl_mvm *mvm,
 	if (!sta && (keyconf->link_id >= 0 || !vif->valid_links))
 		return BIT(link_info->ap_sta_id);
 
-	/* this shouldn't happen now */
-	if (!sta)
-		return 0;
+	/* STA should be non-NULL now, but iwl_mvm_sta_fw_id_mask() checks */
 
-	mvmsta = iwl_mvm_sta_from_mac80211(sta);
-
-	/* it's easy when the STA is not an MLD */
-	if (!sta->valid_links)
-		return BIT(mvmsta->deflink.sta_id);
-
-	/* but if it is an MLD, get the mask of all the FW STAs it has ... */
-	for (link_id = 0; link_id < ARRAY_SIZE(mvmsta->link); link_id++) {
-		/* unless we have a specific link in mind (GTK on client) */
-		if (keyconf->link_id >= 0 &&
-		    keyconf->link_id != link_id)
-			continue;
-
-		link_sta =
-			rcu_dereference_protected(mvmsta->link[link_id],
-						  lockdep_is_held(&mvm->mutex));
-		if (!link_sta)
-			continue;
-
-		result |= BIT(link_sta->sta_id);
-	}
-
-	return result;
+	/* pass link_id to filter by it if not -1 (GTK on client) */
+	return iwl_mvm_sta_fw_id_mask(mvm, sta, keyconf->link_id);
 }
 
 static u32 iwl_mvm_get_sec_flags(struct iwl_mvm *mvm,
