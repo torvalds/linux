@@ -9339,11 +9339,6 @@ static bool is_kfunc_rcu(struct bpf_kfunc_call_arg_meta *meta)
 	return meta->kfunc_flags & KF_RCU;
 }
 
-static bool is_kfunc_arg_kptr_get(struct bpf_kfunc_call_arg_meta *meta, int arg)
-{
-	return arg == 0 && (meta->kfunc_flags & KF_KPTR_GET);
-}
-
 static bool __kfunc_param_match_suffix(const struct btf *btf,
 				       const struct btf_param *arg,
 				       const char *suffix)
@@ -9554,7 +9549,6 @@ enum kfunc_ptr_arg_type {
 	KF_ARG_PTR_TO_CTX,
 	KF_ARG_PTR_TO_ALLOC_BTF_ID,    /* Allocated object */
 	KF_ARG_PTR_TO_REFCOUNTED_KPTR, /* Refcounted local kptr */
-	KF_ARG_PTR_TO_KPTR,	       /* PTR_TO_KPTR but type specific */
 	KF_ARG_PTR_TO_DYNPTR,
 	KF_ARG_PTR_TO_ITER,
 	KF_ARG_PTR_TO_LIST_HEAD,
@@ -9666,21 +9660,6 @@ get_kfunc_ptr_arg_type(struct bpf_verifier_env *env,
 	if (is_kfunc_arg_refcounted_kptr(meta->btf, &args[argno]))
 		return KF_ARG_PTR_TO_REFCOUNTED_KPTR;
 
-	if (is_kfunc_arg_kptr_get(meta, argno)) {
-		if (!btf_type_is_ptr(ref_t)) {
-			verbose(env, "arg#0 BTF type must be a double pointer for kptr_get kfunc\n");
-			return -EINVAL;
-		}
-		ref_t = btf_type_by_id(meta->btf, ref_t->type);
-		ref_tname = btf_name_by_offset(meta->btf, ref_t->name_off);
-		if (!btf_type_is_struct(ref_t)) {
-			verbose(env, "kernel function %s args#0 pointer type %s %s is not supported\n",
-				meta->func_name, btf_type_str(ref_t), ref_tname);
-			return -EINVAL;
-		}
-		return KF_ARG_PTR_TO_KPTR;
-	}
-
 	if (is_kfunc_arg_dynptr(meta->btf, &args[argno]))
 		return KF_ARG_PTR_TO_DYNPTR;
 
@@ -9789,40 +9768,6 @@ static int process_kf_arg_ptr_to_btf_id(struct bpf_verifier_env *env,
 		verbose(env, "kernel function %s args#%d expected pointer to %s %s but R%d has a pointer to %s %s\n",
 			meta->func_name, argno, btf_type_str(ref_t), ref_tname, argno + 1,
 			btf_type_str(reg_ref_t), reg_ref_tname);
-		return -EINVAL;
-	}
-	return 0;
-}
-
-static int process_kf_arg_ptr_to_kptr(struct bpf_verifier_env *env,
-				      struct bpf_reg_state *reg,
-				      const struct btf_type *ref_t,
-				      const char *ref_tname,
-				      struct bpf_kfunc_call_arg_meta *meta,
-				      int argno)
-{
-	struct btf_field *kptr_field;
-
-	/* check_func_arg_reg_off allows var_off for
-	 * PTR_TO_MAP_VALUE, but we need fixed offset to find
-	 * off_desc.
-	 */
-	if (!tnum_is_const(reg->var_off)) {
-		verbose(env, "arg#0 must have constant offset\n");
-		return -EINVAL;
-	}
-
-	kptr_field = btf_record_find(reg->map_ptr->record, reg->off + reg->var_off.value, BPF_KPTR);
-	if (!kptr_field || kptr_field->type != BPF_KPTR_REF) {
-		verbose(env, "arg#0 no referenced kptr at map value offset=%llu\n",
-			reg->off + reg->var_off.value);
-		return -EINVAL;
-	}
-
-	if (!btf_struct_ids_match(&env->log, meta->btf, ref_t->type, 0, kptr_field->kptr.btf,
-				  kptr_field->kptr.btf_id, true)) {
-		verbose(env, "kernel function %s args#%d expected pointer to %s %s\n",
-			meta->func_name, argno, btf_type_str(ref_t), ref_tname);
 		return -EINVAL;
 	}
 	return 0;
@@ -10315,7 +10260,6 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_kfunc_call_
 			/* Trusted arguments have the same offset checks as release arguments */
 			arg_type |= OBJ_RELEASE;
 			break;
-		case KF_ARG_PTR_TO_KPTR:
 		case KF_ARG_PTR_TO_DYNPTR:
 		case KF_ARG_PTR_TO_ITER:
 		case KF_ARG_PTR_TO_LIST_HEAD:
@@ -10367,15 +10311,6 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_kfunc_call_
 				meta->arg_obj_drop.btf = reg->btf;
 				meta->arg_obj_drop.btf_id = reg->btf_id;
 			}
-			break;
-		case KF_ARG_PTR_TO_KPTR:
-			if (reg->type != PTR_TO_MAP_VALUE) {
-				verbose(env, "arg#0 expected pointer to map value\n");
-				return -EINVAL;
-			}
-			ret = process_kf_arg_ptr_to_kptr(env, reg, ref_t, ref_tname, meta, i);
-			if (ret < 0)
-				return ret;
 			break;
 		case KF_ARG_PTR_TO_DYNPTR:
 		{
