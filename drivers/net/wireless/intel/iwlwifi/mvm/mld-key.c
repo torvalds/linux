@@ -97,6 +97,59 @@ static u32 iwl_mvm_get_sec_flags(struct iwl_mvm *mvm,
 	return flags;
 }
 
+struct iwl_mvm_sta_key_update_data {
+	struct ieee80211_sta *sta;
+	u32 old_sta_mask;
+	u32 new_sta_mask;
+	int err;
+};
+
+static void iwl_mvm_mld_update_sta_key(struct ieee80211_hw *hw,
+				       struct ieee80211_vif *vif,
+				       struct ieee80211_sta *sta,
+				       struct ieee80211_key_conf *key,
+				       void *_data)
+{
+	u32 cmd_id = WIDE_ID(DATA_PATH_GROUP, SEC_KEY_CMD);
+	struct iwl_mvm_sta_key_update_data *data = _data;
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct iwl_sec_key_cmd cmd = {
+		.action = cpu_to_le32(FW_CTXT_ACTION_MODIFY),
+		.u.modify.old_sta_mask = cpu_to_le32(data->old_sta_mask),
+		.u.modify.new_sta_mask = cpu_to_le32(data->new_sta_mask),
+		.u.modify.key_id = cpu_to_le32(key->keyidx),
+		.u.modify.key_flags =
+			cpu_to_le32(iwl_mvm_get_sec_flags(mvm, vif, sta, key)),
+	};
+	int err;
+
+	/* only need to do this for pairwise keys (link_id == -1) */
+	if (sta != data->sta || key->link_id >= 0)
+		return;
+
+	err = iwl_mvm_send_cmd_pdu(mvm, cmd_id, CMD_ASYNC, sizeof(cmd), &cmd);
+
+	if (err)
+		data->err = err;
+}
+
+int iwl_mvm_mld_update_sta_keys(struct iwl_mvm *mvm,
+				struct ieee80211_vif *vif,
+				struct ieee80211_sta *sta,
+				u32 old_sta_mask,
+				u32 new_sta_mask)
+{
+	struct iwl_mvm_sta_key_update_data data = {
+		.sta = sta,
+		.old_sta_mask = old_sta_mask,
+		.new_sta_mask = new_sta_mask,
+	};
+
+	ieee80211_iter_keys_rcu(mvm->hw, vif, iwl_mvm_mld_update_sta_key,
+				&data);
+	return data.err;
+}
+
 static int __iwl_mvm_sec_key_del(struct iwl_mvm *mvm, u32 sta_mask,
 				 u32 key_flags, u32 keyidx, u32 flags)
 {

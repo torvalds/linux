@@ -994,6 +994,7 @@ static int iwl_mvm_mld_update_sta_baids(struct iwl_mvm *mvm,
 }
 
 static int iwl_mvm_mld_update_sta_resources(struct iwl_mvm *mvm,
+					    struct ieee80211_vif *vif,
 					    struct ieee80211_sta *sta,
 					    u32 old_sta_mask,
 					    u32 new_sta_mask)
@@ -1003,6 +1004,12 @@ static int iwl_mvm_mld_update_sta_resources(struct iwl_mvm *mvm,
 	ret = iwl_mvm_mld_update_sta_queues(mvm, sta,
 					    old_sta_mask,
 					    new_sta_mask);
+	if (ret)
+		return ret;
+
+	ret = iwl_mvm_mld_update_sta_keys(mvm, vif, sta,
+					  old_sta_mask,
+					  new_sta_mask);
 	if (ret)
 		return ret;
 
@@ -1045,7 +1052,7 @@ int iwl_mvm_mld_update_sta_links(struct iwl_mvm *mvm,
 	}
 
 	if (sta_mask_to_rem) {
-		ret = iwl_mvm_mld_update_sta_resources(mvm, sta,
+		ret = iwl_mvm_mld_update_sta_resources(mvm, vif, sta,
 						       current_sta_mask,
 						       current_sta_mask &
 							~sta_mask_to_rem);
@@ -1123,7 +1130,7 @@ int iwl_mvm_mld_update_sta_links(struct iwl_mvm *mvm,
 	}
 
 	if (sta_mask_added) {
-		ret = iwl_mvm_mld_update_sta_resources(mvm, sta,
+		ret = iwl_mvm_mld_update_sta_resources(mvm, vif, sta,
 						       current_sta_mask,
 						       current_sta_mask |
 							sta_mask_added);
