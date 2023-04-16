@@ -346,7 +346,7 @@ static void blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq,
 	smp_wmb();
 	req_ref_set(flush_rq, 1);
 
-	blk_mq_add_to_requeue_list(flush_rq, BLK_MQ_INSERT_AT_HEAD);
+	blk_mq_add_to_requeue_list(flush_rq, 0);
 	blk_mq_kick_requeue_list(q);
 }
 
