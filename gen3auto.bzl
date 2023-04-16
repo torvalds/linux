@@ -75,6 +75,7 @@ def define_gen3auto():
         "drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4-kalama.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4-pineapple.ko",
+        "drivers/pinctrl/pinctrl-sx150x.ko",
         "drivers/pinctrl/qcom/pinctrl-msm.ko",
         "drivers/pinctrl/qcom/pinctrl-slpi.ko",
         "drivers/pinctrl/qcom/pinctrl-sm8150.ko",
