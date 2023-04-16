@@ -1542,10 +1542,8 @@ static void _rtl92e_dm_check_rf_ctrl_gpio(void *data)
 	if ((priv->up_first_time == 1) || (priv->being_init_adapter))
 		return;
 
-	if (priv->bfirst_after_down) {
-		priv->bfirst_after_down = true;
+	if (priv->bfirst_after_down)
 		return;
-	}
 
 	tmp1byte = rtl92e_readb(dev, GPI);
 
