@@ -21,8 +21,6 @@ struct array_map {
 
 extern struct prog_test_ref_kfunc *bpf_kfunc_call_test_acquire(unsigned long *sp) __ksym;
 extern void bpf_kfunc_call_test_release(struct prog_test_ref_kfunc *p) __ksym;
-extern struct prog_test_ref_kfunc *
-bpf_kfunc_call_test_kptr_get(struct prog_test_ref_kfunc **p, int a, int b) __ksym;
 
 SEC("?tc")
 __failure __msg("kptr access size must be BPF_DW")
@@ -221,67 +219,6 @@ int reject_kptr_xchg_on_unref(struct __sk_buff *ctx)
 }
 
 SEC("?tc")
-__failure __msg("arg#0 expected pointer to map value")
-int reject_kptr_get_no_map_val(struct __sk_buff *ctx)
-{
-	bpf_kfunc_call_test_kptr_get((void *)&ctx, 0, 0);
-	return 0;
-}
-
-SEC("?tc")
-__failure __msg("arg#0 expected pointer to map value")
-int reject_kptr_get_no_null_map_val(struct __sk_buff *ctx)
-{
-	bpf_kfunc_call_test_kptr_get(bpf_map_lookup_elem(&array_map, &(int){0}), 0, 0);
-	return 0;
-}
-
-SEC("?tc")
-__failure __msg("arg#0 no referenced kptr at map value offset=0")
-int reject_kptr_get_no_kptr(struct __sk_buff *ctx)
-{
-	struct map_value *v;
-	int key = 0;
-
-	v = bpf_map_lookup_elem(&array_map, &key);
-	if (!v)
-		return 0;
-
-	bpf_kfunc_call_test_kptr_get((void *)v, 0, 0);
-	return 0;
-}
-
-SEC("?tc")
-__failure __msg("arg#0 no referenced kptr at map value offset=8")
-int reject_kptr_get_on_unref(struct __sk_buff *ctx)
-{
-	struct map_value *v;
-	int key = 0;
-
-	v = bpf_map_lookup_elem(&array_map, &key);
-	if (!v)
-		return 0;
-
-	bpf_kfunc_call_test_kptr_get(&v->unref_ptr, 0, 0);
-	return 0;
-}
-
-SEC("?tc")
-__failure __msg("kernel function bpf_kfunc_call_test_kptr_get args#0")
-int reject_kptr_get_bad_type_match(struct __sk_buff *ctx)
-{
-	struct map_value *v;
-	int key = 0;
-
-	v = bpf_map_lookup_elem(&array_map, &key);
-	if (!v)
-		return 0;
-
-	bpf_kfunc_call_test_kptr_get((void *)&v->ref_memb_ptr, 0, 0);
-	return 0;
-}
-
-SEC("?tc")
 __failure __msg("R1 type=rcu_ptr_or_null_ expected=percpu_ptr_")
 int mark_ref_as_untrusted_or_null(struct __sk_buff *ctx)
 {
@@ -425,21 +362,6 @@ int kptr_xchg_ref_state(struct __sk_buff *ctx)
 	if (!p)
 		return 0;
 	bpf_kptr_xchg(&v->ref_ptr, p);
-	return 0;
-}
-
-SEC("?tc")
-__failure __msg("Unreleased reference id=3 alloc_insn=")
-int kptr_get_ref_state(struct __sk_buff *ctx)
-{
-	struct map_value *v;
-	int key = 0;
-
-	v = bpf_map_lookup_elem(&array_map, &key);
-	if (!v)
-		return 0;
-
-	bpf_kfunc_call_test_kptr_get(&v->ref_ptr, 0, 0);
 	return 0;
 }
 

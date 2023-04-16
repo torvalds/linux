@@ -115,8 +115,6 @@ DEFINE_MAP_OF_MAP(BPF_MAP_TYPE_HASH_OF_MAPS, hash_malloc_map, hash_of_hash_mallo
 DEFINE_MAP_OF_MAP(BPF_MAP_TYPE_HASH_OF_MAPS, lru_hash_map, hash_of_lru_hash_maps);
 
 extern struct prog_test_ref_kfunc *bpf_kfunc_call_test_acquire(unsigned long *sp) __ksym;
-extern struct prog_test_ref_kfunc *
-bpf_kfunc_call_test_kptr_get(struct prog_test_ref_kfunc **p, int a, int b) __ksym;
 extern void bpf_kfunc_call_test_release(struct prog_test_ref_kfunc *p) __ksym;
 void bpf_kfunc_call_test_ref(struct prog_test_ref_kfunc *p) __ksym;
 
@@ -187,25 +185,10 @@ static void test_kptr_ref(struct map_value *v)
 	bpf_kfunc_call_test_release(p);
 }
 
-static void test_kptr_get(struct map_value *v)
-{
-	struct prog_test_ref_kfunc *p;
-
-	p = bpf_kfunc_call_test_kptr_get(&v->ref_ptr, 0, 0);
-	if (!p)
-		return;
-	if (p->a + p->b > 100) {
-		bpf_kfunc_call_test_release(p);
-		return;
-	}
-	bpf_kfunc_call_test_release(p);
-}
-
 static void test_kptr(struct map_value *v)
 {
 	test_kptr_unref(v);
 	test_kptr_ref(v);
-	test_kptr_get(v);
 }
 
 SEC("tc")
@@ -338,38 +321,25 @@ int test_map_kptr_ref_pre(struct map_value *v)
 	if (p_st->cnt.refs.counter != ref)
 		return 4;
 
-	p = bpf_kfunc_call_test_kptr_get(&v->ref_ptr, 0, 0);
-	if (!p)
-		return 5;
-	ref++;
-	if (p_st->cnt.refs.counter != ref) {
-		ret = 6;
-		goto end;
-	}
-	bpf_kfunc_call_test_release(p);
-	ref--;
-	if (p_st->cnt.refs.counter != ref)
-		return 7;
-
 	p = bpf_kptr_xchg(&v->ref_ptr, NULL);
 	if (!p)
-		return 8;
+		return 5;
 	bpf_kfunc_call_test_release(p);
 	ref--;
 	if (p_st->cnt.refs.counter != ref)
-		return 9;
+		return 6;
 
 	p = bpf_kfunc_call_test_acquire(&arg);
 	if (!p)
-		return 10;
+		return 7;
 	ref++;
 	p = bpf_kptr_xchg(&v->ref_ptr, p);
 	if (p) {
-		ret = 11;
+		ret = 8;
 		goto end;
 	}
 	if (p_st->cnt.refs.counter != ref)
-		return 12;
+		return 9;
 	/* Leave in map */
 
 	return 0;
