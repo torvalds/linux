@@ -746,6 +746,7 @@ static int smbus_enable(struct it87_data *data)
 
 /*
  * Must be called with data->update_lock held, except during initialization.
+ * Must be called with SMBus accesses disabled.
  * We ignore the IT87 BUSY flag at this moment - it could lead to deadlocks,
  * would slow down the IT87 access and should not be necessary.
  */
@@ -757,6 +758,7 @@ static int it87_read_value(struct it87_data *data, u8 reg)
 
 /*
  * Must be called with data->update_lock held, except during initialization.
+ * Must be called with SMBus accesses disabled.
  * We ignore the IT87 BUSY flag at this moment - it could lead to deadlocks,
  * would slow down the IT87 access and should not be necessary.
  */
@@ -816,15 +818,39 @@ static void it87_update_pwm_ctrl(struct it87_data *data, int nr)
 	}
 }
 
+static int it87_lock(struct it87_data *data)
+{
+	int err;
+
+	mutex_lock(&data->update_lock);
+	err = smbus_disable(data);
+	if (err)
+		mutex_unlock(&data->update_lock);
+	return err;
+}
+
+static void it87_unlock(struct it87_data *data)
+{
+	smbus_enable(data);
+	mutex_unlock(&data->update_lock);
+}
+
 static struct it87_data *it87_update_device(struct device *dev)
 {
 	struct it87_data *data = dev_get_drvdata(dev);
+	struct it87_data *ret = data;
+	int err;
 	int i;
 
 	mutex_lock(&data->update_lock);
 
 	if (time_after(jiffies, data->last_updated + HZ + HZ / 2) ||
-	    !data->valid) {
+		       !data->valid) {
+		err = smbus_disable(data);
+		if (err) {
+			ret = ERR_PTR(err);
+			goto unlock;
+		}
 		if (update_vbat) {
 			/*
 			 * Cleared after each update, so reenable.  Value
@@ -927,11 +953,11 @@ static struct it87_data *it87_update_device(struct device *dev)
 		}
 		data->last_updated = jiffies;
 		data->valid = true;
+		smbus_enable(data);
 	}
-
+unlock:
 	mutex_unlock(&data->update_lock);
-
-	return data;
+	return ret;
 }
 
 static ssize_t show_in(struct device *dev, struct device_attribute *attr,
@@ -956,17 +982,21 @@ static ssize_t set_in(struct device *dev, struct device_attribute *attr,
 	int index = sattr->index;
 	int nr = sattr->nr;
 	unsigned long val;
+	int err;
 
 	if (kstrtoul(buf, 10, &val) < 0)
 		return -EINVAL;
 
-	mutex_lock(&data->update_lock);
+	err = it87_lock(data);
+	if (err)
+		return err;
+
 	data->in[nr][index] = in_to_reg(data, nr, val);
 	it87_write_value(data,
 			 index == 1 ? IT87_REG_VIN_MIN(nr)
 				    : IT87_REG_VIN_MAX(nr),
 			 data->in[nr][index]);
-	mutex_unlock(&data->update_lock);
+	it87_unlock(data);
 	return count;
 }
 
@@ -1048,11 +1078,14 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *attr,
 	struct it87_data *data = dev_get_drvdata(dev);
 	long val;
 	u8 reg, regval;
+	int err;
 
 	if (kstrtol(buf, 10, &val) < 0)
 		return -EINVAL;
 
-	mutex_lock(&data->update_lock);
+	err = it87_lock(data);
+	if (err)
+		return err;
 
 	switch (index) {
 	default:
@@ -1075,7 +1108,7 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *attr,
 
 	data->temp[nr][index] = TEMP_TO_REG(val);
 	it87_write_value(data, reg, data->temp[nr][index]);
-	mutex_unlock(&data->update_lock);
+	it87_unlock(data);
 	return count;
 }
 
@@ -1137,9 +1170,14 @@ static ssize_t set_temp_type(struct device *dev, struct device_attribute *attr,
 	struct it87_data *data = dev_get_drvdata(dev);
 	long val;
 	u8 reg, extra;
+	int err;
 
 	if (kstrtol(buf, 10, &val) < 0)
 		return -EINVAL;
+
+	err = it87_lock(data);
+	if (err)
+		return err;
 
 	reg = it87_read_value(data, IT87_REG_TEMP_ENABLE);
 	reg &= ~(1 << nr);
@@ -1163,17 +1201,19 @@ static ssize_t set_temp_type(struct device *dev, struct device_attribute *attr,
 		reg |= (nr + 1) << 6;
 	else if (has_temp_old_peci(data, nr) && val == 6)
 		extra |= 0x80;
-	else if (val != 0)
-		return -EINVAL;
+	else if (val != 0) {
+		count = -EINVAL;
+		goto unlock;
+	}
 
-	mutex_lock(&data->update_lock);
 	data->sensor = reg;
 	data->extra = extra;
 	it87_write_value(data, IT87_REG_TEMP_ENABLE, data->sensor);
 	if (has_temp_old_peci(data, nr))
 		it87_write_value(data, IT87_REG_TEMP_EXTRA, data->extra);
 	data->valid = false;	/* Force cache refresh */
-	mutex_unlock(&data->update_lock);
+unlock:
+	it87_unlock(data);
 	return count;
 }
 
@@ -1289,12 +1329,15 @@ static ssize_t set_fan(struct device *dev, struct device_attribute *attr,
 
 	struct it87_data *data = dev_get_drvdata(dev);
 	long val;
+	int err;
 	u8 reg;
 
 	if (kstrtol(buf, 10, &val) < 0)
 		return -EINVAL;
 
-	mutex_lock(&data->update_lock);
+	err = it87_lock(data);
+	if (err)
+		return err;
 
 	if (has_16bit_fans(data)) {
 		data->fan[nr][index] = FAN16_TO_REG(val);
@@ -1321,7 +1364,7 @@ static ssize_t set_fan(struct device *dev, struct device_attribute *attr,
 				 data->fan[nr][index]);
 	}
 
-	mutex_unlock(&data->update_lock);
+	it87_unlock(data);
 	return count;
 }
 
@@ -1332,13 +1375,16 @@ static ssize_t set_fan_div(struct device *dev, struct device_attribute *attr,
 	struct it87_data *data = dev_get_drvdata(dev);
 	int nr = sensor_attr->index;
 	unsigned long val;
-	int min;
+	int min, err;
 	u8 old;
 
 	if (kstrtoul(buf, 10, &val) < 0)
 		return -EINVAL;
 
-	mutex_lock(&data->update_lock);
+	err = it87_lock(data);
+	if (err)
+		return err;
+
 	old = it87_read_value(data, IT87_REG_FAN_DIV);
 
 	/* Save fan min limit */
@@ -1366,7 +1412,7 @@ static ssize_t set_fan_div(struct device *dev, struct device_attribute *attr,
 	data->fan[nr][1] = FAN_TO_REG(min, DIV_FROM_REG(data->fan_div[nr]));
 	it87_write_value(data, IT87_REG_FAN_MIN[nr], data->fan[nr][1]);
 
-	mutex_unlock(&data->update_lock);
+	it87_unlock(data);
 	return count;
 }
 
@@ -1407,6 +1453,7 @@ static ssize_t set_pwm_enable(struct device *dev, struct device_attribute *attr,
 	struct it87_data *data = dev_get_drvdata(dev);
 	int nr = sensor_attr->index;
 	long val;
+	int err;
 
 	if (kstrtol(buf, 10, &val) < 0 || val < 0 || val > 2)
 		return -EINVAL;
@@ -1417,7 +1464,9 @@ static ssize_t set_pwm_enable(struct device *dev, struct device_attribute *attr,
 			return -EINVAL;
 	}
 
-	mutex_lock(&data->update_lock);
+	err = it87_lock(data);
+	if (err)
+		return err;
 
 	if (val == 0) {
 		if (nr < 3 && data->type != it8603) {
@@ -1468,7 +1517,7 @@ static ssize_t set_pwm_enable(struct device *dev, struct device_attribute *attr,
 		}
 	}
 
-	mutex_unlock(&data->update_lock);
+	it87_unlock(data);
 	return count;
 }
 
@@ -1479,11 +1528,15 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 	struct it87_data *data = dev_get_drvdata(dev);
 	int nr = sensor_attr->index;
 	long val;
+	int err;
 
 	if (kstrtol(buf, 10, &val) < 0 || val < 0 || val > 255)
 		return -EINVAL;
 
-	mutex_lock(&data->update_lock);
+	err = it87_lock(data);
+	if (err)
+		return err;
+
 	it87_update_pwm_ctrl(data, nr);
 	if (has_newer_autopwm(data)) {
 		/*
@@ -1491,8 +1544,8 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 		 * is read-only so we can't write the value.
 		 */
 		if (data->pwm_ctrl[nr] & 0x80) {
-			mutex_unlock(&data->update_lock);
-			return -EBUSY;
+			count = -EBUSY;
+			goto unlock;
 		}
 		data->pwm_duty[nr] = pwm_to_reg(data, val);
 		it87_write_value(data, IT87_REG_PWM_DUTY[nr],
@@ -1509,7 +1562,8 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 					 data->pwm_ctrl[nr]);
 		}
 	}
-	mutex_unlock(&data->update_lock);
+unlock:
+	it87_unlock(data);
 	return count;
 }
 
@@ -1520,6 +1574,7 @@ static ssize_t set_pwm_freq(struct device *dev, struct device_attribute *attr,
 	struct it87_data *data = dev_get_drvdata(dev);
 	int nr = sensor_attr->index;
 	unsigned long val;
+	int err;
 	int i;
 
 	if (kstrtoul(buf, 10, &val) < 0)
@@ -1534,7 +1589,10 @@ static ssize_t set_pwm_freq(struct device *dev, struct device_attribute *attr,
 			break;
 	}
 
-	mutex_lock(&data->update_lock);
+	err = it87_lock(data);
+	if (err)
+		return err;
+
 	if (nr == 0) {
 		data->fan_ctl = it87_read_value(data, IT87_REG_FAN_CTL) & 0x8f;
 		data->fan_ctl |= i << 4;
@@ -1544,7 +1602,7 @@ static ssize_t set_pwm_freq(struct device *dev, struct device_attribute *attr,
 		data->extra |= i << 4;
 		it87_write_value(data, IT87_REG_TEMP_EXTRA, data->extra);
 	}
-	mutex_unlock(&data->update_lock);
+	it87_unlock(data);
 
 	return count;
 }
@@ -1577,6 +1635,7 @@ static ssize_t set_pwm_temp_map(struct device *dev,
 	struct it87_data *data = dev_get_drvdata(dev);
 	int nr = sensor_attr->index;
 	long val;
+	int err;
 	u8 reg;
 
 	if (kstrtol(buf, 10, &val) < 0)
@@ -1599,7 +1658,10 @@ static ssize_t set_pwm_temp_map(struct device *dev,
 		return -EINVAL;
 	}
 
-	mutex_lock(&data->update_lock);
+	err = it87_lock(data);
+	if (err)
+		return err;
+
 	it87_update_pwm_ctrl(data, nr);
 	data->pwm_temp_map[nr] = reg;
 	/*
@@ -1611,7 +1673,7 @@ static ssize_t set_pwm_temp_map(struct device *dev,
 						data->pwm_temp_map[nr];
 		it87_write_value(data, IT87_REG_PWM[nr], data->pwm_ctrl[nr]);
 	}
-	mutex_unlock(&data->update_lock);
+	it87_unlock(data);
 	return count;
 }
 
@@ -1641,18 +1703,22 @@ static ssize_t set_auto_pwm(struct device *dev, struct device_attribute *attr,
 	int point = sensor_attr->index;
 	int regaddr;
 	long val;
+	int err;
 
 	if (kstrtol(buf, 10, &val) < 0 || val < 0 || val > 255)
 		return -EINVAL;
 
-	mutex_lock(&data->update_lock);
+	err = it87_lock(data);
+	if (err)
+		return err;
+
 	data->auto_pwm[nr][point] = pwm_to_reg(data, val);
 	if (has_newer_autopwm(data))
 		regaddr = IT87_REG_AUTO_TEMP(nr, 3);
 	else
 		regaddr = IT87_REG_AUTO_PWM(nr, point);
 	it87_write_value(data, regaddr, data->auto_pwm[nr][point]);
-	mutex_unlock(&data->update_lock);
+	it87_unlock(data);
 	return count;
 }
 
@@ -1677,15 +1743,19 @@ static ssize_t set_auto_pwm_slope(struct device *dev,
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
 	int nr = sensor_attr->index;
 	unsigned long val;
+	int err;
 
 	if (kstrtoul(buf, 10, &val) < 0 || val > 127)
 		return -EINVAL;
 
-	mutex_lock(&data->update_lock);
+	err = it87_lock(data);
+	if (err)
+		return err;
+
 	data->auto_pwm[nr][1] = (data->auto_pwm[nr][1] & 0x80) | val;
 	it87_write_value(data, IT87_REG_AUTO_TEMP(nr, 4),
 			 data->auto_pwm[nr][1]);
-	mutex_unlock(&data->update_lock);
+	it87_unlock(data);
 	return count;
 }
 
@@ -1720,11 +1790,15 @@ static ssize_t set_auto_temp(struct device *dev, struct device_attribute *attr,
 	int point = sensor_attr->index;
 	long val;
 	int reg;
+	int err;
 
 	if (kstrtol(buf, 10, &val) < 0 || val < -128000 || val > 127000)
 		return -EINVAL;
 
-	mutex_lock(&data->update_lock);
+	err = it87_lock(data);
+	if (err)
+		return err;
+
 	if (has_newer_autopwm(data) && !point) {
 		reg = data->auto_temp[nr][1] - TEMP_TO_REG(val);
 		reg = clamp_val(reg, 0, 0x1f) | (data->auto_temp[nr][0] & 0xe0);
@@ -1737,7 +1811,7 @@ static ssize_t set_auto_temp(struct device *dev, struct device_attribute *attr,
 			point--;
 		it87_write_value(data, IT87_REG_AUTO_TEMP(nr, point), reg);
 	}
-	mutex_unlock(&data->update_lock);
+	it87_unlock(data);
 	return count;
 }
 
@@ -1946,13 +2020,16 @@ static ssize_t clear_intrusion(struct device *dev,
 			       size_t count)
 {
 	struct it87_data *data = dev_get_drvdata(dev);
-	int config;
+	int err, config;
 	long val;
 
 	if (kstrtol(buf, 10, &val) < 0 || val != 0)
 		return -EINVAL;
 
-	mutex_lock(&data->update_lock);
+	err = it87_lock(data);
+	if (err)
+		return err;
+
 	config = it87_read_value(data, IT87_REG_CONFIG);
 	if (config < 0) {
 		count = config;
@@ -1962,8 +2039,7 @@ static ssize_t clear_intrusion(struct device *dev,
 		/* Invalidate cache to force re-read */
 		data->valid = false;
 	}
-	mutex_unlock(&data->update_lock);
-
+	it87_unlock(data);
 	return count;
 }
 
@@ -2005,18 +2081,22 @@ static ssize_t set_beep(struct device *dev, struct device_attribute *attr,
 	int bitnr = to_sensor_dev_attr(attr)->index;
 	struct it87_data *data = dev_get_drvdata(dev);
 	long val;
+	int err;
 
 	if (kstrtol(buf, 10, &val) < 0 || (val != 0 && val != 1))
 		return -EINVAL;
 
-	mutex_lock(&data->update_lock);
+	err = it87_lock(data);
+	if (err)
+		return err;
+
 	data->beeps = it87_read_value(data, IT87_REG_BEEP_ENABLE);
 	if (val)
 		data->beeps |= BIT(bitnr);
 	else
 		data->beeps &= ~BIT(bitnr);
 	it87_write_value(data, IT87_REG_BEEP_ENABLE, data->beeps);
-	mutex_unlock(&data->update_lock);
+	it87_unlock(data);
 	return count;
 }
 
@@ -3179,6 +3259,7 @@ static int it87_probe(struct platform_device *pdev)
 	struct it87_sio_data *sio_data = dev_get_platdata(dev);
 	int enable_pwm_interface;
 	struct device *hwmon_dev;
+	int err;
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (!devm_request_region(&pdev->dev, res->start, IT87_EC_EXTENT,
@@ -3224,14 +3305,20 @@ static int it87_probe(struct platform_device *pdev)
 		break;
 	}
 
-	/* Now, we do the remaining detection. */
-	if ((it87_read_value(data, IT87_REG_CONFIG) & 0x80) ||
-	    it87_read_value(data, IT87_REG_CHIPID) != 0x90)
-		return -ENODEV;
-
 	platform_set_drvdata(pdev, data);
 
 	mutex_init(&data->update_lock);
+
+	err = smbus_disable(data);
+	if (err)
+		return err;
+
+	/* Now, we do the remaining detection. */
+	if ((it87_read_value(data, IT87_REG_CONFIG) & 0x80) ||
+	    it87_read_value(data, IT87_REG_CHIPID) != 0x90) {
+		smbus_enable(data);
+		return -ENODEV;
+	}
 
 	/* Check PWM configuration */
 	enable_pwm_interface = it87_check_pwm(dev);
@@ -3292,6 +3379,8 @@ static int it87_probe(struct platform_device *pdev)
 
 	/* Initialize the IT87 chip */
 	it87_init_device(pdev);
+
+	smbus_enable(data);
 
 	if (!sio_data->skip_vid) {
 		data->has_vid = true;
@@ -3360,7 +3449,7 @@ static int it87_resume(struct device *dev)
 
 	it87_resume_sio(pdev);
 
-	mutex_lock(&data->update_lock);
+	it87_lock(data);
 
 	it87_check_pwm(dev);
 	it87_check_limit_regs(data);
@@ -3373,7 +3462,7 @@ static int it87_resume(struct device *dev)
 	/* force update */
 	data->valid = false;
 
-	mutex_unlock(&data->update_lock);
+	it87_unlock(data);
 
 	it87_update_device(dev);
 
