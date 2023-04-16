@@ -911,11 +911,12 @@ void iwl_mvm_mld_modify_all_sta_disable_tx(struct iwl_mvm *mvm,
 	rcu_read_unlock();
 }
 
-static int iwl_mvm_mld_update_sta_queue(struct iwl_mvm *mvm,
-					struct iwl_mvm_sta *mvm_sta,
-					u32 old_sta_mask,
-					u32 new_sta_mask)
+static int iwl_mvm_mld_update_sta_queues(struct iwl_mvm *mvm,
+					 struct ieee80211_sta *sta,
+					 u32 old_sta_mask,
+					 u32 new_sta_mask)
 {
+	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_scd_queue_cfg_cmd cmd = {
 		.operation = cpu_to_le32(IWL_SCD_QUEUE_MODIFY),
 		.u.modify.old_sta_mask = cpu_to_le32(old_sta_mask),
@@ -949,6 +950,63 @@ static int iwl_mvm_mld_update_sta_queue(struct iwl_mvm *mvm,
 	}
 
 	return 0;
+}
+
+static int iwl_mvm_mld_update_sta_baids(struct iwl_mvm *mvm,
+					u32 old_sta_mask,
+					u32 new_sta_mask)
+{
+	struct iwl_rx_baid_cfg_cmd cmd = {
+		.action = cpu_to_le32(IWL_RX_BAID_ACTION_MODIFY),
+		.modify.old_sta_id_mask = cpu_to_le32(old_sta_mask),
+		.modify.new_sta_id_mask = cpu_to_le32(new_sta_mask),
+	};
+	u32 cmd_id = WIDE_ID(DATA_PATH_GROUP, RX_BAID_ALLOCATION_CONFIG_CMD);
+	int baid;
+
+	BUILD_BUG_ON(sizeof(struct iwl_rx_baid_cfg_resp) != sizeof(baid));
+
+	for (baid = 0; baid < ARRAY_SIZE(mvm->baid_map); baid++) {
+		struct iwl_mvm_baid_data *data;
+		int ret;
+
+		data = rcu_dereference_protected(mvm->baid_map[baid],
+						 lockdep_is_held(&mvm->mutex));
+		if (!data)
+			continue;
+
+		if (!(data->sta_mask & old_sta_mask))
+			continue;
+
+		WARN_ONCE(data->sta_mask != old_sta_mask,
+			  "BAID data for %d corrupted - expected 0x%x found 0x%x\n",
+			  baid, old_sta_mask, data->sta_mask);
+
+		cmd.modify.tid = cpu_to_le32(data->tid);
+
+		ret = iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0, sizeof(cmd), &cmd);
+		data->sta_mask = new_sta_mask;
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int iwl_mvm_mld_update_sta_resources(struct iwl_mvm *mvm,
+					    struct ieee80211_sta *sta,
+					    u32 old_sta_mask,
+					    u32 new_sta_mask)
+{
+	int ret;
+
+	ret = iwl_mvm_mld_update_sta_queues(mvm, sta,
+					    old_sta_mask,
+					    new_sta_mask);
+	if (ret)
+		return ret;
+
+	return iwl_mvm_mld_update_sta_baids(mvm, old_sta_mask, new_sta_mask);
 }
 
 int iwl_mvm_mld_update_sta_links(struct iwl_mvm *mvm,
@@ -987,9 +1045,10 @@ int iwl_mvm_mld_update_sta_links(struct iwl_mvm *mvm,
 	}
 
 	if (sta_mask_to_rem) {
-		ret = iwl_mvm_mld_update_sta_queue(mvm, mvm_sta,
-						   current_sta_mask,
-						   current_sta_mask & ~sta_mask_to_rem);
+		ret = iwl_mvm_mld_update_sta_resources(mvm, sta,
+						       current_sta_mask,
+						       current_sta_mask &
+							~sta_mask_to_rem);
 		if (WARN_ON(ret))
 			goto err;
 
@@ -1064,9 +1123,10 @@ int iwl_mvm_mld_update_sta_links(struct iwl_mvm *mvm,
 	}
 
 	if (sta_mask_added) {
-		ret = iwl_mvm_mld_update_sta_queue(mvm, mvm_sta,
-						   current_sta_mask,
-						   current_sta_mask | sta_mask_added);
+		ret = iwl_mvm_mld_update_sta_resources(mvm, sta,
+						       current_sta_mask,
+						       current_sta_mask |
+							sta_mask_added);
 		if (WARN_ON(ret))
 			goto err;
 	}
