@@ -942,6 +942,9 @@ static ssize_t show_in(struct device *dev, struct device_attribute *attr,
 	int index = sattr->index;
 	int nr = sattr->nr;
 
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
 	return sprintf(buf, "%d\n", in_from_reg(data, nr, data->in[nr][index]));
 }
 
@@ -1030,6 +1033,9 @@ static ssize_t show_temp(struct device *dev, struct device_attribute *attr,
 	int index = sattr->index;
 	struct it87_data *data = it87_update_device(dev);
 
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
 	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp[nr][index]));
 }
 
@@ -1104,8 +1110,13 @@ static ssize_t show_temp_type(struct device *dev, struct device_attribute *attr,
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
 	int nr = sensor_attr->index;
 	struct it87_data *data = it87_update_device(dev);
-	u8 reg = data->sensor;	    /* In case value is updated while used */
-	u8 extra = data->extra;
+	u8 reg, extra;
+
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
+	reg = data->sensor;	/* In case value is updated while used */
+	extra = data->extra;
 
 	if ((has_temp_peci(data, nr) && (reg >> 6 == nr + 1)) ||
 	    (has_temp_old_peci(data, nr) && (extra & 0x80)))
@@ -1197,6 +1208,9 @@ static ssize_t show_fan(struct device *dev, struct device_attribute *attr,
 	int speed;
 	struct it87_data *data = it87_update_device(dev);
 
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
 	speed = has_16bit_fans(data) ?
 		FAN16_FROM_REG(data->fan[nr][index]) :
 		FAN_FROM_REG(data->fan[nr][index],
@@ -1211,6 +1225,9 @@ static ssize_t show_fan_div(struct device *dev, struct device_attribute *attr,
 	struct it87_data *data = it87_update_device(dev);
 	int nr = sensor_attr->index;
 
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
 	return sprintf(buf, "%lu\n", DIV_FROM_REG(data->fan_div[nr]));
 }
 
@@ -1221,6 +1238,9 @@ static ssize_t show_pwm_enable(struct device *dev,
 	struct it87_data *data = it87_update_device(dev);
 	int nr = sensor_attr->index;
 
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
 	return sprintf(buf, "%d\n", pwm_mode(data, nr));
 }
 
@@ -1230,6 +1250,9 @@ static ssize_t show_pwm(struct device *dev, struct device_attribute *attr,
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
 	struct it87_data *data = it87_update_device(dev);
 	int nr = sensor_attr->index;
+
+	if (IS_ERR(data))
+		return PTR_ERR(data);
 
 	return sprintf(buf, "%d\n",
 		       pwm_from_reg(data, data->pwm_duty[nr]));
@@ -1243,6 +1266,9 @@ static ssize_t show_pwm_freq(struct device *dev, struct device_attribute *attr,
 	int nr = sensor_attr->index;
 	unsigned int freq;
 	int index;
+
+	if (IS_ERR(data))
+		return PTR_ERR(data);
 
 	if (has_pwm_freq2(data) && nr == 1)
 		index = (data->extra >> 4) & 0x07;
@@ -1531,6 +1557,9 @@ static ssize_t show_pwm_temp_map(struct device *dev,
 	int nr = sensor_attr->index;
 	int map;
 
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
 	map = data->pwm_temp_map[nr];
 	if (map >= 3)
 		map = 0;	/* Should never happen */
@@ -1595,6 +1624,9 @@ static ssize_t show_auto_pwm(struct device *dev, struct device_attribute *attr,
 	int nr = sensor_attr->nr;
 	int point = sensor_attr->index;
 
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
 	return sprintf(buf, "%d\n",
 		       pwm_from_reg(data, data->auto_pwm[nr][point]));
 }
@@ -1631,6 +1663,9 @@ static ssize_t show_auto_pwm_slope(struct device *dev,
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
 	int nr = sensor_attr->index;
 
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
 	return sprintf(buf, "%d\n", data->auto_pwm[nr][1] & 0x7f);
 }
 
@@ -1663,6 +1698,9 @@ static ssize_t show_auto_temp(struct device *dev, struct device_attribute *attr,
 	int nr = sensor_attr->nr;
 	int point = sensor_attr->index;
 	int reg;
+
+	if (IS_ERR(data))
+		return PTR_ERR(data);
 
 	if (has_old_autopwm(data) || point)
 		reg = data->auto_temp[nr][point];
@@ -1884,6 +1922,9 @@ static ssize_t alarms_show(struct device *dev, struct device_attribute *attr,
 {
 	struct it87_data *data = it87_update_device(dev);
 
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
 	return sprintf(buf, "%u\n", data->alarms);
 }
 static DEVICE_ATTR_RO(alarms);
@@ -1893,6 +1934,9 @@ static ssize_t show_alarm(struct device *dev, struct device_attribute *attr,
 {
 	struct it87_data *data = it87_update_device(dev);
 	int bitnr = to_sensor_dev_attr(attr)->index;
+
+	if (IS_ERR(data))
+		return PTR_ERR(data);
 
 	return sprintf(buf, "%u\n", (data->alarms >> bitnr) & 1);
 }
@@ -1948,6 +1992,9 @@ static ssize_t show_beep(struct device *dev, struct device_attribute *attr,
 {
 	struct it87_data *data = it87_update_device(dev);
 	int bitnr = to_sensor_dev_attr(attr)->index;
+
+	if (IS_ERR(data))
+		return PTR_ERR(data);
 
 	return sprintf(buf, "%u\n", (data->beeps >> bitnr) & 1);
 }
@@ -2021,6 +2068,9 @@ static ssize_t cpu0_vid_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
 	struct it87_data *data = it87_update_device(dev);
+
+	if (IS_ERR(data))
+		return PTR_ERR(data);
 
 	return sprintf(buf, "%ld\n", (long)vid_from_reg(data->vid, data->vrm));
 }
