@@ -680,7 +680,7 @@ __aligned(roundup_pow_of_two(sizeof(struct _iwl_mvm_reorder_buf_entry)))
 
 /**
  * struct iwl_mvm_baid_data - BA session data
- * @sta_id: station id
+ * @sta_mask: current station mask for the BAID
  * @tid: tid of the session
  * @baid baid of the session
  * @timeout: the timeout set in the addba request
@@ -694,7 +694,7 @@ __aligned(roundup_pow_of_two(sizeof(struct _iwl_mvm_reorder_buf_entry)))
  */
 struct iwl_mvm_baid_data {
 	struct rcu_head rcu_head;
-	u8 sta_id;
+	u32 sta_mask;
 	u8 tid;
 	u8 baid;
 	u16 timeout;

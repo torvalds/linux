@@ -705,7 +705,7 @@ void iwl_mvm_reorder_timer_expired(struct timer_list *t)
 	if (expired) {
 		struct ieee80211_sta *sta;
 		struct iwl_mvm_sta *mvmsta;
-		u8 sta_id = baid_data->sta_id;
+		u8 sta_id = ffs(baid_data->sta_mask) - 1;
 
 		rcu_read_lock();
 		sta = rcu_dereference(buf->mvm->fw_id_to_mac_id[sta_id]);
@@ -740,6 +740,7 @@ static void iwl_mvm_del_ba(struct iwl_mvm *mvm, int queue,
 	struct ieee80211_sta *sta;
 	struct iwl_mvm_reorder_buffer *reorder_buf;
 	u8 baid = data->baid;
+	u32 sta_id;
 
 	if (WARN_ONCE(baid >= IWL_MAX_BAID, "invalid BAID: %x\n", baid))
 		return;
@@ -750,7 +751,9 @@ static void iwl_mvm_del_ba(struct iwl_mvm *mvm, int queue,
 	if (WARN_ON_ONCE(!ba_data))
 		goto out;
 
-	sta = rcu_dereference(mvm->fw_id_to_mac_id[ba_data->sta_id]);
+	/* pick any STA ID to find the pointer */
+	sta_id = ffs(ba_data->sta_mask) - 1;
+	sta = rcu_dereference(mvm->fw_id_to_mac_id[sta_id]);
 	if (WARN_ON_ONCE(IS_ERR_OR_NULL(sta)))
 		goto out;
 
@@ -777,6 +780,7 @@ static void iwl_mvm_release_frames_from_notif(struct iwl_mvm *mvm,
 	struct ieee80211_sta *sta;
 	struct iwl_mvm_reorder_buffer *reorder_buf;
 	struct iwl_mvm_baid_data *ba_data;
+	u32 sta_id;
 
 	IWL_DEBUG_HT(mvm, "Frame release notification for BAID %u, NSSN %d\n",
 		     baid, nssn);
@@ -794,7 +798,9 @@ static void iwl_mvm_release_frames_from_notif(struct iwl_mvm *mvm,
 		goto out;
 	}
 
-	sta = rcu_dereference(mvm->fw_id_to_mac_id[ba_data->sta_id]);
+	/* pick any STA ID to find the pointer */
+	sta_id = ffs(ba_data->sta_mask) - 1;
+	sta = rcu_dereference(mvm->fw_id_to_mac_id[sta_id]);
 	if (WARN_ON_ONCE(IS_ERR_OR_NULL(sta)))
 		goto out;
 
@@ -935,7 +941,6 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 {
 	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
 	struct ieee80211_hdr *hdr = (void *)skb_mac_header(skb);
-	struct iwl_mvm_sta *mvm_sta;
 	struct iwl_mvm_baid_data *baid_data;
 	struct iwl_mvm_reorder_buffer *buffer;
 	struct sk_buff *tail;
@@ -947,6 +952,7 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	u8 sub_frame_idx = desc->amsdu_info &
 			   IWL_RX_MPDU_AMSDU_SUBFRAME_IDX_MASK;
 	struct iwl_mvm_reorder_buf_entry *entries;
+	u32 sta_mask;
 	int index;
 	u16 nssn, sn;
 	u8 baid;
@@ -969,8 +975,6 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 		      "Got valid BAID without a valid station assigned\n"))
 		return false;
 
-	mvm_sta = iwl_mvm_sta_from_mac80211(sta);
-
 	/* not a data packet or a bar */
 	if (!ieee80211_is_back_req(hdr->frame_control) &&
 	    (!ieee80211_is_data_qos(hdr->frame_control) ||
@@ -988,11 +992,14 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 		return false;
 	}
 
+	rcu_read_lock();
+	sta_mask = iwl_mvm_sta_fw_id_mask(mvm, sta, -1);
+	rcu_read_unlock();
+
 	if (WARN(tid != baid_data->tid ||
-		 mvm_sta->deflink.sta_id != baid_data->sta_id,
-		 "baid 0x%x is mapped to sta:%d tid:%d, but was received for sta:%d tid:%d\n",
-		 baid, baid_data->sta_id, baid_data->tid, mvm_sta->deflink.sta_id,
-		 tid))
+		 !(sta_mask & baid_data->sta_mask),
+		 "baid 0x%x is mapped to sta_mask:0x%x tid:%d, but was received for sta_mask:0x%x tid:%d\n",
+		 baid, baid_data->sta_mask, baid_data->tid, sta_mask, tid))
 		return false;
 
 	nssn = reorder & IWL_RX_MPDU_REORDER_NSSN_MASK;
@@ -2776,9 +2783,10 @@ void iwl_mvm_rx_bar_frame_release(struct iwl_mvm *mvm, struct napi_struct *napi,
 		goto out;
 	}
 
-	if (WARN(tid != baid_data->tid || sta_id != baid_data->sta_id,
-		 "baid 0x%x is mapped to sta:%d tid:%d, but BAR release received for sta:%d tid:%d\n",
-		 baid, baid_data->sta_id, baid_data->tid, sta_id,
+	if (WARN(tid != baid_data->tid || sta_id > IWL_MVM_STATION_COUNT_MAX ||
+		 !(baid_data->sta_mask & BIT(sta_id)),
+		 "baid 0x%x is mapped to sta_mask:0x%x tid:%d, but BAR release received for sta:%d tid:%d\n",
+		 baid, baid_data->sta_mask, baid_data->tid, sta_id,
 		 tid))
 		goto out;
 
