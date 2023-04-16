@@ -81,14 +81,17 @@ static const struct regmap_bus mt7530_regmap_bus = {
 };
 
 static int
-mt7531_create_sgmii(struct mt7530_priv *priv)
+mt7531_create_sgmii(struct mt7530_priv *priv, bool dual_sgmii)
 {
-	struct regmap_config *mt7531_pcs_config[2];
+	struct regmap_config *mt7531_pcs_config[2] = {};
 	struct phylink_pcs *pcs;
 	struct regmap *regmap;
 	int i, ret = 0;
 
-	for (i = 0; i < 2; i++) {
+	/* MT7531AE has two SGMII units for port 5 and port 6
+	 * MT7531BE has only one SGMII unit for port 6
+	 */
+	for (i = dual_sgmii ? 0 : 1; i < 2; i++) {
 		mt7531_pcs_config[i] = devm_kzalloc(priv->dev,
 						    sizeof(struct regmap_config),
 						    GFP_KERNEL);
@@ -208,11 +211,8 @@ mt7530_probe(struct mdio_device *mdiodev)
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
 
-	if (priv->id == ID_MT7531) {
-		ret = mt7531_create_sgmii(priv);
-		if (ret)
-			return ret;
-	}
+	if (priv->id == ID_MT7531)
+		priv->create_sgmii = mt7531_create_sgmii;
 
 	return dsa_register_switch(priv->ds);
 }

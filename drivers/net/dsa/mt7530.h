@@ -748,10 +748,10 @@ struct mt753x_info {
  *			registers
  * @p6_interface	Holding the current port 6 interface
  * @p5_intf_sel:	Holding the current port 5 interface select
- *
  * @irq:		IRQ number of the switch
  * @irq_domain:		IRQ domain of the switch irq_chip
  * @irq_enable:		IRQ enable bits, synced to SYS_INT_EN
+ * @create_sgmii:	Pointer to function creating SGMII PCS instance(s)
  */
 struct mt7530_priv {
 	struct device		*dev;
@@ -770,7 +770,6 @@ struct mt7530_priv {
 	unsigned int		p5_intf_sel;
 	u8			mirror_rx;
 	u8			mirror_tx;
-
 	struct mt7530_port	ports[MT7530_NUM_PORTS];
 	struct mt753x_pcs	pcs[MT7530_NUM_PORTS];
 	/* protect among processes for registers access*/
@@ -778,6 +777,7 @@ struct mt7530_priv {
 	int irq;
 	struct irq_domain *irq_domain;
 	u32 irq_enable;
+	int (*create_sgmii)(struct mt7530_priv *priv, bool dual_sgmii);
 };
 
 struct mt7530_hw_vlan_entry {

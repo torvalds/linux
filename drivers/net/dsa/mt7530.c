@@ -3018,6 +3018,12 @@ mt753x_setup(struct dsa_switch *ds)
 	if (ret && priv->irq)
 		mt7530_free_irq_common(priv);
 
+	if (priv->create_sgmii) {
+		ret = priv->create_sgmii(priv, mt7531_dual_sgmii_supported(priv));
+		if (ret && priv->irq)
+			mt7530_free_irq(priv);
+	}
+
 	return ret;
 }
 
