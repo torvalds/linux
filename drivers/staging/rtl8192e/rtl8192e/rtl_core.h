@@ -392,8 +392,6 @@ struct r8192_priv {
 	bool		reset_in_progress;
 	bool		force_reset;
 	bool		force_lps;
-
-	bool		chan_forced;
 };
 
 extern const struct ethtool_ops rtl819x_ethtool_ops;

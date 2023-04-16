@@ -249,9 +249,6 @@ static void _rtl92e_set_chan(struct net_device *dev, short ch)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (priv->chan_forced)
-		return;
-
 	priv->chan = ch;
 
 	if (priv->rf_set_chan)
