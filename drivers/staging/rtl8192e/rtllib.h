@@ -100,7 +100,6 @@ static inline void *netdev_priv_rsl(struct net_device *dev)
 	((psc->CurPsLevel & _PS_FLAG) ? true : false)
 #define	RT_CLEAR_PS_LEVEL(psc, _PS_FLAG)	\
 	(psc->CurPsLevel &= (~(_PS_FLAG)))
-#define	RT_SET_PS_LEVEL(psc, _PS_FLAG)	(psc->CurPsLevel |= _PS_FLAG)
 
 /* defined for skb cb field */
 /* At most 28 byte */
