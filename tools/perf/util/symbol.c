@@ -1963,8 +1963,7 @@ int dso__load(struct dso *dso, struct map *map)
 
 		is_reg = is_regular_file(name);
 		if (!is_reg && errno == ENOENT && dso->nsinfo) {
-			char *new_name = filename_with_chroot(dso->nsinfo->pid,
-							      name);
+			char *new_name = dso__filename_with_chroot(dso, name);
 			if (new_name) {
 				is_reg = is_regular_file(new_name);
 				strlcpy(name, new_name, PATH_MAX);

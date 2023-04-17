@@ -1692,8 +1692,7 @@ fallback:
 
 		mutex_lock(&dso->lock);
 		if (access(filename, R_OK) && errno == ENOENT && dso->nsinfo) {
-			char *new_name = filename_with_chroot(dso->nsinfo->pid,
-							      filename);
+			char *new_name = dso__filename_with_chroot(dso, filename);
 			if (new_name) {
 				strlcpy(filename, new_name, filename_size);
 				free(new_name);

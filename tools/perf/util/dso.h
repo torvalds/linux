@@ -266,6 +266,8 @@ static inline bool dso__has_symbols(const struct dso *dso)
 	return !RB_EMPTY_ROOT(&dso->symbols.rb_root);
 }
 
+char *dso__filename_with_chroot(const struct dso *dso, const char *filename);
+
 bool dso__sorted_by_name(const struct dso *dso);
 void dso__set_sorted_by_name(struct dso *dso);
 void dso__sort_by_name(struct dso *dso);

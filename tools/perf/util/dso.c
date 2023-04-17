@@ -491,6 +491,11 @@ static int do_open(char *name)
 	return -1;
 }
 
+char *dso__filename_with_chroot(const struct dso *dso, const char *filename)
+{
+	return filename_with_chroot(nsinfo__pid(dso->nsinfo), filename);
+}
+
 static int __open_dso(struct dso *dso, struct machine *machine)
 {
 	int fd = -EINVAL;
@@ -515,7 +520,7 @@ static int __open_dso(struct dso *dso, struct machine *machine)
 		if (errno != ENOENT || dso->nsinfo == NULL)
 			goto out;
 
-		new_name = filename_with_chroot(dso->nsinfo->pid, name);
+		new_name = dso__filename_with_chroot(dso, name);
 		if (!new_name)
 			goto out;
 

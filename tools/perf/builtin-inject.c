@@ -630,10 +630,8 @@ static int dso__read_build_id(struct dso *dso)
 	if (filename__read_build_id(dso->long_name, &dso->bid) > 0)
 		dso->has_build_id = true;
 	else if (dso->nsinfo) {
-		char *new_name;
+		char *new_name = dso__filename_with_chroot(dso, dso->long_name);
 
-		new_name = filename_with_chroot(dso->nsinfo->pid,
-						dso->long_name);
 		if (new_name && filename__read_build_id(new_name, &dso->bid) > 0)
 			dso->has_build_id = true;
 		free(new_name);
