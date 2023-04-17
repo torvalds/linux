@@ -496,5 +496,12 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 		};
+
+		pwrc: power-controller@17030000 {
+			compatible = "starfive,jh7110-pmu";
+			reg = <0x0 0x17030000 0x0 0x10000>;
+			interrupts = <111>;
+			#power-domain-cells = <1>;
+		};
 	};
 };
