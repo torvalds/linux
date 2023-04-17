@@ -12,6 +12,46 @@
 #include <linux/mfd/intel-m10-bmc.h>
 #include <linux/module.h>
 
+void m10bmc_fw_state_set(struct intel_m10bmc *m10bmc, enum m10bmc_fw_state new_state)
+{
+	/* bmcfw_state is only needed if handshake_sys_reg_nranges > 0 */
+	if (!m10bmc->info->handshake_sys_reg_nranges)
+		return;
+
+	down_write(&m10bmc->bmcfw_lock);
+	m10bmc->bmcfw_state = new_state;
+	up_write(&m10bmc->bmcfw_lock);
+}
+EXPORT_SYMBOL_NS_GPL(m10bmc_fw_state_set, INTEL_M10_BMC_CORE);
+
+/*
+ * For some Intel FPGA devices, the BMC firmware is not available to service
+ * handshake registers during a secure update.
+ */
+static bool m10bmc_reg_always_available(struct intel_m10bmc *m10bmc, unsigned int offset)
+{
+	if (!m10bmc->info->handshake_sys_reg_nranges)
+		return true;
+
+	return !regmap_reg_in_ranges(offset, m10bmc->info->handshake_sys_reg_ranges,
+				     m10bmc->info->handshake_sys_reg_nranges);
+}
+
+/*
+ * m10bmc_handshake_reg_unavailable - Checks if reg access collides with secure update state
+ * @m10bmc: M10 BMC structure
+ *
+ * For some Intel FPGA devices, the BMC firmware is not available to service
+ * handshake registers during a secure update erase and write phases.
+ *
+ * Context: @m10bmc->bmcfw_lock must be held.
+ */
+static bool m10bmc_handshake_reg_unavailable(struct intel_m10bmc *m10bmc)
+{
+	return m10bmc->bmcfw_state == M10BMC_FW_STATE_SEC_UPDATE_PREPARE ||
+	       m10bmc->bmcfw_state == M10BMC_FW_STATE_SEC_UPDATE_WRITE;
+}
+
 /*
  * This function helps to simplify the accessing of the system registers.
  *
@@ -21,8 +61,19 @@
 int m10bmc_sys_read(struct intel_m10bmc *m10bmc, unsigned int offset, unsigned int *val)
 {
 	const struct m10bmc_csr_map *csr_map = m10bmc->info->csr_map;
+	int ret;
 
-	return m10bmc_raw_read(m10bmc, csr_map->base + offset, val);
+	if (m10bmc_reg_always_available(m10bmc, offset))
+		return m10bmc_raw_read(m10bmc, csr_map->base + offset, val);
+
+	down_read(&m10bmc->bmcfw_lock);
+	if (m10bmc_handshake_reg_unavailable(m10bmc))
+		ret = -EBUSY;	/* Reg not available during secure update */
+	else
+		ret = m10bmc_raw_read(m10bmc, csr_map->base + offset, val);
+	up_read(&m10bmc->bmcfw_lock);
+
+	return ret;
 }
 EXPORT_SYMBOL_NS_GPL(m10bmc_sys_read, INTEL_M10_BMC_CORE);
 
@@ -30,8 +81,19 @@ int m10bmc_sys_update_bits(struct intel_m10bmc *m10bmc, unsigned int offset,
 			   unsigned int msk, unsigned int val)
 {
 	const struct m10bmc_csr_map *csr_map = m10bmc->info->csr_map;
+	int ret;
 
-	return regmap_update_bits(m10bmc->regmap, csr_map->base + offset, msk, val);
+	if (m10bmc_reg_always_available(m10bmc, offset))
+		return regmap_update_bits(m10bmc->regmap, csr_map->base + offset, msk, val);
+
+	down_read(&m10bmc->bmcfw_lock);
+	if (m10bmc_handshake_reg_unavailable(m10bmc))
+		ret = -EBUSY;	/* Reg not available during secure update */
+	else
+		ret = regmap_update_bits(m10bmc->regmap, csr_map->base + offset, msk, val);
+	up_read(&m10bmc->bmcfw_lock);
+
+	return ret;
 }
 EXPORT_SYMBOL_NS_GPL(m10bmc_sys_update_bits, INTEL_M10_BMC_CORE);
 
@@ -129,6 +191,7 @@ int m10bmc_dev_init(struct intel_m10bmc *m10bmc, const struct intel_m10bmc_platf
 
 	m10bmc->info = info;
 	dev_set_drvdata(m10bmc->dev, m10bmc);
+	init_rwsem(&m10bmc->bmcfw_lock);
 
 	ret = devm_mfd_add_devices(m10bmc->dev, PLATFORM_DEVID_AUTO,
 				   info->cells, info->n_cells,

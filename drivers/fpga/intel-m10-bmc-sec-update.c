@@ -544,20 +544,27 @@ static enum fw_upload_err m10bmc_sec_prepare(struct fw_upload *fwl,
 	if (ret != FW_UPLOAD_ERR_NONE)
 		goto unlock_flash;
 
+	m10bmc_fw_state_set(sec->m10bmc, M10BMC_FW_STATE_SEC_UPDATE_PREPARE);
+
 	ret = rsu_update_init(sec);
 	if (ret != FW_UPLOAD_ERR_NONE)
-		goto unlock_flash;
+		goto fw_state_exit;
 
 	ret = rsu_prog_ready(sec);
 	if (ret != FW_UPLOAD_ERR_NONE)
-		goto unlock_flash;
+		goto fw_state_exit;
 
 	if (sec->cancel_request) {
 		ret = rsu_cancel(sec);
-		goto unlock_flash;
+		goto fw_state_exit;
 	}
 
+	m10bmc_fw_state_set(sec->m10bmc, M10BMC_FW_STATE_SEC_UPDATE_WRITE);
+
 	return FW_UPLOAD_ERR_NONE;
+
+fw_state_exit:
+	m10bmc_fw_state_set(sec->m10bmc, M10BMC_FW_STATE_NORMAL);
 
 unlock_flash:
 	if (sec->m10bmc->flash_bulk_ops)
@@ -607,6 +614,8 @@ static enum fw_upload_err m10bmc_sec_poll_complete(struct fw_upload *fwl)
 	if (sec->cancel_request)
 		return rsu_cancel(sec);
 
+	m10bmc_fw_state_set(sec->m10bmc, M10BMC_FW_STATE_SEC_UPDATE_PROGRAM);
+
 	result = rsu_send_data(sec);
 	if (result != FW_UPLOAD_ERR_NONE)
 		return result;
@@ -649,6 +658,8 @@ static void m10bmc_sec_cleanup(struct fw_upload *fwl)
 	struct m10bmc_sec *sec = fwl->dd_handle;
 
 	(void)rsu_cancel(sec);
+
+	m10bmc_fw_state_set(sec->m10bmc, M10BMC_FW_STATE_NORMAL);
 
 	if (sec->m10bmc->flash_bulk_ops)
 		sec->m10bmc->flash_bulk_ops->unlock_write(sec->m10bmc);
