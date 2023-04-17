@@ -483,15 +483,6 @@ void nvmet_execute_auth_receive(struct nvmet_req *req)
 			status = NVME_SC_INTERNAL;
 			break;
 		}
-		if (status) {
-			req->sq->dhchap_status = status;
-			nvmet_auth_failure1(req, d, al);
-			pr_warn("ctrl %d qid %d: challenge status (%x)\n",
-				ctrl->cntlid, req->sq->qid,
-				req->sq->dhchap_status);
-			status = 0;
-			break;
-		}
 		req->sq->dhchap_step = NVME_AUTH_DHCHAP_MESSAGE_REPLY;
 		break;
 	case NVME_AUTH_DHCHAP_MESSAGE_SUCCESS1:
