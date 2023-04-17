@@ -112,6 +112,18 @@ static void snet_kick_vq(struct vdpa_device *vdev, u16 idx)
 	iowrite32(SNET_KICK_VAL, snet->vqs[idx]->kick_ptr);
 }
 
+static void snet_kick_vq_with_data(struct vdpa_device *vdev, u32 data)
+{
+	struct snet *snet = vdpa_to_snet(vdev);
+	u16 idx = data & 0xFFFF;
+
+	/* not ready - ignore */
+	if (unlikely(!snet->vqs[idx]->ready))
+		return;
+
+	iowrite32((data & 0xFFFF0000) | SNET_KICK_VAL, snet->vqs[idx]->kick_ptr);
+}
+
 static void snet_set_vq_cb(struct vdpa_device *vdev, u16 idx, struct vdpa_callback *cb)
 {
 	struct snet *snet = vdpa_to_snet(vdev);
@@ -501,6 +513,7 @@ static const struct vdpa_config_ops snet_config_ops = {
 	.set_vq_address         = snet_set_vq_address,
 	.set_vq_num             = snet_set_vq_num,
 	.kick_vq                = snet_kick_vq,
+	.kick_vq_with_data	= snet_kick_vq_with_data,
 	.set_vq_cb              = snet_set_vq_cb,
 	.set_vq_ready           = snet_set_vq_ready,
 	.get_vq_ready           = snet_get_vq_ready,
