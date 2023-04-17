@@ -25,6 +25,7 @@
 
 #define SPX5_SERDES_10G_START 13
 #define SPX5_SERDES_25G_START 25
+#define SPX5_SERDES_6G10G_CNT SPX5_SERDES_25G_START
 
 /* Optimal power settings from GUC */
 #define SPX5_SERDES_QUIET_MODE_VAL 0x01ef4e0c
@@ -34,6 +35,7 @@ enum sparx5_10g28cmu_mode {
 	SPX5_SD10G28_CMU_AUX1 = 1,
 	SPX5_SD10G28_CMU_AUX2 = 3,
 	SPX5_SD10G28_CMU_NONE = 4,
+	SPX5_SD10G28_CMU_MAX,
 };
 
 enum sparx5_sd25g28_mode_preset_type {
@@ -1078,6 +1080,39 @@ leave:
 	return err;
 }
 
+/* Map of 6G/10G serdes mode and index to CMU index. */
+static const int
+sparx5_serdes_cmu_map[SPX5_SD10G28_CMU_MAX][SPX5_SERDES_6G10G_CNT] = {
+	[SPX5_SD10G28_CMU_MAIN] = {  2,  2,  2,  2,  2,
+				     2,  2,  2,  5,  5,
+				     5,  5,  5,  5,  5,
+				     5,  8, 11, 11, 11,
+				    11, 11, 11, 11, 11 },
+	[SPX5_SD10G28_CMU_AUX1] = {  0,  0,  3,  3,  3,
+				     3,  3,  3,  3,  3,
+				     6,  6,  6,  6,  6,
+				     6,  6,  9,  9, 12,
+				    12, 12, 12, 12, 12 },
+	[SPX5_SD10G28_CMU_AUX2] = {  1,  1,  1,  1,  4,
+				     4,  4,  4,  4,  4,
+				     4,  4,  7,  7,  7,
+				     7,  7, 10, 10, 10,
+				    10, 13, 13, 13, 13 },
+	[SPX5_SD10G28_CMU_NONE] = {  1,  1,  1,  1,  4,
+				     4,  4,  4,  4,  4,
+				     4,  4,  7,  7,  7,
+				     7,  7, 10, 10, 10,
+				    10, 13, 13, 13, 13 },
+};
+
+/* Get the index of the CMU which provides the clock for the specified serdes
+ * mode and index.
+ */
+static int sparx5_serdes_cmu_get(enum sparx5_10g28cmu_mode mode, int sd_index)
+{
+	return sparx5_serdes_cmu_map[mode][sd_index];
+}
+
 static void sparx5_serdes_cmu_power_off(struct sparx5_serdes_private *priv)
 {
 	void __iomem *cmu_inst, *cmu_cfg_inst;
@@ -1626,7 +1661,13 @@ static int sparx5_sd10g28_apply_params(struct sparx5_serdes_macro *macro,
 	u32 lane_index = macro->sidx;
 	u32 sd_index = macro->stpidx;
 	void __iomem *sd_inst;
-	u32 value;
+	u32 value, cmu_idx;
+	int err;
+
+	cmu_idx = sparx5_serdes_cmu_get(params->cmu_sel, lane_index);
+	err = sparx5_cmu_cfg(priv, cmu_idx);
+	if (err)
+		return err;
 
 	if (params->is_6g)
 		sd_inst = sdx5_inst_get(priv, TARGET_SD6G_LANE, sd_index);
