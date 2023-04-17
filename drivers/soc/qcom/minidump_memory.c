@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
+#include <linux/align.h>
 #include <linux/mm.h>
 #include <linux/swap.h>
 #include <linux/mman.h>
 #include <linux/seq_buf.h>
 #include <linux/vmalloc.h>
-#include <linux/android_debug_symbols.h>
 #include <linux/cma.h>
 #include <linux/slab.h>
 #include <linux/page_ext.h>
@@ -22,9 +22,19 @@
 #include <linux/dma-buf.h>
 #include <linux/dma-resv.h>
 #include <linux/fdtable.h>
+#include <linux/qcom_dma_heap.h>
+#include "debug_symbol.h"
 #include "minidump_memory.h"
 #include "../../../mm/slab.h"
 #include "../mm/internal.h"
+
+static unsigned long *md_debug_totalcma_pages;
+static struct list_head *md_debug_slab_caches;
+static struct mutex *md_debug_slab_mutex;
+static struct static_key *md_debug_page_owner_inited;
+static struct static_key *md_debug_slub_debug_enabled;
+static unsigned long *md_debug_min_low_pfn;
+static unsigned long *md_debug_max_pfn;
 
 #define DMA_BUF_HASH_SIZE (1 << 20)
 #define DMA_BUF_HASH_SEED 0x9747b28c
@@ -56,7 +66,6 @@ void md_dump_meminfo(struct seq_buf *m)
 	unsigned long pages[NR_LRU_LISTS];
 	unsigned long sreclaimable, sunreclaim;
 	int lru;
-	unsigned long *addr;
 
 	si_meminfo(&i);
 	si_swapinfo(&i);
@@ -127,10 +136,8 @@ void md_dump_meminfo(struct seq_buf *m)
 		    global_node_page_state(NR_WRITEBACK_TEMP));
 	seq_buf_printf(m, "VmallocTotal:   %8lu kB\n",
 		   (unsigned long)VMALLOC_TOTAL >> 10);
-	show_val_kb(m, "VmallocUsed: ",
-			*(unsigned long *)android_debug_symbol(ADS_VMALLOC_NR_PAGES));
-	show_val_kb(m, "Percpu:         ",
-			*(unsigned long *)android_debug_symbol(ADS_PCPU_NR_PAGES));
+	show_val_kb(m, "VmallocUsed: ", vmalloc_nr_pages());
+	show_val_kb(m, "Percpu:         ", pcpu_nr_pages());
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	show_val_kb(m, "AnonHugePages:  ",
@@ -146,8 +153,7 @@ void md_dump_meminfo(struct seq_buf *m)
 #endif
 
 #ifdef CONFIG_CMA
-	addr = (unsigned long *)android_debug_symbol(ADS_TOTAL_CMA);
-	show_val_kb(m, "CmaTotal:       ", *addr);
+	show_val_kb(m, "CmaTotal:       ", *md_debug_totalcma_pages);
 	show_val_kb(m, "CmaFree:        ",
 		    global_zone_page_state(NR_FREE_CMA_PAGES));
 #endif
@@ -192,30 +198,31 @@ void md_dump_slabinfo(struct seq_buf *m)
 {
 	struct kmem_cache *s;
 	struct slabinfo sinfo;
-	struct list_head *slab_caches;
-	struct mutex *slab_mutex;
 
-	slab_caches = (struct list_head *)android_debug_symbol(ADS_SLAB_CACHES);
-	slab_mutex = (struct mutex *) android_debug_symbol(ADS_SLAB_MUTEX);
+	if (!md_debug_slab_caches)
+		return;
+
+	if (!md_debug_slab_mutex)
+		return;
 
 	/* print_slabinfo_header */
-		seq_buf_printf(m,
-				"# name            <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab>");
-		seq_buf_printf(m,
-				" : tunables <limit> <batchcount> <sharedfactor>");
-		seq_buf_printf(m,
-				" : slabdata <active_slabs> <num_slabs> <sharedavail>");
-	#ifdef CONFIG_DEBUG_SLAB
-		seq_buf_printf(m,
-				" : globalstat <listallocs> <maxobjs> <grown> <reaped> <error> <maxfreeable> <nodeallocs> <remotefrees> <alienoverflow>");
-		seq_buf_printf(m,
-				" : cpustat <allochit> <allocmiss> <freehit> <freemiss>");
-	#endif
-		seq_buf_printf(m, "\n");
+	seq_buf_printf(m,
+			"# name            <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab>");
+	seq_buf_printf(m,
+			" : tunables <limit> <batchcount> <sharedfactor>");
+	seq_buf_printf(m,
+			" : slabdata <active_slabs> <num_slabs> <sharedavail>");
+#ifdef CONFIG_DEBUG_SLAB
+	seq_buf_printf(m,
+			" : globalstat <listallocs> <maxobjs> <grown> <reaped> <error> <maxfreeable> <nodeallocs> <remotefrees> <alienoverflow>");
+	seq_buf_printf(m,
+			" : cpustat <allochit> <allocmiss> <freehit> <freemiss>");
+#endif
+	seq_buf_printf(m, "\n");
 
 	/* Loop through all slabs */
-	mutex_lock(slab_mutex);
-	list_for_each_entry(s, slab_caches, list) {
+	mutex_lock(md_debug_slab_mutex);
+	list_for_each_entry(s, md_debug_slab_caches, list) {
 		memset(&sinfo, 0, sizeof(sinfo));
 		get_slabinfo(s, &sinfo);
 
@@ -230,7 +237,7 @@ void md_dump_slabinfo(struct seq_buf *m)
 		slabinfo_stats(m, s);
 		seq_buf_printf(m, "\n");
 	}
-	mutex_unlock(slab_mutex);
+	mutex_unlock(md_debug_slab_mutex);
 }
 #endif
 
@@ -346,7 +353,7 @@ static void update_dump_size(char *name, size_t size, char **addr, size_t *dump_
 #ifdef CONFIG_PAGE_OWNER
 static unsigned long page_owner_filter = 0xF;
 static unsigned long page_owner_handles_size =  SZ_16K;
-static int nr_handles;
+static int nr_page_owner_handles, nr_slab_owner_handles;
 static LIST_HEAD(accounted_call_site_list);
 static DEFINE_MUTEX(accounted_call_site_lock);
 struct accounted_call_site {
@@ -356,28 +363,31 @@ struct accounted_call_site {
 
 bool is_page_owner_enabled(void)
 {
-	return  *(bool *)android_debug_symbol(ADS_PAGE_OWNER_ENABLED);
+	if (md_debug_page_owner_inited &&
+		atomic_read(&md_debug_page_owner_inited->enabled))
+		return true;
+	return false;
+
 }
 
 static bool found_stack(depot_stack_handle_t handle,
-		 char *dump_addr, char *cur)
+		 char *dump_addr, size_t dump_size,
+		 unsigned long handles_size, int *nr_handles)
 {
 	int *handles, i;
 
 	handles = (int *) (dump_addr +
-			md_pageowner_dump_size - page_owner_handles_size);
+			dump_size - handles_size);
 
-	for (i = 0; i < nr_handles; i++)
+	for (i = 0; i < *nr_handles; i++)
 		if (handle == handles[i])
 			return true;
 
-	if ((handles + nr_handles)
-		< (int *)(dump_addr +
-			md_pageowner_dump_size)) {
-		handles[nr_handles] = handle;
-		nr_handles += 1;
+	if ((handles + *nr_handles) < (int *)(dump_addr + dump_size)) {
+		handles[*nr_handles] = handle;
+		*nr_handles += 1;
 	} else {
-		pr_err_ratelimited("Can't stores handles increase page_owner_handles_size\n");
+		pr_err_ratelimited("Can't stores handles increase handles size\n");
 	}
 	return false;
 }
@@ -460,7 +470,11 @@ dump:
 	nr_entries = stack_depot_fetch(handle, &entries);
 	if ((buf > (md_pageowner_dump_addr +
 			md_pageowner_dump_size - page_owner_handles_size))
-			|| !found_stack(handle, md_pageowner_dump_addr, buf)) {
+			|| !found_stack(handle,
+				md_pageowner_dump_addr,
+				md_pageowner_dump_size,
+				page_owner_handles_size,
+				&nr_page_owner_handles)) {
 		ret = scnprintf(buf, count, "%lu %u %u\n",
 				pfn, handle, nr_entries);
 		if (ret == count - 1)
@@ -486,19 +500,22 @@ void md_dump_pageowner(char *addr, size_t dump_size)
 	struct page_ext *page_ext;
 	depot_stack_handle_t handle;
 	ssize_t size;
-	unsigned long min_low_pfn, max_pfn;
 
-	min_low_pfn = *(unsigned long *)android_debug_symbol(ADS_MIN_LOW_PFN);
-	max_pfn = *(unsigned long *)android_debug_symbol(ADS_MAX_PFN);
+	if (!md_debug_min_low_pfn)
+		return;
+
+	if (!md_debug_max_pfn)
+		return;
+
 	page = NULL;
-	pfn = min_low_pfn;
+	pfn = *md_debug_min_low_pfn;
 
 	/* Find a valid PFN or the start of a MAX_ORDER_NR_PAGES area */
 	while (!pfn_valid(pfn) && (pfn & (MAX_ORDER_NR_PAGES - 1)) != 0)
 		pfn++;
 
 	/* Find an allocated page */
-	for (; pfn < max_pfn; pfn++) {
+	for (; pfn < *md_debug_max_pfn; pfn++) {
 		/*
 		 * If the new page is in a new MAX_ORDER_NR_PAGES area,
 		 * validate the area as existing, skip it if not
@@ -517,35 +534,39 @@ void md_dump_pageowner(char *addr, size_t dump_size)
 			continue;
 		}
 
-		page_ext = lookup_page_ext(page);
+		page_ext = page_ext_get(page);
 		if (unlikely(!page_ext))
-			continue;
+			goto next;
 
 		/*
 		 * Some pages could be missed by concurrent allocation or free,
 		 * because we don't hold the zone lock.
 		 */
 		if (!test_bit(PAGE_EXT_OWNER, &page_ext->flags))
-			continue;
+			goto next;
 
 		/*
 		 * Although we do have the info about past allocation of free
 		 * pages, it's not relevant for current memory usage.
 		 */
 		if (!test_bit(PAGE_EXT_OWNER_ALLOCATED, &page_ext->flags))
-			continue;
+			goto next;
 
 		handle = get_page_owner_handle(page_ext, pfn);
 		if (!handle)
-			continue;
+			goto next;
 
 		size = dump_page_owner_md(addr, dump_size, pfn, page, handle);
 		if (size == dump_size - 1) {
 			pr_err("pageowner minidump region exhausted\n");
+			page_ext_put(page_ext);
 			return;
 		}
+
 		dump_size -= size;
 		addr += size;
+next:
+		page_ext_put(page_ext);
 	}
 }
 
@@ -752,47 +773,13 @@ void md_debugfs_pageowner(struct dentry *minidump_dir)
 
 static unsigned long slab_owner_filter;
 static unsigned long slab_owner_handles_size = SZ_16K;
-static int num_handles;
 
 bool is_slub_debug_enabled(void)
 {
-	slab_flags_t slub_debug;
-
-	slub_debug = *(slab_flags_t *)android_debug_symbol(ADS_SLUB_DEBUG);
-	if (slub_debug)
+	if (md_debug_slub_debug_enabled &&
+		atomic_read(&md_debug_slub_debug_enabled->enabled))
 		return true;
 	return false;
-}
-
-static bool find_stack(u32 handle,
-		 char *md_slabowner_dump_addr, char *cur)
-{
-	int *handles, i;
-
-	handles = (int *) (md_slabowner_dump_addr +
-			md_slabowner_dump_size - slab_owner_handles_size);
-
-	for (i = 0; i < num_handles; i++)
-		if (handle == handles[i])
-			return true;
-
-	if ((handles + num_handles)
-		< (int *)(md_slabowner_dump_addr +
-			md_slabowner_dump_size)) {
-		handles[num_handles] = handle;
-		num_handles += 1;
-	} else {
-		pr_err_ratelimited("Can't stores handles increase slab_owner_handle_size\n");
-	}
-	return false;
-}
-
-/* Calculate hash for a stack */
-static u32 hash_stack(const unsigned long *entries, unsigned int size)
-{
-	return jhash2((u32 *)entries,
-			       size * sizeof(unsigned long) / sizeof(u32),
-			       STACK_HASH_SEED);
 }
 
 static int dump_tracking(const struct kmem_cache *s,
@@ -800,12 +787,13 @@ static int dump_tracking(const struct kmem_cache *s,
 		const struct track *t, void *private)
 {
 	int ret = 0;
-	u32 handle, nr_entries;
+	u32 nr_entries;
 	struct priv_buf *priv_buf;
 	char *buf;
 	size_t size;
+	unsigned long *entries;
 
-	if (!t->addr)
+	if (!t->addr || !t->handle)
 		return 0;
 
 	priv_buf = (struct priv_buf *)private;
@@ -814,33 +802,30 @@ static int dump_tracking(const struct kmem_cache *s,
 #ifdef CONFIG_STACKTRACE
 	{
 		int i;
-
-		for (i = 0; i < TRACK_ADDRS_COUNT; i++)
-			if (t->addrs[i])
-				continue;
-			else
-				break;
-		nr_entries = i;
-		handle = hash_stack(t->addrs, nr_entries);
+		nr_entries = stack_depot_fetch(t->handle, &entries);
 
 		if ((buf > (md_slabowner_dump_addr +
 			md_slabowner_dump_size - slab_owner_handles_size))
-			|| !find_stack(handle, md_slabowner_dump_addr, buf)) {
+			|| !found_stack(t->handle,
+				md_slabowner_dump_addr,
+				md_slabowner_dump_size,
+				slab_owner_handles_size,
+				&nr_slab_owner_handles)) {
 
-			ret = scnprintf(buf, size, "%p %u %u\n",
-				object, handle, nr_entries);
+			ret = scnprintf(buf, size, "%p %p %u\n",
+				object, t->handle, nr_entries);
 			if (ret == size - 1)
 				goto err;
 
 			for (i = 0; i < nr_entries; i++) {
 				ret += scnprintf(buf + ret, size - ret,
-						"%p\n", (void *)t->addrs[i]);
+						"%p\n", (void *)entries[i]);
 				if (ret == size - 1)
 					goto err;
 			}
 		} else {
-			ret = scnprintf(buf, size, "%p %u %u\n",
-					object, handle, 0);
+			ret = scnprintf(buf, size, "%p %p %u\n",
+					object, t->handle, 0);
 		}
 	}
 #else
@@ -1043,10 +1028,9 @@ static int dump_bufinfo(const struct dma_buf *buf_obj, void *private)
 	int ret;
 	struct dma_buf_attachment *attach_obj;
 	struct dma_resv *robj;
-	struct dma_resv_list *fobj;
+	struct dma_resv_iter cursor;
 	struct dma_fence *fence;
-	unsigned int seq;
-	int attach_count, shared_count, i = 0;
+	int attach_count;
 	struct dma_buf_priv *buf = (struct dma_buf_priv *)private;
 	struct priv_buf *priv_buf = buf->priv_buf;
 
@@ -1069,35 +1053,13 @@ static int dump_bufinfo(const struct dma_buf *buf_obj, void *private)
 		goto err;
 
 	robj = buf_obj->resv;
-	while (true) {
-		seq = read_seqcount_begin(&robj->seq);
-		rcu_read_lock();
-		fobj = rcu_dereference(robj->fence);
-		shared_count = fobj ? fobj->shared_count : 0;
-		fence = rcu_dereference(robj->fence_excl);
-		if (!read_seqcount_retry(&robj->seq, seq))
-			break;
-		rcu_read_unlock();
-	}
-
-	if (fence) {
-		ret = scnprintf(priv_buf->buf + priv_buf->offset,
-				priv_buf->size - priv_buf->offset,
-				"\tExclusive fence: %s %s %ssignalled\n",
-				fence->ops->get_driver_name(fence),
-				fence->ops->get_timeline_name(fence),
-				dma_fence_is_signaled(fence) ? "" : "un");
-		priv_buf->offset += ret;
-		if (priv_buf->offset == priv_buf->size - 1)
-			goto err;
-	}
-	for (i = 0; i < shared_count; i++) {
-		fence = rcu_dereference(fobj->shared[i]);
+	dma_resv_for_each_fence(&cursor, robj,
+				DMA_RESV_USAGE_BOOKKEEP, fence) {
 		if (!dma_fence_get_rcu(fence))
 			continue;
 		ret = scnprintf(priv_buf->buf + priv_buf->offset,
 				priv_buf->size - priv_buf->offset,
-				"\tShared fence: %s %s %ssignalled\n",
+				"\tFence: %s %s %ssignalled\n",
 				fence->ops->get_driver_name(fence),
 				fence->ops->get_timeline_name(fence),
 				dma_fence_is_signaled(fence) ? "" : "un");
@@ -1106,7 +1068,6 @@ static int dump_bufinfo(const struct dma_buf *buf_obj, void *private)
 			goto err;
 		dma_fence_put(fence);
 	}
-	rcu_read_unlock();
 
 	ret = scnprintf(priv_buf->buf + priv_buf->offset,
 			priv_buf->size - priv_buf->offset,
@@ -1163,7 +1124,7 @@ void md_dma_buf_info(char *m, size_t dump_size)
 			"size", "flags", "mode", "count", "ino");
 	buf.offset = ret;
 
-	get_each_dmabuf(dump_bufinfo, &dma_buf_priv);
+	dma_buf_get_each(dump_bufinfo, &dma_buf_priv);
 
 	scnprintf(buf.buf + buf.offset, buf.size - buf.offset,
 			"\nTotal %d objects, %zu bytes\n",
@@ -1215,7 +1176,7 @@ static int get_dma_info(const void *data, struct file *file, unsigned int n)
 	int ret;
 	u32 index;
 
-	if (!is_dma_buf_file(file))
+	if (!qcom_is_dma_buf_file(file))
 		return 0;
 
 	dma_buf_priv = (struct dma_buf_priv *)data;
@@ -1342,4 +1303,28 @@ void md_debugfs_dmabufprocs(struct dentry *minidump_dir)
 {
 	debugfs_create_file("dma_buf_procs_size_mb", 0400, minidump_dir, NULL,
 			&proc_dma_buf_procs_size_ops);
+}
+
+#define MD_DEBUG_LOOKUP(_var, type) \
+	do { \
+		md_debug_##_var = (type *)DEBUG_SYMBOL_LOOKUP(_var); \
+		if (!md_debug_##_var) { \
+			pr_err("minidump: %s symbol not available in vmlinux\n", #_var); \
+			error |= 1; \
+		} \
+	} while (0)
+
+int md_minidump_memory_init(void)
+{
+	int error = 0;
+
+	MD_DEBUG_LOOKUP(totalcma_pages, unsigned long);
+	MD_DEBUG_LOOKUP(slab_caches, struct list_head);
+	MD_DEBUG_LOOKUP(slab_mutex, struct mutex);
+	MD_DEBUG_LOOKUP(page_owner_inited, struct static_key);
+	MD_DEBUG_LOOKUP(slub_debug_enabled, struct static_key);
+	MD_DEBUG_LOOKUP(min_low_pfn, unsigned long);
+	MD_DEBUG_LOOKUP(max_pfn, unsigned long);
+
+	return error;
 }
