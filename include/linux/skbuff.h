@@ -991,6 +991,8 @@ struct sk_buff {
 	__u16			tc_index;	/* traffic control index */
 #endif
 
+	u16			alloc_cpu;
+
 	union {
 		__wsum		csum;
 		struct {
@@ -1014,7 +1016,6 @@ struct sk_buff {
 		unsigned int	sender_cpu;
 	};
 #endif
-	u16			alloc_cpu;
 #ifdef CONFIG_NETWORK_SECMARK
 	__u32		secmark;
 #endif
