@@ -16,6 +16,7 @@
   __arch_copy_from_user
   __arch_copy_to_user
   __arm_smccc_smc
+  atomic_notifier_call_chain
   backlight_device_register
   backlight_device_unregister
   bcmp
@@ -26,6 +27,7 @@
   bpf_trace_run2
   bpf_trace_run3
   bpf_trace_run5
+  bus_register
   bus_unregister
   bus_unregister_notifier
   cache_line_size
@@ -129,6 +131,7 @@
   _ctype
   debugfs_create_dir
   debugfs_create_file
+  debugfs_lookup_and_remove
   debugfs_remove
   default_llseek
   default_wake_function
@@ -167,6 +170,7 @@
   device_property_read_u32_array
   device_register
   device_remove_file
+  device_set_of_node_from_dev
   device_set_wakeup_capable
   device_set_wakeup_enable
   device_unregister
@@ -190,6 +194,7 @@
   devm_drm_panel_bridge_add_typed
   devm_extcon_dev_allocate
   devm_extcon_dev_register
+  devm_extcon_register_notifier
   devm_free_irq
   devm_fwnode_pwm_get
   devm_get_clk_from_child
@@ -220,23 +225,32 @@
   devm_mbox_controller_register
   devm_mfd_add_devices
   devm_mipi_dsi_attach
+  __devm_of_phy_provider_register
+  devm_phy_create
+  devm_phy_get
+  devm_phy_optional_get
   devm_phy_package_join
   devm_pinctrl_get
   devm_platform_get_and_ioremap_resource
   devm_platform_ioremap_resource
+  devm_platform_ioremap_resource_byname
   __devm_regmap_init
   __devm_regmap_init_i2c
   __devm_regmap_init_mmio_clk
   devm_regulator_bulk_get
   devm_regulator_get
+  devm_regulator_get_exclusive
   devm_regulator_get_optional
   devm_regulator_register
   devm_regulator_register_notifier
   devm_request_threaded_irq
   __devm_reset_control_get
+  devm_reset_controller_register
   devm_snd_dmaengine_pcm_register
   devm_snd_soc_register_card
   devm_snd_soc_register_component
+  devm_usb_get_phy
+  devm_usb_get_phy_by_phandle
   dev_pm_domain_attach_by_id
   dev_pm_domain_detach
   _dev_printk
@@ -245,19 +259,29 @@
   disable_irq
   disable_irq_nosync
   dma_alloc_attrs
+  dma_alloc_pages
   dma_free_attrs
+  dma_free_pages
   dma_map_page_attrs
   dma_map_sg_attrs
   dma_mmap_attrs
+  dma_pool_alloc
+  dma_pool_create
+  dma_pool_destroy
+  dma_pool_free
   dma_release_channel
   dma_request_chan
   __dma_request_channel
   dma_set_coherent_mask
   dma_set_mask
+  dma_sync_single_for_cpu
+  dma_sync_single_for_device
   dma_unmap_page_attrs
   dma_unmap_sg_attrs
   down_interruptible
   dpcm_end_walk_at_be
+  driver_register
+  driver_unregister
   drm_bridge_attach
   drm_bridge_chain_enable
   drm_bridge_connector_enable_hpd
@@ -379,6 +403,10 @@
   drm_universal_plane_init
   drm_vblank_init
   dump_stack
+  ehci_handshake
+  ehci_hub_control
+  ehci_init_driver
+  ehci_setup
   enable_irq
   enable_percpu_irq
   ether_setup
@@ -756,10 +784,14 @@
   of_alias_get_id
   of_can_transceiver
   of_clk_add_hw_provider
+  of_clk_set_defaults
   of_count_phandle_with_args
   of_device_get_match_data
   of_device_is_available
   of_device_is_compatible
+  of_device_modalias
+  of_device_request_module
+  of_device_uevent_modalias
   of_find_compatible_node
   of_find_device_by_node
   of_find_i2c_device_by_node
@@ -767,6 +799,7 @@
   of_find_node_opts_by_path
   of_find_property
   of_get_child_by_name
+  of_get_compatible_child
   of_get_named_gpio_flags
   of_get_next_available_child
   of_get_next_child
@@ -776,12 +809,18 @@
   of_match_device
   of_node_name_eq
   __of_parse_phandle_with_args
+  of_phy_simple_xlate
+  of_platform_depopulate
+  of_platform_populate
   of_property_count_elems_of_size
   of_property_match_string
   of_property_read_string
   of_property_read_u32_index
   of_property_read_variable_u32_array
   of_reserved_mem_device_init_by_idx
+  of_usb_get_phy_mode
+  of_usb_host_tpl_support
+  of_usb_update_otg_caps
   page_pool_destroy
   page_pool_put_defragged_page
   panic
@@ -829,6 +868,8 @@
   phy_drivers_register
   phy_drivers_unregister
   phy_error
+  phy_exit
+  phy_init
   phy_init_hw
   __phy_modify
   phy_modify
@@ -837,11 +878,15 @@
   phy_modify_mmd_changed
   phy_modify_paged
   phy_modify_paged_changed
+  phy_power_off
+  phy_power_on
   phy_read_mmd
   phy_read_paged
+  phy_reset
   phy_resolve_aneg_pause
   phy_restore_page
   phy_select_page
+  phy_set_mode_ext
   phy_sfp_attach
   phy_sfp_detach
   phy_sfp_probe
@@ -902,6 +947,7 @@
   pm_wakeup_dev_event
   pm_wakeup_ws_event
   policy_has_boost_freq
+  power_supply_get_by_phandle
   power_supply_get_property
   power_supply_put
   power_supply_register
@@ -1255,6 +1301,7 @@
   syscon_regmap_lookup_by_phandle
   sysfs_create_group
   sysfs_remove_group
+  system_freezable_wq
   system_power_efficient_wq
   system_wq
   trace_event_buffer_commit
@@ -1267,12 +1314,61 @@
   __trace_trigger_soft_disabled
   try_module_get
   try_wait_for_completion
+  typec_switch_get_drvdata
+  typec_switch_register
+  typec_switch_unregister
   unregister_inet6addr_notifier
   unregister_inetaddr_notifier
   unregister_netdev
   unregister_netdevice_queue
   unregister_rpmsg_driver
   up
+  usb_add_gadget
+  usb_add_gadget_udc
+  usb_add_hcd
+  usb_add_phy_dev
+  __usb_create_hcd
+  usb_debug_root
+  usb_decode_ctrl
+  usb_del_gadget
+  usb_del_gadget_udc
+  usb_disabled
+  usb_ep_alloc_request
+  usb_ep_clear_halt
+  usb_ep_disable
+  usb_ep_enable
+  usb_ep_fifo_flush
+  usb_ep_free_request
+  usb_ep_set_halt
+  usb_ep_set_maxpacket_limit
+  usb_gadget_connect
+  usb_gadget_disconnect
+  usb_gadget_giveback_request
+  usb_gadget_map_request_by_dev
+  usb_gadget_set_state
+  usb_gadget_udc_reset
+  usb_gadget_unmap_request
+  usb_gadget_unmap_request_by_dev
+  usb_gadget_vbus_connect
+  usb_gadget_vbus_disconnect
+  usb_get_dr_mode
+  usb_get_maximum_speed
+  usb_hcd_irq
+  usb_hcd_is_primary_hcd
+  usb_hcd_map_urb_for_dma
+  usb_hcd_unmap_urb_for_dma
+  usb_initialize_gadget
+  usb_phy_set_charger_current
+  usb_phy_set_charger_state
+  usb_phy_set_event
+  usb_put_hcd
+  usb_remove_hcd
+  usb_remove_phy
+  usb_role_switch_get_drvdata
+  usb_role_switch_register
+  usb_role_switch_unregister
+  usb_speed_string
+  usb_udc_vbus_handler
   usleep_range_state
   vfree
   virtqueue_detach_unused_buf
