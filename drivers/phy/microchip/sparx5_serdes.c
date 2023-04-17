@@ -1646,6 +1646,10 @@ static int sparx5_sd10g28_apply_params(struct sparx5_serdes_macro *macro,
 	u32 value, cmu_idx;
 	int err;
 
+	/* Do not configure serdes if CMU is not to be configured too */
+	if (params->skip_cmu_cfg)
+		return 0;
+
 	cmu_idx = sparx5_serdes_cmu_get(params->cmu_sel, lane_index);
 	err = sparx5_cmu_cfg(priv, cmu_idx);
 	if (err)
@@ -2111,6 +2115,7 @@ static int sparx5_sd10g28_config(struct sparx5_serdes_macro *macro, bool reset)
 		.rxinvert = 1,
 		.txswing = 240,
 		.reg_rst = reset,
+		.skip_cmu_cfg = reset,
 	};
 	int err;
 
