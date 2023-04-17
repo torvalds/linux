@@ -83,8 +83,6 @@ static int jh7110_aoncrg_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
-	dev_set_drvdata(priv->dev, (void *)(&priv->base));
-
 	for (idx = 0; idx < JH7110_AONCLK_END; idx++) {
 		u32 max = jh7110_aonclk_data[idx].max;
 		struct clk_parent_data parents[4] = {};

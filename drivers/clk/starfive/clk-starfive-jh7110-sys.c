@@ -402,8 +402,6 @@ static int __init jh7110_syscrg_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
-	dev_set_drvdata(priv->dev, (void *)(&priv->base));
-
 	/*
 	 * These PLL clocks are not actually fixed factor clocks and can be
 	 * controlled by the syscon registers of JH7110. They will be dropped
