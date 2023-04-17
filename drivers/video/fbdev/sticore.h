@@ -27,11 +27,11 @@
  *
  * Probably the best solution to all this is have the generic code manage
  * the screen buffer and a kernel thread to call STI occasionally.
- * 
+ *
  * Luckily, the frame buffer guys have the same problem so we can just wait
  * for them to fix it and steal their solution.   prumpf
  */
- 
+
 #include <asm/io.h>
 
 #define STI_WAIT 1
@@ -56,7 +56,7 @@
 /* STI function configuration structs */
 
 typedef union region {
-	struct { 
+	struct {
 		u32 offset	: 14;	/* offset in 4kbyte page */
 		u32 sys_only	: 1;	/* don't map to user space */
 		u32 cache	: 1;	/* map to data cache */
@@ -154,7 +154,7 @@ struct sti_conf_inptr {
 };
 
 struct sti_conf_outptr_ext {
-	u32 crt_config[3];	/* hardware specific X11/OGL information */	
+	u32 crt_config[3];	/* hardware specific X11/OGL information */
 	u32 crt_hdw[3];
 	u32 future_ptr;
 };
@@ -211,7 +211,7 @@ struct sti_rom {
 	u32 set_cm_entry;
 	u32 dma_ctrl;
 	 u8 res040[7 * 4];
-	
+
 	u32 init_graph_addr;
 	u32 state_mgmt_addr;
 	u32 font_unp_addr;
@@ -271,7 +271,7 @@ struct sti_font_flags {
 	u32 pad : 30;		/* pad to word boundary */
 	u32 future_ptr; 	/* pointer to future data */
 };
-	
+
 struct sti_font_outptr {
 	s32 errno;		/* error number on failure */
 	u32 future_ptr; 	/* pointer to future data */
@@ -338,7 +338,7 @@ struct sti_all_data {
 
 struct sti_struct {
 	spinlock_t lock;
-		
+
 	/* char **mon_strings; */
 	int sti_mem_request;
 	u32 graphics_id[2];
