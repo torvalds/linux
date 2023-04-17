@@ -5,7 +5,6 @@ include $(srctree)/scripts/Kbuild.include
 include $(srctree)/scripts/Makefile.lib
 
 KERNELPATH := kernel-$(subst -,_,$(KERNELRELEASE))
-KBUILD_PKG_ROOTCMD ?="fakeroot -u"
 # Include only those top-level files that are needed by make, plus the GPL copy
 TAR_CONTENT := Documentation LICENSES arch block certs crypto drivers fs \
                include init io_uring ipc kernel lib mm net rust \
@@ -86,6 +85,9 @@ binrpm-pkg:
 	+rpmbuild $(RPMOPTS) --define "_builddir $(objtree)" --target \
 		$(UTS_MACHINE)-linux -bb $(objtree)/binkernel.spec
 
+# deb-pkg srcdeb-pkg bindeb-pkg
+# ---------------------------------------------------------------------------
+
 quiet_cmd_debianize = GEN     $@
       cmd_debianize = $(srctree)/scripts/package/mkdebian $(mkdebian-opts)
 
@@ -104,14 +106,25 @@ debian-orig: linux.tar.gz debian
 		cp $< ../$(orig-name); \
 	fi
 
-PHONY += deb-pkg
-deb-pkg: debian-orig
-	+dpkg-buildpackage -r$(KBUILD_PKG_ROOTCMD) -a$$(cat debian/arch) $(DPKG_FLAGS) \
-		--build=source,binary -nc -us -uc
+KBUILD_PKG_ROOTCMD ?= 'fakeroot -u'
 
-PHONY += bindeb-pkg
+PHONY += deb-pkg srcdeb-pkg bindeb-pkg
+
+deb-pkg:    private build-type := source,binary
+srcdeb-pkg: private build-type := source
+bindeb-pkg: private build-type := binary
+
+deb-pkg srcdeb-pkg: debian-orig
 bindeb-pkg: debian
-	+dpkg-buildpackage -r$(KBUILD_PKG_ROOTCMD) -a$$(cat debian/arch) $(DPKG_FLAGS) -b -nc -uc
+deb-pkg srcdeb-pkg bindeb-pkg:
+	+$(strip dpkg-buildpackage \
+	--build=$(build-type) --no-pre-clean --unsigned-changes \
+	$(if $(findstring source, $(build-type)), \
+		--unsigned-source) \
+	$(if $(findstring binary, $(build-type)), \
+		-r$(KBUILD_PKG_ROOTCMD) -a$$(cat debian/arch), \
+		--no-check-builddeps) \
+	$(DPKG_FLAGS))
 
 PHONY += intdeb-pkg
 intdeb-pkg:
@@ -208,6 +221,7 @@ help:
 	@echo '  srcrpm-pkg          - Build only the source kernel RPM package'
 	@echo '  binrpm-pkg          - Build only the binary kernel RPM package'
 	@echo '  deb-pkg             - Build both source and binary deb kernel packages'
+	@echo '  srcdeb-pkg          - Build only the source kernel deb package'
 	@echo '  bindeb-pkg          - Build only the binary kernel deb package'
 	@echo '  snap-pkg            - Build only the binary kernel snap package'
 	@echo '                        (will connect to external hosts)'
