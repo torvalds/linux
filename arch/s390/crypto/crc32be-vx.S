@@ -24,8 +24,8 @@
 #define CONST_RU_POLY		%v13
 #define CONST_CRC_POLY		%v14
 
-.data
-.align 8
+	.data
+	.balign	8
 
 /*
  * The CRC-32 constant block contains reduction constants to fold and
@@ -58,19 +58,20 @@
  *	P'(x) = 0xEDB88320
  */
 
-.Lconstants_CRC_32_BE:
+SYM_DATA_START_LOCAL(constants_CRC_32_BE)
 	.quad		0x08833794c, 0x0e6228b11	# R1, R2
 	.quad		0x0c5b9cd4c, 0x0e8a45605	# R3, R4
 	.quad		0x0f200aa66, 1 << 32		# R5, x32
 	.quad		0x0490d678d, 1			# R6, 1
 	.quad		0x104d101df, 0			# u
 	.quad		0x104C11DB7, 0			# P(x)
+SYM_DATA_END(constants_CRC_32_BE)
 
-.previous
+	.previous
 
 	GEN_BR_THUNK %r14
 
-.text
+	.text
 /*
  * The CRC-32 function(s) use these calling conventions:
  *
@@ -90,9 +91,9 @@
  *
  *	V9..V14: CRC-32 constants.
  */
-ENTRY(crc32_be_vgfm_16)
+SYM_FUNC_START(crc32_be_vgfm_16)
 	/* Load CRC-32 constants */
-	larl	%r5,.Lconstants_CRC_32_BE
+	larl	%r5,constants_CRC_32_BE
 	VLM	CONST_R1R2,CONST_CRC_POLY,0,%r5
 
 	/* Load the initial CRC value into the leftmost word of V0. */
@@ -207,6 +208,6 @@ ENTRY(crc32_be_vgfm_16)
 .Ldone:
 	VLGVF	%r2,%v2,3
 	BR_EX	%r14
-ENDPROC(crc32_be_vgfm_16)
+SYM_FUNC_END(crc32_be_vgfm_16)
 
 .previous
