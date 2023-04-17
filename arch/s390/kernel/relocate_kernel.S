@@ -26,7 +26,7 @@
  */
 
 	.text
-ENTRY(relocate_kernel)
+SYM_CODE_START(relocate_kernel)
 		basr	%r13,0		# base address
 	.base:
 		lghi	%r7,PAGE_SIZE	# load PAGE_SIZE in r7
@@ -66,13 +66,11 @@ ENTRY(relocate_kernel)
 		mvc	0(8,%r0),0(%r4)	# copy psw to absolute address 0
 	.diag:
 		diag	%r0,%r0,0x308
-ENDPROC(relocate_kernel)
+SYM_CODE_END(relocate_kernel)
 
-		.align	8
-	load_psw:
+		.balign	8
+SYM_DATA_START_LOCAL(load_psw)
 		.long	0x00080000,0x80000000
-	relocate_kernel_end:
-	.align 8
-	.globl	relocate_kernel_len
-	relocate_kernel_len:
-		.quad	relocate_kernel_end - relocate_kernel
+SYM_DATA_END_LABEL(load_psw, SYM_L_LOCAL, relocate_kernel_end)
+		.balign 8
+SYM_DATA(relocate_kernel_len, .quad relocate_kernel_end - relocate_kernel)
