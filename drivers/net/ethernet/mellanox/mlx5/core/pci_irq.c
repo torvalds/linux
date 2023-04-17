@@ -32,6 +32,7 @@ struct mlx5_irq {
 	struct mlx5_irq_pool *pool;
 	int refcount;
 	struct msi_map map;
+	u32 pool_index;
 };
 
 struct mlx5_irq_table {
@@ -132,7 +133,7 @@ static void irq_release(struct mlx5_irq *irq)
 	struct cpu_rmap *rmap;
 #endif
 
-	xa_erase(&pool->irqs, irq->map.index);
+	xa_erase(&pool->irqs, irq->pool_index);
 	/* free_irq requires that affinity_hint and rmap will be cleared before
 	 * calling it. To satisfy this requirement, we call
 	 * irq_cpu_rmap_remove() to remove the notifier
@@ -276,11 +277,11 @@ struct mlx5_irq *mlx5_irq_alloc(struct mlx5_irq_pool *pool, int i,
 	}
 	irq->pool = pool;
 	irq->refcount = 1;
-	irq->map.index = i;
-	err = xa_err(xa_store(&pool->irqs, irq->map.index, irq, GFP_KERNEL));
+	irq->pool_index = i;
+	err = xa_err(xa_store(&pool->irqs, irq->pool_index, irq, GFP_KERNEL));
 	if (err) {
 		mlx5_core_err(dev, "Failed to alloc xa entry for irq(%u). err = %d\n",
-			      irq->map.index, err);
+			      irq->pool_index, err);
 		goto err_xa;
 	}
 	return irq;
