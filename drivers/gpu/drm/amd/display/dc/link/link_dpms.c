@@ -2035,6 +2035,12 @@ static enum dc_status enable_link_dp(struct dc_state *state,
 	uint32_t post_oui_delay = 30; // 30ms
 	/* Reduce link bandwidth between failed link training attempts. */
 	bool do_fallback = false;
+	int lt_attempts = LINK_TRAINING_ATTEMPTS;
+
+	// Increase retry count if attempting DP1.x on FIXED_VS link
+	if ((link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
+			link_dp_get_encoding_format(link_settings) == DP_8b_10b_ENCODING)
+		lt_attempts = 10;
 
 	// check for seamless boot
 	for (i = 0; i < state->stream_count; i++) {
@@ -2099,7 +2105,7 @@ static enum dc_status enable_link_dp(struct dc_state *state,
 
 	if (perform_link_training_with_retries(link_settings,
 					       skip_video_pattern,
-					       LINK_TRAINING_ATTEMPTS,
+					       lt_attempts,
 					       pipe_ctx,
 					       pipe_ctx->stream->signal,
 					       do_fallback)) {

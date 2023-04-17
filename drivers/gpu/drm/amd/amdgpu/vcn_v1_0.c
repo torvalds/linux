@@ -120,6 +120,7 @@ static int vcn_v1_0_sw_init(void *handle)
 		return r;
 
 	ring = &adev->vcn.inst->ring_dec;
+	ring->vm_hub = AMDGPU_MMHUB_0;
 	sprintf(ring->name, "vcn_dec");
 	r = amdgpu_ring_init(adev, ring, 512, &adev->vcn.inst->irq, 0,
 			     AMDGPU_RING_PRIO_DEFAULT, NULL);
@@ -141,6 +142,7 @@ static int vcn_v1_0_sw_init(void *handle)
 		enum amdgpu_ring_priority_level hw_prio = amdgpu_vcn_get_enc_ring_prio(i);
 
 		ring = &adev->vcn.inst->ring_enc[i];
+		ring->vm_hub = AMDGPU_MMHUB_0;
 		sprintf(ring->name, "vcn_enc%d", i);
 		r = amdgpu_ring_init(adev, ring, 512, &adev->vcn.inst->irq, 0,
 				     hw_prio, NULL);
@@ -1548,7 +1550,7 @@ static void vcn_v1_0_dec_ring_emit_reg_wait(struct amdgpu_ring *ring,
 static void vcn_v1_0_dec_ring_emit_vm_flush(struct amdgpu_ring *ring,
 					    unsigned vmid, uint64_t pd_addr)
 {
-	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->funcs->vmhub];
+	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->vm_hub];
 	uint32_t data0, data1, mask;
 
 	pd_addr = amdgpu_gmc_emit_flush_gpu_tlb(ring, vmid, pd_addr);
@@ -1693,7 +1695,7 @@ static void vcn_v1_0_enc_ring_emit_reg_wait(struct amdgpu_ring *ring,
 static void vcn_v1_0_enc_ring_emit_vm_flush(struct amdgpu_ring *ring,
 					    unsigned int vmid, uint64_t pd_addr)
 {
-	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->funcs->vmhub];
+	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->vm_hub];
 
 	pd_addr = amdgpu_gmc_emit_flush_gpu_tlb(ring, vmid, pd_addr);
 
@@ -1977,7 +1979,6 @@ static const struct amdgpu_ring_funcs vcn_v1_0_dec_ring_vm_funcs = {
 	.support_64bit_ptrs = false,
 	.no_user_fence = true,
 	.secure_submission_supported = true,
-	.vmhub = AMDGPU_MMHUB_0,
 	.get_rptr = vcn_v1_0_dec_ring_get_rptr,
 	.get_wptr = vcn_v1_0_dec_ring_get_wptr,
 	.set_wptr = vcn_v1_0_dec_ring_set_wptr,
@@ -2012,7 +2013,6 @@ static const struct amdgpu_ring_funcs vcn_v1_0_enc_ring_vm_funcs = {
 	.nop = VCN_ENC_CMD_NO_OP,
 	.support_64bit_ptrs = false,
 	.no_user_fence = true,
-	.vmhub = AMDGPU_MMHUB_0,
 	.get_rptr = vcn_v1_0_enc_ring_get_rptr,
 	.get_wptr = vcn_v1_0_enc_ring_get_wptr,
 	.set_wptr = vcn_v1_0_enc_ring_set_wptr,

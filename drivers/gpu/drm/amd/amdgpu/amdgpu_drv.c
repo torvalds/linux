@@ -157,7 +157,6 @@ char *amdgpu_virtual_display;
  */
 uint amdgpu_pp_feature_mask = 0xfff7bfff;
 uint amdgpu_force_long_training;
-int amdgpu_job_hang_limit;
 int amdgpu_lbpw = -1;
 int amdgpu_compute_multipipe = -1;
 int amdgpu_gpu_recovery = -1; /* auto */
@@ -519,13 +518,6 @@ module_param_named(disable_cu, amdgpu_disable_cu, charp, 0444);
 MODULE_PARM_DESC(virtual_display,
 		 "Enable virtual display feature (the virtual_display will be set like xxxx:xx:xx.x,x;xxxx:xx:xx.x,x)");
 module_param_named(virtual_display, amdgpu_virtual_display, charp, 0444);
-
-/**
- * DOC: job_hang_limit (int)
- * Set how much time allow a job hang and not drop it. The default is 0.
- */
-MODULE_PARM_DESC(job_hang_limit, "how much time allow a job hang and not drop it (default 0)");
-module_param_named(job_hang_limit, amdgpu_job_hang_limit, int ,0444);
 
 /**
  * DOC: lbpw (int)

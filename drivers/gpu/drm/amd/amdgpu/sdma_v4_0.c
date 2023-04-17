@@ -1823,6 +1823,15 @@ static int sdma_v4_0_sw_init(void *handle)
 		/* doorbell size is 2 dwords, get DWORD offset */
 		ring->doorbell_index = adev->doorbell_index.sdma_engine[i] << 1;
 
+		/*
+		 * On Arcturus, SDMA instance 5~7 has a different vmhub
+		 * type(AMDGPU_MMHUB_1).
+		 */
+		if (adev->ip_versions[SDMA0_HWIP][0] == IP_VERSION(4, 2, 2) && i >= 5)
+			ring->vm_hub = AMDGPU_MMHUB_1;
+		else
+			ring->vm_hub = AMDGPU_MMHUB_0;
+
 		sprintf(ring->name, "sdma%d", i);
 		r = amdgpu_ring_init(adev, ring, 1024, &adev->sdma.trap_irq,
 				     AMDGPU_SDMA_IRQ_INSTANCE0 + i,
@@ -1840,6 +1849,11 @@ static int sdma_v4_0_sw_init(void *handle)
 			 */
 			ring->doorbell_index = adev->doorbell_index.sdma_engine[i] << 1;
 			ring->doorbell_index += 0x400;
+
+			if (adev->ip_versions[SDMA0_HWIP][0] == IP_VERSION(4, 2, 2) && i >= 5)
+				ring->vm_hub = AMDGPU_MMHUB_1;
+			else
+				ring->vm_hub = AMDGPU_MMHUB_0;
 
 			sprintf(ring->name, "page%d", i);
 			r = amdgpu_ring_init(adev, ring, 1024,
@@ -1870,7 +1884,7 @@ static int sdma_v4_0_sw_fini(void *handle)
 			amdgpu_ring_fini(&adev->sdma.instance[i].page);
 	}
 
-	if (adev->ip_versions[SDMA0_HWIP][0] == IP_VERSION(4, 2, 0) ||
+	if (adev->ip_versions[SDMA0_HWIP][0] == IP_VERSION(4, 2, 2) ||
             adev->ip_versions[SDMA0_HWIP][0] == IP_VERSION(4, 4, 0))
 		amdgpu_sdma_destroy_inst_ctx(adev, true);
 	else
@@ -2294,44 +2308,6 @@ static const struct amdgpu_ring_funcs sdma_v4_0_ring_funcs = {
 	.nop = SDMA_PKT_NOP_HEADER_OP(SDMA_OP_NOP),
 	.support_64bit_ptrs = true,
 	.secure_submission_supported = true,
-	.vmhub = AMDGPU_MMHUB_0,
-	.get_rptr = sdma_v4_0_ring_get_rptr,
-	.get_wptr = sdma_v4_0_ring_get_wptr,
-	.set_wptr = sdma_v4_0_ring_set_wptr,
-	.emit_frame_size =
-		6 + /* sdma_v4_0_ring_emit_hdp_flush */
-		3 + /* hdp invalidate */
-		6 + /* sdma_v4_0_ring_emit_pipeline_sync */
-		/* sdma_v4_0_ring_emit_vm_flush */
-		SOC15_FLUSH_GPU_TLB_NUM_WREG * 3 +
-		SOC15_FLUSH_GPU_TLB_NUM_REG_WAIT * 6 +
-		10 + 10 + 10, /* sdma_v4_0_ring_emit_fence x3 for user fence, vm fence */
-	.emit_ib_size = 7 + 6, /* sdma_v4_0_ring_emit_ib */
-	.emit_ib = sdma_v4_0_ring_emit_ib,
-	.emit_fence = sdma_v4_0_ring_emit_fence,
-	.emit_pipeline_sync = sdma_v4_0_ring_emit_pipeline_sync,
-	.emit_vm_flush = sdma_v4_0_ring_emit_vm_flush,
-	.emit_hdp_flush = sdma_v4_0_ring_emit_hdp_flush,
-	.test_ring = sdma_v4_0_ring_test_ring,
-	.test_ib = sdma_v4_0_ring_test_ib,
-	.insert_nop = sdma_v4_0_ring_insert_nop,
-	.pad_ib = sdma_v4_0_ring_pad_ib,
-	.emit_wreg = sdma_v4_0_ring_emit_wreg,
-	.emit_reg_wait = sdma_v4_0_ring_emit_reg_wait,
-	.emit_reg_write_reg_wait = amdgpu_ring_emit_reg_write_reg_wait_helper,
-};
-
-/*
- * On Arcturus, SDMA instance 5~7 has a different vmhub type(AMDGPU_MMHUB_1).
- * So create a individual constant ring_funcs for those instances.
- */
-static const struct amdgpu_ring_funcs sdma_v4_0_ring_funcs_2nd_mmhub = {
-	.type = AMDGPU_RING_TYPE_SDMA,
-	.align_mask = 0xf,
-	.nop = SDMA_PKT_NOP_HEADER_OP(SDMA_OP_NOP),
-	.support_64bit_ptrs = true,
-	.secure_submission_supported = true,
-	.vmhub = AMDGPU_MMHUB_1,
 	.get_rptr = sdma_v4_0_ring_get_rptr,
 	.get_wptr = sdma_v4_0_ring_get_wptr,
 	.set_wptr = sdma_v4_0_ring_set_wptr,
@@ -2364,40 +2340,6 @@ static const struct amdgpu_ring_funcs sdma_v4_0_page_ring_funcs = {
 	.nop = SDMA_PKT_NOP_HEADER_OP(SDMA_OP_NOP),
 	.support_64bit_ptrs = true,
 	.secure_submission_supported = true,
-	.vmhub = AMDGPU_MMHUB_0,
-	.get_rptr = sdma_v4_0_ring_get_rptr,
-	.get_wptr = sdma_v4_0_page_ring_get_wptr,
-	.set_wptr = sdma_v4_0_page_ring_set_wptr,
-	.emit_frame_size =
-		6 + /* sdma_v4_0_ring_emit_hdp_flush */
-		3 + /* hdp invalidate */
-		6 + /* sdma_v4_0_ring_emit_pipeline_sync */
-		/* sdma_v4_0_ring_emit_vm_flush */
-		SOC15_FLUSH_GPU_TLB_NUM_WREG * 3 +
-		SOC15_FLUSH_GPU_TLB_NUM_REG_WAIT * 6 +
-		10 + 10 + 10, /* sdma_v4_0_ring_emit_fence x3 for user fence, vm fence */
-	.emit_ib_size = 7 + 6, /* sdma_v4_0_ring_emit_ib */
-	.emit_ib = sdma_v4_0_ring_emit_ib,
-	.emit_fence = sdma_v4_0_ring_emit_fence,
-	.emit_pipeline_sync = sdma_v4_0_ring_emit_pipeline_sync,
-	.emit_vm_flush = sdma_v4_0_ring_emit_vm_flush,
-	.emit_hdp_flush = sdma_v4_0_ring_emit_hdp_flush,
-	.test_ring = sdma_v4_0_ring_test_ring,
-	.test_ib = sdma_v4_0_ring_test_ib,
-	.insert_nop = sdma_v4_0_ring_insert_nop,
-	.pad_ib = sdma_v4_0_ring_pad_ib,
-	.emit_wreg = sdma_v4_0_ring_emit_wreg,
-	.emit_reg_wait = sdma_v4_0_ring_emit_reg_wait,
-	.emit_reg_write_reg_wait = amdgpu_ring_emit_reg_write_reg_wait_helper,
-};
-
-static const struct amdgpu_ring_funcs sdma_v4_0_page_ring_funcs_2nd_mmhub = {
-	.type = AMDGPU_RING_TYPE_SDMA,
-	.align_mask = 0xf,
-	.nop = SDMA_PKT_NOP_HEADER_OP(SDMA_OP_NOP),
-	.support_64bit_ptrs = true,
-	.secure_submission_supported = true,
-	.vmhub = AMDGPU_MMHUB_1,
 	.get_rptr = sdma_v4_0_ring_get_rptr,
 	.get_wptr = sdma_v4_0_page_ring_get_wptr,
 	.set_wptr = sdma_v4_0_page_ring_set_wptr,
@@ -2429,19 +2371,10 @@ static void sdma_v4_0_set_ring_funcs(struct amdgpu_device *adev)
 	int i;
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
-		if (adev->ip_versions[SDMA0_HWIP][0] == IP_VERSION(4, 2, 2) && i >= 5)
-			adev->sdma.instance[i].ring.funcs =
-					&sdma_v4_0_ring_funcs_2nd_mmhub;
-		else
-			adev->sdma.instance[i].ring.funcs =
-					&sdma_v4_0_ring_funcs;
+		adev->sdma.instance[i].ring.funcs = &sdma_v4_0_ring_funcs;
 		adev->sdma.instance[i].ring.me = i;
 		if (adev->sdma.has_page_queue) {
-			if (adev->ip_versions[SDMA0_HWIP][0] == IP_VERSION(4, 2, 2) && i >= 5)
-				adev->sdma.instance[i].page.funcs =
-					&sdma_v4_0_page_ring_funcs_2nd_mmhub;
-			else
-				adev->sdma.instance[i].page.funcs =
+			adev->sdma.instance[i].page.funcs =
 					&sdma_v4_0_page_ring_funcs;
 			adev->sdma.instance[i].page.me = i;
 		}

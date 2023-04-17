@@ -399,6 +399,23 @@ static void dcn32_update_clocks_update_dentist(
 
 }
 
+static int dcn32_get_dispclk_from_dentist(struct clk_mgr *clk_mgr_base)
+{
+	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+	uint32_t dispclk_wdivider;
+	int disp_divider;
+
+	REG_GET(DENTIST_DISPCLK_CNTL, DENTIST_DISPCLK_WDIVIDER, &dispclk_wdivider);
+	disp_divider = dentist_get_divider_from_did(dispclk_wdivider);
+
+	/* Return DISPCLK freq in Khz */
+	if (disp_divider)
+		return (DENTIST_DIVIDER_RANGE_SCALE_FACTOR * clk_mgr->base.dentist_vco_freq_khz) / disp_divider;
+
+	return 0;
+}
+
+
 static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 			struct dc_state *context,
 			bool safe_to_lower)
@@ -852,6 +869,7 @@ static struct clk_mgr_funcs dcn32_funcs = {
 		.are_clock_states_equal = dcn32_are_clock_states_equal,
 		.enable_pme_wa = dcn32_enable_pme_wa,
 		.is_smu_present = dcn32_is_smu_present,
+		.get_dispclk_from_dentist = dcn32_get_dispclk_from_dentist,
 };
 
 void dcn32_clk_mgr_construct(

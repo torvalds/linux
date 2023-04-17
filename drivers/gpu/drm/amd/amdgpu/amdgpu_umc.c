@@ -302,3 +302,34 @@ void amdgpu_umc_fill_error_record(struct ras_err_data *err_data,
 
 	err_data->err_addr_cnt++;
 }
+
+int amdgpu_umc_loop_channels(struct amdgpu_device *adev,
+			umc_func func, void *data)
+{
+	uint32_t node_inst       = 0;
+	uint32_t umc_inst        = 0;
+	uint32_t ch_inst         = 0;
+	int ret = 0;
+
+	if (adev->umc.node_inst_num) {
+		LOOP_UMC_EACH_NODE_INST_AND_CH(node_inst, umc_inst, ch_inst) {
+			ret = func(adev, node_inst, umc_inst, ch_inst, data);
+			if (ret) {
+				dev_err(adev->dev, "Node %d umc %d ch %d func returns %d\n",
+					node_inst, umc_inst, ch_inst, ret);
+				return ret;
+			}
+		}
+	} else {
+		LOOP_UMC_INST_AND_CH(umc_inst, ch_inst) {
+			ret = func(adev, 0, umc_inst, ch_inst, data);
+			if (ret) {
+				dev_err(adev->dev, "Umc %d ch %d func returns %d\n",
+					umc_inst, ch_inst, ret);
+				return ret;
+			}
+		}
+	}
+
+	return 0;
+}

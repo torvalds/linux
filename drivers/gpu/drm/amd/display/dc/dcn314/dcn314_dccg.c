@@ -274,6 +274,32 @@ static void dccg314_set_dpstreamclk(
 	}
 }
 
+void dccg314_init(struct dccg *dccg)
+{
+	int otg_inst;
+
+	/* Set HPO stream encoder to use refclk to avoid case where PHY is
+	 * disabled and SYMCLK32 for HPO SE is sourced from PHYD32CLK which
+	 * will cause DCN to hang.
+	 */
+	for (otg_inst = 0; otg_inst < 4; otg_inst++)
+		dccg31_disable_symclk32_se(dccg, otg_inst);
+
+	if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_le)
+		for (otg_inst = 0; otg_inst < 2; otg_inst++)
+			dccg31_disable_symclk32_le(dccg, otg_inst);
+
+	if (dccg->ctx->dc->debug.root_clock_optimization.bits.dpstream)
+		for (otg_inst = 0; otg_inst < 4; otg_inst++)
+			dccg314_set_dpstreamclk(dccg, REFCLK, otg_inst,
+						otg_inst);
+
+	if (dccg->ctx->dc->debug.root_clock_optimization.bits.physymclk)
+		for (otg_inst = 0; otg_inst < 5; otg_inst++)
+			dccg31_set_physymclk(dccg, otg_inst,
+					     PHYSYMCLK_FORCE_SRC_SYMCLK, false);
+}
+
 static void dccg314_set_valid_pixel_rate(
 		struct dccg *dccg,
 		int ref_dtbclk_khz,
@@ -315,7 +341,7 @@ static const struct dccg_funcs dccg314_funcs = {
 	.update_dpp_dto = dccg31_update_dpp_dto,
 	.dpp_root_clock_control = dccg314_dpp_root_clock_control,
 	.get_dccg_ref_freq = dccg31_get_dccg_ref_freq,
-	.dccg_init = dccg31_init,
+	.dccg_init = dccg314_init,
 	.set_dpstreamclk = dccg314_set_dpstreamclk,
 	.enable_symclk32_se = dccg31_enable_symclk32_se,
 	.disable_symclk32_se = dccg31_disable_symclk32_se,

@@ -403,15 +403,26 @@ static void sdma_v6_0_rlc_stop(struct amdgpu_device *adev)
 }
 
 /**
- * sdma_v6_0_ctx_switch_enable - stop the async dma engines context switch
+ * sdma_v6_0_ctxempty_int_enable - enable or disable context empty interrupts
  *
  * @adev: amdgpu_device pointer
- * @enable: enable/disable the DMA MEs context switch.
+ * @enable: enable/disable context switching due to queue empty conditions
  *
- * Halt or unhalt the async dma engines context switch.
+ * Enable or disable the async dma engines queue empty context switch.
  */
-static void sdma_v6_0_ctx_switch_enable(struct amdgpu_device *adev, bool enable)
+static void sdma_v6_0_ctxempty_int_enable(struct amdgpu_device *adev, bool enable)
 {
+	u32 f32_cntl;
+	int i;
+
+	if (!amdgpu_sriov_vf(adev)) {
+		for (i = 0; i < adev->sdma.num_instances; i++) {
+			f32_cntl = RREG32(sdma_v6_0_get_reg_offset(adev, i, regSDMA0_CNTL));
+			f32_cntl = REG_SET_FIELD(f32_cntl, SDMA0_CNTL,
+					CTXEMPTY_INT_ENABLE, enable ? 1 : 0);
+			WREG32(sdma_v6_0_get_reg_offset(adev, i, regSDMA0_CNTL), f32_cntl);
+		}
+	}
 }
 
 /**
@@ -579,10 +590,8 @@ static int sdma_v6_0_gfx_resume(struct amdgpu_device *adev)
 
 		ring->sched.ready = true;
 
-		if (amdgpu_sriov_vf(adev)) { /* bare-metal sequence doesn't need below to lines */
-			sdma_v6_0_ctx_switch_enable(adev, true);
+		if (amdgpu_sriov_vf(adev))
 			sdma_v6_0_enable(adev, true);
-		}
 
 		r = amdgpu_ring_test_helper(ring);
 		if (r) {
@@ -778,7 +787,6 @@ static int sdma_v6_0_start(struct amdgpu_device *adev)
 	int r = 0;
 
 	if (amdgpu_sriov_vf(adev)) {
-		sdma_v6_0_ctx_switch_enable(adev, false);
 		sdma_v6_0_enable(adev, false);
 
 		/* set RB registers */
@@ -799,7 +807,7 @@ static int sdma_v6_0_start(struct amdgpu_device *adev)
 	/* unhalt the MEs */
 	sdma_v6_0_enable(adev, true);
 	/* enable sdma ring preemption */
-	sdma_v6_0_ctx_switch_enable(adev, true);
+	sdma_v6_0_ctxempty_int_enable(adev, true);
 
 	/* start the gfx rings and rlc compute queues */
 	r = sdma_v6_0_gfx_resume(adev);
@@ -1173,7 +1181,28 @@ static void sdma_v6_0_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
 static void sdma_v6_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 					 unsigned vmid, uint64_t pd_addr)
 {
-	amdgpu_gmc_emit_flush_gpu_tlb(ring, vmid, pd_addr);
+	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->vm_hub];
+	uint32_t req = hub->vmhub_funcs->get_invalidate_req(vmid, 0);
+
+	/* Update the PD address for this VMID. */
+	amdgpu_ring_emit_wreg(ring, hub->ctx0_ptb_addr_lo32 +
+			      (hub->ctx_addr_distance * vmid),
+			      lower_32_bits(pd_addr));
+	amdgpu_ring_emit_wreg(ring, hub->ctx0_ptb_addr_hi32 +
+			      (hub->ctx_addr_distance * vmid),
+			      upper_32_bits(pd_addr));
+
+	/* Trigger invalidation. */
+	amdgpu_ring_write(ring,
+			  SDMA_PKT_VM_INVALIDATION_HEADER_OP(SDMA_OP_POLL_REGMEM) |
+			  SDMA_PKT_VM_INVALIDATION_HEADER_SUB_OP(SDMA_SUBOP_VM_INVALIDATION) |
+			  SDMA_PKT_VM_INVALIDATION_HEADER_GFX_ENG_ID(ring->vm_inv_eng) |
+			  SDMA_PKT_VM_INVALIDATION_HEADER_MM_ENG_ID(0x1f));
+	amdgpu_ring_write(ring, req);
+	amdgpu_ring_write(ring, 0xFFFFFFFF);
+	amdgpu_ring_write(ring,
+			  SDMA_PKT_VM_INVALIDATION_ADDRESSRANGEHI_INVALIDATEACK(1 << vmid) |
+			  SDMA_PKT_VM_INVALIDATION_ADDRESSRANGEHI_ADDRESSRANGEHI(0x1F));
 }
 
 static void sdma_v6_0_ring_emit_wreg(struct amdgpu_ring *ring,
@@ -1272,6 +1301,7 @@ static int sdma_v6_0_sw_init(void *handle)
 		ring->doorbell_index =
 			(adev->doorbell_index.sdma_engine[i] << 1); // get DWORD offset
 
+		ring->vm_hub = AMDGPU_GFXHUB_0;
 		sprintf(ring->name, "sdma%d", i);
 		r = amdgpu_ring_init(adev, ring, 1024,
 				     &adev->sdma.trap_irq,
@@ -1319,7 +1349,7 @@ static int sdma_v6_0_hw_fini(void *handle)
 		return 0;
 	}
 
-	sdma_v6_0_ctx_switch_enable(adev, false);
+	sdma_v6_0_ctxempty_int_enable(adev, false);
 	sdma_v6_0_enable(adev, false);
 
 	return 0;
@@ -1528,7 +1558,6 @@ static const struct amdgpu_ring_funcs sdma_v6_0_ring_funcs = {
 	.nop = SDMA_PKT_NOP_HEADER_OP(SDMA_OP_NOP),
 	.support_64bit_ptrs = true,
 	.secure_submission_supported = true,
-	.vmhub = AMDGPU_GFXHUB_0,
 	.get_rptr = sdma_v6_0_ring_get_rptr,
 	.get_wptr = sdma_v6_0_ring_get_wptr,
 	.set_wptr = sdma_v6_0_ring_set_wptr,
