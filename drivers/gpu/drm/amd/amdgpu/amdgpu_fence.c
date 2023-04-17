@@ -723,6 +723,7 @@ void amdgpu_fence_driver_set_error(struct amdgpu_ring *ring, int error)
  */
 void amdgpu_fence_driver_force_completion(struct amdgpu_ring *ring)
 {
+	amdgpu_fence_driver_set_error(ring, -ECANCELED);
 	amdgpu_fence_write(ring, ring->fence_drv.sync_seq);
 	amdgpu_fence_process(ring);
 }
