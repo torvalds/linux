@@ -83,6 +83,7 @@ static inline void pmu_irq_stats(struct drm_i915_private *i915,
 
 typedef bool (*long_pulse_detect_func)(enum hpd_pin pin, u32 val);
 typedef u32 (*hotplug_enables_func)(struct intel_encoder *encoder);
+typedef u32 (*hotplug_mask_func)(enum hpd_pin pin);
 
 static const u32 hpd_ilk[HPD_NUM_PINS] = {
 	[HPD_PORT_A] = DE_DP_A_HOTPLUG,
@@ -897,6 +898,18 @@ static u32 intel_hpd_hotplug_irqs(struct drm_i915_private *dev_priv,
 		hotplug_irqs |= hpd[encoder->hpd_pin];
 
 	return hotplug_irqs;
+}
+
+static u32 intel_hpd_hotplug_mask(struct drm_i915_private *i915,
+				  hotplug_mask_func hotplug_mask)
+{
+	enum hpd_pin pin;
+	u32 hotplug = 0;
+
+	for_each_hpd_pin(pin)
+		hotplug |= hotplug_mask(pin);
+
+	return hotplug;
 }
 
 static u32 intel_hpd_hotplug_enables(struct drm_i915_private *i915,
@@ -2981,10 +2994,7 @@ static void ibx_hpd_detection_setup(struct drm_i915_private *dev_priv)
 	 * The pulse duration bits are reserved on LPT+.
 	 */
 	intel_uncore_rmw(&dev_priv->uncore, PCH_PORT_HOTPLUG,
-			 ibx_hotplug_mask(HPD_PORT_A) |
-			 ibx_hotplug_mask(HPD_PORT_B) |
-			 ibx_hotplug_mask(HPD_PORT_C) |
-			 ibx_hotplug_mask(HPD_PORT_D),
+			 intel_hpd_hotplug_mask(dev_priv, ibx_hotplug_mask),
 			 intel_hpd_hotplug_enables(dev_priv, ibx_hotplug_enables));
 }
 
@@ -3050,10 +3060,7 @@ static u32 icp_tc_hotplug_enables(struct intel_encoder *encoder)
 static void icp_ddi_hpd_detection_setup(struct drm_i915_private *dev_priv)
 {
 	intel_uncore_rmw(&dev_priv->uncore, SHOTPLUG_CTL_DDI,
-			 icp_ddi_hotplug_mask(HPD_PORT_A) |
-			 icp_ddi_hotplug_mask(HPD_PORT_B) |
-			 icp_ddi_hotplug_mask(HPD_PORT_C) |
-			 icp_ddi_hotplug_mask(HPD_PORT_D),
+			 intel_hpd_hotplug_mask(dev_priv, icp_ddi_hotplug_mask),
 			 intel_hpd_hotplug_enables(dev_priv, icp_ddi_hotplug_enables));
 }
 
@@ -3069,12 +3076,7 @@ static void icp_ddi_hpd_enable_detection(struct intel_encoder *encoder)
 static void icp_tc_hpd_detection_setup(struct drm_i915_private *dev_priv)
 {
 	intel_uncore_rmw(&dev_priv->uncore, SHOTPLUG_CTL_TC,
-			 icp_tc_hotplug_mask(HPD_PORT_TC1) |
-			 icp_tc_hotplug_mask(HPD_PORT_TC2) |
-			 icp_tc_hotplug_mask(HPD_PORT_TC3) |
-			 icp_tc_hotplug_mask(HPD_PORT_TC4) |
-			 icp_tc_hotplug_mask(HPD_PORT_TC5) |
-			 icp_tc_hotplug_mask(HPD_PORT_TC6),
+			 intel_hpd_hotplug_mask(dev_priv, icp_tc_hotplug_mask),
 			 intel_hpd_hotplug_enables(dev_priv, icp_tc_hotplug_enables));
 }
 
@@ -3155,12 +3157,7 @@ static void dg1_hpd_irq_setup(struct drm_i915_private *dev_priv)
 static void gen11_tc_hpd_detection_setup(struct drm_i915_private *dev_priv)
 {
 	intel_uncore_rmw(&dev_priv->uncore, GEN11_TC_HOTPLUG_CTL,
-			 gen11_hotplug_mask(HPD_PORT_TC1) |
-			 gen11_hotplug_mask(HPD_PORT_TC2) |
-			 gen11_hotplug_mask(HPD_PORT_TC3) |
-			 gen11_hotplug_mask(HPD_PORT_TC4) |
-			 gen11_hotplug_mask(HPD_PORT_TC5) |
-			 gen11_hotplug_mask(HPD_PORT_TC6),
+			 intel_hpd_hotplug_mask(dev_priv, gen11_hotplug_mask),
 			 intel_hpd_hotplug_enables(dev_priv, gen11_hotplug_enables));
 }
 
@@ -3176,12 +3173,7 @@ static void gen11_tc_hpd_enable_detection(struct intel_encoder *encoder)
 static void gen11_tbt_hpd_detection_setup(struct drm_i915_private *dev_priv)
 {
 	intel_uncore_rmw(&dev_priv->uncore, GEN11_TBT_HOTPLUG_CTL,
-			 gen11_hotplug_mask(HPD_PORT_TC1) |
-			 gen11_hotplug_mask(HPD_PORT_TC2) |
-			 gen11_hotplug_mask(HPD_PORT_TC3) |
-			 gen11_hotplug_mask(HPD_PORT_TC4) |
-			 gen11_hotplug_mask(HPD_PORT_TC5) |
-			 gen11_hotplug_mask(HPD_PORT_TC6),
+			 intel_hpd_hotplug_mask(dev_priv, gen11_hotplug_mask),
 			 intel_hpd_hotplug_enables(dev_priv, gen11_hotplug_enables));
 }
 
@@ -3260,8 +3252,7 @@ static u32 mtp_tc_hotplug_enables(struct intel_encoder *encoder)
 static void mtp_ddi_hpd_detection_setup(struct drm_i915_private *i915)
 {
 	intel_de_rmw(i915, SHOTPLUG_CTL_DDI,
-		     mtp_ddi_hotplug_mask(HPD_PORT_A) |
-		     mtp_ddi_hotplug_mask(HPD_PORT_B),
+		     intel_hpd_hotplug_mask(i915, mtp_ddi_hotplug_mask),
 		     intel_hpd_hotplug_enables(i915, mtp_ddi_hotplug_enables));
 }
 
@@ -3277,10 +3268,7 @@ static void mtp_ddi_hpd_enable_detection(struct intel_encoder *encoder)
 static void mtp_tc_hpd_detection_setup(struct drm_i915_private *i915)
 {
 	intel_de_rmw(i915, SHOTPLUG_CTL_TC,
-		     mtp_tc_hotplug_mask(HPD_PORT_TC1) |
-		     mtp_tc_hotplug_mask(HPD_PORT_TC2) |
-		     mtp_tc_hotplug_mask(HPD_PORT_TC3) |
-		     mtp_tc_hotplug_mask(HPD_PORT_TC4),
+		     intel_hpd_hotplug_mask(i915, mtp_tc_hotplug_mask),
 		     intel_hpd_hotplug_enables(i915, mtp_tc_hotplug_enables));
 }
 
@@ -3441,14 +3429,11 @@ static void spt_hpd_detection_setup(struct drm_i915_private *dev_priv)
 
 	/* Enable digital hotplug on the PCH */
 	intel_uncore_rmw(&dev_priv->uncore, PCH_PORT_HOTPLUG,
-			 spt_hotplug_mask(HPD_PORT_A) |
-			 spt_hotplug_mask(HPD_PORT_B) |
-			 spt_hotplug_mask(HPD_PORT_C) |
-			 spt_hotplug_mask(HPD_PORT_D),
+			 intel_hpd_hotplug_mask(dev_priv, spt_hotplug_mask),
 			 intel_hpd_hotplug_enables(dev_priv, spt_hotplug_enables));
 
 	intel_uncore_rmw(&dev_priv->uncore, PCH_PORT_HOTPLUG2,
-			 spt_hotplug2_mask(HPD_PORT_E),
+			 intel_hpd_hotplug_mask(dev_priv, spt_hotplug2_mask),
 			 intel_hpd_hotplug_enables(dev_priv, spt_hotplug2_enables));
 }
 
@@ -3517,7 +3502,7 @@ static void ilk_hpd_detection_setup(struct drm_i915_private *dev_priv)
 	 * The pulse duration bits are reserved on HSW+.
 	 */
 	intel_uncore_rmw(&dev_priv->uncore, DIGITAL_PORT_HOTPLUG_CNTRL,
-			 ilk_hotplug_mask(HPD_PORT_A),
+			 intel_hpd_hotplug_mask(dev_priv, ilk_hotplug_mask),
 			 intel_hpd_hotplug_enables(dev_priv, ilk_hotplug_enables));
 }
 
@@ -3591,9 +3576,7 @@ static u32 bxt_hotplug_enables(struct intel_encoder *encoder)
 static void bxt_hpd_detection_setup(struct drm_i915_private *dev_priv)
 {
 	intel_uncore_rmw(&dev_priv->uncore, PCH_PORT_HOTPLUG,
-			 bxt_hotplug_mask(HPD_PORT_A) |
-			 bxt_hotplug_mask(HPD_PORT_B) |
-			 bxt_hotplug_mask(HPD_PORT_C),
+			 intel_hpd_hotplug_mask(dev_priv, bxt_hotplug_mask),
 			 intel_hpd_hotplug_enables(dev_priv, bxt_hotplug_enables));
 }
 
