@@ -1009,7 +1009,8 @@ int ath11k_peer_rx_tid_setup(struct ath11k *ar, const u8 *peer_mac, int vdev_id,
 
 	peer = ath11k_peer_find(ab, vdev_id, peer_mac);
 	if (!peer) {
-		ath11k_warn(ab, "failed to find the peer to set up rx tid\n");
+		ath11k_warn(ab, "failed to find the peer %pM to set up rx tid\n",
+			    peer_mac);
 		spin_unlock_bh(&ab->base_lock);
 		return -ENOENT;
 	}
@@ -1022,7 +1023,8 @@ int ath11k_peer_rx_tid_setup(struct ath11k *ar, const u8 *peer_mac, int vdev_id,
 						    ba_win_sz, ssn, true);
 		spin_unlock_bh(&ab->base_lock);
 		if (ret) {
-			ath11k_warn(ab, "failed to update reo for rx tid %d\n", tid);
+			ath11k_warn(ab, "failed to update reo for peer %pM rx tid %d\n: %d",
+				    peer_mac, tid, ret);
 			return ret;
 		}
 
@@ -1030,8 +1032,8 @@ int ath11k_peer_rx_tid_setup(struct ath11k *ar, const u8 *peer_mac, int vdev_id,
 							     peer_mac, paddr,
 							     tid, 1, ba_win_sz);
 		if (ret)
-			ath11k_warn(ab, "failed to send wmi command to update rx reorder queue, tid :%d (%d)\n",
-				    tid, ret);
+			ath11k_warn(ab, "failed to send wmi rx reorder queue for peer %pM tid %d: %d\n",
+				    peer_mac, tid, ret);
 		return ret;
 	}
 
@@ -1064,6 +1066,8 @@ int ath11k_peer_rx_tid_setup(struct ath11k *ar, const u8 *peer_mac, int vdev_id,
 	ret = dma_mapping_error(ab->dev, paddr);
 	if (ret) {
 		spin_unlock_bh(&ab->base_lock);
+		ath11k_warn(ab, "failed to setup dma map for peer %pM rx tid %d: %d\n",
+			    peer_mac, tid, ret);
 		goto err_mem_free;
 	}
 
@@ -1077,8 +1081,8 @@ int ath11k_peer_rx_tid_setup(struct ath11k *ar, const u8 *peer_mac, int vdev_id,
 	ret = ath11k_wmi_peer_rx_reorder_queue_setup(ar, vdev_id, peer_mac,
 						     paddr, tid, 1, ba_win_sz);
 	if (ret) {
-		ath11k_warn(ar->ab, "failed to setup rx reorder queue, tid :%d (%d)\n",
-			    tid, ret);
+		ath11k_warn(ar->ab, "failed to setup rx reorder queue for peer %pM tid %d: %d\n",
+			    peer_mac, tid, ret);
 		ath11k_dp_rx_tid_mem_free(ab, peer_mac, vdev_id, tid);
 	}
 
