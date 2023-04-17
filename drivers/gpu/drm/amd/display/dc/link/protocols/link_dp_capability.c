@@ -1043,9 +1043,7 @@ static enum dc_status wake_up_aux_channel(struct dc_link *link)
 				DP_SET_POWER,
 				&dpcd_power_state,
 				sizeof(dpcd_power_state));
-		if (status < 0)
-			DC_LOG_DC("%s: Failed to power up sink: %s\n", __func__,
-				  dpcd_power_state == DP_SET_POWER_D0 ? "D0" : "D3");
+		DC_LOG_DC("%s: Failed to power up sink\n", __func__);
 		return DC_ERROR_UNEXPECTED;
 	}
 
