@@ -68,6 +68,9 @@ static bool gh_handle_mmio(struct gh_vcpu *vcpu,
 	    len  = vcpu_run_resp->state_data[1],
 	    data = vcpu_run_resp->state_data[2];
 
+	if (WARN_ON(len > sizeof(u64)))
+		len = sizeof(u64);
+
 	if (vcpu_run_resp->state == GH_VCPU_ADDRSPACE_VMMIO_READ) {
 		vcpu->vcpu_run->mmio.is_write = 0;
 		/* Record that we need to give vCPU user's supplied value next gh_vcpu_run() */
@@ -175,6 +178,8 @@ static int gh_vcpu_run(struct gh_vcpu *vcpu)
 		vcpu->state = GH_VCPU_READY;
 		break;
 	case GH_VCPU_MMIO_READ:
+		if (unlikely(vcpu->mmio_read_len > sizeof(state_data[0])))
+			vcpu->mmio_read_len = sizeof(state_data[0]);
 		memcpy(&state_data[0], vcpu->vcpu_run->mmio.data, vcpu->mmio_read_len);
 		vcpu->state = GH_VCPU_READY;
 		break;
@@ -387,15 +392,9 @@ static long gh_vcpu_bind(struct gh_vm_function_instance *f)
 	if (r)
 		goto err_destroy_page;
 
-	fd = get_unused_fd_flags(O_CLOEXEC);
-	if (fd < 0) {
-		r = fd;
-		goto err_remove_vcpu;
-	}
-
 	if (!gh_vm_get(f->ghvm)) {
 		r = -ENODEV;
-		goto err_put_fd;
+		goto err_remove_resource_ticket;
 	}
 	vcpu->ghvm = f->ghvm;
 
@@ -409,23 +408,30 @@ static long gh_vcpu_bind(struct gh_vm_function_instance *f)
 		goto err_put_gh_vm;
 
 	kref_get(&vcpu->kref);
-	snprintf(name, sizeof(name), "gh-vcpu:%d", vcpu->ticket.label);
+
+	fd = get_unused_fd_flags(O_CLOEXEC);
+	if (fd < 0) {
+		r = fd;
+		goto err_notifier;
+	}
+
+	snprintf(name, sizeof(name), "gh-vcpu:%u", vcpu->ticket.label);
 	file = anon_inode_getfile(name, &gh_vcpu_fops, vcpu, O_RDWR);
 	if (IS_ERR(file)) {
 		r = PTR_ERR(file);
-		goto err_notifier;
+		goto err_put_fd;
 	}
 
 	fd_install(fd, file);
 
 	return fd;
+err_put_fd:
+	put_unused_fd(fd);
 err_notifier:
 	gh_rm_notifier_unregister(f->rm, &vcpu->nb);
 err_put_gh_vm:
 	gh_vm_put(vcpu->ghvm);
-err_put_fd:
-	put_unused_fd(fd);
-err_remove_vcpu:
+err_remove_resource_ticket:
 	gh_vm_remove_resource_ticket(f->ghvm, &vcpu->ticket);
 err_destroy_page:
 	free_page((unsigned long)vcpu->vcpu_run);
@@ -458,5 +464,5 @@ static bool gh_vcpu_compare(const struct gh_vm_function_instance *f,
 }
 
 DECLARE_GH_VM_FUNCTION_INIT(vcpu, GH_FN_VCPU, 1, gh_vcpu_bind, gh_vcpu_unbind, gh_vcpu_compare);
-MODULE_DESCRIPTION("Gunyah vCPU Driver");
+MODULE_DESCRIPTION("Gunyah vCPU Function");
 MODULE_LICENSE("GPL");

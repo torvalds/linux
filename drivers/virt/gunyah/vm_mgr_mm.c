@@ -119,14 +119,12 @@ int gh_vm_mem_alloc(struct gh_vm *ghvm, struct gh_userspace_memory_region *regio
 	if (ret)
 		return ret;
 
-	/* Check label is unique */
 	mapping = __gh_vm_mem_find_by_label(ghvm, region->label);
 	if (mapping) {
 		ret = -EEXIST;
 		goto unlock;
 	}
 
-	/* Check for overlap */
 	list_for_each_entry(tmp_mapping, &ghvm->memory_mappings, list) {
 		if (gh_vm_mem_overlap(tmp_mapping, region->guest_phys_addr,
 					region->memory_size)) {
@@ -235,7 +233,6 @@ int gh_vm_mem_alloc(struct gh_vm *ghvm, struct gh_userspace_memory_region *regio
 		} else {
 			parcel->mem_entries[j].size = cpu_to_le64(entry_size);
 			j++;
-			BUG_ON(j >= parcel->n_mem_entries);
 			parcel->mem_entries[j].ipa_base =
 				cpu_to_le64(page_to_phys(curr_page));
 			entry_size = PAGE_SIZE;

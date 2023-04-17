@@ -11,6 +11,7 @@
 #include <linux/gunyah_rsc_mgr.h>
 #include <linux/gunyah_vm_mgr.h>
 #include <linux/miscdevice.h>
+#include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/xarray.h>
 
@@ -385,7 +386,7 @@ static int gh_vm_rm_notification_status(struct gh_vm *ghvm, void *data)
 {
 	struct gh_rm_vm_status_payload *payload = data;
 
-	if (payload->vmid != ghvm->vmid)
+	if (le16_to_cpu(payload->vmid) != ghvm->vmid)
 		return NOTIFY_OK;
 
 	/* All other state transitions are synchronous to a corresponding RM call */
@@ -403,7 +404,7 @@ static int gh_vm_rm_notification_exited(struct gh_vm *ghvm, void *data)
 {
 	struct gh_rm_vm_exited_payload *payload = data;
 
-	if (payload->vmid != ghvm->vmid)
+	if (le16_to_cpu(payload->vmid) != ghvm->vmid)
 		return NOTIFY_OK;
 
 	down_write(&ghvm->status_lock);
@@ -413,6 +414,7 @@ static int gh_vm_rm_notification_exited(struct gh_vm *ghvm, void *data)
 	memcpy(&ghvm->exit_info.reason, payload->exit_reason,
 		min(GH_VM_MAX_EXIT_REASON_SIZE, ghvm->exit_info.reason_size));
 	up_write(&ghvm->status_lock);
+	wake_up(&ghvm->vm_status_wait);
 
 	return NOTIFY_DONE;
 }
@@ -441,9 +443,9 @@ static void gh_vm_stop(struct gh_vm *ghvm)
 		if (ret)
 			dev_warn(ghvm->parent, "Failed to stop VM: %d\n", ret);
 	}
-
-	ghvm->vm_status = GH_RM_VM_STATUS_EXITED;
 	up_write(&ghvm->status_lock);
+
+	wait_event(ghvm->vm_status_wait, ghvm->vm_status == GH_RM_VM_STATUS_EXITED);
 }
 
 static __must_check struct gh_vm *gh_vm_alloc(struct gh_rm *rm)
@@ -663,8 +665,12 @@ static long gh_vm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (copy_from_user(&dtb_config, argp, sizeof(dtb_config)))
 			return -EFAULT;
 
-		if (dtb_config.guest_phys_addr + dtb_config.size < dtb_config.guest_phys_addr)
+		if (overflows_type(dtb_config.guest_phys_addr + dtb_config.size, u64))
 			return -EOVERFLOW;
+
+		/* Gunyah requires that dtb_config is page aligned */
+		if (!PAGE_ALIGNED(dtb_config.guest_phys_addr) || !PAGE_ALIGNED(dtb_config.size))
+			return -EINVAL;
 
 		ghvm->dtb_config = dtb_config;
 

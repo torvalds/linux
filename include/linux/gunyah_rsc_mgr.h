@@ -10,7 +10,7 @@
 #include <linux/notifier.h>
 #include <linux/gunyah.h>
 
-#define GH_VMID_INVAL	U16_MAX
+#define GH_VMID_INVAL		U16_MAX
 #define GH_MEM_HANDLE_INVAL	U32_MAX
 
 struct gh_rm;
@@ -31,12 +31,6 @@ struct gh_rm_vm_exited_payload {
 #define GH_RM_NOTIFICATION_VM_EXITED		 0x56100001
 
 enum gh_rm_vm_status {
-	/**
-	 * RM doesn't have a state where load partially failed because
-	 * only Linux
-	 */
-	GH_RM_VM_STATUS_LOAD_FAILED	= -1,
-
 	GH_RM_VM_STATUS_NO_STATE	= 0,
 	GH_RM_VM_STATUS_INIT		= 1,
 	GH_RM_VM_STATUS_READY		= 2,

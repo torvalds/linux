@@ -14,13 +14,13 @@
 #include <linux/mailbox_client.h>
 #include <linux/types.h>
 
-/* Follows resource manager's resource types for VM_GET_HYP_RESOURCES */
+/* Matches resource manager's resource types for VM_GET_HYP_RESOURCES RPC */
 enum gh_resource_type {
 	GH_RESOURCE_TYPE_BELL_TX	= 0,
 	GH_RESOURCE_TYPE_BELL_RX	= 1,
 	GH_RESOURCE_TYPE_MSGQ_TX	= 2,
 	GH_RESOURCE_TYPE_MSGQ_RX	= 3,
-	GH_RESOURCE_TYPE_VCPU	= 4,
+	GH_RESOURCE_TYPE_VCPU		= 4,
 };
 
 struct gh_resource {
@@ -28,7 +28,6 @@ struct gh_resource {
 	u64 capid;
 	unsigned int irq;
 
-	/* To help allocator in vm manager */
 	struct list_head list;
 	u32 rm_label;
 };
@@ -37,7 +36,7 @@ struct gh_resource {
  * Gunyah Message Queues
  */
 
-#define GH_MSGQ_MAX_MSG_SIZE	240
+#define GH_MSGQ_MAX_MSG_SIZE		240
 
 struct gh_msgq_tx_data {
 	size_t length;
@@ -144,16 +143,17 @@ static inline int gh_error_remap(enum gh_error gh_error)
 }
 
 enum gh_api_feature {
-	GH_FEATURE_DOORBELL = 1,
-	GH_FEATURE_MSGQUEUE = 2,
-	GH_FEATURE_VCPU = 5,
-	GH_FEATURE_MEMEXTENT = 6,
+	GH_FEATURE_DOORBELL 	= 1,
+	GH_FEATURE_MSGQUEUE 	= 2,
+	GH_FEATURE_VCPU 	= 5,
+	GH_FEATURE_MEMEXTENT 	= 6,
 };
 
 bool arch_is_gh_guest(void);
 
 #define GH_API_V1			1
 
+/* Other bits reserved for future use and will be zero */
 #define GH_API_INFO_API_VERSION_MASK	GENMASK_ULL(13, 0)
 #define GH_API_INFO_BIG_ENDIAN		BIT_ULL(14)
 #define GH_API_INFO_IS_64BIT		BIT_ULL(15)

@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
-#ifndef __ASM_GUNYAH_H_
-#define __ASM_GUNYAH_H_
+#ifndef _ASM_GUNYAH_H
+#define _ASM_GUNYAH_H
 
 #include <linux/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
