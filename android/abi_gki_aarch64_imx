@@ -196,6 +196,7 @@
   devm_extcon_dev_register
   devm_extcon_register_notifier
   devm_free_irq
+  devm_fwnode_gpiod_get_index
   devm_fwnode_pwm_get
   devm_get_clk_from_child
   devm_gpiochip_add_data_with_key
@@ -208,6 +209,8 @@
   devm_i2c_new_dummy_device
   devm_iio_device_alloc
   __devm_iio_device_register
+  __devm_iio_trigger_alloc
+  devm_iio_trigger_register
   devm_input_allocate_device
   devm_ioremap
   devm_ioremap_resource
@@ -234,9 +237,11 @@
   devm_platform_get_and_ioremap_resource
   devm_platform_ioremap_resource
   devm_platform_ioremap_resource_byname
+  devm_regmap_field_alloc
   __devm_regmap_init
   __devm_regmap_init_i2c
   __devm_regmap_init_mmio_clk
+  __devm_regmap_init_spi
   devm_regulator_bulk_get
   devm_regulator_get
   devm_regulator_get_exclusive
@@ -249,12 +254,18 @@
   devm_snd_dmaengine_pcm_register
   devm_snd_soc_register_card
   devm_snd_soc_register_component
+  devm_thermal_of_zone_register
   devm_usb_get_phy
   devm_usb_get_phy_by_phandle
   dev_pm_domain_attach_by_id
   dev_pm_domain_detach
+  dev_pm_set_wake_irq
   _dev_printk
+  devres_add
+  __devres_alloc_node
+  devres_free
   dev_set_name
+  dev_to_i3cdev
   _dev_warn
   disable_irq
   disable_irq_nosync
@@ -441,6 +452,10 @@
   free_pages_exact
   free_percpu
   free_percpu_irq
+  fwnode_handle_put
+  fwnode_irq_get_byname
+  fwnode_property_present
+  fwnode_property_read_string
   fwnode_property_read_u32_array
   gcd
   generic_device_group
@@ -545,6 +560,7 @@
   i2c_unregister_device
   i2c_verify_client
   i3c_device_do_priv_xfers
+  i3c_device_match_id
   i3c_driver_register_with_owner
   i3c_driver_unregister
   ida_alloc_range
@@ -562,15 +578,25 @@
   ieee80211_freq_khz_to_channel
   ieee80211_get_channel_khz
   ieee80211_hdrlen
+  iio_alloc_pollfunc
   iio_buffer_enabled
   iio_buffer_init
   iio_buffer_put
+  iio_dealloc_pollfunc
   iio_device_attach_buffer
   iio_device_claim_direct_mode
+  iio_device_id
+  __iio_device_register
   iio_device_release_direct_mode
   iio_device_unregister
+  iio_get_time_ns
   iio_push_event
   iio_push_to_buffers
+  iio_read_const_attr
+  iio_read_mount_matrix
+  iio_show_mount_matrix
+  iio_trigger_notify_done
+  iio_trigger_poll_chained
   import_iovec
   in4_pton
   init_dummy_netdev
@@ -686,6 +712,7 @@
   kvfree
   kvfree_call_rcu
   kvmalloc_node
+  led_init_default_state_get
   __list_add_valid
   __list_del_entry_valid
   __local_bh_enable_ip
@@ -798,6 +825,7 @@
   of_find_node_by_name
   of_find_node_opts_by_path
   of_find_property
+  of_fwnode_ops
   of_get_child_by_name
   of_get_compatible_child
   of_get_named_gpio_flags
@@ -1273,6 +1301,8 @@
   snd_soc_tplg_widget_bind_event
   snprintf
   sort
+  spi_get_device_id
+  __spi_register_driver
   sprintf
   sscanf
   __stack_chk_fail
