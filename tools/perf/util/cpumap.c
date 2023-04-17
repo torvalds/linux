@@ -163,13 +163,8 @@ struct perf_cpu_map *perf_cpu_map__empty_new(int nr)
 	struct perf_cpu_map *cpus = perf_cpu_map__alloc(nr);
 
 	if (cpus != NULL) {
-		int i;
-
-		cpus->nr = nr;
-		for (i = 0; i < nr; i++)
+		for (int i = 0; i < nr; i++)
 			cpus->map[i].cpu = -1;
-
-		refcount_set(&cpus->refcnt, 1);
 	}
 
 	return cpus;
