@@ -1153,6 +1153,8 @@ static int pmc_core_probe(struct platform_device *pdev)
 	pmc_core_do_dmi_quirks(pmcdev);
 
 	pmc_core_dbgfs_register(pmcdev);
+	pm_report_max_hw_sleep(FIELD_MAX(SLP_S0_RES_COUNTER_MASK) *
+			       pmc_core_adjust_slp_s0_step(pmcdev, 1));
 
 	device_initialized = true;
 	dev_info(&pdev->dev, " initialized\n");
@@ -1213,6 +1215,8 @@ static inline bool pmc_core_is_s0ix_failed(struct pmc_dev *pmcdev)
 
 	if (pmc_core_dev_state_get(pmcdev, &s0ix_counter))
 		return false;
+
+	pm_report_hw_sleep_time((u32)(s0ix_counter - pmcdev->s0ix_counter));
 
 	if (s0ix_counter == pmcdev->s0ix_counter)
 		return true;
