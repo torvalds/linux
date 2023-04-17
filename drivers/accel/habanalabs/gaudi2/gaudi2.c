@@ -63,7 +63,7 @@
 #define GAUDI2_NUM_OF_CPU_SEI_ERR_CAUSE		3
 #define GAUDI2_NUM_OF_QM_SEI_ERR_CAUSE		2
 #define GAUDI2_NUM_OF_ROT_ERR_CAUSE		22
-#define GAUDI2_NUM_OF_TPC_INTR_CAUSE		30
+#define GAUDI2_NUM_OF_TPC_INTR_CAUSE		31
 #define GAUDI2_NUM_OF_DEC_ERR_CAUSE		25
 #define GAUDI2_NUM_OF_MME_ERR_CAUSE		16
 #define GAUDI2_NUM_OF_MME_SBTE_ERR_CAUSE	5
@@ -891,6 +891,7 @@ static const char * const gaudi2_tpc_interrupts_cause[GAUDI2_NUM_OF_TPC_INTR_CAU
 	"invalid_lock_access",
 	"LD_L protection violation",
 	"ST_L protection violation",
+	"D$ L0CS mismatch",
 };
 
 static const char * const guadi2_mme_error_cause[GAUDI2_NUM_OF_MME_ERR_CAUSE] = {
