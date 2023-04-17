@@ -525,6 +525,7 @@ static irqreturn_t geni_i2c_irq(int irq, void *dev)
 	if (!cur) {
 		geni_i2c_se_dump_dbg_regs(&gi2c->i2c_rsc, gi2c->base, gi2c->ipcl);
 		I2C_LOG_ERR(gi2c->ipcl, false, gi2c->dev, "Spurious irq\n");
+		goto irqret;
 	}
 
 	if ((m_stat & M_CMD_FAILURE_EN) ||
