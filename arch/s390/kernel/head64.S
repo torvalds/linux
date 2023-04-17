@@ -16,7 +16,7 @@
 #include <asm/ptrace.h>
 
 __HEAD
-ENTRY(startup_continue)
+SYM_CODE_START(startup_continue)
 	larl	%r1,tod_clock_base
 	mvc	0(16,%r1),__LC_BOOT_CLOCK
 #
@@ -33,8 +33,8 @@ ENTRY(startup_continue)
 # We returned from start_kernel ?!? PANIK
 #
 	basr	%r13,0
-	lpswe	.Ldw-.(%r13)		# load disabled wait psw
+	lpswe	dw_psw-.(%r13)		# load disabled wait psw
+SYM_CODE_END(startup_continue)
 
 	.align	16
-.LPG1:
-.Ldw:	.quad	0x0002000180000000,0x0000000000000000
+SYM_DATA_LOCAL(dw_psw,	.quad 0x0002000180000000,0x0000000000000000)
