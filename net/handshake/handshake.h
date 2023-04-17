@@ -49,6 +49,7 @@ enum hr_flags_bits {
 struct handshake_proto {
 	int			hp_handler_class;
 	size_t			hp_privsize;
+	unsigned long		hp_flags;
 
 	int			(*hp_accept)(struct handshake_req *req,
 					     struct genl_info *info, int fd);
@@ -56,6 +57,10 @@ struct handshake_proto {
 					   unsigned int status,
 					   struct genl_info *info);
 	void			(*hp_destroy)(struct handshake_req *req);
+};
+
+enum hp_flags_bits {
+	HANDSHAKE_F_PROTO_NOTIFY,
 };
 
 /* netlink.c */

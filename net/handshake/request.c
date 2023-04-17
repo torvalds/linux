@@ -20,6 +20,8 @@
 #include <net/genetlink.h>
 #include <net/netns/generic.h>
 
+#include <kunit/visibility.h>
+
 #include <uapi/linux/handshake.h>
 #include "handshake.h"
 
@@ -60,6 +62,7 @@ struct handshake_req *handshake_req_hash_lookup(struct sock *sk)
 	return rhashtable_lookup_fast(&handshake_rhashtbl, &sk,
 				      handshake_rhash_params);
 }
+EXPORT_SYMBOL_IF_KUNIT(handshake_req_hash_lookup);
 
 static bool handshake_req_hash_add(struct handshake_req *req)
 {
@@ -192,6 +195,7 @@ struct handshake_req *handshake_req_next(struct handshake_net *hn, int class)
 
 	return req;
 }
+EXPORT_SYMBOL_IF_KUNIT(handshake_req_next);
 
 /**
  * handshake_req_submit - Submit a handshake request
@@ -293,6 +297,7 @@ void handshake_complete(struct handshake_req *req, unsigned int status,
 		sock_put(sk);
 	}
 }
+EXPORT_SYMBOL_IF_KUNIT(handshake_complete);
 
 /**
  * handshake_req_cancel - Cancel an in-progress handshake

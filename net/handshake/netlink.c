@@ -18,6 +18,8 @@
 #include <net/genetlink.h>
 #include <net/netns/generic.h>
 
+#include <kunit/visibility.h>
+
 #include <uapi/linux/handshake.h>
 #include "handshake.h"
 #include "genl.h"
@@ -37,6 +39,10 @@ int handshake_genl_notify(struct net *net, const struct handshake_proto *proto,
 {
 	struct sk_buff *msg;
 	void *hdr;
+
+	/* Disable notifications during unit testing */
+	if (!test_bit(HANDSHAKE_F_PROTO_NOTIFY, &proto->hp_flags))
+		return 0;
 
 	if (!genl_has_listeners(&handshake_nl_family, net,
 				proto->hp_handler_class))
@@ -262,6 +268,7 @@ struct handshake_net *handshake_pernet(struct net *net)
 	return handshake_net_id ?
 		net_generic(net, handshake_net_id) : NULL;
 }
+EXPORT_SYMBOL_IF_KUNIT(handshake_pernet);
 
 static int __init handshake_init(void)
 {

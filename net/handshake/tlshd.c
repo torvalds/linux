@@ -249,6 +249,7 @@ out:
 static const struct handshake_proto tls_handshake_proto = {
 	.hp_handler_class	= HANDSHAKE_HANDLER_CLASS_TLSHD,
 	.hp_privsize		= sizeof(struct tls_handshake_req),
+	.hp_flags		= BIT(HANDSHAKE_F_PROTO_NOTIFY),
 
 	.hp_accept		= tls_handshake_accept,
 	.hp_done		= tls_handshake_done,
