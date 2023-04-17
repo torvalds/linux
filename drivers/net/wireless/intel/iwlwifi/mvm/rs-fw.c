@@ -283,7 +283,8 @@ rs_fw_rs_mcs2eht_mcs(enum IWL_TLC_MCS_PER_BW bw,
 }
 
 static void
-rs_fw_eht_set_enabled_rates(const struct ieee80211_link_sta *link_sta,
+rs_fw_eht_set_enabled_rates(struct ieee80211_vif *vif,
+			    const struct ieee80211_link_sta *link_sta,
 			    struct ieee80211_supported_band *sband,
 			    struct iwl_tlc_config_cmd_v4 *cmd)
 {
@@ -299,7 +300,8 @@ rs_fw_eht_set_enabled_rates(const struct ieee80211_link_sta *link_sta,
 	struct ieee80211_eht_mcs_nss_supp_20mhz_only mcs_tx_20;
 
 	/* peer is 20Mhz only */
-	if (!(link_sta->he_cap.he_cap_elem.phy_cap_info[0] &
+	if (vif->type == NL80211_IFTYPE_AP &&
+	    !(link_sta->he_cap.he_cap_elem.phy_cap_info[0] &
 	      IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_MASK_ALL)) {
 		mcs_rx_20 = eht_rx_mcs->only_20mhz;
 	} else {
@@ -361,7 +363,8 @@ rs_fw_eht_set_enabled_rates(const struct ieee80211_link_sta *link_sta,
 		       sizeof(cmd->ht_rates[IWL_TLC_NSS_2]));
 }
 
-static void rs_fw_set_supp_rates(struct ieee80211_link_sta *link_sta,
+static void rs_fw_set_supp_rates(struct ieee80211_vif *vif,
+				 struct ieee80211_link_sta *link_sta,
 				 struct ieee80211_supported_band *sband,
 				 struct iwl_tlc_config_cmd_v4 *cmd)
 {
@@ -383,7 +386,7 @@ static void rs_fw_set_supp_rates(struct ieee80211_link_sta *link_sta,
 	/* HT/VHT rates */
 	if (link_sta->eht_cap.has_eht) {
 		cmd->mode = IWL_TLC_MNG_MODE_EHT;
-		rs_fw_eht_set_enabled_rates(link_sta, sband, cmd);
+		rs_fw_eht_set_enabled_rates(vif, link_sta, sband, cmd);
 	} else if (he_cap->has_he) {
 		cmd->mode = IWL_TLC_MNG_MODE_HE;
 		rs_fw_he_set_enabled_rates(link_sta, sband, cmd);
@@ -557,7 +560,9 @@ u16 rs_fw_get_max_amsdu_len(struct ieee80211_sta *sta,
 	return 0;
 }
 
-void rs_fw_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
+void rs_fw_rate_init(struct iwl_mvm *mvm,
+		     struct ieee80211_vif *vif,
+		     struct ieee80211_sta *sta,
 		     struct ieee80211_bss_conf *link_conf,
 		     struct ieee80211_link_sta *link_sta,
 		     enum nl80211_band band, bool update)
@@ -601,7 +606,7 @@ void rs_fw_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	iwl_mvm_reset_frame_stats(mvm);
 #endif
-	rs_fw_set_supp_rates(link_sta, sband, &cfg_cmd);
+	rs_fw_set_supp_rates(vif, link_sta, sband, &cfg_cmd);
 
 	/*
 	 * since TLC offload works with one mode we can assume

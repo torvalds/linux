@@ -3592,7 +3592,7 @@ static void iwl_mvm_rs_rate_init_all_links(struct iwl_mvm *mvm,
 		if (!conf || !link_sta || !mvmvif->link[link_id]->phy_ctxt)
 			continue;
 
-		iwl_mvm_rs_rate_init(mvm, sta, conf, link_sta,
+		iwl_mvm_rs_rate_init(mvm, vif, sta, conf, link_sta,
 				     mvmvif->link[link_id]->phy_ctxt->channel->band,
 				     update);
 	}
