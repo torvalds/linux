@@ -871,7 +871,8 @@ static void ath11k_wmi_put_wmi_channel(struct wmi_channel *chan,
 
 		chan->band_center_freq2 = arg->channel.band_center_freq1;
 
-	} else if (arg->channel.mode == MODE_11AC_VHT80_80) {
+	} else if ((arg->channel.mode == MODE_11AC_VHT80_80) ||
+		   (arg->channel.mode == MODE_11AX_HE80_80)) {
 		chan->band_center_freq2 = arg->channel.band_center_freq2;
 	} else {
 		chan->band_center_freq2 = 0;
