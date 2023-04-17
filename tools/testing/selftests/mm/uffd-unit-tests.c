@@ -909,28 +909,65 @@ uffd_test_case_t uffd_tests[] = {
 	},
 };
 
+static void usage(const char *prog)
+{
+	printf("usage: %s [-f TESTNAME]\n", prog);
+	puts("");
+	puts(" -f: test name to filter (e.g., event)");
+	puts(" -h: show the help msg");
+	puts(" -l: list tests only");
+	puts("");
+	exit(KSFT_FAIL);
+}
+
 int main(int argc, char *argv[])
 {
 	int n_tests = sizeof(uffd_tests) / sizeof(uffd_test_case_t);
 	int n_mems = sizeof(mem_types) / sizeof(mem_type_t);
+	const char *test_filter = NULL;
+	bool list_only = false;
 	uffd_test_case_t *test;
 	mem_type_t *mem_type;
 	uffd_test_args_t args;
 	char test_name[128];
 	const char *errmsg;
-	int has_uffd;
+	int has_uffd, opt;
 	int i, j;
 
-	has_uffd = test_uffd_api(false);
-	has_uffd |= test_uffd_api(true);
+	while ((opt = getopt(argc, argv, "f:hl")) != -1) {
+		switch (opt) {
+		case 'f':
+			test_filter = optarg;
+			break;
+		case 'l':
+			list_only = true;
+			break;
+		case 'h':
+		default:
+			/* Unknown */
+			usage(argv[0]);
+			break;
+		}
+	}
 
-	if (!has_uffd) {
-		printf("Userfaultfd not supported or unprivileged, skip all tests\n");
-		exit(KSFT_SKIP);
+	if (!test_filter && !list_only) {
+		has_uffd = test_uffd_api(false);
+		has_uffd |= test_uffd_api(true);
+
+		if (!has_uffd) {
+			printf("Userfaultfd not supported or unprivileged, skip all tests\n");
+			exit(KSFT_SKIP);
+		}
 	}
 
 	for (i = 0; i < n_tests; i++) {
 		test = &uffd_tests[i];
+		if (test_filter && !strstr(test->name, test_filter))
+			continue;
+		if (list_only) {
+			printf("%s\n", test->name);
+			continue;
+		}
 		for (j = 0; j < n_mems; j++) {
 			mem_type = &mem_types[j];
 			if (!(test->mem_targets & mem_type->mem_flag))
@@ -952,7 +989,8 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	uffd_test_report();
+	if (!list_only)
+		uffd_test_report();
 
 	return ksft_get_fail_cnt() ? KSFT_FAIL : KSFT_PASS;
 }
