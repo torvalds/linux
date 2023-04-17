@@ -258,16 +258,27 @@ amdgpu_job_prepare_job(struct drm_sched_job *sched_job,
 	struct dma_fence *fence = NULL;
 	int r;
 
+	/* Ignore soft recovered fences here */
+	r = drm_sched_entity_error(s_entity);
+	if (r && r != -ENODATA)
+		goto error;
+
 	if (!fence && job->gang_submit)
 		fence = amdgpu_device_switch_gang(ring->adev, job->gang_submit);
 
 	while (!fence && job->vm && !job->vmid) {
 		r = amdgpu_vmid_grab(job->vm, ring, job, &fence);
-		if (r)
+		if (r) {
 			DRM_ERROR("Error getting VM ID (%d)\n", r);
+			goto error;
+		}
 	}
 
 	return fence;
+
+error:
+	dma_fence_set_error(&job->base.s_fence->finished, r);
+	return NULL;
 }
 
 static struct dma_fence *amdgpu_job_run(struct drm_sched_job *sched_job)
