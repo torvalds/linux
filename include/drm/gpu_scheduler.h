@@ -598,7 +598,7 @@ void drm_sched_fence_init(struct drm_sched_fence *fence,
 void drm_sched_fence_free(struct drm_sched_fence *fence);
 
 void drm_sched_fence_scheduled(struct drm_sched_fence *fence);
-void drm_sched_fence_finished(struct drm_sched_fence *fence);
+void drm_sched_fence_finished(struct drm_sched_fence *fence, int result);
 
 unsigned long drm_sched_suspend_timeout(struct drm_gpu_scheduler *sched);
 void drm_sched_resume_timeout(struct drm_gpu_scheduler *sched,

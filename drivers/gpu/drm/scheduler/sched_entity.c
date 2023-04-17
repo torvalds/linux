@@ -144,7 +144,7 @@ static void drm_sched_entity_kill_jobs_work(struct work_struct *wrk)
 {
 	struct drm_sched_job *job = container_of(wrk, typeof(*job), work);
 
-	drm_sched_fence_finished(job->s_fence);
+	drm_sched_fence_finished(job->s_fence, -ESRCH);
 	WARN_ON(job->s_fence->parent);
 	job->sched->ops->free_job(job);
 }
@@ -194,8 +194,6 @@ static void drm_sched_entity_kill(struct drm_sched_entity *entity)
 	prev = dma_fence_get(entity->last_scheduled);
 	while ((job = to_drm_sched_job(spsc_queue_pop(&entity->job_queue)))) {
 		struct drm_sched_fence *s_fence = job->s_fence;
-
-		dma_fence_set_error(&s_fence->finished, -ESRCH);
 
 		dma_fence_get(&s_fence->finished);
 		if (!prev || dma_fence_add_callback(prev, &job->finish_cb,
