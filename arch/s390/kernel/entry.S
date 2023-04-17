@@ -177,7 +177,7 @@ _LPP_OFFSET	= __LC_LPP
  * Returns:
  *  gpr2 = prev
  */
-ENTRY(__switch_to)
+SYM_FUNC_START(__switch_to)
 	stmg	%r6,%r15,__SF_GPRS(%r15)	# store gprs of prev task
 	lghi	%r4,__TASK_stack
 	lghi	%r1,__TASK_thread
@@ -193,7 +193,7 @@ ENTRY(__switch_to)
 	lmg	%r6,%r15,__SF_GPRS(%r15)	# load gprs of next task
 	ALTERNATIVE "nop", "lpp _LPP_OFFSET", 40
 	BR_EX	%r14
-ENDPROC(__switch_to)
+SYM_FUNC_END(__switch_to)
 
 #if IS_ENABLED(CONFIG_KVM)
 /*
@@ -202,7 +202,7 @@ ENDPROC(__switch_to)
  * %r3 pointer to sie control block virt
  * %r4 guest register save area
  */
-ENTRY(__sie64a)
+SYM_FUNC_START(__sie64a)
 	stmg	%r6,%r14,__SF_GPRS(%r15)	# save kernel registers
 	lg	%r12,__LC_CURRENT
 	stg	%r2,__SF_SIE_CONTROL_PHYS(%r15)	# save sie block physical..
@@ -248,8 +248,7 @@ ENTRY(__sie64a)
 	nopr	7
 .Lrewind_pad2:
 	nopr	7
-	.globl sie_exit
-sie_exit:
+SYM_INNER_LABEL(sie_exit, SYM_L_GLOBAL)
 	lg	%r14,__SF_SIE_SAVEAREA(%r15)	# load guest register save area
 	stmg	%r0,%r13,0(%r14)		# save guest gprs 0-13
 	xgr	%r0,%r0				# clear guest registers to
@@ -269,7 +268,7 @@ sie_exit:
 	EX_TABLE(.Lrewind_pad4,.Lsie_fault)
 	EX_TABLE(.Lrewind_pad2,.Lsie_fault)
 	EX_TABLE(sie_exit,.Lsie_fault)
-ENDPROC(__sie64a)
+SYM_FUNC_END(__sie64a)
 EXPORT_SYMBOL(__sie64a)
 EXPORT_SYMBOL(sie_exit)
 #endif
@@ -279,7 +278,7 @@ EXPORT_SYMBOL(sie_exit)
  * are entered with interrupts disabled.
  */
 
-ENTRY(system_call)
+SYM_CODE_START(system_call)
 	stpt	__LC_SYS_ENTER_TIMER
 	stmg	%r8,%r15,__LC_SAVE_AREA_SYNC
 	BPOFF
@@ -314,12 +313,12 @@ ENTRY(system_call)
 	lmg	%r0,%r15,STACK_FRAME_OVERHEAD+__PT_R0(%r15)
 	stpt	__LC_EXIT_TIMER
 	LPSWEY	__LC_RETURN_PSW,__LC_RETURN_LPSWE
-ENDPROC(system_call)
+SYM_CODE_END(system_call)
 
 #
 # a new process exits the kernel with ret_from_fork
 #
-ENTRY(ret_from_fork)
+SYM_CODE_START(ret_from_fork)
 	lgr	%r3,%r11
 	brasl	%r14,__ret_from_fork
 	STACKLEAK_ERASE
@@ -330,13 +329,13 @@ ENTRY(ret_from_fork)
 	lmg	%r0,%r15,STACK_FRAME_OVERHEAD+__PT_R0(%r15)
 	stpt	__LC_EXIT_TIMER
 	LPSWEY	__LC_RETURN_PSW,__LC_RETURN_LPSWE
-ENDPROC(ret_from_fork)
+SYM_CODE_END(ret_from_fork)
 
 /*
  * Program check handler routine
  */
 
-ENTRY(pgm_check_handler)
+SYM_CODE_START(pgm_check_handler)
 	stpt	__LC_SYS_ENTER_TIMER
 	BPOFF
 	stmg	%r8,%r15,__LC_SAVE_AREA_SYNC
@@ -403,13 +402,13 @@ ENTRY(pgm_check_handler)
 	lghi	%r14,1
 	LBEAR	__LC_PGM_LAST_BREAK
 	LPSWEY	__LC_RETURN_PSW,__LC_RETURN_LPSWE # branch to .Lsysc_per
-ENDPROC(pgm_check_handler)
+SYM_CODE_END(pgm_check_handler)
 
 /*
  * Interrupt handler macro used for external and IO interrupts.
  */
 .macro INT_HANDLER name,lc_old_psw,handler
-ENTRY(\name)
+SYM_CODE_START(\name)
 	stckf	__LC_INT_CLOCK
 	stpt	__LC_SYS_ENTER_TIMER
 	STBEAR	__LC_LAST_BREAK
@@ -456,7 +455,7 @@ ENTRY(\name)
 2:	LBEAR	__PT_LAST_BREAK(%r11)
 	lmg	%r0,%r15,__PT_R0(%r11)
 	LPSWEY	__LC_RETURN_PSW,__LC_RETURN_LPSWE
-ENDPROC(\name)
+SYM_CODE_END(\name)
 .endm
 
 INT_HANDLER ext_int_handler,__LC_EXT_OLD_PSW,do_ext_irq
@@ -465,7 +464,7 @@ INT_HANDLER io_int_handler,__LC_IO_OLD_PSW,do_io_irq
 /*
  * Load idle PSW.
  */
-ENTRY(psw_idle)
+SYM_FUNC_START(psw_idle)
 	stg	%r14,(__SF_GPRS+8*8)(%r15)
 	stg	%r3,__SF_EMPTY(%r15)
 	larl	%r1,psw_idle_exit
@@ -481,15 +480,14 @@ ENTRY(psw_idle)
 	stckf	__CLOCK_IDLE_ENTER(%r2)
 	stpt	__TIMER_IDLE_ENTER(%r2)
 	lpswe	__SF_EMPTY(%r15)
-.globl psw_idle_exit
-psw_idle_exit:
+SYM_INNER_LABEL(psw_idle_exit, SYM_L_GLOBAL)
 	BR_EX	%r14
-ENDPROC(psw_idle)
+SYM_FUNC_END(psw_idle)
 
 /*
  * Machine check handler routines
  */
-ENTRY(mcck_int_handler)
+SYM_CODE_START(mcck_int_handler)
 	stckf	__LC_MCCK_CLOCK
 	BPOFF
 	la	%r1,4095		# validate r1
@@ -573,10 +571,10 @@ ENTRY(mcck_int_handler)
 	 */
 	lhi	%r5,0
 	lhi	%r6,1
-	larl	%r7,.Lstop_lock
+	larl	%r7,stop_lock
 	cs	%r5,%r6,0(%r7)		# single CPU-stopper only
 	jnz	4f
-	larl	%r7,.Lthis_cpu
+	larl	%r7,this_cpu
 	stap	0(%r7)			# this CPU address
 	lh	%r4,0(%r7)
 	nilh	%r4,0
@@ -592,15 +590,15 @@ ENTRY(mcck_int_handler)
 3:	sigp	%r1,%r4,SIGP_STOP	# stop this CPU
 	brc	SIGP_CC_BUSY,3b
 4:	j	4b
-ENDPROC(mcck_int_handler)
+SYM_CODE_END(mcck_int_handler)
 
-ENTRY(restart_int_handler)
+SYM_CODE_START(restart_int_handler)
 	ALTERNATIVE "nop", "lpp _LPP_OFFSET", 40
 	stg	%r15,__LC_SAVE_AREA_RESTART
 	TSTMSK	__LC_RESTART_FLAGS,RESTART_FLAG_CTLREGS,4
 	jz	0f
 	lctlg	%c0,%c15,__LC_CREGS_SAVE_AREA
-0:	larl	%r15,.Lstosm_tmp
+0:	larl	%r15,stosm_tmp
 	stosm	0(%r15),0x04			# turn dat on, keep irqs off
 	lg	%r15,__LC_RESTART_STACK
 	xc	STACK_FRAME_OVERHEAD(__PT_SIZE,%r15),STACK_FRAME_OVERHEAD(%r15)
@@ -621,7 +619,7 @@ ENTRY(restart_int_handler)
 2:	sigp	%r4,%r3,SIGP_STOP		# sigp stop to current cpu
 	brc	2,2b
 3:	j	3b
-ENDPROC(restart_int_handler)
+SYM_CODE_END(restart_int_handler)
 
 	.section .kprobes.text, "ax"
 
@@ -631,7 +629,7 @@ ENDPROC(restart_int_handler)
  * No need to properly save the registers, we are going to panic anyway.
  * Setup a pt_regs so that show_trace can provide a good call trace.
  */
-ENTRY(stack_overflow)
+SYM_CODE_START(stack_overflow)
 	lg	%r15,__LC_NODAT_STACK	# change to panic stack
 	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 	stmg	%r0,%r7,__PT_R0(%r11)
@@ -641,26 +639,27 @@ ENTRY(stack_overflow)
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	lgr	%r2,%r11		# pass pointer to pt_regs
 	jg	kernel_stack_overflow
-ENDPROC(stack_overflow)
+SYM_CODE_END(stack_overflow)
 #endif
 
 	.section .data, "aw"
-		.align	4
-.Lstop_lock:	.long	0
-.Lthis_cpu:	.short	0
-.Lstosm_tmp:	.byte	0
+	.balign	4
+SYM_DATA_LOCAL(stop_lock,	.long 0)
+SYM_DATA_LOCAL(this_cpu,	.short 0)
+SYM_DATA_LOCAL(stosm_tmp,	.byte 0)
+
 	.section .rodata, "a"
 #define SYSCALL(esame,emu)	.quad __s390x_ ## esame
-	.globl	sys_call_table
-sys_call_table:
+SYM_DATA_START(sys_call_table)
 #include "asm/syscall_table.h"
+SYM_DATA_END(sys_call_table)
 #undef SYSCALL
 
 #ifdef CONFIG_COMPAT
 
 #define SYSCALL(esame,emu)	.quad __s390_ ## emu
-	.globl	sys_call_table_emu
-sys_call_table_emu:
+SYM_DATA_START(sys_call_table_emu)
 #include "asm/syscall_table.h"
+SYM_DATA_END(sys_call_table_emu)
 #undef SYSCALL
 #endif
