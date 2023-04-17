@@ -668,13 +668,18 @@ void ath11k_dp_reo_cmd_list_cleanup(struct ath11k_base *ab)
 	struct ath11k_dp *dp = &ab->dp;
 	struct dp_reo_cmd *cmd, *tmp;
 	struct dp_reo_cache_flush_elem *cmd_cache, *tmp_cache;
+	struct dp_rx_tid *rx_tid;
 
 	spin_lock_bh(&dp->reo_cmd_lock);
 	list_for_each_entry_safe(cmd, tmp, &dp->reo_cmd_list, list) {
 		list_del(&cmd->list);
-		dma_unmap_single(ab->dev, cmd->data.paddr,
-				 cmd->data.size, DMA_BIDIRECTIONAL);
-		kfree(cmd->data.vaddr);
+		rx_tid = &cmd->data;
+		if (rx_tid->vaddr) {
+			dma_unmap_single(ab->dev, rx_tid->paddr,
+					 rx_tid->size, DMA_BIDIRECTIONAL);
+			kfree(rx_tid->vaddr);
+			rx_tid->vaddr = NULL;
+		}
 		kfree(cmd);
 	}
 
@@ -682,9 +687,13 @@ void ath11k_dp_reo_cmd_list_cleanup(struct ath11k_base *ab)
 				 &dp->reo_cmd_cache_flush_list, list) {
 		list_del(&cmd_cache->list);
 		dp->reo_cmd_cache_flush_count--;
-		dma_unmap_single(ab->dev, cmd_cache->data.paddr,
-				 cmd_cache->data.size, DMA_BIDIRECTIONAL);
-		kfree(cmd_cache->data.vaddr);
+		rx_tid = &cmd_cache->data;
+		if (rx_tid->vaddr) {
+			dma_unmap_single(ab->dev, rx_tid->paddr,
+					 rx_tid->size, DMA_BIDIRECTIONAL);
+			kfree(rx_tid->vaddr);
+			rx_tid->vaddr = NULL;
+		}
 		kfree(cmd_cache);
 	}
 	spin_unlock_bh(&dp->reo_cmd_lock);
@@ -698,10 +707,12 @@ static void ath11k_dp_reo_cmd_free(struct ath11k_dp *dp, void *ctx,
 	if (status != HAL_REO_CMD_SUCCESS)
 		ath11k_warn(dp->ab, "failed to flush rx tid hw desc, tid %d status %d\n",
 			    rx_tid->tid, status);
-
-	dma_unmap_single(dp->ab->dev, rx_tid->paddr, rx_tid->size,
-			 DMA_BIDIRECTIONAL);
-	kfree(rx_tid->vaddr);
+	if (rx_tid->vaddr) {
+		dma_unmap_single(dp->ab->dev, rx_tid->paddr, rx_tid->size,
+				 DMA_BIDIRECTIONAL);
+		kfree(rx_tid->vaddr);
+		rx_tid->vaddr = NULL;
+	}
 }
 
 static void ath11k_dp_reo_cache_flush(struct ath11k_base *ab,
@@ -740,6 +751,7 @@ static void ath11k_dp_reo_cache_flush(struct ath11k_base *ab,
 		dma_unmap_single(ab->dev, rx_tid->paddr, rx_tid->size,
 				 DMA_BIDIRECTIONAL);
 		kfree(rx_tid->vaddr);
+		rx_tid->vaddr = NULL;
 	}
 }
 
@@ -792,6 +804,7 @@ free_desc:
 	dma_unmap_single(ab->dev, rx_tid->paddr, rx_tid->size,
 			 DMA_BIDIRECTIONAL);
 	kfree(rx_tid->vaddr);
+	rx_tid->vaddr = NULL;
 }
 
 void ath11k_peer_rx_tid_delete(struct ath11k *ar,
@@ -803,6 +816,8 @@ void ath11k_peer_rx_tid_delete(struct ath11k *ar,
 
 	if (!rx_tid->active)
 		return;
+
+	rx_tid->active = false;
 
 	cmd.flag = HAL_REO_CMD_FLG_NEED_STATUS;
 	cmd.addr_lo = lower_32_bits(rx_tid->paddr);
@@ -818,9 +833,11 @@ void ath11k_peer_rx_tid_delete(struct ath11k *ar,
 		dma_unmap_single(ar->ab->dev, rx_tid->paddr, rx_tid->size,
 				 DMA_BIDIRECTIONAL);
 		kfree(rx_tid->vaddr);
+		rx_tid->vaddr = NULL;
 	}
 
-	rx_tid->active = false;
+	rx_tid->paddr = 0;
+	rx_tid->size = 0;
 }
 
 static int ath11k_dp_rx_link_desc_return(struct ath11k_base *ab,
@@ -967,6 +984,7 @@ static void ath11k_dp_rx_tid_mem_free(struct ath11k_base *ab,
 	dma_unmap_single(ab->dev, rx_tid->paddr, rx_tid->size,
 			 DMA_BIDIRECTIONAL);
 	kfree(rx_tid->vaddr);
+	rx_tid->vaddr = NULL;
 
 	rx_tid->active = false;
 
@@ -1067,7 +1085,8 @@ int ath11k_peer_rx_tid_setup(struct ath11k *ar, const u8 *peer_mac, int vdev_id,
 	return ret;
 
 err_mem_free:
-	kfree(vaddr);
+	kfree(rx_tid->vaddr);
+	rx_tid->vaddr = NULL;
 
 	return ret;
 }
