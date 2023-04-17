@@ -3,6 +3,7 @@
 #include "bcachefs.h"
 #include "bkey_buf.h"
 #include "btree_update.h"
+#include "buckets.h"
 #include "darray.h"
 #include "dirent.h"
 #include "error.h"
@@ -1407,6 +1408,7 @@ static int check_extents(struct bch_fs *c)
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	extent_ends extent_ends = { 0 };
+	struct disk_reservation res = { 0 };
 	int ret = 0;
 
 	snapshots_seen_init(&s);
@@ -1417,10 +1419,13 @@ static int check_extents(struct bch_fs *c)
 	ret = for_each_btree_key_commit(&trans, iter, BTREE_ID_extents,
 			POS(BCACHEFS_ROOT_INO, 0),
 			BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
-			NULL, NULL,
-			BTREE_INSERT_LAZY_RW|BTREE_INSERT_NOFAIL,
-		check_extent(&trans, &iter, k, &w, &s, &extent_ends));
+			&res, NULL,
+			BTREE_INSERT_LAZY_RW|BTREE_INSERT_NOFAIL, ({
+		bch2_disk_reservation_put(c, &res);
+		check_extent(&trans, &iter, k, &w, &s, &extent_ends);
+	}));
 
+	bch2_disk_reservation_put(c, &res);
 	extent_ends_reset(&extent_ends);
 	darray_exit(&extent_ends);
 	inode_walker_exit(&w);
