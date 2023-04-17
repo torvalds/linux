@@ -2207,7 +2207,7 @@ static enum sctp_ierror sctp_verify_param(struct net *net,
 		break;
 
 	case SCTP_PARAM_HOST_NAME_ADDRESS:
-		/* Tell the peer, we won't support this param.  */
+		/* This param has been Deprecated, send ABORT.  */
 		sctp_process_hn_param(asoc, param, chunk, err_chunk);
 		retval = SCTP_IERROR_ABORT;
 		break;
@@ -2589,10 +2589,6 @@ do_addr_param:
 		asoc->cookie_life = ktime_add_ms(asoc->cookie_life, stale);
 		break;
 
-	case SCTP_PARAM_HOST_NAME_ADDRESS:
-		pr_debug("%s: unimplemented SCTP_HOST_NAME_ADDRESS\n", __func__);
-		break;
-
 	case SCTP_PARAM_SUPPORTED_ADDRESS_TYPES:
 		/* Turn off the default values first so we'll know which
 		 * ones are really set by the peer.
@@ -2622,10 +2618,6 @@ do_addr_param:
 			case SCTP_PARAM_IPV6_ADDRESS:
 				if (PF_INET6 == asoc->base.sk->sk_family)
 					asoc->peer.ipv6_address = 1;
-				break;
-
-			case SCTP_PARAM_HOST_NAME_ADDRESS:
-				asoc->peer.hostname_address = 1;
 				break;
 
 			default: /* Just ignore anything else.  */
