@@ -7339,6 +7339,8 @@ int stmmac_dvr_probe(struct device *device,
 	if (flow_ctrl)
 		priv->flow_ctrl = FLOW_AUTO;	/* RX/TX pause on */
 
+	ndev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
+
 	/* Setup channels NAPI */
 	stmmac_napi_add(ndev);
 
