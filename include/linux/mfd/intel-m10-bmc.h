@@ -251,6 +251,7 @@ struct intel_m10bmc {
  *
  * m10bmc_raw_read - read m10bmc register per addr
  * m10bmc_sys_read - read m10bmc system register per offset
+ * m10bmc_sys_update_bits - update m10bmc system register per offset
  */
 static inline int
 m10bmc_raw_read(struct intel_m10bmc *m10bmc, unsigned int addr,
@@ -281,6 +282,9 @@ static inline int m10bmc_sys_read(struct intel_m10bmc *m10bmc, unsigned int offs
 
 	return m10bmc_raw_read(m10bmc, csr_map->base + offset, val);
 }
+
+int m10bmc_sys_update_bits(struct intel_m10bmc *m10bmc, unsigned int offset,
+			   unsigned int msk, unsigned int val);
 
 /*
  * MAX10 BMC Core support
