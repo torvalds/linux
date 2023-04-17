@@ -160,4 +160,14 @@ netdev_txq_completed_mb(struct netdev_queue *dev_queue,
 		netif_txq_maybe_stop(txq, get_desc, stop_thrs, start_thrs); \
 	})
 
+#define netif_subqueue_completed_wake(dev, idx, pkts, bytes,		\
+				      get_desc, start_thrs)		\
+	({								\
+		struct netdev_queue *txq;				\
+									\
+		txq = netdev_get_tx_queue(dev, idx);			\
+		netif_txq_completed_wake(txq, pkts, bytes,		\
+					 get_desc, start_thrs);		\
+	})
+
 #endif
