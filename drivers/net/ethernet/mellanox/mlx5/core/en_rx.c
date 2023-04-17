@@ -1977,10 +1977,17 @@ mlx5e_skb_from_cqe_mpwrq_nonlinear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *w
 	struct mlx5e_frag_page *frag_page = &wi->alloc_units.frag_pages[page_idx];
 	u16 headlen = min_t(u16, MLX5E_RX_MAX_HEAD, cqe_bcnt);
 	struct mlx5e_frag_page *head_page = frag_page;
-	u32 frag_offset    = head_offset + headlen;
-	u32 byte_cnt       = cqe_bcnt - headlen;
+	u32 frag_offset    = head_offset;
+	u32 byte_cnt       = cqe_bcnt;
+	struct skb_shared_info *sinfo;
+	struct mlx5e_xdp_buff mxbuf;
+	unsigned int truesize = 0;
 	struct sk_buff *skb;
+	u32 linear_frame_sz;
+	u16 linear_data_len;
 	dma_addr_t addr;
+	u16 linear_hr;
+	void *va;
 
 	skb = napi_alloc_skb(rq->cq.napi,
 			     ALIGN(MLX5E_RX_MAX_HEAD, sizeof(long)));
@@ -1989,16 +1996,52 @@ mlx5e_skb_from_cqe_mpwrq_nonlinear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *w
 		return NULL;
 	}
 
+	va = skb->head;
 	net_prefetchw(skb->data);
 
-	/* Non-linear mode, hence non-XSK, which always uses PAGE_SIZE. */
+	frag_offset += headlen;
+	byte_cnt -= headlen;
+	linear_hr = skb_headroom(skb);
+	linear_data_len = headlen;
+	linear_frame_sz = MLX5_SKB_FRAG_SZ(skb_end_offset(skb));
 	if (unlikely(frag_offset >= PAGE_SIZE)) {
 		frag_page++;
 		frag_offset -= PAGE_SIZE;
 	}
 
 	skb_mark_for_recycle(skb);
-	mlx5e_fill_skb_data(skb, rq, frag_page, byte_cnt, frag_offset);
+	mlx5e_fill_mxbuf(rq, cqe, va, linear_hr, linear_frame_sz, linear_data_len, &mxbuf);
+	net_prefetch(mxbuf.xdp.data);
+
+	sinfo = xdp_get_shared_info_from_buff(&mxbuf.xdp);
+
+	while (byte_cnt) {
+		/* Non-linear mode, hence non-XSK, which always uses PAGE_SIZE. */
+		u32 pg_consumed_bytes = min_t(u32, PAGE_SIZE - frag_offset, byte_cnt);
+
+		if (test_bit(MLX5E_RQ_STATE_SHAMPO, &rq->state))
+			truesize += pg_consumed_bytes;
+		else
+			truesize += ALIGN(pg_consumed_bytes, BIT(rq->mpwqe.log_stride_sz));
+
+		mlx5e_add_skb_shared_info_frag(rq, sinfo, &mxbuf.xdp, frag_page, frag_offset,
+					       pg_consumed_bytes);
+		byte_cnt -= pg_consumed_bytes;
+		frag_offset = 0;
+		frag_page++;
+	}
+	if (xdp_buff_has_frags(&mxbuf.xdp)) {
+		struct mlx5e_frag_page *pagep;
+
+		xdp_update_skb_shared_info(skb, sinfo->nr_frags,
+					   sinfo->xdp_frags_size, truesize,
+					   xdp_buff_is_frag_pfmemalloc(&mxbuf.xdp));
+
+		pagep = frag_page - sinfo->nr_frags;
+		do
+			pagep->frags++;
+		while (++pagep < frag_page);
+	}
 	/* copy header */
 	addr = page_pool_get_dma_addr(head_page->page);
 	mlx5e_copy_skb_header(rq, skb, head_page->page, addr,
