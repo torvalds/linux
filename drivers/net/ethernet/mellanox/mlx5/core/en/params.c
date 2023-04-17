@@ -323,6 +323,20 @@ static bool mlx5e_verify_rx_mpwqe_strides(struct mlx5_core_dev *mdev,
 	return log_num_strides >= MLX5_MPWQE_LOG_NUM_STRIDES_BASE;
 }
 
+bool mlx5e_verify_params_rx_mpwqe_strides(struct mlx5_core_dev *mdev,
+					  struct mlx5e_params *params,
+					  struct mlx5e_xsk_param *xsk)
+{
+	u8 log_wqe_num_of_strides = mlx5e_mpwqe_get_log_num_strides(mdev, params, xsk);
+	u8 log_wqe_stride_size = mlx5e_mpwqe_get_log_stride_size(mdev, params, xsk);
+	enum mlx5e_mpwrq_umr_mode umr_mode = mlx5e_mpwrq_umr_mode(mdev, xsk);
+	u8 page_shift = mlx5e_mpwrq_page_shift(mdev, xsk);
+
+	return mlx5e_verify_rx_mpwqe_strides(mdev, log_wqe_stride_size,
+					     log_wqe_num_of_strides,
+					     page_shift, umr_mode);
+}
+
 bool mlx5e_rx_mpwqe_is_linear_skb(struct mlx5_core_dev *mdev,
 				  struct mlx5e_params *params,
 				  struct mlx5e_xsk_param *xsk)
@@ -404,6 +418,10 @@ u8 mlx5e_mpwqe_get_log_stride_size(struct mlx5_core_dev *mdev,
 {
 	if (mlx5e_rx_mpwqe_is_linear_skb(mdev, params, xsk))
 		return order_base_2(mlx5e_rx_get_linear_stride_sz(mdev, params, xsk, true));
+
+	/* XDP in mlx5e doesn't support multiple packets per page. */
+	if (params->xdp_prog)
+		return PAGE_SHIFT;
 
 	return MLX5_MPWRQ_DEF_LOG_STRIDE_SZ(mdev);
 }
@@ -574,9 +592,6 @@ int mlx5e_mpwrq_validate_regular(struct mlx5_core_dev *mdev, struct mlx5e_params
 
 	if (!mlx5e_check_fragmented_striding_rq_cap(mdev, page_shift, umr_mode))
 		return -EOPNOTSUPP;
-
-	if (params->xdp_prog && !mlx5e_rx_mpwqe_is_linear_skb(mdev, params, NULL))
-		return -EINVAL;
 
 	return 0;
 }

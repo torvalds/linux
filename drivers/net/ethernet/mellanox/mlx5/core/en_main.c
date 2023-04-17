@@ -803,6 +803,9 @@ static int mlx5e_alloc_rq(struct mlx5e_params *params,
 		pool_size = rq->mpwqe.pages_per_wqe <<
 			mlx5e_mpwqe_get_log_rq_size(mdev, params, xsk);
 
+		if (!mlx5e_rx_mpwqe_is_linear_skb(mdev, params, xsk) && params->xdp_prog)
+			pool_size *= 2; /* additional page per packet for the linear part */
+
 		rq->mpwqe.log_stride_sz = mlx5e_mpwqe_get_log_stride_size(mdev, params, xsk);
 		rq->mpwqe.num_strides =
 			BIT(mlx5e_mpwqe_get_log_num_strides(mdev, params, xsk));
@@ -4060,10 +4063,9 @@ void mlx5e_set_xdp_feature(struct net_device *netdev)
 
 	val = NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
 	      NETDEV_XDP_ACT_XSK_ZEROCOPY |
+	      NETDEV_XDP_ACT_RX_SG |
 	      NETDEV_XDP_ACT_NDO_XMIT |
 	      NETDEV_XDP_ACT_NDO_XMIT_SG;
-	if (params->rq_wq_type == MLX5_WQ_TYPE_CYCLIC)
-		val |= NETDEV_XDP_ACT_RX_SG;
 	xdp_set_features_flag(netdev, val);
 }
 
@@ -4261,23 +4263,20 @@ static bool mlx5e_params_validate_xdp(struct net_device *netdev,
 		mlx5e_rx_is_linear_skb(mdev, params, NULL) :
 		mlx5e_rx_mpwqe_is_linear_skb(mdev, params, NULL);
 
-	/* XDP affects striding RQ parameters. Block XDP if striding RQ won't be
-	 * supported with the new parameters: if PAGE_SIZE is bigger than
-	 * MLX5_MPWQE_LOG_STRIDE_SZ_MAX, striding RQ can't be used, even though
-	 * the MTU is small enough for the linear mode, because XDP uses strides
-	 * of PAGE_SIZE on regular RQs.
-	 */
-	if (!is_linear && params->rq_wq_type != MLX5_WQ_TYPE_CYCLIC) {
-		netdev_warn(netdev, "XDP is not allowed with striding RQ and MTU(%d) > %d\n",
-			    params->sw_mtu,
-			    mlx5e_xdp_max_mtu(params, NULL));
-		return false;
-	}
-	if (!is_linear && !params->xdp_prog->aux->xdp_has_frags) {
-		netdev_warn(netdev, "MTU(%d) > %d, too big for an XDP program not aware of multi buffer\n",
-			    params->sw_mtu,
-			    mlx5e_xdp_max_mtu(params, NULL));
-		return false;
+	if (!is_linear) {
+		if (!params->xdp_prog->aux->xdp_has_frags) {
+			netdev_warn(netdev, "MTU(%d) > %d, too big for an XDP program not aware of multi buffer\n",
+				    params->sw_mtu,
+				    mlx5e_xdp_max_mtu(params, NULL));
+			return false;
+		}
+		if (params->rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ &&
+		    !mlx5e_verify_params_rx_mpwqe_strides(mdev, params, NULL)) {
+			netdev_warn(netdev, "XDP is not allowed with striding RQ and MTU(%d) > %d\n",
+				    params->sw_mtu,
+				    mlx5e_xdp_max_mtu(params, NULL));
+			return false;
+		}
 	}
 
 	return true;

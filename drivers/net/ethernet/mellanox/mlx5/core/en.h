@@ -587,6 +587,7 @@ union mlx5e_alloc_units {
 struct mlx5e_mpw_info {
 	u16 consumed_strides;
 	DECLARE_BITMAP(skip_release_bitmap, MLX5_MPWRQ_MAX_PAGES_PER_WQE);
+	struct mlx5e_frag_page linear_page;
 	union mlx5e_alloc_units alloc_units;
 };
 
