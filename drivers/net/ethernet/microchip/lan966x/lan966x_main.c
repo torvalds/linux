@@ -605,7 +605,7 @@ static u64 lan966x_ifh_get(u8 *ifh, size_t pos, size_t length)
 			v = ifh[IFH_LEN_BYTES - (j / 8) - 1];
 
 		if (v & (1 << k))
-			val |= (1 << i);
+			val |= (1ULL << i);
 	}
 
 	return val;
