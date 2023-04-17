@@ -41,19 +41,6 @@ struct gh_vcpu {
 	struct kref kref;
 };
 
-/* VCPU is ready to run */
-#define GH_VCPU_STATE_READY		0
-/* VCPU is sleeping until an interrupt arrives */
-#define GH_VCPU_STATE_EXPECTS_WAKEUP	1
-/* VCPU is powered off */
-#define GH_VCPU_STATE_POWERED_OFF	2
-/* VCPU is blocked in EL2 for unspecified reason */
-#define GH_VCPU_STATE_BLOCKED		3
-/* VCPU has returned for MMIO READ */
-#define GH_VCPU_ADDRSPACE_VMMIO_READ	4
-/* VCPU has returned for MMIO WRITE */
-#define GH_VCPU_ADDRSPACE_VMMIO_WRITE	5
-
 static void vcpu_release(struct kref *kref)
 {
 	struct gh_vcpu *vcpu = container_of(kref, struct gh_vcpu, kref);
@@ -245,7 +232,7 @@ static int gh_vcpu_run(struct gh_vcpu *vcpu)
 				break;
 			default:
 				pr_warn_ratelimited("Unknown vCPU state: %llx\n",
-							vcpu_run_resp.state);
+							vcpu_run_resp.sized_state);
 				schedule();
 				break;
 			}

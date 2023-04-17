@@ -30,13 +30,11 @@ static int irqfd_wakeup(wait_queue_entry_t *wait, unsigned int mode, int sync, v
 {
 	struct gh_irqfd *irqfd = container_of(wait, struct gh_irqfd, wait);
 	__poll_t flags = key_to_poll(key);
-	u64 enable_mask = GH_BELL_NONBLOCK;
-	u64 old_flags;
 	int ret = 0;
 
 	if (flags & EPOLLIN) {
 		if (irqfd->ghrsc) {
-			ret = gh_hypercall_bell_send(irqfd->ghrsc->capid, enable_mask, &old_flags);
+			ret = gh_hypercall_bell_send(irqfd->ghrsc->capid, 1, NULL);
 			if (ret)
 				pr_err_ratelimited("Failed to inject interrupt %d: %d\n",
 						irqfd->ticket.label, ret);
@@ -57,9 +55,7 @@ static void irqfd_ptable_queue_proc(struct file *file, wait_queue_head_t *wqh, p
 static bool gh_irqfd_populate(struct gh_vm_resource_ticket *ticket, struct gh_resource *ghrsc)
 {
 	struct gh_irqfd *irqfd = container_of(ticket, struct gh_irqfd, ticket);
-	u64 enable_mask = GH_BELL_NONBLOCK;
-	u64 ack_mask = ~0;
-	int ret = 0;
+	int ret;
 
 	if (irqfd->ghrsc) {
 		pr_warn("irqfd%d already got a Gunyah resource. Check if multiple resources with same label were configured.\n",
@@ -69,7 +65,14 @@ static bool gh_irqfd_populate(struct gh_vm_resource_ticket *ticket, struct gh_re
 
 	irqfd->ghrsc = ghrsc;
 	if (irqfd->level) {
-		ret = gh_hypercall_bell_set_mask(irqfd->ghrsc->capid, enable_mask, ack_mask);
+		/* Configure the bell to trigger when bit 0 is asserted (see
+		 * irq_wakeup) and for bell to automatically clear bit 0 once
+		 * received by the VM (ack_mask).  need to make sure bit 0 is cleared right away,
+		 * otherwise the line will never be deasserted. Emulating edge
+		 * trigger interrupt does not need to set either mask
+		 * because irq is listed only once per gh_hypercall_bell_send
+		 */
+		ret = gh_hypercall_bell_set_mask(irqfd->ghrsc->capid, 1, 1);
 		if (ret)
 			pr_warn("irq %d couldn't be set as level triggered. Might cause IRQ storm if asserted\n",
 				irqfd->ticket.label);

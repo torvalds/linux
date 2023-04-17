@@ -63,7 +63,7 @@ enum gh_error gh_hypercall_bell_send(u64 capid, u64 new_flags, u64 *old_flags)
 
 	arm_smccc_1_1_hvc(GH_HYPERCALL_BELL_SEND, capid, new_flags, 0, &res);
 
-	if (res.a0 == GH_ERROR_OK)
+	if (res.a0 == GH_ERROR_OK && old_flags)
 		*old_flags = res.a1;
 
 	return res.a0;
@@ -80,7 +80,7 @@ enum gh_error gh_hypercall_bell_set_mask(u64 capid, u64 enable_mask, u64 ack_mas
 }
 EXPORT_SYMBOL_GPL(gh_hypercall_bell_set_mask);
 
-enum gh_error gh_hypercall_msgq_send(u64 capid, size_t size, void *buff, int tx_flags, bool *ready)
+enum gh_error gh_hypercall_msgq_send(u64 capid, size_t size, void *buff, u64 tx_flags, bool *ready)
 {
 	struct arm_smccc_res res;
 
@@ -126,7 +126,7 @@ enum gh_error gh_hypercall_vcpu_run(u64 capid, u64 *resume_data,
 	arm_smccc_1_2_hvc(&args, &res);
 
 	if (res.a0 == GH_ERROR_OK) {
-		resp->state = res.a1;
+		resp->sized_state = res.a1;
 		resp->state_data[0] = res.a2;
 		resp->state_data[1] = res.a3;
 		resp->state_data[2] = res.a4;
