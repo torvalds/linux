@@ -161,8 +161,8 @@ warn_32bit_failure:
 endif
 endif
 
-# cow_EXTRA_LIBS may get set in local_config.mk, or it may be left empty.
-$(OUTPUT)/cow: LDLIBS += $(COW_EXTRA_LIBS)
+# IOURING_EXTRA_LIBS may get set in local_config.mk, or it may be left empty.
+$(OUTPUT)/cow: LDLIBS += $(IOURING_EXTRA_LIBS)
 
 $(OUTPUT)/mlock-random-test $(OUTPUT)/memfd_secret: LDLIBS += -lcap
 
@@ -175,11 +175,11 @@ local_config.mk local_config.h: check_config.sh
 
 EXTRA_CLEAN += local_config.mk local_config.h
 
-ifeq ($(COW_EXTRA_LIBS),)
+ifeq ($(IOURING_EXTRA_LIBS),)
 all: warn_missing_liburing
 
 warn_missing_liburing:
 	@echo ; \
-	echo "Warning: missing liburing support. Some COW tests will be skipped." ; \
+	echo "Warning: missing liburing support. Some tests will be skipped." ; \
 	echo
 endif
