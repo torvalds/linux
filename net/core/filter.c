@@ -2122,6 +2122,7 @@ static inline int __bpf_tx_skb(struct net_device *dev, struct sk_buff *skb)
 	}
 
 	skb->dev = dev;
+	skb_set_redirected_noclear(skb, skb_at_tc_ingress(skb));
 	skb_clear_tstamp(skb);
 
 	dev_xmit_recursion_inc();
