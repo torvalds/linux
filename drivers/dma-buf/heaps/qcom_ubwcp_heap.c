@@ -32,6 +32,10 @@ struct ubwcp_buffer {
 	size_t ula_pa_size;
 };
 
+struct qcom_ubwcp_heap {
+	bool movable;
+};
+
 static int ubwcp_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 					  enum dma_data_direction direction)
 {
@@ -301,16 +305,19 @@ static struct dma_buf *ubwcp_allocate(struct dma_heap *heap,
 				      unsigned long heap_flags)
 {
 	struct ubwcp_buffer *buffer;
+	struct qcom_ubwcp_heap *ubwcp_heap;
 	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
 	struct dma_buf *dmabuf;
 	int ret = -ENOMEM;
+
+	ubwcp_heap = dma_heap_get_drvdata(heap);
 
 	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
 	if (!buffer)
 		return ERR_PTR(-ENOMEM);
 	init_rwsem(&buffer->linear_mode_sem);
 
-	ret = system_qcom_sg_buffer_alloc(sys_heap, &buffer->qcom_sg_buf, len);
+	ret = system_qcom_sg_buffer_alloc(sys_heap, &buffer->qcom_sg_buf, len, ubwcp_heap->movable);
 	if (ret)
 		goto free_buf_struct;
 
@@ -377,18 +384,23 @@ static void ignore_vmap_bounds_check(void *unused, struct dma_buf *dmabuf, bool 
 		*result = true;
 }
 
-int qcom_ubwcp_heap_create(void)
+int qcom_ubwcp_heap_create(char *name, bool movable)
 {
 	struct dma_heap_export_info exp_info;
 	struct dma_heap *heap;
-	char *name = "qcom,ubwcp";
+	struct qcom_ubwcp_heap *ubwcp_heap;
+	static bool vmap_registered;
 	int ret;
 
-	ret = register_trace_android_vh_ignore_dmabuf_vmap_bounds(ignore_vmap_bounds_check,
+	/* This function should only be called once */
+	if (!vmap_registered) {
+		ret = register_trace_android_vh_ignore_dmabuf_vmap_bounds(ignore_vmap_bounds_check,
 								  NULL);
-	if (ret) {
-		pr_err("%s: Unable to register vmap bounds tracehook\n", __func__);
-		goto out;
+		if (ret) {
+			pr_err("%s: Unable to register vmap bounds tracehook\n", __func__);
+			goto out;
+		}
+		vmap_registered = true;
 	}
 
 	sys_heap = dma_heap_find("qcom,system");
@@ -398,19 +410,29 @@ int qcom_ubwcp_heap_create(void)
 		goto out;
 	}
 
+	ubwcp_heap = kzalloc(sizeof(*ubwcp_heap), GFP_KERNEL);
+	if (!ubwcp_heap) {
+		ret = -ENOMEM;
+		goto ubwcp_alloc_free;
+	}
+	ubwcp_heap->movable = movable;
+
 	exp_info.name = name;
 	exp_info.ops = &ubwcp_heap_ops;
-	exp_info.priv = NULL;
+	exp_info.priv = ubwcp_heap;
 
 	heap = dma_heap_add(&exp_info);
 	if (IS_ERR(heap)) {
 		ret = PTR_ERR(heap);
-		goto out;
+		goto ubwcp_alloc_free;
 	}
 
 	pr_info("%s: DMA-BUF Heap: Created '%s'\n", __func__, name);
 
 	return 0;
+
+ubwcp_alloc_free:
+	kfree(ubwcp_heap);
 out:
 	pr_err("%s: Failed to create '%s', error is %d\n", __func__, name, ret);
 
@@ -422,6 +444,7 @@ int msm_ubwcp_set_ops(init_buffer init_buf_fn_ptr,
 		      lock_buffer lock_buf_fn_ptr,
 		      unlock_buffer unlock_buf_fn_ptr)
 {
+	int ret = 0;
 	if (!init_buf_fn_ptr || !free_buf_fn_ptr || !lock_buf_fn_ptr ||
 	    !unlock_buf_fn_ptr) {
 		pr_err("%s: Missing function pointer\n", __func__);
@@ -433,7 +456,14 @@ int msm_ubwcp_set_ops(init_buffer init_buf_fn_ptr,
 	ubwcp_driver_ops.lock_buffer = lock_buf_fn_ptr;
 	ubwcp_driver_ops.unlock_buffer = unlock_buf_fn_ptr;
 
-	return qcom_ubwcp_heap_create();
+	ret = qcom_ubwcp_heap_create("qcom,ubwcp", false);
+	if (ret)
+		return ret;
+
+#ifdef CONFIG_QCOM_DMABUF_HEAPS_UBWCP_MOVABLE
+	ret = qcom_ubwcp_heap_create("qcom,ubwcp-movable", true);
+#endif
+	return ret;
 }
 EXPORT_SYMBOL(msm_ubwcp_set_ops);
 

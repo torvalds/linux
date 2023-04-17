@@ -17,6 +17,7 @@
 #include "qcom_carveout_heap.h"
 #include "qcom_secure_system_heap.h"
 #include "qcom_dma_heap_priv.h"
+#include "qcom_system_movable_heap.h"
 
 /*
  * We cache the file ops used by DMA-BUFs so that a user with a struct file
@@ -40,6 +41,7 @@ static int qcom_dma_heap_probe(struct platform_device *pdev)
 				       QCOM_DMA_HEAP_FLAG_CP_PIXEL);
 	qcom_secure_system_heap_create("qcom,secure-non-pixel", NULL,
 				       QCOM_DMA_HEAP_FLAG_CP_NON_PIXEL);
+	qcom_sys_movable_heap_create();
 
 	heaps = parse_heap_dt(pdev);
 	if (IS_ERR_OR_NULL(heaps))
