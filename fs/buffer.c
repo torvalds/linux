@@ -1594,18 +1594,17 @@ out:
 }
 EXPORT_SYMBOL(block_invalidate_folio);
 
-
 /*
  * We attach and possibly dirty the buffers atomically wrt
  * block_dirty_folio() via private_lock.  try_to_free_buffers
- * is already excluded via the page lock.
+ * is already excluded via the folio lock.
  */
-void create_empty_buffers(struct page *page,
-			unsigned long blocksize, unsigned long b_state)
+void folio_create_empty_buffers(struct folio *folio, unsigned long blocksize,
+				unsigned long b_state)
 {
 	struct buffer_head *bh, *head, *tail;
 
-	head = alloc_page_buffers(page, blocksize, true);
+	head = folio_alloc_buffers(folio, blocksize, true);
 	bh = head;
 	do {
 		bh->b_state |= b_state;
@@ -1614,19 +1613,26 @@ void create_empty_buffers(struct page *page,
 	} while (bh);
 	tail->b_this_page = head;
 
-	spin_lock(&page->mapping->private_lock);
-	if (PageUptodate(page) || PageDirty(page)) {
+	spin_lock(&folio->mapping->private_lock);
+	if (folio_test_uptodate(folio) || folio_test_dirty(folio)) {
 		bh = head;
 		do {
-			if (PageDirty(page))
+			if (folio_test_dirty(folio))
 				set_buffer_dirty(bh);
-			if (PageUptodate(page))
+			if (folio_test_uptodate(folio))
 				set_buffer_uptodate(bh);
 			bh = bh->b_this_page;
 		} while (bh != head);
 	}
-	attach_page_private(page, head);
-	spin_unlock(&page->mapping->private_lock);
+	folio_attach_private(folio, head);
+	spin_unlock(&folio->mapping->private_lock);
+}
+EXPORT_SYMBOL(folio_create_empty_buffers);
+
+void create_empty_buffers(struct page *page,
+			unsigned long blocksize, unsigned long b_state)
+{
+	folio_create_empty_buffers(page_folio(page), blocksize, b_state);
 }
 EXPORT_SYMBOL(create_empty_buffers);
 
