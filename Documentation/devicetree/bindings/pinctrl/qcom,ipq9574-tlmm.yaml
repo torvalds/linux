@@ -74,15 +74,15 @@ $defs:
                 blsp1_i2c, blsp1_spi, blsp1_uart, blsp2_i2c, blsp2_spi,
                 blsp2_uart, blsp3_i2c, blsp3_spi, blsp3_uart, blsp4_i2c,
                 blsp4_spi, blsp4_uart, blsp5_i2c, blsp5_uart, cri_trng0,
-                cri_trng1, cri_trng3, cxc0, cxc1, dbg_out, dwc_ddrphy,
-                gcc_plltest, gcc_tlmm, mac, mdc, mdio, pcie0_clk, pcie0_wake,
+                cri_trng1, cri_trng2, cri_trng3, cxc0, cxc1, dbg_out, dwc_ddrphy,
+                gcc_plltest, gcc_tlmm, gpio, mac, mdc, mdio, pcie0_clk, pcie0_wake,
                 pcie1_clk, pcie1_wake, pcie2_clk, pcie2_wake, pcie3_clk, pcie3_wake,
                 prng_rosc0, prng_rosc1, prng_rosc2, prng_rosc3, pta, pwm,
                 qdss_cti_trig_in_a0, qdss_cti_trig_in_a1, qdss_cti_trig_in_b0,
                 qdss_cti_trig_in_b1, qdss_cti_trig_out_a0, qdss_cti_trig_out_a1,
                 qdss_cti_trig_out_b0, qdss_cti_trig_out_b1, qdss_traceclk_a,
                 qdss_traceclk_b, qdss_tracectl_a, qdss_tracectl_b, qdss_tracedata_a,
-                qdss_tracedata_b, qdss_tracedata_b, qspi_clk, qspi_cs, qspi_data,
+                qdss_tracedata_b, qspi_clk, qspi_cs, qspi_data,
                 rx0, rx1, sdc_clk, sdc_cmd, sdc_data, sdc_rclk, tsens_max,
                 wci20, wci21, wsa_swrm ]
 
