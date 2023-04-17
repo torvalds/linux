@@ -786,6 +786,85 @@ int rtl8xxxu_write32(struct rtl8xxxu_priv *priv, u16 addr, u32 val)
 	return ret;
 }
 
+int rtl8xxxu_write8_set(struct rtl8xxxu_priv *priv, u16 addr, u8 bits)
+{
+	u8 val8;
+
+	val8 = rtl8xxxu_read8(priv, addr);
+	val8 |= bits;
+	return rtl8xxxu_write8(priv, addr, val8);
+}
+
+int rtl8xxxu_write8_clear(struct rtl8xxxu_priv *priv, u16 addr, u8 bits)
+{
+	u8 val8;
+
+	val8 = rtl8xxxu_read8(priv, addr);
+	val8 &= ~bits;
+	return rtl8xxxu_write8(priv, addr, val8);
+}
+
+int rtl8xxxu_write16_set(struct rtl8xxxu_priv *priv, u16 addr, u16 bits)
+{
+	u16 val16;
+
+	val16 = rtl8xxxu_read16(priv, addr);
+	val16 |= bits;
+	return rtl8xxxu_write16(priv, addr, val16);
+}
+
+int rtl8xxxu_write16_clear(struct rtl8xxxu_priv *priv, u16 addr, u16 bits)
+{
+	u16 val16;
+
+	val16 = rtl8xxxu_read16(priv, addr);
+	val16 &= ~bits;
+	return rtl8xxxu_write16(priv, addr, val16);
+}
+
+int rtl8xxxu_write32_set(struct rtl8xxxu_priv *priv, u16 addr, u32 bits)
+{
+	u32 val32;
+
+	val32 = rtl8xxxu_read32(priv, addr);
+	val32 |= bits;
+	return rtl8xxxu_write32(priv, addr, val32);
+}
+
+int rtl8xxxu_write32_clear(struct rtl8xxxu_priv *priv, u16 addr, u32 bits)
+{
+	u32 val32;
+
+	val32 = rtl8xxxu_read32(priv, addr);
+	val32 &= ~bits;
+	return rtl8xxxu_write32(priv, addr, val32);
+}
+
+int rtl8xxxu_write32_mask(struct rtl8xxxu_priv *priv, u16 addr,
+			  u32 mask, u32 val)
+{
+	u32 orig, new, shift;
+
+	shift = __ffs(mask);
+
+	orig = rtl8xxxu_read32(priv, addr);
+	new = (orig & ~mask) | ((val << shift) & mask);
+	return rtl8xxxu_write32(priv, addr, new);
+}
+
+int rtl8xxxu_write_rfreg_mask(struct rtl8xxxu_priv *priv,
+			      enum rtl8xxxu_rfpath path, u8 reg,
+			      u32 mask, u32 val)
+{
+	u32 orig, new, shift;
+
+	shift = __ffs(mask);
+
+	orig = rtl8xxxu_read_rfreg(priv, path, reg);
+	new = (orig & ~mask) | ((val << shift) & mask);
+	return rtl8xxxu_write_rfreg(priv, path, reg, new);
+}
+
 static int
 rtl8xxxu_writeN(struct rtl8xxxu_priv *priv, u16 addr, u8 *buf, u16 len)
 {

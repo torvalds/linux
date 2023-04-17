@@ -1953,10 +1953,22 @@ u32 rtl8xxxu_read32(struct rtl8xxxu_priv *priv, u16 addr);
 int rtl8xxxu_write8(struct rtl8xxxu_priv *priv, u16 addr, u8 val);
 int rtl8xxxu_write16(struct rtl8xxxu_priv *priv, u16 addr, u16 val);
 int rtl8xxxu_write32(struct rtl8xxxu_priv *priv, u16 addr, u32 val);
+int rtl8xxxu_write8_set(struct rtl8xxxu_priv *priv, u16 addr, u8 bits);
+int rtl8xxxu_write8_clear(struct rtl8xxxu_priv *priv, u16 addr, u8 bits);
+int rtl8xxxu_write16_set(struct rtl8xxxu_priv *priv, u16 addr, u16 bits);
+int rtl8xxxu_write16_clear(struct rtl8xxxu_priv *priv, u16 addr, u16 bits);
+int rtl8xxxu_write32_set(struct rtl8xxxu_priv *priv, u16 addr, u32 bits);
+int rtl8xxxu_write32_clear(struct rtl8xxxu_priv *priv, u16 addr, u32 bits);
+int rtl8xxxu_write32_mask(struct rtl8xxxu_priv *priv, u16 addr,
+			  u32 mask, u32 val);
+
 u32 rtl8xxxu_read_rfreg(struct rtl8xxxu_priv *priv,
 			enum rtl8xxxu_rfpath path, u8 reg);
 int rtl8xxxu_write_rfreg(struct rtl8xxxu_priv *priv,
 			 enum rtl8xxxu_rfpath path, u8 reg, u32 data);
+int rtl8xxxu_write_rfreg_mask(struct rtl8xxxu_priv *priv,
+			      enum rtl8xxxu_rfpath path, u8 reg,
+			      u32 mask, u32 val);
 void rtl8xxxu_save_regs(struct rtl8xxxu_priv *priv, const u32 *regs,
 			u32 *backup, int count);
 void rtl8xxxu_restore_regs(struct rtl8xxxu_priv *priv, const u32 *regs,
