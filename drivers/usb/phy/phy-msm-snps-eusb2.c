@@ -1060,10 +1060,13 @@ static int msm_eusb2_phy_probe(struct platform_device *pdev)
 	/*
 	 * EUD may be enable in boot loader and to keep EUD session alive across
 	 * kernel boot till USB phy driver is initialized based on cable status,
-	 * keep LDOs on here.
+	 * keep LDOs, clocks and repeater on here.
 	 */
-	if (is_eud_debug_mode_active(phy))
+	if (is_eud_debug_mode_active(phy)) {
 		msm_eusb2_phy_power(phy, true);
+		msm_eusb2_phy_clocks(phy, true);
+		msm_eusb2_repeater_reset_and_init(phy);
+	}
 
 	return 0;
 
