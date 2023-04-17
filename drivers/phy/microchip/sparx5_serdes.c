@@ -1078,6 +1078,54 @@ leave:
 	return err;
 }
 
+static void sparx5_serdes_cmu_power_off(struct sparx5_serdes_private *priv)
+{
+	void __iomem *cmu_inst, *cmu_cfg_inst;
+	int i;
+
+	/* Power down each CMU */
+	for (i = 0; i < SPX5_CMU_MAX; i++) {
+		cmu_inst = sdx5_inst_get(priv, TARGET_SD_CMU, i);
+		cmu_cfg_inst = sdx5_inst_get(priv, TARGET_SD_CMU_CFG, i);
+
+		sdx5_inst_rmw(SD_CMU_CFG_SD_CMU_CFG_EXT_CFG_RST_SET(0),
+			      SD_CMU_CFG_SD_CMU_CFG_EXT_CFG_RST, cmu_cfg_inst,
+			      SD_CMU_CFG_SD_CMU_CFG(0));
+
+		sdx5_inst_rmw(SD_CMU_CMU_05_CFG_REFCK_TERM_EN_SET(0),
+			      SD_CMU_CMU_05_CFG_REFCK_TERM_EN, cmu_inst,
+			      SD_CMU_CMU_05(0));
+
+		sdx5_inst_rmw(SD_CMU_CMU_09_CFG_EN_TX_CK_DN_SET(0),
+			      SD_CMU_CMU_09_CFG_EN_TX_CK_DN, cmu_inst,
+			      SD_CMU_CMU_09(0));
+
+		sdx5_inst_rmw(SD_CMU_CMU_06_CFG_VCO_PD_SET(1),
+			      SD_CMU_CMU_06_CFG_VCO_PD, cmu_inst,
+			      SD_CMU_CMU_06(0));
+
+		sdx5_inst_rmw(SD_CMU_CMU_09_CFG_EN_TX_CK_UP_SET(0),
+			      SD_CMU_CMU_09_CFG_EN_TX_CK_UP, cmu_inst,
+			      SD_CMU_CMU_09(0));
+
+		sdx5_inst_rmw(SD_CMU_CMU_08_CFG_CK_TREE_PD_SET(1),
+			      SD_CMU_CMU_08_CFG_CK_TREE_PD, cmu_inst,
+			      SD_CMU_CMU_08(0));
+
+		sdx5_inst_rmw(SD_CMU_CMU_0D_CFG_REFCK_PD_SET(1) |
+			      SD_CMU_CMU_0D_CFG_PD_DIV64_SET(1) |
+			      SD_CMU_CMU_0D_CFG_PD_DIV66_SET(1),
+			      SD_CMU_CMU_0D_CFG_REFCK_PD |
+			      SD_CMU_CMU_0D_CFG_PD_DIV64 |
+			      SD_CMU_CMU_0D_CFG_PD_DIV66, cmu_inst,
+			      SD_CMU_CMU_0D(0));
+
+		sdx5_inst_rmw(SD_CMU_CMU_06_CFG_CTRL_LOGIC_PD_SET(1),
+			      SD_CMU_CMU_06_CFG_CTRL_LOGIC_PD, cmu_inst,
+			      SD_CMU_CMU_06(0));
+	}
+}
+
 static void sparx5_sd25g28_reset(void __iomem *regs[],
 				 struct sparx5_sd25g28_params *params,
 				 u32 sd_index)
@@ -2520,6 +2568,9 @@ static int sparx5_serdes_probe(struct platform_device *pdev)
 		if (err)
 			return err;
 	}
+
+	/* Power down all CMUs by default */
+	sparx5_serdes_cmu_power_off(priv);
 
 	provider = devm_of_phy_provider_register(priv->dev, sparx5_serdes_xlate);
 
