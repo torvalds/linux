@@ -32,7 +32,6 @@ static int cs35l56_spi_probe(struct spi_device *spi)
 	}
 
 	cs35l56->dev = &spi->dev;
-	cs35l56->irq = spi->irq;
 
 	ret = cs35l56_common_probe(cs35l56);
 	if (ret != 0)
@@ -40,7 +39,7 @@ static int cs35l56_spi_probe(struct spi_device *spi)
 
 	ret = cs35l56_init(cs35l56);
 	if (ret == 0)
-		ret = cs35l56_irq_request(cs35l56);
+		ret = cs35l56_irq_request(cs35l56, spi->irq);
 	if (ret < 0)
 		cs35l56_remove(cs35l56);
 

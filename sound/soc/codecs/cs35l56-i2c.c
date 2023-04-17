@@ -27,7 +27,6 @@ static int cs35l56_i2c_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	cs35l56->dev = dev;
-	cs35l56->irq = client->irq;
 	cs35l56->can_hibernate = true;
 
 	i2c_set_clientdata(client, cs35l56);
@@ -43,7 +42,7 @@ static int cs35l56_i2c_probe(struct i2c_client *client)
 
 	ret = cs35l56_init(cs35l56);
 	if (ret == 0)
-		ret = cs35l56_irq_request(cs35l56);
+		ret = cs35l56_irq_request(cs35l56, client->irq);
 	if (ret < 0)
 		cs35l56_remove(cs35l56);
 

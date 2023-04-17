@@ -34,7 +34,6 @@ struct cs35l56_private {
 	struct wm_adsp dsp; /* must be first member */
 	struct work_struct dsp_work;
 	struct workqueue_struct *dsp_wq;
-	struct completion dsp_ready_completion;
 	struct mutex irq_lock;
 	struct snd_soc_component *component;
 	struct device *dev;
@@ -74,9 +73,9 @@ int cs35l56_system_resume_no_irq(struct device *dev);
 int cs35l56_system_resume_early(struct device *dev);
 int cs35l56_system_resume(struct device *dev);
 irqreturn_t cs35l56_irq(int irq, void *data);
-int cs35l56_irq_request(struct cs35l56_private *cs35l56);
+int cs35l56_irq_request(struct cs35l56_private *cs35l56, int irq);
 int cs35l56_common_probe(struct cs35l56_private *cs35l56);
 int cs35l56_init(struct cs35l56_private *cs35l56);
-int cs35l56_remove(struct cs35l56_private *cs35l56);
+void cs35l56_remove(struct cs35l56_private *cs35l56);
 
 #endif /* ifndef CS35L56_H */

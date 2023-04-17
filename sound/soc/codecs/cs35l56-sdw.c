@@ -527,7 +527,9 @@ static int cs35l56_sdw_remove(struct sdw_slave *peripheral)
 	sdw_read_no_pm(peripheral, CS35L56_SDW_GEN_INT_STAT_1);
 	sdw_write_no_pm(peripheral, CS35L56_SDW_GEN_INT_STAT_1, 0xFF);
 
-	return cs35l56_remove(cs35l56);
+	cs35l56_remove(cs35l56);
+
+	return 0;
 }
 
 static const struct dev_pm_ops cs35l56_sdw_pm = {
