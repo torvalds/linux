@@ -253,17 +253,20 @@ static u32 mlx5e_rx_get_linear_stride_sz(struct mlx5_core_dev *mdev,
 					 struct mlx5e_xsk_param *xsk,
 					 bool mpwqe)
 {
+	u32 sz;
+
 	/* XSK frames are mapped as individual pages, because frames may come in
 	 * an arbitrary order from random locations in the UMEM.
 	 */
 	if (xsk)
 		return mpwqe ? 1 << mlx5e_mpwrq_page_shift(mdev, xsk) : PAGE_SIZE;
 
-	/* XDP in mlx5e doesn't support multiple packets per page. */
-	if (params->xdp_prog)
-		return PAGE_SIZE;
+	sz = roundup_pow_of_two(mlx5e_rx_get_linear_sz_skb(params, false));
 
-	return roundup_pow_of_two(mlx5e_rx_get_linear_sz_skb(params, false));
+	/* XDP in mlx5e doesn't support multiple packets per page.
+	 * Do not assume sz <= PAGE_SIZE if params->xdp_prog is set.
+	 */
+	return params->xdp_prog && sz < PAGE_SIZE ? PAGE_SIZE : sz;
 }
 
 static u8 mlx5e_mpwqe_log_pkts_per_wqe(struct mlx5_core_dev *mdev,
