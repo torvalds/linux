@@ -135,7 +135,7 @@ static int scm_smc_do_quirk(struct device *dev, struct arm_smccc_args *smc,
 			qscm = dev_get_drvdata(dev);
 			wq = qcom_scm_lookup_wq(qscm, wq_ctx);
 			if (IS_ERR_OR_NULL(wq)) {
-				pr_err("No waitqueue found for wq_ctx %d: %d\n",
+				pr_err("Did not find waitqueue for wq_ctx %d: %d\n",
 						wq_ctx, PTR_ERR(wq));
 				return PTR_ERR(wq);
 			}
