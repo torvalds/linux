@@ -68,6 +68,11 @@ source "net/iucv/Kconfig"
 source "net/smc/Kconfig"
 source "net/xdp/Kconfig"
 
+config NET_HANDSHAKE
+	bool
+	depends on SUNRPC || NVME_TARGET_TCP || NVME_TCP
+	default y
+
 config INET
 	bool "TCP/IP networking"
 	help
