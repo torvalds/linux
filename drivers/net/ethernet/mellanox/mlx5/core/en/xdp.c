@@ -126,7 +126,7 @@ mlx5e_xmit_xdp_buff(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq,
 	dma_addr = page_pool_get_dma_addr(page) + (xdpf->data - (void *)xdpf);
 	dma_sync_single_for_device(sq->pdev, dma_addr, xdptxd->len, DMA_BIDIRECTIONAL);
 
-	if (unlikely(xdptxd->has_frags)) {
+	if (xdptxd->has_frags) {
 		xdptxdf.sinfo = xdp_get_shared_info_from_frame(xdpf);
 
 		for (i = 0; i < xdptxdf.sinfo->nr_frags; i++) {
@@ -151,7 +151,7 @@ mlx5e_xmit_xdp_buff(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq,
 	xdpi.page.page = page;
 	mlx5e_xdpi_fifo_push(&sq->db.xdpi_fifo, &xdpi);
 
-	if (unlikely(xdptxd->has_frags)) {
+	if (xdptxd->has_frags) {
 		for (i = 0; i < xdptxdf.sinfo->nr_frags; i++) {
 			skb_frag_t *frag = &xdptxdf.sinfo->frags[i];
 
@@ -395,7 +395,7 @@ mlx5e_xmit_xdp_frame_mpwqe(struct mlx5e_xdpsq *sq, struct mlx5e_xmit_data *xdptx
 	struct mlx5e_tx_mpwqe *session = &sq->mpwqe;
 	struct mlx5e_xdpsq_stats *stats = sq->stats;
 
-	if (unlikely(xdptxd->has_frags)) {
+	if (xdptxd->has_frags) {
 		/* MPWQE is enabled, but a multi-buffer packet is queued for
 		 * transmission. MPWQE can't send fragmented packets, so close
 		 * the current session and fall back to a regular WQE.
@@ -483,7 +483,7 @@ mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xmit_data *xdptxd,
 	if (!check_result) {
 		int stop_room = 1;
 
-		if (unlikely(xdptxd->has_frags)) {
+		if (xdptxd->has_frags) {
 			ds_cnt += xdptxdf->sinfo->nr_frags;
 			num_frags = xdptxdf->sinfo->nr_frags;
 			num_wqebbs = DIV_ROUND_UP(ds_cnt, MLX5_SEND_WQEBB_NUM_DS);
@@ -525,7 +525,7 @@ mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xmit_data *xdptxd,
 
 	cseg->opmod_idx_opcode = cpu_to_be32((sq->pc << 8) | MLX5_OPCODE_SEND);
 
-	if (unlikely(test_bit(MLX5E_SQ_STATE_XDP_MULTIBUF, &sq->state))) {
+	if (test_bit(MLX5E_SQ_STATE_XDP_MULTIBUF, &sq->state)) {
 		u8 num_pkts = 1 + num_frags;
 		int i;
 
