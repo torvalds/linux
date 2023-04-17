@@ -225,16 +225,20 @@ int iwl_mvm_mac_ctxt_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	 * that we should share it with another interface.
 	 */
 
-	/* Currently, MAC ID 0 should be used only for the managed/IBSS vif */
-	switch (vif->type) {
-	case NL80211_IFTYPE_ADHOC:
-		break;
-	case NL80211_IFTYPE_STATION:
-		if (!vif->p2p)
+	/* MAC ID 0 should be used only for the managed/IBSS vif with non-MLO
+	 * FW API
+	 */
+	if (!mvm->mld_api_is_used) {
+		switch (vif->type) {
+		case NL80211_IFTYPE_ADHOC:
 			break;
-		fallthrough;
-	default:
-		__clear_bit(0, data.available_mac_ids);
+		case NL80211_IFTYPE_STATION:
+			if (!vif->p2p)
+				break;
+			fallthrough;
+		default:
+			__clear_bit(0, data.available_mac_ids);
+		}
 	}
 
 	ieee80211_iterate_active_interfaces_atomic(
