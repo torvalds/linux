@@ -302,7 +302,7 @@ static ssize_t read_file_mod_stats(struct file *file, char __user *user_buf,
 		return -ENOMEM;
 
 	/* The beginning of our debug preamble */
-	len = scnprintf(buf + 0, size - len, "%25s\t%u\n", "Mods ever loaded", live_mod_count);
+	len = scnprintf(buf, size, "%25s\t%u\n", "Mods ever loaded", live_mod_count);
 
 	len += scnprintf(buf + len, size - len, "%25s\t%u\n", "Mods failed on kread", fkreads);
 
