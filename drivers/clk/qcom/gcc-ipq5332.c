@@ -366,7 +366,7 @@ static struct clk_rcg2 gcc_adss_pwm_clk_src = {
 };
 
 static const struct freq_tbl ftbl_gcc_apss_axi_clk_src[] = {
-	F(480000000, P_GPLL4_OUT_MAIN, 2.5, 0, 0),
+	F(480000000, P_GPLL4_OUT_AUX, 2.5, 0, 0),
 	F(533333333, P_GPLL0_OUT_MAIN, 1.5, 0, 0),
 	{ }
 };
