@@ -471,6 +471,35 @@ static int mlx5e_refill_rx_wqes(struct mlx5e_rq *rq, u16 ix, int wqe_bulk)
 	return i;
 }
 
+static void
+mlx5e_add_skb_shared_info_frag(struct mlx5e_rq *rq, struct skb_shared_info *sinfo,
+			       struct xdp_buff *xdp, struct mlx5e_frag_page *frag_page,
+			       u32 frag_offset, u32 len)
+{
+	skb_frag_t *frag;
+
+	dma_addr_t addr = page_pool_get_dma_addr(frag_page->page);
+
+	dma_sync_single_for_cpu(rq->pdev, addr + frag_offset, len, rq->buff.map_dir);
+	if (!xdp_buff_has_frags(xdp)) {
+		/* Init on the first fragment to avoid cold cache access
+		 * when possible.
+		 */
+		sinfo->nr_frags = 0;
+		sinfo->xdp_frags_size = 0;
+		xdp_buff_set_frags_flag(xdp);
+	}
+
+	frag = &sinfo->frags[sinfo->nr_frags++];
+	__skb_frag_set_page(frag, frag_page->page);
+	skb_frag_off_set(frag, frag_offset);
+	skb_frag_size_set(frag, len);
+
+	if (page_is_pfmemalloc(frag_page->page))
+		xdp_buff_set_frag_pfmemalloc(xdp);
+	sinfo->xdp_frags_size += len;
+}
+
 static inline void
 mlx5e_add_skb_frag(struct mlx5e_rq *rq, struct sk_buff *skb,
 		   struct page *page, u32 frag_offset, u32 len,
@@ -1694,35 +1723,12 @@ mlx5e_skb_from_cqe_nonlinear(struct mlx5e_rq *rq, struct mlx5e_wqe_frag_info *wi
 	wi++;
 
 	while (cqe_bcnt) {
-		skb_frag_t *frag;
-
 		frag_page = wi->frag_page;
 
 		frag_consumed_bytes = min_t(u32, frag_info->frag_size, cqe_bcnt);
 
-		addr = page_pool_get_dma_addr(frag_page->page);
-		dma_sync_single_for_cpu(rq->pdev, addr + wi->offset,
-					frag_consumed_bytes, rq->buff.map_dir);
-
-		if (!xdp_buff_has_frags(&mxbuf.xdp)) {
-			/* Init on the first fragment to avoid cold cache access
-			 * when possible.
-			 */
-			sinfo->nr_frags = 0;
-			sinfo->xdp_frags_size = 0;
-			xdp_buff_set_frags_flag(&mxbuf.xdp);
-		}
-
-		frag = &sinfo->frags[sinfo->nr_frags++];
-
-		__skb_frag_set_page(frag, frag_page->page);
-		skb_frag_off_set(frag, wi->offset);
-		skb_frag_size_set(frag, frag_consumed_bytes);
-
-		if (page_is_pfmemalloc(frag_page->page))
-			xdp_buff_set_frag_pfmemalloc(&mxbuf.xdp);
-
-		sinfo->xdp_frags_size += frag_consumed_bytes;
+		mlx5e_add_skb_shared_info_frag(rq, sinfo, &mxbuf.xdp, frag_page,
+					       wi->offset, frag_consumed_bytes);
 		truesize += frag_info->frag_stride;
 
 		cqe_bcnt -= frag_consumed_bytes;
