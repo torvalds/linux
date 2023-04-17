@@ -94,9 +94,6 @@ int ocelot_mact_forget(struct ocelot *ocelot,
 struct net_device *ocelot_port_to_netdev(struct ocelot *ocelot, int port);
 int ocelot_netdev_to_port(struct net_device *dev);
 
-u32 ocelot_port_readl(struct ocelot_port *port, u32 reg);
-void ocelot_port_writel(struct ocelot_port *port, u32 val, u32 reg);
-
 int ocelot_probe_port(struct ocelot *ocelot, int port, struct regmap *target,
 		      struct device_node *portnp);
 void ocelot_release_port(struct ocelot_port *ocelot_port);
