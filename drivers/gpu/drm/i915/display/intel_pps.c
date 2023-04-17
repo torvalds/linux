@@ -1653,12 +1653,9 @@ void intel_pps_unlock_regs_wa(struct drm_i915_private *dev_priv)
 	 */
 	pps_num = intel_num_pps(dev_priv);
 
-	for (pps_idx = 0; pps_idx < pps_num; pps_idx++) {
-		u32 val = intel_de_read(dev_priv, PP_CONTROL(pps_idx));
-
-		val = (val & ~PANEL_UNLOCK_MASK) | PANEL_UNLOCK_REGS;
-		intel_de_write(dev_priv, PP_CONTROL(pps_idx), val);
-	}
+	for (pps_idx = 0; pps_idx < pps_num; pps_idx++)
+		intel_de_rmw(dev_priv, PP_CONTROL(pps_idx),
+			     PANEL_UNLOCK_MASK, PANEL_UNLOCK_REGS);
 }
 
 void intel_pps_setup(struct drm_i915_private *i915)
