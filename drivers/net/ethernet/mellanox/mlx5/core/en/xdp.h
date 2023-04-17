@@ -50,6 +50,41 @@ struct mlx5e_xdp_buff {
 	struct mlx5e_rq *rq;
 };
 
+/* XDP packets can be transmitted in different ways. On completion, we need to
+ * distinguish between them to clean up things in a proper way.
+ */
+enum mlx5e_xdp_xmit_mode {
+	/* An xdp_frame was transmitted due to either XDP_REDIRECT from another
+	 * device or XDP_TX from an XSK RQ. The frame has to be unmapped and
+	 * returned.
+	 */
+	MLX5E_XDP_XMIT_MODE_FRAME,
+
+	/* The xdp_frame was created in place as a result of XDP_TX from a
+	 * regular RQ. No DMA remapping happened, and the page belongs to us.
+	 */
+	MLX5E_XDP_XMIT_MODE_PAGE,
+
+	/* No xdp_frame was created at all, the transmit happened from a UMEM
+	 * page. The UMEM Completion Ring producer pointer has to be increased.
+	 */
+	MLX5E_XDP_XMIT_MODE_XSK,
+};
+
+struct mlx5e_xdp_info {
+	enum mlx5e_xdp_xmit_mode mode;
+	union {
+		struct {
+			struct xdp_frame *xdpf;
+			dma_addr_t dma_addr;
+		} frame;
+		struct {
+			struct mlx5e_rq *rq;
+			struct page *page;
+		} page;
+	};
+};
+
 struct mlx5e_xsk_param;
 int mlx5e_xdp_max_mtu(struct mlx5e_params *params, struct mlx5e_xsk_param *xsk);
 bool mlx5e_xdp_handle(struct mlx5e_rq *rq,
