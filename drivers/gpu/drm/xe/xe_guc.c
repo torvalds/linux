@@ -622,9 +622,6 @@ int xe_guc_auth_huc(struct xe_guc *guc, u32 rsa_addr)
 	return xe_guc_ct_send_block(&guc->ct, action, ARRAY_SIZE(action));
 }
 
-#define MEDIA_SOFT_SCRATCH(n)           _MMIO(0x190310 + (n) * 4)
-#define MEDIA_SOFT_SCRATCH_COUNT        4
-
 int xe_guc_mmio_send_recv(struct xe_guc *guc, const u32 *request,
 			  u32 len, u32 *response_buf)
 {
@@ -632,15 +629,17 @@ int xe_guc_mmio_send_recv(struct xe_guc *guc, const u32 *request,
 	struct xe_gt *gt = guc_to_gt(guc);
 	u32 header, reply;
 	u32 reply_reg = xe_gt_is_media_type(gt) ?
-		MEDIA_SOFT_SCRATCH(0).reg : GEN11_SOFT_SCRATCH(0).reg;
+		MED_VF_SW_FLAG(0).reg : VF_SW_FLAG(0).reg;
+	const u32 LAST_INDEX = VF_SW_FLAG_COUNT;
 	int ret;
 	int i;
 
-	BUILD_BUG_ON(GEN11_SOFT_SCRATCH_COUNT != MEDIA_SOFT_SCRATCH_COUNT);
+	BUILD_BUG_ON(VF_SW_FLAG_COUNT != MED_VF_SW_FLAG_COUNT);
+
 	XE_BUG_ON(guc->ct.enabled);
 	XE_BUG_ON(!len);
-	XE_BUG_ON(len > GEN11_SOFT_SCRATCH_COUNT);
-	XE_BUG_ON(len > MEDIA_SOFT_SCRATCH_COUNT);
+	XE_BUG_ON(len > VF_SW_FLAG_COUNT);
+	XE_BUG_ON(len > MED_VF_SW_FLAG_COUNT);
 	XE_BUG_ON(FIELD_GET(GUC_HXG_MSG_0_ORIGIN, request[0]) !=
 		  GUC_HXG_ORIGIN_HOST);
 	XE_BUG_ON(FIELD_GET(GUC_HXG_MSG_0_TYPE, request[0]) !=
@@ -650,17 +649,14 @@ retry:
 	/* Not in critical data-path, just do if else for GT type */
 	if (xe_gt_is_media_type(gt)) {
 		for (i = 0; i < len; ++i)
-			xe_mmio_write32(gt, MEDIA_SOFT_SCRATCH(i).reg,
+			xe_mmio_write32(gt, MED_VF_SW_FLAG(i).reg,
 					request[i]);
-#define LAST_INDEX	MEDIA_SOFT_SCRATCH_COUNT - 1
-		xe_mmio_read32(gt, MEDIA_SOFT_SCRATCH(LAST_INDEX).reg);
+		xe_mmio_read32(gt, MED_VF_SW_FLAG(LAST_INDEX).reg);
 	} else {
 		for (i = 0; i < len; ++i)
-			xe_mmio_write32(gt, GEN11_SOFT_SCRATCH(i).reg,
+			xe_mmio_write32(gt, VF_SW_FLAG(i).reg,
 					request[i]);
-#undef LAST_INDEX
-#define LAST_INDEX	GEN11_SOFT_SCRATCH_COUNT - 1
-		xe_mmio_read32(gt, GEN11_SOFT_SCRATCH(LAST_INDEX).reg);
+		xe_mmio_read32(gt, VF_SW_FLAG(LAST_INDEX).reg);
 	}
 
 	xe_guc_notify(guc);
@@ -724,7 +720,7 @@ proto:
 	if (response_buf) {
 		response_buf[0] = header;
 
-		for (i = 1; i < GEN11_SOFT_SCRATCH_COUNT; i++)
+		for (i = 1; i < VF_SW_FLAG_COUNT; i++)
 			response_buf[i] =
 				xe_mmio_read32(gt, reply_reg + i * sizeof(u32));
 	}

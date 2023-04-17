@@ -35,9 +35,6 @@
 #define SOFT_SCRATCH(n)			_MMIO(0xc180 + (n) * 4)
 #define SOFT_SCRATCH_COUNT		16
 
-#define GEN11_SOFT_SCRATCH(n)		_MMIO(0x190240 + (n) * 4)
-#define GEN11_SOFT_SCRATCH_COUNT	4
-
 #define UOS_RSA_SCRATCH(i)		_MMIO(0xc200 + (i) * 4)
 #define UOS_RSA_SCRATCH_COUNT		64
 
@@ -129,6 +126,12 @@ struct guc_doorbell_info {
 #define GUC_VCS2_VCS1_IER		_MMIO(0xC554)
 #define GUC_WD_VECS_IER			_MMIO(0xC558)
 #define GUC_PM_P24C_IER			_MMIO(0xC55C)
+
+#define VF_SW_FLAG(n)			_MMIO(0x190240 + (n) * 4)
+#define VF_SW_FLAG_COUNT		4
+
+#define MED_VF_SW_FLAG(n)		_MMIO(0x190310 + (n) * 4)
+#define MED_VF_SW_FLAG_COUNT		4
 
 /* GuC Interrupt Vector */
 #define GUC_INTR_GUC2HOST		BIT(15)
