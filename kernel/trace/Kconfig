@@ -145,6 +145,15 @@ config IPC_LOGGING
 
 	  If in doubt, say no.
 
+config IPC_LOGGING_CDEV
+	tristate "Ipc Logging Character Device"
+	depends on IPC_LOGGING
+	help
+	  Character device for ipc logging. Reading it will extract ipc logs up to
+	  the specified size and increment the read index of the ipc log buffer.
+	  Read function will return EOF when there is no longer any data to read
+	  in the ipc log buffer.
+
 config IPC_LOG_MINIDUMP_BUFFERS
         int "Ipc log buffers count that can be dumped with minidump"
 	depends on IPC_LOGGING
