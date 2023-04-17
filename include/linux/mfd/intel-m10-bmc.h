@@ -267,22 +267,7 @@ m10bmc_raw_read(struct intel_m10bmc *m10bmc, unsigned int addr,
 	return ret;
 }
 
-/*
- * The base of the system registers could be configured by HW developers, and
- * in HW SPEC, the base is not added to the addresses of the system registers.
- *
- * This function helps to simplify the accessing of the system registers. And if
- * the base is reconfigured in HW, SW developers could simply change the
- * csr_map's base accordingly.
- */
-static inline int m10bmc_sys_read(struct intel_m10bmc *m10bmc, unsigned int offset,
-				  unsigned int *val)
-{
-	const struct m10bmc_csr_map *csr_map = m10bmc->info->csr_map;
-
-	return m10bmc_raw_read(m10bmc, csr_map->base + offset, val);
-}
-
+int m10bmc_sys_read(struct intel_m10bmc *m10bmc, unsigned int offset, unsigned int *val);
 int m10bmc_sys_update_bits(struct intel_m10bmc *m10bmc, unsigned int offset,
 			   unsigned int msk, unsigned int val);
 

@@ -12,6 +12,20 @@
 #include <linux/mfd/intel-m10-bmc.h>
 #include <linux/module.h>
 
+/*
+ * This function helps to simplify the accessing of the system registers.
+ *
+ * The base of the system registers is configured through the struct
+ * csr_map.
+ */
+int m10bmc_sys_read(struct intel_m10bmc *m10bmc, unsigned int offset, unsigned int *val)
+{
+	const struct m10bmc_csr_map *csr_map = m10bmc->info->csr_map;
+
+	return m10bmc_raw_read(m10bmc, csr_map->base + offset, val);
+}
+EXPORT_SYMBOL_NS_GPL(m10bmc_sys_read, INTEL_M10_BMC_CORE);
+
 int m10bmc_sys_update_bits(struct intel_m10bmc *m10bmc, unsigned int offset,
 			   unsigned int msk, unsigned int val)
 {
