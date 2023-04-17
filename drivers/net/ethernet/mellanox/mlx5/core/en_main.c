@@ -4773,20 +4773,15 @@ static void mlx5e_tx_timeout(struct net_device *dev, unsigned int txqueue)
 	queue_work(priv->wq, &priv->tx_timeout_work);
 }
 
-static int mlx5e_xdp_allowed(struct mlx5e_priv *priv, struct bpf_prog *prog)
+static int mlx5e_xdp_allowed(struct net_device *netdev, struct mlx5_core_dev *mdev,
+			     struct mlx5e_params *params)
 {
-	struct net_device *netdev = priv->netdev;
-	struct mlx5e_params new_params;
-
-	if (priv->channels.params.packet_merge.type != MLX5E_PACKET_MERGE_NONE) {
+	if (params->packet_merge.type != MLX5E_PACKET_MERGE_NONE) {
 		netdev_warn(netdev, "can't set XDP while HW-GRO/LRO is on, disable them first\n");
 		return -EINVAL;
 	}
 
-	new_params = priv->channels.params;
-	new_params.xdp_prog = prog;
-
-	if (!mlx5e_params_validate_xdp(netdev, priv->mdev, &new_params))
+	if (!mlx5e_params_validate_xdp(netdev, mdev, params))
 		return -EINVAL;
 
 	return 0;
@@ -4813,17 +4808,17 @@ static int mlx5e_xdp_set(struct net_device *netdev, struct bpf_prog *prog)
 
 	mutex_lock(&priv->state_lock);
 
+	new_params = priv->channels.params;
+	new_params.xdp_prog = prog;
+
 	if (prog) {
-		err = mlx5e_xdp_allowed(priv, prog);
+		err = mlx5e_xdp_allowed(netdev, priv->mdev, &new_params);
 		if (err)
 			goto unlock;
 	}
 
 	/* no need for full reset when exchanging programs */
 	reset = (!priv->channels.params.xdp_prog || !prog);
-
-	new_params = priv->channels.params;
-	new_params.xdp_prog = prog;
 
 	old_prog = priv->channels.params.xdp_prog;
 
