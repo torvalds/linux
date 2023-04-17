@@ -172,6 +172,7 @@ struct geni_i2c_dev {
 	enum i2c_se_mode se_mode;
 	bool cmd_done;
 	bool is_shared;
+	bool is_high_perf; /* To increase the performance voting for higher BW valuest */
 	u32 dbg_num;
 	struct dbg_buf_ctxt *dbg_buf_ptr;
 	bool is_le_vm;
@@ -1634,6 +1635,9 @@ static int geni_i2c_probe(struct platform_device *pdev)
 
 		gi2c->is_i2c_hub = of_property_read_bool(pdev->dev.of_node,
 					"qcom,i2c-hub");
+
+		gi2c->is_high_perf = of_property_read_bool(pdev->dev.of_node,
+					"qcom,high-perf");
 		/*
 		 * For I2C_HUB, qup-ddr voting not required and
 		 * core clk should be voted explicitly.
@@ -1660,9 +1664,14 @@ static int geni_i2c_probe(struct platform_device *pdev)
 			gi2c->is_i2c_rtl_based  = true;
 			dev_info(gi2c->dev, "%s: RTL based SE\n", __func__);
 		} else {
-			ret = geni_se_common_resources_init(&gi2c->i2c_rsc,
-					GENI_DEFAULT_BW, GENI_DEFAULT_BW,
-					Bps_to_icc(gi2c->clk_freq_out));
+			if (gi2c->is_high_perf)
+				ret = geni_se_common_resources_init(&gi2c->i2c_rsc,
+						I2C_CORE2X_VOTE, APPS_PROC_TO_QUP_VOTE,
+						(DEFAULT_SE_CLK * DEFAULT_BUS_WIDTH));
+			else
+				ret = geni_se_common_resources_init(&gi2c->i2c_rsc,
+						GENI_DEFAULT_BW, GENI_DEFAULT_BW,
+						Bps_to_icc(gi2c->clk_freq_out));
 			if (ret) {
 				dev_err(&pdev->dev, "%s: Error - resources_init ret:%d\n",
 							__func__, ret);
