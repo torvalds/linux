@@ -4813,8 +4813,8 @@ struct cmf_sync_wqe {
 #define cmf_sync_cqid_WORD	word11
 	uint32_t read_bytes;
 	uint32_t word13;
-#define cmf_sync_period_SHIFT	16
-#define cmf_sync_period_MASK	0x0000ffff
+#define cmf_sync_period_SHIFT	24
+#define cmf_sync_period_MASK	0x000000ff
 #define cmf_sync_period_WORD	word13
 	uint32_t word14;
 	uint32_t word15;

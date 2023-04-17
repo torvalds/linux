@@ -663,7 +663,7 @@ extern int lpfc_enable_nvmet_cnt;
 extern unsigned long long lpfc_enable_nvmet[];
 extern int lpfc_no_hba_reset_cnt;
 extern unsigned long lpfc_no_hba_reset[];
-extern int lpfc_acqe_cgn_frequency;
+extern unsigned char lpfc_acqe_cgn_frequency;
 extern int lpfc_fabric_cgn_frequency;
 extern int lpfc_use_cgn_signal;
 
