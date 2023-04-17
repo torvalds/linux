@@ -427,7 +427,6 @@ static int iwl_mvm_mld_cfg_sta(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	struct iwl_mvm_sta_cfg_cmd cmd = {
 		.sta_id = cpu_to_le32(mvm_link_sta->sta_id),
 		.station_type = cpu_to_le32(mvm_sta->sta_type),
-		.mfp = cpu_to_le32(sta->mfp),
 	};
 	u32 agg_size = 0, mpdu_dens = 0;
 
