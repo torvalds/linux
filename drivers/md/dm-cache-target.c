@@ -275,7 +275,7 @@ enum cache_io_mode {
 struct cache_features {
 	enum cache_metadata_mode mode;
 	enum cache_io_mode io_mode;
-	unsigned metadata_version;
+	unsigned int metadata_version;
 	bool discard_passdown:1;
 };
 
@@ -362,7 +362,7 @@ struct cache {
 	 * Rather than reconstructing the table line for the status we just
 	 * save it and regurgitate.
 	 */
-	unsigned nr_ctr_args;
+	unsigned int nr_ctr_args;
 	const char **ctr_args;
 
 	struct dm_kcopyd_client *copier;
@@ -378,7 +378,7 @@ struct cache {
 	unsigned long *dirty_bitset;
 	atomic_t nr_dirty;
 
-	unsigned policy_nr_args;
+	unsigned int policy_nr_args;
 	struct dm_cache_policy *policy;
 
 	/*
@@ -409,7 +409,7 @@ struct cache {
 
 struct per_bio_data {
 	bool tick:1;
-	unsigned req_nr:2;
+	unsigned int req_nr:2;
 	struct dm_bio_prison_cell_v2 *cell;
 	struct dm_hook_info hook_info;
 	sector_t len;
@@ -517,7 +517,7 @@ static void build_key(dm_oblock_t begin, dm_oblock_t end, struct dm_cell_key_v2 
 #define WRITE_LOCK_LEVEL 0
 #define READ_WRITE_LOCK_LEVEL 1
 
-static unsigned lock_level(struct bio *bio)
+static unsigned int lock_level(struct bio *bio)
 {
 	return bio_data_dir(bio) == WRITE ?
 		WRITE_LOCK_LEVEL :
@@ -1884,7 +1884,7 @@ static void check_migrations(struct work_struct *ws)
  */
 static void destroy(struct cache *cache)
 {
-	unsigned i;
+	unsigned int i;
 
 	mempool_exit(&cache->migration_pool);
 
@@ -2124,7 +2124,7 @@ static int parse_features(struct cache_args *ca, struct dm_arg_set *as,
 	};
 
 	int r, mode_ctr = 0;
-	unsigned argc;
+	unsigned int argc;
 	const char *arg;
 	struct cache_features *cf = &ca->features;
 
@@ -2544,7 +2544,7 @@ bad:
 
 static int copy_ctr_args(struct cache *cache, int argc, const char **argv)
 {
-	unsigned i;
+	unsigned int i;
 	const char **copy;
 
 	copy = kcalloc(argc, sizeof(*copy), GFP_KERNEL);
@@ -2566,7 +2566,7 @@ static int copy_ctr_args(struct cache *cache, int argc, const char **argv)
 	return 0;
 }
 
-static int cache_ctr(struct dm_target *ti, unsigned argc, char **argv)
+static int cache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
 	int r = -EINVAL;
 	struct cache_args *ca;
@@ -2669,7 +2669,7 @@ static int write_dirty_bitset(struct cache *cache)
 
 static int write_discard_bitset(struct cache *cache)
 {
-	unsigned i, r;
+	unsigned int i, r;
 
 	if (get_cache_mode(cache) >= CM_READ_ONLY)
 		return -EINVAL;
@@ -2983,11 +2983,11 @@ static void cache_resume(struct dm_target *ti)
 }
 
 static void emit_flags(struct cache *cache, char *result,
-		       unsigned maxlen, ssize_t *sz_ptr)
+		       unsigned int maxlen, ssize_t *sz_ptr)
 {
 	ssize_t sz = *sz_ptr;
 	struct cache_features *cf = &cache->features;
-	unsigned count = (cf->metadata_version == 2) + !cf->discard_passdown + 1;
+	unsigned int count = (cf->metadata_version == 2) + !cf->discard_passdown + 1;
 
 	DMEMIT("%u ", count);
 
@@ -3027,10 +3027,10 @@ static void emit_flags(struct cache *cache, char *result,
  * <policy name> <#policy args> <policy args>* <cache metadata mode> <needs_check>
  */
 static void cache_status(struct dm_target *ti, status_type_t type,
-			 unsigned status_flags, char *result, unsigned maxlen)
+			 unsigned int status_flags, char *result, unsigned int maxlen)
 {
 	int r = 0;
-	unsigned i;
+	unsigned int i;
 	ssize_t sz = 0;
 	dm_block_t nr_free_blocks_metadata = 0;
 	dm_block_t nr_blocks_metadata = 0;
@@ -3067,18 +3067,18 @@ static void cache_status(struct dm_target *ti, status_type_t type,
 		residency = policy_residency(cache->policy);
 
 		DMEMIT("%u %llu/%llu %llu %llu/%llu %u %u %u %u %u %u %lu ",
-		       (unsigned)DM_CACHE_METADATA_BLOCK_SIZE,
+		       (unsigned int)DM_CACHE_METADATA_BLOCK_SIZE,
 		       (unsigned long long)(nr_blocks_metadata - nr_free_blocks_metadata),
 		       (unsigned long long)nr_blocks_metadata,
 		       (unsigned long long)cache->sectors_per_block,
 		       (unsigned long long) from_cblock(residency),
 		       (unsigned long long) from_cblock(cache->cache_size),
-		       (unsigned) atomic_read(&cache->stats.read_hit),
-		       (unsigned) atomic_read(&cache->stats.read_miss),
-		       (unsigned) atomic_read(&cache->stats.write_hit),
-		       (unsigned) atomic_read(&cache->stats.write_miss),
-		       (unsigned) atomic_read(&cache->stats.demotion),
-		       (unsigned) atomic_read(&cache->stats.promotion),
+		       (unsigned int) atomic_read(&cache->stats.read_hit),
+		       (unsigned int) atomic_read(&cache->stats.read_miss),
+		       (unsigned int) atomic_read(&cache->stats.write_hit),
+		       (unsigned int) atomic_read(&cache->stats.write_miss),
+		       (unsigned int) atomic_read(&cache->stats.demotion),
+		       (unsigned int) atomic_read(&cache->stats.promotion),
 		       (unsigned long) atomic_read(&cache->nr_dirty));
 
 		emit_flags(cache, result, maxlen, &sz);
@@ -3257,11 +3257,11 @@ static int request_invalidation(struct cache *cache, struct cblock_range *range)
 	return r;
 }
 
-static int process_invalidate_cblocks_message(struct cache *cache, unsigned count,
+static int process_invalidate_cblocks_message(struct cache *cache, unsigned int count,
 					      const char **cblock_ranges)
 {
 	int r = 0;
-	unsigned i;
+	unsigned int i;
 	struct cblock_range range;
 
 	if (!passthrough_mode(cache)) {
@@ -3298,8 +3298,8 @@ static int process_invalidate_cblocks_message(struct cache *cache, unsigned coun
  *
  * The key migration_threshold is supported by the cache target core.
  */
-static int cache_message(struct dm_target *ti, unsigned argc, char **argv,
-			 char *result, unsigned maxlen)
+static int cache_message(struct dm_target *ti, unsigned int argc, char **argv,
+			 char *result, unsigned int maxlen)
 {
 	struct cache *cache = ti->private;
 

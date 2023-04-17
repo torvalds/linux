@@ -104,7 +104,7 @@ struct dm_cache_metadata {
 	refcount_t ref_count;
 	struct list_head list;
 
-	unsigned version;
+	unsigned int version;
 	struct block_device *bdev;
 	struct dm_block_manager *bm;
 	struct dm_space_map *metadata_sm;
@@ -129,7 +129,7 @@ struct dm_cache_metadata {
 	bool clean_when_opened:1;
 
 	char policy_name[CACHE_POLICY_NAME_SIZE];
-	unsigned policy_version[CACHE_POLICY_VERSION_SIZE];
+	unsigned int policy_version[CACHE_POLICY_VERSION_SIZE];
 	size_t policy_hint_size;
 	struct dm_cache_statistics stats;
 
@@ -260,10 +260,10 @@ static int superblock_lock(struct dm_cache_metadata *cmd,
 static int __superblock_all_zeroes(struct dm_block_manager *bm, bool *result)
 {
 	int r;
-	unsigned i;
+	unsigned int i;
 	struct dm_block *b;
 	__le64 *data_le, zero = cpu_to_le64(0);
-	unsigned sb_block_size = dm_bm_block_size(bm) / sizeof(__le64);
+	unsigned int sb_block_size = dm_bm_block_size(bm) / sizeof(__le64);
 
 	/*
 	 * We can't use a validator here - it may be all zeroes.
@@ -727,7 +727,7 @@ static int __commit_transaction(struct dm_cache_metadata *cmd,
  */
 #define FLAGS_MASK ((1 << 16) - 1)
 
-static __le64 pack_value(dm_oblock_t block, unsigned flags)
+static __le64 pack_value(dm_oblock_t block, unsigned int flags)
 {
 	uint64_t value = from_oblock(block);
 	value <<= 16;
@@ -735,7 +735,7 @@ static __le64 pack_value(dm_oblock_t block, unsigned flags)
 	return cpu_to_le64(value);
 }
 
-static void unpack_value(__le64 value_le, dm_oblock_t *block, unsigned *flags)
+static void unpack_value(__le64 value_le, dm_oblock_t *block, unsigned int *flags)
 {
 	uint64_t value = le64_to_cpu(value_le);
 	uint64_t b = value >> 16;
@@ -749,7 +749,7 @@ static struct dm_cache_metadata *metadata_open(struct block_device *bdev,
 					       sector_t data_block_size,
 					       bool may_format_device,
 					       size_t policy_hint_size,
-					       unsigned metadata_version)
+					       unsigned int metadata_version)
 {
 	int r;
 	struct dm_cache_metadata *cmd;
@@ -810,7 +810,7 @@ static struct dm_cache_metadata *lookup_or_open(struct block_device *bdev,
 						sector_t data_block_size,
 						bool may_format_device,
 						size_t policy_hint_size,
-						unsigned metadata_version)
+						unsigned int metadata_version)
 {
 	struct dm_cache_metadata *cmd, *cmd2;
 
@@ -855,7 +855,7 @@ struct dm_cache_metadata *dm_cache_metadata_open(struct block_device *bdev,
 						 sector_t data_block_size,
 						 bool may_format_device,
 						 size_t policy_hint_size,
-						 unsigned metadata_version)
+						 unsigned int metadata_version)
 {
 	struct dm_cache_metadata *cmd = lookup_or_open(bdev, data_block_size, may_format_device,
 						       policy_hint_size, metadata_version);
@@ -890,7 +890,7 @@ static int block_clean_combined_dirty(struct dm_cache_metadata *cmd, dm_cblock_t
 	int r;
 	__le64 value;
 	dm_oblock_t ob;
-	unsigned flags;
+	unsigned int flags;
 
 	r = dm_array_get_value(&cmd->info, cmd->root, from_cblock(b), &value);
 	if (r)
@@ -1288,7 +1288,7 @@ static bool policy_unchanged(struct dm_cache_metadata *cmd,
 			     struct dm_cache_policy *policy)
 {
 	const char *policy_name = dm_cache_policy_get_name(policy);
-	const unsigned *policy_version = dm_cache_policy_get_version(policy);
+	const unsigned int *policy_version = dm_cache_policy_get_version(policy);
 	size_t policy_hint_size = dm_cache_policy_get_hint_size(policy);
 
 	/*
@@ -1339,7 +1339,7 @@ static int __load_mapping_v1(struct dm_cache_metadata *cmd,
 	__le32 *hint_value_le;
 
 	dm_oblock_t oblock;
-	unsigned flags;
+	unsigned int flags;
 	bool dirty = true;
 
 	dm_array_cursor_get_value(mapping_cursor, (void **) &mapping_value_le);
@@ -1381,7 +1381,7 @@ static int __load_mapping_v2(struct dm_cache_metadata *cmd,
 	__le32 *hint_value_le;
 
 	dm_oblock_t oblock;
-	unsigned flags;
+	unsigned int flags;
 	bool dirty = true;
 
 	dm_array_cursor_get_value(mapping_cursor, (void **) &mapping_value_le);
@@ -1513,7 +1513,7 @@ static int __dump_mapping(void *context, uint64_t cblock, void *leaf)
 {
 	__le64 value;
 	dm_oblock_t oblock;
-	unsigned flags;
+	unsigned int flags;
 
 	memcpy(&value, leaf, sizeof(value));
 	unpack_value(value, &oblock, &flags);
@@ -1547,7 +1547,7 @@ int dm_cache_changed_this_transaction(struct dm_cache_metadata *cmd)
 static int __dirty(struct dm_cache_metadata *cmd, dm_cblock_t cblock, bool dirty)
 {
 	int r;
-	unsigned flags;
+	unsigned int flags;
 	dm_oblock_t oblock;
 	__le64 value;
 
@@ -1574,10 +1574,10 @@ static int __dirty(struct dm_cache_metadata *cmd, dm_cblock_t cblock, bool dirty
 
 }
 
-static int __set_dirty_bits_v1(struct dm_cache_metadata *cmd, unsigned nr_bits, unsigned long *bits)
+static int __set_dirty_bits_v1(struct dm_cache_metadata *cmd, unsigned int nr_bits, unsigned long *bits)
 {
 	int r;
-	unsigned i;
+	unsigned int i;
 	for (i = 0; i < nr_bits; i++) {
 		r = __dirty(cmd, to_cblock(i), test_bit(i, bits));
 		if (r)
@@ -1594,7 +1594,7 @@ static int is_dirty_callback(uint32_t index, bool *value, void *context)
 	return 0;
 }
 
-static int __set_dirty_bits_v2(struct dm_cache_metadata *cmd, unsigned nr_bits, unsigned long *bits)
+static int __set_dirty_bits_v2(struct dm_cache_metadata *cmd, unsigned int nr_bits, unsigned long *bits)
 {
 	int r = 0;
 
@@ -1613,7 +1613,7 @@ static int __set_dirty_bits_v2(struct dm_cache_metadata *cmd, unsigned nr_bits, 
 }
 
 int dm_cache_set_dirty_bits(struct dm_cache_metadata *cmd,
-			    unsigned nr_bits,
+			    unsigned int nr_bits,
 			    unsigned long *bits)
 {
 	int r;
@@ -1712,7 +1712,7 @@ static int write_hints(struct dm_cache_metadata *cmd, struct dm_cache_policy *po
 	int r;
 	size_t hint_size;
 	const char *policy_name = dm_cache_policy_get_name(policy);
-	const unsigned *policy_version = dm_cache_policy_get_version(policy);
+	const unsigned int *policy_version = dm_cache_policy_get_version(policy);
 
 	if (!policy_name[0] ||
 	    (strlen(policy_name) > sizeof(cmd->policy_name) - 1))

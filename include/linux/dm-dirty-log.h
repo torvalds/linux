@@ -33,7 +33,7 @@ struct dm_dirty_log_type {
 	struct list_head list;
 
 	int (*ctr)(struct dm_dirty_log *log, struct dm_target *ti,
-		   unsigned argc, char **argv);
+		   unsigned int argc, char **argv);
 	void (*dtr)(struct dm_dirty_log *log);
 
 	/*
@@ -116,7 +116,7 @@ struct dm_dirty_log_type {
 	 * Support function for mirror status requests.
 	 */
 	int (*status)(struct dm_dirty_log *log, status_type_t status_type,
-		      char *result, unsigned maxlen);
+		      char *result, unsigned int maxlen);
 
 	/*
 	 * is_remote_recovering is necessary for cluster mirroring. It provides
@@ -139,7 +139,7 @@ int dm_dirty_log_type_unregister(struct dm_dirty_log_type *type);
 struct dm_dirty_log *dm_dirty_log_create(const char *type_name,
 			struct dm_target *ti,
 			int (*flush_callback_fn)(struct dm_target *ti),
-			unsigned argc, char **argv);
+			unsigned int argc, char **argv);
 void dm_dirty_log_destroy(struct dm_dirty_log *log);
 
 #endif	/* __KERNEL__ */
