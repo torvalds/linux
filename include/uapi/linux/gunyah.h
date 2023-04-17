@@ -133,7 +133,7 @@ struct gh_fn_irqfd_arg {
 	__u32 padding;
 };
 
-#define GH_IOEVENTFD_DATAMATCH		(1UL << 0)
+#define GH_IOEVENTFD_FLAGS_DATAMATCH		(1UL << 0)
 
 /**
  * struct gh_fn_ioeventfd_arg - Arguments to create an ioeventfd function

@@ -294,9 +294,16 @@ static int _gh_vm_io_handler_compare(const struct rb_node *node, const struct rb
 		return -1;
 	if (n->len > p->len)
 		return 1;
-	if (n->datamatch < p->datamatch)
+	/* one of the io handlers doesn't have datamatch and the other does.
+	 * For purposes of comparison, that makes them identical since the
+	 * one that doesn't have datamatch will cover the same handler that
+	 * does.
+	 */
+	if (n->datamatch != p->datamatch)
+		return 0;
+	if (n->data < p->data)
 		return -1;
-	if (n->datamatch > p->datamatch)
+	if (n->data > p->data)
 		return 1;
 	return 0;
 }
@@ -319,7 +326,8 @@ static struct gh_vm_io_handler *gh_vm_mgr_find_io_hdlr(struct gh_vm *ghvm, u64 a
 	struct gh_vm_io_handler key = {
 		.addr = addr,
 		.len = len,
-		.datamatch = data,
+		.datamatch = true,
+		.data = data,
 	};
 	struct rb_node *node;
 
