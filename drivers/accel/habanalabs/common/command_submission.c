@@ -2152,7 +2152,7 @@ static int cs_ioctl_unreserve_signals(struct hl_fpriv *hpriv, u32 handle_id)
 
 			hdev->asic_funcs->hw_queues_unlock(hdev);
 			rc = -EINVAL;
-			goto out;
+			goto out_unlock;
 		}
 
 		/*
@@ -2167,15 +2167,21 @@ static int cs_ioctl_unreserve_signals(struct hl_fpriv *hpriv, u32 handle_id)
 
 		/* Release the id and free allocated memory of the handle */
 		idr_remove(&mgr->handles, handle_id);
+
+		/* unlock before calling ctx_put, where we might sleep */
+		spin_unlock(&mgr->lock);
 		hl_ctx_put(encaps_sig_hdl->ctx);
 		kfree(encaps_sig_hdl);
+		goto out;
 	} else {
 		rc = -EINVAL;
 		dev_err(hdev->dev, "failed to unreserve signals, cannot find handler\n");
 	}
-out:
+
+out_unlock:
 	spin_unlock(&mgr->lock);
 
+out:
 	return rc;
 }
 
