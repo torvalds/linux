@@ -98,7 +98,7 @@ static long gh_irqfd_bind(struct gh_vm_function_instance *f)
 		return -EINVAL;
 
 	/* All other flag bits are reserved for future use */
-	if (args->flags & ~GH_IRQFD_LEVEL)
+	if (args->flags & ~GH_IRQFD_FLAGS_LEVEL)
 		return -EINVAL;
 
 	irqfd = kzalloc(sizeof(*irqfd), GFP_KERNEL);
@@ -120,7 +120,7 @@ static long gh_irqfd_bind(struct gh_vm_function_instance *f)
 		goto err_fdput;
 	}
 
-	if (args->flags & GH_IRQFD_LEVEL)
+	if (args->flags & GH_IRQFD_FLAGS_LEVEL)
 		irqfd->level = true;
 
 	init_waitqueue_func_entry(&irqfd->wait, irqfd_wakeup);
