@@ -142,7 +142,7 @@ static int soc_compr_open_fe(struct snd_compr_stream *cstream)
 	int stream = cstream->direction; /* SND_COMPRESS_xxx is same as SNDRV_PCM_STREAM_xxx */
 	int ret;
 
-	mutex_lock_nested(&fe->card->mutex, SND_SOC_CARD_CLASS_RUNTIME);
+	snd_soc_card_mutex_lock(fe->card);
 	fe->dpcm[stream].runtime = fe_substream->runtime;
 
 	ret = dpcm_path_get(fe, stream, &list);
@@ -189,7 +189,7 @@ static int soc_compr_open_fe(struct snd_compr_stream *cstream)
 	snd_soc_runtime_activate(fe, stream);
 	snd_soc_dpcm_mutex_unlock(fe);
 
-	mutex_unlock(&fe->card->mutex);
+	snd_soc_card_mutex_unlock(fe->card);
 
 	return 0;
 
@@ -201,7 +201,7 @@ out:
 	dpcm_path_put(&list);
 be_err:
 	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_NO;
-	mutex_unlock(&fe->card->mutex);
+	snd_soc_card_mutex_unlock(fe->card);
 	return ret;
 }
 
@@ -212,7 +212,7 @@ static int soc_compr_free_fe(struct snd_compr_stream *cstream)
 	struct snd_soc_dpcm *dpcm;
 	int stream = cstream->direction; /* SND_COMPRESS_xxx is same as SNDRV_PCM_STREAM_xxx */
 
-	mutex_lock_nested(&fe->card->mutex, SND_SOC_CARD_CLASS_RUNTIME);
+	snd_soc_card_mutex_lock(fe->card);
 
 	snd_soc_dpcm_mutex_lock(fe);
 	snd_soc_runtime_deactivate(fe, stream);
@@ -244,7 +244,7 @@ static int soc_compr_free_fe(struct snd_compr_stream *cstream)
 
 	snd_soc_dai_compr_shutdown(cpu_dai, cstream, 0);
 
-	mutex_unlock(&fe->card->mutex);
+	snd_soc_card_mutex_unlock(fe->card);
 	return 0;
 }
 
@@ -291,7 +291,7 @@ static int soc_compr_trigger_fe(struct snd_compr_stream *cstream, int cmd)
 	    cmd == SND_COMPR_TRIGGER_DRAIN)
 		return snd_soc_component_compr_trigger(cstream, cmd);
 
-	mutex_lock_nested(&fe->card->mutex, SND_SOC_CARD_CLASS_RUNTIME);
+	snd_soc_card_mutex_lock(fe->card);
 
 	ret = snd_soc_dai_compr_trigger(cpu_dai, cstream, cmd);
 	if (ret < 0)
@@ -322,7 +322,7 @@ static int soc_compr_trigger_fe(struct snd_compr_stream *cstream, int cmd)
 
 out:
 	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_NO;
-	mutex_unlock(&fe->card->mutex);
+	snd_soc_card_mutex_unlock(fe->card);
 	return ret;
 }
 
@@ -380,7 +380,7 @@ static int soc_compr_set_params_fe(struct snd_compr_stream *cstream,
 	int stream = cstream->direction; /* SND_COMPRESS_xxx is same as SNDRV_PCM_STREAM_xxx */
 	int ret;
 
-	mutex_lock_nested(&fe->card->mutex, SND_SOC_CARD_CLASS_RUNTIME);
+	snd_soc_card_mutex_lock(fe->card);
 
 	/*
 	 * Create an empty hw_params for the BE as the machine driver must
@@ -418,7 +418,7 @@ static int soc_compr_set_params_fe(struct snd_compr_stream *cstream,
 
 out:
 	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_NO;
-	mutex_unlock(&fe->card->mutex);
+	snd_soc_card_mutex_unlock(fe->card);
 	return ret;
 }
 
