@@ -12,7 +12,8 @@
 
 bool mlx5dr_domain_is_support_ptrn_arg(struct mlx5dr_domain *dmn)
 {
-	return false;
+	return dmn->info.caps.sw_format_ver >= MLX5_STEERING_FORMAT_CONNECTX_6DX &&
+	       dmn->info.caps.support_modify_argument;
 }
 
 static int dr_domain_init_modify_header_resources(struct mlx5dr_domain *dmn)
@@ -26,7 +27,18 @@ static int dr_domain_init_modify_header_resources(struct mlx5dr_domain *dmn)
 		return -ENOMEM;
 	}
 
+	/* create argument pool */
+	dmn->arg_mgr = mlx5dr_arg_mgr_create(dmn);
+	if (!dmn->arg_mgr) {
+		mlx5dr_err(dmn, "Couldn't create arg_mgr\n");
+		goto free_modify_header_pattern;
+	}
+
 	return 0;
+
+free_modify_header_pattern:
+	mlx5dr_ptrn_mgr_destroy(dmn->ptrn_mgr);
+	return -ENOMEM;
 }
 
 static void dr_domain_destroy_modify_header_resources(struct mlx5dr_domain *dmn)
@@ -34,6 +46,7 @@ static void dr_domain_destroy_modify_header_resources(struct mlx5dr_domain *dmn)
 	if (!mlx5dr_domain_is_support_ptrn_arg(dmn))
 		return;
 
+	mlx5dr_arg_mgr_destroy(dmn->arg_mgr);
 	mlx5dr_ptrn_mgr_destroy(dmn->ptrn_mgr);
 }
 
