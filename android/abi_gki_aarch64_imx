@@ -15,6 +15,7 @@
   alt_cb_patch_nops
   __arch_copy_from_user
   __arch_copy_to_user
+  arm64_use_ng_mappings
   __arm_smccc_smc
   atomic_notifier_call_chain
   backlight_device_register
@@ -23,6 +24,9 @@
   __bitmap_and
   bitmap_parse
   __bitmap_weight
+  blocking_notifier_call_chain
+  blocking_notifier_chain_register
+  blocking_notifier_chain_unregister
   bpf_trace_run1
   bpf_trace_run2
   bpf_trace_run3
@@ -90,6 +94,8 @@
   cfg80211_unregister_wdev
   cfg80211_vendor_cmd_reply
   __check_object_size
+  __class_create
+  class_destroy
   clk_bulk_disable
   clk_bulk_enable
   clk_bulk_prepare
@@ -117,7 +123,12 @@
   clk_set_rate
   clk_unprepare
   complete
+  complete_all
   completion_done
+  component_add
+  component_del
+  console_lock
+  console_unlock
   __const_udelay
   consume_skb
   __copy_overflow
@@ -234,9 +245,13 @@
   devm_phy_optional_get
   devm_phy_package_join
   devm_pinctrl_get
+  devm_pinctrl_put
   devm_platform_get_and_ioremap_resource
   devm_platform_ioremap_resource
   devm_platform_ioremap_resource_byname
+  devm_pwm_get
+  devm_rc_allocate_device
+  devm_rc_register_device
   devm_regmap_field_alloc
   __devm_regmap_init
   __devm_regmap_init_i2c
@@ -257,7 +272,9 @@
   devm_thermal_of_zone_register
   devm_usb_get_phy
   devm_usb_get_phy_by_phandle
+  _dev_notice
   dev_pm_domain_attach_by_id
+  dev_pm_domain_attach_by_name
   dev_pm_domain_detach
   dev_pm_set_wake_irq
   _dev_printk
@@ -271,10 +288,23 @@
   disable_irq_nosync
   dma_alloc_attrs
   dma_alloc_pages
+  dma_async_device_register
+  dma_async_device_unregister
+  dma_async_tx_descriptor_init
+  dma_buf_export
+  dma_buf_fd
+  dma_fence_context_alloc
+  dma_fence_default_wait
+  dma_fence_init
+  dma_fence_release
+  dma_fence_signal_locked
+  dma_fence_wait_timeout
   dma_free_attrs
   dma_free_pages
+  dma_get_sgtable_attrs
   dma_map_page_attrs
   dma_map_sg_attrs
+  dma_map_sgtable
   dma_mmap_attrs
   dma_pool_alloc
   dma_pool_create
@@ -290,9 +320,29 @@
   dma_unmap_page_attrs
   dma_unmap_sg_attrs
   down_interruptible
+  down_timeout
   dpcm_end_walk_at_be
   driver_register
   driver_unregister
+  drm_atomic_add_affected_connectors
+  drm_atomic_helper_check
+  drm_atomic_helper_check_plane_state
+  drm_atomic_helper_cleanup_planes
+  drm_atomic_helper_commit
+  drm_atomic_helper_commit_hw_done
+  drm_atomic_helper_commit_modeset_disables
+  drm_atomic_helper_commit_modeset_enables
+  drm_atomic_helper_commit_planes
+  __drm_atomic_helper_crtc_destroy_state
+  __drm_atomic_helper_crtc_duplicate_state
+  drm_atomic_helper_disable_plane
+  drm_atomic_helper_page_flip
+  drm_atomic_helper_plane_destroy_state
+  drm_atomic_helper_plane_duplicate_state
+  drm_atomic_helper_plane_reset
+  drm_atomic_helper_set_config
+  drm_atomic_helper_update_plane
+  drm_atomic_helper_wait_for_vblanks
   drm_bridge_attach
   drm_bridge_chain_enable
   drm_bridge_connector_enable_hpd
@@ -325,6 +375,7 @@
   drm_dev_put
   drm_dev_register
   drm_dev_unregister
+  drm_display_mode_to_videomode
   drm_do_get_edid
   drm_edid_duplicate
   drm_edid_get_monitor_name
@@ -360,6 +411,7 @@
   drm_kms_helper_hotplug_event
   drm_kms_helper_poll_fini
   drm_kms_helper_poll_init
+  drm_match_cea_mode
   drmm_mode_config_init
   drm_mode_config_cleanup
   drm_mode_config_helper_resume
@@ -371,6 +423,7 @@
   drm_mode_destroy
   drm_mode_duplicate
   drm_mode_equal
+  drm_mode_find_dmt
   drm_mode_object_put
   drm_mode_probed_add
   drm_modeset_acquire_fini
@@ -406,9 +459,12 @@
   __drm_printfn_debug
   drm_property_create_enum
   drm_property_create_range
+  drm_property_destroy
   drm_read
   drm_rect_intersect
   drm_release
+  drm_self_refresh_helper_cleanup
+  drm_self_refresh_helper_init
   drm_simple_encoder_init
   drm_sysfs_connector_status_event
   drm_universal_plane_init
@@ -430,6 +486,8 @@
   extcon_get_edev_by_phandle
   extcon_get_state
   extcon_set_state_sync
+  fb_get_options
+  fb_mode_option
   fd_install
   fget
   _find_first_bit
@@ -452,11 +510,21 @@
   free_pages_exact
   free_percpu
   free_percpu_irq
+  fwnode_device_is_available
+  fwnode_get_name
+  fwnode_graph_get_next_endpoint
+  fwnode_graph_get_port_parent
+  fwnode_graph_get_remote_endpoint
+  fwnode_graph_get_remote_port_parent
+  fwnode_graph_parse_endpoint
+  fwnode_handle_get
   fwnode_handle_put
   fwnode_irq_get_byname
+  fwnode_property_get_reference_args
   fwnode_property_present
   fwnode_property_read_string
   fwnode_property_read_u32_array
+  fwnode_property_read_u64_array
   gcd
   generic_device_group
   generic_handle_domain_irq
@@ -578,6 +646,7 @@
   ieee80211_freq_khz_to_channel
   ieee80211_get_channel_khz
   ieee80211_hdrlen
+  ignore_console_lock_warning
   iio_alloc_pollfunc
   iio_buffer_enabled
   iio_buffer_init
@@ -655,6 +724,8 @@
   irq_set_chip_data
   irq_set_irq_wake
   irq_to_desc
+  ir_raw_event_store_edge
+  is_console_locked
   is_vmalloc_addr
   iwe_stream_add_event
   iwe_stream_add_point
@@ -724,6 +795,7 @@
   mbox_chan_received_data
   mbox_chan_txdone
   mbox_free_channel
+  mbox_request_channel_byname
   mbox_send_message
   __mdiobus_read
   mdiobus_read
@@ -731,6 +803,19 @@
   __mdiobus_write
   mdiobus_write
   mdio_device_reset
+  media_create_ancillary_link
+  media_create_pad_link
+  media_device_cleanup
+  media_device_init
+  __media_device_register
+  media_device_unregister
+  media_entity_pads_init
+  media_entity_remove_links
+  media_graph_walk_cleanup
+  media_graph_walk_init
+  media_graph_walk_next
+  media_graph_walk_start
+  media_pad_remote_pad_first
   memchr_inv
   memcmp
   memcpy
@@ -823,6 +908,7 @@
   of_find_device_by_node
   of_find_i2c_device_by_node
   of_find_node_by_name
+  of_find_node_by_phandle
   of_find_node_opts_by_path
   of_find_property
   of_fwnode_ops
@@ -833,8 +919,13 @@
   of_get_next_child
   of_get_parent
   of_get_property
+  of_get_videomode
+  of_graph_get_next_endpoint
+  of_graph_get_port_by_id
+  of_graph_get_remote_port_parent
   of_machine_is_compatible
   of_match_device
+  of_match_node
   of_node_name_eq
   __of_parse_phandle_with_args
   of_phy_simple_xlate
@@ -846,9 +937,11 @@
   of_property_read_u32_index
   of_property_read_variable_u32_array
   of_reserved_mem_device_init_by_idx
+  of_reset_control_array_get
   of_usb_get_phy_mode
   of_usb_host_tpl_support
   of_usb_update_otg_caps
+  oops_in_progress
   page_pool_destroy
   page_pool_put_defragged_page
   panic
@@ -1003,6 +1096,8 @@
   __put_task_struct
   put_unused_fd
   pwm_apply_state
+  pwm_free
+  pwm_request
   queue_delayed_work_on
   queue_work_on
   radix_tree_insert
@@ -1168,6 +1263,8 @@
   __sg_page_iter_next
   simple_open
   simple_read_from_buffer
+  simple_strtol
+  simple_strtoul
   simple_write_to_buffer
   single_open
   single_release
@@ -1300,6 +1397,7 @@
   snd_soc_tplg_component_remove
   snd_soc_tplg_widget_bind_event
   snprintf
+  soc_device_match
   sort
   spi_get_device_id
   __spi_register_driver
@@ -1308,6 +1406,7 @@
   __stack_chk_fail
   static_key_slow_dec
   static_key_slow_inc
+  strcasecmp
   strcat
   strchr
   strcmp
@@ -1323,17 +1422,27 @@
   strscpy
   strsep
   strstr
+  __sw_hweight32
   __sw_hweight8
+  sync_file_create
+  sync_file_get_fence
   synchronize_irq
   synchronize_net
   syscon_node_to_regmap
   syscon_regmap_lookup_by_compatible
   syscon_regmap_lookup_by_phandle
   sysfs_create_group
+  sysfs_emit
   sysfs_remove_group
   system_freezable_wq
   system_power_efficient_wq
+  system_unbound_wq
   system_wq
+  tasklet_init
+  tasklet_kill
+  __tasklet_schedule
+  thermal_cooling_device_unregister
+  thermal_of_cooling_device_register
   trace_event_buffer_commit
   trace_event_buffer_reserve
   trace_event_printf
@@ -1347,6 +1456,7 @@
   typec_switch_get_drvdata
   typec_switch_register
   typec_switch_unregister
+  __unregister_chrdev
   unregister_inet6addr_notifier
   unregister_inetaddr_notifier
   unregister_netdev
@@ -1400,7 +1510,126 @@
   usb_speed_string
   usb_udc_vbus_handler
   usleep_range_state
+  v4l2_ctrl_auto_cluster
+  v4l2_ctrl_handler_free
+  v4l2_ctrl_handler_init_class
+  v4l2_ctrl_handler_setup
+  __v4l2_ctrl_modify_range
+  v4l2_ctrl_new_custom
+  v4l2_ctrl_new_fwnode_properties
+  v4l2_ctrl_new_int_menu
+  v4l2_ctrl_new_std
+  v4l2_ctrl_new_std_menu
+  v4l2_ctrl_new_std_menu_items
+  v4l2_ctrl_poll
+  __v4l2_ctrl_s_ctrl
+  __v4l2_ctrl_s_ctrl_int64
+  v4l2_ctrl_subdev_log_status
+  v4l2_ctrl_subdev_subscribe_event
+  v4l2_ctrl_subscribe_event
+  v4l2_device_register
+  v4l2_device_register_subdev
+  __v4l2_device_register_subdev_nodes
+  v4l2_device_unregister
+  v4l2_device_unregister_subdev
+  v4l2_event_dequeue
+  v4l2_event_pending
+  v4l2_event_queue
+  v4l2_event_queue_fh
+  v4l2_event_subdev_unsubscribe
+  v4l2_event_subscribe
+  v4l2_event_unsubscribe
+  v4l2_fh_add
+  v4l2_fh_del
+  v4l2_fh_exit
+  v4l2_fh_init
+  v4l2_fh_open
+  __v4l2_find_nearest_size
+  v4l2_get_link_freq
+  v4l2_g_parm_cap
+  v4l2_i2c_subdev_init
+  v4l2_m2m_buf_copy_metadata
+  v4l2_m2m_buf_queue
+  v4l2_m2m_buf_remove
+  v4l2_m2m_buf_remove_by_buf
+  v4l2_m2m_ctx_init
+  v4l2_m2m_ctx_release
+  v4l2_m2m_fop_mmap
+  v4l2_m2m_fop_poll
+  v4l2_m2m_get_curr_priv
+  v4l2_m2m_get_vq
+  v4l2_m2m_init
+  v4l2_m2m_ioctl_create_bufs
+  v4l2_m2m_ioctl_decoder_cmd
+  v4l2_m2m_ioctl_dqbuf
+  v4l2_m2m_ioctl_encoder_cmd
+  v4l2_m2m_ioctl_expbuf
+  v4l2_m2m_ioctl_prepare_buf
+  v4l2_m2m_ioctl_qbuf
+  v4l2_m2m_ioctl_querybuf
+  v4l2_m2m_ioctl_reqbufs
+  v4l2_m2m_ioctl_streamoff
+  v4l2_m2m_ioctl_streamon
+  v4l2_m2m_ioctl_try_decoder_cmd
+  v4l2_m2m_ioctl_try_encoder_cmd
+  v4l2_m2m_job_finish
+  v4l2_m2m_last_buffer_done
+  v4l2_m2m_next_buf
+  v4l2_m2m_register_media_controller
+  v4l2_m2m_release
+  v4l2_m2m_resume
+  v4l2_m2m_suspend
+  v4l2_m2m_unregister_media_controller
+  v4l2_m2m_update_start_streaming_state
+  v4l2_m2m_update_stop_streaming_state
+  v4l2_s_parm_cap
+  v4l2_src_change_event_subscribe
+  v4l2_subdev_call_wrappers
+  v4l2_subdev_init
+  v4l2_subdev_link_validate
+  v4l_bound_align_image
+  vb2_buffer_done
+  vb2_create_bufs
+  vb2_dma_contig_memops
+  vb2_dqbuf
+  vb2_expbuf
+  vb2_fop_mmap
+  vb2_fop_poll
+  _vb2_fop_release
+  vb2_ioctl_create_bufs
+  vb2_ioctl_dqbuf
+  vb2_ioctl_expbuf
+  vb2_ioctl_prepare_buf
+  vb2_ioctl_qbuf
+  vb2_ioctl_querybuf
+  vb2_ioctl_reqbufs
+  vb2_ioctl_streamoff
+  vb2_ioctl_streamon
+  vb2_mmap
+  vb2_ops_wait_finish
+  vb2_ops_wait_prepare
+  vb2_plane_cookie
+  vb2_plane_vaddr
+  vb2_poll
+  vb2_prepare_buf
+  vb2_qbuf
+  vb2_querybuf
+  vb2_queue_error
+  vb2_queue_init
+  vb2_queue_release
+  vb2_read
+  vb2_reqbufs
+  vb2_streamoff
+  vb2_streamon
+  vb2_vmalloc_memops
   vfree
+  video_devdata
+  video_device_alloc
+  video_device_release
+  video_device_release_empty
+  video_ioctl2
+  __video_register_device
+  video_unregister_device
   virtqueue_detach_unused_buf
   virtqueue_disable_cb
   virtqueue_enable_cb
