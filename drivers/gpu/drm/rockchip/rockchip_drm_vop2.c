@@ -8159,6 +8159,30 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 		vop2_cfg_done(crtc);
 		vop2_wait_for_fs_by_done_bit_status(vp);
 	}
+
+	/*
+	 * In RK3588 VOP, HDMI1/eDP1 MUX1 module's reset signal should be released
+	 * when PD_VOP turn on. If this reset signal is not be released, the HDMI1
+	 * or eDP1 output interface can't work normally.
+	 * However, If the deassert signal want to transfer to HDMI1/eDP1 MUX1 and
+	 * take effect, it need the video port0 dclk's source clk work a few moment.
+	 * In some cases, the video port0 dclk's source clk is disabled(now only the
+	 * hdmi0/1 phy pll as the dclk source parent will appear) after PD_VOP turn
+	 * on, for example, vidoe port0 dclk source select hdmi phy pll. To fix
+	 * this issue, enable video port0 dclk for a few monent when active a video
+	 * port which attach to eDP1/HDMI1.
+	 */
+	if (vop2->version == VOP_VERSION_RK3588) {
+		if (vp->id != 0 && (vp->output_if & (VOP_OUTPUT_IF_eDP1 | VOP_OUTPUT_IF_HDMI1))) {
+			struct vop2_video_port *vp0 = &vop2->vps[0];
+
+			clk_prepare_enable(vp0->dclk);
+			if (!clk_get_rate(vp0->dclk))
+				clk_set_rate(vp0->dclk, 148500000);
+			udelay(20);
+			clk_disable_unprepare(vp0->dclk);
+		}
+	}
 out:
 	vop2_unlock(vop2);
 }
