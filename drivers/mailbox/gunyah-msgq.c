@@ -80,7 +80,7 @@ static int gh_msgq_send_data(struct mbox_chan *chan, void *data)
 	 * framework, then no other messages can be sent and nobody will know
 	 * to retry this message.
 	 */
-	msgq->last_ret = gh_remap_error(gh_error);
+	msgq->last_ret = gh_error_remap(gh_error);
 
 	/**
 	 * This message was successfully sent, but message queue isn't ready to

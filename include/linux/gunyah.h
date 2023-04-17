@@ -110,10 +110,10 @@ enum gh_error {
 };
 
 /**
- * gh_remap_error() - Remap Gunyah hypervisor errors into a Linux error code
+ * gh_error_remap() - Remap Gunyah hypervisor errors into a Linux error code
  * @gh_error: Gunyah hypercall return value
  */
-static inline int gh_remap_error(enum gh_error gh_error)
+static inline int gh_error_remap(enum gh_error gh_error)
 {
 	switch (gh_error) {
 	case GH_ERROR_OK:

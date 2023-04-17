@@ -192,7 +192,6 @@ static int gh_vcpu_run(struct gh_vcpu *vcpu)
 
 		gh_error = gh_hypercall_vcpu_run(vcpu->rsc->capid, state_data, &vcpu_run_resp);
 		if (gh_error == GH_ERROR_OK) {
-			ret = 0;
 			switch (vcpu_run_resp.state) {
 			case GH_VCPU_STATE_READY:
 				if (need_resched())
@@ -238,9 +237,9 @@ static int gh_vcpu_run(struct gh_vcpu *vcpu)
 			}
 		} else if (gh_error == GH_ERROR_RETRY) {
 			schedule();
-			ret = 0;
-		} else
-			ret = gh_remap_error(gh_error);
+		} else {
+			ret = gh_error_remap(gh_error);
+		}
 	}
 
 out:
