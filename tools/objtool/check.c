@@ -1285,7 +1285,7 @@ static const char *uaccess_safe_builtin[] = {
 	"copy_mc_enhanced_fast_string",
 	"ftrace_likely_update", /* CONFIG_TRACE_BRANCH_PROFILING */
 	"rep_stos_alternative",
-	"copy_user_generic_unrolled",
+	"rep_movs_alternative",
 	"__copy_user_nocache",
 	NULL
 };

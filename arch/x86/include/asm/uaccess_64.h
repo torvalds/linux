@@ -18,7 +18,7 @@
 
 /* Handles exceptions in both to and from, but doesn't do access_ok */
 __must_check unsigned long
-copy_user_generic_unrolled(void *to, const void *from, unsigned len);
+rep_movs_alternative(void *to, const void *from, unsigned len);
 
 static __always_inline __must_check unsigned long
 copy_user_generic(void *to, const void *from, unsigned long len)
@@ -26,16 +26,16 @@ copy_user_generic(void *to, const void *from, unsigned long len)
 	stac();
 	/*
 	 * If CPU has FSRM feature, use 'rep movs'.
-	 * Otherwise, use copy_user_generic_unrolled.
+	 * Otherwise, use rep_movs_alternative.
 	 */
 	asm volatile(
 		"1:\n\t"
 		ALTERNATIVE("rep movsb",
-			    "call copy_user_generic_unrolled", ALT_NOT(X86_FEATURE_FSRM))
+			    "call rep_movs_alternative", ALT_NOT(X86_FEATURE_FSRM))
 		"2:\n"
 		_ASM_EXTABLE_UA(1b, 2b)
 		:"+c" (len), "+D" (to), "+S" (from), ASM_CALL_CONSTRAINT
-		: : "memory", "rax", "rdx", "r8", "r9", "r10", "r11");
+		: : "memory", "rax", "r8", "r9", "r10", "r11");
 	clac();
 	return len;
 }
