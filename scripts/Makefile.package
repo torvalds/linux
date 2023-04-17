@@ -41,19 +41,25 @@ check-git:
 		false; \
 	fi
 
-git-config-tar.gz  = -c tar.tar.gz.command="$(KGZIP)"
-git-config-tar.bz2 = -c tar.tar.bz2.command="$(KBZIP2)"
-git-config-tar.xz  = -c tar.tar.xz.command="$(XZ)"
-git-config-tar.zst = -c tar.tar.zst.command="$(ZSTD)"
+git-config-tar.gz   = -c tar.tar.gz.command="$(KGZIP)"
+git-config-tar.bz2  = -c tar.tar.bz2.command="$(KBZIP2)"
+git-config-tar.lzma = -c tar.tar.lzma.command="$(LZMA)"
+git-config-tar.xz   = -c tar.tar.xz.command="$(XZ)"
+git-config-tar.zst  = -c tar.tar.zst.command="$(ZSTD)"
 
 quiet_cmd_archive = ARCHIVE $@
       cmd_archive = git -C $(srctree) $(git-config-tar$(suffix $@)) archive \
                     --output=$$(realpath $@) --prefix=$(basename $@)/ $(archive-args)
 
+suffix-gzip  := .gz
+suffix-bzip2 := .bz2
+suffix-lzma  := .lzma
+suffix-xz    := .xz
+
 # Linux source tarball
 # ---------------------------------------------------------------------------
 
-linux-tarballs := $(addprefix linux, .tar.gz)
+linux-tarballs := $(addprefix linux, .tar.gz .tar.bz2 .tar.lzma .tar.xz)
 
 targets += $(linux-tarballs)
 $(linux-tarballs): archive-args = $$(cat $<)
@@ -88,6 +94,19 @@ binrpm-pkg:
 # deb-pkg srcdeb-pkg bindeb-pkg
 # ---------------------------------------------------------------------------
 
+KDEB_SOURCE_COMPRESS ?= gzip
+
+supported-deb-source-compress := gzip bzip2 lzma xz
+
+PHONY += linux.tar.unsupported-deb-src-compress
+linux.tar.unsupported-deb-src-compress:
+	@echo "error: KDEB_SOURCE_COMPRESS=$(KDEB_SOURCE_COMPRESS) is not supported. The supported values are: $(supported-deb-source-compress)" >&2
+	@false
+
+debian-orig-suffix := \
+    $(strip $(if $(filter $(supported-deb-source-compress), $(KDEB_SOURCE_COMPRESS)), \
+    $(suffix-$(KDEB_SOURCE_COMPRESS)),.unsupported-deb-src-compress))
+
 quiet_cmd_debianize = GEN     $@
       cmd_debianize = $(srctree)/scripts/package/mkdebian $(mkdebian-opts)
 
@@ -97,9 +116,9 @@ debian: FORCE
 PHONY += debian-orig
 debian-orig: private source = $(shell dpkg-parsechangelog -S Source)
 debian-orig: private version = $(shell dpkg-parsechangelog -S Version | sed 's/-[^-]*$$//')
-debian-orig: private orig-name = $(source)_$(version).orig.tar.gz
+debian-orig: private orig-name = $(source)_$(version).orig.tar$(debian-orig-suffix)
 debian-orig: mkdebian-opts = --need-source
-debian-orig: linux.tar.gz debian
+debian-orig: linux.tar$(debian-orig-suffix) debian
 	$(Q)if [ "$(df  --output=target .. 2>/dev/null)" = "$(df --output=target $< 2>/dev/null)" ]; then \
 		ln -f $< ../$(orig-name); \
 	else \
@@ -120,7 +139,7 @@ deb-pkg srcdeb-pkg bindeb-pkg:
 	+$(strip dpkg-buildpackage \
 	--build=$(build-type) --no-pre-clean --unsigned-changes \
 	$(if $(findstring source, $(build-type)), \
-		--unsigned-source) \
+		--unsigned-source --compression=$(KDEB_SOURCE_COMPRESS)) \
 	$(if $(findstring binary, $(build-type)), \
 		-r$(KBUILD_PKG_ROOTCMD) -a$$(cat debian/arch), \
 		--no-check-builddeps) \
