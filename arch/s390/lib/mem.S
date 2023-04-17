@@ -158,7 +158,7 @@ EXPORT_SYMBOL(memcpy)
  * void *__memset64(uint64_t *s, uint64_t v, size_t count)
  */
 .macro __MEMSET bits,bytes,insn
-ENTRY(__memset\bits)
+SYM_FUNC_START(__memset\bits)
 	ltgr	%r4,%r4
 	jz	.L__memset_exit\bits
 	cghi	%r4,\bytes
@@ -184,7 +184,7 @@ ENTRY(__memset\bits)
 	BR_EX	%r14
 .L__memset_mvc\bits:
 	mvc	\bytes(1,%r1),0(%r1)
-ENDPROC(__memset\bits)
+SYM_FUNC_END(__memset\bits)
 .endm
 
 __MEMSET 16,2,sth
