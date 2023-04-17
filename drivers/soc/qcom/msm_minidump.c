@@ -970,7 +970,11 @@ static int msm_minidump_driver_probe(struct platform_device *pdev)
 	}
 
 	/* First entry would be ELF header */
-	msm_minidump_add_header();
+	ret = msm_minidump_add_header();
+	if (ret < 0) {
+		pr_err("failed to init minidump header\n");
+		return ret;
+	}
 
 	/* Add pending entries to HLOS TOC */
 	spin_lock_irqsave(&mdt_lock, flags);
