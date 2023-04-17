@@ -176,6 +176,7 @@ struct geni_i2c_dev {
 	u32 dbg_num;
 	struct dbg_buf_ctxt *dbg_buf_ptr;
 	bool is_le_vm;
+	bool pm_ctrl_client;
 	bool req_chan;
 	bool first_xfer_done; /* for le-vm doing lock/unlock, after first xfer initiated. */
 	bool gpi_reset;
@@ -1218,106 +1219,20 @@ geni_i2c_gsi_xfer_out:
 	return ret;
 }
 
-static int geni_i2c_xfer(struct i2c_adapter *adap,
-			 struct i2c_msg msgs[],
-			 int num)
+/**
+ * geni_i2c_execute_xfer() - Performs non GSI mode data transfer
+ * @adap: Master controller handle
+ * @msgs[]: i2c_msg structure as a pointer
+ * @num: Nos messages to sent as an arg.
+ *
+ * Return: 0 on success OR negative error code for failure.
+ */
+
+static int geni_i2c_execute_xfer(struct geni_i2c_dev *gi2c,
+				struct i2c_msg msgs[], int num)
 {
-	struct geni_i2c_dev *gi2c = i2c_get_adapdata(adap);
 	int i, ret = 0, timeout = 0;
 	u32 geni_ios = 0;
-
-	gi2c->err = 0;
-	atomic_set(&gi2c->is_xfer_in_progress, 1);
-
-	/* Client to respect system suspend */
-	if (!pm_runtime_enabled(gi2c->dev)) {
-		I2C_LOG_ERR(gi2c->ipcl, false, gi2c->dev,
-			"%s: System suspended\n", __func__);
-		atomic_set(&gi2c->is_xfer_in_progress, 0);
-		return -EACCES;
-	}
-
-	if (!gi2c->is_le_vm) {
-		ret = pm_runtime_get_sync(gi2c->dev);
-		if (ret < 0) {
-			I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
-					"error turning SE resources:%d\n", ret);
-			pm_runtime_put_noidle(gi2c->dev);
-			/* Set device in suspended since resume failed */
-			pm_runtime_set_suspended(gi2c->dev);
-			atomic_set(&gi2c->is_xfer_in_progress, 0);
-			return ret;
-		}
-	}
-
-	// WAR : Complete previous pending cancel cmd
-	if (gi2c->prev_cancel_pending) {
-		ret = do_pending_cancel(gi2c);
-		if (ret) {
-			pm_runtime_mark_last_busy(gi2c->dev);
-			pm_runtime_put_autosuspend(gi2c->dev);
-			atomic_set(&gi2c->is_xfer_in_progress, 0);
-			return ret; //Don't perform xfer is cancel failed
-		}
-	}
-
-	geni_ios = geni_read_reg(gi2c->base, SE_GENI_IOS);
-	if ((geni_ios & 0x3) != 0x3) { //SCL:b'1, SDA:b'0
-		I2C_LOG_ERR(gi2c->ipcl, false, gi2c->dev,
-			    "IO lines in bad state, Power the slave\n");
-		pm_runtime_mark_last_busy(gi2c->dev);
-		pm_runtime_put_autosuspend(gi2c->dev);
-		atomic_set(&gi2c->is_xfer_in_progress, 0);
-		return -ENXIO;
-	}
-
-	if (gi2c->is_le_vm && (!gi2c->first_xfer_done)) {
-		/*
-		 * For le-vm we are doing resume operations during
-		 * the first xfer, because we are seeing probe sequence
-		 * issues from client and i2c-master driver, due to this
-		 * multiple times i2c_resume invoking and we are seeing
-		 * unclocked access. To avoid this added resume operations
-		 * here very first time.
-		 */
-		gi2c->first_xfer_done = true;
-		ret = geni_i2c_prepare(gi2c);
-		if (ret) {
-			I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
-				"%s I2C prepare failed: %d\n", __func__, ret);
-			atomic_set(&gi2c->is_xfer_in_progress, 0);
-			return ret;
-		}
-
-		ret = geni_i2c_lock_bus(gi2c);
-		if (ret) {
-			I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
-				"%s lock failed: %d\n", __func__, ret);
-			atomic_set(&gi2c->is_xfer_in_progress, 0);
-			return ret;
-		}
-		I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
-			"LE-VM first xfer\n");
-	}
-
-	I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
-		"n:%d addr:0x%x\n", num, msgs[0].addr);
-
-	gi2c->dbg_num = num;
-	kfree(gi2c->dbg_buf_ptr);
-	gi2c->dbg_buf_ptr =
-		kcalloc(num, sizeof(struct dbg_buf_ctxt), GFP_KERNEL);
-	if (!gi2c->dbg_buf_ptr)
-		I2C_LOG_ERR(gi2c->ipcl, false, gi2c->dev,
-			"Buf logging pointer not available\n");
-
-	if (gi2c->se_mode == GSI_ONLY) {
-		ret = geni_i2c_gsi_xfer(adap, msgs, num);
-		goto geni_i2c_txn_ret;
-	} else {
-		/* Don't set shared flag in non-GSI mode */
-		gi2c->is_shared = false;
-	}
 
 	for (i = 0; i < num; i++) {
 		int stretch = (i < (num - 1));
@@ -1347,7 +1262,7 @@ static int geni_i2c_xfer(struct i2c_adapter *adap,
 			dma_buf = i2c_get_dma_safe_msg_buf(&msgs[i], 1);
 			if (!dma_buf) {
 				ret = -ENOMEM;
-				goto geni_i2c_txn_ret;
+				goto exit;
 			}
 		}
 
@@ -1427,7 +1342,7 @@ static int geni_i2c_xfer(struct i2c_adapter *adap,
 				/* doing pending cancel only rtl based SE's */
 				if (gi2c->is_i2c_rtl_based) {
 					gi2c->prev_cancel_pending = true;
-					goto geni_i2c_txn_ret;
+					goto exit;
 				}
 			}
 		} else {
@@ -1450,7 +1365,7 @@ static int geni_i2c_xfer(struct i2c_adapter *adap,
 						    "%s: IO lines not in good state\n",
 						    __func__);
 					gi2c->prev_cancel_pending = true;
-					goto geni_i2c_txn_ret;
+					goto exit;
 				}
 
 				/* EBUSY set by ARB_LOST error condition */
@@ -1497,14 +1412,138 @@ static int geni_i2c_xfer(struct i2c_adapter *adap,
 			break;
 		}
 	}
+
+exit:
+	return ret;
+}
+
+/**
+ * geni_i2c_xfer() - Performs non GSI mode data transfer
+ * @adap: Master controller handle
+ * @msgs[]: i2c_msg structure as a pointer
+ * @num: Nos messages to sent as an arg.
+ *
+ * Return: 0 on success OR negative error code for failure.
+ */
+static int geni_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
+								int num)
+{
+	struct geni_i2c_dev *gi2c = i2c_get_adapdata(adap);
+	int ret = 0;
+	u32 geni_ios = 0;
+
+	gi2c->err = 0;
+	atomic_set(&gi2c->is_xfer_in_progress, 1);
+
+	/* Client to respect system suspend */
+	if (!pm_runtime_enabled(gi2c->dev)) {
+		I2C_LOG_ERR(gi2c->ipcl, false, gi2c->dev,
+			"%s: System suspended\n", __func__);
+		atomic_set(&gi2c->is_xfer_in_progress, 0);
+		return -EACCES;
+	}
+
+	/* Do Not vote if is_le_vm: LA votes and pm_ctrl_client: client votes */
+	if (!gi2c->is_le_vm && !gi2c->pm_ctrl_client) {
+		ret = pm_runtime_get_sync(gi2c->dev);
+		if (ret < 0) {
+			I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
+					"error turning SE resources:%d\n", ret);
+			pm_runtime_put_noidle(gi2c->dev);
+			/* Set device in suspended since resume failed */
+			pm_runtime_set_suspended(gi2c->dev);
+			atomic_set(&gi2c->is_xfer_in_progress, 0);
+			return ret;
+		}
+	}
+
+	if (gi2c->pm_ctrl_client)
+		I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
+			"SMP: %s: pm_runtime_get_sync bypassed\n", __func__);
+
+	// WAR : Complete previous pending cancel cmd
+	if (gi2c->prev_cancel_pending) {
+		ret = do_pending_cancel(gi2c);
+		if (ret) {
+			pm_runtime_mark_last_busy(gi2c->dev);
+			pm_runtime_put_autosuspend(gi2c->dev);
+			atomic_set(&gi2c->is_xfer_in_progress, 0);
+			return ret; //Don't perform xfer is cancel failed
+		}
+	}
+
+	geni_ios = geni_read_reg(gi2c->base, SE_GENI_IOS);
+	if ((geni_ios & 0x3) != 0x3) { //SCL:b'1, SDA:b'0
+		I2C_LOG_ERR(gi2c->ipcl, false, gi2c->dev,
+			    "IO lines in bad state, Power the slave\n");
+		pm_runtime_mark_last_busy(gi2c->dev);
+		pm_runtime_put_autosuspend(gi2c->dev);
+		atomic_set(&gi2c->is_xfer_in_progress, 0);
+		return -ENXIO;
+	}
+
+	if (gi2c->is_le_vm && (!gi2c->first_xfer_done)) {
+		/*
+		 * For le-vm we are doing resume operations during
+		 * the first xfer, because we are seeing probe sequence
+		 * issues from client and i2c-master driver, due to this
+		 * multiple times i2c_resume invoking and we are seeing
+		 * unclocked access. To avoid this added resume operations
+		 * here very first time.
+		 */
+		gi2c->first_xfer_done = true;
+		ret = geni_i2c_prepare(gi2c);
+		if (ret) {
+			I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
+				"%s I2C prepare failed: %d\n", __func__, ret);
+			atomic_set(&gi2c->is_xfer_in_progress, 0);
+			return ret;
+		}
+
+		ret = geni_i2c_lock_bus(gi2c);
+		if (ret) {
+			I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
+				"%s lock failed: %d\n", __func__, ret);
+			atomic_set(&gi2c->is_xfer_in_progress, 0);
+			return ret;
+		}
+		I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
+			"LE-VM first xfer\n");
+	}
+
+	I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
+		"n:%d addr:0x%x\n", num, msgs[0].addr);
+
+	gi2c->dbg_num = num;
+	kfree(gi2c->dbg_buf_ptr);
+	gi2c->dbg_buf_ptr =
+		kcalloc(num, sizeof(struct dbg_buf_ctxt), GFP_KERNEL);
+	if (!gi2c->dbg_buf_ptr)
+		I2C_LOG_ERR(gi2c->ipcl, false, gi2c->dev,
+			"Buf logging pointer not available\n");
+
+	if (gi2c->se_mode == GSI_ONLY) {
+		ret = geni_i2c_gsi_xfer(adap, msgs, num);
+		goto geni_i2c_txn_ret;
+	} else {
+		/* Don't set shared flag in non-GSI mode */
+		gi2c->is_shared = false;
+	}
+
+	ret = geni_i2c_execute_xfer(gi2c, msgs, num);
 geni_i2c_txn_ret:
 	if (ret == 0)
 		ret = num;
 
-	if (!gi2c->is_le_vm) {
+	/* Don't unvote if is_le_vm:LA voted and pm_ctrl_client:client voted
+	 * Meaning autosuspend timer is only for regular usecase, not for the
+	 * cases with is_le_vm and pm_ctrl_client flags.
+	 */
+	if (!gi2c->is_le_vm && !gi2c->pm_ctrl_client) {
 		pm_runtime_mark_last_busy(gi2c->dev);
 		pm_runtime_put_autosuspend(gi2c->dev);
 	}
+
 	atomic_set(&gi2c->is_xfer_in_progress, 0);
 	gi2c->cur = NULL;
 	gi2c->err = 0;
@@ -1575,6 +1614,11 @@ static int geni_i2c_probe(struct platform_device *pdev)
 		gi2c->is_le_vm = true;
 		gi2c->first_xfer_done = false;
 		dev_info(&pdev->dev, "LE-VM usecase\n");
+	}
+
+	if (of_property_read_bool(pdev->dev.of_node, "qcom,pm-ctrl-client")) {
+		gi2c->pm_ctrl_client = true;
+		dev_info(&pdev->dev, "Client controls the I2C PM\n");
 	}
 
 	if (of_property_read_bool(pdev->dev.of_node, "qcom,leica-used-i2c"))
