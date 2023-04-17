@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/interrupt-controller/loongarch,cpu-interrupt-controller.yaml#
+$id: http://devicetree.org/schemas/interrupt-controller/loongson,cpu-interrupt-controller.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: LoongArch CPU Interrupt Controller
@@ -11,7 +11,7 @@ maintainers:
 
 properties:
   compatible:
-    const: loongarch,cpu-interrupt-controller
+    const: loongson,cpu-interrupt-controller
 
   '#interrupt-cells':
     const: 1
@@ -28,7 +28,7 @@ required:
 examples:
   - |
     interrupt-controller {
-      compatible = "loongarch,cpu-interrupt-controller";
+      compatible = "loongson,cpu-interrupt-controller";
       #interrupt-cells = <1>;
       interrupt-controller;
     };

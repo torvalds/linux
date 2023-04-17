@@ -623,7 +623,7 @@ static int swiotlb_do_find_slots(struct device *dev, int area_index,
 		phys_to_dma_unencrypted(dev, mem->start) & boundary_mask;
 	unsigned long max_slots = get_max_slots(boundary_mask);
 	unsigned int iotlb_align_mask =
-		dma_get_min_align_mask(dev) & ~(IO_TLB_SIZE - 1);
+		dma_get_min_align_mask(dev) | alloc_align_mask;
 	unsigned int nslots = nr_slots(alloc_size), stride;
 	unsigned int offset = swiotlb_align_offset(dev, orig_addr);
 	unsigned int index, slots_checked, count = 0, i;
@@ -639,8 +639,8 @@ static int swiotlb_do_find_slots(struct device *dev, int area_index,
 	 * allocations.
 	 */
 	if (alloc_size >= PAGE_SIZE)
-		iotlb_align_mask &= PAGE_MASK;
-	iotlb_align_mask &= alloc_align_mask;
+		iotlb_align_mask |= ~PAGE_MASK;
+	iotlb_align_mask &= ~(IO_TLB_SIZE - 1);
 
 	/*
 	 * For mappings with an alignment requirement don't bother looping to
