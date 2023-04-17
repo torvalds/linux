@@ -494,9 +494,6 @@ static int rtl8723bu_parse_efuse(struct rtl8xxxu_priv *priv)
 
 	priv->default_crystal_cap = priv->efuse_wifi.efuse8723bu.xtal_k & 0x3f;
 
-	dev_info(&priv->udev->dev, "Vendor: %.7s\n", efuse->vendor_name);
-	dev_info(&priv->udev->dev, "Product: %.41s\n", efuse->device_name);
-
 	return 0;
 }
 
