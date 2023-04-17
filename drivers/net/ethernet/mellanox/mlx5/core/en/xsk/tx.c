@@ -61,7 +61,6 @@ static void mlx5e_xsk_tx_post_err(struct mlx5e_xdpsq *sq,
 bool mlx5e_xsk_tx(struct mlx5e_xdpsq *sq, unsigned int budget)
 {
 	struct xsk_buff_pool *pool = sq->xsk_pool;
-	struct mlx5e_xmit_data xdptxd;
 	struct mlx5e_xdp_info xdpi;
 	bool work_done = true;
 	bool flush = false;
@@ -73,6 +72,7 @@ bool mlx5e_xsk_tx(struct mlx5e_xdpsq *sq, unsigned int budget)
 						   mlx5e_xmit_xdp_frame_check_mpwqe,
 						   mlx5e_xmit_xdp_frame_check,
 						   sq);
+		struct mlx5e_xmit_data xdptxd = {};
 		struct xdp_desc desc;
 		bool ret;
 
@@ -97,7 +97,7 @@ bool mlx5e_xsk_tx(struct mlx5e_xdpsq *sq, unsigned int budget)
 		xsk_buff_raw_dma_sync_for_device(pool, xdptxd.dma_addr, xdptxd.len);
 
 		ret = INDIRECT_CALL_2(sq->xmit_xdp_frame, mlx5e_xmit_xdp_frame_mpwqe,
-				      mlx5e_xmit_xdp_frame, sq, &xdptxd, NULL,
+				      mlx5e_xmit_xdp_frame, sq, &xdptxd,
 				      check_result);
 		if (unlikely(!ret)) {
 			if (sq->mpwqe.wqe)

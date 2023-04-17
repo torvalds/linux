@@ -61,8 +61,8 @@ mlx5e_xmit_xdp_buff(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq,
 		    struct xdp_buff *xdp)
 {
 	struct page *page = virt_to_page(xdp->data);
-	struct skb_shared_info *sinfo = NULL;
-	struct mlx5e_xmit_data xdptxd;
+	struct mlx5e_xmit_data_frags xdptxdf = {};
+	struct mlx5e_xmit_data *xdptxd;
 	struct mlx5e_xdp_info xdpi;
 	struct xdp_frame *xdpf;
 	dma_addr_t dma_addr;
@@ -72,8 +72,10 @@ mlx5e_xmit_xdp_buff(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq,
 	if (unlikely(!xdpf))
 		return false;
 
-	xdptxd.data = xdpf->data;
-	xdptxd.len  = xdpf->len;
+	xdptxd = &xdptxdf.xd;
+	xdptxd->data = xdpf->data;
+	xdptxd->len  = xdpf->len;
+	xdptxd->has_frags = xdp_frame_has_frags(xdpf);
 
 	if (xdp->rxq->mem.type == MEM_TYPE_XSK_BUFF_POOL) {
 		/* The xdp_buff was in the UMEM and was copied into a newly
@@ -90,19 +92,22 @@ mlx5e_xmit_xdp_buff(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq,
 
 		xdpi.mode = MLX5E_XDP_XMIT_MODE_FRAME;
 
-		dma_addr = dma_map_single(sq->pdev, xdptxd.data, xdptxd.len,
+		if (unlikely(xdptxd->has_frags))
+			return false;
+
+		dma_addr = dma_map_single(sq->pdev, xdptxd->data, xdptxd->len,
 					  DMA_TO_DEVICE);
 		if (dma_mapping_error(sq->pdev, dma_addr)) {
 			xdp_return_frame(xdpf);
 			return false;
 		}
 
-		xdptxd.dma_addr     = dma_addr;
+		xdptxd->dma_addr = dma_addr;
 		xdpi.frame.xdpf     = xdpf;
 		xdpi.frame.dma_addr = dma_addr;
 
 		if (unlikely(!INDIRECT_CALL_2(sq->xmit_xdp_frame, mlx5e_xmit_xdp_frame_mpwqe,
-					      mlx5e_xmit_xdp_frame, sq, &xdptxd, NULL, 0)))
+					      mlx5e_xmit_xdp_frame, sq, xdptxd, 0)))
 			return false;
 
 		mlx5e_xdpi_fifo_push(&sq->db.xdpi_fifo, &xdpi);
@@ -119,13 +124,13 @@ mlx5e_xmit_xdp_buff(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq,
 	xdpi.page.rq = rq;
 
 	dma_addr = page_pool_get_dma_addr(page) + (xdpf->data - (void *)xdpf);
-	dma_sync_single_for_device(sq->pdev, dma_addr, xdptxd.len, DMA_BIDIRECTIONAL);
+	dma_sync_single_for_device(sq->pdev, dma_addr, xdptxd->len, DMA_BIDIRECTIONAL);
 
-	if (unlikely(xdp_frame_has_frags(xdpf))) {
-		sinfo = xdp_get_shared_info_from_frame(xdpf);
+	if (unlikely(xdptxd->has_frags)) {
+		xdptxdf.sinfo = xdp_get_shared_info_from_frame(xdpf);
 
-		for (i = 0; i < sinfo->nr_frags; i++) {
-			skb_frag_t *frag = &sinfo->frags[i];
+		for (i = 0; i < xdptxdf.sinfo->nr_frags; i++) {
+			skb_frag_t *frag = &xdptxdf.sinfo->frags[i];
 			dma_addr_t addr;
 			u32 len;
 
@@ -137,18 +142,18 @@ mlx5e_xmit_xdp_buff(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq,
 		}
 	}
 
-	xdptxd.dma_addr = dma_addr;
+	xdptxd->dma_addr = dma_addr;
 
 	if (unlikely(!INDIRECT_CALL_2(sq->xmit_xdp_frame, mlx5e_xmit_xdp_frame_mpwqe,
-				      mlx5e_xmit_xdp_frame, sq, &xdptxd, sinfo, 0)))
+				      mlx5e_xmit_xdp_frame, sq, xdptxd, 0)))
 		return false;
 
 	xdpi.page.page = page;
 	mlx5e_xdpi_fifo_push(&sq->db.xdpi_fifo, &xdpi);
 
-	if (unlikely(xdp_frame_has_frags(xdpf))) {
-		for (i = 0; i < sinfo->nr_frags; i++) {
-			skb_frag_t *frag = &sinfo->frags[i];
+	if (unlikely(xdptxd->has_frags)) {
+		for (i = 0; i < xdptxdf.sinfo->nr_frags; i++) {
+			skb_frag_t *frag = &xdptxdf.sinfo->frags[i];
 
 			xdpi.page.page = skb_frag_page(frag);
 			mlx5e_xdpi_fifo_push(&sq->db.xdpi_fifo, &xdpi);
@@ -381,23 +386,23 @@ INDIRECT_CALLABLE_SCOPE int mlx5e_xmit_xdp_frame_check_mpwqe(struct mlx5e_xdpsq 
 
 INDIRECT_CALLABLE_SCOPE bool
 mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xmit_data *xdptxd,
-		     struct skb_shared_info *sinfo, int check_result);
+		     int check_result);
 
 INDIRECT_CALLABLE_SCOPE bool
 mlx5e_xmit_xdp_frame_mpwqe(struct mlx5e_xdpsq *sq, struct mlx5e_xmit_data *xdptxd,
-			   struct skb_shared_info *sinfo, int check_result)
+			   int check_result)
 {
 	struct mlx5e_tx_mpwqe *session = &sq->mpwqe;
 	struct mlx5e_xdpsq_stats *stats = sq->stats;
 
-	if (unlikely(sinfo)) {
+	if (unlikely(xdptxd->has_frags)) {
 		/* MPWQE is enabled, but a multi-buffer packet is queued for
 		 * transmission. MPWQE can't send fragmented packets, so close
 		 * the current session and fall back to a regular WQE.
 		 */
 		if (unlikely(sq->mpwqe.wqe))
 			mlx5e_xdp_mpwqe_complete(sq);
-		return mlx5e_xmit_xdp_frame(sq, xdptxd, sinfo, 0);
+		return mlx5e_xmit_xdp_frame(sq, xdptxd, 0);
 	}
 
 	if (unlikely(xdptxd->len > sq->hw_mtu)) {
@@ -446,8 +451,10 @@ INDIRECT_CALLABLE_SCOPE int mlx5e_xmit_xdp_frame_check(struct mlx5e_xdpsq *sq)
 
 INDIRECT_CALLABLE_SCOPE bool
 mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xmit_data *xdptxd,
-		     struct skb_shared_info *sinfo, int check_result)
+		     int check_result)
 {
+	struct mlx5e_xmit_data_frags *xdptxdf =
+		container_of(xdptxd, struct mlx5e_xmit_data_frags, xd);
 	struct mlx5_wq_cyc       *wq   = &sq->wq;
 	struct mlx5_wqe_ctrl_seg *cseg;
 	struct mlx5_wqe_data_seg *dseg;
@@ -476,9 +483,9 @@ mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xmit_data *xdptxd,
 	if (!check_result) {
 		int stop_room = 1;
 
-		if (unlikely(sinfo)) {
-			ds_cnt += sinfo->nr_frags;
-			num_frags = sinfo->nr_frags;
+		if (unlikely(xdptxd->has_frags)) {
+			ds_cnt += xdptxdf->sinfo->nr_frags;
+			num_frags = xdptxdf->sinfo->nr_frags;
 			num_wqebbs = DIV_ROUND_UP(ds_cnt, MLX5_SEND_WQEBB_NUM_DS);
 			/* Assuming MLX5_CAP_GEN(mdev, max_wqe_sz_sq) is big
 			 * enough to hold all fragments.
@@ -529,7 +536,7 @@ mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xmit_data *xdptxd,
 		dseg->lkey = sq->mkey_be;
 
 		for (i = 0; i < num_frags; i++) {
-			skb_frag_t *frag = &sinfo->frags[i];
+			skb_frag_t *frag = &xdptxdf->sinfo->frags[i];
 			dma_addr_t addr;
 
 			addr = page_pool_get_dma_addr(skb_frag_page(frag)) +
@@ -718,7 +725,7 @@ int mlx5e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 
 	for (i = 0; i < n; i++) {
 		struct xdp_frame *xdpf = frames[i];
-		struct mlx5e_xmit_data xdptxd;
+		struct mlx5e_xmit_data xdptxd = {};
 		struct mlx5e_xdp_info xdpi;
 		bool ret;
 
@@ -735,7 +742,7 @@ int mlx5e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 		xdpi.frame.dma_addr = xdptxd.dma_addr;
 
 		ret = INDIRECT_CALL_2(sq->xmit_xdp_frame, mlx5e_xmit_xdp_frame_mpwqe,
-				      mlx5e_xmit_xdp_frame, sq, &xdptxd, NULL, 0);
+				      mlx5e_xmit_xdp_frame, sq, &xdptxd, 0);
 		if (unlikely(!ret)) {
 			dma_unmap_single(sq->pdev, xdptxd.dma_addr,
 					 xdptxd.len, DMA_TO_DEVICE);
