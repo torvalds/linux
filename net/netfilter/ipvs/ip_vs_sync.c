@@ -1582,13 +1582,11 @@ ip_vs_send_async(struct socket *sock, const char *buffer, const size_t length)
 	struct kvec	iov;
 	int		len;
 
-	EnterFunction(7);
 	iov.iov_base     = (void *)buffer;
 	iov.iov_len      = length;
 
 	len = kernel_sendmsg(sock, &msg, &iov, 1, (size_t)(length));
 
-	LeaveFunction(7);
 	return len;
 }
 
@@ -1614,15 +1612,12 @@ ip_vs_receive(struct socket *sock, char *buffer, const size_t buflen)
 	struct kvec		iov = {buffer, buflen};
 	int			len;
 
-	EnterFunction(7);
-
 	/* Receive a packet */
 	iov_iter_kvec(&msg.msg_iter, ITER_DEST, &iov, 1, buflen);
 	len = sock_recvmsg(sock, &msg, MSG_DONTWAIT);
 	if (len < 0)
 		return len;
 
-	LeaveFunction(7);
 	return len;
 }
 

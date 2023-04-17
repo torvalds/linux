@@ -265,26 +265,6 @@ static inline const char *ip_vs_dbg_addr(int af, char *buf, size_t buf_len,
 			pr_err(msg, ##__VA_ARGS__);			\
 	} while (0)
 
-#ifdef CONFIG_IP_VS_DEBUG
-#define EnterFunction(level)						\
-	do {								\
-		if (level <= ip_vs_get_debug_level())			\
-			printk(KERN_DEBUG				\
-			       pr_fmt("Enter: %s, %s line %i\n"),	\
-			       __func__, __FILE__, __LINE__);		\
-	} while (0)
-#define LeaveFunction(level)						\
-	do {								\
-		if (level <= ip_vs_get_debug_level())			\
-			printk(KERN_DEBUG				\
-			       pr_fmt("Leave: %s, %s line %i\n"),	\
-			       __func__, __FILE__, __LINE__);		\
-	} while (0)
-#else
-#define EnterFunction(level)   do {} while (0)
-#define LeaveFunction(level)   do {} while (0)
-#endif
-
 /* The port number of FTP service (in network order). */
 #define FTPPORT  cpu_to_be16(21)
 #define FTPDATA  cpu_to_be16(20)
