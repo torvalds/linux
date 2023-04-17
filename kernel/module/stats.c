@@ -277,8 +277,8 @@ static ssize_t read_file_mod_stats(struct file *file, char __user *user_buf,
 	unsigned int len, size, count_failed = 0;
 	char *buf;
 	u32 live_mod_count, fkreads, fdecompress, fbecoming, floads;
-	u64 total_size, text_size, ikread_bytes, ibecoming_bytes, idecompress_bytes, imod_bytes,
-	    total_virtual_lost;
+	unsigned long total_size, text_size, ikread_bytes, ibecoming_bytes,
+		idecompress_bytes, imod_bytes, total_virtual_lost;
 
 	live_mod_count = atomic_read(&modcount);
 	fkreads = atomic_read(&failed_kreads);
@@ -286,12 +286,12 @@ static ssize_t read_file_mod_stats(struct file *file, char __user *user_buf,
 	fbecoming = atomic_read(&failed_becoming);
 	floads = atomic_read(&failed_load_modules);
 
-	total_size = atomic64_read(&total_mod_size);
-	text_size = atomic64_read(&total_text_size);
-	ikread_bytes = atomic64_read(&invalid_kread_bytes);
-	idecompress_bytes = atomic64_read(&invalid_decompress_bytes);
-	ibecoming_bytes = atomic64_read(&invalid_becoming_bytes);
-	imod_bytes = atomic64_read(&invalid_mod_bytes);
+	total_size = atomic_long_read(&total_mod_size);
+	text_size = atomic_long_read(&total_text_size);
+	ikread_bytes = atomic_long_read(&invalid_kread_bytes);
+	idecompress_bytes = atomic_long_read(&invalid_decompress_bytes);
+	ibecoming_bytes = atomic_long_read(&invalid_becoming_bytes);
+	imod_bytes = atomic_long_read(&invalid_mod_bytes);
 
 	total_virtual_lost = ikread_bytes + idecompress_bytes + ibecoming_bytes + imod_bytes;
 
@@ -312,27 +312,27 @@ static ssize_t read_file_mod_stats(struct file *file, char __user *user_buf,
 
 	len += scnprintf(buf + len, size - len, "%25s\t%u\n", "Mods failed on load", floads);
 
-	len += scnprintf(buf + len, size - len, "%25s\t%llu\n", "Total module size", total_size);
-	len += scnprintf(buf + len, size - len, "%25s\t%llu\n", "Total mod text size", text_size);
+	len += scnprintf(buf + len, size - len, "%25s\t%lu\n", "Total module size", total_size);
+	len += scnprintf(buf + len, size - len, "%25s\t%lu\n", "Total mod text size", text_size);
 
-	len += scnprintf(buf + len, size - len, "%25s\t%llu\n", "Failed kread bytes", ikread_bytes);
+	len += scnprintf(buf + len, size - len, "%25s\t%lu\n", "Failed kread bytes", ikread_bytes);
 
-	len += scnprintf(buf + len, size - len, "%25s\t%llu\n", "Failed decompress bytes",
+	len += scnprintf(buf + len, size - len, "%25s\t%lu\n", "Failed decompress bytes",
 			 idecompress_bytes);
 
-	len += scnprintf(buf + len, size - len, "%25s\t%llu\n", "Failed becoming bytes", ibecoming_bytes);
+	len += scnprintf(buf + len, size - len, "%25s\t%lu\n", "Failed becoming bytes", ibecoming_bytes);
 
-	len += scnprintf(buf + len, size - len, "%25s\t%llu\n", "Failed kmod bytes", imod_bytes);
+	len += scnprintf(buf + len, size - len, "%25s\t%lu\n", "Failed kmod bytes", imod_bytes);
 
-	len += scnprintf(buf + len, size - len, "%25s\t%llu\n", "Virtual mem wasted bytes", total_virtual_lost);
+	len += scnprintf(buf + len, size - len, "%25s\t%lu\n", "Virtual mem wasted bytes", total_virtual_lost);
 
 	if (live_mod_count && total_size) {
-		len += scnprintf(buf + len, size - len, "%25s\t%llu\n", "Average mod size",
+		len += scnprintf(buf + len, size - len, "%25s\t%lu\n", "Average mod size",
 				 DIV_ROUND_UP(total_size, live_mod_count));
 	}
 
 	if (live_mod_count && text_size) {
-		len += scnprintf(buf + len, size - len, "%25s\t%llu\n", "Average mod text size",
+		len += scnprintf(buf + len, size - len, "%25s\t%lu\n", "Average mod text size",
 				 DIV_ROUND_UP(text_size, live_mod_count));
 	}
 
@@ -345,25 +345,25 @@ static ssize_t read_file_mod_stats(struct file *file, char __user *user_buf,
 
 	WARN_ON_ONCE(ikread_bytes && !fkreads);
 	if (fkreads && ikread_bytes) {
-		len += scnprintf(buf + len, size - len, "%25s\t%llu\n", "Avg fail kread bytes",
+		len += scnprintf(buf + len, size - len, "%25s\t%lu\n", "Avg fail kread bytes",
 				 DIV_ROUND_UP(ikread_bytes, fkreads));
 	}
 
 	WARN_ON_ONCE(ibecoming_bytes && !fbecoming);
 	if (fbecoming && ibecoming_bytes) {
-		len += scnprintf(buf + len, size - len, "%25s\t%llu\n", "Avg fail becoming bytes",
+		len += scnprintf(buf + len, size - len, "%25s\t%lu\n", "Avg fail becoming bytes",
 				 DIV_ROUND_UP(ibecoming_bytes, fbecoming));
 	}
 
 	WARN_ON_ONCE(idecompress_bytes && !fdecompress);
 	if (fdecompress && idecompress_bytes) {
-		len += scnprintf(buf + len, size - len, "%25s\t%llu\n", "Avg fail decomp bytes",
+		len += scnprintf(buf + len, size - len, "%25s\t%lu\n", "Avg fail decomp bytes",
 				 DIV_ROUND_UP(idecompress_bytes, fdecompress));
 	}
 
 	WARN_ON_ONCE(imod_bytes && !floads);
 	if (floads && imod_bytes) {
-		len += scnprintf(buf + len, size - len, "%25s\t%llu\n", "Average fail load bytes",
+		len += scnprintf(buf + len, size - len, "%25s\t%lu\n", "Average fail load bytes",
 				 DIV_ROUND_UP(imod_bytes, floads));
 	}
 
@@ -384,8 +384,8 @@ static ssize_t read_file_mod_stats(struct file *file, char __user *user_buf,
 	list_for_each_entry_rcu(mod_fail, &dup_failed_modules, list) {
 		if (WARN_ON_ONCE(++count_failed >= MAX_FAILED_MOD_PRINT))
 			goto out_unlock;
-		len += scnprintf(buf + len, size - len, "%25s\t%15llu\t%25s\n", mod_fail->name,
-				 atomic64_read(&mod_fail->count), mod_fail_to_str(mod_fail));
+		len += scnprintf(buf + len, size - len, "%25s\t%15lu\t%25s\n", mod_fail->name,
+				 atomic_long_read(&mod_fail->count), mod_fail_to_str(mod_fail));
 	}
 out_unlock:
 	mutex_unlock(&module_mutex);
