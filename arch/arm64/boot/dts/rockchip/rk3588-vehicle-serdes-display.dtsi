@@ -1069,9 +1069,12 @@
 			0023 0003
 			0024 0003
 			002a 0018
+			002e 0004
 			002d 0018
-			0030 0018
+			0030 0000
 			0033 0018
+			027c 0041
+			027d 0041
 			0045 0080
 			0046 0007
 			004b 0038
@@ -1155,11 +1158,13 @@
 			001d 0008
 			001f 0002
 			0020 0002
+			0031 0041
+			0032 0041
 			0057 0000
 			0058 0002
 			005a 0000
 			005b 0003
-			005d 0000
+			005d 0008
 			005e 0004
 			0060 0000
 			0061 0005
@@ -1192,6 +1197,7 @@
 			0090 0001
 			0091 0003
 			0426 0080
+			042d 0004
 			/* RL82 Pattern Gen Set
 			 * Vertical Gray Scale Color Bar
 			 */
@@ -1224,6 +1230,17 @@
 				};
 			};
 		};
+	};
+
+	ilitek@41 {
+		compatible = "ilitek,ili251x";
+		reg = <0x41>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <RK_PD1 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&touch_pin>;
+		reset-gpio = <&gpio0 RK_PD4 GPIO_ACTIVE_LOW>;
+		ilitek,name = "ilitek_i2c";
 	};
 };
 
@@ -1837,6 +1854,14 @@
 		ser1_rst_pin: ser1-rst-pin {
 			rockchip,pins = <1 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
+	};
+
+	touch {
+		touch_pin: touch-pin {
+			rockchip,pins =
+				<0 RK_PB7 RK_FUNC_GPIO &pcfg_pull_up>,  //INT
+				<0 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>;  //RST
+			};
 	};
 };
 
