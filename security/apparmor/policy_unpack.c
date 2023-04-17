@@ -1135,22 +1135,16 @@ static int verify_header(struct aa_ext *e, int required, const char **ns)
 	return 0;
 }
 
-static bool verify_xindex(int xindex, int table_size)
-{
-	int index, xtype;
-	xtype = xindex & AA_X_TYPE_MASK;
-	index = xindex & AA_X_INDEX_MASK;
-	if (xtype == AA_X_TABLE && index >= table_size)
-		return false;
-	return true;
-}
-
-/* verify dfa xindexes are in range of transition tables */
-static bool verify_dfa_xindex(struct aa_dfa *dfa, int table_size)
+/**
+ * verify_dfa_accept_xindex - verify accept indexes are in range of perms table
+ * @dfa: the dfa to check accept indexes are in range
+ * table_size: the permission table size the indexes should be within
+ */
+static bool verify_dfa_accept_index(struct aa_dfa *dfa, int table_size)
 {
 	int i;
 	for (i = 0; i < dfa->tables[YYTD_ID_ACCEPT]->td_lolen; i++) {
-		if (!verify_xindex(ACCEPT_TABLE(dfa)[i], table_size))
+		if (ACCEPT_TABLE(dfa)[i] >= table_size)
 			return false;
 	}
 	return true;
@@ -1187,11 +1181,13 @@ static bool verify_perms(struct aa_policydb *pdb)
 		if (!verify_perm(&pdb->perms[i]))
 			return false;
 		/* verify indexes into str table */
-		if (pdb->perms[i].xindex >= pdb->trans.size)
+		if ((pdb->perms[i].xindex & AA_X_TYPE_MASK) == AA_X_TABLE &&
+		    (pdb->perms[i].xindex & AA_X_INDEX_MASK) >= pdb->trans.size)
 			return false;
-		if (pdb->perms[i].tag >= pdb->trans.size)
+		if (pdb->perms[i].tag && pdb->perms[i].tag >= pdb->trans.size)
 			return false;
-		if (pdb->perms[i].label >= pdb->trans.size)
+		if (pdb->perms[i].label &&
+		    pdb->perms[i].label >= pdb->trans.size)
 			return false;
 	}
 
@@ -1213,10 +1209,10 @@ static int verify_profile(struct aa_profile *profile)
 	if (!rules)
 		return 0;
 
-	if ((rules->file.dfa && !verify_dfa_xindex(rules->file.dfa,
-						  rules->file.trans.size)) ||
+	if ((rules->file.dfa && !verify_dfa_accept_index(rules->file.dfa,
+							 rules->file.size)) ||
 	    (rules->policy.dfa &&
-	     !verify_dfa_xindex(rules->policy.dfa, rules->policy.trans.size))) {
+	     !verify_dfa_accept_index(rules->policy.dfa, rules->policy.size))) {
 		audit_iface(profile, NULL, NULL,
 			    "Unpack: Invalid named transition", NULL, -EPROTO);
 		return -EPROTO;
