@@ -24,7 +24,6 @@
 #include <linux/slab.h>
 #include <linux/xattr.h>
 #include <linux/ima.h>
-#include <linux/iversion.h>
 #include <linux/fs.h>
 
 #include "ima.h"
@@ -164,11 +163,16 @@ static void ima_check_last_writer(struct integrity_iint_cache *iint,
 
 	mutex_lock(&iint->mutex);
 	if (atomic_read(&inode->i_writecount) == 1) {
+		struct kstat stat;
+
 		update = test_and_clear_bit(IMA_UPDATE_XATTR,
 					    &iint->atomic_flags);
-		if (!IS_I_VERSION(inode) ||
-		    !inode_eq_iversion(inode, iint->version) ||
-		    (iint->flags & IMA_NEW_FILE)) {
+		if ((iint->flags & IMA_NEW_FILE) ||
+		    vfs_getattr_nosec(&file->f_path, &stat,
+				      STATX_CHANGE_COOKIE,
+				      AT_STATX_SYNC_AS_STAT) ||
+		    !(stat.result_mask & STATX_CHANGE_COOKIE) ||
+		    stat.change_cookie != iint->version) {
 			iint->flags &= ~(IMA_DONE_MASK | IMA_NEW_FILE);
 			iint->measured_pcrs = 0;
 			if (update)
