@@ -48,6 +48,7 @@
 #include "intel_fifo_underrun.h"
 #include "intel_gmbus.h"
 #include "intel_hotplug.h"
+#include "intel_load_detect.h"
 #include "intel_pch_display.h"
 #include "intel_pch_refclk.h"
 
@@ -881,7 +882,7 @@ load_detect:
 	}
 
 	/* for pre-945g platforms use load detect */
-	ret = intel_get_load_detect_pipe(connector, &tmp, ctx);
+	ret = intel_load_detect_get_pipe(connector, &tmp, ctx);
 	if (ret > 0) {
 		if (intel_crt_detect_ddc(connector))
 			status = connector_status_connected;
@@ -892,7 +893,7 @@ load_detect:
 			status = connector_status_disconnected;
 		else
 			status = connector_status_unknown;
-		intel_release_load_detect_pipe(connector, &tmp, ctx);
+		intel_load_detect_release_pipe(connector, &tmp, ctx);
 	} else if (ret == 0) {
 		status = connector_status_unknown;
 	} else {

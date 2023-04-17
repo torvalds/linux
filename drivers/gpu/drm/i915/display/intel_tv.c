@@ -43,6 +43,7 @@
 #include "intel_display_types.h"
 #include "intel_dpll.h"
 #include "intel_hotplug.h"
+#include "intel_load_detect.h"
 #include "intel_tv.h"
 #include "intel_tv_regs.h"
 
@@ -1725,13 +1726,13 @@ intel_tv_detect(struct drm_connector *connector,
 		struct intel_load_detect_pipe tmp;
 		int ret;
 
-		ret = intel_get_load_detect_pipe(connector, &tmp, ctx);
+		ret = intel_load_detect_get_pipe(connector, &tmp, ctx);
 		if (ret < 0)
 			return ret;
 
 		if (ret > 0) {
 			type = intel_tv_detect_type(intel_tv, connector);
-			intel_release_load_detect_pipe(connector, &tmp, ctx);
+			intel_load_detect_release_pipe(connector, &tmp, ctx);
 			status = type < 0 ?
 				connector_status_disconnected :
 				connector_status_connected;

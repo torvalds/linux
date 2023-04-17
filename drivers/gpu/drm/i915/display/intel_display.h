@@ -56,7 +56,6 @@ struct intel_dp;
 struct intel_encoder;
 struct intel_initial_plane_config;
 struct intel_link_m_n;
-struct intel_load_detect_pipe;
 struct intel_plane;
 struct intel_plane_state;
 struct intel_power_domain_mask;
@@ -455,12 +454,6 @@ int ilk_get_lanes_required(int target_clock, int link_bw, int bpp);
 void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
 			 struct intel_digital_port *dig_port,
 			 unsigned int expected_mask);
-int intel_get_load_detect_pipe(struct drm_connector *connector,
-			       struct intel_load_detect_pipe *old,
-			       struct drm_modeset_acquire_ctx *ctx);
-void intel_release_load_detect_pipe(struct drm_connector *connector,
-				    struct intel_load_detect_pipe *old,
-				    struct drm_modeset_acquire_ctx *ctx);
 struct drm_framebuffer *
 intel_framebuffer_create(struct drm_i915_gem_object *obj,
 			 struct drm_mode_fb_cmd2 *mode_cmd);

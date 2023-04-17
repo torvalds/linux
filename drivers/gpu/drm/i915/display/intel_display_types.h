@@ -1838,10 +1838,6 @@ struct intel_dp_mst_encoder {
 	struct intel_connector *connector;
 };
 
-struct intel_load_detect_pipe {
-	struct drm_atomic_state *restore_state;
-};
-
 static inline struct intel_encoder *
 intel_attached_encoder(struct intel_connector *connector)
 {
