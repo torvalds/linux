@@ -656,3 +656,18 @@ struct dc_stream_state *dcn32_can_support_mclk_switch_using_fw_based_vblank_stre
 
 	return fpo_candidate_stream;
 }
+
+bool dcn32_check_native_scaling_for_res(struct pipe_ctx *pipe, unsigned int width, unsigned int height)
+{
+	bool is_native_scaling = false;
+
+	if (pipe->stream->timing.h_addressable == width &&
+			pipe->stream->timing.v_addressable == height &&
+			pipe->plane_state->src_rect.width == width &&
+			pipe->plane_state->src_rect.height == height &&
+			pipe->plane_state->dst_rect.width == width &&
+			pipe->plane_state->dst_rect.height == height)
+		is_native_scaling = true;
+
+	return is_native_scaling;
+}

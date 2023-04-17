@@ -35,6 +35,15 @@
 
 #define DC_LOGGER_INIT(logger)
 
+static const struct subvp_high_refresh_list subvp_high_refresh_list = {
+			.min_refresh = 120,
+			.max_refresh = 165,
+			.res = {
+				{.width = 3840, .height = 2160, },
+				{.width = 3440, .height = 1440, },
+				{.width = 2560, .height = 1440, }},
+};
+
 struct _vcs_dpi_ip_params_st dcn3_2_ip = {
 	.gpuvm_enable = 0,
 	.gpuvm_max_page_table_levels = 4,
@@ -694,7 +703,9 @@ static bool dcn32_assign_subvp_pipe(struct dc *dc,
 		 */
 		if (pipe->plane_state && !pipe->top_pipe && !dcn32_is_center_timing(pipe) &&
 				(!dcn32_is_psr_capable(pipe) || (context->stream_count == 1 && dc->caps.dmub_caps.subvp_psr)) &&
-				pipe->stream->mall_stream_config.type == SUBVP_NONE && refresh_rate < 120 && !pipe->plane_state->address.tmz_surface &&
+				pipe->stream->mall_stream_config.type == SUBVP_NONE &&
+				(refresh_rate < 120 || dcn32_allow_subvp_high_refresh_rate(dc, context, pipe)) &&
+				!pipe->plane_state->address.tmz_surface &&
 				(vba->ActiveDRAMClockChangeLatencyMarginPerState[vba->VoltageLevel][vba->maxMpcComb][vba->pipe_plane[pipe_idx]] <= 0 ||
 				(vba->ActiveDRAMClockChangeLatencyMarginPerState[vba->VoltageLevel][vba->maxMpcComb][vba->pipe_plane[pipe_idx]] > 0 &&
 						dcn32_allow_subvp_with_active_margin(pipe)))) {
@@ -2785,6 +2796,55 @@ bool dcn32_allow_subvp_with_active_margin(struct pipe_ctx *pipe)
 				pipe->plane_state->dst_rect.height == 1440 &&
 				pipe->plane_state->dst_rect.width == 2560)
 			allow = true;
+	}
+	return allow;
+}
+
+/**
+ * ************************************************************************************************
+ * dcn32_allow_subvp_high_refresh_rate: Determine if the high refresh rate config will allow subvp
+ *
+ * @param [in]: dc: Current DC state
+ * @param [in]: context: New DC state to be programmed
+ * @param [in]: pipe: Pipe to be considered for use in subvp
+ *
+ * On high refresh rate display configs, we will allow subvp under the following conditions:
+ * 1. Resolution is 3840x2160, 3440x1440, or 2560x1440
+ * 2. Refresh rate is between 120hz - 165hz
+ * 3. No scaling
+ * 4. Freesync is inactive
+ * 5. For single display cases, freesync must be disabled
+ *
+ * @return: True if pipe can be used for subvp, false otherwise
+ *
+ * ************************************************************************************************
+ */
+bool dcn32_allow_subvp_high_refresh_rate(struct dc *dc, struct dc_state *context, struct pipe_ctx *pipe)
+{
+	bool allow = false;
+	uint32_t refresh_rate = 0;
+	uint32_t min_refresh = subvp_high_refresh_list.min_refresh;
+	uint32_t max_refresh = subvp_high_refresh_list.max_refresh;
+	uint32_t i;
+
+	if (!dc->debug.disable_subvp_high_refresh && pipe->stream &&
+			pipe->plane_state && !pipe->stream->vrr_active_variable) {
+		refresh_rate = (pipe->stream->timing.pix_clk_100hz * 100 +
+						pipe->stream->timing.v_total * pipe->stream->timing.h_total - 1)
+						/ (double)(pipe->stream->timing.v_total * pipe->stream->timing.h_total);
+		if (refresh_rate >= min_refresh && refresh_rate <= max_refresh) {
+			for (i = 0; i < SUBVP_HIGH_REFRESH_LIST_LEN; i++) {
+				uint32_t width = subvp_high_refresh_list.res[i].width;
+				uint32_t height = subvp_high_refresh_list.res[i].height;
+
+				if (dcn32_check_native_scaling_for_res(pipe, width, height)) {
+					if ((context->stream_count == 1 && !pipe->stream->allow_freesync) || context->stream_count > 1) {
+						allow = true;
+						break;
+					}
+				}
+			}
+		}
 	}
 	return allow;
 }

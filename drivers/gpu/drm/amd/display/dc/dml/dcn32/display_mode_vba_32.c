@@ -2322,10 +2322,14 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 		mode_lib->vba.LinkCapacitySupport[i] = true;
 		for (k = 0; k < mode_lib->vba.NumberOfActiveSurfaces; ++k) {
 			if (mode_lib->vba.BlendingAndTiming[k] == k
-					&& (mode_lib->vba.Output[k] == dm_dp || mode_lib->vba.Output[k] == dm_dp2p0
-							|| mode_lib->vba.Output[k] == dm_edp
-							|| mode_lib->vba.Output[k] == dm_hdmi)
-					&& mode_lib->vba.OutputBppPerState[i][k] == 0) {
+				&& (mode_lib->vba.Output[k] == dm_dp || mode_lib->vba.Output[k] == dm_dp2p0
+					|| mode_lib->vba.Output[k] == dm_edp
+					|| mode_lib->vba.Output[k] == dm_hdmi)
+				&& mode_lib->vba.OutputBppPerState[i][k] == 0 &&
+				(mode_lib->vba.UsesMALLForPStateChange[k] != dm_use_mall_pstate_change_phantom_pipe)) {
+				/* Phantom pipes don't consider DSC in DML, so it could fail link check.
+				 * However, we don't care about the link for phantom pipes.
+				 */
 				mode_lib->vba.LinkCapacitySupport[i] = false;
 			}
 		}

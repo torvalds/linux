@@ -881,6 +881,7 @@ struct dc_debug_options {
 	bool disable_boot_optimizations;
 	bool override_odm_optimization;
 	bool minimize_dispclk_using_odm;
+	bool disable_subvp_high_refresh;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;
