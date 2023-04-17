@@ -111,19 +111,26 @@ const char *errorname(int err)
 	}
 }
 
+static void putcharn(char c, size_t n)
+{
+	char buf[64];
+
+	memset(buf, c, n);
+	buf[n] = '\0';
+	fputs(buf, stdout);
+}
+
 static int pad_spc(int llen, int cnt, const char *fmt, ...)
 {
 	va_list args;
-	int len;
 	int ret;
 
-	for (len = 0; len < cnt - llen; len++)
-		putchar(' ');
+	putcharn(' ', cnt - llen);
 
 	va_start(args, fmt);
 	ret = vfprintf(stdout, fmt, args);
 	va_end(args);
-	return ret < 0 ? ret : ret + len;
+	return ret < 0 ? ret : ret + cnt - llen;
 }
 
 /* The tests below are intended to be used by the macroes, which evaluate
