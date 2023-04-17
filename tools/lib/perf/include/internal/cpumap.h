@@ -30,4 +30,8 @@ bool perf_cpu_map__is_subset(const struct perf_cpu_map *a, const struct perf_cpu
 
 void perf_cpu_map__set_nr(struct perf_cpu_map *map, int nr_cpus);
 
+static inline refcount_t *perf_cpu_map__refcnt(struct perf_cpu_map *map)
+{
+	return &map->refcnt;
+}
 #endif /* __LIBPERF_INTERNAL_CPUMAP_H */

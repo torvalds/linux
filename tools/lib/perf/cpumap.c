@@ -40,7 +40,7 @@ struct perf_cpu_map *perf_cpu_map__dummy_new(void)
 static void cpu_map__delete(struct perf_cpu_map *map)
 {
 	if (map) {
-		WARN_ONCE(refcount_read(&map->refcnt) != 0,
+		WARN_ONCE(refcount_read(perf_cpu_map__refcnt(map)) != 0,
 			  "cpu_map refcnt unbalanced\n");
 		free(map);
 	}
@@ -49,13 +49,13 @@ static void cpu_map__delete(struct perf_cpu_map *map)
 struct perf_cpu_map *perf_cpu_map__get(struct perf_cpu_map *map)
 {
 	if (map)
-		refcount_inc(&map->refcnt);
+		refcount_inc(perf_cpu_map__refcnt(map));
 	return map;
 }
 
 void perf_cpu_map__put(struct perf_cpu_map *map)
 {
-	if (map && refcount_dec_and_test(&map->refcnt))
+	if (map && refcount_dec_and_test(perf_cpu_map__refcnt(map)))
 		cpu_map__delete(map);
 }
 
