@@ -53,7 +53,7 @@
  * stays valid, the trick to using this is relying on an independent
  * object validation pass. Something like:
  *
- *  rcu_read_lock()
+ *  rcu_read_lock();
  * again:
  *  obj = lockless_lookup(key);
  *  if (obj) {
