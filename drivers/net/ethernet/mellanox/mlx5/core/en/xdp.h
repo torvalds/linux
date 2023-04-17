@@ -71,18 +71,30 @@ enum mlx5e_xdp_xmit_mode {
 	MLX5E_XDP_XMIT_MODE_XSK,
 };
 
-struct mlx5e_xdp_info {
+/* xmit_mode entry is pushed to the fifo per packet, followed by multiple
+ * entries, as follows:
+ *
+ * MLX5E_XDP_XMIT_MODE_FRAME:
+ *    xdpf, dma_addr_1, dma_addr_2, ... , dma_addr_num.
+ *    'num' is derived from xdpf.
+ *
+ * MLX5E_XDP_XMIT_MODE_PAGE:
+ *    num, page_1, page_2, ... , page_num.
+ *
+ * MLX5E_XDP_XMIT_MODE_XSK:
+ *    none.
+ */
+union mlx5e_xdp_info {
 	enum mlx5e_xdp_xmit_mode mode;
 	union {
-		struct {
-			struct xdp_frame *xdpf;
-			dma_addr_t dma_addr;
-		} frame;
-		struct {
-			struct mlx5e_rq *rq;
-			struct page *page;
-		} page;
-	};
+		struct xdp_frame *xdpf;
+		dma_addr_t dma_addr;
+	} frame;
+	union {
+		struct mlx5e_rq *rq;
+		u8 num;
+		struct page *page;
+	} page;
 };
 
 struct mlx5e_xsk_param;
@@ -212,14 +224,14 @@ mlx5e_xdp_mpwqe_add_dseg(struct mlx5e_xdpsq *sq,
 
 static inline void
 mlx5e_xdpi_fifo_push(struct mlx5e_xdp_info_fifo *fifo,
-		     struct mlx5e_xdp_info *xi)
+		     union mlx5e_xdp_info xi)
 {
 	u32 i = (*fifo->pc)++ & fifo->mask;
 
-	fifo->xi[i] = *xi;
+	fifo->xi[i] = xi;
 }
 
-static inline struct mlx5e_xdp_info
+static inline union mlx5e_xdp_info
 mlx5e_xdpi_fifo_pop(struct mlx5e_xdp_info_fifo *fifo)
 {
 	return fifo->xi[(*fifo->cc)++ & fifo->mask];

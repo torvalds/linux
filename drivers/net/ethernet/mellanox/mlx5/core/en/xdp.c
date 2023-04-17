@@ -63,7 +63,6 @@ mlx5e_xmit_xdp_buff(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq,
 	struct page *page = virt_to_page(xdp->data);
 	struct mlx5e_xmit_data_frags xdptxdf = {};
 	struct mlx5e_xmit_data *xdptxd;
-	struct mlx5e_xdp_info xdpi;
 	struct xdp_frame *xdpf;
 	dma_addr_t dma_addr;
 	int i;
@@ -90,8 +89,6 @@ mlx5e_xmit_xdp_buff(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq,
 		 */
 		__set_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags); /* non-atomic */
 
-		xdpi.mode = MLX5E_XDP_XMIT_MODE_FRAME;
-
 		if (unlikely(xdptxd->has_frags))
 			return false;
 
@@ -103,14 +100,18 @@ mlx5e_xmit_xdp_buff(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq,
 		}
 
 		xdptxd->dma_addr = dma_addr;
-		xdpi.frame.xdpf     = xdpf;
-		xdpi.frame.dma_addr = dma_addr;
 
 		if (unlikely(!INDIRECT_CALL_2(sq->xmit_xdp_frame, mlx5e_xmit_xdp_frame_mpwqe,
 					      mlx5e_xmit_xdp_frame, sq, xdptxd, 0)))
 			return false;
 
-		mlx5e_xdpi_fifo_push(&sq->db.xdpi_fifo, &xdpi);
+		/* xmit_mode == MLX5E_XDP_XMIT_MODE_FRAME */
+		mlx5e_xdpi_fifo_push(&sq->db.xdpi_fifo,
+				     (union mlx5e_xdp_info) { .mode = MLX5E_XDP_XMIT_MODE_FRAME });
+		mlx5e_xdpi_fifo_push(&sq->db.xdpi_fifo,
+				     (union mlx5e_xdp_info) { .frame.xdpf = xdpf });
+		mlx5e_xdpi_fifo_push(&sq->db.xdpi_fifo,
+				     (union mlx5e_xdp_info) { .frame.dma_addr = dma_addr });
 		return true;
 	}
 
@@ -119,9 +120,6 @@ mlx5e_xmit_xdp_buff(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq,
 	 * allows to map the memory only once and to use the DMA_BIDIRECTIONAL
 	 * mode.
 	 */
-
-	xdpi.mode = MLX5E_XDP_XMIT_MODE_PAGE;
-	xdpi.page.rq = rq;
 
 	dma_addr = page_pool_get_dma_addr(page) + (xdpf->data - (void *)xdpf);
 	dma_sync_single_for_device(sq->pdev, dma_addr, xdptxd->len, DMA_BIDIRECTIONAL);
@@ -148,16 +146,28 @@ mlx5e_xmit_xdp_buff(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq,
 				      mlx5e_xmit_xdp_frame, sq, xdptxd, 0)))
 		return false;
 
-	xdpi.page.page = page;
-	mlx5e_xdpi_fifo_push(&sq->db.xdpi_fifo, &xdpi);
+	/* xmit_mode == MLX5E_XDP_XMIT_MODE_PAGE */
+	mlx5e_xdpi_fifo_push(&sq->db.xdpi_fifo,
+			     (union mlx5e_xdp_info) { .mode = MLX5E_XDP_XMIT_MODE_PAGE });
 
 	if (xdptxd->has_frags) {
+		mlx5e_xdpi_fifo_push(&sq->db.xdpi_fifo,
+				     (union mlx5e_xdp_info)
+				     { .page.num = 1 + xdptxdf.sinfo->nr_frags });
+		mlx5e_xdpi_fifo_push(&sq->db.xdpi_fifo,
+				     (union mlx5e_xdp_info) { .page.page = page });
 		for (i = 0; i < xdptxdf.sinfo->nr_frags; i++) {
 			skb_frag_t *frag = &xdptxdf.sinfo->frags[i];
 
-			xdpi.page.page = skb_frag_page(frag);
-			mlx5e_xdpi_fifo_push(&sq->db.xdpi_fifo, &xdpi);
+			mlx5e_xdpi_fifo_push(&sq->db.xdpi_fifo,
+					     (union mlx5e_xdp_info)
+					     { .page.page = skb_frag_page(frag) });
 		}
+	} else {
+		mlx5e_xdpi_fifo_push(&sq->db.xdpi_fifo,
+				     (union mlx5e_xdp_info) { .page.num = 1 });
+		mlx5e_xdpi_fifo_push(&sq->db.xdpi_fifo,
+				     (union mlx5e_xdp_info) { .page.page = page });
 	}
 
 	return true;
@@ -526,7 +536,6 @@ mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xmit_data *xdptxd,
 	cseg->opmod_idx_opcode = cpu_to_be32((sq->pc << 8) | MLX5_OPCODE_SEND);
 
 	if (test_bit(MLX5E_SQ_STATE_XDP_MULTIBUF, &sq->state)) {
-		u8 num_pkts = 1 + num_frags;
 		int i;
 
 		memset(&cseg->trailer, 0, sizeof(cseg->trailer));
@@ -552,7 +561,7 @@ mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xmit_data *xdptxd,
 
 		sq->db.wqe_info[pi] = (struct mlx5e_xdp_wqe_info) {
 			.num_wqebbs = num_wqebbs,
-			.num_pkts = num_pkts,
+			.num_pkts = 1,
 		};
 
 		sq->pc += num_wqebbs;
@@ -577,20 +586,46 @@ static void mlx5e_free_xdpsq_desc(struct mlx5e_xdpsq *sq,
 	u16 i;
 
 	for (i = 0; i < wi->num_pkts; i++) {
-		struct mlx5e_xdp_info xdpi = mlx5e_xdpi_fifo_pop(xdpi_fifo);
+		union mlx5e_xdp_info xdpi = mlx5e_xdpi_fifo_pop(xdpi_fifo);
 
 		switch (xdpi.mode) {
-		case MLX5E_XDP_XMIT_MODE_FRAME:
+		case MLX5E_XDP_XMIT_MODE_FRAME: {
 			/* XDP_TX from the XSK RQ and XDP_REDIRECT */
-			dma_unmap_single(sq->pdev, xdpi.frame.dma_addr,
-					 xdpi.frame.xdpf->len, DMA_TO_DEVICE);
-			xdp_return_frame_bulk(xdpi.frame.xdpf, bq);
+			struct xdp_frame *xdpf;
+			dma_addr_t dma_addr;
+
+			xdpi = mlx5e_xdpi_fifo_pop(xdpi_fifo);
+			xdpf = xdpi.frame.xdpf;
+			xdpi = mlx5e_xdpi_fifo_pop(xdpi_fifo);
+			dma_addr = xdpi.frame.dma_addr;
+
+			dma_unmap_single(sq->pdev, dma_addr,
+					 xdpf->len, DMA_TO_DEVICE);
+			xdp_return_frame_bulk(xdpf, bq);
 			break;
-		case MLX5E_XDP_XMIT_MODE_PAGE:
+		}
+		case MLX5E_XDP_XMIT_MODE_PAGE: {
 			/* XDP_TX from the regular RQ */
-			page_pool_put_defragged_page(xdpi.page.rq->page_pool,
-						     xdpi.page.page, -1, true);
+			u8 num, n = 0;
+
+			xdpi = mlx5e_xdpi_fifo_pop(xdpi_fifo);
+			num = xdpi.page.num;
+
+			do {
+				struct page *page;
+
+				xdpi = mlx5e_xdpi_fifo_pop(xdpi_fifo);
+				page = xdpi.page.page;
+
+				/* No need to check ((page->pp_magic & ~0x3UL) == PP_SIGNATURE)
+				 * as we know this is a page_pool page.
+				 */
+				page_pool_put_defragged_page(page->pp,
+							     page, -1, true);
+			} while (++n < num);
+
 			break;
+		}
 		case MLX5E_XDP_XMIT_MODE_XSK:
 			/* AF_XDP send */
 			(*xsk_frames)++;
@@ -726,7 +761,6 @@ int mlx5e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 	for (i = 0; i < n; i++) {
 		struct xdp_frame *xdpf = frames[i];
 		struct mlx5e_xmit_data xdptxd = {};
-		struct mlx5e_xdp_info xdpi;
 		bool ret;
 
 		xdptxd.data = xdpf->data;
@@ -737,10 +771,6 @@ int mlx5e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 		if (unlikely(dma_mapping_error(sq->pdev, xdptxd.dma_addr)))
 			break;
 
-		xdpi.mode           = MLX5E_XDP_XMIT_MODE_FRAME;
-		xdpi.frame.xdpf     = xdpf;
-		xdpi.frame.dma_addr = xdptxd.dma_addr;
-
 		ret = INDIRECT_CALL_2(sq->xmit_xdp_frame, mlx5e_xmit_xdp_frame_mpwqe,
 				      mlx5e_xmit_xdp_frame, sq, &xdptxd, 0);
 		if (unlikely(!ret)) {
@@ -748,7 +778,14 @@ int mlx5e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 					 xdptxd.len, DMA_TO_DEVICE);
 			break;
 		}
-		mlx5e_xdpi_fifo_push(&sq->db.xdpi_fifo, &xdpi);
+
+		/* xmit_mode == MLX5E_XDP_XMIT_MODE_FRAME */
+		mlx5e_xdpi_fifo_push(&sq->db.xdpi_fifo,
+				     (union mlx5e_xdp_info) { .mode = MLX5E_XDP_XMIT_MODE_FRAME });
+		mlx5e_xdpi_fifo_push(&sq->db.xdpi_fifo,
+				     (union mlx5e_xdp_info) { .frame.xdpf = xdpf });
+		mlx5e_xdpi_fifo_push(&sq->db.xdpi_fifo,
+				     (union mlx5e_xdp_info) { .frame.dma_addr = xdptxd.dma_addr });
 		nxmit++;
 	}
 
