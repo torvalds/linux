@@ -934,7 +934,7 @@ struct sk_buff {
 	/* public: */
 	__u8			pkt_type:3; /* see PKT_TYPE_MAX */
 	__u8			ignore_df:1;
-	__u8			nf_trace:1;
+	__u8			dst_pending_confirm:1;
 	__u8			ip_summed:2;
 	__u8			ooo_okay:1;
 
@@ -949,7 +949,7 @@ struct sk_buff {
 	__u8			remcsum_offload:1;
 	__u8			csum_complete_sw:1;
 	__u8			csum_level:2;
-	__u8			dst_pending_confirm:1;
+	__u8			inner_protocol_type:1;
 
 	__u8			l4_hash:1;
 	__u8			sw_hash:1;
@@ -967,7 +967,7 @@ struct sk_buff {
 #endif
 
 	__u8			ipvs_property:1;
-	__u8			inner_protocol_type:1;
+	__u8			nf_trace:1;
 #ifdef CONFIG_NET_SWITCHDEV
 	__u8			offload_fwd_mark:1;
 	__u8			offload_l3_fwd_mark:1;
