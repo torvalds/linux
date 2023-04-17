@@ -126,6 +126,7 @@ mlx5e_xmit_xdp_buff(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq,
 
 	if (xdptxd->has_frags) {
 		xdptxdf.sinfo = xdp_get_shared_info_from_frame(xdpf);
+		xdptxdf.dma_arr = NULL;
 
 		for (i = 0; i < xdptxdf.sinfo->nr_frags; i++) {
 			skb_frag_t *frag = &xdptxdf.sinfo->frags[i];
@@ -548,7 +549,8 @@ mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xmit_data *xdptxd,
 			skb_frag_t *frag = &xdptxdf->sinfo->frags[i];
 			dma_addr_t addr;
 
-			addr = page_pool_get_dma_addr(skb_frag_page(frag)) +
+			addr = xdptxdf->dma_arr ? xdptxdf->dma_arr[i] :
+				page_pool_get_dma_addr(skb_frag_page(frag)) +
 				skb_frag_off(frag);
 
 			dseg++;
@@ -601,6 +603,21 @@ static void mlx5e_free_xdpsq_desc(struct mlx5e_xdpsq *sq,
 
 			dma_unmap_single(sq->pdev, dma_addr,
 					 xdpf->len, DMA_TO_DEVICE);
+			if (xdp_frame_has_frags(xdpf)) {
+				struct skb_shared_info *sinfo;
+				int j;
+
+				sinfo = xdp_get_shared_info_from_frame(xdpf);
+				for (j = 0; j < sinfo->nr_frags; j++) {
+					skb_frag_t *frag = &sinfo->frags[j];
+
+					xdpi = mlx5e_xdpi_fifo_pop(xdpi_fifo);
+					dma_addr = xdpi.frame.dma_addr;
+
+					dma_unmap_single(sq->pdev, dma_addr,
+							 skb_frag_size(frag), DMA_TO_DEVICE);
+				}
+			}
 			xdp_return_frame_bulk(xdpf, bq);
 			break;
 		}
@@ -759,23 +776,57 @@ int mlx5e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 	sq = &priv->channels.c[sq_num]->xdpsq;
 
 	for (i = 0; i < n; i++) {
+		struct mlx5e_xmit_data_frags xdptxdf = {};
 		struct xdp_frame *xdpf = frames[i];
-		struct mlx5e_xmit_data xdptxd = {};
+		dma_addr_t dma_arr[MAX_SKB_FRAGS];
+		struct mlx5e_xmit_data *xdptxd;
 		bool ret;
 
-		xdptxd.data = xdpf->data;
-		xdptxd.len = xdpf->len;
-		xdptxd.dma_addr = dma_map_single(sq->pdev, xdptxd.data,
-						 xdptxd.len, DMA_TO_DEVICE);
+		xdptxd = &xdptxdf.xd;
+		xdptxd->data = xdpf->data;
+		xdptxd->len = xdpf->len;
+		xdptxd->has_frags = xdp_frame_has_frags(xdpf);
+		xdptxd->dma_addr = dma_map_single(sq->pdev, xdptxd->data,
+						  xdptxd->len, DMA_TO_DEVICE);
 
-		if (unlikely(dma_mapping_error(sq->pdev, xdptxd.dma_addr)))
+		if (unlikely(dma_mapping_error(sq->pdev, xdptxd->dma_addr)))
 			break;
 
+		if (xdptxd->has_frags) {
+			int j;
+
+			xdptxdf.sinfo = xdp_get_shared_info_from_frame(xdpf);
+			xdptxdf.dma_arr = dma_arr;
+			for (j = 0; j < xdptxdf.sinfo->nr_frags; j++) {
+				skb_frag_t *frag = &xdptxdf.sinfo->frags[j];
+
+				dma_arr[j] = dma_map_single(sq->pdev, skb_frag_address(frag),
+							    skb_frag_size(frag), DMA_TO_DEVICE);
+
+				if (!dma_mapping_error(sq->pdev, dma_arr[j]))
+					continue;
+				/* mapping error */
+				while (--j >= 0)
+					dma_unmap_single(sq->pdev, dma_arr[j],
+							 skb_frag_size(&xdptxdf.sinfo->frags[j]),
+							 DMA_TO_DEVICE);
+				goto out;
+			}
+		}
+
 		ret = INDIRECT_CALL_2(sq->xmit_xdp_frame, mlx5e_xmit_xdp_frame_mpwqe,
-				      mlx5e_xmit_xdp_frame, sq, &xdptxd, 0);
+				      mlx5e_xmit_xdp_frame, sq, xdptxd, 0);
 		if (unlikely(!ret)) {
-			dma_unmap_single(sq->pdev, xdptxd.dma_addr,
-					 xdptxd.len, DMA_TO_DEVICE);
+			int j;
+
+			dma_unmap_single(sq->pdev, xdptxd->dma_addr,
+					 xdptxd->len, DMA_TO_DEVICE);
+			if (!xdptxd->has_frags)
+				break;
+			for (j = 0; j < xdptxdf.sinfo->nr_frags; j++)
+				dma_unmap_single(sq->pdev, dma_arr[j],
+						 skb_frag_size(&xdptxdf.sinfo->frags[j]),
+						 DMA_TO_DEVICE);
 			break;
 		}
 
@@ -785,10 +836,19 @@ int mlx5e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 		mlx5e_xdpi_fifo_push(&sq->db.xdpi_fifo,
 				     (union mlx5e_xdp_info) { .frame.xdpf = xdpf });
 		mlx5e_xdpi_fifo_push(&sq->db.xdpi_fifo,
-				     (union mlx5e_xdp_info) { .frame.dma_addr = xdptxd.dma_addr });
+				     (union mlx5e_xdp_info) { .frame.dma_addr = xdptxd->dma_addr });
+		if (xdptxd->has_frags) {
+			int j;
+
+			for (j = 0; j < xdptxdf.sinfo->nr_frags; j++)
+				mlx5e_xdpi_fifo_push(&sq->db.xdpi_fifo,
+						     (union mlx5e_xdp_info)
+						     { .frame.dma_addr = dma_arr[j] });
+		}
 		nxmit++;
 	}
 
+out:
 	if (flags & XDP_XMIT_FLUSH) {
 		if (sq->mpwqe.wqe)
 			mlx5e_xdp_mpwqe_complete(sq);

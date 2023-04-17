@@ -1862,11 +1862,7 @@ int mlx5e_open_xdpsq(struct mlx5e_channel *c, struct mlx5e_params *params,
 	csp.min_inline_mode = sq->min_inline_mode;
 	set_bit(MLX5E_SQ_STATE_ENABLED, &sq->state);
 
-	/* Don't enable multi buffer on XDP_REDIRECT SQ, as it's not yet
-	 * supported by upstream, and there is no defined trigger to allow
-	 * transmitting redirected multi-buffer frames.
-	 */
-	if (param->is_xdp_mb && !is_redirect)
+	if (param->is_xdp_mb)
 		set_bit(MLX5E_SQ_STATE_XDP_MULTIBUF, &sq->state);
 
 	err = mlx5e_create_sq_rdy(c->mdev, param, &csp, 0, &sq->sqn);
@@ -4068,7 +4064,8 @@ void mlx5e_set_xdp_feature(struct net_device *netdev)
 
 	val = NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
 	      NETDEV_XDP_ACT_XSK_ZEROCOPY |
-	      NETDEV_XDP_ACT_NDO_XMIT;
+	      NETDEV_XDP_ACT_NDO_XMIT |
+	      NETDEV_XDP_ACT_NDO_XMIT_SG;
 	if (params->rq_wq_type == MLX5_WQ_TYPE_CYCLIC)
 		val |= NETDEV_XDP_ACT_RX_SG;
 	xdp_set_features_flag(netdev, val);

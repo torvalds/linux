@@ -87,6 +87,7 @@ struct mlx5e_xmit_data {
 struct mlx5e_xmit_data_frags {
 	struct mlx5e_xmit_data xd;
 	struct skb_shared_info *sinfo;
+	dma_addr_t *dma_arr;
 };
 
 netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev);
