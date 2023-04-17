@@ -2008,7 +2008,7 @@ static int rtw_chip_board_info_setup(struct rtw_dev *rtwdev)
 	if (!rfe_def)
 		return -ENODEV;
 
-	rtw_phy_setup_phy_cond(rtwdev, 0);
+	rtw_phy_setup_phy_cond(rtwdev, hal->pkg_type);
 
 	rtw_phy_init_tx_power(rtwdev);
 	if (rfe_def->agc_btg_tbl)

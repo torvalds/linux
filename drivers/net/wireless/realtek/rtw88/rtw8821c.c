@@ -47,6 +47,7 @@ enum rtw8821ce_rf_set {
 
 static int rtw8821c_read_efuse(struct rtw_dev *rtwdev, u8 *log_map)
 {
+	struct rtw_hal *hal = &rtwdev->hal;
 	struct rtw_efuse *efuse = &rtwdev->efuse;
 	struct rtw8821c_efuse *map;
 	int i;
@@ -69,6 +70,8 @@ static int rtw8821c_read_efuse(struct rtw_dev *rtwdev, u8 *log_map)
 	efuse->thermal_meter_k = map->thermal_meter;
 	efuse->tx_bb_swing_setting_2g = map->tx_bb_swing_setting_2g;
 	efuse->tx_bb_swing_setting_5g = map->tx_bb_swing_setting_5g;
+
+	hal->pkg_type = map->rfe_option & BIT(5) ? 1 : 0;
 
 	for (i = 0; i < 4; i++)
 		efuse->txpwr_idx_table[i] = map->txpwr_idx_table[i];
