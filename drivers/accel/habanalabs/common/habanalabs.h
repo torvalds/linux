@@ -4118,11 +4118,12 @@ void hl_ack_pb_single_dcore(struct hl_device *hdev, u32 dcore_offset,
 		const u32 pb_blocks[], u32 blocks_array_size);
 
 /* IOCTLs */
-long hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg);
 long hl_ioctl_control(struct file *filep, unsigned int cmd, unsigned long arg);
-int hl_cb_ioctl(struct hl_fpriv *hpriv, void *data);
-int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data);
-int hl_wait_ioctl(struct hl_fpriv *hpriv, void *data);
-int hl_mem_ioctl(struct hl_fpriv *hpriv, void *data);
+int hl_info_ioctl(struct drm_device *ddev, void *data, struct drm_file *file_priv);
+int hl_cb_ioctl(struct drm_device *ddev, void *data, struct drm_file *file_priv);
+int hl_cs_ioctl(struct drm_device *ddev, void *data, struct drm_file *file_priv);
+int hl_wait_ioctl(struct drm_device *ddev, void *data, struct drm_file *file_priv);
+int hl_mem_ioctl(struct drm_device *ddev, void *data, struct drm_file *file_priv);
+int hl_debug_ioctl(struct drm_device *ddev, void *data, struct drm_file *file_priv);
 
 #endif /* HABANALABSP_H_ */

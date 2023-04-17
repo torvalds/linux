@@ -8,8 +8,7 @@
 #ifndef HABANALABS_H_
 #define HABANALABS_H_
 
-#include <linux/types.h>
-#include <linux/ioctl.h>
+#include <drm/drm.h>
 
 /*
  * Defines that are asic-specific but constitutes as ABI between kernel driver
@@ -607,9 +606,9 @@ enum gaudi2_engine_id {
 /*
  * ASIC specific PLL index
  *
- * Used to retrieve in frequency info of different IPs via
- * HL_INFO_PLL_FREQUENCY under HL_IOCTL_INFO IOCTL. The enums need to be
- * used as an index in struct hl_pll_frequency_info
+ * Used to retrieve in frequency info of different IPs via HL_INFO_PLL_FREQUENCY under
+ * DRM_IOCTL_HL_INFO IOCTL.
+ * The enums need to be used as an index in struct hl_pll_frequency_info.
  */
 
 enum hl_goya_pll_index {
@@ -2163,6 +2162,13 @@ struct hl_debug_args {
 	__u32 ctx_id;
 };
 
+#define HL_IOCTL_INFO		0x00
+#define HL_IOCTL_CB		0x01
+#define HL_IOCTL_CS		0x02
+#define HL_IOCTL_WAIT_CS	0x03
+#define HL_IOCTL_MEMORY		0x04
+#define HL_IOCTL_DEBUG		0x05
+
 /*
  * Various information operations such as:
  * - H/W IP information
@@ -2177,8 +2183,7 @@ struct hl_debug_args {
  * definitions of structures in kernel and userspace, e.g. in case of old
  * userspace and new kernel driver
  */
-#define HL_IOCTL_INFO	\
-		_IOWR('H', 0x01, struct hl_info_args)
+#define DRM_IOCTL_HL_INFO	DRM_IOWR(DRM_COMMAND_BASE + HL_IOCTL_INFO, struct hl_info_args)
 
 /*
  * Command Buffer
@@ -2199,8 +2204,7 @@ struct hl_debug_args {
  * and won't be returned to user.
  *
  */
-#define HL_IOCTL_CB		\
-		_IOWR('H', 0x02, union hl_cb_args)
+#define DRM_IOCTL_HL_CB		DRM_IOWR(DRM_COMMAND_BASE + HL_IOCTL_CB, union hl_cb_args)
 
 /*
  * Command Submission
@@ -2252,8 +2256,7 @@ struct hl_debug_args {
  * and only if CS N and CS N-1 are exactly the same (same CBs for the same
  * queues).
  */
-#define HL_IOCTL_CS			\
-		_IOWR('H', 0x03, union hl_cs_args)
+#define DRM_IOCTL_HL_CS		DRM_IOWR(DRM_COMMAND_BASE + HL_IOCTL_CS, union hl_cs_args)
 
 /*
  * Wait for Command Submission
@@ -2285,9 +2288,7 @@ struct hl_debug_args {
  * HL_WAIT_CS_STATUS_ABORTED     - The CS was aborted, usually because the
  *                                 device was reset (EIO)
  */
-
-#define HL_IOCTL_WAIT_CS			\
-		_IOWR('H', 0x04, union hl_wait_cs_args)
+#define DRM_IOCTL_HL_WAIT_CS	DRM_IOWR(DRM_COMMAND_BASE + HL_IOCTL_WAIT_CS, union hl_wait_cs_args)
 
 /*
  * Memory
@@ -2304,8 +2305,7 @@ struct hl_debug_args {
  * There is an option for the user to specify the requested virtual address.
  *
  */
-#define HL_IOCTL_MEMORY		\
-		_IOWR('H', 0x05, union hl_mem_args)
+#define DRM_IOCTL_HL_MEMORY	DRM_IOWR(DRM_COMMAND_BASE + HL_IOCTL_MEMORY, union hl_mem_args)
 
 /*
  * Debug
@@ -2331,10 +2331,9 @@ struct hl_debug_args {
  * The driver can decide to "kick out" the user if he abuses this interface.
  *
  */
-#define HL_IOCTL_DEBUG		\
-		_IOWR('H', 0x06, struct hl_debug_args)
+#define DRM_IOCTL_HL_DEBUG	DRM_IOWR(DRM_COMMAND_BASE + HL_IOCTL_DEBUG, struct hl_debug_args)
 
-#define HL_COMMAND_START	0x01
-#define HL_COMMAND_END		0x07
+#define HL_COMMAND_START	(DRM_COMMAND_BASE + HL_IOCTL_INFO)
+#define HL_COMMAND_END		(DRM_COMMAND_BASE + HL_IOCTL_DEBUG + 1)
 
 #endif /* HABANALABS_H_ */

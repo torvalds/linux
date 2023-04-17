@@ -1095,8 +1095,10 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 	return rc;
 }
 
-static int hl_info_ioctl(struct hl_fpriv *hpriv, void *data)
+int hl_info_ioctl(struct drm_device *ddev, void *data, struct drm_file *file_priv)
 {
+	struct hl_fpriv *hpriv = file_priv->driver_priv;
+
 	return _hl_info_ioctl(hpriv, data, hpriv->hdev->dev);
 }
 
@@ -1105,10 +1107,11 @@ static int hl_info_ioctl_control(struct hl_fpriv *hpriv, void *data)
 	return _hl_info_ioctl(hpriv, data, hpriv->hdev->dev_ctrl);
 }
 
-static int hl_debug_ioctl(struct hl_fpriv *hpriv, void *data)
+int hl_debug_ioctl(struct drm_device *ddev, void *data, struct drm_file *file_priv)
 {
-	struct hl_debug_args *args = data;
+	struct hl_fpriv *hpriv = file_priv->driver_priv;
 	struct hl_device *hdev = hpriv->hdev;
+	struct hl_debug_args *args = data;
 	enum hl_device_status status;
 
 	int rc = 0;
@@ -1151,19 +1154,10 @@ static int hl_debug_ioctl(struct hl_fpriv *hpriv, void *data)
 }
 
 #define HL_IOCTL_DEF(ioctl, _func) \
-	[_IOC_NR(ioctl)] = {.cmd = ioctl, .func = _func}
-
-static const struct hl_ioctl_desc hl_ioctls[] = {
-	HL_IOCTL_DEF(HL_IOCTL_INFO, hl_info_ioctl),
-	HL_IOCTL_DEF(HL_IOCTL_CB, hl_cb_ioctl),
-	HL_IOCTL_DEF(HL_IOCTL_CS, hl_cs_ioctl),
-	HL_IOCTL_DEF(HL_IOCTL_WAIT_CS, hl_wait_ioctl),
-	HL_IOCTL_DEF(HL_IOCTL_MEMORY, hl_mem_ioctl),
-	HL_IOCTL_DEF(HL_IOCTL_DEBUG, hl_debug_ioctl)
-};
+	[_IOC_NR(ioctl) - HL_COMMAND_START] = {.cmd = ioctl, .func = _func}
 
 static const struct hl_ioctl_desc hl_ioctls_control[] = {
-	HL_IOCTL_DEF(HL_IOCTL_INFO, hl_info_ioctl_control)
+	HL_IOCTL_DEF(DRM_IOCTL_HL_INFO, hl_info_ioctl_control)
 };
 
 static long _hl_ioctl(struct hl_fpriv *hpriv, unsigned int cmd, unsigned long arg,
@@ -1232,33 +1226,6 @@ out_err:
 	return retcode;
 }
 
-long hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
-{
-	struct drm_file *file_priv = filep->private_data;
-	struct hl_fpriv *hpriv = file_priv->driver_priv;
-	struct hl_device *hdev = hpriv->hdev;
-	const struct hl_ioctl_desc *ioctl = NULL;
-	unsigned int nr = _IOC_NR(cmd);
-
-	if (!hdev) {
-		pr_err_ratelimited("Sending ioctl after device was removed! Please close FD\n");
-		return -ENODEV;
-	}
-
-	if ((nr >= HL_COMMAND_START) && (nr < HL_COMMAND_END)) {
-		ioctl = &hl_ioctls[nr];
-	} else {
-		char task_comm[TASK_COMM_LEN];
-
-		dev_dbg_ratelimited(hdev->dev,
-				"invalid ioctl: pid=%d, comm=\"%s\", cmd=%#010x, nr=%#04x\n",
-				task_pid_nr(current), get_task_comm(task_comm, current), cmd, nr);
-		return -ENOTTY;
-	}
-
-	return _hl_ioctl(hpriv, cmd, arg, ioctl, hdev->dev);
-}
-
 long hl_ioctl_control(struct file *filep, unsigned int cmd, unsigned long arg)
 {
 	struct hl_fpriv *hpriv = filep->private_data;
@@ -1271,8 +1238,8 @@ long hl_ioctl_control(struct file *filep, unsigned int cmd, unsigned long arg)
 		return -ENODEV;
 	}
 
-	if (nr == _IOC_NR(HL_IOCTL_INFO)) {
-		ioctl = &hl_ioctls_control[nr];
+	if (nr == _IOC_NR(DRM_IOCTL_HL_INFO)) {
+		ioctl = &hl_ioctls_control[nr - HL_COMMAND_START];
 	} else {
 		char task_comm[TASK_COMM_LEN];
 

@@ -2171,8 +2171,9 @@ static int allocate_timestamps_buffers(struct hl_fpriv *hpriv, struct hl_mem_in 
 	return 0;
 }
 
-int hl_mem_ioctl(struct hl_fpriv *hpriv, void *data)
+int hl_mem_ioctl(struct drm_device *ddev, void *data, struct drm_file *file_priv)
 {
+	struct hl_fpriv *hpriv = file_priv->driver_priv;
 	enum hl_device_status status;
 	union hl_mem_args *args = data;
 	struct hl_device *hdev = hpriv->hdev;

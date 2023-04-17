@@ -2558,8 +2558,9 @@ static int cs_ioctl_flush_pci_hbw_writes(struct hl_fpriv *hpriv)
 	return 0;
 }
 
-int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
+int hl_cs_ioctl(struct drm_device *ddev, void *data, struct drm_file *file_priv)
 {
+	struct hl_fpriv *hpriv = file_priv->driver_priv;
 	union hl_cs_args *args = data;
 	enum hl_cs_type cs_type = 0;
 	u64 cs_seq = ULONG_MAX;
@@ -3718,8 +3719,9 @@ static int hl_interrupt_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 	return 0;
 }
 
-int hl_wait_ioctl(struct hl_fpriv *hpriv, void *data)
+int hl_wait_ioctl(struct drm_device *ddev, void *data, struct drm_file *file_priv)
 {
+	struct hl_fpriv *hpriv = file_priv->driver_priv;
 	struct hl_device *hdev = hpriv->hdev;
 	union hl_wait_cs_args *args = data;
 	u32 flags = args->in.flags;
