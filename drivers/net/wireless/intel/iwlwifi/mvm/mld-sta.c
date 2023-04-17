@@ -1126,6 +1126,8 @@ int iwl_mvm_mld_update_sta_links(struct iwl_mvm *mvm,
 			goto err;
 
 		link_sta_added_to_fw |= BIT(link_id);
+
+		iwl_mvm_rs_add_sta_link(mvm, mvm_sta_link);
 	}
 
 	if (sta_mask_added) {

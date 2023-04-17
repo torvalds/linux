@@ -434,7 +434,12 @@ int iwl_mvm_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 void iwl_mvm_reset_frame_stats(struct iwl_mvm *mvm);
 #endif
 
+struct iwl_mvm_link_sta;
+
 void iwl_mvm_rs_add_sta(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta);
+void iwl_mvm_rs_add_sta_link(struct iwl_mvm *mvm,
+			     struct iwl_mvm_link_sta *link_sta);
+
 void rs_fw_rate_init(struct iwl_mvm *mvm,
 		     struct ieee80211_vif *vif,
 		     struct ieee80211_sta *sta,
