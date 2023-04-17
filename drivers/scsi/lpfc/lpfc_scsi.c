@@ -4273,7 +4273,8 @@ lpfc_fcp_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 				 "x%x SNS x%x x%x LBA x%llx Data: x%x x%x\n",
 				 cmd->device->id, cmd->device->lun, cmd,
 				 cmd->result, *lp, *(lp + 3),
-				 (u64)scsi_get_lba(cmd),
+				 (cmd->device->sector_size) ?
+				 (u64)scsi_get_lba(cmd) : 0,
 				 cmd->retries, scsi_get_resid(cmd));
 	}
 
