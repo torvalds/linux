@@ -28,9 +28,9 @@
 
 	.section .kprobes.text, "ax"
 
-ENTRY(ftrace_stub)
+SYM_FUNC_START(ftrace_stub)
 	BR_EX	%r14
-ENDPROC(ftrace_stub)
+SYM_FUNC_END(ftrace_stub)
 
 	.macro	ftrace_regs_entry, allregs=0
 	stg	%r14,(__SF_GPRS+8*8)(%r15)	# save traced function caller
@@ -153,8 +153,7 @@ SYM_CODE_END(ftrace_shared_hotpatch_trampoline_exrl)
 
 #ifdef CONFIG_RETHOOK
 
-SYM_FUNC_START(arch_rethook_trampoline)
-
+SYM_CODE_START(arch_rethook_trampoline)
 	stg	%r14,(__SF_GPRS+8*8)(%r15)
 	lay	%r15,-STACK_FRAME_SIZE(%r15)
 	stmg	%r0,%r14,STACK_PTREGS_GPRS(%r15)
@@ -177,7 +176,6 @@ SYM_FUNC_START(arch_rethook_trampoline)
 	mvc	__SF_EMPTY(16,%r7),STACK_PTREGS_PSW(%r15)
 	lmg	%r0,%r15,STACK_PTREGS_GPRS(%r15)
 	lpswe	__SF_EMPTY(%r15)
-
-SYM_FUNC_END(arch_rethook_trampoline)
+SYM_CODE_END(arch_rethook_trampoline)
 
 #endif /* CONFIG_RETHOOK */
