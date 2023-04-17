@@ -37,6 +37,7 @@
 
 #include <linux/gunyah/gh_errno.h>
 #include <linux/gunyah/gh_rm_drv.h>
+#include <linux/gunyah/gh_vm.h>
 #include "gh_proxy_sched.h"
 
 #define CREATE_TRACE_POINTS
@@ -572,6 +573,48 @@ bool gh_vm_supports_proxy_sched(gh_vmid_t vmid)
 
 	return false;
 }
+
+int gh_poll_vcpu_run(gh_vmid_t vmid)
+{
+	struct gh_hcall_vcpu_run_resp resp;
+	struct gh_proxy_vcpu *vcpu;
+	struct gh_proxy_vm *vm;
+	unsigned int vcpu_id;
+	unsigned int poll_nr_vcpus;
+	ktime_t start_ts, yield_ts;
+	int ret;
+
+	vm = gh_get_vm(vmid);
+	if (!vm || !vm->is_active)
+		return -EPERM;
+
+	poll_nr_vcpus = gh_get_nr_vcpus(vmid);
+	for (vcpu_id = 0; vcpu_id < poll_nr_vcpus; vcpu_id++) {
+		if (vm->vcpu[vcpu_id].cap_id == GH_CAPID_INVAL)
+			return 0;
+
+		vcpu = &vm->vcpu[vcpu_id];
+		do {
+			start_ts = ktime_get();
+			ret = gh_hcall_vcpu_run(vcpu->cap_id, 0, 0, 0, &resp);
+			yield_ts = ktime_get() - start_ts;
+			trace_gh_hcall_vcpu_run(ret, vcpu->vm->id, vcpu_id, yield_ts,
+						resp.vcpu_state, resp.vcpu_suspend_state);
+			if (ret == GH_ERROR_OK) {
+				if (resp.vcpu_state == GH_VCPU_STATE_EXPECTS_WAKEUP ||
+					resp.vcpu_state == GH_VCPU_STATE_POWERED_OFF)
+					break;
+
+				if (resp.vcpu_state > GH_VCPU_STATE_BLOCKED)
+					printk_deferred("Unknown VCPU STATE: state=%d VCPU=%u of VM=%d\n",
+							resp.vcpu_state, vcpu_id, vmid);
+			}
+		} while (ret == GH_ERROR_OK || ret == GH_ERROR_RETRY);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(gh_poll_vcpu_run);
 
 int gh_vcpu_run(gh_vmid_t vmid, unsigned int vcpu_id, uint64_t resume_data_0,
 		uint64_t resume_data_1, uint64_t resume_data_2, struct gh_hcall_vcpu_run_resp *resp)
