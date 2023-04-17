@@ -405,18 +405,35 @@ mlx5e_xmit_xdp_frame_mpwqe(struct mlx5e_xdpsq *sq, struct mlx5e_xmit_data *xdptx
 {
 	struct mlx5e_tx_mpwqe *session = &sq->mpwqe;
 	struct mlx5e_xdpsq_stats *stats = sq->stats;
+	struct mlx5e_xmit_data *p = xdptxd;
+	struct mlx5e_xmit_data tmp;
 
 	if (xdptxd->has_frags) {
-		/* MPWQE is enabled, but a multi-buffer packet is queued for
-		 * transmission. MPWQE can't send fragmented packets, so close
-		 * the current session and fall back to a regular WQE.
-		 */
-		if (unlikely(sq->mpwqe.wqe))
-			mlx5e_xdp_mpwqe_complete(sq);
-		return mlx5e_xmit_xdp_frame(sq, xdptxd, 0);
+		struct mlx5e_xmit_data_frags *xdptxdf =
+			container_of(xdptxd, struct mlx5e_xmit_data_frags, xd);
+
+		if (!!xdptxd->len + xdptxdf->sinfo->nr_frags > 1) {
+			/* MPWQE is enabled, but a multi-buffer packet is queued for
+			 * transmission. MPWQE can't send fragmented packets, so close
+			 * the current session and fall back to a regular WQE.
+			 */
+			if (unlikely(sq->mpwqe.wqe))
+				mlx5e_xdp_mpwqe_complete(sq);
+			return mlx5e_xmit_xdp_frame(sq, xdptxd, 0);
+		}
+		if (!xdptxd->len) {
+			skb_frag_t *frag = &xdptxdf->sinfo->frags[0];
+
+			tmp.data = skb_frag_address(frag);
+			tmp.len = skb_frag_size(frag);
+			tmp.dma_addr = xdptxdf->dma_arr ? xdptxdf->dma_arr[0] :
+				page_pool_get_dma_addr(skb_frag_page(frag)) +
+				skb_frag_off(frag);
+			p = &tmp;
+		}
 	}
 
-	if (unlikely(xdptxd->len > sq->hw_mtu)) {
+	if (unlikely(p->len > sq->hw_mtu)) {
 		stats->err++;
 		return false;
 	}
@@ -434,7 +451,7 @@ mlx5e_xmit_xdp_frame_mpwqe(struct mlx5e_xdpsq *sq, struct mlx5e_xmit_data *xdptx
 		mlx5e_xdp_mpwqe_session_start(sq);
 	}
 
-	mlx5e_xdp_mpwqe_add_dseg(sq, xdptxd, stats);
+	mlx5e_xdp_mpwqe_add_dseg(sq, p, stats);
 
 	if (unlikely(mlx5e_xdp_mpwqe_is_full(session, sq->max_sq_mpw_wqebbs)))
 		mlx5e_xdp_mpwqe_complete(sq);
