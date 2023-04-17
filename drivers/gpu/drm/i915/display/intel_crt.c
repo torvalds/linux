@@ -822,9 +822,9 @@ intel_crt_detect(struct drm_connector *connector,
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 	struct intel_crt *crt = intel_attached_crt(to_intel_connector(connector));
 	struct intel_encoder *intel_encoder = &crt->base;
+	struct drm_atomic_state *state;
 	intel_wakeref_t wakeref;
-	int status, ret;
-	struct intel_load_detect_pipe tmp;
+	int status;
 
 	drm_dbg_kms(&dev_priv->drm, "[CONNECTOR:%d:%s] force=%d\n",
 		    connector->base.id, connector->name,
@@ -882,8 +882,12 @@ load_detect:
 	}
 
 	/* for pre-945g platforms use load detect */
-	ret = intel_load_detect_get_pipe(connector, &tmp, ctx);
-	if (ret > 0) {
+	state = intel_load_detect_get_pipe(connector, ctx);
+	if (IS_ERR(state)) {
+		status = PTR_ERR(state);
+	} else if (!state) {
+		status = connector_status_unknown;
+	} else {
 		if (intel_crt_detect_ddc(connector))
 			status = connector_status_connected;
 		else if (DISPLAY_VER(dev_priv) < 4)
@@ -893,11 +897,7 @@ load_detect:
 			status = connector_status_disconnected;
 		else
 			status = connector_status_unknown;
-		intel_load_detect_release_pipe(connector, &tmp, ctx);
-	} else if (ret == 0) {
-		status = connector_status_unknown;
-	} else {
-		status = ret;
+		intel_load_detect_release_pipe(connector, state, ctx);
 	}
 
 out:

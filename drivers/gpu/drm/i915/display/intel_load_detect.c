@@ -44,9 +44,9 @@ static int intel_modeset_disable_planes(struct drm_atomic_state *state,
 	return 0;
 }
 
-int intel_load_detect_get_pipe(struct drm_connector *connector,
-			       struct intel_load_detect_pipe *old,
-			       struct drm_modeset_acquire_ctx *ctx)
+struct drm_atomic_state *
+intel_load_detect_get_pipe(struct drm_connector *connector,
+			   struct drm_modeset_acquire_ctx *ctx)
 {
 	struct intel_encoder *encoder =
 		intel_attached_encoder(to_intel_connector(connector));
@@ -63,8 +63,6 @@ int intel_load_detect_get_pipe(struct drm_connector *connector,
 	drm_dbg_kms(&dev_priv->drm, "[CONNECTOR:%d:%s], [ENCODER:%d:%s]\n",
 		    connector->base.id, connector->name,
 		    encoder->base.base.id, encoder->base.name);
-
-	old->restore_state = NULL;
 
 	drm_WARN_ON(dev, !drm_modeset_is_locked(&config->connection_mutex));
 
@@ -179,13 +177,12 @@ found:
 		goto fail;
 	}
 
-	old->restore_state = restore_state;
 	drm_atomic_state_put(state);
 
 	/* let the connector get through one full cycle before testing */
 	intel_crtc_wait_for_next_vblank(crtc);
 
-	return true;
+	return restore_state;
 
 fail:
 	if (state) {
@@ -198,27 +195,26 @@ fail:
 	}
 
 	if (ret == -EDEADLK)
-		return ret;
+		return ERR_PTR(ret);
 
-	return false;
+	return NULL;
 }
 
 void intel_load_detect_release_pipe(struct drm_connector *connector,
-				    struct intel_load_detect_pipe *old,
+				    struct drm_atomic_state *state,
 				    struct drm_modeset_acquire_ctx *ctx)
 {
 	struct intel_encoder *intel_encoder =
 		intel_attached_encoder(to_intel_connector(connector));
 	struct drm_i915_private *i915 = to_i915(intel_encoder->base.dev);
 	struct drm_encoder *encoder = &intel_encoder->base;
-	struct drm_atomic_state *state = old->restore_state;
 	int ret;
 
 	drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s], [ENCODER:%d:%s]\n",
 		    connector->base.id, connector->name,
 		    encoder->base.id, encoder->name);
 
-	if (!state)
+	if (IS_ERR_OR_NULL(state))
 		return;
 
 	ret = drm_atomic_helper_commit_duplicated_state(state, ctx);

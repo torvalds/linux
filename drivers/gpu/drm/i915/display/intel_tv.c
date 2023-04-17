@@ -1723,21 +1723,21 @@ intel_tv_detect(struct drm_connector *connector,
 		return connector_status_disconnected;
 
 	if (force) {
-		struct intel_load_detect_pipe tmp;
-		int ret;
+		struct drm_atomic_state *state;
 
-		ret = intel_load_detect_get_pipe(connector, &tmp, ctx);
-		if (ret < 0)
-			return ret;
+		state = intel_load_detect_get_pipe(connector, ctx);
+		if (IS_ERR(state))
+			return PTR_ERR(state);
 
-		if (ret > 0) {
+		if (state) {
 			type = intel_tv_detect_type(intel_tv, connector);
-			intel_load_detect_release_pipe(connector, &tmp, ctx);
+			intel_load_detect_release_pipe(connector, state, ctx);
 			status = type < 0 ?
 				connector_status_disconnected :
 				connector_status_connected;
-		} else
+		} else {
 			status = connector_status_unknown;
+		}
 
 		if (status == connector_status_connected) {
 			intel_tv->type = type;
