@@ -224,15 +224,6 @@ struct iwl_mac_client_data {
 } __packed; /* MAC_CONTEXT_CONFIG_CLIENT_DATA_API_S_VER_1 */
 
 /**
- * struct iwl_mac_go_ibss_data - configuration data for GO and IBSS MAC context
- *
- * @beacon_template: beacon template ID
- */
-struct iwl_mac_go_ibss_data {
-	__le32 beacon_template;
-} __packed; /* MAC_CONTEXT_CONFIG_GO_IBSS_DATA_API_S_VER_1 */
-
-/**
  * struct iwl_mac_p2p_dev_data  - configuration data for P2P device MAC context
  *
  * @is_disc_extended: if set to true, P2P Device discoverability is enabled on
@@ -304,7 +295,6 @@ struct iwl_mac_config_cmd {
 	/* MAC_CONTEXT_CONFIG_SPECIFIC_DATA_API_U_VER_1 */
 	union {
 		struct iwl_mac_client_data client;
-		struct iwl_mac_go_ibss_data go_ibss;
 		struct iwl_mac_p2p_dev_data p2p_dev;
 	};
 } __packed; /* MAC_CONTEXT_CONFIG_CMD_API_S_VER_1 */

@@ -167,7 +167,6 @@ static int iwl_mvm_mld_mac_ctxt_cmd_ibss(struct iwl_mvm *mvm,
 					 struct ieee80211_vif *vif,
 					 u32 action)
 {
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mac_config_cmd cmd = {};
 
 	WARN_ON(vif->type != NL80211_IFTYPE_ADHOC);
@@ -177,9 +176,6 @@ static int iwl_mvm_mld_mac_ctxt_cmd_ibss(struct iwl_mvm *mvm,
 	cmd.filter_flags = cpu_to_le32(MAC_CFG_FILTER_ACCEPT_BEACON |
 				       MAC_CFG_FILTER_ACCEPT_PROBE_REQ |
 				       MAC_CFG_FILTER_ACCEPT_GRP);
-
-	/* TODO: Assumes that the beacon id == mac context id */
-	cmd.go_ibss.beacon_template = cpu_to_le32(mvmvif->id);
 
 	return iwl_mvm_mld_mac_ctxt_send_cmd(mvm, &cmd);
 }
@@ -219,9 +215,6 @@ static int iwl_mvm_mld_mac_ctxt_cmd_ap_go(struct iwl_mvm *mvm,
 						 &cmd.filter_flags,
 						 MAC_CFG_FILTER_ACCEPT_PROBE_REQ,
 						 MAC_CFG_FILTER_ACCEPT_BEACON);
-
-	/* TODO: Assume that the beacon id == mac context id */
-	cmd.go_ibss.beacon_template = cpu_to_le32(mvmvif->id);
 
 	return iwl_mvm_mld_mac_ctxt_send_cmd(mvm, &cmd);
 }
