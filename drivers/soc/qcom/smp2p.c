@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2015, Sony Mobile Communications AB.
  * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/interrupt.h>
@@ -195,7 +195,6 @@ static bool qcom_smp2p_check_ssr(struct qcom_smp2p *smp2p)
 
 	restart = in->flags & BIT(SMP2P_FLAGS_RESTART_DONE_BIT);
 
-	SMP2P_INFO("%d: SSR DETECTED\n", smp2p->remote_pid);
 	return restart != smp2p->ssr_ack;
 }
 
@@ -204,6 +203,7 @@ static void qcom_smp2p_do_ssr_ack(struct qcom_smp2p *smp2p)
 	struct smp2p_smem_item *out = smp2p->out;
 	u32 val;
 
+	SMP2P_INFO("%d: SSR detected, doing SSR Handshake\n", smp2p->remote_pid);
 	smp2p->ssr_ack = !smp2p->ssr_ack;
 
 	val = out->flags & ~BIT(SMP2P_FLAGS_RESTART_ACK_BIT);
