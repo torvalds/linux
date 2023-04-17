@@ -3017,7 +3017,7 @@ static void rs_drv_rate_update(void *mvm_r,
 
 	iwl_mvm_rs_rate_init(mvm, mvmsta->vif, sta,
 			     &mvmsta->vif->bss_conf, &sta->deflink,
-			     sband->band, true);
+			     sband->band);
 }
 
 static void __iwl_mvm_rs_tx_status(struct iwl_mvm *mvm,
@@ -4106,11 +4106,11 @@ void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm,
 			  struct ieee80211_sta *sta,
 			  struct ieee80211_bss_conf *link_conf,
 			  struct ieee80211_link_sta *link_sta,
-			  enum nl80211_band band, bool update)
+			  enum nl80211_band band)
 {
 	if (iwl_mvm_has_tlc_offload(mvm)) {
-		rs_fw_rate_init(mvm, vif, sta, link_conf,
-				link_sta, band, update);
+		iwl_mvm_rs_fw_rate_init(mvm, vif, sta, link_conf,
+					link_sta, band);
 	} else {
 		struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 

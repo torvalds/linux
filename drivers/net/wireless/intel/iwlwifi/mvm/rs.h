@@ -399,7 +399,7 @@ void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm,
 			  struct ieee80211_sta *sta,
 			  struct ieee80211_bss_conf *link_conf,
 			  struct ieee80211_link_sta *link_sta,
-			  enum nl80211_band band, bool update);
+			  enum nl80211_band band);
 
 /* Notify RS about Tx status */
 void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
@@ -440,12 +440,12 @@ void iwl_mvm_rs_add_sta(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta);
 void iwl_mvm_rs_add_sta_link(struct iwl_mvm *mvm,
 			     struct iwl_mvm_link_sta *link_sta);
 
-void rs_fw_rate_init(struct iwl_mvm *mvm,
-		     struct ieee80211_vif *vif,
-		     struct ieee80211_sta *sta,
-		     struct ieee80211_bss_conf *link_conf,
-		     struct ieee80211_link_sta *link_sta,
-		     enum nl80211_band band, bool update);
+void iwl_mvm_rs_fw_rate_init(struct iwl_mvm *mvm,
+			     struct ieee80211_vif *vif,
+			     struct ieee80211_sta *sta,
+			     struct ieee80211_bss_conf *link_conf,
+			     struct ieee80211_link_sta *link_sta,
+			     enum nl80211_band band);
 int rs_fw_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 			bool enable);
 void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,

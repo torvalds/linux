@@ -564,12 +564,12 @@ u16 rs_fw_get_max_amsdu_len(struct ieee80211_sta *sta,
 	return 0;
 }
 
-void rs_fw_rate_init(struct iwl_mvm *mvm,
-		     struct ieee80211_vif *vif,
-		     struct ieee80211_sta *sta,
-		     struct ieee80211_bss_conf *link_conf,
-		     struct ieee80211_link_sta *link_sta,
-		     enum nl80211_band band, bool update)
+void iwl_mvm_rs_fw_rate_init(struct iwl_mvm *mvm,
+			     struct ieee80211_vif *vif,
+			     struct ieee80211_sta *sta,
+			     struct ieee80211_bss_conf *link_conf,
+			     struct ieee80211_link_sta *link_sta,
+			     enum nl80211_band band)
 {
 	struct ieee80211_hw *hw = mvm->hw;
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
@@ -579,7 +579,7 @@ void rs_fw_rate_init(struct iwl_mvm *mvm,
 	struct iwl_mvm_link_sta *mvm_link_sta;
 	struct iwl_lq_sta_rs_fw *lq_sta;
 	struct iwl_tlc_config_cmd_v4 cfg_cmd = {
-		.max_ch_width = update ?
+		.max_ch_width = mvmsta->authorized ?
 			rs_fw_bw_from_sta_bw(link_sta) : IWL_TLC_MNG_CH_WIDTH_20MHZ,
 		.flags = cpu_to_le16(rs_fw_get_config_flags(mvm, vif, link_sta,
 							    sband)),

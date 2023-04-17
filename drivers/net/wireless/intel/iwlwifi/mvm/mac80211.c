@@ -3577,8 +3577,7 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
  */
 static void iwl_mvm_rs_rate_init_all_links(struct iwl_mvm *mvm,
 					   struct ieee80211_vif *vif,
-					   struct ieee80211_sta *sta,
-					   bool update)
+					   struct ieee80211_sta *sta)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	unsigned int link_id;
@@ -3593,8 +3592,7 @@ static void iwl_mvm_rs_rate_init_all_links(struct iwl_mvm *mvm,
 			continue;
 
 		iwl_mvm_rs_rate_init(mvm, vif, sta, conf, link_sta,
-				     mvmvif->link[link_id]->phy_ctxt->channel->band,
-				     update);
+				     mvmvif->link[link_id]->phy_ctxt->channel->band);
 	}
 }
 
@@ -3766,7 +3764,7 @@ iwl_mvm_sta_state_auth_to_assoc(struct ieee80211_hw *hw,
 	}
 
 out:
-	iwl_mvm_rs_rate_init_all_links(mvm, vif, sta, false);
+	iwl_mvm_rs_rate_init_all_links(mvm, vif, sta);
 
 	return callbacks->update_sta(mvm, vif, sta);
 }
@@ -3799,7 +3797,9 @@ iwl_mvm_sta_state_assoc_to_authorized(struct iwl_mvm *mvm,
 		iwl_mvm_mei_host_associated(mvm, vif, mvm_sta);
 	}
 
-	iwl_mvm_rs_rate_init_all_links(mvm, vif, sta, true);
+	mvm_sta->authorized = true;
+
+	iwl_mvm_rs_rate_init_all_links(mvm, vif, sta);
 
 	return 0;
 }
@@ -3811,14 +3811,17 @@ iwl_mvm_sta_state_authorized_to_assoc(struct iwl_mvm *mvm,
 				      struct iwl_mvm_sta_state_ops *callbacks)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
 
+	mvmsta->authorized = false;
+
 	/* once we move into assoc state, need to update rate scale to
 	 * disable using wide bandwidth
 	 */
-	iwl_mvm_rs_rate_init_all_links(mvm, vif, sta, false);
+	iwl_mvm_rs_rate_init_all_links(mvm, vif, sta);
 
 	if (!sta->tdls) {
 		/* Set this but don't call iwl_mvm_mac_ctxt_changed()
@@ -3987,7 +3990,7 @@ void iwl_mvm_sta_rc_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	if (changed & (IEEE80211_RC_BW_CHANGED |
 		       IEEE80211_RC_SUPP_RATES_CHANGED |
 		       IEEE80211_RC_NSS_CHANGED))
-		iwl_mvm_rs_rate_init_all_links(mvm, vif, sta, true);
+		iwl_mvm_rs_rate_init_all_links(mvm, vif, sta);
 
 	if (vif->type == NL80211_IFTYPE_STATION &&
 	    changed & IEEE80211_RC_NSS_CHANGED)

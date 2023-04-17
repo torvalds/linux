@@ -356,6 +356,7 @@ struct iwl_mvm_link_sta {
  * @tid_disable_agg: bitmap: if bit(tid) is set, the fw won't send ampdus for
  *	tid.
  * @sta_type: station type
+ * @authorized: indicates station is authorized
  * @sta_state: station state according to enum %ieee80211_sta_state
  * @bt_reduced_txpower: is reduced tx power enabled for this station
  * @next_status_eosp: the next reclaimed packet is a PS-Poll response and
@@ -409,6 +410,7 @@ struct iwl_mvm_sta {
 	enum ieee80211_sta_state sta_state;
 	bool bt_reduced_txpower;
 	bool next_status_eosp;
+	bool authorized;
 	spinlock_t lock;
 	struct iwl_mvm_tid_data tid_data[IWL_MAX_TID_COUNT + 1];
 	u8 tid_to_baid[IWL_MAX_TID_COUNT];
