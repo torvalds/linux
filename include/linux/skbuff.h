@@ -983,7 +983,9 @@ struct sk_buff {
 	__u8			decrypted:1;
 #endif
 	__u8			slow_gro:1;
+#if IS_ENABLED(CONFIG_IP_SCTP)
 	__u8			csum_not_inet:1;
+#endif
 
 #ifdef CONFIG_NET_SCHED
 	__u16			tc_index;	/* traffic control index */
@@ -5060,7 +5062,19 @@ static inline void skb_reset_redirect(struct sk_buff *skb)
 
 static inline bool skb_csum_is_sctp(struct sk_buff *skb)
 {
+#if IS_ENABLED(CONFIG_IP_SCTP)
 	return skb->csum_not_inet;
+#else
+	return 0;
+#endif
+}
+
+static inline void skb_reset_csum_not_inet(struct sk_buff *skb)
+{
+	skb->ip_summed = CHECKSUM_NONE;
+#if IS_ENABLED(CONFIG_IP_SCTP)
+	skb->csum_not_inet = 0;
+#endif
 }
 
 static inline void skb_set_kcov_handle(struct sk_buff *skb,
