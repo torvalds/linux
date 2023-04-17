@@ -77,9 +77,9 @@ static struct perf_cpu_map *cpu_map__from_entries(const struct perf_record_cpu_m
 			 * otherwise it would become 65535.
 			 */
 			if (data->cpus_data.cpu[i] == (u16) -1)
-				map->map[i].cpu = -1;
+				RC_CHK_ACCESS(map)->map[i].cpu = -1;
 			else
-				map->map[i].cpu = (int) data->cpus_data.cpu[i];
+				RC_CHK_ACCESS(map)->map[i].cpu = (int) data->cpus_data.cpu[i];
 		}
 	}
 
@@ -107,7 +107,7 @@ static struct perf_cpu_map *cpu_map__from_mask(const struct perf_record_cpu_map_
 
 		perf_record_cpu_map_data__read_one_mask(data, i, local_copy);
 		for_each_set_bit(cpu, local_copy, 64)
-			map->map[j++].cpu = cpu + cpus_per_i;
+			RC_CHK_ACCESS(map)->map[j++].cpu = cpu + cpus_per_i;
 	}
 	return map;
 
@@ -124,11 +124,11 @@ static struct perf_cpu_map *cpu_map__from_range(const struct perf_record_cpu_map
 		return NULL;
 
 	if (data->range_cpu_data.any_cpu)
-		map->map[i++].cpu = -1;
+		RC_CHK_ACCESS(map)->map[i++].cpu = -1;
 
 	for (int cpu = data->range_cpu_data.start_cpu; cpu <= data->range_cpu_data.end_cpu;
 	     i++, cpu++)
-		map->map[i].cpu = cpu;
+		RC_CHK_ACCESS(map)->map[i].cpu = cpu;
 
 	return map;
 }
@@ -164,7 +164,7 @@ struct perf_cpu_map *perf_cpu_map__empty_new(int nr)
 
 	if (cpus != NULL) {
 		for (int i = 0; i < nr; i++)
-			cpus->map[i].cpu = -1;
+			RC_CHK_ACCESS(cpus)->map[i].cpu = -1;
 	}
 
 	return cpus;

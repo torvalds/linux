@@ -2015,9 +2015,9 @@ int perf_pmu__cpus_match(struct perf_pmu *pmu, struct perf_cpu_map *cpus,
 
 	perf_cpu_map__for_each_cpu(cpu, i, cpus) {
 		if (!perf_cpu_map__has(pmu_cpus, cpu))
-			unmatched_cpus->map[unmatched_nr++] = cpu;
+			RC_CHK_ACCESS(unmatched_cpus)->map[unmatched_nr++] = cpu;
 		else
-			matched_cpus->map[matched_nr++] = cpu;
+			RC_CHK_ACCESS(matched_cpus)->map[matched_nr++] = cpu;
 	}
 
 	perf_cpu_map__set_nr(unmatched_cpus, unmatched_nr);

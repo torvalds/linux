@@ -4,6 +4,7 @@
 
 #include <linux/refcount.h>
 #include <perf/cpumap.h>
+#include <internal/rc_check.h>
 
 /**
  * A sized, reference counted, sorted array of integers representing CPU
@@ -12,7 +13,7 @@
  * gaps if CPU numbers were used. For events associated with a pid, rather than
  * a CPU, a single dummy map with an entry of -1 is used.
  */
-struct perf_cpu_map {
+DECLARE_RC_STRUCT(perf_cpu_map) {
 	refcount_t	refcnt;
 	/** Length of the map array. */
 	int		nr;
@@ -32,6 +33,6 @@ void perf_cpu_map__set_nr(struct perf_cpu_map *map, int nr_cpus);
 
 static inline refcount_t *perf_cpu_map__refcnt(struct perf_cpu_map *map)
 {
-	return &map->refcnt;
+	return &RC_CHK_ACCESS(map)->refcnt;
 }
 #endif /* __LIBPERF_INTERNAL_CPUMAP_H */
