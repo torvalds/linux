@@ -477,18 +477,26 @@ mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xmit_data *xdptxd,
 	u16 ds_cnt, inline_hdr_sz;
 	u8 num_wqebbs = 1;
 	int num_frags = 0;
+	bool inline_ok;
+	bool linear;
 	u16 pi;
 
 	struct mlx5e_xdpsq_stats *stats = sq->stats;
 
-	if (unlikely(dma_len < MLX5E_XDP_MIN_INLINE || sq->hw_mtu < dma_len)) {
+	inline_ok = sq->min_inline_mode == MLX5_INLINE_MODE_NONE ||
+		dma_len >= MLX5E_XDP_MIN_INLINE;
+
+	if (unlikely(!inline_ok || sq->hw_mtu < dma_len)) {
 		stats->err++;
 		return false;
 	}
 
-	ds_cnt = MLX5E_TX_WQE_EMPTY_DS_COUNT + 1;
+	inline_hdr_sz = 0;
 	if (sq->min_inline_mode != MLX5_INLINE_MODE_NONE)
-		ds_cnt++;
+		inline_hdr_sz = MLX5E_XDP_MIN_INLINE;
+
+	linear = !!(dma_len - inline_hdr_sz);
+	ds_cnt = MLX5E_TX_WQE_EMPTY_DS_COUNT + linear + !!inline_hdr_sz;
 
 	/* check_result must be 0 if sinfo is passed. */
 	if (!check_result) {
@@ -517,22 +525,23 @@ mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xmit_data *xdptxd,
 	eseg = &wqe->eth;
 	dseg = wqe->data;
 
-	inline_hdr_sz = 0;
-
 	/* copy the inline part if required */
-	if (sq->min_inline_mode != MLX5_INLINE_MODE_NONE) {
+	if (inline_hdr_sz) {
 		memcpy(eseg->inline_hdr.start, xdptxd->data, sizeof(eseg->inline_hdr.start));
 		memcpy(dseg, xdptxd->data + sizeof(eseg->inline_hdr.start),
-		       MLX5E_XDP_MIN_INLINE - sizeof(eseg->inline_hdr.start));
-		dma_len  -= MLX5E_XDP_MIN_INLINE;
-		dma_addr += MLX5E_XDP_MIN_INLINE;
-		inline_hdr_sz = MLX5E_XDP_MIN_INLINE;
+		       inline_hdr_sz - sizeof(eseg->inline_hdr.start));
+		dma_len  -= inline_hdr_sz;
+		dma_addr += inline_hdr_sz;
 		dseg++;
 	}
 
 	/* write the dma part */
-	dseg->addr       = cpu_to_be64(dma_addr);
-	dseg->byte_count = cpu_to_be32(dma_len);
+	if (linear) {
+		dseg->addr       = cpu_to_be64(dma_addr);
+		dseg->byte_count = cpu_to_be32(dma_len);
+		dseg->lkey       = sq->mkey_be;
+		dseg++;
+	}
 
 	cseg->opmod_idx_opcode = cpu_to_be32((sq->pc << 8) | MLX5_OPCODE_SEND);
 
@@ -543,7 +552,6 @@ mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xmit_data *xdptxd,
 		memset(eseg, 0, sizeof(*eseg) - sizeof(eseg->trailer));
 
 		eseg->inline_hdr.sz = cpu_to_be16(inline_hdr_sz);
-		dseg->lkey = sq->mkey_be;
 
 		for (i = 0; i < num_frags; i++) {
 			skb_frag_t *frag = &xdptxdf->sinfo->frags[i];
@@ -553,10 +561,10 @@ mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xmit_data *xdptxd,
 				page_pool_get_dma_addr(skb_frag_page(frag)) +
 				skb_frag_off(frag);
 
-			dseg++;
 			dseg->addr = cpu_to_be64(addr);
 			dseg->byte_count = cpu_to_be32(skb_frag_size(frag));
 			dseg->lkey = sq->mkey_be;
+			dseg++;
 		}
 
 		cseg->qpn_ds = cpu_to_be32((sq->sqn << 8) | ds_cnt);

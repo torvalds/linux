@@ -1886,7 +1886,6 @@ int mlx5e_open_xdpsq(struct mlx5e_channel *c, struct mlx5e_params *params,
 			struct mlx5e_tx_wqe      *wqe  = mlx5_wq_cyc_get_wqe(&sq->wq, i);
 			struct mlx5_wqe_ctrl_seg *cseg = &wqe->ctrl;
 			struct mlx5_wqe_eth_seg  *eseg = &wqe->eth;
-			struct mlx5_wqe_data_seg *dseg;
 
 			sq->db.wqe_info[i] = (struct mlx5e_xdp_wqe_info) {
 				.num_wqebbs = 1,
@@ -1895,9 +1894,6 @@ int mlx5e_open_xdpsq(struct mlx5e_channel *c, struct mlx5e_params *params,
 
 			cseg->qpn_ds = cpu_to_be32((sq->sqn << 8) | ds_cnt);
 			eseg->inline_hdr.sz = cpu_to_be16(inline_hdr_sz);
-
-			dseg = (struct mlx5_wqe_data_seg *)cseg + (ds_cnt - 1);
-			dseg->lkey = sq->mkey_be;
 		}
 	}
 
