@@ -179,14 +179,20 @@ struct sys_stat_struct {
 char **environ __attribute__((weak));
 const unsigned long *_auxv __attribute__((weak));
 
+#define __ARCH_SUPPORTS_STACK_PROTECTOR
+
 /* startup code, note that it's called __start on MIPS */
-void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) __start(void)
+void __attribute__((weak,noreturn,optimize("omit-frame-pointer"),no_stack_protector)) __start(void)
 {
 	__asm__ volatile (
 		/*".set nomips16\n"*/
 		".set push\n"
 		".set    noreorder\n"
 		".option pic0\n"
+#ifdef NOLIBC_STACKPROTECTOR
+		"jal __stack_chk_init\n" /* initialize stack protector                         */
+		"nop\n"                  /* delayed slot                                       */
+#endif
 		/*".ent __start\n"*/
 		/*"__start:\n"*/
 		"lw $a0,($sp)\n"        /* argc was in the stack                               */
