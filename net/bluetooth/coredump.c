@@ -5,6 +5,7 @@
 
 #include <linux/devcoredump.h>
 
+#include <asm/unaligned.h>
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
@@ -180,25 +181,25 @@ hdr_free:
 
 static void hci_devcd_handle_pkt_init(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	u32 *dump_size;
+	u32 dump_size;
 
 	if (hdev->dump.state != HCI_DEVCOREDUMP_IDLE) {
 		DBG_UNEXPECTED_STATE();
 		return;
 	}
 
-	if (skb->len != sizeof(*dump_size)) {
+	if (skb->len != sizeof(dump_size)) {
 		bt_dev_dbg(hdev, "Invalid dump init pkt");
 		return;
 	}
 
-	dump_size = skb_pull_data(skb, sizeof(*dump_size));
-	if (!*dump_size) {
+	dump_size = get_unaligned_le32(skb_pull_data(skb, 4));
+	if (!dump_size) {
 		bt_dev_err(hdev, "Zero size dump init pkt");
 		return;
 	}
 
-	if (hci_devcd_prepare(hdev, *dump_size)) {
+	if (hci_devcd_prepare(hdev, dump_size)) {
 		bt_dev_err(hdev, "Failed to prepare for dump");
 		return;
 	}
@@ -441,7 +442,7 @@ int hci_devcd_init(struct hci_dev *hdev, u32 dump_size)
 		return -ENOMEM;
 
 	hci_dmp_cb(skb)->pkt_type = HCI_DEVCOREDUMP_PKT_INIT;
-	skb_put_data(skb, &dump_size, sizeof(dump_size));
+	put_unaligned_le32(dump_size, skb_put(skb, 4));
 
 	skb_queue_tail(&hdev->dump.dump_q, skb);
 	queue_work(hdev->workqueue, &hdev->dump.dump_rx);
