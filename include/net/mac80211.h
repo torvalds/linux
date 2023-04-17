@@ -5216,26 +5216,6 @@ void ieee80211_tx_status_irqsafe(struct ieee80211_hw *hw,
 				 struct sk_buff *skb);
 
 /**
- * ieee80211_tx_status_8023 - transmit status callback for 802.3 frame format
- *
- * Call this function for all transmitted data frames after their transmit
- * completion. This callback should only be called for data frames which
- * are using driver's (or hardware's) offload capability of encap/decap
- * 802.11 frames.
- *
- * This function may not be called in IRQ context. Calls to this function
- * for a single hardware must be synchronized against each other and all
- * calls in the same tx status family.
- *
- * @hw: the hardware the frame was transmitted by
- * @vif: the interface for which the frame was transmitted
- * @skb: the frame that was transmitted, owned by mac80211 after this call
- */
-void ieee80211_tx_status_8023(struct ieee80211_hw *hw,
-			       struct ieee80211_vif *vif,
-			       struct sk_buff *skb);
-
-/**
  * ieee80211_report_low_ack - report non-responding station
  *
  * When operating in AP-mode, call this function to report a non-responding
