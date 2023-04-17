@@ -1375,7 +1375,8 @@ struct sensor_async_subdev {
 	struct csi2_bus_info csi2;
 };
 
-#define to_sensor_asd(asd)	container_of(asd, struct sensor_async_subdev, asd)
+#define to_sensor_asd(__asd)	\
+	container_of_const(__asd, struct sensor_async_subdev, asd)
 
 /* The .bound() notifier callback when a match is found */
 static int cio2_notifier_bound(struct v4l2_async_notifier *notifier,
