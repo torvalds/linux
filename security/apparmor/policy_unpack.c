@@ -1240,12 +1240,18 @@ static int verify_profile(struct aa_profile *profile)
 	if (!rules)
 		return 0;
 
-	if ((rules->file.dfa && !verify_dfa_accept_index(rules->file.dfa,
-							 rules->file.size)) ||
-	    (rules->policy.dfa &&
-	     !verify_dfa_accept_index(rules->policy.dfa, rules->policy.size))) {
+	if (rules->file.dfa && !verify_dfa_accept_index(rules->file.dfa,
+							rules->file.size)) {
 		audit_iface(profile, NULL, NULL,
-			    "Unpack: Invalid named transition", NULL, -EPROTO);
+			    "Unpack: file Invalid named transition", NULL,
+			    -EPROTO);
+		return -EPROTO;
+	}
+	if (rules->policy.dfa &&
+	    !verify_dfa_accept_index(rules->policy.dfa, rules->policy.size)) {
+		audit_iface(profile, NULL, NULL,
+			    "Unpack: policy Invalid named transition", NULL,
+			    -EPROTO);
 		return -EPROTO;
 	}
 
