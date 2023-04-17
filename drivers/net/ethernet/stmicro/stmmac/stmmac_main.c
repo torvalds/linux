@@ -7313,6 +7313,10 @@ int stmmac_dvr_probe(struct device *device,
 	if (priv->dma_cap.rssen && priv->plat->rss_en)
 		ndev->features |= NETIF_F_RXHASH;
 
+	ndev->vlan_features |= ndev->features;
+	/* TSO doesn't work on VLANs yet */
+	ndev->vlan_features &= ~NETIF_F_TSO;
+
 	/* MTU range: 46 - hw-specific max */
 	ndev->min_mtu = ETH_ZLEN - ETH_HLEN;
 	if (priv->plat->has_xgmac)
