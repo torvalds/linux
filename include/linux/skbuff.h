@@ -953,8 +953,10 @@ struct sk_buff {
 
 	__u8			l4_hash:1;
 	__u8			sw_hash:1;
+#ifdef CONFIG_WIRELESS
 	__u8			wifi_acked_valid:1;
 	__u8			wifi_acked:1;
+#endif
 	__u8			no_fcs:1;
 	/* Indicates the inner headers are valid in the skbuff. */
 	__u8			encapsulation:1;
@@ -1182,6 +1184,15 @@ static inline unsigned int skb_napi_id(const struct sk_buff *skb)
 {
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	return skb->napi_id;
+#else
+	return 0;
+#endif
+}
+
+static inline bool skb_wifi_acked_valid(const struct sk_buff *skb)
+{
+#ifdef CONFIG_WIRELESS
+	return skb->wifi_acked_valid;
 #else
 	return 0;
 #endif

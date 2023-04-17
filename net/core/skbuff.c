@@ -5189,6 +5189,7 @@ void skb_tstamp_tx(struct sk_buff *orig_skb,
 }
 EXPORT_SYMBOL_GPL(skb_tstamp_tx);
 
+#ifdef CONFIG_WIRELESS
 void skb_complete_wifi_ack(struct sk_buff *skb, bool acked)
 {
 	struct sock *sk = skb->sk;
@@ -5214,6 +5215,7 @@ void skb_complete_wifi_ack(struct sk_buff *skb, bool acked)
 		kfree_skb(skb);
 }
 EXPORT_SYMBOL_GPL(skb_complete_wifi_ack);
+#endif /* CONFIG_WIRELESS */
 
 /**
  * skb_partial_csum_set - set up and verify partial csum values for packet
