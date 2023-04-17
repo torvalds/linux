@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/err.h>
+#include <linux/extcon-provider.h>
 #include <linux/of.h>
 #include <linux/regmap.h>
 #include <drm/drm_mipi_dsi.h>
@@ -31,6 +32,7 @@ struct max96755f_bridge {
 	struct drm_panel *panel;
 
 	struct device *dev;
+	struct max96755f *parent;
 	struct regmap *regmap;
 	struct mipi_dsi_device *dsi;
 	struct device_node *dsi_node;
@@ -292,6 +294,7 @@ static void max96755f_bridge_reset_oneshot(struct max96755f_bridge *ser)
 static void max96755f_bridge_enable(struct drm_bridge *bridge)
 {
 	struct max96755f_bridge *ser = to_max96755f_bridge(bridge);
+	struct max96755f *max96755f = ser->parent;
 	u32 val;
 	int ret;
 
@@ -332,11 +335,16 @@ static void max96755f_bridge_enable(struct drm_bridge *bridge)
 		enable_irq(ser->lock.irq);
 		ser->lock.irq_enabled = true;
 	}
+
+	extcon_set_state_sync(max96755f->extcon, EXTCON_JACK_VIDEO_OUT, true);
 }
 
 static void max96755f_bridge_disable(struct drm_bridge *bridge)
 {
 	struct max96755f_bridge *ser = to_max96755f_bridge(bridge);
+	struct max96755f *max96755f = ser->parent;
+
+	extcon_set_state_sync(max96755f->extcon, EXTCON_JACK_VIDEO_OUT, false);
 
 	if (ser->lock.irq_enabled) {
 		disable_irq(ser->lock.irq);
@@ -369,12 +377,12 @@ static enum drm_connector_status
 max96755f_bridge_detect(struct drm_bridge *bridge)
 {
 	struct max96755f_bridge *ser = to_max96755f_bridge(bridge);
-	struct drm_connector *connector = &ser->connector;
+	struct max96755f *max96755f = ser->parent;
 
 	if (!max96755f_bridge_link_locked(ser))
 		return connector_status_disconnected;
 
-	if (connector->status == connector_status_connected) {
+	if (extcon_get_state(max96755f->extcon, EXTCON_JACK_VIDEO_OUT)) {
 		if (atomic_cmpxchg(&ser->lock.triggered, 1, 0))
 			return connector_status_disconnected;
 	} else {
@@ -487,6 +495,7 @@ static int max96755f_bridge_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ser->dev = dev;
+	ser->parent = dev_get_drvdata(dev->parent);
 	platform_set_drvdata(pdev, ser);
 
 	ser->regmap = dev_get_regmap(dev->parent, NULL);
