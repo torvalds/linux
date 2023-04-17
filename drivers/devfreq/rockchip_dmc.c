@@ -594,12 +594,17 @@ static int rockchip_dmcfreq_get_dev_status(struct device *dev,
 	if (!dmcfreq->info.auto_freq_en)
 		return -EINVAL;
 
+	/*
+	 * RK3588 platform may crash if the CPU and MCU access the DFI/DMC
+	 * registers at same time.
+	 */
+	rockchip_monitor_volt_adjust_lock(dmcfreq->mdev_info);
 	for (i = 0; i < dmcfreq->edev_count; i++) {
 		ret = devfreq_event_get_event(dmcfreq->edev[i], &edata);
 		if (ret < 0) {
 			dev_err(dev, "failed to get event %s\n",
 				dmcfreq->edev[i]->desc->name);
-			return ret;
+			goto out;
 		}
 		if (i == dmcfreq->dfi_id) {
 			stat->busy_time = edata.load_count;
@@ -609,7 +614,10 @@ static int rockchip_dmcfreq_get_dev_status(struct device *dev,
 		}
 	}
 
-	return 0;
+out:
+	rockchip_monitor_volt_adjust_unlock(dmcfreq->mdev_info);
+
+	return ret;
 }
 
 static int rockchip_dmcfreq_get_cur_freq(struct device *dev,
