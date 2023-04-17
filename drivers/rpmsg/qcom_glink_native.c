@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2016-2017, Linaro Ltd
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/idr.h>
@@ -47,6 +47,25 @@ do {									     \
 		dev_err_ratelimited(ch->glink->dev, "[%s]: "x, __func__, ##__VA_ARGS__); \
 	}								     \
 } while (0)
+
+#if IS_ENABLED(CONFIG_RPMSG_QCOM_GLINK_DEBUG)
+#define GLINK_BUG(ctxt, x, ...)						\
+do {									\
+	ipc_log_string(ctxt, "[%s]: ASSERT at line %d: "x,		\
+		       __func__, __LINE__, ##__VA_ARGS__);		\
+	pr_err("[%s]: ASSERT at line %d: "x,				\
+		       __func__, __LINE__, ##__VA_ARGS__);		\
+	BUG();								\
+} while (0)
+#else
+#define GLINK_BUG(ctxt, x, ...)						\
+do {									\
+	ipc_log_string(ctxt, "[%s]: WARN at line %d: "x,		\
+		       __func__, __LINE__, ##__VA_ARGS__);		\
+	pr_err("[%s]: WARN at line %d: "x,				\
+		       __func__, __LINE__, ##__VA_ARGS__);		\
+} while (0)
+#endif
 
 #define GLINK_NAME_SIZE		32
 #define GLINK_VERSION_1		1
@@ -202,6 +221,7 @@ enum {
  * @intent_req_completed: Status of intent request completion
  * @intent_req_ack: Waitqueue for @intent_req_acked
  * @intent_req_comp: Waitqueue for @intent_req_completed
+ * @intent_timeout_count: number of times intents have timed out consecutively
  * @local_signals: local side signals
  * @remote_sigalss: remote side signals
  * @signals_cb: client callback for notifying signal change
@@ -241,11 +261,14 @@ struct glink_channel {
 	atomic_t intent_req_completed;
 	wait_queue_head_t intent_req_ack;
 	wait_queue_head_t intent_req_comp;
+	int intent_timeout_count;
 
 	unsigned int local_signals;
 	unsigned int remote_signals;
 	int (*signals_cb)(struct rpmsg_device *dev, void *priv, u32 old, u32 new);
 };
+
+#define MAX_INTENT_TIMEOUTS		2
 
 #define to_glink_channel(_ept) container_of(_ept, struct glink_channel, ept)
 
@@ -300,6 +323,7 @@ static struct glink_channel *qcom_glink_alloc_channel(struct qcom_glink *glink,
 	atomic_set(&channel->intent_req_completed, 0);
 	init_waitqueue_head(&channel->intent_req_ack);
 	init_waitqueue_head(&channel->intent_req_comp);
+	channel->intent_timeout_count = 0;
 
 	INIT_LIST_HEAD(&channel->done_intents);
 	INIT_LIST_HEAD(&channel->defer_intents);
@@ -529,6 +553,7 @@ static void qcom_glink_handle_intent_req_ack(struct qcom_glink *glink,
 	}
 
 	channel->intent_req_result = granted;
+	channel->intent_timeout_count = 0;
 	atomic_inc(&channel->intent_req_acked);
 	wake_up(&channel->intent_req_ack);
 	CH_INFO(channel, "\n");
@@ -1822,8 +1847,14 @@ static int qcom_glink_request_intent(struct qcom_glink *glink,
 				 atomic_read(&channel->intent_req_acked) ||
 				 atomic_read(&glink->in_reset), 10 * HZ);
 	if (!ret) {
-		dev_err(glink->dev, "%s: intent request ack timed out\n", channel->name);
+		dev_err(glink->dev, "%s: intent request ack timed out (%d)\n",
+			channel->name, channel->intent_timeout_count);
 		ret = -ETIMEDOUT;
+		channel->intent_timeout_count++;
+		if (channel->intent_timeout_count >= MAX_INTENT_TIMEOUTS)
+			GLINK_BUG(glink->ilc,
+				"remoteproc:%s channel:%s unresponsive\n",
+				glink->name, channel->name);
 	} else if (atomic_read(&glink->in_reset)) {
 		CH_INFO(channel, "ssr detected\n");
 		ret = -ECONNRESET;

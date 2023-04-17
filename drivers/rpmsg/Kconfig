@@ -44,6 +44,15 @@ config RPMSG_QCOM_GLINK
 	tristate
 	select RPMSG
 
+config RPMSG_QCOM_GLINK_DEBUG
+	bool "Qualcomm Technologies, Inc. Glink driver debug support"
+	depends on RPMSG_QCOM_GLINK
+	help
+	  Say y here to enable GLINK debugging features. This currently includes
+	  an assert in the intent timeout case to catch issues with unresponsive
+	  remote processors. Future debug enhancements can be switched on and off
+	  with this config.
+
 config RPMSG_QCOM_GLINK_RPM
 	tristate "Qualcomm RPM Glink driver"
 	select RPMSG_QCOM_GLINK
