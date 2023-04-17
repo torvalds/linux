@@ -8,4 +8,4 @@
 #
 
 obj-y += handshake.o
-handshake-y := genl.o netlink.o request.o trace.o
+handshake-y := genl.o netlink.o request.o tlshd.o trace.o

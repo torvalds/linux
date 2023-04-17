@@ -16,6 +16,7 @@ int handshake_nl_done_doit(struct sk_buff *skb, struct genl_info *info);
 
 enum {
 	HANDSHAKE_NLGRP_NONE,
+	HANDSHAKE_NLGRP_TLSHD,
 };
 
 extern struct genl_family handshake_nl_family;

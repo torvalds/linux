@@ -11,6 +11,7 @@
 
 enum handshake_handler_class {
 	HANDSHAKE_HANDLER_CLASS_NONE,
+	HANDSHAKE_HANDLER_CLASS_TLSHD,
 	HANDSHAKE_HANDLER_CLASS_MAX,
 };
 
@@ -67,5 +68,6 @@ enum {
 };
 
 #define HANDSHAKE_MCGRP_NONE	"none"
+#define HANDSHAKE_MCGRP_TLSHD	"tlshd"
 
 #endif /* _UAPI_LINUX_HANDSHAKE_H */

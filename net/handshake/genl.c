@@ -12,7 +12,7 @@
 
 /* HANDSHAKE_CMD_ACCEPT - do */
 static const struct nla_policy handshake_accept_nl_policy[HANDSHAKE_A_ACCEPT_HANDLER_CLASS + 1] = {
-	[HANDSHAKE_A_ACCEPT_HANDLER_CLASS] = NLA_POLICY_MAX(NLA_U32, 1),
+	[HANDSHAKE_A_ACCEPT_HANDLER_CLASS] = NLA_POLICY_MAX(NLA_U32, 2),
 };
 
 /* HANDSHAKE_CMD_DONE - do */
@@ -42,6 +42,7 @@ static const struct genl_split_ops handshake_nl_ops[] = {
 
 static const struct genl_multicast_group handshake_nl_mcgrps[] = {
 	[HANDSHAKE_NLGRP_NONE] = { "none", },
+	[HANDSHAKE_NLGRP_TLSHD] = { "tlshd", },
 };
 
 struct genl_family handshake_nl_family __ro_after_init = {

@@ -16,7 +16,7 @@ definitions:
     type: enum
     name: handler-class
     value-start: 0
-    entries: [ none, max ]
+    entries: [ none, tlshd, max ]
   -
     type: enum
     name: msg-type
@@ -120,3 +120,5 @@ mcast-groups:
   list:
     -
       name: none
+    -
+      name: tlshd
