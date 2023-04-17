@@ -12421,12 +12421,17 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 						insn->src_reg);
 					return -EACCES;
 				} else if (src_reg->type == SCALAR_VALUE) {
+					bool is_src_reg_u32 = src_reg->umax_value <= U32_MAX;
+
+					if (is_src_reg_u32 && !src_reg->id)
+						src_reg->id = ++env->id_gen;
 					copy_register_state(dst_reg, src_reg);
-					/* Make sure ID is cleared otherwise
+					/* Make sure ID is cleared if src_reg is not in u32 range otherwise
 					 * dst_reg min/max could be incorrectly
 					 * propagated into src_reg by find_equal_scalars()
 					 */
-					dst_reg->id = 0;
+					if (!is_src_reg_u32)
+						dst_reg->id = 0;
 					dst_reg->live |= REG_LIVE_WRITTEN;
 					dst_reg->subreg_def = env->insn_idx + 1;
 				} else {
