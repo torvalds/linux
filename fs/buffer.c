@@ -1485,6 +1485,21 @@ void set_bh_page(struct buffer_head *bh,
 }
 EXPORT_SYMBOL(set_bh_page);
 
+void folio_set_bh(struct buffer_head *bh, struct folio *folio,
+		  unsigned long offset)
+{
+	bh->b_folio = folio;
+	BUG_ON(offset >= folio_size(folio));
+	if (folio_test_highmem(folio))
+		/*
+		 * This catches illegal uses and preserves the offset:
+		 */
+		bh->b_data = (char *)(0 + offset);
+	else
+		bh->b_data = folio_address(folio) + offset;
+}
+EXPORT_SYMBOL(folio_set_bh);
+
 /*
  * Called when truncating a buffer on a page completely.
  */
