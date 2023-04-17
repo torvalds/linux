@@ -9,23 +9,12 @@
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
+#include <linux/extcon-provider.h>
 #include <linux/gpio/consumer.h>
 #include <linux/regmap.h>
 #include <linux/mfd/core.h>
 #include <linux/regulator/consumer.h>
 #include <linux/mfd/max96755f.h>
-
-struct max96755f {
-	struct device *dev;
-	struct regmap *regmap;
-	struct i2c_mux_core *muxc;
-	struct gpio_desc *enable_gpio;
-	struct gpio_desc *reset_gpio;
-	struct regulator *supply;
-	struct gpio_desc *pwdnb_gpio;
-	struct gpio_desc *lock_gpio;
-	bool split_mode;
-};
 
 static const struct mfd_cell max96755f_devs[] = {
 	{
@@ -36,6 +25,24 @@ static const struct mfd_cell max96755f_devs[] = {
 		.of_compatible = "maxim,max96755f-bridge",
 	},
 };
+
+static const unsigned int max96755f_cable[] = {
+	EXTCON_JACK_VIDEO_OUT,
+	EXTCON_NONE,
+};
+
+static bool max96755f_vid_sync_detected(struct max96755f *max96755f)
+{
+	u32 det;
+
+	if (regmap_read(max96755f->regmap, 0x55d, &det))
+		return false;
+
+	if ((!(det & VS_DET)) || (!(det & HS_DET)))
+		return false;
+
+	return true;
+}
 
 static bool max96755f_volatile_reg(struct device *dev, unsigned int reg)
 {
@@ -134,6 +141,11 @@ static void max96755f_power_off(void *data)
 static int max96755f_power_on(struct max96755f *max96755f)
 {
 	int ret;
+
+	if (max96755f_vid_sync_detected(max96755f)) {
+		extcon_set_state(max96755f->extcon, EXTCON_JACK_VIDEO_OUT, true);
+		return 0;
+	}
 
 	if (max96755f->supply) {
 		ret = regulator_enable(max96755f->supply);
@@ -303,6 +315,16 @@ static int max96755f_i2c_probe(struct i2c_client *client)
 	if (IS_ERR(max96755f->regmap))
 		return dev_err_probe(dev, PTR_ERR(max96755f->regmap),
 				     "failed to initialize regmap");
+
+	max96755f->extcon = devm_extcon_dev_allocate(dev, max96755f_cable);
+	if (IS_ERR(max96755f->extcon))
+		return dev_err_probe(dev, PTR_ERR(max96755f->extcon),
+				     "failed to allocate extcon device\n");
+
+	ret = devm_extcon_dev_register(dev, max96755f->extcon);
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "failed to register extcon device\n");
 
 	ret = max96755f_power_on(max96755f);
 	if (ret)
