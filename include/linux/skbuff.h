@@ -966,8 +966,12 @@ struct sk_buff {
 	__u8			ndisc_nodetype:2;
 #endif
 
+#if IS_ENABLED(CONFIG_IP_VS)
 	__u8			ipvs_property:1;
+#endif
+#if IS_ENABLED(CONFIG_NETFILTER_XT_TARGET_TRACE) || IS_ENABLED(CONFIG_NF_TABLES)
 	__u8			nf_trace:1;
+#endif
 #ifdef CONFIG_NET_SWITCHDEV
 	__u8			offload_fwd_mark:1;
 	__u8			offload_l3_fwd_mark:1;
