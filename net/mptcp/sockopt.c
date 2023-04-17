@@ -301,9 +301,9 @@ static int mptcp_setsockopt_sol_socket(struct mptcp_sock *msk, int optname,
 	case SO_BINDTOIFINDEX:
 		lock_sock(sk);
 		ssock = __mptcp_nmpc_socket(msk);
-		if (!ssock) {
+		if (IS_ERR(ssock)) {
 			release_sock(sk);
-			return -EINVAL;
+			return PTR_ERR(ssock);
 		}
 
 		ret = sock_setsockopt(ssock, SOL_SOCKET, optname, optval, optlen);
@@ -396,9 +396,9 @@ static int mptcp_setsockopt_v6(struct mptcp_sock *msk, int optname,
 	case IPV6_FREEBIND:
 		lock_sock(sk);
 		ssock = __mptcp_nmpc_socket(msk);
-		if (!ssock) {
+		if (IS_ERR(ssock)) {
 			release_sock(sk);
-			return -EINVAL;
+			return PTR_ERR(ssock);
 		}
 
 		ret = tcp_setsockopt(ssock->sk, SOL_IPV6, optname, optval, optlen);
@@ -693,9 +693,9 @@ static int mptcp_setsockopt_sol_ip_set_transparent(struct mptcp_sock *msk, int o
 	lock_sock(sk);
 
 	ssock = __mptcp_nmpc_socket(msk);
-	if (!ssock) {
+	if (IS_ERR(ssock)) {
 		release_sock(sk);
-		return -EINVAL;
+		return PTR_ERR(ssock);
 	}
 
 	issk = inet_sk(ssock->sk);
@@ -762,13 +762,15 @@ static int mptcp_setsockopt_first_sf_only(struct mptcp_sock *msk, int level, int
 {
 	struct sock *sk = (struct sock *)msk;
 	struct socket *sock;
-	int ret = -EINVAL;
+	int ret;
 
 	/* Limit to first subflow, before the connection establishment */
 	lock_sock(sk);
 	sock = __mptcp_nmpc_socket(msk);
-	if (!sock)
+	if (IS_ERR(sock)) {
+		ret = PTR_ERR(sock);
 		goto unlock;
+	}
 
 	ret = tcp_setsockopt(sock->sk, level, optname, optval, optlen);
 
@@ -861,7 +863,7 @@ static int mptcp_getsockopt_first_sf_only(struct mptcp_sock *msk, int level, int
 {
 	struct sock *sk = (struct sock *)msk;
 	struct socket *ssock;
-	int ret = -EINVAL;
+	int ret;
 	struct sock *ssk;
 
 	lock_sock(sk);
@@ -872,8 +874,10 @@ static int mptcp_getsockopt_first_sf_only(struct mptcp_sock *msk, int level, int
 	}
 
 	ssock = __mptcp_nmpc_socket(msk);
-	if (!ssock)
+	if (IS_ERR(ssock)) {
+		ret = PTR_ERR(ssock);
 		goto out;
+	}
 
 	ret = tcp_getsockopt(ssock->sk, level, optname, optval, optlen);
 
