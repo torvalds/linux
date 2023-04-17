@@ -475,12 +475,6 @@ struct mlx5e_txqsq {
 	cqe_ts_to_ns               ptp_cyc2time;
 } ____cacheline_aligned_in_smp;
 
-struct mlx5e_xmit_data {
-	dma_addr_t  dma_addr;
-	void       *data;
-	u32         len;
-};
-
 struct mlx5e_xdp_info_fifo {
 	struct mlx5e_xdp_info *xi;
 	u32 *cc;
@@ -489,6 +483,7 @@ struct mlx5e_xdp_info_fifo {
 };
 
 struct mlx5e_xdpsq;
+struct mlx5e_xmit_data;
 typedef int (*mlx5e_fp_xmit_xdp_frame_check)(struct mlx5e_xdpsq *);
 typedef bool (*mlx5e_fp_xmit_xdp_frame)(struct mlx5e_xdpsq *,
 					struct mlx5e_xmit_data *,

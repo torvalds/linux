@@ -77,6 +77,12 @@ static inline bool mlx5e_rx_hw_stamp(struct hwtstamp_config *config)
 }
 
 /* TX */
+struct mlx5e_xmit_data {
+	dma_addr_t  dma_addr;
+	void       *data;
+	u32         len;
+};
+
 netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev);
 bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget);
 void mlx5e_free_txqsq_descs(struct mlx5e_txqsq *sq);
