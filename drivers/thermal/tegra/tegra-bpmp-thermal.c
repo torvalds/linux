@@ -52,6 +52,8 @@ static int __tegra_bpmp_thermal_get_temp(struct tegra_bpmp_thermal_zone *zone,
 	err = tegra_bpmp_transfer(zone->tegra->bpmp, &msg);
 	if (err)
 		return err;
+	if (msg.rx.ret == -BPMP_EFAULT)
+		return -EAGAIN;
 	if (msg.rx.ret)
 		return -EINVAL;
 
@@ -209,7 +211,12 @@ static int tegra_bpmp_thermal_probe(struct platform_device *pdev)
 		zone->tegra = tegra;
 
 		err = __tegra_bpmp_thermal_get_temp(zone, &temp);
-		if (err < 0) {
+
+		/*
+		 * Sensors in powergated domains may temporarily fail to be read
+		 * (-EAGAIN), but will become accessible when the domain is powered on.
+		 */
+		if (err < 0 && err != -EAGAIN) {
 			devm_kfree(&pdev->dev, zone);
 			continue;
 		}

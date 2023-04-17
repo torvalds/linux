@@ -30,7 +30,7 @@ properties:
 
   amlogic,ao-secure:
     description: phandle to the ao-secure syscon
-    $ref: '/schemas/types.yaml#/definitions/phandle'
+    $ref: /schemas/types.yaml#/definitions/phandle
 
   '#thermal-sensor-cells':
     const: 0
