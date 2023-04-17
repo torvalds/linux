@@ -98,7 +98,7 @@ const struct attribute_group *m10bmc_dev_groups[] = {
 	&m10bmc_group,
 	NULL,
 };
-EXPORT_SYMBOL_GPL(m10bmc_dev_groups);
+EXPORT_SYMBOL_NS_GPL(m10bmc_dev_groups, INTEL_M10_BMC_CORE);
 
 int m10bmc_dev_init(struct intel_m10bmc *m10bmc, const struct intel_m10bmc_platform_info *info)
 {
@@ -115,7 +115,7 @@ int m10bmc_dev_init(struct intel_m10bmc *m10bmc, const struct intel_m10bmc_platf
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(m10bmc_dev_init);
+EXPORT_SYMBOL_NS_GPL(m10bmc_dev_init, INTEL_M10_BMC_CORE);
 
 MODULE_DESCRIPTION("Intel MAX 10 BMC core driver");
 MODULE_AUTHOR("Intel Corporation");
