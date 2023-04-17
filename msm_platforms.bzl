@@ -9,6 +9,7 @@ load(":pineapple_vms.bzl", "define_pineapple_vms")
 load(":pineapple_allyes.bzl", "define_pineapple_allyes")
 load(":msm_common.bzl", "define_signing_keys")
 load("//build:msm_kernel_extensions.bzl", "define_top_level_rules")
+load(":blair.bzl", "define_blair")
 
 def define_msm_platforms():
     define_top_level_rules()
@@ -22,3 +23,4 @@ def define_msm_platforms():
     define_pineapple_oemvm()
     define_pineapple_allyes()
     define_pineapple_vms()
+    define_blair()

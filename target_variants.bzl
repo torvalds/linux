@@ -3,6 +3,7 @@ targets = [
     "gen3auto",
     "kalama",
     "pineapple",
+    "blair",
 ]
 
 la_variants = [
