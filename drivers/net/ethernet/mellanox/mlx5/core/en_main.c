@@ -4261,8 +4261,16 @@ static bool mlx5e_params_validate_xdp(struct net_device *netdev,
 	/* No XSK params: AF_XDP can't be enabled yet at the point of setting
 	 * the XDP program.
 	 */
-	is_linear = mlx5e_rx_is_linear_skb(mdev, params, NULL);
+	is_linear = params->rq_wq_type == MLX5_WQ_TYPE_CYCLIC ?
+		mlx5e_rx_is_linear_skb(mdev, params, NULL) :
+		mlx5e_rx_mpwqe_is_linear_skb(mdev, params, NULL);
 
+	/* XDP affects striding RQ parameters. Block XDP if striding RQ won't be
+	 * supported with the new parameters: if PAGE_SIZE is bigger than
+	 * MLX5_MPWQE_LOG_STRIDE_SZ_MAX, striding RQ can't be used, even though
+	 * the MTU is small enough for the linear mode, because XDP uses strides
+	 * of PAGE_SIZE on regular RQs.
+	 */
 	if (!is_linear && params->rq_wq_type != MLX5_WQ_TYPE_CYCLIC) {
 		netdev_warn(netdev, "XDP is not allowed with striding RQ and MTU(%d) > %d\n",
 			    params->sw_mtu,
@@ -4816,19 +4824,6 @@ static int mlx5e_xdp_set(struct net_device *netdev, struct bpf_prog *prog)
 
 	new_params = priv->channels.params;
 	new_params.xdp_prog = prog;
-
-	/* XDP affects striding RQ parameters. Block XDP if striding RQ won't be
-	 * supported with the new parameters: if PAGE_SIZE is bigger than
-	 * MLX5_MPWQE_LOG_STRIDE_SZ_MAX, striding RQ can't be used, even though
-	 * the MTU is small enough for the linear mode, because XDP uses strides
-	 * of PAGE_SIZE on regular RQs.
-	 */
-	if (reset && MLX5E_GET_PFLAG(&new_params, MLX5E_PFLAG_RX_STRIDING_RQ)) {
-		/* Checking for regular RQs here; XSK RQs were checked on XSK bind. */
-		err = mlx5e_mpwrq_validate_regular(priv->mdev, &new_params);
-		if (err)
-			goto unlock;
-	}
 
 	old_prog = priv->channels.params.xdp_prog;
 
