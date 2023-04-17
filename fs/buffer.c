@@ -843,7 +843,7 @@ int remove_inode_buffers(struct inode *inode)
 }
 
 /*
- * Create the appropriate buffers when given a page for data area and
+ * Create the appropriate buffers when given a folio for data area and
  * the size of each buffer.. Use the bh->b_this_page linked list to
  * follow the buffers created.  Return NULL if unable to create more
  * buffers.
@@ -851,8 +851,8 @@ int remove_inode_buffers(struct inode *inode)
  * The retry flag is used to differentiate async IO (paging, swapping)
  * which may not fail from ordinary buffer allocations.
  */
-struct buffer_head *alloc_page_buffers(struct page *page, unsigned long size,
-		bool retry)
+struct buffer_head *folio_alloc_buffers(struct folio *folio, unsigned long size,
+					bool retry)
 {
 	struct buffer_head *bh, *head;
 	gfp_t gfp = GFP_NOFS | __GFP_ACCOUNT;
@@ -862,12 +862,12 @@ struct buffer_head *alloc_page_buffers(struct page *page, unsigned long size,
 	if (retry)
 		gfp |= __GFP_NOFAIL;
 
-	/* The page lock pins the memcg */
-	memcg = page_memcg(page);
+	/* The folio lock pins the memcg */
+	memcg = folio_memcg(folio);
 	old_memcg = set_active_memcg(memcg);
 
 	head = NULL;
-	offset = PAGE_SIZE;
+	offset = folio_size(folio);
 	while ((offset -= size) >= 0) {
 		bh = alloc_buffer_head(gfp);
 		if (!bh)
@@ -879,8 +879,8 @@ struct buffer_head *alloc_page_buffers(struct page *page, unsigned long size,
 
 		bh->b_size = size;
 
-		/* Link the buffer to its page */
-		set_bh_page(bh, page, offset);
+		/* Link the buffer to its folio */
+		folio_set_bh(bh, folio, offset);
 	}
 out:
 	set_active_memcg(old_memcg);
@@ -898,6 +898,13 @@ no_grow:
 	}
 
 	goto out;
+}
+EXPORT_SYMBOL_GPL(folio_alloc_buffers);
+
+struct buffer_head *alloc_page_buffers(struct page *page, unsigned long size,
+				       bool retry)
+{
+	return folio_alloc_buffers(page_folio(page), size, retry);
 }
 EXPORT_SYMBOL_GPL(alloc_page_buffers);
 
