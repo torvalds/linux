@@ -1167,11 +1167,12 @@ static int bu27034_read_raw(struct iio_dev *idev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_INT_TIME:
-		*val = bu27034_get_int_time(data);
-		if (*val < 0)
-			return *val;
+		*val = 0;
+		*val2 = bu27034_get_int_time(data);
+		if (*val2 < 0)
+			return *val2;
 
-		return IIO_VAL_INT;
+		return IIO_VAL_INT_PLUS_MICRO;
 
 	case IIO_CHAN_INFO_SCALE:
 		return bu27034_get_scale(data, chan->channel, val, val2);
@@ -1229,7 +1230,10 @@ static int bu27034_write_raw(struct iio_dev *idev,
 		ret = bu27034_set_scale(data, chan->channel, val, val2);
 		break;
 	case IIO_CHAN_INFO_INT_TIME:
-		ret = bu27034_try_set_int_time(data, val);
+		if (!val)
+			ret = bu27034_try_set_int_time(data, val2);
+		else
+			ret = -EINVAL;
 		break;
 	default:
 		ret = -EINVAL;
