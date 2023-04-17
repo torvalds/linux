@@ -7,6 +7,8 @@
 
 #include "uffd-common.h"
 
+#include "../../../../mm/gup_test.h"
+
 #ifdef __NR_userfaultfd
 
 /* The unit test doesn't need a large or random size, make it 32MB for now */
@@ -247,7 +249,53 @@ static void *fork_event_consumer(void *data)
 	return NULL;
 }
 
-static int pagemap_test_fork(int uffd, bool with_event)
+typedef struct {
+	int gup_fd;
+	bool pinned;
+} pin_args;
+
+/*
+ * Returns 0 if succeed, <0 for errors.  pin_pages() needs to be paired
+ * with unpin_pages().  Currently it needs to be RO longterm pin to satisfy
+ * all needs of the test cases (e.g., trigger unshare, trigger fork() early
+ * CoW, etc.).
+ */
+static int pin_pages(pin_args *args, void *buffer, size_t size)
+{
+	struct pin_longterm_test test = {
+		.addr = (uintptr_t)buffer,
+		.size = size,
+		/* Read-only pins */
+		.flags = 0,
+	};
+
+	if (args->pinned)
+		err("already pinned");
+
+	args->gup_fd = open("/sys/kernel/debug/gup_test", O_RDWR);
+	if (args->gup_fd < 0)
+		return -errno;
+
+	if (ioctl(args->gup_fd, PIN_LONGTERM_TEST_START, &test)) {
+		/* Even if gup_test existed, can be an old gup_test / kernel */
+		close(args->gup_fd);
+		return -errno;
+	}
+	args->pinned = true;
+	return 0;
+}
+
+static void unpin_pages(pin_args *args)
+{
+	if (!args->pinned)
+		err("unpin without pin first");
+	if (ioctl(args->gup_fd, PIN_LONGTERM_TEST_STOP))
+		err("PIN_LONGTERM_TEST_STOP");
+	close(args->gup_fd);
+	args->pinned = false;
+}
+
+static int pagemap_test_fork(int uffd, bool with_event, bool test_pin)
 {
 	fork_event_args args = { .parent_uffd = uffd, .child_uffd = -1 };
 	pthread_t thread;
@@ -264,7 +312,17 @@ static int pagemap_test_fork(int uffd, bool with_event)
 	child = fork();
 	if (!child) {
 		/* Open the pagemap fd of the child itself */
+		pin_args args = {};
+
 		fd = pagemap_open();
+
+		if (test_pin && pin_pages(&args, area_dst, page_size))
+			/*
+			 * Normally when reach here we have pinned in
+			 * previous tests, so shouldn't fail anymore
+			 */
+			err("pin page failed in child");
+
 		value = pagemap_get_entry(fd, area_dst);
 		/*
 		 * After fork(), we should handle uffd-wp bit differently:
@@ -273,6 +331,8 @@ static int pagemap_test_fork(int uffd, bool with_event)
 		 * (2) when without EVENT_FORK, it should be dropped
 		 */
 		pagemap_check_wp(value, with_event);
+		if (test_pin)
+			unpin_pages(&args);
 		/* Succeed */
 		exit(0);
 	}
@@ -352,7 +412,7 @@ static void uffd_wp_fork_test_common(uffd_test_args_t *args,
 	wp_range(uffd, (uint64_t)area_dst, page_size, true);
 	value = pagemap_get_entry(pagemap_fd, area_dst);
 	pagemap_check_wp(value, true);
-	if (pagemap_test_fork(uffd, with_event)) {
+	if (pagemap_test_fork(uffd, with_event, false)) {
 		uffd_test_fail("Detected %s uffd-wp bit in child in present pte",
 			       with_event ? "missing" : "stall");
 		goto out;
@@ -383,7 +443,7 @@ static void uffd_wp_fork_test_common(uffd_test_args_t *args,
 	/* Uffd-wp should persist even swapped out */
 	value = pagemap_get_entry(pagemap_fd, area_dst);
 	pagemap_check_wp(value, true);
-	if (pagemap_test_fork(uffd, with_event)) {
+	if (pagemap_test_fork(uffd, with_event, false)) {
 		uffd_test_fail("Detected %s uffd-wp bit in child in zapped pte",
 			       with_event ? "missing" : "stall");
 		goto out;
@@ -413,6 +473,68 @@ static void uffd_wp_fork_test(uffd_test_args_t *args)
 static void uffd_wp_fork_with_event_test(uffd_test_args_t *args)
 {
 	uffd_wp_fork_test_common(args, true);
+}
+
+static void uffd_wp_fork_pin_test_common(uffd_test_args_t *args,
+					 bool with_event)
+{
+	int pagemap_fd;
+	pin_args pin_args = {};
+
+	if (uffd_register(uffd, area_dst, page_size, false, true, false))
+		err("register failed");
+
+	pagemap_fd = pagemap_open();
+
+	/* Touch the page */
+	*area_dst = 1;
+	wp_range(uffd, (uint64_t)area_dst, page_size, true);
+
+	/*
+	 * 1. First pin, then fork().  This tests fork() special path when
+	 * doing early CoW if the page is private.
+	 */
+	if (pin_pages(&pin_args, area_dst, page_size)) {
+		uffd_test_skip("Possibly CONFIG_GUP_TEST missing "
+			       "or unprivileged");
+		close(pagemap_fd);
+		uffd_unregister(uffd, area_dst, page_size);
+		return;
+	}
+
+	if (pagemap_test_fork(uffd, with_event, false)) {
+		uffd_test_fail("Detected %s uffd-wp bit in early CoW of fork()",
+			       with_event ? "missing" : "stall");
+		unpin_pages(&pin_args);
+		goto out;
+	}
+
+	unpin_pages(&pin_args);
+
+	/*
+	 * 2. First fork(), then pin (in the child, where test_pin==true).
+	 * This tests COR, aka, page unsharing on private memories.
+	 */
+	if (pagemap_test_fork(uffd, with_event, true)) {
+		uffd_test_fail("Detected %s uffd-wp bit when RO pin",
+			       with_event ? "missing" : "stall");
+		goto out;
+	}
+	uffd_test_pass();
+out:
+	if (uffd_unregister(uffd, area_dst, page_size))
+		err("register failed");
+	close(pagemap_fd);
+}
+
+static void uffd_wp_fork_pin_test(uffd_test_args_t *args)
+{
+	uffd_wp_fork_pin_test_common(args, false);
+}
+
+static void uffd_wp_fork_pin_with_event_test(uffd_test_args_t *args)
+{
+	uffd_wp_fork_pin_test_common(args, true);
 }
 
 static void check_memory_contents(char *p)
@@ -917,6 +1039,22 @@ uffd_test_case_t uffd_tests[] = {
 	{
 		.name = "wp-fork-with-event",
 		.uffd_fn = uffd_wp_fork_with_event_test,
+		.mem_targets = MEM_ALL,
+		.uffd_feature_required = UFFD_FEATURE_PAGEFAULT_FLAG_WP |
+		UFFD_FEATURE_WP_HUGETLBFS_SHMEM |
+		/* when set, child process should inherit uffd-wp bits */
+		UFFD_FEATURE_EVENT_FORK,
+	},
+	{
+		.name = "wp-fork-pin",
+		.uffd_fn = uffd_wp_fork_pin_test,
+		.mem_targets = MEM_ALL,
+		.uffd_feature_required = UFFD_FEATURE_PAGEFAULT_FLAG_WP |
+		UFFD_FEATURE_WP_HUGETLBFS_SHMEM,
+	},
+	{
+		.name = "wp-fork-pin-with-event",
+		.uffd_fn = uffd_wp_fork_pin_with_event_test,
 		.mem_targets = MEM_ALL,
 		.uffd_feature_required = UFFD_FEATURE_PAGEFAULT_FLAG_WP |
 		UFFD_FEATURE_WP_HUGETLBFS_SHMEM |
