@@ -31,11 +31,7 @@ struct vm_area_struct *find_dst_vma(struct mm_struct *dst_mm,
 	struct vm_area_struct *dst_vma;
 
 	dst_vma = find_vma(dst_mm, dst_start);
-	if (!dst_vma)
-		return NULL;
-
-	if (dst_start < dst_vma->vm_start ||
-	    dst_start + len > dst_vma->vm_end)
+	if (!range_in_vma(dst_vma, dst_start, dst_start + len))
 		return NULL;
 
 	/*
