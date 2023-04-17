@@ -391,9 +391,10 @@ to_geni_i3c_master(struct i3c_master_controller *master)
  * clk_freq_out = t / t_cycle
  */
 static const struct geni_i3c_clk_fld geni_i3c_clk_map[] = {
-	{ KHZ(100),    19200,  7, 10, 11,  0,  0,  26},
-	{ KHZ(400),    19200,  1, 72, 168, 6,  7, 300},
-	{ KHZ(1000),   19200,  1,  3,  9,  7,  0,  18},
+/* op-freq, src-freq,  div,  i2c_high,  i2c_low, i3c_high, i3c_cyc i2c_cyc */
+	{ KHZ(100),    19200,  1, 76, 90,  7,  8,  192},
+	{ KHZ(400),    19200,  1, 12, 24,  7,  8,  48},
+	{ KHZ(1000),   19200,  1,  4,  9,  7,  8,  19},
 	{ KHZ(1920),   19200,  1,  4,  9,  7,  8,  19},
 	{ KHZ(3500),   19200,  1, 72, 168, 3, 4,  300},
 	{ KHZ(370),   100000, 20,  4,  7,  8, 14,  14},
