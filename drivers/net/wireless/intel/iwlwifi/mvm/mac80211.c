@@ -3585,9 +3585,9 @@ static void iwl_mvm_rs_rate_init_all_links(struct iwl_mvm *mvm,
 
 	for_each_mvm_vif_valid_link(mvmvif, link_id) {
 		struct ieee80211_bss_conf *conf =
-			link_conf_dereference_protected(vif, link_id);
+			link_conf_dereference_check(vif, link_id);
 		struct ieee80211_link_sta *link_sta =
-			link_sta_dereference_protected(sta, link_id);
+			link_sta_dereference_check(sta, link_id);
 
 		if (!conf || !link_sta || !mvmvif->link[link_id]->phy_ctxt)
 			continue;
@@ -3983,15 +3983,11 @@ void iwl_mvm_sta_rc_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta, u32 changed)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
 	if (changed & (IEEE80211_RC_BW_CHANGED |
 		       IEEE80211_RC_SUPP_RATES_CHANGED |
 		       IEEE80211_RC_NSS_CHANGED))
-		iwl_mvm_rs_rate_init(mvm, sta,
-				     &vif->bss_conf, &sta->deflink,
-				     mvmvif->deflink.phy_ctxt->channel->band,
-				     true);
+		iwl_mvm_rs_rate_init_all_links(mvm, vif, sta, true);
 
 	if (vif->type == NL80211_IFTYPE_STATION &&
 	    changed & IEEE80211_RC_NSS_CHANGED)
