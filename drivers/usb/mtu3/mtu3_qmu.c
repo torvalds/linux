@@ -221,7 +221,7 @@ static struct qmu_gpd *advance_deq_gpd(struct mtu3_gpd_ring *ring)
 }
 
 /* check if a ring is emtpy */
-static int gpd_ring_empty(struct mtu3_gpd_ring *ring)
+static bool gpd_ring_empty(struct mtu3_gpd_ring *ring)
 {
 	struct qmu_gpd *enq = ring->enqueue;
 	struct qmu_gpd *next;
