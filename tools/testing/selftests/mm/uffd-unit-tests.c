@@ -227,25 +227,65 @@ static int pagemap_open(void)
 			err("pagemap uffd-wp bit error: 0x%"PRIx64, value); \
 	} while (0)
 
-static int pagemap_test_fork(bool present)
+typedef struct {
+	int parent_uffd, child_uffd;
+} fork_event_args;
+
+static void *fork_event_consumer(void *data)
 {
-	pid_t child = fork();
+	fork_event_args *args = data;
+	struct uffd_msg msg = { 0 };
+
+	/* Read until a full msg received */
+	while (uffd_read_msg(args->parent_uffd, &msg));
+
+	if (msg.event != UFFD_EVENT_FORK)
+		err("wrong message: %u\n", msg.event);
+
+	/* Just to be properly freed later */
+	args->child_uffd = msg.arg.fork.ufd;
+	return NULL;
+}
+
+static int pagemap_test_fork(int uffd, bool with_event)
+{
+	fork_event_args args = { .parent_uffd = uffd, .child_uffd = -1 };
+	pthread_t thread;
+	pid_t child;
 	uint64_t value;
 	int fd, result;
 
+	/* Prepare a thread to resolve EVENT_FORK */
+	if (with_event) {
+		if (pthread_create(&thread, NULL, fork_event_consumer, &args))
+			err("pthread_create()");
+	}
+
+	child = fork();
 	if (!child) {
 		/* Open the pagemap fd of the child itself */
 		fd = pagemap_open();
 		value = pagemap_get_entry(fd, area_dst);
 		/*
-		 * After fork() uffd-wp bit should be gone as long as we're
-		 * without UFFD_FEATURE_EVENT_FORK
+		 * After fork(), we should handle uffd-wp bit differently:
+		 *
+		 * (1) when with EVENT_FORK, it should persist
+		 * (2) when without EVENT_FORK, it should be dropped
 		 */
-		pagemap_check_wp(value, false);
+		pagemap_check_wp(value, with_event);
 		/* Succeed */
 		exit(0);
 	}
 	waitpid(child, &result, 0);
+
+	if (with_event) {
+		if (pthread_join(thread, NULL))
+			err("pthread_join()");
+		if (args.child_uffd < 0)
+			err("Didn't receive child uffd");
+		close(args.child_uffd);
+	}
+
 	return result;
 }
 
@@ -295,7 +335,8 @@ static void uffd_wp_unpopulated_test(uffd_test_args_t *args)
 	uffd_test_pass();
 }
 
-static void uffd_pagemap_test(uffd_test_args_t *args)
+static void uffd_wp_fork_test_common(uffd_test_args_t *args,
+				     bool with_event)
 {
 	int pagemap_fd;
 	uint64_t value;
@@ -311,23 +352,42 @@ static void uffd_pagemap_test(uffd_test_args_t *args)
 	wp_range(uffd, (uint64_t)area_dst, page_size, true);
 	value = pagemap_get_entry(pagemap_fd, area_dst);
 	pagemap_check_wp(value, true);
-	/* Make sure uffd-wp bit dropped when fork */
-	if (pagemap_test_fork(true))
-		err("Detected stall uffd-wp bit in child");
+	if (pagemap_test_fork(uffd, with_event)) {
+		uffd_test_fail("Detected %s uffd-wp bit in child in present pte",
+			       with_event ? "missing" : "stall");
+		goto out;
+	}
 
-	/* Exclusive required or PAGEOUT won't work */
-	if (!(value & PM_MMAP_EXCLUSIVE))
-		err("multiple mapping detected: 0x%"PRIx64, value);
-
-	if (madvise(area_dst, page_size, MADV_PAGEOUT))
-		err("madvise(MADV_PAGEOUT) failed");
+	/*
+	 * This is an attempt for zapping the pgtable so as to test the
+	 * markers.
+	 *
+	 * For private mappings, PAGEOUT will only work on exclusive ptes
+	 * (PM_MMAP_EXCLUSIVE) which we should satisfy.
+	 *
+	 * For shared, PAGEOUT may not work.  Use DONTNEED instead which
+	 * plays a similar role of zapping (rather than freeing the page)
+	 * to expose pte markers.
+	 */
+	if (args->mem_type->shared) {
+		if (madvise(area_dst, page_size, MADV_DONTNEED))
+			err("MADV_DONTNEED");
+	} else {
+		/*
+		 * NOTE: ignore retval because private-hugetlb doesn't yet
+		 * support swapping, so it could fail.
+		 */
+		madvise(area_dst, page_size, MADV_PAGEOUT);
+	}
 
 	/* Uffd-wp should persist even swapped out */
 	value = pagemap_get_entry(pagemap_fd, area_dst);
 	pagemap_check_wp(value, true);
-	/* Make sure uffd-wp bit dropped when fork */
-	if (pagemap_test_fork(false))
-		err("Detected stall uffd-wp bit in child");
+	if (pagemap_test_fork(uffd, with_event)) {
+		uffd_test_fail("Detected %s uffd-wp bit in child in zapped pte",
+			       with_event ? "missing" : "stall");
+		goto out;
+	}
 
 	/* Unprotect; this tests swap pte modifications */
 	wp_range(uffd, (uint64_t)area_dst, page_size, false);
@@ -338,9 +398,21 @@ static void uffd_pagemap_test(uffd_test_args_t *args)
 	*area_dst = 2;
 	value = pagemap_get_entry(pagemap_fd, area_dst);
 	pagemap_check_wp(value, false);
-
-	close(pagemap_fd);
 	uffd_test_pass();
+out:
+	if (uffd_unregister(uffd, area_dst, nr_pages * page_size))
+		err("unregister failed");
+	close(pagemap_fd);
+}
+
+static void uffd_wp_fork_test(uffd_test_args_t *args)
+{
+	uffd_wp_fork_test_common(args, false);
+}
+
+static void uffd_wp_fork_with_event_test(uffd_test_args_t *args)
+{
+	uffd_wp_fork_test_common(args, true);
 }
 
 static void check_memory_contents(char *p)
@@ -836,10 +908,20 @@ uffd_test_case_t uffd_tests[] = {
 		.uffd_feature_required = 0,
 	},
 	{
-		.name = "pagemap",
-		.uffd_fn = uffd_pagemap_test,
-		.mem_targets = MEM_ANON,
-		.uffd_feature_required = UFFD_FEATURE_PAGEFAULT_FLAG_WP,
+		.name = "wp-fork",
+		.uffd_fn = uffd_wp_fork_test,
+		.mem_targets = MEM_ALL,
+		.uffd_feature_required = UFFD_FEATURE_PAGEFAULT_FLAG_WP |
+		UFFD_FEATURE_WP_HUGETLBFS_SHMEM,
+	},
+	{
+		.name = "wp-fork-with-event",
+		.uffd_fn = uffd_wp_fork_with_event_test,
+		.mem_targets = MEM_ALL,
+		.uffd_feature_required = UFFD_FEATURE_PAGEFAULT_FLAG_WP |
+		UFFD_FEATURE_WP_HUGETLBFS_SHMEM |
+		/* when set, child process should inherit uffd-wp bits */
+		UFFD_FEATURE_EVENT_FORK,
 	},
 	{
 		.name = "wp-unpopulated",
