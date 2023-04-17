@@ -925,6 +925,159 @@ static void sparx5_sd10g28_get_params(struct sparx5_serdes_macro *macro,
 	*params = init;
 }
 
+static int sparx5_cmu_apply_cfg(struct sparx5_serdes_private *priv,
+				u32 cmu_idx,
+				void __iomem *cmu_tgt,
+				void __iomem *cmu_cfg_tgt,
+				u32 spd10g)
+{
+	void __iomem **regs = priv->regs;
+	struct device *dev = priv->dev;
+	int value;
+
+	cmu_tgt = sdx5_inst_get(priv, TARGET_SD_CMU, cmu_idx);
+	cmu_cfg_tgt = sdx5_inst_get(priv, TARGET_SD_CMU_CFG, cmu_idx);
+
+	if (cmu_idx == 1 || cmu_idx == 4 || cmu_idx == 7 ||
+	    cmu_idx == 10 || cmu_idx == 13) {
+		spd10g = 0;
+	}
+
+	sdx5_inst_rmw(SD_CMU_CFG_SD_CMU_CFG_EXT_CFG_RST_SET(1),
+		      SD_CMU_CFG_SD_CMU_CFG_EXT_CFG_RST,
+		      cmu_cfg_tgt,
+		      SD_CMU_CFG_SD_CMU_CFG(cmu_idx));
+
+	sdx5_inst_rmw(SD_CMU_CFG_SD_CMU_CFG_EXT_CFG_RST_SET(0),
+		      SD_CMU_CFG_SD_CMU_CFG_EXT_CFG_RST,
+		      cmu_cfg_tgt,
+		      SD_CMU_CFG_SD_CMU_CFG(cmu_idx));
+
+	sdx5_inst_rmw(SD_CMU_CFG_SD_CMU_CFG_CMU_RST_SET(1),
+		      SD_CMU_CFG_SD_CMU_CFG_CMU_RST,
+		      cmu_cfg_tgt,
+		      SD_CMU_CFG_SD_CMU_CFG(cmu_idx));
+
+	sdx5_inst_rmw(SD_CMU_CMU_45_R_DWIDTHCTRL_FROM_HWT_SET(0x1) |
+		      SD_CMU_CMU_45_R_REFCK_SSC_EN_FROM_HWT_SET(0x1) |
+		      SD_CMU_CMU_45_R_LINK_BUF_EN_FROM_HWT_SET(0x1) |
+		      SD_CMU_CMU_45_R_BIAS_EN_FROM_HWT_SET(0x1) |
+		      SD_CMU_CMU_45_R_EN_RATECHG_CTRL_SET(0x0),
+		      SD_CMU_CMU_45_R_DWIDTHCTRL_FROM_HWT |
+		      SD_CMU_CMU_45_R_REFCK_SSC_EN_FROM_HWT |
+		      SD_CMU_CMU_45_R_LINK_BUF_EN_FROM_HWT |
+		      SD_CMU_CMU_45_R_BIAS_EN_FROM_HWT |
+		      SD_CMU_CMU_45_R_EN_RATECHG_CTRL,
+		      cmu_tgt,
+		      SD_CMU_CMU_45(cmu_idx));
+
+	sdx5_inst_rmw(SD_CMU_CMU_47_R_PCS2PMA_PHYMODE_4_0_SET(0),
+		      SD_CMU_CMU_47_R_PCS2PMA_PHYMODE_4_0,
+		      cmu_tgt,
+		      SD_CMU_CMU_47(cmu_idx));
+
+	sdx5_inst_rmw(SD_CMU_CMU_1B_CFG_RESERVE_7_0_SET(0),
+		      SD_CMU_CMU_1B_CFG_RESERVE_7_0,
+		      cmu_tgt,
+		      SD_CMU_CMU_1B(cmu_idx));
+
+	sdx5_inst_rmw(SD_CMU_CMU_0D_CFG_JC_BYP_SET(0x1),
+		      SD_CMU_CMU_0D_CFG_JC_BYP,
+		      cmu_tgt,
+		      SD_CMU_CMU_0D(cmu_idx));
+
+	sdx5_inst_rmw(SD_CMU_CMU_1F_CFG_VTUNE_SEL_SET(1),
+		      SD_CMU_CMU_1F_CFG_VTUNE_SEL,
+		      cmu_tgt,
+		      SD_CMU_CMU_1F(cmu_idx));
+
+	sdx5_inst_rmw(SD_CMU_CMU_00_CFG_PLL_TP_SEL_1_0_SET(3),
+		      SD_CMU_CMU_00_CFG_PLL_TP_SEL_1_0,
+		      cmu_tgt,
+		      SD_CMU_CMU_00(cmu_idx));
+
+	sdx5_inst_rmw(SD_CMU_CMU_05_CFG_BIAS_TP_SEL_1_0_SET(3),
+		      SD_CMU_CMU_05_CFG_BIAS_TP_SEL_1_0,
+		      cmu_tgt,
+		      SD_CMU_CMU_05(cmu_idx));
+
+	sdx5_inst_rmw(SD_CMU_CMU_30_R_PLL_DLOL_EN_SET(1),
+		      SD_CMU_CMU_30_R_PLL_DLOL_EN,
+		      cmu_tgt,
+		      SD_CMU_CMU_30(cmu_idx));
+
+	sdx5_inst_rmw(SD_CMU_CMU_09_CFG_SW_10G_SET(spd10g),
+		      SD_CMU_CMU_09_CFG_SW_10G,
+		      cmu_tgt,
+		      SD_CMU_CMU_09(cmu_idx));
+
+	sdx5_inst_rmw(SD_CMU_CFG_SD_CMU_CFG_CMU_RST_SET(0),
+		      SD_CMU_CFG_SD_CMU_CFG_CMU_RST,
+		      cmu_cfg_tgt,
+		      SD_CMU_CFG_SD_CMU_CFG(cmu_idx));
+
+	msleep(20);
+
+	sdx5_inst_rmw(SD_CMU_CMU_44_R_PLL_RSTN_SET(0),
+		      SD_CMU_CMU_44_R_PLL_RSTN,
+		      cmu_tgt,
+		      SD_CMU_CMU_44(cmu_idx));
+
+	sdx5_inst_rmw(SD_CMU_CMU_44_R_PLL_RSTN_SET(1),
+		      SD_CMU_CMU_44_R_PLL_RSTN,
+		      cmu_tgt,
+		      SD_CMU_CMU_44(cmu_idx));
+
+	msleep(20);
+
+	value = readl(sdx5_addr(regs, SD_CMU_CMU_E0(cmu_idx)));
+	value = SD_CMU_CMU_E0_PLL_LOL_UDL_GET(value);
+
+	if (value) {
+		dev_err(dev, "CMU PLL Loss of Lock: 0x%x\n", value);
+		return -EINVAL;
+	}
+	sdx5_inst_rmw(SD_CMU_CMU_0D_CFG_PMA_TX_CK_PD_SET(0),
+		      SD_CMU_CMU_0D_CFG_PMA_TX_CK_PD,
+		      cmu_tgt,
+		      SD_CMU_CMU_0D(cmu_idx));
+	return 0;
+}
+
+static int sparx5_cmu_cfg(struct sparx5_serdes_private *priv, u32 cmu_idx)
+{
+	void __iomem *cmu_tgt, *cmu_cfg_tgt;
+	u32 spd10g = 1;
+
+	if (cmu_idx == 1 || cmu_idx == 4 || cmu_idx == 7 ||
+	    cmu_idx == 10 || cmu_idx == 13) {
+		spd10g = 0;
+	}
+
+	cmu_tgt = sdx5_inst_get(priv, TARGET_SD_CMU, cmu_idx);
+	cmu_cfg_tgt = sdx5_inst_get(priv, TARGET_SD_CMU_CFG, cmu_idx);
+
+	return sparx5_cmu_apply_cfg(priv, cmu_idx, cmu_tgt, cmu_cfg_tgt, spd10g);
+}
+
+static int sparx5_serdes_cmu_enable(struct sparx5_serdes_private *priv)
+{
+	int idx, err = 0;
+
+	if (!priv->cmu_enabled) {
+		for (idx = 0; idx < SPX5_CMU_MAX; idx++) {
+			err  = sparx5_cmu_cfg(priv, idx);
+			if (err) {
+				dev_err(priv->dev, "CMU %u, error: %d\n", idx, err);
+				goto leave;
+			}
+		}
+		priv->cmu_enabled = true;
+	}
+leave:
+	return err;
+}
+
 static void sparx5_sd25g28_reset(void __iomem *regs[],
 				 struct sparx5_sd25g28_params *params,
 				 u32 sd_index)
@@ -1964,159 +2117,6 @@ static int sparx5_serdes_clock_config(struct sparx5_serdes_macro *macro)
 			 SD_LANE_MISC(macro->sidx));
 	}
 	return 0;
-}
-
-static int sparx5_cmu_apply_cfg(struct sparx5_serdes_private *priv,
-				u32 cmu_idx,
-				void __iomem *cmu_tgt,
-				void __iomem *cmu_cfg_tgt,
-				u32 spd10g)
-{
-	void __iomem **regs = priv->regs;
-	struct device *dev = priv->dev;
-	int value;
-
-	cmu_tgt = sdx5_inst_get(priv, TARGET_SD_CMU, cmu_idx);
-	cmu_cfg_tgt = sdx5_inst_get(priv, TARGET_SD_CMU_CFG, cmu_idx);
-
-	if (cmu_idx == 1 || cmu_idx == 4 || cmu_idx == 7 ||
-	    cmu_idx == 10 || cmu_idx == 13) {
-		spd10g = 0;
-	}
-
-	sdx5_inst_rmw(SD_CMU_CFG_SD_CMU_CFG_EXT_CFG_RST_SET(1),
-		      SD_CMU_CFG_SD_CMU_CFG_EXT_CFG_RST,
-		      cmu_cfg_tgt,
-		      SD_CMU_CFG_SD_CMU_CFG(cmu_idx));
-
-	sdx5_inst_rmw(SD_CMU_CFG_SD_CMU_CFG_EXT_CFG_RST_SET(0),
-		      SD_CMU_CFG_SD_CMU_CFG_EXT_CFG_RST,
-		      cmu_cfg_tgt,
-		      SD_CMU_CFG_SD_CMU_CFG(cmu_idx));
-
-	sdx5_inst_rmw(SD_CMU_CFG_SD_CMU_CFG_CMU_RST_SET(1),
-		      SD_CMU_CFG_SD_CMU_CFG_CMU_RST,
-		      cmu_cfg_tgt,
-		      SD_CMU_CFG_SD_CMU_CFG(cmu_idx));
-
-	sdx5_inst_rmw(SD_CMU_CMU_45_R_DWIDTHCTRL_FROM_HWT_SET(0x1) |
-		      SD_CMU_CMU_45_R_REFCK_SSC_EN_FROM_HWT_SET(0x1) |
-		      SD_CMU_CMU_45_R_LINK_BUF_EN_FROM_HWT_SET(0x1) |
-		      SD_CMU_CMU_45_R_BIAS_EN_FROM_HWT_SET(0x1) |
-		      SD_CMU_CMU_45_R_EN_RATECHG_CTRL_SET(0x0),
-		      SD_CMU_CMU_45_R_DWIDTHCTRL_FROM_HWT |
-		      SD_CMU_CMU_45_R_REFCK_SSC_EN_FROM_HWT |
-		      SD_CMU_CMU_45_R_LINK_BUF_EN_FROM_HWT |
-		      SD_CMU_CMU_45_R_BIAS_EN_FROM_HWT |
-		      SD_CMU_CMU_45_R_EN_RATECHG_CTRL,
-		      cmu_tgt,
-		      SD_CMU_CMU_45(cmu_idx));
-
-	sdx5_inst_rmw(SD_CMU_CMU_47_R_PCS2PMA_PHYMODE_4_0_SET(0),
-		      SD_CMU_CMU_47_R_PCS2PMA_PHYMODE_4_0,
-		      cmu_tgt,
-		      SD_CMU_CMU_47(cmu_idx));
-
-	sdx5_inst_rmw(SD_CMU_CMU_1B_CFG_RESERVE_7_0_SET(0),
-		      SD_CMU_CMU_1B_CFG_RESERVE_7_0,
-		      cmu_tgt,
-		      SD_CMU_CMU_1B(cmu_idx));
-
-	sdx5_inst_rmw(SD_CMU_CMU_0D_CFG_JC_BYP_SET(0x1),
-		      SD_CMU_CMU_0D_CFG_JC_BYP,
-		      cmu_tgt,
-		      SD_CMU_CMU_0D(cmu_idx));
-
-	sdx5_inst_rmw(SD_CMU_CMU_1F_CFG_VTUNE_SEL_SET(1),
-		      SD_CMU_CMU_1F_CFG_VTUNE_SEL,
-		      cmu_tgt,
-		      SD_CMU_CMU_1F(cmu_idx));
-
-	sdx5_inst_rmw(SD_CMU_CMU_00_CFG_PLL_TP_SEL_1_0_SET(3),
-		      SD_CMU_CMU_00_CFG_PLL_TP_SEL_1_0,
-		      cmu_tgt,
-		      SD_CMU_CMU_00(cmu_idx));
-
-	sdx5_inst_rmw(SD_CMU_CMU_05_CFG_BIAS_TP_SEL_1_0_SET(3),
-		      SD_CMU_CMU_05_CFG_BIAS_TP_SEL_1_0,
-		      cmu_tgt,
-		      SD_CMU_CMU_05(cmu_idx));
-
-	sdx5_inst_rmw(SD_CMU_CMU_30_R_PLL_DLOL_EN_SET(1),
-		      SD_CMU_CMU_30_R_PLL_DLOL_EN,
-		      cmu_tgt,
-		      SD_CMU_CMU_30(cmu_idx));
-
-	sdx5_inst_rmw(SD_CMU_CMU_09_CFG_SW_10G_SET(spd10g),
-		      SD_CMU_CMU_09_CFG_SW_10G,
-		      cmu_tgt,
-		      SD_CMU_CMU_09(cmu_idx));
-
-	sdx5_inst_rmw(SD_CMU_CFG_SD_CMU_CFG_CMU_RST_SET(0),
-		      SD_CMU_CFG_SD_CMU_CFG_CMU_RST,
-		      cmu_cfg_tgt,
-		      SD_CMU_CFG_SD_CMU_CFG(cmu_idx));
-
-	msleep(20);
-
-	sdx5_inst_rmw(SD_CMU_CMU_44_R_PLL_RSTN_SET(0),
-		      SD_CMU_CMU_44_R_PLL_RSTN,
-		      cmu_tgt,
-		      SD_CMU_CMU_44(cmu_idx));
-
-	sdx5_inst_rmw(SD_CMU_CMU_44_R_PLL_RSTN_SET(1),
-		      SD_CMU_CMU_44_R_PLL_RSTN,
-		      cmu_tgt,
-		      SD_CMU_CMU_44(cmu_idx));
-
-	msleep(20);
-
-	value = readl(sdx5_addr(regs, SD_CMU_CMU_E0(cmu_idx)));
-	value = SD_CMU_CMU_E0_PLL_LOL_UDL_GET(value);
-
-	if (value) {
-		dev_err(dev, "CMU PLL Loss of Lock: 0x%x\n", value);
-		return -EINVAL;
-	}
-	sdx5_inst_rmw(SD_CMU_CMU_0D_CFG_PMA_TX_CK_PD_SET(0),
-		      SD_CMU_CMU_0D_CFG_PMA_TX_CK_PD,
-		      cmu_tgt,
-		      SD_CMU_CMU_0D(cmu_idx));
-	return 0;
-}
-
-static int sparx5_cmu_cfg(struct sparx5_serdes_private *priv, u32 cmu_idx)
-{
-	void __iomem *cmu_tgt, *cmu_cfg_tgt;
-	u32 spd10g = 1;
-
-	if (cmu_idx == 1 || cmu_idx == 4 || cmu_idx == 7 ||
-	    cmu_idx == 10 || cmu_idx == 13) {
-		spd10g = 0;
-	}
-
-	cmu_tgt = sdx5_inst_get(priv, TARGET_SD_CMU, cmu_idx);
-	cmu_cfg_tgt = sdx5_inst_get(priv, TARGET_SD_CMU_CFG, cmu_idx);
-
-	return sparx5_cmu_apply_cfg(priv, cmu_idx, cmu_tgt, cmu_cfg_tgt, spd10g);
-}
-
-static int sparx5_serdes_cmu_enable(struct sparx5_serdes_private *priv)
-{
-	int idx, err = 0;
-
-	if (!priv->cmu_enabled) {
-		for (idx = 0; idx < SPX5_CMU_MAX; idx++) {
-			err  = sparx5_cmu_cfg(priv, idx);
-			if (err) {
-				dev_err(priv->dev, "CMU %u, error: %d\n", idx, err);
-				goto leave;
-			}
-		}
-		priv->cmu_enabled = true;
-	}
-leave:
-	return err;
 }
 
 static int sparx5_serdes_get_serdesmode(phy_interface_t portmode, int speed)
