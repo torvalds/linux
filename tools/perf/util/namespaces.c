@@ -204,11 +204,15 @@ struct nsinfo *nsinfo__copy(const struct nsinfo *nsi)
 	return nnsi;
 }
 
+static refcount_t *nsinfo__refcnt(struct nsinfo *nsi)
+{
+	return &RC_CHK_ACCESS(nsi)->refcnt;
+}
+
 static void nsinfo__delete(struct nsinfo *nsi)
 {
 	if (nsi) {
-		WARN_ONCE(refcount_read(&RC_CHK_ACCESS(nsi)->refcnt) != 0,
-			"nsinfo refcnt unbalanced\n");
+		WARN_ONCE(refcount_read(nsinfo__refcnt(nsi)) != 0, "nsinfo refcnt unbalanced\n");
 		zfree(&RC_CHK_ACCESS(nsi)->mntns_path);
 		RC_CHK_FREE(nsi);
 	}
@@ -219,14 +223,14 @@ struct nsinfo *nsinfo__get(struct nsinfo *nsi)
 	struct nsinfo *result;
 
 	if (RC_CHK_GET(result, nsi))
-		refcount_inc(&RC_CHK_ACCESS(nsi)->refcnt);
+		refcount_inc(nsinfo__refcnt(nsi));
 
 	return result;
 }
 
 void nsinfo__put(struct nsinfo *nsi)
 {
-	if (nsi && refcount_dec_and_test(&RC_CHK_ACCESS(nsi)->refcnt))
+	if (nsi && refcount_dec_and_test(nsinfo__refcnt(nsi)))
 		nsinfo__delete(nsi);
 	else
 		RC_CHK_PUT(nsi);
