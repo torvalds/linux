@@ -45,15 +45,6 @@ struct tegra_vi_graph_entity {
 	struct v4l2_subdev *subdev;
 };
 
-static const struct tegra_video_format tegra_default_format = {
-	.img_dt = TEGRA_IMAGE_DT_RAW10,
-	.bit_width = 10,
-	.code = MEDIA_BUS_FMT_SRGGB10_1X10,
-	.bpp = 2,
-	.img_fmt = TEGRA_IMAGE_FORMAT_DEF,
-	.fourcc = V4L2_PIX_FMT_SRGGB10,
-};
-
 static inline struct tegra_vi *
 host1x_client_to_vi(struct host1x_client *client)
 {
@@ -1105,7 +1096,7 @@ static int vi_fmts_bitmap_init(struct tegra_vi_channel *chan)
 	 * there are no matched formats.
 	 */
 	if (!match_code) {
-		match_code = tegra_default_format.code;
+		match_code = chan->vi->soc->default_video_format->code;
 		index = tegra_get_format_idx_by_code(chan->vi, match_code, 0);
 		if (WARN_ON(index < 0))
 			return -EINVAL;
@@ -1202,7 +1193,7 @@ static int tegra_channel_init(struct tegra_vi_channel *chan)
 	init_waitqueue_head(&chan->done_wait);
 
 	/* initialize the video format */
-	chan->fmtinfo = &tegra_default_format;
+	chan->fmtinfo = chan->vi->soc->default_video_format;
 	chan->format.pixelformat = chan->fmtinfo->fourcc;
 	chan->format.colorspace = V4L2_COLORSPACE_SRGB;
 	chan->format.field = V4L2_FIELD_NONE;
