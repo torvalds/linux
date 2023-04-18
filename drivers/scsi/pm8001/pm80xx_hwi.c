@@ -3239,9 +3239,9 @@ hw_event_sata_phy_up(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	struct pm8001_port *port = &pm8001_ha->port[port_id];
 	struct pm8001_phy *phy = &pm8001_ha->phy[phy_id];
 	unsigned long flags;
-	pm8001_dbg(pm8001_ha, DEVIO,
-		   "port id %d, phy id %d link_rate %d portstate 0x%x\n",
-		   port_id, phy_id, link_rate, portstate);
+	pm8001_dbg(pm8001_ha, EVENT,
+		   "HW_EVENT_SATA_PHY_UP phyid:%#x port_id:%#x link_rate:%d portstate:%#x\n",
+		   phy_id, port_id, link_rate, portstate);
 
 	phy->port = port;
 	port->port_id = port_id;
@@ -3291,10 +3291,14 @@ hw_event_phy_down(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	phy->phy_attached = 0;
 	switch (portstate) {
 	case PORT_VALID:
+		pm8001_dbg(pm8001_ha, EVENT,
+			"HW_EVENT_PHY_DOWN phyid:%#x port_id:%#x portstate: PORT_VALID\n",
+			phy_id, port_id);
 		break;
 	case PORT_INVALID:
-		pm8001_dbg(pm8001_ha, MSG, " PortInvalid portID %d\n",
-			   port_id);
+		pm8001_dbg(pm8001_ha, EVENT,
+			"HW_EVENT_PHY_DOWN phyid:%#x port_id:%#x portstate: PORT_INVALID\n",
+			phy_id, port_id);
 		pm8001_dbg(pm8001_ha, MSG,
 			   " Last phy Down and port invalid\n");
 		if (port_sata) {
@@ -3306,18 +3310,21 @@ hw_event_phy_down(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		sas_phy_disconnected(&phy->sas_phy);
 		break;
 	case PORT_IN_RESET:
-		pm8001_dbg(pm8001_ha, MSG, " Port In Reset portID %d\n",
-			   port_id);
+		pm8001_dbg(pm8001_ha, EVENT,
+			"HW_EVENT_PHY_DOWN phyid:%#x port_id:%#x portstate: PORT_IN_RESET\n",
+			phy_id, port_id);
 		break;
 	case PORT_NOT_ESTABLISHED:
-		pm8001_dbg(pm8001_ha, MSG,
-			   " Phy Down and PORT_NOT_ESTABLISHED\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			"HW_EVENT_PHY_DOWN phyid:%#x port_id:%#x portstate: PORT_NOT_ESTABLISHED\n",
+			phy_id, port_id);
 		port->port_attached = 0;
 		break;
 	case PORT_LOSTCOMM:
-		pm8001_dbg(pm8001_ha, MSG, " Phy Down and PORT_LOSTCOMM\n");
-		pm8001_dbg(pm8001_ha, MSG,
-			   " Last phy Down and port invalid\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			"HW_EVENT_PHY_DOWN phyid:%#x port_id:%#x portstate: PORT_LOSTCOMM\n",
+			phy_id, port_id);
+		pm8001_dbg(pm8001_ha, MSG, " Last phy Down and port invalid\n");
 		if (port_sata) {
 			port->port_attached = 0;
 			phy->phy_type = 0;
@@ -3328,9 +3335,9 @@ hw_event_phy_down(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		break;
 	default:
 		port->port_attached = 0;
-		pm8001_dbg(pm8001_ha, DEVIO,
-			   " Phy Down and(default) = 0x%x\n",
-			   portstate);
+		pm8001_dbg(pm8001_ha, EVENT,
+			"HW_EVENT_PHY_DOWN phyid:%#x port_id:%#x portstate:%#x\n",
+			phy_id, port_id, portstate);
 		break;
 
 	}
@@ -3431,9 +3438,6 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		hw_event_sas_phy_up(pm8001_ha, piomb);
 		break;
 	case HW_EVENT_SATA_PHY_UP:
-		pm8001_dbg(pm8001_ha, EVENT,
-			   "HW_EVENT_SATA_PHY_UP phyid:%#x port_id:%#x\n",
-			   phy_id, port_id);
 		hw_event_sata_phy_up(pm8001_ha, piomb);
 		break;
 	case HW_EVENT_SATA_SPINUP_HOLD:
@@ -3444,9 +3448,6 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			GFP_ATOMIC);
 		break;
 	case HW_EVENT_PHY_DOWN:
-		pm8001_dbg(pm8001_ha, EVENT,
-			   "HW_EVENT_PHY_DOWN phyid:%#x port_id:%#x\n",
-			   phy_id, port_id);
 		hw_event_phy_down(pm8001_ha, piomb);
 		phy->phy_attached = 0;
 		phy->phy_state = PHY_LINK_DISABLE;
