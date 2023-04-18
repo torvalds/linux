@@ -32,6 +32,12 @@ static const u32 enetc_port_regs[] = {
 	ENETC_PM0_CMD_CFG, ENETC_PM0_MAXFRM, ENETC_PM0_IF_MODE
 };
 
+static const u32 enetc_port_mm_regs[] = {
+	ENETC_MMCSR, ENETC_PFPMR, ENETC_PTCFPR(0), ENETC_PTCFPR(1),
+	ENETC_PTCFPR(2), ENETC_PTCFPR(3), ENETC_PTCFPR(4), ENETC_PTCFPR(5),
+	ENETC_PTCFPR(6), ENETC_PTCFPR(7),
+};
+
 static int enetc_get_reglen(struct net_device *ndev)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
@@ -44,6 +50,9 @@ static int enetc_get_reglen(struct net_device *ndev)
 
 	if (hw->port)
 		len += ARRAY_SIZE(enetc_port_regs);
+
+	if (hw->port && !!(priv->si->hw_features & ENETC_SI_F_QBU))
+		len += ARRAY_SIZE(enetc_port_mm_regs);
 
 	len *= sizeof(u32) * 2; /* store 2 entries per reg: addr and value */
 
@@ -89,6 +98,14 @@ static void enetc_get_regs(struct net_device *ndev, struct ethtool_regs *regs,
 		addr = ENETC_PORT_BASE + enetc_port_regs[i];
 		*buf++ = addr;
 		*buf++ = enetc_rd(hw, addr);
+	}
+
+	if (priv->si->hw_features & ENETC_SI_F_QBU) {
+		for (i = 0; i < ARRAY_SIZE(enetc_port_mm_regs); i++) {
+			addr = ENETC_PORT_BASE + enetc_port_mm_regs[i];
+			*buf++ = addr;
+			*buf++ = enetc_rd(hw, addr);
+		}
 	}
 }
 
