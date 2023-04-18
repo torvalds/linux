@@ -28,7 +28,7 @@ config PCI_AARDVARK
 	 3700 SoC.
 
 config PCIE_XILINX_NWL
-	bool "NWL PCIe Core"
+	bool "Xilinx NWL PCIe controller"
 	depends on ARCH_ZYNQMP || COMPILE_TEST
 	depends on PCI_MSI
 	help
