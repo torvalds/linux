@@ -32,4 +32,6 @@ void skl_program_plane_scaler(struct intel_plane *plane,
 void skl_detach_scalers(const struct intel_crtc_state *crtc_state);
 void skl_scaler_disable(const struct intel_crtc_state *old_crtc_state);
 
+void skl_scaler_get_config(struct intel_crtc_state *crtc_state);
+
 #endif

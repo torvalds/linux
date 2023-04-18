@@ -3224,49 +3224,6 @@ void intel_cpu_transcoder_get_m2_n2(struct intel_crtc *crtc,
 		      PIPE_LINK_M2(transcoder), PIPE_LINK_N2(transcoder));
 }
 
-static void ilk_get_pfit_pos_size(struct intel_crtc_state *crtc_state,
-				  u32 pos, u32 size)
-{
-	drm_rect_init(&crtc_state->pch_pfit.dst,
-		      pos >> 16, pos & 0xffff,
-		      size >> 16, size & 0xffff);
-}
-
-static void skl_get_pfit_config(struct intel_crtc_state *crtc_state)
-{
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	struct intel_crtc_scaler_state *scaler_state = &crtc_state->scaler_state;
-	int id = -1;
-	int i;
-
-	/* find scaler attached to this pipe */
-	for (i = 0; i < crtc->num_scalers; i++) {
-		u32 ctl, pos, size;
-
-		ctl = intel_de_read(dev_priv, SKL_PS_CTRL(crtc->pipe, i));
-		if ((ctl & (PS_SCALER_EN | PS_PLANE_SEL_MASK)) != PS_SCALER_EN)
-			continue;
-
-		id = i;
-		crtc_state->pch_pfit.enabled = true;
-
-		pos = intel_de_read(dev_priv, SKL_PS_WIN_POS(crtc->pipe, i));
-		size = intel_de_read(dev_priv, SKL_PS_WIN_SZ(crtc->pipe, i));
-
-		ilk_get_pfit_pos_size(crtc_state, pos, size);
-
-		scaler_state->scalers[i].in_use = true;
-		break;
-	}
-
-	scaler_state->scaler_id = id;
-	if (id >= 0)
-		scaler_state->scaler_users |= (1 << SKL_CRTC_INDEX);
-	else
-		scaler_state->scaler_users &= ~(1 << SKL_CRTC_INDEX);
-}
-
 static void ilk_get_pfit_config(struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
@@ -3282,7 +3239,9 @@ static void ilk_get_pfit_config(struct intel_crtc_state *crtc_state)
 	pos = intel_de_read(dev_priv, PF_WIN_POS(crtc->pipe));
 	size = intel_de_read(dev_priv, PF_WIN_SZ(crtc->pipe));
 
-	ilk_get_pfit_pos_size(crtc_state, pos, size);
+	drm_rect_init(&crtc_state->pch_pfit.dst,
+		      pos >> 16, pos & 0xffff,
+		      size >> 16, size & 0xffff);
 
 	/*
 	 * We currently do not free assignements of panel fitters on
@@ -3773,7 +3732,7 @@ static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 	if (intel_display_power_get_in_set_if_enabled(dev_priv, &crtc->hw_readout_power_domains,
 						      POWER_DOMAIN_PIPE_PANEL_FITTER(crtc->pipe))) {
 		if (DISPLAY_VER(dev_priv) >= 9)
-			skl_get_pfit_config(pipe_config);
+			skl_scaler_get_config(pipe_config);
 		else
 			ilk_get_pfit_config(pipe_config);
 	}

@@ -856,3 +856,40 @@ void skl_scaler_disable(const struct intel_crtc_state *old_crtc_state)
 	for (i = 0; i < crtc->num_scalers; i++)
 		skl_detach_scaler(crtc, i);
 }
+
+void skl_scaler_get_config(struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_crtc_scaler_state *scaler_state = &crtc_state->scaler_state;
+	int id = -1;
+	int i;
+
+	/* find scaler attached to this pipe */
+	for (i = 0; i < crtc->num_scalers; i++) {
+		u32 ctl, pos, size;
+
+		ctl = intel_de_read(dev_priv, SKL_PS_CTRL(crtc->pipe, i));
+		if ((ctl & (PS_SCALER_EN | PS_PLANE_SEL_MASK)) != PS_SCALER_EN)
+			continue;
+
+		id = i;
+		crtc_state->pch_pfit.enabled = true;
+
+		pos = intel_de_read(dev_priv, SKL_PS_WIN_POS(crtc->pipe, i));
+		size = intel_de_read(dev_priv, SKL_PS_WIN_SZ(crtc->pipe, i));
+
+		drm_rect_init(&crtc_state->pch_pfit.dst,
+			      pos >> 16, pos & 0xffff,
+			      size >> 16, size & 0xffff);
+
+		scaler_state->scalers[i].in_use = true;
+		break;
+	}
+
+	scaler_state->scaler_id = id;
+	if (id >= 0)
+		scaler_state->scaler_users |= (1 << SKL_CRTC_INDEX);
+	else
+		scaler_state->scaler_users &= ~(1 << SKL_CRTC_INDEX);
+}
