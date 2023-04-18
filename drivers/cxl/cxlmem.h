@@ -215,6 +215,37 @@ struct cxl_event_state {
 	struct mutex log_lock;
 };
 
+/* Device enabled poison commands */
+enum poison_cmd_enabled_bits {
+	CXL_POISON_ENABLED_LIST,
+	CXL_POISON_ENABLED_INJECT,
+	CXL_POISON_ENABLED_CLEAR,
+	CXL_POISON_ENABLED_SCAN_CAPS,
+	CXL_POISON_ENABLED_SCAN_MEDIA,
+	CXL_POISON_ENABLED_SCAN_RESULTS,
+	CXL_POISON_ENABLED_MAX
+};
+
+/**
+ * struct cxl_poison_state - Driver poison state info
+ *
+ * @max_errors: Maximum media error records held in device cache
+ * @enabled_cmds: All poison commands enabled in the CEL
+ * @list_out: The poison list payload returned by device
+ * @lock: Protect reads of the poison list
+ *
+ * Reads of the poison list are synchronized to ensure that a reader
+ * does not get an incomplete list because their request overlapped
+ * (was interrupted or preceded by) another read request of the same
+ * DPA range. CXL Spec 3.0 Section 8.2.9.8.4.1
+ */
+struct cxl_poison_state {
+	u32 max_errors;
+	DECLARE_BITMAP(enabled_cmds, CXL_POISON_ENABLED_MAX);
+	struct cxl_mbox_poison_out *list_out;
+	struct mutex lock;  /* Protect reads of poison list */
+};
+
 /**
  * struct cxl_dev_state - The driver device state
  *
@@ -251,6 +282,7 @@ struct cxl_event_state {
  * @serial: PCIe Device Serial Number
  * @doe_mbs: PCI DOE mailbox array
  * @event: event log driver state
+ * @poison: poison driver state info
  * @mbox_send: @dev specific transport for transmitting mailbox commands
  *
  * See section 8.2.9.5.2 Capacity Configuration and Label Storage for
@@ -290,6 +322,7 @@ struct cxl_dev_state {
 	struct xarray doe_mbs;
 
 	struct cxl_event_state event;
+	struct cxl_poison_state poison;
 
 	int (*mbox_send)(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd);
 };
@@ -608,6 +641,7 @@ void set_exclusive_cxl_commands(struct cxl_dev_state *cxlds, unsigned long *cmds
 void clear_exclusive_cxl_commands(struct cxl_dev_state *cxlds, unsigned long *cmds);
 void cxl_mem_get_event_records(struct cxl_dev_state *cxlds, u32 status);
 int cxl_set_timestamp(struct cxl_dev_state *cxlds);
+int cxl_poison_state_init(struct cxl_dev_state *cxlds);
 
 #ifdef CONFIG_CXL_SUSPEND
 void cxl_mem_active_inc(void);

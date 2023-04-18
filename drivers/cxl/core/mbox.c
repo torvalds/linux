@@ -5,6 +5,7 @@
 #include <linux/debugfs.h>
 #include <linux/ktime.h>
 #include <linux/mutex.h>
+#include <cxlpci.h>
 #include <cxlmem.h>
 #include <cxl.h>
 
@@ -118,6 +119,43 @@ static bool cxl_is_security_command(u16 opcode)
 		if (security_command_sets[i] == (opcode >> 8))
 			return true;
 	return false;
+}
+
+static bool cxl_is_poison_command(u16 opcode)
+{
+#define CXL_MBOX_OP_POISON_CMDS 0x43
+
+	if ((opcode >> 8) == CXL_MBOX_OP_POISON_CMDS)
+		return true;
+
+	return false;
+}
+
+static void cxl_set_poison_cmd_enabled(struct cxl_poison_state *poison,
+				       u16 opcode)
+{
+	switch (opcode) {
+	case CXL_MBOX_OP_GET_POISON:
+		set_bit(CXL_POISON_ENABLED_LIST, poison->enabled_cmds);
+		break;
+	case CXL_MBOX_OP_INJECT_POISON:
+		set_bit(CXL_POISON_ENABLED_INJECT, poison->enabled_cmds);
+		break;
+	case CXL_MBOX_OP_CLEAR_POISON:
+		set_bit(CXL_POISON_ENABLED_CLEAR, poison->enabled_cmds);
+		break;
+	case CXL_MBOX_OP_GET_SCAN_MEDIA_CAPS:
+		set_bit(CXL_POISON_ENABLED_SCAN_CAPS, poison->enabled_cmds);
+		break;
+	case CXL_MBOX_OP_SCAN_MEDIA:
+		set_bit(CXL_POISON_ENABLED_SCAN_MEDIA, poison->enabled_cmds);
+		break;
+	case CXL_MBOX_OP_GET_SCAN_MEDIA:
+		set_bit(CXL_POISON_ENABLED_SCAN_RESULTS, poison->enabled_cmds);
+		break;
+	default:
+		break;
+	}
 }
 
 static struct cxl_mem_command *cxl_mem_find_command(u16 opcode)
@@ -635,13 +673,18 @@ static void cxl_walk_cel(struct cxl_dev_state *cxlds, size_t size, u8 *cel)
 		u16 opcode = le16_to_cpu(cel_entry[i].opcode);
 		struct cxl_mem_command *cmd = cxl_mem_find_command(opcode);
 
-		if (!cmd) {
+		if (!cmd && !cxl_is_poison_command(opcode)) {
 			dev_dbg(cxlds->dev,
 				"Opcode 0x%04x unsupported by driver\n", opcode);
 			continue;
 		}
 
-		set_bit(cmd->info.id, cxlds->enabled_cmds);
+		if (cmd)
+			set_bit(cmd->info.id, cxlds->enabled_cmds);
+
+		if (cxl_is_poison_command(opcode))
+			cxl_set_poison_cmd_enabled(&cxlds->poison, opcode);
+
 		dev_dbg(cxlds->dev, "Opcode 0x%04x enabled\n", opcode);
 	}
 }
@@ -1107,6 +1150,40 @@ int cxl_set_timestamp(struct cxl_dev_state *cxlds)
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(cxl_set_timestamp, CXL);
+
+static void free_poison_buf(void *buf)
+{
+	kvfree(buf);
+}
+
+/* Get Poison List output buffer is protected by cxlds->poison.lock */
+static int cxl_poison_alloc_buf(struct cxl_dev_state *cxlds)
+{
+	cxlds->poison.list_out = kvmalloc(cxlds->payload_size, GFP_KERNEL);
+	if (!cxlds->poison.list_out)
+		return -ENOMEM;
+
+	return devm_add_action_or_reset(cxlds->dev, free_poison_buf,
+					cxlds->poison.list_out);
+}
+
+int cxl_poison_state_init(struct cxl_dev_state *cxlds)
+{
+	int rc;
+
+	if (!test_bit(CXL_POISON_ENABLED_LIST, cxlds->poison.enabled_cmds))
+		return 0;
+
+	rc = cxl_poison_alloc_buf(cxlds);
+	if (rc) {
+		clear_bit(CXL_POISON_ENABLED_LIST, cxlds->poison.enabled_cmds);
+		return rc;
+	}
+
+	mutex_init(&cxlds->poison.lock);
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(cxl_poison_state_init, CXL);
 
 struct cxl_dev_state *cxl_dev_state_create(struct device *dev)
 {
