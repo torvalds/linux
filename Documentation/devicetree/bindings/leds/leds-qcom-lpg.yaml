@@ -25,6 +25,7 @@ properties:
       - qcom,pm8941-lpg
       - qcom,pm8994-lpg
       - qcom,pmc8180c-lpg
+      - qcom,pmi632-lpg
       - qcom,pmi8994-lpg
       - qcom,pmi8998-lpg
       - qcom,pmk8550-pwm
