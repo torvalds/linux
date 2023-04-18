@@ -724,7 +724,7 @@ iwl_mei_handle_conn_status(struct mei_cl_device *cldev,
 						     status->link_prot_state);
 	else
 		iwl_mei_cache.ops->rfkill(iwl_mei_cache.priv,
-					  status->link_prot_state);
+					  status->link_prot_state, false);
 }
 
 static void iwl_mei_set_init_conf(struct iwl_mei *mei)
@@ -796,7 +796,7 @@ static void iwl_mei_handle_amt_state(struct mei_cl_device *cldev,
 	if (mei->amt_enabled)
 		iwl_mei_set_init_conf(mei);
 	else if (iwl_mei_cache.ops)
-		iwl_mei_cache.ops->rfkill(iwl_mei_cache.priv, false);
+		iwl_mei_cache.ops->rfkill(iwl_mei_cache.priv, false, false);
 
 	schedule_work(&mei->netdev_work);
 
@@ -837,7 +837,7 @@ static void iwl_mei_handle_csme_taking_ownership(struct mei_cl_device *cldev,
 		 */
 		mei->csme_taking_ownership = true;
 
-		iwl_mei_cache.ops->rfkill(iwl_mei_cache.priv, true);
+		iwl_mei_cache.ops->rfkill(iwl_mei_cache.priv, true, true);
 	} else {
 		iwl_mei_send_sap_msg(cldev,
 				     SAP_MSG_NOTIF_CSME_OWNERSHIP_CONFIRMED);
@@ -892,7 +892,7 @@ static void iwl_mei_handle_rx_host_own_req(struct mei_cl_device *cldev,
 
 	/* We can now start the connection, unblock rfkill */
 	if (iwl_mei_cache.ops)
-		iwl_mei_cache.ops->rfkill(iwl_mei_cache.priv, false);
+		iwl_mei_cache.ops->rfkill(iwl_mei_cache.priv, false, false);
 }
 
 static void iwl_mei_handle_pldr_ack(struct mei_cl_device *cldev,
@@ -1791,7 +1791,8 @@ int iwl_mei_register(void *priv, const struct iwl_mei_ops *ops)
 		if (iwl_mei_is_connected()) {
 			if (mei->amt_enabled)
 				iwl_mei_send_sap_msg(mei->cldev,
-						     SAP_MSG_NOTIF_WIFIDR_UP);
+						     SAP_MSG_NOTIF_WIFIDR_UP,
+						     false);
 			ops->rfkill(priv, mei->link_prot_state);
 		}
 	}
@@ -2111,7 +2112,7 @@ static void iwl_mei_remove(struct mei_cl_device *cldev)
 	spin_unlock_bh(&mei->data_q_lock);
 
 	if (iwl_mei_cache.ops)
-		iwl_mei_cache.ops->rfkill(iwl_mei_cache.priv, false);
+		iwl_mei_cache.ops->rfkill(iwl_mei_cache.priv, false, false);
 
 	/*
 	 * mei_cldev_disable will return only after all the MEI Rx is done.
