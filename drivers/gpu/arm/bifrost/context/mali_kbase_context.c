@@ -139,8 +139,8 @@ int kbase_context_common_init(struct kbase_context *kctx)
 	kctx->task = NULL;
 	atomic_set(&kctx->nonmapped_pages, 0);
 	atomic_set(&kctx->permanent_mapped_pages, 0);
-	kctx->tgid = current->tgid;
-	kctx->pid = current->pid;
+	kctx->tgid = task_tgid_vnr(current);
+	kctx->pid = task_pid_vnr(current);
 
 	/* Check if this is a Userspace created context */
 	if (likely(kctx->filp)) {
@@ -160,7 +160,7 @@ int kbase_context_common_init(struct kbase_context *kctx)
 			} else {
 				dev_err(kctx->kbdev->dev,
 					"Failed to get task pointer for %s/%d",
-					current->comm, current->pid);
+					current->comm, kctx->pid);
 				err = -ESRCH;
 			}
 
@@ -168,7 +168,7 @@ int kbase_context_common_init(struct kbase_context *kctx)
 		} else {
 			dev_err(kctx->kbdev->dev,
 				"Failed to get pid pointer for %s/%d",
-				current->comm, current->pid);
+				current->comm, kctx->pid);
 			err = -ESRCH;
 		}
 		rcu_read_unlock();
