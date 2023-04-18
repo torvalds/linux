@@ -8043,7 +8043,7 @@ static void gaudi2_ack_module_razwi_event_handler(struct hl_device *hdev,
 	case RAZWI_TPC:
 		hbw_rtr_id = gaudi2_tpc_initiator_hbw_rtr_id[module_idx];
 
-		if (hl_is_fw_ver_below_1_9(hdev) &&
+		if (hl_is_fw_sw_ver_below(hdev, 1, 9) &&
 				!hdev->asic_prop.fw_security_enabled &&
 				((module_idx == 0) || (module_idx == 1)))
 			lbw_rtr_id = DCORE0_RTR0;

@@ -3553,9 +3553,15 @@ struct hl_ioctl_desc {
 	hl_ioctl_t *func;
 };
 
-static inline bool hl_is_fw_ver_below_1_9(struct hl_device *hdev)
+static inline bool hl_is_fw_sw_ver_below(struct hl_device *hdev, u32 fw_sw_major, u32 fw_sw_minor)
 {
-	return (hdev->fw_inner_major_ver < 42);
+	if (hdev->fw_sw_major_ver < fw_sw_major)
+		return true;
+	if (hdev->fw_sw_major_ver > fw_sw_major)
+		return false;
+	if (hdev->fw_sw_minor_ver < fw_sw_minor)
+		return true;
+	return false;
 }
 
 /*
