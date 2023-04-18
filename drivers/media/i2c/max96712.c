@@ -5,6 +5,7 @@
  * Copyright (C) 2023 Rockchip Electronics Co., Ltd.
  *
  * V1.0.00 first version.
+ * V1.1.00 support Frame synchronization, stream on speed optimization.
  *
  */
 
@@ -31,15 +32,21 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(1, 0x00, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(1, 0x01, 0x00)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
 #endif
 
+#define MAX96712_NAME			"max96712"
+#define MAX96712_MEDIA_BUS_FMT		MEDIA_BUS_FMT_UYVY8_2X8
+
+#define MAX96712_MIPI_LANES		4
+#define MAX96712_BITS_PER_SAMPLE	8
+
 #define MAX96712_LINK_FREQ_1000MHZ	1000000000UL
 /* pixel rate = link frequency * 2 * lanes / BITS_PER_SAMPLE */
-#define MAX96712_PIXEL_RATE		(MAX96712_LINK_FREQ_1000MHZ * 2LL * 4LL / 8LL)
+#define MAX96712_PIXEL_RATE		(MAX96712_LINK_FREQ_1000MHZ * 2LL * MAX96712_MIPI_LANES / MAX96712_BITS_PER_SAMPLE)
 #define MAX96712_XVCLK_FREQ		25000000
 
 #define MAX96712_CHIP_ID		0xA0
@@ -59,12 +66,9 @@
 #define MAX96712_LOCK_STATE_LINK_B	BIT(1)
 #define MAX96712_LOCK_STATE_LINK_C	BIT(2)
 #define MAX96712_LOCK_STATE_LINK_D	BIT(3)
-#define MAX96712_LOCK_STATE_MASK	0x0F /*0x01: Link A, 0x0F: Link A/B/C/D */
+#define MAX96712_LOCK_STATE_MASK	0x0F /* 0x01: Link A, 0x0F: Link A/B/C/D */
 
 #define REG_NULL			0xFFFF
-
-#define MAX96712_LANES			4
-#define MAX96712_BITS_PER_SAMPLE	8
 
 #define OF_CAMERA_PINCTRL_STATE_DEFAULT	"rockchip,camera_default"
 #define OF_CAMERA_PINCTRL_STATE_SLEEP	"rockchip,camera_sleep"
@@ -73,11 +77,9 @@
 #define MAX96712_REG_VALUE_16BIT	2
 #define MAX96712_REG_VALUE_24BIT	3
 
-#define MAX96712_NAME			"max96712"
-#define MAX96712_MEDIA_BUS_FMT		MEDIA_BUS_FMT_UYVY8_2X8
-
 #define MAX96712_I2C_ADDR		(0x29)
 #define MAX96717_I2C_ADDR		(0x40)
+#define CAMERA_I2C_ADDR			(0x30)
 
 #define MAX96712_GET_BIT(x, bit)	((x & (1 << bit)) >> bit)
 #define MAX96712_GET_BIT_M_TO_N(x, m, n)	\
@@ -171,8 +173,8 @@ static const struct regval max96712_mipi_1920x1440_30fps[] = {
 	{ 0x29, 0x1645, 0x00, 0x00 }, // Disable SSC
 	{ 0x29, 0x1745, 0x00, 0x0a }, // Disable SSC
 	// Video Pipe Selection
-	{ 0x29, 0x00F0, 0x62, 0x00 }, // GMSL2 Phy A -> Pipe Z ->  Pipe 0 ; GMSL2 Phy B -> Pipe Z -> Pipe 1
-	{ 0x29, 0x00F1, 0xea, 0x00 }, // GMSL2 Phy C -> Pipe Z ->  Pipe 2 ; GMSL2 Phy D -> Pipe Z -> Pipe 3
+	{ 0x29, 0x00F0, 0x62, 0x00 }, // GMSL2 Phy A -> Pipe Z -> Pipe 0; GMSL2 Phy B -> Pipe Z -> Pipe 1
+	{ 0x29, 0x00F1, 0xea, 0x00 }, // GMSL2 Phy C -> Pipe Z -> Pipe 2; GMSL2 Phy D -> Pipe Z -> Pipe 3
 	{ 0x29, 0x00F4, 0x0f, 0x00 }, // Enable all 4 Pipes
 	// Send YUV422, FS, and FE from Pipe 0 to Controller 1
 	{ 0x29, 0x090B, 0x07, 0x00 }, // Enable 0/1/2 SRC/DST Mappings
@@ -215,7 +217,7 @@ static const struct regval max96712_mipi_1920x1440_30fps[] = {
 	{ 0x29, 0x09D1, 0x01, 0x00 }, // SRC2 VC = 0, DT = Frame End
 	{ 0x29, 0x09D2, 0xc1, 0x00 }, // DST2 VC = 3, DT = Frame End
 	// MIPI PHY Setting
-	{ 0x29, 0x08A0, 0x24, 0x00 }, // force_clk0_en: DPHY0 enabled as clock, MIPI PHY Mode: 2x4 mode
+	{ 0x29, 0x08A0, 0x24, 0x00 }, // DPHY0 enabled as clock, MIPI PHY Mode: 2x4 mode
 	// Set Lane Mapping for 4-lane port A
 	{ 0x29, 0x08A3, 0xe4, 0x00 }, // PHY1 D1->D3, D0->D2; PHY0 D1->D1, D0->D0
 	// Set 4 lane D-PHY, 2bit VC
@@ -235,15 +237,6 @@ static const struct regval max96712_mipi_1920x1440_30fps[] = {
 	// Release reset to DPLL (config_soft_rst_n = 1)
 	{ 0x29, 0x1C00, 0xf5, 0x00 },
 	{ 0x29, 0x1D00, 0xf5, 0x00 },
-	// Frame Synchronization (FSYNC)
-	{ 0x29, 0x04A2, 0x00, 0x00 }, // Master link Video 0 for frame sync generation
-	{ 0x29, 0x04AA, 0x00, 0x00 }, // Disable Vsync-Fsync overlap window
-	{ 0x29, 0x04AB, 0x00, 0x00 }, // Disable Vsync-Fsync overlap window
-	{ 0x29, 0x04A7, 0x0c, 0x00 }, // FSYNC_PERIOD_H, Set FSYNC period to 25M/30 clock cycles. PCLK = 25MHz. Sync freq = 30Hz
-	{ 0x29, 0x04A6, 0xb7, 0x00 }, // FSYNC_PERIOD_M
-	{ 0x29, 0x04A5, 0x35, 0x00 }, // FSYNC_PERIOD_L
-	{ 0x29, 0x04AF, 0xcf, 0x00 }, // FSYNC is GMSL2 type, use osc for fsync, include all links/pipes in fsync gen
-	{ 0x29, 0x04A0, 0x02, 0x00 }, // MFP2, VS not gen internally, GPIO not used to gen fsync, auto mode
 	// YUV422 8bit software override for all pipes since connected GMSL1 is under parallel mode
 	{ 0x29, 0x040B, 0x80, 0x00 }, // pipe 0 bpp=0x10: Datatypes = 0x22, 0x1E, 0x2E
 	{ 0x29, 0x040E, 0x5e, 0x00 }, // pipe 0 DT=0x1E: YUV422 8-bit
@@ -254,6 +247,18 @@ static const struct regval max96712_mipi_1920x1440_30fps[] = {
 	// Enable all links and pipes
 	{ 0x29, 0x0003, 0xaa, 0x00 }, // Enable Remote Control Channel Link A/B/C/D for Port 0
 	{ 0x29, 0x0006, 0xff, 0x64 }, // Enable all links and pipes
+	// Frame Synchronization (FSYNC)
+	{ 0x30, 0x3222, 0x01, 0x00 }, // SC320AT slave mode enable
+	{ 0x29, 0x04A2, 0x00, 0x00 }, // Master link Video 0 for frame sync generation
+	{ 0x29, 0x04AA, 0x00, 0x00 }, // Disable Vsync-Fsync overlap window
+	{ 0x29, 0x04AB, 0x00, 0x00 }, // Disable Vsync-Fsync overlap window
+	{ 0x29, 0x04A7, 0x0c, 0x00 }, // FSYNC_PERIOD_H, Set FSYNC period to 25M/30 clock cycles. PCLK = 25MHz. Sync freq = 30Hz
+	{ 0x29, 0x04A6, 0xb7, 0x00 }, // FSYNC_PERIOD_M
+	{ 0x29, 0x04A5, 0x35, 0x00 }, // FSYNC_PERIOD_L
+	{ 0x29, 0x04AF, 0xcf, 0x00 }, // FSYNC is GMSL2 type, use osc for fsync, include all links/pipes in fsync gen
+	{ 0x29, 0x04B1, 0x20, 0x00 }, // FSYNC_TX_ID: set 4 to match MFP4 on serializer side
+	{ 0x40, 0x02CA, 0x84, 0x00 }, // Enable GPIO_RX_EN on serializer MFP4
+	{ 0x29, 0x04A0, 0x04, 0x00 }, // MFP2, VS not gen internally, GPIO not used to gen fsync, manual mode
 	// Serializer Setting
 	{ 0x40, 0x0302, 0x10, 0x00 }, // improve CMU voltage performance to improve link robustness
 	{ 0x40, 0x1417, 0x00, 0x00 }, // Errata
@@ -271,7 +276,7 @@ static const struct max96712_mode supported_modes[] = {
 		},
 		.reg_list = max96712_mipi_1920x1440_30fps,
 		.link_freq_idx = 0,
-		.bpp = 8,
+		.bpp = MAX96712_BITS_PER_SAMPLE,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_1,
 		.vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_2,
@@ -331,7 +336,9 @@ static int max96712_write_array(struct i2c_client *client,
 					regs[i].i2c_addr, regs[i].addr,
 					MAX96712_REG_VALUE_08BIT,
 					regs[i].val);
-		msleep(regs[i].delay);
+
+		if (regs[i].delay != 0)
+			msleep(regs[i].delay);
 	}
 
 	return ret;
@@ -374,6 +381,11 @@ static int max96712_read_reg(struct i2c_client *client,
 
 	*val = be32_to_cpu(data_be);
 
+#if 0
+	dev_info(&client->dev, "addr(0x%02x) read reg(0x%04x, 0x%02x)\n", \
+		client_addr, reg, *val);
+#endif
+
 	return 0;
 }
 
@@ -413,8 +425,31 @@ static int max96712_check_link_lock_state(struct max96712 *max96712)
 
 	dev_info(dev, "Detected MAX96712 chipid: %02x\n", id);
 
-	// Link A ~ Link D Transmitter Rate: 187.5Mbps, Receiver Rate: 6Gbps
-	if (max96712->rx_rate == MAX96712_RX_RATE_6GBPS) {
+	/* IF VDD = 1.2V: Enable REG_ENABLE and REG_MNL
+	 *	CTRL0: Enable REG_ENABLE
+	 *	CTRL2: Enable REG_MNL
+	 */
+	max96712_update_reg_bits(client, MAX96712_I2C_ADDR,
+				0x0017, BIT(2), BIT(2));
+	max96712_update_reg_bits(client, MAX96712_I2C_ADDR,
+				0x0019, BIT(4), BIT(4));
+
+	// CSI output disabled
+	max96712_write_reg(client, MAX96712_I2C_ADDR, 0x040B,
+				MAX96712_REG_VALUE_08BIT, 0x00);
+
+	// All links select GMSL2 mode and disable at beginning.
+	max96712_write_reg(client, MAX96712_I2C_ADDR, 0x0006,
+				MAX96712_REG_VALUE_08BIT, 0xf0);
+
+	if (max96712->rx_rate == MAX96712_RX_RATE_3GBPS) {
+		// Link A ~ Link D Transmitter Rate: 187.5Mbps, Receiver Rate: 3Gbps
+		max96712_write_reg(client, MAX96712_I2C_ADDR, 0x0010,
+					MAX96712_REG_VALUE_08BIT, 0x11);
+		max96712_write_reg(client, MAX96712_I2C_ADDR, 0x0011,
+					MAX96712_REG_VALUE_08BIT, 0x11);
+	} else {
+		// Link A ~ Link D Transmitter Rate: 187.5Mbps, Receiver Rate: 6Gbps
 		max96712_write_reg(client, MAX96712_I2C_ADDR, 0x0010,
 					MAX96712_REG_VALUE_08BIT, 0x22);
 		max96712_write_reg(client, MAX96712_I2C_ADDR, 0x0011,
@@ -491,27 +526,23 @@ static int max96712_mipi_enable(struct i2c_client *client, bool enable)
 	int ret = 0;
 
 	if (enable) {
-		/* Force all MIPI clocks running */
-		ret |= max96712_write_reg(client, MAX96712_I2C_ADDR,
-				MAX96712_REG_CTRL_MODE,
-				MAX96712_REG_VALUE_08BIT,
-				MAX96712_MODE_STREAMING);
-		/* CSI output enabled */
-		ret |= max96712_write_reg(client, MAX96712_I2C_ADDR,
-				0x40B,
-				MAX96712_REG_VALUE_08BIT,
-				0x02);
+		// Force all MIPI clocks running
+		ret |= max96712_update_reg_bits(client,
+				MAX96712_I2C_ADDR,
+				0x08A0, BIT(7), BIT(7));
+		// CSI output enabled
+		ret |= max96712_update_reg_bits(client,
+				MAX96712_I2C_ADDR,
+				0x040B, BIT(1), BIT(1));
 	} else {
-		/* Normal mode */
-		ret |= max96712_write_reg(client, MAX96712_I2C_ADDR,
-				MAX96712_REG_CTRL_MODE,
-				MAX96712_REG_VALUE_08BIT,
-				MAX96712_MODE_SW_STANDBY);
-		/* CSI output disabled */
-		ret |= max96712_write_reg(client, MAX96712_I2C_ADDR,
-				0x40B,
-				MAX96712_REG_VALUE_08BIT,
-				0x00);
+		// Normal mode
+		ret |= max96712_update_reg_bits(client,
+				MAX96712_I2C_ADDR,
+				0x08A0, BIT(7), 0x00);
+		// CSI output disabled
+		ret |= max96712_update_reg_bits(client,
+				MAX96712_I2C_ADDR,
+				0x040B, BIT(1), 0x00);
 	}
 
 	return ret;
@@ -690,21 +721,12 @@ static long max96712_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		max96712_get_module_inf(max96712, (struct rkmodule_inf *)arg);
 		break;
 	case RKMODULE_SET_QUICK_STREAM:
-
 		stream = *((u32 *)arg);
 
 		if (stream)
-			ret = max96712_write_reg(max96712->client,
-						 MAX96712_I2C_ADDR,
-						 MAX96712_REG_CTRL_MODE,
-						 MAX96712_REG_VALUE_08BIT,
-						 MAX96712_MODE_STREAMING);
+			ret = max96712_mipi_enable(max96712->client, true);
 		else
-			ret = max96712_write_reg(max96712->client,
-						 MAX96712_I2C_ADDR,
-						 MAX96712_REG_CTRL_MODE,
-						 MAX96712_REG_VALUE_08BIT,
-						 MAX96712_MODE_SW_STANDBY);
+			ret = max96712_mipi_enable(max96712->client, false);
 		break;
 	case RKMODULE_GET_VICAP_RST_INFO:
 		max96712_get_vicap_rst_inf(
@@ -715,8 +737,6 @@ static long max96712_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			max96712, *(struct rkmodule_vicap_reset_info *)arg);
 		break;
 	case RKMODULE_GET_START_STREAM_SEQ:
-		// +*(int *)arg = RKMODULE_START_STREAM_FRONT;
-		// *(int *)arg = RKMODULE_START_STREAM_BEHIND;
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -969,7 +989,6 @@ static int __max96712_power_on(struct max96712 *max96712)
 	usleep_range(500, 1000);
 	if (!IS_ERR(max96712->pwdn_gpio))
 		gpiod_set_value_cansleep(max96712->pwdn_gpio, 1);
-
 
 	/* 8192 cycles prior to first SCCB transaction */
 	delay_us = max96712_cal_delay(8192);
@@ -1249,7 +1268,13 @@ static int max96712_probe(struct i2c_client *client,
 	}
 
 	/* max96712 link Receiver Rate */
-	max96712->rx_rate = MAX96712_RX_RATE_6GBPS;
+	ret = of_property_read_u32(node, "link-rx-rate",
+				   &max96712->rx_rate);
+	if (ret)
+		max96712->rx_rate = MAX96712_RX_RATE_6GBPS;
+	else
+		dev_info(dev, "link-rx-rate property: %d\n", max96712->rx_rate);
+	dev_info(dev, "max96712 link receiver rate: %d\n", max96712->rx_rate);
 
 	mutex_init(&max96712->mutex);
 
