@@ -196,11 +196,6 @@ void xe_ggtt_invalidate(struct xe_gt *gt)
 {
 	/* TODO: vfunc for GuC vs. non-GuC */
 
-	/* TODO: i915 makes comments about this being uncached and
-	 * therefore flushing WC buffers.  Is that really true here?
-	 */
-	xe_mmio_write32(gt, GFX_FLSH_CNTL_GEN6.reg, GFX_FLSH_CNTL_EN);
-
 	if (gt->uc.guc.submission_state.enabled) {
 		int seqno;
 

@@ -351,9 +351,6 @@
 #define GEN6_GT_GFX_RC6_LOCKED			_MMIO(0x138104)
 #define GEN6_GT_GFX_RC6				_MMIO(0x138108)
 
-#define GFX_FLSH_CNTL_GEN6			_MMIO(0x101008)
-#define   GFX_FLSH_CNTL_EN			(1 << 0)
-
 #define GT_INTR_DW(x)				_MMIO(0x190018 + ((x) * 4))
 
 #define GUC_SG_INTR_ENABLE			_MMIO(0x190038)
