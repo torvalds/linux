@@ -32,7 +32,7 @@ static int shm_get_kernel_pages(unsigned long start, size_t page_count,
 			 is_kmap_addr((void *)start)))
 		return -EINVAL;
 
-	page = virt_to_page(start);
+	page = virt_to_page((void *)start);
 	for (n = 0; n < page_count; n++) {
 		pages[n] = page + n;
 		get_page(pages[n]);

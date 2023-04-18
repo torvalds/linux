@@ -118,8 +118,6 @@
 		reg = <0x62>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_epdpmic>;
-		#address-cells = <1>;
-		#size-cells = <0>;
 		#thermal-sensor-cells = <0>;
 		epd-pwr-good-gpios = <&gpio6 21 GPIO_ACTIVE_HIGH>;
 
