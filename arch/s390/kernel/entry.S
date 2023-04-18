@@ -598,8 +598,9 @@ SYM_CODE_START(restart_int_handler)
 	TSTMSK	__LC_RESTART_FLAGS,RESTART_FLAG_CTLREGS,4
 	jz	0f
 	lctlg	%c0,%c15,__LC_CREGS_SAVE_AREA
-0:	larl	%r15,stosm_tmp
-	stosm	0(%r15),0x04			# turn dat on, keep irqs off
+0:	larl	%r15,daton_psw
+	lpswe	0(%r15)				# turn dat on, keep irqs off
+.Ldaton:
 	lg	%r15,__LC_RESTART_STACK
 	xc	STACK_FRAME_OVERHEAD(__PT_SIZE,%r15),STACK_FRAME_OVERHEAD(%r15)
 	stmg	%r0,%r14,STACK_FRAME_OVERHEAD+__PT_R0(%r15)
@@ -646,7 +647,11 @@ SYM_CODE_END(stack_overflow)
 	.balign	4
 SYM_DATA_LOCAL(stop_lock,	.long 0)
 SYM_DATA_LOCAL(this_cpu,	.short 0)
-SYM_DATA_LOCAL(stosm_tmp,	.byte 0)
+	.balign	8
+SYM_DATA_START_LOCAL(daton_psw)
+	.quad	PSW_KERNEL_BITS
+	.quad	.Ldaton
+SYM_DATA_END(daton_psw)
 
 	.section .rodata, "a"
 #define SYSCALL(esame,emu)	.quad __s390x_ ## esame
