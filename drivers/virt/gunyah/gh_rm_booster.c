@@ -101,16 +101,8 @@ static void gh_configure_rm(struct gh_rm_notif_vm_status_payload *status)
 
 	switch (status->vm_status) {
 	case GH_RM_VM_STATUS_AUTH:
-		mutex_lock(&rm_booster_lock);
-		if (!rm_status || rm_status->in_boost) {
-			mutex_unlock(&rm_booster_lock);
-			break;
-		}
-
-		dev_dbg(rm_status->dev,
-			"Gunyah RM booster activated by VM%d\n", status->vmid);
 		cancel_delayed_work_sync(&rm_status->booster_release_work);
-		rm_status->in_boost = true;
+		mutex_lock(&rm_booster_lock);
 		dest_cpu = target_cpu;
 		if (dest_cpu != rm_status->orig_cpu) {
 			if (rm_status->vcpu_cap_id == GH_CAPID_INVAL ||
@@ -123,27 +115,30 @@ static void gh_configure_rm(struct gh_rm_notif_vm_status_payload *status)
 		}
 
 		gh_boost_rmfreq(dest_cpu);
+		rm_status->in_boost = true;
 		/* set a 5s timer to release booster */
 		schedule_delayed_work(&rm_status->booster_release_work,
 				msecs_to_jiffies(BOOSTER_TIMEOUT_MSEC));
 		mutex_unlock(&rm_booster_lock);
+		dev_dbg(rm_status->dev,
+			"Gunyah RM booster activated by VM%d\n", status->vmid);
 		break;
 	case GH_RM_VM_STATUS_INIT_FAILED:
 		fallthrough;
 	case GH_RM_VM_STATUS_RUNNING:
 		mutex_lock(&rm_booster_lock);
-		cancel_delayed_work_sync(&rm_status->booster_release_work);
-		if (!rm_status || !rm_status->in_boost) {
+		if (!rm_status->in_boost) {
 			mutex_unlock(&rm_booster_lock);
 			break;
 		}
 
+		gh_resume_rm_status();
+		rm_status->in_boost = false;
+		mutex_unlock(&rm_booster_lock);
+		cancel_delayed_work_sync(&rm_status->booster_release_work);
 		dev_dbg(rm_status->dev,
 			"Gunyah RM booster deactivated by VM%d\n",
 			status->vmid);
-		rm_status->in_boost = false;
-		gh_resume_rm_status();
-		mutex_unlock(&rm_booster_lock);
 		break;
 	default:
 		break;
@@ -255,9 +250,9 @@ out_free:
 static int gh_rm_booster_remove(struct platform_device *pdev)
 {
 	gh_rm_unregister_notifier(&rm_status->gh_rm_boost_nb);
+	cancel_delayed_work_sync(&rm_status->booster_release_work);
 
 	mutex_lock(&rm_booster_lock);
-	cancel_delayed_work(&rm_status->booster_release_work);
 	if (rm_status->in_boost)
 		gh_resume_rm_status();
 
