@@ -16,11 +16,11 @@
 int gh_register_vm_notifier(struct notifier_block *nb);
 int gh_unregister_vm_notifier(struct notifier_block *nb);
 #else
-int gh_register_vm_notifier(struct notifier_block *nb)
+static inline int gh_register_vm_notifier(struct notifier_block *nb)
 {
 	return -EINVAL;
 }
-int gh_unregister_vm_notifier(struct notifier_block *nb)
+static inline int gh_unregister_vm_notifier(struct notifier_block *nb)
 {
 	return -EINVAL;
 }
