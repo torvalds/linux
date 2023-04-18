@@ -919,6 +919,8 @@
   driver_unregister
   drm_add_edid_modes
   drm_add_modes_noedid
+  drm_atomic_bridge_chain_disable
+  drm_atomic_bridge_chain_enable
   drm_atomic_commit
   drm_atomic_get_connector_state
   drm_atomic_get_crtc_state
