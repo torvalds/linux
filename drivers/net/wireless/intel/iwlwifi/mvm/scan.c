@@ -45,6 +45,9 @@
 /* minimal number of 2GHz and 5GHz channels in the regular scan request */
 #define IWL_MVM_6GHZ_PASSIVE_SCAN_MIN_CHANS 4
 
+/* Number of iterations on the channel for mei filtered scan */
+#define IWL_MEI_SCAN_NUM_ITER	5U
+
 struct iwl_mvm_scan_timing_params {
 	u32 suspend_time;
 	u32 max_out_time;
@@ -2665,6 +2668,7 @@ static void iwl_mvm_mei_limited_scan(struct iwl_mvm *mvm,
 	struct iwl_mvm_csme_conn_info *info = iwl_mvm_get_csme_conn_info(mvm);
 	struct iwl_mei_conn_info *conn_info;
 	struct ieee80211_channel *chan;
+	int scan_iters, i;
 
 	if (!info) {
 		IWL_DEBUG_SCAN(mvm, "mei_limited_scan: no connection info\n");
@@ -2690,8 +2694,16 @@ static void iwl_mvm_mei_limited_scan(struct iwl_mvm *mvm,
 		return;
 	}
 
-	params->n_channels = 1;
-	params->channels[0] = chan;
+	/* The mei filtered scan must find the AP, otherwise CSME will
+	 * take the NIC ownership. Add several iterations on the channel to
+	 * make the scan more robust.
+	 */
+	scan_iters = min(IWL_MEI_SCAN_NUM_ITER, params->n_channels);
+	params->n_channels = scan_iters;
+	for (i = 0; i < scan_iters; i++)
+		params->channels[i] = chan;
+
+	IWL_DEBUG_SCAN(mvm, "Mei scan: num iterations=%u\n", scan_iters);
 
 	params->n_ssids = 1;
 	params->ssids[0].ssid_len = conn_info->ssid_len;
