@@ -165,14 +165,14 @@ struct nsinfo *nsinfo__new(pid_t pid)
 	RC_CHK_ACCESS(nsi)->pid = pid;
 	RC_CHK_ACCESS(nsi)->tgid = pid;
 	RC_CHK_ACCESS(nsi)->nstgid = pid;
-	RC_CHK_ACCESS(nsi)->need_setns = false;
+	nsinfo__clear_need_setns(nsi);
 	RC_CHK_ACCESS(nsi)->in_pidns = false;
 	/* Init may fail if the process exits while we're trying to look at its
 	 * proc information. In that case, save the pid but don't try to enter
 	 * the namespace.
 	 */
 	if (nsinfo__init(nsi) == -1)
-		RC_CHK_ACCESS(nsi)->need_setns = false;
+		nsinfo__clear_need_setns(nsi);
 
 	return nsi;
 }
@@ -276,7 +276,7 @@ void nsinfo__mountns_enter(struct nsinfo *nsi,
 	nc->oldns = -1;
 	nc->newns = -1;
 
-	if (!nsi || !RC_CHK_ACCESS(nsi)->need_setns)
+	if (!nsi || !nsinfo__need_setns(nsi))
 		return;
 
 	if (snprintf(curpath, PATH_MAX, "/proc/self/ns/mnt") >= PATH_MAX)
