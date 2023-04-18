@@ -23,6 +23,8 @@ struct io_rsrc_update {
 	u32				offset;
 };
 
+static void io_rsrc_buf_put(struct io_ring_ctx *ctx, struct io_rsrc_put *prsrc);
+static void io_rsrc_file_put(struct io_ring_ctx *ctx, struct io_rsrc_put *prsrc);
 static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,
 				  struct io_mapped_ubuf **pimu,
 				  struct page **last_hpage);
@@ -147,7 +149,18 @@ static void io_rsrc_put_work(struct io_rsrc_node *node)
 
 	if (prsrc->tag)
 		io_post_aux_cqe(data->ctx, prsrc->tag, 0, 0);
-	data->do_put(data->ctx, prsrc);
+
+	switch (data->rsrc_type) {
+	case IORING_RSRC_FILE:
+		io_rsrc_file_put(data->ctx, prsrc);
+		break;
+	case IORING_RSRC_BUFFER:
+		io_rsrc_buf_put(data->ctx, prsrc);
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		break;
+	}
 }
 
 void io_rsrc_node_destroy(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
@@ -297,8 +310,8 @@ static __cold void **io_alloc_page_table(size_t size)
 	return table;
 }
 
-__cold static int io_rsrc_data_alloc(struct io_ring_ctx *ctx,
-				     rsrc_put_fn *do_put, u64 __user *utags,
+__cold static int io_rsrc_data_alloc(struct io_ring_ctx *ctx, int type,
+				     u64 __user *utags,
 				     unsigned nr, struct io_rsrc_data **pdata)
 {
 	struct io_rsrc_data *data;
@@ -316,7 +329,7 @@ __cold static int io_rsrc_data_alloc(struct io_ring_ctx *ctx,
 
 	data->nr = nr;
 	data->ctx = ctx;
-	data->do_put = do_put;
+	data->rsrc_type = type;
 	if (utags) {
 		ret = -EFAULT;
 		for (i = 0; i < nr; i++) {
@@ -849,7 +862,7 @@ int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 		return -EMFILE;
 	if (nr_args > rlimit(RLIMIT_NOFILE))
 		return -EMFILE;
-	ret = io_rsrc_data_alloc(ctx, io_rsrc_file_put, tags, nr_args,
+	ret = io_rsrc_data_alloc(ctx, IORING_RSRC_FILE, tags, nr_args,
 				 &ctx->file_data);
 	if (ret)
 		return ret;
@@ -1184,7 +1197,7 @@ int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 		return -EBUSY;
 	if (!nr_args || nr_args > IORING_MAX_REG_BUFFERS)
 		return -EINVAL;
-	ret = io_rsrc_data_alloc(ctx, io_rsrc_buf_put, tags, nr_args, &data);
+	ret = io_rsrc_data_alloc(ctx, IORING_RSRC_BUFFER, tags, nr_args, &data);
 	if (ret)
 		return ret;
 	ret = io_buffers_map_alloc(ctx, nr_args);
