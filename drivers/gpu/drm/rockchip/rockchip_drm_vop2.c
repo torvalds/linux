@@ -3391,7 +3391,6 @@ static void rk3568_crtc_load_lut(struct drm_crtc *crtc)
 
 	VOP_MODULE_SET(vop2, vp, dsp_lut_en, 1);
 	vop2_write_reg_uncached(vop2, &vp->regs->gamma_update_en, 1);
-	vop2_cfg_done(crtc);
 	vp->gamma_lut_active = true;
 
 	spin_unlock(&vop2->reg_lock);
@@ -3438,26 +3437,7 @@ static void vop2_crtc_load_lut(struct drm_crtc *crtc)
 		rk3588_crtc_load_lut(&vp->rockchip_crtc.crtc, vp->lut);
 		if (vcstate->splice_mode)
 			rk3588_crtc_load_lut(&splice_vp->rockchip_crtc.crtc, vp->lut);
-		vop2_cfg_done(crtc);
 	}
-	/*
-	 * maybe appear the following case:
-	 * -> set gamma
-	 * -> config done
-	 * -> atomic commit
-	 *  --> update win format
-	 *  --> update win address
-	 *  ---> here maybe meet vop hardware frame start, and triggle some config take affect.
-	 *  ---> as only some config take affect, this maybe lead to iommu pagefault.
-	 *  --> update win size
-	 *  --> update win other parameters
-	 * -> config done
-	 *
-	 * so we add vop2_wait_for_fs_by_done_bit_status() to make sure the first config done take
-	 * effect and then to do next frame config.
-	 */
-	if (VOP_MODULE_GET(vop2, vp, standby) == 0)
-		vop2_wait_for_fs_by_done_bit_status(vp);
 }
 
 static void rockchip_vop2_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red,
@@ -3499,6 +3479,7 @@ static int vop2_crtc_legacy_gamma_set(struct drm_crtc *crtc, u16 *red,
 				      struct drm_modeset_acquire_ctx *ctx)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
 	int i;
 
 	if (!vp->lut)
@@ -3513,6 +3494,25 @@ static int vop2_crtc_legacy_gamma_set(struct drm_crtc *crtc, u16 *red,
 		rockchip_vop2_crtc_fb_gamma_set(crtc, red[i], green[i],
 						blue[i], i);
 	vop2_crtc_load_lut(crtc);
+	vop2_cfg_done(crtc);
+	/*
+	 * maybe appear the following case:
+	 * -> set gamma
+	 * -> config done
+	 * -> atomic commit
+	 *  --> update win format
+	 *  --> update win address
+	 *  ---> here maybe meet vop hardware frame start, and triggle some config take affect.
+	 *  ---> as only some config take affect, this maybe lead to iommu pagefault.
+	 *  --> update win size
+	 *  --> update win other parameters
+	 * -> config done
+	 *
+	 * so we add vop2_wait_for_fs_by_done_bit_status() to make sure the first config done take
+	 * effect and then to do next frame config.
+	 */
+	if (VOP_MODULE_GET(vop2, vp, standby) == 0)
+		vop2_wait_for_fs_by_done_bit_status(vp);
 
 	return 0;
 }
@@ -8040,8 +8040,11 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	/*
 	 * restore the lut table.
 	 */
-	if (vp->gamma_lut_active)
+	if (vp->gamma_lut_active) {
 		vop2_crtc_load_lut(crtc);
+		vop2_cfg_done(crtc);
+		vop2_wait_for_fs_by_done_bit_status(vp);
+	}
 out:
 	vop2_unlock(vop2);
 }
