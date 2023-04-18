@@ -10,6 +10,9 @@ upstream. In general, only additions should be performed (e.g. new
 methods). Eventually, changes should make it into upstream so that,
 at some point, this fork can be dropped from the kernel tree.
 
+The Rust upstream version on top of which these files are based matches
+the output of `scripts/min-tool-version.sh rustc`.
+
 
 ## Rationale
 
