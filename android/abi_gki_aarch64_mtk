@@ -2043,11 +2043,13 @@
   trace_event_raw_init
   trace_event_reg
   trace_handle_return
+  __traceiter_android_vh_ufs_clock_scaling
   __traceiter_gpu_mem_total
   __traceiter_mmap_lock_acquire_returned
   __traceiter_mmap_lock_released
   __traceiter_mmap_lock_start_locking
   trace_output_call
+  __tracepoint_android_vh_ufs_clock_scaling
   __tracepoint_gpu_mem_total
   __tracepoint_mmap_lock_acquire_returned
   __tracepoint_mmap_lock_released

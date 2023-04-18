@@ -141,9 +141,85 @@ loop has detected outlying refaults from the tier this page is in. To
 this end, the feedback loop uses the first tier as the baseline, for
 the reason stated earlier.
 
+Working set protection
+----------------------
+Each generation is timestamped at birth. If ``lru_gen_min_ttl`` is
+set, an ``lruvec`` is protected from the eviction when its oldest
+generation was born within ``lru_gen_min_ttl`` milliseconds. In other
+words, it prevents the working set of ``lru_gen_min_ttl`` milliseconds
+from getting evicted. The OOM killer is triggered if this working set
+cannot be kept in memory.
+
+This time-based approach has the following advantages:
+
+1. It is easier to configure because it is agnostic to applications
+   and memory sizes.
+2. It is more reliable because it is directly wired to the OOM killer.
+
+Rmap/PT walk feedback
+---------------------
+Searching the rmap for PTEs mapping each page on an LRU list (to test
+and clear the accessed bit) can be expensive because pages from
+different VMAs (PA space) are not cache friendly to the rmap (VA
+space). For workloads mostly using mapped pages, searching the rmap
+can incur the highest CPU cost in the reclaim path.
+
+``lru_gen_look_around()`` exploits spatial locality to reduce the
+trips into the rmap. It scans the adjacent PTEs of a young PTE and
+promotes hot pages. If the scan was done cacheline efficiently, it
+adds the PMD entry pointing to the PTE table to the Bloom filter. This
+forms a feedback loop between the eviction and the aging.
+
+Bloom Filters
+-------------
+Bloom filters are a space and memory efficient data structure for set
+membership test, i.e., test if an element is not in the set or may be
+in the set.
+
+In the eviction path, specifically, in ``lru_gen_look_around()``, if a
+PMD has a sufficient number of hot pages, its address is placed in the
+filter. In the aging path, set membership means that the PTE range
+will be scanned for young pages.
+
+Note that Bloom filters are probabilistic on set membership. If a test
+is false positive, the cost is an additional scan of a range of PTEs,
+which may yield hot pages anyway. Parameters of the filter itself can
+control the false positive rate in the limit.
+
+Memcg LRU
+---------
+An memcg LRU is a per-node LRU of memcgs. It is also an LRU of LRUs,
+since each node and memcg combination has an LRU of folios (see
+``mem_cgroup_lruvec()``). Its goal is to improve the scalability of
+global reclaim, which is critical to system-wide memory overcommit in
+data centers. Note that memcg LRU only applies to global reclaim.
+
+The basic structure of an memcg LRU can be understood by an analogy to
+the active/inactive LRU (of folios):
+
+1. It has the young and the old (generations), i.e., the counterparts
+   to the active and the inactive;
+2. The increment of ``max_seq`` triggers promotion, i.e., the
+   counterpart to activation;
+3. Other events trigger similar operations, e.g., offlining an memcg
+   triggers demotion, i.e., the counterpart to deactivation.
+
+In terms of global reclaim, it has two distinct features:
+
+1. Sharding, which allows each thread to start at a random memcg (in
+   the old generation) and improves parallelism;
+2. Eventual fairness, which allows direct reclaim to bail out at will
+   and reduces latency without affecting fairness over some time.
+
+In terms of traversing memcgs during global reclaim, it improves the
+best-case complexity from O(n) to O(1) and does not affect the
+worst-case complexity O(n). Therefore, on average, it has a sublinear
+complexity.
+
 Summary
 -------
-The multi-gen LRU can be disassembled into the following parts:
+The multi-gen LRU (of folios) can be disassembled into the following
+parts:
 
 * Generations
 * Rmap walks
