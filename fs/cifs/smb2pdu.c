@@ -4180,10 +4180,12 @@ smb2_readv_callback(struct mid_q_entry *mid)
 	struct smb2_hdr *shdr =
 				(struct smb2_hdr *)rdata->iov[0].iov_base;
 	struct cifs_credits credits = { .value = 0, .instance = 0 };
-	struct smb_rqst rqst = { .rq_iov = &rdata->iov[1],
-				 .rq_nvec = 1,
-				 .rq_iter = rdata->iter,
-				 .rq_iter_size = iov_iter_count(&rdata->iter), };
+	struct smb_rqst rqst = { .rq_iov = &rdata->iov[1], .rq_nvec = 1 };
+
+	if (rdata->got_bytes) {
+		rqst.rq_iter	  = rdata->iter;
+		rqst.rq_iter_size = iov_iter_count(&rdata->iter);
+	};
 
 	WARN_ONCE(rdata->server != mid->server,
 		  "rdata server %p != mid server %p",
