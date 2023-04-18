@@ -136,13 +136,24 @@ static int cxl_get_poison_by_memdev(struct cxl_memdev *cxlmd)
 
 int cxl_trigger_poison_list(struct cxl_memdev *cxlmd)
 {
+	struct cxl_port *port;
 	int rc;
+
+	port = dev_get_drvdata(&cxlmd->dev);
+	if (!port || !is_cxl_endpoint(port))
+		return -EINVAL;
 
 	rc = down_read_interruptible(&cxl_dpa_rwsem);
 	if (rc)
 		return rc;
 
-	rc = cxl_get_poison_by_memdev(cxlmd);
+	if (port->commit_end == -1) {
+		/* No regions mapped to this memdev */
+		rc = cxl_get_poison_by_memdev(cxlmd);
+	} else {
+		/* Regions mapped, collect poison by endpoint */
+		rc =  cxl_get_poison_by_endpoint(port);
+	}
 	up_read(&cxl_dpa_rwsem);
 
 	return rc;
