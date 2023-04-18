@@ -77,7 +77,7 @@ static int men_z069_wdt_set_timeout(struct watchdog_device *wdt,
 	wdt->timeout = timeout;
 	val = timeout * MEN_Z069_TIMER_FREQ;
 
-	reg = readw(drv->base + MEN_Z069_WVR);
+	reg = readw(drv->base + MEN_Z069_WTR);
 	ena = reg & MEN_Z069_WTR_WDEN;
 	reg = ena | val;
 	writew(reg, drv->base + MEN_Z069_WTR);
