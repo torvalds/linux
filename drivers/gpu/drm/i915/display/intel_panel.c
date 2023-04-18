@@ -564,8 +564,8 @@ static void i9xx_scale_aspect(struct intel_crtc_state *crtc_state,
 			bits = panel_fitter_scaling(pipe_src_h,
 						    adjusted_mode->crtc_vdisplay);
 
-			*pfit_pgm_ratios |= (bits << PFIT_HORIZ_SCALE_SHIFT |
-					     bits << PFIT_VERT_SCALE_SHIFT);
+			*pfit_pgm_ratios |= (PFIT_HORIZ_SCALE(bits) |
+					     PFIT_VERT_SCALE(bits));
 			*pfit_control |= (PFIT_ENABLE |
 					  VERT_INTERP_BILINEAR |
 					  HORIZ_INTERP_BILINEAR);
@@ -579,8 +579,8 @@ static void i9xx_scale_aspect(struct intel_crtc_state *crtc_state,
 			bits = panel_fitter_scaling(pipe_src_w,
 						    adjusted_mode->crtc_hdisplay);
 
-			*pfit_pgm_ratios |= (bits << PFIT_HORIZ_SCALE_SHIFT |
-					     bits << PFIT_VERT_SCALE_SHIFT);
+			*pfit_pgm_ratios |= (PFIT_HORIZ_SCALE(bits) |
+					     PFIT_VERT_SCALE(bits));
 			*pfit_control |= (PFIT_ENABLE |
 					  VERT_INTERP_BILINEAR |
 					  HORIZ_INTERP_BILINEAR);
