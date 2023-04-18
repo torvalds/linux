@@ -711,6 +711,7 @@ struct ethtool_mm_stats {
  * @get_dump_data: Get dump data.
  * @set_dump: Set dump specific flags to the device.
  * @get_ts_info: Get the time stamping and PTP hardware clock capabilities.
+ *	It may be called with RCU, or rtnl or reference on the device.
  *	Drivers supporting transmit time stamps in software should set this to
  *	ethtool_op_get_ts_info().
  * @get_module_info: Get the size and type of the eeprom contained within
