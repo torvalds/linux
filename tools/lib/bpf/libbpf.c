@@ -5841,6 +5841,30 @@ static void poison_map_ldimm64(struct bpf_program *prog, int relo_idx,
 	}
 }
 
+/* unresolved kfunc call special constant, used also for log fixup logic */
+#define POISON_CALL_KFUNC_BASE 2002000000
+#define POISON_CALL_KFUNC_PFX "2002"
+
+static void poison_kfunc_call(struct bpf_program *prog, int relo_idx,
+			      int insn_idx, struct bpf_insn *insn,
+			      int ext_idx, const struct extern_desc *ext)
+{
+	pr_debug("prog '%s': relo #%d: poisoning insn #%d that calls kfunc '%s'\n",
+		 prog->name, relo_idx, insn_idx, ext->name);
+
+	/* we turn kfunc call into invalid helper call with identifiable constant */
+	insn->code = BPF_JMP | BPF_CALL;
+	insn->dst_reg = 0;
+	insn->src_reg = 0;
+	insn->off = 0;
+	/* if this instruction is reachable (not a dead code),
+	 * verifier will complain with something like:
+	 * invalid func unknown#2001000123
+	 * where lower 123 is extern index into obj->externs[] array
+	 */
+	insn->imm = POISON_CALL_KFUNC_BASE + ext_idx;
+}
+
 /* Relocate data references within program code:
  *  - map references;
  *  - global variable references;
@@ -5913,9 +5937,9 @@ bpf_object__relocate_data(struct bpf_object *obj, struct bpf_program *prog)
 			if (ext->is_set) {
 				insn[0].imm = ext->ksym.kernel_btf_id;
 				insn[0].off = ext->ksym.btf_fd_idx;
-			} else { /* unresolved weak kfunc */
-				insn[0].imm = 0;
-				insn[0].off = 0;
+			} else { /* unresolved weak kfunc call */
+				poison_kfunc_call(prog, i, relo->insn_idx, insn,
+						  relo->ext_idx, ext);
 			}
 			break;
 		case RELO_SUBPROG_ADDR:
@@ -7052,6 +7076,39 @@ static void fixup_log_missing_map_load(struct bpf_program *prog,
 	patch_log(buf, buf_sz, log_sz, line1, line3 - line1, patch);
 }
 
+static void fixup_log_missing_kfunc_call(struct bpf_program *prog,
+					 char *buf, size_t buf_sz, size_t log_sz,
+					 char *line1, char *line2, char *line3)
+{
+	/* Expected log for failed and not properly guarded kfunc call:
+	 * line1 -> 123: (85) call unknown#2002000345
+	 * line2 -> invalid func unknown#2002000345
+	 * line3 -> <anything else or end of buffer>
+	 *
+	 * "123" is the index of the instruction that was poisoned.
+	 * "345" in "2002000345" is an extern index in obj->externs to fetch kfunc name.
+	 */
+	struct bpf_object *obj = prog->obj;
+	const struct extern_desc *ext;
+	int insn_idx, ext_idx;
+	char patch[128];
+
+	if (sscanf(line1, "%d: (%*d) call unknown#%d\n", &insn_idx, &ext_idx) != 2)
+		return;
+
+	ext_idx -= POISON_CALL_KFUNC_BASE;
+	if (ext_idx < 0 || ext_idx >= obj->nr_extern)
+		return;
+	ext = &obj->externs[ext_idx];
+
+	snprintf(patch, sizeof(patch),
+		 "%d: <invalid kfunc call>\n"
+		 "kfunc '%s' is referenced but wasn't resolved\n",
+		 insn_idx, ext->name);
+
+	patch_log(buf, buf_sz, log_sz, line1, line3 - line1, patch);
+}
+
 static void fixup_verifier_log(struct bpf_program *prog, char *buf, size_t buf_sz)
 {
 	/* look for familiar error patterns in last N lines of the log */
@@ -7088,6 +7145,15 @@ static void fixup_verifier_log(struct bpf_program *prog, char *buf, size_t buf_s
 			/* reference to uncreated BPF map */
 			fixup_log_missing_map_load(prog, buf, buf_sz, log_sz,
 						   prev_line, cur_line, next_line);
+			return;
+		} else if (str_has_pfx(cur_line, "invalid func unknown#"POISON_CALL_KFUNC_PFX)) {
+			prev_line = find_prev_line(buf, cur_line);
+			if (!prev_line)
+				continue;
+
+			/* reference to unresolved kfunc */
+			fixup_log_missing_kfunc_call(prog, buf, buf_sz, log_sz,
+						     prev_line, cur_line, next_line);
 			return;
 		}
 	}
