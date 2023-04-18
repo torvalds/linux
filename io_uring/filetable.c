@@ -85,8 +85,7 @@ static int io_install_fixed_file(struct io_ring_ctx *ctx, struct file *file,
 			return ret;
 
 		old_file = (struct file *)(file_slot->file_ptr & FFS_MASK);
-		ret = io_queue_rsrc_removal(ctx->file_data, slot_index,
-					    ctx->rsrc_node, old_file);
+		ret = io_queue_rsrc_removal(ctx->file_data, slot_index, old_file);
 		if (ret)
 			return ret;
 
@@ -163,7 +162,7 @@ int io_fixed_fd_remove(struct io_ring_ctx *ctx, unsigned int offset)
 		return -EBADF;
 
 	file = (struct file *)(file_slot->file_ptr & FFS_MASK);
-	ret = io_queue_rsrc_removal(ctx->file_data, offset, ctx->rsrc_node, file);
+	ret = io_queue_rsrc_removal(ctx->file_data, offset, file);
 	if (ret)
 		return ret;
 

@@ -409,7 +409,7 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 
 		if (file_slot->file_ptr) {
 			file = (struct file *)(file_slot->file_ptr & FFS_MASK);
-			err = io_queue_rsrc_removal(data, i, ctx->rsrc_node, file);
+			err = io_queue_rsrc_removal(data, i, file);
 			if (err)
 				break;
 			file_slot->file_ptr = 0;
@@ -492,7 +492,7 @@ static int __io_sqe_buffers_update(struct io_ring_ctx *ctx,
 		i = array_index_nospec(up->offset + done, ctx->nr_user_bufs);
 		if (ctx->user_bufs[i] != ctx->dummy_ubuf) {
 			err = io_queue_rsrc_removal(ctx->buf_data, i,
-						    ctx->rsrc_node, ctx->user_bufs[i]);
+						    ctx->user_bufs[i]);
 			if (unlikely(err)) {
 				io_buffer_unmap(ctx, &imu);
 				break;
@@ -680,9 +680,10 @@ int io_files_update(struct io_kiocb *req, unsigned int issue_flags)
 	return IOU_OK;
 }
 
-int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx,
-			  struct io_rsrc_node *node, void *rsrc)
+int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx, void *rsrc)
 {
+	struct io_ring_ctx *ctx = data->ctx;
+	struct io_rsrc_node *node = ctx->rsrc_node;
 	u64 *tag_slot = io_get_tag_slot(data, idx);
 	struct io_rsrc_put *prsrc;
 

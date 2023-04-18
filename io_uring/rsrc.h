@@ -70,8 +70,7 @@ void io_rsrc_put_work(struct work_struct *work);
 void io_rsrc_node_destroy(struct io_ring_ctx *ctx, struct io_rsrc_node *ref_node);
 int __io_rsrc_node_switch_start(struct io_ring_ctx *ctx);
 struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx);
-int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx,
-			  struct io_rsrc_node *node, void *rsrc);
+int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx, void *rsrc);
 void io_rsrc_node_switch(struct io_ring_ctx *ctx,
 			 struct io_rsrc_data *data_to_kill);
 
