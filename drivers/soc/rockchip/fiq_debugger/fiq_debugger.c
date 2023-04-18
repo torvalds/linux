@@ -38,7 +38,7 @@
 
 #ifdef CONFIG_FIQ_DEBUGGER_TRUST_ZONE
 #include <linux/rockchip/rockchip_sip.h>
-#include <linux/soc/rockchip/rk_fiq_debugger.h>
+#include "rk_fiq_debugger.h"
 #endif
 
 #ifdef CONFIG_FIQ_GLUE
@@ -56,7 +56,7 @@
 #include "fiq_debugger_ringbuf.h"
 
 #ifdef CONFIG_ROCKCHIP_DEBUG
-#include "../../../soc/rockchip/rockchip_debug.h"
+#include "../rockchip_debug.h"
 #endif
 
 #define DEBUG_MAX 64

@@ -59,7 +59,7 @@
 #include <linux/irq.h>
 #include <linux/delay.h>
 
-#include "../../staging/android/fiq_debugger/fiq_debugger_priv.h"
+#include "fiq_debugger/fiq_debugger_priv.h"
 #include "rockchip_debug.h"
 
 #define EDPCSR_LO			0x0a0

@@ -66,7 +66,7 @@ config FIQ_WATCHDOG
 
 config RK_CONSOLE_THREAD
 	bool "Console write by thread"
-	depends on ARCH_ROCKCHIP
+	depends on FIQ_DEBUGGER
 	default n
 	help
 	  Normal kernel printk will write out to UART by "kconsole" kthread
@@ -78,3 +78,10 @@ config FIQ_DEBUGGER_FIQ_GLUE
 	default n
 	help
 	  It is for ARM v7 arch without trust zone.
+
+config ROCKCHIP_FIQ_DEBUGGER
+	tristate "Rockchip FIQ Debugger"
+	depends on FIQ_DEBUGGER
+	default FIQ_DEBUGGER
+	help
+	  Say y here to enable Rockchip FIQ Debugger platform driver.

@@ -35,11 +35,11 @@
 #include <linux/kfifo.h>
 #include <linux/kthread.h>
 #include <linux/sched/rt.h>
-#include <../drivers/staging/android/fiq_debugger/fiq_debugger.h>
+#include "fiq_debugger.h"
 #include <linux/irqchip/arm-gic.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/soc/rockchip/rk_fiq_debugger.h>
+#include "rk_fiq_debugger.h"
 #include <linux/console.h>
 
 #ifdef CONFIG_FIQ_DEBUGGER_TRUST_ZONE
