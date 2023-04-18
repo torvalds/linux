@@ -90,7 +90,9 @@ enum at91_reg {
 #define AT91_MSR_MRDY BIT(23)
 #define AT91_MSR_MMI BIT(24)
 
+#define AT91_MCR_MDLC_MASK GENMASK(19, 16)
 #define AT91_MCR_MRTR BIT(20)
+#define AT91_MCR_MACR BIT(22)
 #define AT91_MCR_MTCR BIT(23)
 
 /* Mailbox Modes */
@@ -490,8 +492,12 @@ static netdev_tx_t at91_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_BUSY;
 	}
 	reg_mid = at91_can_id_to_reg_mid(cf->can_id);
-	reg_mcr = ((cf->can_id & CAN_RTR_FLAG) ? AT91_MCR_MRTR : 0) |
-		(cf->len << 16) | AT91_MCR_MTCR;
+
+	reg_mcr = FIELD_PREP(AT91_MCR_MDLC_MASK, cf->len) |
+		AT91_MCR_MTCR;
+
+	if (cf->can_id & CAN_RTR_FLAG)
+		reg_mcr |= AT91_MCR_MRTR;
 
 	/* disable MB while writing ID (see datasheet) */
 	set_mb_mode(priv, mb, AT91_MB_MODE_DISABLED);
