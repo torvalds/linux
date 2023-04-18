@@ -123,6 +123,10 @@ static int host1x_video_remove(struct host1x_device *dev)
 }
 
 static const struct of_device_id host1x_video_subdevs[] = {
+#if defined(CONFIG_ARCH_TEGRA_2x_SOC)
+	{ .compatible = "nvidia,tegra20-vip", },
+	{ .compatible = "nvidia,tegra20-vi", },
+#endif
 #if defined(CONFIG_ARCH_TEGRA_210_SOC)
 	{ .compatible = "nvidia,tegra210-csi", },
 	{ .compatible = "nvidia,tegra210-vi", },
@@ -141,6 +145,7 @@ static struct host1x_driver host1x_video_driver = {
 
 static struct platform_driver * const drivers[] = {
 	&tegra_csi_driver,
+	&tegra_vip_driver,
 	&tegra_vi_driver,
 };
 

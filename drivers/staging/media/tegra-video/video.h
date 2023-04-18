@@ -24,5 +24,6 @@ int tegra_v4l2_nodes_setup_tpg(struct tegra_video_device *vid);
 void tegra_v4l2_nodes_cleanup_tpg(struct tegra_video_device *vid);
 
 extern struct platform_driver tegra_vi_driver;
+extern struct platform_driver tegra_vip_driver;
 extern struct platform_driver tegra_csi_driver;
 #endif
