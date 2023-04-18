@@ -120,11 +120,29 @@ check_tc_action_hw_stats_support()
 	fi
 }
 
+check_tc_fp_support()
+{
+	tc qdisc add dev lo mqprio help 2>&1 | grep -q "fp "
+	if [[ $? -ne 0 ]]; then
+		echo "SKIP: iproute2 too old; tc is missing frame preemption support"
+		exit $ksft_skip
+	fi
+}
+
 check_ethtool_lanes_support()
 {
 	ethtool --help 2>&1| grep lanes &> /dev/null
 	if [[ $? -ne 0 ]]; then
 		echo "SKIP: ethtool too old; it is missing lanes support"
+		exit $ksft_skip
+	fi
+}
+
+check_ethtool_mm_support()
+{
+	ethtool --help 2>&1| grep -- '--show-mm' &> /dev/null
+	if [[ $? -ne 0 ]]; then
+		echo "SKIP: ethtool too old; it is missing MAC Merge layer support"
 		exit $ksft_skip
 	fi
 }
