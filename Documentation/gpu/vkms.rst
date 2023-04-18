@@ -120,7 +120,7 @@ There's lots of plane features we could add support for:
 
 - Add background color KMS property[Good to get started].
 
-- Rotation, scaling.
+- Scaling.
 
 - Additional buffer formats, especially YUV formats for video like NV12.
   Low/high bpp RGB formats would also be interesting.
