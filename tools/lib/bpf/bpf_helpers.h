@@ -293,9 +293,9 @@ enum libbpf_tristate {
 
 struct bpf_iter_num;
 
-extern int bpf_iter_num_new(struct bpf_iter_num *it, int start, int end) __ksym;
-extern int *bpf_iter_num_next(struct bpf_iter_num *it) __ksym;
-extern void bpf_iter_num_destroy(struct bpf_iter_num *it) __ksym;
+extern int bpf_iter_num_new(struct bpf_iter_num *it, int start, int end) __weak __ksym;
+extern int *bpf_iter_num_next(struct bpf_iter_num *it) __weak __ksym;
+extern void bpf_iter_num_destroy(struct bpf_iter_num *it) __weak __ksym;
 
 #ifndef bpf_for_each
 /* bpf_for_each(iter_type, cur_elem, args...) provides generic construct for
