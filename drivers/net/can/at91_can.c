@@ -393,7 +393,7 @@ static int at91_set_bittiming(struct net_device *dev)
 		FIELD_PREP(AT91_BR_PHASE1_MASK, bt->phase_seg1 - 1) |
 		FIELD_PREP(AT91_BR_PHASE2_MASK, bt->phase_seg2 - 1);
 
-	netdev_info(dev, "writing AT91_BR: 0x%08x\n", reg_br);
+	netdev_dbg(dev, "writing AT91_BR: 0x%08x\n", reg_br);
 
 	at91_write(priv, AT91_BR, reg_br);
 
