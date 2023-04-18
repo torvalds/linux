@@ -64,4 +64,8 @@ int cxl_memdev_init(void);
 void cxl_memdev_exit(void);
 void cxl_mbox_init(void);
 
+enum cxl_poison_trace_type {
+	CXL_POISON_TRACE_LIST,
+};
+
 #endif /* __CXL_CORE_H__ */
