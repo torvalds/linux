@@ -305,6 +305,11 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	ieee80211_hw_set(hw, BUFF_MMPDU_TXQ);
 	ieee80211_hw_set(hw, STA_MMPDU_TXQ);
 
+	/* Set this early since we need to have it for the check below */
+	if (mvm->mld_api_is_used &&
+	    mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
+		hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_MLO;
+
 	/* With MLD FW API, it tracks timing by itself,
 	 * no need for any timing from the host
 	 */
