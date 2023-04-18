@@ -265,6 +265,12 @@
 	pinctrl-0 = <&main_i2c0_pins_default>;
 	clock-frequency = <400000>;
 
+	eeprom@51 {
+		/* AT24C512C-MAHM-T or M24512-DFMC6TG */
+		compatible = "atmel,24c512";
+		reg = <0x51>;
+	};
+
 	typec_pd0: tps6598x@3f {
 		compatible = "ti,tps6598x";
 		reg = <0x3f>;
