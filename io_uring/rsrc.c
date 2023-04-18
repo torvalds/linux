@@ -144,18 +144,17 @@ static void io_buffer_unmap(struct io_ring_ctx *ctx, struct io_mapped_ubuf **slo
 
 static void io_rsrc_put_work(struct io_rsrc_node *node)
 {
-	struct io_rsrc_data *data = node->rsrc_data;
 	struct io_rsrc_put *prsrc = &node->item;
 
 	if (prsrc->tag)
-		io_post_aux_cqe(data->ctx, prsrc->tag, 0, 0);
+		io_post_aux_cqe(node->ctx, prsrc->tag, 0, 0);
 
-	switch (data->rsrc_type) {
+	switch (node->type) {
 	case IORING_RSRC_FILE:
-		io_rsrc_file_put(data->ctx, prsrc);
+		io_rsrc_file_put(node->ctx, prsrc);
 		break;
 	case IORING_RSRC_BUFFER:
-		io_rsrc_buf_put(data->ctx, prsrc);
+		io_rsrc_buf_put(node->ctx, prsrc);
 		break;
 	default:
 		WARN_ON_ONCE(1);
@@ -170,9 +169,9 @@ void io_rsrc_node_destroy(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
 }
 
 void io_rsrc_node_ref_zero(struct io_rsrc_node *node)
-	__must_hold(&node->rsrc_data->ctx->uring_lock)
+	__must_hold(&node->ctx->uring_lock)
 {
-	struct io_ring_ctx *ctx = node->rsrc_data->ctx;
+	struct io_ring_ctx *ctx = node->ctx;
 
 	while (!list_empty(&ctx->rsrc_ref_list)) {
 		node = list_first_entry(&ctx->rsrc_ref_list,
@@ -204,7 +203,7 @@ struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx)
 			return NULL;
 	}
 
-	ref_node->rsrc_data = NULL;
+	ref_node->ctx = ctx;
 	ref_node->empty = 0;
 	ref_node->refs = 1;
 	return ref_node;
@@ -225,7 +224,7 @@ __cold static int io_rsrc_ref_quiesce(struct io_rsrc_data *data,
 	if (!backup)
 		return -ENOMEM;
 	ctx->rsrc_node->empty = true;
-	ctx->rsrc_node->rsrc_data = data;
+	ctx->rsrc_node->type = -1;
 	list_add_tail(&ctx->rsrc_node->node, &ctx->rsrc_ref_list);
 	io_put_rsrc_node(ctx, ctx->rsrc_node);
 	ctx->rsrc_node = backup;
@@ -655,10 +654,9 @@ int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx, void *rsrc)
 	}
 
 	node->item.rsrc = rsrc;
+	node->type = data->rsrc_type;
 	node->item.tag = *tag_slot;
 	*tag_slot = 0;
-
-	node->rsrc_data = data;
 	list_add_tail(&node->node, &ctx->rsrc_ref_list);
 	io_put_rsrc_node(ctx, node);
 	return 0;

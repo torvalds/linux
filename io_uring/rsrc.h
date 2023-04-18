@@ -40,10 +40,11 @@ struct io_rsrc_data {
 struct io_rsrc_node {
 	union {
 		struct io_cache_entry		cache;
-		struct io_rsrc_data		*rsrc_data;
+		struct io_ring_ctx		*ctx;
 	};
 	int				refs;
 	bool				empty;
+	u16				type;
 	struct list_head		node;
 	struct io_rsrc_put		item;
 };
