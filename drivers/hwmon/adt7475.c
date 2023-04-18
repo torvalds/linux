@@ -1468,7 +1468,7 @@ static int load_config3(const struct i2c_client *client, const char *propname)
 	u8 config3;
 	int ret;
 
-	ret = of_property_read_string(client->dev.of_node, propname, &function);
+	ret = device_property_read_string(&client->dev, propname, &function);
 	if (!ret) {
 		ret = adt7475_read(REG_CONFIG3);
 		if (ret < 0)
@@ -1494,7 +1494,7 @@ static int load_config4(const struct i2c_client *client, const char *propname)
 	u8 config4;
 	int ret;
 
-	ret = of_property_read_string(client->dev.of_node, propname, &function);
+	ret = device_property_read_string(&client->dev, propname, &function);
 	if (!ret) {
 		ret = adt7475_read(REG_CONFIG4);
 		if (ret < 0)
@@ -1556,8 +1556,8 @@ static int set_property_bit(const struct i2c_client *client, char *property,
 			    u8 *config, u8 bit_index)
 {
 	u32 prop_value = 0;
-	int ret = of_property_read_u32(client->dev.of_node, property,
-					&prop_value);
+	int ret = device_property_read_u32(&client->dev, property,
+					   &prop_value);
 
 	if (!ret) {
 		if (prop_value)
