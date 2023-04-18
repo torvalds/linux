@@ -72,6 +72,9 @@ enum at91_reg {
 #define AT91_BR_BRP_MASK GENMASK(22, 16)
 #define AT91_BR_SMP BIT(24)
 
+#define AT91_ECR_REC_MASK GENMASK(8, 0)
+#define AT91_ECR_TEC_MASK GENMASK(23, 16)
+
 #define AT91_MMR_PRIO_SHIFT (16)
 
 #define AT91_MID_MIDE BIT(29)
@@ -385,8 +388,8 @@ static int at91_get_berr_counter(const struct net_device *dev,
 	const struct at91_priv *priv = netdev_priv(dev);
 	u32 reg_ecr = at91_read(priv, AT91_ECR);
 
-	bec->rxerr = reg_ecr & 0xff;
-	bec->txerr = reg_ecr >> 16;
+	bec->rxerr = FIELD_GET(AT91_ECR_REC_MASK, reg_ecr);
+	bec->txerr = FIELD_GET(AT91_ECR_TEC_MASK, reg_ecr);
 
 	return 0;
 }
