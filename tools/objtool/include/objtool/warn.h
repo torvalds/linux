@@ -63,12 +63,14 @@ static inline char *offstr(struct section *sec, unsigned long offset)
 		_insn->sym->warned = 1;					\
 })
 
-#define BT_FUNC(format, insn, ...)			\
-({							\
-	struct instruction *_insn = (insn);		\
-	char *_str = offstr(_insn->sec, _insn->offset); \
-	WARN("  %s: " format, _str, ##__VA_ARGS__);	\
-	free(_str);					\
+#define BT_INSN(insn, format, ...)				\
+({								\
+	if (opts.verbose || opts.backtrace) {			\
+		struct instruction *_insn = (insn);		\
+		char *_str = offstr(_insn->sec, _insn->offset); \
+		WARN("  %s: " format, _str, ##__VA_ARGS__);	\
+		free(_str);					\
+	}							\
 })
 
 #define WARN_ELF(format, ...)				\
