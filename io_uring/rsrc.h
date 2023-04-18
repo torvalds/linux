@@ -44,7 +44,6 @@ struct io_rsrc_node {
 		struct io_rsrc_data		*rsrc_data;
 	};
 	struct list_head		node;
-	struct llist_node		llist;
 	int				refs;
 
 	/*
