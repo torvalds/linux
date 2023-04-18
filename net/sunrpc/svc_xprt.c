@@ -701,6 +701,8 @@ static int svc_alloc_arg(struct svc_rqst *rqstp)
 	arg->page_len = (pages-2)*PAGE_SIZE;
 	arg->len = (pages-1)*PAGE_SIZE;
 	arg->tail[0].iov_len = 0;
+
+	rqstp->rq_xid = xdr_zero;
 	return 0;
 }
 
