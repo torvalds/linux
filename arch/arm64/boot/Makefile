@@ -42,5 +42,6 @@ $(obj)/Image.zst: $(obj)/Image FORCE
 EFI_ZBOOT_PAYLOAD	:= Image
 EFI_ZBOOT_BFD_TARGET	:= elf64-littleaarch64
 EFI_ZBOOT_MACH_TYPE	:= ARM64
+EFI_ZBOOT_FORWARD_CFI	:= $(CONFIG_ARM64_BTI_KERNEL)
 
 include $(srctree)/drivers/firmware/efi/libstub/Makefile.zboot
