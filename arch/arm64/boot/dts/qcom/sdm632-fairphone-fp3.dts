@@ -224,6 +224,13 @@
 	status = "okay";
 };
 
+&q6afedai {
+	dai@127 {
+		reg = <QUINARY_MI2S_RX>;
+		qcom,sd-lines = <0 1>;
+	};
+};
+
 &sdhc_1 {
 	vmmc-supply = <&pm8953_l8>;
 	vqmmc-supply = <&pm8953_l5>;
@@ -238,6 +245,38 @@
 	cd-gpios = <&tlmm 133 GPIO_ACTIVE_LOW>;
 
 	status = "okay";
+};
+
+&sound_card {
+	model = "Fairphone 3";
+
+	pinctrl-0 = <&quin_mi2s_active>, <&quin_mi2s_ws_active>;
+	pinctrl-1 = <&quin_mi2s_sleep>, <&quin_mi2s_ws_sleep>;
+	pinctrl-names = "default",
+			"sleep";
+
+	status = "okay";
+
+	/* FP3 does not use the codec on PM8953 */
+	/delete-property/ audio-routing;
+	/delete-node/ primary-mi2s-dai-link;
+	/delete-node/ tertiary-mi2s-dai-link;
+
+	quinary-mi2s-dai-link {
+		link-name = "Quinary MI2S";
+
+		codec {
+			sound-dai = <&aw8898>;
+		};
+
+		cpu {
+			sound-dai = <&q6afedai QUINARY_MI2S_RX>;
+		};
+
+		platform {
+			sound-dai = <&q6routing>;
+		};
+	};
 };
 
 &rpm_requests {
@@ -358,6 +397,32 @@
 	 * 135-138: fingerprint reader (SPI)
 	 */
 	gpio-reserved-ranges = <0 4>, <135 4>;
+
+	quin_mi2s_active: quin-mi2s-active-state {
+		pins = "gpio88", "gpio91", "gpio93";
+		function = "pri_mi2s";
+		drive-strength = <8>;
+	};
+
+	quin_mi2s_sleep: quin-mi2s-sleep-state {
+		pins = "gpio88", "gpio91", "gpio93";
+		function = "pri_mi2s";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
+
+	quin_mi2s_ws_active: quin-mi2s-ws-active-state {
+		pins = "gpio92";
+		function = "pri_mi2s_ws";
+		drive-strength = <8>;
+	};
+
+	quin_mi2s_ws_sleep: quin-mi2s-ws-sleep-state {
+		pins = "gpio92";
+		function = "pri_mi2s_ws";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
 };
 
 &uart_0 {
