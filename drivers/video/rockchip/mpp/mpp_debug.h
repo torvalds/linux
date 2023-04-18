@@ -98,7 +98,7 @@ extern unsigned int mpp_dev_debug;
 #define mpp_err(fmt, args...)					\
 		pr_err("%s:%d: " fmt, __func__, __LINE__, ##args)
 
-#define mpp_dbg_link_flow(fmt, args...)				\
+#define mpp_dbg_link(fmt, args...)				\
 	do {							\
 		if (unlikely(mpp_dev_debug & DEBUG_LINK_TABLE)) {		\
 			pr_info("%s:%d: " fmt,			\

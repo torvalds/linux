@@ -20,6 +20,7 @@
 
 #define WORK_TIMEOUT_MS		(200)
 #define WAIT_TIMEOUT_MS		(2000)
+#define RKVDEC2_LINK_HACK_TASK_FLAG	(0xff)
 
 /* vdpu381 link hw info for rk3588 */
 struct rkvdec_link_info rkvdec_link_v2_hw_info = {
@@ -199,6 +200,11 @@ struct rkvdec_link_info rkvdec_link_vdpu382_hw_info = {
 };
 
 static void rkvdec2_link_free_task(struct kref *ref);
+static void rkvdec2_link_timeout_proc(struct work_struct *work_s);
+static int rkvdec2_link_iommu_fault_handle(struct iommu_domain *iommu,
+					   struct device *iommu_dev,
+					   unsigned long iova,
+					   int status, void *arg);
 
 static void rkvdec_link_status_update(struct rkvdec_link_dev *dev)
 {
@@ -250,7 +256,7 @@ static void rkvdec_link_node_dump(const char *func, struct rkvdec_link_dev *dev)
 	u32 *reg = NULL;
 	u32 i, j;
 
-	for (i = 0; i < dev->task_size; i++) {
+	for (i = 0; i < dev->task_capacity; i++) {
 		reg = table_base + i * reg_count;
 
 		mpp_err("slot %d link config iova %08x:\n", i,
@@ -297,9 +303,8 @@ static void rkvdec_link_counter(const char *func, struct rkvdec_link_dev *dev)
 {
 	mpp_err("dump link counter from %s\n", func);
 
-	mpp_err("task write %d read %d send %d recv %d run %d decoded %d total %d\n",
-		dev->task_write, dev->task_read, dev->task_send, dev->task_recv,
-		dev->task_to_run, dev->task_decoded, dev->task_total);
+	mpp_err("task pending %d running %d\n",
+		atomic_read(&dev->task_pending), dev->task_running);
 }
 
 int rkvdec_link_dump(struct mpp_dev *mpp)
@@ -312,160 +317,6 @@ int rkvdec_link_dump(struct mpp_dev *mpp)
 	rkvdec_link_counter(__func__, dev);
 	rkvdec_core_reg_dump(__func__, dev);
 	rkvdec_link_node_dump(__func__, dev);
-
-	return 0;
-}
-
-static int rkvdec_link_get_task_write(struct rkvdec_link_dev *dev)
-{
-	int idx = dev->task_write < dev->task_size ? dev->task_write :
-		  dev->task_write - dev->task_size;
-
-	return idx;
-}
-static int rkvdec_link_inc_task_write(struct rkvdec_link_dev *dev)
-{
-	int task_write = rkvdec_link_get_task_write(dev);
-
-	dev->task_write++;
-	if (dev->task_write >= dev->task_size * 2)
-		dev->task_write = 0;
-
-	return task_write;
-}
-static int rkvdec_link_get_task_read(struct rkvdec_link_dev *dev)
-{
-	int idx = dev->task_read < dev->task_size ? dev->task_read :
-		  dev->task_read - dev->task_size;
-
-	return idx;
-}
-static int rkvdec_link_inc_task_read(struct rkvdec_link_dev *dev)
-{
-	int task_read = rkvdec_link_get_task_read(dev);
-
-	dev->task_read++;
-	if (dev->task_read >= dev->task_size * 2)
-		dev->task_read = 0;
-
-	return task_read;
-}
-static int rkvdec_link_get_task_hw_queue_length(struct rkvdec_link_dev *dev)
-{
-	int len;
-
-	if (dev->task_send <= dev->task_recv)
-		len = dev->task_send + dev->task_size - dev->task_recv;
-	else
-		len = dev->task_send - dev->task_recv - dev->task_size;
-
-	return len;
-}
-static int rkvdec_link_get_task_send(struct rkvdec_link_dev *dev)
-{
-	int idx = dev->task_send < dev->task_size ? dev->task_send :
-		  dev->task_send - dev->task_size;
-
-	return idx;
-}
-static int rkvdec_link_inc_task_send(struct rkvdec_link_dev *dev)
-{
-	int task_send = rkvdec_link_get_task_send(dev);
-
-	dev->task_send++;
-	if (dev->task_send >= dev->task_size * 2)
-		dev->task_send = 0;
-
-	return task_send;
-}
-static int rkvdec_link_inc_task_recv(struct rkvdec_link_dev *dev)
-{
-	int task_recv = dev->task_recv;
-
-	dev->task_recv++;
-	if (dev->task_recv >= dev->task_size * 2)
-		dev->task_recv = 0;
-
-	return task_recv;
-}
-
-static int rkvdec_link_get_next_slot(struct rkvdec_link_dev *dev)
-{
-	int next = -1;
-
-	if (dev->task_write == dev->task_read)
-		return next;
-
-	next = rkvdec_link_get_task_write(dev);
-
-	return next;
-}
-
-static int rkvdec_link_write_task_to_slot(struct rkvdec_link_dev *dev, int idx,
-					  struct mpp_task *mpp_task)
-{
-	u32 i, off, s, n;
-	struct rkvdec_link_part *part;
-	struct rkvdec_link_info *info;
-	struct mpp_dma_buffer *table;
-	struct rkvdec2_task *task;
-	int slot_idx;
-	u32 *tb_reg;
-
-	if (idx < 0 || idx >= dev->task_size) {
-		mpp_err("send invalid task index %d\n", idx);
-		return -1;
-	}
-
-	info = dev->info;
-	part = info->part_w;
-	table = dev->table;
-	task = to_rkvdec2_task(mpp_task);
-
-	slot_idx = rkvdec_link_inc_task_write(dev);
-	if (idx != slot_idx)
-		dev_info(dev->dev, "slot index mismatch %d vs %d\n",
-			 idx, slot_idx);
-
-	if (task->need_hack) {
-		tb_reg = (u32 *)table->vaddr + slot_idx * dev->link_reg_count;
-
-		rkvdec2_3568_hack_fix_link(tb_reg + 4);
-
-		/* setup error mode flag */
-		dev->tasks_hw[slot_idx] = NULL;
-		dev->task_to_run++;
-		dev->task_prepared++;
-		slot_idx = rkvdec_link_inc_task_write(dev);
-	}
-
-	tb_reg = (u32 *)table->vaddr + slot_idx * dev->link_reg_count;
-
-	for (i = 0; i < info->part_w_num; i++) {
-		off = part[i].tb_reg_off;
-		s = part[i].reg_start;
-		n = part[i].reg_num;
-		memcpy(&tb_reg[off], &task->reg[s], n * sizeof(u32));
-	}
-
-	/* setup error mode flag */
-	tb_reg[9] |= BIT(18) | BIT(9);
-	tb_reg[info->tb_reg_second_en] |= RKVDEC_WAIT_RESET_EN;
-
-	/* memset read registers */
-	part = info->part_r;
-	for (i = 0; i < info->part_r_num; i++) {
-		off = part[i].tb_reg_off;
-		n = part[i].reg_num;
-		memset(&tb_reg[off], 0, n * sizeof(u32));
-	}
-
-	dev->tasks_hw[slot_idx] = mpp_task;
-	task->slot_idx = slot_idx;
-	dev->task_to_run++;
-	dev->task_prepared++;
-	mpp_dbg_link_flow("slot %d write task %d\n", slot_idx,
-			  mpp_task->task_id);
 
 	return 0;
 }
@@ -489,34 +340,20 @@ static void rkvdec2_clear_cache(struct mpp_dev *mpp)
 	mpp_write_relaxed(mpp, RKVDEC_REG_CLR_CACHE2_BASE, 1);
 }
 
-static int rkvdec_link_send_task_to_hw(struct rkvdec_link_dev *dev,
-				       struct mpp_task *mpp_task,
-				       int slot_idx, u32 task_to_run,
-				       int resend)
+static int rkvdec2_link_enqueue(struct rkvdec_link_dev *link_dec,
+				struct mpp_task *mpp_task)
 {
-	void __iomem *reg_base = dev->reg_base;
-	struct mpp_dma_buffer *table = dev->table;
-	u32 task_total = dev->task_total;
-	u32 mode_start = 0;
-	u32 val;
+	void __iomem *reg_base = link_dec->reg_base;
+	struct rkvdec2_task *task = to_rkvdec2_task(mpp_task);
+	struct mpp_dma_buffer *table = task->table;
+	u32 link_en = 0;
+	u32 frame_num = 1;
+	u32 link_mode;
+	u32 timing_en = link_dec->mpp->srv->timing_en;
 
-	/* write address */
-	if (!task_to_run || task_to_run > dev->task_size ||
-	    slot_idx < 0 || slot_idx >= dev->task_size) {
-		mpp_err("invalid task send cfg at %d count %d\n",
-			slot_idx, task_to_run);
-		rkvdec_link_counter("error on send", dev);
-		return 0;
-	}
-
-	val = task_to_run;
-	if (!task_total || resend)
-		mode_start = 1;
-
-	if (mode_start) {
-		u32 iova = table->iova + slot_idx * dev->link_node_size;
-
-		rkvdec2_clear_cache(dev->mpp);
+	link_en = readl(reg_base + RKVDEC_LINK_EN_BASE);
+	if (!link_en) {
+		rkvdec2_clear_cache(link_dec->mpp);
 		/* cleanup counter in hardware */
 		writel(0, reg_base + RKVDEC_LINK_MODE_BASE);
 		/* start config before all registers are set */
@@ -526,55 +363,31 @@ static int rkvdec_link_send_task_to_hw(struct rkvdec_link_dev *dev,
 		wmb();
 		/* clear counter and enable link mode hardware */
 		writel(RKVDEC_LINK_BIT_EN, reg_base + RKVDEC_LINK_EN_BASE);
-
-		dev->task_total = 0;
-		dev->task_decoded = 0;
-
-		writel_relaxed(iova, reg_base + RKVDEC_LINK_CFG_ADDR_BASE);
-	} else {
-		val |= RKVDEC_LINK_BIT_ADD_MODE;
-	}
-
-	if (!resend) {
-		u32 timing_en = dev->mpp->srv->timing_en;
-		u32 i;
-
-		for (i = 0; i < task_to_run; i++) {
-			int next_idx = rkvdec_link_inc_task_send(dev);
-			struct mpp_task *task_ddr = dev->tasks_hw[next_idx];
-
-			if (!task_ddr)
-				continue;
-
-			mpp_task_run_begin(task_ddr, timing_en, WORK_TIMEOUT_MS);
-			mpp_task_run_end(task_ddr, timing_en);
-		}
-	} else {
-		if (task_total)
-			dev_info(dev->dev, "resend with total %d\n", task_total);
-	}
+		writel_relaxed(table->iova, reg_base + RKVDEC_LINK_CFG_ADDR_BASE);
+		link_mode = frame_num;
+	} else
+		link_mode = (frame_num | RKVDEC_LINK_BIT_ADD_MODE);
 
 	/* set link mode */
-	writel_relaxed(val, reg_base + RKVDEC_LINK_MODE_BASE);
+	writel_relaxed(link_mode, reg_base + RKVDEC_LINK_MODE_BASE);
 
 	/* start config before all registers are set */
 	wmb();
 
-	mpp_iommu_flush_tlb(dev->mpp->iommu_info);
+	mpp_iommu_flush_tlb(link_dec->mpp->iommu_info);
+	mpp_task_run_begin(mpp_task, timing_en, WORK_TIMEOUT_MS);
 
+	link_dec->task_running++;
 	/* configure done */
 	writel(RKVDEC_LINK_BIT_CFG_DONE, reg_base + RKVDEC_LINK_CFG_CTRL_BASE);
-
-	mpp_dbg_link_flow("slot %d enable task %d mode %s\n", slot_idx,
-			  task_to_run, mode_start ? "start" : "add");
-	if (mode_start) {
+	if (!link_en) {
 		/* start hardware before all registers are set */
 		wmb();
 		/* clear counter and enable link mode hardware */
 		writel(RKVDEC_LINK_BIT_EN, reg_base + RKVDEC_LINK_EN_BASE);
 	}
+	mpp_task_run_end(mpp_task, timing_en);
 
-	dev->task_total += task_to_run;
 	return 0;
 }
 
@@ -586,8 +399,7 @@ static int rkvdec2_link_finish(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 	struct mpp_dma_buffer *table = link_dec->table;
 	struct rkvdec_link_info *info = link_dec->info;
 	struct rkvdec_link_part *part = info->part_r;
-	int slot_idx = task->slot_idx;
-	u32 *tb_reg = (u32 *)(table->vaddr + slot_idx * link_dec->link_node_size);
+	u32 *tb_reg = (u32 *)table->vaddr;
 	u32 off, s, n;
 	u32 i;
 
@@ -607,159 +419,71 @@ static int rkvdec2_link_finish(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 	return 0;
 }
 
-static int rkvdec_link_isr_recv_task(struct mpp_dev *mpp,
-				     struct rkvdec_link_dev *link_dec,
-				     int count)
-{
-	struct rkvdec_link_info *info = link_dec->info;
-	u32 *table_base = (u32 *)link_dec->table->vaddr;
-	int i;
-	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
-
-	for (i = 0; i < count; i++) {
-		int idx = rkvdec_link_get_task_read(link_dec);
-		struct mpp_task *mpp_task = link_dec->tasks_hw[idx];
-		struct rkvdec2_task *task = NULL;
-		u32 *regs = NULL;
-		u32 irq_status = 0;
-
-		if (!mpp_task && info->hack_setup) {
-			regs = table_base + idx * link_dec->link_reg_count;
-			mpp_dbg_link_flow("slot %d read  task stuff\n", idx);
-
-			link_dec->stuff_total++;
-			if (link_dec->statistic_count &&
-			    regs[RKVDEC_LINK_REG_CYCLE_CNT]) {
-				link_dec->stuff_cycle_sum +=
-					regs[RKVDEC_LINK_REG_CYCLE_CNT];
-				link_dec->stuff_cnt++;
-				if (link_dec->stuff_cnt >=
-				    link_dec->statistic_count) {
-					dev_info(link_dec->dev, "hw cycle %u\n",
-						(u32)(div_u64(link_dec->task_cycle_sum,
-								link_dec->statistic_count)));
-					link_dec->stuff_cycle_sum = 0;
-					link_dec->stuff_cnt = 0;
-				}
-			}
-
-			if (link_dec->error && (i == (count - 1))) {
-				link_dec->stuff_err++;
-
-				irq_status = mpp_read_relaxed(mpp, RKVDEC_REG_INT_EN);
-				dev_info(link_dec->dev, "found stuff task error irq %08x %u/%u\n",
-					 irq_status, link_dec->stuff_err,
-					 link_dec->stuff_total);
-
-				if (link_dec->stuff_on_error) {
-					dev_info(link_dec->dev, "stuff task error again %u/%u\n",
-						 link_dec->stuff_err,
-						 link_dec->stuff_total);
-				}
-
-				link_dec->stuff_on_error = 1;
-				/* resend task */
-				link_dec->decoded--;
-			} else {
-				link_dec->stuff_on_error = 0;
-				rkvdec_link_inc_task_recv(link_dec);
-				rkvdec_link_inc_task_read(link_dec);
-				link_dec->task_running--;
-				link_dec->task_prepared--;
-			}
-
-			continue;
-		}
-
-		if (!mpp_task)
-			return 0;
-
-		task = to_rkvdec2_task(mpp_task);
-		regs = table_base + idx * link_dec->link_reg_count;
-		irq_status = regs[info->tb_reg_int];
-		mpp_task->hw_cycles = regs[info->tb_reg_cycle];
-		mpp_time_diff_with_hw_time(mpp_task, dec->cycle_clk->real_rate_hz);
-		mpp_dbg_link_flow("slot %d rd task %d\n", idx,
-				  mpp_task->task_id);
-
-		task->irq_status = irq_status ? irq_status : mpp->irq_status;
-
-		cancel_delayed_work(&mpp_task->timeout_work);
-		set_bit(TASK_STATE_HANDLE, &mpp_task->state);
-
-		if (link_dec->statistic_count &&
-		    regs[RKVDEC_LINK_REG_CYCLE_CNT]) {
-			link_dec->task_cycle_sum +=
-				regs[RKVDEC_LINK_REG_CYCLE_CNT];
-			link_dec->task_cnt++;
-			if (link_dec->task_cnt >= link_dec->statistic_count) {
-				dev_info(link_dec->dev, "hw cycle %u\n",
-					 (u32)(div_u64(link_dec->task_cycle_sum,
-							link_dec->statistic_count)));
-				link_dec->task_cycle_sum = 0;
-				link_dec->task_cnt = 0;
-			}
-		}
-
-		rkvdec2_link_finish(mpp, mpp_task);
-
-		set_bit(TASK_STATE_FINISH, &mpp_task->state);
-
-		list_del_init(&mpp_task->queue_link);
-		link_dec->task_running--;
-		link_dec->task_prepared--;
-
-		rkvdec_link_inc_task_recv(link_dec);
-		rkvdec_link_inc_task_read(link_dec);
-
-		if (test_bit(TASK_STATE_ABORT, &mpp_task->state))
-			set_bit(TASK_STATE_ABORT_READY, &mpp_task->state);
-
-		set_bit(TASK_STATE_PROC_DONE, &mpp_task->state);
-		/* Wake up the GET thread */
-		wake_up(&task->wait);
-		kref_put(&mpp_task->ref, rkvdec2_link_free_task);
-		link_dec->tasks_hw[idx] = NULL;
-	}
-
-	return 0;
-}
-
 static void *rkvdec2_link_prepare(struct mpp_dev *mpp,
 				  struct mpp_task *mpp_task)
 {
-	struct mpp_task *out_task = NULL;
 	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
 	struct rkvdec_link_dev *link_dec = dec->link_dec;
-	int ret = 0;
-	int slot_idx;
+	struct mpp_dma_buffer *table = NULL;
+	struct rkvdec_link_part *part;
+	struct rkvdec2_task *task = to_rkvdec2_task(mpp_task);
+	struct rkvdec_link_info *info = link_dec->info;
+	u32 i, off, s, n;
+	u32 *tb_reg;
 
 	mpp_debug_enter();
 
-	slot_idx = rkvdec_link_get_next_slot(link_dec);
-	if (slot_idx < 0) {
-		mpp_err("capacity %d running %d\n",
-			mpp->task_capacity, link_dec->task_running);
-		dev_err(link_dec->dev, "no slot to write on get next slot\n");
-		goto done;
+	if (test_bit(TASK_STATE_PREPARE, &mpp_task->state)) {
+		dev_err(mpp->dev, "task %d has prepared\n", mpp_task->task_index);
+		return mpp_task;
 	}
 
-	ret = rkvdec_link_write_task_to_slot(link_dec, slot_idx, mpp_task);
-	if (ret >= 0)
-		out_task = mpp_task;
-	else
-		dev_err(mpp->dev, "no slot to write\n");
+	table = list_first_entry_or_null(&link_dec->unused_list, struct mpp_dma_buffer, link);
 
-done:
+	if (!table)
+		return NULL;
+
+	/* fill regs value */
+	tb_reg = (u32 *)table->vaddr;
+	part = info->part_w;
+	for (i = 0; i < info->part_w_num; i++) {
+		off = part[i].tb_reg_off;
+		s = part[i].reg_start;
+		n = part[i].reg_num;
+		memcpy(&tb_reg[off], &task->reg[s], n * sizeof(u32));
+	}
+
+	/* setup error mode flag */
+	tb_reg[9] |= BIT(18) | BIT(9);
+	tb_reg[info->tb_reg_second_en] |= RKVDEC_WAIT_RESET_EN;
+
+	/* memset read registers */
+	part = info->part_r;
+	for (i = 0; i < info->part_r_num; i++) {
+		off = part[i].tb_reg_off;
+		n = part[i].reg_num;
+		memset(&tb_reg[off], 0, n * sizeof(u32));
+	}
+
+	list_move_tail(&table->link, &link_dec->used_list);
+	task->table = table;
+	set_bit(TASK_STATE_PREPARE, &mpp_task->state);
+
+	mpp_dbg_link("session %d task %d prepare pending %d running %d\n",
+		     mpp_task->session->index, mpp_task->task_index,
+		     atomic_read(&link_dec->task_pending), link_dec->task_running);
 	mpp_debug_leave();
 
-	return out_task;
+	return mpp_task;
 }
 
 static int rkvdec2_link_reset(struct mpp_dev *mpp)
 {
 
 	dev_info(mpp->dev, "resetting...\n");
+
+	disable_irq(mpp->irq);
+	mpp_iommu_disable_irq(mpp->iommu_info);
 
 	/* FIXME lock resource lock of the other devices in combo */
 	mpp_iommu_down_write(mpp->iommu_info);
@@ -782,6 +506,8 @@ static int rkvdec2_link_reset(struct mpp_dev *mpp)
 	mpp_reset_up_write(mpp->reset_group);
 	mpp_iommu_up_write(mpp->iommu_info);
 
+	enable_irq(mpp->irq);
+	mpp_iommu_enable_irq(mpp->iommu_info);
 	dev_info(mpp->dev, "reset done\n");
 
 	return 0;
@@ -821,96 +547,6 @@ static int rkvdec2_link_irq(struct mpp_dev *mpp)
 		  irq_status, mpp->irq_status);
 
 	return 0;
-}
-
-static int rkvdec2_link_isr(struct mpp_dev *mpp)
-{
-	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
-	struct rkvdec_link_dev *link_dec = dec->link_dec;
-	struct rkvdec_link_info *link_info = link_dec->info;
-	/* keep irq_status */
-	u32 irq_status = link_dec->irq_status;
-	u32 prev_dec_num;
-	int count = 0;
-	u32 len = 0;
-	u32 need_reset = atomic_read(&mpp->reset_request);
-	u32 task_timeout = link_dec->task_on_timeout;
-
-	mpp_debug_enter();
-
-	disable_irq(mpp->irq);
-	mpp_iommu_disable_irq(mpp->iommu_info);
-	rkvdec_link_status_update(link_dec);
-	link_dec->irq_status = irq_status;
-	prev_dec_num = link_dec->task_decoded;
-
-	if (!link_dec->enabled || task_timeout) {
-		u32 val;
-
-		if (task_timeout) {
-			rkvdec_link_reg_dump("timeout", link_dec);
-			link_dec->decoded += task_timeout;
-		}
-
-		val = mpp_read(mpp, 224 * 4);
-		if (link_info->hack_setup && !(val & BIT(2))) {
-			/* only for rk356x */
-			dev_info(mpp->dev, "frame not complete\n");
-			link_dec->decoded++;
-		}
-	}
-	count = (int)link_dec->decoded - (int)prev_dec_num;
-
-	/* handle counter wrap */
-	if (link_dec->enabled && !count && !need_reset) {
-		/* process extra isr when task is processed */
-		enable_irq(mpp->irq);
-		mpp_iommu_enable_irq(mpp->iommu_info);
-		goto done;
-	}
-
-	/* get previous ready task */
-	if (count) {
-		rkvdec_link_isr_recv_task(mpp, link_dec, count);
-		link_dec->task_decoded = link_dec->decoded;
-	}
-
-	if (!link_dec->enabled || need_reset)
-		goto do_reset;
-
-	enable_irq(mpp->irq);
-	mpp_iommu_enable_irq(mpp->iommu_info);
-	goto done;
-
-do_reset:
-	/* NOTE: irq may run with reset */
-	atomic_inc(&mpp->reset_request);
-	rkvdec2_link_reset(mpp);
-	link_dec->task_decoded = 0;
-	link_dec->task_total = 0;
-	enable_irq(mpp->irq);
-	mpp_iommu_enable_irq(mpp->iommu_info);
-
-	if (link_dec->total == link_dec->decoded)
-		goto done;
-
-	len = rkvdec_link_get_task_hw_queue_length(link_dec);
-	if (len > link_dec->task_size)
-		rkvdec_link_counter("invalid len", link_dec);
-
-	if (len) {
-		int slot_idx = rkvdec_link_get_task_read(link_dec);
-		struct mpp_task *mpp_task = NULL;
-
-		mpp_task = link_dec->tasks_hw[slot_idx];
-		rkvdec_link_send_task_to_hw(link_dec, mpp_task,
-					    slot_idx, len, 1);
-	}
-
-done:
-	mpp_debug_leave();
-
-	return IRQ_HANDLED;
 }
 
 int rkvdec2_link_remove(struct mpp_dev *mpp, struct rkvdec_link_dev *link_dec)
@@ -963,12 +599,6 @@ static int rkvdec2_link_alloc_table(struct mpp_dev *mpp,
 	}
 
 	link_dec->table	     = table;
-	link_dec->task_size  = task_capacity;
-	link_dec->task_count = 0;
-	link_dec->task_write = 0;
-	link_dec->task_read  = link_dec->task_size;
-	link_dec->task_send  = 0;
-	link_dec->task_recv  = link_dec->task_size;
 
 	return 0;
 err_free_node:
@@ -1007,18 +637,13 @@ int rkvdec2_link_init(struct platform_device *pdev, struct rkvdec2_dev *dec)
 	struct rkvdec_link_dev *link_dec = NULL;
 	struct device *dev = &pdev->dev;
 	struct mpp_dev *mpp = &dec->mpp;
+	struct mpp_dma_buffer *table;
+	int i;
 
 	mpp_debug_enter();
 
 	link_dec = devm_kzalloc(dev, sizeof(*link_dec), GFP_KERNEL);
 	if (!link_dec) {
-		ret = -ENOMEM;
-		goto done;
-	}
-
-	link_dec->tasks_hw = devm_kzalloc(dev, sizeof(*link_dec->tasks_hw) *
-					  mpp->task_capacity, GFP_KERNEL);
-	if (!link_dec->tasks_hw) {
 		ret = -ENOMEM;
 		goto done;
 	}
@@ -1044,12 +669,33 @@ int rkvdec2_link_init(struct platform_device *pdev, struct rkvdec2_dev *dec)
 	if (ret)
 		goto done;
 
+	/* alloc table pointer array */
+	table = devm_kmalloc_array(mpp->dev, mpp->task_capacity,
+				   sizeof(*table), GFP_KERNEL | __GFP_ZERO);
+	if (!table)
+		return -ENOMEM;
+
+	/* init table array */
+	link_dec->table_array = table;
+	INIT_LIST_HEAD(&link_dec->used_list);
+	INIT_LIST_HEAD(&link_dec->unused_list);
+	for (i = 0; i < mpp->task_capacity; i++) {
+		table[i].iova = link_dec->table->iova + i * link_dec->link_node_size;
+		table[i].vaddr = link_dec->table->vaddr + i * link_dec->link_node_size;
+		table[i].size = link_dec->link_node_size;
+		INIT_LIST_HEAD(&table[i].link);
+		list_add_tail(&table[i].link, &link_dec->unused_list);
+	}
+
 	if (dec->fix)
 		rkvdec2_link_hack_data_setup(dec->fix);
+
+	mpp->fault_handler = rkvdec2_link_iommu_fault_handle;
 
 	link_dec->mpp = mpp;
 	link_dec->dev = dev;
 	atomic_set(&link_dec->task_timeout, 0);
+	atomic_set(&link_dec->task_pending, 0);
 	atomic_set(&link_dec->power_enabled, 0);
 	link_dec->irq_enabled = 1;
 
@@ -1063,11 +709,6 @@ done:
 				devm_iounmap(dev, link_dec->reg_base);
 				link_dec->reg_base = NULL;
 			}
-			if (link_dec->tasks_hw) {
-				devm_kfree(dev, link_dec->tasks_hw);
-				link_dec->tasks_hw = NULL;
-			}
-
 			devm_kfree(dev, link_dec);
 			link_dec = NULL;
 		}
@@ -1108,24 +749,6 @@ static void rkvdec2_link_free_task(struct kref *ref)
 static void rkvdec2_link_trigger_work(struct mpp_dev *mpp)
 {
 	kthread_queue_work(&mpp->queue->worker, &mpp->work);
-}
-
-static void rkvdec2_link_trigger_timeout(struct mpp_dev *mpp)
-{
-	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
-	struct rkvdec_link_dev *link_dec = dec->link_dec;
-
-	atomic_inc(&link_dec->task_timeout);
-	rkvdec2_link_trigger_work(mpp);
-}
-
-static void rkvdec2_link_trigger_irq(struct mpp_dev *mpp)
-{
-	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
-	struct rkvdec_link_dev *link_dec = dec->link_dec;
-
-	link_dec->task_irq++;
-	rkvdec2_link_trigger_work(mpp);
 }
 
 static int rkvdec2_link_power_on(struct mpp_dev *mpp)
@@ -1175,9 +798,6 @@ static void rkvdec2_link_power_off(struct mpp_dev *mpp)
 		pm_relax(mpp->dev);
 		pm_runtime_put_sync_suspend(mpp->dev);
 
-		link_dec->task_decoded = 0;
-		link_dec->task_total = 0;
-
 		mpp_clk_set_rate(&dec->aclk_info, CLK_MODE_NORMAL);
 		mpp_clk_set_rate(&dec->cabac_clk_info, CLK_MODE_NORMAL);
 		mpp_clk_set_rate(&dec->hevc_cabac_clk_info, CLK_MODE_NORMAL);
@@ -1189,6 +809,7 @@ static void rkvdec2_link_power_off(struct mpp_dev *mpp)
 static void rkvdec2_link_timeout_proc(struct work_struct *work_s)
 {
 	struct mpp_dev *mpp;
+	struct rkvdec2_dev *dec;
 	struct mpp_session *session;
 	struct mpp_task *task = container_of(to_delayed_work(work_s),
 					     struct mpp_task, timeout_work);
@@ -1212,112 +833,246 @@ static void rkvdec2_link_timeout_proc(struct work_struct *work_s)
 	}
 	mpp = session->mpp;
 	set_bit(TASK_STATE_TIMEOUT, &task->state);
-	rkvdec2_link_trigger_timeout(mpp);
+
+	dec = to_rkvdec2_dev(mpp);
+	atomic_inc(&dec->link_dec->task_timeout);
+
+	dev_err(mpp->dev, "session %d task %d timeout, cnt %d\n",
+		session->index, task->task_index,
+		atomic_read(&dec->link_dec->task_timeout));
+
+	rkvdec2_link_trigger_work(mpp);
 }
 
-static void mpp_taskqueue_scan_pending_abort_task(struct mpp_taskqueue *queue)
+static int rkvdec2_link_iommu_fault_handle(struct iommu_domain *iommu,
+					    struct device *iommu_dev,
+					    unsigned long iova,
+					    int status, void *arg)
 {
-	struct mpp_task *task, *n;
+	struct mpp_dev *mpp = (struct mpp_dev *)arg;
+	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
+	struct mpp_task *mpp_task = NULL, *n;
+	struct mpp_taskqueue *queue;
 
-	mutex_lock(&queue->pending_lock);
-	/* Check and pop all timeout task */
-	list_for_each_entry_safe(task, n, &queue->pending_list, queue_link) {
-		struct mpp_session *session = task->session;
+	dev_err(iommu_dev, "fault addr 0x%08lx status %x arg %p\n",
+		iova, status, arg);
 
-		if (test_bit(TASK_STATE_ABORT, &task->state)) {
-			mutex_lock(&session->pending_lock);
-			/* wait and signal */
-			list_del_init(&task->queue_link);
-			mutex_unlock(&session->pending_lock);
-			kref_put(&task->ref, rkvdec2_link_free_task);
+	if (!mpp) {
+		dev_err(iommu_dev, "pagefault without device to handle\n");
+		return 0;
+	}
+	queue = mpp->queue;
+	list_for_each_entry_safe(mpp_task, n, &queue->running_list, queue_link) {
+		struct rkvdec_link_info *info = dec->link_dec->info;
+		struct rkvdec2_task *task = to_rkvdec2_task(mpp_task);
+		u32 *tb_reg = (u32 *)task->table->vaddr;
+		u32 irq_status = tb_reg[info->tb_reg_int];
+
+		if (!irq_status) {
+			mpp_task_dump_mem_region(mpp, mpp_task);
+			break;
 		}
 	}
-	mutex_unlock(&queue->pending_lock);
+
+	mpp_task_dump_hw_reg(mpp);
+	/*
+	 * Mask iommu irq, in order for iommu not repeatedly trigger pagefault.
+	 * Until the pagefault task finish by hw timeout.
+	 */
+	rockchip_iommu_mask_irq(mpp->dev);
+	dec->mmu_fault = 1;
+
+	return 0;
+}
+
+static void rkvdec2_link_resend(struct mpp_dev *mpp)
+{
+	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
+	struct rkvdec_link_dev *link_dec = dec->link_dec;
+	struct mpp_taskqueue *queue = mpp->queue;
+	struct mpp_task *mpp_task, *n;
+
+	link_dec->task_running = 0;
+	list_for_each_entry_safe(mpp_task, n, &queue->running_list, queue_link) {
+		dev_err(mpp->dev, "resend task %d\n", mpp_task->task_index);
+		cancel_delayed_work_sync(&mpp_task->timeout_work);
+		clear_bit(TASK_STATE_TIMEOUT, &mpp_task->state);
+		clear_bit(TASK_STATE_HANDLE, &mpp_task->state);
+		rkvdec2_link_enqueue(link_dec, mpp_task);
+	}
 }
 
 static void rkvdec2_link_try_dequeue(struct mpp_dev *mpp)
 {
 	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
 	struct rkvdec_link_dev *link_dec = dec->link_dec;
-	struct mpp_task *task;
 	struct mpp_taskqueue *queue = mpp->queue;
-	int task_irq = link_dec->task_irq;
-	int task_irq_prev = link_dec->task_irq_prev;
-	int task_timeout = atomic_read(&link_dec->task_timeout);
+	struct mpp_task *mpp_task = NULL, *n;
+	struct rkvdec_link_info *info = link_dec->info;
+	u32 reset_flag = 0;
+	u32 iommu_fault = dec->mmu_fault && (mpp->irq_status & RKVDEC_TIMEOUT_STA);
+	u32 link_en = atomic_read(&link_dec->power_enabled) ?
+		      readl(link_dec->reg_base + RKVDEC_LINK_EN_BASE) : 0;
+	u32 force_dequeue = iommu_fault || !link_en;
+	u32 dequeue_cnt = 0;
 
-	if (!link_dec->task_running)
-		goto done;
+	list_for_each_entry_safe(mpp_task, n, &queue->running_list, queue_link) {
+		/*
+		 * Because there are multiple tasks enqueue at the same time,
+		 * soft timeout may be triggered at the same time, but in reality only
+		 * first task is being timeout because of the hardware stuck,
+		 * so only process the first task.
+		 */
+		u32 timeout_flag = dequeue_cnt ? 0 : test_bit(TASK_STATE_TIMEOUT, &mpp_task->state);
+		struct rkvdec2_task *task = to_rkvdec2_task(mpp_task);
+		u32 *tb_reg = (u32 *)task->table->vaddr;
+		u32 abort_flag = test_bit(TASK_STATE_ABORT, &mpp_task->state);
+		u32 irq_status = tb_reg[info->tb_reg_int];
+		u32 task_done = irq_status || timeout_flag || abort_flag;
 
-	if (task_timeout != link_dec->task_timeout_prev) {
-		dev_info(link_dec->dev, "process task timeout\n");
-		atomic_inc(&mpp->reset_request);
-		link_dec->task_on_timeout =
-			task_timeout - link_dec->task_timeout_prev;
-		goto proc;
+		/*
+		 * there are some cases will cause hw cannot write reg to ddr:
+		 * 1. iommu pagefault
+		 * 2. link stop(link_en == 0) because of err task, it is a rk356x issue.
+		 * so need force dequeue one task.
+		 */
+		if (force_dequeue)
+			task_done = 1;
+
+		if (!task_done)
+			break;
+
+		dequeue_cnt++;
+		/* check hack task only for rk356x*/
+		if (task->need_hack == RKVDEC2_LINK_HACK_TASK_FLAG) {
+			cancel_delayed_work_sync(&mpp_task->timeout_work);
+			list_move_tail(&task->table->link, &link_dec->unused_list);
+			list_del_init(&mpp_task->queue_link);
+			link_dec->task_running--;
+			link_dec->hack_task_running--;
+			kfree(task);
+			mpp_dbg_link("hack running %d irq_status %#08x timeout %d abort %d\n",
+				     link_dec->hack_task_running, irq_status,
+				     timeout_flag, abort_flag);
+			continue;
+		}
+
+		/*
+		 * if timeout/abort/force dequeue found, reset and stop hw first.
+		 */
+		if ((timeout_flag || abort_flag || force_dequeue) && !reset_flag) {
+			dev_err(mpp->dev, "session %d task %d timeout %d abort %d force_dequeue %d\n",
+				mpp_task->session->index, mpp_task->task_index,
+				timeout_flag, abort_flag, force_dequeue);
+			rkvdec2_link_reset(mpp);
+			reset_flag = 1;
+			dec->mmu_fault = 0;
+			mpp->irq_status = 0;
+			force_dequeue = 0;
+		}
+
+		cancel_delayed_work_sync(&mpp_task->timeout_work);
+
+		task->irq_status = irq_status;
+		mpp_task->hw_cycles = tb_reg[info->tb_reg_cycle];
+		mpp_time_diff_with_hw_time(mpp_task, dec->cycle_clk->real_rate_hz);
+		rkvdec2_link_finish(mpp, mpp_task);
+
+		list_move_tail(&task->table->link, &link_dec->unused_list);
+		list_del_init(&mpp_task->queue_link);
+
+		set_bit(TASK_STATE_HANDLE, &mpp_task->state);
+		set_bit(TASK_STATE_PROC_DONE, &mpp_task->state);
+		set_bit(TASK_STATE_FINISH, &mpp_task->state);
+		set_bit(TASK_STATE_DONE, &mpp_task->state);
+		if (test_bit(TASK_STATE_ABORT, &mpp_task->state))
+			set_bit(TASK_STATE_ABORT_READY, &mpp_task->state);
+
+		wake_up(&mpp_task->wait);
+		kref_put(&mpp_task->ref, rkvdec2_link_free_task);
+		link_dec->task_running--;
+
+		mpp_dbg_link("session %d task %d irq_status %#08x timeout %d abort %d\n",
+			     mpp_task->session->index, mpp_task->task_index,
+			     irq_status, timeout_flag, abort_flag);
+		if (irq_status & RKVDEC_INT_ERROR_MASK) {
+			dev_err(mpp->dev,
+				"session %d task %d irq_status %#08x timeout %u abort %u\n",
+				mpp_task->session->index, mpp_task->task_index,
+				irq_status, timeout_flag, abort_flag);
+			if (!reset_flag)
+				atomic_inc(&mpp->reset_request);
+		}
 	}
 
-	if (task_irq == task_irq_prev)
-		goto done;
-
-	if (!atomic_read(&link_dec->power_enabled)) {
-		dev_info(link_dec->dev, "dequeue on power off\n");
-		goto done;
-	}
-
-proc:
-	task = list_first_entry_or_null(&queue->running_list, struct mpp_task,
-					queue_link);
-	if (!task) {
-		mpp_err("can found task on trydequeue with %d running task\n",
-			link_dec->task_running);
-		goto done;
-	}
-
-	/* Check and process all finished task */
-	rkvdec2_link_isr(mpp);
-
-done:
-	link_dec->task_irq_prev = task_irq;
-	link_dec->task_timeout_prev = task_timeout;
-	link_dec->task_on_timeout = 0;
-
-	mpp_taskqueue_scan_pending_abort_task(queue);
-
-	/* TODO: if reset is needed do reset here */
+	/* resend running task after reset */
+	if (reset_flag && !list_empty(&queue->running_list))
+		rkvdec2_link_resend(mpp);
 }
 
-static int mpp_task_queue(struct mpp_dev *mpp, struct mpp_task *task)
+static int mpp_task_queue(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 {
 	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
 	struct rkvdec_link_dev *link_dec = dec->link_dec;
-	u32 task_to_run = 0;
-	int slot_idx = 0;
+	struct mpp_taskqueue *queue = mpp->queue;
+	struct rkvdec2_task *task = to_rkvdec2_task(mpp_task);
 
 	mpp_debug_enter();
 
 	rkvdec2_link_power_on(mpp);
-	mpp_debug(DEBUG_TASK_INFO, "pid %d, start hw %s\n",
-		  task->session->pid, dev_name(mpp->dev));
 
-	/* prepare the task for running */
-	if (test_and_set_bit(TASK_STATE_PREPARE, &task->state))
-		mpp_err("task %d has been prepare twice\n", task->task_id);
+	/* hack for rk356x */
+	if (task->need_hack) {
+		u32 *tb_reg;
+		struct mpp_dma_buffer *table;
+		struct rkvdec2_task *hack_task;
+		struct rkvdec_link_info *info = link_dec->info;
 
-	rkvdec2_link_prepare(mpp, task);
+		/* need reserved 2 unused task for need hack task */
+		if (link_dec->task_running > (link_dec->task_capacity - 2))
+			return -EBUSY;
 
-	task_to_run = link_dec->task_to_run;
-	if (!task_to_run) {
-		dev_err(link_dec->dev, "nothing to run\n");
-		goto done;
+		table = list_first_entry_or_null(&link_dec->unused_list,
+						 struct mpp_dma_buffer,
+						 link);
+		if (!table)
+			return -EBUSY;
+
+		hack_task = kzalloc(sizeof(*hack_task), GFP_KERNEL);
+
+		if (!hack_task)
+			return -ENOMEM;
+
+		mpp_task_init(mpp_task->session, &hack_task->mpp_task);
+		INIT_DELAYED_WORK(&hack_task->mpp_task.timeout_work,
+					rkvdec2_link_timeout_proc);
+
+		tb_reg = (u32 *)table->vaddr;
+		memset(tb_reg + info->part_r[0].tb_reg_off, 0, info->part_r[0].reg_num);
+		rkvdec2_3568_hack_fix_link(tb_reg + 4);
+		list_move_tail(&table->link, &link_dec->used_list);
+		hack_task->table = table;
+		hack_task->need_hack = RKVDEC2_LINK_HACK_TASK_FLAG;
+		rkvdec2_link_enqueue(link_dec, &hack_task->mpp_task);
+		mpp_taskqueue_pending_to_run(queue, &hack_task->mpp_task);
+		link_dec->hack_task_running++;
+		mpp_dbg_link("hack task send to hw, hack running %d\n",
+			     link_dec->hack_task_running);
 	}
 
-	mpp_reset_down_read(mpp->reset_group);
-	link_dec->task_to_run = 0;
-	slot_idx = rkvdec_link_get_task_send(link_dec);
-	link_dec->task_running += task_to_run;
-	rkvdec_link_send_task_to_hw(link_dec, task, slot_idx, task_to_run, 0);
+	/* process normal */
+	if (!rkvdec2_link_prepare(mpp, mpp_task))
+		return -EBUSY;
 
-done:
+	rkvdec2_link_enqueue(link_dec, mpp_task);
+
+	set_bit(TASK_STATE_RUNNING, &mpp_task->state);
+	atomic_dec(&link_dec->task_pending);
+	mpp_taskqueue_pending_to_run(queue, mpp_task);
+
+	mpp_dbg_link("session %d task %d send to hw pending %d running %d\n",
+		     mpp_task->session->index, mpp_task->task_index,
+		     atomic_read(&link_dec->task_pending), link_dec->task_running);
 	mpp_debug_leave();
 
 	return 0;
@@ -1329,7 +1084,7 @@ irqreturn_t rkvdec2_link_irq_proc(int irq, void *param)
 	int ret = rkvdec2_link_irq(mpp);
 
 	if (!ret)
-		rkvdec2_link_trigger_irq(mpp);
+		rkvdec2_link_trigger_work(mpp);
 
 	return IRQ_HANDLED;
 }
@@ -1377,6 +1132,8 @@ int rkvdec2_link_process_task(struct mpp_session *session,
 	struct mpp_task *task = NULL;
 	struct mpp_dev *mpp = session->mpp;
 	struct rkvdec_link_info *link_info = mpp->var->hw_info->link_info;
+	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
+	struct rkvdec_link_dev *link_dec = dec->link_dec;
 
 	task = rkvdec2_alloc_task(session, msgs);
 	if (!task) {
@@ -1410,6 +1167,7 @@ int rkvdec2_link_process_task(struct mpp_session *session,
 	mutex_lock(&mpp->queue->pending_lock);
 	list_add_tail(&task->queue_link, &mpp->queue->pending_list);
 	mutex_unlock(&mpp->queue->pending_lock);
+	atomic_inc(&link_dec->task_pending);
 
 	/* push current task to queue */
 	atomic_inc(&mpp->task_count);
@@ -1426,7 +1184,6 @@ int rkvdec2_link_wait_result(struct mpp_session *session,
 {
 	struct mpp_dev *mpp = session->mpp;
 	struct mpp_task *mpp_task;
-	struct rkvdec2_task *task;
 	int ret;
 
 	mpp_task = mpp_session_get_pending_task(session);
@@ -1435,8 +1192,7 @@ int rkvdec2_link_wait_result(struct mpp_session *session,
 		return -EIO;
 	}
 
-	task = to_rkvdec2_task(mpp_task);
-	ret = wait_event_timeout(task->wait, task_is_done(mpp_task),
+	ret = wait_event_timeout(mpp_task->wait, task_is_done(mpp_task),
 				 msecs_to_jiffies(WAIT_TIMEOUT_MS));
 	if (ret) {
 		ret = rkvdec2_result(mpp, mpp_task, msgs);
@@ -1457,34 +1213,25 @@ int rkvdec2_link_wait_result(struct mpp_session *session,
 void rkvdec2_link_worker(struct kthread_work *work_s)
 {
 	struct mpp_dev *mpp = container_of(work_s, struct mpp_dev, work);
-	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
-	struct rkvdec_link_dev *link_dec = dec->link_dec;
 	struct mpp_task *task;
 	struct mpp_taskqueue *queue = mpp->queue;
+	u32 all_done;
 
 	mpp_debug_enter();
 
-	/*
-	 * process timeout and finished task.
-	 */
+	/* dequeue running task */
 	rkvdec2_link_try_dequeue(mpp);
 
-again:
+	/* process reset */
 	if (atomic_read(&mpp->reset_request)) {
-		if (link_dec->task_running || link_dec->task_prepared)
-			goto done;
-
-		disable_irq(mpp->irq);
-		mpp_iommu_disable_irq(mpp->iommu_info);
 		rkvdec2_link_reset(mpp);
-		link_dec->task_decoded = 0;
-		link_dec->task_total = 0;
-		enable_irq(mpp->irq);
-		mpp_iommu_enable_irq(mpp->iommu_info);
+		/* resend running task after reset */
+		if (!list_empty(&queue->running_list))
+			rkvdec2_link_resend(mpp);
 	}
-	/*
-	 * process pending queue to find the task to accept.
-	 */
+
+again:
+	/* get pending task to process */
 	mutex_lock(&queue->pending_lock);
 	task = list_first_entry_or_null(&queue->pending_list, struct mpp_task,
 					queue_link);
@@ -1492,9 +1239,8 @@ again:
 	if (!task)
 		goto done;
 
-	if (test_bit(TASK_STATE_ABORT, &task->state)) {
-		struct rkvdec2_task *dec_task = to_rkvdec2_task(task);
-
+	/* check abort task */
+	if (atomic_read(&task->abort_request)) {
 		mutex_lock(&queue->pending_lock);
 		list_del_init(&task->queue_link);
 
@@ -1502,48 +1248,28 @@ again:
 		set_bit(TASK_STATE_PROC_DONE, &task->state);
 
 		mutex_unlock(&queue->pending_lock);
-		wake_up(&dec_task->wait);
+		wake_up(&task->wait);
 		kref_put(&task->ref, rkvdec2_link_free_task);
 		goto again;
 	}
 
-	/*
-	 * if target device can accept more task send the task to run.
-	 */
-	if (link_dec->task_running >= link_dec->task_capacity - 2)
-		goto done;
-
-	if (mpp_task_queue(mpp, task)) {
-		/* failed to run */
-		mpp_err("%p failed to process task %p:%d\n",
-			mpp, task, task->task_id);
-	} else {
-		mutex_lock(&queue->pending_lock);
-		set_bit(TASK_STATE_RUNNING, &task->state);
-		list_move_tail(&task->queue_link, &queue->running_list);
-		mutex_unlock(&queue->pending_lock);
+	/* queue task to hw */
+	if (!mpp_task_queue(mpp, task))
 		goto again;
-	}
+
 done:
-	mpp_debug_leave();
 
-	if (link_dec->task_irq != link_dec->task_irq_prev ||
-	    atomic_read(&link_dec->task_timeout) != link_dec->task_timeout_prev)
-		rkvdec2_link_trigger_work(mpp);
+	/* if no task in pending and running list, power off device */
+	mutex_lock(&queue->pending_lock);
+	all_done = list_empty(&queue->pending_list) && list_empty(&queue->running_list);
+	mutex_unlock(&queue->pending_lock);
 
-	/* if no task for running power off device */
-	{
-		u32 all_done = 0;
-
-		mutex_lock(&queue->pending_lock);
-		all_done = list_empty(&queue->pending_list);
-		mutex_unlock(&queue->pending_lock);
-
-		if (all_done && !link_dec->task_running && !link_dec->task_prepared)
-			rkvdec2_link_power_off(mpp);
-	}
+	if (all_done)
+		rkvdec2_link_power_off(mpp);
 
 	mpp_session_cleanup_detach(queue, work_s);
+
+	mpp_debug_leave();
 }
 
 void rkvdec2_link_session_deinit(struct mpp_session *session)
@@ -2151,8 +1877,6 @@ get_task:
 		goto done;
 
 	if (test_bit(TASK_STATE_ABORT, &mpp_task->state)) {
-		struct rkvdec2_task *dec_task = to_rkvdec2_task(mpp_task);
-
 		mutex_lock(&queue->pending_lock);
 		list_del_init(&mpp_task->queue_link);
 
@@ -2160,7 +1884,7 @@ get_task:
 		set_bit(TASK_STATE_PROC_DONE, &mpp_task->state);
 
 		mutex_unlock(&queue->pending_lock);
-		wake_up(&dec_task->wait);
+		wake_up(&mpp_task->wait);
 		kref_put(&mpp_task->ref, rkvdec2_link_free_task);
 		goto get_task;
 	}

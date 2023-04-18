@@ -262,7 +262,7 @@ int rkvdec2_task_init(struct mpp_dev *mpp, struct mpp_session *session,
 	task->strm_addr = task->reg[RKVDEC_REG_RLC_BASE_INDEX];
 	task->clk_mode = CLK_MODE_NORMAL;
 	task->slot_idx = -1;
-	init_waitqueue_head(&task->wait);
+	init_waitqueue_head(&mpp_task->wait);
 	/* get resolution info */
 	if (session->priv) {
 		struct rkvdec2_session_priv *priv = session->priv;

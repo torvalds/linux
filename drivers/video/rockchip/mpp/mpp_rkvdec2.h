@@ -150,8 +150,6 @@ struct rkvdec2_task {
 	int slot_idx;
 	u32 need_hack;
 
-	/* event for task wait timeout or session timeout */
-	wait_queue_head_t wait;
 	/* link table DMA buffer */
 	struct mpp_dma_buffer *table;
 };

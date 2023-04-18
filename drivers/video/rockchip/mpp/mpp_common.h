@@ -693,6 +693,8 @@ void mpp_session_deinit(struct mpp_session *session);
 void mpp_session_cleanup_detach(struct mpp_taskqueue *queue,
 				struct kthread_work *work);
 
+int mpp_taskqueue_pending_to_run(struct mpp_taskqueue *queue, struct mpp_task *task);
+
 int mpp_dev_probe(struct mpp_dev *mpp,
 		  struct platform_device *pdev);
 int mpp_dev_remove(struct mpp_dev *mpp);

@@ -141,9 +141,7 @@ mpp_taskqueue_is_running(struct mpp_taskqueue *queue)
 	return flag;
 }
 
-static int
-mpp_taskqueue_pending_to_run(struct mpp_taskqueue *queue,
-			     struct mpp_task *task)
+int mpp_taskqueue_pending_to_run(struct mpp_taskqueue *queue, struct mpp_task *task)
 {
 	unsigned long flags;
 
@@ -2022,7 +2020,7 @@ int mpp_task_dump_mem_region(struct mpp_dev *mpp,
 	if (!task)
 		return -EIO;
 
-	mpp_err("--- dump mem region ---\n");
+	mpp_err("--- dump task %d mem region ---\n", task->task_index);
 	if (!list_empty(&task->mem_region_list)) {
 		list_for_each_entry_safe(mem, n,
 					 &task->mem_region_list,
