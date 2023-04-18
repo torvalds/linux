@@ -435,12 +435,8 @@ alternative_if_not ARM64_UNMAP_KERNEL_AT_EL0
 	eret
 alternative_else_nop_endif
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
-	bne	4f
 	msr	far_el1, x29
 	tramp_alias	x30, tramp_exit_native, x29
-	br	x30
-4:
-	tramp_alias	x30, tramp_exit_compat, x29
 	br	x30
 #endif
 	.else
@@ -740,9 +736,7 @@ alternative_else_nop_endif
 	msr	vbar_el1, x30
 	ldr	lr, [sp, #S_LR]
 	tramp_unmap_kernel	x29
-	.if	\regsize == 64
 	mrs	x29, far_el1
-	.endif
 	add	sp, sp, #PT_REGS_SIZE		// restore sp
 	eret
 	sb
@@ -780,10 +774,6 @@ SYM_CODE_END(tramp_vectors)
 SYM_CODE_START(tramp_exit_native)
 	tramp_exit
 SYM_CODE_END(tramp_exit_native)
-
-SYM_CODE_START(tramp_exit_compat)
-	tramp_exit	32
-SYM_CODE_END(tramp_exit_compat)
 	.popsection				// .entry.tramp.text
 #endif /* CONFIG_UNMAP_KERNEL_AT_EL0 */
 
