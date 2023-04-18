@@ -1324,7 +1324,7 @@ static int __qcom_glink_send(struct glink_channel *channel,
 	int ret;
 	unsigned long flags;
 	int chunk_size = len;
-	int left_size = 0;
+	size_t offset = 0;
 
 	if (!glink->intentless) {
 		while (!intent) {
@@ -1358,49 +1358,29 @@ static int __qcom_glink_send(struct glink_channel *channel,
 		iid = intent->id;
 	}
 
-	if (wait && chunk_size > SZ_8K) {
-		chunk_size = SZ_8K;
-		left_size = len - chunk_size;
-	}
-	req.msg.cmd = cpu_to_le16(GLINK_CMD_TX_DATA);
-	req.msg.param1 = cpu_to_le16(channel->lcid);
-	req.msg.param2 = cpu_to_le32(iid);
-	req.chunk_size = cpu_to_le32(chunk_size);
-	req.left_size = cpu_to_le32(left_size);
-
-	ret = qcom_glink_tx(glink, &req, sizeof(req), data, chunk_size, wait);
-
-	/* Mark intent available if we failed */
-	if (ret) {
-		if (intent)
-			intent->in_use = false;
-		return ret;
-	}
-
-	while (left_size > 0) {
-		data = (void *)((char *)data + chunk_size);
-		chunk_size = left_size;
-		if (chunk_size > SZ_8K)
+	while (offset < len) {
+		chunk_size = len - offset;
+		if (chunk_size > SZ_8K && wait)
 			chunk_size = SZ_8K;
-		left_size -= chunk_size;
 
-		req.msg.cmd = cpu_to_le16(GLINK_CMD_TX_DATA_CONT);
+		req.msg.cmd = cpu_to_le16(offset == 0 ? GLINK_CMD_TX_DATA : GLINK_CMD_TX_DATA_CONT);
 		req.msg.param1 = cpu_to_le16(channel->lcid);
 		req.msg.param2 = cpu_to_le32(iid);
 		req.chunk_size = cpu_to_le32(chunk_size);
-		req.left_size = cpu_to_le32(left_size);
+		req.left_size = cpu_to_le32(len - offset - chunk_size);
 
-		ret = qcom_glink_tx(glink, &req, sizeof(req), data,
-				    chunk_size, wait);
-
-		/* Mark intent available if we failed */
+		ret = qcom_glink_tx(glink, &req, sizeof(req), data + offset, chunk_size, wait);
 		if (ret) {
+			/* Mark intent available if we failed */
 			if (intent)
 				intent->in_use = false;
-			break;
+			return ret;
 		}
+
+		offset += chunk_size;
 	}
-	return ret;
+
+	return 0;
 }
 
 static int qcom_glink_send(struct rpmsg_endpoint *ept, void *data, int len)
