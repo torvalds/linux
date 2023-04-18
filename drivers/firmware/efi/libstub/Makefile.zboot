@@ -40,7 +40,7 @@ quiet_cmd_compwithsize = $(quiet_cmd_$(zboot-method-y))
 $(obj)/vmlinuz: $(obj)/vmlinux.bin FORCE
 	$(call if_changed,compwithsize)
 
-OBJCOPYFLAGS_vmlinuz.o := -I binary -O $(EFI_ZBOOT_BFD_TARGET) \
+OBJCOPYFLAGS_vmlinuz.o := -I binary -O $(EFI_ZBOOT_BFD_TARGET) $(EFI_ZBOOT_OBJCOPY_FLAGS) \
 			  --rename-section .data=.gzdata,load,alloc,readonly,contents
 $(obj)/vmlinuz.o: $(obj)/vmlinuz FORCE
 	$(call if_changed,objcopy)
