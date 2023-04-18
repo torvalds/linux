@@ -3417,6 +3417,7 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	u8 port_id = (u8)(lr_status_evt_portid & 0x000000FF);
 	u8 phy_id =
 		(u8)((phyid_npip_portstate & 0xFF0000) >> 16);
+	u8 portstate = (u8)(phyid_npip_portstate & 0x0000000F);
 	u16 eventType =
 		(u16)((lr_status_evt_portid & 0x00FFFF00) >> 8);
 	u8 status =
@@ -3449,7 +3450,6 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		break;
 	case HW_EVENT_PHY_DOWN:
 		hw_event_phy_down(pm8001_ha, piomb);
-		phy->phy_attached = 0;
 		phy->phy_state = PHY_LINK_DISABLE;
 		break;
 	case HW_EVENT_PORT_INVALID:
@@ -3567,14 +3567,15 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		break;
 	case HW_EVENT_PORT_RESET_TIMER_TMO:
 		pm8001_dbg(pm8001_ha, EVENT,
-			   "HW_EVENT_PORT_RESET_TIMER_TMO phyid:%#x port_id:%#x\n",
-			   phy_id, port_id);
+			   "HW_EVENT_PORT_RESET_TIMER_TMO phyid:%#x port_id:%#x portstate:%#x\n",
+			   phy_id, port_id, portstate);
 		if (!pm8001_ha->phy[phy_id].reset_completion) {
 			pm80xx_hw_event_ack_req(pm8001_ha, 0, HW_EVENT_PHY_DOWN,
 				port_id, phy_id, 0, 0);
 		}
 		sas_phy_disconnected(sas_phy);
 		phy->phy_attached = 0;
+		port->port_state = portstate;
 		sas_notify_port_event(sas_phy, PORTE_LINK_RESET_ERR,
 			GFP_ATOMIC);
 		if (pm8001_ha->phy[phy_id].reset_completion) {
@@ -3608,14 +3609,17 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		break;
 	case HW_EVENT_PORT_RESET_COMPLETE:
 		pm8001_dbg(pm8001_ha, EVENT,
-			   "HW_EVENT_PORT_RESET_COMPLETE phyid:%#x port_id:%#x\n",
-			   phy_id, port_id);
+			   "HW_EVENT_PORT_RESET_COMPLETE phyid:%#x port_id:%#x portstate:%#x\n",
+			   phy_id, port_id, portstate);
 		if (pm8001_ha->phy[phy_id].reset_completion) {
 			pm8001_ha->phy[phy_id].port_reset_status =
 					PORT_RESET_SUCCESS;
 			complete(pm8001_ha->phy[phy_id].reset_completion);
 			pm8001_ha->phy[phy_id].reset_completion = NULL;
 		}
+		phy->phy_attached = 1;
+		phy->phy_state = PHY_STATE_LINK_UP_SPCV;
+		port->port_state = portstate;
 		break;
 	case EVENT_BROADCAST_ASYNCH_EVENT:
 		pm8001_dbg(pm8001_ha, MSG, "EVENT_BROADCAST_ASYNCH_EVENT\n");
