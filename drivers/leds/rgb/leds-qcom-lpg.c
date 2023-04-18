@@ -1414,6 +1414,20 @@ static const struct lpg_data pm8994_lpg_data = {
 	},
 };
 
+/* PMI632 uses SDAM instead of LUT for pattern */
+static const struct lpg_data pmi632_lpg_data = {
+	.triled_base = 0xd000,
+
+	.num_channels = 5,
+	.channels = (const struct lpg_channel_data[]) {
+		{ .base = 0xb300, .triled_mask = BIT(7) },
+		{ .base = 0xb400, .triled_mask = BIT(6) },
+		{ .base = 0xb500, .triled_mask = BIT(5) },
+		{ .base = 0xb600 },
+		{ .base = 0xb700 },
+	},
+};
+
 static const struct lpg_data pmi8994_lpg_data = {
 	.lut_base = 0xb000,
 	.lut_size = 24,
@@ -1505,6 +1519,7 @@ static const struct of_device_id lpg_of_table[] = {
 	{ .compatible = "qcom,pm8916-pwm", .data = &pm8916_pwm_data },
 	{ .compatible = "qcom,pm8941-lpg", .data = &pm8941_lpg_data },
 	{ .compatible = "qcom,pm8994-lpg", .data = &pm8994_lpg_data },
+	{ .compatible = "qcom,pmi632-lpg", .data = &pmi632_lpg_data },
 	{ .compatible = "qcom,pmi8994-lpg", .data = &pmi8994_lpg_data },
 	{ .compatible = "qcom,pmi8998-lpg", .data = &pmi8998_lpg_data },
 	{ .compatible = "qcom,pmc8180c-lpg", .data = &pm8150l_lpg_data },
