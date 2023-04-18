@@ -8,6 +8,7 @@
 #include <kunit/test.h>
 
 #include <drm/drm_rect.h>
+#include <drm/drm_mode.h>
 
 #include <linux/string_helpers.h>
 #include <linux/errno.h>
@@ -425,6 +426,76 @@ static void drm_test_rect_calc_vscale(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, scaling_factor, params->expected_scaling_factor);
 }
 
+struct drm_rect_rotate_case {
+	const char *name;
+	unsigned int rotation;
+	struct drm_rect rect;
+	int width, height;
+	struct drm_rect expected;
+};
+
+static const struct drm_rect_rotate_case drm_rect_rotate_cases[] = {
+	{
+		.name = "reflect-x",
+		.rotation = DRM_MODE_REFLECT_X,
+		.rect = DRM_RECT_INIT(0, 0, 5, 5),
+		.width = 5, .height = 10,
+		.expected = DRM_RECT_INIT(0, 0, 5, 5),
+	},
+	{
+		.name = "reflect-y",
+		.rotation = DRM_MODE_REFLECT_Y,
+		.rect = DRM_RECT_INIT(2, 0, 5, 5),
+		.width = 5, .height = 10,
+		.expected = DRM_RECT_INIT(2, 5, 5, 5),
+	},
+	{
+		.name = "rotate-0",
+		.rotation = DRM_MODE_ROTATE_0,
+		.rect = DRM_RECT_INIT(0, 2, 5, 5),
+		.width = 5, .height = 10,
+		.expected = DRM_RECT_INIT(0, 2, 5, 5),
+	},
+	{
+		.name = "rotate-90",
+		.rotation = DRM_MODE_ROTATE_90,
+		.rect = DRM_RECT_INIT(0, 0, 5, 10),
+		.width = 5, .height = 10,
+		.expected = DRM_RECT_INIT(0, 0, 10, 5),
+	},
+	{
+		.name = "rotate-180",
+		.rotation = DRM_MODE_ROTATE_180,
+		.rect = DRM_RECT_INIT(11, 3, 5, 10),
+		.width = 5, .height = 10,
+		.expected = DRM_RECT_INIT(-11, -3, 5, 10),
+	},
+	{
+		.name = "rotate-270",
+		.rotation = DRM_MODE_ROTATE_270,
+		.rect = DRM_RECT_INIT(6, 3, 5, 10),
+		.width = 5, .height = 10,
+		.expected = DRM_RECT_INIT(-3, 6, 10, 5),
+	},
+};
+
+static void drm_rect_rotate_case_desc(const struct drm_rect_rotate_case *t, char *desc)
+{
+	strscpy(desc, t->name, KUNIT_PARAM_DESC_SIZE);
+}
+
+KUNIT_ARRAY_PARAM(drm_rect_rotate, drm_rect_rotate_cases, drm_rect_rotate_case_desc);
+
+static void drm_test_rect_rotate(struct kunit *test)
+{
+	const struct drm_rect_rotate_case *params = test->param_value;
+	struct drm_rect r = params->rect;
+
+	drm_rect_rotate(&r, params->width, params->height, params->rotation);
+
+	drm_rect_compare(test, &r, &params->expected);
+}
+
 static struct kunit_case drm_rect_tests[] = {
 	KUNIT_CASE(drm_test_rect_clip_scaled_div_by_zero),
 	KUNIT_CASE(drm_test_rect_clip_scaled_not_clipped),
@@ -433,6 +504,7 @@ static struct kunit_case drm_rect_tests[] = {
 	KUNIT_CASE_PARAM(drm_test_rect_intersect, drm_rect_intersect_gen_params),
 	KUNIT_CASE_PARAM(drm_test_rect_calc_hscale, drm_rect_scale_gen_params),
 	KUNIT_CASE_PARAM(drm_test_rect_calc_vscale, drm_rect_scale_gen_params),
+	KUNIT_CASE_PARAM(drm_test_rect_rotate, drm_rect_rotate_gen_params),
 	{ }
 };
 
