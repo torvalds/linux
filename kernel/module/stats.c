@@ -223,7 +223,7 @@ void mod_stat_bump_invalid(struct load_info *info, int flags)
 	atomic_inc(&failed_load_modules);
 #if defined(CONFIG_MODULE_DECOMPRESS)
 	if (flags & MODULE_INIT_COMPRESSED_FILE)
-		atomic_long_add(info->compressed_len, &invalid_mod_byte);
+		atomic_long_add(info->compressed_len, &invalid_mod_bytes);
 #endif
 }
 
