@@ -140,24 +140,14 @@ static void io_buffer_unmap(struct io_ring_ctx *ctx, struct io_mapped_ubuf **slo
 	*slot = NULL;
 }
 
-static void io_rsrc_put_work_one(struct io_rsrc_data *rsrc_data,
-				 struct io_rsrc_put *prsrc)
+static void io_rsrc_put_work(struct io_rsrc_data *rsrc_data,
+			     struct io_rsrc_put *prsrc)
 {
 	struct io_ring_ctx *ctx = rsrc_data->ctx;
 
 	if (prsrc->tag)
 		io_post_aux_cqe(ctx, prsrc->tag, 0, 0);
 	rsrc_data->do_put(ctx, prsrc);
-}
-
-static void __io_rsrc_put_work(struct io_rsrc_node *ref_node)
-{
-	struct io_rsrc_data *rsrc_data = ref_node->rsrc_data;
-
-	if (likely(!ref_node->empty))
-		io_rsrc_put_work_one(rsrc_data, &ref_node->item);
-
-	io_rsrc_node_destroy(rsrc_data->ctx, ref_node);
 }
 
 void io_rsrc_node_destroy(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
@@ -178,7 +168,10 @@ void io_rsrc_node_ref_zero(struct io_rsrc_node *node)
 		if (node->refs)
 			break;
 		list_del(&node->node);
-		__io_rsrc_put_work(node);
+
+		if (likely(!node->empty))
+			io_rsrc_put_work(node->rsrc_data, &node->item);
+		io_rsrc_node_destroy(ctx, node);
 	}
 	if (list_empty(&ctx->rsrc_ref_list) && unlikely(ctx->rsrc_quiesce))
 		wake_up_all(&ctx->rsrc_quiesce_wq);
