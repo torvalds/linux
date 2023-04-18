@@ -83,6 +83,8 @@ enum at91_reg {
 #define AT91_MID_MIDVA_MASK GENMASK(28, 18)
 #define AT91_MID_MIDE BIT(29)
 
+#define AT91_MSR_MTIMESTAMP_MASK GENMASK(15, 0)
+#define AT91_MSR_MDLC_MASK GENMASK(19, 16)
 #define AT91_MSR_MRTR BIT(20)
 #define AT91_MSR_MABT BIT(22)
 #define AT91_MSR_MRDY BIT(23)
@@ -599,7 +601,7 @@ static void at91_read_mb(struct net_device *dev, unsigned int mb,
 		cf->can_id = FIELD_GET(AT91_MID_MIDVA_MASK, reg_mid);
 
 	reg_msr = at91_read(priv, AT91_MSR(mb));
-	cf->len = can_cc_dlc2len((reg_msr >> 16) & 0xf);
+	cf->len = can_cc_dlc2len(FIELD_GET(AT91_MSR_MDLC_MASK, reg_msr));
 
 	if (reg_msr & AT91_MSR_MRTR) {
 		cf->can_id |= CAN_RTR_FLAG;
