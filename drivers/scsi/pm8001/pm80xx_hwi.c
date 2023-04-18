@@ -4756,6 +4756,9 @@ static int pm80xx_chip_reg_dev_req(struct pm8001_hba_info *pm8001_ha,
 	memcpy(payload.sas_addr, pm8001_dev->sas_device->sas_addr,
 		SAS_ADDR_SIZE);
 
+	pm8001_dbg(pm8001_ha, INIT,
+		   "register device req phy_id 0x%x port_id 0x%x\n", phy_id,
+		   (port->port_id & 0xFF));
 	rc = pm8001_mpi_build_cmd(pm8001_ha, 0, opc, &payload,
 			sizeof(payload), 0);
 	if (rc)
