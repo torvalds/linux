@@ -24,21 +24,13 @@ comp-type-$(CONFIG_KERNEL_ZSTD)		:= zstd22
 # causing the original tools to complain when checking image integrity.
 # So disregard it when calculating the payload size in the zimage header.
 zboot-method-y                         := $(comp-type-y)_with_size
-zboot-size-len-y                       := 12
+zboot-size-len-y                       := 4
 
 zboot-method-$(CONFIG_KERNEL_GZIP)     := gzip
-zboot-size-len-$(CONFIG_KERNEL_GZIP)   := 8
-
-# Copy the SizeOfHeaders and SizeOfCode fields from the payload to the end of
-# the compressed image. Note that this presupposes a PE header offset of 64
-# bytes, which is what arm64, RISC-V and LoongArch use.
-quiet_cmd_compwithsize = $(quiet_cmd_$(zboot-method-y))
-      cmd_compwithsize = $(cmd_$(zboot-method-y)) && ( \
-			   dd status=none if=$< bs=4 count=1 skip=37 ; \
-			   dd status=none if=$< bs=4 count=1 skip=23 ) >> $@
+zboot-size-len-$(CONFIG_KERNEL_GZIP)   := 0
 
 $(obj)/vmlinuz: $(obj)/vmlinux.bin FORCE
-	$(call if_changed,compwithsize)
+	$(call if_changed,$(zboot-method-y))
 
 OBJCOPYFLAGS_vmlinuz.o := -I binary -O $(EFI_ZBOOT_BFD_TARGET) $(EFI_ZBOOT_OBJCOPY_FLAGS) \
 			  --rename-section .data=.gzdata,load,alloc,readonly,contents
