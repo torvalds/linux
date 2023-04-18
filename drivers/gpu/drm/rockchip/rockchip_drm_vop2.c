@@ -5722,7 +5722,6 @@ static void vop3_crtc_send_mcu_cmd(struct drm_crtc *crtc, u32 type, u32 value)
 {
 	struct drm_crtc_state *crtc_state;
 	struct drm_display_mode *adjusted_mode;
-	struct rockchip_crtc_state *vcstate;
 	struct vop2_video_port *vp;
 	struct vop2 *vop2;
 
@@ -5731,33 +5730,14 @@ static void vop3_crtc_send_mcu_cmd(struct drm_crtc *crtc, u32 type, u32 value)
 
 	crtc_state = crtc->state;
 	adjusted_mode = &crtc_state->adjusted_mode;
-	vcstate = to_rockchip_crtc_state(crtc->state);
 	vp = to_vop2_video_port(crtc);
 	vop2 = vp->vop2;
 
-	switch (vcstate->output_mode) {
-	case ROCKCHIP_OUT_MODE_P565:
-	case ROCKCHIP_OUT_MODE_S888:
-		/*
-		 * Send cmds for both rgb3x8_m0 and rgb3x8_m1.
-		 */
-		value = (((value & 0x1f) << 3) | ((value & 0xe0) << 5)) |
-			(((value & 0x7) << 13) | ((value & 0xf8) << 16));
-		break;
-	case ROCKCHIP_OUT_MODE_P666:
-		value = ((value & 0x3f) << 2) | ((value & 0xc0) << 4);
-		break;
-	default:
-		break;
-	}
-
 	/*
-	 * 1.set output mode to AAAA when start sending cmds.
-	 * 2.set mcu bypass mode timing.
-	 * 3.set dclk rate to 150M.
+	 * 1.set mcu bypass mode timing.
+	 * 2.set dclk rate to 150M.
 	 */
 	if ((type == MCU_SETBYPASS) && value) {
-		vop3_set_out_mode(crtc, ROCKCHIP_OUT_MODE_AAAA);
 		vop3_mcu_bypass_mode_setup(crtc);
 		clk_set_rate(vp->dclk, 150000000);
 	}
@@ -5784,12 +5764,10 @@ static void vop3_crtc_send_mcu_cmd(struct drm_crtc *crtc, u32 type, u32 value)
 	mutex_unlock(&vop2->vop2_lock);
 
 	/*
-	 * 1.restore output mode at the end.
-	 * 2.restore mcu data mode timing.
-	 * 3.restore dclk rate to crtc_clock.
+	 * 1.restore mcu data mode timing.
+	 * 2.restore dclk rate to crtc_clock.
 	 */
 	if ((type == MCU_SETBYPASS) && !value) {
-		vop3_set_out_mode(crtc, vcstate->output_mode);
 		vop3_mcu_mode_setup(crtc);
 		clk_set_rate(vp->dclk, adjusted_mode->crtc_clock * 1000);
 	}
@@ -7458,9 +7436,6 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	if (vcstate->mode_update)
 		vop2_disable_all_planes_for_crtc(crtc);
 
-	if (vp->mcu_timing.mcu_pix_total)
-		vop3_mcu_mode_setup(crtc);
-
 	dclk_inv = (vcstate->bus_flags & DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE) ? 1 : 0;
 	val = (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC) ? 0 : BIT(HSYNC_POSITIVE);
 	val |= (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC) ? 0 : BIT(VSYNC_POSITIVE);
@@ -7823,6 +7798,11 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	 *
 	 */
 	VOP_MODULE_SET(vop2, vp, standby, 0);
+
+	if (vp->mcu_timing.mcu_pix_total) {
+		vop3_set_out_mode(crtc, vcstate->output_mode);
+		vop3_mcu_mode_setup(crtc);
+	}
 
 	if (!vp->loader_protect)
 		vop2_clk_reset(vp->dclk_rst);
