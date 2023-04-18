@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -177,6 +177,22 @@ static const struct alpha_pll_config cam_cc_pll1_config = {
 	.test_ctl_hi2_val = 0x00000034,
 	.user_ctl_val = 0x00000400,
 	.user_ctl_hi_val = 0x00000005,
+};
+
+static const struct alpha_pll_config cam_cc_pll1_config_pineapple_v2 = {
+	.l = 0x31,
+	.cal_l = 0x44,
+	.cal_l_ringosc = 0x44,
+	.alpha = 0x7AAA,
+	.config_ctl_val = 0x20485699,
+	.config_ctl_hi_val = 0x00182261,
+	.config_ctl_hi1_val = 0x82AA299C,
+	.test_ctl_val = 0x00000000,
+	.test_ctl_hi_val = 0x00000000,
+	.test_ctl_hi1_val = 0x00008000,
+	.test_ctl_hi2_val = 0x00000032,
+	.user_ctl_val = 0x00000401,
+	.user_ctl_hi_val = 0x00000805,
 };
 
 static struct clk_alpha_pll cam_cc_pll1 = {
@@ -1618,6 +1634,14 @@ static struct clk_rcg2 cam_cc_ife_lite_csid_clk_src = {
 
 static const struct freq_tbl ftbl_cam_cc_ipe_nps_clk_src[] = {
 	F(455000000, P_CAM_CC_PLL1_OUT_EVEN, 1, 0, 0),
+	F(575000000, P_CAM_CC_PLL1_OUT_EVEN, 1, 0, 0),
+	F(675000000, P_CAM_CC_PLL1_OUT_EVEN, 1, 0, 0),
+	F(825000000, P_CAM_CC_PLL1_OUT_EVEN, 1, 0, 0),
+	{ }
+};
+
+static const struct freq_tbl ftbl_cam_cc_ipe_nps_clk_src_pineapple_v2[] = {
+	F(475000000, P_CAM_CC_PLL1_OUT_EVEN, 1, 0, 0),
 	F(575000000, P_CAM_CC_PLL1_OUT_EVEN, 1, 0, 0),
 	F(675000000, P_CAM_CC_PLL1_OUT_EVEN, 1, 0, 0),
 	F(825000000, P_CAM_CC_PLL1_OUT_EVEN, 1, 0, 0),
@@ -3995,9 +4019,32 @@ static struct qcom_cc_desc cam_cc_pineapple_desc = {
 
 static const struct of_device_id cam_cc_pineapple_match_table[] = {
 	{ .compatible = "qcom,pineapple-camcc" },
+	{ .compatible = "qcom,pineapple-camcc-v2" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, cam_cc_pineapple_match_table);
+
+static void cam_cc_pineapple_fixup_pineapplev2(struct regmap *regmap)
+{
+	clk_lucid_ole_pll_configure(&cam_cc_pll1, regmap, &cam_cc_pll1_config_pineapple_v2);
+	cam_cc_ipe_nps_clk_src.freq_tbl = ftbl_cam_cc_ipe_nps_clk_src_pineapple_v2;
+	cam_cc_ipe_nps_clk_src.clkr.vdd_data.rate_max[VDD_LOWER] = 475000000;
+}
+
+static int cam_cc_pineapple_fixup(struct platform_device *pdev, struct regmap *regmap)
+{
+	const char *compat = NULL;
+	int compatlen = 0;
+
+	compat = of_get_property(pdev->dev.of_node, "compatible", &compatlen);
+	if (!compat || compatlen <= 0)
+		return -EINVAL;
+
+	if (!strcmp(compat, "qcom,pineapple-camcc-v2"))
+		cam_cc_pineapple_fixup_pineapplev2(regmap);
+
+	return 0;
+}
 
 static int cam_cc_pineapple_probe(struct platform_device *pdev)
 {
@@ -4027,6 +4074,10 @@ static int cam_cc_pineapple_probe(struct platform_device *pdev)
 	clk_lucid_ole_pll_configure(&cam_cc_pll7, regmap, &cam_cc_pll7_config);
 	clk_lucid_ole_pll_configure(&cam_cc_pll8, regmap, &cam_cc_pll8_config);
 	clk_lucid_ole_pll_configure(&cam_cc_pll9, regmap, &cam_cc_pll9_config);
+
+	ret = cam_cc_pineapple_fixup(pdev, regmap);
+	if (ret)
+		return ret;
 
 	/*
 	 * Keep clocks always enabled:
@@ -4080,4 +4131,4 @@ static void __exit cam_cc_pineapple_exit(void)
 module_exit(cam_cc_pineapple_exit);
 
 MODULE_DESCRIPTION("QTI CAM_CC PINEAPPLE Driver");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
