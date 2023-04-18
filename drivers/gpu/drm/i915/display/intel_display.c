@@ -3230,10 +3230,16 @@ static void ilk_get_pfit_config(struct intel_crtc_state *crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	u32 ctl, pos, size;
+	enum pipe pipe;
 
 	ctl = intel_de_read(dev_priv, PF_CTL(crtc->pipe));
 	if ((ctl & PF_ENABLE) == 0)
 		return;
+
+	if (IS_IVYBRIDGE(dev_priv) || IS_HASWELL(dev_priv))
+		pipe = REG_FIELD_GET(PF_PIPE_SEL_MASK_IVB, ctl);
+	else
+		pipe = crtc->pipe;
 
 	crtc_state->pch_pfit.enabled = true;
 
@@ -3249,8 +3255,7 @@ static void ilk_get_pfit_config(struct intel_crtc_state *crtc_state)
 	 * ivb/hsw (since we don't use the higher upscaling modes which
 	 * differentiates them) so just WARN about this case for now.
 	 */
-	drm_WARN_ON(&dev_priv->drm, DISPLAY_VER(dev_priv) == 7 &&
-		    (ctl & PF_PIPE_SEL_MASK_IVB) != PF_PIPE_SEL_IVB(crtc->pipe));
+	drm_WARN_ON(&dev_priv->drm, pipe != crtc->pipe);
 }
 
 static bool ilk_get_pipe_config(struct intel_crtc *crtc,

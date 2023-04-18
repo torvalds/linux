@@ -3998,16 +3998,16 @@
 
 /* CPU panel fitter */
 /* IVB+ has 3 fitters, 0 is 7x5 capable, the other two only 3x3 */
-#define _PFA_CTL_1               0x68080
-#define _PFB_CTL_1               0x68880
-#define  PF_ENABLE              (1 << 31)
-#define  PF_PIPE_SEL_MASK_IVB	(3 << 29)
-#define  PF_PIPE_SEL_IVB(pipe)	((pipe) << 29)
-#define  PF_FILTER_MASK		(3 << 23)
-#define  PF_FILTER_PROGRAMMED	(0 << 23)
-#define  PF_FILTER_MED_3x3	(1 << 23)
-#define  PF_FILTER_EDGE_ENHANCE	(2 << 23)
-#define  PF_FILTER_EDGE_SOFTEN	(3 << 23)
+#define _PFA_CTL_1		0x68080
+#define _PFB_CTL_1		0x68880
+#define   PF_ENABLE			REG_BIT(31)
+#define   PF_PIPE_SEL_MASK_IVB		REG_GENMASK(30, 29) /* ivb/hsw */
+#define   PF_PIPE_SEL_IVB(pipe)		REG_FIELD_PREP(PF_PIPE_SEL_MASK_IVB, (pipe))
+#define   PF_FILTER_MASK		REG_GENMASK(24, 23)
+#define   PF_FILTER_PROGRAMMED		REG_FIELD_PREP(PF_FILTER_MASK, 0)
+#define   PF_FILTER_MED_3x3		REG_FIELD_PREP(PF_FILTER_MASK, 1)
+#define   PF_FILTER_EDGE_ENHANCE	REG_FIELD_PREP(PF_FILTER_EDGE_MASK, 2)
+#define   PF_FILTER_EDGE_SOFTEN		REG_FIELD_PREP(PF_FILTER_EDGE_MASK, 3)
 #define _PFA_WIN_SZ		0x68074
 #define _PFB_WIN_SZ		0x68874
 #define _PFA_WIN_POS		0x68070
