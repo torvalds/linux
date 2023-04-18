@@ -1362,17 +1362,21 @@ static int bch2_check_bucket_gens_key(struct btree_trans *trans,
 	u64 start = bucket_gens_pos_to_alloc(k.k->p, 0).offset;
 	u64 end = bucket_gens_pos_to_alloc(bpos_nosnap_successor(k.k->p), 0).offset;
 	u64 b;
-	bool need_update = false;
+	bool need_update = false, dev_exists;
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
 	BUG_ON(k.k->type != KEY_TYPE_bucket_gens);
 	bkey_reassemble(&g.k_i, k);
 
-	if (fsck_err_on(!bch2_dev_exists2(c, k.k->p.inode), c,
-			"bucket_gens key for invalid device:\n  %s",
-			(bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
-		ret = bch2_btree_delete_at(trans, iter, 0);
+	/* if no bch_dev, skip out whether we repair or not */
+	dev_exists = bch2_dev_exists2(c, k.k->p.inode);
+	if (!dev_exists) {
+		if (fsck_err_on(!dev_exists, c,
+				"bucket_gens key for invalid device:\n  %s",
+				(bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
+			ret = bch2_btree_delete_at(trans, iter, 0);
+		}
 		goto out;
 	}
 
