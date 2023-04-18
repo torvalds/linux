@@ -99,19 +99,6 @@ struct tegra_vi {
 };
 
 /**
- * struct tegra_vi_graph_entity - Entity in the video graph
- *
- * @asd: subdev asynchronous registration information
- * @entity: media entity from the corresponding V4L2 subdev
- * @subdev: V4L2 subdev
- */
-struct tegra_vi_graph_entity {
-	struct v4l2_async_subdev asd;
-	struct media_entity *entity;
-	struct v4l2_subdev *subdev;
-};
-
-/**
  * struct tegra_vi_channel - Tegra video channel
  *
  * @list: list head for this entry
