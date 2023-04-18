@@ -4837,7 +4837,7 @@ static void mpi_set_phy_profile_req(struct pm8001_hba_info *pm8001_ha,
 	payload.tag = cpu_to_le32(tag);
 	payload.ppc_phyid =
 		cpu_to_le32(((operation & 0xF) << 8) | (phyid  & 0xFF));
-	pm8001_dbg(pm8001_ha, INIT,
+	pm8001_dbg(pm8001_ha, DISC,
 		   " phy profile command for phy %x ,length is %d\n",
 		   le32_to_cpu(payload.ppc_phyid), length);
 	for (i = length; i < (length + PHY_DWORD_LENGTH - 1); i++) {

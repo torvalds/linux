@@ -44,7 +44,7 @@
 #include "pm80xx_hwi.h"
 
 static ulong logging_level = PM8001_FAIL_LOGGING | PM8001_IOERR_LOGGING |
-							 PM8001_EVENT_LOGGING;
+				PM8001_EVENT_LOGGING | PM8001_INIT_LOGGING;
 module_param(logging_level, ulong, 0644);
 MODULE_PARM_DESC(logging_level, " bits for enabling logging info.");
 
