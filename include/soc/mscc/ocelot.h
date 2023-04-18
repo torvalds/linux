@@ -11,6 +11,8 @@
 #include <linux/regmap.h>
 #include <net/dsa.h>
 
+struct tc_mqprio_qopt_offload;
+
 /* Port Group IDs (PGID) are masks of destination ports.
  *
  * For L2 forwarding, the switch performs 3 lookups in the PGID table for each
@@ -744,9 +746,11 @@ struct ocelot_mirror {
 };
 
 struct ocelot_mm_state {
-	struct mutex lock;
 	enum ethtool_mm_verify_status verify_status;
+	bool tx_enabled;
 	bool tx_active;
+	u8 preemptible_tcs;
+	u8 active_preemptible_tcs;
 };
 
 struct ocelot_port;
@@ -1148,12 +1152,15 @@ int ocelot_vcap_policer_add(struct ocelot *ocelot, u32 pol_ix,
 			    struct ocelot_policer *pol);
 int ocelot_vcap_policer_del(struct ocelot *ocelot, u32 pol_ix);
 
-void ocelot_port_mm_irq(struct ocelot *ocelot, int port);
+void ocelot_mm_irq(struct ocelot *ocelot);
 int ocelot_port_set_mm(struct ocelot *ocelot, int port,
 		       struct ethtool_mm_cfg *cfg,
 		       struct netlink_ext_ack *extack);
 int ocelot_port_get_mm(struct ocelot *ocelot, int port,
 		       struct ethtool_mm_state *state);
+int ocelot_port_mqprio(struct ocelot *ocelot, int port,
+		       struct tc_mqprio_qopt_offload *mqprio);
+void ocelot_port_update_preemptible_tcs(struct ocelot *ocelot, int port);
 
 #if IS_ENABLED(CONFIG_BRIDGE_MRP)
 int ocelot_mrp_add(struct ocelot *ocelot, int port,

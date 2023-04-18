@@ -119,6 +119,9 @@ int ocelot_stats_init(struct ocelot *ocelot);
 void ocelot_stats_deinit(struct ocelot *ocelot);
 
 int ocelot_mm_init(struct ocelot *ocelot);
+void ocelot_port_change_fp(struct ocelot *ocelot, int port,
+			   unsigned long preemptible_tcs);
+void ocelot_port_update_active_preemptible_tcs(struct ocelot *ocelot, int port);
 
 extern struct notifier_block ocelot_netdevice_nb;
 extern struct notifier_block ocelot_switchdev_nb;
