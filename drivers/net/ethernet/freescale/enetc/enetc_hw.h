@@ -3,6 +3,9 @@
 
 #include <linux/bitops.h>
 
+#define ENETC_MM_VERIFY_SLEEP_US	USEC_PER_MSEC
+#define ENETC_MM_VERIFY_RETRIES		3
+
 /* ENETC device IDs */
 #define ENETC_DEV_ID_PF		0xe100
 #define ENETC_DEV_ID_VF		0xef00
