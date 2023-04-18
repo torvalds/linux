@@ -1075,8 +1075,7 @@ static int grab_bb(u8 *buffer, u64 start, u64 end,
 		return 0;
 	}
 
-	dso = map__dso(al.map);
-	if (!thread__find_map(thread, *cpumode, start, &al) || !dso) {
+	if (!thread__find_map(thread, *cpumode, start, &al) || (dso = map__dso(al.map)) == NULL) {
 		pr_debug("\tcannot resolve %" PRIx64 "-%" PRIx64 "\n", start, end);
 		return 0;
 	}
@@ -1106,9 +1105,9 @@ static int map__fprintf_srccode(struct map *map, u64 addr, FILE *fp, struct srcc
 	unsigned line;
 	int len;
 	char *srccode;
-	struct dso *dso = map__dso(map);
+	struct dso *dso;
 
-	if (!map || !dso)
+	if (!map || (dso = map__dso(map)) == NULL)
 		return 0;
 	srcfile = get_srcline_split(dso,
 				    map__rip_2objdump(map, addr),

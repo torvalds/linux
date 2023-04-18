@@ -2499,9 +2499,9 @@ add_annotate_opt(struct hist_browser *browser __maybe_unused,
 		 struct map_symbol *ms,
 		 u64 addr)
 {
-	struct dso *dso = map__dso(ms->map);
+	struct dso *dso;
 
-	if (!ms->map || !dso || dso->annotate_warned)
+	if (!ms->map || (dso = map__dso(ms->map)) == NULL || dso->annotate_warned)
 		return 0;
 
 	if (!ms->sym)

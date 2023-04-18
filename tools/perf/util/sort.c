@@ -1568,7 +1568,7 @@ static int hist_entry__dcacheline_snprintf(struct hist_entry *he, char *bf,
 
 	if (he->mem_info) {
 		struct map *map = he->mem_info->daddr.ms.map;
-		struct dso *dso = map__dso(map);
+		struct dso *dso = map ? map__dso(map) : NULL;
 
 		addr = cl_address(he->mem_info->daddr.al_addr, chk_double_cl);
 		ms = &he->mem_info->daddr.ms;
