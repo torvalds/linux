@@ -976,7 +976,9 @@ static int enetc_get_mm(struct net_device *ndev, struct ethtool_mm_state *state)
 	lafs = ENETC_MMCSR_GET_LAFS(val);
 	state->rx_min_frag_size = ethtool_mm_frag_size_add_to_min(lafs);
 	state->tx_enabled = !!(val & ENETC_MMCSR_LPE); /* mirror of MMCSR_ME */
-	state->tx_active = !!(val & ENETC_MMCSR_LPA);
+	state->tx_active = state->tx_enabled &&
+			   (state->verify_status == ETHTOOL_MM_VERIFY_STATUS_SUCCEEDED ||
+			    state->verify_status == ETHTOOL_MM_VERIFY_STATUS_DISABLED);
 	state->verify_enabled = !(val & ENETC_MMCSR_VDIS);
 	state->verify_time = ENETC_MMCSR_GET_VT(val);
 	/* A verifyTime of 128 ms would exceed the 7 bit width
