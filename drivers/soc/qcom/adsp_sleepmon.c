@@ -35,6 +35,7 @@
 #include <linux/rpmsg.h>
 #include <linux/debugfs.h>
 #include <linux/soc/qcom/smem.h>
+#include <linux/soc/qcom/adsp_sleepmon_stats.h>
 #include <asm/arch_timer.h>
 #include <linux/jiffies.h>
 #include <linux/suspend.h>
@@ -797,6 +798,112 @@ static void print_complete_dsppm_info(void)
 				g_adspsleepmon.dsppm_clients.result);
 }
 
+int adsp_sleepmon_log_master_stats(u32 mask)
+{
+	u64 accumulated;
+	int result;
+
+	mask = mask & 0x7;
+	if (!mask) {
+		pr_err("\nadsp_sleepmon_log_master_stats: Invalid Input Parameter\n");
+		return -EINVAL;
+	}
+
+	if (mask & 0x1) {
+		if (g_adspsleepmon.sysmon_event_stats) {
+			pr_info("\nsysMon stats:\n\n");
+			pr_info("Core clock(KHz): %d\n",
+					g_adspsleepmon.sysmon_event_stats->core_clk);
+			pr_info("Ab vote(Bytes): %llu\n",
+				(((u64)g_adspsleepmon.sysmon_event_stats->ab_vote_msb << 32) |
+						g_adspsleepmon.sysmon_event_stats->ab_vote_lsb));
+			pr_info("Ib vote(Bytes): %llu\n",
+				(((u64)g_adspsleepmon.sysmon_event_stats->ib_vote_msb << 32) |
+						g_adspsleepmon.sysmon_event_stats->ib_vote_lsb));
+			pr_info("Sleep latency(usec): %u\n",
+				g_adspsleepmon.sysmon_event_stats->sleep_latency > 0 ?
+					g_adspsleepmon.sysmon_event_stats->sleep_latency : U32_MAX);
+			pr_info("Timestamp: %llu\n",
+				(((u64)g_adspsleepmon.sysmon_event_stats->timestamp_msb << 32) |
+					g_adspsleepmon.sysmon_event_stats->timestamp_lsb));
+		} else {
+			pr_err("Sysmon Event Stats are not available\n");
+		}
+	}
+
+	if (mask & 0x2) {
+		if (g_adspsleepmon.dsppm_stats) {
+			pr_info("\nDSPPM stats:\n\n");
+			pr_info("Version: %u\n", g_adspsleepmon.dsppm_stats->version);
+			pr_info("Sleep latency(usec): %u\n",
+					g_adspsleepmon.dsppm_stats->latency_us ?
+					g_adspsleepmon.dsppm_stats->latency_us : U32_MAX);
+			pr_info("Timestamp: %llu\n", g_adspsleepmon.dsppm_stats->timestamp);
+
+			for (int i = 0; i < ADSPSLEEPMON_DSPPMSTATS_NUMPD; i++) {
+				pr_info("Pid: %d, Num active clients: %d\n",
+						g_adspsleepmon.dsppm_stats->pd[i].pid,
+						g_adspsleepmon.dsppm_stats->pd[i].num_active);
+			}
+
+			if (g_adspsleepmon.adsp_version) {
+				result = sleepmon_get_dsppm_client_stats();
+
+				if (!result) {
+					wait_for_completion(&g_adspsleepmon.sem);
+					print_complete_dsppm_info();
+				}
+			}
+		} else {
+			pr_err("Dsppm Stats are not available\n");
+		}
+	}
+
+	if (mask & 0x4) {
+		if (g_adspsleepmon.lpm_stats) {
+			accumulated = g_adspsleepmon.lpm_stats->accumulated;
+
+			if (g_adspsleepmon.lpm_stats->last_entered_at >
+						g_adspsleepmon.lpm_stats->last_exited_at)
+				accumulated += arch_timer_read_counter() -
+							g_adspsleepmon.lpm_stats->last_entered_at;
+
+			pr_info("\nLPM stats:\n\n");
+			pr_info("Count = %u\n", g_adspsleepmon.lpm_stats->count);
+			pr_info("Last Entered At = %llu\n",
+				g_adspsleepmon.lpm_stats->last_entered_at);
+			pr_info("Last Exited At = %llu\n",
+				g_adspsleepmon.lpm_stats->last_exited_at);
+			pr_info("Accumulated Duration = %llu\n", accumulated);
+		} else {
+			pr_err("LPM Stats are not available\n");
+		}
+
+		if (g_adspsleepmon.lpi_stats) {
+			accumulated = g_adspsleepmon.lpi_stats->accumulated;
+
+			if (g_adspsleepmon.lpi_stats->last_entered_at >
+						g_adspsleepmon.lpi_stats->last_exited_at)
+				accumulated += arch_timer_read_counter() -
+						g_adspsleepmon.lpi_stats->last_entered_at;
+
+			pr_info("\nLPI stats:\n\n");
+			pr_info("Count = %u\n", g_adspsleepmon.lpi_stats->count);
+			pr_info("Last Entered At = %llu\n",
+				g_adspsleepmon.lpi_stats->last_entered_at);
+			pr_info("Last Exited At = %llu\n",
+				g_adspsleepmon.lpi_stats->last_exited_at);
+			pr_info("Accumulated Duration = %llu\n",
+				accumulated);
+		} else {
+			pr_err("LPI Stats are not available\n");
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(adsp_sleepmon_log_master_stats);
+
 static int master_stats_show(struct seq_file *s, void *d)
 {
 	int i = 0;
@@ -814,15 +921,15 @@ static int master_stats_show(struct seq_file *s, void *d)
 	}
 	if (g_adspsleepmon.sysmon_event_stats) {
 		seq_puts(s, "\nsysMon stats:\n\n");
-		seq_printf(s, "Core clock: %d\n",
+		seq_printf(s, "Core clock(KHz): %d\n",
 				g_adspsleepmon.sysmon_event_stats->core_clk);
-		seq_printf(s, "Ab vote: %llu\n",
+		seq_printf(s, "Ab vote(Bytes): %llu\n",
 				(((u64)g_adspsleepmon.sysmon_event_stats->ab_vote_msb << 32) |
 					   g_adspsleepmon.sysmon_event_stats->ab_vote_lsb));
-		seq_printf(s, "Ib vote: %llu\n",
+		seq_printf(s, "Ib vote(Bytes): %llu\n",
 				(((u64)g_adspsleepmon.sysmon_event_stats->ib_vote_msb << 32) |
 					   g_adspsleepmon.sysmon_event_stats->ib_vote_lsb));
-		seq_printf(s, "Sleep latency: %u\n",
+		seq_printf(s, "Sleep latency(usec): %u\n",
 				g_adspsleepmon.sysmon_event_stats->sleep_latency > 0 ?
 				g_adspsleepmon.sysmon_event_stats->sleep_latency : U32_MAX);
 		seq_printf(s, "Timestamp: %llu\n",
@@ -833,7 +940,9 @@ static int master_stats_show(struct seq_file *s, void *d)
 	if (g_adspsleepmon.dsppm_stats) {
 		seq_puts(s, "\nDSPPM stats:\n\n");
 		seq_printf(s, "Version: %u\n", g_adspsleepmon.dsppm_stats->version);
-		seq_printf(s, "Sleep latency: %u\n", g_adspsleepmon.dsppm_stats->latency_us);
+		seq_printf(s, "Sleep latency(usec): %u\n",
+					g_adspsleepmon.dsppm_stats->latency_us ?
+					g_adspsleepmon.dsppm_stats->latency_us : U32_MAX);
 		seq_printf(s, "Timestamp: %llu\n", g_adspsleepmon.dsppm_stats->timestamp);
 
 		for (; i < ADSPSLEEPMON_DSPPMSTATS_NUMPD; i++) {
