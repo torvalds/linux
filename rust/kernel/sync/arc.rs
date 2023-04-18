@@ -185,7 +185,7 @@ impl<T> Arc<T> {
 
     /// Use the given initializer to in-place initialize a `T`.
     ///
-    /// This is equivalent to [`pin_init`], since an [`Arc`] is always pinned.
+    /// This is equivalent to [`Arc<T>::pin_init`], since an [`Arc`] is always pinned.
     #[inline]
     pub fn init<E>(init: impl Init<T, E>) -> error::Result<Self>
     where
