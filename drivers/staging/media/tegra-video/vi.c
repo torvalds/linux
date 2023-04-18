@@ -102,6 +102,7 @@ tegra_get_format_by_fourcc(struct tegra_vi *vi, u32 fourcc)
 /*
  * videobuf2 queue operations
  */
+
 static int tegra_channel_queue_setup(struct vb2_queue *vq,
 				     unsigned int *nbuffers,
 				     unsigned int *nplanes,
@@ -116,6 +117,9 @@ static int tegra_channel_queue_setup(struct vb2_queue *vq,
 	*nplanes = 1;
 	sizes[0] = chan->format.sizeimage;
 	alloc_devs[0] = chan->vi->dev;
+
+	if (chan->vi->ops->channel_queue_setup)
+		chan->vi->ops->channel_queue_setup(chan);
 
 	return 0;
 }
