@@ -4,6 +4,7 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_blend.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_vblank.h>
@@ -61,6 +62,8 @@ static int get_y_pos(struct vkms_frame_info *frame_info, int y)
 	switch (frame_info->rotation & DRM_MODE_ROTATE_MASK) {
 	case DRM_MODE_ROTATE_90:
 		return frame_info->rotated.x2 - y - 1;
+	case DRM_MODE_ROTATE_270:
+		return y + frame_info->rotated.x1;
 	default:
 		return y;
 	}
@@ -68,7 +71,7 @@ static int get_y_pos(struct vkms_frame_info *frame_info, int y)
 
 static bool check_limit(struct vkms_frame_info *frame_info, int pos)
 {
-	if (frame_info->rotation & DRM_MODE_ROTATE_90) {
+	if (drm_rotation_90_or_270(frame_info->rotation)) {
 		if (pos >= 0 && pos < drm_rect_width(&frame_info->rotated))
 			return true;
 	} else {
