@@ -205,7 +205,7 @@ properties:
               duplex is assumed.
 
           pause:
-            $ref: /schemas/types.yaml#definitions/flag
+            $ref: /schemas/types.yaml#/definitions/flag
             description:
               Indicates that pause should be enabled.
 
