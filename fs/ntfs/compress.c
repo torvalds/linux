@@ -161,7 +161,7 @@ static int ntfs_decompress(struct page *dest_pages[], int completed_pages[],
 	 */
 	u8 *cb_end = cb_start + cb_size; /* End of cb. */
 	u8 *cb = cb_start;	/* Current position in cb. */
-	u8 *cb_sb_start = cb;	/* Beginning of the current sb in the cb. */
+	u8 *cb_sb_start;	/* Beginning of the current sb in the cb. */
 	u8 *cb_sb_end;		/* End of current sb / beginning of next sb. */
 
 	/* Variables for uncompressed data / destination. */
