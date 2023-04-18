@@ -6,6 +6,7 @@
  * (C) 2008, 2009, 2010, 2011 by Marc Kleine-Budde <kernel@pengutronix.de>
  */
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/errno.h>
 #include <linux/ethtool.h>
@@ -63,6 +64,13 @@ enum at91_reg {
 #define AT91_MR_DRPT BIT(7)
 
 #define AT91_SR_RBSY BIT(29)
+
+#define AT91_BR_PHASE2_MASK GENMASK(2, 0)
+#define AT91_BR_PHASE1_MASK GENMASK(6, 4)
+#define AT91_BR_PROPAG_MASK GENMASK(10, 8)
+#define AT91_BR_SJW_MASK GENMASK(13, 12)
+#define AT91_BR_BRP_MASK GENMASK(22, 16)
+#define AT91_BR_SMP BIT(24)
 
 #define AT91_MMR_PRIO_SHIFT (16)
 
@@ -353,12 +361,16 @@ static int at91_set_bittiming(struct net_device *dev)
 {
 	const struct at91_priv *priv = netdev_priv(dev);
 	const struct can_bittiming *bt = &priv->can.bittiming;
-	u32 reg_br;
+	u32 reg_br = 0;
 
-	reg_br = ((priv->can.ctrlmode & CAN_CTRLMODE_3_SAMPLES) ? 1 << 24 : 0) |
-		((bt->brp - 1) << 16) | ((bt->sjw - 1) << 12) |
-		((bt->prop_seg - 1) << 8) | ((bt->phase_seg1 - 1) << 4) |
-		((bt->phase_seg2 - 1) << 0);
+	if (priv->can.ctrlmode & CAN_CTRLMODE_3_SAMPLES)
+		reg_br |= AT91_BR_SMP;
+
+	reg_br |= FIELD_PREP(AT91_BR_BRP_MASK, bt->brp - 1) |
+		FIELD_PREP(AT91_BR_SJW_MASK, bt->sjw - 1) |
+		FIELD_PREP(AT91_BR_PROPAG_MASK, bt->prop_seg - 1) |
+		FIELD_PREP(AT91_BR_PHASE1_MASK, bt->phase_seg1 - 1) |
+		FIELD_PREP(AT91_BR_PHASE2_MASK, bt->phase_seg2 - 1);
 
 	netdev_info(dev, "writing AT91_BR: 0x%08x\n", reg_br);
 
