@@ -1887,14 +1887,12 @@ static bool set_on_slab_cache(struct kmem_cache *cachep,
 	return true;
 }
 
-/**
+/*
  * __kmem_cache_create - Create a cache.
  * @cachep: cache management descriptor
  * @flags: SLAB flags
  *
- * Returns a ptr to the cache on success, NULL on failure.
- * Cannot be called within an int, but can be interrupted.
- * The @ctor is run when new pages are allocated by the cache.
+ * Returns zero on success, nonzero on failure.
  *
  * The flags are
  *
@@ -1907,8 +1905,6 @@ static bool set_on_slab_cache(struct kmem_cache *cachep,
  * %SLAB_HWCACHE_ALIGN - Align the objects in this cache to a hardware
  * cacheline.  This can be beneficial if you're counting cycles as closely
  * as davem.
- *
- * Return: a pointer to the created cache or %NULL in case of error
  */
 int __kmem_cache_create(struct kmem_cache *cachep, slab_flags_t flags)
 {
