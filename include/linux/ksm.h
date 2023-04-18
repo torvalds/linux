@@ -68,6 +68,11 @@ void folio_migrate_ksm(struct folio *newfolio, struct folio *folio);
 void collect_procs_ksm(struct page *page, struct list_head *to_kill,
 		       int force_early);
 #endif
+
+#ifdef CONFIG_PROC_FS
+long ksm_process_profit(struct mm_struct *);
+#endif /* CONFIG_PROC_FS */
+
 #else  /* !CONFIG_KSM */
 
 static inline void ksm_add_vma(struct vm_area_struct *vma)
