@@ -309,6 +309,7 @@
   devm_mfd_add_devices
   devm_mipi_dsi_attach
   devm_mipi_dsi_device_register_full
+  devm_nvmem_device_get
   devm_of_phy_get
   __devm_of_phy_provider_register
   devm_phy_create
@@ -317,9 +318,11 @@
   devm_phy_package_join
   devm_pinctrl_get
   devm_pinctrl_put
+  devm_pinctrl_register_and_init
   devm_platform_get_and_ioremap_resource
   devm_platform_ioremap_resource
   devm_platform_ioremap_resource_byname
+  devm_pwmchip_add
   devm_pwm_get
   devm_rc_allocate_device
   devm_rc_register_device
@@ -339,6 +342,9 @@
   devm_request_threaded_irq
   __devm_reset_control_get
   devm_reset_controller_register
+  devm_rtc_allocate_device
+  devm_rtc_device_register
+  __devm_rtc_register_device
   devm_snd_dmaengine_pcm_register
   devm_snd_soc_register_card
   devm_snd_soc_register_component
@@ -358,6 +364,9 @@
   devres_add
   __devres_alloc_node
   devres_free
+  devres_open_group
+  devres_release_group
+  devres_remove_group
   dev_set_name
   dev_to_i3cdev
   _dev_warn
@@ -1169,13 +1178,17 @@
   nsecs_to_jiffies
   ns_to_timespec64
   __num_online_cpus
+  nvmem_device_read
   nvmem_register
   nvmem_unregister
   of_address_to_resource
   of_alias_get_id
   of_can_transceiver
   of_clk_add_hw_provider
+  of_clk_add_provider
+  of_clk_del_provider
   of_clk_set_defaults
+  of_clk_src_simple_get
   of_count_phandle_with_args
   of_device_get_match_data
   of_device_is_available
@@ -1244,6 +1257,8 @@
   of_property_read_variable_u32_array
   of_property_read_variable_u8_array
   of_prop_next_string
+  of_pwm_xlate_with_flags
+  of_regulator_match
   of_reserved_mem_device_init_by_idx
   of_reserved_mem_lookup
   of_reset_control_array_get
@@ -1313,6 +1328,8 @@
   phy_modify_mmd_changed
   phy_modify_paged
   phy_modify_paged_changed
+  phy_pm_runtime_get_sync
+  phy_pm_runtime_put
   phy_power_off
   phy_power_on
   phy_read_mmd
@@ -1330,10 +1347,15 @@
   phy_write_mmd
   phy_write_paged
   pid_task
+  pinconf_generic_parse_dt_config
   pinctrl_dev_get_drvdata
   pinctrl_enable
   pinctrl_force_default
   pinctrl_force_sleep
+  pinctrl_generic_get_group
+  pinctrl_generic_get_group_count
+  pinctrl_generic_get_group_name
+  pinctrl_generic_get_group_pins
   pinctrl_gpio_direction_input
   pinctrl_gpio_direction_output
   pinctrl_lookup_state
@@ -1343,6 +1365,10 @@
   pinctrl_select_default_state
   pinctrl_select_state
   pin_get_name
+  pinmux_generic_get_function
+  pinmux_generic_get_function_count
+  pinmux_generic_get_function_groups
+  pinmux_generic_get_function_name
   pin_user_pages
   pin_user_pages_fast
   platform_device_add
@@ -1382,6 +1408,7 @@
   __pm_runtime_suspend
   __pm_runtime_use_autosuspend
   __pm_stay_awake
+  pm_suspend_target_state
   pm_system_wakeup
   pm_wakeup_dev_event
   pm_wakeup_ws_event
@@ -1467,6 +1494,7 @@
   regmap_field_read
   regmap_field_update_bits_base
   regmap_get_device
+  __regmap_init_mmio_clk
   regmap_irq_get_virq
   regmap_raw_write
   regmap_read
@@ -1478,6 +1506,7 @@
   regulator_bulk_enable
   regulator_bulk_free
   regulator_bulk_get
+  regulator_desc_list_voltage_linear_range
   regulator_disable
   regulator_disable_regmap
   regulator_enable
@@ -1489,8 +1518,12 @@
   regulator_list_voltage_linear
   regulator_list_voltage_linear_range
   regulator_list_voltage_table
+  regulator_map_voltage_ascend
   regulator_set_current_limit
+  regulator_set_ramp_delay_regmap
   regulator_set_voltage
+  regulator_set_voltage_sel_regmap
+  regulator_set_voltage_time_sel
   regulatory_hint
   regulatory_set_wiphy_regd_sync
   release_firmware
@@ -1510,14 +1543,18 @@
   reservation_ww_class
   reset_control_assert
   reset_control_deassert
+  reset_controller_register
+  reset_controller_unregister
   reset_control_put
   reset_control_reset
   rpmsg_create_channel
   rpmsg_create_ept
+  rpmsg_find_device
   rpmsg_register_device
   rpmsg_register_device_override
   rpmsg_release_channel
   rpmsg_send
+  rpmsg_sendto
   rpmsg_unregister_device
   rproc_add
   rproc_add_carveout
@@ -1871,6 +1908,7 @@
   unregister_netdevice_queue
   unregister_reboot_notifier
   unregister_rpmsg_driver
+  unregister_virtio_driver
   up
   up_read
   up_write
@@ -2047,6 +2085,10 @@
   videomode_from_timing
   __video_register_device
   video_unregister_device
+  virtio_check_driver_offered_feature
+  virtio_reset_device
+  virtqueue_add_inbuf
+  virtqueue_add_outbuf
   virtqueue_detach_unused_buf
   virtqueue_disable_cb
   virtqueue_enable_cb
