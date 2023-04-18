@@ -2598,6 +2598,7 @@ static int rtw89_mac_read_phycap(struct rtw89_dev *rtwdev,
 
 int rtw89_mac_setup_phycap(struct rtw89_dev *rtwdev)
 {
+	struct rtw89_efuse *efuse = &rtwdev->efuse;
 	struct rtw89_hal *hal = &rtwdev->hal;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_mac_c2h_info c2h_info = {0};
@@ -2629,6 +2630,13 @@ int rtw89_mac_setup_phycap(struct rtw89_dev *rtwdev)
 		hal->tx_path_diversity = true;
 	}
 
+	if (chip->rf_path_num == 1) {
+		hal->antenna_tx = RF_A;
+		hal->antenna_rx = RF_A;
+		if ((efuse->rfe_type % 3) == 2)
+			hal->ant_diversity = true;
+	}
+
 	rtw89_debug(rtwdev, RTW89_DBG_FW,
 		    "phycap hal/phy/chip: tx_nss=0x%x/0x%x/0x%x rx_nss=0x%x/0x%x/0x%x\n",
 		    hal->tx_nss, tx_nss, chip->tx_nss,
@@ -2637,6 +2645,7 @@ int rtw89_mac_setup_phycap(struct rtw89_dev *rtwdev)
 		    "ant num/bitmap: tx=%d/0x%x rx=%d/0x%x\n",
 		    tx_ant, hal->antenna_tx, rx_ant, hal->antenna_rx);
 	rtw89_debug(rtwdev, RTW89_DBG_FW, "TX path diversity=%d\n", hal->tx_path_diversity);
+	rtw89_debug(rtwdev, RTW89_DBG_FW, "Antenna diversity=%d\n", hal->ant_diversity);
 
 	return 0;
 }
