@@ -119,6 +119,10 @@ void vkms_compose_row(struct line_buffer *stage_buffer, struct vkms_plane_state 
 	for (size_t x = 0; x < limit; x++, src_pixels += frame_info->cpp) {
 		int x_pos = get_x_position(frame_info, limit, x);
 
+		if (frame_info->rotation & DRM_MODE_ROTATE_90)
+			src_pixels = get_packed_src_addr(frame_info, x + frame_info->rotated.y1)
+				+ frame_info->cpp * y;
+
 		plane->pixel_read(src_pixels, &out_pixels[x_pos]);
 	}
 }

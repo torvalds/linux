@@ -57,13 +57,24 @@ static int get_y_pos(struct vkms_frame_info *frame_info, int y)
 {
 	if (frame_info->rotation & DRM_MODE_REFLECT_Y)
 		return drm_rect_height(&frame_info->rotated) - y - 1;
-	return y;
+
+	switch (frame_info->rotation & DRM_MODE_ROTATE_MASK) {
+	case DRM_MODE_ROTATE_90:
+		return frame_info->rotated.x2 - y - 1;
+	default:
+		return y;
+	}
 }
 
-static bool check_y_limit(struct vkms_frame_info *frame_info, int y)
+static bool check_limit(struct vkms_frame_info *frame_info, int pos)
 {
-	if (y >= frame_info->rotated.y1 && y < frame_info->rotated.y2)
-		return true;
+	if (frame_info->rotation & DRM_MODE_ROTATE_90) {
+		if (pos >= 0 && pos < drm_rect_width(&frame_info->rotated))
+			return true;
+	} else {
+		if (pos >= frame_info->rotated.y1 && pos < frame_info->rotated.y2)
+			return true;
+	}
 
 	return false;
 }
@@ -106,7 +117,7 @@ static void blend(struct vkms_writeback_job *wb,
 		for (size_t i = 0; i < n_active_planes; i++) {
 			y_pos = get_y_pos(plane[i]->frame_info, y);
 
-			if (!check_y_limit(plane[i]->frame_info, y_pos))
+			if (!check_limit(plane[i]->frame_info, y_pos))
 				continue;
 
 			vkms_compose_row(stage_buffer, plane[i], y_pos);
