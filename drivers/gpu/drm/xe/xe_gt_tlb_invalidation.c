@@ -319,7 +319,12 @@ int xe_guc_tlb_invalidation_done_handler(struct xe_guc *guc, u32 *msg, u32 len)
 	/* Sanity check on seqno */
 	expected_seqno = (gt->tlb_invalidation.seqno_recv + 1) %
 		TLB_INVALIDATION_SEQNO_MAX;
-	XE_WARN_ON(expected_seqno != msg[0]);
+	if (!expected_seqno)
+		expected_seqno = 1;
+	if (drm_WARN_ON(&gt->xe->drm, expected_seqno != msg[0])) {
+		drm_err(&gt->xe->drm, "TLB expected_seqno(%d) != msg(%u)\n",
+			expected_seqno, msg[0]);
+	}
 
 	gt->tlb_invalidation.seqno_recv = msg[0];
 	smp_wmb();
