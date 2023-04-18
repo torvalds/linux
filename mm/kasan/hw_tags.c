@@ -225,7 +225,7 @@ static void init_vmalloc_pages(const void *start, unsigned long size)
 	const void *addr;
 
 	for (addr = start; addr < start + size; addr += PAGE_SIZE) {
-		struct page *page = virt_to_page(addr);
+		struct page *page = vmalloc_to_page(addr);
 
 		clear_highpage_kasan_tagged(page);
 	}
@@ -237,7 +237,7 @@ void *__kasan_unpoison_vmalloc(const void *start, unsigned long size,
 	u8 tag;
 	unsigned long redzone_start, redzone_size;
 
-	if (!kasan_vmalloc_enabled() || !is_vmalloc_or_module_addr(start)) {
+	if (!kasan_vmalloc_enabled()) {
 		if (flags & KASAN_VMALLOC_INIT)
 			init_vmalloc_pages(start, size);
 		return (void *)start;
