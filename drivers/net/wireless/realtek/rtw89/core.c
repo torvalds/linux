@@ -1247,13 +1247,16 @@ static void rtw89_core_rx_process_phy_ppdu_iter(void *data,
 	struct rtw89_hal *hal = &rtwdev->hal;
 	u8 ant_num = hal->ant_diversity ? 2 : rtwdev->chip->rf_path_num;
 	u8 ant_pos = U8_MAX;
+	u8 evm_pos = 0;
 	int i;
 
 	if (rtwsta->mac_id != phy_ppdu->mac_id || !phy_ppdu->to_self)
 		return;
 
-	if (hal->ant_diversity && hal->antenna_rx)
+	if (hal->ant_diversity && hal->antenna_rx) {
 		ant_pos = __ffs(hal->antenna_rx);
+		evm_pos = ant_pos;
+	}
 
 	ewma_rssi_add(&rtwsta->avg_rssi, phy_ppdu->rssi_avg);
 
@@ -1262,6 +1265,12 @@ static void rtw89_core_rx_process_phy_ppdu_iter(void *data,
 	} else {
 		for (i = 0; i < rtwdev->chip->rf_path_num; i++)
 			ewma_rssi_add(&rtwsta->rssi[i], phy_ppdu->rssi[i]);
+	}
+
+	if (phy_ppdu->ofdm.has) {
+		ewma_snr_add(&rtwsta->avg_snr, phy_ppdu->ofdm.avg_snr);
+		ewma_evm_add(&rtwsta->evm_min[evm_pos], phy_ppdu->ofdm.evm_min);
+		ewma_evm_add(&rtwsta->evm_max[evm_pos], phy_ppdu->ofdm.evm_max);
 	}
 }
 
@@ -1299,6 +1308,11 @@ static void rtw89_core_parse_phy_status_ie01(struct rtw89_dev *rtwdev, u8 *addr,
 
 	if (!phy_ppdu->to_self)
 		return;
+
+	phy_ppdu->ofdm.avg_snr = le32_get_bits(ie->w2, RTW89_PHY_STS_IE01_W2_AVG_SNR);
+	phy_ppdu->ofdm.evm_max = le32_get_bits(ie->w2, RTW89_PHY_STS_IE01_W2_EVM_MAX);
+	phy_ppdu->ofdm.evm_min = le32_get_bits(ie->w2, RTW89_PHY_STS_IE01_W2_EVM_MIN);
+	phy_ppdu->ofdm.has = true;
 
 	/* sign conversion for S(12,2) */
 	if (rtwdev->chip->cfo_src_fd) {
@@ -1350,9 +1364,6 @@ static int rtw89_core_rx_process_phy_ppdu(struct rtw89_dev *rtwdev,
 		return -EINVAL;
 	}
 	rtw89_core_update_phy_ppdu(phy_ppdu);
-	ieee80211_iterate_stations_atomic(rtwdev->hw,
-					  rtw89_core_rx_process_phy_ppdu_iter,
-					  phy_ppdu);
 
 	return 0;
 }
@@ -1393,6 +1404,10 @@ static void rtw89_core_rx_process_phy_sts(struct rtw89_dev *rtwdev,
 		rtw89_debug(rtwdev, RTW89_DBG_TXRX, "parse phy sts failed\n");
 	else
 		phy_ppdu->valid = true;
+
+	ieee80211_iterate_stations_atomic(rtwdev->hw,
+					  rtw89_core_rx_process_phy_ppdu_iter,
+					  phy_ppdu);
 }
 
 static u8 rtw89_rxdesc_to_nl_he_gi(struct rtw89_dev *rtwdev,
@@ -2791,8 +2806,12 @@ int rtw89_core_sta_add(struct rtw89_dev *rtwdev,
 		rtw89_core_txq_init(rtwdev, sta->txq[i]);
 
 	ewma_rssi_init(&rtwsta->avg_rssi);
-	for (i = 0; i < ant_num; i++)
+	ewma_snr_init(&rtwsta->avg_snr);
+	for (i = 0; i < ant_num; i++) {
 		ewma_rssi_init(&rtwsta->rssi[i]);
+		ewma_evm_init(&rtwsta->evm_min[i]);
+		ewma_evm_init(&rtwsta->evm_max[i]);
+	}
 
 	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls) {
 		/* for station mode, assign the mac_id from itself */

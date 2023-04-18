@@ -551,6 +551,12 @@ struct rtw89_rx_phy_ppdu {
 	u8 chan_idx;
 	u8 ie;
 	u16 rate;
+	struct {
+		bool has;
+		u8 avg_snr;
+		u8 evm_max;
+		u8 evm_min;
+	} ofdm;
 	bool to_self;
 	bool valid;
 };
@@ -2533,6 +2539,8 @@ struct rtw89_ra_report {
 };
 
 DECLARE_EWMA(rssi, 10, 16);
+DECLARE_EWMA(evm, 10, 16);
+DECLARE_EWMA(snr, 10, 16);
 
 struct rtw89_ba_cam_entry {
 	struct list_head list;
@@ -2595,6 +2603,9 @@ struct rtw89_sta {
 	u8 prev_rssi;
 	struct ewma_rssi avg_rssi;
 	struct ewma_rssi rssi[RF_PATH_MAX];
+	struct ewma_snr avg_snr;
+	struct ewma_evm evm_min[RF_PATH_MAX];
+	struct ewma_evm evm_max[RF_PATH_MAX];
 	struct rtw89_ampdu_params ampdu_params[IEEE80211_NUM_TIDS];
 	struct ieee80211_rx_status rx_status;
 	u16 rx_hw_rate;

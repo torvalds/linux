@@ -3208,7 +3208,9 @@ static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
 	struct rtw89_hal *hal = &rtwdev->hal;
 	u8 ant_num = hal->ant_diversity ? 2 : rtwdev->chip->rf_path_num;
 	bool ant_asterisk = hal->tx_path_diversity || hal->ant_diversity;
+	u8 evm_min, evm_max;
 	u8 rssi;
+	u8 snr;
 	int i;
 
 	seq_printf(m, "TX rate [%d]: ", rtwsta->mac_id);
@@ -3265,6 +3267,20 @@ static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
 			   i + 1 == ant_num ? "" : ", ");
 	}
 	seq_puts(m, "]\n");
+
+	seq_puts(m, "EVM: [");
+	for (i = 0; i < (hal->ant_diversity ? 2 : 1); i++) {
+		evm_min = ewma_evm_read(&rtwsta->evm_min[i]);
+		evm_max = ewma_evm_read(&rtwsta->evm_max[i]);
+
+		seq_printf(m, "%s(%2u.%02u, %2u.%02u)", i == 0 ? "" : " ",
+			   evm_min >> 2, (evm_min & 0x3) * 25,
+			   evm_max >> 2, (evm_max & 0x3) * 25);
+	}
+	seq_puts(m, "]\t");
+
+	snr = ewma_snr_read(&rtwsta->avg_snr);
+	seq_printf(m, "SNR: %u\n", snr);
 }
 
 static void
