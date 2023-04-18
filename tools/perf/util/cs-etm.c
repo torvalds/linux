@@ -885,9 +885,11 @@ static u32 cs_etm__mem_access(struct cs_etm_queue *etmq, u8 trace_chan_id,
 		thread = etmq->etm->unknown_thread;
 	}
 
-	dso = map__dso(al.map);
+	if (!thread__find_map(thread, cpumode, address, &al))
+		return 0;
 
-	if (!thread__find_map(thread, cpumode, address, &al) || !dso)
+	dso = map__dso(al.map);
+	if (!dso)
 		return 0;
 
 	if (dso->data.status == DSO_DATA_STATUS_ERROR &&
