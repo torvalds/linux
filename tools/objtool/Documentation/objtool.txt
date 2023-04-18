@@ -303,6 +303,12 @@ the objtool maintainers.
    If it's not actually in a callable function (e.g. kernel entry code),
    change ENDPROC to END.
 
+3. file.o: warning: objtool: foo+0x48c: bar() is missing a __noreturn annotation
+
+   The call from foo() to bar() doesn't return, but bar() is missing the
+   __noreturn annotation.  NOTE: In addition to adding the __noreturn
+   annotation, the function name also needs to be added to
+   'global_noreturns' in tools/objtool/check.c.
 
 4. file.o: warning: objtool: func(): can't find starting instruction
    or
