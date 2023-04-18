@@ -180,13 +180,13 @@ static struct rxe_send_wqe *req_next_wqe(struct rxe_qp *qp)
 	if (wqe == NULL)
 		return NULL;
 
-	spin_lock(&qp->state_lock);
+	spin_lock_bh(&qp->state_lock);
 	if (unlikely((qp_state(qp) == IB_QPS_SQD) &&
 		     (wqe->state != wqe_state_processing))) {
-		spin_unlock(&qp->state_lock);
+		spin_unlock_bh(&qp->state_lock);
 		return NULL;
 	}
-	spin_unlock(&qp->state_lock);
+	spin_unlock_bh(&qp->state_lock);
 
 	wqe->mask = wr_opcode_mask(wqe->wr.opcode, qp);
 	return wqe;
