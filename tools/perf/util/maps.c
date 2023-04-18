@@ -12,13 +12,13 @@
 
 static void maps__init(struct maps *maps, struct machine *machine)
 {
+	refcount_set(maps__refcnt(maps), 1);
 	maps->entries = RB_ROOT;
 	init_rwsem(maps__lock(maps));
 	maps->machine = machine;
 	maps->last_search_by_name = NULL;
 	maps->nr_maps = 0;
 	maps->maps_by_name = NULL;
-	refcount_set(&maps->refcnt, 1);
 }
 
 static void __maps__free_maps_by_name(struct maps *maps)
@@ -180,14 +180,14 @@ void maps__delete(struct maps *maps)
 struct maps *maps__get(struct maps *maps)
 {
 	if (maps)
-		refcount_inc(&maps->refcnt);
+		refcount_inc(maps__refcnt(maps));
 
 	return maps;
 }
 
 void maps__put(struct maps *maps)
 {
-	if (maps && refcount_dec_and_test(&maps->refcnt))
+	if (maps && refcount_dec_and_test(maps__refcnt(maps)))
 		maps__delete(maps);
 }
 

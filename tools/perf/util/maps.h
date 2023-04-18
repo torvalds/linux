@@ -88,6 +88,11 @@ static inline unsigned int maps__nr_maps(const struct maps *maps)
 	return maps->nr_maps;
 }
 
+static inline refcount_t *maps__refcnt(struct maps *maps)
+{
+	return &maps->refcnt;
+}
+
 #ifdef HAVE_LIBUNWIND_SUPPORT
 static inline void *maps__addr_space(struct maps *maps)
 {
