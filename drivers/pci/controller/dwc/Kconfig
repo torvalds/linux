@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
-menu "DesignWare PCI Core Support"
+menu "DesignWare-based PCIe controllers"
 	depends on PCI
 
 config PCIE_DW
@@ -18,7 +18,7 @@ config PCI_DRA7XX
 	tristate
 
 config PCI_DRA7XX_HOST
-	tristate "TI DRA7xx PCIe controller Host Mode"
+	tristate "TI DRA7xx PCIe controller (host mode)"
 	depends on SOC_DRA7XX || COMPILE_TEST
 	depends on OF && HAS_IOMEM && TI_PIPE3
 	depends on PCI_MSI
@@ -34,7 +34,7 @@ config PCI_DRA7XX_HOST
 	  This uses the DesignWare core.
 
 config PCI_DRA7XX_EP
-	tristate "TI DRA7xx PCIe controller Endpoint Mode"
+	tristate "TI DRA7xx PCIe controller (endpoint mode)"
 	depends on SOC_DRA7XX || COMPILE_TEST
 	depends on OF && HAS_IOMEM && TI_PIPE3
 	depends on PCI_ENDPOINT
@@ -52,7 +52,7 @@ config PCIE_DW_PLAT
 	bool
 
 config PCIE_DW_PLAT_HOST
-	bool "Platform bus based DesignWare PCIe Controller - Host mode"
+	bool "Platform bus based DesignWare PCIe controller (host mode)"
 	depends on PCI_MSI
 	select PCIE_DW_HOST
 	select PCIE_DW_PLAT
@@ -66,7 +66,7 @@ config PCIE_DW_PLAT_HOST
 	  selected.
 
 config PCIE_DW_PLAT_EP
-	bool "Platform bus based DesignWare PCIe Controller - Endpoint mode"
+	bool "Platform bus based DesignWare PCIe controller (endpoint mode)"
 	depends on PCI && PCI_MSI
 	depends on PCI_ENDPOINT
 	select PCIE_DW_EP
@@ -95,7 +95,7 @@ config PCI_IMX6
 	bool
 
 config PCI_IMX6_HOST
-	bool "Freescale i.MX6/7/8 PCIe controller host mode"
+	bool "Freescale i.MX6/7/8 PCIe controller (host mode)"
 	depends on ARCH_MXC || COMPILE_TEST
 	depends on PCI_MSI
 	select PCIE_DW_HOST
@@ -107,7 +107,7 @@ config PCI_IMX6_HOST
 	  DesignWare core functions to implement the driver.
 
 config PCI_IMX6_EP
-	bool "Freescale i.MX6/7/8 PCIe controller endpoint mode"
+	bool "Freescale i.MX6/7/8 PCIe controller (endpoint mode)"
 	depends on ARCH_MXC || COMPILE_TEST
 	depends on PCI_ENDPOINT
 	select PCIE_DW_EP
@@ -130,7 +130,7 @@ config PCI_KEYSTONE
 	bool
 
 config PCI_KEYSTONE_HOST
-	bool "PCI Keystone Host Mode"
+	bool "TI Keystone PCIe controller (host mode)"
 	depends on ARCH_KEYSTONE || ARCH_K3 || COMPILE_TEST
 	depends on PCI_MSI
 	select PCIE_DW_HOST
@@ -142,7 +142,7 @@ config PCI_KEYSTONE_HOST
 	  DesignWare core functions to implement the driver.
 
 config PCI_KEYSTONE_EP
-	bool "PCI Keystone Endpoint Mode"
+	bool "TI Keystone PCIe controller (endpoint mode)"
 	depends on ARCH_KEYSTONE || ARCH_K3 || COMPILE_TEST
 	depends on PCI_ENDPOINT
 	select PCIE_DW_EP
@@ -154,7 +154,7 @@ config PCI_KEYSTONE_EP
 	  DesignWare core functions to implement the driver.
 
 config PCI_LAYERSCAPE
-	bool "Freescale Layerscape PCIe controller - Host mode"
+	bool "Freescale Layerscape PCIe controller (host mode)"
 	depends on OF && (ARM || ARCH_LAYERSCAPE || COMPILE_TEST)
 	depends on PCI_MSI
 	select PCIE_DW_HOST
@@ -167,7 +167,7 @@ config PCI_LAYERSCAPE
 	  controller works in RC mode.
 
 config PCI_LAYERSCAPE_EP
-	bool "Freescale Layerscape PCIe controller - Endpoint mode"
+	bool "Freescale Layerscape PCIe controller (endpoint mode)"
 	depends on OF && (ARM || ARCH_LAYERSCAPE || COMPILE_TEST)
 	depends on PCI_ENDPOINT
 	select PCIE_DW_EP
@@ -180,7 +180,7 @@ config PCI_LAYERSCAPE_EP
 
 config PCI_HISI
 	depends on OF && (ARM64 || COMPILE_TEST)
-	bool "HiSilicon Hip05 and Hip06 SoCs PCIe controllers"
+	bool "HiSilicon Hip05 and Hip06 SoCs PCIe controller"
 	depends on PCI_MSI
 	select PCIE_DW_HOST
 	select PCI_HOST_COMMON
@@ -189,7 +189,7 @@ config PCI_HISI
 	  Hip05 and Hip06 SoCs
 
 config PCIE_QCOM
-	bool "Qualcomm PCIe controller"
+	bool "Qualcomm PCIe controller (host mode)"
 	depends on OF && (ARCH_QCOM || COMPILE_TEST)
 	depends on PCI_MSI
 	select PCIE_DW_HOST
@@ -200,7 +200,7 @@ config PCIE_QCOM
 	  hardware wrappers.
 
 config PCIE_QCOM_EP
-	tristate "Qualcomm PCIe controller - Endpoint mode"
+	tristate "Qualcomm PCIe controller (endpoint mode)"
 	depends on OF && (ARCH_QCOM || COMPILE_TEST)
 	depends on PCI_ENDPOINT
 	select PCIE_DW_EP
@@ -224,7 +224,7 @@ config PCIE_ARTPEC6
 	bool
 
 config PCIE_ARTPEC6_HOST
-	bool "Axis ARTPEC-6 PCIe controller Host Mode"
+	bool "Axis ARTPEC-6 PCIe controller (host mode)"
 	depends on MACH_ARTPEC6 || COMPILE_TEST
 	depends on PCI_MSI
 	select PCIE_DW_HOST
@@ -234,7 +234,7 @@ config PCIE_ARTPEC6_HOST
 	  host mode. This uses the DesignWare core.
 
 config PCIE_ARTPEC6_EP
-	bool "Axis ARTPEC-6 PCIe controller Endpoint Mode"
+	bool "Axis ARTPEC-6 PCIe controller (endpoint mode)"
 	depends on MACH_ARTPEC6 || COMPILE_TEST
 	depends on PCI_ENDPOINT
 	select PCIE_DW_EP
@@ -264,7 +264,7 @@ config PCIE_ROCKCHIP_DW_HOST
 	  Rockchip SoC except RK3399.
 
 config PCIE_INTEL_GW
-	bool "Intel Gateway PCIe host controller support"
+	bool "Intel Gateway PCIe controller "
 	depends on OF && (X86 || COMPILE_TEST)
 	depends on PCI_MSI
 	select PCIE_DW_HOST
@@ -278,7 +278,7 @@ config PCIE_KEEMBAY
 	bool
 
 config PCIE_KEEMBAY_HOST
-	bool "Intel Keem Bay PCIe controller - Host mode"
+	bool "Intel Keem Bay PCIe controller (host mode)"
 	depends on ARCH_KEEMBAY || COMPILE_TEST
 	depends on PCI_MSI
 	select PCIE_DW_HOST
@@ -290,7 +290,7 @@ config PCIE_KEEMBAY_HOST
 	  DesignWare core functions.
 
 config PCIE_KEEMBAY_EP
-	bool "Intel Keem Bay PCIe controller - Endpoint mode"
+	bool "Intel Keem Bay PCIe controller (endpoint mode)"
 	depends on ARCH_KEEMBAY || COMPILE_TEST
 	depends on PCI_MSI
 	depends on PCI_ENDPOINT
@@ -304,7 +304,7 @@ config PCIE_KEEMBAY_EP
 
 config PCIE_KIRIN
 	depends on OF && (ARM64 || COMPILE_TEST)
-	tristate "HiSilicon Kirin series SoCs PCIe controllers"
+	tristate "HiSilicon Kirin PCIe controller"
 	depends on PCI_MSI
 	select PCIE_DW_HOST
 	select REGMAP_MMIO
@@ -313,7 +313,7 @@ config PCIE_KIRIN
 	  on HiSilicon Kirin series SoCs.
 
 config PCIE_HISI_STB
-	bool "HiSilicon STB SoCs PCIe controllers"
+	bool "HiSilicon STB PCIe controller"
 	depends on ARCH_HISI || COMPILE_TEST
 	depends on PCI_MSI
 	select PCIE_DW_HOST
@@ -335,7 +335,7 @@ config PCIE_TEGRA194
 	tristate
 
 config PCIE_TEGRA194_HOST
-	tristate "NVIDIA Tegra194 (and later) PCIe controller - Host Mode"
+	tristate "NVIDIA Tegra194 (and later) PCIe controller (host mode)"
 	depends on ARCH_TEGRA_194_SOC || COMPILE_TEST
 	depends on PCI_MSI
 	select PCIE_DW_HOST
@@ -350,7 +350,7 @@ config PCIE_TEGRA194_HOST
 	  selected. This uses the DesignWare core.
 
 config PCIE_TEGRA194_EP
-	tristate "NVIDIA Tegra194 (and later) PCIe controller - Endpoint Mode"
+	tristate "NVIDIA Tegra194 (and later) PCIe controller (endpoint mode)"
 	depends on ARCH_TEGRA_194_SOC || COMPILE_TEST
 	depends on PCI_ENDPOINT
 	select PCIE_DW_EP
@@ -365,7 +365,7 @@ config PCIE_TEGRA194_EP
 	  selected. This uses the DesignWare core.
 
 config PCIE_VISCONTI_HOST
-	bool "Toshiba Visconti PCIe controllers"
+	bool "Toshiba Visconti PCIe controller"
 	depends on ARCH_VISCONTI || COMPILE_TEST
 	depends on PCI_MSI
 	select PCIE_DW_HOST
@@ -374,7 +374,7 @@ config PCIE_VISCONTI_HOST
 	  This driver supports TMPV7708 SoC.
 
 config PCIE_UNIPHIER
-	bool "Socionext UniPhier PCIe host controllers"
+	bool "Socionext UniPhier PCIe controller (host mode)"
 	depends on ARCH_UNIPHIER || COMPILE_TEST
 	depends on OF && HAS_IOMEM
 	depends on PCI_MSI
@@ -384,7 +384,7 @@ config PCIE_UNIPHIER
 	  This driver supports LD20 and PXs3 SoCs.
 
 config PCIE_UNIPHIER_EP
-	bool "Socionext UniPhier PCIe endpoint controllers"
+	bool "Socionext UniPhier PCIe controller (endpoint mode)"
 	depends on ARCH_UNIPHIER || COMPILE_TEST
 	depends on OF && HAS_IOMEM
 	depends on PCI_ENDPOINT
@@ -407,7 +407,7 @@ config PCIE_AL
 	  Annapurna Labs PCIe controller don't need to enable this.
 
 config PCIE_FU740
-	bool "SiFive FU740 PCIe host controller"
+	bool "SiFive FU740 PCIe controller"
 	depends on PCI_MSI
 	depends on SOC_SIFIVE || COMPILE_TEST
 	select PCIE_DW_HOST

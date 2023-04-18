@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
-menu "Mobiveil PCIe Core Support"
+menu "Mobiveil-based PCIe controllers"
 	depends on PCI
 
 config PCIE_MOBIVEIL
@@ -23,7 +23,7 @@ config PCIE_MOBIVEIL_PLAT
 	  for address translation and it is a PCIe Gen4 IP.
 
 config PCIE_LAYERSCAPE_GEN4
-	bool "Freescale Layerscape PCIe Gen4 controller"
+	bool "Freescale Layerscape Gen4 PCIe controller"
 	depends on ARCH_LAYERSCAPE || COMPILE_TEST
 	depends on PCI_MSI
 	select PCIE_MOBIVEIL_HOST
