@@ -26,7 +26,7 @@ config CLK_STARFIVE_JH7110_SYS
 	depends on ARCH_STARFIVE || COMPILE_TEST
 	select AUXILIARY_BUS
 	select CLK_STARFIVE_JH71X0
-	select RESET_STARFIVE_JH7110
+	select RESET_STARFIVE_JH7110 if RESET_CONTROLLER
 	default ARCH_STARFIVE
 	help
 	  Say yes here to support the system clock controller on the
@@ -35,9 +35,6 @@ config CLK_STARFIVE_JH7110_SYS
 config CLK_STARFIVE_JH7110_AON
 	tristate "StarFive JH7110 always-on clock support"
 	depends on CLK_STARFIVE_JH7110_SYS
-	select AUXILIARY_BUS
-	select CLK_STARFIVE_JH71X0
-	select RESET_STARFIVE_JH7110
 	default m if ARCH_STARFIVE
 	help
 	  Say yes here to support the always-on clock controller on the
