@@ -3425,26 +3425,31 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	switch (eventType) {
 
 	case HW_EVENT_SAS_PHY_UP:
-		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_PHY_START_STATUS\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			   "HW_EVENT_SAS_PHY_UP phyid:%#x\n", phy_id);
 		hw_event_sas_phy_up(pm8001_ha, piomb);
 		break;
 	case HW_EVENT_SATA_PHY_UP:
-		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_SATA_PHY_UP\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			   "HW_EVENT_SATA_PHY_UP phyid:%#x\n", phy_id);
 		hw_event_sata_phy_up(pm8001_ha, piomb);
 		break;
 	case HW_EVENT_SATA_SPINUP_HOLD:
-		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_SATA_SPINUP_HOLD\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			   "HW_EVENT_SATA_SPINUP_HOLD phyid:%#x\n", phy_id);
 		sas_notify_phy_event(&phy->sas_phy, PHYE_SPINUP_HOLD,
 			GFP_ATOMIC);
 		break;
 	case HW_EVENT_PHY_DOWN:
-		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_PHY_DOWN\n");
+		pm8001_dbg(pm8001_ha, EVENT, "HW_EVENT_PHY_DOWN phyid:%#x\n",
+			   phy_id);
 		hw_event_phy_down(pm8001_ha, piomb);
 		phy->phy_attached = 0;
 		phy->phy_state = PHY_LINK_DISABLE;
 		break;
 	case HW_EVENT_PORT_INVALID:
-		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_PORT_INVALID\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			   "HW_EVENT_PORT_INVALID phyid:%#x\n", phy_id);
 		sas_phy_disconnected(sas_phy);
 		phy->phy_attached = 0;
 		sas_notify_port_event(sas_phy, PORTE_LINK_RESET_ERR,
@@ -3463,7 +3468,8 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			GFP_ATOMIC);
 		break;
 	case HW_EVENT_PHY_ERROR:
-		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_PHY_ERROR\n");
+		pm8001_dbg(pm8001_ha, EVENT, "HW_EVENT_PHY_ERROR phyid:%#x\n",
+			   phy_id);
 		sas_phy_disconnected(&phy->sas_phy);
 		phy->phy_attached = 0;
 		sas_notify_phy_event(&phy->sas_phy, PHYE_OOB_ERROR, GFP_ATOMIC);
@@ -3477,34 +3483,39 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			GFP_ATOMIC);
 		break;
 	case HW_EVENT_LINK_ERR_INVALID_DWORD:
-		pm8001_dbg(pm8001_ha, MSG,
-			   "HW_EVENT_LINK_ERR_INVALID_DWORD\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			   "HW_EVENT_LINK_ERR_INVALID_DWORD phyid:%#x\n",
+			   phy_id);
 		pm80xx_hw_event_ack_req(pm8001_ha, 0,
 			HW_EVENT_LINK_ERR_INVALID_DWORD, port_id, phy_id, 0, 0);
 		break;
 	case HW_EVENT_LINK_ERR_DISPARITY_ERROR:
-		pm8001_dbg(pm8001_ha, MSG,
-			   "HW_EVENT_LINK_ERR_DISPARITY_ERROR\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			   "HW_EVENT_LINK_ERR_DISPARITY_ERROR phyid:%#x\n",
+			   phy_id);
 		pm80xx_hw_event_ack_req(pm8001_ha, 0,
 			HW_EVENT_LINK_ERR_DISPARITY_ERROR,
 			port_id, phy_id, 0, 0);
 		break;
 	case HW_EVENT_LINK_ERR_CODE_VIOLATION:
-		pm8001_dbg(pm8001_ha, MSG,
-			   "HW_EVENT_LINK_ERR_CODE_VIOLATION\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			   "HW_EVENT_LINK_ERR_CODE_VIOLATION phyid:%#x\n",
+			   phy_id);
 		pm80xx_hw_event_ack_req(pm8001_ha, 0,
 			HW_EVENT_LINK_ERR_CODE_VIOLATION,
 			port_id, phy_id, 0, 0);
 		break;
 	case HW_EVENT_LINK_ERR_LOSS_OF_DWORD_SYNCH:
-		pm8001_dbg(pm8001_ha, MSG,
-			   "HW_EVENT_LINK_ERR_LOSS_OF_DWORD_SYNCH\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			   "HW_EVENT_LINK_ERR_LOSS_OF_DWORD_SYNCH phyid:%#x\n",
+			   phy_id);
 		pm80xx_hw_event_ack_req(pm8001_ha, 0,
 			HW_EVENT_LINK_ERR_LOSS_OF_DWORD_SYNCH,
 			port_id, phy_id, 0, 0);
 		break;
 	case HW_EVENT_MALFUNCTION:
-		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_MALFUNCTION\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			   "HW_EVENT_MALFUNCTION phyid:%#x\n", phy_id);
 		break;
 	case HW_EVENT_BROADCAST_SES:
 		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_BROADCAST_SES\n");
@@ -3515,25 +3526,29 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			GFP_ATOMIC);
 		break;
 	case HW_EVENT_INBOUND_CRC_ERROR:
-		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_INBOUND_CRC_ERROR\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			   "HW_EVENT_INBOUND_CRC_ERROR phyid:%#x\n", phy_id);
 		pm80xx_hw_event_ack_req(pm8001_ha, 0,
 			HW_EVENT_INBOUND_CRC_ERROR,
 			port_id, phy_id, 0, 0);
 		break;
 	case HW_EVENT_HARD_RESET_RECEIVED:
-		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_HARD_RESET_RECEIVED\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			   "HW_EVENT_HARD_RESET_RECEIVED phyid:%#x\n", phy_id);
 		sas_notify_port_event(sas_phy, PORTE_HARD_RESET, GFP_ATOMIC);
 		break;
 	case HW_EVENT_ID_FRAME_TIMEOUT:
-		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_ID_FRAME_TIMEOUT\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			   "HW_EVENT_ID_FRAME_TIMEOUT phyid:%#x\n", phy_id);
 		sas_phy_disconnected(sas_phy);
 		phy->phy_attached = 0;
 		sas_notify_port_event(sas_phy, PORTE_LINK_RESET_ERR,
 			GFP_ATOMIC);
 		break;
 	case HW_EVENT_LINK_ERR_PHY_RESET_FAILED:
-		pm8001_dbg(pm8001_ha, MSG,
-			   "HW_EVENT_LINK_ERR_PHY_RESET_FAILED\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			   "HW_EVENT_LINK_ERR_PHY_RESET_FAILED phyid:%#x\n",
+			   phy_id);
 		pm80xx_hw_event_ack_req(pm8001_ha, 0,
 			HW_EVENT_LINK_ERR_PHY_RESET_FAILED,
 			port_id, phy_id, 0, 0);
@@ -3543,7 +3558,9 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			GFP_ATOMIC);
 		break;
 	case HW_EVENT_PORT_RESET_TIMER_TMO:
-		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_PORT_RESET_TIMER_TMO\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			   "HW_EVENT_PORT_RESET_TIMER_TMO phyid:%#x\n",
+			   phy_id);
 		if (!pm8001_ha->phy[phy_id].reset_completion) {
 			pm80xx_hw_event_ack_req(pm8001_ha, 0, HW_EVENT_PHY_DOWN,
 				port_id, phy_id, 0, 0);
@@ -3560,8 +3577,9 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		}
 		break;
 	case HW_EVENT_PORT_RECOVERY_TIMER_TMO:
-		pm8001_dbg(pm8001_ha, MSG,
-			   "HW_EVENT_PORT_RECOVERY_TIMER_TMO\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			   "HW_EVENT_PORT_RECOVERY_TIMER_TMO phyid:%#x\n",
+			   phy_id);
 		pm80xx_hw_event_ack_req(pm8001_ha, 0,
 			HW_EVENT_PORT_RECOVERY_TIMER_TMO,
 			port_id, phy_id, 0, 0);
@@ -3575,11 +3593,15 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		}
 		break;
 	case HW_EVENT_PORT_RECOVER:
-		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_PORT_RECOVER\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			   "HW_EVENT_PORT_RECOVER phyid:%#x port_id:%#x\n",
+			   phy_id, port_id);
 		hw_event_port_recover(pm8001_ha, piomb);
 		break;
 	case HW_EVENT_PORT_RESET_COMPLETE:
-		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_PORT_RESET_COMPLETE\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			   "HW_EVENT_PORT_RESET_COMPLETE phyid:%#x port_id:%#x\n",
+			   phy_id, port_id);
 		if (pm8001_ha->phy[phy_id].reset_completion) {
 			pm8001_ha->phy[phy_id].port_reset_status =
 					PORT_RESET_SUCCESS;
