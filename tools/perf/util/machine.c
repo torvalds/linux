@@ -435,7 +435,7 @@ static struct thread *findnew_guest_code(struct machine *machine,
 		return NULL;
 
 	/* Assume maps are set up if there are any */
-	if (thread->maps->nr_maps)
+	if (maps__nr_maps(thread->maps))
 		return thread;
 
 	host_thread = machine__find_thread(host_machine, -1, pid);
