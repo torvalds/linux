@@ -1464,7 +1464,7 @@ tegra_vi_graph_find_entity(struct tegra_vi_channel *chan,
 	struct tegra_vi_graph_entity *entity;
 	struct v4l2_async_connection *asd;
 
-	list_for_each_entry(asd, &chan->notifier.asc_list, asc_entry) {
+	list_for_each_entry(asd, &chan->notifier.done_list, asc_entry) {
 		entity = to_tegra_vi_graph_entity(asd);
 		if (entity->asd.match.fwnode == fwnode)
 			return entity;
@@ -1608,7 +1608,7 @@ static int tegra_vi_graph_notify_complete(struct v4l2_async_notifier *notifier)
 	}
 
 	/* create links between the entities */
-	list_for_each_entry(asd, &chan->notifier.asc_list, asc_entry) {
+	list_for_each_entry(asd, &chan->notifier.done_list, asc_entry) {
 		entity = to_tegra_vi_graph_entity(asd);
 		ret = tegra_vi_graph_build(chan, entity);
 		if (ret < 0)
@@ -1775,7 +1775,7 @@ static int tegra_vi_graph_init(struct tegra_vi *vi)
 
 		ret = tegra_vi_graph_parse_one(chan, remote);
 		fwnode_handle_put(remote);
-		if (ret < 0 || list_empty(&chan->notifier.asc_list))
+		if (ret < 0 || list_empty(&chan->notifier.waiting_list))
 			continue;
 
 		chan->notifier.ops = &tegra_vi_async_ops;

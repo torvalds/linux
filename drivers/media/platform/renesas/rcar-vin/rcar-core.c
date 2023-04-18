@@ -395,7 +395,7 @@ static int rvin_group_notifier_init(struct rvin_dev *vin, unsigned int port,
 		}
 	}
 
-	if (list_empty(&vin->group->notifier.asc_list))
+	if (list_empty(&vin->group->notifier.waiting_list))
 		return 0;
 
 	vin->group->notifier.ops = &rvin_group_notify_ops;

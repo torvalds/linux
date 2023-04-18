@@ -66,9 +66,8 @@ struct v4l2_async_match_desc {
  *
  * @match:	struct of match type and per-bus type matching data sets
  * @asc_entry:	used to add struct v4l2_async_connection objects to the
- *		master notifier @asc_list
- * @waiting_entry: used to link struct v4l2_async_connection objects, waiting to
- *		be probed, to a notifier->waiting_list list
+ *		notifier @waiting_list or @done_list
+ * @sd:		the related sub-device
  *
  * When this struct is used as a member in a driver specific struct,
  * the driver specific struct shall contain the &struct
@@ -77,7 +76,7 @@ struct v4l2_async_match_desc {
 struct v4l2_async_connection {
 	struct v4l2_async_match_desc match;
 	struct list_head asc_entry;
-	struct list_head waiting_entry;
+	struct v4l2_subdev *sd;
 };
 
 /**
@@ -106,7 +105,6 @@ struct v4l2_async_notifier_operations {
  * @v4l2_dev:	v4l2_device of the root notifier, NULL otherwise
  * @sd:		sub-device that registered the notifier, NULL otherwise
  * @parent:	parent notifier
- * @asc_list:	master list of struct v4l2_async_connection
  * @waiting_list: list of struct v4l2_async_connection, waiting for their
  *		  drivers
  * @done_list:	list of struct v4l2_subdev, already probed
@@ -117,7 +115,6 @@ struct v4l2_async_notifier {
 	struct v4l2_device *v4l2_dev;
 	struct v4l2_subdev *sd;
 	struct v4l2_async_notifier *parent;
-	struct list_head asc_list;
 	struct list_head waiting_list;
 	struct list_head done_list;
 	struct list_head notifier_entry;
