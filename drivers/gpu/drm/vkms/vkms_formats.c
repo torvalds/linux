@@ -37,9 +37,16 @@ static void *packed_pixels_addr(const struct vkms_frame_info *frame_info,
 static void *get_packed_src_addr(const struct vkms_frame_info *frame_info, int y)
 {
 	int x_src = frame_info->src.x1 >> 16;
-	int y_src = y - frame_info->dst.y1 + (frame_info->src.y1 >> 16);
+	int y_src = y - frame_info->rotated.y1 + (frame_info->src.y1 >> 16);
 
 	return packed_pixels_addr(frame_info, x_src, y_src);
+}
+
+static int get_x_position(const struct vkms_frame_info *frame_info, int limit, int x)
+{
+	if (frame_info->rotation & DRM_MODE_REFLECT_X)
+		return limit - x - 1;
+	return x;
 }
 
 static void ARGB8888_to_argb_u16(u8 *src_pixels, struct pixel_argb_u16 *out_pixel)
@@ -109,8 +116,11 @@ void vkms_compose_row(struct line_buffer *stage_buffer, struct vkms_plane_state 
 	u8 *src_pixels = get_packed_src_addr(frame_info, y);
 	int limit = min_t(size_t, drm_rect_width(&frame_info->dst), stage_buffer->n_pixels);
 
-	for (size_t x = 0; x < limit; x++, src_pixels += frame_info->cpp)
-		plane->pixel_read(src_pixels, &out_pixels[x]);
+	for (size_t x = 0; x < limit; x++, src_pixels += frame_info->cpp) {
+		int x_pos = get_x_position(frame_info, limit, x);
+
+		plane->pixel_read(src_pixels, &out_pixels[x_pos]);
+	}
 }
 
 /*

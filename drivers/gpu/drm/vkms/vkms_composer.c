@@ -55,7 +55,7 @@ static void pre_mul_alpha_blend(struct vkms_frame_info *frame_info,
 
 static bool check_y_limit(struct vkms_frame_info *frame_info, int y)
 {
-	if (y >= frame_info->dst.y1 && y < frame_info->dst.y2)
+	if (y >= frame_info->rotated.y1 && y < frame_info->rotated.y2)
 		return true;
 
 	return false;
