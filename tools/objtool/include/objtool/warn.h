@@ -55,7 +55,12 @@ static inline char *offstr(struct section *sec, unsigned long offset)
 
 #define WARN_INSN(insn, format, ...)					\
 ({									\
-	WARN_FUNC(format, insn->sec, insn->offset,  ##__VA_ARGS__);	\
+	struct instruction *_insn = (insn);				\
+	if (!_insn->sym || !_insn->sym->warned)				\
+		WARN_FUNC(format, _insn->sec, _insn->offset,		\
+			  ##__VA_ARGS__);				\
+	if (_insn->sym)							\
+		_insn->sym->warned = 1;					\
 })
 
 #define BT_FUNC(format, insn, ...)			\
