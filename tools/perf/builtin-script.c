@@ -133,6 +133,7 @@ enum perf_output_field {
 	PERF_OUTPUT_VCPU            = 1ULL << 38,
 	PERF_OUTPUT_CGROUP          = 1ULL << 39,
 	PERF_OUTPUT_RETIRE_LAT      = 1ULL << 40,
+	PERF_OUTPUT_DSOFF           = 1ULL << 41,
 };
 
 struct perf_script {
@@ -174,6 +175,7 @@ struct output_option {
 	{.str = "ip",    .field = PERF_OUTPUT_IP},
 	{.str = "sym",   .field = PERF_OUTPUT_SYM},
 	{.str = "dso",   .field = PERF_OUTPUT_DSO},
+	{.str = "dsoff", .field = PERF_OUTPUT_DSOFF},
 	{.str = "addr",  .field = PERF_OUTPUT_ADDR},
 	{.str = "symoff", .field = PERF_OUTPUT_SYMOFFSET},
 	{.str = "srcline", .field = PERF_OUTPUT_SRCLINE},
@@ -574,6 +576,9 @@ static void set_print_ip_opts(struct perf_event_attr *attr)
 	if (PRINT_FIELD(DSO))
 		output[type].print_ip_opts |= EVSEL__PRINT_DSO;
 
+	if (PRINT_FIELD(DSOFF))
+		output[type].print_ip_opts |= EVSEL__PRINT_DSOFF;
+
 	if (PRINT_FIELD(SYMOFFSET))
 		output[type].print_ip_opts |= EVSEL__PRINT_SYMOFFSET;
 
@@ -626,6 +631,10 @@ static int perf_session__check_output_opt(struct perf_session *session)
 
 		if (evsel == NULL)
 			continue;
+
+		/* 'dsoff' implys 'dso' field */
+		if (output[j].fields & PERF_OUTPUT_DSOFF)
+			output[j].fields |= PERF_OUTPUT_DSO;
 
 		set_print_ip_opts(&evsel->core.attr);
 		tod |= output[j].fields & PERF_OUTPUT_TOD;
@@ -929,18 +938,12 @@ static int perf_sample__fprintf_brstack(struct perf_sample *sample,
 		}
 
 		printed += fprintf(fp, " 0x%"PRIx64, from);
-		if (PRINT_FIELD(DSO)) {
-			printed += fprintf(fp, "(");
-			printed += map__fprintf_dsoname(alf.map, fp);
-			printed += fprintf(fp, ")");
-		}
+		if (PRINT_FIELD(DSO))
+			printed += map__fprintf_dsoname_dsoff(alf.map, PRINT_FIELD(DSOFF), alf.addr, fp);
 
 		printed += fprintf(fp, "/0x%"PRIx64, to);
-		if (PRINT_FIELD(DSO)) {
-			printed += fprintf(fp, "(");
-			printed += map__fprintf_dsoname(alt.map, fp);
-			printed += fprintf(fp, ")");
-		}
+		if (PRINT_FIELD(DSO))
+			printed += map__fprintf_dsoname_dsoff(alt.map, PRINT_FIELD(DSOFF), alt.addr, fp);
 
 		printed += print_bstack_flags(fp, entries + i);
 	}
@@ -972,18 +975,12 @@ static int perf_sample__fprintf_brstacksym(struct perf_sample *sample,
 		thread__find_symbol_fb(thread, sample->cpumode, to, &alt);
 
 		printed += symbol__fprintf_symname_offs(alf.sym, &alf, fp);
-		if (PRINT_FIELD(DSO)) {
-			printed += fprintf(fp, "(");
-			printed += map__fprintf_dsoname(alf.map, fp);
-			printed += fprintf(fp, ")");
-		}
+		if (PRINT_FIELD(DSO))
+			printed += map__fprintf_dsoname_dsoff(alf.map, PRINT_FIELD(DSOFF), alf.addr, fp);
 		printed += fprintf(fp, "%c", '/');
 		printed += symbol__fprintf_symname_offs(alt.sym, &alt, fp);
-		if (PRINT_FIELD(DSO)) {
-			printed += fprintf(fp, "(");
-			printed += map__fprintf_dsoname(alt.map, fp);
-			printed += fprintf(fp, ")");
-		}
+		if (PRINT_FIELD(DSO))
+			printed += map__fprintf_dsoname_dsoff(alt.map, PRINT_FIELD(DSOFF), alt.addr, fp);
 		printed += print_bstack_flags(fp, entries + i);
 	}
 
@@ -1019,17 +1016,11 @@ static int perf_sample__fprintf_brstackoff(struct perf_sample *sample,
 			to = map__dso_map_ip(alt.map, to);
 
 		printed += fprintf(fp, " 0x%"PRIx64, from);
-		if (PRINT_FIELD(DSO)) {
-			printed += fprintf(fp, "(");
-			printed += map__fprintf_dsoname(alf.map, fp);
-			printed += fprintf(fp, ")");
-		}
+		if (PRINT_FIELD(DSO))
+			printed += map__fprintf_dsoname_dsoff(alf.map, PRINT_FIELD(DSOFF), alf.addr, fp);
 		printed += fprintf(fp, "/0x%"PRIx64, to);
-		if (PRINT_FIELD(DSO)) {
-			printed += fprintf(fp, "(");
-			printed += map__fprintf_dsoname(alt.map, fp);
-			printed += fprintf(fp, ")");
-		}
+		if (PRINT_FIELD(DSO))
+			printed += map__fprintf_dsoname_dsoff(alt.map, PRINT_FIELD(DSOFF), alt.addr, fp);
 		printed += print_bstack_flags(fp, entries + i);
 	}
 
@@ -1393,11 +1384,8 @@ static int perf_sample__fprintf_addr(struct perf_sample *sample,
 			printed += symbol__fprintf_symname(al.sym, fp);
 	}
 
-	if (PRINT_FIELD(DSO)) {
-		printed += fprintf(fp, " (");
-		printed += map__fprintf_dsoname(al.map, fp);
-		printed += fprintf(fp, ")");
-	}
+	if (PRINT_FIELD(DSO))
+		printed += map__fprintf_dsoname_dsoff(al.map, PRINT_FIELD(DSOFF), al.addr, fp);
 out:
 	return printed;
 }
@@ -3883,7 +3871,7 @@ int cmd_script(int argc, const char **argv)
 		     "comma separated output fields prepend with 'type:'. "
 		     "+field to add and -field to remove."
 		     "Valid types: hw,sw,trace,raw,synth. "
-		     "Fields: comm,tid,pid,time,cpu,event,trace,ip,sym,dso,"
+		     "Fields: comm,tid,pid,time,cpu,event,trace,ip,sym,dso,dsoff"
 		     "addr,symoff,srcline,period,iregs,uregs,brstack,"
 		     "brstacksym,flags,data_src,weight,bpf-output,brstackinsn,"
 		     "brstackinsnlen,brstackoff,callindent,insn,insnlen,synth,"
