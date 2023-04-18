@@ -3827,10 +3827,10 @@ static void vop2_initial(struct drm_crtc *crtc)
 		VOP_CTRL_SET(vop2, if_ctrl_cfg_done_imd, 1);
 
 		/* Close dynamic turn on/off rk3588 PD_ESMART and keep esmart pd on when enable */
-		if (vop2->version == VOP_VERSION_RK3588) {
+		if (!vp->loader_protect && vop2->version == VOP_VERSION_RK3588) {
 			struct vop2_power_domain *esmart_pd = vop2_find_pd_by_id(vop2, VOP2_PD_ESMART);
 
-			vop2_power_domain_get(esmart_pd);
+			vop2_power_domain_on(esmart_pd);
 		}
 		vop2_layer_map_initial(vop2, current_vp_id);
 		vop2_axi_irqs_enable(vop2);
