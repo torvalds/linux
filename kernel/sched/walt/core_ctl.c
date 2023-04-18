@@ -908,25 +908,21 @@ static int compute_cluster_nr_strict_need(int index)
  */
 static int compute_cluster_nr_busy(int index)
 {
-	int cpu;
 	struct cluster_data *cluster = &cluster_state[index];
 	struct cpu_data *c;
 	unsigned int thres_idx;
 	int nr_busy = 0;
 
-	for_each_cpu(cpu, &cluster->cpu_mask) {
-		cluster->active_cpus = get_active_cpu_count(cluster);
-		thres_idx = cluster->active_cpus ? cluster->active_cpus - 1 : 0;
-		list_for_each_entry(c, &cluster->lru, sib) {
+	cluster->active_cpus = get_active_cpu_count(cluster);
+	thres_idx = cluster->active_cpus ? cluster->active_cpus - 1 : 0;
+	list_for_each_entry(c, &cluster->lru, sib) {
+		if (c->busy_pct >= cluster->busy_up_thres[thres_idx] ||
+		    sched_cpu_high_irqload(c->cpu))
+			c->is_busy = true;
+		else if (c->busy_pct < cluster->busy_down_thres[thres_idx])
+			c->is_busy = false;
 
-			if (c->busy_pct >= cluster->busy_up_thres[thres_idx] ||
-			    sched_cpu_high_irqload(c->cpu))
-				c->is_busy = true;
-			else if (c->busy_pct < cluster->busy_down_thres[thres_idx])
-				c->is_busy = false;
-
-			nr_busy += c->is_busy;
-		}
+		nr_busy += c->is_busy;
 	}
 
 	return nr_busy;
