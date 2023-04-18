@@ -857,5 +857,11 @@
 			#power-domain-cells = <1>;
 			status = "disabled";
 		};
+
+		ddr-pmu@4e300dc0 {
+			compatible = "fsl,imx93-ddr-pmu";
+			reg = <0x4e300dc0 0x200>;
+			interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>;
+		};
 	};
 };
