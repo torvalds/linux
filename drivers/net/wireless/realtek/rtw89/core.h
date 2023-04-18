@@ -3134,6 +3134,7 @@ struct rtw89_antdiv_stats {
 	u16 pkt_cnt_cck;
 	u16 pkt_cnt_ofdm;
 	u16 pkt_cnt_non_legacy;
+	u32 evm;
 };
 
 struct rtw89_antdiv_info {
