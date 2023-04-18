@@ -177,6 +177,11 @@ struct nsinfo *nsinfo__new(pid_t pid)
 	return nsi;
 }
 
+static const char *nsinfo__mntns_path(const struct nsinfo *nsi)
+{
+	return RC_CHK_ACCESS(nsi)->mntns_path;
+}
+
 struct nsinfo *nsinfo__copy(const struct nsinfo *nsi)
 {
 	struct nsinfo *nnsi;
@@ -193,8 +198,8 @@ struct nsinfo *nsinfo__copy(const struct nsinfo *nsi)
 	RC_CHK_ACCESS(nnsi)->nstgid = nsinfo__nstgid(nsi);
 	RC_CHK_ACCESS(nnsi)->need_setns = nsinfo__need_setns(nsi);
 	RC_CHK_ACCESS(nnsi)->in_pidns = nsinfo__in_pidns(nsi);
-	if (RC_CHK_ACCESS(nsi)->mntns_path) {
-		RC_CHK_ACCESS(nnsi)->mntns_path = strdup(RC_CHK_ACCESS(nsi)->mntns_path);
+	if (nsinfo__mntns_path(nsi)) {
+		RC_CHK_ACCESS(nnsi)->mntns_path = strdup(nsinfo__mntns_path(nsi));
 		if (!RC_CHK_ACCESS(nnsi)->mntns_path) {
 			nsinfo__put(nnsi);
 			return NULL;
@@ -294,7 +299,7 @@ void nsinfo__mountns_enter(struct nsinfo *nsi,
 	if (oldns < 0)
 		goto errout;
 
-	newns = open(RC_CHK_ACCESS(nsi)->mntns_path, O_RDONLY);
+	newns = open(nsinfo__mntns_path(nsi), O_RDONLY);
 	if (newns < 0)
 		goto errout;
 
