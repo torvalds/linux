@@ -77,7 +77,7 @@ struct mlx5_replay_esn {
 
 struct mlx5_accel_esp_xfrm_attrs {
 	u32   spi;
-	u32   flags;
+	u32   mode;
 	struct aes_gcm_keymat aes_gcm;
 
 	union {
@@ -99,6 +99,8 @@ struct mlx5_accel_esp_xfrm_attrs {
 	u32 authsize;
 	u32 reqid;
 	struct mlx5_ipsec_lft lft;
+	u8 smac[ETH_ALEN];
+	u8 dmac[ETH_ALEN];
 };
 
 enum mlx5_ipsec_cap {
@@ -107,6 +109,7 @@ enum mlx5_ipsec_cap {
 	MLX5_IPSEC_CAP_PACKET_OFFLOAD	= 1 << 2,
 	MLX5_IPSEC_CAP_ROCE             = 1 << 3,
 	MLX5_IPSEC_CAP_PRIO             = 1 << 4,
+	MLX5_IPSEC_CAP_TUNNEL           = 1 << 5,
 };
 
 struct mlx5e_priv;
@@ -141,6 +144,10 @@ struct mlx5e_ipsec_work {
 	void *data;
 };
 
+struct mlx5e_ipsec_netevent_data {
+	u8 addr[ETH_ALEN];
+};
+
 struct mlx5e_ipsec_dwork {
 	struct delayed_work dwork;
 	struct mlx5e_ipsec_sa_entry *sa_entry;
@@ -166,6 +173,7 @@ struct mlx5e_ipsec {
 	struct mlx5e_ipsec_tx *tx;
 	struct mlx5e_ipsec_aso *aso;
 	struct notifier_block nb;
+	struct notifier_block netevent_nb;
 	struct mlx5_ipsec_fs *roce;
 };
 
@@ -243,6 +251,7 @@ void mlx5e_accel_ipsec_fs_del_rule(struct mlx5e_ipsec_sa_entry *sa_entry);
 int mlx5e_accel_ipsec_fs_add_pol(struct mlx5e_ipsec_pol_entry *pol_entry);
 void mlx5e_accel_ipsec_fs_del_pol(struct mlx5e_ipsec_pol_entry *pol_entry);
 void mlx5e_accel_ipsec_fs_modify(struct mlx5e_ipsec_sa_entry *sa_entry);
+bool mlx5e_ipsec_fs_tunnel_enabled(struct mlx5e_ipsec_sa_entry *sa_entry);
 
 int mlx5_ipsec_create_sa_ctx(struct mlx5e_ipsec_sa_entry *sa_entry);
 void mlx5_ipsec_free_sa_ctx(struct mlx5e_ipsec_sa_entry *sa_entry);
