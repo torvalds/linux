@@ -166,24 +166,6 @@ static SOC_VALUE_ENUM_SINGLE_DECL(cs35l56_sdw1tx4_enum,
 static const struct snd_kcontrol_new sdw1_tx4_mux =
 	SOC_DAPM_ENUM("SDW1TX4 SRC", cs35l56_sdw1tx4_enum);
 
-static SOC_VALUE_ENUM_SINGLE_DECL(cs35l56_sdw1tx5_enum,
-				CS35L56_SWIRE_DP3_CH5_INPUT,
-				0, CS35L56_SWIRETXn_SRC_MASK,
-				cs35l56_tx_input_texts,
-				cs35l56_tx_input_values);
-
-static const struct snd_kcontrol_new sdw1_tx5_mux =
-	SOC_DAPM_ENUM("SDW1TX5 SRC", cs35l56_sdw1tx5_enum);
-
-static SOC_VALUE_ENUM_SINGLE_DECL(cs35l56_sdw1tx6_enum,
-				CS35L56_SWIRE_DP3_CH6_INPUT,
-				0, CS35L56_SWIRETXn_SRC_MASK,
-				cs35l56_tx_input_texts,
-				cs35l56_tx_input_values);
-
-static const struct snd_kcontrol_new sdw1_tx6_mux =
-	SOC_DAPM_ENUM("SDW1TX6 SRC", cs35l56_sdw1tx6_enum);
-
 static int cs35l56_play_event(struct snd_soc_dapm_widget *w,
 			      struct snd_kcontrol *kcontrol, int event)
 {
@@ -251,8 +233,6 @@ static const struct snd_soc_dapm_widget cs35l56_dapm_widgets[] = {
 	SND_SOC_DAPM_MUX("SDW1 TX2 Source", SND_SOC_NOPM, 0, 0, &sdw1_tx2_mux),
 	SND_SOC_DAPM_MUX("SDW1 TX3 Source", SND_SOC_NOPM, 0, 0, &sdw1_tx3_mux),
 	SND_SOC_DAPM_MUX("SDW1 TX4 Source", SND_SOC_NOPM, 0, 0, &sdw1_tx4_mux),
-	SND_SOC_DAPM_MUX("SDW1 TX5 Source", SND_SOC_NOPM, 0, 0, &sdw1_tx5_mux),
-	SND_SOC_DAPM_MUX("SDW1 TX6 Source", SND_SOC_NOPM, 0, 0, &sdw1_tx6_mux),
 
 	SND_SOC_DAPM_SIGGEN("VMON ADC"),
 	SND_SOC_DAPM_SIGGEN("IMON ADC"),
@@ -318,14 +298,10 @@ static const struct snd_soc_dapm_route cs35l56_audio_map[] = {
 	CS35L56_SRC_ROUTE("SDW1 TX2")
 	CS35L56_SRC_ROUTE("SDW1 TX3")
 	CS35L56_SRC_ROUTE("SDW1 TX4")
-	CS35L56_SRC_ROUTE("SDW1 TX5")
-	CS35L56_SRC_ROUTE("SDW1 TX6")
 	{ "SDW1 Capture", NULL, "SDW1 TX1 Source" },
 	{ "SDW1 Capture", NULL, "SDW1 TX2 Source" },
 	{ "SDW1 Capture", NULL, "SDW1 TX3 Source" },
 	{ "SDW1 Capture", NULL, "SDW1 TX4 Source" },
-	{ "SDW1 Capture", NULL, "SDW1 TX5 Source" },
-	{ "SDW1 Capture", NULL, "SDW1 TX6 Source" },
 };
 
 static int cs35l56_dsp_event(struct snd_soc_dapm_widget *w,
@@ -779,7 +755,7 @@ static struct snd_soc_dai_driver cs35l56_dai[] = {
 		.capture = {
 			.stream_name = "SDW1 Capture",
 			.channels_min = 1,
-			.channels_max = 6,
+			.channels_max = 4,
 			.rates = CS35L56_RATES,
 			.formats = CS35L56_TX_FORMATS,
 		},
@@ -1534,8 +1510,6 @@ int cs35l56_init(struct cs35l56_private *cs35l56)
 
 	dev_info(cs35l56->dev, "Cirrus Logic CS35L56%s Rev %02X OTP%d\n",
 		 cs35l56->secured ? "s" : "", cs35l56->rev, otpid);
-
-	cs35l56_patch(cs35l56->dev, cs35l56->regmap, cs35l56->rev);
 
 	/* Wake source and *_BLOCKED interrupts default to unmasked, so mask them */
 	regmap_write(cs35l56->regmap, CS35L56_IRQ1_MASK_20, 0xffffffff);
