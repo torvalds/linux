@@ -99,7 +99,7 @@ static void blend(struct vkms_writeback_job *wb,
 			if (!check_y_limit(plane[i]->frame_info, y))
 				continue;
 
-			plane[i]->plane_read(stage_buffer, plane[i]->frame_info, y);
+			vkms_compose_row(stage_buffer, plane[i], y);
 			pre_mul_alpha_blend(plane[i]->frame_info, stage_buffer,
 					    output_buffer);
 		}
@@ -118,7 +118,7 @@ static int check_format_funcs(struct vkms_crtc_state *crtc_state,
 	u32 n_active_planes = crtc_state->num_active_planes;
 
 	for (size_t i = 0; i < n_active_planes; i++)
-		if (!planes[i]->plane_read)
+		if (!planes[i]->pixel_read)
 			return -1;
 
 	if (active_wb && !active_wb->wb_write)
