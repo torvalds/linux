@@ -1074,8 +1074,6 @@ static void memlat_update_work(struct work_struct *work)
 	struct dcvs_freq new_freq;
 	u32 max_freqs[MAX_MEMLAT_GRPS] = { 0 };
 
-	calculate_sampling_stats();
-
 	/* aggregate mons to calculate max freq per memlat_group */
 	for (grp = 0; grp < MAX_MEMLAT_GRPS; grp++) {
 		memlat_grp = memlat_data->groups[grp];
@@ -1116,6 +1114,7 @@ static void memlat_update_work(struct work_struct *work)
 
 static enum hrtimer_restart memlat_hrtimer_handler(struct hrtimer *timer)
 {
+	calculate_sampling_stats();
 	queue_work(memlat_data->memlat_wq, &memlat_data->work);
 
 	return HRTIMER_NORESTART;
