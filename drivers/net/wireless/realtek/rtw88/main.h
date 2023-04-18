@@ -88,7 +88,7 @@ enum rtw_supported_band {
 	RTW_BAND_60G = BIT(NL80211_BAND_60GHZ),
 };
 
-/* now, support upto 80M bw */
+/* now, support up to 80M bw */
 #define RTW_MAX_CHANNEL_WIDTH RTW_CHANNEL_WIDTH_80
 
 enum rtw_bandwidth {
@@ -1881,7 +1881,7 @@ enum rtw_sar_bands {
 	RTW_SAR_BAND_NR,
 };
 
-/* the union is reserved for other knids of SAR sources
+/* the union is reserved for other kinds of SAR sources
  * which might not re-use same format with array common.
  */
 union rtw_sar_cfg {
@@ -2032,7 +2032,7 @@ struct rtw_dev {
 	struct rtw_tx_report tx_report;
 
 	struct {
-		/* incicate the mail box to use with fw */
+		/* indicate the mail box to use with fw */
 		u8 last_box_num;
 		u32 seq;
 	} h2c;
