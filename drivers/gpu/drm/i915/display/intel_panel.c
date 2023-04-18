@@ -567,8 +567,8 @@ static void i9xx_scale_aspect(struct intel_crtc_state *crtc_state,
 			*pfit_pgm_ratios |= (PFIT_HORIZ_SCALE(bits) |
 					     PFIT_VERT_SCALE(bits));
 			*pfit_control |= (PFIT_ENABLE |
-					  VERT_INTERP_BILINEAR |
-					  HORIZ_INTERP_BILINEAR);
+					  PFIT_VERT_INTERP_BILINEAR |
+					  PFIT_HORIZ_INTERP_BILINEAR);
 		}
 	} else if (scaled_width < scaled_height) { /* letter */
 		centre_vertically(adjusted_mode,
@@ -582,15 +582,16 @@ static void i9xx_scale_aspect(struct intel_crtc_state *crtc_state,
 			*pfit_pgm_ratios |= (PFIT_HORIZ_SCALE(bits) |
 					     PFIT_VERT_SCALE(bits));
 			*pfit_control |= (PFIT_ENABLE |
-					  VERT_INTERP_BILINEAR |
-					  HORIZ_INTERP_BILINEAR);
+					  PFIT_VERT_INTERP_BILINEAR |
+					  PFIT_HORIZ_INTERP_BILINEAR);
 		}
 	} else {
 		/* Aspects match, Let hw scale both directions */
 		*pfit_control |= (PFIT_ENABLE |
-				  VERT_AUTO_SCALE | HORIZ_AUTO_SCALE |
-				  VERT_INTERP_BILINEAR |
-				  HORIZ_INTERP_BILINEAR);
+				  PFIT_VERT_AUTO_SCALE |
+				  PFIT_HORIZ_AUTO_SCALE |
+				  PFIT_VERT_INTERP_BILINEAR |
+				  PFIT_HORIZ_INTERP_BILINEAR);
 	}
 }
 
@@ -638,10 +639,10 @@ static int gmch_panel_fitting(struct intel_crtc_state *crtc_state,
 			if (DISPLAY_VER(dev_priv) >= 4)
 				pfit_control |= PFIT_SCALING_AUTO;
 			else
-				pfit_control |= (VERT_AUTO_SCALE |
-						 VERT_INTERP_BILINEAR |
-						 HORIZ_AUTO_SCALE |
-						 HORIZ_INTERP_BILINEAR);
+				pfit_control |= (PFIT_VERT_AUTO_SCALE |
+						 PFIT_VERT_INTERP_BILINEAR |
+						 PFIT_HORIZ_AUTO_SCALE |
+						 PFIT_HORIZ_INTERP_BILINEAR);
 		}
 		break;
 	default:
@@ -662,7 +663,7 @@ out:
 
 	/* Make sure pre-965 set dither correctly for 18bpp panels. */
 	if (DISPLAY_VER(dev_priv) < 4 && crtc_state->pipe_bpp == 18)
-		pfit_control |= PANEL_8TO6_DITHER_ENABLE;
+		pfit_control |= PFIT_PANEL_8TO6_DITHER_ENABLE;
 
 	crtc_state->gmch_pfit.control = pfit_control;
 	crtc_state->gmch_pfit.pgm_ratios = pfit_pgm_ratios;
