@@ -12,6 +12,7 @@
 #include "i915_debugfs.h"
 #include "i915_irq.h"
 #include "i915_reg.h"
+#include "intel_crtc.h"
 #include "intel_de.h"
 #include "intel_crtc_state_dump.h"
 #include "intel_display_debugfs.h"
@@ -30,7 +31,6 @@
 #include "intel_panel.h"
 #include "intel_psr.h"
 #include "intel_psr_regs.h"
-#include "intel_sprite.h"
 #include "intel_wm.h"
 
 static inline struct drm_i915_private *node_to_i915(struct drm_info_node *node)
