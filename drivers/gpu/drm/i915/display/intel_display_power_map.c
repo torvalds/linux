@@ -1456,15 +1456,6 @@ I915_DECL_PW_DOMAINS(xelpdp_pwdoms_pw_2,
 	XELPDP_PW_2_POWER_DOMAINS,
 	POWER_DOMAIN_INIT);
 
-I915_DECL_PW_DOMAINS(xelpdp_pwdoms_dc_off,
-	XELPDP_PW_2_POWER_DOMAINS,
-	POWER_DOMAIN_AUDIO_MMIO,
-	POWER_DOMAIN_MODESET,
-	POWER_DOMAIN_AUX_A,
-	POWER_DOMAIN_AUX_B,
-	POWER_DOMAIN_DC_OFF,
-	POWER_DOMAIN_INIT);
-
 I915_DECL_PW_DOMAINS(xelpdp_pwdoms_aux_tc1,
 	POWER_DOMAIN_AUX_USBC1,
 	POWER_DOMAIN_AUX_TBT1);
@@ -1483,12 +1474,6 @@ I915_DECL_PW_DOMAINS(xelpdp_pwdoms_aux_tc4,
 
 static const struct i915_power_well_desc xelpdp_power_wells_main[] = {
 	{
-		.instances = &I915_PW_INSTANCES(
-			I915_PW("DC_off", &xelpdp_pwdoms_dc_off,
-				.id = SKL_DISP_DC_OFF),
-		),
-		.ops = &gen9_dc_off_power_well_ops,
-	}, {
 		.instances = &I915_PW_INSTANCES(
 			I915_PW("PW_2", &xelpdp_pwdoms_pw_2,
 				.hsw.idx = ICL_PW_CTL_IDX_PW_2,
@@ -1545,6 +1530,7 @@ static const struct i915_power_well_desc xelpdp_power_wells_main[] = {
 static const struct i915_power_well_desc_list xelpdp_power_wells[] = {
 	I915_PW_DESCRIPTORS(i9xx_power_wells_always_on),
 	I915_PW_DESCRIPTORS(icl_power_wells_pw_1),
+	I915_PW_DESCRIPTORS(xelpd_power_wells_dc_off),
 	I915_PW_DESCRIPTORS(xelpdp_power_wells_main),
 };
 
