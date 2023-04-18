@@ -154,7 +154,7 @@ static void __io_rsrc_put_work(struct io_rsrc_node *ref_node)
 {
 	struct io_rsrc_data *rsrc_data = ref_node->rsrc_data;
 
-	if (likely(ref_node->inline_items))
+	if (likely(!ref_node->empty))
 		io_rsrc_put_work_one(rsrc_data, &ref_node->item);
 
 	io_rsrc_node_destroy(rsrc_data->ctx, ref_node);
@@ -199,7 +199,7 @@ struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx)
 	}
 
 	ref_node->rsrc_data = NULL;
-	ref_node->inline_items = 0;
+	ref_node->empty = 0;
 	ref_node->refs = 1;
 	return ref_node;
 }
@@ -218,6 +218,7 @@ __cold static int io_rsrc_ref_quiesce(struct io_rsrc_data *data,
 	backup = io_rsrc_node_alloc(ctx);
 	if (!backup)
 		return -ENOMEM;
+	ctx->rsrc_node->empty = true;
 	ctx->rsrc_node->rsrc_data = data;
 	list_add_tail(&ctx->rsrc_node->node, &ctx->rsrc_ref_list);
 	io_put_rsrc_node(ctx, ctx->rsrc_node);
@@ -649,7 +650,6 @@ int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx, void *rsrc)
 
 	node->item.rsrc = rsrc;
 	node->item.tag = *tag_slot;
-	node->inline_items = 1;
 	*tag_slot = 0;
 
 	node->rsrc_data = data;
