@@ -43,8 +43,6 @@
 #define CS35L56_SWIRE_DP3_CH2_INPUT			0x0004C74
 #define CS35L56_SWIRE_DP3_CH3_INPUT			0x0004C78
 #define CS35L56_SWIRE_DP3_CH4_INPUT			0x0004C7C
-#define CS35L56_SWIRE_DP3_CH5_INPUT			0x0004C80
-#define CS35L56_SWIRE_DP3_CH6_INPUT			0x0004C84
 #define CS35L56_IRQ1_CFG				0x000E000
 #define CS35L56_IRQ1_STATUS				0x000E004
 #define CS35L56_IRQ1_EINT_1				0x000E010
@@ -181,12 +179,11 @@
 #define CS35L56_INPUT_SRC_DSP1TX8			0x39
 #define CS35L56_INPUT_SRC_TEMPMON			0x3A
 #define CS35L56_INPUT_SRC_INTERPOLATOR			0x40
-#define CS35L56_INPUT_SRC_SWIRE_RX1			0x44
-#define CS35L56_INPUT_SRC_SWIRE_RX2			0x45
-#define CS35L56_INPUT_SRC_SWIRE_RX3			0x46
+#define CS35L56_INPUT_SRC_SWIRE_DP1_CHANNEL1		0x44
+#define CS35L56_INPUT_SRC_SWIRE_DP1_CHANNEL2		0x45
 #define CS35L56_INPUT_MASK				0x7F
 
-#define CS35L56_NUM_INPUT_SRC				22
+#define CS35L56_NUM_INPUT_SRC				21
 
 /* ASP formats */
 #define CS35L56_ASP_FMT_DSP_A				0
@@ -262,7 +259,6 @@ extern const struct cs_dsp_region cs35l56_dsp1_regions[CS35L56_NUM_DSP_REGIONS];
 extern const char * const cs35l56_tx_input_texts[CS35L56_NUM_INPUT_SRC];
 extern const unsigned int cs35l56_tx_input_values[CS35L56_NUM_INPUT_SRC];
 
-void cs35l56_patch(struct device *dev, struct regmap *regmap, u8 revid);
 void cs35l56_reread_firmware_registers(struct device *dev, struct regmap *regmap);
 int cs35l56_get_bclk_freq_id(unsigned int freq);
 void cs35l56_fill_supply_names(struct regulator_bulk_data *data);

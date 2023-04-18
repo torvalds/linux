@@ -28,8 +28,6 @@ static const struct reg_default cs35l56_reg_defaults[] = {
 	{ CS35L56_SWIRE_DP3_CH2_INPUT,		0x00000019 },
 	{ CS35L56_SWIRE_DP3_CH3_INPUT,		0x00000029 },
 	{ CS35L56_SWIRE_DP3_CH4_INPUT,		0x00000028 },
-	{ CS35L56_SWIRE_DP3_CH5_INPUT,		0x00000018 },
-	{ CS35L56_SWIRE_DP3_CH6_INPUT,		0x00000018 },
 	{ CS35L56_IRQ1_CFG,			0x00000000 },
 	{ CS35L56_IRQ1_MASK_1,			0x83ffffff },
 	{ CS35L56_IRQ1_MASK_2,			0xffff7fff },
@@ -41,29 +39,6 @@ static const struct reg_default cs35l56_reg_defaults[] = {
 	/* CS35L56_MAIN_RENDER_USER_VOLUME - soft register, no default	*/
 	/* CS35L56_MAIN_POSTURE_NUMBER - soft register, no default	*/
 };
-
-/*
- * The Ax devices have different default register values to that of B0,
- * establish a common set of register defaults.
- */
-static const struct reg_sequence cs35l56_reva_patch[] = {
-	{ CS35L56_SWIRE_DP3_CH5_INPUT,	0x00000018 },
-	{ CS35L56_SWIRE_DP3_CH6_INPUT,	0x00000018 },
-};
-
-void cs35l56_patch(struct device *dev, struct regmap *regmap, u8 revid)
-{
-	int ret;
-
-	if (revid >= CS35L56_REVID_B0)
-		return;
-
-	ret = regmap_register_patch(regmap, cs35l56_reva_patch,
-				    ARRAY_SIZE(cs35l56_reva_patch));
-	if (ret)
-		dev_err(dev, "Failed to apply patch: %d\n", ret);
-}
-EXPORT_SYMBOL_NS_GPL(cs35l56_patch, SND_SOC_CS35L56_SHARED);
 
 static bool cs35l56_is_dsp_memory(unsigned int reg)
 {
@@ -114,8 +89,6 @@ static bool cs35l56_readable_reg(struct device *dev, unsigned int reg)
 	case CS35L56_SWIRE_DP3_CH2_INPUT:
 	case CS35L56_SWIRE_DP3_CH3_INPUT:
 	case CS35L56_SWIRE_DP3_CH4_INPUT:
-	case CS35L56_SWIRE_DP3_CH5_INPUT:
-	case CS35L56_SWIRE_DP3_CH6_INPUT:
 	case CS35L56_IRQ1_CFG:
 	case CS35L56_IRQ1_STATUS:
 	case CS35L56_IRQ1_EINT_1 ... CS35L56_IRQ1_EINT_8:
@@ -305,7 +278,7 @@ const char * const cs35l56_tx_input_texts[] = {
 	"None", "ASP1RX1", "ASP1RX2", "VMON", "IMON", "ERRVOL", "CLASSH",
 	"VDDBMON", "VBSTMON", "DSP1TX1", "DSP1TX2", "DSP1TX3", "DSP1TX4",
 	"DSP1TX5", "DSP1TX6", "DSP1TX7", "DSP1TX8", "TEMPMON",
-	"INTERPOLATOR", "SDW1RX1", "SDW1RX2", "SDW2RX1",
+	"INTERPOLATOR", "SDW1RX1", "SDW1RX2",
 };
 EXPORT_SYMBOL_NS_GPL(cs35l56_tx_input_texts, SND_SOC_CS35L56_SHARED);
 
@@ -329,9 +302,8 @@ const unsigned int cs35l56_tx_input_values[] = {
 	CS35L56_INPUT_SRC_DSP1TX8,
 	CS35L56_INPUT_SRC_TEMPMON,
 	CS35L56_INPUT_SRC_INTERPOLATOR,
-	CS35L56_INPUT_SRC_SWIRE_RX1,
-	CS35L56_INPUT_SRC_SWIRE_RX2,
-	CS35L56_INPUT_SRC_SWIRE_RX3,
+	CS35L56_INPUT_SRC_SWIRE_DP1_CHANNEL1,
+	CS35L56_INPUT_SRC_SWIRE_DP1_CHANNEL2,
 };
 EXPORT_SYMBOL_NS_GPL(cs35l56_tx_input_values, SND_SOC_CS35L56_SHARED);
 
