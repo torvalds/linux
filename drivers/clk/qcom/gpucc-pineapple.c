@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -371,19 +371,6 @@ static struct clk_branch gpu_cc_cx_gmu_clk = {
 	},
 };
 
-static struct clk_branch gpu_cc_cxo_aon_clk = {
-	.halt_reg = 0x9004,
-	.halt_check = BRANCH_HALT_VOTED,
-	.clkr = {
-		.enable_reg = 0x9004,
-		.enable_mask = BIT(0),
-		.hw.init = &(const struct clk_init_data){
-			.name = "gpu_cc_cxo_aon_clk",
-			.ops = &clk_branch2_ops,
-		},
-	},
-};
-
 static struct clk_branch gpu_cc_cxo_clk = {
 	.halt_reg = 0x9144,
 	.halt_check = BRANCH_HALT,
@@ -393,19 +380,6 @@ static struct clk_branch gpu_cc_cxo_clk = {
 		.hw.init = &(const struct clk_init_data){
 			.name = "gpu_cc_cxo_clk",
 			.flags = CLK_DONT_HOLD_STATE,
-			.ops = &clk_branch2_ops,
-		},
-	},
-};
-
-static struct clk_branch gpu_cc_demet_clk = {
-	.halt_reg = 0x900c,
-	.halt_check = BRANCH_HALT,
-	.clkr = {
-		.enable_reg = 0x900c,
-		.enable_mask = BIT(0),
-		.hw.init = &(const struct clk_init_data){
-			.name = "gpu_cc_demet_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -606,9 +580,7 @@ static struct clk_regmap *gpu_cc_pineapple_clocks[] = {
 	[GPU_CC_CX_ACCU_SHIFT_CLK] = &gpu_cc_cx_accu_shift_clk.clkr,
 	[GPU_CC_CX_FF_CLK] = &gpu_cc_cx_ff_clk.clkr,
 	[GPU_CC_CX_GMU_CLK] = &gpu_cc_cx_gmu_clk.clkr,
-	[GPU_CC_CXO_AON_CLK] = &gpu_cc_cxo_aon_clk.clkr,
 	[GPU_CC_CXO_CLK] = &gpu_cc_cxo_clk.clkr,
-	[GPU_CC_DEMET_CLK] = &gpu_cc_demet_clk.clkr,
 	[GPU_CC_DPM_CLK] = &gpu_cc_dpm_clk.clkr,
 	[GPU_CC_FF_CLK_SRC] = &gpu_cc_ff_clk_src.clkr,
 	[GPU_CC_FREQ_MEASURE_CLK] = &gpu_cc_freq_measure_clk.clkr,
@@ -676,6 +648,14 @@ static int gpu_cc_pineapple_probe(struct platform_device *pdev)
 
 	clk_lucid_ole_pll_configure(&gpu_cc_pll0, regmap, &gpu_cc_pll0_config);
 	clk_lucid_ole_pll_configure(&gpu_cc_pll1, regmap, &gpu_cc_pll1_config);
+
+	/*
+	 * Keep clocks always enabled:
+	 *	gpu_cc_cxo_aon_clk
+	 *	gpu_cc_demet_clk
+	 */
+	regmap_update_bits(regmap, 0x9004, BIT(0), BIT(0));
+	regmap_update_bits(regmap, 0x900c, BIT(0), BIT(0));
 
 	ret = qcom_cc_really_probe(pdev, &gpu_cc_pineapple_desc, regmap);
 	if (ret) {
