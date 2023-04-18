@@ -2588,10 +2588,10 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	}
 
 	if (!iwl_mvm_reorder(mvm, napi, queue, sta, skb, desc) &&
-	    likely(!iwl_mvm_time_sync_frame(mvm, skb, hdr->addr2)))
+	    likely(!iwl_mvm_time_sync_frame(mvm, skb, hdr->addr2)) &&
+	    likely(!iwl_mvm_mei_filter_scan(mvm, skb)))
 		iwl_mvm_pass_packet_to_mac80211(mvm, napi, skb, queue, sta,
 						link_sta);
-
 out:
 	rcu_read_unlock();
 }

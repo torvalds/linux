@@ -1375,6 +1375,8 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	mvm->mei_registered = !iwl_mei_register(mvm, &mei_ops);
 
+	iwl_mvm_mei_scan_filter_init(&mvm->mei_scan_filter);
+
 	if (iwl_mvm_start_get_nvm(mvm)) {
 		/*
 		 * Getting NVM failed while CSME is the owner, but we are
