@@ -41,6 +41,12 @@
 #define MSM_HW_FENCE_RESET_WITHOUT_DESTROY  BIT(1)
 
 /**
+ * MSM_HW_FENCE_UPDATE_ERROR_WITH_MOVE: Updates client tx queue error by moving fence with error to
+ *                                      beginning of queue.
+ */
+#define MSM_HW_FENCE_UPDATE_ERROR_WITH_MOVE      BIT(0)
+
+/**
  * MSM_HW_FENCE_MAX_SIGNAL_PER_CLIENT - Maximum number of signals per client
  */
 #define MSM_HW_FENCE_MAX_SIGNAL_PER_CLIENT 64
@@ -439,6 +445,23 @@ int msm_hw_fence_reset_client_by_id(enum hw_fence_client_id client_id, u32 reset
 int msm_hw_fence_update_txq(void *client_handle, u64 handle, u64 flags, u32 error);
 
 /**
+ * msm_hw_fence_update_txq_error() - Updates error field for fence already in Tx Queue.
+ * @client_handle: Hw fence driver client handle, this handle was returned
+ *                 during the call 'msm_hw_fence_register' to register the
+ *                 client.
+ * @handle: handle for existing fence in Tx Queue to update.
+ * @error: error to set in the queue for the fence.
+ * @update_flags: flags to choose the update type. See MSM_HW_FENCE_UPDATE_ERROR_*
+ *                definitions.
+ *
+ * This function should only be used by clients that cannot have the Tx Queue
+ * updated by the Firmware or the HW Core.
+ *
+ * Return: 0 on success or negative errno (-EINVAL)
+ */
+int msm_hw_fence_update_txq_error(void *client_handle, u64 handle, u32 error, u32 update_flags);
+
+/**
  * msm_hw_fence_trigger_signal() - Triggers signal for the tx/rx signal pair
  * @client_handle: Hw fence driver client handle, this handle was returned
  *                 during the call 'msm_hw_fence_register' to register the
@@ -504,6 +527,12 @@ static inline int msm_hw_fence_reset_client_by_id(enum hw_fence_client_id client
 }
 
 static inline int msm_hw_fence_update_txq(void *client_handle, u64 handle, u64 flags, u32 error)
+{
+	return -EINVAL;
+}
+
+static inline int msm_hw_fence_update_txq_error(void *client_handle, u64 handle, u32 error,
+	u32 update_flags);
 {
 	return -EINVAL;
 }
