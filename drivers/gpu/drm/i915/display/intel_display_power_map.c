@@ -1301,7 +1301,8 @@ I915_DECL_PW_DOMAINS(xelpd_pwdoms_pw_2,
  */
 
 I915_DECL_PW_DOMAINS(xelpd_pwdoms_dc_off,
-	XELPD_PW_2_POWER_DOMAINS,
+	XELPD_PW_C_POWER_DOMAINS,
+	XELPD_PW_D_POWER_DOMAINS,
 	POWER_DOMAIN_PORT_DSI,
 	POWER_DOMAIN_AUDIO_MMIO,
 	POWER_DOMAIN_AUX_A,
@@ -1310,14 +1311,18 @@ I915_DECL_PW_DOMAINS(xelpd_pwdoms_dc_off,
 	POWER_DOMAIN_DC_OFF,
 	POWER_DOMAIN_INIT);
 
-static const struct i915_power_well_desc xelpd_power_wells_main[] = {
+static const struct i915_power_well_desc xelpd_power_wells_dc_off[] = {
 	{
 		.instances = &I915_PW_INSTANCES(
 			I915_PW("DC_off", &xelpd_pwdoms_dc_off,
 				.id = SKL_DISP_DC_OFF),
 		),
 		.ops = &gen9_dc_off_power_well_ops,
-	}, {
+	}
+};
+
+static const struct i915_power_well_desc xelpd_power_wells_main[] = {
+	{
 		.instances = &I915_PW_INSTANCES(
 			I915_PW("PW_2", &xelpd_pwdoms_pw_2,
 				.hsw.idx = ICL_PW_CTL_IDX_PW_2,
@@ -1400,6 +1405,34 @@ static const struct i915_power_well_desc xelpd_power_wells_main[] = {
 static const struct i915_power_well_desc_list xelpd_power_wells[] = {
 	I915_PW_DESCRIPTORS(i9xx_power_wells_always_on),
 	I915_PW_DESCRIPTORS(icl_power_wells_pw_1),
+	I915_PW_DESCRIPTORS(xelpd_power_wells_dc_off),
+	I915_PW_DESCRIPTORS(xelpd_power_wells_main),
+};
+
+I915_DECL_PW_DOMAINS(xehpd_pwdoms_dc_off,
+	XELPD_PW_2_POWER_DOMAINS,
+	POWER_DOMAIN_PORT_DSI,
+	POWER_DOMAIN_AUDIO_MMIO,
+	POWER_DOMAIN_AUX_A,
+	POWER_DOMAIN_AUX_B,
+	POWER_DOMAIN_MODESET,
+	POWER_DOMAIN_DC_OFF,
+	POWER_DOMAIN_INIT);
+
+static const struct i915_power_well_desc xehpd_power_wells_dc_off[] = {
+	{
+		.instances = &I915_PW_INSTANCES(
+			I915_PW("DC_off", &xehpd_pwdoms_dc_off,
+				.id = SKL_DISP_DC_OFF),
+		),
+		.ops = &gen9_dc_off_power_well_ops,
+	}
+};
+
+static const struct i915_power_well_desc_list xehpd_power_wells[] = {
+	I915_PW_DESCRIPTORS(i9xx_power_wells_always_on),
+	I915_PW_DESCRIPTORS(icl_power_wells_pw_1),
+	I915_PW_DESCRIPTORS(xehpd_power_wells_dc_off),
 	I915_PW_DESCRIPTORS(xelpd_power_wells_main),
 };
 
@@ -1624,6 +1657,8 @@ int intel_display_power_map_init(struct i915_power_domains *power_domains)
 
 	if (DISPLAY_VER(i915) >= 14)
 		return set_power_wells(power_domains, xelpdp_power_wells);
+	else if (IS_DG2(i915))
+		return set_power_wells(power_domains, xehpd_power_wells);
 	else if (DISPLAY_VER(i915) >= 13)
 		return set_power_wells(power_domains, xelpd_power_wells);
 	else if (IS_DG1(i915))
