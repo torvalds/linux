@@ -1041,10 +1041,13 @@ static int enetc_set_mm(struct net_device *ndev, struct ethtool_mm_cfg *cfg,
 	else
 		priv->active_offloads &= ~ENETC_F_QBU;
 
-	/* If link is up, enable MAC Merge right away */
-	if (!!(priv->active_offloads & ENETC_F_QBU) &&
-	    !(val & ENETC_MMCSR_LINK_FAIL))
-		val |= ENETC_MMCSR_ME;
+	/* If link is up, enable/disable MAC Merge right away */
+	if (!(val & ENETC_MMCSR_LINK_FAIL)) {
+		if (!!(priv->active_offloads & ENETC_F_QBU))
+			val |= ENETC_MMCSR_ME;
+		else
+			val &= ~ENETC_MMCSR_ME;
+	}
 
 	val &= ~ENETC_MMCSR_VT_MASK;
 	val |= ENETC_MMCSR_VT(cfg->verify_time);
