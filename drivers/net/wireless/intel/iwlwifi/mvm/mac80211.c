@@ -3314,8 +3314,8 @@ void iwl_mvm_sta_pre_rcu_remove(struct ieee80211_hw *hw,
 						     lockdep_is_held(&mvm->mutex));
 		sta_id = link_sta->sta_id;
 		if (sta == rcu_access_pointer(mvm->fw_id_to_mac_id[sta_id])) {
-			rcu_assign_pointer(mvm->fw_id_to_mac_id[sta_id],
-					   ERR_PTR(-ENOENT));
+			RCU_INIT_POINTER(mvm->fw_id_to_mac_id[sta_id],
+					 ERR_PTR(-ENOENT));
 			RCU_INIT_POINTER(mvm->fw_id_to_link_sta[sta_id], NULL);
 		}
 	}

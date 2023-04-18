@@ -2152,7 +2152,7 @@ int iwl_mvm_allocate_int_sta(struct iwl_mvm *mvm,
 	sta->type = type;
 
 	/* put a non-NULL value so iterating over the stations won't stop */
-	rcu_assign_pointer(mvm->fw_id_to_mac_id[sta->sta_id], ERR_PTR(-EINVAL));
+	RCU_INIT_POINTER(mvm->fw_id_to_mac_id[sta->sta_id], ERR_PTR(-EINVAL));
 	return 0;
 }
 
