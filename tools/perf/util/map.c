@@ -452,6 +452,19 @@ size_t map__fprintf_dsoname(struct map *map, FILE *fp)
 	return fprintf(fp, "%s", dsoname);
 }
 
+size_t map__fprintf_dsoname_dsoff(struct map *map, bool print_off, u64 addr, FILE *fp)
+{
+	int printed = 0;
+
+	printed += fprintf(fp, " (");
+	printed += map__fprintf_dsoname(map, fp);
+	if (print_off && map && map__dso(map) && !map__dso(map)->kernel)
+		printed += fprintf(fp, "+0x%" PRIx64, addr);
+	printed += fprintf(fp, ")");
+
+	return printed;
+}
+
 char *map__srcline(struct map *map, u64 addr, struct symbol *sym)
 {
 	if (map == NULL)
