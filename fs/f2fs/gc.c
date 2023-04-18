@@ -2093,8 +2093,8 @@ static void update_fs_metadata(struct f2fs_sb_info *sbi, int secs)
 		FDEV(last_dev).end_blk =
 				(long long)FDEV(last_dev).end_blk + blks;
 #ifdef CONFIG_BLK_DEV_ZONED
-		FDEV(last_dev).nr_blkz = (int)FDEV(last_dev).nr_blkz +
-					(int)(blks >> sbi->log_blocks_per_blkz);
+		FDEV(last_dev).nr_blkz = FDEV(last_dev).nr_blkz +
+					div_u64(blks, sbi->blocks_per_blkz);
 #endif
 	}
 }
