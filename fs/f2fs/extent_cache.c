@@ -94,7 +94,6 @@ static bool __may_age_extent_tree(struct inode *inode)
 
 	if (!test_opt(sbi, AGE_EXTENT_CACHE))
 		return false;
-	/* don't cache block age info for cold file */
 	if (is_inode_flag_set(inode, FI_COMPRESSED_FILE))
 		return false;
 	if (file_is_cold(inode))
