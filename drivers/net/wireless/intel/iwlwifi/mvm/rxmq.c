@@ -106,28 +106,12 @@ static int iwl_mvm_create_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	/*
 	 * For non monitor interface strip the bytes the RADA might not have
-	 * removed. As monitor interface cannot exist with other interfaces
-	 * this removal is safe.
+	 * removed (it might be disabled, e.g. for mgmt frames). As a monitor
+	 * interface cannot exist with other interfaces, this removal is safe
+	 * and sufficient, in monitor mode there's no decryption being done.
 	 */
-	if (mic_crc_len && !ieee80211_hw_check(mvm->hw, RX_INCLUDES_FCS)) {
-		u32 pkt_flags = le32_to_cpu(pkt->len_n_flags);
-
-		/*
-		 * If RADA was not enabled then decryption was not performed so
-		 * the MIC cannot be removed.
-		 */
-		if (!(pkt_flags & FH_RSCSR_RADA_EN)) {
-			if (WARN_ON(crypt_len > mic_crc_len))
-				return -EINVAL;
-
-			mic_crc_len -= crypt_len;
-		}
-
-		if (WARN_ON(mic_crc_len > len))
-			return -EINVAL;
-
+	if (len > mic_crc_len && !ieee80211_hw_check(mvm->hw, RX_INCLUDES_FCS))
 		len -= mic_crc_len;
-	}
 
 	/* If frame is small enough to fit in skb->head, pull it completely.
 	 * If not, only pull ieee80211_hdr (including crypto if present, and
@@ -411,9 +395,7 @@ static int iwl_mvm_rx_crypto(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		if (!(status & IWL_RX_MPDU_STATUS_MIC_OK))
 			return -1;
 
-		stats->flag |= RX_FLAG_DECRYPTED;
-		if (pkt_flags & FH_RSCSR_RADA_EN)
-			stats->flag |= RX_FLAG_MIC_STRIPPED;
+		stats->flag |= RX_FLAG_DECRYPTED | RX_FLAG_MIC_STRIPPED;
 		*crypt_len = IEEE80211_CCMP_HDR_LEN;
 		return 0;
 	case IWL_RX_MPDU_STATUS_SEC_TKIP:
