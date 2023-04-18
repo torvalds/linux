@@ -79,6 +79,8 @@ enum at91_reg {
 #define AT91_MMR_PRIOR_MASK GENMASK(19, 16)
 #define AT91_MMR_MOT_MASK GENMASK(26, 24)
 
+#define AT91_MID_MIDVB_MASK GENMASK(17, 0)
+#define AT91_MID_MIDVA_MASK GENMASK(28, 18)
 #define AT91_MID_MIDE BIT(29)
 
 #define AT91_MSR_MRTR BIT(20)
@@ -320,9 +322,10 @@ static inline u32 at91_can_id_to_reg_mid(canid_t can_id)
 	u32 reg_mid;
 
 	if (can_id & CAN_EFF_FLAG)
-		reg_mid = (can_id & CAN_EFF_MASK) | AT91_MID_MIDE;
+		reg_mid = FIELD_PREP(AT91_MID_MIDVA_MASK | AT91_MID_MIDVB_MASK, can_id) |
+			AT91_MID_MIDE;
 	else
-		reg_mid = (can_id & CAN_SFF_MASK) << 18;
+		reg_mid = FIELD_PREP(AT91_MID_MIDVA_MASK, can_id);
 
 	return reg_mid;
 }
@@ -590,9 +593,10 @@ static void at91_read_mb(struct net_device *dev, unsigned int mb,
 
 	reg_mid = at91_read(priv, AT91_MID(mb));
 	if (reg_mid & AT91_MID_MIDE)
-		cf->can_id = ((reg_mid >> 0) & CAN_EFF_MASK) | CAN_EFF_FLAG;
+		cf->can_id = FIELD_GET(AT91_MID_MIDVA_MASK | AT91_MID_MIDVB_MASK, reg_mid) |
+			CAN_EFF_FLAG;
 	else
-		cf->can_id = (reg_mid >> 18) & CAN_SFF_MASK;
+		cf->can_id = FIELD_GET(AT91_MID_MIDVA_MASK, reg_mid);
 
 	reg_msr = at91_read(priv, AT91_MSR(mb));
 	cf->len = can_cc_dlc2len((reg_msr >> 16) & 0xf);
