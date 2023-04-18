@@ -112,6 +112,9 @@
 		compatible = "operating-points-v2";
 		opp-shared;
 
+		nvmem-cells = <&cpu_leakage>;
+		nvmem-cell-names = "leakage";
+
 		rockchip,pvtpll-avg-offset = <0x4001c>;
 		rockchip,pvtpll-min-rate = <1104000>;
 		rockchip,pvtpll-volt-step = <12500>;
