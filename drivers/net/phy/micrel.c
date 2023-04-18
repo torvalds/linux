@@ -10,13 +10,13 @@
  * Copyright (c) 2014 Johan Hovold <johan@kernel.org>
  *
  * Support : Micrel Phys:
- *		Giga phys: ksz9021, ksz9031, ksz9131
+ *		Giga phys: ksz9021, ksz9031, ksz9131, lan8841, lan8814
  *		100/10 Phys : ksz8001, ksz8721, ksz8737, ksz8041
  *			   ksz8021, ksz8031, ksz8051,
  *			   ksz8081, ksz8091,
  *			   ksz8061,
  *		Switch : ksz8873, ksz886x
- *			 ksz9477
+ *			 ksz9477, lan8804
  */
 
 #include <linux/bitfield.h>
