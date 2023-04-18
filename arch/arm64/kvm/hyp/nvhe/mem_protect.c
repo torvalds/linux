@@ -487,6 +487,11 @@ static enum kvm_pgtable_prot default_host_prot(bool is_memory)
 	return is_memory ? PKVM_HOST_MEM_PROT : PKVM_HOST_MMIO_PROT;
 }
 
+static enum kvm_pgtable_prot default_hyp_prot(phys_addr_t phys)
+{
+	return addr_is_memory(phys) ? PAGE_HYP : PAGE_HYP_DEVICE;
+}
+
 bool addr_is_memory(phys_addr_t phys)
 {
 	struct kvm_mem_range range;
@@ -1211,8 +1216,10 @@ static int hyp_ack_share(u64 addr, const struct pkvm_mem_transition *tx,
 			 enum kvm_pgtable_prot perms)
 {
 	u64 size = tx->nr_pages * PAGE_SIZE;
+	phys_addr_t phys = hyp_virt_to_phys((void *)addr);
+	enum kvm_pgtable_prot prot = default_hyp_prot(phys);
 
-	if (perms != PAGE_HYP)
+	if (perms != prot)
 		return -EPERM;
 
 	if (__hyp_ack_skip_pgtable_check(tx))
@@ -1267,8 +1274,10 @@ static int hyp_complete_donation(u64 addr,
 				 const struct pkvm_mem_transition *tx)
 {
 	void *start = (void *)addr, *end = start + (tx->nr_pages * PAGE_SIZE);
-	enum kvm_pgtable_prot prot = pkvm_mkstate(PAGE_HYP, PKVM_PAGE_OWNED);
+	phys_addr_t phys = hyp_virt_to_phys(start);
+	enum kvm_pgtable_prot prot = default_hyp_prot(phys);
 
+	prot = pkvm_mkstate(prot, PKVM_PAGE_OWNED);
 	return pkvm_create_mappings_locked(start, end, prot);
 }
 
@@ -1801,7 +1810,7 @@ int __pkvm_host_share_hyp(u64 pfn)
 				.id	= PKVM_ID_HYP,
 			},
 		},
-		.completer_prot	= PAGE_HYP,
+		.completer_prot	= default_hyp_prot(host_addr),
 	};
 
 	host_lock_component();
@@ -1898,7 +1907,7 @@ int __pkvm_host_unshare_hyp(u64 pfn)
 				.id	= PKVM_ID_HYP,
 			},
 		},
-		.completer_prot	= PAGE_HYP,
+		.completer_prot	= default_hyp_prot(host_addr),
 	};
 
 	host_lock_component();
