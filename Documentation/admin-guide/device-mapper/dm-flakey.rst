@@ -39,6 +39,10 @@ Optional feature parameters:
   If no feature parameters are present, during the periods of
   unreliability, all I/O returns errors.
 
+  error_reads:
+	All read I/O is failed with an error signalled.
+	Write I/O is handled correctly.
+
   drop_writes:
 	All write I/O is silently ignored.
 	Read I/O is handled correctly.
