@@ -787,6 +787,17 @@ ethtool_stats_get()
 	ethtool -S $dev | grep "^ *$stat:" | head -n 1 | cut -d: -f2
 }
 
+ethtool_std_stats_get()
+{
+	local dev=$1; shift
+	local grp=$1; shift
+	local name=$1; shift
+	local src=$1; shift
+
+	ethtool --json -S $dev --groups $grp -- --src $src | \
+		jq '.[]."'"$grp"'"."'$name'"'
+}
+
 qdisc_stats_get()
 {
 	local dev=$1; shift
