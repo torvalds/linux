@@ -42,6 +42,7 @@
 #define cpu_has_fpu		cpu_opt(LOONGARCH_CPU_FPU)
 #define cpu_has_lsx		cpu_opt(LOONGARCH_CPU_LSX)
 #define cpu_has_lasx		cpu_opt(LOONGARCH_CPU_LASX)
+#define cpu_has_crc32		cpu_opt(LOONGARCH_CPU_CRC32)
 #define cpu_has_complex		cpu_opt(LOONGARCH_CPU_COMPLEX)
 #define cpu_has_crypto		cpu_opt(LOONGARCH_CPU_CRYPTO)
 #define cpu_has_lvz		cpu_opt(LOONGARCH_CPU_LVZ)
