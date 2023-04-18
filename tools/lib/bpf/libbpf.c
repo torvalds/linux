@@ -333,6 +333,7 @@ struct reloc_desc {
 		struct {
 			int map_idx;
 			int sym_off;
+			int ext_idx;
 		};
 	};
 };
@@ -4042,7 +4043,7 @@ static int bpf_program__record_reloc(struct bpf_program *prog,
 		else
 			reloc_desc->type = RELO_EXTERN_LD64;
 		reloc_desc->insn_idx = insn_idx;
-		reloc_desc->sym_off = i; /* sym_off stores extern index */
+		reloc_desc->ext_idx = i;
 		return 0;
 	}
 
@@ -5811,8 +5812,8 @@ out:
 }
 
 /* base map load ldimm64 special constant, used also for log fixup logic */
-#define MAP_LDIMM64_POISON_BASE 2001000000
-#define MAP_LDIMM64_POISON_PFX "200100"
+#define POISON_LDIMM64_MAP_BASE 2001000000
+#define POISON_LDIMM64_MAP_PFX "200100"
 
 static void poison_map_ldimm64(struct bpf_program *prog, int relo_idx,
 			       int insn_idx, struct bpf_insn *insn,
@@ -5834,7 +5835,7 @@ static void poison_map_ldimm64(struct bpf_program *prog, int relo_idx,
 		 * invalid func unknown#2001000123
 		 * where lower 123 is map index into obj->maps[] array
 		 */
-		insn->imm = MAP_LDIMM64_POISON_BASE + map_idx;
+		insn->imm = POISON_LDIMM64_MAP_BASE + map_idx;
 
 		insn++;
 	}
@@ -5885,7 +5886,7 @@ bpf_object__relocate_data(struct bpf_object *obj, struct bpf_program *prog)
 			}
 			break;
 		case RELO_EXTERN_LD64:
-			ext = &obj->externs[relo->sym_off];
+			ext = &obj->externs[relo->ext_idx];
 			if (ext->type == EXT_KCFG) {
 				if (obj->gen_loader) {
 					insn[0].src_reg = BPF_PSEUDO_MAP_IDX_VALUE;
@@ -5907,7 +5908,7 @@ bpf_object__relocate_data(struct bpf_object *obj, struct bpf_program *prog)
 			}
 			break;
 		case RELO_EXTERN_CALL:
-			ext = &obj->externs[relo->sym_off];
+			ext = &obj->externs[relo->ext_idx];
 			insn[0].src_reg = BPF_PSEUDO_KFUNC_CALL;
 			if (ext->is_set) {
 				insn[0].imm = ext->ksym.kernel_btf_id;
@@ -7022,13 +7023,13 @@ static void fixup_log_missing_map_load(struct bpf_program *prog,
 				       char *buf, size_t buf_sz, size_t log_sz,
 				       char *line1, char *line2, char *line3)
 {
-	/* Expected log for failed and not properly guarded CO-RE relocation:
+	/* Expected log for failed and not properly guarded map reference:
 	 * line1 -> 123: (85) call unknown#2001000345
 	 * line2 -> invalid func unknown#2001000345
 	 * line3 -> <anything else or end of buffer>
 	 *
 	 * "123" is the index of the instruction that was poisoned.
-	 * "345" in "2001000345" are map index in obj->maps to fetch map name.
+	 * "345" in "2001000345" is a map index in obj->maps to fetch map name.
 	 */
 	struct bpf_object *obj = prog->obj;
 	const struct bpf_map *map;
@@ -7038,7 +7039,7 @@ static void fixup_log_missing_map_load(struct bpf_program *prog,
 	if (sscanf(line1, "%d: (%*d) call unknown#%d\n", &insn_idx, &map_idx) != 2)
 		return;
 
-	map_idx -= MAP_LDIMM64_POISON_BASE;
+	map_idx -= POISON_LDIMM64_MAP_BASE;
 	if (map_idx < 0 || map_idx >= obj->nr_maps)
 		return;
 	map = &obj->maps[map_idx];
@@ -7070,20 +7071,21 @@ static void fixup_verifier_log(struct bpf_program *prog, char *buf, size_t buf_s
 		if (!cur_line)
 			return;
 
-		/* failed CO-RE relocation case */
 		if (str_has_pfx(cur_line, "invalid func unknown#195896080\n")) {
 			prev_line = find_prev_line(buf, cur_line);
 			if (!prev_line)
 				continue;
 
+			/* failed CO-RE relocation case */
 			fixup_log_failed_core_relo(prog, buf, buf_sz, log_sz,
 						   prev_line, cur_line, next_line);
 			return;
-		} else if (str_has_pfx(cur_line, "invalid func unknown#"MAP_LDIMM64_POISON_PFX)) {
+		} else if (str_has_pfx(cur_line, "invalid func unknown#"POISON_LDIMM64_MAP_PFX)) {
 			prev_line = find_prev_line(buf, cur_line);
 			if (!prev_line)
 				continue;
 
+			/* reference to uncreated BPF map */
 			fixup_log_missing_map_load(prog, buf, buf_sz, log_sz,
 						   prev_line, cur_line, next_line);
 			return;
@@ -7098,7 +7100,7 @@ static int bpf_program_record_relos(struct bpf_program *prog)
 
 	for (i = 0; i < prog->nr_reloc; i++) {
 		struct reloc_desc *relo = &prog->reloc_desc[i];
-		struct extern_desc *ext = &obj->externs[relo->sym_off];
+		struct extern_desc *ext = &obj->externs[relo->ext_idx];
 		int kind;
 
 		switch (relo->type) {
