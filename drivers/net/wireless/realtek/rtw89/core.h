@@ -3127,6 +3127,24 @@ struct rtw89_phy_ul_tb_info {
 	u8 def_if_bandedge;
 };
 
+struct rtw89_antdiv_stats {
+	struct ewma_rssi cck_rssi_avg;
+	struct ewma_rssi ofdm_rssi_avg;
+	struct ewma_rssi non_legacy_rssi_avg;
+	u16 pkt_cnt_cck;
+	u16 pkt_cnt_ofdm;
+	u16 pkt_cnt_non_legacy;
+};
+
+struct rtw89_antdiv_info {
+	struct rtw89_antdiv_stats target_stats;
+	struct rtw89_antdiv_stats main_stats;
+	struct rtw89_antdiv_stats aux_stats;
+	u8 training_count;
+	u8 rssi_pre;
+	bool get_stats;
+};
+
 struct rtw89_chip_info {
 	enum rtw89_core_chip_id chip_id;
 	const struct rtw89_chip_ops *ops;
@@ -4099,6 +4117,7 @@ struct rtw89_dev {
 	struct rtw89_phy_bb_gain_info bb_gain;
 	struct rtw89_phy_efuse_gain efuse_gain;
 	struct rtw89_phy_ul_tb_info ul_tb_info;
+	struct rtw89_antdiv_info antdiv;
 
 	struct delayed_work track_work;
 	struct delayed_work coex_act1_work;
@@ -4107,6 +4126,7 @@ struct rtw89_dev {
 	struct delayed_work cfo_track_work;
 	struct delayed_work forbid_ba_work;
 	struct delayed_work roc_work;
+	struct delayed_work antdiv_work;
 	struct rtw89_ppdu_sts_info ppdu_sts;
 	u8 total_sta_assoc;
 	bool scanning;

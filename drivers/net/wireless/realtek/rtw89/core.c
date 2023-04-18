@@ -1391,6 +1391,8 @@ static int rtw89_core_rx_parse_phy_sts(struct rtw89_dev *rtwdev,
 		}
 	}
 
+	rtw89_phy_antdiv_parse(rtwdev, phy_ppdu);
+
 	return 0;
 }
 
@@ -2628,6 +2630,7 @@ static void rtw89_track_work(struct work_struct *work)
 	rtw89_phy_ra_update(rtwdev);
 	rtw89_phy_cfo_track(rtwdev);
 	rtw89_phy_tx_path_div_track(rtwdev);
+	rtw89_phy_antdiv_track(rtwdev);
 	rtw89_phy_ul_tb_ctrl_track(rtwdev);
 
 	if (rtwdev->lps_enabled && !rtwdev->btc.lps)
@@ -3482,6 +3485,7 @@ void rtw89_core_stop(struct rtw89_dev *rtwdev)
 	cancel_delayed_work_sync(&rtwdev->coex_rfk_chk_work);
 	cancel_delayed_work_sync(&rtwdev->cfo_track_work);
 	cancel_delayed_work_sync(&rtwdev->forbid_ba_work);
+	cancel_delayed_work_sync(&rtwdev->antdiv_work);
 
 	mutex_lock(&rtwdev->mutex);
 
@@ -3517,6 +3521,7 @@ int rtw89_core_init(struct rtw89_dev *rtwdev)
 	INIT_DELAYED_WORK(&rtwdev->coex_rfk_chk_work, rtw89_coex_rfk_chk_work);
 	INIT_DELAYED_WORK(&rtwdev->cfo_track_work, rtw89_phy_cfo_track_work);
 	INIT_DELAYED_WORK(&rtwdev->forbid_ba_work, rtw89_forbid_ba_work);
+	INIT_DELAYED_WORK(&rtwdev->antdiv_work, rtw89_phy_antdiv_work);
 	rtwdev->txq_wq = alloc_workqueue("rtw89_tx_wq", WQ_UNBOUND | WQ_HIGHPRI, 0);
 	if (!rtwdev->txq_wq)
 		return -ENOMEM;
