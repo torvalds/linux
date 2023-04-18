@@ -9,6 +9,17 @@
 
 #include <drm/drm_rect.h>
 
+#include <linux/string_helpers.h>
+
+static void drm_rect_compare(struct kunit *test, const struct drm_rect *r,
+			     const struct drm_rect *expected)
+{
+	KUNIT_EXPECT_EQ(test, r->x1, expected->x1);
+	KUNIT_EXPECT_EQ(test, r->y1, expected->y1);
+	KUNIT_EXPECT_EQ(test, drm_rect_width(r), drm_rect_width(expected));
+	KUNIT_EXPECT_EQ(test, drm_rect_height(r), drm_rect_height(expected));
+}
+
 static void drm_test_rect_clip_scaled_div_by_zero(struct kunit *test)
 {
 	struct drm_rect src, dst, clip;
@@ -196,11 +207,148 @@ static void drm_test_rect_clip_scaled_signed_vs_unsigned(struct kunit *test)
 	KUNIT_EXPECT_FALSE_MSG(test, drm_rect_visible(&src), "Source should not be visible\n");
 }
 
+struct drm_rect_intersect_case {
+	const char *description;
+	struct drm_rect r1, r2;
+	bool should_be_visible;
+	struct drm_rect expected_intersection;
+};
+
+static const struct drm_rect_intersect_case drm_rect_intersect_cases[] = {
+	{
+		.description = "top-left x bottom-right",
+		.r1 = DRM_RECT_INIT(1, 1, 2, 2),
+		.r2 = DRM_RECT_INIT(0, 0, 2, 2),
+		.should_be_visible = true,
+		.expected_intersection = DRM_RECT_INIT(1, 1, 1, 1),
+	},
+	{
+		.description = "top-right x bottom-left",
+		.r1 = DRM_RECT_INIT(0, 0, 2, 2),
+		.r2 = DRM_RECT_INIT(1, -1, 2, 2),
+		.should_be_visible = true,
+		.expected_intersection = DRM_RECT_INIT(1, 0, 1, 1),
+	},
+	{
+		.description = "bottom-left x top-right",
+		.r1 = DRM_RECT_INIT(1, -1, 2, 2),
+		.r2 = DRM_RECT_INIT(0, 0, 2, 2),
+		.should_be_visible = true,
+		.expected_intersection = DRM_RECT_INIT(1, 0, 1, 1),
+	},
+	{
+		.description = "bottom-right x top-left",
+		.r1 = DRM_RECT_INIT(0, 0, 2, 2),
+		.r2 = DRM_RECT_INIT(1, 1, 2, 2),
+		.should_be_visible = true,
+		.expected_intersection = DRM_RECT_INIT(1, 1, 1, 1),
+	},
+	{
+		.description = "right x left",
+		.r1 = DRM_RECT_INIT(0, 0, 2, 1),
+		.r2 = DRM_RECT_INIT(1, 0, 3, 1),
+		.should_be_visible = true,
+		.expected_intersection = DRM_RECT_INIT(1, 0, 1, 1),
+	},
+	{
+		.description = "left x right",
+		.r1 = DRM_RECT_INIT(1, 0, 3, 1),
+		.r2 = DRM_RECT_INIT(0, 0, 2, 1),
+		.should_be_visible = true,
+		.expected_intersection = DRM_RECT_INIT(1, 0, 1, 1),
+	},
+	{
+		.description = "up x bottom",
+		.r1 = DRM_RECT_INIT(0, 0, 1, 2),
+		.r2 = DRM_RECT_INIT(0, -1, 1, 3),
+		.should_be_visible = true,
+		.expected_intersection = DRM_RECT_INIT(0, 0, 1, 2),
+	},
+	{
+		.description = "bottom x up",
+		.r1 = DRM_RECT_INIT(0, -1, 1, 3),
+		.r2 = DRM_RECT_INIT(0, 0, 1, 2),
+		.should_be_visible = true,
+		.expected_intersection = DRM_RECT_INIT(0, 0, 1, 2),
+	},
+	{
+		.description = "touching corner",
+		.r1 = DRM_RECT_INIT(0, 0, 1, 1),
+		.r2 = DRM_RECT_INIT(1, 1, 2, 2),
+		.should_be_visible = false,
+		.expected_intersection = DRM_RECT_INIT(1, 1, 0, 0),
+	},
+	{
+		.description = "touching side",
+		.r1 = DRM_RECT_INIT(0, 0, 1, 1),
+		.r2 = DRM_RECT_INIT(1, 0, 1, 1),
+		.should_be_visible = false,
+		.expected_intersection = DRM_RECT_INIT(1, 0, 0, 1),
+	},
+	{
+		.description = "equal rects",
+		.r1 = DRM_RECT_INIT(0, 0, 2, 2),
+		.r2 = DRM_RECT_INIT(0, 0, 2, 2),
+		.should_be_visible = true,
+		.expected_intersection = DRM_RECT_INIT(0, 0, 2, 2),
+	},
+	{
+		.description = "inside another",
+		.r1 = DRM_RECT_INIT(0, 0, 2, 2),
+		.r2 = DRM_RECT_INIT(1, 1, 1, 1),
+		.should_be_visible = true,
+		.expected_intersection = DRM_RECT_INIT(1, 1, 1, 1),
+	},
+	{
+		.description = "far away",
+		.r1 = DRM_RECT_INIT(0, 0, 1, 1),
+		.r2 = DRM_RECT_INIT(3, 6, 1, 1),
+		.should_be_visible = false,
+		.expected_intersection = DRM_RECT_INIT(3, 6, -2, -5),
+	},
+	{
+		.description = "points intersecting",
+		.r1 = DRM_RECT_INIT(5, 10, 0, 0),
+		.r2 = DRM_RECT_INIT(5, 10, 0, 0),
+		.should_be_visible = false,
+		.expected_intersection = DRM_RECT_INIT(5, 10, 0, 0),
+	},
+	{
+		.description = "points not intersecting",
+		.r1 = DRM_RECT_INIT(0, 0, 0, 0),
+		.r2 = DRM_RECT_INIT(5, 10, 0, 0),
+		.should_be_visible = false,
+		.expected_intersection = DRM_RECT_INIT(5, 10, -5, -10),
+	},
+};
+
+static void drm_rect_intersect_case_desc(const struct drm_rect_intersect_case *t, char *desc)
+{
+	snprintf(desc, KUNIT_PARAM_DESC_SIZE,
+		 "%s: " DRM_RECT_FMT " x " DRM_RECT_FMT,
+		 t->description, DRM_RECT_ARG(&t->r1), DRM_RECT_ARG(&t->r2));
+}
+
+KUNIT_ARRAY_PARAM(drm_rect_intersect, drm_rect_intersect_cases, drm_rect_intersect_case_desc);
+
+static void drm_test_rect_intersect(struct kunit *test)
+{
+	const struct drm_rect_intersect_case *params = test->param_value;
+	struct drm_rect r1_aux = params->r1;
+	bool visible;
+
+	visible = drm_rect_intersect(&r1_aux, &params->r2);
+
+	KUNIT_EXPECT_EQ(test, visible, params->should_be_visible);
+	drm_rect_compare(test, &r1_aux, &params->expected_intersection);
+}
+
 static struct kunit_case drm_rect_tests[] = {
 	KUNIT_CASE(drm_test_rect_clip_scaled_div_by_zero),
 	KUNIT_CASE(drm_test_rect_clip_scaled_not_clipped),
 	KUNIT_CASE(drm_test_rect_clip_scaled_clipped),
 	KUNIT_CASE(drm_test_rect_clip_scaled_signed_vs_unsigned),
+	KUNIT_CASE_PARAM(drm_test_rect_intersect, drm_rect_intersect_gen_params),
 	{ }
 };
 
