@@ -304,11 +304,15 @@ static bool gunyah_get_read_notify(struct qrtr_gunyah_dev *qdev)
 	return le32_to_cpu(*qdev->rx_pipe.read_notify);
 }
 
-static void gunyah_wait_for_tx_avail(struct qrtr_gunyah_dev *qdev)
+static int gunyah_wait_for_tx_avail(struct qrtr_gunyah_dev *qdev)
 {
+	int ret;
+
 	gunyah_set_tx_notify(qdev);
-	wait_event_timeout(qdev->tx_avail_notify,
-			   gunyah_tx_avail(&qdev->tx_pipe), 10 * HZ);
+	qrtr_gunyah_kick(qdev);
+	ret = wait_event_timeout(qdev->tx_avail_notify, gunyah_tx_avail(&qdev->tx_pipe), 10 * HZ);
+
+	return ret;
 }
 
 /* from qrtr to gunyah */
@@ -319,7 +323,7 @@ static int qrtr_gunyah_send(struct qrtr_endpoint *ep, struct sk_buff *skb)
 	int chunk_size;
 	int left_size;
 	int offset;
-	int rc;
+	int rc = 0;
 
 	qdev = container_of(ep, struct qrtr_gunyah_dev, ep);
 
@@ -328,7 +332,11 @@ static int qrtr_gunyah_send(struct qrtr_endpoint *ep, struct sk_buff *skb)
 	while (left_size > 0) {
 		tx_avail = gunyah_tx_avail(&qdev->tx_pipe);
 		if (!tx_avail) {
-			gunyah_wait_for_tx_avail(qdev);
+			if (!gunyah_wait_for_tx_avail(qdev)) {
+				dev_err(qdev->dev, "transport stalled\n");
+				rc = -ETIMEDOUT;
+				break;
+			}
 			continue;
 		}
 		if (tx_avail < left_size)
@@ -360,7 +368,7 @@ static int qrtr_gunyah_send(struct qrtr_endpoint *ep, struct sk_buff *skb)
 	gunyah_clr_tx_notify(qdev);
 	kfree_skb(skb);
 
-	return 0;
+	return (rc < 0) ? rc : 0;
 }
 
 static void qrtr_gunyah_read_new(struct qrtr_gunyah_dev *qdev)
