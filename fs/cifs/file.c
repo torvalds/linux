@@ -4010,7 +4010,6 @@ static void
 collect_uncached_read_data(struct cifs_aio_ctx *ctx)
 {
 	struct cifs_readdata *rdata, *tmp;
-	struct iov_iter *to = &ctx->iter;
 	struct cifs_sb_info *cifs_sb;
 	int rc;
 
@@ -4075,9 +4074,6 @@ again:
 		list_del_init(&rdata->list);
 		kref_put(&rdata->refcount, cifs_readdata_release);
 	}
-
-	if (!ctx->direct_io)
-		ctx->total_len = ctx->len - iov_iter_count(to);
 
 	/* mask nodata case */
 	if (rc == -ENODATA)
