@@ -2,7 +2,7 @@
 /*
  *	PCI Class, Vendor and Device IDs
  *
- *	Please keep sorted.
+ *	Please keep sorted by numeric Vendor ID and Device ID.
  *
  *	Do not add new entries to this file unless the definitions
  *	are shared between multiple drivers.
