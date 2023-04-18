@@ -1537,7 +1537,7 @@ int cs35l56_init(struct cs35l56_private *cs35l56)
 
 	cs35l56_patch(cs35l56->dev, cs35l56->regmap, cs35l56->rev);
 
-	/* Wake source interrupts default to unmasked, so mask them */
+	/* Wake source and *_BLOCKED interrupts default to unmasked, so mask them */
 	regmap_write(cs35l56->regmap, CS35L56_IRQ1_MASK_20, 0xffffffff);
 	regmap_update_bits(cs35l56->regmap, CS35L56_IRQ1_MASK_1,
 			   CS35L56_AMP_SHORT_ERR_EINT1_MASK,
