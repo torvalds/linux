@@ -285,11 +285,12 @@ config PCIE_BRCMSTB
 	  Broadcom STB based SoCs, like the Raspberry Pi 4.
 
 config PCI_HYPERV_INTERFACE
-	tristate "Hyper-V PCI Interface"
+	tristate "Microsoft Hyper-V PCI Interface"
 	depends on ((X86 && X86_64) || ARM64) && HYPERV && PCI_MSI
 	help
-	  The Hyper-V PCI Interface is a helper driver allows other drivers to
-	  have a common interface with the Hyper-V PCI frontend driver.
+	  The Hyper-V PCI Interface is a helper driver that allows other
+	  drivers to have a common interface with the Hyper-V PCI frontend
+	  driver.
 
 config PCI_LOONGSON
 	bool "LOONGSON PCI Controller"
