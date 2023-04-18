@@ -153,16 +153,9 @@ static void io_rsrc_put_work_one(struct io_rsrc_data *rsrc_data,
 static void __io_rsrc_put_work(struct io_rsrc_node *ref_node)
 {
 	struct io_rsrc_data *rsrc_data = ref_node->rsrc_data;
-	struct io_rsrc_put *prsrc, *tmp;
 
-	if (ref_node->inline_items)
+	if (likely(ref_node->inline_items))
 		io_rsrc_put_work_one(rsrc_data, &ref_node->item);
-
-	list_for_each_entry_safe(prsrc, tmp, &ref_node->item_list, list) {
-		list_del(&prsrc->list);
-		io_rsrc_put_work_one(rsrc_data, prsrc);
-		kfree(prsrc);
-	}
 
 	io_rsrc_node_destroy(rsrc_data->ctx, ref_node);
 }
@@ -206,53 +199,29 @@ struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx)
 	}
 
 	ref_node->rsrc_data = NULL;
-	ref_node->refs = 1;
-	INIT_LIST_HEAD(&ref_node->node);
-	INIT_LIST_HEAD(&ref_node->item_list);
 	ref_node->inline_items = 0;
+	ref_node->refs = 1;
 	return ref_node;
-}
-
-void io_rsrc_node_switch(struct io_ring_ctx *ctx,
-			 struct io_rsrc_data *data_to_kill)
-	__must_hold(&ctx->uring_lock)
-{
-	struct io_rsrc_node *node = ctx->rsrc_node;
-	struct io_rsrc_node *backup = io_rsrc_node_alloc(ctx);
-
-	if (WARN_ON_ONCE(!backup))
-		return;
-
-	node->rsrc_data = data_to_kill;
-	list_add_tail(&node->node, &ctx->rsrc_ref_list);
-	/* put master ref */
-	io_put_rsrc_node(ctx, node);
-	ctx->rsrc_node = backup;
-}
-
-int __io_rsrc_node_switch_start(struct io_ring_ctx *ctx)
-{
-	struct io_rsrc_node *node = kzalloc(sizeof(*node), GFP_KERNEL);
-
-	if (!node)
-		return -ENOMEM;
-	io_alloc_cache_put(&ctx->rsrc_node_cache, &node->cache);
-	return 0;
 }
 
 __cold static int io_rsrc_ref_quiesce(struct io_rsrc_data *data,
 				      struct io_ring_ctx *ctx)
 {
+	struct io_rsrc_node *backup;
 	DEFINE_WAIT(we);
 	int ret;
 
-	/* As we may drop ->uring_lock, other task may have started quiesce */
+	/* As We may drop ->uring_lock, other task may have started quiesce */
 	if (data->quiesce)
 		return -ENXIO;
-	ret = io_rsrc_node_switch_start(ctx);
-	if (ret)
-		return ret;
-	io_rsrc_node_switch(ctx, data);
+
+	backup = io_rsrc_node_alloc(ctx);
+	if (!backup)
+		return -ENOMEM;
+	ctx->rsrc_node->rsrc_data = data;
+	list_add_tail(&ctx->rsrc_node->node, &ctx->rsrc_ref_list);
+	io_put_rsrc_node(ctx, ctx->rsrc_node);
+	ctx->rsrc_node = backup;
 
 	if (list_empty(&ctx->rsrc_ref_list))
 		return 0;
@@ -382,7 +351,6 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 	struct file *file;
 	int fd, i, err = 0;
 	unsigned int done;
-	bool needs_switch = false;
 
 	if (!ctx->file_data)
 		return -ENXIO;
@@ -414,7 +382,6 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 				break;
 			file_slot->file_ptr = 0;
 			io_file_bitmap_clear(&ctx->file_table, i);
-			needs_switch = true;
 		}
 		if (fd != -1) {
 			file = fget(fd);
@@ -445,9 +412,6 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 			io_file_bitmap_set(&ctx->file_table, i);
 		}
 	}
-
-	if (needs_switch)
-		io_rsrc_node_switch(ctx, data);
 	return done ? done : err;
 }
 
@@ -458,7 +422,6 @@ static int __io_sqe_buffers_update(struct io_ring_ctx *ctx,
 	u64 __user *tags = u64_to_user_ptr(up->tags);
 	struct iovec iov, __user *iovs = u64_to_user_ptr(up->data);
 	struct page *last_hpage = NULL;
-	bool needs_switch = false;
 	__u32 done;
 	int i, err;
 
@@ -498,15 +461,11 @@ static int __io_sqe_buffers_update(struct io_ring_ctx *ctx,
 				break;
 			}
 			ctx->user_bufs[i] = ctx->dummy_ubuf;
-			needs_switch = true;
 		}
 
 		ctx->user_bufs[i] = imu;
 		*io_get_tag_slot(ctx->buf_data, i) = tag;
 	}
-
-	if (needs_switch)
-		io_rsrc_node_switch(ctx, ctx->buf_data);
 	return done ? done : err;
 }
 
@@ -515,15 +474,11 @@ static int __io_register_rsrc_update(struct io_ring_ctx *ctx, unsigned type,
 				     unsigned nr_args)
 {
 	__u32 tmp;
-	int err;
 
 	lockdep_assert_held(&ctx->uring_lock);
 
 	if (check_add_overflow(up->offset, nr_args, &tmp))
 		return -EOVERFLOW;
-	err = io_rsrc_node_switch_start(ctx);
-	if (err)
-		return err;
 
 	switch (type) {
 	case IORING_RSRC_FILE:
@@ -685,21 +640,21 @@ int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx, void *rsrc)
 	struct io_ring_ctx *ctx = data->ctx;
 	struct io_rsrc_node *node = ctx->rsrc_node;
 	u64 *tag_slot = io_get_tag_slot(data, idx);
-	struct io_rsrc_put *prsrc;
 
-	if (!node->inline_items) {
-		prsrc = &node->item;
-		node->inline_items++;
-	} else {
-		prsrc = kzalloc(sizeof(*prsrc), GFP_KERNEL);
-		if (!prsrc)
-			return -ENOMEM;
-		list_add(&prsrc->list, &node->item_list);
+	ctx->rsrc_node = io_rsrc_node_alloc(ctx);
+	if (unlikely(!ctx->rsrc_node)) {
+		ctx->rsrc_node = node;
+		return -ENOMEM;
 	}
 
-	prsrc->tag = *tag_slot;
+	node->item.rsrc = rsrc;
+	node->item.tag = *tag_slot;
+	node->inline_items = 1;
 	*tag_slot = 0;
-	prsrc->rsrc = rsrc;
+
+	node->rsrc_data = data;
+	list_add_tail(&node->node, &ctx->rsrc_ref_list);
+	io_put_rsrc_node(ctx, node);
 	return 0;
 }
 

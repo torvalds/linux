@@ -18,7 +18,6 @@ enum {
 };
 
 struct io_rsrc_put {
-	struct list_head list;
 	u64 tag;
 	union {
 		void *rsrc;
@@ -43,17 +42,10 @@ struct io_rsrc_node {
 		struct io_cache_entry		cache;
 		struct io_rsrc_data		*rsrc_data;
 	};
-	struct list_head		node;
 	int				refs;
-
-	/*
-	 * Keeps a list of struct io_rsrc_put to be completed. Each entry
-	 * represents one rsrc (e.g. file or buffer), but all of them should've
-	 * came from the same table and so are of the same type.
-	 */
-	struct list_head		item_list;
-	struct io_rsrc_put		item;
 	int				inline_items;
+	struct list_head		node;
+	struct io_rsrc_put		item;
 };
 
 struct io_mapped_ubuf {
@@ -68,11 +60,8 @@ void io_rsrc_put_tw(struct callback_head *cb);
 void io_rsrc_node_ref_zero(struct io_rsrc_node *node);
 void io_rsrc_put_work(struct work_struct *work);
 void io_rsrc_node_destroy(struct io_ring_ctx *ctx, struct io_rsrc_node *ref_node);
-int __io_rsrc_node_switch_start(struct io_ring_ctx *ctx);
 struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx);
 int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx, void *rsrc);
-void io_rsrc_node_switch(struct io_ring_ctx *ctx,
-			 struct io_rsrc_data *data_to_kill);
 
 int io_import_fixed(int ddir, struct iov_iter *iter,
 			   struct io_mapped_ubuf *imu,
@@ -107,13 +96,6 @@ static inline int io_scm_file_account(struct io_ring_ctx *ctx,
 	if (likely(!io_file_need_scm(file)))
 		return 0;
 	return __io_scm_file_account(ctx, file);
-}
-
-static inline int io_rsrc_node_switch_start(struct io_ring_ctx *ctx)
-{
-	if (unlikely(io_alloc_cache_empty(&ctx->rsrc_node_cache)))
-		return __io_rsrc_node_switch_start(ctx);
-	return 0;
 }
 
 int io_register_files_update(struct io_ring_ctx *ctx, void __user *arg,

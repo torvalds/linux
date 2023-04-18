@@ -80,10 +80,6 @@ static int io_install_fixed_file(struct io_ring_ctx *ctx, struct file *file,
 	if (file_slot->file_ptr) {
 		struct file *old_file;
 
-		ret = io_rsrc_node_switch_start(ctx);
-		if (ret)
-			return ret;
-
 		old_file = (struct file *)(file_slot->file_ptr & FFS_MASK);
 		ret = io_queue_rsrc_removal(ctx->file_data, slot_index, old_file);
 		if (ret)
@@ -91,7 +87,6 @@ static int io_install_fixed_file(struct io_ring_ctx *ctx, struct file *file,
 
 		file_slot->file_ptr = 0;
 		io_file_bitmap_clear(&ctx->file_table, slot_index);
-		io_rsrc_node_switch(ctx, ctx->file_data);
 	}
 
 	ret = io_scm_file_account(ctx, file);
@@ -152,9 +147,6 @@ int io_fixed_fd_remove(struct io_ring_ctx *ctx, unsigned int offset)
 		return -ENXIO;
 	if (offset >= ctx->nr_user_files)
 		return -EINVAL;
-	ret = io_rsrc_node_switch_start(ctx);
-	if (ret)
-		return ret;
 
 	offset = array_index_nospec(offset, ctx->nr_user_files);
 	file_slot = io_fixed_file_slot(&ctx->file_table, offset);
@@ -168,7 +160,6 @@ int io_fixed_fd_remove(struct io_ring_ctx *ctx, unsigned int offset)
 
 	file_slot->file_ptr = 0;
 	io_file_bitmap_clear(&ctx->file_table, offset);
-	io_rsrc_node_switch(ctx, ctx->file_data);
 	return 0;
 }
 
