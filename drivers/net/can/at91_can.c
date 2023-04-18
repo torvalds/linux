@@ -75,7 +75,9 @@ enum at91_reg {
 #define AT91_ECR_REC_MASK GENMASK(8, 0)
 #define AT91_ECR_TEC_MASK GENMASK(23, 16)
 
-#define AT91_MMR_PRIO_SHIFT (16)
+#define AT91_MMR_MTIMEMARK_MASK GENMASK(15, 0)
+#define AT91_MMR_PRIOR_MASK GENMASK(19, 16)
+#define AT91_MMR_MOT_MASK GENMASK(26, 24)
 
 #define AT91_MID_MIDE BIT(29)
 
@@ -299,9 +301,12 @@ static inline void at91_write(const struct at91_priv *priv, enum at91_reg reg,
 
 static inline void set_mb_mode_prio(const struct at91_priv *priv,
 				    unsigned int mb, enum at91_mb_mode mode,
-				    int prio)
+				    u8 prio)
 {
-	at91_write(priv, AT91_MMR(mb), (mode << 24) | (prio << 16));
+	const u32 reg_mmr = FIELD_PREP(AT91_MMR_MOT_MASK, mode) |
+		FIELD_PREP(AT91_MMR_PRIOR_MASK, prio);
+
+	at91_write(priv, AT91_MMR(mb), reg_mmr);
 }
 
 static inline void set_mb_mode(const struct at91_priv *priv, unsigned int mb,
