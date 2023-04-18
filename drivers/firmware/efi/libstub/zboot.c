@@ -91,12 +91,12 @@ efi_zboot_entry(efi_handle_t handle, efi_system_table_t *systab)
 	efi_info("Decompressing Linux Kernel...\n");
 
 	// SizeOfImage from the compressee's PE/COFF header
-	alloc_size = round_up(get_unaligned_le32(_gzdata_end - 4),
+	alloc_size = round_up(get_unaligned_le32(_gzdata_end - 12),
 			      EFI_ALLOC_ALIGN);
 
 	// SizeOfHeaders and SizeOfCode from the compressee's PE/COFF header
-	code_size = get_unaligned_le32(_gzdata_end - 8) +
-		    get_unaligned_le32(_gzdata_end - 12);
+	code_size = get_unaligned_le32(_gzdata_end - 4) +
+		    get_unaligned_le32(_gzdata_end - 8);
 
 	 // If the architecture has a preferred address for the image,
 	 // try that first.
