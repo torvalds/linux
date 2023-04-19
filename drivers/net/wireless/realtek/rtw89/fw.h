@@ -3221,16 +3221,17 @@ static inline struct rtw89_fw_c2h_attr *RTW89_SKB_C2H_CB(struct sk_buff *skb)
 #define RTW89_GET_C2H_LOG_SRT_PRT(c2h) (char *)((__le32 *)(c2h) + 2)
 #define RTW89_GET_C2H_LOG_LEN(len) ((len) - RTW89_C2H_HEADER_LEN)
 
-#define RTW89_GET_MAC_C2H_DONE_ACK_CAT(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(1, 0))
-#define RTW89_GET_MAC_C2H_DONE_ACK_CLASS(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(7, 2))
-#define RTW89_GET_MAC_C2H_DONE_ACK_FUNC(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(15, 8))
-#define RTW89_GET_MAC_C2H_DONE_ACK_H2C_RETURN(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(23, 16))
-#define RTW89_GET_MAC_C2H_DONE_ACK_H2C_SEQ(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(31, 24))
+struct rtw89_c2h_done_ack {
+	__le32 w0;
+	__le32 w1;
+	__le32 w2;
+} __packed;
+
+#define RTW89_C2H_DONE_ACK_W2_CAT GENMASK(1, 0)
+#define RTW89_C2H_DONE_ACK_W2_CLASS GENMASK(7, 2)
+#define RTW89_C2H_DONE_ACK_W2_FUNC GENMASK(15, 8)
+#define RTW89_C2H_DONE_ACK_W2_H2C_RETURN GENMASK(23, 16)
+#define RTW89_C2H_DONE_ACK_W2_H2C_SEQ GENMASK(31, 24)
 
 #define RTW89_GET_MAC_C2H_REV_ACK_CAT(c2h) \
 	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(1, 0))

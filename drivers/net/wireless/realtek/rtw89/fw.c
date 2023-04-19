@@ -2532,9 +2532,11 @@ int rtw89_fw_h2c_add_pkt_offload(struct rtw89_dev *rtwdev, u8 *id,
 int rtw89_fw_h2c_scan_list_offload(struct rtw89_dev *rtwdev, int len,
 				   struct list_head *chan_list)
 {
+	struct rtw89_wait_info *wait = &rtwdev->mac.fw_ofld_wait;
 	struct rtw89_mac_chinfo *ch_info;
 	struct sk_buff *skb;
 	int skb_len = H2C_LEN_SCAN_LIST_OFFLOAD + len * RTW89_MAC_CHINFO_SIZE;
+	unsigned int cond;
 	u8 *cmd;
 	int ret;
 
@@ -2581,27 +2583,27 @@ int rtw89_fw_h2c_scan_list_offload(struct rtw89_dev *rtwdev, int len,
 			      H2C_CAT_MAC, H2C_CL_MAC_FW_OFLD,
 			      H2C_FUNC_ADD_SCANOFLD_CH, 1, 1, skb_len);
 
-	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	cond = RTW89_FW_OFLD_WAIT_COND(0, H2C_FUNC_ADD_SCANOFLD_CH);
+
+	ret = rtw89_h2c_tx_and_wait(rtwdev, skb, wait, cond);
 	if (ret) {
-		rtw89_err(rtwdev, "failed to send h2c\n");
-		goto fail;
+		rtw89_debug(rtwdev, RTW89_DBG_FW, "failed to add scan ofld ch\n");
+		return ret;
 	}
 
 	return 0;
-fail:
-	dev_kfree_skb_any(skb);
-
-	return ret;
 }
 
 int rtw89_fw_h2c_scan_offload(struct rtw89_dev *rtwdev,
 			      struct rtw89_scan_option *option,
 			      struct rtw89_vif *rtwvif)
 {
+	struct rtw89_wait_info *wait = &rtwdev->mac.fw_ofld_wait;
 	struct rtw89_chan *op = &rtwdev->scan_info.op_chan;
 	struct rtw89_h2c_scanofld *h2c;
 	u32 len = sizeof(*h2c);
 	struct sk_buff *skb;
+	unsigned int cond;
 	int ret;
 
 	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
@@ -2640,17 +2642,15 @@ int rtw89_fw_h2c_scan_offload(struct rtw89_dev *rtwdev,
 			      H2C_FUNC_SCANOFLD, 1, 1,
 			      len);
 
-	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	cond = RTW89_FW_OFLD_WAIT_COND(0, H2C_FUNC_SCANOFLD);
+
+	ret = rtw89_h2c_tx_and_wait(rtwdev, skb, wait, cond);
 	if (ret) {
-		rtw89_err(rtwdev, "failed to send h2c\n");
-		goto fail;
+		rtw89_debug(rtwdev, RTW89_DBG_FW, "failed to scan ofld\n");
+		return ret;
 	}
 
 	return 0;
-fail:
-	dev_kfree_skb_any(skb);
-
-	return ret;
 }
 
 int rtw89_fw_h2c_rf_reg(struct rtw89_dev *rtwdev,

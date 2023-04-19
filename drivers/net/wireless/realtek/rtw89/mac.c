@@ -4347,17 +4347,44 @@ rtw89_mac_c2h_rec_ack(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
 }
 
 static void
-rtw89_mac_c2h_done_ack(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
+rtw89_mac_c2h_done_ack(struct rtw89_dev *rtwdev, struct sk_buff *skb_c2h, u32 len)
 {
 	/* N.B. This will run in interrupt context. */
+	struct rtw89_wait_info *fw_ofld_wait = &rtwdev->mac.fw_ofld_wait;
+	const struct rtw89_c2h_done_ack *c2h =
+		(const struct rtw89_c2h_done_ack *)skb_c2h->data;
+	u8 h2c_cat = le32_get_bits(c2h->w2, RTW89_C2H_DONE_ACK_W2_CAT);
+	u8 h2c_class = le32_get_bits(c2h->w2, RTW89_C2H_DONE_ACK_W2_CLASS);
+	u8 h2c_func = le32_get_bits(c2h->w2, RTW89_C2H_DONE_ACK_W2_FUNC);
+	u8 h2c_return = le32_get_bits(c2h->w2, RTW89_C2H_DONE_ACK_W2_H2C_RETURN);
+	u8 h2c_seq = le32_get_bits(c2h->w2, RTW89_C2H_DONE_ACK_W2_H2C_SEQ);
+	struct rtw89_completion_data data = {};
+	unsigned int cond;
 
 	rtw89_debug(rtwdev, RTW89_DBG_FW,
 		    "C2H done ack recv, cat: %d, class: %d, func: %d, ret: %d, seq : %d\n",
-		    RTW89_GET_MAC_C2H_DONE_ACK_CAT(c2h->data),
-		    RTW89_GET_MAC_C2H_DONE_ACK_CLASS(c2h->data),
-		    RTW89_GET_MAC_C2H_DONE_ACK_FUNC(c2h->data),
-		    RTW89_GET_MAC_C2H_DONE_ACK_H2C_RETURN(c2h->data),
-		    RTW89_GET_MAC_C2H_DONE_ACK_H2C_SEQ(c2h->data));
+		    h2c_cat, h2c_class, h2c_func, h2c_return, h2c_seq);
+
+	if (h2c_cat != H2C_CAT_MAC)
+		return;
+
+	switch (h2c_class) {
+	default:
+		return;
+	case H2C_CL_MAC_FW_OFLD:
+		switch (h2c_func) {
+		default:
+			return;
+		case H2C_FUNC_ADD_SCANOFLD_CH:
+		case H2C_FUNC_SCANOFLD:
+			cond = RTW89_FW_OFLD_WAIT_COND(0, h2c_func);
+			break;
+		}
+
+		data.err = !!h2c_return;
+		rtw89_complete_cond(fw_ofld_wait, cond, &data);
+		return;
+	}
 }
 
 static void
