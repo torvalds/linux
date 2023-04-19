@@ -116,6 +116,10 @@
 /* The calibration coefficient of sensor  */
 #define MT8173_CALIBRATION	165
 
+/* Valid temperatures range */
+#define MT8173_TEMP_MIN		-20000
+#define MT8173_TEMP_MAX		150000
+
 /*
  * Layout of the fuses providing the calibration data
  * These macros could be used for MT8183, MT8173, MT2701, and MT2712.
@@ -689,6 +693,11 @@ static const struct mtk_thermal_data mt7986_thermal_data = {
 	.version = MTK_THERMAL_V3,
 };
 
+static bool mtk_thermal_temp_is_valid(int temp)
+{
+	return (temp >= MT8173_TEMP_MIN) && (temp <= MT8173_TEMP_MAX);
+}
+
 /**
  * raw_to_mcelsius_v1 - convert a raw ADC value to mcelsius
  * @mt:	The thermal controller
@@ -815,14 +824,17 @@ static int mtk_thermal_bank_temperature(struct mtk_thermal_bank *bank)
 		temp = mt->raw_to_mcelsius(
 			mt, conf->bank_data[bank->id].sensors[i], raw);
 
-
 		/*
-		 * The first read of a sensor often contains very high bogus
-		 * temperature value. Filter these out so that the system does
-		 * not immediately shut down.
+		 * Depending on the filt/sen intervals and ADC polling time,
+		 * we may need up to 60 milliseconds after initialization: this
+		 * will result in the first reading containing an out of range
+		 * temperature value.
+		 * Validate the reading to both address the aforementioned issue
+		 * and to eventually avoid bogus readings during runtime in the
+		 * event that the AUXADC gets unstable due to high EMI, etc.
 		 */
-		if (temp > 200000)
-			temp = 0;
+		if (!mtk_thermal_temp_is_valid(temp))
+			temp = THERMAL_TEMP_INVALID;
 
 		if (temp > max)
 			max = temp;
