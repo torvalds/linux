@@ -1,16 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright 2022 StarFive, Inc <clivia.cai@starfivetech.com>
+ * StarFive Designware Mobile Storage Host Controller Driver
  *
- * THE PRESENT SOFTWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING
- * CUSTOMERS WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER
- * FOR THEM TO SAVE TIME. AS A RESULT, STARFIVE SHALL NOT BE HELD LIABLE
- * FOR ANY DIRECT, INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY
- * CLAIMS ARISING FROM THE CONTENT OF SUCH SOFTWARE AND/OR THE USE MADE
- * BY CUSTOMERS OF THE CODING INFORMATION CONTAINED HEREIN IN CONNECTION
- * WITH THEIR PRODUCTS.
+ * Copyright (c) 2022 StarFive Technology Co., Ltd.
  */
-
 
 #include <linux/clk.h>
 #include <linux/mfd/syscon.h>
@@ -254,5 +247,6 @@ static struct platform_driver dw_mci_starfive_driver = {
 module_platform_driver(dw_mci_starfive_driver);
 
 MODULE_DESCRIPTION("StarFive JH7110 Specific DW-MSHC Driver Extension");
-MODULE_LICENSE("GPL v2");
+MODULE_AUTHOR("William Qiu <william.qiu@starfivetech.com");
+MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:dwmmc_starfive");

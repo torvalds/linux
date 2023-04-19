@@ -1,17 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright 2021 StarFive, Inc <william.qiu@starfivetech.com>
- * Copyright 2021 StarFive, Inc <huan.feng@starfivetech.com>
+ * StarFive AES acceleration driver
  *
- * THE PRESENT SOFTWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING
- * CUSTOMERS WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER
- * FOR THEM TO SAVE TIME. AS A RESULT, STARFIVE SHALL NOT BE HELD LIABLE
- * FOR ANY DIRECT, INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY
- * CLAIMS ARISING FROM THE CONTENT OF SUCH SOFTWARE AND/OR THE USE MADE
- * BY CUSTOMERS OF THE CODING INFORMATION CONTAINED HEREIN IN CONNECTION
- * WITH THEIR PRODUCTS.
+ * Copyright (c) 2022 StarFive Technology Co., Ltd.
  */
-
 
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -1800,3 +1792,7 @@ void jh7110_aes_unregister_algs(void)
 	crypto_unregister_aeads(aead_algs, ARRAY_SIZE(aead_algs));
 	crypto_unregister_skciphers(crypto_algs, ARRAY_SIZE(crypto_algs));
 }
+
+MODULE_DESCRIPTION("AES acceleration driver for StarFive JH7110 SoC");
+MODULE_AUTHOR("Jia Jie Ho <jiajie.ho@starfivetech.com>");
+MODULE_LICENSE("GPL");
