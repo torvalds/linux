@@ -115,6 +115,11 @@ struct rapl_defaults {
 };
 static struct rapl_defaults *rapl_defaults;
 
+static struct rapl_defaults *get_defaults(struct rapl_package *rp)
+{
+	return rp->priv->defaults;
+}
+
 /* Sideband MBI registers */
 #define IOSF_CPU_POWER_BUDGET_CTL_BYT (0x2)
 #define IOSF_CPU_POWER_BUDGET_CTL_TNG (0xdf)
@@ -227,14 +232,15 @@ static int find_nr_power_limit(struct rapl_domain *rd)
 static int set_domain_enable(struct powercap_zone *power_zone, bool mode)
 {
 	struct rapl_domain *rd = power_zone_to_rapl_domain(power_zone);
+	struct rapl_defaults *defaults = get_defaults(rd->rp);
 
 	if (rd->state & DOMAIN_STATE_BIOS_LOCKED)
 		return -EACCES;
 
 	cpus_read_lock();
 	rapl_write_data_raw(rd, PL1_ENABLE, mode);
-	if (rapl_defaults->set_floor_freq)
-		rapl_defaults->set_floor_freq(rd, mode);
+	if (defaults->set_floor_freq)
+		defaults->set_floor_freq(rd, mode);
 	cpus_read_unlock();
 
 	return 0;
@@ -551,6 +557,7 @@ static void rapl_init_domains(struct rapl_package *rp)
 	enum rapl_domain_type i;
 	enum rapl_domain_reg_id j;
 	struct rapl_domain *rd = rp->domains;
+	struct rapl_defaults *defaults = get_defaults(rp);
 
 	for (i = 0; i < RAPL_DOMAIN_MAX; i++) {
 		unsigned int mask = rp->domain_map & (1 << i);
@@ -592,14 +599,14 @@ static void rapl_init_domains(struct rapl_package *rp)
 		switch (i) {
 		case RAPL_DOMAIN_DRAM:
 			rd->domain_energy_unit =
-			    rapl_defaults->dram_domain_energy_unit;
+			    defaults->dram_domain_energy_unit;
 			if (rd->domain_energy_unit)
 				pr_info("DRAM domain energy unit %dpj\n",
 					rd->domain_energy_unit);
 			break;
 		case RAPL_DOMAIN_PLATFORM:
 			rd->domain_energy_unit =
-			    rapl_defaults->psys_domain_energy_unit;
+			    defaults->psys_domain_energy_unit;
 			if (rd->domain_energy_unit)
 				pr_info("Platform domain energy unit %dpj\n",
 					rd->domain_energy_unit);
@@ -616,6 +623,7 @@ static u64 rapl_unit_xlate(struct rapl_domain *rd, enum unit_type type,
 {
 	u64 units = 1;
 	struct rapl_package *rp = rd->rp;
+	struct rapl_defaults *defaults = get_defaults(rp);
 	u64 scale = 1;
 
 	switch (type) {
@@ -631,7 +639,7 @@ static u64 rapl_unit_xlate(struct rapl_domain *rd, enum unit_type type,
 			units = rp->energy_unit;
 		break;
 	case TIME_UNIT:
-		return rapl_defaults->compute_time_window(rp, value, to_raw);
+		return defaults->compute_time_window(rp, value, to_raw);
 	case ARBITRARY_UNIT:
 	default:
 		return value;
@@ -702,10 +710,18 @@ static struct rapl_primitive_info rpi[] = {
 	{NULL, 0, 0, 0},
 };
 
+static int rapl_config(struct rapl_package *rp)
+{
+	rp->priv->defaults = (void *)rapl_defaults;
+	return 0;
+}
+
 static enum rapl_primitives
 prim_fixups(struct rapl_domain *rd, enum rapl_primitives prim)
 {
-	if (!rapl_defaults->spr_psys_bits)
+	struct rapl_defaults *defaults = get_defaults(rd->rp);
+
+	if (!defaults->spr_psys_bits)
 		return prim;
 
 	if (rd->id != RAPL_DOMAIN_PLATFORM)
@@ -960,16 +976,17 @@ static void set_floor_freq_default(struct rapl_domain *rd, bool mode)
 static void set_floor_freq_atom(struct rapl_domain *rd, bool enable)
 {
 	static u32 power_ctrl_orig_val;
+	struct rapl_defaults *defaults = get_defaults(rd->rp);
 	u32 mdata;
 
-	if (!rapl_defaults->floor_freq_reg_addr) {
+	if (!defaults->floor_freq_reg_addr) {
 		pr_err("Invalid floor frequency config register\n");
 		return;
 	}
 
 	if (!power_ctrl_orig_val)
 		iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_CR_READ,
-			      rapl_defaults->floor_freq_reg_addr,
+			      defaults->floor_freq_reg_addr,
 			      &power_ctrl_orig_val);
 	mdata = power_ctrl_orig_val;
 	if (enable) {
@@ -977,7 +994,7 @@ static void set_floor_freq_atom(struct rapl_domain *rd, bool enable)
 		mdata |= 1 << 8;
 	}
 	iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_CR_WRITE,
-		       rapl_defaults->floor_freq_reg_addr, mdata);
+		       defaults->floor_freq_reg_addr, mdata);
 }
 
 static u64 rapl_compute_time_window_core(struct rapl_package *rp, u64 value,
@@ -1385,10 +1402,8 @@ struct rapl_package *rapl_add_package(int cpu, struct rapl_if_priv *priv)
 {
 	int id = topology_logical_die_id(cpu);
 	struct rapl_package *rp;
+	struct rapl_defaults *defaults;
 	int ret;
-
-	if (!rapl_defaults)
-		return ERR_PTR(-ENODEV);
 
 	rp = kzalloc(sizeof(struct rapl_package), GFP_KERNEL);
 	if (!rp)
@@ -1399,6 +1414,10 @@ struct rapl_package *rapl_add_package(int cpu, struct rapl_if_priv *priv)
 	rp->lead_cpu = cpu;
 	rp->priv = priv;
 
+	ret = rapl_config(rp);
+	if (ret)
+		goto err_free_package;
+
 	if (topology_max_die_per_package() > 1)
 		snprintf(rp->name, PACKAGE_DOMAIN_NAME_LENGTH,
 			 "package-%d-die-%d",
@@ -1407,8 +1426,9 @@ struct rapl_package *rapl_add_package(int cpu, struct rapl_if_priv *priv)
 		snprintf(rp->name, PACKAGE_DOMAIN_NAME_LENGTH, "package-%d",
 			 topology_physical_package_id(cpu));
 
+	defaults = get_defaults(rp);
 	/* check if the package contains valid domains */
-	if (rapl_detect_domains(rp, cpu) || rapl_defaults->check_unit(rp, cpu)) {
+	if (rapl_detect_domains(rp, cpu) || defaults->check_unit(rp, cpu)) {
 		ret = -ENODEV;
 		goto err_free_package;
 	}

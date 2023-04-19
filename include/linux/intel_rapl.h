@@ -121,6 +121,7 @@ struct reg_action {
  *				registers.
  * @write_raw:			Callback for writing RAPL interface specific
  *				registers.
+ * @defaults:			internal pointer to interface default settings
  */
 struct rapl_if_priv {
 	struct powercap_control_type *control_type;
@@ -130,6 +131,7 @@ struct rapl_if_priv {
 	int limits[RAPL_DOMAIN_MAX];
 	int (*read_raw)(int cpu, struct reg_action *ra);
 	int (*write_raw)(int cpu, struct reg_action *ra);
+	void *defaults;
 };
 
 /* maximum rapl package domain name: package-%d-die-%d */
