@@ -66,8 +66,8 @@ static struct cpuidle_driver intel_idle_driver = {
 };
 /* intel_idle.max_cstate=0 disables driver */
 static int max_cstate = CPUIDLE_STATE_MAX - 1;
-static unsigned int disabled_states_mask;
-static unsigned int preferred_states_mask;
+static unsigned int disabled_states_mask __read_mostly;
+static unsigned int preferred_states_mask __read_mostly;
 static bool force_irq_on __read_mostly;
 
 static struct cpuidle_device __percpu *intel_idle_cpuidle_devices;
