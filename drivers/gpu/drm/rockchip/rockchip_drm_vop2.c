@@ -1880,6 +1880,18 @@ static inline uint32_t vop2_read_lut(struct vop2 *vop2, uint32_t offset)
 	return readl(vop2->lut_regs + offset);
 }
 
+static bool is_linear_10bit_yuv(uint32_t format)
+{
+	switch (format) {
+	case DRM_FORMAT_NV15:
+	case DRM_FORMAT_NV20:
+	case DRM_FORMAT_NV30:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static enum vop2_data_format vop2_convert_format(uint32_t format)
 {
 	switch (format) {
@@ -4592,6 +4604,107 @@ static int vop2_plane_splice_check(struct drm_plane *plane, struct drm_plane_sta
 	return ret;
 }
 
+/*
+ * 1. NV12/NV16/YUYV xoffset must aligned as 2 pixel;
+ * 2. NV12/NV15 yoffset must aligned as 2 pixel;
+ * 3. NV30 xoffset must aligned as 4 pixel;
+ * 4. NV15/NV20 xoffset must aligend as 8 pixel at rk3568/rk3588/rk3528/rk3562,
+ *    others must aligned as 4 pixel;
+ */
+static int vop2_linear_yuv_format_check(struct drm_plane *plane, struct drm_plane_state *state)
+{
+	struct vop2_plane_state *vpstate = to_vop2_plane_state(state);
+	struct drm_crtc *crtc = state->crtc;
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2_win *win = to_vop2_win(plane);
+	struct drm_framebuffer *fb = state->fb;
+	struct drm_rect *src = &vpstate->src;
+	u32 val = 0;
+
+	if (vpstate->afbc_en || vpstate->tiled_en || !fb->format->is_yuv)
+		return 0;
+
+	switch (fb->format->format) {
+	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_NV21:
+		val = src->x1 >> 16;
+		if (val % 2) {
+			src->x1 = ALIGN(val, 2) << 16;
+			DRM_WARN("VP%d %s src x offset[%d] must aligned as 2 pixel at NV12 fmt, and adjust to: %d\n", vp->id, win->name, val, src->x1 >> 16);
+		}
+		val = src->y1 >> 16;
+		if (val % 2) {
+			src->y1 = ALIGN(val, 2) << 16;
+			DRM_WARN("VP%d %s src y offset[%d] must aligned as 2 pixel at NV12 fmt, and adjust to: %d\n", vp->id, win->name, val, src->y1 >> 16);
+		}
+		break;
+	case DRM_FORMAT_NV15:
+		val = src->y1 >> 16;
+		if (val % 2) {
+			src->y1 = ALIGN(val, 2) << 16;
+			DRM_WARN("VP%d %s src y offset[%d] must aligned as 2 pixel at NV15 fmt, and adjust to: %d\n", vp->id, win->name, val, src->y1 >> 16);
+		}
+		if (vp->vop2->version == VOP_VERSION_RK3568 ||
+		    vp->vop2->version == VOP_VERSION_RK3588 ||
+		    vp->vop2->version == VOP_VERSION_RK3528 ||
+		    vp->vop2->version == VOP_VERSION_RK3562) {
+			val = src->x1 >> 16;
+			if (val % 8) {
+				src->x1 = ALIGN(val, 8) << 16;
+				DRM_WARN("VP%d %s src x offset[%d] must aligned as 8 pixel at NV15 fmt, and adjust to: %d\n", vp->id, win->name, val, src->x1 >> 16);
+			}
+		} else {
+			val = src->x1 >> 16;
+			if (val % 4) {
+				src->x1 = ALIGN(val, 4) << 16;
+				DRM_WARN("VP%d %s src x offset[%d] must aligned as 4 pixel at NV15 fmt, and adjust to: %d\n", vp->id, win->name, val, src->x1 >> 16);
+			}
+		}
+		break;
+	case DRM_FORMAT_NV16:
+	case DRM_FORMAT_NV61:
+	case DRM_FORMAT_YUYV:
+	case DRM_FORMAT_YVYU:
+	case DRM_FORMAT_VYUY:
+	case DRM_FORMAT_UYVY:
+		val = src->x1 >> 16;
+		if (val % 2) {
+			src->x1 = ALIGN(val, 2) << 16;
+			DRM_WARN("VP%d %s src x offset[%d] must aligned as 2 pixel at YUYV fmt, and adjust to: %d\n", vp->id, win->name, val, src->x1 >> 16);
+		}
+		break;
+	case DRM_FORMAT_NV20:
+		if (vp->vop2->version == VOP_VERSION_RK3568 ||
+		    vp->vop2->version == VOP_VERSION_RK3588 ||
+		    vp->vop2->version == VOP_VERSION_RK3528 ||
+		    vp->vop2->version == VOP_VERSION_RK3562) {
+			val = src->x1 >> 16;
+			if (val % 8) {
+				src->x1 = ALIGN(val, 8) << 16;
+				DRM_WARN("VP%d %s src x offset[%d] must aligned as 8 pixel at NV20 fmt, and adjust to: %d\n", vp->id, win->name, val, src->x1 >> 16);
+			}
+		} else {
+			val = src->x1 >> 16;
+			if (val % 4) {
+				src->x1 = ALIGN(val, 4) << 16;
+				DRM_WARN("VP%d %s src x offset[%d] must aligned as 4 pixel at NV20 fmt, and adjust to: %d\n", vp->id, win->name, val, src->x1 >> 16);
+			}
+		}
+		break;
+	case DRM_FORMAT_NV30:
+		val = src->x1 >> 16;
+		if (val % 4) {
+			src->x1 = ALIGN(val, 4) << 16;
+			DRM_WARN("VP%d %s src x offset[%d] must aligned as 4 pixel at NV30 fmt, and adjust to: %d\n", vp->id, win->name, val, src->x1 >> 16);
+		}
+		break;
+	default:
+		return 0;
+	}
+
+	return 0;
+}
+
 static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_plane_state *state)
 {
 	struct vop2_plane_state *vpstate = to_vop2_plane_state(state);
@@ -4756,14 +4869,8 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_plane_sta
 			return ret;
 	}
 
-	/*
-	 * Src.x1 can be odd when do clip, but yuv plane start point
-	 * need align with 2 pixel.
-	 */
-	if (fb->format->is_yuv && ((state->src.x1 >> 16) % 2)) {
-		DRM_ERROR("Invalid Source: Yuv format not support odd xpos\n");
+	if (vop2_linear_yuv_format_check(plane, state))
 		return -EINVAL;
-	}
 
 	if (fb->format->char_per_block[0] == 0)
 		offset = ALIGN_DOWN(src->x1 >> 16, tile_size) * fb->format->cpp[0] * tile_size;
@@ -5079,20 +5186,33 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 	if (vop2->version == VOP_VERSION_RK3568) {
 		/*
 		 * This is workaround solution for IC design:
-		 * esmart can't support scale down when actual_w % 16 == 1.
+		 * esmart can't support scale down when actual_w % 16 == 1;
+		 * esmart can't support scale down when dsp_w % 2 == 1;
+		 * esmart actual_w should align as 4 pixel when is linear 10 bit yuv format;
+		 *
+		 * cluster actual_w should align as 4 pixel when enable afbc;
 		 */
-		if (!(win->feature & WIN_FEATURE_AFBDC)) {
+		if (!vop2_cluster_window(win)) {
 			if (actual_w > dsp_w && (actual_w & 0xf) == 1) {
-				DRM_WARN("vp%d %s act_w[%d] MODE 16 == 1\n", vp->id, win->name, actual_w);
+				DRM_WARN("vp%d %s act_w[%d] MODE 16 == 1 at scale down mode\n", vp->id, win->name, actual_w);
 				actual_w -= 1;
+			}
+			if (actual_w > dsp_w && (dsp_w & 0x1) == 1) {
+				DRM_WARN("vp%d %s dsp_w[%d] MODE 2 == 1 at scale down mode\n", vp->id, win->name, dsp_w);
+				dsp_w -= 1;
 			}
 		}
 
-		if (vpstate->afbc_en && actual_w % 4) {
-			DRM_ERROR("vp%d %s actual_w[%d] should align as 4 pixel when enable afbc\n",
-				  vp->id, win->name, actual_w);
+		if (vop2_cluster_window(win) && actual_w % 4) {
+			DRM_WARN("vp%d %s actual_w[%d] should align as 4 pixel when enable afbc\n",
+				 vp->id, win->name, actual_w);
 			actual_w = ALIGN_DOWN(actual_w, 4);
 		}
+	}
+
+	if (is_linear_10bit_yuv(fb->format->format) && actual_w & 0x3) {
+		DRM_WARN("vp%d %s actual_w[%d] should align as 4 pixel when is linear 10 bit yuv format\n", vp->id, win->name, actual_w);
+		actual_w = ALIGN_DOWN(actual_w, 4);
 	}
 
 	act_info = (actual_h - 1) << 16 | ((actual_w - 1) & 0xffff);
