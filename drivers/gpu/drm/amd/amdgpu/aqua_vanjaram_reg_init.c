@@ -518,10 +518,9 @@ out:
 static int __aqua_vanjaram_get_xcp_mem_id(struct amdgpu_device *adev,
 					  int xcc_id, uint8_t *mem_id)
 {
-	/* TODO: Check if any validation is required based on current
-	 * memory/spatial modes
-	 */
+	/* memory/spatial modes validation check is already done */
 	*mem_id = xcc_id / adev->gfx.num_xcc_per_xcp;
+	*mem_id /= adev->xcp_mgr->num_xcp_per_mem_partition;
 
 	return 0;
 }
