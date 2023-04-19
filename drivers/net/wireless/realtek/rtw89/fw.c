@@ -997,8 +997,8 @@ void rtw89_fw_release_general_pkt_list_vif(struct rtw89_dev *rtwdev,
 	list_for_each_entry_safe(info, tmp, pkt_list, list) {
 		if (notify_fw)
 			rtw89_fw_h2c_del_pkt_offload(rtwdev, info->id);
-		rtw89_core_release_bit_map(rtwdev->pkt_offload,
-					   info->id);
+		else
+			rtw89_core_release_bit_map(rtwdev->pkt_offload, info->id);
 		list_del(&info->list);
 		kfree(info);
 	}
@@ -2466,6 +2466,7 @@ int rtw89_fw_h2c_del_pkt_offload(struct rtw89_dev *rtwdev, u8 id)
 		goto fail;
 	}
 
+	rtw89_core_release_bit_map(rtwdev->pkt_offload, id);
 	return 0;
 fail:
 	dev_kfree_skb_any(skb);
@@ -3020,8 +3021,6 @@ static void rtw89_release_pkt_list(struct rtw89_dev *rtwdev)
 
 		list_for_each_entry_safe(info, tmp, &pkt_list[idx], list) {
 			rtw89_fw_h2c_del_pkt_offload(rtwdev, info->id);
-			rtw89_core_release_bit_map(rtwdev->pkt_offload,
-						   info->id);
 			list_del(&info->list);
 			kfree(info);
 		}
