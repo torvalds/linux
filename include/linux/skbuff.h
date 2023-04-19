@@ -37,7 +37,7 @@
 #include <linux/netfilter/nf_conntrack_common.h>
 #endif
 #include <net/net_debug.h>
-#include <net/dropreason.h>
+#include <net/dropreason-core.h>
 
 /**
  * DOC: skb checksums
