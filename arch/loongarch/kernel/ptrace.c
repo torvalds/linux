@@ -391,10 +391,10 @@ static int ptrace_hbp_fill_attr_ctrl(unsigned int note_type,
 	return 0;
 }
 
-static int ptrace_hbp_get_resource_info(unsigned int note_type, u16 *info)
+static int ptrace_hbp_get_resource_info(unsigned int note_type, u64 *info)
 {
 	u8 num;
-	u16 reg = 0;
+	u64 reg = 0;
 
 	switch (note_type) {
 	case NT_LOONGARCH_HW_BREAK:
@@ -524,15 +524,16 @@ static int ptrace_hbp_set_addr(unsigned int note_type,
 	return modify_user_hw_breakpoint(bp, &attr);
 }
 
-#define PTRACE_HBP_CTRL_SZ	sizeof(u32)
 #define PTRACE_HBP_ADDR_SZ	sizeof(u64)
 #define PTRACE_HBP_MASK_SZ	sizeof(u64)
+#define PTRACE_HBP_CTRL_SZ	sizeof(u32)
+#define PTRACE_HBP_PAD_SZ	sizeof(u32)
 
 static int hw_break_get(struct task_struct *target,
 			const struct user_regset *regset,
 			struct membuf to)
 {
-	u16 info;
+	u64 info;
 	u32 ctrl;
 	u64 addr, mask;
 	int ret, idx = 0;
@@ -545,7 +546,7 @@ static int hw_break_get(struct task_struct *target,
 
 	membuf_write(&to, &info, sizeof(info));
 
-	/* (address, ctrl) registers */
+	/* (address, mask, ctrl) registers */
 	while (to.left) {
 		ret = ptrace_hbp_get_addr(note_type, target, idx, &addr);
 		if (ret)
@@ -562,6 +563,7 @@ static int hw_break_get(struct task_struct *target,
 		membuf_store(&to, addr);
 		membuf_store(&to, mask);
 		membuf_store(&to, ctrl);
+		membuf_zero(&to, sizeof(u32));
 		idx++;
 	}
 
@@ -582,7 +584,7 @@ static int hw_break_set(struct task_struct *target,
 	offset = offsetof(struct user_watch_state, dbg_regs);
 	user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf, 0, offset);
 
-	/* (address, ctrl) registers */
+	/* (address, mask, ctrl) registers */
 	limit = regset->n * regset->size;
 	while (count && offset < limit) {
 		if (count < PTRACE_HBP_ADDR_SZ)
@@ -602,7 +604,7 @@ static int hw_break_set(struct task_struct *target,
 			break;
 
 		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &mask,
-					 offset, offset + PTRACE_HBP_ADDR_SZ);
+					 offset, offset + PTRACE_HBP_MASK_SZ);
 		if (ret)
 			return ret;
 
@@ -611,8 +613,8 @@ static int hw_break_set(struct task_struct *target,
 			return ret;
 		offset += PTRACE_HBP_MASK_SZ;
 
-		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &mask,
-					 offset, offset + PTRACE_HBP_MASK_SZ);
+		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &ctrl,
+					 offset, offset + PTRACE_HBP_CTRL_SZ);
 		if (ret)
 			return ret;
 
@@ -620,6 +622,11 @@ static int hw_break_set(struct task_struct *target,
 		if (ret)
 			return ret;
 		offset += PTRACE_HBP_CTRL_SZ;
+
+		user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+					  offset, offset + PTRACE_HBP_PAD_SZ);
+		offset += PTRACE_HBP_PAD_SZ;
+
 		idx++;
 	}
 
