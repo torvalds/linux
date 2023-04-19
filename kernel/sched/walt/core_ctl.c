@@ -908,17 +908,17 @@ static int compute_cluster_nr_strict_need(int index)
  */
 static int compute_cluster_nr_busy(int index)
 {
-	int cpu;
 	struct cluster_data *cluster = &cluster_state[index];
 	struct cpu_data *c;
 	unsigned int thres_idx;
 	int nr_busy = 0;
 
-	for_each_cpu(cpu, &cluster->cpu_mask) {
-		cluster->active_cpus = get_active_cpu_count(cluster);
-		thres_idx = cluster->active_cpus ? cluster->active_cpus - 1 : 0;
-		list_for_each_entry(c, &cluster->lru, sib) {
-
+	cluster->active_cpus = get_active_cpu_count(cluster);
+	thres_idx = cluster->active_cpus ? cluster->active_cpus - 1 : 0;
+	list_for_each_entry(c, &cluster->lru, sib) {
+		if (cpu_partial_halted(c->cpu)) {
+			c->is_busy = false;
+		} else {
 			if (c->busy_pct >= cluster->busy_up_thres[thres_idx] ||
 			    sched_cpu_high_irqload(c->cpu))
 				c->is_busy = true;
