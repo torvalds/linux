@@ -25,6 +25,7 @@ filegroup(
         "android/abi_gki_aarch64_pixel",
         "android/abi_gki_aarch64_qcom",
         "android/abi_gki_aarch64_virtual_device",
+        "android/abi_gki_aarch64_vivo",
         "android/abi_gki_aarch64_xiaomi",
     ],
     visibility = ["//visibility:public"],
