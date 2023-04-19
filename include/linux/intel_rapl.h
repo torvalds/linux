@@ -42,6 +42,7 @@ enum rapl_primitives {
 	POWER_LIMIT4,
 	ENERGY_COUNTER,
 	FW_LOCK,
+	FW_HIGH_LOCK,
 
 	PL1_ENABLE,		/* power limit 1, aka long term */
 	PL1_CLAMP,		/* allow frequency to go below OS request */
@@ -81,6 +82,7 @@ struct rapl_power_limit {
 	struct powercap_zone_constraint *constraint;
 	struct rapl_domain *domain;
 	const char *name;
+	bool locked;
 	u64 last_power_limit;
 };
 
