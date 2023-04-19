@@ -1014,39 +1014,6 @@ static int imx7_csi_enum_mbus_formats(u32 *code, u32 index)
 	return -EINVAL;
 }
 
-static int imx7_csi_mbus_fmt_to_pix_fmt(struct v4l2_pix_format *pix,
-					const struct v4l2_mbus_framefmt *mbus,
-					const struct imx7_csi_pixfmt *cc)
-{
-	u32 width;
-	u32 stride;
-
-	if (!cc) {
-		cc = imx7_csi_find_mbus_format(mbus->code);
-		if (!cc)
-			return -EINVAL;
-	}
-
-	/* Round up width for minimum burst size */
-	width = round_up(mbus->width, 8);
-
-	/* Round up stride for IDMAC line start address alignment */
-	stride = round_up((width * cc->bpp) >> 3, 8);
-
-	pix->width = width;
-	pix->height = mbus->height;
-	pix->pixelformat = cc->fourcc;
-	pix->colorspace = mbus->colorspace;
-	pix->xfer_func = mbus->xfer_func;
-	pix->ycbcr_enc = mbus->ycbcr_enc;
-	pix->quantization = mbus->quantization;
-	pix->field = mbus->field;
-	pix->bytesperline = stride;
-	pix->sizeimage = stride * pix->height;
-
-	return 0;
-}
-
 /* -----------------------------------------------------------------------------
  * Video Capture Device - IOCTLs
  */
@@ -1603,22 +1570,14 @@ static struct imx7_csi_vb2_buffer *imx7_csi_video_next_buf(struct imx7_csi *csi)
 	return buf;
 }
 
-static int imx7_csi_video_init_format(struct imx7_csi *csi)
+static void imx7_csi_video_init_format(struct imx7_csi *csi)
 {
-	struct v4l2_mbus_framefmt format = { };
+	struct v4l2_pix_format *pixfmt = &csi->vdev_fmt;
 
-	format.code = IMX7_CSI_DEF_MBUS_CODE;
-	format.width = IMX7_CSI_DEF_PIX_WIDTH;
-	format.height = IMX7_CSI_DEF_PIX_HEIGHT;
-	format.field = V4L2_FIELD_NONE;
+	pixfmt->width = IMX7_CSI_DEF_PIX_WIDTH;
+	pixfmt->height = IMX7_CSI_DEF_PIX_HEIGHT;
 
-	imx7_csi_mbus_fmt_to_pix_fmt(&csi->vdev_fmt, &format, NULL);
-	csi->vdev_compose.width = format.width;
-	csi->vdev_compose.height = format.height;
-
-	csi->vdev_cc = imx7_csi_find_pixel_format(csi->vdev_fmt.pixelformat);
-
-	return 0;
+	csi->vdev_cc = __imx7_csi_video_try_fmt(pixfmt, &csi->vdev_compose);
 }
 
 static int imx7_csi_video_register(struct imx7_csi *csi)
@@ -1631,9 +1590,7 @@ static int imx7_csi_video_register(struct imx7_csi *csi)
 	vdev->v4l2_dev = v4l2_dev;
 
 	/* Initialize the default format and compose rectangle. */
-	ret = imx7_csi_video_init_format(csi);
-	if (ret < 0)
-		return ret;
+	imx7_csi_video_init_format(csi);
 
 	/* Register the video device. */
 	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
