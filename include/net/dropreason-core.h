@@ -340,11 +340,19 @@ enum skb_drop_reason {
 	 */
 	SKB_DROP_REASON_IPV6_NDISC_NS_OTHERHOST,
 	/**
-	 * @SKB_DROP_REASON_MAX: the maximum of drop reason, which shouldn't be
-	 * used as a real 'reason'
+	 * @SKB_DROP_REASON_MAX: the maximum of core drop reasons, which
+	 * shouldn't be used as a real 'reason' - only for tracing code gen
 	 */
 	SKB_DROP_REASON_MAX,
+
+	/**
+	 * @SKB_DROP_REASON_SUBSYS_MASK: subsystem mask in drop reasons,
+	 * see &enum skb_drop_reason_subsys
+	 */
+	SKB_DROP_REASON_SUBSYS_MASK = 0xffff0000,
 };
+
+#define SKB_DROP_REASON_SUBSYS_SHIFT	16
 
 #define SKB_DR_INIT(name, reason)				\
 	enum skb_drop_reason name = SKB_DROP_REASON_##reason
@@ -358,7 +366,5 @@ enum skb_drop_reason {
 		    name == SKB_NOT_DROPPED_YET)		\
 			SKB_DR_SET(name, reason);		\
 	} while (0)
-
-extern const char * const drop_reasons[];
 
 #endif
