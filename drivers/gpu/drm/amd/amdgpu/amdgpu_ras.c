@@ -1597,8 +1597,7 @@ static int amdgpu_ras_fs_fini(struct amdgpu_device *adev)
 void amdgpu_ras_interrupt_fatal_error_handler(struct amdgpu_device *adev)
 {
 	/* Fatal error events are handled on host side */
-	if (amdgpu_sriov_vf(adev) ||
-		!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__PCIE_BIF))
+	if (amdgpu_sriov_vf(adev))
 		return;
 
 	if (adev->nbio.ras &&
