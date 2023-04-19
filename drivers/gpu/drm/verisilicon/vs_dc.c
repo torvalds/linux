@@ -704,18 +704,19 @@ static int dc_init(struct device *dev)
 
 	dc->init_count = 0;
 
-/*
-	ret = clk_prepare_enable(dc->vout_top_lcd);
-	if (ret) {
-		dev_err(dev, "failed to prepare/enable vout_top_lcd\n");
-		return ret;
-	}
-*/
 	ret = dc_hw_init(&dc->hw);
 	if (ret) {
 		dev_err(dev, "failed to init DC HW\n");
 		return ret;
 	}
+
+	/*after uboot show logo , it will set the pixclock and parent same value,
+	  so need to reset a another value to avoid clock framework fail
+	  to set value*/
+	clk_set_rate(dc->dc8200_pix0, 1000);
+	clk_set_parent(dc->dc8200_clk_pix1, dc->hdmitx0_pixelclk);
+	clk_set_parent(dc->vout_top_lcd, dc->dc8200_clk_pix0_out);
+	clk_set_parent(dc->dc8200_clk_pix0, dc->dc8200_pix0);
 
 	return 0;
 
