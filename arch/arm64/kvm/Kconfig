@@ -69,4 +69,11 @@ config PROTECTED_NVHE_STACKTRACE
 
 	  If unsure, or not using protected nVHE (pKVM), say N.
 
+config PKVM_MODULE_PATH
+	string "Path to pKVM modules"
+	default ""
+	help
+	  Directory where the pKVM modules are found. If empty, the modules
+	  will be searched into the default path /lib/modules/<uname>.
+
 endif # VIRTUALIZATION
