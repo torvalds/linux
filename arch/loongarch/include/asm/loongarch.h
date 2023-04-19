@@ -423,9 +423,9 @@ static __always_inline void iocsr_write64(u64 val, u32 reg)
 #define  CSR_ASID_ASID_WIDTH		10
 #define  CSR_ASID_ASID			(_ULCAST_(0x3ff) << CSR_ASID_ASID_SHIFT)
 
-#define LOONGARCH_CSR_PGDL		0x19	/* Page table base address when VA[47] = 0 */
+#define LOONGARCH_CSR_PGDL		0x19	/* Page table base address when VA[VALEN-1] = 0 */
 
-#define LOONGARCH_CSR_PGDH		0x1a	/* Page table base address when VA[47] = 1 */
+#define LOONGARCH_CSR_PGDH		0x1a	/* Page table base address when VA[VALEN-1] = 1 */
 
 #define LOONGARCH_CSR_PGD		0x1b	/* Page table base */
 
