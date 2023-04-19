@@ -36,6 +36,7 @@
 #include "gt/intel_gt_regs.h"
 
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "intel_clock_gating.h"
 #include "intel_mchbar_regs.h"
 #include "vlv_sideband.h"

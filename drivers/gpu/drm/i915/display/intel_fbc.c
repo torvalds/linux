@@ -44,6 +44,7 @@
 #include <drm/drm_fourcc.h>
 
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "i915_utils.h"
 #include "i915_vgpu.h"
 #include "intel_cdclk.h"

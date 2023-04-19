@@ -54,6 +54,7 @@
 #include "i915_driver.h"
 #include "i915_drv.h"
 #include "i915_irq.h"
+#include "i915_reg.h"
 
 /**
  * DOC: interrupt handling
