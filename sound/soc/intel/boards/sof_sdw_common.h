@@ -74,7 +74,6 @@ struct sof_sdw_codec_info {
 		     bool playback);
 
 	int (*exit)(struct snd_soc_card *card, struct snd_soc_dai_link *dai_link);
-	bool late_probe;
 	int (*codec_card_late_probe)(struct snd_soc_card *card);
 };
 
