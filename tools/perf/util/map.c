@@ -104,14 +104,14 @@ static inline bool replace_android_lib(const char *filename, char *newfilename)
 
 void map__init(struct map *map, u64 start, u64 end, u64 pgoff, struct dso *dso)
 {
-	map->start    = start;
-	map->end      = end;
-	map->pgoff    = pgoff;
-	map->reloc    = 0;
-	map->dso      = dso__get(dso);
-	map->map_ip   = map__dso_map_ip;
-	map->unmap_ip = map__dso_unmap_ip;
-	map->erange_warned = false;
+	map__set_start(map, start);
+	map__set_end(map, end);
+	map__set_pgoff(map, pgoff);
+	map__set_reloc(map, 0);
+	map__set_dso(map, dso__get(dso));
+	map__set_map_ip(map, map__dso_map_ip);
+	map__set_unmap_ip(map, map__dso_unmap_ip);
+	map__set_erange_warned(map, false);
 	refcount_set(map__refcnt(map), 1);
 }
 
@@ -317,7 +317,7 @@ void map__fixup_start(struct map *map)
 	if (nd != NULL) {
 		struct symbol *sym = rb_entry(nd, struct symbol, rb_node);
 
-		map->start = sym->start;
+		map__set_start(map, sym->start);
 	}
 }
 
@@ -329,7 +329,7 @@ void map__fixup_end(struct map *map)
 
 	if (nd != NULL) {
 		struct symbol *sym = rb_entry(nd, struct symbol, rb_node);
-		map->end = sym->end;
+		map__set_end(map, sym->end);
 	}
 }
 

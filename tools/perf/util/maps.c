@@ -339,7 +339,7 @@ int maps__fixup_overlappings(struct maps *maps, struct map *map, FILE *fp)
 				goto put_map;
 			}
 
-			before->end = map__start(map);
+			map__set_end(before, map__start(map));
 			err = __maps__insert(maps, before);
 			if (err) {
 				map__put(before);
@@ -359,8 +359,8 @@ int maps__fixup_overlappings(struct maps *maps, struct map *map, FILE *fp)
 				goto put_map;
 			}
 
-			after->start = map__end(map);
-			after->pgoff += map__end(map) - map__start(pos->map);
+			map__set_start(after, map__end(map));
+			map__add_pgoff(after, map__end(map) - map__start(pos->map));
 			assert(map__map_ip(pos->map, map__end(map)) ==
 				map__map_ip(after, map__end(map)));
 			err = __maps__insert(maps, after);

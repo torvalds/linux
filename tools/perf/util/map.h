@@ -62,6 +62,16 @@ static inline u64 map__unmap_ip(const struct map *map, u64 ip)
 	return map->unmap_ip(map, ip);
 }
 
+static inline void *map__map_ip_ptr(struct map *map)
+{
+	return map->map_ip;
+}
+
+static inline void* map__unmap_ip_ptr(struct map *map)
+{
+	return map->unmap_ip;
+}
+
 static inline u64 map__start(const struct map *map)
 {
 	return map->start;
@@ -100,6 +110,11 @@ static inline bool map__priv(const struct map *map)
 static inline refcount_t *map__refcnt(struct map *map)
 {
 	return &map->refcnt;
+}
+
+static inline bool map__erange_warned(struct map *map)
+{
+	return map->erange_warned;
 }
 
 static inline size_t map__size(const struct map *map)
@@ -230,5 +245,55 @@ static inline int is_no_dso_memory(const char *filename)
 	return !strncmp(filename, "[stack", 6) ||
 	       !strncmp(filename, "/SYSV", 5)  ||
 	       !strcmp(filename, "[heap]");
+}
+
+static inline void map__set_start(struct map *map, u64 start)
+{
+	map->start = start;
+}
+
+static inline void map__set_end(struct map *map, u64 end)
+{
+	map->end = end;
+}
+
+static inline void map__set_pgoff(struct map *map, u64 pgoff)
+{
+	map->pgoff = pgoff;
+}
+
+static inline void map__add_pgoff(struct map *map, u64 inc)
+{
+	map->pgoff += inc;
+}
+
+static inline void map__set_reloc(struct map *map, u64 reloc)
+{
+	map->reloc = reloc;
+}
+
+static inline void map__set_priv(struct map *map, int priv)
+{
+	map->priv = priv;
+}
+
+static inline void map__set_erange_warned(struct map *map, bool erange_warned)
+{
+	map->erange_warned = erange_warned;
+}
+
+static inline void map__set_dso(struct map *map, struct dso *dso)
+{
+	map->dso = dso;
+}
+
+static inline void map__set_map_ip(struct map *map, u64 (*map_ip)(const struct map *map, u64 ip))
+{
+	map->map_ip = map_ip;
+}
+
+static inline void map__set_unmap_ip(struct map *map, u64 (*unmap_ip)(const struct map *map, u64 rip))
+{
+	map->unmap_ip = unmap_ip;
 }
 #endif /* __PERF_MAP_H */

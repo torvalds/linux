@@ -279,7 +279,7 @@ void maps__fixup_end(struct maps *maps)
 
 	maps__for_each_entry(maps, curr) {
 		if (prev != NULL && !map__end(prev->map))
-			prev->map->end = map__start(curr->map);
+			map__set_end(prev->map, map__start(curr->map));
 
 		prev = curr;
 	}
@@ -289,7 +289,7 @@ void maps__fixup_end(struct maps *maps)
 	 * last map final address.
 	 */
 	if (curr && !map__end(curr->map))
-		curr->map->end = ~0ULL;
+		map__set_end(curr->map, ~0ULL);
 
 	up_write(maps__lock(maps));
 }
@@ -944,7 +944,8 @@ static int maps__split_kallsyms(struct maps *kmaps, struct dso *dso, u64 delta,
 				return -1;
 			}
 
-			curr_map->map_ip = curr_map->unmap_ip = identity__map_ip;
+			map__set_map_ip(curr_map, identity__map_ip);
+			map__set_unmap_ip(curr_map, identity__map_ip);
 			if (maps__insert(kmaps, curr_map)) {
 				dso__put(ndso);
 				return -1;
@@ -1250,8 +1251,8 @@ static int kcore_mapfn(u64 start, u64 len, u64 pgoff, void *data)
 		return -ENOMEM;
 	}
 
-	list_node->map->end = map__start(list_node->map) + len;
-	list_node->map->pgoff = pgoff;
+	map__set_end(list_node->map, map__start(list_node->map) + len);
+	map__set_pgoff(list_node->map, pgoff);
 
 	list_add(&list_node->node, &md->maps);
 
@@ -1286,7 +1287,7 @@ int maps__merge_in(struct maps *kmaps, struct map *new_map)
 				 * |new......|     -> |new..|
 				 *       |old....| ->       |old....|
 				 */
-				new_map->end = map__start(old_map);
+				map__set_end(new_map, map__start(old_map));
 			} else {
 				/*
 				 * |new.............| -> |new..|       |new..|
@@ -1306,10 +1307,10 @@ int maps__merge_in(struct maps *kmaps, struct map *new_map)
 					goto out;
 				}
 
-				m->map->end = map__start(old_map);
+				map__set_end(m->map, map__start(old_map));
 				list_add_tail(&m->node, &merged);
-				new_map->pgoff += map__end(old_map) - map__start(new_map);
-				new_map->start = map__end(old_map);
+				map__add_pgoff(new_map, map__end(old_map) - map__start(new_map));
+				map__set_start(new_map, map__end(old_map));
 			}
 		} else {
 			/*
@@ -1329,8 +1330,8 @@ int maps__merge_in(struct maps *kmaps, struct map *new_map)
 				 *      |new......| ->         |new...|
 				 * |old....|        -> |old....|
 				 */
-				new_map->pgoff += map__end(old_map) - map__start(new_map);
-				new_map->start = map__end(old_map);
+				map__add_pgoff(new_map, map__end(old_map) - map__start(new_map));
+				map__set_start(new_map, map__end(old_map));
 			}
 		}
 	}
@@ -1457,11 +1458,11 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 		list_del_init(&new_node->node);
 
 		if (new_map == replacement_map) {
-			map->start	= map__start(new_map);
-			map->end	= map__end(new_map);
-			map->pgoff	= map__pgoff(new_map);
-			map->map_ip	= new_map->map_ip;
-			map->unmap_ip	= new_map->unmap_ip;
+			map__set_start(map, map__start(new_map));
+			map__set_end(map, map__end(new_map));
+			map__set_pgoff(map, map__pgoff(new_map));
+			map__set_map_ip(map, map__map_ip_ptr(new_map));
+			map__set_unmap_ip(map, map__unmap_ip_ptr(new_map));
 			/* Ensure maps are correctly ordered */
 			map__get(map);
 			maps__remove(kmaps, map);

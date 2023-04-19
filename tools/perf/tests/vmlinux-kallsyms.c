@@ -304,7 +304,7 @@ next_pair:
 								dso->short_name :
 								dso->name));
 		if (pair) {
-			pair->priv = 1;
+			map__set_priv(pair, 1);
 		} else {
 			if (!header_printed) {
 				pr_info("WARN: Maps only in vmlinux:\n");
@@ -340,7 +340,7 @@ next_pair:
 				pr_info(":\nWARN: *%" PRIx64 "-%" PRIx64 " %" PRIx64,
 					map__start(pair), map__end(pair), map__pgoff(pair));
 			pr_info(" %s\n", dso->name);
-			pair->priv = 1;
+			map__set_priv(pair, 1);
 		}
 	}
 
