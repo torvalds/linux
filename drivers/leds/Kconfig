@@ -551,6 +551,20 @@ config LEDS_REGULATOR
 	help
 	  This option enables support for regulator driven LEDs.
 
+config LEDS_BD2606MVV
+	tristate "LED driver for BD2606MVV"
+	depends on LEDS_CLASS
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This option enables support for BD2606MVV LED driver chips
+	  accessed via the I2C bus. It supports setting brightness, with
+	  the limitiation that there are groups of two channels sharing
+	  a brightness setting, but not the on/off setting.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called leds-bd2606mvv.
+
 config LEDS_BD2802
 	tristate "LED driver for BD2802 RGB LED"
 	depends on LEDS_CLASS
