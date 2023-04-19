@@ -535,7 +535,7 @@ static int nxp_download_firmware(struct hci_dev *hdev)
 	nxpdev->helper_downloaded = false;
 
 	serdev_device_set_baudrate(nxpdev->serdev, HCI_NXP_PRI_BAUDRATE);
-	serdev_device_set_flow_control(nxpdev->serdev, 0);
+	serdev_device_set_flow_control(nxpdev->serdev, false);
 	nxpdev->current_baudrate = HCI_NXP_PRI_BAUDRATE;
 
 	/* Wait till FW is downloaded and CTS becomes low */
@@ -548,7 +548,7 @@ static int nxp_download_firmware(struct hci_dev *hdev)
 		return -ETIMEDOUT;
 	}
 
-	serdev_device_set_flow_control(nxpdev->serdev, 1);
+	serdev_device_set_flow_control(nxpdev->serdev, true);
 	err = serdev_device_wait_for_cts(nxpdev->serdev, 1, 60000);
 	if (err < 0) {
 		bt_dev_err(hdev, "CTS is still high. FW Download failed.");
@@ -740,7 +740,7 @@ static int nxp_recv_fw_req_v1(struct hci_dev *hdev, struct sk_buff *skb)
 			if (nxpdev->baudrate_changed) {
 				serdev_device_set_baudrate(nxpdev->serdev,
 							   HCI_NXP_SEC_BAUDRATE);
-				serdev_device_set_flow_control(nxpdev->serdev, 1);
+				serdev_device_set_flow_control(nxpdev->serdev, true);
 				nxpdev->current_baudrate = HCI_NXP_SEC_BAUDRATE;
 			}
 			goto free_skb;
@@ -763,7 +763,7 @@ static int nxp_recv_fw_req_v1(struct hci_dev *hdev, struct sk_buff *skb)
 			serdev_device_wait_until_sent(nxpdev->serdev, 0);
 			serdev_device_set_baudrate(nxpdev->serdev,
 						   HCI_NXP_SEC_BAUDRATE);
-			serdev_device_set_flow_control(nxpdev->serdev, 1);
+			serdev_device_set_flow_control(nxpdev->serdev, true);
 		} else {
 			clear_bit(BTNXPUART_FW_DOWNLOADING, &nxpdev->tx_state);
 			wake_up_interruptible(&nxpdev->fw_dnld_done_wait_q);
@@ -880,7 +880,7 @@ static int nxp_recv_fw_req_v3(struct hci_dev *hdev, struct sk_buff *skb)
 		if (nxpdev->baudrate_changed) {
 			serdev_device_set_baudrate(nxpdev->serdev,
 						   HCI_NXP_SEC_BAUDRATE);
-			serdev_device_set_flow_control(nxpdev->serdev, 1);
+			serdev_device_set_flow_control(nxpdev->serdev, true);
 			nxpdev->current_baudrate = HCI_NXP_SEC_BAUDRATE;
 		}
 		goto free_skb;
@@ -984,7 +984,7 @@ free_skb:
 static int nxp_check_boot_sign(struct btnxpuart_dev *nxpdev)
 {
 	serdev_device_set_baudrate(nxpdev->serdev, HCI_NXP_PRI_BAUDRATE);
-	serdev_device_set_flow_control(nxpdev->serdev, 0);
+	serdev_device_set_flow_control(nxpdev->serdev, true);
 	set_bit(BTNXPUART_CHECK_BOOT_SIGNATURE, &nxpdev->tx_state);
 
 	return wait_event_interruptible_timeout(nxpdev->check_boot_sign_wait_q,
@@ -1012,7 +1012,6 @@ static int nxp_setup(struct hci_dev *hdev)
 		clear_bit(BTNXPUART_FW_DOWNLOADING, &nxpdev->tx_state);
 	}
 
-	serdev_device_set_flow_control(nxpdev->serdev, 1);
 	device_property_read_u32(&nxpdev->serdev->dev, "fw-init-baudrate",
 				 &nxpdev->fw_init_baudrate);
 	if (!nxpdev->fw_init_baudrate)
