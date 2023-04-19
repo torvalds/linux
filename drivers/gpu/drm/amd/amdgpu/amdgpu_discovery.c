@@ -311,7 +311,7 @@ static int amdgpu_discovery_init(struct amdgpu_device *adev)
 	if (!amdgpu_discovery_verify_binary_signature(adev->mman.discovery_bin) || amdgpu_discovery == 2) {
 		/* ignore the discovery binary from vram if discovery=2 in kernel module parameter */
 		if (amdgpu_discovery == 2)
-			dev_info(adev->dev,"force read ip discovery binary from file");
+			dev_info(adev->dev, "force read ip discovery binary from file");
 		else
 			dev_warn(adev->dev, "get invalid ip discovery binary signature from vram\n");
 
@@ -323,7 +323,7 @@ static int amdgpu_discovery_init(struct amdgpu_device *adev)
 			goto out;
 		}
 		/* check the ip discovery binary signature */
-		if(!amdgpu_discovery_verify_binary_signature(adev->mman.discovery_bin)) {
+		if (!amdgpu_discovery_verify_binary_signature(adev->mman.discovery_bin)) {
 			dev_warn(adev->dev, "get invalid ip discovery binary signature from file\n");
 			r = -EINVAL;
 			goto out;
@@ -529,8 +529,8 @@ static void amdgpu_discovery_read_harvest_bit_per_ip(struct amdgpu_device *adev,
 					break;
 				default:
 					break;
-                                }
-                        }
+				}
+			}
 next_ip:
 			ip_offset += struct_size(ip, base_address, ip->num_base_address);
 		}
