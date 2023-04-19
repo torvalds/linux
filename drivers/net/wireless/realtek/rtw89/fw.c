@@ -14,6 +14,8 @@
 
 static void rtw89_fw_c2h_cmd_handle(struct rtw89_dev *rtwdev,
 				    struct sk_buff *skb);
+static int rtw89_h2c_tx_and_wait(struct rtw89_dev *rtwdev, struct sk_buff *skb,
+				 struct rtw89_wait_info *wait, unsigned int cond);
 
 static struct sk_buff *rtw89_fw_h2c_alloc_skb(struct rtw89_dev *rtwdev, u32 len,
 					      bool header)
@@ -2440,7 +2442,9 @@ fail:
 #define H2C_LEN_PKT_OFLD 4
 int rtw89_fw_h2c_del_pkt_offload(struct rtw89_dev *rtwdev, u8 id)
 {
+	struct rtw89_wait_info *wait = &rtwdev->mac.fw_ofld_wait;
 	struct sk_buff *skb;
+	unsigned int cond;
 	u8 *cmd;
 	int ret;
 
@@ -2460,24 +2464,26 @@ int rtw89_fw_h2c_del_pkt_offload(struct rtw89_dev *rtwdev, u8 id)
 			      H2C_FUNC_PACKET_OFLD, 1, 1,
 			      H2C_LEN_PKT_OFLD);
 
-	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	cond = RTW89_FW_OFLD_WAIT_COND_PKT_OFLD(id, RTW89_PKT_OFLD_OP_DEL);
+
+	ret = rtw89_h2c_tx_and_wait(rtwdev, skb, wait, cond);
 	if (ret) {
-		rtw89_err(rtwdev, "failed to send h2c\n");
-		goto fail;
+		rtw89_debug(rtwdev, RTW89_DBG_FW,
+			    "failed to del pkt ofld: id %d, ret %d\n",
+			    id, ret);
+		return ret;
 	}
 
 	rtw89_core_release_bit_map(rtwdev->pkt_offload, id);
 	return 0;
-fail:
-	dev_kfree_skb_any(skb);
-
-	return ret;
 }
 
 int rtw89_fw_h2c_add_pkt_offload(struct rtw89_dev *rtwdev, u8 *id,
 				 struct sk_buff *skb_ofld)
 {
+	struct rtw89_wait_info *wait = &rtwdev->mac.fw_ofld_wait;
 	struct sk_buff *skb;
+	unsigned int cond;
 	u8 *cmd;
 	u8 alloc_id;
 	int ret;
@@ -2508,18 +2514,18 @@ int rtw89_fw_h2c_add_pkt_offload(struct rtw89_dev *rtwdev, u8 *id,
 			      H2C_FUNC_PACKET_OFLD, 1, 1,
 			      H2C_LEN_PKT_OFLD + skb_ofld->len);
 
-	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	cond = RTW89_FW_OFLD_WAIT_COND_PKT_OFLD(alloc_id, RTW89_PKT_OFLD_OP_ADD);
+
+	ret = rtw89_h2c_tx_and_wait(rtwdev, skb, wait, cond);
 	if (ret) {
-		rtw89_err(rtwdev, "failed to send h2c\n");
+		rtw89_debug(rtwdev, RTW89_DBG_FW,
+			    "failed to add pkt ofld: id %d, ret %d\n",
+			    alloc_id, ret);
 		rtw89_core_release_bit_map(rtwdev->pkt_offload, alloc_id);
-		goto fail;
+		return ret;
 	}
 
 	return 0;
-fail:
-	dev_kfree_skb_any(skb);
-
-	return ret;
 }
 
 #define H2C_LEN_SCAN_LIST_OFFLOAD 4

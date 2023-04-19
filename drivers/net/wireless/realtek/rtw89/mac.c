@@ -4369,9 +4369,22 @@ rtw89_mac_c2h_bcn_cnt(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
 }
 
 static void
-rtw89_mac_c2h_pkt_ofld_rsp(struct rtw89_dev *rtwdev, struct sk_buff *c2h,
+rtw89_mac_c2h_pkt_ofld_rsp(struct rtw89_dev *rtwdev, struct sk_buff *skb_c2h,
 			   u32 len)
 {
+	struct rtw89_wait_info *wait = &rtwdev->mac.fw_ofld_wait;
+	const struct rtw89_c2h_pkt_ofld_rsp *c2h =
+		(const struct rtw89_c2h_pkt_ofld_rsp *)skb_c2h->data;
+	u16 pkt_len = le32_get_bits(c2h->w2, RTW89_C2H_PKT_OFLD_RSP_W2_PTK_LEN);
+	u8 pkt_id = le32_get_bits(c2h->w2, RTW89_C2H_PKT_OFLD_RSP_W2_PTK_ID);
+	u8 pkt_op = le32_get_bits(c2h->w2, RTW89_C2H_PKT_OFLD_RSP_W2_PTK_OP);
+	struct rtw89_completion_data data = {};
+	unsigned int cond;
+
+	data.err = !pkt_len;
+	cond = RTW89_FW_OFLD_WAIT_COND_PKT_OFLD(pkt_id, pkt_op);
+
+	rtw89_complete_cond(wait, cond, &data);
 }
 
 static void
@@ -4579,6 +4592,13 @@ bool rtw89_mac_c2h_chk_atomic(struct rtw89_dev *rtwdev, u8 class, u8 func)
 	switch (class) {
 	default:
 		return false;
+	case RTW89_MAC_C2H_CLASS_OFLD:
+		switch (func) {
+		default:
+			return false;
+		case RTW89_MAC_C2H_FUNC_PKT_OFLD_RSP:
+			return true;
+		}
 	case RTW89_MAC_C2H_CLASS_MCC:
 		return true;
 	}

@@ -138,7 +138,12 @@ enum rtw89_pkt_offload_op {
 	RTW89_PKT_OFLD_OP_ADD,
 	RTW89_PKT_OFLD_OP_DEL,
 	RTW89_PKT_OFLD_OP_READ,
+
+	NUM_OF_RTW89_PKT_OFFLOAD_OP,
 };
+
+#define RTW89_PKT_OFLD_WAIT_TAG(pkt_id, pkt_op) \
+	((pkt_id) * NUM_OF_RTW89_PKT_OFFLOAD_OP + (pkt_op))
 
 enum rtw89_scanofld_notify_reason {
 	RTW89_SCAN_DWELL_NOTIFY,
@@ -3340,6 +3345,16 @@ static_assert(sizeof(struct rtw89_mac_mcc_tsf_rpt) <= RTW89_COMPLETION_BUF_SIZE)
 #define RTW89_GET_MAC_C2H_MCC_STATUS_RPT_TSF_HIGH(c2h) \
 	le32_get_bits(*((const __le32 *)(c2h) + 4), GENMASK(31, 0))
 
+struct rtw89_c2h_pkt_ofld_rsp {
+	__le32 w0;
+	__le32 w1;
+	__le32 w2;
+} __packed;
+
+#define RTW89_C2H_PKT_OFLD_RSP_W2_PTK_ID GENMASK(7, 0)
+#define RTW89_C2H_PKT_OFLD_RSP_W2_PTK_OP GENMASK(10, 8)
+#define RTW89_C2H_PKT_OFLD_RSP_W2_PTK_LEN GENMASK(31, 16)
+
 struct rtw89_h2c_bcnfltr {
 	__le32 w0;
 } __packed;
@@ -3498,17 +3513,28 @@ struct rtw89_fw_h2c_rf_reg_info {
 
 /* CLASS 9 - FW offload */
 #define H2C_CL_MAC_FW_OFLD		0x9
-#define H2C_FUNC_PACKET_OFLD		0x1
-#define H2C_FUNC_MAC_MACID_PAUSE	0x8
-#define H2C_FUNC_USR_EDCA		0xF
-#define H2C_FUNC_TSF32_TOGL		0x10
-#define H2C_FUNC_OFLD_CFG		0x14
-#define H2C_FUNC_ADD_SCANOFLD_CH	0x16
-#define H2C_FUNC_SCANOFLD		0x17
-#define H2C_FUNC_PKT_DROP		0x1b
-#define H2C_FUNC_CFG_BCNFLTR		0x1e
-#define H2C_FUNC_OFLD_RSSI		0x1f
-#define H2C_FUNC_OFLD_TP		0x20
+enum rtw89_fw_ofld_h2c_func {
+	H2C_FUNC_PACKET_OFLD		= 0x1,
+	H2C_FUNC_MAC_MACID_PAUSE	= 0x8,
+	H2C_FUNC_USR_EDCA		= 0xF,
+	H2C_FUNC_TSF32_TOGL		= 0x10,
+	H2C_FUNC_OFLD_CFG		= 0x14,
+	H2C_FUNC_ADD_SCANOFLD_CH	= 0x16,
+	H2C_FUNC_SCANOFLD		= 0x17,
+	H2C_FUNC_PKT_DROP		= 0x1b,
+	H2C_FUNC_CFG_BCNFLTR		= 0x1e,
+	H2C_FUNC_OFLD_RSSI		= 0x1f,
+	H2C_FUNC_OFLD_TP		= 0x20,
+
+	NUM_OF_RTW89_FW_OFLD_H2C_FUNC,
+};
+
+#define RTW89_FW_OFLD_WAIT_COND(tag, func) \
+	((tag) * NUM_OF_RTW89_FW_OFLD_H2C_FUNC + (func))
+
+#define RTW89_FW_OFLD_WAIT_COND_PKT_OFLD(pkt_id, pkt_op) \
+	RTW89_FW_OFLD_WAIT_COND(RTW89_PKT_OFLD_WAIT_TAG(pkt_id, pkt_op), \
+				H2C_FUNC_PACKET_OFLD)
 
 /* CLASS 10 - Security CAM */
 #define H2C_CL_MAC_SEC_CAM		0xa

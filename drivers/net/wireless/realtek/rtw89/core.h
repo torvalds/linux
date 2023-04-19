@@ -3278,14 +3278,6 @@ enum rtw89_host_rpr_mode {
 	RTW89_RPR_MODE_STF
 };
 
-struct rtw89_mac_info {
-	struct rtw89_dle_info dle_info;
-	struct rtw89_hfc_param hfc_param;
-	enum rtw89_qta_mode qta_mode;
-	u8 rpwm_seq_num;
-	u8 cpwm_seq_num;
-};
-
 #define RTW89_COMPLETION_BUF_SIZE 24
 #define RTW89_WAIT_COND_IDLE UINT_MAX
 
@@ -3307,6 +3299,17 @@ static inline void rtw89_init_wait(struct rtw89_wait_info *wait)
 	init_completion(&wait->completion);
 	atomic_set(&wait->cond, RTW89_WAIT_COND_IDLE);
 }
+
+struct rtw89_mac_info {
+	struct rtw89_dle_info dle_info;
+	struct rtw89_hfc_param hfc_param;
+	enum rtw89_qta_mode qta_mode;
+	u8 rpwm_seq_num;
+	u8 cpwm_seq_num;
+
+	/* see RTW89_FW_OFLD_WAIT_COND series for wait condition */
+	struct rtw89_wait_info fw_ofld_wait;
+};
 
 enum rtw89_fw_type {
 	RTW89_FW_NORMAL = 1,
