@@ -270,7 +270,7 @@ struct sctp_inithdr {
 	__be16 num_outbound_streams;
 	__be16 num_inbound_streams;
 	__be32 initial_tsn;
-	__u8  params[];
+	/* __u8  params[]; */
 };
 
 struct sctp_init_chunk {
@@ -667,7 +667,7 @@ struct sctp_addip_param {
 
 struct sctp_addiphdr {
 	__be32	serial;
-	__u8	params[];
+	/* __u8	params[]; */
 };
 
 struct sctp_addip_chunk {
@@ -742,7 +742,7 @@ struct sctp_infox {
 
 struct sctp_reconf_chunk {
 	struct sctp_chunkhdr chunk_hdr;
-	__u8 params[];
+	/* __u8 params[]; */
 };
 
 struct sctp_strreset_outreq {
