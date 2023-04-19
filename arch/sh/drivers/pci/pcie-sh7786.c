@@ -31,7 +31,6 @@ struct sh7786_pcie_port {
 
 static struct sh7786_pcie_port *sh7786_pcie_ports;
 static unsigned int nr_ports;
-static unsigned long dma_pfn_offset;
 size_t memsize;
 u64 memstart;
 
