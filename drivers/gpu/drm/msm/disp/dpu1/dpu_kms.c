@@ -1049,6 +1049,9 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 	dpu_kms = to_dpu_kms(kms);
 	dev = dpu_kms->dev;
 
+	dev->mode_config.cursor_width = 512;
+	dev->mode_config.cursor_height = 512;
+
 	rc = dpu_kms_global_obj_init(dpu_kms);
 	if (rc)
 		return rc;
