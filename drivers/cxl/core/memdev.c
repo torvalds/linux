@@ -160,6 +160,62 @@ int cxl_trigger_poison_list(struct cxl_memdev *cxlmd)
 }
 EXPORT_SYMBOL_NS_GPL(cxl_trigger_poison_list, CXL);
 
+static int cxl_validate_poison_dpa(struct cxl_memdev *cxlmd, u64 dpa)
+{
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+
+	if (!IS_ENABLED(CONFIG_DEBUG_FS))
+		return 0;
+
+	if (!resource_size(&cxlds->dpa_res)) {
+		dev_dbg(cxlds->dev, "device has no dpa resource\n");
+		return -EINVAL;
+	}
+	if (dpa < cxlds->dpa_res.start || dpa > cxlds->dpa_res.end) {
+		dev_dbg(cxlds->dev, "dpa:0x%llx not in resource:%pR\n",
+			dpa, &cxlds->dpa_res);
+		return -EINVAL;
+	}
+	if (!IS_ALIGNED(dpa, 64)) {
+		dev_dbg(cxlds->dev, "dpa:0x%llx is not 64-byte aligned\n", dpa);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int cxl_inject_poison(struct cxl_memdev *cxlmd, u64 dpa)
+{
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+	struct cxl_mbox_inject_poison inject;
+	struct cxl_mbox_cmd mbox_cmd;
+	int rc;
+
+	if (!IS_ENABLED(CONFIG_DEBUG_FS))
+		return 0;
+
+	rc = down_read_interruptible(&cxl_dpa_rwsem);
+	if (rc)
+		return rc;
+
+	rc = cxl_validate_poison_dpa(cxlmd, dpa);
+	if (rc)
+		goto out;
+
+	inject.address = cpu_to_le64(dpa);
+	mbox_cmd = (struct cxl_mbox_cmd) {
+		.opcode = CXL_MBOX_OP_INJECT_POISON,
+		.size_in = sizeof(inject),
+		.payload_in = &inject,
+	};
+	rc = cxl_internal_send_cmd(cxlds, &mbox_cmd);
+out:
+	up_read(&cxl_dpa_rwsem);
+
+	return rc;
+}
+EXPORT_SYMBOL_NS_GPL(cxl_inject_poison, CXL);
+
 static struct attribute *cxl_memdev_attributes[] = {
 	&dev_attr_serial.attr,
 	&dev_attr_firmware_version.attr,
