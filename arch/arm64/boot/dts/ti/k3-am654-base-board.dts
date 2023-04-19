@@ -336,6 +336,12 @@
 	pinctrl-0 = <&wkup_i2c0_pins_default>;
 	clock-frequency = <400000>;
 
+	eeprom@50 {
+		/* AT24CM01 */
+		compatible = "atmel,24c1024";
+		reg = <0x50>;
+	};
+
 	vdd_mpu: regulator@60 {
 		compatible = "ti,tps62363";
 		reg = <0x60>;
