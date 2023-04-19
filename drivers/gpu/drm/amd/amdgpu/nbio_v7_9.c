@@ -432,6 +432,8 @@ static void nbio_v7_9_init_registers(struct amdgpu_device *adev)
 	WREG32_SOC15(NBIO, 0, regXCC_DOORBELL_FENCE,
 		0xff & ~(adev->gfx.xcc_mask));
 
+	WREG32_SOC15(NBIO, 0, regBIFC_GFX_INT_MONITOR_MASK, 0x7ff);
+
 	inst_mask = adev->aid_mask & ~1U;
 	for_each_inst(i, inst_mask) {
 		WREG32_SOC15_EXT(NBIO, i, regXCC_DOORBELL_FENCE, i,
