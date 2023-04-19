@@ -100,7 +100,7 @@
 #define CLK32K_TEST_START		BIT(0)
 #define CLK32K_TEST_STATUS		BIT(1)
 #define CLK32K_TEST_DONE		BIT(2)
-#define CLK32K_TEST_LEN			2
+#define CLK32K_TEST_LEN			1
 
 #define CLK32K_COMP_DIR_ADD		BIT(7)
 #define CLK32K_COMP_EN			BIT(2)
@@ -123,6 +123,7 @@ struct rockchip_rtc {
 	int irq;
 	unsigned int flag;
 	unsigned int mode;
+	struct delayed_work trim_work;
 };
 
 static unsigned int rockchip_rtc_write(struct regmap *map,
@@ -442,10 +443,9 @@ static const struct rtc_class_ops rockchip_rtc_ops = {
  * in last hour in last day every month,
  * and support add time and sub time by the MSB bit.
  */
-static int rockchip_rtc_compensation(struct device *dev)
+static void rockchip_rtc_compensation_delay_work(struct work_struct *work)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct rockchip_rtc *rtc = dev_get_drvdata(&pdev->dev);
+	struct rockchip_rtc *rtc = container_of(work, struct rockchip_rtc, trim_work.work);
 	u64 camp;
 	u32 count[4], counts, g_ref, tcamp;
 	int ret, done = 0, trim_dir, c_hour,
@@ -454,44 +454,39 @@ static int rockchip_rtc_compensation(struct device *dev)
 	ret = rockchip_rtc_update_bits(rtc->regmap, RTC_CLK32K_TEST,
 				       CLK32K_TEST_EN, CLK32K_TEST_EN);
 	if (ret) {
-		dev_err(dev,
-			"%s:Failed to update RTC CLK32K TEST: %d\n",
-			__func__, ret);
-		return ret;
+		pr_err("%s:Failed to update RTC CLK32K TEST: %d\n",
+		       __func__, ret);
+		return;
 	}
 
 	ret = rockchip_rtc_write(rtc->regmap, RTC_TEST_LEN,
 				 CLK32K_TEST_LEN);
 	if (ret) {
-		dev_err(dev,
-			"%s:Failed to update RTC CLK32K TEST LEN: %d\n",
-			__func__, ret);
-		return ret;
+		pr_err("%s:Failed to update RTC CLK32K TEST LEN: %d\n",
+		       __func__, ret);
+		return;
 	}
 
 	ret = rockchip_rtc_update_bits(rtc->regmap, RTC_TEST_ST,
 				       CLK32K_TEST_START,
 				       CLK32K_TEST_START);
 	if (ret) {
-		dev_err(dev,
-			"%s:Failed to update RTC CLK32K TEST STATUS : %d\n",
-			__func__, ret);
-		return ret;
+		pr_err("%s:Failed to update RTC CLK32K TEST STATUS : %d\n",
+		       __func__, ret);
+		return;
 	}
-
 	ret = regmap_read_poll_timeout(rtc->regmap, RTC_TEST_ST, done,
-				       (done & CLK32K_TEST_DONE), 0, 1000);
+				       (done & CLK32K_TEST_DONE), 20000, RTC_TIMEOUT);
 	if (ret)
-		dev_err(dev,
-			"%s:timeout waiting for RTC TEST STATUS : %d\n",
-			__func__, ret);
+		pr_err("%s:timeout waiting for RTC TEST STATUS : %d\n",
+		       __func__, ret);
 
 	ret = regmap_bulk_read(rtc->regmap,
 			       RTC_CNT_0,
 			       count, 4);
 	if (ret) {
-		dev_err(dev, "Failed to read RTC count REG: %d\n", ret);
-		return ret;
+		pr_err("Failed to read RTC count REG: %d\n", ret);
+		return;
 	}
 
 	counts = count[0] | (count[1] << 8) |
@@ -547,18 +542,17 @@ static int rockchip_rtc_compensation(struct device *dev)
 
 	ret = regmap_read(rtc->regmap, RTC_CTRL, &done);
 	if (ret) {
-		dev_err(dev, "Failed to read RTC_CTRL: %d\n", ret);
-		return ret;
+		pr_err("Failed to read RTC_CTRL: %d\n", ret);
+		return;
 	}
 
 	ret = rockchip_rtc_update_bits(rtc->regmap, RTC_CTRL,
 				       CLK32K_COMP_EN, CLK32K_COMP_EN);
 	if (ret) {
-		dev_err(dev,
-			"%s:Failed to update RTC CTRL : %d\n", __func__, ret);
-		return ret;
+		pr_err("%s:Failed to update RTC CTRL : %d\n", __func__, ret);
+		return;
 	}
-	return 0;
+	return;
 }
 
 /* Enable the alarm if it should be enabled (in case it was disabled to
@@ -721,8 +715,6 @@ static int rockchip_rtc_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, ret,
 				     "Failed to update RTC_ANALOG_EN\n");
 
-	rockchip_rtc_compensation(&pdev->dev);
-
 	/* start rtc running by default, and use shadowed timer. */
 	ret = rockchip_rtc_update_bits(rtc->regmap, RTC_CTRL,
 				       RTC_CTRL_REG_START_RTC |
@@ -767,6 +759,9 @@ static int rockchip_rtc_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, ret,
 				     "Failed to request alarm IRQ %d\n",
 				     rtc->irq);
+
+	INIT_DELAYED_WORK(&rtc->trim_work, rockchip_rtc_compensation_delay_work);
+	queue_delayed_work(system_long_wq, &rtc->trim_work, 3000);
 
 	return rtc_register_device(rtc->rtc);
 }
