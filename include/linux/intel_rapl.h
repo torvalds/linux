@@ -79,7 +79,6 @@ struct rapl_domain_data {
 
 struct rapl_power_limit {
 	struct powercap_zone_constraint *constraint;
-	int prim_id;		/* primitive ID used to enable */
 	struct rapl_domain *domain;
 	const char *name;
 	u64 last_power_limit;
