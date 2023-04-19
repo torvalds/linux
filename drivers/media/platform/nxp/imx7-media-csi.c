@@ -1145,8 +1145,12 @@ static const struct imx7_csi_pixfmt *
 __imx7_csi_video_try_fmt(struct v4l2_pix_format *pixfmt,
 			 struct v4l2_rect *compose)
 {
-	struct v4l2_mbus_framefmt fmt_src;
 	const struct imx7_csi_pixfmt *cc;
+
+	if (compose) {
+		compose->width = pixfmt->width;
+		compose->height = pixfmt->height;
+	}
 
 	/*
 	 * Find the pixel format, default to the first supported format if not
@@ -1172,13 +1176,17 @@ __imx7_csi_video_try_fmt(struct v4l2_pix_format *pixfmt,
 		}
 	}
 
-	v4l2_fill_mbus_format(&fmt_src, pixfmt, 0);
-	imx7_csi_mbus_fmt_to_pix_fmt(pixfmt, &fmt_src, cc);
+	/*
+	 * Round up width for minimum burst size.
+	 *
+	 * TODO: Implement configurable stride support, and check what the real
+	 * hardware alignment constraint on the width is.
+	 */
+	v4l_bound_align_image(&pixfmt->width, 1, 0xffff, 8,
+			      &pixfmt->height, 1, 0xffff, 1, 0);
 
-	if (compose) {
-		compose->width = fmt_src.width;
-		compose->height = fmt_src.height;
-	}
+	pixfmt->bytesperline = pixfmt->width * cc->bpp / 8;
+	pixfmt->sizeimage = pixfmt->bytesperline * pixfmt->height;
 
 	return cc;
 }
