@@ -137,6 +137,18 @@ static int pdsc_init_pf(struct pdsc *pdsc)
 	if (err)
 		goto err_out_release_regions;
 
+	mutex_init(&pdsc->devcmd_lock);
+	mutex_init(&pdsc->config_lock);
+
+	mutex_lock(&pdsc->config_lock);
+	set_bit(PDSC_S_FW_DEAD, &pdsc->state);
+
+	err = pdsc_setup(pdsc, PDSC_SETUP_INIT);
+	if (err)
+		goto err_out_unmap_bars;
+
+	mutex_unlock(&pdsc->config_lock);
+
 	dl = priv_to_devlink(pdsc);
 	devl_lock(dl);
 	devl_register(dl);
@@ -144,6 +156,12 @@ static int pdsc_init_pf(struct pdsc *pdsc)
 
 	return 0;
 
+err_out_unmap_bars:
+	mutex_unlock(&pdsc->config_lock);
+	mutex_destroy(&pdsc->config_lock);
+	mutex_destroy(&pdsc->devcmd_lock);
+	pci_free_irq_vectors(pdsc->pdev);
+	pdsc_unmap_bars(pdsc);
 err_out_release_regions:
 	pci_release_regions(pdsc->pdev);
 
@@ -240,8 +258,19 @@ static void pdsc_remove(struct pci_dev *pdev)
 	devl_unregister(dl);
 	devl_unlock(dl);
 
-	pdsc_unmap_bars(pdsc);
-	pci_release_regions(pdev);
+	if (!pdev->is_virtfn) {
+		mutex_lock(&pdsc->config_lock);
+		set_bit(PDSC_S_STOPPING_DRIVER, &pdsc->state);
+
+		pdsc_teardown(pdsc, PDSC_TEARDOWN_REMOVING);
+		mutex_unlock(&pdsc->config_lock);
+		mutex_destroy(&pdsc->config_lock);
+		mutex_destroy(&pdsc->devcmd_lock);
+
+		pci_free_irq_vectors(pdev);
+		pdsc_unmap_bars(pdsc);
+		pci_release_regions(pdev);
+	}
 
 	pci_clear_master(pdev);
 	pci_disable_device(pdev);
