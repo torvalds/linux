@@ -145,7 +145,7 @@ static int find_sample(struct sample *samples, size_t nr_samples,
 {
 	while (nr_samples--) {
 		if (samples->thread == t &&
-		    samples->map == m &&
+		    RC_CHK_ACCESS(samples->map) == RC_CHK_ACCESS(m) &&
 		    samples->sym == s)
 			return 1;
 		samples++;

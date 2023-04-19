@@ -10,12 +10,13 @@
 #include <string.h>
 #include <stdbool.h>
 #include <linux/types.h>
+#include <internal/rc_check.h>
 
 struct dso;
 struct maps;
 struct machine;
 
-struct map {
+DECLARE_RC_STRUCT(map) {
 	u64			start;
 	u64			end;
 	bool			erange_warned:1;
@@ -49,72 +50,72 @@ u64 identity__map_ip(const struct map *map __maybe_unused, u64 ip);
 
 static inline struct dso *map__dso(const struct map *map)
 {
-	return map->dso;
+	return RC_CHK_ACCESS(map)->dso;
 }
 
 static inline u64 map__map_ip(const struct map *map, u64 ip)
 {
-	return map->map_ip(map, ip);
+	return RC_CHK_ACCESS(map)->map_ip(map, ip);
 }
 
 static inline u64 map__unmap_ip(const struct map *map, u64 ip)
 {
-	return map->unmap_ip(map, ip);
+	return RC_CHK_ACCESS(map)->unmap_ip(map, ip);
 }
 
 static inline void *map__map_ip_ptr(struct map *map)
 {
-	return map->map_ip;
+	return RC_CHK_ACCESS(map)->map_ip;
 }
 
 static inline void* map__unmap_ip_ptr(struct map *map)
 {
-	return map->unmap_ip;
+	return RC_CHK_ACCESS(map)->unmap_ip;
 }
 
 static inline u64 map__start(const struct map *map)
 {
-	return map->start;
+	return RC_CHK_ACCESS(map)->start;
 }
 
 static inline u64 map__end(const struct map *map)
 {
-	return map->end;
+	return RC_CHK_ACCESS(map)->end;
 }
 
 static inline u64 map__pgoff(const struct map *map)
 {
-	return map->pgoff;
+	return RC_CHK_ACCESS(map)->pgoff;
 }
 
 static inline u64 map__reloc(const struct map *map)
 {
-	return map->reloc;
+	return RC_CHK_ACCESS(map)->reloc;
 }
 
 static inline u32 map__flags(const struct map *map)
 {
-	return map->flags;
+	return RC_CHK_ACCESS(map)->flags;
 }
 
 static inline u32 map__prot(const struct map *map)
 {
-	return map->prot;
+	return RC_CHK_ACCESS(map)->prot;
 }
 
 static inline bool map__priv(const struct map *map)
 {
-	return map->priv;
+	return RC_CHK_ACCESS(map)->priv;
 }
 
 static inline refcount_t *map__refcnt(struct map *map)
 {
-	return &map->refcnt;
+	return &RC_CHK_ACCESS(map)->refcnt;
 }
 
 static inline bool map__erange_warned(struct map *map)
 {
-	return map->erange_warned;
+	return RC_CHK_ACCESS(map)->erange_warned;
 }
 
 static inline size_t map__size(const struct map *map)
@@ -173,9 +174,12 @@ struct map *map__clone(struct map *map);
 
 static inline struct map *map__get(struct map *map)
 {
-	if (map)
+	struct map *result;
+
+	if (RC_CHK_GET(result, map))
 		refcount_inc(map__refcnt(map));
-	return map;
+
+	return result;
 }
 
 void map__put(struct map *map);
@@ -249,51 +253,51 @@ static inline int is_no_dso_memory(const char *filename)
 
 static inline void map__set_start(struct map *map, u64 start)
 {
-	map->start = start;
+	RC_CHK_ACCESS(map)->start = start;
 }
 
 static inline void map__set_end(struct map *map, u64 end)
 {
-	map->end = end;
+	RC_CHK_ACCESS(map)->end = end;
 }
 
 static inline void map__set_pgoff(struct map *map, u64 pgoff)
 {
-	map->pgoff = pgoff;
+	RC_CHK_ACCESS(map)->pgoff = pgoff;
 }
 
 static inline void map__add_pgoff(struct map *map, u64 inc)
 {
-	map->pgoff += inc;
+	RC_CHK_ACCESS(map)->pgoff += inc;
 }
 
 static inline void map__set_reloc(struct map *map, u64 reloc)
 {
-	map->reloc = reloc;
+	RC_CHK_ACCESS(map)->reloc = reloc;
 }
 
 static inline void map__set_priv(struct map *map, int priv)
 {
-	map->priv = priv;
+	RC_CHK_ACCESS(map)->priv = priv;
 }
 
 static inline void map__set_erange_warned(struct map *map, bool erange_warned)
 {
-	map->erange_warned = erange_warned;
+	RC_CHK_ACCESS(map)->erange_warned = erange_warned;
 }
 
 static inline void map__set_dso(struct map *map, struct dso *dso)
 {
-	map->dso = dso;
+	RC_CHK_ACCESS(map)->dso = dso;
 }
 
 static inline void map__set_map_ip(struct map *map, u64 (*map_ip)(const struct map *map, u64 ip))
 {
-	map->map_ip = map_ip;
+	RC_CHK_ACCESS(map)->map_ip = map_ip;
 }
 
 static inline void map__set_unmap_ip(struct map *map, u64 (*unmap_ip)(const struct map *map, u64 rip))
 {
-	map->unmap_ip = unmap_ip;
+	RC_CHK_ACCESS(map)->unmap_ip = unmap_ip;
 }
 #endif /* __PERF_MAP_H */

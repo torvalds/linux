@@ -865,7 +865,7 @@ static int maps__split_kallsyms(struct maps *kmaps, struct dso *dso, u64 delta,
 			*module++ = '\0';
 			curr_map_dso = map__dso(curr_map);
 			if (strcmp(curr_map_dso->short_name, module)) {
-				if (curr_map != initial_map &&
+				if (RC_CHK_ACCESS(curr_map) != RC_CHK_ACCESS(initial_map) &&
 				    dso->kernel == DSO_SPACE__KERNEL_GUEST &&
 				    machine__is_default_guest(machine)) {
 					/*
@@ -1457,7 +1457,7 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 
 		list_del_init(&new_node->node);
 
-		if (new_map == replacement_map) {
+		if (RC_CHK_ACCESS(new_map) == RC_CHK_ACCESS(replacement_map)) {
 			map__set_start(map, map__start(new_map));
 			map__set_end(map, map__end(new_map));
 			map__set_pgoff(map, map__pgoff(new_map));

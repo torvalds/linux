@@ -126,7 +126,7 @@ void maps__remove(struct maps *maps, struct map *map)
 		RC_CHK_ACCESS(maps)->last_search_by_name = NULL;
 
 	rb_node = maps__find_node(maps, map);
-	assert(rb_node->map == map);
+	assert(rb_node->RC_CHK_ACCESS(map) == RC_CHK_ACCESS(map));
 	__maps__remove(maps, rb_node);
 	if (maps__maps_by_name(maps))
 		__maps__free_maps_by_name(maps);
@@ -420,7 +420,7 @@ struct map_rb_node *maps__find_node(struct maps *maps, struct map *map)
 	struct map_rb_node *rb_node;
 
 	maps__for_each_entry(maps, rb_node) {
-		if (rb_node->map == map)
+		if (rb_node->RC_CHK_ACCESS(map) == RC_CHK_ACCESS(map))
 			return rb_node;
 	}
 	return NULL;
