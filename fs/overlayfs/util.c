@@ -1188,7 +1188,7 @@ err_free:
 }
 
 /* Call with mounter creds as it may open the file */
-static int ovl_ensure_verity_loaded(struct path *datapath)
+int ovl_ensure_verity_loaded(struct path *datapath)
 {
 	struct inode *inode = d_inode(datapath->dentry);
 	struct file *filp;
@@ -1259,6 +1259,37 @@ int ovl_validate_verity(struct ovl_fs *ofs,
 		return -EIO;
 	}
 
+	return 0;
+}
+
+int ovl_get_verity_digest(struct ovl_fs *ofs, struct path *src,
+			  struct ovl_metacopy *metacopy)
+{
+	int err, digest_size;
+
+	if (!ofs->config.verity_mode || !S_ISREG(d_inode(src->dentry)->i_mode))
+		return 0;
+
+	err = ovl_ensure_verity_loaded(src);
+	if (err < 0) {
+		pr_warn_ratelimited("lower file '%pd' failed to load fs-verity info\n",
+				    src->dentry);
+		return -EIO;
+	}
+
+	digest_size = fsverity_get_digest(d_inode(src->dentry),
+					  metacopy->digest, &metacopy->digest_algo, NULL);
+	if (digest_size == 0 ||
+	    WARN_ON_ONCE(digest_size > FS_VERITY_MAX_DIGEST_SIZE)) {
+		if (ofs->config.verity_mode == OVL_VERITY_REQUIRE) {
+			pr_warn_ratelimited("lower file '%pd' has no fs-verity digest\n",
+					    src->dentry);
+			return -EIO;
+		}
+		return 0;
+	}
+
+	metacopy->len += digest_size;
 	return 0;
 }
 
