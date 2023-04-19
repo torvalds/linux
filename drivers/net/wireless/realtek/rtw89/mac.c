@@ -4336,6 +4336,8 @@ rtw89_mac_c2h_bcn_fltr_rpt(struct rtw89_dev *rtwdev, struct sk_buff *c2h,
 static void
 rtw89_mac_c2h_rec_ack(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
 {
+	/* N.B. This will run in interrupt context. */
+
 	rtw89_debug(rtwdev, RTW89_DBG_FW,
 		    "C2H rev ack recv, cat: %d, class: %d, func: %d, seq : %d\n",
 		    RTW89_GET_MAC_C2H_REV_ACK_CAT(c2h->data),
@@ -4347,6 +4349,8 @@ rtw89_mac_c2h_rec_ack(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
 static void
 rtw89_mac_c2h_done_ack(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
 {
+	/* N.B. This will run in interrupt context. */
+
 	rtw89_debug(rtwdev, RTW89_DBG_FW,
 		    "C2H done ack recv, cat: %d, class: %d, func: %d, ret: %d, seq : %d\n",
 		    RTW89_GET_MAC_C2H_DONE_ACK_CAT(c2h->data),
@@ -4592,6 +4596,14 @@ bool rtw89_mac_c2h_chk_atomic(struct rtw89_dev *rtwdev, u8 class, u8 func)
 	switch (class) {
 	default:
 		return false;
+	case RTW89_MAC_C2H_CLASS_INFO:
+		switch (func) {
+		default:
+			return false;
+		case RTW89_MAC_C2H_FUNC_REC_ACK:
+		case RTW89_MAC_C2H_FUNC_DONE_ACK:
+			return true;
+		}
 	case RTW89_MAC_C2H_CLASS_OFLD:
 		switch (func) {
 		default:
