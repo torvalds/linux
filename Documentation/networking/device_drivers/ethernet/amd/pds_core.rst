@@ -73,6 +73,16 @@ The ``pds_core`` driver reports the following versions
      - fixed
      - The revision of the ASIC for this device
 
+Firmware Management
+===================
+
+The ``flash`` command can update a the DSC firmware.  The downloaded firmware
+will be saved into either of firmware bank 1 or bank 2, whichever is not
+currently in use, and that bank will used for the next boot::
+
+  # devlink dev flash pci/0000:b5:00.0 \
+            file pensando/dsc_fw_1.63.0-22.tar
+
 Health Reporters
 ================
 
