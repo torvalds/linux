@@ -654,7 +654,7 @@ static u64 rapl_unit_xlate(struct rapl_domain *rd, enum unit_type type,
 }
 
 /* in the order of enum rapl_primitives */
-static struct rapl_primitive_info rpi[] = {
+static struct rapl_primitive_info rpi_default[] = {
 	/* name, mask, shift, msr index, unit divisor */
 	PRIMITIVE_INFO_INIT(ENERGY_COUNTER, ENERGY_STATUS_MASK, 0,
 			    RAPL_DOMAIN_REG_STATUS, ENERGY_UNIT, 0),
@@ -710,9 +710,20 @@ static struct rapl_primitive_info rpi[] = {
 	{NULL, 0, 0, 0},
 };
 
+static struct rapl_primitive_info *get_rpi(struct rapl_package *rp, int prim)
+{
+	struct rapl_primitive_info *rpi = rp->priv->rpi;
+
+	if (prim < 0 || prim > NR_RAPL_PRIMITIVES || !rpi)
+		return NULL;
+
+	return &rpi[prim];
+}
+
 static int rapl_config(struct rapl_package *rp)
 {
 	rp->priv->defaults = (void *)rapl_defaults;
+	rp->priv->rpi = (void *)rpi_default;
 	return 0;
 }
 
@@ -763,14 +774,14 @@ static int rapl_read_data_raw(struct rapl_domain *rd,
 {
 	u64 value;
 	enum rapl_primitives prim_fixed = prim_fixups(rd, prim);
-	struct rapl_primitive_info *rp = &rpi[prim_fixed];
+	struct rapl_primitive_info *rpi = get_rpi(rd->rp, prim_fixed);
 	struct reg_action ra;
 	int cpu;
 
-	if (!rp->name || rp->flag & RAPL_PRIMITIVE_DUMMY)
+	if (!rpi || !rpi->name || rpi->flag & RAPL_PRIMITIVE_DUMMY)
 		return -EINVAL;
 
-	ra.reg = rd->regs[rp->id];
+	ra.reg = rd->regs[rpi->id];
 	if (!ra.reg)
 		return -EINVAL;
 
@@ -778,26 +789,26 @@ static int rapl_read_data_raw(struct rapl_domain *rd,
 
 	/* domain with 2 limits has different bit */
 	if (prim == FW_LOCK && rd->rp->priv->limits[rd->id] == 2) {
-		rp->mask = POWER_HIGH_LOCK;
-		rp->shift = 63;
+		rpi->mask = POWER_HIGH_LOCK;
+		rpi->shift = 63;
 	}
 	/* non-hardware data are collected by the polling thread */
-	if (rp->flag & RAPL_PRIMITIVE_DERIVED) {
+	if (rpi->flag & RAPL_PRIMITIVE_DERIVED) {
 		*data = rd->rdd.primitives[prim];
 		return 0;
 	}
 
-	ra.mask = rp->mask;
+	ra.mask = rpi->mask;
 
 	if (rd->rp->priv->read_raw(cpu, &ra)) {
 		pr_debug("failed to read reg 0x%llx on cpu %d\n", ra.reg, cpu);
 		return -EIO;
 	}
 
-	value = ra.value >> rp->shift;
+	value = ra.value >> rpi->shift;
 
 	if (xlate)
-		*data = rapl_unit_xlate(rd, rp->unit, value, 0);
+		*data = rapl_unit_xlate(rd, rpi->unit, value, 0);
 	else
 		*data = value;
 
@@ -810,21 +821,24 @@ static int rapl_write_data_raw(struct rapl_domain *rd,
 			       unsigned long long value)
 {
 	enum rapl_primitives prim_fixed = prim_fixups(rd, prim);
-	struct rapl_primitive_info *rp = &rpi[prim_fixed];
+	struct rapl_primitive_info *rpi = get_rpi(rd->rp, prim_fixed);
 	int cpu;
 	u64 bits;
 	struct reg_action ra;
 	int ret;
 
+	if (!rpi || !rpi->name || rpi->flag & RAPL_PRIMITIVE_DUMMY)
+		return -EINVAL;
+
 	cpu = rd->rp->lead_cpu;
-	bits = rapl_unit_xlate(rd, rp->unit, value, 1);
-	bits <<= rp->shift;
-	bits &= rp->mask;
+	bits = rapl_unit_xlate(rd, rpi->unit, value, 1);
+	bits <<= rpi->shift;
+	bits &= rpi->mask;
 
 	memset(&ra, 0, sizeof(ra));
 
-	ra.reg = rd->regs[rp->id];
-	ra.mask = rp->mask;
+	ra.reg = rd->regs[rpi->id];
+	ra.mask = rpi->mask;
 	ra.value = bits;
 
 	ret = rd->rp->priv->write_raw(cpu, &ra);
@@ -1176,8 +1190,10 @@ static void rapl_update_domain_data(struct rapl_package *rp)
 			 rp->domains[dmn].name);
 		/* exclude non-raw primitives */
 		for (prim = 0; prim < NR_RAW_PRIMITIVES; prim++) {
+			struct rapl_primitive_info *rpi = get_rpi(rp, prim);
+
 			if (!rapl_read_data_raw(&rp->domains[dmn], prim,
-						rpi[prim].unit, &val))
+						rpi->unit, &val))
 				rp->domains[dmn].rdd.primitives[prim] = val;
 		}
 	}
