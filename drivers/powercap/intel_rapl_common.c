@@ -105,9 +105,9 @@ static const char pl4_name[] = "peak_power";
 
 struct rapl_defaults {
 	u8 floor_freq_reg_addr;
-	int (*check_unit)(struct rapl_package *rp, int cpu);
+	int (*check_unit)(struct rapl_domain *rd, int cpu);
 	void (*set_floor_freq)(struct rapl_domain *rd, bool mode);
-	u64 (*compute_time_window)(struct rapl_package *rp, u64 val,
+	u64 (*compute_time_window)(struct rapl_domain *rd, u64 val,
 				    bool to_raw);
 	unsigned int dram_domain_energy_unit;
 	unsigned int psys_domain_energy_unit;
@@ -557,7 +557,6 @@ static void rapl_init_domains(struct rapl_package *rp)
 	enum rapl_domain_type i;
 	enum rapl_domain_reg_id j;
 	struct rapl_domain *rd = rp->domains;
-	struct rapl_defaults *defaults = get_defaults(rp);
 
 	for (i = 0; i < RAPL_DOMAIN_MAX; i++) {
 		unsigned int mask = rp->domain_map & (1 << i);
@@ -596,24 +595,6 @@ static void rapl_init_domains(struct rapl_package *rp)
 		for (j = 0; j < RAPL_DOMAIN_REG_MAX; j++)
 			rd->regs[j] = rp->priv->regs[i][j];
 
-		switch (i) {
-		case RAPL_DOMAIN_DRAM:
-			rd->domain_energy_unit =
-			    defaults->dram_domain_energy_unit;
-			if (rd->domain_energy_unit)
-				pr_info("DRAM domain energy unit %dpj\n",
-					rd->domain_energy_unit);
-			break;
-		case RAPL_DOMAIN_PLATFORM:
-			rd->domain_energy_unit =
-			    defaults->psys_domain_energy_unit;
-			if (rd->domain_energy_unit)
-				pr_info("Platform domain energy unit %dpj\n",
-					rd->domain_energy_unit);
-			break;
-		default:
-			break;
-		}
 		rd++;
 	}
 }
@@ -622,24 +603,19 @@ static u64 rapl_unit_xlate(struct rapl_domain *rd, enum unit_type type,
 			   u64 value, int to_raw)
 {
 	u64 units = 1;
-	struct rapl_package *rp = rd->rp;
-	struct rapl_defaults *defaults = get_defaults(rp);
+	struct rapl_defaults *defaults = get_defaults(rd->rp);
 	u64 scale = 1;
 
 	switch (type) {
 	case POWER_UNIT:
-		units = rp->power_unit;
+		units = rd->power_unit;
 		break;
 	case ENERGY_UNIT:
 		scale = ENERGY_UNIT_SCALE;
-		/* per domain unit takes precedence */
-		if (rd->domain_energy_unit)
-			units = rd->domain_energy_unit;
-		else
-			units = rp->energy_unit;
+		units = rd->energy_unit;
 		break;
 	case TIME_UNIT:
-		return defaults->compute_time_window(rp, value, to_raw);
+		return defaults->compute_time_window(rd, value, to_raw);
 	case ARBITRARY_UNIT:
 	default:
 		return value;
@@ -857,58 +833,58 @@ static int rapl_write_data_raw(struct rapl_domain *rd,
  * power unit : microWatts  : Represented in milliWatts by default
  * time unit  : microseconds: Represented in seconds by default
  */
-static int rapl_check_unit_core(struct rapl_package *rp, int cpu)
+static int rapl_check_unit_core(struct rapl_domain *rd, int cpu)
 {
 	struct reg_action ra;
 	u32 value;
 
-	ra.reg = rp->priv->reg_unit;
+	ra.reg = rd->regs[RAPL_DOMAIN_REG_UNIT];
 	ra.mask = ~0;
-	if (rp->priv->read_raw(cpu, &ra)) {
+	if (rd->rp->priv->read_raw(cpu, &ra)) {
 		pr_err("Failed to read power unit REG 0x%llx on CPU %d, exit.\n",
-		       rp->priv->reg_unit, cpu);
+			ra.reg, cpu);
 		return -ENODEV;
 	}
 
 	value = (ra.value & ENERGY_UNIT_MASK) >> ENERGY_UNIT_OFFSET;
-	rp->energy_unit = ENERGY_UNIT_SCALE * 1000000 / (1 << value);
+	rd->energy_unit = ENERGY_UNIT_SCALE * 1000000 / (1 << value);
 
 	value = (ra.value & POWER_UNIT_MASK) >> POWER_UNIT_OFFSET;
-	rp->power_unit = 1000000 / (1 << value);
+	rd->power_unit = 1000000 / (1 << value);
 
 	value = (ra.value & TIME_UNIT_MASK) >> TIME_UNIT_OFFSET;
-	rp->time_unit = 1000000 / (1 << value);
+	rd->time_unit = 1000000 / (1 << value);
 
-	pr_debug("Core CPU %s energy=%dpJ, time=%dus, power=%duW\n",
-		 rp->name, rp->energy_unit, rp->time_unit, rp->power_unit);
+	pr_debug("Core CPU %s:%s energy=%dpJ, time=%dus, power=%duW\n",
+		 rd->rp->name, rd->name, rd->energy_unit, rd->time_unit, rd->power_unit);
 
 	return 0;
 }
 
-static int rapl_check_unit_atom(struct rapl_package *rp, int cpu)
+static int rapl_check_unit_atom(struct rapl_domain *rd, int cpu)
 {
 	struct reg_action ra;
 	u32 value;
 
-	ra.reg = rp->priv->reg_unit;
+	ra.reg = rd->regs[RAPL_DOMAIN_REG_UNIT];
 	ra.mask = ~0;
-	if (rp->priv->read_raw(cpu, &ra)) {
+	if (rd->rp->priv->read_raw(cpu, &ra)) {
 		pr_err("Failed to read power unit REG 0x%llx on CPU %d, exit.\n",
-		       rp->priv->reg_unit, cpu);
+			ra.reg, cpu);
 		return -ENODEV;
 	}
 
 	value = (ra.value & ENERGY_UNIT_MASK) >> ENERGY_UNIT_OFFSET;
-	rp->energy_unit = ENERGY_UNIT_SCALE * 1 << value;
+	rd->energy_unit = ENERGY_UNIT_SCALE * 1 << value;
 
 	value = (ra.value & POWER_UNIT_MASK) >> POWER_UNIT_OFFSET;
-	rp->power_unit = (1 << value) * 1000;
+	rd->power_unit = (1 << value) * 1000;
 
 	value = (ra.value & TIME_UNIT_MASK) >> TIME_UNIT_OFFSET;
-	rp->time_unit = 1000000 / (1 << value);
+	rd->time_unit = 1000000 / (1 << value);
 
-	pr_debug("Atom %s energy=%dpJ, time=%dus, power=%duW\n",
-		 rp->name, rp->energy_unit, rp->time_unit, rp->power_unit);
+	pr_debug("Atom %s:%s energy=%dpJ, time=%dus, power=%duW\n",
+		 rd->rp->name, rd->name, rd->energy_unit, rd->time_unit, rd->power_unit);
 
 	return 0;
 }
@@ -1011,7 +987,7 @@ static void set_floor_freq_atom(struct rapl_domain *rd, bool enable)
 		       defaults->floor_freq_reg_addr, mdata);
 }
 
-static u64 rapl_compute_time_window_core(struct rapl_package *rp, u64 value,
+static u64 rapl_compute_time_window_core(struct rapl_domain *rd, u64 value,
 					 bool to_raw)
 {
 	u64 f, y;		/* fraction and exp. used for time unit */
@@ -1023,12 +999,12 @@ static u64 rapl_compute_time_window_core(struct rapl_package *rp, u64 value,
 	if (!to_raw) {
 		f = (value & 0x60) >> 5;
 		y = value & 0x1f;
-		value = (1 << y) * (4 + f) * rp->time_unit / 4;
+		value = (1 << y) * (4 + f) * rd->time_unit / 4;
 	} else {
-		if (value < rp->time_unit)
+		if (value < rd->time_unit)
 			return 0;
 
-		do_div(value, rp->time_unit);
+		do_div(value, rd->time_unit);
 		y = ilog2(value);
 
 		/*
@@ -1044,7 +1020,7 @@ static u64 rapl_compute_time_window_core(struct rapl_package *rp, u64 value,
 	return value;
 }
 
-static u64 rapl_compute_time_window_atom(struct rapl_package *rp, u64 value,
+static u64 rapl_compute_time_window_atom(struct rapl_domain *rd, u64 value,
 					 bool to_raw)
 {
 	/*
@@ -1052,9 +1028,9 @@ static u64 rapl_compute_time_window_atom(struct rapl_package *rp, u64 value,
 	 * where time_unit is default to 1 sec. Never 0.
 	 */
 	if (!to_raw)
-		return (value) ? value * rp->time_unit : rp->time_unit;
+		return (value) ? value * rd->time_unit : rd->time_unit;
 
-	value = div64_u64(value, rp->time_unit);
+	value = div64_u64(value, rd->time_unit);
 
 	return value;
 }
@@ -1300,6 +1276,40 @@ static int rapl_check_domain(int cpu, int domain, struct rapl_package *rp)
 }
 
 /*
+ * Get per domain energy/power/time unit.
+ * RAPL Interfaces without per domain unit register will use the package
+ * scope unit register to set per domain units.
+ */
+static int rapl_get_domain_unit(struct rapl_domain *rd)
+{
+	struct rapl_defaults *defaults = get_defaults(rd->rp);
+	int ret;
+
+	if (!rd->regs[RAPL_DOMAIN_REG_UNIT]) {
+		if (!rd->rp->priv->reg_unit) {
+			pr_err("No valid Unit register found\n");
+			return -ENODEV;
+		}
+		rd->regs[RAPL_DOMAIN_REG_UNIT] = rd->rp->priv->reg_unit;
+	}
+
+	if (!defaults->check_unit) {
+		pr_err("missing .check_unit() callback\n");
+		return -ENODEV;
+	}
+
+	ret = defaults->check_unit(rd, rd->rp->lead_cpu);
+	if (ret)
+		return ret;
+
+	if (rd->id == RAPL_DOMAIN_DRAM && defaults->dram_domain_energy_unit)
+		rd->energy_unit = defaults->dram_domain_energy_unit;
+	if (rd->id == RAPL_DOMAIN_PLATFORM && defaults->psys_domain_energy_unit)
+		rd->energy_unit = defaults->psys_domain_energy_unit;
+	return 0;
+}
+
+/*
  * Check if power limits are available. Two cases when they are not available:
  * 1. Locked by BIOS, in this case we still provide read-only access so that
  *    users can see what limit is set by the BIOS.
@@ -1359,8 +1369,10 @@ static int rapl_detect_domains(struct rapl_package *rp, int cpu)
 
 	rapl_init_domains(rp);
 
-	for (rd = rp->domains; rd < rp->domains + rp->nr_domains; rd++)
+	for (rd = rp->domains; rd < rp->domains + rp->nr_domains; rd++) {
+		rapl_get_domain_unit(rd);
 		rapl_detect_powerlimit(rd);
+	}
 
 	return 0;
 }
@@ -1418,7 +1430,6 @@ struct rapl_package *rapl_add_package(int cpu, struct rapl_if_priv *priv)
 {
 	int id = topology_logical_die_id(cpu);
 	struct rapl_package *rp;
-	struct rapl_defaults *defaults;
 	int ret;
 
 	rp = kzalloc(sizeof(struct rapl_package), GFP_KERNEL);
@@ -1442,9 +1453,8 @@ struct rapl_package *rapl_add_package(int cpu, struct rapl_if_priv *priv)
 		snprintf(rp->name, PACKAGE_DOMAIN_NAME_LENGTH, "package-%d",
 			 topology_physical_package_id(cpu));
 
-	defaults = get_defaults(rp);
 	/* check if the package contains valid domains */
-	if (rapl_detect_domains(rp, cpu) || defaults->check_unit(rp, cpu)) {
+	if (rapl_detect_domains(rp, cpu)) {
 		ret = -ENODEV;
 		goto err_free_package;
 	}

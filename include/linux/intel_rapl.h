@@ -30,6 +30,7 @@ enum rapl_domain_reg_id {
 	RAPL_DOMAIN_REG_POLICY,
 	RAPL_DOMAIN_REG_INFO,
 	RAPL_DOMAIN_REG_PL4,
+	RAPL_DOMAIN_REG_UNIT,
 	RAPL_DOMAIN_REG_MAX,
 };
 
@@ -96,7 +97,9 @@ struct rapl_domain {
 	struct rapl_power_limit rpl[NR_POWER_LIMITS];
 	u64 attr_map;		/* track capabilities */
 	unsigned int state;
-	unsigned int domain_energy_unit;
+	unsigned int power_unit;
+	unsigned int energy_unit;
+	unsigned int time_unit;
 	struct rapl_package *rp;
 };
 
@@ -143,9 +146,6 @@ struct rapl_package {
 	unsigned int id;	/* logical die id, equals physical 1-die systems */
 	unsigned int nr_domains;
 	unsigned long domain_map;	/* bit map of active domains */
-	unsigned int power_unit;
-	unsigned int energy_unit;
-	unsigned int time_unit;
 	struct rapl_domain *domains;	/* array of domains, sized at runtime */
 	struct powercap_zone *power_zone;	/* keep track of parent zone */
 	unsigned long power_limit_irq;	/* keep track of package power limit
