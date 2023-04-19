@@ -727,7 +727,7 @@ struct sctp_addip_chunk {
 struct sctp_authhdr {
 	__be16 shkey_id;
 	__be16 hmac_id;
-	__u8   hmac[];
+	/* __u8   hmac[]; */
 };
 
 struct sctp_auth_chunk {
