@@ -4,6 +4,8 @@
 #ifndef _PDS_CORE_ADMINQ_H_
 #define _PDS_CORE_ADMINQ_H_
 
+#define PDSC_ADMINQ_MAX_POLL_INTERVAL	256
+
 enum pds_core_adminq_flags {
 	PDS_AQ_FLAG_FASTPOLL	= BIT(1),	/* completion poll at 1ms */
 };
@@ -631,8 +633,15 @@ static_assert(sizeof(union pds_core_notifyq_comp) == 64);
  * where the meaning alternates between '1' and '0' for alternating
  * passes through the completion descriptor ring.
  */
-static inline u8 pdsc_color_match(u8 color, u8 done_color)
+static inline bool pdsc_color_match(u8 color, bool done_color)
 {
 	return (!!(color & PDS_COMP_COLOR_MASK)) == done_color;
 }
+
+struct pdsc;
+int pdsc_adminq_post(struct pdsc *pdsc,
+		     union pds_core_adminq_cmd *cmd,
+		     union pds_core_adminq_comp *comp,
+		     bool fast_poll);
+
 #endif /* _PDS_CORE_ADMINQ_H_ */
