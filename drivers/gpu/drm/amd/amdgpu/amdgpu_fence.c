@@ -692,6 +692,30 @@ void amdgpu_fence_driver_clear_job_fences(struct amdgpu_ring *ring)
 }
 
 /**
+ * amdgpu_fence_driver_set_error - set error code on fences
+ * @ring: the ring which contains the fences
+ * @error: the error code to set
+ *
+ * Set an error code to all the fences pending on the ring.
+ */
+void amdgpu_fence_driver_set_error(struct amdgpu_ring *ring, int error)
+{
+	struct amdgpu_fence_driver *drv = &ring->fence_drv;
+	unsigned long flags;
+
+	spin_lock_irqsave(&drv->lock, flags);
+	for (unsigned int i = 0; i <= drv->num_fences_mask; ++i) {
+		struct dma_fence *fence;
+
+		fence = rcu_dereference_protected(drv->fences[i],
+						  lockdep_is_held(&drv->lock));
+		if (fence && !dma_fence_is_signaled_locked(fence))
+			dma_fence_set_error(fence, error);
+	}
+	spin_unlock_irqrestore(&drv->lock, flags);
+}
+
+/**
  * amdgpu_fence_driver_force_completion - force signal latest fence of ring
  *
  * @ring: fence of the ring to signal
