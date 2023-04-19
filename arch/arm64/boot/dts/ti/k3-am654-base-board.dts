@@ -85,7 +85,7 @@
 		};
 	};
 
-	evm_12v0: fixedregulator-evm12v0 {
+	evm_12v0: regulator-0 {
 		/* main supply */
 		compatible = "regulator-fixed";
 		regulator-name = "evm_12v0";
@@ -95,7 +95,7 @@
 		regulator-boot-on;
 	};
 
-	vcc3v3_io: fixedregulator-vcc3v3io {
+	vcc3v3_io: regulator-1 {
 		/* Output of TPS54334 */
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_io";
@@ -106,7 +106,7 @@
 		vin-supply = <&evm_12v0>;
 	};
 
-	vdd_mmc1_sd: fixedregulator-sd {
+	vdd_mmc1_sd: regulator-2 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_mmc1_sd";
 		regulator-min-microvolt = <3300000>;
