@@ -400,9 +400,9 @@ config HW_RANDOM_POLARFIRE_SOC
 
 config HW_RANDOM_MESON
 	tristate "Amlogic Meson Random Number Generator support"
-	depends on HW_RANDOM
 	depends on ARCH_MESON || COMPILE_TEST
-	default y
+	depends on HAS_IOMEM && OF
+	default HW_RANDOM if ARCH_MESON
 	help
 	  This driver provides kernel-side support for the Random Number
 	  Generator hardware found on Amlogic Meson SoCs.
@@ -427,9 +427,9 @@ config HW_RANDOM_CAVIUM
 
 config HW_RANDOM_MTK
 	tristate "Mediatek Random Number Generator support"
-	depends on HW_RANDOM
 	depends on ARCH_MEDIATEK || COMPILE_TEST
-	default y
+	depends on HAS_IOMEM && OF
+	default HW_RANDOM if ARCH_MEDIATEK
 	help
 	  This driver provides kernel-side support for the Random Number
 	  Generator hardware found on Mediatek SoCs.
@@ -456,7 +456,8 @@ config HW_RANDOM_S390
 config HW_RANDOM_EXYNOS
 	tristate "Samsung Exynos True Random Number Generator support"
 	depends on ARCH_EXYNOS || COMPILE_TEST
-	default HW_RANDOM
+	depends on HAS_IOMEM
+	default HW_RANDOM if ARCH_EXYNOS
 	help
 	  This driver provides support for the True Random Number
 	  Generator available in Exynos SoCs.
@@ -483,7 +484,8 @@ config HW_RANDOM_OPTEE
 config HW_RANDOM_NPCM
 	tristate "NPCM Random Number Generator support"
 	depends on ARCH_NPCM || COMPILE_TEST
-	default HW_RANDOM
+	depends on HAS_IOMEM
+	default HW_RANDOM if ARCH_NPCM
 	help
 	  This driver provides support for the Random Number
 	  Generator hardware available in Nuvoton NPCM SoCs.
