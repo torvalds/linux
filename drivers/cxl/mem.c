@@ -94,6 +94,26 @@ static int devm_cxl_add_endpoint(struct device *host, struct cxl_memdev *cxlmd,
 	return 0;
 }
 
+static int cxl_debugfs_poison_inject(void *data, u64 dpa)
+{
+	struct cxl_memdev *cxlmd = data;
+
+	return cxl_inject_poison(cxlmd, dpa);
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(cxl_poison_inject_fops, NULL,
+			 cxl_debugfs_poison_inject, "%llx\n");
+
+static int cxl_debugfs_poison_clear(void *data, u64 dpa)
+{
+	struct cxl_memdev *cxlmd = data;
+
+	return cxl_clear_poison(cxlmd, dpa);
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(cxl_poison_clear_fops, NULL,
+			 cxl_debugfs_poison_clear, "%llx\n");
+
 static int cxl_mem_probe(struct device *dev)
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
@@ -117,6 +137,14 @@ static int cxl_mem_probe(struct device *dev)
 
 	dentry = cxl_debugfs_create_dir(dev_name(dev));
 	debugfs_create_devm_seqfile(dev, "dpamem", dentry, cxl_mem_dpa_show);
+
+	if (test_bit(CXL_POISON_ENABLED_INJECT, cxlds->poison.enabled_cmds))
+		debugfs_create_file("inject_poison", 0200, dentry, cxlmd,
+				    &cxl_poison_inject_fops);
+	if (test_bit(CXL_POISON_ENABLED_CLEAR, cxlds->poison.enabled_cmds))
+		debugfs_create_file("clear_poison", 0200, dentry, cxlmd,
+				    &cxl_poison_clear_fops);
+
 	rc = devm_add_action_or_reset(dev, remove_debugfs, dentry);
 	if (rc)
 		return rc;
