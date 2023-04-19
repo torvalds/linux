@@ -159,7 +159,7 @@ struct map *map__clone(struct map *map);
 static inline struct map *map__get(struct map *map)
 {
 	if (map)
-		refcount_inc(&map->refcnt);
+		refcount_inc(map__refcnt(map));
 	return map;
 }
 

@@ -112,7 +112,7 @@ void map__init(struct map *map, u64 start, u64 end, u64 pgoff, struct dso *dso)
 	map->map_ip   = map__dso_map_ip;
 	map->unmap_ip = map__dso_unmap_ip;
 	map->erange_warned = false;
-	refcount_set(&map->refcnt, 1);
+	refcount_set(map__refcnt(map), 1);
 }
 
 struct map *map__new(struct machine *machine, u64 start, u64 len,
@@ -292,7 +292,7 @@ bool map__has_symbols(const struct map *map)
 
 static void map__exit(struct map *map)
 {
-	BUG_ON(refcount_read(&map->refcnt) != 0);
+	BUG_ON(refcount_read(map__refcnt(map)) != 0);
 	dso__zput(map->dso);
 }
 
@@ -304,7 +304,7 @@ void map__delete(struct map *map)
 
 void map__put(struct map *map)
 {
-	if (map && refcount_dec_and_test(&map->refcnt))
+	if (map && refcount_dec_and_test(map__refcnt(map)))
 		map__delete(map);
 }
 
