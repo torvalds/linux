@@ -766,13 +766,6 @@ int mhi_prepare_for_transfer_autoqueue(struct mhi_device *mhi_dev);
 void mhi_unprepare_from_transfer(struct mhi_device *mhi_dev);
 
 /**
- * mhi_poll - Poll for any available data in DL direction
- * @mhi_dev: Device associated with the channels
- * @budget: # of events to process
- */
-int mhi_poll(struct mhi_device *mhi_dev, u32 budget);
-
-/**
  * mhi_queue_dma - Send or receive DMA mapped buffers from client device
  *                 over MHI channel
  * @mhi_dev: Device associated with the channels

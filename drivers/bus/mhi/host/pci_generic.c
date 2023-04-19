@@ -8,7 +8,6 @@
  * Copyright (C) 2020 Linaro Ltd <loic.poulain@linaro.org>
  */
 
-#include <linux/aer.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/mhi.h>
@@ -344,8 +343,6 @@ static const struct mhi_channel_config mhi_foxconn_sdx55_channels[] = {
 	MHI_CHANNEL_CONFIG_DL(13, "MBIM", 32, 0),
 	MHI_CHANNEL_CONFIG_UL(32, "DUN", 32, 0),
 	MHI_CHANNEL_CONFIG_DL(33, "DUN", 32, 0),
-	MHI_CHANNEL_CONFIG_UL(92, "DUN2", 32, 1),
-	MHI_CHANNEL_CONFIG_DL(93, "DUN2", 32, 1),
 	MHI_CHANNEL_CONFIG_HW_UL(100, "IP_HW0_MBIM", 128, 2),
 	MHI_CHANNEL_CONFIG_HW_DL(101, "IP_HW0_MBIM", 128, 3),
 };
@@ -364,6 +361,15 @@ static const struct mhi_controller_config modem_foxconn_sdx55_config = {
 	.ch_cfg = mhi_foxconn_sdx55_channels,
 	.num_events = ARRAY_SIZE(mhi_foxconn_sdx55_events),
 	.event_cfg = mhi_foxconn_sdx55_events,
+};
+
+static const struct mhi_pci_dev_info mhi_foxconn_sdx24_info = {
+	.name = "foxconn-sdx24",
+	.config = &modem_foxconn_sdx55_config,
+	.bar_num = MHI_PCI_DEFAULT_BAR_NUM,
+	.dma_data_width = 32,
+	.mru_default = 32768,
+	.sideband_wake = false,
 };
 
 static const struct mhi_pci_dev_info mhi_foxconn_sdx55_info = {
@@ -590,6 +596,15 @@ static const struct pci_device_id mhi_pci_id_table[] = {
 	/* T99W373 (sdx62) */
 	{ PCI_DEVICE(PCI_VENDOR_ID_FOXCONN, 0xe0d9),
 		.driver_data = (kernel_ulong_t) &mhi_foxconn_sdx65_info },
+	/* T99W510 (sdx24), variant 1 */
+	{ PCI_DEVICE(PCI_VENDOR_ID_FOXCONN, 0xe0f0),
+		.driver_data = (kernel_ulong_t) &mhi_foxconn_sdx24_info },
+	/* T99W510 (sdx24), variant 2 */
+	{ PCI_DEVICE(PCI_VENDOR_ID_FOXCONN, 0xe0f1),
+		.driver_data = (kernel_ulong_t) &mhi_foxconn_sdx24_info },
+	/* T99W510 (sdx24), variant 3 */
+	{ PCI_DEVICE(PCI_VENDOR_ID_FOXCONN, 0xe0f2),
+		.driver_data = (kernel_ulong_t) &mhi_foxconn_sdx24_info },
 	/* MV31-W (Cinterion) */
 	{ PCI_DEVICE(PCI_VENDOR_ID_THALES, 0x00b3),
 		.driver_data = (kernel_ulong_t) &mhi_mv31_info },
@@ -903,11 +918,9 @@ static int mhi_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	mhi_pdev->pci_state = pci_store_saved_state(pdev);
 	pci_load_saved_state(pdev, NULL);
 
-	pci_enable_pcie_error_reporting(pdev);
-
 	err = mhi_register_controller(mhi_cntrl, mhi_cntrl_config);
 	if (err)
-		goto err_disable_reporting;
+		return err;
 
 	/* MHI bus does not power up the controller by default */
 	err = mhi_prepare_for_power_up(mhi_cntrl);
@@ -941,8 +954,6 @@ err_unprepare:
 	mhi_unprepare_after_power_down(mhi_cntrl);
 err_unregister:
 	mhi_unregister_controller(mhi_cntrl);
-err_disable_reporting:
-	pci_disable_pcie_error_reporting(pdev);
 
 	return err;
 }
@@ -965,7 +976,6 @@ static void mhi_pci_remove(struct pci_dev *pdev)
 		pm_runtime_get_noresume(&pdev->dev);
 
 	mhi_unregister_controller(mhi_cntrl);
-	pci_disable_pcie_error_reporting(pdev);
 }
 
 static void mhi_pci_shutdown(struct pci_dev *pdev)
