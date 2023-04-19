@@ -602,9 +602,11 @@ TRACE_EVENT(cxl_memory_module,
 	)
 );
 
-#define show_poison_trace_type(type)		   \
-	__print_symbolic(type,			   \
-	{ CXL_POISON_TRACE_LIST,	"List"	})
+#define show_poison_trace_type(type)			\
+	__print_symbolic(type,				\
+	{ CXL_POISON_TRACE_LIST,	"List"   },	\
+	{ CXL_POISON_TRACE_INJECT,	"Inject" },	\
+	{ CXL_POISON_TRACE_CLEAR,	"Clear"  })
 
 #define __show_poison_source(source)                          \
 	__print_symbolic(source,                              \

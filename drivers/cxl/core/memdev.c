@@ -6,6 +6,7 @@
 #include <linux/idr.h>
 #include <linux/pci.h>
 #include <cxlmem.h>
+#include "trace.h"
 #include "core.h"
 
 static DECLARE_RWSEM(cxl_memdev_rwsem);
@@ -232,6 +233,7 @@ int cxl_inject_poison(struct cxl_memdev *cxlmd, u64 dpa)
 {
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct cxl_mbox_inject_poison inject;
+	struct cxl_poison_record record;
 	struct cxl_mbox_cmd mbox_cmd;
 	struct cxl_region *cxlr;
 	int rc;
@@ -262,6 +264,12 @@ int cxl_inject_poison(struct cxl_memdev *cxlmd, u64 dpa)
 		dev_warn_once(cxlds->dev,
 			      "poison inject dpa:%#llx region: %s\n", dpa,
 			      dev_name(&cxlr->dev));
+
+	record = (struct cxl_poison_record) {
+		.address = cpu_to_le64(dpa),
+		.length = cpu_to_le32(1),
+	};
+	trace_cxl_poison(cxlmd, cxlr, &record, 0, 0, CXL_POISON_TRACE_INJECT);
 out:
 	up_read(&cxl_dpa_rwsem);
 
@@ -273,6 +281,7 @@ int cxl_clear_poison(struct cxl_memdev *cxlmd, u64 dpa)
 {
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct cxl_mbox_clear_poison clear;
+	struct cxl_poison_record record;
 	struct cxl_mbox_cmd mbox_cmd;
 	struct cxl_region *cxlr;
 	int rc;
@@ -311,6 +320,12 @@ int cxl_clear_poison(struct cxl_memdev *cxlmd, u64 dpa)
 	if (cxlr)
 		dev_warn_once(cxlds->dev, "poison clear dpa:%#llx region: %s\n",
 			      dpa, dev_name(&cxlr->dev));
+
+	record = (struct cxl_poison_record) {
+		.address = cpu_to_le64(dpa),
+		.length = cpu_to_le32(1),
+	};
+	trace_cxl_poison(cxlmd, cxlr, &record, 0, 0, CXL_POISON_TRACE_CLEAR);
 out:
 	up_read(&cxl_dpa_rwsem);
 

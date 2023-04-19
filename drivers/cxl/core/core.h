@@ -71,6 +71,8 @@ void cxl_mbox_init(void);
 
 enum cxl_poison_trace_type {
 	CXL_POISON_TRACE_LIST,
+	CXL_POISON_TRACE_INJECT,
+	CXL_POISON_TRACE_CLEAR,
 };
 
 #endif /* __CXL_CORE_H__ */
