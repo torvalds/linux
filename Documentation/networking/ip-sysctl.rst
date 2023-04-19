@@ -2721,6 +2721,13 @@ echo_ignore_anycast - BOOLEAN
 
 	Default: 0
 
+error_anycast_as_unicast - BOOLEAN
+	If set to 1, then the kernel will respond with ICMP Errors
+	resulting from requests sent to it over the IPv6 protocol destined
+	to anycast address essentially treating anycast as unicast.
+
+	Default: 0
+
 xfrm6_gc_thresh - INTEGER
 	(Obsolete since linux-4.14)
 	The threshold at which we will start garbage collecting for IPv6
