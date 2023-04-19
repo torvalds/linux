@@ -99,7 +99,7 @@ static void dpu_hw_intf_setup_timing_engine(struct dpu_hw_intf *ctx,
 	u32 active_h_start, active_h_end;
 	u32 active_v_start, active_v_end;
 	u32 active_hctl, display_hctl, hsync_ctl;
-	u32 polarity_ctl, den_polarity, hsync_polarity, vsync_polarity;
+	u32 polarity_ctl, den_polarity;
 	u32 panel_format;
 	u32 intf_cfg, intf_cfg2 = 0;
 	u32 display_data_hctl = 0, active_data_hctl = 0;
@@ -186,19 +186,9 @@ static void dpu_hw_intf_setup_timing_engine(struct dpu_hw_intf *ctx,
 	}
 
 	den_polarity = 0;
-	if (ctx->cap->type == INTF_HDMI) {
-		hsync_polarity = p->yres >= 720 ? 0 : 1;
-		vsync_polarity = p->yres >= 720 ? 0 : 1;
-	} else if (ctx->cap->type == INTF_DP) {
-		hsync_polarity = p->hsync_polarity;
-		vsync_polarity = p->vsync_polarity;
-	} else {
-		hsync_polarity = 0;
-		vsync_polarity = 0;
-	}
 	polarity_ctl = (den_polarity << 2) | /*  DEN Polarity  */
-		(vsync_polarity << 1) | /* VSYNC Polarity */
-		(hsync_polarity << 0);  /* HSYNC Polarity */
+		(p->vsync_polarity << 1) | /* VSYNC Polarity */
+		(p->hsync_polarity << 0);  /* HSYNC Polarity */
 
 	if (!DPU_FORMAT_IS_YUV(fmt))
 		panel_format = (fmt->bits[C0_G_Y] |
