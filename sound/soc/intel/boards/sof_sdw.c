@@ -1022,6 +1022,8 @@ static int get_slave_info(const struct snd_soc_acpi_link_adr *adr_link,
 	return 0;
 }
 
+static const char * const type_strings[] = {"SimpleJack", "SmartAmp", "SmartMic"};
+
 static int create_sdw_dailink(struct snd_soc_card *card,
 			      struct device *dev, int *link_index,
 			      struct snd_soc_dai_link *dai_links,
@@ -1033,6 +1035,7 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 			      int codec_count, int *link_id,
 			      int *codec_conf_index,
 			      bool *ignore_pch_dmic,
+			      bool append_codec_type,
 			      int adr_index)
 {
 	const struct snd_soc_acpi_link_adr *link_next;
@@ -1109,14 +1112,22 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 		static const char * const sdw_stream_name[] = {
 			"SDW%d-Playback",
 			"SDW%d-Capture",
+			"SDW%d-Playback-%s",
+			"SDW%d-Capture-%s",
 		};
 
 		if (!codec_info_list[codec_index].direction[stream])
 			continue;
 
 		/* create stream name according to first link id */
-		name = devm_kasprintf(dev, GFP_KERNEL,
-				      sdw_stream_name[stream], cpu_dai_id[0]);
+		if (append_codec_type) {
+			name = devm_kasprintf(dev, GFP_KERNEL,
+					      sdw_stream_name[stream + 2], cpu_dai_id[0],
+					      type_strings[codec_info_list[codec_index].codec_type]);
+		} else {
+			name = devm_kasprintf(dev, GFP_KERNEL,
+					      sdw_stream_name[stream], cpu_dai_id[0]);
+		}
 		if (!name)
 			return -ENOMEM;
 
@@ -1232,6 +1243,7 @@ static int sof_card_dai_links_create(struct device *dev,
 	const struct snd_soc_acpi_link_adr *adr_link;
 	struct snd_soc_dai_link_component *cpus;
 	struct snd_soc_codec_conf *codec_conf;
+	bool append_codec_type = false;
 	bool ignore_pch_dmic = false;
 	int codec_conf_count;
 	int codec_conf_index = 0;
@@ -1323,8 +1335,29 @@ static int sof_card_dai_links_create(struct device *dev,
 	for (i = 0; i < SDW_MAX_GROUPS; i++)
 		group_generated[i] = false;
 
-	/* generate DAI links by each sdw link */
 	for (; adr_link->num_adr; adr_link++) {
+		/*
+		 * If there are two or more different devices on the same sdw link, we have to
+		 * append the codec type to the dai link name to prevent duplicated dai link name.
+		 * The same type devices on the same sdw link will be in the same
+		 * snd_soc_acpi_adr_device array. They won't be described in different adr_links.
+		 */
+		for (i = 0; i < adr_link->num_adr; i++) {
+			for (j = 0; j < i; j++) {
+				if ((SDW_PART_ID(adr_link->adr_d[i].adr) !=
+				    SDW_PART_ID(adr_link->adr_d[j].adr)) ||
+				    (SDW_MFG_ID(adr_link->adr_d[i].adr) !=
+				    SDW_MFG_ID(adr_link->adr_d[i].adr))) {
+					append_codec_type = true;
+					goto out;
+				}
+			}
+		}
+	}
+out:
+
+	/* generate DAI links by each sdw link */
+	for (adr_link = mach_params->links ; adr_link->num_adr; adr_link++) {
 		for (i = 0; i < adr_link->num_adr; i++) {
 			const struct snd_soc_acpi_endpoint *endpoint;
 
@@ -1345,7 +1378,7 @@ static int sof_card_dai_links_create(struct device *dev,
 						 &cpu_id, group_generated,
 						 codec_conf, codec_conf_count,
 						 &be_id, &codec_conf_index,
-						 &ignore_pch_dmic, i);
+						 &ignore_pch_dmic, append_codec_type, i);
 			if (ret < 0) {
 				dev_err(dev, "failed to create dai link %d", link_index);
 				return ret;
