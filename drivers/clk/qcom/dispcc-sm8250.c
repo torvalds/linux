@@ -7,7 +7,6 @@
 #include <linux/clk-provider.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/reset-controller.h>
 #include <linux/pm_runtime.h>
@@ -217,11 +216,11 @@ static const struct parent_map disp_cc_parent_map_4_sc8180x[] = {
 
 static const struct clk_parent_data disp_cc_parent_data_4_sc8180x[] = {
 	{ .fw_name = "bi_tcxo" },
-	{ .fw_name = "edp_phy_pll_link_clk" },
-	{ .fw_name = "edp_phy_pll_vco_div_clk" },
-	{ .fw_name = "dp_phy_pll_vco_div_clk" },
-	{ .fw_name = "dptx1_phy_pll_vco_div_clk" },
-	{ .fw_name = "dptx2_phy_pll_vco_div_clk" },
+	{ .fw_name = "edp_phy_pll_link_clk", .name = "edp_phy_pll_link_clk" },
+	{ .fw_name = "edp_phy_pll_vco_div_clk", .name = "edp_phy_pll_vco_div_clk" },
+	{ .fw_name = "dp_phy_pll_vco_div_clk", .name = "dp_phy_pll_vco_div_clk" },
+	{ .fw_name = "dptx1_phy_pll_vco_div_clk", .name = "dptx1_phy_pll_vco_div_clk" },
+	{ .fw_name = "dptx2_phy_pll_vco_div_clk", .name = "dptx2_phy_pll_vco_div_clk" },
 };
 
 static const struct parent_map disp_cc_parent_map_5[] = {
@@ -1557,6 +1556,7 @@ static struct gdsc mdss_gdsc = {
 	},
 	.pwrsts = PWRSTS_OFF_ON,
 	.flags = 0,
+	.supply = "mmcx",
 };
 
 static struct critical_clk_offset critical_clk_list[] = {
@@ -1667,11 +1667,6 @@ static const struct of_device_id disp_cc_sm8250_match_table[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(of, disp_cc_sm8250_match_table);
-
-static void disp_cc_sm8250_pm_runtime_disable(void *data)
-{
-	pm_runtime_disable(data);
-}
 
 static int disp_cc_sm8250_fixup(struct platform_device *pdev,
 	struct regmap *regmap)
@@ -1791,21 +1786,9 @@ static int disp_cc_sm8250_probe(struct platform_device *pdev)
 	struct regmap *regmap;
 	int ret;
 
-	pm_runtime_enable(&pdev->dev);
-
-	ret = devm_add_action_or_reset(&pdev->dev, disp_cc_sm8250_pm_runtime_disable, &pdev->dev);
-	if (ret)
-		return ret;
-
-	ret = pm_runtime_resume_and_get(&pdev->dev);
-	if (ret)
-		return ret;
-
 	regmap = qcom_cc_map(pdev, &disp_cc_sm8250_desc);
-	if (IS_ERR(regmap)) {
-		pm_runtime_put(&pdev->dev);
+	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
-	}
 
 
 	ret = disp_cc_sm8250_fixup(pdev, regmap);
@@ -1835,7 +1818,6 @@ static int disp_cc_sm8250_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to register for pm ops\n");
 
 	pm_runtime_put_sync(&pdev->dev);
-
 	dev_info(&pdev->dev, "Registered DISP CC clocks\n");
 
 	return ret;
