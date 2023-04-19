@@ -452,8 +452,8 @@ for (err = (struct sctp_errhdr *)((void *)chunk_hdr + \
 _sctp_walk_fwdtsn((pos), (chunk), ntohs((chunk)->chunk_hdr->length) - sizeof(struct sctp_fwdtsn_chunk))
 
 #define _sctp_walk_fwdtsn(pos, chunk, end)\
-for (pos = chunk->subh.fwdtsn_hdr->skip;\
-     (void *)pos <= (void *)chunk->subh.fwdtsn_hdr->skip + end - sizeof(struct sctp_fwdtsn_skip);\
+for (pos = (void *)(chunk->subh.fwdtsn_hdr + 1);\
+     (void *)pos <= (void *)(chunk->subh.fwdtsn_hdr + 1) + end - sizeof(struct sctp_fwdtsn_skip);\
      pos++)
 
 /* External references. */

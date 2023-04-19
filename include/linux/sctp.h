@@ -603,7 +603,7 @@ struct sctp_fwdtsn_skip {
 
 struct sctp_fwdtsn_hdr {
 	__be32 new_cum_tsn;
-	struct sctp_fwdtsn_skip skip[];
+	/* struct sctp_fwdtsn_skip skip[]; */
 };
 
 struct sctp_fwdtsn_chunk {
@@ -620,7 +620,7 @@ struct sctp_ifwdtsn_skip {
 
 struct sctp_ifwdtsn_hdr {
 	__be32 new_cum_tsn;
-	struct sctp_ifwdtsn_skip skip[];
+	/* struct sctp_ifwdtsn_skip skip[]; */
 };
 
 struct sctp_ifwdtsn_chunk {
