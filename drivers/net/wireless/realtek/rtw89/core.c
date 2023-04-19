@@ -1515,6 +1515,34 @@ static void rtw89_stats_trigger_frame(struct rtw89_dev *rtwdev,
 	}
 }
 
+static void rtw89_cancel_6ghz_probe_work(struct work_struct *work)
+{
+	struct rtw89_dev *rtwdev = container_of(work, struct rtw89_dev,
+						cancel_6ghz_probe_work);
+	struct list_head *pkt_list = rtwdev->scan_info.pkt_list;
+	struct rtw89_pktofld_info *info;
+
+	mutex_lock(&rtwdev->mutex);
+
+	if (!rtwdev->scanning)
+		goto out;
+
+	list_for_each_entry(info, &pkt_list[NL80211_BAND_6GHZ], list) {
+		if (!info->cancel || !test_bit(info->id, rtwdev->pkt_offload))
+			continue;
+
+		rtw89_fw_h2c_del_pkt_offload(rtwdev, info->id);
+
+		/* Don't delete/free info from pkt_list at this moment. Let it
+		 * be deleted/freed in rtw89_release_pkt_list() after scanning,
+		 * since if during scanning, pkt_list is accessed in bottom half.
+		 */
+	}
+
+out:
+	mutex_unlock(&rtwdev->mutex);
+}
+
 static void rtw89_core_cancel_6ghz_probe_tx(struct rtw89_dev *rtwdev,
 					    struct sk_buff *skb)
 {
@@ -1523,6 +1551,7 @@ static void rtw89_core_cancel_6ghz_probe_tx(struct rtw89_dev *rtwdev,
 	struct list_head *pkt_list = rtwdev->scan_info.pkt_list;
 	struct rtw89_pktofld_info *info;
 	const u8 *ies = mgmt->u.beacon.variable, *ssid_ie;
+	bool queue_work = false;
 
 	if (rx_status->band != NL80211_BAND_6GHZ)
 		return;
@@ -1531,16 +1560,22 @@ static void rtw89_core_cancel_6ghz_probe_tx(struct rtw89_dev *rtwdev,
 
 	list_for_each_entry(info, &pkt_list[NL80211_BAND_6GHZ], list) {
 		if (ether_addr_equal(info->bssid, mgmt->bssid)) {
-			rtw89_fw_h2c_del_pkt_offload(rtwdev, info->id);
+			info->cancel = true;
+			queue_work = true;
 			continue;
 		}
 
 		if (!ssid_ie || ssid_ie[1] != info->ssid_len || info->ssid_len == 0)
 			continue;
 
-		if (memcmp(&ssid_ie[2], info->ssid, info->ssid_len) == 0)
-			rtw89_fw_h2c_del_pkt_offload(rtwdev, info->id);
+		if (memcmp(&ssid_ie[2], info->ssid, info->ssid_len) == 0) {
+			info->cancel = true;
+			queue_work = true;
+		}
 	}
+
+	if (queue_work)
+		ieee80211_queue_work(rtwdev->hw, &rtwdev->cancel_6ghz_probe_work);
 }
 
 static void rtw89_vif_rx_stats_iter(void *data, u8 *mac,
@@ -3474,6 +3509,7 @@ void rtw89_core_stop(struct rtw89_dev *rtwdev)
 	mutex_unlock(&rtwdev->mutex);
 
 	cancel_work_sync(&rtwdev->c2h_work);
+	cancel_work_sync(&rtwdev->cancel_6ghz_probe_work);
 	cancel_work_sync(&btc->eapol_notify_work);
 	cancel_work_sync(&btc->arp_notify_work);
 	cancel_work_sync(&btc->dhcp_notify_work);
@@ -3536,6 +3572,7 @@ int rtw89_core_init(struct rtw89_dev *rtwdev)
 	INIT_WORK(&rtwdev->c2h_work, rtw89_fw_c2h_work);
 	INIT_WORK(&rtwdev->ips_work, rtw89_ips_work);
 	INIT_WORK(&rtwdev->load_firmware_work, rtw89_load_firmware_work);
+	INIT_WORK(&rtwdev->cancel_6ghz_probe_work, rtw89_cancel_6ghz_probe_work);
 
 	skb_queue_head_init(&rtwdev->c2h_queue);
 	rtw89_core_ppdu_sts_init(rtwdev);

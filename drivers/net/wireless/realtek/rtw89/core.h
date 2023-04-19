@@ -4086,6 +4086,7 @@ struct rtw89_dev {
 	struct work_struct c2h_work;
 	struct work_struct ips_work;
 	struct work_struct load_firmware_work;
+	struct work_struct cancel_6ghz_probe_work;
 
 	struct list_head early_h2c_list;
 

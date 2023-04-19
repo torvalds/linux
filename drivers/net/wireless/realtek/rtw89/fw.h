@@ -277,6 +277,7 @@ struct rtw89_pktofld_info {
 	u8 ssid_len;
 	u8 bssid[ETH_ALEN];
 	u16 channel_6ghz;
+	bool cancel;
 };
 
 static inline void RTW89_SET_FWCMD_RA_IS_DIS(void *cmd, u32 val)

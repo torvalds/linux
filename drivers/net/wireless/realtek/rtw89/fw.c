@@ -3020,7 +3020,8 @@ static void rtw89_release_pkt_list(struct rtw89_dev *rtwdev)
 			continue;
 
 		list_for_each_entry_safe(info, tmp, &pkt_list[idx], list) {
-			rtw89_fw_h2c_del_pkt_offload(rtwdev, info->id);
+			if (test_bit(info->id, rtwdev->pkt_offload))
+				rtw89_fw_h2c_del_pkt_offload(rtwdev, info->id);
 			list_del(&info->list);
 			kfree(info);
 		}
