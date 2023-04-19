@@ -11,6 +11,18 @@ enum skb_drop_reason_subsys {
 	/** @SKB_DROP_REASON_SUBSYS_CORE: core drop reasons defined above */
 	SKB_DROP_REASON_SUBSYS_CORE,
 
+	/**
+	 * @SKB_DROP_REASON_SUBSYS_MAC80211_UNUSABLE: mac80211 drop reasons
+	 * for unusable frames, see net/mac80211/drop.h
+	 */
+	SKB_DROP_REASON_SUBSYS_MAC80211_UNUSABLE,
+
+	/**
+	 * @SKB_DROP_REASON_SUBSYS_MAC80211_MONITOR: mac80211 drop reasons
+	 * for frames still going to monitor, see net/mac80211/drop.h
+	 */
+	SKB_DROP_REASON_SUBSYS_MAC80211_MONITOR,
+
 	/** @SKB_DROP_REASON_SUBSYS_NUM: number of subsystems defined */
 	SKB_DROP_REASON_SUBSYS_NUM
 };
