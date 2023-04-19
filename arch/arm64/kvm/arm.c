@@ -1241,10 +1241,14 @@ static int kvm_arch_vcpu_ioctl_vcpu_init(struct kvm_vcpu *vcpu,
 	/*
 	 * Handle the "start in power-off" case.
 	 */
+	spin_lock(&vcpu->arch.mp_state_lock);
+
 	if (test_bit(KVM_ARM_VCPU_POWER_OFF, vcpu->arch.features))
-		kvm_arm_vcpu_power_off(vcpu);
+		__kvm_arm_vcpu_power_off(vcpu);
 	else
 		WRITE_ONCE(vcpu->arch.mp_state.mp_state, KVM_MP_STATE_RUNNABLE);
+
+	spin_unlock(&vcpu->arch.mp_state_lock);
 
 	return 0;
 }
