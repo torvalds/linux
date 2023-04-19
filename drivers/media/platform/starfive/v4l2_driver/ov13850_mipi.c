@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2011-2013 Freescale Semiconductor, Inc. All Rights Reserved.
- * Copyright (C) 2014-2017 Mentor Graphics Inc.
- * Copyright (C) 2021 StarFive Technology Co., Ltd.
+ * Copyright (C) 2021-2023 StarFive Technology Co., Ltd.
+ *
  */
 
 #include <linux/clk.h>

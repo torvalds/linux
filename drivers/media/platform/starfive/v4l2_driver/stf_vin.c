@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2021 StarFive Technology Co., Ltd.
+ * Copyright (C) 2021-2023 StarFive Technology Co., Ltd.
+ *
  */
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>

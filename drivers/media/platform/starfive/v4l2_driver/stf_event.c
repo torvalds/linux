@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Event for VIC Video In
+ * Copyright (C) 2021-2023 StarFive Technology Co., Ltd.
  *
- * Copyright (C) 2021 StarFive Technology Co., Ltd.
  */
+
 #include <linux/notifier.h>
 #include <linux/module.h>
 #include <linux/init.h>

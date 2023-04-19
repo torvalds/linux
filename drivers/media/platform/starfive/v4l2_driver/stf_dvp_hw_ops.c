@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2021 StarFive Technology Co., Ltd.
+ * Copyright (C) 2021-2023 StarFive Technology Co., Ltd.
+ *
  */
+
 #include "stfcamss.h"
 
 static int stf_dvp_clk_enable(struct stf_dvp_dev *dvp_dev)
