@@ -17,6 +17,7 @@
 enum rapl_if_type {
 	RAPL_IF_MSR,	/* RAPL I/F using MSR registers */
 	RAPL_IF_MMIO,	/* RAPL I/F using MMIO registers */
+	RAPL_IF_TPMI,	/* RAPL I/F using TPMI registers */
 };
 
 enum rapl_domain_type {
@@ -36,6 +37,7 @@ enum rapl_domain_reg_id {
 	RAPL_DOMAIN_REG_INFO,
 	RAPL_DOMAIN_REG_PL4,
 	RAPL_DOMAIN_REG_UNIT,
+	RAPL_DOMAIN_REG_PL2,
 	RAPL_DOMAIN_REG_MAX,
 };
 
@@ -48,6 +50,9 @@ enum rapl_primitives {
 	ENERGY_COUNTER,
 	FW_LOCK,
 	FW_HIGH_LOCK,
+	PL1_LOCK,
+	PL2_LOCK,
+	PL4_LOCK,
 
 	PL1_ENABLE,		/* power limit 1, aka long term */
 	PL1_CLAMP,		/* allow frequency to go below OS request */
