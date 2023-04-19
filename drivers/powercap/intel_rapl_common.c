@@ -1528,32 +1528,25 @@ static int __init rapl_init(void)
 	int ret;
 
 	id = x86_match_cpu(rapl_ids);
-	if (!id) {
-		pr_err("driver does not support CPU family %d model %d\n",
-		       boot_cpu_data.x86, boot_cpu_data.x86_model);
+	if (id) {
+		rapl_defaults = (struct rapl_defaults *)id->driver_data;
 
-		return -ENODEV;
+		rapl_msr_platdev = platform_device_alloc("intel_rapl_msr", 0);
+		if (!rapl_msr_platdev)
+			return -ENOMEM;
+
+		ret = platform_device_add(rapl_msr_platdev);
+		if (ret) {
+			platform_device_put(rapl_msr_platdev);
+			return ret;
+		}
 	}
-
-	rapl_defaults = (struct rapl_defaults *)id->driver_data;
 
 	ret = register_pm_notifier(&rapl_pm_notifier);
-	if (ret)
-		return ret;
-
-	rapl_msr_platdev = platform_device_alloc("intel_rapl_msr", 0);
-	if (!rapl_msr_platdev) {
-		ret = -ENOMEM;
-		goto end;
-	}
-
-	ret = platform_device_add(rapl_msr_platdev);
-	if (ret)
+	if (ret && rapl_msr_platdev) {
+		platform_device_del(rapl_msr_platdev);
 		platform_device_put(rapl_msr_platdev);
-
-end:
-	if (ret)
-		unregister_pm_notifier(&rapl_pm_notifier);
+	}
 
 	return ret;
 }
