@@ -1146,6 +1146,7 @@ __imx7_csi_video_try_fmt(struct v4l2_pix_format *pixfmt,
 			 struct v4l2_rect *compose)
 {
 	const struct imx7_csi_pixfmt *cc;
+	u32 walign;
 
 	if (compose) {
 		compose->width = pixfmt->width;
@@ -1163,12 +1164,13 @@ __imx7_csi_video_try_fmt(struct v4l2_pix_format *pixfmt,
 	}
 
 	/*
-	 * Round up width for minimum burst size.
+	 * The width alignment is 8 bytes as indicated by the
+	 * CSI_IMAG_PARA.IMAGE_WIDTH documentation. Convert it to pixels.
 	 *
-	 * TODO: Implement configurable stride support, and check what the real
-	 * hardware alignment constraint on the width is.
+	 * TODO: Implement configurable stride support.
 	 */
-	v4l_bound_align_image(&pixfmt->width, 1, 0xffff, 8,
+	walign = 8 * 8 / cc->bpp;
+	v4l_bound_align_image(&pixfmt->width, 1, 0xffff, walign,
 			      &pixfmt->height, 1, 0xffff, 1, 0);
 
 	pixfmt->bytesperline = pixfmt->width * cc->bpp / 8;
