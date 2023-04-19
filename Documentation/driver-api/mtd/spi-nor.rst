@@ -63,6 +63,3 @@ The main API is spi_nor_scan(). Before you call the hook, a driver should
 initialize the necessary fields for spi_nor{}. Please see
 drivers/mtd/spi-nor/spi-nor.c for detail. Please also refer to spi-fsl-qspi.c
 when you want to write a new driver for a SPI NOR controller.
-Another API is spi_nor_restore(), this is used to restore the status of SPI
-flash chip such as addressing mode. Call it whenever detach the driver from
-device or reboot the system.

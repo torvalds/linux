@@ -31,6 +31,7 @@
 		.sector_size = (8 * (_page_size)),			\
 		.n_sectors = (_n_sectors),				\
 		.page_size = (_page_size),				\
+		.n_banks = 1,						\
 		.addr_nbytes = 3,					\
 		.flags = SPI_NOR_NO_FR
 
