@@ -918,6 +918,9 @@ add_field:
 	field->is_signed = is_signed;
 	field->filter_type = filter_type;
 
+	if (filter_type == FILTER_OTHER)
+		field->filter_type = filter_assign_type(type);
+
 	list_add(&field->link, &user->fields);
 
 	/*
