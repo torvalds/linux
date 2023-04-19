@@ -93,7 +93,7 @@ static int live_nop_switch(void *arg)
 		}
 		if (i915_request_wait(rq, 0, 10 * HZ) < 0) {
 			pr_err("Failed to populated %d contexts\n", nctx);
-			intel_gt_set_wedged(to_gt(i915));
+			intel_gt_set_wedged(engine->gt);
 			i915_request_put(rq);
 			err = -EIO;
 			goto out_file;
@@ -149,7 +149,7 @@ static int live_nop_switch(void *arg)
 			if (i915_request_wait(rq, 0, HZ / 5) < 0) {
 				pr_err("Switching between %ld contexts timed out\n",
 				       prime);
-				intel_gt_set_wedged(to_gt(i915));
+				intel_gt_set_wedged(engine->gt);
 				i915_request_put(rq);
 				break;
 			}
