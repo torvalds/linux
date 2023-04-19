@@ -557,7 +557,7 @@ int hda_dsp_ipc4_load_library(struct snd_sof_dev *sdev,
 		goto cleanup;
 	}
 
-	ret = sof_ipc_tx_message(sdev->ipc, &msg, 0, NULL, 0);
+	ret = sof_ipc_tx_message_no_reply(sdev->ipc, &msg, 0);
 
 	ret1 = cl_trigger(sdev, hext_stream, SNDRV_PCM_TRIGGER_STOP);
 	if (ret1 < 0) {
