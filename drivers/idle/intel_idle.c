@@ -1912,8 +1912,9 @@ static void __init intel_idle_init_cstates_icpu(struct cpuidle_driver *drv)
 			 */
 			WARN_ON_ONCE(state->flags & CPUIDLE_FLAG_IRQ_ENABLE);
 			state->enter = intel_idle_ibrs;
-		} else if ((state->flags & CPUIDLE_FLAG_IRQ_ENABLE) ||
-			   force_irq_on) {
+		} else if (state->flags & CPUIDLE_FLAG_IRQ_ENABLE) {
+			state->enter = intel_idle_irq;
+		} else if (force_irq_on) {
 			pr_info("forced intel_idle_irq for state %d\n", cstate);
 			state->enter = intel_idle_irq;
 		}
