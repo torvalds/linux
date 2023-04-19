@@ -34,6 +34,7 @@
 static struct rapl_if_priv *rapl_msr_priv;
 
 static struct rapl_if_priv rapl_msr_priv_intel = {
+	.type = RAPL_IF_MSR,
 	.reg_unit = MSR_RAPL_POWER_UNIT,
 	.regs[RAPL_DOMAIN_PACKAGE] = {
 		MSR_PKG_POWER_LIMIT, MSR_PKG_ENERGY_STATUS, MSR_PKG_PERF_STATUS, 0, MSR_PKG_POWER_INFO },
@@ -50,6 +51,7 @@ static struct rapl_if_priv rapl_msr_priv_intel = {
 };
 
 static struct rapl_if_priv rapl_msr_priv_amd = {
+	.type = RAPL_IF_MSR,
 	.reg_unit = MSR_AMD_RAPL_POWER_UNIT,
 	.regs[RAPL_DOMAIN_PACKAGE] = {
 		0, MSR_AMD_PKG_ENERGY_STATUS, 0, 0, 0 },

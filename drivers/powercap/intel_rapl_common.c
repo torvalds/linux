@@ -186,7 +186,7 @@ struct rapl_defaults {
 	unsigned int psys_domain_energy_unit;
 	bool spr_psys_bits;
 };
-static struct rapl_defaults *rapl_defaults;
+static struct rapl_defaults *defaults_msr;
 
 static struct rapl_defaults *get_defaults(struct rapl_package *rp)
 {
@@ -610,7 +610,7 @@ static u64 rapl_unit_xlate(struct rapl_domain *rd, enum unit_type type,
 	return div64_u64(value, scale);
 }
 
-static struct rapl_primitive_info rpi_default[NR_RAPL_PRIMITIVES] = {
+static struct rapl_primitive_info rpi_msr[NR_RAPL_PRIMITIVES] = {
 	/* name, mask, shift, msr index, unit divisor */
 	[POWER_LIMIT1] = PRIMITIVE_INFO_INIT(POWER_LIMIT1, POWER_LIMIT1_MASK, 0,
 			    RAPL_DOMAIN_REG_LIMIT, POWER_UNIT, 0),
@@ -679,8 +679,16 @@ static struct rapl_primitive_info *get_rpi(struct rapl_package *rp, int prim)
 
 static int rapl_config(struct rapl_package *rp)
 {
-	rp->priv->defaults = (void *)rapl_defaults;
-	rp->priv->rpi = (void *)rpi_default;
+	switch (rp->priv->type) {
+	/* MMIO I/F shares the same register layout as MSR registers */
+	case RAPL_IF_MMIO:
+	case RAPL_IF_MSR:
+		rp->priv->defaults = (void *)defaults_msr;
+		rp->priv->rpi = (void *)rpi_msr;
+		break;
+	default:
+		return -EINVAL;
+	}
 	return 0;
 }
 
@@ -1546,7 +1554,7 @@ static int __init rapl_init(void)
 
 	id = x86_match_cpu(rapl_ids);
 	if (id) {
-		rapl_defaults = (struct rapl_defaults *)id->driver_data;
+		defaults_msr = (struct rapl_defaults *)id->driver_data;
 
 		rapl_msr_platdev = platform_device_alloc("intel_rapl_msr", 0);
 		if (!rapl_msr_platdev)

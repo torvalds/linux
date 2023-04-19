@@ -97,6 +97,7 @@ int proc_thermal_rapl_add(struct pci_dev *pdev, struct proc_thermal_device *proc
 						rapl_regs->regs[domain][reg];
 		rapl_mmio_priv.limits[domain] = rapl_regs->limits[domain];
 	}
+	rapl_mmio_priv.type = RAPL_IF_MMIO;
 	rapl_mmio_priv.reg_unit = (u64)proc_priv->mmio_base + rapl_regs->reg_unit;
 
 	rapl_mmio_priv.read_raw = rapl_mmio_read_raw;
