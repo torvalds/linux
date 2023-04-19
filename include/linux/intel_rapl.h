@@ -37,10 +37,10 @@ enum rapl_domain_reg_id {
 struct rapl_domain;
 
 enum rapl_primitives {
-	ENERGY_COUNTER,
 	POWER_LIMIT1,
 	POWER_LIMIT2,
 	POWER_LIMIT4,
+	ENERGY_COUNTER,
 	FW_LOCK,
 
 	PL1_ENABLE,		/* power limit 1, aka long term */
@@ -75,7 +75,8 @@ struct rapl_domain_data {
 	unsigned long timestamp;
 };
 
-#define NR_POWER_LIMITS (3)
+#define NR_POWER_LIMITS	(POWER_LIMIT4 + 1)
+
 struct rapl_power_limit {
 	struct powercap_zone_constraint *constraint;
 	int prim_id;		/* primitive ID used to enable */
