@@ -10,6 +10,7 @@ struct ovl_config {
 	char *workdir;
 	bool default_permissions;
 	int redirect_mode;
+	int verity_mode;
 	bool index;
 	bool uuid;
 	bool nfs_export;

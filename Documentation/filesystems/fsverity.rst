@@ -326,6 +326,8 @@ the file has fs-verity enabled.  This can perform better than
 FS_IOC_GETFLAGS and FS_IOC_MEASURE_VERITY because it doesn't require
 opening the file, and opening verity files can be expensive.
 
+.. _accessing_verity_files:
+
 Accessing verity files
 ======================
 

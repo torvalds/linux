@@ -70,6 +70,12 @@ enum {
 	OVL_XINO_ON,
 };
 
+enum {
+	OVL_VERITY_OFF,
+	OVL_VERITY_ON,
+	OVL_VERITY_REQUIRE,
+};
+
 /*
  * The tuple (fh,uuid) is a universal unique identifier for a copy up origin,
  * where:
