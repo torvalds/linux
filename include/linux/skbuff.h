@@ -934,7 +934,7 @@ struct sk_buff {
 	/* public: */
 	__u8			pkt_type:3; /* see PKT_TYPE_MAX */
 	__u8			ignore_df:1;
-	__u8			nf_trace:1;
+	__u8			dst_pending_confirm:1;
 	__u8			ip_summed:2;
 	__u8			ooo_okay:1;
 
@@ -949,12 +949,14 @@ struct sk_buff {
 	__u8			remcsum_offload:1;
 	__u8			csum_complete_sw:1;
 	__u8			csum_level:2;
-	__u8			dst_pending_confirm:1;
+	__u8			inner_protocol_type:1;
 
 	__u8			l4_hash:1;
 	__u8			sw_hash:1;
+#ifdef CONFIG_WIRELESS
 	__u8			wifi_acked_valid:1;
 	__u8			wifi_acked:1;
+#endif
 	__u8			no_fcs:1;
 	/* Indicates the inner headers are valid in the skbuff. */
 	__u8			encapsulation:1;
@@ -964,8 +966,12 @@ struct sk_buff {
 	__u8			ndisc_nodetype:2;
 #endif
 
+#if IS_ENABLED(CONFIG_IP_VS)
 	__u8			ipvs_property:1;
-	__u8			inner_protocol_type:1;
+#endif
+#if IS_ENABLED(CONFIG_NETFILTER_XT_TARGET_TRACE) || IS_ENABLED(CONFIG_NF_TABLES)
+	__u8			nf_trace:1;
+#endif
 #ifdef CONFIG_NET_SWITCHDEV
 	__u8			offload_fwd_mark:1;
 	__u8			offload_l3_fwd_mark:1;
@@ -981,11 +987,15 @@ struct sk_buff {
 	__u8			decrypted:1;
 #endif
 	__u8			slow_gro:1;
+#if IS_ENABLED(CONFIG_IP_SCTP)
 	__u8			csum_not_inet:1;
+#endif
 
 #ifdef CONFIG_NET_SCHED
 	__u16			tc_index;	/* traffic control index */
 #endif
+
+	u16			alloc_cpu;
 
 	union {
 		__wsum		csum;
@@ -1010,7 +1020,6 @@ struct sk_buff {
 		unsigned int	sender_cpu;
 	};
 #endif
-	u16			alloc_cpu;
 #ifdef CONFIG_NETWORK_SECMARK
 	__u32		secmark;
 #endif
@@ -1182,6 +1191,15 @@ static inline unsigned int skb_napi_id(const struct sk_buff *skb)
 {
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	return skb->napi_id;
+#else
+	return 0;
+#endif
+}
+
+static inline bool skb_wifi_acked_valid(const struct sk_buff *skb)
+{
+#ifdef CONFIG_WIRELESS
+	return skb->wifi_acked_valid;
 #else
 	return 0;
 #endif
@@ -5049,7 +5067,19 @@ static inline void skb_reset_redirect(struct sk_buff *skb)
 
 static inline bool skb_csum_is_sctp(struct sk_buff *skb)
 {
+#if IS_ENABLED(CONFIG_IP_SCTP)
 	return skb->csum_not_inet;
+#else
+	return 0;
+#endif
+}
+
+static inline void skb_reset_csum_not_inet(struct sk_buff *skb)
+{
+	skb->ip_summed = CHECKSUM_NONE;
+#if IS_ENABLED(CONFIG_IP_SCTP)
+	skb->csum_not_inet = 0;
+#endif
 }
 
 static inline void skb_set_kcov_handle(struct sk_buff *skb,

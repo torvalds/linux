@@ -3315,8 +3315,7 @@ int skb_crc32c_csum_help(struct sk_buff *skb)
 						  skb->len - start, ~(__u32)0,
 						  crc32c_csum_stub));
 	*(__le32 *)(skb->data + offset) = crc32c_csum;
-	skb->ip_summed = CHECKSUM_NONE;
-	skb->csum_not_inet = 0;
+	skb_reset_csum_not_inet(skb);
 out:
 	return ret;
 }
