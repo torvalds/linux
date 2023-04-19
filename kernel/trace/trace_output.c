@@ -819,12 +819,14 @@ static void print_array(struct trace_iterator *iter, void *pos,
 	len = *(int *)pos >> 16;
 
 	if (field)
-		offset += field->offset;
+		offset += field->offset + sizeof(int);
 
-	if (offset + len >= iter->ent_size) {
+	if (offset + len > iter->ent_size) {
 		trace_seq_puts(&iter->seq, "<OVERFLOW>");
 		return;
 	}
+
+	pos = (void *)iter->ent + offset;
 
 	for (i = 0; i < len; i++, pos++) {
 		if (i)
@@ -861,9 +863,9 @@ static void print_fields(struct trace_iterator *iter, struct trace_event_call *c
 			len = *(int *)pos >> 16;
 
 			if (field->filter_type == FILTER_RDYN_STRING)
-				offset += field->offset;
+				offset += field->offset + sizeof(int);
 
-			if (offset + len >= iter->ent_size) {
+			if (offset + len > iter->ent_size) {
 				trace_seq_puts(&iter->seq, "<OVERFLOW>");
 				break;
 			}
