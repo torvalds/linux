@@ -961,6 +961,7 @@ static int get_slave_info(const struct snd_soc_acpi_link_adr *adr_link,
 	cpu_dai_id[index++] = ffs(adr_link->mask) - 1;
 	if (!adr_d->endpoints->aggregated || no_aggregation) {
 		*cpu_dai_num = 1;
+		*codec_num = 1;
 		*group_id = 0;
 		return 0;
 	}
