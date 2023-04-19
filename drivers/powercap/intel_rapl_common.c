@@ -178,7 +178,7 @@ static int get_pl_prim(struct rapl_domain *rd, int pl, enum pl_prims prim)
 
 struct rapl_defaults {
 	u8 floor_freq_reg_addr;
-	int (*check_unit)(struct rapl_domain *rd, int cpu);
+	int (*check_unit)(struct rapl_domain *rd);
 	void (*set_floor_freq)(struct rapl_domain *rd, bool mode);
 	u64 (*compute_time_window)(struct rapl_domain *rd, u64 val,
 				    bool to_raw);
@@ -828,16 +828,16 @@ static int rapl_write_pl_data(struct rapl_domain *rd, int pl,
  * power unit : microWatts  : Represented in milliWatts by default
  * time unit  : microseconds: Represented in seconds by default
  */
-static int rapl_check_unit_core(struct rapl_domain *rd, int cpu)
+static int rapl_check_unit_core(struct rapl_domain *rd)
 {
 	struct reg_action ra;
 	u32 value;
 
 	ra.reg = rd->regs[RAPL_DOMAIN_REG_UNIT];
 	ra.mask = ~0;
-	if (rd->rp->priv->read_raw(cpu, &ra)) {
+	if (rd->rp->priv->read_raw(rd->rp->lead_cpu, &ra)) {
 		pr_err("Failed to read power unit REG 0x%llx on CPU %d, exit.\n",
-			ra.reg, cpu);
+			ra.reg, rd->rp->lead_cpu);
 		return -ENODEV;
 	}
 
@@ -856,16 +856,16 @@ static int rapl_check_unit_core(struct rapl_domain *rd, int cpu)
 	return 0;
 }
 
-static int rapl_check_unit_atom(struct rapl_domain *rd, int cpu)
+static int rapl_check_unit_atom(struct rapl_domain *rd)
 {
 	struct reg_action ra;
 	u32 value;
 
 	ra.reg = rd->regs[RAPL_DOMAIN_REG_UNIT];
 	ra.mask = ~0;
-	if (rd->rp->priv->read_raw(cpu, &ra)) {
+	if (rd->rp->priv->read_raw(rd->rp->lead_cpu, &ra)) {
 		pr_err("Failed to read power unit REG 0x%llx on CPU %d, exit.\n",
-			ra.reg, cpu);
+			ra.reg, rd->rp->lead_cpu);
 		return -ENODEV;
 	}
 
@@ -1242,7 +1242,7 @@ err_cleanup:
 	return ret;
 }
 
-static int rapl_check_domain(int cpu, int domain, struct rapl_package *rp)
+static int rapl_check_domain(int domain, struct rapl_package *rp)
 {
 	struct reg_action ra;
 
@@ -1263,7 +1263,7 @@ static int rapl_check_domain(int cpu, int domain, struct rapl_package *rp)
 	 */
 
 	ra.mask = ENERGY_STATUS_MASK;
-	if (rp->priv->read_raw(cpu, &ra) || !ra.value)
+	if (rp->priv->read_raw(rp->lead_cpu, &ra) || !ra.value)
 		return -ENODEV;
 
 	return 0;
@@ -1292,7 +1292,7 @@ static int rapl_get_domain_unit(struct rapl_domain *rd)
 		return -ENODEV;
 	}
 
-	ret = defaults->check_unit(rd, rd->rp->lead_cpu);
+	ret = defaults->check_unit(rd);
 	if (ret)
 		return ret;
 
@@ -1334,14 +1334,14 @@ static void rapl_detect_powerlimit(struct rapl_domain *rd)
 /* Detect active and valid domains for the given CPU, caller must
  * ensure the CPU belongs to the targeted package and CPU hotlug is disabled.
  */
-static int rapl_detect_domains(struct rapl_package *rp, int cpu)
+static int rapl_detect_domains(struct rapl_package *rp)
 {
 	struct rapl_domain *rd;
 	int i;
 
 	for (i = 0; i < RAPL_DOMAIN_MAX; i++) {
 		/* use physical package id to read counters */
-		if (!rapl_check_domain(cpu, i, rp)) {
+		if (!rapl_check_domain(i, rp)) {
 			rp->domain_map |= 1 << i;
 			pr_info("Found RAPL domain %s\n", rapl_domain_names[i]);
 		}
@@ -1445,7 +1445,7 @@ struct rapl_package *rapl_add_package(int cpu, struct rapl_if_priv *priv)
 			 topology_physical_package_id(cpu));
 
 	/* check if the package contains valid domains */
-	if (rapl_detect_domains(rp, cpu)) {
+	if (rapl_detect_domains(rp)) {
 		ret = -ENODEV;
 		goto err_free_package;
 	}
