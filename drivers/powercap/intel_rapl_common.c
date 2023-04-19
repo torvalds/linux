@@ -532,6 +532,12 @@ static const struct powercap_zone_constraint_ops constraint_ops = {
 	.get_name = get_constraint_name,
 };
 
+/* Return the id used for read_raw/write_raw callback */
+static int get_rid(struct rapl_package *rp)
+{
+	return rp->lead_cpu >= 0 ? rp->lead_cpu : rp->id;
+}
+
 /* called after domain detection and package level data are set */
 static void rapl_init_domains(struct rapl_package *rp)
 {
@@ -550,10 +556,12 @@ static void rapl_init_domains(struct rapl_package *rp)
 
 		if (i == RAPL_DOMAIN_PLATFORM && rp->id > 0) {
 			snprintf(rd->name, RAPL_DOMAIN_NAME_LENGTH, "psys-%d",
-				topology_physical_package_id(rp->lead_cpu));
-		} else
+				rp->lead_cpu >= 0 ? topology_physical_package_id(rp->lead_cpu) :
+				rp->id);
+		} else {
 			snprintf(rd->name, RAPL_DOMAIN_NAME_LENGTH, "%s",
 				rapl_domain_names[i]);
+		}
 
 		rd->id = i;
 
@@ -725,7 +733,6 @@ static int rapl_read_data_raw(struct rapl_domain *rd,
 	enum rapl_primitives prim_fixed = prim_fixups(rd, prim);
 	struct rapl_primitive_info *rpi = get_rpi(rd->rp, prim_fixed);
 	struct reg_action ra;
-	int cpu;
 
 	if (!rpi || !rpi->name || rpi->flag & RAPL_PRIMITIVE_DUMMY)
 		return -EINVAL;
@@ -733,8 +740,6 @@ static int rapl_read_data_raw(struct rapl_domain *rd,
 	ra.reg = rd->regs[rpi->id];
 	if (!ra.reg)
 		return -EINVAL;
-
-	cpu = rd->rp->lead_cpu;
 
 	/* non-hardware data are collected by the polling thread */
 	if (rpi->flag & RAPL_PRIMITIVE_DERIVED) {
@@ -744,8 +749,8 @@ static int rapl_read_data_raw(struct rapl_domain *rd,
 
 	ra.mask = rpi->mask;
 
-	if (rd->rp->priv->read_raw(cpu, &ra)) {
-		pr_debug("failed to read reg 0x%llx on cpu %d\n", ra.reg, cpu);
+	if (rd->rp->priv->read_raw(get_rid(rd->rp), &ra)) {
+		pr_debug("failed to read reg 0x%llx for %s:%s\n", ra.reg, rd->rp->name, rd->name);
 		return -EIO;
 	}
 
@@ -766,7 +771,6 @@ static int rapl_write_data_raw(struct rapl_domain *rd,
 {
 	enum rapl_primitives prim_fixed = prim_fixups(rd, prim);
 	struct rapl_primitive_info *rpi = get_rpi(rd->rp, prim_fixed);
-	int cpu;
 	u64 bits;
 	struct reg_action ra;
 	int ret;
@@ -774,7 +778,6 @@ static int rapl_write_data_raw(struct rapl_domain *rd,
 	if (!rpi || !rpi->name || rpi->flag & RAPL_PRIMITIVE_DUMMY)
 		return -EINVAL;
 
-	cpu = rd->rp->lead_cpu;
 	bits = rapl_unit_xlate(rd, rpi->unit, value, 1);
 	bits <<= rpi->shift;
 	bits &= rpi->mask;
@@ -785,7 +788,7 @@ static int rapl_write_data_raw(struct rapl_domain *rd,
 	ra.mask = rpi->mask;
 	ra.value = bits;
 
-	ret = rd->rp->priv->write_raw(cpu, &ra);
+	ret = rd->rp->priv->write_raw(get_rid(rd->rp), &ra);
 
 	return ret;
 }
@@ -835,9 +838,9 @@ static int rapl_check_unit_core(struct rapl_domain *rd)
 
 	ra.reg = rd->regs[RAPL_DOMAIN_REG_UNIT];
 	ra.mask = ~0;
-	if (rd->rp->priv->read_raw(rd->rp->lead_cpu, &ra)) {
-		pr_err("Failed to read power unit REG 0x%llx on CPU %d, exit.\n",
-			ra.reg, rd->rp->lead_cpu);
+	if (rd->rp->priv->read_raw(get_rid(rd->rp), &ra)) {
+		pr_err("Failed to read power unit REG 0x%llx on %s:%s, exit.\n",
+			ra.reg, rd->rp->name, rd->name);
 		return -ENODEV;
 	}
 
@@ -863,9 +866,9 @@ static int rapl_check_unit_atom(struct rapl_domain *rd)
 
 	ra.reg = rd->regs[RAPL_DOMAIN_REG_UNIT];
 	ra.mask = ~0;
-	if (rd->rp->priv->read_raw(rd->rp->lead_cpu, &ra)) {
-		pr_err("Failed to read power unit REG 0x%llx on CPU %d, exit.\n",
-			ra.reg, rd->rp->lead_cpu);
+	if (rd->rp->priv->read_raw(get_rid(rd->rp), &ra)) {
+		pr_err("Failed to read power unit REG 0x%llx on %s:%s, exit.\n",
+			ra.reg, rd->rp->name, rd->name);
 		return -ENODEV;
 	}
 
@@ -911,6 +914,9 @@ static void power_limit_irq_save_cpu(void *info)
 
 static void package_power_limit_irq_save(struct rapl_package *rp)
 {
+	if (rp->lead_cpu < 0)
+		return;
+
 	if (!boot_cpu_has(X86_FEATURE_PTS) || !boot_cpu_has(X86_FEATURE_PLN))
 		return;
 
@@ -924,6 +930,9 @@ static void package_power_limit_irq_save(struct rapl_package *rp)
 static void package_power_limit_irq_restore(struct rapl_package *rp)
 {
 	u32 l, h;
+
+	if (rp->lead_cpu < 0)
+		return;
 
 	if (!boot_cpu_has(X86_FEATURE_PTS) || !boot_cpu_has(X86_FEATURE_PLN))
 		return;
@@ -1263,7 +1272,7 @@ static int rapl_check_domain(int domain, struct rapl_package *rp)
 	 */
 
 	ra.mask = ENERGY_STATUS_MASK;
-	if (rp->priv->read_raw(rp->lead_cpu, &ra) || !ra.value)
+	if (rp->priv->read_raw(get_rid(rp), &ra) || !ra.value)
 		return -ENODEV;
 
 	return 0;
@@ -1401,13 +1410,18 @@ void rapl_remove_package(struct rapl_package *rp)
 EXPORT_SYMBOL_GPL(rapl_remove_package);
 
 /* caller to ensure CPU hotplug lock is held */
-struct rapl_package *rapl_find_package_domain(int cpu, struct rapl_if_priv *priv)
+struct rapl_package *rapl_find_package_domain(int id, struct rapl_if_priv *priv, bool id_is_cpu)
 {
-	int id = topology_logical_die_id(cpu);
 	struct rapl_package *rp;
+	int uid;
+
+	if (id_is_cpu)
+		uid = topology_logical_die_id(id);
+	else
+		uid = id;
 
 	list_for_each_entry(rp, &rapl_packages, plist) {
-		if (rp->id == id
+		if (rp->id == uid
 		    && rp->priv->control_type == priv->control_type)
 			return rp;
 	}
@@ -1417,9 +1431,8 @@ struct rapl_package *rapl_find_package_domain(int cpu, struct rapl_if_priv *priv
 EXPORT_SYMBOL_GPL(rapl_find_package_domain);
 
 /* called from CPU hotplug notifier, hotplug lock held */
-struct rapl_package *rapl_add_package(int cpu, struct rapl_if_priv *priv)
+struct rapl_package *rapl_add_package(int id, struct rapl_if_priv *priv, bool id_is_cpu)
 {
-	int id = topology_logical_die_id(cpu);
 	struct rapl_package *rp;
 	int ret;
 
@@ -1427,22 +1440,25 @@ struct rapl_package *rapl_add_package(int cpu, struct rapl_if_priv *priv)
 	if (!rp)
 		return ERR_PTR(-ENOMEM);
 
-	/* add the new package to the list */
-	rp->id = id;
-	rp->lead_cpu = cpu;
-	rp->priv = priv;
+	if (id_is_cpu) {
+		rp->id = topology_logical_die_id(id);
+		rp->lead_cpu = id;
+		if (topology_max_die_per_package() > 1)
+			snprintf(rp->name, PACKAGE_DOMAIN_NAME_LENGTH, "package-%d-die-%d",
+				 topology_physical_package_id(id), topology_die_id(id));
+		else
+			snprintf(rp->name, PACKAGE_DOMAIN_NAME_LENGTH, "package-%d",
+				 topology_physical_package_id(id));
+	} else {
+		rp->id = id;
+		rp->lead_cpu = -1;
+		snprintf(rp->name, PACKAGE_DOMAIN_NAME_LENGTH, "package-%d", id);
+	}
 
+	rp->priv = priv;
 	ret = rapl_config(rp);
 	if (ret)
 		goto err_free_package;
-
-	if (topology_max_die_per_package() > 1)
-		snprintf(rp->name, PACKAGE_DOMAIN_NAME_LENGTH,
-			 "package-%d-die-%d",
-			 topology_physical_package_id(cpu), topology_die_id(cpu));
-	else
-		snprintf(rp->name, PACKAGE_DOMAIN_NAME_LENGTH, "package-%d",
-			 topology_physical_package_id(cpu));
 
 	/* check if the package contains valid domains */
 	if (rapl_detect_domains(rp)) {

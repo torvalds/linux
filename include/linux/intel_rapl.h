@@ -135,8 +135,8 @@ struct rapl_if_priv {
 	u64 reg_unit;
 	u64 regs[RAPL_DOMAIN_MAX][RAPL_DOMAIN_REG_MAX];
 	int limits[RAPL_DOMAIN_MAX];
-	int (*read_raw)(int cpu, struct reg_action *ra);
-	int (*write_raw)(int cpu, struct reg_action *ra);
+	int (*read_raw)(int id, struct reg_action *ra);
+	int (*write_raw)(int id, struct reg_action *ra);
 	void *defaults;
 	void *rpi;
 };
@@ -161,8 +161,8 @@ struct rapl_package {
 	struct rapl_if_priv *priv;
 };
 
-struct rapl_package *rapl_find_package_domain(int cpu, struct rapl_if_priv *priv);
-struct rapl_package *rapl_add_package(int cpu, struct rapl_if_priv *priv);
+struct rapl_package *rapl_find_package_domain(int id, struct rapl_if_priv *priv, bool id_is_cpu);
+struct rapl_package *rapl_add_package(int id, struct rapl_if_priv *priv, bool id_is_cpu);
 void rapl_remove_package(struct rapl_package *rp);
 
 #endif /* __INTEL_RAPL_H__ */
