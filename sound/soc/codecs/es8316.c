@@ -803,14 +803,15 @@ static const struct snd_soc_component_driver soc_component_dev_es8316 = {
 	.endianness		= 1,
 };
 
-static const struct regmap_range es8316_volatile_ranges[] = {
-	regmap_reg_range(ES8316_GPIO_FLAG, ES8316_GPIO_FLAG),
-};
-
-static const struct regmap_access_table es8316_volatile_table = {
-	.yes_ranges	= es8316_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(es8316_volatile_ranges),
-};
+static bool es8316_volatile_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case ES8316_GPIO_FLAG:
+		return true;
+	default:
+		return false;
+	}
+}
 
 static const struct regmap_config es8316_regmap = {
 	.reg_bits = 8,
@@ -818,7 +819,7 @@ static const struct regmap_config es8316_regmap = {
 	.use_single_read = true,
 	.use_single_write = true,
 	.max_register = 0x53,
-	.volatile_table	= &es8316_volatile_table,
+	.volatile_reg = es8316_volatile_reg,
 	.cache_type = REGCACHE_RBTREE,
 };
 
