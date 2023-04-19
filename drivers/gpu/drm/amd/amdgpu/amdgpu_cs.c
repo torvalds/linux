@@ -309,7 +309,7 @@ static int amdgpu_cs_pass1(struct amdgpu_cs_parser *p,
 	}
 	p->gang_leader = p->jobs[p->gang_leader_idx];
 
-	if (p->ctx->vram_lost_counter != p->gang_leader->vram_lost_counter) {
+	if (p->ctx->generation != p->gang_leader->generation) {
 		ret = -ECANCELED;
 		goto free_all_kdata;
 	}
