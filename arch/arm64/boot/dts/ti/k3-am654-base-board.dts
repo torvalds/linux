@@ -13,6 +13,20 @@
 	compatible = "ti,am654-evm", "ti,am654";
 	model = "Texas Instruments AM654 Base Board";
 
+	aliases {
+		serial0 = &wkup_uart0;
+		serial1 = &mcu_uart0;
+		serial2 = &main_uart0;
+		i2c0 = &wkup_i2c0;
+		i2c1 = &mcu_i2c0;
+		i2c2 = &main_i2c0;
+		i2c3 = &main_i2c1;
+		i2c4 = &main_i2c2;
+		ethernet0 = &cpsw_port1;
+		mmc0 = &sdhci0;
+		mmc1 = &sdhci1;
+	};
+
 	chosen {
 		stdout-path = "serial2:115200n8";
 	};
