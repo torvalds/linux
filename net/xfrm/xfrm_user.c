@@ -1978,6 +1978,7 @@ static int xfrm_add_policy(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	if (err) {
 		xfrm_dev_policy_delete(xp);
+		xfrm_dev_policy_free(xp);
 		security_xfrm_policy_free(xp->security);
 		kfree(xp);
 		return err;
