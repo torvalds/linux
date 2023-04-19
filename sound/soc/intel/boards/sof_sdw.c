@@ -732,34 +732,36 @@ static int get_sdw_dailink_info(struct device *dev, const struct snd_soc_acpi_li
 		int stream;
 		u64 adr;
 
-		adr = link->adr_d->adr;
-		codec_index = find_codec_info_part(adr);
-		if (codec_index < 0)
-			return codec_index;
+		for (i = 0; i < link->num_adr; i++) {
+			adr = link->adr_d[i].adr;
+			codec_index = find_codec_info_part(adr);
+			if (codec_index < 0)
+				return codec_index;
 
-		if (codec_info_list[codec_index].codec_type < _codec_type)
-			dev_warn(dev,
-				 "Unexpected address table ordering. Expected order: jack -> amp -> mic\n");
+			if (codec_info_list[codec_index].codec_type < _codec_type)
+				dev_warn(dev,
+					 "Unexpected address table ordering. Expected order: jack -> amp -> mic\n");
 
-		_codec_type = codec_info_list[codec_index].codec_type;
+			_codec_type = codec_info_list[codec_index].codec_type;
 
-		endpoint = link->adr_d->endpoints;
+			endpoint = link->adr_d[i].endpoints;
 
-		/* count DAI number for playback and capture */
-		for_each_pcm_streams(stream) {
-			if (!codec_info_list[codec_index].direction[stream])
-				continue;
+			/* count DAI number for playback and capture */
+			for_each_pcm_streams(stream) {
+				if (!codec_info_list[codec_index].direction[stream])
+					continue;
 
-			(*sdw_cpu_dai_num)++;
+				(*sdw_cpu_dai_num)++;
 
-			/* count BE for each non-aggregated slave or group */
-			if (!endpoint->aggregated || no_aggregation ||
-			    !group_visited[endpoint->group_id])
-				(*sdw_be_num)++;
+				/* count BE for each non-aggregated slave or group */
+				if (!endpoint->aggregated || no_aggregation ||
+				    !group_visited[endpoint->group_id])
+					(*sdw_be_num)++;
+			}
+
+			if (endpoint->aggregated)
+				group_visited[endpoint->group_id] = true;
 		}
-
-		if (endpoint->aggregated)
-			group_visited[endpoint->group_id] = true;
 	}
 
 	return 0;
@@ -829,17 +831,19 @@ static int create_codec_dai_name(struct device *dev,
 				 int offset,
 				 struct snd_soc_codec_conf *codec_conf,
 				 int codec_count,
-				 int *codec_conf_index)
+				 int *codec_conf_index,
+				 int adr_index)
 {
+	int _codec_index = -1;
 	int i;
 
 	/* sanity check */
-	if (*codec_conf_index + link->num_adr > codec_count) {
+	if (*codec_conf_index + link->num_adr - adr_index > codec_count) {
 		dev_err(dev, "codec_conf: out-of-bounds access requested\n");
 		return -EINVAL;
 	}
 
-	for (i = 0; i < link->num_adr; i++) {
+	for (i = adr_index; i < link->num_adr; i++) {
 		unsigned int sdw_version, unique_id, mfg_id;
 		unsigned int link_id, part_id, class_id;
 		int codec_index, comp_index;
@@ -855,7 +859,7 @@ static int create_codec_dai_name(struct device *dev,
 		part_id = SDW_PART_ID(adr);
 		class_id = SDW_CLASS_ID(adr);
 
-		comp_index = i + offset;
+		comp_index = i - adr_index + offset;
 		if (is_unique_device(link, sdw_version, mfg_id, part_id,
 				     class_id, i)) {
 			codec_str = "sdw:%01x:%04x:%04x:%02x";
@@ -877,6 +881,11 @@ static int create_codec_dai_name(struct device *dev,
 		codec_index = find_codec_info_part(adr);
 		if (codec_index < 0)
 			return codec_index;
+		if (_codec_index != -1 && codec_index != _codec_index) {
+			dev_dbg(dev, "Different devices on the same sdw link\n");
+			break;
+		}
+		_codec_index = codec_index;
 
 		codec[comp_index].dai_name =
 			codec_info_list[codec_index].dai_name;
@@ -943,16 +952,16 @@ static int set_codec_init_func(struct snd_soc_card *card,
 static int get_slave_info(const struct snd_soc_acpi_link_adr *adr_link,
 			  struct device *dev, int *cpu_dai_id, int *cpu_dai_num,
 			  int *codec_num, unsigned int *group_id,
-			  bool *group_generated)
+			  bool *group_generated, int adr_index)
 {
 	const struct snd_soc_acpi_adr_device *adr_d;
 	const struct snd_soc_acpi_link_adr *adr_next;
 	bool no_aggregation;
 	int index = 0;
+	int i;
 
 	no_aggregation = sof_sdw_quirk & SOF_SDW_NO_AGGREGATION;
-	*codec_num = adr_link->num_adr;
-	adr_d = adr_link->adr_d;
+	adr_d = &adr_link->adr_d[adr_index];
 
 	/* make sure the link mask has a single bit set */
 	if (!is_power_of_2(adr_link->mask))
@@ -967,6 +976,14 @@ static int get_slave_info(const struct snd_soc_acpi_link_adr *adr_link,
 	}
 
 	*group_id = adr_d->endpoints->group_id;
+
+	/* Count endpoints with the same group_id in the adr_link */
+	*codec_num = 0;
+	for (i = 0; i < adr_link->num_adr; i++) {
+		if (adr_link->adr_d[i].endpoints->aggregated &&
+		    adr_link->adr_d[i].endpoints->group_id == *group_id)
+			(*codec_num)++;
+	}
 
 	/* gather other link ID of slaves in the same group */
 	for (adr_next = adr_link + 1; adr_next && adr_next->num_adr;
@@ -988,7 +1005,11 @@ static int get_slave_info(const struct snd_soc_acpi_link_adr *adr_link,
 		}
 
 		cpu_dai_id[index++] = ffs(adr_next->mask) - 1;
-		*codec_num += adr_next->num_adr;
+		for (i = 0; i < adr_next->num_adr; i++) {
+			if (adr_next->adr_d[i].endpoints->aggregated &&
+			    adr_next->adr_d[i].endpoints->group_id == *group_id)
+				(*codec_num)++;
+		}
 	}
 
 	/*
@@ -1011,7 +1032,8 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 			      struct snd_soc_codec_conf *codec_conf,
 			      int codec_count, int *link_id,
 			      int *codec_conf_index,
-			      bool *ignore_pch_dmic)
+			      bool *ignore_pch_dmic,
+			      int adr_index)
 {
 	const struct snd_soc_acpi_link_adr *link_next;
 	struct snd_soc_dai_link_component *codecs;
@@ -1027,7 +1049,7 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 	int k;
 
 	ret = get_slave_info(link, dev, cpu_dai_id, &cpu_dai_num, &codec_num,
-			     &group_id, group_generated);
+			     &group_id, group_generated, adr_index);
 	if (ret)
 		return ret;
 
@@ -1050,7 +1072,7 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 			continue;
 
 		ret = create_codec_dai_name(dev, link_next, codecs, codec_idx,
-					    codec_conf, codec_count, codec_conf_index);
+					    codec_conf, codec_count, codec_conf_index, adr_index);
 		if (ret < 0)
 			return ret;
 
@@ -1060,7 +1082,7 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 	}
 
 	/* find codec info to create BE DAI */
-	codec_index = find_codec_info_part(link->adr_d[0].adr);
+	codec_index = find_codec_info_part(link->adr_d[adr_index].adr);
 	if (codec_index < 0)
 		return codec_index;
 
@@ -1303,29 +1325,31 @@ static int sof_card_dai_links_create(struct device *dev,
 
 	/* generate DAI links by each sdw link */
 	for (; adr_link->num_adr; adr_link++) {
-		const struct snd_soc_acpi_endpoint *endpoint;
+		for (i = 0; i < adr_link->num_adr; i++) {
+			const struct snd_soc_acpi_endpoint *endpoint;
 
-		endpoint = adr_link->adr_d->endpoints;
-		if (endpoint->aggregated && !endpoint->group_id) {
-			dev_err(dev, "invalid group id on link %x",
-				adr_link->mask);
-			continue;
-		}
+			endpoint = adr_link->adr_d[i].endpoints;
+			if (endpoint->aggregated && !endpoint->group_id) {
+				dev_err(dev, "invalid group id on link %x",
+					adr_link->mask);
+				continue;
+			}
 
-		/* this group has been generated */
-		if (endpoint->aggregated &&
-		    group_generated[endpoint->group_id])
-			continue;
+			/* this group has been generated */
+			if (endpoint->aggregated &&
+			    group_generated[endpoint->group_id])
+				continue;
 
-		ret = create_sdw_dailink(card, dev, &link_index, links, sdw_be_num,
-					 sdw_cpu_dai_num, cpus, adr_link,
-					 &cpu_id, group_generated,
-					 codec_conf, codec_conf_count,
-					 &be_id, &codec_conf_index,
-					 &ignore_pch_dmic);
-		if (ret < 0) {
-			dev_err(dev, "failed to create dai link %d", link_index);
-			return ret;
+			ret = create_sdw_dailink(card, dev, &link_index, links, sdw_be_num,
+						 sdw_cpu_dai_num, cpus, adr_link,
+						 &cpu_id, group_generated,
+						 codec_conf, codec_conf_count,
+						 &be_id, &codec_conf_index,
+						 &ignore_pch_dmic, i);
+			if (ret < 0) {
+				dev_err(dev, "failed to create dai link %d", link_index);
+				return ret;
+			}
 		}
 	}
 
