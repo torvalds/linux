@@ -208,6 +208,14 @@ static const struct xe_device_desc adl_p_desc = {
 	},
 };
 
+static const struct xe_device_desc adl_n_desc = {
+	.graphics = &graphics_xelp,
+	.media = &media_xem,
+	PLATFORM(XE_ALDERLAKE_N),
+	.has_llc = 1,
+	.require_force_probe = true,
+};
+
 #define DGFX_FEATURES \
 	.is_dgfx = 1
 
@@ -312,6 +320,7 @@ static const struct pci_device_id pciidlist[] = {
 	XE_RKL_IDS(INTEL_VGA_DEVICE, &rkl_desc),
 	XE_ADLS_IDS(INTEL_VGA_DEVICE, &adl_s_desc),
 	XE_ADLP_IDS(INTEL_VGA_DEVICE, &adl_p_desc),
+	XE_ADLN_IDS(INTEL_VGA_DEVICE, &adl_n_desc),
 	XE_RPLP_IDS(INTEL_VGA_DEVICE, &adl_p_desc),
 	XE_DG1_IDS(INTEL_VGA_DEVICE, &dg1_desc),
 	XE_ATS_M_IDS(INTEL_VGA_DEVICE, &ats_m_desc),

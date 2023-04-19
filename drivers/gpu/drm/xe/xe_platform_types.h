@@ -16,6 +16,7 @@ enum xe_platform {
 	XE_ROCKETLAKE,
 	XE_ALDERLAKE_S,
 	XE_ALDERLAKE_P,
+	XE_ALDERLAKE_N,
 	XE_DG1,
 	XE_DG2,
 	XE_PVC,

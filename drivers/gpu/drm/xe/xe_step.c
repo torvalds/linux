@@ -71,6 +71,10 @@ static const struct xe_step_info adlp_rpl_revids[] = {
 	[0x4] = { COMMON_GT_MEDIA_STEP(C0), .display = STEP_E0 },
 };
 
+static const struct xe_step_info adln_revids[] = {
+	[0x0] = { COMMON_GT_MEDIA_STEP(A0), .display = STEP_D0 },
+};
+
 static const struct xe_step_info dg2_g10_revid_step_tbl[] = {
 	[0x0] = { COMMON_GT_MEDIA_STEP(A0), .display = STEP_A0 },
 	[0x1] = { COMMON_GT_MEDIA_STEP(A1), .display = STEP_A0 },
@@ -129,6 +133,9 @@ struct xe_step_info xe_step_get(struct xe_device *xe)
 	} else if (xe->info.subplatform == XE_SUBPLATFORM_DG2_G12) {
 		revids = dg2_g12_revid_step_tbl;
 		size = ARRAY_SIZE(dg2_g12_revid_step_tbl);
+	} else if (xe->info.platform == XE_ALDERLAKE_N) {
+		revids = adln_revids;
+		size = ARRAY_SIZE(adln_revids);
 	} else if (xe->info.subplatform == XE_SUBPLATFORM_ADLP_RPLU) {
 		revids = adlp_rpl_revids;
 		size = ARRAY_SIZE(adlp_rpl_revids);
