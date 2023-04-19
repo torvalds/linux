@@ -61,4 +61,6 @@ enum pds_core_logical_qtype {
 };
 
 void *pdsc_get_pf_struct(struct pci_dev *vf_pdev);
+int pds_client_register(struct pci_dev *pf_pdev, char *devname);
+int pds_client_unregister(struct pci_dev *pf_pdev, u16 client_id);
 #endif /* _PDS_COMMON_H_ */
