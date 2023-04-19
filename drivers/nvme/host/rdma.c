@@ -501,7 +501,7 @@ static int nvme_rdma_create_queue_ib(struct nvme_rdma_queue *queue)
 	}
 	ibdev = queue->device->dev;
 
-	/* +1 for ib_stop_cq */
+	/* +1 for ib_drain_qp */
 	queue->cq_size = cq_factor * queue->queue_size + 1;
 
 	ret = nvme_rdma_create_cq(ibdev, queue);
