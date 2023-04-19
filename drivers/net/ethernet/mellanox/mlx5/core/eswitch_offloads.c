@@ -535,6 +535,28 @@ esw_src_port_rewrite_supported(struct mlx5_eswitch *esw)
 	       MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev, ignore_flow_level);
 }
 
+static bool
+esw_dests_to_vf_pf_vports(struct mlx5_flow_destination *dests, int max_dest)
+{
+	bool vf_dest = false, pf_dest = false;
+	int i;
+
+	for (i = 0; i < max_dest; i++) {
+		if (dests[i].type != MLX5_FLOW_DESTINATION_TYPE_VPORT)
+			continue;
+
+		if (dests[i].vport.num == MLX5_VPORT_UPLINK)
+			pf_dest = true;
+		else
+			vf_dest = true;
+
+		if (vf_dest && pf_dest)
+			return true;
+	}
+
+	return false;
+}
+
 static int
 esw_setup_dests(struct mlx5_flow_destination *dest,
 		struct mlx5_flow_act *flow_act,
@@ -670,6 +692,15 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 		if (err) {
 			rule = ERR_PTR(err);
 			goto err_create_goto_table;
+		}
+
+		/* Header rewrite with combined wire+loopback in FDB is not allowed */
+		if ((flow_act.action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) &&
+		    esw_dests_to_vf_pf_vports(dest, i)) {
+			esw_warn(esw->dev,
+				 "FDB: Header rewrite with forwarding to both PF and VF is not allowed\n");
+			rule = ERR_PTR(-EINVAL);
+			goto err_esw_get;
 		}
 	}
 
