@@ -150,6 +150,10 @@
 		switch@0 {
 			compatible = "mediatek,mt7531";
 			reg = <0>;
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			interrupt-parent = <&pio>;
+			interrupts = <53 IRQ_TYPE_LEVEL_HIGH>;
 			reset-gpios = <&pio 54 0>;
 
 			ports {
