@@ -198,47 +198,22 @@ static ssize_t netdev_led_attr_store(struct device *dev, const char *buf,
 	return size;
 }
 
-static ssize_t link_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
-{
-	return netdev_led_attr_show(dev, buf, NETDEV_ATTR_LINK);
-}
+#define DEFINE_NETDEV_TRIGGER(trigger_name, trigger) \
+	static ssize_t trigger_name##_show(struct device *dev, \
+		struct device_attribute *attr, char *buf) \
+	{ \
+		return netdev_led_attr_show(dev, buf, trigger); \
+	} \
+	static ssize_t trigger_name##_store(struct device *dev, \
+		struct device_attribute *attr, const char *buf, size_t size) \
+	{ \
+		return netdev_led_attr_store(dev, buf, size, trigger); \
+	} \
+	static DEVICE_ATTR_RW(trigger_name)
 
-static ssize_t link_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t size)
-{
-	return netdev_led_attr_store(dev, buf, size, NETDEV_ATTR_LINK);
-}
-
-static DEVICE_ATTR_RW(link);
-
-static ssize_t tx_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
-{
-	return netdev_led_attr_show(dev, buf, NETDEV_ATTR_TX);
-}
-
-static ssize_t tx_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t size)
-{
-	return netdev_led_attr_store(dev, buf, size, NETDEV_ATTR_TX);
-}
-
-static DEVICE_ATTR_RW(tx);
-
-static ssize_t rx_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
-{
-	return netdev_led_attr_show(dev, buf, NETDEV_ATTR_RX);
-}
-
-static ssize_t rx_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t size)
-{
-	return netdev_led_attr_store(dev, buf, size, NETDEV_ATTR_RX);
-}
-
-static DEVICE_ATTR_RW(rx);
+DEFINE_NETDEV_TRIGGER(link, TRIGGER_NETDEV_LINK);
+DEFINE_NETDEV_TRIGGER(tx, TRIGGER_NETDEV_TX);
+DEFINE_NETDEV_TRIGGER(rx, TRIGGER_NETDEV_RX);
 
 static ssize_t interval_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
