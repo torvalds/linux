@@ -1871,6 +1871,7 @@ static void __init intel_idle_init_cstates_icpu(struct cpuidle_driver *drv)
 	}
 
 	for (cstate = 0; cstate < CPUIDLE_STATE_MAX; ++cstate) {
+		struct cpuidle_state *state;
 		unsigned int mwait_hint;
 
 		if (intel_idle_max_cstate_reached(cstate))
@@ -1893,29 +1894,30 @@ static void __init intel_idle_init_cstates_icpu(struct cpuidle_driver *drv)
 
 		/* Structure copy. */
 		drv->states[drv->state_count] = cpuidle_state_table[cstate];
+		state = &drv->states[drv->state_count];
 
-		if ((drv->states[drv->state_count].flags & CPUIDLE_FLAG_IRQ_ENABLE) || force_irq_on) {
+		if ((state->flags & CPUIDLE_FLAG_IRQ_ENABLE) || force_irq_on) {
 			pr_info("forced intel_idle_irq for state %d\n", cstate);
-			drv->states[drv->state_count].enter = intel_idle_irq;
+			state->enter = intel_idle_irq;
 		}
 
 		if (cpu_feature_enabled(X86_FEATURE_KERNEL_IBRS) &&
-		    drv->states[drv->state_count].flags & CPUIDLE_FLAG_IBRS) {
-			WARN_ON_ONCE(drv->states[drv->state_count].flags & CPUIDLE_FLAG_IRQ_ENABLE);
-			drv->states[drv->state_count].enter = intel_idle_ibrs;
+		    state->flags & CPUIDLE_FLAG_IBRS) {
+			WARN_ON_ONCE(state->flags & CPUIDLE_FLAG_IRQ_ENABLE);
+			state->enter = intel_idle_ibrs;
 		}
 
-		if (drv->states[drv->state_count].flags & CPUIDLE_FLAG_INIT_XSTATE)
-			drv->states[drv->state_count].enter = intel_idle_xstate;
+		if (state->flags & CPUIDLE_FLAG_INIT_XSTATE)
+			state->enter = intel_idle_xstate;
 
 		if ((disabled_states_mask & BIT(drv->state_count)) ||
 		    ((icpu->use_acpi || force_use_acpi) &&
 		     intel_idle_off_by_default(mwait_hint) &&
-		     !(drv->states[drv->state_count].flags & CPUIDLE_FLAG_ALWAYS_ENABLE)))
-			drv->states[drv->state_count].flags |= CPUIDLE_FLAG_OFF;
+		     !(state->flags & CPUIDLE_FLAG_ALWAYS_ENABLE)))
+			state->flags |= CPUIDLE_FLAG_OFF;
 
-		if (intel_idle_state_needs_timer_stop(&drv->states[drv->state_count]))
-			drv->states[drv->state_count].flags |= CPUIDLE_FLAG_TIMER_STOP;
+		if (intel_idle_state_needs_timer_stop(state))
+			state->flags |= CPUIDLE_FLAG_TIMER_STOP;
 
 		drv->state_count++;
 	}
