@@ -158,8 +158,6 @@ int sof_sdw_mx8373_init(struct snd_soc_card *card,
 			struct sof_sdw_codec_info *info,
 			bool playback);
 
-int sof_sdw_mx8373_late_probe(struct snd_soc_card *card);
-
 /* RT5682 support */
 int sof_sdw_rt5682_init(struct snd_soc_card *card,
 			const struct snd_soc_acpi_link_adr *link,
