@@ -27,7 +27,7 @@
 			d-cache-sets = <128>;
 			next-level-cache = <&l2_cache_l0>;
 			#cooling-cells = <2>;
-			dynamic-power-coefficient = <228>;
+			dynamic-power-coefficient = <100>;
 		};
 
 		cpu_l1: cpu@0100 {
