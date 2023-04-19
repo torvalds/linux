@@ -475,59 +475,18 @@ struct mlx5e_txqsq {
 	cqe_ts_to_ns               ptp_cyc2time;
 } ____cacheline_aligned_in_smp;
 
-/* XDP packets can be transmitted in different ways. On completion, we need to
- * distinguish between them to clean up things in a proper way.
- */
-enum mlx5e_xdp_xmit_mode {
-	/* An xdp_frame was transmitted due to either XDP_REDIRECT from another
-	 * device or XDP_TX from an XSK RQ. The frame has to be unmapped and
-	 * returned.
-	 */
-	MLX5E_XDP_XMIT_MODE_FRAME,
-
-	/* The xdp_frame was created in place as a result of XDP_TX from a
-	 * regular RQ. No DMA remapping happened, and the page belongs to us.
-	 */
-	MLX5E_XDP_XMIT_MODE_PAGE,
-
-	/* No xdp_frame was created at all, the transmit happened from a UMEM
-	 * page. The UMEM Completion Ring producer pointer has to be increased.
-	 */
-	MLX5E_XDP_XMIT_MODE_XSK,
-};
-
-struct mlx5e_xdp_info {
-	enum mlx5e_xdp_xmit_mode mode;
-	union {
-		struct {
-			struct xdp_frame *xdpf;
-			dma_addr_t dma_addr;
-		} frame;
-		struct {
-			struct mlx5e_rq *rq;
-			struct page *page;
-		} page;
-	};
-};
-
-struct mlx5e_xmit_data {
-	dma_addr_t  dma_addr;
-	void       *data;
-	u32         len;
-};
-
 struct mlx5e_xdp_info_fifo {
-	struct mlx5e_xdp_info *xi;
+	union mlx5e_xdp_info *xi;
 	u32 *cc;
 	u32 *pc;
 	u32 mask;
 };
 
 struct mlx5e_xdpsq;
+struct mlx5e_xmit_data;
 typedef int (*mlx5e_fp_xmit_xdp_frame_check)(struct mlx5e_xdpsq *);
 typedef bool (*mlx5e_fp_xmit_xdp_frame)(struct mlx5e_xdpsq *,
 					struct mlx5e_xmit_data *,
-					struct skb_shared_info *,
 					int);
 
 struct mlx5e_xdpsq {
@@ -628,6 +587,7 @@ union mlx5e_alloc_units {
 struct mlx5e_mpw_info {
 	u16 consumed_strides;
 	DECLARE_BITMAP(skip_release_bitmap, MLX5_MPWRQ_MAX_PAGES_PER_WQE);
+	struct mlx5e_frag_page linear_page;
 	union mlx5e_alloc_units alloc_units;
 };
 

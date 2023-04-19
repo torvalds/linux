@@ -471,6 +471,35 @@ static int mlx5e_refill_rx_wqes(struct mlx5e_rq *rq, u16 ix, int wqe_bulk)
 	return i;
 }
 
+static void
+mlx5e_add_skb_shared_info_frag(struct mlx5e_rq *rq, struct skb_shared_info *sinfo,
+			       struct xdp_buff *xdp, struct mlx5e_frag_page *frag_page,
+			       u32 frag_offset, u32 len)
+{
+	skb_frag_t *frag;
+
+	dma_addr_t addr = page_pool_get_dma_addr(frag_page->page);
+
+	dma_sync_single_for_cpu(rq->pdev, addr + frag_offset, len, rq->buff.map_dir);
+	if (!xdp_buff_has_frags(xdp)) {
+		/* Init on the first fragment to avoid cold cache access
+		 * when possible.
+		 */
+		sinfo->nr_frags = 0;
+		sinfo->xdp_frags_size = 0;
+		xdp_buff_set_frags_flag(xdp);
+	}
+
+	frag = &sinfo->frags[sinfo->nr_frags++];
+	__skb_frag_set_page(frag, frag_page->page);
+	skb_frag_off_set(frag, frag_offset);
+	skb_frag_size_set(frag, len);
+
+	if (page_is_pfmemalloc(frag_page->page))
+		xdp_buff_set_frag_pfmemalloc(xdp);
+	sinfo->xdp_frags_size += len;
+}
+
 static inline void
 mlx5e_add_skb_frag(struct mlx5e_rq *rq, struct sk_buff *skb,
 		   struct page *page, u32 frag_offset, u32 len,
@@ -1601,10 +1630,10 @@ struct sk_buff *mlx5e_build_linear_skb(struct mlx5e_rq *rq, void *va,
 }
 
 static void mlx5e_fill_mxbuf(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
-			     void *va, u16 headroom, u32 len,
+			     void *va, u16 headroom, u32 frame_sz, u32 len,
 			     struct mlx5e_xdp_buff *mxbuf)
 {
-	xdp_init_buff(&mxbuf->xdp, rq->buff.frame0_sz, &rq->xdp_rxq);
+	xdp_init_buff(&mxbuf->xdp, frame_sz, &rq->xdp_rxq);
 	xdp_prepare_buff(&mxbuf->xdp, va, headroom, len, true);
 	mxbuf->cqe = cqe;
 	mxbuf->rq = rq;
@@ -1637,7 +1666,8 @@ mlx5e_skb_from_cqe_linear(struct mlx5e_rq *rq, struct mlx5e_wqe_frag_info *wi,
 		struct mlx5e_xdp_buff mxbuf;
 
 		net_prefetchw(va); /* xdp_frame data area */
-		mlx5e_fill_mxbuf(rq, cqe, va, rx_headroom, cqe_bcnt, &mxbuf);
+		mlx5e_fill_mxbuf(rq, cqe, va, rx_headroom, rq->buff.frame0_sz,
+				 cqe_bcnt, &mxbuf);
 		if (mlx5e_xdp_handle(rq, prog, &mxbuf))
 			return NULL; /* page/packet was consumed by XDP */
 
@@ -1685,7 +1715,8 @@ mlx5e_skb_from_cqe_nonlinear(struct mlx5e_rq *rq, struct mlx5e_wqe_frag_info *wi
 	net_prefetchw(va); /* xdp_frame data area */
 	net_prefetch(va + rx_headroom);
 
-	mlx5e_fill_mxbuf(rq, cqe, va, rx_headroom, frag_consumed_bytes, &mxbuf);
+	mlx5e_fill_mxbuf(rq, cqe, va, rx_headroom, rq->buff.frame0_sz,
+			 frag_consumed_bytes, &mxbuf);
 	sinfo = xdp_get_shared_info_from_buff(&mxbuf.xdp);
 	truesize = 0;
 
@@ -1694,35 +1725,12 @@ mlx5e_skb_from_cqe_nonlinear(struct mlx5e_rq *rq, struct mlx5e_wqe_frag_info *wi
 	wi++;
 
 	while (cqe_bcnt) {
-		skb_frag_t *frag;
-
 		frag_page = wi->frag_page;
 
 		frag_consumed_bytes = min_t(u32, frag_info->frag_size, cqe_bcnt);
 
-		addr = page_pool_get_dma_addr(frag_page->page);
-		dma_sync_single_for_cpu(rq->pdev, addr + wi->offset,
-					frag_consumed_bytes, rq->buff.map_dir);
-
-		if (!xdp_buff_has_frags(&mxbuf.xdp)) {
-			/* Init on the first fragment to avoid cold cache access
-			 * when possible.
-			 */
-			sinfo->nr_frags = 0;
-			sinfo->xdp_frags_size = 0;
-			xdp_buff_set_frags_flag(&mxbuf.xdp);
-		}
-
-		frag = &sinfo->frags[sinfo->nr_frags++];
-
-		__skb_frag_set_page(frag, frag_page->page);
-		skb_frag_off_set(frag, wi->offset);
-		skb_frag_size_set(frag, frag_consumed_bytes);
-
-		if (page_is_pfmemalloc(frag_page->page))
-			xdp_buff_set_frag_pfmemalloc(&mxbuf.xdp);
-
-		sinfo->xdp_frags_size += frag_consumed_bytes;
+		mlx5e_add_skb_shared_info_frag(rq, sinfo, &mxbuf.xdp, frag_page,
+					       wi->offset, frag_consumed_bytes);
 		truesize += frag_info->frag_stride;
 
 		cqe_bcnt -= frag_consumed_bytes;
@@ -1969,35 +1977,139 @@ mlx5e_skb_from_cqe_mpwrq_nonlinear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *w
 	struct mlx5e_frag_page *frag_page = &wi->alloc_units.frag_pages[page_idx];
 	u16 headlen = min_t(u16, MLX5E_RX_MAX_HEAD, cqe_bcnt);
 	struct mlx5e_frag_page *head_page = frag_page;
-	u32 frag_offset    = head_offset + headlen;
-	u32 byte_cnt       = cqe_bcnt - headlen;
+	u32 frag_offset    = head_offset;
+	u32 byte_cnt       = cqe_bcnt;
+	struct skb_shared_info *sinfo;
+	struct mlx5e_xdp_buff mxbuf;
+	unsigned int truesize = 0;
+	struct bpf_prog *prog;
 	struct sk_buff *skb;
-	dma_addr_t addr;
+	u32 linear_frame_sz;
+	u16 linear_data_len;
+	u16 linear_hr;
+	void *va;
 
-	skb = napi_alloc_skb(rq->cq.napi,
-			     ALIGN(MLX5E_RX_MAX_HEAD, sizeof(long)));
-	if (unlikely(!skb)) {
-		rq->stats->buff_alloc_err++;
-		return NULL;
+	prog = rcu_dereference(rq->xdp_prog);
+
+	if (prog) {
+		/* area for bpf_xdp_[store|load]_bytes */
+		net_prefetchw(page_address(frag_page->page) + frag_offset);
+		if (unlikely(mlx5e_page_alloc_fragmented(rq, &wi->linear_page))) {
+			rq->stats->buff_alloc_err++;
+			return NULL;
+		}
+		va = page_address(wi->linear_page.page);
+		net_prefetchw(va); /* xdp_frame data area */
+		linear_hr = XDP_PACKET_HEADROOM;
+		linear_data_len = 0;
+		linear_frame_sz = MLX5_SKB_FRAG_SZ(linear_hr + MLX5E_RX_MAX_HEAD);
+	} else {
+		skb = napi_alloc_skb(rq->cq.napi,
+				     ALIGN(MLX5E_RX_MAX_HEAD, sizeof(long)));
+		if (unlikely(!skb)) {
+			rq->stats->buff_alloc_err++;
+			return NULL;
+		}
+		skb_mark_for_recycle(skb);
+		va = skb->head;
+		net_prefetchw(va); /* xdp_frame data area */
+		net_prefetchw(skb->data);
+
+		frag_offset += headlen;
+		byte_cnt -= headlen;
+		linear_hr = skb_headroom(skb);
+		linear_data_len = headlen;
+		linear_frame_sz = MLX5_SKB_FRAG_SZ(skb_end_offset(skb));
+		if (unlikely(frag_offset >= PAGE_SIZE)) {
+			frag_page++;
+			frag_offset -= PAGE_SIZE;
+		}
 	}
 
-	net_prefetchw(skb->data);
+	mlx5e_fill_mxbuf(rq, cqe, va, linear_hr, linear_frame_sz, linear_data_len, &mxbuf);
 
-	/* Non-linear mode, hence non-XSK, which always uses PAGE_SIZE. */
-	if (unlikely(frag_offset >= PAGE_SIZE)) {
+	sinfo = xdp_get_shared_info_from_buff(&mxbuf.xdp);
+
+	while (byte_cnt) {
+		/* Non-linear mode, hence non-XSK, which always uses PAGE_SIZE. */
+		u32 pg_consumed_bytes = min_t(u32, PAGE_SIZE - frag_offset, byte_cnt);
+
+		if (test_bit(MLX5E_RQ_STATE_SHAMPO, &rq->state))
+			truesize += pg_consumed_bytes;
+		else
+			truesize += ALIGN(pg_consumed_bytes, BIT(rq->mpwqe.log_stride_sz));
+
+		mlx5e_add_skb_shared_info_frag(rq, sinfo, &mxbuf.xdp, frag_page, frag_offset,
+					       pg_consumed_bytes);
+		byte_cnt -= pg_consumed_bytes;
+		frag_offset = 0;
 		frag_page++;
-		frag_offset -= PAGE_SIZE;
 	}
 
-	skb_mark_for_recycle(skb);
-	mlx5e_fill_skb_data(skb, rq, frag_page, byte_cnt, frag_offset);
-	/* copy header */
-	addr = page_pool_get_dma_addr(head_page->page);
-	mlx5e_copy_skb_header(rq, skb, head_page->page, addr,
-			      head_offset, head_offset, headlen);
-	/* skb linear part was allocated with headlen and aligned to long */
-	skb->tail += headlen;
-	skb->len  += headlen;
+	if (prog) {
+		if (mlx5e_xdp_handle(rq, prog, &mxbuf)) {
+			if (__test_and_clear_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags)) {
+				int i;
+
+				for (i = 0; i < sinfo->nr_frags; i++)
+					/* non-atomic */
+					__set_bit(page_idx + i, wi->skip_release_bitmap);
+				return NULL;
+			}
+			mlx5e_page_release_fragmented(rq, &wi->linear_page);
+			return NULL; /* page/packet was consumed by XDP */
+		}
+
+		skb = mlx5e_build_linear_skb(rq, mxbuf.xdp.data_hard_start,
+					     linear_frame_sz,
+					     mxbuf.xdp.data - mxbuf.xdp.data_hard_start, 0,
+					     mxbuf.xdp.data - mxbuf.xdp.data_meta);
+		if (unlikely(!skb)) {
+			mlx5e_page_release_fragmented(rq, &wi->linear_page);
+			return NULL;
+		}
+
+		skb_mark_for_recycle(skb);
+		wi->linear_page.frags++;
+		mlx5e_page_release_fragmented(rq, &wi->linear_page);
+
+		if (xdp_buff_has_frags(&mxbuf.xdp)) {
+			struct mlx5e_frag_page *pagep;
+
+			/* sinfo->nr_frags is reset by build_skb, calculate again. */
+			xdp_update_skb_shared_info(skb, frag_page - head_page,
+						   sinfo->xdp_frags_size, truesize,
+						   xdp_buff_is_frag_pfmemalloc(&mxbuf.xdp));
+
+			pagep = head_page;
+			do
+				pagep->frags++;
+			while (++pagep < frag_page);
+		}
+		__pskb_pull_tail(skb, headlen);
+	} else {
+		dma_addr_t addr;
+
+		if (xdp_buff_has_frags(&mxbuf.xdp)) {
+			struct mlx5e_frag_page *pagep;
+
+			xdp_update_skb_shared_info(skb, sinfo->nr_frags,
+						   sinfo->xdp_frags_size, truesize,
+						   xdp_buff_is_frag_pfmemalloc(&mxbuf.xdp));
+
+			pagep = frag_page - sinfo->nr_frags;
+			do
+				pagep->frags++;
+			while (++pagep < frag_page);
+		}
+		/* copy header */
+		addr = page_pool_get_dma_addr(head_page->page);
+		mlx5e_copy_skb_header(rq, skb, head_page->page, addr,
+				      head_offset, head_offset, headlen);
+		/* skb linear part was allocated with headlen and aligned to long */
+		skb->tail += headlen;
+		skb->len  += headlen;
+	}
 
 	return skb;
 }
@@ -2036,7 +2148,8 @@ mlx5e_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
 		struct mlx5e_xdp_buff mxbuf;
 
 		net_prefetchw(va); /* xdp_frame data area */
-		mlx5e_fill_mxbuf(rq, cqe, va, rx_headroom, cqe_bcnt, &mxbuf);
+		mlx5e_fill_mxbuf(rq, cqe, va, rx_headroom, rq->buff.frame0_sz,
+				 cqe_bcnt, &mxbuf);
 		if (mlx5e_xdp_handle(rq, prog, &mxbuf)) {
 			if (__test_and_clear_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags))
 				__set_bit(page_idx, wi->skip_release_bitmap); /* non-atomic */

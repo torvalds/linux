@@ -803,6 +803,9 @@ static int mlx5e_alloc_rq(struct mlx5e_params *params,
 		pool_size = rq->mpwqe.pages_per_wqe <<
 			mlx5e_mpwqe_get_log_rq_size(mdev, params, xsk);
 
+		if (!mlx5e_rx_mpwqe_is_linear_skb(mdev, params, xsk) && params->xdp_prog)
+			pool_size *= 2; /* additional page per packet for the linear part */
+
 		rq->mpwqe.log_stride_sz = mlx5e_mpwqe_get_log_stride_size(mdev, params, xsk);
 		rq->mpwqe.num_strides =
 			BIT(mlx5e_mpwqe_get_log_num_strides(mdev, params, xsk));
@@ -1300,17 +1303,19 @@ static int mlx5e_alloc_xdpsq_fifo(struct mlx5e_xdpsq *sq, int numa)
 {
 	struct mlx5e_xdp_info_fifo *xdpi_fifo = &sq->db.xdpi_fifo;
 	int wq_sz        = mlx5_wq_cyc_get_size(&sq->wq);
-	int dsegs_per_wq = wq_sz * MLX5_SEND_WQEBB_NUM_DS;
+	int entries = wq_sz * MLX5_SEND_WQEBB_NUM_DS * 2; /* upper bound for maximum num of
+							   * entries of all xmit_modes.
+							   */
 	size_t size;
 
-	size = array_size(sizeof(*xdpi_fifo->xi), dsegs_per_wq);
+	size = array_size(sizeof(*xdpi_fifo->xi), entries);
 	xdpi_fifo->xi = kvzalloc_node(size, GFP_KERNEL, numa);
 	if (!xdpi_fifo->xi)
 		return -ENOMEM;
 
 	xdpi_fifo->pc   = &sq->xdpi_fifo_pc;
 	xdpi_fifo->cc   = &sq->xdpi_fifo_cc;
-	xdpi_fifo->mask = dsegs_per_wq - 1;
+	xdpi_fifo->mask = entries - 1;
 
 	return 0;
 }
@@ -1860,11 +1865,7 @@ int mlx5e_open_xdpsq(struct mlx5e_channel *c, struct mlx5e_params *params,
 	csp.min_inline_mode = sq->min_inline_mode;
 	set_bit(MLX5E_SQ_STATE_ENABLED, &sq->state);
 
-	/* Don't enable multi buffer on XDP_REDIRECT SQ, as it's not yet
-	 * supported by upstream, and there is no defined trigger to allow
-	 * transmitting redirected multi-buffer frames.
-	 */
-	if (param->is_xdp_mb && !is_redirect)
+	if (param->is_xdp_mb)
 		set_bit(MLX5E_SQ_STATE_XDP_MULTIBUF, &sq->state);
 
 	err = mlx5e_create_sq_rdy(c->mdev, param, &csp, 0, &sq->sqn);
@@ -1888,7 +1889,6 @@ int mlx5e_open_xdpsq(struct mlx5e_channel *c, struct mlx5e_params *params,
 			struct mlx5e_tx_wqe      *wqe  = mlx5_wq_cyc_get_wqe(&sq->wq, i);
 			struct mlx5_wqe_ctrl_seg *cseg = &wqe->ctrl;
 			struct mlx5_wqe_eth_seg  *eseg = &wqe->eth;
-			struct mlx5_wqe_data_seg *dseg;
 
 			sq->db.wqe_info[i] = (struct mlx5e_xdp_wqe_info) {
 				.num_wqebbs = 1,
@@ -1897,9 +1897,6 @@ int mlx5e_open_xdpsq(struct mlx5e_channel *c, struct mlx5e_params *params,
 
 			cseg->qpn_ds = cpu_to_be32((sq->sqn << 8) | ds_cnt);
 			eseg->inline_hdr.sz = cpu_to_be16(inline_hdr_sz);
-
-			dseg = (struct mlx5_wqe_data_seg *)cseg + (ds_cnt - 1);
-			dseg->lkey = sq->mkey_be;
 		}
 	}
 
@@ -4066,9 +4063,9 @@ void mlx5e_set_xdp_feature(struct net_device *netdev)
 
 	val = NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
 	      NETDEV_XDP_ACT_XSK_ZEROCOPY |
-	      NETDEV_XDP_ACT_NDO_XMIT;
-	if (params->rq_wq_type == MLX5_WQ_TYPE_CYCLIC)
-		val |= NETDEV_XDP_ACT_RX_SG;
+	      NETDEV_XDP_ACT_RX_SG |
+	      NETDEV_XDP_ACT_NDO_XMIT |
+	      NETDEV_XDP_ACT_NDO_XMIT_SG;
 	xdp_set_features_flag(netdev, val);
 }
 
@@ -4262,19 +4259,24 @@ static bool mlx5e_params_validate_xdp(struct net_device *netdev,
 	/* No XSK params: AF_XDP can't be enabled yet at the point of setting
 	 * the XDP program.
 	 */
-	is_linear = mlx5e_rx_is_linear_skb(mdev, params, NULL);
+	is_linear = params->rq_wq_type == MLX5_WQ_TYPE_CYCLIC ?
+		mlx5e_rx_is_linear_skb(mdev, params, NULL) :
+		mlx5e_rx_mpwqe_is_linear_skb(mdev, params, NULL);
 
-	if (!is_linear && params->rq_wq_type != MLX5_WQ_TYPE_CYCLIC) {
-		netdev_warn(netdev, "XDP is not allowed with striding RQ and MTU(%d) > %d\n",
-			    params->sw_mtu,
-			    mlx5e_xdp_max_mtu(params, NULL));
-		return false;
-	}
-	if (!is_linear && !params->xdp_prog->aux->xdp_has_frags) {
-		netdev_warn(netdev, "MTU(%d) > %d, too big for an XDP program not aware of multi buffer\n",
-			    params->sw_mtu,
-			    mlx5e_xdp_max_mtu(params, NULL));
-		return false;
+	if (!is_linear) {
+		if (!params->xdp_prog->aux->xdp_has_frags) {
+			netdev_warn(netdev, "MTU(%d) > %d, too big for an XDP program not aware of multi buffer\n",
+				    params->sw_mtu,
+				    mlx5e_xdp_max_mtu(params, NULL));
+			return false;
+		}
+		if (params->rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ &&
+		    !mlx5e_verify_params_rx_mpwqe_strides(mdev, params, NULL)) {
+			netdev_warn(netdev, "XDP is not allowed with striding RQ and MTU(%d) > %d\n",
+				    params->sw_mtu,
+				    mlx5e_xdp_max_mtu(params, NULL));
+			return false;
+		}
 	}
 
 	return true;
@@ -4766,20 +4768,15 @@ static void mlx5e_tx_timeout(struct net_device *dev, unsigned int txqueue)
 	queue_work(priv->wq, &priv->tx_timeout_work);
 }
 
-static int mlx5e_xdp_allowed(struct mlx5e_priv *priv, struct bpf_prog *prog)
+static int mlx5e_xdp_allowed(struct net_device *netdev, struct mlx5_core_dev *mdev,
+			     struct mlx5e_params *params)
 {
-	struct net_device *netdev = priv->netdev;
-	struct mlx5e_params new_params;
-
-	if (priv->channels.params.packet_merge.type != MLX5E_PACKET_MERGE_NONE) {
+	if (params->packet_merge.type != MLX5E_PACKET_MERGE_NONE) {
 		netdev_warn(netdev, "can't set XDP while HW-GRO/LRO is on, disable them first\n");
 		return -EINVAL;
 	}
 
-	new_params = priv->channels.params;
-	new_params.xdp_prog = prog;
-
-	if (!mlx5e_params_validate_xdp(netdev, priv->mdev, &new_params))
+	if (!mlx5e_params_validate_xdp(netdev, mdev, params))
 		return -EINVAL;
 
 	return 0;
@@ -4806,30 +4803,17 @@ static int mlx5e_xdp_set(struct net_device *netdev, struct bpf_prog *prog)
 
 	mutex_lock(&priv->state_lock);
 
+	new_params = priv->channels.params;
+	new_params.xdp_prog = prog;
+
 	if (prog) {
-		err = mlx5e_xdp_allowed(priv, prog);
+		err = mlx5e_xdp_allowed(netdev, priv->mdev, &new_params);
 		if (err)
 			goto unlock;
 	}
 
 	/* no need for full reset when exchanging programs */
 	reset = (!priv->channels.params.xdp_prog || !prog);
-
-	new_params = priv->channels.params;
-	new_params.xdp_prog = prog;
-
-	/* XDP affects striding RQ parameters. Block XDP if striding RQ won't be
-	 * supported with the new parameters: if PAGE_SIZE is bigger than
-	 * MLX5_MPWQE_LOG_STRIDE_SZ_MAX, striding RQ can't be used, even though
-	 * the MTU is small enough for the linear mode, because XDP uses strides
-	 * of PAGE_SIZE on regular RQs.
-	 */
-	if (reset && MLX5E_GET_PFLAG(&new_params, MLX5E_PFLAG_RX_STRIDING_RQ)) {
-		/* Checking for regular RQs here; XSK RQs were checked on XSK bind. */
-		err = mlx5e_mpwrq_validate_regular(priv->mdev, &new_params);
-		if (err)
-			goto unlock;
-	}
 
 	old_prog = priv->channels.params.xdp_prog;
 
