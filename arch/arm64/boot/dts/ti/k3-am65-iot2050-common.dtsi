@@ -21,7 +21,6 @@
 
 	chosen {
 		stdout-path = "serial3:115200n8";
-		bootargs = "earlycon=ns16550a,mmio32,0x02810000";
 	};
 
 	reserved-memory {
