@@ -148,7 +148,7 @@ static void apply_one_mmio(struct xe_gt *gt, u32 reg,
 	 * supposed to set all bits.
 	 */
 	if (entry->masked_reg)
-		val = (entry->clr_bits ?: entry->set_bits << 16);
+		val = (entry->clr_bits ?: entry->set_bits) << 16;
 	else if (entry->clr_bits + 1)
 		val = (entry->reg_type == XE_RTP_REG_MCR ?
 		       xe_gt_mcr_unicast_read_any(gt, MCR_REG(reg)) :
