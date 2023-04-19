@@ -125,6 +125,13 @@ err_out:
 	return err;
 }
 
+void __iomem *pdsc_map_dbpage(struct pdsc *pdsc, int page_num)
+{
+	return pci_iomap_range(pdsc->pdev,
+			       pdsc->bars[PDS_CORE_PCI_BAR_DBELL].res_index,
+			       (u64)page_num << PAGE_SHIFT, PAGE_SIZE);
+}
+
 static int pdsc_init_vf(struct pdsc *vf)
 {
 	return -1;
@@ -166,6 +173,7 @@ static int pdsc_init_pf(struct pdsc *pdsc)
 
 	mutex_init(&pdsc->devcmd_lock);
 	mutex_init(&pdsc->config_lock);
+	spin_lock_init(&pdsc->adminq_lock);
 
 	mutex_lock(&pdsc->config_lock);
 	set_bit(PDSC_S_FW_DEAD, &pdsc->state);
@@ -173,6 +181,9 @@ static int pdsc_init_pf(struct pdsc *pdsc)
 	err = pdsc_setup(pdsc, PDSC_SETUP_INIT);
 	if (err)
 		goto err_out_unmap_bars;
+	err = pdsc_start(pdsc);
+	if (err)
+		goto err_out_teardown;
 
 	mutex_unlock(&pdsc->config_lock);
 
@@ -184,7 +195,7 @@ static int pdsc_init_pf(struct pdsc *pdsc)
 		dev_warn(pdsc->dev, "Failed to create fw reporter: %pe\n", hr);
 		err = PTR_ERR(hr);
 		devl_unlock(dl);
-		goto err_out_teardown;
+		goto err_out_stop;
 	}
 	pdsc->fw_reporter = hr;
 
@@ -196,6 +207,8 @@ static int pdsc_init_pf(struct pdsc *pdsc)
 
 	return 0;
 
+err_out_stop:
+	pdsc_stop(pdsc);
 err_out_teardown:
 	pdsc_teardown(pdsc, PDSC_TEARDOWN_REMOVING);
 err_out_unmap_bars:
@@ -214,6 +227,7 @@ err_out_release_regions:
 }
 
 static const struct devlink_ops pdsc_dl_ops = {
+	.info_get	= pdsc_dl_info_get,
 };
 
 static const struct devlink_ops pdsc_dl_vf_ops = {
@@ -315,6 +329,7 @@ static void pdsc_remove(struct pci_dev *pdev)
 		mutex_lock(&pdsc->config_lock);
 		set_bit(PDSC_S_STOPPING_DRIVER, &pdsc->state);
 
+		pdsc_stop(pdsc);
 		pdsc_teardown(pdsc, PDSC_TEARDOWN_REMOVING);
 		mutex_unlock(&pdsc->config_lock);
 		mutex_destroy(&pdsc->config_lock);

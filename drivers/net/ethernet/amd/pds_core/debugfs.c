@@ -67,3 +67,80 @@ void pdsc_debugfs_add_ident(struct pdsc *pdsc)
 	debugfs_create_file("identity", 0400, pdsc->dentry,
 			    pdsc, &identity_fops);
 }
+
+static const struct debugfs_reg32 intr_ctrl_regs[] = {
+	{ .name = "coal_init", .offset = 0, },
+	{ .name = "mask", .offset = 4, },
+	{ .name = "credits", .offset = 8, },
+	{ .name = "mask_on_assert", .offset = 12, },
+	{ .name = "coal_timer", .offset = 16, },
+};
+
+void pdsc_debugfs_add_qcq(struct pdsc *pdsc, struct pdsc_qcq *qcq)
+{
+	struct dentry *qcq_dentry, *q_dentry, *cq_dentry;
+	struct dentry *intr_dentry;
+	struct debugfs_regset32 *intr_ctrl_regset;
+	struct pdsc_intr_info *intr = &pdsc->intr_info[qcq->intx];
+	struct pdsc_queue *q = &qcq->q;
+	struct pdsc_cq *cq = &qcq->cq;
+
+	qcq_dentry = debugfs_create_dir(q->name, pdsc->dentry);
+	if (IS_ERR_OR_NULL(qcq_dentry))
+		return;
+	qcq->dentry = qcq_dentry;
+
+	debugfs_create_x64("q_base_pa", 0400, qcq_dentry, &qcq->q_base_pa);
+	debugfs_create_x32("q_size", 0400, qcq_dentry, &qcq->q_size);
+	debugfs_create_x64("cq_base_pa", 0400, qcq_dentry, &qcq->cq_base_pa);
+	debugfs_create_x32("cq_size", 0400, qcq_dentry, &qcq->cq_size);
+	debugfs_create_x32("accum_work", 0400, qcq_dentry, &qcq->accum_work);
+
+	q_dentry = debugfs_create_dir("q", qcq->dentry);
+	if (IS_ERR_OR_NULL(q_dentry))
+		return;
+
+	debugfs_create_u32("index", 0400, q_dentry, &q->index);
+	debugfs_create_u32("num_descs", 0400, q_dentry, &q->num_descs);
+	debugfs_create_u32("desc_size", 0400, q_dentry, &q->desc_size);
+	debugfs_create_u32("pid", 0400, q_dentry, &q->pid);
+
+	debugfs_create_u16("tail", 0400, q_dentry, &q->tail_idx);
+	debugfs_create_u16("head", 0400, q_dentry, &q->head_idx);
+
+	cq_dentry = debugfs_create_dir("cq", qcq->dentry);
+	if (IS_ERR_OR_NULL(cq_dentry))
+		return;
+
+	debugfs_create_x64("base_pa", 0400, cq_dentry, &cq->base_pa);
+	debugfs_create_u32("num_descs", 0400, cq_dentry, &cq->num_descs);
+	debugfs_create_u32("desc_size", 0400, cq_dentry, &cq->desc_size);
+	debugfs_create_bool("done_color", 0400, cq_dentry, &cq->done_color);
+	debugfs_create_u16("tail", 0400, cq_dentry, &cq->tail_idx);
+
+	if (qcq->flags & PDS_CORE_QCQ_F_INTR) {
+		intr_dentry = debugfs_create_dir("intr", qcq->dentry);
+		if (IS_ERR_OR_NULL(intr_dentry))
+			return;
+
+		debugfs_create_u32("index", 0400, intr_dentry, &intr->index);
+		debugfs_create_u32("vector", 0400, intr_dentry, &intr->vector);
+
+		intr_ctrl_regset = kzalloc(sizeof(*intr_ctrl_regset),
+					   GFP_KERNEL);
+		if (!intr_ctrl_regset)
+			return;
+		intr_ctrl_regset->regs = intr_ctrl_regs;
+		intr_ctrl_regset->nregs = ARRAY_SIZE(intr_ctrl_regs);
+		intr_ctrl_regset->base = &pdsc->intr_ctrl[intr->index];
+
+		debugfs_create_regset32("intr_ctrl", 0400, intr_dentry,
+					intr_ctrl_regset);
+	}
+};
+
+void pdsc_debugfs_del_qcq(struct pdsc_qcq *qcq)
+{
+	debugfs_remove_recursive(qcq->dentry);
+	qcq->dentry = NULL;
+}
