@@ -14,6 +14,17 @@
 
 #define PAR_PA47_MASK ((((1UL << 48) - 1) >> 12) << 12)
 
+int gzvm_arch_inform_exit(u16 vm_id)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_hvc(MT_HVC_GZVM_INFORM_EXIT, vm_id, 0, 0, 0, 0, 0, 0, &res);
+	if (res.a0 == 0)
+		return 0;
+
+	return -ENXIO;
+}
+
 int gzvm_arch_probe(void)
 {
 	struct arm_smccc_res res;
