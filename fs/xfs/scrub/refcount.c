@@ -9,6 +9,7 @@
 #include "xfs_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
+#include "xfs_ag.h"
 #include "xfs_btree.h"
 #include "xfs_rmap.h"
 #include "xfs_refcount.h"
@@ -16,9 +17,6 @@
 #include "scrub/common.h"
 #include "scrub/btree.h"
 #include "scrub/trace.h"
-#include "xfs_trans_resv.h"
-#include "xfs_mount.h"
-#include "xfs_ag.h"
 
 /*
  * Set us up to scrub reference count btrees.
