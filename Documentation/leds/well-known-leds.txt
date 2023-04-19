@@ -70,3 +70,33 @@ Good: "platform:*:charging" (allwinner sun50i)
 * Screen
 
 Good: ":backlight" (Motorola Droid 4)
+
+* Ethernet LEDs
+
+Currently two types of Network LEDs are support, those controlled by
+the PHY and those by the MAC. In theory both can be present at the
+same time for one Linux netdev, hence the names need to differ between
+MAC and PHY.
+
+Do not use the netdev name, such as eth0, enp1s0. These are not stable
+and are not unique. They also don't differentiate between MAC and PHY.
+
+** MAC LEDs
+
+Good: f1070000.ethernet:white:WAN
+Good: mdio_mux-0.1:00:green:left
+Good: 0000:02:00.0:yellow:top
+
+The first part must uniquely name the MAC controller. Then follows the
+colour.  WAN/LAN should be used for a single LED. If there are
+multiple LEDs, use left/right, or top/bottom to indicate their
+position on the RJ45 socket.
+
+** PHY LEDs
+
+Good: f1072004.mdio-mii:00: white:WAN
+Good: !mdio-mux!mdio@2!switch@0!mdio:01:green:right
+Good: r8169-0-200:00:yellow:bottom
+
+The first part must uniquely name the PHY. This often means uniquely
+identifying the MDIO bus controller, and the address on the bus.
