@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 /*
  * This header is for sysmon subsystem stats query API's in drivers.
@@ -11,9 +11,16 @@
 #define SYSMON_POWER_STATS_MAX_CLK_LEVELS 16
 /*
  * @struct sysmon_smem_power_stats
- * @brief Structure type to hold DSP power statistics.
+ * @brief Structure type to hold DSP power statistics
+ * Version defines which fields are valid.
+ * if Version
+ * 1   : clk_arr, active_time, pc_time and lpi_time are valid.
+ * >=2 : All fields are valid.
  */
 struct sysmon_smem_power_stats {
+	u32 version;
+	/**< Version */
+
 	u32 clk_arr[SYSMON_POWER_STATS_MAX_CLK_LEVELS];
 	/**< Core clock frequency(KHz) array */
 
@@ -25,6 +32,14 @@ struct sysmon_smem_power_stats {
 
 	u32 lpi_time;
 	/**< DSP LPI(Low Power Island Mode) time(seconds) */
+
+	u32 island_time[SYSMON_POWER_STATS_MAX_CLK_LEVELS];
+	/**< DSP LPI(Low Power Island Mode) time(seconds)
+	 * array corresponding to core clock array
+	 */
+
+	u32 current_clk;
+	/**< DSP current clock in KHz*/
 };
 /*
  * @struct sysmon_smem_q6_event_stats

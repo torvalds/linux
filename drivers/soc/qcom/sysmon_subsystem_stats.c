@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -11,15 +11,16 @@
 #include <linux/delay.h>
 #include <linux/soc/qcom/sysmon_subsystem_stats.h>
 
-#define SYSMON_SMEM_ID			634
+#define SYSMON_SMEM_ID					634
 #define SLEEPSTATS_SMEM_ID_ADSP			606
 #define SLEEPSTATS_SMEM_ID_CDSP			607
 #define SLEEPSTATS_SMEM_ID_SLPI			608
 #define SLEEPSTATS_LPI_SMEM_ID			613
 #define DSPPMSTATS_SMEM_ID				624
-#define SYS_CLK_TICKS_PER_MS		19200
-#define DSPPMSTATS_NUMPD		5
-#define HMX_HVX_PMU_EVENTS_NA	0xFFFF
+#define SYS_CLK_TICKS_PER_MS			19200
+#define SYS_CLK_TICKS_PER_SEC			19200000
+#define DSPPMSTATS_NUMPD				5
+#define HMX_HVX_PMU_EVENTS_NA			0xFFFF
 
 struct pd_clients {
 	int pid;
@@ -33,14 +34,25 @@ struct dsppm_stats {
 	struct pd_clients pd[DSPPMSTATS_NUMPD];
 };
 
+struct sysmon_smem_power_stats_extended {
+	struct sysmon_smem_power_stats powerstats;
+	/**< Powerstats data */
+
+	u32 last_update_time_powerstats_lsb;
+	/**< Powerstats updated timestamp (lower significant 32 bits) */
+
+	u32 last_update_time_powerstats_msb;
+	/**< Powerstats updated timestamp (Most significant 32 bits) */
+};
+
 struct sysmon_smem_stats {
 	bool smem_init_adsp;
 	bool smem_init_cdsp;
 	bool smem_init_slpi;
 	bool smem_init_cdsp_v2;
-	struct sysmon_smem_power_stats *sysmon_power_stats_adsp;
-	struct sysmon_smem_power_stats *sysmon_power_stats_cdsp;
-	struct sysmon_smem_power_stats *sysmon_power_stats_slpi;
+	struct sysmon_smem_power_stats_extended *sysmon_power_stats_adsp;
+	struct sysmon_smem_power_stats_extended *sysmon_power_stats_cdsp;
+	struct sysmon_smem_power_stats_extended *sysmon_power_stats_slpi;
 	struct sysmon_smem_q6_event_stats *sysmon_event_stats_adsp;
 	struct sysmon_smem_q6_event_stats *sysmon_event_stats_cdsp;
 	struct sysmon_smem_q6_event_stats *sysmon_event_stats_slpi;
@@ -89,6 +101,60 @@ struct sysmon_smem_hmx_stats {
 
 static struct sysmon_smem_stats g_sysmon_stats;
 
+/* Adds delta between SMEM powerstats updated time to current time */
+static int add_delta_time(
+	u8 ver,
+	u64 lpi_acc, u64 lpm_acc,
+	struct sysmon_smem_power_stats_extended *stats
+)
+{
+	u64 powerstats_ticks = 0, curr_timestamp = 0, diff_ticks = 0;
+	u64 pc_time = 0, lpi_time = 0, active_time = 0, diff_time = 0;
+	u8 j = 0;
+
+	if (ver >= 2) {
+		powerstats_ticks = (u64)(((u64)stats->last_update_time_powerstats_msb << 32) |
+							stats->last_update_time_powerstats_lsb);
+		curr_timestamp = __arch_counter_get_cntvct();
+
+		if (curr_timestamp < powerstats_ticks)
+			diff_ticks = curr_timestamp + (ULLONG_MAX - powerstats_ticks);
+		else
+			diff_ticks = (curr_timestamp - powerstats_ticks);
+
+		diff_time = (diff_ticks / SYS_CLK_TICKS_PER_SEC);
+
+		if (diff_time > 0) {
+			pc_time = (lpm_acc / SYS_CLK_TICKS_PER_SEC);
+			lpi_time = (lpi_acc / SYS_CLK_TICKS_PER_SEC);
+
+			if (pc_time >= stats->powerstats.pc_time)
+				pc_time -= stats->powerstats.pc_time;
+
+			if (diff_time >= pc_time)
+				active_time = diff_time - pc_time;
+
+			if ((lpi_time) && (lpi_time >= stats->powerstats.lpi_time))
+				lpi_time -= stats->powerstats.lpi_time;
+
+			if ((lpi_time) && (pc_time >= lpi_time))
+				pc_time -= lpi_time;
+
+			for (j = 0; j < SYSMON_POWER_STATS_MAX_CLK_LEVELS; j++) {
+				if (stats->powerstats.clk_arr[j] == stats->powerstats.current_clk)
+					break;
+			}
+
+			stats->powerstats.pc_time += pc_time;
+			stats->powerstats.lpi_time += lpi_time;
+			stats->powerstats.active_time[j] += active_time;
+			stats->powerstats.island_time[j] += lpi_time;
+		}
+	}
+
+	return 0;
+}
+
 /*Updates SMEM pointers for all the sysmon Master stats*/
 static void update_sysmon_smem_pointers(void *smem_pointer, enum dsp_id_t dsp_id, size_t size)
 {
@@ -106,16 +172,16 @@ static void update_sysmon_smem_pointers(void *smem_pointer, enum dsp_id_t dsp_id
 			if (!IS_ERR_OR_NULL(smem_pointer + size_of_u32)) {
 				if (dsp_id == ADSP)
 					g_sysmon_stats.sysmon_power_stats_adsp =
-					(struct sysmon_smem_power_stats *)
-					(smem_pointer + size_of_u32);
+					(struct sysmon_smem_power_stats_extended *)
+					(smem_pointer);
 				else if (dsp_id == CDSP)
 					g_sysmon_stats.sysmon_power_stats_cdsp =
-					(struct sysmon_smem_power_stats *)
-					(smem_pointer + size_of_u32);
+					(struct sysmon_smem_power_stats_extended *)
+					(smem_pointer);
 				else if (dsp_id == SLPI)
 					g_sysmon_stats.sysmon_power_stats_slpi =
-					(struct sysmon_smem_power_stats *)
-					(smem_pointer + size_of_u32);
+					(struct sysmon_smem_power_stats_extended *)
+					(smem_pointer);
 				else
 					pr_err("%s: subsystem not found %d\n",
 						__func__, SYSMON_POWER_STATS_FEATUREID);
@@ -544,7 +610,10 @@ EXPORT_SYMBOL(sysmon_stats_query_hvx_utlization);
 int sysmon_stats_query_power_residency(enum dsp_id_t dsp_id,
 					struct sysmon_smem_power_stats *sysmon_power_stats)
 {
-	int ret = 0;
+	int ret = 0, size = 0;
+	u64 lpi_accumulated = 0;
+	u64 lpm_accumulated = 0;
+	struct sysmon_smem_power_stats_extended *ptr = NULL, smem_sysmon_power_stats_l = { 0 };
 
 	if (!sysmon_power_stats) {
 		pr_err("%s: Null pointer received\n", __func__);
@@ -556,36 +625,92 @@ int sysmon_stats_query_power_residency(enum dsp_id_t dsp_id,
 		if (!g_sysmon_stats.smem_init_adsp)
 			sysmon_smem_init_adsp();
 
-		if (!IS_ERR_OR_NULL(g_sysmon_stats.sysmon_power_stats_adsp))
-			memcpy(sysmon_power_stats, g_sysmon_stats.sysmon_power_stats_adsp,
-				sizeof(struct sysmon_smem_power_stats));
-		else
+		if (!IS_ERR_OR_NULL(g_sysmon_stats.sysmon_power_stats_adsp)) {
+			ptr = g_sysmon_stats.sysmon_power_stats_adsp;
+			size = (((ptr->powerstats.version) >> 16) & 0xFFF) + sizeof(u32);
+			memcpy(&smem_sysmon_power_stats_l,
+					g_sysmon_stats.sysmon_power_stats_adsp,
+					size <= sizeof(struct sysmon_smem_power_stats_extended) ?
+					size :
+					sizeof(struct sysmon_smem_power_stats_extended));
+
+			if (g_sysmon_stats.sleep_stats_adsp) {
+				lpm_accumulated = g_sysmon_stats.sleep_stats_adsp->accumulated;
+				if (g_sysmon_stats.sleep_stats_adsp->last_entered_at >
+						g_sysmon_stats.sleep_stats_adsp->last_exited_at)
+					lpm_accumulated += arch_timer_read_counter() -
+						g_sysmon_stats.sleep_stats_adsp->last_entered_at;
+			}
+
+			if (g_sysmon_stats.sleep_lpi_adsp) {
+				lpi_accumulated = g_sysmon_stats.sleep_lpi_adsp->accumulated;
+				if (g_sysmon_stats.sleep_lpi_adsp->last_entered_at >
+					g_sysmon_stats.sleep_lpi_adsp->last_exited_at)
+					lpi_accumulated += arch_timer_read_counter() -
+						g_sysmon_stats.sleep_lpi_adsp->last_entered_at;
+			}
+		} else
 			ret = -ENOKEY;
 	break;
 	case CDSP:
 		if (!g_sysmon_stats.smem_init_cdsp)
 			sysmon_smem_init_cdsp();
 
-		if (!IS_ERR_OR_NULL(g_sysmon_stats.sysmon_power_stats_cdsp))
-			memcpy(sysmon_power_stats, g_sysmon_stats.sysmon_power_stats_cdsp,
-				sizeof(struct sysmon_smem_power_stats));
-		else
+		if (!IS_ERR_OR_NULL(g_sysmon_stats.sysmon_power_stats_cdsp)) {
+			ptr = g_sysmon_stats.sysmon_power_stats_cdsp;
+			size = (((ptr->powerstats.version) >> 16) & 0xFFF) + sizeof(u32);
+			memcpy(&smem_sysmon_power_stats_l, g_sysmon_stats.sysmon_power_stats_cdsp,
+				size <= sizeof(struct sysmon_smem_power_stats_extended) ? size :
+				sizeof(struct sysmon_smem_power_stats_extended));
+			if (g_sysmon_stats.sleep_stats_cdsp) {
+				lpm_accumulated = g_sysmon_stats.sleep_stats_cdsp->accumulated;
+				if (g_sysmon_stats.sleep_stats_cdsp->last_entered_at >
+						g_sysmon_stats.sleep_stats_cdsp->last_exited_at)
+					lpm_accumulated += arch_timer_read_counter() -
+						g_sysmon_stats.sleep_stats_cdsp->last_entered_at;
+			}
+		} else
 			ret = -ENOKEY;
 	break;
 	case SLPI:
 		if (!g_sysmon_stats.smem_init_slpi)
 			sysmon_smem_init_slpi();
 
-		if (!IS_ERR_OR_NULL(g_sysmon_stats.sysmon_power_stats_slpi))
-			memcpy(sysmon_power_stats, g_sysmon_stats.sysmon_power_stats_slpi,
-				sizeof(struct sysmon_smem_power_stats));
-		else
+		if (!IS_ERR_OR_NULL(g_sysmon_stats.sysmon_power_stats_slpi)) {
+			ptr = g_sysmon_stats.sysmon_power_stats_slpi;
+			size = (((ptr->powerstats.version) >> 16) & 0xFFF) + sizeof(u32);
+			memcpy(&smem_sysmon_power_stats_l, g_sysmon_stats.sysmon_power_stats_slpi,
+				size <= sizeof(struct sysmon_smem_power_stats_extended) ? size :
+				sizeof(struct sysmon_smem_power_stats_extended));
+			if (g_sysmon_stats.sleep_stats_slpi) {
+				lpm_accumulated = g_sysmon_stats.sleep_stats_slpi->accumulated;
+				if (g_sysmon_stats.sleep_stats_slpi->last_entered_at >
+					g_sysmon_stats.sleep_stats_slpi->last_exited_at)
+					lpm_accumulated += arch_timer_read_counter() -
+						g_sysmon_stats.sleep_stats_slpi->last_entered_at;
+			}
+			if (g_sysmon_stats.sleep_lpi_slpi) {
+				lpi_accumulated = g_sysmon_stats.sleep_lpi_slpi->accumulated;
+				if (g_sysmon_stats.sleep_lpi_slpi->last_entered_at >
+					g_sysmon_stats.sleep_lpi_slpi->last_exited_at)
+					lpi_accumulated += arch_timer_read_counter() -
+						g_sysmon_stats.sleep_lpi_slpi->last_entered_at;
+			}
+		} else
 			ret = -ENOKEY;
 	break;
 	default:
 		pr_err("%s:Provided subsystem %d is not supported\n", __func__, dsp_id);
 		ret = -EINVAL;
 	break;
+	}
+
+	if (ret == 0) {
+		add_delta_time((ptr->powerstats.version) & 0xFF, lpi_accumulated,
+				lpm_accumulated, &smem_sysmon_power_stats_l);
+		memcpy(sysmon_power_stats, &smem_sysmon_power_stats_l.powerstats,
+			sizeof(struct sysmon_smem_power_stats));
+		sysmon_power_stats->version = (ptr->powerstats.version) & 0xFF;
 	}
 
 	return ret;
@@ -613,7 +738,7 @@ int sysmon_stats_query_q6_votes(enum dsp_id_t dsp_id,
 
 		if (!IS_ERR_OR_NULL(g_sysmon_stats.sysmon_event_stats_adsp))
 			memcpy(sysmon_q6_event_stats, g_sysmon_stats.sysmon_event_stats_adsp,
-				sizeof(struct sysmon_smem_power_stats));
+				sizeof(struct sysmon_smem_q6_event_stats));
 		else
 			ret = -ENOKEY;
 	break;
@@ -623,7 +748,7 @@ int sysmon_stats_query_q6_votes(enum dsp_id_t dsp_id,
 
 		if (!IS_ERR_OR_NULL(g_sysmon_stats.sysmon_event_stats_cdsp))
 			memcpy(sysmon_q6_event_stats, g_sysmon_stats.sysmon_event_stats_cdsp,
-				sizeof(struct sysmon_smem_power_stats));
+				sizeof(struct sysmon_smem_q6_event_stats));
 		else
 			ret = -ENOKEY;
 	break;
@@ -633,7 +758,7 @@ int sysmon_stats_query_q6_votes(enum dsp_id_t dsp_id,
 
 		if (!IS_ERR_OR_NULL(g_sysmon_stats.sysmon_event_stats_slpi))
 			memcpy(sysmon_q6_event_stats, g_sysmon_stats.sysmon_event_stats_slpi,
-				sizeof(struct sysmon_smem_power_stats));
+				sizeof(struct sysmon_smem_q6_event_stats));
 		else
 			ret = -ENOKEY;
 	break;
@@ -877,27 +1002,29 @@ int sysmon_stats_query_sleep(enum dsp_id_t dsp_id,
 }
 EXPORT_SYMBOL(sysmon_stats_query_sleep);
 
-
 static int master_adsp_stats_show(struct seq_file *s, void *d)
 {
 	int i = 0, j = 0;
-	u64 accumulated;
+	u64 lpi_accumulated = 0;
+	u64 lpm_accumulated = 0;
 	u32 q6_load;
+	u8 ver = 0;
+	struct sysmon_smem_power_stats_extended *ptr = NULL, sysmon_power_stats = { 0 };
 
 	if (!g_sysmon_stats.smem_init_adsp)
 		sysmon_smem_init_adsp();
 
 	if (g_sysmon_stats.sysmon_event_stats_adsp) {
 		seq_puts(s, "\nsysMon stats:\n\n");
-		seq_printf(s, "Core clock: %d\n",
+		seq_printf(s, "Core clock(KHz): %d\n",
 				g_sysmon_stats.sysmon_event_stats_adsp->QDSP6_clk);
-		seq_printf(s, "Ab vote: %llu\n",
+		seq_printf(s, "Ab vote(Bytes): %llu\n",
 				(((u64)g_sysmon_stats.sysmon_event_stats_adsp->Ab_vote_msb << 32) |
 					   g_sysmon_stats.sysmon_event_stats_adsp->Ab_vote_lsb));
-		seq_printf(s, "Ib vote: %llu\n",
+		seq_printf(s, "Ib vote(Bytes): %llu\n",
 				(((u64)g_sysmon_stats.sysmon_event_stats_adsp->Ib_vote_msb << 32) |
 					   g_sysmon_stats.sysmon_event_stats_adsp->Ib_vote_lsb));
-		seq_printf(s, "Sleep latency: %u\n",
+		seq_printf(s, "Sleep latency(usec): %u\n",
 				g_sysmon_stats.sysmon_event_stats_adsp->Sleep_latency > 0 ?
 				g_sysmon_stats.sysmon_event_stats_adsp->Sleep_latency : U32_MAX);
 	}
@@ -905,7 +1032,9 @@ static int master_adsp_stats_show(struct seq_file *s, void *d)
 	if (g_sysmon_stats.dsppm_stats_adsp) {
 		seq_puts(s, "\nDSPPM stats:\n\n");
 		seq_printf(s, "Version: %u\n", g_sysmon_stats.dsppm_stats_adsp->version);
-		seq_printf(s, "Sleep latency: %u\n", g_sysmon_stats.dsppm_stats_adsp->latency_us);
+		seq_printf(s, "Sleep latency(usec): %u\n",
+					g_sysmon_stats.dsppm_stats_adsp->latency_us ?
+					g_sysmon_stats.dsppm_stats_adsp->latency_us : U32_MAX);
 		seq_printf(s, "Timestamp: %llu\n", g_sysmon_stats.dsppm_stats_adsp->timestamp);
 
 		for (; i < DSPPMSTATS_NUMPD; i++) {
@@ -916,11 +1045,11 @@ static int master_adsp_stats_show(struct seq_file *s, void *d)
 	}
 
 	if (g_sysmon_stats.sleep_stats_adsp) {
-		accumulated = g_sysmon_stats.sleep_stats_adsp->accumulated;
+		lpm_accumulated = g_sysmon_stats.sleep_stats_adsp->accumulated;
 
 		if (g_sysmon_stats.sleep_stats_adsp->last_entered_at >
 					g_sysmon_stats.sleep_stats_adsp->last_exited_at)
-			accumulated += arch_timer_read_counter() -
+			lpm_accumulated += arch_timer_read_counter() -
 						g_sysmon_stats.sleep_stats_adsp->last_entered_at;
 
 		seq_puts(s, "\nLPM stats:\n\n");
@@ -929,15 +1058,15 @@ static int master_adsp_stats_show(struct seq_file *s, void *d)
 			g_sysmon_stats.sleep_stats_adsp->last_entered_at);
 		seq_printf(s, "Last Exited At = %llu\n",
 			g_sysmon_stats.sleep_stats_adsp->last_exited_at);
-		seq_printf(s, "Accumulated Duration = %llu\n", accumulated);
+		seq_printf(s, "Accumulated Duration = %llu\n", lpm_accumulated);
 	}
 
 	if (g_sysmon_stats.sleep_lpi_adsp) {
-		accumulated = g_sysmon_stats.sleep_lpi_adsp->accumulated;
+		lpi_accumulated = g_sysmon_stats.sleep_lpi_adsp->accumulated;
 
 		if (g_sysmon_stats.sleep_lpi_adsp->last_entered_at >
 					g_sysmon_stats.sleep_lpi_adsp->last_exited_at)
-			accumulated += arch_timer_read_counter() -
+			lpi_accumulated += arch_timer_read_counter() -
 					g_sysmon_stats.sleep_lpi_adsp->last_entered_at;
 
 		seq_puts(s, "\nLPI stats:\n\n");
@@ -947,21 +1076,42 @@ static int master_adsp_stats_show(struct seq_file *s, void *d)
 		seq_printf(s, "Last Exited At = %llu\n",
 			g_sysmon_stats.sleep_lpi_adsp->last_exited_at);
 		seq_printf(s, "Accumulated Duration = %llu\n",
-			accumulated);
+			lpi_accumulated);
 	}
 
 	if (g_sysmon_stats.sysmon_power_stats_adsp) {
+		memcpy(&sysmon_power_stats, g_sysmon_stats.sysmon_power_stats_adsp,
+				sizeof(struct sysmon_smem_power_stats_extended));
+		ptr = g_sysmon_stats.sysmon_power_stats_adsp;
+		ver = (ptr->powerstats.version) & 0xFF;
+
+		add_delta_time(ver, lpi_accumulated,
+				lpm_accumulated, &sysmon_power_stats);
 		seq_puts(s, "\nPower Stats:\n\n");
 		for (j = 0; j < SYSMON_POWER_STATS_MAX_CLK_LEVELS; j++) {
-			if (g_sysmon_stats.sysmon_power_stats_adsp->clk_arr[j])
-				seq_printf(s, "%u: Core Clock = %u, Active Time = %u\n",
-				j, g_sysmon_stats.sysmon_power_stats_adsp->clk_arr[j],
-				g_sysmon_stats.sysmon_power_stats_adsp->active_time[j]);
+			if (sysmon_power_stats.powerstats.clk_arr[j]) {
+				if (ver >= 2) {
+					seq_printf(s, "%u : Core Clock(KHz) : %u \tActive Time(sec) : %u \tLPI time(sec) : %u\n",
+						j,
+						sysmon_power_stats.powerstats.clk_arr[j],
+						sysmon_power_stats.powerstats.active_time[j],
+						sysmon_power_stats.powerstats.island_time[j]);
+				} else {
+					seq_printf(s, "%u : Core Clock(KHz): %u \tActive Time(sec): %u\n",
+						j,
+						sysmon_power_stats.powerstats.clk_arr[j],
+						sysmon_power_stats.powerstats.active_time[j]);
+				}
+			}
 		}
+
 		seq_printf(s, "Power collapse time(sec) = %u\n",
-		g_sysmon_stats.sysmon_power_stats_adsp->pc_time);
-		seq_printf(s, "LPI time(sec) = %u\n",
-		g_sysmon_stats.sysmon_power_stats_adsp->lpi_time);
+			sysmon_power_stats.powerstats.pc_time);
+		seq_printf(s, "Total LPI time(sec) = %u\n",
+			sysmon_power_stats.powerstats.lpi_time);
+		if (ver >= 2)
+			seq_printf(s, "Current core clock(KHz) = %u\n",
+				sysmon_power_stats.powerstats.current_clk);
 	}
 
 	if (g_sysmon_stats.q6_avg_load_adsp) {
@@ -977,33 +1127,39 @@ DEFINE_SHOW_ATTRIBUTE(master_adsp_stats);
 static int master_cdsp_stats_show(struct seq_file *s, void *d)
 {
 	int i = 0, j = 0, ret = 0;
-	u64 accumulated;
 	u32 hmx_util, hvx_util;
 	u32 q6_load;
+	u64 lpm_accumulated = 0;
+	u8 ver = 0;
+	struct sysmon_smem_power_stats_extended *ptr = NULL, sysmon_power_stats = { 0 };
 
 	if (!g_sysmon_stats.smem_init_cdsp)
 		sysmon_smem_init_cdsp();
 
 	if (g_sysmon_stats.sysmon_event_stats_cdsp) {
 		seq_puts(s, "\nsysMon stats:\n\n");
-		seq_printf(s, "Core clock: %d\n",
+		seq_printf(s, "Core clock(KHz): %d\n",
 				g_sysmon_stats.sysmon_event_stats_cdsp->QDSP6_clk);
-		seq_printf(s, "Ab vote: %llu\n",
+		seq_printf(s, "Ab vote(Bytes): %llu\n",
 				(((u64)g_sysmon_stats.sysmon_event_stats_cdsp->Ab_vote_msb << 32) |
 					   g_sysmon_stats.sysmon_event_stats_cdsp->Ab_vote_lsb));
-		seq_printf(s, "Ib vote: %llu\n",
+		seq_printf(s, "Ib vote(Bytes): %llu\n",
 				(((u64)g_sysmon_stats.sysmon_event_stats_cdsp->Ib_vote_msb << 32) |
 					   g_sysmon_stats.sysmon_event_stats_cdsp->Ib_vote_lsb));
-		seq_printf(s, "Sleep latency: %u\n",
+		seq_printf(s, "Sleep latency(usec): %u\n",
 				g_sysmon_stats.sysmon_event_stats_cdsp->Sleep_latency > 0 ?
 				g_sysmon_stats.sysmon_event_stats_cdsp->Sleep_latency : U32_MAX);
 	}
 
 	if (g_sysmon_stats.dsppm_stats_cdsp) {
 		seq_puts(s, "\nDSPPM stats:\n\n");
-		seq_printf(s, "Version: %u\n", g_sysmon_stats.dsppm_stats_cdsp->version);
-		seq_printf(s, "Sleep latency: %u\n", g_sysmon_stats.dsppm_stats_cdsp->latency_us);
-		seq_printf(s, "Timestamp: %llu\n", g_sysmon_stats.dsppm_stats_cdsp->timestamp);
+		seq_printf(s, "Version: %u\n",
+			g_sysmon_stats.dsppm_stats_cdsp->version);
+		seq_printf(s, "Sleep latency(usec): %u\n",
+			g_sysmon_stats.dsppm_stats_cdsp->latency_us ?
+			g_sysmon_stats.dsppm_stats_cdsp->latency_us : U32_MAX);
+		seq_printf(s, "Timestamp: %llu\n",
+			g_sysmon_stats.dsppm_stats_cdsp->timestamp);
 
 		for (; i < DSPPMSTATS_NUMPD; i++) {
 			seq_printf(s, "Pid: %d, Num active clients: %d\n",
@@ -1013,34 +1169,45 @@ static int master_cdsp_stats_show(struct seq_file *s, void *d)
 	}
 
 	if (g_sysmon_stats.sleep_stats_cdsp) {
-		accumulated = g_sysmon_stats.sleep_stats_cdsp->accumulated;
+		lpm_accumulated = g_sysmon_stats.sleep_stats_cdsp->accumulated;
 
 		if (g_sysmon_stats.sleep_stats_cdsp->last_entered_at >
 					g_sysmon_stats.sleep_stats_cdsp->last_exited_at)
-			accumulated += arch_timer_read_counter() -
+			lpm_accumulated += arch_timer_read_counter() -
 						g_sysmon_stats.sleep_stats_cdsp->last_entered_at;
 
 		seq_puts(s, "\nLPM stats:\n\n");
-		seq_printf(s, "Count = %u\n", g_sysmon_stats.sleep_stats_cdsp->count);
+		seq_printf(s, "Count = %u\n",
+			g_sysmon_stats.sleep_stats_cdsp->count);
 		seq_printf(s, "Last Entered At = %llu\n",
 			g_sysmon_stats.sleep_stats_cdsp->last_entered_at);
 		seq_printf(s, "Last Exited At = %llu\n",
 			g_sysmon_stats.sleep_stats_cdsp->last_exited_at);
-		seq_printf(s, "Accumulated Duration = %llu\n", accumulated);
+		seq_printf(s, "Accumulated Duration = %llu\n", lpm_accumulated);
 	}
 
 	if (g_sysmon_stats.sysmon_power_stats_cdsp) {
+		memcpy(&sysmon_power_stats, g_sysmon_stats.sysmon_power_stats_cdsp,
+				sizeof(struct sysmon_smem_power_stats_extended));
+		ptr = g_sysmon_stats.sysmon_power_stats_cdsp;
+		ver = (ptr->powerstats.version) & 0xFF;
+		add_delta_time(ver, 0, lpm_accumulated, &sysmon_power_stats);
 		seq_puts(s, "\nPower Stats:\n\n");
 		for (j = 0; j < SYSMON_POWER_STATS_MAX_CLK_LEVELS; j++) {
-			if (g_sysmon_stats.sysmon_power_stats_cdsp->clk_arr[j])
-				seq_printf(s, "%u: Core Clock = %u, Active Time = %u\n",
-				j, g_sysmon_stats.sysmon_power_stats_cdsp->clk_arr[j],
-				 g_sysmon_stats.sysmon_power_stats_cdsp->active_time[j]);
+			if (sysmon_power_stats.powerstats.clk_arr[j])
+				seq_printf(s, "%u : Core Clock(KHz) : %u \tActive Time(sec) : %u\n",
+					j,
+					sysmon_power_stats.powerstats.clk_arr[j],
+					sysmon_power_stats.powerstats.active_time[j]);
 		}
 		seq_printf(s, "Power collapse time(sec) = %u\n",
-		g_sysmon_stats.sysmon_power_stats_cdsp->pc_time);
-		seq_printf(s, "LPI time(sec) = %u\n",
-		g_sysmon_stats.sysmon_power_stats_cdsp->lpi_time);
+			sysmon_power_stats.powerstats.pc_time);
+		seq_printf(s, "Total LPI time(sec) = %u\n",
+			sysmon_power_stats.powerstats.lpi_time);
+
+		if (ver >= 2)
+			seq_printf(s, "Current core clock(KHz) = %u\n",
+				sysmon_power_stats.powerstats.current_clk);
 	}
 
 	if (g_sysmon_stats.q6_avg_load_cdsp) {
@@ -1064,7 +1231,6 @@ static int master_cdsp_stats_show(struct seq_file *s, void *d)
 
 DEFINE_SHOW_ATTRIBUTE(master_cdsp_stats);
 
-
 static int  __init sysmon_stats_init(void)
 {
 
@@ -1079,14 +1245,14 @@ static int  __init sysmon_stats_init(void)
 			 0444, g_sysmon_stats.debugfs_dir, NULL, &master_adsp_stats_fops);
 
 	if (!g_sysmon_stats.debugfs_master_adsp_stats)
-		pr_err("Failed to create debugfs file for master stats\n");
+		pr_err("Failed to create debugfs file for ADSP master stats\n");
 
 	g_sysmon_stats.debugfs_master_cdsp_stats =
 			debugfs_create_file("master_cdsp_stats",
 			 0444, g_sysmon_stats.debugfs_dir, NULL, &master_cdsp_stats_fops);
 
 	if (!g_sysmon_stats.debugfs_master_cdsp_stats)
-		pr_err("Failed to create debugfs file for master stats\n");
+		pr_err("Failed to create debugfs file for CDSP master stats\n");
 
 debugfs_bail:
 		return 0;
