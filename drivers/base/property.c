@@ -40,7 +40,7 @@ EXPORT_SYMBOL_GPL(__dev_fwnode_const);
  *
  * Return: true if property @propname is present. Otherwise, returns false.
  */
-bool device_property_present(struct device *dev, const char *propname)
+bool device_property_present(const struct device *dev, const char *propname)
 {
 	return fwnode_property_present(dev_fwnode(dev), propname);
 }
@@ -90,7 +90,7 @@ EXPORT_SYMBOL_GPL(fwnode_property_present);
  *	   %-EOVERFLOW if the size of the property is not as expected.
  *	   %-ENXIO if no suitable firmware interface is present.
  */
-int device_property_read_u8_array(struct device *dev, const char *propname,
+int device_property_read_u8_array(const struct device *dev, const char *propname,
 				  u8 *val, size_t nval)
 {
 	return fwnode_property_read_u8_array(dev_fwnode(dev), propname, val, nval);
@@ -118,7 +118,7 @@ EXPORT_SYMBOL_GPL(device_property_read_u8_array);
  *	   %-EOVERFLOW if the size of the property is not as expected.
  *	   %-ENXIO if no suitable firmware interface is present.
  */
-int device_property_read_u16_array(struct device *dev, const char *propname,
+int device_property_read_u16_array(const struct device *dev, const char *propname,
 				   u16 *val, size_t nval)
 {
 	return fwnode_property_read_u16_array(dev_fwnode(dev), propname, val, nval);
@@ -146,7 +146,7 @@ EXPORT_SYMBOL_GPL(device_property_read_u16_array);
  *	   %-EOVERFLOW if the size of the property is not as expected.
  *	   %-ENXIO if no suitable firmware interface is present.
  */
-int device_property_read_u32_array(struct device *dev, const char *propname,
+int device_property_read_u32_array(const struct device *dev, const char *propname,
 				   u32 *val, size_t nval)
 {
 	return fwnode_property_read_u32_array(dev_fwnode(dev), propname, val, nval);
@@ -174,7 +174,7 @@ EXPORT_SYMBOL_GPL(device_property_read_u32_array);
  *	   %-EOVERFLOW if the size of the property is not as expected.
  *	   %-ENXIO if no suitable firmware interface is present.
  */
-int device_property_read_u64_array(struct device *dev, const char *propname,
+int device_property_read_u64_array(const struct device *dev, const char *propname,
 				   u64 *val, size_t nval)
 {
 	return fwnode_property_read_u64_array(dev_fwnode(dev), propname, val, nval);
@@ -202,7 +202,7 @@ EXPORT_SYMBOL_GPL(device_property_read_u64_array);
  *	   %-EOVERFLOW if the size of the property is not as expected.
  *	   %-ENXIO if no suitable firmware interface is present.
  */
-int device_property_read_string_array(struct device *dev, const char *propname,
+int device_property_read_string_array(const struct device *dev, const char *propname,
 				      const char **val, size_t nval)
 {
 	return fwnode_property_read_string_array(dev_fwnode(dev), propname, val, nval);
@@ -224,7 +224,7 @@ EXPORT_SYMBOL_GPL(device_property_read_string_array);
  *	   %-EPROTO or %-EILSEQ if the property type is not a string.
  *	   %-ENXIO if no suitable firmware interface is present.
  */
-int device_property_read_string(struct device *dev, const char *propname,
+int device_property_read_string(const struct device *dev, const char *propname,
 				const char **val)
 {
 	return fwnode_property_read_string(dev_fwnode(dev), propname, val);
@@ -246,7 +246,7 @@ EXPORT_SYMBOL_GPL(device_property_read_string);
  *	   %-EPROTO if the property is not an array of strings,
  *	   %-ENXIO if no suitable firmware interface is present.
  */
-int device_property_match_string(struct device *dev, const char *propname,
+int device_property_match_string(const struct device *dev, const char *propname,
 				 const char *string)
 {
 	return fwnode_property_match_string(dev_fwnode(dev), propname, string);

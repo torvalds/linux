@@ -39,20 +39,20 @@ struct fwnode_handle *__dev_fwnode(struct device *dev);
 		 const struct device *: __dev_fwnode_const,	\
 		 struct device *: __dev_fwnode)(dev)
 
-bool device_property_present(struct device *dev, const char *propname);
-int device_property_read_u8_array(struct device *dev, const char *propname,
+bool device_property_present(const struct device *dev, const char *propname);
+int device_property_read_u8_array(const struct device *dev, const char *propname,
 				  u8 *val, size_t nval);
-int device_property_read_u16_array(struct device *dev, const char *propname,
+int device_property_read_u16_array(const struct device *dev, const char *propname,
 				   u16 *val, size_t nval);
-int device_property_read_u32_array(struct device *dev, const char *propname,
+int device_property_read_u32_array(const struct device *dev, const char *propname,
 				   u32 *val, size_t nval);
-int device_property_read_u64_array(struct device *dev, const char *propname,
+int device_property_read_u64_array(const struct device *dev, const char *propname,
 				   u64 *val, size_t nval);
-int device_property_read_string_array(struct device *dev, const char *propname,
+int device_property_read_string_array(const struct device *dev, const char *propname,
 				      const char **val, size_t nval);
-int device_property_read_string(struct device *dev, const char *propname,
+int device_property_read_string(const struct device *dev, const char *propname,
 				const char **val);
-int device_property_match_string(struct device *dev,
+int device_property_match_string(const struct device *dev,
 				 const char *propname, const char *string);
 
 bool fwnode_property_present(const struct fwnode_handle *fwnode,
@@ -142,57 +142,57 @@ int fwnode_irq_get_byname(const struct fwnode_handle *fwnode, const char *name);
 
 unsigned int device_get_child_node_count(const struct device *dev);
 
-static inline bool device_property_read_bool(struct device *dev,
+static inline bool device_property_read_bool(const struct device *dev,
 					     const char *propname)
 {
 	return device_property_present(dev, propname);
 }
 
-static inline int device_property_read_u8(struct device *dev,
+static inline int device_property_read_u8(const struct device *dev,
 					  const char *propname, u8 *val)
 {
 	return device_property_read_u8_array(dev, propname, val, 1);
 }
 
-static inline int device_property_read_u16(struct device *dev,
+static inline int device_property_read_u16(const struct device *dev,
 					   const char *propname, u16 *val)
 {
 	return device_property_read_u16_array(dev, propname, val, 1);
 }
 
-static inline int device_property_read_u32(struct device *dev,
+static inline int device_property_read_u32(const struct device *dev,
 					   const char *propname, u32 *val)
 {
 	return device_property_read_u32_array(dev, propname, val, 1);
 }
 
-static inline int device_property_read_u64(struct device *dev,
+static inline int device_property_read_u64(const struct device *dev,
 					   const char *propname, u64 *val)
 {
 	return device_property_read_u64_array(dev, propname, val, 1);
 }
 
-static inline int device_property_count_u8(struct device *dev, const char *propname)
+static inline int device_property_count_u8(const struct device *dev, const char *propname)
 {
 	return device_property_read_u8_array(dev, propname, NULL, 0);
 }
 
-static inline int device_property_count_u16(struct device *dev, const char *propname)
+static inline int device_property_count_u16(const struct device *dev, const char *propname)
 {
 	return device_property_read_u16_array(dev, propname, NULL, 0);
 }
 
-static inline int device_property_count_u32(struct device *dev, const char *propname)
+static inline int device_property_count_u32(const struct device *dev, const char *propname)
 {
 	return device_property_read_u32_array(dev, propname, NULL, 0);
 }
 
-static inline int device_property_count_u64(struct device *dev, const char *propname)
+static inline int device_property_count_u64(const struct device *dev, const char *propname)
 {
 	return device_property_read_u64_array(dev, propname, NULL, 0);
 }
 
-static inline int device_property_string_array_count(struct device *dev,
+static inline int device_property_string_array_count(const struct device *dev,
 						     const char *propname)
 {
 	return device_property_read_string_array(dev, propname, NULL, 0);
