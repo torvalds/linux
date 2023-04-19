@@ -385,7 +385,7 @@ struct sctp_sackhdr {
 	__be32 a_rwnd;
 	__be16 num_gap_ack_blocks;
 	__be16 num_dup_tsns;
-	union sctp_sack_variable variable[];
+	/* union sctp_sack_variable variable[]; */
 };
 
 struct sctp_sack_chunk {
@@ -443,7 +443,7 @@ struct sctp_shutdown_chunk {
 struct sctp_errhdr {
 	__be16 cause;
 	__be16 length;
-	__u8  variable[];
+	/* __u8  variable[]; */
 };
 
 struct sctp_operr_chunk {
