@@ -5,7 +5,7 @@
 
 int pdsc_setup(struct pdsc *pdsc, bool init)
 {
-	int err = 0;
+	int err;
 
 	if (init)
 		err = pdsc_dev_init(pdsc);
@@ -42,6 +42,8 @@ static void pdsc_fw_down(struct pdsc *pdsc)
 		return;
 	}
 
+	devlink_health_report(pdsc->fw_reporter, "FW down reported", pdsc);
+
 	pdsc_teardown(pdsc, PDSC_TEARDOWN_RECOVERY);
 }
 
@@ -57,6 +59,10 @@ static void pdsc_fw_up(struct pdsc *pdsc)
 	err = pdsc_setup(pdsc, PDSC_SETUP_RECOVERY);
 	if (err)
 		goto err_out;
+
+	pdsc->fw_recoveries++;
+	devlink_health_reporter_state_update(pdsc->fw_reporter,
+					     DEVLINK_HEALTH_REPORTER_STATE_HEALTHY);
 
 	return;
 

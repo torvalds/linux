@@ -68,6 +68,8 @@ struct pdsc {
 	struct timer_list wdtimer;
 	unsigned int wdtimer_period;
 	struct work_struct health_work;
+	struct devlink_health_reporter *fw_reporter;
+	u32 fw_recoveries;
 
 	struct pdsc_devinfo dev_info;
 	struct pds_core_dev_identity dev_ident;
@@ -87,6 +89,10 @@ struct pdsc {
 	dma_addr_t phy_db_pages;
 	u64 __iomem *kern_dbpage;
 };
+
+int pdsc_fw_reporter_diagnose(struct devlink_health_reporter *reporter,
+			      struct devlink_fmsg *fmsg,
+			      struct netlink_ext_ack *extack);
 
 void pdsc_debugfs_create(void);
 void pdsc_debugfs_destroy(void);

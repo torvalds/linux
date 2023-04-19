@@ -26,6 +26,18 @@ messages such as these::
   pds_core 0000:b6:00.0: 252.048 Gb/s available PCIe bandwidth (16.0 GT/s PCIe x16 link)
   pds_core 0000:b6:00.0: FW: 1.60.0-73
 
+Health Reporters
+================
+
+The driver supports a devlink health reporter for FW status::
+
+  # devlink health show pci/0000:2b:00.0 reporter fw
+  pci/0000:2b:00.0:
+    reporter fw
+      state healthy error 0 recover 0
+  # devlink health diagnose pci/0000:2b:00.0 reporter fw
+   Status: healthy State: 1 Generation: 0 Recoveries: 0
+
 Support
 =======
 
