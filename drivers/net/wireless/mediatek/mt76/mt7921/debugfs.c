@@ -2,7 +2,6 @@
 /* Copyright (C) 2020 MediaTek Inc. */
 
 #include "mt7921.h"
-#include "eeprom.h"
 
 static int
 mt7921_reg_set(void *data, u64 val)
