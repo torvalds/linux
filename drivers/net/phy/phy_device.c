@@ -3284,7 +3284,8 @@ static int phy_probe(struct device *dev)
 	/* Get the LEDs from the device tree, and instantiate standard
 	 * LEDs for them.
 	 */
-	err = of_phy_leds(phydev);
+	if (IS_ENABLED(CONFIG_PHYLIB_LEDS))
+		err = of_phy_leds(phydev);
 
 out:
 	/* Re-assert the reset signal on error */
