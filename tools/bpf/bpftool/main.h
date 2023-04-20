@@ -264,4 +264,7 @@ static inline bool hashmap__empty(struct hashmap *map)
 	return map ? hashmap__size(map) == 0 : true;
 }
 
+int pathname_concat(char *buf, int buf_sz, const char *path,
+		    const char *name);
+
 #endif
