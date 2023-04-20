@@ -53,7 +53,8 @@ static void ffa_device_remove(struct device *dev)
 {
 	struct ffa_driver *ffa_drv = to_ffa_driver(dev->driver);
 
-	ffa_drv->remove(to_ffa_dev(dev));
+	if (ffa_drv->remove)
+		ffa_drv->remove(to_ffa_dev(dev));
 }
 
 static int ffa_device_uevent(const struct device *dev, struct kobj_uevent_env *env)
