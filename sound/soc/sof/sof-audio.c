@@ -805,16 +805,22 @@ int sof_pcm_stream_free(struct snd_sof_dev *sdev, struct snd_pcm_substream *subs
 	const struct sof_ipc_pcm_ops *pcm_ops = sof_ipc_get_ops(sdev, pcm);
 	int ret;
 
-	/* Send PCM_FREE IPC to reset pipeline */
-	if (pcm_ops && pcm_ops->hw_free && spcm->prepared[substream->stream]) {
-		ret = pcm_ops->hw_free(sdev->component, substream);
-		if (ret < 0)
-			return ret;
+	if (spcm->prepared[substream->stream]) {
+		/* stop DMA first if needed */
+		if (pcm_ops && pcm_ops->platform_stop_during_hw_free)
+			snd_sof_pcm_platform_trigger(sdev, substream, SNDRV_PCM_TRIGGER_STOP);
+
+		/* Send PCM_FREE IPC to reset pipeline */
+		if (pcm_ops && pcm_ops->hw_free) {
+			ret = pcm_ops->hw_free(sdev->component, substream);
+			if (ret < 0)
+				return ret;
+		}
+
+		spcm->prepared[substream->stream] = false;
 	}
 
-	spcm->prepared[substream->stream] = false;
-
-	/* stop the DMA */
+	/* reset the DMA */
 	ret = snd_sof_pcm_platform_hw_free(sdev, substream);
 	if (ret < 0)
 		return ret;
