@@ -28,6 +28,11 @@ struct bpf_testmod_struct_arg_2 {
 	long b;
 };
 
+struct bpf_testmod_struct_arg_3 {
+	int a;
+	int b[];
+};
+
 __diag_push();
 __diag_ignore_all("-Wmissing-prototypes",
 		  "Global functions as their definitions will be in bpf_testmod.ko BTF");
@@ -60,6 +65,12 @@ bpf_testmod_test_struct_arg_4(struct bpf_testmod_struct_arg_1 a, int b,
 noinline int
 bpf_testmod_test_struct_arg_5(void) {
 	bpf_testmod_test_struct_arg_result = 1;
+	return bpf_testmod_test_struct_arg_result;
+}
+
+noinline int
+bpf_testmod_test_struct_arg_6(struct bpf_testmod_struct_arg_3 *a) {
+	bpf_testmod_test_struct_arg_result = a->b[0];
 	return bpf_testmod_test_struct_arg_result;
 }
 
@@ -195,6 +206,7 @@ bpf_testmod_test_read(struct file *file, struct kobject *kobj,
 	};
 	struct bpf_testmod_struct_arg_1 struct_arg1 = {10};
 	struct bpf_testmod_struct_arg_2 struct_arg2 = {2, 3};
+	struct bpf_testmod_struct_arg_3 *struct_arg3;
 	int i = 1;
 
 	while (bpf_testmod_return_ptr(i))
@@ -205,6 +217,14 @@ bpf_testmod_test_read(struct file *file, struct kobject *kobj,
 	(void)bpf_testmod_test_struct_arg_3(1, 4, struct_arg2);
 	(void)bpf_testmod_test_struct_arg_4(struct_arg1, 1, 2, 3, struct_arg2);
 	(void)bpf_testmod_test_struct_arg_5();
+
+	struct_arg3 = kmalloc((sizeof(struct bpf_testmod_struct_arg_3) +
+				sizeof(int)), GFP_KERNEL);
+	if (struct_arg3 != NULL) {
+		struct_arg3->b[0] = 1;
+		(void)bpf_testmod_test_struct_arg_6(struct_arg3);
+		kfree(struct_arg3);
+	}
 
 	/* This is always true. Use the check to make sure the compiler
 	 * doesn't remove bpf_testmod_loop_test.
