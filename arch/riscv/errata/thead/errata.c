@@ -118,9 +118,9 @@ void __init_or_module thead_errata_patch_func(struct alt_entry *begin, struct al
 		local_flush_icache_all();
 }
 
-void __init_or_module thead_feature_probe_func(unsigned int cpu,
-					       unsigned long archid,
-					       unsigned long impid)
+void thead_feature_probe_func(unsigned int cpu,
+			      unsigned long archid,
+			      unsigned long impid)
 {
 	if ((archid == 0) && (impid == 0))
 		per_cpu(misaligned_access_speed, cpu) = RISCV_HWPROBE_MISALIGNED_FAST;

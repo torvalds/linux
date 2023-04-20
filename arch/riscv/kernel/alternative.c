@@ -31,7 +31,7 @@ struct cpu_manufacturer_info_t {
 				   unsigned long impid);
 };
 
-static void __init_or_module riscv_fill_cpu_mfr_info(struct cpu_manufacturer_info_t *cpu_mfr_info)
+static void riscv_fill_cpu_mfr_info(struct cpu_manufacturer_info_t *cpu_mfr_info)
 {
 #ifdef CONFIG_RISCV_M_MODE
 	cpu_mfr_info->vendor_id = csr_read(CSR_MVENDORID);
@@ -144,7 +144,7 @@ void riscv_alternative_fix_offsets(void *alt_ptr, unsigned int len,
 }
 
 /* Called on each CPU as it starts */
-void __init_or_module probe_vendor_features(unsigned int cpu)
+void probe_vendor_features(unsigned int cpu)
 {
 	struct cpu_manufacturer_info_t cpu_mfr_info;
 
