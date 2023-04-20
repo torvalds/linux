@@ -196,7 +196,8 @@ static void ath12k_dp_rxdesc_set_msdu_len(struct ath12k_base *ab,
 static bool ath12k_dp_rx_h_is_mcbc(struct ath12k_base *ab,
 				   struct hal_rx_desc *desc)
 {
-	return ab->hw_params->hal_ops->rx_desc_is_mcbc(desc);
+	return (ath12k_dp_rx_h_first_msdu(ab, desc) &&
+		ab->hw_params->hal_ops->rx_desc_is_mcbc(desc));
 }
 
 static bool ath12k_dp_rxdesc_mac_addr2_valid(struct ath12k_base *ab,
@@ -3047,10 +3048,14 @@ static int ath12k_dp_rx_h_defrag_reo_reinject(struct ath12k *ar,
 	reo_ent_ring->rx_mpdu_info.peer_meta_data =
 		reo_dest_ring->rx_mpdu_info.peer_meta_data;
 
-	reo_ent_ring->queue_addr_lo = cpu_to_le32(lower_32_bits(rx_tid->paddr));
-	reo_ent_ring->info0 = le32_encode_bits(upper_32_bits(rx_tid->paddr),
-					       HAL_REO_ENTR_RING_INFO0_QUEUE_ADDR_HI) |
-		le32_encode_bits(dst_ind, HAL_REO_ENTR_RING_INFO0_DEST_IND);
+	/* Firmware expects physical address to be filled in queue_addr_lo in
+	 * the MLO scenario and in case of non MLO peer meta data needs to be
+	 * filled.
+	 * TODO: Need to handle for MLO scenario.
+	 */
+	reo_ent_ring->queue_addr_lo = reo_dest_ring->rx_mpdu_info.peer_meta_data;
+	reo_ent_ring->info0 = le32_encode_bits(dst_ind,
+					       HAL_REO_ENTR_RING_INFO0_DEST_IND);
 
 	reo_ent_ring->info1 = le32_encode_bits(rx_tid->cur_sn,
 					       HAL_REO_ENTR_RING_INFO1_MPDU_SEQ_NUM);

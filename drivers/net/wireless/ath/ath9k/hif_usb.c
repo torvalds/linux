@@ -42,8 +42,6 @@ static const struct usb_device_id ath9k_hif_usb_ids[] = {
 
 	{ USB_DEVICE(0x0cf3, 0x7015),
 	  .driver_info = AR9287_USB },  /* Atheros */
-	{ USB_DEVICE(0x1668, 0x1200),
-	  .driver_info = AR9287_USB },  /* Verizon */
 
 	{ USB_DEVICE(0x0cf3, 0x7010),
 	  .driver_info = AR9280_USB },  /* Atheros */
