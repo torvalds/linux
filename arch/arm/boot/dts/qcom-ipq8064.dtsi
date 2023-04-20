@@ -520,7 +520,7 @@
 			#reset-cells = <1>;
 			#power-domain-cells = <1>;
 
-			tsens: thermal-sensor@900000 {
+			tsens: thermal-sensor {
 				compatible = "qcom,ipq8064-tsens";
 
 				nvmem-cells = <&tsens_calib>, <&tsens_calib_backup>;
