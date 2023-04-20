@@ -937,7 +937,7 @@ out:
 }
 
 /*
- * NOTE: the caller is resposible for freeing the memory even if on error.
+ * NOTE: the caller is responsible for freeing the memory even if on error.
  */
 static int selinux_add_opt(int token, const char *s, void **mnt_opts)
 {

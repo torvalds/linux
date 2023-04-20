@@ -583,7 +583,7 @@ static void type_attribute_bounds_av(struct policydb *policydb,
 
 /*
  * flag which drivers have permissions
- * only looking for ioctl based extended permssions
+ * only looking for ioctl based extended permissions
  */
 void services_compute_xperms_drivers(
 		struct extended_perms *xperms,
