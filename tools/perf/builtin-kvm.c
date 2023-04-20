@@ -625,7 +625,7 @@ void exit_event_get_key(struct evsel *evsel,
 
 bool kvm_exit_event(struct evsel *evsel)
 {
-	return !strcmp(evsel->name, kvm_exit_trace);
+	return evsel__name_is(evsel, kvm_exit_trace);
 }
 
 bool exit_event_begin(struct evsel *evsel,
@@ -641,7 +641,7 @@ bool exit_event_begin(struct evsel *evsel,
 
 bool kvm_entry_event(struct evsel *evsel)
 {
-	return !strcmp(evsel->name, kvm_entry_trace);
+	return evsel__name_is(evsel, kvm_entry_trace);
 }
 
 bool exit_event_end(struct evsel *evsel,
@@ -878,7 +878,7 @@ static bool is_child_event(struct perf_kvm_stat *kvm,
 		return false;
 
 	for (; child_ops->name; child_ops++) {
-		if (!strcmp(evsel->name, child_ops->name)) {
+		if (evsel__name_is(evsel, child_ops->name)) {
 			child_ops->get_key(evsel, sample, key);
 			return true;
 		}

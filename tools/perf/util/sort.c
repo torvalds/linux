@@ -2893,7 +2893,7 @@ static struct evsel *find_evsel(struct evlist *evlist, char *event_name)
 	full_name = !!strchr(event_name, ':');
 	evlist__for_each_entry(evlist, pos) {
 		/* case 2 */
-		if (full_name && !strcmp(pos->name, event_name))
+		if (full_name && evsel__name_is(pos, event_name))
 			return pos;
 		/* case 3 */
 		if (!full_name && strstr(pos->name, event_name)) {

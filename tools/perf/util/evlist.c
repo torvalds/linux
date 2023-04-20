@@ -467,7 +467,7 @@ static int evsel__strcmp(struct evsel *pos, char *evsel_name)
 		return 0;
 	if (evsel__is_dummy_event(pos))
 		return 1;
-	return strcmp(pos->name, evsel_name);
+	return !evsel__name_is(pos, evsel_name);
 }
 
 static int evlist__is_enabled(struct evlist *evlist)
@@ -1706,7 +1706,7 @@ struct evsel *evlist__find_evsel_by_str(struct evlist *evlist, const char *str)
 	evlist__for_each_entry(evlist, evsel) {
 		if (!evsel->name)
 			continue;
-		if (strcmp(str, evsel->name) == 0)
+		if (evsel__name_is(evsel, str))
 			return evsel;
 	}
 

@@ -2170,7 +2170,7 @@ static void setup_system_wide(int forks)
 
 		evlist__for_each_entry(evsel_list, counter) {
 			if (!counter->core.requires_cpu &&
-			    strcmp(counter->name, "duration_time")) {
+			    !evsel__name_is(counter, "duration_time")) {
 				return;
 			}
 		}

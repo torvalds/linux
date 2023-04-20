@@ -61,7 +61,7 @@ static int test_expand_events(struct evlist *evlist,
 
 	i = 0;
 	evlist__for_each_entry(evlist, evsel) {
-		if (strcmp(evsel->name, ev_name[i % nr_events])) {
+		if (!evsel__name_is(evsel, ev_name[i % nr_events])) {
 			pr_debug("event name doesn't match:\n");
 			pr_debug("  evsel[%d]: %s\n  expected: %s\n",
 				 i, evsel->name, ev_name[i % nr_events]);

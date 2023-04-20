@@ -821,6 +821,11 @@ out_unknown:
 	return "unknown";
 }
 
+bool evsel__name_is(struct evsel *evsel, const char *name)
+{
+	return !strcmp(evsel__name(evsel), name);
+}
+
 const char *evsel__group_pmu_name(const struct evsel *evsel)
 {
 	const struct evsel *leader;
@@ -1146,7 +1151,7 @@ static void evsel__set_default_freq_period(struct record_opts *opts,
 
 static bool evsel__is_offcpu_event(struct evsel *evsel)
 {
-	return evsel__is_bpf_output(evsel) && !strcmp(evsel->name, OFFCPU_EVENT);
+	return evsel__is_bpf_output(evsel) && evsel__name_is(evsel, OFFCPU_EVENT);
 }
 
 /*

@@ -60,13 +60,13 @@ static bool hcall_event_end(struct evsel *evsel,
 			    struct perf_sample *sample __maybe_unused,
 			    struct event_key *key __maybe_unused)
 {
-	return (!strcmp(evsel->name, kvm_events_tp[3]));
+	return (evsel__name_is(evsel, kvm_events_tp[3]));
 }
 
 static bool hcall_event_begin(struct evsel *evsel,
 			      struct perf_sample *sample, struct event_key *key)
 {
-	if (!strcmp(evsel->name, kvm_events_tp[2])) {
+	if (evsel__name_is(evsel, kvm_events_tp[2])) {
 		hcall_event_get_key(evsel, sample, key);
 		return true;
 	}
