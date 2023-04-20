@@ -706,7 +706,7 @@
 			clock-names = "core";
 		};
 
-		pronto: remoteproc@fb21b000 {
+		pronto: remoteproc@fb204000 {
 			compatible = "qcom,pronto-v2-pil", "qcom,pronto";
 			reg = <0xfb204000 0x2000>, <0xfb202000 0x1000>, <0xfb21b000 0x3000>;
 			reg-names = "ccu", "dxe", "pmu";
