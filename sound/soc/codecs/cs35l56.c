@@ -859,10 +859,8 @@ static void cs35l56_dsp_work(struct work_struct *work)
 	}
 
 	ret = cs35l56_mbox_send(cs35l56, CS35L56_MBOX_CMD_SHUTDOWN);
-	if (ret) {
-		dev_dbg(cs35l56->dev, "%s: CS35L56_MBOX_CMD_SHUTDOWN ret %d\n", __func__, ret);
+	if (ret)
 		goto err;
-	}
 
 	if (cs35l56->rev < CS35L56_REVID_B0)
 		reg = CS35L56_DSP1_PM_CUR_STATE_A1;
@@ -1033,9 +1031,7 @@ int cs35l56_runtime_suspend(struct device *dev)
 	 * Enable auto-hibernate. If it is woken by some other wake source
 	 * it will automatically return to hibernate.
 	 */
-	ret = cs35l56_mbox_send(cs35l56, CS35L56_MBOX_CMD_ALLOW_AUTO_HIBERNATE);
-	if (ret)
-		dev_warn(cs35l56->dev, "ALLOW_HIBERNATE failed: %d\n", ret);
+	cs35l56_mbox_send(cs35l56, CS35L56_MBOX_CMD_ALLOW_AUTO_HIBERNATE);
 
 	/*
 	 * Must enter cache-only first so there can't be any more register
