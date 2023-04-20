@@ -322,8 +322,9 @@ properties:
 
   ulpi:
     type: object
-    properties:
-      phy:
+    additionalProperties: false
+    patternProperties:
+      "^phy(-[0-9])?$":
         description: The phy child node for Qcom chips.
         type: object
         $ref: /schemas/phy/qcom,usb-hs-phy.yaml
