@@ -51,6 +51,20 @@ static inline const char *q6mvm_session_name(enum q6voice_path_type path)
 	switch (path) {
 	case Q6VOICE_PATH_VOICE:
 		return "default modem voice";
+	case Q6VOICE_PATH_VOIP:
+		return "10004000";
+	case Q6VOICE_PATH_VOLTE:
+		return "10C02000";
+	case Q6VOICE_PATH_VOICE2:
+		return "10DC1000";
+	case Q6VOICE_PATH_QCHAT:
+		return "10803000";
+	case Q6VOICE_PATH_VOWLAN:
+		return "10002000";
+	case Q6VOICE_PATH_VOICEMMODE1:
+		return "11C05000";
+	case Q6VOICE_PATH_VOICEMMODE2:
+		return "11DC5000";
 	default:
 		return NULL;
 	}
