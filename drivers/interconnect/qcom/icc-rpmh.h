@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __DRIVERS_INTERCONNECT_QCOM_ICC_RPMH_H__
@@ -86,6 +87,7 @@ struct qcom_icc_crm_voter {
  * @clk_enabled: flag used to indicate whether local clock have been enabled
  * @bw_scale_numerator: the numerator of the bandwidth scale factor
  * @bw_scale_denominator: the denominator of the bandwidth scale factor
+ * @disabled : flag used to indicate state of icc node
  */
 struct qcom_icc_node {
 	const char *name;
@@ -108,6 +110,7 @@ struct qcom_icc_node {
 	bool clk_enabled;
 	u16 bw_scale_numerator;
 	u16 bw_scale_denominator;
+	bool disabled;
 };
 
 /**
@@ -126,6 +129,7 @@ struct qcom_icc_node {
  * @keepalive_early: keepalive only prior to sync-state
  * @qos_proxy: flag used to indicate whether a proxy vote needed as part of
  * qos configuration
+ * @disabled: flag used to indicate state of bcm node
  * @aux_data: auxiliary data used when calculating threshold values and
  * communicating with RPMh
  * @list: used to link to other bcms when compiling lists for commit
@@ -146,6 +150,7 @@ struct qcom_icc_bcm {
 	bool keepalive;
 	bool keepalive_early;
 	bool qos_proxy;
+	bool disabled;
 	struct bcm_db aux_data;
 	struct list_head list;
 	struct list_head ws_list;
