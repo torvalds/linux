@@ -76,16 +76,16 @@ static int test__thread_maps_share(struct test_suite *test __maybe_unused, int s
 	TEST_ASSERT_VAL("maps don't match", RC_CHK_ACCESS(other_maps) == RC_CHK_ACCESS(other_leader->maps));
 
 	/* release thread group */
-	thread__put(leader);
+	thread__put(t3);
 	TEST_ASSERT_EQUAL("wrong refcnt", refcount_read(maps__refcnt(maps)), 3);
 
-	thread__put(t1);
+	thread__put(t2);
 	TEST_ASSERT_EQUAL("wrong refcnt", refcount_read(maps__refcnt(maps)), 2);
 
-	thread__put(t2);
+	thread__put(t1);
 	TEST_ASSERT_EQUAL("wrong refcnt", refcount_read(maps__refcnt(maps)), 1);
 
-	thread__put(t3);
+	thread__put(leader);
 
 	/* release other group  */
 	thread__put(other_leader);
