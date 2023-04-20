@@ -464,7 +464,7 @@ ap_i2c_tpm: &i2c14 {
 
 &mdss_dp_out {
 	data-lanes = <0 1>;
-	link-frequencies = /bits/ 64 <1620000000 2700000000 5400000000 8100000000>;
+	link-frequencies = /bits/ 64 <1620000000 2700000000 5400000000>;
 };
 
 &mdss_mdp {

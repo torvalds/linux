@@ -27,21 +27,6 @@ fi ; \
 tar -I $(KGZIP) -c $(RCS_TAR_IGNORE) -f $(2).tar.gz \
 	--transform 's:^:$(2)/:S' $(TAR_CONTENT) $(3)
 
-# tarball compression
-# ---------------------------------------------------------------------------
-
-%.tar.gz: %.tar
-	$(call cmd,gzip)
-
-%.tar.bz2: %.tar
-	$(call cmd,bzip2)
-
-%.tar.xz: %.tar
-	$(call cmd,xzmisc)
-
-%.tar.zst: %.tar
-	$(call cmd,zstd)
-
 # Git
 # ---------------------------------------------------------------------------
 
@@ -57,16 +42,24 @@ check-git:
 		false; \
 	fi
 
+git-config-tar.gz  = -c tar.tar.gz.command="$(KGZIP)"
+git-config-tar.bz2 = -c tar.tar.bz2.command="$(KBZIP2)"
+git-config-tar.xz  = -c tar.tar.xz.command="$(XZ)"
+git-config-tar.zst = -c tar.tar.zst.command="$(ZSTD)"
+
+quiet_cmd_archive = ARCHIVE $@
+      cmd_archive = git -C $(srctree) $(git-config-tar$(suffix $@)) archive \
+                    --output=$$(realpath $@) --prefix=$(basename $@)/ $(archive-args)
+
 # Linux source tarball
 # ---------------------------------------------------------------------------
 
-quiet_cmd_archive_linux = ARCHIVE $@
-      cmd_archive_linux = \
-	git -C $(srctree) archive --output=$$(realpath $@) --prefix=$(basename $@)/ $$(cat $<)
+linux-tarballs := $(addprefix linux, .tar.gz)
 
-targets += linux.tar
-linux.tar: .tmp_HEAD FORCE
-	$(call if_changed,archive_linux)
+targets += $(linux-tarballs)
+$(linux-tarballs): archive-args = $$(cat $<)
+$(linux-tarballs): .tmp_HEAD FORCE
+	$(call if_changed,archive)
 
 # rpm-pkg
 # ---------------------------------------------------------------------------
@@ -94,7 +87,7 @@ binrpm-pkg:
 		$(UTS_MACHINE)-linux -bb $(objtree)/binkernel.spec
 
 quiet_cmd_debianize = GEN     $@
-      cmd_debianize = $(srctree)/scripts/package/mkdebian
+      cmd_debianize = $(srctree)/scripts/package/mkdebian $(mkdebian-opts)
 
 debian: FORCE
 	$(call cmd,debianize)
@@ -103,6 +96,7 @@ PHONY += debian-orig
 debian-orig: private source = $(shell dpkg-parsechangelog -S Source)
 debian-orig: private version = $(shell dpkg-parsechangelog -S Version | sed 's/-[^-]*$$//')
 debian-orig: private orig-name = $(source)_$(version).orig.tar.gz
+debian-orig: mkdebian-opts = --need-source
 debian-orig: linux.tar.gz debian
 	$(Q)if [ "$(df  --output=target .. 2>/dev/null)" = "$(df --output=target $< 2>/dev/null)" ]; then \
 		ln -f $< ../$(orig-name); \
@@ -145,10 +139,17 @@ tar-install: FORCE
 	$(Q)$(MAKE) -f $(srctree)/Makefile
 	+$(Q)$(srctree)/scripts/package/buildtar $@
 
-quiet_cmd_tar = TAR     $@
-      cmd_tar = cd $<; tar cf ../$@ --owner=root --group=root --sort=name *
+compress-tar.gz  = -I "$(KGZIP)"
+compress-tar.bz2 = -I "$(KBZIP2)"
+compress-tar.xz  = -I "$(XZ)"
+compress-tar.zst = -I "$(ZSTD)"
 
-linux-$(KERNELRELEASE)-$(ARCH).tar: tar-install
+quiet_cmd_tar = TAR     $@
+      cmd_tar = cd $<; tar cf ../$@ $(compress-tar$(suffix $@)) --owner=root --group=root --sort=name *
+
+dir-tarballs := $(addprefix linux-$(KERNELRELEASE)-$(ARCH), .tar .tar.gz .tar.bz2 .tar.xz .tar.zst)
+
+$(dir-tarballs): tar-install
 	$(call cmd,tar)
 
 PHONY += dir-pkg
@@ -180,16 +181,17 @@ quiet_cmd_perf_version_file = GEN     $@
 .tmp_perf/PERF-VERSION-FILE: .tmp_HEAD $(srctree)/tools/perf/util/PERF-VERSION-GEN | .tmp_perf
 	$(call cmd,perf_version_file)
 
-quiet_cmd_archive_perf = ARCHIVE $@
-      cmd_archive_perf = \
-	git -C $(srctree) archive --output=$$(realpath $@) --prefix=$(basename $@)/ \
-	--add-file=$$(realpath $(word 2, $^)) \
+perf-archive-args = --add-file=$$(realpath $(word 2, $^)) \
 	--add-file=$$(realpath $(word 3, $^)) \
 	$$(cat $(word 2, $^))^{tree} $$(cat $<)
 
-targets += perf-$(KERNELVERSION).tar
-perf-$(KERNELVERSION).tar: tools/perf/MANIFEST .tmp_perf/HEAD .tmp_perf/PERF-VERSION-FILE FORCE
-	$(call if_changed,archive_perf)
+
+perf-tarballs := $(addprefix perf-$(KERNELVERSION), .tar .tar.gz .tar.bz2 .tar.xz .tar.zst)
+
+targets += $(perf-tarballs)
+$(perf-tarballs): archive-args = $(perf-archive-args)
+$(perf-tarballs): tools/perf/MANIFEST .tmp_perf/HEAD .tmp_perf/PERF-VERSION-FILE FORCE
+	$(call if_changed,archive)
 
 PHONY += perf-tar-src-pkg
 perf-tar-src-pkg: perf-$(KERNELVERSION).tar

@@ -3235,6 +3235,9 @@ int tcf_exts_init_ex(struct tcf_exts *exts, struct net *net, int action,
 
 err_miss_alloc:
 	tcf_exts_destroy(exts);
+#ifdef CONFIG_NET_CLS_ACT
+	exts->actions = NULL;
+#endif
 	return err;
 }
 EXPORT_SYMBOL(tcf_exts_init_ex);
