@@ -3253,7 +3253,7 @@ static inline struct sk_buff *napi_alloc_skb(struct napi_struct *napi,
 void napi_consume_skb(struct sk_buff *skb, int budget);
 
 void napi_skb_free_stolen_head(struct sk_buff *skb);
-void __kfree_skb_defer(struct sk_buff *skb);
+void __napi_kfree_skb(struct sk_buff *skb, enum skb_drop_reason reason);
 
 /**
  * __dev_alloc_pages - allocate page for network Rx

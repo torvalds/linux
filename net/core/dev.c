@@ -5040,7 +5040,8 @@ static __latent_entropy void net_tx_action(struct softirq_action *h)
 			if (skb->fclone != SKB_FCLONE_UNAVAILABLE)
 				__kfree_skb(skb);
 			else
-				__kfree_skb_defer(skb);
+				__napi_kfree_skb(skb,
+						 get_kfree_skb_cb(skb)->reason);
 		}
 	}
 

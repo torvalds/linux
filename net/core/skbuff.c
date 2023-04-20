@@ -1226,9 +1226,9 @@ static void napi_skb_cache_put(struct sk_buff *skb)
 	}
 }
 
-void __kfree_skb_defer(struct sk_buff *skb)
+void __napi_kfree_skb(struct sk_buff *skb, enum skb_drop_reason reason)
 {
-	skb_release_all(skb, SKB_DROP_REASON_NOT_SPECIFIED, true);
+	skb_release_all(skb, reason, true);
 	napi_skb_cache_put(skb);
 }
 
