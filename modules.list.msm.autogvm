@@ -2,6 +2,7 @@ virtio_mmio.ko
 virtio_blk.ko
 virtio_console.ko
 msm_hab.ko
+qcom_hgsl.ko
 qcom_scm_hab.ko
 qcom-scm.ko
 secure_buffer.ko
