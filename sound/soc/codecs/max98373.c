@@ -31,7 +31,7 @@ static int max98373_dac_event(struct snd_soc_dapm_widget *w,
 			MAX98373_GLOBAL_EN_MASK, 1);
 		usleep_range(30000, 31000);
 		break;
-	case SND_SOC_DAPM_POST_PMD:
+	case SND_SOC_DAPM_PRE_PMD:
 		regmap_update_bits(max98373->regmap,
 			MAX98373_R20FF_GLOBAL_SHDN,
 			MAX98373_GLOBAL_EN_MASK, 0);
@@ -64,7 +64,7 @@ static const struct snd_kcontrol_new max98373_spkfb_control =
 static const struct snd_soc_dapm_widget max98373_dapm_widgets[] = {
 SND_SOC_DAPM_DAC_E("Amp Enable", "HiFi Playback",
 	MAX98373_R202B_PCM_RX_EN, 0, 0, max98373_dac_event,
-	SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 SND_SOC_DAPM_MUX("DAI Sel Mux", SND_SOC_NOPM, 0, 0,
 	&max98373_dai_controls),
 SND_SOC_DAPM_OUTPUT("BE_OUT"),
