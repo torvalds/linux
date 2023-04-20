@@ -515,7 +515,7 @@
 			#hwlock-cells = <1>;
 		};
 
-		tcsr: syscon@1fcb000 {
+		tcsr: syscon@1fc0000 {
 			compatible = "qcom,sdx55-tcsr", "syscon";
 			reg = <0x01fc0000 0x1000>;
 		};
