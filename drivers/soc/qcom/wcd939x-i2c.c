@@ -136,6 +136,8 @@ static bool wcd_usbss_is_in_reset_state(void)
  */
 static int wcd_usbss_reset_routine(void)
 {
+	int i, ret;
+
 	/* Mark the cache as dirty to force a flush */
 	regcache_mark_dirty(wcd_usbss_ctxt_->regmap);
 	regcache_sync(wcd_usbss_ctxt_->regmap);
@@ -144,7 +146,21 @@ static int wcd_usbss_reset_routine(void)
 	/* Set RCO_EN: WCD_USBSS_USB_SS_CNTL Bit<3> --> 0x0 --> 0x1 */
 	regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_USB_SS_CNTL, 0x8, 0x0);
 	regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_USB_SS_CNTL, 0x8, 0x8);
-	return wcd_usbss_switch_update(wcd_usbss_ctxt_->cable_type, wcd_usbss_ctxt_->cable_status);
+
+	/* replay each connected switch type individually */
+	for (i = 0; i < WCD_USBSS_CABLE_TYPE_MAX; i++) {
+		if (!(wcd_usbss_ctxt_->cable_status & BIT(i)))
+			continue;
+
+		ret = wcd_usbss_switch_update(i, WCD_USBSS_CABLE_CONNECT);
+		if (ret) {
+			dev_err(wcd_usbss_ctxt_->dev, "%s: switch_update cable_type:%d failed ret:%d\n",
+					__func__, i, ret);
+			return ret;
+		}
+	}
+
+	return 0;
 }
 
 static int wcd_usbss_standby_control(bool enter_standby)
@@ -209,8 +225,7 @@ static ssize_t wcd_usbss_surge_period_store(struct kobject *kobj,
 		return count;
 
 	/* Wake up thread if usb is connected and surge is enabled */
-	if (wcd_usbss_ctxt_->cable_status == WCD_USBSS_CABLE_CONNECT &&
-		wcd_usbss_ctxt_->surge_enable)
+	if (wcd_usbss_ctxt_->cable_status && wcd_usbss_ctxt_->surge_enable)
 		wake_up_process(wcd_usbss_ctxt_->surge_thread);
 
 	return count;
@@ -229,7 +244,7 @@ static ssize_t wcd_usbss_standby_store(struct kobject *kobj,
 	wcd_usbss_ctxt_->standby_enable = true;
 
 	if (enable) {
-		if (wcd_usbss_ctxt_->cable_status == WCD_USBSS_CABLE_DISCONNECT)
+		if (!wcd_usbss_ctxt_->cable_status)
 			wcd_usbss_standby_control(true);
 		else
 			wcd_usbss_standby_control(false);
@@ -249,7 +264,7 @@ static ssize_t wcd_usbss_standby_store(struct kobject *kobj,
 static int wcd_usbss_surge_kthread_fn(void *p)
 {
 	while (!kthread_should_stop()) {
-		if (wcd_usbss_ctxt_->cable_status == WCD_USBSS_CABLE_CONNECT &&
+		if (wcd_usbss_ctxt_->cable_status &&
 			wcd_usbss_ctxt_->surge_enable &&
 			wcd_usbss_is_in_reset_state())
 			wcd_usbss_reset_routine();
@@ -590,16 +605,12 @@ int wcd_usbss_audio_config(bool enable, enum wcd_usbss_config_type config_type,
 	if (!wcd_usbss_ctxt_->regmap)
 		return -EINVAL;
 
-	pr_info("%s: ctype = %d, connect_status = %d, power mode = %d\n",
-		__func__, wcd_usbss_ctxt_->cable_type, wcd_usbss_ctxt_->cable_status,
-		power_mode);
+	pr_info("%s: connect_status = 0x%x, power mode = %d\n",
+		__func__, wcd_usbss_ctxt_->cable_status, power_mode);
 
-	if (wcd_usbss_ctxt_->cable_status == WCD_USBSS_CABLE_DISCONNECT)
-		return 0;
-
-	if (wcd_usbss_ctxt_->cable_type != WCD_USBSS_AATC &&
-		wcd_usbss_ctxt_->cable_type != WCD_USBSS_GND_MIC_SWAP_AATC &&
-		wcd_usbss_ctxt_->cable_type != WCD_USBSS_HSJ_CONNECT)
+	if (!(wcd_usbss_ctxt_->cable_status & (BIT(WCD_USBSS_AATC) |
+					       BIT(WCD_USBSS_GND_MIC_SWAP_AATC) |
+					       BIT(WCD_USBSS_HSJ_CONNECT))))
 		return 0;
 
 	switch (config_type) {
@@ -628,7 +639,7 @@ EXPORT_SYMBOL(wcd_usbss_audio_config);
 int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 							enum wcd_usbss_cable_status connect_status)
 {
-	int i = 0;
+	int i = 0, ret = 0;
 
 	/* check if driver is probed and private context is init'ed */
 	if (wcd_usbss_ctxt_ == NULL)
@@ -637,19 +648,45 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 	if (!wcd_usbss_ctxt_->regmap)
 		return -EINVAL;
 
+	mutex_lock(&wcd_usbss_ctxt_->switch_update_lock);
+
 	pr_info("%s: ctype = %d, connect_status = %d\n",
 		__func__, ctype, connect_status);
 
-	wcd_usbss_ctxt_->cable_type = ctype;
-	wcd_usbss_ctxt_->cable_status = connect_status;
-
 	if (connect_status == WCD_USBSS_CABLE_DISCONNECT) {
-		wcd_usbss_switch_update_defaults(wcd_usbss_ctxt_);
-		if (config_standby) {
-			wcd_usbss_dpdm_switch_update(false, false);
-			wcd_usbss_standby_control(true);
+		wcd_usbss_ctxt_->cable_status &= ~BIT(ctype);
+
+		switch (ctype) {
+		case WCD_USBSS_USB:
+			/* Keep DP/DM switch on but disable EQ */
+			wcd_usbss_dpdm_switch_update(true, false);
+			break;
+		case WCD_USBSS_DP_AUX_CC1:
+			fallthrough;
+		case WCD_USBSS_DP_AUX_CC2:
+			/* Disable AUX switches */
+			regmap_update_bits(wcd_usbss_ctxt_->regmap,
+					WCD_USBSS_SWITCH_SELECT0, 0xC0, 0x00);
+			regmap_update_bits(wcd_usbss_ctxt_->regmap,
+					WCD_USBSS_SWITCH_SETTINGS_ENABLE,
+					AUXP_M_EN_MASK, 0x00);
+			break;
+		default:
+			break;
+
+		}
+
+		/* reset to defaults when all cable types are disconnected */
+		if (!wcd_usbss_ctxt_->cable_status) {
+			wcd_usbss_switch_update_defaults(wcd_usbss_ctxt_);
+			if (config_standby) {
+				wcd_usbss_dpdm_switch_update(false, false);
+				wcd_usbss_standby_control(true);
+			}
 		}
 	} else if (connect_status == WCD_USBSS_CABLE_CONNECT) {
+		wcd_usbss_ctxt_->cable_status |= BIT(ctype);
+
 		wcd_usbss_standby_control(false);
 
 		switch (ctype) {
@@ -767,11 +804,17 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 					WCD_USBSS_DISP_AUXP_CTL, 0x07, 0x05);
 			regmap_update_bits(wcd_usbss_ctxt_->regmap,
 					WCD_USBSS_DISP_AUXP_THRESH, 0xE0, 0xE0);
-			return wcd_usbss_display_port_switch_update(wcd_usbss_ctxt_, ctype);
+			ret = wcd_usbss_display_port_switch_update(wcd_usbss_ctxt_, ctype);
+			if (ret) /* clear DP AUX bit if DP switch update fails */
+				wcd_usbss_ctxt_->cable_status &= ~BIT(ctype);
+			break;
+		default:
+			break;
 		}
 	}
 
-	return 0;
+	mutex_unlock(&wcd_usbss_ctxt_->switch_update_lock);
+	return ret;
 }
 EXPORT_SYMBOL(wcd_usbss_switch_update);
 
@@ -895,6 +938,7 @@ static int wcd_usbss_probe(struct i2c_client *i2c)
 	priv->dev = &i2c->dev;
 	priv->client = i2c;
 	mutex_init(&priv->io_lock);
+	mutex_init(&priv->switch_update_lock);
 	i2c_set_clientdata(i2c, priv);
 
 	if (ARRAY_SIZE(supply_names) >= WCD_USBSS_SUPPLY_MAX) {
@@ -998,6 +1042,7 @@ static void wcd_usbss_remove(struct i2c_client *i2c)
 	mutex_destroy(&priv->notification_lock);
 	mutex_destroy(&priv->io_lock);
 	mutex_destroy(&priv->standby_lock);
+	mutex_destroy(&priv->switch_update_lock);
 	dev_set_drvdata(&i2c->dev, NULL);
 	wcd_usbss_ctxt_ = NULL;
 }

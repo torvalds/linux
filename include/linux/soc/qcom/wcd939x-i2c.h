@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #ifndef WCD939X_I2C_H
 #define WCD939X_I2C_H
@@ -21,6 +21,7 @@ enum wcd_usbss_cable_types {
 	WCD_USBSS_AATC,
 	WCD_USBSS_GND_MIC_SWAP_AATC,
 	WCD_USBSS_HSJ_CONNECT,
+	WCD_USBSS_CABLE_TYPE_MAX,
 };
 
 enum wcd_usbss_cable_status {
