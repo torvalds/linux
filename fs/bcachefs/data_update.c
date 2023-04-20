@@ -92,6 +92,17 @@ static int insert_snapshot_whiteouts(struct btree_trans *trans,
 	return ret;
 }
 
+static void trace_move_extent_finish2(struct bch_fs *c, struct bkey_s_c k)
+{
+	if (trace_move_extent_finish_enabled()) {
+		struct printbuf buf = PRINTBUF;
+
+		bch2_bkey_val_to_text(&buf, c, k);
+		trace_move_extent_finish(c, buf.buf);
+		printbuf_exit(&buf);
+	}
+}
+
 static void trace_move_extent_fail2(struct data_update *m,
 			 struct bkey_s_c new,
 			 struct bkey_s_c wrote,
@@ -342,7 +353,7 @@ restart_drop_extra_replicas:
 			bch2_btree_iter_set_pos(&iter, next_pos);
 
 			this_cpu_add(c->counters[BCH_COUNTER_move_extent_finish], new->k.size);
-			trace_move_extent_finish(&new->k);
+			trace_move_extent_finish2(c, bkey_i_to_s_c(&new->k_i));
 		}
 err:
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))

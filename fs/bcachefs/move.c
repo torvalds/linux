@@ -25,6 +25,39 @@
 #include <linux/ioprio.h>
 #include <linux/kthread.h>
 
+static void trace_move_extent2(struct bch_fs *c, struct bkey_s_c k)
+{
+	if (trace_move_extent_enabled()) {
+		struct printbuf buf = PRINTBUF;
+
+		bch2_bkey_val_to_text(&buf, c, k);
+		trace_move_extent(c, buf.buf);
+		printbuf_exit(&buf);
+	}
+}
+
+static void trace_move_extent_read2(struct bch_fs *c, struct bkey_s_c k)
+{
+	if (trace_move_extent_read_enabled()) {
+		struct printbuf buf = PRINTBUF;
+
+		bch2_bkey_val_to_text(&buf, c, k);
+		trace_move_extent_read(c, buf.buf);
+		printbuf_exit(&buf);
+	}
+}
+
+static void trace_move_extent_alloc_mem_fail2(struct bch_fs *c, struct bkey_s_c k)
+{
+	if (trace_move_extent_alloc_mem_fail_enabled()) {
+		struct printbuf buf = PRINTBUF;
+
+		bch2_bkey_val_to_text(&buf, c, k);
+		trace_move_extent_alloc_mem_fail(c, buf.buf);
+		printbuf_exit(&buf);
+	}
+}
+
 static void progress_list_add(struct bch_fs *c, struct bch_move_stats *stats)
 {
 	mutex_lock(&c->data_progress_lock);
@@ -269,6 +302,8 @@ static int bch2_move_extent(struct btree_trans *trans,
 	unsigned sectors = k.k->size, pages;
 	int ret = -ENOMEM;
 
+	trace_move_extent2(c, k);
+
 	bch2_data_update_opts_normalize(k, &data_opts);
 
 	if (!data_opts.rewrite_ptrs &&
@@ -346,8 +381,7 @@ static int bch2_move_extent(struct btree_trans *trans,
 
 	this_cpu_add(c->counters[BCH_COUNTER_io_move], k.k->size);
 	this_cpu_add(c->counters[BCH_COUNTER_move_extent_read], k.k->size);
-	trace_move_extent_read(k.k);
-
+	trace_move_extent_read2(c, k);
 
 	mutex_lock(&ctxt->lock);
 	atomic_add(io->read_sectors, &ctxt->read_sectors);
@@ -373,7 +407,8 @@ err_free_pages:
 err_free:
 	kfree(io);
 err:
-	trace_and_count(c, move_extent_alloc_mem_fail, k.k);
+	this_cpu_inc(c->counters[BCH_COUNTER_move_extent_alloc_mem_fail]);
+	trace_move_extent_alloc_mem_fail2(c, k);
 	return ret;
 }
 
@@ -718,6 +753,8 @@ int __bch2_evacuate_bucket(struct btree_trans *trans,
 	u64 cur_inum = U64_MAX;
 	struct bpos bp_pos = POS_MIN;
 	int ret = 0;
+
+	trace_bucket_evacuate(c, &bucket);
 
 	bch2_bkey_buf_init(&sk);
 
