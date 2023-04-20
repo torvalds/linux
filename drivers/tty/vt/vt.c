@@ -137,9 +137,7 @@ const struct consw *conswitchp;
 struct vc vc_cons [MAX_NR_CONSOLES];
 EXPORT_SYMBOL(vc_cons);
 
-#ifndef VT_SINGLE_DRIVER
 static const struct consw *con_driver_map[MAX_NR_CONSOLES];
-#endif
 
 static int con_open(struct tty_struct *, struct file *);
 static void vc_init(struct vc_data *vc, unsigned int rows,
@@ -1008,10 +1006,10 @@ static void visual_init(struct vc_data *vc, int num, int init)
 	if (vc->vc_sw)
 		module_put(vc->vc_sw->owner);
 	vc->vc_sw = conswitchp;
-#ifndef VT_SINGLE_DRIVER
+
 	if (con_driver_map[num])
 		vc->vc_sw = con_driver_map[num];
-#endif
+
 	__module_get(vc->vc_sw->owner);
 	vc->vc_num = num;
 	vc->vc_display_fg = &master_display_fg;
@@ -3575,8 +3573,6 @@ int __init vty_init(const struct file_operations *console_fops)
 	return 0;
 }
 
-#ifndef VT_SINGLE_DRIVER
-
 static struct class *vtconsole_class;
 
 static int do_bind_con_driver(const struct consw *csw, int first, int last,
@@ -4277,8 +4273,6 @@ static int __init vtconsole_class_init(void)
 	return 0;
 }
 postcore_initcall(vtconsole_class_init);
-
-#endif
 
 /*
  *	Screen blanking
