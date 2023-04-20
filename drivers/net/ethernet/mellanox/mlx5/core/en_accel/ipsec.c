@@ -708,7 +708,8 @@ err_hw_ctx:
 release_dwork:
 	kfree(sa_entry->dwork);
 release_work:
-	kfree(sa_entry->work->data);
+	if (sa_entry->work)
+		kfree(sa_entry->work->data);
 	kfree(sa_entry->work);
 err_xfrm:
 	kfree(sa_entry);
@@ -752,7 +753,8 @@ static void mlx5e_xfrm_free_state(struct xfrm_state *x)
 	mlx5e_accel_ipsec_fs_del_rule(sa_entry);
 	mlx5_ipsec_free_sa_ctx(sa_entry);
 	kfree(sa_entry->dwork);
-	kfree(sa_entry->work->data);
+	if (sa_entry->work)
+		kfree(sa_entry->work->data);
 	kfree(sa_entry->work);
 sa_entry_free:
 	kfree(sa_entry);
