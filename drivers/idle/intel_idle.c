@@ -1894,24 +1894,24 @@ static void __init intel_idle_init_cstates_icpu(struct cpuidle_driver *drv)
 		/* Structure copy. */
 		drv->states[drv->state_count] = cpuidle_state_table[cstate];
 
-		if ((cpuidle_state_table[cstate].flags & CPUIDLE_FLAG_IRQ_ENABLE) || force_irq_on) {
+		if ((drv->states[drv->state_count].flags & CPUIDLE_FLAG_IRQ_ENABLE) || force_irq_on) {
 			pr_info("forced intel_idle_irq for state %d\n", cstate);
 			drv->states[drv->state_count].enter = intel_idle_irq;
 		}
 
 		if (cpu_feature_enabled(X86_FEATURE_KERNEL_IBRS) &&
-		    cpuidle_state_table[cstate].flags & CPUIDLE_FLAG_IBRS) {
-			WARN_ON_ONCE(cpuidle_state_table[cstate].flags & CPUIDLE_FLAG_IRQ_ENABLE);
+		    drv->states[drv->state_count].flags & CPUIDLE_FLAG_IBRS) {
+			WARN_ON_ONCE(drv->states[drv->state_count].flags & CPUIDLE_FLAG_IRQ_ENABLE);
 			drv->states[drv->state_count].enter = intel_idle_ibrs;
 		}
 
-		if (cpuidle_state_table[cstate].flags & CPUIDLE_FLAG_INIT_XSTATE)
+		if (drv->states[drv->state_count].flags & CPUIDLE_FLAG_INIT_XSTATE)
 			drv->states[drv->state_count].enter = intel_idle_xstate;
 
 		if ((disabled_states_mask & BIT(drv->state_count)) ||
 		    ((icpu->use_acpi || force_use_acpi) &&
 		     intel_idle_off_by_default(mwait_hint) &&
-		     !(cpuidle_state_table[cstate].flags & CPUIDLE_FLAG_ALWAYS_ENABLE)))
+		     !(drv->states[drv->state_count].flags & CPUIDLE_FLAG_ALWAYS_ENABLE)))
 			drv->states[drv->state_count].flags |= CPUIDLE_FLAG_OFF;
 
 		if (intel_idle_state_needs_timer_stop(&drv->states[drv->state_count]))
