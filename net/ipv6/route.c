@@ -334,7 +334,6 @@ static const struct rt6_info ip6_blk_hole_entry_template = {
 static void rt6_info_init(struct rt6_info *rt)
 {
 	memset_after(rt, 0, dst);
-	INIT_LIST_HEAD(&rt->dst.rt_uncached);
 }
 
 /* allocate dst with ip6_dst_ops */
