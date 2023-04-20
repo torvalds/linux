@@ -117,6 +117,28 @@
 		WIFI,poweren_gpio = <&gpio1 RK_PB3 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
+
+	dummy_codec: dummy-codec {
+		status = "okay";
+		compatible = "rockchip,dummy-codec";
+		#sound-dai-cells = <0>;
+	};
+
+	car_rk3308_sound: car-rk3308-sound {
+		status = "okay";
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "rockchip,car-rk3308-sound";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,bitclock-master = <&codec_master>;
+		simple-audio-card,frame-master = <&codec_master>;
+		simple-audio-card,cpu {
+			sound-dai = <&i2s0_8ch>;
+		};
+		codec_master: simple-audio-card,codec {
+			sound-dai = <&dummy_codec>;
+		};
+	};
 };
 
 &combphy0_ps {
@@ -130,7 +152,6 @@
 &combphy2_psu {
 	status = "okay";
 };
-
 
 &i2c4 {
 	status = "okay";
@@ -148,6 +169,19 @@
 		wakeup-source;
 	};
 
+};
+
+&i2s0_8ch {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2s0_lrck
+		     &i2s0_sclk
+		     &i2s0_sdi0
+		     &i2s0_sdi1
+		     &i2s0_sdo0
+		     &i2s0_sdo1
+		     &i2s0_sdo2
+		     &i2s0_sdo3>;
 };
 
 &pcie2x1l0 {
