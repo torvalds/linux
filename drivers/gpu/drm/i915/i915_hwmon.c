@@ -51,6 +51,7 @@ struct hwm_drvdata {
 	char name[12];
 	int gt_n;
 	bool reset_in_progress;
+	wait_queue_head_t waitq;
 };
 
 struct i915_hwmon {
@@ -397,14 +398,32 @@ hwm_power_max_write(struct hwm_drvdata *ddat, long val)
 {
 	struct i915_hwmon *hwmon = ddat->hwmon;
 	intel_wakeref_t wakeref;
+	DEFINE_WAIT(wait);
 	int ret = 0;
 	u32 nval;
 
-	mutex_lock(&hwmon->hwmon_lock);
-	if (hwmon->ddat.reset_in_progress) {
-		ret = -EAGAIN;
-		goto unlock;
+	/* Block waiting for GuC reset to complete when needed */
+	for (;;) {
+		mutex_lock(&hwmon->hwmon_lock);
+
+		prepare_to_wait(&ddat->waitq, &wait, TASK_INTERRUPTIBLE);
+
+		if (!hwmon->ddat.reset_in_progress)
+			break;
+
+		if (signal_pending(current)) {
+			ret = -EINTR;
+			break;
+		}
+
+		mutex_unlock(&hwmon->hwmon_lock);
+
+		schedule();
 	}
+	finish_wait(&ddat->waitq, &wait);
+	if (ret)
+		goto unlock;
+
 	wakeref = intel_runtime_pm_get(ddat->uncore->rpm);
 
 	/* Disable PL1 limit and verify, because the limit cannot be disabled on all platforms */
@@ -508,6 +527,7 @@ void i915_hwmon_power_max_restore(struct drm_i915_private *i915, bool old)
 	intel_uncore_rmw(hwmon->ddat.uncore, hwmon->rg.pkg_rapl_limit,
 			 PKG_PWR_LIM_1_EN, old ? PKG_PWR_LIM_1_EN : 0);
 	hwmon->ddat.reset_in_progress = false;
+	wake_up_all(&hwmon->ddat.waitq);
 
 	mutex_unlock(&hwmon->hwmon_lock);
 }
@@ -784,6 +804,7 @@ void i915_hwmon_register(struct drm_i915_private *i915)
 	ddat->uncore = &i915->uncore;
 	snprintf(ddat->name, sizeof(ddat->name), "i915");
 	ddat->gt_n = -1;
+	init_waitqueue_head(&ddat->waitq);
 
 	for_each_gt(gt, i915, i) {
 		ddat_gt = hwmon->ddat_gt + i;
