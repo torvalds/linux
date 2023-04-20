@@ -590,6 +590,14 @@ void run_subtest(struct test_loader *tester,
 		if (restore_capabilities(&caps))
 			goto tobj_cleanup;
 
+		if (tester->pre_execution_cb) {
+			err = tester->pre_execution_cb(tobj);
+			if (err) {
+				PRINT_FAIL("pre_execution_cb failed: %d\n", err);
+				goto tobj_cleanup;
+			}
+		}
+
 		do_prog_test_run(bpf_program__fd(tprog), &retval);
 		if (retval != subspec->retval && subspec->retval != POINTER_VALUE) {
 			PRINT_FAIL("Unexpected retval: %d != %d\n", retval, subspec->retval);
