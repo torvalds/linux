@@ -933,7 +933,7 @@ static int isp_show(struct seq_file *p, void *v)
 		break;
 	case ISP_V30:
 		if (IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V30)) {
-			if (dev->hw_dev->is_unite)
+			if (dev->hw_dev->unite)
 				isp30_unite_show(dev, p);
 			else
 				isp30_show(dev, p);
@@ -963,7 +963,7 @@ static int isp_show(struct seq_file *p, void *v)
 					 msecs_to_jiffies(1000));
 		seq_printf(p, "****************HW REG*Ret:%d**************\n", ret);
 		for (i = 0; i < ISP3X_RAWAWB_RAM_DATA_BASE; i += 16) {
-			if (!dev->hw_dev->is_unite) {
+			if (dev->hw_dev->unite != ISP_UNITE_TWO) {
 				seq_printf(p, "%04x:  %08x %08x %08x %08x\n", i,
 					   rkisp_read(dev, i, true),
 					   rkisp_read(dev, i + 4, true),

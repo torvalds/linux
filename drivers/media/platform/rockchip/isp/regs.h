@@ -1753,7 +1753,7 @@ static inline void mi_set_cr_offset(struct rkisp_stream *stream, int val)
 static inline void mi_frame_end_int_enable(struct rkisp_stream *stream)
 {
 	struct rkisp_hw_dev *hw = stream->ispdev->hw_dev;
-	void __iomem *base = !hw->is_unite ?
+	void __iomem *base = hw->unite != ISP_UNITE_TWO ?
 		hw->base_addr : hw->base_next_addr;
 	void __iomem *addr = base + CIF_MI_IMSC;
 
@@ -1763,7 +1763,7 @@ static inline void mi_frame_end_int_enable(struct rkisp_stream *stream)
 static inline void mi_frame_end_int_disable(struct rkisp_stream *stream)
 {
 	struct rkisp_hw_dev *hw = stream->ispdev->hw_dev;
-	void __iomem *base = !hw->is_unite ?
+	void __iomem *base = hw->unite != ISP_UNITE_TWO ?
 		hw->base_addr : hw->base_next_addr;
 	void __iomem *addr = base + CIF_MI_IMSC;
 
@@ -1773,7 +1773,7 @@ static inline void mi_frame_end_int_disable(struct rkisp_stream *stream)
 static inline void mi_frame_end_int_clear(struct rkisp_stream *stream)
 {
 	struct rkisp_hw_dev *hw = stream->ispdev->hw_dev;
-	void __iomem *base = !hw->is_unite ?
+	void __iomem *base = hw->unite != ISP_UNITE_TWO ?
 		hw->base_addr : hw->base_next_addr;
 	void __iomem *addr = base + CIF_MI_ICR;
 
@@ -1783,7 +1783,6 @@ static inline void mi_frame_end_int_clear(struct rkisp_stream *stream)
 static inline void stream_data_path(struct rkisp_stream *stream)
 {
 	struct rkisp_device *dev = stream->ispdev;
-	bool is_unite = dev->hw_dev->is_unite;
 	u32 dpcl = 0;
 
 	if (stream->id == RKISP_STREAM_MP)
@@ -1792,7 +1791,7 @@ static inline void stream_data_path(struct rkisp_stream *stream)
 		dpcl |= CIF_VI_DPCL_CHAN_MODE_SP;
 
 	if (dpcl)
-		rkisp_unite_set_bits(dev, CIF_VI_DPCL, 0, dpcl, true, is_unite);
+		rkisp_unite_set_bits(dev, CIF_VI_DPCL, 0, dpcl, true);
 }
 
 static inline void mp_set_uv_swap(void __iomem *base)
@@ -1914,16 +1913,15 @@ static inline void sp_mi_ctrl_autoupdate_en(void __iomem *base)
 static inline void force_cfg_update(struct rkisp_device *dev)
 {
 	u32 val = CIF_MI_CTRL_INIT_OFFSET_EN | CIF_MI_CTRL_INIT_BASE_EN;
-	bool is_unite = dev->hw_dev->is_unite;
 
 	if (dev->isp_ver == ISP_V21) {
 		val |= rkisp_read_reg_cache(dev, CIF_MI_CTRL);
 		rkisp_write(dev, CIF_MI_CTRL, val, true);
 	}
 	dev->hw_dev->is_mi_update = true;
-	rkisp_unite_set_bits(dev, CIF_MI_CTRL, 0, val, false, is_unite);
+	rkisp_unite_set_bits(dev, CIF_MI_CTRL, 0, val, false);
 	val = CIF_MI_INIT_SOFT_UPD;
-	rkisp_unite_write(dev, CIF_MI_INIT, val, true, is_unite);
+	rkisp_unite_write(dev, CIF_MI_INIT, val, true);
 }
 
 static inline void dmatx0_ctrl(void __iomem *base, u32 val)

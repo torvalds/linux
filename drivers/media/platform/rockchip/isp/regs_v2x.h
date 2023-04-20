@@ -2700,7 +2700,7 @@ static inline void mi_raw_length(struct rkisp_stream *stream)
 		    stream->out_fmt.plane_fmt[0].bytesperline, is_direct);
 	if (stream->ispdev->isp_ver == ISP_V21 || stream->ispdev->isp_ver == ISP_V30)
 		rkisp_set_bits(stream->ispdev, MI_RD_CTRL2, 0, BIT(30), false);
-	if (stream->ispdev->hw_dev->is_unite) {
+	if (stream->ispdev->hw_dev->unite) {
 		rkisp_next_write(stream->ispdev, stream->config->mi.length,
 				 stream->out_fmt.plane_fmt[0].bytesperline, is_direct);
 		rkisp_next_set_bits(stream->ispdev, MI_RD_CTRL2, 0, BIT(30), false);

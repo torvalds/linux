@@ -6,6 +6,7 @@
 #include <linux/of_platform.h>
 #include <linux/slab.h>
 #include "dev.h"
+#include "hw.h"
 #include "isp_ispp.h"
 #include "regs.h"
 
@@ -36,6 +37,8 @@ void rkisp_next_write(struct rkisp_device *dev, u32 reg, u32 val, bool is_direct
 	*flag = SW_REG_CACHE;
 	if (dev->hw_dev->is_single || is_direct) {
 		*flag = SW_REG_CACHE_SYNC;
+		if (dev->hw_dev->unite == ISP_UNITE_ONE)
+			return;
 		writel(val, dev->hw_dev->base_next_addr + reg);
 	}
 }
@@ -166,13 +169,16 @@ void rkisp_update_regs(struct rkisp_device *dev, u32 start, u32 end)
 				continue;
 		}
 
+		if (hw->unite == ISP_UNITE_ONE && dev->unite_index == ISP_UNITE_RIGHT)
+			val = dev->sw_base_addr + i + RKISP_ISP_SW_MAX_SIZE;
+
 		if (*flag == SW_REG_CACHE) {
 			if ((i == ISP3X_MAIN_RESIZE_CTRL ||
 			     i == ISP32_BP_RESIZE_CTRL ||
 			     i == ISP3X_SELF_RESIZE_CTRL) && *val == 0)
 				*val = CIF_RSZ_CTRL_CFG_UPD;
 			writel(*val, base + i);
-			if (hw->is_unite) {
+			if (hw->unite == ISP_UNITE_TWO) {
 				val = dev->sw_base_addr + i + RKISP_ISP_SW_MAX_SIZE;
 				if ((i == ISP3X_MAIN_RESIZE_CTRL ||
 				     i == ISP32_BP_RESIZE_CTRL ||

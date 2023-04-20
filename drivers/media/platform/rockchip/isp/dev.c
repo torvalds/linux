@@ -239,6 +239,8 @@ static int __isp_pipeline_s_isp_clk(struct rkisp_pipeline *p)
 	data_rate >>= 3;
 end:
 	do_div(data_rate, 1000 * 1000);
+	if (hw_dev->unite == ISP_UNITE_ONE)
+		data_rate *= 4;
 
 	/* increase 25% margin */
 	data_rate += data_rate >> 2;
@@ -252,7 +254,7 @@ end:
 
 	/* set isp clock rate */
 	rkisp_set_clk_rate(hw_dev->clks[0], hw_dev->clk_rate_tbl[i].clk_rate * 1000000UL);
-	if (hw_dev->is_unite)
+	if (hw_dev->unite == ISP_UNITE_TWO)
 		rkisp_set_clk_rate(hw_dev->clks[5], hw_dev->clk_rate_tbl[i].clk_rate * 1000000UL);
 	/* aclk equal to core clk */
 	if (dev->isp_ver == ISP_V32)
@@ -842,7 +844,7 @@ static int rkisp_plat_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	if (isp_dev->hw_dev->is_unite)
+	if (isp_dev->hw_dev->unite)
 		mult = 2;
 	isp_dev->sw_base_addr = devm_kzalloc(dev, RKISP_ISP_SW_MAX_SIZE * mult, GFP_KERNEL);
 	if (!isp_dev->sw_base_addr)
@@ -854,7 +856,7 @@ static int rkisp_plat_probe(struct platform_device *pdev)
 
 	snprintf(isp_dev->media_dev.model, sizeof(isp_dev->media_dev.model),
 		 "%s%d", DRIVER_NAME, isp_dev->dev_id);
-	if (!isp_dev->hw_dev->is_unite)
+	if (!isp_dev->hw_dev->unite)
 		strscpy(isp_dev->name, dev_name(dev), sizeof(isp_dev->name));
 	else
 		snprintf(isp_dev->name, sizeof(isp_dev->name),
@@ -980,6 +982,11 @@ static int __maybe_unused rkisp_runtime_resume(struct device *dev)
 
 	if (isp_dev->hw_dev->is_assigned_clk)
 		rkisp_clk_dbg = true;
+
+	if (isp_dev->hw_dev->unite == ISP_UNITE_ONE &&
+	    !(isp_dev->isp_inp & INP_RAWRD2))
+		rkisp_rdbk_auto = true;
+
 	isp_dev->cap_dev.wait_line = rkisp_wait_line;
 	isp_dev->cap_dev.wrap_line = rkisp_wrap_line;
 	isp_dev->is_rdbk_auto = rkisp_rdbk_auto;

@@ -103,6 +103,25 @@ enum rkisp_rdbk_filt {
 	RDBK_F_MAX
 };
 
+/* unite mode for isp to process high resolution
+ * ISP_UNITE_TWO: image splits left and right to two isp hardware
+ * ISP_UNITE_ONE: image splits left and right to single isp hardware
+ */
+enum {
+	ISP_UNITE_NONE = 0,
+	ISP_UNITE_TWO = 1,
+	ISP_UNITE_ONE = 2,
+};
+
+/* left and right index
+ * ISP_UNITE_LEFT: left of image to isp process
+ * ISP_UNITE_RIGHT: right of image to isp process
+ */
+enum {
+	ISP_UNITE_LEFT = 0,
+	ISP_UNITE_RIGHT = 1,
+};
+
 /*
  * struct rkisp_pipeline - An ISP hardware pipeline
  *
@@ -249,11 +268,40 @@ struct rkisp_device {
 	bool is_pre_on;
 	bool is_first_double;
 	bool is_probe_end;
+	bool is_frame_double;
 
 	struct rkisp_vicap_input vicap_in;
 
 	u8 multi_mode;
 	u8 multi_index;
 	u8 rawaf_irq_cnt;
+	u8 unite_index;
 };
+
+static inline void
+rkisp_unite_write(struct rkisp_device *dev, u32 reg, u32 val, bool is_direct)
+{
+	rkisp_write(dev, reg, val, is_direct);
+	if (dev->hw_dev->unite)
+		rkisp_next_write(dev, reg, val, is_direct);
+}
+
+static inline void
+rkisp_unite_set_bits(struct rkisp_device *dev, u32 reg, u32 mask,
+		     u32 val, bool is_direct)
+{
+	rkisp_set_bits(dev, reg, mask, val, is_direct);
+	if (dev->hw_dev->unite)
+		rkisp_next_set_bits(dev, reg, mask, val, is_direct);
+}
+
+static inline void
+rkisp_unite_clear_bits(struct rkisp_device *dev, u32 reg, u32 mask,
+		       bool is_direct)
+{
+	rkisp_clear_bits(dev, reg, mask, is_direct);
+	if (dev->hw_dev->unite)
+		rkisp_next_clear_bits(dev, reg, mask, is_direct);
+}
+
 #endif

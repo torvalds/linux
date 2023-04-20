@@ -1038,7 +1038,7 @@ rkisp_stats_send_meas_v3x(struct rkisp_isp_stats_vdev *stats_vdev,
 		ret |= ops->get_dhaz_stats(stats_vdev, cur_stat_buf, 0);
 	}
 
-	if (stats_vdev->dev->hw_dev->is_unite) {
+	if (stats_vdev->dev->hw_dev->unite) {
 		size *= 2;
 		if (cur_buf) {
 			cur_stat_buf++;
@@ -1086,7 +1086,7 @@ rkisp_stats_isr_v3x(struct rkisp_isp_stats_vdev *stats_vdev,
 {
 	struct rkisp_device *dev = stats_vdev->dev;
 	struct rkisp_hw_dev *hw = dev->hw_dev;
-	void __iomem *base = !hw->is_unite ?
+	void __iomem *base = hw->unite != ISP_UNITE_TWO ?
 		hw->base_addr : hw->base_next_addr;
 	struct rkisp_isp_readout_work work;
 	u32 iq_isr_mask = ISP3X_SIAWB_DONE | ISP3X_SIAF_FIN |
@@ -1138,7 +1138,7 @@ rkisp_stats_isr_v3x(struct rkisp_isp_stats_vdev *stats_vdev,
 
 		rkisp_write(dev, ISP3X_MI_3A_WR_BASE,
 			    stats_vdev->stats_buf[wr_buf_idx].dma_addr, false);
-		if (dev->hw_dev->is_unite)
+		if (dev->hw_dev->unite)
 			rkisp_next_write(dev, ISP3X_MI_3A_WR_BASE,
 					 stats_vdev->stats_buf[wr_buf_idx].dma_addr +
 					 ISP3X_RD_STATS_BUF_SIZE, false);
@@ -1178,7 +1178,7 @@ static struct rkisp_isp_stats_ops rkisp_isp_stats_ops_tbl = {
 void rkisp_stats_first_ddr_config_v3x(struct rkisp_isp_stats_vdev *stats_vdev)
 {
 	struct rkisp_device *dev = stats_vdev->dev;
-	int i, mult = dev->hw_dev->is_unite ? 2 : 1;
+	int i, mult = dev->hw_dev->unite ? 2 : 1;
 
 	if (dev->isp_sdev.in_fmt.fmt_type == FMT_YUV)
 		return;
@@ -1199,14 +1199,12 @@ void rkisp_stats_first_ddr_config_v3x(struct rkisp_isp_stats_vdev *stats_vdev)
 	stats_vdev->wr_buf_idx = 0;
 
 	rkisp_unite_write(dev, ISP3X_MI_DBR_WR_SIZE,
-			  ISP3X_RD_STATS_BUF_SIZE,
-			  false, dev->hw_dev->is_unite);
+			  ISP3X_RD_STATS_BUF_SIZE, false);
 	rkisp_unite_set_bits(dev, ISP3X_SWS_CFG, 0,
-			     ISP3X_3A_DDR_WRITE_EN, false,
-			     dev->hw_dev->is_unite);
+			     ISP3X_3A_DDR_WRITE_EN, false);
 	rkisp_write(dev, ISP3X_MI_3A_WR_BASE,
 		    stats_vdev->stats_buf[0].dma_addr, false);
-	if (dev->hw_dev->is_unite)
+	if (dev->hw_dev->unite)
 		rkisp_next_write(dev, ISP3X_MI_3A_WR_BASE,
 				 stats_vdev->stats_buf[0].dma_addr +
 				 ISP3X_RD_STATS_BUF_SIZE, false);
@@ -1220,7 +1218,7 @@ err:
 
 void rkisp_init_stats_vdev_v3x(struct rkisp_isp_stats_vdev *stats_vdev)
 {
-	int mult = stats_vdev->dev->hw_dev->is_unite ? 2 : 1;
+	int mult = stats_vdev->dev->hw_dev->unite ? 2 : 1;
 
 	stats_vdev->vdev_fmt.fmt.meta.dataformat =
 		V4L2_META_FMT_RK_ISP1_STAT_3A;
