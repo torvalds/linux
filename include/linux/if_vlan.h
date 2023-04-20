@@ -351,7 +351,8 @@ static inline int __vlan_insert_inner_tag(struct sk_buff *skb,
 	/* Move the mac header sans proto to the beginning of the new header. */
 	if (likely(mac_len > ETH_TLEN))
 		memmove(skb->data, skb->data + VLAN_HLEN, mac_len - ETH_TLEN);
-	skb->mac_header -= VLAN_HLEN;
+	if (skb_mac_header_was_set(skb))
+		skb->mac_header -= VLAN_HLEN;
 
 	veth = (struct vlan_ethhdr *)(skb->data + mac_len - ETH_HLEN);
 
