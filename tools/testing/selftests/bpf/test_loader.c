@@ -587,8 +587,16 @@ void run_subtest(struct test_loader *tester,
 		/* For some reason test_verifier executes programs
 		 * with all capabilities restored. Do the same here.
 		 */
-		if (!restore_capabilities(&caps))
+		if (restore_capabilities(&caps))
 			goto tobj_cleanup;
+
+		if (tester->pre_execution_cb) {
+			err = tester->pre_execution_cb(tobj);
+			if (err) {
+				PRINT_FAIL("pre_execution_cb failed: %d\n", err);
+				goto tobj_cleanup;
+			}
+		}
 
 		do_prog_test_run(bpf_program__fd(tprog), &retval);
 		if (retval != subspec->retval && subspec->retval != POINTER_VALUE) {
