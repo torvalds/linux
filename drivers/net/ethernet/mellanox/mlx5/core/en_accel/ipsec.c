@@ -712,7 +712,7 @@ release_work:
 	kfree(sa_entry->work);
 err_xfrm:
 	kfree(sa_entry);
-	NL_SET_ERR_MSG_MOD(extack, "Device failed to offload this policy");
+	NL_SET_ERR_MSG_WEAK_MOD(extack, "Device failed to offload this state");
 	return err;
 }
 
