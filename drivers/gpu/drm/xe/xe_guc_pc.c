@@ -370,15 +370,14 @@ static ssize_t freq_act_show(struct device *dev,
 	u32 freq;
 	ssize_t ret;
 
+	xe_device_mem_access_get(gt_to_xe(gt));
 	/*
 	 * When in RC6, actual frequency is 0. Let's block RC6 so we are able
 	 * to verify that our freq requests are really happening.
 	 */
 	ret = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
 	if (ret)
-		return ret;
-
-	xe_device_mem_access_get(gt_to_xe(gt));
+		goto out;
 
 	if (xe->info.platform == XE_METEORLAKE) {
 		freq = xe_mmio_read32(gt, MTL_MIRROR_TARGET_WP1.reg);
@@ -388,11 +387,11 @@ static ssize_t freq_act_show(struct device *dev,
 		freq = REG_FIELD_GET(GEN12_CAGF_MASK, freq);
 	}
 
-	xe_device_mem_access_put(gt_to_xe(gt));
-
 	ret = sysfs_emit(buf, "%d\n", decode_freq(freq));
 
 	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL));
+out:
+	xe_device_mem_access_put(gt_to_xe(gt));
 	return ret;
 }
 static DEVICE_ATTR_RO(freq_act);
@@ -405,22 +404,23 @@ static ssize_t freq_cur_show(struct device *dev,
 	u32 freq;
 	ssize_t ret;
 
+	xe_device_mem_access_get(gt_to_xe(gt));
 	/*
 	 * GuC SLPC plays with cur freq request when GuCRC is enabled
 	 * Block RC6 for a more reliable read.
 	 */
 	ret = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
 	if (ret)
-		return ret;
+		goto out;
 
-	xe_device_mem_access_get(gt_to_xe(gt));
 	freq = xe_mmio_read32(gt, GEN6_RPNSWREQ.reg);
-	xe_device_mem_access_put(gt_to_xe(gt));
 
 	freq = REG_FIELD_GET(REQ_RATIO_MASK, freq);
 	ret = sysfs_emit(buf, "%d\n", decode_freq(freq));
 
 	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL));
+out:
+	xe_device_mem_access_put(gt_to_xe(gt));
 	return ret;
 }
 static DEVICE_ATTR_RO(freq_cur);
@@ -610,17 +610,17 @@ static ssize_t rc6_residency_show(struct device *dev,
 	u32 reg;
 	ssize_t ret;
 
+	xe_device_mem_access_get(pc_to_xe(pc));
 	ret = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
 	if (ret)
-		return ret;
+		goto out;
 
-	xe_device_mem_access_get(pc_to_xe(pc));
 	reg = xe_mmio_read32(gt, GEN6_GT_GFX_RC6.reg);
-	xe_device_mem_access_put(pc_to_xe(pc));
-
 	ret = sysfs_emit(buff, "%u\n", reg);
 
 	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL));
+out:
+	xe_device_mem_access_put(pc_to_xe(pc));
 	return ret;
 }
 static DEVICE_ATTR_RO(rc6_residency);
