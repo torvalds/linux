@@ -176,8 +176,8 @@ static void uvc_fixup_video_ctrl(struct uvc_streaming *stream,
 		return;
 
 	for (i = 0; i < format->nframes; ++i) {
-		if (format->frame[i].bFrameIndex == ctrl->bFrameIndex) {
-			frame = &format->frame[i];
+		if (format->frames[i].bFrameIndex == ctrl->bFrameIndex) {
+			frame = &format->frames[i];
 			break;
 		}
 	}
@@ -2179,7 +2179,7 @@ int uvc_video_init(struct uvc_streaming *stream)
 	 * descriptor is not found, use the first available frame.
 	 */
 	for (i = format->nframes; i > 0; --i) {
-		frame = &format->frame[i-1];
+		frame = &format->frames[i-1];
 		if (frame->bFrameIndex == probe->bFrameIndex)
 			break;
 	}

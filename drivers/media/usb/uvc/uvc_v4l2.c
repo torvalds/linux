@@ -255,14 +255,14 @@ static int uvc_v4l2_try_format(struct uvc_streaming *stream,
 	maxd = (unsigned int)-1;
 
 	for (i = 0; i < format->nframes; ++i) {
-		u16 w = format->frame[i].wWidth;
-		u16 h = format->frame[i].wHeight;
+		u16 w = format->frames[i].wWidth;
+		u16 h = format->frames[i].wHeight;
 
 		d = min(w, rw) * min(h, rh);
 		d = w*h + rw*rh - 2*d;
 		if (d < maxd) {
 			maxd = d;
-			frame = &format->frame[i];
+			frame = &format->frames[i];
 		}
 
 		if (maxd == 0)
@@ -331,8 +331,8 @@ static int uvc_v4l2_try_format(struct uvc_streaming *stream,
 			probe->bFormatIndex);
 
 	for (i = 0; i < format->nframes; ++i) {
-		if (probe->bFrameIndex == format->frame[i].bFrameIndex) {
-			frame = &format->frame[i];
+		if (probe->bFrameIndex == format->frames[i].bFrameIndex) {
+			frame = &format->frames[i];
 			break;
 		}
 	}
@@ -501,19 +501,19 @@ static int uvc_v4l2_set_streamparm(struct uvc_streaming *stream,
 	for (i = 0; i < format->nframes && maxd != 0; i++) {
 		u32 d, ival;
 
-		if (&format->frame[i] == stream->cur_frame)
+		if (&format->frames[i] == stream->cur_frame)
 			continue;
 
-		if (format->frame[i].wWidth != stream->cur_frame->wWidth ||
-		    format->frame[i].wHeight != stream->cur_frame->wHeight)
+		if (format->frames[i].wWidth != stream->cur_frame->wWidth ||
+		    format->frames[i].wHeight != stream->cur_frame->wHeight)
 			continue;
 
-		ival = uvc_try_frame_interval(&format->frame[i], interval);
+		ival = uvc_try_frame_interval(&format->frames[i], interval);
 		d = abs((s32)ival - interval);
 		if (d >= maxd)
 			continue;
 
-		frame = &format->frame[i];
+		frame = &format->frames[i];
 		probe.bFrameIndex = frame->bFrameIndex;
 		probe.dwFrameInterval = ival;
 		maxd = d;
@@ -1266,10 +1266,10 @@ static int uvc_ioctl_enum_framesizes(struct file *file, void *fh,
 
 	/* Skip duplicate frame sizes */
 	for (i = 0, index = 0; i < format->nframes; i++) {
-		if (frame && frame->wWidth == format->frame[i].wWidth &&
-		    frame->wHeight == format->frame[i].wHeight)
+		if (frame && frame->wWidth == format->frames[i].wWidth &&
+		    frame->wHeight == format->frames[i].wHeight)
 			continue;
-		frame = &format->frame[i];
+		frame = &format->frames[i];
 		if (index == fsize->index)
 			break;
 		index++;
@@ -1307,9 +1307,9 @@ static int uvc_ioctl_enum_frameintervals(struct file *file, void *fh,
 
 	index = fival->index;
 	for (i = 0; i < format->nframes; i++) {
-		if (format->frame[i].wWidth == fival->width &&
-		    format->frame[i].wHeight == fival->height) {
-			frame = &format->frame[i];
+		if (format->frames[i].wWidth == fival->width &&
+		    format->frames[i].wHeight == fival->height) {
+			frame = &format->frames[i];
 			nintervals = frame->bFrameIntervalType ?: 1;
 			if (index < nintervals)
 				break;

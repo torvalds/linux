@@ -265,7 +265,7 @@ struct uvc_format {
 	u32 flags;
 
 	unsigned int nframes;
-	struct uvc_frame *frame;
+	struct uvc_frame *frames;
 };
 
 struct uvc_streaming_header {
