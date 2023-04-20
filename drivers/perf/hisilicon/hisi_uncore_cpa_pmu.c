@@ -316,7 +316,7 @@ static int hisi_cpa_pmu_probe(struct platform_device *pdev)
 	if (!name)
 		return -ENOMEM;
 
-	hisi_pmu_init(cpa_pmu, name, THIS_MODULE);
+	hisi_pmu_init(cpa_pmu, THIS_MODULE);
 
 	/* Power Management should be disabled before using CPA PMU. */
 	hisi_cpa_pmu_disable_pm(cpa_pmu);
