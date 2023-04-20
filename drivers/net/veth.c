@@ -1262,11 +1262,12 @@ static void veth_set_xdp_features(struct net_device *dev)
 
 	peer = rtnl_dereference(priv->peer);
 	if (peer && peer->real_num_tx_queues <= dev->real_num_rx_queues) {
+		struct veth_priv *priv_peer = netdev_priv(peer);
 		xdp_features_t val = NETDEV_XDP_ACT_BASIC |
 				     NETDEV_XDP_ACT_REDIRECT |
 				     NETDEV_XDP_ACT_RX_SG;
 
-		if (priv->_xdp_prog || veth_gro_requested(dev))
+		if (priv_peer->_xdp_prog || veth_gro_requested(peer))
 			val |= NETDEV_XDP_ACT_NDO_XMIT |
 			       NETDEV_XDP_ACT_NDO_XMIT_SG;
 		xdp_set_features_flag(dev, val);
@@ -1504,19 +1505,23 @@ static int veth_set_features(struct net_device *dev,
 {
 	netdev_features_t changed = features ^ dev->features;
 	struct veth_priv *priv = netdev_priv(dev);
+	struct net_device *peer;
 	int err;
 
 	if (!(changed & NETIF_F_GRO) || !(dev->flags & IFF_UP) || priv->_xdp_prog)
 		return 0;
 
+	peer = rtnl_dereference(priv->peer);
 	if (features & NETIF_F_GRO) {
 		err = veth_napi_enable(dev);
 		if (err)
 			return err;
 
-		xdp_features_set_redirect_target(dev, true);
+		if (peer)
+			xdp_features_set_redirect_target(peer, true);
 	} else {
-		xdp_features_clear_redirect_target(dev);
+		if (peer)
+			xdp_features_clear_redirect_target(peer);
 		veth_napi_del(dev);
 	}
 	return 0;
@@ -1598,13 +1603,13 @@ static int veth_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 			peer->max_mtu = max_mtu;
 		}
 
-		xdp_features_set_redirect_target(dev, true);
+		xdp_features_set_redirect_target(peer, true);
 	}
 
 	if (old_prog) {
 		if (!prog) {
-			if (!veth_gro_requested(dev))
-				xdp_features_clear_redirect_target(dev);
+			if (peer && !veth_gro_requested(dev))
+				xdp_features_clear_redirect_target(peer);
 
 			if (dev->flags & IFF_UP)
 				veth_disable_xdp(dev);
