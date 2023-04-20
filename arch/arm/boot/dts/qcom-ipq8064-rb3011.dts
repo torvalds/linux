@@ -323,7 +323,7 @@
 			pinctrl-0 = <&leds_pins>;
 			pinctrl-names = "default";
 
-			led@7 {
+			led-0 {
 				label = "rb3011:green:user";
 				color = <LED_COLOR_ID_GREEN>;
 				gpios = <&qcom_pinmux 33 GPIO_ACTIVE_HIGH>;
