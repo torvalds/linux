@@ -74,7 +74,6 @@ struct sof_sdw_codec_info {
 		     bool playback);
 
 	int (*exit)(struct snd_soc_card *card, struct snd_soc_dai_link *dai_link);
-	bool late_probe;
 	int (*codec_card_late_probe)(struct snd_soc_card *card);
 };
 
@@ -158,8 +157,6 @@ int sof_sdw_mx8373_init(struct snd_soc_card *card,
 			struct snd_soc_dai_link *dai_links,
 			struct sof_sdw_codec_info *info,
 			bool playback);
-
-int sof_sdw_mx8373_late_probe(struct snd_soc_card *card);
 
 /* RT5682 support */
 int sof_sdw_rt5682_init(struct snd_soc_card *card,
