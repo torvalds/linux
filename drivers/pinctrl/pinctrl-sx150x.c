@@ -1261,3 +1261,4 @@ static int __init sx150x_init(void)
 	return i2c_add_driver(&sx150x_driver);
 }
 subsys_initcall(sx150x_init);
+MODULE_LICENSE("GPL");
