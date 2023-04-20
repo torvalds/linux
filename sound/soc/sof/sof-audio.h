@@ -108,6 +108,11 @@ struct snd_sof_dai_config_data {
  *				 STOP pcm trigger
  * @ipc_first_on_start: Send IPC before invoking platform trigger during
  *				START/PAUSE_RELEASE triggers
+ * @platform_stop_during_hw_free: Invoke the platform trigger during hw_free. This is needed for
+ *				  IPC4 where a pipeline is only paused during stop/pause/suspend
+ *				  triggers. The FW keeps the host DMA running in this case and
+ *				  therefore the host must do the same and should stop the DMA during
+ *				  hw_free.
  */
 struct sof_ipc_pcm_ops {
 	int (*hw_params)(struct snd_soc_component *component, struct snd_pcm_substream *substream,
@@ -123,6 +128,7 @@ struct sof_ipc_pcm_ops {
 				   struct snd_pcm_substream *substream);
 	bool reset_hw_params_during_stop;
 	bool ipc_first_on_start;
+	bool platform_stop_during_hw_free;
 };
 
 /**

@@ -211,16 +211,22 @@ static int sof_pcm_hw_free(struct snd_soc_component *component,
 	dev_dbg(component->dev, "pcm: free stream %d dir %d\n",
 		spcm->pcm.pcm_id, substream->stream);
 
-	/* free PCM in the DSP */
-	if (pcm_ops && pcm_ops->hw_free && spcm->prepared[substream->stream]) {
-		ret = pcm_ops->hw_free(component, substream);
-		if (ret < 0)
-			err = ret;
+	if (spcm->prepared[substream->stream]) {
+		/* stop DMA first if needed */
+		if (pcm_ops && pcm_ops->platform_stop_during_hw_free)
+			snd_sof_pcm_platform_trigger(sdev, substream, SNDRV_PCM_TRIGGER_STOP);
+
+		/* free PCM in the DSP */
+		if (pcm_ops && pcm_ops->hw_free) {
+			ret = pcm_ops->hw_free(component, substream);
+			if (ret < 0)
+				err = ret;
+		}
 
 		spcm->prepared[substream->stream] = false;
 	}
 
-	/* stop DMA */
+	/* reset DMA */
 	ret = snd_sof_pcm_platform_hw_free(sdev, substream);
 	if (ret < 0) {
 		dev_err(component->dev, "error: platform hw free failed\n");
@@ -362,8 +368,9 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 	case SNDRV_PCM_TRIGGER_STOP:
-		/* invoke platform trigger to stop DMA even if pcm_ops failed */
-		snd_sof_pcm_platform_trigger(sdev, substream, cmd);
+		/* invoke platform trigger to stop DMA even if pcm_ops isn't set or if it failed */
+		if (!pcm_ops || (pcm_ops && !pcm_ops->platform_stop_during_hw_free))
+			snd_sof_pcm_platform_trigger(sdev, substream, cmd);
 		break;
 	default:
 		break;

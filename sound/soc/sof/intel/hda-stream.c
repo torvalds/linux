@@ -337,7 +337,13 @@ int hda_dsp_stream_trigger(struct snd_sof_dev *sdev,
 	/* cmd must be for audio stream */
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		if (!sdev->dspless_mode_selected)
+			break;
+		fallthrough;
 	case SNDRV_PCM_TRIGGER_START:
+		if (hstream->running)
+			break;
+
 		snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, SOF_HDA_INTCTL,
 					1 << hstream->index,
 					1 << hstream->index);
@@ -360,8 +366,11 @@ int hda_dsp_stream_trigger(struct snd_sof_dev *sdev,
 			hstream->running = true;
 
 		break;
-	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		if (!sdev->dspless_mode_selected)
+			break;
+		fallthrough;
+	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
 		snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
 					sd_offset,
