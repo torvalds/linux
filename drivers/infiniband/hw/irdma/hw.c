@@ -1908,8 +1908,8 @@ int irdma_ctrl_init_hw(struct irdma_pci_f *rf)
 			break;
 		rf->init_state = CEQ0_CREATED;
 		/* Handles processing of CQP completions */
-		rf->cqp_cmpl_wq = alloc_ordered_workqueue("cqp_cmpl_wq",
-						WQ_HIGHPRI | WQ_UNBOUND);
+		rf->cqp_cmpl_wq =
+			alloc_ordered_workqueue("cqp_cmpl_wq", WQ_HIGHPRI);
 		if (!rf->cqp_cmpl_wq) {
 			status = -ENOMEM;
 			break;
