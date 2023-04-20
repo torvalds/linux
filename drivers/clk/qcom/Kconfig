@@ -925,6 +925,15 @@ config SM_VIDEOCC_8250
 	  Say Y if you want to support video devices and functionality such as
 	  video encode and decode.
 
+config SM_VIDEOCC_8350
+	tristate "SM8350 Video Clock Controller"
+	select SM_GCC_8350
+	select QCOM_GDSC
+	help
+	  Support for the video clock controller on SM8350 devices.
+	  Say Y if you want to support video devices and functionality such as
+	  video encode and decode.
+
 config SPMI_PMIC_CLKDIV
 	tristate "SPMI PMIC clkdiv Support"
 	depends on SPMI || COMPILE_TEST
