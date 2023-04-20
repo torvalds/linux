@@ -606,7 +606,7 @@
 			regulator;
 		};
 
-		nss_common: syscon@03000000 {
+		nss_common: syscon@3000000 {
 			compatible = "syscon";
 			reg = <0x03000000 0x0000FFFF>;
 		};
