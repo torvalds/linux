@@ -358,13 +358,17 @@ static int rz_mtu3_count_ceiling_write(struct counter_device *counter,
 	switch (count->id) {
 	case RZ_MTU3_16_BIT_MTU1_CH:
 	case RZ_MTU3_16_BIT_MTU2_CH:
-		if (ceiling > U16_MAX)
+		if (ceiling > U16_MAX) {
+			mutex_unlock(&priv->lock);
 			return -ERANGE;
+		}
 		priv->mtu_16bit_max[ch_id] = ceiling;
 		break;
 	case RZ_MTU3_32_BIT_CH:
-		if (ceiling > U32_MAX)
+		if (ceiling > U32_MAX) {
+			mutex_unlock(&priv->lock);
 			return -ERANGE;
+		}
 		priv->mtu_32bit_max = ceiling;
 		break;
 	default:
