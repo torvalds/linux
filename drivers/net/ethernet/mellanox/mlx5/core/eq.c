@@ -1070,10 +1070,11 @@ mlx5_comp_irq_get_affinity_mask(struct mlx5_core_dev *dev, int vector)
 
 	list_for_each_entry(eq, &table->comp_eqs_list, list) {
 		if (i++ == vector)
-			break;
+			return mlx5_irq_get_affinity_mask(eq->core.irq);
 	}
 
-	return mlx5_irq_get_affinity_mask(eq->core.irq);
+	WARN_ON_ONCE(1);
+	return NULL;
 }
 EXPORT_SYMBOL(mlx5_comp_irq_get_affinity_mask);
 
