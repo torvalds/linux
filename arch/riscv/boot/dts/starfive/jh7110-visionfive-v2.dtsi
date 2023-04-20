@@ -470,7 +470,7 @@
 				regulator-compatible = "sdio_vdd";
 				regulator-name = "sdio_vdd";
 				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <3300000>;
+				regulator-max-microvolt = <1800000>;
 			};
 			vcc_3v3: DCDC1 {
 				regulator-boot-on;
