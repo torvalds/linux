@@ -182,14 +182,23 @@ bool dc_dmub_srv_cmd_run_list(struct dc_dmub_srv *dc_dmub_srv, unsigned int coun
 bool dc_dmub_srv_optimized_init_done(struct dc_dmub_srv *dc_dmub_srv)
 {
 	struct dmub_srv *dmub;
-	union dmub_fw_boot_status status;
+	struct dc_context *dc_ctx;
+	union dmub_fw_boot_status boot_status;
+	enum dmub_status status;
 
 	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
 		return false;
 
 	dmub = dc_dmub_srv->dmub;
+	dc_ctx = dc_dmub_srv->ctx;
 
-	return status.bits.optimized_init_done;
+	status = dmub_srv_get_fw_boot_status(dmub, &boot_status);
+	if (status != DMUB_STATUS_OK) {
+		DC_ERROR("Error querying DMUB boot status: error=%d\n", status);
+		return false;
+	}
+
+	return boot_status.bits.optimized_init_done;
 }
 
 bool dc_dmub_srv_notify_stream_mask(struct dc_dmub_srv *dc_dmub_srv,
