@@ -15,6 +15,8 @@
 
 #include "common.h"
 
+static DEFINE_IDA(ffa_bus_id);
+
 static int ffa_device_match(struct device *dev, struct device_driver *drv)
 {
 	const struct ffa_device_id *id_table;
@@ -131,6 +133,7 @@ static void ffa_release_device(struct device *dev)
 {
 	struct ffa_device *ffa_dev = to_ffa_dev(dev);
 
+	ida_free(&ffa_bus_id, ffa_dev->id);
 	kfree(ffa_dev);
 }
 
@@ -171,18 +174,24 @@ bool ffa_device_is_valid(struct ffa_device *ffa_dev)
 struct ffa_device *ffa_device_register(const uuid_t *uuid, int vm_id,
 				       const struct ffa_ops *ops)
 {
-	int ret;
+	int id, ret;
 	struct device *dev;
 	struct ffa_device *ffa_dev;
 
-	ffa_dev = kzalloc(sizeof(*ffa_dev), GFP_KERNEL);
-	if (!ffa_dev)
+	id = ida_alloc_min(&ffa_bus_id, 1, GFP_KERNEL);
+	if (id < 0)
 		return NULL;
+
+	ffa_dev = kzalloc(sizeof(*ffa_dev), GFP_KERNEL);
+	if (!ffa_dev) {
+		ida_free(&ffa_bus_id, id);
+		return NULL;
+	}
 
 	dev = &ffa_dev->dev;
 	dev->bus = &ffa_bus_type;
 	dev->release = ffa_release_device;
-	dev_set_name(&ffa_dev->dev, "arm-ffa-%04x", vm_id);
+	dev_set_name(&ffa_dev->dev, "arm-ffa-%d", id);
 
 	ffa_dev->vm_id = vm_id;
 	ffa_dev->ops = ops;
@@ -218,4 +227,5 @@ void arm_ffa_bus_exit(void)
 {
 	ffa_devices_unregister();
 	bus_unregister(&ffa_bus_type);
+	ida_destroy(&ffa_bus_id);
 }
