@@ -8671,6 +8671,12 @@ M:	Ze-Yu Wang <ze-yu.wang@mediatek.com>
 M:	Yi-De Wu <yi-de.wu@mediatek.com>
 F:	Documentation/devicetree/bindings/hypervisor/mediatek,geniezone-hyp.yaml
 F:	Documentation/virt/geniezone/
+F:	arch/arm64/geniezone/
+F:	arch/arm64/include/uapi/asm/gzvm_arch.h
+F:	drivers/virt/geniezone/
+F:	include/linux/gzvm_drv.h
+F	include/uapi/asm-generic/gzvm_arch.h
+F:	include/uapi/linux/gzvm.h
 
 GENWQE (IBM Generic Workqueue Card)
 M:	Frank Haverkamp <haver@linux.ibm.com>
