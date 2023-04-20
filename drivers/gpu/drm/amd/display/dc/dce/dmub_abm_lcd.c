@@ -24,6 +24,7 @@
  */
 
 #include "dmub_abm.h"
+#include "dmub_abm_lcd.h"
 #include "dce_abm.h"
 #include "dc.h"
 #include "dc_dmub_srv.h"
@@ -158,27 +159,6 @@ bool dmub_abm_set_level(struct abm *abm, uint32_t level, uint8_t panel_mask)
 
 	return true;
 }
-
-#ifndef TRIM_AMBIENT_GAMMA
-void dmub_abm_set_ambient_level(struct abm *abm, unsigned int ambient_lux, uint8_t panel_mask)
-{
-	union dmub_rb_cmd cmd;
-	struct dc_context *dc = abm->ctx;
-
-	if (ambient_lux > 0xFFFF)
-		ambient_lux = 0xFFFF;
-
-	memset(&cmd, 0, sizeof(cmd));
-	cmd.abm_set_ambient_level.header.type = DMUB_CMD__ABM;
-	cmd.abm_set_ambient_level.header.sub_type = DMUB_CMD__ABM_SET_AMBIENT_LEVEL;
-	cmd.abm_set_ambient_level.abm_set_ambient_level_data.ambient_lux = ambient_lux;
-	cmd.abm_set_ambient_level.abm_set_ambient_level_data.version = DMUB_CMD_ABM_CONTROL_VERSION_1;
-	cmd.abm_set_ambient_level.abm_set_ambient_level_data.panel_mask = panel_mask;
-	cmd.abm_set_ambient_level.header.payload_bytes = sizeof(struct dmub_cmd_abm_set_ambient_level_data);
-
-	dm_execute_dmub_cmd(dc, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
-}
-#endif
 
 void dmub_abm_init_config(struct abm *abm,
 	const char *src,
