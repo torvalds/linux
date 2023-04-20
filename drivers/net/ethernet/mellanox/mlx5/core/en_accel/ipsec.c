@@ -252,6 +252,8 @@ static void mlx5e_ipsec_init_macs(struct mlx5e_ipsec_sa_entry *sa_entry,
 	struct net_device *netdev;
 	struct neighbour *n;
 	u8 addr[ETH_ALEN];
+	const void *pkey;
+	u8 *dst, *src;
 
 	if (attrs->mode != XFRM_MODE_TUNNEL ||
 	    attrs->type != XFRM_DEV_OFFLOAD_PACKET)
@@ -262,35 +264,30 @@ static void mlx5e_ipsec_init_macs(struct mlx5e_ipsec_sa_entry *sa_entry,
 	mlx5_query_mac_address(mdev, addr);
 	switch (attrs->dir) {
 	case XFRM_DEV_OFFLOAD_IN:
-		ether_addr_copy(attrs->dmac, addr);
-		n = neigh_lookup(&arp_tbl, &attrs->saddr.a4, netdev);
-		if (!n) {
-			n = neigh_create(&arp_tbl, &attrs->saddr.a4, netdev);
-			if (IS_ERR(n))
-				return;
-			neigh_event_send(n, NULL);
-			attrs->drop = true;
-			break;
-		}
-		neigh_ha_snapshot(addr, n, netdev);
-		ether_addr_copy(attrs->smac, addr);
+		src = attrs->dmac;
+		dst = attrs->smac;
+		pkey = &attrs->saddr.a4;
 		break;
 	case XFRM_DEV_OFFLOAD_OUT:
-		ether_addr_copy(attrs->smac, addr);
-		n = neigh_lookup(&arp_tbl, &attrs->daddr.a4, netdev);
-		if (!n) {
-			n = neigh_create(&arp_tbl, &attrs->daddr.a4, netdev);
-			if (IS_ERR(n))
-				return;
-			neigh_event_send(n, NULL);
-			attrs->drop = true;
-			break;
-		}
-		neigh_ha_snapshot(addr, n, netdev);
-		ether_addr_copy(attrs->dmac, addr);
+		src = attrs->smac;
+		dst = attrs->dmac;
+		pkey = &attrs->daddr.a4;
 		break;
 	default:
 		return;
+	}
+
+	ether_addr_copy(src, addr);
+	n = neigh_lookup(&arp_tbl, pkey, netdev);
+	if (!n) {
+		n = neigh_create(&arp_tbl, pkey, netdev);
+		if (IS_ERR(n))
+			return;
+		neigh_event_send(n, NULL);
+		attrs->drop = true;
+	} else {
+		neigh_ha_snapshot(addr, n, netdev);
+		ether_addr_copy(dst, addr);
 	}
 	neigh_release(n);
 }
