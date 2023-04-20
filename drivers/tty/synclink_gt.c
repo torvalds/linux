@@ -287,7 +287,6 @@ struct slgt_info {
 	unsigned char *tx_buf;
 	int tx_count;
 
-	char *flag_buf;
 	bool drop_rts_on_tx_done;
 	struct	_input_signal_events	input_signal_events;
 
@@ -3244,13 +3243,7 @@ static int alloc_tmp_rbuf(struct slgt_info *info)
 	info->tmp_rbuf = kmalloc(info->max_frame_size + 5, GFP_KERNEL);
 	if (info->tmp_rbuf == NULL)
 		return -ENOMEM;
-	/* unused flag buffer to satisfy receive_buf calling interface */
-	info->flag_buf = kzalloc(info->max_frame_size + 5, GFP_KERNEL);
-	if (!info->flag_buf) {
-		kfree(info->tmp_rbuf);
-		info->tmp_rbuf = NULL;
-		return -ENOMEM;
-	}
+
 	return 0;
 }
 
@@ -3258,8 +3251,6 @@ static void free_tmp_rbuf(struct slgt_info *info)
 {
 	kfree(info->tmp_rbuf);
 	info->tmp_rbuf = NULL;
-	kfree(info->flag_buf);
-	info->flag_buf = NULL;
 }
 
 /*
@@ -4657,7 +4648,8 @@ check_again:
 				hdlcdev_rx(info,info->tmp_rbuf, framesize);
 			else
 #endif
-				ldisc_receive_buf(tty, info->tmp_rbuf, info->flag_buf, framesize);
+				ldisc_receive_buf(tty, info->tmp_rbuf, NULL,
+						  framesize);
 		}
 	}
 	free_rbufs(info, start, end);
@@ -4691,8 +4683,8 @@ static bool rx_get_buf(struct slgt_info *info)
 	DBGDATA(info, info->rbufs[i].buf, count, "rx");
 	DBGINFO(("rx_get_buf size=%d\n", count));
 	if (count)
-		ldisc_receive_buf(info->port.tty, info->rbufs[i].buf,
-				  info->flag_buf, count);
+		ldisc_receive_buf(info->port.tty, info->rbufs[i].buf, NULL,
+				  count);
 	free_rbufs(info, i, i);
 	return true;
 }
