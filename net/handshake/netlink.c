@@ -249,7 +249,7 @@ static void __net_exit handshake_net_exit(struct net *net)
 	}
 }
 
-static struct pernet_operations __net_initdata handshake_genl_net_ops = {
+static struct pernet_operations handshake_genl_net_ops = {
 	.init		= handshake_net_init,
 	.exit		= handshake_net_exit,
 	.id		= &handshake_net_id,
