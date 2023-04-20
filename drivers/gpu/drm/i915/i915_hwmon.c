@@ -50,6 +50,7 @@ struct hwm_drvdata {
 	struct hwm_energy_info ei;		/*  Energy info for energy1_input */
 	char name[12];
 	int gt_n;
+	bool reset_in_progress;
 };
 
 struct i915_hwmon {
@@ -400,6 +401,10 @@ hwm_power_max_write(struct hwm_drvdata *ddat, long val)
 	u32 nval;
 
 	mutex_lock(&hwmon->hwmon_lock);
+	if (hwmon->ddat.reset_in_progress) {
+		ret = -EAGAIN;
+		goto unlock;
+	}
 	wakeref = intel_runtime_pm_get(ddat->uncore->rpm);
 
 	/* Disable PL1 limit and verify, because the limit cannot be disabled on all platforms */
@@ -421,6 +426,7 @@ hwm_power_max_write(struct hwm_drvdata *ddat, long val)
 			 PKG_PWR_LIM_1_EN | PKG_PWR_LIM_1, nval);
 exit:
 	intel_runtime_pm_put(ddat->uncore->rpm, wakeref);
+unlock:
 	mutex_unlock(&hwmon->hwmon_lock);
 	return ret;
 }
@@ -470,6 +476,40 @@ hwm_power_write(struct hwm_drvdata *ddat, u32 attr, int chan, long val)
 	default:
 		return -EOPNOTSUPP;
 	}
+}
+
+void i915_hwmon_power_max_disable(struct drm_i915_private *i915, bool *old)
+{
+	struct i915_hwmon *hwmon = i915->hwmon;
+	u32 r;
+
+	if (!hwmon || !i915_mmio_reg_valid(hwmon->rg.pkg_rapl_limit))
+		return;
+
+	mutex_lock(&hwmon->hwmon_lock);
+
+	hwmon->ddat.reset_in_progress = true;
+	r = intel_uncore_rmw(hwmon->ddat.uncore, hwmon->rg.pkg_rapl_limit,
+			     PKG_PWR_LIM_1_EN, 0);
+	*old = !!(r & PKG_PWR_LIM_1_EN);
+
+	mutex_unlock(&hwmon->hwmon_lock);
+}
+
+void i915_hwmon_power_max_restore(struct drm_i915_private *i915, bool old)
+{
+	struct i915_hwmon *hwmon = i915->hwmon;
+
+	if (!hwmon || !i915_mmio_reg_valid(hwmon->rg.pkg_rapl_limit))
+		return;
+
+	mutex_lock(&hwmon->hwmon_lock);
+
+	intel_uncore_rmw(hwmon->ddat.uncore, hwmon->rg.pkg_rapl_limit,
+			 PKG_PWR_LIM_1_EN, old ? PKG_PWR_LIM_1_EN : 0);
+	hwmon->ddat.reset_in_progress = false;
+
+	mutex_unlock(&hwmon->hwmon_lock);
 }
 
 static umode_t
