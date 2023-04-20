@@ -3143,93 +3143,94 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 		return -EFAULT;
 	ret = 0;
 
-	switch (type)
-	{
-		case TIOCL_SETSEL:
-			ret = set_selection_user((struct tiocl_selection
-						 __user *)(p+1), tty);
-			break;
-		case TIOCL_PASTESEL:
-			ret = paste_selection(tty);
-			break;
-		case TIOCL_UNBLANKSCREEN:
-			console_lock();
-			unblank_screen();
-			console_unlock();
-			break;
-		case TIOCL_SELLOADLUT:
-			console_lock();
-			ret = sel_loadlut(p);
-			console_unlock();
-			break;
-		case TIOCL_GETSHIFTSTATE:
-
-	/*
-	 * Make it possible to react to Shift+Mousebutton.
-	 * Note that 'shift_state' is an undocumented
-	 * kernel-internal variable; programs not closely
-	 * related to the kernel should not use this.
-	 */
-			data = vt_get_shift_state();
-			ret = put_user(data, p);
-			break;
-		case TIOCL_GETMOUSEREPORTING:
-			console_lock();	/* May be overkill */
-			data = mouse_reporting();
-			console_unlock();
-			ret = put_user(data, p);
-			break;
-		case TIOCL_SETVESABLANK:
-			console_lock();
-			ret = set_vesa_blanking(p);
-			console_unlock();
-			break;
-		case TIOCL_GETKMSGREDIRECT:
-			data = vt_get_kmsg_redirect();
-			ret = put_user(data, p);
-			break;
-		case TIOCL_SETKMSGREDIRECT:
-			if (!capable(CAP_SYS_ADMIN)) {
-				ret = -EPERM;
-			} else {
-				if (get_user(data, p+1))
-					ret = -EFAULT;
-				else
-					vt_kmsg_redirect(data);
-			}
-			break;
-		case TIOCL_GETFGCONSOLE:
-			/* No locking needed as this is a transiently
-			   correct return anyway if the caller hasn't
-			   disabled switching */
-			ret = fg_console;
-			break;
-		case TIOCL_SCROLLCONSOLE:
-			if (get_user(lines, (s32 __user *)(p+4))) {
+	switch (type) {
+	case TIOCL_SETSEL:
+		ret = set_selection_user((struct tiocl_selection
+					 __user *)(p+1), tty);
+		break;
+	case TIOCL_PASTESEL:
+		ret = paste_selection(tty);
+		break;
+	case TIOCL_UNBLANKSCREEN:
+		console_lock();
+		unblank_screen();
+		console_unlock();
+		break;
+	case TIOCL_SELLOADLUT:
+		console_lock();
+		ret = sel_loadlut(p);
+		console_unlock();
+		break;
+	case TIOCL_GETSHIFTSTATE:
+		/*
+		 * Make it possible to react to Shift+Mousebutton. Note that
+		 * 'shift_state' is an undocumented kernel-internal variable;
+		 * programs not closely related to the kernel should not use
+		 * this.
+		 */
+		data = vt_get_shift_state();
+		ret = put_user(data, p);
+		break;
+	case TIOCL_GETMOUSEREPORTING:
+		console_lock();	/* May be overkill */
+		data = mouse_reporting();
+		console_unlock();
+		ret = put_user(data, p);
+		break;
+	case TIOCL_SETVESABLANK:
+		console_lock();
+		ret = set_vesa_blanking(p);
+		console_unlock();
+		break;
+	case TIOCL_GETKMSGREDIRECT:
+		data = vt_get_kmsg_redirect();
+		ret = put_user(data, p);
+		break;
+	case TIOCL_SETKMSGREDIRECT:
+		if (!capable(CAP_SYS_ADMIN)) {
+			ret = -EPERM;
+		} else {
+			if (get_user(data, p+1))
 				ret = -EFAULT;
-			} else {
-				/* Need the console lock here. Note that lots
-				   of other calls need fixing before the lock
-				   is actually useful ! */
-				console_lock();
-				scrollfront(vc_cons[fg_console].d, lines);
-				console_unlock();
-				ret = 0;
-			}
-			break;
-		case TIOCL_BLANKSCREEN:	/* until explicitly unblanked, not only poked */
+			else
+				vt_kmsg_redirect(data);
+		}
+		break;
+	case TIOCL_GETFGCONSOLE:
+		/*
+		 * No locking needed as this is a transiently correct return
+		 * anyway if the caller hasn't disabled switching.
+		 */
+		ret = fg_console;
+		break;
+	case TIOCL_SCROLLCONSOLE:
+		if (get_user(lines, (s32 __user *)(p+4))) {
+			ret = -EFAULT;
+		} else {
+			/*
+			 * Needs the console lock here. Note that lots of other
+			 * calls need fixing before the lock is actually useful!
+			 */
 			console_lock();
-			ignore_poke = 1;
-			do_blank_screen(0);
+			scrollfront(vc_cons[fg_console].d, lines);
 			console_unlock();
-			break;
-		case TIOCL_BLANKEDSCREEN:
-			ret = console_blanked;
-			break;
-		default:
-			ret = -EINVAL;
-			break;
+			ret = 0;
+		}
+		break;
+	case TIOCL_BLANKSCREEN:	/* until explicitly unblanked, not only poked */
+		console_lock();
+		ignore_poke = 1;
+		do_blank_screen(0);
+		console_unlock();
+		break;
+	case TIOCL_BLANKEDSCREEN:
+		ret = console_blanked;
+		break;
+	default:
+		ret = -EINVAL;
+		break;
 	}
+
 	return ret;
 }
 
