@@ -167,6 +167,7 @@ static inline int context_cpy(struct context *dst, const struct context *src)
 	rc = mls_context_cpy(dst, src);
 	if (rc) {
 		kfree(dst->str);
+		dst->str = NULL;
 		return rc;
 	}
 	return 0;
