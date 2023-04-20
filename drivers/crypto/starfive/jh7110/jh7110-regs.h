@@ -1,7 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0
- *
- * Copyright 2021 StarFive, Inc <huan.feng@starfivetech.com>
- */
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __JH7110_REGS_H__
 #define __JH7110_REGS_H__
 

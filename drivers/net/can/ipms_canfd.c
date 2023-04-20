@@ -1,14 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright 2021 StarFive, Inc <jenny.zhang@starfivetech.com>
+ * StarFive Controller Area Network Host Controller Driver
  *
- * THE PRESENT SOFTWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING
- * CUSTOMERS WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER
- * FOR THEM TO SAVE TIME. AS A RESULT, STARFIVE SHALL NOT BE HELD LIABLE
- * FOR ANY DIRECT, INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY
- * CLAIMS ARISING FROM THE CONTENT OF SUCH SOFTWARE AND/OR THE USE MADE
- * BY CUSTOMERS OF THE CODING INFORMATION CONTAINED HEREIN IN CONNECTION
- * WITH THEIR PRODUCTS.
+ * Copyright (c) 2022 StarFive Technology Co., Ltd.
  */
 
 #include <linux/clk.h>
@@ -1268,6 +1262,7 @@ static struct platform_driver can_driver = {
 };
 
 module_platform_driver(can_driver);
-MODULE_AUTHOR("jenny.zhang <jenny.zhang@starfivetech.com>");
-MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("ipms can controller driver");
+
+MODULE_DESCRIPTION("ipms can controller driver for StarFive jh7110 SoC");
+MODULE_AUTHOR("William Qiu<william.qiu@starfivetech.com");
+MODULE_LICENSE("GPL");
