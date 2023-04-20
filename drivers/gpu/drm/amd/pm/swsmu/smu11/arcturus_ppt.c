@@ -794,11 +794,11 @@ static int arcturus_emit_clk_levels(struct smu_context *smu,
 		for (i = 0; i < clocks.num_levels; i++) {
 			clock_mhz = clocks.data[i].clocks_in_khz / 1000;
 			freq_match = arcturus_freqs_in_same_level(clock_mhz, cur_value);
+			freq_match |= (clocks.num_levels == 1);
 
-			*offset += sysfs_emit_at(buf, *offset, "%d: %uMhz %s\n", i,
-					clock_mhz,
-					(clocks.num_levels == 1) ? "*" :
-						(freq_match ? "*" : ""));
+			*offset += sysfs_emit_at(buf, *offset, "%d: %uMhz %s\n",
+						 i, clock_mhz,
+						 freq_match ? "*" : "");
 		}
 		break;
 
@@ -815,11 +815,11 @@ static int arcturus_emit_clk_levels(struct smu_context *smu,
 		for (i = 0; i < clocks.num_levels; i++) {
 			clock_mhz = clocks.data[i].clocks_in_khz / 1000;
 			freq_match = arcturus_freqs_in_same_level(clock_mhz, cur_value);
+			freq_match |= (clocks.num_levels == 1);
 
 			*offset += sysfs_emit_at(buf, *offset, "%d: %uMhz %s\n",
-				i, clock_mhz,
-				(clocks.num_levels == 1) ? "*" :
-					(freq_match ? "*" : ""));
+						 i, clock_mhz,
+						 freq_match ? "*" : "");
 		}
 		break;
 
@@ -836,11 +836,11 @@ static int arcturus_emit_clk_levels(struct smu_context *smu,
 		for (i = 0; i < clocks.num_levels; i++) {
 			clock_mhz = clocks.data[i].clocks_in_khz / 1000;
 			freq_match = arcturus_freqs_in_same_level(clock_mhz, cur_value);
+			freq_match |= (clocks.num_levels == 1);
 
 			*offset += sysfs_emit_at(buf, *offset, "%d: %uMhz %s\n",
-				i, clock_mhz,
-				(clocks.num_levels == 1) ? "*" :
-					(freq_match ? "*" : ""));
+						 i, clock_mhz,
+						 freq_match ? "*" : "");
 		}
 		break;
 
@@ -854,14 +854,14 @@ static int arcturus_emit_clk_levels(struct smu_context *smu,
 		single_dpm_table = &(dpm_context->dpm_tables.fclk_table);
 		arcturus_get_clk_table(smu, &clocks, single_dpm_table);
 
-		for (i = 0; i < single_dpm_table->count; i++) {
+		for (i = 0; i < clocks.num_levels; i++) {
 			clock_mhz = clocks.data[i].clocks_in_khz / 1000;
 			freq_match = arcturus_freqs_in_same_level(clock_mhz, cur_value);
+			freq_match |= (clocks.num_levels == 1);
 
 			*offset += sysfs_emit_at(buf, *offset, "%d: %uMhz %s\n",
-				i, single_dpm_table->dpm_levels[i].value,
-				(clocks.num_levels == 1) ? "*" :
-					(freq_match ? "*" : ""));
+						 i, clock_mhz,
+						 freq_match ? "*" : "");
 		}
 		break;
 
@@ -875,14 +875,14 @@ static int arcturus_emit_clk_levels(struct smu_context *smu,
 		single_dpm_table = &(dpm_context->dpm_tables.vclk_table);
 		arcturus_get_clk_table(smu, &clocks, single_dpm_table);
 
-		for (i = 0; i < single_dpm_table->count; i++) {
+		for (i = 0; i < clocks.num_levels; i++) {
 			clock_mhz = clocks.data[i].clocks_in_khz / 1000;
 			freq_match = arcturus_freqs_in_same_level(clock_mhz, cur_value);
+			freq_match |= (clocks.num_levels == 1);
 
 			*offset += sysfs_emit_at(buf, *offset, "%d: %uMhz %s\n",
-				i, single_dpm_table->dpm_levels[i].value,
-				(clocks.num_levels == 1) ? "*" :
-					(freq_match ? "*" : ""));
+						 i, clock_mhz,
+						 freq_match ? "*" : "");
 		}
 		break;
 
@@ -896,14 +896,14 @@ static int arcturus_emit_clk_levels(struct smu_context *smu,
 		single_dpm_table = &(dpm_context->dpm_tables.dclk_table);
 		arcturus_get_clk_table(smu, &clocks, single_dpm_table);
 
-		for (i = 0; i < single_dpm_table->count; i++) {
+		for (i = 0; i < clocks.num_levels; i++) {
 			clock_mhz = clocks.data[i].clocks_in_khz / 1000;
 			freq_match = arcturus_freqs_in_same_level(clock_mhz, cur_value);
+			freq_match |= (clocks.num_levels == 1);
 
 			*offset += sysfs_emit_at(buf, *offset, "%d: %uMhz %s\n",
-				i, single_dpm_table->dpm_levels[i].value,
-				(clocks.num_levels == 1) ? "*" :
-					(freq_match ? "*" : ""));
+						 i, clock_mhz,
+						 freq_match ? "*" : "");
 		}
 		break;
 
@@ -926,7 +926,6 @@ static int arcturus_emit_clk_levels(struct smu_context *smu,
 
 	default:
 		return -EINVAL;
-		break;
 	}
 
 	return 0;
