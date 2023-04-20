@@ -68,6 +68,7 @@ static struct cpuidle_driver intel_idle_driver = {
 static int max_cstate = CPUIDLE_STATE_MAX - 1;
 static unsigned int disabled_states_mask;
 static unsigned int preferred_states_mask;
+static bool force_irq_on __read_mostly;
 
 static struct cpuidle_device __percpu *intel_idle_cpuidle_devices;
 
@@ -1838,9 +1839,6 @@ static bool __init intel_idle_verify_cstate(unsigned int mwait_hint)
 	return true;
 }
 
-static bool force_irq_on __read_mostly;
-module_param(force_irq_on, bool, 0444);
-
 static void __init intel_idle_init_cstates_icpu(struct cpuidle_driver *drv)
 {
 	int cstate;
@@ -2157,3 +2155,9 @@ MODULE_PARM_DESC(states_off, "Mask of disabled idle states");
  */
 module_param_named(preferred_cstates, preferred_states_mask, uint, 0444);
 MODULE_PARM_DESC(preferred_cstates, "Mask of preferred idle states");
+/*
+ * Debugging option that forces the driver to enter all C-states with
+ * interrupts enabled. Does not apply to C-states with
+ * 'CPUIDLE_FLAG_INIT_XSTATE' and 'CPUIDLE_FLAG_IBRS' flags.
+ */
+module_param(force_irq_on, bool, 0444);
