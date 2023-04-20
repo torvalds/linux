@@ -44,9 +44,11 @@
 #include <net/tcp.h>
 #include <net/tcp_states.h>
 #include <net/tls.h>
+#include <net/handshake.h>
 #include <linux/uaccess.h>
 #include <linux/highmem.h>
 #include <asm/ioctls.h>
+#include <linux/key.h>
 
 #include <linux/sunrpc/types.h>
 #include <linux/sunrpc/clnt.h>
@@ -64,6 +66,12 @@
 
 #define RPCDBG_FACILITY	RPCDBG_SVCXPRT
 
+/* To-do: to avoid tying up an nfsd thread while waiting for a
+ * handshake request, the request could instead be deferred.
+ */
+enum {
+	SVC_HANDSHAKE_TO	= 5U * HZ
+};
 
 static struct svc_sock *svc_setup_socket(struct svc_serv *, struct socket *,
 					 int flags);
@@ -359,6 +367,8 @@ static void svc_data_ready(struct sock *sk)
 		rmb();
 		svsk->sk_odata(sk);
 		trace_svcsock_data_ready(&svsk->sk_xprt, 0);
+		if (test_bit(XPT_HANDSHAKE, &svsk->sk_xprt.xpt_flags))
+			return;
 		if (!test_and_set_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags))
 			svc_xprt_enqueue(&svsk->sk_xprt);
 	}
@@ -394,6 +404,88 @@ static void svc_tcp_kill_temp_xprt(struct svc_xprt *xprt)
 	struct svc_sock *svsk = container_of(xprt, struct svc_sock, sk_xprt);
 
 	sock_no_linger(svsk->sk_sock->sk);
+}
+
+/**
+ * svc_tcp_handshake_done - Handshake completion handler
+ * @data: address of xprt to wake
+ * @status: status of handshake
+ * @peerid: serial number of key containing the remote peer's identity
+ *
+ * If a security policy is specified as an export option, we don't
+ * have a specific export here to check. So we set a "TLS session
+ * is present" flag on the xprt and let an upper layer enforce local
+ * security policy.
+ */
+static void svc_tcp_handshake_done(void *data, int status, key_serial_t peerid)
+{
+	struct svc_xprt *xprt = data;
+	struct svc_sock *svsk = container_of(xprt, struct svc_sock, sk_xprt);
+
+	if (!status) {
+		if (peerid != TLS_NO_PEERID)
+			set_bit(XPT_PEER_AUTH, &xprt->xpt_flags);
+		set_bit(XPT_TLS_SESSION, &xprt->xpt_flags);
+	}
+	clear_bit(XPT_HANDSHAKE, &xprt->xpt_flags);
+	complete_all(&svsk->sk_handshake_done);
+}
+
+/**
+ * svc_tcp_handshake - Perform a transport-layer security handshake
+ * @xprt: connected transport endpoint
+ *
+ */
+static void svc_tcp_handshake(struct svc_xprt *xprt)
+{
+	struct svc_sock *svsk = container_of(xprt, struct svc_sock, sk_xprt);
+	struct sock *sk = svsk->sk_sock->sk;
+	struct tls_handshake_args args = {
+		.ta_sock	= svsk->sk_sock,
+		.ta_done	= svc_tcp_handshake_done,
+		.ta_data	= xprt,
+	};
+	int ret;
+
+	trace_svc_tls_upcall(xprt);
+
+	clear_bit(XPT_TLS_SESSION, &xprt->xpt_flags);
+	init_completion(&svsk->sk_handshake_done);
+
+	ret = tls_server_hello_x509(&args, GFP_KERNEL);
+	if (ret) {
+		trace_svc_tls_not_started(xprt);
+		goto out_failed;
+	}
+
+	ret = wait_for_completion_interruptible_timeout(&svsk->sk_handshake_done,
+							SVC_HANDSHAKE_TO);
+	if (ret <= 0) {
+		if (tls_handshake_cancel(sk)) {
+			trace_svc_tls_timed_out(xprt);
+			goto out_close;
+		}
+	}
+
+	if (!test_bit(XPT_TLS_SESSION, &xprt->xpt_flags)) {
+		trace_svc_tls_unavailable(xprt);
+		goto out_close;
+	}
+
+	/* Mark the transport ready in case the remote sent RPC
+	 * traffic before the kernel received the handshake
+	 * completion downcall.
+	 */
+	set_bit(XPT_DATA, &xprt->xpt_flags);
+	svc_xprt_enqueue(xprt);
+	return;
+
+out_close:
+	set_bit(XPT_CLOSE, &xprt->xpt_flags);
+out_failed:
+	clear_bit(XPT_HANDSHAKE, &xprt->xpt_flags);
+	set_bit(XPT_DATA, &xprt->xpt_flags);
+	svc_xprt_enqueue(xprt);
 }
 
 /*
@@ -1257,6 +1349,7 @@ static const struct svc_xprt_ops svc_tcp_ops = {
 	.xpo_has_wspace = svc_tcp_has_wspace,
 	.xpo_accept = svc_tcp_accept,
 	.xpo_kill_temp_xprt = svc_tcp_kill_temp_xprt,
+	.xpo_handshake = svc_tcp_handshake,
 };
 
 static struct svc_xprt_class svc_tcp_class = {
@@ -1580,10 +1673,12 @@ static void svc_tcp_sock_detach(struct svc_xprt *xprt)
 static void svc_sock_free(struct svc_xprt *xprt)
 {
 	struct svc_sock *svsk = container_of(xprt, struct svc_sock, sk_xprt);
+	struct socket *sock = svsk->sk_sock;
 
-	if (svsk->sk_sock->file)
-		sockfd_put(svsk->sk_sock);
+	tls_handshake_cancel(sock->sk);
+	if (sock->file)
+		sockfd_put(sock);
 	else
-		sock_release(svsk->sk_sock);
+		sock_release(sock);
 	kfree(svsk);
 }

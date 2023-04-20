@@ -427,7 +427,7 @@ static bool svc_xprt_ready(struct svc_xprt *xprt)
 
 	if (xpt_flags & BIT(XPT_BUSY))
 		return false;
-	if (xpt_flags & (BIT(XPT_CONN) | BIT(XPT_CLOSE)))
+	if (xpt_flags & (BIT(XPT_CONN) | BIT(XPT_CLOSE) | BIT(XPT_HANDSHAKE)))
 		return true;
 	if (xpt_flags & (BIT(XPT_DATA) | BIT(XPT_DEFERRED))) {
 		if (xprt->xpt_ops->xpo_has_wspace(xprt) &&
@@ -827,6 +827,9 @@ static int svc_handle_xprt(struct svc_rqst *rqstp, struct svc_xprt *xprt)
 		} else {
 			module_put(xprt->xpt_class->xcl_owner);
 		}
+		svc_xprt_received(xprt);
+	} else if (test_bit(XPT_HANDSHAKE, &xprt->xpt_flags)) {
+		xprt->xpt_ops->xpo_handshake(xprt);
 		svc_xprt_received(xprt);
 	} else if (svc_xprt_reserve_slot(rqstp, xprt)) {
 		/* XPT_DATA|XPT_DEFERRED case: */

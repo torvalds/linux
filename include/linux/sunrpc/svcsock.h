@@ -38,6 +38,8 @@ struct svc_sock {
 	/* Number of queued send requests */
 	atomic_t		sk_sendqlen;
 
+	struct completion	sk_handshake_done;
+
 	struct page *		sk_pages[RPCSVC_MAXPAGES];	/* received data */
 };
 
