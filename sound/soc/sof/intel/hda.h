@@ -584,8 +584,10 @@ void hda_dsp_ipc_int_enable(struct snd_sof_dev *sdev);
 void hda_dsp_ipc_int_disable(struct snd_sof_dev *sdev);
 bool hda_dsp_core_is_enabled(struct snd_sof_dev *sdev, unsigned int core_mask);
 
-int hda_dsp_set_power_state(struct snd_sof_dev *sdev,
-			    const struct sof_dsp_power_state *target_state);
+int hda_dsp_set_power_state_ipc3(struct snd_sof_dev *sdev,
+				 const struct sof_dsp_power_state *target_state);
+int hda_dsp_set_power_state_ipc4(struct snd_sof_dev *sdev,
+				 const struct sof_dsp_power_state *target_state);
 
 int hda_dsp_suspend(struct snd_sof_dev *sdev, u32 target_state);
 int hda_dsp_resume(struct snd_sof_dev *sdev);

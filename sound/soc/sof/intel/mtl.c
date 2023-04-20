@@ -668,6 +668,8 @@ int sof_mtl_ops_init(struct snd_sof_dev *sdev)
 	/* set DAI ops */
 	hda_set_dai_drv_ops(sdev, &sof_mtl_ops);
 
+	sof_mtl_ops.set_power_state = hda_dsp_set_power_state_ipc4;
+
 	return 0;
 };
 EXPORT_SYMBOL_NS(sof_mtl_ops_init, SND_SOC_SOF_INTEL_HDA_COMMON);

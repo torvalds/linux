@@ -574,31 +574,11 @@ static void hda_dsp_state_log(struct snd_sof_dev *sdev)
  * is called again either because of a new IPC sent to the DSP or
  * during system suspend/resume.
  */
-int hda_dsp_set_power_state(struct snd_sof_dev *sdev,
-			    const struct sof_dsp_power_state *target_state)
+static int hda_dsp_set_power_state(struct snd_sof_dev *sdev,
+				   const struct sof_dsp_power_state *target_state)
 {
 	int ret = 0;
 
-	/*
-	 * When the DSP is already in D0I3 and the target state is D0I3,
-	 * it could be the case that the DSP is in D0I3 during S0
-	 * and the system is suspending to S0Ix. Therefore,
-	 * hda_dsp_set_D0_state() must be called to disable trace DMA
-	 * by sending the PM_GATE IPC to the FW.
-	 */
-	if (target_state->substate == SOF_HDA_DSP_PM_D0I3 &&
-	    sdev->system_suspend_target == SOF_SUSPEND_S0IX)
-		goto set_state;
-
-	/*
-	 * For all other cases, return without doing anything if
-	 * the DSP is already in the target state.
-	 */
-	if (target_state->state == sdev->dsp_power_state.state &&
-	    target_state->substate == sdev->dsp_power_state.substate)
-		return 0;
-
-set_state:
 	switch (target_state->state) {
 	case SOF_DSP_PM_D0:
 		ret = hda_dsp_set_D0_state(sdev, target_state);
@@ -628,6 +608,42 @@ set_state:
 	sdev->dsp_power_state = *target_state;
 	hda_dsp_state_log(sdev);
 	return ret;
+}
+
+int hda_dsp_set_power_state_ipc3(struct snd_sof_dev *sdev,
+				 const struct sof_dsp_power_state *target_state)
+{
+	/*
+	 * When the DSP is already in D0I3 and the target state is D0I3,
+	 * it could be the case that the DSP is in D0I3 during S0
+	 * and the system is suspending to S0Ix. Therefore,
+	 * hda_dsp_set_D0_state() must be called to disable trace DMA
+	 * by sending the PM_GATE IPC to the FW.
+	 */
+	if (target_state->substate == SOF_HDA_DSP_PM_D0I3 &&
+	    sdev->system_suspend_target == SOF_SUSPEND_S0IX)
+		return hda_dsp_set_power_state(sdev, target_state);
+
+	/*
+	 * For all other cases, return without doing anything if
+	 * the DSP is already in the target state.
+	 */
+	if (target_state->state == sdev->dsp_power_state.state &&
+	    target_state->substate == sdev->dsp_power_state.substate)
+		return 0;
+
+	return hda_dsp_set_power_state(sdev, target_state);
+}
+
+int hda_dsp_set_power_state_ipc4(struct snd_sof_dev *sdev,
+				 const struct sof_dsp_power_state *target_state)
+{
+	/* Return without doing anything if the DSP is already in the target state */
+	if (target_state->state == sdev->dsp_power_state.state &&
+	    target_state->substate == sdev->dsp_power_state.substate)
+		return 0;
+
+	return hda_dsp_set_power_state(sdev, target_state);
 }
 
 /*
