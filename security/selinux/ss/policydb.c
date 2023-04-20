@@ -42,7 +42,7 @@
 #include "services.h"
 
 #ifdef DEBUG_HASHES
-static const char *symtab_name[SYM_NUM] = {
+static const char *const symtab_name[SYM_NUM] = {
 	"common prefixes",
 	"classes",
 	"roles",

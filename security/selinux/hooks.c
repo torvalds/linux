@@ -357,7 +357,7 @@ enum {
 };
 
 #define A(s, has_arg) {#s, sizeof(#s) - 1, Opt_##s, has_arg}
-static struct {
+static const struct {
 	const char *name;
 	int len;
 	int opt;
