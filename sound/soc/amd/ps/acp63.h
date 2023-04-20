@@ -2,7 +2,7 @@
 /*
  * AMD ALSA SoC PDM Driver
  *
- * Copyright (C) 2022 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2022, 2023 Advanced Micro Devices, Inc. All rights reserved.
  */
 
 #include <sound/acp63_chip_offset_byte.h>
