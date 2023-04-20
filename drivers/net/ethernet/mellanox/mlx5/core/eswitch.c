@@ -712,6 +712,9 @@ void esw_vport_change_handle_locked(struct mlx5_vport *vport)
 	struct mlx5_eswitch *esw = dev->priv.eswitch;
 	u8 mac[ETH_ALEN];
 
+	if (!MLX5_CAP_GEN(dev, log_max_l2_table))
+		return;
+
 	mlx5_query_nic_vport_mac_address(dev, vport->vport, true, mac);
 	esw_debug(dev, "vport[%d] Context Changed: perm mac: %pM\n",
 		  vport->vport, mac);
@@ -948,7 +951,8 @@ void mlx5_esw_vport_disable(struct mlx5_eswitch *esw, u16 vport_num)
 	vport->enabled = false;
 
 	/* Disable events from this vport */
-	arm_vport_context_events_cmd(esw->dev, vport->vport, 0);
+	if (MLX5_CAP_GEN(esw->dev, log_max_l2_table))
+		arm_vport_context_events_cmd(esw->dev, vport->vport, 0);
 
 	if (!mlx5_esw_is_manager_vport(esw, vport->vport) &&
 	    MLX5_CAP_GEN(esw->dev, vhca_resource_manager))

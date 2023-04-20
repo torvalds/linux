@@ -99,7 +99,7 @@ int mlx5_mpfs_init(struct mlx5_core_dev *dev)
 	int l2table_size = 1 << MLX5_CAP_GEN(dev, log_max_l2_table);
 	struct mlx5_mpfs *mpfs;
 
-	if (!MLX5_ESWITCH_MANAGER(dev))
+	if (!MLX5_ESWITCH_MANAGER(dev) || l2table_size == 1)
 		return 0;
 
 	mpfs = kzalloc(sizeof(*mpfs), GFP_KERNEL);
