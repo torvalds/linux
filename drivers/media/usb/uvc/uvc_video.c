@@ -137,8 +137,8 @@ static const struct usb_device_id elgato_cam_link_4k = {
 static void uvc_fixup_video_ctrl(struct uvc_streaming *stream,
 	struct uvc_streaming_control *ctrl)
 {
-	struct uvc_format *format = NULL;
-	struct uvc_frame *frame = NULL;
+	const struct uvc_format *format = NULL;
+	const struct uvc_frame *frame = NULL;
 	unsigned int i;
 
 	/*
@@ -2100,8 +2100,8 @@ int uvc_video_resume(struct uvc_streaming *stream, int reset)
 int uvc_video_init(struct uvc_streaming *stream)
 {
 	struct uvc_streaming_control *probe = &stream->ctrl;
-	struct uvc_format *format = NULL;
-	struct uvc_frame *frame = NULL;
+	const struct uvc_format *format = NULL;
+	const struct uvc_frame *frame = NULL;
 	struct uvc_urb *uvc_urb;
 	unsigned int i;
 	int ret;

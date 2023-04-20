@@ -161,7 +161,7 @@ free_map:
  * the Video Probe and Commit negotiation, but some hardware don't implement
  * that feature.
  */
-static u32 uvc_try_frame_interval(struct uvc_frame *frame, u32 interval)
+static u32 uvc_try_frame_interval(const struct uvc_frame *frame, u32 interval)
 {
 	unsigned int i;
 
@@ -210,10 +210,11 @@ static u32 uvc_v4l2_get_bytesperline(const struct uvc_format *format,
 
 static int uvc_v4l2_try_format(struct uvc_streaming *stream,
 	struct v4l2_format *fmt, struct uvc_streaming_control *probe,
-	struct uvc_format **uvc_format, struct uvc_frame **uvc_frame)
+	const struct uvc_format **uvc_format,
+	const struct uvc_frame **uvc_frame)
 {
-	struct uvc_format *format = NULL;
-	struct uvc_frame *frame = NULL;
+	const struct uvc_format *format = NULL;
+	const struct uvc_frame *frame = NULL;
 	u16 rw, rh;
 	unsigned int d, maxd;
 	unsigned int i;
@@ -363,8 +364,8 @@ static int uvc_v4l2_try_format(struct uvc_streaming *stream,
 static int uvc_v4l2_get_format(struct uvc_streaming *stream,
 	struct v4l2_format *fmt)
 {
-	struct uvc_format *format;
-	struct uvc_frame *frame;
+	const struct uvc_format *format;
+	const struct uvc_frame *frame;
 	int ret = 0;
 
 	if (fmt->type != stream->type)
@@ -398,8 +399,8 @@ static int uvc_v4l2_set_format(struct uvc_streaming *stream,
 	struct v4l2_format *fmt)
 {
 	struct uvc_streaming_control probe;
-	struct uvc_format *format;
-	struct uvc_frame *frame;
+	const struct uvc_format *format;
+	const struct uvc_frame *frame;
 	int ret;
 
 	if (fmt->type != stream->type)
@@ -465,8 +466,8 @@ static int uvc_v4l2_set_streamparm(struct uvc_streaming *stream,
 {
 	struct uvc_streaming_control probe;
 	struct v4l2_fract timeperframe;
-	struct uvc_format *format;
-	struct uvc_frame *frame;
+	const struct uvc_format *format;
+	const struct uvc_frame *frame;
 	u32 interval, maxd;
 	unsigned int i;
 	int ret;
@@ -697,7 +698,7 @@ static int uvc_ioctl_querycap(struct file *file, void *fh,
 static int uvc_ioctl_enum_fmt(struct uvc_streaming *stream,
 			      struct v4l2_fmtdesc *fmt)
 {
-	struct uvc_format *format;
+	const struct uvc_format *format;
 	enum v4l2_buf_type type = fmt->type;
 	u32 index = fmt->index;
 
@@ -1249,8 +1250,8 @@ static int uvc_ioctl_enum_framesizes(struct file *file, void *fh,
 {
 	struct uvc_fh *handle = fh;
 	struct uvc_streaming *stream = handle->stream;
-	struct uvc_format *format = NULL;
-	struct uvc_frame *frame = NULL;
+	const struct uvc_format *format = NULL;
+	const struct uvc_frame *frame = NULL;
 	unsigned int index;
 	unsigned int i;
 
@@ -1289,8 +1290,8 @@ static int uvc_ioctl_enum_frameintervals(struct file *file, void *fh,
 {
 	struct uvc_fh *handle = fh;
 	struct uvc_streaming *stream = handle->stream;
-	struct uvc_format *format = NULL;
-	struct uvc_frame *frame = NULL;
+	const struct uvc_format *format = NULL;
+	const struct uvc_frame *frame = NULL;
 	unsigned int nintervals;
 	unsigned int index;
 	unsigned int i;
