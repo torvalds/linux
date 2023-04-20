@@ -1099,6 +1099,10 @@ such that the corresponding bit in ``ethtool_ops::supported_coalesce_params``
 is not set), regardless of their values. Driver may impose additional
 constraints on coalescing parameters and their values.
 
+Compared to requests issued via the ``ioctl()`` netlink version of this request
+will try harder to make sure that values specified by the user have been applied
+and may call the driver twice.
+
 
 PAUSE_GET
 =========
