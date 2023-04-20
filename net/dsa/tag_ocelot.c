@@ -30,7 +30,7 @@ static void ocelot_xmit_get_vlan_info(struct sk_buff *skb, struct dsa_port *dp,
 	br_vlan_get_proto(br, &proto);
 
 	if (ntohs(hdr->h_vlan_proto) == proto) {
-		__skb_vlan_pop(skb, &tci);
+		vlan_remove_tag(skb, &tci);
 		*vlan_tci = tci;
 	} else {
 		rcu_read_lock();
