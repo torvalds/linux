@@ -18,50 +18,46 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	regulators {
-		compatible = "simple-bus";
+	/* Main power of the board: 3.7V */
+	vph: regulator-fixed {
+		compatible = "regulator-fixed";
+		regulator-min-microvolt = <3700000>;
+		regulator-max-microvolt = <3700000>;
+		regulator-name = "VPH";
+		regulator-type = "voltage";
+		regulator-always-on;
+		regulator-boot-on;
+	};
 
-		/* Main power of the board: 3.7V */
-		vph: regulator-fixed {
-			compatible = "regulator-fixed";
-			regulator-min-microvolt = <3700000>;
-			regulator-max-microvolt = <3700000>;
-			regulator-name = "VPH";
-			regulator-type = "voltage";
-			regulator-always-on;
-			regulator-boot-on;
-		};
+	/* GPIO controlled ethernet power regulator */
+	dragon_veth: xc622a331mrg {
+		compatible = "regulator-fixed";
+		regulator-name = "XC6222A331MR-G";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vph>;
+		gpio = <&pm8058_gpio 40 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		pinctrl-names = "default";
+		pinctrl-0 = <&dragon_veth_gpios>;
+		regulator-always-on;
+	};
 
-		/* GPIO controlled ethernet power regulator */
-		dragon_veth: xc622a331mrg {
-			compatible = "regulator-fixed";
-			regulator-name = "XC6222A331MR-G";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			vin-supply = <&vph>;
-			gpio = <&pm8058_gpio 40 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-			pinctrl-names = "default";
-			pinctrl-0 = <&dragon_veth_gpios>;
-			regulator-always-on;
-		};
+	/* VDDvario fixed regulator */
+	dragon_vario: nds332p {
+		compatible = "regulator-fixed";
+		regulator-name = "NDS332P";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&pm8058_s3>;
+	};
 
-		/* VDDvario fixed regulator */
-		dragon_vario: nds332p {
-			compatible = "regulator-fixed";
-			regulator-name = "NDS332P";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			vin-supply = <&pm8058_s3>;
-		};
-
-		/* This is a levelshifter for SDCC5 */
-		dragon_vio_txb: txb0104rgyr {
-			compatible = "regulator-fixed";
-			regulator-name = "Dragon SDCC levelshifter";
-			vin-supply = <&pm8058_l14>;
-			regulator-always-on;
-		};
+	/* This is a levelshifter for SDCC5 */
+	dragon_vio_txb: txb0104rgyr {
+		compatible = "regulator-fixed";
+		regulator-name = "Dragon SDCC levelshifter";
+		vin-supply = <&pm8058_l14>;
+		regulator-always-on;
 	};
 
 	/*
