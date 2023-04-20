@@ -290,7 +290,7 @@ SYM_FUNC_START(__copy_user_nocache)
 	_ASM_EXTABLE_CPY(41b, .L_fixup_1b_copy)
 
 /*
- * Try to copy last bytes and clear the rest if needed.
+ * Try to copy last bytes.
  * Since protection fault in copy_from/to_user is not a normal situation,
  * it is not necessary to optimize tail handling.
  * Don't try to copy the tail if machine check happened
@@ -320,7 +320,7 @@ SYM_FUNC_START(__copy_user_nocache)
 	_ASM_EXTABLE_CPY(1b, 2b)
 
 .Lcopy_user_handle_align:
-	addl %ecx,%edx			/* ecx is zerorest also */
+	addl %ecx,%edx
 	jmp .Lcopy_user_handle_tail
 
 SYM_FUNC_END(__copy_user_nocache)

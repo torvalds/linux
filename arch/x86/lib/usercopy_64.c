@@ -48,7 +48,7 @@ long __copy_user_flushcache(void *dst, const void __user *src, unsigned size)
 	long rc;
 
 	stac();
-	rc = __copy_user_nocache(dst, src, size, 0);
+	rc = __copy_user_nocache(dst, src, size);
 	clac();
 
 	/*
