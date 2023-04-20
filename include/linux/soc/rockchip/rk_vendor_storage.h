@@ -29,6 +29,43 @@
 #define LAN_RGMII_DL_ID			16
 #define EINK_VCOM_ID			17
 
+#define VENDOR_HEAD_TAG			0x524B5644
+#define FLASH_VENDOR_PART_SIZE		8
+#define VENDOR_PART_SIZE		128
+
+struct vendor_item {
+	u16  id;
+	u16  offset;
+	u16  size;
+	u16  flag;
+};
+
+struct vendor_info {
+	u32	tag;
+	u32	version;
+	u16	next_index;
+	u16	item_num;
+	u16	free_offset;
+	u16	free_size;
+	struct	vendor_item item[126]; /* 126 * 8 */
+	u8	data[VENDOR_PART_SIZE * 512 - 1024 - 8];
+	u32	hash;
+	u32	version2;
+};
+
+struct flash_vendor_info {
+	u32	tag;
+	u32	version;
+	u16	next_index;
+	u16	item_num;
+	u16	free_offset;
+	u16	free_size;
+	struct	vendor_item item[62]; /* 62 * 8 */
+	u8	data[FLASH_VENDOR_PART_SIZE * 512 - 512 - 8];
+	u32	hash;
+	u32	version2;
+};
+
 #if IS_REACHABLE(CONFIG_ROCKCHIP_VENDOR_STORAGE)
 int rk_vendor_read(u32 id, void *pbuf, u32 size);
 int rk_vendor_write(u32 id, void *pbuf, u32 size);
