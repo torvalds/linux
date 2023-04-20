@@ -6,6 +6,14 @@
 #include <linux/zalloc.h>
 
 /*
+ * Enable reference count checking implicitly with leak checking, which is
+ * integrated into address sanitizer.
+ */
+#if defined(LEAK_SANITIZER) || defined(ADDRESS_SANITIZER)
+#define REFCNT_CHECKING 1
+#endif
+
+/*
  * Shared reference count checking macros.
  *
  * Reference count checking is an approach to sanitizing the use of reference
