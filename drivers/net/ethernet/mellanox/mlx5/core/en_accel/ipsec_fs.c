@@ -1252,16 +1252,16 @@ static int tx_add_policy(struct mlx5e_ipsec_pol_entry *pol_entry)
 	setup_fte_no_frags(spec);
 	setup_fte_upper_proto_match(spec, &attrs->upspec);
 
-	if (attrs->reqid) {
+	switch (attrs->action) {
+	case XFRM_POLICY_ALLOW:
+		flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
+		if (!attrs->reqid)
+			break;
+
 		err = setup_modify_header(mdev, attrs->reqid,
 					  XFRM_DEV_OFFLOAD_OUT, &flow_act);
 		if (err)
 			goto err_mod_header;
-	}
-
-	switch (attrs->action) {
-	case XFRM_POLICY_ALLOW:
-		flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 		break;
 	case XFRM_POLICY_BLOCK:
 		flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_DROP |
@@ -1273,7 +1273,7 @@ static int tx_add_policy(struct mlx5e_ipsec_pol_entry *pol_entry)
 	default:
 		WARN_ON(true);
 		err = -EINVAL;
-		goto err_action;
+		goto err_mod_header;
 	}
 
 	flow_act.flags |= FLOW_ACT_NO_APPEND;
@@ -1293,7 +1293,7 @@ static int tx_add_policy(struct mlx5e_ipsec_pol_entry *pol_entry)
 	return 0;
 
 err_action:
-	if (attrs->reqid)
+	if (flow_act.modify_hdr)
 		mlx5_modify_header_dealloc(mdev, flow_act.modify_hdr);
 err_mod_header:
 	kvfree(spec);
