@@ -274,7 +274,8 @@ __ffa_partition_info_get(u32 uuid0, u32 uuid1, u32 uuid2, u32 uuid3,
 	int idx, count, flags = 0, sz, buf_sz;
 	ffa_value_t partition_info;
 
-	if (!buffer || !num_partitions) /* Just get the count for now */
+	if (drv_info->version > FFA_VERSION_1_0 &&
+	    (!buffer || !num_partitions)) /* Just get the count for now */
 		flags = PARTITION_INFO_GET_RETURN_COUNT_ONLY;
 
 	mutex_lock(&drv_info->rx_lock);
