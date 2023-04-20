@@ -792,7 +792,7 @@
 			};
 		};
 
-		apps_rsc: rsc@17840000 {
+		apps_rsc: rsc@17830000 {
 			compatible = "qcom,rpmh-rsc";
 			reg = <0x17830000 0x10000>, <0x17840000 0x10000>;
 			reg-names = "drv-0", "drv-1";
