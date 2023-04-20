@@ -264,8 +264,9 @@ static int rtllib_is_eapol_frame(struct rtllib_device *ieee,
 		   RTLLIB_FCTL_FROMDS &&
 		   memcmp(hdr->addr1, dev->dev_addr, ETH_ALEN) == 0) {
 		/* FromDS frame with own addr as DA */
-	} else
+	} else {
 		return 0;
+	}
 
 	if (skb->len < 24 + 8)
 		return 0;
@@ -433,8 +434,9 @@ static int is_duplicate_packet(struct rtllib_device *ieee,
 		if (*last_frag + 1 != frag)
 			/* out-of-order fragment */
 			goto drop;
-	} else
+	} else {
 		*last_seq = seq;
+	}
 
 	*last_frag = frag;
 	*last_time = jiffies;
@@ -2314,8 +2316,9 @@ static inline int rtllib_network_init(
 	if (stats->freq == RTLLIB_52GHZ_BAND) {
 		/* for A band (No DS info) */
 		network->channel = stats->received_channel;
-	} else
+	} else {
 		network->flags |= NETWORK_HAS_CCK;
+	}
 
 	network->wpa_ie_len = 0;
 	network->rsn_ie_len = 0;
@@ -2329,9 +2332,10 @@ static inline int rtllib_network_init(
 		return 1;
 
 	network->mode = 0;
-	if (stats->freq == RTLLIB_52GHZ_BAND)
+
+	if (stats->freq == RTLLIB_52GHZ_BAND) {
 		network->mode = IEEE_A;
-	else {
+	} else {
 		if (network->flags & NETWORK_HAS_OFDM)
 			network->mode |= IEEE_G;
 		if (network->flags & NETWORK_HAS_CCK)
