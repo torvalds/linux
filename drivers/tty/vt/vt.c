@@ -3145,12 +3145,10 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 
 	switch (type) {
 	case TIOCL_SETSEL:
-		ret = set_selection_user((struct tiocl_selection
+		return set_selection_user((struct tiocl_selection
 					 __user *)(p+1), tty);
-		break;
 	case TIOCL_PASTESEL:
-		ret = paste_selection(tty);
-		break;
+		return paste_selection(tty);
 	case TIOCL_UNBLANKSCREEN:
 		console_lock();
 		unblank_screen();
@@ -3169,14 +3167,12 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 		 * this.
 		 */
 		data = vt_get_shift_state();
-		ret = put_user(data, p);
-		break;
+		return put_user(data, p);
 	case TIOCL_GETMOUSEREPORTING:
 		console_lock();	/* May be overkill */
 		data = mouse_reporting();
 		console_unlock();
-		ret = put_user(data, p);
-		break;
+		return put_user(data, p);
 	case TIOCL_SETVESABLANK:
 		console_lock();
 		ret = set_vesa_blanking(p);
@@ -3184,38 +3180,34 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 		break;
 	case TIOCL_GETKMSGREDIRECT:
 		data = vt_get_kmsg_redirect();
-		ret = put_user(data, p);
-		break;
+		return put_user(data, p);
 	case TIOCL_SETKMSGREDIRECT:
-		if (!capable(CAP_SYS_ADMIN)) {
-			ret = -EPERM;
-		} else {
-			if (get_user(data, p+1))
-				ret = -EFAULT;
-			else
-				vt_kmsg_redirect(data);
-		}
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
+
+		if (get_user(data, p+1))
+			return -EFAULT;
+
+		vt_kmsg_redirect(data);
+
 		break;
 	case TIOCL_GETFGCONSOLE:
 		/*
 		 * No locking needed as this is a transiently correct return
 		 * anyway if the caller hasn't disabled switching.
 		 */
-		ret = fg_console;
-		break;
+		return fg_console;
 	case TIOCL_SCROLLCONSOLE:
-		if (get_user(lines, (s32 __user *)(p+4))) {
-			ret = -EFAULT;
-		} else {
-			/*
-			 * Needs the console lock here. Note that lots of other
-			 * calls need fixing before the lock is actually useful!
-			 */
-			console_lock();
-			scrollfront(vc_cons[fg_console].d, lines);
-			console_unlock();
-			ret = 0;
-		}
+		if (get_user(lines, (s32 __user *)(p+4)))
+			return -EFAULT;
+
+		/*
+		 * Needs the console lock here. Note that lots of other calls
+		 * need fixing before the lock is actually useful!
+		 */
+		console_lock();
+		scrollfront(vc_cons[fg_console].d, lines);
+		console_unlock();
 		break;
 	case TIOCL_BLANKSCREEN:	/* until explicitly unblanked, not only poked */
 		console_lock();
@@ -3224,11 +3216,9 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 		console_unlock();
 		break;
 	case TIOCL_BLANKEDSCREEN:
-		ret = console_blanked;
-		break;
+		return console_blanked;
 	default:
-		ret = -EINVAL;
-		break;
+		return -EINVAL;
 	}
 
 	return ret;
