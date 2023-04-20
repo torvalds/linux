@@ -1101,7 +1101,6 @@ static void ipr_init_res_entry(struct ipr_resource_entry *res,
 			       struct ipr_config_table_entry_wrapper *cfgtew)
 {
 	int found = 0;
-	unsigned int proto;
 	struct ipr_ioa_cfg *ioa_cfg = res->ioa_cfg;
 	struct ipr_resource_entry *gscsi_res = NULL;
 
@@ -1114,7 +1113,6 @@ static void ipr_init_res_entry(struct ipr_resource_entry *res,
 	res->sdev = NULL;
 
 	if (ioa_cfg->sis64) {
-		proto = cfgtew->u.cfgte64->proto;
 		res->flags = be16_to_cpu(cfgtew->u.cfgte64->flags);
 		res->res_flags = be16_to_cpu(cfgtew->u.cfgte64->res_flags);
 		res->qmodel = IPR_QUEUEING_MODEL64(res);
@@ -1160,7 +1158,6 @@ static void ipr_init_res_entry(struct ipr_resource_entry *res,
 			set_bit(res->target, ioa_cfg->target_ids);
 		}
 	} else {
-		proto = cfgtew->u.cfgte->proto;
 		res->qmodel = IPR_QUEUEING_MODEL(res);
 		res->flags = cfgtew->u.cfgte->flags;
 		if (res->flags & IPR_IS_IOA_RESOURCE)
@@ -1258,7 +1255,6 @@ static void ipr_update_res_entry(struct ipr_resource_entry *res,
 				 struct ipr_config_table_entry_wrapper *cfgtew)
 {
 	char buffer[IPR_MAX_RES_PATH_LENGTH];
-	unsigned int proto;
 	int new_path = 0;
 
 	if (res->ioa_cfg->sis64) {
@@ -1270,7 +1266,6 @@ static void ipr_update_res_entry(struct ipr_resource_entry *res,
 			sizeof(struct ipr_std_inq_data));
 
 		res->qmodel = IPR_QUEUEING_MODEL64(res);
-		proto = cfgtew->u.cfgte64->proto;
 		res->res_handle = cfgtew->u.cfgte64->res_handle;
 		res->dev_id = cfgtew->u.cfgte64->dev_id;
 
@@ -1299,7 +1294,6 @@ static void ipr_update_res_entry(struct ipr_resource_entry *res,
 			sizeof(struct ipr_std_inq_data));
 
 		res->qmodel = IPR_QUEUEING_MODEL(res);
-		proto = cfgtew->u.cfgte->proto;
 		res->res_handle = cfgtew->u.cfgte->res_handle;
 	}
 }
@@ -4413,14 +4407,6 @@ static int ipr_free_dump(struct ipr_ioa_cfg *ioa_cfg) { return 0; };
  **/
 static int ipr_change_queue_depth(struct scsi_device *sdev, int qdepth)
 {
-	struct ipr_ioa_cfg *ioa_cfg = (struct ipr_ioa_cfg *)sdev->host->hostdata;
-	struct ipr_resource_entry *res;
-	unsigned long lock_flags = 0;
-
-	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
-	res = (struct ipr_resource_entry *)sdev->hostdata;
-	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
-
 	scsi_change_queue_depth(sdev, qdepth);
 	return sdev->queue_depth;
 }
