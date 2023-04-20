@@ -4527,7 +4527,7 @@ static int gaudi2_set_tpc_engine_mode(struct hl_device *hdev, u32 engine_id, u32
 	reg_base = gaudi2_tpc_cfg_blocks_bases[tpc_id];
 	reg_addr = reg_base + TPC_CFG_STALL_OFFSET;
 	reg_val = FIELD_PREP(DCORE0_TPC0_CFG_TPC_STALL_V_MASK,
-			!!(engine_command == HL_ENGINE_STALL));
+			(engine_command == HL_ENGINE_STALL) ? 1 : 0);
 	WREG32(reg_addr, reg_val);
 
 	if (engine_command == HL_ENGINE_RESUME) {
@@ -4551,7 +4551,7 @@ static int gaudi2_set_mme_engine_mode(struct hl_device *hdev, u32 engine_id, u32
 	reg_base = gaudi2_mme_ctrl_lo_blocks_bases[mme_id];
 	reg_addr = reg_base + MME_CTRL_LO_QM_STALL_OFFSET;
 	reg_val = FIELD_PREP(DCORE0_MME_CTRL_LO_QM_STALL_V_MASK,
-			!!(engine_command == HL_ENGINE_STALL));
+			(engine_command == HL_ENGINE_STALL) ? 1 : 0);
 	WREG32(reg_addr, reg_val);
 
 	return 0;
@@ -4572,7 +4572,7 @@ static int gaudi2_set_edma_engine_mode(struct hl_device *hdev, u32 engine_id, u3
 	reg_base = gaudi2_dma_core_blocks_bases[edma_id];
 	reg_addr = reg_base + EDMA_CORE_CFG_STALL_OFFSET;
 	reg_val = FIELD_PREP(DCORE0_EDMA0_CORE_CFG_1_HALT_MASK,
-			!!(engine_command == HL_ENGINE_STALL));
+			(engine_command == HL_ENGINE_STALL) ? 1 : 0);
 	WREG32(reg_addr, reg_val);
 
 	if (engine_command == HL_ENGINE_STALL) {
