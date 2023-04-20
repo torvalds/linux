@@ -135,6 +135,7 @@ const struct consw *conswitchp;
 #define DEFAULT_CURSOR_BLINK_MS	200
 
 struct vc vc_cons [MAX_NR_CONSOLES];
+EXPORT_SYMBOL(vc_cons);
 
 #ifndef VT_SINGLE_DRIVER
 static const struct consw *con_driver_map[MAX_NR_CONSOLES];
@@ -162,6 +163,7 @@ int default_utf8 = true;
 module_param(default_utf8, int, S_IRUGO | S_IWUSR);
 int global_cursor_default = -1;
 module_param(global_cursor_default, int, S_IRUGO | S_IWUSR);
+EXPORT_SYMBOL(global_cursor_default);
 
 static int cur_default = CUR_UNDERLINE;
 module_param(cur_default, int, S_IRUGO | S_IWUSR);
@@ -174,6 +176,7 @@ static int ignore_poke;
 
 int do_poke_blanked_console;
 int console_blanked;
+EXPORT_SYMBOL(console_blanked);
 
 static int vesa_blank_mode; /* 0:none 1:suspendV 2:suspendH 3:powerdown */
 static int vesa_off_interval;
@@ -190,8 +193,10 @@ static DECLARE_WORK(con_driver_unregister_work, con_driver_unregister_callback);
  * saved_* variants are for save/restore around kernel debugger enter/leave
  */
 int fg_console;
+EXPORT_SYMBOL(fg_console);
 int last_console;
 int want_console = -1;
+
 static int saved_fg_console;
 static int saved_last_console;
 static int saved_want_console;
@@ -223,6 +228,7 @@ static int scrollback_delta;
  * the console on our behalf.
  */
 int (*console_blank_hook)(int);
+EXPORT_SYMBOL(console_blank_hook);
 
 static DEFINE_TIMER(console_timer, blank_screen_t);
 static int blank_state;
@@ -639,6 +645,7 @@ void update_region(struct vc_data *vc, unsigned long start, int count)
 		set_cursor(vc);
 	}
 }
+EXPORT_SYMBOL(update_region);
 
 /* Structure of attributes is hardware-dependent */
 
@@ -984,6 +991,7 @@ void redraw_screen(struct vc_data *vc, int is_switch)
 		notify_update(vc);
 	}
 }
+EXPORT_SYMBOL(redraw_screen);
 
 /*
  *	Allocation, freeing and resizing of VTs.
@@ -1305,6 +1313,7 @@ int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int rows)
 {
 	return vc_do_resize(vc->port.tty, vc, cols, rows);
 }
+EXPORT_SYMBOL(vc_resize);
 
 /**
  *	vt_resize		-	resize a VT
@@ -1368,6 +1377,7 @@ enum { EPecma = 0, EPdec, EPeq, EPgt, EPlt};
 
 const unsigned char color_table[] = { 0, 4, 2, 6, 1, 5, 3, 7,
 				       8,12,10,14, 9,13,11,15 };
+EXPORT_SYMBOL(color_table);
 
 /* the default colour table, for VGA+ colour systems */
 unsigned char default_red[] = {
@@ -1375,18 +1385,21 @@ unsigned char default_red[] = {
 	0x55, 0xff, 0x55, 0xff, 0x55, 0xff, 0x55, 0xff
 };
 module_param_array(default_red, byte, NULL, S_IRUGO | S_IWUSR);
+EXPORT_SYMBOL(default_red);
 
 unsigned char default_grn[] = {
 	0x00, 0x00, 0xaa, 0x55, 0x00, 0x00, 0xaa, 0xaa,
 	0x55, 0x55, 0xff, 0xff, 0x55, 0x55, 0xff, 0xff
 };
 module_param_array(default_grn, byte, NULL, S_IRUGO | S_IWUSR);
+EXPORT_SYMBOL(default_grn);
 
 unsigned char default_blu[] = {
 	0x00, 0x00, 0x00, 0x00, 0xaa, 0xaa, 0xaa, 0xaa,
 	0x55, 0x55, 0x55, 0x55, 0xff, 0xff, 0xff, 0xff
 };
 module_param_array(default_blu, byte, NULL, S_IRUGO | S_IWUSR);
+EXPORT_SYMBOL(default_blu);
 
 /*
  * gotoxy() must verify all boundaries, because the arguments
@@ -4227,6 +4240,7 @@ void give_up_console(const struct consw *csw)
 	do_unregister_con_driver(csw);
 	console_unlock();
 }
+EXPORT_SYMBOL(give_up_console);
 
 static int __init vtconsole_class_init(void)
 {
@@ -4783,23 +4797,3 @@ void vc_scrolldelta_helper(struct vc_data *c, int lines,
 	c->vc_visible_origin = ubase + (from + from_off) % wrap;
 }
 EXPORT_SYMBOL_GPL(vc_scrolldelta_helper);
-
-/*
- *	Visible symbols for modules
- */
-
-EXPORT_SYMBOL(color_table);
-EXPORT_SYMBOL(default_red);
-EXPORT_SYMBOL(default_grn);
-EXPORT_SYMBOL(default_blu);
-EXPORT_SYMBOL(update_region);
-EXPORT_SYMBOL(redraw_screen);
-EXPORT_SYMBOL(vc_resize);
-EXPORT_SYMBOL(fg_console);
-EXPORT_SYMBOL(console_blank_hook);
-EXPORT_SYMBOL(console_blanked);
-EXPORT_SYMBOL(vc_cons);
-EXPORT_SYMBOL(global_cursor_default);
-#ifndef VT_SINGLE_DRIVER
-EXPORT_SYMBOL(give_up_console);
-#endif
