@@ -44,8 +44,17 @@
 #include "verifier_xdp.skel.h"
 #include "verifier_xdp_direct_packet_access.skel.h"
 
+#define MAX_ENTRIES 11
+
+struct test_val {
+	unsigned int index;
+	int foo[MAX_ENTRIES];
+};
+
 __maybe_unused
-static void run_tests_aux(const char *skel_name, skel_elf_bytes_fn elf_bytes_factory)
+static void run_tests_aux(const char *skel_name,
+			  skel_elf_bytes_fn elf_bytes_factory,
+			  pre_execution_cb pre_execution_cb)
 {
 	struct test_loader tester = {};
 	__u64 old_caps;
@@ -58,6 +67,7 @@ static void run_tests_aux(const char *skel_name, skel_elf_bytes_fn elf_bytes_fac
 		return;
 	}
 
+	test_loader__set_pre_execution_cb(&tester, pre_execution_cb);
 	test_loader__run_subtests(&tester, skel_name, elf_bytes_factory);
 	test_loader_fini(&tester);
 
@@ -66,10 +76,9 @@ static void run_tests_aux(const char *skel_name, skel_elf_bytes_fn elf_bytes_fac
 		PRINT_FAIL("failed to restore CAP_SYS_ADMIN: %i, %s\n", err, strerror(err));
 }
 
-#define RUN(skel) run_tests_aux(#skel, skel##__elf_bytes)
+#define RUN(skel) run_tests_aux(#skel, skel##__elf_bytes, NULL)
 
 void test_verifier_and(void)                  { RUN(verifier_and); }
-void test_verifier_array_access(void)         { RUN(verifier_array_access); }
 void test_verifier_basic_stack(void)          { RUN(verifier_basic_stack); }
 void test_verifier_bounds_deduction(void)     { RUN(verifier_bounds_deduction); }
 void test_verifier_bounds_deduction_non_const(void)     { RUN(verifier_bounds_deduction_non_const); }
@@ -108,3 +117,30 @@ void test_verifier_var_off(void)              { RUN(verifier_var_off); }
 void test_verifier_xadd(void)                 { RUN(verifier_xadd); }
 void test_verifier_xdp(void)                  { RUN(verifier_xdp); }
 void test_verifier_xdp_direct_packet_access(void) { RUN(verifier_xdp_direct_packet_access); }
+
+static int init_array_access_maps(struct bpf_object *obj)
+{
+	struct bpf_map *array_ro;
+	struct test_val value = {
+		.index = (6 + 1) * sizeof(int),
+		.foo[6] = 0xabcdef12,
+	};
+	int err, key = 0;
+
+	array_ro = bpf_object__find_map_by_name(obj, "map_array_ro");
+	if (!ASSERT_OK_PTR(array_ro, "lookup map_array_ro"))
+		return -EINVAL;
+
+	err = bpf_map_update_elem(bpf_map__fd(array_ro), &key, &value, 0);
+	if (!ASSERT_OK(err, "map_array_ro update"))
+		return err;
+
+	return 0;
+}
+
+void test_verifier_array_access(void)
+{
+	run_tests_aux("verifier_array_access",
+		      verifier_array_access__elf_bytes,
+		      init_array_access_maps);
+}

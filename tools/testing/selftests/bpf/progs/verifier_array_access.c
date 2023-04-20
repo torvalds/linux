@@ -330,7 +330,7 @@ l0_%=:	exit;						\
 
 SEC("socket")
 __description("valid read map access into a read-only array 1")
-__success __success_unpriv /* __retval(28) temporarily disable */
+__success __success_unpriv __retval(28)
 __naked void a_read_only_array_1_1(void)
 {
 	asm volatile ("					\
@@ -351,7 +351,7 @@ l0_%=:	exit;						\
 
 SEC("tc")
 __description("valid read map access into a read-only array 2")
-__success /* __retval(65507) temporarily disable */
+__success __retval(65507)
 __naked void a_read_only_array_2_1(void)
 {
 	asm volatile ("					\
