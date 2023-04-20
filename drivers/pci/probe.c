@@ -1826,7 +1826,7 @@ int pci_setup_device(struct pci_dev *dev)
 	u32 class;
 	u16 cmd;
 	u8 hdr_type;
-	int pos = 0;
+	int err, pos = 0;
 	struct pci_bus_region region;
 	struct resource *res;
 
@@ -1840,10 +1840,10 @@ int pci_setup_device(struct pci_dev *dev)
 	dev->error_state = pci_channel_io_normal;
 	set_pcie_port_type(dev);
 
-	pci_set_of_node(dev);
+	err = pci_set_of_node(dev);
+	if (err)
+		return err;
 	pci_set_acpi_fwnode(dev);
-	if (dev->dev.fwnode && !fwnode_device_is_available(dev->dev.fwnode))
-		return -ENODEV;
 
 	pci_dev_assign_slot(dev);
 
