@@ -652,6 +652,7 @@
 		tx_delay_sel_fe = <5>;
 		tx_delay_sel = <0>;
 		rxc_dly_en = <0>;
+		rx_delay_sel = <0x2>;
 		tx_inverted_10 = <0x1>;
 		tx_inverted_100 = <0x1>;
 		tx_inverted_1000 = <0x0>;
