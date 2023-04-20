@@ -25,6 +25,7 @@ def define_blair():
         "drivers/interconnect/icc-test.ko",
         "drivers/iommu/arm/arm-smmu/arm_smmu.ko",
         "drivers/iommu/iommu-logger.ko",
+        "drivers/iommu/qcom_iommu_debug.ko",
         "drivers/iommu/qcom_iommu_util.ko",
         "drivers/irqchip/irq-qcom-mpm.ko",
         "drivers/irqchip/msm_show_resume_irq.ko",
