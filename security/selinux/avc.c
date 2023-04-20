@@ -642,7 +642,6 @@ static void avc_insert(u32 ssid, u32 tsid, u16 tclass,
 	hlist_add_head_rcu(&node->list, head);
 found:
 	spin_unlock_irqrestore(lock, flag);
-	return;
 }
 
 /**
