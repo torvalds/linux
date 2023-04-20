@@ -1291,6 +1291,11 @@ static int rockchip_sai_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_runtime_suspend;
 
+	if (device_property_read_bool(&pdev->dev, "rockchip,no-dmaengine")) {
+		dev_info(&pdev->dev, "Used for Multi-DAI\n");
+		return 0;
+	}
+
 	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 	if (ret)
 		goto err_runtime_suspend;
