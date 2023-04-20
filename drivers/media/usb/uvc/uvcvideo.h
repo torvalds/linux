@@ -438,7 +438,7 @@ struct uvc_streaming {
 	enum v4l2_buf_type type;
 
 	unsigned int nformats;
-	struct uvc_format *format;
+	struct uvc_format *formats;
 
 	struct uvc_streaming_control ctrl;
 	struct uvc_format *def_format;

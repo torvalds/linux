@@ -166,8 +166,8 @@ static void uvc_fixup_video_ctrl(struct uvc_streaming *stream,
 	}
 
 	for (i = 0; i < stream->nformats; ++i) {
-		if (stream->format[i].index == ctrl->bFormatIndex) {
-			format = &stream->format[i];
+		if (stream->formats[i].index == ctrl->bFormatIndex) {
+			format = &stream->formats[i];
 			break;
 		}
 	}
@@ -2161,7 +2161,7 @@ int uvc_video_init(struct uvc_streaming *stream)
 	 * available format otherwise.
 	 */
 	for (i = stream->nformats; i > 0; --i) {
-		format = &stream->format[i-1];
+		format = &stream->formats[i-1];
 		if (format->index == probe->bFormatIndex)
 			break;
 	}

@@ -235,7 +235,7 @@ static int uvc_v4l2_try_format(struct uvc_streaming *stream,
 	 * format otherwise.
 	 */
 	for (i = 0; i < stream->nformats; ++i) {
-		format = &stream->format[i];
+		format = &stream->formats[i];
 		if (format->fcc == fmt->fmt.pix.pixelformat)
 			break;
 	}
@@ -319,8 +319,8 @@ static int uvc_v4l2_try_format(struct uvc_streaming *stream,
 	 * accepted the requested format as-is.
 	 */
 	for (i = 0; i < stream->nformats; ++i) {
-		if (probe->bFormatIndex == stream->format[i].index) {
-			format = &stream->format[i];
+		if (probe->bFormatIndex == stream->formats[i].index) {
+			format = &stream->formats[i];
 			break;
 		}
 	}
@@ -708,7 +708,7 @@ static int uvc_ioctl_enum_fmt(struct uvc_streaming *stream,
 	fmt->index = index;
 	fmt->type = type;
 
-	format = &stream->format[fmt->index];
+	format = &stream->formats[fmt->index];
 	fmt->flags = 0;
 	if (format->flags & UVC_FMT_FLAG_COMPRESSED)
 		fmt->flags |= V4L2_FMT_FLAG_COMPRESSED;
@@ -1256,8 +1256,8 @@ static int uvc_ioctl_enum_framesizes(struct file *file, void *fh,
 
 	/* Look for the given pixel format */
 	for (i = 0; i < stream->nformats; i++) {
-		if (stream->format[i].fcc == fsize->pixel_format) {
-			format = &stream->format[i];
+		if (stream->formats[i].fcc == fsize->pixel_format) {
+			format = &stream->formats[i];
 			break;
 		}
 	}
@@ -1297,8 +1297,8 @@ static int uvc_ioctl_enum_frameintervals(struct file *file, void *fh,
 
 	/* Look for the given pixel format and frame size */
 	for (i = 0; i < stream->nformats; i++) {
-		if (stream->format[i].fcc == fival->pixel_format) {
-			format = &stream->format[i];
+		if (stream->formats[i].fcc == fival->pixel_format) {
+			format = &stream->formats[i];
 			break;
 		}
 	}
