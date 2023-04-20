@@ -212,6 +212,11 @@
 	status = "okay";
 };
 
+&route_rgb {
+	status = "okay";
+	connect = <&vp0_out_rgb>;
+};
+
 /*
  * The pins of sai0/vcc_mipicsi0 and rgb are multiplexed
  */
