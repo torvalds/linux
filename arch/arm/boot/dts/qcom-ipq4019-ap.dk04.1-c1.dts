@@ -11,9 +11,9 @@
 		dma-controller@7984000 {
 			status = "okay";
 		};
-
-		qpic-nand@79b0000 {
-			status = "okay";
-		};
 	};
+};
+
+&nand {
+	status = "okay";
 };
