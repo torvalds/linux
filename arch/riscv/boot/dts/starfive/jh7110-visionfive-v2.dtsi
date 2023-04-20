@@ -631,7 +631,8 @@
 		rgmii_sw_dr_2 = <0x0>;
 		rgmii_sw_dr = <0x3>;
 		rgmii_sw_dr_rxc = <0x6>;
-		rxc_dly_en = <1>;
+		rxc_dly_en = <0>;
+		rx_delay_sel = <0xa>;
 		tx_delay_sel_fe = <5>;
 		tx_delay_sel = <0xa>;
 		tx_inverted_10 = <0x1>;
