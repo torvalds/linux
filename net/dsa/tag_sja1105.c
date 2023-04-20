@@ -256,7 +256,7 @@ static struct sk_buff *sja1105_pvid_tag_control_pkt(struct dsa_port *dp,
 			return NULL;
 	}
 
-	hdr = (struct vlan_ethhdr *)skb_mac_header(skb);
+	hdr = skb_vlan_eth_hdr(skb);
 
 	/* If skb is already VLAN-tagged, leave that VLAN ID in place */
 	if (hdr->h_vlan_proto == xmit_tpid)
