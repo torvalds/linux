@@ -2475,6 +2475,24 @@ static int ufs_qcom_unvote_qos_all(struct ufs_hba *hba)
 	return err;
 }
 
+static void ufs_qcom_wait_for_cq_hp_update(struct ufs_hba *hba)
+{
+	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
+
+	/*
+	 * Clock gating can race and turn off clocks before the CQ HP update
+	 * can be completed. This leads to CQ HP and TP out of sync and leads to
+	 * abort errors.
+	 * Loop and Sleep until the CQ Head update is done.
+	 * See ufs_qcom_esi_handler().
+	 */
+	if (is_mcq_enabled(hba)) {
+		while (atomic_read(&host->cqhp_update_pending))
+			/* Wait for 10 - 20 msec */
+			usleep_range(10 * 1000, 20 * 1000);
+	}
+}
+
 /**
  * ufs_qcom_setup_clocks - enables/disable clocks
  * @hba: host controller instance
@@ -2526,6 +2544,7 @@ static int ufs_qcom_setup_clocks(struct ufs_hba *hba, bool on,
 			}
 		} else {
 			if (!ufs_qcom_is_link_active(hba)) {
+				ufs_qcom_wait_for_cq_hp_update(hba);
 				clk_disable_unprepare(host->core_unipro_clki->clk);
 				host->core_unipro_clki->enabled = on;
 
@@ -3752,6 +3771,7 @@ static int ufs_qcom_clk_scale_notify(struct ufs_hba *hba,
 		return 0;
 
 	if (status == PRE_CHANGE) {
+		ufs_qcom_wait_for_cq_hp_update(hba);
 		err = ufshcd_uic_hibern8_enter(hba);
 		if (err)
 			return err;
@@ -4642,7 +4662,9 @@ static irqreturn_t ufs_qcom_mcq_esi_handler(int irq, void *__hba)
 	struct ufs_hw_queue *hwq = &hba->uhq[id];
 
 	ufshcd_mcq_write_cqis(hba, 0x1, id);
+	atomic_add(1, &host->cqhp_update_pending);
 	ufshcd_mcq_poll_cqe_nolock(hba, hwq);
+	atomic_sub(1, &host->cqhp_update_pending);
 
 	return IRQ_HANDLED;
 }
