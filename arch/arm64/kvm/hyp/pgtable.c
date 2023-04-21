@@ -58,9 +58,9 @@
 struct kvm_pgtable_walk_data {
 	struct kvm_pgtable_walker	*walker;
 
-	u64				start;
+	const u64			start;
 	u64				addr;
-	u64				end;
+	const u64			end;
 };
 
 static bool kvm_phys_is_valid(u64 phys)
@@ -352,7 +352,7 @@ int kvm_pgtable_get_leaf(struct kvm_pgtable *pgt, u64 addr,
 }
 
 struct hyp_map_data {
-	u64				phys;
+	const u64			phys;
 	kvm_pte_t			attr;
 };
 
@@ -578,7 +578,7 @@ void kvm_pgtable_hyp_destroy(struct kvm_pgtable *pgt)
 }
 
 struct stage2_map_data {
-	u64				phys;
+	const u64			phys;
 	kvm_pte_t			attr;
 	u8				owner_id;
 
