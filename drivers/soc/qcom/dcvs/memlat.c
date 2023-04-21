@@ -1949,7 +1949,8 @@ static int memlat_mon_probe(struct platform_device *pdev)
 	if (get_mask_and_mpidr_from_pdev(pdev, &mon->cpus, &mon->cpus_mpidr)) {
 		dev_err(dev, "Mon missing cpulist\n");
 		ret = -ENODEV;
-		goto unlock_out;
+		memlat_grp->num_mons--;
+		goto unlock_out_init;
 	}
 
 	num_cpus = cpumask_weight(&mon->cpus);
@@ -2020,6 +2021,7 @@ static int memlat_mon_probe(struct platform_device *pdev)
 	}
 
 	mon->index = memlat_grp->num_inited_mons++;
+unlock_out_init:
 	if (memlat_grps_and_mons_inited()) {
 		memlat_data->inited = true;
 #if IS_ENABLED(CONFIG_QTI_SCMI_VENDOR_PROTOCOL)
