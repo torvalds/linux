@@ -134,13 +134,6 @@ static void move_buckets_wait(struct btree_trans *trans,
 		if (atomic_read(&i->count))
 			break;
 
-		/*
-		 * moving_ctxt_exit calls bch2_write as it flushes pending
-		 * reads, which inits another btree_trans; this one must be
-		 * unlocked:
-		 */
-		bch2_verify_bucket_evacuated(trans, i->bucket.k.bucket, i->bucket.k.gen);
-
 		list->first = i->next;
 		if (!list->first)
 			list->last = NULL;
