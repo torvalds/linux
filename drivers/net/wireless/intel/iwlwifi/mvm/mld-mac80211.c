@@ -256,6 +256,30 @@ __iwl_mvm_mld_assign_vif_chanctx(struct iwl_mvm *mvm,
 	if (ret)
 		goto out;
 
+	/* Initialize rate control for the AP station, since we might be
+	 * doing a link switch here - we cannot initialize it before since
+	 * this needs the phy context assigned (and in FW?), and we cannot
+	 * do it later because it needs to be initialized as soon as we're
+	 * able to TX on the link, i.e. when active.
+	 *
+	 * Firmware restart isn't quite correct yet for MLO, but we don't
+	 * need to do it in that case anyway since it will happen from the
+	 * normal station state callback.
+	 */
+	if (mvmvif->ap_sta &&
+	    !test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
+		struct ieee80211_link_sta *link_sta;
+
+		rcu_read_lock();
+		link_sta = rcu_dereference(mvmvif->ap_sta->link[link_id]);
+
+		if (!WARN_ON_ONCE(!link_sta))
+			iwl_mvm_rs_rate_init(mvm, vif, mvmvif->ap_sta,
+					     link_conf, link_sta,
+					     phy_ctxt->channel->band);
+		rcu_read_unlock();
+	}
+
 	/* then activate */
 	ret = iwl_mvm_link_changed(mvm, vif, link_conf,
 				   LINK_CONTEXT_MODIFY_ACTIVE |
@@ -882,7 +906,10 @@ iwl_mvm_mld_change_vif_links(struct ieee80211_hw *hw,
 				n_active++;
 		}
 
-		if (n_active > 1)
+		if (vif->type == NL80211_IFTYPE_AP &&
+		    n_active > mvm->fw->ucode_capa.num_beacons)
+			return -EOPNOTSUPP;
+		else if (n_active > 1)
 			return -EOPNOTSUPP;
 	}
 

@@ -786,6 +786,85 @@ int rtl8xxxu_write32(struct rtl8xxxu_priv *priv, u16 addr, u32 val)
 	return ret;
 }
 
+int rtl8xxxu_write8_set(struct rtl8xxxu_priv *priv, u16 addr, u8 bits)
+{
+	u8 val8;
+
+	val8 = rtl8xxxu_read8(priv, addr);
+	val8 |= bits;
+	return rtl8xxxu_write8(priv, addr, val8);
+}
+
+int rtl8xxxu_write8_clear(struct rtl8xxxu_priv *priv, u16 addr, u8 bits)
+{
+	u8 val8;
+
+	val8 = rtl8xxxu_read8(priv, addr);
+	val8 &= ~bits;
+	return rtl8xxxu_write8(priv, addr, val8);
+}
+
+int rtl8xxxu_write16_set(struct rtl8xxxu_priv *priv, u16 addr, u16 bits)
+{
+	u16 val16;
+
+	val16 = rtl8xxxu_read16(priv, addr);
+	val16 |= bits;
+	return rtl8xxxu_write16(priv, addr, val16);
+}
+
+int rtl8xxxu_write16_clear(struct rtl8xxxu_priv *priv, u16 addr, u16 bits)
+{
+	u16 val16;
+
+	val16 = rtl8xxxu_read16(priv, addr);
+	val16 &= ~bits;
+	return rtl8xxxu_write16(priv, addr, val16);
+}
+
+int rtl8xxxu_write32_set(struct rtl8xxxu_priv *priv, u16 addr, u32 bits)
+{
+	u32 val32;
+
+	val32 = rtl8xxxu_read32(priv, addr);
+	val32 |= bits;
+	return rtl8xxxu_write32(priv, addr, val32);
+}
+
+int rtl8xxxu_write32_clear(struct rtl8xxxu_priv *priv, u16 addr, u32 bits)
+{
+	u32 val32;
+
+	val32 = rtl8xxxu_read32(priv, addr);
+	val32 &= ~bits;
+	return rtl8xxxu_write32(priv, addr, val32);
+}
+
+int rtl8xxxu_write32_mask(struct rtl8xxxu_priv *priv, u16 addr,
+			  u32 mask, u32 val)
+{
+	u32 orig, new, shift;
+
+	shift = __ffs(mask);
+
+	orig = rtl8xxxu_read32(priv, addr);
+	new = (orig & ~mask) | ((val << shift) & mask);
+	return rtl8xxxu_write32(priv, addr, new);
+}
+
+int rtl8xxxu_write_rfreg_mask(struct rtl8xxxu_priv *priv,
+			      enum rtl8xxxu_rfpath path, u8 reg,
+			      u32 mask, u32 val)
+{
+	u32 orig, new, shift;
+
+	shift = __ffs(mask);
+
+	orig = rtl8xxxu_read_rfreg(priv, path, reg);
+	new = (orig & ~mask) | ((val << shift) & mask);
+	return rtl8xxxu_write_rfreg(priv, path, reg, new);
+}
+
 static int
 rtl8xxxu_writeN(struct rtl8xxxu_priv *priv, u16 addr, u8 *buf, u16 len)
 {
@@ -1663,6 +1742,8 @@ int rtl8xxxu_config_endpoints_no_sie(struct rtl8xxxu_priv *priv)
 	struct device *dev = &priv->udev->dev;
 
 	switch (priv->nr_out_eps) {
+	case 6:
+	case 5:
 	case 4:
 	case 3:
 		priv->ep_tx_low_queue = 1;
@@ -1916,7 +1997,7 @@ static int rtl8xxxu_start_firmware(struct rtl8xxxu_priv *priv)
 	/*
 	 * Init H2C command
 	 */
-	if (priv->rtl_chip == RTL8723B || priv->rtl_chip == RTL8188F || priv->rtl_chip == RTL8710B)
+	if (priv->fops->init_reg_hmtfr)
 		rtl8xxxu_write8(priv, REG_HMTFR, 0x0f);
 exit:
 	return ret;
@@ -3864,11 +3945,8 @@ void rtl8xxxu_init_burst(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_write8(priv, REG_HT_SINGLE_AMPDU_8723B, val8);
 
 	rtl8xxxu_write16(priv, REG_MAX_AGGR_NUM, 0x0c14);
-	if (priv->rtl_chip == RTL8723B || priv->rtl_chip == RTL8710B)
-		val8 = 0x5e;
-	else if (priv->rtl_chip == RTL8188F)
-		val8 = 0x70; /* 0x5e would make it very slow */
-	rtl8xxxu_write8(priv, REG_AMPDU_MAX_TIME_8723B, val8);
+	rtl8xxxu_write8(priv, REG_AMPDU_MAX_TIME_8723B,
+			priv->fops->ampdu_max_time);
 	rtl8xxxu_write32(priv, REG_AGGLEN_LMT, 0xffffffff);
 	rtl8xxxu_write8(priv, REG_RX_PKT_LIMIT, 0x18);
 	rtl8xxxu_write8(priv, REG_PIFS, 0x00);
@@ -3876,16 +3954,8 @@ void rtl8xxxu_init_burst(struct rtl8xxxu_priv *priv)
 		rtl8xxxu_write8(priv, REG_FWHW_TXQ_CTRL, FWHW_TXQ_CTRL_AMPDU_RETRY);
 		rtl8xxxu_write32(priv, REG_FAST_EDCA_CTRL, 0x03086666);
 	}
-	/*
-	 * The RTL8710BU vendor driver uses 0x50 here and it works fine,
-	 * but in rtl8xxxu 0x50 causes slow upload and random packet loss. Why?
-	 */
-	if (priv->rtl_chip == RTL8723B)
-		val8 = 0x50;
-	else if (priv->rtl_chip == RTL8188F || priv->rtl_chip == RTL8710B)
-		val8 = 0x28; /* 0x50 would make the upload slow */
-	rtl8xxxu_write8(priv, REG_USTIME_TSF_8723B, val8);
-	rtl8xxxu_write8(priv, REG_USTIME_EDCA, val8);
+	rtl8xxxu_write8(priv, REG_USTIME_TSF_8723B, priv->fops->ustime_tsf_edca);
+	rtl8xxxu_write8(priv, REG_USTIME_EDCA, priv->fops->ustime_tsf_edca);
 
 	/* to prevent mac is reseted by bus. */
 	val8 = rtl8xxxu_read8(priv, REG_RSV_CTRL);
@@ -4102,7 +4172,7 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		RCR_APPEND_PHYSTAT | RCR_APPEND_ICV | RCR_APPEND_MIC;
 	rtl8xxxu_write32(priv, REG_RCR, val32);
 
-	if (priv->rtl_chip == RTL8188F || priv->rtl_chip == RTL8710B) {
+	if (fops->init_reg_rxfltmap) {
 		/* Accept all data frames */
 		rtl8xxxu_write16(priv, REG_RXFLTMAP2, 0xffff);
 
@@ -4187,8 +4257,7 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	if (fops->init_aggregation)
 		fops->init_aggregation(priv);
 
-	if (priv->rtl_chip == RTL8188F || priv->rtl_chip == RTL8188E ||
-	    priv->rtl_chip == RTL8710B) {
+	if (fops->init_reg_pkt_life_time) {
 		rtl8xxxu_write16(priv, REG_PKT_VO_VI_LIFE_TIME, 0x0400); /* unit: 256us. 256ms */
 		rtl8xxxu_write16(priv, REG_PKT_BE_BK_LIFE_TIME, 0x0400); /* unit: 256us. 256ms */
 	}
@@ -6965,10 +7034,8 @@ exit:
 	rtl8xxxu_write16(priv, REG_RXFLTMAP2, 0xffff);
 	rtl8xxxu_write16(priv, REG_RXFLTMAP0, 0xffff);
 
-	if (priv->rtl_chip == RTL8188E)
-		rtl8xxxu_write32(priv, REG_OFDM0_XA_AGC_CORE1, 0x6955341e);
-	else
-		rtl8xxxu_write32(priv, REG_OFDM0_XA_AGC_CORE1, 0x6954341e);
+	rtl8xxxu_write32_mask(priv, REG_OFDM0_XA_AGC_CORE1,
+			      OFDM0_X_AGC_CORE1_IGI_MASK, 0x1e);
 
 	return ret;
 

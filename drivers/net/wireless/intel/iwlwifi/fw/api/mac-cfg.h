@@ -224,15 +224,6 @@ struct iwl_mac_client_data {
 } __packed; /* MAC_CONTEXT_CONFIG_CLIENT_DATA_API_S_VER_1 */
 
 /**
- * struct iwl_mac_go_ibss_data - configuration data for GO and IBSS MAC context
- *
- * @beacon_template: beacon template ID
- */
-struct iwl_mac_go_ibss_data {
-	__le32 beacon_template;
-} __packed; /* MAC_CONTEXT_CONFIG_GO_IBSS_DATA_API_S_VER_1 */
-
-/**
  * struct iwl_mac_p2p_dev_data  - configuration data for P2P device MAC context
  *
  * @is_disc_extended: if set to true, P2P Device discoverability is enabled on
@@ -278,6 +269,7 @@ enum iwl_mac_config_filter_flags {
  * @reserved_for_local_mld_addr: reserved
  * @filter_flags: combination of &enum iwl_mac_config_filter_flags
  * @he_support: does this MAC support HE
+ * @he_ap_support: HE AP enabled, "pseudo HE", no trigger frame handling
  * @eht_support: does this MAC support EHT. Requires he_support
  * @nic_not_ack_enabled: mark that the NIC doesn't support receiving
  *	ACK-enabled AGG, (i.e. both BACK and non-BACK frames in single AGG).
@@ -296,13 +288,13 @@ struct iwl_mac_config_cmd {
 	u8 local_mld_addr[6];
 	__le16 reserved_for_local_mld_addr;
 	__le32 filter_flags;
-	__le32 he_support;
+	__le16 he_support;
+	__le16 he_ap_support;
 	__le32 eht_support;
 	__le32 nic_not_ack_enabled;
 	/* MAC_CONTEXT_CONFIG_SPECIFIC_DATA_API_U_VER_1 */
 	union {
 		struct iwl_mac_client_data client;
-		struct iwl_mac_go_ibss_data go_ibss;
 		struct iwl_mac_p2p_dev_data p2p_dev;
 	};
 } __packed; /* MAC_CONTEXT_CONFIG_CMD_API_S_VER_1 */

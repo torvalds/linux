@@ -251,6 +251,7 @@ static void iwl_mvm_rx_agg_session_expired(struct timer_list *t)
 	struct ieee80211_sta *sta;
 	struct iwl_mvm_sta *mvm_sta;
 	unsigned long timeout;
+	unsigned int sta_id;
 
 	rcu_read_lock();
 
@@ -269,7 +270,8 @@ static void iwl_mvm_rx_agg_session_expired(struct timer_list *t)
 	}
 
 	/* Timer expired */
-	sta = rcu_dereference(ba_data->mvm->fw_id_to_mac_id[ba_data->sta_id]);
+	sta_id = ffs(ba_data->sta_mask) - 1; /* don't care which one */
+	sta = rcu_dereference(ba_data->mvm->fw_id_to_mac_id[sta_id]);
 
 	/*
 	 * sta should be valid unless the following happens:
@@ -356,9 +358,13 @@ static int iwl_mvm_disable_txq(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 					     SCD_QUEUE_CONFIG_CMD);
 			struct iwl_scd_queue_cfg_cmd remove_cmd = {
 				.operation = cpu_to_le32(IWL_SCD_QUEUE_REMOVE),
-				.u.remove.tid = cpu_to_le32(tid),
 				.u.remove.sta_mask = cpu_to_le32(BIT(sta_id)),
 			};
+
+			if (tid == IWL_MAX_TID_COUNT)
+				tid = IWL_MGMT_TID;
+
+			remove_cmd.u.remove.tid = cpu_to_le32(tid);
 
 			ret = iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0,
 						   sizeof(remove_cmd),
@@ -2146,7 +2152,7 @@ int iwl_mvm_allocate_int_sta(struct iwl_mvm *mvm,
 	sta->type = type;
 
 	/* put a non-NULL value so iterating over the stations won't stop */
-	rcu_assign_pointer(mvm->fw_id_to_mac_id[sta->sta_id], ERR_PTR(-EINVAL));
+	RCU_INIT_POINTER(mvm->fw_id_to_mac_id[sta->sta_id], ERR_PTR(-EINVAL));
 	return 0;
 }
 
@@ -2227,11 +2233,13 @@ static int iwl_mvm_add_int_sta_with_queue(struct iwl_mvm *mvm, int macidx,
 int iwl_mvm_add_aux_sta(struct iwl_mvm *mvm, u32 lmac_id)
 {
 	int ret;
+	u32 qmask = mvm->aux_queue == IWL_MVM_INVALID_QUEUE ? 0 :
+		BIT(mvm->aux_queue);
 
 	lockdep_assert_held(&mvm->mutex);
 
 	/* Allocate aux station and assign to it the aux queue */
-	ret = iwl_mvm_allocate_int_sta(mvm, &mvm->aux_sta, BIT(mvm->aux_queue),
+	ret = iwl_mvm_allocate_int_sta(mvm, &mvm->aux_sta, qmask,
 				       NL80211_IFTYPE_UNSPECIFIED,
 				       IWL_STA_AUX_ACTIVITY);
 	if (ret)
@@ -2750,10 +2758,11 @@ static void iwl_mvm_init_reorder_buffer(struct iwl_mvm *mvm,
 }
 
 static int iwl_mvm_fw_baid_op_sta(struct iwl_mvm *mvm,
-				  struct iwl_mvm_sta *mvm_sta,
+				  struct ieee80211_sta *sta,
 				  bool start, int tid, u16 ssn,
 				  u16 buf_size)
 {
+	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_add_sta_cmd cmd = {
 		.mac_id_n_color = cpu_to_le32(mvm_sta->mac_id_n_color),
 		.sta_id = mvm_sta->deflink.sta_id,
@@ -2798,7 +2807,7 @@ static int iwl_mvm_fw_baid_op_sta(struct iwl_mvm *mvm,
 }
 
 static int iwl_mvm_fw_baid_op_cmd(struct iwl_mvm *mvm,
-				  struct iwl_mvm_sta *mvm_sta,
+				  struct ieee80211_sta *sta,
 				  bool start, int tid, u16 ssn,
 				  u16 buf_size, int baid)
 {
@@ -2813,7 +2822,7 @@ static int iwl_mvm_fw_baid_op_cmd(struct iwl_mvm *mvm,
 
 	if (start) {
 		cmd.alloc.sta_id_mask =
-			cpu_to_le32(BIT(mvm_sta->deflink.sta_id));
+			cpu_to_le32(iwl_mvm_sta_fw_id_mask(mvm, sta, -1));
 		cmd.alloc.tid = tid;
 		cmd.alloc.ssn = cpu_to_le16(ssn);
 		cmd.alloc.win_size = cpu_to_le16(buf_size);
@@ -2823,7 +2832,7 @@ static int iwl_mvm_fw_baid_op_cmd(struct iwl_mvm *mvm,
 		BUILD_BUG_ON(sizeof(cmd.remove_v1) > sizeof(cmd.remove));
 	} else {
 		cmd.remove.sta_id_mask =
-			cpu_to_le32(BIT(mvm_sta->deflink.sta_id));
+			cpu_to_le32(iwl_mvm_sta_fw_id_mask(mvm, sta, -1));
 		cmd.remove.tid = cpu_to_le32(tid);
 	}
 
@@ -2846,16 +2855,16 @@ static int iwl_mvm_fw_baid_op_cmd(struct iwl_mvm *mvm,
 	return baid;
 }
 
-static int iwl_mvm_fw_baid_op(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvm_sta,
+static int iwl_mvm_fw_baid_op(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			      bool start, int tid, u16 ssn, u16 buf_size,
 			      int baid)
 {
 	if (fw_has_capa(&mvm->fw->ucode_capa,
 			IWL_UCODE_TLV_CAPA_BAID_ML_SUPPORT))
-		return iwl_mvm_fw_baid_op_cmd(mvm, mvm_sta, start,
+		return iwl_mvm_fw_baid_op_cmd(mvm, sta, start,
 					      tid, ssn, buf_size, baid);
 
-	return iwl_mvm_fw_baid_op_sta(mvm, mvm_sta, start,
+	return iwl_mvm_fw_baid_op_sta(mvm, sta, start,
 				      tid, ssn, buf_size);
 }
 
@@ -2925,7 +2934,7 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 
 	/* Don't send command to remove (start=0) BAID during restart */
 	if (start || !test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
-		baid = iwl_mvm_fw_baid_op(mvm, mvm_sta, start, tid, ssn, buf_size,
+		baid = iwl_mvm_fw_baid_op(mvm, sta, start, tid, ssn, buf_size,
 					  baid);
 
 	if (baid < 0) {
@@ -2947,7 +2956,7 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			    iwl_mvm_rx_agg_session_expired, 0);
 		baid_data->mvm = mvm;
 		baid_data->tid = tid;
-		baid_data->sta_id = mvm_sta->deflink.sta_id;
+		baid_data->sta_mask = iwl_mvm_sta_fw_id_mask(mvm, sta, -1);
 
 		mvm_sta->tid_to_baid[tid] = baid;
 		if (timeout)

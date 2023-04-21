@@ -2438,6 +2438,9 @@ int ath12k_wmi_send_scan_chan_list_cmd(struct ath12k *ar,
 			if (channel_arg->psc_channel)
 				chan_info->info |= cpu_to_le32(WMI_CHAN_INFO_PSC);
 
+			if (channel_arg->dfs_set)
+				chan_info->info |= cpu_to_le32(WMI_CHAN_INFO_DFS);
+
 			chan_info->info |= le32_encode_bits(channel_arg->phy_mode,
 							    WMI_CHAN_INFO_MODE);
 			*reg1 |= le32_encode_bits(channel_arg->minpower,
@@ -4934,6 +4937,9 @@ static int freq_to_idx(struct ath12k *ar, int freq)
 	int band, ch, idx = 0;
 
 	for (band = NL80211_BAND_2GHZ; band < NUM_NL80211_BANDS; band++) {
+		if (!ar->mac.sbands[band].channels)
+			continue;
+
 		sband = ar->hw->wiphy->bands[band];
 		if (!sband)
 			continue;

@@ -434,6 +434,8 @@ struct iwl_mvm_vif {
 	/* TCP Checksum Offload */
 	netdev_features_t features;
 
+	struct ieee80211_sta *ap_sta;
+
 	/* we can only have 2 GTK + 2 IGTK active at a time */
 	struct ieee80211_key_conf *ap_early_keys[4];
 
@@ -678,7 +680,7 @@ __aligned(roundup_pow_of_two(sizeof(struct _iwl_mvm_reorder_buf_entry)))
 
 /**
  * struct iwl_mvm_baid_data - BA session data
- * @sta_id: station id
+ * @sta_mask: current station mask for the BAID
  * @tid: tid of the session
  * @baid baid of the session
  * @timeout: the timeout set in the addba request
@@ -692,7 +694,7 @@ __aligned(roundup_pow_of_two(sizeof(struct _iwl_mvm_reorder_buf_entry)))
  */
 struct iwl_mvm_baid_data {
 	struct rcu_head rcu_head;
-	u8 sta_id;
+	u32 sta_mask;
 	u8 tid;
 	u8 baid;
 	u16 timeout;
@@ -822,6 +824,12 @@ struct iwl_time_sync_data {
 	struct sk_buff_head frame_list;
 	u8 peer_addr[ETH_ALEN];
 	bool active;
+};
+
+struct iwl_mei_scan_filter {
+	bool is_mei_limited_scan;
+	struct sk_buff_head scan_res;
+	struct work_struct scan_work;
 };
 
 struct iwl_mvm {
@@ -1175,6 +1183,8 @@ struct iwl_mvm {
 	bool pldr_sync;
 
 	struct iwl_time_sync_data time_sync;
+
+	struct iwl_mei_scan_filter mei_scan_filter;
 };
 
 /* Extract MVM priv from op_mode and _hw */
@@ -1401,24 +1411,8 @@ static inline bool iwl_mvm_has_new_rx_api(struct iwl_mvm *mvm)
 
 static inline bool iwl_mvm_has_mld_api(const struct iwl_fw *fw)
 {
-	return (iwl_fw_lookup_cmd_ver(fw, LINK_CONFIG_CMD,
-				      IWL_FW_CMD_VER_UNKNOWN) !=
-				IWL_FW_CMD_VER_UNKNOWN) &&
-		(iwl_fw_lookup_cmd_ver(fw, MAC_CONFIG_CMD,
-				       IWL_FW_CMD_VER_UNKNOWN) !=
-				IWL_FW_CMD_VER_UNKNOWN) &&
-		(iwl_fw_lookup_cmd_ver(fw, STA_CONFIG_CMD,
-				       IWL_FW_CMD_VER_UNKNOWN) !=
-				IWL_FW_CMD_VER_UNKNOWN) &&
-		(iwl_fw_lookup_cmd_ver(fw, AUX_STA_CMD,
-				       IWL_FW_CMD_VER_UNKNOWN) !=
-				IWL_FW_CMD_VER_UNKNOWN) &&
-		(iwl_fw_lookup_cmd_ver(fw, STA_REMOVE_CMD,
-				       IWL_FW_CMD_VER_UNKNOWN) !=
-				IWL_FW_CMD_VER_UNKNOWN) &&
-		(iwl_fw_lookup_cmd_ver(fw, STA_DISABLE_TX_CMD,
-				       IWL_FW_CMD_VER_UNKNOWN) !=
-				IWL_FW_CMD_VER_UNKNOWN);
+	return fw_has_capa(&fw->ucode_capa,
+			   IWL_UCODE_TLV_CAPA_MLD_API_SUPPORT);
 }
 
 static inline bool iwl_mvm_has_new_tx_api(struct iwl_mvm *mvm)
@@ -1520,6 +1514,19 @@ static inline bool iwl_mvm_is_ctdp_supported(struct iwl_mvm *mvm)
 {
 	return fw_has_capa(&mvm->fw->ucode_capa,
 			   IWL_UCODE_TLV_CAPA_CTDP_SUPPORT);
+}
+
+static inline bool iwl_mvm_has_new_tx_csum(struct iwl_mvm *mvm)
+{
+	if (mvm->trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_BZ)
+		return false;
+
+	if (mvm->trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_BZ &&
+	    CSR_HW_REV_TYPE(mvm->trans->hw_rev) == IWL_CFG_MAC_TYPE_GL &&
+	    mvm->trans->hw_rev_step <= SILICON_B_STEP)
+		return false;
+
+	return true;
 }
 
 extern const u8 iwl_mvm_ac_to_tx_fifo[];
@@ -1781,14 +1788,13 @@ int iwl_mvm_mac_ctxt_remove(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_mac_ctxt_beacon_changed(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif,
 				    struct ieee80211_bss_conf *link_conf);
-int iwl_mvm_mac_ctxt_send_beacon(struct iwl_mvm *mvm,
-				 struct ieee80211_vif *vif,
-				 struct sk_buff *beacon,
-				 struct ieee80211_bss_conf *link_conf);
 int iwl_mvm_mac_ctxt_send_beacon_cmd(struct iwl_mvm *mvm,
 				     struct sk_buff *beacon,
 				     void *data, int len);
 u8 iwl_mvm_mac_ctxt_get_beacon_rate(struct iwl_mvm *mvm,
+				    struct ieee80211_tx_info *info,
+				    struct ieee80211_vif *vif);
+u8 iwl_mvm_mac_ctxt_get_lowest_rate(struct iwl_mvm *mvm,
 				    struct ieee80211_tx_info *info,
 				    struct ieee80211_vif *vif);
 u16 iwl_mvm_mac_ctxt_get_beacon_flags(const struct iwl_fw *fw,
@@ -2306,6 +2312,7 @@ void iwl_mvm_event_frame_timeout_callback(struct iwl_mvm *mvm,
 					  struct ieee80211_vif *vif,
 					  const struct ieee80211_sta *sta,
 					  u16 tid);
+void iwl_mvm_mei_scan_filter_init(struct iwl_mei_scan_filter *mei_scan_filter);
 
 void iwl_mvm_ptp_init(struct iwl_mvm *mvm);
 void iwl_mvm_ptp_remove(struct iwl_mvm *mvm);
@@ -2334,6 +2341,11 @@ void iwl_mvm_sec_key_remove_ap(struct iwl_mvm *mvm,
 			       struct ieee80211_vif *vif,
 			       struct iwl_mvm_vif_link_info *link,
 			       unsigned int link_id);
+int iwl_mvm_mld_update_sta_keys(struct iwl_mvm *mvm,
+				struct ieee80211_vif *vif,
+				struct ieee80211_sta *sta,
+				u32 old_sta_mask,
+				u32 new_sta_mask);
 
 int iwl_rfi_send_config_cmd(struct iwl_mvm *mvm,
 			    struct iwl_rfi_lut_entry *rfi_table);
@@ -2510,6 +2522,22 @@ static inline void iwl_mvm_mei_set_sw_rfkill_state(struct iwl_mvm *mvm)
 	if (mvm->mei_registered)
 		iwl_mei_set_rfkill_state(iwl_mvm_is_radio_killed(mvm),
 					 sw_rfkill);
+}
+
+static inline bool iwl_mvm_mei_filter_scan(struct iwl_mvm *mvm,
+					   struct sk_buff *skb)
+{
+	struct ieee80211_mgmt *mgmt = (void *)skb->data;
+
+	if (mvm->mei_scan_filter.is_mei_limited_scan &&
+	    (ieee80211_is_probe_resp(mgmt->frame_control) ||
+	     ieee80211_is_beacon(mgmt->frame_control))) {
+		skb_queue_tail(&mvm->mei_scan_filter.scan_res, skb);
+		schedule_work(&mvm->mei_scan_filter.scan_work);
+		return true;
+	}
+
+	return false;
 }
 
 void iwl_mvm_send_roaming_forbidden_event(struct iwl_mvm *mvm,

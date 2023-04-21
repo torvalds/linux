@@ -82,6 +82,12 @@ struct wmi_tlv_fw_stats_parse {
 	bool chain_rssi_done;
 };
 
+struct wmi_tlv_mgmt_rx_parse {
+	const struct wmi_mgmt_rx_hdr *fixed;
+	const u8 *frame_buf;
+	bool frame_buf_done;
+};
+
 static const struct wmi_tlv_policy wmi_tlv_policies[] = {
 	[WMI_TAG_ARRAY_BYTE]
 		= { .min_len = 0 },
@@ -865,7 +871,8 @@ static void ath11k_wmi_put_wmi_channel(struct wmi_channel *chan,
 
 		chan->band_center_freq2 = arg->channel.band_center_freq1;
 
-	} else if (arg->channel.mode == MODE_11AC_VHT80_80) {
+	} else if ((arg->channel.mode == MODE_11AC_VHT80_80) ||
+		   (arg->channel.mode == MODE_11AX_HE80_80)) {
 		chan->band_center_freq2 = arg->channel.band_center_freq2;
 	} else {
 		chan->band_center_freq2 = 0;
@@ -5633,28 +5640,49 @@ static int ath11k_pull_vdev_stopped_param_tlv(struct ath11k_base *ab, struct sk_
 	return 0;
 }
 
+static int ath11k_wmi_tlv_mgmt_rx_parse(struct ath11k_base *ab,
+					u16 tag, u16 len,
+					const void *ptr, void *data)
+{
+	struct wmi_tlv_mgmt_rx_parse *parse = data;
+
+	switch (tag) {
+	case WMI_TAG_MGMT_RX_HDR:
+		parse->fixed = ptr;
+		break;
+	case WMI_TAG_ARRAY_BYTE:
+		if (!parse->frame_buf_done) {
+			parse->frame_buf = ptr;
+			parse->frame_buf_done = true;
+		}
+		break;
+	}
+	return 0;
+}
+
 static int ath11k_pull_mgmt_rx_params_tlv(struct ath11k_base *ab,
 					  struct sk_buff *skb,
 					  struct mgmt_rx_event_params *hdr)
 {
-	const void **tb;
+	struct wmi_tlv_mgmt_rx_parse parse = { };
 	const struct wmi_mgmt_rx_hdr *ev;
 	const u8 *frame;
 	int ret;
 
-	tb = ath11k_wmi_tlv_parse_alloc(ab, skb->data, skb->len, GFP_ATOMIC);
-	if (IS_ERR(tb)) {
-		ret = PTR_ERR(tb);
-		ath11k_warn(ab, "failed to parse tlv: %d\n", ret);
+	ret = ath11k_wmi_tlv_iter(ab, skb->data, skb->len,
+				  ath11k_wmi_tlv_mgmt_rx_parse,
+				  &parse);
+	if (ret) {
+		ath11k_warn(ab, "failed to parse mgmt rx tlv %d\n",
+			    ret);
 		return ret;
 	}
 
-	ev = tb[WMI_TAG_MGMT_RX_HDR];
-	frame = tb[WMI_TAG_ARRAY_BYTE];
+	ev = parse.fixed;
+	frame = parse.frame_buf;
 
 	if (!ev || !frame) {
 		ath11k_warn(ab, "failed to fetch mgmt rx hdr");
-		kfree(tb);
 		return -EPROTO;
 	}
 
@@ -5673,7 +5701,6 @@ static int ath11k_pull_mgmt_rx_params_tlv(struct ath11k_base *ab,
 
 	if (skb->len < (frame - skb->data) + hdr->buf_len) {
 		ath11k_warn(ab, "invalid length in mgmt rx hdr ev");
-		kfree(tb);
 		return -EPROTO;
 	}
 
@@ -5685,7 +5712,6 @@ static int ath11k_pull_mgmt_rx_params_tlv(struct ath11k_base *ab,
 
 	ath11k_ce_byte_swap(skb->data, hdr->buf_len);
 
-	kfree(tb);
 	return 0;
 }
 

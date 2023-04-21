@@ -1865,6 +1865,15 @@ struct rtl8xxxu_fileops rtl8710bu_fops = {
 	.has_tx_report = 1,
 	.gen2_thermal_meter = 1,
 	.needs_full_init = 1,
+	.init_reg_rxfltmap = 1,
+	.init_reg_pkt_life_time = 1,
+	.init_reg_hmtfr = 1,
+	.ampdu_max_time = 0x5e,
+	/*
+	 * The RTL8710BU vendor driver uses 0x50 here and it works fine,
+	 * but in rtl8xxxu 0x50 causes slow upload and random packet loss. Why?
+	 */
+	.ustime_tsf_edca = 0x28,
 	.adda_1t_init = 0x03c00016,
 	.adda_1t_path_on = 0x03c00016,
 	.trxff_boundary = 0x3f7f,

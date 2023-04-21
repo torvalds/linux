@@ -649,6 +649,21 @@ static inline void drv_flush(struct ieee80211_local *local,
 	trace_drv_return_void(local);
 }
 
+static inline void drv_flush_sta(struct ieee80211_local *local,
+				 struct ieee80211_sub_if_data *sdata,
+				 struct sta_info *sta)
+{
+	might_sleep();
+
+	if (sdata && !check_sdata_in_driver(sdata))
+		return;
+
+	trace_drv_flush_sta(local, sdata, &sta->sta);
+	if (local->ops->flush_sta)
+		local->ops->flush_sta(&local->hw, &sdata->vif, &sta->sta);
+	trace_drv_return_void(local);
+}
+
 static inline void drv_channel_switch(struct ieee80211_local *local,
 				      struct ieee80211_sub_if_data *sdata,
 				      struct ieee80211_channel_switch *ch_switch)

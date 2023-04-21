@@ -222,10 +222,6 @@ static int rtl8723au_parse_efuse(struct rtl8xxxu_priv *priv)
 
 	priv->power_base = &rtl8723a_power_base;
 
-	dev_info(&priv->udev->dev, "Vendor: %.7s\n",
-		 efuse->vendor_name);
-	dev_info(&priv->udev->dev, "Product: %.41s\n",
-		 efuse->device_name);
 	return 0;
 }
 

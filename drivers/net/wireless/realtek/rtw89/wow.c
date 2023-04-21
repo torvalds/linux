@@ -30,7 +30,7 @@ static void rtw89_wow_enter_lps(struct rtw89_dev *rtwdev)
 	struct ieee80211_vif *wow_vif = rtwdev->wow.wow_vif;
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)wow_vif->drv_priv;
 
-	rtw89_enter_lps(rtwdev, rtwvif);
+	rtw89_enter_lps(rtwdev, rtwvif, false);
 }
 
 static void rtw89_wow_leave_lps(struct rtw89_dev *rtwdev)

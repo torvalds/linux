@@ -61,12 +61,14 @@ static u8 rs_fw_sgi_cw_support(struct ieee80211_link_sta *link_sta)
 }
 
 static u16 rs_fw_get_config_flags(struct iwl_mvm *mvm,
+				  struct ieee80211_vif *vif,
 				  struct ieee80211_link_sta *link_sta,
 				  struct ieee80211_supported_band *sband)
 {
 	struct ieee80211_sta_ht_cap *ht_cap = &link_sta->ht_cap;
 	struct ieee80211_sta_vht_cap *vht_cap = &link_sta->vht_cap;
 	struct ieee80211_sta_he_cap *he_cap = &link_sta->he_cap;
+	const struct ieee80211_sta_he_cap *sband_he_cap;
 	bool vht_ena = vht_cap->vht_supported;
 	u16 flags = 0;
 
@@ -92,17 +94,19 @@ static u16 rs_fw_get_config_flags(struct iwl_mvm *mvm,
 	    IEEE80211_HE_PHY_CAP1_LDPC_CODING_IN_PAYLOAD))
 		flags |= IWL_TLC_MNG_CFG_FLAGS_LDPC_MSK;
 
-	if (sband->iftype_data && sband->iftype_data->he_cap.has_he &&
-	    !(sband->iftype_data->he_cap.he_cap_elem.phy_cap_info[1] &
-	     IEEE80211_HE_PHY_CAP1_LDPC_CODING_IN_PAYLOAD))
+	sband_he_cap = ieee80211_get_he_iftype_cap(sband,
+						   ieee80211_vif_type_p2p(vif));
+	if (sband_he_cap &&
+	    !(sband_he_cap->he_cap_elem.phy_cap_info[1] &
+			IEEE80211_HE_PHY_CAP1_LDPC_CODING_IN_PAYLOAD))
 		flags &= ~IWL_TLC_MNG_CFG_FLAGS_LDPC_MSK;
 
 	if (he_cap->has_he &&
 	    (he_cap->he_cap_elem.phy_cap_info[3] &
 	     IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_RX_MASK &&
-	     sband->iftype_data &&
-	     sband->iftype_data->he_cap.he_cap_elem.phy_cap_info[3] &
-	     IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_TX_MASK))
+	     sband_he_cap &&
+	     sband_he_cap->he_cap_elem.phy_cap_info[3] &
+			IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_TX_MASK))
 		flags |= IWL_TLC_MNG_CFG_FLAGS_HE_DCM_NSS_1_MSK;
 
 	return flags;
@@ -283,7 +287,8 @@ rs_fw_rs_mcs2eht_mcs(enum IWL_TLC_MCS_PER_BW bw,
 }
 
 static void
-rs_fw_eht_set_enabled_rates(const struct ieee80211_link_sta *link_sta,
+rs_fw_eht_set_enabled_rates(struct ieee80211_vif *vif,
+			    const struct ieee80211_link_sta *link_sta,
 			    struct ieee80211_supported_band *sband,
 			    struct iwl_tlc_config_cmd_v4 *cmd)
 {
@@ -299,7 +304,8 @@ rs_fw_eht_set_enabled_rates(const struct ieee80211_link_sta *link_sta,
 	struct ieee80211_eht_mcs_nss_supp_20mhz_only mcs_tx_20;
 
 	/* peer is 20Mhz only */
-	if (!(link_sta->he_cap.he_cap_elem.phy_cap_info[0] &
+	if (vif->type == NL80211_IFTYPE_AP &&
+	    !(link_sta->he_cap.he_cap_elem.phy_cap_info[0] &
 	      IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_MASK_ALL)) {
 		mcs_rx_20 = eht_rx_mcs->only_20mhz;
 	} else {
@@ -361,7 +367,8 @@ rs_fw_eht_set_enabled_rates(const struct ieee80211_link_sta *link_sta,
 		       sizeof(cmd->ht_rates[IWL_TLC_NSS_2]));
 }
 
-static void rs_fw_set_supp_rates(struct ieee80211_link_sta *link_sta,
+static void rs_fw_set_supp_rates(struct ieee80211_vif *vif,
+				 struct ieee80211_link_sta *link_sta,
 				 struct ieee80211_supported_band *sband,
 				 struct iwl_tlc_config_cmd_v4 *cmd)
 {
@@ -383,7 +390,7 @@ static void rs_fw_set_supp_rates(struct ieee80211_link_sta *link_sta,
 	/* HT/VHT rates */
 	if (link_sta->eht_cap.has_eht) {
 		cmd->mode = IWL_TLC_MNG_MODE_EHT;
-		rs_fw_eht_set_enabled_rates(link_sta, sband, cmd);
+		rs_fw_eht_set_enabled_rates(vif, link_sta, sband, cmd);
 	} else if (he_cap->has_he) {
 		cmd->mode = IWL_TLC_MNG_MODE_HE;
 		rs_fw_he_set_enabled_rates(link_sta, sband, cmd);
@@ -557,10 +564,12 @@ u16 rs_fw_get_max_amsdu_len(struct ieee80211_sta *sta,
 	return 0;
 }
 
-void rs_fw_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
-		     struct ieee80211_bss_conf *link_conf,
-		     struct ieee80211_link_sta *link_sta,
-		     enum nl80211_band band, bool update)
+void iwl_mvm_rs_fw_rate_init(struct iwl_mvm *mvm,
+			     struct ieee80211_vif *vif,
+			     struct ieee80211_sta *sta,
+			     struct ieee80211_bss_conf *link_conf,
+			     struct ieee80211_link_sta *link_sta,
+			     enum nl80211_band band)
 {
 	struct ieee80211_hw *hw = mvm->hw;
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
@@ -570,10 +579,9 @@ void rs_fw_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	struct iwl_mvm_link_sta *mvm_link_sta;
 	struct iwl_lq_sta_rs_fw *lq_sta;
 	struct iwl_tlc_config_cmd_v4 cfg_cmd = {
-		.max_ch_width = update ?
-			rs_fw_bw_from_sta_bw(link_sta) :
-			IWL_TLC_MNG_CH_WIDTH_20MHZ,
-		.flags = cpu_to_le16(rs_fw_get_config_flags(mvm, link_sta,
+		.max_ch_width = mvmsta->authorized ?
+			rs_fw_bw_from_sta_bw(link_sta) : IWL_TLC_MNG_CH_WIDTH_20MHZ,
+		.flags = cpu_to_le16(rs_fw_get_config_flags(mvm, vif, link_sta,
 							    sband)),
 		.chains = rs_fw_set_active_chains(iwl_mvm_get_valid_tx_ant(mvm)),
 		.sgi_ch_width_supp = rs_fw_sgi_cw_support(link_sta),
@@ -601,7 +609,7 @@ void rs_fw_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	iwl_mvm_reset_frame_stats(mvm);
 #endif
-	rs_fw_set_supp_rates(link_sta, sband, &cfg_cmd);
+	rs_fw_set_supp_rates(vif, link_sta, sband, &cfg_cmd);
 
 	/*
 	 * since TLC offload works with one mode we can assume
@@ -671,6 +679,26 @@ int rs_fw_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 	return 0;
 }
 
+void iwl_mvm_rs_add_sta_link(struct iwl_mvm *mvm,
+			     struct iwl_mvm_link_sta *link_sta)
+{
+	struct iwl_lq_sta_rs_fw *lq_sta;
+
+	lq_sta = &link_sta->lq_sta.rs_fw;
+
+	lq_sta->pers.drv = mvm;
+	lq_sta->pers.sta_id = link_sta->sta_id;
+	lq_sta->pers.chains = 0;
+	memset(lq_sta->pers.chain_signal, 0,
+	       sizeof(lq_sta->pers.chain_signal));
+	lq_sta->pers.last_rssi = S8_MIN;
+	lq_sta->last_rate_n_flags = 0;
+
+#ifdef CONFIG_MAC80211_DEBUGFS
+	lq_sta->pers.dbg_fixed_rate = 0;
+#endif
+}
+
 void iwl_mvm_rs_add_sta(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta)
 {
 	unsigned int link_id;
@@ -678,25 +706,12 @@ void iwl_mvm_rs_add_sta(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta)
 	IWL_DEBUG_RATE(mvm, "create station rate scale window\n");
 
 	for (link_id = 0; link_id < ARRAY_SIZE(mvmsta->link); link_id++) {
-		struct iwl_lq_sta_rs_fw *lq_sta;
 		struct iwl_mvm_link_sta *link =
 			rcu_dereference_protected(mvmsta->link[link_id],
 						  lockdep_is_held(&mvm->mutex));
 		if (!link)
 			continue;
 
-		lq_sta = &link->lq_sta.rs_fw;
-
-		lq_sta->pers.drv = mvm;
-		lq_sta->pers.sta_id = link->sta_id;
-		lq_sta->pers.chains = 0;
-		memset(lq_sta->pers.chain_signal, 0,
-		       sizeof(lq_sta->pers.chain_signal));
-		lq_sta->pers.last_rssi = S8_MIN;
-		lq_sta->last_rate_n_flags = 0;
-
-#ifdef CONFIG_MAC80211_DEBUGFS
-		lq_sta->pers.dbg_fixed_rate = 0;
-#endif
+		iwl_mvm_rs_add_sta_link(mvm, link);
 	}
 }

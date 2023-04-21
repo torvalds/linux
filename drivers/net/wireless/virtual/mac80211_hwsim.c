@@ -3760,6 +3760,9 @@ static int hwsim_pmsr_report_nl(struct sk_buff *msg, struct genl_info *info)
 	int err;
 	int rem;
 
+	if (!info->attrs[HWSIM_ATTR_ADDR_TRANSMITTER])
+		return -EINVAL;
+
 	src = nla_data(info->attrs[HWSIM_ATTR_ADDR_TRANSMITTER]);
 	data = get_hwsim_data_ref_from_addr(src);
 	if (!data)
