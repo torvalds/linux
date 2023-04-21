@@ -62,6 +62,7 @@
 #include "verifier_value.skel.h"
 #include "verifier_value_illegal_alu.skel.h"
 #include "verifier_value_or_null.skel.h"
+#include "verifier_value_ptr_arith.skel.h"
 #include "verifier_var_off.skel.h"
 #include "verifier_xadd.skel.h"
 #include "verifier_xdp.skel.h"
@@ -164,24 +165,33 @@ void test_verifier_xadd(void)                 { RUN(verifier_xadd); }
 void test_verifier_xdp(void)                  { RUN(verifier_xdp); }
 void test_verifier_xdp_direct_packet_access(void) { RUN(verifier_xdp_direct_packet_access); }
 
-static int init_array_access_maps(struct bpf_object *obj)
+static int init_test_val_map(struct bpf_object *obj, char *map_name)
 {
-	struct bpf_map *array_ro;
 	struct test_val value = {
 		.index = (6 + 1) * sizeof(int),
 		.foo[6] = 0xabcdef12,
 	};
+	struct bpf_map *map;
 	int err, key = 0;
 
-	array_ro = bpf_object__find_map_by_name(obj, "map_array_ro");
-	if (!ASSERT_OK_PTR(array_ro, "lookup map_array_ro"))
+	map = bpf_object__find_map_by_name(obj, map_name);
+	if (!map) {
+		PRINT_FAIL("Can't find map '%s'\n", map_name);
 		return -EINVAL;
+	}
 
-	err = bpf_map_update_elem(bpf_map__fd(array_ro), &key, &value, 0);
-	if (!ASSERT_OK(err, "map_array_ro update"))
+	err = bpf_map_update_elem(bpf_map__fd(map), &key, &value, 0);
+	if (err) {
+		PRINT_FAIL("Error while updating map '%s': %d\n", map_name, err);
 		return err;
+	}
 
 	return 0;
+}
+
+static int init_array_access_maps(struct bpf_object *obj)
+{
+	return init_test_val_map(obj, "map_array_ro");
 }
 
 void test_verifier_array_access(void)
@@ -189,4 +199,16 @@ void test_verifier_array_access(void)
 	run_tests_aux("verifier_array_access",
 		      verifier_array_access__elf_bytes,
 		      init_array_access_maps);
+}
+
+static int init_value_ptr_arith_maps(struct bpf_object *obj)
+{
+	return init_test_val_map(obj, "map_array_48b");
+}
+
+void test_verifier_value_ptr_arith(void)
+{
+	run_tests_aux("verifier_value_ptr_arith",
+		      verifier_value_ptr_arith__elf_bytes,
+		      init_value_ptr_arith_maps);
 }
