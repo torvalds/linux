@@ -56,6 +56,8 @@
 #include "verifier_stack_ptr.skel.h"
 #include "verifier_subreg.skel.h"
 #include "verifier_uninit.skel.h"
+#include "verifier_unpriv.skel.h"
+#include "verifier_unpriv_perf.skel.h"
 #include "verifier_value_adj_spill.skel.h"
 #include "verifier_value.skel.h"
 #include "verifier_value_or_null.skel.h"
@@ -150,6 +152,8 @@ void test_verifier_spin_lock(void)            { RUN(verifier_spin_lock); }
 void test_verifier_stack_ptr(void)            { RUN(verifier_stack_ptr); }
 void test_verifier_subreg(void)               { RUN(verifier_subreg); }
 void test_verifier_uninit(void)               { RUN(verifier_uninit); }
+void test_verifier_unpriv(void)               { RUN(verifier_unpriv); }
+void test_verifier_unpriv_perf(void)          { RUN(verifier_unpriv_perf); }
 void test_verifier_value_adj_spill(void)      { RUN(verifier_value_adj_spill); }
 void test_verifier_value(void)                { RUN(verifier_value); }
 void test_verifier_value_or_null(void)        { RUN(verifier_value_or_null); }
