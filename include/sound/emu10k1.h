@@ -1599,10 +1599,8 @@ struct snd_emu10k1_fx8010_pcm {
 };
 
 struct snd_emu10k1_fx8010 {
-	unsigned short fxbus_mask;	/* used FX buses (bitmask) */
-	unsigned short extin_mask;	/* used external inputs (bitmask) */
-	unsigned short extout_mask;	/* used external outputs (bitmask) */
-	unsigned short pad1;
+	unsigned short extin_mask;	/* used external inputs (bitmask); not used for Audigy */
+	unsigned short extout_mask;	/* used external outputs (bitmask); not used for Audigy */
 	unsigned int itram_size;	/* internal TRAM size in samples */
 	struct snd_dma_buffer etram_pages; /* external TRAM pages and size */
 	unsigned int dbg;		/* FX debugger register */

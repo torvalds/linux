@@ -1901,11 +1901,12 @@ int snd_emu10k1_create(struct snd_card *card,
 
 	pci_set_master(pci);
 
-	emu->fx8010.fxbus_mask = 0x303f;
+	// The masks are not used for Audigy.
+	// FIXME: these should come from the card_capabilites table.
 	if (extin_mask == 0)
-		extin_mask = 0x3fcf;
+		extin_mask = 0x3fcf;  // EXTIN_*
 	if (extout_mask == 0)
-		extout_mask = 0x7fff;
+		extout_mask = 0x7fff;  // EXTOUT_*
 	emu->fx8010.extin_mask = extin_mask;
 	emu->fx8010.extout_mask = extout_mask;
 	emu->enable_ir = enable_ir;
