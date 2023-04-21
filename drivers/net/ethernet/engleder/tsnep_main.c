@@ -292,7 +292,7 @@ static int tsnep_tx_ring_init(struct tsnep_tx *tx)
 	}
 	for (i = 0; i < TSNEP_RING_SIZE; i++) {
 		entry = &tx->entry[i];
-		next_entry = &tx->entry[(i + 1) % TSNEP_RING_SIZE];
+		next_entry = &tx->entry[(i + 1) & TSNEP_RING_MASK];
 		entry->desc->next = __cpu_to_le64(next_entry->desc_dma);
 	}
 
@@ -381,7 +381,7 @@ static int tsnep_tx_map(struct sk_buff *skb, struct tsnep_tx *tx, int count)
 	int i;
 
 	for (i = 0; i < count; i++) {
-		entry = &tx->entry[(tx->write + i) % TSNEP_RING_SIZE];
+		entry = &tx->entry[(tx->write + i) & TSNEP_RING_MASK];
 
 		if (!i) {
 			len = skb_headlen(skb);
@@ -419,7 +419,7 @@ static int tsnep_tx_unmap(struct tsnep_tx *tx, int index, int count)
 	int i;
 
 	for (i = 0; i < count; i++) {
-		entry = &tx->entry[(index + i) % TSNEP_RING_SIZE];
+		entry = &tx->entry[(index + i) & TSNEP_RING_MASK];
 
 		if (entry->len) {
 			if (entry->type & TSNEP_TX_TYPE_SKB)
@@ -481,9 +481,9 @@ static netdev_tx_t tsnep_xmit_frame_ring(struct sk_buff *skb,
 		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 
 	for (i = 0; i < count; i++)
-		tsnep_tx_activate(tx, (tx->write + i) % TSNEP_RING_SIZE, length,
+		tsnep_tx_activate(tx, (tx->write + i) & TSNEP_RING_MASK, length,
 				  i == count - 1);
-	tx->write = (tx->write + count) % TSNEP_RING_SIZE;
+	tx->write = (tx->write + count) & TSNEP_RING_MASK;
 
 	skb_tx_timestamp(skb);
 
@@ -516,7 +516,7 @@ static int tsnep_xdp_tx_map(struct xdp_frame *xdpf, struct tsnep_tx *tx,
 	frag = NULL;
 	len = xdpf->len;
 	for (i = 0; i < count; i++) {
-		entry = &tx->entry[(tx->write + i) % TSNEP_RING_SIZE];
+		entry = &tx->entry[(tx->write + i) & TSNEP_RING_MASK];
 		if (type & TSNEP_TX_TYPE_XDP_NDO) {
 			data = unlikely(frag) ? skb_frag_address(frag) :
 						xdpf->data;
@@ -589,9 +589,9 @@ static bool tsnep_xdp_xmit_frame_ring(struct xdp_frame *xdpf,
 	length = retval;
 
 	for (i = 0; i < count; i++)
-		tsnep_tx_activate(tx, (tx->write + i) % TSNEP_RING_SIZE, length,
+		tsnep_tx_activate(tx, (tx->write + i) & TSNEP_RING_MASK, length,
 				  i == count - 1);
-	tx->write = (tx->write + count) % TSNEP_RING_SIZE;
+	tx->write = (tx->write + count) & TSNEP_RING_MASK;
 
 	/* descriptor properties shall be valid before hardware is notified */
 	dma_wmb();
@@ -691,7 +691,7 @@ static bool tsnep_tx_poll(struct tsnep_tx *tx, int napi_budget)
 		/* xdpf is union with skb */
 		entry->skb = NULL;
 
-		tx->read = (tx->read + count) % TSNEP_RING_SIZE;
+		tx->read = (tx->read + count) & TSNEP_RING_MASK;
 
 		tx->packets++;
 		tx->bytes += length + ETH_FCS_LEN;
@@ -839,7 +839,7 @@ static int tsnep_rx_ring_init(struct tsnep_rx *rx)
 
 	for (i = 0; i < TSNEP_RING_SIZE; i++) {
 		entry = &rx->entry[i];
-		next_entry = &rx->entry[(i + 1) % TSNEP_RING_SIZE];
+		next_entry = &rx->entry[(i + 1) & TSNEP_RING_MASK];
 		entry->desc->next = __cpu_to_le64(next_entry->desc_dma);
 	}
 
@@ -925,7 +925,7 @@ static int tsnep_rx_refill(struct tsnep_rx *rx, int count, bool reuse)
 	int retval;
 
 	for (i = 0; i < count && !alloc_failed; i++) {
-		index = (rx->write + i) % TSNEP_RING_SIZE;
+		index = (rx->write + i) & TSNEP_RING_MASK;
 
 		retval = tsnep_rx_alloc_buffer(rx, index);
 		if (unlikely(retval)) {
@@ -945,7 +945,7 @@ static int tsnep_rx_refill(struct tsnep_rx *rx, int count, bool reuse)
 	}
 
 	if (enable) {
-		rx->write = (rx->write + i) % TSNEP_RING_SIZE;
+		rx->write = (rx->write + i) & TSNEP_RING_MASK;
 
 		/* descriptor properties shall be valid before hardware is
 		 * notified
@@ -1090,7 +1090,7 @@ static int tsnep_rx_poll(struct tsnep_rx *rx, struct napi_struct *napi,
 				 * empty RX ring, thus buffer cannot be used for
 				 * RX processing
 				 */
-				rx->read = (rx->read + 1) % TSNEP_RING_SIZE;
+				rx->read = (rx->read + 1) & TSNEP_RING_MASK;
 				desc_available++;
 
 				rx->dropped++;
@@ -1117,7 +1117,7 @@ static int tsnep_rx_poll(struct tsnep_rx *rx, struct napi_struct *napi,
 		 */
 		length -= TSNEP_RX_INLINE_METADATA_SIZE;
 
-		rx->read = (rx->read + 1) % TSNEP_RING_SIZE;
+		rx->read = (rx->read + 1) & TSNEP_RING_MASK;
 		desc_available++;
 
 		if (prog) {
