@@ -866,6 +866,24 @@ static void tsnep_rx_init(struct tsnep_rx *rx)
 	rx->increment_owner_counter = TSNEP_RING_SIZE - 1;
 }
 
+static void tsnep_rx_enable(struct tsnep_rx *rx)
+{
+	/* descriptor properties shall be valid before hardware is notified */
+	dma_wmb();
+
+	iowrite32(TSNEP_CONTROL_RX_ENABLE, rx->addr + TSNEP_CONTROL);
+}
+
+static void tsnep_rx_disable(struct tsnep_rx *rx)
+{
+	u32 val;
+
+	iowrite32(TSNEP_CONTROL_RX_DISABLE, rx->addr + TSNEP_CONTROL);
+	readx_poll_timeout(ioread32, rx->addr + TSNEP_CONTROL, val,
+			   ((val & TSNEP_CONTROL_RX_ENABLE) == 0), 10000,
+			   1000000);
+}
+
 static int tsnep_rx_desc_available(struct tsnep_rx *rx)
 {
 	if (rx->read <= rx->write)
@@ -932,19 +950,15 @@ static void tsnep_rx_activate(struct tsnep_rx *rx, int index)
 	entry->desc->properties = __cpu_to_le32(entry->properties);
 }
 
-static int tsnep_rx_refill(struct tsnep_rx *rx, int count, bool reuse)
+static int tsnep_rx_alloc(struct tsnep_rx *rx, int count, bool reuse)
 {
-	int index;
 	bool alloc_failed = false;
-	bool enable = false;
-	int i;
-	int retval;
+	int i, index;
 
 	for (i = 0; i < count && !alloc_failed; i++) {
 		index = (rx->write + i) & TSNEP_RING_MASK;
 
-		retval = tsnep_rx_alloc_buffer(rx, index);
-		if (unlikely(retval)) {
+		if (unlikely(tsnep_rx_alloc_buffer(rx, index))) {
 			rx->alloc_failed++;
 			alloc_failed = true;
 
@@ -956,22 +970,23 @@ static int tsnep_rx_refill(struct tsnep_rx *rx, int count, bool reuse)
 		}
 
 		tsnep_rx_activate(rx, index);
-
-		enable = true;
 	}
 
-	if (enable) {
+	if (i)
 		rx->write = (rx->write + i) & TSNEP_RING_MASK;
 
-		/* descriptor properties shall be valid before hardware is
-		 * notified
-		 */
-		dma_wmb();
-
-		iowrite32(TSNEP_CONTROL_RX_ENABLE, rx->addr + TSNEP_CONTROL);
-	}
-
 	return i;
+}
+
+static int tsnep_rx_refill(struct tsnep_rx *rx, int count, bool reuse)
+{
+	int desc_refilled;
+
+	desc_refilled = tsnep_rx_alloc(rx, count, reuse);
+	if (desc_refilled)
+		tsnep_rx_enable(rx);
+
+	return desc_refilled;
 }
 
 static bool tsnep_xdp_run_prog(struct tsnep_rx *rx, struct bpf_prog *prog,
@@ -1199,6 +1214,7 @@ static bool tsnep_rx_pending(struct tsnep_rx *rx)
 
 static int tsnep_rx_open(struct tsnep_rx *rx)
 {
+	int desc_available;
 	int retval;
 
 	retval = tsnep_rx_ring_create(rx);
@@ -1207,20 +1223,19 @@ static int tsnep_rx_open(struct tsnep_rx *rx)
 
 	tsnep_rx_init(rx);
 
-	tsnep_rx_refill(rx, tsnep_rx_desc_available(rx), false);
+	desc_available = tsnep_rx_desc_available(rx);
+	retval = tsnep_rx_alloc(rx, desc_available, false);
+	if (retval != desc_available) {
+		tsnep_rx_ring_cleanup(rx);
+
+		return -ENOMEM;
+	}
 
 	return 0;
 }
 
 static void tsnep_rx_close(struct tsnep_rx *rx)
 {
-	u32 val;
-
-	iowrite32(TSNEP_CONTROL_RX_DISABLE, rx->addr + TSNEP_CONTROL);
-	readx_poll_timeout(ioread32, rx->addr + TSNEP_CONTROL, val,
-			   ((val & TSNEP_CONTROL_RX_ENABLE) == 0), 10000,
-			   1000000);
-
 	tsnep_rx_ring_cleanup(rx);
 }
 
@@ -1377,6 +1392,27 @@ failed:
 	return retval;
 }
 
+static void tsnep_queue_enable(struct tsnep_queue *queue)
+{
+	napi_enable(&queue->napi);
+	tsnep_enable_irq(queue->adapter, queue->irq_mask);
+
+	if (queue->rx)
+		tsnep_rx_enable(queue->rx);
+}
+
+static void tsnep_queue_disable(struct tsnep_queue *queue)
+{
+	napi_disable(&queue->napi);
+	tsnep_disable_irq(queue->adapter, queue->irq_mask);
+
+	/* disable RX after NAPI polling has been disabled, because RX can be
+	 * enabled during NAPI polling
+	 */
+	if (queue->rx)
+		tsnep_rx_disable(queue->rx);
+}
+
 static int tsnep_netdev_open(struct net_device *netdev)
 {
 	struct tsnep_adapter *adapter = netdev_priv(netdev);
@@ -1413,11 +1449,8 @@ static int tsnep_netdev_open(struct net_device *netdev)
 	if (retval)
 		goto phy_failed;
 
-	for (i = 0; i < adapter->num_queues; i++) {
-		napi_enable(&adapter->queue[i].napi);
-
-		tsnep_enable_irq(adapter, adapter->queue[i].irq_mask);
-	}
+	for (i = 0; i < adapter->num_queues; i++)
+		tsnep_queue_enable(&adapter->queue[i]);
 
 	return 0;
 
@@ -1444,9 +1477,7 @@ static int tsnep_netdev_close(struct net_device *netdev)
 	tsnep_phy_close(adapter);
 
 	for (i = 0; i < adapter->num_queues; i++) {
-		tsnep_disable_irq(adapter, adapter->queue[i].irq_mask);
-
-		napi_disable(&adapter->queue[i].napi);
+		tsnep_queue_disable(&adapter->queue[i]);
 
 		tsnep_queue_close(&adapter->queue[i], i == 0);
 
