@@ -914,6 +914,29 @@ int wcd_usbss_unreg_notifier(struct notifier_block *nb,
 }
 EXPORT_SYMBOL(wcd_usbss_unreg_notifier);
 
+
+/*
+ * wcd_usbss_update_default_trim - update default trim for TP < 3
+ *
+ * Returns 0 on pass, or error code
+ */
+int wcd_usbss_update_default_trim(void)
+{
+	if (!wcd_usbss_ctxt_)
+		return -ENODEV;
+
+	if (!wcd_usbss_ctxt_->regmap)
+		return -EINVAL;
+
+	regmap_write(wcd_usbss_ctxt_->regmap, WCD_USBSS_SW_LIN_CTRL_1, 0x01);
+	regmap_write(wcd_usbss_ctxt_->regmap, WCD_USBSS_DC_TRIMCODE_1, 0x00);
+	regmap_write(wcd_usbss_ctxt_->regmap, WCD_USBSS_DC_TRIMCODE_2, 0x00);
+	regmap_write(wcd_usbss_ctxt_->regmap, WCD_USBSS_DC_TRIMCODE_3, 0x00);
+
+	return 0;
+}
+EXPORT_SYMBOL(wcd_usbss_update_default_trim);
+
 static void wcd_usbss_usbc_analog_work_fn(struct work_struct *work)
 {
 	struct wcd_usbss_ctxt *priv =
