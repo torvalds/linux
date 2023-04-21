@@ -329,6 +329,7 @@ struct dw_hdmi {
 	bool initialized;		/* hdmi is enabled before bind */
 	bool logo_plug_out;		/* hdmi is plug out when kernel logo */
 	bool update;
+	bool hdr2sdr;			/* from hdr to sdr */
 };
 
 #define HDMI_IH_PHY_STAT0_RX_SENSE \
@@ -3167,13 +3168,15 @@ static bool dw_hdmi_color_changed(struct drm_connector *connector)
 	return ret;
 }
 
-static bool hdr_metadata_equal(const struct drm_connector_state *old_state,
+static bool hdr_metadata_equal(struct dw_hdmi *hdmi, const struct drm_connector_state *old_state,
 			       const struct drm_connector_state *new_state)
 {
 	struct drm_property_blob *old_blob = old_state->hdr_output_metadata;
 	struct drm_property_blob *new_blob = new_state->hdr_output_metadata;
-	int i;
+	int i, ret;
 	u8 *data;
+
+	hdmi->hdr2sdr = false;
 
 	if (!old_blob && !new_blob)
 		return true;
@@ -3201,7 +3204,20 @@ static bool hdr_metadata_equal(const struct drm_connector_state *old_state,
 	if (old_blob->length != new_blob->length)
 		return false;
 
-	return !memcmp(old_blob->data, new_blob->data, old_blob->length);
+	ret = !memcmp(old_blob->data, new_blob->data, old_blob->length);
+
+	if (!ret && new_blob) {
+		data = (u8 *)new_blob->data;
+
+		for (i = 0; i < new_blob->length; i++)
+			if (data[i])
+				break;
+
+		if (i == new_blob->length)
+			hdmi->hdr2sdr = true;
+	}
+
+	return ret;
 }
 
 static bool check_hdr_color_change(struct drm_connector_state *old_state,
@@ -3210,7 +3226,7 @@ static bool check_hdr_color_change(struct drm_connector_state *old_state,
 {
 	void *data = hdmi->plat_data->phy_data;
 
-	if (!hdr_metadata_equal(old_state, new_state)) {
+	if (!hdr_metadata_equal(hdmi, old_state, new_state)) {
 		hdmi->plat_data->check_hdr_color_change(new_state, data);
 		return true;
 	}
@@ -3297,6 +3313,9 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 
 		if (hdmi_bus_fmt_is_yuv420(hdmi->hdmi_data.enc_out_bus_format))
 			mtmdsclk /= 2;
+
+		if (!(hdmi_readb(hdmi, HDMI_PHY_STAT0) & HDMI_PHY_HPD))
+			return 0;
 
 		if (hdmi->hdmi_data.video_mode.mpixelclock == (mode->clock * 1000) &&
 		    hdmi->hdmi_data.video_mode.mtmdsclock == (mtmdsclk * 1000) &&
@@ -3937,6 +3956,9 @@ dw_hdmi_bridge_mode_valid(struct drm_bridge *bridge,
 	enum drm_mode_status mode_status = MODE_OK;
 
 	if (hdmi->next_bridge)
+		return MODE_OK;
+
+	if (!(hdmi_readb(hdmi, HDMI_PHY_STAT0) & HDMI_PHY_HPD) && hdmi->hdr2sdr)
 		return MODE_OK;
 
 	if (pdata->mode_valid)
