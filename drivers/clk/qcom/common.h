@@ -22,9 +22,21 @@ struct clk_hw;
 #define PLL_VOTE_FSM_ENA	BIT(20)
 #define PLL_VOTE_FSM_RESET	BIT(21)
 
+/**
+ * struct critical_clk_offset - list the critical clks for each clk controller
+ * @offset: offset address for critical clk
+ * @mask: enable mask for critical clk
+ */
+struct critical_clk_offset {
+	unsigned int offset;
+	unsigned int mask;
+};
+
 struct qcom_cc_desc {
 	const struct regmap_config *config;
 	struct clk_regmap **clks;
+	struct critical_clk_offset *critical_clk_en;
+	size_t num_critical_clk;
 	size_t num_clks;
 	const struct qcom_reset_map *resets;
 	size_t num_resets;

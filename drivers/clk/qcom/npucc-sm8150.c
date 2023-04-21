@@ -22,6 +22,7 @@
 #include "common.h"
 #include "reset.h"
 #include "vdd-level-sm8150.h"
+#include "clk-pm.h"
 
 #define CRC_SID_FSM_CTRL		0x100c
 #define CRC_SID_FSM_CTRL_SETTING	0x800000
@@ -55,7 +56,7 @@ static struct alpha_pll_config npu_cc_pll0_config = {
 	.config_ctl_hi_val = 0x00002267,
 	.config_ctl_hi1_val = 0x00000024,
 	.test_ctl_val = 0x00000000,
-	.test_ctl_hi_val = 0x00000002,
+	.test_ctl_hi_val = 0x00000000,
 	.test_ctl_hi1_val = 0x00000020,
 	.user_ctl_val = 0x00000000,
 	.user_ctl_hi_val = 0x00000805,
@@ -89,15 +90,15 @@ static struct clk_alpha_pll npu_cc_pll0 = {
 	},
 };
 
-/* 700MHz configuration */
+/* 800MHz configuration */
 static struct alpha_pll_config npu_cc_pll1_config = {
-	.l = 0x24,
-	.alpha = 0x7555,
+	.l = 0x29,
+	.alpha = 0xAAAA,
 	.config_ctl_val = 0x20485699,
 	.config_ctl_hi_val = 0x00002267,
 	.config_ctl_hi1_val = 0x00000024,
 	.test_ctl_val = 0x00000000,
-	.test_ctl_hi_val = 0x00000002,
+	.test_ctl_hi_val = 0x00000000,
 	.test_ctl_hi1_val = 0x00000020,
 	.user_ctl_val = 0x00000000,
 	.user_ctl_hi_val = 0x00000805,
@@ -178,16 +179,6 @@ static const struct clk_parent_data npu_cc_parent_data_1[] = {
 };
 
 static const struct freq_tbl ftbl_npu_cc_cal_dp_clk_src[] = {
-	F(19200000, P_BI_TCXO, 1, 0, 0),
-	F(300000000, P_NPU_CC_CRC_DIV, 1, 0, 0),
-	F(350000000, P_NPU_CC_CRC_DIV, 1, 0, 0),
-	F(400000000, P_NPU_CC_CRC_DIV, 1, 0, 0),
-	F(600000000, P_NPU_CC_CRC_DIV, 1, 0, 0),
-	F(715000000, P_NPU_CC_CRC_DIV, 1, 0, 0),
-	{ }
-};
-
-static const struct freq_tbl ftbl_npu_cc_cal_dp_clk_src_sm8150_v2[] = {
 	F(300000000, P_NPU_CC_CRC_DIV, 1, 0, 0),
 	F(400000000, P_NPU_CC_CRC_DIV, 1, 0, 0),
 	F(487000000, P_NPU_CC_CRC_DIV, 1, 0, 0),
@@ -215,26 +206,16 @@ static struct clk_rcg2 npu_cc_cal_dp_clk_src = {
 		.vdd_class = &vdd_cx,
 		.num_rate_max = VDD_NUM,
 		.rate_max = (unsigned long[VDD_NUM]) {
-			[VDD_MIN] = 9600000,
 			[VDD_LOWER] = 300000000,
-			[VDD_LOW] = 350000000,
-			[VDD_LOW_L1] = 400000000,
-			[VDD_NOMINAL] = 600000000,
-			[VDD_HIGH] = 715000000},
+			[VDD_LOW] = 400000000,
+			[VDD_LOW_L1] = 487000000,
+			[VDD_NOMINAL] = 652000000,
+			[VDD_HIGH] = 811000000,
+			[VDD_HIGH] = 908000000},
 	},
 };
 
 static const struct freq_tbl ftbl_npu_cc_npu_core_clk_src[] = {
-	F(19200000, P_BI_TCXO, 1, 0, 0),
-	F(100000000, P_GPLL0_OUT_MAIN, 6, 0, 0),
-	F(150000000, P_GPLL0_OUT_MAIN, 4, 0, 0),
-	F(200000000, P_GPLL0_OUT_MAIN, 3, 0, 0),
-	F(300000000, P_GPLL0_OUT_MAIN, 2, 0, 0),
-	F(350000000, P_NPU_CC_PLL1_OUT_EVEN, 2, 0, 0),
-	{ }
-};
-
-static const struct freq_tbl ftbl_npu_cc_npu_core_clk_src_sm8150_v2[] = {
 	F(60000000, P_GPLL0_OUT_MAIN_DIV, 5, 0, 0),
 	F(100000000, P_GPLL0_OUT_MAIN, 6, 0, 0),
 	F(150000000, P_GPLL0_OUT_MAIN, 4, 0, 0),
@@ -261,12 +242,11 @@ static struct clk_rcg2 npu_cc_npu_core_clk_src = {
 		.vdd_class = &vdd_cx,
 		.num_rate_max = VDD_NUM,
 		.rate_max = (unsigned long[VDD_NUM]) {
-			[VDD_MIN] = 19200000,
 			[VDD_LOWER] = 100000000,
 			[VDD_LOW] = 150000000,
 			[VDD_LOW_L1] = 200000000,
 			[VDD_NOMINAL] = 300000000,
-			[VDD_HIGH] = 350000000},
+			[VDD_HIGH] = 400000000},
 	},
 };
 
@@ -514,6 +494,10 @@ static struct clk_branch npu_cc_sleep_clk = {
 	},
 };
 
+static struct critical_clk_offset critical_clk_list[] = {
+	{ .offset = 0x3020, .mask = BIT(0) },
+};
+
 static struct clk_regmap *npu_cc_sm8150_clocks[] = {
 	[NPU_CC_PLL0] = &npu_cc_pll0.clkr,
 	[NPU_CC_PLL1] = &npu_cc_pll1.clkr,
@@ -558,55 +542,16 @@ static struct qcom_cc_desc npu_cc_sm8150_desc = {
 	.num_resets = ARRAY_SIZE(npu_cc_sm8150_resets),
 	.clk_regulators = npu_cc_sm8150_regulators,
 	.num_clk_regulators = ARRAY_SIZE(npu_cc_sm8150_regulators),
+	.critical_clk_en = critical_clk_list,
+	.num_critical_clk = ARRAY_SIZE(critical_clk_list),
 };
 
 static const struct of_device_id npu_cc_sm8150_match_table[] = {
 	{ .compatible = "qcom,sm8150-npucc" },
-	{ .compatible = "qcom,sm8150-npucc-v2" },
 	{ .compatible = "qcom,sa8155-npucc" },
-	{ .compatible = "qcom,sa8155-npucc-v2" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, npu_cc_sm8150_match_table);
-
-static void npu_cc_sm8150_fixup_sm8150v2(struct regmap *regmap)
-{
-	npu_cc_pll0.config->test_ctl_hi_val = 0x00000000;
-	npu_cc_pll1.config->test_ctl_hi_val = 0x00000000;
-
-	/* 800MHz configuration */
-	npu_cc_pll1.config->l = 0x29;
-	npu_cc_pll1.config->alpha = 0xAAAA;
-
-	npu_cc_cal_dp_clk_src.freq_tbl = ftbl_npu_cc_cal_dp_clk_src_sm8150_v2;
-	npu_cc_cal_dp_clk_src.clkr.vdd_data.rate_max[VDD_MIN] = 0;
-	npu_cc_cal_dp_clk_src.clkr.vdd_data.rate_max[VDD_LOW] = 400000000;
-	npu_cc_cal_dp_clk_src.clkr.vdd_data.rate_max[VDD_LOW_L1] = 487000000;
-	npu_cc_cal_dp_clk_src.clkr.vdd_data.rate_max[VDD_NOMINAL] = 652000000;
-	npu_cc_cal_dp_clk_src.clkr.vdd_data.rate_max[VDD_HIGH] = 811000000;
-	npu_cc_cal_dp_clk_src.clkr.vdd_data.rate_max[VDD_HIGH_L1] = 908000000;
-
-	npu_cc_npu_core_clk_src.freq_tbl = ftbl_npu_cc_npu_core_clk_src_sm8150_v2;
-	npu_cc_npu_core_clk_src.clkr.vdd_data.rate_max[VDD_MIN] = 0;
-	npu_cc_npu_core_clk_src.clkr.vdd_data.rate_max[VDD_HIGH] = 400000000;
-}
-
-static int npu_cc_sm8150_fixup(struct platform_device *pdev,
-	struct regmap *regmap)
-{
-	const char *compat = NULL;
-	int compatlen = 0;
-
-	compat = of_get_property(pdev->dev.of_node, "compatible", &compatlen);
-	if (!compat || (compatlen <= 0))
-		return -EINVAL;
-
-	if (!strcmp(compat, "qcom,sm8150-npucc-v2") ||
-			!strcmp(compat, "qcom,sa8155-npucc-v2"))
-		npu_cc_sm8150_fixup_sm8150v2(regmap);
-
-	return 0;
-}
 
 static struct regulator *vdd_gdsc;
 
@@ -667,10 +612,6 @@ static int npu_cc_sm8150_probe(struct platform_device *pdev)
 		return PTR_ERR(regmap);
 	}
 
-	ret = npu_cc_sm8150_fixup(pdev, regmap);
-	if (ret)
-		return ret;
-
 	clk_trion_pll_configure(&npu_cc_pll0, regmap, npu_cc_pll0.config);
 	clk_trion_pll_configure(&npu_cc_pll1, regmap, npu_cc_pll1.config);
 
@@ -698,6 +639,10 @@ static int npu_cc_sm8150_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to enable CRC for NPU cal RCG\n");
 		return ret;
 	}
+
+	ret = register_qcom_clks_pm(pdev, false, &npu_cc_sm8150_desc);
+	if (ret)
+		dev_err(&pdev->dev, "Failed to register for pm ops\n");
 
 	dev_info(&pdev->dev, "Registered NPU CC clocks\n");
 
