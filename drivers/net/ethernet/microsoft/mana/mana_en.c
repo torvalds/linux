@@ -553,6 +553,14 @@ static int mana_pre_alloc_rxbufs(struct mana_port_context *mpc, int new_mtu)
 			va = netdev_alloc_frag(mpc->rxbpre_alloc_size);
 			if (!va)
 				goto error;
+
+			page = virt_to_head_page(va);
+			/* Check if the frag falls back to single page */
+			if (compound_order(page) <
+			    get_order(mpc->rxbpre_alloc_size)) {
+				put_page(page);
+				goto error;
+			}
 		} else {
 			page = dev_alloc_page();
 			if (!page)
@@ -1504,6 +1512,13 @@ static void *mana_get_rxfrag(struct mana_rxq *rxq, struct device *dev,
 
 		if (!va)
 			return NULL;
+
+		page = virt_to_head_page(va);
+		/* Check if the frag falls back to single page */
+		if (compound_order(page) < get_order(rxq->alloc_size)) {
+			put_page(page);
+			return NULL;
+		}
 	} else {
 		page = dev_alloc_page();
 		if (!page)
