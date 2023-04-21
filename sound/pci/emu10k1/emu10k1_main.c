@@ -889,7 +889,6 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 	 */
 	emu->emu1010.optical_in = 1; /* IN_ADAT */
 	emu->emu1010.optical_out = 1; /* IN_ADAT */
-	tmp = 0;
 	tmp = (emu->emu1010.optical_in ? EMU_HANA_OPTICAL_IN_ADAT : 0) |
 		(emu->emu1010.optical_out ? EMU_HANA_OPTICAL_OUT_ADAT : 0);
 	snd_emu1010_fpga_write(emu, EMU_HANA_OPTICAL_TYPE, tmp);
@@ -898,11 +897,9 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 	emu->emu1010.adc_pads = 0x00;
 	/* Unmute Audio dock DACs, Headphone source DAC-4. */
 	snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_MISC, 0x30);
-	snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_LEDS_2, 0x12);
 	/* DAC PADs. */
 	snd_emu1010_fpga_write(emu, EMU_HANA_DAC_PADS, 0x0f);
 	emu->emu1010.dac_pads = 0x0f;
-	snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_MISC, 0x30);
 	/* SPDIF Format. Set Consumer mode, 24bit, copy enable */
 	snd_emu1010_fpga_write(emu, EMU_HANA_SPDIF_MODE, 0x10);
 	/* MIDI routing */
@@ -914,6 +911,7 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 	/* IRQ Enable: All off */
 	snd_emu1010_fpga_write(emu, EMU_HANA_IRQ_ENABLE, 0x00);
 
+	emu->emu1010.internal_clock = 1; /* 48000 */
 	/* Default WCLK set to 48kHz. */
 	snd_emu1010_fpga_write(emu, EMU_HANA_DEFCLOCK, 0x00);
 	/* Word Clock source, Internal 48kHz x1 */
@@ -1049,14 +1047,6 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 		EMU_DST_ALICE_I2S2_RIGHT, EMU_SRC_DOCK_ADC3_RIGHT1);
 	snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, 0x01); /* Unmute all */
 
-	/* Initial boot complete. Now patches */
-
-	snd_emu1010_fpga_write(emu, EMU_HANA_MIDI_IN, 0x19); /* MIDI Route */
-	snd_emu1010_fpga_write(emu, EMU_HANA_MIDI_OUT, 0x0c); /* Unknown */
-	snd_emu1010_fpga_write(emu, EMU_HANA_MIDI_IN, 0x19); /* MIDI Route */
-	snd_emu1010_fpga_write(emu, EMU_HANA_MIDI_OUT, 0x0c); /* Unknown */
-	snd_emu1010_fpga_write(emu, EMU_HANA_SPDIF_MODE, 0x10); /* SPDIF Format spdif  (or 0x11 for aes/ebu) */
-
 #if 0
 	snd_emu1010_fpga_link_dst_src_write(emu,
 		EMU_DST_HAMOA_DAC_LEFT1, EMU_SRC_ALICE_EMU32B + 2); /* ALICE2 bus 0xa2 */
@@ -1176,21 +1166,6 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 			EMU_DST_HANA_ADAT + 7, EMU_SRC_ALICE_EMU32A + 7);
 		emu->emu1010.output_source[23] = 28;
 	}
-	/* TEMP: Select SPDIF in/out */
-	/* snd_emu1010_fpga_write(emu, EMU_HANA_OPTICAL_TYPE, 0x0); */ /* Output spdif */
-
-	/* TEMP: Select 48kHz SPDIF out */
-	snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, 0x0); /* Mute all */
-	snd_emu1010_fpga_write(emu, EMU_HANA_DEFCLOCK, 0x0); /* Default fallback clock 48kHz */
-	/* Word Clock source, Internal 48kHz x1 */
-	snd_emu1010_fpga_write(emu, EMU_HANA_WCLOCK, EMU_HANA_WCLOCK_INT_48K);
-	/* snd_emu1010_fpga_write(emu, EMU_HANA_WCLOCK, EMU_HANA_WCLOCK_INT_48K | EMU_HANA_WCLOCK_4X); */
-	emu->emu1010.internal_clock = 1; /* 48000 */
-	snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_LEDS_2, 0x12); /* Set LEDs on Audio Dock */
-	snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, 0x1); /* Unmute all */
-	/* snd_emu1010_fpga_write(emu, 0x7, 0x0); */ /* Mute all */
-	/* snd_emu1010_fpga_write(emu, 0x7, 0x1); */ /* Unmute all */
-	/* snd_emu1010_fpga_write(emu, 0xe, 0x12); */ /* Set LEDs on Audio Dock */
 
 	return 0;
 }
