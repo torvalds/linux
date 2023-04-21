@@ -32,8 +32,12 @@ enum nfnl_hook_attributes {
 /**
  * enum nfnl_hook_chain_info_attributes - chain description
  *
- * NFNLA_HOOK_INFO_DESC: nft chain and table name (enum nft_table_attributes) (NLA_NESTED)
- * NFNLA_HOOK_INFO_TYPE: chain type (enum nfnl_hook_chaintype) (NLA_U32)
+ * @NFNLA_HOOK_INFO_DESC: nft chain and table name (NLA_NESTED)
+ * @NFNLA_HOOK_INFO_TYPE: chain type (enum nfnl_hook_chaintype) (NLA_U32)
+ *
+ * NFNLA_HOOK_INFO_DESC depends on NFNLA_HOOK_INFO_TYPE value:
+ *   NFNL_HOOK_TYPE_NFTABLES: enum nft_table_attributes
+ *   NFNL_HOOK_TYPE_BPF: enum nfnl_hook_bpf_attributes
  */
 enum nfnl_hook_chain_info_attributes {
 	NFNLA_HOOK_INFO_UNSPEC,
@@ -55,10 +59,24 @@ enum nfnl_hook_chain_desc_attributes {
 /**
  * enum nfnl_hook_chaintype - chain type
  *
- * @NFNL_HOOK_TYPE_NFTABLES nf_tables base chain
+ * @NFNL_HOOK_TYPE_NFTABLES: nf_tables base chain
+ * @NFNL_HOOK_TYPE_BPF: bpf program
  */
 enum nfnl_hook_chaintype {
 	NFNL_HOOK_TYPE_NFTABLES = 0x1,
+	NFNL_HOOK_TYPE_BPF,
 };
+
+/**
+ * enum nfnl_hook_bpf_attributes - bpf prog description
+ *
+ * @NFNLA_HOOK_BPF_ID: bpf program id (NLA_U32)
+ */
+enum nfnl_hook_bpf_attributes {
+	NFNLA_HOOK_BPF_UNSPEC,
+	NFNLA_HOOK_BPF_ID,
+	__NFNLA_HOOK_BPF_MAX,
+};
+#define NFNLA_HOOK_BPF_MAX (__NFNLA_HOOK_BPF_MAX - 1)
 
 #endif /* _NFNL_HOOK_H */
