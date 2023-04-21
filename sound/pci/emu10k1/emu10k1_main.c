@@ -831,24 +831,10 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 	int err;
 
 	dev_info(emu->card->dev, "emu1010: Special config.\n");
-	/* AC97 2.1, Any 16Meg of 4Gig address, Auto-Mute, EMU32 Slave,
-	 * Lock Sound Memory Cache, Lock Tank Memory Cache,
-	 * Mute all codecs.
-	 */
-	outl(0x0005a00c, emu->port + HCFG);
-	/* AC97 2.1, Any 16Meg of 4Gig address, Auto-Mute, EMU32 Slave,
-	 * Lock Tank Memory Cache,
-	 * Mute all codecs.
-	 */
-	outl(0x0005a004, emu->port + HCFG);
-	/* AC97 2.1, Any 16Meg of 4Gig address, Auto-Mute, EMU32 Slave,
-	 * Mute all codecs.
-	 */
-	outl(0x0005a000, emu->port + HCFG);
-	/* AC97 2.1, Any 16Meg of 4Gig address, Auto-Mute, EMU32 Slave,
-	 * Mute all codecs.
-	 */
-	outl(0x0005a000, emu->port + HCFG);
+
+	/* Mute, and disable audio and lock cache, just in case.
+	 * Proper init follows in snd_emu10k1_init(). */
+	outl(HCFG_LOCKSOUNDCACHE | HCFG_LOCKTANKCACHE_MASK, emu->port + HCFG);
 
 	/* Disable 48Volt power to Audio Dock */
 	snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_PWR, 0);
@@ -1074,17 +1060,6 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 	snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, 0x01); /* Unmute all */
 
 	snd_emu1010_fpga_read(emu, EMU_HANA_OPTION_CARDS, &tmp);
-
-	/* AC97 1.03, Any 32Meg of 2Gig address, Auto-Mute, EMU32 Slave,
-	 * Lock Sound Memory Cache, Lock Tank Memory Cache,
-	 * Mute all codecs.
-	 */
-	outl(0x0000a000, emu->port + HCFG);
-	/* AC97 1.03, Any 32Meg of 2Gig address, Auto-Mute, EMU32 Slave,
-	 * Lock Sound Memory Cache, Lock Tank Memory Cache,
-	 * Un-Mute all codecs.
-	 */
-	outl(0x0000a001, emu->port + HCFG);
 
 	/* Initial boot complete. Now patches */
 
