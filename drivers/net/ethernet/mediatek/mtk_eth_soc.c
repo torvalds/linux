@@ -753,6 +753,7 @@ static void mtk_mac_link_up(struct phylink_config *config,
 		 MAC_MCR_FORCE_RX_FC);
 
 	/* Configure speed */
+	mac->speed = speed;
 	switch (speed) {
 	case SPEED_2500:
 	case SPEED_1000:
@@ -3234,6 +3235,9 @@ found:
 	dp = dsa_port_from_netdev(dev);
 	if (dp->index >= MTK_QDMA_NUM_QUEUES)
 		return NOTIFY_DONE;
+
+	if (mac->speed > 0 && mac->speed <= s.base.speed)
+		s.base.speed = 0;
 
 	mtk_set_queue_speed(eth, dp->index + 3, s.base.speed);
 
