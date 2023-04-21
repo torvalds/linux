@@ -1691,6 +1691,10 @@ int psp_ras_trigger_error(struct psp_context *psp,
 	case TA_RAS_BLOCK__SDMA:
 		dev_mask = GET_MASK(SDMA0, instance_mask);
 		break;
+	case TA_RAS_BLOCK__VCN:
+	case TA_RAS_BLOCK__JPEG:
+		dev_mask = GET_MASK(VCN, instance_mask);
+		break;
 	default:
 		dev_mask = instance_mask;
 		break;
