@@ -132,8 +132,9 @@ static int gfs2_ail_empty_gl(struct gfs2_glock *gl)
 	gfs2_trans_end(sdp);
 
 flush:
-	gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_NORMAL |
-		       GFS2_LFC_AIL_EMPTY_GL);
+	if (!ret)
+		gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_NORMAL |
+				GFS2_LFC_AIL_EMPTY_GL);
 	return ret;
 }
 
