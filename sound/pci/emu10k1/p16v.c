@@ -181,7 +181,6 @@ static int snd_p16v_pcm_open_playback_channel(struct snd_pcm_substream *substrea
   
 	runtime->hw = snd_p16v_playback_hw;
 
-        channel->emu = emu;
         channel->number = channel_id;
 
         channel->use=1;
@@ -230,7 +229,6 @@ static int snd_p16v_pcm_open_capture_channel(struct snd_pcm_substream *substream
   
 	runtime->hw = snd_p16v_capture_hw;
 
-	channel->emu = emu;
 	channel->number = channel_id;
 
 	channel->use=1;

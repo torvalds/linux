@@ -1971,10 +1971,8 @@ int snd_emu10k1_create(struct snd_card *card,
 		pgtbl[idx] = cpu_to_le32(silent_page | idx);
 
 	/* set up voice indices */
-	for (idx = 0; idx < NUM_G; idx++) {
-		emu->voices[idx].emu = emu;
+	for (idx = 0; idx < NUM_G; idx++)
 		emu->voices[idx].number = idx;
-	}
 
 	err = snd_emu10k1_init(emu, enable_ir, 0);
 	if (err < 0)
