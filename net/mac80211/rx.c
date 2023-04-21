@@ -1826,7 +1826,7 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 				cfg80211_rx_unexpected_4addr_frame(
 					rx->sdata->dev, sta->sta.addr,
 					GFP_ATOMIC);
-			return RX_DROP_MONITOR;
+			return RX_DROP_M_UNEXPECTED_4ADDR_FRAME;
 		}
 		/*
 		 * Update counter and free packet here to avoid
@@ -1961,7 +1961,7 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 				cfg80211_rx_unprot_mlme_mgmt(rx->sdata->dev,
 							     skb->data,
 							     skb->len);
-			return RX_DROP_MONITOR; /* unexpected BIP keyidx */
+			return RX_DROP_M_BAD_BCN_KEYIDX;
 		}
 
 		rx->key = ieee80211_rx_get_bigtk(rx, mmie_keyidx);
@@ -1975,7 +1975,7 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 
 		if (mmie_keyidx < NUM_DEFAULT_KEYS ||
 		    mmie_keyidx >= NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS)
-			return RX_DROP_MONITOR; /* unexpected BIP keyidx */
+			return RX_DROP_M_BAD_MGMT_KEYIDX; /* unexpected BIP keyidx */
 		if (rx->link_sta) {
 			if (ieee80211_is_group_privacy_action(skb) &&
 			    test_sta_flag(rx->sta, WLAN_STA_MFP))
@@ -3960,7 +3960,8 @@ ieee80211_rx_h_mgmt(struct ieee80211_rx_data *rx)
 }
 
 static void ieee80211_rx_cooked_monitor(struct ieee80211_rx_data *rx,
-					struct ieee80211_rate *rate)
+					struct ieee80211_rate *rate,
+					ieee80211_rx_result reason)
 {
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_local *local = rx->local;
@@ -4024,42 +4025,38 @@ static void ieee80211_rx_cooked_monitor(struct ieee80211_rx_data *rx,
 	}
 
  out_free_skb:
-	dev_kfree_skb(skb);
+	kfree_skb_reason(skb, (__force u32)reason);
 }
 
 static void ieee80211_rx_handlers_result(struct ieee80211_rx_data *rx,
 					 ieee80211_rx_result res)
 {
-	switch (res) {
-	case RX_DROP_MONITOR:
-		I802_DEBUG_INC(rx->sdata->local->rx_handlers_drop);
-		if (rx->sta)
-			rx->link_sta->rx_stats.dropped++;
-		fallthrough;
-	case RX_CONTINUE: {
-		struct ieee80211_rate *rate = NULL;
-		struct ieee80211_supported_band *sband;
-		struct ieee80211_rx_status *status;
+	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(rx->skb);
+	struct ieee80211_supported_band *sband;
+	struct ieee80211_rate *rate = NULL;
 
-		status = IEEE80211_SKB_RXCB((rx->skb));
-
-		sband = rx->local->hw.wiphy->bands[status->band];
-		if (status->encoding == RX_ENC_LEGACY)
-			rate = &sband->bitrates[status->rate_idx];
-
-		ieee80211_rx_cooked_monitor(rx, rate);
-		break;
-		}
-	case RX_DROP_UNUSABLE:
-		I802_DEBUG_INC(rx->sdata->local->rx_handlers_drop);
-		if (rx->sta)
-			rx->link_sta->rx_stats.dropped++;
-		dev_kfree_skb(rx->skb);
-		break;
-	case RX_QUEUED:
+	if (res == RX_QUEUED) {
 		I802_DEBUG_INC(rx->sdata->local->rx_handlers_queued);
-		break;
+		return;
 	}
+
+	if (res != RX_CONTINUE) {
+		I802_DEBUG_INC(rx->sdata->local->rx_handlers_drop);
+		if (rx->sta)
+			rx->link_sta->rx_stats.dropped++;
+	}
+
+	if (u32_get_bits((__force u32)res, SKB_DROP_REASON_SUBSYS_MASK) ==
+			SKB_DROP_REASON_SUBSYS_MAC80211_UNUSABLE) {
+		kfree_skb_reason(rx->skb, (__force u32)res);
+		return;
+	}
+
+	sband = rx->local->hw.wiphy->bands[status->band];
+	if (status->encoding == RX_ENC_LEGACY)
+		rate = &sband->bitrates[status->rate_idx];
+
+	ieee80211_rx_cooked_monitor(rx, rate, res);
 }
 
 static void ieee80211_rx_handlers(struct ieee80211_rx_data *rx,
