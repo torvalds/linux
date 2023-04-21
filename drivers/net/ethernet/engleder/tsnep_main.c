@@ -1076,6 +1076,28 @@ static struct sk_buff *tsnep_build_skb(struct tsnep_rx *rx, struct page *page,
 	return skb;
 }
 
+static void tsnep_rx_page(struct tsnep_rx *rx, struct napi_struct *napi,
+			  struct page *page, int length)
+{
+	struct sk_buff *skb;
+
+	skb = tsnep_build_skb(rx, page, length);
+	if (skb) {
+		page_pool_release_page(rx->page_pool, page);
+
+		rx->packets++;
+		rx->bytes += length;
+		if (skb->pkt_type == PACKET_MULTICAST)
+			rx->multicast++;
+
+		napi_gro_receive(napi, skb);
+	} else {
+		page_pool_recycle_direct(rx->page_pool, page);
+
+		rx->dropped++;
+	}
+}
+
 static int tsnep_rx_poll(struct tsnep_rx *rx, struct napi_struct *napi,
 			 int budget)
 {
@@ -1085,7 +1107,6 @@ static int tsnep_rx_poll(struct tsnep_rx *rx, struct napi_struct *napi,
 	struct netdev_queue *tx_nq;
 	struct bpf_prog *prog;
 	struct xdp_buff xdp;
-	struct sk_buff *skb;
 	struct tsnep_tx *tx;
 	int desc_available;
 	int xdp_status = 0;
@@ -1170,21 +1191,7 @@ static int tsnep_rx_poll(struct tsnep_rx *rx, struct napi_struct *napi,
 			}
 		}
 
-		skb = tsnep_build_skb(rx, entry->page, length);
-		if (skb) {
-			page_pool_release_page(rx->page_pool, entry->page);
-
-			rx->packets++;
-			rx->bytes += length;
-			if (skb->pkt_type == PACKET_MULTICAST)
-				rx->multicast++;
-
-			napi_gro_receive(napi, skb);
-		} else {
-			page_pool_recycle_direct(rx->page_pool, entry->page);
-
-			rx->dropped++;
-		}
+		tsnep_rx_page(rx, napi, entry->page, length);
 		entry->page = NULL;
 	}
 
