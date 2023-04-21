@@ -19,7 +19,7 @@
 #include "s5pv210-pinctrl.h"
 
 #define PIN_SLP(_pin, _mode, _pull)					\
-	_pin {								\
+	pin- ## _pin {							\
 		samsung,pins = #_pin;					\
 		samsung,pin-con-pdn = <S5PV210_PIN_PDN_ ##_mode>;	\
 		samsung,pin-pud-pdn = <S5PV210_PIN_PULL_ ##_pull>;	\
