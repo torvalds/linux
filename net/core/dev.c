@@ -6598,6 +6598,27 @@ static int napi_thread_wait(struct napi_struct *napi)
 	return -1;
 }
 
+static void skb_defer_free_flush(struct softnet_data *sd)
+{
+	struct sk_buff *skb, *next;
+
+	/* Paired with WRITE_ONCE() in skb_attempt_defer_free() */
+	if (!READ_ONCE(sd->defer_list))
+		return;
+
+	spin_lock(&sd->defer_lock);
+	skb = sd->defer_list;
+	sd->defer_list = NULL;
+	sd->defer_count = 0;
+	spin_unlock(&sd->defer_lock);
+
+	while (skb != NULL) {
+		next = skb->next;
+		napi_consume_skb(skb, 1);
+		skb = next;
+	}
+}
+
 static int napi_threaded_poll(void *data)
 {
 	struct napi_struct *napi = data;
@@ -6622,27 +6643,6 @@ static int napi_threaded_poll(void *data)
 		}
 	}
 	return 0;
-}
-
-static void skb_defer_free_flush(struct softnet_data *sd)
-{
-	struct sk_buff *skb, *next;
-
-	/* Paired with WRITE_ONCE() in skb_attempt_defer_free() */
-	if (!READ_ONCE(sd->defer_list))
-		return;
-
-	spin_lock(&sd->defer_lock);
-	skb = sd->defer_list;
-	sd->defer_list = NULL;
-	sd->defer_count = 0;
-	spin_unlock(&sd->defer_lock);
-
-	while (skb != NULL) {
-		next = skb->next;
-		napi_consume_skb(skb, 1);
-		skb = next;
-	}
 }
 
 static __latent_entropy void net_rx_action(struct softirq_action *h)
