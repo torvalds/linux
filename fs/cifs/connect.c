@@ -452,8 +452,10 @@ static int __reconnect_target_unlocked(struct TCP_Server_Info *server, const cha
 		if (server->hostname != target) {
 			hostname = extract_hostname(target);
 			if (!IS_ERR(hostname)) {
+				spin_lock(&server->srv_lock);
 				kfree(server->hostname);
 				server->hostname = hostname;
+				spin_unlock(&server->srv_lock);
 			} else {
 				cifs_dbg(FYI, "%s: couldn't extract hostname or address from dfs target: %ld\n",
 					 __func__, PTR_ERR(hostname));
@@ -620,9 +622,7 @@ cifs_echo_request(struct work_struct *work)
 		goto requeue_echo;
 
 	rc = server->ops->echo ? server->ops->echo(server) : -ENOSYS;
-	if (rc)
-		cifs_dbg(FYI, "Unable to send echo request to server: %s\n",
-			 server->hostname);
+	cifs_server_dbg(FYI, "send echo request: rc = %d\n", rc);
 
 	/* Check witness registrations */
 	cifs_swn_check();
@@ -1462,6 +1462,8 @@ static int match_server(struct TCP_Server_Info *server, struct smb3_fs_context *
 {
 	struct sockaddr *addr = (struct sockaddr *)&ctx->dstaddr;
 
+	lockdep_assert_held(&server->srv_lock);
+
 	if (ctx->nosharesock)
 		return 0;
 
@@ -1863,7 +1865,9 @@ cifs_setup_ipc(struct cifs_ses *ses, struct smb3_fs_context *ctx)
 	if (tcon == NULL)
 		return -ENOMEM;
 
+	spin_lock(&server->srv_lock);
 	scnprintf(unc, sizeof(unc), "\\\\%s\\IPC$", server->hostname);
+	spin_unlock(&server->srv_lock);
 
 	xid = get_xid();
 	tcon->ses = ses;
