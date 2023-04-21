@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __SOC_QCOM_SOCINFO_H__
@@ -93,10 +93,6 @@ enum subset_part_type {
 	NUM_PARTS_MAX,
 };
 
-enum subset_cluster_type {
-	CLUSTER_CPUSS,
-	NUM_CLUSTERS_MAX,
-};
 
 #if IS_ENABLED(CONFIG_QCOM_SOCINFO)
 uint32_t socinfo_get_id(void);
@@ -107,9 +103,6 @@ int socinfo_get_pcode(void);
 char *socinfo_get_partinfo_part_name(unsigned int part_id);
 uint32_t socinfo_get_partinfo_chip_id(unsigned int part_id);
 uint32_t socinfo_get_partinfo_vulkan_id(unsigned int part_id);
-int socinfo_get_oem_variant_id(void);
-uint32_t socinfo_get_cluster_info(enum subset_cluster_type cluster);
-bool socinfo_get_part_info(enum subset_part_type part);
 #else
 static inline uint32_t socinfo_get_id(void)
 {
@@ -125,6 +118,7 @@ static inline const char *socinfo_get_id_string(void)
 {
 	return "N/A";
 }
+
 int socinfo_get_feature_code(void)
 {
 	return -EINVAL;
@@ -144,18 +138,6 @@ uint32_t socinfo_get_partinfo_chip_id(unsigned int part_id)
 uint32_t socinfo_get_partinfo_vulkan_id(unsigned int part_id)
 {
 	return 0;
-}
-int socinfo_get_oem_variant_id(void)
-{
-	return -EINVAL;
-}
-uint32_t socinfo_get_cluster_info(enum subset_cluster_type cluster)
-{
-	return 0;
-}
-bool socinfo_get_part_info(enum subset_part_type part)
-{
-	return false;
 }
 #endif /* CONFIG_QCOM_SOCINFO */
 
