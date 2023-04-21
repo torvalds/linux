@@ -1198,37 +1198,37 @@ static void sas_print_parent_topology_bug(struct domain_device *child,
 		  sas_route_char(child, child_phy));
 }
 
+static bool sas_eeds_valid(struct domain_device *parent,
+			   struct domain_device *child)
+{
+	struct sas_discovery *disc = &parent->port->disc;
+
+	return (SAS_ADDR(disc->eeds_a) == SAS_ADDR(parent->sas_addr) ||
+		SAS_ADDR(disc->eeds_a) == SAS_ADDR(child->sas_addr)) &&
+	       (SAS_ADDR(disc->eeds_b) == SAS_ADDR(parent->sas_addr) ||
+		SAS_ADDR(disc->eeds_b) == SAS_ADDR(child->sas_addr));
+}
+
 static int sas_check_eeds(struct domain_device *child,
-				 struct ex_phy *parent_phy,
-				 struct ex_phy *child_phy)
+			  struct ex_phy *parent_phy,
+			  struct ex_phy *child_phy)
 {
 	int res = 0;
 	struct domain_device *parent = child->parent;
+	struct sas_discovery *disc = &parent->port->disc;
 
-	if (SAS_ADDR(parent->port->disc.fanout_sas_addr) != 0) {
+	if (SAS_ADDR(disc->fanout_sas_addr) != 0) {
 		res = -ENODEV;
 		pr_warn("edge ex %016llx phy S:%02d <--> edge ex %016llx phy S:%02d, while there is a fanout ex %016llx\n",
 			SAS_ADDR(parent->sas_addr),
 			parent_phy->phy_id,
 			SAS_ADDR(child->sas_addr),
 			child_phy->phy_id,
-			SAS_ADDR(parent->port->disc.fanout_sas_addr));
-	} else if (SAS_ADDR(parent->port->disc.eeds_a) == 0) {
-		memcpy(parent->port->disc.eeds_a, parent->sas_addr,
-		       SAS_ADDR_SIZE);
-		memcpy(parent->port->disc.eeds_b, child->sas_addr,
-		       SAS_ADDR_SIZE);
-	} else if (((SAS_ADDR(parent->port->disc.eeds_a) ==
-		    SAS_ADDR(parent->sas_addr)) ||
-		   (SAS_ADDR(parent->port->disc.eeds_a) ==
-		    SAS_ADDR(child->sas_addr)))
-		   &&
-		   ((SAS_ADDR(parent->port->disc.eeds_b) ==
-		     SAS_ADDR(parent->sas_addr)) ||
-		    (SAS_ADDR(parent->port->disc.eeds_b) ==
-		     SAS_ADDR(child->sas_addr))))
-		;
-	else {
+			SAS_ADDR(disc->fanout_sas_addr));
+	} else if (SAS_ADDR(disc->eeds_a) == 0) {
+		memcpy(disc->eeds_a, parent->sas_addr, SAS_ADDR_SIZE);
+		memcpy(disc->eeds_b, child->sas_addr, SAS_ADDR_SIZE);
+	} else if (!sas_eeds_valid(parent, child)) {
 		res = -ENODEV;
 		pr_warn("edge ex %016llx phy%02d <--> edge ex %016llx phy%02d link forms a third EEDS!\n",
 			SAS_ADDR(parent->sas_addr),
