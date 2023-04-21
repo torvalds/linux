@@ -124,8 +124,10 @@ static int gfs2_ail_empty_gl(struct gfs2_glock *gl)
 	memset(&tr, 0, sizeof(tr));
 	set_bit(TR_ONSTACK, &tr.tr_flags);
 	ret = __gfs2_trans_begin(&tr, sdp, 0, revokes, _RET_IP_);
-	if (ret)
+	if (ret) {
+		fs_err(sdp, "Transaction error %d: Unable to write revokes.", ret);
 		goto flush;
+	}
 	__gfs2_ail_flush(gl, 0, revokes);
 	gfs2_trans_end(sdp);
 
