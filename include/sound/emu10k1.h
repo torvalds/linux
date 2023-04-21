@@ -251,11 +251,16 @@
 #define MUSTAT_IRDYN		0x80		/* 0 = MIDI data or command ACK			*/
 #define MUSTAT_ORDYN		0x40		/* 0 = MUDATA can accept a command or data	*/
 
-#define A_IOCFG			0x18		/* GPIO on Audigy card (16bits)			*/
+#define A_GPIO			0x18		/* GPIO on Audigy card (16bits)			*/
 #define A_GPINPUT_MASK		0xff00
 #define A_GPOUTPUT_MASK		0x00ff
 
+// The GPIO port is used for I/O config on Sound Blasters;
+// card-specific info can be found in the emu_chip_details table.
+// On E-MU cards the port is used as the interface to the FPGA.
+
 // Audigy output/GPIO stuff taken from the kX drivers
+#define A_IOCFG			A_GPIO
 #define A_IOCFG_GPOUT0		0x0044		/* analog/digital				*/
 #define A_IOCFG_DISABLE_ANALOG	0x0040		/* = 'enable' for Audigy2 (chiprev=4)		*/
 #define A_IOCFG_ENABLE_DIGITAL	0x0004

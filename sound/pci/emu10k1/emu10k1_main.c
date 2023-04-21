@@ -223,8 +223,8 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir, int resume)
 		 */
 		outl(0x7a0000, emu->port + 0x20);
 		outl(0xFF000000, emu->port + 0x24);
-		tmp = inl(emu->port + A_IOCFG) & ~0x8; /* Clear bit 3 */
-		outl(tmp, emu->port + A_IOCFG);
+		tmp = inw(emu->port + A_IOCFG) & ~0x8; /* Clear bit 3 */
+		outw(tmp, emu->port + A_IOCFG);
 	}
 	if (emu->card_capabilities->spi_dac) { /* Audigy 2 ZS Notebook with DAC Wolfson WM8768/WM8568 */
 		int size, n;
@@ -244,15 +244,15 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir, int resume)
 		 * GPIO6: Unknown
 		 * GPIO7: Unknown
 		 */
-		outl(0x76, emu->port + A_IOCFG); /* Windows uses 0x3f76 */
+		outw(0x76, emu->port + A_IOCFG); /* Windows uses 0x3f76 */
 	}
 	if (emu->card_capabilities->i2c_adc) { /* Audigy 2 ZS Notebook with ADC Wolfson WM8775 */
 		int size, n;
 
 		snd_emu10k1_ptr20_write(emu, P17V_I2S_SRC_SEL, 0, 0x2020205f);
-		tmp = inl(emu->port + A_IOCFG);
-		outl(tmp | 0x4, emu->port + A_IOCFG);  /* Set bit 2 for mic input */
-		tmp = inl(emu->port + A_IOCFG);
+		tmp = inw(emu->port + A_IOCFG);
+		outw(tmp | 0x4, emu->port + A_IOCFG);  /* Set bit 2 for mic input */
+		tmp = inw(emu->port + A_IOCFG);
 		size = ARRAY_SIZE(i2c_adc_init);
 		for (n = 0; n < size; n++)
 			snd_emu10k1_i2c_write(emu, i2c_adc_init[n][0], i2c_adc_init[n][1]);
@@ -308,12 +308,12 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir, int resume)
 		} else if (emu->card_capabilities->i2c_adc) {
 			;  /* Disable A_IOCFG for Audigy 2 ZS Notebook */
 		} else if (emu->audigy) {
-			unsigned int reg = inl(emu->port + A_IOCFG);
-			outl(reg | A_IOCFG_GPOUT2, emu->port + A_IOCFG);
+			u16 reg = inw(emu->port + A_IOCFG);
+			outw(reg | A_IOCFG_GPOUT2, emu->port + A_IOCFG);
 			udelay(500);
-			outl(reg | A_IOCFG_GPOUT1 | A_IOCFG_GPOUT2, emu->port + A_IOCFG);
+			outw(reg | A_IOCFG_GPOUT1 | A_IOCFG_GPOUT2, emu->port + A_IOCFG);
 			udelay(100);
-			outl(reg, emu->port + A_IOCFG);
+			outw(reg, emu->port + A_IOCFG);
 		} else {
 			unsigned int reg = inl(emu->port + HCFG);
 			outl(reg | HCFG_GPOUT2, emu->port + HCFG);
@@ -329,8 +329,8 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir, int resume)
 	} else if (emu->card_capabilities->i2c_adc) {
 		;  /* Disable A_IOCFG for Audigy 2 ZS Notebook */
 	} else if (emu->audigy) {	/* enable analog output */
-		unsigned int reg = inl(emu->port + A_IOCFG);
-		outl(reg | A_IOCFG_GPOUT0, emu->port + A_IOCFG);
+		u16 reg = inw(emu->port + A_IOCFG);
+		outw(reg | A_IOCFG_GPOUT0, emu->port + A_IOCFG);
 	}
 
 	if (emu->address_mode == 0) {
@@ -354,19 +354,19 @@ static void snd_emu10k1_audio_enable(struct snd_emu10k1 *emu)
 	} else if (emu->card_capabilities->i2c_adc) {
 		;  /* Disable A_IOCFG for Audigy 2 ZS Notebook */
 	} else if (emu->audigy) {
-		outl(inl(emu->port + A_IOCFG) & ~0x44, emu->port + A_IOCFG);
+		outw(inw(emu->port + A_IOCFG) & ~0x44, emu->port + A_IOCFG);
 
 		if (emu->card_capabilities->ca0151_chip) { /* audigy2 */
 			/* Unmute Analog now.  Set GPO6 to 1 for Apollo.
 			 * This has to be done after init ALice3 I2SOut beyond 48KHz.
 			 * So, sequence is important. */
-			outl(inl(emu->port + A_IOCFG) | 0x0040, emu->port + A_IOCFG);
+			outw(inw(emu->port + A_IOCFG) | 0x0040, emu->port + A_IOCFG);
 		} else if (emu->card_capabilities->ca0108_chip) { /* audigy2 value */
 			/* Unmute Analog now. */
-			outl(inl(emu->port + A_IOCFG) | 0x0060, emu->port + A_IOCFG);
+			outw(inw(emu->port + A_IOCFG) | 0x0060, emu->port + A_IOCFG);
 		} else {
 			/* Disable routing from AC97 line out to Front speakers */
-			outl(inl(emu->port + A_IOCFG) | 0x0080, emu->port + A_IOCFG);
+			outw(inw(emu->port + A_IOCFG) | 0x0080, emu->port + A_IOCFG);
 		}
 	}
 
@@ -651,9 +651,9 @@ static int snd_emu1010_load_firmware_entry(struct snd_emu10k1 *emu,
 				     const struct firmware *fw_entry)
 {
 	int n, i;
-	int reg;
-	int value;
-	__always_unused unsigned int write_post;
+	u16 reg;
+	u8 value;
+	__always_unused u16 write_post;
 	unsigned long flags;
 
 	if (!fw_entry)
@@ -666,11 +666,11 @@ static int snd_emu1010_load_firmware_entry(struct snd_emu10k1 *emu,
 	 * FPGA CONFIG OFF -> FPGA PGMN
 	 */
 	spin_lock_irqsave(&emu->emu_lock, flags);
-	outl(0x00, emu->port + A_IOCFG); /* Set PGMN low for 1uS. */
-	write_post = inl(emu->port + A_IOCFG);
+	outw(0x00, emu->port + A_GPIO); /* Set PGMN low for 1uS. */
+	write_post = inw(emu->port + A_GPIO);
 	udelay(100);
-	outl(0x80, emu->port + A_IOCFG); /* Leave bit 7 set during netlist setup. */
-	write_post = inl(emu->port + A_IOCFG);
+	outw(0x80, emu->port + A_GPIO); /* Leave bit 7 set during netlist setup. */
+	write_post = inw(emu->port + A_GPIO);
 	udelay(100); /* Allow FPGA memory to clean */
 	for (n = 0; n < fw_entry->size; n++) {
 		value = fw_entry->data[n];
@@ -679,15 +679,15 @@ static int snd_emu1010_load_firmware_entry(struct snd_emu10k1 *emu,
 			if (value & 0x1)
 				reg = reg | 0x20;
 			value = value >> 1;
-			outl(reg, emu->port + A_IOCFG);
-			write_post = inl(emu->port + A_IOCFG);
-			outl(reg | 0x40, emu->port + A_IOCFG);
-			write_post = inl(emu->port + A_IOCFG);
+			outw(reg, emu->port + A_GPIO);
+			write_post = inw(emu->port + A_GPIO);
+			outw(reg | 0x40, emu->port + A_GPIO);
+			write_post = inw(emu->port + A_GPIO);
 		}
 	}
 	/* After programming, set GPIO bit 4 high again. */
-	outl(0x10, emu->port + A_IOCFG);
-	write_post = inl(emu->port + A_IOCFG);
+	outw(0x10, emu->port + A_GPIO);
+	write_post = inw(emu->port + A_GPIO);
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
 
 	return 0;
@@ -2053,7 +2053,7 @@ void snd_emu10k1_suspend_regs(struct snd_emu10k1 *emu)
 				*val = snd_emu10k1_ptr_read(emu, *reg, i);
 	}
 	if (emu->audigy)
-		emu->saved_a_iocfg = inl(emu->port + A_IOCFG);
+		emu->saved_a_iocfg = inw(emu->port + A_IOCFG);
 	emu->saved_hcfg = inl(emu->port + HCFG);
 }
 
@@ -2080,7 +2080,7 @@ void snd_emu10k1_resume_regs(struct snd_emu10k1 *emu)
 
 	/* resore for spdif */
 	if (emu->audigy)
-		outl(emu->saved_a_iocfg, emu->port + A_IOCFG);
+		outw(emu->saved_a_iocfg, emu->port + A_IOCFG);
 	outl(emu->saved_hcfg, emu->port + HCFG);
 
 	val = emu->saved_ptr;
