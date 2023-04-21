@@ -3381,7 +3381,7 @@ static int create_message(struct dlm_rsb *r, struct dlm_lkb *lkb,
 	case DLM_MSG_REQUEST_REPLY:
 	case DLM_MSG_CONVERT_REPLY:
 	case DLM_MSG_GRANT:
-		if (lkb && lkb->lkb_lvbptr)
+		if (lkb && lkb->lkb_lvbptr && (lkb->lkb_exflags & DLM_LKF_VALBLK))
 			mb_len += r->res_ls->ls_lvblen;
 		break;
 	}
