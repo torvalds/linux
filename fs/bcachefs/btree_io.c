@@ -1746,7 +1746,7 @@ static void btree_node_write_work(struct work_struct *work)
 	struct bch_fs *c	= wbio->wbio.c;
 	struct btree *b		= wbio->wbio.bio.bi_private;
 	struct bch_extent_ptr *ptr;
-	int ret;
+	int ret = 0;
 
 	btree_bounce_free(c,
 		wbio->data_bytes,
@@ -1776,7 +1776,8 @@ out:
 	return;
 err:
 	set_btree_node_noevict(b);
-	bch2_fs_fatal_error(c, "fatal error writing btree node");
+	if (!bch2_err_matches(ret, EROFS))
+		bch2_fs_fatal_error(c, "fatal error writing btree node");
 	goto out;
 }
 
