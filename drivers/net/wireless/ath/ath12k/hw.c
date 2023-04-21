@@ -962,7 +962,8 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 
 		.hal_ops = &hal_wcn7850_ops,
 
-		.qmi_cnss_feature_bitmap = BIT(CNSS_QDSS_CFG_MISS_V01),
+		.qmi_cnss_feature_bitmap = BIT(CNSS_QDSS_CFG_MISS_V01) |
+					   BIT(CNSS_PCIE_PERST_NO_PULL_V01),
 	},
 	{
 		.name = "qcn9274 hw2.0",
