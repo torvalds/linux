@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/bpf.h>
+#include <linux/filter.h>
 #include <linux/netfilter.h>
 
 #include <net/netfilter/nf_bpf_link.h>
@@ -8,7 +9,13 @@
 static unsigned int nf_hook_run_bpf(void *bpf_prog, struct sk_buff *skb,
 				    const struct nf_hook_state *s)
 {
-	return NF_ACCEPT;
+	const struct bpf_prog *prog = bpf_prog;
+	struct bpf_nf_ctx ctx = {
+		.state = s,
+		.skb = skb,
+	};
+
+	return bpf_prog_run(prog, &ctx);
 }
 
 struct bpf_nf_link {
@@ -157,3 +164,64 @@ int bpf_nf_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 
 	return bpf_link_settle(&link_primer);
 }
+
+const struct bpf_prog_ops netfilter_prog_ops = {
+};
+
+static bool nf_ptr_to_btf_id(struct bpf_insn_access_aux *info, const char *name)
+{
+	struct btf *btf;
+	s32 type_id;
+
+	btf = bpf_get_btf_vmlinux();
+	if (IS_ERR_OR_NULL(btf))
+		return false;
+
+	type_id = btf_find_by_name_kind(btf, name, BTF_KIND_STRUCT);
+	if (WARN_ON_ONCE(type_id < 0))
+		return false;
+
+	info->btf = btf;
+	info->btf_id = type_id;
+	info->reg_type = PTR_TO_BTF_ID | PTR_TRUSTED;
+	return true;
+}
+
+static bool nf_is_valid_access(int off, int size, enum bpf_access_type type,
+			       const struct bpf_prog *prog,
+			       struct bpf_insn_access_aux *info)
+{
+	if (off < 0 || off >= sizeof(struct bpf_nf_ctx))
+		return false;
+
+	if (type == BPF_WRITE)
+		return false;
+
+	switch (off) {
+	case bpf_ctx_range(struct bpf_nf_ctx, skb):
+		if (size != sizeof_field(struct bpf_nf_ctx, skb))
+			return false;
+
+		return nf_ptr_to_btf_id(info, "sk_buff");
+	case bpf_ctx_range(struct bpf_nf_ctx, state):
+		if (size != sizeof_field(struct bpf_nf_ctx, state))
+			return false;
+
+		return nf_ptr_to_btf_id(info, "nf_hook_state");
+	default:
+		return false;
+	}
+
+	return false;
+}
+
+static const struct bpf_func_proto *
+bpf_nf_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
+{
+	return bpf_base_func_proto(func_id);
+}
+
+const struct bpf_verifier_ops netfilter_verifier_ops = {
+	.is_valid_access	= nf_is_valid_access,
+	.get_func_proto		= bpf_nf_func_proto,
+};
