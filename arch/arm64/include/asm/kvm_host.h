@@ -16,6 +16,7 @@
 #include <linux/types.h>
 #include <linux/jump_label.h>
 #include <linux/kvm_types.h>
+#include <linux/maple_tree.h>
 #include <linux/percpu.h>
 #include <linux/psci.h>
 #include <asm/arch_gicv3.h>
@@ -228,7 +229,8 @@ struct kvm_arch {
 #define KVM_ARCH_FLAG_VM_COUNTER_OFFSET			6
 	/* Timer PPIs made immutable */
 #define KVM_ARCH_FLAG_TIMER_PPIS_IMMUTABLE		7
-
+	/* SMCCC filter initialized for the VM */
+#define KVM_ARCH_FLAG_SMCCC_FILTER_CONFIGURED		8
 	unsigned long flags;
 
 	/*
@@ -249,6 +251,7 @@ struct kvm_arch {
 
 	/* Hypercall features firmware registers' descriptor */
 	struct kvm_smccc_features smccc_feat;
+	struct maple_tree smccc_filter;
 
 	/*
 	 * For an untrusted host VM, 'pkvm.handle' is used to lookup
@@ -1077,6 +1080,9 @@ bool kvm_arm_vcpu_is_finalized(struct kvm_vcpu *vcpu);
 #define kvm_supports_32bit_el0()				\
 	(system_supports_32bit_el0() &&				\
 	 !static_branch_unlikely(&arm64_mismatched_32bit_el0))
+
+#define kvm_vm_has_ran_once(kvm)					\
+	(test_bit(KVM_ARCH_FLAG_HAS_RAN_ONCE, &(kvm)->arch.flags))
 
 int kvm_trng_call(struct kvm_vcpu *vcpu);
 #ifdef CONFIG_KVM

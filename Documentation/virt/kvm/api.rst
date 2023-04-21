@@ -6256,14 +6256,39 @@ to the byte array.
 			__u64 nr;
 			__u64 args[6];
 			__u64 ret;
-			__u32 longmode;
-			__u32 pad;
+			__u64 flags;
 		} hypercall;
 
-Unused.  This was once used for 'hypercall to userspace'.  To implement
-such functionality, use KVM_EXIT_IO (x86) or KVM_EXIT_MMIO (all except s390).
+
+It is strongly recommended that userspace use ``KVM_EXIT_IO`` (x86) or
+``KVM_EXIT_MMIO`` (all except s390) to implement functionality that
+requires a guest to interact with host userpace.
 
 .. note:: KVM_EXIT_IO is significantly faster than KVM_EXIT_MMIO.
+
+For arm64:
+----------
+
+SMCCC exits can be enabled depending on the configuration of the SMCCC
+filter. See the Documentation/virt/kvm/devices/vm.rst
+``KVM_ARM_SMCCC_FILTER`` for more details.
+
+``nr`` contains the function ID of the guest's SMCCC call. Userspace is
+expected to use the ``KVM_GET_ONE_REG`` ioctl to retrieve the call
+parameters from the vCPU's GPRs.
+
+Definition of ``flags``:
+ - ``KVM_HYPERCALL_EXIT_SMC``: Indicates that the guest used the SMC
+   conduit to initiate the SMCCC call. If this bit is 0 then the guest
+   used the HVC conduit for the SMCCC call.
+
+ - ``KVM_HYPERCALL_EXIT_16BIT``: Indicates that the guest used a 16bit
+   instruction to initiate the SMCCC call. If this bit is 0 then the
+   guest used a 32bit instruction. An AArch64 guest always has this
+   bit set to 0.
+
+At the point of exit, PC points to the instruction immediately following
+the trapping instruction.
 
 ::
 
