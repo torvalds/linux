@@ -335,6 +335,17 @@ config HW_RANDOM_HISI
 
 	  If unsure, say Y.
 
+config HW_RANDOM_HISTB
+	tristate "Hisilicon STB Random Number Generator support"
+	depends on ARCH_HISI || COMPILE_TEST
+	default ARCH_HISI
+	help
+	  This driver provides kernel-side support for the Random Number
+	  Generator hardware found on Hisilicon Hi37xx SoC.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called histb-rng.
+
 config HW_RANDOM_ST
 	tristate "ST Microelectronics HW Random Number Generator support"
 	depends on HW_RANDOM && ARCH_STI
