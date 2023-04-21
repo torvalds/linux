@@ -53,6 +53,10 @@
  *                   - A numeric value.
  *                   Multiple __flag attributes could be specified, the final flags
  *                   value is derived by applying binary "or" to all specified values.
+ *
+ * __auxiliary         Annotated program is not a separate test, but used as auxiliary
+ *                     for some other test cases and should always be loaded.
+ * __auxiliary_unpriv  Same, but load program in unprivileged mode.
  */
 #define __msg(msg)		__attribute__((btf_decl_tag("comment:test_expect_msg=" msg)))
 #define __failure		__attribute__((btf_decl_tag("comment:test_expect_failure")))
@@ -65,6 +69,8 @@
 #define __flag(flag)		__attribute__((btf_decl_tag("comment:test_prog_flags="#flag)))
 #define __retval(val)		__attribute__((btf_decl_tag("comment:test_retval="#val)))
 #define __retval_unpriv(val)	__attribute__((btf_decl_tag("comment:test_retval_unpriv="#val)))
+#define __auxiliary		__attribute__((btf_decl_tag("comment:test_auxiliary")))
+#define __auxiliary_unpriv	__attribute__((btf_decl_tag("comment:test_auxiliary_unpriv")))
 
 /* Convenience macro for use with 'asm volatile' blocks */
 #define __naked __attribute__((naked))
