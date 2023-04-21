@@ -90,7 +90,7 @@ static int gfs2_ail_empty_gl(struct gfs2_glock *gl)
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	struct gfs2_trans tr;
 	unsigned int revokes;
-	int ret;
+	int ret = 0;
 
 	revokes = atomic_read(&gl->gl_ail_count);
 
@@ -132,7 +132,7 @@ static int gfs2_ail_empty_gl(struct gfs2_glock *gl)
 flush:
 	gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_NORMAL |
 		       GFS2_LFC_AIL_EMPTY_GL);
-	return 0;
+	return ret;
 }
 
 void gfs2_ail_flush(struct gfs2_glock *gl, bool fsync)
@@ -326,7 +326,9 @@ static int inode_go_sync(struct gfs2_glock *gl)
 	ret = gfs2_inode_metasync(gl);
 	if (!error)
 		error = ret;
-	gfs2_ail_empty_gl(gl);
+	ret = gfs2_ail_empty_gl(gl);
+	if (!error)
+		error = ret;
 	/*
 	 * Writeback of the data mapping may cause the dirty flag to be set
 	 * so we have to clear it again here.
