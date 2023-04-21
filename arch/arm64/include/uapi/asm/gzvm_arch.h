@@ -47,4 +47,8 @@
 #define GZVM_REG_ARM_CORE_REG(name)	\
 	(offsetof(struct gzvm_regs, name) / sizeof(__u32))
 
+#define GZVM_VGIC_NR_SGIS		16
+#define GZVM_VGIC_NR_PPIS		16
+#define GZVM_VGIC_NR_PRIVATE_IRQS	(GZVM_VGIC_NR_SGIS + GZVM_VGIC_NR_PPIS)
+
 #endif /* __GZVM_ARCH_H__ */
