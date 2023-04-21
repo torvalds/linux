@@ -122,6 +122,13 @@ enum rtw89_cv {
 	CHIP_CV_INVALID = CHIP_CV_MAX,
 };
 
+enum rtw89_bacam_ver {
+	RTW89_BACAM_V0,
+	RTW89_BACAM_V1,
+
+	RTW89_BACAM_V0_EXT = 99,
+};
+
 enum rtw89_core_tx_type {
 	RTW89_CORE_TX_TYPE_DATA,
 	RTW89_CORE_TX_TYPE_MGMT,
@@ -3182,7 +3189,7 @@ struct rtw89_chip_info {
 	u8 scam_num;
 	u8 bacam_num;
 	u8 bacam_dynamic_num;
-	bool bacam_v1;
+	enum rtw89_bacam_ver bacam_ver;
 
 	u8 sec_ctrl_efuse_size;
 	u32 physical_efuse_size;

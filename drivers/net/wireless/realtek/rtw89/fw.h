@@ -3676,7 +3676,7 @@ void rtw89_fw_release_general_pkt_list_vif(struct rtw89_dev *rtwdev,
 void rtw89_fw_release_general_pkt_list(struct rtw89_dev *rtwdev, bool notify_fw);
 int rtw89_fw_h2c_ba_cam(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
 			bool valid, struct ieee80211_ampdu_params *params);
-void rtw89_fw_h2c_init_ba_cam_v1(struct rtw89_dev *rtwdev);
+void rtw89_fw_h2c_init_dynamic_ba_cam_v0_ext(struct rtw89_dev *rtwdev);
 
 int rtw89_fw_h2c_lps_parm(struct rtw89_dev *rtwdev,
 			  struct rtw89_lps_parm *lps_param);
@@ -3739,8 +3739,8 @@ static inline void rtw89_fw_h2c_init_ba_cam(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 
-	if (chip->bacam_v1)
-		rtw89_fw_h2c_init_ba_cam_v1(rtwdev);
+	if (chip->bacam_ver == RTW89_BACAM_V0_EXT)
+		rtw89_fw_h2c_init_dynamic_ba_cam_v0_ext(rtwdev);
 }
 
 #endif

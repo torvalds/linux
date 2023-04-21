@@ -809,7 +809,7 @@ int rtw89_fw_h2c_ba_cam(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
 	}
 	skb_put(skb, H2C_BA_CAM_LEN);
 	SET_BA_CAM_MACID(skb->data, macid);
-	if (chip->bacam_v1)
+	if (chip->bacam_ver == RTW89_BACAM_V0_EXT)
 		SET_BA_CAM_ENTRY_IDX_V1(skb->data, entry_idx);
 	else
 		SET_BA_CAM_ENTRY_IDX(skb->data, entry_idx);
@@ -825,7 +825,7 @@ int rtw89_fw_h2c_ba_cam(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
 	SET_BA_CAM_INIT_REQ(skb->data, 1);
 	SET_BA_CAM_SSN(skb->data, params->ssn);
 
-	if (chip->bacam_v1) {
+	if (chip->bacam_ver == RTW89_BACAM_V0_EXT) {
 		SET_BA_CAM_STD_EN(skb->data, 1);
 		SET_BA_CAM_BAND(skb->data, rtwvif->mac_idx);
 	}
@@ -850,8 +850,8 @@ fail:
 	return ret;
 }
 
-static int rtw89_fw_h2c_init_dynamic_ba_cam_v1(struct rtw89_dev *rtwdev,
-					       u8 entry_idx, u8 uid)
+static int rtw89_fw_h2c_init_ba_cam_v0_ext(struct rtw89_dev *rtwdev,
+					   u8 entry_idx, u8 uid)
 {
 	struct sk_buff *skb;
 	int ret;
@@ -888,7 +888,7 @@ fail:
 	return ret;
 }
 
-void rtw89_fw_h2c_init_ba_cam_v1(struct rtw89_dev *rtwdev)
+void rtw89_fw_h2c_init_dynamic_ba_cam_v0_ext(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	u8 entry_idx = chip->bacam_num;
@@ -896,7 +896,7 @@ void rtw89_fw_h2c_init_ba_cam_v1(struct rtw89_dev *rtwdev)
 	int i;
 
 	for (i = 0; i < chip->bacam_dynamic_num; i++) {
-		rtw89_fw_h2c_init_dynamic_ba_cam_v1(rtwdev, entry_idx, uid);
+		rtw89_fw_h2c_init_ba_cam_v0_ext(rtwdev, entry_idx, uid);
 		entry_idx++;
 		uid++;
 	}
