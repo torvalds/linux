@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _GH_PRIVATE_H
@@ -9,7 +9,7 @@
 #include <linux/gunyah/gh_rm_drv.h>
 #include <linux/gunyah/gh_vm.h>
 #include <linux/refcount.h>
-#include <linux/gunyah.h>
+#include <linux/gunyah_deprecated.h>
 #include <linux/wait.h>
 
 #define GH_EVENT_CREATE_VM 0
