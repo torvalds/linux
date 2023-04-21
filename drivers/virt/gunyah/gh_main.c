@@ -740,7 +740,7 @@ static const struct file_operations gh_dev_fops = {
 };
 
 static struct miscdevice gh_dev = {
-	.name = "gunyah",
+	.name = "qgunyah",
 	.minor = MISC_DYNAMIC_MINOR,
 	.fops = &gh_dev_fops,
 };
