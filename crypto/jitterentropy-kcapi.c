@@ -88,6 +88,7 @@ void jent_get_nstime(__u64 *out)
 		tmp = ktime_get_ns();
 
 	*out = tmp;
+	jent_raw_hires_entropy_store(tmp);
 }
 
 int jent_hash_time(void *hash_state, __u64 time, u8 *addtl,
@@ -323,9 +324,13 @@ static int __init jent_mod_init(void)
 	struct crypto_shash *tfm;
 	int ret = 0;
 
+	jent_testing_init();
+
 	tfm = crypto_alloc_shash(JENT_CONDITIONING_HASH, 0, 0);
-	if (IS_ERR(tfm))
+	if (IS_ERR(tfm)) {
+		jent_testing_exit();
 		return PTR_ERR(tfm);
+	}
 
 	desc->tfm = tfm;
 	crypto_shash_init(desc);
@@ -337,6 +342,7 @@ static int __init jent_mod_init(void)
 		if (fips_enabled)
 			panic("jitterentropy: Initialization failed with host not compliant with requirements: %d\n", ret);
 
+		jent_testing_exit();
 		pr_info("jitterentropy: Initialization failed with host not compliant with requirements: %d\n", ret);
 		return -EFAULT;
 	}
@@ -345,6 +351,7 @@ static int __init jent_mod_init(void)
 
 static void __exit jent_mod_exit(void)
 {
+	jent_testing_exit();
 	crypto_unregister_rng(&jent_alg);
 }
 

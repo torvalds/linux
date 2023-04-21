@@ -1288,6 +1288,26 @@ config CRYPTO_JITTERENTROPY
 
 	  See https://www.chronox.de/jent.html
 
+config CRYPTO_JITTERENTROPY_TESTINTERFACE
+	bool "CPU Jitter RNG Test Interface"
+	depends on CRYPTO_JITTERENTROPY
+	help
+	  The test interface allows a privileged process to capture
+	  the raw unconditioned high resolution time stamp noise that
+	  is collected by the Jitter RNG for statistical analysis. As
+	  this data is used at the same time to generate random bits,
+	  the Jitter RNG operates in an insecure mode as long as the
+	  recording is enabled. This interface therefore is only
+	  intended for testing purposes and is not suitable for
+	  production systems.
+
+	  The raw noise data can be obtained using the jent_raw_hires
+	  debugfs file. Using the option
+	  jitterentropy_testing.boot_raw_hires_test=1 the raw noise of
+	  the first 1000 entropy events since boot can be sampled.
+
+	  If unsure, select N.
+
 config CRYPTO_KDF800108_CTR
 	tristate
 	select CRYPTO_HMAC
