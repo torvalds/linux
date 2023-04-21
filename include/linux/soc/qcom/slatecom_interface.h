@@ -6,8 +6,6 @@
 #ifndef SLATECOM_INTERFACE_H
 #define SLATECOM_INTERFACE_H
 
-#include <linux/soc/qcom/slatecom_intf.h>
-
 /*
  * slate_soft_reset() - soft reset Slate
  * Return 0 on success or -Ve on error
