@@ -978,7 +978,19 @@ int ath12k_dp_rx_peer_tid_setup(struct ath12k *ar, const u8 *peer_mac, int vdev_
 			return ret;
 		}
 
-		return ret;
+		if (!ab->hw_params->reoq_lut_support) {
+			ret = ath12k_wmi_peer_rx_reorder_queue_setup(ar, vdev_id,
+								     peer_mac,
+								     paddr, tid, 1,
+								     ba_win_sz);
+			if (ret) {
+				ath12k_warn(ab, "failed to setup peer rx reorder queuefor tid %d: %d\n",
+					    tid, ret);
+				return ret;
+			}
+		}
+
+		return 0;
 	}
 
 	rx_tid->tid = tid;
