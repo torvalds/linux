@@ -563,7 +563,6 @@ static int mana_pre_alloc_rxbufs(struct mana_port_context *mpc, int new_mtu)
 
 		da = dma_map_single(dev, va + mpc->rxbpre_headroom,
 				    mpc->rxbpre_datasize, DMA_FROM_DEVICE);
-
 		if (dma_mapping_error(dev, da)) {
 			put_page(virt_to_head_page(va));
 			goto error;
@@ -1515,7 +1514,6 @@ static void *mana_get_rxfrag(struct mana_rxq *rxq, struct device *dev,
 
 	*da = dma_map_single(dev, va + rxq->headroom, rxq->datasize,
 			     DMA_FROM_DEVICE);
-
 	if (dma_mapping_error(dev, *da)) {
 		put_page(virt_to_head_page(va));
 		return NULL;
@@ -1525,14 +1523,13 @@ static void *mana_get_rxfrag(struct mana_rxq *rxq, struct device *dev,
 }
 
 /* Allocate frag for rx buffer, and save the old buf */
-static void mana_refill_rxoob(struct device *dev, struct mana_rxq *rxq,
-			      struct mana_recv_buf_oob *rxoob, void **old_buf)
+static void mana_refill_rx_oob(struct device *dev, struct mana_rxq *rxq,
+			       struct mana_recv_buf_oob *rxoob, void **old_buf)
 {
 	dma_addr_t da;
 	void *va;
 
 	va = mana_get_rxfrag(rxq, dev, &da, true);
-
 	if (!va)
 		return;
 
@@ -1597,7 +1594,7 @@ static void mana_process_rx_cqe(struct mana_rxq *rxq, struct mana_cq *cq,
 	rxbuf_oob = &rxq->rx_oobs[curr];
 	WARN_ON_ONCE(rxbuf_oob->wqe_inf.wqe_size_in_bu != 1);
 
-	mana_refill_rxoob(dev, rxq, rxbuf_oob, &old_buf);
+	mana_refill_rx_oob(dev, rxq, rxbuf_oob, &old_buf);
 
 	/* Unsuccessful refill will have old_buf == NULL.
 	 * In this case, mana_rx_skb() will drop the packet.
