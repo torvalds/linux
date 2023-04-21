@@ -257,7 +257,7 @@ int nfs_netfs_readahead(struct readahead_control *ractl)
 	return 0;
 }
 
-atomic_t nfs_netfs_debug_id;
+static atomic_t nfs_netfs_debug_id;
 static int nfs_netfs_init_request(struct netfs_io_request *rreq, struct file *file)
 {
 	rreq->netfs_priv = get_nfs_open_context(nfs_file_open_context(file));
