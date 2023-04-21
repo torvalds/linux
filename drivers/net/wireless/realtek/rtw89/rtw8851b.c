@@ -18,6 +18,54 @@
 #define RTW8851B_MODULE_FIRMWARE \
 	RTW8851B_FW_BASENAME ".bin"
 
+static const struct rtw89_hfc_ch_cfg rtw8851b_hfc_chcfg_pcie[] = {
+	{5, 343, grp_0}, /* ACH 0 */
+	{5, 343, grp_0}, /* ACH 1 */
+	{5, 343, grp_0}, /* ACH 2 */
+	{5, 343, grp_0}, /* ACH 3 */
+	{0, 0, grp_0}, /* ACH 4 */
+	{0, 0, grp_0}, /* ACH 5 */
+	{0, 0, grp_0}, /* ACH 6 */
+	{0, 0, grp_0}, /* ACH 7 */
+	{4, 344, grp_0}, /* B0MGQ */
+	{4, 344, grp_0}, /* B0HIQ */
+	{0, 0, grp_0}, /* B1MGQ */
+	{0, 0, grp_0}, /* B1HIQ */
+	{40, 0, 0} /* FWCMDQ */
+};
+
+static const struct rtw89_hfc_pub_cfg rtw8851b_hfc_pubcfg_pcie = {
+	448, /* Group 0 */
+	0, /* Group 1 */
+	448, /* Public Max */
+	0 /* WP threshold */
+};
+
+static const struct rtw89_hfc_param_ini rtw8851b_hfc_param_ini_pcie[] = {
+	[RTW89_QTA_SCC] = {rtw8851b_hfc_chcfg_pcie, &rtw8851b_hfc_pubcfg_pcie,
+			   &rtw89_mac_size.hfc_preccfg_pcie, RTW89_HCIFC_POH},
+	[RTW89_QTA_DLFW] = {NULL, NULL, &rtw89_mac_size.hfc_preccfg_pcie,
+			    RTW89_HCIFC_POH},
+	[RTW89_QTA_INVALID] = {NULL},
+};
+
+static const struct rtw89_dle_mem rtw8851b_dle_mem_pcie[] = {
+	[RTW89_QTA_SCC] = {RTW89_QTA_SCC, &rtw89_mac_size.wde_size6,
+			   &rtw89_mac_size.ple_size6, &rtw89_mac_size.wde_qt6,
+			   &rtw89_mac_size.wde_qt6, &rtw89_mac_size.ple_qt18,
+			   &rtw89_mac_size.ple_qt58},
+	[RTW89_QTA_WOW] = {RTW89_QTA_WOW, &rtw89_mac_size.wde_size6,
+			   &rtw89_mac_size.ple_size6, &rtw89_mac_size.wde_qt6,
+			   &rtw89_mac_size.wde_qt6, &rtw89_mac_size.ple_qt18,
+			   &rtw89_mac_size.ple_qt_51b_wow},
+	[RTW89_QTA_DLFW] = {RTW89_QTA_DLFW, &rtw89_mac_size.wde_size9,
+			    &rtw89_mac_size.ple_size8, &rtw89_mac_size.wde_qt4,
+			    &rtw89_mac_size.wde_qt4, &rtw89_mac_size.ple_qt13,
+			    &rtw89_mac_size.ple_qt13},
+	[RTW89_QTA_INVALID] = {RTW89_QTA_INVALID, NULL, NULL, NULL, NULL, NULL,
+			       NULL},
+};
+
 static const struct rtw89_xtal_info rtw8851b_xtal_info = {
 	.xcap_reg		= R_AX_XTAL_ON_CTRL3,
 	.sc_xo_mask		= B_AX_XTAL_SC_XO_A_BLOCK_MASK,
@@ -52,6 +100,8 @@ const struct rtw89_chip_info rtw8851b_chip_info = {
 	.max_amsdu_limit	= 3500,
 	.dis_2g_40m_ul_ofdma	= true,
 	.rsvd_ple_ofst		= 0x2f800,
+	.hfc_param_ini		= rtw8851b_hfc_param_ini_pcie,
+	.dle_mem		= rtw8851b_dle_mem_pcie,
 	.wde_qempty_acq_num     = 4,
 	.wde_qempty_mgq_sel     = 4,
 	.rf_base_addr		= {0xe000},

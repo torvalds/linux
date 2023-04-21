@@ -1475,6 +1475,8 @@ const struct rtw89_mac_size_set rtw89_mac_size = {
 	.ple_qt_52a_wow = {264, 0, 32, 20, 64, 13, 1005, 0, 64, 128, 120,},
 	/* 8852B PCIE WOW */
 	.ple_qt_52b_wow = {147, 0, 16, 20, 157, 13, 133, 0, 172, 14, 24, 0,},
+	/* 8851B PCIE WOW */
+	.ple_qt_51b_wow = {147, 0, 16, 20, 157, 13, 133, 0, 172, 14, 24, 0,},
 };
 EXPORT_SYMBOL(rtw89_mac_size);
 
