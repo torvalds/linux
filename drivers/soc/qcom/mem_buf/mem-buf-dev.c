@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -99,7 +99,7 @@ EXPORT_SYMBOL(mem_buf_unassign_mem);
 
 static int mem_buf_probe(struct platform_device *pdev)
 {
-	int ret;
+	int ret, unused;
 	struct device *dev = &pdev->dev;
 	u64 dma_mask = IS_ENABLED(CONFIG_ARM64) ? DMA_BIT_MASK(64) :
 		DMA_BIT_MASK(32);
@@ -122,6 +122,14 @@ static int mem_buf_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(dev, "Unable to set dma mask: %d\n", ret);
 		return ret;
+	}
+
+	if (of_find_property(dev->of_node, "memory-region", &unused)) {
+		ret = of_reserved_mem_device_init_by_idx(dev, dev->of_node, 0);
+		if (ret) {
+			dev_err(dev, "Failed to get memory-region property %d\n", ret);
+			return ret;
+		}
 	}
 
 	ret = mem_buf_vm_init(dev);
