@@ -342,7 +342,8 @@ static void rxperf_deliver_to_call(struct work_struct *work)
 call_complete:
 	rxperf_set_call_complete(call, ret, remote_abort);
 	/* The call may have been requeued */
-	rxrpc_kernel_end_call(rxperf_socket, call->rxcall);
+	rxrpc_kernel_shutdown_call(rxperf_socket, call->rxcall);
+	rxrpc_kernel_put_call(rxperf_socket, call->rxcall);
 	cancel_work(&call->work);
 	kfree(call);
 }
