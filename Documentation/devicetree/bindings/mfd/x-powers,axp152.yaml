@@ -77,7 +77,9 @@ allOf:
       properties:
         compatible:
           contains:
-            const: x-powers,axp313a
+            enum:
+              - x-powers,axp313a
+              - x-powers,axp15060
 
     then:
       properties:
@@ -97,6 +99,7 @@ properties:
           - x-powers,axp806
           - x-powers,axp809
           - x-powers,axp813
+          - x-powers,axp15060
       - items:
           - const: x-powers,axp228
           - const: x-powers,axp221
@@ -265,7 +268,7 @@ properties:
           Defines the work frequency of DC-DC in kHz.
 
     patternProperties:
-      "^(([a-f])?ldo[0-9]|dcdc[0-7a-e]|ldo(_|-)io(0|1)|(dc1)?sw|rtc(_|-)ldo|drivevbus|dc5ldo)$":
+      "^(([a-f])?ldo[0-9]|dcdc[0-7a-e]|ldo(_|-)io(0|1)|(dc1)?sw|rtc(_|-)ldo|cpusldo|drivevbus|dc5ldo)$":
         $ref: /schemas/regulator/regulator.yaml#
         type: object
         unevaluatedProperties: false
