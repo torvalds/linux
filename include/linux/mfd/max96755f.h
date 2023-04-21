@@ -79,6 +79,9 @@
 /* 0170h */
 #define SPI_EN			BIT(0)
 
+/* 01e5h */
+#define PATGEN_MODE		GENMASK(1, 0)
+
 /* 02beh */
 #define RES_CFG			BIT(7)
 #define TX_PRIO			BIT(6)

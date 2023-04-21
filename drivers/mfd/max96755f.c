@@ -195,8 +195,28 @@ static ssize_t line_fault_monitor_show(struct device *device,
 
 static DEVICE_ATTR_RO(line_fault_monitor);
 
+static ssize_t patgen_mode_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
+{
+	struct max96755f *max96755f = dev_get_drvdata(dev);
+	u8 patgen_mode;
+	int ret;
+
+	ret = kstrtou8(buf, 0, &patgen_mode);
+	if (ret)
+		return ret;
+
+	regmap_update_bits(max96755f->regmap, 0x01e5, PATGEN_MODE,
+			   FIELD_PREP(PATGEN_MODE, patgen_mode));
+
+	return count;
+}
+static DEVICE_ATTR_WO(patgen_mode);
+
 static struct attribute *max96755f_attrs[] = {
 	&dev_attr_line_fault_monitor.attr,
+	&dev_attr_patgen_mode.attr,
 	NULL
 };
 
