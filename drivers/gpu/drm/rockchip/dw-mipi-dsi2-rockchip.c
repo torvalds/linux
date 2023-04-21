@@ -448,7 +448,8 @@ static void dw_mipi_dsi2_post_disable(struct dw_mipi_dsi2 *dsi2)
 		dw_mipi_dsi2_post_disable(dsi2->slave);
 }
 
-static void dw_mipi_dsi2_encoder_disable(struct drm_encoder *encoder)
+static void dw_mipi_dsi2_encoder_atomic_disable(struct drm_encoder *encoder,
+						struct drm_atomic_state *state)
 {
 	struct dw_mipi_dsi2 *dsi2 = encoder_to_dsi2(encoder);
 	struct drm_crtc *crtc = encoder->crtc;
@@ -835,9 +836,46 @@ static void dw_mipi_dsi2_enable(struct dw_mipi_dsi2 *dsi2)
 		dw_mipi_dsi2_enable(dsi2->slave);
 }
 
-static void dw_mipi_dsi2_encoder_enable(struct drm_encoder *encoder)
+static int dw_mipi_dsi2_encoder_mode_set(struct dw_mipi_dsi2 *dsi2,
+					 struct drm_atomic_state *state)
+{
+	struct drm_encoder *encoder = &dsi2->encoder;
+	struct drm_connector *connector;
+	struct drm_connector_state *conn_state;
+	struct drm_crtc_state *crtc_state;
+
+	connector = drm_atomic_get_new_connector_for_encoder(state, encoder);
+	if (!connector)
+		return -ENODEV;
+
+	conn_state = drm_atomic_get_new_connector_state(state, connector);
+	if (!conn_state)
+		return -ENODEV;
+
+	crtc_state = drm_atomic_get_new_crtc_state(state, conn_state->crtc);
+	if (!crtc_state) {
+		dev_err(dsi2->dev, "failed to get crtc state\n");
+		return -ENODEV;
+	}
+
+	drm_mode_copy(&dsi2->mode, &crtc_state->adjusted_mode);
+	if (dsi2->slave)
+		drm_mode_copy(&dsi2->slave->mode, &crtc_state->adjusted_mode);
+
+	return 0;
+}
+
+static void dw_mipi_dsi2_encoder_atomic_enable(struct drm_encoder *encoder,
+					       struct drm_atomic_state *state)
 {
 	struct dw_mipi_dsi2 *dsi2 = encoder_to_dsi2(encoder);
+	int ret;
+
+	ret = dw_mipi_dsi2_encoder_mode_set(dsi2, state);
+	if (ret) {
+		dev_err(dsi2->dev, "failed to set dsi2 mode\n");
+		return;
+	}
 
 	dw_mipi_dsi2_get_lane_rate(dsi2);
 
@@ -865,8 +903,8 @@ static void dw_mipi_dsi2_encoder_enable(struct drm_encoder *encoder)
 
 static int
 dw_mipi_dsi2_encoder_atomic_check(struct drm_encoder *encoder,
-				 struct drm_crtc_state *crtc_state,
-				 struct drm_connector_state *conn_state)
+				  struct drm_crtc_state *crtc_state,
+				  struct drm_connector_state *conn_state)
 {
 
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
@@ -931,18 +969,6 @@ dw_mipi_dsi2_encoder_atomic_check(struct drm_encoder *encoder,
 	return 0;
 }
 
-static void
-dw_mipi_dsi2_encoder_atomic_mode_set(struct drm_encoder *encoder,
-				    struct drm_crtc_state *crtc_state,
-				    struct drm_connector_state *connector_state)
-{
-	struct dw_mipi_dsi2 *dsi2 = encoder_to_dsi2(encoder);
-
-	drm_mode_copy(&dsi2->mode, &crtc_state->adjusted_mode);
-	if (dsi2->slave)
-		drm_mode_copy(&dsi2->slave->mode, &crtc_state->adjusted_mode);
-}
-
 static void dw_mipi_dsi2_loader_protect(struct dw_mipi_dsi2 *dsi2, bool on)
 {
 	if (on) {
@@ -978,10 +1004,9 @@ static int dw_mipi_dsi2_encoder_loader_protect(struct drm_encoder *encoder,
 
 static const struct drm_encoder_helper_funcs
 dw_mipi_dsi2_encoder_helper_funcs = {
-	.enable = dw_mipi_dsi2_encoder_enable,
-	.disable = dw_mipi_dsi2_encoder_disable,
+	.atomic_enable = dw_mipi_dsi2_encoder_atomic_enable,
+	.atomic_disable = dw_mipi_dsi2_encoder_atomic_disable,
 	.atomic_check = dw_mipi_dsi2_encoder_atomic_check,
-	.atomic_mode_set = dw_mipi_dsi2_encoder_atomic_mode_set,
 };
 
 static int dw_mipi_dsi2_connector_get_modes(struct drm_connector *connector)
