@@ -2,7 +2,6 @@ targets = [
     # keep sorted
     "gen3auto",
     "autogvm",
-    "kalama",
     "pineapple",
     "blair",
 ]
@@ -29,7 +28,6 @@ vm_types = [
 ]
 
 vm_target_bases = [
-    "kalama",
     "pineapple",
 ]
 
