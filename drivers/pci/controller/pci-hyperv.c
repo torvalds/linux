@@ -508,20 +508,11 @@ struct hv_pcibus_device {
 	struct msi_domain_info msi_info;
 	struct irq_domain *irq_domain;
 
-	spinlock_t retarget_msi_interrupt_lock;
-
 	struct workqueue_struct *wq;
 
 	/* Highest slot of child device with resources allocated */
 	int wslot_res_allocated;
 	bool use_calls; /* Use hypercalls to access mmio cfg space */
-
-	/* hypercall arg, must not cross page boundary */
-	struct hv_retarget_device_interrupt retarget_msi_interrupt_params;
-
-	/*
-	 * Don't put anything here: retarget_msi_interrupt_params must be last
-	 */
 };
 
 /*
@@ -645,9 +636,9 @@ static void hv_arch_irq_unmask(struct irq_data *data)
 	hbus = container_of(pbus->sysdata, struct hv_pcibus_device, sysdata);
 	int_desc = data->chip_data;
 
-	spin_lock_irqsave(&hbus->retarget_msi_interrupt_lock, flags);
+	local_irq_save(flags);
 
-	params = &hbus->retarget_msi_interrupt_params;
+	params = *this_cpu_ptr(hyperv_pcpu_input_arg);
 	memset(params, 0, sizeof(*params));
 	params->partition_id = HV_PARTITION_ID_SELF;
 	params->int_entry.source = HV_INTERRUPT_SOURCE_MSI;
@@ -680,7 +671,7 @@ static void hv_arch_irq_unmask(struct irq_data *data)
 
 		if (!alloc_cpumask_var(&tmp, GFP_ATOMIC)) {
 			res = 1;
-			goto exit_unlock;
+			goto out;
 		}
 
 		cpumask_and(tmp, dest, cpu_online_mask);
@@ -689,7 +680,7 @@ static void hv_arch_irq_unmask(struct irq_data *data)
 
 		if (nr_bank <= 0) {
 			res = 1;
-			goto exit_unlock;
+			goto out;
 		}
 
 		/*
@@ -708,8 +699,8 @@ static void hv_arch_irq_unmask(struct irq_data *data)
 	res = hv_do_hypercall(HVCALL_RETARGET_INTERRUPT | (var_size << 17),
 			      params, NULL);
 
-exit_unlock:
-	spin_unlock_irqrestore(&hbus->retarget_msi_interrupt_lock, flags);
+out:
+	local_irq_restore(flags);
 
 	/*
 	 * During hibernation, when a CPU is offlined, the kernel tries
@@ -3598,35 +3589,11 @@ static int hv_pci_probe(struct hv_device *hdev,
 	bool enter_d0_retry = true;
 	int ret;
 
-	/*
-	 * hv_pcibus_device contains the hypercall arguments for retargeting in
-	 * hv_irq_unmask(). Those must not cross a page boundary.
-	 */
-	BUILD_BUG_ON(sizeof(*hbus) > HV_HYP_PAGE_SIZE);
-
 	bridge = devm_pci_alloc_host_bridge(&hdev->device, 0);
 	if (!bridge)
 		return -ENOMEM;
 
-	/*
-	 * With the recent 59bb47985c1d ("mm, sl[aou]b: guarantee natural
-	 * alignment for kmalloc(power-of-two)"), kzalloc() is able to allocate
-	 * a 4KB buffer that is guaranteed to be 4KB-aligned. Here the size and
-	 * alignment of hbus is important because hbus's field
-	 * retarget_msi_interrupt_params must not cross a 4KB page boundary.
-	 *
-	 * Here we prefer kzalloc to get_zeroed_page(), because a buffer
-	 * allocated by the latter is not tracked and scanned by kmemleak, and
-	 * hence kmemleak reports the pointer contained in the hbus buffer
-	 * (i.e. the hpdev struct, which is created in new_pcichild_device() and
-	 * is tracked by hbus->children) as memory leak (false positive).
-	 *
-	 * If the kernel doesn't have 59bb47985c1d, get_zeroed_page() *must* be
-	 * used to allocate the hbus buffer and we can avoid the kmemleak false
-	 * positive by using kmemleak_alloc() and kmemleak_free() to ask
-	 * kmemleak to track and scan the hbus buffer.
-	 */
-	hbus = kzalloc(HV_HYP_PAGE_SIZE, GFP_KERNEL);
+	hbus = kzalloc(sizeof(*hbus), GFP_KERNEL);
 	if (!hbus)
 		return -ENOMEM;
 
@@ -3683,7 +3650,6 @@ static int hv_pci_probe(struct hv_device *hdev,
 	INIT_LIST_HEAD(&hbus->dr_list);
 	spin_lock_init(&hbus->config_lock);
 	spin_lock_init(&hbus->device_list_lock);
-	spin_lock_init(&hbus->retarget_msi_interrupt_lock);
 	hbus->wq = alloc_ordered_workqueue("hv_pci_%x", 0,
 					   hbus->bridge->domain_nr);
 	if (!hbus->wq) {
