@@ -3159,6 +3159,7 @@ struct rtw89_chip_info {
 	u8 fw_format_max;
 	bool try_ce_fw;
 	u32 fifo_size;
+	bool small_fifo_size;
 	u32 dle_scc_rsvd_size;
 	u16 max_amsdu_limit;
 	bool dis_2g_40m_ul_ofdma;

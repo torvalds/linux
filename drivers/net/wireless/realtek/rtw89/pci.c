@@ -1003,10 +1003,10 @@ static u32 __rtw89_pci_check_and_reclaim_tx_resource(struct rtw89_dev *rtwdev,
 	min_cnt = min(bd_cnt, wd_cnt);
 	if (min_cnt == 0) {
 		/* This message can be frequently shown in low power mode or
-		 * high traffic with 8852B, and we have recognized it as normal
+		 * high traffic with small FIFO chips, and we have recognized it as normal
 		 * behavior, so print with mask RTW89_DBG_TXRX in these situations.
 		 */
-		if (rtwpci->low_power || chip->chip_id == RTL8852B)
+		if (rtwpci->low_power || chip->small_fifo_size)
 			debug_mask = RTW89_DBG_TXRX;
 		else
 			debug_mask = RTW89_DBG_UNEXP;
