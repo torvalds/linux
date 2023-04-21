@@ -1271,11 +1271,25 @@ error:
 	return -ENODEV;
 }
 
-/* Here we spill over 80 columns.  It is intentional.
- */
-static int sas_check_parent_topology(struct domain_device *child)
+static int sas_check_fanout_expander_topo(struct domain_device *child,
+					  struct ex_phy *parent_phy)
 {
 	struct expander_device *child_ex = &child->ex_dev;
+	struct ex_phy *child_phy;
+
+	child_phy = &child_ex->ex_phy[parent_phy->attached_phy_id];
+
+	if (parent_phy->routing_attr == TABLE_ROUTING &&
+	    child_phy->routing_attr == SUBTRACTIVE_ROUTING)
+		return 0;
+
+	sas_print_parent_topology_bug(child, parent_phy, child_phy);
+
+	return -ENODEV;
+}
+
+static int sas_check_parent_topology(struct domain_device *child)
+{
 	struct expander_device *parent_ex;
 	int i;
 	int res = 0;
@@ -1290,7 +1304,6 @@ static int sas_check_parent_topology(struct domain_device *child)
 
 	for (i = 0; i < parent_ex->num_phys; i++) {
 		struct ex_phy *parent_phy = &parent_ex->ex_phy[i];
-		struct ex_phy *child_phy;
 
 		if (parent_phy->phy_state == PHY_VACANT ||
 		    parent_phy->phy_state == PHY_NOT_PRESENT)
@@ -1299,19 +1312,14 @@ static int sas_check_parent_topology(struct domain_device *child)
 		if (!sas_phy_match_dev_addr(child, parent_phy))
 			continue;
 
-		child_phy = &child_ex->ex_phy[parent_phy->attached_phy_id];
-
 		switch (child->parent->dev_type) {
 		case SAS_EDGE_EXPANDER_DEVICE:
 			if (sas_check_edge_expander_topo(child, parent_phy))
 				res = -ENODEV;
 			break;
 		case SAS_FANOUT_EXPANDER_DEVICE:
-			if (parent_phy->routing_attr != TABLE_ROUTING ||
-			    child_phy->routing_attr != SUBTRACTIVE_ROUTING) {
-				sas_print_parent_topology_bug(child, parent_phy, child_phy);
+			if (sas_check_fanout_expander_topo(child, parent_phy))
 				res = -ENODEV;
-			}
 			break;
 		default:
 			break;
