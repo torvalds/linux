@@ -883,8 +883,6 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 
 	snd_emu1010_fpga_read(emu, EMU_HANA_OPTION_CARDS, &reg);
 	dev_info(emu->card->dev, "emu1010: Card options = 0x%x\n", reg);
-	snd_emu1010_fpga_read(emu, EMU_HANA_OPTION_CARDS, &reg);
-	dev_info(emu->card->dev, "emu1010: Card options = 0x%x\n", reg);
 	/* Optical -> ADAT I/O  */
 	/* 0 : SPDIF
 	 * 1 : ADAT
@@ -916,8 +914,6 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 	/* IRQ Enable: All off */
 	snd_emu1010_fpga_write(emu, EMU_HANA_IRQ_ENABLE, 0x00);
 
-	snd_emu1010_fpga_read(emu, EMU_HANA_OPTION_CARDS, &reg);
-	dev_info(emu->card->dev, "emu1010: Card options3 = 0x%x\n", reg);
 	/* Default WCLK set to 48kHz. */
 	snd_emu1010_fpga_write(emu, EMU_HANA_DEFCLOCK, 0x00);
 	/* Word Clock source, Internal 48kHz x1 */
@@ -1053,11 +1049,8 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 		EMU_DST_ALICE_I2S2_RIGHT, EMU_SRC_DOCK_ADC3_RIGHT1);
 	snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, 0x01); /* Unmute all */
 
-	snd_emu1010_fpga_read(emu, EMU_HANA_OPTION_CARDS, &tmp);
-
 	/* Initial boot complete. Now patches */
 
-	snd_emu1010_fpga_read(emu, EMU_HANA_OPTION_CARDS, &tmp);
 	snd_emu1010_fpga_write(emu, EMU_HANA_MIDI_IN, 0x19); /* MIDI Route */
 	snd_emu1010_fpga_write(emu, EMU_HANA_MIDI_OUT, 0x0c); /* Unknown */
 	snd_emu1010_fpga_write(emu, EMU_HANA_MIDI_IN, 0x19); /* MIDI Route */
