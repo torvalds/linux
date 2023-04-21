@@ -267,4 +267,7 @@ static inline bool hashmap__empty(struct hashmap *map)
 int pathname_concat(char *buf, int buf_sz, const char *path,
 		    const char *name);
 
+/* print netfilter bpf_link info */
+void netfilter_dump_plain(const struct bpf_link_info *info);
+void netfilter_dump_json(const struct bpf_link_info *info, json_writer_t *wtr);
 #endif
