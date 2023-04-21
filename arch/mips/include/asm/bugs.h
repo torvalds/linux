@@ -30,7 +30,7 @@ static inline void check_bugs_early(void)
 		check_bugs64_early();
 }
 
-static inline void check_bugs(void)
+static inline void __init check_bugs(void)
 {
 	unsigned int cpu = smp_processor_id();
 
