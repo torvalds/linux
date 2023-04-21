@@ -335,6 +335,20 @@ config HW_RANDOM_HISI
 
 	  If unsure, say Y.
 
+config HW_RANDOM_MSM_LEGACY
+	tristate "QTI MSM Random Number Generator support (LEGACY)"
+	depends on HW_RANDOM && ARCH_QCOM
+	select CRYPTO_AES
+	select CRYPTO_ECB
+	help
+	  This driver provides kernel-side support for the Random Number
+          Generator hardware found on QTI MSM SoCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called msm_rng.
+
+	  If unsure, say Y.
+
 config HW_RANDOM_ST
 	tristate "ST Microelectronics HW Random Number Generator support"
 	depends on HW_RANDOM && ARCH_STI
