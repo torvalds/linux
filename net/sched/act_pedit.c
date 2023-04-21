@@ -36,7 +36,7 @@ static const struct nla_policy pedit_key_ex_policy[TCA_PEDIT_KEY_EX_MAX + 1] = {
 };
 
 static struct tcf_pedit_key_ex *tcf_pedit_keys_ex_parse(struct nlattr *nla,
-							u8 n)
+							u8 n, struct netlink_ext_ack *extack)
 {
 	struct tcf_pedit_key_ex *keys_ex;
 	struct tcf_pedit_key_ex *k;
@@ -57,12 +57,14 @@ static struct tcf_pedit_key_ex *tcf_pedit_keys_ex_parse(struct nlattr *nla,
 		struct nlattr *tb[TCA_PEDIT_KEY_EX_MAX + 1];
 
 		if (!n) {
+			NL_SET_ERR_MSG_MOD(extack, "Can't parse more extended keys than requested");
 			err = -EINVAL;
 			goto err_out;
 		}
 		n--;
 
 		if (nla_type(ka) != TCA_PEDIT_KEY_EX) {
+			NL_SET_ERR_MSG_ATTR(extack, ka, "Unknown attribute, expected extended key");
 			err = -EINVAL;
 			goto err_out;
 		}
@@ -73,8 +75,14 @@ static struct tcf_pedit_key_ex *tcf_pedit_keys_ex_parse(struct nlattr *nla,
 		if (err)
 			goto err_out;
 
-		if (!tb[TCA_PEDIT_KEY_EX_HTYPE] ||
-		    !tb[TCA_PEDIT_KEY_EX_CMD]) {
+		if (NL_REQ_ATTR_CHECK(extack, nla, tb, TCA_PEDIT_KEY_EX_HTYPE)) {
+			NL_SET_ERR_MSG(extack, "Missing required attribute");
+			err = -EINVAL;
+			goto err_out;
+		}
+
+		if (NL_REQ_ATTR_CHECK(extack, nla, tb, TCA_PEDIT_KEY_EX_CMD)) {
+			NL_SET_ERR_MSG(extack, "Missing required attribute");
 			err = -EINVAL;
 			goto err_out;
 		}
@@ -86,6 +94,7 @@ static struct tcf_pedit_key_ex *tcf_pedit_keys_ex_parse(struct nlattr *nla,
 	}
 
 	if (n) {
+		NL_SET_ERR_MSG_MOD(extack, "Not enough extended keys to parse");
 		err = -EINVAL;
 		goto err_out;
 	}
@@ -217,7 +226,7 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 	}
 
 	nparms->tcfp_keys_ex =
-		tcf_pedit_keys_ex_parse(tb[TCA_PEDIT_KEYS_EX], parm->nkeys);
+		tcf_pedit_keys_ex_parse(tb[TCA_PEDIT_KEYS_EX], parm->nkeys, extack);
 	if (IS_ERR(nparms->tcfp_keys_ex)) {
 		ret = PTR_ERR(nparms->tcfp_keys_ex);
 		goto out_free;
