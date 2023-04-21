@@ -36,6 +36,7 @@
 #include "verifier_lwt.skel.h"
 #include "verifier_map_in_map.skel.h"
 #include "verifier_map_ptr.skel.h"
+#include "verifier_map_ptr_mixing.skel.h"
 #include "verifier_map_ret_val.skel.h"
 #include "verifier_masking.skel.h"
 #include "verifier_meta_access.skel.h"
@@ -122,6 +123,7 @@ void test_verifier_loops1(void)               { RUN(verifier_loops1); }
 void test_verifier_lwt(void)                  { RUN(verifier_lwt); }
 void test_verifier_map_in_map(void)           { RUN(verifier_map_in_map); }
 void test_verifier_map_ptr(void)              { RUN(verifier_map_ptr); }
+void test_verifier_map_ptr_mixing(void)       { RUN(verifier_map_ptr_mixing); }
 void test_verifier_map_ret_val(void)          { RUN(verifier_map_ret_val); }
 void test_verifier_masking(void)              { RUN(verifier_masking); }
 void test_verifier_meta_access(void)          { RUN(verifier_meta_access); }
