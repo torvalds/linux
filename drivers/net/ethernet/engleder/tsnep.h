@@ -70,6 +70,7 @@ struct tsnep_tx_entry {
 	union {
 		struct sk_buff *skb;
 		struct xdp_frame *xdpf;
+		bool zc;
 	};
 	size_t len;
 	DEFINE_DMA_UNMAP_ADDR(dma);
@@ -88,6 +89,7 @@ struct tsnep_tx {
 	int read;
 	u32 owner_counter;
 	int increment_owner_counter;
+	struct xsk_buff_pool *xsk_pool;
 
 	u32 packets;
 	u32 bytes;
