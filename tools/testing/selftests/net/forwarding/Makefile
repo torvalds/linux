@@ -15,6 +15,7 @@ TEST_PROGS = bridge_igmp.sh \
 	custom_multipath_hash.sh \
 	dual_vxlan_bridge.sh \
 	ethtool_extended_state.sh \
+	ethtool_mm.sh \
 	ethtool.sh \
 	gre_custom_multipath_hash.sh \
 	gre_inner_v4_multipath.sh \
