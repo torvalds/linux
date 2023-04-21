@@ -1402,11 +1402,15 @@ static int set_powered(struct sock *sk, struct hci_dev *hdev, void *data,
 	}
 
 	/* Cancel potentially blocking sync operation before power off */
-	if (cp->val == 0x00)
+	if (cp->val == 0x00) {
 		__hci_cmd_sync_cancel(hdev, -EHOSTDOWN);
-
-	err = hci_cmd_sync_queue(hdev, set_powered_sync, cmd,
-				 mgmt_set_powered_complete);
+		err = hci_cmd_sync_queue(hdev, set_powered_sync, cmd,
+					 mgmt_set_powered_complete);
+	} else {
+		/* Use hci_cmd_sync_submit since hdev might not be running */
+		err = hci_cmd_sync_submit(hdev, set_powered_sync, cmd,
+					  mgmt_set_powered_complete);
+	}
 
 	if (err < 0)
 		mgmt_pending_remove(cmd);
