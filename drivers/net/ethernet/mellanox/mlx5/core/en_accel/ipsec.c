@@ -252,6 +252,8 @@ static void mlx5e_ipsec_init_macs(struct mlx5e_ipsec_sa_entry *sa_entry,
 	struct net_device *netdev;
 	struct neighbour *n;
 	u8 addr[ETH_ALEN];
+	const void *pkey;
+	u8 *dst, *src;
 
 	if (attrs->mode != XFRM_MODE_TUNNEL ||
 	    attrs->type != XFRM_DEV_OFFLOAD_PACKET)
@@ -262,35 +264,30 @@ static void mlx5e_ipsec_init_macs(struct mlx5e_ipsec_sa_entry *sa_entry,
 	mlx5_query_mac_address(mdev, addr);
 	switch (attrs->dir) {
 	case XFRM_DEV_OFFLOAD_IN:
-		ether_addr_copy(attrs->dmac, addr);
-		n = neigh_lookup(&arp_tbl, &attrs->saddr.a4, netdev);
-		if (!n) {
-			n = neigh_create(&arp_tbl, &attrs->saddr.a4, netdev);
-			if (IS_ERR(n))
-				return;
-			neigh_event_send(n, NULL);
-			attrs->drop = true;
-			break;
-		}
-		neigh_ha_snapshot(addr, n, netdev);
-		ether_addr_copy(attrs->smac, addr);
+		src = attrs->dmac;
+		dst = attrs->smac;
+		pkey = &attrs->saddr.a4;
 		break;
 	case XFRM_DEV_OFFLOAD_OUT:
-		ether_addr_copy(attrs->smac, addr);
-		n = neigh_lookup(&arp_tbl, &attrs->daddr.a4, netdev);
-		if (!n) {
-			n = neigh_create(&arp_tbl, &attrs->daddr.a4, netdev);
-			if (IS_ERR(n))
-				return;
-			neigh_event_send(n, NULL);
-			attrs->drop = true;
-			break;
-		}
-		neigh_ha_snapshot(addr, n, netdev);
-		ether_addr_copy(attrs->dmac, addr);
+		src = attrs->smac;
+		dst = attrs->dmac;
+		pkey = &attrs->daddr.a4;
 		break;
 	default:
 		return;
+	}
+
+	ether_addr_copy(src, addr);
+	n = neigh_lookup(&arp_tbl, pkey, netdev);
+	if (!n) {
+		n = neigh_create(&arp_tbl, pkey, netdev);
+		if (IS_ERR(n))
+			return;
+		neigh_event_send(n, NULL);
+		attrs->drop = true;
+	} else {
+		neigh_ha_snapshot(addr, n, netdev);
+		ether_addr_copy(dst, addr);
 	}
 	neigh_release(n);
 }
@@ -708,11 +705,12 @@ err_hw_ctx:
 release_dwork:
 	kfree(sa_entry->dwork);
 release_work:
-	kfree(sa_entry->work->data);
+	if (sa_entry->work)
+		kfree(sa_entry->work->data);
 	kfree(sa_entry->work);
 err_xfrm:
 	kfree(sa_entry);
-	NL_SET_ERR_MSG_MOD(extack, "Device failed to offload this policy");
+	NL_SET_ERR_MSG_WEAK_MOD(extack, "Device failed to offload this state");
 	return err;
 }
 
@@ -752,7 +750,8 @@ static void mlx5e_xfrm_free_state(struct xfrm_state *x)
 	mlx5e_accel_ipsec_fs_del_rule(sa_entry);
 	mlx5_ipsec_free_sa_ctx(sa_entry);
 	kfree(sa_entry->dwork);
-	kfree(sa_entry->work->data);
+	if (sa_entry->work)
+		kfree(sa_entry->work->data);
 	kfree(sa_entry->work);
 sa_entry_free:
 	kfree(sa_entry);
