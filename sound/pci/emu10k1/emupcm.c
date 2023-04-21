@@ -76,23 +76,6 @@ static void snd_emu10k1_pcm_efx_interrupt(struct snd_emu10k1 *emu,
 	snd_pcm_period_elapsed(emu->pcm_capture_efx_substream);
 }	 
 
-static snd_pcm_uframes_t snd_emu10k1_efx_playback_pointer(struct snd_pcm_substream *substream)
-{
-	struct snd_emu10k1 *emu = snd_pcm_substream_chip(substream);
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_emu10k1_pcm *epcm = runtime->private_data;
-	unsigned int ptr;
-
-	if (!epcm->running)
-		return 0;
-	ptr = snd_emu10k1_ptr_read(emu, CCCA, epcm->voices[0]->number) & 0x00ffffff;
-	ptr += runtime->buffer_size;
-	ptr -= epcm->ccca_start_addr;
-	ptr %= runtime->buffer_size;
-
-	return ptr;
-}
-
 static int snd_emu10k1_pcm_channel_alloc(struct snd_emu10k1_pcm * epcm, int voices)
 {
 	int err, i;
@@ -1345,7 +1328,7 @@ static const struct snd_pcm_ops snd_emu10k1_efx_playback_ops = {
 	.hw_free =		snd_emu10k1_playback_hw_free,
 	.prepare =		snd_emu10k1_efx_playback_prepare,
 	.trigger =		snd_emu10k1_efx_playback_trigger,
-	.pointer =		snd_emu10k1_efx_playback_pointer,
+	.pointer =		snd_emu10k1_playback_pointer,
 };
 
 int snd_emu10k1_pcm(struct snd_emu10k1 *emu, int device)
