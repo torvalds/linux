@@ -265,7 +265,7 @@ static void tsnep_tx_ring_cleanup(struct tsnep_tx *tx)
 	}
 }
 
-static int tsnep_tx_ring_init(struct tsnep_tx *tx)
+static int tsnep_tx_ring_create(struct tsnep_tx *tx)
 {
 	struct device *dmadev = tx->adapter->dmadev;
 	struct tsnep_tx_entry *entry;
@@ -288,6 +288,7 @@ static int tsnep_tx_ring_init(struct tsnep_tx *tx)
 			entry->desc = (struct tsnep_tx_desc *)
 				(((u8 *)entry->desc_wb) + TSNEP_DESC_OFFSET);
 			entry->desc_dma = tx->page_dma[i] + TSNEP_DESC_SIZE * j;
+			entry->owner_user_flag = false;
 		}
 	}
 	for (i = 0; i < TSNEP_RING_SIZE; i++) {
@@ -301,6 +302,19 @@ static int tsnep_tx_ring_init(struct tsnep_tx *tx)
 alloc_failed:
 	tsnep_tx_ring_cleanup(tx);
 	return retval;
+}
+
+static void tsnep_tx_init(struct tsnep_tx *tx)
+{
+	dma_addr_t dma;
+
+	dma = tx->entry[0].desc_dma | TSNEP_RESET_OWNER_COUNTER;
+	iowrite32(DMA_ADDR_LOW(dma), tx->addr + TSNEP_TX_DESC_ADDR_LOW);
+	iowrite32(DMA_ADDR_HIGH(dma), tx->addr + TSNEP_TX_DESC_ADDR_HIGH);
+	tx->write = 0;
+	tx->read = 0;
+	tx->owner_counter = 1;
+	tx->increment_owner_counter = TSNEP_RING_SIZE - 1;
 }
 
 static void tsnep_tx_activate(struct tsnep_tx *tx, int index, int length,
@@ -731,26 +745,15 @@ static bool tsnep_tx_pending(struct tsnep_tx *tx)
 	return pending;
 }
 
-static int tsnep_tx_open(struct tsnep_adapter *adapter, void __iomem *addr,
-			 int queue_index, struct tsnep_tx *tx)
+static int tsnep_tx_open(struct tsnep_tx *tx)
 {
-	dma_addr_t dma;
 	int retval;
 
-	memset(tx, 0, sizeof(*tx));
-	tx->adapter = adapter;
-	tx->addr = addr;
-	tx->queue_index = queue_index;
-
-	retval = tsnep_tx_ring_init(tx);
+	retval = tsnep_tx_ring_create(tx);
 	if (retval)
 		return retval;
 
-	dma = tx->entry[0].desc_dma | TSNEP_RESET_OWNER_COUNTER;
-	iowrite32(DMA_ADDR_LOW(dma), tx->addr + TSNEP_TX_DESC_ADDR_LOW);
-	iowrite32(DMA_ADDR_HIGH(dma), tx->addr + TSNEP_TX_DESC_ADDR_HIGH);
-	tx->owner_counter = 1;
-	tx->increment_owner_counter = TSNEP_RING_SIZE - 1;
+	tsnep_tx_init(tx);
 
 	return 0;
 }
@@ -795,7 +798,7 @@ static void tsnep_rx_ring_cleanup(struct tsnep_rx *rx)
 	}
 }
 
-static int tsnep_rx_ring_init(struct tsnep_rx *rx)
+static int tsnep_rx_ring_create(struct tsnep_rx *rx)
 {
 	struct device *dmadev = rx->adapter->dmadev;
 	struct tsnep_rx_entry *entry;
@@ -848,6 +851,19 @@ static int tsnep_rx_ring_init(struct tsnep_rx *rx)
 failed:
 	tsnep_rx_ring_cleanup(rx);
 	return retval;
+}
+
+static void tsnep_rx_init(struct tsnep_rx *rx)
+{
+	dma_addr_t dma;
+
+	dma = rx->entry[0].desc_dma | TSNEP_RESET_OWNER_COUNTER;
+	iowrite32(DMA_ADDR_LOW(dma), rx->addr + TSNEP_RX_DESC_ADDR_LOW);
+	iowrite32(DMA_ADDR_HIGH(dma), rx->addr + TSNEP_RX_DESC_ADDR_HIGH);
+	rx->write = 0;
+	rx->read = 0;
+	rx->owner_counter = 1;
+	rx->increment_owner_counter = TSNEP_RING_SIZE - 1;
 }
 
 static int tsnep_rx_desc_available(struct tsnep_rx *rx)
@@ -1181,26 +1197,15 @@ static bool tsnep_rx_pending(struct tsnep_rx *rx)
 	return false;
 }
 
-static int tsnep_rx_open(struct tsnep_adapter *adapter, void __iomem *addr,
-			 int queue_index, struct tsnep_rx *rx)
+static int tsnep_rx_open(struct tsnep_rx *rx)
 {
-	dma_addr_t dma;
 	int retval;
 
-	memset(rx, 0, sizeof(*rx));
-	rx->adapter = adapter;
-	rx->addr = addr;
-	rx->queue_index = queue_index;
-
-	retval = tsnep_rx_ring_init(rx);
+	retval = tsnep_rx_ring_create(rx);
 	if (retval)
 		return retval;
 
-	dma = rx->entry[0].desc_dma | TSNEP_RESET_OWNER_COUNTER;
-	iowrite32(DMA_ADDR_LOW(dma), rx->addr + TSNEP_RX_DESC_ADDR_LOW);
-	iowrite32(DMA_ADDR_HIGH(dma), rx->addr + TSNEP_RX_DESC_ADDR_HIGH);
-	rx->owner_counter = 1;
-	rx->increment_owner_counter = TSNEP_RING_SIZE - 1;
+	tsnep_rx_init(rx);
 
 	tsnep_rx_refill(rx, tsnep_rx_desc_available(rx), false);
 
@@ -1335,8 +1340,6 @@ static int tsnep_queue_open(struct tsnep_adapter *adapter,
 	struct tsnep_tx *tx = queue->tx;
 	int retval;
 
-	queue->adapter = adapter;
-
 	netif_napi_add(adapter->netdev, &queue->napi, tsnep_poll);
 
 	if (rx) {
@@ -1377,27 +1380,18 @@ failed:
 static int tsnep_netdev_open(struct net_device *netdev)
 {
 	struct tsnep_adapter *adapter = netdev_priv(netdev);
-	int tx_queue_index = 0;
-	int rx_queue_index = 0;
-	void __iomem *addr;
 	int i, retval;
 
 	for (i = 0; i < adapter->num_queues; i++) {
 		if (adapter->queue[i].tx) {
-			addr = adapter->addr + TSNEP_QUEUE(tx_queue_index);
-			retval = tsnep_tx_open(adapter, addr, tx_queue_index,
-					       adapter->queue[i].tx);
+			retval = tsnep_tx_open(adapter->queue[i].tx);
 			if (retval)
 				goto failed;
-			tx_queue_index++;
 		}
 		if (adapter->queue[i].rx) {
-			addr = adapter->addr + TSNEP_QUEUE(rx_queue_index);
-			retval = tsnep_rx_open(adapter, addr, rx_queue_index,
-					       adapter->queue[i].rx);
+			retval = tsnep_rx_open(adapter->queue[i].rx);
 			if (retval)
 				goto failed;
-			rx_queue_index++;
 		}
 
 		retval = tsnep_queue_open(adapter, &adapter->queue[i], i == 0);
@@ -1796,9 +1790,16 @@ static int tsnep_queue_init(struct tsnep_adapter *adapter, int queue_count)
 	adapter->num_tx_queues = 1;
 	adapter->num_rx_queues = 1;
 	adapter->num_queues = 1;
+	adapter->queue[0].adapter = adapter;
 	adapter->queue[0].irq = retval;
 	adapter->queue[0].tx = &adapter->tx[0];
+	adapter->queue[0].tx->adapter = adapter;
+	adapter->queue[0].tx->addr = adapter->addr + TSNEP_QUEUE(0);
+	adapter->queue[0].tx->queue_index = 0;
 	adapter->queue[0].rx = &adapter->rx[0];
+	adapter->queue[0].rx->adapter = adapter;
+	adapter->queue[0].rx->addr = adapter->addr + TSNEP_QUEUE(0);
+	adapter->queue[0].rx->queue_index = 0;
 	adapter->queue[0].irq_mask = irq_mask;
 	adapter->queue[0].irq_delay_addr = adapter->addr + ECM_INT_DELAY;
 	retval = tsnep_set_irq_coalesce(&adapter->queue[0],
@@ -1820,9 +1821,16 @@ static int tsnep_queue_init(struct tsnep_adapter *adapter, int queue_count)
 		adapter->num_tx_queues++;
 		adapter->num_rx_queues++;
 		adapter->num_queues++;
+		adapter->queue[i].adapter = adapter;
 		adapter->queue[i].irq = retval;
 		adapter->queue[i].tx = &adapter->tx[i];
+		adapter->queue[i].tx->adapter = adapter;
+		adapter->queue[i].tx->addr = adapter->addr + TSNEP_QUEUE(i);
+		adapter->queue[i].tx->queue_index = i;
 		adapter->queue[i].rx = &adapter->rx[i];
+		adapter->queue[i].rx->adapter = adapter;
+		adapter->queue[i].rx->addr = adapter->addr + TSNEP_QUEUE(i);
+		adapter->queue[i].rx->queue_index = i;
 		adapter->queue[i].irq_mask =
 			irq_mask << (ECM_INT_TXRX_SHIFT * i);
 		adapter->queue[i].irq_delay_addr =
