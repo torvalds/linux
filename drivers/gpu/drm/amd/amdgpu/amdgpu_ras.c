@@ -356,8 +356,12 @@ static void amdgpu_ras_instance_mask_check(struct amdgpu_device *adev,
 	case AMDGPU_RAS_BLOCK__SDMA:
 		mask = GENMASK(adev->sdma.num_instances - 1, 0);
 		break;
+	case AMDGPU_RAS_BLOCK__VCN:
+	case AMDGPU_RAS_BLOCK__JPEG:
+		mask = GENMASK(adev->vcn.num_vcn_inst - 1, 0);
+		break;
 	default:
-		mask = 0;
+		mask = inst_mask;
 		break;
 	}
 
