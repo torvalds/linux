@@ -166,6 +166,7 @@ int bpf_nf_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 }
 
 const struct bpf_prog_ops netfilter_prog_ops = {
+	.test_run = bpf_prog_test_run_nf,
 };
 
 static bool nf_ptr_to_btf_id(struct bpf_insn_access_aux *info, const char *name)
