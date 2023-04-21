@@ -2343,27 +2343,29 @@ void rtw89_phy_c2h_handle(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 
 static u8 rtw89_phy_cfo_get_xcap_reg(struct rtw89_dev *rtwdev, bool sc_xo)
 {
+	const struct rtw89_xtal_info *xtal = rtwdev->chip->xtal_info;
 	u32 reg_mask;
 
 	if (sc_xo)
-		reg_mask = B_AX_XTAL_SC_XO_MASK;
+		reg_mask = xtal->sc_xo_mask;
 	else
-		reg_mask = B_AX_XTAL_SC_XI_MASK;
+		reg_mask = xtal->sc_xi_mask;
 
-	return (u8)rtw89_read32_mask(rtwdev, R_AX_XTAL_ON_CTRL0, reg_mask);
+	return (u8)rtw89_read32_mask(rtwdev, xtal->xcap_reg, reg_mask);
 }
 
 static void rtw89_phy_cfo_set_xcap_reg(struct rtw89_dev *rtwdev, bool sc_xo,
 				       u8 val)
 {
+	const struct rtw89_xtal_info *xtal = rtwdev->chip->xtal_info;
 	u32 reg_mask;
 
 	if (sc_xo)
-		reg_mask = B_AX_XTAL_SC_XO_MASK;
+		reg_mask = xtal->sc_xo_mask;
 	else
-		reg_mask = B_AX_XTAL_SC_XI_MASK;
+		reg_mask = xtal->sc_xi_mask;
 
-	rtw89_write32_mask(rtwdev, R_AX_XTAL_ON_CTRL0, reg_mask, val);
+	rtw89_write32_mask(rtwdev, xtal->xcap_reg, reg_mask, val);
 }
 
 static void rtw89_phy_cfo_set_crystal_cap(struct rtw89_dev *rtwdev,
@@ -2376,7 +2378,7 @@ static void rtw89_phy_cfo_set_crystal_cap(struct rtw89_dev *rtwdev,
 	if (!force && cfo->crystal_cap == crystal_cap)
 		return;
 	crystal_cap = clamp_t(u8, crystal_cap, 0, 127);
-	if (chip->chip_id == RTL8852A) {
+	if (chip->chip_id == RTL8852A || chip->chip_id == RTL8851B) {
 		rtw89_phy_cfo_set_xcap_reg(rtwdev, true, crystal_cap);
 		rtw89_phy_cfo_set_xcap_reg(rtwdev, false, crystal_cap);
 		sc_xo_val = rtw89_phy_cfo_get_xcap_reg(rtwdev, true);

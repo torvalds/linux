@@ -463,6 +463,12 @@ static const struct rtw89_imr_info rtw8852a_imr_info = {
 	.tmac_imr_set		= B_AX_TMAC_IMR_SET,
 };
 
+static const struct rtw89_xtal_info rtw8852a_xtal_info = {
+	.xcap_reg		= R_AX_XTAL_ON_CTRL0,
+	.sc_xo_mask		= B_AX_XTAL_SC_XO_MASK,
+	.sc_xi_mask		= B_AX_XTAL_SC_XI_MASK,
+};
+
 static const struct rtw89_rrsr_cfgs rtw8852a_rrsr_cfgs = {
 	.ref_rate = {R_AX_TRXPTCL_RRSR_CTL_0, B_AX_WMAC_RESP_REF_RATE_SEL, 0},
 	.rsc = {R_AX_TRXPTCL_RRSR_CTL_0, B_AX_WMAC_RESP_RSC_MASK, 2},
@@ -2160,6 +2166,7 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 #ifdef CONFIG_PM
 	.wowlan_stub		= &rtw_wowlan_stub_8852a,
 #endif
+	.xtal_info		= &rtw8852a_xtal_info,
 };
 EXPORT_SYMBOL(rtw8852a_chip_info);
 

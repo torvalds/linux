@@ -18,6 +18,12 @@
 #define RTW8851B_MODULE_FIRMWARE \
 	RTW8851B_FW_BASENAME ".bin"
 
+static const struct rtw89_xtal_info rtw8851b_xtal_info = {
+	.xcap_reg		= R_AX_XTAL_ON_CTRL3,
+	.sc_xo_mask		= B_AX_XTAL_SC_XO_A_BLOCK_MASK,
+	.sc_xi_mask		= B_AX_XTAL_SC_XI_A_BLOCK_MASK,
+};
+
 static const struct rtw89_chip_ops rtw8851b_chip_ops = {
 	.fem_setup		= NULL,
 	.fill_txdesc		= rtw89_core_fill_txdesc,
@@ -94,6 +100,7 @@ const struct rtw89_chip_info rtw8851b_chip_info = {
 				  BIT(RTW89_DMA_ACH6) | BIT(RTW89_DMA_ACH7) |
 				  BIT(RTW89_DMA_B1MG) | BIT(RTW89_DMA_B1HI),
 	.edcca_lvl_reg		= R_SEG0R_EDCCA_LVL_V1,
+	.xtal_info		= &rtw8851b_xtal_info,
 };
 EXPORT_SYMBOL(rtw8851b_chip_info);
 
