@@ -86,6 +86,7 @@ static const struct regmap_config dio48e_regmap_config = {
 	.volatile_table = &dio48e_volatile_table,
 	.precious_table = &dio48e_precious_table,
 	.cache_type = REGCACHE_FLAT,
+	.use_raw_spinlock = true,
 };
 
 /* only bit 3 on each respective Port C supports interrupts */
