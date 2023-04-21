@@ -3618,6 +3618,7 @@ int amdgpu_psp_sysfs_init(struct amdgpu_device *adev)
 	switch (adev->ip_versions[MP0_HWIP][0]) {
 	case IP_VERSION(13, 0, 0):
 	case IP_VERSION(13, 0, 7):
+	case IP_VERSION(13, 0, 10):
 		if (!psp->adev) {
 			psp->adev = adev;
 			psp_v13_0_set_psp_funcs(psp);
