@@ -217,6 +217,10 @@ int inode_has_buffers(struct inode *);
 void invalidate_inode_buffers(struct inode *);
 int remove_inode_buffers(struct inode *inode);
 int sync_mapping_buffers(struct address_space *mapping);
+int generic_buffers_fsync_noflush(struct file *file, loff_t start, loff_t end,
+				  bool datasync);
+int generic_buffers_fsync(struct file *file, loff_t start, loff_t end,
+			  bool datasync);
 void clean_bdev_aliases(struct block_device *bdev, sector_t block,
 			sector_t len);
 static inline void clean_bdev_bh_alias(struct buffer_head *bh)
