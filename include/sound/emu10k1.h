@@ -1735,8 +1735,6 @@ struct snd_emu10k1 {
 	spinlock_t i2c_lock; /* serialises access to i2c port */
 
 	struct snd_emu10k1_voice voices[NUM_G];
-	struct snd_emu10k1_voice p16v_voices[4];
-	struct snd_emu10k1_voice p16v_capture_voice;
 	int p16v_device_offset;
 	u32 p16v_capture_source;
 	u32 p16v_capture_channel;
@@ -1756,6 +1754,7 @@ struct snd_emu10k1 {
 	void (*capture_efx_interrupt)(struct snd_emu10k1 *emu, unsigned int status);
 	void (*spdif_interrupt)(struct snd_emu10k1 *emu, unsigned int status);
 	void (*dsp_interrupt)(struct snd_emu10k1 *emu);
+	void (*p16v_interrupt)(struct snd_emu10k1 *emu);
 
 	struct snd_pcm_substream *pcm_capture_substream;
 	struct snd_pcm_substream *pcm_capture_mic_substream;
