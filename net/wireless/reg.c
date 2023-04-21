@@ -3827,7 +3827,7 @@ static int reg_set_rd_driver(const struct ieee80211_regdomain *rd,
 {
 	const struct ieee80211_regdomain *regd;
 	const struct ieee80211_regdomain *intersected_rd = NULL;
-	const struct ieee80211_regdomain *tmp;
+	const struct ieee80211_regdomain *tmp = NULL;
 	struct wiphy *request_wiphy;
 
 	if (is_world_regdom(rd->alpha2))
@@ -3850,10 +3850,8 @@ static int reg_set_rd_driver(const struct ieee80211_regdomain *rd,
 	if (!driver_request->intersect) {
 		ASSERT_RTNL();
 		wiphy_lock(request_wiphy);
-		if (request_wiphy->regd) {
-			wiphy_unlock(request_wiphy);
-			return -EALREADY;
-		}
+		if (request_wiphy->regd)
+			tmp = get_wiphy_regdom(request_wiphy);
 
 		regd = reg_copy_regd(rd);
 		if (IS_ERR(regd)) {
@@ -3862,6 +3860,7 @@ static int reg_set_rd_driver(const struct ieee80211_regdomain *rd,
 		}
 
 		rcu_assign_pointer(request_wiphy->regd, regd);
+		rcu_free_regdom(tmp);
 		wiphy_unlock(request_wiphy);
 		reset_regdomains(false, rd);
 		return 0;
