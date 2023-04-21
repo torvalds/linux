@@ -2445,7 +2445,9 @@ static int update_invalid_user_pages(struct amdkfd_process_info *process_info,
 			ret = -EAGAIN;
 			goto unlock_out;
 		}
-		mem->invalid = 0;
+		 /* set mem valid if mem has hmm range associated */
+		if (mem->range)
+			mem->invalid = 0;
 	}
 
 unlock_out:
@@ -2577,8 +2579,15 @@ static int confirm_valid_user_pages_locked(struct amdkfd_process_info *process_i
 	list_for_each_entry_safe(mem, tmp_mem,
 				 &process_info->userptr_inval_list,
 				 validate_list.head) {
-		bool valid = amdgpu_ttm_tt_get_user_pages_done(
-				mem->bo->tbo.ttm, mem->range);
+		bool valid;
+
+		/* keep mem without hmm range at userptr_inval_list */
+		if (!mem->range)
+			 continue;
+
+		/* Only check mem with hmm range associated */
+		valid = amdgpu_ttm_tt_get_user_pages_done(
+					mem->bo->tbo.ttm, mem->range);
 
 		mem->range = NULL;
 		if (!valid) {
@@ -2586,7 +2595,12 @@ static int confirm_valid_user_pages_locked(struct amdkfd_process_info *process_i
 			ret = -EAGAIN;
 			continue;
 		}
-		WARN(mem->invalid, "Valid BO is marked invalid");
+
+		if (mem->invalid) {
+			WARN(1, "Valid BO is marked invalid");
+			ret = -EAGAIN;
+			continue;
+		}
 
 		list_move_tail(&mem->validate_list.head,
 			       &process_info->userptr_valid_list);
