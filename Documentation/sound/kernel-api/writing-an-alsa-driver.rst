@@ -1577,14 +1577,19 @@ are the contents of this file:
           unsigned int period_step;
           unsigned int sleep_min;		/* min ticks to sleep */
           snd_pcm_uframes_t start_threshold;
-          snd_pcm_uframes_t stop_threshold;
-          snd_pcm_uframes_t silence_threshold; /* Silence filling happens when
-                                                  noise is nearest than this */
-          snd_pcm_uframes_t silence_size;	/* Silence filling size */
+          /*
+           * The following two thresholds alleviate playback buffer underruns; when
+           * hw_avail drops below the threshold, the respective action is triggered:
+           */
+          snd_pcm_uframes_t stop_threshold;	/* - stop playback */
+          snd_pcm_uframes_t silence_threshold;	/* - pre-fill buffer with silence */
+          snd_pcm_uframes_t silence_size;       /* max size of silence pre-fill; when >= boundary,
+                                                 * fill played area with silence immediately */
           snd_pcm_uframes_t boundary;	/* pointers wrap point */
   
-          snd_pcm_uframes_t silenced_start;
-          snd_pcm_uframes_t silenced_size;
+          /* internal data of auto-silencer */
+          snd_pcm_uframes_t silence_start; /* starting pointer to silence area */
+          snd_pcm_uframes_t silence_filled; /* size filled with silence */
   
           snd_pcm_sync_id_t sync;		/* hardware synchronization ID */
   
