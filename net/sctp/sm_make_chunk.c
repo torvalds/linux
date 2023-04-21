@@ -1707,11 +1707,11 @@ static struct sctp_cookie_param *sctp_pack_cookie(
 					 ktime_get_real());
 
 	/* Copy the peer's init packet.  */
-	memcpy(&cookie->c.peer_init[0], init_chunk->chunk_hdr,
+	memcpy(cookie + 1, init_chunk->chunk_hdr,
 	       ntohs(init_chunk->chunk_hdr->length));
 
 	/* Copy the raw local address list of the association. */
-	memcpy((__u8 *)&cookie->c.peer_init[0] +
+	memcpy((__u8 *)(cookie + 1) +
 	       ntohs(init_chunk->chunk_hdr->length), raw_addrs, addrs_len);
 
 	if (sctp_sk(ep->base.sk)->hmac) {
@@ -2306,7 +2306,7 @@ int sctp_verify_init(struct net *net, const struct sctp_endpoint *ep,
 	    ntohl(peer_init->init_hdr.a_rwnd) < SCTP_DEFAULT_MINWINDOW)
 		return sctp_process_inv_mandatory(asoc, chunk, errp);
 
-	sctp_walk_params(param, peer_init, init_hdr.params) {
+	sctp_walk_params(param, peer_init) {
 		if (param.p->type == SCTP_PARAM_STATE_COOKIE)
 			has_cookie = true;
 	}
@@ -2329,7 +2329,7 @@ int sctp_verify_init(struct net *net, const struct sctp_endpoint *ep,
 						  chunk, errp);
 
 	/* Verify all the variable length parameters */
-	sctp_walk_params(param, peer_init, init_hdr.params) {
+	sctp_walk_params(param, peer_init) {
 		result = sctp_verify_param(net, ep, asoc, param, cid,
 					   chunk, errp);
 		switch (result) {
@@ -2381,7 +2381,7 @@ int sctp_process_init(struct sctp_association *asoc, struct sctp_chunk *chunk,
 		src_match = 1;
 
 	/* Process the initialization parameters.  */
-	sctp_walk_params(param, peer_init, init_hdr.params) {
+	sctp_walk_params(param, peer_init) {
 		if (!src_match &&
 		    (param.p->type == SCTP_PARAM_IPV4_ADDRESS ||
 		     param.p->type == SCTP_PARAM_IPV6_ADDRESS)) {
@@ -3202,7 +3202,7 @@ bool sctp_verify_asconf(const struct sctp_association *asoc,
 	union sctp_params param;
 
 	addip = (struct sctp_addip_chunk *)chunk->chunk_hdr;
-	sctp_walk_params(param, addip, addip_hdr.params) {
+	sctp_walk_params(param, addip) {
 		size_t length = ntohs(param.p->length);
 
 		*errp = param.p;
@@ -3215,14 +3215,14 @@ bool sctp_verify_asconf(const struct sctp_association *asoc,
 			/* ensure there is only one addr param and it's in the
 			 * beginning of addip_hdr params, or we reject it.
 			 */
-			if (param.v != addip->addip_hdr.params)
+			if (param.v != (addip + 1))
 				return false;
 			addr_param_seen = true;
 			break;
 		case SCTP_PARAM_IPV6_ADDRESS:
 			if (length != sizeof(struct sctp_ipv6addr_param))
 				return false;
-			if (param.v != addip->addip_hdr.params)
+			if (param.v != (addip + 1))
 				return false;
 			addr_param_seen = true;
 			break;
@@ -3302,7 +3302,7 @@ struct sctp_chunk *sctp_process_asconf(struct sctp_association *asoc,
 		goto done;
 
 	/* Process the TLVs contained within the ASCONF chunk. */
-	sctp_walk_params(param, addip, addip_hdr.params) {
+	sctp_walk_params(param, addip) {
 		/* Skip preceeding address parameters. */
 		if (param.p->type == SCTP_PARAM_IPV4_ADDRESS ||
 		    param.p->type == SCTP_PARAM_IPV6_ADDRESS)
@@ -3636,7 +3636,7 @@ static struct sctp_chunk *sctp_make_reconf(const struct sctp_association *asoc,
 		return NULL;
 
 	reconf = (struct sctp_reconf_chunk *)retval->chunk_hdr;
-	retval->param_hdr.v = reconf->params;
+	retval->param_hdr.v = (u8 *)(reconf + 1);
 
 	return retval;
 }
@@ -3878,7 +3878,7 @@ bool sctp_verify_reconf(const struct sctp_association *asoc,
 	__u16 cnt = 0;
 
 	hdr = (struct sctp_reconf_chunk *)chunk->chunk_hdr;
-	sctp_walk_params(param, hdr, params) {
+	sctp_walk_params(param, hdr) {
 		__u16 length = ntohs(param.p->length);
 
 		*errp = param.p;

@@ -1153,8 +1153,8 @@ static void sctp_generate_iftsn(struct sctp_outq *q, __u32 ctsn)
 }
 
 #define _sctp_walk_ifwdtsn(pos, chunk, end) \
-	for (pos = chunk->subh.ifwdtsn_hdr->skip; \
-	     (void *)pos <= (void *)chunk->subh.ifwdtsn_hdr->skip + (end) - \
+	for (pos = (void *)(chunk->subh.ifwdtsn_hdr + 1); \
+	     (void *)pos <= (void *)(chunk->subh.ifwdtsn_hdr + 1) + (end) - \
 			    sizeof(struct sctp_ifwdtsn_skip); pos++)
 
 #define sctp_walk_ifwdtsn(pos, ch) \
