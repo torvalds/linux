@@ -4603,10 +4603,10 @@ static void napi_schedule_rps(struct softnet_data *sd)
 		sd->rps_ipi_next = mysd->rps_ipi_list;
 		mysd->rps_ipi_list = sd;
 
-		/* If not called from net_rx_action()
+		/* If not called from net_rx_action() or napi_threaded_poll()
 		 * we have to raise NET_RX_SOFTIRQ.
 		 */
-		if (!mysd->in_net_rx_action)
+		if (!mysd->in_net_rx_action && !mysd->in_napi_threaded_poll)
 			__raise_softirq_irqoff(NET_RX_SOFTIRQ);
 		return;
 	}
@@ -6631,11 +6631,19 @@ static int napi_threaded_poll(void *data)
 
 			local_bh_disable();
 			sd = this_cpu_ptr(&softnet_data);
+			sd->in_napi_threaded_poll = true;
 
 			have = netpoll_poll_lock(napi);
 			__napi_poll(napi, &repoll);
 			netpoll_poll_unlock(have);
 
+			sd->in_napi_threaded_poll = false;
+			barrier();
+
+			if (sd_has_rps_ipi_waiting(sd)) {
+				local_irq_disable();
+				net_rps_action_and_irq_enable(sd);
+			}
 			skb_defer_free_flush(sd);
 			local_bh_enable();
 
