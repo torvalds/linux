@@ -113,6 +113,7 @@
 	msmc_l3: l3-cache0 {
 		compatible = "cache";
 		cache-level = <3>;
+		cache-unified;
 	};
 
 	thermal_zones: thermal-zones {
