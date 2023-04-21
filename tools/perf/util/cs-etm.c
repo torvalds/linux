@@ -291,6 +291,25 @@ static int cs_etm__metadata_set_trace_id(u8 trace_chan_id, u64 *cpu_metadata)
 	})
 
 /*
+ * Get a metadata for a specific cpu from an array.
+ *
+ */
+static u64 *get_cpu_data(struct cs_etm_auxtrace *etm, int cpu)
+{
+	int i;
+	u64 *metadata = NULL;
+
+	for (i = 0; i < etm->num_cpu; i++) {
+		if (etm->metadata[i][CS_ETM_CPU] == (u64)cpu) {
+			metadata = etm->metadata[i];
+			break;
+		}
+	}
+
+	return metadata;
+}
+
+/*
  * Handle the PERF_RECORD_AUX_OUTPUT_HW_ID event.
  *
  * The payload associates the Trace ID and the CPU.
@@ -359,8 +378,11 @@ static int cs_etm__process_aux_output_hw_id(struct perf_session *session,
 		return 0;
 	}
 
+	cpu_data = get_cpu_data(etm, cpu);
+	if (cpu_data == NULL)
+		return err;
+
 	/* not one we've seen before - lets map it */
-	cpu_data = etm->metadata[cpu];
 	err = cs_etm__map_trace_id(trace_chan_id, cpu_data);
 	if (err)
 		return err;
