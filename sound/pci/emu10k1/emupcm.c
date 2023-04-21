@@ -433,36 +433,6 @@ static int snd_emu10k1_playback_hw_free(struct snd_pcm_substream *substream)
 	struct snd_emu10k1 *emu = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_emu10k1_pcm *epcm;
-
-	if (runtime->private_data == NULL)
-		return 0;
-	epcm = runtime->private_data;
-	if (epcm->extra) {
-		snd_emu10k1_voice_free(epcm->emu, epcm->extra);
-		epcm->extra = NULL;
-	}
-	if (epcm->voices[1]) {
-		snd_emu10k1_voice_free(epcm->emu, epcm->voices[1]);
-		epcm->voices[1] = NULL;
-	}
-	if (epcm->voices[0]) {
-		snd_emu10k1_voice_free(epcm->emu, epcm->voices[0]);
-		epcm->voices[0] = NULL;
-	}
-	if (epcm->memblk) {
-		snd_emu10k1_free_pages(emu, epcm->memblk);
-		epcm->memblk = NULL;
-		epcm->start_addr = 0;
-	}
-	snd_pcm_lib_free_pages(substream);
-	return 0;
-}
-
-static int snd_emu10k1_efx_playback_hw_free(struct snd_pcm_substream *substream)
-{
-	struct snd_emu10k1 *emu = snd_pcm_substream_chip(substream);
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_emu10k1_pcm *epcm;
 	int i;
 
 	if (runtime->private_data == NULL)
@@ -1372,7 +1342,7 @@ static const struct snd_pcm_ops snd_emu10k1_efx_playback_ops = {
 	.open =			snd_emu10k1_efx_playback_open,
 	.close =		snd_emu10k1_efx_playback_close,
 	.hw_params =		snd_emu10k1_playback_hw_params,
-	.hw_free =		snd_emu10k1_efx_playback_hw_free,
+	.hw_free =		snd_emu10k1_playback_hw_free,
 	.prepare =		snd_emu10k1_efx_playback_prepare,
 	.trigger =		snd_emu10k1_efx_playback_trigger,
 	.pointer =		snd_emu10k1_efx_playback_pointer,
