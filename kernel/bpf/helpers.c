@@ -1925,7 +1925,7 @@ __bpf_kfunc void *bpf_refcount_acquire_impl(void *p__refcounted_kptr, void *meta
 	/* Could just cast directly to refcount_t *, but need some code using
 	 * bpf_refcount type so that it is emitted in vmlinux BTF
 	 */
-	ref = (struct bpf_refcount *)p__refcounted_kptr + meta->record->refcount_off;
+	ref = (struct bpf_refcount *)(p__refcounted_kptr + meta->record->refcount_off);
 
 	refcount_inc((refcount_t *)ref);
 	return (void *)p__refcounted_kptr;
