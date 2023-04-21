@@ -2137,6 +2137,19 @@ static bool vop2_output_uv_swap(uint32_t bus_format, uint32_t output_mode)
 		return false;
 }
 
+static bool vop3_output_rb_swap(uint32_t bus_format, uint32_t output_mode)
+{
+	/*
+	 * The default component order of serial rgb3x8 formats
+	 * is BGR. So it is needed to enable RB swap.
+	 */
+	if (bus_format == MEDIA_BUS_FMT_RGB888_3X8 ||
+	    bus_format == MEDIA_BUS_FMT_RGB888_DUMMY_4X8)
+		return true;
+	else
+		return false;
+}
+
 static bool vop2_output_yc_swap(uint32_t bus_format)
 {
 	switch (bus_format) {
@@ -7233,7 +7246,8 @@ static void vop2_post_color_swap(struct drm_crtc *crtc)
 	u32 output_if = vcstate->output_if;
 	u32 data_swap = 0;
 
-	if (vop2_output_uv_swap(vcstate->bus_format, vcstate->output_mode))
+	if (vop2_output_uv_swap(vcstate->bus_format, vcstate->output_mode) ||
+	    vop3_output_rb_swap(vcstate->bus_format, vcstate->output_mode))
 		data_swap = DSP_RB_SWAP;
 
 	if (vop2->version == VOP_VERSION_RK3588 &&
