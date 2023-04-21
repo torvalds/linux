@@ -25,7 +25,8 @@ void rtmsg_ifinfo_newnet(int type, struct net_device *dev, unsigned int change,
 struct sk_buff *rtmsg_ifinfo_build_skb(int type, struct net_device *dev,
 				       unsigned change, u32 event,
 				       gfp_t flags, int *new_nsid,
-				       int new_ifindex, u32 portid, u32 seq);
+				       int new_ifindex, u32 portid,
+				       const struct nlmsghdr *nlh);
 void rtmsg_ifinfo_send(struct sk_buff *skb, struct net_device *dev,
 		       gfp_t flags, u32 portid, const struct nlmsghdr *nlh);
 

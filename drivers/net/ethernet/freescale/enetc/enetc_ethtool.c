@@ -370,8 +370,7 @@ static const struct ethtool_rmon_hist_range enetc_rmon_ranges[] = {
 };
 
 static void enetc_rmon_stats(struct enetc_hw *hw, int mac,
-			     struct ethtool_rmon_stats *s,
-			     const struct ethtool_rmon_hist_range **ranges)
+			     struct ethtool_rmon_stats *s)
 {
 	s->undersize_pkts = enetc_port_rd(hw, ENETC_PM_RUND(mac));
 	s->oversize_pkts = enetc_port_rd(hw, ENETC_PM_ROVR(mac));
@@ -393,8 +392,6 @@ static void enetc_rmon_stats(struct enetc_hw *hw, int mac,
 	s->hist_tx[4] = enetc_port_rd(hw, ENETC_PM_T1023(mac));
 	s->hist_tx[5] = enetc_port_rd(hw, ENETC_PM_T1522(mac));
 	s->hist_tx[6] = enetc_port_rd(hw, ENETC_PM_T1523X(mac));
-
-	*ranges = enetc_rmon_ranges;
 }
 
 static void enetc_get_eth_mac_stats(struct net_device *ndev,
@@ -447,13 +444,15 @@ static void enetc_get_rmon_stats(struct net_device *ndev,
 	struct enetc_hw *hw = &priv->si->hw;
 	struct enetc_si *si = priv->si;
 
+	*ranges = enetc_rmon_ranges;
+
 	switch (rmon_stats->src) {
 	case ETHTOOL_MAC_STATS_SRC_EMAC:
-		enetc_rmon_stats(hw, 0, rmon_stats, ranges);
+		enetc_rmon_stats(hw, 0, rmon_stats);
 		break;
 	case ETHTOOL_MAC_STATS_SRC_PMAC:
 		if (si->hw_features & ENETC_SI_F_QBU)
-			enetc_rmon_stats(hw, 1, rmon_stats, ranges);
+			enetc_rmon_stats(hw, 1, rmon_stats);
 		break;
 	case ETHTOOL_MAC_STATS_SRC_AGGREGATE:
 		ethtool_aggregate_rmon_stats(ndev, rmon_stats);
@@ -990,6 +989,20 @@ static int enetc_get_mm(struct net_device *ndev, struct ethtool_mm_state *state)
 	return 0;
 }
 
+/* FIXME: Workaround for the link partner's verification failing if ENETC
+ * priorly received too much express traffic. The documentation doesn't
+ * suggest this is needed.
+ */
+static void enetc_restart_emac_rx(struct enetc_si *si)
+{
+	u32 val = enetc_port_rd(&si->hw, ENETC_PM0_CMD_CFG);
+
+	enetc_port_wr(&si->hw, ENETC_PM0_CMD_CFG, val & ~ENETC_PM0_RX_EN);
+
+	if (val & ENETC_PM0_RX_EN)
+		enetc_port_wr(&si->hw, ENETC_PM0_CMD_CFG, val);
+}
+
 static int enetc_set_mm(struct net_device *ndev, struct ethtool_mm_cfg *cfg,
 			struct netlink_ext_ack *extack)
 {
@@ -1040,6 +1053,8 @@ static int enetc_set_mm(struct net_device *ndev, struct ethtool_mm_cfg *cfg,
 	val |= ENETC_MMCSR_RAFS(add_frag_size);
 
 	enetc_port_wr(hw, ENETC_MMCSR, val);
+
+	enetc_restart_emac_rx(priv->si);
 
 	mutex_unlock(&priv->mm_lock);
 

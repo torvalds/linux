@@ -76,6 +76,13 @@ properties:
       If "broken-flash-reset" is present then having this property does not
       make any difference.
 
+  spi-cpol: true
+  spi-cpha: true
+
+dependencies:
+  spi-cpol: [ spi-cpha ]
+  spi-cpha: [ spi-cpol ]
+
 unevaluatedProperties: false
 
 examples:

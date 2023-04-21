@@ -1103,8 +1103,8 @@ static void
 mlx5e_hairpin_params_init(struct mlx5e_hairpin_params *hairpin_params,
 			  struct mlx5_core_dev *mdev)
 {
+	u32 link_speed = 0;
 	u64 link_speed64;
-	u32 link_speed;
 
 	hairpin_params->mdev = mdev;
 	/* set hairpin pair per each 50Gbs share of the link */

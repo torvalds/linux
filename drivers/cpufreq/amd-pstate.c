@@ -840,22 +840,20 @@ static int amd_pstate_update_status(const char *buf, size_t size)
 
 	switch(mode_idx) {
 	case AMD_PSTATE_DISABLE:
-		if (!current_pstate_driver)
-			return -EINVAL;
-		if (cppc_state == AMD_PSTATE_ACTIVE)
-			return -EBUSY;
-		cpufreq_unregister_driver(current_pstate_driver);
-		amd_pstate_driver_cleanup();
+		if (current_pstate_driver) {
+			cpufreq_unregister_driver(current_pstate_driver);
+			amd_pstate_driver_cleanup();
+		}
 		break;
 	case AMD_PSTATE_PASSIVE:
 		if (current_pstate_driver) {
 			if (current_pstate_driver == &amd_pstate_driver)
 				return 0;
 			cpufreq_unregister_driver(current_pstate_driver);
-			cppc_state = AMD_PSTATE_PASSIVE;
-			current_pstate_driver = &amd_pstate_driver;
 		}
 
+		current_pstate_driver = &amd_pstate_driver;
+		cppc_state = AMD_PSTATE_PASSIVE;
 		ret = cpufreq_register_driver(current_pstate_driver);
 		break;
 	case AMD_PSTATE_ACTIVE:
@@ -863,10 +861,10 @@ static int amd_pstate_update_status(const char *buf, size_t size)
 			if (current_pstate_driver == &amd_pstate_epp_driver)
 				return 0;
 			cpufreq_unregister_driver(current_pstate_driver);
-			current_pstate_driver = &amd_pstate_epp_driver;
-			cppc_state = AMD_PSTATE_ACTIVE;
 		}
 
+		current_pstate_driver = &amd_pstate_epp_driver;
+		cppc_state = AMD_PSTATE_ACTIVE;
 		ret = cpufreq_register_driver(current_pstate_driver);
 		break;
 	default:

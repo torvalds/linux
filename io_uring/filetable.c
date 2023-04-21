@@ -19,6 +19,9 @@ static int io_file_bitmap_get(struct io_ring_ctx *ctx)
 	unsigned long nr = ctx->file_alloc_end;
 	int ret;
 
+	if (!table->bitmap)
+		return -ENFILE;
+
 	do {
 		ret = find_next_zero_bit(table->bitmap, nr, table->alloc_hint);
 		if (ret != nr)

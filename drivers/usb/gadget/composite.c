@@ -2079,10 +2079,9 @@ unknown:
 				sizeof(url_descriptor->URL)
 				- WEBUSB_URL_DESCRIPTOR_HEADER_LENGTH + landing_page_offset);
 
-			if (ctrl->wLength < WEBUSB_URL_DESCRIPTOR_HEADER_LENGTH
-					    + landing_page_length)
-				landing_page_length = ctrl->wLength
-					- WEBUSB_URL_DESCRIPTOR_HEADER_LENGTH + landing_page_offset;
+			if (w_length < WEBUSB_URL_DESCRIPTOR_HEADER_LENGTH + landing_page_length)
+				landing_page_length = w_length
+				- WEBUSB_URL_DESCRIPTOR_HEADER_LENGTH + landing_page_offset;
 
 			memcpy(url_descriptor->URL,
 				cdev->landing_page + landing_page_offset,

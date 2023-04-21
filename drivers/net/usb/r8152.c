@@ -1943,7 +1943,7 @@ static struct rx_agg *alloc_rx_agg(struct r8152 *tp, gfp_t mflags)
 	if (!rx_agg)
 		return NULL;
 
-	rx_agg->page = alloc_pages(mflags | __GFP_COMP, order);
+	rx_agg->page = alloc_pages(mflags | __GFP_COMP | __GFP_NOWARN, order);
 	if (!rx_agg->page)
 		goto free_rx;
 

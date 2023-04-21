@@ -1191,7 +1191,7 @@ static int __refresh_tcon(const char *path, struct cifs_tcon *tcon, bool force_r
 	}
 
 	spin_lock(&ipc->tc_lock);
-	if (ses->ses_status != SES_GOOD || ipc->status != TID_GOOD) {
+	if (ipc->status != TID_GOOD) {
 		spin_unlock(&ipc->tc_lock);
 		cifs_dbg(FYI, "%s: skip cache refresh due to disconnected ipc\n", __func__);
 		goto out;
