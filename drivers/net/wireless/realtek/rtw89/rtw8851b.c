@@ -31,6 +31,15 @@ static const struct rtw89_chip_ops rtw8851b_chip_ops = {
 	.h2c_dctl_sec_cam	= NULL,
 };
 
+#ifdef CONFIG_PM
+static const struct wiphy_wowlan_support rtw_wowlan_stub_8851b = {
+	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_DISCONNECT,
+	.n_patterns = RTW89_MAX_PATTERN_NUM,
+	.pattern_max_len = RTW89_MAX_PATTERN_SIZE,
+	.pattern_min_len = 1,
+};
+#endif
+
 const struct rtw89_chip_info rtw8851b_chip_info = {
 	.chip_id		= RTL8851B,
 	.ops			= &rtw8851b_chip_ops,
@@ -101,6 +110,9 @@ const struct rtw89_chip_info rtw8851b_chip_info = {
 				  BIT(RTW89_DMA_ACH6) | BIT(RTW89_DMA_ACH7) |
 				  BIT(RTW89_DMA_B1MG) | BIT(RTW89_DMA_B1HI),
 	.edcca_lvl_reg		= R_SEG0R_EDCCA_LVL_V1,
+#ifdef CONFIG_PM
+	.wowlan_stub		= &rtw_wowlan_stub_8851b,
+#endif
 	.xtal_info		= &rtw8851b_xtal_info,
 };
 EXPORT_SYMBOL(rtw8851b_chip_info);
