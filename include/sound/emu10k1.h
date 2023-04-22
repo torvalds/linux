@@ -25,13 +25,9 @@
 /* ------------------- DEFINES -------------------- */
 
 #define EMUPAGESIZE     4096
-#define MAXREQVOICES    8
 #define MAXPAGES0       4096	/* 32 bit mode */
 #define MAXPAGES1       8192	/* 31 bit mode */
-#define RESERVED        0
-#define NUM_MIDI        16
 #define NUM_G           64              /* use all channels */
-#define NUM_FXSENDS     4
 #define NUM_EFX_PLAYBACK    16
 
 /* FIXME? - according to the OSS driver the EMU10K1 needs a 29 bit DMA mask */
@@ -39,7 +35,6 @@
 #define AUDIGY_DMA_MASK		0xffffffffUL	/* 32bit mode */
 
 #define TMEMSIZE        256*1024
-#define TMEMSIZEREG     4
 
 #define IP_TO_CP(ip) ((ip == 0) ? 0 : (((0x00001000uL | (ip & 0x00000FFFL)) << (((ip >> 12) & 0x000FL) + 4)) & 0xFFFF0000uL))
 
@@ -283,7 +278,6 @@
 						/* before the new rate is guaranteed accurate.	*/
 #define TIMER_RATE_MASK		0x000003ff	/* Timer interrupt rate in sample periods	*/
 						/* 0 == 1024 periods, [1..4] are not useful	*/
-#define TIMER_RATE		0x0a00001a
 
 #define AC97DATA		0x1c		/* AC97 register set data register (16 bit)	*/
 
