@@ -233,56 +233,54 @@ int snd_emu10k1_i2c_write(struct snd_emu10k1 *emu,
 	return err;
 }
 
-int snd_emu1010_fpga_write(struct snd_emu10k1 * emu, u32 reg, u32 value)
+void snd_emu1010_fpga_write(struct snd_emu10k1 *emu, u32 reg, u32 value)
 {
 	unsigned long flags;
 
-	if (reg > 0x3f)
-		return 1;
+	if (snd_BUG_ON(reg > 0x3f))
+		return;
 	reg += 0x40; /* 0x40 upwards are registers. */
-	if (value > 0x3f) /* 0 to 0x3f are values */
-		return 1;
+	if (snd_BUG_ON(value > 0x3f)) /* 0 to 0x3f are values */
+		return;
 	spin_lock_irqsave(&emu->emu_lock, flags);
-	outl(reg, emu->port + A_IOCFG);
+	outw(reg, emu->port + A_GPIO);
 	udelay(10);
-	outl(reg | 0x80, emu->port + A_IOCFG);  /* High bit clocks the value into the fpga. */
+	outw(reg | 0x80, emu->port + A_GPIO);  /* High bit clocks the value into the fpga. */
 	udelay(10);
-	outl(value, emu->port + A_IOCFG);
+	outw(value, emu->port + A_GPIO);
 	udelay(10);
-	outl(value | 0x80 , emu->port + A_IOCFG);  /* High bit clocks the value into the fpga. */
+	outw(value | 0x80 , emu->port + A_GPIO);  /* High bit clocks the value into the fpga. */
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
-
-	return 0;
 }
 
-int snd_emu1010_fpga_read(struct snd_emu10k1 * emu, u32 reg, u32 *value)
+void snd_emu1010_fpga_read(struct snd_emu10k1 *emu, u32 reg, u32 *value)
 {
 	unsigned long flags;
-	if (reg > 0x3f)
-		return 1;
+	if (snd_BUG_ON(reg > 0x3f))
+		return;
 	reg += 0x40; /* 0x40 upwards are registers. */
 	spin_lock_irqsave(&emu->emu_lock, flags);
-	outl(reg, emu->port + A_IOCFG);
+	outw(reg, emu->port + A_GPIO);
 	udelay(10);
-	outl(reg | 0x80, emu->port + A_IOCFG);  /* High bit clocks the value into the fpga. */
+	outw(reg | 0x80, emu->port + A_GPIO);  /* High bit clocks the value into the fpga. */
 	udelay(10);
-	*value = ((inl(emu->port + A_IOCFG) >> 8) & 0x7f);
+	*value = ((inw(emu->port + A_GPIO) >> 8) & 0x7f);
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
-
-	return 0;
 }
 
 /* Each Destination has one and only one Source,
  * but one Source can feed any number of Destinations simultaneously.
  */
-int snd_emu1010_fpga_link_dst_src_write(struct snd_emu10k1 * emu, u32 dst, u32 src)
+void snd_emu1010_fpga_link_dst_src_write(struct snd_emu10k1 *emu, u32 dst, u32 src)
 {
-	snd_emu1010_fpga_write(emu, 0x00, ((dst >> 8) & 0x3f) );
-	snd_emu1010_fpga_write(emu, 0x01, (dst & 0x3f) );
-	snd_emu1010_fpga_write(emu, 0x02, ((src >> 8) & 0x3f) );
-	snd_emu1010_fpga_write(emu, 0x03, (src & 0x3f) );
-
-	return 0;
+	if (snd_BUG_ON(dst & ~0x71f))
+		return;
+	if (snd_BUG_ON(src & ~0x71f))
+		return;
+	snd_emu1010_fpga_write(emu, 0x00, dst >> 8);
+	snd_emu1010_fpga_write(emu, 0x01, dst & 0x1f);
+	snd_emu1010_fpga_write(emu, 0x02, src >> 8);
+	snd_emu1010_fpga_write(emu, 0x03, src & 0x1f);
 }
 
 void snd_emu10k1_intr_enable(struct snd_emu10k1 *emu, unsigned int intrenb)

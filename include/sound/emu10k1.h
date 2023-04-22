@@ -251,11 +251,16 @@
 #define MUSTAT_IRDYN		0x80		/* 0 = MIDI data or command ACK			*/
 #define MUSTAT_ORDYN		0x40		/* 0 = MUDATA can accept a command or data	*/
 
-#define A_IOCFG			0x18		/* GPIO on Audigy card (16bits)			*/
+#define A_GPIO			0x18		/* GPIO on Audigy card (16bits)			*/
 #define A_GPINPUT_MASK		0xff00
 #define A_GPOUTPUT_MASK		0x00ff
 
+// The GPIO port is used for I/O config on Sound Blasters;
+// card-specific info can be found in the emu_chip_details table.
+// On E-MU cards the port is used as the interface to the FPGA.
+
 // Audigy output/GPIO stuff taken from the kX drivers
+#define A_IOCFG			A_GPIO
 #define A_IOCFG_GPOUT0		0x0044		/* analog/digital				*/
 #define A_IOCFG_DISABLE_ANALOG	0x0040		/* = 'enable' for Audigy2 (chiprev=4)		*/
 #define A_IOCFG_ENABLE_DIGITAL	0x0004
@@ -1485,7 +1490,6 @@ enum {
 struct snd_emu10k1;
 
 struct snd_emu10k1_voice {
-	struct snd_emu10k1 *emu;
 	int number;
 	unsigned int use: 1,
 	    pcm: 1,
@@ -1689,7 +1693,6 @@ struct snd_emu10k1 {
 	unsigned int revision;			/* chip revision */
 	unsigned int serial;			/* serial number */
 	unsigned short model;			/* subsystem id */
-	unsigned int card_type;			/* EMU10K1_CARD_* */
 	unsigned int ecard_ctrl;		/* ecard control bits */
 	unsigned int address_mode;		/* address mode */
 	unsigned long dma_mask;			/* PCI DMA mask */
@@ -1737,8 +1740,6 @@ struct snd_emu10k1 {
 	spinlock_t i2c_lock; /* serialises access to i2c port */
 
 	struct snd_emu10k1_voice voices[NUM_G];
-	struct snd_emu10k1_voice p16v_voices[4];
-	struct snd_emu10k1_voice p16v_capture_voice;
 	int p16v_device_offset;
 	u32 p16v_capture_source;
 	u32 p16v_capture_channel;
@@ -1758,6 +1759,7 @@ struct snd_emu10k1 {
 	void (*capture_efx_interrupt)(struct snd_emu10k1 *emu, unsigned int status);
 	void (*spdif_interrupt)(struct snd_emu10k1 *emu, unsigned int status);
 	void (*dsp_interrupt)(struct snd_emu10k1 *emu);
+	void (*p16v_interrupt)(struct snd_emu10k1 *emu);
 
 	struct snd_pcm_substream *pcm_capture_substream;
 	struct snd_pcm_substream *pcm_capture_mic_substream;
@@ -1822,9 +1824,9 @@ unsigned int snd_emu10k1_ptr20_read(struct snd_emu10k1 * emu, unsigned int reg, 
 void snd_emu10k1_ptr20_write(struct snd_emu10k1 *emu, unsigned int reg, unsigned int chn, unsigned int data);
 int snd_emu10k1_spi_write(struct snd_emu10k1 * emu, unsigned int data);
 int snd_emu10k1_i2c_write(struct snd_emu10k1 *emu, u32 reg, u32 value);
-int snd_emu1010_fpga_write(struct snd_emu10k1 * emu, u32 reg, u32 value);
-int snd_emu1010_fpga_read(struct snd_emu10k1 * emu, u32 reg, u32 *value);
-int snd_emu1010_fpga_link_dst_src_write(struct snd_emu10k1 * emu, u32 dst, u32 src);
+void snd_emu1010_fpga_write(struct snd_emu10k1 *emu, u32 reg, u32 value);
+void snd_emu1010_fpga_read(struct snd_emu10k1 *emu, u32 reg, u32 *value);
+void snd_emu1010_fpga_link_dst_src_write(struct snd_emu10k1 *emu, u32 dst, u32 src);
 unsigned int snd_emu10k1_efx_read(struct snd_emu10k1 *emu, unsigned int pc);
 void snd_emu10k1_intr_enable(struct snd_emu10k1 *emu, unsigned int intrenb);
 void snd_emu10k1_intr_disable(struct snd_emu10k1 *emu, unsigned int intrenb);

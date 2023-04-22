@@ -15,9 +15,6 @@
  * ---- FX8010 ----
  */
 
-#define EMU10K1_CARD_CREATIVE			0x00000000
-#define EMU10K1_CARD_EMUAPS			0x00000001
-
 #define EMU10K1_FX8010_PCM_COUNT		8
 
 /*

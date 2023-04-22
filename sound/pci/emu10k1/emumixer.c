@@ -924,7 +924,7 @@ static int snd_audigy_i2c_capture_source_put(struct snd_kcontrol *kcontrol,
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int source_id;
 	unsigned int ngain, ogain;
-	u32 gpio;
+	u16 gpio;
 	int change = 0;
 	unsigned long flags;
 	u32 source;
@@ -941,11 +941,11 @@ static int snd_audigy_i2c_capture_source_put(struct snd_kcontrol *kcontrol,
 	if (change) {
 		snd_emu10k1_i2c_write(emu, ADC_MUX, 0); /* Mute input */
 		spin_lock_irqsave(&emu->emu_lock, flags);
-		gpio = inl(emu->port + A_IOCFG);
+		gpio = inw(emu->port + A_IOCFG);
 		if (source_id==0)
-			outl(gpio | 0x4, emu->port + A_IOCFG);
+			outw(gpio | 0x4, emu->port + A_IOCFG);
 		else
-			outl(gpio & ~0x4, emu->port + A_IOCFG);
+			outw(gpio & ~0x4, emu->port + A_IOCFG);
 		spin_unlock_irqrestore(&emu->emu_lock, flags);
 
 		ngain = emu->i2c_capture_volume[source_id][0]; /* Left */
@@ -1632,7 +1632,7 @@ static int snd_emu10k1_shared_spdif_get(struct snd_kcontrol *kcontrol,
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 
 	if (emu->audigy)
-		ucontrol->value.integer.value[0] = inl(emu->port + A_IOCFG) & A_IOCFG_GPOUT0 ? 1 : 0;
+		ucontrol->value.integer.value[0] = inw(emu->port + A_IOCFG) & A_IOCFG_GPOUT0 ? 1 : 0;
 	else
 		ucontrol->value.integer.value[0] = inl(emu->port + HCFG) & HCFG_GPOUT0 ? 1 : 0;
 	if (emu->card_capabilities->invert_shared_spdif)
@@ -1657,13 +1657,13 @@ static int snd_emu10k1_shared_spdif_put(struct snd_kcontrol *kcontrol,
 	if ( emu->card_capabilities->i2c_adc) {
 		/* Do nothing for Audigy 2 ZS Notebook */
 	} else if (emu->audigy) {
-		reg = inl(emu->port + A_IOCFG);
+		reg = inw(emu->port + A_IOCFG);
 		val = sw ? A_IOCFG_GPOUT0 : 0;
 		change = (reg & A_IOCFG_GPOUT0) != val;
 		if (change) {
 			reg &= ~A_IOCFG_GPOUT0;
 			reg |= val;
-			outl(reg | val, emu->port + A_IOCFG);
+			outw(reg | val, emu->port + A_IOCFG);
 		}
 	}
 	reg = inl(emu->port + HCFG);
