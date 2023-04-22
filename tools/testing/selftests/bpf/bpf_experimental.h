@@ -14,7 +14,8 @@
  *	type ID of a struct in program BTF.
  *
  *	The 'local_type_id' parameter must be a known constant.
- *	The 'meta' parameter is a hidden argument that is ignored.
+ *	The 'meta' parameter is rewritten by the verifier, no need for BPF
+ *	program to set it.
  * Returns
  *	A pointer to an object of the type corresponding to the passed in
  *	'local_type_id', or NULL on failure.
@@ -28,7 +29,8 @@ extern void *bpf_obj_new_impl(__u64 local_type_id, void *meta) __ksym;
  *	Free an allocated object. All fields of the object that require
  *	destruction will be destructed before the storage is freed.
  *
- *	The 'meta' parameter is a hidden argument that is ignored.
+ *	The 'meta' parameter is rewritten by the verifier, no need for BPF
+ *	program to set it.
  * Returns
  *	Void.
  */
@@ -38,18 +40,50 @@ extern void bpf_obj_drop_impl(void *kptr, void *meta) __ksym;
 #define bpf_obj_drop(kptr) bpf_obj_drop_impl(kptr, NULL)
 
 /* Description
- *	Add a new entry to the beginning of the BPF linked list.
+ *	Increment the refcount on a refcounted local kptr, turning the
+ *	non-owning reference input into an owning reference in the process.
+ *
+ *	The 'meta' parameter is rewritten by the verifier, no need for BPF
+ *	program to set it.
  * Returns
- *	Void.
+ *	An owning reference to the object pointed to by 'kptr'
  */
-extern void bpf_list_push_front(struct bpf_list_head *head, struct bpf_list_node *node) __ksym;
+extern void *bpf_refcount_acquire_impl(void *kptr, void *meta) __ksym;
+
+/* Convenience macro to wrap over bpf_refcount_acquire_impl */
+#define bpf_refcount_acquire(kptr) bpf_refcount_acquire_impl(kptr, NULL)
+
+/* Description
+ *	Add a new entry to the beginning of the BPF linked list.
+ *
+ *	The 'meta' and 'off' parameters are rewritten by the verifier, no need
+ *	for BPF programs to set them
+ * Returns
+ *	0 if the node was successfully added
+ *	-EINVAL if the node wasn't added because it's already in a list
+ */
+extern int bpf_list_push_front_impl(struct bpf_list_head *head,
+				    struct bpf_list_node *node,
+				    void *meta, __u64 off) __ksym;
+
+/* Convenience macro to wrap over bpf_list_push_front_impl */
+#define bpf_list_push_front(head, node) bpf_list_push_front_impl(head, node, NULL, 0)
 
 /* Description
  *	Add a new entry to the end of the BPF linked list.
+ *
+ *	The 'meta' and 'off' parameters are rewritten by the verifier, no need
+ *	for BPF programs to set them
  * Returns
- *	Void.
+ *	0 if the node was successfully added
+ *	-EINVAL if the node wasn't added because it's already in a list
  */
-extern void bpf_list_push_back(struct bpf_list_head *head, struct bpf_list_node *node) __ksym;
+extern int bpf_list_push_back_impl(struct bpf_list_head *head,
+				   struct bpf_list_node *node,
+				   void *meta, __u64 off) __ksym;
+
+/* Convenience macro to wrap over bpf_list_push_back_impl */
+#define bpf_list_push_back(head, node) bpf_list_push_back_impl(head, node, NULL, 0)
 
 /* Description
  *	Remove the entry at the beginning of the BPF linked list.
@@ -75,11 +109,19 @@ extern struct bpf_rb_node *bpf_rbtree_remove(struct bpf_rb_root *root,
 
 /* Description
  *	Add 'node' to rbtree with root 'root' using comparator 'less'
+ *
+ *	The 'meta' and 'off' parameters are rewritten by the verifier, no need
+ *	for BPF programs to set them
  * Returns
- *	Nothing
+ *	0 if the node was successfully added
+ *	-EINVAL if the node wasn't added because it's already in a tree
  */
-extern void bpf_rbtree_add(struct bpf_rb_root *root, struct bpf_rb_node *node,
-			   bool (less)(struct bpf_rb_node *a, const struct bpf_rb_node *b)) __ksym;
+extern int bpf_rbtree_add_impl(struct bpf_rb_root *root, struct bpf_rb_node *node,
+			       bool (less)(struct bpf_rb_node *a, const struct bpf_rb_node *b),
+			       void *meta, __u64 off) __ksym;
+
+/* Convenience macro to wrap over bpf_rbtree_add_impl */
+#define bpf_rbtree_add(head, node, less) bpf_rbtree_add_impl(head, node, less, NULL, 0)
 
 /* Description
  *	Return the first (leftmost) node in input tree

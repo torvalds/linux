@@ -25,6 +25,8 @@
 #define TEST_TAG_DESCRIPTION_PFX "comment:test_description="
 #define TEST_TAG_RETVAL_PFX "comment:test_retval="
 #define TEST_TAG_RETVAL_PFX_UNPRIV "comment:test_retval_unpriv="
+#define TEST_TAG_AUXILIARY "comment:test_auxiliary"
+#define TEST_TAG_AUXILIARY_UNPRIV "comment:test_auxiliary_unpriv"
 
 /* Warning: duplicated in bpf_misc.h */
 #define POINTER_VALUE	0xcafe4all
@@ -59,6 +61,8 @@ struct test_spec {
 	int log_level;
 	int prog_flags;
 	int mode_mask;
+	bool auxiliary;
+	bool valid;
 };
 
 static int tester_init(struct test_loader *tester)
@@ -87,6 +91,11 @@ static void free_test_spec(struct test_spec *spec)
 	free(spec->unpriv.name);
 	free(spec->priv.expect_msgs);
 	free(spec->unpriv.expect_msgs);
+
+	spec->priv.name = NULL;
+	spec->unpriv.name = NULL;
+	spec->priv.expect_msgs = NULL;
+	spec->unpriv.expect_msgs = NULL;
 }
 
 static int push_msg(const char *msg, struct test_subspec *subspec)
@@ -204,6 +213,12 @@ static int parse_test_spec(struct test_loader *tester,
 			spec->unpriv.expect_failure = false;
 			spec->mode_mask |= UNPRIV;
 			has_unpriv_result = true;
+		} else if (strcmp(s, TEST_TAG_AUXILIARY) == 0) {
+			spec->auxiliary = true;
+			spec->mode_mask |= PRIV;
+		} else if (strcmp(s, TEST_TAG_AUXILIARY_UNPRIV) == 0) {
+			spec->auxiliary = true;
+			spec->mode_mask |= UNPRIV;
 		} else if (str_has_pfx(s, TEST_TAG_EXPECT_MSG_PFX)) {
 			msg = s + sizeof(TEST_TAG_EXPECT_MSG_PFX) - 1;
 			err = push_msg(msg, &spec->priv);
@@ -313,6 +328,8 @@ static int parse_test_spec(struct test_loader *tester,
 			spec->unpriv.expect_msg_cnt = spec->priv.expect_msg_cnt;
 		}
 	}
+
+	spec->valid = true;
 
 	return 0;
 
@@ -516,16 +533,18 @@ void run_subtest(struct test_loader *tester,
 		 struct bpf_object_open_opts *open_opts,
 		 const void *obj_bytes,
 		 size_t obj_byte_cnt,
+		 struct test_spec *specs,
 		 struct test_spec *spec,
 		 bool unpriv)
 {
 	struct test_subspec *subspec = unpriv ? &spec->unpriv : &spec->priv;
+	struct bpf_program *tprog, *tprog_iter;
+	struct test_spec *spec_iter;
 	struct cap_state caps = {};
-	struct bpf_program *tprog;
 	struct bpf_object *tobj;
 	struct bpf_map *map;
-	int retval;
-	int err;
+	int retval, err, i;
+	bool should_load;
 
 	if (!test__start_subtest(subspec->name))
 		return;
@@ -546,15 +565,23 @@ void run_subtest(struct test_loader *tester,
 	if (!ASSERT_OK_PTR(tobj, "obj_open_mem")) /* shouldn't happen */
 		goto subtest_cleanup;
 
-	bpf_object__for_each_program(tprog, tobj)
-		bpf_program__set_autoload(tprog, false);
+	i = 0;
+	bpf_object__for_each_program(tprog_iter, tobj) {
+		spec_iter = &specs[i++];
+		should_load = false;
 
-	bpf_object__for_each_program(tprog, tobj) {
-		/* only load specified program */
-		if (strcmp(bpf_program__name(tprog), spec->prog_name) == 0) {
-			bpf_program__set_autoload(tprog, true);
-			break;
+		if (spec_iter->valid) {
+			if (strcmp(bpf_program__name(tprog_iter), spec->prog_name) == 0) {
+				tprog = tprog_iter;
+				should_load = true;
+			}
+
+			if (spec_iter->auxiliary &&
+			    spec_iter->mode_mask & (unpriv ? UNPRIV : PRIV))
+				should_load = true;
 		}
+
+		bpf_program__set_autoload(tprog_iter, should_load);
 	}
 
 	prepare_case(tester, spec, tobj, tprog);
@@ -587,8 +614,16 @@ void run_subtest(struct test_loader *tester,
 		/* For some reason test_verifier executes programs
 		 * with all capabilities restored. Do the same here.
 		 */
-		if (!restore_capabilities(&caps))
+		if (restore_capabilities(&caps))
 			goto tobj_cleanup;
+
+		if (tester->pre_execution_cb) {
+			err = tester->pre_execution_cb(tobj);
+			if (err) {
+				PRINT_FAIL("pre_execution_cb failed: %d\n", err);
+				goto tobj_cleanup;
+			}
+		}
 
 		do_prog_test_run(bpf_program__fd(tprog), &retval);
 		if (retval != subspec->retval && subspec->retval != POINTER_VALUE) {
@@ -609,11 +644,12 @@ static void process_subtest(struct test_loader *tester,
 			    skel_elf_bytes_fn elf_bytes_factory)
 {
 	LIBBPF_OPTS(bpf_object_open_opts, open_opts, .object_name = skel_name);
+	struct test_spec *specs = NULL;
 	struct bpf_object *obj = NULL;
 	struct bpf_program *prog;
 	const void *obj_bytes;
+	int err, i, nr_progs;
 	size_t obj_byte_cnt;
-	int err;
 
 	if (tester_init(tester) < 0)
 		return; /* failed to initialize tester */
@@ -623,25 +659,42 @@ static void process_subtest(struct test_loader *tester,
 	if (!ASSERT_OK_PTR(obj, "obj_open_mem"))
 		return;
 
-	bpf_object__for_each_program(prog, obj) {
-		struct test_spec spec;
+	nr_progs = 0;
+	bpf_object__for_each_program(prog, obj)
+		++nr_progs;
 
-		/* if we can't derive test specification, go to the next test */
-		err = parse_test_spec(tester, obj, prog, &spec);
-		if (err) {
+	specs = calloc(nr_progs, sizeof(struct test_spec));
+	if (!ASSERT_OK_PTR(specs, "Can't alloc specs array"))
+		return;
+
+	i = 0;
+	bpf_object__for_each_program(prog, obj) {
+		/* ignore tests for which  we can't derive test specification */
+		err = parse_test_spec(tester, obj, prog, &specs[i++]);
+		if (err)
 			PRINT_FAIL("Can't parse test spec for program '%s'\n",
 				   bpf_program__name(prog));
-			continue;
-		}
-
-		if (spec.mode_mask & PRIV)
-			run_subtest(tester, &open_opts, obj_bytes, obj_byte_cnt, &spec, false);
-		if (spec.mode_mask & UNPRIV)
-			run_subtest(tester, &open_opts, obj_bytes, obj_byte_cnt, &spec, true);
-
-		free_test_spec(&spec);
 	}
 
+	i = 0;
+	bpf_object__for_each_program(prog, obj) {
+		struct test_spec *spec = &specs[i++];
+
+		if (!spec->valid || spec->auxiliary)
+			continue;
+
+		if (spec->mode_mask & PRIV)
+			run_subtest(tester, &open_opts, obj_bytes, obj_byte_cnt,
+				    specs, spec, false);
+		if (spec->mode_mask & UNPRIV)
+			run_subtest(tester, &open_opts, obj_bytes, obj_byte_cnt,
+				    specs, spec, true);
+
+	}
+
+	for (i = 0; i < nr_progs; ++i)
+		free_test_spec(&specs[i]);
+	free(specs);
 	bpf_object__close(obj);
 }
 

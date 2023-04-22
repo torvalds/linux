@@ -175,8 +175,8 @@ void test_xdp_do_redirect(void)
 		goto out;
 
 	/* Enable GRO */
-	SYS("ethtool -K veth_src gro on");
-	SYS("ethtool -K veth_dst gro on");
+	SYS(out, "ethtool -K veth_src gro on");
+	SYS(out, "ethtool -K veth_dst gro on");
 
 	err = bpf_xdp_query(ifindex_src, XDP_FLAGS_DRV_MODE, &query_opts);
 	if (!ASSERT_OK(err, "veth_src bpf_xdp_query gro on"))

@@ -18,7 +18,6 @@
 #define KF_ACQUIRE	(1 << 0) /* kfunc is an acquire function */
 #define KF_RELEASE	(1 << 1) /* kfunc is a release function */
 #define KF_RET_NULL	(1 << 2) /* kfunc returns a pointer that may be NULL */
-#define KF_KPTR_GET	(1 << 3) /* kfunc returns reference to a kptr */
 /* Trusted arguments are those which are guaranteed to be valid when passed to
  * the kfunc. It is used to enforce that pointers obtained from either acquire
  * kfuncs, or from the main kernel on a tracepoint or struct_ops callback
@@ -113,7 +112,6 @@ struct btf_id_dtor_kfunc {
 struct btf_struct_meta {
 	u32 btf_id;
 	struct btf_record *record;
-	struct btf_field_offs *field_offs;
 };
 
 struct btf_struct_metas {
@@ -207,7 +205,6 @@ int btf_find_timer(const struct btf *btf, const struct btf_type *t);
 struct btf_record *btf_parse_fields(const struct btf *btf, const struct btf_type *t,
 				    u32 field_mask, u32 value_size);
 int btf_check_and_fixup_fields(const struct btf *btf, struct btf_record *rec);
-struct btf_field_offs *btf_parse_field_offs(struct btf_record *rec);
 bool btf_type_is_void(const struct btf_type *t);
 s32 btf_find_by_name_kind(const struct btf *btf, const char *name, u8 kind);
 const struct btf_type *btf_type_skip_modifiers(const struct btf *btf,

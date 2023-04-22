@@ -77,6 +77,7 @@
 #include <linux/if_link.h>
 #include <linux/if_ether.h>
 #include <linux/ip.h>
+#include <linux/mman.h>
 #include <linux/udp.h>
 #include <arpa/inet.h>
 #include <net/if.h>
@@ -1290,7 +1291,7 @@ static void thread_common_ops(struct test_spec *test, struct ifobject *ifobject)
 	int ret;
 
 	if (ifobject->umem->unaligned_mode)
-		mmap_flags |= MAP_HUGETLB;
+		mmap_flags |= MAP_HUGETLB | MAP_HUGE_2MB;
 
 	if (ifobject->shared_umem)
 		umem_sz *= 2;
@@ -1379,6 +1380,11 @@ static void *worker_testapp_validate_rx(void *arg)
 	pthread_exit(NULL);
 }
 
+static u64 ceil_u64(u64 a, u64 b)
+{
+	return (a + b - 1) / b;
+}
+
 static void testapp_clean_xsk_umem(struct ifobject *ifobj)
 {
 	u64 umem_sz = ifobj->umem->num_frames * ifobj->umem->frame_size;
@@ -1386,6 +1392,7 @@ static void testapp_clean_xsk_umem(struct ifobject *ifobj)
 	if (ifobj->shared_umem)
 		umem_sz *= 2;
 
+	umem_sz = ceil_u64(umem_sz, HUGEPAGE_SIZE) * HUGEPAGE_SIZE;
 	xsk_umem__delete(ifobj->umem->umem);
 	munmap(ifobj->umem->buffer, umem_sz);
 }
@@ -1619,14 +1626,15 @@ static void testapp_stats_fill_empty(struct test_spec *test)
 /* Simple test */
 static bool hugepages_present(struct ifobject *ifobject)
 {
-	const size_t mmap_sz = 2 * ifobject->umem->num_frames * ifobject->umem->frame_size;
+	size_t mmap_sz = 2 * ifobject->umem->num_frames * ifobject->umem->frame_size;
 	void *bufs;
 
 	bufs = mmap(NULL, mmap_sz, PROT_READ | PROT_WRITE,
-		    MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
+		    MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | MAP_HUGE_2MB, -1, 0);
 	if (bufs == MAP_FAILED)
 		return false;
 
+	mmap_sz = ceil_u64(mmap_sz, HUGEPAGE_SIZE) * HUGEPAGE_SIZE;
 	munmap(bufs, mmap_sz);
 	return true;
 }

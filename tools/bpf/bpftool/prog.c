@@ -1476,19 +1476,6 @@ auto_attach_program(struct bpf_program *prog, const char *path)
 	return err;
 }
 
-static int pathname_concat(char *buf, size_t buf_sz, const char *path, const char *name)
-{
-	int len;
-
-	len = snprintf(buf, buf_sz, "%s/%s", path, name);
-	if (len < 0)
-		return -EINVAL;
-	if ((size_t)len >= buf_sz)
-		return -ENAMETOOLONG;
-
-	return 0;
-}
-
 static int
 auto_attach_programs(struct bpf_object *obj, const char *path)
 {

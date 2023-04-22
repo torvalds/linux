@@ -184,16 +184,7 @@ in. All copies of the pointer being released are invalidated as a result of
 invoking kfunc with this flag. KF_RELEASE kfuncs automatically receive the
 protection afforded by the KF_TRUSTED_ARGS flag described below.
 
-2.4.4 KF_KPTR_GET flag
-----------------------
-
-The KF_KPTR_GET flag is used to indicate that the kfunc takes the first argument
-as a pointer to kptr, safely increments the refcount of the object it points to,
-and returns a reference to the user. The rest of the arguments may be normal
-arguments of a kfunc. The KF_KPTR_GET flag should be used in conjunction with
-KF_ACQUIRE and KF_RET_NULL flags.
-
-2.4.5 KF_TRUSTED_ARGS flag
+2.4.4 KF_TRUSTED_ARGS flag
 --------------------------
 
 The KF_TRUSTED_ARGS flag is used for kfuncs taking pointer arguments. It
@@ -205,7 +196,7 @@ exception described below).
 There are two types of pointers to kernel objects which are considered "valid":
 
 1. Pointers which are passed as tracepoint or struct_ops callback arguments.
-2. Pointers which were returned from a KF_ACQUIRE or KF_KPTR_GET kfunc.
+2. Pointers which were returned from a KF_ACQUIRE kfunc.
 
 Pointers to non-BTF objects (e.g. scalar pointers) may also be passed to
 KF_TRUSTED_ARGS kfuncs, and may have a non-zero offset.
@@ -232,13 +223,13 @@ In other words, you must:
 2. Specify the type and name of the trusted nested field. This field must match
    the field in the original type definition exactly.
 
-2.4.6 KF_SLEEPABLE flag
+2.4.5 KF_SLEEPABLE flag
 -----------------------
 
 The KF_SLEEPABLE flag is used for kfuncs that may sleep. Such kfuncs can only
 be called by sleepable BPF programs (BPF_F_SLEEPABLE).
 
-2.4.7 KF_DESTRUCTIVE flag
+2.4.6 KF_DESTRUCTIVE flag
 --------------------------
 
 The KF_DESTRUCTIVE flag is used to indicate functions calling which is
@@ -247,7 +238,7 @@ rebooting or panicking. Due to this additional restrictions apply to these
 calls. At the moment they only require CAP_SYS_BOOT capability, but more can be
 added later.
 
-2.4.8 KF_RCU flag
+2.4.7 KF_RCU flag
 -----------------
 
 The KF_RCU flag is a weaker version of KF_TRUSTED_ARGS. The kfuncs marked with
@@ -260,7 +251,7 @@ also be KF_RET_NULL.
 
 .. _KF_deprecated_flag:
 
-2.4.9 KF_DEPRECATED flag
+2.4.8 KF_DEPRECATED flag
 ------------------------
 
 The KF_DEPRECATED flag is used for kfuncs which are scheduled to be

@@ -135,6 +135,35 @@ cleanup:
 	test_log_fixup__destroy(skel);
 }
 
+static void missing_kfunc(void)
+{
+	char log_buf[8 * 1024];
+	struct test_log_fixup* skel;
+	int err;
+
+	skel = test_log_fixup__open();
+	if (!ASSERT_OK_PTR(skel, "skel_open"))
+		return;
+
+	bpf_program__set_autoload(skel->progs.use_missing_kfunc, true);
+	bpf_program__set_log_buf(skel->progs.use_missing_kfunc, log_buf, sizeof(log_buf));
+
+	err = test_log_fixup__load(skel);
+	if (!ASSERT_ERR(err, "load_fail"))
+		goto cleanup;
+
+	ASSERT_HAS_SUBSTR(log_buf,
+			  "0: <invalid kfunc call>\n"
+			  "kfunc 'bpf_nonexistent_kfunc' is referenced but wasn't resolved\n",
+			  "log_buf");
+
+	if (env.verbosity > VERBOSE_NONE)
+		printf("LOG:   \n=================\n%s=================\n", log_buf);
+
+cleanup:
+	test_log_fixup__destroy(skel);
+}
+
 void test_log_fixup(void)
 {
 	if (test__start_subtest("bad_core_relo_trunc_none"))
@@ -147,4 +176,6 @@ void test_log_fixup(void)
 		bad_core_relo_subprog();
 	if (test__start_subtest("missing_map"))
 		missing_map();
+	if (test__start_subtest("missing_kfunc"))
+		missing_kfunc();
 }

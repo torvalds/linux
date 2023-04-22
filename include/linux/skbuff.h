@@ -5066,6 +5066,15 @@ static inline void skb_reset_redirect(struct sk_buff *skb)
 	skb->redirected = 0;
 }
 
+static inline void skb_set_redirected_noclear(struct sk_buff *skb,
+					      bool from_ingress)
+{
+	skb->redirected = 1;
+#ifdef CONFIG_NET_REDIRECT
+	skb->from_ingress = from_ingress;
+#endif
+}
+
 static inline bool skb_csum_is_sctp(struct sk_buff *skb)
 {
 #if IS_ENABLED(CONFIG_IP_SCTP)

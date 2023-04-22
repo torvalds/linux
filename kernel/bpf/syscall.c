@@ -35,6 +35,7 @@
 #include <linux/rcupdate_trace.h>
 #include <linux/memcontrol.h>
 #include <linux/trace_events.h>
+#include <net/netfilter/nf_bpf_link.h>
 
 #define IS_FD_ARRAY(map) ((map)->map_type == BPF_MAP_TYPE_PERF_EVENT_ARRAY || \
 			  (map)->map_type == BPF_MAP_TYPE_CGROUP_ARRAY || \
@@ -552,6 +553,7 @@ void btf_record_free(struct btf_record *rec)
 		case BPF_RB_NODE:
 		case BPF_SPIN_LOCK:
 		case BPF_TIMER:
+		case BPF_REFCOUNT:
 			/* Nothing to release */
 			break;
 		default:
@@ -599,6 +601,7 @@ struct btf_record *btf_record_dup(const struct btf_record *rec)
 		case BPF_RB_NODE:
 		case BPF_SPIN_LOCK:
 		case BPF_TIMER:
+		case BPF_REFCOUNT:
 			/* Nothing to acquire */
 			break;
 		default:
@@ -705,6 +708,7 @@ void bpf_obj_free_fields(const struct btf_record *rec, void *obj)
 			break;
 		case BPF_LIST_NODE:
 		case BPF_RB_NODE:
+		case BPF_REFCOUNT:
 			break;
 		default:
 			WARN_ON_ONCE(1);
@@ -717,14 +721,13 @@ void bpf_obj_free_fields(const struct btf_record *rec, void *obj)
 static void bpf_map_free_deferred(struct work_struct *work)
 {
 	struct bpf_map *map = container_of(work, struct bpf_map, work);
-	struct btf_field_offs *foffs = map->field_offs;
 	struct btf_record *rec = map->record;
 
 	security_bpf_map_free(map);
 	bpf_map_release_memcg(map);
 	/* implementation dependent freeing */
 	map->ops->map_free(map);
-	/* Delay freeing of field_offs and btf_record for maps, as map_free
+	/* Delay freeing of btf_record for maps, as map_free
 	 * callback usually needs access to them. It is better to do it here
 	 * than require each callback to do the free itself manually.
 	 *
@@ -733,7 +736,6 @@ static void bpf_map_free_deferred(struct work_struct *work)
 	 * eventually calls bpf_map_free_meta, since inner_map_meta is only a
 	 * template bpf_map struct used during verification.
 	 */
-	kfree(foffs);
 	btf_record_free(rec);
 }
 
@@ -1034,7 +1036,7 @@ static int map_check_btf(struct bpf_map *map, const struct btf *btf,
 
 	map->record = btf_parse_fields(btf, value_type,
 				       BPF_SPIN_LOCK | BPF_TIMER | BPF_KPTR | BPF_LIST_HEAD |
-				       BPF_RB_ROOT,
+				       BPF_RB_ROOT | BPF_REFCOUNT,
 				       map->value_size);
 	if (!IS_ERR_OR_NULL(map->record)) {
 		int i;
@@ -1073,6 +1075,7 @@ static int map_check_btf(struct bpf_map *map, const struct btf *btf,
 				break;
 			case BPF_KPTR_UNREF:
 			case BPF_KPTR_REF:
+			case BPF_REFCOUNT:
 				if (map->map_type != BPF_MAP_TYPE_HASH &&
 				    map->map_type != BPF_MAP_TYPE_PERCPU_HASH &&
 				    map->map_type != BPF_MAP_TYPE_LRU_HASH &&
@@ -1125,7 +1128,6 @@ free_map_tab:
 static int map_create(union bpf_attr *attr)
 {
 	int numa_node = bpf_map_attr_numa_node(attr);
-	struct btf_field_offs *foffs;
 	struct bpf_map *map;
 	int f_flags;
 	int err;
@@ -1205,17 +1207,9 @@ static int map_create(union bpf_attr *attr)
 			attr->btf_vmlinux_value_type_id;
 	}
 
-
-	foffs = btf_parse_field_offs(map->record);
-	if (IS_ERR(foffs)) {
-		err = PTR_ERR(foffs);
-		goto free_map;
-	}
-	map->field_offs = foffs;
-
 	err = security_bpf_map_alloc(map);
 	if (err)
-		goto free_map_field_offs;
+		goto free_map;
 
 	err = bpf_map_alloc_id(map);
 	if (err)
@@ -1239,8 +1233,6 @@ static int map_create(union bpf_attr *attr)
 
 free_map_sec:
 	security_bpf_map_free(map);
-free_map_field_offs:
-	kfree(map->field_offs);
 free_map:
 	btf_put(map->btf);
 	map->ops->map_free(map);
@@ -2463,7 +2455,6 @@ static bool is_net_admin_prog_type(enum bpf_prog_type prog_type)
 	case BPF_PROG_TYPE_LWT_SEG6LOCAL:
 	case BPF_PROG_TYPE_SK_SKB:
 	case BPF_PROG_TYPE_SK_MSG:
-	case BPF_PROG_TYPE_LIRC_MODE2:
 	case BPF_PROG_TYPE_FLOW_DISSECTOR:
 	case BPF_PROG_TYPE_CGROUP_DEVICE:
 	case BPF_PROG_TYPE_CGROUP_SOCK:
@@ -2472,6 +2463,7 @@ static bool is_net_admin_prog_type(enum bpf_prog_type prog_type)
 	case BPF_PROG_TYPE_CGROUP_SYSCTL:
 	case BPF_PROG_TYPE_SOCK_OPS:
 	case BPF_PROG_TYPE_EXT: /* extends any prog */
+	case BPF_PROG_TYPE_NETFILTER:
 		return true;
 	case BPF_PROG_TYPE_CGROUP_SKB:
 		/* always unpriv */
@@ -4598,6 +4590,7 @@ static int link_create(union bpf_attr *attr, bpfptr_t uattr)
 
 	switch (prog->type) {
 	case BPF_PROG_TYPE_EXT:
+	case BPF_PROG_TYPE_NETFILTER:
 		break;
 	case BPF_PROG_TYPE_PERF_EVENT:
 	case BPF_PROG_TYPE_TRACEPOINT:
@@ -4663,6 +4656,9 @@ static int link_create(union bpf_attr *attr, bpfptr_t uattr)
 #ifdef CONFIG_NET
 	case BPF_PROG_TYPE_XDP:
 		ret = bpf_xdp_link_attach(attr, prog);
+		break;
+	case BPF_PROG_TYPE_NETFILTER:
+		ret = bpf_nf_link_attach(attr, prog);
 		break;
 #endif
 	case BPF_PROG_TYPE_PERF_EVENT:

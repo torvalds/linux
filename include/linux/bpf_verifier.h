@@ -464,7 +464,12 @@ struct bpf_insn_aux_data {
 		 */
 		struct bpf_loop_inline_state loop_inline_state;
 	};
-	u64 obj_new_size; /* remember the size of type passed to bpf_obj_new to rewrite R1 */
+	union {
+		/* remember the size of type passed to bpf_obj_new to rewrite R1 */
+		u64 obj_new_size;
+		/* remember the offset of node field within type to rewrite */
+		u64 insert_off;
+	};
 	struct btf_struct_meta *kptr_struct_meta;
 	u64 map_key_state; /* constant (32 bit) key tracking for maps */
 	int ctx_field_size; /* the ctx field size for load insn, maybe 0 */
