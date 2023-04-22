@@ -704,18 +704,15 @@
 
 #define GPSCS			0x51		/* General Purpose SPDIF channel status register	*/
 
+// Corresponding EMU10K1_DBG_* constants are in the public header
 #define DBG			0x52
 
 #define A_SPSC			0x52		/* S/PDIF Input C Channel Status			*/
 
 #define REG53			0x53		/* DO NOT PROGRAM THIS REGISTER!!! MAY DESTROY CHIP	*/
 
-#define A_DBG			 0x53
-#define A_DBG_SINGLE_STEP	 0x00020000	/* Set to zero to start dsp */
-#define A_DBG_ZC		 0x40000000	/* zero tram counter */
-#define A_DBG_STEP_ADDR		 0x000003ff
-#define A_DBG_SATURATION_OCCURED 0x20000000
-#define A_DBG_SATURATION_ADDR	 0x0ffc0000
+// Corresponding A_DBG_* constants are in the public header
+#define A_DBG			0x53
 
 // NOTE: 0x54,55,56: 64-bit (split over voices 0 & 1)
 #define SPCS0			0x54		/* SPDIF output Channel Status 0 register	*/
@@ -908,45 +905,14 @@
 #define A_FXRT_CHANNELD		0x3f000000
 
 /* 0x7f: Not used */
-/* Each FX general purpose register is 32 bits in length, all bits are used			*/
-#define FXGPREGBASE		0x100		/* FX general purpose registers base       	*/
-#define A_FXGPREGBASE		0x400		/* Audigy GPRs, 0x400 to 0x5ff			*/
 
-#define A_TANKMEMCTLREGBASE	0x100		/* Tank memory control registers base - only for Audigy */
-#define A_TANKMEMCTLREG_MASK	0x1f		/* only 5 bits used - only for Audigy */
-
-/* Tank audio data is logarithmically compressed down to 16 bits before writing to TRAM and is	*/
-/* decompressed back to 20 bits on a read.  There are a total of 160 locations, the last 32	*/
-/* locations are for external TRAM. 								*/
-#define TANKMEMDATAREGBASE	0x200		/* Tank memory data registers base     		*/
-#define TANKMEMDATAREG_MASK	0x000fffff	/* 20 bit tank audio data field			*/
-
-/* Combined address field and memory opcode or flag field.  160 locations, last 32 are external	*/
-#define TANKMEMADDRREGBASE	0x300		/* Tank memory address registers base		*/
-#define TANKMEMADDRREG_ADDR_MASK 0x000fffff	/* 20 bit tank address field			*/
-#define TANKMEMADDRREG_CLEAR	0x00800000	/* Clear tank memory				*/
-#define TANKMEMADDRREG_ALIGN	0x00400000	/* Align read or write relative to tank access	*/
-#define TANKMEMADDRREG_WRITE	0x00200000	/* Write to tank memory				*/
-#define TANKMEMADDRREG_READ	0x00100000	/* Read from tank memory			*/
-
-#define MICROCODEBASE		0x400		/* Microcode data base address			*/
+/* The public header defines the GPR and TRAM base addresses that
+ * are valid for _both_ CPU and DSP addressing. */
 
 /* Each DSP microcode instruction is mapped into 2 doublewords 					*/
 /* NOTE: When writing, always write the LO doubleword first.  Reads can be in either order.	*/
-#define LOWORD_OPX_MASK		0x000ffc00	/* Instruction operand X			*/
-#define LOWORD_OPY_MASK		0x000003ff	/* Instruction operand Y			*/
-#define HIWORD_OPCODE_MASK	0x00f00000	/* Instruction opcode				*/
-#define HIWORD_RESULT_MASK	0x000ffc00	/* Instruction result				*/
-#define HIWORD_OPA_MASK		0x000003ff	/* Instruction operand A			*/
-
-
-/* Audigy Soundcard have a different instruction format */
+#define MICROCODEBASE		0x400		/* Microcode data base address			*/
 #define A_MICROCODEBASE		0x600
-#define A_LOWORD_OPY_MASK	0x000007ff
-#define A_LOWORD_OPX_MASK	0x007ff000
-#define A_HIWORD_OPCODE_MASK	0x0f000000
-#define A_HIWORD_RESULT_MASK	0x007ff000
-#define A_HIWORD_OPA_MASK	0x000007ff
 
 
 /************************************************************************************************/
