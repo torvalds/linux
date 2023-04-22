@@ -61,8 +61,8 @@
 						/* the relevant bits and zero to the other bits	*/
 #define IPR_P16V		0x80000000	/* Bit set when the CA0151 P16V chip wishes
 						   to interrupt */
-#define IPR_GPIOMSG		0x20000000	/* GPIO message interrupt (RE'd, still not sure 
-						   which INTE bits enable it)			*/
+#define IPR_WATERMARK_REACHED	0x40000000
+#define IPR_A_GPIO		0x20000000	/* GPIO input pin change			*/
 
 /* The next two interrupts are for the midi port on the Audigy Drive (A_MPU1)			*/
 #define IPR_A_MIDITRANSBUFEMPTY2 0x10000000	/* MIDI UART transmit buffer empty		*/
@@ -122,10 +122,14 @@
 						/* behavior and possibly random segfaults and	*/
 						/* lockups if enabled.				*/
 
+#define INTE_A_GPIOENABLE 	0x00040000	/* Enable GPIO input change interrupts		*/
+
 /* The next two interrupts are for the midi port on the Audigy Drive (A_MPU1)			*/
 #define INTE_A_MIDITXENABLE2	0x00020000	/* Enable MIDI transmit-buffer-empty interrupts	*/
 #define INTE_A_MIDIRXENABLE2	0x00010000	/* Enable MIDI receive-buffer-empty interrupts	*/
 
+#define INTE_A_SPDIF_BUFFULL_ENABLE 	0x00008000
+#define INTE_A_SPDIF_HALFBUFFULL_ENABLE	0x00004000
 
 #define INTE_SAMPLERATETRACKER	0x00002000	/* Enable sample rate tracker interrupts	*/
 						/* NOTE: This bit must always be enabled       	*/
@@ -146,9 +150,10 @@
 #define WC			0x10		/* Wall Clock register				*/
 #define WC_SAMPLECOUNTER_MASK	0x03FFFFC0	/* Sample periods elapsed since reset		*/
 #define WC_SAMPLECOUNTER	0x14060010
-#define WC_CURRENTCHANNEL	0x0000003F	/* Channel [0..63] currently being serviced	*/
+#define WC_CURRENTCHANNEL_MASK	0x0000003F	/* Channel [0..63] currently being serviced	*/
 						/* NOTE: Each channel takes 1/64th of a sample	*/
 						/* period to be serviced.			*/
+#define WC_CURRENTCHANNEL	0x06000010
 
 #define HCFG			0x14		/* Hardware config register			*/
 						/* NOTE: There is no reason to use the legacy	*/
@@ -276,7 +281,7 @@
 						/* NOTE: After the rate is changed, a maximum	*/
 						/* of 1024 sample periods should be allowed	*/
 						/* before the new rate is guaranteed accurate.	*/
-#define TIMER_RATE_MASK		0x000003ff	/* Timer interrupt rate in sample periods	*/
+#define TIMER_RATE_MASK		0x03ff		/* Timer interrupt rate in sample periods	*/
 						/* 0 == 1024 periods, [1..4] are not useful	*/
 
 #define AC97DATA		0x1c		/* AC97 register set data register (16 bit)	*/
@@ -425,7 +430,7 @@
 
 #define CCCA			0x08		/* Filter Q, interp. ROM, byte size, cur. addr register */
 #define CCCA_RESONANCE		0xf0000000	/* Lowpass filter resonance (Q) height			*/
-#define CCCA_INTERPROMMASK	0x0e000000	/* Selects passband of interpolation ROM		*/
+#define CCCA_INTERPROM_MASK	0x0e000000	/* Selects passband of interpolation ROM		*/
 						/* 1 == full band, 7 == lowpass				*/
 						/* ROM 0 is used when pitch shifting downward or less	*/
 						/* then 3 semitones upward.  Increasingly higher ROM	*/
@@ -487,7 +492,7 @@
 						/* 0x8000-n == 666*n usec delay	       			*/
 
 #define ATKHLDV 		0x11		/* Volume envelope hold and attack register		*/
-#define ATKHLDV_PHASE0		0x00008000	/* 0 = Begin attack phase				*/
+#define ATKHLDV_PHASE0_MASK	0x00008000	/* 0 = Begin attack phase				*/
 #define ATKHLDV_HOLDTIME_MASK	0x00007f00	/* Envelope hold time (127-n == n*88.2msec)		*/
 #define ATKHLDV_ATTACKTIME_MASK	0x0000007f	/* Envelope attack time, log encoded			*/
 						/* 0 = infinite, 1 = 10.9msec, ... 0x7f = 5.5msec	*/
@@ -510,7 +515,7 @@
 						/* 0x8000-n == 666*n usec delay				*/
 
 #define ATKHLDM			0x15		/* Modulation envelope hold and attack register		*/
-#define ATKHLDM_PHASE0		0x00008000	/* 0 = Begin attack phase				*/
+#define ATKHLDM_PHASE0_MASK	0x00008000	/* 0 = Begin attack phase				*/
 #define ATKHLDM_HOLDTIME	0x00007f00	/* Envelope hold time (127-n == n*42msec)		*/
 #define ATKHLDM_ATTACKTIME	0x0000007f	/* Envelope attack time, log encoded			*/
 						/* 0 = infinite, 1 = 11msec, ... 0x7f = 5.5msec		*/
@@ -839,16 +844,15 @@
 #define A_FXWC1			0x74            /* Selects 0x7f-0x60 for FX recording           */
 #define A_FXWC2			0x75		/* Selects 0x9f-0x80 for FX recording           */
 
-/* Extended Hardware Control */
-#define A_SPDIF_SAMPLERATE	0x76		/* Set the sample rate of SPDIF output		*/
-#define A_SAMPLE_RATE		0x76		/* Various sample rate settings. */
-#define A_SAMPLE_RATE_NOT_USED  0x0ffc111e	/* Bits that are not used and cannot be set. 	*/
-#define A_SAMPLE_RATE_UNKNOWN	0xf0030001	/* Bits that can be set, but have unknown use. 	*/
+#define A_EHC			0x76		/* Extended Hardware Control */
+
+#define A_SPDIF_SAMPLERATE	A_EHC		/* Set the sample rate of SPDIF output		*/
 #define A_SPDIF_RATE_MASK	0x000000e0	/* Any other values for rates, just use 48000	*/
-#define A_SPDIF_48000		0x00000000
+#define A_SPDIF_48000		0x00000000	/* kX calls this BYPASS				*/
 #define A_SPDIF_192000		0x00000020
 #define A_SPDIF_96000		0x00000040
 #define A_SPDIF_44100		0x00000080
+#define A_SPDIF_MUTED		0x000000c0
 
 #define A_I2S_CAPTURE_RATE_MASK	0x00000e00	/* This sets the capture PCM rate, but it is    */
 #define A_I2S_CAPTURE_48000	0x00000000	/* unclear if this sets the ADC rate as well.	*/
@@ -856,16 +860,28 @@
 #define A_I2S_CAPTURE_96000	0x00000400
 #define A_I2S_CAPTURE_44100	0x00000800
 
-#define A_PCM_RATE_MASK		0x0000e000	/* This sets the playback PCM rate on the P16V	*/
-#define A_PCM_48000		0x00000000
-#define A_PCM_192000		0x00002000
-#define A_PCM_96000		0x00004000
-#define A_PCM_44100		0x00008000
+#define A_EHC_SRC48_MASK	0x0000e000	/* This sets the playback PCM rate on the P16V	*/
+#define A_EHC_SRC48_BYPASS	0x00000000
+#define A_EHC_SRC48_192		0x00002000
+#define A_EHC_SRC48_96		0x00004000
+#define A_EHC_SRC48_44		0x00008000
+#define A_EHC_SRC48_MUTED	0x0000c000
+
+#define A_EHC_P17V_TVM		0x00000001	/* Tank virtual memory mode			*/
+#define A_EHC_P17V_SEL0_MASK	0x00030000	/* Aka A_EHC_P16V_PB_RATE; 00: 48, 01: 44.1, 10: 96, 11: 192 */
+#define A_EHC_P17V_SEL1_MASK	0x000c0000
+#define A_EHC_P17V_SEL2_MASK	0x00300000
+#define A_EHC_P17V_SEL3_MASK	0x00c00000
+
+#define A_EHC_ASYNC_BYPASS	0x80000000
 
 #define A_SRT3			0x77		/* I2S0 Sample Rate Tracker Status		*/
 #define A_SRT4			0x78		/* I2S1 Sample Rate Tracker Status		*/
 #define A_SRT5			0x79		/* I2S2 Sample Rate Tracker Status		*/
 /* - default to 0x01080000 on my audigy 2 ZS --rlrevell	*/
+
+#define A_SRT_ESTSAMPLERATE	0x001fffff
+#define A_SRT_RATELOCKED	0x01000000
 
 #define A_TTDA			0x7a		/* Tank Table DMA Address			*/
 #define A_TTDD			0x7b		/* Tank Table DMA Data				*/
@@ -981,7 +997,7 @@
 #define EMU_HANA_WCLOCK_INT_44_1K	0x01
 #define EMU_HANA_WCLOCK_HANA_SPDIF_IN	0x02
 #define EMU_HANA_WCLOCK_HANA_ADAT_IN	0x03
-#define EMU_HANA_WCLOCK_SYNC_BNCN	0x04
+#define EMU_HANA_WCLOCK_SYNC_BNC	0x04
 #define EMU_HANA_WCLOCK_2ND_HANA	0x05
 #define EMU_HANA_WCLOCK_SRC_RESERVED	0x06
 #define EMU_HANA_WCLOCK_OFF		0x07 /* For testing, forces fallback to DEFCLOCK */
@@ -1010,10 +1026,10 @@
 #define EMU_HANA_IRQ_DOCK_LOST		0x08
 
 #define EMU_HANA_SPDIF_MODE	0x0a	/* 00xxxxx  5 bits SPDIF MODE  */
-#define EMU_HANA_SPDIF_MODE_TX_COMSUMER	0x00
+#define EMU_HANA_SPDIF_MODE_TX_CONSUMER	0x00
 #define EMU_HANA_SPDIF_MODE_TX_PRO	0x01
 #define EMU_HANA_SPDIF_MODE_TX_NOCOPY	0x02
-#define EMU_HANA_SPDIF_MODE_RX_COMSUMER	0x00
+#define EMU_HANA_SPDIF_MODE_RX_CONSUMER	0x00
 #define EMU_HANA_SPDIF_MODE_RX_PRO	0x04
 #define EMU_HANA_SPDIF_MODE_RX_NOCOPY	0x08
 #define EMU_HANA_SPDIF_MODE_RX_INVALID	0x10
@@ -1025,8 +1041,12 @@
 #define EMU_HANA_OPTICAL_OUT_ADAT	0x02
 
 #define EMU_HANA_MIDI_IN		0x0c	/* 000000x  1 bit  Control MIDI  */
-#define EMU_HANA_MIDI_IN_FROM_HAMOA	0x00 /* HAMOA MIDI in to Alice 2 MIDI B */
-#define EMU_HANA_MIDI_IN_FROM_DOCK	0x01 /* Audio Dock MIDI in to Alice 2 MIDI B */
+#define EMU_HANA_MIDI_INA_FROM_HAMOA	0x01 /* HAMOA MIDI in to Alice 2 MIDI A */
+#define EMU_HANA_MIDI_INA_FROM_DOCK1	0x02 /* Audio Dock-1 MIDI in to Alice 2 MIDI A */
+#define EMU_HANA_MIDI_INA_FROM_DOCK2	0x03 /* Audio Dock-2 MIDI in to Alice 2 MIDI A */
+#define EMU_HANA_MIDI_INB_FROM_HAMOA	0x08 /* HAMOA MIDI in to Alice 2 MIDI B */
+#define EMU_HANA_MIDI_INB_FROM_DOCK1	0x10 /* Audio Dock-1 MIDI in to Alice 2 MIDI B */
+#define EMU_HANA_MIDI_INB_FROM_DOCK2	0x18 /* Audio Dock-2 MIDI in to Alice 2 MIDI B */
 
 #define EMU_HANA_DOCK_LEDS_1	0x0d	/* 000xxxx  4 bit  Audio Dock LEDs  */
 #define EMU_HANA_DOCK_LEDS_1_MIDI1	0x01	/* MIDI 1 LED on */
@@ -1118,6 +1138,10 @@
 #define EMU_HANA2_WC_SPDIF_LO	0x2f	/* 0xxxxxx  6 bit  HANA2 SPDIF IN Word clock, lower 6 bits */
 
 /* 0x30 - 0x3f Unused Read only registers */
+
+// The meaning of this is not clear; kX-project just calls it "lock" in some info-only code.
+#define EMU_HANA_LOCK_STS_LO	0x38	/* 0xxxxxx  lower 6 bits */
+#define EMU_HANA_LOCK_STS_HI	0x39	/* 0xxxxxx  upper 6 bits */
 
 /************************************************************************************************/
 /* EMU1010 Audio Destinations									*/
@@ -1257,8 +1281,12 @@
 #define EMU_DST_DOCK_SPDIF_RIGHT2	0x011f	/* Audio Dock SPDIF Right, 2nd or 96kHz */
 #define EMU_DST_HANA_SPDIF_LEFT1	0x0200	/* Hana SPDIF Left, 1st or 48kHz only */
 #define EMU_DST_HANA_SPDIF_LEFT2	0x0202	/* Hana SPDIF Left, 2nd or 96kHz */
+#define EMU_DST_HANA_SPDIF_LEFT3	0x0204	/* Hana SPDIF Left, 3rd or 192kHz */
+#define EMU_DST_HANA_SPDIF_LEFT4	0x0206	/* Hana SPDIF Left, 4th or 192kHz */
 #define EMU_DST_HANA_SPDIF_RIGHT1	0x0201	/* Hana SPDIF Right, 1st or 48kHz only */
 #define EMU_DST_HANA_SPDIF_RIGHT2	0x0203	/* Hana SPDIF Right, 2nd or 96kHz */
+#define EMU_DST_HANA_SPDIF_RIGHT3	0x0205	/* Hana SPDIF Right, 3rd or 192kHz */
+#define EMU_DST_HANA_SPDIF_RIGHT4	0x0207	/* Hana SPDIF Right, 4th or 192kHz */
 #define EMU_DST_HAMOA_DAC_LEFT1	0x0300	/* Hamoa DAC Left, 1st or 48kHz only */
 #define EMU_DST_HAMOA_DAC_LEFT2	0x0302	/* Hamoa DAC Left, 2nd or 96kHz */
 #define EMU_DST_HAMOA_DAC_LEFT3	0x0304	/* Hamoa DAC Left, 3rd or 192kHz */
@@ -1409,8 +1437,12 @@
 #define EMU_SRC_HANA_ADAT	0x0400	/* Hana ADAT 8 channel in +0 to +7 */
 #define EMU_SRC_HANA_SPDIF_LEFT1	0x0500	/* Hana SPDIF Left, 1st or 48kHz only */
 #define EMU_SRC_HANA_SPDIF_LEFT2	0x0502	/* Hana SPDIF Left, 2nd or 96kHz */
+#define EMU_SRC_HANA_SPDIF_LEFT3	0x0504	/* Hana SPDIF Left, 3rd or 192kHz */
+#define EMU_SRC_HANA_SPDIF_LEFT4	0x0506	/* Hana SPDIF Left, 4th or 192kHz */
 #define EMU_SRC_HANA_SPDIF_RIGHT1	0x0501	/* Hana SPDIF Right, 1st or 48kHz only */
 #define EMU_SRC_HANA_SPDIF_RIGHT2	0x0503	/* Hana SPDIF Right, 2nd or 96kHz */
+#define EMU_SRC_HANA_SPDIF_RIGHT3	0x0505	/* Hana SPDIF Right, 3rd or 192kHz */
+#define EMU_SRC_HANA_SPDIF_RIGHT4	0x0507	/* Hana SPDIF Right, 4th or 192kHz */
 
 /* Additional inputs for 1616(M)/Microdock */
 

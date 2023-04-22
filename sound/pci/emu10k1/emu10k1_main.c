@@ -1953,7 +1953,7 @@ static const unsigned char saved_regs[] = {
 	0xff /* end */
 };
 static const unsigned char saved_regs_audigy[] = {
-	A_ADCIDX, A_MICIDX, A_FXWC1, A_FXWC2, A_SAMPLE_RATE,
+	A_ADCIDX, A_MICIDX, A_FXWC1, A_FXWC2, A_EHC,
 	A_FXRT2, A_SENDAMOUNTS, A_FXRT1,
 	0xff /* end */
 };
