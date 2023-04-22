@@ -157,6 +157,8 @@ static void veth_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 			for (j = 0; j < VETH_TQ_STATS_LEN; j++)
 				ethtool_sprintf(&p, "tx_queue_%u_%.18s",
 						i, veth_tq_stats_desc[j].desc);
+
+		page_pool_ethtool_stats_get_strings(p);
 		break;
 	}
 }
@@ -167,7 +169,8 @@ static int veth_get_sset_count(struct net_device *dev, int sset)
 	case ETH_SS_STATS:
 		return ARRAY_SIZE(ethtool_stats_keys) +
 		       VETH_RQ_STATS_LEN * dev->real_num_rx_queues +
-		       VETH_TQ_STATS_LEN * dev->real_num_tx_queues;
+		       VETH_TQ_STATS_LEN * dev->real_num_tx_queues +
+		       page_pool_ethtool_stats_get_count();
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -178,7 +181,8 @@ static void veth_get_ethtool_stats(struct net_device *dev,
 {
 	struct veth_priv *rcv_priv, *priv = netdev_priv(dev);
 	struct net_device *peer = rtnl_dereference(priv->peer);
-	int i, j, idx;
+	struct page_pool_stats pp_stats = {};
+	int i, j, idx, pp_idx;
 
 	data[0] = peer ? peer->ifindex : 0;
 	idx = 1;
@@ -197,9 +201,10 @@ static void veth_get_ethtool_stats(struct net_device *dev,
 		} while (u64_stats_fetch_retry(&rq_stats->syncp, start));
 		idx += VETH_RQ_STATS_LEN;
 	}
+	pp_idx = idx;
 
 	if (!peer)
-		return;
+		goto page_pool_stats;
 
 	rcv_priv = netdev_priv(peer);
 	for (i = 0; i < peer->real_num_rx_queues; i++) {
@@ -216,7 +221,16 @@ static void veth_get_ethtool_stats(struct net_device *dev,
 				data[tx_idx + j] += *(u64 *)(base + offset);
 			}
 		} while (u64_stats_fetch_retry(&rq_stats->syncp, start));
+		pp_idx = tx_idx + VETH_TQ_STATS_LEN;
 	}
+
+page_pool_stats:
+	for (i = 0; i < dev->real_num_rx_queues; i++) {
+		if (!priv->rq[i].page_pool)
+			continue;
+		page_pool_get_stats(priv->rq[i].page_pool, &pp_stats);
+	}
+	page_pool_ethtool_stats_get(&data[pp_idx], &pp_stats);
 }
 
 static void veth_get_channels(struct net_device *dev,
