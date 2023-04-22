@@ -290,6 +290,7 @@ struct platform_features {
 	int rapl_msrs;		/* RAPL PKG/DRAM/CORE/GFX MSRs, AMD RAPL MSRs */
 	bool has_per_core_rapl;	/* Indicates cores energy collection is per-core, not per-package. AMD specific for now */
 	bool has_rapl_divisor;	/* Divisor for Energy unit raw value from MSR_RAPL_POWER_UNIT */
+	bool has_fixed_rapl_unit;	/* Fixed Energy Unit used for DRAM RAPL Domain */
 	int tcc_offset_bits;	/* TCC Offset bits in MSR_IA32_TEMPERATURE_TARGET */
 };
 
@@ -471,6 +472,7 @@ static const struct platform_features hsx_features = {
 	.trl_msrs = TRL_BASE | TRL_LIMIT1 | TRL_LIMIT2,
 	.plr_msrs = PLR_CORE | PLR_RING,
 	.rapl_msrs = RAPL_PKG_ALL | RAPL_DRAM_ALL,
+	.has_fixed_rapl_unit = 1,
 };
 
 static const struct platform_features hswl_features = {
@@ -529,6 +531,7 @@ static const struct platform_features bdx_features = {
 	.has_cst_auto_convension = 1,
 	.trl_msrs = TRL_BASE,
 	.rapl_msrs = RAPL_PKG_ALL | RAPL_DRAM_ALL,
+	.has_fixed_rapl_unit = 1,
 };
 
 static const struct platform_features skl_features = {
@@ -566,6 +569,7 @@ static const struct platform_features skx_features = {
 	.has_cst_auto_convension = 1,
 	.trl_msrs = TRL_BASE | TRL_CORECOUNT,
 	.rapl_msrs = RAPL_PKG_ALL | RAPL_DRAM_ALL,
+	.has_fixed_rapl_unit = 1,
 };
 
 static const struct platform_features icx_features = {
@@ -577,6 +581,7 @@ static const struct platform_features icx_features = {
 	.cst_limit = CST_LIMIT_ICX,
 	.trl_msrs = TRL_BASE | TRL_CORECOUNT,
 	.rapl_msrs = RAPL_PKG_ALL | RAPL_DRAM_ALL,
+	.has_fixed_rapl_unit = 1,
 };
 
 static const struct platform_features spr_features = {
@@ -671,6 +676,7 @@ static const struct platform_features knl_features = {
 	.cst_limit = CST_LIMIT_KNL,
 	.trl_msrs = TRL_KNL,
 	.rapl_msrs = RAPL_PKG_ALL | RAPL_DRAM_ALL,
+	.has_fixed_rapl_unit = 1,
 };
 
 static const struct platform_features default_features = {
@@ -4811,26 +4817,6 @@ double get_tdp_amd(unsigned int family)
 	return 280.0;
 }
 
-/*
- * rapl_dram_energy_units_probe()
- * Energy units are either hard-coded, or come from RAPL Energy Unit MSR.
- */
-static double rapl_dram_energy_units_probe(int model, double rapl_energy_units)
-{
-	/* only called for genuine_intel, family 6 */
-
-	switch (model) {
-	case INTEL_FAM6_HASWELL_X:	/* HSX */
-	case INTEL_FAM6_BROADWELL_X:	/* BDX */
-	case INTEL_FAM6_SKYLAKE_X:	/* SKX */
-	case INTEL_FAM6_XEON_PHI_KNL:	/* KNL */
-	case INTEL_FAM6_ICELAKE_X:	/* ICX */
-		return (rapl_dram_energy_units = 15.3 / 1000000);
-	default:
-		return (rapl_energy_units);
-	}
-}
-
 void rapl_probe_intel(unsigned int model)
 {
 	unsigned long long msr;
@@ -4872,7 +4858,10 @@ void rapl_probe_intel(unsigned int model)
 	else
 		rapl_energy_units = 1.0 / (1 << (msr >> 8 & 0x1F));
 
-	rapl_dram_energy_units = rapl_dram_energy_units_probe(model, rapl_energy_units);
+	if (platform->has_fixed_rapl_unit)
+		rapl_dram_energy_units = (15.3 / 1000000);
+	else
+		rapl_dram_energy_units = rapl_energy_units;
 
 	time_unit = msr >> 16 & 0xF;
 	if (time_unit == 0)
