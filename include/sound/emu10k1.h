@@ -471,7 +471,6 @@
 #define FXRT_CHANNELC		0x0f000000	/* Effects send bus number for channel's effects send C	*/
 #define FXRT_CHANNELD		0xf0000000	/* Effects send bus number for channel's effects send D	*/
 
-#define A_HR			0x0b	/* High Resolution. 24bit playback from host to DSP. */
 #define MAPA			0x0c		/* Cache map A						*/
 #define MAPB			0x0d		/* Cache map B						*/
 
@@ -625,20 +624,6 @@
 						/* 0x20-0x3f) to host memory.  This mode of recording   */
 						/* is 16bit, 48KHz only. All 32 channels can be enabled */
 						/* simultaneously.					*/
-
-#define FXWC_DEFAULTROUTE_C     (1<<0)		/* left emu out? */
-#define FXWC_DEFAULTROUTE_B     (1<<1)		/* right emu out? */
-#define FXWC_DEFAULTROUTE_A     (1<<12)
-#define FXWC_DEFAULTROUTE_D     (1<<13)
-#define FXWC_ADCLEFT            (1<<18)
-#define FXWC_CDROMSPDIFLEFT     (1<<18)
-#define FXWC_ADCRIGHT           (1<<19)
-#define FXWC_CDROMSPDIFRIGHT    (1<<19)
-#define FXWC_MIC                (1<<20)
-#define FXWC_ZOOMLEFT           (1<<20)
-#define FXWC_ZOOMRIGHT          (1<<21)
-#define FXWC_SPDIFLEFT          (1<<22)		/* 0x00400000 */
-#define FXWC_SPDIFRIGHT         (1<<23)		/* 0x00800000 */
 
 #define A_TBLSZ			0x43	/* Effects Tank Internal Table Size. Only low byte or register used */
 

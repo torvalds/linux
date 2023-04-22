@@ -1745,7 +1745,6 @@ int snd_emu10k1_pcm_efx(struct snd_emu10k1 *emu, int device)
 	 * to these
 	 */	
 	
-	/* emu->efx_voices_mask[0] = FXWC_DEFAULTROUTE_C | FXWC_DEFAULTROUTE_A; */
 	if (emu->audigy) {
 		emu->efx_voices_mask[0] = 0;
 		if (emu->card_capabilities->emu_model)
