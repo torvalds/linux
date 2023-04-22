@@ -536,17 +536,18 @@ static int cxl_cdat_read_table(struct device *dev,
  */
 void read_cdat_data(struct cxl_port *port)
 {
-	struct pci_doe_mb *cdat_doe;
+	struct cxl_memdev *cxlmd = to_cxl_memdev(port->uport);
+	struct device *host = cxlmd->dev.parent;
 	struct device *dev = &port->dev;
-	struct device *uport = port->uport;
-	struct cxl_memdev *cxlmd = to_cxl_memdev(uport);
-	struct cxl_dev_state *cxlds = cxlmd->cxlds;
-	struct pci_dev *pdev = to_pci_dev(cxlds->dev);
+	struct pci_doe_mb *cdat_doe;
 	size_t cdat_length;
 	void *cdat_table;
 	int rc;
 
-	cdat_doe = pci_find_doe_mailbox(pdev, PCI_DVSEC_VENDOR_ID_CXL,
+	if (!dev_is_pci(host))
+		return;
+	cdat_doe = pci_find_doe_mailbox(to_pci_dev(host),
+					PCI_DVSEC_VENDOR_ID_CXL,
 					CXL_DOE_PROTOCOL_TABLE_ACCESS);
 	if (!cdat_doe) {
 		dev_dbg(dev, "No CDAT mailbox\n");
