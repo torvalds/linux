@@ -183,7 +183,8 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir)
 	snd_emu10k1_ptr_write(emu, SPCS1, 0, emu->spdif_bits[1]);
 	snd_emu10k1_ptr_write(emu, SPCS2, 0, emu->spdif_bits[2]);
 
-	if (emu->card_capabilities->ca0151_chip) { /* audigy2 */
+	if (emu->card_capabilities->emu_model) {
+	} else if (emu->card_capabilities->ca0151_chip) { /* audigy2 */
 		/* Hacks for Alice3 to work independent of haP16V driver */
 		/* Setup SRCMulti_I2S SamplingRate */
 		tmp = snd_emu10k1_ptr_read(emu, A_SPDIF_SAMPLERATE, 0);
@@ -201,8 +202,7 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir)
 		outl(0x0201, emu->port + HCFG2);
 		/* Set playback routing. */
 		snd_emu10k1_ptr20_write(emu, CAPTURE_P16V_SOURCE, 0, 0x78e4);
-	}
-	if (emu->card_capabilities->ca0108_chip) { /* audigy2 Value */
+	} else if (emu->card_capabilities->ca0108_chip) { /* audigy2 Value */
 		/* Hacks for Alice3 to work independent of haP16V driver */
 		dev_info(emu->card->dev, "Audigy2 value: Special config.\n");
 		/* Setup SRCMulti_I2S SamplingRate */
