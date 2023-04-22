@@ -252,7 +252,8 @@
 #define MUSTAT_ORDYN		0x40		/* 0 = MUDATA can accept a command or data	*/
 
 #define A_GPIO			0x18		/* GPIO on Audigy card (16bits)			*/
-#define A_GPINPUT_MASK		0xff00
+#define A_GPINPUT_MASK		0xff00		/* Alice/2 has 8 input pins			*/
+#define A3_GPINPUT_MASK		0x3f00		/* ... while Tina/2 has only 6			*/
 #define A_GPOUTPUT_MASK		0x00ff
 
 // The GPIO port is used for I/O config on Sound Blasters;

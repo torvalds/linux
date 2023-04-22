@@ -255,6 +255,9 @@ void snd_emu1010_fpga_write(struct snd_emu10k1 *emu, u32 reg, u32 value)
 
 void snd_emu1010_fpga_read(struct snd_emu10k1 *emu, u32 reg, u32 *value)
 {
+	// The higest input pin is used as the designated interrupt trigger,
+	// so it needs to be masked out.
+	u32 mask = emu->card_capabilities->ca0108_chip ? 0x1f : 0x7f;
 	unsigned long flags;
 	if (snd_BUG_ON(reg > 0x3f))
 		return;
@@ -264,7 +267,7 @@ void snd_emu1010_fpga_read(struct snd_emu10k1 *emu, u32 reg, u32 *value)
 	udelay(10);
 	outw(reg | 0x80, emu->port + A_GPIO);  /* High bit clocks the value into the fpga. */
 	udelay(10);
-	*value = ((inw(emu->port + A_GPIO) >> 8) & 0x7f);
+	*value = ((inw(emu->port + A_GPIO) >> 8) & mask);
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
