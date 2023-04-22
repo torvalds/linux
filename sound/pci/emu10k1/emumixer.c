@@ -1006,7 +1006,7 @@ static int snd_audigy_i2c_volume_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int ogain;
-	unsigned int ngain;
+	unsigned int ngain0, ngain1;
 	unsigned int source_id;
 	int change = 0;
 
@@ -1015,24 +1015,24 @@ static int snd_audigy_i2c_volume_put(struct snd_kcontrol *kcontrol,
         /*        capture_source: uinfo->value.enumerated.items = 2 */
 	if (source_id >= 2)
 		return -EINVAL;
+	ngain0 = ucontrol->value.integer.value[0];
+	ngain1 = ucontrol->value.integer.value[1];
+	if (ngain0 > 0xff)
+		return -EINVAL;
+	if (ngain1 > 0xff)
+		return -EINVAL;
 	ogain = emu->i2c_capture_volume[source_id][0]; /* Left */
-	ngain = ucontrol->value.integer.value[0];
-	if (ngain > 0xff)
-		return 0;
-	if (ogain != ngain) {
+	if (ogain != ngain0) {
 		if (emu->i2c_capture_source == source_id)
-			snd_emu10k1_i2c_write(emu, ADC_ATTEN_ADCL, ((ngain) & 0xff) );
-		emu->i2c_capture_volume[source_id][0] = ngain;
+			snd_emu10k1_i2c_write(emu, ADC_ATTEN_ADCL, ngain0);
+		emu->i2c_capture_volume[source_id][0] = ngain0;
 		change = 1;
 	}
 	ogain = emu->i2c_capture_volume[source_id][1]; /* Right */
-	ngain = ucontrol->value.integer.value[1];
-	if (ngain > 0xff)
-		return 0;
-	if (ogain != ngain) {
+	if (ogain != ngain1) {
 		if (emu->i2c_capture_source == source_id)
-			snd_emu10k1_i2c_write(emu, ADC_ATTEN_ADCR, ((ngain) & 0xff));
-		emu->i2c_capture_volume[source_id][1] = ngain;
+			snd_emu10k1_i2c_write(emu, ADC_ATTEN_ADCR, ngain1);
+		emu->i2c_capture_volume[source_id][1] = ngain1;
 		change = 1;
 	}
 
