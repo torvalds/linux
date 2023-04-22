@@ -259,7 +259,6 @@ unsigned int tj_max_override;
 double rapl_power_units, rapl_time_units;
 double rapl_dram_energy_units, rapl_energy_units;
 double rapl_joule_counter_range;
-unsigned int has_automatic_cstate_conversion;
 unsigned int dis_cstate_prewake;
 unsigned int crystal_hz;
 unsigned long long tsc_hz;
@@ -285,6 +284,7 @@ struct platform_features {
 	bool has_config_tdp;	/* MSR_CONFIG_TDP_NOMINAL/LEVEL_1/LEVEL_2/CONTROL, MSR_TURBO_ACTIVATION_RATIO */
 	int bclk_freq;		/* CPU base clock */
 	int cst_limit;		/* MSR_PKG_CST_CONFIG_CONTROL */
+	bool has_cst_auto_convension;	/* AUTOMATIC_CSTATE_CONVERSION bit in MSR_PKG_CST_CONFIG_CONTROL */
 	int trl_msrs;		/* MSR_TURBO_RATIO_LIMIT/LIMIT1/LIMIT2/SECONDARY, Atom TRL MSRs */
 	int plr_msrs;		/* MSR_CORE/GFX/RING_PERF_LIMIT_REASONS */
 	int tcc_offset_bits;	/* TCC Offset bits in MSR_IA32_TEMPERATURE_TARGET */
@@ -480,6 +480,7 @@ static const struct platform_features bdx_features = {
 	.has_config_tdp = 1,
 	.bclk_freq = BCLK_100MHZ,
 	.cst_limit = CST_LIMIT_HSW,
+	.has_cst_auto_convension = 1,
 	.trl_msrs = TRL_BASE,
 };
 
@@ -512,6 +513,7 @@ static const struct platform_features skx_features = {
 	.has_config_tdp = 1,
 	.bclk_freq = BCLK_100MHZ,
 	.cst_limit = CST_LIMIT_SKX,
+	.has_cst_auto_convension = 1,
 	.trl_msrs = TRL_BASE | TRL_CORECOUNT,
 };
 
@@ -3116,7 +3118,7 @@ static void dump_cst_cfg(void)
 		(msr & (1 << 15)) ? "" : "UN", (unsigned int)msr & 0xF, pkg_cstate_limit_strings[pkg_cstate_limit]);
 
 #define AUTOMATIC_CSTATE_CONVERSION		(1UL << 16)
-	if (has_automatic_cstate_conversion) {
+	if (platform->has_cst_auto_convension) {
 		fprintf(outf, ", automatic c-state conversion=%s", (msr & AUTOMATIC_CSTATE_CONVERSION) ? "on" : "off");
 	}
 
@@ -5011,18 +5013,6 @@ void rapl_probe(unsigned int family, unsigned int model)
 		rapl_probe_amd(family, model);
 }
 
-void automatic_cstate_conversion_probe(unsigned int family, unsigned int model)
-{
-	if (family != 6)
-		return;
-
-	switch (model) {
-	case INTEL_FAM6_BROADWELL_X:
-	case INTEL_FAM6_SKYLAKE_X:
-		has_automatic_cstate_conversion = 1;
-	}
-}
-
 void prewake_cstate_probe(unsigned int family, unsigned int model)
 {
 	if (is_icx(family, model) || is_spr(family, model))
@@ -5939,7 +5929,6 @@ void process_cpuid()
 		decode_c6_demotion_policy_msr();
 
 	rapl_probe(family, model);
-	automatic_cstate_conversion_probe(family, model);
 	prewake_cstate_probe(family, model);
 
 	if (!quiet)
