@@ -1072,34 +1072,34 @@
 #define EMU_HANA_DOCK_LEDS_3_MANUAL_SIGNAL	0x20	/* Manual Signal detection */
 
 #define EMU_HANA_ADC_PADS	0x10	/* 0000xxx  3 bit  Audio Dock ADC 14dB pads */
-#define EMU_HANA_DOCK_ADC_PAD1	0x01	/* 14dB Attenuation on Audio Dock ADC 1 */
-#define EMU_HANA_DOCK_ADC_PAD2	0x02	/* 14dB Attenuation on Audio Dock ADC 2 */
-#define EMU_HANA_DOCK_ADC_PAD3	0x04	/* 14dB Attenuation on Audio Dock ADC 3 */
-#define EMU_HANA_0202_ADC_PAD1	0x08	/* 14dB Attenuation on 0202 ADC 1 */
+#define EMU_HANA_DOCK_ADC_PAD1		0x01	/* 14dB Attenuation on Audio Dock ADC 1 */
+#define EMU_HANA_DOCK_ADC_PAD2		0x02	/* 14dB Attenuation on Audio Dock ADC 2 */
+#define EMU_HANA_DOCK_ADC_PAD3		0x04	/* 14dB Attenuation on Audio Dock ADC 3 */
+#define EMU_HANA_0202_ADC_PAD1		0x08	/* 14dB Attenuation on 0202 ADC 1 */
 
 #define EMU_HANA_DOCK_MISC	0x11	/* 0xxxxxx  6 bit  Audio Dock misc bits */
-#define EMU_HANA_DOCK_DAC1_MUTE	0x01	/* DAC 1 Mute */
-#define EMU_HANA_DOCK_DAC2_MUTE	0x02	/* DAC 2 Mute */
-#define EMU_HANA_DOCK_DAC3_MUTE	0x04	/* DAC 3 Mute */
-#define EMU_HANA_DOCK_DAC4_MUTE	0x08	/* DAC 4 Mute */
+#define EMU_HANA_DOCK_DAC1_MUTE		0x01	/* DAC 1 Mute */
+#define EMU_HANA_DOCK_DAC2_MUTE		0x02	/* DAC 2 Mute */
+#define EMU_HANA_DOCK_DAC3_MUTE		0x04	/* DAC 3 Mute */
+#define EMU_HANA_DOCK_DAC4_MUTE		0x08	/* DAC 4 Mute */
 #define EMU_HANA_DOCK_PHONES_192_DAC1	0x00	/* DAC 1 Headphones source at 192kHz */
 #define EMU_HANA_DOCK_PHONES_192_DAC2	0x10	/* DAC 2 Headphones source at 192kHz */
 #define EMU_HANA_DOCK_PHONES_192_DAC3	0x20	/* DAC 3 Headphones source at 192kHz */
 #define EMU_HANA_DOCK_PHONES_192_DAC4	0x30	/* DAC 4 Headphones source at 192kHz */
 
 #define EMU_HANA_MIDI_OUT	0x12	/* 00xxxxx  5 bit  Source for each MIDI out port */
-#define EMU_HANA_MIDI_OUT_0202	0x01 /* 0202 MIDI from Alice 2. 0 = A, 1 = B */
-#define EMU_HANA_MIDI_OUT_DOCK1	0x02 /* Audio Dock MIDI1 front, from Alice 2. 0 = A, 1 = B */
-#define EMU_HANA_MIDI_OUT_DOCK2	0x04 /* Audio Dock MIDI2 rear, from Alice 2. 0 = A, 1 = B */
-#define EMU_HANA_MIDI_OUT_SYNC2	0x08 /* Sync card. Not the actual MIDI out jack. 0 = A, 1 = B */
-#define EMU_HANA_MIDI_OUT_LOOP	0x10 /* 0 = bits (3:0) normal. 1 = MIDI loopback enabled. */
+#define EMU_HANA_MIDI_OUT_0202		0x01 /* 0202 MIDI from Alice 2. 0 = A, 1 = B */
+#define EMU_HANA_MIDI_OUT_DOCK1		0x02 /* Audio Dock MIDI1 front, from Alice 2. 0 = A, 1 = B */
+#define EMU_HANA_MIDI_OUT_DOCK2		0x04 /* Audio Dock MIDI2 rear, from Alice 2. 0 = A, 1 = B */
+#define EMU_HANA_MIDI_OUT_SYNC2		0x08 /* Sync card. Not the actual MIDI out jack. 0 = A, 1 = B */
+#define EMU_HANA_MIDI_OUT_LOOP		0x10 /* 0 = bits (3:0) normal. 1 = MIDI loopback enabled. */
 
 #define EMU_HANA_DAC_PADS	0x13	/* 00xxxxx  5 bit  DAC 14dB attenuation pads */
-#define EMU_HANA_DOCK_DAC_PAD1	0x01	/* 14dB Attenuation on AudioDock DAC 1. Left and Right */
-#define EMU_HANA_DOCK_DAC_PAD2	0x02	/* 14dB Attenuation on AudioDock DAC 2. Left and Right */
-#define EMU_HANA_DOCK_DAC_PAD3	0x04	/* 14dB Attenuation on AudioDock DAC 3. Left and Right */
-#define EMU_HANA_DOCK_DAC_PAD4	0x08	/* 14dB Attenuation on AudioDock DAC 4. Left and Right */
-#define EMU_HANA_0202_DAC_PAD1	0x10	/* 14dB Attenuation on 0202 DAC 1. Left and Right */
+#define EMU_HANA_DOCK_DAC_PAD1		0x01	/* 14dB Attenuation on AudioDock DAC 1. Left and Right */
+#define EMU_HANA_DOCK_DAC_PAD2		0x02	/* 14dB Attenuation on AudioDock DAC 2. Left and Right */
+#define EMU_HANA_DOCK_DAC_PAD3		0x04	/* 14dB Attenuation on AudioDock DAC 3. Left and Right */
+#define EMU_HANA_DOCK_DAC_PAD4		0x08	/* 14dB Attenuation on AudioDock DAC 4. Left and Right */
+#define EMU_HANA_0202_DAC_PAD1		0x10	/* 14dB Attenuation on 0202 DAC 1. Left and Right */
 
 /* 0x14 - 0x1f Unused R/W registers */
 
@@ -1108,8 +1108,8 @@
 					/* Reading the register resets it. */
 
 #define EMU_HANA_OPTION_CARDS	0x21	/* 000xxxx  4 bits Presence of option cards */
-#define EMU_HANA_OPTION_HAMOA	0x01	/* Hamoa (analog I/O) card present */
-#define EMU_HANA_OPTION_SYNC	0x02	/* Sync card present */
+#define EMU_HANA_OPTION_HAMOA		0x01	/* Hamoa (analog I/O) card present */
+#define EMU_HANA_OPTION_SYNC		0x02	/* Sync card present */
 #define EMU_HANA_OPTION_DOCK_ONLINE	0x04	/* Audio/Micro dock present and FPGA configured */
 #define EMU_HANA_OPTION_DOCK_OFFLINE	0x08	/* Audio/Micro dock present and FPGA not configured */
 
@@ -1123,8 +1123,8 @@
 #define EMU_DOCK_MINOR_REV	0x26	/* 0000xxx  3 bit  Audio Dock FPGA Minor rev */
 
 #define EMU_DOCK_BOARD_ID	0x27	/* 00000xx  2 bits Audio Dock ID pins */
-#define EMU_DOCK_BOARD_ID0	0x00	/* ID bit 0 */
-#define EMU_DOCK_BOARD_ID1	0x03	/* ID bit 1 */
+#define EMU_DOCK_BOARD_ID0		0x00	/* ID bit 0 */
+#define EMU_DOCK_BOARD_ID1		0x03	/* ID bit 1 */
 
 #define EMU_HANA_WC_SPDIF_HI	0x28	/* 0xxxxxx  6 bit  SPDIF IN Word clock, upper 6 bits */
 #define EMU_HANA_WC_SPDIF_LO	0x29	/* 0xxxxxx  6 bit  SPDIF IN Word clock, lower 6 bits */
