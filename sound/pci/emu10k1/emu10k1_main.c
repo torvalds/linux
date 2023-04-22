@@ -140,7 +140,7 @@ static const unsigned int i2c_adc_init[][2] = {
 	{ 0x15, ADC_MUX_2 },  /* ADC Mixer control. Mic for A2ZS Notebook */
 };
 
-static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir, int resume)
+static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir)
 {
 	unsigned int silent_page;
 	int ch;
@@ -1910,7 +1910,7 @@ int snd_emu10k1_create(struct snd_card *card,
 	for (idx = 0; idx < NUM_G; idx++)
 		emu->voices[idx].number = idx;
 
-	err = snd_emu10k1_init(emu, enable_ir, 0);
+	err = snd_emu10k1_init(emu, enable_ir);
 	if (err < 0)
 		return err;
 #ifdef CONFIG_PM_SLEEP
@@ -2003,7 +2003,7 @@ void snd_emu10k1_resume_init(struct snd_emu10k1 *emu)
 		snd_emu10k1_emu1010_init(emu);
 	else
 		snd_emu10k1_ptr_write(emu, AC97SLOT, 0, AC97SLOT_CNTR|AC97SLOT_LFE);
-	snd_emu10k1_init(emu, emu->enable_ir, 1);
+	snd_emu10k1_init(emu, emu->enable_ir);
 }
 
 void snd_emu10k1_resume_regs(struct snd_emu10k1 *emu)
