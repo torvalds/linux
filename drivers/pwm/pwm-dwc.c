@@ -163,8 +163,8 @@ static int dwc_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	return 0;
 }
 
-static int dwc_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
-			     struct pwm_state *state)
+static void dwc_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
+			      struct pwm_state *state)
 {
 	struct dwc_pwm *dwc = to_dwc_pwm(chip);
 	u64 duty, period;
@@ -188,8 +188,6 @@ static int dwc_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 	state->polarity = PWM_POLARITY_INVERSED;
 
 	pm_runtime_put_sync(chip->dev);
-
-	return 0;
 }
 
 static const struct pwm_ops dwc_pwm_ops = {
