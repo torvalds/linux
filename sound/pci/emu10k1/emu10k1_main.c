@@ -187,10 +187,7 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir)
 	} else if (emu->card_capabilities->ca0151_chip) { /* audigy2 */
 		/* Hacks for Alice3 to work independent of haP16V driver */
 		/* Setup SRCMulti_I2S SamplingRate */
-		tmp = snd_emu10k1_ptr_read(emu, A_SPDIF_SAMPLERATE, 0);
-		tmp &= 0xfffff1ff;
-		tmp |= (0x2<<9);
-		snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, 0, tmp);
+		snd_emu10k1_ptr_write(emu, A_I2S_CAPTURE_RATE, 0, A_I2S_CAPTURE_96000);
 
 		/* Setup SRCSel (Enable Spdif,I2S SRCMulti) */
 		snd_emu10k1_ptr20_write(emu, SRCSel, 0, 0x14);
@@ -206,25 +203,20 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir)
 		/* Hacks for Alice3 to work independent of haP16V driver */
 		dev_info(emu->card->dev, "Audigy2 value: Special config.\n");
 		/* Setup SRCMulti_I2S SamplingRate */
-		tmp = snd_emu10k1_ptr_read(emu, A_SPDIF_SAMPLERATE, 0);
-		tmp &= 0xfffff1ff;
-		tmp |= (0x2<<9);
-		snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, 0, tmp);
+		snd_emu10k1_ptr_write(emu, A_I2S_CAPTURE_RATE, 0, A_I2S_CAPTURE_96000);
 
 		/* Setup SRCSel (Enable Spdif,I2S SRCMulti) */
-		outl(0x600000, emu->port + 0x20);
-		outl(0x14, emu->port + 0x24);
+		snd_emu10k1_ptr20_write(emu, P17V_SRCSel, 0, 0x14);
 
 		/* Setup SRCMulti Input Audio Enable */
-		outl(0x7b0000, emu->port + 0x20);
-		outl(0xFF000000, emu->port + 0x24);
+		snd_emu10k1_ptr20_write(emu, P17V_MIXER_I2S_ENABLE, 0, 0xFF000000);
 
 		/* Setup SPDIF Out Audio Enable */
 		/* The Audigy 2 Value has a separate SPDIF out,
 		 * so no need for a mixer switch
 		 */
-		outl(0x7a0000, emu->port + 0x20);
-		outl(0xFF000000, emu->port + 0x24);
+		snd_emu10k1_ptr20_write(emu, P17V_MIXER_SPDIF_ENABLE, 0, 0xFF000000);
+
 		tmp = inw(emu->port + A_IOCFG) & ~0x8; /* Clear bit 3 */
 		outw(tmp, emu->port + A_IOCFG);
 	}

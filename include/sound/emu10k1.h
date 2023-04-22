@@ -852,10 +852,11 @@
 #define A_SPDIF_MUTED		0x000000c0
 
 #define A_I2S_CAPTURE_RATE_MASK	0x00000e00	/* This sets the capture PCM rate, but it is    */
-#define A_I2S_CAPTURE_48000	0x00000000	/* unclear if this sets the ADC rate as well.	*/
-#define A_I2S_CAPTURE_192000	0x00000200
-#define A_I2S_CAPTURE_96000	0x00000400
-#define A_I2S_CAPTURE_44100	0x00000800
+#define A_I2S_CAPTURE_RATE	0x03090076	/* unclear if this sets the ADC rate as well.	*/
+#define A_I2S_CAPTURE_48000	0x0
+#define A_I2S_CAPTURE_192000	0x1
+#define A_I2S_CAPTURE_96000	0x2
+#define A_I2S_CAPTURE_44100	0x4
 
 #define A_EHC_SRC48_MASK	0x0000e000	/* This sets the playback PCM rate on the P16V	*/
 #define A_EHC_SRC48_BYPASS	0x00000000
