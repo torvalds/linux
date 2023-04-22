@@ -2650,17 +2650,19 @@ static int snd_emu10k1_fx8010_ioctl(struct snd_hwdep * hw, struct file *file, un
 			return -EPERM;
 		if (get_user(addr, (unsigned int __user *)argp))
 			return -EFAULT;
-		if (addr > 0x1ff)
-			return -EINVAL;
-		if (emu->audigy)
-			snd_emu10k1_ptr_write(emu, A_DBG, 0, emu->fx8010.dbg |= A_DBG_SINGLE_STEP | addr);
-		else
-			snd_emu10k1_ptr_write(emu, DBG, 0, emu->fx8010.dbg |= EMU10K1_DBG_SINGLE_STEP | addr);
-		udelay(10);
-		if (emu->audigy)
-			snd_emu10k1_ptr_write(emu, A_DBG, 0, emu->fx8010.dbg |= A_DBG_SINGLE_STEP | A_DBG_STEP_ADDR | addr);
-		else
-			snd_emu10k1_ptr_write(emu, DBG, 0, emu->fx8010.dbg |= EMU10K1_DBG_SINGLE_STEP | EMU10K1_DBG_STEP | addr);
+		if (emu->audigy) {
+			if (addr > A_DBG_STEP_ADDR)
+				return -EINVAL;
+			snd_emu10k1_ptr_write(emu, A_DBG, 0, emu->fx8010.dbg |= A_DBG_SINGLE_STEP);
+			udelay(10);
+			snd_emu10k1_ptr_write(emu, A_DBG, 0, emu->fx8010.dbg | A_DBG_STEP | addr);
+		} else {
+			if (addr > EMU10K1_DBG_SINGLE_STEP_ADDR)
+				return -EINVAL;
+			snd_emu10k1_ptr_write(emu, DBG, 0, emu->fx8010.dbg |= EMU10K1_DBG_SINGLE_STEP);
+			udelay(10);
+			snd_emu10k1_ptr_write(emu, DBG, 0, emu->fx8010.dbg | EMU10K1_DBG_STEP | addr);
+		}
 		return 0;
 	case SNDRV_EMU10K1_IOCTL_DBG_READ:
 		if (emu->audigy)
