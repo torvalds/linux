@@ -1764,7 +1764,6 @@ struct snd_emu10k1 {
 	struct snd_pcm_substream *pcm_capture_substream;
 	struct snd_pcm_substream *pcm_capture_mic_substream;
 	struct snd_pcm_substream *pcm_capture_efx_substream;
-	struct snd_pcm_substream *pcm_playback_efx_substream;
 
 	struct snd_timer *timer;
 
