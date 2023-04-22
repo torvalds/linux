@@ -111,6 +111,9 @@
 #define CC_REG_NONZERO	C_00000100
 
 /* FX buses */
+// These are arbitrary mappings; our DSP code simply expects
+// the config files to route the channels this way.
+// The numbers are documented in {audigy,sb-live}-mixer.rst.
 #define FXBUS_PCM_LEFT		0x00
 #define FXBUS_PCM_RIGHT		0x01
 #define FXBUS_PCM_LEFT_REAR	0x02

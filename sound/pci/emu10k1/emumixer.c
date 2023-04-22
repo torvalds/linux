@@ -346,7 +346,7 @@ static const unsigned int emu1616_output_dst[] = {
 };
 
 /*
- * Data destinations - HANA outputs going to Alice2 (audigy) for
+ * Data destinations - FPGA outputs going to Alice2 (Audigy) for
  *   capture (EMU32 + I2S links)
  * Each destination has an enum mixer control to choose a data source
  */
@@ -367,6 +367,7 @@ static const unsigned int emu1010_input_dst[] = {
 	EMU_DST_ALICE2_EMU32_D,
 	EMU_DST_ALICE2_EMU32_E,
 	EMU_DST_ALICE2_EMU32_F,
+	/* These exist only on rev1 EMU1010 cards. */
 	EMU_DST_ALICE_I2S0_LEFT,
 	EMU_DST_ALICE_I2S0_RIGHT,
 	EMU_DST_ALICE_I2S1_LEFT,
@@ -708,7 +709,7 @@ static int snd_emu1010_internal_clock_put(struct snd_kcontrol *kcontrol,
 			/* 44100 */
 			/* Mute all */
 			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_MUTE );
-			/* Default fallback clock 48kHz */
+			/* Default fallback clock 44.1kHz */
 			snd_emu1010_fpga_write(emu, EMU_HANA_DEFCLOCK, EMU_HANA_DEFCLOCK_44_1K );
 			/* Word Clock source, Internal 44.1kHz x1 */
 			snd_emu1010_fpga_write(emu, EMU_HANA_WCLOCK,

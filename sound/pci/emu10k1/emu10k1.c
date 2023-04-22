@@ -68,17 +68,6 @@ static const struct pci_device_id snd_emu10k1_ids[] = {
 	{ 0, }
 };
 
-/*
- * Audigy 2 Value notes:
- * A_IOCFG Input (GPIO)
- * 0x400  = Front analog jack plugged in. (Green socket)
- * 0x1000 = Read analog jack plugged in. (Black socket)
- * 0x2000 = Center/LFE analog jack plugged in. (Orange socket)
- * A_IOCFG Output (GPIO)
- * 0x60 = Sound out of front Left.
- * Win sets it to 0xXX61
- */
-
 MODULE_DEVICE_TABLE(pci, snd_emu10k1_ids);
 
 static int snd_card_emu10k1_probe(struct pci_dev *pci,

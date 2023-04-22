@@ -1187,8 +1187,8 @@ snd_emu10k1_init_stereo_onoff_control(struct snd_emu10k1_fx8010_control_gpr *ctl
 }
 
 /*
- * Used for emu1010 - conversion from 32-bit capture inputs from HANA
- * to 2 x 16-bit registers in audigy - their values are read via DMA.
+ * Used for emu1010 - conversion from 32-bit capture inputs from the FPGA
+ * to 2 x 16-bit registers in Audigy - their values are read via DMA.
  * Conversion is performed by Audigy DSP instructions of FX8010.
  */
 static int snd_emu10k1_audigy_dsp_convert_32_to_2x16(
@@ -1330,8 +1330,9 @@ static int _snd_emu10k1_audigy_init_efx(struct snd_emu10k1 *emu)
 #define A_ADD_VOLUME_IN(var,vol,input) \
 A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 
-	/* emu1212 DSP 0 and DSP 1 Capture */
 	if (emu->card_capabilities->emu_model) {
+		/* EMU1010 DSP 0 and DSP 1 Capture */
+		// The 24 MSB hold the actual value. We implicitly discard the 16 LSB.
 		if (emu->card_capabilities->ca0108_chip) {
 			/* Note:JCD:No longer bit shift lower 16bits to upper 16bits of 32bit value. */
 			A_OP(icode, &ptr, iMACINT0, A_GPR(tmp), A_C_00000000, A3_EMU32IN(0x0), A_C_00000001);
@@ -1636,8 +1637,11 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 #endif
 
 	if (emu->card_capabilities->emu_model) {
+		/* Capture 16 channels of S32_LE sound. */
 		if (emu->card_capabilities->ca0108_chip) {
 			dev_info(emu->card->dev, "EMU2 inputs on\n");
+			/* Note that the Tina[2] DSPs have 16 more EMU32 inputs which we don't use. */
+
 			for (z = 0; z < 0x10; z++) {
 				snd_emu10k1_audigy_dsp_convert_32_to_2x16( icode, &ptr, tmp, 
 									bit_shifter16,
@@ -1646,7 +1650,7 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 			}
 		} else {
 			dev_info(emu->card->dev, "EMU inputs on\n");
-			/* Capture 16 (originally 8) channels of S32_LE sound */
+			/* Note that the Alice2 DSPs have 6 I2S inputs which we don't use. */
 
 			/*
 			dev_dbg(emu->card->dev, "emufx.c: gpr=0x%x, tmp=0x%x\n",

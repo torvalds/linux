@@ -162,6 +162,8 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir)
 	outl(0, emu->port + INTE);
 	snd_emu10k1_ptr_write(emu, CLIEL, 0, 0);
 	snd_emu10k1_ptr_write(emu, CLIEH, 0, 0);
+
+	/* disable stop on loop end */
 	snd_emu10k1_ptr_write(emu, SOLEL, 0, 0);
 	snd_emu10k1_ptr_write(emu, SOLEH, 0, 0);
 
@@ -660,13 +662,14 @@ static int snd_emu1010_load_firmware_entry(struct snd_emu10k1 *emu,
 		return -EIO;
 
 	/* The FPGA is a Xilinx Spartan IIE XC2S50E */
+	/* On E-MU 0404b it is a Xilinx Spartan III XC3S50 */
 	/* GPIO7 -> FPGA PGMN
 	 * GPIO6 -> FPGA CCLK
 	 * GPIO5 -> FPGA DIN
 	 * FPGA CONFIG OFF -> FPGA PGMN
 	 */
 	spin_lock_irqsave(&emu->emu_lock, flags);
-	outw(0x00, emu->port + A_GPIO); /* Set PGMN low for 1uS. */
+	outw(0x00, emu->port + A_GPIO); /* Set PGMN low for 100uS. */
 	write_post = inw(emu->port + A_GPIO);
 	udelay(100);
 	outw(0x80, emu->port + A_GPIO); /* Leave bit 7 set during netlist setup. */
@@ -782,7 +785,7 @@ static void emu1010_firmware_work(struct work_struct *work)
 	} else if (!reg && emu->emu1010.last_reg) {
 		/* Audio Dock removed */
 		dev_info(emu->card->dev, "emu1010: Audio Dock detached\n");
-		/* Unmute all */
+		/* The hardware auto-mutes all, so we unmute again */
 		snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE);
 	}
 
@@ -794,29 +797,6 @@ static void emu1010_firmware_work(struct work_struct *work)
 }
 
 /*
- * EMU-1010 - details found out from this driver, official MS Win drivers,
- * testing the card:
- *
- * Audigy2 (aka Alice2):
- * ---------------------
- * 	* communication over PCI
- * 	* conversion of 32-bit data coming over EMU32 links from HANA FPGA
- *	  to 2 x 16-bit, using internal DSP instructions
- * 	* slave mode, clock supplied by HANA
- * 	* linked to HANA using:
- * 		32 x 32-bit serial EMU32 output channels
- * 		16 x EMU32 input channels
- * 		(?) x I2S I/O channels (?)
- *
- * FPGA (aka HANA):
- * ---------------
- * 	* provides all (?) physical inputs and outputs of the card
- * 		(ADC, DAC, SPDIF I/O, ADAT I/O, etc.)
- * 	* provides clock signal for the card and Alice2
- * 	* two crystals - for 44.1kHz and 48kHz multiples
- * 	* provides internal routing of signal sources to signal destinations
- * 	* inputs/outputs to Alice2 - see above
- *
  * Current status of the driver:
  * ----------------------------
  * 	* only 44.1/48kHz supported (the MS Win driver supports up to 192 kHz)
@@ -884,11 +864,8 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 	snd_emu1010_fpga_read(emu, EMU_HANA_OPTION_CARDS, &reg);
 	dev_info(emu->card->dev, "emu1010: Card options = 0x%x\n", reg);
 	/* Optical -> ADAT I/O  */
-	/* 0 : SPDIF
-	 * 1 : ADAT
-	 */
 	emu->emu1010.optical_in = 1; /* IN_ADAT */
-	emu->emu1010.optical_out = 1; /* IN_ADAT */
+	emu->emu1010.optical_out = 1; /* OUT_ADAT */
 	tmp = (emu->emu1010.optical_in ? EMU_HANA_OPTICAL_IN_ADAT : 0) |
 		(emu->emu1010.optical_out ? EMU_HANA_OPTICAL_OUT_ADAT : 0);
 	snd_emu1010_fpga_write(emu, EMU_HANA_OPTICAL_TYPE, tmp);
@@ -1279,6 +1256,15 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 * AC97: STAC9750
 	 * CA0151: None
 	 */
+	/*
+	 * A_IOCFG Input (GPIO)
+	 * 0x400  = Front analog jack plugged in. (Green socket)
+	 * 0x1000 = Rear analog jack plugged in. (Black socket)
+	 * 0x2000 = Center/LFE analog jack plugged in. (Orange socket)
+	 * A_IOCFG Output (GPIO)
+	 * 0x60 = Sound out of front Left.
+	 * Win sets it to 0xXX61
+	 */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x10011102,
 	 .driver = "Audigy2", .name = "SB Audigy 2 Value [SB0400]",
 	 .id = "Audigy2",
@@ -1327,6 +1313,9 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .spi_dac = 1,
 	 .i2c_adc = 1,
 	 .spk71 = 1} ,
+	/* This is MAEM8950 "Mana" */
+	/* Attach MicroDock[M] to make it an E-MU 1616[m]. */
+	/* Does NOT support sync daughter card (obviously). */
 	/* Tested by James@superbug.co.uk 4th Nov 2007. */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x42011102,
 	 .driver = "Audigy2", .name = "E-mu 1010 Notebook [MAEM8950]",
@@ -1337,7 +1326,10 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .spk71 = 1 ,
 	 .emu_model = EMU_MODEL_EMU1616},
 	/* Tested by James@superbug.co.uk 4th Nov 2007. */
-	/* This is MAEM8960, 0202 is MAEM 8980 */
+	/* This is MAEM8960 "Hana3", 0202 is MAEM8980 */
+	/* Attach 0202 daughter card to make it an E-MU 1212m, OR a
+	 * MicroDock[M] to make it an E-MU 1616[m]. */
+	/* Does NOT support sync daughter card. */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x40041102,
 	 .driver = "Audigy2", .name = "E-mu 1010b PCI [MAEM8960]",
 	 .id = "EMU1010",
@@ -1347,6 +1339,11 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .emu_model = EMU_MODEL_EMU1010B}, /* EMU 1010 new revision */
 	/* Tested by Maxim Kachur <mcdebugger@duganet.ru> 17th Oct 2012. */
 	/* This is MAEM8986, 0202 is MAEM8980 */
+	/* Attach 0202 daughter card to make it an E-MU 1212m, OR a
+	 * MicroDockM to make it an E-MU 1616m. The non-m
+	 * version was never sold with this card, but should
+	 * still work. */
+	/* Does NOT support sync daughter card. */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x40071102,
 	 .driver = "Audigy2", .name = "E-mu 1010 PCIe [MAEM8986]",
 	 .id = "EMU1010",
@@ -1355,7 +1352,10 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .spk71 = 1,
 	 .emu_model = EMU_MODEL_EMU1010B}, /* EMU 1010 PCIe */
 	/* Tested by James@superbug.co.uk 8th July 2005. */
-	/* This is MAEM8810, 0202 is MAEM8820 */
+	/* This is MAEM8810 "Hana", 0202 is MAEM8820 "Hamoa" */
+	/* Attach 0202 daughter card to make it an E-MU 1212m, OR an
+	 * AudioDock[M] to make it an E-MU 1820[m]. */
+	/* Supports sync daughter card. */
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x40011102,
 	 .driver = "Audigy2", .name = "E-mu 1010 [MAEM8810]",
 	 .id = "EMU1010",
@@ -1363,7 +1363,9 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .ca0102_chip = 1,
 	 .spk71 = 1,
 	 .emu_model = EMU_MODEL_EMU1010}, /* EMU 1010 old revision */
-	/* EMU0404b */
+	/* This is MAEM8852 "HanaLiteLite" */
+	/* Supports sync daughter card. */
+	/* Tested by oswald.buddenhagen@gmx.de Mar 2023. */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x40021102,
 	 .driver = "Audigy2", .name = "E-mu 0404b PCI [MAEM8852]",
 	 .id = "EMU0404",
@@ -1371,6 +1373,8 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .ca0108_chip = 1,
 	 .spk71 = 1,
 	 .emu_model = EMU_MODEL_EMU0404}, /* EMU 0404 new revision */
+	/* This is MAEM8850 "HanaLite" */
+	/* Supports sync daughter card. */
 	/* Tested by James@superbug.co.uk 20-3-2007. */
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x40021102,
 	 .driver = "Audigy2", .name = "E-mu 0404 [MAEM8850]",
@@ -1380,6 +1384,7 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .spk71 = 1,
 	 .emu_model = EMU_MODEL_EMU0404}, /* EMU 0404 */
 	/* EMU0404 PCIe */
+	/* Does NOT support sync daughter card. */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x40051102,
 	 .driver = "Audigy2", .name = "E-mu 0404 PCIe [MAEM8984]",
 	 .id = "EMU0404",
@@ -1387,7 +1392,6 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .ca0108_chip = 1,
 	 .spk71 = 1,
 	 .emu_model = EMU_MODEL_EMU0404}, /* EMU 0404 PCIe ver_03 */
-	/* Note that all E-mu cards require kernel 2.6 or newer. */
 	{.vendor = 0x1102, .device = 0x0008,
 	 .driver = "Audigy2", .name = "SB Audigy 2 Value [Unknown]",
 	 .id = "Audigy2",
@@ -1468,6 +1472,8 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .spdif_bug = 1,
 	 .adc_1361t = 1,  /* 24 bit capture instead of 16bit */
 	 .ac97_chip = 1} ,
+	/* Audigy 2 Platinum EX */
+	/* Win driver sets A_IOCFG output to 0x1c00 */
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x10051102,
 	 .driver = "Audigy2", .name = "Audigy 2 Platinum EX [SB0280]",
 	 .id = "Audigy2",
@@ -1488,6 +1494,8 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .spdif_bug = 1,
 	 .invert_shared_spdif = 1,	/* digital/analog switch swapped */
 	 .ac97_chip = 1} ,
+	/* Audigy 2 Platinum */
+	/* Win driver sets A_IOCFG output to 0xa00 */
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x10021102,
 	 .driver = "Audigy2", .name = "SB Audigy 2 Platinum [SB0240P]",
 	 .id = "Audigy2",
@@ -1593,6 +1601,9 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .emu10k1_chip = 1,
 	 .ac97_chip = 1,
 	 .sblive51 = 1} ,
+	/* SB Live! Platinum */
+	/* Win driver sets A_IOCFG output to 0 */
+	/* Tested by Jonathan Dowland <jon@dow.land> Apr 2023. */
 	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x80401102,
 	 .driver = "EMU10K1", .name = "SB Live! Platinum [CT4760P]",
 	 .id = "Live",

@@ -97,9 +97,9 @@
 #define IPR_CHANNELLOOP		0x00000040	/* Channel (half) loop interrupt(s) pending	*/
 #define IPR_CHANNELNUMBERMASK	0x0000003f	/* When IPR_CHANNELLOOP is set, indicates the	*/
 						/* highest set channel in CLIPL, CLIPH, HLIPL,  */
-						/* or HLIPH.  When IP is written with CL set,	*/
+						/* or HLIPH.  When IPR is written with CL set,	*/
 						/* the bit in H/CLIPL or H/CLIPH corresponding	*/
-						/* to the CIN value written will be cleared.	*/
+						/* to the CN value written will be cleared.	*/
 
 #define INTE			0x0c		/* Interrupt enable register			*/
 #define INTE_VIRTUALSB_MASK	0xc0000000	/* Virtual Soundblaster I/O port capture	*/
@@ -180,6 +180,7 @@
 #define HCFG_CODECFORMAT_MASK	0x00030000	/* CODEC format					*/
 
 /* Specific to Alice2, CA0102 */
+
 #define HCFG_CODECFORMAT_AC97_1	0x00000000	/* AC97 CODEC format -- Ver 1.03		*/
 #define HCFG_CODECFORMAT_AC97_2	0x00010000	/* AC97 CODEC format -- Ver 2.1			*/
 #define HCFG_AUTOMUTE_ASYNC	0x00008000	/* When set, the async sample rate convertors	*/
@@ -200,9 +201,8 @@
  						/* I2S format input				*/
 /* Rest of HCFG 0x0000000f same as below. LOCKSOUNDCACHE etc.  */
 
-
-
 /* Older chips */
+
 #define HCFG_CODECFORMAT_AC97	0x00000000	/* AC97 CODEC format -- Primary Output		*/
 #define HCFG_CODECFORMAT_I2S	0x00010000	/* I2S CODEC format -- Secondary (Rear) Output	*/
 #define HCFG_GPINPUT0		0x00004000	/* External pin112				*/
@@ -238,7 +238,7 @@
 						/* Should be set to 1 when the EMU10K1 is	*/
 						/* completely initialized.			*/
 
-//For Audigy, MPU port move to 0x70-0x74 ptr register
+// On Audigy, the MPU port moved to the 0x70-0x74 ptr registers
 
 #define MUDATA			0x18		/* MPU401 data register (8 bits)       		*/
 
@@ -276,12 +276,6 @@
 #define A_IOCFG_FRONT_JACK      0x4000
 #define A_IOCFG_REAR_JACK       0x8000
 #define A_IOCFG_PHONES_JACK     0x0100          /* LiveDrive					*/
-
-/* outputs:
- *	for audigy2 platinum:	0xa00
- *	for a2 platinum ex:	0x1c00
- *	for a1 platinum:	0x0
- */
 
 #define TIMER			0x1a		/* Timer terminal count register		*/
 						/* NOTE: After the rate is changed, a maximum	*/
@@ -323,7 +317,7 @@
 						/* 0x00000000 2-channel output. */
 						/* 0x00000200 8-channel output. */
 						/* 0x00000004 pauses stream/irq fail. */
-						/* Rest of bits no nothing to sound output */
+						/* Rest of bits do nothing to sound output */
 						/* bit 0: Enable P16V audio.
 						 * bit 1: Lock P16V record memory cache.
 						 * bit 2: Lock P16V playback memory cache.
@@ -337,6 +331,7 @@
 						 */
 #define IPR3			0x38		/* Cdif interrupt pending register		*/
 #define INTE3			0x3c		/* Cdif interrupt enable register. 	*/
+
 /************************************************************************************************/
 /* PCI function 1 registers, address = <val> + PCIBASE1						*/
 /************************************************************************************************/
@@ -355,10 +350,37 @@
 #define JOYSTICK_BUTTONS	0x0f		/* Joystick button data				*/
 #define JOYSTICK_COMPARATOR	0xf0		/* Joystick comparator data			*/
 
-
 /********************************************************************************************************/
 /* Emu10k1 pointer-offset register set, accessed through the PTR and DATA registers			*/
 /********************************************************************************************************/
+
+// No official documentation was released for EMU10K1, but some info
+// about playback can be extrapolated from the EMU8K documents:
+// "AWE32/EMU8000 Programmer’s Guide" (emu8kpgm.pdf) - registers
+// "AWE32 Developer's Information Pack" (adip301.pdf) - high-level view
+
+// The short version:
+// - The engine has 64 playback channels, also called voices. The channels
+//   operate independently, except when paired for stereo (see below).
+// - PCM samples are fetched into the cache; see description of CD0 below.
+// - Samples are consumed at the rate CPF_CURRENTPITCH.
+// - 8-bit samples are transformed upon use: cooked = (raw ^ 0x80) << 8
+// - 8 samples are read at CCR_READADDRESS:CPF_FRACADDRESS and interpolated
+//   according to CCCA_INTERPROM_*. With CCCA_INTERPROM_0 selected and a zero
+//   CPF_FRACADDRESS, this results in CCR_READADDRESS[3] being used verbatim.
+// - The value is multiplied by CVCF_CURRENTVOL.
+// - The value goes through a filter with cutoff CVCF_CURRENTFILTER;
+//   delay stages Z1 and Z2.
+// - The value is added by so-called `sends` to 4 (EMU10K1) / 8 (EMU10K2)
+//   of the 16 (EMU10K1) / 64 (EMU10K2) FX bus accumulators via FXRT*,
+//   multiplied by a per-send amount (*_FXSENDAMOUNT_*).
+//   The scaling of the send amounts is exponential-ish.
+// - The DSP has a go at FXBUS* and outputs the values to EXTOUT* or EMU32OUT*.
+// - The pitch, volume, and filter cutoff can be modulated by two envelope
+//   engines and two low frequency oscillators.
+// - To avoid abrupt changes to the parameters (which may cause audible
+//   distortion), the modulation engine sets the target registers, towards
+//   which the current registers "swerve" gradually.
 
 #define CPF			0x00		/* Current pitch and fraction register			*/
 #define CPF_CURRENTPITCH_MASK	0xffff0000	/* Current pitch (linear, 0x4000 == unity pitch shift) 	*/
@@ -399,7 +421,7 @@
 #define PSST_LOOPSTARTADDR_MASK	0x00ffffff	/* Loop start address of the specified channel		*/
 #define PSST_LOOPSTARTADDR	0x18000006
 
-#define DSL			0x07		/* Send D amount and loop start address register	*/
+#define DSL			0x07		/* Send D amount and loop end address register	*/
 #define DSL_FXSENDAMOUNT_D_MASK	0xff000000	/* Linear level of channel output sent to FX send bus D	*/
 
 #define DSL_FXSENDAMOUNT_D	0x08180007
@@ -424,25 +446,28 @@
 #define CCCA_INTERPROM_6	0x0c000000	/* Select interpolation ROM 6				*/
 #define CCCA_INTERPROM_7	0x0e000000	/* Select interpolation ROM 7				*/
 #define CCCA_8BITSELECT		0x01000000	/* 1 = Sound memory for this channel uses 8-bit samples	*/
+						/* 8-bit samples are unsigned, 16-bit ones signed	*/
 #define CCCA_CURRADDR_MASK	0x00ffffff	/* Current address of the selected channel		*/
 #define CCCA_CURRADDR		0x18000008
 
 #define CCR			0x09		/* Cache control register				*/
 #define CCR_CACHEINVALIDSIZE	0x07190009
-#define CCR_CACHEINVALIDSIZE_MASK	0xfe000000	/* Number of invalid samples cache for this channel    	*/
+#define CCR_CACHEINVALIDSIZE_MASK 0xfe000000	/* Number of invalid samples before the read address	*/
 #define CCR_CACHELOOPFLAG	0x01000000	/* 1 = Cache has a loop service pending			*/
 #define CCR_INTERLEAVEDSAMPLES	0x00800000	/* 1 = A cache service will fetch interleaved samples	*/
+						/* Auto-set from CPF_STEREO_MASK			*/
 #define CCR_WORDSIZEDSAMPLES	0x00400000	/* 1 = A cache service will fetch word sized samples	*/
+						/* Auto-set from CCCA_8BITSELECT			*/
 #define CCR_READADDRESS		0x06100009
-#define CCR_READADDRESS_MASK	0x003f0000	/* Location of cache just beyond current cache service	*/
+#define CCR_READADDRESS_MASK	0x003f0000	/* Next cached sample to play				*/
 #define CCR_LOOPINVALSIZE	0x0000fe00	/* Number of invalid samples in cache prior to loop	*/
 						/* NOTE: This is valid only if CACHELOOPFLAG is set	*/
 #define CCR_LOOPFLAG		0x00000100	/* Set for a single sample period when a loop occurs	*/
-#define CCR_CACHELOOPADDRHI	0x000000ff	/* DSL_LOOPSTARTADDR's hi byte if CACHELOOPFLAG is set	*/
+#define CCR_CACHELOOPADDRHI	0x000000ff	/* CLP_LOOPSTARTADDR's hi byte if CACHELOOPFLAG is set	*/
 
 #define CLP			0x0a		/* Cache loop register (valid if CCR_CACHELOOPFLAG = 1) */
 						/* NOTE: This register is normally not used		*/
-#define CLP_CACHELOOPADDR	0x0000ffff	/* Cache loop address (DSL_LOOPSTARTADDR [0..15])	*/
+#define CLP_CACHELOOPADDR	0x0000ffff	/* Cache loop address low word				*/
 
 #define FXRT			0x0b		/* Effects send routing register			*/
 						/* NOTE: It is illegal to assign the same routing to	*/
@@ -454,7 +479,6 @@
 
 #define A_HR			0x0b	/* High Resolution. 24bit playback from host to DSP. */
 #define MAPA			0x0c		/* Cache map A						*/
-
 #define MAPB			0x0d		/* Cache map B						*/
 
 #define MAP_PTE_MASK0		0xfffff000	/* The 20 MSBs of the PTE indexed by the PTI		*/
@@ -463,7 +487,7 @@
 #define MAP_PTE_MASK1		0xffffe000	/* The 19 MSBs of the PTE indexed by the PTI		*/
 #define MAP_PTI_MASK1		0x00001fff	/* The 13 bit index to one of the 8192 PTE dwords      	*/
 
-/* 0x0e, 0x0f: Not used */
+/* 0x0e, 0x0f: Internal state, at least on Audigy */
 
 #define ENVVOL			0x10		/* Volume envelope register				*/
 #define ENVVOL_MASK		0x0000ffff	/* Current value of volume envelope state variable	*/  
@@ -476,9 +500,9 @@
 						/* 0 = infinite, 1 = 10.9msec, ... 0x7f = 5.5msec	*/
 
 #define DCYSUSV 		0x12		/* Volume envelope sustain and decay register		*/
-#define DCYSUSV_PHASE1_MASK	0x00008000	/* 0 = Begin attack phase, 1 = begin release phase	*/
+#define DCYSUSV_PHASE1_MASK	0x00008000	/* 0 = Begin decay phase, 1 = begin release phase	*/
 #define DCYSUSV_SUSTAINLEVEL_MASK 0x00007f00	/* 127 = full, 0 = off, 0.75dB increments		*/
-#define DCYSUSV_CHANNELENABLE_MASK 0x00000080	/* 1 = Inhibit envelope engine from writing values in	*/
+#define DCYSUSV_CHANNELENABLE_MASK 0x00000080	/* 0 = Inhibit envelope engine from writing values in	*/
 						/* this channel and from writing to pitch, filter and	*/
 						/* volume targets.					*/
 #define DCYSUSV_DECAYTIME_MASK	0x0000007f	/* Volume envelope decay time, log encoded     		*/
@@ -499,7 +523,7 @@
 						/* 0 = infinite, 1 = 11msec, ... 0x7f = 5.5msec		*/
 
 #define DCYSUSM			0x16		/* Modulation envelope decay and sustain register	*/
-#define DCYSUSM_PHASE1_MASK	0x00008000	/* 0 = Begin attack phase, 1 = begin release phase	*/
+#define DCYSUSM_PHASE1_MASK	0x00008000	/* 0 = Begin decay phase, 1 = begin release phase	*/
 #define DCYSUSM_SUSTAINLEVEL_MASK 0x00007f00	/* 127 = full, 0 = off, 0.75dB increments		*/
 #define DCYSUSM_DECAYTIME_MASK	0x0000007f	/* Envelope decay time, log encoded			*/
 						/* 0 = 43.7msec, 1 = 21.8msec, 0x7f = 22msec		*/
@@ -521,7 +545,6 @@
 #define IFATN_ATTENUATION_MASK	0x000000ff	/* Initial attenuation in 0.375dB steps			*/
 #define IFATN_ATTENUATION	0x08000019
 
-
 #define PEFE			0x1a		/* Pitch envelope and filter envelope amount register	*/
 #define PEFE_PITCHAMOUNT_MASK	0x0000ff00	/* Pitch envlope amount					*/
 						/* Signed 2's complement, +/- one octave peak extremes	*/
@@ -529,19 +552,19 @@
 #define PEFE_FILTERAMOUNT_MASK	0x000000ff	/* Filter envlope amount				*/
 						/* Signed 2's complement, +/- six octaves peak extremes */
 #define PEFE_FILTERAMOUNT	0x0800001a
+
 #define FMMOD			0x1b		/* Vibrato/filter modulation from LFO register		*/
 #define FMMOD_MODVIBRATO	0x0000ff00	/* Vibrato LFO modulation depth				*/
 						/* Signed 2's complement, +/- one octave extremes	*/
 #define FMMOD_MOFILTER		0x000000ff	/* Filter LFO modulation depth				*/
 						/* Signed 2's complement, +/- three octave extremes	*/
 
-
 #define TREMFRQ 		0x1c		/* Tremolo amount and modulation LFO frequency register	*/
 #define TREMFRQ_DEPTH		0x0000ff00	/* Tremolo depth					*/
 						/* Signed 2's complement, with +/- 12dB extremes	*/
-
 #define TREMFRQ_FREQUENCY	0x000000ff	/* Tremolo LFO frequency				*/
 						/* ??Hz steps, maximum of ?? Hz.			*/
+
 #define FM2FRQ2 		0x1d		/* Vibrato amount and vibrato LFO frequency register	*/
 #define FM2FRQ2_DEPTH		0x0000ff00	/* Vibrato LFO vibrato depth				*/
 						/* Signed 2's complement, +/- one octave extremes	*/
@@ -645,7 +668,7 @@
 #define FXBA			0x47		/* FX Buffer Address */
 #define FXBA_MASK		0xfffff000	/* 20 bit base address					*/
 
-#define A_HWM			0x48	/* High PCI Water Mark - word access, defaults to 3f */
+#define A_HWM			0x48		/* High PCI Water Mark - word access, defaults to 3f */
 
 #define MICBS			0x49		/* Microphone buffer size register			*/
 
@@ -653,9 +676,7 @@
 
 #define FXBS			0x4b		/* FX buffer size register				*/
 
-/* register: 0x4c..4f: ffff-ffff current amounts, per-channel */
-
-/* The following mask values define the size of the ADC, MIX and FX buffers in bytes */
+/* The following mask values define the size of the ADC, MIC and FX buffers in bytes */
 #define ADCBS_BUFSIZE_NONE	0x00000000
 #define ADCBS_BUFSIZE_384	0x00000001
 #define ADCBS_BUFSIZE_448	0x00000002
@@ -689,29 +710,21 @@
 #define ADCBS_BUFSIZE_57344	0x0000001e
 #define ADCBS_BUFSIZE_65536	0x0000001f
 
-/* Current Send B, A Amounts */
-#define A_CSBA			0x4c
+#define A_CSBA			0x4c		/* FX send B & A current amounts			*/
+#define A_CSDC			0x4d		/* FX send D & C current amounts			*/
+#define A_CSFE			0x4e		/* FX send F & E current amounts			*/
+#define A_CSHG			0x4f		/* FX send H & G current amounts			*/
 
-/* Current Send D, C Amounts */
-#define A_CSDC			0x4d
+// NOTE: 0x50,51,52: 64-bit (split over voices 0 & 1)
+#define CDCS			0x50		/* CD-ROM digital channel status register		*/
 
-/* Current Send F, E Amounts */
-#define A_CSFE			0x4e
+#define GPSCS			0x51		/* General Purpose SPDIF channel status register	*/
 
-/* Current Send H, G Amounts */
-#define A_CSHG			0x4f
+#define DBG			0x52
 
+#define A_SPSC			0x52		/* S/PDIF Input C Channel Status			*/
 
-#define CDCS			0x50		/* CD-ROM digital channel status register	*/
-
-#define GPSCS			0x51		/* General Purpose SPDIF channel status register*/
-
-#define DBG			0x52		/* DO NOT PROGRAM THIS REGISTER!!! MAY DESTROY CHIP */
-
-/* S/PDIF Input C Channel Status */
-#define A_SPSC			0x52
-
-#define REG53			0x53		/* DO NOT PROGRAM THIS REGISTER!!! MAY DESTROY CHIP */
+#define REG53			0x53		/* DO NOT PROGRAM THIS REGISTER!!! MAY DESTROY CHIP	*/
 
 #define A_DBG			 0x53
 #define A_DBG_SINGLE_STEP	 0x00020000	/* Set to zero to start dsp */
@@ -720,7 +733,7 @@
 #define A_DBG_SATURATION_OCCURED 0x20000000
 #define A_DBG_SATURATION_ADDR	 0x0ffc0000
 
-// NOTE: 0x54,55,56: 64-bit
+// NOTE: 0x54,55,56: 64-bit (split over voices 0 & 1)
 #define SPCS0			0x54		/* SPDIF output Channel Status 0 register	*/
 
 #define SPCS1			0x55		/* SPDIF output Channel Status 1 register	*/
@@ -753,17 +766,14 @@
 
 /* 0x57: Not used */
 
-/* The 32-bit CLIx and SOLx registers all have one bit per channel control/status      		*/
+/* The 32-bit CLIx and SOLEx registers all have one bit per channel control/status      	*/
 #define CLIEL			0x58		/* Channel loop interrupt enable low register	*/
-
 #define CLIEH			0x59		/* Channel loop interrupt enable high register	*/
 
 #define CLIPL			0x5a		/* Channel loop interrupt pending low register	*/
-
 #define CLIPH			0x5b		/* Channel loop interrupt pending high register	*/
 
 #define SOLEL			0x5c		/* Stop on loop enable low register		*/
-
 #define SOLEH			0x5d		/* Stop on loop enable high register		*/
 
 #define SPBYPASS		0x5e		/* SPDIF BYPASS mode register			*/
@@ -773,13 +783,12 @@
 #define SPBYPASS_FORMAT		0x00000f00      /* If 1, SPDIF XX uses 24 bit, if 0 - 20 bit	*/
 
 #define AC97SLOT		0x5f            /* additional AC97 slots enable bits		*/
-#define AC97SLOT_REAR_RIGHT	0x01		/* Rear left */
-#define AC97SLOT_REAR_LEFT	0x02		/* Rear right */
-#define AC97SLOT_CNTR		0x10            /* Center enable */
-#define AC97SLOT_LFE		0x20            /* LFE enable */
+#define AC97SLOT_REAR_RIGHT	0x01		/* Rear left					*/
+#define AC97SLOT_REAR_LEFT	0x02		/* Rear right					*/
+#define AC97SLOT_CNTR		0x10            /* Center enable				*/
+#define AC97SLOT_LFE		0x20            /* LFE enable					*/
 
-/* PCB Revision */
-#define A_PCB			0x5f
+#define A_PCB			0x5f		/* PCB Revision					*/
 
 // NOTE: 0x60,61,62: 64-bit
 #define CDSRCS			0x60		/* CD-ROM Sample Rate Converter status register	*/
@@ -819,27 +828,21 @@
 #define FXIDX_MASK		0x0000ffff	/* 16-bit value					*/
 #define FXIDX_IDX		0x10000065
 
-/* The 32-bit HLIx and HLIPx registers all have one bit per channel control/status      		*/
+/* The 32-bit HLIEx and HLIPx registers all have one bit per channel control/status      		*/
 #define HLIEL			0x66		/* Channel half loop interrupt enable low register	*/
-
 #define HLIEH			0x67		/* Channel half loop interrupt enable high register	*/
 
 #define HLIPL			0x68		/* Channel half loop interrupt pending low register	*/
-
 #define HLIPH			0x69		/* Channel half loop interrupt pending high register	*/
 
-/* S/PDIF Host Record Index (bypasses SRC) */
-#define A_SPRI			0x6a
-/* S/PDIF Host Record Address */
-#define A_SPRA			0x6b
-/* S/PDIF Host Record Control */
-#define A_SPRC			0x6c
-/* Delayed Interrupt Counter & Enable */
-#define A_DICE			0x6d
-/* Tank Table Base */
-#define A_TTB			0x6e
-/* Tank Delay Offset */
-#define A_TDOF			0x6f
+#define A_SPRI			0x6a		/* S/PDIF Host Record Index (bypasses SRC)	*/
+#define A_SPRA			0x6b		/* S/PDIF Host Record Address			*/
+#define A_SPRC			0x6c		/* S/PDIF Host Record Control			*/
+
+#define A_DICE			0x6d		/* Delayed Interrupt Counter & Enable		*/
+
+#define A_TTB			0x6e		/* Tank Table Base				*/
+#define A_TDOF			0x6f		/* Tank Delay Offset				*/
 
 /* This is the MPU port on the card (via the game port)						*/
 #define A_MUDATA1		0x70
@@ -852,7 +855,7 @@
 #define A_MUSTAT2		A_MUCMD2	
 
 /* The next two are the Audigy equivalent of FXWC						*/
-/* the Audigy can record any output (16bit, 48kHz, up to 64 channel simultaneously) 		*/
+/* the Audigy can record any output (16bit, 48kHz, up to 64 channels simultaneously) 		*/
 /* Each bit selects a channel for recording */
 #define A_FXWC1			0x74            /* Selects 0x7f-0x60 for FX recording           */
 #define A_FXWC2			0x75		/* Selects 0x9f-0x80 for FX recording           */
@@ -880,20 +883,13 @@
 #define A_PCM_96000		0x00004000
 #define A_PCM_44100		0x00008000
 
-/* I2S0 Sample Rate Tracker Status */
-#define A_SRT3			0x77
-
-/* I2S1 Sample Rate Tracker Status */
-#define A_SRT4			0x78
-
-/* I2S2 Sample Rate Tracker Status */
-#define A_SRT5			0x79
+#define A_SRT3			0x77		/* I2S0 Sample Rate Tracker Status		*/
+#define A_SRT4			0x78		/* I2S1 Sample Rate Tracker Status		*/
+#define A_SRT5			0x79		/* I2S2 Sample Rate Tracker Status		*/
 /* - default to 0x01080000 on my audigy 2 ZS --rlrevell	*/
 
-/* Tank Table DMA Address */
-#define A_TTDA			0x7a
-/* Tank Table DMA Data */
-#define A_TTDD			0x7b
+#define A_TTDA			0x7a		/* Tank Table DMA Address			*/
+#define A_TTDD			0x7b		/* Tank Table DMA Data				*/
 
 #define A_FXRT2			0x7c
 #define A_FXRT_CHANNELE		0x0000003f	/* Effects send bus number for channel's effects send E	*/
@@ -906,6 +902,7 @@
 #define A_FXSENDAMOUNT_F_MASK	0x00FF0000
 #define A_FXSENDAMOUNT_G_MASK	0x0000FF00
 #define A_FXSENDAMOUNT_H_MASK	0x000000FF
+
 /* 0x7c, 0x7e "high bit is used for filtering" */
  
 /* The send amounts for this one are the same as used with the emu10k1 */
@@ -956,15 +953,47 @@
 #define A_HIWORD_RESULT_MASK	0x007ff000
 #define A_HIWORD_OPA_MASK	0x000007ff
 
+
 /************************************************************************************************/
-/* EMU1010m HANA FPGA registers									*/
+/* E-MU Digital Audio System overview								*/
 /************************************************************************************************/
+
+// - These cards use a regular PCI-attached Audigy chip (Alice2/Tina/Tina2);
+//   the PCIe variants simply put the Audigy chip behind a PCI bridge.
+// - All physical PCM I/O is routed through an additional FPGA; the regular
+//   EXTIN/EXTOUT ports are unconnected.
+// - The FPGA has a signal routing matrix, to connect each destination (output
+//   socket or capture channel) to a source (input socket or playback channel).
+// - The FPGA is controlled via Audigy's GPIO port, while sample data is
+//   transmitted via proprietary EMU32 serial links. On first-generation
+//   E-MU 1010 cards, Audigy's I2S inputs are also used for sample data.
+// - The Audio/Micro Dock is attached to Hana via EDI, a "network" link.
+// - The Audigy chip operates in slave mode; the clock is supplied by the FPGA.
+//   Gen1 E-MU 1010 cards have two crystals (for 44.1 kHz and 48 kHz multiples),
+//   while the later cards use a single crystal and a PLL chip.
+// - The whole card is switched to 2x/4x mode to achieve 88.2/96/176.4/192 kHz
+//   sample rates. Alice2/Tina keeps running at 44.1/48 kHz, but multiple channels
+//   are bundled.
+// - The number of available EMU32/EDI channels is hit in 2x/4x mode, so the total
+//   number of usable inputs/outputs is limited, esp. with ADAT in use.
+// - S/PDIF is unavailable in 4x mode (only over TOSLINK on newer 1010 cards) due
+//   to being unspecified at 176.4/192 kHz. Therefore, the Dock's S/PDIF channels
+//   can overlap with the Dock's ADC/DAC's high channels.
+// - The code names are mentioned below and in the emu_chip_details table.
+
+/************************************************************************************************/
+/* EMU1010 FPGA registers									*/
+/************************************************************************************************/
+
 #define EMU_HANA_DESTHI		0x00	/* 0000xxx  3 bits Link Destination */
 #define EMU_HANA_DESTLO		0x01	/* 00xxxxx  5 bits */
+
 #define EMU_HANA_SRCHI		0x02	/* 0000xxx  3 bits Link Source */
 #define EMU_HANA_SRCLO		0x03	/* 00xxxxx  5 bits */
+
 #define EMU_HANA_DOCK_PWR	0x04	/* 000000x  1 bits Audio Dock power */
 #define EMU_HANA_DOCK_PWR_ON		0x01 /* Audio Dock power on */
+
 #define EMU_HANA_WCLOCK		0x05	/* 0000xxx  3 bits Word Clock source select  */
 					/* Must be written after power on to reset DLL */
 					/* One is unable to detect the Audio dock without this */
@@ -1073,21 +1102,19 @@
 #define EMU_HANA_0202_DAC_PAD1	0x10	/* 14dB Attenuation on 0202 DAC 1. Left and Right */
 
 /* 0x14 - 0x1f Unused R/W registers */
-#define EMU_HANA_IRQ_STATUS	0x20	/* 000xxxx  4 bits IRQ Status  */
-#if 0  /* Already defined for reg 0x09 IRQ_ENABLE */
-#define EMU_HANA_IRQ_WCLK_CHANGED	0x01
-#define EMU_HANA_IRQ_ADAT		0x02
-#define EMU_HANA_IRQ_DOCK		0x04
-#define EMU_HANA_IRQ_DOCK_LOST		0x08
-#endif
+
+#define EMU_HANA_IRQ_STATUS	0x20	/* 00xxxxx  5 bits IRQ Status  */
+					/* Same bits as for EMU_HANA_IRQ_ENABLE */
+					/* Reading the register resets it. */
 
 #define EMU_HANA_OPTION_CARDS	0x21	/* 000xxxx  4 bits Presence of option cards */
-#define EMU_HANA_OPTION_HAMOA	0x01	/* HAMOA card present */
+#define EMU_HANA_OPTION_HAMOA	0x01	/* Hamoa (analog I/O) card present */
 #define EMU_HANA_OPTION_SYNC	0x02	/* Sync card present */
-#define EMU_HANA_OPTION_DOCK_ONLINE	0x04	/* Audio Dock online and FPGA configured */
-#define EMU_HANA_OPTION_DOCK_OFFLINE	0x08	/* Audio Dock online and FPGA not configured */
+#define EMU_HANA_OPTION_DOCK_ONLINE	0x04	/* Audio/Micro dock present and FPGA configured */
+#define EMU_HANA_OPTION_DOCK_OFFLINE	0x08	/* Audio/Micro dock present and FPGA not configured */
 
-#define EMU_HANA_ID		0x22	/* 1010101  7 bits ID byte & 0x7f = 0x55 */
+#define EMU_HANA_ID		0x22	/* 1010101  7 bits ID byte & 0x7f = 0x55 with Alice2 */
+					/* 0010101  5 bits ID byte & 0x1f = 0x15 with Tina/2 */
 
 #define EMU_HANA_MAJOR_REV	0x23	/* 0000xxx  3 bit  Hana FPGA Major rev */
 #define EMU_HANA_MINOR_REV	0x24	/* 0000xxx  3 bit  Hana FPGA Minor rev */
@@ -1110,31 +1137,31 @@
 
 #define EMU_HANA2_WC_SPDIF_HI	0x2e	/* 0xxxxxx  6 bit  HANA2 SPDIF IN Word clock, upper 6 bits */
 #define EMU_HANA2_WC_SPDIF_LO	0x2f	/* 0xxxxxx  6 bit  HANA2 SPDIF IN Word clock, lower 6 bits */
+
 /* 0x30 - 0x3f Unused Read only registers */
 
 /************************************************************************************************/
-/* EMU1010m HANA Destinations									*/
+/* EMU1010 Audio Destinations									*/
 /************************************************************************************************/
-/* Hana, original 1010,1212,1820 using Alice2
- * Destiniations for SRATEX = 1X rates: 44.1 kHz or 48 kHz
+/* Hana, original 1010,1212m,1820[m] using Alice2
  * 0x00, 0x00-0x0f: 16 EMU32 channels to Alice2
- * 0x01, 0x10-0x1f: 32 Elink channels to Audio Dock
- * 0x01, 0x00: Dock DAC 1 Left
- * 0x01, 0x04: Dock DAC 1 Right
- * 0x01, 0x08: Dock DAC 2 Left
- * 0x01, 0x0c: Dock DAC 2 Right
- * 0x01, 0x10: Dock DAC 3 Left
- * 0x01, 0x12: PHONES Left
- * 0x01, 0x14: Dock DAC 3 Right
- * 0x01, 0x16: PHONES Right
- * 0x01, 0x18: Dock DAC 4 Left
- * 0x01, 0x1a: S/PDIF Left
- * 0x01, 0x1c: Dock DAC 4 Right
- * 0x01, 0x1e: S/PDIF Right
+ * 0x01, 0x00-0x1f: 32 EDI channels to Audio Dock
+ *       0x00: Dock DAC 1 Left
+ *       0x04: Dock DAC 1 Right
+ *       0x08: Dock DAC 2 Left
+ *       0x0c: Dock DAC 2 Right
+ *       0x10: Dock DAC 3 Left
+ *       0x12: PHONES Left (n/a in 2x/4x mode; output mirrors DAC4 Left)
+ *       0x14: Dock DAC 3 Right
+ *       0x16: PHONES Right (n/a in 2x/4x mode; output mirrors DAC4 Right)
+ *       0x18: Dock DAC 4 Left
+ *       0x1a: S/PDIF Left
+ *       0x1c: Dock DAC 4 Right
+ *       0x1e: S/PDIF Right
  * 0x02, 0x00: Hana S/PDIF Left
  * 0x02, 0x01: Hana S/PDIF Right
- * 0x03, 0x00: Hanoa DAC Left
- * 0x03, 0x01: Hanoa DAC Right
+ * 0x03, 0x00: Hamoa DAC Left
+ * 0x03, 0x01: Hamoa DAC Right
  * 0x04, 0x00-0x07: Hana ADAT
  * 0x05, 0x00: I2S0 Left to Alice2
  * 0x05, 0x01: I2S0 Right to Alice2
@@ -1146,40 +1173,29 @@
  * Hana2 never released, but used Tina
  * Not needed.
  *
- * Hana3, rev2 1010,1212,1616 using Tina
- * Destinations for SRATEX = 1X rates: 44.1 kHz or 48 kHz
+ * Hana3, rev2 1010,1212m,1616[m] using Tina
  * 0x00, 0x00-0x0f: 16 EMU32A channels to Tina
- * 0x01, 0x10-0x1f: 32 EDI channels to Micro Dock
- * 0x01, 0x00: Dock DAC 1 Left
- * 0x01, 0x04: Dock DAC 1 Right
- * 0x01, 0x08: Dock DAC 2 Left
- * 0x01, 0x0c: Dock DAC 2 Right
- * 0x01, 0x10: Dock DAC 3 Left
- * 0x01, 0x12: Dock S/PDIF Left
- * 0x01, 0x14: Dock DAC 3 Right
- * 0x01, 0x16: Dock S/PDIF Right
- * 0x01, 0x18-0x1f: Dock ADAT 0-7
+ * 0x01, 0x00-0x1f: 32 EDI channels to Micro Dock
+ *       0x00: Dock DAC 1 Left
+ *       0x04: Dock DAC 1 Right
+ *       0x08: Dock DAC 2 Left
+ *       0x0c: Dock DAC 2 Right
+ *       0x10: Dock DAC 3 Left
+ *       0x12: Dock S/PDIF Left
+ *       0x14: Dock DAC 3 Right
+ *       0x16: Dock S/PDIF Right
+ *       0x18-0x1f: Dock ADAT 0-7
  * 0x02, 0x00: Hana3 S/PDIF Left
  * 0x02, 0x01: Hana3 S/PDIF Right
- * 0x03, 0x00: Hanoa DAC Left
- * 0x03, 0x01: Hanoa DAC Right
+ * 0x03, 0x00: Hamoa DAC Left
+ * 0x03, 0x01: Hamoa DAC Right
  * 0x04, 0x00-0x07: Hana3 ADAT 0-7
  * 0x05, 0x00-0x0f: 16 EMU32B channels to Tina
  * 0x06-0x07: Not used
  *
  * HanaLite, rev1 0404 using Alice2
- * Destiniations for SRATEX = 1X rates: 44.1 kHz or 48 kHz
- * 0x00, 0x00-0x0f: 16 EMU32 channels to Alice2
- * 0x01: Not used
- * 0x02, 0x00: S/PDIF Left
- * 0x02, 0x01: S/PDIF Right
- * 0x03, 0x00: DAC Left
- * 0x03, 0x01: DAC Right
- * 0x04-0x07: Not used
- *
- * HanaLiteLite, rev2 0404 using Alice2
- * Destiniations for SRATEX = 1X rates: 44.1 kHz or 48 kHz
- * 0x00, 0x00-0x0f: 16 EMU32 channels to Alice2
+ * HanaLiteLite, rev2 0404 using Tina
+ * 0x00, 0x00-0x0f: 16 EMU32 channels to Alice2/Tina
  * 0x01: Not used
  * 0x02, 0x00: S/PDIF Left
  * 0x02, 0x01: S/PDIF Right
@@ -1188,35 +1204,21 @@
  * 0x04-0x07: Not used
  *
  * Mana, Cardbus 1616 using Tina2
- * Destinations for SRATEX = 1X rates: 44.1 kHz or 48 kHz
  * 0x00, 0x00-0x0f: 16 EMU32A channels to Tina2
- * 0x01, 0x10-0x1f: 32 EDI channels to Micro Dock
- * 0x01, 0x00: Dock DAC 1 Left
- * 0x01, 0x04: Dock DAC 1 Right
- * 0x01, 0x08: Dock DAC 2 Left
- * 0x01, 0x0c: Dock DAC 2 Right
- * 0x01, 0x10: Dock DAC 3 Left
- * 0x01, 0x12: Dock S/PDIF Left
- * 0x01, 0x14: Dock DAC 3 Right
- * 0x01, 0x16: Dock S/PDIF Right
- * 0x01, 0x18-0x1f: Dock ADAT 0-7
+ * 0x01, 0x00-0x1f: 32 EDI channels to Micro Dock
+ *       (same as rev2 1010)
  * 0x02: Not used
  * 0x03, 0x00: Mana DAC Left
  * 0x03, 0x01: Mana DAC Right
  * 0x04, 0x00-0x0f: 16 EMU32B channels to Tina2
  * 0x05-0x07: Not used
- *
- *
  */
+
 /* 32-bit destinations of signal in the Hana FPGA. Destinations are either
- * physical outputs of Hana, or outputs going to Alice2 (audigy) for capture
- * - 16 x EMU_DST_ALICE2_EMU32_X.
- */
-/* EMU32 = 32-bit serial channel between Alice2 (audigy) and Hana (FPGA) */
-/* EMU_DST_ALICE2_EMU32_X - data channels from Hana to Alice2 used for capture.
- * Which data is fed into a EMU_DST_ALICE2_EMU32_X channel in Hana depends on
- * setup of mixer control for each destination - see emumixer.c -
- * snd_emu1010_output_enum_ctls[], snd_emu1010_input_enum_ctls[]
+ * physical outputs of Hana, or outputs going to Alice2/Tina for capture -
+ * 16 x EMU_DST_ALICE2_EMU32_X (2x on rev2 boards). Which data is fed into
+ * a channel depends on the mixer control setting for each destination - see
+ * emumixer.c - snd_emu1010_output_enum_ctls[], snd_emu1010_input_enum_ctls[]
  */
 #define EMU_DST_ALICE2_EMU32_0	0x000f	/* 16 EMU32 channels to Alice2 +0 to +0xf */
 #define EMU_DST_ALICE2_EMU32_1	0x0000	/* 16 EMU32 channels to Alice2 +0 to +0xf */
@@ -1286,6 +1288,7 @@
 #define EMU_DST_HAMOA_DAC_RIGHT2	0x0303	/* Hamoa DAC Right, 2nd or 96kHz */
 #define EMU_DST_HAMOA_DAC_RIGHT3	0x0305	/* Hamoa DAC Right, 3rd or 192kHz */
 #define EMU_DST_HAMOA_DAC_RIGHT4	0x0307	/* Hamoa DAC Right, 4th or 192kHz */
+// In S/MUX mode, the samples of one channel are adjacent.
 #define EMU_DST_HANA_ADAT	0x0400	/* Hana ADAT 8 channel out +0 to +7 */
 #define EMU_DST_ALICE_I2S0_LEFT		0x0500	/* Alice2 I2S0 Left */
 #define EMU_DST_ALICE_I2S0_RIGHT	0x0501	/* Alice2 I2S0 Right */
@@ -1295,39 +1298,32 @@
 #define EMU_DST_ALICE_I2S2_RIGHT	0x0701	/* Alice2 I2S2 Right */
 
 /* Additional destinations for 1616(M)/Microdock */
-/* Microdock S/PDIF OUT Left, 1st or 48kHz only */
-#define EMU_DST_MDOCK_SPDIF_LEFT1	0x0112
-/* Microdock S/PDIF OUT Left, 2nd or 96kHz */
-#define EMU_DST_MDOCK_SPDIF_LEFT2	0x0113
-/* Microdock S/PDIF OUT Right, 1st or 48kHz only */
-#define EMU_DST_MDOCK_SPDIF_RIGHT1	0x0116
-/* Microdock S/PDIF OUT Right, 2nd or 96kHz  */
-#define EMU_DST_MDOCK_SPDIF_RIGHT2	0x0117
-/* Microdock S/PDIF ADAT 8 channel out +8 to +f */
-#define EMU_DST_MDOCK_ADAT		0x0118
 
-/* Headphone jack on 1010 cardbus? 44.1/48kHz only? */
-#define EMU_DST_MANA_DAC_LEFT		0x0300
-/* Headphone jack on 1010 cardbus? 44.1/48kHz only? */
-#define EMU_DST_MANA_DAC_RIGHT		0x0301
+#define EMU_DST_MDOCK_SPDIF_LEFT1	0x0112	/* Microdock S/PDIF OUT Left, 1st or 48kHz only */
+#define EMU_DST_MDOCK_SPDIF_LEFT2	0x0113	/* Microdock S/PDIF OUT Left, 2nd or 96kHz */
+#define EMU_DST_MDOCK_SPDIF_RIGHT1	0x0116	/* Microdock S/PDIF OUT Right, 1st or 48kHz only */
+#define EMU_DST_MDOCK_SPDIF_RIGHT2	0x0117	/* Microdock S/PDIF OUT Right, 2nd or 96kHz  */
+#define EMU_DST_MDOCK_ADAT		0x0118	/* Microdock S/PDIF ADAT 8 channel out +8 to +f */
+
+#define EMU_DST_MANA_DAC_LEFT		0x0300	/* Headphone jack on 1010 cardbus? 44.1/48kHz only? */
+#define EMU_DST_MANA_DAC_RIGHT		0x0301	/* Headphone jack on 1010 cardbus? 44.1/48kHz only? */
 
 /************************************************************************************************/
-/* EMU1010m HANA Sources									*/
+/* EMU1010 Audio Sources									*/
 /************************************************************************************************/
-/* Hana, original 1010,1212,1820 using Alice2
- * Sources SRATEX = 1X rates: 44.1 kHz or 48 kHz
- * 0x00,0x00-0x1f: Silence
- * 0x01, 0x10-0x1f: 32 Elink channels from Audio Dock
- * 0x01, 0x00: Dock Mic A
- * 0x01, 0x04: Dock Mic B
- * 0x01, 0x08: Dock ADC 1 Left
- * 0x01, 0x0c: Dock ADC 1 Right
- * 0x01, 0x10: Dock ADC 2 Left
- * 0x01, 0x14: Dock ADC 2 Right
- * 0x01, 0x18: Dock ADC 3 Left
- * 0x01, 0x1c: Dock ADC 3 Right
- * 0x02, 0x00: Hana ADC Left
- * 0x02, 0x01: Hana ADC Right
+/* Hana, original 1010,1212m,1820[m] using Alice2
+ * 0x00, 0x00-0x1f: Silence
+ * 0x01, 0x00-0x1f: 32 EDI channels from Audio Dock
+ *       0x00: Dock Mic A
+ *       0x04: Dock Mic B
+ *       0x08: Dock ADC 1 Left
+ *       0x0c: Dock ADC 1 Right
+ *       0x10: Dock ADC 2 Left
+ *       0x14: Dock ADC 2 Right
+ *       0x18: Dock ADC 3 Left
+ *       0x1c: Dock ADC 3 Right
+ * 0x02, 0x00: Hamoa ADC Left
+ * 0x02, 0x01: Hamoa ADC Right
  * 0x03, 0x00-0x0f: 16 inputs from Alice2 Emu32A output
  * 0x03, 0x10-0x1f: 16 inputs from Alice2 Emu32B output
  * 0x04, 0x00-0x07: Hana ADAT
@@ -1338,23 +1334,20 @@
  * Hana2 never released, but used Tina
  * Not needed.
  *
- * Hana3, rev2 1010,1212,1616 using Tina
- * Sources SRATEX = 1X rates: 44.1 kHz or 48 kHz
- * 0x00,0x00-0x1f: Silence
- * 0x01, 0x10-0x1f: 32 Elink channels from Audio Dock
- * 0x01, 0x00: Dock Mic A
- * 0x01, 0x04: Dock Mic B
- * 0x01, 0x08: Dock ADC 1 Left
- * 0x01, 0x0c: Dock ADC 1 Right
- * 0x01, 0x10: Dock ADC 2 Left
- * 0x01, 0x12: Dock S/PDIF Left
- * 0x01, 0x14: Dock ADC 2 Right
- * 0x01, 0x16: Dock S/PDIF Right
- * 0x01, 0x18-0x1f: Dock ADAT 0-7
- * 0x01, 0x18: Dock ADC 3 Left
- * 0x01, 0x1c: Dock ADC 3 Right
- * 0x02, 0x00: Hanoa ADC Left
- * 0x02, 0x01: Hanoa ADC Right
+ * Hana3, rev2 1010,1212m,1616[m] using Tina
+ * 0x00, 0x00-0x1f: Silence
+ * 0x01, 0x00-0x1f: 32 EDI channels from Micro Dock
+ *       0x00: Dock Mic A
+ *       0x04: Dock Mic B
+ *       0x08: Dock ADC 1 Left
+ *       0x0c: Dock ADC 1 Right
+ *       0x10: Dock ADC 2 Left
+ *       0x12: Dock S/PDIF Left
+ *       0x14: Dock ADC 2 Right
+ *       0x16: Dock S/PDIF Right
+ *       0x18-0x1f: Dock ADAT 0-7
+ * 0x02, 0x00: Hamoa ADC Left
+ * 0x02, 0x01: Hamoa ADC Right
  * 0x03, 0x00-0x0f: 16 inputs from Tina Emu32A output
  * 0x03, 0x10-0x1f: 16 inputs from Tina Emu32B output
  * 0x04, 0x00-0x07: Hana3 ADAT
@@ -1363,58 +1356,32 @@
  * 0x06-0x07: Not used
  *
  * HanaLite, rev1 0404 using Alice2
- * Sources SRATEX = 1X rates: 44.1 kHz or 48 kHz
- * 0x00,0x00-0x1f: Silence
+ * HanaLiteLite, rev2 0404 using Tina
+ * 0x00, 0x00-0x1f: Silence
  * 0x01: Not used
  * 0x02, 0x00: ADC Left
  * 0x02, 0x01: ADC Right
- * 0x03, 0x00-0x0f: 16 inputs from Alice2 Emu32A output
- * 0x03, 0x10-0x1f: 16 inputs from Alice2 Emu32B output
- * 0x04: Not used
- * 0x05, 0x00: S/PDIF Left
- * 0x05, 0x01: S/PDIF Right
- * 0x06-0x07: Not used
- *
- * HanaLiteLite, rev2 0404 using Alice2
- * Sources SRATEX = 1X rates: 44.1 kHz or 48 kHz
- * 0x00,0x00-0x1f: Silence
- * 0x01: Not used
- * 0x02, 0x00: ADC Left
- * 0x02, 0x01: ADC Right
- * 0x03, 0x00-0x0f: 16 inputs from Alice2 Emu32A output
- * 0x03, 0x10-0x1f: 16 inputs from Alice2 Emu32B output
+ * 0x03, 0x00-0x0f: 16 inputs from Alice2/Tina Emu32A output
+ * 0x03, 0x10-0x1f: 16 inputs from Alice2/Tina Emu32B output
  * 0x04: Not used
  * 0x05, 0x00: S/PDIF Left
  * 0x05, 0x01: S/PDIF Right
  * 0x06-0x07: Not used
  *
  * Mana, Cardbus 1616 using Tina2
- * Sources SRATEX = 1X rates: 44.1 kHz or 48 kHz
- * 0x00,0x00-0x1f: Silence
- * 0x01, 0x10-0x1f: 32 Elink channels from Audio Dock
- * 0x01, 0x00: Dock Mic A
- * 0x01, 0x04: Dock Mic B
- * 0x01, 0x08: Dock ADC 1 Left
- * 0x01, 0x0c: Dock ADC 1 Right
- * 0x01, 0x10: Dock ADC 2 Left
- * 0x01, 0x12: Dock S/PDIF Left
- * 0x01, 0x14: Dock ADC 2 Right
- * 0x01, 0x16: Dock S/PDIF Right
- * 0x01, 0x18-0x1f: Dock ADAT 0-7
- * 0x01, 0x18: Dock ADC 3 Left
- * 0x01, 0x1c: Dock ADC 3 Right
+ * 0x00, 0x00-0x1f: Silence
+ * 0x01, 0x00-0x1f: 32 EDI channels from Micro Dock
+ *       (same as rev2 1010)
  * 0x02: Not used
- * 0x03, 0x00-0x0f: 16 inputs from Tina Emu32A output
- * 0x03, 0x10-0x1f: 16 inputs from Tina Emu32B output
+ * 0x03, 0x00-0x0f: 16 inputs from Tina2 Emu32A output
+ * 0x03, 0x10-0x1f: 16 inputs from Tina2 Emu32B output
  * 0x04-0x07: Not used
- *
  */
 
 /* 32-bit sources of signal in the Hana FPGA. The sources are routed to
- * destinations using mixer control for each destination - see emumixer.c
- * Sources are either physical inputs of FPGA,
- * or outputs from Alice (audigy) - 16 x EMU_SRC_ALICE_EMU32A +
- * 16 x EMU_SRC_ALICE_EMU32B
+ * destinations using a mixer control for each destination - see emumixer.c.
+ * Sources are either physical inputs of Hana, or inputs from Alice2/Tina -
+ * 16 x EMU_SRC_ALICE_EMU32A + 16 x EMU_SRC_ALICE_EMU32B.
  */
 #define EMU_SRC_SILENCE		0x0000	/* Silence */
 #define EMU_SRC_DOCK_MIC_A1	0x0100	/* Audio Dock Mic A, 1st or 48kHz only */
@@ -1459,6 +1426,7 @@
 #define EMU_SRC_HAMOA_ADC_RIGHT4	0x0207	/* Hamoa ADC Right, 4th or 192kHz */
 #define EMU_SRC_ALICE_EMU32A		0x0300	/* Alice2 EMU32a 16 outputs. +0 to +0xf */
 #define EMU_SRC_ALICE_EMU32B		0x0310	/* Alice2 EMU32b 16 outputs. +0 to +0xf */
+// In S/MUX mode, the samples of one channel are adjacent.
 #define EMU_SRC_HANA_ADAT	0x0400	/* Hana ADAT 8 channel in +0 to +7 */
 #define EMU_SRC_HANA_SPDIF_LEFT1	0x0500	/* Hana SPDIF Left, 1st or 48kHz only */
 #define EMU_SRC_HANA_SPDIF_LEFT2	0x0502	/* Hana SPDIF Left, 2nd or 96kHz */
@@ -1466,16 +1434,12 @@
 #define EMU_SRC_HANA_SPDIF_RIGHT2	0x0503	/* Hana SPDIF Right, 2nd or 96kHz */
 
 /* Additional inputs for 1616(M)/Microdock */
-/* Microdock S/PDIF Left, 1st or 48kHz only */
-#define EMU_SRC_MDOCK_SPDIF_LEFT1	0x0112
-/* Microdock S/PDIF Left, 2nd or 96kHz */
-#define EMU_SRC_MDOCK_SPDIF_LEFT2	0x0113
-/* Microdock S/PDIF Right, 1st or 48kHz only */
-#define EMU_SRC_MDOCK_SPDIF_RIGHT1	0x0116
-/* Microdock S/PDIF Right, 2nd or 96kHz */
-#define EMU_SRC_MDOCK_SPDIF_RIGHT2	0x0117
-/* Microdock ADAT 8 channel in +8 to +f */
-#define EMU_SRC_MDOCK_ADAT		0x0118
+
+#define EMU_SRC_MDOCK_SPDIF_LEFT1	0x0112	/* Microdock S/PDIF Left, 1st or 48kHz only */
+#define EMU_SRC_MDOCK_SPDIF_LEFT2	0x0113	/* Microdock S/PDIF Left, 2nd or 96kHz */
+#define EMU_SRC_MDOCK_SPDIF_RIGHT1	0x0116	/* Microdock S/PDIF Right, 1st or 48kHz only */
+#define EMU_SRC_MDOCK_SPDIF_RIGHT2	0x0117	/* Microdock S/PDIF Right, 2nd or 96kHz */
+#define EMU_SRC_MDOCK_ADAT		0x0118	/* Microdock ADAT 8 channel in +8 to +f */
 
 /* 0x600 and 0x700 no used */
 
@@ -1642,14 +1606,26 @@ enum {
 	EMU_MODEL_EMU0404,
 };
 
+// Chip-o-logy:
+// - All SB Live! cards use EMU10K1 chips
+// - All SB Audigy cards use CA* chips, termed "emu10k2" by the driver
+// - Original Audigy uses CA0100 "Alice"
+// - Audigy 2 uses CA0102/CA10200 "Alice2"
+//   - Has an interface for CA0151 (P16V) "Alice3"
+// - Audigy 2 Value uses CA0108/CA10300 "Tina"
+//   - Approximately a CA0102 with an on-chip CA0151 (P17V)
+// - Audigy 2 ZS NB uses CA0109 "Tina2"
+//   - Cardbus version of CA0108
 struct snd_emu_chip_details {
 	u32 vendor;
 	u32 device;
 	u32 subsystem;
 	unsigned char revision;
 	unsigned char emu10k1_chip; /* Original SB Live. Not SB Live 24bit. */
+				    /* Redundant with emu10k2_chip being unset. */
 	unsigned char emu10k2_chip; /* Audigy 1 or Audigy 2. */
 	unsigned char ca0102_chip;  /* Audigy 1 or Audigy 2. Not SB Audigy 2 Value. */
+				    /* Redundant with ca0108_chip being unset. */
 	unsigned char ca0108_chip;  /* Audigy 2 Value */
 	unsigned char ca_cardbus_chip; /* Audigy 2 ZS Notebook */
 	unsigned char ca0151_chip;  /* P16V */
@@ -1659,8 +1635,8 @@ struct snd_emu_chip_details {
 	unsigned char ac97_chip;    /* Has an AC97 chip: 1 = mandatory, 2 = optional */
 	unsigned char ecard;        /* APS EEPROM */
 	unsigned char emu_model;     /* EMU model type */
-	unsigned char spi_dac;      /* SPI interface for DAC */
-	unsigned char i2c_adc;      /* I2C interface for ADC */
+	unsigned char spi_dac;      /* SPI interface for DAC; requires ca0108_chip */
+	unsigned char i2c_adc;      /* I2C interface for ADC; requires ca0108_chip */
 	unsigned char adc_1361t;    /* Use Philips 1361T ADC */
 	unsigned char invert_shared_spdif; /* analog/digital switch inverted */
 	const char *driver;
@@ -1734,9 +1710,9 @@ struct snd_emu10k1 {
 	void *synth;
 	int (*get_synth_voice)(struct snd_emu10k1 *emu);
 
-	spinlock_t reg_lock;
-	spinlock_t emu_lock;
-	spinlock_t voice_lock;
+	spinlock_t reg_lock;  // high-level driver lock
+	spinlock_t emu_lock;  // low-level i/o lock
+	spinlock_t voice_lock;  // voice allocator lock
 	spinlock_t spi_lock; /* serialises access to spi port */
 	spinlock_t i2c_lock; /* serialises access to i2c port */
 

@@ -326,7 +326,6 @@ static void snd_emu10k1_pcm_init_voice(struct snd_emu10k1 *emu,
 	} else
 		snd_emu10k1_ptr_write(emu, FXRT, voice,
 				      snd_emu10k1_compose_send_routing(send_routing));
-	/* Stop CA */
 	/* Assumption that PT is already 0 so no harm overwriting */
 	snd_emu10k1_ptr_write(emu, PTRX, voice, (send_amount[0] << 8) | send_amount[1]);
 	snd_emu10k1_ptr_write(emu, DSL, voice, end_addr | (send_amount[3] << 24));
@@ -480,9 +479,6 @@ static int snd_emu10k1_efx_playback_prepare(struct snd_pcm_substream *substream)
 	start_addr = epcm->start_addr;
 	end_addr = epcm->start_addr + snd_pcm_lib_buffer_bytes(substream);
 
-	/*
-	 * the kX driver leaves some space between voices
-	 */
 	channel_size = ( end_addr - start_addr ) / NUM_EFX_PLAYBACK;
 
 	snd_emu10k1_pcm_init_voice(emu, 1, 1, epcm->extra,
@@ -1218,9 +1214,7 @@ static int snd_emu10k1_capture_efx_open(struct snd_pcm_substream *substream)
 	runtime->hw.rate_min = runtime->hw.rate_max = 48000;
 	spin_lock_irq(&emu->reg_lock);
 	if (emu->card_capabilities->emu_model) {
-		/*  Nb. of channels has been increased to 16 */
 		/* TODO
-		 * SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE
 		 * SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000 |
 		 * SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000 |
 		 * SNDRV_PCM_RATE_176400 | SNDRV_PCM_RATE_192000
@@ -1231,13 +1225,14 @@ static int snd_emu10k1_capture_efx_open(struct snd_pcm_substream *substream)
 		 * Need to add mixer control to fix sample rate
 		 *                 
 		 * There are 32 mono channels of 16bits each.
-		 * 24bit Audio uses 2x channels over 16bit
-		 * 96kHz uses 2x channels over 48kHz
-		 * 192kHz uses 4x channels over 48kHz
-		 * So, for 48kHz 24bit, one has 16 channels
-		 * for 96kHz 24bit, one has 8 channels
-		 * for 192kHz 24bit, one has 4 channels
-		 *
+		 * 24bit Audio uses 2x channels over 16bit,
+		 * 96kHz uses 2x channels over 48kHz,
+		 * 192kHz uses 4x channels over 48kHz.
+		 * So, for 48kHz 24bit, one has 16 channels,
+		 * for 96kHz 24bit, one has 8 channels,
+		 * for 192kHz 24bit, one has 4 channels.
+		 * 1010rev2 and 1616(m) cards have double that,
+		 * but we don't exceed 16 channels anyway.
 		 */
 #if 1
 		switch (emu->emu1010.internal_clock) {
@@ -1459,11 +1454,12 @@ static int snd_emu10k1_pcm_efx_voices_mask_put(struct snd_kcontrol *kcontrol, st
 			nval[idx / 32] |= 1 << (idx % 32);
 			bits++;
 		}
-		
+
+	// Check that the number of requested channels is a power of two
+	// not bigger than the number of available channels.
 	for (idx = 0; idx < nefxb; idx++)
 		if (1 << idx == bits)
 			break;
-	
 	if (idx >= nefxb)
 		return -EINVAL;
 
