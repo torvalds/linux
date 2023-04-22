@@ -641,8 +641,8 @@ snd_emu10k1_look_for_ctl(struct snd_emu10k1 *emu,
 	list_for_each_entry(ctl, &emu->fx8010.gpr_ctl, list) {
 		kcontrol = ctl->kcontrol;
 		if (kcontrol->id.iface == id->iface &&
-		    !strcmp(kcontrol->id.name, id->name) &&
-		    kcontrol->id.index == id->index)
+		    kcontrol->id.index == id->index &&
+		    !strcmp(kcontrol->id.name, id->name))
 			return ctl;
 	}
 	return NULL;
@@ -1213,7 +1213,7 @@ static int snd_emu10k1_audigy_dsp_convert_32_to_2x16(
 
 static int _snd_emu10k1_audigy_init_efx(struct snd_emu10k1 *emu)
 {
-	int err, i, z, gpr, nctl;
+	int err, z, gpr, nctl;
 	int bit_shifter16;
 	const int playback = 10;
 	const int capture = playback + (SND_EMU10K1_PLAYBACK_CHANNELS * 2); /* we reserve 10 voices */
@@ -1245,12 +1245,10 @@ static int _snd_emu10k1_audigy_init_efx(struct snd_emu10k1 *emu)
 	icode->code = icode->tram_addr_map + 256;
 
 	/* clear free GPRs */
-	for (i = 0; i < 512; i++)
-		set_bit(i, icode->gpr_valid);
+	memset(icode->gpr_valid, 0xff, 512 / 8);
 		
 	/* clear TRAM data & address lines */
-	for (i = 0; i < 256; i++)
-		set_bit(i, icode->tram_valid);
+	memset(icode->tram_valid, 0xff, 256 / 8);
 
 	strcpy(icode->name, "Audigy DSP code for ALSA");
 	ptr = 0;
@@ -1886,12 +1884,10 @@ static int _snd_emu10k1_init_efx(struct snd_emu10k1 *emu)
 	icode->code = icode->tram_addr_map + 160;
 	
 	/* clear free GPRs */
-	for (i = 0; i < 256; i++)
-		set_bit(i, icode->gpr_valid);
+	memset(icode->gpr_valid, 0xff, 256 / 8);
 
 	/* clear TRAM data & address lines */
-	for (i = 0; i < 160; i++)
-		set_bit(i, icode->tram_valid);
+	memset(icode->tram_valid, 0xff, 160 / 8);
 
 	strcpy(icode->name, "SB Live! FX8010 code for ALSA v1.2 by Jaroslav Kysela");
 	ptr = 0; i = 0;

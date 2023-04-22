@@ -1044,8 +1044,6 @@ static int snd_emu10k1_efx_playback_open(struct snd_pcm_substream *substream)
 	epcm->type = PLAYBACK_EFX;
 	epcm->substream = substream;
 	
-	emu->pcm_playback_efx_substream = substream;
-
 	runtime->private_data = epcm;
 	runtime->private_free = snd_emu10k1_pcm_free_substream;
 	runtime->hw = snd_emu10k1_efx_playback;
