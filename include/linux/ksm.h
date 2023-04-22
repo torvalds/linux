@@ -21,6 +21,7 @@ int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
 
 void ksm_add_vma(struct vm_area_struct *vma);
 int ksm_enable_merge_any(struct mm_struct *mm);
+int ksm_disable_merge_any(struct mm_struct *mm);
 
 int __ksm_enter(struct mm_struct *mm);
 void __ksm_exit(struct mm_struct *mm);
