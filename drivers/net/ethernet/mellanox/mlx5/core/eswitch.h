@@ -195,7 +195,6 @@ struct mlx5_vport {
 	enum mlx5_eswitch_vport_event enabled_events;
 	int index;
 	struct devlink_port *dl_port;
-	struct dentry *dbgfs;
 };
 
 struct mlx5_esw_indir_table;
@@ -343,7 +342,6 @@ struct mlx5_eswitch {
 		u32             large_group_num;
 	}  params;
 	struct blocking_notifier_head n_head;
-	struct dentry *dbgfs;
 };
 
 void esw_offloads_disable(struct mlx5_eswitch *esw);
@@ -356,7 +354,6 @@ mlx5_eswitch_add_send_to_vport_meta_rule(struct mlx5_eswitch *esw, u16 vport_num
 void mlx5_eswitch_del_send_to_vport_meta_rule(struct mlx5_flow_handle *rule);
 
 bool mlx5_esw_vport_match_metadata_supported(const struct mlx5_eswitch *esw);
-int mlx5_esw_offloads_vport_metadata_set(struct mlx5_eswitch *esw, bool enable);
 u32 mlx5_esw_match_metadata_alloc(struct mlx5_eswitch *esw);
 void mlx5_esw_match_metadata_free(struct mlx5_eswitch *esw, u32 metadata);
 
@@ -703,9 +700,6 @@ void mlx5_eswitch_unload_vf_vports(struct mlx5_eswitch *esw, u16 num_vfs);
 int mlx5_esw_offloads_devlink_port_register(struct mlx5_eswitch *esw, u16 vport_num);
 void mlx5_esw_offloads_devlink_port_unregister(struct mlx5_eswitch *esw, u16 vport_num);
 struct devlink_port *mlx5_esw_offloads_devlink_port(struct mlx5_eswitch *esw, u16 vport_num);
-
-void mlx5_esw_vport_debugfs_create(struct mlx5_eswitch *esw, u16 vport_num, bool is_sf, u16 sf_num);
-void mlx5_esw_vport_debugfs_destroy(struct mlx5_eswitch *esw, u16 vport_num);
 
 int mlx5_esw_devlink_sf_port_register(struct mlx5_eswitch *esw, struct devlink_port *dl_port,
 				      u16 vport_num, u32 controller, u32 sfnum);

@@ -717,7 +717,7 @@ static int handle_hca_cap_port_selection(struct mlx5_core_dev *dev,
 	       MLX5_ST_SZ_BYTES(port_selection_cap));
 	MLX5_SET(port_selection_cap, set_hca_cap, port_select_flow_table_bypass, 1);
 
-	err = set_caps(dev, set_ctx, MLX5_SET_HCA_CAP_OP_MODE_PORT_SELECTION);
+	err = set_caps(dev, set_ctx, MLX5_SET_HCA_CAP_OP_MOD_PORT_SELECTION);
 
 	return err;
 }

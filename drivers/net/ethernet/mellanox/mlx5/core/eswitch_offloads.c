@@ -2939,28 +2939,6 @@ metadata_err:
 	return err;
 }
 
-int mlx5_esw_offloads_vport_metadata_set(struct mlx5_eswitch *esw, bool enable)
-{
-	int err = 0;
-
-	down_write(&esw->mode_lock);
-	if (mlx5_esw_is_fdb_created(esw)) {
-		err = -EBUSY;
-		goto done;
-	}
-	if (!mlx5_esw_vport_match_metadata_supported(esw)) {
-		err = -EOPNOTSUPP;
-		goto done;
-	}
-	if (enable)
-		esw->flags |= MLX5_ESWITCH_VPORT_MATCH_METADATA;
-	else
-		esw->flags &= ~MLX5_ESWITCH_VPORT_MATCH_METADATA;
-done:
-	up_write(&esw->mode_lock);
-	return err;
-}
-
 int
 esw_vport_create_offloads_acl_tables(struct mlx5_eswitch *esw,
 				     struct mlx5_vport *vport)
@@ -3828,14 +3806,12 @@ int mlx5_esw_offloads_sf_vport_enable(struct mlx5_eswitch *esw, struct devlink_p
 	if (err)
 		goto devlink_err;
 
-	mlx5_esw_vport_debugfs_create(esw, vport_num, true, sfnum);
 	err = mlx5_esw_offloads_rep_load(esw, vport_num);
 	if (err)
 		goto rep_err;
 	return 0;
 
 rep_err:
-	mlx5_esw_vport_debugfs_destroy(esw, vport_num);
 	mlx5_esw_devlink_sf_port_unregister(esw, vport_num);
 devlink_err:
 	mlx5_esw_vport_disable(esw, vport_num);
@@ -3845,7 +3821,6 @@ devlink_err:
 void mlx5_esw_offloads_sf_vport_disable(struct mlx5_eswitch *esw, u16 vport_num)
 {
 	mlx5_esw_offloads_rep_unload(esw, vport_num);
-	mlx5_esw_vport_debugfs_destroy(esw, vport_num);
 	mlx5_esw_devlink_sf_port_unregister(esw, vport_num);
 	mlx5_esw_vport_disable(esw, vport_num);
 }

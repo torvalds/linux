@@ -861,6 +861,11 @@ static void mlx5e_dealloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 	struct mlx5e_mpw_info *wi = mlx5e_get_mpw_info(rq, ix);
 	/* This function is called on rq/netdev close. */
 	mlx5e_free_rx_mpwqe(rq, wi);
+
+	/* Avoid a second release of the wqe pages: dealloc is called also
+	 * for missing wqes on an already flushed RQ.
+	 */
+	bitmap_fill(wi->skip_release_bitmap, rq->mpwqe.pages_per_wqe);
 }
 
 INDIRECT_CALLABLE_SCOPE bool mlx5e_post_rx_wqes(struct mlx5e_rq *rq)
@@ -1741,10 +1746,10 @@ mlx5e_skb_from_cqe_nonlinear(struct mlx5e_rq *rq, struct mlx5e_wqe_frag_info *wi
 	prog = rcu_dereference(rq->xdp_prog);
 	if (prog && mlx5e_xdp_handle(rq, prog, &mxbuf)) {
 		if (test_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags)) {
-			int i;
+			struct mlx5e_wqe_frag_info *pwi;
 
-			for (i = wi - head_wi; i < rq->wqe.info.num_frags; i++)
-				mlx5e_put_rx_frag(rq, &head_wi[i]);
+			for (pwi = head_wi; pwi < wi; pwi++)
+				pwi->flags |= BIT(MLX5E_WQE_FRAG_SKIP_RELEASE);
 		}
 		return NULL; /* page/packet was consumed by XDP */
 	}
