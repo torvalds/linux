@@ -1820,9 +1820,8 @@ static bool retrieve_link_cap(struct dc_link *link)
 				  str_yes_no(is_fec_supported));
 			DC_LOG_DC("%s: DSC_Basic_Sink_Support: %s\n", __func__,
 				  str_yes_no(is_dsc_basic_supported));
-			if (link->dpcd_caps.is_mst_capable)
-				DC_LOG_DC("%s: DSC_Passthrough_Sink_Support: %s\n", __func__,
-					  str_yes_no(is_dsc_passthrough_supported));
+			DC_LOG_DC("%s: DSC_Passthrough_Sink_Support: %s\n", __func__,
+				  str_yes_no(is_dsc_passthrough_supported));
 		}
 		if (link->dpcd_caps.dongle_type != DISPLAY_DONGLE_NONE) {
 			status = core_link_read_dpcd(
