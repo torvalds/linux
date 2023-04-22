@@ -1259,9 +1259,6 @@ static int _snd_emu10k1_audigy_init_efx(struct snd_emu10k1 *emu)
 	gpr_map[gpr++] = 0x0000ffff;
 	bit_shifter16 = gpr;
 
-	/* stop FX processor */
-	snd_emu10k1_ptr_write(emu, A_DBG, 0, (emu->fx8010.dbg = 0) | A_DBG_SINGLE_STEP);
-
 #if 1
 	/* PCM front Playback Volume (independent from stereo mix)
 	 * playback = 0 + ( gpr * FXBUS_PCM_LEFT_FRONT >> 31)
@@ -1902,9 +1899,6 @@ static int _snd_emu10k1_init_efx(struct snd_emu10k1 *emu)
 	gpr = capture + SND_EMU10K1_CAPTURE_CHANNELS;
 	tmp = 0x88;	/* we need 4 temporary GPR */
 	/* from 0x8c to 0xff is the area for tone control */
-
-	/* stop FX processor */
-	snd_emu10k1_ptr_write(emu, DBG, 0, (emu->fx8010.dbg = 0) | EMU10K1_DBG_SINGLE_STEP);
 
 	/*
 	 *  Process FX Buses
