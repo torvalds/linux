@@ -283,6 +283,7 @@ struct platform_features {
 	bool has_nhm_msrs;	/* MSR_PLATFORM_INFO, MSR_IA32_TEMPERATURE_TARGET, MSR_SMI_COUNT, MSR_PKG_CST_CONFIG_CONTROL, TRL MSRs */
 	bool has_config_tdp;	/* MSR_CONFIG_TDP_NOMINAL/LEVEL_1/LEVEL_2/CONTROL, MSR_TURBO_ACTIVATION_RATIO */
 	int bclk_freq;		/* CPU base clock */
+	int crystal_freq;	/* Crystal clock to use when not available from CPUID.15 */
 	int cst_limit;		/* MSR_PKG_CST_CONFIG_CONTROL */
 	bool has_cst_auto_convension;	/* AUTOMATIC_CSTATE_CONVERSION bit in MSR_PKG_CST_CONFIG_CONTROL */
 	int trl_msrs;		/* MSR_TURBO_RATIO_LIMIT/LIMIT1/LIMIT2/SECONDARY, Atom TRL MSRs */
@@ -490,6 +491,7 @@ static const struct platform_features skl_features = {
 	.has_nhm_msrs = 1,
 	.has_config_tdp = 1,
 	.bclk_freq = BCLK_100MHZ,
+	.crystal_freq = 24000000,
 	.cst_limit = CST_LIMIT_HSW,
 	.trl_msrs = TRL_BASE,
 	.tcc_offset_bits = 6,
@@ -563,6 +565,7 @@ static const struct platform_features gmt_features = {
 	.has_msr_misc_pwr_mgmt = 1,
 	.has_nhm_msrs = 1,
 	.bclk_freq = BCLK_100MHZ,
+	.crystal_freq = 19200000,
 	.cst_limit = CST_LIMIT_GMT,
 	.trl_msrs = TRL_BASE | TRL_CORECOUNT,
 };
@@ -571,6 +574,7 @@ static const struct platform_features gmtd_features = {
 	.has_msr_misc_pwr_mgmt = 1,
 	.has_nhm_msrs = 1,
 	.bclk_freq = BCLK_100MHZ,
+	.crystal_freq = 25000000,
 	.cst_limit = CST_LIMIT_GMT,
 	.trl_msrs = TRL_BASE | TRL_CORECOUNT,
 };
@@ -579,6 +583,7 @@ static const struct platform_features gmtp_features = {
 	.has_msr_misc_pwr_mgmt = 1,
 	.has_nhm_msrs = 1,
 	.bclk_freq = BCLK_100MHZ,
+	.crystal_freq = 19200000,
 	.cst_limit = CST_LIMIT_GMT,
 	.trl_msrs = TRL_BASE,
 };
@@ -5796,26 +5801,12 @@ void process_cpuid()
 		__cpuid(0x15, eax_crystal, ebx_tsc, crystal_hz, edx);
 
 		if (ebx_tsc != 0) {
-
 			if (!quiet && (ebx != 0))
 				fprintf(outf, "CPUID(0x15): eax_crystal: %d ebx_tsc: %d ecx_crystal_hz: %d\n",
 					eax_crystal, ebx_tsc, crystal_hz);
 
 			if (crystal_hz == 0)
-				switch (model) {
-				case INTEL_FAM6_SKYLAKE_L:	/* SKL */
-					crystal_hz = 24000000;	/* 24.0 MHz */
-					break;
-				case INTEL_FAM6_ATOM_GOLDMONT_D:	/* DNV */
-					crystal_hz = 25000000;	/* 25.0 MHz */
-					break;
-				case INTEL_FAM6_ATOM_GOLDMONT:	/* BXT */
-				case INTEL_FAM6_ATOM_GOLDMONT_PLUS:
-					crystal_hz = 19200000;	/* 19.2 MHz */
-					break;
-				default:
-					crystal_hz = 0;
-				}
+				crystal_hz = platform->crystal_freq;
 
 			if (crystal_hz) {
 				tsc_hz = (unsigned long long)crystal_hz *ebx_tsc / eax_crystal;
