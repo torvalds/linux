@@ -799,6 +799,7 @@ int ovl_set_origin(struct ovl_fs *ofs, struct dentry *lower,
 
 /* export.c */
 extern const struct export_operations ovl_export_operations;
+extern const struct export_operations ovl_export_fid_operations;
 
 /* super.c */
 int ovl_fill_super(struct super_block *sb, struct fs_context *fc);

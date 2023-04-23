@@ -174,28 +174,37 @@ static int ovl_connect_layer(struct dentry *dentry)
  * U = upper file handle
  * L = lower file handle
  *
- * (*) Connecting an overlay dir from real lower dentry is not always
+ * (*) Decoding a connected overlay dir from real lower dentry is not always
  * possible when there are redirects in lower layers and non-indexed merge dirs.
  * To mitigate those case, we may copy up the lower dir ancestor before encode
- * a lower dir file handle.
+ * of a decodable file handle for non-upper dir.
  *
  * Return 0 for upper file handle, > 0 for lower file handle or < 0 on error.
  */
 static int ovl_check_encode_origin(struct dentry *dentry)
 {
 	struct ovl_fs *ofs = dentry->d_sb->s_fs_info;
+	bool decodable = ofs->config.nfs_export;
+
+	/* Lower file handle for non-upper non-decodable */
+	if (!ovl_dentry_upper(dentry) && !decodable)
+		return 0;
 
 	/* Upper file handle for pure upper */
 	if (!ovl_dentry_lower(dentry))
 		return 0;
 
 	/*
-	 * Upper file handle for non-indexed upper.
-	 *
 	 * Root is never indexed, so if there's an upper layer, encode upper for
 	 * root.
 	 */
-	if (ovl_dentry_upper(dentry) &&
+	if (dentry == dentry->d_sb->s_root)
+		return 0;
+
+	/*
+	 * Upper decodable file handle for non-indexed upper.
+	 */
+	if (ovl_dentry_upper(dentry) && decodable &&
 	    !ovl_test_flag(OVL_INDEX, d_inode(dentry)))
 		return 0;
 
@@ -205,7 +214,7 @@ static int ovl_check_encode_origin(struct dentry *dentry)
 	 * ovl_connect_layer() will try to make origin's layer "connected" by
 	 * copying up a "connectable" ancestor.
 	 */
-	if (d_is_dir(dentry) && ovl_upper_mnt(ofs))
+	if (d_is_dir(dentry) && ovl_upper_mnt(ofs) && decodable)
 		return ovl_connect_layer(dentry);
 
 	/* Lower file handle for indexed and non-upper dir/non-dir */
@@ -875,4 +884,9 @@ const struct export_operations ovl_export_operations = {
 	.fh_to_parent	= ovl_fh_to_parent,
 	.get_name	= ovl_get_name,
 	.get_parent	= ovl_get_parent,
+};
+
+/* encode_fh() encodes non-decodable file handles with nfs_export=off */
+const struct export_operations ovl_export_fid_operations = {
+	.encode_fh	= ovl_encode_fh,
 };

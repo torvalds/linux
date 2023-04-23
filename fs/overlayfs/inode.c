@@ -1311,7 +1311,7 @@ static bool ovl_hash_bylower(struct super_block *sb, struct dentry *upper,
 		return false;
 
 	/* No, if non-indexed upper with NFS export */
-	if (sb->s_export_op && upper)
+	if (ofs->config.nfs_export && upper)
 		return false;
 
 	/* Otherwise, hash by lower inode for fsnotify */
