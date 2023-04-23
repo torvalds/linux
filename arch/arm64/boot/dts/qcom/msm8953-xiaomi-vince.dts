@@ -60,6 +60,22 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		magnetometer@c {
+			compatible = "asahi-kasei,ak09918";
+			reg = <0x0c>;
+			vdd-supply = <&pm8953_l10>;
+			vid-supply = <&pm8953_l6>;
+			mount-matrix = "1", "0", "0",
+					"0", "1", "0",
+					"0", "0", "1";
+		};
+
+		light-sensor@53 {
+			compatible = "liteon,ltrf216a";
+			reg = <0x53>;
+			vdd-supply = <&pm8953_l10>;
+		};
+
 		imu@6a {
 			compatible = "st,lsm6dsl";
 			reg = <0x6a>;
@@ -76,13 +92,31 @@
 	status = "okay";
 };
 
-&rmi4_ts {
-	status = "okay";
+&battery {
+	charge-full-design-microamp-hours = <4000000>;
+	constant-charge-current-max-microamp = <2500000>;
+	voltage-min-design-microvolt = <3400000>;
+	voltage-max-design-microvolt = <4380000>;
+};
+
+&panel {
+	compatible = "xiaomi,vince-panel";
 };
 
 &pmi8950_wled {
 	qcom,external-pfet;
 	qcom,cabc;
+};
+
+&q6afedai {
+	dai@127 {
+		reg = <QUINARY_MI2S_RX>;
+		qcom,sd-lines = <0 1>;
+	};
+};
+
+&rmi4_ts {
+	status = "okay";
 };
 
 &tlmm {
