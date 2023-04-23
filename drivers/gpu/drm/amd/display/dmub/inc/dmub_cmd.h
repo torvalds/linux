@@ -398,6 +398,12 @@ enum dmub_lvtma_status_bit {
 	DMUB_LVTMA_STATUS_BIT_EDP_ON = (1 << 1),
 };
 
+enum dmub_ips_disable_type {
+	DMUB_IPS_DISABLE_IPS1 = 1,
+	DMUB_IPS_DISABLE_IPS2 = 2,
+	DMUB_IPS_DISABLE_IPS2_Z10 = 3,
+};
+
 /**
  * union dmub_fw_boot_options - Boot option definitions for SCRATCH14
  */
@@ -423,7 +429,9 @@ union dmub_fw_boot_options {
 		uint32_t usb4_dpia_bw_alloc_supported: 1; /* 1 if USB4 dpia BW allocation supported */
 		uint32_t disable_clk_ds: 1; /* 1 if disallow dispclk_ds and dppclk_ds*/
 		uint32_t disable_timeout_recovery : 1; /* 1 if timeout recovery should be disabled */
-		uint32_t reserved : 13; /**< reserved */
+		uint32_t ips_pg_disable: 1; /* 1 to disable ONO domains power gating*/
+		uint32_t ips_disable: 2; /* options to disable ips support*/
+		uint32_t reserved : 10; /**< reserved */
 	} bits; /**< boot bits */
 	uint32_t all; /**< 32-bit access to bits */
 };
