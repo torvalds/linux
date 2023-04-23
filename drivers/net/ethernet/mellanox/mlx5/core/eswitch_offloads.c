@@ -3301,7 +3301,7 @@ static int esw_offloads_stop(struct mlx5_eswitch *esw,
 	/* If changing from switchdev to legacy mode without sriov enabled,
 	 * no need to create legacy fdb.
 	 */
-	if (!mlx5_sriov_is_enabled(esw->dev))
+	if (!mlx5_core_is_pf(esw->dev) || !mlx5_sriov_is_enabled(esw->dev))
 		return 0;
 
 	err = mlx5_eswitch_enable_locked(esw, MLX5_ESWITCH_IGNORE_NUM_VFS);
