@@ -844,15 +844,14 @@ static void at91_irq_tx(struct net_device *dev, u32 reg_sr)
 		 * parked in the echo queue.
 		 */
 		reg_msr = at91_read(priv, AT91_MSR(mb));
-		if (likely(reg_msr & AT91_MSR_MRDY &&
-			   ~reg_msr & AT91_MSR_MABT)) {
-			/* _NOTE_: subtract AT91_MB_TX_FIRST offset from mb! */
-			dev->stats.tx_bytes +=
-				can_get_echo_skb(dev,
-						 mb - get_mb_tx_first(priv),
-						 NULL);
-			dev->stats.tx_packets++;
-		}
+		if (unlikely(!(reg_msr & AT91_MSR_MRDY &&
+			       ~reg_msr & AT91_MSR_MABT)))
+			continue;
+
+		/* _NOTE_: subtract AT91_MB_TX_FIRST offset from mb! */
+		dev->stats.tx_bytes +=
+			can_get_echo_skb(dev, mb - get_mb_tx_first(priv), NULL);
+		dev->stats.tx_packets++;
 	}
 
 	/* restart queue if we don't have a wrap around but restart if
