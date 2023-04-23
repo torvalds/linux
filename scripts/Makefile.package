@@ -49,7 +49,7 @@ git-config-tar.zst = -c tar.tar.zst.command="$(ZSTD)"
 
 quiet_cmd_archive = ARCHIVE $@
       cmd_archive = git -C $(srctree) $(git-config-tar$(suffix $@)) archive \
-                    --output=$$(realpath $@) --prefix=$(basename $@)/ $(archive-args)
+                    --output=$$(realpath $@) $(archive-args)
 
 # Linux source tarball
 # ---------------------------------------------------------------------------
@@ -57,7 +57,7 @@ quiet_cmd_archive = ARCHIVE $@
 linux-tarballs := $(addprefix linux, .tar.gz)
 
 targets += $(linux-tarballs)
-$(linux-tarballs): archive-args = $$(cat $<)
+$(linux-tarballs): archive-args = --prefix=linux/ $$(cat $<)
 $(linux-tarballs): .tmp_HEAD FORCE
 	$(call if_changed,archive)
 
@@ -189,7 +189,7 @@ perf-archive-args = --add-file=$$(realpath $(word 2, $^)) \
 perf-tarballs := $(addprefix perf-$(KERNELVERSION), .tar .tar.gz .tar.bz2 .tar.xz .tar.zst)
 
 targets += $(perf-tarballs)
-$(perf-tarballs): archive-args = $(perf-archive-args)
+$(perf-tarballs): archive-args = --prefix=perf-$(KERNELVERSION)/ $(perf-archive-args)
 $(perf-tarballs): tools/perf/MANIFEST .tmp_perf/HEAD .tmp_perf/PERF-VERSION-FILE FORCE
 	$(call if_changed,archive)
 
