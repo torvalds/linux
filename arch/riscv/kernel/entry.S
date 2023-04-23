@@ -348,6 +348,6 @@ SYM_CODE_END(excp_vect_table)
 #ifndef CONFIG_MMU
 SYM_CODE_START(__user_rt_sigreturn)
 	li a7, __NR_rt_sigreturn
-	scall
+	ecall
 SYM_CODE_END(__user_rt_sigreturn)
 #endif
