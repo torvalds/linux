@@ -2880,10 +2880,10 @@ static int m88e1318_led_blink_set(struct phy_device *phydev, u8 index,
 	case 1:
 	case 2:
 		reg &= ~(0xf << (4 * index));
-			reg |= MII_88E1318S_PHY_LED_FUNC_BLINK << (4 * index);
-			/* Reset default is 84ms */
-			*delay_on = 84 / 2;
-			*delay_off = 84 / 2;
+		reg |= MII_88E1318S_PHY_LED_FUNC_BLINK << (4 * index);
+		/* Reset default is 84ms */
+		*delay_on = 84 / 2;
+		*delay_off = 84 / 2;
 		break;
 	default:
 		return -EINVAL;
