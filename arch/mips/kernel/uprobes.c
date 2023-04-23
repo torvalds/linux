@@ -191,6 +191,7 @@ void arch_uprobe_abort_xol(struct arch_uprobe *aup,
 {
 	struct uprobe_task *utask = current->utask;
 
+	current->thread.trap_nr = utask->autask.saved_trap_nr;
 	instruction_pointer_set(regs, utask->vaddr);
 }
 
