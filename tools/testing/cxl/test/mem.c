@@ -116,6 +116,7 @@ struct cxl_mockmem_data {
 	int master_limit;
 	struct mock_event_store mes;
 	u8 event_buf[SZ_4K];
+	u64 timestamp;
 };
 
 static struct mock_event_log *event_find_log(struct device *dev, int log_type)
@@ -378,6 +379,22 @@ struct cxl_event_mem_module mem_module = {
 		.cor_per_err_cnt = { 0xde, 0xad, 0xbe, 0xef },
 	}
 };
+
+static int mock_set_timestamp(struct cxl_dev_state *cxlds,
+			      struct cxl_mbox_cmd *cmd)
+{
+	struct cxl_mockmem_data *mdata = dev_get_drvdata(cxlds->dev);
+	struct cxl_mbox_set_timestamp_in *ts = cmd->payload_in;
+
+	if (cmd->size_in != sizeof(*ts))
+		return -EINVAL;
+
+	if (cmd->size_out != 0)
+		return -EINVAL;
+
+	mdata->timestamp = le64_to_cpu(ts->timestamp);
+	return 0;
+}
 
 static void cxl_mock_add_event_logs(struct mock_event_store *mes)
 {
@@ -1103,6 +1120,9 @@ static int cxl_mock_mbox_send(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *
 	int rc = -EIO;
 
 	switch (cmd->opcode) {
+	case CXL_MBOX_OP_SET_TIMESTAMP:
+		rc = mock_set_timestamp(cxlds, cmd);
+		break;
 	case CXL_MBOX_OP_GET_SUPPORTED_LOGS:
 		rc = mock_gsl(cmd);
 		break;
@@ -1229,6 +1249,10 @@ static int cxl_mock_mem_probe(struct platform_device *pdev)
 		return rc;
 
 	rc = cxl_poison_state_init(cxlds);
+	if (rc)
+		return rc;
+
+	rc = cxl_set_timestamp(cxlds);
 	if (rc)
 		return rc;
 
