@@ -3106,6 +3106,9 @@ static void dw_dp_bridge_atomic_enable(struct drm_bridge *bridge,
 
 	if (dp->panel)
 		drm_panel_enable(dp->panel);
+
+	extcon_set_state_sync(dp->extcon, EXTCON_DISP_DP, true);
+	dw_dp_audio_handle_plugged_change(&dp->audio, true);
 }
 
 static void dw_dp_reset(struct dw_dp *dp)
@@ -3141,6 +3144,9 @@ static void dw_dp_bridge_atomic_disable(struct drm_bridge *bridge,
 	dw_dp_link_disable(dp);
 	bitmap_zero(dp->sdp_reg_bank, SDP_REG_BANK_SIZE);
 	dw_dp_reset(dp);
+
+	extcon_set_state_sync(dp->extcon, EXTCON_DISP_DP, false);
+	dw_dp_audio_handle_plugged_change(&dp->audio, false);
 }
 
 static bool dw_dp_detect_dpcd(struct dw_dp *dp)
@@ -3200,14 +3206,6 @@ static enum drm_connector_status dw_dp_bridge_detect(struct drm_bridge *bridge)
 	}
 
 out:
-	if (status == connector_status_connected) {
-		extcon_set_state_sync(dp->extcon, EXTCON_DISP_DP, true);
-		dw_dp_audio_handle_plugged_change(&dp->audio, true);
-	} else {
-		extcon_set_state_sync(dp->extcon, EXTCON_DISP_DP, false);
-		dw_dp_audio_handle_plugged_change(&dp->audio, false);
-	}
-
 	return status;
 }
 
