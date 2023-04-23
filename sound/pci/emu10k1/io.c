@@ -314,7 +314,6 @@ void snd_emu10k1_voice_intr_enable(struct snd_emu10k1 *emu, unsigned int voicenu
 	unsigned int val;
 
 	spin_lock_irqsave(&emu->emu_lock, flags);
-	/* voice interrupt */
 	if (voicenum >= 32) {
 		outl(CLIEH << 16, emu->port + PTR);
 		val = inl(emu->port + DATA);
@@ -334,7 +333,6 @@ void snd_emu10k1_voice_intr_disable(struct snd_emu10k1 *emu, unsigned int voicen
 	unsigned int val;
 
 	spin_lock_irqsave(&emu->emu_lock, flags);
-	/* voice interrupt */
 	if (voicenum >= 32) {
 		outl(CLIEH << 16, emu->port + PTR);
 		val = inl(emu->port + DATA);
@@ -353,7 +351,6 @@ void snd_emu10k1_voice_intr_ack(struct snd_emu10k1 *emu, unsigned int voicenum)
 	unsigned long flags;
 
 	spin_lock_irqsave(&emu->emu_lock, flags);
-	/* voice interrupt */
 	if (voicenum >= 32) {
 		outl(CLIPH << 16, emu->port + PTR);
 		voicenum = 1 << (voicenum - 32);
@@ -371,7 +368,6 @@ void snd_emu10k1_voice_half_loop_intr_enable(struct snd_emu10k1 *emu, unsigned i
 	unsigned int val;
 
 	spin_lock_irqsave(&emu->emu_lock, flags);
-	/* voice interrupt */
 	if (voicenum >= 32) {
 		outl(HLIEH << 16, emu->port + PTR);
 		val = inl(emu->port + DATA);
@@ -391,7 +387,6 @@ void snd_emu10k1_voice_half_loop_intr_disable(struct snd_emu10k1 *emu, unsigned 
 	unsigned int val;
 
 	spin_lock_irqsave(&emu->emu_lock, flags);
-	/* voice interrupt */
 	if (voicenum >= 32) {
 		outl(HLIEH << 16, emu->port + PTR);
 		val = inl(emu->port + DATA);
@@ -410,7 +405,6 @@ void snd_emu10k1_voice_half_loop_intr_ack(struct snd_emu10k1 *emu, unsigned int 
 	unsigned long flags;
 
 	spin_lock_irqsave(&emu->emu_lock, flags);
-	/* voice interrupt */
 	if (voicenum >= 32) {
 		outl(HLIPH << 16, emu->port + PTR);
 		voicenum = 1 << (voicenum - 32);
@@ -428,7 +422,6 @@ void snd_emu10k1_voice_set_loop_stop(struct snd_emu10k1 *emu, unsigned int voice
 	unsigned int sol;
 
 	spin_lock_irqsave(&emu->emu_lock, flags);
-	/* voice interrupt */
 	if (voicenum >= 32) {
 		outl(SOLEH << 16, emu->port + PTR);
 		sol = inl(emu->port + DATA);
@@ -448,7 +441,6 @@ void snd_emu10k1_voice_clear_loop_stop(struct snd_emu10k1 *emu, unsigned int voi
 	unsigned int sol;
 
 	spin_lock_irqsave(&emu->emu_lock, flags);
-	/* voice interrupt */
 	if (voicenum >= 32) {
 		outl(SOLEH << 16, emu->port + PTR);
 		sol = inl(emu->port + DATA);
