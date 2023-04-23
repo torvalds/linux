@@ -16771,9 +16771,8 @@ F:	include/uapi/linux/if_pppol2tp.h
 F:	net/l2tp/l2tp_ppp.c
 
 PPP PROTOCOL DRIVERS AND COMPRESSORS
-M:	Paul Mackerras <paulus@samba.org>
 L:	linux-ppp@vger.kernel.org
-S:	Maintained
+S:	Orphan
 F:	drivers/net/ppp/ppp_*
 
 PPS SUPPORT
