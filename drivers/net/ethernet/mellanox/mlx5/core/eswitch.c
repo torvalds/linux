@@ -310,11 +310,12 @@ static int esw_add_uc_addr(struct mlx5_eswitch *esw, struct vport_addr *vaddr)
 
 fdb_add:
 	/* SRIOV is enabled: Forward UC MAC to vport */
-	if (esw->fdb_table.legacy.fdb && esw->mode == MLX5_ESWITCH_LEGACY)
+	if (esw->fdb_table.legacy.fdb && esw->mode == MLX5_ESWITCH_LEGACY) {
 		vaddr->flow_rule = esw_fdb_set_vport_rule(esw, mac, vport);
 
-	esw_debug(esw->dev, "\tADDED UC MAC: vport[%d] %pM fr(%p)\n",
-		  vport, mac, vaddr->flow_rule);
+		esw_debug(esw->dev, "\tADDED UC MAC: vport[%d] %pM fr(%p)\n",
+			  vport, mac, vaddr->flow_rule);
+	}
 
 	return 0;
 }
