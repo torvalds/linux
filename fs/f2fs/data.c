@@ -2807,6 +2807,10 @@ int f2fs_write_single_data_page(struct page *page, int *submitted,
 		if (S_ISDIR(inode->i_mode) &&
 				!is_sbi_flag_set(sbi, SBI_IS_CLOSE))
 			goto redirty_out;
+
+		/* keep data pages in remount-ro mode */
+		if (F2FS_OPTION(sbi).errors == MOUNT_ERRORS_READONLY)
+			goto redirty_out;
 		goto out;
 	}
 
