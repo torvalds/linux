@@ -35,8 +35,7 @@ struct wcd_usbss_ctxt {
 	u8 prev_pg;
 	bool prev_pg_valid;
 	struct mutex io_lock;
-	enum wcd_usbss_cable_types cable_type;
-	enum wcd_usbss_cable_status cable_status;
+	unsigned int cable_status;
 	bool surge_enable;
 	struct kobject *surge_kobject;
 	struct task_struct *surge_thread;
@@ -45,6 +44,7 @@ struct wcd_usbss_ctxt {
 	bool standby_enable;
 	bool is_in_standby;
 	struct mutex standby_lock;
+	struct mutex switch_update_lock;
 	unsigned int version;
 };
 
