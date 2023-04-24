@@ -95,7 +95,7 @@ config ARM_BRCMSTB_AVS_CPUFREQ
 	help
 	  Some Broadcom STB SoCs use a co-processor running proprietary firmware
 	  ("AVS") to handle voltage and frequency scaling. This driver provides
-	  a standard CPUfreq interface to to the firmware.
+	  a standard CPUfreq interface to the firmware.
 
 	  Say Y, if you have a Broadcom SoC with AVS support for DFS or DVFS.
 
