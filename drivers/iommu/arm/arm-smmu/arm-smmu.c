@@ -3027,50 +3027,6 @@ static int arm_smmu_handoff_cbs(struct arm_smmu_device *smmu)
 	return 0;
 }
 
-static int arm_smmu_parse_impl_def_registers(struct arm_smmu_device *smmu)
-{
-	struct device *dev = smmu->dev;
-	int i, ntuples, ret;
-	u32 *tuples;
-	struct arm_smmu_impl_def_reg *regs, *regit;
-
-	if (!of_find_property(dev->of_node, "attach-impl-defs", &ntuples))
-		return 0;
-
-	ntuples /= sizeof(u32);
-	if (ntuples % 2) {
-		dev_err(dev,
-			"Invalid number of attach-impl-defs registers: %d\n",
-			ntuples);
-		return -EINVAL;
-	}
-
-	regs = devm_kmalloc_array(dev, ntuples, sizeof(*regs), GFP_KERNEL);
-	if (!regs)
-		return -ENOMEM;
-
-	tuples = kmalloc_array(ntuples * 2, sizeof(*tuples), GFP_KERNEL);
-	if (!tuples)
-		return -ENOMEM;
-
-	ret = of_property_read_u32_array(dev->of_node, "attach-impl-defs",
-					tuples, ntuples);
-	if (ret)
-		goto out;
-
-	for (i = 0, regit = regs; i < ntuples; i += 2, ++regit) {
-		regit->offset = tuples[i];
-		regit->value = tuples[i + 1];
-	}
-
-	smmu->impl_def_attach_registers = regs;
-	smmu->num_impl_def_attach_registers = ntuples / 2;
-
-out:
-	kfree(tuples);
-	return ret;
-}
-
 static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 {
 	unsigned int size;
@@ -3542,10 +3498,6 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 		return err;
 
 	err = arm_smmu_device_cfg_probe(smmu);
-	if (err)
-		goto out_power_off;
-
-	err = arm_smmu_parse_impl_def_registers(smmu);
 	if (err)
 		goto out_power_off;
 
