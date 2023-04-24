@@ -1280,7 +1280,7 @@ static int hook_file_truncate(struct file *const file)
 	return -EACCES;
 }
 
-static struct security_hook_list landlock_hooks[] __lsm_ro_after_init = {
+static struct security_hook_list landlock_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(inode_free_security, hook_inode_free_security),
 
 	LSM_HOOK_INIT(sb_delete, hook_sb_delete),

@@ -18822,8 +18822,8 @@ S:	Supported
 W:	https://selinuxproject.org
 W:	https://github.com/SELinuxProject
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pcmoore/selinux.git
-F:	Documentation/ABI/obsolete/sysfs-selinux-checkreqprot
-F:	Documentation/ABI/obsolete/sysfs-selinux-disable
+F:	Documentation/ABI/removed/sysfs-selinux-checkreqprot
+F:	Documentation/ABI/removed/sysfs-selinux-disable
 F:	Documentation/admin-guide/LSM/SELinux.rst
 F:	include/trace/events/avc.h
 F:	include/uapi/linux/selinux_netlink.h
