@@ -3028,6 +3028,7 @@ static int of_phy_led(struct phy_device *phydev,
 	struct led_init_data init_data = {};
 	struct led_classdev *cdev;
 	struct phy_led *phyled;
+	u32 index;
 	int err;
 
 	phyled = devm_kzalloc(dev, sizeof(*phyled), GFP_KERNEL);
@@ -3037,10 +3038,13 @@ static int of_phy_led(struct phy_device *phydev,
 	cdev = &phyled->led_cdev;
 	phyled->phydev = phydev;
 
-	err = of_property_read_u8(led, "reg", &phyled->index);
+	err = of_property_read_u32(led, "reg", &index);
 	if (err)
 		return err;
+	if (index > U8_MAX)
+		return -EINVAL;
 
+	phyled->index = index;
 	if (phydev->drv->led_brightness_set)
 		cdev->brightness_set_blocking = phy_led_set_brightness;
 	if (phydev->drv->led_blink_set)
