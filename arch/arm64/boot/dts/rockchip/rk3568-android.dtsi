@@ -51,6 +51,12 @@
 			<0x0 0xfd90e000 0x0 0x1000>,
 			<0x0 0xfd90f000 0x0 0x1000>;
 	};
+
+	vendor_storage: vendor-storage {
+		compatible = "rockchip,ram-vendor-storage";
+		memory-region = <&vendor_storage_rm>;
+		status = "okay";
+	};
 };
 
 &reserved_memory {
@@ -69,6 +75,11 @@
 		console-size = <0x80000>;
 		ftrace-size = <0x00000>;
 		pmsg-size = <0x50000>;
+	};
+
+	vendor_storage_rm: vendor-storage-rm@00000000 {
+		compatible = "rockchip,vendor-storage-rm";
+		reg = <0x0 0x0 0x0 0x0>;
 	};
 };
 
