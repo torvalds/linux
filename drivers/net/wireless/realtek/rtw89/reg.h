@@ -4759,11 +4759,15 @@
 #define B_IQKINF2_KCNT GENMASK(15, 8)
 #define B_IQKINF2_NCTLV GENMASK(7, 0)
 #define R_DCOF0 0xC000
+#define B_DCOF0_RST BIT(17)
 #define B_DCOF0_V GENMASK(4, 1)
 #define R_DCOF1 0xC004
+#define B_DCOF1_RST BIT(17)
 #define B_DCOF1_S BIT(0)
 #define R_DCOF8 0xC020
 #define B_DCOF8_V GENMASK(4, 1)
+#define R_DCOF9 0xC024
+#define B_DCOF9_RST BIT(17)
 #define R_DACK_S0P0 0xC040
 #define B_DACK_S0P0_OK BIT(31)
 #define R_DACK_BIAS00 0xc048
@@ -4815,6 +4819,7 @@
 #define B_ADDCK0D_VAL GENMASK(25, 16)
 #define R_ADDCK0 0xC0F4
 #define B_ADDCK0_TRG BIT(11)
+#define B_ADDCK0_IQ BIT(10)
 #define B_ADDCK0 GENMASK(9, 8)
 #define B_ADDCK0_MAN GENMASK(5, 4)
 #define B_ADDCK0_EN BIT(4)
@@ -4826,6 +4831,7 @@
 #define B_ADDCK0_RL0 GENMASK(17, 8)
 #define R_ADDCKR0 0xC0FC
 #define B_ADDCKR0_A0 GENMASK(19, 10)
+#define B_ADDCKR0_DC GENMASK(15, 4)
 #define B_ADDCKR0_A1 GENMASK(9, 0)
 #define R_DACK10 0xC100
 #define B_DACK10 GENMASK(4, 1)
@@ -4876,6 +4882,11 @@
 #define R_ADDCKR1 0xC1fC
 #define B_ADDCKR1_A0 GENMASK(19, 10)
 #define B_ADDCKR1_A1 GENMASK(9, 0)
+#define R_DACKN0_CTL 0xC210
+#define B_DACKN0_EN BIT(0)
+#define B_DACKN0_V GENMASK(21, 14)
+#define R_DACKN1_CTL 0xC224
+#define B_DACKN1_V GENMASK(21, 14)
 
 /* WiFi CPU local domain */
 #define R_AX_WDT_CTRL 0x0040
