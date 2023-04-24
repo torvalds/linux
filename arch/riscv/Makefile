@@ -7,8 +7,9 @@
 #
 
 OBJCOPYFLAGS    := -O binary
+LDFLAGS_vmlinux := -z norelro
 ifeq ($(CONFIG_RELOCATABLE),y)
-	LDFLAGS_vmlinux += -shared -Bsymbolic -z notext -z norelro --emit-relocs
+	LDFLAGS_vmlinux += -shared -Bsymbolic -z notext --emit-relocs
 	KBUILD_CFLAGS += -fPIE
 endif
 ifeq ($(CONFIG_DYNAMIC_FTRACE),y)

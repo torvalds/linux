@@ -83,6 +83,14 @@ SECTIONS
 	/* Start of init data section */
 	__init_data_begin = .;
 	INIT_DATA_SECTION(16)
+
+	/* Those sections result from the compilation of kernel/pi/string.c */
+	.init.pidata : {
+		*(.init.srodata.cst8*)
+		*(.init__bug_table*)
+		*(.init.sdata*)
+	}
+
 	.init.bss : {
 		*(.init.bss)	/* from the EFI stub */
 	}
@@ -128,9 +136,10 @@ SECTIONS
 		__rela_dyn_end = .;
 	}
 
+	.got : { *(.got*) }
+
 #ifdef CONFIG_RELOCATABLE
 	.data.rel : { *(.data.rel*) }
-	.got : { *(.got*) }
 	.plt : { *(.plt) }
 	.dynamic : { *(.dynamic) }
 	.dynsym : { *(.dynsym) }
