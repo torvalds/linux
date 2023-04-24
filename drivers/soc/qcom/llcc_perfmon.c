@@ -293,6 +293,11 @@ static void remove_counters(struct llcc_perfmon_private *llcc_priv)
 	struct event_port_ops *port_ops;
 	struct llcc_perfmon_counter_map *counter_map;
 
+	if (!llcc_priv->configured_cntrs) {
+		pr_err("Counters are not configured\n");
+		return;
+	}
+
 	/* Remove the counters configured for ports */
 	for (i = 0; i < llcc_priv->configured_cntrs - 1; i++) {
 		counter_map = &llcc_priv->configured[i];
