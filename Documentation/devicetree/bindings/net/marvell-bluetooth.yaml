@@ -15,10 +15,28 @@ maintainers:
 
 properties:
   compatible:
-    const: mrvl,88w8897
+    enum:
+      - mrvl,88w8897
+      - mrvl,88w8997
+
+  max-speed:
+    description: see Documentation/devicetree/bindings/serial/serial.yaml
 
 required:
   - compatible
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: mrvl,88w8997
+    then:
+      properties:
+        max-speed: true
+    else:
+      properties:
+        max-speed: false
 
 additionalProperties: false
 

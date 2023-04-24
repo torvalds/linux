@@ -745,7 +745,7 @@ EXPORT_SYMBOL_GPL(l2cap_chan_list);
 static void l2cap_conn_update_id_addr(struct work_struct *work)
 {
 	struct l2cap_conn *conn = container_of(work, struct l2cap_conn,
-					       id_addr_update_work);
+					       id_addr_timer.work);
 	struct hci_conn *hcon = conn->hcon;
 	struct l2cap_chan *chan;
 
@@ -1907,8 +1907,7 @@ static void l2cap_conn_del(struct hci_conn *hcon, int err)
 	if (work_pending(&conn->pending_rx_work))
 		cancel_work_sync(&conn->pending_rx_work);
 
-	if (work_pending(&conn->id_addr_update_work))
-		cancel_work_sync(&conn->id_addr_update_work);
+	cancel_delayed_work_sync(&conn->id_addr_timer);
 
 	l2cap_unregister_all_users(conn);
 
@@ -4694,7 +4693,6 @@ static inline int l2cap_disconnect_rsp(struct l2cap_conn *conn,
 
 	chan = l2cap_get_chan_by_scid(conn, scid);
 	if (!chan) {
-		mutex_unlock(&conn->chan_lock);
 		return 0;
 	}
 
@@ -7874,7 +7872,7 @@ static struct l2cap_conn *l2cap_conn_add(struct hci_conn *hcon)
 
 	skb_queue_head_init(&conn->pending_rx);
 	INIT_WORK(&conn->pending_rx_work, process_pending_rx);
-	INIT_WORK(&conn->id_addr_update_work, l2cap_conn_update_id_addr);
+	INIT_DELAYED_WORK(&conn->id_addr_timer, l2cap_conn_update_id_addr);
 
 	conn->disc_reason = HCI_ERROR_REMOTE_USER_TERM;
 
