@@ -792,7 +792,7 @@ static const char * const mono_text[] = { "Disable", "Enable" };
 
 static DECLARE_TLV_DB_SCALE(rmss_tlv, 0, 128, 0);
 
-static const char * const mss_text[] = { "Master", "Slave" };
+static const char * const mss_text[] = { "Slave", "Master" };
 
 static const char * const ckp_text[] = { "Normal", "Inverted" };
 
@@ -839,7 +839,8 @@ static SOC_ENUM_SINGLE_DECL(rmono_switch, SAI_MONO_CR, 1, mono_text);
 static SOC_ENUM_SINGLE_DECL(tmono_switch, SAI_MONO_CR, 0, mono_text);
 
 /* CKR */
-static SOC_ENUM_SINGLE_DECL(mss_switch, SAI_CKR, 2, mss_text);
+static const struct soc_enum mss_switch =
+	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(mss_text), mss_text);
 static SOC_ENUM_SINGLE_DECL(sp_switch,  SAI_CKR, 1, ckp_text);
 static SOC_ENUM_SINGLE_DECL(fp_switch,  SAI_CKR, 0, ckp_text);
 
@@ -970,6 +971,61 @@ static int rockchip_sai_rx_lanes_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
+static int rockchip_sai_mss_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rk_sai_dev *sai = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.enumerated.item[0] = sai->is_master_mode;
+
+	return 0;
+}
+
+static int rockchip_sai_mss_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rk_sai_dev *sai = snd_soc_component_get_drvdata(component);
+	bool mss;
+
+	/* MUST: do not update mode while stream is running */
+	if (snd_soc_component_active(component))
+		return -EPERM;
+
+	mss = !!ucontrol->value.enumerated.item[0];
+	if (mss == sai->is_master_mode)
+		return 0;
+
+	sai->is_master_mode = mss;
+
+	pm_runtime_get_sync(sai->dev);
+	if (sai->is_master_mode) {
+		/* Switch from Slave to Master */
+		regmap_update_bits(sai->regmap, SAI_CKR,
+				   SAI_CKR_MSS_MASK,
+				   SAI_CKR_MSS_MASTER);
+		regmap_update_bits(sai->regmap, SAI_XFER,
+				   SAI_XFER_CLK_MASK |
+				   SAI_XFER_FSS_MASK,
+				   SAI_XFER_CLK_EN |
+				   SAI_XFER_FSS_EN);
+	} else {
+		/* Switch from Master to Slave */
+		regmap_update_bits(sai->regmap, SAI_CKR,
+				   SAI_CKR_MSS_MASK,
+				   SAI_CKR_MSS_SLAVE);
+		regmap_update_bits(sai->regmap, SAI_XFER,
+				   SAI_XFER_CLK_MASK |
+				   SAI_XFER_FSS_MASK,
+				   SAI_XFER_CLK_DIS |
+				   SAI_XFER_FSS_DIS);
+	}
+	pm_runtime_put(sai->dev);
+
+	return 1;
+}
+
 static DECLARE_TLV_DB_SCALE(fs_shift_tlv, 0, 8192, 0);
 
 static const struct snd_kcontrol_new rockchip_sai_controls[] = {
@@ -1001,7 +1057,8 @@ static const struct snd_kcontrol_new rockchip_sai_controls[] = {
 	SOC_ENUM("Receive Mono Switch", rmono_switch),
 	SOC_ENUM("Transmit Mono Switch", tmono_switch),
 
-	SOC_ENUM("Master / Slave Mode Select", mss_switch),
+	SOC_ENUM_EXT("Master / Slave Mode Select", mss_switch,
+		     rockchip_sai_mss_get, rockchip_sai_mss_put),
 	SOC_ENUM("Sclk Polarity", sp_switch),
 	SOC_ENUM("Frame Sync Polarity", fp_switch),
 
@@ -1079,6 +1136,8 @@ static int rockchip_sai_probe(struct platform_device *pdev)
 
 	sai->dev = &pdev->dev;
 	sai->fw_ratio = 1;
+	/* match to register default */
+	sai->is_master_mode = true;
 	dev_set_drvdata(&pdev->dev, sai);
 
 	sai->rst_h = devm_reset_control_get_optional_exclusive(&pdev->dev, "h");
