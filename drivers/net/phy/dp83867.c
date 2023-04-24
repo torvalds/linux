@@ -468,8 +468,7 @@ static int dp83867_set_tunable(struct phy_device *phydev,
 
 static int dp83867_config_port_mirroring(struct phy_device *phydev)
 {
-	struct dp83867_private *dp83867 =
-		(struct dp83867_private *)phydev->priv;
+	struct dp83867_private *dp83867 = phydev->priv;
 
 	if (dp83867->port_mirroring == DP83867_PORT_MIRROING_EN)
 		phy_set_bits_mmd(phydev, DP83867_DEVADDR, DP83867_CFG4,
