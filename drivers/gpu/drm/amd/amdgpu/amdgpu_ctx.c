@@ -576,6 +576,9 @@ static int amdgpu_ctx_query2(struct amdgpu_device *adev,
 	if (atomic_read(&ctx->guilty))
 		out->state.flags |= AMDGPU_CTX_QUERY2_FLAGS_GUILTY;
 
+	if (amdgpu_in_reset(adev))
+		out->state.flags |= AMDGPU_CTX_QUERY2_FLAGS_RESET_IN_PROGRESS;
+
 	if (adev->ras_enabled && con) {
 		/* Return the cached values in O(1),
 		 * and schedule delayed work to cache
