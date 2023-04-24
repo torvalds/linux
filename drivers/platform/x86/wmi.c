@@ -248,7 +248,9 @@ static acpi_status get_event_data(const struct wmi_block *wblock, struct acpi_bu
  * @wdev: A wmi bus device from a driver
  * @length: Required buffer size
  *
- * Allocates memory needed for buffer, stores the buffer size in that memory
+ * Allocates memory needed for buffer, stores the buffer size in that memory.
+ *
+ * Return: 0 on success or a negative error code for failure.
  */
 int set_required_buffer_size(struct wmi_device *wdev, u64 length)
 {
@@ -269,7 +271,9 @@ EXPORT_SYMBOL_GPL(set_required_buffer_size);
  * @in: Buffer containing input for the method call
  * @out: Empty buffer to return the method results
  *
- * Call an ACPI-WMI method
+ * Call an ACPI-WMI method, the caller must free @out.
+ *
+ * Return: acpi_status signaling success or error.
  */
 acpi_status wmi_evaluate_method(const char *guid_string, u8 instance, u32 method_id,
 				const struct acpi_buffer *in, struct acpi_buffer *out)
@@ -294,7 +298,9 @@ EXPORT_SYMBOL_GPL(wmi_evaluate_method);
  * @in: Buffer containing input for the method call
  * @out: Empty buffer to return the method results
  *
- * Call an ACPI-WMI method
+ * Call an ACPI-WMI method, the caller must free @out.
+ *
+ * Return: acpi_status signaling success or error.
  */
 acpi_status wmidev_evaluate_method(struct wmi_device *wdev, u8 instance, u32 method_id,
 				   const struct acpi_buffer *in, struct acpi_buffer *out)
@@ -411,7 +417,9 @@ static acpi_status __query_block(struct wmi_block *wblock, u8 instance,
  * @instance: Instance index
  * @out: Empty buffer to return the contents of the data block to
  *
- * Return the contents of an ACPI-WMI data block to a buffer
+ * Query a ACPI-WMI block, the caller must free @out.
+ *
+ * Return: ACPI object containing the content of the WMI block.
  */
 acpi_status wmi_query_block(const char *guid_string, u8 instance,
 			    struct acpi_buffer *out)
@@ -427,6 +435,15 @@ acpi_status wmi_query_block(const char *guid_string, u8 instance,
 }
 EXPORT_SYMBOL_GPL(wmi_query_block);
 
+/**
+ * wmidev_block_query - Return contents of a WMI block
+ * @wdev: A wmi bus device from a driver
+ * @instance: Instance index
+ *
+ * Query an ACPI-WMI block, the caller must free the result.
+ *
+ * Return: ACPI object containing the content of the WMI block.
+ */
 union acpi_object *wmidev_block_query(struct wmi_device *wdev, u8 instance)
 {
 	struct acpi_buffer out = { ACPI_ALLOCATE_BUFFER, NULL };
@@ -445,7 +462,9 @@ EXPORT_SYMBOL_GPL(wmidev_block_query);
  * @instance: Instance index
  * @in: Buffer containing new values for the data block
  *
- * Write the contents of the input buffer to an ACPI-WMI data block
+ * Write the contents of the input buffer to an ACPI-WMI data block.
+ *
+ * Return: acpi_status signaling success or error.
  */
 acpi_status wmi_set_block(const char *guid_string, u8 instance,
 			  const struct acpi_buffer *in)
@@ -555,6 +574,8 @@ static void wmi_notify_debug(u32 value, void *context)
  * @data: Data to be returned to handler when event is fired
  *
  * Register a handler for events sent to the ACPI-WMI mapper device.
+ *
+ * Return: acpi_status signaling success or error.
  */
 acpi_status wmi_install_notify_handler(const char *guid,
 				       wmi_notify_handler handler,
@@ -597,6 +618,8 @@ EXPORT_SYMBOL_GPL(wmi_install_notify_handler);
  * @guid: 36 char string of the form fa50ff2b-f2e8-45de-83fa-65417f2f49ba
  *
  * Unregister handler for events sent to the ACPI-WMI mapper device.
+ *
+ * Return: acpi_status signaling success or error.
  */
 acpi_status wmi_remove_notify_handler(const char *guid)
 {
@@ -641,9 +664,11 @@ EXPORT_SYMBOL_GPL(wmi_remove_notify_handler);
  * wmi_get_event_data - Get WMI data associated with an event
  *
  * @event: Event to find
- * @out: Buffer to hold event data. out->pointer should be freed with kfree()
+ * @out: Buffer to hold event data
  *
- * Returns extra data associated with an event in WMI.
+ * Get extra data associated with an WMI event, the caller needs to free @out.
+ *
+ * Return: acpi_status signaling success or error.
  */
 acpi_status wmi_get_event_data(u32 event, struct acpi_buffer *out)
 {
@@ -664,7 +689,9 @@ EXPORT_SYMBOL_GPL(wmi_get_event_data);
  * wmi_has_guid - Check if a GUID is available
  * @guid_string: 36 char string of the form fa50ff2b-f2e8-45de-83fa-65417f2f49ba
  *
- * Check if a given GUID is defined by _WDG
+ * Check if a given GUID is defined by _WDG.
+ *
+ * Return: True if GUID is available, false otherwise.
  */
 bool wmi_has_guid(const char *guid_string)
 {
@@ -678,7 +705,7 @@ EXPORT_SYMBOL_GPL(wmi_has_guid);
  *
  * Find the _UID of ACPI device associated with this WMI GUID.
  *
- * Return: The ACPI _UID field value or NULL if the WMI GUID was not found
+ * Return: The ACPI _UID field value or NULL if the WMI GUID was not found.
  */
 char *wmi_get_acpi_device_uid(const char *guid_string)
 {
@@ -1454,6 +1481,12 @@ int __must_check __wmi_driver_register(struct wmi_driver *driver,
 }
 EXPORT_SYMBOL(__wmi_driver_register);
 
+/**
+ * wmi_driver_unregister() - Unregister a WMI driver
+ * @driver: WMI driver to unregister
+ *
+ * Unregisters a WMI driver from the WMI bus.
+ */
 void wmi_driver_unregister(struct wmi_driver *driver)
 {
 	driver_unregister(&driver->driver);
