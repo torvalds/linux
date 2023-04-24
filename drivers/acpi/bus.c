@@ -589,6 +589,7 @@ static void acpi_device_remove_notify_handler(struct acpi_device *device,
 		acpi_remove_notify_handler(device->handle, type,
 					   acpi_notify_device);
 	}
+	acpi_os_wait_events_complete();
 }
 
 /* Handle events targeting \_SB device (at present only graceful shutdown) */
@@ -623,8 +624,9 @@ static void acpi_sb_notify(acpi_handle handle, u32 event, void *data)
 	if (event == ACPI_SB_NOTIFY_SHUTDOWN_REQUEST) {
 		if (!work_busy(&acpi_sb_work))
 			schedule_work(&acpi_sb_work);
-	} else
+	} else {
 		pr_warn("event %x is not supported by \\_SB device\n", event);
+	}
 }
 
 static int __init acpi_setup_sb_notify_handler(void)
