@@ -5,7 +5,7 @@
  * Copyright 2008 Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright 2016	Intel Deutschland GmbH
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2023 Intel Corporation
  */
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -542,6 +542,10 @@ static int cfg80211_parse_ap_info(struct cfg80211_colocated_ap *entry,
 {
 	/* skip the TBTT offset */
 	pos++;
+
+	/* ignore entries with invalid BSSID */
+	if (!is_valid_ether_addr(pos))
+		return -EINVAL;
 
 	memcpy(entry->bssid, pos, ETH_ALEN);
 	pos += ETH_ALEN;
