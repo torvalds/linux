@@ -1486,7 +1486,8 @@ static struct sk_buff *tun_napi_alloc_frags(struct tun_file *tfile,
 	skb->truesize += skb->data_len;
 
 	for (i = 1; i < it->nr_segs; i++) {
-		size_t fragsz = it->iov[i].iov_len;
+		const struct iovec *iov = iter_iov(it);
+		size_t fragsz = iov->iov_len;
 		struct page *page;
 		void *frag;
 

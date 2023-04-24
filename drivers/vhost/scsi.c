@@ -665,7 +665,7 @@ vhost_scsi_calc_sgls(struct iov_iter *iter, size_t bytes, int max_sgls)
 {
 	int sgl_count = 0;
 
-	if (!iter || !iter->iov) {
+	if (!iter || !iter_iov(iter)) {
 		pr_err("%s: iter->iov is NULL, but expected bytes: %zu"
 		       " present\n", __func__, bytes);
 		return -EINVAL;
