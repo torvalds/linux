@@ -483,6 +483,8 @@ enum rcar_csi2_pads {
 struct rcar_csi2_info {
 	int (*init_phtw)(struct rcar_csi2 *priv, unsigned int mbps);
 	int (*phy_post_init)(struct rcar_csi2 *priv);
+	int (*start_receiver)(struct rcar_csi2 *priv);
+	void (*enter_standby)(struct rcar_csi2 *priv);
 	const struct rcsi2_mbps_reg *hsfreqrange;
 	unsigned int csi0clkfreqrange;
 	unsigned int num_channels;
@@ -533,10 +535,17 @@ static void rcsi2_write(struct rcar_csi2 *priv, unsigned int reg, u32 data)
 	iowrite32(data, priv->base + reg);
 }
 
-static void rcsi2_enter_standby(struct rcar_csi2 *priv)
+static void rcsi2_enter_standby_gen3(struct rcar_csi2 *priv)
 {
 	rcsi2_write(priv, PHYCNT_REG, 0);
 	rcsi2_write(priv, PHTC_REG, PHTC_TESTCLR);
+}
+
+static void rcsi2_enter_standby(struct rcar_csi2 *priv)
+{
+	if (priv->info->enter_standby)
+		priv->info->enter_standby(priv);
+
 	reset_control_assert(priv->rstc);
 	usleep_range(100, 150);
 	pm_runtime_put(priv->dev);
@@ -674,7 +683,7 @@ static int rcsi2_get_active_lanes(struct rcar_csi2 *priv,
 	return 0;
 }
 
-static int rcsi2_start_receiver(struct rcar_csi2 *priv)
+static int rcsi2_start_receiver_gen3(struct rcar_csi2 *priv)
 {
 	const struct rcar_csi2_format *format;
 	u32 phycnt, vcdt = 0, vcdt2 = 0, fld = 0;
@@ -821,7 +830,7 @@ static int rcsi2_start(struct rcar_csi2 *priv)
 	if (ret < 0)
 		return ret;
 
-	ret = rcsi2_start_receiver(priv);
+	ret = priv->info->start_receiver(priv);
 	if (ret) {
 		rcsi2_enter_standby(priv);
 		return ret;
@@ -1363,6 +1372,8 @@ static int rcsi2_probe_resources(struct rcar_csi2 *priv,
 
 static const struct rcar_csi2_info rcar_csi2_info_r8a7795 = {
 	.init_phtw = rcsi2_init_phtw_h3_v3h_m3n,
+	.start_receiver = rcsi2_start_receiver_gen3,
+	.enter_standby = rcsi2_enter_standby_gen3,
 	.hsfreqrange = hsfreqrange_h3_v3h_m3n,
 	.csi0clkfreqrange = 0x20,
 	.num_channels = 4,
@@ -1371,6 +1382,8 @@ static const struct rcar_csi2_info rcar_csi2_info_r8a7795 = {
 
 static const struct rcar_csi2_info rcar_csi2_info_r8a7795es2 = {
 	.init_phtw = rcsi2_init_phtw_h3es2,
+	.start_receiver = rcsi2_start_receiver_gen3,
+	.enter_standby = rcsi2_enter_standby_gen3,
 	.hsfreqrange = hsfreqrange_h3_v3h_m3n,
 	.csi0clkfreqrange = 0x20,
 	.num_channels = 4,
@@ -1378,17 +1391,23 @@ static const struct rcar_csi2_info rcar_csi2_info_r8a7795es2 = {
 };
 
 static const struct rcar_csi2_info rcar_csi2_info_r8a7796 = {
+	.start_receiver = rcsi2_start_receiver_gen3,
+	.enter_standby = rcsi2_enter_standby_gen3,
 	.hsfreqrange = hsfreqrange_m3w,
 	.num_channels = 4,
 };
 
 static const struct rcar_csi2_info rcar_csi2_info_r8a77961 = {
+	.start_receiver = rcsi2_start_receiver_gen3,
+	.enter_standby = rcsi2_enter_standby_gen3,
 	.hsfreqrange = hsfreqrange_m3w,
 	.num_channels = 4,
 };
 
 static const struct rcar_csi2_info rcar_csi2_info_r8a77965 = {
 	.init_phtw = rcsi2_init_phtw_h3_v3h_m3n,
+	.start_receiver = rcsi2_start_receiver_gen3,
+	.enter_standby = rcsi2_enter_standby_gen3,
 	.hsfreqrange = hsfreqrange_h3_v3h_m3n,
 	.csi0clkfreqrange = 0x20,
 	.num_channels = 4,
@@ -1398,11 +1417,15 @@ static const struct rcar_csi2_info rcar_csi2_info_r8a77965 = {
 static const struct rcar_csi2_info rcar_csi2_info_r8a77970 = {
 	.init_phtw = rcsi2_init_phtw_v3m_e3,
 	.phy_post_init = rcsi2_phy_post_init_v3m_e3,
+	.start_receiver = rcsi2_start_receiver_gen3,
+	.enter_standby = rcsi2_enter_standby_gen3,
 	.num_channels = 4,
 };
 
 static const struct rcar_csi2_info rcar_csi2_info_r8a77980 = {
 	.init_phtw = rcsi2_init_phtw_h3_v3h_m3n,
+	.start_receiver = rcsi2_start_receiver_gen3,
+	.enter_standby = rcsi2_enter_standby_gen3,
 	.hsfreqrange = hsfreqrange_h3_v3h_m3n,
 	.csi0clkfreqrange = 0x20,
 	.clear_ulps = true,
@@ -1411,11 +1434,15 @@ static const struct rcar_csi2_info rcar_csi2_info_r8a77980 = {
 static const struct rcar_csi2_info rcar_csi2_info_r8a77990 = {
 	.init_phtw = rcsi2_init_phtw_v3m_e3,
 	.phy_post_init = rcsi2_phy_post_init_v3m_e3,
+	.start_receiver = rcsi2_start_receiver_gen3,
+	.enter_standby = rcsi2_enter_standby_gen3,
 	.num_channels = 2,
 };
 
 static const struct rcar_csi2_info rcar_csi2_info_r8a779a0 = {
 	.init_phtw = rcsi2_init_phtw_v3u,
+	.start_receiver = rcsi2_start_receiver_gen3,
+	.enter_standby = rcsi2_enter_standby_gen3,
 	.hsfreqrange = hsfreqrange_v3u,
 	.csi0clkfreqrange = 0x20,
 	.clear_ulps = true,
