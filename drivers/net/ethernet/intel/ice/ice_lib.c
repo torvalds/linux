@@ -291,6 +291,7 @@ static void ice_vsi_delete_from_hw(struct ice_vsi *vsi)
 	struct ice_vsi_ctx *ctxt;
 	int status;
 
+	ice_fltr_remove_all(vsi);
 	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
 	if (!ctxt)
 		return;
@@ -2892,7 +2893,6 @@ void ice_vsi_decfg(struct ice_vsi *vsi)
 	    !test_bit(ICE_FLAG_FW_LLDP_AGENT, pf->flags))
 		ice_cfg_sw_lldp(vsi, false, false);
 
-	ice_fltr_remove_all(vsi);
 	ice_rm_vsi_lan_cfg(vsi->port_info, vsi->idx);
 	err = ice_rm_vsi_rdma_cfg(vsi->port_info, vsi->idx);
 	if (err)

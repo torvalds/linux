@@ -157,14 +157,15 @@ void pci_remove_root_bus(struct pci_bus *bus)
 	list_for_each_entry_safe(child, tmp,
 				 &bus->devices, bus_list)
 		pci_remove_bus_device(child);
-	pci_remove_bus(bus);
-	host_bridge->bus = NULL;
 
 #ifdef CONFIG_PCI_DOMAINS_GENERIC
 	/* Release domain_nr if it was dynamically allocated */
 	if (host_bridge->domain_nr == PCI_DOMAIN_NR_NOT_SET)
 		pci_bus_release_domain_nr(bus, host_bridge->dev.parent);
 #endif
+
+	pci_remove_bus(bus);
+	host_bridge->bus = NULL;
 
 	/* remove the host bridge */
 	device_del(&host_bridge->dev);

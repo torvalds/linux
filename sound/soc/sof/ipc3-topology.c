@@ -2081,7 +2081,9 @@ static int sof_ipc3_dai_config(struct snd_sof_dev *sdev, struct snd_sof_widget *
 		break;
 	case SOF_DAI_INTEL_ALH:
 		if (data) {
-			config->dai_index = data->dai_index;
+			/* save the dai_index during hw_params and reuse it for hw_free */
+			if (flags & SOF_DAI_CONFIG_FLAGS_HW_PARAMS)
+				config->dai_index = data->dai_index;
 			config->alh.stream_id = data->dai_data;
 		}
 		break;
@@ -2089,7 +2091,30 @@ static int sof_ipc3_dai_config(struct snd_sof_dev *sdev, struct snd_sof_widget *
 		break;
 	}
 
-	config->flags = flags;
+	/*
+	 * The dai_config op is invoked several times and the flags argument varies as below:
+	 * BE DAI hw_params: When the op is invoked during the BE DAI hw_params, flags contains
+	 * SOF_DAI_CONFIG_FLAGS_HW_PARAMS along with quirks
+	 * FE DAI hw_params: When invoked during FE DAI hw_params after the DAI widget has
+	 * just been set up in the DSP, flags is set to SOF_DAI_CONFIG_FLAGS_HW_PARAMS with no
+	 * quirks
+	 * BE DAI trigger: When invoked during the BE DAI trigger, flags is set to
+	 * SOF_DAI_CONFIG_FLAGS_PAUSE and contains no quirks
+	 * BE DAI hw_free: When invoked during the BE DAI hw_free, flags is set to
+	 * SOF_DAI_CONFIG_FLAGS_HW_FREE and contains no quirks
+	 * FE DAI hw_free: When invoked during the FE DAI hw_free, flags is set to
+	 * SOF_DAI_CONFIG_FLAGS_HW_FREE and contains no quirks
+	 *
+	 * The DAI_CONFIG IPC is sent to the DSP, only after the widget is set up during the FE
+	 * DAI hw_params. But since the BE DAI hw_params precedes the FE DAI hw_params, the quirks
+	 * need to be preserved when assigning the flags before sending the IPC.
+	 * For the case of PAUSE/HW_FREE, since there are no quirks, flags can be used as is.
+	 */
+
+	if (flags & SOF_DAI_CONFIG_FLAGS_HW_PARAMS)
+		config->flags |= flags;
+	else
+		config->flags = flags;
 
 	/* only send the IPC if the widget is set up in the DSP */
 	if (swidget->use_count > 0) {
@@ -2097,6 +2122,9 @@ static int sof_ipc3_dai_config(struct snd_sof_dev *sdev, struct snd_sof_widget *
 					 &reply, sizeof(reply));
 		if (ret < 0)
 			dev_err(sdev->dev, "Failed to set dai config for %s\n", dai->name);
+
+		/* clear the flags once the IPC has been sent even if it fails */
+		config->flags = SOF_DAI_CONFIG_FLAGS_NONE;
 	}
 
 	return ret;

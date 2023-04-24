@@ -242,7 +242,7 @@ group and can access them as follows::
 VFIO User API
 -------------------------------------------------------------------------------
 
-Please see include/linux/vfio.h for complete API documentation.
+Please see include/uapi/linux/vfio.h for complete API documentation.
 
 VFIO bus driver API
 -------------------------------------------------------------------------------

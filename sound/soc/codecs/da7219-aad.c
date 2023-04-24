@@ -968,6 +968,8 @@ int da7219_aad_init(struct snd_soc_component *component)
 	INIT_WORK(&da7219_aad->hptest_work, da7219_aad_hptest_work);
 	INIT_WORK(&da7219_aad->jack_det_work, da7219_aad_jack_det_work);
 
+	mutex_init(&da7219_aad->jack_det_mutex);
+
 	ret = request_threaded_irq(da7219_aad->irq, da7219_aad_pre_irq_thread,
 				   da7219_aad_irq_thread,
 				   IRQF_TRIGGER_LOW | IRQF_ONESHOT,

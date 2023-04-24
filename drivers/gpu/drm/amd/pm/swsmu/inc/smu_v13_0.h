@@ -29,7 +29,7 @@
 #define SMU13_DRIVER_IF_VERSION_YELLOW_CARP 0x04
 #define SMU13_DRIVER_IF_VERSION_ALDE 0x08
 #define SMU13_DRIVER_IF_VERSION_SMU_V13_0_0_0 0x37
-#define SMU13_DRIVER_IF_VERSION_SMU_V13_0_4 0x07
+#define SMU13_DRIVER_IF_VERSION_SMU_V13_0_4 0x08
 #define SMU13_DRIVER_IF_VERSION_SMU_V13_0_5 0x04
 #define SMU13_DRIVER_IF_VERSION_SMU_V13_0_0_10 0x32
 #define SMU13_DRIVER_IF_VERSION_SMU_V13_0_7 0x37
@@ -60,6 +60,12 @@
 #define CTF_OFFSET_EDGE			5
 #define CTF_OFFSET_HOTSPOT		5
 #define CTF_OFFSET_MEM			5
+
+static const int pmfw_decoded_link_speed[5] = {1, 2, 3, 4, 5};
+static const int pmfw_decoded_link_width[7] = {0, 1, 2, 4, 8, 12, 16};
+
+#define DECODE_GEN_SPEED(gen_speed_idx)		(pmfw_decoded_link_speed[gen_speed_idx])
+#define DECODE_LANE_WIDTH(lane_width_idx)	(pmfw_decoded_link_width[lane_width_idx])
 
 struct smu_13_0_max_sustainable_clocks {
 	uint32_t display_clock;

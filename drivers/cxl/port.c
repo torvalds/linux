@@ -78,8 +78,8 @@ static int cxl_switch_port_probe(struct cxl_port *port)
 
 static int cxl_endpoint_port_probe(struct cxl_port *port)
 {
+	struct cxl_endpoint_dvsec_info info = { .port = port };
 	struct cxl_memdev *cxlmd = to_cxl_memdev(port->uport);
-	struct cxl_endpoint_dvsec_info info = { 0 };
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct cxl_hdm *cxlhdm;
 	struct cxl_port *root;
@@ -119,7 +119,7 @@ static int cxl_endpoint_port_probe(struct cxl_port *port)
 	 * This can't fail in practice as CXL root exit unregisters all
 	 * descendant ports and that in turn synchronizes with cxl_port_probe()
 	 */
-	root = find_cxl_root(&cxlmd->dev);
+	root = find_cxl_root(port);
 
 	/*
 	 * Now that all endpoint decoders are successfully enumerated, try to
