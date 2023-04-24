@@ -4004,6 +4004,25 @@ static int mlx5e_handle_feature(struct net_device *netdev,
 	return 0;
 }
 
+void mlx5e_set_xdp_feature(struct net_device *netdev)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5e_params *params = &priv->channels.params;
+	xdp_features_t val;
+
+	if (params->packet_merge.type != MLX5E_PACKET_MERGE_NONE) {
+		xdp_clear_features_flag(netdev);
+		return;
+	}
+
+	val = NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
+	      NETDEV_XDP_ACT_XSK_ZEROCOPY |
+	      NETDEV_XDP_ACT_NDO_XMIT;
+	if (params->rq_wq_type == MLX5_WQ_TYPE_CYCLIC)
+		val |= NETDEV_XDP_ACT_RX_SG;
+	xdp_set_features_flag(netdev, val);
+}
+
 int mlx5e_set_features(struct net_device *netdev, netdev_features_t features)
 {
 	netdev_features_t oper_features = features;
@@ -4029,6 +4048,9 @@ int mlx5e_set_features(struct net_device *netdev, netdev_features_t features)
 		netdev->features = oper_features;
 		return -EINVAL;
 	}
+
+	/* update XDP supported features */
+	mlx5e_set_xdp_feature(netdev);
 
 	return 0;
 }
@@ -4147,13 +4169,17 @@ static bool mlx5e_xsk_validate_mtu(struct net_device *netdev,
 		struct xsk_buff_pool *xsk_pool =
 			mlx5e_xsk_get_pool(&chs->params, chs->params.xsk, ix);
 		struct mlx5e_xsk_param xsk;
+		int max_xdp_mtu;
 
 		if (!xsk_pool)
 			continue;
 
 		mlx5e_build_xsk_param(xsk_pool, &xsk);
+		max_xdp_mtu = mlx5e_xdp_max_mtu(new_params, &xsk);
 
-		if (!mlx5e_validate_xsk_param(new_params, &xsk, mdev)) {
+		/* Validate XSK params and XDP MTU in advance */
+		if (!mlx5e_validate_xsk_param(new_params, &xsk, mdev) ||
+		    new_params->sw_mtu > max_xdp_mtu) {
 			u32 hr = mlx5e_get_linear_rq_headroom(new_params, &xsk);
 			int max_mtu_frame, max_mtu_page, max_mtu;
 
@@ -4163,9 +4189,9 @@ static bool mlx5e_xsk_validate_mtu(struct net_device *netdev,
 			 */
 			max_mtu_frame = MLX5E_HW2SW_MTU(new_params, xsk.chunk_size - hr);
 			max_mtu_page = MLX5E_HW2SW_MTU(new_params, SKB_MAX_HEAD(0));
-			max_mtu = min(max_mtu_frame, max_mtu_page);
+			max_mtu = min3(max_mtu_frame, max_mtu_page, max_xdp_mtu);
 
-			netdev_err(netdev, "MTU %d is too big for an XSK running on channel %u. Try MTU <= %d\n",
+			netdev_err(netdev, "MTU %d is too big for an XSK running on channel %u or its redirection XDP program. Try MTU <= %d\n",
 				   new_params->sw_mtu, ix, max_mtu);
 			return false;
 		}
@@ -4761,13 +4787,6 @@ static int mlx5e_xdp_set(struct net_device *netdev, struct bpf_prog *prog)
 	if (old_prog)
 		bpf_prog_put(old_prog);
 
-	if (reset) {
-		if (prog)
-			xdp_features_set_redirect_target(netdev, true);
-		else
-			xdp_features_clear_redirect_target(netdev);
-	}
-
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state) || reset)
 		goto unlock;
 
@@ -4963,8 +4982,6 @@ void mlx5e_build_nic_params(struct mlx5e_priv *priv, struct mlx5e_xsk *xsk, u16 
 
 	/* TX inline */
 	mlx5_query_min_inline(mdev, &params->tx_min_inline_mode);
-
-	params->tunneled_offload_en = mlx5_tunnel_inner_ft_supported(mdev);
 
 	/* AF_XDP */
 	params->xsk = xsk;
@@ -5163,13 +5180,10 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 	netdev->features         |= NETIF_F_HIGHDMA;
 	netdev->features         |= NETIF_F_HW_VLAN_STAG_FILTER;
 
-	netdev->xdp_features = NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
-			       NETDEV_XDP_ACT_XSK_ZEROCOPY |
-			       NETDEV_XDP_ACT_RX_SG;
-
 	netdev->priv_flags       |= IFF_UNICAST_FLT;
 
 	netif_set_tso_max_size(netdev, GSO_MAX_SIZE);
+	mlx5e_set_xdp_feature(netdev);
 	mlx5e_set_netdev_dev_addr(netdev);
 	mlx5e_macsec_build_netdev(priv);
 	mlx5e_ipsec_build_netdev(priv);
@@ -5241,6 +5255,9 @@ static int mlx5e_nic_init(struct mlx5_core_dev *mdev,
 		mlx5_core_err(mdev, "TLS initialization failed, %d\n", err);
 
 	mlx5e_health_create_reporters(priv);
+	/* update XDP supported features */
+	mlx5e_set_xdp_feature(netdev);
+
 	return 0;
 }
 
@@ -5270,7 +5287,7 @@ static int mlx5e_init_nic_rx(struct mlx5e_priv *priv)
 	}
 
 	features = MLX5E_RX_RES_FEATURE_PTP;
-	if (priv->channels.params.tunneled_offload_en)
+	if (mlx5_tunnel_inner_ft_supported(mdev))
 		features |= MLX5E_RX_RES_FEATURE_INNER_FT;
 	err = mlx5e_rx_res_init(priv->rx_res, priv->mdev, features,
 				priv->max_nch, priv->drop_rq.rqn,

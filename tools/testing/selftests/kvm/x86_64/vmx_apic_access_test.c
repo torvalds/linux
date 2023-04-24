@@ -96,21 +96,14 @@ int main(int argc, char *argv[])
 
 		vcpu_run(vcpu);
 		if (apic_access_addr == high_gpa) {
-			TEST_ASSERT(run->exit_reason ==
-				    KVM_EXIT_INTERNAL_ERROR,
-				    "Got exit reason other than KVM_EXIT_INTERNAL_ERROR: %u (%s)\n",
-				    run->exit_reason,
-				    exit_reason_str(run->exit_reason));
+			TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_INTERNAL_ERROR);
 			TEST_ASSERT(run->internal.suberror ==
 				    KVM_INTERNAL_ERROR_EMULATION,
 				    "Got internal suberror other than KVM_INTERNAL_ERROR_EMULATION: %u\n",
 				    run->internal.suberror);
 			break;
 		}
-		TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
-			    "Got exit_reason other than KVM_EXIT_IO: %u (%s)\n",
-			    run->exit_reason,
-			    exit_reason_str(run->exit_reason));
+		TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_IO);
 
 		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_ABORT:
