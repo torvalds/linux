@@ -8892,14 +8892,12 @@ static int gaudi2_print_pcie_addr_dec_info(struct hl_device *hdev, u16 event_typ
 			"err cause: %s", gaudi2_pcie_addr_dec_error_cause[i]);
 		error_count++;
 
-		switch (intr_cause_data & BIT_ULL(i)) {
-		case PCIE_WRAP_PCIE_IC_SEI_INTR_IND_AXI_LBW_ERR_INTR_MASK:
-			hl_check_for_glbl_errors(hdev);
-			break;
-		case PCIE_WRAP_PCIE_IC_SEI_INTR_IND_BAD_ACCESS_INTR_MASK:
-			gaudi2_print_pcie_mstr_rr_mstr_if_razwi_info(hdev, event_mask);
-			break;
-		}
+		/*
+		 * Always check for LBW and HBW additional info as the indication itself is
+		 * sometimes missing
+		 */
+		hl_check_for_glbl_errors(hdev);
+		gaudi2_print_pcie_mstr_rr_mstr_if_razwi_info(hdev, event_mask);
 	}
 
 	return error_count;
