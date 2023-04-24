@@ -2670,7 +2670,7 @@ static ssize_t dw_dp_aux_transfer(struct drm_dp_aux *aux,
 				  struct drm_dp_aux_msg *msg)
 {
 	struct dw_dp *dp = container_of(aux, struct dw_dp, aux);
-	unsigned long timeout = msecs_to_jiffies(250);
+	unsigned long timeout = msecs_to_jiffies(10);
 	u32 status, value;
 	ssize_t ret = 0;
 
@@ -2702,7 +2702,7 @@ static ssize_t dw_dp_aux_transfer(struct drm_dp_aux *aux,
 
 	status = wait_for_completion_timeout(&dp->complete, timeout);
 	if (!status) {
-		dev_err(dp->dev, "timeout waiting for AUX reply\n");
+		dev_dbg(dp->dev, "timeout waiting for AUX reply\n");
 		return -ETIMEDOUT;
 	}
 
@@ -3145,22 +3145,33 @@ static void dw_dp_bridge_atomic_disable(struct drm_bridge *bridge,
 
 static bool dw_dp_detect_dpcd(struct dw_dp *dp)
 {
+	u8 value;
 	int ret;
 
 	ret = phy_power_on(dp->phy);
 	if (ret)
-		return false;
+		goto fail_power_on;
+
+	ret = drm_dp_dpcd_readb(&dp->aux, DP_DPCD_REV, &value);
+	if (ret < 0) {
+		dev_err(dp->dev, "aux failed to read dpcd: %d\n", ret);
+		goto fail_probe;
+	}
 
 	ret = dw_dp_link_probe(dp);
 	if (ret) {
-		phy_power_off(dp->phy);
 		dev_err(dp->dev, "failed to probe DP link: %d\n", ret);
-		return false;
+		goto fail_probe;
 	}
 
 	phy_power_off(dp->phy);
 
 	return true;
+
+fail_probe:
+	phy_power_off(dp->phy);
+fail_power_on:
+	return false;
 }
 
 static enum drm_connector_status dw_dp_bridge_detect(struct drm_bridge *bridge)
