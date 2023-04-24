@@ -789,17 +789,6 @@ static int host_stage2_idmap(struct kvm_vcpu_fault_info *fault, u64 addr)
 		}
 	}
 
-	/*
-	 * Adjust against IOMMU devices first. host_stage2_adjust_range() should
-	 * be called last for proper alignment.
-	 */
-	if (!is_memory) {
-		ret = pkvm_iommu_host_stage2_adjust_range(addr, &range.start,
-							  &range.end);
-		if (ret)
-			return ret;
-	}
-
 	ret = host_stage2_adjust_range(addr, &range, level);
 	if (ret)
 		return ret;
@@ -1924,6 +1913,17 @@ int __pkvm_host_unshare_hyp(u64 pfn)
 int __pkvm_host_donate_hyp(u64 pfn, u64 nr_pages)
 {
 	int ret;
+
+	host_lock_component();
+	ret = __pkvm_host_donate_hyp_locked(pfn, nr_pages);
+	host_unlock_component();
+
+	return ret;
+}
+
+int __pkvm_host_donate_hyp_locked(u64 pfn, u64 nr_pages)
+{
+	int ret;
 	u64 host_addr = hyp_pfn_to_phys(pfn);
 	u64 hyp_addr = (u64)__hyp_va(host_addr);
 	struct pkvm_mem_donation donation = {
@@ -1942,13 +1942,12 @@ int __pkvm_host_donate_hyp(u64 pfn, u64 nr_pages)
 		},
 	};
 
-	host_lock_component();
+	hyp_assert_lock_held(&host_mmu.lock);
 	hyp_lock_component();
 
 	ret = do_donate(&donation);
 
 	hyp_unlock_component();
-	host_unlock_component();
 
 	return ret;
 }
