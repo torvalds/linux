@@ -449,6 +449,8 @@ F:	include/linux/acpi_viot.h
 ACPI WMI DRIVER
 L:	platform-driver-x86@vger.kernel.org
 S:	Orphan
+F:	Documentation/driver-api/wmi.rst
+F:	Documentation/wmi/
 F:	drivers/platform/x86/wmi.c
 F:	include/uapi/linux/wmi.h
 
