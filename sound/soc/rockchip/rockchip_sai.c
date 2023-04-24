@@ -50,6 +50,7 @@ struct rk_sai_dev {
 	bool has_playback;
 	bool is_master_mode;
 	bool is_tdm;
+	bool is_clk_auto;
 };
 
 static int sai_runtime_suspend(struct device *dev)
@@ -460,6 +461,8 @@ static int rockchip_sai_hw_params(struct snd_pcm_substream *substream,
 
 	if (sai->is_master_mode) {
 		bclk_rate = sai->fw_ratio * slot_width * ch_per_lane * params_rate(params);
+		if (sai->is_clk_auto)
+			clk_set_rate(sai->mclk, bclk_rate);
 		mclk_rate = clk_get_rate(sai->mclk);
 		if (mclk_rate < bclk_rate) {
 			dev_err(sai->dev, "Mismatch mclk: %u, expected %u at least\n",
@@ -507,7 +510,7 @@ static int rockchip_sai_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 	struct rk_sai_dev *sai = snd_soc_dai_get_drvdata(dai);
 	int ret;
 
-	if (!freq)
+	if (!freq || sai->is_clk_auto)
 		return 0;
 
 	ret = clk_set_rate(sai->mclk, freq);
@@ -1026,6 +1029,32 @@ static int rockchip_sai_mss_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
+static int rockchip_sai_clk_auto_get(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rk_sai_dev *sai = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = sai->is_clk_auto;
+
+	return 0;
+}
+
+static int rockchip_sai_clk_auto_put(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rk_sai_dev *sai = snd_soc_component_get_drvdata(component);
+	bool clk_auto = ucontrol->value.integer.value[0];
+
+	if (clk_auto == sai->is_clk_auto)
+		return 0;
+
+	sai->is_clk_auto = clk_auto;
+
+	return 1;
+}
+
 static DECLARE_TLV_DB_SCALE(fs_shift_tlv, 0, 8192, 0);
 
 static const struct snd_kcontrol_new rockchip_sai_controls[] = {
@@ -1085,6 +1114,10 @@ static const struct snd_kcontrol_new rockchip_sai_controls[] = {
 		       0, 8192, 0, fs_shift_tlv),
 	SOC_SINGLE_TLV("Receive Frame Shift Select", SAI_RX_SHIFT,
 		       0, 8192, 0, fs_shift_tlv),
+
+	SOC_SINGLE_BOOL_EXT("Clk Auto Switch", 0,
+			    rockchip_sai_clk_auto_get,
+			    rockchip_sai_clk_auto_put),
 };
 
 static const struct snd_soc_component_driver rockchip_sai_component = {
