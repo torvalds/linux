@@ -99,7 +99,7 @@ static int get_session(struct cifs_mount_ctx *mnt_ctx, const char *full_path)
 	return rc;
 }
 
-static int get_root_smb_session(struct cifs_mount_ctx *mnt_ctx)
+static int add_root_smb_session(struct cifs_mount_ctx *mnt_ctx)
 {
 	struct smb3_fs_context *ctx = mnt_ctx->fs_ctx;
 	struct dfs_root_ses *root_ses;
@@ -127,7 +127,7 @@ static int get_dfs_conn(struct cifs_mount_ctx *mnt_ctx, const char *ref_path, co
 {
 	struct smb3_fs_context *ctx = mnt_ctx->fs_ctx;
 	struct dfs_info3_param ref = {};
-	bool is_refsrv = false;
+	bool is_refsrv;
 	int rc, rc2;
 
 	rc = dfs_cache_get_tgt_referral(ref_path + 1, tit, &ref);
@@ -160,7 +160,7 @@ static int get_dfs_conn(struct cifs_mount_ctx *mnt_ctx, const char *ref_path, co
 	dfs_cache_noreq_update_tgthint(ref_path + 1, tit);
 
 	if (rc == -EREMOTE && is_refsrv) {
-		rc2 = get_root_smb_session(mnt_ctx);
+		rc2 = add_root_smb_session(mnt_ctx);
 		if (rc2)
 			rc = rc2;
 	}
@@ -277,15 +277,21 @@ out:
 
 int dfs_mount_share(struct cifs_mount_ctx *mnt_ctx, bool *isdfs)
 {
-	struct cifs_sb_info *cifs_sb = mnt_ctx->cifs_sb;
 	struct smb3_fs_context *ctx = mnt_ctx->fs_ctx;
+	struct cifs_ses *ses;
+	char *source = ctx->source;
+	bool nodfs = ctx->nodfs;
 	int rc;
 
 	*isdfs = false;
-
+	/* Temporarily set @ctx->source to NULL as we're not matching DFS
+	 * superblocks yet.  See cifs_match_super() and match_server().
+	 */
+	ctx->source = NULL;
 	rc = get_session(mnt_ctx, NULL);
 	if (rc)
-		return rc;
+		goto out;
+
 	ctx->dfs_root_ses = mnt_ctx->ses;
 	/*
 	 * If called with 'nodfs' mount option, then skip DFS resolving.  Otherwise unconditionally
@@ -294,23 +300,41 @@ int dfs_mount_share(struct cifs_mount_ctx *mnt_ctx, bool *isdfs)
 	 * Skip prefix path to provide support for DFS referrals from w2k8 servers which don't seem
 	 * to respond with PATH_NOT_COVERED to requests that include the prefix.
 	 */
-	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_DFS) ||
-	    dfs_get_referral(mnt_ctx, ctx->UNC + 1, NULL, NULL)) {
+	if (!nodfs) {
+		rc = dfs_get_referral(mnt_ctx, ctx->UNC + 1, NULL, NULL);
+		if (rc) {
+			if (rc != -ENOENT && rc != -EOPNOTSUPP)
+				goto out;
+			nodfs = true;
+		}
+	}
+	if (nodfs) {
 		rc = cifs_mount_get_tcon(mnt_ctx);
-		if (rc)
-			return rc;
-
-		rc = cifs_is_path_remote(mnt_ctx);
-		if (!rc || rc != -EREMOTE)
-			return rc;
+		if (!rc)
+			rc = cifs_is_path_remote(mnt_ctx);
+		goto out;
 	}
 
 	*isdfs = true;
-	rc = get_root_smb_session(mnt_ctx);
-	if (rc)
-		return rc;
-
-	return __dfs_mount_share(mnt_ctx);
+	/*
+	 * Prevent DFS root session of being put in the first call to
+	 * cifs_mount_put_conns().  If another DFS root server was not found
+	 * while chasing the referrals (@ctx->dfs_root_ses == @ses), then we
+	 * can safely put extra refcount of @ses.
+	 */
+	ses = mnt_ctx->ses;
+	mnt_ctx->ses = NULL;
+	mnt_ctx->server = NULL;
+	rc = __dfs_mount_share(mnt_ctx);
+	if (ses == ctx->dfs_root_ses)
+		cifs_put_smb_ses(ses);
+out:
+	/*
+	 * Restore previous value of @ctx->source so DFS superblock can be
+	 * matched in cifs_match_super().
+	 */
+	ctx->source = source;
+	return rc;
 }
 
 /* Update dfs referral path of superblock */

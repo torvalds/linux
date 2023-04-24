@@ -996,10 +996,8 @@ static void clean_demultiplex_info(struct TCP_Server_Info *server)
 		 */
 	}
 
-#ifdef CONFIG_CIFS_DFS_UPCALL
 	kfree(server->origin_fullpath);
 	kfree(server->leaf_fullpath);
-#endif
 	kfree(server);
 
 	length = atomic_dec_return(&tcpSesAllocCount);
@@ -1387,23 +1385,8 @@ match_security(struct TCP_Server_Info *server, struct smb3_fs_context *ctx)
 	return true;
 }
 
-static bool dfs_src_pathname_equal(const char *s1, const char *s2)
-{
-	if (strlen(s1) != strlen(s2))
-		return false;
-	for (; *s1; s1++, s2++) {
-		if (*s1 == '/' || *s1 == '\\') {
-			if (*s2 != '/' && *s2 != '\\')
-				return false;
-		} else if (tolower(*s1) != tolower(*s2))
-			return false;
-	}
-	return true;
-}
-
 /* this function must be called with srv_lock held */
-static int match_server(struct TCP_Server_Info *server, struct smb3_fs_context *ctx,
-			bool dfs_super_cmp)
+static int match_server(struct TCP_Server_Info *server, struct smb3_fs_context *ctx)
 {
 	struct sockaddr *addr = (struct sockaddr *)&ctx->dstaddr;
 
@@ -1434,26 +1417,40 @@ static int match_server(struct TCP_Server_Info *server, struct smb3_fs_context *
 			       (struct sockaddr *)&server->srcaddr))
 		return 0;
 	/*
-	 * When matching DFS superblocks, we only check for original source pathname as the
-	 * currently connected target might be different than the one parsed earlier in i.e.
-	 * mount.cifs(8).
+	 * - Match for an DFS tcon (@server->origin_fullpath).
+	 * - Match for an DFS root server connection (@server->leaf_fullpath).
+	 * - If none of the above and @ctx->leaf_fullpath is set, then
+	 *   it is a new DFS connection.
+	 * - If 'nodfs' mount option was passed, then match only connections
+	 *   that have no DFS referrals set
+	 *   (e.g. can't failover to other targets).
 	 */
-	if (dfs_super_cmp) {
-		if (!ctx->source || !server->origin_fullpath ||
-		    !dfs_src_pathname_equal(server->origin_fullpath, ctx->source))
-			return 0;
-	} else {
-		/* Skip addr, hostname and port matching for DFS connections */
-		if (server->leaf_fullpath) {
-			if (!ctx->leaf_fullpath ||
-			    strcasecmp(server->leaf_fullpath, ctx->leaf_fullpath))
+	if (!ctx->nodfs) {
+		if (ctx->source && server->origin_fullpath) {
+			if (!dfs_src_pathname_equal(ctx->source,
+						    server->origin_fullpath))
 				return 0;
-		} else if (strcasecmp(server->hostname, ctx->server_hostname) ||
-			   !match_server_address(server, addr) ||
-			   !match_port(server, addr)) {
+		} else if (server->leaf_fullpath) {
+			if (!ctx->leaf_fullpath ||
+			    strcasecmp(server->leaf_fullpath,
+				       ctx->leaf_fullpath))
+				return 0;
+		} else if (ctx->leaf_fullpath) {
 			return 0;
 		}
+	} else if (server->origin_fullpath || server->leaf_fullpath) {
+		return 0;
 	}
+
+	/*
+	 * Match for a regular connection (address/hostname/port) which has no
+	 * DFS referrals set.
+	 */
+	if (!server->origin_fullpath && !server->leaf_fullpath &&
+	    (strcasecmp(server->hostname, ctx->server_hostname) ||
+	     !match_server_address(server, addr) ||
+	     !match_port(server, addr)))
+		return 0;
 
 	if (!match_security(server, ctx))
 		return 0;
@@ -1485,7 +1482,7 @@ cifs_find_tcp_session(struct smb3_fs_context *ctx)
 		 * Skip ses channels since they're only handled in lower layers
 		 * (e.g. cifs_send_recv).
 		 */
-		if (CIFS_SERVER_IS_CHAN(server) || !match_server(server, ctx, false)) {
+		if (CIFS_SERVER_IS_CHAN(server) || !match_server(server, ctx)) {
 			spin_unlock(&server->srv_lock);
 			continue;
 		}
@@ -1869,7 +1866,7 @@ cifs_free_ipc(struct cifs_ses *ses)
 static struct cifs_ses *
 cifs_find_smb_ses(struct TCP_Server_Info *server, struct smb3_fs_context *ctx)
 {
-	struct cifs_ses *ses;
+	struct cifs_ses *ses, *ret = NULL;
 
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each_entry(ses, &server->smb_ses_list, smb_ses_list) {
@@ -1879,23 +1876,22 @@ cifs_find_smb_ses(struct TCP_Server_Info *server, struct smb3_fs_context *ctx)
 			continue;
 		}
 		spin_lock(&ses->chan_lock);
-		if (!match_session(ses, ctx)) {
+		if (match_session(ses, ctx)) {
 			spin_unlock(&ses->chan_lock);
 			spin_unlock(&ses->ses_lock);
-			continue;
+			ret = ses;
+			break;
 		}
 		spin_unlock(&ses->chan_lock);
 		spin_unlock(&ses->ses_lock);
-
-		++ses->ses_count;
-		spin_unlock(&cifs_tcp_ses_lock);
-		return ses;
 	}
+	if (ret)
+		cifs_smb_ses_inc_refcount(ret);
 	spin_unlock(&cifs_tcp_ses_lock);
-	return NULL;
+	return ret;
 }
 
-void cifs_put_smb_ses(struct cifs_ses *ses)
+void __cifs_put_smb_ses(struct cifs_ses *ses)
 {
 	unsigned int rc, xid;
 	unsigned int chan_count;
@@ -2250,6 +2246,8 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb3_fs_context *ctx)
 	 */
 	spin_lock(&cifs_tcp_ses_lock);
 	ses->dfs_root_ses = ctx->dfs_root_ses;
+	if (ses->dfs_root_ses)
+		ses->dfs_root_ses->ses_count++;
 	list_add(&ses->smb_ses_list, &server->smb_ses_list);
 	spin_unlock(&cifs_tcp_ses_lock);
 
@@ -2266,12 +2264,15 @@ get_ses_fail:
 }
 
 /* this function must be called with tc_lock held */
-static int match_tcon(struct cifs_tcon *tcon, struct smb3_fs_context *ctx, bool dfs_super_cmp)
+static int match_tcon(struct cifs_tcon *tcon, struct smb3_fs_context *ctx)
 {
+	struct TCP_Server_Info *server = tcon->ses->server;
+
 	if (tcon->status == TID_EXITING)
 		return 0;
-	/* Skip UNC validation when matching DFS superblocks */
-	if (!dfs_super_cmp && strncmp(tcon->tree_name, ctx->UNC, MAX_TREE_SIZE))
+	/* Skip UNC validation when matching DFS connections or superblocks */
+	if (!server->origin_fullpath && !server->leaf_fullpath &&
+	    strncmp(tcon->tree_name, ctx->UNC, MAX_TREE_SIZE))
 		return 0;
 	if (tcon->seal != ctx->seal)
 		return 0;
@@ -2294,7 +2295,7 @@ cifs_find_tcon(struct cifs_ses *ses, struct smb3_fs_context *ctx)
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each_entry(tcon, &ses->tcon_list, tcon_list) {
 		spin_lock(&tcon->tc_lock);
-		if (!match_tcon(tcon, ctx, false)) {
+		if (!match_tcon(tcon, ctx)) {
 			spin_unlock(&tcon->tc_lock);
 			continue;
 		}
@@ -2670,15 +2671,21 @@ compare_mount_options(struct super_block *sb, struct cifs_mnt_data *mnt_data)
 	return 1;
 }
 
-static int
-match_prepath(struct super_block *sb, struct cifs_mnt_data *mnt_data)
+static int match_prepath(struct super_block *sb,
+			 struct TCP_Server_Info *server,
+			 struct cifs_mnt_data *mnt_data)
 {
+	struct smb3_fs_context *ctx = mnt_data->ctx;
 	struct cifs_sb_info *old = CIFS_SB(sb);
 	struct cifs_sb_info *new = mnt_data->cifs_sb;
 	bool old_set = (old->mnt_cifs_flags & CIFS_MOUNT_USE_PREFIX_PATH) &&
 		old->prepath;
 	bool new_set = (new->mnt_cifs_flags & CIFS_MOUNT_USE_PREFIX_PATH) &&
 		new->prepath;
+
+	if (server->origin_fullpath &&
+	    dfs_src_pathname_equal(server->origin_fullpath, ctx->source))
+		return 1;
 
 	if (old_set && new_set && !strcmp(new->prepath, old->prepath))
 		return 1;
@@ -2698,7 +2705,6 @@ cifs_match_super(struct super_block *sb, void *data)
 	struct cifs_ses *ses;
 	struct cifs_tcon *tcon;
 	struct tcon_link *tlink;
-	bool dfs_super_cmp;
 	int rc = 0;
 
 	spin_lock(&cifs_tcp_ses_lock);
@@ -2713,18 +2719,16 @@ cifs_match_super(struct super_block *sb, void *data)
 	ses = tcon->ses;
 	tcp_srv = ses->server;
 
-	dfs_super_cmp = IS_ENABLED(CONFIG_CIFS_DFS_UPCALL) && tcp_srv->origin_fullpath;
-
 	ctx = mnt_data->ctx;
 
 	spin_lock(&tcp_srv->srv_lock);
 	spin_lock(&ses->ses_lock);
 	spin_lock(&ses->chan_lock);
 	spin_lock(&tcon->tc_lock);
-	if (!match_server(tcp_srv, ctx, dfs_super_cmp) ||
+	if (!match_server(tcp_srv, ctx) ||
 	    !match_session(ses, ctx) ||
-	    !match_tcon(tcon, ctx, dfs_super_cmp) ||
-	    !match_prepath(sb, mnt_data)) {
+	    !match_tcon(tcon, ctx) ||
+	    !match_prepath(sb, tcp_srv, mnt_data)) {
 		rc = 0;
 		goto out;
 	}
@@ -3469,8 +3473,6 @@ out:
 
 error:
 	dfs_put_root_smb_sessions(&mnt_ctx.dfs_ses_list);
-	kfree(mnt_ctx.origin_fullpath);
-	kfree(mnt_ctx.leaf_fullpath);
 	cifs_mount_put_conns(&mnt_ctx);
 	return rc;
 }

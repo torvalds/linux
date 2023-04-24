@@ -1756,7 +1756,6 @@ struct cifs_mount_ctx {
 	struct TCP_Server_Info *server;
 	struct cifs_ses *ses;
 	struct cifs_tcon *tcon;
-	char *origin_fullpath, *leaf_fullpath;
 	struct list_head dfs_ses_list;
 };
 
