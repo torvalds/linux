@@ -344,24 +344,12 @@ void kbase_csf_tiler_heap_reclaim_mgr_init(struct kbase_device *kbdev)
 	reclaim->scan_objects = kbase_csf_tiler_heap_reclaim_scan_objects;
 	reclaim->seeks = HEAP_SHRINKER_SEEKS;
 	reclaim->batch = HEAP_SHRINKER_BATCH;
-
-#if !defined(CONFIG_MALI_VECTOR_DUMP)
-#if KERNEL_VERSION(6, 0, 0) > LINUX_VERSION_CODE
-	register_shrinker(reclaim);
-#else
-	register_shrinker(reclaim, "mali-csf-tiler-heap");
-#endif
-#endif
 }
 
 void kbase_csf_tiler_heap_reclaim_mgr_term(struct kbase_device *kbdev)
 {
 	struct kbase_csf_scheduler *scheduler = &kbdev->csf.scheduler;
 	u8 prio;
-
-#if !defined(CONFIG_MALI_VECTOR_DUMP)
-	unregister_shrinker(&scheduler->reclaim_mgr.heap_reclaim);
-#endif
 
 	for (prio = KBASE_QUEUE_GROUP_PRIORITY_REALTIME; prio < KBASE_QUEUE_GROUP_PRIORITY_COUNT;
 	     prio++)
