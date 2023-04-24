@@ -8,6 +8,7 @@ WMI Subsystem
    :maxdepth: 1
 
    acpi-interface
+   devices/index
 
 .. only::  subproject and html
 
