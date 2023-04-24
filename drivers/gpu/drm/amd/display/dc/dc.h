@@ -45,7 +45,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.229"
+#define DC_VER "3.2.230"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -405,6 +405,7 @@ struct dc_config {
 	bool force_bios_enable_lttpr;
 	uint8_t force_bios_fixed_vs;
 	int sdpif_request_limit_words_per_umc;
+	bool use_old_fixed_vs_sequence;
 	bool disable_subvp_drr;
 };
 
@@ -875,6 +876,9 @@ struct dc_debug_options {
 	bool override_dispclk_programming;
 	bool disable_fpo_optimizations;
 	bool support_eDP1_5;
+	uint32_t fpo_vactive_margin_us;
+	bool disable_fpo_vactive;
+	bool disable_boot_optimizations;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;

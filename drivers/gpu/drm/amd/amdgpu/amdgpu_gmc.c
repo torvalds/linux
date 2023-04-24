@@ -395,8 +395,21 @@ bool amdgpu_gmc_filter_faults(struct amdgpu_device *adev,
 	while (fault->timestamp >= stamp) {
 		uint64_t tmp;
 
-		if (atomic64_read(&fault->key) == key)
-			return true;
+		if (atomic64_read(&fault->key) == key) {
+			/*
+			 * if we get a fault which is already present in
+			 * the fault_ring and the timestamp of
+			 * the fault is after the expired timestamp,
+			 * then this is a new fault that needs to be added
+			 * into the fault ring.
+			 */
+			if (fault->timestamp_expiry != 0 &&
+			    amdgpu_ih_ts_after(fault->timestamp_expiry,
+					       timestamp))
+				break;
+			else
+				return true;
+		}
 
 		tmp = fault->timestamp;
 		fault = &gmc->fault_ring[fault->next];
@@ -432,15 +445,32 @@ void amdgpu_gmc_filter_faults_remove(struct amdgpu_device *adev, uint64_t addr,
 {
 	struct amdgpu_gmc *gmc = &adev->gmc;
 	uint64_t key = amdgpu_gmc_fault_key(addr, pasid);
+	struct amdgpu_ih_ring *ih;
 	struct amdgpu_gmc_fault *fault;
+	uint32_t last_wptr;
+	uint64_t last_ts;
 	uint32_t hash;
 	uint64_t tmp;
+
+	ih = adev->irq.retry_cam_enabled ? &adev->irq.ih_soft : &adev->irq.ih1;
+	/* Get the WPTR of the last entry in IH ring */
+	last_wptr = amdgpu_ih_get_wptr(adev, ih);
+	/* Order wptr with ring data. */
+	rmb();
+	/* Get the timetamp of the last entry in IH ring */
+	last_ts = amdgpu_ih_decode_iv_ts(adev, ih, last_wptr, -1);
 
 	hash = hash_64(key, AMDGPU_GMC_FAULT_HASH_ORDER);
 	fault = &gmc->fault_ring[gmc->fault_hash[hash].idx];
 	do {
-		if (atomic64_cmpxchg(&fault->key, key, 0) == key)
+		if (atomic64_read(&fault->key) == key) {
+			/*
+			 * Update the timestamp when this fault
+			 * expired.
+			 */
+			fault->timestamp_expiry = last_ts;
 			break;
+		}
 
 		tmp = fault->timestamp;
 		fault = &gmc->fault_ring[fault->next];
@@ -524,7 +554,7 @@ int amdgpu_gmc_allocate_vm_inv_eng(struct amdgpu_device *adev)
 
 	for (i = 0; i < adev->num_rings; ++i) {
 		ring = adev->rings[i];
-		vmhub = ring->funcs->vmhub;
+		vmhub = ring->vm_hub;
 
 		if (ring == &adev->mes.ring)
 			continue;
@@ -540,7 +570,7 @@ int amdgpu_gmc_allocate_vm_inv_eng(struct amdgpu_device *adev)
 		vm_inv_engs[vmhub] &= ~(1 << ring->vm_inv_eng);
 
 		dev_info(adev->dev, "ring %s uses VM inv eng %u on hub %u\n",
-			 ring->name, ring->vm_inv_eng, ring->funcs->vmhub);
+			 ring->name, ring->vm_inv_eng, ring->vm_hub);
 	}
 
 	return 0;

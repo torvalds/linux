@@ -3060,6 +3060,25 @@ void intel_ddi_update_pipe(struct intel_atomic_state *state,
 	intel_hdcp_update_pipe(state, encoder, crtc_state, conn_state);
 }
 
+void intel_ddi_update_active_dpll(struct intel_atomic_state *state,
+				  struct intel_encoder *encoder,
+				  struct intel_crtc *crtc)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	struct intel_crtc *slave_crtc;
+	enum phy phy = intel_port_to_phy(i915, encoder->port);
+
+	if (!intel_phy_is_tc(i915, phy))
+		return;
+
+	intel_update_active_dpll(state, crtc, encoder);
+	for_each_intel_crtc_in_pipe_mask(&i915->drm, slave_crtc,
+					 intel_crtc_bigjoiner_slave_pipes(crtc_state))
+		intel_update_active_dpll(state, slave_crtc, encoder);
+}
+
 static void
 intel_ddi_pre_pll_enable(struct intel_atomic_state *state,
 			 struct intel_encoder *encoder,
@@ -3074,15 +3093,9 @@ intel_ddi_pre_pll_enable(struct intel_atomic_state *state,
 	if (is_tc_port) {
 		struct intel_crtc *master_crtc =
 			to_intel_crtc(crtc_state->uapi.crtc);
-		struct intel_crtc *slave_crtc;
 
 		intel_tc_port_get_link(dig_port, crtc_state->lane_count);
-
-		intel_update_active_dpll(state, master_crtc, encoder);
-
-		for_each_intel_crtc_in_pipe_mask(&dev_priv->drm, slave_crtc,
-						 intel_crtc_bigjoiner_slave_pipes(crtc_state))
-			intel_update_active_dpll(state, slave_crtc, encoder);
+		intel_ddi_update_active_dpll(state, encoder, master_crtc);
 	}
 
 	main_link_aux_power_domain_get(dig_port, crtc_state);

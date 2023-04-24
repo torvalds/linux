@@ -488,12 +488,25 @@ static void __force_fw_fetch_failures(struct intel_uc_fw *uc_fw, int e)
 	}
 }
 
-static int check_gsc_manifest(const struct firmware *fw,
+static int check_gsc_manifest(struct intel_gt *gt,
+			      const struct firmware *fw,
 			      struct intel_uc_fw *uc_fw)
 {
 	u32 *dw = (u32 *)fw->data;
-	u32 version_hi = dw[HUC_GSC_VERSION_HI_DW];
-	u32 version_lo = dw[HUC_GSC_VERSION_LO_DW];
+	u32 version_hi, version_lo;
+	size_t min_size;
+
+	/* Check the size of the blob before examining buffer contents */
+	min_size = sizeof(u32) * (HUC_GSC_VERSION_LO_DW + 1);
+	if (unlikely(fw->size < min_size)) {
+		gt_warn(gt, "%s firmware %s: invalid size: %zu < %zu\n",
+			intel_uc_fw_type_repr(uc_fw->type), uc_fw->file_selected.path,
+			fw->size, min_size);
+		return -ENODATA;
+	}
+
+	version_hi = dw[HUC_GSC_VERSION_HI_DW];
+	version_lo = dw[HUC_GSC_VERSION_LO_DW];
 
 	uc_fw->file_selected.ver.major = FIELD_GET(HUC_GSC_MAJOR_VER_HI_MASK, version_hi);
 	uc_fw->file_selected.ver.minor = FIELD_GET(HUC_GSC_MINOR_VER_HI_MASK, version_hi);
@@ -664,7 +677,7 @@ static int check_fw_header(struct intel_gt *gt,
 		return 0;
 
 	if (uc_fw->loaded_via_gsc)
-		err = check_gsc_manifest(fw, uc_fw);
+		err = check_gsc_manifest(gt, fw, uc_fw);
 	else
 		err = check_ccs_header(gt, fw, uc_fw);
 	if (err)

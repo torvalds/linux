@@ -301,11 +301,10 @@ static u32 soc15_get_xclk(struct amdgpu_device *adev)
 	u32 reference_clock = adev->clock.spll.reference_freq;
 
 	if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(12, 0, 0) ||
-	    adev->ip_versions[MP1_HWIP][0] == IP_VERSION(12, 0, 1))
-		return 10000;
-	if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(10, 0, 0) ||
+	    adev->ip_versions[MP1_HWIP][0] == IP_VERSION(12, 0, 1) ||
+	    adev->ip_versions[MP1_HWIP][0] == IP_VERSION(10, 0, 0) ||
 	    adev->ip_versions[MP1_HWIP][0] == IP_VERSION(10, 0, 1))
-		return reference_clock / 4;
+		return 10000;
 
 	return reference_clock;
 }
@@ -1100,6 +1099,11 @@ static int soc15_common_early_init(void *handle)
 			AMD_CG_SUPPORT_VCN_MGCG | AMD_CG_SUPPORT_JPEG_MGCG;
 		adev->pg_flags = AMD_PG_SUPPORT_VCN_DPG;
 		adev->external_rev_id = adev->rev_id + 0x3c;
+		break;
+	case IP_VERSION(9, 4, 3):
+		adev->asic_funcs = &vega20_asic_funcs;
+		adev->cg_flags = 0;
+		adev->pg_flags = 0;
 		break;
 	default:
 		/* FIXME: not supported yet */

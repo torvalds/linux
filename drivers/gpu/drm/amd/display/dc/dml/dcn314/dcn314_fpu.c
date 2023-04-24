@@ -97,7 +97,7 @@ struct _vcs_dpi_ip_params_st dcn3_14_ip = {
 	.dcc_supported = true,
 };
 
-struct _vcs_dpi_soc_bounding_box_st dcn3_14_soc = {
+static struct _vcs_dpi_soc_bounding_box_st dcn3_14_soc = {
 		/*TODO: correct dispclk/dppclk voltage level determination*/
 	.clock_limits = {
 		{
