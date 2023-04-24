@@ -352,6 +352,14 @@ struct mod_kallsyms {
 };
 
 #ifdef CONFIG_LIVEPATCH
+/**
+ * struct klp_modinfo - ELF information preserved from the livepatch module
+ *
+ * @hdr: ELF header
+ * @sechdrs: Section header table
+ * @secstrings: String table for the section headers
+ * @symndx: The symbol table section index
+ */
 struct klp_modinfo {
 	Elf_Ehdr hdr;
 	Elf_Shdr *sechdrs;
@@ -515,7 +523,7 @@ struct module {
 	bool klp; /* Is this a livepatch module? */
 	bool klp_alive;
 
-	/* Elf information */
+	/* ELF information */
 	struct klp_modinfo *klp_info;
 #endif
 
