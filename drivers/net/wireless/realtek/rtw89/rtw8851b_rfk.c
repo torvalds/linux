@@ -17,6 +17,48 @@ static u8 _kpath(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
 	return RF_A;
 }
 
+void rtw8851b_aack(struct rtw89_dev *rtwdev)
+{
+	u32 tmp05, ib[4];
+	u32 tmp;
+	int ret;
+	int rek;
+	int i;
+
+	rtw89_debug(rtwdev, RTW89_DBG_RFK, "[LCK]DO AACK\n");
+
+	tmp05 = rtw89_read_rf(rtwdev, RF_PATH_A, RR_RSV1, RFREG_MASK);
+	rtw89_write_rf(rtwdev, RF_PATH_A, RR_MOD, RR_MOD_MASK, 0x3);
+	rtw89_write_rf(rtwdev, RF_PATH_A, RR_RSV1, RFREG_MASK, 0x0);
+
+	for (rek = 0; rek < 4; rek++) {
+		rtw89_write_rf(rtwdev, RF_PATH_A, RR_AACK, RFREG_MASK, 0x8201e);
+		rtw89_write_rf(rtwdev, RF_PATH_A, RR_AACK, RFREG_MASK, 0x8201f);
+		fsleep(100);
+
+		ret = read_poll_timeout_atomic(rtw89_read_rf, tmp, tmp,
+					       1, 1000, false,
+					       rtwdev, RF_PATH_A, 0xd0, BIT(16));
+		if (ret)
+			rtw89_warn(rtwdev, "[LCK]AACK timeout\n");
+
+		rtw89_write_rf(rtwdev, RF_PATH_A, RR_VCI, RR_VCI_ON, 0x1);
+		for (i = 0; i < 4; i++) {
+			rtw89_write_rf(rtwdev, RF_PATH_A, RR_VCO, RR_VCO_SEL, i);
+			ib[i] = rtw89_read_rf(rtwdev, RF_PATH_A, RR_IBD, RR_IBD_VAL);
+		}
+		rtw89_write_rf(rtwdev, RF_PATH_A, RR_VCI, RR_VCI_ON, 0x0);
+
+		if (ib[0] != 0 && ib[1] != 0 && ib[2] != 0 && ib[3] != 0)
+			break;
+	}
+
+	if (rek != 0)
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[LCK]AACK rek = %d\n", rek);
+
+	rtw89_write_rf(rtwdev, RF_PATH_A, RR_RSV1, RFREG_MASK, tmp05);
+}
+
 static void _bw_setting(struct rtw89_dev *rtwdev, enum rtw89_rf_path path,
 			enum rtw89_bandwidth bw, bool dav)
 {

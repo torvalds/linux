@@ -3782,15 +3782,21 @@
 #define RR_LOGEN 0xa3
 #define RR_LOGEN_RPT GENMASK(19, 16)
 #define RR_SX 0xaf
+#define RR_IBD 0xc9
+#define RR_IBD_VAL GENMASK(4, 0)
 #define RR_LDO 0xb1
 #define RR_LDO_SEL GENMASK(8, 6)
 #define RR_VCO 0xb2
+#define RR_VCO_SEL GENMASK(9, 8)
+#define RR_VCI 0xb3
+#define RR_VCI_ON BIT(7)
 #define RR_LPF 0xb7
 #define RR_LPF_BUSY BIT(8)
 #define RR_XTALX2 0xb8
 #define RR_MALSEL 0xbe
 #define RR_SYNFB 0xc5
 #define RR_SYNFB_LK BIT(15)
+#define RR_AACK 0xca
 #define RR_LCKST 0xcf
 #define RR_LCKST_BIN BIT(0)
 #define RR_LCK_TRG 0xd3
