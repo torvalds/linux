@@ -154,3 +154,15 @@
   __tracepoint_android_vh_alloc_uid
   free_uid
   find_user
+
+#required by mi_freqwdg.ko
+  __traceiter_android_vh_freq_qos_remove_request
+  __traceiter_android_vh_freq_qos_update_request
+  __traceiter_android_vh_freq_qos_add_request
+  __traceiter_android_rvh_entity_tick
+  __traceiter_android_rvh_dequeue_task_fair
+  __tracepoint_android_vh_freq_qos_remove_request
+  __tracepoint_android_vh_freq_qos_update_request
+  __tracepoint_android_vh_freq_qos_add_request
+  __tracepoint_android_rvh_dequeue_task_fair
+  __tracepoint_android_rvh_entity_tick
