@@ -396,6 +396,8 @@ static inline bool dso__is_kallsyms(const struct dso *dso)
 	return dso->kernel && dso->long_name[0] != '/';
 }
 
+bool dso__is_object_file(const struct dso *dso);
+
 void dso__free_a2l(struct dso *dso);
 
 enum dso_type dso__type(struct dso *dso, struct machine *machine);

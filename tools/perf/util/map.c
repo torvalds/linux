@@ -431,14 +431,21 @@ size_t map__fprintf(struct map *map, FILE *fp)
 		       map__start(map), map__end(map), map__pgoff(map), dso->name);
 }
 
-size_t map__fprintf_dsoname(struct map *map, FILE *fp)
+static bool prefer_dso_long_name(const struct dso *dso, bool print_off)
+{
+	return dso->long_name &&
+	       (symbol_conf.show_kernel_path ||
+		(print_off && (dso->name[0] == '[' || dso__is_kcore(dso))));
+}
+
+static size_t __map__fprintf_dsoname(struct map *map, bool print_off, FILE *fp)
 {
 	char buf[symbol_conf.pad_output_len_dso + 1];
 	const char *dsoname = "[unknown]";
 	const struct dso *dso = map ? map__dso(map) : NULL;
 
 	if (dso) {
-		if (symbol_conf.show_kernel_path && dso->long_name)
+		if (prefer_dso_long_name(dso, print_off))
 			dsoname = dso->long_name;
 		else
 			dsoname = dso->name;
@@ -452,13 +459,21 @@ size_t map__fprintf_dsoname(struct map *map, FILE *fp)
 	return fprintf(fp, "%s", dsoname);
 }
 
+size_t map__fprintf_dsoname(struct map *map, FILE *fp)
+{
+	return __map__fprintf_dsoname(map, false, fp);
+}
+
 size_t map__fprintf_dsoname_dsoff(struct map *map, bool print_off, u64 addr, FILE *fp)
 {
+	const struct dso *dso = map ? map__dso(map) : NULL;
 	int printed = 0;
 
+	if (print_off && (!dso || !dso__is_object_file(dso)))
+		print_off = false;
 	printed += fprintf(fp, " (");
-	printed += map__fprintf_dsoname(map, fp);
-	if (print_off && map && map__dso(map) && !map__dso(map)->kernel)
+	printed += __map__fprintf_dsoname(map, print_off, fp);
+	if (print_off)
 		printed += fprintf(fp, "+0x%" PRIx64, addr);
 	printed += fprintf(fp, ")");
 
