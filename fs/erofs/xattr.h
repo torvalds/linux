@@ -13,29 +13,6 @@
 /* Attribute not found */
 #define ENOATTR         ENODATA
 
-static inline unsigned int inlinexattr_header_size(struct inode *inode)
-{
-	return sizeof(struct erofs_xattr_ibody_header) +
-		sizeof(u32) * EROFS_I(inode)->xattr_shared_count;
-}
-
-static inline erofs_blk_t xattrblock_addr(struct erofs_sb_info *sbi,
-					  unsigned int xattr_id)
-{
-#ifdef CONFIG_EROFS_FS_XATTR
-	return sbi->xattr_blkaddr +
-		xattr_id * sizeof(__u32) / EROFS_BLKSIZ;
-#else
-	return 0;
-#endif
-}
-
-static inline unsigned int xattrblock_offset(struct erofs_sb_info *sbi,
-					     unsigned int xattr_id)
-{
-	return (xattr_id * sizeof(__u32)) % EROFS_BLKSIZ;
-}
-
 #ifdef CONFIG_EROFS_FS_XATTR
 extern const struct xattr_handler erofs_xattr_user_handler;
 extern const struct xattr_handler erofs_xattr_trusted_handler;
@@ -69,9 +46,13 @@ static inline const char *erofs_xattr_prefix(unsigned int idx,
 
 extern const struct xattr_handler *erofs_xattr_handlers[];
 
+int erofs_xattr_prefixes_init(struct super_block *sb);
+void erofs_xattr_prefixes_cleanup(struct super_block *sb);
 int erofs_getxattr(struct inode *, int, const char *, void *, size_t);
 ssize_t erofs_listxattr(struct dentry *, char *, size_t);
 #else
+static inline int erofs_xattr_prefixes_init(struct super_block *sb) { return 0; }
+static inline void erofs_xattr_prefixes_cleanup(struct super_block *sb) {}
 static inline int erofs_getxattr(struct inode *inode, int index,
 				 const char *name, void *buffer,
 				 size_t buffer_size)
