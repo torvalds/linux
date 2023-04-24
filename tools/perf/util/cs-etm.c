@@ -50,10 +50,10 @@ struct cs_etm_auxtrace {
 	struct thread *unknown_thread;
 	struct perf_tsc_conversion tc;
 
-	u8 timeless_decoding;
-	u8 snapshot_mode;
-	u8 data_queued;
-	u8 has_virtual_ts; /* Virtual/Kernel timestamps in the trace. */
+	bool timeless_decoding;
+	bool snapshot_mode;
+	bool data_queued;
+	bool has_virtual_ts; /* Virtual/Kernel timestamps in the trace. */
 
 	int num_cpu;
 	u64 latest_kernel_timestamp;
