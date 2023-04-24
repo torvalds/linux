@@ -683,6 +683,14 @@ mlx5_esw_vporttbl_put(struct mlx5_eswitch *esw, struct mlx5_vport_tbl_attr *attr
 struct mlx5_flow_handle *
 esw_add_restore_rule(struct mlx5_eswitch *esw, u32 tag);
 
+void mlx5_esw_set_flow_group_source_port(struct mlx5_eswitch *esw,
+					 u32 *flow_group_in,
+					 int match_params);
+
+void mlx5_esw_set_spec_source_port(struct mlx5_eswitch *esw,
+				   u16 vport,
+				   struct mlx5_flow_spec *spec);
+
 int esw_offloads_load_rep(struct mlx5_eswitch *esw, u16 vport_num);
 void esw_offloads_unload_rep(struct mlx5_eswitch *esw, u16 vport_num);
 
