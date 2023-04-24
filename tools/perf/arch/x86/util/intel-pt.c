@@ -576,25 +576,6 @@ out:
 	return err;
 }
 
-static void intel_pt_config_sample_mode(struct perf_pmu *intel_pt_pmu,
-					struct evsel *evsel)
-{
-	u64 user_bits = 0, bits;
-	struct evsel_config_term *term = evsel__get_config_term(evsel, CFG_CHG);
-
-	if (term)
-		user_bits = term->val.cfg_chg;
-
-	bits = perf_pmu__format_bits(&intel_pt_pmu->format, "psb_period");
-
-	/* Did user change psb_period */
-	if (bits & user_bits)
-		return;
-
-	/* Set psb_period to 0 */
-	evsel->core.attr.config &= ~bits;
-}
-
 static void intel_pt_min_max_sample_sz(struct evlist *evlist,
 				       size_t *min_sz, size_t *max_sz)
 {
@@ -686,7 +667,8 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 		return 0;
 
 	if (opts->auxtrace_sample_mode)
-		intel_pt_config_sample_mode(intel_pt_pmu, intel_pt_evsel);
+		evsel__set_config_if_unset(intel_pt_pmu, intel_pt_evsel,
+					   "psb_period", 0);
 
 	err = intel_pt_validate_config(intel_pt_pmu, intel_pt_evsel);
 	if (err)

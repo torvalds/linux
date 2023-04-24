@@ -530,4 +530,7 @@ bool arch_evsel__must_be_in_group(const struct evsel *evsel);
 	((((src) >> (pos)) & ((1ull << (size)) - 1)) << (63 - ((pos) + (size) - 1)))
 
 u64 evsel__bitfield_swap_branch_flags(u64 value);
+void evsel__set_config_if_unset(struct perf_pmu *pmu, struct evsel *evsel,
+				const char *config_name, u64 val);
+
 #endif /* __PERF_EVSEL_H */
