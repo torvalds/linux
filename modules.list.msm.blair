@@ -45,3 +45,12 @@ qcom_rpmh.ko
 rpmhpd.ko
 rproc_qcom_common.ko
 qcom_glink_spss.ko
+qcom_iommu_util.ko
+iommu-logger.ko
+arm_smmu.ko
+secure_buffer.ko
+qcom_dma_heaps.ko
+msm_dma_iommu_mapping.ko
+mem_buf_dev.ko
+mem_buf_msgq.ko
+mem_buf.ko
