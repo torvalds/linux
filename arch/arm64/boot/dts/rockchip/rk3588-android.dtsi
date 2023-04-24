@@ -75,6 +75,11 @@
 			reg = <0x0 0x0 0x0 0x0>;
 		};
 
+		vendor_storage_rm: vendor-storage-rm@00000000 {
+			compatible = "rockchip,vendor-storage-rm";
+			reg = <0x0 0x0 0x0 0x0>;
+		};
+
 		ramoops: ramoops@110000 {
 			compatible = "ramoops";
 			/* 0x110000 to 0x1f0000 is for ramoops */
@@ -86,6 +91,12 @@
 			ftrace-size = <0x00000>;
 			record-size = <0x14000>;
 		};
+	};
+
+	vendor_storage: vendor-storage {
+		compatible = "rockchip,ram-vendor-storage";
+		memory-region = <&vendor_storage_rm>;
+		status = "okay";
 	};
 };
 
