@@ -1488,8 +1488,7 @@ HDMI:
 			if (!idisp_components[i].dai_name)
 				return -ENOMEM;
 		} else {
-			idisp_components[i].name = "snd-soc-dummy";
-			idisp_components[i].dai_name = "snd-soc-dummy-dai";
+			idisp_components[i] = asoc_dummy_dlc;
 		}
 
 		cpu_name = devm_kasprintf(dev, GFP_KERNEL,
@@ -1514,21 +1513,13 @@ HDMI:
 		if (!name)
 			return -ENOMEM;
 
-		ssp_components = devm_kzalloc(dev, sizeof(*ssp_components),
-						GFP_KERNEL);
-		if (!ssp_components)
-			return -ENOMEM;
-
-		ssp_components->name = "snd-soc-dummy";
-		ssp_components->dai_name = "snd-soc-dummy-dai";
-
 		cpu_name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d Pin", port);
 		if (!cpu_name)
 			return -ENOMEM;
 
 		cpus[cpu_id].dai_name = cpu_name;
 		init_dai_link(dev, links + link_index, be_id, name, 1, 1,
-				cpus + cpu_id, 1, ssp_components, 1, NULL, NULL);
+				cpus + cpu_id, 1, &asoc_dummy_dlc, 1, NULL, NULL);
 	}
 
 	card->dai_link = links;
