@@ -97,7 +97,7 @@ static void cacheless_memcpy(void *dst, void *src, size_t n)
 	 * there are no security issues.  The extra fault recovery machinery
 	 * is not invoked.
 	 */
-	__copy_user_nocache(dst, (void __user *)src, n, 0);
+	__copy_user_nocache(dst, (void __user *)src, n);
 }
 
 void rvt_wss_exit(struct rvt_dev_info *rdi)

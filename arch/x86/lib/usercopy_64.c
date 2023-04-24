@@ -45,7 +45,11 @@ EXPORT_SYMBOL_GPL(arch_wb_cache_pmem);
 long __copy_user_flushcache(void *dst, const void __user *src, unsigned size)
 {
 	unsigned long flushed, dest = (unsigned long) dst;
-	long rc = __copy_user_nocache(dst, src, size, 0);
+	long rc;
+
+	stac();
+	rc = __copy_user_nocache(dst, src, size);
+	clac();
 
 	/*
 	 * __copy_user_nocache() uses non-temporal stores for the bulk
