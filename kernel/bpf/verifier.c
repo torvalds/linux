@@ -18671,6 +18671,10 @@ BTF_ID(func, rcu_read_unlock_strict)
 BTF_ID(func, preempt_count_add)
 BTF_ID(func, preempt_count_sub)
 #endif
+#ifdef CONFIG_PREEMPT_RCU
+BTF_ID(func, __rcu_read_lock)
+BTF_ID(func, __rcu_read_unlock)
+#endif
 BTF_SET_END(btf_id_deny)
 
 static bool can_be_sleepable(struct bpf_prog *prog)
