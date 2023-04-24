@@ -24,6 +24,8 @@
 	#size-cells = <2>;
 
 	aliases {
+		dp-intf0 = &dp_intf0;
+		dp-intf1 = &dp_intf1;
 		gce0 = &gce0;
 		gce1 = &gce1;
 		ethdr0 = &ethdr0;
