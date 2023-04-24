@@ -43,6 +43,11 @@
 			reg = <0x0 0x0 0x0 0x0>;
 		};
 
+		vendor_storage_rm: vendor-storage-rm@00000000 {
+			compatible = "rockchip,vendor-storage-rm";
+			reg = <0x0 0x0 0x0 0x0>;
+		};
+
 		ramoops: ramoops@110000 {
 			compatible = "ramoops";
 			reg = <0x0 0x110000 0x0 0xf0000>;
@@ -77,6 +82,12 @@
 			linux,code = <KEY_POWER>;
 			wakeup-source;
 		};
+	};
+
+	vendor_storage: vendor-storage {
+		compatible = "rockchip,ram-vendor-storage";
+		memory-region = <&vendor_storage_rm>;
+		status = "okay";
 	};
 
 	rga: rga@ff680000 {
