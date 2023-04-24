@@ -3263,6 +3263,8 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 	 * drm_display_mode and set phy status to enabled.
 	 */
 	if (!vmode->mpixelclock) {
+		u8 val;
+
 		hdmi->curr_conn = connector;
 
 		if (hdmi->plat_data->get_enc_in_encoding)
@@ -3288,6 +3290,11 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 			vmode->mtmdsclock /= 2;
 
 		dw_hdmi_force_output_pattern(hdmi, mode);
+		drm_scdc_readb(hdmi->ddc, SCDC_TMDS_CONFIG, &val);
+
+		/* if plug out before hdmi bind, reset hdmi */
+		if (vmode->mtmdsclock >= 340000000 && !(val & SCDC_TMDS_BIT_CLOCK_RATIO_BY_40))
+			hdmi->logo_plug_out = true;
 	}
 
 	if (check_hdr_color_change(old_state, new_state, hdmi) || hdmi->logo_plug_out ||
