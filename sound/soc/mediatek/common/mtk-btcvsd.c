@@ -1387,13 +1387,12 @@ unmap_pkv_err:
 	return ret;
 }
 
-static int mtk_btcvsd_snd_remove(struct platform_device *pdev)
+static void mtk_btcvsd_snd_remove(struct platform_device *pdev)
 {
 	struct mtk_btcvsd_snd *btcvsd = dev_get_drvdata(&pdev->dev);
 
 	iounmap(btcvsd->bt_pkv_base);
 	iounmap(btcvsd->bt_sram_bank2_base);
-	return 0;
 }
 
 static const struct of_device_id mtk_btcvsd_snd_dt_match[] = {
@@ -1408,7 +1407,7 @@ static struct platform_driver mtk_btcvsd_snd_driver = {
 		.of_match_table = mtk_btcvsd_snd_dt_match,
 	},
 	.probe = mtk_btcvsd_snd_probe,
-	.remove = mtk_btcvsd_snd_remove,
+	.remove_new = mtk_btcvsd_snd_remove,
 };
 
 module_platform_driver(mtk_btcvsd_snd_driver);

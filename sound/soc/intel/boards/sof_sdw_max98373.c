@@ -120,6 +120,16 @@ static const struct snd_soc_ops max_98373_sdw_ops = {
 	.shutdown = sdw_shutdown,
 };
 
+static int mx8373_sdw_late_probe(struct snd_soc_card *card)
+{
+	struct snd_soc_dapm_context *dapm = &card->dapm;
+
+	/* Disable Left and Right Spk pin after boot */
+	snd_soc_dapm_disable_pin(dapm, "Left Spk");
+	snd_soc_dapm_disable_pin(dapm, "Right Spk");
+	return snd_soc_dapm_sync(dapm);
+}
+
 int sof_sdw_mx8373_init(struct snd_soc_card *card,
 			const struct snd_soc_acpi_link_adr *link,
 			struct snd_soc_dai_link *dai_links,
@@ -130,19 +140,9 @@ int sof_sdw_mx8373_init(struct snd_soc_card *card,
 	if (info->amp_num == 2)
 		dai_links->init = spk_init;
 
-	info->late_probe = true;
+	info->codec_card_late_probe = mx8373_sdw_late_probe;
 
 	dai_links->ops = &max_98373_sdw_ops;
 
 	return 0;
-}
-
-int sof_sdw_mx8373_late_probe(struct snd_soc_card *card)
-{
-	struct snd_soc_dapm_context *dapm = &card->dapm;
-
-	/* Disable Left and Right Spk pin after boot */
-	snd_soc_dapm_disable_pin(dapm, "Left Spk");
-	snd_soc_dapm_disable_pin(dapm, "Right Spk");
-	return snd_soc_dapm_sync(dapm);
 }
