@@ -429,7 +429,8 @@
 #define DSL_LOOPENDADDR		0x18000007
 
 #define CCCA			0x08		/* Filter Q, interp. ROM, byte size, cur. addr register */
-#define CCCA_RESONANCE		0xf0000000	/* Lowpass filter resonance (Q) height			*/
+#define CCCA_RESONANCE_MASK	0xf0000000	/* Lowpass filter resonance (Q) height			*/
+#define CCCA_RESONANCE		0x041c0008
 #define CCCA_INTERPROM_MASK	0x0e000000	/* Selects passband of interpolation ROM		*/
 						/* 1 == full band, 7 == lowpass				*/
 						/* ROM 0 is used when pitch shifting downward or less	*/
