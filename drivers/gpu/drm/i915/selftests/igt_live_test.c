@@ -6,6 +6,7 @@
 
 #include "i915_drv.h"
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_print.h"
 
 #include "../i915_selftest.h"
 #include "igt_flush_test.h"
@@ -30,7 +31,7 @@ int igt_live_test_begin(struct igt_live_test *t,
 
 		err = intel_gt_wait_for_idle(gt, MAX_SCHEDULE_TIMEOUT);
 		if (err) {
-			pr_err("%s(%s): failed to idle before, with err=%d!",
+			gt_err(gt, "%s(%s): GT failed to idle before, with err=%d!",
 			       func, name, err);
 			return err;
 		}
@@ -69,7 +70,7 @@ int igt_live_test_end(struct igt_live_test *t)
 			    i915_reset_engine_count(&i915->gpu_error, engine))
 				continue;
 
-			pr_err("%s(%s): engine '%s' was reset %d times!\n",
+			gt_err(gt, "%s(%s): engine '%s' was reset %d times!\n",
 			       t->func, t->name, engine->name,
 			       i915_reset_engine_count(&i915->gpu_error, engine) -
 			       t->reset_engine[id]);
