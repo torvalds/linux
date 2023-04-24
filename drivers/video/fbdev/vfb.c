@@ -79,6 +79,7 @@ static int vfb_mmap(struct fb_info *info,
 		    struct vm_area_struct *vma);
 
 static const struct fb_ops vfb_ops = {
+	.owner		= THIS_MODULE,
 	.fb_read        = fb_sys_read,
 	.fb_write       = fb_sys_write,
 	.fb_check_var	= vfb_check_var,
