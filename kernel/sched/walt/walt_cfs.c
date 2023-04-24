@@ -231,6 +231,7 @@ enum fastpaths {
 	SYNC_WAKEUP,
 	PREV_CPU_FASTPATH,
 	CLUSTER_PACKING_FASTPATH,
+	PIPELINE_FASTPATH,
 };
 
 static inline bool is_complex_sibling_idle(int cpu)
@@ -817,10 +818,12 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 	int delta = 0;
 	int task_boost = per_task_boost(p);
 	bool uclamp_boost = walt_uclamp_boosted(p);
-	int start_cpu, order_index, end_index;
+	int start_cpu = 0, order_index, end_index;
 	int first_cpu;
 	bool energy_eval_needed = true;
 	struct compute_energy_output output;
+	struct walt_task_struct *wts;
+	int pipeline_cpu;
 
 	if (walt_is_many_wakeup(sibling_count_hint) && prev_cpu != cpu &&
 			cpumask_test_cpu(prev_cpu, p->cpus_ptr))
@@ -828,6 +831,25 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 
 	if (unlikely(!cpu_array))
 		return prev_cpu;
+
+	/* Pre-select a set of candidate CPUs. */
+	candidates = this_cpu_ptr(&energy_cpus);
+	cpumask_clear(candidates);
+
+	wts = (struct walt_task_struct *) p->android_vendor_data1;
+	pipeline_cpu = wts->pipeline_cpu;
+	if ((wts->low_latency & WALT_LOW_LATENCY_MASK) &&
+			(pipeline_cpu != -1) &&
+			walt_task_skip_min_cpu(p) &&
+			cpumask_test_cpu(pipeline_cpu, p->cpus_ptr) &&
+			cpu_active(pipeline_cpu) &&
+			!cpu_halted(pipeline_cpu)) {
+		if (!walt_pipeline_low_latency_task(cpu_rq(pipeline_cpu)->curr)) {
+			best_energy_cpu = pipeline_cpu;
+			fbt_env.fastpath = PIPELINE_FASTPATH;
+			goto out;
+		}
+	}
 
 	walt_get_indicies(p, &order_index, &end_index, task_boost, uclamp_boost,
 								&energy_eval_needed);
@@ -839,9 +861,6 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 	if (trace_sched_task_util_enabled())
 		start_t = sched_clock();
 
-	/* Pre-select a set of candidate CPUs. */
-	candidates = this_cpu_ptr(&energy_cpus);
-	cpumask_clear(candidates);
 
 	rcu_read_lock();
 	need_idle |= uclamp_latency_sensitive(p);
@@ -971,7 +990,7 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 
 unlock:
 	rcu_read_unlock();
-
+out:
 	if (best_energy_cpu < 0 || best_energy_cpu >= WALT_NR_CPUS)
 		best_energy_cpu = prev_cpu;
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <trace/hooks/sched.h>
@@ -21,6 +21,7 @@ static int one_hundred = 100;
 static int one_thousand = 1000;
 static int one_thousand_twenty_four = 1024;
 static int two_thousand = 2000;
+static int walt_max_cpus = WALT_NR_CPUS;
 
 /*
  * CFS task prio range is [100 ... 139]
@@ -80,6 +81,7 @@ unsigned int sysctl_sched_cluster_util_thres_pct;
 unsigned int sysctl_ed_boost_pct;
 unsigned int sysctl_em_inflate_pct = 100;
 unsigned int sysctl_em_inflate_thres = 1024;
+unsigned int sysctl_sched_heavy_nr;
 
 /* range is [1 .. INT_MAX] */
 static int sysctl_task_read_pid = 1;
@@ -192,6 +194,57 @@ static int sched_task_read_pid_handler(struct ctl_table *table, int write,
 	return ret;
 }
 
+/*
+ * walt_task_rq_lock - lock p->pi_lock and lock the rq @p resides on.
+ */
+static struct rq *walt_task_rq_lock(struct task_struct *p, struct rq_flags *rf)
+	__acquires(p->pi_lock)
+	__acquires(rq->lock)
+{
+	struct rq *rq;
+
+	for (;;) {
+		raw_spin_lock_irqsave(&p->pi_lock, rf->flags);
+		rq = task_rq(p);
+		raw_spin_rq_lock(rq);
+		/*
+		 *	move_queued_task()		task_rq_lock()
+		 *
+		 *	ACQUIRE (rq->lock)
+		 *	[S] ->on_rq = MIGRATING		[L] rq = task_rq()
+		 *	WMB (__set_task_cpu())		ACQUIRE (rq->lock);
+		 *	[S] ->cpu = new_cpu		[L] task_rq()
+		 *					[L] ->on_rq
+		 *	RELEASE (rq->lock)
+		 *
+		 * If we observe the old CPU in task_rq_lock(), the acquire of
+		 * the old rq->lock will fully serialize against the stores.
+		 *
+		 * If we observe the new CPU in task_rq_lock(), the address
+		 * dependency headed by '[L] rq = task_rq()' and the acquire
+		 * will pair with the WMB to ensure we then also see migrating.
+		 */
+		if (likely(rq == task_rq(p) && !task_on_rq_migrating(p))) {
+			rq_pin_lock(rq, rf);
+			return rq;
+		}
+		raw_spin_rq_unlock(rq);
+		raw_spin_unlock_irqrestore(&p->pi_lock, rf->flags);
+
+		while (unlikely(task_on_rq_migrating(p)))
+			cpu_relax();
+	}
+}
+
+/* included for consistency */
+static inline void
+walt_task_rq_unlock(struct rq *rq, struct task_struct *p, struct rq_flags *rf)
+	__releases(rq->lock)
+	__releases(p->pi_lock)
+{
+	task_rq_unlock(rq, p, rf);
+}
+
 enum {
 	TASK_BEGIN = 0,
 	WAKE_UP_IDLE,
@@ -213,6 +266,8 @@ static int sched_task_handler(struct ctl_table *table, int write,
 	int pid_and_val[2] = {-1, -1};
 	int val;
 	struct walt_task_struct *wts;
+	struct rq *rq;
+	struct rq_flags rf;
 
 	struct ctl_table tmp = {
 		.data	= &pid_and_val,
@@ -330,10 +385,24 @@ static int sched_task_handler(struct ctl_table *table, int write,
 			wts->low_latency &= ~WALT_LOW_LATENCY_PROCFS;
 		break;
 	case PIPELINE:
-		if (val)
+		rq = walt_task_rq_lock(task, &rf);
+		if (READ_ONCE(task->__state) == TASK_DEAD) {
+			ret = -EINVAL;
+			walt_task_rq_unlock(rq, task, &rf);
+			goto put_task;
+		}
+		if (val) {
+			ret = add_pipeline(wts);
+			if (ret < 0) {
+				walt_task_rq_unlock(rq, task, &rf);
+				goto put_task;
+			}
 			wts->low_latency |= WALT_LOW_LATENCY_PIPELINE;
-		else
+		} else {
 			wts->low_latency &= ~WALT_LOW_LATENCY_PIPELINE;
+			remove_pipeline(wts);
+		}
+		walt_task_rq_unlock(rq, task, &rf);
 		break;
 	case LOAD_BOOST:
 		if (pid_and_val[1] < -90 || pid_and_val[1] > 90) {
@@ -1041,6 +1110,15 @@ struct ctl_table walt_table[] = {
 		.proc_handler	= proc_douintvec_minmax,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= &one_thousand_twenty_four,
+	},
+	{
+		.procname	= "sched_heavy_nr",
+		.data		= &sysctl_sched_heavy_nr,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_douintvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= &walt_max_cpus,
 	},
 	{ }
 };
