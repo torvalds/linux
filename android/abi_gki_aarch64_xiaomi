@@ -144,3 +144,13 @@
   sbitmap_weight
   scsi_done
   scsi_remove_device
+
+#required by mi_sched.ko
+  __traceiter_android_vh_scheduler_tick
+  __traceiter_android_vh_free_user
+  __traceiter_android_vh_alloc_uid
+  __tracepoint_android_vh_scheduler_tick
+  __tracepoint_android_vh_free_user
+  __tracepoint_android_vh_alloc_uid
+  free_uid
+  find_user
