@@ -319,13 +319,6 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 	bool privileged = perf_event_paranoid_check(-1);
 	int err = 0;
 
-	ptr->evlist = evlist;
-	ptr->snapshot_mode = opts->auxtrace_snapshot_mode;
-
-	if (!record_opts__no_switch_events(opts) &&
-	    perf_can_record_switch_events())
-		opts->record_switch_events = true;
-
 	evlist__for_each_entry(evlist, evsel) {
 		if (evsel->core.attr.type == cs_etm_pmu->type) {
 			if (cs_etm_evsel) {
@@ -333,17 +326,25 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 				       CORESIGHT_ETM_PMU_NAME);
 				return -EINVAL;
 			}
-			evsel->core.attr.freq = 0;
-			evsel->core.attr.sample_period = 1;
-			evsel->needs_auxtrace_mmap = true;
 			cs_etm_evsel = evsel;
-			opts->full_auxtrace = true;
 		}
 	}
 
 	/* no need to continue if at least one event of interest was found */
 	if (!cs_etm_evsel)
 		return 0;
+
+	ptr->evlist = evlist;
+	ptr->snapshot_mode = opts->auxtrace_snapshot_mode;
+
+	if (!record_opts__no_switch_events(opts) &&
+	    perf_can_record_switch_events())
+		opts->record_switch_events = true;
+
+	cs_etm_evsel->core.attr.freq = 0;
+	cs_etm_evsel->core.attr.sample_period = 1;
+	cs_etm_evsel->needs_auxtrace_mmap = true;
+	opts->full_auxtrace = true;
 
 	ret = cs_etm_set_sink_attr(cs_etm_pmu, cs_etm_evsel);
 	if (ret)
@@ -414,8 +415,8 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 		}
 	}
 
-	/* We are in full trace mode but '-m,xyz' wasn't specified */
-	if (opts->full_auxtrace && !opts->auxtrace_mmap_pages) {
+	/* Buffer sizes weren't specified with '-m,xyz' so give some defaults */
+	if (!opts->auxtrace_mmap_pages) {
 		if (privileged) {
 			opts->auxtrace_mmap_pages = MiB(4) / page_size;
 		} else {
@@ -423,7 +424,6 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 			if (opts->mmap_pages == UINT_MAX)
 				opts->mmap_pages = KiB(256) / page_size;
 		}
-
 	}
 
 	if (opts->auxtrace_snapshot_mode)
@@ -454,23 +454,17 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 	}
 
 	/* Add dummy event to keep tracking */
-	if (opts->full_auxtrace) {
-		struct evsel *tracking_evsel;
+	err = parse_event(evlist, "dummy:u");
+	if (err)
+		goto out;
+	evsel = evlist__last(evlist);
+	evlist__set_tracking_event(evlist, evsel);
+	evsel->core.attr.freq = 0;
+	evsel->core.attr.sample_period = 1;
 
-		err = parse_event(evlist, "dummy:u");
-		if (err)
-			goto out;
-
-		tracking_evsel = evlist__last(evlist);
-		evlist__set_tracking_event(evlist, tracking_evsel);
-
-		tracking_evsel->core.attr.freq = 0;
-		tracking_evsel->core.attr.sample_period = 1;
-
-		/* In per-cpu case, always need the time of mmap events etc */
-		if (!perf_cpu_map__empty(cpus))
-			evsel__set_sample_bit(tracking_evsel, TIME);
-	}
+	/* In per-cpu case, always need the time of mmap events etc */
+	if (!perf_cpu_map__empty(cpus))
+		evsel__set_sample_bit(evsel, TIME);
 
 out:
 	return err;
