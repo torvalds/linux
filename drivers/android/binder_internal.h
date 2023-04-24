@@ -567,6 +567,7 @@ struct binder_transaction {
 	bool set_priority_called;
 	bool is_nested;
 	kuid_t  sender_euid;
+	ktime_t start_time;
 	struct list_head fd_fixups;
 	binder_uintptr_t security_ctx;
 	/**
