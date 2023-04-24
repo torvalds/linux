@@ -17,7 +17,6 @@ static int cs4271_spi_probe(struct spi_device *spi)
 
 	config = cs4271_regmap_config;
 	config.reg_bits = 16;
-	config.val_bits = 8;
 	config.read_flag_mask = 0x21;
 	config.write_flag_mask = 0x20;
 

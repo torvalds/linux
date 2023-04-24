@@ -21,6 +21,7 @@ struct snd_sof_dev;
 /**
  * enum sof_fw_state - DSP firmware state definitions
  * @SOF_FW_BOOT_NOT_STARTED:	firmware boot is not yet started
+ * @SOF_DSPLESS_MODE:		DSP is not used
  * @SOF_FW_BOOT_PREPARE:	preparing for boot (firmware loading for exaqmple)
  * @SOF_FW_BOOT_IN_PROGRESS:	firmware boot is in progress
  * @SOF_FW_BOOT_FAILED:		firmware boot failed
@@ -31,6 +32,7 @@ struct snd_sof_dev;
  */
 enum sof_fw_state {
 	SOF_FW_BOOT_NOT_STARTED = 0,
+	SOF_DSPLESS_MODE,
 	SOF_FW_BOOT_PREPARE,
 	SOF_FW_BOOT_IN_PROGRESS,
 	SOF_FW_BOOT_FAILED,
@@ -129,6 +131,9 @@ struct sof_dev_desc {
 	/* information on supported IPCs */
 	unsigned int ipc_supported_mask;
 	enum sof_ipc_type ipc_default;
+
+	/* The platform supports DSPless mode */
+	bool dspless_mode_supported;
 
 	/* defaults paths for firmware, library and topology files */
 	const char *default_fw_path[SOF_IPC_TYPE_COUNT];

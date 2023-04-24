@@ -27,10 +27,6 @@ struct  rt700_priv {
 	bool disable_irq;
 };
 
-struct sdw_stream_data {
-	struct sdw_stream_runtime *sdw_stream;
-};
-
 /* NID */
 #define RT700_AUDIO_FUNCTION_GROUP			0x01
 #define RT700_DAC_OUT1					0x02
