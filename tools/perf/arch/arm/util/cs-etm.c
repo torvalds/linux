@@ -324,8 +324,6 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 	    perf_can_record_switch_events())
 		opts->record_switch_events = true;
 
-	cs_etm_evsel->core.attr.freq = 0;
-	cs_etm_evsel->core.attr.sample_period = 1;
 	cs_etm_evsel->needs_auxtrace_mmap = true;
 	opts->full_auxtrace = true;
 
@@ -430,10 +428,10 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 	 * when a context switch happened.
 	 */
 	if (!perf_cpu_map__empty(cpus)) {
-		cs_etm_evsel->core.attr.config |=
-			perf_pmu__format_bits(&cs_etm_pmu->format, "timestamp");
-		cs_etm_evsel->core.attr.config |=
-			perf_pmu__format_bits(&cs_etm_pmu->format, "contextid");
+		evsel__set_config_if_unset(cs_etm_pmu, cs_etm_evsel,
+					   "timestamp", 1);
+		evsel__set_config_if_unset(cs_etm_pmu, cs_etm_evsel,
+					   "contextid", 1);
 	}
 
 	/* Add dummy event to keep tracking */
@@ -913,4 +911,23 @@ struct auxtrace_record *cs_etm_record_init(int *err)
 	return &ptr->itr;
 out:
 	return NULL;
+}
+
+/*
+ * Set a default config to enable the user changed config tracking mechanism
+ * (CFG_CHG and evsel__set_config_if_unset()). If no default is set then user
+ * changes aren't tracked.
+ */
+struct perf_event_attr *
+cs_etm_get_default_config(struct perf_pmu *pmu __maybe_unused)
+{
+	struct perf_event_attr *attr;
+
+	attr = zalloc(sizeof(struct perf_event_attr));
+	if (!attr)
+		return NULL;
+
+	attr->sample_period = 1;
+
+	return attr;
 }

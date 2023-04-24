@@ -12,6 +12,7 @@
 #include <linux/bits.h>
 
 struct perf_session;
+struct perf_pmu;
 
 /*
  * Versioning header in case things need to change in the future.  That way
@@ -228,6 +229,7 @@ struct cs_etm_packet_queue {
 
 int cs_etm__process_auxtrace_info(union perf_event *event,
 				  struct perf_session *session);
+struct perf_event_attr *cs_etm_get_default_config(struct perf_pmu *pmu);
 
 #ifdef HAVE_CSTRACE_SUPPORT
 int cs_etm__get_cpu(u8 trace_chan_id, int *cpu);
