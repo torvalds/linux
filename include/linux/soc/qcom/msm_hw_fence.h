@@ -580,7 +580,7 @@ static inline int msm_hw_fence_update_txq(void *client_handle, u64 handle, u64 f
 }
 
 static inline int msm_hw_fence_update_txq_error(void *client_handle, u64 handle, u32 error,
-	u32 update_flags);
+	u32 update_flags)
 {
 	return -EINVAL;
 }
