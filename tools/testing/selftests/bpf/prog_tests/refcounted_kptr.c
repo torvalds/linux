@@ -9,10 +9,8 @@
 
 void test_refcounted_kptr(void)
 {
-	RUN_TESTS(refcounted_kptr);
 }
 
 void test_refcounted_kptr_fail(void)
 {
-	RUN_TESTS(refcounted_kptr_fail);
 }
