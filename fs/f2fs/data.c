@@ -2173,7 +2173,6 @@ submit_and_realloc:
 	f2fs_update_iostat(F2FS_I_SB(inode), NULL, FS_DATA_READ_IO,
 							F2FS_BLKSIZE);
 	*last_block_in_bio = block_nr;
-	goto out;
 out:
 	*bio_ret = bio;
 	return ret;
