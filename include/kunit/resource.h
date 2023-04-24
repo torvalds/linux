@@ -72,7 +72,7 @@ typedef void (*kunit_resource_free_t)(struct kunit_resource *);
  *		params.gfp = gfp;
  *
  *		return kunit_alloc_resource(test, kunit_kmalloc_init,
- *			kunit_kmalloc_free, &params);
+ *			kunit_kmalloc_free, gfp, &params);
  *	}
  *
  * Resources can also be named, with lookup/removal done on a name
