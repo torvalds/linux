@@ -283,7 +283,6 @@ config X86
 	select RTC_LIB
 	select RTC_MC146818_LIB
 	select SPARSE_IRQ
-	select SRCU
 	select SYSCTL_EXCEPTION_TRACE
 	select THREAD_INFO_IN_TASK
 	select TRACE_IRQFLAGS_SUPPORT
@@ -1938,7 +1937,6 @@ config X86_SGX
 	depends on X86_64 && CPU_SUP_INTEL && X86_X2APIC
 	depends on CRYPTO=y
 	depends on CRYPTO_SHA256=y
-	select SRCU
 	select MMU_NOTIFIER
 	select NUMA_KEEP_MEMINFO if NUMA
 	select XARRAY_MULTI

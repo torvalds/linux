@@ -334,7 +334,7 @@ kvfree_rcu_1_arg_vmalloc_test(void)
 			return -1;
 
 		p->array[0] = 'a';
-		kvfree_rcu(p);
+		kvfree_rcu_mightsleep(p);
 	}
 
 	return 0;
