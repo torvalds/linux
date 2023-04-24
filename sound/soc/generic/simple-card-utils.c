@@ -889,11 +889,6 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 	dev_dbg(dev, "link %d, dais %d, ccnf %d\n",
 		li->link, dai_num, cnf_num);
 
-	/* dummy CPU/Codec */
-	priv->dummy.of_node	= NULL;
-	priv->dummy.dai_name	= "snd-soc-dummy-dai";
-	priv->dummy.name	= "snd-soc-dummy";
-
 	priv->dai_props		= dai_props;
 	priv->dai_link		= dai_link;
 	priv->dais		= dais;
@@ -919,7 +914,7 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 		} else {
 			/* DPCM Be's CPU = dummy */
 			dai_props[i].cpus	=
-			dai_link[i].cpus	= &priv->dummy;
+			dai_link[i].cpus	= &asoc_dummy_dlc;
 			dai_props[i].num.cpus	=
 			dai_link[i].num_cpus	= 1;
 		}
@@ -943,7 +938,7 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 		} else {
 			/* DPCM Fe's Codec = dummy */
 			dai_props[i].codecs	=
-			dai_link[i].codecs	= &priv->dummy;
+			dai_link[i].codecs	= &asoc_dummy_dlc;
 			dai_props[i].num.codecs	=
 			dai_link[i].num_codecs	= 1;
 		}
