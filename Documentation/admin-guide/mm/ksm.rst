@@ -20,7 +20,7 @@ content which can be replaced by a single write-protected page (which
 is automatically copied if a process later wants to update its
 content). The amount of pages that KSM daemon scans in a single pass
 and the time between the passes are configured using :ref:`sysfs
-intraface <ksm_sysfs>`
+interface <ksm_sysfs>`
 
 KSM only merges anonymous (private) pages, never pagecache (file) pages.
 KSM's merged pages were originally locked into kernel memory, but can now
