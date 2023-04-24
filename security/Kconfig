@@ -105,7 +105,7 @@ config INTEL_TXT
 	  See <https://www.intel.com/technology/security/> for more information
 	  about Intel(R) TXT.
 	  See <http://tboot.sourceforge.net> for more information about tboot.
-	  See Documentation/x86/intel_txt.rst for a description of how to enable
+	  See Documentation/arch/x86/intel_txt.rst for a description of how to enable
 	  Intel TXT support in a kernel boot.
 
 	  If you are unsure as to whether this is required, answer N.

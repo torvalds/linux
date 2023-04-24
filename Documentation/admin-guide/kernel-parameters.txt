@@ -929,9 +929,6 @@
 
 	debug_objects	[KNL] Enable object debugging
 
-	no_debug_objects
-			[KNL] Disable object debugging
-
 	debug_guardpage_minorder=
 			[KNL] When CONFIG_DEBUG_PAGEALLOC is set, this
 			parameter allows control of the order of pages that will
@@ -2976,7 +2973,7 @@
 
 	mce		[X86-32] Machine Check Exception
 
-	mce=option	[X86-64] See Documentation/x86/x86_64/boot-options.rst
+	mce=option	[X86-64] See Documentation/arch/x86/x86_64/boot-options.rst
 
 	md=		[HW] RAID subsystems devices and level
 			See Documentation/admin-guide/md.rst.
@@ -3183,9 +3180,6 @@
 			shallow - Power-On Suspend or equivalent (if supported)
 			deep    - Suspend-To-RAM or equivalent (if supported)
 			See Documentation/admin-guide/pm/sleep-states.rst.
-
-	meye.*=		[HW] Set MotionEye Camera parameters
-			See Documentation/admin-guide/media/meye.rst.
 
 	mfgpt_irq=	[IA-32] Specify the IRQ to use for the
 			Multi-Function General Purpose Timers on AMD Geode
@@ -3428,14 +3422,13 @@
 			1 to enable accounting
 			Default value is 0.
 
-	nfsaddrs=	[NFS] Deprecated.  Use ip= instead.
-			See Documentation/admin-guide/nfs/nfsroot.rst.
+	nfs.cache_getent=
+			[NFS] sets the pathname to the program which is used
+			to update the NFS client cache entries.
 
-	nfsroot=	[NFS] nfs root filesystem for disk-less boxes.
-			See Documentation/admin-guide/nfs/nfsroot.rst.
-
-	nfsrootdebug	[NFS] enable nfsroot debugging messages.
-			See Documentation/admin-guide/nfs/nfsroot.rst.
+	nfs.cache_getent_timeout=
+			[NFS] sets the timeout after which an attempt to
+			update a cache entry is deemed to have failed.
 
 	nfs.callback_nr_threads=
 			[NFSv4] set the total number of threads that the
@@ -3446,24 +3439,16 @@
 			[NFS] set the TCP port on which the NFSv4 callback
 			channel should listen.
 
-	nfs.cache_getent=
-			[NFS] sets the pathname to the program which is used
-			to update the NFS client cache entries.
-
-	nfs.cache_getent_timeout=
-			[NFS] sets the timeout after which an attempt to
-			update a cache entry is deemed to have failed.
-
-	nfs.idmap_cache_timeout=
-			[NFS] set the maximum lifetime for idmapper cache
-			entries.
-
 	nfs.enable_ino64=
 			[NFS] enable 64-bit inode numbers.
 			If zero, the NFS client will fake up a 32-bit inode
 			number for the readdir() and stat() syscalls instead
 			of returning the full 64-bit number.
 			The default is to return 64-bit inode numbers.
+
+	nfs.idmap_cache_timeout=
+			[NFS] set the maximum lifetime for idmapper cache
+			entries.
 
 	nfs.max_session_cb_slots=
 			[NFSv4.1] Sets the maximum number of session
@@ -3492,21 +3477,14 @@
 			will be autodetected by the client, and it will fall
 			back to using the idmapper.
 			To turn off this behaviour, set the value to '0'.
+
 	nfs.nfs4_unique_id=
 			[NFS4] Specify an additional fixed unique ident-
 			ification string that NFSv4 clients can insert into
 			their nfs_client_id4 string.  This is typically a
 			UUID that is generated at system install time.
 
-	nfs.send_implementation_id =
-			[NFSv4.1] Send client implementation identification
-			information in exchange_id requests.
-			If zero, no implementation identification information
-			will be sent.
-			The default is to send the implementation identification
-			information.
-
-	nfs.recover_lost_locks =
+	nfs.recover_lost_locks=
 			[NFSv4] Attempt to recover locks that were lost due
 			to a lease timeout on the server. Please note that
 			doing this risks data corruption, since there are
@@ -3518,7 +3496,15 @@
 			The default parameter value of '0' causes the kernel
 			not to attempt recovery of lost locks.
 
-	nfs4.layoutstats_timer =
+	nfs.send_implementation_id=
+			[NFSv4.1] Send client implementation identification
+			information in exchange_id requests.
+			If zero, no implementation identification information
+			will be sent.
+			The default is to send the implementation identification
+			information.
+
+	nfs4.layoutstats_timer=
 			[NFSv4.2] Change the rate at which the kernel sends
 			layoutstats to the pNFS metadata server.
 
@@ -3527,18 +3513,10 @@
 			driver. A non-zero value sets the minimum interval
 			in seconds between layoutstats transmissions.
 
-	nfsd.inter_copy_offload_enable =
+	nfsd.inter_copy_offload_enable=
 			[NFSv4.2] When set to 1, the server will support
 			server-to-server copies for which this server is
 			the destination of the copy.
-
-	nfsd.nfsd4_ssc_umount_timeout =
-			[NFSv4.2] When used as the destination of a
-			server-to-server copy, knfsd temporarily mounts
-			the source server.  It caches the mount in case
-			it will be needed again, and discards it if not
-			used for the number of milliseconds specified by
-			this parameter.
 
 	nfsd.nfs4_disable_idmapping=
 			[NFSv4] When set to the default of '1', the NFSv4
@@ -3547,6 +3525,22 @@
 			and gids from such clients.  This is intended to ease
 			migration from NFSv2/v3.
 
+	nfsd.nfsd4_ssc_umount_timeout=
+			[NFSv4.2] When used as the destination of a
+			server-to-server copy, knfsd temporarily mounts
+			the source server.  It caches the mount in case
+			it will be needed again, and discards it if not
+			used for the number of milliseconds specified by
+			this parameter.
+
+	nfsaddrs=	[NFS] Deprecated.  Use ip= instead.
+			See Documentation/admin-guide/nfs/nfsroot.rst.
+
+	nfsroot=	[NFS] nfs root filesystem for disk-less boxes.
+			See Documentation/admin-guide/nfs/nfsroot.rst.
+
+	nfsrootdebug	[NFS] enable nfsroot debugging messages.
+			See Documentation/admin-guide/nfs/nfsroot.rst.
 
 	nmi_backtrace.backtrace_idle [KNL]
 			Dump stacks even of idle CPUs in response to an
@@ -3579,34 +3573,6 @@
 	no5lvl		[X86-64] Disable 5-level paging mode. Forces
 			kernel to use 4-level paging instead.
 
-	nofsgsbase	[X86] Disables FSGSBASE instructions.
-
-	no_console_suspend
-			[HW] Never suspend the console
-			Disable suspending of consoles during suspend and
-			hibernate operations.  Once disabled, debugging
-			messages can reach various consoles while the rest
-			of the system is being put to sleep (ie, while
-			debugging driver suspend/resume hooks).  This may
-			not work reliably with all consoles, but is known
-			to work with serial and VGA consoles.
-			To facilitate more flexible debugging, we also add
-			console_suspend, a printk module parameter to control
-			it. Users could use console_suspend (usually
-			/sys/module/printk/parameters/console_suspend) to
-			turn on/off it dynamically.
-
-	novmcoredd	[KNL,KDUMP]
-			Disable device dump. Device dump allows drivers to
-			append dump data to vmcore so you can collect driver
-			specified debug info.  Drivers can append the data
-			without any limit and this data is stored in memory,
-			so this may cause significant memory stress.  Disabling
-			device dump can help save memory but the driver debug
-			data will be no longer available.  This parameter
-			is only available when CONFIG_PROC_VMCORE_DEVICE_DUMP
-			is set.
-
 	noaliencache	[MM, NUMA, SLAB] Disables the allocation of alien
 			caches in the slab allocator.  Saves per-node memory,
 			but will impact performance.
@@ -3623,6 +3589,24 @@
 
 	nocache		[ARM]
 
+	no_console_suspend
+			[HW] Never suspend the console
+			Disable suspending of consoles during suspend and
+			hibernate operations.  Once disabled, debugging
+			messages can reach various consoles while the rest
+			of the system is being put to sleep (ie, while
+			debugging driver suspend/resume hooks).  This may
+			not work reliably with all consoles, but is known
+			to work with serial and VGA consoles.
+			To facilitate more flexible debugging, we also add
+			console_suspend, a printk module parameter to control
+			it. Users could use console_suspend (usually
+			/sys/module/printk/parameters/console_suspend) to
+			turn on/off it dynamically.
+
+	no_debug_objects
+			[KNL] Disable object debugging
+
 	nodsp		[SH] Disable hardware DSP at boot time.
 
 	noefi		Disable EFI runtime services support.
@@ -3631,14 +3615,6 @@
 
 	noexec		[IA-64]
 
-	nosmap		[PPC]
-			Disable SMAP (Supervisor Mode Access Prevention)
-			even if it is supported by processor.
-
-	nosmep		[PPC64s]
-			Disable SMEP (Supervisor Mode Execution Prevention)
-			even if it is supported by processor.
-
 	noexec32	[X86-64]
 			This affects only 32-bit executables.
 			noexec32=on: enable non-executable mappings (default)
@@ -3646,73 +3622,17 @@
 			noexec32=off: disable non-executable mappings
 				read implies executable mappings
 
+	no_file_caps	Tells the kernel not to honor file capabilities.  The
+			only way then for a file to be executed with privilege
+			is to be setuid root or executed by root.
+
 	nofpu		[MIPS,SH] Disable hardware FPU at boot time.
+
+	nofsgsbase	[X86] Disables FSGSBASE instructions.
 
 	nofxsr		[BUGS=X86-32] Disables x86 floating point extended
 			register save and restore. The kernel will only save
 			legacy floating-point registers on task switch.
-
-	nohugeiomap	[KNL,X86,PPC,ARM64] Disable kernel huge I/O mappings.
-
-	nohugevmalloc	[KNL,X86,PPC,ARM64] Disable kernel huge vmalloc mappings.
-
-	nosmt		[KNL,S390] Disable symmetric multithreading (SMT).
-			Equivalent to smt=1.
-
-			[KNL,X86] Disable symmetric multithreading (SMT).
-			nosmt=force: Force disable SMT, cannot be undone
-				     via the sysfs control file.
-
-	nospectre_v1	[X86,PPC] Disable mitigations for Spectre Variant 1
-			(bounds check bypass). With this option data leaks are
-			possible in the system.
-
-	nospectre_v2	[X86,PPC_E500,ARM64] Disable all mitigations for
-			the Spectre variant 2 (indirect branch prediction)
-			vulnerability. System may allow data leaks with this
-			option.
-
-	nospectre_bhb	[ARM64] Disable all mitigations for Spectre-BHB (branch
-			history injection) vulnerability. System may allow data leaks
-			with this option.
-
-	nospec_store_bypass_disable
-			[HW] Disable all mitigations for the Speculative Store Bypass vulnerability
-
-	no_uaccess_flush
-	                [PPC] Don't flush the L1-D cache after accessing user data.
-
-	noxsave		[BUGS=X86] Disables x86 extended register state save
-			and restore using xsave. The kernel will fallback to
-			enabling legacy floating-point and sse state.
-
-	noxsaveopt	[X86] Disables xsaveopt used in saving x86 extended
-			register states. The kernel will fall back to use
-			xsave to save the states. By using this parameter,
-			performance of saving the states is degraded because
-			xsave doesn't support modified optimization while
-			xsaveopt supports it on xsaveopt enabled systems.
-
-	noxsaves	[X86] Disables xsaves and xrstors used in saving and
-			restoring x86 extended register state in compacted
-			form of xsave area. The kernel will fall back to use
-			xsaveopt and xrstor to save and restore the states
-			in standard form of xsave area. By using this
-			parameter, xsave area per process might occupy more
-			memory on xsaves enabled systems.
-
-	nohlt		[ARM,ARM64,MICROBLAZE,SH] Forces the kernel to busy wait
-			in do_idle() and not use the arch_cpu_idle()
-			implementation; requires CONFIG_GENERIC_IDLE_POLL_SETUP
-			to be effective. This is useful on platforms where the
-			sleep(SH) or wfi(ARM,ARM64) instructions do not work
-			correctly or when doing power measurements to evaluate
-			the impact of the sleep instructions. This is also
-			useful when using JTAG debugger.
-
-	no_file_caps	Tells the kernel not to honor file capabilities.  The
-			only way then for a file to be executed with privilege
-			is to be setuid root or executed by root.
 
 	nohalt		[IA-64] Tells the kernel not to use the power saving
 			function PAL_HALT_LIGHT when idle. This increases
@@ -3737,6 +3657,19 @@
 
 	nohibernate	[HIBERNATION] Disable hibernation and resume.
 
+	nohlt		[ARM,ARM64,MICROBLAZE,SH] Forces the kernel to busy wait
+			in do_idle() and not use the arch_cpu_idle()
+			implementation; requires CONFIG_GENERIC_IDLE_POLL_SETUP
+			to be effective. This is useful on platforms where the
+			sleep(SH) or wfi(ARM,ARM64) instructions do not work
+			correctly or when doing power measurements to evaluate
+			the impact of the sleep instructions. This is also
+			useful when using JTAG debugger.
+
+	nohugeiomap	[KNL,X86,PPC,ARM64] Disable kernel huge I/O mappings.
+
+	nohugevmalloc	[KNL,X86,PPC,ARM64] Disable kernel huge vmalloc mappings.
+
 	nohz=		[KNL] Boottime enable/disable dynamic ticks
 			Valid arguments: on, off
 			Default: on
@@ -3754,16 +3687,6 @@
 			Note that this argument takes precedence over
 			the CONFIG_RCU_NOCB_CPU_DEFAULT_ALL option.
 
-	noiotrap	[SH] Disables trapped I/O port accesses.
-
-	noirqdebug	[X86-32] Disables the code which attempts to detect and
-			disable unhandled interrupt sources.
-
-	no_timer_check	[X86,APIC] Disables the code which tests for
-			broken timer IRQ sources.
-
-	noisapnp	[ISAPNP] Disables ISA PnP code.
-
 	noinitrd	[RAM] Tells the kernel not to load any configured
 			initial RAM disk.
 
@@ -3775,6 +3698,13 @@
 
 	noinvpcid	[X86] Disable the INVPCID cpu feature.
 
+	noiotrap	[SH] Disables trapped I/O port accesses.
+
+	noirqdebug	[X86-32] Disables the code which attempts to detect and
+			disable unhandled interrupt sources.
+
+	noisapnp	[ISAPNP] Disables ISA PnP code.
+
 	nojitter	[IA-64] Disables jitter checking for ITC timers.
 
 	nokaslr		[KNL]
@@ -3782,18 +3712,10 @@
 			kernel and module base offset ASLR (Address Space
 			Layout Randomization).
 
-	no-kvmclock	[X86,KVM] Disable paravirtualized KVM clock driver
-
 	no-kvmapf	[X86,KVM] Disable paravirtualized asynchronous page
 			fault handling.
 
-	no-vmw-sched-clock
-			[X86,PV_OPS] Disable paravirtualized VMware scheduler
-			clock and use the default one.
-
-	no-steal-acc	[X86,PV_OPS,ARM64,PPC/PSERIES] Disable paravirtualized
-			steal time accounting. steal time is computed, but
-			won't influence scheduler behaviour
+	no-kvmclock	[X86,KVM] Disable paravirtualized KVM clock driver
 
 	nolapic		[X86-32,APIC] Do not enable or use the local APIC.
 
@@ -3805,10 +3727,6 @@
 
 	nomfgpt		[X86-32] Disable Multi-Function General Purpose
 			Timer usage (for AMD Geode machines).
-
-	nonmi_ipi	[X86] Disable using NMI IPIs during panic/reboot to
-			shutdown the other cpus.  Instead use the REBOOT_VECTOR
-			irq.
 
 	nomodeset	Disable kernel modesetting. Most systems' firmware
 			sets up a display mode and provides framebuffer memory
@@ -3822,6 +3740,10 @@
 
 	nomodule	Disable module load
 
+	nonmi_ipi	[X86] Disable using NMI IPIs during panic/reboot to
+			shutdown the other cpus.  Instead use the REBOOT_VECTOR
+			irq.
+
 	nopat		[X86] Disable PAT (page attribute table extension of
 			pagetables) support.
 
@@ -3829,6 +3751,9 @@
 
 	nopku		[X86] Disable Memory Protection Keys CPU feature found
 			in some Intel CPUs.
+
+	nopti		[X86-64]
+			Equivalent to pti=off
 
 	nopv=		[X86,XEN,KVM,HYPER_V,VMWARE]
 			Disables the PV optimizations forcing the guest to run
@@ -3849,20 +3774,76 @@
 	noresume	[SWSUSP] Disables resume and restores original swap
 			space.
 
+	nosbagart	[IA-64]
+
 	no-scroll	[VGA] Disables scrollback.
 			This is required for the Braillex ib80-piezo Braille
 			reader made by F.H. Papenmeier (Germany).
 
-	nosbagart	[IA-64]
-
 	nosgx		[X86-64,SGX] Disables Intel SGX kernel support.
+
+	nosmap		[PPC]
+			Disable SMAP (Supervisor Mode Access Prevention)
+			even if it is supported by processor.
+
+	nosmep		[PPC64s]
+			Disable SMEP (Supervisor Mode Execution Prevention)
+			even if it is supported by processor.
 
 	nosmp		[SMP] Tells an SMP kernel to act as a UP kernel,
 			and disable the IO APIC.  legacy for "maxcpus=0".
 
+	nosmt		[KNL,S390] Disable symmetric multithreading (SMT).
+			Equivalent to smt=1.
+
+			[KNL,X86] Disable symmetric multithreading (SMT).
+			nosmt=force: Force disable SMT, cannot be undone
+				     via the sysfs control file.
+
 	nosoftlockup	[KNL] Disable the soft-lockup detector.
 
+	nospec_store_bypass_disable
+			[HW] Disable all mitigations for the Speculative Store Bypass vulnerability
+
+	nospectre_bhb	[ARM64] Disable all mitigations for Spectre-BHB (branch
+			history injection) vulnerability. System may allow data leaks
+			with this option.
+
+	nospectre_v1	[X86,PPC] Disable mitigations for Spectre Variant 1
+			(bounds check bypass). With this option data leaks are
+			possible in the system.
+
+	nospectre_v2	[X86,PPC_E500,ARM64] Disable all mitigations for
+			the Spectre variant 2 (indirect branch prediction)
+			vulnerability. System may allow data leaks with this
+			option.
+
+	no-steal-acc	[X86,PV_OPS,ARM64,PPC/PSERIES] Disable paravirtualized
+			steal time accounting. steal time is computed, but
+			won't influence scheduler behaviour
+
 	nosync		[HW,M68K] Disables sync negotiation for all devices.
+
+	no_timer_check	[X86,APIC] Disables the code which tests for
+			broken timer IRQ sources.
+
+	no_uaccess_flush
+	                [PPC] Don't flush the L1-D cache after accessing user data.
+
+	novmcoredd	[KNL,KDUMP]
+			Disable device dump. Device dump allows drivers to
+			append dump data to vmcore so you can collect driver
+			specified debug info.  Drivers can append the data
+			without any limit and this data is stored in memory,
+			so this may cause significant memory stress.  Disabling
+			device dump can help save memory but the driver debug
+			data will be no longer available.  This parameter
+			is only available when CONFIG_PROC_VMCORE_DEVICE_DUMP
+			is set.
+
+	no-vmw-sched-clock
+			[X86,PV_OPS] Disable paravirtualized VMware scheduler
+			clock and use the default one.
 
 	nowatchdog	[KNL] Disable both lockup detectors, i.e.
 			soft-lockup and NMI watchdog (hard-lockup).
@@ -3874,6 +3855,25 @@
 			NOTE: this parameter will be ignored on systems with the
 			LEGACY_XAPIC_DISABLED bit set in the
 			IA32_XAPIC_DISABLE_STATUS MSR.
+
+	noxsave		[BUGS=X86] Disables x86 extended register state save
+			and restore using xsave. The kernel will fallback to
+			enabling legacy floating-point and sse state.
+
+	noxsaveopt	[X86] Disables xsaveopt used in saving x86 extended
+			register states. The kernel will fall back to use
+			xsave to save the states. By using this parameter,
+			performance of saving the states is degraded because
+			xsave doesn't support modified optimization while
+			xsaveopt supports it on xsaveopt enabled systems.
+
+	noxsaves	[X86] Disables xsaves and xrstors used in saving and
+			restoring x86 extended register state in compacted
+			form of xsave area. The kernel will fall back to use
+			xsaveopt and xrstor to save and restore the states
+			in standard form of xsave area. By using this
+			parameter, xsave area per process might occupy more
+			memory on xsaves enabled systems.
 
 	nps_mtm_hs_ctr=	[KNL,ARC]
 			This parameter sets the maximum duration, in
@@ -4410,7 +4410,7 @@
 			and performance comparison.
 
 	pirq=		[SMP,APIC] Manual mp-table setup
-			See Documentation/x86/i386/IO-APIC.rst.
+			See Documentation/arch/x86/i386/IO-APIC.rst.
 
 	plip=		[PPT,NET] Parallel port network link
 			Format: { parport<nr> | timid | 0 }
@@ -4581,9 +4581,6 @@
 			       vulnerable to issues that PTI mitigates
 
 			Not specifying this option is equivalent to pti=auto.
-
-	nopti		[X86-64]
-			Equivalent to pti=off
 
 	pty.legacy_count=
 			[KNL] Number of legacy pty's. Overwrites compiled-in
@@ -5591,7 +5588,7 @@
 
 	serialnumber	[BUGS=X86-32]
 
-	sev=option[,option...] [X86-64] See Documentation/x86/x86_64/boot-options.rst
+	sev=option[,option...] [X86-64] See Documentation/arch/x86/x86_64/boot-options.rst
 
 	shapers=	[NET]
 			Maximal number of shapers.
@@ -6770,7 +6767,7 @@
 			Can be used multiple times for multiple devices.
 
 	vga=		[BOOT,X86-32] Select a particular video mode
-			See Documentation/x86/boot.rst and
+			See Documentation/arch/x86/boot.rst and
 			Documentation/admin-guide/svga.rst.
 			Use vga=ask for menu.
 			This is actually a boot loader parameter; the value is

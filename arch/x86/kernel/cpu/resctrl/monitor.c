@@ -76,7 +76,7 @@ unsigned int resctrl_rmid_realloc_limit;
 #define CF(cf)	((unsigned long)(1048576 * (cf) + 0.5))
 
 /*
- * The correction factor table is documented in Documentation/x86/resctrl.rst.
+ * The correction factor table is documented in Documentation/arch/x86/resctrl.rst.
  * If rmid > rmid threshold, MBM total and local values should be multiplied
  * by the correction factor.
  *

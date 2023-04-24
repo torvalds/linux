@@ -1,6 +1,6 @@
-.. include:: ../disclaimer-zh_CN.rst
+.. include:: ../../disclaimer-zh_CN.rst
 
-:Original: Documentation/parisc/debugging.rst
+:Original: Documentation/arch/parisc/debugging.rst
 
 :翻译:
 

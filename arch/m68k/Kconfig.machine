@@ -11,7 +11,7 @@ config AMIGA
 	help
 	  This option enables support for the Amiga series of computers. If
 	  you plan to use this kernel on an Amiga, say Y here and browse the
-	  material available in <file:Documentation/m68k>; otherwise say N.
+	  material available in <file:Documentation/arch/m68k>; otherwise say N.
 
 config ATARI
 	bool "Atari support"
@@ -23,7 +23,7 @@ config ATARI
 	  This option enables support for the 68000-based Atari series of
 	  computers (including the TT, Falcon and Medusa). If you plan to use
 	  this kernel on an Atari, say Y here and browse the material
-	  available in <file:Documentation/m68k>; otherwise say N.
+	  available in <file:Documentation/arch/m68k>; otherwise say N.
 
 config ATARI_KBD_CORE
 	bool

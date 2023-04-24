@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
-.. include:: ../disclaimer-zh_CN.rst
+.. include:: ../../disclaimer-zh_CN.rst
 
-:Original: Documentation/parisc/index.rst
+:Original: Documentation/arch/parisc/index.rst
 
 :翻译:
 

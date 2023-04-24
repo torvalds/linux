@@ -7,7 +7,7 @@ DeviceTree Booting
   the decompressor (the real mode entry point goes to the same  32bit
   entry point once it switched into protected mode). That entry point
   supports one calling convention which is documented in
-  Documentation/x86/boot.rst
+  Documentation/arch/x86/boot.rst
   The physical pointer to the device-tree block is passed via setup_data
   which requires at least boot protocol 2.09.
   The type filed is defined as
