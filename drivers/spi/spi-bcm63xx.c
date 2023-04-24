@@ -644,9 +644,7 @@ static int bcm63xx_spi_resume(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops bcm63xx_spi_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(bcm63xx_spi_suspend, bcm63xx_spi_resume)
-};
+static DEFINE_SIMPLE_DEV_PM_OPS(bcm63xx_spi_pm_ops, bcm63xx_spi_suspend, bcm63xx_spi_resume);
 
 static struct platform_driver bcm63xx_spi_driver = {
 	.driver = {
