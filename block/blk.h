@@ -419,6 +419,8 @@ int bdev_resize_partition(struct gendisk *disk, int partno, sector_t start,
 		sector_t length);
 void blk_drop_partitions(struct gendisk *disk);
 
+void bdev_set_nr_sectors(struct block_device *bdev, sector_t sectors);
+
 struct gendisk *__alloc_disk_node(struct request_queue *q, int node_id,
 		struct lock_class_key *lkclass);
 

@@ -57,12 +57,7 @@ static DEFINE_IDA(ext_devt_ida);
 
 void set_capacity(struct gendisk *disk, sector_t sectors)
 {
-	struct block_device *bdev = disk->part0;
-
-	spin_lock(&bdev->bd_size_lock);
-	i_size_write(bdev->bd_inode, (loff_t)sectors << SECTOR_SHIFT);
-	bdev->bd_nr_sectors = sectors;
-	spin_unlock(&bdev->bd_size_lock);
+	bdev_set_nr_sectors(disk->part0, sectors);
 }
 EXPORT_SYMBOL(set_capacity);
 
