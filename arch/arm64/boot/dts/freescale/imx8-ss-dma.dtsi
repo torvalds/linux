@@ -132,6 +132,19 @@ dma_subsys: bus@5a000000 {
 		status = "disabled";
 	};
 
+	adma_pwm: pwm@5a190000 {
+		compatible = "fsl,imx8qxp-pwm", "fsl,imx27-pwm";
+		reg = <0x5a190000 0x1000>;
+		interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&adma_pwm_lpcg 1>,
+			 <&adma_pwm_lpcg 0>;
+		clock-names = "ipg", "per";
+		assigned-clocks = <&clk IMX_SC_R_LCD_0_PWM_0 IMX_SC_PM_CLK_PER>;
+		assigned-clock-rates = <24000000>;
+		#pwm-cells = <2>;
+		power-domains = <&pd IMX_SC_R_LCD_0_PWM_0>;
+	};
+
 	spi0_lpcg: clock-controller@5a400000 {
 		compatible = "fsl,imx8qxp-lpcg";
 		reg = <0x5a400000 0x10000>;
@@ -226,6 +239,18 @@ dma_subsys: bus@5a000000 {
 		clock-output-names = "uart3_lpcg_baud_clk",
 				     "uart3_lpcg_ipg_clk";
 		power-domains = <&pd IMX_SC_R_UART_3>;
+	};
+
+	adma_pwm_lpcg: clock-controller@5a590000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x5a590000 0x10000>;
+		#clock-cells = <1>;
+		clocks = <&clk IMX_SC_R_LCD_0_PWM_0 IMX_SC_PM_CLK_PER>,
+			 <&dma_ipg_clk>;
+		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_4>;
+		clock-output-names = "adma_pwm_lpcg_clk",
+				     "adma_pwm_lpcg_ipg_clk";
+		power-domains = <&pd IMX_SC_R_LCD_0_PWM_0>;
 	};
 
 	i2c0: i2c@5a800000 {
