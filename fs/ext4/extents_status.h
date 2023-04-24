@@ -249,8 +249,8 @@ extern void ext4_exit_pending(void);
 extern void ext4_init_pending_tree(struct ext4_pending_tree *tree);
 extern void ext4_remove_pending(struct inode *inode, ext4_lblk_t lblk);
 extern bool ext4_is_pending(struct inode *inode, ext4_lblk_t lblk);
-extern int ext4_es_insert_delayed_block(struct inode *inode, ext4_lblk_t lblk,
-					bool allocated);
+extern void ext4_es_insert_delayed_block(struct inode *inode, ext4_lblk_t lblk,
+					 bool allocated);
 extern unsigned int ext4_es_delayed_clu(struct inode *inode, ext4_lblk_t lblk,
 					ext4_lblk_t len);
 extern void ext4_clear_inode_es(struct inode *inode);
