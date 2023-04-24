@@ -300,12 +300,6 @@ fail:
 	goto out;
 }
 
-const struct xattr_handler *nfs3_xattr_handlers[] = {
-	&posix_acl_access_xattr_handler,
-	&posix_acl_default_xattr_handler,
-	NULL,
-};
-
 static int
 nfs3_list_one_acl(struct inode *inode, int type, const char *name, void *data,
 		size_t size, ssize_t *result)
