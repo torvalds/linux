@@ -419,6 +419,21 @@ static int user_event_enabler_write(struct user_event_mm *mm,
 	return 0;
 }
 
+static bool user_event_enabler_exists(struct user_event_mm *mm,
+				      unsigned long uaddr, unsigned char bit)
+{
+	struct user_event_enabler *enabler;
+	struct user_event_enabler *next;
+
+	list_for_each_entry_safe(enabler, next, &mm->enablers, link) {
+		if (enabler->addr == uaddr &&
+		    (enabler->values & ENABLE_VAL_BIT_MASK) == bit)
+			return true;
+	}
+
+	return false;
+}
+
 static void user_event_enabler_update(struct user_event *user)
 {
 	struct user_event_enabler *enabler;
@@ -655,6 +670,22 @@ void user_event_mm_dup(struct task_struct *t, struct user_event_mm *old_mm)
 error:
 	rcu_read_unlock();
 	user_event_mm_remove(t);
+}
+
+static bool current_user_event_enabler_exists(unsigned long uaddr,
+					      unsigned char bit)
+{
+	struct user_event_mm *user_mm = current_user_event_mm();
+	bool exists;
+
+	if (!user_mm)
+		return false;
+
+	exists = user_event_enabler_exists(user_mm, uaddr, bit);
+
+	user_event_mm_put(user_mm);
+
+	return exists;
 }
 
 static struct user_event_enabler
@@ -2047,6 +2078,16 @@ static long user_events_ioctl_reg(struct user_event_file_info *info,
 
 	if (ret)
 		return ret;
+
+	/*
+	 * Prevent users from using the same address and bit multiple times
+	 * within the same mm address space. This can cause unexpected behavior
+	 * for user processes that is far easier to debug if this is explictly
+	 * an error upon registering.
+	 */
+	if (current_user_event_enabler_exists((unsigned long)reg.enable_addr,
+					      reg.enable_bit))
+		return -EADDRINUSE;
 
 	name = strndup_user((const char __user *)(uintptr_t)reg.name_args,
 			    MAX_EVENT_DESC);
