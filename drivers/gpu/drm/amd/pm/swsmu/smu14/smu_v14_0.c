@@ -172,6 +172,10 @@ int smu_v14_0_init_pptable_microcode(struct smu_context *smu)
 	if (!adev->scpm_enabled)
 		return 0;
 
+	if ((amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 2)) ||
+	    (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 3)))
+		return 0;
+
 	/* override pptable_id from driver parameter */
 	if (amdgpu_smu_pptable_id >= 0) {
 		pptable_id = amdgpu_smu_pptable_id;
@@ -245,6 +249,7 @@ int smu_v14_0_check_fw_version(struct smu_context *smu)
 		smu->smc_driver_if_version = SMU14_DRIVER_IF_VERSION_SMU_V14_0_1;
 		break;
 	case IP_VERSION(14, 0, 2):
+	case IP_VERSION(14, 0, 3):
 		smu->smc_driver_if_version = SMU14_DRIVER_IF_VERSION_SMU_V14_0_2;
 		break;
 	default:
@@ -895,11 +900,32 @@ static int smu_v14_0_set_irq_state(struct amdgpu_device *adev,
 	return 0;
 }
 
+#define THM_11_0__SRCID__THM_DIG_THERM_L2H		0		/* ASIC_TEMP > CG_THERMAL_INT.DIG_THERM_INTH  */
+#define THM_11_0__SRCID__THM_DIG_THERM_H2L		1		/* ASIC_TEMP < CG_THERMAL_INT.DIG_THERM_INTL  */
+
 static int smu_v14_0_irq_process(struct amdgpu_device *adev,
 				 struct amdgpu_irq_src *source,
 				 struct amdgpu_iv_entry *entry)
 {
-	// TODO
+	struct smu_context *smu = adev->powerplay.pp_handle;
+	uint32_t client_id = entry->client_id;
+	uint32_t src_id = entry->src_id;
+
+	if (client_id == SOC15_IH_CLIENTID_THM) {
+		switch (src_id) {
+		case THM_11_0__SRCID__THM_DIG_THERM_L2H:
+			schedule_delayed_work(&smu->swctf_delayed_work,
+					      msecs_to_jiffies(AMDGPU_SWCTF_EXTRA_DELAY));
+			break;
+		case THM_11_0__SRCID__THM_DIG_THERM_H2L:
+			dev_emerg(adev->dev, "ERROR: GPU under temperature range detected\n");
+			break;
+		default:
+			dev_emerg(adev->dev, "ERROR: GPU under temperature range unknown src id (%d)\n",
+				  src_id);
+			break;
+		}
+	}
 
 	return 0;
 }
@@ -921,7 +947,17 @@ int smu_v14_0_register_irq_handler(struct smu_context *smu)
 	irq_src->num_types = 1;
 	irq_src->funcs = &smu_v14_0_irq_funcs;
 
-	// TODO: THM related
+	ret = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_THM,
+				THM_11_0__SRCID__THM_DIG_THERM_L2H,
+				irq_src);
+	if (ret)
+		return ret;
+
+	ret = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_THM,
+				THM_11_0__SRCID__THM_DIG_THERM_H2L,
+				irq_src);
+	if (ret)
+		return ret;
 
 	ret = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_MP1,
 				SMU_IH_INTERRUPT_ID_TO_DRIVER,
