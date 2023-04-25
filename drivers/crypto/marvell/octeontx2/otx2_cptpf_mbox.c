@@ -224,14 +224,28 @@ void otx2_cptpf_vfpf_mbox_handler(struct work_struct *work)
 irqreturn_t otx2_cptpf_afpf_mbox_intr(int __always_unused irq, void *arg)
 {
 	struct otx2_cptpf_dev *cptpf = arg;
+	struct otx2_mbox_dev *mdev;
+	struct otx2_mbox *mbox;
+	struct mbox_hdr *hdr;
 	u64 intr;
 
 	/* Read the interrupt bits */
 	intr = otx2_cpt_read64(cptpf->reg_base, BLKADDR_RVUM, 0, RVU_PF_INT);
 
 	if (intr & 0x1ULL) {
-		/* Schedule work queue function to process the MBOX request */
-		queue_work(cptpf->afpf_mbox_wq, &cptpf->afpf_mbox_work);
+		mbox = &cptpf->afpf_mbox;
+		mdev = &mbox->dev[0];
+		hdr = mdev->mbase + mbox->rx_start;
+		if (hdr->num_msgs)
+			/* Schedule work queue function to process the MBOX request */
+			queue_work(cptpf->afpf_mbox_wq, &cptpf->afpf_mbox_work);
+
+		mbox = &cptpf->afpf_mbox_up;
+		mdev = &mbox->dev[0];
+		hdr = mdev->mbase + mbox->rx_start;
+		if (hdr->num_msgs)
+			/* Schedule work queue function to process the MBOX request */
+			queue_work(cptpf->afpf_mbox_wq, &cptpf->afpf_mbox_up_work);
 		/* Clear and ack the interrupt */
 		otx2_cpt_write64(cptpf->reg_base, BLKADDR_RVUM, 0, RVU_PF_INT,
 				 0x1ULL);
@@ -366,4 +380,72 @@ void otx2_cptpf_afpf_mbox_handler(struct work_struct *work)
 		mdev->msgs_acked++;
 	}
 	otx2_mbox_reset(afpf_mbox, 0);
+}
+
+static void handle_msg_cpt_inst_lmtst(struct otx2_cptpf_dev *cptpf,
+				      struct mbox_msghdr *msg)
+{
+	struct cpt_inst_lmtst_req *req = (struct cpt_inst_lmtst_req *)msg;
+	struct otx2_cptlfs_info *lfs = &cptpf->lfs;
+	struct msg_rsp *rsp;
+
+	if (cptpf->lfs.lfs_num)
+		lfs->ops->send_cmd((union otx2_cpt_inst_s *)req->inst, 1,
+				   &lfs->lf[0]);
+
+	rsp = (struct msg_rsp *)otx2_mbox_alloc_msg(&cptpf->afpf_mbox_up, 0,
+						    sizeof(*rsp));
+	if (!rsp)
+		return;
+
+	rsp->hdr.id = msg->id;
+	rsp->hdr.sig = OTX2_MBOX_RSP_SIG;
+	rsp->hdr.pcifunc = 0;
+	rsp->hdr.rc = 0;
+}
+
+static void process_afpf_mbox_up_msg(struct otx2_cptpf_dev *cptpf,
+				     struct mbox_msghdr *msg)
+{
+	if (msg->id >= MBOX_MSG_MAX) {
+		dev_err(&cptpf->pdev->dev,
+			"MBOX msg with unknown ID %d\n", msg->id);
+		return;
+	}
+
+	switch (msg->id) {
+	case MBOX_MSG_CPT_INST_LMTST:
+		handle_msg_cpt_inst_lmtst(cptpf, msg);
+		break;
+	default:
+		otx2_reply_invalid_msg(&cptpf->afpf_mbox_up, 0, 0, msg->id);
+	}
+}
+
+void otx2_cptpf_afpf_mbox_up_handler(struct work_struct *work)
+{
+	struct otx2_cptpf_dev *cptpf;
+	struct otx2_mbox_dev *mdev;
+	struct mbox_hdr *rsp_hdr;
+	struct mbox_msghdr *msg;
+	struct otx2_mbox *mbox;
+	int offset, i;
+
+	cptpf = container_of(work, struct otx2_cptpf_dev, afpf_mbox_up_work);
+	mbox = &cptpf->afpf_mbox_up;
+	mdev = &mbox->dev[0];
+	/* Sync mbox data into memory */
+	smp_wmb();
+
+	rsp_hdr = (struct mbox_hdr *)(mdev->mbase + mbox->rx_start);
+	offset = mbox->rx_start + ALIGN(sizeof(*rsp_hdr), MBOX_MSG_ALIGN);
+
+	for (i = 0; i < rsp_hdr->num_msgs; i++) {
+		msg = (struct mbox_msghdr *)(mdev->mbase + offset);
+
+		process_afpf_mbox_up_msg(cptpf, msg);
+
+		offset = mbox->rx_start + msg->next_msgoff;
+	}
+	otx2_mbox_msg_send(mbox, 0);
 }
