@@ -1374,11 +1374,6 @@ ath12k_update_per_peer_tx_stats(struct ath12k *ar,
 	 * Firmware rate's control to be skipped for this?
 	 */
 
-	if (flags == WMI_RATE_PREAMBLE_HE && mcs > 11) {
-		ath12k_warn(ab, "Invalid HE mcs %d peer stats",  mcs);
-		return;
-	}
-
 	if (flags == WMI_RATE_PREAMBLE_HE && mcs > ATH12K_HE_MCS_MAX) {
 		ath12k_warn(ab, "Invalid HE mcs %d peer stats",  mcs);
 		return;
