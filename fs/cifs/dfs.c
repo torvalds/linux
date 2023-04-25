@@ -374,6 +374,54 @@ static int target_share_matches_server(struct TCP_Server_Info *server, char *sha
 	return rc;
 }
 
+static void __tree_connect_ipc(const unsigned int xid, char *tree,
+			       struct cifs_sb_info *cifs_sb,
+			       struct cifs_ses *ses)
+{
+	struct TCP_Server_Info *server = ses->server;
+	struct cifs_tcon *tcon = ses->tcon_ipc;
+	int rc;
+
+	spin_lock(&ses->ses_lock);
+	spin_lock(&ses->chan_lock);
+	if (cifs_chan_needs_reconnect(ses, server) ||
+	    ses->ses_status != SES_GOOD) {
+		spin_unlock(&ses->chan_lock);
+		spin_unlock(&ses->ses_lock);
+		cifs_server_dbg(FYI, "%s: skipping ipc reconnect due to disconnected ses\n",
+				__func__);
+		return;
+	}
+	spin_unlock(&ses->chan_lock);
+	spin_unlock(&ses->ses_lock);
+
+	cifs_server_lock(server);
+	scnprintf(tree, MAX_TREE_SIZE, "\\\\%s\\IPC$", server->hostname);
+	cifs_server_unlock(server);
+
+	rc = server->ops->tree_connect(xid, ses, tree, tcon,
+				       cifs_sb->local_nls);
+	cifs_server_dbg(FYI, "%s: tree_reconnect %s: %d\n", __func__, tree, rc);
+	spin_lock(&tcon->tc_lock);
+	if (rc) {
+		tcon->status = TID_NEED_TCON;
+	} else {
+		tcon->status = TID_GOOD;
+		tcon->need_reconnect = false;
+	}
+	spin_unlock(&tcon->tc_lock);
+}
+
+static void tree_connect_ipc(const unsigned int xid, char *tree,
+			     struct cifs_sb_info *cifs_sb,
+			     struct cifs_tcon *tcon)
+{
+	struct cifs_ses *ses = tcon->ses;
+
+	__tree_connect_ipc(xid, tree, cifs_sb, ses);
+	__tree_connect_ipc(xid, tree, cifs_sb, CIFS_DFS_ROOT_SES(ses));
+}
+
 static int __tree_connect_dfs_target(const unsigned int xid, struct cifs_tcon *tcon,
 				     struct cifs_sb_info *cifs_sb, char *tree, bool islink,
 				     struct dfs_cache_tgt_list *tl)
@@ -382,7 +430,6 @@ static int __tree_connect_dfs_target(const unsigned int xid, struct cifs_tcon *t
 	struct TCP_Server_Info *server = tcon->ses->server;
 	const struct smb_version_operations *ops = server->ops;
 	struct cifs_ses *root_ses = CIFS_DFS_ROOT_SES(tcon->ses);
-	struct cifs_tcon *ipc = root_ses->tcon_ipc;
 	char *share = NULL, *prefix = NULL;
 	struct dfs_cache_tgt_iterator *tit;
 	bool target_match;
@@ -418,18 +465,14 @@ static int __tree_connect_dfs_target(const unsigned int xid, struct cifs_tcon *t
 		}
 
 		dfs_cache_noreq_update_tgthint(server->current_fullpath + 1, tit);
-
-		if (ipc->need_reconnect) {
-			scnprintf(tree, MAX_TREE_SIZE, "\\\\%s\\IPC$", server->hostname);
-			rc = ops->tree_connect(xid, ipc->ses, tree, ipc, cifs_sb->local_nls);
-			cifs_dbg(FYI, "%s: reconnect ipc: %d\n", __func__, rc);
-		}
+		tree_connect_ipc(xid, tree, cifs_sb, tcon);
 
 		scnprintf(tree, MAX_TREE_SIZE, "\\%s", share);
 		if (!islink) {
 			rc = ops->tree_connect(xid, tcon->ses, tree, tcon, cifs_sb->local_nls);
 			break;
 		}
+
 		/*
 		 * If no dfs referrals were returned from link target, then just do a TREE_CONNECT
 		 * to it.  Otherwise, cache the dfs referral and then mark current tcp ses for
