@@ -109,13 +109,16 @@ TEST_F(user, enablement) {
 	ASSERT_EQ(0, change_event(false));
 	ASSERT_EQ(0, self->check);
 
-	/* Should not change after disable */
+	/* Ensure kernel clears bit after disable */
 	ASSERT_EQ(0, change_event(true));
 	ASSERT_EQ(1, self->check);
 	ASSERT_EQ(0, reg_disable(&self->check, 0));
+	ASSERT_EQ(0, self->check);
+
+	/* Ensure doesn't change after unreg */
+	ASSERT_EQ(0, change_event(true));
+	ASSERT_EQ(0, self->check);
 	ASSERT_EQ(0, change_event(false));
-	ASSERT_EQ(1, self->check);
-	self->check = 0;
 }
 
 TEST_F(user, bit_sizes) {

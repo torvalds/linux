@@ -2149,6 +2149,35 @@ static long user_unreg_get(struct user_unreg __user *ureg,
 	return ret;
 }
 
+static int user_event_mm_clear_bit(struct user_event_mm *user_mm,
+				   unsigned long uaddr, unsigned char bit)
+{
+	struct user_event_enabler enabler;
+	int result;
+
+	memset(&enabler, 0, sizeof(enabler));
+	enabler.addr = uaddr;
+	enabler.values = bit;
+retry:
+	/* Prevents state changes from racing with new enablers */
+	mutex_lock(&event_mutex);
+
+	/* Force the bit to be cleared, since no event is attached */
+	mmap_read_lock(user_mm->mm);
+	result = user_event_enabler_write(user_mm, &enabler, false);
+	mmap_read_unlock(user_mm->mm);
+
+	mutex_unlock(&event_mutex);
+
+	if (result) {
+		/* Attempt to fault-in and retry if it worked */
+		if (!user_event_mm_fault_in(user_mm, uaddr))
+			goto retry;
+	}
+
+	return result;
+}
+
 /*
  * Unregisters an enablement address/bit within a task/user mm.
  */
@@ -2192,6 +2221,11 @@ static long user_events_ioctl_unreg(unsigned long uarg)
 		}
 
 	mutex_unlock(&event_mutex);
+
+	/* Ensure bit is now cleared for user, regardless of event status */
+	if (!ret)
+		ret = user_event_mm_clear_bit(mm, reg.disable_addr,
+					      reg.disable_bit);
 
 	return ret;
 }
