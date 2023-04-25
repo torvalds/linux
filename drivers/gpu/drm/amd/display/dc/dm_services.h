@@ -292,4 +292,6 @@ void dm_dtn_log_append_v(struct dc_context *ctx,
 void dm_dtn_log_end(struct dc_context *ctx,
 	struct dc_log_buffer_ctx *log_ctx);
 
+char *dce_version_to_string(const int version);
+
 #endif /* __DM_SERVICES_H__ */

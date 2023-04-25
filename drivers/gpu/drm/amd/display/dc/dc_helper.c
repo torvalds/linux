@@ -690,3 +690,59 @@ void reg_sequence_wait_done(const struct dc_context *ctx)
 		dc_dmub_srv_wait_idle(ctx->dmub_srv);
 	}
 }
+
+char *dce_version_to_string(const int version)
+{
+	switch (version) {
+	case DCE_VERSION_8_0:
+		return "DCE 8.0";
+	case DCE_VERSION_8_1:
+		return "DCE 8.1";
+	case DCE_VERSION_8_3:
+		return "DCE 8.3";
+	case DCE_VERSION_10_0:
+		return "DCE 10.0";
+	case DCE_VERSION_11_0:
+		return "DCE 11.0";
+	case DCE_VERSION_11_2:
+		return "DCE 11.2";
+	case DCE_VERSION_11_22:
+		return "DCE 11.22";
+	case DCE_VERSION_12_0:
+		return "DCE 12.0";
+	case DCE_VERSION_12_1:
+		return "DCE 12.1";
+	case DCN_VERSION_1_0:
+		return "DCN 1.0";
+	case DCN_VERSION_1_01:
+		return "DCN 1.0.1";
+	case DCN_VERSION_2_0:
+		return "DCN 2.0";
+	case DCN_VERSION_2_1:
+		return "DCN 2.1";
+	case DCN_VERSION_2_01:
+		return "DCN 2.0.1";
+	case DCN_VERSION_3_0:
+		return "DCN 3.0";
+	case DCN_VERSION_3_01:
+		return "DCN 3.0.1";
+	case DCN_VERSION_3_02:
+		return "DCN 3.0.2";
+	case DCN_VERSION_3_03:
+		return "DCN 3.0.3";
+	case DCN_VERSION_3_1:
+		return "DCN 3.1";
+	case DCN_VERSION_3_14:
+		return "DCN 3.1.4";
+	case DCN_VERSION_3_15:
+		return "DCN 3.1.5";
+	case DCN_VERSION_3_16:
+		return "DCN 3.1.6";
+	case DCN_VERSION_3_2:
+		return "DCN 3.2";
+	case DCN_VERSION_3_21:
+		return "DCN 3.2.1";
+	default:
+		return "Unknown";
+	}
+}
