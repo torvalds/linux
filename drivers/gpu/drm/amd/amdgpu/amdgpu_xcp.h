@@ -77,6 +77,10 @@ struct amdgpu_xcp {
 	bool valid;
 	atomic_t	ref_cnt;
 	struct drm_device *ddev;
+	struct drm_device *rdev;
+	struct drm_device *pdev;
+	struct drm_driver *driver;
+	struct drm_vma_offset_manager *vma_offset_manager;
 	struct amdgpu_sched	gpu_sched[AMDGPU_HW_IP_NUM][AMDGPU_RING_PRIO_MAX];
 };
 

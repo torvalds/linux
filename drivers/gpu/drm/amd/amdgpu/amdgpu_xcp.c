@@ -240,9 +240,14 @@ static int amdgpu_xcp_dev_alloc(struct amdgpu_device *adev)
 			return PTR_ERR(p_ddev);
 
 		/* Redirect all IOCTLs to the primary device */
+		adev->xcp_mgr->xcp[i].rdev = p_ddev->render->dev;
+		adev->xcp_mgr->xcp[i].pdev = p_ddev->primary->dev;
+		adev->xcp_mgr->xcp[i].driver = (struct drm_driver *)p_ddev->driver;
+		adev->xcp_mgr->xcp[i].vma_offset_manager = p_ddev->vma_offset_manager;
 		p_ddev->render->dev = ddev;
 		p_ddev->primary->dev = ddev;
 		p_ddev->vma_offset_manager = ddev->vma_offset_manager;
+		p_ddev->driver = &amdgpu_partition_driver;
 		adev->xcp_mgr->xcp[i].ddev = p_ddev;
 	}
 
@@ -330,13 +335,20 @@ int amdgpu_xcp_dev_register(struct amdgpu_device *adev,
 
 void amdgpu_xcp_dev_unplug(struct amdgpu_device *adev)
 {
+	struct drm_device *p_ddev;
 	int i;
 
 	if (!adev->xcp_mgr)
 		return;
 
-	for (i = 0; i < MAX_XCP; i++)
-		drm_dev_unplug(adev->xcp_mgr->xcp[i].ddev);
+	for (i = 0; i < MAX_XCP; i++) {
+		p_ddev = adev->xcp_mgr->xcp[i].ddev;
+		drm_dev_unplug(p_ddev);
+		p_ddev->render->dev = adev->xcp_mgr->xcp[i].rdev;
+		p_ddev->primary->dev = adev->xcp_mgr->xcp[i].pdev;
+		p_ddev->driver =  adev->xcp_mgr->xcp[i].driver;
+		p_ddev->vma_offset_manager = adev->xcp_mgr->xcp[i].vma_offset_manager;
+	}
 }
 
 int amdgpu_xcp_open_device(struct amdgpu_device *adev,
