@@ -158,6 +158,11 @@ int bch2_fsck_err(struct bch_fs *c, unsigned flags, const char *fmt, ...)
 	mutex_lock(&c->fsck_error_lock);
 	s = fsck_err_get(c, fmt);
 	if (s) {
+		/*
+		 * We may be called multiple times for the same error on
+		 * transaction restart - this memoizes instead of asking the user
+		 * multiple times for the same error:
+		 */
 		if (s->last_msg && !strcmp(buf.buf, s->last_msg)) {
 			ret = s->ret;
 			mutex_unlock(&c->fsck_error_lock);

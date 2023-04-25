@@ -673,10 +673,8 @@ static int __walk_inode(struct btree_trans *trans,
 
 	pos.snapshot = bch2_snapshot_equiv(c, pos.snapshot);
 
-	if (pos.inode == w->cur_inum) {
-		w->first_this_inode = false;
+	if (pos.inode == w->cur_inum)
 		goto lookup_snapshot;
-	}
 
 	w->inodes.nr = 0;
 
@@ -862,10 +860,10 @@ bad_hash:
 		     (printbuf_reset(&buf),
 		      bch2_bkey_val_to_text(&buf, c, hash_k), buf.buf))) {
 		ret = hash_redo_key(trans, desc, hash_info, k_iter, hash_k);
-		if (ret) {
+		if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			bch_err(c, "hash_redo_key err %s", bch2_err_str(ret));
+		if (ret)
 			return ret;
-		}
 		ret = -BCH_ERR_transaction_restart_nested;
 	}
 fsck_err:
@@ -1639,6 +1637,10 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 	if (ret < 0)
 		goto err;
 
+	if (dir->first_this_inode)
+		*hash_info = bch2_hash_info_init(c, &dir->inodes.data[0].inode);
+	dir->first_this_inode = false;
+
 	if (fsck_err_on(ret == INT_MAX, c,
 			"dirent in nonexisting directory:\n%s",
 			(printbuf_reset(&buf),
@@ -1665,11 +1667,7 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 		goto out;
 	}
 
-	if (dir->first_this_inode)
-		*hash_info = bch2_hash_info_init(c, &dir->inodes.data[0].inode);
-
-	ret = hash_check_key(trans, bch2_dirent_hash_desc,
-			     hash_info, iter, k);
+	ret = hash_check_key(trans, bch2_dirent_hash_desc, hash_info, iter, k);
 	if (ret < 0)
 		goto err;
 	if (ret) {
@@ -1822,6 +1820,10 @@ static int check_xattr(struct btree_trans *trans, struct btree_iter *iter,
 	if (ret < 0)
 		return ret;
 
+	if (inode->first_this_inode)
+		*hash_info = bch2_hash_info_init(c, &inode->inodes.data[0].inode);
+	inode->first_this_inode = false;
+
 	if (fsck_err_on(ret == INT_MAX, c,
 			"xattr for missing inode %llu",
 			k.k->p.inode))
@@ -1831,9 +1833,6 @@ static int check_xattr(struct btree_trans *trans, struct btree_iter *iter,
 		return 0;
 
 	ret = 0;
-
-	if (inode->first_this_inode)
-		*hash_info = bch2_hash_info_init(c, &inode->inodes.data[0].inode);
 
 	ret = hash_check_key(trans, bch2_xattr_hash_desc, hash_info, iter, k);
 fsck_err:
