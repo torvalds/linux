@@ -345,8 +345,6 @@ static int aat2870_i2c_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	aat2870->dev = &client->dev;
-	dev_set_drvdata(aat2870->dev, aat2870);
-
 	aat2870->client = client;
 	i2c_set_clientdata(client, aat2870);
 

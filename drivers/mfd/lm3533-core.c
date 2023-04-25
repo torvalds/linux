@@ -485,8 +485,6 @@ static int lm3533_device_init(struct lm3533 *lm3533)
 
 	lm3533->gpio_hwen = pdata->gpio_hwen;
 
-	dev_set_drvdata(lm3533->dev, lm3533);
-
 	if (gpio_is_valid(lm3533->gpio_hwen)) {
 		ret = devm_gpio_request_one(lm3533->dev, lm3533->gpio_hwen,
 					GPIOF_OUT_INIT_LOW, "lm3533-hwen");
