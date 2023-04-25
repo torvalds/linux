@@ -94,7 +94,7 @@ struct qcom_adsp {
 	size_t region_assign_size;
 
 	int region_assign_idx;
-	int region_assign_perms;
+	u64 region_assign_perms;
 
 	struct qcom_rproc_glink glink_subdev;
 	struct qcom_rproc_subdev smd_subdev;
