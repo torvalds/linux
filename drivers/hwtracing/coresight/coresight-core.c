@@ -3,6 +3,7 @@
  * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  */
 
+#include <linux/build_bug.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/types.h>
@@ -236,60 +237,44 @@ void coresight_disclaim_device(struct coresight_device *csdev)
 }
 EXPORT_SYMBOL_GPL(coresight_disclaim_device);
 
-/* enable or disable an associated CTI device of the supplied CS device */
-static int
-coresight_control_assoc_ectdev(struct coresight_device *csdev, bool enable)
-{
-	int ect_ret = 0;
-	struct coresight_device *ect_csdev = csdev->ect_dev;
-	struct module *mod;
-
-	if (!ect_csdev)
-		return 0;
-	if ((!ect_ops(ect_csdev)->enable) || (!ect_ops(ect_csdev)->disable))
-		return 0;
-
-	mod = ect_csdev->dev.parent->driver->owner;
-	if (enable) {
-		if (try_module_get(mod)) {
-			ect_ret = ect_ops(ect_csdev)->enable(ect_csdev);
-			if (ect_ret) {
-				module_put(mod);
-			} else {
-				get_device(ect_csdev->dev.parent);
-				csdev->ect_enabled = true;
-			}
-		} else
-			ect_ret = -ENODEV;
-	} else {
-		if (csdev->ect_enabled) {
-			ect_ret = ect_ops(ect_csdev)->disable(ect_csdev);
-			put_device(ect_csdev->dev.parent);
-			module_put(mod);
-			csdev->ect_enabled = false;
-		}
-	}
-
-	/* output warning if ECT enable is preventing trace operation */
-	if (ect_ret)
-		dev_info(&csdev->dev, "Associated ECT device (%s) %s failed\n",
-			 dev_name(&ect_csdev->dev),
-			 enable ? "enable" : "disable");
-	return ect_ret;
-}
-
 /*
- * Set the associated ect / cti device while holding the coresight_mutex
- * to avoid a race with coresight_enable that may try to use this value.
+ * Add a helper as an output device. This function takes the @coresight_mutex
+ * because it's assumed that it's called from the helper device, outside of the
+ * core code where the mutex would already be held. Don't add new calls to this
+ * from inside the core code, instead try to add the new helper to the DT and
+ * ACPI where it will be picked up and linked automatically.
  */
-void coresight_set_assoc_ectdev_mutex(struct coresight_device *csdev,
-				      struct coresight_device *ect_csdev)
+void coresight_add_helper(struct coresight_device *csdev,
+			  struct coresight_device *helper)
 {
+	int i;
+	struct coresight_connection conn = {};
+	struct coresight_connection *new_conn;
+
 	mutex_lock(&coresight_mutex);
-	csdev->ect_dev = ect_csdev;
+	conn.dest_fwnode = fwnode_handle_get(dev_fwnode(&helper->dev));
+	conn.dest_dev = helper;
+	conn.dest_port = conn.src_port = -1;
+	conn.src_dev = csdev;
+
+	/*
+	 * Check for duplicates because this is called every time a helper
+	 * device is re-loaded. Existing connections will get re-linked
+	 * automatically.
+	 */
+	for (i = 0; i < csdev->pdata->nr_outconns; ++i)
+		if (csdev->pdata->out_conns[i]->dest_fwnode == conn.dest_fwnode)
+			goto unlock;
+
+	new_conn = coresight_add_out_conn(csdev->dev.parent, csdev->pdata,
+					  &conn);
+	if (!IS_ERR(new_conn))
+		coresight_add_in_conn(new_conn);
+
+unlock:
 	mutex_unlock(&coresight_mutex);
 }
-EXPORT_SYMBOL_GPL(coresight_set_assoc_ectdev_mutex);
+EXPORT_SYMBOL_GPL(coresight_add_helper);
 
 static int coresight_enable_sink(struct coresight_device *csdev,
 				 enum cs_mode mode, void *data)
@@ -303,14 +288,10 @@ static int coresight_enable_sink(struct coresight_device *csdev,
 	if (!sink_ops(csdev)->enable)
 		return -EINVAL;
 
-	ret = coresight_control_assoc_ectdev(csdev, true);
+	ret = sink_ops(csdev)->enable(csdev, mode, data);
 	if (ret)
 		return ret;
-	ret = sink_ops(csdev)->enable(csdev, mode, data);
-	if (ret) {
-		coresight_control_assoc_ectdev(csdev, false);
-		return ret;
-	}
+
 	csdev->enable = true;
 
 	return 0;
@@ -326,7 +307,6 @@ static void coresight_disable_sink(struct coresight_device *csdev)
 	ret = sink_ops(csdev)->disable(csdev);
 	if (ret)
 		return;
-	coresight_control_assoc_ectdev(csdev, false);
 	csdev->enable = false;
 }
 
@@ -351,16 +331,10 @@ static int coresight_enable_link(struct coresight_device *csdev,
 		return PTR_ERR(outconn);
 
 	if (link_ops(csdev)->enable) {
-		ret = coresight_control_assoc_ectdev(csdev, true);
-		if (!ret) {
-			ret = link_ops(csdev)->enable(csdev, inconn, outconn);
-			if (ret)
-				coresight_control_assoc_ectdev(csdev, false);
-		}
+		ret = link_ops(csdev)->enable(csdev, inconn, outconn);
+		if (!ret)
+			csdev->enable = true;
 	}
-
-	if (!ret)
-		csdev->enable = true;
 
 	return ret;
 }
@@ -382,7 +356,6 @@ static void coresight_disable_link(struct coresight_device *csdev,
 
 	if (link_ops(csdev)->disable) {
 		link_ops(csdev)->disable(csdev, inconn, outconn);
-		coresight_control_assoc_ectdev(csdev, false);
 	}
 
 	if (link_subtype == CORESIGHT_DEV_SUBTYPE_LINK_MERG) {
@@ -410,14 +383,9 @@ int coresight_enable_source(struct coresight_device *csdev, enum cs_mode mode,
 
 	if (!csdev->enable) {
 		if (source_ops(csdev)->enable) {
-			ret = coresight_control_assoc_ectdev(csdev, true);
+			ret = source_ops(csdev)->enable(csdev, data, mode);
 			if (ret)
 				return ret;
-			ret = source_ops(csdev)->enable(csdev, data, mode);
-			if (ret) {
-				coresight_control_assoc_ectdev(csdev, false);
-				return ret;
-			}
 		}
 		csdev->enable = true;
 	}
@@ -488,7 +456,6 @@ bool coresight_disable_source(struct coresight_device *csdev, void *data)
 	if (atomic_dec_return(&csdev->refcnt) == 0) {
 		if (source_ops(csdev)->disable)
 			source_ops(csdev)->disable(csdev, data);
-		coresight_control_assoc_ectdev(csdev, false);
 		coresight_disable_helpers(csdev);
 		csdev->enable = false;
 	}
@@ -1360,11 +1327,10 @@ static struct device_type coresight_dev_type[] = {
 	},
 	{
 		.name = "helper",
-	},
-	{
-		.name = "ect",
-	},
+	}
 };
+/* Ensure the enum matches the names and groups */
+static_assert(ARRAY_SIZE(coresight_dev_type) == CORESIGHT_DEV_TYPE_MAX);
 
 static void coresight_device_release(struct device *dev)
 {

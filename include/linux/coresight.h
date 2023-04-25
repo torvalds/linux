@@ -41,7 +41,7 @@ enum coresight_dev_type {
 	CORESIGHT_DEV_TYPE_LINKSINK,
 	CORESIGHT_DEV_TYPE_SOURCE,
 	CORESIGHT_DEV_TYPE_HELPER,
-	CORESIGHT_DEV_TYPE_ECT,
+	CORESIGHT_DEV_TYPE_MAX
 };
 
 enum coresight_dev_subtype_sink {
@@ -66,12 +66,7 @@ enum coresight_dev_subtype_source {
 
 enum coresight_dev_subtype_helper {
 	CORESIGHT_DEV_SUBTYPE_HELPER_CATU,
-};
-
-/* Embedded Cross Trigger (ECT) sub-types */
-enum coresight_dev_subtype_ect {
-	CORESIGHT_DEV_SUBTYPE_ECT_NONE,
-	CORESIGHT_DEV_SUBTYPE_ECT_CTI,
+	CORESIGHT_DEV_SUBTYPE_HELPER_ECT_CTI
 };
 
 /**
@@ -84,8 +79,6 @@ enum coresight_dev_subtype_ect {
  *			by @coresight_dev_subtype_source.
  * @helper_subtype:	type of helper this component is, as defined
  *			by @coresight_dev_subtype_helper.
- * @ect_subtype:        type of cross trigger this component is, as
- *			defined by @coresight_dev_subtype_ect
  */
 union coresight_dev_subtype {
 	/* We have some devices which acts as LINK and SINK */
@@ -95,7 +88,6 @@ union coresight_dev_subtype {
 	};
 	enum coresight_dev_subtype_source source_subtype;
 	enum coresight_dev_subtype_helper helper_subtype;
-	enum coresight_dev_subtype_ect ect_subtype;
 };
 
 /**
@@ -239,8 +231,6 @@ struct coresight_sysfs_link {
  *		from source to that sink.
  * @ea:		Device attribute for sink representation under PMU directory.
  * @def_sink:	cached reference to default sink found for this device.
- * @ect_dev:	Associated cross trigger device. Not part of the trace data
- *		path or connections.
  * @nr_links:   number of sysfs links created to other components from this
  *		device. These will appear in the "connections" group.
  * @has_conns_grp: Have added a "connections" group for sysfs links.
@@ -263,12 +253,9 @@ struct coresight_device {
 	bool activated;	/* true only if a sink is part of a path */
 	struct dev_ext_attribute *ea;
 	struct coresight_device *def_sink;
-	/* cross trigger handling */
-	struct coresight_device *ect_dev;
 	/* sysfs links between components */
 	int nr_links;
 	bool has_conns_grp;
-	bool ect_enabled; /* true only if associated ect device is enabled */
 	/* system configuration and feature lists */
 	struct list_head feature_csdev_list;
 	struct list_head config_csdev_list;
@@ -380,23 +367,11 @@ struct coresight_ops_helper {
 	int (*disable)(struct coresight_device *csdev, void *data);
 };
 
-/**
- * struct coresight_ops_ect - Ops for an embedded cross trigger device
- *
- * @enable	: Enable the device
- * @disable	: Disable the device
- */
-struct coresight_ops_ect {
-	int (*enable)(struct coresight_device *csdev);
-	int (*disable)(struct coresight_device *csdev);
-};
-
 struct coresight_ops {
 	const struct coresight_ops_sink *sink_ops;
 	const struct coresight_ops_link *link_ops;
 	const struct coresight_ops_source *source_ops;
 	const struct coresight_ops_helper *helper_ops;
-	const struct coresight_ops_ect *ect_ops;
 };
 
 #if IS_ENABLED(CONFIG_CORESIGHT)

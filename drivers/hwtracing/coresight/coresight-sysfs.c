@@ -148,6 +148,10 @@ int coresight_make_links(struct coresight_device *orig,
 	char *outs = NULL, *ins = NULL;
 	struct coresight_sysfs_link *link = NULL;
 
+	/* Helper devices aren't shown in sysfs */
+	if (conn->dest_port == -1 && conn->src_port == -1)
+		return 0;
+
 	do {
 		outs = devm_kasprintf(&orig->dev, GFP_KERNEL,
 				      "out:%d", conn->src_port);
