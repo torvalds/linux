@@ -59,7 +59,7 @@ _resize_bar(struct xe_device *xe, int resno, resource_size_t size)
 
 	ret = pci_resize_resource(pdev, resno, bar_size);
 	if (ret) {
-		drm_info(&xe->drm, "Failed to resize BAR%d to %dM (%pe)\n",
+		drm_info(&xe->drm, "Failed to resize BAR%d to %dM (%pe). Consider enabling 'Resizable BAR' support in your BIOS\n",
 			 resno, 1 << bar_size, ERR_PTR(ret));
 		return -1;
 	}
@@ -95,7 +95,7 @@ static int xe_resize_vram_bar(struct xe_device *xe, resource_size_t vram_size)
 		    rebar_size >= roundup_pow_of_two(vram_size)) {
 			rebar_size = vram_size;
 			drm_info(&xe->drm,
-				 "Given bar size is not within supported size, setting it to default: %llu\n",
+				 "Given bar size is not within supported size, setting it to default: %lluMiB\n",
 				 (u64)vram_size >> 20);
 		}
 	} else {
@@ -107,6 +107,9 @@ static int xe_resize_vram_bar(struct xe_device *xe, resource_size_t vram_size)
 			return 0;
 	}
 
+	drm_info(&xe->drm, "Resizing bar from %lluMiB -> %lluMiB\n",
+		 (u64)current_size >> 20, (u64)rebar_size >> 20);
+
 	while (root->parent)
 		root = root->parent;
 
@@ -117,7 +120,7 @@ static int xe_resize_vram_bar(struct xe_device *xe, resource_size_t vram_size)
 	}
 
 	if (!root_res) {
-		drm_info(&xe->drm, "Can't resize VRAM BAR - platform support is missing\n");
+		drm_info(&xe->drm, "Can't resize VRAM BAR - platform support is missing. Consider enabling 'Resizable BAR' support in your BIOS\n");
 		return -1;
 	}
 
@@ -183,7 +186,7 @@ int xe_mmio_probe_vram(struct xe_device *xe)
 	u64 vram_size;
 	u64 original_size;
 	u64 usable_size;
-	int resize_result, err;
+	int err;
 
 	if (!IS_DGFX(xe)) {
 		xe->mem.vram.mapping = 0;
@@ -212,7 +215,7 @@ int xe_mmio_probe_vram(struct xe_device *xe)
 	if (err)
 		return err;
 
-	resize_result = xe_resize_vram_bar(xe, vram_size);
+	xe_resize_vram_bar(xe, vram_size);
 	xe->mem.vram.io_start = pci_resource_start(pdev, GEN12_LMEM_BAR);
 	xe->mem.vram.io_size = min(usable_size,
 				   pci_resource_len(pdev, GEN12_LMEM_BAR));
@@ -221,16 +224,9 @@ int xe_mmio_probe_vram(struct xe_device *xe)
 	if (!xe->mem.vram.size)
 		return -EIO;
 
-	if (resize_result > 0)
-		drm_info(&xe->drm, "Successfully resize VRAM from %lluMiB to %lluMiB\n",
-			 (u64)original_size >> 20,
-			 (u64)xe->mem.vram.io_size >> 20);
-	else if (xe->mem.vram.io_size < usable_size && !xe_force_vram_bar_size)
-		drm_info(&xe->drm, "Using a reduced BAR size of %lluMiB. Consider enabling 'Resizable BAR' support in your BIOS.\n",
-			 (u64)xe->mem.vram.size >> 20);
 	if (usable_size > xe->mem.vram.io_size)
-		drm_warn(&xe->drm, "Restricting VRAM size to PCI resource size (0x%llx->0x%llx)\n",
-			 usable_size, xe->mem.vram.io_size);
+		drm_warn(&xe->drm, "Restricting VRAM size to PCI resource size (%lluMiB->%lluMiB)\n",
+			 (u64)usable_size >> 20, (u64)xe->mem.vram.io_size >> 20);
 
 	xe->mem.vram.mapping = ioremap_wc(xe->mem.vram.io_start, xe->mem.vram.io_size);
 	xe->mem.vram.size = min_t(u64, xe->mem.vram.size, usable_size);
