@@ -186,6 +186,10 @@ config ARM64
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_DYNAMIC_FTRACE
+	select HAVE_DYNAMIC_FTRACE_WITH_ARGS \
+		if $(cc-option,-fpatchable-function-entry=2)
+	select HAVE_DYNAMIC_FTRACE_WITH_DIRECT_CALLS \
+		if DYNAMIC_FTRACE_WITH_ARGS && DYNAMIC_FTRACE_WITH_CALL_OPS
 	select HAVE_DYNAMIC_FTRACE_WITH_CALL_OPS \
 		if (DYNAMIC_FTRACE_WITH_ARGS && !CFI_CLANG && \
 		    !CC_OPTIMIZE_FOR_SIZE)
@@ -362,6 +366,20 @@ config ARCH_PROC_KCORE_TEXT
 
 config BROKEN_GAS_INST
 	def_bool !$(as-instr,1:\n.inst 0\n.rept . - 1b\n\nnop\n.endr\n)
+
+config BUILTIN_RETURN_ADDRESS_STRIPS_PAC
+	bool
+	# Clang's __builtin_return_adddress() strips the PAC since 12.0.0
+	# https://reviews.llvm.org/D75044
+	default y if CC_IS_CLANG && (CLANG_VERSION >= 120000)
+	# GCC's __builtin_return_address() strips the PAC since 11.1.0,
+	# and this was backported to 10.2.0, 9.4.0, 8.5.0, but not earlier
+	# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=94891
+	default y if CC_IS_GCC && (GCC_VERSION >= 110100)
+	default y if CC_IS_GCC && (GCC_VERSION >= 100200) && (GCC_VERSION < 110000)
+	default y if CC_IS_GCC && (GCC_VERSION >=  90400) && (GCC_VERSION < 100000)
+	default y if CC_IS_GCC && (GCC_VERSION >=  80500) && (GCC_VERSION <  90000)
+	default n
 
 config KASAN_SHADOW_OFFSET
 	hex

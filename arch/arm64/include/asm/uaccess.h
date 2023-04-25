@@ -237,7 +237,7 @@ static inline void __user *__uaccess_mask_ptr(const void __user *ptr)
 	"1:	" load "	" reg "1, [%2]\n"			\
 	"2:\n"								\
 	_ASM_EXTABLE_##type##ACCESS_ERR_ZERO(1b, 2b, %w0, %w1)		\
-	: "+r" (err), "=&r" (x)						\
+	: "+r" (err), "=r" (x)						\
 	: "r" (addr))
 
 #define __raw_get_mem(ldr, x, ptr, err, type)					\
@@ -327,7 +327,7 @@ do {									\
 	"2:\n"								\
 	_ASM_EXTABLE_##type##ACCESS_ERR(1b, 2b, %w0)			\
 	: "+r" (err)							\
-	: "r" (x), "r" (addr))
+	: "rZ" (x), "r" (addr))
 
 #define __raw_put_mem(str, x, ptr, err, type)					\
 do {										\
@@ -449,8 +449,6 @@ extern long strncpy_from_user(char *dest, const char __user *src, long count);
 extern __must_check long strnlen_user(const char __user *str, long n);
 
 #ifdef CONFIG_ARCH_HAS_UACCESS_FLUSHCACHE
-struct page;
-void memcpy_page_flushcache(char *to, struct page *page, size_t offset, size_t len);
 extern unsigned long __must_check __copy_user_flushcache(void *to, const void __user *from, unsigned long n);
 
 static inline int __copy_from_user_flushcache(void *dst, const void __user *src, unsigned size)
