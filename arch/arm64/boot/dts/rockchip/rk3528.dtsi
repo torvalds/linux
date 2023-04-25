@@ -476,6 +476,12 @@
 		rockchip,temp-offline-cpus = "2-3";
 	};
 
+	secure_otp: secure-otp {
+		compatible = "rockchip,secure-otp";
+		rockchip,otp-size = <32>;
+		status = "disabled";
+	};
+
 	thermal_zones: thermal-zones {
 		soc_thermal: soc-thermal {
 			polling-delay-passive = <20>; /* milliseconds */
