@@ -22663,6 +22663,17 @@ S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git x86/asm
 F:	arch/x86/entry/
 
+X86 HARDWARE VULNERABILITIES
+M:	Thomas Gleixner <tglx@linutronix.de>
+M:	Borislav Petkov <bp@alien8.de>
+M:	Peter Zijlstra <peterz@infradead.org>
+M:	Josh Poimboeuf <jpoimboe@kernel.org>
+R:	Pawan Gupta <pawan.kumar.gupta@linux.intel.com>
+S:	Maintained
+F:	Documentation/admin-guide/hw-vuln/
+F:	arch/x86/include/asm/nospec-branch.h
+F:	arch/x86/kernel/cpu/bugs.c
+
 X86 MCE INFRASTRUCTURE
 M:	Tony Luck <tony.luck@intel.com>
 M:	Borislav Petkov <bp@alien8.de>
