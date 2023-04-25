@@ -265,6 +265,7 @@
   geni_icc_get
   geni_icc_set_bw
   geni_se_config_packing
+  geni_se_get_qup_hw_version
   geni_se_init
   geni_se_resources_off
   geni_se_resources_on
@@ -581,7 +582,6 @@
   __pskb_pull_tail
   put_device
   __put_task_struct
-  qcom_icc_xlate_extended
   qcom_smem_state_register
   qcom_smem_state_unregister
   qcom_smem_state_update_bits
@@ -1138,6 +1138,9 @@
   icc_std_aggregate
   of_icc_xlate_onecell
 
+# required by icc-rpmh.ko
+  qcom_icc_xlate_extended
+
 # required by leds-qcom-lpg.ko
   __bitmap_clear
   devm_led_classdev_multicolor_register_ext
@@ -1690,7 +1693,7 @@
   device_get_next_child_node
   devm_iio_device_alloc
   __devm_iio_device_register
-  fwnode_get_name
+  strchrnul
 
 # required by qcom-spmi-pmic.ko
   __devm_regmap_init_spmi_ext
@@ -1754,10 +1757,6 @@
 # required by qcom_usb_vbus-regulator.ko
   regulator_get_current_limit_regmap
   regulator_set_current_limit_regmap
-
-# required by qnoc-sm8450.ko
-  icc_provider_add
-  icc_provider_del
 
 # required by qrtr-tun.ko
   _copy_to_iter
@@ -1940,7 +1939,6 @@
 
 # required by spi-geni-qcom.ko
   geni_se_clk_freq_match
-  geni_se_get_qup_hw_version
 
 # required by spi-pl022.ko
   amba_driver_register
@@ -2050,3 +2048,6 @@
 
 # preserved by --additions-only
   __alloc_pages
+  fwnode_get_name
+  icc_provider_add
+  icc_provider_del
