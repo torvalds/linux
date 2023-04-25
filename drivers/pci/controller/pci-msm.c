@@ -909,8 +909,10 @@ struct msm_pcie_sm_info {
 	u32 start_offset;
 	u32 *sm_seq;
 	u32 *branch_seq;
+	u32 *reg_dump;
 	int sm_seq_len;
 	int sm_branch_len;
+	int reg_dump_len;
 };
 
 /* CESTA power state index */
@@ -1646,18 +1648,11 @@ static void pcie_sm_dump(struct msm_pcie_dev_t *dev)
 
 	size = resource_size(dev->res[MSM_PCIE_RES_SM].resource);
 
-	for (i = 0; i < size; i += 32) {
+	for (i = 0; i < dev->sm_info->reg_dump_len && i < size; i++) {
 		PCIE_DUMP(dev,
-			"RC%d: 0x%04x %08x %08x %08x %08x %08x %08x %08x %08x\n",
-			dev->rc_idx, i,
-			readl_relaxed(dev->pcie_sm + i),
-			readl_relaxed(dev->pcie_sm + (i + 4)),
-			readl_relaxed(dev->pcie_sm + (i + 8)),
-			readl_relaxed(dev->pcie_sm + (i + 12)),
-			readl_relaxed(dev->pcie_sm + (i + 16)),
-			readl_relaxed(dev->pcie_sm + (i + 20)),
-			readl_relaxed(dev->pcie_sm + (i + 24)),
-			readl_relaxed(dev->pcie_sm + (i + 28)));
+			"RC%d: 0x%04x %08x\n",
+			dev->rc_idx, dev->sm_info->reg_dump[i],
+			readl_relaxed(dev->pcie_sm + dev->sm_info->reg_dump[i]));
 	}
 }
 static void pcie_dm_core_dump(struct msm_pcie_dev_t *dev)
@@ -3413,6 +3408,23 @@ static int msm_pcie_cesta_get_sm_seq(struct msm_pcie_dev_t *dev)
 	if (ret)
 		return -EIO;
 
+	of_get_property(pdev->dev.of_node, "qcom,pcie-sm-debug", &size);
+	if (!size) {
+		PCIE_DBG(dev,
+			"PCIe: RC%d: sm debugs regs are not present in DT\n",
+			dev->rc_idx);
+		goto out;
+	}
+
+	sm_info->reg_dump_len = size / sizeof(u32);
+	sm_info->reg_dump = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
+	ret = of_property_read_u32_array(pdev->dev.of_node,
+			"qcom,pcie-sm-debug", sm_info->reg_dump,
+						sm_info->reg_dump_len);
+	if (ret)
+		sm_info->reg_dump_len = 0;
+
+out:
 	dev->sm_info = sm_info;
 
 	return 0;
