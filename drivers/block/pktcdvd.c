@@ -1869,12 +1869,12 @@ static noinline_for_stack int pkt_probe_settings(struct pktcdvd_device *pd)
 /*
  * enable/disable write caching on drive
  */
-static noinline_for_stack int pkt_write_caching(struct pktcdvd_device *pd,
-						int set)
+static noinline_for_stack int pkt_write_caching(struct pktcdvd_device *pd)
 {
 	struct packet_command cgc;
 	struct scsi_sense_hdr sshdr;
 	unsigned char buf[64];
+	bool set = IS_ENABLED(CONFIG_CDROM_PKTCDVD_WCACHE);
 	int ret;
 
 	init_cdrom_command(&cgc, buf, sizeof(buf), CGC_DATA_READ);
@@ -1890,7 +1890,12 @@ static noinline_for_stack int pkt_write_caching(struct pktcdvd_device *pd,
 	if (ret)
 		return ret;
 
-	buf[pd->mode_offset + 10] |= (!!set << 2);
+	/*
+	 * use drive write caching -- we need deferred error handling to be
+	 * able to successfully recover with this option (drive will return good
+	 * status as soon as the cdb is validated).
+	 */
+	buf[pd->mode_offset + 10] |= (set << 2);
 
 	cgc.buflen = cgc.cmd[8] = 2 + ((buf[0] << 8) | (buf[1] & 0xff));
 	ret = pkt_mode_select(pd, &cgc);
@@ -2085,7 +2090,7 @@ static int pkt_open_write(struct pktcdvd_device *pd)
 		return -EIO;
 	}
 
-	pkt_write_caching(pd, USE_WCACHING);
+	pkt_write_caching(pd);
 
 	ret = pkt_get_max_speed(pd, &write_speed);
 	if (ret)
