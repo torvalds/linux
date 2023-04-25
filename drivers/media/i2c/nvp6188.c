@@ -10,9 +10,14 @@
  *  2. add get virtual channel hotplug status ioctl
  *  3. add virtual channel hotplug status event report to vicap
  *  4. fixup variables are reused when multiple devices use the same driver
- * V0.0X01.0X02 add quick stream support
+ * V0.0X02.0X00 version.
+ *  1. update init registers setting
+ *  2. nvp6188 do not stream after writing registers setting
+ *  3. support detect fmt change when hotplug ahd camera
+ *  4. support 1600x1300 ahd camera input
  */
 
+//#define DEBUG
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/delay.h>
@@ -33,18 +38,16 @@
 #include <linux/rk-preisp.h>
 #include <linux/sched.h>
 #include <linux/kthread.h>
-
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/tlv.h>
-
 #include <linux/platform_device.h>
 #include <linux/input.h>
 #include "nvp6188.h"
 
-#define DRIVER_VERSION				KERNEL_VERSION(0, 0x01, 0x2)
+#define DRIVER_VERSION				KERNEL_VERSION(0, 0x02, 0x0)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN			V4L2_CID_GAIN
@@ -78,13 +81,15 @@
 #endif
 
 #define NVP_RESO_960H_NSTC_VALUE	0x00
-#define NVP_RESO_960H_PAL_VALUE	0x10
+#define NVP_RESO_960H_PAL_VALUE		0x10
 #define NVP_RESO_720P_NSTC_VALUE	0x20
-#define NVP_RESO_720P_PAL_VALUE	0x21
+#define NVP_RESO_720P_PAL_VALUE		0x21
 #define NVP_RESO_1080P_NSTC_VALUE	0x30
 #define NVP_RESO_1080P_PAL_VALUE	0x31
 #define NVP_RESO_960P_NSTC_VALUE	0xa0
-#define NVP_RESO_960P_PAL_VALUE	0xa1
+#define NVP_RESO_960P_PAL_VALUE		0xa1
+#define NVP_RESO_1300P_NSTC_VALUE	0x3A
+#define NVP_RESO_1300P_PAL_VALUE	0x3B
 
 enum nvp6188_support_reso {
 	NVP_RESO_UNKOWN = 0,
@@ -92,10 +97,12 @@ enum nvp6188_support_reso {
 	NVP_RESO_720P_PAL,
 	NVP_RESO_960P_PAL,
 	NVP_RESO_1080P_PAL,
+	NVP_RESO_1300P_PAL,
 	NVP_RESO_960H_NSTC,
 	NVP_RESO_720P_NSTC,
 	NVP_RESO_960P_NSTC,
 	NVP_RESO_1080P_NSTC,
+	NVP_RESO_1300P_NSTC,
 };
 
 /* Audio output port formats */
@@ -123,6 +130,7 @@ struct nvp6188_mode {
 	u32 hdr_mode;
 	u32 vc[PAD_MAX];
 	u32 channel_reso[PAD_MAX];
+	u32 unkown_reso_count[PAD_MAX];
 };
 
 struct nvp6188_audio {
@@ -136,11 +144,9 @@ struct nvp6188 {
 	struct gpio_desc	*reset_gpio;
 	struct gpio_desc	*power_gpio;
 	struct gpio_desc	*vi_gpio;
-
 	struct pinctrl		*pinctrl;
 	struct pinctrl_state	*pins_default;
 	struct pinctrl_state	*pins_sleep;
-
 	struct v4l2_subdev	subdev;
 	struct media_pad	pad;
 	struct v4l2_ctrl_handler ctrl_handler;
@@ -149,520 +155,649 @@ struct nvp6188 {
 	struct mutex		mutex;
 	bool			power_on;
 	struct nvp6188_mode cur_mode;
-
 	u32			module_index;
 	u32			cfg_num;
 	const char		*module_facing;
 	const char		*module_name;
 	const char		*len_name;
-
 	struct nvp6188_audio *audio_in;
 	struct nvp6188_audio *audio_out;
-
 	int streaming;
-
 	struct task_struct *detect_thread;
 	struct input_dev* input_dev;
 	unsigned char detect_status;
 	unsigned char last_detect_status;
 	u8 is_reset;
+	bool disable_dump_register;
 };
 
 #define to_nvp6188(sd) container_of(sd, struct nvp6188, subdev)
 
 static int nvp6188_audio_init(struct nvp6188 *nvp6188);
+static int __nvp6188_start_stream(struct nvp6188 *nvp6188);
+static int __nvp6188_stop_stream(struct nvp6188 *nvp6188);
 
 // detect_status: bit 0~3 means channels plugin status : 1 no exist 0: exist
 static ssize_t show_hotplug_status(struct device *dev,
 				   struct device_attribute *attr,
-				   char *buf) //cat命令时,将会调用该函数
+				   char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct nvp6188 *nvp6188 = to_nvp6188(sd);
+
 	return sprintf(buf, "%d\n", nvp6188->detect_status);
 }
 
+static ssize_t nvp6188_debug_func(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct nvp6188 *nvp6188 = to_nvp6188(sd);
+
+	nvp6188->disable_dump_register = (nvp6188->disable_dump_register) ? false : true;
+	return sprintf(buf, "switch disable_dump_register(%d)\n", nvp6188->disable_dump_register);
+}
+
 static DEVICE_ATTR(hotplug_status, S_IRUSR, show_hotplug_status, NULL);
+static DEVICE_ATTR(nvp6188_debug, S_IRUSR, nvp6188_debug_func, NULL);
 static struct attribute *dev_attrs[] = {
 	&dev_attr_hotplug_status.attr,
+	&dev_attr_nvp6188_debug.attr,
 	NULL,
 };
+
 static struct attribute_group dev_attr_grp = {
 	.attrs = dev_attrs,
 };
 
 static __maybe_unused const struct regval common_setting_756M_regs[] = {
-	{ 0xff, 0x00 },
-	{ 0x80, 0x0f },
-	{ 0x00, 0x10 },
-	{ 0x01, 0x10 },
-	{ 0x02, 0x10 },
-	{ 0x03, 0x10 },
-	{ 0x22, 0x0b },
-	{ 0x23, 0x41 },
-	{ 0x26, 0x0b },
-	{ 0x27, 0x41 },
-	{ 0x2a, 0x0b },
-	{ 0x2b, 0x41 },
-	{ 0x2e, 0x0b },
-	{ 0x2f, 0x41 },
+	{0xff, 0x00},
+	{0x80, 0x0f},
+	{0x00, 0x10},
+	{0x01, 0x10},
+	{0x02, 0x10},
+	{0x03, 0x10},
+	{0x22, 0x0b},
+	{0x23, 0x41},
+	{0x26, 0x0b},
+	{0x27, 0x41},
+	{0x2a, 0x0b},
+	{0x2b, 0x41},
+	{0x2e, 0x0b},
+	{0x2f, 0x41},
 
-	{ 0xff, 0x01 },
-	{ 0x98, 0x30 },
-	{ 0xed, 0x00 },
+	{0xff, 0x01},
+	{0x98, 0x30},
+	{0xed, 0x00},
 
-	{ 0xff, 0x05+0 },
-	{ 0x00, 0xd0 },
-	{ 0x01, 0x22 },
-	{ 0x47, 0xee },
-	{ 0x50, 0xc6 },
-	{ 0x57, 0x00 },
-	{ 0x58, 0x77 },
-	{ 0x5b, 0x41 },
-	{ 0x5c, 0x78 },
-	{ 0xB8, 0xB8 },
+	{0xff, 0x05 + 0},
+	{0x00, 0xd0},
+	{0x01, 0x22},
+	{0x47, 0xee},
+	{0x50, 0xc6},
+	{0x57, 0x00},
+	{0x58, 0x77},
+	{0x5b, 0x41},
+	{0x5c, 0x78},
+	{0xB8, 0xB8},
 
-	{ 0xff, 0x05+1 },
-	{ 0x00, 0xd0 },
-	{ 0x01, 0x22 },
-	{ 0x47, 0xee },
-	{ 0x50, 0xc6 },
-	{ 0x57, 0x00 },
-	{ 0x58, 0x77 },
-	{ 0x5b, 0x41 },
-	{ 0x5c, 0x78 },
-	{ 0xB8, 0xB8 },
+	{0xff, 0x05 + 1},
+	{0x00, 0xd0},
+	{0x01, 0x22},
+	{0x47, 0xee},
+	{0x50, 0xc6},
+	{0x57, 0x00},
+	{0x58, 0x77},
+	{0x5b, 0x41},
+	{0x5c, 0x78},
+	{0xB8, 0xB8},
 
-	{ 0xff, 0x05+2 },
-	{ 0x00, 0xd0 },
-	{ 0x01, 0x22 },
-	{ 0x47, 0xee },
-	{ 0x50, 0xc6 },
-	{ 0x57, 0x00 },
-	{ 0x58, 0x77 },
-	{ 0x5b, 0x41 },
-	{ 0x5c, 0x78 },
-	{ 0xB8, 0xB8 },
+	{0xff, 0x05 + 2},
+	{0x00, 0xd0},
+	{0x01, 0x22},
+	{0x47, 0xee},
+	{0x50, 0xc6},
+	{0x57, 0x00},
+	{0x58, 0x77},
+	{0x5b, 0x41},
+	{0x5c, 0x78},
+	{0xB8, 0xB8},
 
-	{ 0xff, 0x05+3 },
-	{ 0x00, 0xd0 },
-	{ 0x01, 0x22 },
-	{ 0x47, 0xee },
-	{ 0x50, 0xc6 },
-	{ 0x57, 0x00 },
-	{ 0x58, 0x77 },
-	{ 0x5b, 0x41 },
-	{ 0x5c, 0x78 },
-	{ 0xB8, 0xB8 },
+	{0xff, 0x05 + 3},
+	{0x00, 0xd0},
+	{0x01, 0x22},
+	{0x47, 0xee},
+	{0x50, 0xc6},
+	{0x57, 0x00},
+	{0x58, 0x77},
+	{0x5b, 0x41},
+	{0x5c, 0x78},
+	{0xB8, 0xB8},
 
-	{ 0xff, 0x09 },
-	{ 0x50, 0x30 },
-	{ 0x51, 0x6f },
-	{ 0x52, 0x67 },
-	{ 0x53, 0x48 },
-	{ 0x54, 0x30 },
-	{ 0x55, 0x6f },
-	{ 0x56, 0x67 },
-	{ 0x57, 0x48 },
-	{ 0x58, 0x30 },
-	{ 0x59, 0x6f },
-	{ 0x5a, 0x67 },
-	{ 0x5b, 0x48 },
-	{ 0x5c, 0x30 },
-	{ 0x5d, 0x6f },
-	{ 0x5e, 0x67 },
-	{ 0x5f, 0x48 },
+	{0xff, 0x09},
+	{0x50, 0x30},
+	{0x51, 0x6f},
+	{0x52, 0x67},
+	{0x53, 0x48},
+	{0x54, 0x30},
+	{0x55, 0x6f},
+	{0x56, 0x67},
+	{0x57, 0x48},
+	{0x58, 0x30},
+	{0x59, 0x6f},
+	{0x5a, 0x67},
+	{0x5b, 0x48},
+	{0x5c, 0x30},
+	{0x5d, 0x6f},
+	{0x5e, 0x67},
+	{0x5f, 0x48},
 
-	{ 0xff, 0x0a },
-	{ 0x25, 0x10 },
-	{ 0x27, 0x1e },
-	{ 0x30, 0xac },
-	{ 0x31, 0x78 },
-	{ 0x32, 0x17 },
-	{ 0x33, 0xc1 },
-	{ 0x34, 0x40 },
-	{ 0x35, 0x00 },
-	{ 0x36, 0xc3 },
-	{ 0x37, 0x0a },
-	{ 0x38, 0x00 },
-	{ 0x39, 0x02 },
-	{ 0x3a, 0x00 },
-	{ 0x3b, 0xb2 },
-	{ 0xa5, 0x10 },
-	{ 0xa7, 0x1e },
-	{ 0xb0, 0xac },
-	{ 0xb1, 0x78 },
-	{ 0xb2, 0x17 },
-	{ 0xb3, 0xc1 },
-	{ 0xb4, 0x40 },
-	{ 0xb5, 0x00 },
-	{ 0xb6, 0xc3 },
-	{ 0xb7, 0x0a },
-	{ 0xb8, 0x00 },
-	{ 0xb9, 0x02 },
-	{ 0xba, 0x00 },
-	{ 0xbb, 0xb2 },
-	{ 0xff, 0x0b },
-	{ 0x25, 0x10 },
-	{ 0x27, 0x1e },
-	{ 0x30, 0xac },
-	{ 0x31, 0x78 },
-	{ 0x32, 0x17 },
-	{ 0x33, 0xc1 },
-	{ 0x34, 0x40 },
-	{ 0x35, 0x00 },
-	{ 0x36, 0xc3 },
-	{ 0x37, 0x0a },
-	{ 0x38, 0x00 },
-	{ 0x39, 0x02 },
-	{ 0x3a, 0x00 },
-	{ 0x3b, 0xb2 },
-	{ 0xa5, 0x10 },
-	{ 0xa7, 0x1e },
-	{ 0xb0, 0xac },
-	{ 0xb1, 0x78 },
-	{ 0xb2, 0x17 },
-	{ 0xb3, 0xc1 },
-	{ 0xb4, 0x40 },
-	{ 0xb5, 0x00 },
-	{ 0xb6, 0xc3 },
-	{ 0xb7, 0x0a },
-	{ 0xb8, 0x00 },
-	{ 0xb9, 0x02 },
-	{ 0xba, 0x00 },
-	{ 0xbb, 0xb2 },
+	{0xff, 0x0a},
+	{0x25, 0x10},
+	{0x27, 0x1e},
+	{0x30, 0xac},
+	{0x31, 0x78},
+	{0x32, 0x17},
+	{0x33, 0xc1},
+	{0x34, 0x40},
+	{0x35, 0x00},
+	{0x36, 0xc3},
+	{0x37, 0x0a},
+	{0x38, 0x00},
+	{0x39, 0x02},
+	{0x3a, 0x00},
+	{0x3b, 0xb2},
+	{0xa5, 0x10},
+	{0xa7, 0x1e},
+	{0xb0, 0xac},
+	{0xb1, 0x78},
+	{0xb2, 0x17},
+	{0xb3, 0xc1},
+	{0xb4, 0x40},
+	{0xb5, 0x00},
+	{0xb6, 0xc3},
+	{0xb7, 0x0a},
+	{0xb8, 0x00},
+	{0xb9, 0x02},
+	{0xba, 0x00},
+	{0xbb, 0xb2},
+	{0xff, 0x0b},
+	{0x25, 0x10},
+	{0x27, 0x1e},
+	{0x30, 0xac},
+	{0x31, 0x78},
+	{0x32, 0x17},
+	{0x33, 0xc1},
+	{0x34, 0x40},
+	{0x35, 0x00},
+	{0x36, 0xc3},
+	{0x37, 0x0a},
+	{0x38, 0x00},
+	{0x39, 0x02},
+	{0x3a, 0x00},
+	{0x3b, 0xb2},
+	{0xa5, 0x10},
+	{0xa7, 0x1e},
+	{0xb0, 0xac},
+	{0xb1, 0x78},
+	{0xb2, 0x17},
+	{0xb3, 0xc1},
+	{0xb4, 0x40},
+	{0xb5, 0x00},
+	{0xb6, 0xc3},
+	{0xb7, 0x0a},
+	{0xb8, 0x00},
+	{0xb9, 0x02},
+	{0xba, 0x00},
+	{0xbb, 0xb2},
 
-	{ 0xff, 0x13 },
-	{ 0x05, 0xa0 },
-	{ 0x31, 0xff },
-	{ 0x07, 0x47 },
-	{ 0x12, 0x04 },
-	{ 0x1e, 0x1f },
-	{ 0x1f, 0x27 },
-	{ 0x2e, 0x10 },
-	{ 0x2f, 0xc8 },
-	{ 0x31, 0xff },
-	{ 0x32, 0x00 },
-	{ 0x33, 0x00 },
-	{ 0x72, 0x05 },
-	{ 0x7a, 0xf0 },
-	{ 0xff, _MAR_BANK_ },
-	{ 0x10, 0xff },
-	{ 0x11, 0xff },
+	{0xff, 0x13},
+	{0x05, 0xa0},
+	{0x31, 0xff},
+	{0x07, 0x47},
+	{0x12, 0x04},
+	{0x1e, 0x1f},
+	{0x1f, 0x27},
+	{0x2e, 0x10},
+	{0x2f, 0xc8},
+	{0x31, 0xff},
+	{0x32, 0x00},
+	{0x33, 0x00},
+	{0x72, 0x05},
+	{0x7a, 0xf0},
+	{0xff, _MAR_BANK_},
+	{0x10, 0xff},
+	{0x11, 0xff},
 
-	{ 0x30, 0x0f },
-	{ 0x32, 0x92 },
-	{ 0x34, 0xcd },
-	{ 0x36, 0x04 },
-	{ 0x38, 0x58 },
+	{0x30, 0x0f},
+	{0x32, 0x92},
+	{0x34, 0xcd},
+	{0x36, 0x04},
+	{0x38, 0x58},
 
-	{ 0x3c, 0x01 },
-	{ 0x3d, 0x11 },
-	{ 0x3e, 0x11 },
-	{ 0x45, 0x60 },
-	{ 0x46, 0x49 },
+	{0x3c, 0x01},
+	{0x3d, 0x11},
+	{0x3e, 0x11},
+	{0x45, 0x60},
+	{0x46, 0x49},
 
-	{ 0xff, _MTX_BANK_ },
-	{ 0xe9, 0x03 },
-	{ 0x03, 0x02 },
-	{ 0x01, 0xe0 },
-	{ 0x00, 0x7d },
-	{ 0x01, 0xe0 },
-	{ 0x02, 0xa0 },
-	{ 0x20, 0x1e },
-	{ 0x20, 0x1f },
+	{0xff, _MTX_BANK_},
+	{0xe9, 0x03},
+	{0x03, 0x02},
+	{0x01, 0xe0},
+	{0x00, 0x7d},
+	{0x01, 0xe0},
+	{0x02, 0xa0},
+	{0x20, 0x1e},
+	{0x20, 0x1f},
 
-	{ 0x04, 0x38 },
-	{ 0x45, 0xc4 },
-	{ 0x46, 0x01 },
-	{ 0x47, 0x1b },
-	{ 0x48, 0x08 },
-	{ 0x65, 0xc4 },
-	{ 0x66, 0x01 },
-	{ 0x67, 0x1b },
-	{ 0x68, 0x08 },
-	{ 0x85, 0xc4 },
-	{ 0x86, 0x01 },
-	{ 0x87, 0x1b },
-	{ 0x88, 0x08 },
-	{ 0xa5, 0xc4 },
-	{ 0xa6, 0x01 },
-	{ 0xa7, 0x1b },
-	{ 0xa8, 0x08 },
-	{ 0xc5, 0xc4 },
-	{ 0xc6, 0x01 },	
-	{ 0xc7, 0x1b },	
-	{ 0xc8, 0x08 },
-	{ 0xeb, 0x8d },
+	{0x04, 0x38},
+	{0x45, 0xc4},
+	{0x46, 0x01},
+	{0x47, 0x1b},
+	{0x48, 0x08},
+	{0x65, 0xc4},
+	{0x66, 0x01},
+	{0x67, 0x1b},
+	{0x68, 0x08},
+	{0x85, 0xc4},
+	{0x86, 0x01},
+	{0x87, 0x1b},
+	{0x88, 0x08},
+	{0xa5, 0xc4},
+	{0xa6, 0x01},
+	{0xa7, 0x1b},
+	{0xa8, 0x08},
+	{0xc5, 0xc4},
+	{0xc6, 0x01},
+	{0xc7, 0x1b},
+	{0xc8, 0x08},
+	{0xeb, 0x8d},
 
-	{ 0xff, _MAR_BANK_ },
-	{ 0x00, 0xff },
-	{ 0x40, 0x01 },
-	{ 0x40, 0x00 },
-	{ 0xff, 0x01 },
-	{ 0x97, 0x00 },
-	{ 0x97, 0x0f },
+	{0xff, _MAR_BANK_},
+	{0x00, 0xff},
+	{0x40, 0x01},
+	{0x40, 0x00},
+	{0xff, 0x01},
+	{0x97, 0x00},
+	{0x97, 0x0f},
 
-	{ 0xff, 0x00 },  //test pattern
-	{ 0x78, 0xba },
-	{ 0x79, 0xac },
-	{ 0xff, 0x05 },
-	{ 0x2c, 0x08 },
-	{ 0x6a, 0x80 },
-	{ 0xff, 0x06 },
-	{ 0x2c, 0x08 },
-	{ 0x6a, 0x80 },
-	{ 0xff, 0x07 },
-	{ 0x2c, 0x08 },
-	{ 0x6a, 0x80 },
-	{ 0xff, 0x08 },
-	{ 0x2c, 0x08 },
-	{ 0x6a, 0x80 },
+	{0xff, 0x00},  //test pattern
+	{0x78, 0xba},
+	{0x79, 0xac},
+	{0xff, 0x05},
+	{0x2c, 0x08},
+	{0x6a, 0x80},
+	{0xff, 0x06},
+	{0x2c, 0x08},
+	{0x6a, 0x80},
+	{0xff, 0x07},
+	{0x2c, 0x08},
+	{0x6a, 0x80},
+	{0xff, 0x08},
+	{0x2c, 0x08},
+	{0x6a, 0x80},
 };
 
 static __maybe_unused const struct regval common_setting_1458M_regs[] = {
-	{ 0xff, 0x00 },
-	{ 0x80, 0x0f },
-	{ 0x00, 0x10 },
-	{ 0x01, 0x10 },
-	{ 0x02, 0x10 },
-	{ 0x03, 0x10 },
-	{ 0x22, 0x0b },
-	{ 0x23, 0x41 },
-	{ 0x26, 0x0b },
-	{ 0x27, 0x41 },
-	{ 0x2a, 0x0b },
-	{ 0x2b, 0x41 },
-	{ 0x2e, 0x0b },
-	{ 0x2f, 0x41 },
+	{0xff, 0x01},
+	{0x80, 0x40},
+	{0x98, 0x30},
+	{0x7a, 0x00},
+	{0xff, _MTX_BANK_},
+	{0xe9, 0x03},
+	{0x03, 0x02},
+	{0x04, 0x6c},
+	{0x08, 0x4f},
+	{0x01, 0xe4},
+	{0x00, 0x7d},
+	{0x01, 0xe0},
+	{0x20, 0x1e},
+	{0x20, 0x1f},
+	{0xeb, 0x8d},
+	{0x45, 0xcd},
+	{0x46, 0x42},
+	{0x47, 0x36},
+	{0x48, 0x0f},
+	{0x65, 0xcd},
+	{0x66, 0x42},
+	{0x67, 0x0e},
+	{0x68, 0x0f},
+	{0x85, 0xcd},
+	{0x86, 0x42},
+	{0x87, 0x0e},
+	{0x88, 0x0f},
+	{0xa5, 0xcd},
+	{0xa6, 0x42},
+	{0xa7, 0x0e},
+	{0xa8, 0x0f},
+	{0xc5, 0xcd},
+	{0xc6, 0x42},
+	{0xc7, 0x0e},
+	{0xc8, 0x0f},
 
-	{ 0xff, 0x01 },
-	{ 0x98, 0x30 },
-	{ 0xed, 0x00 },
+	{0xff, 0x05 + 0},
+	{0x01, 0x62},
+	{0x05, 0x04},
+	{0x08, 0x55},
+	{0x1b, 0x08},
+	{0x25, 0xdc},
+	{0x28, 0x80},
+	{0x2f, 0x00},
+	{0x30, 0xe0},
+	{0x31, 0x43},
+	{0x32, 0xa2},
+	{0x57, 0x00},
+	{0x58, 0x77},
+	{0x5b, 0x41},
+	{0x5c, 0x78},
+	{0x5f, 0x00},
+	{0x7b, 0x11},
+	{0x7c, 0x01},
+	{0x7d, 0x80},
+	{0x80, 0x00},
+	{0x90, 0x01},
+	{0xa9, 0x00},
+	{0xb5, 0x00},
+	{0xb9, 0x72},
+	{0xd1, 0x00},
+	{0xd5, 0x80},
 
-	{ 0xff, 0x05+0 },
-	{ 0x00, 0xd0 },
-	{ 0x01, 0x22 },
-	{ 0x47, 0xee },
-	{ 0x50, 0xc6 },
-	{ 0x57, 0x00 },
-	{ 0x58, 0x77 },
-	{ 0x5b, 0x41 },
-	{ 0x5c, 0x78 },
-	{ 0xB8, 0xB8 },
+	{0xff, 0x05 + 1},
+	{0x01, 0x62},
+	{0x05, 0x04},
+	{0x08, 0x55},
+	{0x1b, 0x08},
+	{0x25, 0xdc},
+	{0x28, 0x80},
+	{0x2f, 0x00},
+	{0x30, 0xe0},
+	{0x31, 0x43},
+	{0x32, 0xa2},
+	{0x57, 0x00},
+	{0x58, 0x77},
+	{0x5b, 0x41},
+	{0x5c, 0x78},
+	{0x5f, 0x00},
+	{0x7b, 0x11},
+	{0x7c, 0x01},
+	{0x7d, 0x80},
+	{0x80, 0x00},
+	{0x90, 0x01},
+	{0xa9, 0x00},
+	{0xb5, 0x00},
+	{0xb9, 0x72},
+	{0xd1, 0x00},
+	{0xd5, 0x80},
 
-	{ 0xff, 0x05+1 },
-	{ 0x00, 0xd0 },
-	{ 0x01, 0x22 },
-	{ 0x47, 0xee },
-	{ 0x50, 0xc6 },
-	{ 0x57, 0x00 },
-	{ 0x58, 0x77 },
-	{ 0x5b, 0x41 },
-	{ 0x5c, 0x78 },
-	{ 0xB8, 0xB8 },
+	{0xff, 0x05 + 2},
+	{0x01, 0x62},
+	{0x05, 0x04},
+	{0x08, 0x55},
+	{0x1b, 0x08},
+	{0x25, 0xdc},
+	{0x28, 0x80},
+	{0x2f, 0x00},
+	{0x30, 0xe0},
+	{0x31, 0x43},
+	{0x32, 0xa2},
+	{0x57, 0x00},
+	{0x58, 0x77},
+	{0x5b, 0x41},
+	{0x5c, 0x78},
+	{0x5f, 0x00},
+	{0x7b, 0x11},
+	{0x7c, 0x01},
+	{0x7d, 0x80},
+	{0x80, 0x00},
+	{0x90, 0x01},
+	{0xa9, 0x00},
+	{0xb5, 0x00},
+	{0xb9, 0x72},
+	{0xd1, 0x00},
+	{0xd5, 0x80},
 
-	{ 0xff, 0x05+2 },
-	{ 0x00, 0xd0 },
-	{ 0x01, 0x22 },
-	{ 0x47, 0xee },
-	{ 0x50, 0xc6 },
-	{ 0x57, 0x00 },
-	{ 0x58, 0x77 },
-	{ 0x5b, 0x41 },
-	{ 0x5c, 0x78 },
-	{ 0xB8, 0xB8 },
+	{0xff, 0x05 + 3},
+	{0x01, 0x62},
+	{0x05, 0x04},
+	{0x08, 0x55},
+	{0x1b, 0x08},
+	{0x25, 0xdc},
+	{0x28, 0x80},
+	{0x2f, 0x00},
+	{0x30, 0xe0},
+	{0x31, 0x43},
+	{0x32, 0xa2},
+	{0x57, 0x00},
+	{0x58, 0x77},
+	{0x5b, 0x41},
+	{0x5c, 0x78},
+	{0x5f, 0x00},
+	{0x7b, 0x11},
+	{0x7c, 0x01},
+	{0x7d, 0x80},
+	{0x80, 0x00},
+	{0x90, 0x01},
+	{0xa9, 0x00},
+	{0xb5, 0x00},
+	{0xb9, 0x72},
+	{0xd1, 0x00},
+	{0xd5, 0x80},
 
-	{ 0xff, 0x05+3 },
-	{ 0x00, 0xd0 },
-	{ 0x01, 0x22 },
-	{ 0x47, 0xee },
-	{ 0x50, 0xc6 },
-	{ 0x57, 0x00 },
-	{ 0x58, 0x77 },
-	{ 0x5b, 0x41 },
-	{ 0x5c, 0x78 },
-	{ 0xB8, 0xB8 },
+	{0xff, 0x09},
+	{0x50, 0x30},
+	{0x51, 0x6f},
+	{0x52, 0x67},
+	{0x53, 0x48},
+	{0x54, 0x30},
+	{0x55, 0x6f},
+	{0x56, 0x67},
+	{0x57, 0x48},
+	{0x58, 0x30},
+	{0x59, 0x6f},
+	{0x5a, 0x67},
+	{0x5b, 0x48},
+	{0x5c, 0x30},
+	{0x5d, 0x6f},
+	{0x5e, 0x67},
+	{0x5f, 0x48},
+	{0x96, 0x03},
+	{0xb6, 0x03},
+	{0xd6, 0x03},
+	{0xf6, 0x03},
 
-	{ 0xff, 0x09 },
-	{ 0x50, 0x30 },
-	{ 0x51, 0x6f },
-	{ 0x52, 0x67 },
-	{ 0x53, 0x48 },
-	{ 0x54, 0x30 },
-	{ 0x55, 0x6f },
-	{ 0x56, 0x67 },
-	{ 0x57, 0x48 },
-	{ 0x58, 0x30 },
-	{ 0x59, 0x6f },
-	{ 0x5a, 0x67 },
-	{ 0x5b, 0x48 },
-	{ 0x5c, 0x30 },
-	{ 0x5d, 0x6f },
-	{ 0x5e, 0x67 },
-	{ 0x5f, 0x48 },
+	{0xff, 0x0a},
+	{0x25, 0x10},
+	{0x27, 0x1e},
+	{0x30, 0xac},
+	{0x31, 0x78},
+	{0x32, 0x17},
+	{0x33, 0xc1},
+	{0x34, 0x40},
+	{0x35, 0x00},
+	{0x36, 0xc3},
+	{0x37, 0x0a},
+	{0x38, 0x00},
+	{0x39, 0x02},
+	{0x3a, 0x00},
+	{0x3b, 0xb2},
+	{0xa5, 0x10},
+	{0xa7, 0x1e},
+	{0xb0, 0xac},
+	{0xb1, 0x78},
+	{0xb2, 0x17},
+	{0xb3, 0xc1},
+	{0xb4, 0x40},
+	{0xb5, 0x00},
+	{0xb6, 0xc3},
+	{0xb7, 0x0a},
+	{0xb8, 0x00},
+	{0xb9, 0x02},
+	{0xba, 0x00},
+	{0xbb, 0xb2},
+	{0xff, 0x0b},
+	{0x25, 0x10},
+	{0x27, 0x1e},
+	{0x30, 0xac},
+	{0x31, 0x78},
+	{0x32, 0x17},
+	{0x33, 0xc1},
+	{0x34, 0x40},
+	{0x35, 0x00},
+	{0x36, 0xc3},
+	{0x37, 0x0a},
+	{0x38, 0x00},
+	{0x39, 0x02},
+	{0x3a, 0x00},
+	{0x3b, 0xb2},
+	{0xa5, 0x10},
+	{0xa7, 0x1e},
+	{0xb0, 0xac},
+	{0xb1, 0x78},
+	{0xb2, 0x17},
+	{0xb3, 0xc1},
+	{0xb4, 0x40},
+	{0xb5, 0x00},
+	{0xb6, 0xc3},
+	{0xb7, 0x0a},
+	{0xb8, 0x00},
+	{0xb9, 0x02},
+	{0xba, 0x00},
+	{0xbb, 0xb2},
 
-	{ 0xff, 0x0a },
-	{ 0x25, 0x10 },
-	{ 0x27, 0x1e },
-	{ 0x30, 0xac },
-	{ 0x31, 0x78 },
-	{ 0x32, 0x17 },
-	{ 0x33, 0xc1 },
-	{ 0x34, 0x40 },
-	{ 0x35, 0x00 },
-	{ 0x36, 0xc3 },
-	{ 0x37, 0x0a },
-	{ 0x38, 0x00 },
-	{ 0x39, 0x02 },
-	{ 0x3a, 0x00 },
-	{ 0x3b, 0xb2 },
-	{ 0xa5, 0x10 },
-	{ 0xa7, 0x1e },
-	{ 0xb0, 0xac },
-	{ 0xb1, 0x78 },
-	{ 0xb2, 0x17 },
-	{ 0xb3, 0xc1 },
-	{ 0xb4, 0x40 },
-	{ 0xb5, 0x00 },
-	{ 0xb6, 0xc3 },
-	{ 0xb7, 0x0a },
-	{ 0xb8, 0x00 },
-	{ 0xb9, 0x02 },
-	{ 0xba, 0x00 },
-	{ 0xbb, 0xb2 },
-	{ 0xff, 0x0b },
-	{ 0x25, 0x10 },
-	{ 0x27, 0x1e },
-	{ 0x30, 0xac },
-	{ 0x31, 0x78 },
-	{ 0x32, 0x17 },
-	{ 0x33, 0xc1 },
-	{ 0x34, 0x40 },
-	{ 0x35, 0x00 },
-	{ 0x36, 0xc3 },
-	{ 0x37, 0x0a },
-	{ 0x38, 0x00 },
-	{ 0x39, 0x02 },
-	{ 0x3a, 0x00 },
-	{ 0x3b, 0xb2 },
-	{ 0xa5, 0x10 },
-	{ 0xa7, 0x1e },
-	{ 0xb0, 0xac },
-	{ 0xb1, 0x78 },
-	{ 0xb2, 0x17 },
-	{ 0xb3, 0xc1 },
-	{ 0xb4, 0x40 },
-	{ 0xb5, 0x00 },
-	{ 0xb6, 0xc3 },
-	{ 0xb7, 0x0a },
-	{ 0xb8, 0x00 },
-	{ 0xb9, 0x02 },
-	{ 0xba, 0x00 },
-	{ 0xbb, 0xb2 },
+	{0xff, 0x00},
+	{0x00, 0x10},
+	{0x01, 0x10},
+	{0x02, 0x10},
+	{0x03, 0x10},
+	{0x22, 0x0b},
+	{0x23, 0x41},
+	{0x26, 0x0b},
+	{0x27, 0x41},
+	{0x2a, 0x0b},
+	{0x2b, 0x41},
+	{0x2e, 0x0b},
+	{0x2f, 0x41},
 
-	{ 0xff, 0x13 },
-	{ 0x05, 0xa0 },
-	{ 0x31, 0xff },
-	{ 0x07, 0x47 },
-	{ 0x12, 0x04 },
-	{ 0x1e, 0x1f },
-	{ 0x1f, 0x27 },
-	{ 0x2e, 0x10 },
-	{ 0x2f, 0xc8 },
-	{ 0x31, 0xff },
-	{ 0x32, 0x00 },
-	{ 0x33, 0x00 },
-	{ 0x72, 0x05 },
-	{ 0x7a, 0xf0 },
-	{ 0xff, _MAR_BANK_ },
-	{ 0x10, 0xff },
-	{ 0x11, 0xff },
+	{0xff, 0x13},
+	{0x05, 0xa0},
+	{0x07, 0x47},
+	{0x12, 0x04},
+	{0x1e, 0x1f},
+	{0x1f, 0x27},
+	{0x2e, 0x10},
+	{0x2f, 0xc8},
+	{0x30, 0x00},
+	{0x31, 0xff},
+	{0x32, 0x00},
+	{0x33, 0x00},
+	{0x3a, 0xff},
+	{0x3b, 0xff},
+	{0x3c, 0xff},
+	{0x3d, 0xff},
+	{0x3e, 0xff},
+	{0x3f, 0x0f},
+	{0x70, 0x00},
+	{0x72, 0x05},
+	{0x7A, 0xf0},
+	{0x74, 0x00},
+	{0x76, 0x00},
+	{0x78, 0x00},
+	{0x75, 0xff},
+	{0x77, 0xff},
+	{0x79, 0xff},
+	{0x01, 0x0c},
+	{0x73, 0x23},
+	{0xff, _MAR_BANK_},
+	{0x40, 0x01},
+	{0x10, 0xff},
+	{0x11, 0xff},
+	{0x46, 0x49},
+	{0x45, 0x60},
+	{0x30, 0x0f},
+	{0x32, 0xff},
+	{0x34, 0xcd},
+	{0x36, 0x04},
+	{0x38, 0xff},
+	{0x07, 0x00},
+	{0x2a, 0x0a},
+	{0x3d, 0x11},
+	{0x3e, 0x11},
+	{0x3c, 0x01},
+	{0x1a, 0x92},
+	{0x1b, 0x00},
+	{0x1c, 0x00},
+	{0x05, 0x00},
+	{0x06, 0x00},
+	{0x0d, 0x01},
+	{0x00, 0x00},//mipi not enabled first
+	{0x40, 0x00},
 
-	{ 0x30, 0x0f },
-	{ 0x32, 0xff },
-	{ 0x34, 0xcd },
-	{ 0x36, 0x04 },
-	{ 0x38, 0xff },
-	{ 0x3c, 0x01 },
-	{ 0x3d, 0x11 },
-	{ 0x3e, 0x11 },
-	{ 0x45, 0x60 },
-	{ 0x46, 0x49 },
+	{0xff, 0x01},
+	//{ 0x82, 0x12 },
+	{0x80, 0x61},
+	{0x80, 0x60},
+	{0xa0, 0x20},
+	{0xa1, 0x20},
+	{0xa2, 0x20},
+	{0xa3, 0x20},
+	{0xed, 0x00},
 
-	{ 0xff, _MTX_BANK_ },
-	{ 0xe9, 0x03 },
-	{ 0x03, 0x02 },
-	{ 0x01, 0xe4 },
-	{ 0x00, 0x7d },
-	{ 0x01, 0xe0 },
-	{ 0x02, 0xa0 },
-	{ 0x20, 0x1e },
-	{ 0x20, 0x1f },
-	{ 0x04, 0x6c },
-	{ 0x45, 0xcd },
-	{ 0x46, 0x42 },
-	{ 0x47, 0x36 },
-	{ 0x48, 0x0f },
-	{ 0x65, 0xcd },
-	{ 0x66, 0x42 },
-	{ 0x67, 0x0e },
-	{ 0x68, 0x0f },
-	{ 0x85, 0xcd },
-	{ 0x86, 0x42 },
-	{ 0x87, 0x0e },
-	{ 0x88, 0x0f },
-	{ 0xa5, 0xcd },
-	{ 0xa6, 0x42 },
-	{ 0xa7, 0x0e },
-	{ 0xa8, 0x0f },
-	{ 0xc5, 0xcd },
-	{ 0xc6, 0x42 },
-	{ 0xc7, 0x0e },
-	{ 0xc8, 0x0f },
-	{ 0xeb, 0x8d },
+	{0xff, 0x00},
+	{0x80, 0x0f},
+	{0x81, 0x02},
+	{0x82, 0x02},
+	{0x83, 0x02},
+	{0x84, 0x02},
+	{0x64, 0x01},
+	{0x65, 0x01},
+	{0x66, 0x01},
+	{0x67, 0x01},
+	{0x5c, 0x80},
+	{0x5d, 0x80},
+	{0x5e, 0x80},
+	{0x5f, 0x80},
+	{0xff, 0x01},
+	{0x84, 0x02},
+	{0x85, 0x02},
+	{0x86, 0x02},
+	{0x87, 0x02},
+	{0x8c, 0x40},
+	{0x8d, 0x40},
+	{0x8e, 0x40},
+	{0x8f, 0x40},
+	{0xff, 0x20},
+	{0x01, 0x00},
+	{0x12, 0xc0},
+	{0x13, 0x03},
+	{0x14, 0xc0},
+	{0x15, 0x03},
+	{0x16, 0xc0},
+	{0x17, 0x03},
+	{0x18, 0xc0},
+	{0x19, 0x03},
+	{0xff, 0x01},
+	{0x97, 0xf0},
+	{0x97, 0x0f},
 
-	{ 0xff, _MAR_BANK_ },
-	{ 0x00, 0xff },
-	{ 0x40, 0x01 },
-	{ 0x40, 0x00 },
-	{ 0xff, 0x01 },
-	{ 0x97, 0x00 },
-	{ 0x97, 0x0f },
-
-	{ 0xff, 0x00 },  //test pattern
-	{ 0x78, 0xba },
-	{ 0x79, 0xac },
-	{ 0xff, 0x05 },
-	{ 0x2c, 0x08 },
-	{ 0x6a, 0x80 },
-	{ 0xff, 0x06 },
-	{ 0x2c, 0x08 },
-	{ 0x6a, 0x80 },
-	{ 0xff, 0x07 },
-	{ 0x2c, 0x08 },
-	{ 0x6a, 0x80 },
-	{ 0xff, 0x08 },
-	{ 0x2c, 0x08 },
-	{ 0x6a, 0x80 },
-};
-
-static __maybe_unused const struct regval auto_detect_regs[] = {
-	{ 0xFF, 0x13 },
-	{ 0x30, 0x7f },
-	{ 0x70, 0xf0 },
-
-	{ 0xFF, 0x00 },
-	{ 0x00, 0x18 },
-	{ 0x01, 0x18 },
-	{ 0x02, 0x18 },
-	{ 0x03, 0x18 },
-
-	{ 0x00, 0x10 },
-	{ 0x01, 0x10 },
-	{ 0x02, 0x10 },
-	{ 0x03, 0x10 },
+	{0xff, 0x00},  //test pattern
+	{0x78, 0x88},
+	{0x79, 0x88},
+	{0xff, 0x05},
+	{0x2c, 0x08},
+	{0x6a, 0x00},
+	{0xff, 0x06},
+	{0x2c, 0x08},
+	{0x6a, 0x00},
+	{0xff, 0x07},
+	{0x2c, 0x08},
+	{0x6a, 0x00},
+	{0xff, 0x08},
+	{0x2c, 0x08},
+	{0x6a, 0x00},
 };
 
 static struct nvp6188_mode supported_modes[] = {
@@ -796,114 +931,29 @@ static int nvp6188_read_reg(struct i2c_client *client, u8 reg, u8 *val)
 	return ret;
 }
 
+static int nv6188_read_htotal(struct nvp6188 *nvp6188, unsigned char ch)
+{
+	int ch_htotal = 0;
+	unsigned char val_5xf2 = 0, val_5xf3 = 0;
+	struct i2c_client *client = nvp6188->client;
+
+	nvp6188_write_reg(client, 0xff, 0x05 + ch);
+	nvp6188_read_reg(client, 0xf2, &val_5xf2);
+	nvp6188_read_reg(client, 0xf3, &val_5xf3);
+	ch_htotal = ((val_5xf3 << 8) | val_5xf2);
+
+	return ch_htotal;
+}
+
 static unsigned char nv6188_read_vfc(struct nvp6188 *nvp6188, unsigned char ch)
 {
 	unsigned char ch_vfc = 0xff;
 	struct i2c_client *client = nvp6188->client;
+
 	nvp6188_write_reg(client, 0xff, 0x05 + ch);
 	nvp6188_read_reg(client, 0xf0, &ch_vfc);
+
 	return ch_vfc;
-}
-
-static __maybe_unused int nvp6188_read_all_vfc(struct nvp6188 *nvp6188,
-					       u8 *ch_vfc)
-{
-	int ret = 0;
-	int check_cnt = 0, ch = 0;
-	struct i2c_client *client = nvp6188->client;
-
-	ret = nvp6188_write_array(client,
-		auto_detect_regs, ARRAY_SIZE(auto_detect_regs));
-	if (ret) {
-		dev_err(&client->dev, "write auto_detect_regs faild %d", ret);
-	}
-
-	ret = -1;
-	while ((check_cnt++) < 50) {
-		for (ch = 0; ch < 4; ch++) {
-			ch_vfc[ch] = nv6188_read_vfc(nvp6188, ch);
-		}
-		if (ch_vfc[0] != 0xff || ch_vfc[1] != 0xff ||
-		    ch_vfc[2] != 0xff || ch_vfc[3] != 0xff) {
-			ret = 0;
-			if (ch == 3) {
-				dev_dbg(&client->dev, "try check cnt %d",check_cnt);
-				break;
-			}
-		} else {
-			usleep_range(20 * 1000, 40 * 1000);
-		}
-	}
-
-	if (ret) {
-		dev_err(&client->dev, "read vfc faild %d", ret);
-	} else {
-		dev_dbg(&client->dev, "read vfc 0x%2x 0x%2x 0x%2x 0x%2x",
-				ch_vfc[0], ch_vfc[1], ch_vfc[2], ch_vfc[3]);
-	}
-	return ret;
-}
-
-static __maybe_unused int nvp6188_auto_detect_fmt(struct nvp6188 *nvp6188)
-{
-	int ret = 0;
-	int ch = 0;
-	unsigned char ch_vfc[4] = { 0xff, 0xff, 0xff, 0xff };
-	unsigned char val_13x70 = 0, val_13x71 = 0;
-	struct i2c_client *client = nvp6188->client;
-
-	if (nvp6188_read_all_vfc(nvp6188, ch_vfc))
-		return -1;
-
-	for (ch = 0; ch < 4; ch++) {
-		nvp6188_write_reg(client, 0xFF, 0x13);
-		nvp6188_read_reg(client, 0x70, &val_13x70);
-		val_13x70 |= (0x01 << ch);
-		nvp6188_write_reg(client, 0x70, val_13x70);
-		nvp6188_read_reg(client, 0x71, &val_13x71);
-		val_13x71 |= (0x01 << ch);
-		nvp6188_write_reg(client, 0x71, val_13x71);
-		switch(ch_vfc[ch]) {
-			case NVP_RESO_960H_NSTC_VALUE:
-				dev_dbg(&client->dev, "channel %d det 960h nstc", ch);
-				nvp6188->cur_mode.channel_reso[ch] = NVP_RESO_960H_NSTC;
-			break;
-			case NVP_RESO_960H_PAL_VALUE:
-				dev_dbg(&client->dev, "channel %d det 960h pal", ch);
-				nvp6188->cur_mode.channel_reso[ch] = NVP_RESO_960H_PAL;
-			break;
-			case NVP_RESO_720P_NSTC_VALUE:
-				dev_dbg(&client->dev, "channel %d det 720p nstc", ch);
-				nvp6188->cur_mode.channel_reso[ch] = NVP_RESO_720P_NSTC;
-			break;
-			case NVP_RESO_720P_PAL_VALUE:
-				dev_dbg(&client->dev, "channel %d det 720p pal", ch);
-				nvp6188->cur_mode.channel_reso[ch] = NVP_RESO_720P_PAL;
-			break;
-			case NVP_RESO_1080P_NSTC_VALUE:
-				dev_dbg(&client->dev, "channel %d det 1080p nstc", ch);
-				nvp6188->cur_mode.channel_reso[ch] = NVP_RESO_1080P_NSTC;
-			break;
-			case NVP_RESO_1080P_PAL_VALUE:
-				dev_dbg(&client->dev, "channel %d det 1080p pal", ch);
-				nvp6188->cur_mode.channel_reso[ch] = NVP_RESO_1080P_PAL;
-			break;
-			case NVP_RESO_960P_NSTC_VALUE:
-				dev_dbg(&client->dev, "channel %d det 960p nstc", ch);
-				nvp6188->cur_mode.channel_reso[ch] = NVP_RESO_960P_NSTC;
-			break;
-			case NVP_RESO_960P_PAL_VALUE:
-				dev_dbg(&client->dev, "channel %d det 960p pal", ch);
-				nvp6188->cur_mode.channel_reso[ch] = NVP_RESO_960P_PAL;
-			break;
-			default:
-				dev_err(&client->dev, "channel %d not detect, def 1080p pal\n", ch);
-				nvp6188->cur_mode.channel_reso[ch] = NVP_RESO_1080P_PAL;
-			break;
-		}
-	}
-
-	return ret;
 }
 
 static __maybe_unused int nvp6188_auto_detect_hotplug(struct nvp6188 *nvp6188)
@@ -912,7 +962,7 @@ static __maybe_unused int nvp6188_auto_detect_hotplug(struct nvp6188 *nvp6188)
 	struct i2c_client *client = nvp6188->client;
 	nvp6188_write_reg(client, 0xff, 0x00);
 	nvp6188_read_reg(client, 0xa8, &nvp6188->detect_status);
-	nvp6188->detect_status = ~nvp6188->detect_status;
+	//nvp6188->detect_status = ~nvp6188->detect_status;
 	return ret;
 }
 
@@ -975,8 +1025,8 @@ static int nvp6188_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_s_ctrl(nvp6188->link_freq, mode->mipi_freq_idx);
 		pixel_rate = (u32)link_freq_items[mode->mipi_freq_idx] / mode->bpp * 2 * NVP6188_LANES;
 		__v4l2_ctrl_s_ctrl_int64(nvp6188->pixel_rate, pixel_rate);
-		dev_err(&nvp6188->client->dev, "mipi_freq_idx %d\n", mode->mipi_freq_idx);
-		dev_err(&nvp6188->client->dev, "pixel_rate %lld\n", pixel_rate);
+		dev_info(&nvp6188->client->dev, "mipi_freq_idx %d\n", mode->mipi_freq_idx);
+		dev_info(&nvp6188->client->dev, "pixel_rate %lld\n", pixel_rate);
 	}
 
 	mutex_unlock(&nvp6188->mutex);
@@ -1005,7 +1055,7 @@ static int nvp6188_get_fmt(struct v4l2_subdev *sd,
 		fmt->format.height = mode->height;
 		fmt->format.code = mode->bus_fmt;
 		fmt->format.field = V4L2_FIELD_NONE;
-		if (fmt->pad < PAD_MAX && fmt->pad >= PAD0)
+		if (fmt->pad < PAD_MAX && fmt->pad > PAD0)
 			fmt->reserved[0] = mode->vc[fmt->pad];
 		else
 			fmt->reserved[0] = mode->vc[PAD0];
@@ -1032,6 +1082,21 @@ static int nvp6188_enum_mbus_code(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int nvp6188_enum_frame_interval(struct v4l2_subdev *sd,
+				       struct v4l2_subdev_pad_config *cfg,
+				       struct v4l2_subdev_frame_interval_enum *fie)
+{
+	if (fie->index >= ARRAY_SIZE(supported_modes))
+		return -EINVAL;
+
+	fie->code = supported_modes[fie->index].bus_fmt;
+	fie->width = supported_modes[fie->index].width;
+	fie->height = supported_modes[fie->index].height;
+	fie->interval = supported_modes[fie->index].max_fps;
+
+	return 0;
+}
+
 static int nvp6188_enum_frame_sizes(struct v4l2_subdev *sd,
 				    struct v4l2_subdev_pad_config *cfg,
 				    struct v4l2_subdev_frame_size_enum *fse)
@@ -1054,6 +1119,16 @@ static int nvp6188_enum_frame_sizes(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int nvp6188_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
+				 struct v4l2_mbus_config *cfg)
+{
+	cfg->type = V4L2_MBUS_CSI2_DPHY;
+	cfg->flags = V4L2_MBUS_CSI2_4_LANE |
+		     V4L2_MBUS_CSI2_CHANNELS;
+
+	return 0;
+}
+
 static int nvp6188_g_frame_interval(struct v4l2_subdev *sd,
 				    struct v4l2_subdev_frame_interval *fi)
 {
@@ -1067,94 +1142,79 @@ static int nvp6188_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int nvp6188_enum_frame_interval(struct v4l2_subdev *sd,
-				       struct v4l2_subdev_pad_config *cfg,
-				       struct v4l2_subdev_frame_interval_enum *fie)
-{
-	if (fie->index >= ARRAY_SIZE(supported_modes))
-		return -EINVAL;
-
-	fie->code = supported_modes[fie->index].bus_fmt;
-	fie->width = supported_modes[fie->index].width;
-	fie->height = supported_modes[fie->index].height;
-	fie->interval = supported_modes[fie->index].max_fps;
-
-	return 0;
-}
-
-static int nvp6188_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
-				 struct v4l2_mbus_config *cfg)
-{
-	cfg->type = V4L2_MBUS_CSI2_DPHY;
-	cfg->flags = V4L2_MBUS_CSI2_4_LANE |
-		     V4L2_MBUS_CSI2_CHANNELS;
-
-	return 0;
-}
-
 static void nvp6188_get_module_inf(struct nvp6188 *nvp6188,
 				   struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, NVP6188_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, nvp6188->module_name,
+	strscpy(inf->base.sensor, NVP6188_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, nvp6188->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens, nvp6188->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, nvp6188->len_name, sizeof(inf->base.lens));
 }
 
 static void nvp6188_get_vc_fmt_inf(struct nvp6188 *nvp6188,
 				   struct rkmodule_vc_fmt_info *inf)
 {
 	int ch = 0;
-	unsigned char ch_vfc[4] = { 0xff, 0xff, 0xff, 0xff };
+	static u32 last_channel_reso[PAD_MAX] = {NVP_RESO_UNKOWN};
 	memset(inf, 0, sizeof(*inf));
-	nvp6188_read_all_vfc(nvp6188, ch_vfc);
 
-	dev_dbg(&nvp6188->client->dev, "nvp6188_get_vc_fmt_inf 0x%2x 0x%2x 0x%2x 0x%2x",
-			ch_vfc[0], ch_vfc[1], ch_vfc[2], ch_vfc[3]);
+	for (ch = 0; ch < PAD_MAX; ch++) {
+		//Maintain last resolution modify by cairufan
+		if (nvp6188->cur_mode.channel_reso[ch] != NVP_RESO_UNKOWN)
+			last_channel_reso[ch] = nvp6188->cur_mode.channel_reso[ch];
 
-	for (ch = 0; ch < 4; ch++) {
-		switch(ch_vfc[ch]) {
-			case NVP_RESO_960H_NSTC_VALUE:
+		switch (last_channel_reso[ch]) {
+		case NVP_RESO_960H_NSTC:
 				inf->width[ch] = 960;
 				inf->height[ch] = 576;
 				inf->fps[ch] = 30;
 			break;
-			case NVP_RESO_960H_PAL_VALUE:
+		case NVP_RESO_960H_PAL:
 				inf->width[ch] = 960;
 				inf->height[ch] = 576;
 				inf->fps[ch] = 25;
 			break;
-			case NVP_RESO_960P_PAL_VALUE:
+		case NVP_RESO_960P_PAL:
 				inf->width[ch] = 1280;
 				inf->height[ch] = 960;
 				inf->fps[ch] = 25;
 			break;
-			case NVP_RESO_960P_NSTC_VALUE:
+		case NVP_RESO_960P_NSTC:
 				inf->width[ch] = 1280;
 				inf->height[ch] = 960;
 				inf->fps[ch] = 30;
 			break;
-			case NVP_RESO_720P_PAL_VALUE:
+		case NVP_RESO_720P_PAL:
 				inf->width[ch] = 1280;
 				inf->height[ch] = 720;
 				inf->fps[ch] = 25;
 			break;
-			case NVP_RESO_720P_NSTC_VALUE:
+		case NVP_RESO_720P_NSTC:
 				inf->width[ch] = 1280;
 				inf->height[ch] = 720;
 				inf->fps[ch] = 30;
 			break;
-			case NVP_RESO_1080P_NSTC_VALUE:
+		case NVP_RESO_1080P_PAL:
 				inf->width[ch] = 1920;
 				inf->height[ch] = 1080;
+				inf->fps[ch] = 25;
+			break;
+		case NVP_RESO_1300P_NSTC:
+				inf->width[ch] = 1600;
+				inf->height[ch] = 1300;
 				inf->fps[ch] = 30;
 			break;
-			case NVP_RESO_1080P_PAL_VALUE:
+		case NVP_RESO_1300P_PAL:
+				inf->width[ch] = 1600;
+				inf->height[ch] = 1300;
+				inf->fps[ch] = 25;
+			break;
+		case NVP_RESO_1080P_NSTC:
 			default:
 				inf->width[ch] = 1920;
 				inf->height[ch] = 1080;
-				inf->fps[ch] = 25;
+				inf->fps[ch] = 30;
 			break;
 		}
 	}
@@ -1164,7 +1224,7 @@ static void nvp6188_get_vc_hotplug_inf(struct nvp6188 *nvp6188,
 				       struct rkmodule_vc_hotplug_info *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	nvp6188_auto_detect_hotplug(nvp6188);
+	//nvp6188_auto_detect_hotplug(nvp6188);
 	inf->detect_status = nvp6188->detect_status;
 }
 
@@ -1186,14 +1246,8 @@ static void nvp6188_set_streaming(struct nvp6188 *nvp6188, int on)
 	struct i2c_client *client = nvp6188->client;
 
 	dev_info(&client->dev, "%s: on: %d\n", __func__, on);
-
-	if (on) {
-		nvp6188_write_reg(client, 0xff, 0x20);
-		nvp6188_write_reg(client, 0xff, 0xff);
-	} else {
-		nvp6188_write_reg(client, 0xff, 0x20);
-		nvp6188_write_reg(client, 0xff, 0x00);
-	}
+	if (!on)
+		usleep_range(40 * 1000, 50 * 1000);
 }
 
 static long nvp6188_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
@@ -1225,7 +1279,6 @@ static long nvp6188_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		stream = *((u32 *)arg);
 		nvp6188_set_streaming(nvp6188, !!stream);
 		break;
-
 	default:
 		ret = -ENOTTY;
 		break;
@@ -1360,19 +1413,107 @@ static long nvp6188_compat_ioctl32(struct v4l2_subdev *sd,
 }
 #endif
 
+/*
+ * 1280x960p
+ * dev:0x60 / 0x62 / 0x64 / 0x66
+ * ch : 0 ~ 3
+ * ntpal: 1:25p, 0:30p
+ */
+static __maybe_unused void nv6188_set_chn_960p(struct nvp6188 *nvp6188, u8 ch,
+							u8 ntpal)
+
+{
+	unsigned char val_0x54 = 0, val_20x01 = 0;
+	struct i2c_client *client = nvp6188->client;
+
+	dev_info(&client->dev, "%s: ch %d ntpal %d", __func__, ch, ntpal);
+
+	nvp6188_write_reg(client, 0xff, 0x00);
+	nvp6188_write_reg(client, 0x00 + ch, 0x10);
+	nvp6188_write_reg(client, 0x08 + ch, 0x00);
+	nvp6188_write_reg(client, 0x18 + ch, 0x0f);
+	nvp6188_write_reg(client, 0x30 + ch, 0x12);
+	nvp6188_write_reg(client, 0x34 + ch, 0x00);
+	nvp6188_read_reg(client, 0x54, &val_0x54);
+	val_0x54 &= ~(0x10 << ch);
+	nvp6188_write_reg(client, 0x54, val_0x54);
+	nvp6188_write_reg(client, 0x58 + ch, ntpal ? 0x40 : 0x48);
+	nvp6188_write_reg(client, 0x5c + ch, ntpal ? 0x80 : 0x80);
+	nvp6188_write_reg(client, 0x64 + ch, ntpal ? 0x28 : 0x28);
+	nvp6188_write_reg(client, 0x81 + ch, ntpal ? 0x07 : 0x06);
+	nvp6188_write_reg(client, 0x85 + ch, 0x0b);
+	nvp6188_write_reg(client, 0x89 + ch, 0x00);
+	nvp6188_write_reg(client, 0x8e + ch, 0x00);
+	nvp6188_write_reg(client, 0xa0 + ch, 0x05);
+	nvp6188_write_reg(client, 0xff, 0x01);
+	nvp6188_write_reg(client, 0x84 + ch, 0x02);
+	nvp6188_write_reg(client, 0x88 + ch, 0x00);
+	nvp6188_write_reg(client, 0x8c + ch, 0x40);
+	nvp6188_write_reg(client, 0xa0 + ch, 0x20);
+	nvp6188_write_reg(client, 0xff, 0x05 + ch);
+	nvp6188_write_reg(client, 0x00, 0xd0);
+	nvp6188_write_reg(client, 0x01, 0x22);
+	nvp6188_write_reg(client, 0x05, 0x04);
+	nvp6188_write_reg(client, 0x08, 0x55);
+	nvp6188_write_reg(client, 0x25, 0xdc);
+	nvp6188_write_reg(client, 0x28, 0x80);
+	nvp6188_write_reg(client, 0x2f, 0x00);
+	nvp6188_write_reg(client, 0x30, 0xe0);
+	nvp6188_write_reg(client, 0x31, 0x43);
+	nvp6188_write_reg(client, 0x32, 0xa2);
+	nvp6188_write_reg(client, 0x47, 0xee);
+	nvp6188_write_reg(client, 0x50, 0xc6);
+	nvp6188_write_reg(client, 0x57, 0x00);
+	nvp6188_write_reg(client, 0x58, 0x77);
+	nvp6188_write_reg(client, 0x5b, 0x41);
+	nvp6188_write_reg(client, 0x5c, 0x78);
+	nvp6188_write_reg(client, 0x5f, 0x00);
+	nvp6188_write_reg(client, 0x62, 0x00);
+	nvp6188_write_reg(client, 0x6C, 0x00);
+	nvp6188_write_reg(client, 0x6d, 0x00);
+	nvp6188_write_reg(client, 0x6e, 0x00);
+	nvp6188_write_reg(client, 0x6f, 0x00);
+	nvp6188_write_reg(client, 0x7b, 0x11);
+	nvp6188_write_reg(client, 0x7c, 0x01);
+	nvp6188_write_reg(client, 0x7d, 0x80);
+	nvp6188_write_reg(client, 0x80, 0x00);
+	nvp6188_write_reg(client, 0x90, 0x01);
+	nvp6188_write_reg(client, 0xa9, 0x00);
+	nvp6188_write_reg(client, 0xb5, 0x40);
+	nvp6188_write_reg(client, 0xb8, 0x39);
+	nvp6188_write_reg(client, 0xb9, 0x72);
+	nvp6188_write_reg(client, 0xd1, 0x00);
+	nvp6188_write_reg(client, 0xd5, 0x80);
+	nvp6188_write_reg(client, 0xff, 0x09);
+	nvp6188_write_reg(client, 0x96 + (ch * 0x20), 0x00);
+	nvp6188_write_reg(client, 0x98 + (ch * 0x20), 0x00);
+	nvp6188_write_reg(client, 0x9e + (ch * 0x20), 0x00);
+	nvp6188_write_reg(client, 0xff, 0x11);
+	nvp6188_write_reg(client, 0x00 + (ch * 0x20), 0x00);
+	nvp6188_write_reg(client, 0xff, _MAR_BANK_);
+	nvp6188_read_reg(client, 0x01, &val_20x01);
+	val_20x01 &= (~(0x03 << (ch * 2)));
+	//val_20x01 |=(0x01<<(ch*2));
+	nvp6188_write_reg(client, 0x01, val_20x01);
+	nvp6188_write_reg(client, 0x12 + (ch * 2), 0x80);
+	nvp6188_write_reg(client, 0x13 + (ch * 2), 0x02);
+}
+
 //each channel setting
 /*
-960x480i
-ch : 0 ~ 3
-ntpal: 1:25p, 0:30p
-*/
+ * 960x480i
+ * ch : 0 ~ 3
+ * ntpal: 1:25p, 0:30p
+ */
 static __maybe_unused void nv6188_set_chn_960h(struct nvp6188 *nvp6188, u8 ch,
 					       u8 ntpal)
 {
 	unsigned char val_0x54 = 0, val_20x01 = 0;
 	struct i2c_client *client = nvp6188->client;
-	dev_err(&client->dev, "nv6188_set_chn_960h ch %d ntpal %d", ch, ntpal);
+
+	dev_err(&client->dev, "%s: ch %d ntpal %d", __func__, ch, ntpal);
 	nvp6188_write_reg(client, 0xff, 0x00);
+	nvp6188_write_reg(client, 0x00 + ch, 0x10);
 	nvp6188_write_reg(client, 0x08 + ch, ntpal ? 0xdd : 0xa0);
 	nvp6188_write_reg(client, 0x18 + ch, 0x08);
 	nvp6188_write_reg(client, 0x22 + ch * 4, 0x0b);
@@ -1391,17 +1532,16 @@ static __maybe_unused void nv6188_set_chn_960h(struct nvp6188 *nvp6188, u8 ch,
 	nvp6188_write_reg(client, 0x81 + ch, ntpal ? 0xf0 : 0xe0);
 	nvp6188_write_reg(client, 0x85 + ch, 0x00);
 	nvp6188_write_reg(client, 0x89 + ch, 0x00);
-	nvp6188_write_reg(client, ch + 0x8e, 0x00);
+	nvp6188_write_reg(client, 0x8e + ch, 0x00);
 	nvp6188_write_reg(client, 0xa0 + ch, 0x05);
-
 	nvp6188_write_reg(client, 0xff, 0x01);
 	nvp6188_write_reg(client, 0x84 + ch, 0x02);
 	nvp6188_write_reg(client, 0x88 + ch, 0x00);
 	nvp6188_write_reg(client, 0x8c + ch, 0x40);
 	nvp6188_write_reg(client, 0xa0 + ch, 0x20);
 	nvp6188_write_reg(client, 0xed, 0x00);
-
 	nvp6188_write_reg(client, 0xff, 0x05 + ch);
+	nvp6188_write_reg(client, 0x00, 0xd0);
 	nvp6188_write_reg(client, 0x01, 0x22);
 	nvp6188_write_reg(client, 0x05, 0x00);
 	nvp6188_write_reg(client, 0x08, 0x55);
@@ -1430,36 +1570,38 @@ static __maybe_unused void nv6188_set_chn_960h(struct nvp6188 *nvp6188, u8 ch,
 	nvp6188_write_reg(client, 0xb9, 0x72);
 	nvp6188_write_reg(client, 0xd1, 0x00);
 	nvp6188_write_reg(client, 0xd5, 0x80);
-
 	nvp6188_write_reg(client, 0xff, 0x09);
-	nvp6188_write_reg(client, 0x96 + ch * 0x20, 0x10);
-	nvp6188_write_reg(client, 0x98 + ch * 0x20, ntpal ? 0xc0 : 0xe0);
-	nvp6188_write_reg(client, ch * 0x20 + 0x9e, 0x00);
-
+	nvp6188_write_reg(client, 0x96 + (ch * 0x20), 0x10);
+	nvp6188_write_reg(client, 0x98 + (ch * 0x20), ntpal ? 0xc0 : 0xe0);
+	nvp6188_write_reg(client, 0x9e + (ch * 0x20), 0x00);
+	nvp6188_write_reg(client, 0xff, 0x11);
+	nvp6188_write_reg(client, 0x00 + (ch * 0x20), 0x00);
 	nvp6188_write_reg(client, 0xff, _MAR_BANK_);
 	nvp6188_read_reg(client, 0x01, &val_20x01);
 	val_20x01 &= (~(0x03 << (ch * 2)));
 	val_20x01 |= (0x02 << (ch * 2));
 	nvp6188_write_reg(client, 0x01, val_20x01);
-	nvp6188_write_reg(client, 0x12 + ch * 2, 0xe0);
-	nvp6188_write_reg(client, 0x13 + ch * 2, 0x01);
+	nvp6188_write_reg(client, 0x12 + (ch * 2), 0xe0);
+	nvp6188_write_reg(client, 0x13 + (ch * 2), 0x01);
 }
 
 //each channel setting
 /*
-1280x720p
-ch : 0 ~ 3
-ntpal: 1:25p, 0:30p
-*/
+ * 1280x720p
+ * ch : 0 ~ 3
+ * ntpal: 1:25p, 0:30p
+ */
 static __maybe_unused void nv6188_set_chn_720p(struct nvp6188 *nvp6188, u8 ch,
 					       u8 ntpal)
 {
 	unsigned char val_0x54 = 0, val_20x01 = 0;
 	struct i2c_client *client = nvp6188->client;
-	dev_err(&client->dev, "nv6188_set_chn_720p ch %d ntpal %d", ch, ntpal);
+
+	dev_info(&client->dev, "%s: ch %d ntpal %d", __func__, ch, ntpal);
 	nvp6188_write_reg(client, 0xff, 0x00);
+	nvp6188_write_reg(client, 0x00 + ch, 0x00);
 	nvp6188_write_reg(client, 0x08 + ch, 0x00);
-	nvp6188_write_reg(client, 0x18 + ch, 0x3f);
+	nvp6188_write_reg(client, 0x18 + ch, 0x10);
 	nvp6188_write_reg(client, 0x30 + ch, 0x12);
 	nvp6188_write_reg(client, 0x34 + ch, 0x00);
 	nvp6188_read_reg(client, 0x54, &val_0x54);
@@ -1471,16 +1613,15 @@ static __maybe_unused void nv6188_set_chn_720p(struct nvp6188 *nvp6188, u8 ch,
 	nvp6188_write_reg(client, 0x81 + ch, ntpal ? 0x0d : 0x0c);
 	nvp6188_write_reg(client, 0x85 + ch, 0x00);
 	nvp6188_write_reg(client, 0x89 + ch, 0x00);
-	nvp6188_write_reg(client, ch + 0x8e, 0x00);
+	nvp6188_write_reg(client, 0x8e + ch, 0x00);
 	nvp6188_write_reg(client, 0xa0 + ch, 0x05);
-
 	nvp6188_write_reg(client, 0xff, 0x01);
 	nvp6188_write_reg(client, 0x84 + ch, 0x02);
 	nvp6188_write_reg(client, 0x88 + ch, 0x00);
 	nvp6188_write_reg(client, 0x8c + ch, 0x40);
 	nvp6188_write_reg(client, 0xa0 + ch, 0x20);
-
 	nvp6188_write_reg(client, 0xff, 0x05 + ch);
+	nvp6188_write_reg(client, 0x00, 0xf0);
 	nvp6188_write_reg(client, 0x01, 0x22);
 	nvp6188_write_reg(client, 0x05, 0x04);
 	nvp6188_write_reg(client, 0x08, 0x55);
@@ -1490,55 +1631,57 @@ static __maybe_unused void nv6188_set_chn_720p(struct nvp6188 *nvp6188, u8 ch,
 	nvp6188_write_reg(client, 0x30, 0xe0);
 	nvp6188_write_reg(client, 0x31, 0x43);
 	nvp6188_write_reg(client, 0x32, 0xa2);
-	nvp6188_write_reg(client, 0x47, 0xee);
-	nvp6188_write_reg(client, 0x50, 0xc6);
+	nvp6188_write_reg(client, 0x47, 0x04);
+	nvp6188_write_reg(client, 0x50, 0x84);
 	nvp6188_write_reg(client, 0x57, 0x00);
 	nvp6188_write_reg(client, 0x58, 0x77);
 	nvp6188_write_reg(client, 0x5b, 0x41);
-	nvp6188_write_reg(client, 0x5c, 0x7C);
+	nvp6188_write_reg(client, 0x5c, 0x78);
 	nvp6188_write_reg(client, 0x5f, 0x00);
-	nvp6188_write_reg(client, 0x62, 0x20);
+	nvp6188_write_reg(client, 0x62, 0x00);
 	nvp6188_write_reg(client, 0x7b, 0x11);
 	nvp6188_write_reg(client, 0x7c, 0x01);
 	nvp6188_write_reg(client, 0x7d, 0x80);
 	nvp6188_write_reg(client, 0x80, 0x00);
 	nvp6188_write_reg(client, 0x90, 0x01);
 	nvp6188_write_reg(client, 0xa9, 0x00);
-	nvp6188_write_reg(client, 0xb5, 0x40);
-	nvp6188_write_reg(client, 0xb8, 0x39);
+	nvp6188_write_reg(client, 0xb5, 0x00);
+	nvp6188_write_reg(client, 0xb8, 0xb9);
 	nvp6188_write_reg(client, 0xb9, 0x72);
 	nvp6188_write_reg(client, 0xd1, 0x00);
 	nvp6188_write_reg(client, 0xd5, 0x80);
-
 	nvp6188_write_reg(client, 0xff, 0x09);
-	nvp6188_write_reg(client, 0x96 + ch * 0x20, 0x00);
-	nvp6188_write_reg(client, 0x98 + ch * 0x20, 0x00);
-	nvp6188_write_reg(client, ch * 0x20 + 0x9e, 0x00);
-
+	nvp6188_write_reg(client, 0x96 + (ch * 0x20), 0x00);
+	nvp6188_write_reg(client, 0x98 + (ch * 0x20), 0x00);
+	nvp6188_write_reg(client, 0x9e + (ch * 0x20), 0x00);
+	nvp6188_write_reg(client, 0xff, 0x11);
+	nvp6188_write_reg(client, 0x00 + (ch * 0x20), 0x00);
 	nvp6188_write_reg(client, 0xff, _MAR_BANK_);
 	nvp6188_read_reg(client, 0x01, &val_20x01);
 	val_20x01 &= (~(0x03 << (ch * 2)));
 	val_20x01 |= (0x01 << (ch * 2));
 	nvp6188_write_reg(client, 0x01, val_20x01);
-	nvp6188_write_reg(client, 0x12 + ch * 2, 0x80);
-	nvp6188_write_reg(client, 0x13 + ch * 2, 0x02);
+	nvp6188_write_reg(client, 0x12 + (ch * 2), 0x80);
+	nvp6188_write_reg(client, 0x13 + (ch * 2), 0x02);
 }
 
 //each channel setting
 /*
-1920x1080p
-ch : 0 ~ 3
-ntpal: 1:25p, 0:30p
-*/
+ * 1920x1080p
+ * ch : 0 ~ 3
+ * ntpal: 1:25p, 0:30p
+ */
 static __maybe_unused void nv6188_set_chn_1080p(struct nvp6188 *nvp6188, u8 ch,
 						u8 ntpal)
 {
 	unsigned char val_0x54 = 0, val_20x01 = 0;
 	struct i2c_client *client = nvp6188->client;
-	dev_err(&client->dev, "nv6188_set_chn_1080p ch %d ntpal %d", ch, ntpal);
+
+	dev_info(&client->dev, "%s ch %d ntpal %d", __func__, ch, ntpal);
 	nvp6188_write_reg(client, 0xff, 0x00);
+	nvp6188_write_reg(client, 0x00 + ch, 0x10);
 	nvp6188_write_reg(client, 0x08 + ch, 0x00);
-	nvp6188_write_reg(client, 0x18 + ch, 0x3f);
+	nvp6188_write_reg(client, 0x18 + ch, 0x10);
 	nvp6188_write_reg(client, 0x30 + ch, 0x12);
 	nvp6188_write_reg(client, 0x34 + ch, 0x00);
 	nvp6188_read_reg(client, 0x54, &val_0x54);
@@ -1550,16 +1693,15 @@ static __maybe_unused void nv6188_set_chn_1080p(struct nvp6188 *nvp6188, u8 ch,
 	nvp6188_write_reg(client, 0x81 + ch, ntpal ? 0x03 : 0x02);
 	nvp6188_write_reg(client, 0x85 + ch, 0x00);
 	nvp6188_write_reg(client, 0x89 + ch, 0x10);
-	nvp6188_write_reg(client, ch + 0x8e, 0x00);
+	nvp6188_write_reg(client, 0x8e + ch, 0x00);
 	nvp6188_write_reg(client, 0xa0 + ch, 0x05);
-
 	nvp6188_write_reg(client, 0xff, 0x01);
 	nvp6188_write_reg(client, 0x84 + ch, 0x02);
 	nvp6188_write_reg(client, 0x88 + ch, 0x00);
 	nvp6188_write_reg(client, 0x8c + ch, 0x40);
 	nvp6188_write_reg(client, 0xa0 + ch, 0x20);
-
 	nvp6188_write_reg(client, 0xff, 0x05 + ch);
+	nvp6188_write_reg(client, 0x00, 0xd0);
 	nvp6188_write_reg(client, 0x01, 0x22);
 	nvp6188_write_reg(client, 0x05, 0x04);
 	nvp6188_write_reg(client, 0x08, 0x55);
@@ -1588,48 +1730,274 @@ static __maybe_unused void nv6188_set_chn_1080p(struct nvp6188 *nvp6188, u8 ch,
 	nvp6188_write_reg(client, 0xb9, 0x72);
 	nvp6188_write_reg(client, 0xd1, 0x00);
 	nvp6188_write_reg(client, 0xd5, 0x80);
-
 	nvp6188_write_reg(client, 0xff, 0x09);
-	nvp6188_write_reg(client, 0x96 + ch * 0x20, 0x00);
-	nvp6188_write_reg(client, 0x98 + ch * 0x20, 0x00);
-	nvp6188_write_reg(client, ch * 0x20 + 0x9e, 0x00);
-
+	nvp6188_write_reg(client, 0x96 + (ch * 0x20), 0x00);
+	nvp6188_write_reg(client, 0x98 + (ch * 0x20), 0x00);
+	nvp6188_write_reg(client, 0x9e + (ch * 0x20), 0x00);
+	nvp6188_write_reg(client, 0xff, 0x11);
+	nvp6188_write_reg(client, 0x00 + (ch * 0x20), 0x00);
 	nvp6188_write_reg(client, 0xff, _MAR_BANK_);
 	nvp6188_read_reg(client, 0x01, &val_20x01);
 	val_20x01 &= (~(0x03 << (ch * 2)));
 	nvp6188_write_reg(client, 0x01, val_20x01);
-	nvp6188_write_reg(client, 0x12 + ch * 2, 0xc0);
-	nvp6188_write_reg(client, 0x13 + ch * 2, 0x03);
+	nvp6188_write_reg(client, 0x12 + (ch * 2), 0xc0);
+	nvp6188_write_reg(client, 0x13 + (ch * 2), 0x03);
 }
 
-static __maybe_unused void nvp6188_manual_mode(struct nvp6188 *nvp6188)
+//each channel setting
+/*
+ * 1600x1300p
+ * dev:0x60 / 0x62 / 0x64 / 0x66
+ * ch : 0 ~ 3
+ * ntpal: 1:25p, 0:30p
+ * detection: 5xf3<<8 | 5xf2 = 0x0708(30p) =0x0870(25p)
+ */
+static void nv6188_set_chn_1300p(struct nvp6188 *nvp6188, unsigned char ch, unsigned char ntpal)
 {
-	int i, reso;
-	for (i = 3; i >= 0; i--) {
-		reso = nvp6188->cur_mode.channel_reso[i];
-		switch (reso) {
-		case NVP_RESO_960H_PAL:
-			nv6188_set_chn_960h(nvp6188, i, 1);
+	unsigned char val_0x54 = 0, val_20x01 = 0;
+	struct i2c_client *client = nvp6188->client;
+
+	dev_info(&client->dev, "%s ch %d ntpal %d", __func__, ch, ntpal);
+
+	nvp6188_write_reg(client, 0xff, 0x00);
+	nvp6188_write_reg(client, 0x00 + ch, 0x10);
+	nvp6188_write_reg(client, 0x08 + ch, 0x00);
+	nvp6188_write_reg(client, 0x18 + ch, 0x10);
+	nvp6188_write_reg(client, 0x30 + ch, 0x12);
+	nvp6188_write_reg(client, 0x34 + ch, 0x00);
+	nvp6188_read_reg(client, 0x54, &val_0x54);
+	val_0x54 &= ~(0x10 << ch);
+	nvp6188_write_reg(client, 0x54, val_0x54);
+	nvp6188_write_reg(client, 0x58 + ch, ntpal ? 0x80 : 0x80);
+	nvp6188_write_reg(client, 0x5c + ch, ntpal ? 0x80 : 0x80);
+	nvp6188_write_reg(client, 0x64 + ch, ntpal ? 0x00 : 0x01);
+	nvp6188_write_reg(client, 0x81 + ch, ntpal ? 0x03 : 0x02);
+	nvp6188_write_reg(client, 0x85 + ch, 0x00);
+	nvp6188_write_reg(client, 0x89 + ch, 0x10);
+	nvp6188_write_reg(client, 0x8e + ch, 0x00);
+	nvp6188_write_reg(client, 0xa0 + ch, 0x05);
+	nvp6188_write_reg(client, 0xff, 0x01);
+	nvp6188_write_reg(client, 0x84 + ch, 0x02);
+	nvp6188_write_reg(client, 0x88 + ch, 0x00);
+	nvp6188_write_reg(client, 0x8c + ch, 0x40);
+	nvp6188_write_reg(client, 0xa0 + ch, 0x20);
+	nvp6188_write_reg(client, 0xff, 0x05 + ch);
+	nvp6188_write_reg(client, 0x00, 0xd0);
+	nvp6188_write_reg(client, 0x01, 0x22);
+	nvp6188_write_reg(client, 0x05, 0x04);
+	nvp6188_write_reg(client, 0x08, 0x55);
+	nvp6188_write_reg(client, 0x25, 0xdc);
+	nvp6188_write_reg(client, 0x28, 0x80);
+	nvp6188_write_reg(client, 0x2f, 0x00);
+	nvp6188_write_reg(client, 0x30, 0xe0);
+	nvp6188_write_reg(client, 0x31, 0x41);
+	nvp6188_write_reg(client, 0x32, 0xa2);
+	nvp6188_write_reg(client, 0x47, 0xee);
+	nvp6188_write_reg(client, 0x50, 0xc6);
+	nvp6188_write_reg(client, 0x57, 0x00);
+	nvp6188_write_reg(client, 0x58, 0x77);
+	nvp6188_write_reg(client, 0x5b, 0x41);
+	nvp6188_write_reg(client, 0x5c, 0x78);
+	nvp6188_write_reg(client, 0x5f, 0x00);
+	nvp6188_write_reg(client, 0x62, 0x00);
+	nvp6188_write_reg(client, 0x6C, 0x00);
+	nvp6188_write_reg(client, 0x6d, 0x00);
+	nvp6188_write_reg(client, 0x6e, 0x00);
+	nvp6188_write_reg(client, 0x6f, 0x00);
+	nvp6188_write_reg(client, 0x7b, 0x11);
+	nvp6188_write_reg(client, 0x7c, 0x01);
+	nvp6188_write_reg(client, 0x7d, 0x80);
+	nvp6188_write_reg(client, 0x80, 0x00);
+	nvp6188_write_reg(client, 0x90, 0x01);
+	nvp6188_write_reg(client, 0xa9, 0x00);
+	nvp6188_write_reg(client, 0xb5, 0x00);
+	nvp6188_write_reg(client, 0xb8, 0xb9);
+	nvp6188_write_reg(client, 0xb9, 0x72);
+	nvp6188_write_reg(client, 0xd1, 0x00);
+	nvp6188_write_reg(client, 0xd5, 0x80);
+	nvp6188_write_reg(client, 0xff, 0x09);
+	nvp6188_write_reg(client, 0x96 + (ch * 0x20), 0x00);
+	nvp6188_write_reg(client, 0x98 + (ch * 0x20), 0x00);
+	nvp6188_write_reg(client, 0x9e + (ch * 0x20), 0x00);
+	nvp6188_write_reg(client, 0xff, 0x11);  //additional settings for 1300p
+	nvp6188_write_reg(client, 0x01 + (ch * 0x20), ntpal ? 0x01 : 0x00);
+	nvp6188_write_reg(client, 0x02 + (ch * 0x20), ntpal ? 0xb2 : 0x50);
+	nvp6188_write_reg(client, 0x03 + (ch * 0x20), 0x06);
+	nvp6188_write_reg(client, 0x04 + (ch * 0x20), 0x40);
+	nvp6188_write_reg(client, 0x05 + (ch * 0x20), ntpal ? 0x08 : 0x07);
+	nvp6188_write_reg(client, 0x06 + (ch * 0x20), ntpal ? 0x70 : 0x08);
+	nvp6188_write_reg(client, 0x07 + (ch * 0x20), 0x00);
+	nvp6188_write_reg(client, 0x08 + (ch * 0x20), 0x00);
+	nvp6188_write_reg(client, 0x0a + (ch * 0x20), 0x05);
+	nvp6188_write_reg(client, 0x0b + (ch * 0x20), 0x14);
+	nvp6188_write_reg(client, 0x0c + (ch * 0x20), 0x05);
+	nvp6188_write_reg(client, 0x0d + (ch * 0x20), 0x5f);
+	nvp6188_write_reg(client, 0x00 + (ch * 0x20), 0x03);
+	nvp6188_write_reg(client, 0xff, 0x20);
+	nvp6188_read_reg(client, 0x01, &val_20x01);
+	val_20x01 &= (~(0x03 << (ch * 2)));
+	nvp6188_write_reg(client, 0x01, val_20x01);
+	nvp6188_write_reg(client, 0x12 + (ch * 2), 0x20);
+	nvp6188_write_reg(client, 0x13 + (ch * 2), 0x03);
+}
+
+static __maybe_unused void nvp6188_manual_mode(struct nvp6188 *nvp6188, u8 ch, u32 fmt)
+{
+	unsigned char val_13x70 = 0, val_13x71 = 0;
+	struct i2c_client *client = nvp6188->client;
+
+	if (fmt != NVP_RESO_UNKOWN) {
+		nvp6188_write_reg(client, 0xFF, 0x13);
+		nvp6188_read_reg(client, 0x70, &val_13x70);
+		val_13x70 |= (0x01 << ch);
+		nvp6188_write_reg(client, 0x70, val_13x70);
+		nvp6188_read_reg(client, 0x71, &val_13x71);
+		val_13x71 |= (0x01 << ch);
+		nvp6188_write_reg(client, 0x71, val_13x71);
+	}
+	switch (fmt) {
+	case NVP_RESO_960H_PAL:
+		nv6188_set_chn_960h(nvp6188, ch, 1);
+		break;
+	case NVP_RESO_960P_PAL:
+		nv6188_set_chn_960p(nvp6188, ch, 1);
+		break;
+	case NVP_RESO_720P_PAL:
+		nv6188_set_chn_720p(nvp6188, ch, 1);
+		break;
+	case NVP_RESO_1080P_PAL:
+		nv6188_set_chn_1080p(nvp6188, ch, 1);
+		break;
+	case NVP_RESO_1300P_PAL:
+		nv6188_set_chn_1300p(nvp6188, ch, 1);
+		break;
+	case NVP_RESO_960H_NSTC:
+		nv6188_set_chn_960h(nvp6188, ch, 0);
+		break;
+	case NVP_RESO_960P_NSTC:
+		nv6188_set_chn_960p(nvp6188, ch, 0);
+		break;
+	case NVP_RESO_720P_NSTC:
+		nv6188_set_chn_720p(nvp6188, ch, 0);
+		break;
+	case NVP_RESO_1080P_NSTC:
+		nv6188_set_chn_1080p(nvp6188, ch, 0);
+		break;
+	case NVP_RESO_1300P_NSTC:
+		nv6188_set_chn_1300p(nvp6188, ch, 0);
+		break;
+	default:
+		nv6188_set_chn_1080p(nvp6188, ch, 0);
+
+		dev_err(&client->dev, "channel %d not detect\n", ch);
+		nvp6188_write_reg(client, 0xFF, 0x13);
+		nvp6188_read_reg(client, 0x70, &val_13x70);
+		val_13x70 &= ~(0x01 << ch);
+		nvp6188_write_reg(client, 0x70, val_13x70);
+		nvp6188_write_reg(client, 0xFF, 0x05 + ch);
+		nvp6188_write_reg(client, 0x58, 0x77);
+		nvp6188_write_reg(client, 0xb8, 0xb8);
+		break;
+	}
+
+	// clear unknown count status
+	nvp6188->cur_mode.unkown_reso_count[ch] = 0;
+}
+
+static __maybe_unused void nvp6188_auto_detect_fmt(struct nvp6188 *nvp6188)
+{
+	u8 ch = 0;
+	u32 reso = 0;
+	unsigned char ch_vfc = 0xff, val_13x70 = 0xf0;
+	int ch_htotal = 0;
+	struct i2c_client *client = nvp6188->client;
+
+	for (ch = 0; ch < PAD_MAX; ch++) {
+		ch_vfc = nv6188_read_vfc(nvp6188, ch);
+		if (ch_vfc == 0xFF) {
+			ch_htotal = nv6188_read_htotal(nvp6188, ch);
+			if (ch_htotal == 0x0708)
+				ch_vfc = NVP_RESO_1300P_NSTC_VALUE;
+			else if (ch_htotal == 0x0870)
+				ch_vfc = NVP_RESO_1300P_PAL_VALUE;
+		}
+		switch (ch_vfc) {
+		case NVP_RESO_960H_NSTC_VALUE:
+			dev_dbg(&client->dev, "channel %d det 960h nstc", ch);
+			reso = NVP_RESO_960H_NSTC;
 			break;
-		case NVP_RESO_720P_PAL:
-			nv6188_set_chn_720p(nvp6188, i, 1);
+		case NVP_RESO_960H_PAL_VALUE:
+			dev_dbg(&client->dev, "channel %d det 960h pal", ch);
+			reso = NVP_RESO_960H_PAL;
 			break;
-		case NVP_RESO_1080P_PAL:
-			nv6188_set_chn_1080p(nvp6188, i, 1);
+		case NVP_RESO_720P_NSTC_VALUE:
+			dev_dbg(&client->dev, "channel %d det 720p nstc", ch);
+			reso = NVP_RESO_720P_NSTC;
 			break;
-		case NVP_RESO_960H_NSTC:
-			nv6188_set_chn_960h(nvp6188, i, 0);
+		case NVP_RESO_720P_PAL_VALUE:
+			dev_dbg(&client->dev, "channel %d det 720p pal", ch);
+			reso = NVP_RESO_720P_PAL;
 			break;
-		case NVP_RESO_720P_NSTC:
-			nv6188_set_chn_720p(nvp6188, i, 0);
+		case NVP_RESO_1080P_NSTC_VALUE:
+			dev_dbg(&client->dev, "channel %d det 1080p nstc", ch);
+			reso = NVP_RESO_1080P_NSTC;
 			break;
-		case NVP_RESO_1080P_NSTC:
-			nv6188_set_chn_1080p(nvp6188, i, 0);
+		case NVP_RESO_1080P_PAL_VALUE:
+			dev_dbg(&client->dev, "channel %d det 1080p pal", ch);
+			reso = NVP_RESO_1080P_PAL;
+			break;
+		case NVP_RESO_960P_NSTC_VALUE:
+			dev_dbg(&client->dev, "channel %d det 960p nstc", ch);
+			reso = NVP_RESO_960P_NSTC;
+			break;
+		case NVP_RESO_960P_PAL_VALUE:
+			dev_dbg(&client->dev, "channel %d det 960p pal", ch);
+			reso = NVP_RESO_960P_PAL;
+			break;
+		case NVP_RESO_1300P_NSTC_VALUE:
+			dev_dbg(&client->dev, "channel %d det 1300p nstc", ch);
+			reso = NVP_RESO_1300P_NSTC;
+			break;
+		case NVP_RESO_1300P_PAL_VALUE:
+			dev_dbg(&client->dev, "channel %d det 1300p pal", ch);
+			reso = NVP_RESO_1300P_PAL;
 			break;
 		default:
-			nv6188_set_chn_1080p(nvp6188, i, 1);
+			dev_dbg(&client->dev, "channel %d not detect\n", ch);
+			reso = NVP_RESO_UNKOWN;
 			break;
 		}
+
+		if (reso != nvp6188->cur_mode.channel_reso[ch]) {
+			if (nvp6188->cur_mode.channel_reso[ch] != NVP_RESO_UNKOWN &&
+			    reso == NVP_RESO_UNKOWN &&
+			    (nvp6188->detect_status & (0x01 << ch)) == 0) {
+				dev_info(&client->dev, "channel(%d) fmt(%d) -> invalid(0x%x)",
+					 ch, nvp6188->cur_mode.channel_reso[ch], ch_vfc);
+				if (nvp6188->cur_mode.unkown_reso_count[ch] < 5) {
+					nvp6188_write_reg(client, 0xFF, 0x13);
+					nvp6188_read_reg(client, 0x70, &val_13x70);
+					val_13x70 &= ~(0x01 << ch);
+					nvp6188_write_reg(client, 0x70, val_13x70);
+					nvp6188->cur_mode.unkown_reso_count[ch]++;
+					continue;
+				}
+			}
+			dev_info(&client->dev, "channel(%d) fmt(%d) -> cur(%d)",
+					 ch, nvp6188->cur_mode.channel_reso[ch], reso);
+			nvp6188_manual_mode(nvp6188, ch, reso);
+			nvp6188->cur_mode.channel_reso[ch] = reso;
+		}
+	}
+}
+
+static __maybe_unused void nvp6188_init_default_fmt(struct nvp6188 *nvp6188, u32 fmt)
+{
+	u8 ch = 0;
+
+	for (ch = 0; ch < PAD_MAX; ch++) {
+		nvp6188_manual_mode(nvp6188, ch, fmt);
+		nvp6188->cur_mode.channel_reso[ch] = fmt;
 	}
 }
 
@@ -1637,30 +2005,23 @@ static int detect_thread_function(void *data)
 {
 	struct nvp6188 *nvp6188 = (struct nvp6188 *) data;
 	struct i2c_client *client = nvp6188->client;
-	unsigned char bits = 0, ch, val_13x70 = 0, val_13x71 = 0;
 	int need_reset_wait = -1;
+	nvp6188->disable_dump_register = true;
 	if (nvp6188->power_on) {
 		nvp6188_auto_detect_hotplug(nvp6188);
 		nvp6188->last_detect_status = nvp6188->detect_status;
 		nvp6188->is_reset = 0;
 	}
 	while (!kthread_should_stop()) {
-		if (nvp6188->power_on) {
+		if (nvp6188->disable_dump_register && nvp6188->power_on) {
+			mutex_lock(&nvp6188->mutex);
 			nvp6188_auto_detect_hotplug(nvp6188);
+			nvp6188_auto_detect_fmt(nvp6188);
+
+			mutex_unlock(&nvp6188->mutex);
 			if (nvp6188->last_detect_status != nvp6188->detect_status) {
-				bits = nvp6188->last_detect_status ^ nvp6188->detect_status;
-				for (ch = 0; ch < 4; ch++) {
-					if (bits & (1 << ch)) {
-						dev_err(&client->dev, "nvp6188 detect ch %d change\n", ch);
-						nvp6188_write_reg(client, 0xFF, 0x13);
-						nvp6188_read_reg(client, 0x70, &val_13x70);
-						val_13x70 |= (0x01 << ch);
-						nvp6188_write_reg(client, 0x70, val_13x70);
-						nvp6188_read_reg(client, 0x71, &val_13x71);
-						val_13x71 |= (0x01 << ch);
-						nvp6188_write_reg(client, 0x71, val_13x71);
-					}
-				}
+				dev_info(&client->dev, "last_detect_status(0x%x) -> detect_status(0x%x)",
+					 nvp6188->last_detect_status, nvp6188->detect_status);
 				nvp6188->last_detect_status = nvp6188->detect_status;
 				input_event(nvp6188->input_dev, EV_MSC, MSC_RAW, nvp6188->detect_status);
 				input_sync(nvp6188->input_dev);
@@ -1671,7 +2032,7 @@ static int detect_thread_function(void *data)
 			} else if (need_reset_wait == 0) {
 				need_reset_wait = -1;
 				nvp6188->is_reset = 1;
-				dev_err(&client->dev, "trigger reset time up\n");
+				dev_info(&client->dev, "trigger reset time up\n");
 			}
 		}
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -1686,6 +2047,7 @@ static int __maybe_unused detect_thread_start(struct nvp6188 *nvp6188)
 	struct i2c_client *client = nvp6188->client;
 	nvp6188->detect_thread = kthread_create(detect_thread_function,
                                    nvp6188, "nvp6188_kthread");
+
 	if (IS_ERR(nvp6188->detect_thread)) {
 		dev_err(&client->dev, "kthread_create nvp6188_kthread failed\n");
 		ret = PTR_ERR(nvp6188->detect_thread);
@@ -1701,10 +2063,70 @@ static int __maybe_unused detect_thread_stop(struct nvp6188 *nvp6188)
 	if (nvp6188->detect_thread)
 		kthread_stop(nvp6188->detect_thread);
 	nvp6188->detect_thread = NULL;
+
 	return 0;
 }
 
-static int __nvp6188_start_stream(struct nvp6188 *nvp6188)
+static int __maybe_unused nvp6188_reg_check(struct nvp6188 *nvp6188)
+{
+	unsigned char val_20x52 = 0, val_20x53 = 0;
+	int check_value1 = 0, check_value2 = 0, check_cnt = 10;
+	struct i2c_client *client = nvp6188->client;
+
+	nvp6188_write_reg(client, 0xff, 0x20);
+	nvp6188_write_reg(client, 0x00, 0xff); // open mipi
+	usleep_range(100 * 1000, 100 * 1000);
+	//nvp6188_write_reg(client, 0x40, 0x01);
+	//nvp6188_write_reg(client, 0x40, 0x00);
+	while (check_cnt--) {
+		nvp6188_write_reg(client, 0xff, 0x20);
+		nvp6188_read_reg(client, 0x52, &val_20x52);
+		nvp6188_read_reg(client, 0x53, &val_20x53);
+		check_value1 = (val_20x52 << 8) | val_20x53;
+		usleep_range(80 * 1000, 100 * 1000);
+		nvp6188_write_reg(client, 0xff, 0x20);
+		nvp6188_read_reg(client, 0x52, &val_20x52);
+		nvp6188_read_reg(client, 0x53, &val_20x53);
+		check_value2 = (val_20x52 << 8) | val_20x53;
+		if (check_value2 <= 2 || check_value1 == check_value2) {
+			dev_err(&client->dev, "attention!!! check cnt = %d\n", check_cnt);
+			nvp6188_write_reg(client, 0xff, 0x01);
+			nvp6188_write_reg(client, 0x97, 0xf0);
+			usleep_range(40 * 1000, 50 * 1000);
+			nvp6188_write_reg(client, 0x97, 0x0f);
+		} else {
+			dev_err(&client->dev, "check_value1=%x, check_value2=%x,check cnt = %d\n",
+					check_value1, check_value2, check_cnt);
+			break;
+		}
+	}
+	return check_cnt;
+}
+
+static int nvp6188_auto_det_set(struct nvp6188 *nvp6188)
+{
+	struct i2c_client *client = nvp6188->client;
+
+	dev_info(&client->dev, "[%s::%d]\n", __func__, __LINE__);
+
+	nvp6188_write_reg(client, 0xff, 0x13);
+	nvp6188_write_reg(client, 0x30, 0x7f);
+	nvp6188_write_reg(client, 0x70, 0xf0);
+	nvp6188_write_reg(client, 0xff, 0x00);
+	nvp6188_write_reg(client, 0x00, 0x18);
+	nvp6188_write_reg(client, 0x01, 0x18);
+	nvp6188_write_reg(client, 0x02, 0x18);
+	nvp6188_write_reg(client, 0x03, 0x18);
+	usleep_range(30 * 1000, 40 * 1000);
+	nvp6188_write_reg(client, 0x00, 0x10);
+	nvp6188_write_reg(client, 0x01, 0x10);
+	nvp6188_write_reg(client, 0x02, 0x10);
+	nvp6188_write_reg(client, 0x03, 0x10);
+
+	return 0;
+}
+
+static int nvp6188_video_init(struct nvp6188 *nvp6188)
 {
 	int ret;
 	int array_size = 0;
@@ -1725,9 +2147,26 @@ static int __nvp6188_start_stream(struct nvp6188 *nvp6188)
 		return ret;
 	}
 
+	nvp6188_init_default_fmt(nvp6188, NVP_RESO_UNKOWN);
+	nvp6188_auto_det_set(nvp6188);
+	usleep_range(150*1000, 150*1000);
 	nvp6188_auto_detect_fmt(nvp6188);
-	nvp6188_manual_mode(nvp6188);
+
+	return 0;
+}
+
+static int __nvp6188_start_stream(struct nvp6188 *nvp6188)
+{
+	struct i2c_client *client = nvp6188->client;
+
+	if (nvp6188->detect_thread) {
+		nvp6188_write_reg(client, 0xff, 0x20);
+		nvp6188_write_reg(client, 0x00, 0xff);
+		return 0;
+	}
+
 	nvp6188_audio_init(nvp6188);
+	nvp6188_reg_check(nvp6188);
 	detect_thread_start(nvp6188);
 	return 0;
 }
@@ -1735,11 +2174,14 @@ static int __nvp6188_start_stream(struct nvp6188 *nvp6188)
 static int __nvp6188_stop_stream(struct nvp6188 *nvp6188)
 {
 	struct i2c_client *client = nvp6188->client;
+
 	nvp6188_write_reg(client, 0xff, 0x20);
 	nvp6188_write_reg(client, 0x00, 0x00);
 	nvp6188_write_reg(client, 0x40, 0x01);
 	nvp6188_write_reg(client, 0x40, 0x00);
-	detect_thread_stop(nvp6188);
+	//detect_thread_stop(nvp6188);
+	usleep_range(100 * 1000, 150 * 1000);
+
 	return 0;
 }
 
@@ -1748,7 +2190,7 @@ static int nvp6188_stream(struct v4l2_subdev *sd, int on)
 	struct nvp6188 *nvp6188 = to_nvp6188(sd);
 	struct i2c_client *client = nvp6188->client;
 
-	dev_dbg(&client->dev, "s_stream: %d. %dx%d\n", on,
+	dev_info(&client->dev, "s_stream: %d. %dx%d\n", on,
 			nvp6188->cur_mode.width,
 			nvp6188->cur_mode.height);
 
@@ -1783,8 +2225,6 @@ static int nvp6188_power(struct v4l2_subdev *sd, int on)
 	if (nvp6188->power_on == !!on)
 		goto exit;
 
-	dev_dbg(&client->dev, "%s: on %d\n", __func__, on);
-
 	if (on) {
 		ret = pm_runtime_get_sync(&client->dev);
 		if (ret < 0) {
@@ -1807,8 +2247,6 @@ static int __nvp6188_power_on(struct nvp6188 *nvp6188)
 {
 	int ret;
 	struct device *dev = &nvp6188->client->dev;
-
-	dev_dbg(dev, "%s\n", __func__);
 
 	if (!IS_ERR_OR_NULL(nvp6188->pins_default)) {
 		ret = pinctrl_select_state(nvp6188->pinctrl,
@@ -1839,10 +2277,15 @@ static int __nvp6188_power_on(struct nvp6188 *nvp6188)
 	}
 
 	if (!IS_ERR(nvp6188->reset_gpio)) {
+		gpiod_set_value_cansleep(nvp6188->reset_gpio, 1);
+		usleep_range(10 * 1000, 20 * 1000);
 		gpiod_set_value_cansleep(nvp6188->reset_gpio, 0);
 		usleep_range(10 * 1000, 20 * 1000);
 		gpiod_set_value_cansleep(nvp6188->reset_gpio, 1);
-		usleep_range(10 * 1000, 20 * 1000);
+		usleep_range(100 * 1000, 110 * 1000);
+
+		//Resolve audio register reset caused by reset_gpio
+		nvp6188_audio_init(nvp6188);
 	}
 
 	usleep_range(10 * 1000, 20 * 1000);
@@ -1863,8 +2306,6 @@ static void __nvp6188_power_off(struct nvp6188 *nvp6188)
 {
 	int ret;
 	struct device *dev = &nvp6188->client->dev;
-
-	dev_dbg(dev, "%s\n", __func__);
 
 	if (!IS_ERR(nvp6188->reset_gpio))
 		gpiod_set_value_cansleep(nvp6188->reset_gpio, 1);
@@ -1915,9 +2356,9 @@ static int nvp6188_initialize_controls(struct nvp6188 *nvp6188)
 		goto err_free_handler;
 	}
 
-	dev_err(&nvp6188->client->dev, "mipi_freq_idx %d\n", mode->mipi_freq_idx);
-	dev_err(&nvp6188->client->dev, "pixel_rate %lld\n", pixel_rate);
-	dev_err(&nvp6188->client->dev, "link_freq %lld\n", link_freq_items[mode->mipi_freq_idx]);
+	dev_dbg(&nvp6188->client->dev, "mipi_freq_idx %d\n", mode->mipi_freq_idx);
+	dev_dbg(&nvp6188->client->dev, "pixel_rate %lld\n", pixel_rate);
+	dev_dbg(&nvp6188->client->dev, "link_freq %lld\n", link_freq_items[mode->mipi_freq_idx]);
 
 	nvp6188->subdev.ctrl_handler = handler;
 
@@ -2019,12 +2460,15 @@ static unsigned int nvp6188_codec_read(struct snd_soc_component *component,
 	int ret;
 	u8 val;
 
+	mutex_lock(&nvp6188->mutex);
 	ret = nvp6188_read_reg(client, reg, &val);
 	if (ret < 0) {
 		dev_err(&client->dev, "%s failed: (%d)\n", __func__, ret);
+		mutex_unlock(&nvp6188->mutex);
 		return ret;
 	}
 
+	mutex_unlock(&nvp6188->mutex);
 	return val;
 }
 
@@ -2036,12 +2480,15 @@ static int nvp6188_codec_write(struct snd_soc_component *component,
 	struct i2c_client *client = nvp6188->client;
 	int ret;
 
+	mutex_lock(&nvp6188->mutex);
 	ret = nvp6188_write_reg(client, reg, val);
 	if (ret < 0) {
 		dev_err(&client->dev, "%s failed: (%d)\n", __func__, ret);
+		mutex_unlock(&nvp6188->mutex);
 		return ret;
 	}
 
+	mutex_unlock(&nvp6188->mutex);
 	return 0;
 }
 
@@ -2062,7 +2509,9 @@ static int nvp6188_pcm_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	struct nvp6188 *nvp6188 = to_nvp6188(sd);
 	struct i2c_client *client = nvp6188->client;
 	u8 val_rm = 0, val_pb = 0;
+	int ret = 0;
 
+	mutex_lock(&nvp6188->mutex);
 	nvp6188_write_reg(client, 0xff, 0x01); /* Switch to bank1 for audio */
 	nvp6188_read_reg(client, 0x07, &val_rm);
 	nvp6188_read_reg(client, 0x13, &val_pb);
@@ -2077,7 +2526,8 @@ static int nvp6188_pcm_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		val_pb &= (~0x80);
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
+		goto unlock;
 	}
 
 	/* interface format */
@@ -2095,7 +2545,8 @@ static int nvp6188_pcm_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		val_pb |= 0x03;
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
+		goto unlock;
 	}
 
 	/* clock inversion */
@@ -2109,13 +2560,17 @@ static int nvp6188_pcm_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		val_pb |= 0x40;
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
+		goto unlock;
 	}
 
 	nvp6188_write_reg(client, 0x07, val_rm);
 	nvp6188_write_reg(client, 0x13, val_pb);
 
-	return 0;
+unlock:
+	mutex_unlock(&nvp6188->mutex);
+
+	return ret;
 }
 
 static int nvp6188_pcm_hw_params(struct snd_pcm_substream *substream,
@@ -2126,7 +2581,9 @@ static int nvp6188_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct nvp6188 *nvp6188 = to_nvp6188(sd);
 	struct i2c_client *client = nvp6188->client;
 	u8 val = 0;
+	int ret = 0;
 
+	mutex_lock(&nvp6188->mutex);
 	nvp6188_write_reg(client, 0xff, 0x01); /* Switch to bank1 for audio */
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -2140,7 +2597,8 @@ static int nvp6188_pcm_hw_params(struct snd_pcm_substream *substream,
 			val &= (~0x04);
 			break;
 		default:
-			return -EINVAL;
+			ret = -EINVAL;
+			goto unlock;
 		}
 
 		switch (params_rate(params)) {
@@ -2154,7 +2612,8 @@ static int nvp6188_pcm_hw_params(struct snd_pcm_substream *substream,
 			/* TODO */
 			break;
 		default:
-			return -EINVAL;
+			ret = -EINVAL;
+			goto unlock;
 		}
 
 		if (nvp6188->audio_out) {
@@ -2171,7 +2630,8 @@ static int nvp6188_pcm_hw_params(struct snd_pcm_substream *substream,
 			default:
 				dev_err(&client->dev, "Invalid audio_out mclk_fs: %d\n",
 					nvp6188->audio_out->mclk_fs);
-				return -EINVAL;
+				ret = -EINVAL;
+				goto unlock;
 			}
 		}
 
@@ -2187,7 +2647,8 @@ static int nvp6188_pcm_hw_params(struct snd_pcm_substream *substream,
 			val &= (~0x04);
 			break;
 		default:
-			return -EINVAL;
+			ret = -EINVAL;
+			goto unlock;
 		}
 
 		switch (params_rate(params)) {
@@ -2201,7 +2662,8 @@ static int nvp6188_pcm_hw_params(struct snd_pcm_substream *substream,
 			/* TODO */
 			break;
 		default:
-			return -EINVAL;
+			ret = -EINVAL;
+			goto unlock;
 		}
 
 		if (nvp6188->audio_in) {
@@ -2218,7 +2680,8 @@ static int nvp6188_pcm_hw_params(struct snd_pcm_substream *substream,
 			default:
 				dev_err(&client->dev, "Invalid audio_in mclk_fs: %d\n",
 					nvp6188->audio_in->mclk_fs);
-				return -EINVAL;
+				ret = -EINVAL;
+				goto unlock;
 			}
 		}
 		nvp6188_write_reg(client, 0x07, val);
@@ -2234,12 +2697,16 @@ static int nvp6188_pcm_hw_params(struct snd_pcm_substream *substream,
 		default:
 			dev_err(&client->dev, "Not supported channels: %d\n",
 				params_channels(params));
-			return -EINVAL;
+			ret = -EINVAL;
+			goto unlock;
 		}
 		nvp6188_write_reg(client, 0x08, val);
 	}
 
-	return 0;
+unlock:
+	mutex_unlock(&nvp6188->mutex);
+
+	return ret;
 }
 
 static int nvp6188_pcm_mute(struct snd_soc_dai *dai, int mute, int stream)
@@ -2298,7 +2765,9 @@ static int nvp6188_codec_tlv_get(struct snd_kcontrol *kcontrol,
 	struct nvp6188 *nvp6188 = to_nvp6188(sd);
 	struct i2c_client *client = nvp6188->client;
 
+	mutex_lock(&nvp6188->mutex);
 	nvp6188_write_reg(client, 0xff, 0x01); /* Switch to bank1 for audio */
+	mutex_unlock(&nvp6188->mutex);
 	return snd_soc_get_volsw(kcontrol, ucontrol);
 }
 
@@ -2440,6 +2909,11 @@ static int nvp6188_audio_init(struct nvp6188 *nvp6188)
 	nvp6188_write_reg(client, 0x38, 0x18);
 	msleep(30);
 	nvp6188_write_reg(client, 0x38, 0x08);
+
+	//SLAVE MODE I2S MODE Inverted Clock
+	nvp6188_write_reg(client, 0xff, 0x01);
+	nvp6188_write_reg(client, 0x07, 0x08);
+	nvp6188_write_reg(client, 0x13, 0x08);
 
 	return 0;
 }
@@ -2679,6 +3153,8 @@ static int nvp6188_probe(struct i2c_client *client,
 	pm_runtime_enable(dev);
 	pm_runtime_idle(dev);
 
+	nvp6188_video_init(nvp6188);
+
 	return 0;
 
 err_clean_entity:
@@ -2715,7 +3191,7 @@ static int nvp6188_remove(struct i2c_client *client)
 	return 0;
 }
 
-static const struct dev_pm_ops nvp6188_pm_ops = {
+static const struct dev_pm_ops __maybe_unused nvp6188_pm_ops = {
 	SET_RUNTIME_PM_OPS(nvp6188_runtime_suspend,
 			   nvp6188_runtime_resume, NULL)
 };
@@ -2736,7 +3212,7 @@ static const struct i2c_device_id nvp6188_match_id[] = {
 static struct i2c_driver nvp6188_i2c_driver = {
 	.driver = {
 		.name = NVP6188_NAME,
-		.pm = &nvp6188_pm_ops,
+		//.pm = &nvp6188_pm_ops,
 		.of_match_table = of_match_ptr(nvp6188_of_match),
 	},
 	.probe		= &nvp6188_probe,
