@@ -1281,6 +1281,27 @@ struct file *filp_open(const char *filename, int flags, umode_t mode)
 }
 EXPORT_SYMBOL(filp_open);
 
+
+/* ANDROID: Allow drivers to open only block files from kernel mode */
+struct file *filp_open_block(const char *filename, int flags, umode_t mode)
+{
+	struct file *file;
+
+	file = filp_open(filename, flags, mode);
+	if (IS_ERR(file))
+		goto err_out;
+
+	/* Drivers should only be allowed to open block devices */
+	if (!S_ISBLK(file->f_mapping->host->i_mode)) {
+		filp_close(file, NULL);
+		file = ERR_PTR(-ENOTBLK);
+	}
+
+err_out:
+	return file;
+}
+EXPORT_SYMBOL_GPL(filp_open_block);
+
 struct file *file_open_root(const struct path *root,
 			    const char *filename, int flags, umode_t mode)
 {

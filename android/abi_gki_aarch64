@@ -2,4 +2,3 @@
 # commonly used symbols
   module_layout
   __put_task_struct
-  utf8_data_table

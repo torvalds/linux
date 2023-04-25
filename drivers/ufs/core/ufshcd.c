@@ -429,7 +429,9 @@ static void ufshcd_add_command_trace(struct ufs_hba *hba, unsigned int tag,
 {
 	u64 lba = 0;
 	u8 opcode = 0, group_id = 0;
-	u32 intr, doorbell;
+	u32 doorbell = 0;
+	u32 intr;
+	int hwq_id = -1;
 	struct ufshcd_lrb *lrbp = &hba->lrb[tag];
 	struct scsi_cmnd *cmd = lrbp->cmd;
 	struct request *rq = scsi_cmd_to_rq(cmd);
@@ -463,9 +465,16 @@ static void ufshcd_add_command_trace(struct ufs_hba *hba, unsigned int tag,
 	}
 
 	intr = ufshcd_readl(hba, REG_INTERRUPT_STATUS);
-	doorbell = ufshcd_readl(hba, REG_UTP_TRANSFER_REQ_DOOR_BELL);
+
+	if (is_mcq_enabled(hba)) {
+		struct ufs_hw_queue *hwq = ufshcd_mcq_req_to_hwq(hba, rq);
+
+		hwq_id = hwq->id;
+	} else {
+		doorbell = ufshcd_readl(hba, REG_UTP_TRANSFER_REQ_DOOR_BELL);
+	}
 	trace_ufshcd_command(dev_name(hba->dev), str_t, tag,
-			doorbell, transfer_len, intr, lba, opcode, group_id);
+			doorbell, hwq_id, transfer_len, intr, lba, opcode, group_id);
 }
 
 static void ufshcd_print_clk_freqs(struct ufs_hba *hba)
@@ -540,48 +549,66 @@ static void ufshcd_print_evt_hist(struct ufs_hba *hba)
 }
 
 static
-void ufshcd_print_trs(struct ufs_hba *hba, unsigned long bitmap, bool pr_prdt)
+void ufshcd_print_tr(struct ufs_hba *hba, int tag, bool pr_prdt)
 {
 	const struct ufshcd_lrb *lrbp;
 	int prdt_length;
-	int tag;
 
-	for_each_set_bit(tag, &bitmap, hba->nutrs) {
-		lrbp = &hba->lrb[tag];
+	lrbp = &hba->lrb[tag];
 
-		dev_err(hba->dev, "UPIU[%d] - issue time %lld us\n",
-				tag, div_u64(lrbp->issue_time_stamp_local_clock, 1000));
-		dev_err(hba->dev, "UPIU[%d] - complete time %lld us\n",
-				tag, div_u64(lrbp->compl_time_stamp_local_clock, 1000));
-		dev_err(hba->dev,
-			"UPIU[%d] - Transfer Request Descriptor phys@0x%llx\n",
-			tag, (u64)lrbp->utrd_dma_addr);
+	dev_err(hba->dev, "UPIU[%d] - issue time %lld us\n",
+			tag, div_u64(lrbp->issue_time_stamp_local_clock, 1000));
+	dev_err(hba->dev, "UPIU[%d] - complete time %lld us\n",
+			tag, div_u64(lrbp->compl_time_stamp_local_clock, 1000));
+	dev_err(hba->dev,
+		"UPIU[%d] - Transfer Request Descriptor phys@0x%llx\n",
+		tag, (u64)lrbp->utrd_dma_addr);
 
-		ufshcd_hex_dump("UPIU TRD: ", lrbp->utr_descriptor_ptr,
-				sizeof(struct utp_transfer_req_desc));
-		dev_err(hba->dev, "UPIU[%d] - Request UPIU phys@0x%llx\n", tag,
-			(u64)lrbp->ucd_req_dma_addr);
-		ufshcd_hex_dump("UPIU REQ: ", lrbp->ucd_req_ptr,
-				sizeof(struct utp_upiu_req));
-		dev_err(hba->dev, "UPIU[%d] - Response UPIU phys@0x%llx\n", tag,
-			(u64)lrbp->ucd_rsp_dma_addr);
-		ufshcd_hex_dump("UPIU RSP: ", lrbp->ucd_rsp_ptr,
-				sizeof(struct utp_upiu_rsp));
+	ufshcd_hex_dump("UPIU TRD: ", lrbp->utr_descriptor_ptr,
+			sizeof(struct utp_transfer_req_desc));
+	dev_err(hba->dev, "UPIU[%d] - Request UPIU phys@0x%llx\n", tag,
+		(u64)lrbp->ucd_req_dma_addr);
+	ufshcd_hex_dump("UPIU REQ: ", lrbp->ucd_req_ptr,
+			sizeof(struct utp_upiu_req));
+	dev_err(hba->dev, "UPIU[%d] - Response UPIU phys@0x%llx\n", tag,
+		(u64)lrbp->ucd_rsp_dma_addr);
+	ufshcd_hex_dump("UPIU RSP: ", lrbp->ucd_rsp_ptr,
+			sizeof(struct utp_upiu_rsp));
 
-		prdt_length = le16_to_cpu(
-			lrbp->utr_descriptor_ptr->prd_table_length);
-		if (hba->quirks & UFSHCD_QUIRK_PRDT_BYTE_GRAN)
-			prdt_length /= ufshcd_sg_entry_size(hba);
+	prdt_length = le16_to_cpu(
+		lrbp->utr_descriptor_ptr->prd_table_length);
+	if (hba->quirks & UFSHCD_QUIRK_PRDT_BYTE_GRAN)
+		prdt_length /= ufshcd_sg_entry_size(hba);
 
-		dev_err(hba->dev,
-			"UPIU[%d] - PRDT - %d entries  phys@0x%llx\n",
-			tag, prdt_length,
-			(u64)lrbp->ucd_prdt_dma_addr);
+	dev_err(hba->dev,
+		"UPIU[%d] - PRDT - %d entries  phys@0x%llx\n",
+		tag, prdt_length,
+		(u64)lrbp->ucd_prdt_dma_addr);
 
-		if (pr_prdt)
-			ufshcd_hex_dump("UPIU PRDT: ", lrbp->ucd_prdt_ptr,
-				ufshcd_sg_entry_size(hba) * prdt_length);
-	}
+	if (pr_prdt)
+		ufshcd_hex_dump("UPIU PRDT: ", lrbp->ucd_prdt_ptr,
+			ufshcd_sg_entry_size(hba) * prdt_length);
+}
+
+static bool ufshcd_print_tr_iter(struct request *req, void *priv)
+{
+	struct scsi_device *sdev = req->q->queuedata;
+	struct Scsi_Host *shost = sdev->host;
+	struct ufs_hba *hba = shost_priv(shost);
+
+	ufshcd_print_tr(hba, req->tag, *(bool *)priv);
+
+	return true;
+}
+
+/**
+ * ufshcd_print_trs_all - print trs for all started requests.
+ * @hba: per-adapter instance.
+ * @pr_prdt: need to print prdt or not.
+ */
+static void ufshcd_print_trs_all(struct ufs_hba *hba, bool pr_prdt)
+{
+	blk_mq_tagset_busy_iter(&hba->host->tag_set, ufshcd_print_tr_iter, &pr_prdt);
 }
 
 static void ufshcd_print_tmrs(struct ufs_hba *hba, unsigned long bitmap)
@@ -5355,7 +5382,7 @@ ufshcd_transfer_rsp_status(struct ufs_hba *hba, struct ufshcd_lrb *lrbp,
 
 	if ((host_byte(result) != DID_OK) &&
 	    (host_byte(result) != DID_REQUEUE) && !hba->silence_err_logs)
-		ufshcd_print_trs(hba, 1 << lrbp->task_tag, true);
+		ufshcd_print_tr(hba, lrbp->task_tag, true);
 	return result;
 }
 
@@ -6444,7 +6471,7 @@ again:
 		ufshcd_print_pwr_info(hba);
 		ufshcd_print_evt_hist(hba);
 		ufshcd_print_tmrs(hba, hba->outstanding_tasks);
-		ufshcd_print_trs(hba, hba->outstanding_reqs, pr_prdt);
+		ufshcd_print_trs_all(hba, pr_prdt);
 		spin_lock_irqsave(hba->host->host_lock, flags);
 	}
 
@@ -7475,9 +7502,9 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 		ufshcd_print_evt_hist(hba);
 		ufshcd_print_host_state(hba);
 		ufshcd_print_pwr_info(hba);
-		ufshcd_print_trs(hba, 1 << tag, true);
+		ufshcd_print_tr(hba, tag, true);
 	} else {
-		ufshcd_print_trs(hba, 1 << tag, false);
+		ufshcd_print_tr(hba, tag, false);
 	}
 	hba->req_abort_count++;
 

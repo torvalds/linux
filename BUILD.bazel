@@ -17,6 +17,7 @@ filegroup(
     srcs = [
         # keep sorted
         "android/abi_gki_aarch64_db845c",
+        "android/abi_gki_aarch64_exynos",
         "android/abi_gki_aarch64_galaxy",
         "android/abi_gki_aarch64_imx",
         "android/abi_gki_aarch64_mtk",
@@ -24,6 +25,7 @@ filegroup(
         "android/abi_gki_aarch64_pixel",
         "android/abi_gki_aarch64_qcom",
         "android/abi_gki_aarch64_virtual_device",
+        "android/abi_gki_aarch64_vivo",
         "android/abi_gki_aarch64_xiaomi",
     ],
     visibility = ["//visibility:public"],
