@@ -120,8 +120,8 @@ static int coresight_find_link_inport(struct coresight_device *csdev,
 
 	for (i = 0; i < parent->pdata->nr_outconns; i++) {
 		conn = &parent->pdata->out_conns[i];
-		if (conn->child_dev == csdev)
-			return conn->child_port;
+		if (conn->dest_dev == csdev)
+			return conn->dest_port;
 	}
 
 	dev_err(&csdev->dev, "couldn't find inport, parent: %s, child: %s\n",
@@ -138,8 +138,8 @@ static int coresight_find_link_outport(struct coresight_device *csdev,
 
 	for (i = 0; i < csdev->pdata->nr_outconns; i++) {
 		conn = &csdev->pdata->out_conns[i];
-		if (conn->child_dev == child)
-			return conn->outport;
+		if (conn->dest_dev == child)
+			return conn->src_port;
 	}
 
 	dev_err(&csdev->dev, "couldn't find outport, parent: %s, child: %s\n",
@@ -606,7 +606,7 @@ coresight_find_enabled_sink(struct coresight_device *csdev)
 	for (i = 0; i < csdev->pdata->nr_outconns; i++) {
 		struct coresight_device *child_dev;
 
-		child_dev = csdev->pdata->out_conns[i].child_dev;
+		child_dev = csdev->pdata->out_conns[i].dest_dev;
 		if (child_dev)
 			sink = coresight_find_enabled_sink(child_dev);
 		if (sink)
@@ -722,7 +722,7 @@ static int coresight_grab_device(struct coresight_device *csdev)
 	for (i = 0; i < csdev->pdata->nr_outconns; i++) {
 		struct coresight_device *child;
 
-		child = csdev->pdata->out_conns[i].child_dev;
+		child = csdev->pdata->out_conns[i].dest_dev;
 		if (child && child->type == CORESIGHT_DEV_TYPE_HELPER)
 			if (!coresight_get_ref(child))
 				goto err;
@@ -733,7 +733,7 @@ err:
 	for (i--; i >= 0; i--) {
 		struct coresight_device *child;
 
-		child = csdev->pdata->out_conns[i].child_dev;
+		child = csdev->pdata->out_conns[i].dest_dev;
 		if (child && child->type == CORESIGHT_DEV_TYPE_HELPER)
 			coresight_put_ref(child);
 	}
@@ -752,7 +752,7 @@ static void coresight_drop_device(struct coresight_device *csdev)
 	for (i = 0; i < csdev->pdata->nr_outconns; i++) {
 		struct coresight_device *child;
 
-		child = csdev->pdata->out_conns[i].child_dev;
+		child = csdev->pdata->out_conns[i].dest_dev;
 		if (child && child->type == CORESIGHT_DEV_TYPE_HELPER)
 			coresight_put_ref(child);
 	}
@@ -794,7 +794,7 @@ static int _coresight_build_path(struct coresight_device *csdev,
 	for (i = 0; i < csdev->pdata->nr_outconns; i++) {
 		struct coresight_device *child_dev;
 
-		child_dev = csdev->pdata->out_conns[i].child_dev;
+		child_dev = csdev->pdata->out_conns[i].dest_dev;
 		if (child_dev &&
 		    _coresight_build_path(child_dev, sink, path) == 0) {
 			found = true;
@@ -964,7 +964,7 @@ coresight_find_sink(struct coresight_device *csdev, int *depth)
 		struct coresight_device *child_dev, *sink = NULL;
 		int child_depth = curr_depth;
 
-		child_dev = csdev->pdata->out_conns[i].child_dev;
+		child_dev = csdev->pdata->out_conns[i].dest_dev;
 		if (child_dev)
 			sink = coresight_find_sink(child_dev, &child_depth);
 
@@ -1337,12 +1337,12 @@ static int coresight_orphan_match(struct device *dev, void *data)
 		conn = &i_csdev->pdata->out_conns[i];
 
 		/* Skip the port if FW doesn't describe it */
-		if (!conn->child_fwnode)
+		if (!conn->dest_fwnode)
 			continue;
 		/* We have found at least one orphan connection */
-		if (conn->child_dev == NULL) {
+		if (conn->dest_dev == NULL) {
 			/* Does it match this newly added device? */
-			if (conn->child_fwnode == csdev->dev.fwnode) {
+			if (conn->dest_fwnode == csdev->dev.fwnode) {
 				ret = coresight_make_links(i_csdev,
 							   conn, csdev);
 				if (ret)
@@ -1377,13 +1377,12 @@ static int coresight_fixup_device_conns(struct coresight_device *csdev)
 	for (i = 0; i < csdev->pdata->nr_outconns; i++) {
 		struct coresight_connection *conn = &csdev->pdata->out_conns[i];
 
-		if (!conn->child_fwnode)
+		if (!conn->dest_fwnode)
 			continue;
-		conn->child_dev =
-			coresight_find_csdev_by_fwnode(conn->child_fwnode);
-		if (conn->child_dev && conn->child_dev->has_conns_grp) {
-			ret = coresight_make_links(csdev, conn,
-						   conn->child_dev);
+		conn->dest_dev =
+			coresight_find_csdev_by_fwnode(conn->dest_fwnode);
+		if (conn->dest_dev && conn->dest_dev->has_conns_grp) {
+			ret = coresight_make_links(csdev, conn, conn->dest_dev);
 			if (ret)
 				break;
 		} else {
@@ -1414,14 +1413,14 @@ static int coresight_remove_match(struct device *dev, void *data)
 	for (i = 0; i < iterator->pdata->nr_outconns; i++) {
 		conn = &iterator->pdata->out_conns[i];
 
-		if (conn->child_dev == NULL || conn->child_fwnode == NULL)
+		if (conn->dest_dev == NULL || conn->dest_fwnode == NULL)
 			continue;
 
-		if (csdev->dev.fwnode == conn->child_fwnode) {
+		if (csdev->dev.fwnode == conn->dest_fwnode) {
 			iterator->orphan = true;
 			coresight_remove_links(iterator, conn);
 
-			conn->child_dev = NULL;
+			conn->dest_dev = NULL;
 			/* No need to continue */
 			break;
 		}
@@ -1547,15 +1546,15 @@ void coresight_release_platform_data(struct coresight_device *csdev,
 
 	for (i = 0; i < pdata->nr_outconns; i++) {
 		/* If we have made the links, remove them now */
-		if (csdev && conns[i].child_dev)
+		if (csdev && conns[i].dest_dev)
 			coresight_remove_links(csdev, &conns[i]);
 		/*
 		 * Drop the refcount and clear the handle as this device
 		 * is going away
 		 */
-		if (conns[i].child_fwnode) {
-			fwnode_handle_put(conns[i].child_fwnode);
-			conns[i].child_fwnode = NULL;
+		if (conns[i].dest_fwnode) {
+			fwnode_handle_put(conns[i].dest_fwnode);
+			conns[i].dest_fwnode = NULL;
 		}
 	}
 	if (csdev)

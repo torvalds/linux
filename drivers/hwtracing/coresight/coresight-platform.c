@@ -252,13 +252,13 @@ static int of_coresight_parse_endpoint(struct device *dev,
 		}
 
 		conn = &pdata->out_conns[endpoint.port];
-		if (conn->child_fwnode) {
+		if (conn->dest_fwnode) {
 			dev_warn(dev, "Duplicate output port %d\n",
 				 endpoint.port);
 			ret = -EINVAL;
 			break;
 		}
-		conn->outport = endpoint.port;
+		conn->src_port = endpoint.port;
 		/*
 		 * Hold the refcount to the target device. This could be
 		 * released via:
@@ -267,8 +267,8 @@ static int of_coresight_parse_endpoint(struct device *dev,
 		 * 2) While removing the target device via
 		 *    coresight_remove_match()
 		 */
-		conn->child_fwnode = fwnode_handle_get(rdev_fwnode);
-		conn->child_port = rendpoint.port;
+		conn->dest_fwnode = fwnode_handle_get(rdev_fwnode);
+		conn->dest_port = rendpoint.port;
 		/* Connection record updated */
 	} while (0);
 
@@ -649,8 +649,8 @@ static int acpi_coresight_parse_link(struct acpi_device *adev,
 
 	dir = fields[3].integer.value;
 	if (dir == ACPI_CORESIGHT_LINK_MASTER) {
-		conn->outport = fields[0].integer.value;
-		conn->child_port = fields[1].integer.value;
+		conn->src_port = fields[0].integer.value;
+		conn->dest_port = fields[1].integer.value;
 		rdev = coresight_find_device_by_fwnode(&r_adev->fwnode);
 		if (!rdev)
 			return -EPROBE_DEFER;
@@ -662,14 +662,14 @@ static int acpi_coresight_parse_link(struct acpi_device *adev,
 		 * 2) While removing the target device via
 		 *    coresight_remove_match().
 		 */
-		conn->child_fwnode = fwnode_handle_get(&r_adev->fwnode);
+		conn->dest_fwnode = fwnode_handle_get(&r_adev->fwnode);
 	} else if (dir == ACPI_CORESIGHT_LINK_SLAVE) {
 		/*
 		 * We are only interested in the port number
 		 * for the input ports at this component.
 		 * Store the port number in child_port.
 		 */
-		conn->child_port = fields[0].integer.value;
+		conn->dest_port = fields[0].integer.value;
 	} else {
 		/* Invalid direction */
 		return -EINVAL;
@@ -718,11 +718,11 @@ static int acpi_coresight_parse_graph(struct acpi_device *adev,
 			return dir;
 
 		if (dir == ACPI_CORESIGHT_LINK_MASTER) {
-			if (ptr->outport >= pdata->nr_outconns)
-				pdata->nr_outconns = ptr->outport + 1;
+			if (ptr->src_port >= pdata->nr_outconns)
+				pdata->nr_outconns = ptr->src_port + 1;
 			ptr++;
 		} else {
-			WARN_ON(pdata->nr_inconns == ptr->child_port + 1);
+			WARN_ON(pdata->nr_inconns == ptr->dest_port + 1);
 			/*
 			 * We do not track input port connections for a device.
 			 * However we need the highest port number described,
@@ -730,8 +730,8 @@ static int acpi_coresight_parse_graph(struct acpi_device *adev,
 			 * record for an output connection. Hence, do not move
 			 * the ptr for input connections
 			 */
-			if (ptr->child_port >= pdata->nr_inconns)
-				pdata->nr_inconns = ptr->child_port + 1;
+			if (ptr->dest_port >= pdata->nr_inconns)
+				pdata->nr_inconns = ptr->dest_port + 1;
 		}
 	}
 
@@ -741,10 +741,10 @@ static int acpi_coresight_parse_graph(struct acpi_device *adev,
 
 	/* Copy the connection information to the final location */
 	for (i = 0; conns + i < ptr; i++) {
-		int port = conns[i].outport;
+		int port = conns[i].src_port;
 
 		/* Duplicate output port */
-		WARN_ON(pdata->out_conns[port].child_fwnode);
+		WARN_ON(pdata->out_conns[port].dest_fwnode);
 		pdata->out_conns[port] = conns[i];
 	}
 
