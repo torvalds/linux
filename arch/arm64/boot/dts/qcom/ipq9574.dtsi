@@ -16,12 +16,6 @@
 	#size-cells = <2>;
 
 	clocks {
-		bias_pll_ubi_nc_clk: bias-pll-ubi-nc-clk {
-			compatible = "fixed-clock";
-			clock-frequency = <353000000>;
-			#clock-cells = <0>;
-		};
-
 		sleep_clk: sleep-clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
@@ -145,7 +139,7 @@
 			reg = <0x01800000 0x80000>;
 			clocks = <&xo_board_clk>,
 				 <&sleep_clk>,
-				 <&bias_pll_ubi_nc_clk>,
+				 <0>,
 				 <0>,
 				 <0>,
 				 <0>,
