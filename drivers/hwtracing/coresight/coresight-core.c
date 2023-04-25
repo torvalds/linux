@@ -1349,6 +1349,17 @@ static int coresight_orphan_match(struct device *dev, void *data)
 			ret = coresight_make_links(src_csdev, conn, dst_csdev);
 			if (ret)
 				return ret;
+
+			/*
+			 * Install the device connection. This also indicates that
+			 * the links are operational on both ends.
+			 */
+			conn->dest_dev = dst_csdev;
+			conn->src_dev = src_csdev;
+
+			ret = coresight_add_in_conn(conn);
+			if (ret)
+				return ret;
 		} else {
 			/* This component still has an orphan */
 			still_orphan = true;
@@ -1370,58 +1381,43 @@ static int coresight_fixup_orphan_conns(struct coresight_device *csdev)
 			 csdev, coresight_orphan_match);
 }
 
-static int coresight_remove_match(struct device *dev, void *data)
+/* coresight_remove_conns - Remove other device's references to this device */
+static void coresight_remove_conns(struct coresight_device *csdev)
 {
-	int i;
-	struct coresight_device *csdev, *iterator;
+	int i, j;
 	struct coresight_connection *conn;
 
-	csdev = data;
-	iterator = to_coresight_device(dev);
-
-	/* No need to check oneself */
-	if (csdev == iterator)
-		return 0;
-
 	/*
-	 * Circle throuch all the connection of that component.  If we find
-	 * a connection whose name matches @csdev, remove it.
+	 * Remove the input connection references from the destination device
+	 * for each output connection.
 	 */
-	for (i = 0; i < iterator->pdata->nr_outconns; i++) {
-		conn = iterator->pdata->out_conns[i];
+	for (i = 0; i < csdev->pdata->nr_outconns; i++) {
+		conn = csdev->pdata->out_conns[i];
+		if (!conn->dest_dev)
+			continue;
 
-		/* Child_dev being set signifies that the links were made */
-		if (csdev->dev.fwnode == conn->dest_fwnode && conn->dest_dev) {
-			iterator->orphan = true;
-			coresight_remove_links(iterator, conn);
-			conn->dest_dev = NULL;
-			/* No need to continue */
-			break;
-		}
+		for (j = 0; j < conn->dest_dev->pdata->nr_inconns; ++j)
+			if (conn->dest_dev->pdata->in_conns[j] == conn) {
+				conn->dest_dev->pdata->in_conns[j] = NULL;
+				break;
+			}
 	}
 
 	/*
-	 * Returning '0' ensures that all known component on the
-	 * bus will be checked.
+	 * For all input connections, remove references to this device.
+	 * Connection objects are shared so modifying this device's input
+	 * connections affects the other device's output connection.
 	 */
-	return 0;
-}
+	for (i = 0; i < csdev->pdata->nr_inconns; ++i) {
+		conn = csdev->pdata->in_conns[i];
+		/* Input conns array is sparse */
+		if (!conn)
+			continue;
 
-/*
- * coresight_remove_conns - Remove references to this given devices
- * from the connections of other devices.
- */
-static void coresight_remove_conns(struct coresight_device *csdev)
-{
-	/*
-	 * Another device will point to this device only if there is
-	 * an output port connected to this one. i.e, if the device
-	 * doesn't have at least one input port, there is no point
-	 * in searching all the devices.
-	 */
-	if (csdev->pdata->high_inport)
-		bus_for_each_dev(&coresight_bustype, NULL,
-				 csdev, coresight_remove_match);
+		conn->src_dev->orphan = true;
+		coresight_remove_links(conn->src_dev, conn);
+		conn->dest_dev = NULL;
+	}
 }
 
 /**
@@ -1532,6 +1528,7 @@ void coresight_release_platform_data(struct coresight_device *csdev,
 		devm_kfree(dev, conns[i]);
 	}
 	devm_kfree(dev, pdata->out_conns);
+	devm_kfree(dev, pdata->in_conns);
 	devm_kfree(dev, pdata);
 	if (csdev)
 		coresight_remove_conns_sysfs_group(csdev);

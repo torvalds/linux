@@ -173,12 +173,6 @@ int coresight_make_links(struct coresight_device *orig,
 			break;
 
 		conn->link = link;
-
-		/*
-		 * Install the device connection. This also indicates that
-		 * the links are operational on both ends.
-		 */
-		conn->dest_dev = target;
 		return 0;
 	} while (0);
 
@@ -202,5 +196,4 @@ void coresight_remove_links(struct coresight_device *orig,
 	devm_kfree(&orig->dev, conn->link->orig_name);
 	devm_kfree(&orig->dev, conn->link);
 	conn->link = NULL;
-	conn->dest_dev = NULL;
 }

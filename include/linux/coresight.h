@@ -106,6 +106,9 @@ union coresight_dev_subtype {
  * @nr_outconns: Number of elements for the output connections.
  * @out_conns: Array of nr_outconns pointers to connections from this
  *	       component.
+ * @in_conns: Sparse array of pointers to input connections. Sparse
+ *            because the source device owns the connection so when it's
+ *            unloaded the connection leaves an empty slot.
  */
 struct coresight_platform_data {
 	int high_inport;
@@ -113,6 +116,7 @@ struct coresight_platform_data {
 	int nr_inconns;
 	int nr_outconns;
 	struct coresight_connection **out_conns;
+	struct coresight_connection **in_conns;
 };
 
 /**
@@ -173,6 +177,26 @@ struct coresight_desc {
  * @dest_dev:	a @coresight_device representation of the component
 		connected to @src_port. NULL until the device is created
  * @link: Representation of the connection as a sysfs link.
+ *
+ * The full connection structure looks like this, where in_conns store
+ * references to same connection as the source device's out_conns.
+ *
+ * +-----------------------------+   +-----------------------------+
+ * |coresight_device             |   |coresight_connection         |
+ * |-----------------------------|   |-----------------------------|
+ * |                             |   |                             |
+ * |                             |   |                    dest_dev*|<--
+ * |pdata->out_conns[nr_outconns]|<->|src_dev*                     |   |
+ * |                             |   |                             |   |
+ * +-----------------------------+   +-----------------------------+   |
+ *                                                                     |
+ *                                   +-----------------------------+   |
+ *                                   |coresight_device             |   |
+ *                                   |------------------------------   |
+ *                                   |                             |   |
+ *                                   |  pdata->in_conns[nr_inconns]|<--
+ *                                   |                             |
+ *                                   +-----------------------------+
  */
 struct coresight_connection {
 	int src_port;
@@ -180,6 +204,7 @@ struct coresight_connection {
 	struct fwnode_handle *dest_fwnode;
 	struct coresight_device *dest_dev;
 	struct coresight_sysfs_link *link;
+	struct coresight_device *src_dev;
 };
 
 /**
@@ -616,5 +641,6 @@ struct coresight_connection *
 coresight_add_out_conn(struct device *dev,
 		       struct coresight_platform_data *pdata,
 		       const struct coresight_connection *new_conn);
+int coresight_add_in_conn(struct coresight_connection *conn);
 
 #endif		/* _LINUX_COREISGHT_H */

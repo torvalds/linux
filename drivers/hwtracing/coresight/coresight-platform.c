@@ -70,6 +70,35 @@ coresight_add_out_conn(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(coresight_add_out_conn);
 
+/*
+ * Add an input connection reference to @out_conn in the target's in_conns array
+ *
+ * @out_conn: Existing output connection to store as an input on the
+ *	      connection's remote device.
+ */
+int coresight_add_in_conn(struct coresight_connection *out_conn)
+{
+	int i;
+	struct device *dev = out_conn->dest_dev->dev.parent;
+	struct coresight_platform_data *pdata = out_conn->dest_dev->pdata;
+
+	for (i = 0; i < pdata->nr_inconns; ++i)
+		if (!pdata->in_conns[i]) {
+			pdata->in_conns[i] = out_conn;
+			return 0;
+		}
+
+	pdata->nr_inconns++;
+	pdata->in_conns =
+		devm_krealloc_array(dev, pdata->in_conns, pdata->nr_inconns,
+				    sizeof(*pdata->in_conns), GFP_KERNEL);
+	if (!pdata->in_conns)
+		return -ENOMEM;
+	pdata->in_conns[pdata->nr_inconns - 1] = out_conn;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(coresight_add_in_conn);
+
 static struct device *
 coresight_find_device_by_fwnode(struct fwnode_handle *fwnode)
 {
@@ -240,7 +269,7 @@ static int of_coresight_get_cpu(struct device *dev)
 
 /*
  * of_coresight_parse_endpoint : Parse the given output endpoint @ep
- * and fill the connection information in @conn
+ * and fill the connection information in @pdata->out_conns
  *
  * Parses the local port, remote device name and the remote port.
  *
