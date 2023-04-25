@@ -19,6 +19,16 @@
 #include "icc-rpmh.h"
 #include "qnoc-qos.h"
 
+enum {
+	VOTER_IDX_HLOS,
+	VOTER_IDX_DISP,
+	VOTER_IDX_CAM_IFE_0,
+	VOTER_IDX_CAM_IFE_1,
+	VOTER_IDX_CAM_IFE_2,
+	VOTER_IDX_PCIE_CRM_HW_0,
+	VOTER_IDX_PCIE_CRM_HW_1,
+};
+
 static const struct regmap_config icc_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 4,
@@ -2272,7 +2282,7 @@ static struct qcom_icc_node qns_pcie_mem_noc_pcie_crm_hw_1 = {
 
 static struct qcom_icc_bcm bcm_acv = {
 	.name = "ACV",
-	.voter_idx = 0,
+	.voter_idx = VOTER_IDX_HLOS,
 	.enable_mask = 0x1,
 	.perf_mode_mask = 0x2,
 	.num_nodes = 1,
@@ -2281,14 +2291,14 @@ static struct qcom_icc_bcm bcm_acv = {
 
 static struct qcom_icc_bcm bcm_ce0 = {
 	.name = "CE0",
-	.voter_idx = 0,
+	.voter_idx = VOTER_IDX_HLOS,
 	.num_nodes = 1,
 	.nodes = { &qxm_crypto },
 };
 
 static struct qcom_icc_bcm bcm_cn0 = {
 	.name = "CN0",
-	.voter_idx = 0,
+	.voter_idx = VOTER_IDX_HLOS,
 	.enable_mask = 0x1,
 	.keepalive = true,
 	.num_nodes = 59,
@@ -2326,7 +2336,7 @@ static struct qcom_icc_bcm bcm_cn0 = {
 
 static struct qcom_icc_bcm bcm_co0 = {
 	.name = "CO0",
-	.voter_idx = 0,
+	.voter_idx = VOTER_IDX_HLOS,
 	.enable_mask = 0x1,
 	.num_nodes = 2,
 	.nodes = { &qnm_nsp, &qns_nsp_gemnoc },
@@ -2334,14 +2344,14 @@ static struct qcom_icc_bcm bcm_co0 = {
 
 static struct qcom_icc_bcm bcm_lp0 = {
 	.name = "LP0",
-	.voter_idx = 0,
+	.voter_idx = VOTER_IDX_HLOS,
 	.num_nodes = 2,
 	.nodes = { &qnm_lpass_lpinoc, &qns_lpass_aggnoc },
 };
 
 static struct qcom_icc_bcm bcm_mc0 = {
 	.name = "MC0",
-	.voter_idx = 0,
+	.voter_idx = VOTER_IDX_HLOS,
 	.keepalive = true,
 	.num_nodes = 1,
 	.nodes = { &ebi },
@@ -2349,7 +2359,7 @@ static struct qcom_icc_bcm bcm_mc0 = {
 
 static struct qcom_icc_bcm bcm_mm0 = {
 	.name = "MM0",
-	.voter_idx = 0,
+	.voter_idx = VOTER_IDX_HLOS,
 	.keepalive_early = true,
 	.num_nodes = 1,
 	.nodes = { &qns_mem_noc_hf },
@@ -2357,7 +2367,7 @@ static struct qcom_icc_bcm bcm_mm0 = {
 
 static struct qcom_icc_bcm bcm_mm1 = {
 	.name = "MM1",
-	.voter_idx = 0,
+	.voter_idx = VOTER_IDX_HLOS,
 	.enable_mask = 0x1,
 	.num_nodes = 8,
 	.nodes = { &qnm_camnoc_hf, &qnm_camnoc_icp,
@@ -2368,7 +2378,7 @@ static struct qcom_icc_bcm bcm_mm1 = {
 
 static struct qcom_icc_bcm bcm_qup0 = {
 	.name = "QUP0",
-	.voter_idx = 0,
+	.voter_idx = VOTER_IDX_HLOS,
 	.keepalive = true,
 	.vote_scale = 1,
 	.num_nodes = 1,
@@ -2377,7 +2387,7 @@ static struct qcom_icc_bcm bcm_qup0 = {
 
 static struct qcom_icc_bcm bcm_qup1 = {
 	.name = "QUP1",
-	.voter_idx = 0,
+	.voter_idx = VOTER_IDX_HLOS,
 	.keepalive = true,
 	.vote_scale = 1,
 	.num_nodes = 1,
@@ -2386,7 +2396,7 @@ static struct qcom_icc_bcm bcm_qup1 = {
 
 static struct qcom_icc_bcm bcm_qup2 = {
 	.name = "QUP2",
-	.voter_idx = 0,
+	.voter_idx = VOTER_IDX_HLOS,
 	.keepalive = true,
 	.vote_scale = 1,
 	.num_nodes = 1,
@@ -2395,7 +2405,7 @@ static struct qcom_icc_bcm bcm_qup2 = {
 
 static struct qcom_icc_bcm bcm_sh0 = {
 	.name = "SH0",
-	.voter_idx = 0,
+	.voter_idx = VOTER_IDX_HLOS,
 	.keepalive = true,
 	.num_nodes = 1,
 	.nodes = { &qns_llcc },
@@ -2403,7 +2413,7 @@ static struct qcom_icc_bcm bcm_sh0 = {
 
 static struct qcom_icc_bcm bcm_sh1 = {
 	.name = "SH1",
-	.voter_idx = 0,
+	.voter_idx = VOTER_IDX_HLOS,
 	.enable_mask = 0x1,
 	.num_nodes = 15,
 	.nodes = { &alm_gpu_tcu, &alm_sys_tcu,
@@ -2418,7 +2428,7 @@ static struct qcom_icc_bcm bcm_sh1 = {
 
 static struct qcom_icc_bcm bcm_sn0 = {
 	.name = "SN0",
-	.voter_idx = 0,
+	.voter_idx = VOTER_IDX_HLOS,
 	.keepalive = true,
 	.num_nodes = 1,
 	.nodes = { &qns_gemnoc_sf },
@@ -2426,28 +2436,28 @@ static struct qcom_icc_bcm bcm_sn0 = {
 
 static struct qcom_icc_bcm bcm_sn2 = {
 	.name = "SN2",
-	.voter_idx = 0,
+	.voter_idx = VOTER_IDX_HLOS,
 	.num_nodes = 1,
 	.nodes = { &qnm_aggre1_noc },
 };
 
 static struct qcom_icc_bcm bcm_sn3 = {
 	.name = "SN3",
-	.voter_idx = 0,
+	.voter_idx = VOTER_IDX_HLOS,
 	.num_nodes = 1,
 	.nodes = { &qnm_aggre2_noc },
 };
 
 static struct qcom_icc_bcm bcm_sn4 = {
 	.name = "SN4",
-	.voter_idx = 0,
+	.voter_idx = VOTER_IDX_HLOS,
 	.num_nodes = 1,
 	.nodes = { &qns_pcie_mem_noc },
 };
 
 static struct qcom_icc_bcm bcm_acv_disp = {
 	.name = "ACV",
-	.voter_idx = 1,
+	.voter_idx = VOTER_IDX_DISP,
 	.enable_mask = 0x1,
 	.perf_mode_mask = 0x2,
 	.num_nodes = 1,
@@ -2456,28 +2466,28 @@ static struct qcom_icc_bcm bcm_acv_disp = {
 
 static struct qcom_icc_bcm bcm_mc0_disp = {
 	.name = "MC0",
-	.voter_idx = 1,
+	.voter_idx = VOTER_IDX_DISP,
 	.num_nodes = 1,
 	.nodes = { &ebi_disp },
 };
 
 static struct qcom_icc_bcm bcm_mm0_disp = {
 	.name = "MM0",
-	.voter_idx = 1,
+	.voter_idx = VOTER_IDX_DISP,
 	.num_nodes = 1,
 	.nodes = { &qns_mem_noc_hf_disp },
 };
 
 static struct qcom_icc_bcm bcm_sh0_disp = {
 	.name = "SH0",
-	.voter_idx = 1,
+	.voter_idx = VOTER_IDX_DISP,
 	.num_nodes = 1,
 	.nodes = { &qns_llcc_disp },
 };
 
 static struct qcom_icc_bcm bcm_sh1_disp = {
 	.name = "SH1",
-	.voter_idx = 1,
+	.voter_idx = VOTER_IDX_DISP,
 	.enable_mask = 0x1,
 	.num_nodes = 2,
 	.nodes = { &qnm_mnoc_hf_disp, &qnm_pcie_disp },
@@ -2485,7 +2495,7 @@ static struct qcom_icc_bcm bcm_sh1_disp = {
 
 static struct qcom_icc_bcm bcm_acv_cam_ife_0 = {
 	.name = "ACV",
-	.voter_idx = 2,
+	.voter_idx = VOTER_IDX_CAM_IFE_0,
 	.enable_mask = 0x1,
 	.num_nodes = 1,
 	.nodes = { &ebi_cam_ife_0 },
@@ -2493,21 +2503,21 @@ static struct qcom_icc_bcm bcm_acv_cam_ife_0 = {
 
 static struct qcom_icc_bcm bcm_mc0_cam_ife_0 = {
 	.name = "MC0",
-	.voter_idx = 2,
+	.voter_idx = VOTER_IDX_CAM_IFE_0,
 	.num_nodes = 1,
 	.nodes = { &ebi_cam_ife_0 },
 };
 
 static struct qcom_icc_bcm bcm_mm0_cam_ife_0 = {
 	.name = "MM0",
-	.voter_idx = 2,
+	.voter_idx = VOTER_IDX_CAM_IFE_0,
 	.num_nodes = 1,
 	.nodes = { &qns_mem_noc_hf_cam_ife_0 },
 };
 
 static struct qcom_icc_bcm bcm_mm1_cam_ife_0 = {
 	.name = "MM1",
-	.voter_idx = 2,
+	.voter_idx = VOTER_IDX_CAM_IFE_0,
 	.enable_mask = 0x1,
 	.num_nodes = 4,
 	.nodes = { &qnm_camnoc_hf_cam_ife_0, &qnm_camnoc_icp_cam_ife_0,
@@ -2516,14 +2526,14 @@ static struct qcom_icc_bcm bcm_mm1_cam_ife_0 = {
 
 static struct qcom_icc_bcm bcm_sh0_cam_ife_0 = {
 	.name = "SH0",
-	.voter_idx = 2,
+	.voter_idx = VOTER_IDX_CAM_IFE_0,
 	.num_nodes = 1,
 	.nodes = { &qns_llcc_cam_ife_0 },
 };
 
 static struct qcom_icc_bcm bcm_sh1_cam_ife_0 = {
 	.name = "SH1",
-	.voter_idx = 2,
+	.voter_idx = VOTER_IDX_CAM_IFE_0,
 	.enable_mask = 0x1,
 	.num_nodes = 3,
 	.nodes = { &qnm_mnoc_hf_cam_ife_0, &qnm_mnoc_sf_cam_ife_0,
@@ -2532,7 +2542,7 @@ static struct qcom_icc_bcm bcm_sh1_cam_ife_0 = {
 
 static struct qcom_icc_bcm bcm_acv_cam_ife_1 = {
 	.name = "ACV",
-	.voter_idx = 3,
+	.voter_idx = VOTER_IDX_CAM_IFE_1,
 	.enable_mask = 0x1,
 	.num_nodes = 1,
 	.nodes = { &ebi_cam_ife_1 },
@@ -2540,21 +2550,21 @@ static struct qcom_icc_bcm bcm_acv_cam_ife_1 = {
 
 static struct qcom_icc_bcm bcm_mc0_cam_ife_1 = {
 	.name = "MC0",
-	.voter_idx = 3,
+	.voter_idx = VOTER_IDX_CAM_IFE_1,
 	.num_nodes = 1,
 	.nodes = { &ebi_cam_ife_1 },
 };
 
 static struct qcom_icc_bcm bcm_mm0_cam_ife_1 = {
 	.name = "MM0",
-	.voter_idx = 3,
+	.voter_idx = VOTER_IDX_CAM_IFE_1,
 	.num_nodes = 1,
 	.nodes = { &qns_mem_noc_hf_cam_ife_1 },
 };
 
 static struct qcom_icc_bcm bcm_mm1_cam_ife_1 = {
 	.name = "MM1",
-	.voter_idx = 3,
+	.voter_idx = VOTER_IDX_CAM_IFE_1,
 	.enable_mask = 0x1,
 	.num_nodes = 4,
 	.nodes = { &qnm_camnoc_hf_cam_ife_1, &qnm_camnoc_icp_cam_ife_1,
@@ -2563,14 +2573,14 @@ static struct qcom_icc_bcm bcm_mm1_cam_ife_1 = {
 
 static struct qcom_icc_bcm bcm_sh0_cam_ife_1 = {
 	.name = "SH0",
-	.voter_idx = 3,
+	.voter_idx = VOTER_IDX_CAM_IFE_1,
 	.num_nodes = 1,
 	.nodes = { &qns_llcc_cam_ife_1 },
 };
 
 static struct qcom_icc_bcm bcm_sh1_cam_ife_1 = {
 	.name = "SH1",
-	.voter_idx = 3,
+	.voter_idx = VOTER_IDX_CAM_IFE_1,
 	.enable_mask = 0x1,
 	.num_nodes = 3,
 	.nodes = { &qnm_mnoc_hf_cam_ife_1, &qnm_mnoc_sf_cam_ife_1,
@@ -2579,7 +2589,7 @@ static struct qcom_icc_bcm bcm_sh1_cam_ife_1 = {
 
 static struct qcom_icc_bcm bcm_acv_cam_ife_2 = {
 	.name = "ACV",
-	.voter_idx = 4,
+	.voter_idx = VOTER_IDX_CAM_IFE_2,
 	.enable_mask = 0x1,
 	.num_nodes = 1,
 	.nodes = { &ebi_cam_ife_2 },
@@ -2587,21 +2597,21 @@ static struct qcom_icc_bcm bcm_acv_cam_ife_2 = {
 
 static struct qcom_icc_bcm bcm_mc0_cam_ife_2 = {
 	.name = "MC0",
-	.voter_idx = 4,
+	.voter_idx = VOTER_IDX_CAM_IFE_2,
 	.num_nodes = 1,
 	.nodes = { &ebi_cam_ife_2 },
 };
 
 static struct qcom_icc_bcm bcm_mm0_cam_ife_2 = {
 	.name = "MM0",
-	.voter_idx = 4,
+	.voter_idx = VOTER_IDX_CAM_IFE_2,
 	.num_nodes = 1,
 	.nodes = { &qns_mem_noc_hf_cam_ife_2 },
 };
 
 static struct qcom_icc_bcm bcm_mm1_cam_ife_2 = {
 	.name = "MM1",
-	.voter_idx = 4,
+	.voter_idx = VOTER_IDX_CAM_IFE_2,
 	.enable_mask = 0x1,
 	.num_nodes = 4,
 	.nodes = { &qnm_camnoc_hf_cam_ife_2, &qnm_camnoc_icp_cam_ife_2,
@@ -2610,14 +2620,14 @@ static struct qcom_icc_bcm bcm_mm1_cam_ife_2 = {
 
 static struct qcom_icc_bcm bcm_sh0_cam_ife_2 = {
 	.name = "SH0",
-	.voter_idx = 4,
+	.voter_idx = VOTER_IDX_CAM_IFE_2,
 	.num_nodes = 1,
 	.nodes = { &qns_llcc_cam_ife_2 },
 };
 
 static struct qcom_icc_bcm bcm_sh1_cam_ife_2 = {
 	.name = "SH1",
-	.voter_idx = 4,
+	.voter_idx = VOTER_IDX_CAM_IFE_2,
 	.enable_mask = 0x1,
 	.num_nodes = 3,
 	.nodes = { &qnm_mnoc_hf_cam_ife_2, &qnm_mnoc_sf_cam_ife_2,
@@ -2626,7 +2636,7 @@ static struct qcom_icc_bcm bcm_sh1_cam_ife_2 = {
 
 static struct qcom_icc_bcm bcm_acv_pcie_crm_hw_0 = {
 	.name = "ACV",
-	.voter_idx = 5,
+	.voter_idx = VOTER_IDX_PCIE_CRM_HW_0,
 	.crm_node = 5,
 	.enable_mask = 0x1,
 	.num_nodes = 1,
@@ -2635,7 +2645,7 @@ static struct qcom_icc_bcm bcm_acv_pcie_crm_hw_0 = {
 
 static struct qcom_icc_bcm bcm_ip0_pcie_crm_hw_0 = {
 	.name = "IP0",
-	.voter_idx = 1,
+	.voter_idx = VOTER_IDX_PCIE_CRM_HW_0,
 	.crm_node = 4,
 	.vote_scale = 1,
 	.num_nodes = 1,
@@ -2644,7 +2654,7 @@ static struct qcom_icc_bcm bcm_ip0_pcie_crm_hw_0 = {
 
 static struct qcom_icc_bcm bcm_mc0_pcie_crm_hw_0 = {
 	.name = "MC0",
-	.voter_idx = 5,
+	.voter_idx = VOTER_IDX_PCIE_CRM_HW_0,
 	.crm_node = 0,
 	.num_nodes = 1,
 	.nodes = { &ebi_pcie_crm_hw_0 },
@@ -2652,7 +2662,7 @@ static struct qcom_icc_bcm bcm_mc0_pcie_crm_hw_0 = {
 
 static struct qcom_icc_bcm bcm_sh0_pcie_crm_hw_0 = {
 	.name = "SH0",
-	.voter_idx = 5,
+	.voter_idx = VOTER_IDX_PCIE_CRM_HW_0,
 	.crm_node = 1,
 	.num_nodes = 1,
 	.nodes = { &qns_llcc_pcie_crm_hw_0 },
@@ -2660,7 +2670,7 @@ static struct qcom_icc_bcm bcm_sh0_pcie_crm_hw_0 = {
 
 static struct qcom_icc_bcm bcm_sh1_pcie_crm_hw_0 = {
 	.name = "SH1",
-	.voter_idx = 5,
+	.voter_idx = VOTER_IDX_PCIE_CRM_HW_0,
 	.crm_node = 2,
 	.enable_mask = 0x1,
 	.num_nodes = 1,
@@ -2669,7 +2679,7 @@ static struct qcom_icc_bcm bcm_sh1_pcie_crm_hw_0 = {
 
 static struct qcom_icc_bcm bcm_sn4_pcie_crm_hw_0 = {
 	.name = "SN4",
-	.voter_idx = 1,
+	.voter_idx = VOTER_IDX_PCIE_CRM_HW_0,
 	.crm_node = 3,
 	.num_nodes = 1,
 	.nodes = { &qns_pcie_mem_noc_pcie_crm_hw_0 },
@@ -2677,7 +2687,7 @@ static struct qcom_icc_bcm bcm_sn4_pcie_crm_hw_0 = {
 
 static struct qcom_icc_bcm bcm_acv_pcie_crm_hw_1 = {
 	.name = "ACV",
-	.voter_idx = 6,
+	.voter_idx = VOTER_IDX_PCIE_CRM_HW_1,
 	.crm_node = 5,
 	.enable_mask = 0x1,
 	.num_nodes = 1,
@@ -2686,7 +2696,7 @@ static struct qcom_icc_bcm bcm_acv_pcie_crm_hw_1 = {
 
 static struct qcom_icc_bcm bcm_ip0_pcie_crm_hw_1 = {
 	.name = "IP0",
-	.voter_idx = 1,
+	.voter_idx = VOTER_IDX_PCIE_CRM_HW_1,
 	.crm_node = 4,
 	.vote_scale = 1,
 	.num_nodes = 1,
@@ -2695,7 +2705,7 @@ static struct qcom_icc_bcm bcm_ip0_pcie_crm_hw_1 = {
 
 static struct qcom_icc_bcm bcm_mc0_pcie_crm_hw_1 = {
 	.name = "MC0",
-	.voter_idx = 6,
+	.voter_idx = VOTER_IDX_PCIE_CRM_HW_1,
 	.crm_node = 0,
 	.num_nodes = 1,
 	.nodes = { &ebi_pcie_crm_hw_1 },
@@ -2703,7 +2713,7 @@ static struct qcom_icc_bcm bcm_mc0_pcie_crm_hw_1 = {
 
 static struct qcom_icc_bcm bcm_sh0_pcie_crm_hw_1 = {
 	.name = "SH0",
-	.voter_idx = 6,
+	.voter_idx = VOTER_IDX_PCIE_CRM_HW_1,
 	.crm_node = 1,
 	.num_nodes = 1,
 	.nodes = { &qns_llcc_pcie_crm_hw_1 },
@@ -2711,7 +2721,7 @@ static struct qcom_icc_bcm bcm_sh0_pcie_crm_hw_1 = {
 
 static struct qcom_icc_bcm bcm_sh1_pcie_crm_hw_1 = {
 	.name = "SH1",
-	.voter_idx = 6,
+	.voter_idx = VOTER_IDX_PCIE_CRM_HW_1,
 	.crm_node = 2,
 	.enable_mask = 0x1,
 	.num_nodes = 1,
@@ -2720,7 +2730,7 @@ static struct qcom_icc_bcm bcm_sh1_pcie_crm_hw_1 = {
 
 static struct qcom_icc_bcm bcm_sn4_pcie_crm_hw_1 = {
 	.name = "SN4",
-	.voter_idx = 2,
+	.voter_idx = VOTER_IDX_PCIE_CRM_HW_1,
 	.crm_node = 3,
 	.num_nodes = 1,
 	.nodes = { &qns_pcie_mem_noc_pcie_crm_hw_1 },
@@ -2740,7 +2750,7 @@ static struct qcom_icc_node *aggre1_noc_nodes[] = {
 };
 
 static char *aggre1_noc_voters[] = {
-	"hlos",
+	[VOTER_IDX_HLOS] = "hlos",
 };
 
 static struct qcom_icc_desc pineapple_aggre1_noc = {
@@ -2770,7 +2780,7 @@ static struct qcom_icc_node *aggre2_noc_nodes[] = {
 };
 
 static char *aggre2_noc_voters[] = {
-	"hlos",
+	[VOTER_IDX_HLOS] = "hlos",
 };
 
 static struct qcom_icc_desc pineapple_aggre2_noc = {
@@ -2805,9 +2815,9 @@ static struct qcom_icc_node *clk_virt_nodes[] = {
 };
 
 static char *clk_virt_voters[] = {
-	"hlos",
-	"pcie_crm_hw_0",
-	"pcie_crm_hw_1",
+	[VOTER_IDX_HLOS] = "hlos",
+	[VOTER_IDX_PCIE_CRM_HW_0] = "pcie_crm_hw_0",
+	[VOTER_IDX_PCIE_CRM_HW_1] = "pcie_crm_hw_1",
 };
 
 static struct qcom_icc_desc pineapple_clk_virt = {
@@ -2875,7 +2885,7 @@ static struct qcom_icc_node *cnoc_cfg_nodes[] = {
 };
 
 static char *cnoc_cfg_voters[] = {
-	"hlos",
+	[VOTER_IDX_HLOS] = "hlos",
 };
 
 static struct qcom_icc_desc pineapple_cnoc_cfg = {
@@ -2908,7 +2918,7 @@ static struct qcom_icc_node *cnoc_main_nodes[] = {
 };
 
 static char *cnoc_main_voters[] = {
-	"hlos",
+	[VOTER_IDX_HLOS] = "hlos",
 };
 
 static struct qcom_icc_desc pineapple_cnoc_main = {
@@ -2978,13 +2988,13 @@ static struct qcom_icc_node *gem_noc_nodes[] = {
 };
 
 static char *gem_noc_voters[] = {
-	"hlos",
-	"disp",
-	"cam_ife_0",
-	"cam_ife_1",
-	"cam_ife_2",
-	"pcie_crm_hw_0",
-	"pcie_crm_hw_1",
+	[VOTER_IDX_HLOS] = "hlos",
+	[VOTER_IDX_DISP] = "disp",
+	[VOTER_IDX_CAM_IFE_0] = "cam_ife_0",
+	[VOTER_IDX_CAM_IFE_1] = "cam_ife_1",
+	[VOTER_IDX_CAM_IFE_2] = "cam_ife_2",
+	[VOTER_IDX_PCIE_CRM_HW_0] = "pcie_crm_hw_0",
+	[VOTER_IDX_PCIE_CRM_HW_1] = "pcie_crm_hw_1",
 };
 
 static struct qcom_icc_desc pineapple_gem_noc = {
@@ -3006,7 +3016,7 @@ static struct qcom_icc_node *lpass_ag_noc_nodes[] = {
 };
 
 static char *lpass_ag_noc_voters[] = {
-	"hlos",
+	[VOTER_IDX_HLOS] = "hlos",
 };
 
 static struct qcom_icc_desc pineapple_lpass_ag_noc = {
@@ -3029,7 +3039,7 @@ static struct qcom_icc_node *lpass_lpiaon_noc_nodes[] = {
 };
 
 static char *lpass_lpiaon_noc_voters[] = {
-	"hlos",
+	[VOTER_IDX_HLOS] = "hlos",
 };
 
 static struct qcom_icc_desc pineapple_lpass_lpiaon_noc = {
@@ -3051,7 +3061,7 @@ static struct qcom_icc_node *lpass_lpicx_noc_nodes[] = {
 };
 
 static char *lpass_lpicx_noc_voters[] = {
-	"hlos",
+	[VOTER_IDX_HLOS] = "hlos",
 };
 
 static struct qcom_icc_desc pineapple_lpass_lpicx_noc = {
@@ -3099,13 +3109,13 @@ static struct qcom_icc_node *mc_virt_nodes[] = {
 };
 
 static char *mc_virt_voters[] = {
-	"hlos",
-	"disp",
-	"cam_ife_0",
-	"cam_ife_1",
-	"cam_ife_2",
-	"pcie_crm_hw_0",
-	"pcie_crm_hw_1",
+	[VOTER_IDX_HLOS] = "hlos",
+	[VOTER_IDX_DISP] = "disp",
+	[VOTER_IDX_CAM_IFE_0] = "cam_ife_0",
+	[VOTER_IDX_CAM_IFE_1] = "cam_ife_1",
+	[VOTER_IDX_CAM_IFE_2] = "cam_ife_2",
+	[VOTER_IDX_PCIE_CRM_HW_0] = "pcie_crm_hw_0",
+	[VOTER_IDX_PCIE_CRM_HW_1] = "pcie_crm_hw_1",
 };
 
 static struct qcom_icc_desc pineapple_mc_virt = {
@@ -3164,11 +3174,11 @@ static struct qcom_icc_node *mmss_noc_nodes[] = {
 };
 
 static char *mmss_noc_voters[] = {
-	"hlos",
-	"disp",
-	"cam_ife_0",
-	"cam_ife_1",
-	"cam_ife_2",
+	[VOTER_IDX_HLOS] = "hlos",
+	[VOTER_IDX_DISP] = "disp",
+	[VOTER_IDX_CAM_IFE_0] = "cam_ife_0",
+	[VOTER_IDX_CAM_IFE_1] = "cam_ife_1",
+	[VOTER_IDX_CAM_IFE_2] = "cam_ife_2",
 };
 
 static struct qcom_icc_desc pineapple_mmss_noc = {
@@ -3191,7 +3201,7 @@ static struct qcom_icc_node *nsp_noc_nodes[] = {
 };
 
 static char *nsp_noc_voters[] = {
-	"hlos",
+	[VOTER_IDX_HLOS] = "hlos",
 };
 
 static struct qcom_icc_desc pineapple_nsp_noc = {
@@ -3225,9 +3235,9 @@ static struct qcom_icc_node *pcie_anoc_nodes[] = {
 };
 
 static char *pcie_anoc_voters[] = {
-	"hlos",
-	"pcie_crm_hw_0",
-	"pcie_crm_hw_1",
+	[VOTER_IDX_HLOS] = "hlos",
+	[VOTER_IDX_PCIE_CRM_HW_0] = "pcie_crm_hw_0",
+	[VOTER_IDX_PCIE_CRM_HW_1] = "pcie_crm_hw_1",
 };
 
 static struct qcom_icc_desc pineapple_pcie_anoc = {
@@ -3253,7 +3263,7 @@ static struct qcom_icc_node *system_noc_nodes[] = {
 };
 
 static char *system_noc_voters[] = {
-	"hlos",
+	[VOTER_IDX_HLOS] = "hlos",
 };
 
 static struct qcom_icc_desc pineapple_system_noc = {
