@@ -1951,6 +1951,9 @@ void detect_edp_sink_caps(struct dc_link *link)
 			link_rate_in_khz = (supported_link_rates[entry+1] * 0x100 +
 										supported_link_rates[entry]) * 200;
 
+			DC_LOG_DC("%s: eDP v1.4 supported sink rates: [%d] %d kHz\n", __func__,
+				  entry / 2, link_rate_in_khz);
+
 			if (link_rate_in_khz != 0) {
 				link_rate = linkRateInKHzToLinkRateMultiplier(link_rate_in_khz);
 				link->dpcd_caps.edp_supported_link_rates[link->dpcd_caps.edp_supported_link_rates_count] = link_rate;
