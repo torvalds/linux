@@ -37,7 +37,7 @@ coresight_add_out_conn(struct device *dev,
 	 * Warn on any existing duplicate output port.
 	 */
 	for (i = 0; i < pdata->nr_outconns; ++i) {
-		conn = &pdata->out_conns[i];
+		conn = pdata->out_conns[i];
 		/* Output == -1 means ignore the port for example for helpers */
 		if (conn->src_port != -1 &&
 		    conn->src_port == new_conn->src_port) {
@@ -54,8 +54,19 @@ coresight_add_out_conn(struct device *dev,
 	if (!pdata->out_conns)
 		return ERR_PTR(-ENOMEM);
 
-	pdata->out_conns[pdata->nr_outconns - 1] = *new_conn;
-	return &pdata->out_conns[pdata->nr_outconns - 1];
+	conn = devm_kmalloc(dev, sizeof(struct coresight_connection),
+			    GFP_KERNEL);
+	if (!conn)
+		return ERR_PTR(-ENOMEM);
+
+	/*
+	 * Copy the new connection into the allocation, save the pointer to the
+	 * end of the connection array and also return it in case it needs to be
+	 * used right away.
+	 */
+	*conn = *new_conn;
+	pdata->out_conns[pdata->nr_outconns - 1] = conn;
+	return conn;
 }
 EXPORT_SYMBOL_GPL(coresight_add_out_conn);
 
@@ -863,7 +874,7 @@ coresight_get_platform_data(struct device *dev)
 error:
 	if (!IS_ERR_OR_NULL(pdata))
 		/* Cleanup the connection information */
-		coresight_release_platform_data(NULL, pdata);
+		coresight_release_platform_data(NULL, dev, pdata);
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(coresight_get_platform_data);

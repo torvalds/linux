@@ -104,14 +104,15 @@ union coresight_dev_subtype {
  *
  * @nr_inconns: Number of elements for the input connections.
  * @nr_outconns: Number of elements for the output connections.
- * @out_conns:	Array of nr_outconns connections from this component.
+ * @out_conns: Array of nr_outconns pointers to connections from this
+ *	       component.
  */
 struct coresight_platform_data {
 	int high_inport;
 	int high_outport;
 	int nr_inconns;
 	int nr_outconns;
-	struct coresight_connection *out_conns;
+	struct coresight_connection **out_conns;
 };
 
 /**
