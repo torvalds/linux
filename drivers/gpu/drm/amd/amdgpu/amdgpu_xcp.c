@@ -25,6 +25,7 @@
 #include "amdgpu_drv.h"
 
 #include <drm/drm_drv.h>
+#include "../amdxcp/amdgpu_xcp_drv.h"
 
 static int __amdgpu_xcp_run(struct amdgpu_xcp_mgr *xcp_mgr,
 			    struct amdgpu_xcp_ip *xcp_ip, int xcp_state)
@@ -226,18 +227,15 @@ int amdgpu_xcp_query_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr, u32 flags)
 static int amdgpu_xcp_dev_alloc(struct amdgpu_device *adev)
 {
 	struct drm_device *p_ddev;
-	struct pci_dev *pdev;
 	struct drm_device *ddev;
-	int i;
+	int i, ret;
 
-	pdev = adev->pdev;
 	ddev = adev_to_drm(adev);
 
 	for (i = 0; i < MAX_XCP; i++) {
-		p_ddev = drm_dev_alloc(&amdgpu_partition_driver,
-			&pci_upstream_bridge(pdev)->dev);
-		if (IS_ERR(p_ddev))
-			return PTR_ERR(p_ddev);
+		ret = amdgpu_xcp_drm_dev_alloc(&p_ddev);
+		if (ret)
+			return ret;
 
 		/* Redirect all IOCTLs to the primary device */
 		adev->xcp_mgr->xcp[i].rdev = p_ddev->render->dev;

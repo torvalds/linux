@@ -50,6 +50,7 @@
 #include "amdgpu_ras.h"
 #include "amdgpu_xgmi.h"
 #include "amdgpu_reset.h"
+#include "../amdxcp/amdgpu_xcp_drv.h"
 
 /*
  * KMS wrapper.
@@ -2948,6 +2949,7 @@ static void __exit amdgpu_exit(void)
 	amdgpu_sync_fini();
 	amdgpu_fence_slab_fini();
 	mmu_notifier_synchronize();
+	amdgpu_xcp_drv_release();
 }
 
 module_init(amdgpu_init);
