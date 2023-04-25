@@ -27,9 +27,9 @@ static int coresight_alloc_conns(struct device *dev,
 				 struct coresight_platform_data *pdata)
 {
 	if (pdata->nr_outport) {
-		pdata->conns = devm_kcalloc(dev, pdata->nr_outport,
-					    sizeof(*pdata->conns), GFP_KERNEL);
-		if (!pdata->conns)
+		pdata->out_conns = devm_kcalloc(dev, pdata->nr_outport,
+					    sizeof(*pdata->out_conns), GFP_KERNEL);
+		if (!pdata->out_conns)
 			return -ENOMEM;
 	}
 
@@ -251,7 +251,7 @@ static int of_coresight_parse_endpoint(struct device *dev,
 			break;
 		}
 
-		conn = &pdata->conns[endpoint.port];
+		conn = &pdata->out_conns[endpoint.port];
 		if (conn->child_fwnode) {
 			dev_warn(dev, "Duplicate output port %d\n",
 				 endpoint.port);
@@ -744,8 +744,8 @@ static int acpi_coresight_parse_graph(struct acpi_device *adev,
 		int port = conns[i].outport;
 
 		/* Duplicate output port */
-		WARN_ON(pdata->conns[port].child_fwnode);
-		pdata->conns[port] = conns[i];
+		WARN_ON(pdata->out_conns[port].child_fwnode);
+		pdata->out_conns[port] = conns[i];
 	}
 
 	devm_kfree(&adev->dev, conns);
