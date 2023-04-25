@@ -91,11 +91,9 @@ static int uniphier_clk_probe(struct platform_device *pdev)
 				      hw_data);
 }
 
-static int uniphier_clk_remove(struct platform_device *pdev)
+static void uniphier_clk_remove(struct platform_device *pdev)
 {
 	of_clk_del_provider(pdev->dev.of_node);
-
-	return 0;
 }
 
 static const struct of_device_id uniphier_clk_match[] = {
@@ -220,7 +218,7 @@ static const struct of_device_id uniphier_clk_match[] = {
 
 static struct platform_driver uniphier_clk_driver = {
 	.probe = uniphier_clk_probe,
-	.remove = uniphier_clk_remove,
+	.remove_new = uniphier_clk_remove,
 	.driver = {
 		.name = "uniphier-clk",
 		.of_match_table = uniphier_clk_match,
