@@ -123,6 +123,7 @@ struct user_event_enabler_fault {
 	struct work_struct		work;
 	struct user_event_mm		*mm;
 	struct user_event_enabler	*enabler;
+	int				attempt;
 };
 
 static struct kmem_cache *fault_cache;
@@ -266,10 +267,18 @@ static void user_event_enabler_destroy(struct user_event_enabler *enabler)
 	kfree(enabler);
 }
 
-static int user_event_mm_fault_in(struct user_event_mm *mm, unsigned long uaddr)
+static int user_event_mm_fault_in(struct user_event_mm *mm, unsigned long uaddr,
+				  int attempt)
 {
 	bool unlocked;
 	int ret;
+
+	/*
+	 * Normally this is low, ensure that it cannot be taken advantage of by
+	 * bad user processes to cause excessive looping.
+	 */
+	if (attempt > 10)
+		return -EFAULT;
 
 	mmap_read_lock(mm->mm);
 
@@ -289,7 +298,7 @@ out:
 
 static int user_event_enabler_write(struct user_event_mm *mm,
 				    struct user_event_enabler *enabler,
-				    bool fixup_fault);
+				    bool fixup_fault, int *attempt);
 
 static void user_event_enabler_fault_fixup(struct work_struct *work)
 {
@@ -298,9 +307,10 @@ static void user_event_enabler_fault_fixup(struct work_struct *work)
 	struct user_event_enabler *enabler = fault->enabler;
 	struct user_event_mm *mm = fault->mm;
 	unsigned long uaddr = enabler->addr;
+	int attempt = fault->attempt;
 	int ret;
 
-	ret = user_event_mm_fault_in(mm, uaddr);
+	ret = user_event_mm_fault_in(mm, uaddr, attempt);
 
 	if (ret && ret != -ENOENT) {
 		struct user_event *user = enabler->event;
@@ -329,7 +339,7 @@ static void user_event_enabler_fault_fixup(struct work_struct *work)
 
 	if (!ret) {
 		mmap_read_lock(mm->mm);
-		user_event_enabler_write(mm, enabler, true);
+		user_event_enabler_write(mm, enabler, true, &attempt);
 		mmap_read_unlock(mm->mm);
 	}
 out:
@@ -341,7 +351,8 @@ out:
 }
 
 static bool user_event_enabler_queue_fault(struct user_event_mm *mm,
-					   struct user_event_enabler *enabler)
+					   struct user_event_enabler *enabler,
+					   int attempt)
 {
 	struct user_event_enabler_fault *fault;
 
@@ -353,6 +364,7 @@ static bool user_event_enabler_queue_fault(struct user_event_mm *mm,
 	INIT_WORK(&fault->work, user_event_enabler_fault_fixup);
 	fault->mm = user_event_mm_get(mm);
 	fault->enabler = enabler;
+	fault->attempt = attempt;
 
 	/* Don't try to queue in again while we have a pending fault */
 	set_bit(ENABLE_VAL_FAULTING_BIT, ENABLE_BITOPS(enabler));
@@ -372,7 +384,7 @@ static bool user_event_enabler_queue_fault(struct user_event_mm *mm,
 
 static int user_event_enabler_write(struct user_event_mm *mm,
 				    struct user_event_enabler *enabler,
-				    bool fixup_fault)
+				    bool fixup_fault, int *attempt)
 {
 	unsigned long uaddr = enabler->addr;
 	unsigned long *ptr;
@@ -382,6 +394,8 @@ static int user_event_enabler_write(struct user_event_mm *mm,
 
 	lockdep_assert_held(&event_mutex);
 	mmap_assert_locked(mm->mm);
+
+	*attempt += 1;
 
 	/* Ensure MM has tasks, cannot use after exit_mm() */
 	if (refcount_read(&mm->tasks) == 0)
@@ -398,7 +412,7 @@ static int user_event_enabler_write(struct user_event_mm *mm,
 		if (!fixup_fault)
 			return -EFAULT;
 
-		if (!user_event_enabler_queue_fault(mm, enabler))
+		if (!user_event_enabler_queue_fault(mm, enabler, *attempt))
 			pr_warn("user_events: Unable to queue fault handler\n");
 
 		return -EFAULT;
@@ -439,15 +453,19 @@ static void user_event_enabler_update(struct user_event *user)
 	struct user_event_enabler *enabler;
 	struct user_event_mm *mm = user_event_mm_get_all(user);
 	struct user_event_mm *next;
+	int attempt;
 
 	while (mm) {
 		next = mm->next;
 		mmap_read_lock(mm->mm);
 		rcu_read_lock();
 
-		list_for_each_entry_rcu(enabler, &mm->enablers, link)
-			if (enabler->event == user)
-				user_event_enabler_write(mm, enabler, true);
+		list_for_each_entry_rcu(enabler, &mm->enablers, link) {
+			if (enabler->event == user) {
+				attempt = 0;
+				user_event_enabler_write(mm, enabler, true, &attempt);
+			}
+		}
 
 		rcu_read_unlock();
 		mmap_read_unlock(mm->mm);
@@ -695,6 +713,7 @@ static struct user_event_enabler
 	struct user_event_enabler *enabler;
 	struct user_event_mm *user_mm;
 	unsigned long uaddr = (unsigned long)reg->enable_addr;
+	int attempt = 0;
 
 	user_mm = current_user_event_mm();
 
@@ -715,7 +734,8 @@ retry:
 
 	/* Attempt to reflect the current state within the process */
 	mmap_read_lock(user_mm->mm);
-	*write_result = user_event_enabler_write(user_mm, enabler, false);
+	*write_result = user_event_enabler_write(user_mm, enabler, false,
+						 &attempt);
 	mmap_read_unlock(user_mm->mm);
 
 	/*
@@ -735,7 +755,7 @@ retry:
 
 	if (*write_result) {
 		/* Attempt to fault-in and retry if it worked */
-		if (!user_event_mm_fault_in(user_mm, uaddr))
+		if (!user_event_mm_fault_in(user_mm, uaddr, attempt))
 			goto retry;
 
 		kfree(enabler);
@@ -2195,6 +2215,7 @@ static int user_event_mm_clear_bit(struct user_event_mm *user_mm,
 {
 	struct user_event_enabler enabler;
 	int result;
+	int attempt = 0;
 
 	memset(&enabler, 0, sizeof(enabler));
 	enabler.addr = uaddr;
@@ -2205,14 +2226,14 @@ retry:
 
 	/* Force the bit to be cleared, since no event is attached */
 	mmap_read_lock(user_mm->mm);
-	result = user_event_enabler_write(user_mm, &enabler, false);
+	result = user_event_enabler_write(user_mm, &enabler, false, &attempt);
 	mmap_read_unlock(user_mm->mm);
 
 	mutex_unlock(&event_mutex);
 
 	if (result) {
 		/* Attempt to fault-in and retry if it worked */
-		if (!user_event_mm_fault_in(user_mm, uaddr))
+		if (!user_event_mm_fault_in(user_mm, uaddr, attempt))
 			goto retry;
 	}
 
