@@ -146,41 +146,6 @@ static inline bool of_coresight_legacy_ep_is_input(struct device_node *ep)
 	return of_property_read_bool(ep, "slave-mode");
 }
 
-static void of_coresight_get_ports_legacy(const struct device_node *node,
-					  int *nr_inconns, int *nr_outconns)
-{
-	struct device_node *ep = NULL;
-	struct of_endpoint endpoint;
-	int in = 0, out = 0;
-
-	/*
-	 * Avoid warnings in of_graph_get_next_endpoint()
-	 * if the device doesn't have any graph connections
-	 */
-	if (!of_graph_is_present(node))
-		return;
-	do {
-		ep = of_graph_get_next_endpoint(node, ep);
-		if (!ep)
-			break;
-
-		if (of_graph_parse_endpoint(ep, &endpoint))
-			continue;
-
-		if (of_coresight_legacy_ep_is_input(ep)) {
-			in = (endpoint.port + 1 > in) ?
-				endpoint.port + 1 : in;
-		} else {
-			out = (endpoint.port + 1) > out ?
-				endpoint.port + 1 : out;
-		}
-
-	} while (ep);
-
-	*nr_inconns = in;
-	*nr_outconns = out;
-}
-
 static struct device_node *of_coresight_get_port_parent(struct device_node *ep)
 {
 	struct device_node *parent = of_graph_get_port_parent(ep);
@@ -197,56 +162,9 @@ static struct device_node *of_coresight_get_port_parent(struct device_node *ep)
 }
 
 static inline struct device_node *
-of_coresight_get_input_ports_node(const struct device_node *node)
-{
-	return of_get_child_by_name(node, "in-ports");
-}
-
-static inline struct device_node *
 of_coresight_get_output_ports_node(const struct device_node *node)
 {
 	return of_get_child_by_name(node, "out-ports");
-}
-
-static inline int
-of_coresight_count_ports(struct device_node *port_parent)
-{
-	int i = 0;
-	struct device_node *ep = NULL;
-	struct of_endpoint endpoint;
-
-	while ((ep = of_graph_get_next_endpoint(port_parent, ep))) {
-		/* Defer error handling to parsing */
-		if (of_graph_parse_endpoint(ep, &endpoint))
-			continue;
-		if (endpoint.port + 1 > i)
-			i = endpoint.port + 1;
-	}
-
-	return i;
-}
-
-static void of_coresight_get_ports(const struct device_node *node,
-				   int *nr_inconns, int *nr_outconns)
-{
-	struct device_node *input_ports = NULL, *output_ports = NULL;
-
-	input_ports = of_coresight_get_input_ports_node(node);
-	output_ports = of_coresight_get_output_ports_node(node);
-
-	if (input_ports || output_ports) {
-		if (input_ports) {
-			*nr_inconns = of_coresight_count_ports(input_ports);
-			of_node_put(input_ports);
-		}
-		if (output_ports) {
-			*nr_outconns = of_coresight_count_ports(output_ports);
-			of_node_put(output_ports);
-		}
-	} else {
-		/* Fall back to legacy DT bindings parsing */
-		of_coresight_get_ports_legacy(node, nr_inconns, nr_outconns);
-	}
 }
 
 static int of_coresight_get_cpu(struct device *dev)
@@ -351,13 +269,6 @@ static int of_get_coresight_platform_data(struct device *dev,
 	bool legacy_binding = false;
 	struct device_node *node = dev->of_node;
 
-	/* Get the number of input and output port for this component */
-	of_coresight_get_ports(node, &pdata->high_inport, &pdata->high_outport);
-
-	/* If there are no output connections, we are done */
-	if (!pdata->high_outport)
-		return 0;
-
 	parent = of_coresight_get_output_ports_node(node);
 	/*
 	 * If the DT uses obsoleted bindings, the ports are listed
@@ -365,6 +276,12 @@ static int of_get_coresight_platform_data(struct device *dev,
 	 * ports.
 	 */
 	if (!parent) {
+		/*
+		 * Avoid warnings in of_graph_get_next_endpoint()
+		 * if the device doesn't have any graph connections
+		 */
+		if (!of_graph_is_present(node))
+			return 0;
 		legacy_binding = true;
 		parent = node;
 		dev_warn_once(dev, "Uses obsolete Coresight DT bindings\n");
@@ -751,7 +668,6 @@ static int acpi_coresight_parse_graph(struct device *dev,
 	struct coresight_connection conn, zero_conn = {};
 	struct coresight_connection *new_conn;
 
-	pdata->nr_inconns = pdata->nr_outconns = 0;
 	graph = acpi_get_coresight_graph(adev);
 	if (!graph)
 		return -ENOENT;
@@ -770,22 +686,9 @@ static int acpi_coresight_parse_graph(struct device *dev,
 			return dir;
 
 		if (dir == ACPI_CORESIGHT_LINK_MASTER) {
-			if (conn.src_port >= pdata->high_outport)
-				pdata->high_outport = conn.src_port + 1;
 			new_conn = coresight_add_out_conn(dev, pdata, &conn);
 			if (IS_ERR(new_conn))
 				return PTR_ERR(new_conn);
-		} else {
-			WARN_ON(pdata->high_inport == conn.dest_port + 1);
-			/*
-			 * We do not track input port connections for a device.
-			 * However we need the highest port number described,
-			 * which can be recorded now and reuse this connection
-			 * record for an output connection. Hence, do not move
-			 * the ptr for input connections
-			 */
-			if (conn.dest_port >= pdata->high_inport)
-				pdata->high_inport = conn.dest_port + 1;
 		}
 	}
 

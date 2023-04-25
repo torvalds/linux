@@ -112,40 +112,24 @@ struct coresight_device *coresight_get_percpu_sink(int cpu)
 }
 EXPORT_SYMBOL_GPL(coresight_get_percpu_sink);
 
-static int coresight_find_link_inport(struct coresight_device *csdev,
-				      struct coresight_device *parent)
+static struct coresight_connection *
+coresight_find_out_connection(struct coresight_device *src_dev,
+			      struct coresight_device *dest_dev)
 {
 	int i;
 	struct coresight_connection *conn;
 
-	for (i = 0; i < parent->pdata->nr_outconns; i++) {
-		conn = parent->pdata->out_conns[i];
-		if (conn->dest_dev == csdev)
-			return conn->dest_port;
+	for (i = 0; i < src_dev->pdata->nr_outconns; i++) {
+		conn = src_dev->pdata->out_conns[i];
+		if (conn->dest_dev == dest_dev)
+			return conn;
 	}
 
-	dev_err(&csdev->dev, "couldn't find inport, parent: %s, child: %s\n",
-		dev_name(&parent->dev), dev_name(&csdev->dev));
+	dev_err(&src_dev->dev,
+		"couldn't find output connection, src_dev: %s, dest_dev: %s\n",
+		dev_name(&src_dev->dev), dev_name(&dest_dev->dev));
 
-	return -ENODEV;
-}
-
-static int coresight_find_link_outport(struct coresight_device *csdev,
-				       struct coresight_device *child)
-{
-	int i;
-	struct coresight_connection *conn;
-
-	for (i = 0; i < csdev->pdata->nr_outconns; i++) {
-		conn = csdev->pdata->out_conns[i];
-		if (conn->dest_dev == child)
-			return conn->src_port;
-	}
-
-	dev_err(&csdev->dev, "couldn't find outport, parent: %s, child: %s\n",
-		dev_name(&csdev->dev), dev_name(&child->dev));
-
-	return -ENODEV;
+	return ERR_PTR(-ENODEV);
 }
 
 static inline u32 coresight_read_claim_tags(struct coresight_device *csdev)
@@ -352,24 +336,24 @@ static int coresight_enable_link(struct coresight_device *csdev,
 {
 	int ret = 0;
 	int link_subtype;
-	int inport, outport;
+	struct coresight_connection *inconn, *outconn;
 
 	if (!parent || !child)
 		return -EINVAL;
 
-	inport = coresight_find_link_inport(csdev, parent);
-	outport = coresight_find_link_outport(csdev, child);
+	inconn = coresight_find_out_connection(parent, csdev);
+	outconn = coresight_find_out_connection(csdev, child);
 	link_subtype = csdev->subtype.link_subtype;
 
-	if (link_subtype == CORESIGHT_DEV_SUBTYPE_LINK_MERG && inport < 0)
-		return inport;
-	if (link_subtype == CORESIGHT_DEV_SUBTYPE_LINK_SPLIT && outport < 0)
-		return outport;
+	if (link_subtype == CORESIGHT_DEV_SUBTYPE_LINK_MERG && IS_ERR(inconn))
+		return PTR_ERR(inconn);
+	if (link_subtype == CORESIGHT_DEV_SUBTYPE_LINK_SPLIT && IS_ERR(outconn))
+		return PTR_ERR(outconn);
 
 	if (link_ops(csdev)->enable) {
 		ret = coresight_control_assoc_ectdev(csdev, true);
 		if (!ret) {
-			ret = link_ops(csdev)->enable(csdev, inport, outport);
+			ret = link_ops(csdev)->enable(csdev, inconn, outconn);
 			if (ret)
 				coresight_control_assoc_ectdev(csdev, false);
 		}
@@ -385,33 +369,36 @@ static void coresight_disable_link(struct coresight_device *csdev,
 				   struct coresight_device *parent,
 				   struct coresight_device *child)
 {
-	int i, nr_conns;
+	int i;
 	int link_subtype;
-	int inport, outport;
+	struct coresight_connection *inconn, *outconn;
 
 	if (!parent || !child)
 		return;
 
-	inport = coresight_find_link_inport(csdev, parent);
-	outport = coresight_find_link_outport(csdev, child);
+	inconn = coresight_find_out_connection(parent, csdev);
+	outconn = coresight_find_out_connection(csdev, child);
 	link_subtype = csdev->subtype.link_subtype;
 
-	if (link_subtype == CORESIGHT_DEV_SUBTYPE_LINK_MERG) {
-		nr_conns = csdev->pdata->high_inport;
-	} else if (link_subtype == CORESIGHT_DEV_SUBTYPE_LINK_SPLIT) {
-		nr_conns = csdev->pdata->high_outport;
-	} else {
-		nr_conns = 1;
-	}
-
 	if (link_ops(csdev)->disable) {
-		link_ops(csdev)->disable(csdev, inport, outport);
+		link_ops(csdev)->disable(csdev, inconn, outconn);
 		coresight_control_assoc_ectdev(csdev, false);
 	}
 
-	for (i = 0; i < nr_conns; i++)
-		if (atomic_read(&csdev->refcnt[i]) != 0)
+	if (link_subtype == CORESIGHT_DEV_SUBTYPE_LINK_MERG) {
+		for (i = 0; i < csdev->pdata->nr_inconns; i++)
+			if (atomic_read(&csdev->pdata->in_conns[i]->dest_refcnt) !=
+			    0)
+				return;
+	} else if (link_subtype == CORESIGHT_DEV_SUBTYPE_LINK_SPLIT) {
+		for (i = 0; i < csdev->pdata->nr_outconns; i++)
+			if (atomic_read(&csdev->pdata->out_conns[i]->src_refcnt) !=
+			    0)
+				return;
+	} else {
+		if (atomic_read(&csdev->refcnt) != 0)
 			return;
+	}
 
 	csdev->enable = false;
 }
@@ -435,7 +422,7 @@ static int coresight_enable_source(struct coresight_device *csdev,
 		csdev->enable = true;
 	}
 
-	atomic_inc(csdev->refcnt);
+	atomic_inc(&csdev->refcnt);
 
 	return 0;
 }
@@ -450,7 +437,7 @@ static int coresight_enable_source(struct coresight_device *csdev,
  */
 static bool coresight_disable_source(struct coresight_device *csdev)
 {
-	if (atomic_dec_return(csdev->refcnt) == 0) {
+	if (atomic_dec_return(&csdev->refcnt) == 0) {
 		if (source_ops(csdev)->disable)
 			source_ops(csdev)->disable(csdev, NULL);
 		coresight_control_assoc_ectdev(csdev, false);
@@ -1094,7 +1081,7 @@ int coresight_enable(struct coresight_device *csdev)
 		 * source is already enabled.
 		 */
 		if (subtype == CORESIGHT_DEV_SUBTYPE_SOURCE_SOFTWARE)
-			atomic_inc(csdev->refcnt);
+			atomic_inc(&csdev->refcnt);
 		goto out;
 	}
 
@@ -1308,7 +1295,6 @@ static void coresight_device_release(struct device *dev)
 	struct coresight_device *csdev = to_coresight_device(dev);
 
 	fwnode_handle_put(csdev->dev.fwnode);
-	kfree(csdev->refcnt);
 	kfree(csdev);
 }
 
@@ -1537,9 +1523,6 @@ void coresight_release_platform_data(struct coresight_device *csdev,
 struct coresight_device *coresight_register(struct coresight_desc *desc)
 {
 	int ret;
-	int link_subtype;
-	int nr_refcnts = 1;
-	atomic_t *refcnts = NULL;
 	struct coresight_device *csdev;
 	bool registered = false;
 
@@ -1548,25 +1531,6 @@ struct coresight_device *coresight_register(struct coresight_desc *desc)
 		ret = -ENOMEM;
 		goto err_out;
 	}
-
-	if (desc->type == CORESIGHT_DEV_TYPE_LINK ||
-	    desc->type == CORESIGHT_DEV_TYPE_LINKSINK) {
-		link_subtype = desc->subtype.link_subtype;
-
-		if (link_subtype == CORESIGHT_DEV_SUBTYPE_LINK_MERG)
-			nr_refcnts = desc->pdata->high_inport;
-		else if (link_subtype == CORESIGHT_DEV_SUBTYPE_LINK_SPLIT)
-			nr_refcnts = desc->pdata->high_outport;
-	}
-
-	refcnts = kcalloc(nr_refcnts, sizeof(*refcnts), GFP_KERNEL);
-	if (!refcnts) {
-		ret = -ENOMEM;
-		kfree(csdev);
-		goto err_out;
-	}
-
-	csdev->refcnt = refcnts;
 
 	csdev->pdata = desc->pdata;
 

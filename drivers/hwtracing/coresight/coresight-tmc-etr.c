@@ -1209,7 +1209,7 @@ static int tmc_enable_etr_sink_sysfs(struct coresight_device *csdev)
 	 * touched, even if the buffer size has changed.
 	 */
 	if (drvdata->mode == CS_MODE_SYSFS) {
-		atomic_inc(csdev->refcnt);
+		atomic_inc(&csdev->refcnt);
 		goto out;
 	}
 
@@ -1226,7 +1226,7 @@ static int tmc_enable_etr_sink_sysfs(struct coresight_device *csdev)
 	ret = tmc_etr_enable_hw(drvdata, drvdata->sysfs_buf);
 	if (!ret) {
 		drvdata->mode = CS_MODE_SYSFS;
-		atomic_inc(csdev->refcnt);
+		atomic_inc(&csdev->refcnt);
 	}
 out:
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
@@ -1535,7 +1535,7 @@ tmc_update_etr_buffer(struct coresight_device *csdev,
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 
 	/* Don't do anything if another tracer is using this sink */
-	if (atomic_read(csdev->refcnt) != 1) {
+	if (atomic_read(&csdev->refcnt) != 1) {
 		spin_unlock_irqrestore(&drvdata->spinlock, flags);
 		goto out;
 	}
@@ -1647,7 +1647,7 @@ static int tmc_enable_etr_sink_perf(struct coresight_device *csdev, void *data)
 	 * use for this session.
 	 */
 	if (drvdata->pid == pid) {
-		atomic_inc(csdev->refcnt);
+		atomic_inc(&csdev->refcnt);
 		goto unlock_out;
 	}
 
@@ -1657,7 +1657,7 @@ static int tmc_enable_etr_sink_perf(struct coresight_device *csdev, void *data)
 		drvdata->pid = pid;
 		drvdata->mode = CS_MODE_PERF;
 		drvdata->perf_buf = etr_perf->etr_buf;
-		atomic_inc(csdev->refcnt);
+		atomic_inc(&csdev->refcnt);
 	}
 
 unlock_out:
@@ -1690,7 +1690,7 @@ static int tmc_disable_etr_sink(struct coresight_device *csdev)
 		return -EBUSY;
 	}
 
-	if (atomic_dec_return(csdev->refcnt)) {
+	if (atomic_dec_return(&csdev->refcnt)) {
 		spin_unlock_irqrestore(&drvdata->spinlock, flags);
 		return -EBUSY;
 	}

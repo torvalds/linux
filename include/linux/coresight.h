@@ -111,8 +111,6 @@ union coresight_dev_subtype {
  *            unloaded the connection leaves an empty slot.
  */
 struct coresight_platform_data {
-	int high_inport;
-	int high_outport;
 	int nr_inconns;
 	int nr_outconns;
 	struct coresight_connection **out_conns;
@@ -205,6 +203,8 @@ struct coresight_connection {
 	struct coresight_device *dest_dev;
 	struct coresight_sysfs_link *link;
 	struct coresight_device *src_dev;
+	atomic_t src_refcnt;
+	atomic_t dest_refcnt;
 };
 
 /**
@@ -256,7 +256,7 @@ struct coresight_device {
 	const struct coresight_ops *ops;
 	struct csdev_access access;
 	struct device dev;
-	atomic_t *refcnt;
+	atomic_t refcnt;
 	bool orphan;
 	bool enable;	/* true only if configured as part of a path */
 	/* sink specific fields */
@@ -341,8 +341,12 @@ struct coresight_ops_sink {
  * @disable:	disables flow between iport and oport.
  */
 struct coresight_ops_link {
-	int (*enable)(struct coresight_device *csdev, int iport, int oport);
-	void (*disable)(struct coresight_device *csdev, int iport, int oport);
+	int (*enable)(struct coresight_device *csdev,
+		      struct coresight_connection *in,
+		      struct coresight_connection *out);
+	void (*disable)(struct coresight_device *csdev,
+			struct coresight_connection *in,
+			struct coresight_connection *out);
 };
 
 /**
