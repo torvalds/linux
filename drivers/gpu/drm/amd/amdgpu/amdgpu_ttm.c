@@ -1803,26 +1803,13 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	DRM_INFO("amdgpu: %uM of VRAM memory ready\n",
 		 (unsigned) (adev->gmc.real_vram_size / (1024 * 1024)));
 
-	/* Compute GTT size, either based on 1/2 the size of RAM size
-	 * or whatever the user passed on module init */
-	if (amdgpu_gtt_size == -1) {
-		struct sysinfo si;
-
-		si_meminfo(&si);
-		/* Certain GL unit tests for large textures can cause problems
-		 * with the OOM killer since there is no way to link this memory
-		 * to a process.  This was originally mitigated (but not necessarily
-		 * eliminated) by limiting the GTT size.  The problem is this limit
-		 * is often too low for many modern games so just make the limit 1/2
-		 * of system memory which aligns with TTM. The OOM accounting needs
-		 * to be addressed, but we shouldn't prevent common 3D applications
-		 * from being usable just to potentially mitigate that corner case.
-		 */
-		gtt_size = max((AMDGPU_DEFAULT_GTT_SIZE_MB << 20),
-			       (u64)si.totalram * si.mem_unit / 2);
-	} else {
+	/* Compute GTT size, either based on TTM limit
+	 * or whatever the user passed on module init.
+	 */
+	if (amdgpu_gtt_size == -1)
+		gtt_size = ttm_tt_pages_limit() << PAGE_SHIFT;
+	else
 		gtt_size = (uint64_t)amdgpu_gtt_size << 20;
-	}
 
 	/* Initialize GTT memory pool */
 	r = amdgpu_gtt_mgr_init(adev, gtt_size);
