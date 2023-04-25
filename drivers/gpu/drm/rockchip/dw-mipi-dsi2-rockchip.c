@@ -1342,7 +1342,9 @@ static void dw_mipi_dsi2_unbind(struct device *dev, struct device *master,
 
 	if (dsi2->sub_dev.connector) {
 		rockchip_drm_unregister_sub_dev(&dsi2->sub_dev);
-		dsi2->connector.funcs->destroy(&dsi2->connector);
+
+		if (dsi2->connector.funcs)
+			dsi2->connector.funcs->destroy(&dsi2->connector);
 	}
 
 	pm_runtime_disable(dsi2->dev);
