@@ -397,9 +397,9 @@ static void coresight_disable_link(struct coresight_device *csdev,
 	link_subtype = csdev->subtype.link_subtype;
 
 	if (link_subtype == CORESIGHT_DEV_SUBTYPE_LINK_MERG) {
-		nr_conns = csdev->pdata->nr_inconns;
+		nr_conns = csdev->pdata->high_inport;
 	} else if (link_subtype == CORESIGHT_DEV_SUBTYPE_LINK_SPLIT) {
-		nr_conns = csdev->pdata->nr_outconns;
+		nr_conns = csdev->pdata->high_outport;
 	} else {
 		nr_conns = 1;
 	}
@@ -1336,9 +1336,6 @@ static int coresight_orphan_match(struct device *dev, void *data)
 	for (i = 0; i < i_csdev->pdata->nr_outconns; i++) {
 		conn = &i_csdev->pdata->out_conns[i];
 
-		/* Skip the port if FW doesn't describe it */
-		if (!conn->dest_fwnode)
-			continue;
 		/* We have found at least one orphan connection */
 		if (conn->dest_dev == NULL) {
 			/* Does it match this newly added device? */
@@ -1377,8 +1374,6 @@ static int coresight_fixup_device_conns(struct coresight_device *csdev)
 	for (i = 0; i < csdev->pdata->nr_outconns; i++) {
 		struct coresight_connection *conn = &csdev->pdata->out_conns[i];
 
-		if (!conn->dest_fwnode)
-			continue;
 		conn->dest_dev =
 			coresight_find_csdev_by_fwnode(conn->dest_fwnode);
 		if (conn->dest_dev && conn->dest_dev->has_conns_grp) {
@@ -1413,7 +1408,7 @@ static int coresight_remove_match(struct device *dev, void *data)
 	for (i = 0; i < iterator->pdata->nr_outconns; i++) {
 		conn = &iterator->pdata->out_conns[i];
 
-		if (conn->dest_dev == NULL || conn->dest_fwnode == NULL)
+		if (conn->dest_dev == NULL)
 			continue;
 
 		if (csdev->dev.fwnode == conn->dest_fwnode) {
@@ -1445,7 +1440,7 @@ static void coresight_remove_conns(struct coresight_device *csdev)
 	 * doesn't have at least one input port, there is no point
 	 * in searching all the devices.
 	 */
-	if (csdev->pdata->nr_inconns)
+	if (csdev->pdata->high_inport)
 		bus_for_each_dev(&coresight_bustype, NULL,
 				 csdev, coresight_remove_match);
 }
@@ -1552,10 +1547,8 @@ void coresight_release_platform_data(struct coresight_device *csdev,
 		 * Drop the refcount and clear the handle as this device
 		 * is going away
 		 */
-		if (conns[i].dest_fwnode) {
-			fwnode_handle_put(conns[i].dest_fwnode);
-			conns[i].dest_fwnode = NULL;
-		}
+		fwnode_handle_put(conns[i].dest_fwnode);
+		conns[i].dest_fwnode = NULL;
 	}
 	if (csdev)
 		coresight_remove_conns_sysfs_group(csdev);
@@ -1581,9 +1574,9 @@ struct coresight_device *coresight_register(struct coresight_desc *desc)
 		link_subtype = desc->subtype.link_subtype;
 
 		if (link_subtype == CORESIGHT_DEV_SUBTYPE_LINK_MERG)
-			nr_refcnts = desc->pdata->nr_inconns;
+			nr_refcnts = desc->pdata->high_inport;
 		else if (link_subtype == CORESIGHT_DEV_SUBTYPE_LINK_SPLIT)
-			nr_refcnts = desc->pdata->nr_outconns;
+			nr_refcnts = desc->pdata->high_outport;
 	}
 
 	refcnts = kcalloc(nr_refcnts, sizeof(*refcnts), GFP_KERNEL);

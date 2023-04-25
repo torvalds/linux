@@ -19,22 +19,45 @@
 #include <asm/smp_plat.h>
 
 #include "coresight-priv.h"
+
 /*
- * coresight_alloc_conns: Allocate connections record for each output
- * port from the device.
+ * Add an entry to the connection list and assign @conn's contents to it.
+ *
+ * If the output port is already assigned on this device, return -EINVAL
  */
-static int coresight_alloc_conns(struct device *dev,
-				 struct coresight_platform_data *pdata)
+struct coresight_connection *
+coresight_add_out_conn(struct device *dev,
+		       struct coresight_platform_data *pdata,
+		       const struct coresight_connection *new_conn)
 {
-	if (pdata->nr_outconns) {
-		pdata->out_conns = devm_kcalloc(dev, pdata->nr_outconns,
-					    sizeof(*pdata->out_conns), GFP_KERNEL);
-		if (!pdata->out_conns)
-			return -ENOMEM;
+	int i;
+	struct coresight_connection *conn;
+
+	/*
+	 * Warn on any existing duplicate output port.
+	 */
+	for (i = 0; i < pdata->nr_outconns; ++i) {
+		conn = &pdata->out_conns[i];
+		/* Output == -1 means ignore the port for example for helpers */
+		if (conn->src_port != -1 &&
+		    conn->src_port == new_conn->src_port) {
+			dev_warn(dev, "Duplicate output port %d\n",
+				 conn->src_port);
+			return ERR_PTR(-EINVAL);
+		}
 	}
 
-	return 0;
+	pdata->nr_outconns++;
+	pdata->out_conns =
+		devm_krealloc_array(dev, pdata->out_conns, pdata->nr_outconns,
+				    sizeof(*pdata->out_conns), GFP_KERNEL);
+	if (!pdata->out_conns)
+		return ERR_PTR(-ENOMEM);
+
+	pdata->out_conns[pdata->nr_outconns - 1] = *new_conn;
+	return &pdata->out_conns[pdata->nr_outconns - 1];
 }
+EXPORT_SYMBOL_GPL(coresight_add_out_conn);
 
 static struct device *
 coresight_find_device_by_fwnode(struct fwnode_handle *fwnode)
@@ -224,7 +247,8 @@ static int of_coresight_parse_endpoint(struct device *dev,
 	struct device_node *rep = NULL;
 	struct device *rdev = NULL;
 	struct fwnode_handle *rdev_fwnode;
-	struct coresight_connection *conn;
+	struct coresight_connection conn = {};
+	struct coresight_connection *new_conn;
 
 	do {
 		/* Parse the local port details */
@@ -251,14 +275,7 @@ static int of_coresight_parse_endpoint(struct device *dev,
 			break;
 		}
 
-		conn = &pdata->out_conns[endpoint.port];
-		if (conn->dest_fwnode) {
-			dev_warn(dev, "Duplicate output port %d\n",
-				 endpoint.port);
-			ret = -EINVAL;
-			break;
-		}
-		conn->src_port = endpoint.port;
+		conn.src_port = endpoint.port;
 		/*
 		 * Hold the refcount to the target device. This could be
 		 * released via:
@@ -267,8 +284,14 @@ static int of_coresight_parse_endpoint(struct device *dev,
 		 * 2) While removing the target device via
 		 *    coresight_remove_match()
 		 */
-		conn->dest_fwnode = fwnode_handle_get(rdev_fwnode);
-		conn->dest_port = rendpoint.port;
+		conn.dest_fwnode = fwnode_handle_get(rdev_fwnode);
+		conn.dest_port = rendpoint.port;
+
+		new_conn = coresight_add_out_conn(dev, pdata, &conn);
+		if (IS_ERR_VALUE(new_conn)) {
+			fwnode_handle_put(conn.dest_fwnode);
+			return PTR_ERR(new_conn);
+		}
 		/* Connection record updated */
 	} while (0);
 
@@ -289,15 +312,11 @@ static int of_get_coresight_platform_data(struct device *dev,
 	struct device_node *node = dev->of_node;
 
 	/* Get the number of input and output port for this component */
-	of_coresight_get_ports(node, &pdata->nr_inconns, &pdata->nr_outconns);
+	of_coresight_get_ports(node, &pdata->high_inport, &pdata->high_outport);
 
 	/* If there are no output connections, we are done */
-	if (!pdata->nr_outconns)
+	if (!pdata->high_outport)
 		return 0;
-
-	ret = coresight_alloc_conns(dev, pdata);
-	if (ret)
-		return ret;
 
 	parent = of_coresight_get_output_ports_node(node);
 	/*
@@ -683,12 +702,14 @@ static int acpi_coresight_parse_link(struct acpi_device *adev,
  * connection information and populate the supplied coresight_platform_data
  * instance.
  */
-static int acpi_coresight_parse_graph(struct acpi_device *adev,
+static int acpi_coresight_parse_graph(struct device *dev,
+				      struct acpi_device *adev,
 				      struct coresight_platform_data *pdata)
 {
-	int rc, i, nlinks;
+	int i, nlinks;
 	const union acpi_object *graph;
-	struct coresight_connection *conns, *ptr;
+	struct coresight_connection conn, zero_conn = {};
+	struct coresight_connection *new_conn;
 
 	pdata->nr_inconns = pdata->nr_outconns = 0;
 	graph = acpi_get_coresight_graph(adev);
@@ -699,30 +720,23 @@ static int acpi_coresight_parse_graph(struct acpi_device *adev,
 	if (!nlinks)
 		return 0;
 
-	/*
-	 * To avoid scanning the table twice (once for finding the number of
-	 * output links and then later for parsing the output links),
-	 * cache the links information in one go and then later copy
-	 * it to the pdata.
-	 */
-	conns = devm_kcalloc(&adev->dev, nlinks, sizeof(*conns), GFP_KERNEL);
-	if (!conns)
-		return -ENOMEM;
-	ptr = conns;
 	for (i = 0; i < nlinks; i++) {
 		const union acpi_object *link = &graph->package.elements[3 + i];
 		int dir;
 
-		dir = acpi_coresight_parse_link(adev, link, ptr);
+		conn = zero_conn;
+		dir = acpi_coresight_parse_link(adev, link, &conn);
 		if (dir < 0)
 			return dir;
 
 		if (dir == ACPI_CORESIGHT_LINK_MASTER) {
-			if (ptr->src_port >= pdata->nr_outconns)
-				pdata->nr_outconns = ptr->src_port + 1;
-			ptr++;
+			if (conn.src_port >= pdata->high_outport)
+				pdata->high_outport = conn.src_port + 1;
+			new_conn = coresight_add_out_conn(dev, pdata, &conn);
+			if (IS_ERR(new_conn))
+				return PTR_ERR(new_conn);
 		} else {
-			WARN_ON(pdata->nr_inconns == ptr->dest_port + 1);
+			WARN_ON(pdata->high_inport == conn.dest_port + 1);
 			/*
 			 * We do not track input port connections for a device.
 			 * However we need the highest port number described,
@@ -730,25 +744,11 @@ static int acpi_coresight_parse_graph(struct acpi_device *adev,
 			 * record for an output connection. Hence, do not move
 			 * the ptr for input connections
 			 */
-			if (ptr->dest_port >= pdata->nr_inconns)
-				pdata->nr_inconns = ptr->dest_port + 1;
+			if (conn.dest_port >= pdata->high_inport)
+				pdata->high_inport = conn.dest_port + 1;
 		}
 	}
 
-	rc = coresight_alloc_conns(&adev->dev, pdata);
-	if (rc)
-		return rc;
-
-	/* Copy the connection information to the final location */
-	for (i = 0; conns + i < ptr; i++) {
-		int port = conns[i].src_port;
-
-		/* Duplicate output port */
-		WARN_ON(pdata->out_conns[port].dest_fwnode);
-		pdata->out_conns[port] = conns[i];
-	}
-
-	devm_kfree(&adev->dev, conns);
 	return 0;
 }
 
@@ -809,7 +809,7 @@ acpi_get_coresight_platform_data(struct device *dev,
 	if (!adev)
 		return -EINVAL;
 
-	return acpi_coresight_parse_graph(adev, pdata);
+	return acpi_coresight_parse_graph(dev, adev, pdata);
 }
 
 #else
