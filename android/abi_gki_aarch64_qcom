@@ -3998,11 +3998,18 @@
   v4l2_fh_release
   v4l2_m2m_ctx_init
   v4l2_m2m_ctx_release
+  v4l2_m2m_dqbuf
   v4l2_m2m_init
   v4l2_m2m_job_finish
+  v4l2_m2m_poll
+  v4l2_m2m_querybuf
   v4l2_m2m_register_media_controller
   v4l2_m2m_release
+  v4l2_m2m_reqbufs
   v4l2_m2m_request_queue
+  v4l2_m2m_streamoff
+  v4l2_m2m_streamon
+  v4l2_m2m_try_schedule
   v4l2_m2m_unregister_media_controller
   v4l2_s_ctrl
   v4l2_src_change_event_subscribe
