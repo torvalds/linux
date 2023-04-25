@@ -308,7 +308,7 @@ void coresight_set_assoc_ectdev_mutex(struct coresight_device *csdev,
 EXPORT_SYMBOL_GPL(coresight_set_assoc_ectdev_mutex);
 
 static int coresight_enable_sink(struct coresight_device *csdev,
-				 u32 mode, void *data)
+				 enum cs_mode mode, void *data)
 {
 	int ret;
 
@@ -416,7 +416,8 @@ static void coresight_disable_link(struct coresight_device *csdev,
 	csdev->enable = false;
 }
 
-static int coresight_enable_source(struct coresight_device *csdev, u32 mode)
+static int coresight_enable_source(struct coresight_device *csdev,
+				   enum cs_mode mode)
 {
 	int ret;
 
@@ -516,7 +517,7 @@ void coresight_disable_path(struct list_head *path)
 }
 EXPORT_SYMBOL_GPL(coresight_disable_path);
 
-int coresight_enable_path(struct list_head *path, u32 mode, void *sink_data)
+int coresight_enable_path(struct list_head *path, enum cs_mode mode, void *sink_data)
 {
 
 	int ret = 0;

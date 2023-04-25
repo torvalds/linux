@@ -69,7 +69,8 @@ static void tpiu_enable_hw(struct csdev_access *csa)
 	CS_LOCK(csa->base);
 }
 
-static int tpiu_enable(struct coresight_device *csdev, u32 mode, void *__unused)
+static int tpiu_enable(struct coresight_device *csdev, enum cs_mode mode,
+		       void *__unused)
 {
 	tpiu_enable_hw(&csdev->access);
 	atomic_inc(csdev->refcnt);

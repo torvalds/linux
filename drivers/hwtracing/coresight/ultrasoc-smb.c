@@ -256,7 +256,8 @@ static int smb_enable_perf(struct coresight_device *csdev, void *data)
 	return 0;
 }
 
-static int smb_enable(struct coresight_device *csdev, u32 mode, void *data)
+static int smb_enable(struct coresight_device *csdev, enum cs_mode mode,
+		      void *data)
 {
 	struct smb_drv_data *drvdata = dev_get_drvdata(csdev->dev.parent);
 	int ret = 0;

@@ -119,7 +119,7 @@ struct smb_drv_data {
 	struct mutex mutex;
 	bool reading;
 	pid_t pid;
-	u32 mode;
+	enum cs_mode mode;
 };
 
 #endif

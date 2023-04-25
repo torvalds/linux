@@ -822,8 +822,8 @@ unlock_sysfs_enable:
 	return ret;
 }
 
-static int etm4_enable(struct coresight_device *csdev,
-		       struct perf_event *event, u32 mode)
+static int etm4_enable(struct coresight_device *csdev, struct perf_event *event,
+		       enum cs_mode mode)
 {
 	int ret;
 	u32 val;
@@ -989,7 +989,7 @@ static void etm4_disable_sysfs(struct coresight_device *csdev)
 static void etm4_disable(struct coresight_device *csdev,
 			 struct perf_event *event)
 {
-	u32 mode;
+	enum cs_mode mode;
 	struct etmv4_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
 	/*

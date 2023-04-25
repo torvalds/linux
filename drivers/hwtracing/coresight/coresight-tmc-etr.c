@@ -1666,17 +1666,16 @@ unlock_out:
 }
 
 static int tmc_enable_etr_sink(struct coresight_device *csdev,
-			       u32 mode, void *data)
+			       enum cs_mode mode, void *data)
 {
 	switch (mode) {
 	case CS_MODE_SYSFS:
 		return tmc_enable_etr_sink_sysfs(csdev);
 	case CS_MODE_PERF:
 		return tmc_enable_etr_sink_perf(csdev, data);
+	default:
+		return -EINVAL;
 	}
-
-	/* We shouldn't be here */
-	return -EINVAL;
 }
 
 static int tmc_disable_etr_sink(struct coresight_device *csdev)

@@ -225,7 +225,8 @@ out:
 	return ret;
 }
 
-static int etb_enable(struct coresight_device *csdev, u32 mode, void *data)
+static int etb_enable(struct coresight_device *csdev, enum cs_mode mode,
+		      void *data)
 {
 	int ret;
 

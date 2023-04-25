@@ -302,7 +302,7 @@ static int tmc_enable_etf_sink_perf(struct coresight_device *csdev, void *data)
 }
 
 static int tmc_enable_etf_sink(struct coresight_device *csdev,
-			       u32 mode, void *data)
+			       enum cs_mode mode, void *data)
 {
 	int ret;
 

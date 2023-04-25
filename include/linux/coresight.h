@@ -272,6 +272,12 @@ static struct coresight_dev_list (var) = {				\
 
 #define to_coresight_device(d) container_of(d, struct coresight_device, dev)
 
+enum cs_mode {
+	CS_MODE_DISABLED,
+	CS_MODE_SYSFS,
+	CS_MODE_PERF,
+};
+
 #define source_ops(csdev)	csdev->ops->source_ops
 #define sink_ops(csdev)		csdev->ops->sink_ops
 #define link_ops(csdev)		csdev->ops->link_ops
@@ -288,7 +294,8 @@ static struct coresight_dev_list (var) = {				\
  * @update_buffer:	update buffer pointers after a trace session.
  */
 struct coresight_ops_sink {
-	int (*enable)(struct coresight_device *csdev, u32 mode, void *data);
+	int (*enable)(struct coresight_device *csdev, enum cs_mode mode,
+		      void *data);
 	int (*disable)(struct coresight_device *csdev);
 	void *(*alloc_buffer)(struct coresight_device *csdev,
 			      struct perf_event *event, void **pages,
@@ -320,8 +327,8 @@ struct coresight_ops_link {
  */
 struct coresight_ops_source {
 	int (*cpu_id)(struct coresight_device *csdev);
-	int (*enable)(struct coresight_device *csdev,
-		      struct perf_event *event,  u32 mode);
+	int (*enable)(struct coresight_device *csdev, struct perf_event *event,
+		      enum cs_mode mode);
 	void (*disable)(struct coresight_device *csdev,
 			struct perf_event *event);
 };
