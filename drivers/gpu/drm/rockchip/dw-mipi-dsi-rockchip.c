@@ -982,13 +982,6 @@ static int dw_mipi_dsi_rockchip_bind(struct device *dev,
 	struct device *second;
 	int ret;
 
-	ret = drm_of_find_panel_or_bridge(dsi->dev->of_node, 1, 0,
-					  &dsi->panel, &dsi->bridge);
-	if (ret) {
-		dev_err(dsi->dev, "failed to find panel or bridge: %d\n", ret);
-		return ret;
-	}
-
 	second = dw_mipi_dsi_rockchip_find_second(dsi);
 	if (IS_ERR(second))
 		return PTR_ERR(second);
@@ -1008,6 +1001,13 @@ static int dw_mipi_dsi_rockchip_bind(struct device *dev,
 
 	if (dsi->is_slave)
 		return 0;
+
+	ret = drm_of_find_panel_or_bridge(dsi->dev->of_node, 1, -1,
+					  &dsi->panel, &dsi->bridge);
+	if (ret) {
+		dev_err(dsi->dev, "failed to find panel or bridge: %d\n", ret);
+		return ret;
+	}
 
 	ret = clk_prepare_enable(dsi->pllref_clk);
 	if (ret) {
@@ -1064,7 +1064,6 @@ static const struct component_ops dw_mipi_dsi_rockchip_ops = {
 
 static int dw_mipi_dsi_rockchip_component_add(struct dw_mipi_dsi_rockchip *dsi)
 {
-	struct device *second;
 	int ret;
 
 	ret = component_add(dsi->dev, &dw_mipi_dsi_rockchip_ops);
@@ -1074,30 +1073,11 @@ static int dw_mipi_dsi_rockchip_component_add(struct dw_mipi_dsi_rockchip *dsi)
 		return ret;
 	}
 
-	second = dw_mipi_dsi_rockchip_find_second(dsi);
-	if (IS_ERR(second))
-		return PTR_ERR(second);
-	if (second) {
-		ret = component_add(second, &dw_mipi_dsi_rockchip_ops);
-		if (ret) {
-			DRM_DEV_ERROR(second,
-				      "Failed to register component: %d\n",
-				      ret);
-			return ret;
-		}
-	}
-
 	return 0;
 }
 
 static int dw_mipi_dsi_rockchip_component_del(struct dw_mipi_dsi_rockchip *dsi)
 {
-	struct device *second;
-
-	second = dw_mipi_dsi_rockchip_find_second(dsi);
-	if (second && !IS_ERR(second))
-		component_del(second, &dw_mipi_dsi_rockchip_ops);
-
 	component_del(dsi->dev, &dw_mipi_dsi_rockchip_ops);
 
 	return 0;
