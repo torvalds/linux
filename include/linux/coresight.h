@@ -375,7 +375,8 @@ struct coresight_ops_source {
  * @disable	: Disable the device
  */
 struct coresight_ops_helper {
-	int (*enable)(struct coresight_device *csdev, void *data);
+	int (*enable)(struct coresight_device *csdev, enum cs_mode mode,
+		      void *data);
 	int (*disable)(struct coresight_device *csdev, void *data);
 };
 
@@ -646,5 +647,13 @@ coresight_add_out_conn(struct device *dev,
 		       struct coresight_platform_data *pdata,
 		       const struct coresight_connection *new_conn);
 int coresight_add_in_conn(struct coresight_connection *conn);
+struct coresight_device *
+coresight_find_input_type(struct coresight_platform_data *pdata,
+			  enum coresight_dev_type type,
+			  union coresight_dev_subtype subtype);
+struct coresight_device *
+coresight_find_output_type(struct coresight_platform_data *pdata,
+			   enum coresight_dev_type type,
+			   union coresight_dev_subtype subtype);
 
 #endif		/* _LINUX_COREISGHT_H */
