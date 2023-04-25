@@ -1430,7 +1430,7 @@ struct regmap_config wm831x_regmap_config = {
 	.reg_bits = 16,
 	.val_bits = 16,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.max_register = WM831X_DBE_CHECK_DATA,
 	.readable_reg = wm831x_reg_readable,
