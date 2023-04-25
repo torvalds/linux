@@ -10509,7 +10509,10 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_kfunc_call_
 				verbose(env, "arg#%d doesn't point to a type with bpf_refcount field\n", i);
 				return -EINVAL;
 			}
-
+			if (rec->refcount_off >= 0) {
+				verbose(env, "bpf_refcount_acquire calls are disabled for now\n");
+				return -EINVAL;
+			}
 			meta->arg_refcount_acquire.btf = reg->btf;
 			meta->arg_refcount_acquire.btf_id = reg->btf_id;
 			break;
@@ -18667,6 +18670,10 @@ BTF_ID(func, rcu_read_unlock_strict)
 #if defined(CONFIG_DEBUG_PREEMPT) || defined(CONFIG_TRACE_PREEMPT_TOGGLE)
 BTF_ID(func, preempt_count_add)
 BTF_ID(func, preempt_count_sub)
+#endif
+#ifdef CONFIG_PREEMPT_RCU
+BTF_ID(func, __rcu_read_lock)
+BTF_ID(func, __rcu_read_unlock)
 #endif
 BTF_SET_END(btf_id_deny)
 
