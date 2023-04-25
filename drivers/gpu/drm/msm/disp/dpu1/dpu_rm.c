@@ -126,7 +126,7 @@ int dpu_rm_init(struct dpu_rm *rm,
 			DPU_ERROR("skip mixer %d with invalid id\n", lm->id);
 			continue;
 		}
-		hw = dpu_hw_lm_init(lm->id, mmio, cat);
+		hw = dpu_hw_lm_init(lm, mmio);
 		if (IS_ERR(hw)) {
 			rc = PTR_ERR(hw);
 			DPU_ERROR("failed lm object creation: err %d\n", rc);
@@ -143,7 +143,7 @@ int dpu_rm_init(struct dpu_rm *rm,
 			DPU_ERROR("skip merge_3d %d with invalid id\n", merge_3d->id);
 			continue;
 		}
-		hw = dpu_hw_merge_3d_init(merge_3d->id, mmio, cat);
+		hw = dpu_hw_merge_3d_init(merge_3d, mmio);
 		if (IS_ERR(hw)) {
 			rc = PTR_ERR(hw);
 			DPU_ERROR("failed merge_3d object creation: err %d\n",
@@ -161,7 +161,7 @@ int dpu_rm_init(struct dpu_rm *rm,
 			DPU_ERROR("skip pingpong %d with invalid id\n", pp->id);
 			continue;
 		}
-		hw = dpu_hw_pingpong_init(pp->id, mmio, cat);
+		hw = dpu_hw_pingpong_init(pp, mmio);
 		if (IS_ERR(hw)) {
 			rc = PTR_ERR(hw);
 			DPU_ERROR("failed pingpong object creation: err %d\n",
@@ -177,15 +177,11 @@ int dpu_rm_init(struct dpu_rm *rm,
 		struct dpu_hw_intf *hw;
 		const struct dpu_intf_cfg *intf = &cat->intf[i];
 
-		if (intf->type == INTF_NONE) {
-			DPU_DEBUG("skip intf %d with type none\n", i);
-			continue;
-		}
 		if (intf->id < INTF_0 || intf->id >= INTF_MAX) {
 			DPU_ERROR("skip intf %d with invalid id\n", intf->id);
 			continue;
 		}
-		hw = dpu_hw_intf_init(intf->id, mmio, cat);
+		hw = dpu_hw_intf_init(intf, mmio);
 		if (IS_ERR(hw)) {
 			rc = PTR_ERR(hw);
 			DPU_ERROR("failed intf object creation: err %d\n", rc);
@@ -203,7 +199,7 @@ int dpu_rm_init(struct dpu_rm *rm,
 			continue;
 		}
 
-		hw = dpu_hw_wb_init(wb->id, mmio, cat);
+		hw = dpu_hw_wb_init(wb, mmio);
 		if (IS_ERR(hw)) {
 			rc = PTR_ERR(hw);
 			DPU_ERROR("failed wb object creation: err %d\n", rc);
@@ -220,7 +216,7 @@ int dpu_rm_init(struct dpu_rm *rm,
 			DPU_ERROR("skip ctl %d with invalid id\n", ctl->id);
 			continue;
 		}
-		hw = dpu_hw_ctl_init(ctl->id, mmio, cat);
+		hw = dpu_hw_ctl_init(ctl, mmio, cat->mixer_count, cat->mixer);
 		if (IS_ERR(hw)) {
 			rc = PTR_ERR(hw);
 			DPU_ERROR("failed ctl object creation: err %d\n", rc);
@@ -237,7 +233,7 @@ int dpu_rm_init(struct dpu_rm *rm,
 			DPU_ERROR("skip dspp %d with invalid id\n", dspp->id);
 			continue;
 		}
-		hw = dpu_hw_dspp_init(dspp->id, mmio, cat);
+		hw = dpu_hw_dspp_init(dspp, mmio);
 		if (IS_ERR(hw)) {
 			rc = PTR_ERR(hw);
 			DPU_ERROR("failed dspp object creation: err %d\n", rc);
@@ -250,7 +246,7 @@ int dpu_rm_init(struct dpu_rm *rm,
 		struct dpu_hw_dsc *hw;
 		const struct dpu_dsc_cfg *dsc = &cat->dsc[i];
 
-		hw = dpu_hw_dsc_init(dsc->id, mmio, cat);
+		hw = dpu_hw_dsc_init(dsc, mmio);
 		if (IS_ERR_OR_NULL(hw)) {
 			rc = PTR_ERR(hw);
 			DPU_ERROR("failed dsc object creation: err %d\n", rc);
@@ -268,7 +264,7 @@ int dpu_rm_init(struct dpu_rm *rm,
 			continue;
 		}
 
-		hw = dpu_hw_sspp_init(sspp->id, mmio, cat);
+		hw = dpu_hw_sspp_init(sspp, mmio, cat->ubwc);
 		if (IS_ERR(hw)) {
 			rc = PTR_ERR(hw);
 			DPU_ERROR("failed sspp object creation: err %d\n", rc);

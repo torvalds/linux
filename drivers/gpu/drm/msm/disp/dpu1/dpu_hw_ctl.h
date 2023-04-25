@@ -261,15 +261,17 @@ static inline struct dpu_hw_ctl *to_dpu_hw_ctl(struct dpu_hw_blk *hw)
 }
 
 /**
- * dpu_hw_ctl_init(): Initializes the ctl_path hw driver object.
- * should be called before accessing every ctl path registers.
- * @idx:  ctl_path index for which driver object is required
+ * dpu_hw_ctl_init() - Initializes the ctl_path hw driver object.
+ * Should be called before accessing any ctl_path register.
+ * @cfg:  ctl_path catalog entry for which driver object is required
  * @addr: mapped register io address of MDP
- * @m :   pointer to mdss catalog data
+ * @mixer_count: Number of mixers in @mixer
+ * @mixer: Pointer to an array of Layer Mixers defined in the catalog
  */
-struct dpu_hw_ctl *dpu_hw_ctl_init(enum dpu_ctl idx,
+struct dpu_hw_ctl *dpu_hw_ctl_init(const struct dpu_ctl_cfg *cfg,
 		void __iomem *addr,
-		const struct dpu_mdss_cfg *m);
+		u32 mixer_count,
+		const struct dpu_lm_cfg *mixer);
 
 /**
  * dpu_hw_ctl_destroy(): Destroys ctl driver context

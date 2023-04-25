@@ -165,16 +165,14 @@ static inline struct dpu_hw_pingpong *to_dpu_hw_pingpong(struct dpu_hw_blk *hw)
 }
 
 /**
- * dpu_hw_pingpong_init - initializes the pingpong driver for the passed
- *	pingpong idx.
- * @idx:  Pingpong index for which driver object is required
+ * dpu_hw_pingpong_init() - initializes the pingpong driver for the passed
+ * pingpong catalog entry.
+ * @cfg:  Pingpong catalog entry for which driver object is required
  * @addr: Mapped register io address of MDP
- * @m:    Pointer to mdss catalog data
- * Returns: Error code or allocated dpu_hw_pingpong context
+ * Return: Error code or allocated dpu_hw_pingpong context
  */
-struct dpu_hw_pingpong *dpu_hw_pingpong_init(enum dpu_pingpong idx,
-		void __iomem *addr,
-		const struct dpu_mdss_cfg *m);
+struct dpu_hw_pingpong *dpu_hw_pingpong_init(const struct dpu_pingpong_cfg *cfg,
+		void __iomem *addr);
 
 /**
  * dpu_hw_pingpong_destroy - destroys pingpong driver context

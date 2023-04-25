@@ -341,7 +341,7 @@ struct dpu_hw_sspp_ops {
  * struct dpu_hw_sspp - pipe description
  * @base: hardware block base structure
  * @hw: block hardware details
- * @ubwc: ubwc configuration data
+ * @ubwc: UBWC configuration data
  * @idx: pipe index
  * @cap: pointer to layer_cfg
  * @ops: pointer to operations possible for this pipe
@@ -361,14 +361,14 @@ struct dpu_hw_sspp {
 
 struct dpu_kms;
 /**
- * dpu_hw_sspp_init - initializes the sspp hw driver object.
+ * dpu_hw_sspp_init() - Initializes the sspp hw driver object.
  * Should be called once before accessing every pipe.
- * @idx:  Pipe index for which driver object is required
+ * @cfg:  Pipe catalog entry for which driver object is required
  * @addr: Mapped register io address of MDP
- * @catalog : Pointer to mdss catalog data
+ * @ubwc: UBWC configuration data
  */
-struct dpu_hw_sspp *dpu_hw_sspp_init(enum dpu_sspp idx,
-		void __iomem *addr, const struct dpu_mdss_cfg *catalog);
+struct dpu_hw_sspp *dpu_hw_sspp_init(const struct dpu_sspp_cfg *cfg,
+		void __iomem *addr, const struct dpu_ubwc_cfg *ubwc);
 
 /**
  * dpu_hw_sspp_destroy(): Destroys SSPP driver context

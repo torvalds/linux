@@ -53,23 +53,6 @@ static const u32 fetch_tbl[SSPP_MAX] = {CTL_INVALID_BIT, 16, 17, 18, 19,
 	CTL_INVALID_BIT, CTL_INVALID_BIT, CTL_INVALID_BIT, CTL_INVALID_BIT, 0,
 	1, 2, 3, CTL_INVALID_BIT, CTL_INVALID_BIT};
 
-static const struct dpu_ctl_cfg *_ctl_offset(enum dpu_ctl ctl,
-		const struct dpu_mdss_cfg *m,
-		void __iomem *addr,
-		struct dpu_hw_blk_reg_map *b)
-{
-	int i;
-
-	for (i = 0; i < m->ctl_count; i++) {
-		if (ctl == m->ctl[i].id) {
-			b->blk_addr = addr + m->ctl[i].base;
-			b->log_mask = DPU_DBG_MASK_CTL;
-			return &m->ctl[i];
-		}
-	}
-	return ERR_PTR(-ENOMEM);
-}
-
 static int _mixer_stages(const struct dpu_lm_cfg *mixer, int count,
 		enum dpu_lm lm)
 {
@@ -676,29 +659,25 @@ static void _setup_ctl_ops(struct dpu_hw_ctl_ops *ops,
 		ops->set_active_pipes = dpu_hw_ctl_set_fetch_pipe_active;
 };
 
-struct dpu_hw_ctl *dpu_hw_ctl_init(enum dpu_ctl idx,
+struct dpu_hw_ctl *dpu_hw_ctl_init(const struct dpu_ctl_cfg *cfg,
 		void __iomem *addr,
-		const struct dpu_mdss_cfg *m)
+		u32 mixer_count,
+		const struct dpu_lm_cfg *mixer)
 {
 	struct dpu_hw_ctl *c;
-	const struct dpu_ctl_cfg *cfg;
 
 	c = kzalloc(sizeof(*c), GFP_KERNEL);
 	if (!c)
 		return ERR_PTR(-ENOMEM);
 
-	cfg = _ctl_offset(idx, m, addr, &c->hw);
-	if (IS_ERR_OR_NULL(cfg)) {
-		kfree(c);
-		pr_err("failed to create dpu_hw_ctl %d\n", idx);
-		return ERR_PTR(-EINVAL);
-	}
+	c->hw.blk_addr = addr + cfg->base;
+	c->hw.log_mask = DPU_DBG_MASK_CTL;
 
 	c->caps = cfg;
 	_setup_ctl_ops(&c->ops, c->caps->features);
-	c->idx = idx;
-	c->mixer_count = m->mixer_count;
-	c->mixer_hw_caps = m->mixer;
+	c->idx = cfg->id;
+	c->mixer_count = mixer_count;
+	c->mixer_hw_caps = mixer;
 
 	return c;
 }

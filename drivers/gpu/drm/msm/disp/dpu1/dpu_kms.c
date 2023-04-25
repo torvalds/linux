@@ -1125,16 +1125,17 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 	}
 
 	for (i = 0; i < dpu_kms->catalog->vbif_count; i++) {
-		u32 vbif_idx = dpu_kms->catalog->vbif[i].id;
+		struct dpu_hw_vbif *hw;
+		const struct dpu_vbif_cfg *vbif = &dpu_kms->catalog->vbif[i];
 
-		dpu_kms->hw_vbif[vbif_idx] = dpu_hw_vbif_init(vbif_idx,
-				dpu_kms->vbif[vbif_idx], dpu_kms->catalog);
-		if (IS_ERR(dpu_kms->hw_vbif[vbif_idx])) {
-			rc = PTR_ERR(dpu_kms->hw_vbif[vbif_idx]);
-			DPU_ERROR("failed to init vbif %d: %d\n", vbif_idx, rc);
-			dpu_kms->hw_vbif[vbif_idx] = NULL;
+		hw = dpu_hw_vbif_init(vbif, dpu_kms->vbif[vbif->id]);
+		if (IS_ERR(hw)) {
+			rc = PTR_ERR(hw);
+			DPU_ERROR("failed to init vbif %d: %d\n", vbif->id, rc);
 			goto power_error;
 		}
+
+		dpu_kms->hw_vbif[vbif->id] = hw;
 	}
 
 	rc = dpu_core_perf_init(&dpu_kms->perf, dev, dpu_kms->catalog,

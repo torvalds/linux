@@ -42,24 +42,6 @@ static u32 dither_depth_map[DITHER_DEPTH_MAP_INDEX] = {
 	0, 0, 0, 0, 0, 0, 0, 1, 2
 };
 
-static const struct dpu_pingpong_cfg *_pingpong_offset(enum dpu_pingpong pp,
-		const struct dpu_mdss_cfg *m,
-		void __iomem *addr,
-		struct dpu_hw_blk_reg_map *b)
-{
-	int i;
-
-	for (i = 0; i < m->pingpong_count; i++) {
-		if (pp == m->pingpong[i].id) {
-			b->blk_addr = addr + m->pingpong[i].base;
-			b->log_mask = DPU_DBG_MASK_PINGPONG;
-			return &m->pingpong[i];
-		}
-	}
-
-	return ERR_PTR(-EINVAL);
-}
-
 static void dpu_hw_pp_setup_dither(struct dpu_hw_pingpong *pp,
 				    struct dpu_hw_dither_cfg *cfg)
 {
@@ -290,24 +272,19 @@ static void _setup_pingpong_ops(struct dpu_hw_pingpong *c,
 		c->ops.setup_dither = dpu_hw_pp_setup_dither;
 };
 
-struct dpu_hw_pingpong *dpu_hw_pingpong_init(enum dpu_pingpong idx,
-		void __iomem *addr,
-		const struct dpu_mdss_cfg *m)
+struct dpu_hw_pingpong *dpu_hw_pingpong_init(const struct dpu_pingpong_cfg *cfg,
+		void __iomem *addr)
 {
 	struct dpu_hw_pingpong *c;
-	const struct dpu_pingpong_cfg *cfg;
 
 	c = kzalloc(sizeof(*c), GFP_KERNEL);
 	if (!c)
 		return ERR_PTR(-ENOMEM);
 
-	cfg = _pingpong_offset(idx, m, addr, &c->hw);
-	if (IS_ERR_OR_NULL(cfg)) {
-		kfree(c);
-		return ERR_PTR(-EINVAL);
-	}
+	c->hw.blk_addr = addr + cfg->base;
+	c->hw.log_mask = DPU_DBG_MASK_PINGPONG;
 
-	c->idx = idx;
+	c->idx = cfg->id;
 	c->caps = cfg;
 	_setup_pingpong_ops(c, c->caps->features);
 

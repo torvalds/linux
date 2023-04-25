@@ -68,25 +68,6 @@
 #define INTF_MISR_CTRL			0x180
 #define INTF_MISR_SIGNATURE		0x184
 
-static const struct dpu_intf_cfg *_intf_offset(enum dpu_intf intf,
-		const struct dpu_mdss_cfg *m,
-		void __iomem *addr,
-		struct dpu_hw_blk_reg_map *b)
-{
-	int i;
-
-	for (i = 0; i < m->intf_count; i++) {
-		if ((intf == m->intf[i].id) &&
-		(m->intf[i].type != INTF_NONE)) {
-			b->blk_addr = addr + m->intf[i].base;
-			b->log_mask = DPU_DBG_MASK_INTF;
-			return &m->intf[i];
-		}
-	}
-
-	return ERR_PTR(-EINVAL);
-}
-
 static void dpu_hw_intf_setup_timing_engine(struct dpu_hw_intf *ctx,
 		const struct intf_timing_params *p,
 		const struct dpu_format *fmt)
@@ -336,28 +317,27 @@ static void _setup_intf_ops(struct dpu_hw_intf_ops *ops,
 	ops->collect_misr = dpu_hw_intf_collect_misr;
 }
 
-struct dpu_hw_intf *dpu_hw_intf_init(enum dpu_intf idx,
-		void __iomem *addr,
-		const struct dpu_mdss_cfg *m)
+struct dpu_hw_intf *dpu_hw_intf_init(const struct dpu_intf_cfg *cfg,
+		void __iomem *addr)
 {
 	struct dpu_hw_intf *c;
-	const struct dpu_intf_cfg *cfg;
+
+	if (cfg->type == INTF_NONE) {
+		DPU_DEBUG("Skip intf %d with type NONE\n", cfg->id - INTF_0);
+		return NULL;
+	}
 
 	c = kzalloc(sizeof(*c), GFP_KERNEL);
 	if (!c)
 		return ERR_PTR(-ENOMEM);
 
-	cfg = _intf_offset(idx, m, addr, &c->hw);
-	if (IS_ERR_OR_NULL(cfg)) {
-		kfree(c);
-		pr_err("failed to create dpu_hw_intf %d\n", idx);
-		return ERR_PTR(-EINVAL);
-	}
+	c->hw.blk_addr = addr + cfg->base;
+	c->hw.log_mask = DPU_DBG_MASK_INTF;
 
 	/*
 	 * Assign ops
 	 */
-	c->idx = idx;
+	c->idx = cfg->id;
 	c->cap = cfg;
 	_setup_intf_ops(&c->ops, c->cap->features);
 

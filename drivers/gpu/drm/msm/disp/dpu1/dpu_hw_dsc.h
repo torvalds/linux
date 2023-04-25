@@ -61,14 +61,13 @@ struct dpu_hw_dsc {
 };
 
 /**
- * dpu_hw_dsc_init - initializes the dsc block for the passed dsc idx.
- * @idx:  DSC index for which driver object is required
+ * dpu_hw_dsc_init() - Initializes the DSC hw driver object.
+ * @cfg:  DSC catalog entry for which driver object is required
  * @addr: Mapped register io address of MDP
- * @m:    Pointer to mdss catalog data
- * Returns: Error code or allocated dpu_hw_dsc context
+ * Return: Error code or allocated dpu_hw_dsc context
  */
-struct dpu_hw_dsc *dpu_hw_dsc_init(enum dpu_dsc idx, void __iomem *addr,
-				   const struct dpu_mdss_cfg *m);
+struct dpu_hw_dsc *dpu_hw_dsc_init(const struct dpu_dsc_cfg *cfg,
+		void __iomem *addr);
 
 /**
  * dpu_hw_dsc_destroy - destroys dsc driver context

@@ -771,49 +771,24 @@ int _dpu_hw_sspp_init_debugfs(struct dpu_hw_sspp *hw_pipe, struct dpu_kms *kms,
 }
 #endif
 
-
-static const struct dpu_sspp_cfg *_sspp_offset(enum dpu_sspp sspp,
-		void __iomem *addr,
-		const struct dpu_mdss_cfg *catalog,
-		struct dpu_hw_blk_reg_map *b)
-{
-	int i;
-
-	if ((sspp < SSPP_MAX) && catalog && addr && b) {
-		for (i = 0; i < catalog->sspp_count; i++) {
-			if (sspp == catalog->sspp[i].id) {
-				b->blk_addr = addr + catalog->sspp[i].base;
-				b->log_mask = DPU_DBG_MASK_SSPP;
-				return &catalog->sspp[i];
-			}
-		}
-	}
-
-	return ERR_PTR(-ENOMEM);
-}
-
-struct dpu_hw_sspp *dpu_hw_sspp_init(enum dpu_sspp idx,
-		void __iomem *addr, const struct dpu_mdss_cfg *catalog)
+struct dpu_hw_sspp *dpu_hw_sspp_init(const struct dpu_sspp_cfg *cfg,
+		void __iomem *addr, const struct dpu_ubwc_cfg *ubwc)
 {
 	struct dpu_hw_sspp *hw_pipe;
-	const struct dpu_sspp_cfg *cfg;
 
-	if (!addr || !catalog)
+	if (!addr || !ubwc)
 		return ERR_PTR(-EINVAL);
 
 	hw_pipe = kzalloc(sizeof(*hw_pipe), GFP_KERNEL);
 	if (!hw_pipe)
 		return ERR_PTR(-ENOMEM);
 
-	cfg = _sspp_offset(idx, addr, catalog, &hw_pipe->hw);
-	if (IS_ERR_OR_NULL(cfg)) {
-		kfree(hw_pipe);
-		return ERR_PTR(-EINVAL);
-	}
+	hw_pipe->hw.blk_addr = addr + cfg->base;
+	hw_pipe->hw.log_mask = DPU_DBG_MASK_SSPP;
 
 	/* Assign ops */
-	hw_pipe->ubwc = catalog->ubwc;
-	hw_pipe->idx = idx;
+	hw_pipe->ubwc = ubwc;
+	hw_pipe->idx = cfg->id;
 	hw_pipe->cap = cfg;
 	_setup_layer_ops(hw_pipe, hw_pipe->cap->features);
 

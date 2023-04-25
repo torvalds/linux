@@ -93,15 +93,13 @@ static inline struct dpu_hw_mixer *to_dpu_hw_mixer(struct dpu_hw_blk *hw)
 }
 
 /**
- * dpu_hw_lm_init(): Initializes the mixer hw driver object.
+ * dpu_hw_lm_init() - Initializes the mixer hw driver object.
  * should be called once before accessing every mixer.
- * @idx:  mixer index for which driver object is required
+ * @cfg:  mixer catalog entry for which driver object is required
  * @addr: mapped register io address of MDP
- * @m :   pointer to mdss catalog data
  */
-struct dpu_hw_mixer *dpu_hw_lm_init(enum dpu_lm idx,
-		void __iomem *addr,
-		const struct dpu_mdss_cfg *m);
+struct dpu_hw_mixer *dpu_hw_lm_init(const struct dpu_lm_cfg *cfg,
+		void __iomem *addr);
 
 /**
  * dpu_hw_lm_destroy(): Destroys layer mixer driver context

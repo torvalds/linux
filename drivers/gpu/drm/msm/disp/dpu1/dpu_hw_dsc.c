@@ -175,24 +175,6 @@ static void dpu_hw_dsc_bind_pingpong_blk(
 	DPU_REG_WRITE(c, dsc_ctl_offset, mux_cfg);
 }
 
-static const struct dpu_dsc_cfg *_dsc_offset(enum dpu_dsc dsc,
-				       const struct dpu_mdss_cfg *m,
-				       void __iomem *addr,
-				       struct dpu_hw_blk_reg_map *b)
-{
-	int i;
-
-	for (i = 0; i < m->dsc_count; i++) {
-		if (dsc == m->dsc[i].id) {
-			b->blk_addr = addr + m->dsc[i].base;
-			b->log_mask = DPU_DBG_MASK_DSC;
-			return &m->dsc[i];
-		}
-	}
-
-	return NULL;
-}
-
 static void _setup_dsc_ops(struct dpu_hw_dsc_ops *ops,
 			   unsigned long cap)
 {
@@ -203,23 +185,19 @@ static void _setup_dsc_ops(struct dpu_hw_dsc_ops *ops,
 		ops->dsc_bind_pingpong_blk = dpu_hw_dsc_bind_pingpong_blk;
 };
 
-struct dpu_hw_dsc *dpu_hw_dsc_init(enum dpu_dsc idx, void __iomem *addr,
-				   const struct dpu_mdss_cfg *m)
+struct dpu_hw_dsc *dpu_hw_dsc_init(const struct dpu_dsc_cfg *cfg,
+				   void __iomem *addr)
 {
 	struct dpu_hw_dsc *c;
-	const struct dpu_dsc_cfg *cfg;
 
 	c = kzalloc(sizeof(*c), GFP_KERNEL);
 	if (!c)
 		return ERR_PTR(-ENOMEM);
 
-	cfg = _dsc_offset(idx, m, addr, &c->hw);
-	if (IS_ERR_OR_NULL(cfg)) {
-		kfree(c);
-		return ERR_PTR(-EINVAL);
-	}
+	c->hw.blk_addr = addr + cfg->base;
+	c->hw.log_mask = DPU_DBG_MASK_DSC;
 
-	c->idx = idx;
+	c->idx = cfg->id;
 	c->caps = cfg;
 	_setup_dsc_ops(&c->ops, c->caps->features);
 

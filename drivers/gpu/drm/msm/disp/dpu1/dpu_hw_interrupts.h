@@ -67,7 +67,7 @@ struct dpu_hw_intr {
 /**
  * dpu_hw_intr_init(): Initializes the interrupts hw object
  * @addr: mapped register io address of MDP
- * @m :   pointer to mdss catalog data
+ * @m:    pointer to MDSS catalog data
  */
 struct dpu_hw_intr *dpu_hw_intr_init(void __iomem *addr,
 		const struct dpu_mdss_cfg *m);

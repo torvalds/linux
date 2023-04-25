@@ -52,22 +52,6 @@
 /* WB_QOS_CTRL */
 #define WB_QOS_CTRL_DANGER_SAFE_EN            BIT(0)
 
-static const struct dpu_wb_cfg *_wb_offset(enum dpu_wb wb,
-		const struct dpu_mdss_cfg *m, void __iomem *addr,
-		struct dpu_hw_blk_reg_map *b)
-{
-	int i;
-
-	for (i = 0; i < m->wb_count; i++) {
-		if (wb == m->wb[i].id) {
-			b->blk_addr = addr + m->wb[i].base;
-			b->log_mask = DPU_DBG_MASK_WB;
-			return &m->wb[i];
-		}
-	}
-	return ERR_PTR(-EINVAL);
-}
-
 static void dpu_hw_wb_setup_outaddress(struct dpu_hw_wb *ctx,
 		struct dpu_hw_wb_cfg *data)
 {
@@ -242,28 +226,23 @@ static void _setup_wb_ops(struct dpu_hw_wb_ops *ops,
 		ops->bind_pingpong_blk = dpu_hw_wb_bind_pingpong_blk;
 }
 
-struct dpu_hw_wb *dpu_hw_wb_init(enum dpu_wb idx,
-		void __iomem *addr, const struct dpu_mdss_cfg *m)
+struct dpu_hw_wb *dpu_hw_wb_init(const struct dpu_wb_cfg *cfg,
+		void __iomem *addr)
 {
 	struct dpu_hw_wb *c;
-	const struct dpu_wb_cfg *cfg;
 
-	if (!addr || !m)
+	if (!addr)
 		return ERR_PTR(-EINVAL);
 
 	c = kzalloc(sizeof(*c), GFP_KERNEL);
 	if (!c)
 		return ERR_PTR(-ENOMEM);
 
-	cfg = _wb_offset(idx, m, addr, &c->hw);
-	if (IS_ERR(cfg)) {
-		WARN(1, "Unable to find wb idx=%d\n", idx);
-		kfree(c);
-		return ERR_PTR(-EINVAL);
-	}
+	c->hw.blk_addr = addr + cfg->base;
+	c->hw.log_mask = DPU_DBG_MASK_WB;
 
 	/* Assign ops */
-	c->idx = idx;
+	c->idx = cfg->id;
 	c->caps = cfg;
 	_setup_wb_ops(&c->ops, c->caps->features);
 

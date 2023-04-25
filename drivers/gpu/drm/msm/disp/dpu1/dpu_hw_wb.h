@@ -92,14 +92,13 @@ struct dpu_hw_wb {
 };
 
 /**
- * dpu_hw_wb_init(): Initializes and return writeback hw driver object.
- * @idx:  wb_path index for which driver object is required
+ * dpu_hw_wb_init() - Initializes the writeback hw driver object.
+ * @cfg:  wb_path catalog entry for which driver object is required
  * @addr: mapped register io address of MDP
- * @m :   pointer to mdss catalog data
+ * Return: Error code or allocated dpu_hw_wb context
  */
-struct dpu_hw_wb *dpu_hw_wb_init(enum dpu_wb idx,
-		void __iomem *addr,
-		const struct dpu_mdss_cfg *m);
+struct dpu_hw_wb *dpu_hw_wb_init(const struct dpu_wb_cfg *cfg,
+		void __iomem *addr);
 
 /**
  * dpu_hw_wb_destroy(): Destroy writeback hw driver object.

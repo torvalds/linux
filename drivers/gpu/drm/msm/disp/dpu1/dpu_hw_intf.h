@@ -96,15 +96,13 @@ struct dpu_hw_intf {
 };
 
 /**
- * dpu_hw_intf_init(): Initializes the intf driver for the passed
- * interface idx.
- * @idx:  interface index for which driver object is required
+ * dpu_hw_intf_init() - Initializes the INTF driver for the passed
+ * interface catalog entry.
+ * @cfg:  interface catalog entry for which driver object is required
  * @addr: mapped register io address of MDP
- * @m :   pointer to mdss catalog data
  */
-struct dpu_hw_intf *dpu_hw_intf_init(enum dpu_intf idx,
-		void __iomem *addr,
-		const struct dpu_mdss_cfg *m);
+struct dpu_hw_intf *dpu_hw_intf_init(const struct dpu_intf_cfg *cfg,
+		void __iomem *addr);
 
 /**
  * dpu_hw_intf_destroy(): Destroys INTF driver context

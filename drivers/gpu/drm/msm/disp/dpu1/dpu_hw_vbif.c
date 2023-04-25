@@ -211,45 +211,22 @@ static void _setup_vbif_ops(struct dpu_hw_vbif_ops *ops,
 	ops->set_write_gather_en = dpu_hw_set_write_gather_en;
 }
 
-static const struct dpu_vbif_cfg *_top_offset(enum dpu_vbif vbif,
-		const struct dpu_mdss_cfg *m,
-		void __iomem *addr,
-		struct dpu_hw_blk_reg_map *b)
-{
-	int i;
-
-	for (i = 0; i < m->vbif_count; i++) {
-		if (vbif == m->vbif[i].id) {
-			b->blk_addr = addr + m->vbif[i].base;
-			b->log_mask = DPU_DBG_MASK_VBIF;
-			return &m->vbif[i];
-		}
-	}
-
-	return ERR_PTR(-EINVAL);
-}
-
-struct dpu_hw_vbif *dpu_hw_vbif_init(enum dpu_vbif idx,
-		void __iomem *addr,
-		const struct dpu_mdss_cfg *m)
+struct dpu_hw_vbif *dpu_hw_vbif_init(const struct dpu_vbif_cfg *cfg,
+		void __iomem *addr)
 {
 	struct dpu_hw_vbif *c;
-	const struct dpu_vbif_cfg *cfg;
 
 	c = kzalloc(sizeof(*c), GFP_KERNEL);
 	if (!c)
 		return ERR_PTR(-ENOMEM);
 
-	cfg = _top_offset(idx, m, addr, &c->hw);
-	if (IS_ERR_OR_NULL(cfg)) {
-		kfree(c);
-		return ERR_PTR(-EINVAL);
-	}
+	c->hw.blk_addr = addr + cfg->base;
+	c->hw.log_mask = DPU_DBG_MASK_VBIF;
 
 	/*
 	 * Assign ops
 	 */
-	c->idx = idx;
+	c->idx = cfg->id;
 	c->cap = cfg;
 	_setup_vbif_ops(&c->ops, c->cap->features);
 
