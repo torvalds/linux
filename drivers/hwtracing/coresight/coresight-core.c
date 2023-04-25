@@ -118,7 +118,7 @@ static int coresight_find_link_inport(struct coresight_device *csdev,
 	int i;
 	struct coresight_connection *conn;
 
-	for (i = 0; i < parent->pdata->nr_outport; i++) {
+	for (i = 0; i < parent->pdata->nr_outconns; i++) {
 		conn = &parent->pdata->out_conns[i];
 		if (conn->child_dev == csdev)
 			return conn->child_port;
@@ -136,7 +136,7 @@ static int coresight_find_link_outport(struct coresight_device *csdev,
 	int i;
 	struct coresight_connection *conn;
 
-	for (i = 0; i < csdev->pdata->nr_outport; i++) {
+	for (i = 0; i < csdev->pdata->nr_outconns; i++) {
 		conn = &csdev->pdata->out_conns[i];
 		if (conn->child_dev == child)
 			return conn->outport;
@@ -397,9 +397,9 @@ static void coresight_disable_link(struct coresight_device *csdev,
 	link_subtype = csdev->subtype.link_subtype;
 
 	if (link_subtype == CORESIGHT_DEV_SUBTYPE_LINK_MERG) {
-		nr_conns = csdev->pdata->nr_inport;
+		nr_conns = csdev->pdata->nr_inconns;
 	} else if (link_subtype == CORESIGHT_DEV_SUBTYPE_LINK_SPLIT) {
-		nr_conns = csdev->pdata->nr_outport;
+		nr_conns = csdev->pdata->nr_outconns;
 	} else {
 		nr_conns = 1;
 	}
@@ -603,7 +603,7 @@ coresight_find_enabled_sink(struct coresight_device *csdev)
 	/*
 	 * Recursively explore each port found on this element.
 	 */
-	for (i = 0; i < csdev->pdata->nr_outport; i++) {
+	for (i = 0; i < csdev->pdata->nr_outconns; i++) {
 		struct coresight_device *child_dev;
 
 		child_dev = csdev->pdata->out_conns[i].child_dev;
@@ -719,7 +719,7 @@ static int coresight_grab_device(struct coresight_device *csdev)
 {
 	int i;
 
-	for (i = 0; i < csdev->pdata->nr_outport; i++) {
+	for (i = 0; i < csdev->pdata->nr_outconns; i++) {
 		struct coresight_device *child;
 
 		child = csdev->pdata->out_conns[i].child_dev;
@@ -749,7 +749,7 @@ static void coresight_drop_device(struct coresight_device *csdev)
 	int i;
 
 	coresight_put_ref(csdev);
-	for (i = 0; i < csdev->pdata->nr_outport; i++) {
+	for (i = 0; i < csdev->pdata->nr_outconns; i++) {
 		struct coresight_device *child;
 
 		child = csdev->pdata->out_conns[i].child_dev;
@@ -791,7 +791,7 @@ static int _coresight_build_path(struct coresight_device *csdev,
 	}
 
 	/* Not a sink - recursively explore each port found on this element */
-	for (i = 0; i < csdev->pdata->nr_outport; i++) {
+	for (i = 0; i < csdev->pdata->nr_outconns; i++) {
 		struct coresight_device *child_dev;
 
 		child_dev = csdev->pdata->out_conns[i].child_dev;
@@ -960,7 +960,7 @@ coresight_find_sink(struct coresight_device *csdev, int *depth)
 	 * Not a sink we want - or possible child sink may be better.
 	 * recursively explore each port found on this element.
 	 */
-	for (i = 0; i < csdev->pdata->nr_outport; i++) {
+	for (i = 0; i < csdev->pdata->nr_outconns; i++) {
 		struct coresight_device *child_dev, *sink = NULL;
 		int child_depth = curr_depth;
 
@@ -1333,7 +1333,7 @@ static int coresight_orphan_match(struct device *dev, void *data)
 	 * Circle throuch all the connection of that component.  If we find
 	 * an orphan connection whose name matches @csdev, link it.
 	 */
-	for (i = 0; i < i_csdev->pdata->nr_outport; i++) {
+	for (i = 0; i < i_csdev->pdata->nr_outconns; i++) {
 		conn = &i_csdev->pdata->out_conns[i];
 
 		/* Skip the port if FW doesn't describe it */
@@ -1374,7 +1374,7 @@ static int coresight_fixup_device_conns(struct coresight_device *csdev)
 {
 	int i, ret = 0;
 
-	for (i = 0; i < csdev->pdata->nr_outport; i++) {
+	for (i = 0; i < csdev->pdata->nr_outconns; i++) {
 		struct coresight_connection *conn = &csdev->pdata->out_conns[i];
 
 		if (!conn->child_fwnode)
@@ -1411,7 +1411,7 @@ static int coresight_remove_match(struct device *dev, void *data)
 	 * Circle throuch all the connection of that component.  If we find
 	 * a connection whose name matches @csdev, remove it.
 	 */
-	for (i = 0; i < iterator->pdata->nr_outport; i++) {
+	for (i = 0; i < iterator->pdata->nr_outconns; i++) {
 		conn = &iterator->pdata->out_conns[i];
 
 		if (conn->child_dev == NULL || conn->child_fwnode == NULL)
@@ -1446,7 +1446,7 @@ static void coresight_remove_conns(struct coresight_device *csdev)
 	 * doesn't have at least one input port, there is no point
 	 * in searching all the devices.
 	 */
-	if (csdev->pdata->nr_inport)
+	if (csdev->pdata->nr_inconns)
 		bus_for_each_dev(&coresight_bustype, NULL,
 				 csdev, coresight_remove_match);
 }
@@ -1545,7 +1545,7 @@ void coresight_release_platform_data(struct coresight_device *csdev,
 	int i;
 	struct coresight_connection *conns = pdata->out_conns;
 
-	for (i = 0; i < pdata->nr_outport; i++) {
+	for (i = 0; i < pdata->nr_outconns; i++) {
 		/* If we have made the links, remove them now */
 		if (csdev && conns[i].child_dev)
 			coresight_remove_links(csdev, &conns[i]);
@@ -1582,9 +1582,9 @@ struct coresight_device *coresight_register(struct coresight_desc *desc)
 		link_subtype = desc->subtype.link_subtype;
 
 		if (link_subtype == CORESIGHT_DEV_SUBTYPE_LINK_MERG)
-			nr_refcnts = desc->pdata->nr_inport;
+			nr_refcnts = desc->pdata->nr_inconns;
 		else if (link_subtype == CORESIGHT_DEV_SUBTYPE_LINK_SPLIT)
-			nr_refcnts = desc->pdata->nr_outport;
+			nr_refcnts = desc->pdata->nr_outconns;
 	}
 
 	refcnts = kcalloc(nr_refcnts, sizeof(*refcnts), GFP_KERNEL);

@@ -26,8 +26,8 @@
 static int coresight_alloc_conns(struct device *dev,
 				 struct coresight_platform_data *pdata)
 {
-	if (pdata->nr_outport) {
-		pdata->out_conns = devm_kcalloc(dev, pdata->nr_outport,
+	if (pdata->nr_outconns) {
+		pdata->out_conns = devm_kcalloc(dev, pdata->nr_outconns,
 					    sizeof(*pdata->out_conns), GFP_KERNEL);
 		if (!pdata->out_conns)
 			return -ENOMEM;
@@ -84,7 +84,7 @@ static inline bool of_coresight_legacy_ep_is_input(struct device_node *ep)
 }
 
 static void of_coresight_get_ports_legacy(const struct device_node *node,
-					  int *nr_inport, int *nr_outport)
+					  int *nr_inconns, int *nr_outconns)
 {
 	struct device_node *ep = NULL;
 	struct of_endpoint endpoint;
@@ -114,8 +114,8 @@ static void of_coresight_get_ports_legacy(const struct device_node *node,
 
 	} while (ep);
 
-	*nr_inport = in;
-	*nr_outport = out;
+	*nr_inconns = in;
+	*nr_outconns = out;
 }
 
 static struct device_node *of_coresight_get_port_parent(struct device_node *ep)
@@ -164,7 +164,7 @@ of_coresight_count_ports(struct device_node *port_parent)
 }
 
 static void of_coresight_get_ports(const struct device_node *node,
-				   int *nr_inport, int *nr_outport)
+				   int *nr_inconns, int *nr_outconns)
 {
 	struct device_node *input_ports = NULL, *output_ports = NULL;
 
@@ -173,16 +173,16 @@ static void of_coresight_get_ports(const struct device_node *node,
 
 	if (input_ports || output_ports) {
 		if (input_ports) {
-			*nr_inport = of_coresight_count_ports(input_ports);
+			*nr_inconns = of_coresight_count_ports(input_ports);
 			of_node_put(input_ports);
 		}
 		if (output_ports) {
-			*nr_outport = of_coresight_count_ports(output_ports);
+			*nr_outconns = of_coresight_count_ports(output_ports);
 			of_node_put(output_ports);
 		}
 	} else {
 		/* Fall back to legacy DT bindings parsing */
-		of_coresight_get_ports_legacy(node, nr_inport, nr_outport);
+		of_coresight_get_ports_legacy(node, nr_inconns, nr_outconns);
 	}
 }
 
@@ -289,10 +289,10 @@ static int of_get_coresight_platform_data(struct device *dev,
 	struct device_node *node = dev->of_node;
 
 	/* Get the number of input and output port for this component */
-	of_coresight_get_ports(node, &pdata->nr_inport, &pdata->nr_outport);
+	of_coresight_get_ports(node, &pdata->nr_inconns, &pdata->nr_outconns);
 
 	/* If there are no output connections, we are done */
-	if (!pdata->nr_outport)
+	if (!pdata->nr_outconns)
 		return 0;
 
 	ret = coresight_alloc_conns(dev, pdata);
@@ -690,7 +690,7 @@ static int acpi_coresight_parse_graph(struct acpi_device *adev,
 	const union acpi_object *graph;
 	struct coresight_connection *conns, *ptr;
 
-	pdata->nr_inport = pdata->nr_outport = 0;
+	pdata->nr_inconns = pdata->nr_outconns = 0;
 	graph = acpi_get_coresight_graph(adev);
 	if (!graph)
 		return -ENOENT;
@@ -718,11 +718,11 @@ static int acpi_coresight_parse_graph(struct acpi_device *adev,
 			return dir;
 
 		if (dir == ACPI_CORESIGHT_LINK_MASTER) {
-			if (ptr->outport >= pdata->nr_outport)
-				pdata->nr_outport = ptr->outport + 1;
+			if (ptr->outport >= pdata->nr_outconns)
+				pdata->nr_outconns = ptr->outport + 1;
 			ptr++;
 		} else {
-			WARN_ON(pdata->nr_inport == ptr->child_port + 1);
+			WARN_ON(pdata->nr_inconns == ptr->child_port + 1);
 			/*
 			 * We do not track input port connections for a device.
 			 * However we need the highest port number described,
@@ -730,8 +730,8 @@ static int acpi_coresight_parse_graph(struct acpi_device *adev,
 			 * record for an output connection. Hence, do not move
 			 * the ptr for input connections
 			 */
-			if (ptr->child_port >= pdata->nr_inport)
-				pdata->nr_inport = ptr->child_port + 1;
+			if (ptr->child_port >= pdata->nr_inconns)
+				pdata->nr_inconns = ptr->child_port + 1;
 		}
 	}
 

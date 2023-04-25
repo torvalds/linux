@@ -102,13 +102,13 @@ union coresight_dev_subtype {
  * struct coresight_platform_data - data harvested from the firmware
  * specification.
  *
- * @nr_inport:	Number of elements for the input connections.
- * @nr_outport:	Number of elements for the output connections.
- * @out_conns:	Sparse array of nr_outport connections from this component.
+ * @nr_inconns: Number of elements for the input connections.
+ * @nr_outconns: Number of elements for the output connections.
+ * @out_conns:	Sparse array of nr_outconns connections from this component.
  */
 struct coresight_platform_data {
-	int nr_inport;
-	int nr_outport;
+	int nr_inconns;
+	int nr_outconns;
 	struct coresight_connection *out_conns;
 };
 
