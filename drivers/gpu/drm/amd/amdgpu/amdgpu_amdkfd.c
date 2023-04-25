@@ -53,7 +53,6 @@ int amdgpu_amdkfd_init(void)
 	amdgpu_amdkfd_total_mem_size *= si.mem_unit;
 
 	ret = kgd2kfd_init();
-	amdgpu_amdkfd_gpuvm_init_mem_limits();
 	kfd_initialized = !ret;
 
 	return ret;
@@ -142,6 +141,8 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 {
 	int i;
 	int last_valid_bit;
+
+	amdgpu_amdkfd_gpuvm_init_mem_limits();
 
 	if (adev->kfd.dev) {
 		struct kgd2kfd_shared_resources gpu_resources = {

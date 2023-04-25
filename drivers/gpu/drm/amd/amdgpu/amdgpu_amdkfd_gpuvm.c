@@ -36,6 +36,7 @@
 #include <uapi/linux/kfd_ioctl.h>
 #include "amdgpu_xgmi.h"
 #include "kfd_smi_events.h"
+#include <drm/ttm/ttm_tt.h>
 
 /* Userptr restore delay, just long enough to allow consecutive VM
  * changes to accumulate
@@ -110,13 +111,16 @@ void amdgpu_amdkfd_gpuvm_init_mem_limits(void)
 	struct sysinfo si;
 	uint64_t mem;
 
+	if (kfd_mem_limit.max_system_mem_limit)
+		return;
+
 	si_meminfo(&si);
 	mem = si.freeram - si.freehigh;
 	mem *= si.mem_unit;
 
 	spin_lock_init(&kfd_mem_limit.mem_limit_lock);
 	kfd_mem_limit.max_system_mem_limit = mem - (mem >> 4);
-	kfd_mem_limit.max_ttm_mem_limit = (mem >> 1) - (mem >> 3);
+	kfd_mem_limit.max_ttm_mem_limit = ttm_tt_pages_limit() << PAGE_SHIFT;
 	pr_debug("Kernel memory limit %lluM, TTM limit %lluM\n",
 		(kfd_mem_limit.max_system_mem_limit >> 20),
 		(kfd_mem_limit.max_ttm_mem_limit >> 20));
