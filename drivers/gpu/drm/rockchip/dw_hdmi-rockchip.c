@@ -2468,7 +2468,7 @@ static int dw_hdmi_dclk_set(void *data, bool enable, int vp_id)
 static int dw_hdmi_link_clk_set(void *data, bool enable)
 {
 	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
-	u32 phy_clk;
+	u64 phy_clk = hdmi->phy_bus_width;
 	int ret;
 
 	if (enable) {
@@ -2478,11 +2478,11 @@ static int dw_hdmi_link_clk_set(void *data, bool enable)
 			return ret;
 		}
 
-		if (((hdmi->phy_bus_width & DATA_RATE_MASK) <= 6000000) &&
-		    (hdmi->phy_bus_width & COLOR_DEPTH_10BIT))
-			phy_clk = (hdmi->phy_bus_width & DATA_RATE_MASK) * 100 * 8 / 10;
+		if (((phy_clk & DATA_RATE_MASK) <= 6000000) &&
+		    (phy_clk & COLOR_DEPTH_10BIT))
+			phy_clk = (phy_clk & DATA_RATE_MASK) * 10 * 8;
 		else
-			phy_clk = (hdmi->phy_bus_width & DATA_RATE_MASK) * 100;
+			phy_clk = (phy_clk & DATA_RATE_MASK) * 100;
 
 		/*
 		 * To be compatible with vop dclk usage scenarios, hdmi phy pll clk
