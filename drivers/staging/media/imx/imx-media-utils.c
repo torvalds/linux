@@ -432,15 +432,15 @@ int imx_media_init_cfg(struct v4l2_subdev *sd,
 		       struct v4l2_subdev_state *sd_state)
 {
 	struct v4l2_mbus_framefmt *mf_try;
-	struct v4l2_subdev_format format;
 	unsigned int pad;
 	int ret;
 
 	for (pad = 0; pad < sd->entity.num_pads; pad++) {
-		memset(&format, 0, sizeof(format));
+		struct v4l2_subdev_format format = {
+			.pad = pad,
+			.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+		};
 
-		format.pad = pad;
-		format.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 		ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &format);
 		if (ret)
 			continue;
@@ -626,36 +626,6 @@ void imx_media_grp_id_to_sd_name(char *sd_name, int sz, u32 grp_id, int ipu_id)
 }
 EXPORT_SYMBOL_GPL(imx_media_grp_id_to_sd_name);
 
-struct v4l2_subdev *
-imx_media_find_subdev_by_fwnode(struct imx_media_dev *imxmd,
-				struct fwnode_handle *fwnode)
-{
-	struct v4l2_subdev *sd;
-
-	list_for_each_entry(sd, &imxmd->v4l2_dev.subdevs, list) {
-		if (sd->fwnode == fwnode)
-			return sd;
-	}
-
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(imx_media_find_subdev_by_fwnode);
-
-struct v4l2_subdev *
-imx_media_find_subdev_by_devname(struct imx_media_dev *imxmd,
-				 const char *devname)
-{
-	struct v4l2_subdev *sd;
-
-	list_for_each_entry(sd, &imxmd->v4l2_dev.subdevs, list) {
-		if (!strcmp(devname, dev_name(sd->dev)))
-			return sd;
-	}
-
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(imx_media_find_subdev_by_devname);
-
 /*
  * Adds a video device to the master video device list. This is called
  * when a video device is registered.
@@ -757,25 +727,6 @@ find_pipeline_entity(struct media_entity *start, u32 grp_id,
 }
 
 /*
- * Find the upstream mipi-csi2 virtual channel reached from the given
- * start entity in the current pipeline.
- * Must be called with mdev->graph_mutex held.
- */
-int imx_media_pipeline_csi2_channel(struct media_entity *start_entity)
-{
-	struct media_pad *pad;
-	int ret = -EPIPE;
-
-	pad = imx_media_pipeline_pad(start_entity, IMX_MEDIA_GRP_ID_CSI2,
-				     0, true);
-	if (pad)
-		ret = pad->index - 1;
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(imx_media_pipeline_csi2_channel);
-
-/*
  * Find a subdev reached upstream from the given start entity in
  * the current pipeline.
  * Must be called with mdev->graph_mutex held.
@@ -793,25 +744,6 @@ imx_media_pipeline_subdev(struct media_entity *start_entity, u32 grp_id,
 	return media_entity_to_v4l2_subdev(me);
 }
 EXPORT_SYMBOL_GPL(imx_media_pipeline_subdev);
-
-/*
- * Find a subdev reached upstream from the given start entity in
- * the current pipeline.
- * Must be called with mdev->graph_mutex held.
- */
-struct video_device *
-imx_media_pipeline_video_device(struct media_entity *start_entity,
-				enum v4l2_buf_type buftype, bool upstream)
-{
-	struct media_entity *me;
-
-	me = find_pipeline_entity(start_entity, 0, buftype, upstream);
-	if (!me)
-		return ERR_PTR(-ENODEV);
-
-	return media_entity_to_video_device(me);
-}
-EXPORT_SYMBOL_GPL(imx_media_pipeline_video_device);
 
 /*
  * Turn current pipeline streaming on/off starting from entity.
