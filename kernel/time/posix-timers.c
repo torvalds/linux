@@ -109,9 +109,9 @@ static struct k_itimer *__posix_timers_find(struct hlist_head *head,
 {
 	struct k_itimer *timer;
 
-	hlist_for_each_entry_rcu(timer, head, t_hash,
-				 lockdep_is_held(&hash_lock)) {
-		if ((timer->it_signal == sig) && (timer->it_id == id))
+	hlist_for_each_entry_rcu(timer, head, t_hash, lockdep_is_held(&hash_lock)) {
+		/* timer->it_signal can be set concurrently */
+		if ((READ_ONCE(timer->it_signal) == sig) && (timer->it_id == id))
 			return timer;
 	}
 	return NULL;
@@ -558,7 +558,7 @@ static int do_timer_create(clockid_t which_clock, struct sigevent *event,
 
 	spin_lock_irq(&current->sighand->siglock);
 	/* This makes the timer valid in the hash table */
-	new_timer->it_signal = current->signal;
+	WRITE_ONCE(new_timer->it_signal, current->signal);
 	list_add(&new_timer->list, &current->signal->posix_timers);
 	spin_unlock_irq(&current->sighand->siglock);
 
@@ -1052,10 +1052,10 @@ retry_delete:
 	list_del(&timer->list);
 	spin_unlock(&current->sighand->siglock);
 	/*
-	 * This keeps any tasks waiting on the spin lock from thinking
-	 * they got something (see the lock code above).
+	 * A concurrent lookup could check timer::it_signal lockless. It
+	 * will reevaluate with timer::it_lock held and observe the NULL.
 	 */
-	timer->it_signal = NULL;
+	WRITE_ONCE(timer->it_signal, NULL);
 
 	unlock_timer(timer, flags);
 	release_posix_timer(timer, IT_ID_SET);
