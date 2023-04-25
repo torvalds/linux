@@ -25,6 +25,7 @@
 #include "intel_display_types.h"
 #include "intel_drrs.h"
 #include "intel_dsi.h"
+#include "intel_fifo_underrun.h"
 #include "intel_pipe_crc.h"
 #include "intel_psr.h"
 #include "intel_sprite.h"
@@ -211,7 +212,7 @@ static void intel_crtc_destroy(struct drm_crtc *_crtc)
 
 static int intel_crtc_late_register(struct drm_crtc *crtc)
 {
-	intel_crtc_debugfs_add(crtc);
+	intel_crtc_debugfs_add(to_intel_crtc(crtc));
 	return 0;
 }
 
@@ -313,6 +314,8 @@ int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 		goto fail;
 	}
 	crtc->plane_ids_mask |= BIT(primary->id);
+
+	intel_init_fifo_underrun_reporting(dev_priv, crtc, false);
 
 	for_each_sprite(dev_priv, pipe, sprite) {
 		struct intel_plane *plane;

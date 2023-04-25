@@ -238,7 +238,9 @@ typedef struct {
 #define WORKLOAD_PPLIB_VR_BIT 3
 #define WORKLOAD_PPLIB_COMPUTE_BIT 4
 #define WORKLOAD_PPLIB_CUSTOM_BIT 5
-#define WORKLOAD_PPLIB_COUNT 6
+#define WORKLOAD_PPLIB_CAPPED_BIT 6
+#define WORKLOAD_PPLIB_UNCAPPED_BIT 7
+#define WORKLOAD_PPLIB_COUNT 8
 
 #define TABLE_BIOS_IF            0 // Called by BIOS
 #define TABLE_WATERMARKS         1 // Called by DAL through VBIOS

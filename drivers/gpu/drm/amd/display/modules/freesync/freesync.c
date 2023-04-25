@@ -955,26 +955,20 @@ void mod_freesync_build_vrr_infopacket(struct mod_freesync *mod_freesync,
 	 * Check if Freesync is supported. Return if false. If true,
 	 * set the corresponding bit in the info packet
 	 */
-	bool freesync_on_desktop;
-	bool fams_enable;
-
-	fams_enable = stream->ctx->dc->current_state->bw_ctx.bw.dcn.clk.fw_based_mclk_switching;
-	freesync_on_desktop = stream->freesync_on_desktop && fams_enable;
-
 	if (!vrr->send_info_frame)
 		return;
 
 	switch (packet_type) {
 	case PACKET_TYPE_FS_V3:
-		build_vrr_infopacket_v3(stream->signal, vrr, app_tf, infopacket, freesync_on_desktop);
+		build_vrr_infopacket_v3(stream->signal, vrr, app_tf, infopacket, stream->freesync_on_desktop);
 		break;
 	case PACKET_TYPE_FS_V2:
-		build_vrr_infopacket_v2(stream->signal, vrr, app_tf, infopacket, freesync_on_desktop);
+		build_vrr_infopacket_v2(stream->signal, vrr, app_tf, infopacket, stream->freesync_on_desktop);
 		break;
 	case PACKET_TYPE_VRR:
 	case PACKET_TYPE_FS_V1:
 	default:
-		build_vrr_infopacket_v1(stream->signal, vrr, infopacket, freesync_on_desktop);
+		build_vrr_infopacket_v1(stream->signal, vrr, infopacket, stream->freesync_on_desktop);
 	}
 
 	if (true == pack_sdp_v1_3 &&
@@ -1135,7 +1129,6 @@ void mod_freesync_handle_preflip(struct mod_freesync *mod_freesync,
 {
 	struct core_freesync *core_freesync = NULL;
 	unsigned int last_render_time_in_us = 0;
-	unsigned int average_render_time_in_us = 0;
 
 	if (mod_freesync == NULL)
 		return;
@@ -1144,7 +1137,6 @@ void mod_freesync_handle_preflip(struct mod_freesync *mod_freesync,
 
 	if (in_out_vrr->supported &&
 			in_out_vrr->state == VRR_STATE_ACTIVE_VARIABLE) {
-		unsigned int i = 0;
 		unsigned int oldest_index = plane->time.index + 1;
 
 		if (oldest_index >= DC_PLANE_UPDATE_TIMES_MAX)
@@ -1152,18 +1144,6 @@ void mod_freesync_handle_preflip(struct mod_freesync *mod_freesync,
 
 		last_render_time_in_us = curr_time_stamp_in_us -
 				plane->time.prev_update_time_in_us;
-
-		/* Sum off all entries except oldest one */
-		for (i = 0; i < DC_PLANE_UPDATE_TIMES_MAX; i++) {
-			average_render_time_in_us +=
-					plane->time.time_elapsed_in_us[i];
-		}
-		average_render_time_in_us -=
-				plane->time.time_elapsed_in_us[oldest_index];
-
-		/* Add render time for current flip */
-		average_render_time_in_us += last_render_time_in_us;
-		average_render_time_in_us /= DC_PLANE_UPDATE_TIMES_MAX;
 
 		if (in_out_vrr->btr.btr_enabled) {
 			apply_below_the_range(core_freesync,

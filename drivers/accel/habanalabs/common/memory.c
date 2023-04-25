@@ -235,10 +235,8 @@ static int dma_map_host_va(struct hl_device *hdev, u64 addr, u64 size,
 	}
 
 	rc = hl_pin_host_memory(hdev, addr, size, userptr);
-	if (rc) {
-		dev_err(hdev->dev, "Failed to pin host memory\n");
+	if (rc)
 		goto pin_err;
-	}
 
 	userptr->dma_mapped = true;
 	userptr->dir = DMA_BIDIRECTIONAL;
@@ -607,6 +605,7 @@ static u64 get_va_block(struct hl_device *hdev,
 	bool is_align_pow_2  = is_power_of_2(va_range->page_size);
 	bool is_hint_dram_addr = hl_is_dram_va(hdev, hint_addr);
 	bool force_hint = flags & HL_MEM_FORCE_HINT;
+	int rc;
 
 	if (is_align_pow_2)
 		align_mask = ~((u64)va_block_align - 1);
@@ -724,9 +723,13 @@ static u64 get_va_block(struct hl_device *hdev,
 		kfree(new_va_block);
 	}
 
-	if (add_prev)
-		add_va_block_locked(hdev, &va_range->list, prev_start,
-				prev_end);
+	if (add_prev) {
+		rc = add_va_block_locked(hdev, &va_range->list, prev_start, prev_end);
+		if (rc) {
+			reserved_valid_start = 0;
+			goto out;
+		}
+	}
 
 	print_va_list_locked(hdev, &va_range->list);
 out:
@@ -1097,10 +1100,8 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args, u64 *device
 			huge_page_size = hdev->asic_prop.pmmu_huge.page_size;
 
 		rc = dma_map_host_va(hdev, addr, size, &userptr);
-		if (rc) {
-			dev_err(hdev->dev, "failed to get userptr from va\n");
+		if (rc)
 			return rc;
-		}
 
 		rc = init_phys_pg_pack_from_userptr(ctx, userptr,
 				&phys_pg_pack, false);
@@ -1270,6 +1271,18 @@ init_page_pack_err:
 	return rc;
 }
 
+/* Should be called while the context's mem_hash_lock is taken */
+static struct hl_vm_hash_node *get_vm_hash_node_locked(struct hl_ctx *ctx, u64 vaddr)
+{
+	struct hl_vm_hash_node *hnode;
+
+	hash_for_each_possible(ctx->mem_hash, hnode, node, vaddr)
+		if (vaddr == hnode->vaddr)
+			return hnode;
+
+	return NULL;
+}
+
 /**
  * unmap_device_va() - unmap the given device virtual address.
  * @ctx: pointer to the context structure.
@@ -1285,10 +1298,10 @@ static int unmap_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 {
 	struct hl_vm_phys_pg_pack *phys_pg_pack = NULL;
 	u64 vaddr = args->unmap.device_virt_addr;
-	struct hl_vm_hash_node *hnode = NULL;
 	struct asic_fixed_properties *prop;
 	struct hl_device *hdev = ctx->hdev;
 	struct hl_userptr *userptr = NULL;
+	struct hl_vm_hash_node *hnode;
 	struct hl_va_range *va_range;
 	enum vm_type *vm_type;
 	bool is_userptr;
@@ -1298,15 +1311,10 @@ static int unmap_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 
 	/* protect from double entrance */
 	mutex_lock(&ctx->mem_hash_lock);
-	hash_for_each_possible(ctx->mem_hash, hnode, node, (unsigned long)vaddr)
-		if (vaddr == hnode->vaddr)
-			break;
-
+	hnode = get_vm_hash_node_locked(ctx, vaddr);
 	if (!hnode) {
 		mutex_unlock(&ctx->mem_hash_lock);
-		dev_err(hdev->dev,
-			"unmap failed, no mem hnode for vaddr 0x%llx\n",
-			vaddr);
+		dev_err(hdev->dev, "unmap failed, no mem hnode for vaddr 0x%llx\n", vaddr);
 		return -EINVAL;
 	}
 
@@ -1779,6 +1787,44 @@ static void hl_unmap_dmabuf(struct dma_buf_attachment *attachment,
 	kfree(sgt);
 }
 
+static struct hl_vm_hash_node *memhash_node_export_get(struct hl_ctx *ctx, u64 addr)
+{
+	struct hl_device *hdev = ctx->hdev;
+	struct hl_vm_hash_node *hnode;
+
+	/* get the memory handle */
+	mutex_lock(&ctx->mem_hash_lock);
+	hnode = get_vm_hash_node_locked(ctx, addr);
+	if (!hnode) {
+		mutex_unlock(&ctx->mem_hash_lock);
+		dev_dbg(hdev->dev, "map address %#llx not found\n", addr);
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (upper_32_bits(hnode->handle)) {
+		mutex_unlock(&ctx->mem_hash_lock);
+		dev_dbg(hdev->dev, "invalid handle %#llx for map address %#llx\n",
+				hnode->handle, addr);
+		return ERR_PTR(-EINVAL);
+	}
+
+	/*
+	 * node found, increase export count so this memory cannot be unmapped
+	 * and the hash node cannot be deleted.
+	 */
+	hnode->export_cnt++;
+	mutex_unlock(&ctx->mem_hash_lock);
+
+	return hnode;
+}
+
+static void memhash_node_export_put(struct hl_ctx *ctx, struct hl_vm_hash_node *hnode)
+{
+	mutex_lock(&ctx->mem_hash_lock);
+	hnode->export_cnt--;
+	mutex_unlock(&ctx->mem_hash_lock);
+}
+
 static void hl_release_dmabuf(struct dma_buf *dmabuf)
 {
 	struct hl_dmabuf_priv *hl_dmabuf = dmabuf->priv;
@@ -1789,13 +1835,15 @@ static void hl_release_dmabuf(struct dma_buf *dmabuf)
 
 	ctx = hl_dmabuf->ctx;
 
-	if (hl_dmabuf->memhash_hnode) {
-		mutex_lock(&ctx->mem_hash_lock);
-		hl_dmabuf->memhash_hnode->export_cnt--;
-		mutex_unlock(&ctx->mem_hash_lock);
-	}
+	if (hl_dmabuf->memhash_hnode)
+		memhash_node_export_put(ctx, hl_dmabuf->memhash_hnode);
 
+	atomic_dec(&ctx->hdev->dmabuf_export_cnt);
 	hl_ctx_put(ctx);
+
+	/* Paired with get_file() in export_dmabuf() */
+	fput(ctx->hpriv->filp);
+
 	kfree(hl_dmabuf);
 }
 
@@ -1834,6 +1882,13 @@ static int export_dmabuf(struct hl_ctx *ctx,
 
 	hl_dmabuf->ctx = ctx;
 	hl_ctx_get(hl_dmabuf->ctx);
+	atomic_inc(&ctx->hdev->dmabuf_export_cnt);
+
+	/* Get compute device file to enforce release order, such that all exported dma-buf will be
+	 * released first and only then the compute device.
+	 * Paired with fput() in hl_release_dmabuf().
+	 */
+	get_file(ctx->hpriv->filp);
 
 	*dmabuf_fd = fd;
 
@@ -1931,47 +1986,6 @@ static int validate_export_params(struct hl_device *hdev, u64 device_addr, u64 s
 	}
 
 	return 0;
-}
-
-static struct hl_vm_hash_node *memhash_node_export_get(struct hl_ctx *ctx, u64 addr)
-{
-	struct hl_device *hdev = ctx->hdev;
-	struct hl_vm_hash_node *hnode;
-
-	/* get the memory handle */
-	mutex_lock(&ctx->mem_hash_lock);
-	hash_for_each_possible(ctx->mem_hash, hnode, node, (unsigned long)addr)
-		if (addr == hnode->vaddr)
-			break;
-
-	if (!hnode) {
-		mutex_unlock(&ctx->mem_hash_lock);
-		dev_dbg(hdev->dev, "map address %#llx not found\n", addr);
-		return ERR_PTR(-EINVAL);
-	}
-
-	if (upper_32_bits(hnode->handle)) {
-		mutex_unlock(&ctx->mem_hash_lock);
-		dev_dbg(hdev->dev, "invalid handle %#llx for map address %#llx\n",
-				hnode->handle, addr);
-		return ERR_PTR(-EINVAL);
-	}
-
-	/*
-	 * node found, increase export count so this memory cannot be unmapped
-	 * and the hash node cannot be deleted.
-	 */
-	hnode->export_cnt++;
-	mutex_unlock(&ctx->mem_hash_lock);
-
-	return hnode;
-}
-
-static void memhash_node_export_put(struct hl_ctx *ctx, struct hl_vm_hash_node *hnode)
-{
-	mutex_lock(&ctx->mem_hash_lock);
-	hnode->export_cnt--;
-	mutex_unlock(&ctx->mem_hash_lock);
 }
 
 static struct hl_vm_phys_pg_pack *get_phys_pg_pack_from_hash_node(struct hl_device *hdev,
@@ -2221,11 +2235,11 @@ static struct hl_mmap_mem_buf_behavior hl_ts_behavior = {
  * allocate_timestamps_buffers() - allocate timestamps buffers
  * This function will allocate ts buffer that will later on be mapped to the user
  * in order to be able to read the timestamp.
- * in additon it'll allocate an extra buffer for registration management.
+ * in addition it'll allocate an extra buffer for registration management.
  * since we cannot fail during registration for out-of-memory situation, so
  * we'll prepare a pool which will be used as user interrupt nodes and instead
  * of dynamically allocating nodes while registration we'll pick the node from
- * this pool. in addtion it'll add node to the mapping hash which will be used
+ * this pool. in addition it'll add node to the mapping hash which will be used
  * to map user ts buffer to the internal kernel ts buffer.
  * @hpriv: pointer to the private data of the fd
  * @args: ioctl input

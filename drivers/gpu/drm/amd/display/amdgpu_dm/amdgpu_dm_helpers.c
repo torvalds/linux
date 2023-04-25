@@ -44,6 +44,9 @@
 #include "dm_helpers.h"
 #include "ddc_service_types.h"
 
+/* MST Dock */
+static const uint8_t SYNAPTICS_DEVICE_ID[] = "SYNA";
+
 /* dm_helpers_parse_edid_caps
  *
  * Parse edid caps
@@ -511,8 +514,8 @@ bool dm_helpers_dp_read_dpcd(
 		return false;
 	}
 
-	return drm_dp_dpcd_read(&aconnector->dm_dp_aux.aux, address,
-			data, size) > 0;
+	return drm_dp_dpcd_read(&aconnector->dm_dp_aux.aux, address, data,
+				size) == size;
 }
 
 bool dm_helpers_dp_write_dpcd(
@@ -568,7 +571,6 @@ bool dm_helpers_submit_i2c(
 	return result;
 }
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 static bool execute_synaptics_rc_command(struct drm_dp_aux *aux,
 		bool is_write_cmd,
 		unsigned char cmd,
@@ -736,7 +738,6 @@ static uint8_t write_dsc_enable_synaptics_non_virtual_dpcd_mst(
 
 	return ret;
 }
-#endif
 
 bool dm_helpers_dp_write_dsc_enable(
 		struct dc_context *ctx,
@@ -762,13 +763,11 @@ bool dm_helpers_dp_write_dsc_enable(
 		if (!aconnector->dsc_aux)
 			return false;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 		// apply w/a to synaptics
 		if (needs_dsc_aux_workaround(aconnector->dc_link) &&
 		    (aconnector->mst_downstream_port_present.byte & 0x7) != 0x3)
 			return write_dsc_enable_synaptics_non_virtual_dpcd_mst(
 				aconnector->dsc_aux, stream, enable_dsc);
-#endif
 
 		port = aconnector->mst_output_port;
 
@@ -806,17 +805,13 @@ bool dm_helpers_dp_write_dsc_enable(
 	}
 
 	if (stream->signal == SIGNAL_TYPE_DISPLAY_PORT || stream->signal == SIGNAL_TYPE_EDP) {
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 		if (stream->sink->link->dpcd_caps.dongle_type == DISPLAY_DONGLE_NONE) {
-#endif
 			ret = dm_helpers_dp_write_dpcd(ctx, stream->link, DP_DSC_ENABLE, &enable_dsc, 1);
 			DC_LOG_DC("Send DSC %s to SST RX\n", enable_dsc ? "enable" : "disable");
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 		} else if (stream->sink->link->dpcd_caps.dongle_type == DISPLAY_DONGLE_DP_HDMI_CONVERTER) {
 			ret = dm_helpers_dp_write_dpcd(ctx, stream->link, DP_DSC_ENABLE, &enable_dsc, 1);
 			DC_LOG_DC("Send DSC %s to DP-HDMI PCON\n", enable_dsc ? "enable" : "disable");
 		}
-#endif
 	}
 
 	return ret;

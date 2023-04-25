@@ -107,47 +107,12 @@
 
 static bool __is_ras_eeprom_supported(struct amdgpu_device *adev)
 {
-	if (adev->asic_type == CHIP_IP_DISCOVERY) {
-		switch (adev->ip_versions[MP1_HWIP][0]) {
-		case IP_VERSION(13, 0, 0):
-		case IP_VERSION(13, 0, 10):
-			return true;
-		default:
-			return false;
-		}
-	}
-
-	return  adev->asic_type == CHIP_VEGA20 ||
-		adev->asic_type == CHIP_ARCTURUS ||
-		adev->asic_type == CHIP_SIENNA_CICHLID ||
-		adev->asic_type == CHIP_ALDEBARAN;
-}
-
-static bool __get_eeprom_i2c_addr_arct(struct amdgpu_device *adev,
-				       struct amdgpu_ras_eeprom_control *control)
-{
-	struct atom_context *atom_ctx = adev->mode_info.atom_context;
-
-	if (!control || !atom_ctx)
-		return false;
-
-	if (strnstr(atom_ctx->vbios_version,
-	            "D342",
-		    sizeof(atom_ctx->vbios_version)))
-		control->i2c_address = EEPROM_I2C_MADDR_0;
-	else
-		control->i2c_address = EEPROM_I2C_MADDR_4;
-
-	return true;
-}
-
-static bool __get_eeprom_i2c_addr_ip_discovery(struct amdgpu_device *adev,
-				       struct amdgpu_ras_eeprom_control *control)
-{
 	switch (adev->ip_versions[MP1_HWIP][0]) {
+	case IP_VERSION(11, 0, 2): /* VEGA20 and ARCTURUS */
+	case IP_VERSION(11, 0, 7): /* Sienna cichlid */
 	case IP_VERSION(13, 0, 0):
+	case IP_VERSION(13, 0, 2): /* Aldebaran */
 	case IP_VERSION(13, 0, 10):
-		control->i2c_address = EEPROM_I2C_MADDR_4;
 		return true;
 	default:
 		return false;
@@ -178,43 +143,35 @@ static bool __get_eeprom_i2c_addr(struct amdgpu_device *adev,
 		return true;
 	}
 
-	switch (adev->asic_type) {
-	case CHIP_VEGA20:
+	switch (adev->ip_versions[MP1_HWIP][0]) {
+	case IP_VERSION(11, 0, 2):
+		/* VEGA20 and ARCTURUS */
+		if (adev->asic_type == CHIP_VEGA20)
+			control->i2c_address = EEPROM_I2C_MADDR_0;
+		else if (strnstr(atom_ctx->vbios_version,
+				 "D342",
+				 sizeof(atom_ctx->vbios_version)))
+			control->i2c_address = EEPROM_I2C_MADDR_0;
+		else
+			control->i2c_address = EEPROM_I2C_MADDR_4;
+		return true;
+	case IP_VERSION(11, 0, 7):
 		control->i2c_address = EEPROM_I2C_MADDR_0;
-		break;
-
-	case CHIP_ARCTURUS:
-		return __get_eeprom_i2c_addr_arct(adev, control);
-
-	case CHIP_SIENNA_CICHLID:
-		control->i2c_address = EEPROM_I2C_MADDR_0;
-		break;
-
-	case CHIP_ALDEBARAN:
+		return true;
+	case IP_VERSION(13, 0, 2):
 		if (strnstr(atom_ctx->vbios_version, "D673",
 			    sizeof(atom_ctx->vbios_version)))
 			control->i2c_address = EEPROM_I2C_MADDR_4;
 		else
 			control->i2c_address = EEPROM_I2C_MADDR_0;
-		break;
-
-	case CHIP_IP_DISCOVERY:
-		return __get_eeprom_i2c_addr_ip_discovery(adev, control);
-
+		return true;
+	case IP_VERSION(13, 0, 0):
+	case IP_VERSION(13, 0, 10):
+		control->i2c_address = EEPROM_I2C_MADDR_4;
+		return true;
 	default:
 		return false;
 	}
-
-	switch (adev->ip_versions[MP1_HWIP][0]) {
-	case IP_VERSION(13, 0, 0):
-		control->i2c_address = EEPROM_I2C_MADDR_4;
-		break;
-
-	default:
-		break;
-	}
-
-	return true;
 }
 
 static void
