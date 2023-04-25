@@ -1169,7 +1169,7 @@ void tmc_etr_disable_hw(struct tmc_drvdata *drvdata)
 	drvdata->etr_buf = NULL;
 }
 
-static int tmc_enable_etr_sink_sysfs(struct coresight_device *csdev)
+static struct etr_buf *tmc_etr_get_sysfs_buffer(struct coresight_device *csdev)
 {
 	int ret = 0;
 	unsigned long flags;
@@ -1192,7 +1192,7 @@ static int tmc_enable_etr_sink_sysfs(struct coresight_device *csdev)
 		/* Allocate memory with the locks released */
 		free_buf = new_buf = tmc_etr_setup_sysfs_buf(drvdata);
 		if (IS_ERR(new_buf))
-			return PTR_ERR(new_buf);
+			return new_buf;
 
 		/* Let's try again */
 		spin_lock_irqsave(&drvdata->spinlock, flags);
@@ -1223,23 +1223,59 @@ static int tmc_enable_etr_sink_sysfs(struct coresight_device *csdev)
 		drvdata->sysfs_buf = new_buf;
 	}
 
-	ret = tmc_etr_enable_hw(drvdata, drvdata->sysfs_buf);
-	if (!ret) {
-		drvdata->mode = CS_MODE_SYSFS;
-		atomic_inc(&csdev->refcnt);
-	}
 out:
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
 	/* Free memory outside the spinlock if need be */
 	if (free_buf)
 		tmc_etr_free_sysfs_buf(free_buf);
+	return ret ? ERR_PTR(ret) : drvdata->sysfs_buf;
+}
+
+static int tmc_enable_etr_sink_sysfs(struct coresight_device *csdev)
+{
+	int ret;
+	unsigned long flags;
+	struct tmc_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
+	struct etr_buf *sysfs_buf = tmc_etr_get_sysfs_buffer(csdev);
+
+	if (IS_ERR(sysfs_buf))
+		return PTR_ERR(sysfs_buf);
+
+	spin_lock_irqsave(&drvdata->spinlock, flags);
+	ret = tmc_etr_enable_hw(drvdata, sysfs_buf);
+	if (!ret) {
+		drvdata->mode = CS_MODE_SYSFS;
+		atomic_inc(&csdev->refcnt);
+	}
+
+	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
 	if (!ret)
 		dev_dbg(&csdev->dev, "TMC-ETR enabled\n");
 
 	return ret;
 }
+
+struct etr_buf *tmc_etr_get_buffer(struct coresight_device *csdev,
+				   enum cs_mode mode, void *data)
+{
+	struct perf_output_handle *handle = data;
+	struct etr_perf_buffer *etr_perf;
+
+	switch (mode) {
+	case CS_MODE_SYSFS:
+		return tmc_etr_get_sysfs_buffer(csdev);
+	case CS_MODE_PERF:
+		etr_perf = etm_perf_sink_config(handle);
+		if (WARN_ON(!etr_perf || !etr_perf->etr_buf))
+			return ERR_PTR(-EINVAL);
+		return etr_perf->etr_buf;
+	default:
+		return ERR_PTR(-EINVAL);
+	}
+}
+EXPORT_SYMBOL_GPL(tmc_etr_get_buffer);
 
 /*
  * alloc_etr_buf: Allocate ETR buffer for use by perf.
