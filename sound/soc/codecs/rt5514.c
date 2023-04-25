@@ -1328,7 +1328,7 @@ static struct i2c_driver rt5514_i2c_driver = {
 		.of_match_table = of_match_ptr(rt5514_of_match),
 		.pm = &rt5514_i2_pm_ops,
 	},
-	.probe_new = rt5514_i2c_probe,
+	.probe = rt5514_i2c_probe,
 	.id_table = rt5514_i2c_id,
 };
 module_i2c_driver(rt5514_i2c_driver);

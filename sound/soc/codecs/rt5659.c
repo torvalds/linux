@@ -4340,7 +4340,7 @@ static struct i2c_driver rt5659_i2c_driver = {
 		.of_match_table = of_match_ptr(rt5659_of_match),
 		.acpi_match_table = ACPI_PTR(rt5659_acpi_match),
 	},
-	.probe_new = rt5659_i2c_probe,
+	.probe = rt5659_i2c_probe,
 	.shutdown = rt5659_i2c_shutdown,
 	.id_table = rt5659_i2c_id,
 };

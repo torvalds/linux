@@ -683,7 +683,7 @@ static struct i2c_driver rt1016_i2c_driver = {
 		.of_match_table = of_match_ptr(rt1016_of_match),
 		.acpi_match_table = ACPI_PTR(rt1016_acpi_match),
 	},
-	.probe_new = rt1016_i2c_probe,
+	.probe = rt1016_i2c_probe,
 	.shutdown = rt1016_i2c_shutdown,
 	.id_table = rt1016_i2c_id,
 };

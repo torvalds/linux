@@ -3733,7 +3733,7 @@ static struct i2c_driver rt5663_i2c_driver = {
 		.acpi_match_table = ACPI_PTR(rt5663_acpi_match),
 		.of_match_table = of_match_ptr(rt5663_of_match),
 	},
-	.probe_new = rt5663_i2c_probe,
+	.probe = rt5663_i2c_probe,
 	.remove = rt5663_i2c_remove,
 	.shutdown = rt5663_i2c_shutdown,
 	.id_table = rt5663_i2c_id,

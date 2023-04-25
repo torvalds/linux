@@ -624,7 +624,7 @@ static struct i2c_driver max98373_i2c_driver = {
 		.acpi_match_table = ACPI_PTR(max98373_acpi_match),
 		.pm = &max98373_pm,
 	},
-	.probe_new = max98373_i2c_probe,
+	.probe = max98373_i2c_probe,
 	.id_table = max98373_i2c_id,
 };
 

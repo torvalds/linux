@@ -65,7 +65,7 @@ static struct i2c_driver cs35l45_i2c_driver = {
 		.pm		= &cs35l45_pm_ops,
 	},
 	.id_table	= cs35l45_id_i2c,
-	.probe_new	= cs35l45_i2c_probe,
+	.probe		= cs35l45_i2c_probe,
 	.remove		= cs35l45_i2c_remove,
 };
 module_i2c_driver(cs35l45_i2c_driver);

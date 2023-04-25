@@ -2691,7 +2691,7 @@ static struct i2c_driver max98090_i2c_driver = {
 		.of_match_table = of_match_ptr(max98090_of_match),
 		.acpi_match_table = ACPI_PTR(max98090_acpi_match),
 	},
-	.probe_new = max98090_i2c_probe,
+	.probe = max98090_i2c_probe,
 	.shutdown = max98090_i2c_shutdown,
 	.remove = max98090_i2c_remove,
 	.id_table = max98090_i2c_id,

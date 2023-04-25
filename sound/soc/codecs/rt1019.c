@@ -600,7 +600,7 @@ static struct i2c_driver rt1019_i2c_driver = {
 		.of_match_table = of_match_ptr(rt1019_of_match),
 		.acpi_match_table = ACPI_PTR(rt1019_acpi_match),
 	},
-	.probe_new = rt1019_i2c_probe,
+	.probe = rt1019_i2c_probe,
 	.id_table = rt1019_i2c_id,
 };
 module_i2c_driver(rt1019_i2c_driver);

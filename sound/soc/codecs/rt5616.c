@@ -1404,7 +1404,7 @@ static struct i2c_driver rt5616_i2c_driver = {
 		.name = "rt5616",
 		.of_match_table = of_match_ptr(rt5616_of_match),
 	},
-	.probe_new = rt5616_i2c_probe,
+	.probe = rt5616_i2c_probe,
 	.remove = rt5616_i2c_remove,
 	.shutdown = rt5616_i2c_shutdown,
 	.id_table = rt5616_i2c_id,

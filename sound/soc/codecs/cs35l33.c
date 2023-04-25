@@ -1282,7 +1282,7 @@ static struct i2c_driver cs35l33_i2c_driver = {
 
 		},
 	.id_table = cs35l33_id,
-	.probe_new = cs35l33_i2c_probe,
+	.probe = cs35l33_i2c_probe,
 	.remove = cs35l33_i2c_remove,
 
 };

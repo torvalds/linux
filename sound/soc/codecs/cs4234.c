@@ -906,7 +906,7 @@ static struct i2c_driver cs4234_i2c_driver = {
 		.pm = &cs4234_pm,
 		.of_match_table = cs4234_of_match,
 	},
-	.probe_new =	cs4234_i2c_probe,
+	.probe =	cs4234_i2c_probe,
 	.remove =	cs4234_i2c_remove,
 };
 module_i2c_driver(cs4234_i2c_driver);

@@ -3328,7 +3328,7 @@ static struct i2c_driver rt5670_i2c_driver = {
 		.name = "rt5670",
 		.acpi_match_table = ACPI_PTR(rt5670_acpi_match),
 	},
-	.probe_new = rt5670_i2c_probe,
+	.probe    = rt5670_i2c_probe,
 	.remove   = rt5670_i2c_remove,
 	.id_table = rt5670_i2c_id,
 };

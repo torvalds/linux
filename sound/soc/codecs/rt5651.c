@@ -2279,7 +2279,7 @@ static struct i2c_driver rt5651_i2c_driver = {
 		.acpi_match_table = ACPI_PTR(rt5651_acpi_match),
 		.of_match_table = of_match_ptr(rt5651_of_match),
 	},
-	.probe_new = rt5651_i2c_probe,
+	.probe = rt5651_i2c_probe,
 	.id_table = rt5651_i2c_id,
 };
 module_i2c_driver(rt5651_i2c_driver);

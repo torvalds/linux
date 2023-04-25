@@ -925,7 +925,7 @@ static struct i2c_driver ak4613_i2c_driver = {
 		.name = "ak4613-codec",
 		.of_match_table = ak4613_of_match,
 	},
-	.probe_new	= ak4613_i2c_probe,
+	.probe		= ak4613_i2c_probe,
 	.id_table	= ak4613_i2c_id,
 };
 

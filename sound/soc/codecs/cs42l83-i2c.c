@@ -228,7 +228,7 @@ static struct i2c_driver cs42l83_i2c_driver = {
 		.pm = &cs42l83_i2c_pm_ops,
 		.of_match_table = of_match_ptr(cs42l83_of_match),
 		},
-	.probe_new = cs42l83_i2c_probe,
+	.probe = cs42l83_i2c_probe,
 	.remove = cs42l83_i2c_remove,
 };
 

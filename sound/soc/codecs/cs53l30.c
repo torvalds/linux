@@ -1121,7 +1121,7 @@ static struct i2c_driver cs53l30_i2c_driver = {
 		.pm = &cs53l30_runtime_pm,
 	},
 	.id_table = cs53l30_id,
-	.probe_new = cs53l30_i2c_probe,
+	.probe = cs53l30_i2c_probe,
 	.remove = cs53l30_i2c_remove,
 };
 

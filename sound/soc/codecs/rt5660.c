@@ -1341,7 +1341,7 @@ static struct i2c_driver rt5660_i2c_driver = {
 		.acpi_match_table = ACPI_PTR(rt5660_acpi_match),
 		.of_match_table = of_match_ptr(rt5660_of_match),
 	},
-	.probe_new = rt5660_i2c_probe,
+	.probe = rt5660_i2c_probe,
 	.id_table = rt5660_i2c_id,
 };
 module_i2c_driver(rt5660_i2c_driver);

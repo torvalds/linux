@@ -821,7 +821,7 @@ static struct i2c_driver tas5720_i2c_driver = {
 		.name = "tas5720",
 		.of_match_table = of_match_ptr(tas5720_of_match),
 	},
-	.probe_new = tas5720_probe,
+	.probe = tas5720_probe,
 	.id_table = tas5720_id,
 };
 

@@ -414,7 +414,7 @@ static struct i2c_driver ak4118_i2c_driver = {
 		.of_match_table = of_match_ptr(ak4118_of_match),
 	},
 	.id_table = ak4118_id_table,
-	.probe_new = ak4118_i2c_probe,
+	.probe = ak4118_i2c_probe,
 };
 
 module_i2c_driver(ak4118_i2c_driver);
