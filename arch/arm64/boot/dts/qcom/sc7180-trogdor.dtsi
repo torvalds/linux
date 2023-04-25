@@ -424,8 +424,9 @@
 
 &qspi {
 	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&qspi_clk>, <&qspi_cs0>, <&qspi_data01>;
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&qspi_clk>, <&qspi_cs0>, <&qspi_data0>, <&qspi_data1>;
+	pinctrl-1 = <&qspi_sleep>;
 
 	flash@0 {
 		compatible = "jedec,spi-nor";
@@ -512,6 +513,8 @@
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+			regulator-always-on;
+			regulator-boot-on;
 		};
 
 		pp1800_prox:
@@ -1044,17 +1047,20 @@ ap_spi_fp: &spi10 {
 };
 
 &qspi_cs0 {
-	bias-disable;
+	bias-disable;		/* External pullup */
 };
 
 &qspi_clk {
 	drive-strength = <8>;
-	bias-disable;
+	bias-disable;		/* Rely on Cr50 internal pulldown */
 };
 
-&qspi_data01 {
-	/* High-Z when no transfers; nice to park the lines */
-	bias-pull-up;
+&qspi_data0 {
+	bias-disable;		/* Rely on Cr50 internal pulldown */
+};
+
+&qspi_data1 {
+	bias-pull-down;
 };
 
 &qup_i2c2_default {
@@ -1204,7 +1210,6 @@ ap_spi_fp: &spi10 {
 	ap_ec_int_l: ap-ec-int-l-state {
 		pins = "gpio94";
 		function = "gpio";
-		input-enable;
 		bias-pull-up;
 	};
 
@@ -1227,7 +1232,6 @@ ap_spi_fp: &spi10 {
 	bios_flash_wp_l: bios-flash-wp-l-state {
 		pins = "gpio66";
 		function = "gpio";
-		input-enable;
 		bias-disable;
 	};
 
@@ -1269,7 +1273,6 @@ ap_spi_fp: &spi10 {
 	fp_to_ap_irq_l: fp-to-ap-irq-l-state {
 		pins = "gpio4";
 		function = "gpio";
-		input-enable;
 
 		/* Has external pullup */
 		bias-disable;
@@ -1284,7 +1287,6 @@ ap_spi_fp: &spi10 {
 	h1_ap_int_odl: h1-ap-int-odl-state {
 		pins = "gpio42";
 		function = "gpio";
-		input-enable;
 		bias-pull-up;
 	};
 
@@ -1333,10 +1335,25 @@ ap_spi_fp: &spi10 {
 	p_sensor_int_l: p-sensor-int-l-state {
 		pins = "gpio24";
 		function = "gpio";
-		input-enable;
 
 		/* Has external pullup */
 		bias-disable;
+	};
+
+	qspi_sleep: qspi-sleep-state {
+		pins = "gpio63", "gpio64", "gpio65", "gpio68";
+
+		/*
+		 * When we're not actively transferring we want pins as GPIOs
+		 * with output disabled so that the quad SPI IP block stops
+		 * driving them. We rely on the normal pulls configured in
+		 * the active state and don't redefine them here. Also note
+		 * that we don't need the reverse (output-enable) in the
+		 * normal mode since the "output-enable" only matters for
+		 * GPIO function.
+		 */
+		function = "gpio";
+		output-disable;
 	};
 
 	qup_uart3_sleep: qup-uart3-sleep-state {

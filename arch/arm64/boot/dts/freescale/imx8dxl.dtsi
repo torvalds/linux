@@ -130,8 +130,6 @@
 		clk: clock-controller {
 			compatible = "fsl,imx8dxl-clk", "fsl,scu-clk";
 			#clock-cells = <2>;
-			clocks = <&xtal32k &xtal24m>;
-			clock-names = "xtal_32KHz", "xtal_24Mhz";
 		};
 
 		scu_gpio: gpio {
@@ -188,7 +186,7 @@
 	};
 
 	thermal_zones: thermal-zones {
-		cpu-thermal0 {
+		cpu-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <2000>;
 			thermal-sensors = <&tsens IMX_SC_R_SYSTEM>;

@@ -116,7 +116,7 @@
 		};
 
 		pci@c0000000 {
-			status = "ok";
+			status = "okay";
 
 			/*
 			 * Taken from NSLU2 PCI boardfile, INT A, B, C swizzled D constant
@@ -143,7 +143,7 @@
 		};
 
 		ethernet@c8009000 {
-			status = "ok";
+			status = "okay";
 			queue-rx = <&qmgr 3>;
 			queue-txready = <&qmgr 20>;
 			phy-mode = "rgmii";

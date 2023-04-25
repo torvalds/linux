@@ -60,7 +60,7 @@
 		regulator-boot-on;
 		enable-active-high;
 		vin-supply = <&vsys_3v3>;
-		gpio = <&exp1 10 GPIO_ACTIVE_HIGH>;
+		gpio = <&exp1 8 GPIO_ACTIVE_HIGH>;
 	};
 
 	vdd_sd_dv: regulator-tlv71033 {
@@ -264,12 +264,10 @@
 		reg = <0x21>;
 		gpio-controller;
 		#gpio-cells = <2>;
-		gpio-line-names = "CSI_VIO_SEL", "CSI_SEL_FPC_EXPn", "HDMI_PDn",
-					"HDMI_LS_OE", "DP0_3V3 _EN", "BOARDID_EEPROM_WP",
-					"CAN_STB", " ", "GPIO_uSD_PWR_EN", "eDP_ENABLE",
-					"IO_EXP_PCIe1_M.2_RTSz", "IO_EXP_MCU_RGMII_RSTz",
-					"IO_EXP_CSI2_EXP_RSTz", " ", "CSI0_B_GPIO1",
-					"CSI1_B_GPIO1";
+		gpio-line-names = " ", " ", " ", " ", " ",
+				  "BOARDID_EEPROM_WP", "CAN_STB", " ",
+				  "GPIO_uSD_PWR_EN", " ", "IO_EXP_PCIe1_M.2_RTSz",
+				  "IO_EXP_MCU_RGMII_RST#", " ", " ", " ", " ";
 	};
 };
 

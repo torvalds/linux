@@ -125,6 +125,16 @@
 				clock-names = "xtal", "pclk", "baud";
 				status = "disabled";
 			};
+
+			gpio_intc: interrupt-controller@0440 {
+				compatible = "amlogic,meson-a1-gpio-intc",
+					     "amlogic,meson-gpio-intc";
+				reg = <0x0 0x0440 0x0 0x14>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				amlogic,channel-interrupts =
+					<49 50 51 52 53 54 55 56>;
+			};
 		};
 
 		gic: interrupt-controller@ff901000 {

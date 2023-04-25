@@ -667,7 +667,7 @@
 		>;
 	};
 
-	pinctrl_spkamp: spkamp {
+	pinctrl_spkamp: spkampgrp {
 		fsl,pins = <
 			MX8MQ_IOMUXC_SPDIF_TX_GPIO5_IO3		0x81  /* MUTE */
 		>;

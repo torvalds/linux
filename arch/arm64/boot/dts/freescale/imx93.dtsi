@@ -153,6 +153,14 @@
 				nxp,no-divider;
 			};
 
+			tpm1: pwm@44310000 {
+				compatible = "fsl,imx7ulp-pwm";
+				reg = <0x44310000 0x1000>;
+				clocks = <&clk IMX93_CLK_TPM1_GATE>;
+				#pwm-cells = <3>;
+				status = "disabled";
+			};
+
 			tpm2: pwm@44320000 {
 				compatible = "fsl,imx7ulp-pwm";
 				reg = <0x44320000 0x10000>;
@@ -247,6 +255,22 @@
 				status = "okay";
 			};
 
+			bbnsm: bbnsm@44440000 {
+				compatible = "nxp,imx93-bbnsm", "syscon", "simple-mfd";
+				reg = <0x44440000 0x10000>;
+
+				bbnsm_rtc: rtc {
+					compatible = "nxp,imx93-bbnsm-rtc";
+					interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
+				};
+
+				bbnsm_pwrkey: pwrkey {
+					compatible = "nxp,imx93-bbnsm-pwrkey";
+					interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
+					linux,code = <KEY_POWER>;
+				};
+			};
+
 			clk: clock-controller@44450000 {
 				compatible = "fsl,imx93-ccm";
 				reg = <0x44450000 0x10000>;
@@ -317,6 +341,14 @@
 				interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk IMX93_CLK_MU2_B_GATE>;
 				#mbox-cells = <2>;
+				status = "disabled";
+			};
+
+			tpm3: pwm@424e0000 {
+				compatible = "fsl,imx7ulp-pwm";
+				reg = <0x424e0000 0x1000>;
+				clocks = <&clk IMX93_CLK_TPM3_GATE>;
+				#pwm-cells = <3>;
 				status = "disabled";
 			};
 
@@ -439,6 +471,21 @@
 				assigned-clock-parents = <&clk IMX93_CLK_SYS_PLL_PFD1_DIV2>;
 				assigned-clock-rates = <40000000>;
 				fsl,clk-source = /bits/ 8 <0>;
+				status = "disabled";
+			};
+
+			flexspi1: spi@425e0000 {
+				compatible = "nxp,imx8mm-fspi";
+				reg = <0x425e0000 0x10000>, <0x28000000 0x10000000>;
+				reg-names = "fspi_base", "fspi_mmap";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX93_CLK_FLEXSPI1_GATE>,
+					 <&clk IMX93_CLK_FLEXSPI1_GATE>;
+				clock-names = "fspi_en", "fspi";
+				assigned-clocks = <&clk IMX93_CLK_FLEXSPI1>;
+				assigned-clock-parents = <&clk IMX93_CLK_SYS_PLL_PFD1>;
 				status = "disabled";
 			};
 

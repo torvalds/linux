@@ -325,12 +325,6 @@
 	linux,code = <KEY_VOLUMEDOWN>;
 };
 
-&pronto {
-	status = "okay";
-
-	firmware-name = "qcom/apq8016/wcnss.mbn";
-};
-
 &sdhc_1 {
 	status = "okay";
 
@@ -411,8 +405,17 @@
 	qcom,mbhc-vthreshold-high = <75 150 237 450 500>;
 };
 
+&wcnss {
+	status = "okay";
+	firmware-name = "qcom/apq8016/wcnss.mbn";
+};
+
 &wcnss_ctrl {
 	firmware-name = "qcom/apq8016/WCNSS_qcom_wlan_nv_sbc.bin";
+};
+
+&wcnss_iris {
+	compatible = "qcom,wcn3620";
 };
 
 /* Enable CoreSight */
@@ -726,7 +729,6 @@
 		function = "gpio";
 
 		drive-strength = <8>;
-		input-enable;
 		bias-pull-up;
 	};
 
@@ -767,7 +769,6 @@
 		function = "gpio";
 
 		drive-strength = <8>;
-		input-enable;
 		bias-pull-up;
 	};
 };

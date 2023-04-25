@@ -2604,6 +2604,12 @@ F:	include/dt-bindings/*/qcom*
 F:	include/linux/*/qcom*
 F:	include/linux/soc/qcom/
 
+ARM/QUALCOMM CHROMEBOOK SUPPORT
+R:	cros-qcom-dts-watchers@chromium.org
+F:	arch/arm64/boot/dts/qcom/sc7180*
+F:	arch/arm64/boot/dts/qcom/sc7280*
+F:	arch/arm64/boot/dts/qcom/sdm845-cheza*
+
 ARM/RDA MICRO ARCHITECTURE
 M:	Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)

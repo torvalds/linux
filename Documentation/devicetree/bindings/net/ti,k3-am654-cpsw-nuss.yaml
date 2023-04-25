@@ -222,7 +222,6 @@ additionalProperties: false
 
 examples:
   - |
-    #include <dt-bindings/pinctrl/k3.h>
     #include <dt-bindings/soc/ti,sci_pm_domain.h>
     #include <dt-bindings/net/ti-dp83867.h>
     #include <dt-bindings/interrupt-controller/irq.h>
