@@ -112,7 +112,7 @@ static const struct file_operations xe_driver_fops = {
 	.mmap = drm_gem_mmap,
 	.poll = drm_poll,
 	.read = drm_read,
-//	.compat_ioctl = i915_ioc32_compat_ioctl,
+	.compat_ioctl = drm_compat_ioctl,
 	.llseek = noop_llseek,
 };
 
