@@ -945,7 +945,7 @@ config MEMCG
 
 config MEMCG_KMEM
 	bool
-	depends on MEMCG && !SLOB
+	depends on MEMCG
 	default y
 
 config BLK_CGROUP

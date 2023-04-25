@@ -238,29 +238,7 @@ config SLUB
 	   and has enhanced diagnostics. SLUB is the default choice for
 	   a slab allocator.
 
-config SLOB_DEPRECATED
-	depends on EXPERT
-	bool "SLOB (Simple Allocator - DEPRECATED)"
-	depends on !PREEMPT_RT
-	help
-	   Deprecated and scheduled for removal in a few cycles. SLUB
-	   recommended as replacement. CONFIG_SLUB_TINY can be considered
-	   on systems with 16MB or less RAM.
-
-	   If you need SLOB to stay, please contact linux-mm@kvack.org and
-	   people listed in the SLAB ALLOCATOR section of MAINTAINERS file,
-	   with your use case.
-
-	   SLOB replaces the stock allocator with a drastically simpler
-	   allocator. SLOB is generally more space efficient but
-	   does not perform as well on large systems.
-
 endchoice
-
-config SLOB
-	bool
-	default y
-	depends on SLOB_DEPRECATED
 
 config SLUB_TINY
 	bool "Configure SLUB for minimal memory footprint"
