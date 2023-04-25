@@ -622,7 +622,7 @@ struct clk *clk_register_gate(struct device *dev, const char *name,
  */
 #define devm_clk_hw_register_gate_parent_data(dev, name, parent_data, flags,  \
 					      reg, bit_idx, clk_gate_flags,   \
-					      lock)                           \
+					      lock)			      \
 	__devm_clk_hw_register_gate((dev), NULL, (name), NULL, NULL,	      \
 				    (parent_data), (flags), (reg), (bit_idx), \
 				    (clk_gate_flags), (lock))
