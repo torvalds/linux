@@ -219,7 +219,7 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct rtllib_device *ieee)
 		tcb_desc->queue_index = HIGH_QUEUE;
 
 	tcb_desc->data_rate = MgntQuery_MgntFrameTxRate(ieee);
-	tcb_desc->RATRIndex = 7;
+	tcb_desc->ratr_index = 7;
 	tcb_desc->tx_dis_rate_fallback = 1;
 	tcb_desc->tx_use_drv_assinged_rate = 1;
 	if (single) {
@@ -297,7 +297,7 @@ softmac_ps_mgmt_xmit(struct sk_buff *skb,
 
 
 	tcb_desc->data_rate = MgntQuery_MgntFrameTxRate(ieee);
-	tcb_desc->RATRIndex = 7;
+	tcb_desc->ratr_index = 7;
 	tcb_desc->tx_dis_rate_fallback = 1;
 	tcb_desc->tx_use_drv_assinged_rate = 1;
 	if (single) {

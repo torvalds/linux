@@ -486,7 +486,7 @@ static void rtllib_txrate_selectmode(struct rtllib_device *ieee,
 	    !tcb_desc->tx_use_drv_assinged_rate) {
 		if (ieee->iw_mode == IW_MODE_INFRA ||
 		    ieee->iw_mode == IW_MODE_ADHOC)
-			tcb_desc->RATRIndex = 0;
+			tcb_desc->ratr_index = 0;
 	}
 }
 
@@ -892,7 +892,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 				tcb_desc->tx_dis_rate_fallback = 1;
 			}
 
-			tcb_desc->RATRIndex = 7;
+			tcb_desc->ratr_index = 7;
 			tcb_desc->tx_use_drv_assinged_rate = 1;
 		} else {
 			if (is_multicast_ether_addr(header.addr1))
@@ -916,7 +916,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 					tcb_desc->tx_dis_rate_fallback = 1;
 				}
 
-				tcb_desc->RATRIndex = 7;
+				tcb_desc->ratr_index = 7;
 				tcb_desc->tx_use_drv_assinged_rate = 1;
 				tcb_desc->bdhcp = 1;
 			}

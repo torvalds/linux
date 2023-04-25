@@ -1008,7 +1008,7 @@ void  rtl92e_fill_tx_desc(struct net_device *dev, struct tx_desc *pdesc,
 	pdesc->PktSize = skb->len - sizeof(struct tx_fwinfo_8190pci);
 
 	pdesc->SecCAMID = 0;
-	pdesc->RATid = cb_desc->RATRIndex;
+	pdesc->RATid = cb_desc->ratr_index;
 
 
 	pdesc->NoEnc = 1;
