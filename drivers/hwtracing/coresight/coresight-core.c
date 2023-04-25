@@ -1316,42 +1316,46 @@ static int coresight_orphan_match(struct device *dev, void *data)
 {
 	int i, ret = 0;
 	bool still_orphan = false;
-	struct coresight_device *csdev, *i_csdev;
+	struct coresight_device *dst_csdev = data;
+	struct coresight_device *src_csdev = to_coresight_device(dev);
 	struct coresight_connection *conn;
-
-	csdev = data;
-	i_csdev = to_coresight_device(dev);
-
-	/* No need to check oneself */
-	if (csdev == i_csdev)
-		return 0;
+	bool fixup_self = (src_csdev == dst_csdev);
 
 	/* Move on to another component if no connection is orphan */
-	if (!i_csdev->orphan)
+	if (!src_csdev->orphan)
 		return 0;
 	/*
-	 * Circle throuch all the connection of that component.  If we find
-	 * an orphan connection whose name matches @csdev, link it.
+	 * Circle through all the connections of that component.  If we find
+	 * an orphan connection whose name matches @dst_csdev, link it.
 	 */
-	for (i = 0; i < i_csdev->pdata->nr_outconns; i++) {
-		conn = i_csdev->pdata->out_conns[i];
+	for (i = 0; i < src_csdev->pdata->nr_outconns; i++) {
+		conn = src_csdev->pdata->out_conns[i];
 
-		/* We have found at least one orphan connection */
-		if (conn->dest_dev == NULL) {
-			/* Does it match this newly added device? */
-			if (conn->dest_fwnode == csdev->dev.fwnode) {
-				ret = coresight_make_links(i_csdev,
-							   conn, csdev);
-				if (ret)
-					return ret;
-			} else {
-				/* This component still has an orphan */
-				still_orphan = true;
-			}
+		/* Skip the port if it's already connected. */
+		if (conn->dest_dev)
+			continue;
+
+		/*
+		 * If we are at the "new" device, which triggered this search,
+		 * we must find the remote device from the fwnode in the
+		 * connection.
+		 */
+		if (fixup_self)
+			dst_csdev = coresight_find_csdev_by_fwnode(
+				conn->dest_fwnode);
+
+		/* Does it match this newly added device? */
+		if (dst_csdev && conn->dest_fwnode == dst_csdev->dev.fwnode) {
+			ret = coresight_make_links(src_csdev, conn, dst_csdev);
+			if (ret)
+				return ret;
+		} else {
+			/* This component still has an orphan */
+			still_orphan = true;
 		}
 	}
 
-	i_csdev->orphan = still_orphan;
+	src_csdev->orphan = still_orphan;
 
 	/*
 	 * Returning '0' in case we didn't encounter any error,
@@ -1364,28 +1368,6 @@ static int coresight_fixup_orphan_conns(struct coresight_device *csdev)
 {
 	return bus_for_each_dev(&coresight_bustype, NULL,
 			 csdev, coresight_orphan_match);
-}
-
-
-static int coresight_fixup_device_conns(struct coresight_device *csdev)
-{
-	int i, ret = 0;
-
-	for (i = 0; i < csdev->pdata->nr_outconns; i++) {
-		struct coresight_connection *conn = csdev->pdata->out_conns[i];
-
-		conn->dest_dev =
-			coresight_find_csdev_by_fwnode(conn->dest_fwnode);
-		if (conn->dest_dev && conn->dest_dev->has_conns_grp) {
-			ret = coresight_make_links(csdev, conn, conn->dest_dev);
-			if (ret)
-				break;
-		} else {
-			csdev->orphan = true;
-		}
-	}
-
-	return ret;
 }
 
 static int coresight_remove_match(struct device *dev, void *data)
@@ -1595,7 +1577,7 @@ struct coresight_device *coresight_register(struct coresight_desc *desc)
 	csdev->subtype = desc->subtype;
 	csdev->ops = desc->ops;
 	csdev->access = desc->access;
-	csdev->orphan = false;
+	csdev->orphan = true;
 
 	csdev->dev.type = &coresight_dev_type[desc->type];
 	csdev->dev.groups = desc->groups;
@@ -1645,8 +1627,6 @@ struct coresight_device *coresight_register(struct coresight_desc *desc)
 	registered = true;
 
 	ret = coresight_create_conns_sysfs_group(csdev);
-	if (!ret)
-		ret = coresight_fixup_device_conns(csdev);
 	if (!ret)
 		ret = coresight_fixup_orphan_conns(csdev);
 
