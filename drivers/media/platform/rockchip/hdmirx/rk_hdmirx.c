@@ -783,10 +783,18 @@ static void hdmirx_get_timings(struct rk_hdmirx_dev *hdmirx_dev,
 	bt->vbackporch = vbp;
 	hdmirx_dev->fps = fps;
 
+	if (bt->interlaced == V4L2_DV_INTERLACED) {
+		bt->height *= 2;
+		bt->il_vfrontporch = bt->vfrontporch;
+		bt->il_vsync = bt->vsync + 1;
+		bt->il_vbackporch = bt->vbackporch;
+	}
+
 	v4l2_dbg(1, debug, v4l2_dev, "get timings from %s\n", from_dma ? "dma" : "ctrl");
 	v4l2_dbg(1, debug, v4l2_dev,
-		 "act:%ux%u, total:%ux%u, fps:%u, pixclk:%llu\n",
-		 bt->width, bt->height, htotal, vtotal, fps, bt->pixelclock);
+		 "act:%ux%u%s, total:%ux%u, fps:%u, pixclk:%llu\n",
+		 bt->width, bt->height, bt->interlaced ? "i" : "p",
+		 htotal, vtotal, fps, bt->pixelclock);
 
 	v4l2_dbg(2, debug, v4l2_dev,
 		 "hfp:%u, hs:%u, hbp:%u, vfp:%u, vs:%u, vbp:%u\n",
@@ -849,12 +857,7 @@ static int hdmirx_get_detected_timings(struct rk_hdmirx_dev *hdmirx_dev,
 	bt->pixelclock = tmds_clk;
 	if (hdmirx_dev->pix_fmt == HDMIRX_YUV420)
 		bt->pixelclock *= 2;
-
 	hdmirx_get_timings(hdmirx_dev, bt, from_dma);
-	if (bt->interlaced == V4L2_DV_INTERLACED) {
-		bt->height *= 2;
-		bt->il_vsync = bt->vsync + 1;
-	}
 
 	v4l2_dbg(2, debug, v4l2_dev, "tmds_clk:%llu, pix_clk:%d\n", tmds_clk, pix_clk);
 	v4l2_dbg(1, debug, v4l2_dev, "interlace:%d, fmt:%d, vic:%d, color:%d, mode:%s\n",
@@ -2739,7 +2742,7 @@ static void hdmirx_interrupts_setup(struct rk_hdmirx_dev *hdmirx_dev, bool en)
 	v4l2_dbg(1, debug, &hdmirx_dev->v4l2_dev, "%s: %sable\n",
 			__func__, en ? "en" : "dis");
 
-	if (en && bt->pixelclock > 590000000) {
+	if (en && bt->pixelclock > 590000000 && hdmirx_dev->pix_fmt != HDMIRX_YUV420) {
 		hdmirx_update_bits(hdmirx_dev, VMON_CONTROL,
 				   VMON_IRQ_THR_MASK, VMON_IRQ_THR_MASK);
 		hdmirx_update_bits(hdmirx_dev, VMON_CONTROL2,
@@ -3974,13 +3977,15 @@ static int hdmirx_status_show(struct seq_file *s, void *v)
 	seq_puts(s, "\n");
 
 	htot = bt->width + bt->hfrontporch + bt->hsync + bt->hbackporch;
-	vtot = bt->height + bt->vfrontporch + bt->vsync + bt->vbackporch;
-	if (bt->interlaced)
+	if (bt->interlaced) {
+		vtot = bt->height + bt->vfrontporch + bt->vsync + bt->vbackporch +
+		       bt->il_vfrontporch + bt->il_vsync + bt->il_vbackporch;
 		vtot /= 2;
+	} else {
+		vtot = bt->height + bt->vfrontporch + bt->vsync + bt->vbackporch;
+	}
 
 	fps = (bt->pixelclock + (htot * vtot) / 2) / (htot * vtot);
-	if (hdmirx_dev->pix_fmt == HDMIRX_YUV420)
-		fps *= 2;
 
 	seq_puts(s, "Color Format: ");
 	if (hdmirx_dev->pix_fmt == HDMIRX_RGB888)
@@ -4027,6 +4032,10 @@ static int hdmirx_status_show(struct seq_file *s, void *v)
 		   bt->vfrontporch, bt->vsync, bt->vbackporch);
 	seq_printf(s, "Pixel Clk: %llu\n", bt->pixelclock);
 	seq_printf(s, "Mode: %s\n", hdmirx_dev->is_dvi_mode ? "DVI" : "HDMI");
+
+	hdmirx_get_colordepth(hdmirx_dev);
+	seq_printf(s, "Color Depth: %u bit", hdmirx_dev->color_depth / 3);
+	seq_puts(s, "\n");
 
 	hdmirx_get_color_range(hdmirx_dev);
 	seq_puts(s, "Color Range: ");
