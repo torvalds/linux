@@ -1761,6 +1761,11 @@ static int spi_imx_probe(struct platform_device *pdev)
 		 */
 		controller->mode_bits |= SPI_CS_WORD;
 
+	if (is_imx51_ecspi(spi_imx) || is_imx53_ecspi(spi_imx)) {
+		controller->max_native_cs = 4;
+		controller->flags |= SPI_MASTER_GPIO_SS;
+	}
+
 	spi_imx->spi_drctl = spi_drctl;
 
 	init_completion(&spi_imx->xfer_done);
