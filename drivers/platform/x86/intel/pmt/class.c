@@ -33,7 +33,7 @@ bool intel_pmt_is_early_client_hw(struct device *dev)
 	 */
 	return !!(ivdev->info->quirks & VSEC_QUIRK_EARLY_HW);
 }
-EXPORT_SYMBOL_GPL(intel_pmt_is_early_client_hw);
+EXPORT_SYMBOL_NS_GPL(intel_pmt_is_early_client_hw, INTEL_PMT);
 
 static inline int
 pmt_memcpy64_fromio(void *to, const u64 __iomem *from, size_t count)
@@ -327,7 +327,7 @@ int intel_pmt_dev_create(struct intel_pmt_entry *entry, struct intel_pmt_namespa
 	return intel_pmt_dev_register(entry, ns, dev);
 
 }
-EXPORT_SYMBOL_GPL(intel_pmt_dev_create);
+EXPORT_SYMBOL_NS_GPL(intel_pmt_dev_create, INTEL_PMT);
 
 void intel_pmt_dev_destroy(struct intel_pmt_entry *entry,
 			   struct intel_pmt_namespace *ns)
@@ -343,7 +343,7 @@ void intel_pmt_dev_destroy(struct intel_pmt_entry *entry,
 	device_unregister(dev);
 	xa_erase(ns->xa, entry->devid);
 }
-EXPORT_SYMBOL_GPL(intel_pmt_dev_destroy);
+EXPORT_SYMBOL_NS_GPL(intel_pmt_dev_destroy, INTEL_PMT);
 
 static int __init pmt_class_init(void)
 {

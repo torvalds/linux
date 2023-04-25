@@ -10,6 +10,7 @@
 
 #include <linux/acpi.h>
 #include <linux/arm-smccc.h>
+#include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
@@ -43,6 +44,10 @@ static const char * const mlxbf_bootctl_lifecycle_states[] = {
 	[2] = "GA Non-Secured",
 	[3] = "RMA",
 };
+
+/* Mapped pointer for RSH_BOOT_FIFO_DATA and RSH_BOOT_FIFO_COUNT register. */
+static void __iomem *mlxbf_rsh_boot_data;
+static void __iomem *mlxbf_rsh_boot_cnt;
 
 /* ARM SMC call which is atomic and no need for lock. */
 static int mlxbf_bootctl_smc(unsigned int smc_op, int smc_arg)
@@ -244,11 +249,29 @@ static ssize_t secure_boot_fuse_state_show(struct device *dev,
 	return buf_len;
 }
 
+static ssize_t fw_reset_store(struct device *dev,
+			      struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	unsigned long key;
+	int err;
+
+	err = kstrtoul(buf, 16, &key);
+	if (err)
+		return err;
+
+	if (mlxbf_bootctl_smc(MLXBF_BOOTCTL_FW_RESET, key) < 0)
+		return -EINVAL;
+
+	return count;
+}
+
 static DEVICE_ATTR_RW(post_reset_wdog);
 static DEVICE_ATTR_RW(reset_action);
 static DEVICE_ATTR_RW(second_reset_action);
 static DEVICE_ATTR_RO(lifecycle_state);
 static DEVICE_ATTR_RO(secure_boot_fuse_state);
+static DEVICE_ATTR_WO(fw_reset);
 
 static struct attribute *mlxbf_bootctl_attrs[] = {
 	&dev_attr_post_reset_wdog.attr,
@@ -256,6 +279,7 @@ static struct attribute *mlxbf_bootctl_attrs[] = {
 	&dev_attr_second_reset_action.attr,
 	&dev_attr_lifecycle_state.attr,
 	&dev_attr_secure_boot_fuse_state.attr,
+	&dev_attr_fw_reset.attr,
 	NULL
 };
 
@@ -267,6 +291,45 @@ static const struct acpi_device_id mlxbf_bootctl_acpi_ids[] = {
 };
 
 MODULE_DEVICE_TABLE(acpi, mlxbf_bootctl_acpi_ids);
+
+static ssize_t mlxbf_bootctl_bootfifo_read(struct file *filp,
+					   struct kobject *kobj,
+					   struct bin_attribute *bin_attr,
+					   char *buf, loff_t pos,
+					   size_t count)
+{
+	unsigned long timeout = msecs_to_jiffies(500);
+	unsigned long expire = jiffies + timeout;
+	u64 data, cnt = 0;
+	char *p = buf;
+
+	while (count >= sizeof(data)) {
+		/* Give up reading if no more data within 500ms. */
+		if (!cnt) {
+			cnt = readq(mlxbf_rsh_boot_cnt);
+			if (!cnt) {
+				if (time_after(jiffies, expire))
+					break;
+				usleep_range(10, 50);
+				continue;
+			}
+		}
+
+		data = readq(mlxbf_rsh_boot_data);
+		memcpy(p, &data, sizeof(data));
+		count -= sizeof(data);
+		p += sizeof(data);
+		cnt--;
+		expire = jiffies + timeout;
+	}
+
+	return p - buf;
+}
+
+static struct bin_attribute mlxbf_bootctl_bootfifo_sysfs_attr = {
+	.attr = { .name = "bootfifo", .mode = 0400 },
+	.read = mlxbf_bootctl_bootfifo_read,
+};
 
 static bool mlxbf_bootctl_guid_match(const guid_t *guid,
 				     const struct arm_smccc_res *res)
@@ -285,6 +348,16 @@ static int mlxbf_bootctl_probe(struct platform_device *pdev)
 	guid_t guid;
 	int ret;
 
+	/* Get the resource of the bootfifo data register. */
+	mlxbf_rsh_boot_data = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(mlxbf_rsh_boot_data))
+		return PTR_ERR(mlxbf_rsh_boot_data);
+
+	/* Get the resource of the bootfifo counter register. */
+	mlxbf_rsh_boot_cnt = devm_platform_ioremap_resource(pdev, 1);
+	if (IS_ERR(mlxbf_rsh_boot_cnt))
+		return PTR_ERR(mlxbf_rsh_boot_cnt);
+
 	/* Ensure we have the UUID we expect for this service. */
 	arm_smccc_smc(MLXBF_BOOTCTL_SIP_SVC_UID, 0, 0, 0, 0, 0, 0, 0, &res);
 	guid_parse(mlxbf_bootctl_svc_uuid_str, &guid);
@@ -302,11 +375,25 @@ static int mlxbf_bootctl_probe(struct platform_device *pdev)
 	if (ret < 0)
 		dev_warn(&pdev->dev, "Unable to reset the EMMC boot mode\n");
 
+	ret = sysfs_create_bin_file(&pdev->dev.kobj,
+				    &mlxbf_bootctl_bootfifo_sysfs_attr);
+	if (ret)
+		pr_err("Unable to create bootfifo sysfs file, error %d\n", ret);
+
+	return ret;
+}
+
+static int mlxbf_bootctl_remove(struct platform_device *pdev)
+{
+	sysfs_remove_bin_file(&pdev->dev.kobj,
+			      &mlxbf_bootctl_bootfifo_sysfs_attr);
+
 	return 0;
 }
 
 static struct platform_driver mlxbf_bootctl_driver = {
 	.probe = mlxbf_bootctl_probe,
+	.remove = mlxbf_bootctl_remove,
 	.driver = {
 		.name = "mlxbf-bootctl",
 		.dev_groups = mlxbf_bootctl_groups,

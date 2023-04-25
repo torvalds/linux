@@ -1160,7 +1160,7 @@ static int pmc_core_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int pmc_core_remove(struct platform_device *pdev)
+static void pmc_core_remove(struct platform_device *pdev)
 {
 	struct pmc_dev *pmcdev = platform_get_drvdata(pdev);
 
@@ -1168,7 +1168,6 @@ static int pmc_core_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 	mutex_destroy(&pmcdev->lock);
 	iounmap(pmcdev->regbase);
-	return 0;
 }
 
 static bool warn_on_s0ix_failures;
@@ -1275,7 +1274,7 @@ static struct platform_driver pmc_core_driver = {
 		.dev_groups = pmc_dev_groups,
 	},
 	.probe = pmc_core_probe,
-	.remove = pmc_core_remove,
+	.remove_new = pmc_core_remove,
 };
 
 module_platform_driver(pmc_core_driver);

@@ -328,3 +328,4 @@ module_exit(pmt_crashlog_exit);
 MODULE_AUTHOR("Alexander Duyck <alexander.h.duyck@linux.intel.com>");
 MODULE_DESCRIPTION("Intel PMT Crashlog driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(INTEL_PMT);

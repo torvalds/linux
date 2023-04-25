@@ -325,18 +325,12 @@ static int intel_vbtn_probe(struct platform_device *device)
 	return 0;
 }
 
-static int intel_vbtn_remove(struct platform_device *device)
+static void intel_vbtn_remove(struct platform_device *device)
 {
 	acpi_handle handle = ACPI_HANDLE(&device->dev);
 
 	device_init_wakeup(&device->dev, false);
 	acpi_remove_notify_handler(handle, ACPI_DEVICE_NOTIFY, notify_handler);
-
-	/*
-	 * Even if we failed to shut off the event stream, we can still
-	 * safely detach from the device.
-	 */
-	return 0;
 }
 
 static int intel_vbtn_pm_prepare(struct device *dev)
@@ -377,7 +371,7 @@ static struct platform_driver intel_vbtn_pl_driver = {
 		.pm = &intel_vbtn_pm_ops,
 	},
 	.probe = intel_vbtn_probe,
-	.remove = intel_vbtn_remove,
+	.remove_new = intel_vbtn_remove,
 };
 
 static acpi_status __init

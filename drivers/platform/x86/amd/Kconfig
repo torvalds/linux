@@ -7,7 +7,7 @@ source "drivers/platform/x86/amd/pmf/Kconfig"
 
 config AMD_PMC
 	tristate "AMD SoC PMC driver"
-	depends on ACPI && PCI && RTC_CLASS
+	depends on ACPI && PCI && RTC_CLASS && AMD_NB
 	select SERIO
 	help
 	  The driver provides support for AMD Power Management Controller
