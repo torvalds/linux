@@ -73,8 +73,48 @@ static __maybe_unused const struct regval common_setting_594M_720p_1chn_2lane_re
 	{0x23, 0x00},
 };
 
+static __maybe_unused const struct regval common_setting_594M_4ch_2lane_720p_25fps_regs[] = {
+	{ 0x40, 0x08 },
+	{ 0x01, 0xf0 },
+	{ 0x02, 0x01 },
+	{ 0x08, 0x0f },
+	{0x20, 0x42},
+	{0x34, 0xe4}, //output vin1&vin2
+	{0x15, 0x0c},
+	{0x25, 0x08},
+	{0x26, 0x06},
+	{0x27, 0x11},
+	{0x29, 0x0a},
+	{0x33, 0x07},
+	{0x33, 0x00},
+	{0x14, 0x43},
+	{0x14, 0xc3},
+	{0x14, 0x43},
+
+	{0x23, 0x02},
+	{0x23, 0x00},
+};
+
 static struct techpoint_video_modes supported_modes[] = {
-	{
+	{// 4CH 2lane 720p
+		.bus_fmt = MEDIA_BUS_FMT_UYVY8_2X8,
+		.width = 1280,
+		.height = 720,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 250000,
+		},
+		.link_freq_value = TP2855_LINK_FREQ_594M,
+		.common_reg_list = common_setting_594M_4ch_2lane_720p_25fps_regs,
+		.common_reg_size = ARRAY_SIZE(common_setting_594M_4ch_2lane_720p_25fps_regs),
+		.bpp = 8,
+		.lane = 2,
+		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
+		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_1,
+		.vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_2,
+		.vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_3,
+	},
+	{//1 chn 2 lane 720p
 		.bus_fmt = MEDIA_BUS_FMT_UYVY8_2X8,
 		.width = 1280,
 		.height = 720,
@@ -89,7 +129,7 @@ static struct techpoint_video_modes supported_modes[] = {
 		.lane = 2,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
-	{
+	{//4 chn 4 lane 1080p
 		.bus_fmt = MEDIA_BUS_FMT_UYVY8_2X8,
 		.width = 1920,
 		.height = 1080,
@@ -107,7 +147,7 @@ static struct techpoint_video_modes supported_modes[] = {
 		.vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_2,
 		.vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_3,
 	},
-	{
+	{//4 chn 4 lane 720p
 		.bus_fmt = MEDIA_BUS_FMT_UYVY8_2X8,
 		.width = 1280,
 		.height = 720,
@@ -125,7 +165,7 @@ static struct techpoint_video_modes supported_modes[] = {
 		.vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_2,
 		.vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_3,
 	},
-	{
+	{//4 chn 4 lane 576p
 		.bus_fmt = MEDIA_BUS_FMT_UYVY8_2X8,
 		.width = 720,
 		.height = 576,
