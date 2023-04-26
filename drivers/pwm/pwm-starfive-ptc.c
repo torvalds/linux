@@ -2,7 +2,7 @@
 /*
  * PWM driver for the StarFive JH7110 SoC
  *
- * Copyright (C) 2018 StarFive Technology Co., Ltd.
+ * Copyright (C) 2018-2022 StarFive Technology Co., Ltd.
  */
 
 #include <dt-bindings/pwm/pwm.h>
@@ -308,7 +308,7 @@ static struct platform_driver starfive_pwm_ptc_driver = {
 };
 module_platform_driver(starfive_pwm_ptc_driver);
 
-MODULE_AUTHOR("Jenny Zhang <jenny.zhang@starfivetech.com>");
+MODULE_AUTHOR("Jieqin Chen");
 MODULE_AUTHOR("Hal Feng <hal.feng@starfivetech.com>");
 MODULE_DESCRIPTION("StarFive PWM PTC driver");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
