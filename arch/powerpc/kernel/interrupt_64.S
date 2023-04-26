@@ -756,7 +756,7 @@ _GLOBAL(ret_from_kernel_user_thread)
 	b	.Lsyscall_exit
 
 _GLOBAL(start_kernel_thread)
-	bl	schedule_tail
+	bl	CFUNC(schedule_tail)
 	mtctr	r14
 	mr	r3,r15
 #ifdef CONFIG_PPC64_ELF_ABI_V2
