@@ -531,7 +531,7 @@ static const struct dpu_pingpong_sub_blks sc7280_pp_sblk = {
 /*************************************************************
  * INTF sub blocks config
  *************************************************************/
-#define INTF_BLK(_name, _id, _base, _len, _type, _ctrl_id, _progfetch, _features, _reg, _underrun_bit, _vsync_bit) \
+#define INTF_BLK(_name, _id, _base, _len, _type, _ctrl_id, _progfetch, _features, _underrun, _vsync) \
 	{\
 	.name = _name, .id = _id, \
 	.base = _base, .len = _len, \
@@ -539,8 +539,8 @@ static const struct dpu_pingpong_sub_blks sc7280_pp_sblk = {
 	.type = _type, \
 	.controller_id = _ctrl_id, \
 	.prog_fetch_lines_worst_case = _progfetch, \
-	.intr_underrun = DPU_IRQ_IDX(_reg, _underrun_bit), \
-	.intr_vsync = DPU_IRQ_IDX(_reg, _vsync_bit), \
+	.intr_underrun = _underrun, \
+	.intr_vsync = _vsync, \
 	}
 
 /*************************************************************
