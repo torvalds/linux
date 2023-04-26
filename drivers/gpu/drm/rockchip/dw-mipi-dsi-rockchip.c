@@ -572,36 +572,20 @@ static void dw_mipi_dsi_phy_power_off(void *priv_data)
 	dsi->phy_enabled = false;
 }
 
-static int
-dw_mipi_dsi_get_lane_mbps(void *priv_data, const struct drm_display_mode *mode,
-			  unsigned long mode_flags, u32 lanes, u32 format,
-			  unsigned int *lane_mbps)
+static unsigned int dw_mipi_dsi_calculate_lane_mpbs(struct dw_mipi_dsi_rockchip *dsi,
+						    const struct drm_display_mode *mode,
+						    u32 lanes, int bpp)
 {
-	struct dw_mipi_dsi_rockchip *dsi = priv_data;
 	struct device *dev = dsi->dev;
-	int bpp;
-	unsigned long mpclk, tmp;
 	unsigned int target_mbps = 1000;
 	unsigned int max_mbps;
-	unsigned long best_freq = 0;
-	unsigned long fvco_min, fvco_max, fin, fout;
-	unsigned int min_prediv, max_prediv;
-	unsigned int _prediv, best_prediv;
-	unsigned long _fbdiv, best_fbdiv;
-	unsigned long min_delta = ULONG_MAX;
-	unsigned long target_pclk, hs_clk_rate;
 	unsigned int value;
-	int ret;
+	unsigned long mpclk, tmp;
+
+	if (dsi->is_slave)
+		return dsi->lane_mbps;
 
 	max_mbps = dsi->cdata->max_bit_rate_per_lane / USEC_PER_SEC;
-	dsi->format = format;
-	bpp = mipi_dsi_pixel_format_to_bpp(dsi->format);
-	if (bpp < 0) {
-		DRM_DEV_ERROR(dsi->dev,
-			      "failed to get bpp for pixel format %d\n",
-			      dsi->format);
-		return bpp;
-	}
 
 	/* optional override of the desired bandwidth */
 	if (!of_property_read_u32(dev->of_node, "rockchip,lane-rate", &value)) {
@@ -620,6 +604,39 @@ dw_mipi_dsi_get_lane_mbps(void *priv_data, const struct drm_display_mode *mode,
 			}
 		}
 	}
+
+	if (dsi->slave)
+		dsi->slave->lane_mbps = target_mbps;
+
+	return target_mbps;
+}
+
+static int
+dw_mipi_dsi_get_lane_mbps(void *priv_data, const struct drm_display_mode *mode,
+			  unsigned long mode_flags, u32 lanes, u32 format,
+			  unsigned int *lane_mbps)
+{
+	struct dw_mipi_dsi_rockchip *dsi = priv_data;
+	unsigned long best_freq = 0;
+	unsigned long fvco_min, fvco_max, fin, fout;
+	unsigned int min_prediv, max_prediv;
+	unsigned int _prediv, best_prediv;
+	unsigned long _fbdiv, best_fbdiv;
+	unsigned long min_delta = ULONG_MAX;
+	unsigned long target_pclk, hs_clk_rate;
+	unsigned int target_mbps;
+	int bpp, ret;
+
+	dsi->format = format;
+	bpp = mipi_dsi_pixel_format_to_bpp(dsi->format);
+	if (bpp < 0) {
+		DRM_DEV_ERROR(dsi->dev,
+			      "failed to get bpp for pixel format %d\n",
+			      dsi->format);
+		return bpp;
+	}
+
+	target_mbps = dw_mipi_dsi_calculate_lane_mpbs(dsi, mode, lanes, bpp);
 
 	/* for external phy only a the mipi_dphy_config is necessary */
 	if (dsi->phy) {
