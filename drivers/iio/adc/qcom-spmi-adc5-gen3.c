@@ -314,6 +314,48 @@ static int adc5_decimation_from_dt(u32 value,
 	return -ENOENT;
 }
 
+#if IS_ENABLED(CONFIG_QCOM_SPMI_ADC5_GEN3_DEBUG_LOGGING)
+#define NUM_BYTES	8
+#define REG_COUNT	32
+
+static void adc5_gen3_dump_register(struct regmap *regmap, unsigned int offset)
+{
+	int i, rc;
+	u8 buf[NUM_BYTES];
+
+	for (i = 0; i < REG_COUNT; i++) {
+		rc = regmap_bulk_read(regmap, offset, buf, sizeof(buf));
+		if (rc < 0) {
+			pr_err("debug register dump failed with rc=%d\n", rc);
+			return;
+		}
+		pr_err("%#04x: %*ph\n", offset, sizeof(buf), buf);
+		offset += NUM_BYTES;
+	}
+	pr_err("\n");
+}
+
+static void adc5_gen3_dump_regs_debug(struct adc5_chip *adc)
+{
+	u32 i;
+
+	for (i = 0; i < adc->num_sdams; i++) {
+		pr_err("ADC SDAM%d DUMP\n", i);
+		adc5_gen3_dump_register(adc->regmap, adc->base[i].base_addr);
+	}
+
+	if (adc->debug_base) {
+		pr_err("ADC DEBUG BASE DUMP\n");
+		adc5_gen3_dump_register(adc->regmap, adc->debug_base);
+	}
+
+	BUG_ON(1);
+}
+#else
+static inline void adc5_gen3_dump_regs_debug(struct adc5_chip *adc)
+{}
+#endif
+
 static int adc5_gen3_read_voltage_data(struct adc5_chip *adc, u16 *data,
 				u8 sdam_index)
 {
@@ -469,6 +511,7 @@ static int adc5_gen3_do_conversion(struct adc5_chip *adc,
 	if (!rc) {
 		pr_err("Reading ADC channel %s timed out\n",
 			prop->datasheet_name);
+		adc5_gen3_dump_regs_debug(adc);
 		ret = -ETIMEDOUT;
 		goto unlock;
 	}
@@ -499,38 +542,6 @@ unlock:
 	mutex_unlock(&adc->lock);
 
 	return ret;
-}
-
-#define ADC_OFFSET_DUMP		8
-#define ADC_SDAM_REG_DUMP	32
-static void adc5_gen3_dump_register(struct adc5_chip *adc, unsigned int offset)
-{
-	int i, rc;
-	u8 buf[8];
-
-	for (i = 0; i < ADC_SDAM_REG_DUMP; i++) {
-		rc = regmap_bulk_read(adc->regmap, offset, buf, sizeof(buf));
-		if (rc < 0) {
-			pr_err("debug register dump failed with rc=%d\n", rc);
-			return;
-		}
-		offset += ADC_OFFSET_DUMP;
-		pr_debug("Buf[%d]: %*ph\n", i, sizeof(buf), buf);
-	}
-}
-
-static void adc5_gen3_dump_regs_debug(struct adc5_chip *adc)
-{
-	int i = 0;
-
-	for (i = 0; i < adc->num_sdams; i++) {
-		pr_debug("ADC SDAM%d DUMP\n", i);
-		adc5_gen3_dump_register(adc, adc->base[i].base_addr);
-	}
-	if (adc->debug_base) {
-		pr_debug("ADC Debug base DUMP\n");
-		adc5_gen3_dump_register(adc, adc->debug_base);
-	}
 }
 
 static int get_sdam_from_irq(struct adc5_chip *adc, int irq)
