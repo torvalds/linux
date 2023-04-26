@@ -6756,36 +6756,9 @@ static u64 nested_vmx_calc_vmcs_enum_msr(void)
 	return (u64)max_idx << VMCS_FIELD_INDEX_SHIFT;
 }
 
-/*
- * nested_vmx_setup_ctls_msrs() sets up variables containing the values to be
- * returned for the various VMX controls MSRs when nested VMX is enabled.
- * The same values should also be used to verify that vmcs12 control fields are
- * valid during nested entry from L1 to L2.
- * Each of these control msrs has a low and high 32-bit half: A low bit is on
- * if the corresponding bit in the (32-bit) control field *must* be on, and a
- * bit in the high half is on if the corresponding bit in the control field
- * may be on. See also vmx_control_verify().
- */
-void nested_vmx_setup_ctls_msrs(struct vmcs_config *vmcs_conf, u32 ept_caps)
+static void nested_vmx_setup_pinbased_ctls(struct vmcs_config *vmcs_conf,
+					   struct nested_vmx_msrs *msrs)
 {
-	struct nested_vmx_msrs *msrs = &vmcs_conf->nested;
-
-	/*
-	 * Note that as a general rule, the high half of the MSRs (bits in
-	 * the control fields which may be 1) should be initialized by the
-	 * intersection of the underlying hardware's MSR (i.e., features which
-	 * can be supported) and the list of features we want to expose -
-	 * because they are known to be properly supported in our code.
-	 * Also, usually, the low half of the MSRs (bits which must be 1) can
-	 * be set to 0, meaning that L1 may turn off any of these bits. The
-	 * reason is that if one of these bits is necessary, it will appear
-	 * in vmcs01 and prepare_vmcs02, when it bitwise-or's the control
-	 * fields of vmcs01 and vmcs02, will turn these bits off - and
-	 * nested_vmx_l1_wants_exit() will not pass related exits to L1.
-	 * These rules have exceptions below.
-	 */
-
-	/* pin-based controls */
 	msrs->pinbased_ctls_low =
 		PIN_BASED_ALWAYSON_WITHOUT_TRUE_MSR;
 
@@ -6798,8 +6771,11 @@ void nested_vmx_setup_ctls_msrs(struct vmcs_config *vmcs_conf, u32 ept_caps)
 	msrs->pinbased_ctls_high |=
 		PIN_BASED_ALWAYSON_WITHOUT_TRUE_MSR |
 		PIN_BASED_VMX_PREEMPTION_TIMER;
+}
 
-	/* exit controls */
+static void nested_vmx_setup_exit_ctls(struct vmcs_config *vmcs_conf,
+				       struct nested_vmx_msrs *msrs)
+{
 	msrs->exit_ctls_low =
 		VM_EXIT_ALWAYSON_WITHOUT_TRUE_MSR;
 
@@ -6818,8 +6794,11 @@ void nested_vmx_setup_ctls_msrs(struct vmcs_config *vmcs_conf, u32 ept_caps)
 
 	/* We support free control of debug control saving. */
 	msrs->exit_ctls_low &= ~VM_EXIT_SAVE_DEBUG_CONTROLS;
+}
 
-	/* entry controls */
+static void nested_vmx_setup_entry_ctls(struct vmcs_config *vmcs_conf,
+					struct nested_vmx_msrs *msrs)
+{
 	msrs->entry_ctls_low =
 		VM_ENTRY_ALWAYSON_WITHOUT_TRUE_MSR;
 
@@ -6835,8 +6814,11 @@ void nested_vmx_setup_ctls_msrs(struct vmcs_config *vmcs_conf, u32 ept_caps)
 
 	/* We support free control of debug control loading. */
 	msrs->entry_ctls_low &= ~VM_ENTRY_LOAD_DEBUG_CONTROLS;
+}
 
-	/* cpu-based controls */
+static void nested_vmx_setup_cpubased_ctls(struct vmcs_config *vmcs_conf,
+					   struct nested_vmx_msrs *msrs)
+{
 	msrs->procbased_ctls_low =
 		CPU_BASED_ALWAYSON_WITHOUT_TRUE_MSR;
 
@@ -6868,12 +6850,12 @@ void nested_vmx_setup_ctls_msrs(struct vmcs_config *vmcs_conf, u32 ept_caps)
 	/* We support free control of CR3 access interception. */
 	msrs->procbased_ctls_low &=
 		~(CPU_BASED_CR3_LOAD_EXITING | CPU_BASED_CR3_STORE_EXITING);
+}
 
-	/*
-	 * secondary cpu-based controls.  Do not include those that
-	 * depend on CPUID bits, they are added later by
-	 * vmx_vcpu_after_set_cpuid.
-	 */
+static void nested_vmx_setup_secondary_ctls(u32 ept_caps,
+					    struct vmcs_config *vmcs_conf,
+					    struct nested_vmx_msrs *msrs)
+{
 	msrs->secondary_ctls_low = 0;
 
 	msrs->secondary_ctls_high = vmcs_conf->cpu_based_2nd_exec_ctrl;
@@ -6951,8 +6933,11 @@ void nested_vmx_setup_ctls_msrs(struct vmcs_config *vmcs_conf, u32 ept_caps)
 
 	if (enable_sgx)
 		msrs->secondary_ctls_high |= SECONDARY_EXEC_ENCLS_EXITING;
+}
 
-	/* miscellaneous data */
+static void nested_vmx_setup_misc_data(struct vmcs_config *vmcs_conf,
+				       struct nested_vmx_msrs *msrs)
+{
 	msrs->misc_low = (u32)vmcs_conf->misc & VMX_MISC_SAVE_EFER_LMA;
 	msrs->misc_low |=
 		MSR_IA32_VMX_MISC_VMWRITE_SHADOW_RO_FIELDS |
@@ -6960,7 +6945,10 @@ void nested_vmx_setup_ctls_msrs(struct vmcs_config *vmcs_conf, u32 ept_caps)
 		VMX_MISC_ACTIVITY_HLT |
 		VMX_MISC_ACTIVITY_WAIT_SIPI;
 	msrs->misc_high = 0;
+}
 
+static void nested_vmx_setup_basic(struct nested_vmx_msrs *msrs)
+{
 	/*
 	 * This MSR reports some information about VMX support. We
 	 * should return information about the VMX we emulate for the
@@ -6975,7 +6963,10 @@ void nested_vmx_setup_ctls_msrs(struct vmcs_config *vmcs_conf, u32 ept_caps)
 
 	if (cpu_has_vmx_basic_inout())
 		msrs->basic |= VMX_BASIC_INOUT;
+}
 
+static void nested_vmx_setup_cr_fixed(struct nested_vmx_msrs *msrs)
+{
 	/*
 	 * These MSRs specify bits which the guest must keep fixed on
 	 * while L1 is in VMXON mode (in L1's root mode, or running an L2).
@@ -6992,6 +6983,51 @@ void nested_vmx_setup_ctls_msrs(struct vmcs_config *vmcs_conf, u32 ept_caps)
 
 	if (vmx_umip_emulated())
 		msrs->cr4_fixed1 |= X86_CR4_UMIP;
+}
+
+/*
+ * nested_vmx_setup_ctls_msrs() sets up variables containing the values to be
+ * returned for the various VMX controls MSRs when nested VMX is enabled.
+ * The same values should also be used to verify that vmcs12 control fields are
+ * valid during nested entry from L1 to L2.
+ * Each of these control msrs has a low and high 32-bit half: A low bit is on
+ * if the corresponding bit in the (32-bit) control field *must* be on, and a
+ * bit in the high half is on if the corresponding bit in the control field
+ * may be on. See also vmx_control_verify().
+ */
+void nested_vmx_setup_ctls_msrs(struct vmcs_config *vmcs_conf, u32 ept_caps)
+{
+	struct nested_vmx_msrs *msrs = &vmcs_conf->nested;
+
+	/*
+	 * Note that as a general rule, the high half of the MSRs (bits in
+	 * the control fields which may be 1) should be initialized by the
+	 * intersection of the underlying hardware's MSR (i.e., features which
+	 * can be supported) and the list of features we want to expose -
+	 * because they are known to be properly supported in our code.
+	 * Also, usually, the low half of the MSRs (bits which must be 1) can
+	 * be set to 0, meaning that L1 may turn off any of these bits. The
+	 * reason is that if one of these bits is necessary, it will appear
+	 * in vmcs01 and prepare_vmcs02, when it bitwise-or's the control
+	 * fields of vmcs01 and vmcs02, will turn these bits off - and
+	 * nested_vmx_l1_wants_exit() will not pass related exits to L1.
+	 * These rules have exceptions below.
+	 */
+	nested_vmx_setup_pinbased_ctls(vmcs_conf, msrs);
+
+	nested_vmx_setup_exit_ctls(vmcs_conf, msrs);
+
+	nested_vmx_setup_entry_ctls(vmcs_conf, msrs);
+
+	nested_vmx_setup_cpubased_ctls(vmcs_conf, msrs);
+
+	nested_vmx_setup_secondary_ctls(ept_caps, vmcs_conf, msrs);
+
+	nested_vmx_setup_misc_data(vmcs_conf, msrs);
+
+	nested_vmx_setup_basic(msrs);
+
+	nested_vmx_setup_cr_fixed(msrs);
 
 	msrs->vmcs_enum = nested_vmx_calc_vmcs_enum_msr();
 }
