@@ -422,9 +422,11 @@ int qcom_icc_rpmh_probe(struct platform_device *pdev)
 			return -ENOMEM;
 
 		for (i = 0; i < qp->num_voters; i++) {
-			qp->voters[i] = of_bcm_voter_get(qp->dev, desc->voters[i]);
-			if (IS_ERR(qp->voters[i]))
-				return PTR_ERR(qp->voters[i]);
+			if (desc->voters[i]) {
+				qp->voters[i] = of_bcm_voter_get(qp->dev, desc->voters[i]);
+				if (IS_ERR(qp->voters[i]))
+					return PTR_ERR(qp->voters[i]);
+			}
 		}
 	}
 
