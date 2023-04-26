@@ -15,6 +15,7 @@
   adjust_managed_page_count
   aes_encrypt
   aes_expandkey
+  alarm_expires_remaining
   alloc_anon_inode
   alloc_candev_mqs
   alloc_can_err_skb
