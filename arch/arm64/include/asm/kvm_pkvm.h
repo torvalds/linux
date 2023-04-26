@@ -13,6 +13,23 @@
 #include <asm/kvm_pgtable.h>
 #include <asm/sysreg.h>
 
+/*
+ * Stores the sve state for the host in protected mode.
+ */
+struct kvm_host_sve_state {
+	u64 zcr_el1;
+
+	/*
+	 * Ordering is important since __sve_save_state/__sve_restore_state
+	 * relies on it.
+	 */
+	u32 fpsr;
+	u32 fpcr;
+
+	/* Must be SVE_VQ_BYTES (128 bit) aligned. */
+	char sve_regs[];
+};
+
 /* Maximum number of VMs that can co-exist under pKVM. */
 #define KVM_MAX_PVMS 255
 
@@ -383,6 +400,21 @@ static inline unsigned long hyp_ffa_proxy_pages(void)
 
 	/* Plus a page each for the hypervisor's RX and TX mailboxes. */
 	return (2 * KVM_FFA_MBOX_NR_PAGES) + DIV_ROUND_UP(desc_max, PAGE_SIZE);
+}
+
+static inline size_t pkvm_host_fp_state_size(void)
+{
+	if (system_supports_sve())
+		return size_add(sizeof(struct kvm_host_sve_state),
+		       SVE_SIG_REGS_SIZE(sve_vq_from_vl(kvm_host_sve_max_vl)));
+	else
+		return sizeof(struct user_fpsimd_state);
+}
+
+static inline unsigned long hyp_host_fp_pages(unsigned long nr_cpus)
+{
+	return PAGE_ALIGN(size_mul(nr_cpus, pkvm_host_fp_state_size())) >>
+		PAGE_SHIFT;
 }
 
 #endif	/* __ARM64_KVM_PKVM_H__ */

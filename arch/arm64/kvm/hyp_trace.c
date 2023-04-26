@@ -644,98 +644,24 @@ static void hyp_dec_readers(void)
 static int hyp_trace_open(struct inode *inode, struct file *file)
 {
 	int cpu = (s64)inode->i_private;
-	struct ht_iterator *iter;
 	int ret = 0;
 
 	mutex_lock(&hyp_trace_lock);
 
-	if (file->f_mode & FMODE_WRITE) {
+	if (file->f_mode & FMODE_WRITE)
 		ret = hyp_trace_reset(cpu);
-		goto unlock;
-	}
 
-	iter = __seq_open_private(file, &hyp_trace_ops, sizeof(*iter));
-	if (!iter) {
-		ret = -ENOMEM;
-		goto unlock;
-	}
-
-	if (!hyp_trace_buffer)
-		goto unlock_and_read;
-
-	iter->buf_iter = kcalloc(nr_cpu_ids, sizeof(*iter->buf_iter), GFP_KERNEL);
-	if (!iter->buf_iter) {
-		seq_release_private(inode, file);
-		ret = -ENOMEM;
-		goto unlock;
-	}
-
-	iter->cpu = cpu;
-	if (cpu == RING_BUFFER_ALL_CPUS) {
-		if (!zalloc_cpumask_var(&iter->cpus, GFP_KERNEL)) {
-			ret = -ENOMEM;
-			goto unlock;
-		}
-
-		for_each_possible_cpu(cpu) {
-			iter->buf_iter[cpu] =
-				ring_buffer_read_prepare(hyp_trace_buffer, cpu,
-							 GFP_KERNEL);
-			if (iter->buf_iter[cpu])
-				cpumask_set_cpu(cpu, iter->cpus);
-
-			ring_buffer_read_start(iter->buf_iter[cpu]);
-		}
-	} else {
-		iter->buf_iter[cpu] = ring_buffer_read_prepare(hyp_trace_buffer,
-							       cpu, GFP_KERNEL);
-		if (!iter->buf_iter[cpu]) {
-			ret = -EINVAL;
-			goto unlock;
-		}
-		ring_buffer_read_start(iter->buf_iter[cpu]);
-	}
-unlock_and_read:
-	hyp_inc_readers();
-unlock:
-	if (ret && iter) {
-		kfree(iter->buf_iter);
-		free_cpumask_var(iter->cpus);
-		seq_release_private(inode, file);
-	}
 	mutex_unlock(&hyp_trace_lock);
 
 	return ret;
 }
 
-int hyp_trace_release(struct inode *inode, struct file *file)
+static ssize_t hyp_trace_read(struct file *filp, char __user *ubuf,
+			      size_t cnt, loff_t *ppos)
 {
-	struct seq_file *m = file->private_data;
-	struct ht_iterator *iter = m->private;
+	char buf[] = "** Reading trace not yet supported **\n";
 
-	if (file->f_mode & FMODE_WRITE)
-		return 0;
-
-	if (!iter->buf_iter)
-		goto end;
-
-	if (iter->cpu == RING_BUFFER_ALL_CPUS) {
-		int cpu;
-
-		for_each_cpu(cpu, iter->cpus)
-			ring_buffer_read_finish(iter->buf_iter[cpu]);
-		free_cpumask_var(iter->cpus);
-	} else {
-		ring_buffer_read_finish(iter->buf_iter[iter->cpu]);
-	}
-
-	kfree(iter->buf_iter);
-end:
-	mutex_lock(&hyp_trace_lock);
-	hyp_dec_readers();
-	mutex_unlock(&hyp_trace_lock);
-
-	return seq_release_private(inode, file);
+	return simple_read_from_buffer(ubuf, cnt, ppos, buf, strlen(buf));
 }
 
 static ssize_t hyp_trace_write(struct file *filp, const char __user *ubuf,
@@ -747,10 +673,9 @@ static ssize_t hyp_trace_write(struct file *filp, const char __user *ubuf,
 
 static const struct file_operations hyp_trace_fops = {
 	.open		= hyp_trace_open,
-	.read		= seq_read,
+	.read		= hyp_trace_read,
 	.write		= hyp_trace_write,
-	.llseek		= seq_lseek,
-	.release	= hyp_trace_release,
+	.release	= NULL,
 };
 
 static struct ring_buffer_event *__ht_next_pipe_event(struct ht_iterator *iter)

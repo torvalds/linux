@@ -173,6 +173,7 @@ void __init kvm_hyp_reserve(void)
 	hyp_mem_pages += hyp_vm_table_pages();
 	hyp_mem_pages += hyp_vmemmap_pages(STRUCT_HYP_PAGE_SIZE);
 	hyp_mem_pages += hyp_ffa_proxy_pages();
+	hyp_mem_pages += hyp_host_fp_pages(num_possible_cpus());
 
 	/*
 	 * Try to allocate a PMD-aligned region to reduce TLB pressure once

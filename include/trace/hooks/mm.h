@@ -8,6 +8,14 @@
 #define _TRACE_HOOK_MM_H
 
 #include <trace/hooks/vendor_hooks.h>
+
+struct shmem_inode_info;
+struct folio;
+
+DECLARE_RESTRICTED_HOOK(android_rvh_shmem_get_folio,
+			TP_PROTO(struct shmem_inode_info *info, struct folio **folio),
+			TP_ARGS(info, folio), 2);
+
 /*
 
 DECLARE_RESTRICTED_HOOK(android_rvh_set_skip_swapcache_flags,
