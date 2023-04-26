@@ -105,7 +105,10 @@ int xe_ttm_sys_mgr_init(struct xe_device *xe)
 	u64 gtt_size;
 
 	si_meminfo(&si);
-	gtt_size = (u64)si.totalram * si.mem_unit * 3/4;
+	gtt_size = (u64)si.totalram * si.mem_unit;
+	/* TTM limits allocation of all TTM devices by 50% of system memory */
+	gtt_size /= 2;
+
 	man->use_tt = true;
 	man->func = &xe_ttm_sys_mgr_func;
 	ttm_resource_manager_init(man, &xe->ttm, gtt_size >> PAGE_SHIFT);
