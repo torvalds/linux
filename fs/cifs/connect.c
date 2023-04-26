@@ -454,7 +454,6 @@ static int reconnect_target_unlocked(struct TCP_Server_Info *server, struct dfs_
 static int reconnect_dfs_server(struct TCP_Server_Info *server)
 {
 	int rc = 0;
-	const char *refpath = server->current_fullpath + 1;
 	struct dfs_cache_tgt_list tl = DFS_CACHE_TGT_LIST_INIT(tl);
 	struct dfs_cache_tgt_iterator *target_hint = NULL;
 	int num_targets = 0;
@@ -467,8 +466,10 @@ static int reconnect_dfs_server(struct TCP_Server_Info *server)
 	 * through /proc/fs/cifs/dfscache or the target list is empty due to server settings after
 	 * refreshing the referral, so, in this case, default it to 1.
 	 */
-	if (!dfs_cache_noreq_find(refpath, NULL, &tl))
+	mutex_lock(&server->refpath_lock);
+	if (!dfs_cache_noreq_find(server->leaf_fullpath + 1, NULL, &tl))
 		num_targets = dfs_cache_get_nr_tgts(&tl);
+	mutex_unlock(&server->refpath_lock);
 	if (!num_targets)
 		num_targets = 1;
 
@@ -512,7 +513,9 @@ static int reconnect_dfs_server(struct TCP_Server_Info *server)
 		mod_delayed_work(cifsiod_wq, &server->reconnect, 0);
 	} while (server->tcpStatus == CifsNeedReconnect);
 
-	dfs_cache_noreq_update_tgthint(refpath, target_hint);
+	mutex_lock(&server->refpath_lock);
+	dfs_cache_noreq_update_tgthint(server->leaf_fullpath + 1, target_hint);
+	mutex_unlock(&server->refpath_lock);
 	dfs_cache_free_tgts(&tl);
 
 	/* Need to set up echo worker again once connection has been established */
@@ -1582,7 +1585,6 @@ cifs_get_tcp_session(struct smb3_fs_context *ctx,
 			rc = -ENOMEM;
 			goto out_err;
 		}
-		tcp_ses->current_fullpath = tcp_ses->leaf_fullpath;
 	}
 
 	if (ctx->nosharesock)

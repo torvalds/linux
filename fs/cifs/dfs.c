@@ -248,11 +248,12 @@ static int __dfs_mount_share(struct cifs_mount_ctx *mnt_ctx)
 		tcon = mnt_ctx->tcon;
 
 		mutex_lock(&server->refpath_lock);
+		spin_lock(&server->srv_lock);
 		if (!server->origin_fullpath) {
 			server->origin_fullpath = origin_fullpath;
-			server->current_fullpath = server->leaf_fullpath;
 			origin_fullpath = NULL;
 		}
+		spin_unlock(&server->srv_lock);
 		mutex_unlock(&server->refpath_lock);
 
 		if (list_empty(&tcon->dfs_ses_list)) {
@@ -342,10 +343,11 @@ static int update_server_fullpath(struct TCP_Server_Info *server, struct cifs_sb
 		rc = PTR_ERR(npath);
 	} else {
 		mutex_lock(&server->refpath_lock);
+		spin_lock(&server->srv_lock);
 		kfree(server->leaf_fullpath);
 		server->leaf_fullpath = npath;
+		spin_unlock(&server->srv_lock);
 		mutex_unlock(&server->refpath_lock);
-		server->current_fullpath = server->leaf_fullpath;
 	}
 	return rc;
 }
@@ -450,7 +452,7 @@ static int __tree_connect_dfs_target(const unsigned int xid, struct cifs_tcon *t
 		share = prefix = NULL;
 
 		/* Check if share matches with tcp ses */
-		rc = dfs_cache_get_tgt_share(server->current_fullpath + 1, tit, &share, &prefix);
+		rc = dfs_cache_get_tgt_share(server->leaf_fullpath + 1, tit, &share, &prefix);
 		if (rc) {
 			cifs_dbg(VFS, "%s: failed to parse target share: %d\n", __func__, rc);
 			break;
@@ -464,7 +466,7 @@ static int __tree_connect_dfs_target(const unsigned int xid, struct cifs_tcon *t
 			continue;
 		}
 
-		dfs_cache_noreq_update_tgthint(server->current_fullpath + 1, tit);
+		dfs_cache_noreq_update_tgthint(server->leaf_fullpath + 1, tit);
 		tree_connect_ipc(xid, tree, cifs_sb, tcon);
 
 		scnprintf(tree, MAX_TREE_SIZE, "\\%s", share);
@@ -582,8 +584,8 @@ int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon, const stru
 	cifs_sb = CIFS_SB(sb);
 
 	/* If it is not dfs or there was no cached dfs referral, then reconnect to same share */
-	if (!server->current_fullpath ||
-	    dfs_cache_noreq_find(server->current_fullpath + 1, &ref, &tl)) {
+	if (!server->leaf_fullpath ||
+	    dfs_cache_noreq_find(server->leaf_fullpath + 1, &ref, &tl)) {
 		rc = ops->tree_connect(xid, tcon->ses, tcon->tree_name, tcon, cifs_sb->local_nls);
 		goto out;
 	}

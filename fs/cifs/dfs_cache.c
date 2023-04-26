@@ -1278,8 +1278,12 @@ static void refresh_cache_worker(struct work_struct *work)
 
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each_entry(server, &cifs_tcp_ses_list, tcp_ses_list) {
-		if (!server->leaf_fullpath)
+		spin_lock(&server->srv_lock);
+		if (!server->leaf_fullpath) {
+			spin_unlock(&server->srv_lock);
 			continue;
+		}
+		spin_unlock(&server->srv_lock);
 
 		list_for_each_entry(ses, &server->smb_ses_list, smb_ses_list) {
 			if (ses->tcon_ipc) {
