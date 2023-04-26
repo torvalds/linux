@@ -501,12 +501,14 @@ struct dpu_hw_tear_check {
  * @rd_ptr_frame_count: Num frames sent since enabling interface
  * @rd_ptr_line_count:  Current line on panel (rd ptr)
  * @wr_ptr_line_count:  Current line within pp fifo (wr ptr)
+ * @intf_frame_count:   Frames read from intf
  */
 struct dpu_hw_pp_vsync_info {
 	u32 rd_ptr_init_val;
 	u32 rd_ptr_frame_count;
 	u32 rd_ptr_line_count;
 	u32 wr_ptr_line_count;
+	u32 intf_frame_count;
 };
 
 #endif  /* _DPU_HW_MDSS_H */

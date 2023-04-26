@@ -129,10 +129,10 @@ struct dpu_encoder_phys_ops {
 /**
  * enum dpu_intr_idx - dpu encoder interrupt index
  * @INTR_IDX_VSYNC:    Vsync interrupt for video mode panel
- * @INTR_IDX_PINGPONG: Pingpong done unterrupt for cmd mode panel
- * @INTR_IDX_UNDERRUN: Underrun unterrupt for video and cmd mode panel
- * @INTR_IDX_RDPTR:    Readpointer done unterrupt for cmd mode panel
- * @INTR_IDX_WB_DONE:  Writeback fone interrupt for virtual connector
+ * @INTR_IDX_PINGPONG: Pingpong done interrupt for cmd mode panel
+ * @INTR_IDX_UNDERRUN: Underrun interrupt for video and cmd mode panel
+ * @INTR_IDX_RDPTR:    Readpointer done interrupt for cmd mode panel
+ * @INTR_IDX_WB_DONE:  Writeback done interrupt for virtual connector
  */
 enum dpu_intr_idx {
 	INTR_IDX_VSYNC,
@@ -176,6 +176,7 @@ enum dpu_intr_idx {
  *                              pending.
  * @pending_kickoff_wq:		Wait queue for blocking until kickoff completes
  * @irq:			IRQ indices
+ * @has_intf_te:		Interface TE configuration support
  */
 struct dpu_encoder_phys {
 	struct drm_encoder *parent;
@@ -200,6 +201,7 @@ struct dpu_encoder_phys {
 	atomic_t pending_kickoff_cnt;
 	wait_queue_head_t pending_kickoff_wq;
 	int irq[INTR_IDX_MAX];
+	bool has_intf_te;
 };
 
 static inline int dpu_encoder_phys_inc_pending(struct dpu_encoder_phys *phys)

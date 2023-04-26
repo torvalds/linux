@@ -60,6 +60,16 @@ struct intf_status {
  *                     feed pixels to this interface
  * @setup_misr: enable/disable MISR
  * @collect_misr: read MISR signature
+ * @enable_tearcheck:           Enables vsync generation and sets up init value of read
+ *                              pointer and programs the tear check configuration
+ * @disable_tearcheck:          Disables tearcheck block
+ * @connect_external_te:        Read, modify, write to either set or clear listening to external TE
+ *                              Return: 1 if TE was originally connected, 0 if not, or -ERROR
+ * @get_vsync_info:             Provides the programmed and current line_count
+ * @setup_autorefresh:          Configure and enable the autorefresh config
+ * @get_autorefresh:            Retrieve autorefresh config from hardware
+ *                              Return: 0 on success, -ETIMEDOUT on timeout
+ * @vsync_sel:                  Select vsync signal for tear-effect configuration
  */
 struct dpu_hw_intf_ops {
 	void (*setup_timing_gen)(struct dpu_hw_intf *intf,
@@ -82,6 +92,21 @@ struct dpu_hw_intf_ops {
 			const enum dpu_pingpong pp);
 	void (*setup_misr)(struct dpu_hw_intf *intf, bool enable, u32 frame_count);
 	int (*collect_misr)(struct dpu_hw_intf *intf, u32 *misr_value);
+
+	// Tearcheck on INTF since DPU 5.0.0
+
+	int (*enable_tearcheck)(struct dpu_hw_intf *intf, struct dpu_hw_tear_check *cfg);
+
+	int (*disable_tearcheck)(struct dpu_hw_intf *intf);
+
+	int (*connect_external_te)(struct dpu_hw_intf *intf, bool enable_external_te);
+
+	void (*vsync_sel)(struct dpu_hw_intf *intf, u32 vsync_source);
+
+	/**
+	 * Disable autorefresh if enabled
+	 */
+	void (*disable_autorefresh)(struct dpu_hw_intf *intf, uint32_t encoder_id, u16 vdisplay);
 };
 
 struct dpu_hw_intf {

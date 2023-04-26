@@ -8,6 +8,9 @@
 #include "dpu_hw_catalog.h"
 #include "dpu_hw_intf.h"
 #include "dpu_kms.h"
+#include "dpu_trace.h"
+
+#include <linux/iopoll.h>
 
 #define INTF_TIMING_ENGINE_EN           0x000
 #define INTF_CONFIG                     0x004
@@ -64,6 +67,24 @@
 
 #define INTF_MUX                        0x25C
 #define INTF_STATUS                     0x26C
+#define INTF_AVR_CONTROL                0x270
+#define INTF_AVR_MODE                   0x274
+#define INTF_AVR_TRIGGER                0x278
+#define INTF_AVR_VTOTAL                 0x27C
+#define INTF_TEAR_MDP_VSYNC_SEL         0x280
+#define INTF_TEAR_TEAR_CHECK_EN         0x284
+#define INTF_TEAR_SYNC_CONFIG_VSYNC     0x288
+#define INTF_TEAR_SYNC_CONFIG_HEIGHT    0x28C
+#define INTF_TEAR_SYNC_WRCOUNT          0x290
+#define INTF_TEAR_VSYNC_INIT_VAL        0x294
+#define INTF_TEAR_INT_COUNT_VAL         0x298
+#define INTF_TEAR_SYNC_THRESH           0x29C
+#define INTF_TEAR_START_POS             0x2A0
+#define INTF_TEAR_RD_PTR_IRQ            0x2A4
+#define INTF_TEAR_WR_PTR_IRQ            0x2A8
+#define INTF_TEAR_OUT_LINE_COUNT        0x2AC
+#define INTF_TEAR_LINE_COUNT            0x2B0
+#define INTF_TEAR_AUTOREFRESH_CONFIG    0x2B4
 
 #define INTF_CFG_ACTIVE_H_EN	BIT(29)
 #define INTF_CFG_ACTIVE_V_EN	BIT(30)
@@ -307,6 +328,191 @@ static int dpu_hw_intf_collect_misr(struct dpu_hw_intf *intf, u32 *misr_value)
 	return dpu_hw_collect_misr(&intf->hw, INTF_MISR_CTRL, INTF_MISR_SIGNATURE, misr_value);
 }
 
+static int dpu_hw_intf_enable_te(struct dpu_hw_intf *intf,
+		struct dpu_hw_tear_check *te)
+{
+	struct dpu_hw_blk_reg_map *c;
+	int cfg;
+
+	if (!intf)
+		return -EINVAL;
+
+	c = &intf->hw;
+
+	cfg = BIT(19); /* VSYNC_COUNTER_EN */
+	if (te->hw_vsync_mode)
+		cfg |= BIT(20);
+
+	cfg |= te->vsync_count;
+
+	DPU_REG_WRITE(c, INTF_TEAR_SYNC_CONFIG_VSYNC, cfg);
+	DPU_REG_WRITE(c, INTF_TEAR_SYNC_CONFIG_HEIGHT, te->sync_cfg_height);
+	DPU_REG_WRITE(c, INTF_TEAR_VSYNC_INIT_VAL, te->vsync_init_val);
+	DPU_REG_WRITE(c, INTF_TEAR_RD_PTR_IRQ, te->rd_ptr_irq);
+	DPU_REG_WRITE(c, INTF_TEAR_START_POS, te->start_pos);
+	DPU_REG_WRITE(c, INTF_TEAR_SYNC_THRESH,
+			((te->sync_threshold_continue << 16) |
+			 te->sync_threshold_start));
+	DPU_REG_WRITE(c, INTF_TEAR_SYNC_WRCOUNT,
+			(te->start_pos + te->sync_threshold_start + 1));
+
+	DPU_REG_WRITE(c, INTF_TEAR_TEAR_CHECK_EN, 1);
+
+	return 0;
+}
+
+static void dpu_hw_intf_setup_autorefresh_config(struct dpu_hw_intf *intf,
+		u32 frame_count, bool enable)
+{
+	struct dpu_hw_blk_reg_map *c;
+	u32 refresh_cfg;
+
+	c = &intf->hw;
+	refresh_cfg = DPU_REG_READ(c, INTF_TEAR_AUTOREFRESH_CONFIG);
+	if (enable)
+		refresh_cfg = BIT(31) | frame_count;
+	else
+		refresh_cfg &= ~BIT(31);
+
+	DPU_REG_WRITE(c, INTF_TEAR_AUTOREFRESH_CONFIG, refresh_cfg);
+}
+
+/*
+ * dpu_hw_intf_get_autorefresh_config - Get autorefresh config from HW
+ * @intf:        DPU intf structure
+ * @frame_count: Used to return the current frame count from hw
+ *
+ * Returns: True if autorefresh enabled, false if disabled.
+ */
+static bool dpu_hw_intf_get_autorefresh_config(struct dpu_hw_intf *intf,
+		u32 *frame_count)
+{
+	u32 val = DPU_REG_READ(&intf->hw, INTF_TEAR_AUTOREFRESH_CONFIG);
+
+	if (frame_count != NULL)
+		*frame_count = val & 0xffff;
+	return !!((val & BIT(31)) >> 31);
+}
+
+static int dpu_hw_intf_disable_te(struct dpu_hw_intf *intf)
+{
+	struct dpu_hw_blk_reg_map *c;
+
+	if (!intf)
+		return -EINVAL;
+
+	c = &intf->hw;
+	DPU_REG_WRITE(c, INTF_TEAR_TEAR_CHECK_EN, 0);
+	return 0;
+}
+
+static int dpu_hw_intf_connect_external_te(struct dpu_hw_intf *intf,
+		bool enable_external_te)
+{
+	struct dpu_hw_blk_reg_map *c = &intf->hw;
+	u32 cfg;
+	int orig;
+
+	if (!intf)
+		return -EINVAL;
+
+	c = &intf->hw;
+	cfg = DPU_REG_READ(c, INTF_TEAR_SYNC_CONFIG_VSYNC);
+	orig = (bool)(cfg & BIT(20));
+	if (enable_external_te)
+		cfg |= BIT(20);
+	else
+		cfg &= ~BIT(20);
+	DPU_REG_WRITE(c, INTF_TEAR_SYNC_CONFIG_VSYNC, cfg);
+	trace_dpu_intf_connect_ext_te(intf->idx - INTF_0, cfg);
+
+	return orig;
+}
+
+static int dpu_hw_intf_get_vsync_info(struct dpu_hw_intf *intf,
+		struct dpu_hw_pp_vsync_info *info)
+{
+	struct dpu_hw_blk_reg_map *c = &intf->hw;
+	u32 val;
+
+	if (!intf || !info)
+		return -EINVAL;
+
+	c = &intf->hw;
+
+	val = DPU_REG_READ(c, INTF_TEAR_VSYNC_INIT_VAL);
+	info->rd_ptr_init_val = val & 0xffff;
+
+	val = DPU_REG_READ(c, INTF_TEAR_INT_COUNT_VAL);
+	info->rd_ptr_frame_count = (val & 0xffff0000) >> 16;
+	info->rd_ptr_line_count = val & 0xffff;
+
+	val = DPU_REG_READ(c, INTF_TEAR_LINE_COUNT);
+	info->wr_ptr_line_count = val & 0xffff;
+
+	val = DPU_REG_READ(c, INTF_FRAME_COUNT);
+	info->intf_frame_count = val;
+
+	return 0;
+}
+
+static void dpu_hw_intf_vsync_sel(struct dpu_hw_intf *intf,
+		u32 vsync_source)
+{
+	struct dpu_hw_blk_reg_map *c;
+
+	if (!intf)
+		return;
+
+	c = &intf->hw;
+
+	DPU_REG_WRITE(c, INTF_TEAR_MDP_VSYNC_SEL, (vsync_source & 0xf));
+}
+
+static void dpu_hw_intf_disable_autorefresh(struct dpu_hw_intf *intf,
+					    uint32_t encoder_id, u16 vdisplay)
+{
+	struct dpu_hw_pp_vsync_info info;
+	int trial = 0;
+
+	/* If autorefresh is already disabled, we have nothing to do */
+	if (!dpu_hw_intf_get_autorefresh_config(intf, NULL))
+		return;
+
+	/*
+	 * If autorefresh is enabled, disable it and make sure it is safe to
+	 * proceed with current frame commit/push. Sequence followed is,
+	 * 1. Disable TE
+	 * 2. Disable autorefresh config
+	 * 4. Poll for frame transfer ongoing to be false
+	 * 5. Enable TE back
+	 */
+
+	dpu_hw_intf_connect_external_te(intf, false);
+	dpu_hw_intf_setup_autorefresh_config(intf, 0, false);
+
+	do {
+		udelay(DPU_ENC_MAX_POLL_TIMEOUT_US);
+		if ((trial * DPU_ENC_MAX_POLL_TIMEOUT_US)
+				> (KICKOFF_TIMEOUT_MS * USEC_PER_MSEC)) {
+			DPU_ERROR("enc%d intf%d disable autorefresh failed\n",
+				  encoder_id, intf->idx - INTF_0);
+			break;
+		}
+
+		trial++;
+
+		dpu_hw_intf_get_vsync_info(intf, &info);
+	} while (info.wr_ptr_line_count > 0 &&
+		 info.wr_ptr_line_count < vdisplay);
+
+	dpu_hw_intf_connect_external_te(intf, true);
+
+	DPU_DEBUG("enc%d intf%d disabled autorefresh\n",
+		  encoder_id, intf->idx - INTF_0);
+
+}
+
 static void _setup_intf_ops(struct dpu_hw_intf_ops *ops,
 		unsigned long cap)
 {
@@ -319,6 +525,14 @@ static void _setup_intf_ops(struct dpu_hw_intf_ops *ops,
 		ops->bind_pingpong_blk = dpu_hw_intf_bind_pingpong_blk;
 	ops->setup_misr = dpu_hw_intf_setup_misr;
 	ops->collect_misr = dpu_hw_intf_collect_misr;
+
+	if (cap & BIT(DPU_INTF_TE)) {
+		ops->enable_tearcheck = dpu_hw_intf_enable_te;
+		ops->disable_tearcheck = dpu_hw_intf_disable_te;
+		ops->connect_external_te = dpu_hw_intf_connect_external_te;
+		ops->vsync_sel = dpu_hw_intf_vsync_sel;
+		ops->disable_autorefresh = dpu_hw_intf_disable_autorefresh;
+	}
 }
 
 struct dpu_hw_intf *dpu_hw_intf_init(const struct dpu_intf_cfg *cfg,
