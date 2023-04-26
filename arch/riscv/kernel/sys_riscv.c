@@ -103,8 +103,10 @@ static void hwprobe_arch_id(struct riscv_hwprobe *pair,
 			break;
 		}
 
-		if (first)
+		if (first) {
 			id = cpu_id;
+			first = false;
+		}
 
 		/*
 		 * If there's a mismatch for the given set, return -1 in the
