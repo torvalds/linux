@@ -617,7 +617,6 @@ struct btrfs_device *btrfs_alloc_device(struct btrfs_fs_info *fs_info,
 					const u64 *devid, const u8 *uuid,
 					const char *path);
 void btrfs_put_dev_args_from_path(struct btrfs_dev_lookup_args *args);
-void btrfs_free_device(struct btrfs_device *device);
 int btrfs_rm_device(struct btrfs_fs_info *fs_info,
 		    struct btrfs_dev_lookup_args *args,
 		    struct block_device **bdev, fmode_t *mode);
