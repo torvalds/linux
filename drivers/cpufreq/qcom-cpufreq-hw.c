@@ -418,7 +418,7 @@ static void qcom_lmh_dcvs_notify(struct qcom_cpufreq_data *data)
 		dev_pm_opp_put(opp);
 
 	throttled_freq = freq_hz / HZ_PER_KHZ;
-	trace_dcvsh_freq(cpu, qcom_cpufreq_hw_get(cpu), throttled_freq);
+	trace_dcvsh_freq(cpu, qcom_cpufreq_get_freq(cpu), throttled_freq);
 
 	/*
 	 * In the unlikely case policy is unregistered do not enable
