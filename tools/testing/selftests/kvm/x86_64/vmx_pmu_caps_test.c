@@ -236,6 +236,7 @@ int main(int argc, char *argv[])
 {
 	union perf_capabilities host_cap;
 
+	TEST_REQUIRE(get_kvm_param_bool("enable_pmu"));
 	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_PDCM));
 
 	TEST_REQUIRE(kvm_cpu_has_p(X86_PROPERTY_PMU_VERSION));
