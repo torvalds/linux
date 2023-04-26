@@ -19,7 +19,7 @@ struct cxl_cxims_data {
 
 /*
  * Find a targets entry (n) in the host bridge interleave list.
- * CXL Specfication 3.0 Table 9-22
+ * CXL Specification 3.0 Table 9-22
  */
 static int cxl_xor_calc_n(u64 hpa, struct cxl_cxims_data *cximsd, int iw,
 			  int ig)
@@ -731,7 +731,8 @@ static void __exit cxl_acpi_exit(void)
 	cxl_bus_drain();
 }
 
-module_init(cxl_acpi_init);
+/* load before dax_hmem sees 'Soft Reserved' CXL ranges */
+subsys_initcall(cxl_acpi_init);
 module_exit(cxl_acpi_exit);
 MODULE_LICENSE("GPL v2");
 MODULE_IMPORT_NS(CXL);

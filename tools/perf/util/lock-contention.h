@@ -65,6 +65,11 @@ struct lock_stat {
  */
 #define MAX_LOCK_DEPTH 48
 
+struct lock_stat *lock_stat_find(u64 addr);
+struct lock_stat *lock_stat_findnew(u64 addr, const char *name, int flags);
+
+bool match_callstack_filter(struct machine *machine, u64 *callstack);
+
 /*
  * struct lock_seq_stat:
  * Place to put on state of one lock sequence
@@ -128,6 +133,8 @@ struct lock_contention {
 	int max_stack;
 	int stack_skip;
 	int aggr_mode;
+	int owner;
+	bool save_callstack;
 };
 
 #ifdef HAVE_BPF_SKEL

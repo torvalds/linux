@@ -37,6 +37,14 @@ config DRM_PANEL_ASUS_Z00T_TM5P5_NT35596
 	  NT35596 1080x1920 video mode panel as found in some Asus
 	  Zenfone 2 Laser Z00T devices.
 
+config DRM_PANEL_AUO_A030JTN01
+	tristate "AUO A030JTN01"
+	depends on SPI
+	select REGMAP_SPI
+	help
+	  Say Y here to enable support for the AUO A030JTN01 320x480 3.0" panel
+	  as found in the YLM RS-97 handheld gaming console.
+
 config DRM_PANEL_BOE_BF060Y8M_AJ0
 	tristate "Boe BF060Y8M-AJ0 panel"
 	depends on OF
@@ -153,6 +161,18 @@ config DRM_PANEL_FEIYANG_FY07024DI26A30D
 	help
 	  Say Y if you want to enable support for panels based on the
 	  Feiyang FY07024DI26A30-D MIPI-DSI interface.
+
+config DRM_PANEL_HIMAX_HX8394
+	tristate "HIMAX HX8394 MIPI-DSI LCD panels"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y if you want to enable support for panels based on the
+	  Himax HX8394 controller, such as the HannStar HSD060BHW4
+	  720x1440 TFT LCD panel that uses a MIPI-DSI interface.
+
+	  If M is selected the module will be called panel-himax-hx8394.
 
 config DRM_PANEL_ILITEK_IL9322
 	tristate "Ilitek ILI9322 320x240 QVGA panels"
@@ -399,6 +419,15 @@ config DRM_PANEL_OLIMEX_LCD_OLINUXINO
 
 	  Say Y here if you want to enable support for Olimex Ltd.
 	  LCD-OLinuXino panel.
+
+config DRM_PANEL_ORISETECH_OTA5601A
+        tristate "Orise Technology ota5601a RGB/SPI panel"
+        depends on SPI
+        depends on BACKLIGHT_CLASS_DEVICE
+        select REGMAP_SPI
+        help
+          Say Y here if you want to enable support for the panels built
+          around the Orise Technology OTA9601A display controller.
 
 config DRM_PANEL_ORISETECH_OTM8009A
 	tristate "Orise Technology otm8009a 480x800 dsi 2dl panel"
@@ -716,6 +745,15 @@ config DRM_PANEL_VISIONOX_RM69299
 	help
 	  Say Y here if you want to enable support for Visionox
 	  RM69299  DSI Video Mode panel.
+
+config DRM_PANEL_VISIONOX_VTDR6130
+	tristate "Visionox VTDR6130"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for Visionox
+	  VTDR6130 1080x2400 AMOLED DSI panel.
 
 config DRM_PANEL_WIDECHIPS_WS2401
 	tristate "Widechips WS2401 DPI panel driver"

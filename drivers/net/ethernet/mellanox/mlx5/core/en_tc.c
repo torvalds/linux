@@ -1048,61 +1048,6 @@ static int mlx5e_hairpin_get_prio(struct mlx5e_priv *priv,
 	return 0;
 }
 
-static int debugfs_hairpin_queues_set(void *data, u64 val)
-{
-	struct mlx5e_hairpin_params *hp = data;
-
-	if (!val) {
-		mlx5_core_err(hp->mdev,
-			      "Number of hairpin queues must be > 0\n");
-		return -EINVAL;
-	}
-
-	hp->num_queues = val;
-
-	return 0;
-}
-
-static int debugfs_hairpin_queues_get(void *data, u64 *val)
-{
-	struct mlx5e_hairpin_params *hp = data;
-
-	*val = hp->num_queues;
-
-	return 0;
-}
-DEFINE_DEBUGFS_ATTRIBUTE(fops_hairpin_queues, debugfs_hairpin_queues_get,
-			 debugfs_hairpin_queues_set, "%llu\n");
-
-static int debugfs_hairpin_queue_size_set(void *data, u64 val)
-{
-	struct mlx5e_hairpin_params *hp = data;
-
-	if (val > BIT(MLX5_CAP_GEN(hp->mdev, log_max_hairpin_num_packets))) {
-		mlx5_core_err(hp->mdev,
-			      "Invalid hairpin queue size, must be <= %lu\n",
-			      BIT(MLX5_CAP_GEN(hp->mdev,
-					       log_max_hairpin_num_packets)));
-		return -EINVAL;
-	}
-
-	hp->queue_size = roundup_pow_of_two(val);
-
-	return 0;
-}
-
-static int debugfs_hairpin_queue_size_get(void *data, u64 *val)
-{
-	struct mlx5e_hairpin_params *hp = data;
-
-	*val = hp->queue_size;
-
-	return 0;
-}
-DEFINE_DEBUGFS_ATTRIBUTE(fops_hairpin_queue_size,
-			 debugfs_hairpin_queue_size_get,
-			 debugfs_hairpin_queue_size_set, "%llu\n");
-
 static int debugfs_hairpin_num_active_get(void *data, u64 *val)
 {
 	struct mlx5e_tc_table *tc = data;
@@ -1148,10 +1093,6 @@ static void mlx5e_tc_debugfs_init(struct mlx5e_tc_table *tc,
 
 	tc->dfs_root = debugfs_create_dir("tc", dfs_root);
 
-	debugfs_create_file("hairpin_num_queues", 0644, tc->dfs_root,
-			    &tc->hairpin_params, &fops_hairpin_queues);
-	debugfs_create_file("hairpin_queue_size", 0644, tc->dfs_root,
-			    &tc->hairpin_params, &fops_hairpin_queue_size);
 	debugfs_create_file("hairpin_num_active", 0444, tc->dfs_root, tc,
 			    &fops_hairpin_num_active);
 	debugfs_create_file("hairpin_table_dump", 0444, tc->dfs_root, tc,
@@ -1162,8 +1103,8 @@ static void
 mlx5e_hairpin_params_init(struct mlx5e_hairpin_params *hairpin_params,
 			  struct mlx5_core_dev *mdev)
 {
+	u32 link_speed = 0;
 	u64 link_speed64;
-	u32 link_speed;
 
 	hairpin_params->mdev = mdev;
 	/* set hairpin pair per each 50Gbs share of the link */
@@ -3811,7 +3752,7 @@ mlx5e_clone_flow_attr_for_post_act(struct mlx5_flow_attr *attr,
 	parse_attr->filter_dev = attr->parse_attr->filter_dev;
 	attr2->action = 0;
 	attr2->counter = NULL;
-	attr->tc_act_cookies_count = 0;
+	attr2->tc_act_cookies_count = 0;
 	attr2->flags = 0;
 	attr2->parse_attr = parse_attr;
 	attr2->dest_chain = 0;
@@ -4363,6 +4304,7 @@ int mlx5e_set_fwd_to_int_port_actions(struct mlx5e_priv *priv,
 
 	esw_attr->dest_int_port = dest_int_port;
 	esw_attr->dests[out_index].flags |= MLX5_ESW_DEST_CHAIN_WITH_SRC_PORT_CHANGE;
+	esw_attr->split_count = out_index;
 
 	/* Forward to root fdb for matching against the new source vport */
 	attr->dest_chain = 0;
@@ -5363,8 +5305,10 @@ int mlx5e_tc_nic_init(struct mlx5e_priv *priv)
 	mlx5e_tc_debugfs_init(tc, mlx5e_fs_get_debugfs_root(priv->fs));
 
 	tc->action_stats_handle = mlx5e_tc_act_stats_create();
-	if (IS_ERR(tc->action_stats_handle))
+	if (IS_ERR(tc->action_stats_handle)) {
+		err = PTR_ERR(tc->action_stats_handle);
 		goto err_act_stats;
+	}
 
 	return 0;
 
@@ -5499,8 +5443,10 @@ int mlx5e_tc_esw_init(struct mlx5_rep_uplink_priv *uplink_priv)
 	}
 
 	uplink_priv->action_stats_handle = mlx5e_tc_act_stats_create();
-	if (IS_ERR(uplink_priv->action_stats_handle))
+	if (IS_ERR(uplink_priv->action_stats_handle)) {
+		err = PTR_ERR(uplink_priv->action_stats_handle);
 		goto err_action_counter;
+	}
 
 	return 0;
 
@@ -5522,6 +5468,16 @@ err_tun_mapping:
 
 void mlx5e_tc_esw_cleanup(struct mlx5_rep_uplink_priv *uplink_priv)
 {
+	struct mlx5e_rep_priv *rpriv;
+	struct mlx5_eswitch *esw;
+	struct mlx5e_priv *priv;
+
+	rpriv = container_of(uplink_priv, struct mlx5e_rep_priv, uplink_priv);
+	priv = netdev_priv(rpriv->netdev);
+	esw = priv->mdev->priv.eswitch;
+
+	mlx5e_tc_clean_fdb_peer_flows(esw);
+
 	mlx5e_tc_tun_cleanup(uplink_priv->encap);
 
 	mapping_destroy(uplink_priv->tunnel_enc_opts_mapping);

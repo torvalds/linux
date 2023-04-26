@@ -6,6 +6,7 @@ config DRM_AMDGPU
 	select FW_LOADER
 	select DRM_DISPLAY_DP_HELPER
 	select DRM_DISPLAY_HDMI_HELPER
+	select DRM_DISPLAY_HDCP_HELPER
 	select DRM_DISPLAY_HELPER
 	select DRM_KMS_HELPER
 	select DRM_SCHED
@@ -13,6 +14,8 @@ config DRM_AMDGPU
 	select DRM_TTM_HELPER
 	select POWER_SUPPLY
 	select HWMON
+	select I2C
+	select I2C_ALGOBIT
 	select BACKLIGHT_CLASS_DEVICE
 	select INTERVAL_TREE
 	select DRM_BUDDY

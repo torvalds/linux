@@ -5,7 +5,7 @@ Kernel Lock Torture Test Operation
 CONFIG_LOCK_TORTURE_TEST
 ========================
 
-The CONFIG LOCK_TORTURE_TEST config option provides a kernel module
+The CONFIG_LOCK_TORTURE_TEST config option provides a kernel module
 that runs torture tests on core kernel locking primitives. The kernel
 module, 'locktorture', may be built after the fact on the running
 kernel to be tested, if desired. The tests periodically output status
@@ -67,7 +67,7 @@ torture_type
 
 		     - "rtmutex_lock":
 				rtmutex_lock() and rtmutex_unlock() pairs.
-				Kernel must have CONFIG_RT_MUTEX=y.
+				Kernel must have CONFIG_RT_MUTEXES=y.
 
 		     - "rwsem_lock":
 				read/write down() and up() semaphore pairs.

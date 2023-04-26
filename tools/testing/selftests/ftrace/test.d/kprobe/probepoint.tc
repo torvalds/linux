@@ -21,7 +21,7 @@ set_offs() { # prev target next
 
 # We have to decode symbol addresses to get correct offsets.
 # If the offset is not an instruction boundary, it cause -EILSEQ.
-set_offs `grep -A1 -B1 ${TARGET_FUNC} /proc/kallsyms | cut -f 1 -d " " | xargs`
+set_offs `grep -v __pfx_ /proc/kallsyms | grep -A1 -B1 ${TARGET_FUNC} | cut -f 1 -d " " | xargs`
 
 UINT_TEST=no
 # printf "%x" -1 returns (unsigned long)-1.

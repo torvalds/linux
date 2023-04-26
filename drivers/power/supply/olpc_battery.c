@@ -568,7 +568,7 @@ static ssize_t olpc_bat_error_read(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return sprintf(buf, "%d\n", ec_byte);
+	return sysfs_emit(buf, "%d\n", ec_byte);
 }
 
 static struct device_attribute olpc_bat_error = {

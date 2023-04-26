@@ -74,8 +74,9 @@ let ppo = to-r | to-w | fence | (po-unlock-lock-po & int)
 
 (* Propagation: Ordering from release operations and strong fences. *)
 let A-cumul(r) = (rfe ; [Marked])? ; r
+let rmw-sequence = (rf ; rmw)*
 let cumul-fence = [Marked] ; (A-cumul(strong-fence | po-rel) | wmb |
-	po-unlock-lock-po) ; [Marked]
+	po-unlock-lock-po) ; [Marked] ; rmw-sequence
 let prop = [Marked] ; (overwrite & ext)? ; cumul-fence* ;
 	[Marked] ; rfe? ; [Marked]
 
@@ -174,7 +175,7 @@ let vis = cumul-fence* ; rfe? ; [Marked] ;
 let w-pre-bounded = [Marked] ; (addr | fence)?
 let r-pre-bounded = [Marked] ; (addr | nonrw-fence |
 	([R4rmb] ; fencerel(Rmb) ; [~Noreturn]))?
-let w-post-bounded = fence? ; [Marked]
+let w-post-bounded = fence? ; [Marked] ; rmw-sequence
 let r-post-bounded = (nonrw-fence | ([~Noreturn] ; fencerel(Rmb) ; [R4rmb]))? ;
 	[Marked]
 

@@ -21,4 +21,11 @@ struct xhci_plat_priv {
 
 #define hcd_to_xhci_priv(h) ((struct xhci_plat_priv *)hcd_to_xhci(h)->priv)
 #define xhci_to_priv(x) ((struct xhci_plat_priv *)(x)->priv)
+
+int xhci_plat_probe(struct platform_device *pdev, struct device *sysdev,
+		    const struct xhci_plat_priv *priv_match);
+
+int xhci_plat_remove(struct platform_device *dev);
+extern const struct dev_pm_ops xhci_plat_pm_ops;
+
 #endif	/* _XHCI_PLAT_H */

@@ -565,8 +565,7 @@ static int blinkm_detect(struct i2c_client *client, struct i2c_board_info *info)
 	return 0;
 }
 
-static int blinkm_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int blinkm_probe(struct i2c_client *client)
 {
 	struct blinkm_data *data;
 	struct blinkm_led *led[3];
@@ -731,7 +730,7 @@ static struct i2c_driver blinkm_driver = {
 	.driver = {
 		   .name = "blinkm",
 		   },
-	.probe = blinkm_probe,
+	.probe_new = blinkm_probe,
 	.remove = blinkm_remove,
 	.id_table = blinkm_id,
 	.detect = blinkm_detect,

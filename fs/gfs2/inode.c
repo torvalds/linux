@@ -225,6 +225,10 @@ fail:
 		gfs2_glock_dq_uninit(&ip->i_iopen_gh);
 	if (gfs2_holder_initialized(&i_gh))
 		gfs2_glock_dq_uninit(&i_gh);
+	if (ip->i_gl) {
+		gfs2_glock_put(ip->i_gl);
+		ip->i_gl = NULL;
+	}
 	iget_failed(inode);
 	return ERR_PTR(error);
 }
@@ -816,6 +820,10 @@ fail_gunlock3:
 fail_gunlock2:
 	gfs2_glock_put(io_gl);
 fail_free_inode:
+	if (ip->i_gl) {
+		gfs2_glock_put(ip->i_gl);
+		ip->i_gl = NULL;
+	}
 	gfs2_rs_deltree(&ip->i_res);
 	gfs2_qa_put(ip);
 fail_free_acls:

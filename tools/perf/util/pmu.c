@@ -19,6 +19,7 @@
 #include <regex.h>
 #include <perf/cpumap.h>
 #include <fnmatch.h>
+#include <math.h>
 #include "debug.h"
 #include "evsel.h"
 #include "pmu.h"
@@ -107,13 +108,9 @@ int perf_pmu__format_parse(char *dir, struct list_head *head)
 static int pmu_format(const char *name, struct list_head *format)
 {
 	char path[PATH_MAX];
-	const char *sysfs = sysfs__mountpoint();
 
-	if (!sysfs)
+	if (!perf_pmu__pathname_scnprintf(path, sizeof(path), name, "format"))
 		return -1;
-
-	snprintf(path, PATH_MAX,
-		 "%s" EVENT_SOURCE_DEVICE_PATH "%s/format", sysfs, name);
 
 	if (!file_available(path))
 		return 0;
@@ -283,10 +280,6 @@ static void perf_pmu_update_alias(struct perf_pmu_alias *old,
 	perf_pmu_assign_str(old->name, "long_desc", &old->long_desc,
 			    &newalias->long_desc);
 	perf_pmu_assign_str(old->name, "topic", &old->topic, &newalias->topic);
-	perf_pmu_assign_str(old->name, "metric_expr", &old->metric_expr,
-			    &newalias->metric_expr);
-	perf_pmu_assign_str(old->name, "metric_name", &old->metric_name,
-			    &newalias->metric_name);
 	perf_pmu_assign_str(old->name, "value", &old->str, &newalias->str);
 	old->scale = newalias->scale;
 	old->per_pkg = newalias->per_pkg;
@@ -302,8 +295,6 @@ void perf_pmu_free_alias(struct perf_pmu_alias *newalias)
 	zfree(&newalias->long_desc);
 	zfree(&newalias->topic);
 	zfree(&newalias->str);
-	zfree(&newalias->metric_expr);
-	zfree(&newalias->metric_name);
 	zfree(&newalias->pmu_name);
 	parse_events_terms__purge(&newalias->terms);
 	free(newalias);
@@ -340,16 +331,13 @@ static int __perf_pmu__new_alias(struct list_head *list, char *dir, char *name,
 	int num;
 	char newval[256];
 	char *long_desc = NULL, *topic = NULL, *unit = NULL, *perpkg = NULL,
-	     *metric_expr = NULL, *metric_name = NULL, *deprecated = NULL,
-	     *pmu_name = NULL;
+	     *deprecated = NULL, *pmu_name = NULL;
 
 	if (pe) {
 		long_desc = (char *)pe->long_desc;
 		topic = (char *)pe->topic;
 		unit = (char *)pe->unit;
 		perpkg = (char *)pe->perpkg;
-		metric_expr = (char *)pe->metric_expr;
-		metric_name = (char *)pe->metric_name;
 		deprecated = (char *)pe->deprecated;
 		pmu_name = (char *)pe->pmu;
 	}
@@ -404,8 +392,6 @@ static int __perf_pmu__new_alias(struct list_head *list, char *dir, char *name,
 		perf_pmu__parse_snapshot(alias, dir, name);
 	}
 
-	alias->metric_expr = metric_expr ? strdup(metric_expr) : NULL;
-	alias->metric_name = metric_name ? strdup(metric_name): NULL;
 	alias->desc = desc ? strdup(desc) : NULL;
 	alias->long_desc = long_desc ? strdup(long_desc) :
 				desc ? strdup(desc) : NULL;
@@ -513,13 +499,9 @@ static int pmu_aliases_parse(char *dir, struct list_head *head)
 static int pmu_aliases(const char *name, struct list_head *head)
 {
 	char path[PATH_MAX];
-	const char *sysfs = sysfs__mountpoint();
 
-	if (!sysfs)
+	if (!perf_pmu__pathname_scnprintf(path, sizeof(path), name, "events"))
 		return -1;
-
-	snprintf(path, PATH_MAX,
-		 "%s/bus/event_source/devices/%s/events", sysfs, name);
 
 	if (!file_available(path))
 		return 0;
@@ -554,51 +536,15 @@ static int pmu_alias_terms(struct perf_pmu_alias *alias,
 	return 0;
 }
 
-/*
- * Reading/parsing the default pmu type value, which should be
- * located at:
- * /sys/bus/event_source/devices/<dev>/type as sysfs attribute.
- */
-static int pmu_type(const char *name, __u32 *type)
-{
-	char path[PATH_MAX];
-	FILE *file;
-	int ret = 0;
-	const char *sysfs = sysfs__mountpoint();
-
-	if (!sysfs)
-		return -1;
-
-	snprintf(path, PATH_MAX,
-		 "%s" EVENT_SOURCE_DEVICE_PATH "%s/type", sysfs, name);
-
-	if (access(path, R_OK) < 0)
-		return -1;
-
-	file = fopen(path, "r");
-	if (!file)
-		return -EINVAL;
-
-	if (1 != fscanf(file, "%u", type))
-		ret = -1;
-
-	fclose(file);
-	return ret;
-}
-
 /* Add all pmus in sysfs to pmu list: */
 static void pmu_read_sysfs(void)
 {
 	char path[PATH_MAX];
 	DIR *dir;
 	struct dirent *dent;
-	const char *sysfs = sysfs__mountpoint();
 
-	if (!sysfs)
+	if (!perf_pmu__event_source_devices_scnprintf(path, sizeof(path)))
 		return;
-
-	snprintf(path, PATH_MAX,
-		 "%s" EVENT_SOURCE_DEVICE_PATH, sysfs);
 
 	dir = opendir(path);
 	if (!dir)
@@ -614,45 +560,29 @@ static void pmu_read_sysfs(void)
 	closedir(dir);
 }
 
-static struct perf_cpu_map *__pmu_cpumask(const char *path)
-{
-	FILE *file;
-	struct perf_cpu_map *cpus;
-
-	file = fopen(path, "r");
-	if (!file)
-		return NULL;
-
-	cpus = perf_cpu_map__read(file);
-	fclose(file);
-	return cpus;
-}
-
 /*
  * Uncore PMUs have a "cpumask" file under sysfs. CPU PMUs (e.g. on arm/arm64)
  * may have a "cpus" file.
  */
-#define SYS_TEMPLATE_ID	"./bus/event_source/devices/%s/identifier"
-#define CPUS_TEMPLATE_UNCORE	"%s/bus/event_source/devices/%s/cpumask"
-
 static struct perf_cpu_map *pmu_cpumask(const char *name)
 {
-	char path[PATH_MAX];
 	struct perf_cpu_map *cpus;
-	const char *sysfs = sysfs__mountpoint();
 	const char *templates[] = {
-		CPUS_TEMPLATE_UNCORE,
-		CPUS_TEMPLATE_CPU,
+		"cpumask",
+		"cpus",
 		NULL
 	};
 	const char **template;
+	char pmu_name[PATH_MAX];
+	struct perf_pmu pmu = {.name = pmu_name};
+	FILE *file;
 
-	if (!sysfs)
-		return NULL;
-
+	strlcpy(pmu_name, name, sizeof(pmu_name));
 	for (template = templates; *template; template++) {
-		snprintf(path, PATH_MAX, *template, sysfs, name);
-		cpus = __pmu_cpumask(path);
+		file = perf_pmu__open_file(&pmu, *template);
+		if (!file)
+			continue;
+		cpus = perf_cpu_map__read(file);
 		if (cpus)
 			return cpus;
 	}
@@ -663,13 +593,11 @@ static struct perf_cpu_map *pmu_cpumask(const char *name)
 static bool pmu_is_uncore(const char *name)
 {
 	char path[PATH_MAX];
-	const char *sysfs;
 
 	if (perf_pmu__hybrid_mounted(name))
 		return false;
 
-	sysfs = sysfs__mountpoint();
-	snprintf(path, PATH_MAX, CPUS_TEMPLATE_UNCORE, sysfs, name);
+	perf_pmu__pathname_scnprintf(path, sizeof(path), name, "cpumask");
 	return file_available(path);
 }
 
@@ -678,9 +606,9 @@ static char *pmu_id(const char *name)
 	char path[PATH_MAX], *str;
 	size_t len;
 
-	snprintf(path, PATH_MAX, SYS_TEMPLATE_ID, name);
+	perf_pmu__pathname_scnprintf(path, sizeof(path), name, "identifier");
 
-	if (sysfs__read_str(path, &str, &len) < 0)
+	if (filename__read_str(path, &str, &len) < 0)
 		return NULL;
 
 	str[len - 1] = 0; /* remove line feed */
@@ -696,14 +624,9 @@ static char *pmu_id(const char *name)
 static int is_arm_pmu_core(const char *name)
 {
 	char path[PATH_MAX];
-	const char *sysfs = sysfs__mountpoint();
 
-	if (!sysfs)
+	if (!perf_pmu__pathname_scnprintf(path, sizeof(path), name, "cpus"))
 		return 0;
-
-	/* Look for cpu sysfs (specific to arm) */
-	scnprintf(path, PATH_MAX, "%s/bus/event_source/devices/%s/cpus",
-				sysfs, name);
 	return file_available(path);
 }
 
@@ -729,7 +652,12 @@ char *perf_pmu__getcpuid(struct perf_pmu *pmu)
 
 __weak const struct pmu_events_table *pmu_events_table__find(void)
 {
-	return perf_pmu__find_table(NULL);
+	return perf_pmu__find_events_table(NULL);
+}
+
+__weak const struct pmu_metrics_table *pmu_metrics_table__find(void)
+{
+	return perf_pmu__find_metrics_table(NULL);
 }
 
 /*
@@ -822,9 +750,6 @@ static int pmu_add_cpu_aliases_map_callback(const struct pmu_event *pe,
 	struct pmu_add_cpu_aliases_map_data *data = vdata;
 	const char *pname = pe->pmu ? pe->pmu : data->cpu_name;
 
-	if (!pe->name)
-		return 0;
-
 	if (data->pmu->is_uncore && pmu_uncore_alias_match(pname, data->name))
 		goto new_alias;
 
@@ -860,7 +785,7 @@ static void pmu_add_cpu_aliases(struct list_head *head, struct perf_pmu *pmu)
 {
 	const struct pmu_events_table *table;
 
-	table = perf_pmu__find_table(pmu);
+	table = perf_pmu__find_events_table(pmu);
 	if (!table)
 		return;
 
@@ -878,12 +803,6 @@ static int pmu_add_sys_aliases_iter_fn(const struct pmu_event *pe,
 {
 	struct pmu_sys_event_iter_data *idata = data;
 	struct perf_pmu *pmu = idata->pmu;
-
-	if (!pe->name) {
-		if (pe->metric_group || pe->metric_name)
-			return 0;
-		return -EINVAL;
-	}
 
 	if (!pe->compat || !pe->pmu)
 		return 0;
@@ -931,16 +850,11 @@ pmu_find_alias_name(const char *name __maybe_unused)
 	return NULL;
 }
 
-static int pmu_max_precise(const char *name)
+static int pmu_max_precise(struct perf_pmu *pmu)
 {
-	char path[PATH_MAX];
 	int max_precise = -1;
 
-	scnprintf(path, PATH_MAX,
-		 "bus/event_source/devices/%s/caps/max_precise",
-		 name);
-
-	sysfs__read_int(path, &max_precise);
+	perf_pmu__scan_file(pmu, "caps/max_precise", "%d", &max_precise);
 	return max_precise;
 }
 
@@ -969,11 +883,8 @@ static struct perf_pmu *pmu_lookup(const char *lookup_name)
 		return NULL;
 
 	/*
-	 * Check the type first to avoid unnecessary work.
+	 * Check the aliases first to avoid unnecessary work.
 	 */
-	if (pmu_type(name, &type))
-		return NULL;
-
 	if (pmu_aliases(name, &aliases))
 		return NULL;
 
@@ -983,7 +894,12 @@ static struct perf_pmu *pmu_lookup(const char *lookup_name)
 
 	pmu->cpus = pmu_cpumask(name);
 	pmu->name = strdup(name);
+
 	if (!pmu->name)
+		goto err;
+
+	/* Read type, and ensure that type value is successfully assigned (return 1) */
+	if (perf_pmu__scan_file(pmu, "type", "%u", &type) != 1)
 		goto err;
 
 	alias_name = pmu_find_alias_name(name);
@@ -997,7 +913,7 @@ static struct perf_pmu *pmu_lookup(const char *lookup_name)
 	pmu->is_uncore = pmu_is_uncore(name);
 	if (pmu->is_uncore)
 		pmu->id = pmu_id(name);
-	pmu->max_precise = pmu_max_precise(name);
+	pmu->max_precise = pmu_max_precise(pmu);
 	pmu_add_cpu_aliases(&aliases, pmu);
 	pmu_add_sys_aliases(&aliases, pmu);
 
@@ -1469,8 +1385,6 @@ int perf_pmu__check_alias(struct perf_pmu *pmu, struct list_head *head_terms,
 	info->unit     = NULL;
 	info->scale    = 0.0;
 	info->snapshot = false;
-	info->metric_expr = NULL;
-	info->metric_name = NULL;
 
 	list_for_each_entry_safe(term, h, head_terms, list) {
 		alias = pmu_find_alias(pmu, term);
@@ -1486,8 +1400,6 @@ int perf_pmu__check_alias(struct perf_pmu *pmu, struct list_head *head_terms,
 
 		if (alias->per_pkg)
 			info->per_pkg = true;
-		info->metric_expr = alias->metric_expr;
-		info->metric_name = alias->metric_name;
 
 		list_del_init(&term->list);
 		parse_events_term__delete(term);
@@ -1703,8 +1615,7 @@ void print_pmu_events(const struct print_callbacks *print_cb, void *print_state)
 	for (j = 0; j < len; j++) {
 		const char *name, *alias = NULL, *scale_unit = NULL,
 			*desc = NULL, *long_desc = NULL,
-			*encoding_desc = NULL, *topic = NULL,
-			*metric_name = NULL, *metric_expr = NULL;
+			*encoding_desc = NULL, *topic = NULL;
 		bool deprecated = false;
 		size_t buf_used;
 
@@ -1742,8 +1653,6 @@ void print_pmu_events(const struct print_callbacks *print_cb, void *print_state)
 			buf_used += snprintf(buf + buf_used, sizeof(buf) - buf_used,
 					"%s/%s/", aliases[j].pmu->name,
 					aliases[j].event->str) + 1;
-			metric_name = aliases[j].event->metric_name;
-			metric_expr = aliases[j].event->metric_expr;
 			deprecated = aliases[j].event->deprecated;
 		}
 		print_cb->print_event(print_state,
@@ -1756,9 +1665,7 @@ void print_pmu_events(const struct print_callbacks *print_cb, void *print_state)
 				"Kernel PMU event",
 				desc,
 				long_desc,
-				encoding_desc,
-				metric_name,
-				metric_expr);
+				encoding_desc);
 	}
 	if (printed && pager_in_use())
 		printf("\n");
@@ -1783,19 +1690,14 @@ bool pmu_have_event(const char *pname, const char *name)
 	return false;
 }
 
-static FILE *perf_pmu__open_file(struct perf_pmu *pmu, const char *name)
+FILE *perf_pmu__open_file(struct perf_pmu *pmu, const char *name)
 {
 	char path[PATH_MAX];
-	const char *sysfs;
 
-	sysfs = sysfs__mountpoint();
-	if (!sysfs)
+	if (!perf_pmu__pathname_scnprintf(path, sizeof(path), pmu->name, name) ||
+	    !file_available(path))
 		return NULL;
 
-	snprintf(path, PATH_MAX,
-		 "%s" EVENT_SOURCE_DEVICE_PATH "%s/%s", sysfs, pmu->name, name);
-	if (!file_available(path))
-		return NULL;
 	return fopen(path, "r");
 }
 
@@ -1814,6 +1716,16 @@ int perf_pmu__scan_file(struct perf_pmu *pmu, const char *name, const char *fmt,
 	}
 	va_end(args);
 	return ret;
+}
+
+bool perf_pmu__file_exists(struct perf_pmu *pmu, const char *name)
+{
+	char path[PATH_MAX];
+
+	if (!perf_pmu__pathname_scnprintf(path, sizeof(path), pmu->name, name))
+		return false;
+
+	return file_available(path);
 }
 
 static int perf_pmu__new_caps(struct list_head *list, char *name, char *value)
@@ -1849,7 +1761,6 @@ int perf_pmu__caps_parse(struct perf_pmu *pmu)
 {
 	struct stat st;
 	char caps_path[PATH_MAX];
-	const char *sysfs = sysfs__mountpoint();
 	DIR *caps_dir;
 	struct dirent *evt_ent;
 
@@ -1858,11 +1769,8 @@ int perf_pmu__caps_parse(struct perf_pmu *pmu)
 
 	pmu->nr_caps = 0;
 
-	if (!sysfs)
+	if (!perf_pmu__pathname_scnprintf(caps_path, sizeof(caps_path), pmu->name, "caps"))
 		return -1;
-
-	snprintf(caps_path, PATH_MAX,
-		 "%s" EVENT_SOURCE_DEVICE_PATH "%s/caps", sysfs, pmu->name);
 
 	if (stat(caps_path, &st) < 0) {
 		pmu->caps_initialized = true;
@@ -1992,4 +1900,37 @@ int perf_pmu__cpus_match(struct perf_pmu *pmu, struct perf_cpu_map *cpus,
 	*mcpus_ptr = matched_cpus;
 	*ucpus_ptr = unmatched_cpus;
 	return 0;
+}
+
+double __weak perf_pmu__cpu_slots_per_cycle(void)
+{
+	return NAN;
+}
+
+int perf_pmu__event_source_devices_scnprintf(char *pathname, size_t size)
+{
+	const char *sysfs = sysfs__mountpoint();
+
+	if (!sysfs)
+		return 0;
+	return scnprintf(pathname, size, "%s/bus/event_source/devices/", sysfs);
+}
+
+/*
+ * Fill 'buf' with the path to a file or folder in 'pmu_name' in
+ * sysfs. For example if pmu_name = "cs_etm" and 'filename' = "format"
+ * then pathname will be filled with
+ * "/sys/bus/event_source/devices/cs_etm/format"
+ *
+ * Return 0 if the sysfs mountpoint couldn't be found or if no
+ * characters were written.
+ */
+int perf_pmu__pathname_scnprintf(char *buf, size_t size,
+				 const char *pmu_name, const char *filename)
+{
+	char base_path[PATH_MAX];
+
+	if (!perf_pmu__event_source_devices_scnprintf(base_path, sizeof(base_path)))
+		return 0;
+	return scnprintf(buf, size, "%s%s/%s", base_path, pmu_name, filename);
 }

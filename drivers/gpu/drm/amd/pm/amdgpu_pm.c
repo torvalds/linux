@@ -3063,7 +3063,7 @@ static ssize_t amdgpu_hwmon_show_mclk_label(struct device *dev,
  *
  * hwmon interfaces for GPU power:
  *
- * - power1_average: average power used by the GPU in microWatts
+ * - power1_average: average power used by the SoC in microWatts.  On APUs this includes the CPU.
  *
  * - power1_cap_min: minimum cap supported in microWatts
  *

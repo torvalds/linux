@@ -8,6 +8,7 @@
 #include <linux/delay.h>
 
 #include <drm/drm.h>
+#include <drm/drm_crtc_helper.h>
 
 #include "cdv_device.h"
 #include "gma_device.h"

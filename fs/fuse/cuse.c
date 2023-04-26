@@ -256,7 +256,7 @@ static int cuse_parse_one(char **pp, char *end, char **keyp, char **valp)
 }
 
 /**
- * cuse_parse_dev_info - parse device info
+ * cuse_parse_devinfo - parse device info
  * @p: device info string
  * @len: length of device info string
  * @devinfo: out parameter for parsed device info

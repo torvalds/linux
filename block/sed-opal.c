@@ -487,6 +487,8 @@ static int opal_discovery0_end(struct opal_dev *dev)
 			break;
 		case FC_SINGLEUSER:
 			single_user = check_sum(body->features);
+			if (single_user)
+				dev->flags |= OPAL_FL_SUM_SUPPORTED;
 			break;
 		case FC_GEOMETRY:
 			check_geometry(dev, body);

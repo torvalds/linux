@@ -19,10 +19,10 @@ config SUNRPC_SWAP
 config RPCSEC_GSS_KRB5
 	tristate "Secure RPC: Kerberos V mechanism"
 	depends on SUNRPC && CRYPTO
-	depends on CRYPTO_MD5 && CRYPTO_DES && CRYPTO_CBC && CRYPTO_CTS
-	depends on CRYPTO_ECB && CRYPTO_HMAC && CRYPTO_SHA1 && CRYPTO_AES
 	default y
 	select SUNRPC_GSS
+	select CRYPTO_SKCIPHER
+	select CRYPTO_HASH
 	help
 	  Choose Y here to enable Secure RPC using the Kerberos version 5
 	  GSS-API mechanism (RFC 1964).
@@ -34,21 +34,93 @@ config RPCSEC_GSS_KRB5
 
 	  If unsure, say Y.
 
-config SUNRPC_DISABLE_INSECURE_ENCTYPES
-	bool "Secure RPC: Disable insecure Kerberos encryption types"
+config RPCSEC_GSS_KRB5_SIMPLIFIED
+	bool
 	depends on RPCSEC_GSS_KRB5
-	default n
-	help
-	  Choose Y here to disable the use of deprecated encryption types
-	  with the Kerberos version 5 GSS-API mechanism (RFC 1964). The
-	  deprecated encryption types include DES-CBC-MD5, DES-CBC-CRC,
-	  and DES-CBC-MD4. These types were deprecated by RFC 6649 because
-	  they were found to be insecure.
 
-	  N is the default because many sites have deployed KDCs and
-	  keytabs that contain only these deprecated encryption types.
-	  Choosing Y prevents the use of known-insecure encryption types
-	  but might result in compatibility problems.
+config RPCSEC_GSS_KRB5_CRYPTOSYSTEM
+	bool
+	depends on RPCSEC_GSS_KRB5
+
+config RPCSEC_GSS_KRB5_ENCTYPES_DES
+	bool "Enable Kerberos enctypes based on DES (deprecated)"
+	depends on RPCSEC_GSS_KRB5
+	depends on CRYPTO_CBC && CRYPTO_CTS && CRYPTO_ECB
+	depends on CRYPTO_HMAC && CRYPTO_MD5 && CRYPTO_SHA1
+	depends on CRYPTO_DES
+	default n
+	select RPCSEC_GSS_KRB5_SIMPLIFIED
+	help
+	  Choose Y to enable the use of deprecated Kerberos 5
+	  encryption types that utilize Data Encryption Standard
+	  (DES) based ciphers. These include des-cbc-md5,
+	  des-cbc-crc, and des-cbc-md4, which were deprecated by
+	  RFC 6649, and des3-cbc-sha1, which was deprecated by RFC
+	  8429.
+
+	  These encryption types are known to be insecure, therefore
+	  the default setting of this option is N. Support for these
+	  encryption types is available only for compatibility with
+	  legacy NFS client and server implementations.
+
+	  Removal of support is planned for a subsequent kernel
+	  release.
+
+config RPCSEC_GSS_KRB5_ENCTYPES_AES_SHA1
+	bool "Enable Kerberos enctypes based on AES and SHA-1"
+	depends on RPCSEC_GSS_KRB5
+	depends on CRYPTO_CBC && CRYPTO_CTS
+	depends on CRYPTO_HMAC && CRYPTO_SHA1
+	depends on CRYPTO_AES
+	default y
+	select RPCSEC_GSS_KRB5_CRYPTOSYSTEM
+	help
+	  Choose Y to enable the use of Kerberos 5 encryption types
+	  that utilize Advanced Encryption Standard (AES) ciphers and
+	  SHA-1 digests. These include aes128-cts-hmac-sha1-96 and
+	  aes256-cts-hmac-sha1-96.
+
+config RPCSEC_GSS_KRB5_ENCTYPES_CAMELLIA
+	bool "Enable Kerberos encryption types based on Camellia and CMAC"
+	depends on RPCSEC_GSS_KRB5
+	depends on CRYPTO_CBC && CRYPTO_CTS && CRYPTO_CAMELLIA
+	depends on CRYPTO_CMAC
+	default n
+	select RPCSEC_GSS_KRB5_CRYPTOSYSTEM
+	help
+	  Choose Y to enable the use of Kerberos 5 encryption types
+	  that utilize Camellia ciphers (RFC 3713) and CMAC digests
+	  (NIST Special Publication 800-38B). These include
+	  camellia128-cts-cmac and camellia256-cts-cmac.
+
+config RPCSEC_GSS_KRB5_ENCTYPES_AES_SHA2
+	bool "Enable Kerberos enctypes based on AES and SHA-2"
+	depends on RPCSEC_GSS_KRB5
+	depends on CRYPTO_CBC && CRYPTO_CTS
+	depends on CRYPTO_HMAC && CRYPTO_SHA256 && CRYPTO_SHA512
+	depends on CRYPTO_AES
+	default n
+	select RPCSEC_GSS_KRB5_CRYPTOSYSTEM
+	help
+	  Choose Y to enable the use of Kerberos 5 encryption types
+	  that utilize Advanced Encryption Standard (AES) ciphers and
+	  SHA-2 digests. These include aes128-cts-hmac-sha256-128 and
+	  aes256-cts-hmac-sha384-192.
+
+config RPCSEC_GSS_KRB5_KUNIT_TEST
+	tristate "KUnit tests for RPCSEC GSS Kerberos" if !KUNIT_ALL_TESTS
+	depends on RPCSEC_GSS_KRB5 && KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This builds the KUnit tests for RPCSEC GSS Kerberos 5.
+
+	  KUnit tests run during boot and output the results to the debug
+	  log in TAP format (https://testanything.org/). Only useful for
+	  kernel devs running KUnit test harness and are not for inclusion
+	  into a production build.
+
+	  For more information on KUnit and unit tests in general, refer
+	  to the KUnit documentation in Documentation/dev-tools/kunit/.
 
 config SUNRPC_DEBUG
 	bool "RPC: Enable dprintk debugging"

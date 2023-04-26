@@ -198,30 +198,30 @@ examples:
     };
   - |
     i2c {
-      #address-cells = <1>;
-      #size-cells = <0>;
-
-      sensor@4c {
-        compatible = "adi,adt7481";
-        reg = <0x4c>;
         #address-cells = <1>;
         #size-cells = <0>;
 
-        channel@0 {
-          reg = <0x0>;
-          label = "local";
-        };
+        sensor@4c {
+            compatible = "adi,adt7481";
+            reg = <0x4c>;
+            #address-cells = <1>;
+            #size-cells = <0>;
 
-        channel@1 {
-          reg = <0x1>;
-          label = "front";
-          temperature-offset-millicelsius = <4000>;
-        };
+            channel@0 {
+                reg = <0x0>;
+                label = "local";
+            };
 
-        channel@2 {
-          reg = <0x2>;
-          label = "back";
-          temperature-offset-millicelsius = <750>;
+            channel@1 {
+                reg = <0x1>;
+                label = "front";
+                temperature-offset-millicelsius = <4000>;
+            };
+
+            channel@2 {
+                reg = <0x2>;
+                label = "back";
+                temperature-offset-millicelsius = <750>;
+            };
         };
-      };
     };

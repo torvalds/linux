@@ -8,7 +8,7 @@ JPEG Control Reference
 
 The JPEG class includes controls for common features of JPEG encoders
 and decoders. Currently it includes features for codecs implementing
-progressive baseline DCT compression process with Huffman entrophy
+progressive baseline DCT compression process with Huffman entropy
 coding.
 
 

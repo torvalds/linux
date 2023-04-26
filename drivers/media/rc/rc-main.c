@@ -1614,7 +1614,7 @@ static void rc_dev_release(struct device *device)
 	kfree(dev);
 }
 
-static int rc_dev_uevent(struct device *device, struct kobj_uevent_env *env)
+static int rc_dev_uevent(const struct device *device, struct kobj_uevent_env *env)
 {
 	struct rc_dev *dev = to_rc_dev(device);
 	int ret = 0;

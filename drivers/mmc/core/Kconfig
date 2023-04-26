@@ -15,7 +15,7 @@ config PWRSEQ_EMMC
 
 config PWRSEQ_SD8787
 	tristate "HW reset support for SD8787 BT + Wifi module"
-	depends on OF && (MWIFIEX || BT_MRVL_SDIO || LIBERTAS_SDIO || WILC1000_SDIO)
+	depends on OF && (MWIFIEX != n || BT_MRVL_SDIO != n || LIBERTAS_SDIO != n || WILC1000_SDIO != n)
 	help
 	  This selects hardware reset support for the SD8787 BT + Wifi
 	  module. By default this option is set to n.
@@ -37,6 +37,7 @@ config PWRSEQ_SIMPLE
 config MMC_BLOCK
 	tristate "MMC block device driver"
 	depends on BLOCK
+	imply IOSCHED_BFQ
 	default y
 	help
 	  Say Y here to enable the MMC block device driver support.

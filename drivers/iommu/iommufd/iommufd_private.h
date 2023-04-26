@@ -18,6 +18,8 @@ struct iommufd_ctx {
 	struct xarray objects;
 
 	u8 account_mode;
+	/* Compatibility with VFIO no iommu */
+	u8 no_iommu_mode;
 	struct iommufd_ioas *vfio_ioas;
 };
 

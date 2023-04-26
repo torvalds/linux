@@ -301,7 +301,7 @@ static int chv_rc6_init(struct intel_rc6 *rc6)
 	pcbr = intel_uncore_read(uncore, VLV_PCBR);
 	if ((pcbr >> VLV_PCBR_ADDR_SHIFT) == 0) {
 		drm_dbg(&i915->drm, "BIOS didn't set up PCBR, fixing up\n");
-		paddr = i915->dsm.end + 1 - pctx_size;
+		paddr = i915->dsm.stolen.end + 1 - pctx_size;
 		GEM_BUG_ON(paddr > U32_MAX);
 
 		pctx_paddr = (paddr & ~4095);
@@ -325,7 +325,7 @@ static int vlv_rc6_init(struct intel_rc6 *rc6)
 		/* BIOS set it up already, grab the pre-alloc'd space */
 		resource_size_t pcbr_offset;
 
-		pcbr_offset = (pcbr & ~4095) - i915->dsm.start;
+		pcbr_offset = (pcbr & ~4095) - i915->dsm.stolen.start;
 		pctx = i915_gem_object_create_region_at(i915->mm.stolen_region,
 							pcbr_offset,
 							pctx_size,
@@ -354,10 +354,10 @@ static int vlv_rc6_init(struct intel_rc6 *rc6)
 	}
 
 	GEM_BUG_ON(range_overflows_end_t(u64,
-					 i915->dsm.start,
+					 i915->dsm.stolen.start,
 					 pctx->stolen->start,
 					 U32_MAX));
-	pctx_paddr = i915->dsm.start + pctx->stolen->start;
+	pctx_paddr = i915->dsm.stolen.start + pctx->stolen->start;
 	intel_uncore_write(uncore, VLV_PCBR, pctx_paddr);
 
 out:
@@ -448,8 +448,8 @@ static bool bxt_check_bios_rc6_setup(struct intel_rc6 *rc6)
 	 */
 	rc6_ctx_base =
 		intel_uncore_read(uncore, RC6_CTX_BASE) & RC6_CTX_BASE_MASK;
-	if (!(rc6_ctx_base >= i915->dsm_reserved.start &&
-	      rc6_ctx_base + PAGE_SIZE < i915->dsm_reserved.end)) {
+	if (!(rc6_ctx_base >= i915->dsm.reserved.start &&
+	      rc6_ctx_base + PAGE_SIZE < i915->dsm.reserved.end)) {
 		drm_dbg(&i915->drm, "RC6 Base address not as expected.\n");
 		enable_rc6 = false;
 	}
@@ -486,6 +486,7 @@ static bool bxt_check_bios_rc6_setup(struct intel_rc6 *rc6)
 static bool rc6_supported(struct intel_rc6 *rc6)
 {
 	struct drm_i915_private *i915 = rc6_to_i915(rc6);
+	struct intel_gt *gt = rc6_to_gt(rc6);
 
 	if (!HAS_RC6(i915))
 		return false;
@@ -499,6 +500,13 @@ static bool rc6_supported(struct intel_rc6 *rc6)
 	if (IS_GEN9_LP(i915) && !bxt_check_bios_rc6_setup(rc6)) {
 		drm_notice(&i915->drm,
 			   "RC6 and powersaving disabled by BIOS\n");
+		return false;
+	}
+
+	if (IS_MTL_MEDIA_STEP(gt->i915, STEP_A0, STEP_B0) &&
+	    gt->type == GT_MEDIA) {
+		drm_notice(&i915->drm,
+			   "Media RC6 disabled on A step\n");
 		return false;
 	}
 

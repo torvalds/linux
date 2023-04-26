@@ -1,0 +1,141 @@
+# SPDX-License-Identifier: GPL-2.0
+
+comment "Parallel IDE protocol modules"
+	depends on PATA_PARPORT
+
+config PATA_PARPORT_ATEN
+	tristate "ATEN EH-100 protocol"
+	depends on PATA_PARPORT
+	help
+	  This option enables support for the ATEN EH-100 parallel port IDE
+	  protocol. This protocol is used in some inexpensive low performance
+	  parallel port kits made in Hong Kong.
+
+config PATA_PARPORT_BPCK
+	tristate "MicroSolutions backpack (Series 5) protocol"
+	depends on PATA_PARPORT
+	help
+	  This option enables support for the Micro Solutions BACKPACK
+	  parallel port Series 5 IDE protocol.  (Most BACKPACK drives made
+	  before 1999 were Series 5) Series 5 drives will NOT always have the
+	  Series noted on the bottom of the drive. Series 6 drivers will.
+
+	  In other words, if your BACKPACK drive doesn't say "Series 6" on the
+	  bottom, enable this option.
+
+config PATA_PARPORT_BPCK6
+	tristate "MicroSolutions backpack (Series 6) protocol"
+	depends on (PATA_PARPORT) && !64BIT
+	help
+	  This option enables support for the Micro Solutions BACKPACK
+	  parallel port Series 6 IDE protocol.  (Most BACKPACK drives made
+	  after 1999 were Series 6) Series 6 drives will have the Series noted
+	  on the bottom of the drive.  Series 5 drivers don't always have it
+	  noted.
+
+	  In other words, if your BACKPACK drive says "Series 6" on the
+	  bottom, enable this option.
+
+config PATA_PARPORT_COMM
+	tristate "DataStor Commuter protocol"
+	depends on PATA_PARPORT
+	help
+	  This option enables support for the Commuter parallel port IDE
+	  protocol from DataStor.
+
+config PATA_PARPORT_DSTR
+	tristate "DataStor EP-2000 protocol"
+	depends on PATA_PARPORT
+	help
+	  This option enables support for the EP-2000 parallel port IDE
+	  protocol from DataStor
+
+config PATA_PARPORT_FIT2
+	tristate "FIT TD-2000 protocol"
+	depends on PATA_PARPORT
+	help
+	  This option enables support for the TD-2000 parallel port IDE
+	  protocol from Fidelity International Technology. This is a simple
+	  (low speed) adapter that is used in some portable hard drives.
+
+config PATA_PARPORT_FIT3
+	tristate "FIT TD-3000 protocol"
+	depends on PATA_PARPORT
+	help
+	  This option enables support for the TD-3000 parallel port IDE
+	  protocol from Fidelity International Technology. This protocol is
+	  used in newer models of their portable disk, CD-ROM and PD/CD
+	  devices.
+
+config PATA_PARPORT_EPAT
+	tristate "Shuttle EPAT/EPEZ protocol"
+	depends on PATA_PARPORT
+	help
+	  This option enables support for the EPAT parallel port IDE protocol.
+	  EPAT is a parallel port IDE adapter manufactured by Shuttle
+	  Technology and widely used in devices from major vendors such as
+	  Hewlett-Packard, SyQuest, Imation and Avatar.
+
+config PATA_PARPORT_EPATC8
+	bool "Support c7/c8 chips"
+	depends on PATA_PARPORT_EPAT
+	help
+	  This option enables support for the newer Shuttle EP1284 (aka c7 and
+	  c8) chip. You need this if you are using any recent Imation SuperDisk
+	  (LS-120) drive.
+
+config PATA_PARPORT_EPIA
+	tristate "Shuttle EPIA protocol"
+	depends on PATA_PARPORT
+	help
+	  This option enables support for the (obsolete) EPIA parallel port
+	  IDE protocol from Shuttle Technology. This adapter can still be
+	  found in some no-name kits.
+
+config PATA_PARPORT_FRIQ
+	tristate "Freecom IQ ASIC-2 protocol"
+	depends on PATA_PARPORT
+	help
+	  This option enables support for version 2 of the Freecom IQ parallel
+	  port IDE adapter.  This adapter is used by the Maxell Superdisk
+	  drive.
+
+config PATA_PARPORT_FRPW
+	tristate "FreeCom power protocol"
+	depends on PATA_PARPORT
+	help
+	  This option enables support for the Freecom power parallel port IDE
+	  protocol.
+
+config PATA_PARPORT_KBIC
+	tristate "KingByte KBIC-951A/971A protocols"
+	depends on PATA_PARPORT
+	help
+	  This option enables support for the KBIC-951A and KBIC-971A parallel
+	  port IDE protocols from KingByte Information Corp. KingByte's
+	  adapters appear in many no-name portable disk and CD-ROM products,
+	  especially in Europe.
+
+config PATA_PARPORT_KTTI
+	tristate "KT PHd protocol"
+	depends on PATA_PARPORT
+	help
+	  This option enables support for the "PHd" parallel port IDE protocol
+	  from KT Technology. This is a simple (low speed) adapter that is
+	  used in some 2.5" portable hard drives.
+
+config PATA_PARPORT_ON20
+	tristate "OnSpec 90c20 protocol"
+	depends on PATA_PARPORT
+	help
+	  This option enables support for the (obsolete) 90c20 parallel port
+	  IDE protocol from OnSpec (often marketed under the ValuStore brand
+	  name).
+
+config PATA_PARPORT_ON26
+	tristate "OnSpec 90c26 protocol"
+	depends on PATA_PARPORT
+	help
+	  This option enables support for the 90c26 parallel port IDE protocol
+	  from OnSpec Electronics (often marketed under the ValuStore brand
+	  name).

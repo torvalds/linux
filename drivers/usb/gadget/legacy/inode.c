@@ -614,7 +614,7 @@ ep_read_iter(struct kiocb *iocb, struct iov_iter *to)
 		if (!priv)
 			goto fail;
 		priv->to_free = dup_iter(&priv->to, to, GFP_KERNEL);
-		if (!priv->to_free) {
+		if (!iter_is_ubuf(&priv->to) && !priv->to_free) {
 			kfree(priv);
 			goto fail;
 		}

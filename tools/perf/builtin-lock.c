@@ -58,15 +58,27 @@ static struct rb_root		thread_stats;
 static bool combine_locks;
 static bool show_thread_stats;
 static bool show_lock_addrs;
+static bool show_lock_owner;
 static bool use_bpf;
 static unsigned long bpf_map_entries = 10240;
 static int max_stack_depth = CONTENTION_STACK_DEPTH;
 static int stack_skip = CONTENTION_STACK_SKIP;
 static int print_nr_entries = INT_MAX / 2;
+static LIST_HEAD(callstack_filters);
+
+struct callstack_filter {
+	struct list_head list;
+	char name[];
+};
 
 static struct lock_filter filters;
 
 static enum lock_aggr_mode aggr_mode = LOCK_AGGR_ADDR;
+
+static bool needs_callstack(void)
+{
+	return verbose > 0 || !list_empty(&callstack_filters);
+}
 
 static struct thread_stat *thread_stat_find(u32 tid)
 {
@@ -454,7 +466,7 @@ static struct lock_stat *pop_from_result(void)
 	return container_of(node, struct lock_stat, rb);
 }
 
-static struct lock_stat *lock_stat_find(u64 addr)
+struct lock_stat *lock_stat_find(u64 addr)
 {
 	struct hlist_head *entry = lockhashentry(addr);
 	struct lock_stat *ret;
@@ -466,7 +478,7 @@ static struct lock_stat *lock_stat_find(u64 addr)
 	return NULL;
 }
 
-static struct lock_stat *lock_stat_findnew(u64 addr, const char *name, int flags)
+struct lock_stat *lock_stat_findnew(u64 addr, const char *name, int flags)
 {
 	struct hlist_head *entry = lockhashentry(addr);
 	struct lock_stat *ret, *new;
@@ -496,6 +508,34 @@ static struct lock_stat *lock_stat_findnew(u64 addr, const char *name, int flags
 alloc_failed:
 	pr_err("memory allocation failed\n");
 	return NULL;
+}
+
+bool match_callstack_filter(struct machine *machine, u64 *callstack)
+{
+	struct map *kmap;
+	struct symbol *sym;
+	u64 ip;
+
+	if (list_empty(&callstack_filters))
+		return true;
+
+	for (int i = 0; i < max_stack_depth; i++) {
+		struct callstack_filter *filter;
+
+		if (!callstack || !callstack[i])
+			break;
+
+		ip = callstack[i];
+		sym = machine__find_kernel_symbol(machine, ip, &kmap);
+		if (sym == NULL)
+			continue;
+
+		list_for_each_entry(filter, &callstack_filters, list) {
+			if (strstr(sym->name, filter->name))
+				return true;
+		}
+	}
+	return false;
 }
 
 struct trace_lock_handler {
@@ -1059,12 +1099,6 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 		ls = lock_stat_findnew(key, name, flags);
 		if (!ls)
 			return -ENOMEM;
-
-		if (aggr_mode == LOCK_AGGR_CALLER && verbose > 0) {
-			ls->callstack = get_callstack(sample, max_stack_depth);
-			if (ls->callstack == NULL)
-				return -ENOMEM;
-		}
 	}
 
 	if (filters.nr_types) {
@@ -1093,6 +1127,22 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 
 		if (!found)
 			return 0;
+	}
+
+	if (needs_callstack()) {
+		u64 *callstack = get_callstack(sample, max_stack_depth);
+		if (callstack == NULL)
+			return -ENOMEM;
+
+		if (!match_callstack_filter(machine, callstack)) {
+			free(callstack);
+			return 0;
+		}
+
+		if (ls->callstack == NULL)
+			ls->callstack = callstack;
+		else
+			free(callstack);
 	}
 
 	ts = thread_stat_findnew(sample->tid);
@@ -1567,7 +1617,8 @@ static void print_contention_result(struct lock_contention *con)
 
 		switch (aggr_mode) {
 		case LOCK_AGGR_TASK:
-			pr_info("  %10s   %s\n\n", "pid", "comm");
+			pr_info("  %10s   %s\n\n", "pid",
+				show_lock_owner ? "owner" : "comm");
 			break;
 		case LOCK_AGGR_CALLER:
 			pr_info("  %10s   %s\n\n", "type", "caller");
@@ -1607,7 +1658,8 @@ static void print_contention_result(struct lock_contention *con)
 		case LOCK_AGGR_TASK:
 			pid = st->addr;
 			t = perf_session__findnew(session, pid);
-			pr_info("  %10d   %s\n", pid, thread__comm_str(t));
+			pr_info("  %10d   %s\n",
+				pid, pid == -1 ? "Unknown" : thread__comm_str(t));
 			break;
 		case LOCK_AGGR_ADDR:
 			pr_info("  %016llx   %s\n", (unsigned long long)st->addr,
@@ -1719,6 +1771,37 @@ static void sighandler(int sig __maybe_unused)
 {
 }
 
+static int check_lock_contention_options(const struct option *options,
+					 const char * const *usage)
+
+{
+	if (show_thread_stats && show_lock_addrs) {
+		pr_err("Cannot use thread and addr mode together\n");
+		parse_options_usage(usage, options, "threads", 0);
+		parse_options_usage(NULL, options, "lock-addr", 0);
+		return -1;
+	}
+
+	if (show_lock_owner && !use_bpf) {
+		pr_err("Lock owners are available only with BPF\n");
+		parse_options_usage(usage, options, "lock-owner", 0);
+		parse_options_usage(NULL, options, "use-bpf", 0);
+		return -1;
+	}
+
+	if (show_lock_owner && show_lock_addrs) {
+		pr_err("Cannot use owner and addr mode together\n");
+		parse_options_usage(usage, options, "lock-owner", 0);
+		parse_options_usage(NULL, options, "lock-addr", 0);
+		return -1;
+	}
+
+	if (show_lock_owner)
+		show_thread_stats = true;
+
+	return 0;
+}
+
 static int __cmd_contention(int argc, const char **argv)
 {
 	int err = -EINVAL;
@@ -1743,6 +1826,8 @@ static int __cmd_contention(int argc, const char **argv)
 		.max_stack = max_stack_depth,
 		.stack_skip = stack_skip,
 		.filters = &filters,
+		.save_callstack = needs_callstack(),
+		.owner = show_lock_owner,
 	};
 
 	session = perf_session__new(use_bpf ? NULL : &data, &eops);
@@ -1755,6 +1840,9 @@ static int __cmd_contention(int argc, const char **argv)
 
 	con.aggr_mode = aggr_mode = show_thread_stats ? LOCK_AGGR_TASK :
 		show_lock_addrs ? LOCK_AGGR_ADDR : LOCK_AGGR_CALLER;
+
+	if (con.aggr_mode == LOCK_AGGR_CALLER)
+		con.save_callstack = true;
 
 	/* for lock function check */
 	symbol_conf.sort_by_name = true;
@@ -2123,6 +2211,33 @@ static int parse_lock_addr(const struct option *opt __maybe_unused, const char *
 	return ret;
 }
 
+static int parse_call_stack(const struct option *opt __maybe_unused, const char *str,
+			   int unset __maybe_unused)
+{
+	char *s, *tmp, *tok;
+	int ret = 0;
+
+	s = strdup(str);
+	if (s == NULL)
+		return -1;
+
+	for (tok = strtok_r(s, ", ", &tmp); tok; tok = strtok_r(NULL, ", ", &tmp)) {
+		struct callstack_filter *entry;
+
+		entry = malloc(sizeof(*entry) + strlen(tok) + 1);
+		if (entry == NULL) {
+			pr_err("Memory allocation failure\n");
+			return -1;
+		}
+
+		strcpy(entry->name, tok);
+		list_add_tail(&entry->list, &callstack_filters);
+	}
+
+	free(s);
+	return ret;
+}
+
 int cmd_lock(int argc, const char **argv)
 {
 	const struct option lock_options[] = {
@@ -2190,6 +2305,9 @@ int cmd_lock(int argc, const char **argv)
 		     "Filter specific type of locks", parse_lock_type),
 	OPT_CALLBACK('L', "lock-filter", NULL, "ADDRS/NAMES",
 		     "Filter specific address/symbol of locks", parse_lock_addr),
+	OPT_CALLBACK('S', "callstack-filter", NULL, "NAMES",
+		     "Filter specific function in the callstack", parse_call_stack),
+	OPT_BOOLEAN('o', "lock-owner", &show_lock_owner, "show lock owners instead of waiters"),
 	OPT_PARENT(lock_options)
 	};
 
@@ -2260,14 +2378,9 @@ int cmd_lock(int argc, const char **argv)
 					     contention_usage, 0);
 		}
 
-		if (show_thread_stats && show_lock_addrs) {
-			pr_err("Cannot use thread and addr mode together\n");
-			parse_options_usage(contention_usage, contention_options,
-					    "threads", 0);
-			parse_options_usage(NULL, contention_options,
-					    "lock-addr", 0);
+		if (check_lock_contention_options(contention_options,
+						  contention_usage) < 0)
 			return -1;
-		}
 
 		rc = __cmd_contention(argc, argv);
 	} else {

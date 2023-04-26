@@ -29,10 +29,10 @@
 
 #include <linux/mm.h>
 
+#include <drm/ttm/ttm_bo.h>
 #include <drm/ttm/ttm_device.h>
 #include <drm/ttm/ttm_tt.h>
 #include <drm/ttm/ttm_placement.h>
-#include <drm/ttm/ttm_bo_api.h>
 
 #include "ttm_module.h"
 
@@ -158,7 +158,7 @@ int ttm_device_swapout(struct ttm_device *bdev, struct ttm_operation_ctx *ctx,
 			struct ttm_buffer_object *bo = res->bo;
 			uint32_t num_pages;
 
-			if (!bo)
+			if (!bo || bo->resource != res)
 				continue;
 
 			num_pages = PFN_UP(bo->base.size);
@@ -174,16 +174,6 @@ int ttm_device_swapout(struct ttm_device *bdev, struct ttm_operation_ctx *ctx,
 	return 0;
 }
 EXPORT_SYMBOL(ttm_device_swapout);
-
-static void ttm_device_delayed_workqueue(struct work_struct *work)
-{
-	struct ttm_device *bdev =
-		container_of(work, struct ttm_device, wq.work);
-
-	if (!ttm_bo_delayed_delete(bdev, false))
-		schedule_delayed_work(&bdev->wq,
-				      ((HZ / 100) < 1) ? 1 : HZ / 100);
-}
 
 /**
  * ttm_device_init
@@ -215,15 +205,19 @@ int ttm_device_init(struct ttm_device *bdev, struct ttm_device_funcs *funcs,
 	if (ret)
 		return ret;
 
+	bdev->wq = alloc_workqueue("ttm", WQ_MEM_RECLAIM | WQ_HIGHPRI, 16);
+	if (!bdev->wq) {
+		ttm_global_release();
+		return -ENOMEM;
+	}
+
 	bdev->funcs = funcs;
 
 	ttm_sys_man_init(bdev);
 	ttm_pool_init(&bdev->pool, dev, use_dma_alloc, use_dma32);
 
 	bdev->vma_manager = vma_manager;
-	INIT_DELAYED_WORK(&bdev->wq, ttm_device_delayed_workqueue);
 	spin_lock_init(&bdev->lru_lock);
-	INIT_LIST_HEAD(&bdev->ddestroy);
 	INIT_LIST_HEAD(&bdev->pinned);
 	bdev->dev_mapping = mapping;
 	mutex_lock(&ttm_global_mutex);
@@ -247,10 +241,8 @@ void ttm_device_fini(struct ttm_device *bdev)
 	list_del(&bdev->device_list);
 	mutex_unlock(&ttm_global_mutex);
 
-	cancel_delayed_work_sync(&bdev->wq);
-
-	if (ttm_bo_delayed_delete(bdev, true))
-		pr_debug("Delayed destroy list was clean\n");
+	drain_workqueue(bdev->wq);
+	destroy_workqueue(bdev->wq);
 
 	spin_lock(&bdev->lru_lock);
 	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i)

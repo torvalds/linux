@@ -280,14 +280,14 @@ int atomisp_freq_scaling(struct atomisp_device *isp,
 done:
 	dev_dbg(isp->dev, "DFS target frequency=%d.\n", new_freq);
 
-	if ((new_freq == isp->sw_contex.running_freq) && !force)
+	if ((new_freq == isp->running_freq) && !force)
 		return 0;
 
 	dev_dbg(isp->dev, "Programming DFS frequency to %d\n", new_freq);
 
 	ret = write_target_freq_to_hw(isp, new_freq);
 	if (!ret) {
-		isp->sw_contex.running_freq = new_freq;
+		isp->running_freq = new_freq;
 		trace_ipu_pstate(new_freq, -1);
 	}
 	return ret;
@@ -679,7 +679,8 @@ void atomisp_buffer_done(struct ia_css_frame *frame, enum vb2_buffer_state state
 	vb2_buffer_done(&frame->vb.vb2_buf, state);
 }
 
-void atomisp_flush_video_pipe(struct atomisp_video_pipe *pipe, bool warn_on_css_frames)
+void atomisp_flush_video_pipe(struct atomisp_video_pipe *pipe, enum vb2_buffer_state state,
+			      bool warn_on_css_frames)
 {
 	struct ia_css_frame *frame, *_frame;
 	unsigned long irqflags;
@@ -689,15 +690,15 @@ void atomisp_flush_video_pipe(struct atomisp_video_pipe *pipe, bool warn_on_css_
 	list_for_each_entry_safe(frame, _frame, &pipe->buffers_in_css, queue) {
 		if (warn_on_css_frames)
 			dev_warn(pipe->isp->dev, "Warning: CSS frames queued on flush\n");
-		atomisp_buffer_done(frame, VB2_BUF_STATE_ERROR);
+		atomisp_buffer_done(frame, state);
 	}
 
 	list_for_each_entry_safe(frame, _frame, &pipe->activeq, queue)
-		atomisp_buffer_done(frame, VB2_BUF_STATE_ERROR);
+		atomisp_buffer_done(frame, state);
 
 	list_for_each_entry_safe(frame, _frame, &pipe->buffers_waiting_for_param, queue) {
 		pipe->frame_request_config_id[frame->vb.vb2_buf.index] = 0;
-		atomisp_buffer_done(frame, VB2_BUF_STATE_ERROR);
+		atomisp_buffer_done(frame, state);
 	}
 
 	spin_unlock_irqrestore(&pipe->irq_lock, irqflags);
@@ -706,10 +707,10 @@ void atomisp_flush_video_pipe(struct atomisp_video_pipe *pipe, bool warn_on_css_
 /* Returns queued buffers back to video-core */
 void atomisp_flush_bufs_and_wakeup(struct atomisp_sub_device *asd)
 {
-	atomisp_flush_video_pipe(&asd->video_out_capture, false);
-	atomisp_flush_video_pipe(&asd->video_out_vf, false);
-	atomisp_flush_video_pipe(&asd->video_out_preview, false);
-	atomisp_flush_video_pipe(&asd->video_out_video_capture, false);
+	atomisp_flush_video_pipe(&asd->video_out_capture, VB2_BUF_STATE_ERROR, false);
+	atomisp_flush_video_pipe(&asd->video_out_vf, VB2_BUF_STATE_ERROR, false);
+	atomisp_flush_video_pipe(&asd->video_out_preview, VB2_BUF_STATE_ERROR, false);
+	atomisp_flush_video_pipe(&asd->video_out_video_capture, VB2_BUF_STATE_ERROR, false);
 }
 
 /* clean out the parameters that did not apply */
@@ -4211,25 +4212,6 @@ int atomisp_digital_zoom(struct atomisp_sub_device *asd, int flag,
 	return 0;
 }
 
-/*
- * Function to get sensor specific info for current resolution,
- * which will be used for auto exposure conversion.
- */
-int atomisp_get_sensor_mode_data(struct atomisp_sub_device *asd,
-				 struct atomisp_sensor_mode_data *config)
-{
-	struct camera_mipi_info *mipi_info;
-	struct atomisp_device *isp = asd->isp;
-
-	mipi_info = atomisp_to_sensor_mipi_info(
-			isp->inputs[asd->input_curr].camera);
-	if (!mipi_info)
-		return -EINVAL;
-
-	memcpy(config, &mipi_info->data, sizeof(*config));
-	return 0;
-}
-
 static void __atomisp_update_stream_env(struct atomisp_sub_device *asd,
 					u16 stream_index, struct atomisp_input_stream_info *stream_info)
 {
@@ -5010,7 +4992,6 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 	struct v4l2_subdev_format vformat = {
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
 	};
-	struct v4l2_mbus_framefmt *ffmt = &vformat.format;
 	struct v4l2_rect isp_sink_crop;
 	u16 source_pad = atomisp_subdev_source_pad(vdev);
 	struct v4l2_subdev_fh fh;
@@ -5049,17 +5030,17 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 	/* Ensure that the resolution is equal or below the maximum supported */
 
 	vformat.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-	v4l2_fill_mbus_format(ffmt, &f->fmt.pix, format_bridge->mbus_code);
-	ffmt->height += padding_h;
-	ffmt->width += padding_w;
+	v4l2_fill_mbus_format(&vformat.format, &f->fmt.pix, format_bridge->mbus_code);
+	vformat.format.height += padding_h;
+	vformat.format.width += padding_w;
 
 	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera, pad,
 			       set_fmt, NULL, &vformat);
 	if (ret)
 		return ret;
 
-	f->fmt.pix.width = ffmt->width - padding_w;
-	f->fmt.pix.height = ffmt->height - padding_h;
+	f->fmt.pix.width = vformat.format.width - padding_w;
+	f->fmt.pix.height = vformat.format.height - padding_h;
 
 	snr_fmt = f->fmt.pix;
 	backup_fmt = snr_fmt;
@@ -5182,9 +5163,6 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 	if (!atomisp_subdev_format_conversion(asd, source_pad)) {
 		padding_w = 0;
 		padding_h = 0;
-	} else if (IS_BYT) {
-		padding_w = 12;
-		padding_h = 12;
 	}
 
 	/* construct resolution supported by isp */
@@ -5490,42 +5468,6 @@ out:
 		atomisp_css_shading_table_free(free_table);
 
 	return ret;
-}
-
-int atomisp_exif_makernote(struct atomisp_sub_device *asd,
-			   struct atomisp_makernote_info *config)
-{
-	struct v4l2_control ctrl;
-	struct atomisp_device *isp = asd->isp;
-
-	ctrl.id = V4L2_CID_FOCAL_ABSOLUTE;
-	if (v4l2_g_ctrl
-	    (isp->inputs[asd->input_curr].camera->ctrl_handler, &ctrl)) {
-		dev_warn(isp->dev, "failed to g_ctrl for focal length\n");
-		return -EINVAL;
-	} else {
-		config->focal_length = ctrl.value;
-	}
-
-	ctrl.id = V4L2_CID_FNUMBER_ABSOLUTE;
-	if (v4l2_g_ctrl
-	    (isp->inputs[asd->input_curr].camera->ctrl_handler, &ctrl)) {
-		dev_warn(isp->dev, "failed to g_ctrl for f-number\n");
-		return -EINVAL;
-	} else {
-		config->f_number_curr = ctrl.value;
-	}
-
-	ctrl.id = V4L2_CID_FNUMBER_RANGE;
-	if (v4l2_g_ctrl
-	    (isp->inputs[asd->input_curr].camera->ctrl_handler, &ctrl)) {
-		dev_warn(isp->dev, "failed to g_ctrl for f number range\n");
-		return -EINVAL;
-	} else {
-		config->f_number_range = ctrl.value;
-	}
-
-	return 0;
 }
 
 int atomisp_offline_capture_configure(struct atomisp_sub_device *asd,

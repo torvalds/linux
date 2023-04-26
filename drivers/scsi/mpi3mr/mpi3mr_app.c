@@ -293,7 +293,6 @@ out:
 static long mpi3mr_get_all_tgt_info(struct mpi3mr_ioc *mrioc,
 	struct bsg_job *job)
 {
-	long rval = -EINVAL;
 	u16 num_devices = 0, i = 0, size;
 	unsigned long flags;
 	struct mpi3mr_tgt_dev *tgtdev;
@@ -304,7 +303,7 @@ static long mpi3mr_get_all_tgt_info(struct mpi3mr_ioc *mrioc,
 	if (job->request_payload.payload_len < sizeof(u32)) {
 		dprint_bsg_err(mrioc, "%s: invalid size argument\n",
 		    __func__);
-		return rval;
+		return -EINVAL;
 	}
 
 	spin_lock_irqsave(&mrioc->tgtdev_lock, flags);
@@ -312,7 +311,7 @@ static long mpi3mr_get_all_tgt_info(struct mpi3mr_ioc *mrioc,
 		num_devices++;
 	spin_unlock_irqrestore(&mrioc->tgtdev_lock, flags);
 
-	if ((job->request_payload.payload_len == sizeof(u32)) ||
+	if ((job->request_payload.payload_len <= sizeof(u64)) ||
 		list_empty(&mrioc->tgtdev_list)) {
 		sg_copy_from_buffer(job->request_payload.sg_list,
 				    job->request_payload.sg_cnt,
@@ -320,14 +319,14 @@ static long mpi3mr_get_all_tgt_info(struct mpi3mr_ioc *mrioc,
 		return 0;
 	}
 
-	kern_entrylen = (num_devices - 1) * sizeof(*devmap_info);
-	size = sizeof(*alltgt_info) + kern_entrylen;
+	kern_entrylen = num_devices * sizeof(*devmap_info);
+	size = sizeof(u64) + kern_entrylen;
 	alltgt_info = kzalloc(size, GFP_KERNEL);
 	if (!alltgt_info)
 		return -ENOMEM;
 
 	devmap_info = alltgt_info->dmi;
-	memset((u8 *)devmap_info, 0xFF, (kern_entrylen + sizeof(*devmap_info)));
+	memset((u8 *)devmap_info, 0xFF, kern_entrylen);
 	spin_lock_irqsave(&mrioc->tgtdev_lock, flags);
 	list_for_each_entry(tgtdev, &mrioc->tgtdev_list, list) {
 		if (i < num_devices) {
@@ -344,25 +343,18 @@ static long mpi3mr_get_all_tgt_info(struct mpi3mr_ioc *mrioc,
 	num_devices = i;
 	spin_unlock_irqrestore(&mrioc->tgtdev_lock, flags);
 
-	memcpy(&alltgt_info->num_devices, &num_devices, sizeof(num_devices));
+	alltgt_info->num_devices = num_devices;
 
-	usr_entrylen = (job->request_payload.payload_len - sizeof(u32)) / sizeof(*devmap_info);
+	usr_entrylen = (job->request_payload.payload_len - sizeof(u64)) /
+		sizeof(*devmap_info);
 	usr_entrylen *= sizeof(*devmap_info);
 	min_entrylen = min(usr_entrylen, kern_entrylen);
-	if (min_entrylen && (!memcpy(&alltgt_info->dmi, devmap_info, min_entrylen))) {
-		dprint_bsg_err(mrioc, "%s:%d: device map info copy failed\n",
-		    __func__, __LINE__);
-		rval = -EFAULT;
-		goto out;
-	}
 
 	sg_copy_from_buffer(job->request_payload.sg_list,
 			    job->request_payload.sg_cnt,
-			    alltgt_info, job->request_payload.payload_len);
-	rval = 0;
-out:
+			    alltgt_info, (min_entrylen + sizeof(u64)));
 	kfree(alltgt_info);
-	return rval;
+	return 0;
 }
 /**
  * mpi3mr_get_change_count - Get topology change count
@@ -894,7 +886,7 @@ static int mpi3mr_build_nvme_prp(struct mpi3mr_ioc *mrioc,
 			 * each time through the loop.
 			 */
 			*prp_entry = cpu_to_le64(dma_addr);
-			if (*prp1_entry & sgemod_mask) {
+			if (*prp_entry & sgemod_mask) {
 				dprint_bsg_err(mrioc,
 				    "%s: PRP address collides with SGE modifier\n",
 				    __func__);
@@ -903,7 +895,7 @@ static int mpi3mr_build_nvme_prp(struct mpi3mr_ioc *mrioc,
 			*prp_entry &= ~sgemod_mask;
 			*prp_entry |= sgemod_val;
 			prp_entry++;
-			prp_entry_dma++;
+			prp_entry_dma += prp_size;
 		}
 
 		/*

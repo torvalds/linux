@@ -148,21 +148,20 @@ static int orangefs_writepages_work(struct orangefs_writepages *ow,
 	return ret;
 }
 
-static int orangefs_writepages_callback(struct page *page,
-    struct writeback_control *wbc, void *data)
+static int orangefs_writepages_callback(struct folio *folio,
+		struct writeback_control *wbc, void *data)
 {
 	struct orangefs_writepages *ow = data;
-	struct orangefs_write_range *wr;
+	struct orangefs_write_range *wr = folio->private;
 	int ret;
 
-	if (!PagePrivate(page)) {
-		unlock_page(page);
+	if (!wr) {
+		folio_unlock(folio);
 		/* It's not private so there's nothing to write, right? */
 		printk("writepages_callback not private!\n");
 		BUG();
 		return 0;
 	}
-	wr = (struct orangefs_write_range *)page_private(page);
 
 	ret = -1;
 	if (ow->npages == 0) {
@@ -170,7 +169,7 @@ static int orangefs_writepages_callback(struct page *page,
 		ow->len = wr->len;
 		ow->uid = wr->uid;
 		ow->gid = wr->gid;
-		ow->pages[ow->npages++] = page;
+		ow->pages[ow->npages++] = &folio->page;
 		ret = 0;
 		goto done;
 	}
@@ -182,7 +181,7 @@ static int orangefs_writepages_callback(struct page *page,
 	}
 	if (ow->off + ow->len == wr->pos) {
 		ow->len += wr->len;
-		ow->pages[ow->npages++] = page;
+		ow->pages[ow->npages++] = &folio->page;
 		ret = 0;
 		goto done;
 	}
@@ -192,10 +191,10 @@ done:
 			orangefs_writepages_work(ow, wbc);
 			ow->npages = 0;
 		}
-		ret = orangefs_writepage_locked(page, wbc);
-		mapping_set_error(page->mapping, ret);
-		unlock_page(page);
-		end_page_writeback(page);
+		ret = orangefs_writepage_locked(&folio->page, wbc);
+		mapping_set_error(folio->mapping, ret);
+		folio_unlock(folio);
+		folio_end_writeback(folio);
 	} else {
 		if (ow->npages == ow->maxpages) {
 			orangefs_writepages_work(ow, wbc);

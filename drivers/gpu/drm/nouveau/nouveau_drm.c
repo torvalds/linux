@@ -31,9 +31,7 @@
 #include <linux/dynamic_debug.h>
 
 #include <drm/drm_aperture.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fb_helper.h>
 #include <drm/drm_fbdev_generic.h>
 #include <drm/drm_gem_ttm_helper.h>
 #include <drm/drm_ioctl.h>
@@ -1221,13 +1219,9 @@ nouveau_driver_fops = {
 
 static struct drm_driver
 driver_stub = {
-	.driver_features =
-		DRIVER_GEM | DRIVER_MODESET | DRIVER_RENDER
-#if defined(CONFIG_NOUVEAU_LEGACY_CTX_SUPPORT)
-		| DRIVER_KMS_LEGACY_CONTEXT
-#endif
-		,
-
+	.driver_features = DRIVER_GEM |
+			   DRIVER_MODESET |
+			   DRIVER_RENDER,
 	.open = nouveau_drm_open,
 	.postclose = nouveau_drm_postclose,
 	.lastclose = nouveau_vga_lastclose,

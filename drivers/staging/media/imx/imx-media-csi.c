@@ -779,11 +779,8 @@ static int csi_start(struct csi_priv *priv)
 		goto idmac_stop;
 
 	/* start the frame interval monitor */
-	if (priv->fim && priv->dest == IPU_CSI_DEST_IDMAC) {
-		ret = imx_media_fim_set_stream(priv->fim, output_fi, true);
-		if (ret)
-			goto idmac_stop;
-	}
+	if (priv->fim && priv->dest == IPU_CSI_DEST_IDMAC)
+		imx_media_fim_set_stream(priv->fim, output_fi, true);
 
 	ret = ipu_csi_enable(priv->csi);
 	if (ret) {

@@ -151,14 +151,10 @@ static void amd_guest_code(void)
  */
 static uint64_t run_vcpu_to_sync(struct kvm_vcpu *vcpu)
 {
-	struct kvm_run *run = vcpu->run;
 	struct ucall uc;
 
 	vcpu_run(vcpu);
-	TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
-		    "Exit_reason other than KVM_EXIT_IO: %u (%s)\n",
-		    run->exit_reason,
-		    exit_reason_str(run->exit_reason));
+	TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_IO);
 	get_ucall(vcpu, &uc);
 	TEST_ASSERT(uc.cmd == UCALL_SYNC,
 		    "Received ucall other than UCALL_SYNC: %lu", uc.cmd);
@@ -198,14 +194,15 @@ static struct kvm_pmu_event_filter *alloc_pmu_event_filter(uint32_t nevents)
 
 
 static struct kvm_pmu_event_filter *
-create_pmu_event_filter(const uint64_t event_list[],
-			int nevents, uint32_t action)
+create_pmu_event_filter(const uint64_t event_list[], int nevents,
+			uint32_t action, uint32_t flags)
 {
 	struct kvm_pmu_event_filter *f;
 	int i;
 
 	f = alloc_pmu_event_filter(nevents);
 	f->action = action;
+	f->flags = flags;
 	for (i = 0; i < nevents; i++)
 		f->events[i] = event_list[i];
 
@@ -216,7 +213,7 @@ static struct kvm_pmu_event_filter *event_filter(uint32_t action)
 {
 	return create_pmu_event_filter(event_list,
 				       ARRAY_SIZE(event_list),
-				       action);
+				       action, 0);
 }
 
 /*
@@ -263,7 +260,7 @@ static void test_amd_deny_list(struct kvm_vcpu *vcpu)
 	struct kvm_pmu_event_filter *f;
 	uint64_t count;
 
-	f = create_pmu_event_filter(&event, 1, KVM_PMU_EVENT_DENY);
+	f = create_pmu_event_filter(&event, 1, KVM_PMU_EVENT_DENY, 0);
 	count = test_with_filter(vcpu, f);
 
 	free(f);
@@ -363,7 +360,7 @@ static void test_pmu_config_disable(void (*guest_code)(void))
  */
 static bool use_intel_pmu(void)
 {
-	return is_intel_cpu() &&
+	return host_cpu_is_intel &&
 	       kvm_cpu_property(X86_PROPERTY_PMU_VERSION) &&
 	       kvm_cpu_property(X86_PROPERTY_PMU_NR_GP_COUNTERS) &&
 	       kvm_pmu_has(X86_PMU_FEATURE_BRANCH_INSNS_RETIRED);
@@ -397,19 +394,378 @@ static bool use_amd_pmu(void)
 	uint32_t family = kvm_cpu_family();
 	uint32_t model = kvm_cpu_model();
 
-	return is_amd_cpu() &&
+	return host_cpu_is_amd &&
 		(is_zen1(family, model) ||
 		 is_zen2(family, model) ||
 		 is_zen3(family, model));
 }
 
+/*
+ * "MEM_INST_RETIRED.ALL_LOADS", "MEM_INST_RETIRED.ALL_STORES", and
+ * "MEM_INST_RETIRED.ANY" from https://perfmon-events.intel.com/
+ * supported on Intel Xeon processors:
+ *  - Sapphire Rapids, Ice Lake, Cascade Lake, Skylake.
+ */
+#define MEM_INST_RETIRED		0xD0
+#define MEM_INST_RETIRED_LOAD		EVENT(MEM_INST_RETIRED, 0x81)
+#define MEM_INST_RETIRED_STORE		EVENT(MEM_INST_RETIRED, 0x82)
+#define MEM_INST_RETIRED_LOAD_STORE	EVENT(MEM_INST_RETIRED, 0x83)
+
+static bool supports_event_mem_inst_retired(void)
+{
+	uint32_t eax, ebx, ecx, edx;
+
+	cpuid(1, &eax, &ebx, &ecx, &edx);
+	if (x86_family(eax) == 0x6) {
+		switch (x86_model(eax)) {
+		/* Sapphire Rapids */
+		case 0x8F:
+		/* Ice Lake */
+		case 0x6A:
+		/* Skylake */
+		/* Cascade Lake */
+		case 0x55:
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/*
+ * "LS Dispatch", from Processor Programming Reference
+ * (PPR) for AMD Family 17h Model 01h, Revision B1 Processors,
+ * Preliminary Processor Programming Reference (PPR) for AMD Family
+ * 17h Model 31h, Revision B0 Processors, and Preliminary Processor
+ * Programming Reference (PPR) for AMD Family 19h Model 01h, Revision
+ * B1 Processors Volume 1 of 2.
+ */
+#define LS_DISPATCH		0x29
+#define LS_DISPATCH_LOAD	EVENT(LS_DISPATCH, BIT(0))
+#define LS_DISPATCH_STORE	EVENT(LS_DISPATCH, BIT(1))
+#define LS_DISPATCH_LOAD_STORE	EVENT(LS_DISPATCH, BIT(2))
+
+#define INCLUDE_MASKED_ENTRY(event_select, mask, match) \
+	KVM_PMU_ENCODE_MASKED_ENTRY(event_select, mask, match, false)
+#define EXCLUDE_MASKED_ENTRY(event_select, mask, match) \
+	KVM_PMU_ENCODE_MASKED_ENTRY(event_select, mask, match, true)
+
+struct perf_counter {
+	union {
+		uint64_t raw;
+		struct {
+			uint64_t loads:22;
+			uint64_t stores:22;
+			uint64_t loads_stores:20;
+		};
+	};
+};
+
+static uint64_t masked_events_guest_test(uint32_t msr_base)
+{
+	uint64_t ld0, ld1, st0, st1, ls0, ls1;
+	struct perf_counter c;
+	int val;
+
+	/*
+	 * The acutal value of the counters don't determine the outcome of
+	 * the test.  Only that they are zero or non-zero.
+	 */
+	ld0 = rdmsr(msr_base + 0);
+	st0 = rdmsr(msr_base + 1);
+	ls0 = rdmsr(msr_base + 2);
+
+	__asm__ __volatile__("movl $0, %[v];"
+			     "movl %[v], %%eax;"
+			     "incl %[v];"
+			     : [v]"+m"(val) :: "eax");
+
+	ld1 = rdmsr(msr_base + 0);
+	st1 = rdmsr(msr_base + 1);
+	ls1 = rdmsr(msr_base + 2);
+
+	c.loads = ld1 - ld0;
+	c.stores = st1 - st0;
+	c.loads_stores = ls1 - ls0;
+
+	return c.raw;
+}
+
+static void intel_masked_events_guest_code(void)
+{
+	uint64_t r;
+
+	for (;;) {
+		wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, 0);
+
+		wrmsr(MSR_P6_EVNTSEL0 + 0, ARCH_PERFMON_EVENTSEL_ENABLE |
+		      ARCH_PERFMON_EVENTSEL_OS | MEM_INST_RETIRED_LOAD);
+		wrmsr(MSR_P6_EVNTSEL0 + 1, ARCH_PERFMON_EVENTSEL_ENABLE |
+		      ARCH_PERFMON_EVENTSEL_OS | MEM_INST_RETIRED_STORE);
+		wrmsr(MSR_P6_EVNTSEL0 + 2, ARCH_PERFMON_EVENTSEL_ENABLE |
+		      ARCH_PERFMON_EVENTSEL_OS | MEM_INST_RETIRED_LOAD_STORE);
+
+		wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, 0x7);
+
+		r = masked_events_guest_test(MSR_IA32_PMC0);
+
+		GUEST_SYNC(r);
+	}
+}
+
+static void amd_masked_events_guest_code(void)
+{
+	uint64_t r;
+
+	for (;;) {
+		wrmsr(MSR_K7_EVNTSEL0, 0);
+		wrmsr(MSR_K7_EVNTSEL1, 0);
+		wrmsr(MSR_K7_EVNTSEL2, 0);
+
+		wrmsr(MSR_K7_EVNTSEL0, ARCH_PERFMON_EVENTSEL_ENABLE |
+		      ARCH_PERFMON_EVENTSEL_OS | LS_DISPATCH_LOAD);
+		wrmsr(MSR_K7_EVNTSEL1, ARCH_PERFMON_EVENTSEL_ENABLE |
+		      ARCH_PERFMON_EVENTSEL_OS | LS_DISPATCH_STORE);
+		wrmsr(MSR_K7_EVNTSEL2, ARCH_PERFMON_EVENTSEL_ENABLE |
+		      ARCH_PERFMON_EVENTSEL_OS | LS_DISPATCH_LOAD_STORE);
+
+		r = masked_events_guest_test(MSR_K7_PERFCTR0);
+
+		GUEST_SYNC(r);
+	}
+}
+
+static struct perf_counter run_masked_events_test(struct kvm_vcpu *vcpu,
+						 const uint64_t masked_events[],
+						 const int nmasked_events)
+{
+	struct kvm_pmu_event_filter *f;
+	struct perf_counter r;
+
+	f = create_pmu_event_filter(masked_events, nmasked_events,
+				    KVM_PMU_EVENT_ALLOW,
+				    KVM_PMU_EVENT_FLAG_MASKED_EVENTS);
+	r.raw = test_with_filter(vcpu, f);
+	free(f);
+
+	return r;
+}
+
+/* Matches KVM_PMU_EVENT_FILTER_MAX_EVENTS in pmu.c */
+#define MAX_FILTER_EVENTS	300
+#define MAX_TEST_EVENTS		10
+
+#define ALLOW_LOADS		BIT(0)
+#define ALLOW_STORES		BIT(1)
+#define ALLOW_LOADS_STORES	BIT(2)
+
+struct masked_events_test {
+	uint64_t intel_events[MAX_TEST_EVENTS];
+	uint64_t intel_event_end;
+	uint64_t amd_events[MAX_TEST_EVENTS];
+	uint64_t amd_event_end;
+	const char *msg;
+	uint32_t flags;
+};
+
+/*
+ * These are the test cases for the masked events tests.
+ *
+ * For each test, the guest enables 3 PMU counters (loads, stores,
+ * loads + stores).  The filter is then set in KVM with the masked events
+ * provided.  The test then verifies that the counters agree with which
+ * ones should be counting and which ones should be filtered.
+ */
+const struct masked_events_test test_cases[] = {
+	{
+		.intel_events = {
+			INCLUDE_MASKED_ENTRY(MEM_INST_RETIRED, 0xFF, 0x81),
+		},
+		.amd_events = {
+			INCLUDE_MASKED_ENTRY(LS_DISPATCH, 0xFF, BIT(0)),
+		},
+		.msg = "Only allow loads.",
+		.flags = ALLOW_LOADS,
+	}, {
+		.intel_events = {
+			INCLUDE_MASKED_ENTRY(MEM_INST_RETIRED, 0xFF, 0x82),
+		},
+		.amd_events = {
+			INCLUDE_MASKED_ENTRY(LS_DISPATCH, 0xFF, BIT(1)),
+		},
+		.msg = "Only allow stores.",
+		.flags = ALLOW_STORES,
+	}, {
+		.intel_events = {
+			INCLUDE_MASKED_ENTRY(MEM_INST_RETIRED, 0xFF, 0x83),
+		},
+		.amd_events = {
+			INCLUDE_MASKED_ENTRY(LS_DISPATCH, 0xFF, BIT(2)),
+		},
+		.msg = "Only allow loads + stores.",
+		.flags = ALLOW_LOADS_STORES,
+	}, {
+		.intel_events = {
+			INCLUDE_MASKED_ENTRY(MEM_INST_RETIRED, 0x7C, 0),
+			EXCLUDE_MASKED_ENTRY(MEM_INST_RETIRED, 0xFF, 0x83),
+		},
+		.amd_events = {
+			INCLUDE_MASKED_ENTRY(LS_DISPATCH, ~(BIT(0) | BIT(1)), 0),
+		},
+		.msg = "Only allow loads and stores.",
+		.flags = ALLOW_LOADS | ALLOW_STORES,
+	}, {
+		.intel_events = {
+			INCLUDE_MASKED_ENTRY(MEM_INST_RETIRED, 0x7C, 0),
+			EXCLUDE_MASKED_ENTRY(MEM_INST_RETIRED, 0xFF, 0x82),
+		},
+		.amd_events = {
+			INCLUDE_MASKED_ENTRY(LS_DISPATCH, 0xF8, 0),
+			EXCLUDE_MASKED_ENTRY(LS_DISPATCH, 0xFF, BIT(1)),
+		},
+		.msg = "Only allow loads and loads + stores.",
+		.flags = ALLOW_LOADS | ALLOW_LOADS_STORES
+	}, {
+		.intel_events = {
+			INCLUDE_MASKED_ENTRY(MEM_INST_RETIRED, 0xFE, 0x82),
+		},
+		.amd_events = {
+			INCLUDE_MASKED_ENTRY(LS_DISPATCH, 0xF8, 0),
+			EXCLUDE_MASKED_ENTRY(LS_DISPATCH, 0xFF, BIT(0)),
+		},
+		.msg = "Only allow stores and loads + stores.",
+		.flags = ALLOW_STORES | ALLOW_LOADS_STORES
+	}, {
+		.intel_events = {
+			INCLUDE_MASKED_ENTRY(MEM_INST_RETIRED, 0x7C, 0),
+		},
+		.amd_events = {
+			INCLUDE_MASKED_ENTRY(LS_DISPATCH, 0xF8, 0),
+		},
+		.msg = "Only allow loads, stores, and loads + stores.",
+		.flags = ALLOW_LOADS | ALLOW_STORES | ALLOW_LOADS_STORES
+	},
+};
+
+static int append_test_events(const struct masked_events_test *test,
+			      uint64_t *events, int nevents)
+{
+	const uint64_t *evts;
+	int i;
+
+	evts = use_intel_pmu() ? test->intel_events : test->amd_events;
+	for (i = 0; i < MAX_TEST_EVENTS; i++) {
+		if (evts[i] == 0)
+			break;
+
+		events[nevents + i] = evts[i];
+	}
+
+	return nevents + i;
+}
+
+static bool bool_eq(bool a, bool b)
+{
+	return a == b;
+}
+
+static void run_masked_events_tests(struct kvm_vcpu *vcpu, uint64_t *events,
+				    int nevents)
+{
+	int ntests = ARRAY_SIZE(test_cases);
+	struct perf_counter c;
+	int i, n;
+
+	for (i = 0; i < ntests; i++) {
+		const struct masked_events_test *test = &test_cases[i];
+
+		/* Do any test case events overflow MAX_TEST_EVENTS? */
+		assert(test->intel_event_end == 0);
+		assert(test->amd_event_end == 0);
+
+		n = append_test_events(test, events, nevents);
+
+		c = run_masked_events_test(vcpu, events, n);
+		TEST_ASSERT(bool_eq(c.loads, test->flags & ALLOW_LOADS) &&
+			    bool_eq(c.stores, test->flags & ALLOW_STORES) &&
+			    bool_eq(c.loads_stores,
+				    test->flags & ALLOW_LOADS_STORES),
+			    "%s  loads: %u, stores: %u, loads + stores: %u",
+			    test->msg, c.loads, c.stores, c.loads_stores);
+	}
+}
+
+static void add_dummy_events(uint64_t *events, int nevents)
+{
+	int i;
+
+	for (i = 0; i < nevents; i++) {
+		int event_select = i % 0xFF;
+		bool exclude = ((i % 4) == 0);
+
+		if (event_select == MEM_INST_RETIRED ||
+		    event_select == LS_DISPATCH)
+			event_select++;
+
+		events[i] = KVM_PMU_ENCODE_MASKED_ENTRY(event_select, 0,
+							0, exclude);
+	}
+}
+
+static void test_masked_events(struct kvm_vcpu *vcpu)
+{
+	int nevents = MAX_FILTER_EVENTS - MAX_TEST_EVENTS;
+	uint64_t events[MAX_FILTER_EVENTS];
+
+	/* Run the test cases against a sparse PMU event filter. */
+	run_masked_events_tests(vcpu, events, 0);
+
+	/* Run the test cases against a dense PMU event filter. */
+	add_dummy_events(events, MAX_FILTER_EVENTS);
+	run_masked_events_tests(vcpu, events, nevents);
+}
+
+static int run_filter_test(struct kvm_vcpu *vcpu, const uint64_t *events,
+			   int nevents, uint32_t flags)
+{
+	struct kvm_pmu_event_filter *f;
+	int r;
+
+	f = create_pmu_event_filter(events, nevents, KVM_PMU_EVENT_ALLOW, flags);
+	r = __vm_ioctl(vcpu->vm, KVM_SET_PMU_EVENT_FILTER, f);
+	free(f);
+
+	return r;
+}
+
+static void test_filter_ioctl(struct kvm_vcpu *vcpu)
+{
+	uint64_t e = ~0ul;
+	int r;
+
+	/*
+	 * Unfortunately having invalid bits set in event data is expected to
+	 * pass when flags == 0 (bits other than eventsel+umask).
+	 */
+	r = run_filter_test(vcpu, &e, 1, 0);
+	TEST_ASSERT(r == 0, "Valid PMU Event Filter is failing");
+
+	r = run_filter_test(vcpu, &e, 1, KVM_PMU_EVENT_FLAG_MASKED_EVENTS);
+	TEST_ASSERT(r != 0, "Invalid PMU Event Filter is expected to fail");
+
+	e = KVM_PMU_ENCODE_MASKED_ENTRY(0xff, 0xff, 0xff, 0xf);
+	r = run_filter_test(vcpu, &e, 1, KVM_PMU_EVENT_FLAG_MASKED_EVENTS);
+	TEST_ASSERT(r == 0, "Valid PMU Event Filter is failing");
+}
+
 int main(int argc, char *argv[])
 {
 	void (*guest_code)(void);
-	struct kvm_vcpu *vcpu;
+	struct kvm_vcpu *vcpu, *vcpu2 = NULL;
 	struct kvm_vm *vm;
 
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_PMU_EVENT_FILTER));
+	TEST_REQUIRE(kvm_has_cap(KVM_CAP_PMU_EVENT_MASKED_EVENTS));
 
 	TEST_REQUIRE(use_intel_pmu() || use_amd_pmu());
 	guest_code = use_intel_pmu() ? intel_guest_code : amd_guest_code;
@@ -429,6 +785,17 @@ int main(int argc, char *argv[])
 	test_member_allow_list(vcpu);
 	test_not_member_deny_list(vcpu);
 	test_not_member_allow_list(vcpu);
+
+	if (use_intel_pmu() &&
+	    supports_event_mem_inst_retired() &&
+	    kvm_cpu_property(X86_PROPERTY_PMU_NR_GP_COUNTERS) >= 3)
+		vcpu2 = vm_vcpu_add(vm, 2, intel_masked_events_guest_code);
+	else if (use_amd_pmu())
+		vcpu2 = vm_vcpu_add(vm, 2, amd_masked_events_guest_code);
+
+	if (vcpu2)
+		test_masked_events(vcpu2);
+	test_filter_ioctl(vcpu);
 
 	kvm_vm_free(vm);
 

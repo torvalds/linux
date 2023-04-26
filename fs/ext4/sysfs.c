@@ -501,13 +501,13 @@ static const struct sysfs_ops ext4_attr_ops = {
 	.store	= ext4_attr_store,
 };
 
-static struct kobj_type ext4_sb_ktype = {
+static const struct kobj_type ext4_sb_ktype = {
 	.default_groups = ext4_groups,
 	.sysfs_ops	= &ext4_attr_ops,
 	.release	= ext4_sb_release,
 };
 
-static struct kobj_type ext4_feat_ktype = {
+static const struct kobj_type ext4_feat_ktype = {
 	.default_groups = ext4_feat_groups,
 	.sysfs_ops	= &ext4_attr_ops,
 	.release	= ext4_feat_release,

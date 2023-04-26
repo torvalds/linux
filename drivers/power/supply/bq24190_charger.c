@@ -463,7 +463,7 @@ static ssize_t bq24190_sysfs_show(struct device *dev,
 	if (ret)
 		count = ret;
 	else
-		count = scnprintf(buf, PAGE_SIZE, "%hhx\n", v);
+		count = sysfs_emit(buf, "%hhx\n", v);
 
 	pm_runtime_mark_last_busy(bdi->dev);
 	pm_runtime_put_autosuspend(bdi->dev);
@@ -1906,6 +1906,7 @@ static void bq24190_remove(struct i2c_client *client)
 	struct bq24190_dev_info *bdi = i2c_get_clientdata(client);
 	int error;
 
+	cancel_delayed_work_sync(&bdi->input_current_limit_work);
 	error = pm_runtime_resume_and_get(bdi->dev);
 	if (error < 0)
 		dev_warn(bdi->dev, "pm_runtime_get failed: %i\n", error);

@@ -186,7 +186,6 @@ static int spear_kbd_probe(struct platform_device *pdev)
 	const struct matrix_keymap_data *keymap = pdata ? pdata->keymap : NULL;
 	struct spear_kbd *kbd;
 	struct input_dev *input_dev;
-	struct resource *res;
 	int irq;
 	int error;
 
@@ -219,8 +218,7 @@ static int spear_kbd_probe(struct platform_device *pdev)
 		kbd->suspended_rate = pdata->suspended_rate;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	kbd->io_base = devm_ioremap_resource(&pdev->dev, res);
+	kbd->io_base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(kbd->io_base))
 		return PTR_ERR(kbd->io_base);
 

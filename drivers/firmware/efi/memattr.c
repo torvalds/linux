@@ -129,6 +129,7 @@ int __init efi_memattr_apply_permissions(struct mm_struct *mm,
 					 efi_memattr_perm_setter fn)
 {
 	efi_memory_attributes_table_t *tbl;
+	bool has_bti = false;
 	int i, ret;
 
 	if (tbl_size <= sizeof(*tbl))
@@ -150,6 +151,10 @@ int __init efi_memattr_apply_permissions(struct mm_struct *mm,
 		return -ENOMEM;
 	}
 
+	if (tbl->version > 1 &&
+	    (tbl->flags & EFI_MEMORY_ATTRIBUTES_FLAGS_RT_FORWARD_CONTROL_FLOW_GUARD))
+		has_bti = true;
+
 	if (efi_enabled(EFI_DBG))
 		pr_info("Processing EFI Memory Attributes table:\n");
 
@@ -169,7 +174,7 @@ int __init efi_memattr_apply_permissions(struct mm_struct *mm,
 				efi_md_typeattr_format(buf, sizeof(buf), &md));
 
 		if (valid) {
-			ret = fn(mm, &md);
+			ret = fn(mm, &md, has_bti);
 			if (ret)
 				pr_err("Error updating mappings, skipping subsequent md's\n");
 		}

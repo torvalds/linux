@@ -137,10 +137,7 @@ out_exit:
 }
 
 static const struct drm_simple_display_pipe_funcs ili9341_pipe_funcs = {
-	.mode_valid = mipi_dbi_pipe_mode_valid,
-	.enable = yx240qv29_enable,
-	.disable = mipi_dbi_pipe_disable,
-	.update = mipi_dbi_pipe_update,
+	DRM_MIPI_DBI_SIMPLE_DISPLAY_PIPE_FUNCS(yx240qv29_enable),
 };
 
 static const struct drm_display_mode yx240qv29_mode = {

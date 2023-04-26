@@ -472,75 +472,74 @@ examples:
         #size-cells = <0>;
 
         temperature-sensor@0 {
-                compatible = "adi,ltc2983";
-                reg = <0>;
+            compatible = "adi,ltc2983";
+            reg = <0>;
 
-                #address-cells = <1>;
-                #size-cells = <0>;
+            #address-cells = <1>;
+            #size-cells = <0>;
 
-                interrupts = <20 IRQ_TYPE_EDGE_RISING>;
-                interrupt-parent = <&gpio>;
+            interrupts = <20 IRQ_TYPE_EDGE_RISING>;
+            interrupt-parent = <&gpio>;
 
-                thermocouple@18 {
-                        reg = <18>;
-                        adi,sensor-type = <8>; //Type B
-                        adi,sensor-oc-current-microamp = <10>;
-                        adi,cold-junction-handle = <&diode5>;
-                };
+            thermocouple@18 {
+                reg = <18>;
+                adi,sensor-type = <8>; //Type B
+                adi,sensor-oc-current-microamp = <10>;
+                adi,cold-junction-handle = <&diode5>;
+            };
 
-                diode5: diode@5 {
-                        reg = <5>;
-                        adi,sensor-type = <28>;
-                };
+            diode5: diode@5 {
+                reg = <5>;
+                adi,sensor-type = <28>;
+            };
 
-                rsense2: rsense@2 {
-                        reg = <2>;
-                        adi,sensor-type = <29>;
-                        adi,rsense-val-milli-ohms = <1200000>; //1.2Kohms
-                };
+            rsense2: rsense@2 {
+                reg = <2>;
+                adi,sensor-type = <29>;
+                adi,rsense-val-milli-ohms = <1200000>; //1.2Kohms
+            };
 
-                rtd@14 {
-                        reg = <14>;
-                        adi,sensor-type = <15>; //PT1000
-                        /*2-wire, internal gnd, no current rotation*/
-                        adi,number-of-wires = <2>;
-                        adi,rsense-share;
-                        adi,excitation-current-microamp = <500>;
-                        adi,rsense-handle = <&rsense2>;
-                };
+            rtd@14 {
+                reg = <14>;
+                adi,sensor-type = <15>; //PT1000
+                /*2-wire, internal gnd, no current rotation*/
+                adi,number-of-wires = <2>;
+                adi,rsense-share;
+                adi,excitation-current-microamp = <500>;
+                adi,rsense-handle = <&rsense2>;
+            };
 
-                adc@10 {
-                        reg = <10>;
-                        adi,sensor-type = <30>;
-                        adi,single-ended;
-                };
+            adc@10 {
+                reg = <10>;
+                adi,sensor-type = <30>;
+                adi,single-ended;
+            };
 
-                thermistor@12 {
-                        reg = <12>;
-                        adi,sensor-type = <26>; //Steinhart
-                        adi,rsense-handle = <&rsense2>;
-                        adi,custom-steinhart = <0x00F371EC 0x12345678
-                                        0x2C0F8733 0x10018C66 0xA0FEACCD
-                                        0x90021D99>; //6 entries
-                };
+            thermistor@12 {
+                reg = <12>;
+                adi,sensor-type = <26>; //Steinhart
+                adi,rsense-handle = <&rsense2>;
+                adi,custom-steinhart = <0x00f371ec 0x12345678
+                                0x2c0f8733 0x10018c66 0xa0feaccd
+                                0x90021d99>; //6 entries
+            };
 
-                thermocouple@20 {
-                        reg = <20>;
-                        adi,sensor-type = <9>; //custom thermocouple
-                        adi,single-ended;
-                        adi,custom-thermocouple =
-                                 /bits/ 64 <(-50220000) 0>,
-                                 /bits/ 64 <(-30200000) 99100000>,
-                                 /bits/ 64 <(-5300000) 135400000>,
-                                 /bits/ 64 <0 273150000>,
-                                 /bits/ 64 <40200000 361200000>,
-                                 /bits/ 64 <55300000 522100000>,
-                                 /bits/ 64 <88300000 720300000>,
-                                 /bits/ 64 <132200000 811200000>,
-                                 /bits/ 64 <188700000 922500000>,
-                                 /bits/ 64 <460400000 1000000000>; //10 pairs
-               };
-
+            thermocouple@20 {
+                reg = <20>;
+                adi,sensor-type = <9>; //custom thermocouple
+                adi,single-ended;
+                adi,custom-thermocouple =
+                         /bits/ 64 <(-50220000) 0>,
+                         /bits/ 64 <(-30200000) 99100000>,
+                         /bits/ 64 <(-5300000) 135400000>,
+                         /bits/ 64 <0 273150000>,
+                         /bits/ 64 <40200000 361200000>,
+                         /bits/ 64 <55300000 522100000>,
+                         /bits/ 64 <88300000 720300000>,
+                         /bits/ 64 <132200000 811200000>,
+                         /bits/ 64 <188700000 922500000>,
+                         /bits/ 64 <460400000 1000000000>; //10 pairs
+            };
         };
     };
 ...

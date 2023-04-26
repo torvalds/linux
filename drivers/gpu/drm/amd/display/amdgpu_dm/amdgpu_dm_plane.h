@@ -62,4 +62,5 @@ void fill_blending_from_plane_state(const struct drm_plane_state *plane_state,
 				    bool *per_pixel_alpha, bool *pre_multiplied_alpha,
 				    bool *global_alpha, int *global_alpha_value);
 
+bool is_video_format(uint32_t format);
 #endif

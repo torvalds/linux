@@ -26,7 +26,7 @@
 #include <subdev/bios.h>
 #include <subdev/bios/init.h>
 
-static u64
+static void
 mcp89_devinit_disable(struct nvkm_devinit *init)
 {
 	struct nvkm_device *device = init->subdev.device;
@@ -46,8 +46,6 @@ mcp89_devinit_disable(struct nvkm_devinit *init)
 		nvkm_subdev_disable(device, NVKM_ENGINE_VIC, 0);
 	if (!(r00154c & 0x00000200))
 		nvkm_subdev_disable(device, NVKM_ENGINE_CE, 0);
-
-	return 0;
 }
 
 static const struct nvkm_devinit_func

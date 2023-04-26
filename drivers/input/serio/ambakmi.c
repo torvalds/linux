@@ -170,7 +170,7 @@ static void amba_kmi_remove(struct amba_device *dev)
 	amba_release_regions(dev);
 }
 
-static int __maybe_unused amba_kmi_resume(struct device *dev)
+static int amba_kmi_resume(struct device *dev)
 {
 	struct amba_kmi_port *kmi = dev_get_drvdata(dev);
 
@@ -180,7 +180,7 @@ static int __maybe_unused amba_kmi_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(amba_kmi_dev_pm_ops, NULL, amba_kmi_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(amba_kmi_dev_pm_ops, NULL, amba_kmi_resume);
 
 static const struct amba_id amba_kmi_idtable[] = {
 	{
@@ -196,7 +196,7 @@ static struct amba_driver ambakmi_driver = {
 	.drv		= {
 		.name	= "kmi-pl050",
 		.owner	= THIS_MODULE,
-		.pm	= &amba_kmi_dev_pm_ops,
+		.pm	= pm_sleep_ptr(&amba_kmi_dev_pm_ops),
 	},
 	.id_table	= amba_kmi_idtable,
 	.probe		= amba_kmi_probe,

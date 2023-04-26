@@ -1819,11 +1819,11 @@ void usb_authorize_interface(struct usb_interface *intf)
 	}
 }
 
-static int usb_if_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int usb_if_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct usb_device *usb_dev;
-	struct usb_interface *intf;
-	struct usb_host_interface *alt;
+	const struct usb_device *usb_dev;
+	const struct usb_interface *intf;
+	const struct usb_host_interface *alt;
 
 	intf = to_usb_interface(dev);
 	usb_dev = interface_to_usbdev(intf);

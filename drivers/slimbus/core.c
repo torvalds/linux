@@ -93,9 +93,9 @@ static void slim_device_remove(struct device *dev)
 	}
 }
 
-static int slim_device_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int slim_device_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct slim_device *sbdev = to_slim_device(dev);
+	const struct slim_device *sbdev = to_slim_device(dev);
 
 	return add_uevent_var(env, "MODALIAS=slim:%s", dev_name(&sbdev->dev));
 }

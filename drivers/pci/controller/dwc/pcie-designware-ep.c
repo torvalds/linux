@@ -612,7 +612,10 @@ int dw_pcie_ep_raise_msix_irq(struct dw_pcie_ep *ep, u8 func_no,
 
 void dw_pcie_ep_exit(struct dw_pcie_ep *ep)
 {
+	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 	struct pci_epc *epc = ep->epc;
+
+	dw_pcie_edma_remove(pci);
 
 	pci_epc_mem_free_addr(epc, ep->msi_mem_phys, ep->msi_mem,
 			      epc->mem->window.page_size);
@@ -785,6 +788,10 @@ int dw_pcie_ep_init(struct dw_pcie_ep *ep)
 		goto err_exit_epc_mem;
 	}
 
+	ret = dw_pcie_edma_detect(pci);
+	if (ret)
+		goto err_free_epc_mem;
+
 	if (ep->ops->get_features) {
 		epc_features = ep->ops->get_features(ep);
 		if (epc_features->core_init_notifier)
@@ -793,9 +800,12 @@ int dw_pcie_ep_init(struct dw_pcie_ep *ep)
 
 	ret = dw_pcie_ep_init_complete(ep);
 	if (ret)
-		goto err_free_epc_mem;
+		goto err_remove_edma;
 
 	return 0;
+
+err_remove_edma:
+	dw_pcie_edma_remove(pci);
 
 err_free_epc_mem:
 	pci_epc_mem_free_addr(epc, ep->msi_mem_phys, ep->msi_mem,

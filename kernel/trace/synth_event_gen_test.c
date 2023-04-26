@@ -22,7 +22,7 @@
  * Then:
  *
  * # insmod kernel/trace/synth_event_gen_test.ko
- * # cat /sys/kernel/debug/tracing/trace
+ * # cat /sys/kernel/tracing/trace
  *
  * You should see several events in the trace buffer -
  * "create_synth_test", "empty_synth_test", and several instances of

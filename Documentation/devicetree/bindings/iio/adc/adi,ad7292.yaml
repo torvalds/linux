@@ -43,7 +43,7 @@ required:
 
 patternProperties:
   "^channel@[0-7]$":
-    $ref: "adc.yaml"
+    $ref: adc.yaml
     type: object
     description: |
       Represents the external channels which are connected to the ADC.

@@ -22,7 +22,7 @@
 	leds {
 		compatible = "gpio-leds";
 
-		system {
+		led-system {
 			label = "onion:amber:system";
 			gpios = <&gpio 27 GPIO_ACTIVE_LOW>;
 			default-state = "off";

@@ -125,7 +125,7 @@ static void sas_ata_task_done(struct sas_task *task)
 		} else {
 			link->eh_info.err_mask |= ac_err_mask(dev->sata_dev.fis[2]);
 			if (unlikely(link->eh_info.err_mask))
-				qc->flags |= ATA_QCFLAG_FAILED;
+				qc->flags |= ATA_QCFLAG_EH;
 		}
 	} else {
 		ac = sas_to_ata_err(stat);
@@ -136,7 +136,7 @@ static void sas_ata_task_done(struct sas_task *task)
 				qc->err_mask = ac;
 			} else {
 				link->eh_info.err_mask |= AC_ERR_DEV;
-				qc->flags |= ATA_QCFLAG_FAILED;
+				qc->flags |= ATA_QCFLAG_EH;
 			}
 
 			dev->sata_dev.fis[2] = ATA_ERR | ATA_DRDY; /* tf status */
@@ -226,12 +226,11 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	return ret;
 }
 
-static bool sas_ata_qc_fill_rtf(struct ata_queued_cmd *qc)
+static void sas_ata_qc_fill_rtf(struct ata_queued_cmd *qc)
 {
 	struct domain_device *dev = qc->ap->private_data;
 
 	ata_tf_from_fis(dev->sata_dev.fis, &qc->result_tf);
-	return true;
 }
 
 static struct sas_internal *dev_to_sas_internal(struct domain_device *dev)
@@ -239,7 +238,17 @@ static struct sas_internal *dev_to_sas_internal(struct domain_device *dev)
 	return to_sas_internal(dev->port->ha->core.shost->transportt);
 }
 
-static int sas_get_ata_command_set(struct domain_device *dev);
+static int sas_get_ata_command_set(struct domain_device *dev)
+{
+	struct ata_taskfile tf;
+
+	if (dev->dev_type == SAS_SATA_PENDING)
+		return ATA_DEV_UNKNOWN;
+
+	ata_tf_from_fis(dev->frame_rcvd, &tf);
+
+	return ata_dev_classify(&tf);
+}
 
 int sas_get_ata_info(struct domain_device *dev, struct ex_phy *phy)
 {
@@ -476,7 +485,7 @@ static void sas_ata_internal_abort(struct sas_task *task)
 
 static void sas_ata_post_internal(struct ata_queued_cmd *qc)
 {
-	if (qc->flags & ATA_QCFLAG_FAILED)
+	if (qc->flags & ATA_QCFLAG_EH)
 		qc->err_mask |= AC_ERR_OTHER;
 
 	if (qc->err_mask) {
@@ -631,24 +640,10 @@ void sas_ata_task_abort(struct sas_task *task)
 
 	/* Internal command, fake a timeout and complete. */
 	qc->flags &= ~ATA_QCFLAG_ACTIVE;
-	qc->flags |= ATA_QCFLAG_FAILED;
+	qc->flags |= ATA_QCFLAG_EH;
 	qc->err_mask |= AC_ERR_TIMEOUT;
 	waiting = qc->private_data;
 	complete(waiting);
-}
-
-static int sas_get_ata_command_set(struct domain_device *dev)
-{
-	struct dev_to_host_fis *fis =
-		(struct dev_to_host_fis *) dev->frame_rcvd;
-	struct ata_taskfile tf;
-
-	if (dev->dev_type == SAS_SATA_PENDING)
-		return ATA_DEV_UNKNOWN;
-
-	ata_tf_from_fis((const u8 *)fis, &tf);
-
-	return ata_dev_classify(&tf);
 }
 
 void sas_probe_sata(struct asd_sas_port *port)
@@ -677,6 +672,68 @@ void sas_probe_sata(struct asd_sas_port *port)
 			sas_fail_probe(dev, __func__, -ENODEV);
 	}
 
+}
+
+int sas_ata_add_dev(struct domain_device *parent, struct ex_phy *phy,
+		    struct domain_device *child, int phy_id)
+{
+	struct sas_rphy *rphy;
+	int ret;
+
+	if (child->linkrate > parent->min_linkrate) {
+		struct sas_phy *cphy = child->phy;
+		enum sas_linkrate min_prate = cphy->minimum_linkrate,
+			parent_min_lrate = parent->min_linkrate,
+			min_linkrate = (min_prate > parent_min_lrate) ?
+					parent_min_lrate : 0;
+		struct sas_phy_linkrates rates = {
+			.maximum_linkrate = parent->min_linkrate,
+			.minimum_linkrate = min_linkrate,
+		};
+
+		pr_notice("ex %016llx phy%02d SATA device linkrate > min pathway connection rate, attempting to lower device linkrate\n",
+			  SAS_ADDR(child->sas_addr), phy_id);
+		ret = sas_smp_phy_control(parent, phy_id,
+					  PHY_FUNC_LINK_RESET, &rates);
+		if (ret) {
+			pr_err("ex %016llx phy%02d SATA device could not set linkrate (%d)\n",
+			       SAS_ADDR(child->sas_addr), phy_id, ret);
+			return ret;
+		}
+		pr_notice("ex %016llx phy%02d SATA device set linkrate successfully\n",
+			  SAS_ADDR(child->sas_addr), phy_id);
+		child->linkrate = child->min_linkrate;
+	}
+	ret = sas_get_ata_info(child, phy);
+	if (ret)
+		return ret;
+
+	sas_init_dev(child);
+	ret = sas_ata_init(child);
+	if (ret)
+		return ret;
+
+	rphy = sas_end_device_alloc(phy->port);
+	if (!rphy)
+		return -ENOMEM;
+
+	rphy->identify.phy_identifier = phy_id;
+	child->rphy = rphy;
+	get_device(&rphy->dev);
+
+	list_add_tail(&child->disco_list_node, &parent->port->disco_list);
+
+	ret = sas_discover_sata(child);
+	if (ret) {
+		pr_notice("sas_discover_sata() for device %16llx at %016llx:%02d returned 0x%x\n",
+			  SAS_ADDR(child->sas_addr),
+			  SAS_ADDR(parent->sas_addr), phy_id, ret);
+		sas_rphy_free(child->rphy);
+		list_del(&child->disco_list_node);
+		return ret;
+	}
+
+	return 0;
 }
 
 static void sas_ata_flush_pm_eh(struct asd_sas_port *port, const char *func)

@@ -172,7 +172,7 @@ MODULE_DEVICE_TABLE(of, cyttsp_of_spi_match);
 static struct spi_driver cyttsp_spi_driver = {
 	.driver = {
 		.name	= CY_SPI_NAME,
-		.pm	= &cyttsp_pm_ops,
+		.pm	= pm_sleep_ptr(&cyttsp_pm_ops),
 		.of_match_table = cyttsp_of_spi_match,
 	},
 	.probe  = cyttsp_spi_probe,

@@ -60,8 +60,11 @@
 
 #define VCNL4200_AL_CONF	0x00 /* Ambient light configuration */
 #define VCNL4200_PS_CONF1	0x03 /* Proximity configuration */
+#define VCNL4040_PS_THDL_LM	0x06 /* Proximity threshold low */
+#define VCNL4040_PS_THDH_LM	0x07 /* Proximity threshold high */
 #define VCNL4200_PS_DATA	0x08 /* Proximity data */
 #define VCNL4200_AL_DATA	0x09 /* Ambient light data */
+#define VCNL4040_INT_FLAGS	0x0b /* Interrupt register */
 #define VCNL4200_DEV_ID		0x0e /* Device ID, slave address and version */
 
 #define VCNL4040_DEV_ID		0x0c /* Device ID and version */
@@ -78,6 +81,9 @@
 #define VCNL4040_ALS_CONF_ALS_SHUTDOWN	BIT(0)
 #define VCNL4040_PS_CONF1_PS_SHUTDOWN	BIT(0)
 #define VCNL4040_PS_CONF2_PS_IT	GENMASK(3, 1) /* Proximity integration time */
+#define VCNL4040_PS_CONF2_PS_INT	GENMASK(9, 8) /* Proximity interrupt mode */
+#define VCNL4040_PS_IF_AWAY		BIT(8) /* Proximity event cross low threshold */
+#define VCNL4040_PS_IF_CLOSE		BIT(9) /* Proximity event cross high threshold */
 
 /* Bit masks for interrupt registers. */
 #define VCNL4010_INT_THR_SEL	BIT(0) /* Select threshold interrupt source */
@@ -138,6 +144,7 @@ struct vcnl4000_data {
 	enum vcnl4000_device_ids id;
 	int rev;
 	int al_scale;
+	u8 ps_int;		/* proximity interrupt mode */
 	const struct vcnl4000_chip_spec *chip_spec;
 	struct mutex vcnl4000_lock;
 	struct vcnl4200_channel vcnl4200_al;
@@ -150,11 +157,13 @@ struct vcnl4000_chip_spec {
 	struct iio_chan_spec const *channels;
 	const int num_channels;
 	const struct iio_info *info;
-	bool irq_support;
+	const struct iio_buffer_setup_ops *buffer_setup_ops;
 	int (*init)(struct vcnl4000_data *data);
 	int (*measure_light)(struct vcnl4000_data *data, int *val);
 	int (*measure_proximity)(struct vcnl4000_data *data, int *val);
 	int (*set_power_state)(struct vcnl4000_data *data, bool on);
+	irqreturn_t (*irq_thread)(int irq, void *priv);
+	irqreturn_t (*trig_buffer_func)(int irq, void *priv);
 };
 
 static const struct i2c_device_id vcnl4000_id[] = {
@@ -199,7 +208,6 @@ static int vcnl4000_init(struct vcnl4000_data *data)
 
 	data->rev = ret & 0xf;
 	data->al_scale = 250000;
-	mutex_init(&data->vcnl4000_lock);
 
 	return data->chip_spec->set_power_state(data, true);
 };
@@ -254,6 +262,10 @@ static int vcnl4200_set_power_state(struct vcnl4000_data *data, bool on)
 {
 	int ret;
 
+	/* Do not power down if interrupts are enabled */
+	if (!on && data->ps_int)
+		return 0;
+
 	ret = vcnl4000_write_als_enable(data, on);
 	if (ret < 0)
 		return ret;
@@ -295,6 +307,7 @@ static int vcnl4200_init(struct vcnl4000_data *data)
 	dev_dbg(&data->client->dev, "device id 0x%x", id);
 
 	data->rev = (ret >> 8) & 0xf;
+	data->ps_int = 0;
 
 	data->vcnl4200_al.reg = VCNL4200_AL_DATA;
 	data->vcnl4200_ps.reg = VCNL4200_PS_DATA;
@@ -795,6 +808,64 @@ static int vcnl4010_write_event(struct iio_dev *indio_dev,
 	}
 }
 
+static int vcnl4040_read_event(struct iio_dev *indio_dev,
+			       const struct iio_chan_spec *chan,
+			       enum iio_event_type type,
+			       enum iio_event_direction dir,
+			       enum iio_event_info info,
+			       int *val, int *val2)
+{
+	int ret;
+	struct vcnl4000_data *data = iio_priv(indio_dev);
+
+	switch (dir) {
+	case IIO_EV_DIR_RISING:
+		ret = i2c_smbus_read_word_data(data->client,
+					       VCNL4040_PS_THDH_LM);
+		if (ret < 0)
+			return ret;
+		*val = ret;
+		return IIO_VAL_INT;
+	case IIO_EV_DIR_FALLING:
+		ret = i2c_smbus_read_word_data(data->client,
+					       VCNL4040_PS_THDL_LM);
+		if (ret < 0)
+			return ret;
+		*val = ret;
+		return IIO_VAL_INT;
+	default:
+		return -EINVAL;
+	}
+}
+
+static int vcnl4040_write_event(struct iio_dev *indio_dev,
+				const struct iio_chan_spec *chan,
+				enum iio_event_type type,
+				enum iio_event_direction dir,
+				enum iio_event_info info,
+				int val, int val2)
+{
+	int ret;
+	struct vcnl4000_data *data = iio_priv(indio_dev);
+
+	switch (dir) {
+	case IIO_EV_DIR_RISING:
+		ret = i2c_smbus_write_word_data(data->client,
+						VCNL4040_PS_THDH_LM, val);
+		if (ret < 0)
+			return ret;
+		return IIO_VAL_INT;
+	case IIO_EV_DIR_FALLING:
+		ret = i2c_smbus_write_word_data(data->client,
+						VCNL4040_PS_THDL_LM, val);
+		if (ret < 0)
+			return ret;
+		return IIO_VAL_INT;
+	default:
+		return -EINVAL;
+	}
+}
+
 static bool vcnl4010_is_thr_enabled(struct vcnl4000_data *data)
 {
 	int ret;
@@ -877,6 +948,86 @@ static int vcnl4010_write_event_config(struct iio_dev *indio_dev,
 	}
 }
 
+static int vcnl4040_read_event_config(struct iio_dev *indio_dev,
+				      const struct iio_chan_spec *chan,
+				      enum iio_event_type type,
+				      enum iio_event_direction dir)
+{
+	int ret;
+	struct vcnl4000_data *data = iio_priv(indio_dev);
+
+	ret = i2c_smbus_read_word_data(data->client, VCNL4200_PS_CONF1);
+	if (ret < 0)
+		return ret;
+
+	data->ps_int = FIELD_GET(VCNL4040_PS_CONF2_PS_INT, ret);
+
+	return (dir == IIO_EV_DIR_RISING) ?
+		FIELD_GET(VCNL4040_PS_IF_AWAY, ret) :
+		FIELD_GET(VCNL4040_PS_IF_CLOSE, ret);
+}
+
+static int vcnl4040_write_event_config(struct iio_dev *indio_dev,
+				       const struct iio_chan_spec *chan,
+				       enum iio_event_type type,
+				       enum iio_event_direction dir, int state)
+{
+	int ret;
+	u16 val, mask;
+	struct vcnl4000_data *data = iio_priv(indio_dev);
+
+	mutex_lock(&data->vcnl4000_lock);
+
+	ret = i2c_smbus_read_word_data(data->client, VCNL4200_PS_CONF1);
+	if (ret < 0)
+		goto out;
+
+	if (dir == IIO_EV_DIR_RISING)
+		mask = VCNL4040_PS_IF_AWAY;
+	else
+		mask = VCNL4040_PS_IF_CLOSE;
+
+	val = state ? (ret | mask) : (ret & ~mask);
+
+	data->ps_int = FIELD_GET(VCNL4040_PS_CONF2_PS_INT, val);
+	ret = i2c_smbus_write_word_data(data->client, VCNL4200_PS_CONF1, val);
+
+out:
+	mutex_unlock(&data->vcnl4000_lock);
+	data->chip_spec->set_power_state(data, data->ps_int != 0);
+
+	return ret;
+}
+
+static irqreturn_t vcnl4040_irq_thread(int irq, void *p)
+{
+	struct iio_dev *indio_dev = p;
+	struct vcnl4000_data *data = iio_priv(indio_dev);
+	int ret;
+
+	ret = i2c_smbus_read_word_data(data->client, VCNL4040_INT_FLAGS);
+	if (ret < 0)
+		return IRQ_HANDLED;
+
+	if (ret & VCNL4040_PS_IF_CLOSE) {
+		iio_push_event(indio_dev,
+			       IIO_UNMOD_EVENT_CODE(IIO_PROXIMITY, 0,
+						    IIO_EV_TYPE_THRESH,
+						    IIO_EV_DIR_RISING),
+			       iio_get_time_ns(indio_dev));
+	}
+
+	if (ret & VCNL4040_PS_IF_AWAY) {
+		iio_push_event(indio_dev,
+			       IIO_UNMOD_EVENT_CODE(IIO_PROXIMITY, 0,
+						    IIO_EV_TYPE_THRESH,
+						    IIO_EV_DIR_FALLING),
+			       iio_get_time_ns(indio_dev));
+	}
+
+	return IRQ_HANDLED;
+}
+
 static ssize_t vcnl4000_read_near_level(struct iio_dev *indio_dev,
 					uintptr_t priv,
 					const struct iio_chan_spec *chan,
@@ -886,149 +1037,6 @@ static ssize_t vcnl4000_read_near_level(struct iio_dev *indio_dev,
 
 	return sprintf(buf, "%u\n", data->near_level);
 }
-
-static const struct iio_chan_spec_ext_info vcnl4000_ext_info[] = {
-	{
-		.name = "nearlevel",
-		.shared = IIO_SEPARATE,
-		.read = vcnl4000_read_near_level,
-	},
-	{ /* sentinel */ }
-};
-
-static const struct iio_event_spec vcnl4000_event_spec[] = {
-	{
-		.type = IIO_EV_TYPE_THRESH,
-		.dir = IIO_EV_DIR_RISING,
-		.mask_separate = BIT(IIO_EV_INFO_VALUE),
-	}, {
-		.type = IIO_EV_TYPE_THRESH,
-		.dir = IIO_EV_DIR_FALLING,
-		.mask_separate = BIT(IIO_EV_INFO_VALUE),
-	}, {
-		.type = IIO_EV_TYPE_THRESH,
-		.dir = IIO_EV_DIR_EITHER,
-		.mask_separate = BIT(IIO_EV_INFO_ENABLE),
-	}
-};
-
-static const struct iio_chan_spec vcnl4000_channels[] = {
-	{
-		.type = IIO_LIGHT,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
-			BIT(IIO_CHAN_INFO_SCALE),
-	}, {
-		.type = IIO_PROXIMITY,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
-		.ext_info = vcnl4000_ext_info,
-	}
-};
-
-static const struct iio_chan_spec vcnl4010_channels[] = {
-	{
-		.type = IIO_LIGHT,
-		.scan_index = -1,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
-			BIT(IIO_CHAN_INFO_SCALE),
-	}, {
-		.type = IIO_PROXIMITY,
-		.scan_index = 0,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
-			BIT(IIO_CHAN_INFO_SAMP_FREQ),
-		.info_mask_separate_available = BIT(IIO_CHAN_INFO_SAMP_FREQ),
-		.event_spec = vcnl4000_event_spec,
-		.num_event_specs = ARRAY_SIZE(vcnl4000_event_spec),
-		.ext_info = vcnl4000_ext_info,
-		.scan_type = {
-			.sign = 'u',
-			.realbits = 16,
-			.storagebits = 16,
-			.endianness = IIO_CPU,
-		},
-	},
-	IIO_CHAN_SOFT_TIMESTAMP(1),
-};
-
-static const struct iio_chan_spec vcnl4040_channels[] = {
-	{
-		.type = IIO_LIGHT,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
-			BIT(IIO_CHAN_INFO_SCALE),
-	}, {
-		.type = IIO_PROXIMITY,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
-			BIT(IIO_CHAN_INFO_INT_TIME),
-		.info_mask_separate_available = BIT(IIO_CHAN_INFO_INT_TIME),
-		.ext_info = vcnl4000_ext_info,
-	}
-};
-
-static const struct iio_info vcnl4000_info = {
-	.read_raw = vcnl4000_read_raw,
-};
-
-static const struct iio_info vcnl4010_info = {
-	.read_raw = vcnl4010_read_raw,
-	.read_avail = vcnl4010_read_avail,
-	.write_raw = vcnl4010_write_raw,
-	.read_event_value = vcnl4010_read_event,
-	.write_event_value = vcnl4010_write_event,
-	.read_event_config = vcnl4010_read_event_config,
-	.write_event_config = vcnl4010_write_event_config,
-};
-
-static const struct iio_info vcnl4040_info = {
-	.read_raw = vcnl4000_read_raw,
-	.write_raw = vcnl4040_write_raw,
-	.read_avail = vcnl4040_read_avail,
-};
-
-static const struct vcnl4000_chip_spec vcnl4000_chip_spec_cfg[] = {
-	[VCNL4000] = {
-		.prod = "VCNL4000",
-		.init = vcnl4000_init,
-		.measure_light = vcnl4000_measure_light,
-		.measure_proximity = vcnl4000_measure_proximity,
-		.set_power_state = vcnl4000_set_power_state,
-		.channels = vcnl4000_channels,
-		.num_channels = ARRAY_SIZE(vcnl4000_channels),
-		.info = &vcnl4000_info,
-		.irq_support = false,
-	},
-	[VCNL4010] = {
-		.prod = "VCNL4010/4020",
-		.init = vcnl4000_init,
-		.measure_light = vcnl4000_measure_light,
-		.measure_proximity = vcnl4000_measure_proximity,
-		.set_power_state = vcnl4000_set_power_state,
-		.channels = vcnl4010_channels,
-		.num_channels = ARRAY_SIZE(vcnl4010_channels),
-		.info = &vcnl4010_info,
-		.irq_support = true,
-	},
-	[VCNL4040] = {
-		.prod = "VCNL4040",
-		.init = vcnl4200_init,
-		.measure_light = vcnl4200_measure_light,
-		.measure_proximity = vcnl4200_measure_proximity,
-		.set_power_state = vcnl4200_set_power_state,
-		.channels = vcnl4040_channels,
-		.num_channels = ARRAY_SIZE(vcnl4040_channels),
-		.info = &vcnl4040_info,
-		.irq_support = false,
-	},
-	[VCNL4200] = {
-		.prod = "VCNL4200",
-		.init = vcnl4200_init,
-		.measure_light = vcnl4200_measure_light,
-		.measure_proximity = vcnl4200_measure_proximity,
-		.set_power_state = vcnl4200_set_power_state,
-		.channels = vcnl4000_channels,
-		.num_channels = ARRAY_SIZE(vcnl4000_channels),
-		.info = &vcnl4000_info,
-		.irq_support = false,
-	},
-};
 
 static irqreturn_t vcnl4010_irq_thread(int irq, void *p)
 {
@@ -1158,6 +1166,167 @@ static const struct iio_buffer_setup_ops vcnl4010_buffer_ops = {
 	.predisable = &vcnl4010_buffer_predisable,
 };
 
+static const struct iio_chan_spec_ext_info vcnl4000_ext_info[] = {
+	{
+		.name = "nearlevel",
+		.shared = IIO_SEPARATE,
+		.read = vcnl4000_read_near_level,
+	},
+	{ /* sentinel */ }
+};
+
+static const struct iio_event_spec vcnl4000_event_spec[] = {
+	{
+		.type = IIO_EV_TYPE_THRESH,
+		.dir = IIO_EV_DIR_RISING,
+		.mask_separate = BIT(IIO_EV_INFO_VALUE),
+	}, {
+		.type = IIO_EV_TYPE_THRESH,
+		.dir = IIO_EV_DIR_FALLING,
+		.mask_separate = BIT(IIO_EV_INFO_VALUE),
+	}, {
+		.type = IIO_EV_TYPE_THRESH,
+		.dir = IIO_EV_DIR_EITHER,
+		.mask_separate = BIT(IIO_EV_INFO_ENABLE),
+	}
+};
+
+static const struct iio_event_spec vcnl4040_event_spec[] = {
+	{
+		.type = IIO_EV_TYPE_THRESH,
+		.dir = IIO_EV_DIR_RISING,
+		.mask_separate = BIT(IIO_EV_INFO_VALUE) | BIT(IIO_EV_INFO_ENABLE),
+	}, {
+		.type = IIO_EV_TYPE_THRESH,
+		.dir = IIO_EV_DIR_FALLING,
+		.mask_separate = BIT(IIO_EV_INFO_VALUE) | BIT(IIO_EV_INFO_ENABLE),
+	},
+};
+
+static const struct iio_chan_spec vcnl4000_channels[] = {
+	{
+		.type = IIO_LIGHT,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+			BIT(IIO_CHAN_INFO_SCALE),
+	}, {
+		.type = IIO_PROXIMITY,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+		.ext_info = vcnl4000_ext_info,
+	}
+};
+
+static const struct iio_chan_spec vcnl4010_channels[] = {
+	{
+		.type = IIO_LIGHT,
+		.scan_index = -1,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+			BIT(IIO_CHAN_INFO_SCALE),
+	}, {
+		.type = IIO_PROXIMITY,
+		.scan_index = 0,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+			BIT(IIO_CHAN_INFO_SAMP_FREQ),
+		.info_mask_separate_available = BIT(IIO_CHAN_INFO_SAMP_FREQ),
+		.event_spec = vcnl4000_event_spec,
+		.num_event_specs = ARRAY_SIZE(vcnl4000_event_spec),
+		.ext_info = vcnl4000_ext_info,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 16,
+			.storagebits = 16,
+			.endianness = IIO_CPU,
+		},
+	},
+	IIO_CHAN_SOFT_TIMESTAMP(1),
+};
+
+static const struct iio_chan_spec vcnl4040_channels[] = {
+	{
+		.type = IIO_LIGHT,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+			BIT(IIO_CHAN_INFO_SCALE),
+	}, {
+		.type = IIO_PROXIMITY,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+			BIT(IIO_CHAN_INFO_INT_TIME),
+		.info_mask_separate_available = BIT(IIO_CHAN_INFO_INT_TIME),
+		.ext_info = vcnl4000_ext_info,
+		.event_spec = vcnl4040_event_spec,
+		.num_event_specs = ARRAY_SIZE(vcnl4040_event_spec),
+	}
+};
+
+static const struct iio_info vcnl4000_info = {
+	.read_raw = vcnl4000_read_raw,
+};
+
+static const struct iio_info vcnl4010_info = {
+	.read_raw = vcnl4010_read_raw,
+	.read_avail = vcnl4010_read_avail,
+	.write_raw = vcnl4010_write_raw,
+	.read_event_value = vcnl4010_read_event,
+	.write_event_value = vcnl4010_write_event,
+	.read_event_config = vcnl4010_read_event_config,
+	.write_event_config = vcnl4010_write_event_config,
+};
+
+static const struct iio_info vcnl4040_info = {
+	.read_raw = vcnl4000_read_raw,
+	.write_raw = vcnl4040_write_raw,
+	.read_event_value = vcnl4040_read_event,
+	.write_event_value = vcnl4040_write_event,
+	.read_event_config = vcnl4040_read_event_config,
+	.write_event_config = vcnl4040_write_event_config,
+	.read_avail = vcnl4040_read_avail,
+};
+
+static const struct vcnl4000_chip_spec vcnl4000_chip_spec_cfg[] = {
+	[VCNL4000] = {
+		.prod = "VCNL4000",
+		.init = vcnl4000_init,
+		.measure_light = vcnl4000_measure_light,
+		.measure_proximity = vcnl4000_measure_proximity,
+		.set_power_state = vcnl4000_set_power_state,
+		.channels = vcnl4000_channels,
+		.num_channels = ARRAY_SIZE(vcnl4000_channels),
+		.info = &vcnl4000_info,
+	},
+	[VCNL4010] = {
+		.prod = "VCNL4010/4020",
+		.init = vcnl4000_init,
+		.measure_light = vcnl4000_measure_light,
+		.measure_proximity = vcnl4000_measure_proximity,
+		.set_power_state = vcnl4000_set_power_state,
+		.channels = vcnl4010_channels,
+		.num_channels = ARRAY_SIZE(vcnl4010_channels),
+		.info = &vcnl4010_info,
+		.irq_thread = vcnl4010_irq_thread,
+		.trig_buffer_func = vcnl4010_trigger_handler,
+		.buffer_setup_ops = &vcnl4010_buffer_ops,
+	},
+	[VCNL4040] = {
+		.prod = "VCNL4040",
+		.init = vcnl4200_init,
+		.measure_light = vcnl4200_measure_light,
+		.measure_proximity = vcnl4200_measure_proximity,
+		.set_power_state = vcnl4200_set_power_state,
+		.channels = vcnl4040_channels,
+		.num_channels = ARRAY_SIZE(vcnl4040_channels),
+		.info = &vcnl4040_info,
+		.irq_thread = vcnl4040_irq_thread,
+	},
+	[VCNL4200] = {
+		.prod = "VCNL4200",
+		.init = vcnl4200_init,
+		.measure_light = vcnl4200_measure_light,
+		.measure_proximity = vcnl4200_measure_proximity,
+		.set_power_state = vcnl4200_set_power_state,
+		.channels = vcnl4000_channels,
+		.num_channels = ARRAY_SIZE(vcnl4000_channels),
+		.info = &vcnl4000_info,
+	},
+};
+
 static const struct iio_trigger_ops vcnl4010_trigger_ops = {
 	.validate_device = iio_trigger_validate_own_device,
 };
@@ -1197,6 +1366,8 @@ static int vcnl4000_probe(struct i2c_client *client)
 	data->id = id->driver_data;
 	data->chip_spec = &vcnl4000_chip_spec_cfg[data->id];
 
+	mutex_init(&data->vcnl4000_lock);
+
 	ret = data->chip_spec->init(data);
 	if (ret < 0)
 		return ret;
@@ -1214,22 +1385,25 @@ static int vcnl4000_probe(struct i2c_client *client)
 	indio_dev->name = VCNL4000_DRV_NAME;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	if (client->irq && data->chip_spec->irq_support) {
+	if (data->chip_spec->trig_buffer_func &&
+	    data->chip_spec->buffer_setup_ops) {
 		ret = devm_iio_triggered_buffer_setup(&client->dev, indio_dev,
 						      NULL,
-						      vcnl4010_trigger_handler,
-						      &vcnl4010_buffer_ops);
+						      data->chip_spec->trig_buffer_func,
+						      data->chip_spec->buffer_setup_ops);
 		if (ret < 0) {
 			dev_err(&client->dev,
 				"unable to setup iio triggered buffer\n");
 			return ret;
 		}
+	}
 
+	if (client->irq && data->chip_spec->irq_thread) {
 		ret = devm_request_threaded_irq(&client->dev, client->irq,
-						NULL, vcnl4010_irq_thread,
+						NULL, data->chip_spec->irq_thread,
 						IRQF_TRIGGER_FALLING |
 						IRQF_ONESHOT,
-						"vcnl4010_irq",
+						"vcnl4000_irq",
 						indio_dev);
 		if (ret < 0) {
 			dev_err(&client->dev, "irq request failed\n");

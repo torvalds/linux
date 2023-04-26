@@ -2231,7 +2231,7 @@ int __genphy_config_aneg(struct phy_device *phydev, bool changed)
 {
 	int err;
 
-	err = genphy_c45_write_eee_adv(phydev, phydev->supported_eee);
+	err = genphy_c45_an_config_eee_aneg(phydev);
 	if (err < 0)
 		return err;
 	else if (err)
@@ -3057,7 +3057,7 @@ EXPORT_SYMBOL_GPL(device_phy_find_device);
  * and "phy-device" are not supported in ACPI. DT supports all the three
  * named references to the phy node.
  */
-struct fwnode_handle *fwnode_get_phy_node(struct fwnode_handle *fwnode)
+struct fwnode_handle *fwnode_get_phy_node(const struct fwnode_handle *fwnode)
 {
 	struct fwnode_handle *phy_node;
 
@@ -3097,8 +3097,6 @@ static int phy_probe(struct device *dev)
 
 	if (phydrv->flags & PHY_IS_INTERNAL)
 		phydev->is_internal = true;
-
-	mutex_lock(&phydev->lock);
 
 	/* Deassert the reset signal */
 	phy_device_reset(phydev, 0);
@@ -3141,6 +3139,25 @@ static int phy_probe(struct device *dev)
 	of_set_phy_supported(phydev);
 	phy_advertise_supported(phydev);
 
+	/* Get PHY default EEE advertising modes and handle them as potentially
+	 * safe initial configuration.
+	 */
+	err = genphy_c45_read_eee_adv(phydev, phydev->advertising_eee);
+	if (err)
+		goto out;
+
+	/* There is no "enabled" flag. If PHY is advertising, assume it is
+	 * kind of enabled.
+	 */
+	phydev->eee_enabled = !linkmode_empty(phydev->advertising_eee);
+
+	/* Some PHYs may advertise, by default, not support EEE modes. So,
+	 * we need to clean them.
+	 */
+	if (phydev->eee_enabled)
+		linkmode_and(phydev->advertising_eee, phydev->supported_eee,
+			     phydev->advertising_eee);
+
 	/* Get the EEE modes we want to prohibit. We will ask
 	 * the PHY stop advertising these mode later on
 	 */
@@ -3169,11 +3186,9 @@ static int phy_probe(struct device *dev)
 	phydev->state = PHY_READY;
 
 out:
-	/* Assert the reset signal */
+	/* Re-assert the reset signal on error */
 	if (err)
 		phy_device_reset(phydev, 1);
-
-	mutex_unlock(&phydev->lock);
 
 	return err;
 }
@@ -3184,9 +3199,7 @@ static int phy_remove(struct device *dev)
 
 	cancel_delayed_work_sync(&phydev->state_queue);
 
-	mutex_lock(&phydev->lock);
 	phydev->state = PHY_DOWN;
-	mutex_unlock(&phydev->lock);
 
 	sfp_bus_del_upstream(phydev->sfp_bus);
 	phydev->sfp_bus = NULL;

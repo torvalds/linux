@@ -92,7 +92,7 @@ stacktrace(void)
 {
 	instr * ret_pc;
 	instr * prologue = (instr *)stacktrace;
-	register unsigned char * sp __asm__ ("$30");
+	unsigned char *sp = (unsigned char *)current_stack_pointer;
 
 	printk("\tstack trace:\n");
 	do {

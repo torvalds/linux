@@ -4,6 +4,7 @@
  * Copyright © 2014-2016 Intel Corporation
  */
 
+#include "display/intel_display.h"
 #include "display/intel_frontbuffer.h"
 #include "gt/intel_gt.h"
 
@@ -16,6 +17,8 @@
 #include "i915_gem_mman.h"
 #include "i915_gem_object.h"
 #include "i915_vma.h"
+
+#define VTD_GUARD (168u * I915_GTT_PAGE_SIZE) /* 168 or tile-row PTE padding */
 
 static bool gpu_write_needs_clflush(struct drm_i915_gem_object *obj)
 {
@@ -424,6 +427,17 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ERR_PTR(ret);
 
+	/* VT-d may overfetch before/after the vma, so pad with scratch */
+	if (intel_scanout_needs_vtd_wa(i915)) {
+		unsigned int guard = VTD_GUARD;
+
+		if (i915_gem_object_is_tiled(obj))
+			guard = max(guard,
+				    i915_gem_object_get_tile_row_size(obj));
+
+		flags |= PIN_OFFSET_GUARD | guard;
+	}
+
 	/*
 	 * As the user may map the buffer once pinned in the display plane
 	 * (e.g. libkms for the bootup splash), we have to ensure that we
@@ -444,7 +458,7 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	if (IS_ERR(vma))
 		return vma;
 
-	vma->display_alignment = max_t(u64, vma->display_alignment, alignment);
+	vma->display_alignment = max(vma->display_alignment, alignment);
 	i915_vma_mark_scanout(vma);
 
 	i915_gem_object_flush_if_display_locked(obj);

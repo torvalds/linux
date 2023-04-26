@@ -10,7 +10,7 @@ maintainers:
   - Jonathan Cameron <jic23@kernel.org>
 
 description: |
-   Family of ADCs with i2c inteface, internal references and threshold
+   Family of ADCs with i2c interface, internal references and threshold
    monitoring.
 
 properties:

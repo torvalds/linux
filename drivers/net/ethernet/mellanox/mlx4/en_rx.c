@@ -674,7 +674,7 @@ int mlx4_en_xdp_rx_timestamp(const struct xdp_md *ctx, u64 *timestamp)
 	struct mlx4_en_xdp_buff *_ctx = (void *)ctx;
 
 	if (unlikely(_ctx->ring->hwtstamp_rx_filter != HWTSTAMP_FILTER_ALL))
-		return -EOPNOTSUPP;
+		return -ENODATA;
 
 	*timestamp = mlx4_en_get_hwtstamp(_ctx->mdev,
 					  mlx4_en_get_cqe_ts(_ctx->cqe));
@@ -686,7 +686,7 @@ int mlx4_en_xdp_rx_hash(const struct xdp_md *ctx, u32 *hash)
 	struct mlx4_en_xdp_buff *_ctx = (void *)ctx;
 
 	if (unlikely(!(_ctx->dev->features & NETIF_F_RXHASH)))
-		return -EOPNOTSUPP;
+		return -ENODATA;
 
 	*hash = be32_to_cpu(_ctx->cqe->immed_rss_invalid);
 	return 0;

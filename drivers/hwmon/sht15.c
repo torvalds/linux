@@ -668,7 +668,7 @@ static inline int sht15_calc_humid(struct sht15_data *data)
 }
 
 /**
- * sht15_show_status() - show status information in sysfs
+ * sht15_status_show() - show status information in sysfs
  * @dev:	device.
  * @attr:	device attribute.
  * @buf:	sysfs buffer where information is written to.
@@ -690,7 +690,7 @@ static ssize_t sht15_status_show(struct device *dev,
 }
 
 /**
- * sht15_store_heater() - change heater state via sysfs
+ * sht15_status_store() - change heater state via sysfs
  * @dev:	device.
  * @attr:	device attribute.
  * @buf:	sysfs buffer to read the new heater state from.
@@ -725,7 +725,7 @@ static ssize_t sht15_status_store(struct device *dev,
 }
 
 /**
- * sht15_show_temp() - show temperature measurement value in sysfs
+ * sht15_temp_show() - show temperature measurement value in sysfs
  * @dev:	device.
  * @attr:	device attribute.
  * @buf:	sysfs buffer where measurement values are written to.
@@ -747,7 +747,7 @@ static ssize_t sht15_temp_show(struct device *dev,
 }
 
 /**
- * sht15_show_humidity() - show humidity measurement value in sysfs
+ * sht15_humidity_show() - show humidity measurement value in sysfs
  * @dev:	device.
  * @attr:	device attribute.
  * @buf:	sysfs buffer where measurement values are written to.

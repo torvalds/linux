@@ -25,7 +25,7 @@
 #include "pid_list.h"
 
 #ifdef CONFIG_FTRACE_SYSCALLS
-#include <asm/unistd.h>		/* For NR_SYSCALLS	     */
+#include <asm/unistd.h>		/* For NR_syscalls	     */
 #include <asm/syscall.h>	/* some archs define it here */
 #endif
 
@@ -112,6 +112,10 @@ enum trace_type {
 /* Use this for memory failure errors */
 #define MEM_FAIL(condition, fmt, ...)					\
 	DO_ONCE_LITE_IF(condition, pr_err, "ERROR: " fmt, ##__VA_ARGS__)
+
+#define HIST_STACKTRACE_DEPTH	16
+#define HIST_STACKTRACE_SIZE	(HIST_STACKTRACE_DEPTH * sizeof(unsigned long))
+#define HIST_STACKTRACE_SKIP	5
 
 /*
  * syscalls are special, and need special handling, this is why
@@ -1330,6 +1334,8 @@ DECLARE_PER_CPU(struct ring_buffer_event *, trace_buffered_event);
 DECLARE_PER_CPU(int, trace_buffered_event_cnt);
 void trace_buffered_event_disable(void);
 void trace_buffered_event_enable(void);
+
+void early_enable_events(struct trace_array *tr, char *buf, bool disable_first);
 
 static inline void
 __trace_event_discard_commit(struct trace_buffer *buffer,

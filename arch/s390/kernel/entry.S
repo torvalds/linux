@@ -562,16 +562,6 @@ ENTRY(mcck_int_handler)
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	lgr	%r2,%r11		# pass pointer to pt_regs
 	brasl	%r14,s390_do_machine_check
-	cghi	%r2,0
-	je	.Lmcck_return
-	lg	%r1,__LC_KERNEL_STACK	# switch to kernel stack
-	mvc	STACK_FRAME_OVERHEAD(__PT_SIZE,%r1),0(%r11)
-	xc	__SF_BACKCHAIN(8,%r1),__SF_BACKCHAIN(%r1)
-	la	%r11,STACK_FRAME_OVERHEAD(%r1)
-	lgr	%r2,%r11
-	lgr	%r15,%r1
-	brasl	%r14,s390_handle_mcck
-.Lmcck_return:
 	lctlg	%c1,%c1,__PT_CR1(%r11)
 	lmg	%r0,%r10,__PT_R0(%r11)
 	mvc	__LC_RETURN_MCCK_PSW(16),__PT_PSW(%r11) # move return PSW

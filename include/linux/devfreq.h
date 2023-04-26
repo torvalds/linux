@@ -273,8 +273,8 @@ void devm_devfreq_unregister_notifier(struct device *dev,
 struct devfreq *devfreq_get_devfreq_by_node(struct device_node *node);
 struct devfreq *devfreq_get_devfreq_by_phandle(struct device *dev,
 				const char *phandle_name, int index);
+#endif /* CONFIG_PM_DEVFREQ */
 
-#if IS_ENABLED(CONFIG_DEVFREQ_GOV_SIMPLE_ONDEMAND)
 /**
  * struct devfreq_simple_ondemand_data - ``void *data`` fed to struct devfreq
  *	and devfreq_add_device
@@ -292,9 +292,7 @@ struct devfreq_simple_ondemand_data {
 	unsigned int upthreshold;
 	unsigned int downdifferential;
 };
-#endif
 
-#if IS_ENABLED(CONFIG_DEVFREQ_GOV_PASSIVE)
 enum devfreq_parent_dev_type {
 	DEVFREQ_PARENT_DEV,
 	CPUFREQ_PARENT_DEV,
@@ -337,9 +335,8 @@ struct devfreq_passive_data {
 	struct notifier_block nb;
 	struct list_head cpu_data_list;
 };
-#endif
 
-#else /* !CONFIG_PM_DEVFREQ */
+#if !defined(CONFIG_PM_DEVFREQ)
 static inline struct devfreq *devfreq_add_device(struct device *dev,
 					struct devfreq_dev_profile *profile,
 					const char *governor_name,

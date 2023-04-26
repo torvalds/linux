@@ -1510,7 +1510,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         relaxed_ordering_write[0x1];
 	u8         relaxed_ordering_read[0x1];
 	u8         log_max_mkey[0x6];
-	u8         reserved_at_f0[0x8];
+	u8         reserved_at_f0[0x6];
+	u8	   terminate_scatter_list_mkey[0x1];
+	u8	   repeated_mkey[0x1];
 	u8         dump_fill_mkey[0x1];
 	u8         reserved_at_f9[0x2];
 	u8         fast_teardown[0x1];
@@ -2181,6 +2183,17 @@ struct mlx5_ifc_cong_control_r_roce_ecn_rp_bits {
 	u8         initial_alpha_value[0x20];
 
 	u8         reserved_at_360[0x4a0];
+};
+
+struct mlx5_ifc_cong_control_r_roce_general_bits {
+	u8         reserved_at_0[0x80];
+
+	u8         reserved_at_80[0x10];
+	u8         rtt_resp_dscp_valid[0x1];
+	u8         reserved_at_91[0x9];
+	u8         rtt_resp_dscp[0x6];
+
+	u8         reserved_at_a0[0x760];
 };
 
 struct mlx5_ifc_cong_control_802_1qau_rp_bits {
@@ -4353,6 +4366,7 @@ union mlx5_ifc_cong_control_roce_ecn_auto_bits {
 	struct mlx5_ifc_cong_control_802_1qau_rp_bits cong_control_802_1qau_rp;
 	struct mlx5_ifc_cong_control_r_roce_ecn_rp_bits cong_control_r_roce_ecn_rp;
 	struct mlx5_ifc_cong_control_r_roce_ecn_np_bits cong_control_r_roce_ecn_np;
+	struct mlx5_ifc_cong_control_r_roce_general_bits cong_control_r_roce_general;
 	u8         reserved_at_0[0x800];
 };
 
@@ -5261,7 +5275,11 @@ struct mlx5_ifc_query_special_contexts_out_bits {
 
 	u8         null_mkey[0x20];
 
-	u8         reserved_at_a0[0x60];
+	u8	   terminate_scatter_list_mkey[0x20];
+
+	u8	   repeated_mkey[0x20];
+
+	u8         reserved_at_a0[0x20];
 };
 
 struct mlx5_ifc_query_special_contexts_in_bits {

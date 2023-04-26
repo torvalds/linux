@@ -229,7 +229,7 @@ void __put_user_ns(struct user_namespace *ns)
 EXPORT_SYMBOL(__put_user_ns);
 
 /**
- * idmap_key struct holds the information necessary to find an idmapping in a
+ * struct idmap_key - holds the information necessary to find an idmapping in a
  * sorted idmap array. It is passed to cmp_map_id() as first argument.
  */
 struct idmap_key {

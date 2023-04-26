@@ -114,6 +114,12 @@ properties:
       List of phandles to idle state nodes supported
       by this hart (see ./idle-states.yaml).
 
+  capacity-dmips-mhz:
+    description:
+      u32 value representing CPU capacity (see ../cpu/cpu-capacity.txt) in
+      DMIPS/MHz, relative to highest capacity-dmips-mhz
+      in the system.
+
 required:
   - riscv,isa
   - interrupt-controller

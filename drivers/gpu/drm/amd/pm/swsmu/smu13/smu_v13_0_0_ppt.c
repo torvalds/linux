@@ -46,6 +46,7 @@
 #include "asic_reg/mp/mp_13_0_0_sh_mask.h"
 #include "smu_cmn.h"
 #include "amdgpu_ras.h"
+#include "umc_v8_10.h"
 
 /*
  * DO NOT use these for err/warn/info/debug messages.
@@ -89,6 +90,12 @@
 #define mmMP1_SMN_C2PMSG_54_BASE_IDX                                                                   0
 
 #define DEBUGSMC_MSG_Mode1Reset	2
+
+/*
+ * SMU_v13_0_10 supports ECCTABLE since version 80.34.0,
+ * use this to check ECCTABLE feature whether support
+ */
+#define SUPPORT_ECCTABLE_SMU_13_0_10_VERSION 0x00502200
 
 static struct cmn2asic_msg_mapping smu_v13_0_0_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,			PPSMC_MSG_TestMessage,                 1),
@@ -138,6 +145,7 @@ static struct cmn2asic_msg_mapping smu_v13_0_0_message_map[SMU_MSG_MAX_COUNT] = 
 	MSG_MAP(GetPptLimit,			PPSMC_MSG_GetPptLimit,                 0),
 	MSG_MAP(NotifyPowerSource,		PPSMC_MSG_NotifyPowerSource,           0),
 	MSG_MAP(Mode1Reset,			PPSMC_MSG_Mode1Reset,                  0),
+	MSG_MAP(Mode2Reset,			PPSMC_MSG_Mode2Reset,	       		   0),
 	MSG_MAP(PrepareMp1ForUnload,		PPSMC_MSG_PrepareMp1ForUnload,         0),
 	MSG_MAP(DFCstateControl,		PPSMC_MSG_SetExternalClientDfCstateAllow, 0),
 	MSG_MAP(ArmD3,				PPSMC_MSG_ArmD3,                       0),
@@ -146,6 +154,7 @@ static struct cmn2asic_msg_mapping smu_v13_0_0_message_map[SMU_MSG_MAX_COUNT] = 
 			    PPSMC_MSG_SetBadMemoryPagesRetiredFlagsPerChannel,   0),
 	MSG_MAP(AllowGpo,			PPSMC_MSG_SetGpoAllow,           0),
 	MSG_MAP(AllowIHHostInterrupt,		PPSMC_MSG_AllowIHHostInterrupt,       0),
+	MSG_MAP(ReenableAcDcInterrupt,		PPSMC_MSG_ReenableAcDcInterrupt,       0),
 };
 
 static struct cmn2asic_mapping smu_v13_0_0_clk_map[SMU_CLK_COUNT] = {
@@ -227,6 +236,7 @@ static struct cmn2asic_mapping smu_v13_0_0_table_map[SMU_TABLE_COUNT] = {
 	TAB_MAP(ACTIVITY_MONITOR_COEFF),
 	[SMU_TABLE_COMBO_PPTABLE] = {1, TABLE_COMBO_PPTABLE},
 	TAB_MAP(I2C_COMMANDS),
+	TAB_MAP(ECCINFO),
 };
 
 static struct cmn2asic_mapping smu_v13_0_0_pwr_src_map[SMU_POWER_SOURCE_COUNT] = {
@@ -242,6 +252,7 @@ static struct cmn2asic_mapping smu_v13_0_0_workload_map[PP_SMC_POWER_PROFILE_COU
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_VR,			WORKLOAD_PPLIB_VR_BIT),
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_COMPUTE,		WORKLOAD_PPLIB_COMPUTE_BIT),
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_CUSTOM,		WORKLOAD_PPLIB_CUSTOM_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_WINDOW3D,		WORKLOAD_PPLIB_WINDOW_3D_BIT),
 };
 
 static const uint8_t smu_v13_0_0_throttler_map[] = {
@@ -459,6 +470,8 @@ static int smu_v13_0_0_tables_init(struct smu_context *smu)
 		       AMDGPU_GEM_DOMAIN_VRAM);
 	SMU_TABLE_INIT(tables, SMU_TABLE_COMBO_PPTABLE, MP0_MP1_DATA_REGION_SIZE_COMBOPPTABLE,
 			PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
+	SMU_TABLE_INIT(tables, SMU_TABLE_ECCINFO, sizeof(EccInfoTable_t),
+			PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 
 	smu_table->metrics_table = kzalloc(sizeof(SmuMetricsExternal_t), GFP_KERNEL);
 	if (!smu_table->metrics_table)
@@ -474,8 +487,14 @@ static int smu_v13_0_0_tables_init(struct smu_context *smu)
 	if (!smu_table->watermarks_table)
 		goto err2_out;
 
+	smu_table->ecc_table = kzalloc(tables[SMU_TABLE_ECCINFO].size, GFP_KERNEL);
+	if (!smu_table->ecc_table)
+		goto err3_out;
+
 	return 0;
 
+err3_out:
+	kfree(smu_table->watermarks_table);
 err2_out:
 	kfree(smu_table->gpu_metrics_table);
 err1_out:
@@ -1563,7 +1582,7 @@ static int smu_v13_0_0_get_power_profile_mode(struct smu_context *smu,
 			title[0], title[1], title[2], title[3], title[4], title[5],
 			title[6], title[7], title[8], title[9]);
 
-	for (i = 0; i <= PP_SMC_POWER_PROFILE_CUSTOM; i++) {
+	for (i = 0; i < PP_SMC_POWER_PROFILE_COUNT; i++) {
 		/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
 		workload_type = smu_cmn_to_asic_specific_index(smu,
 							       CMN2ASIC_MAPPING_WORKLOAD,
@@ -1625,7 +1644,7 @@ static int smu_v13_0_0_set_power_profile_mode(struct smu_context *smu,
 
 	smu->power_profile_mode = input[size];
 
-	if (smu->power_profile_mode > PP_SMC_POWER_PROFILE_CUSTOM) {
+	if (smu->power_profile_mode >= PP_SMC_POWER_PROFILE_COUNT) {
 		dev_err(smu->adev->dev, "Invalid power profile mode %d\n", smu->power_profile_mode);
 		return -EINVAL;
 	}
@@ -1910,20 +1929,80 @@ static int smu_v13_0_0_set_df_cstate(struct smu_context *smu,
 					       NULL);
 }
 
+static void smu_v13_0_0_set_mode1_reset_param(struct smu_context *smu,
+						uint32_t supported_version,
+						uint32_t *param)
+{
+	uint32_t smu_version;
+	struct amdgpu_device *adev = smu->adev;
+	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+
+	smu_cmn_get_smc_version(smu, NULL, &smu_version);
+
+	if ((smu_version >= supported_version) &&
+			ras && atomic_read(&ras->in_recovery))
+		/* Set RAS fatal error reset flag */
+		*param = 1 << 16;
+	else
+		*param = 0;
+}
+
 static int smu_v13_0_0_mode1_reset(struct smu_context *smu)
 {
 	int ret;
+	uint32_t param;
 	struct amdgpu_device *adev = smu->adev;
 
-	if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 10))
-		ret = smu_cmn_send_debug_smc_msg(smu, DEBUGSMC_MSG_Mode1Reset);
-	else
+	switch (adev->ip_versions[MP1_HWIP][0]) {
+	case IP_VERSION(13, 0, 0):
+		/* SMU 13_0_0 PMFW supports RAS fatal error reset from 78.77 */
+		smu_v13_0_0_set_mode1_reset_param(smu, 0x004e4d00, &param);
+
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+						SMU_MSG_Mode1Reset, param, NULL);
+		break;
+
+	case IP_VERSION(13, 0, 10):
+		/* SMU 13_0_10 PMFW supports RAS fatal error reset from 80.28 */
+		smu_v13_0_0_set_mode1_reset_param(smu, 0x00501c00, &param);
+
+		ret = smu_cmn_send_debug_smc_msg_with_param(smu,
+						DEBUGSMC_MSG_Mode1Reset, param);
+		break;
+
+	default:
 		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_Mode1Reset, NULL);
+		break;
+	}
 
 	if (!ret)
 		msleep(SMU13_MODE1_RESET_WAIT_TIME_IN_MS);
 
 	return ret;
+}
+
+static int smu_v13_0_0_mode2_reset(struct smu_context *smu)
+{
+	int ret;
+	struct amdgpu_device *adev = smu->adev;
+
+	if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 10))
+		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_Mode2Reset, NULL);
+	else
+		return -EOPNOTSUPP;
+
+	return ret;
+}
+
+static int smu_v13_0_0_enable_gfx_features(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+
+	if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 10))
+		return smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_EnableAllSmuFeatures,
+										   FEATURE_PWR_GFX, NULL);
+	else
+		return -EOPNOTSUPP;
 }
 
 static void smu_v13_0_0_set_smu_mailbox_registers(struct smu_context *smu)
@@ -1969,6 +2048,64 @@ static int smu_v13_0_0_send_bad_mem_channel_flag(struct smu_context *smu,
 		dev_err(smu->adev->dev,
 			  "[%s] failed to message SMU to update bad memory pages channel info\n",
 			  __func__);
+
+	return ret;
+}
+
+static int smu_v13_0_0_check_ecc_table_support(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t if_version = 0xff, smu_version = 0xff;
+	int ret = 0;
+
+	ret = smu_cmn_get_smc_version(smu, &if_version, &smu_version);
+	if (ret)
+		return -EOPNOTSUPP;
+
+	if ((adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 10)) &&
+		(smu_version >= SUPPORT_ECCTABLE_SMU_13_0_10_VERSION))
+		return ret;
+	else
+		return -EOPNOTSUPP;
+}
+
+static ssize_t smu_v13_0_0_get_ecc_info(struct smu_context *smu,
+									void *table)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct amdgpu_device *adev = smu->adev;
+	EccInfoTable_t *ecc_table = NULL;
+	struct ecc_info_per_ch *ecc_info_per_channel = NULL;
+	int i, ret = 0;
+	struct umc_ecc_info *eccinfo = (struct umc_ecc_info *)table;
+
+	ret = smu_v13_0_0_check_ecc_table_support(smu);
+	if (ret)
+		return ret;
+
+	ret = smu_cmn_update_table(smu,
+					SMU_TABLE_ECCINFO,
+					0,
+					smu_table->ecc_table,
+					false);
+	if (ret) {
+		dev_info(adev->dev, "Failed to export SMU ecc table!\n");
+		return ret;
+	}
+
+	ecc_table = (EccInfoTable_t *)smu_table->ecc_table;
+
+	for (i = 0; i < UMC_V8_10_TOTAL_CHANNEL_NUM(adev); i++) {
+		ecc_info_per_channel = &(eccinfo->ecc[i]);
+		ecc_info_per_channel->ce_count_lo_chip =
+				ecc_table->EccInfo[i].ce_count_lo_chip;
+		ecc_info_per_channel->ce_count_hi_chip =
+				ecc_table->EccInfo[i].ce_count_hi_chip;
+		ecc_info_per_channel->mca_umc_status =
+				ecc_table->EccInfo[i].mca_umc_status;
+		ecc_info_per_channel->mca_umc_addr =
+				ecc_table->EccInfo[i].mca_umc_addr;
+	}
 
 	return ret;
 }
@@ -2041,11 +2178,14 @@ static const struct pptable_funcs smu_v13_0_0_ppt_funcs = {
 	.baco_exit = smu_v13_0_0_baco_exit,
 	.mode1_reset_is_support = smu_v13_0_0_is_mode1_reset_supported,
 	.mode1_reset = smu_v13_0_0_mode1_reset,
+	.mode2_reset = smu_v13_0_0_mode2_reset,
+	.enable_gfx_features = smu_v13_0_0_enable_gfx_features,
 	.set_mp1_state = smu_v13_0_0_set_mp1_state,
 	.set_df_cstate = smu_v13_0_0_set_df_cstate,
 	.send_hbm_bad_pages_num = smu_v13_0_0_smu_send_bad_mem_page_num,
 	.send_hbm_bad_channel_flag = smu_v13_0_0_send_bad_mem_channel_flag,
 	.gpo_control = smu_v13_0_gpo_control,
+	.get_ecc_info = smu_v13_0_0_get_ecc_info,
 };
 
 void smu_v13_0_0_set_ppt_funcs(struct smu_context *smu)

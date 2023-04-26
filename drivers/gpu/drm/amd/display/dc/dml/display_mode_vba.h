@@ -143,6 +143,7 @@ dml_get_pipe_attr_decl(vready_at_or_after_vsync);
 dml_get_pipe_attr_decl(min_dst_y_next_start);
 dml_get_pipe_attr_decl(vstartup_calculated);
 dml_get_pipe_attr_decl(subviewport_lines_needed_in_mall);
+dml_get_pipe_attr_decl(surface_size_in_mall);
 
 double get_total_immediate_flip_bytes(
 		struct display_mode_lib *mode_lib,
@@ -262,6 +263,7 @@ struct vba_vars_st {
 	int maxMpcComb;
 	bool UseMaximumVStartup;
 
+	double MaxVRatioPre;
 	double WritebackDISPCLK;
 	double DPPCLKUsingSingleDPPLuma;
 	double DPPCLKUsingSingleDPPChroma;

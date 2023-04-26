@@ -391,6 +391,7 @@ void efi_native_runtime_setup(void);
 #define EFI_RT_PROPERTIES_TABLE_GUID		EFI_GUID(0xeb66918a, 0x7eef, 0x402a,  0x84, 0x2e, 0x93, 0x1d, 0x21, 0xc3, 0x8a, 0xe9)
 #define EFI_DXE_SERVICES_TABLE_GUID		EFI_GUID(0x05ad34ba, 0x6f02, 0x4214,  0x95, 0x2e, 0x4d, 0xa0, 0x39, 0x8e, 0x2b, 0xb9)
 #define EFI_SMBIOS_PROTOCOL_GUID		EFI_GUID(0x03583ff6, 0xcb36, 0x4940,  0x94, 0x7e, 0xb9, 0xb3, 0x9f, 0x4a, 0xfa, 0xf7)
+#define EFI_MEMORY_ATTRIBUTE_PROTOCOL_GUID	EFI_GUID(0xf4560cf6, 0x40ec, 0x4b4a,  0xa1, 0x92, 0xbf, 0x1d, 0x57, 0xd0, 0xb1, 0x89)
 
 #define EFI_IMAGE_SECURITY_DATABASE_GUID	EFI_GUID(0xd719b2cb, 0x3d3a, 0x4596,  0xa3, 0xbc, 0xda, 0xd0, 0x0e, 0x67, 0x65, 0x6f)
 #define EFI_SHIM_LOCK_GUID			EFI_GUID(0x605dab50, 0xe046, 0x4300,  0xab, 0xb6, 0x3d, 0xd8, 0x10, 0xdd, 0x8b, 0x23)
@@ -583,11 +584,15 @@ typedef struct {
 
 #define EFI_INVALID_TABLE_ADDR		(~0UL)
 
+// BIT0 implies that Runtime code includes the forward control flow guard
+// instruction, such as X86 CET-IBT or ARM BTI.
+#define EFI_MEMORY_ATTRIBUTES_FLAGS_RT_FORWARD_CONTROL_FLOW_GUARD	0x1
+
 typedef struct {
 	u32 version;
 	u32 num_entries;
 	u32 desc_size;
-	u32 reserved;
+	u32 flags;
 	efi_memory_desc_t entry[0];
 } efi_memory_attributes_table_t;
 
@@ -688,6 +693,7 @@ efi_guid_to_str(efi_guid_t *guid, char *out)
 }
 
 extern void efi_init (void);
+extern void efi_earlycon_reprobe(void);
 #ifdef CONFIG_EFI
 extern void efi_enter_virtual_mode (void);	/* switch EFI to virtual mode, if possible */
 #else
@@ -721,8 +727,7 @@ static inline void efi_esrt_init(void) { }
 extern int efi_config_parse_tables(const efi_config_table_t *config_tables,
 				   int count,
 				   const efi_config_table_type_t *arch_tables);
-extern int efi_systab_check_header(const efi_table_hdr_t *systab_hdr,
-				   int min_major_version);
+extern int efi_systab_check_header(const efi_table_hdr_t *systab_hdr);
 extern void efi_systab_report_header(const efi_table_hdr_t *systab_hdr,
 				     unsigned long fw_vendor);
 extern u64 efi_get_iobase (void);
@@ -732,6 +737,7 @@ extern u64 efi_mem_attribute (unsigned long phys_addr, unsigned long size);
 extern int __init efi_uart_console_only (void);
 extern u64 efi_mem_desc_end(efi_memory_desc_t *md);
 extern int efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md);
+extern int __efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md);
 extern void efi_mem_reserve(phys_addr_t addr, u64 size);
 extern int efi_mem_reserve_persistent(phys_addr_t addr, u64 size);
 extern void efi_initialize_iomem_resources(struct resource *code_resource,
@@ -751,7 +757,7 @@ extern unsigned long efi_mem_attr_table;
  *                           argument in the page tables referred to by the
  *                           first argument.
  */
-typedef int (*efi_memattr_perm_setter)(struct mm_struct *, efi_memory_desc_t *);
+typedef int (*efi_memattr_perm_setter)(struct mm_struct *, efi_memory_desc_t *, bool);
 
 extern int efi_memattr_init(void);
 extern int efi_memattr_apply_permissions(struct mm_struct *mm,
@@ -1040,7 +1046,6 @@ struct efivar_operations {
 
 struct efivars {
 	struct kset *kset;
-	struct kobject *kobject;
 	const struct efivar_operations *ops;
 };
 
@@ -1054,12 +1059,16 @@ struct efivars {
 #define EFI_VAR_NAME_LEN	1024
 
 int efivars_register(struct efivars *efivars,
-		     const struct efivar_operations *ops,
-		     struct kobject *kobject);
+		     const struct efivar_operations *ops);
 int efivars_unregister(struct efivars *efivars);
-struct kobject *efivars_kobject(void);
 
-int efivar_supports_writes(void);
+#ifdef CONFIG_EFI
+bool efivar_is_available(void);
+#else
+static inline bool efivar_is_available(void) { return false; }
+#endif
+
+bool efivar_supports_writes(void);
 
 int efivar_lock(void);
 int efivar_trylock(void);
@@ -1318,5 +1327,15 @@ struct linux_efi_initrd {
 
 /* Header of a populated EFI secret area */
 #define EFI_SECRET_TABLE_HEADER_GUID	EFI_GUID(0x1e74f542, 0x71dd, 0x4d66,  0x96, 0x3e, 0xef, 0x42, 0x87, 0xff, 0x17, 0x3b)
+
+bool xen_efi_config_table_is_usable(const efi_guid_t *guid, unsigned long table);
+
+static inline
+bool efi_config_table_is_usable(const efi_guid_t *guid, unsigned long table)
+{
+	if (!IS_ENABLED(CONFIG_XEN_EFI))
+		return true;
+	return xen_efi_config_table_is_usable(guid, table);
+}
 
 #endif /* _LINUX_EFI_H */

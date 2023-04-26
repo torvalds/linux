@@ -203,7 +203,7 @@ static int pwm_beeper_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused pwm_beeper_suspend(struct device *dev)
+static int pwm_beeper_suspend(struct device *dev)
 {
 	struct pwm_beeper *beeper = dev_get_drvdata(dev);
 
@@ -221,7 +221,7 @@ static int __maybe_unused pwm_beeper_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused pwm_beeper_resume(struct device *dev)
+static int pwm_beeper_resume(struct device *dev)
 {
 	struct pwm_beeper *beeper = dev_get_drvdata(dev);
 
@@ -235,8 +235,8 @@ static int __maybe_unused pwm_beeper_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(pwm_beeper_pm_ops,
-			 pwm_beeper_suspend, pwm_beeper_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(pwm_beeper_pm_ops,
+				pwm_beeper_suspend, pwm_beeper_resume);
 
 #ifdef CONFIG_OF
 static const struct of_device_id pwm_beeper_match[] = {
@@ -250,7 +250,7 @@ static struct platform_driver pwm_beeper_driver = {
 	.probe	= pwm_beeper_probe,
 	.driver = {
 		.name	= "pwm-beeper",
-		.pm	= &pwm_beeper_pm_ops,
+		.pm	= pm_sleep_ptr(&pwm_beeper_pm_ops),
 		.of_match_table = of_match_ptr(pwm_beeper_match),
 	},
 };

@@ -55,26 +55,26 @@ additionalProperties: false
 
 examples:
   - |
-    i2c1 {
+    i2c {
         #address-cells = <1>;
         #size-cells = <0>;
 
-        ltc2992@6F {
-                #address-cells = <1>;
-                #size-cells = <0>;
+        ltc2992@6f {
+            #address-cells = <1>;
+            #size-cells = <0>;
 
-                compatible = "adi,ltc2992";
-                reg = <0x6F>;
+            compatible = "adi,ltc2992";
+            reg = <0x6f>;
 
-                channel@0 {
-                        reg = <0x0>;
-                        shunt-resistor-micro-ohms = <10000>;
-                };
+            channel@0 {
+                reg = <0x0>;
+                shunt-resistor-micro-ohms = <10000>;
+            };
 
-                channel@1 {
-                        reg = <0x1>;
-                        shunt-resistor-micro-ohms = <10000>;
-                };
+            channel@1 {
+                reg = <0x1>;
+                shunt-resistor-micro-ohms = <10000>;
+            };
         };
     };
 ...

@@ -301,7 +301,7 @@ static void vfio_ap_free_aqic_resources(struct vfio_ap_queue *q)
  */
 static struct ap_queue_status vfio_ap_irq_disable(struct vfio_ap_queue *q)
 {
-	struct ap_qirq_ctrl aqic_gisa = {};
+	union ap_qirq_ctrl aqic_gisa = { .value = 0 };
 	struct ap_queue_status status;
 	int retries = 5;
 
@@ -384,7 +384,7 @@ static struct ap_queue_status vfio_ap_irq_enable(struct vfio_ap_queue *q,
 						 int isc,
 						 struct kvm_vcpu *vcpu)
 {
-	struct ap_qirq_ctrl aqic_gisa = {};
+	union ap_qirq_ctrl aqic_gisa = { .value = 0 };
 	struct ap_queue_status status = {};
 	struct kvm_s390_gisa *gisa;
 	struct page *h_page;

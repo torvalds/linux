@@ -710,8 +710,7 @@ forward:
 	else
 		napi_gro_receive(rq->cq.napi, skb);
 
-	if (tc_priv.fwd_dev)
-		dev_put(tc_priv.fwd_dev);
+	dev_put(tc_priv.fwd_dev);
 
 	return;
 

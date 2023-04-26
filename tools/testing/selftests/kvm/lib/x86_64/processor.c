@@ -19,6 +19,8 @@
 #define MAX_NR_CPUID_ENTRIES 100
 
 vm_vaddr_t exception_handlers;
+bool host_cpu_is_amd;
+bool host_cpu_is_intel;
 
 static void regs_dump(FILE *stream, struct kvm_regs *regs, uint8_t indent)
 {
@@ -113,7 +115,7 @@ static void sregs_dump(FILE *stream, struct kvm_sregs *sregs, uint8_t indent)
 
 bool kvm_is_tdp_enabled(void)
 {
-	if (is_intel_cpu())
+	if (host_cpu_is_intel)
 		return get_kvm_intel_param_bool("ept");
 	else
 		return get_kvm_amd_param_bool("npt");
@@ -555,6 +557,8 @@ static void vcpu_setup(struct kvm_vm *vm, struct kvm_vcpu *vcpu)
 void kvm_arch_vm_post_create(struct kvm_vm *vm)
 {
 	vm_create_irqchip(vm);
+	sync_global_to_guest(vm, host_cpu_is_intel);
+	sync_global_to_guest(vm, host_cpu_is_amd);
 }
 
 struct kvm_vcpu *vm_arch_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id,
@@ -1006,28 +1010,6 @@ void kvm_x86_state_cleanup(struct kvm_x86_state *state)
 	free(state);
 }
 
-static bool cpu_vendor_string_is(const char *vendor)
-{
-	const uint32_t *chunk = (const uint32_t *)vendor;
-	uint32_t eax, ebx, ecx, edx;
-
-	cpuid(0, &eax, &ebx, &ecx, &edx);
-	return (ebx == chunk[0] && edx == chunk[1] && ecx == chunk[2]);
-}
-
-bool is_intel_cpu(void)
-{
-	return cpu_vendor_string_is("GenuineIntel");
-}
-
-/*
- * Exclude early K5 samples with a vendor string of "AMDisbetter!"
- */
-bool is_amd_cpu(void)
-{
-	return cpu_vendor_string_is("AuthenticAMD");
-}
-
 void kvm_get_cpu_address_width(unsigned int *pa_bits, unsigned int *va_bits)
 {
 	if (!kvm_cpu_has_p(X86_PROPERTY_MAX_PHY_ADDR)) {
@@ -1157,15 +1139,36 @@ const struct kvm_cpuid_entry2 *get_cpuid_entry(const struct kvm_cpuid2 *cpuid,
 	return NULL;
 }
 
+#define X86_HYPERCALL(inputs...)					\
+({									\
+	uint64_t r;							\
+									\
+	asm volatile("test %[use_vmmcall], %[use_vmmcall]\n\t"		\
+		     "jnz 1f\n\t"					\
+		     "vmcall\n\t"					\
+		     "jmp 2f\n\t"					\
+		     "1: vmmcall\n\t"					\
+		     "2:"						\
+		     : "=a"(r)						\
+		     : [use_vmmcall] "r" (host_cpu_is_amd), inputs);	\
+									\
+	r;								\
+})
+
 uint64_t kvm_hypercall(uint64_t nr, uint64_t a0, uint64_t a1, uint64_t a2,
 		       uint64_t a3)
 {
-	uint64_t r;
+	return X86_HYPERCALL("a"(nr), "b"(a0), "c"(a1), "d"(a2), "S"(a3));
+}
 
-	asm volatile("vmcall"
-		     : "=a"(r)
-		     : "a"(nr), "b"(a0), "c"(a1), "d"(a2), "S"(a3));
-	return r;
+uint64_t __xen_hypercall(uint64_t nr, uint64_t a0, void *a1)
+{
+	return X86_HYPERCALL("a"(nr), "D"(a0), "S"(a1));
+}
+
+void xen_hypercall(uint64_t nr, uint64_t a0, void *a1)
+{
+	GUEST_ASSERT(!__xen_hypercall(nr, a0, a1));
 }
 
 const struct kvm_cpuid2 *kvm_get_supported_hv_cpuid(void)
@@ -1236,7 +1239,7 @@ unsigned long vm_compute_max_gfn(struct kvm_vm *vm)
 	max_gfn = (1ULL << (vm->pa_bits - vm->page_shift)) - 1;
 
 	/* Avoid reserved HyperTransport region on AMD processors.  */
-	if (!is_amd_cpu())
+	if (!host_cpu_is_amd)
 		return max_gfn;
 
 	/* On parts with <40 physical address bits, the area is fully hidden */
@@ -1275,4 +1278,10 @@ bool vm_is_unrestricted_guest(struct kvm_vm *vm)
 		close(open_kvm_dev_path_or_exit());
 
 	return get_kvm_intel_param_bool("unrestricted_guest");
+}
+
+void kvm_selftest_arch_init(void)
+{
+	host_cpu_is_intel = this_cpu_is_intel();
+	host_cpu_is_amd = this_cpu_is_amd();
 }

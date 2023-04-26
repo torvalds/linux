@@ -35,6 +35,11 @@ properties:
   "#phy-cells":
     const: 1
 
+  phy-supply:
+    description:
+      Phandle to a regulator that provides power to the PHY. This
+      regulator will be managed during the PHY power on/off sequence.
+
 required:
   - compatible
   - reg

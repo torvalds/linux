@@ -194,8 +194,10 @@ enum {
 	/* Irq domain implements MSIs */
 	IRQ_DOMAIN_FLAG_MSI		= (1 << 4),
 
-	/* Irq domain implements MSI remapping */
-	IRQ_DOMAIN_FLAG_MSI_REMAP	= (1 << 5),
+	/*
+	 * Irq domain implements isolated MSI, see msi_device_has_isolated_msi()
+	 */
+	IRQ_DOMAIN_FLAG_ISOLATED_MSI	= (1 << 5),
 
 	/* Irq domain doesn't translate anything */
 	IRQ_DOMAIN_FLAG_NO_MAP		= (1 << 6),
@@ -278,7 +280,6 @@ struct irq_domain *irq_domain_create_legacy(struct fwnode_handle *fwnode,
 					    void *host_data);
 extern struct irq_domain *irq_find_matching_fwspec(struct irq_fwspec *fwspec,
 						   enum irq_domain_bus_token bus_token);
-extern bool irq_domain_check_msi_remap(void);
 extern void irq_set_default_host(struct irq_domain *host);
 extern struct irq_domain *irq_get_default_host(void);
 extern int irq_domain_alloc_descs(int virq, unsigned int nr_irqs,
@@ -561,13 +562,6 @@ static inline bool irq_domain_is_msi(struct irq_domain *domain)
 	return domain->flags & IRQ_DOMAIN_FLAG_MSI;
 }
 
-static inline bool irq_domain_is_msi_remap(struct irq_domain *domain)
-{
-	return domain->flags & IRQ_DOMAIN_FLAG_MSI_REMAP;
-}
-
-extern bool irq_domain_hierarchical_is_msi_remap(struct irq_domain *domain);
-
 static inline bool irq_domain_is_msi_parent(struct irq_domain *domain)
 {
 	return domain->flags & IRQ_DOMAIN_FLAG_MSI_PARENT;
@@ -613,17 +607,6 @@ static inline bool irq_domain_is_msi(struct irq_domain *domain)
 	return false;
 }
 
-static inline bool irq_domain_is_msi_remap(struct irq_domain *domain)
-{
-	return false;
-}
-
-static inline bool
-irq_domain_hierarchical_is_msi_remap(struct irq_domain *domain)
-{
-	return false;
-}
-
 static inline bool irq_domain_is_msi_parent(struct irq_domain *domain)
 {
 	return false;
@@ -642,10 +625,6 @@ static inline struct irq_domain *irq_find_matching_fwnode(
 	struct fwnode_handle *fwnode, enum irq_domain_bus_token bus_token)
 {
 	return NULL;
-}
-static inline bool irq_domain_check_msi_remap(void)
-{
-	return false;
 }
 #endif /* !CONFIG_IRQ_DOMAIN */
 

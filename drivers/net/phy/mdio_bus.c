@@ -1330,7 +1330,7 @@ static int mdio_bus_match(struct device *dev, struct device_driver *drv)
 	return 0;
 }
 
-static int mdio_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int mdio_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
 	int rc;
 

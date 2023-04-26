@@ -180,7 +180,7 @@ static int vfio_pci_igd_opregion_init(struct vfio_pci_core_device *vdev)
 	if (!addr || !(~addr))
 		return -ENODEV;
 
-	opregionvbt = kzalloc(sizeof(*opregionvbt), GFP_KERNEL);
+	opregionvbt = kzalloc(sizeof(*opregionvbt), GFP_KERNEL_ACCOUNT);
 	if (!opregionvbt)
 		return -ENOMEM;
 

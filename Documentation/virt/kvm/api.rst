@@ -3736,7 +3736,7 @@ The fields in each entry are defined as follows:
 :Parameters: struct kvm_s390_mem_op (in)
 :Returns: = 0 on success,
           < 0 on generic error (e.g. -EFAULT or -ENOMEM),
-          > 0 if an exception occurred while walking the page tables
+          16 bit program exception code if the access causes such an exception
 
 Read or write data from/to the VM's memory.
 The KVM_CAP_S390_MEM_OP_EXTENSION capability specifies what functionality is
@@ -3754,6 +3754,8 @@ Parameters are specified via the following structure::
 		struct {
 			__u8 ar;	/* the access register number */
 			__u8 key;	/* access key, ignored if flag unset */
+			__u8 pad1[6];	/* ignored */
+			__u64 old_addr;	/* ignored if flag unset */
 		};
 		__u32 sida_offset; /* offset into the sida */
 		__u8 reserved[32]; /* ignored */
@@ -3781,6 +3783,7 @@ Possible operations are:
   * ``KVM_S390_MEMOP_ABSOLUTE_WRITE``
   * ``KVM_S390_MEMOP_SIDA_READ``
   * ``KVM_S390_MEMOP_SIDA_WRITE``
+  * ``KVM_S390_MEMOP_ABSOLUTE_CMPXCHG``
 
 Logical read/write:
 ^^^^^^^^^^^^^^^^^^^
@@ -3829,7 +3832,7 @@ the checks required for storage key protection as one operation (as opposed to
 user space getting the storage keys, performing the checks, and accessing
 memory thereafter, which could lead to a delay between check and access).
 Absolute accesses are permitted for the VM ioctl if KVM_CAP_S390_MEM_OP_EXTENSION
-is > 0.
+has the KVM_S390_MEMOP_EXTENSION_CAP_BASE bit set.
 Currently absolute accesses are not permitted for VCPU ioctls.
 Absolute accesses are permitted for non-protected guests only.
 
@@ -3837,7 +3840,26 @@ Supported flags:
   * ``KVM_S390_MEMOP_F_CHECK_ONLY``
   * ``KVM_S390_MEMOP_F_SKEY_PROTECTION``
 
-The semantics of the flags are as for logical accesses.
+The semantics of the flags common with logical accesses are as for logical
+accesses.
+
+Absolute cmpxchg:
+^^^^^^^^^^^^^^^^^
+
+Perform cmpxchg on absolute guest memory. Intended for use with the
+KVM_S390_MEMOP_F_SKEY_PROTECTION flag.
+Instead of doing an unconditional write, the access occurs only if the target
+location contains the value pointed to by "old_addr".
+This is performed as an atomic cmpxchg with the length specified by the "size"
+parameter. "size" must be a power of two up to and including 16.
+If the exchange did not take place because the target value doesn't match the
+old value, the value "old_addr" points to is replaced by the target value.
+User space can tell if an exchange took place by checking if this replacement
+occurred. The cmpxchg op is permitted for the VM ioctl if
+KVM_CAP_S390_MEM_OP_EXTENSION has flag KVM_S390_MEMOP_EXTENSION_CAP_CMPXCHG set.
+
+Supported flags:
+  * ``KVM_S390_MEMOP_F_SKEY_PROTECTION``
 
 SIDA read/write:
 ^^^^^^^^^^^^^^^^
@@ -4457,6 +4479,18 @@ not holding a previously reported uncorrected error).
 :Parameters: struct kvm_s390_cmma_log (in, out)
 :Returns: 0 on success, a negative value on error
 
+Errors:
+
+  ======     =============================================================
+  ENOMEM     not enough memory can be allocated to complete the task
+  ENXIO      if CMMA is not enabled
+  EINVAL     if KVM_S390_CMMA_PEEK is not set but migration mode was not enabled
+  EINVAL     if KVM_S390_CMMA_PEEK is not set but dirty tracking has been
+             disabled (and thus migration mode was automatically disabled)
+  EFAULT     if the userspace address is invalid or if no page table is
+             present for the addresses (e.g. when using hugepages).
+  ======     =============================================================
+
 This ioctl is used to get the values of the CMMA bits on the s390
 architecture. It is meant to be used in two scenarios:
 
@@ -4536,12 +4570,6 @@ not enabled.
 mask is unused.
 
 values points to the userspace buffer where the result will be stored.
-
-This ioctl can fail with -ENOMEM if not enough memory can be allocated to
-complete the task, with -ENXIO if CMMA is not enabled, with -EINVAL if
-KVM_S390_CMMA_PEEK is not set but migration mode was not enabled, with
--EFAULT if the userspace address is invalid or if no page table is
-present for the addresses (e.g. when using hugepages).
 
 4.108 KVM_S390_SET_CMMA_BITS
 ----------------------------
@@ -5005,6 +5033,15 @@ using this ioctl.
 :Parameters: struct kvm_pmu_event_filter (in)
 :Returns: 0 on success, -1 on error
 
+Errors:
+
+  ======     ============================================================
+  EFAULT     args[0] cannot be accessed
+  EINVAL     args[0] contains invalid data in the filter or filter events
+  E2BIG      nevents is too large
+  EBUSY      not enough memory to allocate the filter
+  ======     ============================================================
+
 ::
 
   struct kvm_pmu_event_filter {
@@ -5016,14 +5053,69 @@ using this ioctl.
 	__u64 events[0];
   };
 
-This ioctl restricts the set of PMU events that the guest can program.
-The argument holds a list of events which will be allowed or denied.
-The eventsel+umask of each event the guest attempts to program is compared
-against the events field to determine whether the guest should have access.
-The events field only controls general purpose counters; fixed purpose
-counters are controlled by the fixed_counter_bitmap.
+This ioctl restricts the set of PMU events the guest can program by limiting
+which event select and unit mask combinations are permitted.
 
-No flags are defined yet, the field must be zero.
+The argument holds a list of filter events which will be allowed or denied.
+
+Filter events only control general purpose counters; fixed purpose counters
+are controlled by the fixed_counter_bitmap.
+
+Valid values for 'flags'::
+
+``0``
+
+To use this mode, clear the 'flags' field.
+
+In this mode each event will contain an event select + unit mask.
+
+When the guest attempts to program the PMU the guest's event select +
+unit mask is compared against the filter events to determine whether the
+guest should have access.
+
+``KVM_PMU_EVENT_FLAG_MASKED_EVENTS``
+:Capability: KVM_CAP_PMU_EVENT_MASKED_EVENTS
+
+In this mode each filter event will contain an event select, mask, match, and
+exclude value.  To encode a masked event use::
+
+  KVM_PMU_ENCODE_MASKED_ENTRY()
+
+An encoded event will follow this layout::
+
+  Bits   Description
+  ----   -----------
+  7:0    event select (low bits)
+  15:8   umask match
+  31:16  unused
+  35:32  event select (high bits)
+  36:54  unused
+  55     exclude bit
+  63:56  umask mask
+
+When the guest attempts to program the PMU, these steps are followed in
+determining if the guest should have access:
+
+ 1. Match the event select from the guest against the filter events.
+ 2. If a match is found, match the guest's unit mask to the mask and match
+    values of the included filter events.
+    I.e. (unit mask & mask) == match && !exclude.
+ 3. If a match is found, match the guest's unit mask to the mask and match
+    values of the excluded filter events.
+    I.e. (unit mask & mask) == match && exclude.
+ 4.
+   a. If an included match is found and an excluded match is not found, filter
+      the event.
+   b. For everything else, do not filter the event.
+ 5.
+   a. If the event is filtered and it's an allow list, allow the guest to
+      program the event.
+   b. If the event is filtered and it's a deny list, do not allow the guest to
+      program the event.
+
+When setting a new pmu event filter, -EINVAL will be returned if any of the
+unused fields are set or if any of the high bits (35:32) in the event
+select are set when called on Intel.
 
 Valid values for 'action'::
 
@@ -8204,11 +8296,11 @@ ENOSYS for the others.
 8.35 KVM_CAP_PMU_CAPABILITY
 ---------------------------
 
-:Capability KVM_CAP_PMU_CAPABILITY
+:Capability: KVM_CAP_PMU_CAPABILITY
 :Architectures: x86
 :Type: vm
 :Parameters: arg[0] is bitmask of PMU virtualization capabilities.
-:Returns 0 on success, -EINVAL when arg[0] contains invalid bits
+:Returns: 0 on success, -EINVAL when arg[0] contains invalid bits
 
 This capability alters PMU virtualization in KVM.
 

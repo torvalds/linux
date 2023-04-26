@@ -177,7 +177,7 @@ static const struct mfd_cell vsc7512_devs[] = {
 		.num_resources = ARRAY_SIZE(vsc7512_miim1_resources),
 		.resources = vsc7512_miim1_resources,
 	}, {
-		.name = "ocelot-switch",
+		.name = "ocelot-ext-switch",
 		.of_compatible = "mscc,vsc7512-switch",
 		.num_resources = ARRAY_SIZE(vsc7512_switch_resources),
 		.resources = vsc7512_switch_resources,

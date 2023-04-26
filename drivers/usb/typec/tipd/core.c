@@ -95,6 +95,7 @@ struct tps6598x {
 	struct power_supply_desc psy_desc;
 	enum power_supply_usb_type usb_type;
 
+	int wakeup;
 	u16 pwr_status;
 };
 
@@ -846,6 +847,12 @@ static int tps6598x_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, tps);
 	fwnode_handle_put(fwnode);
 
+	tps->wakeup = device_property_read_bool(tps->dev, "wakeup-source");
+	if (tps->wakeup) {
+		device_init_wakeup(&client->dev, true);
+		enable_irq_wake(client->irq);
+	}
+
 	return 0;
 
 err_disconnect:
@@ -870,6 +877,36 @@ static void tps6598x_remove(struct i2c_client *client)
 	usb_role_switch_put(tps->role_sw);
 }
 
+static int __maybe_unused tps6598x_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct tps6598x *tps = i2c_get_clientdata(client);
+
+	if (tps->wakeup) {
+		disable_irq(client->irq);
+		enable_irq_wake(client->irq);
+	}
+
+	return 0;
+}
+
+static int __maybe_unused tps6598x_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct tps6598x *tps = i2c_get_clientdata(client);
+
+	if (tps->wakeup) {
+		disable_irq_wake(client->irq);
+		enable_irq(client->irq);
+	}
+
+	return 0;
+}
+
+static const struct dev_pm_ops tps6598x_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(tps6598x_suspend, tps6598x_resume)
+};
+
 static const struct of_device_id tps6598x_of_match[] = {
 	{ .compatible = "ti,tps6598x", },
 	{ .compatible = "apple,cd321x", },
@@ -886,6 +923,7 @@ MODULE_DEVICE_TABLE(i2c, tps6598x_id);
 static struct i2c_driver tps6598x_i2c_driver = {
 	.driver = {
 		.name = "tps6598x",
+		.pm = &tps6598x_pm_ops,
 		.of_match_table = tps6598x_of_match,
 	},
 	.probe_new = tps6598x_probe,

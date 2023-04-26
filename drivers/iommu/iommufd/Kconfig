@@ -23,7 +23,7 @@ config IOMMUFD_VFIO_CONTAINER
 	  removed.
 
 	  IOMMUFD VFIO container emulation is known to lack certain features
-	  of the native VFIO container, such as no-IOMMU support, peer-to-peer
+	  of the native VFIO container, such as peer-to-peer
 	  DMA mapping, PPC IOMMU support, as well as other potentially
 	  undiscovered gaps.  This option is currently intended for the
 	  purpose of testing IOMMUFD with unmodified userspace supporting VFIO

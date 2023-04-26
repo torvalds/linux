@@ -804,11 +804,6 @@ struct scmi_device {
 
 #define to_scmi_dev(d) container_of(d, struct scmi_device, dev)
 
-struct scmi_device *
-scmi_device_create(struct device_node *np, struct device *parent, int protocol,
-		   const char *name);
-void scmi_device_destroy(struct scmi_device *scmi_dev);
-
 struct scmi_device_id {
 	u8 protocol_id;
 	const char *name;

@@ -72,11 +72,16 @@ static void run_vcpu(struct kvm_vcpu *vcpu, int stage)
 
 	switch (get_ucall(vcpu, &uc)) {
 	case UCALL_SYNC:
-		TEST_ASSERT(!strcmp((const char *)uc.args[0], "hello") &&
-			    uc.args[1] == stage + 1, "Stage %d: Unexpected register values vmexit, got %lx",
-			    stage + 1, (ulong)uc.args[1]);
+		if (!strcmp((const char *)uc.args[0], "hello") &&
+		    uc.args[1] == stage + 1)
+			ksft_test_result_pass("stage %d passed\n", stage + 1);
+		else
+			ksft_test_result_fail(
+				"stage %d: Unexpected register values vmexit, got %lx",
+				stage + 1, (ulong)uc.args[1]);
 		return;
 	case UCALL_DONE:
+		ksft_test_result_pass("stage %d passed\n", stage + 1);
 		return;
 	case UCALL_ABORT:
 		REPORT_GUEST_ASSERT_2(uc, "values: %#lx, %#lx");
@@ -91,6 +96,9 @@ int main(void)
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 	uint64_t val;
+
+	ksft_print_header();
+	ksft_set_plan(5);
 
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 
@@ -149,5 +157,5 @@ int main(void)
 
 	kvm_vm_free(vm);
 
-	return 0;
+	ksft_finished();	/* Print results and exit() accordingly */
 }

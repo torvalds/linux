@@ -313,6 +313,14 @@ static const struct serial8250_config uart_config[] = {
 		.rxtrig_bytes	= {1, 4, 8, 14},
 		.flags		= UART_CAP_FIFO,
 	},
+	[PORT_MCHP16550A] = {
+		.name           = "MCHP16550A",
+		.fifo_size      = 256,
+		.tx_loadsz      = 256,
+		.fcr            = UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_01,
+		.rxtrig_bytes   = {2, 66, 130, 194},
+		.flags          = UART_CAP_FIFO,
+	},
 };
 
 /* Uart divisor latch read */
@@ -1050,11 +1058,12 @@ static void autoconfig_16550a(struct uart_8250_port *up)
 			serial_out(up, UART_LCR, 0);
 			serial_out(up, UART_FCR, UART_FCR_ENABLE_FIFO |
 				   UART_FCR7_64BYTE);
-			status1 = serial_in(up, UART_IIR) >> 5;
+			status1 = serial_in(up, UART_IIR) & (UART_IIR_64BYTE_FIFO |
+							     UART_IIR_FIFO_ENABLED);
 			serial_out(up, UART_FCR, 0);
 			serial_out(up, UART_LCR, 0);
 
-			if (status1 == 7)
+			if (status1 == (UART_IIR_64BYTE_FIFO | UART_IIR_FIFO_ENABLED))
 				up->port.type = PORT_16550A_FSL64;
 			else
 				DEBUG_AUTOCONF("Motorola 8xxx DUART ");
@@ -1122,17 +1131,20 @@ static void autoconfig_16550a(struct uart_8250_port *up)
 	 */
 	serial_out(up, UART_LCR, 0);
 	serial_out(up, UART_FCR, UART_FCR_ENABLE_FIFO | UART_FCR7_64BYTE);
-	status1 = serial_in(up, UART_IIR) >> 5;
+	status1 = serial_in(up, UART_IIR) & (UART_IIR_64BYTE_FIFO | UART_IIR_FIFO_ENABLED);
 	serial_out(up, UART_FCR, UART_FCR_ENABLE_FIFO);
+
 	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_A);
 	serial_out(up, UART_FCR, UART_FCR_ENABLE_FIFO | UART_FCR7_64BYTE);
-	status2 = serial_in(up, UART_IIR) >> 5;
+	status2 = serial_in(up, UART_IIR) & (UART_IIR_64BYTE_FIFO | UART_IIR_FIFO_ENABLED);
 	serial_out(up, UART_FCR, UART_FCR_ENABLE_FIFO);
+
 	serial_out(up, UART_LCR, 0);
 
 	DEBUG_AUTOCONF("iir1=%d iir2=%d ", status1, status2);
 
-	if (status1 == 6 && status2 == 7) {
+	if (status1 == UART_IIR_FIFO_ENABLED_16550A &&
+	    status2 == (UART_IIR_64BYTE_FIFO | UART_IIR_FIFO_ENABLED_16550A)) {
 		up->port.type = PORT_16750;
 		up->capabilities |= UART_CAP_AFE | UART_CAP_SLEEP;
 		return;
@@ -1236,14 +1248,14 @@ static void autoconfig(struct uart_8250_port *up)
 		 * Mask out IER[7:4] bits for test as some UARTs (e.g. TL
 		 * 16C754B) allow only to modify them if an EFR bit is set.
 		 */
-		scratch2 = serial_in(up, UART_IER) & 0x0f;
-		serial_out(up, UART_IER, 0x0F);
+		scratch2 = serial_in(up, UART_IER) & UART_IER_ALL_INTR;
+		serial_out(up, UART_IER, UART_IER_ALL_INTR);
 #ifdef __i386__
 		outb(0, 0x080);
 #endif
-		scratch3 = serial_in(up, UART_IER) & 0x0f;
+		scratch3 = serial_in(up, UART_IER) & UART_IER_ALL_INTR;
 		serial_out(up, UART_IER, scratch);
-		if (scratch2 != 0 || scratch3 != 0x0F) {
+		if (scratch2 != 0 || scratch3 != UART_IER_ALL_INTR) {
 			/*
 			 * We failed; there's nothing here
 			 */
@@ -1267,10 +1279,10 @@ static void autoconfig(struct uart_8250_port *up)
 	 * that conflicts with COM 1-4 --- we hope!
 	 */
 	if (!(port->flags & UPF_SKIP_TEST)) {
-		serial8250_out_MCR(up, UART_MCR_LOOP | 0x0A);
-		status1 = serial_in(up, UART_MSR) & 0xF0;
+		serial8250_out_MCR(up, UART_MCR_LOOP | UART_MCR_OUT2 | UART_MCR_RTS);
+		status1 = serial_in(up, UART_MSR) & UART_MSR_STATUS_BITS;
 		serial8250_out_MCR(up, save_mcr);
-		if (status1 != 0x90) {
+		if (status1 != (UART_MSR_DCD | UART_MSR_CTS)) {
 			spin_unlock_irqrestore(&port->lock, flags);
 			DEBUG_AUTOCONF("LOOP test failed (%02x) ",
 				       status1);
@@ -1293,21 +1305,18 @@ static void autoconfig(struct uart_8250_port *up)
 
 	serial_out(up, UART_FCR, UART_FCR_ENABLE_FIFO);
 
-	/* Assign this as it is to truncate any bits above 7.  */
-	scratch = serial_in(up, UART_IIR);
-
-	switch (scratch >> 6) {
-	case 0:
+	switch (serial_in(up, UART_IIR) & UART_IIR_FIFO_ENABLED) {
+	case UART_IIR_FIFO_ENABLED_8250:
 		autoconfig_8250(up);
 		break;
-	case 1:
-		port->type = PORT_UNKNOWN;
-		break;
-	case 2:
+	case UART_IIR_FIFO_ENABLED_16550:
 		port->type = PORT_16550;
 		break;
-	case 3:
+	case UART_IIR_FIFO_ENABLED_16550A:
 		autoconfig_16550a(up);
+		break;
+	default:
+		port->type = PORT_UNKNOWN;
 		break;
 	}
 
@@ -1394,7 +1403,7 @@ static void autoconfig_irq(struct uart_8250_port *up)
 		serial8250_out_MCR(up,
 			UART_MCR_DTR | UART_MCR_RTS | UART_MCR_OUT2);
 	}
-	serial_out(up, UART_IER, 0x0f);	/* enable all intrs */
+	serial_out(up, UART_IER, UART_IER_ALL_INTR);
 	serial_in(up, UART_LSR);
 	serial_in(up, UART_RX);
 	serial_in(up, UART_IIR);
@@ -1510,8 +1519,6 @@ static inline void __stop_tx(struct uart_8250_port *p)
 	if (em485) {
 		u16 lsr = serial_lsr_in(p);
 		u64 stop_delay = 0;
-
-		p->lsr_saved_flags |= lsr & LSR_SAVE_FLAGS;
 
 		if (!(lsr & UART_LSR_THRE))
 			return;
@@ -1896,6 +1903,17 @@ EXPORT_SYMBOL_GPL(serial8250_modem_status);
 static bool handle_rx_dma(struct uart_8250_port *up, unsigned int iir)
 {
 	switch (iir & 0x3f) {
+	case UART_IIR_THRI:
+		/*
+		 * Postpone DMA or not decision to IIR_RDI or IIR_RX_TIMEOUT
+		 * because it's impossible to do an informed decision about
+		 * that with IIR_THRI.
+		 *
+		 * This also fixes one known DMA Rx corruption issue where
+		 * DR is asserted but DMA Rx only gets a corrupted zero byte
+		 * (too early DR?).
+		 */
+		return false;
 	case UART_IIR_RDI:
 		if (!up->dma->rx_running)
 			break;

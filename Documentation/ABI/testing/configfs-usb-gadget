@@ -143,3 +143,16 @@ Description:
 		qw_sign		an identifier to be reported as "OS String"
 				proper
 		=============	===============================================
+
+What:		/config/usb-gadget/gadget/webusb
+Date:		Dec 2022
+KernelVersion:	6.3
+Description:
+		This group contains "WebUSB" extension handling attributes.
+
+		=============	===============================================
+		use		flag turning "WebUSB" support on/off
+		bcdVersion	bcd WebUSB specification version number
+		bVendorCode	one-byte value used for custom per-device
+		landingPage	UTF-8 encoded URL of the device's landing page
+		=============	===============================================

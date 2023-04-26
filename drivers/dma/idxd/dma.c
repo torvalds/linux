@@ -63,12 +63,6 @@ static void op_flag_setup(unsigned long flags, u32 *desc_flags)
 		*desc_flags |= IDXD_OP_FLAG_RCI;
 }
 
-static inline void set_completion_address(struct idxd_desc *desc,
-					  u64 *compl_addr)
-{
-		*compl_addr = desc->compl_dma;
-}
-
 static inline void idxd_prep_desc_common(struct idxd_wq *wq,
 					 struct dsa_hw_desc *hw, char opcode,
 					 u64 addr_f1, u64 addr_f2, u64 len,

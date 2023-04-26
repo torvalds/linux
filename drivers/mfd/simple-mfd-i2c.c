@@ -48,7 +48,7 @@ static int simple_mfd_i2c_probe(struct i2c_client *i2c)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	/* If no MFD cells are spedified, use register the DT child nodes instead */
+	/* If no MFD cells are specified, register using the DT child nodes instead */
 	if (!simple_mfd_data || !simple_mfd_data->mfd_cell)
 		return devm_of_platform_populate(&i2c->dev);
 

@@ -36,15 +36,17 @@
 #define PACA_IRQ_DEC		0x08 /* Or FIT */
 #define PACA_IRQ_HMI		0x10
 #define PACA_IRQ_PMI		0x20
+#define PACA_IRQ_REPLAYING	0x40
 
 /*
  * Some soft-masked interrupts must be hard masked until they are replayed
  * (e.g., because the soft-masked handler does not clear the exception).
+ * Interrupt replay itself must remain hard masked too.
  */
 #ifdef CONFIG_PPC_BOOK3S
-#define PACA_IRQ_MUST_HARD_MASK	(PACA_IRQ_EE|PACA_IRQ_PMI)
+#define PACA_IRQ_MUST_HARD_MASK	(PACA_IRQ_EE|PACA_IRQ_PMI|PACA_IRQ_REPLAYING)
 #else
-#define PACA_IRQ_MUST_HARD_MASK	(PACA_IRQ_EE)
+#define PACA_IRQ_MUST_HARD_MASK	(PACA_IRQ_EE|PACA_IRQ_REPLAYING)
 #endif
 
 #endif /* CONFIG_PPC64 */

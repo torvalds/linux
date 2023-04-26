@@ -793,7 +793,7 @@ static int vhost_vsock_set_features(struct vhost_vsock *vsock, u64 features)
 	}
 
 	if ((features & (1ULL << VIRTIO_F_ACCESS_PLATFORM))) {
-		if (vhost_init_device_iotlb(&vsock->dev, true))
+		if (vhost_init_device_iotlb(&vsock->dev))
 			goto err;
 	}
 

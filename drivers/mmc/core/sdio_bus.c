@@ -120,9 +120,9 @@ static int sdio_bus_match(struct device *dev, struct device_driver *drv)
 }
 
 static int
-sdio_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
+sdio_bus_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct sdio_func *func = dev_to_sdio_func(dev);
+	const struct sdio_func *func = dev_to_sdio_func(dev);
 	unsigned int i;
 
 	if (add_uevent_var(env,

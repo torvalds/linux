@@ -58,7 +58,7 @@ struct io_uring_task {
 
 	struct xarray			xa;
 	struct wait_queue_head		wait;
-	atomic_t			in_idle;
+	atomic_t			in_cancel;
 	atomic_t			inflight_tracked;
 	struct percpu_counter		inflight;
 

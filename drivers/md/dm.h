@@ -48,9 +48,11 @@ struct dm_md_mempools;
 struct dm_target_io;
 struct dm_io;
 
-/*-----------------------------------------------------------------
+/*
+ *---------------------------------------------------------------
  * Internal table functions.
- *---------------------------------------------------------------*/
+ *---------------------------------------------------------------
+ */
 void dm_table_event_callback(struct dm_table *t,
 			     void (*fn)(void *), void *context);
 struct dm_target *dm_table_find_target(struct dm_table *t, sector_t sector);
@@ -119,9 +121,11 @@ static inline int dm_zone_map_bio(struct dm_target_io *tio)
 }
 #endif
 
-/*-----------------------------------------------------------------
+/*
+ *---------------------------------------------------------------
  * A registry of target types.
- *---------------------------------------------------------------*/
+ *---------------------------------------------------------------
+ */
 int dm_target_init(void);
 void dm_target_exit(void);
 struct target_type *dm_get_target_type(const char *name);
@@ -203,7 +207,7 @@ int dm_get_table_device(struct mapped_device *md, dev_t dev, fmode_t mode,
 void dm_put_table_device(struct mapped_device *md, struct dm_dev *d);
 
 int dm_kobject_uevent(struct mapped_device *md, enum kobject_action action,
-		      unsigned cookie);
+		      unsigned int cookie, bool need_resize_uevent);
 
 void dm_internal_suspend(struct mapped_device *md);
 void dm_internal_resume(struct mapped_device *md);
@@ -222,6 +226,6 @@ void dm_free_md_mempools(struct dm_md_mempools *pools);
 /*
  * Various helpers
  */
-unsigned dm_get_reserved_bio_based_ios(void);
+unsigned int dm_get_reserved_bio_based_ios(void);
 
 #endif

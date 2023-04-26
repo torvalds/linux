@@ -80,7 +80,7 @@ static int atomisp_queue_setup(struct vb2_queue *vq,
 
 out:
 	mutex_unlock(&pipe->asd->isp->mutex);
-	return 0;
+	return ret;
 }
 
 static int atomisp_buf_init(struct vb2_buffer *vb)
@@ -624,7 +624,7 @@ static void atomisp_buf_cleanup(struct vb2_buffer *vb)
 	hmm_free(frame->data);
 }
 
-static const struct vb2_ops atomisp_vb2_ops = {
+const struct vb2_ops atomisp_vb2_ops = {
 	.queue_setup		= atomisp_queue_setup,
 	.buf_init		= atomisp_buf_init,
 	.buf_cleanup		= atomisp_buf_cleanup,
@@ -632,40 +632,6 @@ static const struct vb2_ops atomisp_vb2_ops = {
 	.start_streaming	= atomisp_start_streaming,
 	.stop_streaming		= atomisp_stop_streaming,
 };
-
-static int atomisp_init_pipe(struct atomisp_video_pipe *pipe)
-{
-	int ret;
-
-	/* init locks */
-	spin_lock_init(&pipe->irq_lock);
-	mutex_init(&pipe->vb_queue_mutex);
-
-	/* Init videobuf2 queue structure */
-	pipe->vb_queue.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	pipe->vb_queue.io_modes = VB2_MMAP | VB2_USERPTR;
-	pipe->vb_queue.buf_struct_size = sizeof(struct ia_css_frame);
-	pipe->vb_queue.ops = &atomisp_vb2_ops;
-	pipe->vb_queue.mem_ops = &vb2_vmalloc_memops;
-	pipe->vb_queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-	ret = vb2_queue_init(&pipe->vb_queue);
-	if (ret)
-		return ret;
-
-	pipe->vdev.queue = &pipe->vb_queue;
-	pipe->vdev.queue->lock = &pipe->vb_queue_mutex;
-
-	INIT_LIST_HEAD(&pipe->activeq);
-	INIT_LIST_HEAD(&pipe->buffers_waiting_for_param);
-	INIT_LIST_HEAD(&pipe->per_frame_params);
-	memset(pipe->frame_request_config_id, 0,
-	       VIDEO_MAX_FRAME * sizeof(unsigned int));
-	memset(pipe->frame_params, 0,
-	       VIDEO_MAX_FRAME *
-	       sizeof(struct atomisp_css_params_with_list *));
-
-	return 0;
-}
 
 static void atomisp_dev_init_struct(struct atomisp_device *isp)
 {
@@ -681,7 +647,7 @@ static void atomisp_dev_init_struct(struct atomisp_device *isp)
 	 * For Merrifield, frequency is scalable.
 	 * After boot-up, the default frequency is 200MHz.
 	 */
-	isp->sw_contex.running_freq = ISP_FREQ_200MHZ;
+	isp->running_freq = ISP_FREQ_200MHZ;
 }
 
 static void atomisp_subdev_init_struct(struct atomisp_sub_device *asd)
@@ -757,25 +723,6 @@ static int atomisp_open(struct file *file)
 	mutex_lock(&isp->mutex);
 
 	asd->subdev.devnode = vdev;
-	/* Deferred firmware loading case. */
-	if (isp->css_env.isp_css_fw.bytes == 0) {
-		dev_err(isp->dev, "Deferred firmware load.\n");
-		isp->firmware = atomisp_load_firmware(isp);
-		if (!isp->firmware) {
-			dev_err(isp->dev, "Failed to load ISP firmware.\n");
-			ret = -ENOENT;
-			goto error;
-		}
-		ret = atomisp_css_load_firmware(isp);
-		if (ret) {
-			dev_err(isp->dev, "Failed to init css.\n");
-			goto error;
-		}
-		/* No need to keep FW in memory anymore. */
-		release_firmware(isp->firmware);
-		isp->firmware = NULL;
-		isp->css_env.isp_css_fw.data = NULL;
-	}
 
 	if (!isp->input_cnt) {
 		dev_err(isp->dev, "no camera attached\n");
@@ -791,10 +738,6 @@ static int atomisp_open(struct file *file)
 		mutex_unlock(&isp->mutex);
 		return -EBUSY;
 	}
-
-	ret = atomisp_init_pipe(pipe);
-	if (ret)
-		goto error;
 
 	if (atomisp_dev_users(isp)) {
 		dev_dbg(isp->dev, "skip init isp in open\n");
@@ -821,13 +764,13 @@ init_subdev:
 		goto done;
 
 	atomisp_subdev_init_struct(asd);
+	/* Ensure that a mode is set */
+	v4l2_ctrl_s_ctrl(asd->run_mode, pipe->default_run_mode);
 
 done:
 	pipe->users++;
 	mutex_unlock(&isp->mutex);
 
-	/* Ensure that a mode is set */
-	v4l2_ctrl_s_ctrl(asd->run_mode, pipe->default_run_mode);
 
 	return 0;
 
@@ -885,13 +828,17 @@ static int atomisp_release(struct file *file)
 
 	atomisp_css_free_stat_buffers(asd);
 	atomisp_free_internal_buffers(asd);
-	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
-			       core, s_power, 0);
-	if (ret)
-		dev_warn(isp->dev, "Failed to power-off sensor\n");
 
-	/* clear the asd field to show this camera is not used */
-	isp->inputs[asd->input_curr].asd = NULL;
+	if (isp->inputs[asd->input_curr].asd == asd) {
+		ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
+				       core, s_power, 0);
+		if (ret && ret != -ENOIOCTLCMD)
+			dev_warn(isp->dev, "Failed to power-off sensor\n");
+
+		/* clear the asd field to show this camera is not used */
+		isp->inputs[asd->input_curr].asd = NULL;
+	}
+
 	spin_lock_irqsave(&isp->lock, flags);
 	asd->streaming = ATOMISP_DEVICE_STREAMING_DISABLED;
 	spin_unlock_irqrestore(&isp->lock, flags);
@@ -900,12 +847,6 @@ static int atomisp_release(struct file *file)
 		goto done;
 
 	atomisp_destroy_pipes_stream_force(asd);
-
-	if (defer_fw_load) {
-		ia_css_unload_firmware();
-		isp->css_env.isp_css_fw.data = NULL;
-		isp->css_env.isp_css_fw.bytes = 0;
-	}
 
 	ret = v4l2_subdev_call(isp->flash, core, s_power, 0);
 	if (ret < 0 && ret != -ENODEV && ret != -ENOIOCTLCMD)

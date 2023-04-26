@@ -1,0 +1,129 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/usb/renesas,rzv2m-usb3drd.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Renesas RZ/V2M USB 3.1 DRD controller
+
+maintainers:
+  - Biju Das <biju.das.jz@bp.renesas.com>
+
+description: |
+  The RZ/V2{M, MA} USB3.1 DRD module supports the following functions
+  * Role swapping function by the ID pin of the Micro-AB receptacle
+  * Battery Charging Specification Revision 1.2
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - renesas,r9a09g011-usb3drd  # RZ/V2M
+          - renesas,r9a09g055-usb3drd  # RZ/V2MA
+      - const: renesas,rzv2m-usb3drd
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    items:
+      - description: Dual Role Device (DRD)
+      - description: Battery Charging
+      - description: Global Purpose Input
+
+  interrupt-names:
+    items:
+      - const: drd
+      - const: bc
+      - const: gpi
+
+  clocks:
+    items:
+      - description: Peripheral AXI clock
+      - description: APB clock
+
+  clock-names:
+    items:
+      - const: axi
+      - const: reg
+
+  power-domains:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+  ranges: true
+
+  '#address-cells':
+    enum: [ 1, 2 ]
+
+  '#size-cells':
+    enum: [ 1, 2 ]
+
+patternProperties:
+  "^usb3peri@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/usb/renesas,usb3-peri.yaml
+
+  "^usb@[0-9a-f]+$":
+    type: object
+    $ref: renesas,usb-xhci.yaml#
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - interrupt-names
+  - clocks
+  - clock-names
+  - power-domains
+  - resets
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/r9a09g011-cpg.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    usb3drd: usb@85070400 {
+        compatible = "renesas,r9a09g011-usb3drd", "renesas,rzv2m-usb3drd";
+        reg = <0x85070400 0x100>;
+        interrupts = <GIC_SPI 242 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 243 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 244 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "drd", "bc", "gpi";
+        clocks = <&cpg CPG_MOD R9A09G011_USB_ACLK_P>,
+                 <&cpg CPG_MOD R9A09G011_USB_PCLK>;
+        clock-names = "axi", "reg";
+        power-domains = <&cpg>;
+        resets = <&cpg R9A09G011_USB_DRD_RESET>;
+        ranges;
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        usb3host: usb@85060000 {
+           compatible = "renesas,r9a09g011-xhci",
+                        "renesas,rzv2m-xhci";
+           reg = <0x85060000 0x2000>;
+           interrupts = <GIC_SPI 245 IRQ_TYPE_LEVEL_HIGH>;
+           clocks = <&cpg CPG_MOD R9A09G011_USB_ACLK_H>,
+                    <&cpg CPG_MOD R9A09G011_USB_PCLK>;
+           clock-names = "axi", "reg";
+           power-domains = <&cpg>;
+           resets = <&cpg R9A09G011_USB_ARESETN_H>;
+        };
+
+        usb3peri: usb3peri@85070000 {
+           compatible = "renesas,r9a09g011-usb3-peri",
+                        "renesas,rzv2m-usb3-peri";
+           reg = <0x85070000 0x400>;
+           interrupts = <GIC_SPI 246 IRQ_TYPE_LEVEL_HIGH>;
+           clocks = <&cpg CPG_MOD R9A09G011_USB_ACLK_P>,
+                    <&cpg CPG_MOD R9A09G011_USB_PCLK>;
+           clock-names = "axi", "reg";
+           power-domains = <&cpg>;
+           resets = <&cpg R9A09G011_USB_ARESETN_P>;
+        };
+    };

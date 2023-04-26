@@ -232,12 +232,10 @@ prevent link states from being modified during streaming by calling
 
 The function will mark all the pads which are part of the pipeline as streaming.
 
-The struct media_pipeline instance pointed to by
-the pipe argument will be stored in every pad in the pipeline.
-Drivers should embed the struct media_pipeline
-in higher-level pipeline structures and can then access the
-pipeline through the struct media_pad
-pipe field.
+The struct media_pipeline instance pointed to by the pipe argument will be
+stored in every pad in the pipeline. Drivers should embed the struct
+media_pipeline in higher-level pipeline structures and can then access the
+pipeline through the struct media_pad pipe field.
 
 Calls to :c:func:`media_pipeline_start()` can be nested.
 The pipeline pointer must be identical for all nested calls to the function.

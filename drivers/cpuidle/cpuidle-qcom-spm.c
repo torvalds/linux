@@ -17,7 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/cpuidle.h>
 #include <linux/cpu_pm.h>
-#include <linux/qcom_scm.h>
+#include <linux/firmware/qcom/qcom_scm.h>
 #include <soc/qcom/spm.h>
 
 #include <asm/proc-fns.h>

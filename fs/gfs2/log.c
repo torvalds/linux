@@ -80,11 +80,11 @@ void gfs2_remove_from_ail(struct gfs2_bufdata *bd)
 	brelse(bd->bd_bh);
 }
 
-static int __gfs2_writepage(struct page *page, struct writeback_control *wbc,
+static int __gfs2_writepage(struct folio *folio, struct writeback_control *wbc,
 		       void *data)
 {
 	struct address_space *mapping = data;
-	int ret = mapping->a_ops->writepage(page, wbc);
+	int ret = mapping->a_ops->writepage(&folio->page, wbc);
 	mapping_set_error(mapping, ret);
 	return ret;
 }
@@ -136,7 +136,7 @@ __acquires(&sdp->sd_ail_lock)
 			continue;
 		gl = bd->bd_gl;
 		list_move(&bd->bd_ail_st_list, &tr->tr_ail1_list);
-		mapping = bh->b_page->mapping;
+		mapping = bh->b_folio->mapping;
 		if (!mapping)
 			continue;
 		spin_unlock(&sdp->sd_ail_lock);

@@ -235,7 +235,7 @@ intel_memory_region_create(struct drm_i915_private *i915,
 		return ERR_PTR(-ENOMEM);
 
 	mem->i915 = i915;
-	mem->region = (struct resource)DEFINE_RES_MEM(start, size);
+	mem->region = DEFINE_RES_MEM(start, size);
 	mem->io_start = io_start;
 	mem->io_size = io_size;
 	mem->min_page_size = min_page_size;

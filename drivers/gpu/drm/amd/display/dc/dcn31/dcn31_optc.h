@@ -263,8 +263,5 @@ bool optc31_immediate_disable_crtc(struct timing_generator *optc);
 void optc31_set_drr(struct timing_generator *optc, const struct drr_params *params);
 
 void optc3_init_odm(struct timing_generator *optc);
-void optc31_set_static_screen_control(
-	struct timing_generator *optc,
-	uint32_t event_triggers,
-	uint32_t num_frames);
+
 #endif /* __DC_OPTC_DCN31_H__ */

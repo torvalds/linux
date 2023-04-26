@@ -42,7 +42,7 @@ static struct attribute *serdev_device_attrs[] = {
 };
 ATTRIBUTE_GROUPS(serdev_device);
 
-static int serdev_device_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int serdev_device_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
 	int rc;
 
@@ -534,7 +534,7 @@ static int of_serdev_register_devices(struct serdev_controller *ctrl)
 		if (!serdev)
 			continue;
 
-		serdev->dev.of_node = node;
+		device_set_node(&serdev->dev, of_fwnode_handle(node));
 
 		err = serdev_device_add(serdev);
 		if (err) {

@@ -651,14 +651,14 @@ via power-saving behavior.
 Enabling all tracepoints can be done like
 ::
 
-    # echo 1 > /sys/kernel/debug/tracing/events/hda/enable
+    # echo 1 > /sys/kernel/tracing/events/hda/enable
 
 then after some commands, you can traces from
-/sys/kernel/debug/tracing/trace file.  For example, when you want to
+/sys/kernel/tracing/trace file.  For example, when you want to
 trace what codec command is sent, enable the tracepoint like:
 ::
 
-    # cat /sys/kernel/debug/tracing/trace
+    # cat /sys/kernel/tracing/trace
     # tracer: nop
     #
     #       TASK-PID    CPU#    TIMESTAMP  FUNCTION

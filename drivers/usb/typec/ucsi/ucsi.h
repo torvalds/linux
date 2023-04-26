@@ -340,6 +340,14 @@ struct ucsi_connector {
 	u32 src_pdos[PDO_MAX_OBJECTS];
 	int num_pdos;
 
+	/* USB PD objects */
+	struct usb_power_delivery *pd;
+	struct usb_power_delivery_capabilities *port_source_caps;
+	struct usb_power_delivery_capabilities *port_sink_caps;
+	struct usb_power_delivery *partner_pd;
+	struct usb_power_delivery_capabilities *partner_source_caps;
+	struct usb_power_delivery_capabilities *partner_sink_caps;
+
 	struct usb_role_switch *usb_role_sw;
 };
 

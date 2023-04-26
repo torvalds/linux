@@ -384,7 +384,7 @@ static int devm_w1_max1721x_add_device(struct w1_slave *sl)
 	}
 
 	if (!info->ManufacturerName[0])
-		strncpy(info->ManufacturerName, DEF_MFG_NAME,
+		strscpy(info->ManufacturerName, DEF_MFG_NAME,
 			2 * MAX1721X_REG_MFG_NUMB);
 
 	if (get_string(info, MAX1721X_REG_DEV_STR,
@@ -403,15 +403,15 @@ static int devm_w1_max1721x_add_device(struct w1_slave *sl)
 
 		switch (dev_name & MAX172XX_DEV_MASK) {
 		case MAX172X1_DEV:
-			strncpy(info->DeviceName, DEF_DEV_NAME_MAX17211,
+			strscpy(info->DeviceName, DEF_DEV_NAME_MAX17211,
 				2 * MAX1721X_REG_DEV_NUMB);
 			break;
 		case MAX172X5_DEV:
-			strncpy(info->DeviceName, DEF_DEV_NAME_MAX17215,
+			strscpy(info->DeviceName, DEF_DEV_NAME_MAX17215,
 				2 * MAX1721X_REG_DEV_NUMB);
 			break;
 		default:
-			strncpy(info->DeviceName, DEF_DEV_NAME_UNKNOWN,
+			strscpy(info->DeviceName, DEF_DEV_NAME_UNKNOWN,
 				2 * MAX1721X_REG_DEV_NUMB);
 		}
 	}

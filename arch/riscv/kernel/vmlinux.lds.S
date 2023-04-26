@@ -5,6 +5,7 @@
  */
 
 #define RO_EXCEPTION_TABLE_ALIGN	4
+#define RUNTIME_DISCARD_EXIT
 
 #ifdef CONFIG_XIP_KERNEL
 #include "vmlinux-xip.lds.S"
@@ -85,6 +86,9 @@ SECTIONS
 	/* Start of init data section */
 	__init_data_begin = .;
 	INIT_DATA_SECTION(16)
+	.init.bss : {
+		*(.init.bss)	/* from the EFI stub */
+	}
 	.exit.data :
 	{
 		EXIT_DATA
@@ -93,6 +97,10 @@ SECTIONS
 
 	.rel.dyn : {
 		*(.rel.dyn*)
+	}
+
+	.rela.dyn : {
+		*(.rela*)
 	}
 
 	__init_data_end = .;
@@ -140,6 +148,7 @@ SECTIONS
 	STABS_DEBUG
 	DWARF_DEBUG
 	ELF_DETAILS
+	.riscv.attributes 0 : { *(.riscv.attributes) }
 
 	DISCARDS
 }

@@ -45,7 +45,6 @@
 #include "dcn10_hubp.h"
 #include "dcn10_hubbub.h"
 #include "dcn10_cm_common.h"
-#include "dc_link_dp.h"
 #include "dccg.h"
 #include "clk_mgr.h"
 #include "link_hwss.h"
@@ -56,8 +55,7 @@
 #include "dce/dmub_hw_lock_mgr.h"
 #include "dc_trace.h"
 #include "dce/dmub_outbox.h"
-#include "inc/dc_link_dp.h"
-#include "inc/link_dpcd.h"
+#include "link.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -921,7 +919,7 @@ enum dc_status dcn10_enable_stream_timing(
 	if (false == pipe_ctx->clock_source->funcs->program_pix_clk(
 			pipe_ctx->clock_source,
 			&pipe_ctx->stream_res.pix_clk_params,
-			dp_get_link_encoding_format(&pipe_ctx->link_config.dp_link_settings),
+			link_dp_get_encoding_format(&pipe_ctx->link_config.dp_link_settings),
 			&pipe_ctx->pll_settings)) {
 		BREAK_TO_DEBUGGER();
 		return DC_ERROR_UNEXPECTED;
@@ -1019,7 +1017,7 @@ static void dcn10_reset_back_end_for_pipe(
 		 * VBIOS lit up eDP, so check link status too.
 		 */
 		if (!pipe_ctx->stream->dpms_off || link->link_status.link_active)
-			core_link_disable_stream(pipe_ctx);
+			link_set_dpms_off(pipe_ctx);
 		else if (pipe_ctx->stream_res.audio)
 			dc->hwss.disable_audio_stream(pipe_ctx);
 
@@ -1566,7 +1564,7 @@ void dcn10_init_hw(struct dc *dc)
 	}
 
 	/* we want to turn off all dp displays before doing detection */
-	dc_link_blank_all_dp_displays(dc);
+	link_blank_all_dp_displays(dc);
 
 	if (hws->funcs.enable_power_gating_plane)
 		hws->funcs.enable_power_gating_plane(dc->hwseq, true);
@@ -2901,7 +2899,7 @@ void dcn10_blank_pixel_data(
 			dc->hwss.set_pipe(pipe_ctx);
 			stream_res->abm->funcs->set_abm_level(stream_res->abm, stream->abm_level);
 		}
-	} else if (blank) {
+	} else {
 		dc->hwss.set_abm_immediate_disable(pipe_ctx);
 		if (stream_res->tg->funcs->set_blank) {
 			stream_res->tg->funcs->wait_for_state(stream_res->tg, CRTC_STATE_VBLANK);
@@ -3225,12 +3223,16 @@ static void dcn10_config_stereo_parameters(
 			timing_3d_format == TIMING_3D_FORMAT_INBAND_FA ||
 			timing_3d_format == TIMING_3D_FORMAT_DP_HDMI_INBAND_FA ||
 			timing_3d_format == TIMING_3D_FORMAT_SIDEBAND_FA) {
-			enum display_dongle_type dongle = \
-					stream->link->ddc->dongle_type;
-			if (dongle == DISPLAY_DONGLE_DP_VGA_CONVERTER ||
-				dongle == DISPLAY_DONGLE_DP_DVI_CONVERTER ||
-				dongle == DISPLAY_DONGLE_DP_HDMI_CONVERTER)
-				flags->DISABLE_STEREO_DP_SYNC = 1;
+
+			if (stream->link && stream->link->ddc) {
+				enum display_dongle_type dongle = \
+						stream->link->ddc->dongle_type;
+
+				if (dongle == DISPLAY_DONGLE_DP_VGA_CONVERTER ||
+					dongle == DISPLAY_DONGLE_DP_DVI_CONVERTER ||
+					dongle == DISPLAY_DONGLE_DP_HDMI_CONVERTER)
+					flags->DISABLE_STEREO_DP_SYNC = 1;
+			}
 		}
 		flags->RIGHT_EYE_POLARITY =\
 				stream->timing.flags.RIGHT_EYE_3D_POLARITY;

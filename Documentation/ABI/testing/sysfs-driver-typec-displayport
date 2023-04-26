@@ -47,3 +47,18 @@ Description:
 		USB SuperSpeed protocol. From user perspective pin assignments C
 		and E are equal, where all channels on the connector are used
 		for carrying DisplayPort protocol (allowing higher resolutions).
+
+What:		/sys/bus/typec/devices/.../displayport/hpd
+Date:		Dec 2022
+Contact:	Badhri Jagan Sridharan <badhri@google.com>
+Description:
+		VESA DisplayPort Alt Mode on USB Type-C Standard defines how
+		HotPlugDetect(HPD) shall be supported on the USB-C connector when
+		operating in DisplayPort Alt Mode. This is a read only node which
+		reflects the current state of HPD.
+
+		Valid values:
+			- 1: when HPD’s logical state is high (HPD_High) as defined
+			     by VESA DisplayPort Alt Mode on USB Type-C Standard.
+			- 0 when HPD’s logical state is low (HPD_Low) as defined by
+			     VESA DisplayPort Alt Mode on USB Type-C Standard.

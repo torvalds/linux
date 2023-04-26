@@ -68,7 +68,7 @@ int amdgpu_umc_page_retirement_mca(struct amdgpu_device *adev,
 	if (amdgpu_bad_page_threshold != 0) {
 		amdgpu_ras_add_bad_pages(adev, err_data.err_addr,
 						err_data.err_addr_cnt);
-		amdgpu_ras_save_bad_pages(adev);
+		amdgpu_ras_save_bad_pages(adev, NULL);
 	}
 
 out:
@@ -147,7 +147,7 @@ static int amdgpu_umc_do_page_retirement(struct amdgpu_device *adev,
 			err_data->err_addr_cnt) {
 			amdgpu_ras_add_bad_pages(adev, err_data->err_addr,
 						err_data->err_addr_cnt);
-			amdgpu_ras_save_bad_pages(adev);
+			amdgpu_ras_save_bad_pages(adev, &(err_data->ue_count));
 
 			amdgpu_dpm_send_hbm_bad_pages_num(adev, con->eeprom_control.ras_num_recs);
 
@@ -169,25 +169,33 @@ int amdgpu_umc_poison_handler(struct amdgpu_device *adev, bool reset)
 {
 	int ret = AMDGPU_RAS_SUCCESS;
 
-	if (!adev->gmc.xgmi.connected_to_cpu) {
-		struct ras_err_data err_data = {0, 0, 0, NULL};
-		struct ras_common_if head = {
-			.block = AMDGPU_RAS_BLOCK__UMC,
-		};
-		struct ras_manager *obj = amdgpu_ras_find_obj(adev, &head);
+	if (!amdgpu_sriov_vf(adev)) {
+		if (!adev->gmc.xgmi.connected_to_cpu) {
+			struct ras_err_data err_data = {0, 0, 0, NULL};
+			struct ras_common_if head = {
+				.block = AMDGPU_RAS_BLOCK__UMC,
+			};
+			struct ras_manager *obj = amdgpu_ras_find_obj(adev, &head);
 
-		ret = amdgpu_umc_do_page_retirement(adev, &err_data, NULL, reset);
+			ret = amdgpu_umc_do_page_retirement(adev, &err_data, NULL, reset);
 
-		if (ret == AMDGPU_RAS_SUCCESS && obj) {
-			obj->err_data.ue_count += err_data.ue_count;
-			obj->err_data.ce_count += err_data.ce_count;
+			if (ret == AMDGPU_RAS_SUCCESS && obj) {
+				obj->err_data.ue_count += err_data.ue_count;
+				obj->err_data.ce_count += err_data.ce_count;
+			}
+		} else if (reset) {
+			/* MCA poison handler is only responsible for GPU reset,
+			 * let MCA notifier do page retirement.
+			 */
+			kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
+			amdgpu_ras_reset_gpu(adev);
 		}
-	} else if (reset) {
-		/* MCA poison handler is only responsible for GPU reset,
-		 * let MCA notifier do page retirement.
-		 */
-		kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
-		amdgpu_ras_reset_gpu(adev);
+	} else {
+		if (adev->virt.ops && adev->virt.ops->ras_poison_handler)
+			adev->virt.ops->ras_poison_handler(adev);
+		else
+			dev_warn(adev->dev,
+				"No ras_poison_handler interface in SRIOV!\n");
 	}
 
 	return ret;

@@ -10,7 +10,7 @@
 #include <linux/mmu_notifier.h>
 
 #include <drm/drm_gem.h>
-#include <drm/ttm/ttm_bo_api.h>
+#include <drm/ttm/ttm_bo.h>
 #include <uapi/drm/i915_drm.h>
 
 #include "i915_active.h"
@@ -490,6 +490,9 @@ struct drm_i915_gem_object {
 	 *   critical, i.e userspace is free to race against itself.
 	 */
 	unsigned int cache_dirty:1;
+
+	/* @is_dpt: Object houses a display page table (DPT) */
+	unsigned int is_dpt:1;
 
 	/**
 	 * @read_domains: Read memory domains.

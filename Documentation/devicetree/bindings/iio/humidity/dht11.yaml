@@ -34,7 +34,7 @@ additionalProperties: false
 
 examples:
   - |
-    humidity_sensor {
+    humidity-sensor {
         compatible = "dht11";
         gpios = <&gpio0 6 0>;
     };

@@ -1571,7 +1571,7 @@ static int dw100_probe(struct platform_device *pdev)
 			       dev_name(&pdev->dev), dw_dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to request irq: %d\n", ret);
-		return ret;
+		goto err_pm;
 	}
 
 	ret = v4l2_device_register(&pdev->dev, &dw_dev->v4l2_dev);

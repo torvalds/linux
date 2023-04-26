@@ -272,7 +272,7 @@ embargo potrebbe essere preso in considerazione per dare il tempo alle
 distribuzioni di prendere la patch e renderla disponibile ai loro utenti;
 in questo caso, ovviamente, la patch non dovrebbe essere inviata su alcuna
 lista di discussione pubblica. Leggete anche
-Documentation/admin-guide/security-bugs.rst.
+Documentation/process/security-bugs.rst.
 
 Patch che correggono bachi importanti su un kernel già rilasciato, dovrebbero
 essere inviate ai manutentori dei kernel stabili aggiungendo la seguente riga::
@@ -340,7 +340,7 @@ Assicuratevi di dire ai revisori quali cambiamenti state facendo e di
 ringraziarli per il loro tempo.  Revisionare codice è un lavoro faticoso e che
 richiede molto tempo, e a volte i revisori diventano burberi. Tuttavia, anche in
 questo caso, rispondete con educazione e concentratevi sul problema che hanno
-evidenziato. Quando inviate una version successiva ricordatevi di aggiungere un
+evidenziato. Quando inviate una versione successiva ricordatevi di aggiungere un
 ``patch changelog`` alla email di intestazione o ad ogni singola patch spiegando
 le differenze rispetto a sottomissioni precedenti (vedere
 :ref:`it_the_canonical_patch_format`).

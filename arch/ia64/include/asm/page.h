@@ -82,24 +82,18 @@ do {						\
 } while (0)
 
 
-#define alloc_zeroed_user_highpage_movable(vma, vaddr)			\
+#define vma_alloc_zeroed_movable_folio(vma, vaddr)			\
 ({									\
-	struct page *page = alloc_page_vma(				\
-		GFP_HIGHUSER_MOVABLE | __GFP_ZERO, vma, vaddr);		\
-	if (page)							\
- 		flush_dcache_page(page);				\
-	page;								\
+	struct folio *folio = vma_alloc_folio(				\
+		GFP_HIGHUSER_MOVABLE | __GFP_ZERO, 0, vma, vaddr, false); \
+	if (folio)							\
+		flush_dcache_folio(folio);				\
+	folio;								\
 })
-
-#define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE_MOVABLE
 
 #define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
 
 #include <asm-generic/memory_model.h>
-
-#ifdef CONFIG_FLATMEM
-# define pfn_valid(pfn)		((pfn) < max_mapnr)
-#endif
 
 #define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
 #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)

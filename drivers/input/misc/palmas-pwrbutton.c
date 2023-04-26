@@ -266,7 +266,7 @@ static int palmas_pwron_remove(struct platform_device *pdev)
  *
  * Return: 0
  */
-static int __maybe_unused palmas_pwron_suspend(struct device *dev)
+static int palmas_pwron_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct palmas_pwron *pwron = platform_get_drvdata(pdev);
@@ -287,7 +287,7 @@ static int __maybe_unused palmas_pwron_suspend(struct device *dev)
  *
  * Return: 0
  */
-static int __maybe_unused palmas_pwron_resume(struct device *dev)
+static int palmas_pwron_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct palmas_pwron *pwron = platform_get_drvdata(pdev);
@@ -298,8 +298,8 @@ static int __maybe_unused palmas_pwron_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(palmas_pwron_pm,
-			 palmas_pwron_suspend, palmas_pwron_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(palmas_pwron_pm,
+				palmas_pwron_suspend, palmas_pwron_resume);
 
 #ifdef CONFIG_OF
 static const struct of_device_id of_palmas_pwr_match[] = {
@@ -316,7 +316,7 @@ static struct platform_driver palmas_pwron_driver = {
 	.driver	= {
 		.name	= "palmas_pwrbutton",
 		.of_match_table = of_match_ptr(of_palmas_pwr_match),
-		.pm	= &palmas_pwron_pm,
+		.pm	= pm_sleep_ptr(&palmas_pwron_pm),
 	},
 };
 module_platform_driver(palmas_pwron_driver);

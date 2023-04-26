@@ -139,6 +139,8 @@ enum amd_pp_sensors {
 	AMDGPU_PP_SENSOR_MIN_FAN_RPM,
 	AMDGPU_PP_SENSOR_MAX_FAN_RPM,
 	AMDGPU_PP_SENSOR_VCN_POWER_STATE,
+	AMDGPU_PP_SENSOR_PEAK_PSTATE_SCLK,
+	AMDGPU_PP_SENSOR_PEAK_PSTATE_MCLK,
 };
 
 enum amd_pp_task {
@@ -395,6 +397,7 @@ struct amd_pm_funcs {
 	int (*get_ppfeature_status)(void *handle, char *buf);
 	int (*set_ppfeature_status)(void *handle, uint64_t ppfeature_masks);
 	int (*asic_reset_mode_2)(void *handle);
+	int (*asic_reset_enable_gfx_features)(void *handle);
 	int (*set_df_cstate)(void *handle, enum pp_df_cstate state);
 	int (*set_xgmi_pstate)(void *handle, uint32_t pstate);
 	ssize_t (*get_gpu_metrics)(void *handle, void **table);

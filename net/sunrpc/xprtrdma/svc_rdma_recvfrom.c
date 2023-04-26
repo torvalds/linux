@@ -847,6 +847,7 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 	rqstp->rq_xprt_ctxt = ctxt;
 	rqstp->rq_prot = IPPROTO_MAX;
 	svc_xprt_copy_addrs(rqstp, xprt);
+	set_bit(RQ_SECURE, &rqstp->rq_flags);
 	return rqstp->rq_arg.len;
 
 out_err:

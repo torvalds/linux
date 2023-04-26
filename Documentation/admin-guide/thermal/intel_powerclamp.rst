@@ -87,7 +87,7 @@ migrated, unless the CPU is taken offline. In this case, threads
 belong to the offlined CPUs will be terminated immediately.
 
 Running as SCHED_FIFO and relatively high priority, also allows such
-scheme to work for both preemptable and non-preemptable kernels.
+scheme to work for both preemptible and non-preemptible kernels.
 Alignment of idle time around jiffies ensures scalability for HZ
 values. This effect can be better visualized using a Perf timechart.
 The following diagram shows the behavior of kernel thread

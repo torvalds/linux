@@ -77,6 +77,7 @@ static int show_channel(struct host1x_channel *ch, void *data, bool show_fifo)
 
 static void show_syncpts(struct host1x *m, struct output *o, bool show_all)
 {
+	unsigned long irqflags;
 	struct list_head *pos;
 	unsigned int i;
 	int err;
@@ -92,10 +93,10 @@ static void show_syncpts(struct host1x *m, struct output *o, bool show_all)
 		u32 min = host1x_syncpt_load(m->syncpt + i);
 		unsigned int waiters = 0;
 
-		spin_lock(&m->syncpt[i].intr.lock);
-		list_for_each(pos, &m->syncpt[i].intr.wait_head)
+		spin_lock_irqsave(&m->syncpt[i].fences.lock, irqflags);
+		list_for_each(pos, &m->syncpt[i].fences.list)
 			waiters++;
-		spin_unlock(&m->syncpt[i].intr.lock);
+		spin_unlock_irqrestore(&m->syncpt[i].fences.lock, irqflags);
 
 		if (!kref_read(&m->syncpt[i].ref))
 			continue;

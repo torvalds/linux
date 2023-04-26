@@ -171,7 +171,7 @@ static void lru_add_fn(struct lruvec *lruvec, struct folio *folio)
 	 * Is an smp_mb__after_atomic() still required here, before
 	 * folio_evictable() tests the mlocked flag, to rule out the possibility
 	 * of stranding an evictable folio on an unevictable LRU?  I think
-	 * not, because __munlock_page() only clears the mlocked flag
+	 * not, because __munlock_folio() only clears the mlocked flag
 	 * while the LRU lock is held.
 	 *
 	 * (That is not true of __page_cache_release(), and not necessarily
@@ -186,7 +186,7 @@ static void lru_add_fn(struct lruvec *lruvec, struct folio *folio)
 		folio_set_unevictable(folio);
 		/*
 		 * folio->mlock_count = !!folio_test_mlocked(folio)?
-		 * But that leaves __mlock_page() in doubt whether another
+		 * But that leaves __mlock_folio() in doubt whether another
 		 * actor has already counted the mlock or not.  Err on the
 		 * safe side, underestimate, let page reclaim fix it, rather
 		 * than leaving a page on the unevictable LRU indefinitely.
@@ -532,7 +532,7 @@ void folio_add_lru_vma(struct folio *folio, struct vm_area_struct *vma)
 	VM_BUG_ON_FOLIO(folio_test_lru(folio), folio);
 
 	if (unlikely((vma->vm_flags & (VM_LOCKED | VM_SPECIAL)) == VM_LOCKED))
-		mlock_new_page(&folio->page);
+		mlock_new_folio(folio);
 	else
 		folio_add_lru(folio);
 }
@@ -703,17 +703,15 @@ void deactivate_file_folio(struct folio *folio)
 }
 
 /*
- * deactivate_page - deactivate a page
- * @page: page to deactivate
+ * folio_deactivate - deactivate a folio
+ * @folio: folio to deactivate
  *
- * deactivate_page() moves @page to the inactive list if @page was on the active
- * list and was not an unevictable page.  This is done to accelerate the reclaim
- * of @page.
+ * folio_deactivate() moves @folio to the inactive list if @folio was on the
+ * active list and was not unevictable. This is done to accelerate the
+ * reclaim of @folio.
  */
-void deactivate_page(struct page *page)
+void folio_deactivate(struct folio *folio)
 {
-	struct folio *folio = page_folio(page);
-
 	if (folio_test_lru(folio) && !folio_test_unevictable(folio) &&
 	    (folio_test_active(folio) || lru_gen_enabled())) {
 		struct folio_batch *fbatch;
@@ -727,16 +725,14 @@ void deactivate_page(struct page *page)
 }
 
 /**
- * mark_page_lazyfree - make an anon page lazyfree
- * @page: page to deactivate
+ * folio_mark_lazyfree - make an anon folio lazyfree
+ * @folio: folio to deactivate
  *
- * mark_page_lazyfree() moves @page to the inactive file list.
- * This is done to accelerate the reclaim of @page.
+ * folio_mark_lazyfree() moves @folio to the inactive file list.
+ * This is done to accelerate the reclaim of @folio.
  */
-void mark_page_lazyfree(struct page *page)
+void folio_mark_lazyfree(struct folio *folio)
 {
-	struct folio *folio = page_folio(page);
-
 	if (folio_test_lru(folio) && folio_test_anon(folio) &&
 	    folio_test_swapbacked(folio) && !folio_test_swapcache(folio) &&
 	    !folio_test_unevictable(folio)) {
@@ -755,7 +751,7 @@ void lru_add_drain(void)
 	local_lock(&cpu_fbatches.lock);
 	lru_add_drain_cpu(smp_processor_id());
 	local_unlock(&cpu_fbatches.lock);
-	mlock_page_drain_local();
+	mlock_drain_local();
 }
 
 /*
@@ -770,7 +766,7 @@ static void lru_add_and_bh_lrus_drain(void)
 	lru_add_drain_cpu(smp_processor_id());
 	local_unlock(&cpu_fbatches.lock);
 	invalidate_bh_lrus_cpu();
-	mlock_page_drain_local();
+	mlock_drain_local();
 }
 
 void lru_add_drain_cpu_zone(struct zone *zone)
@@ -779,7 +775,7 @@ void lru_add_drain_cpu_zone(struct zone *zone)
 	lru_add_drain_cpu(smp_processor_id());
 	drain_local_pages(zone);
 	local_unlock(&cpu_fbatches.lock);
-	mlock_page_drain_local();
+	mlock_drain_local();
 }
 
 #ifdef CONFIG_SMP
@@ -802,7 +798,7 @@ static bool cpu_needs_drain(unsigned int cpu)
 		folio_batch_count(&fbatches->lru_deactivate) ||
 		folio_batch_count(&fbatches->lru_lazyfree) ||
 		folio_batch_count(&fbatches->activate) ||
-		need_mlock_page_drain(cpu) ||
+		need_mlock_drain(cpu) ||
 		has_bh_in_lru(cpu, NULL);
 }
 
@@ -1088,16 +1084,6 @@ void folio_batch_remove_exceptionals(struct folio_batch *fbatch)
 	}
 	fbatch->nr = j;
 }
-
-unsigned pagevec_lookup_range_tag(struct pagevec *pvec,
-		struct address_space *mapping, pgoff_t *index, pgoff_t end,
-		xa_mark_t tag)
-{
-	pvec->nr = find_get_pages_range_tag(mapping, index, end, tag,
-					PAGEVEC_SIZE, pvec->pages);
-	return pagevec_count(pvec);
-}
-EXPORT_SYMBOL(pagevec_lookup_range_tag);
 
 /*
  * Perform any setup for the swap system

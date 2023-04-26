@@ -44,10 +44,10 @@
 #include <linux/module.h>
 
 #include <drm/drm_drv.h>
-#include <drm/ttm/ttm_bo_api.h>
-#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_bo.h>
 #include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_range_manager.h>
+#include <drm/ttm/ttm_tt.h>
 
 #include <drm/amdgpu_drm.h>
 #include <drm/drm_drv.h>
@@ -1679,10 +1679,10 @@ static int amdgpu_ttm_reserve_tmr(struct amdgpu_device *adev)
 		/* reserve vram for mem train according to TMR location */
 		amdgpu_ttm_training_data_block_init(adev);
 		ret = amdgpu_bo_create_kernel_at(adev,
-					 ctx->c2p_train_data_offset,
-					 ctx->train_data_size,
-					 &ctx->c2p_bo,
-					 NULL);
+						 ctx->c2p_train_data_offset,
+						 ctx->train_data_size,
+						 &ctx->c2p_bo,
+						 NULL);
 		if (ret) {
 			DRM_ERROR("alloc c2p_bo failed(%d)!\n", ret);
 			amdgpu_ttm_training_reserve_vram_fini(adev);
@@ -1692,10 +1692,10 @@ static int amdgpu_ttm_reserve_tmr(struct amdgpu_device *adev)
 	}
 
 	ret = amdgpu_bo_create_kernel_at(adev,
-				adev->gmc.real_vram_size - adev->mman.discovery_tmr_size,
-				adev->mman.discovery_tmr_size,
-				&adev->mman.discovery_memory,
-				NULL);
+					 adev->gmc.real_vram_size - adev->mman.discovery_tmr_size,
+					 adev->mman.discovery_tmr_size,
+					 &adev->mman.discovery_memory,
+					 NULL);
 	if (ret) {
 		DRM_ERROR("alloc tmr failed(%d)!\n", ret);
 		amdgpu_bo_free_kernel(&adev->mman.discovery_memory, NULL, NULL);
@@ -1718,7 +1718,6 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 {
 	uint64_t gtt_size;
 	int r;
-	u64 vis_vram_limit;
 
 	mutex_init(&adev->mman.gtt_window_lock);
 
@@ -1740,12 +1739,6 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 		DRM_ERROR("Failed initializing VRAM heap.\n");
 		return r;
 	}
-
-	/* Reduce size of CPU-visible VRAM if requested */
-	vis_vram_limit = (u64)amdgpu_vis_vram_limit * 1024 * 1024;
-	if (amdgpu_vis_vram_limit > 0 &&
-	    vis_vram_limit <= adev->gmc.visible_vram_size)
-		adev->gmc.visible_vram_size = vis_vram_limit;
 
 	/* Change the size here instead of the init above so only lpfn is affected */
 	amdgpu_ttm_set_buffer_funcs_status(adev, false);

@@ -926,9 +926,6 @@ static int f2fs_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
 static int f2fs_create_whiteout(struct mnt_idmap *idmap,
 				struct inode *dir, struct inode **whiteout)
 {
-	if (unlikely(f2fs_cp_error(F2FS_I_SB(dir))))
-		return -EIO;
-
 	return __f2fs_tmpfile(idmap, dir, NULL,
 				S_IFCHR | WHITEOUT_MODE, true, whiteout);
 }
@@ -966,7 +963,7 @@ static int f2fs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 
 	/*
 	 * If new_inode is null, the below renaming flow will
-	 * add a link in old_dir which can conver inline_dir.
+	 * add a link in old_dir which can convert inline_dir.
 	 * After then, if we failed to get the entry due to other
 	 * reasons like ENOMEM, we had to remove the new entry.
 	 * Instead of adding such the error handling routine, let's

@@ -235,7 +235,7 @@ qla_dfs_fw_resource_cnt_show(struct seq_file *s, void *unused)
 	uint16_t mb[MAX_IOCB_MB_REG];
 	int rc;
 	struct qla_hw_data *ha = vha->hw;
-	u16 iocbs_used, i;
+	u16 iocbs_used, i, exch_used;
 
 	rc = qla24xx_res_count_wait(vha, mb, SIZEOF_IOCB_MB_REG);
 	if (rc != QLA_SUCCESS) {
@@ -263,13 +263,19 @@ qla_dfs_fw_resource_cnt_show(struct seq_file *s, void *unused)
 	if (ql2xenforce_iocb_limit) {
 		/* lock is not require. It's an estimate. */
 		iocbs_used = ha->base_qpair->fwres.iocbs_used;
+		exch_used = ha->base_qpair->fwres.exch_used;
 		for (i = 0; i < ha->max_qpairs; i++) {
-			if (ha->queue_pair_map[i])
+			if (ha->queue_pair_map[i]) {
 				iocbs_used += ha->queue_pair_map[i]->fwres.iocbs_used;
+				exch_used += ha->queue_pair_map[i]->fwres.exch_used;
+			}
 		}
 
 		seq_printf(s, "Driver: estimate iocb used [%d] high water limit [%d]\n",
 			   iocbs_used, ha->base_qpair->fwres.iocbs_limit);
+
+		seq_printf(s, "estimate exchange used[%d] high water limit [%d] n",
+			   exch_used, ha->base_qpair->fwres.exch_limit);
 	}
 
 	return 0;

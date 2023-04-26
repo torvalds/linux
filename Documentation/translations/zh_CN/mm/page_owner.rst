@@ -34,20 +34,9 @@ page owner在默认情况下是禁用的。所以，如果你想使用它，你�
 一样进行。这两个不可能的分支应该不会影响到分配的性能，特别是在静态键跳转标签修补
 功能可用的情况下。以下是由于这个功能而导致的内核代码大小的变化。
 
-- 没有page owner::
-
-   text    data     bss     dec     hex filename
-   48392   2333     644   51369    c8a9 mm/page_alloc.o
-
-- 有page owner::
-
-   text    data     bss     dec     hex filename
-   48800   2445     644   51889    cab1 mm/page_alloc.o
-   6662     108      29    6799    1a8f mm/page_owner.o
-   1025       8       8    1041     411 mm/page_ext.o
-
-虽然总共增加了8KB的代码，但page_alloc.o增加了520字节，其中不到一半是在hotpath
-中。构建带有page owner的内核，并在需要时打开它，将是调试内核内存问题的最佳选择。
+尽管启用page owner会使内核的大小增加几千字节，但这些代码大部分都在页面分配器和
+热路径之外。构建带有page owner的内核，并在需要时打开它，将是调试内核内存问题的
+最佳选择。
 
 有一个问题是由实现细节引起的。页所有者将信息存储到struct page扩展的内存中。这
 个内存的初始化时间比稀疏内存系统中的页面分配器启动的时间要晚一些，所以，在初始化
@@ -62,7 +51,7 @@ page owner在默认情况下是禁用的。所以，如果你想使用它，你�
 
 1) 构建用户空间的帮助::
 
-	cd tools/vm
+	cd tools/mm
 	make page_owner_sort
 
 2) 启用page owner: 添加 "page_owner=on" 到 boot cmdline.

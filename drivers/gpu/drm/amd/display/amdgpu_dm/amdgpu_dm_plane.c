@@ -67,7 +67,16 @@ static const uint32_t overlay_formats[] = {
 	DRM_FORMAT_RGBA8888,
 	DRM_FORMAT_XBGR8888,
 	DRM_FORMAT_ABGR8888,
-	DRM_FORMAT_RGB565
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_NV21,
+	DRM_FORMAT_NV12,
+	DRM_FORMAT_P010
+};
+
+static const uint32_t video_formats[] = {
+	DRM_FORMAT_NV21,
+	DRM_FORMAT_NV12,
+	DRM_FORMAT_P010
 };
 
 static const u32 cursor_formats[] = {
@@ -1614,5 +1623,16 @@ int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
 		plane->funcs->reset(plane);
 
 	return 0;
+}
+
+bool is_video_format(uint32_t format)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(video_formats); i++)
+		if (format == video_formats[i])
+			return true;
+
+	return false;
 }
 

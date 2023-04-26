@@ -254,7 +254,7 @@ If you have a patch that fixes an exploitable security bug, send that patch
 to security@kernel.org.  For severe bugs, a short embargo may be considered
 to allow distributors to get the patch out to users; in such cases,
 obviously, the patch should not be sent to any public lists. See also
-Documentation/admin-guide/security-bugs.rst.
+Documentation/process/security-bugs.rst.
 
 Patches that fix a severe bug in a released kernel should be directed
 toward the stable maintainers by putting a line like this::
@@ -320,7 +320,7 @@ for their time.  Code review is a tiring and time-consuming process, and
 reviewers sometimes get grumpy.  Even in that case, though, respond
 politely and address the problems they have pointed out.  When sending a next
 version, add a ``patch changelog`` to the cover letter or to individual patches
-explaining difference aganst previous submission (see
+explaining difference against previous submission (see
 :ref:`the_canonical_patch_format`).
 
 See Documentation/process/email-clients.rst for recommendations on email
@@ -407,7 +407,7 @@ then you just add a line saying::
 
 	Signed-off-by: Random J Developer <random@developer.example.org>
 
-using your real name (sorry, no pseudonyms or anonymous contributions.)
+using a known identity (sorry, no anonymous contributions.)
 This will be done for you automatically if you use ``git commit -s``.
 Reverts should also include "Signed-off-by". ``git revert -s`` does that
 for you.
@@ -496,10 +496,11 @@ Using Reported-by:, Tested-by:, Reviewed-by:, Suggested-by: and Fixes:
 ----------------------------------------------------------------------
 
 The Reported-by tag gives credit to people who find bugs and report them and it
-hopefully inspires them to help us again in the future.  Please note that if
-the bug was reported in private, then ask for permission first before using the
-Reported-by tag. The tag is intended for bugs; please do not use it to credit
-feature requests.
+hopefully inspires them to help us again in the future. The tag is intended for
+bugs; please do not use it to credit feature requests. The tag should be
+followed by a Link: tag pointing to the report, unless the report is not
+available on the web. Please note that if the bug was reported in private, then
+ask for permission first before using the Reported-by tag.
 
 A Tested-by: tag indicates that the patch has been successfully tested (in
 some environment) by the person named.  This tag informs maintainers that

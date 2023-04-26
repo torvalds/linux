@@ -213,7 +213,7 @@ int mlx5_vdpa_create_mkey(struct mlx5_vdpa_dev *mvdev, u32 *mkey, u32 *in,
 		return err;
 
 	mkey_index = MLX5_GET(create_mkey_out, lout, mkey_index);
-	*mkey |= mlx5_idx_to_mkey(mkey_index);
+	*mkey = mlx5_idx_to_mkey(mkey_index);
 	return 0;
 }
 
@@ -233,6 +233,7 @@ static int init_ctrl_vq(struct mlx5_vdpa_dev *mvdev)
 	if (!mvdev->cvq.iotlb)
 		return -ENOMEM;
 
+	spin_lock_init(&mvdev->cvq.iommu_lock);
 	vringh_set_iotlb(&mvdev->cvq.vring, mvdev->cvq.iotlb, &mvdev->cvq.iommu_lock);
 
 	return 0;

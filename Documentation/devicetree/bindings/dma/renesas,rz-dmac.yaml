@@ -10,7 +10,7 @@ maintainers:
   - Biju Das <biju.das.jz@bp.renesas.com>
 
 allOf:
-  - $ref: "dma-controller.yaml#"
+  - $ref: dma-controller.yaml#
 
 properties:
   compatible:

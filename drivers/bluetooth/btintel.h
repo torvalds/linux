@@ -137,13 +137,6 @@ struct intel_offload_use_cases {
 	__u8	preset[8];
 } __packed;
 
-/* structure to store the PPAG data read from ACPI table */
-struct btintel_ppag {
-	u32	domain;
-	u32     mode;
-	struct hci_dev *hdev;
-};
-
 struct btintel_loc_aware_reg {
 	__le32 mcc;
 	__le32 sel;

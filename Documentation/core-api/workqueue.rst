@@ -370,8 +370,8 @@ of possible problems:
 
 The first one can be tracked using tracing: ::
 
-	$ echo workqueue:workqueue_queue_work > /sys/kernel/debug/tracing/set_event
-	$ cat /sys/kernel/debug/tracing/trace_pipe > out.txt
+	$ echo workqueue:workqueue_queue_work > /sys/kernel/tracing/set_event
+	$ cat /sys/kernel/tracing/trace_pipe > out.txt
 	(wait a few secs)
 	^C
 

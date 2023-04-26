@@ -72,6 +72,9 @@ static void __init init_screen_info(void)
 		if (memblock_is_map_memory(screen_info.lfb_base))
 			memblock_mark_nomap(screen_info.lfb_base,
 					    screen_info.lfb_size);
+
+		if (IS_ENABLED(CONFIG_EFI_EARLYCON))
+			efi_earlycon_reprobe();
 	}
 }
 
@@ -92,7 +95,7 @@ static int __init uefi_init(u64 efi_system_table)
 	if (IS_ENABLED(CONFIG_64BIT))
 		set_bit(EFI_64BIT, &efi.flags);
 
-	retval = efi_systab_check_header(&systab->hdr, 2);
+	retval = efi_systab_check_header(&systab->hdr);
 	if (retval)
 		goto out;
 

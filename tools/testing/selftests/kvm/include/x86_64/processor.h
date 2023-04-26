@@ -19,6 +19,9 @@
 
 #include "../kvm_util.h"
 
+extern bool host_cpu_is_intel;
+extern bool host_cpu_is_amd;
+
 #define NMI_VECTOR		0x02
 
 #define X86_EFLAGS_FIXED	 (1u << 1)
@@ -137,6 +140,7 @@ struct kvm_x86_cpu_feature {
 #define	X86_FEATURE_GBPAGES		KVM_X86_CPU_FEATURE(0x80000001, 0, EDX, 26)
 #define	X86_FEATURE_RDTSCP		KVM_X86_CPU_FEATURE(0x80000001, 0, EDX, 27)
 #define	X86_FEATURE_LM			KVM_X86_CPU_FEATURE(0x80000001, 0, EDX, 29)
+#define	X86_FEATURE_INVTSC		KVM_X86_CPU_FEATURE(0x80000007, 0, EDX, 8)
 #define	X86_FEATURE_RDPRU		KVM_X86_CPU_FEATURE(0x80000008, 0, EBX, 4)
 #define	X86_FEATURE_AMD_IBPB		KVM_X86_CPU_FEATURE(0x80000008, 0, EBX, 12)
 #define	X86_FEATURE_NPT			KVM_X86_CPU_FEATURE(0x8000000A, 0, EDX, 0)
@@ -554,6 +558,28 @@ static inline uint32_t this_cpu_model(void)
 	return x86_model(this_cpu_fms());
 }
 
+static inline bool this_cpu_vendor_string_is(const char *vendor)
+{
+	const uint32_t *chunk = (const uint32_t *)vendor;
+	uint32_t eax, ebx, ecx, edx;
+
+	cpuid(0, &eax, &ebx, &ecx, &edx);
+	return (ebx == chunk[0] && edx == chunk[1] && ecx == chunk[2]);
+}
+
+static inline bool this_cpu_is_intel(void)
+{
+	return this_cpu_vendor_string_is("GenuineIntel");
+}
+
+/*
+ * Exclude early K5 samples with a vendor string of "AMDisbetter!"
+ */
+static inline bool this_cpu_is_amd(void)
+{
+	return this_cpu_vendor_string_is("AuthenticAMD");
+}
+
 static inline uint32_t __this_cpu_has(uint32_t function, uint32_t index,
 				      uint8_t reg, uint8_t lo, uint8_t hi)
 {
@@ -690,9 +716,6 @@ static inline void cpu_relax(void)
 		"hlt\n"	\
 		)
 
-bool is_intel_cpu(void);
-bool is_amd_cpu(void);
-
 struct kvm_x86_state *vcpu_save_state(struct kvm_vcpu *vcpu);
 void vcpu_load_state(struct kvm_vcpu *vcpu, struct kvm_x86_state *state);
 void kvm_x86_state_cleanup(struct kvm_x86_state *state);
@@ -716,7 +739,7 @@ static inline void vcpu_msrs_set(struct kvm_vcpu *vcpu, struct kvm_msrs *msrs)
 	int r = __vcpu_ioctl(vcpu, KVM_SET_MSRS, msrs);
 
 	TEST_ASSERT(r == msrs->nmsrs,
-		    "KVM_GET_MSRS failed, r: %i (failed on MSR %x)",
+		    "KVM_SET_MSRS failed, r: %i (failed on MSR %x)",
 		    r, r < 0 || r >= msrs->nmsrs ? -1 : msrs->entries[r].index);
 }
 static inline void vcpu_debugregs_get(struct kvm_vcpu *vcpu,
@@ -1040,6 +1063,8 @@ uint64_t *vm_get_page_table_entry(struct kvm_vm *vm, uint64_t vaddr);
 
 uint64_t kvm_hypercall(uint64_t nr, uint64_t a0, uint64_t a1, uint64_t a2,
 		       uint64_t a3);
+uint64_t __xen_hypercall(uint64_t nr, uint64_t a0, void *a1);
+void xen_hypercall(uint64_t nr, uint64_t a0, void *a1);
 
 void __vm_xsave_require_permission(int bit, const char *name);
 

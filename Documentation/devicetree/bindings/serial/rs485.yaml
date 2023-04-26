@@ -51,6 +51,12 @@ properties:
     description: GPIO pin to enable RS485 bus termination.
     maxItems: 1
 
+  rs485-rx-during-tx-gpios:
+    description: Output GPIO pin that sets the state of rs485-rx-during-tx. This
+      signal can be used to control the RX part of an RS485 transceiver. Thereby
+      the active state enables RX during TX.
+    maxItems: 1
+
 additionalProperties: true
 
 ...

@@ -378,7 +378,7 @@ int cdnsp_ep_enqueue(struct cdnsp_ep *pep, struct cdnsp_request *preq)
 		ret = cdnsp_queue_bulk_tx(pdev, preq);
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
-		ret = cdnsp_queue_isoc_tx_prepare(pdev, preq);
+		ret = cdnsp_queue_isoc_tx(pdev, preq);
 	}
 
 	if (ret)

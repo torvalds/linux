@@ -623,17 +623,6 @@ config LEDS_NETXBIG
 	  and 5Big Network v2 boards. The LEDs are wired to a CPLD and are
 	  controlled through a GPIO extension bus.
 
-config LEDS_ASIC3
-	bool "LED support for the HTC ASIC3"
-	depends on LEDS_CLASS=y
-	depends on MFD_ASIC3
-	default y
-	help
-	  This option enables support for the LEDs on the HTC ASIC3. The HTC
-	  ASIC3 LED GPIOs are inputs, not outputs, thus the leds-gpio driver
-	  cannot be used. This driver supports hardware blinking with an on+off
-	  period from 62ms to 125s. Say Y to enable LEDs on the HP iPAQ hx4700.
-
 config LEDS_TCA6507
 	tristate "LED Support for TCA6507 I2C chip"
 	depends on LEDS_CLASS && I2C

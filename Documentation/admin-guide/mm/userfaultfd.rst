@@ -1,5 +1,3 @@
-.. _userfaultfd:
-
 ===========
 Userfaultfd
 ===========

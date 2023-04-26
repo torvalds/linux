@@ -171,11 +171,6 @@ extern phys_addr_t __phys_addr_symbol(unsigned long x);
 
 #define sym_to_pfn(x)           __phys_to_pfn(__pa_symbol(x))
 
-#ifdef CONFIG_FLATMEM
-#define pfn_valid(pfn) \
-	(((pfn) >= ARCH_PFN_OFFSET) && (((pfn) - ARCH_PFN_OFFSET) < max_mapnr))
-#endif
-
 #endif /* __ASSEMBLY__ */
 
 #define virt_addr_valid(vaddr)	({						\

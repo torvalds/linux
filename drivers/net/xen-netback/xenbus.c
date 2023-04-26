@@ -200,7 +200,7 @@ static void xenvif_debugfs_delif(struct xenvif *vif)
  * and vif variables to the environment, for the benefit of the vif-* hotplug
  * scripts.
  */
-static int netback_uevent(struct xenbus_device *xdev,
+static int netback_uevent(const struct xenbus_device *xdev,
 			  struct kobj_uevent_env *env)
 {
 	struct backend_info *be = dev_get_drvdata(&xdev->dev);

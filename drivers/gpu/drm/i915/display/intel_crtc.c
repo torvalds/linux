@@ -28,6 +28,7 @@
 #include "intel_pipe_crc.h"
 #include "intel_psr.h"
 #include "intel_sprite.h"
+#include "intel_vblank.h"
 #include "intel_vrr.h"
 #include "skl_universal_plane.h"
 
@@ -681,6 +682,14 @@ void intel_pipe_update_end(struct intel_crtc_state *new_crtc_state)
 	 * vblank start instead of vmax vblank start.
 	 */
 	intel_vrr_send_push(new_crtc_state);
+
+	/*
+	 * Seamless M/N update may need to update frame timings.
+	 *
+	 * FIXME Should be synchronized with the start of vblank somehow...
+	 */
+	if (new_crtc_state->seamless_m_n && intel_crtc_needs_fastset(new_crtc_state))
+		intel_crtc_update_active_timings(new_crtc_state);
 
 	local_irq_enable();
 

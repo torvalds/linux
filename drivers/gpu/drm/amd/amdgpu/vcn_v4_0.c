@@ -68,18 +68,27 @@ static void vcn_v4_0_unified_ring_set_wptr(struct amdgpu_ring *ring);
 static void vcn_v4_0_set_ras_funcs(struct amdgpu_device *adev);
 
 /**
- * vcn_v4_0_early_init - set function pointers
+ * vcn_v4_0_early_init - set function pointers and load microcode
  *
  * @handle: amdgpu_device pointer
  *
  * Set ring and irq function pointers
+ * Load microcode from filesystem
  */
 static int vcn_v4_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int i;
 
-	if (amdgpu_sriov_vf(adev))
+	if (amdgpu_sriov_vf(adev)) {
 		adev->vcn.harvest_config = VCN_HARVEST_MMSCH;
+		for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+			if (amdgpu_vcn_is_disabled_vcn(adev, VCN_ENCODE_RING, i)) {
+				adev->vcn.harvest_config |= 1 << i;
+				dev_info(adev->dev, "VCN%d is disabled by hypervisor\n", i);
+			}
+		}
+	}
 
 	/* re-use enc ring as unified ring */
 	adev->vcn.num_enc_rings = 1;
@@ -88,7 +97,7 @@ static int vcn_v4_0_early_init(void *handle)
 	vcn_v4_0_set_irq_funcs(adev);
 	vcn_v4_0_set_ras_funcs(adev);
 
-	return 0;
+	return amdgpu_vcn_early_init(adev);
 }
 
 /**
@@ -237,16 +246,11 @@ static int vcn_v4_0_hw_init(void *handle)
 				continue;
 
 			ring = &adev->vcn.inst[i].ring_enc[0];
-			if (amdgpu_vcn_is_disabled_vcn(adev, VCN_ENCODE_RING, i)) {
-				ring->sched.ready = false;
-				ring->no_scheduler = true;
-				dev_info(adev->dev, "ring %s is disabled by hypervisor\n", ring->name);
-			} else {
-				ring->wptr = 0;
-				ring->wptr_old = 0;
-				vcn_v4_0_unified_ring_set_wptr(ring);
-				ring->sched.ready = true;
-			}
+			ring->wptr = 0;
+			ring->wptr_old = 0;
+			vcn_v4_0_unified_ring_set_wptr(ring);
+			ring->sched.ready = true;
+
 		}
 	} else {
 		for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
@@ -1631,6 +1635,10 @@ static int vcn_v4_0_limit_sched(struct amdgpu_cs_parser *p,
 	if (atomic_read(&job->base.entity->fence_seq))
 		return -EINVAL;
 
+	/* if VCN0 is harvested, we can't support AV1 */
+	if (p->adev->vcn.harvest_config & AMDGPU_VCN_HARVEST_VCN0)
+		return -EINVAL;
+
 	scheds = p->adev->gpu_sched[AMDGPU_HW_IP_VCN_ENC]
 		[AMDGPU_RING_PRIO_0].sched;
 	drm_sched_entity_modify_sched(job->base.entity, scheds, 1);
@@ -1705,7 +1713,7 @@ static int vcn_v4_0_dec_msg(struct amdgpu_cs_parser *p, struct amdgpu_job *job,
 
 		create = ptr + addr + offset - start;
 
-		/* H246, HEVC and VP9 can run on any instance */
+		/* H264, HEVC and VP9 can run on any instance */
 		if (create[0] == 0x7 || create[0] == 0x10 || create[0] == 0x11)
 			continue;
 
@@ -1719,7 +1727,29 @@ out:
 	return r;
 }
 
-#define RADEON_VCN_ENGINE_TYPE_DECODE                                 (0x00000003)
+#define RADEON_VCN_ENGINE_TYPE_ENCODE			(0x00000002)
+#define RADEON_VCN_ENGINE_TYPE_DECODE			(0x00000003)
+
+#define RADEON_VCN_ENGINE_INFO				(0x30000001)
+#define RADEON_VCN_ENGINE_INFO_MAX_OFFSET		16
+
+#define RENCODE_ENCODE_STANDARD_AV1			2
+#define RENCODE_IB_PARAM_SESSION_INIT			0x00000003
+#define RENCODE_IB_PARAM_SESSION_INIT_MAX_OFFSET	64
+
+/* return the offset in ib if id is found, -1 otherwise
+ * to speed up the searching we only search upto max_offset
+ */
+static int vcn_v4_0_enc_find_ib_param(struct amdgpu_ib *ib, uint32_t id, int max_offset)
+{
+	int i;
+
+	for (i = 0; i < ib->length_dw && i < max_offset && ib->ptr[i] >= 8; i += ib->ptr[i]/4) {
+		if (ib->ptr[i + 1] == id)
+			return i;
+	}
+	return -1;
+}
 
 static int vcn_v4_0_ring_patch_cs_in_place(struct amdgpu_cs_parser *p,
 					   struct amdgpu_job *job,
@@ -1729,27 +1759,35 @@ static int vcn_v4_0_ring_patch_cs_in_place(struct amdgpu_cs_parser *p,
 	struct amdgpu_vcn_decode_buffer *decode_buffer;
 	uint64_t addr;
 	uint32_t val;
+	int idx;
 
 	/* The first instance can decode anything */
 	if (!ring->me)
 		return 0;
 
-	/* unified queue ib header has 8 double words. */
-	if (ib->length_dw < 8)
+	/* RADEON_VCN_ENGINE_INFO is at the top of ib block */
+	idx = vcn_v4_0_enc_find_ib_param(ib, RADEON_VCN_ENGINE_INFO,
+			RADEON_VCN_ENGINE_INFO_MAX_OFFSET);
+	if (idx < 0) /* engine info is missing */
 		return 0;
 
-	val = amdgpu_ib_get_value(ib, 6); //RADEON_VCN_ENGINE_TYPE
-	if (val != RADEON_VCN_ENGINE_TYPE_DECODE)
-		return 0;
+	val = amdgpu_ib_get_value(ib, idx + 2); /* RADEON_VCN_ENGINE_TYPE */
+	if (val == RADEON_VCN_ENGINE_TYPE_DECODE) {
+		decode_buffer = (struct amdgpu_vcn_decode_buffer *)&ib->ptr[idx + 6];
 
-	decode_buffer = (struct amdgpu_vcn_decode_buffer *)&ib->ptr[10];
+		if (!(decode_buffer->valid_buf_flag  & 0x1))
+			return 0;
 
-	if (!(decode_buffer->valid_buf_flag  & 0x1))
-		return 0;
-
-	addr = ((u64)decode_buffer->msg_buffer_address_hi) << 32 |
-		decode_buffer->msg_buffer_address_lo;
-	return vcn_v4_0_dec_msg(p, job, addr);
+		addr = ((u64)decode_buffer->msg_buffer_address_hi) << 32 |
+			decode_buffer->msg_buffer_address_lo;
+		return vcn_v4_0_dec_msg(p, job, addr);
+	} else if (val == RADEON_VCN_ENGINE_TYPE_ENCODE) {
+		idx = vcn_v4_0_enc_find_ib_param(ib, RENCODE_IB_PARAM_SESSION_INIT,
+			RENCODE_IB_PARAM_SESSION_INIT_MAX_OFFSET);
+		if (idx >= 0 && ib->ptr[idx + 2] == RENCODE_ENCODE_STANDARD_AV1)
+			return vcn_v4_0_limit_sched(p, job);
+	}
+	return 0;
 }
 
 static const struct amdgpu_ring_funcs vcn_v4_0_unified_ring_vm_funcs = {

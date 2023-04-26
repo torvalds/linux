@@ -55,6 +55,10 @@ properties:
       - description: First EMAC controller reference clock
       - description: Second EMAC controller reference clock
 
+  power-domains:
+    items:
+      - description: CX domain
+
   protected-clocks:
     maxItems: 389
 
@@ -70,6 +74,8 @@ unevaluatedProperties: false
 examples:
   - |
     #include <dt-bindings/clock/qcom,rpmh.h>
+    #include <dt-bindings/power/qcom-rpmpd.h>
+
     clock-controller@100000 {
       compatible = "qcom,gcc-sc8280xp";
       reg = <0x00100000 0x1f0000>;
@@ -106,6 +112,7 @@ examples:
                <&pcie4_lane>,
                <&rxc0_ref_clk>,
                <&rxc1_ref_clk>;
+      power-domains = <&rpmhpd SC8280XP_CX>;
 
       #clock-cells = <1>;
       #reset-cells = <1>;

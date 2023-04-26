@@ -575,6 +575,8 @@ struct macsec_ops;
  * @advertising: Currently advertised linkmodes
  * @adv_old: Saved advertised while power saving for WoL
  * @supported_eee: supported PHY EEE linkmodes
+ * @advertising_eee: Currently advertised EEE linkmodes
+ * @eee_enabled: Flag indicating whether the EEE feature is enabled
  * @lp_advertising: Current link partner advertised linkmodes
  * @host_interfaces: PHY interface modes supported by host
  * @eee_broken_modes: Energy efficient ethernet modes which should be prohibited
@@ -681,6 +683,8 @@ struct phy_device {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(adv_old);
 	/* used for eee validation */
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(supported_eee);
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(advertising_eee);
+	bool eee_enabled;
 
 	/* Host supported PHY interface types. Should be ignored if empty. */
 	DECLARE_PHY_INTERFACE_MASK(host_interfaces);
@@ -1543,7 +1547,7 @@ int fwnode_get_phy_id(struct fwnode_handle *fwnode, u32 *phy_id);
 struct mdio_device *fwnode_mdio_find_device(struct fwnode_handle *fwnode);
 struct phy_device *fwnode_phy_find_device(struct fwnode_handle *phy_fwnode);
 struct phy_device *device_phy_find_device(struct device *dev);
-struct fwnode_handle *fwnode_get_phy_node(struct fwnode_handle *fwnode);
+struct fwnode_handle *fwnode_get_phy_node(const struct fwnode_handle *fwnode);
 struct phy_device *get_phy_device(struct mii_bus *bus, int addr, bool is_c45);
 int phy_device_register(struct phy_device *phy);
 void phy_device_free(struct phy_device *phydev);
@@ -1765,6 +1769,8 @@ int genphy_c45_ethtool_get_eee(struct phy_device *phydev,
 int genphy_c45_ethtool_set_eee(struct phy_device *phydev,
 			       struct ethtool_eee *data);
 int genphy_c45_write_eee_adv(struct phy_device *phydev, unsigned long *adv);
+int genphy_c45_an_config_eee_aneg(struct phy_device *phydev);
+int genphy_c45_read_eee_adv(struct phy_device *phydev, unsigned long *adv);
 
 /* Generic C45 PHY driver */
 extern struct phy_driver genphy_c45_driver;

@@ -84,6 +84,10 @@ static int get_huge_pages(struct drm_i915_gem_object *obj)
 	unsigned int sg_page_sizes;
 	u64 rem;
 
+	/* restricted by sg_alloc_table */
+	if (overflows_type(obj->base.size >> PAGE_SHIFT, unsigned int))
+		return -E2BIG;
+
 	st = kmalloc(sizeof(*st), GFP);
 	if (!st)
 		return -ENOMEM;
@@ -211,6 +215,10 @@ static int fake_get_huge_pages(struct drm_i915_gem_object *obj)
 	struct sg_table *st;
 	struct scatterlist *sg;
 	u64 rem;
+
+	/* restricted by sg_alloc_table */
+	if (overflows_type(obj->base.size >> PAGE_SHIFT, unsigned int))
+		return -E2BIG;
 
 	st = kmalloc(sizeof(*st), GFP);
 	if (!st)
@@ -400,7 +408,7 @@ static int igt_check_page_sizes(struct i915_vma *vma)
 	 * Maintaining alignment is required to utilise huge pages in the ppGGT.
 	 */
 	if (i915_gem_object_is_lmem(obj) &&
-	    IS_ALIGNED(vma->node.start, SZ_2M) &&
+	    IS_ALIGNED(i915_vma_offset(vma), SZ_2M) &&
 	    vma->page_sizes.sg & SZ_2M &&
 	    vma->resource->page_sizes_gtt < SZ_2M) {
 		pr_err("gtt pages mismatch for LMEM, expected 2M GTT pages, sg(%u), gtt(%u)\n",

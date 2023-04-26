@@ -3358,6 +3358,7 @@ static const struct x86_cpu_id intel_epp_balance_perf[] = {
 	 * AlderLake Mobile CPUs.
 	 */
 	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE_L, 102),
+	X86_MATCH_INTEL_FAM6_MODEL(SAPPHIRERAPIDS_X, 32),
 	{}
 };
 
@@ -3516,4 +3517,3 @@ early_param("intel_pstate", intel_pstate_setup);
 
 MODULE_AUTHOR("Dirk Brandewie <dirk.j.brandewie@intel.com>");
 MODULE_DESCRIPTION("'intel_pstate' - P state driver Intel Core processors");
-MODULE_LICENSE("GPL");
