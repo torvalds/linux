@@ -84,7 +84,8 @@
 						 RING_FORCE_TO_NONPRIV_DENY)
 #define   RING_MAX_NONPRIV_SLOTS  12
 
-#define RING_EXECLIST_SQ_CONTENTS(base)		_MMIO((base) + 0x510)
+#define RING_EXECLIST_SQ_CONTENTS_LO(base)	_MMIO((base) + 0x510)
+#define RING_EXECLIST_SQ_CONTENTS_HI(base)	_MMIO((base) + 0x510 + 4)
 
 #define RING_EXECLIST_CONTROL(base)		_MMIO((base) + 0x550)
 #define	  EL_CTRL_LOAD				REG_BIT(0)

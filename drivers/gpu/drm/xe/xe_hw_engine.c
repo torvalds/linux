@@ -528,10 +528,10 @@ void xe_hw_engine_print_state(struct xe_hw_engine *hwe, struct drm_printer *p)
 		hw_engine_mmio_read32(hwe, RING_EXECLIST_STATUS_HI(0).reg));
 	drm_printf(p, "\tRING_EXECLIST_SQ_CONTENTS_LO: 0x%08x\n",
 		hw_engine_mmio_read32(hwe,
-					 RING_EXECLIST_SQ_CONTENTS(0).reg));
+					 RING_EXECLIST_SQ_CONTENTS_LO(0).reg));
 	drm_printf(p, "\tRING_EXECLIST_SQ_CONTENTS_HI: 0x%08x\n",
 		hw_engine_mmio_read32(hwe,
-					 RING_EXECLIST_SQ_CONTENTS(0).reg) + 4);
+					 RING_EXECLIST_SQ_CONTENTS_HI(0).reg));
 	drm_printf(p, "\tRING_EXECLIST_CONTROL: 0x%08x\n",
 		hw_engine_mmio_read32(hwe, RING_EXECLIST_CONTROL(0).reg));
 
