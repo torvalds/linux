@@ -40,8 +40,6 @@ int dfs_cache_get_tgt_referral(const char *path, const struct dfs_cache_tgt_iter
 			       struct dfs_info3_param *ref);
 int dfs_cache_get_tgt_share(char *path, const struct dfs_cache_tgt_iterator *it, char **share,
 			    char **prefix);
-void dfs_cache_put_refsrv_sessions(const uuid_t *mount_id);
-void dfs_cache_add_refsrv_session(const uuid_t *mount_id, struct cifs_ses *ses);
 char *dfs_cache_canonical_path(const char *path, const struct nls_table *cp, int remap);
 int dfs_cache_remount_fs(struct cifs_sb_info *cifs_sb);
 

@@ -2621,12 +2621,7 @@ cannot_expand:
 
 	if (map_deny_write_exec(vma, vma->vm_flags)) {
 		error = -EACCES;
-		if (file)
-			goto close_and_free_vma;
-		else if (vma->vm_file)
-			goto unmap_and_free_vma;
-		else
-			goto free_vma;
+		goto close_and_free_vma;
 	}
 
 	/* Allow architectures to sanity-check the vm_flags */

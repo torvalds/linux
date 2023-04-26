@@ -1883,6 +1883,13 @@ DEFINE_ALLOC_EVENT(xfs_alloc_vextent_noagbp);
 DEFINE_ALLOC_EVENT(xfs_alloc_vextent_loopfailed);
 DEFINE_ALLOC_EVENT(xfs_alloc_vextent_allfailed);
 
+DEFINE_ALLOC_EVENT(xfs_alloc_vextent_this_ag);
+DEFINE_ALLOC_EVENT(xfs_alloc_vextent_start_ag);
+DEFINE_ALLOC_EVENT(xfs_alloc_vextent_first_ag);
+DEFINE_ALLOC_EVENT(xfs_alloc_vextent_exact_bno);
+DEFINE_ALLOC_EVENT(xfs_alloc_vextent_near_bno);
+DEFINE_ALLOC_EVENT(xfs_alloc_vextent_finish);
+
 TRACE_EVENT(xfs_alloc_cur_check,
 	TP_PROTO(struct xfs_mount *mp, xfs_btnum_t btnum, xfs_agblock_t bno,
 		 xfs_extlen_t len, xfs_extlen_t diff, bool new),
