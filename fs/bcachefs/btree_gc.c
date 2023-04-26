@@ -1799,9 +1799,10 @@ again:
 
 	bch2_mark_superblocks(c);
 
-	if (BCH_SB_HAS_TOPOLOGY_ERRORS(c->disk_sb.sb) &&
-	    !test_bit(BCH_FS_INITIAL_GC_DONE, &c->flags) &&
-	    c->opts.fix_errors != FSCK_OPT_NO) {
+	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG) ||
+	    (BCH_SB_HAS_TOPOLOGY_ERRORS(c->disk_sb.sb) &&
+	     !test_bit(BCH_FS_INITIAL_GC_DONE, &c->flags) &&
+	     c->opts.fix_errors != FSCK_OPT_NO)) {
 		bch_info(c, "Starting topology repair pass");
 		ret = bch2_repair_topology(c);
 		if (ret)
