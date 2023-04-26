@@ -994,16 +994,13 @@ static void dw_mipi_dsi_enable(struct dw_mipi_dsi *dsi)
 
 	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO) {
 		dw_mipi_dsi_set_mode(dsi, MIPI_DSI_MODE_VIDEO);
-		if (dsi->slave)
-			dw_mipi_dsi_set_mode(dsi->slave, MIPI_DSI_MODE_VIDEO);
 	} else {
 		dsi_write(dsi, DSI_EDPI_CMD_SIZE, dsi->mode.hdisplay);
 		dw_mipi_dsi_set_mode(dsi, 0);
-		if (dsi->slave) {
-			dsi_write(dsi->slave, DSI_EDPI_CMD_SIZE, dsi->mode.hdisplay);
-			dw_mipi_dsi_set_mode(dsi->slave, 0);
-		}
 	}
+
+	if (dsi->slave)
+		dw_mipi_dsi_enable(dsi->slave);
 }
 
 static void dw_mipi_dsi_bridge_enable(struct drm_bridge *bridge)
