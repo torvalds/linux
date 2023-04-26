@@ -2627,6 +2627,10 @@ static bool check_sibling_keys(struct extent_buffer *left,
 	}
 
 	if (btrfs_comp_cpu_keys(&left_last, &right_first) >= 0) {
+		btrfs_crit(left->fs_info, "left extent buffer:");
+		btrfs_print_tree(left, false);
+		btrfs_crit(left->fs_info, "right extent buffer:");
+		btrfs_print_tree(right, false);
 		btrfs_crit(left->fs_info,
 "bad key order, sibling blocks, left last (%llu %u %llu) right first (%llu %u %llu)",
 			   left_last.objectid, left_last.type,
