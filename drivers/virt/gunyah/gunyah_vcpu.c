@@ -370,9 +370,6 @@ static long gh_vcpu_bind(struct gh_vm_function_instance *f)
 	int fd;
 	long r;
 
-	if (!gh_api_has_feature(GH_FEATURE_VCPU))
-		return -EOPNOTSUPP;
-
 	if (f->arg_size != sizeof(*arg))
 		return -EINVAL;
 

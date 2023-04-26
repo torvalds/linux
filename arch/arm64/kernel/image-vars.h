@@ -121,6 +121,10 @@ KVM_NVHE_ALIAS(__hyp_event_ids_end);
 /* pKVM static key */
 KVM_NVHE_ALIAS(kvm_protected_mode_initialized);
 
+#ifdef CONFIG_ANDROID_ARM64_WORKAROUND_DMA_BEYOND_POC
+KVM_NVHE_ALIAS(pkvm_force_nc);
+#endif
+
 #endif /* CONFIG_KVM */
 
 #endif /* __ARM64_KERNEL_IMAGE_VARS_H */

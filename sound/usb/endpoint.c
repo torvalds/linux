@@ -455,8 +455,8 @@ static void push_back_to_ready_list(struct snd_usb_endpoint *ep,
  * This function is used both for implicit feedback endpoints and in low-
  * latency playback mode.
  */
-void snd_usb_queue_pending_output_urbs(struct snd_usb_endpoint *ep,
-				       bool in_stream_lock)
+int snd_usb_queue_pending_output_urbs(struct snd_usb_endpoint *ep,
+				      bool in_stream_lock)
 {
 	bool implicit_fb = snd_usb_endpoint_implicit_feedback_sink(ep);
 
@@ -480,7 +480,7 @@ void snd_usb_queue_pending_output_urbs(struct snd_usb_endpoint *ep,
 		spin_unlock_irqrestore(&ep->lock, flags);
 
 		if (ctx == NULL)
-			return;
+			break;
 
 		/* copy over the length information */
 		if (implicit_fb) {
@@ -495,11 +495,14 @@ void snd_usb_queue_pending_output_urbs(struct snd_usb_endpoint *ep,
 			break;
 		if (err < 0) {
 			/* push back to ready list again for -EAGAIN */
-			if (err == -EAGAIN)
+			if (err == -EAGAIN) {
 				push_back_to_ready_list(ep, ctx);
-			else
+				break;
+			}
+
+			if (!in_stream_lock)
 				notify_xrun(ep);
-			return;
+			return -EPIPE;
 		}
 
 		err = usb_submit_urb(ctx->urb, GFP_ATOMIC);
@@ -507,13 +510,16 @@ void snd_usb_queue_pending_output_urbs(struct snd_usb_endpoint *ep,
 			usb_audio_err(ep->chip,
 				      "Unable to submit urb #%d: %d at %s\n",
 				      ctx->index, err, __func__);
-			notify_xrun(ep);
-			return;
+			if (!in_stream_lock)
+				notify_xrun(ep);
+			return -EPIPE;
 		}
 
 		set_bit(ctx->index, &ep->active_mask);
 		atomic_inc(&ep->submitted_urbs);
 	}
+
+	return 0;
 }
 
 /*

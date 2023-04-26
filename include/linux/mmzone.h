@@ -366,15 +366,6 @@ struct page_vma_mapped_walk;
 #define LRU_GEN_MASK		((BIT(LRU_GEN_WIDTH) - 1) << LRU_GEN_PGOFF)
 #define LRU_REFS_MASK		((BIT(LRU_REFS_WIDTH) - 1) << LRU_REFS_PGOFF)
 
-/* see the comment on MEMCG_NR_GENS */
-enum {
-	MEMCG_LRU_NOP,
-	MEMCG_LRU_HEAD,
-	MEMCG_LRU_TAIL,
-	MEMCG_LRU_OLD,
-	MEMCG_LRU_YOUNG,
-};
-
 #ifdef CONFIG_LRU_GEN
 
 enum {
@@ -555,7 +546,7 @@ void lru_gen_exit_memcg(struct mem_cgroup *memcg);
 void lru_gen_online_memcg(struct mem_cgroup *memcg);
 void lru_gen_offline_memcg(struct mem_cgroup *memcg);
 void lru_gen_release_memcg(struct mem_cgroup *memcg);
-void lru_gen_rotate_memcg(struct lruvec *lruvec, int op);
+void lru_gen_soft_reclaim(struct lruvec *lruvec);
 
 #else /* !CONFIG_MEMCG */
 
@@ -606,7 +597,7 @@ static inline void lru_gen_release_memcg(struct mem_cgroup *memcg)
 {
 }
 
-static inline void lru_gen_rotate_memcg(struct lruvec *lruvec, int op)
+static inline void lru_gen_soft_reclaim(struct lruvec *lruvec)
 {
 }
 

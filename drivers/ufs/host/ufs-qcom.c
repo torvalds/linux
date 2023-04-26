@@ -801,6 +801,7 @@ static int ufs_qcom_phy_power_on(struct ufs_hba *hba)
 		}
 		host->is_phy_pwr_on = true;
 	}
+
 	mutex_unlock(&host->phy_mutex);
 
 	return ret;
@@ -2118,9 +2119,6 @@ static int ufs_qcom_pwr_change_notify(struct ufs_hba *hba,
 					__func__);
 			goto out;
 		}
-
-		/* Use the agreed gear */
-		host->hs_gear = dev_req_params->gear_tx;
 
 		/* enable the device ref clock before changing to HS mode */
 		if (!ufshcd_is_hs_mode(&hba->pwr_info) &&
@@ -3471,12 +3469,6 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 		dev_warn(dev, "%s: failed to configure the testbus %d\n",
 				__func__, err);
 
-	/*
-	 * Power up the PHY using the minimum supported gear (UFS_HS_G2).
-	 * Switching to max gear will be performed during reinit if supported.
-	 */
-	host->hs_gear = UFS_HS_G2;
-
 	ufs_qcom_init_sysfs(hba);
 
 	ut->tcd = devm_thermal_of_cooling_device_register(dev,
@@ -3509,6 +3501,7 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 		ufs_qcom_register_minidump((uintptr_t)hba->host,
 					sizeof(struct Scsi_Host), "UFS_SHOST", 0);
 	}
+
 	return 0;
 
 out_disable_vccq_parent:
@@ -4380,13 +4373,6 @@ static void ufs_qcom_fixup_dev_quirks(struct ufs_hba *hba)
 	ufshcd_fixup_dev_quirks(hba, ufs_qcom_dev_fixups);
 }
 
-static void ufs_qcom_reinit_notify(struct ufs_hba *hba)
-{
-	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
-
-	phy_power_off(host->generic_phy);
-}
-
 /* Resources */
 static const struct ufshcd_res_info ufs_res_info[RES_MAX] = {
 	{.name = "ufs_mem",},
@@ -4637,7 +4623,6 @@ static const struct ufs_hba_variant_ops ufs_hba_qcom_vops = {
 	.setup_xfer_req         = ufs_qcom_qos,
 	.program_key		= ufs_qcom_ice_program_key,
 	.fixup_dev_quirks       = ufs_qcom_fixup_dev_quirks,
-	.reinit_notify		= ufs_qcom_reinit_notify,
 	.mcq_config_resource	= ufs_qcom_mcq_config_resource,
 	.get_hba_mac		= ufs_qcom_get_hba_mac,
 	.op_runtime_config	= ufs_qcom_op_runtime_config,

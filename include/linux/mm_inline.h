@@ -122,18 +122,6 @@ static inline bool lru_gen_in_fault(void)
 	return current->in_lru_fault;
 }
 
-#ifdef CONFIG_MEMCG
-static inline int lru_gen_memcg_seg(struct lruvec *lruvec)
-{
-	return READ_ONCE(lruvec->lrugen.seg);
-}
-#else
-static inline int lru_gen_memcg_seg(struct lruvec *lruvec)
-{
-	return 0;
-}
-#endif
-
 static inline int lru_gen_from_seq(unsigned long seq)
 {
 	return seq % MAX_NR_GENS;
@@ -307,11 +295,6 @@ static inline bool lru_gen_enabled(void)
 static inline bool lru_gen_in_fault(void)
 {
 	return false;
-}
-
-static inline int lru_gen_memcg_seg(struct lruvec *lruvec)
-{
-	return 0;
 }
 
 static inline bool lru_gen_add_folio(struct lruvec *lruvec, struct folio *folio, bool reclaiming)
@@ -593,6 +576,17 @@ pte_install_uffd_wp_if_needed(struct vm_area_struct *vma, unsigned long addr,
 		set_pte_at(vma->vm_mm, addr, pte,
 			   make_pte_marker(PTE_MARKER_UFFD_WP));
 #endif
+}
+
+static inline bool vma_has_recency(struct vm_area_struct *vma)
+{
+	if (vma->vm_flags & (VM_SEQ_READ | VM_RAND_READ))
+		return false;
+
+	if (vma->vm_file && (vma->vm_file->f_mode & FMODE_NOREUSE))
+		return false;
+
+	return true;
 }
 
 #endif

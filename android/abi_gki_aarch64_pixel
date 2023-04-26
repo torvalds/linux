@@ -990,6 +990,7 @@
   kthread_bind_mask
   kthread_cancel_delayed_work_sync
   kthread_complete_and_exit
+  kthread_create_on_cpu
   kthread_create_on_node
   kthread_create_worker
   kthread_delayed_work_timer_fn
@@ -1304,6 +1305,7 @@
   pm_runtime_forbid
   pm_runtime_force_resume
   pm_runtime_force_suspend
+  pm_runtime_get_if_active
   __pm_runtime_idle
   pm_runtime_irq_safe
   __pm_runtime_resume
@@ -1682,6 +1684,7 @@
   strspn
   strstr
   subsys_system_register
+  suspend_set_ops
   __sw_hweight32
   __sw_hweight64
   sync_blockdev
@@ -1727,6 +1730,8 @@
   tcpm_pd_hard_reset
   tcpm_pd_receive
   tcpm_pd_transmit_complete
+  tcpm_port_clean
+  tcpm_port_is_toggling
   tcpm_sink_frs
   tcpm_sourcing_vbus
   tcpm_vbus_change
@@ -1801,6 +1806,8 @@
   tty_insert_flip_string_fixed_flag
   tty_kref_put
   tty_port_tty_get
+  typec_mux_get_drvdata
+  typec_mux_register
   typec_switch_get_drvdata
   typec_switch_register
   typec_switch_unregister
@@ -1881,6 +1888,7 @@
   usb_role_switch_unregister
   usb_speed_string
   usb_string_id
+  usb_udc_vbus_handler
   usb_unregister_notify
   __usecs_to_jiffies
   usleep_range_state
@@ -1967,6 +1975,7 @@
   vmap
   vmf_insert_pfn_prot
   vprintk
+  vprintk_emit
   vring_del_virtqueue
   vring_interrupt
   vring_new_virtqueue

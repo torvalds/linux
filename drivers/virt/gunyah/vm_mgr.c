@@ -684,9 +684,6 @@ static long gh_vm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case GH_VM_SET_USER_MEM_REGION: {
 		struct gh_userspace_memory_region region;
 
-		if (!gh_api_has_feature(GH_FEATURE_MEMEXTENT))
-			return -EOPNOTSUPP;
-
 		if (copy_from_user(&region, argp, sizeof(region)))
 			return -EFAULT;
 

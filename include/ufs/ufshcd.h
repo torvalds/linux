@@ -610,12 +610,6 @@ enum ufshcd_quirks {
 	 * auto-hibernate capability but it's FASTAUTO only.
 	 */
 	UFSHCD_QUIRK_HIBERN_FASTAUTO			= 1 << 18,
-
-	/*
-	 * This quirk needs to be enabled if the host controller needs
-	 * to reinit the device after switching to maximum gear.
-	 */
-	UFSHCD_QUIRK_REINIT_AFTER_MAX_GEAR_SWITCH       = 1 << 19,
 };
 
 enum ufshcd_android_quirks {

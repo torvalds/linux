@@ -2544,6 +2544,19 @@
 			for all guests.
 			Default is 1 (enabled) if in 64-bit or 32-bit PAE mode.
 
+	kvm-arm.force_nc
+			[KVM,ARM,ANDROID_ARM64_WORKAROUND_DMA_BEYOND_POC]
+
+			Enable hypercalls to remap host pages as normal
+			non-cacheable at stage-2 and issue these hypercalls
+			when installing non-cacheable ptes at stage-1. This
+			is useful to work around coherency issues on systems
+			with DMA peripherals integrated beyond the Point of
+			Coherency (PoC).
+
+			This option only applies when booting with
+			kvm-arm.mode=protected.
+
 	kvm-arm.mode=
 			[KVM,ARM] Select one of KVM/arm64's modes of operation.
 

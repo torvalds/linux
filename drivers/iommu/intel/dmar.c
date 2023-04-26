@@ -1057,7 +1057,8 @@ static int alloc_iommu(struct dmar_drhd_unit *drhd)
 	}
 
 	err = -EINVAL;
-	if (cap_sagaw(iommu->cap) == 0) {
+	if (!cap_sagaw(iommu->cap) &&
+	    (!ecap_smts(iommu->ecap) || ecap_slts(iommu->ecap))) {
 		pr_info("%s: No supported address widths. Not attempting DMA translation.\n",
 			iommu->name);
 		drhd->ignored = 1;
@@ -1104,6 +1105,13 @@ static int alloc_iommu(struct dmar_drhd_unit *drhd)
 		iommu->gcmd |= DMA_GCMD_QIE;
 
 	raw_spin_lock_init(&iommu->register_lock);
+
+	/*
+	 * A value of N in PSS field of eCap register indicates hardware
+	 * supports PASID field of N+1 bits.
+	 */
+	if (pasid_supported(iommu))
+		iommu->iommu.max_pasids = 2UL << ecap_pss(iommu->ecap);
 
 	/*
 	 * This is only for hotplug; at boot time intel_iommu_enabled won't
