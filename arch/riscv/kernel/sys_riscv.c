@@ -282,7 +282,7 @@ static int __init init_hwprobe_vdso_data(void)
 	 * populated) or any value returns -1 (varies across CPUs), then the
 	 * vDSO should defer to the kernel for exotic cpu masks.
 	 */
-	avd->homogeneous_cpus = (id_bitsmash > 0);
+	avd->homogeneous_cpus = id_bitsmash != 0 && id_bitsmash != -1;
 	return 0;
 }
 
