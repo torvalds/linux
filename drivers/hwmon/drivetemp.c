@@ -526,7 +526,7 @@ static umode_t drivetemp_is_visible(const void *data,
 	return 0;
 }
 
-static const struct hwmon_channel_info *drivetemp_info[] = {
+static const struct hwmon_channel_info * const drivetemp_info[] = {
 	HWMON_CHANNEL_INFO(chip,
 			   HWMON_C_REGISTER_TZ),
 	HWMON_CHANNEL_INFO(temp, HWMON_T_INPUT |
