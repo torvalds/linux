@@ -754,9 +754,9 @@ void skl_pfit_enable(const struct intel_crtc_state *crtc_state)
 	intel_de_write_fw(dev_priv, SKL_PS_HPHASE(pipe, id),
 			  PS_Y_PHASE(0) | PS_UV_RGB_PHASE(uv_rgb_hphase));
 	intel_de_write_fw(dev_priv, SKL_PS_WIN_POS(pipe, id),
-			  x << 16 | y);
+			  PS_WIN_XPOS(x) | PS_WIN_YPOS(y));
 	intel_de_write_fw(dev_priv, SKL_PS_WIN_SZ(pipe, id),
-			  width << 16 | height);
+			  PS_WIN_XSIZE(width) | PS_WIN_YSIZE(height));
 }
 
 void
@@ -816,9 +816,9 @@ skl_program_plane_scaler(struct intel_plane *plane,
 	intel_de_write_fw(dev_priv, SKL_PS_HPHASE(pipe, scaler_id),
 			  PS_Y_PHASE(y_hphase) | PS_UV_RGB_PHASE(uv_rgb_hphase));
 	intel_de_write_fw(dev_priv, SKL_PS_WIN_POS(pipe, scaler_id),
-			  (crtc_x << 16) | crtc_y);
+			  PS_WIN_XPOS(crtc_x) | PS_WIN_YPOS(crtc_y));
 	intel_de_write_fw(dev_priv, SKL_PS_WIN_SZ(pipe, scaler_id),
-			  (crtc_w << 16) | crtc_h);
+			  PS_WIN_XSIZE(crtc_w) | PS_WIN_YSIZE(crtc_h));
 }
 
 static void skl_detach_scaler(struct intel_crtc *crtc, int id)
@@ -880,8 +880,10 @@ void skl_scaler_get_config(struct intel_crtc_state *crtc_state)
 		size = intel_de_read(dev_priv, SKL_PS_WIN_SZ(crtc->pipe, i));
 
 		drm_rect_init(&crtc_state->pch_pfit.dst,
-			      pos >> 16, pos & 0xffff,
-			      size >> 16, size & 0xffff);
+			      REG_FIELD_GET(PS_WIN_XPOS_MASK, pos),
+			      REG_FIELD_GET(PS_WIN_YPOS_MASK, pos),
+			      REG_FIELD_GET(PS_WIN_XSIZE_MASK, size),
+			      REG_FIELD_GET(PS_WIN_YSIZE_MASK, size));
 
 		scaler_state->scalers[i].in_use = true;
 		break;

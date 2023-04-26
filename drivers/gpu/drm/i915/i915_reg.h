@@ -4096,12 +4096,20 @@
 #define _PS_WIN_POS_1B      0x68970
 #define _PS_WIN_POS_2B      0x68A70
 #define _PS_WIN_POS_1C      0x69170
+#define   PS_WIN_XPOS_MASK			REG_GENMASK(31, 16)
+#define   PS_WIN_XPOS(x)			REG_FIELD_PREP(PS_WIN_XPOS_MASK, (x))
+#define   PS_WIN_YPOS_MASK			REG_GENMASK(15, 0)
+#define   PS_WIN_YPOS(y)			REG_FIELD_PREP(PS_WIN_YPOS_MASK, (y))
 
 #define _PS_WIN_SZ_1A       0x68174
 #define _PS_WIN_SZ_2A       0x68274
 #define _PS_WIN_SZ_1B       0x68974
 #define _PS_WIN_SZ_2B       0x68A74
 #define _PS_WIN_SZ_1C       0x69174
+#define   PS_WIN_XSIZE_MASK			REG_GENMASK(31, 16)
+#define   PS_WIN_XSIZE(w)			REG_FIELD_PREP(PS_WIN_XSIZE_MASK, (w))
+#define   PS_WIN_YSIZE_MASK			REG_GENMASK(15, 0)
+#define   PS_WIN_YSIZE(h)			REG_FIELD_PREP(PS_WIN_YSIZE_MASK, (h))
 
 #define _PS_VSCALE_1A       0x68184
 #define _PS_VSCALE_2A       0x68284
