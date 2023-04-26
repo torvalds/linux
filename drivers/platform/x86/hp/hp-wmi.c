@@ -90,6 +90,7 @@ enum hp_wmi_event_ids {
 	HPWMI_PEAKSHIFT_PERIOD		= 0x0F,
 	HPWMI_BATTERY_CHARGE_PERIOD	= 0x10,
 	HPWMI_SANITIZATION_MODE		= 0x17,
+	HPWMI_CAMERA_TOGGLE		= 0x1A,
 	HPWMI_OMEN_KEY			= 0x1D,
 	HPWMI_SMART_EXPERIENCE_APP	= 0x21,
 };
@@ -229,6 +230,7 @@ static const struct key_entry hp_wmi_keymap[] = {
 };
 
 static struct input_dev *hp_wmi_input_dev;
+static struct input_dev *camera_shutter_input_dev;
 static struct platform_device *hp_wmi_platform_dev;
 static struct platform_profile_handler platform_profile_handler;
 static bool platform_profile_support;
@@ -740,6 +742,33 @@ static ssize_t postcode_store(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
+static int camera_shutter_input_setup(void)
+{
+	int err;
+
+	camera_shutter_input_dev = input_allocate_device();
+	if (!camera_shutter_input_dev)
+		return -ENOMEM;
+
+	camera_shutter_input_dev->name = "HP WMI camera shutter";
+	camera_shutter_input_dev->phys = "wmi/input1";
+	camera_shutter_input_dev->id.bustype = BUS_HOST;
+
+	__set_bit(EV_SW, camera_shutter_input_dev->evbit);
+	__set_bit(SW_CAMERA_LENS_COVER, camera_shutter_input_dev->swbit);
+
+	err = input_register_device(camera_shutter_input_dev);
+	if (err)
+		goto err_free_dev;
+
+	return 0;
+
+ err_free_dev:
+	input_free_device(camera_shutter_input_dev);
+	camera_shutter_input_dev = NULL;
+	return err;
+}
+
 static DEVICE_ATTR_RO(display);
 static DEVICE_ATTR_RO(hddtemp);
 static DEVICE_ATTR_RW(als);
@@ -866,6 +895,20 @@ static void hp_wmi_notify(u32 value, void *context)
 	case HPWMI_BATTERY_CHARGE_PERIOD:
 		break;
 	case HPWMI_SANITIZATION_MODE:
+		break;
+	case HPWMI_CAMERA_TOGGLE:
+		if (!camera_shutter_input_dev)
+			if (camera_shutter_input_setup()) {
+				pr_err("Failed to setup camera shutter input device\n");
+				break;
+			}
+		if (event_data == 0xff)
+			input_report_switch(camera_shutter_input_dev, SW_CAMERA_LENS_COVER, 1);
+		else if (event_data == 0xfe)
+			input_report_switch(camera_shutter_input_dev, SW_CAMERA_LENS_COVER, 0);
+		else
+			pr_warn("Unknown camera shutter state - 0x%x\n", event_data);
+		input_sync(camera_shutter_input_dev);
 		break;
 	case HPWMI_SMART_EXPERIENCE_APP:
 		break;
@@ -1564,6 +1607,9 @@ static void __exit hp_wmi_exit(void)
 {
 	if (wmi_has_guid(HPWMI_EVENT_GUID))
 		hp_wmi_input_destroy();
+
+	if (camera_shutter_input_dev)
+		input_unregister_device(camera_shutter_input_dev);
 
 	if (hp_wmi_platform_dev) {
 		platform_device_unregister(hp_wmi_platform_dev);
