@@ -20816,7 +20816,7 @@ L:	linux-pm@vger.kernel.org
 S:	Maintained
 F:	Documentation/driver-api/thermal/power_allocator.rst
 F:	drivers/thermal/gov_power_allocator.c
-F:	include/trace/events/thermal_power_allocator.h
+F:	drivers/thermal/thermal_trace_ipa.h
 
 THINKPAD ACPI EXTRAS DRIVER
 M:	Henrique de Moraes Holschuh <hmh@hmh.eng.br>

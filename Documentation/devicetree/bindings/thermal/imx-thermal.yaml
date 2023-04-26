@@ -40,11 +40,11 @@ properties:
       - const: temp_grade
 
   fsl,tempmon:
-    $ref: '/schemas/types.yaml#/definitions/phandle'
+    $ref: /schemas/types.yaml#/definitions/phandle
     description: Phandle to anatop system controller node.
 
   fsl,tempmon-data:
-    $ref: '/schemas/types.yaml#/definitions/phandle'
+    $ref: /schemas/types.yaml#/definitions/phandle
     description: |
       Deprecated property, phandle pointer to fuse controller that contains
       TEMPMON calibration data, e.g. OCOTP on imx6q. The details about
