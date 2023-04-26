@@ -8,7 +8,12 @@ config CC_HAS_PREFIXED
 	def_bool PPC64 && $(cc-option, -mcpu=power10 -mprefixed)
 
 config CC_HAS_PCREL
-	def_bool PPC64 && $(cc-option, -mcpu=power10 -mpcrel)
+	# Clang has a bug (https://github.com/llvm/llvm-project/issues/62372)
+	# where pcrel code is not generated if -msoft-float, -mno-altivec, or
+	# -mno-vsx options are also given. Without these options, fp/vec
+	# instructions are generated from regular kernel code. So Clang can't
+	# do pcrel yet.
+	def_bool PPC64 && CC_IS_GCC && $(cc-option, -mcpu=power10 -mpcrel)
 
 config 32BIT
 	bool
