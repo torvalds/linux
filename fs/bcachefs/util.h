@@ -838,4 +838,6 @@ static inline int u8_cmp(u8 l, u8 r)
 	return cmp_int(l, r);
 }
 
+#include <linux/uuid.h>
+
 #endif /* _BCACHEFS_UTIL_H */
