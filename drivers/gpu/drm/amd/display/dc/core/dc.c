@@ -2604,7 +2604,7 @@ static enum surface_update_type check_update_surfaces_for_stream(
 
 		if (stream_update->stream && stream_update->stream->freesync_on_desktop &&
 			(stream_update->vrr_infopacket || stream_update->allow_freesync ||
-				stream_update->vrr_active_variable))
+				stream_update->vrr_active_variable || stream_update->vrr_active_fixed))
 			su_flags->bits.fams_changed = 1;
 
 		if (su_flags->raw != 0)
@@ -2963,6 +2963,9 @@ static void copy_stream_update_to_stream(struct dc *dc,
 
 	if (update->vrr_active_variable)
 		stream->vrr_active_variable = *update->vrr_active_variable;
+
+	if (update->vrr_active_fixed)
+		stream->vrr_active_fixed = *update->vrr_active_fixed;
 
 	if (update->crtc_timing_adjust)
 		stream->adjust = *update->crtc_timing_adjust;
