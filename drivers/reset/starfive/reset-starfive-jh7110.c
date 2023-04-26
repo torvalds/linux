@@ -2,7 +2,8 @@
 /*
  * Reset driver for the StarFive JH7110 SoC
  *
- * Copyright (C) 2021 samin <samin.guo@starfivetech.com>
+ * Copyright (C) 2021 StarFive Technology Co., Ltd.
+ * Author: Samin Guo <samin.guo@starfivetech.com>
  */
 
 #include <linux/bitmap.h>
