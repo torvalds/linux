@@ -116,7 +116,7 @@ static const struct abm_parameters * const abm_settings[] = {
 	abm_settings_config2,
 };
 
-const struct dm_bl_data_point custom_backlight_curve0[] = {
+static const struct dm_bl_data_point custom_backlight_curve0[] = {
 		{2, 14}, {4, 16}, {6, 18}, {8, 21}, {10, 23}, {12, 26}, {14, 29}, {16, 32}, {18, 35},
 		{20, 38}, {22, 41}, {24, 44}, {26, 48}, {28, 52}, {30, 55}, {32, 59}, {34, 62},
 		{36, 67}, {38, 71}, {40, 75}, {42, 80}, {44, 84}, {46, 88}, {48, 93}, {50, 98},
