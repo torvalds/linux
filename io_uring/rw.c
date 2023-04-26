@@ -283,16 +283,16 @@ static inline int io_fixup_rw_res(struct io_kiocb *req, long res)
 	return res;
 }
 
-static void io_req_rw_complete(struct io_kiocb *req, bool *locked)
+static void io_req_rw_complete(struct io_kiocb *req, struct io_tw_state *ts)
 {
 	io_req_io_end(req);
 
 	if (req->flags & (REQ_F_BUFFER_SELECTED|REQ_F_BUFFER_RING)) {
-		unsigned issue_flags = *locked ? 0 : IO_URING_F_UNLOCKED;
+		unsigned issue_flags = ts->locked ? 0 : IO_URING_F_UNLOCKED;
 
 		req->cqe.flags |= io_put_kbuf(req, issue_flags);
 	}
-	io_req_task_complete(req, locked);
+	io_req_task_complete(req, ts);
 }
 
 static void io_complete_rw(struct kiocb *kiocb, long res)
@@ -304,7 +304,7 @@ static void io_complete_rw(struct kiocb *kiocb, long res)
 		return;
 	io_req_set_res(req, io_fixup_rw_res(req, res), 0);
 	req->io_task_work.func = io_req_rw_complete;
-	io_req_task_work_add(req);
+	__io_req_task_work_add(req, IOU_F_TWQ_LAZY_WAKE);
 }
 
 static void io_complete_rw_iopoll(struct kiocb *kiocb, long res)
