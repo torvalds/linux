@@ -2,7 +2,7 @@
 /*
  * Pinctrl / GPIO driver for StarFive JH7110 SoC
  *
- * Copyright (C) 2022 Shanghai StarFive Technology Co., Ltd.
+ * Copyright (C) 2022 StarFive Technology Co., Ltd.
  */
 
 #include <linux/err.h>
@@ -1804,5 +1804,6 @@ static int __init starfive_jh7110_pinctrl_init(void)
 arch_initcall(starfive_jh7110_pinctrl_init);
 
 MODULE_DESCRIPTION("Pinctrl driver for StarFive JH7110 SoC");
-MODULE_AUTHOR("jenny.zhang <jenny.zhang@starfivetech.com>");
-MODULE_LICENSE("GPL v2");
+MODULE_AUTHOR("Jenny Zhang");
+MODULE_AUTHOR("Jianlong Huang <jianlong.huang@starfivetech.com>");
+MODULE_LICENSE("GPL");

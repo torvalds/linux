@@ -2,7 +2,7 @@
 /*
  * Pinctrl / GPIO driver for StarFive JH7110 SoC
  *
- * Copyright (C) 2022 Shanghai StarFive Technology Co., Ltd.
+ * Copyright (C) 2022 StarFive Technology Co., Ltd.
  */
 
 #ifndef __DRIVERS_PINCTRL_STARFIVE_H
