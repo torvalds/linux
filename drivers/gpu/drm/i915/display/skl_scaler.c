@@ -658,7 +658,7 @@ static void glk_program_nearest_filter_coefs(struct drm_i915_private *dev_priv,
 	int i;
 
 	intel_de_write_fw(dev_priv, GLK_PS_COEF_INDEX_SET(pipe, id, set),
-			  PS_COEE_INDEX_AUTO_INC);
+			  PS_COEF_INDEX_AUTO_INC);
 
 	for (i = 0; i < 17 * 7; i += 2) {
 		u32 tmp;
