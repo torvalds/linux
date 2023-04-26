@@ -58,6 +58,9 @@
 #define ACP63_PDM_DEV_MASK		1
 #define ACP_DMIC_DEV	2
 
+/* time in ms for acp timeout */
+#define ACP_TIMEOUT		500
+
 enum acp_config {
 	ACP_CONFIG_0 = 0,
 	ACP_CONFIG_1,
