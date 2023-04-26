@@ -46,7 +46,7 @@
 };
 
 &es7243_sound {
-	status = "okay";
+	status = "disabled";
 };
 
 &gmac1 {
