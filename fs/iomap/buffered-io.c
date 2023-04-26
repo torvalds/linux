@@ -467,7 +467,7 @@ EXPORT_SYMBOL_GPL(iomap_is_partially_uptodate);
  */
 struct folio *iomap_get_folio(struct iomap_iter *iter, loff_t pos)
 {
-	unsigned fgp = FGP_LOCK | FGP_WRITE | FGP_CREAT | FGP_STABLE | FGP_NOFS;
+	unsigned fgp = FGP_WRITEBEGIN | FGP_NOFS;
 	struct folio *folio;
 
 	if (iter->flags & IOMAP_NOWAIT)

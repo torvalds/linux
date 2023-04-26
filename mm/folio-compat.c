@@ -106,9 +106,7 @@ EXPORT_SYMBOL(pagecache_get_page);
 struct page *grab_cache_page_write_begin(struct address_space *mapping,
 					pgoff_t index)
 {
-	unsigned fgp_flags = FGP_LOCK | FGP_WRITE | FGP_CREAT | FGP_STABLE;
-
-	return pagecache_get_page(mapping, index, fgp_flags,
+	return pagecache_get_page(mapping, index, FGP_WRITEBEGIN,
 			mapping_gfp_mask(mapping));
 }
 EXPORT_SYMBOL(grab_cache_page_write_begin);
