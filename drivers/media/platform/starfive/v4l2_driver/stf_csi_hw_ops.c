@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * linux/drivers/media/platform/starfive/stf_csi.c
- *
- * Copyright (C) 2021 StarFive Technology Co., Ltd.
+ * Copyright (C) 2021-2023 StarFive Technology Co., Ltd.
  *
  */
+
 #include "stfcamss.h"
 #include <linux/regmap.h>
 
