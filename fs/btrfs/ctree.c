@@ -2707,7 +2707,7 @@ static bool check_sibling_keys(struct extent_buffer *left,
 		btrfs_item_key_to_cpu(right, &right_first, 0);
 	}
 
-	if (btrfs_comp_cpu_keys(&left_last, &right_first) >= 0) {
+	if (unlikely(btrfs_comp_cpu_keys(&left_last, &right_first) >= 0)) {
 		btrfs_crit(left->fs_info, "left extent buffer:");
 		btrfs_print_tree(left, false);
 		btrfs_crit(left->fs_info, "right extent buffer:");
