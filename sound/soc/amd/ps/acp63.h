@@ -92,16 +92,6 @@ struct pdm_dev_data {
 	struct snd_pcm_substream *capture_stream;
 };
 
-static inline u32 acp63_readl(void __iomem *base_addr)
-{
-	return readl(base_addr);
-}
-
-static inline void acp63_writel(u32 val, void __iomem *base_addr)
-{
-	writel(val, base_addr);
-}
-
 struct acp63_dev_data {
 	void __iomem *acp63_base;
 	struct resource *res;
