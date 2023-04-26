@@ -6548,28 +6548,6 @@ int ath11k_wmi_pull_fw_stats(struct ath11k_base *ab, struct sk_buff *skb,
 				   &parse);
 }
 
-size_t ath11k_wmi_fw_stats_num_vdevs(struct list_head *head)
-{
-	struct ath11k_fw_stats_vdev *i;
-	size_t num = 0;
-
-	list_for_each_entry(i, head, list)
-		++num;
-
-	return num;
-}
-
-static size_t ath11k_wmi_fw_stats_num_bcn(struct list_head *head)
-{
-	struct ath11k_fw_stats_bcn *i;
-	size_t num = 0;
-
-	list_for_each_entry(i, head, list)
-		++num;
-
-	return num;
-}
-
 static void
 ath11k_wmi_fw_pdev_base_stats_fill(const struct ath11k_fw_stats_pdev *pdev,
 				   char *buf, u32 *length)
@@ -6880,7 +6858,7 @@ void ath11k_wmi_fw_stats_fill(struct ath11k *ar,
 	}
 
 	if (stats_id == WMI_REQUEST_BCN_STAT) {
-		num_bcn = ath11k_wmi_fw_stats_num_bcn(&fw_stats->bcn);
+		num_bcn = list_count_nodes(&fw_stats->bcn);
 
 		len += scnprintf(buf + len, buf_len - len, "\n");
 		len += scnprintf(buf + len, buf_len - len, "%30s (%zu)\n",
