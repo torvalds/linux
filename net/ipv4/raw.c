@@ -93,7 +93,7 @@ int raw_hash_sk(struct sock *sk)
 	struct raw_hashinfo *h = sk->sk_prot->h.raw_hash;
 	struct hlist_nulls_head *hlist;
 
-	hlist = &h->ht[inet_sk(sk)->inet_num & (RAW_HTABLE_SIZE - 1)];
+	hlist = &h->ht[raw_hashfunc(sock_net(sk), inet_sk(sk)->inet_num)];
 
 	spin_lock(&h->lock);
 	__sk_nulls_add_node_rcu(sk, hlist);
@@ -160,9 +160,9 @@ static int icmp_filter(const struct sock *sk, const struct sk_buff *skb)
  * RFC 1122: SHOULD pass TOS value up to the transport layer.
  * -> It does. And not only TOS, but all IP header.
  */
-static int raw_v4_input(struct sk_buff *skb, const struct iphdr *iph, int hash)
+static int raw_v4_input(struct net *net, struct sk_buff *skb,
+			const struct iphdr *iph, int hash)
 {
-	struct net *net = dev_net(skb->dev);
 	struct hlist_nulls_head *hlist;
 	struct hlist_nulls_node *hnode;
 	int sdif = inet_sdif(skb);
@@ -193,9 +193,10 @@ static int raw_v4_input(struct sk_buff *skb, const struct iphdr *iph, int hash)
 
 int raw_local_deliver(struct sk_buff *skb, int protocol)
 {
-	int hash = protocol & (RAW_HTABLE_SIZE - 1);
+	struct net *net = dev_net(skb->dev);
 
-	return raw_v4_input(skb, ip_hdr(skb), hash);
+	return raw_v4_input(net, skb, ip_hdr(skb),
+			    raw_hashfunc(net, protocol));
 }
 
 static void raw_err(struct sock *sk, struct sk_buff *skb, u32 info)
@@ -271,7 +272,7 @@ void raw_icmp_error(struct sk_buff *skb, int protocol, u32 info)
 	struct sock *sk;
 	int hash;
 
-	hash = protocol & (RAW_HTABLE_SIZE - 1);
+	hash = raw_hashfunc(net, protocol);
 	hlist = &raw_v4_hashinfo.ht[hash];
 
 	rcu_read_lock();
