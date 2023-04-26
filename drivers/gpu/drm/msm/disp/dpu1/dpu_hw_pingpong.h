@@ -37,8 +37,8 @@ struct dpu_hw_dither_cfg {
  *
  * struct dpu_hw_pingpong_ops : Interface to the pingpong Hw driver functions
  *  Assumption is these functions will be called after clocks are enabled
- *  @setup_tearcheck : program tear check values
- *  @enable_tearcheck : enables tear check
+ *  @enable_tearcheck: program and enable tear check block
+ *  @disable_tearcheck: disable able tear check block
  *  @setup_dither : function to program the dither hw block
  *  @get_line_count: obtain current vertical line counter
  */
@@ -47,14 +47,13 @@ struct dpu_hw_pingpong_ops {
 	 * enables vysnc generation and sets up init value of
 	 * read pointer and programs the tear check cofiguration
 	 */
-	int (*setup_tearcheck)(struct dpu_hw_pingpong *pp,
+	int (*enable_tearcheck)(struct dpu_hw_pingpong *pp,
 			struct dpu_hw_tear_check *cfg);
 
 	/**
-	 * enables tear check block
+	 * disables tear check block
 	 */
-	int (*enable_tearcheck)(struct dpu_hw_pingpong *pp,
-			bool enable);
+	int (*disable_tearcheck)(struct dpu_hw_pingpong *pp);
 
 	/**
 	 * read, modify, write to either set or clear listening to external TE

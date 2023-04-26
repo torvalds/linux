@@ -327,8 +327,7 @@ static void dpu_encoder_phys_cmd_tearcheck_config(
 
 	DPU_DEBUG_CMDENC(cmd_enc, "pp %d\n", phys_enc->hw_pp->idx - PINGPONG_0);
 
-	if (!phys_enc->hw_pp->ops.setup_tearcheck ||
-		!phys_enc->hw_pp->ops.enable_tearcheck) {
+	if (!phys_enc->hw_pp->ops.enable_tearcheck) {
 		DPU_DEBUG_CMDENC(cmd_enc, "tearcheck not supported\n");
 		return;
 	}
@@ -383,8 +382,7 @@ static void dpu_encoder_phys_cmd_tearcheck_config(
 		phys_enc->hw_pp->idx - PINGPONG_0, tc_cfg.sync_cfg_height,
 		tc_cfg.sync_threshold_start, tc_cfg.sync_threshold_continue);
 
-	phys_enc->hw_pp->ops.setup_tearcheck(phys_enc->hw_pp, &tc_cfg);
-	phys_enc->hw_pp->ops.enable_tearcheck(phys_enc->hw_pp, tc_enable);
+	phys_enc->hw_pp->ops.enable_tearcheck(phys_enc->hw_pp, &tc_cfg);
 }
 
 static void _dpu_encoder_phys_cmd_pingpong_config(
@@ -511,8 +509,8 @@ static void dpu_encoder_phys_cmd_disable(struct dpu_encoder_phys *phys_enc)
 		return;
 	}
 
-	if (phys_enc->hw_pp->ops.enable_tearcheck)
-		phys_enc->hw_pp->ops.enable_tearcheck(phys_enc->hw_pp, false);
+	if (phys_enc->hw_pp->ops.disable_tearcheck)
+		phys_enc->hw_pp->ops.disable_tearcheck(phys_enc->hw_pp);
 
 	if (phys_enc->hw_intf->ops.bind_pingpong_blk) {
 		phys_enc->hw_intf->ops.bind_pingpong_blk(
