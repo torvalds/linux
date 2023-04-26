@@ -532,6 +532,14 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	},
 	{
 	 .callback = video_detect_force_native,
+	 /* Acer Aspire 3830TG */
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 3830TG"),
+		},
+	},
+	{
+	 .callback = video_detect_force_native,
 	 /* Acer Aspire 4810T */
 	 .matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
