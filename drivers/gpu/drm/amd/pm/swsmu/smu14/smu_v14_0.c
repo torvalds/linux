@@ -38,8 +38,13 @@
 #include "amdgpu_ras.h"
 #include "smu_cmn.h"
 
-#include "asic_reg/mp/mp_14_0_0_offset.h"
-#include "asic_reg/mp/mp_14_0_0_sh_mask.h"
+#include "asic_reg/mp/mp_14_0_2_offset.h"
+#include "asic_reg/mp/mp_14_0_2_sh_mask.h"
+
+#define regMP1_SMN_IH_SW_INT_mp1_14_0_0			0x0341
+#define regMP1_SMN_IH_SW_INT_mp1_14_0_0_BASE_IDX        0
+#define regMP1_SMN_IH_SW_INT_CTRL_mp1_14_0_0            0x0342
+#define regMP1_SMN_IH_SW_INT_CTRL_mp1_14_0_0_BASE_IDX   0
 
 /*
  * DO NOT use these for err/warn/info/debug messages.
@@ -52,6 +57,7 @@
 #undef pr_debug
 
 MODULE_FIRMWARE("amdgpu/smu_14_0_2.bin");
+MODULE_FIRMWARE("amdgpu/smu_14_0_3.bin");
 
 #define ENABLE_IMU_ARG_GFXOFF_ENABLE		1
 
@@ -59,7 +65,7 @@ int smu_v14_0_init_microcode(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 	char fw_name[30];
-	char ucode_prefix[15];
+	char ucode_prefix[30];
 	int err = 0;
 	const struct smc_firmware_header_v1_0 *hdr;
 	const struct common_firmware_header *header;
@@ -106,7 +112,6 @@ void smu_v14_0_fini_microcode(struct smu_context *smu)
 
 int smu_v14_0_load_microcode(struct smu_context *smu)
 {
-#if 0
 	struct amdgpu_device *adev = smu->adev;
 	const uint32_t *src;
 	const struct smc_firmware_header_v1_0 *hdr;
@@ -131,8 +136,12 @@ int smu_v14_0_load_microcode(struct smu_context *smu)
 		    1 & ~MP1_SMN_PUB_CTRL__LX3_RESET_MASK);
 
 	for (i = 0; i < adev->usec_timeout; i++) {
-		mp1_fw_flags = RREG32_PCIE(MP1_Public |
-					   (smnMP1_FIRMWARE_FLAGS & 0xffffffff));
+		if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 0))
+			mp1_fw_flags = RREG32_PCIE(MP1_Public |
+						   (smnMP1_FIRMWARE_FLAGS_14_0_0 & 0xffffffff));
+		else
+			mp1_fw_flags = RREG32_PCIE(MP1_Public |
+						   (smnMP1_FIRMWARE_FLAGS & 0xffffffff));
 		if ((mp1_fw_flags & MP1_CRU1_MP1_FIRMWARE_FLAGS__INTERRUPTS_ENABLED_MASK) >>
 		    MP1_CRU1_MP1_FIRMWARE_FLAGS__INTERRUPTS_ENABLED__SHIFT)
 			break;
@@ -142,9 +151,7 @@ int smu_v14_0_load_microcode(struct smu_context *smu)
 	if (i == adev->usec_timeout)
 		return -ETIME;
 
-#endif
 	return 0;
-
 }
 
 int smu_v14_0_init_pptable_microcode(struct smu_context *smu)
@@ -198,7 +205,11 @@ int smu_v14_0_check_fw_status(struct smu_context *smu)
 	struct amdgpu_device *adev = smu->adev;
 	uint32_t mp1_fw_flags;
 
-	mp1_fw_flags = RREG32_PCIE(MP1_Public |
+	if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 0))
+		mp1_fw_flags = RREG32_PCIE(MP1_Public |
+					   (smnMP1_FIRMWARE_FLAGS_14_0_0 & 0xffffffff));
+	else
+		mp1_fw_flags = RREG32_PCIE(MP1_Public |
 					   (smnMP1_FIRMWARE_FLAGS & 0xffffffff));
 
 	if ((mp1_fw_flags & MP1_CRU1_MP1_FIRMWARE_FLAGS__INTERRUPTS_ENABLED_MASK) >>
@@ -227,16 +238,15 @@ int smu_v14_0_check_fw_version(struct smu_context *smu)
 		adev->pm.fw_version = smu_version;
 
 	switch (amdgpu_ip_version(adev, MP1_HWIP, 0)) {
-	case IP_VERSION(14, 0, 2):
-		smu->smc_driver_if_version = SMU14_DRIVER_IF_VERSION_SMU_V14_0_2;
-		break;
 	case IP_VERSION(14, 0, 0):
 		smu->smc_driver_if_version = SMU14_DRIVER_IF_VERSION_SMU_V14_0_0;
 		break;
 	case IP_VERSION(14, 0, 1):
 		smu->smc_driver_if_version = SMU14_DRIVER_IF_VERSION_SMU_V14_0_1;
 		break;
-
+	case IP_VERSION(14, 0, 2):
+		smu->smc_driver_if_version = SMU14_DRIVER_IF_VERSION_SMU_V14_0_2;
+		break;
 	default:
 		dev_err(adev->dev, "smu unsupported IP version: 0x%x.\n",
 			amdgpu_ip_version(adev, MP1_HWIP, 0));
@@ -738,9 +748,9 @@ int smu_v14_0_gfx_off_control(struct smu_context *smu, bool enable)
 	struct amdgpu_device *adev = smu->adev;
 
 	switch (amdgpu_ip_version(adev, MP1_HWIP, 0)) {
-	case IP_VERSION(14, 0, 2):
 	case IP_VERSION(14, 0, 0):
 	case IP_VERSION(14, 0, 1):
+	case IP_VERSION(14, 0, 2):
 		if (!(adev->pm.pp_feature & PP_GFXOFF_MASK))
 			return 0;
 		if (enable)
@@ -841,9 +851,15 @@ static int smu_v14_0_set_irq_state(struct amdgpu_device *adev,
 		// TODO
 
 		/* For MP1 SW irqs */
-		val = RREG32_SOC15(MP1, 0, regMP1_SMN_IH_SW_INT_CTRL);
-		val = REG_SET_FIELD(val, MP1_SMN_IH_SW_INT_CTRL, INT_MASK, 1);
-		WREG32_SOC15(MP1, 0, regMP1_SMN_IH_SW_INT_CTRL, val);
+		if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 0)) {
+			val = RREG32_SOC15(MP1, 0, regMP1_SMN_IH_SW_INT_CTRL_mp1_14_0_0);
+			val = REG_SET_FIELD(val, MP1_SMN_IH_SW_INT_CTRL, INT_MASK, 1);
+			WREG32_SOC15(MP1, 0, regMP1_SMN_IH_SW_INT_CTRL_mp1_14_0_0, val);
+		} else {
+			val = RREG32_SOC15(MP1, 0, regMP1_SMN_IH_SW_INT_CTRL);
+			val = REG_SET_FIELD(val, MP1_SMN_IH_SW_INT_CTRL, INT_MASK, 1);
+			WREG32_SOC15(MP1, 0, regMP1_SMN_IH_SW_INT_CTRL, val);
+		}
 
 		break;
 	case AMDGPU_IRQ_STATE_ENABLE:
@@ -851,14 +867,25 @@ static int smu_v14_0_set_irq_state(struct amdgpu_device *adev,
 		// TODO
 
 		/* For MP1 SW irqs */
-		val = RREG32_SOC15(MP1, 0, regMP1_SMN_IH_SW_INT);
-		val = REG_SET_FIELD(val, MP1_SMN_IH_SW_INT, ID, 0xFE);
-		val = REG_SET_FIELD(val, MP1_SMN_IH_SW_INT, VALID, 0);
-		WREG32_SOC15(MP1, 0, regMP1_SMN_IH_SW_INT, val);
+		if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 0)) {
+			val = RREG32_SOC15(MP1, 0, regMP1_SMN_IH_SW_INT_mp1_14_0_0);
+			val = REG_SET_FIELD(val, MP1_SMN_IH_SW_INT, ID, 0xFE);
+			val = REG_SET_FIELD(val, MP1_SMN_IH_SW_INT, VALID, 0);
+			WREG32_SOC15(MP1, 0, regMP1_SMN_IH_SW_INT_mp1_14_0_0, val);
 
-		val = RREG32_SOC15(MP1, 0, regMP1_SMN_IH_SW_INT_CTRL);
-		val = REG_SET_FIELD(val, MP1_SMN_IH_SW_INT_CTRL, INT_MASK, 0);
-		WREG32_SOC15(MP1, 0, regMP1_SMN_IH_SW_INT_CTRL, val);
+			val = RREG32_SOC15(MP1, 0, regMP1_SMN_IH_SW_INT_CTRL_mp1_14_0_0);
+			val = REG_SET_FIELD(val, MP1_SMN_IH_SW_INT_CTRL, INT_MASK, 0);
+			WREG32_SOC15(MP1, 0, regMP1_SMN_IH_SW_INT_CTRL_mp1_14_0_0, val);
+		} else {
+			val = RREG32_SOC15(MP1, 0, regMP1_SMN_IH_SW_INT);
+			val = REG_SET_FIELD(val, MP1_SMN_IH_SW_INT, ID, 0xFE);
+			val = REG_SET_FIELD(val, MP1_SMN_IH_SW_INT, VALID, 0);
+			WREG32_SOC15(MP1, 0, regMP1_SMN_IH_SW_INT, val);
+
+			val = RREG32_SOC15(MP1, 0, regMP1_SMN_IH_SW_INT_CTRL);
+			val = REG_SET_FIELD(val, MP1_SMN_IH_SW_INT_CTRL, INT_MASK, 0);
+			WREG32_SOC15(MP1, 0, regMP1_SMN_IH_SW_INT_CTRL, val);
+		}
 
 		break;
 	default:

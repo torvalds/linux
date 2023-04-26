@@ -39,7 +39,8 @@
 #define MP1_SRAM			0x03c00004
 
 /* address block */
-#define smnMP1_FIRMWARE_FLAGS		0x3010028
+#define smnMP1_FIRMWARE_FLAGS_14_0_0	0x3010028
+#define smnMP1_FIRMWARE_FLAGS		0x3010024
 #define smnMP1_PUB_CTRL			0x3010d10
 
 #define MAX_DPM_LEVELS 16
