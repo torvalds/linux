@@ -1125,7 +1125,7 @@ int tpm_tis_core_init(struct device *dev, struct tpm_tis_data *priv, int irq,
 	init_waitqueue_head(&priv->read_queue);
 	init_waitqueue_head(&priv->int_queue);
 
-	rc = tpm_chip_startup(chip);
+	rc = tpm_chip_bootstrap(chip);
 	if (rc)
 		goto out_err;
 
