@@ -17,6 +17,19 @@
 	compatible = "xiaomi,vince", "qcom,msm8953";
 	qcom,board-id = <0x1000b 0x08>;
 
+	gpio-keys {
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_hall_sensor_default>;
+
+		event-hall-sensor {
+			label = "Hall Effect Sensor";
+			gpios = <&tlmm 44 GPIO_ACTIVE_LOW>;
+			linux,input-type = <EV_SW>;
+			linux,code = <SW_LID>;
+			linux,can-disable;
+		};
+	};
+
 	reserved-memory {
 		qseecom_mem: qseecom@84a00000 {
 			reg = <0x0 0x84a00000 0x0 0x1900000>;
@@ -121,6 +134,13 @@
 
 &tlmm {
 	gpio-reserved-ranges = <0 4>, <16 4>, <135 4>;
+
+	gpio_hall_sensor_default: gpio-hall-sensor-state {
+		pins = "gpio44";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-up;
+	};
 };
 
 &uart_0 {
