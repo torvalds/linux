@@ -442,7 +442,7 @@ int module_get_kallsym(unsigned int symnum, unsigned long *value, char *type,
 }
 
 /* Given a module and name of symbol, find and return the symbol's value */
-unsigned long find_kallsyms_symbol_value(struct module *mod, const char *name)
+static unsigned long __find_kallsyms_symbol_value(struct module *mod, const char *name)
 {
 	unsigned int i;
 	struct mod_kallsyms *kallsyms = rcu_dereference_sched(mod->kallsyms);
@@ -466,7 +466,7 @@ static unsigned long __module_kallsyms_lookup_name(const char *name)
 	if (colon) {
 		mod = find_module_all(name, colon - name, false);
 		if (mod)
-			return find_kallsyms_symbol_value(mod, colon + 1);
+			return __find_kallsyms_symbol_value(mod, colon + 1);
 		return 0;
 	}
 
@@ -475,7 +475,7 @@ static unsigned long __module_kallsyms_lookup_name(const char *name)
 
 		if (mod->state == MODULE_STATE_UNFORMED)
 			continue;
-		ret = find_kallsyms_symbol_value(mod, name);
+		ret = __find_kallsyms_symbol_value(mod, name);
 		if (ret)
 			return ret;
 	}
@@ -490,6 +490,16 @@ unsigned long module_kallsyms_lookup_name(const char *name)
 	/* Don't lock: we're in enough trouble already. */
 	preempt_disable();
 	ret = __module_kallsyms_lookup_name(name);
+	preempt_enable();
+	return ret;
+}
+
+unsigned long find_kallsyms_symbol_value(struct module *mod, const char *name)
+{
+	unsigned long ret;
+
+	preempt_disable();
+	ret = __find_kallsyms_symbol_value(mod, name);
 	preempt_enable();
 	return ret;
 }

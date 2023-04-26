@@ -25,6 +25,10 @@ struct iwl_mvm_smooth_entry {
 	u64 host_time;
 };
 
+enum iwl_mvm_pasn_flags {
+	IWL_MVM_PASN_FLAG_HAS_HLTK = BIT(0),
+};
+
 struct iwl_mvm_ftm_pasn_entry {
 	struct list_head list;
 	u8 addr[ETH_ALEN];
@@ -33,6 +37,7 @@ struct iwl_mvm_ftm_pasn_entry {
 	u8 cipher;
 	u8 tx_pn[IEEE80211_CCMP_PN_LEN];
 	u8 rx_pn[IEEE80211_CCMP_PN_LEN];
+	u32 flags;
 };
 
 int iwl_mvm_ftm_add_pasn_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
@@ -73,20 +78,30 @@ int iwl_mvm_ftm_add_pasn_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		struct ieee80211_sta *sta;
 
 		rcu_read_lock();
-		sta = rcu_dereference(mvm->fw_id_to_mac_id[mvmvif->ap_sta_id]);
+		sta = rcu_dereference(mvm->fw_id_to_mac_id[mvmvif->deflink.ap_sta_id]);
 		if (!IS_ERR_OR_NULL(sta) && sta->mfp)
 			expected_tk_len = 0;
 		rcu_read_unlock();
 	}
 
-	if (tk_len != expected_tk_len || hltk_len != sizeof(pasn->hltk)) {
+	if (tk_len != expected_tk_len ||
+	    (hltk_len && hltk_len != sizeof(pasn->hltk))) {
 		IWL_ERR(mvm, "Invalid key length: tk_len=%u hltk_len=%u\n",
 			tk_len, hltk_len);
 		goto out;
 	}
 
+	if (!expected_tk_len && !hltk_len) {
+		IWL_ERR(mvm, "TK and HLTK not set\n");
+		goto out;
+	}
+
 	memcpy(pasn->addr, addr, sizeof(pasn->addr));
-	memcpy(pasn->hltk, hltk, sizeof(pasn->hltk));
+
+	if (hltk_len) {
+		memcpy(pasn->hltk, hltk, sizeof(pasn->hltk));
+		pasn->flags |= IWL_MVM_PASN_FLAG_HAS_HLTK;
+	}
 
 	if (tk && tk_len)
 		memcpy(pasn->tk, tk, sizeof(pasn->tk));
@@ -510,13 +525,13 @@ iwl_mvm_ftm_put_target(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 		rcu_read_lock();
 
-		sta = rcu_dereference(mvm->fw_id_to_mac_id[mvmvif->ap_sta_id]);
+		sta = rcu_dereference(mvm->fw_id_to_mac_id[mvmvif->deflink.ap_sta_id]);
 		if (sta->mfp && (peer->ftm.trigger_based || peer->ftm.non_trigger_based))
 			FTM_PUT_FLAG(PMF);
 
 		rcu_read_unlock();
 
-		target->sta_id = mvmvif->ap_sta_id;
+		target->sta_id = mvmvif->deflink.ap_sta_id;
 	} else {
 		target->sta_id = IWL_MVM_INVALID_STA;
 	}
@@ -691,7 +706,11 @@ iwl_mvm_ftm_set_secured_ranging(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			continue;
 
 		target->cipher = entry->cipher;
-		memcpy(target->hltk, entry->hltk, sizeof(target->hltk));
+
+		if (entry->flags & IWL_MVM_PASN_FLAG_HAS_HLTK)
+			memcpy(target->hltk, entry->hltk, sizeof(target->hltk));
+		else
+			memset(target->hltk, 0, sizeof(target->hltk));
 
 		if (vif->cfg.assoc &&
 		    !memcmp(vif->bss_conf.bssid, target->bssid,

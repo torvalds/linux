@@ -229,8 +229,7 @@ frames for a while. This has a potential to avoid the costly round of
 enabling interrupts, handling an incoming IRQ in ISR, re-enabling the
 softirq and switching context back to softirq.
 
-More detailed documentation of NAPI may be found on the pages of Linux
-Foundation `<https://wiki.linuxfoundation.org/networking/napi>`_.
+See :ref:`Documentation/networking/napi.rst <napi>` for more information.
 
 Integrating the core to Xilinx Zynq
 -----------------------------------

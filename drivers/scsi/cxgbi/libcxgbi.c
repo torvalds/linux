@@ -2314,9 +2314,9 @@ static int cxgbi_sock_tx_queue_up(struct cxgbi_sock *csk, struct sk_buff *skb)
 		frags++;
 
 	if (frags >= SKB_WR_LIST_SIZE) {
-		pr_err("csk 0x%p, frags %u, %u,%u >%lu.\n",
+		pr_err("csk 0x%p, frags %u, %u,%u >%u.\n",
 		       csk, skb_shinfo(skb)->nr_frags, skb->len,
-		       skb->data_len, SKB_WR_LIST_SIZE);
+		       skb->data_len, (unsigned int)SKB_WR_LIST_SIZE);
 		return -EINVAL;
 	}
 

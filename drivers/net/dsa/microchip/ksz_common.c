@@ -32,10 +32,6 @@
 #include "ksz9477.h"
 #include "lan937x.h"
 
-#define KSZ_CBS_ENABLE ((MTI_SCHEDULE_STRICT_PRIO << MTI_SCHEDULE_MODE_S) | \
-			(MTI_SHAPING_SRP << MTI_SHAPING_S))
-#define KSZ_CBS_DISABLE ((MTI_SCHEDULE_WRR << MTI_SCHEDULE_MODE_S) |\
-			 (MTI_SHAPING_OFF << MTI_SHAPING_S))
 #define MIB_COUNTER_NUM 0x20
 
 struct ksz_stats_raw {
@@ -204,6 +200,8 @@ static const struct ksz_dev_ops ksz8_dev_ops = {
 	.freeze_mib = ksz8_freeze_mib,
 	.port_init_cnt = ksz8_port_init_cnt,
 	.fdb_dump = ksz8_fdb_dump,
+	.fdb_add = ksz8_fdb_add,
+	.fdb_del = ksz8_fdb_del,
 	.mdb_add = ksz8_mdb_add,
 	.mdb_del = ksz8_mdb_del,
 	.vlan_filtering = ksz8_port_vlan_filtering,
@@ -1089,6 +1087,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.port_nirqs = 3,
 		.num_tx_queues = 4,
 		.tc_cbs_supported = true,
+		.tc_ets_supported = true,
 		.ops = &ksz9477_dev_ops,
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
@@ -1228,6 +1227,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.port_nirqs = 4,
 		.num_tx_queues = 4,
 		.tc_cbs_supported = true,
+		.tc_ets_supported = true,
 		.ops = &ksz9477_dev_ops,
 		.phy_errata_9477 = true,
 		.mib_names = ksz9477_mib_names,
@@ -1352,6 +1352,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.port_nirqs = 3,
 		.num_tx_queues = 4,
 		.tc_cbs_supported = true,
+		.tc_ets_supported = true,
 		.ops = &ksz9477_dev_ops,
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
@@ -1379,6 +1380,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.port_nirqs = 3,
 		.num_tx_queues = 4,
 		.tc_cbs_supported = true,
+		.tc_ets_supported = true,
 		.ops = &ksz9477_dev_ops,
 		.phy_errata_9477 = true,
 		.mib_names = ksz9477_mib_names,
@@ -1411,6 +1413,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.port_nirqs = 6,
 		.num_tx_queues = 8,
 		.tc_cbs_supported = true,
+		.tc_ets_supported = true,
 		.ops = &lan937x_dev_ops,
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
@@ -1437,6 +1440,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.port_nirqs = 6,
 		.num_tx_queues = 8,
 		.tc_cbs_supported = true,
+		.tc_ets_supported = true,
 		.ops = &lan937x_dev_ops,
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
@@ -1463,6 +1467,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.port_nirqs = 6,
 		.num_tx_queues = 8,
 		.tc_cbs_supported = true,
+		.tc_ets_supported = true,
 		.ops = &lan937x_dev_ops,
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
@@ -1493,6 +1498,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.port_nirqs = 6,
 		.num_tx_queues = 8,
 		.tc_cbs_supported = true,
+		.tc_ets_supported = true,
 		.ops = &lan937x_dev_ops,
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
@@ -1523,6 +1529,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.port_nirqs = 6,
 		.num_tx_queues = 8,
 		.tc_cbs_supported = true,
+		.tc_ets_supported = true,
 		.ops = &lan937x_dev_ops,
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
@@ -3091,6 +3098,14 @@ static int cinc_cal(s32 idle_slope, s32 send_slope, u32 *bw)
 	return 0;
 }
 
+static int ksz_setup_tc_mode(struct ksz_device *dev, int port, u8 scheduler,
+			     u8 shaper)
+{
+	return ksz_pwrite8(dev, port, REG_PORT_MTI_QUEUE_CTRL_0,
+			   FIELD_PREP(MTI_SCHEDULE_MODE_M, scheduler) |
+			   FIELD_PREP(MTI_SHAPING_M, shaper));
+}
+
 static int ksz_setup_tc_cbs(struct dsa_switch *ds, int port,
 			    struct tc_cbs_qopt_offload *qopt)
 {
@@ -3110,8 +3125,8 @@ static int ksz_setup_tc_cbs(struct dsa_switch *ds, int port,
 		return ret;
 
 	if (!qopt->enable)
-		return ksz_pwrite8(dev, port, REG_PORT_MTI_QUEUE_CTRL_0,
-				   KSZ_CBS_DISABLE);
+		return ksz_setup_tc_mode(dev, port, MTI_SCHEDULE_WRR,
+					 MTI_SHAPING_OFF);
 
 	/* High Credit */
 	ret = ksz_pwrite16(dev, port, REG_PORT_MTI_HI_WATER_MARK,
@@ -3136,8 +3151,215 @@ static int ksz_setup_tc_cbs(struct dsa_switch *ds, int port,
 			return ret;
 	}
 
-	return ksz_pwrite8(dev, port, REG_PORT_MTI_QUEUE_CTRL_0,
-			   KSZ_CBS_ENABLE);
+	return ksz_setup_tc_mode(dev, port, MTI_SCHEDULE_STRICT_PRIO,
+				 MTI_SHAPING_SRP);
+}
+
+static int ksz_disable_egress_rate_limit(struct ksz_device *dev, int port)
+{
+	int queue, ret;
+
+	/* Configuration will not take effect until the last Port Queue X
+	 * Egress Limit Control Register is written.
+	 */
+	for (queue = 0; queue < dev->info->num_tx_queues; queue++) {
+		ret = ksz_pwrite8(dev, port, KSZ9477_REG_PORT_OUT_RATE_0 + queue,
+				  KSZ9477_OUT_RATE_NO_LIMIT);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int ksz_ets_band_to_queue(struct tc_ets_qopt_offload_replace_params *p,
+				 int band)
+{
+	/* Compared to queues, bands prioritize packets differently. In strict
+	 * priority mode, the lowest priority is assigned to Queue 0 while the
+	 * highest priority is given to Band 0.
+	 */
+	return p->bands - 1 - band;
+}
+
+static int ksz_queue_set_strict(struct ksz_device *dev, int port, int queue)
+{
+	int ret;
+
+	ret = ksz_pwrite32(dev, port, REG_PORT_MTI_QUEUE_INDEX__4, queue);
+	if (ret)
+		return ret;
+
+	return ksz_setup_tc_mode(dev, port, MTI_SCHEDULE_STRICT_PRIO,
+				 MTI_SHAPING_OFF);
+}
+
+static int ksz_queue_set_wrr(struct ksz_device *dev, int port, int queue,
+			     int weight)
+{
+	int ret;
+
+	ret = ksz_pwrite32(dev, port, REG_PORT_MTI_QUEUE_INDEX__4, queue);
+	if (ret)
+		return ret;
+
+	ret = ksz_setup_tc_mode(dev, port, MTI_SCHEDULE_WRR,
+				MTI_SHAPING_OFF);
+	if (ret)
+		return ret;
+
+	return ksz_pwrite8(dev, port, KSZ9477_PORT_MTI_QUEUE_CTRL_1, weight);
+}
+
+static int ksz_tc_ets_add(struct ksz_device *dev, int port,
+			  struct tc_ets_qopt_offload_replace_params *p)
+{
+	int ret, band, tc_prio;
+	u32 queue_map = 0;
+
+	/* In order to ensure proper prioritization, it is necessary to set the
+	 * rate limit for the related queue to zero. Otherwise strict priority
+	 * or WRR mode will not work. This is a hardware limitation.
+	 */
+	ret = ksz_disable_egress_rate_limit(dev, port);
+	if (ret)
+		return ret;
+
+	/* Configure queue scheduling mode for all bands. Currently only strict
+	 * prio mode is supported.
+	 */
+	for (band = 0; band < p->bands; band++) {
+		int queue = ksz_ets_band_to_queue(p, band);
+
+		ret = ksz_queue_set_strict(dev, port, queue);
+		if (ret)
+			return ret;
+	}
+
+	/* Configure the mapping between traffic classes and queues. Note:
+	 * priomap variable support 16 traffic classes, but the chip can handle
+	 * only 8 classes.
+	 */
+	for (tc_prio = 0; tc_prio < ARRAY_SIZE(p->priomap); tc_prio++) {
+		int queue;
+
+		if (tc_prio > KSZ9477_MAX_TC_PRIO)
+			break;
+
+		queue = ksz_ets_band_to_queue(p, p->priomap[tc_prio]);
+		queue_map |= queue << (tc_prio * KSZ9477_PORT_TC_MAP_S);
+	}
+
+	return ksz_pwrite32(dev, port, KSZ9477_PORT_MRI_TC_MAP__4, queue_map);
+}
+
+static int ksz_tc_ets_del(struct ksz_device *dev, int port)
+{
+	int ret, queue, tc_prio, s;
+	u32 queue_map = 0;
+
+	/* To restore the default chip configuration, set all queues to use the
+	 * WRR scheduler with a weight of 1.
+	 */
+	for (queue = 0; queue < dev->info->num_tx_queues; queue++) {
+		ret = ksz_queue_set_wrr(dev, port, queue,
+					KSZ9477_DEFAULT_WRR_WEIGHT);
+		if (ret)
+			return ret;
+	}
+
+	switch (dev->info->num_tx_queues) {
+	case 2:
+		s = 2;
+		break;
+	case 4:
+		s = 1;
+		break;
+	case 8:
+		s = 0;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* Revert the queue mapping for TC-priority to its default setting on
+	 * the chip.
+	 */
+	for (tc_prio = 0; tc_prio <= KSZ9477_MAX_TC_PRIO; tc_prio++) {
+		int queue;
+
+		queue = tc_prio >> s;
+		queue_map |= queue << (tc_prio * KSZ9477_PORT_TC_MAP_S);
+	}
+
+	return ksz_pwrite32(dev, port, KSZ9477_PORT_MRI_TC_MAP__4, queue_map);
+}
+
+static int ksz_tc_ets_validate(struct ksz_device *dev, int port,
+			       struct tc_ets_qopt_offload_replace_params *p)
+{
+	int band;
+
+	/* Since it is not feasible to share one port among multiple qdisc,
+	 * the user must configure all available queues appropriately.
+	 */
+	if (p->bands != dev->info->num_tx_queues) {
+		dev_err(dev->dev, "Not supported amount of bands. It should be %d\n",
+			dev->info->num_tx_queues);
+		return -EOPNOTSUPP;
+	}
+
+	for (band = 0; band < p->bands; ++band) {
+		/* The KSZ switches utilize a weighted round robin configuration
+		 * where a certain number of packets can be transmitted from a
+		 * queue before the next queue is serviced. For more information
+		 * on this, refer to section 5.2.8.4 of the KSZ8565R
+		 * documentation on the Port Transmit Queue Control 1 Register.
+		 * However, the current ETS Qdisc implementation (as of February
+		 * 2023) assigns a weight to each queue based on the number of
+		 * bytes or extrapolated bandwidth in percentages. Since this
+		 * differs from the KSZ switches' method and we don't want to
+		 * fake support by converting bytes to packets, it is better to
+		 * return an error instead.
+		 */
+		if (p->quanta[band]) {
+			dev_err(dev->dev, "Quanta/weights configuration is not supported.\n");
+			return -EOPNOTSUPP;
+		}
+	}
+
+	return 0;
+}
+
+static int ksz_tc_setup_qdisc_ets(struct dsa_switch *ds, int port,
+				  struct tc_ets_qopt_offload *qopt)
+{
+	struct ksz_device *dev = ds->priv;
+	int ret;
+
+	if (!dev->info->tc_ets_supported)
+		return -EOPNOTSUPP;
+
+	if (qopt->parent != TC_H_ROOT) {
+		dev_err(dev->dev, "Parent should be \"root\"\n");
+		return -EOPNOTSUPP;
+	}
+
+	switch (qopt->command) {
+	case TC_ETS_REPLACE:
+		ret = ksz_tc_ets_validate(dev, port, &qopt->replace_params);
+		if (ret)
+			return ret;
+
+		return ksz_tc_ets_add(dev, port, &qopt->replace_params);
+	case TC_ETS_DESTROY:
+		return ksz_tc_ets_del(dev, port);
+	case TC_ETS_STATS:
+	case TC_ETS_GRAFT:
+		return -EOPNOTSUPP;
+	}
+
+	return -EOPNOTSUPP;
 }
 
 static int ksz_setup_tc(struct dsa_switch *ds, int port,
@@ -3146,6 +3368,8 @@ static int ksz_setup_tc(struct dsa_switch *ds, int port,
 	switch (type) {
 	case TC_SETUP_QDISC_CBS:
 		return ksz_setup_tc_cbs(ds, port, type_data);
+	case TC_SETUP_QDISC_ETS:
+		return ksz_tc_setup_qdisc_ets(ds, port, type_data);
 	default:
 		return -EOPNOTSUPP;
 	}

@@ -608,14 +608,6 @@ static inline bool within_module(unsigned long addr, const struct module *mod)
 /* Search for module by name: must be in a RCU-sched critical section. */
 struct module *find_module(const char *name);
 
-/* Returns 0 and fills in value, defined and namebuf, or -ERANGE if
-   symnum out of range. */
-int module_get_kallsym(unsigned int symnum, unsigned long *value, char *type,
-			char *name, char *module_name, int *exported);
-
-/* Look for this name: can be of form module:name. */
-unsigned long module_kallsyms_lookup_name(const char *name);
-
 extern void __noreturn __module_put_and_kthread_exit(struct module *mod,
 			long code);
 #define module_put_and_kthread_exit(code) __module_put_and_kthread_exit(THIS_MODULE, code)
@@ -661,17 +653,6 @@ static inline void __module_get(struct module *module)
 
 /* Dereference module function descriptor */
 void *dereference_module_function_descriptor(struct module *mod, void *ptr);
-
-/* For kallsyms to ask for address resolution.  namebuf should be at
- * least KSYM_NAME_LEN long: a pointer to namebuf is returned if
- * found, otherwise NULL. */
-const char *module_address_lookup(unsigned long addr,
-			    unsigned long *symbolsize,
-			    unsigned long *offset,
-			    char **modname, const unsigned char **modbuildid,
-			    char *namebuf);
-int lookup_module_symbol_name(unsigned long addr, char *symname);
-int lookup_module_symbol_attrs(unsigned long addr, unsigned long *size, unsigned long *offset, char *modname, char *name);
 
 int register_module_notifier(struct notifier_block *nb);
 int unregister_module_notifier(struct notifier_block *nb);
@@ -762,39 +743,6 @@ static inline void module_put(struct module *module)
 }
 
 #define module_name(mod) "kernel"
-
-/* For kallsyms to ask for address resolution.  NULL means not found. */
-static inline const char *module_address_lookup(unsigned long addr,
-					  unsigned long *symbolsize,
-					  unsigned long *offset,
-					  char **modname,
-					  const unsigned char **modbuildid,
-					  char *namebuf)
-{
-	return NULL;
-}
-
-static inline int lookup_module_symbol_name(unsigned long addr, char *symname)
-{
-	return -ERANGE;
-}
-
-static inline int lookup_module_symbol_attrs(unsigned long addr, unsigned long *size, unsigned long *offset, char *modname, char *name)
-{
-	return -ERANGE;
-}
-
-static inline int module_get_kallsym(unsigned int symnum, unsigned long *value,
-					char *type, char *name,
-					char *module_name, int *exported)
-{
-	return -ERANGE;
-}
-
-static inline unsigned long module_kallsyms_lookup_name(const char *name)
-{
-	return 0;
-}
 
 static inline int register_module_notifier(struct notifier_block *nb)
 {
@@ -891,7 +839,36 @@ int module_kallsyms_on_each_symbol(const char *modname,
 				   int (*fn)(void *, const char *,
 					     struct module *, unsigned long),
 				   void *data);
-#else
+
+/* For kallsyms to ask for address resolution.  namebuf should be at
+ * least KSYM_NAME_LEN long: a pointer to namebuf is returned if
+ * found, otherwise NULL.
+ */
+const char *module_address_lookup(unsigned long addr,
+				  unsigned long *symbolsize,
+				  unsigned long *offset,
+				  char **modname, const unsigned char **modbuildid,
+				  char *namebuf);
+int lookup_module_symbol_name(unsigned long addr, char *symname);
+int lookup_module_symbol_attrs(unsigned long addr,
+			       unsigned long *size,
+			       unsigned long *offset,
+			       char *modname,
+			       char *name);
+
+/* Returns 0 and fills in value, defined and namebuf, or -ERANGE if
+ * symnum out of range.
+ */
+int module_get_kallsym(unsigned int symnum, unsigned long *value, char *type,
+		       char *name, char *module_name, int *exported);
+
+/* Look for this name: can be of form module:name. */
+unsigned long module_kallsyms_lookup_name(const char *name);
+
+unsigned long find_kallsyms_symbol_value(struct module *mod, const char *name);
+
+#else	/* CONFIG_MODULES && CONFIG_KALLSYMS */
+
 static inline int module_kallsyms_on_each_symbol(const char *modname,
 						 int (*fn)(void *, const char *,
 						 struct module *, unsigned long),
@@ -899,6 +876,50 @@ static inline int module_kallsyms_on_each_symbol(const char *modname,
 {
 	return -EOPNOTSUPP;
 }
+
+/* For kallsyms to ask for address resolution.  NULL means not found. */
+static inline const char *module_address_lookup(unsigned long addr,
+						unsigned long *symbolsize,
+						unsigned long *offset,
+						char **modname,
+						const unsigned char **modbuildid,
+						char *namebuf)
+{
+	return NULL;
+}
+
+static inline int lookup_module_symbol_name(unsigned long addr, char *symname)
+{
+	return -ERANGE;
+}
+
+static inline int lookup_module_symbol_attrs(unsigned long addr,
+					     unsigned long *size,
+					     unsigned long *offset,
+					     char *modname,
+					     char *name)
+{
+	return -ERANGE;
+}
+
+static inline int module_get_kallsym(unsigned int symnum, unsigned long *value,
+				     char *type, char *name,
+				     char *module_name, int *exported)
+{
+	return -ERANGE;
+}
+
+static inline unsigned long module_kallsyms_lookup_name(const char *name)
+{
+	return 0;
+}
+
+static inline unsigned long find_kallsyms_symbol_value(struct module *mod,
+						       const char *name)
+{
+	return 0;
+}
+
 #endif  /* CONFIG_MODULES && CONFIG_KALLSYMS */
 
 #endif /* _LINUX_MODULE_H */

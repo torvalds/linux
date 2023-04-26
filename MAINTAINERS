@@ -1041,6 +1041,15 @@ F:	drivers/gpu/drm/amd/include/vi_structs.h
 F:	include/uapi/linux/kfd_ioctl.h
 F:	include/uapi/linux/kfd_sysfs.h
 
+AMD PDS CORE DRIVER
+M:	Shannon Nelson <shannon.nelson@amd.com>
+M:	Brett Creeley <brett.creeley@amd.com>
+L:	netdev@vger.kernel.org
+S:	Supported
+F:	Documentation/networking/device_drivers/ethernet/amd/pds_core.rst
+F:	drivers/net/ethernet/amd/pds_core/
+F:	include/linux/pds/
+
 AMD SPI DRIVER
 M:	Sanjay R Mehta <sanju.mehta@amd.com>
 S:	Maintained
@@ -4431,6 +4440,13 @@ L:	linux-scsi@vger.kernel.org
 S:	Maintained
 F:	drivers/scsi/BusLogic.*
 F:	drivers/scsi/FlashPoint.*
+
+BXCAN CAN NETWORK DRIVER
+M:	Dario Binacchi <dario.binacchi@amarulasolutions.com>
+L:	linux-can@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/net/can/st,stm32-bxcan.yaml
+F:	drivers/net/can/bxcan.c
 
 C-MEDIA CMI8788 DRIVER
 M:	Clemens Ladisch <clemens@ladisch.de>
@@ -8700,7 +8716,7 @@ F:	drivers/input/touchscreen/goodix*
 
 GOOGLE ETHERNET DRIVERS
 M:	Jeroen de Borst <jeroendb@google.com>
-M:	Catherine Sullivan <csully@google.com>
+M:	Praveen Kaligineedi <pkaligineedi@google.com>
 R:	Shailend Chand <shailend@google.com>
 L:	netdev@vger.kernel.org
 S:	Supported
@@ -8948,6 +8964,17 @@ W:	http://palosaari.fi/linux/
 Q:	http://patchwork.linuxtv.org/project/linux-media/list/
 T:	git git://linuxtv.org/anttip/media_tree.git
 F:	drivers/media/usb/hackrf/
+
+HANDSHAKE UPCALL FOR TRANSPORT LAYER SECURITY
+M:	Chuck Lever <chuck.lever@oracle.com>
+L:	kernel-tls-handshake@lists.linux.dev
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	Documentation/netlink/specs/handshake.yaml
+F:	Documentation/networking/tls-handshake.rst
+F:	include/net/handshake.h
+F:	include/trace/events/handshake.h
+F:	net/handshake/
 
 HANTRO VPU CODEC DRIVER
 M:	Ezequiel Garcia <ezequiel@vanguardiasur.com.ar>
@@ -12294,7 +12321,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/wireless/wireless.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/wireless/wireless-next.git
 F:	Documentation/networking/mac80211-injection.rst
 F:	Documentation/networking/mac80211_hwsim/mac80211_hwsim.rst
-F:	drivers/net/wireless/mac80211_hwsim.[ch]
+F:	drivers/net/wireless/virtual/mac80211_hwsim.[ch]
 F:	include/net/mac80211.h
 F:	net/mac80211/
 
@@ -13061,6 +13088,14 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/mediatek/
 
+MEDIATEK ETHERNET PCS DRIVER
+M:	Alexander Couzens <lynxis@fe80.eu>
+M:	Daniel Golle <daniel@makrotopia.org>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/pcs/pcs-mtk-lynxi.c
+F:	include/linux/pcs/pcs-mtk-lynxi.h
+
 MEDIATEK I2C CONTROLLER DRIVER
 M:	Qii Wang <qii.wang@mediatek.com>
 L:	linux-i2c@vger.kernel.org
@@ -13185,8 +13220,11 @@ MEDIATEK SWITCH DRIVER
 M:	Sean Wang <sean.wang@mediatek.com>
 M:	Landen Chao <Landen.Chao@mediatek.com>
 M:	DENG Qingfang <dqfext@gmail.com>
+M:	Daniel Golle <daniel@makrotopia.org>
 L:	netdev@vger.kernel.org
 S:	Maintained
+F:	drivers/net/dsa/mt7530-mdio.c
+F:	drivers/net/dsa/mt7530-mmio.c
 F:	drivers/net/dsa/mt7530.*
 F:	net/dsa/tag_mtk.c
 
@@ -14609,6 +14647,8 @@ L:	mptcp@lists.linux.dev
 S:	Maintained
 W:	https://github.com/multipath-tcp/mptcp_net-next/wiki
 B:	https://github.com/multipath-tcp/mptcp_net-next/issues
+T:	git https://github.com/multipath-tcp/mptcp_net-next.git export-net
+T:	git https://github.com/multipath-tcp/mptcp_net-next.git export
 F:	Documentation/networking/mptcp-sysctl.rst
 F:	include/net/mptcp.h
 F:	include/trace/events/mptcp.h
@@ -14671,7 +14711,6 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/net/nfc/
 F:	drivers/nfc/
-F:	include/linux/platform_data/nfcmrvl.h
 F:	include/net/nfc/
 F:	include/uapi/linux/nfc.h
 F:	net/nfc/
@@ -15637,6 +15676,13 @@ M:	Vadim Fedorenko <vadfed@fb.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/ptp/ptp_ocp.c
+
+INTEL PTP DFL ToD DRIVER
+M:	Tianfei Zhang <tianfei.zhang@intel.com>
+L:	linux-fpga@vger.kernel.org
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/ptp/ptp_dfl_tod.c
 
 OPENCORES I2C BUS DRIVER
 M:	Peter Korsgaard <peter@korsgaard.com>
@@ -16782,9 +16828,8 @@ F:	include/uapi/linux/if_pppol2tp.h
 F:	net/l2tp/l2tp_ppp.c
 
 PPP PROTOCOL DRIVERS AND COMPRESSORS
-M:	Paul Mackerras <paulus@samba.org>
 L:	linux-ppp@vger.kernel.org
-S:	Maintained
+S:	Orphan
 F:	drivers/net/ppp/ppp_*
 
 PPS SUPPORT
@@ -17212,7 +17257,7 @@ S:	Supported
 W:	https://wireless.wiki.kernel.org/en/users/Drivers/ath10k
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kvalo/ath.git
 F:	drivers/net/wireless/ath/ath10k/
-F:	Documentation/devicetree/bindings/net/wireless/qcom,ath10k.txt
+F:	Documentation/devicetree/bindings/net/wireless/qcom,ath10k.yaml
 
 QUALCOMM ATHEROS ATH11K WIRELESS DRIVER
 M:	Kalle Valo <kvalo@kernel.org>
@@ -17310,7 +17355,7 @@ M:	Vinod Koul <vkoul@kernel.org>
 R:	Bhupesh Sharma <bhupesh.sharma@linaro.org>
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	Documentation/devicetree/bindings/net/qcom,ethqos.txt
+F:	Documentation/devicetree/bindings/net/qcom,ethqos.yaml
 F:	drivers/net/ethernet/stmicro/stmmac/dwmac-qcom-ethqos.c
 
 QUALCOMM FASTRPC DRIVER
@@ -17570,7 +17615,7 @@ F:	include/ras/ras_event.h
 RAYLINK/WEBGEAR 802.11 WIRELESS LAN DRIVER
 L:	linux-wireless@vger.kernel.org
 S:	Orphan
-F:	drivers/net/wireless/ray*
+F:	drivers/net/wireless/legacy/ray*
 
 RC-CORE / LIRC FRAMEWORK
 M:	Sean Young <sean@mess.org>
@@ -19949,6 +19994,13 @@ M:	Emil Renner Berthing <kernel@esmil.dk>
 S:	Maintained
 F:	arch/riscv/boot/dts/starfive/
 
+STARFIVE DWMAC GLUE LAYER
+M:	Emil Renner Berthing <kernel@esmil.dk>
+M:	Samin Guo <samin.guo@starfivetech.com>
+S:	Maintained
+F:	Documentation/devicetree/bindings/net/starfive,jh7110-dwmac.yaml
+F:	drivers/net/ethernet/stmicro/stmmac/dwmac-starfive.c
+
 STARFIVE JH7100 CLOCK DRIVERS
 M:	Emil Renner Berthing <kernel@esmil.dk>
 S:	Maintained
@@ -21839,7 +21891,7 @@ USB WIRELESS RNDIS DRIVER (rndis_wlan)
 M:	Jussi Kivilinna <jussi.kivilinna@iki.fi>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
-F:	drivers/net/wireless/rndis_wlan.c
+F:	drivers/net/wireless/legacy/rndis_wlan.c
 
 USB XHCI DRIVER
 M:	Mathias Nyman <mathias.nyman@intel.com>
@@ -22595,7 +22647,7 @@ F:	drivers/input/misc/wistron_btns.c
 WL3501 WIRELESS PCMCIA CARD DRIVER
 L:	linux-wireless@vger.kernel.org
 S:	Odd fixes
-F:	drivers/net/wireless/wl3501*
+F:	drivers/net/wireless/legacy/wl3501*
 
 WOLFSON MICROELECTRONICS DRIVERS
 L:	patches@opensource.cirrus.com
@@ -23248,6 +23300,13 @@ M:	Vitaly Wool <vitaly.wool@konsulko.com>
 L:	linux-mm@kvack.org
 S:	Maintained
 F:	mm/zswap.c
+
+NXP BLUETOOTH WIRELESS DRIVERS
+M:	Amitkumar Karwar <amitkumar.karwar@nxp.com>
+M:	Neeraj Kale <neeraj.sanjaykale@nxp.com>
+S:	Maintained
+F:	Documentation/devicetree/bindings/net/bluetooth/nxp,88w8987-bt.yaml
+F:	drivers/bluetooth/btnxpuart.c
 
 THE REST
 M:	Linus Torvalds <torvalds@linux-foundation.org>

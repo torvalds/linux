@@ -342,31 +342,44 @@ static void rxrpc_dummy_notify_rx(struct sock *sk, struct rxrpc_call *rxcall,
 }
 
 /**
- * rxrpc_kernel_end_call - Allow a kernel service to end a call it was using
+ * rxrpc_kernel_shutdown_call - Allow a kernel service to shut down a call it was using
  * @sock: The socket the call is on
  * @call: The call to end
  *
- * Allow a kernel service to end a call it was using.  The call must be
+ * Allow a kernel service to shut down a call it was using.  The call must be
  * complete before this is called (the call should be aborted if necessary).
  */
-void rxrpc_kernel_end_call(struct socket *sock, struct rxrpc_call *call)
+void rxrpc_kernel_shutdown_call(struct socket *sock, struct rxrpc_call *call)
 {
 	_enter("%d{%d}", call->debug_id, refcount_read(&call->ref));
 
 	mutex_lock(&call->user_mutex);
-	rxrpc_release_call(rxrpc_sk(sock->sk), call);
+	if (!test_bit(RXRPC_CALL_RELEASED, &call->flags)) {
+		rxrpc_release_call(rxrpc_sk(sock->sk), call);
 
-	/* Make sure we're not going to call back into a kernel service */
-	if (call->notify_rx) {
-		spin_lock(&call->notify_lock);
-		call->notify_rx = rxrpc_dummy_notify_rx;
-		spin_unlock(&call->notify_lock);
+		/* Make sure we're not going to call back into a kernel service */
+		if (call->notify_rx) {
+			spin_lock(&call->notify_lock);
+			call->notify_rx = rxrpc_dummy_notify_rx;
+			spin_unlock(&call->notify_lock);
+		}
 	}
-
 	mutex_unlock(&call->user_mutex);
+}
+EXPORT_SYMBOL(rxrpc_kernel_shutdown_call);
+
+/**
+ * rxrpc_kernel_put_call - Release a reference to a call
+ * @sock: The socket the call is on
+ * @call: The call to put
+ *
+ * Drop the application's ref on an rxrpc call.
+ */
+void rxrpc_kernel_put_call(struct socket *sock, struct rxrpc_call *call)
+{
 	rxrpc_put_call(call, rxrpc_call_put_kernel);
 }
-EXPORT_SYMBOL(rxrpc_kernel_end_call);
+EXPORT_SYMBOL(rxrpc_kernel_put_call);
 
 /**
  * rxrpc_kernel_check_life - Check to see whether a call is still alive

@@ -601,7 +601,7 @@ static void lowcomms_error_report(struct sock *sk)
 				   "sk_err=%d/%d\n", dlm_our_nodeid(),
 				   con->nodeid, &inet->inet_daddr,
 				   ntohs(inet->inet_dport), sk->sk_err,
-				   sk->sk_err_soft);
+				   READ_ONCE(sk->sk_err_soft));
 		break;
 #if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
@@ -610,14 +610,15 @@ static void lowcomms_error_report(struct sock *sk)
 				   "dport %d, sk_err=%d/%d\n", dlm_our_nodeid(),
 				   con->nodeid, &sk->sk_v6_daddr,
 				   ntohs(inet->inet_dport), sk->sk_err,
-				   sk->sk_err_soft);
+				   READ_ONCE(sk->sk_err_soft));
 		break;
 #endif
 	default:
 		printk_ratelimited(KERN_ERR "dlm: node %d: socket error "
 				   "invalid socket family %d set, "
 				   "sk_err=%d/%d\n", dlm_our_nodeid(),
-				   sk->sk_family, sk->sk_err, sk->sk_err_soft);
+				   sk->sk_family, sk->sk_err,
+				   READ_ONCE(sk->sk_err_soft));
 		break;
 	}
 

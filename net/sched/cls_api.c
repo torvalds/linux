@@ -3211,6 +3211,7 @@ int tcf_exts_init_ex(struct tcf_exts *exts, struct net *net, int action,
 #ifdef CONFIG_NET_CLS_ACT
 	exts->type = 0;
 	exts->nr_actions = 0;
+	exts->miss_cookie_node = NULL;
 	/* Note: we do not own yet a reference on net.
 	 * This reference might be taken later from tcf_exts_get_net().
 	 */
