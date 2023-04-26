@@ -4036,18 +4036,6 @@
 #define PF_VSCALE(pipe)		_MMIO_PIPE(pipe, _PFA_VSCALE, _PFB_VSCALE)
 #define PF_HSCALE(pipe)		_MMIO_PIPE(pipe, _PFA_HSCALE, _PFB_HSCALE)
 
-#define _PSA_CTL		0x68180
-#define _PSB_CTL		0x68980
-#define PS_ENABLE		(1 << 31)
-#define _PSA_WIN_SZ		0x68174
-#define _PSB_WIN_SZ		0x68974
-#define _PSA_WIN_POS		0x68170
-#define _PSB_WIN_POS		0x68970
-
-#define PS_CTL(pipe)		_MMIO_PIPE(pipe, _PSA_CTL, _PSB_CTL)
-#define PS_WIN_SZ(pipe)		_MMIO_PIPE(pipe, _PSA_WIN_SZ, _PSB_WIN_SZ)
-#define PS_WIN_POS(pipe)	_MMIO_PIPE(pipe, _PSA_WIN_POS, _PSB_WIN_POS)
-
 /*
  * Skylake scalers
  */
