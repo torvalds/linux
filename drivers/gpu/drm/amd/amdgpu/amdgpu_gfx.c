@@ -470,8 +470,8 @@ void amdgpu_gfx_mqd_sw_fini(struct amdgpu_device *adev, int xcc_id)
 
 	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
 		j = i + xcc_id * adev->gfx.num_compute_rings;
-		ring = &adev->gfx.compute_ring[i];
-		kfree(adev->gfx.mec.mqd_backup[i]);
+		ring = &adev->gfx.compute_ring[j];
+		kfree(adev->gfx.mec.mqd_backup[j]);
 		amdgpu_bo_free_kernel(&ring->mqd_obj,
 				      &ring->mqd_gpu_addr,
 				      &ring->mqd_ptr);
