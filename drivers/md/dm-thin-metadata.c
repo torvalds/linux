@@ -318,12 +318,12 @@ static void unpack_block_time(uint64_t v, dm_block_t *b, uint32_t *t)
  */
 typedef int (*run_fn)(struct dm_space_map *, dm_block_t, dm_block_t);
 
-static void with_runs(struct dm_space_map *sm, const __le64 *value_le, unsigned count, run_fn fn)
+static void with_runs(struct dm_space_map *sm, const __le64 *value_le, unsigned int count, run_fn fn)
 {
 	uint64_t b, begin, end;
 	uint32_t t;
 	bool in_run = false;
-	unsigned i;
+	unsigned int i;
 
 	for (i = 0; i < count; i++, value_le++) {
 		/* We know value_le is 8 byte aligned */
@@ -348,13 +348,13 @@ static void with_runs(struct dm_space_map *sm, const __le64 *value_le, unsigned 
 		fn(sm, begin, end);
 }
 
-static void data_block_inc(void *context, const void *value_le, unsigned count)
+static void data_block_inc(void *context, const void *value_le, unsigned int count)
 {
 	with_runs((struct dm_space_map *) context,
 		  (const __le64 *) value_le, count, dm_sm_inc_blocks);
 }
 
-static void data_block_dec(void *context, const void *value_le, unsigned count)
+static void data_block_dec(void *context, const void *value_le, unsigned int count)
 {
 	with_runs((struct dm_space_map *) context,
 		  (const __le64 *) value_le, count, dm_sm_dec_blocks);
@@ -374,21 +374,21 @@ static int data_block_equal(void *context, const void *value1_le, const void *va
 	return b1 == b2;
 }
 
-static void subtree_inc(void *context, const void *value, unsigned count)
+static void subtree_inc(void *context, const void *value, unsigned int count)
 {
 	struct dm_btree_info *info = context;
 	const __le64 *root_le = value;
-	unsigned i;
+	unsigned int i;
 
 	for (i = 0; i < count; i++, root_le++)
 		dm_tm_inc(info->tm, le64_to_cpu(*root_le));
 }
 
-static void subtree_dec(void *context, const void *value, unsigned count)
+static void subtree_dec(void *context, const void *value, unsigned int count)
 {
 	struct dm_btree_info *info = context;
 	const __le64 *root_le = value;
-	unsigned i;
+	unsigned int i;
 
 	for (i = 0; i < count; i++, root_le++)
 		if (dm_btree_del(info, le64_to_cpu(*root_le)))
@@ -448,10 +448,10 @@ static int superblock_lock(struct dm_pool_metadata *pmd,
 static int __superblock_all_zeroes(struct dm_block_manager *bm, int *result)
 {
 	int r;
-	unsigned i;
+	unsigned int i;
 	struct dm_block *b;
 	__le64 *data_le, zero = cpu_to_le64(0);
-	unsigned block_size = dm_bm_block_size(bm) / sizeof(__le64);
+	unsigned int block_size = dm_bm_block_size(bm) / sizeof(__le64);
 
 	/*
 	 * We can't use a validator here - it may be all zeroes.
@@ -971,7 +971,7 @@ struct dm_pool_metadata *dm_pool_metadata_open(struct block_device *bdev,
 int dm_pool_metadata_close(struct dm_pool_metadata *pmd)
 {
 	int r;
-	unsigned open_devices = 0;
+	unsigned int open_devices = 0;
 	struct dm_thin_device *td, *tmp;
 
 	down_read(&pmd->root_lock);
@@ -1679,7 +1679,7 @@ int dm_thin_insert_block(struct dm_thin_device *td, dm_block_t block,
 static int __remove_range(struct dm_thin_device *td, dm_block_t begin, dm_block_t end)
 {
 	int r;
-	unsigned count, total_count = 0;
+	unsigned int count, total_count = 0;
 	struct dm_pool_metadata *pmd = td->pmd;
 	dm_block_t keys[1] = { td->id };
 	__le64 value;

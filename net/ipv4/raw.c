@@ -91,12 +91,12 @@ EXPORT_SYMBOL_GPL(raw_v4_hashinfo);
 int raw_hash_sk(struct sock *sk)
 {
 	struct raw_hashinfo *h = sk->sk_prot->h.raw_hash;
-	struct hlist_nulls_head *hlist;
+	struct hlist_head *hlist;
 
-	hlist = &h->ht[inet_sk(sk)->inet_num & (RAW_HTABLE_SIZE - 1)];
+	hlist = &h->ht[raw_hashfunc(sock_net(sk), inet_sk(sk)->inet_num)];
 
 	spin_lock(&h->lock);
-	__sk_nulls_add_node_rcu(sk, hlist);
+	sk_add_node_rcu(sk, hlist);
 	sock_set_flag(sk, SOCK_RCU_FREE);
 	spin_unlock(&h->lock);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
@@ -110,7 +110,7 @@ void raw_unhash_sk(struct sock *sk)
 	struct raw_hashinfo *h = sk->sk_prot->h.raw_hash;
 
 	spin_lock(&h->lock);
-	if (__sk_nulls_del_node_init_rcu(sk))
+	if (sk_del_node_init_rcu(sk))
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 	spin_unlock(&h->lock);
 }
@@ -160,19 +160,18 @@ static int icmp_filter(const struct sock *sk, const struct sk_buff *skb)
  * RFC 1122: SHOULD pass TOS value up to the transport layer.
  * -> It does. And not only TOS, but all IP header.
  */
-static int raw_v4_input(struct sk_buff *skb, const struct iphdr *iph, int hash)
+static int raw_v4_input(struct net *net, struct sk_buff *skb,
+			const struct iphdr *iph, int hash)
 {
-	struct net *net = dev_net(skb->dev);
-	struct hlist_nulls_head *hlist;
-	struct hlist_nulls_node *hnode;
 	int sdif = inet_sdif(skb);
+	struct hlist_head *hlist;
 	int dif = inet_iif(skb);
 	int delivered = 0;
 	struct sock *sk;
 
 	hlist = &raw_v4_hashinfo.ht[hash];
 	rcu_read_lock();
-	sk_nulls_for_each(sk, hnode, hlist) {
+	sk_for_each_rcu(sk, hlist) {
 		if (!raw_v4_match(net, sk, iph->protocol,
 				  iph->saddr, iph->daddr, dif, sdif))
 			continue;
@@ -193,9 +192,10 @@ static int raw_v4_input(struct sk_buff *skb, const struct iphdr *iph, int hash)
 
 int raw_local_deliver(struct sk_buff *skb, int protocol)
 {
-	int hash = protocol & (RAW_HTABLE_SIZE - 1);
+	struct net *net = dev_net(skb->dev);
 
-	return raw_v4_input(skb, ip_hdr(skb), hash);
+	return raw_v4_input(net, skb, ip_hdr(skb),
+			    raw_hashfunc(net, protocol));
 }
 
 static void raw_err(struct sock *sk, struct sk_buff *skb, u32 info)
@@ -263,19 +263,18 @@ static void raw_err(struct sock *sk, struct sk_buff *skb, u32 info)
 void raw_icmp_error(struct sk_buff *skb, int protocol, u32 info)
 {
 	struct net *net = dev_net(skb->dev);
-	struct hlist_nulls_head *hlist;
-	struct hlist_nulls_node *hnode;
 	int dif = skb->dev->ifindex;
 	int sdif = inet_sdif(skb);
+	struct hlist_head *hlist;
 	const struct iphdr *iph;
 	struct sock *sk;
 	int hash;
 
-	hash = protocol & (RAW_HTABLE_SIZE - 1);
+	hash = raw_hashfunc(net, protocol);
 	hlist = &raw_v4_hashinfo.ht[hash];
 
 	rcu_read_lock();
-	sk_nulls_for_each(sk, hnode, hlist) {
+	sk_for_each_rcu(sk, hlist) {
 		iph = (const struct iphdr *)skb->data;
 		if (!raw_v4_match(net, sk, iph->protocol,
 				  iph->daddr, iph->saddr, dif, sdif))
@@ -947,14 +946,13 @@ static struct sock *raw_get_first(struct seq_file *seq, int bucket)
 {
 	struct raw_hashinfo *h = pde_data(file_inode(seq->file));
 	struct raw_iter_state *state = raw_seq_private(seq);
-	struct hlist_nulls_head *hlist;
-	struct hlist_nulls_node *hnode;
+	struct hlist_head *hlist;
 	struct sock *sk;
 
 	for (state->bucket = bucket; state->bucket < RAW_HTABLE_SIZE;
 			++state->bucket) {
 		hlist = &h->ht[state->bucket];
-		sk_nulls_for_each(sk, hnode, hlist) {
+		sk_for_each(sk, hlist) {
 			if (sock_net(sk) == seq_file_net(seq))
 				return sk;
 		}
@@ -967,7 +965,7 @@ static struct sock *raw_get_next(struct seq_file *seq, struct sock *sk)
 	struct raw_iter_state *state = raw_seq_private(seq);
 
 	do {
-		sk = sk_nulls_next(sk);
+		sk = sk_next(sk);
 	} while (sk && sock_net(sk) != seq_file_net(seq));
 
 	if (!sk)
@@ -986,9 +984,12 @@ static struct sock *raw_get_idx(struct seq_file *seq, loff_t pos)
 }
 
 void *raw_seq_start(struct seq_file *seq, loff_t *pos)
-	__acquires(RCU)
+	__acquires(&h->lock)
 {
-	rcu_read_lock();
+	struct raw_hashinfo *h = pde_data(file_inode(seq->file));
+
+	spin_lock(&h->lock);
+
 	return *pos ? raw_get_idx(seq, *pos - 1) : SEQ_START_TOKEN;
 }
 EXPORT_SYMBOL_GPL(raw_seq_start);
@@ -1007,9 +1008,11 @@ void *raw_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 EXPORT_SYMBOL_GPL(raw_seq_next);
 
 void raw_seq_stop(struct seq_file *seq, void *v)
-	__releases(RCU)
+	__releases(&h->lock)
 {
-	rcu_read_unlock();
+	struct raw_hashinfo *h = pde_data(file_inode(seq->file));
+
+	spin_unlock(&h->lock);
 }
 EXPORT_SYMBOL_GPL(raw_seq_stop);
 

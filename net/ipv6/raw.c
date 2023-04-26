@@ -141,10 +141,9 @@ EXPORT_SYMBOL(rawv6_mh_filter_unregister);
 static bool ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 {
 	struct net *net = dev_net(skb->dev);
-	struct hlist_nulls_head *hlist;
-	struct hlist_nulls_node *hnode;
 	const struct in6_addr *saddr;
 	const struct in6_addr *daddr;
+	struct hlist_head *hlist;
 	struct sock *sk;
 	bool delivered = false;
 	__u8 hash;
@@ -152,10 +151,10 @@ static bool ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 	saddr = &ipv6_hdr(skb)->saddr;
 	daddr = saddr + 1;
 
-	hash = nexthdr & (RAW_HTABLE_SIZE - 1);
+	hash = raw_hashfunc(net, nexthdr);
 	hlist = &raw_v6_hashinfo.ht[hash];
 	rcu_read_lock();
-	sk_nulls_for_each(sk, hnode, hlist) {
+	sk_for_each_rcu(sk, hlist) {
 		int filtered;
 
 		if (!raw_v6_match(net, sk, nexthdr, daddr, saddr,
@@ -333,15 +332,14 @@ void raw6_icmp_error(struct sk_buff *skb, int nexthdr,
 		u8 type, u8 code, int inner_offset, __be32 info)
 {
 	struct net *net = dev_net(skb->dev);
-	struct hlist_nulls_head *hlist;
-	struct hlist_nulls_node *hnode;
+	struct hlist_head *hlist;
 	struct sock *sk;
 	int hash;
 
-	hash = nexthdr & (RAW_HTABLE_SIZE - 1);
+	hash = raw_hashfunc(net, nexthdr);
 	hlist = &raw_v6_hashinfo.ht[hash];
 	rcu_read_lock();
-	sk_nulls_for_each(sk, hnode, hlist) {
+	sk_for_each_rcu(sk, hlist) {
 		/* Note: ipv6_hdr(skb) != skb->data */
 		const struct ipv6hdr *ip6h = (const struct ipv6hdr *)skb->data;
 

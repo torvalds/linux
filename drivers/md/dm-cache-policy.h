@@ -128,7 +128,7 @@ struct dm_cache_policy {
 	 * Configuration.
 	 */
 	int (*emit_config_values)(struct dm_cache_policy *p, char *result,
-				  unsigned maxlen, ssize_t *sz_ptr);
+				  unsigned int maxlen, ssize_t *sz_ptr);
 	int (*set_config_value)(struct dm_cache_policy *p,
 				const char *key, const char *value);
 
@@ -157,7 +157,7 @@ struct dm_cache_policy_type {
 	 * what gets passed on the target line to select your policy.
 	 */
 	char name[CACHE_POLICY_NAME_SIZE];
-	unsigned version[CACHE_POLICY_VERSION_SIZE];
+	unsigned int version[CACHE_POLICY_VERSION_SIZE];
 
 	/*
 	 * For use by an alias dm_cache_policy_type to point to the
