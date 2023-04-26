@@ -45,6 +45,7 @@
 #include "smu_v13_0_6_ppt.h"
 #include "smu_v13_0_7_ppt.h"
 #include "smu_v14_0_0_ppt.h"
+#include "smu_v14_0_2_ppt.h"
 #include "amd_pcie.h"
 
 /*
@@ -714,6 +715,10 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 	case IP_VERSION(14, 0, 0):
 	case IP_VERSION(14, 0, 1):
 		smu_v14_0_0_set_ppt_funcs(smu);
+		break;
+	case IP_VERSION(14, 0, 2):
+	case IP_VERSION(14, 0, 3):
+		smu_v14_0_2_set_ppt_funcs(smu);
 		break;
 	default:
 		return -EINVAL;
