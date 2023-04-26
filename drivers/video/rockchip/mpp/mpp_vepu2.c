@@ -863,6 +863,8 @@ static int vepu_reset(struct mpp_dev *mpp)
 	struct vepu_dev *enc = to_vepu_dev(mpp);
 	struct vepu_ccu *ccu = enc->ccu;
 
+	mpp_write(mpp, VEPU2_REG_ENC_EN, 0);
+	udelay(5);
 	if (enc->rst_a && enc->rst_h) {
 		/* Don't skip this or iommu won't work after reset */
 		mpp_pmu_idle_request(mpp, true);
