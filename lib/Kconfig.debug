@@ -1958,9 +1958,21 @@ config FAIL_SUNRPC
 	  Provide fault-injection capability for SunRPC and
 	  its consumers.
 
+config FAULT_INJECTION_CONFIGFS
+	bool "Configfs interface for fault-injection capabilities"
+	depends on FAULT_INJECTION
+	select CONFIGFS_FS
+	help
+	  This option allows configfs-based drivers to dynamically configure
+	  fault-injection via configfs.  Each parameter for driver-specific
+	  fault-injection can be made visible as a configfs attribute in a
+	  configfs group.
+
+
 config FAULT_INJECTION_STACKTRACE_FILTER
 	bool "stacktrace filter for fault-injection capabilities"
-	depends on FAULT_INJECTION_DEBUG_FS && STACKTRACE_SUPPORT
+	depends on FAULT_INJECTION
+	depends on (FAULT_INJECTION_DEBUG_FS || FAULT_INJECTION_CONFIGFS) && STACKTRACE_SUPPORT
 	select STACKTRACE
 	depends on FRAME_POINTER || MIPS || PPC || S390 || MICROBLAZE || ARM || ARC || X86
 	help

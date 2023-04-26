@@ -426,6 +426,9 @@ int __must_check device_add_disk(struct device *parent, struct gendisk *disk,
 	 */
 	elevator_init_mq(disk->queue);
 
+	/* Mark bdev as having a submit_bio, if needed */
+	disk->part0->bd_has_submit_bio = disk->fops->submit_bio != NULL;
+
 	/*
 	 * If the driver provides an explicit major number it also must provide
 	 * the number of minors numbers supported, and those will be used to

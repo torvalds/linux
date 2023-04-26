@@ -2109,6 +2109,7 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 	device->default_retries = DASD_RETRIES;
 	device->path_thrhld = DASD_ECKD_PATH_THRHLD;
 	device->path_interval = DASD_ECKD_PATH_INTERVAL;
+	device->aq_timeouts = DASD_RETRIES_MAX;
 
 	if (private->conf.gneq) {
 		value = 1;

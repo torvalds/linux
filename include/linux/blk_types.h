@@ -40,26 +40,26 @@ struct bio_crypt_ctx;
 struct block_device {
 	sector_t		bd_start_sect;
 	sector_t		bd_nr_sectors;
+	struct gendisk *	bd_disk;
+	struct request_queue *	bd_queue;
 	struct disk_stats __percpu *bd_stats;
 	unsigned long		bd_stamp;
 	bool			bd_read_only;	/* read-only policy */
+	u8			bd_partno;
+	bool			bd_write_holder;
+	bool			bd_has_submit_bio;
 	dev_t			bd_dev;
 	atomic_t		bd_openers;
+	spinlock_t		bd_size_lock; /* for bd_inode->i_size updates */
 	struct inode *		bd_inode;	/* will die */
 	struct super_block *	bd_super;
 	void *			bd_claiming;
-	struct device		bd_device;
 	void *			bd_holder;
-	int			bd_holders;
-	bool			bd_write_holder;
-	struct kobject		*bd_holder_dir;
-	u8			bd_partno;
-	spinlock_t		bd_size_lock; /* for bd_inode->i_size updates */
-	struct gendisk *	bd_disk;
-	struct request_queue *	bd_queue;
-
 	/* The counter of freeze processes */
 	int			bd_fsfreeze_count;
+	int			bd_holders;
+	struct kobject		*bd_holder_dir;
+
 	/* Mutex for freeze */
 	struct mutex		bd_fsfreeze_mutex;
 	struct super_block	*bd_fsfreeze_sb;
@@ -68,6 +68,11 @@ struct block_device {
 #ifdef CONFIG_FAIL_MAKE_REQUEST
 	bool			bd_make_it_fail;
 #endif
+	/*
+	 * keep this out-of-line as it's both big and not needed in the fast
+	 * path
+	 */
+	struct device		bd_device;
 } __randomize_layout;
 
 #define bdev_whole(_bdev) \

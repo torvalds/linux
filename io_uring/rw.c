@@ -1001,7 +1001,7 @@ void io_rw_fail(struct io_kiocb *req)
 int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
 {
 	struct io_wq_work_node *pos, *start, *prev;
-	unsigned int poll_flags = BLK_POLL_NOSLEEP;
+	unsigned int poll_flags = 0;
 	DEFINE_IO_COMP_BATCH(iob);
 	int nr_events = 0;
 

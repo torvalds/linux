@@ -419,6 +419,7 @@ struct block_device *bdev_alloc(struct gendisk *disk, u8 partno)
 	bdev->bd_inode = inode;
 	bdev->bd_queue = disk->queue;
 	bdev->bd_stats = alloc_percpu(struct disk_stats);
+	bdev->bd_has_submit_bio = false;
 	if (!bdev->bd_stats) {
 		iput(inode);
 		return NULL;
