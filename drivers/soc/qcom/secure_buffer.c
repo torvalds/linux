@@ -37,7 +37,7 @@ struct hyp_assign_debug_track {
 	u32 refcount;
 };
 
-#ifdef CONFIG_HYP_ASSIGN_DEBUG
+#if IS_ENABLED(CONFIG_HYP_ASSIGN_DEBUG)
 /*
  * Contains a pointer to struct hyp_assign_debug_track for each pfn which
  * is in an assigned state.
@@ -590,7 +590,7 @@ static struct platform_driver qcom_secure_buffer_driver = {
 
 static int __init qcom_secure_buffer_init(void)
 {
-#ifdef CONFIG_HYP_ASSIGN_DEBUG
+#if IS_ENABLED(CONFIG_HYP_ASSIGN_DEBUG)
 	failure_handle = create_dummy_stack();
 #endif
 
