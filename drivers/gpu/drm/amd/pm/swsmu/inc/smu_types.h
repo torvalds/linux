@@ -253,7 +253,9 @@
 	__SMU_DUMMY_MAP(QueryValidMcaCeCount),	\
 	__SMU_DUMMY_MAP(McaBankDumpDW),		\
 	__SMU_DUMMY_MAP(McaBankCeDumpDW),	\
-	__SMU_DUMMY_MAP(SelectPLPDMode),
+	__SMU_DUMMY_MAP(SelectPLPDMode),	\
+	__SMU_DUMMY_MAP(PowerUpVpe),	\
+	__SMU_DUMMY_MAP(PowerDownVpe),
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(type)	SMU_MSG_##type
@@ -415,7 +417,8 @@ enum smu_clk_type {
        __SMU_DUMMY_MAP(MEM_TEMP_READ),			\
        __SMU_DUMMY_MAP(ATHUB_MMHUB_PG),			\
        __SMU_DUMMY_MAP(BACO_CG),			\
-       __SMU_DUMMY_MAP(SOC_CG),
+       __SMU_DUMMY_MAP(SOC_CG),    \
+       __SMU_DUMMY_MAP(LOW_POWER_DCNCLKS),
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(feature)	SMU_FEATURE_##feature##_BIT

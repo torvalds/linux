@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Advanced Micro Devices, Inc.
+# Copyright 2023 Advanced Micro Devices, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -19,18 +19,12 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 #
+#
+# Makefile for the 'smu manager' sub-component of powerplay.
+# It provides the smu management services for the driver.
 
-AMD_SWSMU_PATH = ../pm/swsmu
+SMU14_MGR = smu_v14_0.o smu_v14_0_0_ppt.o
 
-SWSMU_LIBS = smu11 smu12 smu13 smu14
+AMD_SWSMU_SMU14MGR = $(addprefix $(AMD_SWSMU_PATH)/smu14/,$(SMU14_MGR))
 
-AMD_SWSMU = $(addsuffix /Makefile,$(addprefix $(FULL_AMD_PATH)/pm/swsmu/,$(SWSMU_LIBS)))
-
-include $(AMD_SWSMU)
-
-SWSMU_MGR = amdgpu_smu.o \
-	    smu_cmn.o \
-
-AMD_SWSMU_POWER = $(addprefix $(AMD_SWSMU_PATH)/,$(SWSMU_MGR))
-
-AMD_POWERPLAY_FILES += $(AMD_SWSMU_POWER)
+AMD_POWERPLAY_FILES += $(AMD_SWSMU_SMU14MGR)

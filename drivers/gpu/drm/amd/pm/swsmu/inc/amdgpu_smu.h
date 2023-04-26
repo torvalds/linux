@@ -1343,6 +1343,12 @@ struct pptable_funcs {
 	 * @init_pptable_microcode: Prepare the pptable microcode to upload via PSP
 	 */
 	int (*init_pptable_microcode)(struct smu_context *smu);
+
+	/**
+	 * @dpm_set_vpe_enable: Enable/disable VPE engine dynamic power
+	 *                       management.
+	 */
+	int (*dpm_set_vpe_enable)(struct smu_context *smu, bool enable);
 };
 
 typedef enum {
