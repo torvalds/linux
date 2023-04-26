@@ -909,7 +909,7 @@ static int pata_macio_do_resume(struct pata_macio_priv *priv)
 }
 #endif /* CONFIG_PM_SLEEP */
 
-static struct scsi_host_template pata_macio_sht = {
+static const struct scsi_host_template pata_macio_sht = {
 	__ATA_BASE_SHT(DRV_NAME),
 	.sg_tablesize		= MAX_DCMDS,
 	/* We may not need that strict one */

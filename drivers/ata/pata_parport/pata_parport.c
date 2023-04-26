@@ -399,7 +399,7 @@ static struct device pata_parport_bus = {
 	.release = pata_parport_bus_release,
 };
 
-static struct scsi_host_template pata_parport_sht = {
+static const struct scsi_host_template pata_parport_sht = {
 	PATA_PARPORT_SHT("pata_parport")
 };
 

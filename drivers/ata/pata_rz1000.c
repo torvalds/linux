@@ -50,7 +50,7 @@ static int rz1000_set_mode(struct ata_link *link, struct ata_device **unused)
 }
 
 
-static struct scsi_host_template rz1000_sht = {
+static const struct scsi_host_template rz1000_sht = {
 	ATA_PIO_SHT(DRV_NAME),
 };
 

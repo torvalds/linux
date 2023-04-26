@@ -66,7 +66,7 @@ static int acard_ahci_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg
 static int acard_ahci_pci_device_resume(struct pci_dev *pdev);
 #endif
 
-static struct scsi_host_template acard_ahci_sht = {
+static const struct scsi_host_template acard_ahci_sht = {
 	AHCI_SHT("acard-ahci"),
 };
 

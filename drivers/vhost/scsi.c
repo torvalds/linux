@@ -291,11 +291,6 @@ static int vhost_scsi_check_true(struct se_portal_group *se_tpg)
 	return 1;
 }
 
-static int vhost_scsi_check_false(struct se_portal_group *se_tpg)
-{
-	return 0;
-}
-
 static char *vhost_scsi_get_fabric_wwn(struct se_portal_group *se_tpg)
 {
 	struct vhost_scsi_tpg *tpg = container_of(se_tpg,
@@ -318,11 +313,6 @@ static int vhost_scsi_check_prot_fabric_only(struct se_portal_group *se_tpg)
 				struct vhost_scsi_tpg, se_tpg);
 
 	return tpg->tv_fabric_prot_type;
-}
-
-static u32 vhost_scsi_tpg_get_inst_index(struct se_portal_group *se_tpg)
-{
-	return 1;
 }
 
 static void vhost_scsi_release_cmd_res(struct se_cmd *se_cmd)
@@ -372,25 +362,10 @@ static void vhost_scsi_release_cmd(struct se_cmd *se_cmd)
 	}
 }
 
-static u32 vhost_scsi_sess_get_index(struct se_session *se_sess)
-{
-	return 0;
-}
-
 static int vhost_scsi_write_pending(struct se_cmd *se_cmd)
 {
 	/* Go ahead and process the write immediately */
 	target_execute_cmd(se_cmd);
-	return 0;
-}
-
-static void vhost_scsi_set_default_node_attrs(struct se_node_acl *nacl)
-{
-	return;
-}
-
-static int vhost_scsi_get_cmd_state(struct se_cmd *se_cmd)
-{
 	return 0;
 }
 
@@ -2435,17 +2410,11 @@ static const struct target_core_fabric_ops vhost_scsi_ops = {
 	.tpg_get_tag			= vhost_scsi_get_tpgt,
 	.tpg_check_demo_mode		= vhost_scsi_check_true,
 	.tpg_check_demo_mode_cache	= vhost_scsi_check_true,
-	.tpg_check_demo_mode_write_protect = vhost_scsi_check_false,
-	.tpg_check_prod_mode_write_protect = vhost_scsi_check_false,
 	.tpg_check_prot_fabric_only	= vhost_scsi_check_prot_fabric_only,
-	.tpg_get_inst_index		= vhost_scsi_tpg_get_inst_index,
 	.release_cmd			= vhost_scsi_release_cmd,
 	.check_stop_free		= vhost_scsi_check_stop_free,
-	.sess_get_index			= vhost_scsi_sess_get_index,
 	.sess_get_initiator_sid		= NULL,
 	.write_pending			= vhost_scsi_write_pending,
-	.set_default_node_attributes	= vhost_scsi_set_default_node_attrs,
-	.get_cmd_state			= vhost_scsi_get_cmd_state,
 	.queue_data_in			= vhost_scsi_queue_data_in,
 	.queue_status			= vhost_scsi_queue_status,
 	.queue_tm_rsp			= vhost_scsi_queue_tm_rsp,
