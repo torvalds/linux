@@ -45,7 +45,7 @@ patternProperties:
         enum: [1, 4, 8]
 
 allOf:
-  - $ref: "nand-controller.yaml#"
+  - $ref: nand-controller.yaml#
 
   - if:
       properties:

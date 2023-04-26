@@ -508,14 +508,16 @@ int spi_nor_read_cr(struct spi_nor *nor, u8 *cr)
 }
 
 /**
- * spi_nor_set_4byte_addr_mode() - Enter/Exit 4-byte address mode.
+ * spi_nor_set_4byte_addr_mode_en4b_ex4b() - Enter/Exit 4-byte address mode
+ *			using SPINOR_OP_EN4B/SPINOR_OP_EX4B. Typically used by
+ *			Winbond and Macronix.
  * @nor:	pointer to 'struct spi_nor'.
  * @enable:	true to enter the 4-byte address mode, false to exit the 4-byte
  *		address mode.
  *
  * Return: 0 on success, -errno otherwise.
  */
-int spi_nor_set_4byte_addr_mode(struct spi_nor *nor, bool enable)
+int spi_nor_set_4byte_addr_mode_en4b_ex4b(struct spi_nor *nor, bool enable)
 {
 	int ret;
 
@@ -539,15 +541,45 @@ int spi_nor_set_4byte_addr_mode(struct spi_nor *nor, bool enable)
 }
 
 /**
- * spansion_set_4byte_addr_mode() - Set 4-byte address mode for Spansion
- * flashes.
+ * spi_nor_set_4byte_addr_mode_wren_en4b_ex4b() - Set 4-byte address mode using
+ * SPINOR_OP_WREN followed by SPINOR_OP_EN4B or SPINOR_OP_EX4B. Typically used
+ * by ST and Micron flashes.
  * @nor:	pointer to 'struct spi_nor'.
  * @enable:	true to enter the 4-byte address mode, false to exit the 4-byte
  *		address mode.
  *
  * Return: 0 on success, -errno otherwise.
  */
-static int spansion_set_4byte_addr_mode(struct spi_nor *nor, bool enable)
+int spi_nor_set_4byte_addr_mode_wren_en4b_ex4b(struct spi_nor *nor, bool enable)
+{
+	int ret;
+
+	ret = spi_nor_write_enable(nor);
+	if (ret)
+		return ret;
+
+	ret = spi_nor_set_4byte_addr_mode_en4b_ex4b(nor, enable);
+	if (ret)
+		return ret;
+
+	return spi_nor_write_disable(nor);
+}
+
+/**
+ * spi_nor_set_4byte_addr_mode_brwr() - Set 4-byte address mode using
+ *			SPINOR_OP_BRWR. Typically used by Spansion flashes.
+ * @nor:	pointer to 'struct spi_nor'.
+ * @enable:	true to enter the 4-byte address mode, false to exit the 4-byte
+ *		address mode.
+ *
+ * 8-bit volatile bank register used to define A[30:A24] bits. MSB (bit[7]) is
+ * used to enable/disable 4-byte address mode. When MSB is set to ‘1’, 4-byte
+ * address mode is active and A[30:24] bits are don’t care. Write instruction is
+ * SPINOR_OP_BRWR(17h) with 1 byte of data.
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
+int spi_nor_set_4byte_addr_mode_brwr(struct spi_nor *nor, bool enable)
 {
 	int ret;
 
@@ -589,6 +621,65 @@ int spi_nor_sr_ready(struct spi_nor *nor)
 }
 
 /**
+ * spi_nor_use_parallel_locking() - Checks if RWW locking scheme shall be used
+ * @nor:	pointer to 'struct spi_nor'.
+ *
+ * Return: true if parallel locking is enabled, false otherwise.
+ */
+static bool spi_nor_use_parallel_locking(struct spi_nor *nor)
+{
+	return nor->flags & SNOR_F_RWW;
+}
+
+/* Locking helpers for status read operations */
+static int spi_nor_rww_start_rdst(struct spi_nor *nor)
+{
+	struct spi_nor_rww *rww = &nor->rww;
+	int ret = -EAGAIN;
+
+	mutex_lock(&nor->lock);
+
+	if (rww->ongoing_io || rww->ongoing_rd)
+		goto busy;
+
+	rww->ongoing_io = true;
+	rww->ongoing_rd = true;
+	ret = 0;
+
+busy:
+	mutex_unlock(&nor->lock);
+	return ret;
+}
+
+static void spi_nor_rww_end_rdst(struct spi_nor *nor)
+{
+	struct spi_nor_rww *rww = &nor->rww;
+
+	mutex_lock(&nor->lock);
+
+	rww->ongoing_io = false;
+	rww->ongoing_rd = false;
+
+	mutex_unlock(&nor->lock);
+}
+
+static int spi_nor_lock_rdst(struct spi_nor *nor)
+{
+	if (spi_nor_use_parallel_locking(nor))
+		return spi_nor_rww_start_rdst(nor);
+
+	return 0;
+}
+
+static void spi_nor_unlock_rdst(struct spi_nor *nor)
+{
+	if (spi_nor_use_parallel_locking(nor)) {
+		spi_nor_rww_end_rdst(nor);
+		wake_up(&nor->rww.wait);
+	}
+}
+
+/**
  * spi_nor_ready() - Query the flash to see if it is ready for new commands.
  * @nor:	pointer to 'struct spi_nor'.
  *
@@ -596,11 +687,21 @@ int spi_nor_sr_ready(struct spi_nor *nor)
  */
 static int spi_nor_ready(struct spi_nor *nor)
 {
+	int ret;
+
+	ret = spi_nor_lock_rdst(nor);
+	if (ret)
+		return 0;
+
 	/* Flashes might override the standard routine. */
 	if (nor->params->ready)
-		return nor->params->ready(nor);
+		ret = nor->params->ready(nor);
+	else
+		ret = spi_nor_sr_ready(nor);
 
-	return spi_nor_sr_ready(nor);
+	spi_nor_unlock_rdst(nor);
+
+	return ret;
 }
 
 /**
@@ -1070,27 +1171,287 @@ static void spi_nor_set_4byte_opcodes(struct spi_nor *nor)
 	}
 }
 
-int spi_nor_lock_and_prep(struct spi_nor *nor)
+static int spi_nor_prep(struct spi_nor *nor)
 {
 	int ret = 0;
 
+	if (nor->controller_ops && nor->controller_ops->prepare)
+		ret = nor->controller_ops->prepare(nor);
+
+	return ret;
+}
+
+static void spi_nor_unprep(struct spi_nor *nor)
+{
+	if (nor->controller_ops && nor->controller_ops->unprepare)
+		nor->controller_ops->unprepare(nor);
+}
+
+static void spi_nor_offset_to_banks(u64 bank_size, loff_t start, size_t len,
+				    u8 *first, u8 *last)
+{
+	/* This is currently safe, the number of banks being very small */
+	*first = DIV_ROUND_DOWN_ULL(start, bank_size);
+	*last = DIV_ROUND_DOWN_ULL(start + len - 1, bank_size);
+}
+
+/* Generic helpers for internal locking and serialization */
+static bool spi_nor_rww_start_io(struct spi_nor *nor)
+{
+	struct spi_nor_rww *rww = &nor->rww;
+	bool start = false;
+
 	mutex_lock(&nor->lock);
 
-	if (nor->controller_ops &&  nor->controller_ops->prepare) {
-		ret = nor->controller_ops->prepare(nor);
-		if (ret) {
-			mutex_unlock(&nor->lock);
-			return ret;
-		}
+	if (rww->ongoing_io)
+		goto busy;
+
+	rww->ongoing_io = true;
+	start = true;
+
+busy:
+	mutex_unlock(&nor->lock);
+	return start;
+}
+
+static void spi_nor_rww_end_io(struct spi_nor *nor)
+{
+	mutex_lock(&nor->lock);
+	nor->rww.ongoing_io = false;
+	mutex_unlock(&nor->lock);
+}
+
+static int spi_nor_lock_device(struct spi_nor *nor)
+{
+	if (!spi_nor_use_parallel_locking(nor))
+		return 0;
+
+	return wait_event_killable(nor->rww.wait, spi_nor_rww_start_io(nor));
+}
+
+static void spi_nor_unlock_device(struct spi_nor *nor)
+{
+	if (spi_nor_use_parallel_locking(nor)) {
+		spi_nor_rww_end_io(nor);
+		wake_up(&nor->rww.wait);
 	}
+}
+
+/* Generic helpers for internal locking and serialization */
+static bool spi_nor_rww_start_exclusive(struct spi_nor *nor)
+{
+	struct spi_nor_rww *rww = &nor->rww;
+	bool start = false;
+
+	mutex_lock(&nor->lock);
+
+	if (rww->ongoing_io || rww->ongoing_rd || rww->ongoing_pe)
+		goto busy;
+
+	rww->ongoing_io = true;
+	rww->ongoing_rd = true;
+	rww->ongoing_pe = true;
+	start = true;
+
+busy:
+	mutex_unlock(&nor->lock);
+	return start;
+}
+
+static void spi_nor_rww_end_exclusive(struct spi_nor *nor)
+{
+	struct spi_nor_rww *rww = &nor->rww;
+
+	mutex_lock(&nor->lock);
+	rww->ongoing_io = false;
+	rww->ongoing_rd = false;
+	rww->ongoing_pe = false;
+	mutex_unlock(&nor->lock);
+}
+
+int spi_nor_prep_and_lock(struct spi_nor *nor)
+{
+	int ret;
+
+	ret = spi_nor_prep(nor);
+	if (ret)
+		return ret;
+
+	if (!spi_nor_use_parallel_locking(nor))
+		mutex_lock(&nor->lock);
+	else
+		ret = wait_event_killable(nor->rww.wait,
+					  spi_nor_rww_start_exclusive(nor));
+
 	return ret;
 }
 
 void spi_nor_unlock_and_unprep(struct spi_nor *nor)
 {
-	if (nor->controller_ops && nor->controller_ops->unprepare)
-		nor->controller_ops->unprepare(nor);
+	if (!spi_nor_use_parallel_locking(nor)) {
+		mutex_unlock(&nor->lock);
+	} else {
+		spi_nor_rww_end_exclusive(nor);
+		wake_up(&nor->rww.wait);
+	}
+
+	spi_nor_unprep(nor);
+}
+
+/* Internal locking helpers for program and erase operations */
+static bool spi_nor_rww_start_pe(struct spi_nor *nor, loff_t start, size_t len)
+{
+	struct spi_nor_rww *rww = &nor->rww;
+	unsigned int used_banks = 0;
+	bool started = false;
+	u8 first, last;
+	int bank;
+
+	mutex_lock(&nor->lock);
+
+	if (rww->ongoing_io || rww->ongoing_rd || rww->ongoing_pe)
+		goto busy;
+
+	spi_nor_offset_to_banks(nor->params->bank_size, start, len, &first, &last);
+	for (bank = first; bank <= last; bank++) {
+		if (rww->used_banks & BIT(bank))
+			goto busy;
+
+		used_banks |= BIT(bank);
+	}
+
+	rww->used_banks |= used_banks;
+	rww->ongoing_pe = true;
+	started = true;
+
+busy:
 	mutex_unlock(&nor->lock);
+	return started;
+}
+
+static void spi_nor_rww_end_pe(struct spi_nor *nor, loff_t start, size_t len)
+{
+	struct spi_nor_rww *rww = &nor->rww;
+	u8 first, last;
+	int bank;
+
+	mutex_lock(&nor->lock);
+
+	spi_nor_offset_to_banks(nor->params->bank_size, start, len, &first, &last);
+	for (bank = first; bank <= last; bank++)
+		rww->used_banks &= ~BIT(bank);
+
+	rww->ongoing_pe = false;
+
+	mutex_unlock(&nor->lock);
+}
+
+static int spi_nor_prep_and_lock_pe(struct spi_nor *nor, loff_t start, size_t len)
+{
+	int ret;
+
+	ret = spi_nor_prep(nor);
+	if (ret)
+		return ret;
+
+	if (!spi_nor_use_parallel_locking(nor))
+		mutex_lock(&nor->lock);
+	else
+		ret = wait_event_killable(nor->rww.wait,
+					  spi_nor_rww_start_pe(nor, start, len));
+
+	return ret;
+}
+
+static void spi_nor_unlock_and_unprep_pe(struct spi_nor *nor, loff_t start, size_t len)
+{
+	if (!spi_nor_use_parallel_locking(nor)) {
+		mutex_unlock(&nor->lock);
+	} else {
+		spi_nor_rww_end_pe(nor, start, len);
+		wake_up(&nor->rww.wait);
+	}
+
+	spi_nor_unprep(nor);
+}
+
+/* Internal locking helpers for read operations */
+static bool spi_nor_rww_start_rd(struct spi_nor *nor, loff_t start, size_t len)
+{
+	struct spi_nor_rww *rww = &nor->rww;
+	unsigned int used_banks = 0;
+	bool started = false;
+	u8 first, last;
+	int bank;
+
+	mutex_lock(&nor->lock);
+
+	if (rww->ongoing_io || rww->ongoing_rd)
+		goto busy;
+
+	spi_nor_offset_to_banks(nor->params->bank_size, start, len, &first, &last);
+	for (bank = first; bank <= last; bank++) {
+		if (rww->used_banks & BIT(bank))
+			goto busy;
+
+		used_banks |= BIT(bank);
+	}
+
+	rww->used_banks |= used_banks;
+	rww->ongoing_io = true;
+	rww->ongoing_rd = true;
+	started = true;
+
+busy:
+	mutex_unlock(&nor->lock);
+	return started;
+}
+
+static void spi_nor_rww_end_rd(struct spi_nor *nor, loff_t start, size_t len)
+{
+	struct spi_nor_rww *rww = &nor->rww;
+	u8 first, last;
+	int bank;
+
+	mutex_lock(&nor->lock);
+
+	spi_nor_offset_to_banks(nor->params->bank_size, start, len, &first, &last);
+	for (bank = first; bank <= last; bank++)
+		nor->rww.used_banks &= ~BIT(bank);
+
+	rww->ongoing_io = false;
+	rww->ongoing_rd = false;
+
+	mutex_unlock(&nor->lock);
+}
+
+static int spi_nor_prep_and_lock_rd(struct spi_nor *nor, loff_t start, size_t len)
+{
+	int ret;
+
+	ret = spi_nor_prep(nor);
+	if (ret)
+		return ret;
+
+	if (!spi_nor_use_parallel_locking(nor))
+		mutex_lock(&nor->lock);
+	else
+		ret = wait_event_killable(nor->rww.wait,
+					  spi_nor_rww_start_rd(nor, start, len));
+
+	return ret;
+}
+
+static void spi_nor_unlock_and_unprep_rd(struct spi_nor *nor, loff_t start, size_t len)
+{
+	if (!spi_nor_use_parallel_locking(nor)) {
+		mutex_unlock(&nor->lock);
+	} else {
+		spi_nor_rww_end_rd(nor, start, len);
+		wake_up(&nor->rww.wait);
+	}
+
+	spi_nor_unprep(nor);
 }
 
 static u32 spi_nor_convert_addr(struct spi_nor *nor, loff_t addr)
@@ -1397,11 +1758,18 @@ static int spi_nor_erase_multi_sectors(struct spi_nor *nor, u64 addr, u32 len)
 			dev_vdbg(nor->dev, "erase_cmd->size = 0x%08x, erase_cmd->opcode = 0x%02x, erase_cmd->count = %u\n",
 				 cmd->size, cmd->opcode, cmd->count);
 
-			ret = spi_nor_write_enable(nor);
+			ret = spi_nor_lock_device(nor);
 			if (ret)
 				goto destroy_erase_cmd_list;
 
+			ret = spi_nor_write_enable(nor);
+			if (ret) {
+				spi_nor_unlock_device(nor);
+				goto destroy_erase_cmd_list;
+			}
+
 			ret = spi_nor_erase_sector(nor, addr);
+			spi_nor_unlock_device(nor);
 			if (ret)
 				goto destroy_erase_cmd_list;
 
@@ -1446,7 +1814,7 @@ static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 	addr = instr->addr;
 	len = instr->len;
 
-	ret = spi_nor_lock_and_prep(nor);
+	ret = spi_nor_prep_and_lock_pe(nor, instr->addr, instr->len);
 	if (ret)
 		return ret;
 
@@ -1454,11 +1822,18 @@ static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 	if (len == mtd->size && !(nor->flags & SNOR_F_NO_OP_CHIP_ERASE)) {
 		unsigned long timeout;
 
-		ret = spi_nor_write_enable(nor);
+		ret = spi_nor_lock_device(nor);
 		if (ret)
 			goto erase_err;
 
+		ret = spi_nor_write_enable(nor);
+		if (ret) {
+			spi_nor_unlock_device(nor);
+			goto erase_err;
+		}
+
 		ret = spi_nor_erase_chip(nor);
+		spi_nor_unlock_device(nor);
 		if (ret)
 			goto erase_err;
 
@@ -1483,11 +1858,18 @@ static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 	/* "sector"-at-a-time erase */
 	} else if (spi_nor_has_uniform_erase(nor)) {
 		while (len) {
-			ret = spi_nor_write_enable(nor);
+			ret = spi_nor_lock_device(nor);
 			if (ret)
 				goto erase_err;
 
+			ret = spi_nor_write_enable(nor);
+			if (ret) {
+				spi_nor_unlock_device(nor);
+				goto erase_err;
+			}
+
 			ret = spi_nor_erase_sector(nor, addr);
+			spi_nor_unlock_device(nor);
 			if (ret)
 				goto erase_err;
 
@@ -1509,7 +1891,7 @@ static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 	ret = spi_nor_write_disable(nor);
 
 erase_err:
-	spi_nor_unlock_and_unprep(nor);
+	spi_nor_unlock_and_unprep_pe(nor, instr->addr, instr->len);
 
 	return ret;
 }
@@ -1702,11 +2084,13 @@ static int spi_nor_read(struct mtd_info *mtd, loff_t from, size_t len,
 			size_t *retlen, u_char *buf)
 {
 	struct spi_nor *nor = mtd_to_spi_nor(mtd);
+	loff_t from_lock = from;
+	size_t len_lock = len;
 	ssize_t ret;
 
 	dev_dbg(nor->dev, "from 0x%08x, len %zd\n", (u32)from, len);
 
-	ret = spi_nor_lock_and_prep(nor);
+	ret = spi_nor_prep_and_lock_rd(nor, from_lock, len_lock);
 	if (ret)
 		return ret;
 
@@ -1733,7 +2117,8 @@ static int spi_nor_read(struct mtd_info *mtd, loff_t from, size_t len,
 	ret = 0;
 
 read_err:
-	spi_nor_unlock_and_unprep(nor);
+	spi_nor_unlock_and_unprep_rd(nor, from_lock, len_lock);
+
 	return ret;
 }
 
@@ -1752,7 +2137,7 @@ static int spi_nor_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 	dev_dbg(nor->dev, "to 0x%08x, len %zd\n", (u32)to, len);
 
-	ret = spi_nor_lock_and_prep(nor);
+	ret = spi_nor_prep_and_lock_pe(nor, to, len);
 	if (ret)
 		return ret;
 
@@ -1777,11 +2162,18 @@ static int spi_nor_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 		addr = spi_nor_convert_addr(nor, addr);
 
-		ret = spi_nor_write_enable(nor);
+		ret = spi_nor_lock_device(nor);
 		if (ret)
 			goto write_err;
 
+		ret = spi_nor_write_enable(nor);
+		if (ret) {
+			spi_nor_unlock_device(nor);
+			goto write_err;
+		}
+
 		ret = spi_nor_write_data(nor, addr, page_remain, buf + i);
+		spi_nor_unlock_device(nor);
 		if (ret < 0)
 			goto write_err;
 		written = ret;
@@ -1794,7 +2186,8 @@ static int spi_nor_write(struct mtd_info *mtd, loff_t to, size_t len,
 	}
 
 write_err:
-	spi_nor_unlock_and_unprep(nor);
+	spi_nor_unlock_and_unprep_pe(nor, to, len);
+
 	return ret;
 }
 
@@ -2470,6 +2863,10 @@ static void spi_nor_init_flags(struct spi_nor *nor)
 
 	if (flags & NO_CHIP_ERASE)
 		nor->flags |= SNOR_F_NO_OP_CHIP_ERASE;
+
+	if (flags & SPI_NOR_RWW && nor->info->n_banks > 1 &&
+	    !nor->controller_ops)
+		nor->flags |= SNOR_F_RWW;
 }
 
 /**
@@ -2501,12 +2898,18 @@ static void spi_nor_init_fixup_flags(struct spi_nor *nor)
  */
 static void spi_nor_late_init_params(struct spi_nor *nor)
 {
+	struct spi_nor_flash_parameter *params = nor->params;
+
 	if (nor->manufacturer && nor->manufacturer->fixups &&
 	    nor->manufacturer->fixups->late_init)
 		nor->manufacturer->fixups->late_init(nor);
 
 	if (nor->info->fixups && nor->info->fixups->late_init)
 		nor->info->fixups->late_init(nor);
+
+	/* Default method kept for backward compatibility. */
+	if (!params->set_4byte_addr_mode)
+		params->set_4byte_addr_mode = spi_nor_set_4byte_addr_mode_brwr;
 
 	spi_nor_init_flags(nor);
 	spi_nor_init_fixup_flags(nor);
@@ -2517,6 +2920,8 @@ static void spi_nor_late_init_params(struct spi_nor *nor)
 	 */
 	if (nor->flags & SNOR_F_HAS_LOCK && !nor->params->locking_ops)
 		spi_nor_init_default_locking_ops(nor);
+
+	nor->params->bank_size = div64_u64(nor->params->size, nor->info->n_banks);
 }
 
 /**
@@ -2574,7 +2979,6 @@ static void spi_nor_init_default_params(struct spi_nor *nor)
 	struct device_node *np = spi_nor_get_flash_node(nor);
 
 	params->quad_enable = spi_nor_sr2_bit1_quad_enable;
-	params->set_4byte_addr_mode = spansion_set_4byte_addr_mode;
 	params->otp.org = &info->otp_org;
 
 	/* Default to 16-bit Write Status (01h) Command */
@@ -2730,6 +3134,33 @@ static int spi_nor_quad_enable(struct spi_nor *nor)
 	return nor->params->quad_enable(nor);
 }
 
+/**
+ * spi_nor_set_4byte_addr_mode() - Set address mode.
+ * @nor:                pointer to a 'struct spi_nor'.
+ * @enable:             enable/disable 4 byte address mode.
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
+int spi_nor_set_4byte_addr_mode(struct spi_nor *nor, bool enable)
+{
+	struct spi_nor_flash_parameter *params = nor->params;
+	int ret;
+
+	ret = params->set_4byte_addr_mode(nor, enable);
+	if (ret && ret != -ENOTSUPP)
+		return ret;
+
+	if (enable) {
+		params->addr_nbytes = 4;
+		params->addr_mode_nbytes = 4;
+	} else {
+		params->addr_nbytes = 3;
+		params->addr_mode_nbytes = 3;
+	}
+
+	return 0;
+}
+
 static int spi_nor_init(struct spi_nor *nor)
 {
 	int err;
@@ -2773,8 +3204,8 @@ static int spi_nor_init(struct spi_nor *nor)
 		 */
 		WARN_ONCE(nor->flags & SNOR_F_BROKEN_RESET,
 			  "enabling reset hack; may not recover from unexpected reboots\n");
-		err = nor->params->set_4byte_addr_mode(nor, true);
-		if (err && err != -ENOTSUPP)
+		err = spi_nor_set_4byte_addr_mode(nor, true);
+		if (err)
 			return err;
 	}
 
@@ -2887,14 +3318,14 @@ static void spi_nor_put_device(struct mtd_info *mtd)
 	module_put(dev->driver->owner);
 }
 
-void spi_nor_restore(struct spi_nor *nor)
+static void spi_nor_restore(struct spi_nor *nor)
 {
 	int ret;
 
 	/* restore the addressing mode */
 	if (nor->addr_nbytes == 4 && !(nor->flags & SNOR_F_4B_OPCODES) &&
 	    nor->flags & SNOR_F_BROKEN_RESET) {
-		ret = nor->params->set_4byte_addr_mode(nor, false);
+		ret = spi_nor_set_4byte_addr_mode(nor, false);
 		if (ret)
 			/*
 			 * Do not stop the execution in the hope that the flash
@@ -2907,7 +3338,6 @@ void spi_nor_restore(struct spi_nor *nor)
 	if (nor->flags & SNOR_F_SOFT_RESET)
 		spi_nor_soft_reset(nor);
 }
-EXPORT_SYMBOL_GPL(spi_nor_restore);
 
 static const struct flash_info *spi_nor_match_name(struct spi_nor *nor,
 						   const char *name)
@@ -2952,7 +3382,7 @@ static const struct flash_info *spi_nor_get_flash_info(struct spi_nor *nor,
 			 * JEDEC knows better, so overwrite platform ID. We
 			 * can't trust partitions any longer, but we'll let
 			 * mtd apply them anyway, since some partitions may be
-			 * marked read-only, and we don't want to lose that
+			 * marked read-only, and we don't want to loose that
 			 * information, even if it's not 100% accurate.
 			 */
 			dev_warn(nor->dev, "found %s, expected %s\n",
@@ -2977,6 +3407,9 @@ static void spi_nor_set_mtd_info(struct spi_nor *nor)
 		mtd->name = dev_name(dev);
 	mtd->type = MTD_NORFLASH;
 	mtd->flags = MTD_CAP_NORFLASH;
+	/* Unset BIT_WRITEABLE to enable JFFS2 write buffer for ECC'd NOR */
+	if (nor->flags & SNOR_F_ECC)
+		mtd->flags &= ~MTD_BIT_WRITEABLE;
 	if (nor->info->flags & SPI_NOR_NO_ERASE)
 		mtd->flags |= MTD_NO_ERASE;
 	else
@@ -3063,6 +3496,9 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
 	ret = spi_nor_init_params(nor);
 	if (ret)
 		return ret;
+
+	if (spi_nor_use_parallel_locking(nor))
+		init_waitqueue_head(&nor->rww.wait);
 
 	/*
 	 * Configure the SPI memory:
