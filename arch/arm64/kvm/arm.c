@@ -65,6 +65,7 @@ int kvm_vm_ioctl_enable_cap(struct kvm *kvm,
 			    struct kvm_enable_cap *cap)
 {
 	int r;
+	u64 new_cap;
 
 	if (cap->flags)
 		return -EINVAL;
@@ -88,6 +89,24 @@ int kvm_vm_ioctl_enable_cap(struct kvm *kvm,
 	case KVM_CAP_ARM_SYSTEM_SUSPEND:
 		r = 0;
 		set_bit(KVM_ARCH_FLAG_SYSTEM_SUSPEND_ENABLED, &kvm->arch.flags);
+		break;
+	case KVM_CAP_ARM_EAGER_SPLIT_CHUNK_SIZE:
+		new_cap = cap->args[0];
+
+		mutex_lock(&kvm->slots_lock);
+		/*
+		 * To keep things simple, allow changing the chunk
+		 * size only when no memory slots have been created.
+		 */
+		if (!kvm_are_all_memslots_empty(kvm)) {
+			r = -EINVAL;
+		} else if (new_cap && !kvm_is_block_size_supported(new_cap)) {
+			r = -EINVAL;
+		} else {
+			r = 0;
+			kvm->arch.mmu.split_page_chunk_size = new_cap;
+		}
+		mutex_unlock(&kvm->slots_lock);
 		break;
 	default:
 		r = -EINVAL;
@@ -301,6 +320,15 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_ARM_PTRAUTH_ADDRESS:
 	case KVM_CAP_ARM_PTRAUTH_GENERIC:
 		r = system_has_full_ptr_auth();
+		break;
+	case KVM_CAP_ARM_EAGER_SPLIT_CHUNK_SIZE:
+		if (kvm)
+			r = kvm->arch.mmu.split_page_chunk_size;
+		else
+			r = KVM_ARM_EAGER_SPLIT_CHUNK_SIZE_DEFAULT;
+		break;
+	case KVM_CAP_ARM_SUPPORTED_BLOCK_SIZES:
+		r = kvm_supported_block_sizes();
 		break;
 	default:
 		r = 0;

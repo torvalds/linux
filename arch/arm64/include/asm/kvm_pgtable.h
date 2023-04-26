@@ -92,6 +92,24 @@ static inline bool kvm_level_supports_block_mapping(u32 level)
 	return level >= KVM_PGTABLE_MIN_BLOCK_LEVEL;
 }
 
+static inline u32 kvm_supported_block_sizes(void)
+{
+	u32 level = KVM_PGTABLE_MIN_BLOCK_LEVEL;
+	u32 r = 0;
+
+	for (; level < KVM_PGTABLE_MAX_LEVELS; level++)
+		r |= BIT(kvm_granule_shift(level));
+
+	return r;
+}
+
+static inline bool kvm_is_block_size_supported(u64 size)
+{
+	bool is_power_of_two = IS_ALIGNED(size, size);
+
+	return is_power_of_two && (size & kvm_supported_block_sizes());
+}
+
 /**
  * struct kvm_pgtable_mm_ops - Memory management callbacks.
  * @zalloc_page:		Allocate a single zeroed memory page.
