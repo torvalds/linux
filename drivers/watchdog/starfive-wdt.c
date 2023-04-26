@@ -492,7 +492,7 @@ static int starfive_wdt_probe(struct platform_device *pdev)
 		goto err_exit;
 
 	if (!early_enable)
-		return pm_runtime_put_sync(&pdev->dev);
+		pm_runtime_put_sync(&pdev->dev);
 
 	return 0;
 
