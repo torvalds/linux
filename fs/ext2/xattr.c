@@ -552,7 +552,6 @@ bad_block:
 		error = -ENOMEM;
 		if (header == NULL)
 			goto cleanup;
-		end = (char *)header + sb->s_blocksize;
 		header->h_magic = cpu_to_le32(EXT2_XATTR_MAGIC);
 		header->h_blocks = header->h_refcount = cpu_to_le32(1);
 		last = here = ENTRY(header+1);
