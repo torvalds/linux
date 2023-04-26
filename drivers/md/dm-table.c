@@ -1661,8 +1661,12 @@ int dm_calculate_queue_limits(struct dm_table *t,
 
 		blk_set_stacking_limits(&ti_limits);
 
-		if (!ti->type->iterate_devices)
+		if (!ti->type->iterate_devices) {
+			/* Set I/O hints portion of queue limits */
+			if (ti->type->io_hints)
+				ti->type->io_hints(ti, &ti_limits);
 			goto combine_limits;
+		}
 
 		/*
 		 * Combine queue limits of all the devices this target uses.
