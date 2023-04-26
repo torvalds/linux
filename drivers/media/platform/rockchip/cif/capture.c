@@ -731,7 +731,7 @@ cif_input_fmt *get_input_fmt(struct v4l2_subdev *sd, struct v4l2_rect *rect,
 			csi_info->vc = 0;
 			break;
 		default:
-			csi_info->vc = -1;
+			csi_info->vc = 0xff;
 		}
 		if (ch_info.bus_fmt == MEDIA_BUS_FMT_SPD_2X8 ||
 		    ch_info.bus_fmt == MEDIA_BUS_FMT_EBD_1X8) {
@@ -740,6 +740,8 @@ cif_input_fmt *get_input_fmt(struct v4l2_subdev *sd, struct v4l2_rect *rect,
 			if (ch_info.data_bit > 0)
 				csi_info->data_bit = ch_info.data_bit;
 		}
+	} else {
+		csi_info->vc = 0xff;
 	}
 
 	v4l2_dbg(1, rkcif_debug, sd->v4l2_dev,
@@ -3094,7 +3096,7 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 	    dev->hdr.hdr_mode == HDR_COMPR ||
 	    (dev->hdr.hdr_mode == HDR_X2 && stream->id > 1) ||
 	    (dev->hdr.hdr_mode == HDR_X3 && stream->id > 2))
-		channel->vc = vc >= 0 ? vc : channel->id;
+		channel->vc = vc < 4 ? vc : channel->id;
 	else
 		channel->vc = channel->id;
 	v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev,
