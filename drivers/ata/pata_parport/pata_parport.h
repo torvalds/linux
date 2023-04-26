@@ -11,24 +11,18 @@
 
 #include <linux/libata.h>
 
-#define PI_PCD	1	/* dummy for paride protocol modules */
-
 struct pi_adapter {
 	struct device dev;
 	struct pi_protocol *proto;	/* adapter protocol */
 	int port;			/* base address of parallel port */
 	int mode;			/* transfer mode in use */
 	int delay;			/* adapter delay setting */
-	int devtype;			/* dummy for paride protocol modules */
-	char *device;			/* dummy for paride protocol modules */
 	int unit;			/* unit number for chained adapters */
 	int saved_r0;			/* saved port state */
 	int saved_r2;			/* saved port state */
 	unsigned long private;		/* for protocol module */
 	struct pardevice *pardev;	/* pointer to pardevice */
 };
-
-typedef struct pi_adapter PIA;	/* for paride protocol modules */
 
 /* registers are addressed as (cont,regr)
  *	cont: 0 for command register file, 1 for control register(s)
@@ -54,23 +48,6 @@ typedef struct pi_adapter PIA;	/* for paride protocol modules */
 #define r4w()			(delay_p, inw(pi->port + 4))
 #define r4l()			(delay_p, inl(pi->port + 4))
 
-static inline u16 pi_swab16(char *b, int k)
-{
-	union { u16 u; char t[2]; } r;
-
-	r.t[0] = b[2 * k + 1]; r.t[1] = b[2 * k];
-	return r.u;
-}
-
-static inline u32 pi_swab32(char *b, int k)
-{
-	union { u32 u; char f[4]; } r;
-
-	r.f[0] = b[4 * k + 1]; r.f[1] = b[4 * k];
-	r.f[2] = b[4 * k + 3]; r.f[3] = b[4 * k + 2];
-	return r.u;
-}
-
 struct pi_protocol {
 	char name[8];
 
@@ -90,8 +67,8 @@ struct pi_protocol {
 
 	int (*test_port)(struct pi_adapter *pi);
 	int (*probe_unit)(struct pi_adapter *pi);
-	int (*test_proto)(struct pi_adapter *pi, char *scratch, int verbose);
-	void (*log_adapter)(struct pi_adapter *pi, char *scratch, int verbose);
+	int (*test_proto)(struct pi_adapter *pi);
+	void (*log_adapter)(struct pi_adapter *pi);
 
 	int (*init_proto)(struct pi_adapter *pi);
 	void (*release_proto)(struct pi_adapter *pi);
@@ -104,8 +81,16 @@ struct pi_protocol {
 
 int pata_parport_register_driver(struct pi_protocol *pr);
 void pata_parport_unregister_driver(struct pi_protocol *pr);
-/* defines for old paride protocol modules */
-#define paride_register pata_parport_register_driver
-#define paride_unregister pata_parport_unregister_driver
+
+/**
+ * module_pata_parport_driver() - Helper macro for registering a pata_parport driver
+ * @__pi_protocol: pi_protocol struct
+ *
+ * Helper macro for pata_parport drivers which do not do anything special in module
+ * init/exit. This eliminates a lot of boilerplate. Each module may only
+ * use this macro once, and calling it replaces module_init() and module_exit()
+ */
+#define module_pata_parport_driver(__pi_protocol) \
+	module_driver(__pi_protocol, pata_parport_register_driver, pata_parport_unregister_driver)
 
 #endif /* LINUX_PATA_PARPORT_H */
