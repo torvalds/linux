@@ -47,7 +47,6 @@ int fast_smmu_init_mapping(struct device *dev, struct iommu_domain *domain,
 void fast_smmu_put_dma_cookie(struct iommu_domain *domain);
 void fast_smmu_setup_dma_ops(struct device *dev, u64 dma_base, u64 size);
 int __init dma_mapping_fast_init(void);
-void dma_mapping_fast_exit(void);
 #else
 static inline int fast_smmu_init_mapping(struct device *dev,
 					 struct iommu_domain *domain,
@@ -64,7 +63,6 @@ static inline int __init dma_mapping_fast_init(void)
 	return 0;
 }
 
-static inline void dma_mapping_fast_exit(void) {}
 #endif
 
 #endif /* __LINUX_DMA_MAPPING_FAST_H */
