@@ -41,8 +41,8 @@
 #define ST7703_CMD_UNKNOWN_BF	 0xBF
 #define ST7703_CMD_SETSCR	 0xC0
 #define ST7703_CMD_SETPOWER	 0xC1
+#define ST7703_CMD_SETECO	 0xC6
 #define ST7703_CMD_SETPANEL	 0xCC
-#define ST7703_CMD_UNKNOWN_C6	 0xC6
 #define ST7703_CMD_SETGAMMA	 0xE0
 #define ST7703_CMD_SETEQ	 0xE3
 #define ST7703_CMD_SETGIP1	 0xE9
@@ -249,8 +249,7 @@ static int xbd599_init_sequence(struct st7703 *ctx)
 				      * ESD_DET_TIME_SEL = 0 frames
 				      */);
 
-	/* Undocumented command. */
-	mipi_dsi_dcs_write_seq(dsi, ST7703_CMD_UNKNOWN_C6, 0x01, 0x00, 0xFF, 0xFF, 0x00);
+	mipi_dsi_dcs_write_seq(dsi, ST7703_CMD_SETECO, 0x01, 0x00, 0xFF, 0xFF, 0x00);
 
 	mipi_dsi_dcs_write_seq(dsi, ST7703_CMD_SETPOWER,
 			       0x74, /* VBTHS, VBTLS: VGH = 17V, VBL = -11V */
