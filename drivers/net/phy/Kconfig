@@ -45,10 +45,8 @@ config LED_TRIGGER_PHY
 		for any speed known to the PHY.
 
 config PHYLIB_LEDS
-	bool "Support probing LEDs from device tree"
+	def_bool OF
 	depends on LEDS_CLASS=y || LEDS_CLASS=PHYLIB
-	depends on OF
-	default y
 	help
 	  When LED class support is enabled, phylib can automatically
 	  probe LED setting from device tree.
