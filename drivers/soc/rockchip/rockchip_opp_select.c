@@ -1048,6 +1048,11 @@ static int rockchip_get_pvtm_pvtpll(struct device *dev, struct device_node *np,
 	int pvtm_value = 0;
 	int ret = 0;
 
+	if (!rockchip_nvmem_cell_read_u16(np, "pvtm", (u16 *)&pvtm_value) && pvtm_value) {
+		dev_info(dev, "pvtm = %d, get from otp\n", pvtm_value);
+		return pvtm_value;
+	}
+
 	pvtm = kzalloc(sizeof(*pvtm), GFP_KERNEL);
 	if (!pvtm)
 		return -ENOMEM;
