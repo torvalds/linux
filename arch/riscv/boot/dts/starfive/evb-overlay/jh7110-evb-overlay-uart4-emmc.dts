@@ -13,9 +13,59 @@
 				emmc0-pins-rest {
 					starfive,pins = <PAD_GPIO22>;
 					starfive,pinmux = <PAD_GPIO22_FUNC_SEL 0>;
-					starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+					starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)) | GPIO_DS(3) | GPIO_SLEW(1))>;
 					starfive,pin-gpio-dout = <GPO_SDIO0_RST_N>;
 					starfive,pin-gpio-doen = <OEN_LOW>;
+				};
+
+				emmc0-pins-cLK {
+					starfive,pins = <PAD_SD0_CLK>;
+					starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)) | GPIO_DS(3) | GPIO_SLEW(1))>;
+				};
+
+				emmc0-pins-cmd {
+					starfive,pins = <PAD_SD0_CMD>;
+					starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)) | GPIO_DS(3) | GPIO_SLEW(1))>;
+				};
+
+				emmc0-pins-data0 {
+					starfive,pins = <PAD_SD0_DATA0>;
+					starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)) | GPIO_DS(3) | GPIO_SLEW(1))>;
+				};
+
+				emmc0-pins-data1 {
+					starfive,pins = <PAD_SD0_DATA1>;
+					starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)) | GPIO_DS(3) | GPIO_SLEW(1))>;
+				};
+
+				emmc0-pins-data2 {
+					starfive,pins = <PAD_SD0_DATA2>;
+					starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)) | GPIO_DS(3) | GPIO_SLEW(1))>;
+				};
+
+				emmc0-pins-data3 {
+					starfive,pins = <PAD_SD0_DATA3>;
+					starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)) | GPIO_DS(3) | GPIO_SLEW(1))>;
+				};
+
+				emmc0-pins-data4 {
+					starfive,pins = <PAD_SD0_DATA4>;
+					starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)) | GPIO_DS(3) | GPIO_SLEW(1))>;
+				};
+
+				emmc0-pins-data5 {
+					starfive,pins = <PAD_SD0_DATA5>;
+					starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)) | GPIO_DS(3) | GPIO_SLEW(1))>;
+				};
+
+				emmc0-pins-data6 {
+					starfive,pins = <PAD_SD0_DATA6>;
+					starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)) | GPIO_DS(3) | GPIO_SLEW(1))>;
+				};
+
+				emmc0-pins-data7 {
+					starfive,pins = <PAD_SD0_DATA7>;
+					starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)) | GPIO_DS(3) | GPIO_SLEW(1))>;
 				};
 			};
 

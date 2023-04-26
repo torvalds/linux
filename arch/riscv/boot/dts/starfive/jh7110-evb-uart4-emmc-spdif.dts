@@ -27,6 +27,8 @@
 };
 
 &sdio0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc0_pins>;
 	max-frequency = <100000000>;
 	card-detect-delay = <300>;
 	bus-width = <8>;
