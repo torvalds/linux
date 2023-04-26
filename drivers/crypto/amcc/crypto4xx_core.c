@@ -1101,7 +1101,7 @@ static void crypto4xx_bh_tasklet_cb(unsigned long data)
 static inline irqreturn_t crypto4xx_interrupt_handler(int irq, void *data,
 						      u32 clr_val)
 {
-	struct device *dev = (struct device *)data;
+	struct device *dev = data;
 	struct crypto4xx_core_device *core_dev = dev_get_drvdata(dev);
 
 	writel(clr_val, core_dev->dev->ce_base + CRYPTO4XX_INT_CLR);

@@ -2269,7 +2269,7 @@ F:	arch/arm/boot/dts/intel-ixp*
 F:	arch/arm/mach-ixp4xx/
 F:	drivers/bus/intel-ixp4xx-eb.c
 F:	drivers/clocksource/timer-ixp4xx.c
-F:	drivers/crypto/ixp4xx_crypto.c
+F:	drivers/crypto/intel/ixp4xx/ixp4xx_crypto.c
 F:	drivers/gpio/gpio-ixp4xx.c
 F:	drivers/irqchip/irq-ixp4xx.c
 
@@ -10391,7 +10391,7 @@ INTEL IXP4XX CRYPTO SUPPORT
 M:	Corentin Labbe <clabbe@baylibre.com>
 L:	linux-crypto@vger.kernel.org
 S:	Maintained
-F:	drivers/crypto/ixp4xx_crypto.c
+F:	drivers/crypto/intel/ixp4xx/ixp4xx_crypto.c
 
 INTEL ISHTP ECLITE DRIVER
 M:	Sumesh K Naduvalath <sumesh.k.naduvalath@intel.com>
@@ -10426,11 +10426,11 @@ INTEL KEEM BAY OCS AES/SM4 CRYPTO DRIVER
 M:	Daniele Alessandrelli <daniele.alessandrelli@intel.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/crypto/intel,keembay-ocs-aes.yaml
-F:	drivers/crypto/keembay/Kconfig
-F:	drivers/crypto/keembay/Makefile
-F:	drivers/crypto/keembay/keembay-ocs-aes-core.c
-F:	drivers/crypto/keembay/ocs-aes.c
-F:	drivers/crypto/keembay/ocs-aes.h
+F:	drivers/crypto/intel/keembay/Kconfig
+F:	drivers/crypto/intel/keembay/Makefile
+F:	drivers/crypto/intel/keembay/keembay-ocs-aes-core.c
+F:	drivers/crypto/intel/keembay/ocs-aes.c
+F:	drivers/crypto/intel/keembay/ocs-aes.h
 
 INTEL KEEM BAY OCS ECC CRYPTO DRIVER
 M:	Daniele Alessandrelli <daniele.alessandrelli@intel.com>
@@ -10438,20 +10438,20 @@ M:	Prabhjot Khurana <prabhjot.khurana@intel.com>
 M:	Mark Gross <mgross@linux.intel.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/crypto/intel,keembay-ocs-ecc.yaml
-F:	drivers/crypto/keembay/Kconfig
-F:	drivers/crypto/keembay/Makefile
-F:	drivers/crypto/keembay/keembay-ocs-ecc.c
+F:	drivers/crypto/intel/keembay/Kconfig
+F:	drivers/crypto/intel/keembay/Makefile
+F:	drivers/crypto/intel/keembay/keembay-ocs-ecc.c
 
 INTEL KEEM BAY OCS HCU CRYPTO DRIVER
 M:	Daniele Alessandrelli <daniele.alessandrelli@intel.com>
 M:	Declan Murphy <declan.murphy@intel.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/crypto/intel,keembay-ocs-hcu.yaml
-F:	drivers/crypto/keembay/Kconfig
-F:	drivers/crypto/keembay/Makefile
-F:	drivers/crypto/keembay/keembay-ocs-hcu-core.c
-F:	drivers/crypto/keembay/ocs-hcu.c
-F:	drivers/crypto/keembay/ocs-hcu.h
+F:	drivers/crypto/intel/keembay/Kconfig
+F:	drivers/crypto/intel/keembay/Makefile
+F:	drivers/crypto/intel/keembay/keembay-ocs-hcu-core.c
+F:	drivers/crypto/intel/keembay/ocs-hcu.c
+F:	drivers/crypto/intel/keembay/ocs-hcu.h
 
 INTEL THUNDER BAY EMMC PHY DRIVER
 M:	Nandhini Srikandan <nandhini.srikandan@intel.com>
@@ -17027,7 +17027,7 @@ QAT DRIVER
 M:	Giovanni Cabiddu <giovanni.cabiddu@intel.com>
 L:	qat-linux@intel.com
 S:	Supported
-F:	drivers/crypto/qat/
+F:	drivers/crypto/intel/qat/
 
 QCOM AUDIO (ASoC) DRIVERS
 M:	Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
@@ -17295,6 +17295,7 @@ M:	Thara Gopinath <thara.gopinath@gmail.com>
 L:	linux-crypto@vger.kernel.org
 L:	linux-arm-msm@vger.kernel.org
 S:	Maintained
+F:	Documentation/devicetree/bindings/crypto/qcom-qce.yaml
 F:	drivers/crypto/qce/
 
 QUALCOMM EMAC GIGABIT ETHERNET DRIVER
