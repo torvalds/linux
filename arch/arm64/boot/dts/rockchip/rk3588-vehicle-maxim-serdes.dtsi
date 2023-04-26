@@ -277,11 +277,27 @@
 			#size-cells = <0>;
 
 			panel@48 {
-				compatible = "maxim,deserializer-panel";
+				compatible = "boe,av156fht-l83";
 				reg = <0x48>;
 				backlight = <&i2c2_max96755f_backlight>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&i2c2_max96755f_panel_pins>;
+
+				panel-timing {
+					clock-frequency = <148500000>;
+					hactive = <1920>;
+					vactive = <1080>;
+					hfront-porch = <20>;
+					hsync-len = <20>;
+					hback-porch = <20>;
+					vfront-porch = <250>;
+					vsync-len = <2>;
+					vback-porch = <8>;
+					hsync-active = <0>;
+					vsync-active = <0>;
+					de-active = <0>;
+					pixelclk-active = <0>;
+				};
 
 				port {
 					i2c2_max96755f_panel_in: endpoint {
@@ -359,11 +375,27 @@
 			#size-cells = <0>;
 
 			panel@48 {
-				compatible = "maxim,deserializer-panel";
+				compatible = "boe,av156fht-l83";
 				reg = <0x48>;
 				backlight = <&i2c3_max96745_backlight>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&i2c3_max96745_panel_pins>;
+
+				panel-timing {
+					clock-frequency = <148500000>;
+					hactive = <1920>;
+					vactive = <1080>;
+					hfront-porch = <20>;
+					hsync-len = <20>;
+					hback-porch = <20>;
+					vfront-porch = <250>;
+					vsync-len = <2>;
+					vback-porch = <8>;
+					hsync-active = <0>;
+					vsync-active = <0>;
+					de-active = <0>;
+					pixelclk-active = <0>;
+				};
 
 				port {
 					i2c3_max96745_panel_in: endpoint {
@@ -440,11 +472,27 @@
 			#size-cells = <0>;
 
 			panel@48 {
-				compatible = "maxim,deserializer-panel";
+				compatible = "boe,av156fht-l83";
 				reg = <0x48>;
 				backlight = <&i2c5_max96745_backlight>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&i2c5_max96745_panel_pins>;
+
+				panel-timing {
+					clock-frequency = <148500000>;
+					hactive = <1920>;
+					vactive = <1080>;
+					hfront-porch = <20>;
+					hsync-len = <20>;
+					hback-porch = <20>;
+					vfront-porch = <250>;
+					vsync-len = <2>;
+					vback-porch = <8>;
+					hsync-active = <0>;
+					vsync-active = <0>;
+					de-active = <0>;
+					pixelclk-active = <0>;
+				};
 
 				port {
 					i2c5_max96745_panel_in: endpoint {
@@ -523,11 +571,27 @@
 			#size-cells = <0>;
 
 			panel@48 {
-				compatible = "maxim,deserializer-panel";
+				compatible = "boe,av156fht-l83";
 				reg = <0x48>;
 				backlight = <&i2c6_max96755f_backlight>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&i2c6_max96755f_panel_pins>;
+
+				panel-timing {
+					clock-frequency = <148500000>;
+					hactive = <1920>;
+					vactive = <1080>;
+					hfront-porch = <20>;
+					hsync-len = <20>;
+					hback-porch = <20>;
+					vfront-porch = <250>;
+					vsync-len = <2>;
+					vback-porch = <8>;
+					hsync-active = <0>;
+					vsync-active = <0>;
+					de-active = <0>;
+					pixelclk-active = <0>;
+				};
 
 				port {
 					i2c6_max96755f_panel_in: endpoint {
@@ -605,11 +669,27 @@
 			#size-cells = <0>;
 
 			panel@48 {
-				compatible = "maxim,deserializer-panel";
+				compatible = "boe,av156fht-l83";
 				reg = <0x48>;
 				backlight = <&i2c7_max96745_backlight>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&i2c7_max96745_panel_pins>;
+
+				panel-timing {
+					clock-frequency = <148500000>;
+					hactive = <1920>;
+					vactive = <1080>;
+					hfront-porch = <20>;
+					hsync-len = <20>;
+					hback-porch = <20>;
+					vfront-porch = <250>;
+					vsync-len = <2>;
+					vback-porch = <8>;
+					hsync-active = <0>;
+					vsync-active = <0>;
+					de-active = <0>;
+					pixelclk-active = <0>;
+				};
 
 				port {
 					i2c7_max96745_panel_in: endpoint {
@@ -687,11 +767,27 @@
 			#size-cells = <0>;
 
 			panel@48 {
-				compatible = "maxim,deserializer-panel";
+				compatible = "boe,av156fht-l83";
 				reg = <0x48>;
 				backlight = <&i2c8_max96745_backlight>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&i2c8_max96745_panel_pins>;
+
+				panel-timing {
+					clock-frequency = <148500000>;
+					hactive = <1920>;
+					vactive = <1080>;
+					hfront-porch = <20>;
+					hsync-len = <20>;
+					hback-porch = <20>;
+					vfront-porch = <250>;
+					vsync-len = <2>;
+					vback-porch = <8>;
+					hsync-active = <0>;
+					vsync-active = <0>;
+					de-active = <0>;
+					pixelclk-active = <0>;
+				};
 
 				port {
 					i2c8_max96745_panel_in: endpoint {
