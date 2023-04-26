@@ -1614,8 +1614,11 @@ static int cpucp_memlat_init(struct scmi_device *sdev)
 		return -EINVAL;
 
 	ops = sdev->handle->devm_protocol_get(sdev, QCOM_SCMI_VENDOR_PROTOCOL, &ph);
-	if (IS_ERR(ops))
-		return PTR_ERR(ops);
+	if (IS_ERR(ops)) {
+		ret = PTR_ERR(ops);
+		ops = NULL;
+		return ret;
+	}
 
 	mutex_lock(&memlat_lock);
 	memlat_data->ph = ph;

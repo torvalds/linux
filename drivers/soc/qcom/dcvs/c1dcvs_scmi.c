@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/scmi_protocol.h>
@@ -252,8 +252,11 @@ static int scmi_c1dcvs_probe(struct scmi_device *sdev)
 		return -ENODEV;
 
 	ops = sdev->handle->devm_protocol_get(sdev, SCMI_C1DCVS_PROTOCOL, &ph);
-	if (!ops)
-		return -ENODEV;
+	if (IS_ERR(ops)) {
+		ret = PTR_ERR(ops);
+		ops = NULL;
+		return ret;
+	}
 
 	ret = kobject_init_and_add(&c1dcvs_kobj, &c1dcvs_settings_ktype,
 				   &cpu_subsys.dev_root->kobj, "c1dcvs");

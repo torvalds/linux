@@ -34,13 +34,14 @@ static struct scmi_device *sdev;
 
 int qcom_mpam_set_cache_portion(u32 part_id, u32 cache_portion)
 {
-	int ret = 0;
+	int ret = -EPERM;
 	struct mpam_cache_portion msg;
 
 	msg.part_id = part_id;
 	msg.cache_portion = cache_portion;
 
-	ret = ops->set_param(ph, &msg, MPAM_ALGO_STR, PARAM_CACHE_PORTION,
+	if (ops)
+		ret = ops->set_param(ph, &msg, MPAM_ALGO_STR, PARAM_CACHE_PORTION,
 				sizeof(msg));
 
 	if (!ret)
@@ -65,6 +66,7 @@ static int mpam_dev_probe(struct platform_device *pdev)
 	ops = sdev->handle->devm_protocol_get(sdev, QCOM_SCMI_VENDOR_PROTOCOL, &ph);
 	if (IS_ERR(ops)) {
 		ret = PTR_ERR(ops);
+		ops = NULL;
 		dev_err(dev, "Error getting vendor protocol ops: %d\n", ret);
 		return ret;
 	}
