@@ -57,7 +57,7 @@ properties:
 
         properties:
           nxp,dvs-run-voltage:
-            $ref: "/schemas/types.yaml#/definitions/uint32"
+            $ref: /schemas/types.yaml#/definitions/uint32
             minimum: 600000
             maximum: 2187500
             description:
@@ -65,7 +65,7 @@ properties:
               dvs(dynamic voltage scaling) property.
 
           nxp,dvs-standby-voltage:
-            $ref: "/schemas/types.yaml#/definitions/uint32"
+            $ref: /schemas/types.yaml#/definitions/uint32
             minimum: 600000
             maximum: 2187500
             description:

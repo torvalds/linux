@@ -14,7 +14,7 @@ description:
   regulator.yaml, can also be used.
 
 allOf:
-  - $ref: "regulator.yaml#"
+  - $ref: regulator.yaml#
 
 properties:
   compatible:
