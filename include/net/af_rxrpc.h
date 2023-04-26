@@ -57,7 +57,8 @@ int rxrpc_kernel_recv_data(struct socket *, struct rxrpc_call *,
 			   struct iov_iter *, size_t *, bool, u32 *, u16 *);
 bool rxrpc_kernel_abort_call(struct socket *, struct rxrpc_call *,
 			     u32, int, enum rxrpc_abort_reason);
-void rxrpc_kernel_end_call(struct socket *, struct rxrpc_call *);
+void rxrpc_kernel_shutdown_call(struct socket *sock, struct rxrpc_call *call);
+void rxrpc_kernel_put_call(struct socket *sock, struct rxrpc_call *call);
 void rxrpc_kernel_get_peer(struct socket *, struct rxrpc_call *,
 			   struct sockaddr_rxrpc *);
 bool rxrpc_kernel_get_srtt(struct socket *, struct rxrpc_call *, u32 *);
