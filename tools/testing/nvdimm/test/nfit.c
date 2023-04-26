@@ -1878,14 +1878,14 @@ static size_t sizeof_spa(struct acpi_nfit_system_address *spa)
 static int nfit_test0_alloc(struct nfit_test *t)
 {
 	struct acpi_nfit_system_address *spa = NULL;
+	struct acpi_nfit_flush_address *flush;
 	size_t nfit_size = sizeof_spa(spa) * NUM_SPA
 			+ sizeof(struct acpi_nfit_memory_map) * NUM_MEM
 			+ sizeof(struct acpi_nfit_control_region) * NUM_DCR
 			+ offsetof(struct acpi_nfit_control_region,
 					window_size) * NUM_DCR
 			+ sizeof(struct acpi_nfit_data_region) * NUM_BDW
-			+ (sizeof(struct acpi_nfit_flush_address)
-					+ sizeof(u64) * NUM_HINTS) * NUM_DCR
+			+ struct_size(flush, hint_address, NUM_HINTS) * NUM_DCR
 			+ sizeof(struct acpi_nfit_capabilities);
 	int i;
 

@@ -419,10 +419,9 @@ static int acpi_thermal_trips_update(struct acpi_thermal *tz, int flag)
 					 * the next higher trip point
 					 */
 					tz->trips.active[i-1].temperature =
-						(tz->trips.active[i-2].temperature <
-						celsius_to_deci_kelvin(act) ?
-						tz->trips.active[i-2].temperature :
-						celsius_to_deci_kelvin(act));
+						min_t(unsigned long,
+						      tz->trips.active[i-2].temperature,
+						      celsius_to_deci_kelvin(act));
 
 				break;
 			} else {
