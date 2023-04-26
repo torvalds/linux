@@ -60,12 +60,6 @@ u32 xstate_required_size(u64 xstate_bv, bool compacted)
 	return ret;
 }
 
-/*
- * This one is tied to SSB in the user API, and not
- * visible in /proc/cpuinfo.
- */
-#define KVM_X86_FEATURE_AMD_PSFD	(13*32+28) /* Predictive Store Forwarding Disable */
-
 #define F feature_bit
 
 /* Scattered Flag - For features that are scattered by cpufeatures.h. */
@@ -266,7 +260,7 @@ static void __kvm_update_cpuid_runtime(struct kvm_vcpu *vcpu, struct kvm_cpuid_e
 		/* Update OSXSAVE bit */
 		if (boot_cpu_has(X86_FEATURE_XSAVE))
 			cpuid_entry_change(best, X86_FEATURE_OSXSAVE,
-				   kvm_read_cr4_bits(vcpu, X86_CR4_OSXSAVE));
+					   kvm_is_cr4_bit_set(vcpu, X86_CR4_OSXSAVE));
 
 		cpuid_entry_change(best, X86_FEATURE_APIC,
 			   vcpu->arch.apic_base & MSR_IA32_APICBASE_ENABLE);
@@ -275,7 +269,7 @@ static void __kvm_update_cpuid_runtime(struct kvm_vcpu *vcpu, struct kvm_cpuid_e
 	best = cpuid_entry2_find(entries, nent, 7, 0);
 	if (best && boot_cpu_has(X86_FEATURE_PKU) && best->function == 0x7)
 		cpuid_entry_change(best, X86_FEATURE_OSPKE,
-				   kvm_read_cr4_bits(vcpu, X86_CR4_PKE));
+				   kvm_is_cr4_bit_set(vcpu, X86_CR4_PKE));
 
 	best = cpuid_entry2_find(entries, nent, 0xD, 0);
 	if (best)
@@ -715,7 +709,7 @@ void kvm_set_cpu_caps(void)
 		F(CLZERO) | F(XSAVEERPTR) |
 		F(WBNOINVD) | F(AMD_IBPB) | F(AMD_IBRS) | F(AMD_SSBD) | F(VIRT_SSBD) |
 		F(AMD_SSB_NO) | F(AMD_STIBP) | F(AMD_STIBP_ALWAYS_ON) |
-		__feature_bit(KVM_X86_FEATURE_AMD_PSFD)
+		F(AMD_PSFD)
 	);
 
 	/*

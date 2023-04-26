@@ -4522,7 +4522,6 @@ static bool svm_can_emulate_instruction(struct kvm_vcpu *vcpu, int emul_type,
 					void *insn, int insn_len)
 {
 	bool smep, smap, is_user;
-	unsigned long cr4;
 	u64 error_code;
 
 	/* Emulation is always possible when KVM has access to all guest state. */
@@ -4614,9 +4613,8 @@ static bool svm_can_emulate_instruction(struct kvm_vcpu *vcpu, int emul_type,
 	if (error_code & (PFERR_GUEST_PAGE_MASK | PFERR_FETCH_MASK))
 		goto resume_guest;
 
-	cr4 = kvm_read_cr4(vcpu);
-	smep = cr4 & X86_CR4_SMEP;
-	smap = cr4 & X86_CR4_SMAP;
+	smep = kvm_is_cr4_bit_set(vcpu, X86_CR4_SMEP);
+	smap = kvm_is_cr4_bit_set(vcpu, X86_CR4_SMAP);
 	is_user = svm_get_cpl(vcpu) == 3;
 	if (smap && (!smep || is_user)) {
 		pr_err_ratelimited("SEV Guest triggered AMD Erratum 1096\n");
