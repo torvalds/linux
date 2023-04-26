@@ -286,7 +286,12 @@ static void sditf_free_buf(struct sditf_priv *priv)
 	} else {
 		rkcif_free_rx_buf(&cif_dev->stream[0], priv->buf_num);
 	}
-	cif_dev->is_thunderboot = false;
+	if (cif_dev->is_thunderboot) {
+		cif_dev->wait_line_cache = 0;
+		cif_dev->wait_line = 0;
+		cif_dev->wait_line_bak = 0;
+		cif_dev->is_thunderboot = false;
+	}
 }
 
 static int sditf_get_selection(struct v4l2_subdev *sd,
