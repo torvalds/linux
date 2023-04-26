@@ -2570,6 +2570,7 @@ static struct ceph_msg *create_request_message(struct ceph_mds_session *session,
 	u64 ino1 = 0, ino2 = 0;
 	int pathlen1 = 0, pathlen2 = 0;
 	bool freepath1 = false, freepath2 = false;
+	struct dentry *old_dentry = NULL;
 	int len;
 	u16 releases;
 	void *p, *end;
@@ -2587,7 +2588,10 @@ static struct ceph_msg *create_request_message(struct ceph_mds_session *session,
 	}
 
 	/* If r_old_dentry is set, then assume that its parent is locked */
-	ret = set_request_path_attr(NULL, req->r_old_dentry,
+	if (req->r_old_dentry &&
+	    !(req->r_old_dentry->d_flags & DCACHE_DISCONNECTED))
+		old_dentry = req->r_old_dentry;
+	ret = set_request_path_attr(NULL, old_dentry,
 			      req->r_old_dentry_dir,
 			      req->r_path2, req->r_ino2.ino,
 			      &path2, &pathlen2, &ino2, &freepath2, true);
