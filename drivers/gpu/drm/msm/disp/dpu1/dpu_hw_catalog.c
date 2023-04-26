@@ -75,10 +75,14 @@
 #define MIXER_QCM2290_MASK \
 	(BIT(DPU_DIM_LAYER) | BIT(DPU_MIXER_COMBINED_ALPHA))
 
-#define PINGPONG_SDM845_MASK BIT(DPU_PINGPONG_DITHER)
+#define PINGPONG_SDM845_MASK \
+	(BIT(DPU_PINGPONG_DITHER) | BIT(DPU_PINGPONG_TE))
 
-#define PINGPONG_SDM845_SPLIT_MASK \
+#define PINGPONG_SDM845_TE2_MASK \
 	(PINGPONG_SDM845_MASK | BIT(DPU_PINGPONG_TE2))
+
+#define PINGPONG_SM8150_MASK \
+	(BIT(DPU_PINGPONG_DITHER))
 
 #define CTL_SC7280_MASK \
 	(BIT(DPU_CTL_ACTIVE_CFG) | \
@@ -492,21 +496,11 @@ static const struct dpu_pingpong_sub_blks sc7280_pp_sblk = {
 	.intr_done = _done, \
 	.intr_rdptr = _rdptr, \
 	}
-#define PP_BLK_TE(_name, _id, _base, _merge_3d, _sblk, _done, _rdptr) \
+#define PP_BLK(_name, _id, _base, _features, _merge_3d, _sblk, _done, _rdptr) \
 	{\
 	.name = _name, .id = _id, \
 	.base = _base, .len = 0xd4, \
-	.features = PINGPONG_SDM845_SPLIT_MASK, \
-	.merge_3d = _merge_3d, \
-	.sblk = &_sblk, \
-	.intr_done = _done, \
-	.intr_rdptr = _rdptr, \
-	}
-#define PP_BLK(_name, _id, _base, _merge_3d, _sblk, _done, _rdptr) \
-	{\
-	.name = _name, .id = _id, \
-	.base = _base, .len = 0xd4, \
-	.features = PINGPONG_SDM845_MASK, \
+	.features = _features, \
 	.merge_3d = _merge_3d, \
 	.sblk = &_sblk, \
 	.intr_done = _done, \
