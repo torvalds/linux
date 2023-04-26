@@ -755,10 +755,15 @@ static int xe_pci_runtime_idle(struct device *dev)
 	struct xe_device *xe = pdev_to_xe_device(pdev);
 
 	/*
-	 * FIXME: d3cold should be allowed (true) if
+	 * TODO: d3cold should be allowed (true) if
 	 * (IS_DGFX(xe) && !xe_device_mem_access_ongoing(xe))
-	 * however the change to the buddy allocator broke the
-	 * xe_bo_restore_kernel when the pci device is disabled
+	 * but maybe include some other conditions. So, before
+	 * we can re-enable the D3cold, we need to:
+	 * 1. rewrite the VRAM save / restore to avoid buffer object locks
+	 * 2. block D3cold if we have a big amount of device memory in use
+	 *    in order to reduce the latency.
+	 * 3. at resume, detect if we really lost power and avoid memory
+	 *    restoration if we were only up to d3cold
 	 */
 	 xe->d3cold_allowed = false;
 
