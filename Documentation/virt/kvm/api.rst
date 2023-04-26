@@ -7330,6 +7330,7 @@ and injected exceptions.
        will clear DR6.RTM.
 
 7.18 KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2
+--------------------------------------
 
 :Architectures: x86, arm64, mips
 :Parameters: args[0] whether feature should be enabled or not
