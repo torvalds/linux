@@ -615,6 +615,7 @@ struct dpu_dsc_cfg {
  * @prog_fetch_lines_worst_case	Worst case latency num lines needed to prefetch
  * @intr_underrun:	index for INTF underrun interrupt
  * @intr_vsync:	        index for INTF VSYNC interrupt
+ * @intr_tear_rd_ptr:  Index for INTF TEAR_RD_PTR interrupt
  */
 struct dpu_intf_cfg  {
 	DPU_HW_BLK_INFO;
@@ -623,6 +624,7 @@ struct dpu_intf_cfg  {
 	u32 prog_fetch_lines_worst_case;
 	s32 intr_underrun;
 	s32 intr_vsync;
+	s32 intr_tear_rd_ptr;
 };
 
 /**

@@ -541,6 +541,21 @@ static const struct dpu_pingpong_sub_blks sc7280_pp_sblk = {
 	.prog_fetch_lines_worst_case = _progfetch, \
 	.intr_underrun = _underrun, \
 	.intr_vsync = _vsync, \
+	.intr_tear_rd_ptr = -1, \
+	}
+
+/* DSI Interface sub-block with TEAR registers (since DPU 5.0.0) */
+#define INTF_BLK_DSI_TE(_name, _id, _base, _len, _type, _ctrl_id, _progfetch, _features, _underrun, _vsync, _tear_rd_ptr) \
+	{\
+	.name = _name, .id = _id, \
+	.base = _base, .len = _len, \
+	.features = _features, \
+	.type = _type, \
+	.controller_id = _ctrl_id, \
+	.prog_fetch_lines_worst_case = _progfetch, \
+	.intr_underrun = _underrun, \
+	.intr_vsync = _vsync, \
+	.intr_tear_rd_ptr = _tear_rd_ptr, \
 	}
 
 /*************************************************************
