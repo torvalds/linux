@@ -25,8 +25,10 @@ Supported devices
 Currently the driver supports the following handhelds:
 
  - AOK ZOE A1
+ - Aya Neo 2
  - Aya Neo AIR
  - Aya Neo AIR Pro
+ - Aya Neo Geek
  - OneXPlayer AMD
  - OneXPlayer mini AMD
  - OneXPlayer mini AMD PRO
