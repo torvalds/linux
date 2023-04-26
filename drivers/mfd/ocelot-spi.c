@@ -125,7 +125,7 @@ static int ocelot_spi_initialize(struct device *dev)
 static const struct regmap_config ocelot_spi_regmap_config = {
 	.reg_bits = 24,
 	.reg_stride = 4,
-	.reg_downshift = 2,
+	.reg_shift = REGMAP_DOWNSHIFT(2),
 	.val_bits = 32,
 
 	.write_flag_mask = 0x80,
