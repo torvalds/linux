@@ -4305,7 +4305,6 @@ int rcutree_prepare_cpu(unsigned int cpu)
 	 */
 	rnp = rdp->mynode;
 	raw_spin_lock_rcu_node(rnp);		/* irqs already disabled. */
-	rdp->beenonline = true;	 /* We have now been online. */
 	rdp->gp_seq = READ_ONCE(rnp->gp_seq);
 	rdp->gp_seq_needed = rdp->gp_seq;
 	rdp->cpu_no_qs.b.norm = true;
@@ -4330,6 +4329,16 @@ static void rcutree_affinity_setting(unsigned int cpu, int outgoing)
 	struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
 
 	rcu_boost_kthread_setaffinity(rdp->mynode, outgoing);
+}
+
+/*
+ * Has the specified (known valid) CPU ever been fully online?
+ */
+bool rcu_cpu_beenfullyonline(int cpu)
+{
+	struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
+
+	return smp_load_acquire(&rdp->beenonline);
 }
 
 /*
@@ -4435,6 +4444,7 @@ void rcu_cpu_starting(unsigned int cpu)
 		raw_spin_unlock_rcu_node(rnp);
 	}
 	arch_spin_unlock(&rcu_state.ofl_lock);
+	smp_store_release(&rdp->beenonline, true);
 	smp_mb(); /* Ensure RCU read-side usage follows above initialization. */
 }
 
