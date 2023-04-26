@@ -126,23 +126,6 @@ static bool dpu_hw_pp_get_autorefresh_config(struct dpu_hw_pingpong *pp,
 	return !!((val & BIT(31)) >> 31);
 }
 
-static int dpu_hw_pp_poll_timeout_wr_ptr(struct dpu_hw_pingpong *pp,
-		u32 timeout_us)
-{
-	struct dpu_hw_blk_reg_map *c;
-	u32 val;
-	int rc;
-
-	if (!pp)
-		return -EINVAL;
-
-	c = &pp->hw;
-	rc = readl_poll_timeout(c->blk_addr + PP_LINE_COUNT,
-			val, (val & 0xffff) >= 1, 10, timeout_us);
-
-	return rc;
-}
-
 static int dpu_hw_pp_enable_te(struct dpu_hw_pingpong *pp, bool enable)
 {
 	struct dpu_hw_blk_reg_map *c;
@@ -262,7 +245,6 @@ static void _setup_pingpong_ops(struct dpu_hw_pingpong *c,
 	c->ops.get_vsync_info = dpu_hw_pp_get_vsync_info;
 	c->ops.setup_autorefresh = dpu_hw_pp_setup_autorefresh_config;
 	c->ops.get_autorefresh = dpu_hw_pp_get_autorefresh_config;
-	c->ops.poll_timeout_wr_ptr = dpu_hw_pp_poll_timeout_wr_ptr;
 	c->ops.get_line_count = dpu_hw_pp_get_line_count;
 	c->ops.setup_dsc = dpu_hw_pp_setup_dsc;
 	c->ops.enable_dsc = dpu_hw_pp_dsc_enable;
