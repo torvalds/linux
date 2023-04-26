@@ -36,10 +36,6 @@
 #define DEFAULT_TEARCHECK_SYNC_THRESH_START	4
 #define DEFAULT_TEARCHECK_SYNC_THRESH_CONTINUE	4
 
-#define DPU_ENC_WR_PTR_START_TIMEOUT_US 20000
-
-#define DPU_ENC_MAX_POLL_TIMEOUT_US	2000
-
 static void dpu_encoder_phys_cmd_enable_te(struct dpu_encoder_phys *phys_enc);
 
 static bool dpu_encoder_phys_cmd_is_master(struct dpu_encoder_phys *phys_enc)
@@ -574,28 +570,8 @@ static void dpu_encoder_phys_cmd_prepare_for_kickoff(
 			atomic_read(&phys_enc->pending_kickoff_cnt));
 }
 
-static bool dpu_encoder_phys_cmd_is_ongoing_pptx(
-		struct dpu_encoder_phys *phys_enc)
-{
-	struct dpu_hw_pp_vsync_info info;
-
-	if (!phys_enc)
-		return false;
-
-	phys_enc->hw_pp->ops.get_vsync_info(phys_enc->hw_pp, &info);
-	if (info.wr_ptr_line_count > 0 &&
-	    info.wr_ptr_line_count < phys_enc->cached_mode.vdisplay)
-		return true;
-
-	return false;
-}
-
 static void dpu_encoder_phys_cmd_enable_te(struct dpu_encoder_phys *phys_enc)
 {
-	struct dpu_encoder_phys_cmd *cmd_enc =
-		to_dpu_encoder_phys_cmd(phys_enc);
-	int trial = 0;
-
 	if (!phys_enc)
 		return;
 	if (!phys_enc->hw_pp)
@@ -603,37 +579,11 @@ static void dpu_encoder_phys_cmd_enable_te(struct dpu_encoder_phys *phys_enc)
 	if (!dpu_encoder_phys_cmd_is_master(phys_enc))
 		return;
 
-	/* If autorefresh is already disabled, we have nothing to do */
-	if (!phys_enc->hw_pp->ops.get_autorefresh(phys_enc->hw_pp, NULL))
-		return;
-
-	/*
-	 * If autorefresh is enabled, disable it and make sure it is safe to
-	 * proceed with current frame commit/push. Sequence fallowed is,
-	 * 1. Disable TE
-	 * 2. Disable autorefresh config
-	 * 4. Poll for frame transfer ongoing to be false
-	 * 5. Enable TE back
-	 */
-	_dpu_encoder_phys_cmd_connect_te(phys_enc, false);
-	phys_enc->hw_pp->ops.setup_autorefresh(phys_enc->hw_pp, 0, false);
-
-	do {
-		udelay(DPU_ENC_MAX_POLL_TIMEOUT_US);
-		if ((trial * DPU_ENC_MAX_POLL_TIMEOUT_US)
-				> (KICKOFF_TIMEOUT_MS * USEC_PER_MSEC)) {
-			DPU_ERROR_CMDENC(cmd_enc,
-					"disable autorefresh failed\n");
-			break;
-		}
-
-		trial++;
-	} while (dpu_encoder_phys_cmd_is_ongoing_pptx(phys_enc));
-
-	_dpu_encoder_phys_cmd_connect_te(phys_enc, true);
-
-	DPU_DEBUG_CMDENC(to_dpu_encoder_phys_cmd(phys_enc),
-			 "disabled autorefresh\n");
+	if (phys_enc->hw_pp->ops.disable_autorefresh) {
+		phys_enc->hw_pp->ops.disable_autorefresh(phys_enc->hw_pp,
+							 DRMID(phys_enc->parent),
+							 phys_enc->cached_mode.vdisplay);
+	}
 }
 
 static int _dpu_encoder_phys_cmd_wait_for_ctl_start(

@@ -210,6 +210,49 @@ static u32 dpu_hw_pp_get_line_count(struct dpu_hw_pingpong *pp)
 	return line;
 }
 
+static void dpu_hw_pp_disable_autorefresh(struct dpu_hw_pingpong *pp,
+					  uint32_t encoder_id, u16 vdisplay)
+{
+	struct dpu_hw_pp_vsync_info info;
+	int trial = 0;
+
+	/* If autorefresh is already disabled, we have nothing to do */
+	if (!dpu_hw_pp_get_autorefresh_config(pp, NULL))
+		return;
+
+	/*
+	 * If autorefresh is enabled, disable it and make sure it is safe to
+	 * proceed with current frame commit/push. Sequence followed is,
+	 * 1. Disable TE
+	 * 2. Disable autorefresh config
+	 * 4. Poll for frame transfer ongoing to be false
+	 * 5. Enable TE back
+	 */
+
+	dpu_hw_pp_connect_external_te(pp, false);
+	dpu_hw_pp_setup_autorefresh_config(pp, 0, false);
+
+	do {
+		udelay(DPU_ENC_MAX_POLL_TIMEOUT_US);
+		if ((trial * DPU_ENC_MAX_POLL_TIMEOUT_US)
+				> (KICKOFF_TIMEOUT_MS * USEC_PER_MSEC)) {
+			DPU_ERROR("enc%d pp%d disable autorefresh failed\n",
+				  encoder_id, pp->idx - PINGPONG_0);
+			break;
+		}
+
+		trial++;
+
+		dpu_hw_pp_get_vsync_info(pp, &info);
+	} while (info.wr_ptr_line_count > 0 &&
+		 info.wr_ptr_line_count < vdisplay);
+
+	dpu_hw_pp_connect_external_te(pp, true);
+
+	DPU_DEBUG("enc%d pp%d disabled autorefresh\n",
+		  encoder_id, pp->idx - PINGPONG_0);
+}
+
 static int dpu_hw_pp_dsc_enable(struct dpu_hw_pingpong *pp)
 {
 	struct dpu_hw_blk_reg_map *c = &pp->hw;
@@ -242,10 +285,8 @@ static void _setup_pingpong_ops(struct dpu_hw_pingpong *c,
 	c->ops.setup_tearcheck = dpu_hw_pp_setup_te_config;
 	c->ops.enable_tearcheck = dpu_hw_pp_enable_te;
 	c->ops.connect_external_te = dpu_hw_pp_connect_external_te;
-	c->ops.get_vsync_info = dpu_hw_pp_get_vsync_info;
-	c->ops.setup_autorefresh = dpu_hw_pp_setup_autorefresh_config;
-	c->ops.get_autorefresh = dpu_hw_pp_get_autorefresh_config;
 	c->ops.get_line_count = dpu_hw_pp_get_line_count;
+	c->ops.disable_autorefresh = dpu_hw_pp_disable_autorefresh;
 	c->ops.setup_dsc = dpu_hw_pp_setup_dsc;
 	c->ops.enable_dsc = dpu_hw_pp_dsc_enable;
 	c->ops.disable_dsc = dpu_hw_pp_dsc_disable;
