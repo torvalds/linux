@@ -5646,22 +5646,43 @@ bool mlx5e_tc_update_skb_nic(struct mlx5_cqe64 *cqe, struct sk_buff *skb)
 				   0, NULL);
 }
 
+static struct mapping_ctx *
+mlx5e_get_priv_obj_mapping(struct mlx5e_priv *priv)
+{
+	struct mlx5e_tc_table *tc;
+	struct mlx5_eswitch *esw;
+	struct mapping_ctx *ctx;
+
+	if (is_mdev_switchdev_mode(priv->mdev)) {
+		esw = priv->mdev->priv.eswitch;
+		ctx = esw->offloads.reg_c0_obj_pool;
+	} else {
+		tc = mlx5e_fs_get_tc(priv->fs);
+		ctx = tc->mapping;
+	}
+
+	return ctx;
+}
+
 int mlx5e_tc_action_miss_mapping_get(struct mlx5e_priv *priv, struct mlx5_flow_attr *attr,
 				     u64 act_miss_cookie, u32 *act_miss_mapping)
 {
-	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5_mapped_obj mapped_obj = {};
+	struct mlx5_eswitch *esw;
 	struct mapping_ctx *ctx;
 	int err;
 
-	ctx = esw->offloads.reg_c0_obj_pool;
-
+	ctx = mlx5e_get_priv_obj_mapping(priv);
 	mapped_obj.type = MLX5_MAPPED_OBJ_ACT_MISS;
 	mapped_obj.act_miss_cookie = act_miss_cookie;
 	err = mapping_add(ctx, &mapped_obj, act_miss_mapping);
 	if (err)
 		return err;
 
+	if (!is_mdev_switchdev_mode(priv->mdev))
+		return 0;
+
+	esw = priv->mdev->priv.eswitch;
 	attr->act_id_restore_rule = esw_add_restore_rule(esw, *act_miss_mapping);
 	if (IS_ERR(attr->act_id_restore_rule))
 		goto err_rule;
@@ -5676,10 +5697,9 @@ err_rule:
 void mlx5e_tc_action_miss_mapping_put(struct mlx5e_priv *priv, struct mlx5_flow_attr *attr,
 				      u32 act_miss_mapping)
 {
-	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
-	struct mapping_ctx *ctx;
+	struct mapping_ctx *ctx = mlx5e_get_priv_obj_mapping(priv);
 
-	ctx = esw->offloads.reg_c0_obj_pool;
-	mlx5_del_flow_rules(attr->act_id_restore_rule);
+	if (is_mdev_switchdev_mode(priv->mdev))
+		mlx5_del_flow_rules(attr->act_id_restore_rule);
 	mapping_remove(ctx, act_miss_mapping);
 }
