@@ -560,6 +560,63 @@ static int rtlgen_resume(struct phy_device *phydev)
 	return ret;
 }
 
+static int rtl9010a_config_init(struct phy_device *phydev)
+{
+	phydev->autoneg = AUTONEG_DISABLE;
+	phydev->speed = SPEED_1000;
+	phydev->duplex = DUPLEX_FULL;
+
+	return 0;
+}
+
+static int rtl9010a_config_aneg(struct phy_device *phydev)
+{
+	return 0;
+}
+
+static int rtl9010a_get_features(struct phy_device *phydev)
+{
+	linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT1_Full_BIT,
+			 phydev->supported);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT1_Full_BIT,
+			 phydev->supported);
+
+	return 0;
+}
+
+static int rtl9010a_read_status(struct phy_device *phydev)
+{
+	int ret;
+	u16 val;
+	int link_status, local_status, remote_status;
+
+	ret = genphy_read_status(phydev);
+	if (ret < 0)
+		return ret;
+
+	val = phy_read(phydev, 0x01);
+	val = phy_read(phydev, 0x01);
+	link_status = val & 0x0004 ? 1 : 0;
+
+	if (phydev->speed == SPEED_1000) {
+		val = phy_read(phydev, 0x0a);
+		local_status = val & 0x2000 ? 1 : 0;
+		remote_status = val & 0x1000 ? 1 : 0;
+	} else {
+		phy_write(phydev, 0x1f, 0xa64);
+		val = phy_read(phydev, 0x17);
+		local_status = val & 0x0004 ? 1 : 0;
+		remote_status = val & 0x0400 ? 1 : 0;
+	}
+
+	if (link_status && local_status && remote_status)
+		phydev->link = 1;
+	else
+		phydev->link = 0;
+
+	return 0;
+}
+
 static struct phy_driver realtek_drvs[] = {
 	{
 		PHY_ID_MATCH_EXACT(0x00008201),
@@ -687,6 +744,17 @@ static struct phy_driver realtek_drvs[] = {
 		.config_intr	= genphy_no_config_intr,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
+	}, {
+		PHY_ID_MATCH_EXACT(0x001ccb30),
+		.name		= "RTL9010AA_RTL9010AR_RTL9010AS Ethernet",
+		.config_init	= rtl9010a_config_init,
+		.config_aneg	= rtl9010a_config_aneg,
+		.read_status	= rtl9010a_read_status,
+		.get_features	= rtl9010a_get_features,
+		.suspend	= genphy_suspend,
+		.resume		= genphy_resume,
+		.read_page	= rtl821x_read_page,
+		.write_page	= rtl821x_write_page,
 	},
 };
 
@@ -694,6 +762,7 @@ module_phy_driver(realtek_drvs);
 
 static const struct mdio_device_id __maybe_unused realtek_tbl[] = {
 	{ PHY_ID_MATCH_VENDOR(0x001cc800) },
+	{ PHY_ID_MATCH_VENDOR(0x001ccb30) },
 	{ }
 };
 
