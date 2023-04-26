@@ -1799,16 +1799,13 @@ static int gfx_v9_4_3_kcq_init_queue(struct amdgpu_ring *ring, int xcc_id)
 
 		if (adev->gfx.mec.mqd_backup[mqd_idx])
 			memcpy(adev->gfx.mec.mqd_backup[mqd_idx], mqd, sizeof(struct v9_mqd_allocation));
-	} else if (amdgpu_in_reset(adev)) { /* for GPU_RESET case */
-		/* reset MQD to a clean status */
+	} else {
+		/* restore MQD to a clean status */
 		if (adev->gfx.mec.mqd_backup[mqd_idx])
 			memcpy(mqd, adev->gfx.mec.mqd_backup[mqd_idx], sizeof(struct v9_mqd_allocation));
-
 		/* reset ring buffer */
 		ring->wptr = 0;
 		atomic64_set((atomic64_t *)&adev->wb.wb[ring->wptr_offs], 0);
-		amdgpu_ring_clear_ring(ring);
-	} else {
 		amdgpu_ring_clear_ring(ring);
 	}
 
