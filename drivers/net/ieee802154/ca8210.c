@@ -51,6 +51,7 @@
 #include <linux/clk-provider.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/gpio.h>
 #include <linux/ieee802154.h>
 #include <linux/io.h>
@@ -2854,7 +2855,7 @@ static int ca8210_interrupt_init(struct spi_device *spi)
 	);
 	if (ret) {
 		dev_crit(&spi->dev, "request_irq %d failed\n", pdata->irq_id);
-		gpio_unexport(pdata->gpio_irq);
+		gpiod_unexport(gpio_to_desc(pdata->gpio_irq));
 		gpio_free(pdata->gpio_irq);
 	}
 
