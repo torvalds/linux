@@ -93,9 +93,6 @@ static inline int xe_mmio_wait32(struct xe_gt *gt, u32 reg, u32 val, u32 mask,
 	u32 read;
 
 	for (;;) {
-		if ((xe_mmio_read32(gt, reg) & mask) == val)
-			return 0;
-
 		read = xe_mmio_read32(gt, reg);
 		if ((read & mask) == val) {
 			ret = 0;
