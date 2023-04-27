@@ -98,7 +98,8 @@ function merge_defconfig_fragments() {
     return
   fi
   local output=$(mktemp)
-  KCONFIG_CONFIG=${KERNEL_DIR}/arch/${ARCH}/configs/${DEFCONFIG} \
+  mkdir -p $(dirname ${OUT_DIR}/arch/${ARCH}/configs/${DEFCONFIG})
+  KCONFIG_CONFIG=${OUT_DIR}/arch/${ARCH}/configs/${DEFCONFIG} \
     ${KERNEL_DIR}/scripts/kconfig/merge_config.sh \
     -m -r -y ${DEFCONFIG_FRAGMENTS} | tee $output
   set +x
@@ -130,7 +131,7 @@ function check_merged_defconfig() {
     return
   fi
   local output=$(mktemp)
-  ${KERNEL_DIR}/scripts/diffconfig "${KERNEL_DIR}/arch/${ARCH}/configs/${DEFCONFIG}" ${OUT_DIR}/.config > $output
+  ${KERNEL_DIR}/scripts/diffconfig "${OUT_DIR}/arch/${ARCH}/configs/${DEFCONFIG}" ${OUT_DIR}/.config > $output
   set +x
   # Allow CONFIG_CMDLINE changes
   if grep -q -v -E -e "^\+" -e "^CMDLINE " $output; then
