@@ -7,7 +7,7 @@
 
 #include "regs/xe_reg_defs.h"
 
-#define PCODE_MAILBOX			_MMIO(0x138124)
+#define PCODE_MAILBOX			XE_REG(0x138124)
 #define   PCODE_READY			REG_BIT(31)
 #define   PCODE_MB_PARAM2		REG_GENMASK(23, 16)
 #define   PCODE_MB_PARAM1		REG_GENMASK(15, 8)
@@ -22,8 +22,8 @@
 #define     PCODE_GT_RATIO_OUT_OF_RANGE	0x10
 #define     PCODE_REJECTED		0x11
 
-#define PCODE_DATA0			_MMIO(0x138128)
-#define PCODE_DATA1			_MMIO(0x13812C)
+#define PCODE_DATA0			XE_REG(0x138128)
+#define PCODE_DATA1			XE_REG(0x13812C)
 
 /* Min Freq QOS Table */
 #define   PCODE_WRITE_MIN_FREQ_TABLE	0x8

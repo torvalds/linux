@@ -71,7 +71,7 @@ static void program_pat(struct xe_gt *gt, const u32 table[], int n_entries)
 static void program_pat_mcr(struct xe_gt *gt, const u32 table[], int n_entries)
 {
 	for (int i = 0; i < n_entries; i++)
-		xe_gt_mcr_multicast_write(gt, MCR_REG(_PAT_INDEX(i)), table[i]);
+		xe_gt_mcr_multicast_write(gt, XE_REG_MCR(_PAT_INDEX(i)), table[i]);
 }
 
 void xe_pat_init(struct xe_gt *gt)

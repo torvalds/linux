@@ -11,10 +11,10 @@
 #include "xe_platform_types.h"
 #include "xe_rtp.h"
 
-#undef _MMIO
-#undef MCR_REG
-#define _MMIO(x)	_XE_RTP_REG(x)
-#define MCR_REG(x)	_XE_RTP_MCR_REG(x)
+#undef XE_REG
+#undef XE_REG_MCR
+#define XE_REG(x, ...)		_XE_RTP_REG(x)
+#define XE_REG_MCR(x, ...)	_XE_RTP_MCR_REG(x)
 
 static bool match_not_render(const struct xe_gt *gt,
 			     const struct xe_hw_engine *hwe)
@@ -45,10 +45,10 @@ static const struct xe_rtp_entry register_whitelist[] = {
 	},
 	{ XE_RTP_NAME("16014440446"),
 	  XE_RTP_RULES(PLATFORM(PVC)),
-	  XE_RTP_ACTIONS(WHITELIST(_MMIO(0x4400),
+	  XE_RTP_ACTIONS(WHITELIST(XE_REG(0x4400),
 				   RING_FORCE_TO_NONPRIV_DENY |
 				   RING_FORCE_TO_NONPRIV_RANGE_64),
-			 WHITELIST(_MMIO(0x4500),
+			 WHITELIST(XE_REG(0x4500),
 				   RING_FORCE_TO_NONPRIV_DENY |
 				   RING_FORCE_TO_NONPRIV_RANGE_64))
 	},

@@ -22,9 +22,9 @@
  * Interrupt registers for a unit are always consecutive and ordered
  * ISR, IMR, IIR, IER.
  */
-#define IMR(offset)				_MMIO(offset + 0x4)
-#define IIR(offset)				_MMIO(offset + 0x8)
-#define IER(offset)				_MMIO(offset + 0xc)
+#define IMR(offset)				XE_REG(offset + 0x4)
+#define IIR(offset)				XE_REG(offset + 0x8)
+#define IER(offset)				XE_REG(offset + 0xc)
 
 static void assert_iir_is_zero(struct xe_gt *gt, struct xe_reg reg)
 {

@@ -197,7 +197,7 @@ struct xe_reg_sr;
  * XE_RTP_ACTION_WR - Helper to write a value to the register, overriding all
  *                    the bits
  * @reg_: Register
- * @reg_type_: Register type - automatically expanded by MCR_REG/_MMIO
+ * @reg_type_: Register type - automatically expanded by XE_REG
  * @val_: Value to set
  * @...: Additional fields to override in the struct xe_rtp_action entry
  *
@@ -213,7 +213,7 @@ struct xe_reg_sr;
 /**
  * XE_RTP_ACTION_SET - Set bits from @val_ in the register.
  * @reg_: Register
- * @reg_type_: Register type - automatically expanded by MCR_REG/_MMIO
+ * @reg_type_: Register type - automatically expanded by XE_REG
  * @val_: Bits to set in the register
  * @...: Additional fields to override in the struct xe_rtp_action entry
  *
@@ -232,7 +232,7 @@ struct xe_reg_sr;
 /**
  * XE_RTP_ACTION_CLR: Clear bits from @val_ in the register.
  * @reg_: Register
- * @reg_type_: Register type - automatically expanded by MCR_REG/_MMIO
+ * @reg_type_: Register type - automatically expanded by XE_REG
  * @val_: Bits to clear in the register
  * @...: Additional fields to override in the struct xe_rtp_action entry
  *
@@ -251,7 +251,7 @@ struct xe_reg_sr;
 /**
  * XE_RTP_ACTION_FIELD_SET: Set a bit range
  * @reg_: Register
- * @reg_type_: Register type - automatically expanded by MCR_REG/_MMIO
+ * @reg_type_: Register type - automatically expanded by XE_REG
  * @mask_bits_: Mask of bits to be changed in the register, forming a field
  * @val_: Value to set in the field denoted by @mask_bits_
  * @...: Additional fields to override in the struct xe_rtp_action entry
@@ -274,7 +274,7 @@ struct xe_reg_sr;
 /**
  * XE_RTP_ACTION_WHITELIST - Add register to userspace whitelist
  * @reg_: Register
- * @reg_type_: Register type - automatically expanded by MCR_REG/_MMIO
+ * @reg_type_: Register type - automatically expanded by XE_REG
  * @val_: Whitelist-specific flags to set
  * @...: Additional fields to override in the struct xe_rtp_action entry
  *

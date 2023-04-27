@@ -12,10 +12,10 @@
 #include "xe_platform_types.h"
 #include "xe_rtp.h"
 
-#undef _MMIO
-#undef MCR_REG
-#define _MMIO(x)	_XE_RTP_REG(x)
-#define MCR_REG(x)	_XE_RTP_MCR_REG(x)
+#undef XE_REG
+#undef XE_REG_MCR
+#define XE_REG(x, ...)		_XE_RTP_REG(x)
+#define XE_REG_MCR(x, ...)	_XE_RTP_MCR_REG(x)
 
 static const struct xe_rtp_entry gt_tunings[] = {
 	{ XE_RTP_NAME("Tuning: Blend Fill Caching Optimization Disable"),

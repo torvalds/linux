@@ -22,6 +22,8 @@
 #include "xe_uc_fw.h"
 #include "xe_wopcm.h"
 
+#define MEDIA_GUC_HOST_INTERRUPT        XE_REG(0x190304)
+
 static struct xe_gt *
 guc_to_gt(struct xe_guc *guc)
 {
@@ -243,8 +245,6 @@ static void guc_write_params(struct xe_guc *guc)
 	for (i = 0; i < GUC_CTL_MAX_DWORDS; i++)
 		xe_mmio_write32(gt, SOFT_SCRATCH(1 + i).reg, guc->params[i]);
 }
-
-#define MEDIA_GUC_HOST_INTERRUPT        _MMIO(0x190304)
 
 int xe_guc_init(struct xe_guc *guc)
 {

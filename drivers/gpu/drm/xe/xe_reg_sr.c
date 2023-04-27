@@ -151,7 +151,7 @@ static void apply_one_mmio(struct xe_gt *gt, u32 reg,
 		val = (entry->clr_bits ?: entry->set_bits) << 16;
 	else if (entry->clr_bits + 1)
 		val = (entry->reg_type == XE_RTP_REG_MCR ?
-		       xe_gt_mcr_unicast_read_any(gt, MCR_REG(reg)) :
+		       xe_gt_mcr_unicast_read_any(gt, XE_REG_MCR(reg)) :
 		       xe_mmio_read32(gt, reg)) & (~entry->clr_bits);
 	else
 		val = 0;
@@ -166,7 +166,7 @@ static void apply_one_mmio(struct xe_gt *gt, u32 reg,
 	drm_dbg(&xe->drm, "REG[0x%x] = 0x%08x", reg, val);
 
 	if (entry->reg_type == XE_RTP_REG_MCR)
-		xe_gt_mcr_multicast_write(gt, MCR_REG(reg), val);
+		xe_gt_mcr_multicast_write(gt, XE_REG_MCR(reg), val);
 	else
 		xe_mmio_write32(gt, reg, val);
 }

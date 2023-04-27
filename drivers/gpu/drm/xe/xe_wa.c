@@ -87,10 +87,10 @@
  *    a more declarative approach rather than procedural.
  */
 
-#undef _MMIO
-#undef MCR_REG
-#define _MMIO(x)	_XE_RTP_REG(x)
-#define MCR_REG(x)	_XE_RTP_MCR_REG(x)
+#undef XE_REG
+#undef XE_REG_MCR
+#define XE_REG(x, ...)		_XE_RTP_REG(x)
+#define XE_REG_MCR(x, ...)	_XE_RTP_MCR_REG(x)
 
 __diag_push();
 __diag_ignore_all("-Woverride-init", "Allow field overrides in table");

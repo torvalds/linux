@@ -94,13 +94,4 @@ struct xe_reg_mcr {
 				 .__reg = XE_REG_INITIALIZER(r_,  ##__VA_ARGS__, .mcr = 1)	\
 				 })
 
-/*
- * TODO: remove these once the register declarations are not using them anymore
- */
-#undef _MMIO
-#undef MCR_REG
-#define _MMIO(r_)	((const struct xe_reg){ .reg = r_ })
-#define MCR_REG(r_)	((const struct xe_reg_mcr){ .__reg.reg = r_,		\
-						    .__reg.mcr = 1 })
-
 #endif

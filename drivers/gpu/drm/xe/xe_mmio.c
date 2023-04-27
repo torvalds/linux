@@ -17,7 +17,7 @@
 #include "xe_macros.h"
 #include "xe_module.h"
 
-#define XEHP_MTCFG_ADDR		_MMIO(0x101800)
+#define XEHP_MTCFG_ADDR		XE_REG(0x101800)
 #define TILE_COUNT		REG_GENMASK(15, 8)
 #define GEN12_LMEM_BAR		2
 

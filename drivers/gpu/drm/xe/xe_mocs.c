@@ -477,8 +477,8 @@ static void __init_mocs_table(struct xe_gt *gt,
 	for (i = 0;
 	     i < info->n_entries ? (mocs = get_entry_control(info, i)), 1 : 0;
 	     i++) {
-		mocs_dbg(&gt->xe->drm, "%d 0x%x 0x%x\n", i, _MMIO(addr + i * 4).reg, mocs);
-		xe_mmio_write32(gt, _MMIO(addr + i * 4).reg, mocs);
+		mocs_dbg(&gt->xe->drm, "%d 0x%x 0x%x\n", i, XE_REG(addr + i * 4).reg, mocs);
+		xe_mmio_write32(gt, XE_REG(addr + i * 4).reg, mocs);
 	}
 }
 

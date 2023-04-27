@@ -18,17 +18,17 @@
 #include "xe_reg_sr.h"
 #include "xe_rtp.h"
 
-#undef _MMIO
-#undef MCR_REG
-#define _MMIO(x)	_XE_RTP_REG(x)
-#define MCR_REG(x)	_XE_RTP_MCR_REG(x)
+#undef XE_REG
+#undef XE_REG_MCR
+#define XE_REG(x, ...)		_XE_RTP_REG(x)
+#define XE_REG_MCR(x, ...)	_XE_RTP_MCR_REG(x)
 
-#define REGULAR_REG1	_MMIO(1)
-#define REGULAR_REG2	_MMIO(2)
-#define REGULAR_REG3	_MMIO(3)
-#define MCR_REG1	MCR_REG(1)
-#define MCR_REG2	MCR_REG(2)
-#define MCR_REG3	MCR_REG(3)
+#define REGULAR_REG1	XE_REG(1)
+#define REGULAR_REG2	XE_REG(2)
+#define REGULAR_REG3	XE_REG(3)
+#define MCR_REG1	XE_REG_MCR(1)
+#define MCR_REG2	XE_REG_MCR(2)
+#define MCR_REG3	XE_REG_MCR(3)
 
 struct rtp_test_case {
 	const char *name;
