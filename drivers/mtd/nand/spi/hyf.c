@@ -104,7 +104,7 @@ static int hyf2gq4uaacae_ooblayout_free(struct mtd_info *mtd, int section,
 	if (section > 3)
 		return -ERANGE;
 
-	region->offset = 16 * section;
+	region->offset = 32 * section;
 	region->length = 8;
 
 	return 0;
@@ -196,6 +196,26 @@ static const struct spinand_info hyf_spinand_table[] = {
 					      &update_cache_variants),
 		     SPINAND_HAS_QE_BIT,
 		     SPINAND_ECCINFO(&hyf2gq4uaacae_ooblayout,
+				     hyf1gq4udacae_ecc_get_status)),
+	SPINAND_INFO("HYF2GQ4IAACAE",
+		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_ADDR, 0x82),
+		     NAND_MEMORG(1, 2048, 128, 64, 2048, 20, 1, 1, 1),
+		     NAND_ECCREQ(14, 512),
+		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
+					      &write_cache_variants,
+					      &update_cache_variants),
+		     SPINAND_HAS_QE_BIT,
+		     SPINAND_ECCINFO(&hyf2gq4uaacae_ooblayout,
+				     hyf1gq4udacae_ecc_get_status)),
+	SPINAND_INFO("HYF1GQ4IDACAE",
+		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_ADDR, 0x81),
+		     NAND_MEMORG(1, 2048, 64, 64, 1024, 10, 1, 1, 1),
+		     NAND_ECCREQ(4, 512),
+		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
+					      &write_cache_variants,
+					      &update_cache_variants),
+		     SPINAND_HAS_QE_BIT,
+		     SPINAND_ECCINFO(&hyf1gq4udacae_ooblayout,
 				     hyf1gq4udacae_ecc_get_status)),
 };
 
