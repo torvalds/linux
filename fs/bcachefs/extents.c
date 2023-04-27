@@ -197,13 +197,6 @@ int bch2_btree_ptr_v2_invalid(const struct bch_fs *c, struct bkey_s_c k,
 		return -BCH_ERR_invalid_bkey;
 	}
 
-	if (c->sb.version < bcachefs_metadata_version_snapshot &&
-	    bp.v->min_key.snapshot) {
-		prt_printf(err, "invalid min_key.snapshot (%u != 0)",
-		       bp.v->min_key.snapshot);
-		return -BCH_ERR_invalid_bkey;
-	}
-
 	return bch2_bkey_ptrs_invalid(c, k, flags, err);
 }
 
