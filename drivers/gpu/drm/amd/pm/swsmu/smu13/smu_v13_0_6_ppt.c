@@ -387,7 +387,7 @@ static int smu_v13_0_6_get_dpm_ultimate_freq(struct smu_context *smu,
 			break;
 		case SMU_SOCCLK:
 			if (pptable->Init)
-				clock_limit = pptable->UclkFrequencyTable[0];
+				clock_limit = pptable->SocclkFrequencyTable[0];
 			break;
 		case SMU_FCLK:
 			if (pptable->Init)
