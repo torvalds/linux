@@ -1304,7 +1304,7 @@ static struct i2c_driver vc5_driver = {
 		.pm	= &vc5_pm_ops,
 		.of_match_table = clk_vc5_of_match,
 	},
-	.probe_new	= vc5_probe,
+	.probe		= vc5_probe,
 	.remove		= vc5_remove,
 	.id_table	= vc5_id,
 };

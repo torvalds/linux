@@ -824,7 +824,7 @@ static struct i2c_driver cdce925_driver = {
 		.name = "cdce925",
 		.of_match_table = of_match_ptr(clk_cdce925_of_match),
 	},
-	.probe_new	= cdce925_probe,
+	.probe		= cdce925_probe,
 	.id_table	= cdce925_id,
 };
 module_i2c_driver(cdce925_driver);

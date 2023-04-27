@@ -413,7 +413,7 @@ static struct i2c_driver rs9_driver = {
 		.pm	= &rs9_pm_ops,
 		.of_match_table = clk_rs9_of_match,
 	},
-	.probe_new	= rs9_probe,
+	.probe		= rs9_probe,
 	.id_table	= rs9_id,
 };
 module_i2c_driver(rs9_driver);
