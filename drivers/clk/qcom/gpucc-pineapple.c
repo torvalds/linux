@@ -611,6 +611,7 @@ static const struct qcom_reset_map gpu_cc_pineapple_resets[] = {
 	[GPUCC_GPU_CC_GMU_BCR] = { 0x9314 },
 	[GPUCC_GPU_CC_GX_BCR] = { 0x9058 },
 	[GPUCC_GPU_CC_XO_BCR] = { 0x9000 },
+	[GPUCC_GPU_CC_FREQUENCY_LIMITER_IRQ_CLEAR] = { 0x9538, 0 },
 };
 
 static const struct regmap_config gpu_cc_pineapple_regmap_config = {
@@ -656,6 +657,9 @@ static int gpu_cc_pineapple_probe(struct platform_device *pdev)
 	 */
 	regmap_update_bits(regmap, 0x9004, BIT(0), BIT(0));
 	regmap_update_bits(regmap, 0x900c, BIT(0), BIT(0));
+
+	/* Enable frequency limiter irq */
+	regmap_write(regmap, 0x9534, 0x0);
 
 	ret = qcom_cc_really_probe(pdev, &gpu_cc_pineapple_desc, regmap);
 	if (ret) {
