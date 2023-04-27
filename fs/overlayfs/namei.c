@@ -14,6 +14,8 @@
 #include <linux/exportfs.h>
 #include "overlayfs.h"
 
+#include "../internal.h"	/* for vfs_path_lookup */
+
 struct ovl_lookup_data {
 	struct super_block *sb;
 	struct vfsmount *mnt;
@@ -24,6 +26,8 @@ struct ovl_lookup_data {
 	bool last;
 	char *redirect;
 	bool metacopy;
+	/* Referring to last redirect xattr */
+	bool absolute_redirect;
 };
 
 static int ovl_check_redirect(const struct path *path, struct ovl_lookup_data *d,
@@ -33,11 +37,13 @@ static int ovl_check_redirect(const struct path *path, struct ovl_lookup_data *d
 	char *buf;
 	struct ovl_fs *ofs = OVL_FS(d->sb);
 
+	d->absolute_redirect = false;
 	buf = ovl_get_redirect_xattr(ofs, path, prelen + strlen(post));
 	if (IS_ERR_OR_NULL(buf))
 		return PTR_ERR(buf);
 
 	if (buf[0] == '/') {
+		d->absolute_redirect = true;
 		/*
 		 * One of the ancestor path elements in an absolute path
 		 * lookup in ovl_lookup_layer() could have been opaque and
@@ -349,6 +355,61 @@ static int ovl_lookup_layer(struct dentry *base, struct ovl_lookup_data *d,
 	return 0;
 }
 
+static int ovl_lookup_data_layer(struct dentry *dentry, const char *redirect,
+				 const struct ovl_layer *layer,
+				 struct path *datapath)
+{
+	int err;
+
+	err = vfs_path_lookup(layer->mnt->mnt_root, layer->mnt, redirect,
+			LOOKUP_BENEATH | LOOKUP_NO_SYMLINKS | LOOKUP_NO_XDEV,
+			datapath);
+	pr_debug("lookup lowerdata (%pd2, redirect=\"%s\", layer=%d, err=%i)\n",
+		 dentry, redirect, layer->idx, err);
+
+	if (err)
+		return err;
+
+	err = -EREMOTE;
+	if (ovl_dentry_weird(datapath->dentry))
+		goto out_path_put;
+
+	err = -ENOENT;
+	/* Only regular file is acceptable as lower data */
+	if (!d_is_reg(datapath->dentry))
+		goto out_path_put;
+
+	return 0;
+
+out_path_put:
+	path_put(datapath);
+
+	return err;
+}
+
+/* Lookup in data-only layers by absolute redirect to layer root */
+static int ovl_lookup_data_layers(struct dentry *dentry, const char *redirect,
+				  struct ovl_path *lowerdata)
+{
+	struct ovl_fs *ofs = OVL_FS(dentry->d_sb);
+	const struct ovl_layer *layer;
+	struct path datapath;
+	int err = -ENOENT;
+	int i;
+
+	layer = &ofs->layers[ofs->numlayer - ofs->numdatalayer];
+	for (i = 0; i < ofs->numdatalayer; i++, layer++) {
+		err = ovl_lookup_data_layer(dentry, redirect, layer, &datapath);
+		if (!err) {
+			mntput(datapath.mnt);
+			lowerdata->dentry = datapath.dentry;
+			lowerdata->layer = layer;
+			return 0;
+		}
+	}
+
+	return err;
+}
 
 int ovl_check_origin_fh(struct ovl_fs *ofs, struct ovl_fh *fh, bool connected,
 			struct dentry *upperdentry, struct ovl_path **stackp)
@@ -917,7 +978,7 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 
 		if (!ofs->config.redirect_follow)
 			d.last = i == ovl_numlower(poe) - 1;
-		else
+		else if (d.is_dir || !ofs->numdatalayer)
 			d.last = lower.layer->idx == ovl_numlower(roe);
 
 		d.mnt = lower.layer->mnt;
@@ -1008,6 +1069,16 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 			poe = roe;
 			/* Find the current layer on the root dentry */
 			i = lower.layer->idx - 1;
+		}
+	}
+
+	/* Lookup absolute redirect from lower metacopy in data-only layers */
+	if (d.metacopy && ctr && ofs->numdatalayer && d.absolute_redirect) {
+		err = ovl_lookup_data_layers(dentry, d.redirect,
+					     &stack[ctr]);
+		if (!err) {
+			d.metacopy = false;
+			ctr++;
 		}
 	}
 
