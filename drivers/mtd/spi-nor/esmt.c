@@ -24,6 +24,8 @@ static const struct flash_info esmt_parts[] = {
 		INFO(0x1c7019, 0, 64 * 1024, 512, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | SPI_NOR_4B_OPCODES) },
 	{ "en25qx256a",
 		INFO(0x1c7119, 0, 64 * 1024, 512, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | SPI_NOR_4B_OPCODES) },
+	{ "en25qx128a",
+		INFO(0x1c7118, 0, 64 * 1024, 256, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
 };
 
 const struct spi_nor_manufacturer spi_nor_esmt = {
