@@ -1568,6 +1568,16 @@ static int ovl_get_fsid(struct ovl_fs *ofs, const struct path *path)
 	return ofs->numfs++;
 }
 
+/*
+ * The fsid after the last lower fsid is used for the data layers.
+ * It is a "null fs" with a null sb, null uuid, and no pseudo dev.
+ */
+static int ovl_get_data_fsid(struct ovl_fs *ofs)
+{
+	return ofs->numfs;
+}
+
+
 static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
 			  struct path *stack, unsigned int numlower,
 			  struct ovl_layer *layers)
@@ -1575,11 +1585,14 @@ static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
 	int err;
 	unsigned int i;
 
-	ofs->fs = kcalloc(numlower + 1, sizeof(struct ovl_sb), GFP_KERNEL);
+	ofs->fs = kcalloc(numlower + 2, sizeof(struct ovl_sb), GFP_KERNEL);
 	if (ofs->fs == NULL)
 		return -ENOMEM;
 
-	/* idx/fsid 0 are reserved for upper fs even with lower only overlay */
+	/*
+	 * idx/fsid 0 are reserved for upper fs even with lower only overlay
+	 * and the last fsid is reserved for "null fs" of the data layers.
+	 */
 	ofs->numfs++;
 
 	/*
@@ -1604,7 +1617,10 @@ static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
 		struct inode *trap;
 		int fsid;
 
-		fsid = ovl_get_fsid(ofs, &stack[i]);
+		if (i < numlower - ofs->numdatalayer)
+			fsid = ovl_get_fsid(ofs, &stack[i]);
+		else
+			fsid = ovl_get_data_fsid(ofs);
 		if (fsid < 0)
 			return fsid;
 
@@ -1692,6 +1708,7 @@ static struct ovl_entry *ovl_get_lowerstack(struct super_block *sb,
 	int err;
 	struct path *stack = NULL;
 	struct ovl_path *lowerstack;
+	unsigned int numlowerdata = 0;
 	unsigned int i;
 	struct ovl_entry *oe;
 
@@ -1704,13 +1721,50 @@ static struct ovl_entry *ovl_get_lowerstack(struct super_block *sb,
 	if (!stack)
 		return ERR_PTR(-ENOMEM);
 
-	err = -EINVAL;
-	for (i = 0; i < numlower; i++) {
+	for (i = 0; i < numlower;) {
 		err = ovl_lower_dir(lower, &stack[i], ofs, &sb->s_stack_depth);
 		if (err)
 			goto out_err;
 
 		lower = strchr(lower, '\0') + 1;
+
+		i++;
+		if (i == numlower)
+			break;
+
+		err = -EINVAL;
+		/*
+		 * Empty lower layer path could mean :: separator that indicates
+		 * a data-only lower data.
+		 * Several data-only layers are allowed, but they all need to be
+		 * at the bottom of the stack.
+		 */
+		if (*lower) {
+			/* normal lower dir */
+			if (numlowerdata) {
+				pr_err("lower data-only dirs must be at the bottom of the stack.\n");
+				goto out_err;
+			}
+		} else {
+			/* data-only lower dir */
+			if (!ofs->config.metacopy) {
+				pr_err("lower data-only dirs require metacopy support.\n");
+				goto out_err;
+			}
+			if (i == numlower - 1) {
+				pr_err("lowerdir argument must not end with double colon.\n");
+				goto out_err;
+			}
+			lower++;
+			numlower--;
+			numlowerdata++;
+		}
+	}
+
+	if (numlowerdata) {
+		ofs->numdatalayer = numlowerdata;
+		pr_info("using the lowest %d of %d lowerdirs as data layers\n",
+			numlowerdata, numlower);
 	}
 
 	err = -EINVAL;
@@ -1725,12 +1779,13 @@ static struct ovl_entry *ovl_get_lowerstack(struct super_block *sb,
 		goto out_err;
 
 	err = -ENOMEM;
-	oe = ovl_alloc_entry(numlower);
+	/* Data-only layers are not merged in root directory */
+	oe = ovl_alloc_entry(numlower - numlowerdata);
 	if (!oe)
 		goto out_err;
 
 	lowerstack = ovl_lowerstack(oe);
-	for (i = 0; i < numlower; i++) {
+	for (i = 0; i < numlower - numlowerdata; i++) {
 		lowerstack[i].dentry = dget(stack[i].dentry);
 		lowerstack[i].layer = &ofs->layers[i+1];
 	}

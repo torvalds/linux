@@ -57,6 +57,8 @@ struct ovl_fs {
 	unsigned int numlayer;
 	/* Number of unique fs among layers including upper fs */
 	unsigned int numfs;
+	/* Number of data-only lower layers */
+	unsigned int numdatalayer;
 	const struct ovl_layer *layers;
 	struct ovl_sb *fs;
 	/* workbasedir is the path at workdir= mount option */
@@ -89,6 +91,13 @@ struct ovl_fs {
 	/* r/o snapshot of upperdir sb's only taken on volatile mounts */
 	errseq_t errseq;
 };
+
+
+/* Number of lower layers, not including data-only layers */
+static inline unsigned int ovl_numlowerlayer(struct ovl_fs *ofs)
+{
+	return ofs->numlayer - ofs->numdatalayer - 1;
+}
 
 static inline struct vfsmount *ovl_upper_mnt(struct ovl_fs *ofs)
 {
