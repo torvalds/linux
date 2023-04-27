@@ -141,6 +141,7 @@ static inline struct ovl_path *ovl_lowerdata(struct ovl_entry *oe)
 	return lowerstack ? &lowerstack[oe->__numlower - 1] : NULL;
 }
 
+/* May return NULL if lazy lookup of lowerdata is needed */
 static inline struct dentry *ovl_lowerdata_dentry(struct ovl_entry *oe)
 {
 	struct ovl_path *lowerdata = ovl_lowerdata(oe);
@@ -157,7 +158,7 @@ static inline unsigned long *OVL_E_FLAGS(struct dentry *dentry)
 struct ovl_inode {
 	union {
 		struct ovl_dir_cache *cache;	/* directory */
-		/* place holder for non-dir */	/* regular file */
+		const char *lowerdata_redirect;	/* regular file */
 	};
 	const char *redirect;
 	u64 version;

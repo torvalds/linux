@@ -171,6 +171,7 @@ static struct inode *ovl_alloc_inode(struct super_block *sb)
 	oi->version = 0;
 	oi->flags = 0;
 	oi->__upperdentry = NULL;
+	oi->lowerdata_redirect = NULL;
 	oi->oe = NULL;
 	mutex_init(&oi->lock);
 
@@ -194,6 +195,8 @@ static void ovl_destroy_inode(struct inode *inode)
 	ovl_free_entry(oi->oe);
 	if (S_ISDIR(inode->i_mode))
 		ovl_dir_cache_free(inode);
+	else
+		kfree(oi->lowerdata_redirect);
 }
 
 static void ovl_free_fs(struct ovl_fs *ofs)

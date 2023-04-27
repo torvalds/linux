@@ -1183,6 +1183,11 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 			.redirect = upperredirect,
 		};
 
+		/* Store lowerdata redirect for lazy lookup */
+		if (ctr > 1 && !d.is_dir && !stack[ctr - 1].dentry) {
+			oip.lowerdata_redirect = d.redirect;
+			d.redirect = NULL;
+		}
 		inode = ovl_get_inode(dentry->d_sb, &oip);
 		err = PTR_ERR(inode);
 		if (IS_ERR(inode))
