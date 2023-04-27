@@ -917,4 +917,3 @@ static struct platform_driver mv_xor_v2_driver = {
 module_platform_driver(mv_xor_v2_driver);
 
 MODULE_DESCRIPTION("DMA engine driver for Marvell's Version 2 of XOR engine");
-MODULE_LICENSE("GPL");

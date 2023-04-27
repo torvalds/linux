@@ -1,6 +1,9 @@
 /*
  * kmod - the kernel module loader
+ *
+ * Copyright (C) 2023 Luis Chamberlain <mcgrof@kernel.org>
  */
+
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/sched/task.h>
@@ -27,6 +30,7 @@
 #include <linux/uaccess.h>
 
 #include <trace/events/module.h>
+#include "internal.h"
 
 /*
  * Assuming:
@@ -40,8 +44,7 @@
  * effect. Systems like these are very unlikely if modules are enabled.
  */
 #define MAX_KMOD_CONCURRENT 50
-static atomic_t kmod_concurrent_max = ATOMIC_INIT(MAX_KMOD_CONCURRENT);
-static DECLARE_WAIT_QUEUE_HEAD(kmod_wq);
+static DEFINE_SEMAPHORE(kmod_concurrent_max, MAX_KMOD_CONCURRENT);
 
 /*
  * This is a restriction on having *all* MAX_KMOD_CONCURRENT threads
@@ -66,7 +69,7 @@ static void free_modprobe_argv(struct subprocess_info *info)
 	kfree(info->argv);
 }
 
-static int call_modprobe(char *module_name, int wait)
+static int call_modprobe(char *orig_module_name, int wait)
 {
 	struct subprocess_info *info;
 	static char *envp[] = {
@@ -75,12 +78,14 @@ static int call_modprobe(char *module_name, int wait)
 		"PATH=/sbin:/usr/sbin:/bin:/usr/bin",
 		NULL
 	};
+	char *module_name;
+	int ret;
 
 	char **argv = kmalloc(sizeof(char *[5]), GFP_KERNEL);
 	if (!argv)
 		goto out;
 
-	module_name = kstrdup(module_name, GFP_KERNEL);
+	module_name = kstrdup(orig_module_name, GFP_KERNEL);
 	if (!module_name)
 		goto free_argv;
 
@@ -95,13 +100,16 @@ static int call_modprobe(char *module_name, int wait)
 	if (!info)
 		goto free_module_name;
 
-	return call_usermodehelper_exec(info, wait | UMH_KILLABLE);
+	ret = call_usermodehelper_exec(info, wait | UMH_KILLABLE);
+	kmod_dup_request_announce(orig_module_name, ret);
+	return ret;
 
 free_module_name:
 	kfree(module_name);
 free_argv:
 	kfree(argv);
 out:
+	kmod_dup_request_announce(orig_module_name, -ENOMEM);
 	return -ENOMEM;
 }
 
@@ -125,7 +133,7 @@ int __request_module(bool wait, const char *fmt, ...)
 {
 	va_list args;
 	char module_name[MODULE_NAME_LEN];
-	int ret;
+	int ret, dup_ret;
 
 	/*
 	 * We don't allow synchronous module loading from async.  Module
@@ -148,29 +156,24 @@ int __request_module(bool wait, const char *fmt, ...)
 	if (ret)
 		return ret;
 
-	if (atomic_dec_if_positive(&kmod_concurrent_max) < 0) {
-		pr_warn_ratelimited("request_module: kmod_concurrent_max (%u) close to 0 (max_modprobes: %u), for module %s, throttling...",
-				    atomic_read(&kmod_concurrent_max),
-				    MAX_KMOD_CONCURRENT, module_name);
-		ret = wait_event_killable_timeout(kmod_wq,
-						  atomic_dec_if_positive(&kmod_concurrent_max) >= 0,
-						  MAX_KMOD_ALL_BUSY_TIMEOUT * HZ);
-		if (!ret) {
-			pr_warn_ratelimited("request_module: modprobe %s cannot be processed, kmod busy with %d threads for more than %d seconds now",
-					    module_name, MAX_KMOD_CONCURRENT, MAX_KMOD_ALL_BUSY_TIMEOUT);
-			return -ETIME;
-		} else if (ret == -ERESTARTSYS) {
-			pr_warn_ratelimited("request_module: sigkill sent for modprobe %s, giving up", module_name);
-			return ret;
-		}
+	ret = down_timeout(&kmod_concurrent_max, MAX_KMOD_ALL_BUSY_TIMEOUT * HZ);
+	if (ret) {
+		pr_warn_ratelimited("request_module: modprobe %s cannot be processed, kmod busy with %d threads for more than %d seconds now",
+				    module_name, MAX_KMOD_CONCURRENT, MAX_KMOD_ALL_BUSY_TIMEOUT);
+		return ret;
 	}
 
 	trace_module_request(module_name, wait, _RET_IP_);
 
+	if (kmod_dup_request_exists_wait(module_name, wait, &dup_ret)) {
+		ret = dup_ret;
+		goto out;
+	}
+
 	ret = call_modprobe(module_name, wait ? UMH_WAIT_PROC : UMH_WAIT_EXEC);
 
-	atomic_inc(&kmod_concurrent_max);
-	wake_up(&kmod_wq);
+out:
+	up(&kmod_concurrent_max);
 
 	return ret;
 }

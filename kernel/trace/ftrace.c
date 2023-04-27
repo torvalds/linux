@@ -8006,8 +8006,7 @@ struct kallsyms_data {
  * and returns 1 in case we resolved all the requested symbols,
  * 0 otherwise.
  */
-static int kallsyms_callback(void *data, const char *name,
-			     struct module *mod, unsigned long addr)
+static int kallsyms_callback(void *data, const char *name, unsigned long addr)
 {
 	struct kallsyms_data *args = data;
 	const char **sym;

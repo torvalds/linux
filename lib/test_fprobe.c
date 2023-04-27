@@ -168,4 +168,3 @@ static struct kunit_suite fprobe_test_suite = {
 
 kunit_test_suites(&fprobe_test_suite);
 
-MODULE_LICENSE("GPL");

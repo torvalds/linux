@@ -270,4 +270,3 @@ module_exit(irqc_exit);
 
 MODULE_AUTHOR("Magnus Damm");
 MODULE_DESCRIPTION("Renesas IRQC Driver");
-MODULE_LICENSE("GPL v2");

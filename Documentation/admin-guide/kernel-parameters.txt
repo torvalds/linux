@@ -3363,6 +3363,12 @@
 			specified, <module>.async_probe takes precedence for
 			the specific module.
 
+	module.enable_dups_trace
+			[KNL] When CONFIG_MODULE_DEBUG_AUTOLOAD_DUPS is set,
+			this means that duplicate request_module() calls will
+			trigger a WARN_ON() instead of a pr_warn(). Note that
+			if MODULE_DEBUG_AUTOLOAD_DUPS_TRACE is set, WARN_ON()s
+			will always be issued and this option does nothing.
 	module.sig_enforce
 			[KNL] When CONFIG_MODULE_SIG is set, this means that
 			modules without (valid) signatures will fail to load.

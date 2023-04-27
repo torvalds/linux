@@ -11601,16 +11601,6 @@ F:	include/linux/kmemleak.h
 F:	mm/kmemleak.c
 F:	samples/kmemleak/kmemleak-test.c
 
-KMOD KERNEL MODULE LOADER - USERMODE HELPER
-M:	Luis Chamberlain <mcgrof@kernel.org>
-L:	linux-kernel@vger.kernel.org
-L:	linux-modules@vger.kernel.org
-S:	Maintained
-F:	include/linux/kmod.h
-F:	kernel/kmod.c
-F:	lib/test_kmod.c
-F:	tools/testing/selftests/kmod/
-
 KMSAN
 M:	Alexander Potapenko <glider@google.com>
 R:	Marco Elver <elver@google.com>
@@ -14186,8 +14176,11 @@ L:	linux-kernel@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mcgrof/linux.git modules-next
 F:	include/linux/module.h
+F:	include/linux/kmod.h
 F:	kernel/module/
 F:	scripts/module*
+F:	lib/test_kmod.c
+F:	tools/testing/selftests/kmod/
 
 MONOLITHIC POWER SYSTEM PMIC DRIVER
 M:	Saravanan Sekar <sravanhome@gmail.com>

@@ -13,7 +13,6 @@
 #include <linux/interconnect.h>
 #include <linux/interconnect-provider.h>
 #include <linux/list.h>
-#include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/of.h>
@@ -1106,7 +1105,3 @@ static int __init icc_init(void)
 }
 
 device_initcall(icc_init);
-
-MODULE_AUTHOR("Georgi Djakov <georgi.djakov@linaro.org>");
-MODULE_DESCRIPTION("Interconnect Driver Core");
-MODULE_LICENSE("GPL v2");

@@ -2174,7 +2174,6 @@ static void __exit exit_elf_binfmt(void)
 
 core_initcall(init_elf_binfmt);
 module_exit(exit_elf_binfmt);
-MODULE_LICENSE("GPL");
 
 #ifdef CONFIG_BINFMT_ELF_KUNIT_TEST
 #include "binfmt_elf_test.c"
