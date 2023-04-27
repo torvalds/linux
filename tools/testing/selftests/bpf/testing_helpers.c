@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 /* Copyright (C) 2019 Netronome Systems, Inc. */
 /* Copyright (C) 2020 Facebook, Inc. */
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
@@ -165,6 +166,52 @@ err:
 	free(ext_subtest_str);
 
 	return -ENOMEM;
+}
+
+int parse_test_list_file(const char *path,
+			 struct test_filter_set *set,
+			 bool is_glob_pattern)
+{
+	char *buf = NULL, *capture_start, *capture_end, *scan_end;
+	size_t buflen = 0;
+	int err = 0;
+	FILE *f;
+
+	f = fopen(path, "r");
+	if (!f) {
+		err = -errno;
+		fprintf(stderr, "Failed to open '%s': %d\n", path, err);
+		return err;
+	}
+
+	while (getline(&buf, &buflen, f) != -1) {
+		capture_start = buf;
+
+		while (isspace(*capture_start))
+			++capture_start;
+
+		capture_end = capture_start;
+		scan_end = capture_start;
+
+		while (*scan_end && *scan_end != '#') {
+			if (!isspace(*scan_end))
+				capture_end = scan_end;
+
+			++scan_end;
+		}
+
+		if (capture_end == capture_start)
+			continue;
+
+		*(++capture_end) = '\0';
+
+		err = insert_test(set, capture_start, is_glob_pattern);
+		if (err)
+			break;
+	}
+
+	fclose(f);
+	return err;
 }
 
 int parse_test_list(const char *s,

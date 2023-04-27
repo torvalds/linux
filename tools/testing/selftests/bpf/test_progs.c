@@ -714,7 +714,13 @@ static struct test_state test_states[ARRAY_SIZE(prog_test_defs)];
 
 const char *argp_program_version = "test_progs 0.1";
 const char *argp_program_bug_address = "<bpf@vger.kernel.org>";
-static const char argp_program_doc[] = "BPF selftests test runner";
+static const char argp_program_doc[] =
+"BPF selftests test runner\v"
+"Options accepting the NAMES parameter take either a comma-separated list\n"
+"of test names, or a filename prefixed with @. The file contains one name\n"
+"(or wildcard pattern) per line, and comments beginning with # are ignored.\n"
+"\n"
+"These options can be passed repeatedly to read multiple files.\n";
 
 enum ARG_KEYS {
 	ARG_TEST_NUM = 'n',
@@ -797,6 +803,7 @@ extern int extra_prog_load_log_flags;
 static error_t parse_arg(int key, char *arg, struct argp_state *state)
 {
 	struct test_env *env = state->input;
+	int err = 0;
 
 	switch (key) {
 	case ARG_TEST_NUM: {
@@ -821,18 +828,28 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 	}
 	case ARG_TEST_NAME_GLOB_ALLOWLIST:
 	case ARG_TEST_NAME: {
-		if (parse_test_list(arg,
-				    &env->test_selector.whitelist,
-				    key == ARG_TEST_NAME_GLOB_ALLOWLIST))
-			return -ENOMEM;
+		if (arg[0] == '@')
+			err = parse_test_list_file(arg + 1,
+						   &env->test_selector.whitelist,
+						   key == ARG_TEST_NAME_GLOB_ALLOWLIST);
+		else
+			err = parse_test_list(arg,
+					      &env->test_selector.whitelist,
+					      key == ARG_TEST_NAME_GLOB_ALLOWLIST);
+
 		break;
 	}
 	case ARG_TEST_NAME_GLOB_DENYLIST:
 	case ARG_TEST_NAME_BLACKLIST: {
-		if (parse_test_list(arg,
-				    &env->test_selector.blacklist,
-				    key == ARG_TEST_NAME_GLOB_DENYLIST))
-			return -ENOMEM;
+		if (arg[0] == '@')
+			err = parse_test_list_file(arg + 1,
+						   &env->test_selector.blacklist,
+						   key == ARG_TEST_NAME_GLOB_DENYLIST);
+		else
+			err = parse_test_list(arg,
+					      &env->test_selector.blacklist,
+					      key == ARG_TEST_NAME_GLOB_DENYLIST);
+
 		break;
 	}
 	case ARG_VERIFIER_STATS:
@@ -900,7 +917,7 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 	default:
 		return ARGP_ERR_UNKNOWN;
 	}
-	return 0;
+	return err;
 }
 
 /*
