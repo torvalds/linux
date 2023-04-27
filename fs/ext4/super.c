@@ -5502,7 +5502,8 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 		sbi->s_journal->j_commit_callback =
 			ext4_journal_commit_callback;
 
-	if (ext4_percpu_param_init(sbi))
+	err = ext4_percpu_param_init(sbi);
+	if (err)
 		goto failed_mount6;
 
 	if (ext4_has_feature_flex_bg(sb))
