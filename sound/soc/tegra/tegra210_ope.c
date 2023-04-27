@@ -347,11 +347,9 @@ static int tegra210_ope_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int tegra210_ope_remove(struct platform_device *pdev)
+static void tegra210_ope_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static int __maybe_unused tegra210_ope_runtime_suspend(struct device *dev)
@@ -410,7 +408,7 @@ static struct platform_driver tegra210_ope_driver = {
 		.pm = &tegra210_ope_pm_ops,
 	},
 	.probe = tegra210_ope_probe,
-	.remove = tegra210_ope_remove,
+	.remove_new = tegra210_ope_remove,
 };
 module_platform_driver(tegra210_ope_driver)
 

@@ -416,19 +416,19 @@ static const struct sof_topology_token led_tokens[] = {
 };
 
 static const struct sof_topology_token comp_pin_tokens[] = {
-	{SOF_TKN_COMP_NUM_SINK_PINS, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct snd_sof_widget, num_sink_pins)},
-	{SOF_TKN_COMP_NUM_SOURCE_PINS, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct snd_sof_widget, num_source_pins)},
+	{SOF_TKN_COMP_NUM_INPUT_PINS, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct snd_sof_widget, num_input_pins)},
+	{SOF_TKN_COMP_NUM_OUTPUT_PINS, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct snd_sof_widget, num_output_pins)},
 };
 
-static const struct sof_topology_token comp_sink_pin_binding_tokens[] = {
-	{SOF_TKN_COMP_SINK_PIN_BINDING_WNAME, SND_SOC_TPLG_TUPLE_TYPE_STRING,
+static const struct sof_topology_token comp_input_pin_binding_tokens[] = {
+	{SOF_TKN_COMP_INPUT_PIN_BINDING_WNAME, SND_SOC_TPLG_TUPLE_TYPE_STRING,
 		get_token_string, 0},
 };
 
-static const struct sof_topology_token comp_src_pin_binding_tokens[] = {
-	{SOF_TKN_COMP_SRC_PIN_BINDING_WNAME, SND_SOC_TPLG_TUPLE_TYPE_STRING,
+static const struct sof_topology_token comp_output_pin_binding_tokens[] = {
+	{SOF_TKN_COMP_OUTPUT_PIN_BINDING_WNAME, SND_SOC_TPLG_TUPLE_TYPE_STRING,
 		get_token_string, 0},
 };
 
@@ -1144,7 +1144,11 @@ static void sof_disconnect_dai_widget(struct snd_soc_component *scomp,
 static int spcm_bind(struct snd_soc_component *scomp, struct snd_sof_pcm *spcm,
 		     int dir)
 {
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_sof_widget *host_widget;
+
+	if (sdev->dspless_mode_selected)
+		return 0;
 
 	host_widget = snd_sof_find_swidget_sname(scomp,
 						 spcm->pcm.caps[dir].name,
@@ -1231,35 +1235,41 @@ static int sof_widget_parse_tokens(struct snd_soc_component *scomp, struct snd_s
 
 			continue;
 		case SOF_IN_AUDIO_FORMAT_TOKENS:
-		case SOF_OUT_AUDIO_FORMAT_TOKENS:
-		case SOF_COPIER_GATEWAY_CFG_TOKENS:
-		case SOF_AUDIO_FORMAT_BUFFER_SIZE_TOKENS:
-			num_sets = sof_get_token_value(SOF_TKN_COMP_NUM_AUDIO_FORMATS,
+			num_sets = sof_get_token_value(SOF_TKN_COMP_NUM_INPUT_AUDIO_FORMATS,
 						       swidget->tuples, swidget->num_tuples);
-
 			if (num_sets < 0) {
-				dev_err(sdev->dev, "Invalid audio format count for %s\n",
+				dev_err(sdev->dev, "Invalid input audio format count for %s\n",
 					swidget->widget->name);
 				ret = num_sets;
 				goto err;
 			}
-
-			if (num_sets > 1) {
-				struct snd_sof_tuple *new_tuples;
-
-				num_tuples += token_list[object_token_list[i]].count * num_sets;
-				new_tuples = krealloc(swidget->tuples,
-						      sizeof(*new_tuples) * num_tuples, GFP_KERNEL);
-				if (!new_tuples) {
-					ret = -ENOMEM;
-					goto err;
-				}
-
-				swidget->tuples = new_tuples;
+			break;
+		case SOF_OUT_AUDIO_FORMAT_TOKENS:
+			num_sets = sof_get_token_value(SOF_TKN_COMP_NUM_OUTPUT_AUDIO_FORMATS,
+						       swidget->tuples, swidget->num_tuples);
+			if (num_sets < 0) {
+				dev_err(sdev->dev, "Invalid output audio format count for %s\n",
+					swidget->widget->name);
+				ret = num_sets;
+				goto err;
 			}
 			break;
 		default:
 			break;
+		}
+
+		if (num_sets > 1) {
+			struct snd_sof_tuple *new_tuples;
+
+			num_tuples += token_list[object_token_list[i]].count * num_sets;
+			new_tuples = krealloc(swidget->tuples,
+					      sizeof(*new_tuples) * num_tuples, GFP_KERNEL);
+			if (!new_tuples) {
+				ret = -ENOMEM;
+				goto err;
+			}
+
+			swidget->tuples = new_tuples;
 		}
 
 		/* copy one set of tuples per token ID into swidget->tuples */
@@ -1286,12 +1296,12 @@ static void sof_free_pin_binding(struct snd_sof_widget *swidget,
 	u32 num_pins;
 	int i;
 
-	if (pin_type == SOF_PIN_TYPE_SINK) {
-		pin_binding = swidget->sink_pin_binding;
-		num_pins = swidget->num_sink_pins;
+	if (pin_type == SOF_PIN_TYPE_INPUT) {
+		pin_binding = swidget->input_pin_binding;
+		num_pins = swidget->num_input_pins;
 	} else {
-		pin_binding = swidget->src_pin_binding;
-		num_pins = swidget->num_source_pins;
+		pin_binding = swidget->output_pin_binding;
+		num_pins = swidget->num_output_pins;
 	}
 
 	if (pin_binding) {
@@ -1313,14 +1323,14 @@ static int sof_parse_pin_binding(struct snd_sof_widget *swidget,
 	int ret;
 	int i;
 
-	if (pin_type == SOF_PIN_TYPE_SINK) {
-		num_pins = swidget->num_sink_pins;
-		pin_binding_token = comp_sink_pin_binding_tokens;
-		token_count = ARRAY_SIZE(comp_sink_pin_binding_tokens);
+	if (pin_type == SOF_PIN_TYPE_INPUT) {
+		num_pins = swidget->num_input_pins;
+		pin_binding_token = comp_input_pin_binding_tokens;
+		token_count = ARRAY_SIZE(comp_input_pin_binding_tokens);
 	} else {
-		num_pins = swidget->num_source_pins;
-		pin_binding_token = comp_src_pin_binding_tokens;
-		token_count = ARRAY_SIZE(comp_src_pin_binding_tokens);
+		num_pins = swidget->num_output_pins;
+		pin_binding_token = comp_output_pin_binding_tokens;
+		token_count = ARRAY_SIZE(comp_output_pin_binding_tokens);
 	}
 
 	memset(pin_binding, 0, SOF_WIDGET_MAX_NUM_PINS * sizeof(char *));
@@ -1337,10 +1347,10 @@ static int sof_parse_pin_binding(struct snd_sof_widget *swidget,
 			ret = -ENOMEM;
 			goto err;
 		}
-		if (pin_type == SOF_PIN_TYPE_SINK)
-			swidget->sink_pin_binding = pb;
+		if (pin_type == SOF_PIN_TYPE_INPUT)
+			swidget->input_pin_binding = pb;
 		else
-			swidget->src_pin_binding = pb;
+			swidget->output_pin_binding = pb;
 	}
 
 	return 0;
@@ -1379,8 +1389,8 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 	swidget->private = NULL;
 	mutex_init(&swidget->setup_mutex);
 
-	ida_init(&swidget->src_queue_ida);
-	ida_init(&swidget->sink_queue_ida);
+	ida_init(&swidget->output_queue_ida);
+	ida_init(&swidget->input_queue_ida);
 
 	ret = sof_parse_tokens(scomp, swidget, comp_pin_tokens,
 			       ARRAY_SIZE(comp_pin_tokens), priv->array,
@@ -1391,29 +1401,29 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 		goto widget_free;
 	}
 
-	if (swidget->num_sink_pins > SOF_WIDGET_MAX_NUM_PINS ||
-	    swidget->num_source_pins > SOF_WIDGET_MAX_NUM_PINS) {
-		dev_err(scomp->dev, "invalid pins for %s: [sink: %d, src: %d]\n",
-			swidget->widget->name, swidget->num_sink_pins, swidget->num_source_pins);
+	if (swidget->num_input_pins > SOF_WIDGET_MAX_NUM_PINS ||
+	    swidget->num_output_pins > SOF_WIDGET_MAX_NUM_PINS) {
+		dev_err(scomp->dev, "invalid pins for %s: [input: %d, output: %d]\n",
+			swidget->widget->name, swidget->num_input_pins, swidget->num_output_pins);
 		ret = -EINVAL;
 		goto widget_free;
 	}
 
-	if (swidget->num_sink_pins > 1) {
-		ret = sof_parse_pin_binding(swidget, priv, SOF_PIN_TYPE_SINK);
+	if (swidget->num_input_pins > 1) {
+		ret = sof_parse_pin_binding(swidget, priv, SOF_PIN_TYPE_INPUT);
 		/* on parsing error, pin binding is not allocated, nothing to free. */
 		if (ret < 0) {
-			dev_err(scomp->dev, "failed to parse sink pin binding for %s\n",
+			dev_err(scomp->dev, "failed to parse input pin binding for %s\n",
 				w->name);
 			goto widget_free;
 		}
 	}
 
-	if (swidget->num_source_pins > 1) {
-		ret = sof_parse_pin_binding(swidget, priv, SOF_PIN_TYPE_SOURCE);
+	if (swidget->num_output_pins > 1) {
+		ret = sof_parse_pin_binding(swidget, priv, SOF_PIN_TYPE_OUTPUT);
 		/* on parsing error, pin binding is not allocated, nothing to free. */
 		if (ret < 0) {
-			dev_err(scomp->dev, "failed to parse source pin binding for %s\n",
+			dev_err(scomp->dev, "failed to parse output pin binding for %s\n",
 				w->name);
 			goto widget_free;
 		}
@@ -1422,7 +1432,7 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 	dev_dbg(scomp->dev,
 		"tplg: widget %d (%s) is ready [type: %d, pipe: %d, pins: %d / %d, stream: %s]\n",
 		swidget->comp_id, w->name, swidget->id, index,
-		swidget->num_sink_pins, swidget->num_source_pins,
+		swidget->num_input_pins, swidget->num_output_pins,
 		strnlen(w->sname, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) > 0 ? w->sname : "none");
 
 	widget_ops = tplg_ops ? tplg_ops->widget : NULL;
@@ -1643,11 +1653,11 @@ out:
 	if (widget_ops && widget_ops[swidget->id].ipc_free)
 		widget_ops[swidget->id].ipc_free(swidget);
 
-	ida_destroy(&swidget->src_queue_ida);
-	ida_destroy(&swidget->sink_queue_ida);
+	ida_destroy(&swidget->output_queue_ida);
+	ida_destroy(&swidget->input_queue_ida);
 
-	sof_free_pin_binding(swidget, SOF_PIN_TYPE_SINK);
-	sof_free_pin_binding(swidget, SOF_PIN_TYPE_SOURCE);
+	sof_free_pin_binding(swidget, SOF_PIN_TYPE_INPUT);
+	sof_free_pin_binding(swidget, SOF_PIN_TYPE_OUTPUT);
 
 	kfree(swidget->tuples);
 
@@ -2120,7 +2130,6 @@ static int sof_complete(struct snd_soc_component *scomp)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	const struct sof_ipc_tplg_ops *tplg_ops = sof_ipc_get_ops(sdev, tplg);
-	struct snd_sof_widget *swidget, *comp_swidget;
 	const struct sof_ipc_tplg_widget_ops *widget_ops;
 	struct snd_sof_control *scontrol;
 	struct snd_sof_pipeline *spipe;
@@ -2139,37 +2148,38 @@ static int sof_complete(struct snd_soc_component *scomp)
 			}
 		}
 
-	/*
-	 * then update all widget IPC structures. If any of the ipc_setup callbacks fail, the
-	 * topology will be removed and all widgets will be unloaded resulting in freeing all
-	 * associated memories.
-	 */
-	list_for_each_entry(swidget, &sdev->widget_list, list) {
-		if (widget_ops && widget_ops[swidget->id].ipc_setup) {
-			ret = widget_ops[swidget->id].ipc_setup(swidget);
+	/* set up the IPC structures for the pipeline widgets */
+	list_for_each_entry(spipe, &sdev->pipeline_list, list) {
+		struct snd_sof_widget *pipe_widget = spipe->pipe_widget;
+		struct snd_sof_widget *swidget;
+
+		/* Update the scheduler widget's IPC structure */
+		if (widget_ops && widget_ops[pipe_widget->id].ipc_setup) {
+			ret = widget_ops[pipe_widget->id].ipc_setup(pipe_widget);
 			if (ret < 0) {
 				dev_err(sdev->dev, "failed updating IPC struct for %s\n",
-					swidget->widget->name);
+					pipe_widget->widget->name);
 				return ret;
 			}
 		}
-	}
 
-	/* set the pipe_widget and apply the dynamic_pipeline_widget_flag */
-	list_for_each_entry(spipe, &sdev->pipeline_list, list) {
-		struct snd_sof_widget *pipe_widget = spipe->pipe_widget;
-
-		/*
-		 * Apply the dynamic_pipeline_widget flag and set the pipe_widget field
-		 * for all widgets that have the same pipeline ID as the scheduler widget.
-		 * Skip the scheduler widgets as they have their pipeline set during widget_ready
-		 */
-		list_for_each_entry(comp_swidget, &sdev->widget_list, list)
-			if (comp_swidget->widget->id != snd_soc_dapm_scheduler &&
-			    comp_swidget->pipeline_id == pipe_widget->pipeline_id) {
-				ret = sof_set_widget_pipeline(sdev, spipe, comp_swidget);
+		/* set the pipeline and update the IPC structure for the non scheduler widgets */
+		list_for_each_entry(swidget, &sdev->widget_list, list)
+			if (swidget->widget->id != snd_soc_dapm_scheduler &&
+			    swidget->pipeline_id == pipe_widget->pipeline_id) {
+				ret = sof_set_widget_pipeline(sdev, spipe, swidget);
 				if (ret < 0)
 					return ret;
+
+				if (widget_ops && widget_ops[swidget->id].ipc_setup) {
+					ret = widget_ops[swidget->id].ipc_setup(swidget);
+					if (ret < 0) {
+						dev_err(sdev->dev,
+							"failed updating IPC struct for %s\n",
+							swidget->widget->name);
+						return ret;
+					}
+				}
 			}
 	}
 
@@ -2264,6 +2274,126 @@ static struct snd_soc_tplg_ops sof_tplg_ops = {
 	.bytes_ext_ops_count	= ARRAY_SIZE(sof_bytes_ext_ops),
 };
 
+static int snd_sof_dspless_kcontrol(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	return 0;
+}
+
+static const struct snd_soc_tplg_kcontrol_ops sof_dspless_io_ops[] = {
+	{SOF_TPLG_KCTL_VOL_ID, snd_sof_dspless_kcontrol, snd_sof_dspless_kcontrol},
+	{SOF_TPLG_KCTL_BYTES_ID, snd_sof_dspless_kcontrol, snd_sof_dspless_kcontrol},
+	{SOF_TPLG_KCTL_ENUM_ID, snd_sof_dspless_kcontrol, snd_sof_dspless_kcontrol},
+	{SOF_TPLG_KCTL_SWITCH_ID, snd_sof_dspless_kcontrol, snd_sof_dspless_kcontrol},
+};
+
+static int snd_sof_dspless_bytes_ext_get(struct snd_kcontrol *kcontrol,
+					 unsigned int __user *binary_data,
+					 unsigned int size)
+{
+	return 0;
+}
+
+static int snd_sof_dspless_bytes_ext_put(struct snd_kcontrol *kcontrol,
+					 const unsigned int __user *binary_data,
+					 unsigned int size)
+{
+	return 0;
+}
+
+static const struct snd_soc_tplg_bytes_ext_ops sof_dspless_bytes_ext_ops[] = {
+	{SOF_TPLG_KCTL_BYTES_ID, snd_sof_dspless_bytes_ext_get, snd_sof_dspless_bytes_ext_put},
+	{SOF_TPLG_KCTL_BYTES_VOLATILE_RO, snd_sof_dspless_bytes_ext_get},
+};
+
+/* external widget init - used for any driver specific init */
+static int sof_dspless_widget_ready(struct snd_soc_component *scomp, int index,
+				    struct snd_soc_dapm_widget *w,
+				    struct snd_soc_tplg_dapm_widget *tw)
+{
+	if (WIDGET_IS_DAI(w->id)) {
+		struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+		struct snd_sof_widget *swidget;
+		struct snd_sof_dai dai;
+		int ret;
+
+		swidget = kzalloc(sizeof(*swidget), GFP_KERNEL);
+		if (!swidget)
+			return -ENOMEM;
+
+		memset(&dai, 0, sizeof(dai));
+
+		ret = sof_connect_dai_widget(scomp, w, tw, &dai);
+		if (ret) {
+			kfree(swidget);
+			return ret;
+		}
+
+		swidget->scomp = scomp;
+		swidget->widget = w;
+		mutex_init(&swidget->setup_mutex);
+		w->dobj.private = swidget;
+		list_add(&swidget->list, &sdev->widget_list);
+	}
+
+	return 0;
+}
+
+static int sof_dspless_widget_unload(struct snd_soc_component *scomp,
+				     struct snd_soc_dobj *dobj)
+{
+	struct snd_soc_dapm_widget *w = container_of(dobj, struct snd_soc_dapm_widget, dobj);
+
+	if (WIDGET_IS_DAI(w->id)) {
+		struct snd_sof_widget *swidget = dobj->private;
+
+		sof_disconnect_dai_widget(scomp, w);
+
+		if (!swidget)
+			return 0;
+
+		/* remove and free swidget object */
+		list_del(&swidget->list);
+		kfree(swidget);
+	}
+
+	return 0;
+}
+
+static int sof_dspless_link_load(struct snd_soc_component *scomp, int index,
+				 struct snd_soc_dai_link *link,
+				 struct snd_soc_tplg_link_config *cfg)
+{
+	link->platforms->name = dev_name(scomp->dev);
+
+	/* Set nonatomic property for FE dai links for FE-BE compatibility */
+	if (!link->no_pcm)
+		link->nonatomic = true;
+
+	return 0;
+}
+
+static struct snd_soc_tplg_ops sof_dspless_tplg_ops = {
+	/* external widget init - used for any driver specific init */
+	.widget_ready	= sof_dspless_widget_ready,
+	.widget_unload	= sof_dspless_widget_unload,
+
+	/* FE DAI - used for any driver specific init */
+	.dai_load	= sof_dai_load,
+	.dai_unload	= sof_dai_unload,
+
+	/* DAI link - used for any driver specific init */
+	.link_load	= sof_dspless_link_load,
+
+	/* vendor specific kcontrol handlers available for binding */
+	.io_ops		= sof_dspless_io_ops,
+	.io_ops_count	= ARRAY_SIZE(sof_dspless_io_ops),
+
+	/* vendor specific bytes ext handlers available for binding */
+	.bytes_ext_ops = sof_dspless_bytes_ext_ops,
+	.bytes_ext_ops_count = ARRAY_SIZE(sof_dspless_bytes_ext_ops),
+};
+
 int snd_sof_load_topology(struct snd_soc_component *scomp, const char *file)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
@@ -2281,7 +2411,11 @@ int snd_sof_load_topology(struct snd_soc_component *scomp, const char *file)
 		return ret;
 	}
 
-	ret = snd_soc_tplg_component_load(scomp, &sof_tplg_ops, fw);
+	if (sdev->dspless_mode_selected)
+		ret = snd_soc_tplg_component_load(scomp, &sof_dspless_tplg_ops, fw);
+	else
+		ret = snd_soc_tplg_component_load(scomp, &sof_tplg_ops, fw);
+
 	if (ret < 0) {
 		dev_err(scomp->dev, "error: tplg component load failed %d\n",
 			ret);

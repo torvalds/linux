@@ -31,11 +31,6 @@
 
 static void snd_ymfpci_irq_wait(struct snd_ymfpci *chip);
 
-static inline u8 snd_ymfpci_readb(struct snd_ymfpci *chip, u32 offset)
-{
-	return readb(chip->reg_area_virt + offset);
-}
-
 static inline void snd_ymfpci_writeb(struct snd_ymfpci *chip, u32 offset, u8 val)
 {
 	writeb(val, chip->reg_area_virt + offset);
@@ -2219,57 +2214,33 @@ static void snd_ymfpci_free(struct snd_card *card)
 
 	snd_ymfpci_free_gameport(chip);
 	
-	pci_write_config_word(chip->pci, 0x40, chip->old_legacy_ctrl);
+	pci_write_config_word(chip->pci, PCIR_DSXG_LEGACY, chip->old_legacy_ctrl);
 	
 	release_firmware(chip->dsp_microcode);
 	release_firmware(chip->controller_microcode);
 }
 
-#ifdef CONFIG_PM_SLEEP
-static const int saved_regs_index[] = {
-	/* spdif */
-	YDSXGR_SPDIFOUTCTRL,
-	YDSXGR_SPDIFOUTSTATUS,
-	YDSXGR_SPDIFINCTRL,
-	/* volumes */
-	YDSXGR_PRIADCLOOPVOL,
-	YDSXGR_NATIVEDACINVOL,
-	YDSXGR_NATIVEDACOUTVOL,
-	YDSXGR_BUF441OUTVOL,
-	YDSXGR_NATIVEADCINVOL,
-	YDSXGR_SPDIFLOOPVOL,
-	YDSXGR_SPDIFOUTVOL,
-	YDSXGR_ZVOUTVOL,
-	YDSXGR_LEGACYOUTVOL,
-	/* address bases */
-	YDSXGR_PLAYCTRLBASE,
-	YDSXGR_RECCTRLBASE,
-	YDSXGR_EFFCTRLBASE,
-	YDSXGR_WORKBASE,
-	/* capture set up */
-	YDSXGR_MAPOFREC,
-	YDSXGR_RECFORMAT,
-	YDSXGR_RECSLOTSR,
-	YDSXGR_ADCFORMAT,
-	YDSXGR_ADCSLOTSR,
-};
-#define YDSXGR_NUM_SAVED_REGS	ARRAY_SIZE(saved_regs_index)
-
 static int snd_ymfpci_suspend(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_ymfpci *chip = card->private_data;
-	unsigned int i;
-	
+	unsigned int i, legacy_reg_count = DSXG_PCI_NUM_SAVED_LEGACY_REGS;
+
+	if (chip->pci->device >= 0x0010) /* YMF 744/754 */
+		legacy_reg_count = DSXG_PCI_NUM_SAVED_REGS;
+
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	snd_ac97_suspend(chip->ac97);
+
 	for (i = 0; i < YDSXGR_NUM_SAVED_REGS; i++)
 		chip->saved_regs[i] = snd_ymfpci_readl(chip, saved_regs_index[i]);
+
 	chip->saved_ydsxgr_mode = snd_ymfpci_readl(chip, YDSXGR_MODE);
-	pci_read_config_word(chip->pci, PCIR_DSXG_LEGACY,
-			     &chip->saved_dsxg_legacy);
-	pci_read_config_word(chip->pci, PCIR_DSXG_ELEGACY,
-			     &chip->saved_dsxg_elegacy);
+
+	for (i = 0; i < legacy_reg_count; i++)
+		pci_read_config_word(chip->pci, pci_saved_regs_index[i],
+				      chip->saved_dsxg_pci_regs + i);
+
 	snd_ymfpci_writel(chip, YDSXGR_NATIVEDACOUTVOL, 0);
 	snd_ymfpci_writel(chip, YDSXGR_BUF441OUTVOL, 0);
 	snd_ymfpci_disable_dsp(chip);
@@ -2281,7 +2252,10 @@ static int snd_ymfpci_resume(struct device *dev)
 	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_ymfpci *chip = card->private_data;
-	unsigned int i;
+	unsigned int i, legacy_reg_count = DSXG_PCI_NUM_SAVED_LEGACY_REGS;
+
+	if (chip->pci->device >= 0x0010) /* YMF 744/754 */
+		legacy_reg_count = DSXG_PCI_NUM_SAVED_REGS;
 
 	snd_ymfpci_aclink_reset(pci);
 	snd_ymfpci_codec_ready(chip, 0);
@@ -2293,10 +2267,9 @@ static int snd_ymfpci_resume(struct device *dev)
 
 	snd_ac97_resume(chip->ac97);
 
-	pci_write_config_word(chip->pci, PCIR_DSXG_LEGACY,
-			      chip->saved_dsxg_legacy);
-	pci_write_config_word(chip->pci, PCIR_DSXG_ELEGACY,
-			      chip->saved_dsxg_elegacy);
+	for (i = 0; i < legacy_reg_count; i++)
+		pci_write_config_word(chip->pci, pci_saved_regs_index[i],
+				      chip->saved_dsxg_pci_regs[i]);
 
 	/* start hw again */
 	if (chip->start_count > 0) {
@@ -2309,12 +2282,11 @@ static int snd_ymfpci_resume(struct device *dev)
 	return 0;
 }
 
-SIMPLE_DEV_PM_OPS(snd_ymfpci_pm, snd_ymfpci_suspend, snd_ymfpci_resume);
-#endif /* CONFIG_PM_SLEEP */
+DEFINE_SIMPLE_DEV_PM_OPS(snd_ymfpci_pm, snd_ymfpci_suspend, snd_ymfpci_resume);
 
 int snd_ymfpci_create(struct snd_card *card,
 		      struct pci_dev *pci,
-		      unsigned short old_legacy_ctrl)
+		      u16 old_legacy_ctrl)
 {
 	struct snd_ymfpci *chip = card->private_data;
 	int err;
@@ -2378,13 +2350,6 @@ int snd_ymfpci_create(struct snd_card *card,
 	err = snd_ymfpci_ac3_init(chip);
 	if (err < 0)
 		return err;
-
-#ifdef CONFIG_PM_SLEEP
-	chip->saved_regs = devm_kmalloc_array(&pci->dev, YDSXGR_NUM_SAVED_REGS,
-					      sizeof(u32), GFP_KERNEL);
-	if (!chip->saved_regs)
-		return -ENOMEM;
-#endif
 
 	snd_ymfpci_proc_init(card, chip);
 

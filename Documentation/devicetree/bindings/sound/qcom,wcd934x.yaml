@@ -152,6 +152,7 @@ required:
   - reg
 
 allOf:
+  - $ref: dai-common.yaml#
   - if:
       required:
         - slim-ifc-dev
