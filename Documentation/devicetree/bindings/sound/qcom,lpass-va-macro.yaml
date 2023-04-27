@@ -34,11 +34,11 @@ properties:
 
   clock-names:
     oneOf:
-      - items:   #for ADSP based platforms
+      - items:   # for ADSP based platforms
           - const: mclk
           - const: macro
           - const: dcodec
-      - items:   #for ADSP bypass based platforms
+      - items:   # for ADSP bypass based platforms
           - const: mclk
 
   clock-output-names:

@@ -246,7 +246,7 @@ examples:
     #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/interrupt-controller/irq.h>
 
-    i2c0 {
+    i2c {
         #address-cells = <1>;
         #size-cells = <0>;
 
@@ -263,7 +263,7 @@ examples:
     #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/interrupt-controller/irq.h>
 
-    spi0 {
+    spi {
         #address-cells = <1>;
         #size-cells = <0>;
 
@@ -296,7 +296,7 @@ examples:
 
   # Example for FPMCU
   - |
-    spi0 {
+    spi {
       #address-cells = <0x1>;
       #size-cells = <0x0>;
 

@@ -202,7 +202,7 @@ allOf:
             - description: External RTC clock (32768 Hz)
             - description: CMU_HSI bus clock (from CMU_TOP)
             - description: SD card clock (from CMU_TOP)
-            - description: "USB 2.0 DRD clock (from CMU_TOP)"
+            - description: USB 2.0 DRD clock (from CMU_TOP)
 
         clock-names:
           items:

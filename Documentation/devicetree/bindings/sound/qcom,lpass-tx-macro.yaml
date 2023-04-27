@@ -36,13 +36,13 @@ properties:
 
   clock-names:
     oneOf:
-      - items:   #for ADSP based platforms
+      - items:   # for ADSP based platforms
           - const: mclk
           - const: npl
           - const: macro
           - const: dcodec
           - const: fsgen
-      - items:   #for ADSP bypass based platforms
+      - items:   # for ADSP bypass based platforms
           - const: mclk
           - const: npl
           - const: fsgen

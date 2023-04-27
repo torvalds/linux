@@ -82,20 +82,20 @@ patternProperties:
 
         # Supported default DVS states:
         #     buck       |    run     |   idle    | suspend  | lpsr
-        #--------------------------------------------------------------
+        # --------------------------------------------------------------
         # 1, 2, 6, and 7 | supported  | supported | supported (*)
-        #--------------------------------------------------------------
+        # --------------------------------------------------------------
         # 3, 4, and 5    |                    supported (**)
-        #--------------------------------------------------------------
+        # --------------------------------------------------------------
         #
-        #(*)  LPSR and SUSPEND states use same voltage but both states have own
-        #     enable /
-        #     disable settings. Voltage 0 can be specified for a state to make
-        #     regulator disabled on that state.
+        # (*)  LPSR and SUSPEND states use same voltage but both states have own
+        #      enable /
+        #      disable settings. Voltage 0 can be specified for a state to make
+        #      regulator disabled on that state.
         #
-        #(**) All states use same voltage but have own enable / disable
-        #     settings. Voltage 0 can be specified for a state to make
-        #     regulator disabled on that state.
+        # (**) All states use same voltage but have own enable / disable
+        #      settings. Voltage 0 can be specified for a state to make
+        #      regulator disabled on that state.
 
     required:
       - regulator-name

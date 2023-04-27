@@ -8134,7 +8134,7 @@ M:	Pankaj Gupta <pankaj.gupta@nxp.com>
 M:	Gaurav Jain <gaurav.jain@nxp.com>
 L:	linux-crypto@vger.kernel.org
 S:	Maintained
-F:	Documentation/devicetree/bindings/crypto/fsl-sec4.txt
+F:	Documentation/devicetree/bindings/crypto/fsl,sec-v4.0*
 F:	drivers/crypto/caam/
 
 FREESCALE COLDFIRE M5441X MMC DRIVER
@@ -11932,6 +11932,7 @@ M:	Scott Wood <oss@buserror.net>
 L:	linuxppc-dev@lists.ozlabs.org
 S:	Odd fixes
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/scottwood/linux.git
+F:	Documentation/devicetree/bindings/cache/freescale-l2cache.txt
 F:	Documentation/devicetree/bindings/powerpc/fsl/
 F:	arch/powerpc/platforms/83xx/
 F:	arch/powerpc/platforms/85xx/
@@ -19163,6 +19164,7 @@ M:	Conor Dooley <conor@kernel.org>
 L:	linux-riscv@lists.infradead.org
 S:	Maintained
 T:	git https://git.kernel.org/pub/scm/linux/kernel/git/conor/linux.git/
+F:	Documentation/devicetree/bindings/cache/sifive,ccache0.yaml
 F:	drivers/soc/sifive/
 
 SILEAD TOUCHSCREEN DRIVER

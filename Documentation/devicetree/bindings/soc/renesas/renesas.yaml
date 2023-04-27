@@ -111,7 +111,7 @@ properties:
       - description: RZ/G1C (R8A77470)
         items:
           - enum:
-              - iwave,g23s #iWave Systems RZ/G1C Single Board Computer (iW-RainboW-G23S)
+              - iwave,g23s # iWave Systems RZ/G1C Single Board Computer (iW-RainboW-G23S)
           - const: renesas,r8a77470
 
       - description: RZ/G2M (R8A774A1)

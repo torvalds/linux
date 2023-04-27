@@ -91,7 +91,7 @@ properties:
       riscv,cpu-intc node, which has a riscv node as parent.
 
   riscv,ndev:
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     description:
       Specifies how many external interrupts are supported by this controller.
 

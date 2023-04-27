@@ -70,7 +70,7 @@ properties:
   resets:
     maxItems: 1
 
-  #The per-board settings for Gen2 and RZ/G1 platforms:
+  # The per-board settings for Gen2 and RZ/G1 platforms:
   port:
     $ref: /schemas/graph.yaml#/$defs/port-base
     unevaluatedProperties: false
@@ -109,7 +109,7 @@ properties:
 
           data-active: true
 
-  #The per-board settings for Gen3 and RZ/G2 platforms:
+  # The per-board settings for Gen3 and RZ/G2 platforms:
   renesas,id:
     description: VIN channel number
     $ref: /schemas/types.yaml#/definitions/uint32
