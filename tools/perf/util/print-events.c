@@ -83,11 +83,11 @@ void print_tracepoint_events(const struct print_callbacks *print_cb __maybe_unus
 		if (sys_dirent->d_type != DT_DIR ||
 		    !strcmp(sys_dirent->d_name, ".") ||
 		    !strcmp(sys_dirent->d_name, ".."))
-			continue;
+			goto next_sys;
 
 		dir_fd = openat(events_fd, sys_dirent->d_name, O_PATH);
 		if (dir_fd < 0)
-			continue;
+			goto next_sys;
 
 		evt_items = scandirat(events_fd, sys_dirent->d_name, &evt_namelist, NULL, alphasort);
 		for (int j = 0; j < evt_items; j++) {
@@ -98,12 +98,12 @@ void print_tracepoint_events(const struct print_callbacks *print_cb __maybe_unus
 			if (evt_dirent->d_type != DT_DIR ||
 			    !strcmp(evt_dirent->d_name, ".") ||
 			    !strcmp(evt_dirent->d_name, ".."))
-				continue;
+				goto next_evt;
 
 			snprintf(evt_path, sizeof(evt_path), "%s/id", evt_dirent->d_name);
 			evt_fd = openat(dir_fd, evt_path, O_RDONLY);
 			if (evt_fd < 0)
-				continue;
+				goto next_evt;
 			close(evt_fd);
 
 			snprintf(evt_path, MAXPATHLEN, "%s:%s",
@@ -119,9 +119,13 @@ void print_tracepoint_events(const struct print_callbacks *print_cb __maybe_unus
 					/*desc=*/NULL,
 					/*long_desc=*/NULL,
 					/*encoding_desc=*/NULL);
+next_evt:
+			free(evt_namelist[j]);
 		}
 		close(dir_fd);
 		free(evt_namelist);
+next_sys:
+		free(sys_namelist[i]);
 	}
 
 	free(sys_namelist);
