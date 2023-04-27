@@ -131,7 +131,7 @@ next_sys:
 	free(sys_namelist);
 }
 #else
-	printf("\nWARNING: Your libc doesn't have the scandir function, please ask its maintainers to implement it.\n"
+	printf("\nWARNING: Your libc doesn't have the scandirat function, please ask its maintainers to implement it.\n"
 	       "         As a rough fallback, please do 'ls %s' to see the available tracepoint events.\n", events_path);
 #endif
 	close(events_fd);
