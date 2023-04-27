@@ -2633,6 +2633,7 @@ void btrfs_set_item_key_safe(struct btrfs_fs_info *fs_info,
 	if (slot > 0) {
 		btrfs_item_key(eb, &disk_key, slot - 1);
 		if (unlikely(comp_keys(&disk_key, new_key) >= 0)) {
+			btrfs_print_leaf(eb);
 			btrfs_crit(fs_info,
 		"slot %u key (%llu %u %llu) new key (%llu %u %llu)",
 				   slot, btrfs_disk_key_objectid(&disk_key),
@@ -2640,13 +2641,13 @@ void btrfs_set_item_key_safe(struct btrfs_fs_info *fs_info,
 				   btrfs_disk_key_offset(&disk_key),
 				   new_key->objectid, new_key->type,
 				   new_key->offset);
-			btrfs_print_leaf(eb);
 			BUG();
 		}
 	}
 	if (slot < btrfs_header_nritems(eb) - 1) {
 		btrfs_item_key(eb, &disk_key, slot + 1);
 		if (unlikely(comp_keys(&disk_key, new_key) <= 0)) {
+			btrfs_print_leaf(eb);
 			btrfs_crit(fs_info,
 		"slot %u key (%llu %u %llu) new key (%llu %u %llu)",
 				   slot, btrfs_disk_key_objectid(&disk_key),
@@ -2654,7 +2655,6 @@ void btrfs_set_item_key_safe(struct btrfs_fs_info *fs_info,
 				   btrfs_disk_key_offset(&disk_key),
 				   new_key->objectid, new_key->type,
 				   new_key->offset);
-			btrfs_print_leaf(eb);
 			BUG();
 		}
 	}
