@@ -1849,14 +1849,12 @@ error_exit:
 	return err;
 }
 
-static int vchiq_remove(struct platform_device *pdev)
+static void vchiq_remove(struct platform_device *pdev)
 {
 	platform_device_unregister(bcm2835_audio);
 	platform_device_unregister(bcm2835_camera);
 	vchiq_debugfs_deinit();
 	vchiq_deregister_chrdev();
-
-	return 0;
 }
 
 static struct platform_driver vchiq_driver = {
@@ -1865,7 +1863,7 @@ static struct platform_driver vchiq_driver = {
 		.of_match_table = vchiq_of_match,
 	},
 	.probe = vchiq_probe,
-	.remove = vchiq_remove,
+	.remove_new = vchiq_remove,
 };
 
 static int __init vchiq_driver_init(void)
