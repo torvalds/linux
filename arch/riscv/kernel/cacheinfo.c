@@ -5,7 +5,6 @@
 
 #include <linux/cpu.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <asm/cacheinfo.h>
 
 static struct riscv_cacheinfo_ops *rv_cache_ops;

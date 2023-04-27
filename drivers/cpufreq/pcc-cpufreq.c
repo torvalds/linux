@@ -31,6 +31,7 @@
 #include <linux/cpufreq.h>
 #include <linux/compiler.h>
 #include <linux/slab.h>
+#include <linux/platform_device.h>
 
 #include <linux/acpi.h>
 #include <linux/io.h>

@@ -20,6 +20,7 @@
 #include <linux/dmi.h>
 #include <linux/slab.h>
 #include <linux/string_helpers.h>
+#include <linux/platform_device.h>
 
 #include <linux/acpi.h>
 #include <linux/io.h>
