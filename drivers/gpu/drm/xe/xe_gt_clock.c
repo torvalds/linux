@@ -17,13 +17,12 @@ static u32 read_reference_ts_freq(struct xe_gt *gt)
 	u32 ts_override = xe_mmio_read32(gt, TIMESTAMP_OVERRIDE.reg);
 	u32 base_freq, frac_freq;
 
-	base_freq = ((ts_override & TIMESTAMP_OVERRIDE_US_COUNTER_DIVIDER_MASK) >>
-		     TIMESTAMP_OVERRIDE_US_COUNTER_DIVIDER_SHIFT) + 1;
+	base_freq = REG_FIELD_GET(TIMESTAMP_OVERRIDE_US_COUNTER_DIVIDER_MASK,
+				  ts_override) + 1;
 	base_freq *= 1000000;
 
-	frac_freq = ((ts_override &
-		      TIMESTAMP_OVERRIDE_US_COUNTER_DENOMINATOR_MASK) >>
-		     TIMESTAMP_OVERRIDE_US_COUNTER_DENOMINATOR_SHIFT);
+	frac_freq = REG_FIELD_GET(TIMESTAMP_OVERRIDE_US_COUNTER_DENOMINATOR_MASK,
+				  ts_override);
 	frac_freq = 1000000 / (frac_freq + 1);
 
 	return base_freq + frac_freq;
@@ -35,9 +34,8 @@ static u32 get_crystal_clock_freq(u32 rpm_config_reg)
 	const u32 f24_mhz = 24000000;
 	const u32 f25_mhz = 25000000;
 	const u32 f38_4_mhz = 38400000;
-	u32 crystal_clock =
-		(rpm_config_reg & RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_MASK) >>
-		RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_SHIFT;
+	u32 crystal_clock = REG_FIELD_GET(RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_MASK,
+					  rpm_config_reg);
 
 	switch (crystal_clock) {
 	case RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_24_MHZ :
@@ -62,7 +60,7 @@ int xe_gt_clock_init(struct xe_gt *gt)
 	/* Assuming gen11+ so assert this assumption is correct */
 	XE_BUG_ON(GRAPHICS_VER(gt_to_xe(gt)) < 11);
 
-	if ((ctc_reg & CTC_SOURCE_PARAMETER_MASK) == CTC_SOURCE_DIVIDE_LOGIC) {
+	if (ctc_reg & CTC_SOURCE_DIVIDE_LOGIC) {
 		freq = read_reference_ts_freq(gt);
 	} else {
 		u32 c0 = xe_mmio_read32(gt, RPM_CONFIG0.reg);
@@ -74,8 +72,7 @@ int xe_gt_clock_init(struct xe_gt *gt)
 		 * register increments from this frequency (it might
 		 * increment only every few clock cycle).
 		 */
-		freq >>= 3 - ((c0 & RPM_CONFIG0_CTC_SHIFT_PARAMETER_MASK) >>
-			      RPM_CONFIG0_CTC_SHIFT_PARAMETER_SHIFT);
+		freq >>= 3 - REG_FIELD_GET(RPM_CONFIG0_CTC_SHIFT_PARAMETER_MASK, c0);
 	}
 
 	gt->info.clock_freq = freq;
