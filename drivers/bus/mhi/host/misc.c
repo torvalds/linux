@@ -1272,7 +1272,7 @@ int mhi_host_notify_db_disable_trace(struct mhi_controller *mhi_cntrl)
 		ee = mhi_get_exec_env(mhi_cntrl);
 
 		MHI_VERB(dev, "Entered with MHI state: %s, EE: %s\n",
-			to_mhi_pm_state_str(state),
+			mhi_state_str(state),
 			TO_MHI_EXEC_STR(ee));
 
 		/* Make sure that we are indeed in M0 state and not in RDDM as well */
