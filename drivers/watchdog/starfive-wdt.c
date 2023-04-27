@@ -595,7 +595,7 @@ static struct platform_driver starfive_wdt_driver = {
 	.driver = {
 		.name = "starfive-wdt",
 		.pm = &starfive_wdt_pm_ops,
-		.of_match_table = of_match_ptr(starfive_wdt_match),
+		.of_match_table = starfive_wdt_match,
 	},
 };
 module_platform_driver(starfive_wdt_driver);
