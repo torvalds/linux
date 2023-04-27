@@ -615,7 +615,9 @@ handler_end:
 static void tm_handler_work(struct work_struct *work)
 {
 	struct adc5_channel_prop *chan_prop;
-	u8 tm_status[2], buf[16], val;
+	u8 tm_status[2] = {0};
+	u8 buf[16] = {0};
+	u8 val;
 	int ret, i, sdam_index = -1;
 	struct adc5_chip *adc = container_of(work, struct adc5_chip,
 						tm_handler_work);
@@ -885,7 +887,7 @@ static int adc_tm5_gen3_set_trip_temp(struct thermal_zone_device *tz,
 					int low_temp, int high_temp)
 {
 	struct adc5_channel_prop *prop = tz->devdata;
-	struct adc5_chip *adc = prop->chip;
+	struct adc5_chip *adc;
 	struct adc_tm_config tm_config;
 	int ret;
 
@@ -1236,7 +1238,7 @@ EXPORT_SYMBOL(adc_tm_channel_measure_gen3);
 int32_t adc_tm_disable_chan_meas_gen3(struct adc5_chip *chip,
 					struct adc_tm_param *param)
 {
-	int ret, i;
+	int ret = 0, i;
 	uint32_t dt_index = 0, v_channel;
 	struct adc_tm_client_info *client_info = NULL;
 
