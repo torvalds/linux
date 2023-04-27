@@ -1101,14 +1101,20 @@ rkisp1_fill_pixfmt(struct v4l2_pix_format_mplane *pixm,
 	memset(pixm->plane_fmt, 0, sizeof(pixm->plane_fmt));
 	info = v4l2_format_info(pixm->pixelformat);
 	pixm->num_planes = info->mem_planes;
-	stride = info->bpp[0] * pixm->width;
-	/* Self path supports custom stride but Main path doesn't */
-	if (id == RKISP1_MAINPATH || plane_y->bytesperline < stride)
-		plane_y->bytesperline = stride;
-	plane_y->sizeimage = plane_y->bytesperline * pixm->height;
 
-	/* normalize stride to pixels per line */
-	stride = DIV_ROUND_UP(plane_y->bytesperline, info->bpp[0]);
+	/*
+	 * The SP supports custom strides, expressed as a number of pixels for
+	 * the Y plane. Clamp the stride to a reasonable value to avoid integer
+	 * overflows when calculating the bytesperline and sizeimage values.
+	 */
+	if (id == RKISP1_SELFPATH)
+		stride = clamp(DIV_ROUND_UP(plane_y->bytesperline, info->bpp[0]),
+			       pixm->width, 65536U);
+	else
+		stride = pixm->width;
+
+	plane_y->bytesperline = stride * info->bpp[0];
+	plane_y->sizeimage = plane_y->bytesperline * pixm->height;
 
 	for (i = 1; i < info->comp_planes; i++) {
 		struct v4l2_plane_pix_format *plane = &pixm->plane_fmt[i];
