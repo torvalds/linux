@@ -13,6 +13,7 @@
 #include <linux/writeback.h>
 #include <linux/pagevec.h>
 #include <linux/prefetch.h>
+#include <linux/cleancache.h>
 #include <linux/fsverity.h>
 #include "misc.h"
 #include "extent_io.h"
@@ -1762,6 +1763,15 @@ static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 		btrfs_page_set_error(fs_info, page, start, PAGE_SIZE);
 		unlock_page(page);
 		goto out;
+	}
+
+	if (!PageUptodate(page)) {
+		if (cleancache_get_page(page) == 0) {
+			BUG_ON(blocksize != PAGE_SIZE);
+			unlock_extent(tree, start, end, NULL);
+			unlock_page(page);
+			goto out;
+		}
 	}
 
 	if (page->index == last_byte >> PAGE_SHIFT) {

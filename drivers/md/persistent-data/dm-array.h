@@ -198,7 +198,7 @@ struct dm_array_cursor {
 
 	struct dm_block *block;
 	struct array_block *ab;
-	unsigned index;
+	unsigned int index;
 };
 
 int dm_array_cursor_begin(struct dm_array_info *info,

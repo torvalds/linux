@@ -1962,6 +1962,7 @@
   kstrtoul_from_user
   kstrtoull
   kstrtoull_from_user
+  kswapd
   kthread_bind
   kthread_bind_mask
   kthread_cancel_delayed_work_sync
@@ -3508,6 +3509,8 @@
   __traceiter_android_rvh_select_task_rq_rt
   __traceiter_android_rvh_set_balance_anon_file_reclaim
   __traceiter_android_rvh_set_cpus_allowed_by_task
+  __traceiter_android_rvh_set_gfp_zone_flags
+  __traceiter_android_rvh_set_readahead_gfp_mask
   __traceiter_android_rvh_setscheduler
   __traceiter_android_rvh_set_task_cpu
   __traceiter_android_rvh_set_user_nice
@@ -3549,6 +3552,7 @@
   __traceiter_android_vh_ignore_dmabuf_vmap_bounds
   __traceiter_android_vh_ipi_stop
   __traceiter_android_vh_jiffies_update
+  __traceiter_android_vh_kswapd_per_node
   __traceiter_android_vh_printk_hotplug
   __traceiter_android_vh_rproc_recovery
   __traceiter_android_vh_rproc_recovery_set
@@ -3637,6 +3641,8 @@
   __tracepoint_android_rvh_select_task_rq_rt
   __tracepoint_android_rvh_set_balance_anon_file_reclaim
   __tracepoint_android_rvh_set_cpus_allowed_by_task
+  __tracepoint_android_rvh_set_gfp_zone_flags
+  __tracepoint_android_rvh_set_readahead_gfp_mask
   __tracepoint_android_rvh_setscheduler
   __tracepoint_android_rvh_set_task_cpu
   __tracepoint_android_rvh_set_user_nice
@@ -3678,6 +3684,7 @@
   __tracepoint_android_vh_ignore_dmabuf_vmap_bounds
   __tracepoint_android_vh_ipi_stop
   __tracepoint_android_vh_jiffies_update
+  __tracepoint_android_vh_kswapd_per_node
   __tracepoint_android_vh_printk_hotplug
   __tracepoint_android_vh_rproc_recovery
   __tracepoint_android_vh_rproc_recovery_set
