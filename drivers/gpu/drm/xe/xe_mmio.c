@@ -158,7 +158,8 @@ int xe_mmio_total_vram_size(struct xe_device *xe, u64 *vram_size, u64 *usable_si
 	if (!xe->info.has_flat_ccs)  {
 		*vram_size = pci_resource_len(pdev, GEN12_LMEM_BAR);
 		if (usable_size)
-			*usable_size = min(*vram_size, xe_mmio_read64(gt, GEN12_GSMBASE.reg));
+			*usable_size = min(*vram_size,
+					   xe_mmio_read64(gt, GSMBASE.reg));
 		return 0;
 	}
 

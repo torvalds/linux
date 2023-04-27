@@ -185,12 +185,12 @@ err:
 	return err;
 }
 
-#define GEN12_GUC_TLB_INV_CR                     _MMIO(0xcee8)
-#define   GEN12_GUC_TLB_INV_CR_INVALIDATE        REG_BIT(0)
+#define GUC_TLB_INV_CR				_MMIO(0xcee8)
+#define   GUC_TLB_INV_CR_INVALIDATE		REG_BIT(0)
 #define PVC_GUC_TLB_INV_DESC0			_MMIO(0xcf7c)
-#define   PVC_GUC_TLB_INV_DESC0_VALID		 REG_BIT(0)
+#define   PVC_GUC_TLB_INV_DESC0_VALID		REG_BIT(0)
 #define PVC_GUC_TLB_INV_DESC1			_MMIO(0xcf80)
-#define   PVC_GUC_TLB_INV_DESC1_INVALIDATE	 REG_BIT(6)
+#define   PVC_GUC_TLB_INV_DESC1_INVALIDATE	REG_BIT(6)
 
 void xe_ggtt_invalidate(struct xe_gt *gt)
 {
@@ -212,8 +212,8 @@ void xe_ggtt_invalidate(struct xe_gt *gt)
 			xe_mmio_write32(gt, PVC_GUC_TLB_INV_DESC0.reg,
 					PVC_GUC_TLB_INV_DESC0_VALID);
 		} else
-			xe_mmio_write32(gt, GEN12_GUC_TLB_INV_CR.reg,
-					GEN12_GUC_TLB_INV_CR_INVALIDATE);
+			xe_mmio_write32(gt, GUC_TLB_INV_CR.reg,
+					GUC_TLB_INV_CR_INVALIDATE);
 	}
 }
 

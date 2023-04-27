@@ -37,7 +37,7 @@
 #define   MI_FLUSH_DW_OP_STOREDW	(1<<14)
 #define   MI_FLUSH_DW_USE_GTT		(1<<2)
 
-#define MI_BATCH_BUFFER_START_GEN8	MI_INSTR(0x31, 1)
+#define MI_BATCH_BUFFER_START		MI_INSTR(0x31, 1)
 
 #define XY_CTRL_SURF_COPY_BLT		((2 << 29) | (0x48 << 22) | 3)
 #define   SRC_ACCESS_TYPE_SHIFT		21

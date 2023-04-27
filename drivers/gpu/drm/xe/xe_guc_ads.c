@@ -450,10 +450,10 @@ static unsigned int guc_mmio_regset_write(struct xe_guc_ads *ads,
 		u32 flags;
 		bool skip;
 	} *e, extra_regs[] = {
-		{ .reg = RING_MODE_GEN7(hwe->mmio_base).reg,		},
+		{ .reg = RING_MODE(hwe->mmio_base).reg,		},
 		{ .reg = RING_HWS_PGA(hwe->mmio_base).reg,		},
 		{ .reg = RING_IMR(hwe->mmio_base).reg,			},
-		{ .reg = GEN12_RCU_MODE.reg, .flags = 0x3,
+		{ .reg = RCU_MODE.reg, .flags = 0x3,
 		  .skip = hwe != hwe_rcs_reset_domain			},
 	};
 	u32 i;
@@ -478,7 +478,8 @@ static unsigned int guc_mmio_regset_write(struct xe_guc_ads *ads,
 	if (needs_wa_1607983814(xe) && hwe->class == XE_ENGINE_CLASS_RENDER) {
 		for (i = 0; i < LNCFCMOCS_REG_COUNT; i++) {
 			guc_mmio_regset_write_one(ads, regset_map,
-						  GEN9_LNCFCMOCS(i).reg, 0, count++);
+						  LNCFCMOCS(i).reg, 0,
+						  count++);
 		}
 	}
 
@@ -557,11 +558,11 @@ static void guc_doorbell_init(struct xe_guc_ads *ads)
 
 	if (GRAPHICS_VER(xe) >= 12 && !IS_DGFX(xe)) {
 		u32 distdbreg =
-			xe_mmio_read32(gt, GEN12_DIST_DBS_POPULATED.reg);
+			xe_mmio_read32(gt, DIST_DBS_POPULATED.reg);
 
 		ads_blob_write(ads,
 			       system_info.generic_gt_sysinfo[GUC_GENERIC_GT_SYSINFO_DOORBELL_COUNT_PER_SQIDI],
-			       REG_FIELD_GET(GEN12_DOORBELLS_PER_SQIDI_MASK, distdbreg) + 1);
+			       REG_FIELD_GET(DOORBELLS_PER_SQIDI_MASK, distdbreg) + 1);
 	}
 }
 

@@ -22,8 +22,8 @@
 #define   RING_CTL_SIZE(size)			((size) - PAGE_SIZE) /* in bytes -> pages */
 
 #define RING_PSMI_CTL(base)			_MMIO((base) + 0x50)
-#define   GEN8_RC_SEMA_IDLE_MSG_DISABLE			REG_BIT(12)
-#define   GEN12_WAIT_FOR_EVENT_POWER_DOWN_DISABLE	REG_BIT(7)
+#define   RC_SEMA_IDLE_MSG_DISABLE			REG_BIT(12)
+#define   WAIT_FOR_EVENT_POWER_DOWN_DISABLE	REG_BIT(7)
 
 #define RING_ACTHD_UDW(base)			_MMIO((base) + 0x5c)
 #define RING_DMA_FADD_UDW(base)			_MMIO((base) + 0x60)
@@ -53,8 +53,8 @@
 #define	  CTX_CTRL_INHIBIT_SYN_CTX_SWITCH	REG_BIT(3)
 #define	  CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT	REG_BIT(0)
 
-#define RING_MODE_GEN7(base)			_MMIO((base) + 0x29c)
-#define   GEN11_GFX_DISABLE_LEGACY_MODE		(1 << 3)
+#define RING_MODE(base)				_MMIO((base) + 0x29c)
+#define   GFX_DISABLE_LEGACY_MODE		(1 << 3)
 
 #define RING_TIMESTAMP(base)			_MMIO((base) + 0x358)
 

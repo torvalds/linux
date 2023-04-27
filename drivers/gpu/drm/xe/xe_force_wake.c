@@ -49,14 +49,14 @@ void xe_force_wake_init_gt(struct xe_gt *gt, struct xe_force_wake *fw)
 	if (xe->info.graphics_verx100 >= 1270) {
 		domain_init(&fw->domains[XE_FW_DOMAIN_ID_GT],
 			    XE_FW_DOMAIN_ID_GT,
-			    FORCEWAKE_GT_GEN9.reg,
+			    FORCEWAKE_GT.reg,
 			    FORCEWAKE_ACK_GT_MTL.reg,
 			    BIT(0), BIT(16));
 	} else {
 		domain_init(&fw->domains[XE_FW_DOMAIN_ID_GT],
 			    XE_FW_DOMAIN_ID_GT,
-			    FORCEWAKE_GT_GEN9.reg,
-			    FORCEWAKE_ACK_GT_GEN9.reg,
+			    FORCEWAKE_GT.reg,
+			    FORCEWAKE_ACK_GT.reg,
 			    BIT(0), BIT(16));
 	}
 }
@@ -71,8 +71,8 @@ void xe_force_wake_init_engines(struct xe_gt *gt, struct xe_force_wake *fw)
 	if (!xe_gt_is_media_type(gt))
 		domain_init(&fw->domains[XE_FW_DOMAIN_ID_RENDER],
 			    XE_FW_DOMAIN_ID_RENDER,
-			    FORCEWAKE_RENDER_GEN9.reg,
-			    FORCEWAKE_ACK_RENDER_GEN9.reg,
+			    FORCEWAKE_RENDER.reg,
+			    FORCEWAKE_ACK_RENDER.reg,
 			    BIT(0), BIT(16));
 
 	for (i = XE_HW_ENGINE_VCS0, j = 0; i <= XE_HW_ENGINE_VCS7; ++i, ++j) {
@@ -81,8 +81,8 @@ void xe_force_wake_init_engines(struct xe_gt *gt, struct xe_force_wake *fw)
 
 		domain_init(&fw->domains[XE_FW_DOMAIN_ID_MEDIA_VDBOX0 + j],
 			    XE_FW_DOMAIN_ID_MEDIA_VDBOX0 + j,
-			    FORCEWAKE_MEDIA_VDBOX_GEN11(j).reg,
-			    FORCEWAKE_ACK_MEDIA_VDBOX_GEN11(j).reg,
+			    FORCEWAKE_MEDIA_VDBOX(j).reg,
+			    FORCEWAKE_ACK_MEDIA_VDBOX(j).reg,
 			    BIT(0), BIT(16));
 	}
 
@@ -92,8 +92,8 @@ void xe_force_wake_init_engines(struct xe_gt *gt, struct xe_force_wake *fw)
 
 		domain_init(&fw->domains[XE_FW_DOMAIN_ID_MEDIA_VEBOX0 + j],
 			    XE_FW_DOMAIN_ID_MEDIA_VEBOX0 + j,
-			    FORCEWAKE_MEDIA_VEBOX_GEN11(j).reg,
-			    FORCEWAKE_ACK_MEDIA_VEBOX_GEN11(j).reg,
+			    FORCEWAKE_MEDIA_VEBOX(j).reg,
+			    FORCEWAKE_ACK_MEDIA_VEBOX(j).reg,
 			    BIT(0), BIT(16));
 	}
 }

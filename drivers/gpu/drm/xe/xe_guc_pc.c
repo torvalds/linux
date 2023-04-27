@@ -413,7 +413,7 @@ static ssize_t freq_cur_show(struct device *dev,
 	if (ret)
 		goto out;
 
-	freq = xe_mmio_read32(gt, GEN6_RPNSWREQ.reg);
+	freq = xe_mmio_read32(gt, RPNSWREQ.reg);
 
 	freq = REG_FIELD_GET(REQ_RATIO_MASK, freq);
 	ret = sysfs_emit(buf, "%d\n", decode_freq(freq));
@@ -588,7 +588,7 @@ static ssize_t rc_status_show(struct device *dev,
 	u32 reg;
 
 	xe_device_mem_access_get(gt_to_xe(gt));
-	reg = xe_mmio_read32(gt, GEN6_GT_CORE_STATUS.reg);
+	reg = xe_mmio_read32(gt, GT_CORE_STATUS.reg);
 	xe_device_mem_access_put(gt_to_xe(gt));
 
 	switch (REG_FIELD_GET(RCN_MASK, reg)) {
@@ -615,7 +615,7 @@ static ssize_t rc6_residency_show(struct device *dev,
 	if (ret)
 		goto out;
 
-	reg = xe_mmio_read32(gt, GEN6_GT_GFX_RC6.reg);
+	reg = xe_mmio_read32(gt, GT_GFX_RC6.reg);
 	ret = sysfs_emit(buff, "%u\n", reg);
 
 	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL));
@@ -745,9 +745,9 @@ static int pc_gucrc_disable(struct xe_guc_pc *pc)
 	if (ret)
 		return ret;
 
-	xe_mmio_write32(gt, GEN9_PG_ENABLE.reg, 0);
-	xe_mmio_write32(gt, GEN6_RC_CONTROL.reg, 0);
-	xe_mmio_write32(gt, GEN6_RC_STATE.reg, 0);
+	xe_mmio_write32(gt, PG_ENABLE.reg, 0);
+	xe_mmio_write32(gt, RC_CONTROL.reg, 0);
+	xe_mmio_write32(gt, RC_STATE.reg, 0);
 
 	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL));
 	return 0;

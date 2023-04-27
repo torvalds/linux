@@ -110,28 +110,28 @@ static const struct engine_info engine_infos[] = {
 		.class = XE_ENGINE_CLASS_VIDEO_DECODE,
 		.instance = 0,
 		.domain = XE_FW_MEDIA_VDBOX0,
-		.mmio_base = GEN11_BSD_RING_BASE,
+		.mmio_base = BSD_RING_BASE,
 	},
 	[XE_HW_ENGINE_VCS1] = {
 		.name = "vcs1",
 		.class = XE_ENGINE_CLASS_VIDEO_DECODE,
 		.instance = 1,
 		.domain = XE_FW_MEDIA_VDBOX1,
-		.mmio_base = GEN11_BSD2_RING_BASE,
+		.mmio_base = BSD2_RING_BASE,
 	},
 	[XE_HW_ENGINE_VCS2] = {
 		.name = "vcs2",
 		.class = XE_ENGINE_CLASS_VIDEO_DECODE,
 		.instance = 2,
 		.domain = XE_FW_MEDIA_VDBOX2,
-		.mmio_base = GEN11_BSD3_RING_BASE,
+		.mmio_base = BSD3_RING_BASE,
 	},
 	[XE_HW_ENGINE_VCS3] = {
 		.name = "vcs3",
 		.class = XE_ENGINE_CLASS_VIDEO_DECODE,
 		.instance = 3,
 		.domain = XE_FW_MEDIA_VDBOX3,
-		.mmio_base = GEN11_BSD4_RING_BASE,
+		.mmio_base = BSD4_RING_BASE,
 	},
 	[XE_HW_ENGINE_VCS4] = {
 		.name = "vcs4",
@@ -166,14 +166,14 @@ static const struct engine_info engine_infos[] = {
 		.class = XE_ENGINE_CLASS_VIDEO_ENHANCE,
 		.instance = 0,
 		.domain = XE_FW_MEDIA_VEBOX0,
-		.mmio_base = GEN11_VEBOX_RING_BASE,
+		.mmio_base = VEBOX_RING_BASE,
 	},
 	[XE_HW_ENGINE_VECS1] = {
 		.name = "vecs1",
 		.class = XE_ENGINE_CLASS_VIDEO_ENHANCE,
 		.instance = 1,
 		.domain = XE_FW_MEDIA_VEBOX1,
-		.mmio_base = GEN11_VEBOX2_RING_BASE,
+		.mmio_base = VEBOX2_RING_BASE,
 	},
 	[XE_HW_ENGINE_VECS2] = {
 		.name = "vecs2",
@@ -194,28 +194,28 @@ static const struct engine_info engine_infos[] = {
 		.class = XE_ENGINE_CLASS_COMPUTE,
 		.instance = 0,
 		.domain = XE_FW_RENDER,
-		.mmio_base = GEN12_COMPUTE0_RING_BASE,
+		.mmio_base = COMPUTE0_RING_BASE,
 	},
 	[XE_HW_ENGINE_CCS1] = {
 		.name = "ccs1",
 		.class = XE_ENGINE_CLASS_COMPUTE,
 		.instance = 1,
 		.domain = XE_FW_RENDER,
-		.mmio_base = GEN12_COMPUTE1_RING_BASE,
+		.mmio_base = COMPUTE1_RING_BASE,
 	},
 	[XE_HW_ENGINE_CCS2] = {
 		.name = "ccs2",
 		.class = XE_ENGINE_CLASS_COMPUTE,
 		.instance = 2,
 		.domain = XE_FW_RENDER,
-		.mmio_base = GEN12_COMPUTE2_RING_BASE,
+		.mmio_base = COMPUTE2_RING_BASE,
 	},
 	[XE_HW_ENGINE_CCS3] = {
 		.name = "ccs3",
 		.class = XE_ENGINE_CLASS_COMPUTE,
 		.instance = 3,
 		.domain = XE_FW_RENDER,
-		.mmio_base = GEN12_COMPUTE3_RING_BASE,
+		.mmio_base = COMPUTE3_RING_BASE,
 	},
 };
 
@@ -254,14 +254,14 @@ void xe_hw_engine_enable_ring(struct xe_hw_engine *hwe)
 		xe_hw_engine_mask_per_class(hwe->gt, XE_ENGINE_CLASS_COMPUTE);
 
 	if (hwe->class == XE_ENGINE_CLASS_COMPUTE && ccs_mask)
-		xe_mmio_write32(hwe->gt, GEN12_RCU_MODE.reg,
-				_MASKED_BIT_ENABLE(GEN12_RCU_MODE_CCS_ENABLE));
+		xe_mmio_write32(hwe->gt, RCU_MODE.reg,
+				_MASKED_BIT_ENABLE(RCU_MODE_CCS_ENABLE));
 
 	hw_engine_mmio_write32(hwe, RING_HWSTAM(0).reg, ~0x0);
 	hw_engine_mmio_write32(hwe, RING_HWS_PGA(0).reg,
 			       xe_bo_ggtt_addr(hwe->hwsp));
-	hw_engine_mmio_write32(hwe, RING_MODE_GEN7(0).reg,
-			       _MASKED_BIT_ENABLE(GEN11_GFX_DISABLE_LEGACY_MODE));
+	hw_engine_mmio_write32(hwe, RING_MODE(0).reg,
+			       _MASKED_BIT_ENABLE(GFX_DISABLE_LEGACY_MODE));
 	hw_engine_mmio_write32(hwe, RING_MI_MODE(0).reg,
 			       _MASKED_BIT_DISABLE(STOP_RING));
 	hw_engine_mmio_read32(hwe, RING_MI_MODE(0).reg);
@@ -379,7 +379,7 @@ static void read_media_fuses(struct xe_gt *gt)
 
 	xe_force_wake_assert_held(gt_to_fw(gt), XE_FW_GT);
 
-	media_fuse = xe_mmio_read32(gt, GEN11_GT_VEBOX_VDBOX_DISABLE.reg);
+	media_fuse = xe_mmio_read32(gt, GT_VEBOX_VDBOX_DISABLE.reg);
 
 	/*
 	 * Pre-Xe_HP platforms had register bits representing absent engines,
@@ -390,8 +390,8 @@ static void read_media_fuses(struct xe_gt *gt)
 	if (GRAPHICS_VERx100(xe) < 1250)
 		media_fuse = ~media_fuse;
 
-	vdbox_mask = REG_FIELD_GET(GEN11_GT_VDBOX_DISABLE_MASK, media_fuse);
-	vebox_mask = REG_FIELD_GET(GEN11_GT_VEBOX_DISABLE_MASK, media_fuse);
+	vdbox_mask = REG_FIELD_GET(GT_VDBOX_DISABLE_MASK, media_fuse);
+	vebox_mask = REG_FIELD_GET(GT_VEBOX_DISABLE_MASK, media_fuse);
 
 	for (i = XE_HW_ENGINE_VCS0, j = 0; i <= XE_HW_ENGINE_VCS7; ++i, ++j) {
 		if (!(gt->info.engine_mask & BIT(i)))
@@ -421,8 +421,8 @@ static void read_copy_fuses(struct xe_gt *gt)
 
 	xe_force_wake_assert_held(gt_to_fw(gt), XE_FW_GT);
 
-	bcs_mask = xe_mmio_read32(gt, GEN10_MIRROR_FUSE3.reg);
-	bcs_mask = REG_FIELD_GET(GEN12_MEML3_EN_MASK, bcs_mask);
+	bcs_mask = xe_mmio_read32(gt, MIRROR_FUSE3.reg);
+	bcs_mask = REG_FIELD_GET(MEML3_EN_MASK, bcs_mask);
 
 	/* BCS0 is always present; only BCS1-BCS8 may be fused off */
 	for (int i = XE_HW_ENGINE_BCS1, j = 0; i <= XE_HW_ENGINE_BCS8; ++i, ++j) {
@@ -546,7 +546,7 @@ void xe_hw_engine_print_state(struct xe_hw_engine *hwe, struct drm_printer *p)
 	drm_printf(p, "\tRING_MODE: 0x%08x\n",
 		hw_engine_mmio_read32(hwe, RING_MI_MODE(0).reg));
 	drm_printf(p, "\tRING_MODE_GEN7: 0x%08x\n",
-		hw_engine_mmio_read32(hwe, RING_MODE_GEN7(0).reg));
+		hw_engine_mmio_read32(hwe, RING_MODE(0).reg));
 
 	drm_printf(p, "\tRING_IMR:   0x%08x\n",
 		hw_engine_mmio_read32(hwe, RING_IMR(0).reg));
@@ -573,8 +573,8 @@ void xe_hw_engine_print_state(struct xe_hw_engine *hwe, struct drm_printer *p)
 		hw_engine_mmio_read32(hwe, IPEHR(0).reg));
 
 	if (hwe->class == XE_ENGINE_CLASS_COMPUTE)
-		drm_printf(p, "\tGEN12_RCU_MODE: 0x%08x\n",
-			xe_mmio_read32(hwe->gt, GEN12_RCU_MODE.reg));
+		drm_printf(p, "\tRCU_MODE: 0x%08x\n",
+			xe_mmio_read32(hwe->gt, RCU_MODE.reg));
 
 }
 

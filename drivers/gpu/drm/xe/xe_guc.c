@@ -278,7 +278,7 @@ int xe_guc_init(struct xe_guc *guc)
 	if (xe_gt_is_media_type(gt))
 		guc->notify_reg = MEDIA_GUC_HOST_INTERRUPT.reg;
 	else
-		guc->notify_reg = GEN11_GUC_HOST_INTERRUPT.reg;
+		guc->notify_reg = GUC_HOST_INTERRUPT.reg;
 
 	xe_uc_fw_change_status(&guc->fw, XE_UC_FIRMWARE_LOADABLE);
 
@@ -317,9 +317,9 @@ int xe_guc_reset(struct xe_guc *guc)
 
 	xe_force_wake_assert_held(gt_to_fw(gt), XE_FW_GT);
 
-	xe_mmio_write32(gt, GEN6_GDRST.reg, GEN11_GRDOM_GUC);
+	xe_mmio_write32(gt, GDRST.reg, GRDOM_GUC);
 
-	ret = xe_mmio_wait32(gt, GEN6_GDRST.reg, 0, GEN11_GRDOM_GUC, 5000,
+	ret = xe_mmio_wait32(gt, GDRST.reg, 0, GRDOM_GUC, 5000,
 			     &gdrst, false);
 	if (ret) {
 		drm_err(&xe->drm, "GuC reset timed out, GEN6_GDRST=0x%8x\n",
@@ -362,7 +362,7 @@ static void guc_prepare_xfer(struct xe_guc *guc)
 	/* Must program this register before loading the ucode with DMA */
 	xe_mmio_write32(gt, GUC_SHIM_CONTROL.reg, shim_flags);
 
-	xe_mmio_write32(gt, GEN9_GT_PM_CONFIG.reg, GT_DOORBELL_ENABLE);
+	xe_mmio_write32(gt, GT_PM_CONFIG.reg, GT_DOORBELL_ENABLE);
 }
 
 /*
@@ -575,7 +575,7 @@ int xe_guc_enable_communication(struct xe_guc *guc)
 
 	guc_enable_irq(guc);
 
-	xe_mmio_rmw32(guc_to_gt(guc), GEN6_PMINTRMSK.reg,
+	xe_mmio_rmw32(guc_to_gt(guc), PMINTRMSK.reg,
 		      ARAT_EXPIRED_INTRMSK, 0);
 
 	err = xe_guc_ct_enable(&guc->ct);

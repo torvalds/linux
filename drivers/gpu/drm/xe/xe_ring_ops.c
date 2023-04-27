@@ -85,7 +85,7 @@ static int emit_flush_imm_ggtt(u32 addr, u32 value, u32 *dw, int i)
 
 static int emit_bb_start(u64 batch_addr, u32 ppgtt_flag, u32 *dw, int i)
 {
-	dw[i++] = MI_BATCH_BUFFER_START_GEN8 | ppgtt_flag;
+	dw[i++] = MI_BATCH_BUFFER_START | ppgtt_flag;
 	dw[i++] = lower_32_bits(batch_addr);
 	dw[i++] = upper_32_bits(batch_addr);
 
@@ -202,9 +202,9 @@ static void __emit_job_gen12_video(struct xe_sched_job *job, struct xe_lrc *lrc,
 	/* Wa_1809175790 */
 	if (!xe->info.has_flat_ccs) {
 		if (decode)
-			i = emit_aux_table_inv(gt, GEN12_VD0_AUX_INV.reg, dw, i);
+			i = emit_aux_table_inv(gt, VD0_AUX_INV.reg, dw, i);
 		else
-			i = emit_aux_table_inv(gt, GEN12_VE0_AUX_INV.reg, dw, i);
+			i = emit_aux_table_inv(gt, VE0_AUX_INV.reg, dw, i);
 	}
 	dw[i++] = preparser_disable(false);
 
@@ -246,7 +246,7 @@ static void __emit_job_gen12_render_compute(struct xe_sched_job *job,
 	i = emit_pipe_invalidate(mask_flags, dw, i);
 	/* Wa_1809175790 */
 	if (!xe->info.has_flat_ccs)
-		i = emit_aux_table_inv(gt, GEN12_CCS_AUX_INV.reg, dw, i);
+		i = emit_aux_table_inv(gt, CCS_AUX_INV.reg, dw, i);
 	dw[i++] = preparser_disable(false);
 
 	i = emit_store_imm_ggtt(xe_lrc_start_seqno_ggtt_addr(lrc),

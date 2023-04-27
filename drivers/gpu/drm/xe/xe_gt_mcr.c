@@ -177,8 +177,8 @@ static const struct xe_mmio_range dg2_implicit_steering_table[] = {
 static void init_steering_l3bank(struct xe_gt *gt)
 {
 	if (GRAPHICS_VERx100(gt_to_xe(gt)) >= 1270) {
-		u32 mslice_mask = REG_FIELD_GET(GEN12_MEML3_EN_MASK,
-						xe_mmio_read32(gt, GEN10_MIRROR_FUSE3.reg));
+		u32 mslice_mask = REG_FIELD_GET(MEML3_EN_MASK,
+						xe_mmio_read32(gt, MIRROR_FUSE3.reg));
 		u32 bank_mask = REG_FIELD_GET(GT_L3_EXC_MASK,
 					      xe_mmio_read32(gt, XEHP_FUSE4.reg));
 
@@ -190,8 +190,8 @@ static void init_steering_l3bank(struct xe_gt *gt)
 		gt->steering[L3BANK].instance_target =
 			bank_mask & BIT(0) ? 0 : 2;
 	} else if (gt_to_xe(gt)->info.platform == XE_DG2) {
-		u32 mslice_mask = REG_FIELD_GET(GEN12_MEML3_EN_MASK,
-						xe_mmio_read32(gt, GEN10_MIRROR_FUSE3.reg));
+		u32 mslice_mask = REG_FIELD_GET(MEML3_EN_MASK,
+						xe_mmio_read32(gt, MIRROR_FUSE3.reg));
 		u32 bank = __ffs(mslice_mask) * 8;
 
 		/*
@@ -202,8 +202,8 @@ static void init_steering_l3bank(struct xe_gt *gt)
 		gt->steering[L3BANK].group_target = (bank >> 2) & 0x7;
 		gt->steering[L3BANK].instance_target = bank & 0x3;
 	} else {
-		u32 fuse = REG_FIELD_GET(GEN10_L3BANK_MASK,
-					 ~xe_mmio_read32(gt, GEN10_MIRROR_FUSE3.reg));
+		u32 fuse = REG_FIELD_GET(L3BANK_MASK,
+					 ~xe_mmio_read32(gt, MIRROR_FUSE3.reg));
 
 		gt->steering[L3BANK].group_target = 0;	/* unused */
 		gt->steering[L3BANK].instance_target = __ffs(fuse);
@@ -212,8 +212,8 @@ static void init_steering_l3bank(struct xe_gt *gt)
 
 static void init_steering_mslice(struct xe_gt *gt)
 {
-	u32 mask = REG_FIELD_GET(GEN12_MEML3_EN_MASK,
-				 xe_mmio_read32(gt, GEN10_MIRROR_FUSE3.reg));
+	u32 mask = REG_FIELD_GET(MEML3_EN_MASK,
+				 xe_mmio_read32(gt, MIRROR_FUSE3.reg));
 
 	/*
 	 * mslice registers are valid (not terminated) if either the meml3
@@ -329,8 +329,8 @@ void xe_gt_mcr_set_implicit_defaults(struct xe_gt *gt)
 	struct xe_device *xe = gt_to_xe(gt);
 
 	if (xe->info.platform == XE_DG2) {
-		u32 steer_val = REG_FIELD_PREP(GEN11_MCR_SLICE_MASK, 0) |
-			REG_FIELD_PREP(GEN11_MCR_SUBSLICE_MASK, 2);
+		u32 steer_val = REG_FIELD_PREP(MCR_SLICE_MASK, 0) |
+			REG_FIELD_PREP(MCR_SUBSLICE_MASK, 2);
 
 		xe_mmio_write32(gt, MCFG_MCR_SELECTOR.reg, steer_val);
 		xe_mmio_write32(gt, SF_MCR_SELECTOR.reg, steer_val);
@@ -448,9 +448,9 @@ static u32 rw_with_mcr_steering(struct xe_gt *gt, i915_mcr_reg_t reg, u8 rw_flag
 		steer_val = REG_FIELD_PREP(MTL_MCR_GROUPID, group) |
 			REG_FIELD_PREP(MTL_MCR_INSTANCEID, instance);
 	} else {
-		steer_reg = GEN8_MCR_SELECTOR.reg;
-		steer_val = REG_FIELD_PREP(GEN11_MCR_SLICE_MASK, group) |
-			REG_FIELD_PREP(GEN11_MCR_SUBSLICE_MASK, instance);
+		steer_reg = MCR_SELECTOR.reg;
+		steer_val = REG_FIELD_PREP(MCR_SLICE_MASK, group) |
+			REG_FIELD_PREP(MCR_SUBSLICE_MASK, instance);
 	}
 
 	/*
@@ -461,7 +461,7 @@ static u32 rw_with_mcr_steering(struct xe_gt *gt, i915_mcr_reg_t reg, u8 rw_flag
 	 * No need to save old steering reg value.
 	 */
 	if (rw_flag == MCR_OP_READ)
-		steer_val |= GEN11_MCR_MULTICAST;
+		steer_val |= MCR_MULTICAST;
 
 	xe_mmio_write32(gt, steer_reg, steer_val);
 
@@ -477,7 +477,7 @@ static u32 rw_with_mcr_steering(struct xe_gt *gt, i915_mcr_reg_t reg, u8 rw_flag
 	 * operation.
 	 */
 	if (rw_flag == MCR_OP_WRITE)
-		xe_mmio_write32(gt, steer_reg, GEN11_MCR_MULTICAST);
+		xe_mmio_write32(gt, steer_reg, MCR_MULTICAST);
 
 	return val;
 }
