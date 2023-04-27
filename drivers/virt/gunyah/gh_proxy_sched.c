@@ -35,7 +35,6 @@
 #include <linux/wait.h>
 #include <linux/sched/signal.h>
 
-#include <linux/gunyah/gh_errno.h>
 #include <linux/gunyah/gh_rm_drv.h>
 #include <linux/gunyah/gh_vm.h>
 #include "gh_proxy_sched.h"
@@ -103,7 +102,7 @@ static inline void gh_vcpu_wake_up(struct gh_proxy_vcpu *vcpu)
 {
 	vcpu->abort_sleep = true;
 
-	return wake_up(&vcpu->wait_queue);
+	wake_up(&vcpu->wait_queue);
 }
 
 /*

@@ -25,11 +25,50 @@ unsigned long __icache_flags;
 /* Used by kvm_get_vttbr(). */
 unsigned int kvm_arm_vmid_bits;
 
+unsigned int kvm_host_sve_max_vl;
+
 /*
  * The currently loaded hyp vCPU for each physical CPU. Used only when
  * protected KVM is enabled, but for both protected and non-protected VMs.
  */
 static DEFINE_PER_CPU(struct pkvm_hyp_vcpu *, loaded_hyp_vcpu);
+
+/*
+ * Host fp state for all cpus. This could include the host simd state, as well
+ * as the sve and sme states if supported. Written to when the guest accesses
+ * its own FPSIMD state, and read when the guest state is live and we need to
+ * switch back to the host.
+ *
+ * Only valid when (fp_state == FP_STATE_GUEST_OWNED) in the hyp vCPU structure.
+ */
+void *host_fp_state;
+
+static void *__get_host_fpsimd_bytes(void)
+{
+	void *state = host_fp_state +
+		      size_mul(pkvm_host_fp_state_size(), hyp_smp_processor_id());
+
+	if (state < host_fp_state)
+		return NULL;
+
+	return state;
+}
+
+struct user_fpsimd_state *get_host_fpsimd_state(struct kvm_vcpu *vcpu)
+{
+	if (likely(!is_protected_kvm_enabled()))
+		return vcpu->arch.host_fpsimd_state;
+
+	WARN_ON(system_supports_sve());
+	return __get_host_fpsimd_bytes();
+}
+
+struct kvm_host_sve_state *get_host_sve_state(struct kvm_vcpu *vcpu)
+{
+	WARN_ON(!system_supports_sve());
+	WARN_ON(!is_protected_kvm_enabled());
+	return __get_host_fpsimd_bytes();
+}
 
 /*
  * Set trap register values based on features in ID_AA64PFR0.
@@ -254,6 +293,12 @@ void pkvm_hyp_vm_table_init(void *tbl)
 {
 	WARN_ON(vm_table);
 	vm_table = tbl;
+}
+
+void pkvm_hyp_host_fp_init(void *host_fp)
+{
+	WARN_ON(host_fp_state);
+	host_fp_state = host_fp;
 }
 
 /*

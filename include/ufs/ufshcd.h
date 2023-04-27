@@ -616,29 +616,38 @@ enum ufshcd_quirks {
 	 * to reinit the device after switching to maximum gear.
 	 */
 	UFSHCD_QUIRK_REINIT_AFTER_MAX_GEAR_SWITCH       = 1 << 19,
+};
+
+enum ufshcd_android_quirks {
 
 	/*
+	 * IMPORTANT: set this in hba->android_quirks, not hba->quirks!
+	 *
 	 * This quirk needs to be enabled if the host controller supports inline
 	 * encryption, but it needs to initialize the crypto capabilities in a
 	 * nonstandard way and/or it needs to override blk_crypto_ll_ops.  If
 	 * enabled, the standard code won't initialize the blk_crypto_profile;
 	 * ufs_hba_variant_ops::init() must do it instead.
 	 */
-	UFSHCD_QUIRK_CUSTOM_CRYPTO_PROFILE		= 1 << 20,
+	UFSHCD_ANDROID_QUIRK_CUSTOM_CRYPTO_PROFILE	= 1 << 0,
 
 	/*
+	 * IMPORTANT: set this in hba->android_quirks, not hba->quirks!
+	 *
 	 * This quirk needs to be enabled if the host controller supports inline
 	 * encryption, but the CRYPTO_GENERAL_ENABLE bit is not implemented and
 	 * breaks the HCE sequence if used.
 	 */
-	UFSHCD_QUIRK_BROKEN_CRYPTO_ENABLE		= 1 << 21,
+	UFSHCD_ANDROID_QUIRK_BROKEN_CRYPTO_ENABLE	= 1 << 1,
 
 	/*
+	 * IMPORTANT: set this in hba->android_quirks, not hba->quirks!
+	 *
 	 * This quirk needs to be enabled if the host controller requires that
 	 * the PRDT be cleared after each encrypted request because encryption
 	 * keys were stored in it.
 	 */
-	UFSHCD_QUIRK_KEYS_IN_PRDT			= 1 << 22,
+	UFSHCD_ANDROID_QUIRK_KEYS_IN_PRDT		= 1 << 2,
 };
 
 enum ufshcd_caps {
@@ -989,6 +998,8 @@ struct ufs_hba {
 	enum ufs_ref_clk_freq dev_ref_clk_freq;
 
 	unsigned int quirks;	/* Deviations from standard UFSHCI spec. */
+
+	unsigned int android_quirks; /* for UFSHCD_ANDROID_QUIRK_* flags */
 
 	/* Device deviations from standard UFS device spec. */
 	unsigned int dev_quirks;

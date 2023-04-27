@@ -155,12 +155,6 @@ out:
 }
 EXPORT_SYMBOL(ghd_rm_get_vmid);
 
-int gh_rm_get_vmid(enum gh_vm_names vm_name, gh_vmid_t *vmid)
-{
-	return ghd_rm_get_vmid(vm_name, vmid);
-}
-EXPORT_SYMBOL(gh_rm_get_vmid);
-
 /**
  * gh_rm_get_vm_name: Translate vmid to vm name
  * @vmid: vmid to lookup
@@ -246,9 +240,9 @@ gh_rm_vm_get_id(gh_vmid_t vmid, u32 *n_entries)
 	if (!n_entries)
 		return ERR_PTR(-EINVAL);
 
-	resp_payload = gh_rm_call(GH_RM_RPC_MSG_ID_CALL_VM_GET_ID,
+	reply_err_code = gh_rm_call(rm, GH_RM_RPC_MSG_ID_CALL_VM_GET_ID,
 				&req_payload, sizeof(req_payload),
-				&resp_payload_size, &reply_err_code);
+				(void **)&resp_payload, &resp_payload_size);
 	if (reply_err_code || IS_ERR_OR_NULL(resp_payload)) {
 		err = PTR_ERR(resp_payload);
 		pr_err("%s: GET_ID failed with err: %d\n",
@@ -305,8 +299,8 @@ static int gh_rm_vm_lookup_name_uri(gh_rm_msgid_t msg_id, const char *data,
 	req_payload->size = size;
 	memcpy(req_payload->data, data, size);
 
-	resp_payload = gh_rm_call(msg_id, req_payload, req_payload_size,
-				  &resp_payload_size, &reply_err_code);
+	reply_err_code = gh_rm_call(rm, msg_id, req_payload, req_payload_size,
+				  (void **)&resp_payload, &resp_payload_size);
 
 	if (reply_err_code || IS_ERR_OR_NULL(resp_payload)) {
 		ret = PTR_ERR(resp_payload);
@@ -341,9 +335,9 @@ static int gh_rm_vm_lookup_guid(const u8 *data, gh_vmid_t *vmid)
 	if (!data || !vmid)
 		return -EINVAL;
 
-	resp_payload =
-		gh_rm_call(GH_RM_RPC_MSG_ID_CALL_VM_LOOKUP_GUID, (void *)data,
-			   16, &resp_payload_size, &reply_err_code);
+	reply_err_code =
+		gh_rm_call(rm, GH_RM_RPC_MSG_ID_CALL_VM_LOOKUP_GUID, (void *)data,
+			   16, (void **)&resp_payload, &resp_payload_size);
 
 	if (reply_err_code || IS_ERR_OR_NULL(resp_payload)) {
 		ret = PTR_ERR(resp_payload);
@@ -422,8 +416,8 @@ int gh_rm_get_this_vmid(gh_vmid_t *vmid)
 		return 0;
 	}
 
-	resp = (__le32 *)gh_rm_call(GH_RM_RPC_MSG_ID_CALL_VM_GET_VMID, NULL, 0, &resp_size,
-			&reply_err_code);
+	reply_err_code = gh_rm_call(rm, GH_RM_RPC_MSG_ID_CALL_VM_GET_VMID, NULL, 0,
+			(void **)&resp, &resp_size);
 
 	if (reply_err_code || IS_ERR_OR_NULL(resp)) {
 		ret = PTR_ERR(resp);
@@ -461,9 +455,9 @@ struct gh_vm_status *gh_rm_vm_get_status(gh_vmid_t vmid)
 	int err, reply_err_code = 0;
 	size_t resp_payload_size;
 
-	resp_payload = gh_rm_call(GH_RM_RPC_MSG_ID_CALL_VM_GET_STATE,
+	reply_err_code = gh_rm_call(rm, GH_RM_RPC_MSG_ID_CALL_VM_GET_STATE,
 				&req_payload, sizeof(req_payload),
-				&resp_payload_size, &reply_err_code);
+				(void **)&resp_payload, &resp_payload_size);
 	if (reply_err_code || IS_ERR_OR_NULL(resp_payload)) {
 		err = PTR_ERR(resp_payload);
 		pr_err("%s: Failed to call VM_GET_STATE: %d\n",
@@ -511,9 +505,9 @@ int gh_rm_vm_set_status(struct gh_vm_status gh_vm_status)
 	int reply_err_code = 0;
 	void *resp;
 
-	resp = gh_rm_call(GH_RM_RPC_MSG_ID_CALL_VM_SET_STATUS,
+	reply_err_code = gh_rm_call(rm, GH_RM_RPC_MSG_ID_CALL_VM_SET_STATUS,
 				&req_payload, sizeof(req_payload),
-				&resp_payload_size, &reply_err_code);
+				&resp, &resp_payload_size);
 	if (IS_ERR(resp)) {
 		pr_err("%s: Failed to call VM_SET_STATUS: %d\n",
 			__func__, PTR_ERR(resp));
@@ -640,9 +634,9 @@ gh_rm_vm_get_hyp_res(gh_vmid_t vmid, u32 *n_entries)
 	if (!n_entries)
 		return ERR_PTR(-EINVAL);
 
-	resp_payload = gh_rm_call(GH_RM_RPC_MSG_ID_CALL_VM_GET_HYP_RESOURCES,
+	reply_err_code = gh_rm_call(rm, GH_RM_RPC_MSG_ID_CALL_VM_GET_HYP_RESOURCES,
 				&req_payload, sizeof(req_payload),
-				&resp_payload_size, &reply_err_code);
+				(void **)&resp_payload, &resp_payload_size);
 	if (reply_err_code || IS_ERR_OR_NULL(resp_payload)) {
 		err = PTR_ERR(resp_payload);
 		pr_err("%s: GET_HYP_RESOURCES failed with err: %d\n",
@@ -723,9 +717,9 @@ static int gh_rm_vm_irq_notify(const gh_vmid_t *vmids, unsigned int num_vmids,
 	}
 
 
-	resp = gh_rm_call(GH_RM_RPC_MSG_ID_CALL_VM_IRQ_NOTIFY,
+	reply_err_code = gh_rm_call(rm, GH_RM_RPC_MSG_ID_CALL_VM_IRQ_NOTIFY,
 			  req_payload, req_payload_size,
-			  &resp_payload_size, &reply_err_code);
+			  &resp, &resp_payload_size);
 	kfree(req_payload);
 	if (IS_ERR(resp)) {
 		pr_err("%s: Unable to send IRQ_NOTIFY to RM: %d\n", __func__,
@@ -768,9 +762,9 @@ int gh_rm_vm_irq_lend(gh_vmid_t vmid, int virq, int label,
 	req_payload.virq = virq;
 	req_payload.label = label;
 
-	resp_payload = gh_rm_call(GH_RM_RPC_MSG_ID_CALL_VM_IRQ_LEND,
+	reply_err_code = gh_rm_call(rm, GH_RM_RPC_MSG_ID_CALL_VM_IRQ_LEND,
 				&req_payload, sizeof(req_payload),
-				&resp_payload_size, &reply_err_code);
+				(void **)&resp_payload, &resp_payload_size);
 	if (reply_err_code || IS_ERR_OR_NULL(resp_payload)) {
 		ret = PTR_ERR(resp_payload);
 		pr_err("%s: VM_IRQ_LEND failed with err: %d\n",
@@ -825,9 +819,9 @@ int gh_rm_vm_irq_release(gh_virq_handle_t virq_handle)
 
 	req_payload.virq_handle = virq_handle;
 
-	resp = gh_rm_call(GH_RM_RPC_MSG_ID_CALL_VM_IRQ_RELEASE,
+	reply_err_code = gh_rm_call(rm, GH_RM_RPC_MSG_ID_CALL_VM_IRQ_RELEASE,
 			  &req_payload, sizeof(req_payload),
-			  &resp_payload_size, &reply_err_code);
+			  &resp, &resp_payload_size);
 
 	if (IS_ERR(resp)) {
 		pr_err("%s: Unable to send IRQ_RELEASE to RM: %d\n", __func__,
@@ -892,9 +886,9 @@ int gh_rm_vm_irq_accept(gh_virq_handle_t virq_handle, int virq)
 	req_payload.virq_handle = virq_handle;
 	req_payload.virq = virq;
 
-	resp_payload = gh_rm_call(GH_RM_RPC_MSG_ID_CALL_VM_IRQ_ACCEPT,
+	reply_err_code = gh_rm_call(rm, GH_RM_RPC_MSG_ID_CALL_VM_IRQ_ACCEPT,
 				&req_payload, sizeof(req_payload),
-				&resp_payload_size, &reply_err_code);
+				(void **)&resp_payload, &resp_payload_size);
 	if (reply_err_code || IS_ERR_OR_NULL(resp_payload)) {
 		ret = PTR_ERR(resp_payload);
 		pr_err("%s: VM_IRQ_ACCEPT failed with err: %d\n",
@@ -942,9 +936,9 @@ int gh_rm_vm_irq_reclaim(gh_virq_handle_t virq_handle)
 
 	req_payload.virq_handle = virq_handle;
 
-	resp = gh_rm_call(GH_RM_RPC_MSG_ID_CALL_VM_IRQ_RECLAIM,
+	reply_err_code = gh_rm_call(rm, GH_RM_RPC_MSG_ID_CALL_VM_IRQ_RECLAIM,
 			  &req_payload, sizeof(req_payload),
-			  &resp_payload_size, &reply_err_code);
+			  &resp, &resp_payload_size);
 
 	if (IS_ERR(resp)) {
 		pr_err("%s: Unable to send IRQ_RELEASE to RM: %d\n", __func__,
@@ -1004,9 +998,9 @@ int gh_rm_vm_alloc_vmid(enum gh_vm_names vm_name, int *vmid)
 
 	req_payload.vmid = *vmid;
 
-	resp_payload = gh_rm_call(GH_RM_RPC_MSG_ID_CALL_VM_ALLOCATE,
+	reply_err_code = gh_rm_call(rm, GH_RM_RPC_MSG_ID_CALL_VM_ALLOCATE,
 				&req_payload, sizeof(req_payload),
-				&resp_payload_size, &reply_err_code);
+				(void **)&resp_payload, &resp_payload_size);
 	if (reply_err_code || IS_ERR(resp_payload)) {
 		err = PTR_ERR(resp_payload);
 		pr_err("%s: VM_ALLOCATE failed with err: %d\n",
@@ -1055,9 +1049,9 @@ int gh_rm_vm_dealloc_vmid(gh_vmid_t vmid)
 	int err, reply_err_code;
 	void *resp;
 
-	resp = gh_rm_call(GH_RM_RPC_MSG_ID_CALL_VM_DEALLOCATE,
+	reply_err_code = gh_rm_call(rm, GH_RM_RPC_MSG_ID_CALL_VM_DEALLOCATE,
 				&req_payload, sizeof(req_payload),
-				&resp_payload_size, &reply_err_code);
+				&resp, &resp_payload_size);
 	if (reply_err_code || IS_ERR(resp)) {
 		err = reply_err_code;
 		pr_err("%s: VM_DEALLOCATE failed with err: %d\n",
@@ -1111,9 +1105,9 @@ int gh_rm_vm_config_image(gh_vmid_t vmid, u16 auth_mech, u32 mem_handle,
 	int err, reply_err_code = 0;
 	void *resp;
 
-	resp = gh_rm_call(GH_RM_RPC_MSG_ID_CALL_VM_CONFIG_IMAGE,
+	reply_err_code = gh_rm_call(rm, GH_RM_RPC_MSG_ID_CALL_VM_CONFIG_IMAGE,
 				&req_payload, sizeof(req_payload),
-				&resp_payload_size, &reply_err_code);
+				&resp, &resp_payload_size);
 
 	if (IS_ERR(resp)) {
 		pr_err("%s: Unable to send VM_CONFIG_IMAGE to RM: %d\n", __func__,
@@ -1175,9 +1169,9 @@ int gh_rm_vm_auth_image(gh_vmid_t vmid, ssize_t n_entries,
 		dest_entry[n_entry].auth_param = entry[n_entry].auth_param;
 	}
 
-	resp = gh_rm_call(GH_RM_RPC_MSG_ID_CALL_VM_AUTH_IMAGE,
+	reply_err_code = gh_rm_call(rm, GH_RM_RPC_MSG_ID_CALL_VM_AUTH_IMAGE,
 				req_buf, req_payload_size,
-				&resp_payload_size, &reply_err_code);
+				&resp, &resp_payload_size);
 
 	if (IS_ERR(resp)) {
 		pr_err("%s: Unable to send VM_AUTH_IMAGE to RM: %d\n", __func__,
@@ -1222,9 +1216,9 @@ int ghd_rm_vm_init(gh_vmid_t vmid)
 	int err, reply_err_code = 0;
 	void *resp;
 
-	resp = gh_rm_call(GH_RM_RPC_MSG_ID_CALL_VM_INIT,
+	reply_err_code = gh_rm_call(rm, GH_RM_RPC_MSG_ID_CALL_VM_INIT,
 				&req_payload, sizeof(req_payload),
-				&resp_payload_size, &reply_err_code);
+				&resp, &resp_payload_size);
 
 	if (IS_ERR(resp)) {
 		pr_err("%s: Unable to send VM_INIT to RM: %d\n", __func__,
@@ -1250,12 +1244,6 @@ int ghd_rm_vm_init(gh_vmid_t vmid)
 }
 EXPORT_SYMBOL(ghd_rm_vm_init);
 
-int gh_rm_vm_init(gh_vmid_t vmid)
-{
-	return ghd_rm_vm_init(vmid);
-}
-EXPORT_SYMBOL(gh_rm_vm_init);
-
 /**
  * ghd_rm_vm_start: Send a request to Resource Manager VM to start a VM.
  * @vmid: The vmid of the vm to be started.
@@ -1272,9 +1260,9 @@ int ghd_rm_vm_start(int vmid)
 
 	req_payload.vmid = (gh_vmid_t) vmid;
 
-	resp_payload = gh_rm_call(GH_RM_RPC_MSG_ID_CALL_VM_START,
+	reply_err_code = gh_rm_call(rm, GH_RM_RPC_MSG_ID_CALL_VM_START,
 				&req_payload, sizeof(req_payload),
-				&resp_payload_size, &reply_err_code);
+				(void **)&resp_payload, &resp_payload_size);
 	if (reply_err_code) {
 		pr_err("%s: VM_START failed with err: %d\n",
 			__func__, reply_err_code);
@@ -1290,12 +1278,6 @@ int ghd_rm_vm_start(int vmid)
 	return 0;
 }
 EXPORT_SYMBOL(ghd_rm_vm_start);
-
-int gh_rm_vm_start(int vmid)
-{
-	return ghd_rm_vm_start(vmid);
-}
-EXPORT_SYMBOL(gh_rm_vm_start);
 
 /**
  * ghd_rm_vm_stop: Send a request to Resource Manager VM to stop a VM.
@@ -1321,9 +1303,9 @@ int ghd_rm_vm_stop(gh_vmid_t vmid, u32 stop_reason, u8 flags)
 	req_payload.stop_reason = stop_reason;
 	req_payload.flags = flags;
 
-	resp = gh_rm_call(GH_RM_RPC_MSG_ID_CALL_VM_STOP,
+	reply_err_code = gh_rm_call(rm, GH_RM_RPC_MSG_ID_CALL_VM_STOP,
 				&req_payload, sizeof(req_payload),
-				&resp_payload_size, &reply_err_code);
+				&resp, &resp_payload_size);
 	if (reply_err_code || IS_ERR(resp)) {
 		err = reply_err_code;
 		pr_err("%s: VM_STOP failed with err: %d\n", __func__, err);
@@ -1340,12 +1322,6 @@ int ghd_rm_vm_stop(gh_vmid_t vmid, u32 stop_reason, u8 flags)
 	return 0;
 }
 EXPORT_SYMBOL(ghd_rm_vm_stop);
-
-int gh_rm_vm_stop(gh_vmid_t vmid, u32 stop_reason, u8 flags)
-{
-	return ghd_rm_vm_stop(vmid, stop_reason, flags);
-}
-EXPORT_SYMBOL(gh_rm_vm_stop);
 
 /**
  * ghd_rm_vm_reset: Send a request to Resource Manager VM to free up all
@@ -1364,9 +1340,9 @@ int ghd_rm_vm_reset(gh_vmid_t vmid)
 	int err, reply_err_code;
 	void *resp;
 
-	resp = gh_rm_call(GH_RM_RPC_MSG_ID_CALL_VM_RESET,
+	reply_err_code = gh_rm_call(rm, GH_RM_RPC_MSG_ID_CALL_VM_RESET,
 				&req_payload, sizeof(req_payload),
-				&resp_payload_size, &reply_err_code);
+				&resp, &resp_payload_size);
 	if (reply_err_code || IS_ERR(resp)) {
 		err = reply_err_code;
 		pr_err("%s: VM_RESET failed with err: %d\n",
@@ -1385,11 +1361,6 @@ int ghd_rm_vm_reset(gh_vmid_t vmid)
 }
 EXPORT_SYMBOL(ghd_rm_vm_reset);
 
-int gh_rm_vm_reset(gh_vmid_t vmid)
-{
-	return ghd_rm_vm_reset(vmid);
-}
-EXPORT_SYMBOL(gh_rm_vm_reset);
 /**
  * gh_rm_console_open: Open a console with a VM
  * @vmid: The vmid of the vm to be started.
@@ -1403,9 +1374,9 @@ int gh_rm_console_open(gh_vmid_t vmid)
 
 	req_payload.vmid = vmid;
 
-	resp = gh_rm_call(GH_RM_RPC_MSG_ID_CALL_VM_CONSOLE_OPEN,
+	reply_err_code = gh_rm_call(rm, GH_RM_RPC_MSG_ID_CALL_VM_CONSOLE_OPEN,
 			  &req_payload, sizeof(req_payload),
-			  &resp_payload_size, &reply_err_code);
+			  &resp, &resp_payload_size);
 	if (IS_ERR(resp)) {
 		pr_err("%s: Unable to send CONSOLE_OPEN to RM: %d\n", __func__,
 			PTR_ERR(resp));
@@ -1441,9 +1412,9 @@ int gh_rm_console_close(gh_vmid_t vmid)
 
 	req_payload.vmid = vmid;
 
-	resp = gh_rm_call(GH_RM_RPC_MSG_ID_CALL_VM_CONSOLE_CLOSE,
+	reply_err_code = gh_rm_call(rm, GH_RM_RPC_MSG_ID_CALL_VM_CONSOLE_CLOSE,
 			  &req_payload, sizeof(req_payload),
-			  &resp_payload_size, &reply_err_code);
+			  &resp, &resp_payload_size);
 	if (IS_ERR(resp)) {
 		pr_err("%s: Unable to send CONSOLE_CLOSE to RM: %d\n", __func__,
 			PTR_ERR(resp));
@@ -1492,9 +1463,9 @@ int gh_rm_console_write(gh_vmid_t vmid, const char *buf, size_t size)
 	req_payload->num_bytes = size;
 	memcpy(req_payload->data, buf, size);
 
-	resp = gh_rm_call(GH_RM_RPC_MSG_ID_CALL_VM_CONSOLE_WRITE,
+	reply_err_code = gh_rm_call(rm, GH_RM_RPC_MSG_ID_CALL_VM_CONSOLE_WRITE,
 		   req_payload, req_payload_size,
-		   &resp_payload_size, &reply_err_code);
+		   &resp, &resp_payload_size);
 	kfree(req_payload);
 
 	if (IS_ERR(resp)) {
@@ -1532,9 +1503,9 @@ int gh_rm_console_flush(gh_vmid_t vmid)
 
 	req_payload.vmid = vmid;
 
-	resp = gh_rm_call(GH_RM_RPC_MSG_ID_CALL_VM_CONSOLE_FLUSH,
+	reply_err_code = gh_rm_call(rm, GH_RM_RPC_MSG_ID_CALL_VM_CONSOLE_FLUSH,
 				&req_payload, sizeof(req_payload),
-				&resp_payload_size, &reply_err_code);
+				&resp, &resp_payload_size);
 
 	if (IS_ERR(resp)) {
 		pr_err("%s: Unable to send CONSOLE_FLUSH to RM: %d\n", __func__,
@@ -1745,8 +1716,8 @@ int gh_rm_mem_qcom_lookup_sgl(u8 mem_type, gh_label_t label,
 	gh_rm_populate_mem_request(req_buf, fn_id, acl_desc, sgl_desc, 0,
 				   mem_attr_desc);
 
-	resp_payload = gh_rm_call(fn_id, req_buf, req_payload_size, &resp_size,
-				  &gh_ret);
+	gh_ret = gh_rm_call(rm, fn_id, req_buf, req_payload_size,
+				(void **)&resp_payload, &resp_size);
 	if (gh_ret || IS_ERR(resp_payload)) {
 		ret = PTR_ERR(resp_payload);
 		pr_err("%s failed with err: %d\n",  __func__, ret);
@@ -1787,8 +1758,7 @@ static int gh_rm_mem_release_helper(u32 fn_id, gh_memparcel_handle_t handle,
 	req_payload.memparcel_handle = handle;
 	req_payload.flags = flags;
 
-	resp = gh_rm_call(fn_id, &req_payload, sizeof(req_payload), &resp_size,
-			  &gh_ret);
+	gh_ret = gh_rm_call(rm, fn_id, &req_payload, sizeof(req_payload), &resp, &resp_size);
 	if (gh_ret) {
 		ret = PTR_ERR(resp);
 		pr_err("%s failed with err: %d\n", __func__, ret);
@@ -1849,12 +1819,6 @@ int ghd_rm_mem_reclaim(gh_memparcel_handle_t handle, u8 flags)
 	return ret;
 }
 EXPORT_SYMBOL(ghd_rm_mem_reclaim);
-
-int gh_rm_mem_reclaim(gh_memparcel_handle_t handle, u8 flags)
-{
-	return ghd_rm_mem_reclaim(handle, flags);
-}
-EXPORT_SYMBOL(gh_rm_mem_reclaim);
 
 static void gh_sgl_fragment_release(struct gh_sgl_fragment *gather)
 {
@@ -2088,8 +2052,8 @@ struct gh_sgl_desc *gh_rm_mem_accept(gh_memparcel_handle_t handle, u8 mem_type,
 	}
 
 	do {
-		resp_payload = gh_rm_call(fn_id, req_payload, req_payload_size,
-					  &resp_payload_size, &gh_ret);
+		gh_ret = gh_rm_call(rm, fn_id, req_payload, req_payload_size,
+					  (void **)&resp_payload, &resp_payload_size);
 		if (gh_ret || IS_ERR(resp_payload)) {
 			ret = PTR_ERR(resp_payload);
 			pr_err("%s failed with error: %d\n", __func__, ret);
@@ -2118,8 +2082,8 @@ struct gh_sgl_desc *gh_rm_mem_accept(gh_memparcel_handle_t handle, u8 mem_type,
 	if (multi_call && flags & GH_RM_MEM_ACCEPT_DONE) {
 		req_payload->flags |= GH_RM_MEM_ACCEPT_DONE;
 
-		resp_payload = gh_rm_call(fn_id, req_payload, req_payload_size,
-					  &resp_payload_size, &gh_ret);
+		gh_ret = gh_rm_call(rm, fn_id, req_payload, req_payload_size,
+					  (void **)&resp_payload, &resp_payload_size);
 		if (gh_ret || IS_ERR(resp_payload)) {
 			ret = PTR_ERR(resp_payload);
 			pr_err("%s failed with error: %d\n", __func__, ret);
@@ -2192,9 +2156,9 @@ int gh_rm_mem_append(gh_memparcel_handle_t handle, u8 flags,
 	memcpy(req_sgl_desc->sgl_entries, sgl_entries,
 	       sizeof(*sgl_entries) * n_sgl_entries);
 
-	resp_payload = gh_rm_call(GH_RM_RPC_MSG_ID_CALL_MEM_APPEND,
+	gh_ret = gh_rm_call(rm, GH_RM_RPC_MSG_ID_CALL_MEM_APPEND,
 				req_buf, req_payload_size,
-				&resp_payload_size, &gh_ret);
+				&resp_payload, &resp_payload_size);
 	if (gh_ret || IS_ERR(resp_payload)) {
 		ret = PTR_ERR(resp_payload);
 		pr_err("%s failed with error: %d\n", __func__,
@@ -2268,8 +2232,8 @@ static int gh_rm_mem_share_lend_helper(u32 fn_id, u8 mem_type, u8 flags,
 	gh_rm_populate_mem_request(req_buf, fn_id, acl_desc, sgl_desc, 0,
 				   mem_attr_desc);
 
-	resp_payload = gh_rm_call(fn_id, req_buf, req_payload_size,
-				  &resp_payload_size, &gh_ret);
+	gh_ret = gh_rm_call(rm, fn_id, req_buf, req_payload_size,
+				  (void **)&resp_payload, &resp_payload_size);
 	if (gh_ret || IS_ERR(resp_payload)) {
 		ret = PTR_ERR(resp_payload);
 		pr_err("%s failed with error: %d\n", __func__,
@@ -2349,16 +2313,6 @@ int ghd_rm_mem_share(u8 mem_type, u8 flags, gh_label_t label,
 }
 EXPORT_SYMBOL(ghd_rm_mem_share);
 
-int gh_rm_mem_share(u8 mem_type, u8 flags, gh_label_t label,
-		    struct gh_acl_desc *acl_desc, struct gh_sgl_desc *sgl_desc,
-		    struct gh_mem_attr_desc *mem_attr_desc,
-		    gh_memparcel_handle_t *handle)
-{
-	return ghd_rm_mem_share(mem_type, flags, label, acl_desc, sgl_desc,
-		    mem_attr_desc, handle);
-}
-EXPORT_SYMBOL(gh_rm_mem_share);
-
 /**
  * ghd_rm_mem_lend: Lend memory to other VM(s)--excluding the owner
  * @mem_type: The type of memory being lent (i.e. normal or I/O)
@@ -2399,15 +2353,6 @@ int ghd_rm_mem_lend(u8 mem_type, u8 flags, gh_label_t label,
 }
 EXPORT_SYMBOL(ghd_rm_mem_lend);
 
-int gh_rm_mem_lend(u8 mem_type, u8 flags, gh_label_t label,
-		   struct gh_acl_desc *acl_desc, struct gh_sgl_desc *sgl_desc,
-		   struct gh_mem_attr_desc *mem_attr_desc,
-		   gh_memparcel_handle_t *handle)
-{
-	return ghd_rm_mem_lend(mem_type, flags, label, acl_desc, sgl_desc,
-		   mem_attr_desc, handle);
-}
-EXPORT_SYMBOL(gh_rm_mem_lend);
 /**
  * gh_rm_mem_donate: Donate memory to a single VM.
  * @mem_type: The type of memory being lent (i.e. normal or I/O)
@@ -2532,8 +2477,8 @@ int gh_rm_mem_notify(gh_memparcel_handle_t handle, u8 flags,
 				vmid_desc->vmid_entries[i].vmid;
 	}
 
-	resp_payload = gh_rm_call(GH_RM_RPC_MSG_ID_CALL_MEM_NOTIFY, req_buf,
-				  req_payload_size, &resp_size, &gh_ret);
+	gh_ret = gh_rm_call(rm, GH_RM_RPC_MSG_ID_CALL_MEM_NOTIFY, req_buf,
+				  req_payload_size, &resp_payload, &resp_size);
 	if (gh_ret) {
 		ret = PTR_ERR(resp_payload);
 		pr_err("%s failed with err: %d\n", __func__, ret);
@@ -2574,9 +2519,9 @@ int gh_rm_vm_set_time_base(gh_vmid_t vmid)
 	req_payload.arch_timer_ref_low = (u32) qtime_ref;
 	req_payload.arch_timer_ref_high = (u32) (qtime_ref >> 32);
 
-	resp = gh_rm_call(GH_RM_RPC_MSG_ID_CALL_VM_SET_TIME_BASE,
+	reply_err_code = gh_rm_call(rm, GH_RM_RPC_MSG_ID_CALL_VM_SET_TIME_BASE,
 				&req_payload, sizeof(req_payload),
-				&resp_payload_size, &reply_err_code);
+				&resp, &resp_payload_size);
 	if (reply_err_code) {
 		pr_err("%s: VM_SET_TIME_BASE failed with err: %d\n",
 			__func__, reply_err_code);
@@ -2606,9 +2551,9 @@ int gh_rm_minidump_get_info(void)
 	size_t resp_size;
 	int ret = 0, reply_err_code;
 
-	resp_payload = gh_rm_call(GH_RM_RPC_MSG_ID_CALL_VM_MINIDUMP_GET_INFO,
-				  &req_payload, sizeof(req_payload), &resp_size,
-				  &reply_err_code);
+	reply_err_code = gh_rm_call(rm, GH_RM_RPC_MSG_ID_CALL_VM_MINIDUMP_GET_INFO,
+				  &req_payload, sizeof(req_payload),
+				  (void **)&resp_payload, &resp_size);
 	if (reply_err_code || IS_ERR(resp_payload)) {
 		pr_err("%s failed with err: 0x%llx %d\n", __func__, resp_payload, reply_err_code);
 		ret = PTR_ERR(resp_payload);
@@ -2666,9 +2611,9 @@ int gh_rm_minidump_register_range(phys_addr_t base_ipa, size_t region_size,
 	req_hdr->name_offset = sizeof(*req_hdr) + 8;
 	memcpy(req_buf + sizeof(*req_hdr), name, name_size);
 
-	resp_payload =
-		gh_rm_call(GH_RM_RPC_MSG_ID_CALL_VM_MINIDUMP_REGISTER_RANGE,
-			   req_buf, req_size, &resp_size, &reply_err_code);
+	reply_err_code =
+		gh_rm_call(rm, GH_RM_RPC_MSG_ID_CALL_VM_MINIDUMP_REGISTER_RANGE,
+			   req_buf, req_size, (void **)&resp_payload,  &resp_size);
 	if (reply_err_code || IS_ERR(resp_payload)) {
 		pr_err("%s failed with err: 0x%llx %d\n", __func__, resp_payload, reply_err_code);
 		ret = PTR_ERR(resp_payload);
@@ -2709,9 +2654,8 @@ int gh_rm_minidump_deregister_slot(uint16_t slot_num)
 
 	req_payload.slot_num = slot_num;
 
-	resp = gh_rm_call(GH_RM_RPC_MSG_ID_CALL_VM_MINIDUMP_DEREGISTER_SLOT,
-			  &req_payload, sizeof(req_payload), &resp_size,
-			  &reply_err_code);
+	reply_err_code = gh_rm_call(rm, GH_RM_RPC_MSG_ID_CALL_VM_MINIDUMP_DEREGISTER_SLOT,
+			  &req_payload, sizeof(req_payload), &resp, &resp_size);
 	if (reply_err_code || IS_ERR(resp)) {
 		pr_err("%s failed with err: 0x%llx %d\n", __func__, resp, reply_err_code);
 		return PTR_ERR(resp);
@@ -2757,9 +2701,9 @@ int gh_rm_minidump_get_slot_from_name(uint16_t starting_slot, const char *name, 
 	req_payload->starting_slot = starting_slot;
 	memcpy(req_buf + sizeof(*req_payload), name, name_size);
 
-	resp_payload =
-		gh_rm_call(GH_RM_RPC_MSG_ID_CALL_VM_MINIDUMP_GET_SLOT_NUMBER,
-			   req_buf, req_size, &resp_size, &reply_err_code);
+	reply_err_code =
+		gh_rm_call(rm, GH_RM_RPC_MSG_ID_CALL_VM_MINIDUMP_GET_SLOT_NUMBER,
+			   req_buf, req_size, (void **)&resp_payload,  &resp_size);
 
 	if (reply_err_code || IS_ERR(resp_payload)) {
 		pr_err("%s failed with err: 0x%llx %d\n", __func__, resp_payload, reply_err_code);

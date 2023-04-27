@@ -20,7 +20,6 @@
 #include <linux/qtee_shmbridge.h>
 #include <linux/of_platform.h>
 
-#include <linux/gunyah/gh_errno.h>
 #include <linux/gunyah/gh_rm_drv.h>
 
 #include "qtee_shmbridge_internal.h"

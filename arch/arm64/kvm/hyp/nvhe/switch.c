@@ -45,7 +45,7 @@ static void __activate_traps(struct kvm_vcpu *vcpu)
 
 	val = vcpu->arch.cptr_el2;
 	val |= CPTR_EL2_TTA | CPTR_EL2_TAM;
-	if (!guest_owns_fp_regs(vcpu)) {
+	if (vcpu->arch.fp_state != FP_STATE_GUEST_OWNED) {
 		val |= CPTR_EL2_TFP | CPTR_EL2_TZ;
 		__activate_traps_fpsimd32(vcpu);
 	}
@@ -106,6 +106,18 @@ static void __deactivate_traps(struct kvm_vcpu *vcpu)
 
 	write_sysreg(cptr, cptr_el2);
 	write_sysreg(__kvm_hyp_host_vector, vbar_el2);
+}
+
+static void __deactivate_fpsimd_traps(struct kvm_vcpu *vcpu)
+{
+	u64 reg = CPTR_EL2_TFP;
+
+	if (vcpu_has_sve(vcpu) ||
+	    (is_protected_kvm_enabled() && system_supports_sve())) {
+		reg |= CPTR_EL2_TZ;
+	}
+
+	sysreg_clear_set(cptr_el2, reg, 0);
 }
 
 /* Save VGICv3 state on non-VHE systems */
@@ -176,6 +188,31 @@ static bool kvm_handle_pvm_sys64(struct kvm_vcpu *vcpu, u64 *exit_code)
 	 */
 	return (kvm_hyp_handle_sysreg(vcpu, exit_code) ||
 		kvm_handle_pvm_sysreg(vcpu, exit_code));
+}
+
+static void kvm_hyp_handle_fpsimd_host(struct kvm_vcpu *vcpu)
+{
+	/*
+	 * Non-protected kvm relies on the host restoring its sve state.
+	 * Protected kvm restores the host's sve state as not to reveal that
+	 * fpsimd was used by a guest nor leak upper sve bits.
+	 */
+	if (unlikely(is_protected_kvm_enabled() && system_supports_sve())) {
+		struct kvm_host_sve_state *sve_state = get_host_sve_state(vcpu);
+		u64 vq_len = sve_vq_from_vl(kvm_host_sve_max_vl) - 1;
+
+		sve_state->zcr_el1 = read_sysreg_el1(SYS_ZCR);
+		sve_cond_update_zcr_vq(vq_len, SYS_ZCR_EL2);
+		__sve_save_state(sve_state->sve_regs +
+					 sve_ffr_offset(kvm_host_sve_max_vl),
+				 &sve_state->fpsr);
+
+		/* Still trap SVE since it's handled by hyp in pKVM. */
+		if (!vcpu_has_sve(vcpu))
+			sysreg_clear_set(cptr_el2, 0, CPTR_EL2_TZ);
+	} else {
+		__fpsimd_save_state(get_host_fpsimd_state(vcpu));
+	}
 }
 
 static const exit_handler_fn hyp_exit_handlers[] = {

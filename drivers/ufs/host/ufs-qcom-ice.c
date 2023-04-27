@@ -192,7 +192,7 @@ void ufs_qcom_ice_disable(struct ufs_qcom_host *host)
 {
 	if (!(host->hba->caps & UFSHCD_CAP_CRYPTO))
 		return;
-	if (host->hba->quirks & UFSHCD_QUIRK_CUSTOM_CRYPTO_PROFILE)
+	if (host->hba->android_quirks & UFSHCD_ANDROID_QUIRK_CUSTOM_CRYPTO_PROFILE)
 		return crypto_qti_disable();
 }
 

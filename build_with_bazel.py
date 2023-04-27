@@ -8,7 +8,6 @@ import glob
 import logging
 import os
 import re
-import shutil
 import sys
 import subprocess
 
@@ -54,13 +53,6 @@ class BazelBuilder:
                 proc.wait()
             except OSError:
                 pass
-
-    def copy_abi_file(self):
-        """Copy ABI STG file from msm-kernel to common"""
-        msm_sym_list = os.path.join(self.workspace, "msm-kernel", "android", "abi_gki_aarch64_qcom")
-
-        if os.path.exists(msm_sym_list):
-            shutil.copy2(msm_sym_list, os.path.join(self.workspace, "common", "android", "abi_gki_aarch64_qcom"))
 
     def setup_extensions(self):
         """Set up the extension files if needed"""
@@ -242,10 +234,11 @@ class BazelBuilder:
             sys.exit(1)
 
         self.clean_legacy_generated_files()
-        self.copy_abi_file()
 
         if self.skip_list:
             self.user_opts.extend(["--//msm-kernel:skip_{}=true".format(s) for s in self.skip_list])
+
+        self.user_opts.extend(["--config=stamp"])
 
         self.user_opts.append("--config=android_arm64")
 

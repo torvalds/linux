@@ -55,6 +55,8 @@
   atomic_notifier_chain_register
   atomic_notifier_chain_unregister
   autoremove_wake_function
+  __auxiliary_driver_register
+  auxiliary_driver_unregister
   available_idle_cpu
   backlight_device_get_by_type
   backlight_device_register
@@ -690,6 +692,7 @@
   devm_fwnode_iio_channel_get_by_name
   devm_fwnode_pwm_get
   devm_gen_pool_create
+  devm_gh_rm_register_platform_ops
   devm_gpiochip_add_data_with_key
   devm_gpiod_get
   devm_gpiod_get_optional
@@ -838,6 +841,7 @@
   dma_buf_export
   dma_buf_fd
   dma_buf_get
+  dma_buf_get_each
   dma_buf_get_flags
   dma_buf_map_attachment
   dma_buf_put
@@ -1286,11 +1290,13 @@
   get_cpu_idle_time_us
   get_device
   get_device_system_crosststamp
+  get_each_object_track
   __get_free_pages
   get_governor_parent_kobj
   get_net_ns_by_fd
   get_net_ns_by_pid
   get_option
+  get_page_owner_handle
   get_pfnblock_flags_mask
   get_pid_task
   get_random_bytes
@@ -1298,6 +1304,7 @@
   get_random_u32
   __get_random_u32_below
   get_sg_io_hdr
+  get_slabinfo
   get_state_synchronize_rcu
   get_state_synchronize_srcu
   __get_task_comm
@@ -1309,6 +1316,9 @@
   get_user_pages
   get_wiphy_regdom
   get_zeroed_page
+  gh_rm_call
+  gh_rm_notifier_register
+  gh_rm_notifier_unregister
   gic_nonsecure_priorities
   gov_attr_set_init
   gov_attr_set_put
@@ -1417,6 +1427,7 @@
   __hrtimer_get_remaining
   hrtimer_init
   hrtimer_init_sleeper
+  hrtimer_sleeper_start_expires
   hrtimer_start_range_ns
   hrtimer_try_to_cancel
   hvc_alloc
@@ -1484,6 +1495,9 @@
   icc_nodes_remove
   icc_provider_add
   icc_provider_del
+  icc_provider_deregister
+  icc_provider_init
+  icc_provider_register
   icc_put
   icc_set_bw
   icc_set_tag
@@ -1965,6 +1979,7 @@
   kthread_should_stop
   kthread_stop
   kthread_worker_fn
+  ktime_add_safe
   ktime_get
   ktime_get_coarse_with_offset
   ktime_get_mono_fast_ns
@@ -2043,6 +2058,7 @@
   mac_pton
   mas_find
   match_string
+  mbox_bind_client
   mbox_chan_received_data
   mbox_chan_txdone
   mbox_client_txdone
@@ -2136,6 +2152,7 @@
   mutex_lock_interruptible
   mutex_trylock
   mutex_unlock
+  name_to_dev_t
   __napi_alloc_skb
   napi_complete_done
   napi_consume_skb
@@ -2369,6 +2386,8 @@
   out_of_line_wait_on_bit_timeout
   overflowuid
   page_endio
+  page_ext_get
+  page_ext_put
   page_is_ram
   page_mapping
   page_pool_alloc_pages
@@ -2438,6 +2457,7 @@
   pci_walk_bus
   pci_write_config_dword
   pci_write_config_word
+  pcpu_nr_pages
   __percpu_down_read
   percpu_down_write
   percpu_free_rwsem
@@ -3068,6 +3088,7 @@
   __sg_page_iter_dma_next
   __sg_page_iter_next
   __sg_page_iter_start
+  shmem_file_setup
   shmem_read_mapping_page_gfp
   show_rcu_gp_kthreads
   show_rcu_tasks_classic_gp_kthread
@@ -3481,6 +3502,7 @@
   __traceiter_android_rvh_setscheduler
   __traceiter_android_rvh_set_task_cpu
   __traceiter_android_rvh_set_user_nice
+  __traceiter_android_rvh_shmem_get_folio
   __traceiter_android_rvh_show_max_freq
   __traceiter_android_rvh_tick_entry
   __traceiter_android_rvh_try_to_wake_up
@@ -3609,6 +3631,7 @@
   __tracepoint_android_rvh_setscheduler
   __tracepoint_android_rvh_set_task_cpu
   __tracepoint_android_rvh_set_user_nice
+  __tracepoint_android_rvh_shmem_get_folio
   __tracepoint_android_rvh_show_max_freq
   __tracepoint_android_rvh_tick_entry
   __tracepoint_android_rvh_try_to_wake_up
@@ -4045,6 +4068,7 @@
   vlan_vids_add_by_dev
   vlan_vids_del_by_dev
   vmalloc
+  vmalloc_nr_pages
   vmalloc_to_page
   vmalloc_to_pfn
   vmap

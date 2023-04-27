@@ -745,8 +745,6 @@ int mlx5e_tc_tun_route_lookup(struct mlx5e_priv *priv,
 		if (err)
 			goto out;
 
-		esw_attr->rx_tun_attr->vni = MLX5_GET(fte_match_param, spec->match_value,
-						      misc_parameters.vxlan_vni);
 		esw_attr->rx_tun_attr->decap_vport = vport_num;
 	} else if (netif_is_ovs_master(attr.route_dev) && mlx5e_tc_int_port_supported(esw)) {
 		int_port = mlx5e_tc_int_port_get(mlx5e_get_int_port_priv(priv),

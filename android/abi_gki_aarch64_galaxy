@@ -1,5 +1,6 @@
 [abi_symbol_list]
   adjust_managed_page_count
+  alarm_start
   alloc_pages_exact
   alt_cb_patch_nops
   __arch_copy_from_user
@@ -18,7 +19,9 @@
   cancel_delayed_work_sync
   __check_object_size
   __class_create
+  class_create_file_ns
   class_find_device
+  class_remove_file_ns
   __const_udelay
   copy_from_kernel_nofault
   cpu_hwcaps
@@ -26,6 +29,7 @@
   __cpu_online_mask
   __cpu_possible_mask
   __cpu_present_mask
+  create_function_device
   crypto_alloc_base
   crypto_comp_compress
   crypto_comp_decompress
@@ -42,9 +46,12 @@
   device_unregister
   _dev_info
   __devm_alloc_percpu
+  devm_bitmap_zalloc
   devm_gen_pool_create
+  devm_gpiod_get_index
   devm_ioremap
   devm_ioremap_wc
+  __devm_irq_alloc_descs
   devm_kfree
   devm_kmalloc
   devm_kmemdup
@@ -55,6 +62,7 @@
   dma_alloc_attrs
   dma_free_attrs
   down_write
+  emergency_restart
   file_ra_state_init
   file_write_and_wait_range
   _find_next_bit
@@ -64,22 +72,37 @@
   free_pages
   free_pages_exact
   generic_file_read_iter
+  generic_mii_ioctl
   generic_perform_write
   generic_write_checks
+  genphy_read_lpa
+  genphy_update_link
   gen_pool_add_owner
   gen_pool_alloc_algo_owner
   gen_pool_destroy
   gen_pool_free_owner
   gen_pool_virt_to_phys
   getboottime64
+  get_options
   get_random_u64
   __get_task_ioprio
   get_zeroed_page
   gic_nonsecure_priorities
   gpiochip_find
+  gpiod_cansleep
   gpiod_get_raw_value
   gpio_to_desc
+  gs_alloc_req
+  gserial_free_line
+  gserial_resume
+  gserial_suspend
+  gs_free_req
+  i2c_bit_add_numbered_bus
+  i2c_smbus_read_word_data
+  i2c_smbus_write_word_data
   I_BDEV
+  iio_channel_get
+  iio_channel_release
   init_task
   init_timer_key
   input_close_device
@@ -127,6 +150,9 @@
   memset
   __memset_io
   memstart_addr
+  mii_check_media
+  mii_ethtool_gset
+  mii_nway_restart
   mod_timer
   __msecs_to_jiffies
   msleep
@@ -163,6 +189,10 @@
   param_ops_ullong
   param_set_uint
   __per_cpu_offset
+  phy_resolve_aneg_linkmode
+  phy_start_aneg
+  pinctrl_get
+  pinctrl_put
   __platform_driver_register
   platform_driver_unregister
   preempt_schedule
@@ -207,10 +237,14 @@
   simple_strtol
   single_open
   single_release
+  snd_soc_info_volsw_sx
+  snd_soc_put_volsw_sx
   snprintf
+  spi_bus_type
   sprintf
   sscanf
   __stack_chk_fail
+  stpcpy
   strcmp
   strim
   strlcat
@@ -300,8 +334,16 @@
   unregister_restart_handler
   unregister_syscore_ops
   up_write
+  usb_gstrings_attach
+  usbnet_get_endpoints
+  usbnet_link_change
+  usb_set_device_state
   vfree
   vfs_fsync_range
   vmalloc
   vsnprintf
   wake_up_process
+  wakeup_source_remove
+  watchdog_init_timeout
+  watchdog_register_device
+  watchdog_unregister_device

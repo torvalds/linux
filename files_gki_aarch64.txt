@@ -6,6 +6,8 @@ arch/arm64/crypto/aes-glue.c
 arch/arm64/crypto/aes-modes.S
 arch/arm64/crypto/chacha-neon-core.S
 arch/arm64/crypto/chacha-neon-glue.c
+arch/arm64/crypto/ghash-ce-core.S
+arch/arm64/crypto/ghash-ce-glue.c
 arch/arm64/crypto/poly1305-glue.c
 arch/arm64/crypto/polyval-ce-core.S
 arch/arm64/crypto/polyval-ce-glue.c
@@ -15,6 +17,7 @@ arch/arm64/crypto/sha2-ce-glue.c
 arch/arm64/crypto/sha512-ce-core.S
 arch/arm64/crypto/sha512-ce-glue.c
 arch/arm64/crypto/sha512-glue.c
+arch/arm64/gunyah/gunyah_hypercall.c
 arch/arm64/include/asm/acpi.h
 arch/arm64/include/asm/alternative.h
 arch/arm64/include/asm/alternative-macros.h
@@ -66,6 +69,7 @@ arch/arm64/include/asm/fpsimdmacros.h
 arch/arm64/include/asm/ftrace.h
 arch/arm64/include/asm/futex.h
 arch/arm64/include/asm/gpr-num.h
+arch/arm64/include/asm/gunyah.h
 arch/arm64/include/asm/hardirq.h
 arch/arm64/include/asm/hw_breakpoint.h
 arch/arm64/include/asm/hwcap.h
@@ -617,6 +621,7 @@ drivers/android/debug_kinfo.h
 drivers/android/vendor_hooks.c
 drivers/base/arch_topology.c
 drivers/base/attribute_container.c
+drivers/base/auxiliary.c
 drivers/base/base.h
 drivers/base/bus.c
 drivers/base/cacheinfo.c
@@ -791,6 +796,7 @@ drivers/devfreq/governor_powersave.c
 drivers/devfreq/governor_simpleondemand.c
 drivers/devfreq/governor_userspace.c
 drivers/dma-buf/dma-buf.c
+drivers/dma-buf/dma-buf-sysfs-stats.c
 drivers/dma-buf/dma-buf-sysfs-stats.h
 drivers/dma-buf/dma-fence-array.c
 drivers/dma-buf/dma-fence.c
@@ -800,6 +806,8 @@ drivers/dma-buf/dma-heap.c
 drivers/dma-buf/dma-resv.c
 drivers/dma-buf/heaps/deferred-free-helper.c
 drivers/dma-buf/heaps/deferred-free-helper.h
+drivers/dma-buf/heaps/page_pool.c
+drivers/dma-buf/heaps/page_pool.h
 drivers/dma-buf/sync_file.c
 drivers/dma/dmaengine.c
 drivers/dma/dmaengine.h
@@ -1034,7 +1042,6 @@ drivers/hid/hid-wiimote-core.c
 drivers/hid/hid-wiimote-debug.c
 drivers/hid/hid-wiimote.h
 drivers/hid/hid-wiimote-modules.c
-drivers/hid/i2c-hid/i2c-hid.h
 drivers/hid/uhid.c
 drivers/hid/usbhid/hid-core.c
 drivers/hid/usbhid/hiddev.c
@@ -1121,6 +1128,7 @@ drivers/leds/leds.h
 drivers/leds/led-triggers.c
 drivers/leds/trigger/ledtrig-timer.c
 drivers/leds/trigger/ledtrig-transient.c
+drivers/mailbox/gunyah-msgq.c
 drivers/mailbox/hi3660-mailbox.c
 drivers/mailbox/hi6220-mailbox.c
 drivers/mailbox/mailbox.c
@@ -1842,6 +1850,17 @@ drivers/video/hdmi.c
 drivers/video/of_display_timing.c
 drivers/video/of_videomode.c
 drivers/video/videomode.c
+drivers/virt/gunyah/gunyah.c
+drivers/virt/gunyah/gunyah_ioeventfd.c
+drivers/virt/gunyah/gunyah_irqfd.c
+drivers/virt/gunyah/gunyah_platform_hooks.c
+drivers/virt/gunyah/gunyah_vcpu.c
+drivers/virt/gunyah/rsc_mgr.c
+drivers/virt/gunyah/rsc_mgr.h
+drivers/virt/gunyah/rsc_mgr_rpc.c
+drivers/virt/gunyah/vm_mgr.c
+drivers/virt/gunyah/vm_mgr.h
+drivers/virt/gunyah/vm_mgr_mm.c
 drivers/virtio/virtio_anchor.c
 drivers/virtio/virtio.c
 drivers/virtio/virtio_ring.c
@@ -2554,6 +2573,7 @@ include/linux/alarmtimer.h
 include/linux/align.h
 include/linux/amba/bus.h
 include/linux/amba/serial.h
+include/linux/android_kabi.h
 include/linux/android_vendor.h
 include/linux/anon_inodes.h
 include/linux/aperture.h
@@ -2574,6 +2594,7 @@ include/linux/atomic.h
 include/linux/attribute_container.h
 include/linux/audit_arch.h
 include/linux/audit.h
+include/linux/auxiliary_bus.h
 include/linux/auxvec.h
 include/linux/average.h
 include/linux/backing-dev-defs.h
@@ -2853,6 +2874,9 @@ include/linux/gpio/driver.h
 include/linux/gpio.h
 include/linux/gpio_keys.h
 include/linux/gpio/machine.h
+include/linux/gunyah.h
+include/linux/gunyah_rsc_mgr.h
+include/linux/gunyah_vm_mgr.h
 include/linux/hardirq.h
 include/linux/hash.h
 include/linux/hashtable_api.h
@@ -4175,7 +4199,6 @@ include/trace/hooks/cgroup.h
 include/trace/hooks/cpufreq.h
 include/trace/hooks/cpuidle.h
 include/trace/hooks/cpuidle_psci.h
-include/trace/hooks/creds.h
 include/trace/hooks/debug.h
 include/trace/hooks/dmabuf.h
 include/trace/hooks/dtask.h
@@ -4189,7 +4212,7 @@ include/trace/hooks/gic.h
 include/trace/hooks/gic_v3.h
 include/trace/hooks/hung_task.h
 include/trace/hooks/iommu.h
-include/trace/hooks/module.h
+include/trace/hooks/mm.h
 include/trace/hooks/mpam.h
 include/trace/hooks/net.h
 include/trace/hooks/pm_domain.h
@@ -4331,6 +4354,7 @@ include/uapi/linux/futex.h
 include/uapi/linux/genetlink.h
 include/uapi/linux/gen_stats.h
 include/uapi/linux/gpio.h
+include/uapi/linux/gunyah.h
 include/uapi/linux/hash_info.h
 include/uapi/linux/hdlc/ioctl.h
 include/uapi/linux/hdreg.h

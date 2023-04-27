@@ -150,8 +150,8 @@ def _define_kernel_build(
         base_kernel = base_kernel,
         kmi_symbol_list = "android/abi_gki_aarch64_qcom" if define_abi_targets else None,
         additional_kmi_symbol_lists = ["{}_all_kmi_symbol_lists".format(base_kernel)] if define_abi_targets else None,
-        protected_exports_list = "android/abi_gki_protected_exports" if define_abi_targets else None,
-        protected_modules_list = "android/gki_protected_modules" if define_abi_targets else None,
+        protected_exports_list = "android/abi_gki_protected_exports_aarch64" if define_abi_targets else None,
+        protected_modules_list = "android/gki_aarch64_protected_modules" if define_abi_targets else None,
         collect_unstripped_modules = define_abi_targets,
         visibility = ["//visibility:public"],
     )

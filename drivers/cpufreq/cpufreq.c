@@ -391,7 +391,6 @@ static void cpufreq_notify_transition(struct cpufreq_policy *policy,
 		cpufreq_stats_record_transition(policy, freqs->new);
 		cpufreq_times_record_transition(policy, freqs->new);
 		policy->cur = freqs->new;
-		trace_android_rvh_cpufreq_transition(policy);
 	}
 }
 
@@ -2144,7 +2143,6 @@ unsigned int cpufreq_driver_fast_switch(struct cpufreq_policy *policy,
 	arch_set_freq_scale(policy->related_cpus, freq,
 			    policy->cpuinfo.max_freq);
 	cpufreq_stats_record_transition(policy, freq);
-	trace_android_rvh_cpufreq_transition(policy);
 
 	if (trace_cpu_frequency_enabled()) {
 		for_each_cpu(cpu, policy->cpus)
