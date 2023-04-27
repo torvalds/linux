@@ -542,7 +542,7 @@ void drm_sched_start(struct drm_gpu_scheduler *sched, bool full_recovery)
 				DRM_DEV_ERROR(sched->dev, "fence add callback failed (%d)\n",
 					  r);
 		} else
-			drm_sched_job_done(s_job, 0);
+			drm_sched_job_done(s_job, -ECANCELED);
 	}
 
 	if (full_recovery) {
