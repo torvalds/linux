@@ -57,7 +57,7 @@ static inline int ppc440spe_revA(void)
 static void fixup_ppc4xx_pci_bridge(struct pci_dev *dev)
 {
 	struct pci_controller *hose;
-	int i;
+	struct resource *r;
 
 	if (dev->devfn != 0 || dev->bus->self != NULL)
 		return;
@@ -79,9 +79,9 @@ static void fixup_ppc4xx_pci_bridge(struct pci_dev *dev)
 	/* Hide the PCI host BARs from the kernel as their content doesn't
 	 * fit well in the resource management
 	 */
-	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
-		dev->resource[i].start = dev->resource[i].end = 0;
-		dev->resource[i].flags = 0;
+	pci_dev_for_each_resource(dev, r) {
+		r->start = r->end = 0;
+		r->flags = 0;
 	}
 
 	printk(KERN_INFO "PCI: Hiding 4xx host bridge resources %s\n",
