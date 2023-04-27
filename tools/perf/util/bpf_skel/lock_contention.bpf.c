@@ -418,11 +418,11 @@ int contention_end(u64 *ctx)
 
 extern struct rq runqueues __ksym;
 
-struct rq__old {
+struct rq___old {
 	raw_spinlock_t lock;
 } __attribute__((preserve_access_index));
 
-struct rq__new {
+struct rq___new {
 	raw_spinlock_t __lock;
 } __attribute__((preserve_access_index));
 
@@ -434,8 +434,8 @@ int BPF_PROG(collect_lock_syms)
 
 	for (int i = 0; i < MAX_CPUS; i++) {
 		struct rq *rq = bpf_per_cpu_ptr(&runqueues, i);
-		struct rq__new *rq_new = (void *)rq;
-		struct rq__old *rq_old = (void *)rq;
+		struct rq___new *rq_new = (void *)rq;
+		struct rq___old *rq_old = (void *)rq;
 
 		if (rq == NULL)
 			break;
