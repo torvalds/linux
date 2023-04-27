@@ -2,7 +2,9 @@
 . ${ROOT_DIR}/${KERNEL_DIR}/build.config.aarch64
 . ${ROOT_DIR}/${KERNEL_DIR}/build.config.gki
 
-MAKE_GOALS="${MAKE_GOALS}
+MAKE_GOALS="
+Image
+modules
 Image.lz4
 Image.gz
 "
