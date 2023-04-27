@@ -55,6 +55,7 @@ def define_blair():
         "drivers/pinctrl/qcom/pinctrl-msm.ko",
         "drivers/pinctrl/qcom/pinctrl-spmi-gpio.ko",
         "drivers/pinctrl/qcom/pinctrl-spmi-mpp.ko",
+        "drivers/power/reset/qcom-dload-mode.ko",
         "drivers/pwm/pwm-qti-lpg.ko",
         "drivers/regulator/proxy-consumer.ko",
         "drivers/regulator/qti-fixed-regulator.ko",
