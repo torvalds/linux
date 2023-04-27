@@ -62,13 +62,14 @@
 #include <linux/page-isolation.h>
 #include <linux/pagewalk.h>
 #include <linux/shmem_fs.h>
+#include <linux/sysctl.h>
 #include "swap.h"
 #include "internal.h"
 #include "ras/ras_event.h"
 
-int sysctl_memory_failure_early_kill __read_mostly = 0;
+static int sysctl_memory_failure_early_kill __read_mostly;
 
-int sysctl_memory_failure_recovery __read_mostly = 1;
+static int sysctl_memory_failure_recovery __read_mostly = 1;
 
 atomic_long_t num_poisoned_pages __read_mostly = ATOMIC_LONG_INIT(0);
 
@@ -121,6 +122,37 @@ const struct attribute_group memory_failure_attr_group = {
 	.name = "memory_failure",
 	.attrs = memory_failure_attr,
 };
+
+#ifdef CONFIG_SYSCTL
+static struct ctl_table memory_failure_table[] = {
+	{
+		.procname	= "memory_failure_early_kill",
+		.data		= &sysctl_memory_failure_early_kill,
+		.maxlen		= sizeof(sysctl_memory_failure_early_kill),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
+	},
+	{
+		.procname	= "memory_failure_recovery",
+		.data		= &sysctl_memory_failure_recovery,
+		.maxlen		= sizeof(sysctl_memory_failure_recovery),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
+	},
+	{ }
+};
+
+static int __init memory_failure_sysctl_init(void)
+{
+	register_sysctl_init("vm", memory_failure_table);
+	return 0;
+}
+late_initcall(memory_failure_sysctl_init);
+#endif /* CONFIG_SYSCTL */
 
 /*
  * Return values:
