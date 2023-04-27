@@ -685,7 +685,7 @@ static inline int btrfs_next_item(struct btrfs_root *root, struct btrfs_path *p)
 {
 	return btrfs_next_old_item(root, p, 0);
 }
-int btrfs_leaf_free_space(struct extent_buffer *leaf);
+int btrfs_leaf_free_space(const struct extent_buffer *leaf);
 
 static inline int is_fstree(u64 rootid)
 {
