@@ -429,21 +429,21 @@ struct rq___new {
 SEC("raw_tp/bpf_test_finish")
 int BPF_PROG(collect_lock_syms)
 {
-	__u64 lock_addr;
+	__u64 lock_addr, lock_off;
 	__u32 lock_flag;
+
+	if (bpf_core_field_exists(struct rq___new, __lock))
+		lock_off = offsetof(struct rq___new, __lock);
+	else
+		lock_off = offsetof(struct rq___old, lock);
 
 	for (int i = 0; i < MAX_CPUS; i++) {
 		struct rq *rq = bpf_per_cpu_ptr(&runqueues, i);
-		struct rq___new *rq_new = (void *)rq;
-		struct rq___old *rq_old = (void *)rq;
 
 		if (rq == NULL)
 			break;
 
-		if (bpf_core_field_exists(rq_new->__lock))
-			lock_addr = (__u64)&rq_new->__lock;
-		else
-			lock_addr = (__u64)&rq_old->lock;
+		lock_addr = (__u64)(void *)rq + lock_off;
 		lock_flag = LOCK_CLASS_RQLOCK;
 		bpf_map_update_elem(&lock_syms, &lock_addr, &lock_flag, BPF_ANY);
 	}
