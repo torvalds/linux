@@ -392,12 +392,6 @@ static inline int is_db_reset(int db_out)
 	return db_out & (1 << DB_RESET);
 }
 
-static inline int is_device_reset(struct ilo_hwinfo *hw)
-{
-	/* check for global reset condition */
-	return is_db_reset(get_device_outbound(hw));
-}
-
 static inline void clear_pending_db(struct ilo_hwinfo *hw, int clr)
 {
 	iowrite32(clr, &hw->mmio_vaddr[DB_OUT]);

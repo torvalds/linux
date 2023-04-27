@@ -19,7 +19,6 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/err.h>
-#include <linux/aer.h>
 #include <linux/string.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
@@ -1099,7 +1098,6 @@ static int genwqe_pci_setup(struct genwqe_dev *cd)
 	}
 
 	pci_set_master(pci_dev);
-	pci_enable_pcie_error_reporting(pci_dev);
 
 	/* EEH recovery requires PCIe fundamental reset */
 	pci_dev->needs_freset = 1;

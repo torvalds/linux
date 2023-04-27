@@ -964,6 +964,14 @@ Q:	https://patchwork.kernel.org/project/linux-rdma/list/
 F:	drivers/infiniband/hw/efa/
 F:	include/uapi/rdma/efa-abi.h
 
+AMD CDX BUS DRIVER
+M:	Nipun Gupta <nipun.gupta@amd.com>
+M:	Nikhil Agarwal <nikhil.agarwal@amd.com>
+S:	Maintained
+F:	Documentation/devicetree/bindings/bus/xlnx,versal-net-cdx.yaml
+F:	drivers/cdx/*
+F:	include/linux/cdx/*
+
 AMD CRYPTOGRAPHIC COPROCESSOR (CCP) DRIVER
 M:	Tom Lendacky <thomas.lendacky@amd.com>
 M:	John Allen <john.allen@amd.com>
@@ -1430,11 +1438,6 @@ M:	Paul Walmsley <paul.walmsley@sifive.com>
 S:	Supported
 F:	drivers/clk/analogbits/*
 F:	include/linux/clk/analogbits*
-
-ANDROID CONFIG FRAGMENTS
-M:	Rob Herring <robh@kernel.org>
-S:	Supported
-F:	kernel/configs/android*
 
 ANDROID DRIVERS
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
@@ -2095,7 +2098,6 @@ F:	arch/arm/boot/dts/cx92755*
 N:	digicolor
 
 ARM/CORESIGHT FRAMEWORK AND DRIVERS
-M:	Mathieu Poirier <mathieu.poirier@linaro.org>
 M:	Suzuki K Poulose <suzuki.poulose@arm.com>
 R:	Mike Leach <mike.leach@linaro.org>
 R:	Leo Yan <leo.yan@linaro.org>
@@ -10005,6 +10007,13 @@ F:	Documentation/ABI/testing/sysfs-bus-iio-adc-envelope-detector
 F:	Documentation/devicetree/bindings/iio/adc/envelope-detector.yaml
 F:	drivers/iio/adc/envelope-detector.c
 
+IIO LIGHT SENSOR GAIN-TIME-SCALE HELPERS
+M:	Matti Vaittinen <mazziesaccount@gmail.com>
+L:	linux-iio@vger.kernel.org
+S:	Maintained
+F:	drivers/iio/light/gain-time-scale-helper.c
+F:	drivers/iio/light/gain-time-scale-helper.h
+
 IIO MULTIPLEXER
 M:	Peter Rosin <peda@axentia.se>
 L:	linux-iio@vger.kernel.org
@@ -10528,6 +10537,7 @@ F:	drivers/watchdog/mei_wdt.c
 F:	include/linux/mei_aux.h
 F:	include/linux/mei_cl_bus.h
 F:	include/uapi/linux/mei.h
+F:	include/uapi/linux/mei_uuid.h
 F:	include/uapi/linux/uuid.h
 F:	samples/mei/*
 
@@ -15411,18 +15421,6 @@ S:	Maintained
 F:	Documentation/filesystems/omfs.rst
 F:	fs/omfs/
 
-OMNIKEY CARDMAN 4000 DRIVER
-M:	Harald Welte <laforge@gnumonks.org>
-S:	Maintained
-F:	drivers/char/pcmcia/cm4000_cs.c
-F:	include/linux/cm4000_cs.h
-F:	include/uapi/linux/cm4000_cs.h
-
-OMNIKEY CARDMAN 4040 DRIVER
-M:	Harald Welte <laforge@gnumonks.org>
-S:	Maintained
-F:	drivers/char/pcmcia/cm4040_cs.*
-
 OMNIVISION OG01A1B SENSOR DRIVER
 M:	Shawn Tu <shawnx.tu@intel.com>
 L:	linux-media@vger.kernel.org
@@ -15639,6 +15637,12 @@ M:	Joaquín Ignacio Aramendía <samsagax@gmail.com>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
 F:	drivers/hwmon/oxp-sensors.c
+
+ONIE TLV NVMEM LAYOUT DRIVER
+M:	Miquel Raynal <miquel.raynal@bootlin.com>
+S:	Maintained
+F:	Documentation/devicetree/bindings/nvmem/layouts/onie,tlv-layout.yaml
+F:	drivers/nvmem/layouts/onie-tlv.c
 
 ONION OMEGA2+ BOARD
 M:	Harvey Hunt <harveyhuntnexus@gmail.com>
@@ -18203,6 +18207,12 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/iio/light/bh1750.yaml
 F:	drivers/iio/light/bh1750.c
 
+ROHM BU27034 AMBIENT LIGHT SENSOR DRIVER
+M:	Matti Vaittinen <mazziesaccount@gmail.com>
+L:	linux-iio@vger.kernel.org
+S:	Supported
+F:	drivers/iio/light/rohm-bu27034.c
+
 ROHM MULTIFUNCTION BD9571MWV-M PMIC DEVICE DRIVERS
 M:	Marek Vasut <marek.vasut+renesas@gmail.com>
 L:	linux-kernel@vger.kernel.org
@@ -18726,11 +18736,6 @@ F:	include/linux/sched.h
 F:	include/linux/wait.h
 F:	include/uapi/linux/sched.h
 F:	kernel/sched/
-
-SCR24X CHIP CARD INTERFACE DRIVER
-M:	Lubomir Rintel <lkundrak@v3.sk>
-S:	Supported
-F:	drivers/char/pcmcia/scr24x_cs.c
 
 SCSI RDMA PROTOCOL (SRP) INITIATOR
 M:	Bart Van Assche <bvanassche@acm.org>
@@ -19309,6 +19314,12 @@ F:	drivers/hwmon/sl28cpld-hwmon.c
 F:	drivers/irqchip/irq-sl28cpld.c
 F:	drivers/pwm/pwm-sl28cpld.c
 F:	drivers/watchdog/sl28cpld_wdt.c
+
+SL28 VPD NVMEM LAYOUT DRIVER
+M:	Michael Walle <michael@walle.cc>
+S:	Maintained
+F:	Documentation/devicetree/bindings/nvmem/layouts/kontron,sl28-vpd.yaml
+F:	drivers/nvmem/layouts/sl28vpd.c
 
 SLAB ALLOCATOR
 M:	Christoph Lameter <cl@linux.com>
@@ -22566,7 +22577,7 @@ S:	Orphan
 F:	drivers/mmc/host/vub300.c
 
 W1 DALLAS'S 1-WIRE BUS
-M:	Evgeniy Polyakov <zbr@ioremap.net>
+M:	Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>
 S:	Maintained
 F:	Documentation/devicetree/bindings/w1/
 F:	Documentation/w1/

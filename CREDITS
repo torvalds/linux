@@ -3475,6 +3475,11 @@ D: several improvements to system programs
 S: Oldenburg
 S: Germany
 
+N: Mathieu Poirier
+E: mathieu.poirier@linaro.org
+D: CoreSight kernel subsystem, Maintainer 2014-2022
+D: Perf tool support for CoreSight
+
 N: Robert Schwebel
 E: robert@schwebel.de
 W: https://www.schwebel.de

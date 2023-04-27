@@ -289,6 +289,20 @@ config JSA1212
 	  To compile this driver as a module, choose M here:
 	  the module will be called jsa1212.
 
+config ROHM_BU27034
+	tristate "ROHM BU27034 ambient light sensor"
+	depends on I2C
+	select REGMAP_I2C
+	select IIO_GTS_HELPER
+	select IIO_BUFFER
+	select IIO_KFIFO_BUF
+	help
+	  Enable support for the ROHM BU27034 ambient light sensor. ROHM BU27034
+	  is an ambient light sesnor with 3 channels and 3 photo diodes capable
+	  of detecting a very wide range of illuminance.
+	  Typical application is adjusting LCD and backlight power of TVs and
+	  mobile phones.
+
 config RPR0521
 	tristate "ROHM RPR0521 ALS and proximity sensor driver"
 	depends on I2C
