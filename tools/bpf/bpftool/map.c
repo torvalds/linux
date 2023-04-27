@@ -139,6 +139,9 @@ static void print_entry_json(struct bpf_map_info *info, unsigned char *key,
 		print_hex_data_json(key, info->key_size);
 		jsonw_name(json_wtr, "value");
 		print_hex_data_json(value, info->value_size);
+		if (map_is_map_of_maps(info->type))
+			jsonw_uint_field(json_wtr, "inner_map_id",
+					 *(unsigned int *)value);
 		if (btf) {
 			struct btf_dumper d = {
 				.btf = btf,
@@ -259,8 +262,13 @@ static void print_entry_plain(struct bpf_map_info *info, unsigned char *key,
 		}
 
 		if (info->value_size) {
-			printf("value:%c", break_names ? '\n' : ' ');
-			fprint_hex(stdout, value, info->value_size, " ");
+			if (map_is_map_of_maps(info->type)) {
+				printf("inner_map_id:%c", break_names ? '\n' : ' ');
+				printf("%u ", *(unsigned int *)value);
+			} else {
+				printf("value:%c", break_names ? '\n' : ' ');
+				fprint_hex(stdout, value, info->value_size, " ");
+			}
 		}
 
 		printf("\n");
