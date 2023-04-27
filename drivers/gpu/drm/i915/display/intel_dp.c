@@ -2923,6 +2923,17 @@ void intel_dp_configure_protocol_converter(struct intel_dp *intel_dp,
 			MISSING_CASE(crtc_state->output_format);
 			break;
 		}
+	} else if (crtc_state->sink_format == INTEL_OUTPUT_FORMAT_YCBCR444) {
+		switch (crtc_state->output_format) {
+		case INTEL_OUTPUT_FORMAT_YCBCR444:
+			break;
+		case INTEL_OUTPUT_FORMAT_RGB:
+			rgb_to_ycbcr = true;
+			break;
+		default:
+			MISSING_CASE(crtc_state->output_format);
+			break;
+		}
 	}
 
 	tmp = ycbcr444_to_420 ? DP_CONVERSION_TO_YCBCR420_ENABLE : 0;
