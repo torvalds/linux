@@ -38,7 +38,9 @@ struct xe_gt_desc {
 };
 
 struct xe_device_desc {
+	/* Should only ever be set for platforms without GMD_ID */
 	const struct xe_graphics_desc *graphics;
+	/* Should only ever be set for platforms without GMD_ID */
 	const struct xe_media_desc *media;
 
 	const char *platform_name;
@@ -402,6 +404,30 @@ static u32 peek_gmdid(struct xe_device *xe, u32 gmdid_offset)
 		REG_FIELD_GET(GMD_ID_RELEASE_MASK, ver);
 }
 
+/*
+ * Pre-GMD_ID platform: device descriptor already points to the appropriate
+ * graphics descriptor. Simply forward the description and calculate the version
+ * appropriately. "graphics" should be present in all such platforms, while
+ * media is optional.
+ */
+static void handle_pre_gmdid(struct xe_device *xe,
+			     const struct xe_device_desc *desc,
+			     const struct xe_graphics_desc **graphics,
+			     const struct xe_media_desc **media)
+{
+	*graphics = desc->graphics;
+	xe->info.graphics_verx100 = (*graphics)->ver * 100 + (*graphics)->rel;
+
+	*media = desc->media;
+	if (*media)
+		xe->info.media_verx100 = (*media)->ver * 100 + (*media)->rel;
+
+}
+
+/*
+ * GMD_ID platform: read IP version from hardware and select graphics descriptor
+ * based on the result.
+ */
 static void handle_gmdid(struct xe_device *xe,
 			 const struct xe_device_desc *desc,
 			 const struct xe_graphics_desc **graphics,
@@ -409,68 +435,34 @@ static void handle_gmdid(struct xe_device *xe,
 {
 	u32 ver;
 
-	if (desc->graphics) {
-		/*
-		 * Pre-GMD_ID platform; device descriptor already points to
-		 * the appropriate graphics descriptor.
-		 */
-		*graphics = desc->graphics;
-		xe->info.graphics_verx100 = (*graphics)->ver * 100 + (*graphics)->rel;
-	} else {
-		/*
-		 * GMD_ID platform; read IP version from hardware and select
-		 * graphics descriptor based on the result.
-		 */
-		ver = peek_gmdid(xe, GMD_ID.reg);
-		for (int i = 0; i < ARRAY_SIZE(graphics_ip_map); i++) {
-			if (ver == graphics_ip_map[i].ver) {
-				xe->info.graphics_verx100 = ver;
-				*graphics = graphics_ip_map[i].ip;
+	ver = peek_gmdid(xe, GMD_ID.reg);
+	for (int i = 0; i < ARRAY_SIZE(graphics_ip_map); i++) {
+		if (ver == graphics_ip_map[i].ver) {
+			xe->info.graphics_verx100 = ver;
+			*graphics = graphics_ip_map[i].ip;
 
-				break;
-			}
-		}
-
-		if (!xe->info.graphics_verx100) {
-			drm_err(&xe->drm, "Hardware reports unknown graphics version %u.%02u\n",
-				ver / 100, ver % 100);
+			break;
 		}
 	}
 
-	if (desc->media) {
-		/*
-		 * Pre-GMD_ID platform; device descriptor already points to
-		 * the appropriate media descriptor.
-		 */
-		*media = desc->media;
-		xe->info.media_verx100 = (*media)->ver * 100 + (*media)->rel;
-	} else {
-		/*
-		 * GMD_ID platform; read IP version from hardware and select
-		 * media descriptor based on the result.
-		 *
-		 * desc->media can also be NULL for a pre-GMD_ID platform that
-		 * simply doesn't have media (e.g., PVC); in that case the
-		 * attempt to read GMD_ID will return 0 (since there's no
-		 * register at that location).
-		 */
-		ver = peek_gmdid(xe, GMD_ID.reg + 0x380000);
-		if (ver == 0)
-			return;
+	if (!xe->info.graphics_verx100) {
+		drm_err(&xe->drm, "Hardware reports unknown graphics version %u.%02u\n",
+			ver / 100, ver % 100);
+	}
 
-		for (int i = 0; i < ARRAY_SIZE(media_ip_map); i++) {
-			if (ver == media_ip_map[i].ver) {
-				xe->info.media_verx100 = ver;
-				*media = media_ip_map[i].ip;
+	ver = peek_gmdid(xe, GMD_ID.reg + 0x380000);
+	for (int i = 0; i < ARRAY_SIZE(media_ip_map); i++) {
+		if (ver == media_ip_map[i].ver) {
+			xe->info.media_verx100 = ver;
+			*media = media_ip_map[i].ip;
 
-				break;
-			}
+			break;
 		}
+	}
 
-		if (!xe->info.media_verx100) {
-			drm_err(&xe->drm, "Hardware reports unknown media version %u.%02u\n",
-				ver / 100, ver % 100);
-		}
+	if (!xe->info.media_verx100) {
+		drm_err(&xe->drm, "Hardware reports unknown media version %u.%02u\n",
+			ver / 100, ver % 100);
 	}
 }
 
@@ -486,9 +478,14 @@ static int xe_info_init(struct xe_device *xe,
 
 	/*
 	 * If this platform supports GMD_ID, we'll detect the proper IP
-	 * descriptor to use from hardware registers.
+	 * descriptor to use from hardware registers. desc->graphics will only
+	 * ever be set at this point for platforms before GMD_ID. In that case
+	 * the IP descriptions and versions are simply derived from that.
 	 */
-	handle_gmdid(xe, desc, &graphics_desc, &media_desc);
+	if (desc->graphics)
+		handle_pre_gmdid(xe, desc, &graphics_desc, &media_desc);
+	else
+		handle_gmdid(xe, desc, &graphics_desc, &media_desc);
 
 	/*
 	 * If we couldn't detect the graphics IP, that's considered a fatal
