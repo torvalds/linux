@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __SOC_QCOM_CRM_H__
@@ -82,6 +82,9 @@ int crm_write_perf_ol(const struct device *dev, enum crm_drv_type drv,
 int crm_write_bw_vote(const struct device *dev, enum crm_drv_type drv,
 		      u32 drv_id, const struct crm_cmd *cmd);
 int crm_write_pwr_states(const struct device *dev, u32 drv_id);
+int crm_dump_drv_regs(const char *name, u32 drv_id);
+int crm_dump_regs(const char *name);
+int crm_read_curr_perf_ol(const char *name, int vcd_idx, u32 *data);
 
 const struct device *crm_get_device(const char *name);
 #else
@@ -99,6 +102,15 @@ static inline int crm_write_bw_vote(const struct device *dev,
 { return -ENODEV; }
 
 static inline int crm_write_pwr_states(const struct device *dev, u32 drv_id)
+{ return -ENODEV; }
+
+static inline int crm_dump_drv_regs(const char *name, u32 drv_id)
+{ return -ENODEV; }
+
+static inline int crm_dump_regs(const char *name)
+{ return -ENODEV; }
+
+static inline int crm_read_curr_perf_ol(const char *name, int vcd_idx, u32 *data)
 { return -ENODEV; }
 
 static inline const struct device *crm_get_device(const char *name)
