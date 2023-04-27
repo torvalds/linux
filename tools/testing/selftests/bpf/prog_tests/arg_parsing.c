@@ -96,6 +96,19 @@ static void test_parse_test_list(void)
 		goto error;
 	ASSERT_OK(strcmp("*bpf_cookie*", set.tests[0].name), "test name");
 	ASSERT_OK(strcmp("*trace*", set.tests[0].subtests[0]), "subtest name");
+	free_test_filter_set(&set);
+
+	ASSERT_OK(parse_test_list("t/subtest1,t/subtest2", &set, true),
+		  "parsing");
+	if (!ASSERT_EQ(set.cnt, 1, "count of test filters"))
+		goto error;
+	if (!ASSERT_OK_PTR(set.tests, "test filters initialized"))
+		goto error;
+	if (!ASSERT_EQ(set.tests[0].subtest_cnt, 2, "subtest filters count"))
+		goto error;
+	ASSERT_OK(strcmp("t", set.tests[0].name), "test name");
+	ASSERT_OK(strcmp("subtest1", set.tests[0].subtests[0]), "subtest name");
+	ASSERT_OK(strcmp("subtest2", set.tests[0].subtests[1]), "subtest name");
 error:
 	free_test_filter_set(&set);
 }
