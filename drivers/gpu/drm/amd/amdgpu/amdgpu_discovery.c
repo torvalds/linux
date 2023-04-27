@@ -1208,54 +1208,6 @@ next_ip:
 	return 0;
 }
 
-int amdgpu_discovery_get_ip_version(struct amdgpu_device *adev, int hw_id, int number_instance,
-				    int *major, int *minor, int *revision)
-{
-	struct binary_header *bhdr;
-	struct ip_discovery_header *ihdr;
-	struct die_header *dhdr;
-	struct ip *ip;
-	uint16_t die_offset;
-	uint16_t ip_offset;
-	uint16_t num_dies;
-	uint16_t num_ips;
-	int i, j;
-
-	if (!adev->mman.discovery_bin) {
-		DRM_ERROR("ip discovery uninitialized\n");
-		return -EINVAL;
-	}
-
-	bhdr = (struct binary_header *)adev->mman.discovery_bin;
-	ihdr = (struct ip_discovery_header *)(adev->mman.discovery_bin +
-			le16_to_cpu(bhdr->table_list[IP_DISCOVERY].offset));
-	num_dies = le16_to_cpu(ihdr->num_dies);
-
-	for (i = 0; i < num_dies; i++) {
-		die_offset = le16_to_cpu(ihdr->die_info[i].die_offset);
-		dhdr = (struct die_header *)(adev->mman.discovery_bin + die_offset);
-		num_ips = le16_to_cpu(dhdr->num_ips);
-		ip_offset = die_offset + sizeof(*dhdr);
-
-		for (j = 0; j < num_ips; j++) {
-			ip = (struct ip *)(adev->mman.discovery_bin + ip_offset);
-
-			if ((le16_to_cpu(ip->hw_id) == hw_id) && (ip->number_instance == number_instance)) {
-				if (major)
-					*major = ip->major;
-				if (minor)
-					*minor = ip->minor;
-				if (revision)
-					*revision = ip->revision;
-				return 0;
-			}
-			ip_offset += struct_size(ip, base_address, ip->num_base_address);
-		}
-	}
-
-	return -EINVAL;
-}
-
 static void amdgpu_discovery_harvest_ip(struct amdgpu_device *adev)
 {
 	int vcn_harvest_count = 0;
