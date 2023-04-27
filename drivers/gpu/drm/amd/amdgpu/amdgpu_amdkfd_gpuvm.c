@@ -531,6 +531,12 @@ kfd_mem_dmamap_dmabuf(struct kfd_mem_attachment *attachment)
 {
 	struct ttm_operation_ctx ctx = {.interruptible = true};
 	struct amdgpu_bo *bo = attachment->bo_va->base.bo;
+	int ret;
+
+	amdgpu_bo_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_CPU);
+	ret = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
+	if (ret)
+		return ret;
 
 	amdgpu_bo_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_GTT);
 	return ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
@@ -663,11 +669,10 @@ kfd_mem_dmaunmap_userptr(struct kgd_mem *mem,
 static void
 kfd_mem_dmaunmap_dmabuf(struct kfd_mem_attachment *attachment)
 {
-	struct ttm_operation_ctx ctx = {.interruptible = true};
-	struct amdgpu_bo *bo = attachment->bo_va->base.bo;
-
-	amdgpu_bo_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_CPU);
-	ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
+	/* This is a no-op. We don't want to trigger eviction fences when
+	 * unmapping DMABufs. Therefore the invalidation (moving to system
+	 * domain) is done in kfd_mem_dmamap_dmabuf.
+	 */
 }
 
 /**
