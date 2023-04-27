@@ -15,6 +15,13 @@
 / {
 	model = "Rockchip RK3588 VEHICLE EVB V20 Board";
 	compatible = "rockchip,rk3588-vehicle-evb-v20", "rockchip,rk3588";
+
+	nvp6188_osc: oscillator {
+		compatible = "fixed-clock";
+		#clock-cells = <1>;
+		clock-frequency  = <27000000>;
+		clock-output-names = "nvp6188-osc";
+	};
 };
 
 &cif_sensor {
@@ -23,7 +30,29 @@
 	};
 };
 
-&nvp6188 {
-	pinctrl-0 = <&mipim1_camera3_clk>;
-	reset-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
+&i2c7 {
+	status = "okay";
+	/delete-node/ nvp6188@33;
+	nvp6188: nvp6188@31 {
+		compatible = "nvp6188";
+		status = "okay";
+		reg = <0x31>;
+		clocks = <&nvp6188_osc 0>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3588_PD_VI>;
+		rockchip,grf = <&sys_grf>;
+		/*power-gpios = <&gpio3 RK_PC6 GPIO_ACTIVE_HIGH>;*/
+		reset-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "nvp6188";
+		rockchip,camera-module-lens-name = "nvp6188";
+
+		port {
+			nvp6188_out: endpoint {
+				remote-endpoint = <&mipi_dphy0_in_nvp6188>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
 };

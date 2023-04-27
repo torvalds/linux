@@ -42,10 +42,10 @@
 	status = "okay";
 
 
-	nvp6188: nvp6188@33 {
+	nvp6188: nvp6188@31 {
 		compatible = "nvp6188";
 		status = "okay";
-		reg = <0x33>;
+		reg = <0x31>;
 		clocks = <&cru CLK_MIPI_CAMARAOUT_M2>;
 		clock-names = "xvclk";
 		power-domains = <&power RK3588_PD_VI>;
