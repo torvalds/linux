@@ -28,6 +28,10 @@
 #include "dp_audio.h"
 #include "dp_debug.h"
 
+static bool psr_enabled = false;
+module_param(psr_enabled, bool, 0);
+MODULE_PARM_DESC(psr_enabled, "enable PSR for eDP and DP displays");
+
 #define HPD_STRING_SIZE 30
 
 enum {
@@ -407,7 +411,7 @@ static int dp_display_process_hpd_high(struct dp_display_private *dp)
 
 	edid = dp->panel->edid;
 
-	dp->dp_display.psr_supported = dp->panel->psr_cap.version;
+	dp->dp_display.psr_supported = dp->panel->psr_cap.version && psr_enabled;
 
 	dp->audio_supported = drm_detect_monitor_audio(edid);
 	dp_panel_handle_sink_request(dp->panel);
