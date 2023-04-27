@@ -888,12 +888,10 @@ static const struct of_device_id mpp_vdpu1_dt_match[] = {
 		.data = &vdpu_3368_data,
 	},
 #endif
-#ifdef CONFIG_CPU_RK3328
 	{
 		.compatible = "rockchip,avs-plus-decoder",
 		.data = &avsd_plus_data,
 	},
-#endif
 	{},
 };
 
