@@ -146,7 +146,7 @@ static inline struct dentry *ovl_lowerdata_dentry(struct ovl_entry *oe)
 {
 	struct ovl_path *lowerdata = ovl_lowerdata(oe);
 
-	return lowerdata ? lowerdata->dentry : NULL;
+	return lowerdata ? READ_ONCE(lowerdata->dentry) : NULL;
 }
 
 /* private information held for every overlayfs dentry */

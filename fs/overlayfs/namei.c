@@ -889,6 +889,52 @@ static int ovl_fix_origin(struct ovl_fs *ofs, struct dentry *dentry,
 	return err;
 }
 
+/* Lazy lookup of lowerdata */
+int ovl_maybe_lookup_lowerdata(struct dentry *dentry)
+{
+	struct inode *inode = d_inode(dentry);
+	const char *redirect = ovl_lowerdata_redirect(inode);
+	struct ovl_path datapath = {};
+	const struct cred *old_cred;
+	int err;
+
+	if (!redirect || ovl_dentry_lowerdata(dentry))
+		return 0;
+
+	if (redirect[0] != '/')
+		return -EIO;
+
+	err = ovl_inode_lock_interruptible(inode);
+	if (err)
+		return err;
+
+	err = 0;
+	/* Someone got here before us? */
+	if (ovl_dentry_lowerdata(dentry))
+		goto out;
+
+	old_cred = ovl_override_creds(dentry->d_sb);
+	err = ovl_lookup_data_layers(dentry, redirect, &datapath);
+	revert_creds(old_cred);
+	if (err)
+		goto out_err;
+
+	err = ovl_dentry_set_lowerdata(dentry, &datapath);
+	if (err)
+		goto out_err;
+
+out:
+	ovl_inode_unlock(inode);
+	dput(datapath.dentry);
+
+	return err;
+
+out_err:
+	pr_warn_ratelimited("lazy lowerdata lookup failed (%pd2, err=%i)\n",
+			    dentry, err);
+	goto out;
+}
+
 struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 			  unsigned int flags)
 {
@@ -1072,14 +1118,10 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 		}
 	}
 
-	/* Lookup absolute redirect from lower metacopy in data-only layers */
+	/* Defer lookup of lowerdata in data-only layers to first access */
 	if (d.metacopy && ctr && ofs->numdatalayer && d.absolute_redirect) {
-		err = ovl_lookup_data_layers(dentry, d.redirect,
-					     &stack[ctr]);
-		if (!err) {
-			d.metacopy = false;
-			ctr++;
-		}
+		d.metacopy = false;
+		ctr++;
 	}
 
 	/*

@@ -1073,6 +1073,15 @@ static int ovl_copy_up_flags(struct dentry *dentry, int flags)
 	if (WARN_ON(disconnected && d_is_dir(dentry)))
 		return -EIO;
 
+	/*
+	 * We may not need lowerdata if we are only doing metacopy up, but it is
+	 * not very important to optimize this case, so do lazy lowerdata lookup
+	 * before any copy up, so we can do it before taking ovl_inode_lock().
+	 */
+	err = ovl_maybe_lookup_lowerdata(dentry);
+	if (err)
+		return err;
+
 	old_cred = ovl_override_creds(dentry->d_sb);
 	while (!err) {
 		struct dentry *next;

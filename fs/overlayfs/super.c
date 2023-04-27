@@ -82,13 +82,14 @@ static struct dentry *ovl_d_real(struct dentry *dentry,
 		return real;
 
 	/*
-	 * XXX: We may need lazy lookup of lowerdata for !inode case to return
+	 * Best effort lazy lookup of lowerdata for !inode case to return
 	 * the real lowerdata dentry.  The only current caller of d_real() with
 	 * NULL inode is d_real_inode() from trace_uprobe and this caller is
 	 * likely going to be followed reading from the file, before placing
 	 * uprobes on offset within the file, so lowerdata should be available
 	 * when setting the uprobe.
 	 */
+	ovl_maybe_lookup_lowerdata(dentry);
 	lower = ovl_dentry_lowerdata(dentry);
 	if (!lower)
 		goto bug;
