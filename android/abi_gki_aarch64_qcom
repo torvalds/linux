@@ -2980,6 +2980,7 @@
   snd_usb_endpoint_close
   snd_usb_endpoint_open
   snd_usb_endpoint_prepare
+  snd_usb_power_domain_set
   snprintf
   soc_device_register
   soc_device_unregister
