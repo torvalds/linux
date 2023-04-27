@@ -26,7 +26,7 @@
 #define IIR(offset)				_MMIO(offset + 0x8)
 #define IER(offset)				_MMIO(offset + 0xc)
 
-static void assert_iir_is_zero(struct xe_gt *gt, i915_reg_t reg)
+static void assert_iir_is_zero(struct xe_gt *gt, struct xe_reg reg)
 {
 	u32 val = xe_mmio_read32(gt, reg.reg);
 

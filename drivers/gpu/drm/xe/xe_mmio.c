@@ -393,7 +393,7 @@ int xe_mmio_init(struct xe_device *xe)
 	DRM_XE_MMIO_READ |\
 	DRM_XE_MMIO_WRITE)
 
-static const i915_reg_t mmio_read_whitelist[] = {
+static const struct xe_reg mmio_read_whitelist[] = {
 	RING_TIMESTAMP(RENDER_RING_BASE),
 };
 

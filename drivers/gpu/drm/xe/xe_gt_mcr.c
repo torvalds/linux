@@ -40,6 +40,11 @@
  * non-terminated instance.
  */
 
+static inline struct xe_reg to_xe_reg(struct xe_reg_mcr reg_mcr)
+{
+	return reg_mcr.__reg;
+}
+
 enum {
 	MCR_OP_READ,
 	MCR_OP_WRITE
@@ -360,9 +365,10 @@ void xe_gt_mcr_set_implicit_defaults(struct xe_gt *gt)
  * returned.  Returns false if the caller need not perform any steering
  */
 static bool xe_gt_mcr_get_nonterminated_steering(struct xe_gt *gt,
-						 i915_mcr_reg_t reg,
+						 struct xe_reg_mcr reg_mcr,
 						 u8 *group, u8 *instance)
 {
+	const struct xe_reg reg = to_xe_reg(reg_mcr);
 	const struct xe_mmio_range *implicit_ranges;
 
 	for (int type = 0; type < IMPLICIT_STEERING; type++) {
@@ -436,9 +442,10 @@ static void mcr_unlock(struct xe_gt *gt) {
  *
  * Caller needs to make sure the relevant forcewake wells are up.
  */
-static u32 rw_with_mcr_steering(struct xe_gt *gt, i915_mcr_reg_t reg, u8 rw_flag,
-				int group, int instance, u32 value)
+static u32 rw_with_mcr_steering(struct xe_gt *gt, struct xe_reg_mcr reg_mcr,
+				u8 rw_flag, int group, int instance, u32 value)
 {
+	const struct xe_reg reg = to_xe_reg(reg_mcr);
 	u32 steer_reg, steer_val, val = 0;
 
 	lockdep_assert_held(&gt->mcr_lock);
@@ -485,7 +492,7 @@ static u32 rw_with_mcr_steering(struct xe_gt *gt, i915_mcr_reg_t reg, u8 rw_flag
 /**
  * xe_gt_mcr_unicast_read_any - reads a non-terminated instance of an MCR register
  * @gt: GT structure
- * @reg: register to read
+ * @reg_mcr: register to read
  *
  * Reads a GT MCR register.  The read will be steered to a non-terminated
  * instance (i.e., one that isn't fused off or powered down by power gating).
@@ -494,17 +501,19 @@ static u32 rw_with_mcr_steering(struct xe_gt *gt, i915_mcr_reg_t reg, u8 rw_flag
  *
  * Returns the value from a non-terminated instance of @reg.
  */
-u32 xe_gt_mcr_unicast_read_any(struct xe_gt *gt, i915_mcr_reg_t reg)
+u32 xe_gt_mcr_unicast_read_any(struct xe_gt *gt, struct xe_reg_mcr reg_mcr)
 {
+	const struct xe_reg reg = to_xe_reg(reg_mcr);
 	u8 group, instance;
 	u32 val;
 	bool steer;
 
-	steer = xe_gt_mcr_get_nonterminated_steering(gt, reg, &group, &instance);
+	steer = xe_gt_mcr_get_nonterminated_steering(gt, reg_mcr,
+						     &group, &instance);
 
 	if (steer) {
 		mcr_lock(gt);
-		val = rw_with_mcr_steering(gt, reg, MCR_OP_READ,
+		val = rw_with_mcr_steering(gt, reg_mcr, MCR_OP_READ,
 					   group, instance, 0);
 		mcr_unlock(gt);
 	} else {
@@ -517,7 +526,7 @@ u32 xe_gt_mcr_unicast_read_any(struct xe_gt *gt, i915_mcr_reg_t reg)
 /**
  * xe_gt_mcr_unicast_read - read a specific instance of an MCR register
  * @gt: GT structure
- * @reg: the MCR register to read
+ * @reg_mcr: the MCR register to read
  * @group: the MCR group
  * @instance: the MCR instance
  *
@@ -525,13 +534,13 @@ u32 xe_gt_mcr_unicast_read_any(struct xe_gt *gt, i915_mcr_reg_t reg)
  * group/instance.
  */
 u32 xe_gt_mcr_unicast_read(struct xe_gt *gt,
-			   i915_mcr_reg_t reg,
+			   struct xe_reg_mcr reg_mcr,
 			   int group, int instance)
 {
 	u32 val;
 
 	mcr_lock(gt);
-	val = rw_with_mcr_steering(gt, reg, MCR_OP_READ, group, instance, 0);
+	val = rw_with_mcr_steering(gt, reg_mcr, MCR_OP_READ, group, instance, 0);
 	mcr_unlock(gt);
 
 	return val;
@@ -540,7 +549,7 @@ u32 xe_gt_mcr_unicast_read(struct xe_gt *gt,
 /**
  * xe_gt_mcr_unicast_write - write a specific instance of an MCR register
  * @gt: GT structure
- * @reg: the MCR register to write
+ * @reg_mcr: the MCR register to write
  * @value: value to write
  * @group: the MCR group
  * @instance: the MCR instance
@@ -548,24 +557,27 @@ u32 xe_gt_mcr_unicast_read(struct xe_gt *gt,
  * Write an MCR register in unicast mode after steering toward a specific
  * group/instance.
  */
-void xe_gt_mcr_unicast_write(struct xe_gt *gt, i915_mcr_reg_t reg, u32 value,
-			     int group, int instance)
+void xe_gt_mcr_unicast_write(struct xe_gt *gt, struct xe_reg_mcr reg_mcr,
+			     u32 value, int group, int instance)
 {
 	mcr_lock(gt);
-	rw_with_mcr_steering(gt, reg, MCR_OP_WRITE, group, instance, value);
+	rw_with_mcr_steering(gt, reg_mcr, MCR_OP_WRITE, group, instance, value);
 	mcr_unlock(gt);
 }
 
 /**
  * xe_gt_mcr_multicast_write - write a value to all instances of an MCR register
  * @gt: GT structure
- * @reg: the MCR register to write
+ * @reg_mcr: the MCR register to write
  * @value: value to write
  *
  * Write an MCR register in multicast mode to update all instances.
  */
-void xe_gt_mcr_multicast_write(struct xe_gt *gt, i915_mcr_reg_t reg, u32 value)
+void xe_gt_mcr_multicast_write(struct xe_gt *gt, struct xe_reg_mcr reg_mcr,
+			       u32 value)
 {
+	struct xe_reg reg = to_xe_reg(reg_mcr);
+
 	/*
 	 * Synchronize with any unicast operations.  Once we have exclusive
 	 * access, the MULTICAST bit should already be set, so there's no need
