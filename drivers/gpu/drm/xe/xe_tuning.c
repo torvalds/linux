@@ -12,10 +12,8 @@
 #include "xe_platform_types.h"
 #include "xe_rtp.h"
 
-#undef XE_REG
 #undef XE_REG_MCR
-#define XE_REG(x, ...)		_XE_RTP_REG(x)
-#define XE_REG_MCR(x, ...)	_XE_RTP_MCR_REG(x)
+#define XE_REG_MCR(...)     XE_REG(__VA_ARGS__, .mcr = 1)
 
 static const struct xe_rtp_entry gt_tunings[] = {
 	{ XE_RTP_NAME("Tuning: Blend Fill Caching Optimization Disable"),
@@ -54,8 +52,7 @@ static const struct xe_rtp_entry lrc_tunings[] = {
 	},
 	{ XE_RTP_NAME("Tuning: TBIMR fast clip"),
 	  XE_RTP_RULES(PLATFORM(DG2)),
-	  XE_RTP_ACTIONS(SET(CHICKEN_RASTER_2, TBIMR_FAST_CLIP,
-			     XE_RTP_ACTION_FLAG(MASKED_REG)))
+	  XE_RTP_ACTIONS(SET(CHICKEN_RASTER_2, TBIMR_FAST_CLIP))
 	},
 	{}
 };

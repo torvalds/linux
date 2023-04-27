@@ -22,43 +22,77 @@ struct xe_reg_sr;
 /*
  * Helper macros - not to be used outside this header.
  */
-/* This counts to 12. Any more, it will return 13th argument. */
-#define __COUNT_ARGS(_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _n, X...) _n
-#define COUNT_ARGS(X...) __COUNT_ARGS(, ##X, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
+#define _XE_ESC(...) __VA_ARGS__
+#define _XE_COUNT_ARGS(...) _XE_ESC(__XE_COUNT_ARGS(__VA_ARGS__,5,4,3,2,1,))
+#define __XE_COUNT_ARGS(_,_5,_4,_3,_2,X_,...) X_
 
-#define __CONCAT(a, b) a ## b
-#define CONCATENATE(a, b) __CONCAT(a, b)
+#define _XE_FIRST(...) _XE_ESC(__XE_FIRST(__VA_ARGS__,))
+#define __XE_FIRST(x_,...) x_
+#define _XE_TUPLE_TAIL(...) _XE_ESC(__XE_TUPLE_TAIL(__VA_ARGS__))
+#define __XE_TUPLE_TAIL(x_,...) (__VA_ARGS__)
 
-#define __CALL_FOR_EACH_1(MACRO_, x, ...) MACRO_(x)
-#define __CALL_FOR_EACH_2(MACRO_, x, ...)					\
-	MACRO_(x) __CALL_FOR_EACH_1(MACRO_, ##__VA_ARGS__)
-#define __CALL_FOR_EACH_3(MACRO_, x, ...)					\
-	MACRO_(x) __CALL_FOR_EACH_2(MACRO_, ##__VA_ARGS__)
-#define __CALL_FOR_EACH_4(MACRO_, x, ...)					\
-	MACRO_(x) __CALL_FOR_EACH_3(MACRO_, ##__VA_ARGS__)
+#define _XE_DROP_FIRST(x_, ...) __VA_ARGS__
 
-#define _CALL_FOR_EACH(NARGS_, MACRO_, x, ...)					\
-	CONCATENATE(__CALL_FOR_EACH_, NARGS_)(MACRO_, x, ##__VA_ARGS__)
-#define CALL_FOR_EACH(MACRO_, x, ...)						\
-	_CALL_FOR_EACH(COUNT_ARGS(x, ##__VA_ARGS__), MACRO_, x, ##__VA_ARGS__)
+#define _XE_RTP_CONCAT(a, b) __XE_RTP_CONCAT(a, b)
+#define __XE_RTP_CONCAT(a, b) XE_RTP_ ## a ## b
 
-#define _XE_RTP_REG(x_)	(x_), XE_RTP_REG_REGULAR
-#define _XE_RTP_MCR_REG(x_) (x_), XE_RTP_REG_MCR
+#define __XE_RTP_PASTE_SEP_COMMA		,
+#define __XE_RTP_PASTE_SEP_BITWISE_OR		|
 
 /*
- * Helper macros for concatenating prefix - do not use them directly outside
- * this header
+ * XE_RTP_PASTE_FOREACH - Paste XE_RTP_<@prefix_> on each element of the tuple
+ * @args, with the end result separated by @sep_. @sep must be one of the
+ * previously declared macros __XE_RTP_PASTE_SEP_*, or declared with such
+ * prefix.
+ *
+ * Examples:
+ *
+ * 1) XE_RTP_PASTE_FOREACH(TEST_, COMMA, (FOO, BAR))
+ *    expands to:
+ *
+ *	XE_RTP_TEST_FOO , XE_RTP_TEST_BAR
+ *
+ * 2) XE_RTP_PASTE_FOREACH(TEST2_, COMMA, (FOO))
+ *    expands to:
+ *
+ *	XE_RTP_TEST2_FOO
+ *
+ * 3) XE_RTP_PASTE_FOREACH(TEST3, BITWISE_OR, (FOO, BAR))
+ *    expands to:
+ *
+ *	XE_RTP_TEST3_FOO | XE_RTP_TEST3_BAR
+ *
+ * 4) #define __XE_RTP_PASTE_SEP_MY_SEP	BANANA
+ *    XE_RTP_PASTE_FOREACH(TEST_, MY_SEP, (FOO, BAR))
+ *    expands to:
+ *
+ *	XE_RTP_TEST_FOO BANANA XE_RTP_TEST_BAR
  */
-#define __ADD_XE_RTP_ENTRY_FLAG_PREFIX(x) CONCATENATE(XE_RTP_ENTRY_FLAG_, x) |
-#define __ADD_XE_RTP_ACTION_FLAG_PREFIX(x) CONCATENATE(XE_RTP_ACTION_FLAG_, x) |
-#define __ADD_XE_RTP_RULE_PREFIX(x) CONCATENATE(XE_RTP_RULE_, x) ,
-#define __ADD_XE_RTP_ACTION_PREFIX(x) CONCATENATE(XE_RTP_ACTION_, x) ,
+#define XE_RTP_PASTE_FOREACH(prefix_, sep_, args_) _XE_ESC(_XE_RTP_CONCAT(PASTE_,_XE_COUNT_ARGS args_)(prefix_, sep_, args_))
+#define XE_RTP_PASTE_1(prefix_, sep_, args_) _XE_RTP_CONCAT(prefix_, _XE_FIRST args_)
+#define XE_RTP_PASTE_2(prefix_, sep_, args_) _XE_RTP_CONCAT(prefix_, _XE_FIRST args_) __XE_RTP_PASTE_SEP_ ## sep_ XE_RTP_PASTE_1(prefix_, sep_, _XE_TUPLE_TAIL args_)
+#define XE_RTP_PASTE_3(prefix_, sep_, args_) _XE_RTP_CONCAT(prefix_, _XE_FIRST args_) __XE_RTP_PASTE_SEP_ ## sep_ XE_RTP_PASTE_2(prefix_, sep_, _XE_TUPLE_TAIL args_)
+#define XE_RTP_PASTE_4(prefix_, sep_, args_) _XE_RTP_CONCAT(prefix_, _XE_FIRST args_) __XE_RTP_PASTE_SEP_ ## sep_ XE_RTP_PASTE_3(prefix_, sep_, _XE_TUPLE_TAIL args_)
+
+
+/*
+ * XE_RTP_DROP_CAST - Drop cast to convert a compound statement to a initializer
+ *
+ * Example:
+ *
+ *	#define foo(a_)	((struct foo){ .a = a_ })
+ *	XE_RTP_DROP_CAST(foo(10))
+ *	expands to:
+ *
+ *	{ .a = 10 }
+ */
+#define XE_RTP_DROP_CAST(...) _XE_ESC(_XE_DROP_FIRST _XE_ESC __VA_ARGS__)
+
 
 /*
  * Macros to encode rules to match against platform, IP version, stepping, etc.
  * Shouldn't be used directly - see XE_RTP_RULES()
  */
-
 #define _XE_RTP_RULE_PLATFORM(plat__)						\
 	{ .match_type = XE_RTP_MATCH_PLATFORM, .platform = plat__ }
 
@@ -197,7 +231,6 @@ struct xe_reg_sr;
  * XE_RTP_ACTION_WR - Helper to write a value to the register, overriding all
  *                    the bits
  * @reg_: Register
- * @reg_type_: Register type - automatically expanded by XE_REG
  * @val_: Value to set
  * @...: Additional fields to override in the struct xe_rtp_action entry
  *
@@ -205,15 +238,14 @@ struct xe_reg_sr;
  *
  *	REGNAME = VALUE
  */
-#define XE_RTP_ACTION_WR(reg_, reg_type_, val_, ...)				\
-	{ .reg = (reg_), .reg_type = (reg_type_),				\
+#define XE_RTP_ACTION_WR(reg_, val_, ...)					\
+	{ .reg = XE_RTP_DROP_CAST(reg_),					\
 	  .clr_bits = ~0u, .set_bits = (val_),					\
 	  .read_mask = (~0u), ##__VA_ARGS__ }
 
 /**
  * XE_RTP_ACTION_SET - Set bits from @val_ in the register.
  * @reg_: Register
- * @reg_type_: Register type - automatically expanded by XE_REG
  * @val_: Bits to set in the register
  * @...: Additional fields to override in the struct xe_rtp_action entry
  *
@@ -224,15 +256,14 @@ struct xe_reg_sr;
  *	REGNAME[2] = 1
  *	REGNAME[5] = 1
  */
-#define XE_RTP_ACTION_SET(reg_, reg_type_, val_, ...)				\
-	{ .reg = (reg_), .reg_type = (reg_type_),				\
-	  .clr_bits = (val_), .set_bits = (val_),				\
-	  .read_mask = (val_), ##__VA_ARGS__ }
+#define XE_RTP_ACTION_SET(reg_, val_, ...)					\
+	{ .reg = XE_RTP_DROP_CAST(reg_),					\
+	  .clr_bits = val_, .set_bits = val_,					\
+	  .read_mask = val_, ##__VA_ARGS__ }
 
 /**
  * XE_RTP_ACTION_CLR: Clear bits from @val_ in the register.
  * @reg_: Register
- * @reg_type_: Register type - automatically expanded by XE_REG
  * @val_: Bits to clear in the register
  * @...: Additional fields to override in the struct xe_rtp_action entry
  *
@@ -243,15 +274,14 @@ struct xe_reg_sr;
  *	REGNAME[2] = 0
  *	REGNAME[5] = 0
  */
-#define XE_RTP_ACTION_CLR(reg_, reg_type_, val_, ...)				\
-	{ .reg = (reg_), .reg_type = (reg_type_),				\
-	  .clr_bits = (val_), .set_bits = 0,					\
-	  .read_mask = (val_), ##__VA_ARGS__ }
+#define XE_RTP_ACTION_CLR(reg_, val_, ...)					\
+	{ .reg = XE_RTP_DROP_CAST(reg_),					\
+	  .clr_bits = val_, .set_bits = 0,					\
+	  .read_mask = val_, ##__VA_ARGS__ }
 
 /**
  * XE_RTP_ACTION_FIELD_SET: Set a bit range
  * @reg_: Register
- * @reg_type_: Register type - automatically expanded by XE_REG
  * @mask_bits_: Mask of bits to be changed in the register, forming a field
  * @val_: Value to set in the field denoted by @mask_bits_
  * @...: Additional fields to override in the struct xe_rtp_action entry
@@ -261,29 +291,29 @@ struct xe_reg_sr;
  *
  *	REGNAME[<end>:<start>] = VALUE
  */
-#define XE_RTP_ACTION_FIELD_SET(reg_, reg_type_, mask_bits_, val_, ...)		\
-	{ .reg = (reg_), .reg_type = (reg_type_),				\
-	  .clr_bits = (mask_bits_), .set_bits = (val_),				\
-	  .read_mask = (mask_bits_), ##__VA_ARGS__ }
+#define XE_RTP_ACTION_FIELD_SET(reg_, mask_bits_, val_, ...)			\
+	{ .reg = XE_RTP_DROP_CAST(reg_),					\
+	  .clr_bits = mask_bits_, .set_bits = val_,				\
+	  .read_mask = mask_bits_, ##__VA_ARGS__ }
 
-#define XE_RTP_ACTION_FIELD_SET_NO_READ_MASK(reg_, reg_type_, mask_bits_, val_, ...)	\
-	{ .reg = (reg_), .reg_type = (reg_type_),				\
+#define XE_RTP_ACTION_FIELD_SET_NO_READ_MASK(reg_, mask_bits_, val_, ...)	\
+	{ .reg = XE_RTP_DROP_CAST(reg_),					\
 	  .clr_bits = (mask_bits_), .set_bits = (val_),				\
 	  .read_mask = 0, ##__VA_ARGS__ }
 
 /**
  * XE_RTP_ACTION_WHITELIST - Add register to userspace whitelist
  * @reg_: Register
- * @reg_type_: Register type - automatically expanded by XE_REG
  * @val_: Whitelist-specific flags to set
  * @...: Additional fields to override in the struct xe_rtp_action entry
  *
  * Add a register to the whitelist, allowing userspace to modify the ster with
  * regular user privileges.
  */
-#define XE_RTP_ACTION_WHITELIST(reg_, reg_type_, val_, ...)			\
+#define XE_RTP_ACTION_WHITELIST(reg_, val_, ...)				\
 	/* TODO fail build if ((flags) & ~(RING_FORCE_TO_NONPRIV_MASK_VALID)) */\
-	{ .reg = (reg_), .reg_type = (reg_type_), .set_bits = (val_),		\
+	{ .reg = XE_RTP_DROP_CAST(reg_),					\
+	  .set_bits = val_,							\
 	  .clr_bits = RING_FORCE_TO_NONPRIV_MASK_VALID,				\
 	  ##__VA_ARGS__ }
 
@@ -297,11 +327,10 @@ struct xe_reg_sr;
 
 /**
  * XE_RTP_ENTRY_FLAG - Helper to add multiple flags to a struct xe_rtp_entry
- * @f1_: Last part of a ``XE_RTP_ENTRY_FLAG_*``
- * @...: Additional flags, defined like @f1_
+ * @...: Entry flags, without the ``XE_RTP_ENTRY_FLAG_`` prefix
  *
- * Helper to automatically add a ``XE_RTP_ENTRY_FLAG_`` prefix to @f1_ so it can
- * be easily used to define struct xe_rtp_action entries. Example:
+ * Helper to automatically add a ``XE_RTP_ENTRY_FLAG_`` prefix to the flags
+ * when defining struct xe_rtp_entry entries. Example:
  *
  * .. code-block:: c
  *
@@ -315,16 +344,15 @@ struct xe_reg_sr;
  *		...
  *	};
  */
-#define XE_RTP_ENTRY_FLAG(f1_, ...)						\
-	.flags = (CALL_FOR_EACH(__ADD_XE_RTP_ENTRY_FLAG_PREFIX, f1_, ##__VA_ARGS__) 0)
+#define XE_RTP_ENTRY_FLAG(...)							\
+	.flags = (XE_RTP_PASTE_FOREACH(ENTRY_FLAG_, BITWISE_OR, (__VA_ARGS__)))
 
 /**
  * XE_RTP_ACTION_FLAG - Helper to add multiple flags to a struct xe_rtp_action
- * @f1_: Last part of a ``XE_RTP_ENTRY_*``
- * @...: Additional flags, defined like @f1_
+ * @...: Action flags, without the ``XE_RTP_ACTION_FLAG_`` prefix
  *
- * Helper to automatically add a ``XE_RTP_ACTION_FLAG_`` prefix to @f1_ so it
- * can be easily used to define struct xe_rtp_action entries. Example:
+ * Helper to automatically add a ``XE_RTP_ACTION_FLAG_`` prefix to the flags
+ * when defining struct xe_rtp_action entries. Example:
  *
  * .. code-block:: c
  *
@@ -338,13 +366,12 @@ struct xe_reg_sr;
  *		...
  *	};
  */
-#define XE_RTP_ACTION_FLAG(f1_, ...)						\
-	.flags = (CALL_FOR_EACH(__ADD_XE_RTP_ACTION_FLAG_PREFIX, f1_, ##__VA_ARGS__) 0)
+#define XE_RTP_ACTION_FLAG(...)							\
+	.flags = (XE_RTP_PASTE_FOREACH(ACTION_FLAG_, BITWISE_OR, (__VA_ARGS__)))
 
 /**
  * XE_RTP_RULES - Helper to set multiple rules to a struct xe_rtp_entry entry
- * @r1: Last part of XE_RTP_MATCH_*
- * @...: Additional rules, defined like @r1
+ * @...: Rules
  *
  * At least one rule is needed and up to 4 are supported. Multiple rules are
  * AND'ed together, i.e. all the rules must evaluate to true for the entry to
@@ -361,16 +388,15 @@ struct xe_reg_sr;
  *		...
  *	};
  */
-#define XE_RTP_RULES(r1, ...)							\
-	.n_rules = COUNT_ARGS(r1, ##__VA_ARGS__),				\
+#define XE_RTP_RULES(...)							\
+	.n_rules = _XE_COUNT_ARGS(__VA_ARGS__),					\
 	.rules = (const struct xe_rtp_rule[]) {					\
-		CALL_FOR_EACH(__ADD_XE_RTP_RULE_PREFIX, r1, ##__VA_ARGS__)	\
+		XE_RTP_PASTE_FOREACH(RULE_, COMMA, (__VA_ARGS__))	\
 	}
 
 /**
  * XE_RTP_ACTIONS - Helper to set multiple actions to a struct xe_rtp_entry
- * @a1: Action to take. Last part of XE_RTP_ACTION_*
- * @...: Additional rules, defined like @r1
+ * @...: Actions to be taken
  *
  * At least one rule is needed and up to 4 are supported. Multiple rules are
  * AND'ed together, i.e. all the rules must evaluate to true for the entry to
@@ -388,10 +414,10 @@ struct xe_reg_sr;
  *		...
  *	};
  */
-#define XE_RTP_ACTIONS(a1, ...)							\
-	.n_actions = COUNT_ARGS(a1, ##__VA_ARGS__),				\
+#define XE_RTP_ACTIONS(...)							\
+	.n_actions = _XE_COUNT_ARGS(__VA_ARGS__),				\
 	.actions = (const struct xe_rtp_action[]) {				\
-		CALL_FOR_EACH(__ADD_XE_RTP_ACTION_PREFIX, a1, ##__VA_ARGS__)	\
+		XE_RTP_PASTE_FOREACH(ACTION_, COMMA, (__VA_ARGS__))	\
 	}
 
 void xe_rtp_process(const struct xe_rtp_entry *entries, struct xe_reg_sr *sr,

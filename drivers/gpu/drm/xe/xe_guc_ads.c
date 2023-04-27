@@ -461,7 +461,7 @@ static unsigned int guc_mmio_regset_write(struct xe_guc_ads *ads,
 	BUILD_BUG_ON(ARRAY_SIZE(extra_regs) > ADS_REGSET_EXTRA_MAX);
 
 	xa_for_each(&hwe->reg_sr.xa, idx, entry) {
-		u32 flags = entry->masked_reg ? GUC_REGSET_MASKED : 0;
+		u32 flags = entry->reg.masked ? GUC_REGSET_MASKED : 0;
 
 		guc_mmio_regset_write_one(ads, regset_map, idx, flags, count++);
 	}

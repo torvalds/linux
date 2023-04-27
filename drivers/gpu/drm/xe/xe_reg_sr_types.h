@@ -9,18 +9,14 @@
 #include <linux/types.h>
 #include <linux/xarray.h>
 
+#include "regs/xe_reg_defs.h"
+
 struct xe_reg_sr_entry {
+	struct xe_reg	reg;
 	u32		clr_bits;
 	u32		set_bits;
 	/* Mask for bits to consider when reading value back */
 	u32		read_mask;
-	/*
-	 * "Masked registers" are marked in spec as register with the upper 16
-	 * bits as a mask for the bits that is being updated on the lower 16
-	 * bits when writing to it.
-	 */
-	u8		masked_reg;
-	u8		reg_type;
 };
 
 struct xe_reg_sr {

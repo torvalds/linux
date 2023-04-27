@@ -94,16 +94,15 @@ static void rtp_add_sr_entry(const struct xe_rtp_action *action,
 			     u32 mmio_base,
 			     struct xe_reg_sr *sr)
 {
-	u32 reg = action->reg + mmio_base;
 	struct xe_reg_sr_entry sr_entry = {
+		.reg = action->reg,
 		.clr_bits = action->clr_bits,
 		.set_bits = action->set_bits,
 		.read_mask = action->read_mask,
-		.masked_reg = action->flags & XE_RTP_ACTION_FLAG_MASKED_REG,
-		.reg_type = action->reg_type,
 	};
 
-	xe_reg_sr_add(sr, reg, &sr_entry);
+	sr_entry.reg.reg += mmio_base;
+	xe_reg_sr_add(sr, &sr_entry);
 }
 
 static void rtp_process_one(const struct xe_rtp_entry *entry, struct xe_gt *gt,

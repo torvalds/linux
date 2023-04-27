@@ -11,10 +11,8 @@
 #include "xe_platform_types.h"
 #include "xe_rtp.h"
 
-#undef XE_REG
 #undef XE_REG_MCR
-#define XE_REG(x, ...)		_XE_RTP_REG(x)
-#define XE_REG_MCR(x, ...)	_XE_RTP_MCR_REG(x)
+#define XE_REG_MCR(...)     XE_REG(__VA_ARGS__, .mcr = 1)
 
 static bool match_not_render(const struct xe_gt *gt,
 			     const struct xe_hw_engine *hwe)

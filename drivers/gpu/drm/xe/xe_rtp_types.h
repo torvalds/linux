@@ -8,13 +8,10 @@
 
 #include <linux/types.h>
 
+#include "regs/xe_reg_defs.h"
+
 struct xe_hw_engine;
 struct xe_gt;
-
-enum {
-	XE_RTP_REG_REGULAR,
-	XE_RTP_REG_MCR,
-};
 
 /**
  * struct xe_rtp_action - action to take for any matching rule
@@ -24,20 +21,17 @@ enum {
  */
 struct xe_rtp_action {
 	/** @reg: Register */
-	u32		reg;
+	struct xe_reg		reg;
 	/** @clr_bits: bits to clear when updating register */
-	u32		clr_bits;
+	u32			clr_bits;
 	/** @set_bits: bits to set when updating register */
-	u32		set_bits;
+	u32			set_bits;
 #define XE_RTP_NOCHECK		.read_mask = 0
 	/** @read_mask: mask for bits to consider when reading value back */
-	u32		read_mask;
-#define XE_RTP_ACTION_FLAG_MASKED_REG		BIT(0)
-#define XE_RTP_ACTION_FLAG_ENGINE_BASE		BIT(1)
+	u32			read_mask;
+#define XE_RTP_ACTION_FLAG_ENGINE_BASE		BIT(0)
 	/** @flags: flags to apply on rule evaluation or action */
-	u8		flags;
-	/** @reg_type: register type, see ``XE_RTP_REG_*`` */
-	u8		reg_type;
+	u8			flags;
 };
 
 enum {

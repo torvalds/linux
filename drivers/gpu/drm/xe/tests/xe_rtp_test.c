@@ -18,25 +18,21 @@
 #include "xe_reg_sr.h"
 #include "xe_rtp.h"
 
-#undef XE_REG
-#undef XE_REG_MCR
-#define XE_REG(x, ...)		_XE_RTP_REG(x)
-#define XE_REG_MCR(x, ...)	_XE_RTP_MCR_REG(x)
-
 #define REGULAR_REG1	XE_REG(1)
 #define REGULAR_REG2	XE_REG(2)
 #define REGULAR_REG3	XE_REG(3)
 #define MCR_REG1	XE_REG_MCR(1)
 #define MCR_REG2	XE_REG_MCR(2)
 #define MCR_REG3	XE_REG_MCR(3)
+#define MASKED_REG1	XE_REG(1, XE_REG_OPTION_MASKED)
+
+#undef XE_REG_MCR
+#define XE_REG_MCR(...)     XE_REG(__VA_ARGS__, .mcr = 1)
 
 struct rtp_test_case {
 	const char *name;
-	struct {
-		u32 offset;
-		u32 type;
-	} expected_reg;
-        u32 expected_set_bits;
+	struct xe_reg expected_reg;
+	u32 expected_set_bits;
 	u32 expected_clr_bits;
 	unsigned long expected_count;
 	unsigned int expected_sr_errors;
@@ -56,7 +52,7 @@ static bool match_no(const struct xe_gt *gt, const struct xe_hw_engine *hwe)
 static const struct rtp_test_case cases[] = {
 	{
 		.name = "coalesce-same-reg",
-		.expected_reg = { REGULAR_REG1 },
+		.expected_reg = REGULAR_REG1,
 		.expected_set_bits = REG_BIT(0) | REG_BIT(1),
 		.expected_clr_bits = REG_BIT(0) | REG_BIT(1),
 		.expected_count = 1,
@@ -75,7 +71,7 @@ static const struct rtp_test_case cases[] = {
 	},
 	{
 		.name = "no-match-no-add",
-		.expected_reg = { REGULAR_REG1 },
+		.expected_reg = REGULAR_REG1,
 		.expected_set_bits = REG_BIT(0),
 		.expected_clr_bits = REG_BIT(0),
 		.expected_count = 1,
@@ -94,7 +90,7 @@ static const struct rtp_test_case cases[] = {
 	},
 	{
 		.name = "no-match-no-add-multiple-rules",
-		.expected_reg = { REGULAR_REG1 },
+		.expected_reg = REGULAR_REG1,
 		.expected_set_bits = REG_BIT(0),
 		.expected_clr_bits = REG_BIT(0),
 		.expected_count = 1,
@@ -113,7 +109,7 @@ static const struct rtp_test_case cases[] = {
 	},
 	{
 		.name = "two-regs-two-entries",
-		.expected_reg = { REGULAR_REG1 },
+		.expected_reg = REGULAR_REG1,
 		.expected_set_bits = REG_BIT(0),
 		.expected_clr_bits = REG_BIT(0),
 		.expected_count = 2,
@@ -132,7 +128,7 @@ static const struct rtp_test_case cases[] = {
 	},
 	{
 		.name = "clr-one-set-other",
-		.expected_reg = { REGULAR_REG1 },
+		.expected_reg = REGULAR_REG1,
 		.expected_set_bits = REG_BIT(0),
 		.expected_clr_bits = REG_BIT(1) | REG_BIT(0),
 		.expected_count = 1,
@@ -153,7 +149,7 @@ static const struct rtp_test_case cases[] = {
 #define TEMP_MASK	REG_GENMASK(10, 8)
 #define TEMP_FIELD	REG_FIELD_PREP(TEMP_MASK, 2)
 		.name = "set-field",
-		.expected_reg = { REGULAR_REG1 },
+		.expected_reg = REGULAR_REG1,
 		.expected_set_bits = TEMP_FIELD,
 		.expected_clr_bits = TEMP_MASK,
 		.expected_count = 1,
@@ -171,7 +167,7 @@ static const struct rtp_test_case cases[] = {
 	},
 	{
 		.name = "conflict-duplicate",
-		.expected_reg = { REGULAR_REG1 },
+		.expected_reg = REGULAR_REG1,
 		.expected_set_bits = REG_BIT(0),
 		.expected_clr_bits = REG_BIT(0),
 		.expected_count = 1,
@@ -191,7 +187,7 @@ static const struct rtp_test_case cases[] = {
 	},
 	{
 		.name = "conflict-not-disjoint",
-		.expected_reg = { REGULAR_REG1 },
+		.expected_reg = REGULAR_REG1,
 		.expected_set_bits = REG_BIT(0),
 		.expected_clr_bits = REG_BIT(0),
 		.expected_count = 1,
@@ -211,7 +207,7 @@ static const struct rtp_test_case cases[] = {
 	},
 	{
 		.name = "conflict-reg-type",
-		.expected_reg = { REGULAR_REG1 },
+		.expected_reg = REGULAR_REG1,
 		.expected_set_bits = REG_BIT(0),
 		.expected_clr_bits = REG_BIT(0),
 		.expected_count = 1,
@@ -229,8 +225,7 @@ static const struct rtp_test_case cases[] = {
 			/* drop: regular vs masked */
 			{ XE_RTP_NAME("basic-3"),
 			  XE_RTP_RULES(FUNC(match_yes)),
-			  XE_RTP_ACTIONS(SET(REGULAR_REG1, REG_BIT(0),
-					     XE_RTP_ACTION_FLAG(MASKED_REG)))
+			  XE_RTP_ACTIONS(SET(MASKED_REG1, REG_BIT(0)))
 			},
 			{}
 		},
@@ -249,7 +244,7 @@ static void xe_rtp_process_tests(struct kunit *test)
 	xe_rtp_process(param->entries, reg_sr, &xe->gt[0], NULL);
 
 	xa_for_each(&reg_sr->xa, idx, sre) {
-		if (idx == param->expected_reg.offset)
+		if (idx == param->expected_reg.reg)
 			sr_entry = sre;
 
 		count++;
@@ -258,7 +253,7 @@ static void xe_rtp_process_tests(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, count, param->expected_count);
 	KUNIT_EXPECT_EQ(test, sr_entry->clr_bits, param->expected_clr_bits);
 	KUNIT_EXPECT_EQ(test, sr_entry->set_bits, param->expected_set_bits);
-	KUNIT_EXPECT_EQ(test, sr_entry->reg_type, param->expected_reg.type);
+	KUNIT_EXPECT_EQ(test, sr_entry->reg.raw, param->expected_reg.raw);
 	KUNIT_EXPECT_EQ(test, reg_sr->errors, param->expected_sr_errors);
 }
 

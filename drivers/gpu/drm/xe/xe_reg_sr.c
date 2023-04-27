@@ -75,10 +75,7 @@ static bool compatible_entries(const struct xe_reg_sr_entry *e1,
 	    e1->clr_bits & e2->set_bits || e1->set_bits & e2->clr_bits)
 		return false;
 
-	if (e1->masked_reg != e2->masked_reg)
-		return false;
-
-	if (e1->reg_type != e2->reg_type)
+	if (e1->reg.raw != e2->reg.raw)
 		return false;
 
 	return true;
@@ -91,10 +88,10 @@ static void reg_sr_inc_error(struct xe_reg_sr *sr)
 #endif
 }
 
-int xe_reg_sr_add(struct xe_reg_sr *sr, u32 reg,
+int xe_reg_sr_add(struct xe_reg_sr *sr,
 		  const struct xe_reg_sr_entry *e)
 {
-	unsigned long idx = reg;
+	unsigned long idx = e->reg.reg;
 	struct xe_reg_sr_entry *pentry = xa_load(&sr->xa, idx);
 	int ret;
 
@@ -125,18 +122,30 @@ int xe_reg_sr_add(struct xe_reg_sr *sr, u32 reg,
 	return 0;
 
 fail:
-	DRM_ERROR("Discarding save-restore reg %04lx (clear: %08x, set: %08x, masked: %s): ret=%d\n",
+	DRM_ERROR("Discarding save-restore reg %04lx (clear: %08x, set: %08x, masked: %s, mcr: %s): ret=%d\n",
 		  idx, e->clr_bits, e->set_bits,
-		  str_yes_no(e->masked_reg), ret);
+		  str_yes_no(e->reg.masked),
+		  str_yes_no(e->reg.mcr),
+		  ret);
 	reg_sr_inc_error(sr);
 
 	return ret;
 }
 
-static void apply_one_mmio(struct xe_gt *gt, u32 reg,
-			   struct xe_reg_sr_entry *entry)
+/*
+ * Convert back from encoded value to type-safe, only to be used when reg.mcr
+ * is true
+ */
+static struct xe_reg_mcr to_xe_reg_mcr(const struct xe_reg reg)
+{
+	return (const struct xe_reg_mcr){.__reg.raw = reg.raw };
+}
+
+static void apply_one_mmio(struct xe_gt *gt, struct xe_reg_sr_entry *entry)
 {
 	struct xe_device *xe = gt_to_xe(gt);
+	struct xe_reg reg = entry->reg;
+	struct xe_reg_mcr reg_mcr = to_xe_reg_mcr(reg);
 	u32 val;
 
 	/*
@@ -147,12 +156,12 @@ static void apply_one_mmio(struct xe_gt *gt, u32 reg,
 	 * When it's not masked, we have to read it from hardware, unless we are
 	 * supposed to set all bits.
 	 */
-	if (entry->masked_reg)
+	if (reg.masked)
 		val = (entry->clr_bits ?: entry->set_bits) << 16;
 	else if (entry->clr_bits + 1)
-		val = (entry->reg_type == XE_RTP_REG_MCR ?
-		       xe_gt_mcr_unicast_read_any(gt, XE_REG_MCR(reg)) :
-		       xe_mmio_read32(gt, reg)) & (~entry->clr_bits);
+		val = (reg.mcr ?
+		       xe_gt_mcr_unicast_read_any(gt, reg_mcr) :
+		       xe_mmio_read32(gt, reg.reg)) & (~entry->clr_bits);
 	else
 		val = 0;
 
@@ -163,12 +172,12 @@ static void apply_one_mmio(struct xe_gt *gt, u32 reg,
 	 */
 	val |= entry->set_bits;
 
-	drm_dbg(&xe->drm, "REG[0x%x] = 0x%08x", reg, val);
+	drm_dbg(&xe->drm, "REG[0x%x] = 0x%08x", reg.reg, val);
 
-	if (entry->reg_type == XE_RTP_REG_MCR)
-		xe_gt_mcr_multicast_write(gt, XE_REG_MCR(reg), val);
+	if (entry->reg.mcr)
+		xe_gt_mcr_multicast_write(gt, reg_mcr, val);
 	else
-		xe_mmio_write32(gt, reg, val);
+		xe_mmio_write32(gt, reg.reg, val);
 }
 
 void xe_reg_sr_apply_mmio(struct xe_reg_sr *sr, struct xe_gt *gt)
@@ -188,7 +197,7 @@ void xe_reg_sr_apply_mmio(struct xe_reg_sr *sr, struct xe_gt *gt)
 		goto err_force_wake;
 
 	xa_for_each(&sr->xa, reg, entry)
-		apply_one_mmio(gt, reg, entry);
+		apply_one_mmio(gt, entry);
 
 	err = xe_force_wake_put(&gt->mmio.fw, XE_FORCEWAKE_ALL);
 	XE_WARN_ON(err);
@@ -257,6 +266,6 @@ void xe_reg_sr_dump(struct xe_reg_sr *sr, struct drm_printer *p)
 	xa_for_each(&sr->xa, reg, entry)
 		drm_printf(p, "\tREG[0x%lx] clr=0x%08x set=0x%08x masked=%s mcr=%s\n",
 			   reg, entry->clr_bits, entry->set_bits,
-			   str_yes_no(entry->masked_reg),
-			   str_yes_no(entry->reg_type == XE_RTP_REG_MCR));
+			   str_yes_no(entry->reg.masked),
+			   str_yes_no(entry->reg.mcr));
 }
