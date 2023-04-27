@@ -2117,6 +2117,16 @@
 			disable
 			  Do not enable intel_pstate as the default
 			  scaling driver for the supported processors
+                        active
+                          Use intel_pstate driver to bypass the scaling
+                          governors layer of cpufreq and provides it own
+                          algorithms for p-state selection. There are two
+                          P-state selection algorithms provided by
+                          intel_pstate in the active mode: powersave and
+                          performance.  The way they both operate depends
+                          on whether or not the hardware managed P-states
+                          (HWP) feature has been enabled in the processor
+                          and possibly on the processor model.
 			passive
 			  Use intel_pstate as a scaling driver, but configure it
 			  to work with generic cpufreq governors (instead of
