@@ -128,6 +128,7 @@ static void prefault_mem(void *alias, uint64_t len)
 
 static void run_test(enum vm_guest_mode mode, void *arg)
 {
+	struct memstress_vcpu_args *vcpu_args;
 	struct test_params *p = arg;
 	struct uffd_desc **uffd_descs = NULL;
 	struct timespec start;
@@ -145,24 +146,24 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 		    "Failed to allocate buffer for guest data pattern");
 	memset(guest_data_prototype, 0xAB, demand_paging_size);
 
+	if (p->uffd_mode == UFFDIO_REGISTER_MODE_MINOR) {
+		for (i = 0; i < nr_vcpus; i++) {
+			vcpu_args = &memstress_args.vcpu_args[i];
+			prefault_mem(addr_gpa2alias(vm, vcpu_args->gpa),
+				     vcpu_args->pages * memstress_args.guest_page_size);
+		}
+	}
+
 	if (p->uffd_mode) {
 		uffd_descs = malloc(nr_vcpus * sizeof(struct uffd_desc *));
 		TEST_ASSERT(uffd_descs, "Memory allocation failed");
-
 		for (i = 0; i < nr_vcpus; i++) {
-			struct memstress_vcpu_args *vcpu_args;
 			void *vcpu_hva;
-			void *vcpu_alias;
 
 			vcpu_args = &memstress_args.vcpu_args[i];
 
 			/* Cache the host addresses of the region */
 			vcpu_hva = addr_gpa2hva(vm, vcpu_args->gpa);
-			vcpu_alias = addr_gpa2alias(vm, vcpu_args->gpa);
-
-			prefault_mem(vcpu_alias,
-				vcpu_args->pages * memstress_args.guest_page_size);
-
 			/*
 			 * Set up user fault fd to handle demand paging
 			 * requests.
