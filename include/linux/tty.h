@@ -227,7 +227,7 @@ struct tty_struct {
 		unsigned long unused[0];
 	} __aligned(sizeof(unsigned long)) ctrl;
 
-	int hw_stopped;
+	bool hw_stopped;
 	unsigned int receive_room;
 	int flow_change;
 
