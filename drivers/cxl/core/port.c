@@ -1903,7 +1903,7 @@ bool schedule_cxl_memdev_detach(struct cxl_memdev *cxlmd)
 EXPORT_SYMBOL_NS_GPL(schedule_cxl_memdev_detach, CXL);
 
 /* for user tooling to ensure port disable work has completed */
-static ssize_t flush_store(struct bus_type *bus, const char *buf, size_t count)
+static ssize_t flush_store(const struct bus_type *bus, const char *buf, size_t count)
 {
 	if (sysfs_streq(buf, "1")) {
 		flush_workqueue(cxl_bus_wq);

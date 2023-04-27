@@ -2253,7 +2253,7 @@ static int __init rtrs_server_init(void)
 		       err);
 		return err;
 	}
-	rtrs_dev_class = class_create(THIS_MODULE, "rtrs-server");
+	rtrs_dev_class = class_create("rtrs-server");
 	if (IS_ERR(rtrs_dev_class)) {
 		err = PTR_ERR(rtrs_dev_class);
 		goto out_err;

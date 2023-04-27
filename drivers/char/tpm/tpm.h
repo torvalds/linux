@@ -256,6 +256,7 @@ int tpm1_get_pcr_allocation(struct tpm_chip *chip);
 unsigned long tpm_calc_ordinal_duration(struct tpm_chip *chip, u32 ordinal);
 int tpm_pm_suspend(struct device *dev);
 int tpm_pm_resume(struct device *dev);
+int tpm_class_shutdown(struct device *dev);
 
 static inline void tpm_msleep(unsigned int delay_msec)
 {

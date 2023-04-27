@@ -74,7 +74,7 @@ int __init dca_sysfs_init(void)
 	idr_init(&dca_idr);
 	spin_lock_init(&dca_idr_lock);
 
-	dca_class = class_create(THIS_MODULE, "dca");
+	dca_class = class_create("dca");
 	if (IS_ERR(dca_class)) {
 		idr_destroy(&dca_idr);
 		return PTR_ERR(dca_class);

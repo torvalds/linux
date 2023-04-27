@@ -415,7 +415,9 @@ static DEVICE_ATTR(subcores_per_core, 0644,
 
 static int subcore_init(void)
 {
+	struct device *dev_root;
 	unsigned pvr_ver;
+	int rc = 0;
 
 	pvr_ver = PVR_VER(mfspr(SPRN_PVR));
 
@@ -435,7 +437,11 @@ static int subcore_init(void)
 
 	set_subcores_per_core(1);
 
-	return device_create_file(cpu_subsys.dev_root,
-				  &dev_attr_subcores_per_core);
+	dev_root = bus_get_dev_root(&cpu_subsys);
+	if (dev_root) {
+		rc = device_create_file(dev_root, &dev_attr_subcores_per_core);
+		put_device(dev_root);
+	}
+	return rc;
 }
 machine_device_initcall(powernv, subcore_init);

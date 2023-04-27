@@ -387,7 +387,7 @@ extern struct ktermios tty_std_termios;
 
 int vcs_init(void);
 
-extern struct class *tty_class;
+extern const struct class tty_class;
 
 /**
  *	tty_kref_get		-	get a tty reference

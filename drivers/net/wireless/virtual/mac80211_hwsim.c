@@ -6556,7 +6556,7 @@ static int __init init_mac80211_hwsim(void)
 	if (err)
 		goto out_exit_netlink;
 
-	hwsim_class = class_create(THIS_MODULE, "mac80211_hwsim");
+	hwsim_class = class_create("mac80211_hwsim");
 	if (IS_ERR(hwsim_class)) {
 		err = PTR_ERR(hwsim_class);
 		goto out_exit_virtio;

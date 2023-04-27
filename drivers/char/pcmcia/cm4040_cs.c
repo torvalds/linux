@@ -650,7 +650,7 @@ static int __init cm4040_init(void)
 {
 	int rc;
 
-	cmx_class = class_create(THIS_MODULE, "cardman_4040");
+	cmx_class = class_create("cardman_4040");
 	if (IS_ERR(cmx_class))
 		return PTR_ERR(cmx_class);
 

@@ -649,12 +649,21 @@ static struct ctl_table topology_dir_table[] = {
 
 static int __init topology_init(void)
 {
+	struct device *dev_root;
+	int rc = 0;
+
 	timer_setup(&topology_timer, topology_timer_fn, TIMER_DEFERRABLE);
 	if (MACHINE_HAS_TOPOLOGY)
 		set_topology_timer();
 	else
 		topology_update_polarization_simple();
 	register_sysctl_table(topology_dir_table);
-	return device_create_file(cpu_subsys.dev_root, &dev_attr_dispatching);
+
+	dev_root = bus_get_dev_root(&cpu_subsys);
+	if (dev_root) {
+		rc = device_create_file(dev_root, &dev_attr_dispatching);
+		put_device(dev_root);
+	}
+	return rc;
 }
 device_initcall(topology_init);

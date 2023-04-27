@@ -888,7 +888,7 @@ adbdev_init(void)
 		return;
 	}
 
-	adb_dev_class = class_create(THIS_MODULE, "adb");
+	adb_dev_class = class_create("adb");
 	if (IS_ERR(adb_dev_class))
 		return;
 	device_create(adb_dev_class, NULL, MKDEV(ADB_MAJOR, 0), NULL, "adb");

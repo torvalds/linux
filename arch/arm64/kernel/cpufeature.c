@@ -1497,10 +1497,18 @@ static const DEVICE_ATTR_RO(aarch32_el0);
 
 static int __init aarch32_el0_sysfs_init(void)
 {
+	struct device *dev_root;
+	int ret = 0;
+
 	if (!allow_mismatched_32bit_el0)
 		return 0;
 
-	return device_create_file(cpu_subsys.dev_root, &dev_attr_aarch32_el0);
+	dev_root = bus_get_dev_root(&cpu_subsys);
+	if (dev_root) {
+		ret = device_create_file(dev_root, &dev_attr_aarch32_el0);
+		put_device(dev_root);
+	}
+	return ret;
 }
 device_initcall(aarch32_el0_sysfs_init);
 

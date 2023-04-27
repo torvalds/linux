@@ -1878,7 +1878,7 @@ static int __init cmm_init(void)
 {
 	int rc;
 
-	cmm_class = class_create(THIS_MODULE, "cardman_4000");
+	cmm_class = class_create("cardman_4000");
 	if (IS_ERR(cmm_class))
 		return PTR_ERR(cmm_class);
 

@@ -888,7 +888,7 @@ static int __init ilo_init(void)
 	int error;
 	dev_t dev;
 
-	ilo_class = class_create(THIS_MODULE, "iLO");
+	ilo_class = class_create("iLO");
 	if (IS_ERR(ilo_class)) {
 		error = PTR_ERR(ilo_class);
 		goto out;

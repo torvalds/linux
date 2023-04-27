@@ -63,7 +63,6 @@ static struct cpufreq_driver *current_pstate_driver;
 static struct cpufreq_driver amd_pstate_driver;
 static struct cpufreq_driver amd_pstate_epp_driver;
 static int cppc_state = AMD_PSTATE_DISABLE;
-struct kobject *amd_pstate_kobj;
 
 /*
  * AMD Energy Preference Performance (EPP)
@@ -1013,6 +1012,7 @@ static struct attribute *pstate_global_attributes[] = {
 };
 
 static const struct attribute_group amd_pstate_global_attr_group = {
+	.name = "amd_pstate",
 	.attrs = pstate_global_attributes,
 };
 
@@ -1334,6 +1334,7 @@ static struct cpufreq_driver amd_pstate_epp_driver = {
 
 static int __init amd_pstate_init(void)
 {
+	struct device *dev_root;
 	int ret;
 
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD)
@@ -1380,24 +1381,19 @@ static int __init amd_pstate_init(void)
 	if (ret)
 		pr_err("failed to register with return %d\n", ret);
 
-	amd_pstate_kobj = kobject_create_and_add("amd_pstate", &cpu_subsys.dev_root->kobj);
-	if (!amd_pstate_kobj) {
-		ret = -EINVAL;
-		pr_err("global sysfs registration failed.\n");
-		goto kobject_free;
-	}
-
-	ret = sysfs_create_group(amd_pstate_kobj, &amd_pstate_global_attr_group);
-	if (ret) {
-		pr_err("sysfs attribute export failed with error %d.\n", ret);
-		goto global_attr_free;
+	dev_root = bus_get_dev_root(&cpu_subsys);
+	if (dev_root) {
+		ret = sysfs_create_group(&dev_root->kobj, &amd_pstate_global_attr_group);
+		put_device(dev_root);
+		if (ret) {
+			pr_err("sysfs attribute export failed with error %d.\n", ret);
+			goto global_attr_free;
+		}
 	}
 
 	return ret;
 
 global_attr_free:
-	kobject_put(amd_pstate_kobj);
-kobject_free:
 	cpufreq_unregister_driver(current_pstate_driver);
 	return ret;
 }

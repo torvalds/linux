@@ -550,7 +550,7 @@ static int __init sbprof_tb_init(void)
 		return -EIO;
 	}
 
-	tbc = class_create(THIS_MODULE, "sb_tracebuffer");
+	tbc = class_create("sb_tracebuffer");
 	if (IS_ERR(tbc)) {
 		err = PTR_ERR(tbc);
 		goto out_chrdev;

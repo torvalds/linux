@@ -155,7 +155,6 @@ ATTRIBUTE_GROUPS(intel_pmt);
 
 static struct class intel_pmt_class = {
 	.name = "intel_pmt",
-	.owner = THIS_MODULE,
 	.dev_groups = intel_pmt_groups,
 };
 

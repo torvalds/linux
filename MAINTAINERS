@@ -6333,7 +6333,9 @@ F:	drivers/base/
 F:	fs/debugfs/
 F:	fs/sysfs/
 F:	include/linux/debugfs.h
+F:	include/linux/fwnode.h
 F:	include/linux/kobj*
+F:	include/linux/property.h
 F:	lib/kobj*
 
 DRIVERS FOR OMAP ADAPTIVE VOLTAGE SCALING (AVS)

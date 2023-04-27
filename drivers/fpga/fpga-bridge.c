@@ -417,7 +417,7 @@ static void fpga_bridge_dev_release(struct device *dev)
 
 static int __init fpga_bridge_dev_init(void)
 {
-	fpga_bridge_class = class_create(THIS_MODULE, "fpga_bridge");
+	fpga_bridge_class = class_create("fpga_bridge");
 	if (IS_ERR(fpga_bridge_class))
 		return PTR_ERR(fpga_bridge_class);
 

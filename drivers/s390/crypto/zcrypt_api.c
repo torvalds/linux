@@ -340,8 +340,8 @@ static const struct attribute_group *zcdn_dev_attr_groups[] = {
 	NULL
 };
 
-static ssize_t zcdn_create_store(struct class *class,
-				 struct class_attribute *attr,
+static ssize_t zcdn_create_store(const struct class *class,
+				 const struct class_attribute *attr,
 				 const char *buf, size_t count)
 {
 	int rc;
@@ -357,8 +357,8 @@ static ssize_t zcdn_create_store(struct class *class,
 static const struct class_attribute class_attr_zcdn_create =
 	__ATTR(create, 0600, NULL, zcdn_create_store);
 
-static ssize_t zcdn_destroy_store(struct class *class,
-				  struct class_attribute *attr,
+static ssize_t zcdn_destroy_store(const struct class *class,
+				  const struct class_attribute *attr,
 				  const char *buf, size_t count)
 {
 	int rc;
@@ -2171,7 +2171,7 @@ static int __init zcdn_init(void)
 	int rc;
 
 	/* create a new class 'zcrypt' */
-	zcrypt_class = class_create(THIS_MODULE, ZCRYPT_NAME);
+	zcrypt_class = class_create(ZCRYPT_NAME);
 	if (IS_ERR(zcrypt_class)) {
 		rc = PTR_ERR(zcrypt_class);
 		goto out_class_create_failed;

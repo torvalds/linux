@@ -347,7 +347,7 @@ ATTRIBUTE_GROUPS(bdi_dev);
 
 static __init int bdi_class_init(void)
 {
-	bdi_class = class_create(THIS_MODULE, "bdi");
+	bdi_class = class_create("bdi");
 	if (IS_ERR(bdi_class))
 		return PTR_ERR(bdi_class);
 

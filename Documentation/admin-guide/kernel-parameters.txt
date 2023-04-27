@@ -1602,6 +1602,20 @@
 			dependencies. This only applies for fw_devlink=on|rpm.
 			Format: <bool>
 
+	fw_devlink.sync_state =
+			[KNL] When all devices that could probe have finished
+			probing, this parameter controls what to do with
+			devices that haven't yet received their sync_state()
+			calls.
+			Format: { strict | timeout }
+			strict -- Default. Continue waiting on consumers to
+				probe successfully.
+			timeout -- Give up waiting on consumers and call
+				sync_state() on any devices that haven't yet
+				received their sync_state() calls after
+				deferred_probe_timeout has expired or by
+				late_initcall() if !CONFIG_MODULES.
+
 	gamecon.map[2|3]=
 			[HW,JOY] Multisystem joystick and NES/SNES/PSX pad
 			support via parallel port (up to 5 devices per port)
@@ -6149,15 +6163,6 @@
 			are reported in the kernel log. Sysctls registered
 			later by a loaded module cannot be set this way.
 			Example: sysctl.vm.swappiness=40
-
-	sysfs.deprecated=0|1 [KNL]
-			Enable/disable old style sysfs layout for old udev
-			on older distributions. When this option is enabled
-			very new udev will not work anymore. When this option
-			is disabled (or CONFIG_SYSFS_DEPRECATED not compiled)
-			in older udev will not work anymore.
-			Default depends on CONFIG_SYSFS_DEPRECATED_V2 set in
-			the kernel configuration.
 
 	sysrq_always_enabled
 			[KNL]

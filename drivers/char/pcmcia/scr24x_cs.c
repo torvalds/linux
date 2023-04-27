@@ -325,7 +325,7 @@ static int __init scr24x_init(void)
 {
 	int ret;
 
-	scr24x_class = class_create(THIS_MODULE, "scr24x");
+	scr24x_class = class_create("scr24x");
 	if (IS_ERR(scr24x_class))
 		return PTR_ERR(scr24x_class);
 

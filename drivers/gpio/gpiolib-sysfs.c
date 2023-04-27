@@ -437,8 +437,8 @@ ATTRIBUTE_GROUPS(gpiochip);
  * /sys/class/gpio/unexport ... write-only
  *	integer N ... number of GPIO to unexport
  */
-static ssize_t export_store(struct class *class,
-				struct class_attribute *attr,
+static ssize_t export_store(const struct class *class,
+				const struct class_attribute *attr,
 				const char *buf, size_t len)
 {
 	long			gpio;
@@ -489,8 +489,8 @@ done:
 }
 static CLASS_ATTR_WO(export);
 
-static ssize_t unexport_store(struct class *class,
-				struct class_attribute *attr,
+static ssize_t unexport_store(const struct class *class,
+				const struct class_attribute *attr,
 				const char *buf, size_t len)
 {
 	long			gpio;
@@ -534,8 +534,6 @@ ATTRIBUTE_GROUPS(gpio_class);
 
 static struct class gpio_class = {
 	.name =		"gpio",
-	.owner =	THIS_MODULE,
-
 	.class_groups = gpio_class_groups,
 };
 
@@ -567,7 +565,7 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 	int			offset;
 
 	/* can't export until sysfs is available ... */
-	if (!gpio_class.p) {
+	if (!class_is_registered(&gpio_class)) {
 		pr_debug("%s: called too early!\n", __func__);
 		return -ENOENT;
 	}
@@ -741,7 +739,7 @@ int gpiochip_sysfs_register(struct gpio_device *gdev)
 	 * register later, in gpiolib_sysfs_init() ... here we just
 	 * verify that _some_ field of gpio_class got initialized.
 	 */
-	if (!gpio_class.p)
+	if (!class_is_registered(&gpio_class))
 		return 0;
 
 	/*
