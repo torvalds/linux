@@ -62,31 +62,36 @@ static const u32 mtl_pat_table[] = {
 	[4] = MTL_PAT_0_WB | MTL_3_COH_2W,
 };
 
-#define PROGRAM_PAT_UNICAST(gt, table) do { \
-	for (int i = 0; i < ARRAY_SIZE(table); i++) \
-		xe_mmio_write32(gt, _PAT_INDEX(i), table[i]); \
-} while (0)
+static void program_pat(struct xe_gt *gt, const u32 table[], int n_entries)
+{
+	for (int i = 0; i < n_entries; i++)
+		xe_mmio_write32(gt, _PAT_INDEX(i), table[i]);
+}
 
-#define PROGRAM_PAT_MCR(gt, table) do { \
-	for (int i = 0; i < ARRAY_SIZE(table); i++) \
-		xe_gt_mcr_multicast_write(gt, MCR_REG(_PAT_INDEX(i)), table[i]); \
-} while (0)
+static void program_pat_mcr(struct xe_gt *gt, const u32 table[], int n_entries)
+{
+	for (int i = 0; i < n_entries; i++)
+		xe_gt_mcr_multicast_write(gt, MCR_REG(_PAT_INDEX(i)), table[i]);
+}
 
 void xe_pat_init(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 
 	if (xe->info.platform == XE_METEORLAKE) {
+		/*
+		 * SAMedia register offsets are adjusted by the write methods
+		 * and they target registers that are not MCR, while for normal
+		 * GT they are MCR
+		 */
 		if (xe_gt_is_media_type(gt))
-			PROGRAM_PAT_UNICAST(gt, mtl_pat_table);
+			program_pat(gt, mtl_pat_table, ARRAY_SIZE(mtl_pat_table));
 		else
-			PROGRAM_PAT_MCR(gt, mtl_pat_table);
-	} else if (xe->info.platform == XE_PVC) {
-		PROGRAM_PAT_MCR(gt, pvc_pat_table);
-	} else if (xe->info.platform == XE_DG2) {
-		PROGRAM_PAT_MCR(gt, pvc_pat_table);
+			program_pat_mcr(gt, mtl_pat_table, ARRAY_SIZE(mtl_pat_table));
+	} else if (xe->info.platform == XE_PVC || xe->info.platform == XE_DG2) {
+		program_pat_mcr(gt, pvc_pat_table, ARRAY_SIZE(pvc_pat_table));
 	} else if (GRAPHICS_VERx100(xe) <= 1210) {
-		PROGRAM_PAT_UNICAST(gt, tgl_pat_table);
+		program_pat(gt, tgl_pat_table, ARRAY_SIZE(tgl_pat_table));
 	} else {
 		/*
 		 * Going forward we expect to need new PAT settings for most
