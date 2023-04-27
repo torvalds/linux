@@ -7990,10 +7990,11 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/nab/lio-core-2.6.git master
 F:	drivers/target/sbp/
 
 FIREWIRE SUBSYSTEM
-M:	Stefan Richter <stefanr@s5r6.in-berlin.de>
+M:	Takashi Sakamoto <o-takashi@sakamocchi.jp>
+M:	Takashi Sakamoto <takaswie@kernel.org>
 L:	linux1394-devel@lists.sourceforge.net
 S:	Maintained
-W:	http://ieee1394.wiki.kernel.org/
+W:	http://ieee1394.docs.kernel.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ieee1394/linux1394.git
 F:	drivers/firewire/
 F:	include/linux/firewire.h
