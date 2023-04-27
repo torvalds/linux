@@ -271,9 +271,9 @@ static int nvm_authenticate(struct tb_switch *sw, bool auth_only)
 		}
 		sw->nvm->authenticating = true;
 		return usb4_switch_nvm_authenticate(sw);
-	} else if (auth_only) {
-		return -EOPNOTSUPP;
 	}
+	if (auth_only)
+		return -EOPNOTSUPP;
 
 	sw->nvm->authenticating = true;
 	if (!tb_route(sw)) {
