@@ -93,17 +93,15 @@ static inline void copy_node_info(struct node_info *dst,
 static inline void set_nat_flag(struct nat_entry *ne,
 				unsigned int type, bool set)
 {
-	unsigned char mask = 0x01 << type;
 	if (set)
-		ne->ni.flag |= mask;
+		ne->ni.flag |= BIT(type);
 	else
-		ne->ni.flag &= ~mask;
+		ne->ni.flag &= ~BIT(type);
 }
 
 static inline bool get_nat_flag(struct nat_entry *ne, unsigned int type)
 {
-	unsigned char mask = 0x01 << type;
-	return ne->ni.flag & mask;
+	return ne->ni.flag & BIT(type);
 }
 
 static inline void nat_reset_flag(struct nat_entry *ne)
@@ -225,7 +223,7 @@ static inline pgoff_t next_nat_addr(struct f2fs_sb_info *sbi,
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 
 	block_addr -= nm_i->nat_blkaddr;
-	block_addr ^= 1 << sbi->log_blocks_per_seg;
+	block_addr ^= BIT(sbi->log_blocks_per_seg);
 	return block_addr + nm_i->nat_blkaddr;
 }
 
@@ -395,7 +393,7 @@ static inline nid_t get_nid(struct page *p, int off, bool i)
 static inline int is_node(struct page *page, int type)
 {
 	struct f2fs_node *rn = F2FS_NODE(page);
-	return le32_to_cpu(rn->footer.flag) & (1 << type);
+	return le32_to_cpu(rn->footer.flag) & BIT(type);
 }
 
 #define is_cold_node(page)	is_node(page, COLD_BIT_SHIFT)
@@ -408,9 +406,9 @@ static inline void set_cold_node(struct page *page, bool is_dir)
 	unsigned int flag = le32_to_cpu(rn->footer.flag);
 
 	if (is_dir)
-		flag &= ~(0x1 << COLD_BIT_SHIFT);
+		flag &= ~BIT(COLD_BIT_SHIFT);
 	else
-		flag |= (0x1 << COLD_BIT_SHIFT);
+		flag |= BIT(COLD_BIT_SHIFT);
 	rn->footer.flag = cpu_to_le32(flag);
 }
 
@@ -419,9 +417,9 @@ static inline void set_mark(struct page *page, int mark, int type)
 	struct f2fs_node *rn = F2FS_NODE(page);
 	unsigned int flag = le32_to_cpu(rn->footer.flag);
 	if (mark)
-		flag |= (0x1 << type);
+		flag |= BIT(type);
 	else
-		flag &= ~(0x1 << type);
+		flag &= ~BIT(type);
 	rn->footer.flag = cpu_to_le32(flag);
 
 #ifdef CONFIG_F2FS_CHECK_FS
