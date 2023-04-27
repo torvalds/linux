@@ -357,7 +357,7 @@ static void guc_prepare_xfer(struct xe_guc *guc)
 				GUC_ENABLE_MIA_CACHING;
 
 	if (xe->info.platform == XE_PVC)
-		shim_flags |= PVC_GUC_MOCS_INDEX(PVC_MOCS_UC_INDEX);
+		shim_flags |= PVC_GUC_MOCS_INDEX(PVC_GUC_MOCS_UC_INDEX);
 
 	/* Must program this register before loading the ucode with DMA */
 	xe_mmio_write32(gt, GUC_SHIM_CONTROL.reg, shim_flags);
@@ -848,11 +848,11 @@ void xe_guc_print_info(struct xe_guc *guc, struct drm_printer *p)
 
 	drm_printf(p, "\nGuC status 0x%08x:\n", status);
 	drm_printf(p, "\tBootrom status = 0x%x\n",
-		   (status & GS_BOOTROM_MASK) >> GS_BOOTROM_SHIFT);
+		   REG_FIELD_GET(GS_BOOTROM_MASK, status));
 	drm_printf(p, "\tuKernel status = 0x%x\n",
-		   (status & GS_UKERNEL_MASK) >> GS_UKERNEL_SHIFT);
+		   REG_FIELD_GET(GS_UKERNEL_MASK, status));
 	drm_printf(p, "\tMIA Core status = 0x%x\n",
-		   (status & GS_MIA_MASK) >> GS_MIA_SHIFT);
+		   REG_FIELD_GET(GS_MIA_MASK, status));
 	drm_printf(p, "\tLog level = %d\n",
 		   xe_guc_log_get_level(&guc->log));
 

@@ -561,8 +561,7 @@ static void guc_doorbell_init(struct xe_guc_ads *ads)
 
 		ads_blob_write(ads,
 			       system_info.generic_gt_sysinfo[GUC_GENERIC_GT_SYSINFO_DOORBELL_COUNT_PER_SQIDI],
-			       ((distdbreg >> GEN12_DOORBELLS_PER_SQIDI_SHIFT)
-				& GEN12_DOORBELLS_PER_SQIDI) + 1);
+			       REG_FIELD_GET(GEN12_DOORBELLS_PER_SQIDI_MASK, distdbreg) + 1);
 	}
 }
 
