@@ -727,17 +727,17 @@ static struct ctl_table ipv4_net_table[] = {
 	{
 		.procname	= "tcp_fwmark_accept",
 		.data		= &init_net.ipv4.sysctl_tcp_fwmark_accept,
-		.maxlen		= sizeof(u8),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.proc_handler	= proc_dointvec,
 	},
 #ifdef CONFIG_NET_L3_MASTER_DEV
 	{
 		.procname	= "tcp_l3mdev_accept",
 		.data		= &init_net.ipv4.sysctl_tcp_l3mdev_accept,
-		.maxlen		= sizeof(u8),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
 	},
@@ -745,9 +745,9 @@ static struct ctl_table ipv4_net_table[] = {
 	{
 		.procname	= "tcp_mtu_probing",
 		.data		= &init_net.ipv4.sysctl_tcp_mtu_probing,
-		.maxlen		= sizeof(u8),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.procname	= "tcp_base_mss",
@@ -849,9 +849,9 @@ static struct ctl_table ipv4_net_table[] = {
 	{
 		.procname	= "tcp_keepalive_probes",
 		.data		= &init_net.ipv4.sysctl_tcp_keepalive_probes,
-		.maxlen		= sizeof(u8),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.proc_handler	= proc_dointvec
 	},
 	{
 		.procname	= "tcp_keepalive_intvl",
@@ -863,26 +863,26 @@ static struct ctl_table ipv4_net_table[] = {
 	{
 		.procname	= "tcp_syn_retries",
 		.data		= &init_net.ipv4.sysctl_tcp_syn_retries,
-		.maxlen		= sizeof(u8),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &tcp_syn_retries_min,
 		.extra2		= &tcp_syn_retries_max
 	},
 	{
 		.procname	= "tcp_synack_retries",
 		.data		= &init_net.ipv4.sysctl_tcp_synack_retries,
-		.maxlen		= sizeof(u8),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.proc_handler	= proc_dointvec
 	},
 #ifdef CONFIG_SYN_COOKIES
 	{
 		.procname	= "tcp_syncookies",
 		.data		= &init_net.ipv4.sysctl_tcp_syncookies,
-		.maxlen		= sizeof(u8),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.proc_handler	= proc_dointvec
 	},
 #endif
 	{
@@ -895,24 +895,24 @@ static struct ctl_table ipv4_net_table[] = {
 	{
 		.procname	= "tcp_retries1",
 		.data		= &init_net.ipv4.sysctl_tcp_retries1,
-		.maxlen		= sizeof(u8),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra2		= &tcp_retr1_max
 	},
 	{
 		.procname	= "tcp_retries2",
 		.data		= &init_net.ipv4.sysctl_tcp_retries2,
-		.maxlen		= sizeof(u8),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.proc_handler	= proc_dointvec
 	},
 	{
 		.procname	= "tcp_orphan_retries",
 		.data		= &init_net.ipv4.sysctl_tcp_orphan_retries,
-		.maxlen		= sizeof(u8),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.proc_handler	= proc_dointvec
 	},
 	{
 		.procname	= "tcp_fin_timeout",
@@ -931,9 +931,9 @@ static struct ctl_table ipv4_net_table[] = {
 	{
 		.procname	= "tcp_tw_reuse",
 		.data		= &init_net.ipv4.sysctl_tcp_tw_reuse,
-		.maxlen		= sizeof(u8),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= &two,
 	},
@@ -1019,88 +1019,88 @@ static struct ctl_table ipv4_net_table[] = {
 	{
 		.procname	= "tcp_sack",
 		.data		= &init_net.ipv4.sysctl_tcp_sack,
-		.maxlen		= sizeof(u8),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.proc_handler	= proc_dointvec
 	},
 	{
 		.procname	= "tcp_window_scaling",
 		.data		= &init_net.ipv4.sysctl_tcp_window_scaling,
-		.maxlen		= sizeof(u8),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.proc_handler	= proc_dointvec
 	},
 	{
 		.procname	= "tcp_timestamps",
 		.data		= &init_net.ipv4.sysctl_tcp_timestamps,
-		.maxlen		= sizeof(u8),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.proc_handler	= proc_dointvec
 	},
 	{
 		.procname	= "tcp_early_retrans",
 		.data		= &init_net.ipv4.sysctl_tcp_early_retrans,
-		.maxlen		= sizeof(u8),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= &four,
 	},
 	{
 		.procname	= "tcp_recovery",
 		.data		= &init_net.ipv4.sysctl_tcp_recovery,
-		.maxlen		= sizeof(u8),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.procname       = "tcp_thin_linear_timeouts",
 		.data           = &init_net.ipv4.sysctl_tcp_thin_linear_timeouts,
-		.maxlen         = sizeof(u8),
+		.maxlen         = sizeof(int),
 		.mode           = 0644,
-		.proc_handler   = proc_dou8vec_minmax,
+		.proc_handler   = proc_dointvec
 	},
 	{
 		.procname	= "tcp_slow_start_after_idle",
 		.data		= &init_net.ipv4.sysctl_tcp_slow_start_after_idle,
-		.maxlen		= sizeof(u8),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.proc_handler	= proc_dointvec
 	},
 	{
 		.procname	= "tcp_retrans_collapse",
 		.data		= &init_net.ipv4.sysctl_tcp_retrans_collapse,
-		.maxlen		= sizeof(u8),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.proc_handler	= proc_dointvec
 	},
 	{
 		.procname	= "tcp_stdurg",
 		.data		= &init_net.ipv4.sysctl_tcp_stdurg,
-		.maxlen		= sizeof(u8),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.proc_handler	= proc_dointvec
 	},
 	{
 		.procname	= "tcp_rfc1337",
 		.data		= &init_net.ipv4.sysctl_tcp_rfc1337,
-		.maxlen		= sizeof(u8),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.proc_handler	= proc_dointvec
 	},
 	{
 		.procname	= "tcp_abort_on_overflow",
 		.data		= &init_net.ipv4.sysctl_tcp_abort_on_overflow,
-		.maxlen		= sizeof(u8),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.proc_handler	= proc_dointvec
 	},
 	{
 		.procname	= "tcp_fack",
 		.data		= &init_net.ipv4.sysctl_tcp_fack,
-		.maxlen		= sizeof(u8),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.proc_handler	= proc_dointvec
 	},
 	{
 		.procname	= "tcp_max_reordering",
@@ -1112,16 +1112,16 @@ static struct ctl_table ipv4_net_table[] = {
 	{
 		.procname	= "tcp_dsack",
 		.data		= &init_net.ipv4.sysctl_tcp_dsack,
-		.maxlen		= sizeof(u8),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.proc_handler	= proc_dointvec
 	},
 	{
 		.procname	= "tcp_app_win",
 		.data		= &init_net.ipv4.sysctl_tcp_app_win,
-		.maxlen		= sizeof(u8),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.proc_handler	= proc_dointvec
 	},
 	{
 		.procname	= "tcp_adv_win_scale",
@@ -1135,46 +1135,46 @@ static struct ctl_table ipv4_net_table[] = {
 	{
 		.procname	= "tcp_frto",
 		.data		= &init_net.ipv4.sysctl_tcp_frto,
-		.maxlen		= sizeof(u8),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.proc_handler	= proc_dointvec
 	},
 	{
 		.procname	= "tcp_no_metrics_save",
 		.data		= &init_net.ipv4.sysctl_tcp_nometrics_save,
-		.maxlen		= sizeof(u8),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.procname	= "tcp_no_ssthresh_metrics_save",
 		.data		= &init_net.ipv4.sysctl_tcp_no_ssthresh_metrics_save,
-		.maxlen		= sizeof(u8),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
 	},
 	{
 		.procname	= "tcp_moderate_rcvbuf",
 		.data		= &init_net.ipv4.sysctl_tcp_moderate_rcvbuf,
-		.maxlen		= sizeof(u8),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.procname	= "tcp_tso_win_divisor",
 		.data		= &init_net.ipv4.sysctl_tcp_tso_win_divisor,
-		.maxlen		= sizeof(u8),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.procname	= "tcp_workaround_signed_windows",
 		.data		= &init_net.ipv4.sysctl_tcp_workaround_signed_windows,
-		.maxlen		= sizeof(u8),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.proc_handler	= proc_dointvec
 	},
 	{
 		.procname	= "tcp_limit_output_bytes",
@@ -1193,9 +1193,9 @@ static struct ctl_table ipv4_net_table[] = {
 	{
 		.procname	= "tcp_min_tso_segs",
 		.data		= &init_net.ipv4.sysctl_tcp_min_tso_segs,
-		.maxlen		= sizeof(u8),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= SYSCTL_ONE,
 		.extra2		= &gso_max_segs,
 	},
@@ -1211,9 +1211,9 @@ static struct ctl_table ipv4_net_table[] = {
 	{
 		.procname	= "tcp_autocorking",
 		.data		= &init_net.ipv4.sysctl_tcp_autocorking,
-		.maxlen		= sizeof(u8),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
 	},
@@ -1284,9 +1284,9 @@ static struct ctl_table ipv4_net_table[] = {
 	{
 		.procname       = "tcp_reflect_tos",
 		.data           = &init_net.ipv4.sysctl_tcp_reflect_tos,
-		.maxlen         = sizeof(u8),
+		.maxlen         = sizeof(int),
 		.mode           = 0644,
-		.proc_handler   = proc_dou8vec_minmax,
+		.proc_handler   = proc_dointvec_minmax,
 		.extra1         = SYSCTL_ZERO,
 		.extra2         = SYSCTL_ONE,
 	},
