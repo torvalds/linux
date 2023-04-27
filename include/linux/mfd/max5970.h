@@ -7,25 +7,25 @@
  * Author: Patrick Rudolph <patrick.rudolph@9elements.com>
  */
 
-#ifndef _MFD_MAX597X_H
-#define _MFD_MAX597X_H
+#ifndef _MFD_MAX5970_H
+#define _MFD_MAX5970_H
 
 #include <linux/regmap.h>
 
 #define MAX5970_NUM_SWITCHES 2
 #define MAX5978_NUM_SWITCHES 1
-#define MAX597X_NUM_LEDS     4
+#define MAX5970_NUM_LEDS     4
 
-struct max597x_data {
+struct max5970_data {
 	int num_switches;
 	u32 irng[MAX5970_NUM_SWITCHES];
 	u32 mon_rng[MAX5970_NUM_SWITCHES];
 	u32 shunt_micro_ohms[MAX5970_NUM_SWITCHES];
 };
 
-enum max597x_chip_type {
-	MAX597x_TYPE_MAX5978 = 1,
-	MAX597x_TYPE_MAX5970,
+enum max5970_chip_type {
+	TYPE_MAX5978 = 1,
+	TYPE_MAX5970,
 };
 
 #define MAX5970_REG_CURRENT_L(ch)		(0x01 + (ch) * 4)
@@ -93,4 +93,4 @@ enum max597x_chip_type {
 #define MAX_REGISTERS			0x49
 #define ADC_MASK			0x3FF
 
-#endif				/* _MFD_MAX597X_H */
+#endif				/* _MFD_MAX5970_H */

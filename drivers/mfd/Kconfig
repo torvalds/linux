@@ -266,8 +266,8 @@ config MFD_MADERA_SPI
 	  Support for the Cirrus Logic Madera platform audio SoC
 	  core functionality controlled via SPI.
 
-config MFD_MAX597X
-	tristate "Maxim 597x power switch and monitor"
+config MFD_MAX5970
+	tristate "Maxim 5970/5978 power switch and monitor"
 	depends on (I2C && OF)
 	select MFD_SIMPLE_MFD_I2C
 	help
