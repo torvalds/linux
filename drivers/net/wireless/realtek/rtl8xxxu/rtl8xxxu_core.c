@@ -6443,7 +6443,6 @@ static void rtl8xxxu_rx_complete(struct urb *urb)
 cleanup:
 	usb_free_urb(urb);
 	dev_kfree_skb(skb);
-	return;
 }
 
 static int rtl8xxxu_submit_rx_urb(struct rtl8xxxu_priv *priv,
