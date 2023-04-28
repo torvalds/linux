@@ -2268,6 +2268,14 @@ const struct amdgpu_ip_block_version smu_v13_0_ip_block = {
 	.funcs = &smu_ip_funcs,
 };
 
+const struct amdgpu_ip_block_version smu_v14_0_ip_block = {
+	.type = AMD_IP_BLOCK_TYPE_SMC,
+	.major = 14,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &smu_ip_funcs,
+};
+
 static int smu_load_microcode(void *handle)
 {
 	struct smu_context *smu = handle;
