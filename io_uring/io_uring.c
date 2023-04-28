@@ -3788,19 +3788,13 @@ static __cold int io_allocate_scq_urings(struct io_ring_ctx *ctx,
 	return 0;
 }
 
-static int io_uring_install_fd(struct io_ring_ctx *ctx, struct file *file)
+static int io_uring_install_fd(struct file *file)
 {
-	int ret, fd;
+	int fd;
 
 	fd = get_unused_fd_flags(O_RDWR | O_CLOEXEC);
 	if (fd < 0)
 		return fd;
-
-	ret = __io_uring_add_tctx_node(ctx);
-	if (ret) {
-		put_unused_fd(fd);
-		return ret;
-	}
 	fd_install(fd, file);
 	return fd;
 }
@@ -3840,6 +3834,7 @@ static __cold int io_uring_create(unsigned entries, struct io_uring_params *p,
 				  struct io_uring_params __user *params)
 {
 	struct io_ring_ctx *ctx;
+	struct io_uring_task *tctx;
 	struct file *file;
 	int ret;
 
@@ -3850,6 +3845,10 @@ static __cold int io_uring_create(unsigned entries, struct io_uring_params *p,
 			return -EINVAL;
 		entries = IORING_MAX_ENTRIES;
 	}
+
+	if ((p->flags & IORING_SETUP_REGISTERED_FD_ONLY)
+	    && !(p->flags & IORING_SETUP_NO_MMAP))
+		return -EINVAL;
 
 	/*
 	 * Use twice as many entries for the CQ ring. It's possible for the
@@ -4007,21 +4006,29 @@ static __cold int io_uring_create(unsigned entries, struct io_uring_params *p,
 		goto err;
 	}
 
+	ret = __io_uring_add_tctx_node(ctx);
+	if (ret)
+		goto err_fput;
+	tctx = current->io_uring;
+
 	/*
 	 * Install ring fd as the very last thing, so we don't risk someone
 	 * having closed it before we finish setup
 	 */
-	ret = io_uring_install_fd(ctx, file);
-	if (ret < 0) {
-		/* fput will clean it up */
-		fput(file);
-		return ret;
-	}
+	if (p->flags & IORING_SETUP_REGISTERED_FD_ONLY)
+		ret = io_ring_add_registered_file(tctx, file, 0, IO_RINGFD_REG_MAX);
+	else
+		ret = io_uring_install_fd(file);
+	if (ret < 0)
+		goto err_fput;
 
 	trace_io_uring_create(ret, ctx, p->sq_entries, p->cq_entries, p->flags);
 	return ret;
 err:
 	io_ring_ctx_wait_and_kill(ctx);
+	return ret;
+err_fput:
+	fput(file);
 	return ret;
 }
 
@@ -4049,7 +4056,7 @@ static long io_uring_setup(u32 entries, struct io_uring_params __user *params)
 			IORING_SETUP_COOP_TASKRUN | IORING_SETUP_TASKRUN_FLAG |
 			IORING_SETUP_SQE128 | IORING_SETUP_CQE32 |
 			IORING_SETUP_SINGLE_ISSUER | IORING_SETUP_DEFER_TASKRUN |
-			IORING_SETUP_NO_MMAP))
+			IORING_SETUP_NO_MMAP | IORING_SETUP_REGISTERED_FD_ONLY))
 		return -EINVAL;
 
 	return io_uring_create(entries, &p, params);

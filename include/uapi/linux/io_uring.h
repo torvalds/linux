@@ -178,6 +178,13 @@ enum {
  */
 #define IORING_SETUP_NO_MMAP		(1U << 14)
 
+/*
+ * Register the ring fd in itself for use with
+ * IORING_REGISTER_USE_REGISTERED_RING; return a registered fd index rather
+ * than an fd.
+ */
+#define IORING_SETUP_REGISTERED_FD_ONLY	(1U << 15)
+
 enum io_uring_op {
 	IORING_OP_NOP,
 	IORING_OP_READV,
