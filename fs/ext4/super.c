@@ -5196,9 +5196,8 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	ext4_fsblk_t logical_sb_block;
 	struct inode *root;
-	int ret = -ENOMEM;
 	int needs_recovery;
-	int err = 0;
+	int err;
 	ext4_group_t first_not_zeroed;
 	struct ext4_fs_context *ctx = fc->fs_private;
 	int silent = fc->sb_flags & SB_SILENT;
@@ -5211,8 +5210,6 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 	sbi->s_sectors_written_start =
 		part_stat_read(sb->s_bdev, sectors[STAT_WRITE]);
 
-	/* -EINVAL is default */
-	ret = -EINVAL;
 	err = ext4_load_super(sb, &logical_sb_block, silent);
 	if (err)
 		goto out_fail;
@@ -5238,7 +5235,8 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 	 */
 	sbi->s_li_wait_mult = EXT4_DEF_LI_WAIT_MULT;
 
-	if (ext4_inode_info_init(sb, es))
+	err = ext4_inode_info_init(sb, es);
+	if (err)
 		goto failed_mount;
 
 	err = parse_apply_sb_mount_options(sb, ctx);
@@ -5254,10 +5252,12 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 
 	ext4_apply_options(fc, sb);
 
-	if (ext4_encoding_init(sb, es))
+	err = ext4_encoding_init(sb, es);
+	if (err)
 		goto failed_mount;
 
-	if (ext4_check_journal_data_mode(sb))
+	err = ext4_check_journal_data_mode(sb);
+	if (err)
 		goto failed_mount;
 
 	sb->s_flags = (sb->s_flags & ~SB_POSIXACL) |
@@ -5266,18 +5266,22 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 	/* i_version is always enabled now */
 	sb->s_flags |= SB_I_VERSION;
 
-	if (ext4_check_feature_compatibility(sb, es, silent))
+	err = ext4_check_feature_compatibility(sb, es, silent);
+	if (err)
 		goto failed_mount;
 
-	if (ext4_block_group_meta_init(sb, silent))
+	err = ext4_block_group_meta_init(sb, silent);
+	if (err)
 		goto failed_mount;
 
 	ext4_hash_info_init(sb);
 
-	if (ext4_handle_clustersize(sb))
+	err = ext4_handle_clustersize(sb);
+	if (err)
 		goto failed_mount;
 
-	if (ext4_check_geometry(sb, es))
+	err = ext4_check_geometry(sb, es);
+	if (err)
 		goto failed_mount;
 
 	timer_setup(&sbi->s_err_report, print_daily_error_info, 0);
@@ -5288,8 +5292,8 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 	if (err)
 		goto failed_mount3;
 
-	/* Register extent status tree shrinker */
-	if (ext4_es_register_shrinker(sbi))
+	err = ext4_es_register_shrinker(sbi);
+	if (err)
 		goto failed_mount3;
 
 	sbi->s_stripe = ext4_get_stripe_size(sbi);
@@ -5334,6 +5338,7 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 			goto failed_mount3a;
 	}
 
+	err = -EINVAL;
 	/*
 	 * The first inode we look at is the journal inode.  Don't try
 	 * root first: it may be modified in the journal!
@@ -5385,6 +5390,7 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 		if (!sbi->s_ea_block_cache) {
 			ext4_msg(sb, KERN_ERR,
 				 "Failed to create ea_block_cache");
+			err = -EINVAL;
 			goto failed_mount_wq;
 		}
 
@@ -5393,6 +5399,7 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 			if (!sbi->s_ea_inode_cache) {
 				ext4_msg(sb, KERN_ERR,
 					 "Failed to create ea_inode_cache");
+				err = -EINVAL;
 				goto failed_mount_wq;
 			}
 		}
@@ -5427,7 +5434,7 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 		alloc_workqueue("ext4-rsv-conversion", WQ_MEM_RECLAIM | WQ_UNBOUND, 1);
 	if (!EXT4_SB(sb)->rsv_conversion_wq) {
 		printk(KERN_ERR "EXT4-fs: failed to create workqueue\n");
-		ret = -ENOMEM;
+		err = -ENOMEM;
 		goto failed_mount4;
 	}
 
@@ -5439,28 +5446,28 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 	root = ext4_iget(sb, EXT4_ROOT_INO, EXT4_IGET_SPECIAL);
 	if (IS_ERR(root)) {
 		ext4_msg(sb, KERN_ERR, "get root inode failed");
-		ret = PTR_ERR(root);
+		err = PTR_ERR(root);
 		root = NULL;
 		goto failed_mount4;
 	}
 	if (!S_ISDIR(root->i_mode) || !root->i_blocks || !root->i_size) {
 		ext4_msg(sb, KERN_ERR, "corrupt root inode, run e2fsck");
 		iput(root);
+		err = -EFSCORRUPTED;
 		goto failed_mount4;
 	}
 
 	sb->s_root = d_make_root(root);
 	if (!sb->s_root) {
 		ext4_msg(sb, KERN_ERR, "get root dentry failed");
-		ret = -ENOMEM;
+		err = -ENOMEM;
 		goto failed_mount4;
 	}
 
-	ret = ext4_setup_super(sb, es, sb_rdonly(sb));
-	if (ret == -EROFS) {
+	err = ext4_setup_super(sb, es, sb_rdonly(sb));
+	if (err == -EROFS) {
 		sb->s_flags |= SB_RDONLY;
-		ret = 0;
-	} else if (ret)
+	} else if (err)
 		goto failed_mount4a;
 
 	ext4_set_resv_clusters(sb);
@@ -5513,7 +5520,7 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 			ext4_msg(sb, KERN_ERR,
 			       "unable to initialize "
 			       "flex_bg meta info!");
-			ret = -ENOMEM;
+			err = -ENOMEM;
 			goto failed_mount6;
 		}
 
@@ -5639,7 +5646,7 @@ failed_mount:
 	ext4_blkdev_remove(sbi);
 out_fail:
 	sb->s_fs_info = NULL;
-	return err ? err : ret;
+	return err;
 }
 
 static int ext4_fill_super(struct super_block *sb, struct fs_context *fc)
