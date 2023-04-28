@@ -1944,6 +1944,7 @@ struct rtl8xxxu_fileops {
 	u8 ampdu_max_time;
 	u8 ustime_tsf_edca;
 	u8 supports_ap:1;
+	u16 max_macid_num;
 	u32 adda_1t_init;
 	u32 adda_1t_path_on;
 	u32 adda_2t_path_on_a;
