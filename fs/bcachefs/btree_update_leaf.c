@@ -1735,6 +1735,37 @@ int __must_check bch2_trans_update_buffered(struct btree_trans *trans,
 	return 0;
 }
 
+int bch2_bkey_get_empty_slot(struct btree_trans *trans, struct btree_iter *iter,
+			     enum btree_id btree, struct bpos end)
+{
+	struct bkey_s_c k;
+	int ret = 0;
+
+	bch2_trans_iter_init(trans, iter, btree, POS_MAX, BTREE_ITER_INTENT);
+	k = bch2_btree_iter_prev(iter);
+	ret = bkey_err(k);
+	if (ret)
+		goto err;
+
+	bch2_btree_iter_advance(iter);
+	k = bch2_btree_iter_peek_slot(iter);
+	ret = bkey_err(k);
+	if (ret)
+		goto err;
+
+	BUG_ON(k.k->type != KEY_TYPE_deleted);
+
+	if (bkey_gt(k.k->p, end)) {
+		ret = -BCH_ERR_ENOSPC_btree_slot;
+		goto err;
+	}
+
+	return 0;
+err:
+	bch2_trans_iter_exit(trans, iter);
+	return ret;
+}
+
 void bch2_trans_commit_hook(struct btree_trans *trans,
 			    struct btree_trans_commit_hook *h)
 {

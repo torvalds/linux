@@ -92,6 +92,7 @@
 	x(ENOSPC,			ENOSPC_sb_replicas)			\
 	x(ENOSPC,			ENOSPC_sb_members)			\
 	x(ENOSPC,			ENOSPC_sb_crypt)			\
+	x(ENOSPC,			ENOSPC_btree_slot)			\
 	x(0,				open_buckets_empty)			\
 	x(0,				freelist_empty)				\
 	x(BCH_ERR_freelist_empty,	no_buckets_found)			\

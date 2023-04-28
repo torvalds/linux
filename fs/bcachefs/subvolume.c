@@ -909,32 +909,19 @@ int bch2_subvolume_create(struct btree_trans *trans, u64 inode,
 			  u32 *new_snapshotid,
 			  bool ro)
 {
-	struct bch_fs *c = trans->c;
 	struct btree_iter dst_iter, src_iter = (struct btree_iter) { NULL };
 	struct bkey_i_subvolume *new_subvol = NULL;
 	struct bkey_i_subvolume *src_subvol = NULL;
-	struct bkey_s_c k;
 	u32 parent = 0, new_nodes[2], snapshot_subvols[2];
 	int ret = 0;
 
-	for_each_btree_key(trans, dst_iter, BTREE_ID_subvolumes, SUBVOL_POS_MIN,
-			   BTREE_ITER_SLOTS|BTREE_ITER_INTENT, k, ret) {
-		if (bkey_gt(k.k->p, SUBVOL_POS_MAX))
-			break;
-
-		/*
-		 * bch2_subvolume_delete() doesn't flush the btree key cache -
-		 * ideally it would but that's tricky
-		 */
-		if (bkey_deleted(k.k) &&
-		    !bch2_btree_key_cache_find(c, BTREE_ID_subvolumes, dst_iter.pos))
-			goto found_slot;
-	}
-
-	if (!ret)
+	ret = bch2_bkey_get_empty_slot(trans, &dst_iter,
+				BTREE_ID_subvolumes, POS(0, U32_MAX));
+	if (ret == -BCH_ERR_ENOSPC_btree_slot)
 		ret = -BCH_ERR_ENOSPC_subvolume_create;
-	goto err;
-found_slot:
+	if (ret)
+		return ret;
+
 	snapshot_subvols[0] = dst_iter.pos.offset;
 	snapshot_subvols[1] = src_subvolid;
 
