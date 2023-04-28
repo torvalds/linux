@@ -3767,6 +3767,15 @@ static int ufs_qcom_clk_scale_down_post_change(struct ufs_hba *hba)
 	return err;
 }
 
+/**
+ * Check controller status
+ * Returns true if controller is active, false otherwise
+ */
+static bool is_hba_active(struct ufs_hba *hba)
+{
+	return !!(ufshcd_readl(hba, REG_CONTROLLER_ENABLE) & CONTROLLER_ENABLE);
+}
+
 static int ufs_qcom_clk_scale_notify(struct ufs_hba *hba,
 		bool scale_up, enum ufs_notify_change_status status)
 {
@@ -3774,11 +3783,8 @@ static int ufs_qcom_clk_scale_notify(struct ufs_hba *hba,
 	struct ufs_pa_layer_attr *dev_req_params = &host->dev_req_params;
 	int err = 0;
 
-	/*
-	 * PM functions invoke ufshcd_host_reset_and_restore() directly.
-	 * ufshcd_host_reset_and_restore() doesn't set the ufshcd_state.
-	 */
-	if (hba->pm_op_in_progress || hba->ufshcd_state == UFSHCD_STATE_RESET)
+	/* Check if controller is active to send commands, else commands will timeout */
+	if (!is_hba_active(hba))
 		return 0;
 
 	if (status == PRE_CHANGE) {
