@@ -7564,12 +7564,6 @@ T:	git git://linuxtv.org/media_tree.git
 F:	Documentation/admin-guide/media/em28xx*
 F:	drivers/media/usb/em28xx/
 
-EMBEDDED LINUX
-M:	Olivia Mackall <olivia@selenic.com>
-M:	David Woodhouse <dwmw2@infradead.org>
-L:	linux-embedded@vger.kernel.org
-S:	Maintained
-
 EMMC CMDQ HOST CONTROLLER INTERFACE (CQHCI) DRIVER
 M:	Adrian Hunter <adrian.hunter@intel.com>
 M:	Ritesh Harjani <riteshh@codeaurora.org>

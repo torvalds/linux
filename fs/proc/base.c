@@ -700,7 +700,6 @@ int proc_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		return error;
 
 	setattr_copy(&nop_mnt_idmap, inode, attr);
-	mark_inode_dirty(inode);
 	return 0;
 }
 
