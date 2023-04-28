@@ -30,12 +30,12 @@
 #define COMMON_BASE_GLOBAL \
 	{ FORCEWAKE_MT,             0,      0, "FORCEWAKE" }
 
-#define COMMON_GEN9BASE_GLOBAL \
+#define COMMON_GEN8BASE_GLOBAL \
 	{ ERROR_GEN6,               0,      0, "ERROR_GEN6" }, \
 	{ DONE_REG,                 0,      0, "DONE_REG" }, \
 	{ HSW_GTT_CACHE_EN,         0,      0, "HSW_GTT_CACHE_EN" }
 
-#define GEN9_GLOBAL \
+#define GEN8_GLOBAL \
 	{ GEN8_FAULT_TLB_DATA0,     0,      0, "GEN8_FAULT_TLB_DATA0" }, \
 	{ GEN8_FAULT_TLB_DATA1,     0,      0, "GEN8_FAULT_TLB_DATA1" }
 
@@ -96,67 +96,65 @@
 	{ GEN12_SFC_DONE(2),        0,      0, "SFC_DONE[2]" }, \
 	{ GEN12_SFC_DONE(3),        0,      0, "SFC_DONE[3]" }
 
-/* XE_LPD - Global */
-static const struct __guc_mmio_reg_descr xe_lpd_global_regs[] = {
+/* XE_LP Global */
+static const struct __guc_mmio_reg_descr xe_lp_global_regs[] = {
 	COMMON_BASE_GLOBAL,
-	COMMON_GEN9BASE_GLOBAL,
+	COMMON_GEN8BASE_GLOBAL,
 	COMMON_GEN12BASE_GLOBAL,
 };
 
-/* XE_LPD - Render / Compute Per-Class */
-static const struct __guc_mmio_reg_descr xe_lpd_rc_class_regs[] = {
+/* XE_LP Render / Compute Per-Class */
+static const struct __guc_mmio_reg_descr xe_lp_rc_class_regs[] = {
 	COMMON_BASE_HAS_EU,
 	COMMON_BASE_RENDER,
 	COMMON_GEN12BASE_RENDER,
 };
 
-/* GEN9/XE_LPD - Render / Compute Per-Engine-Instance */
-static const struct __guc_mmio_reg_descr xe_lpd_rc_inst_regs[] = {
+/* GEN8+ Render / Compute Per-Engine-Instance */
+static const struct __guc_mmio_reg_descr gen8_rc_inst_regs[] = {
 	COMMON_BASE_ENGINE_INSTANCE,
 };
 
-/* GEN9/XE_LPD - Media Decode/Encode Per-Engine-Instance */
-static const struct __guc_mmio_reg_descr xe_lpd_vd_inst_regs[] = {
+/* GEN8+ Media Decode/Encode Per-Engine-Instance */
+static const struct __guc_mmio_reg_descr gen8_vd_inst_regs[] = {
 	COMMON_BASE_ENGINE_INSTANCE,
 };
 
-/* XE_LPD - Video Enhancement Per-Class */
-static const struct __guc_mmio_reg_descr xe_lpd_vec_class_regs[] = {
+/* XE_LP Video Enhancement Per-Class */
+static const struct __guc_mmio_reg_descr xe_lp_vec_class_regs[] = {
 	COMMON_GEN12BASE_VEC,
 };
 
-/* GEN9/XE_LPD - Video Enhancement Per-Engine-Instance */
-static const struct __guc_mmio_reg_descr xe_lpd_vec_inst_regs[] = {
+/* GEN8+ Video Enhancement Per-Engine-Instance */
+static const struct __guc_mmio_reg_descr gen8_vec_inst_regs[] = {
 	COMMON_BASE_ENGINE_INSTANCE,
 };
 
-/* GEN9/XE_LPD - Blitter Per-Engine-Instance */
-static const struct __guc_mmio_reg_descr xe_lpd_blt_inst_regs[] = {
+/* GEN8+ Blitter Per-Engine-Instance */
+static const struct __guc_mmio_reg_descr gen8_blt_inst_regs[] = {
 	COMMON_BASE_ENGINE_INSTANCE,
 };
 
-/* XE_LPD - GSC Per-Engine-Instance */
-static const struct __guc_mmio_reg_descr xe_lpd_gsc_inst_regs[] = {
+/* XE_LP - GSC Per-Engine-Instance */
+static const struct __guc_mmio_reg_descr xe_lp_gsc_inst_regs[] = {
 	COMMON_BASE_ENGINE_INSTANCE,
 };
 
-/* GEN9 - Global */
-static const struct __guc_mmio_reg_descr default_global_regs[] = {
+/* GEN8 - Global */
+static const struct __guc_mmio_reg_descr gen8_global_regs[] = {
 	COMMON_BASE_GLOBAL,
-	COMMON_GEN9BASE_GLOBAL,
-	GEN9_GLOBAL,
+	COMMON_GEN8BASE_GLOBAL,
+	GEN8_GLOBAL,
 };
 
-static const struct __guc_mmio_reg_descr default_rc_class_regs[] = {
+static const struct __guc_mmio_reg_descr gen8_rc_class_regs[] = {
 	COMMON_BASE_HAS_EU,
 	COMMON_BASE_RENDER,
 };
 
 /*
- * Empty lists:
- * GEN9/XE_LPD - Blitter Per-Class
- * GEN9/XE_LPD - Media Decode/Encode Per-Class
- * GEN9 - VEC Class
+ * Empty list to prevent warnings about unknown class/instance types
+ * as not all class/instanace types have entries on all platforms.
  */
 static const struct __guc_mmio_reg_descr empty_regs_list[] = {
 };
@@ -174,37 +172,37 @@ static const struct __guc_mmio_reg_descr empty_regs_list[] = {
 	}
 
 /* List of lists */
-static const struct __guc_mmio_reg_descr_group default_lists[] = {
-	MAKE_REGLIST(default_global_regs, PF, GLOBAL, 0),
-	MAKE_REGLIST(default_rc_class_regs, PF, ENGINE_CLASS, GUC_RENDER_CLASS),
-	MAKE_REGLIST(xe_lpd_rc_inst_regs, PF, ENGINE_INSTANCE, GUC_RENDER_CLASS),
-	MAKE_REGLIST(default_rc_class_regs, PF, ENGINE_CLASS, GUC_COMPUTE_CLASS),
-	MAKE_REGLIST(xe_lpd_rc_inst_regs, PF, ENGINE_INSTANCE, GUC_COMPUTE_CLASS),
+static const struct __guc_mmio_reg_descr_group gen8_lists[] = {
+	MAKE_REGLIST(gen8_global_regs, PF, GLOBAL, 0),
+	MAKE_REGLIST(gen8_rc_class_regs, PF, ENGINE_CLASS, GUC_RENDER_CLASS),
+	MAKE_REGLIST(gen8_rc_inst_regs, PF, ENGINE_INSTANCE, GUC_RENDER_CLASS),
+	MAKE_REGLIST(gen8_rc_class_regs, PF, ENGINE_CLASS, GUC_COMPUTE_CLASS),
+	MAKE_REGLIST(gen8_rc_inst_regs, PF, ENGINE_INSTANCE, GUC_COMPUTE_CLASS),
 	MAKE_REGLIST(empty_regs_list, PF, ENGINE_CLASS, GUC_VIDEO_CLASS),
-	MAKE_REGLIST(xe_lpd_vd_inst_regs, PF, ENGINE_INSTANCE, GUC_VIDEO_CLASS),
+	MAKE_REGLIST(gen8_vd_inst_regs, PF, ENGINE_INSTANCE, GUC_VIDEO_CLASS),
 	MAKE_REGLIST(empty_regs_list, PF, ENGINE_CLASS, GUC_VIDEOENHANCE_CLASS),
-	MAKE_REGLIST(xe_lpd_vec_inst_regs, PF, ENGINE_INSTANCE, GUC_VIDEOENHANCE_CLASS),
+	MAKE_REGLIST(gen8_vec_inst_regs, PF, ENGINE_INSTANCE, GUC_VIDEOENHANCE_CLASS),
 	MAKE_REGLIST(empty_regs_list, PF, ENGINE_CLASS, GUC_BLITTER_CLASS),
-	MAKE_REGLIST(xe_lpd_blt_inst_regs, PF, ENGINE_INSTANCE, GUC_BLITTER_CLASS),
+	MAKE_REGLIST(gen8_blt_inst_regs, PF, ENGINE_INSTANCE, GUC_BLITTER_CLASS),
 	MAKE_REGLIST(empty_regs_list, PF, ENGINE_CLASS, GUC_GSC_OTHER_CLASS),
-	MAKE_REGLIST(xe_lpd_gsc_inst_regs, PF, ENGINE_INSTANCE, GUC_GSC_OTHER_CLASS),
+	MAKE_REGLIST(empty_regs_list, PF, ENGINE_INSTANCE, GUC_GSC_OTHER_CLASS),
 	{}
 };
 
-static const struct __guc_mmio_reg_descr_group xe_lpd_lists[] = {
-	MAKE_REGLIST(xe_lpd_global_regs, PF, GLOBAL, 0),
-	MAKE_REGLIST(xe_lpd_rc_class_regs, PF, ENGINE_CLASS, GUC_RENDER_CLASS),
-	MAKE_REGLIST(xe_lpd_rc_inst_regs, PF, ENGINE_INSTANCE, GUC_RENDER_CLASS),
-	MAKE_REGLIST(xe_lpd_rc_class_regs, PF, ENGINE_CLASS, GUC_COMPUTE_CLASS),
-	MAKE_REGLIST(xe_lpd_rc_inst_regs, PF, ENGINE_INSTANCE, GUC_COMPUTE_CLASS),
+static const struct __guc_mmio_reg_descr_group xe_lp_lists[] = {
+	MAKE_REGLIST(xe_lp_global_regs, PF, GLOBAL, 0),
+	MAKE_REGLIST(xe_lp_rc_class_regs, PF, ENGINE_CLASS, GUC_RENDER_CLASS),
+	MAKE_REGLIST(gen8_rc_inst_regs, PF, ENGINE_INSTANCE, GUC_RENDER_CLASS),
+	MAKE_REGLIST(xe_lp_rc_class_regs, PF, ENGINE_CLASS, GUC_COMPUTE_CLASS),
+	MAKE_REGLIST(gen8_rc_inst_regs, PF, ENGINE_INSTANCE, GUC_COMPUTE_CLASS),
 	MAKE_REGLIST(empty_regs_list, PF, ENGINE_CLASS, GUC_VIDEO_CLASS),
-	MAKE_REGLIST(xe_lpd_vd_inst_regs, PF, ENGINE_INSTANCE, GUC_VIDEO_CLASS),
-	MAKE_REGLIST(xe_lpd_vec_class_regs, PF, ENGINE_CLASS, GUC_VIDEOENHANCE_CLASS),
-	MAKE_REGLIST(xe_lpd_vec_inst_regs, PF, ENGINE_INSTANCE, GUC_VIDEOENHANCE_CLASS),
+	MAKE_REGLIST(gen8_vd_inst_regs, PF, ENGINE_INSTANCE, GUC_VIDEO_CLASS),
+	MAKE_REGLIST(xe_lp_vec_class_regs, PF, ENGINE_CLASS, GUC_VIDEOENHANCE_CLASS),
+	MAKE_REGLIST(gen8_vec_inst_regs, PF, ENGINE_INSTANCE, GUC_VIDEOENHANCE_CLASS),
 	MAKE_REGLIST(empty_regs_list, PF, ENGINE_CLASS, GUC_BLITTER_CLASS),
-	MAKE_REGLIST(xe_lpd_blt_inst_regs, PF, ENGINE_INSTANCE, GUC_BLITTER_CLASS),
+	MAKE_REGLIST(gen8_blt_inst_regs, PF, ENGINE_INSTANCE, GUC_BLITTER_CLASS),
 	MAKE_REGLIST(empty_regs_list, PF, ENGINE_CLASS, GUC_GSC_OTHER_CLASS),
-	MAKE_REGLIST(xe_lpd_gsc_inst_regs, PF, ENGINE_INSTANCE, GUC_GSC_OTHER_CLASS),
+	MAKE_REGLIST(xe_lp_gsc_inst_regs, PF, ENGINE_INSTANCE, GUC_GSC_OTHER_CLASS),
 	{}
 };
 
@@ -366,9 +364,9 @@ guc_capture_get_device_reglist(struct intel_guc *guc)
 	const struct __guc_mmio_reg_descr_group *lists;
 
 	if (GRAPHICS_VER(i915) >= 12)
-		lists = xe_lpd_lists;
+		lists = xe_lp_lists;
 	else
-		lists = default_lists;
+		lists = gen8_lists;
 
 	/*
 	 * For certain engine classes, there are slice and subslice
