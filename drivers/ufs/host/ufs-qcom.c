@@ -3298,6 +3298,20 @@ static void ufs_qcom_register_minidump(uintptr_t vaddr, u64 size,
 	}
 }
 
+/*
+ * ufs_qcom_parse_pbl_rst_workaround_flag - read bypass-pbl-rst-wa entry from DT
+ */
+static void ufs_qcom_parse_pbl_rst_workaround_flag(struct ufs_qcom_host *host)
+{
+	struct device_node *np = host->hba->dev->of_node;
+	const char *str  = "qcom,bypass-pbl-rst-wa";
+
+	if (!np)
+		return;
+
+	host->bypass_pbl_rst_wa = of_property_read_bool(np, str);
+}
+
 /**
  * ufs_qcom_init - bind phy with controller
  * @hba: host controller instance
@@ -3437,6 +3451,7 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 		pm_runtime_forbid(host->hba->dev);
 
 	ufs_qcom_parse_wb(host);
+	ufs_qcom_parse_pbl_rst_workaround_flag(host);
 	ufs_qcom_set_caps(hba);
 	ufs_qcom_advertise_quirks(hba);
 
@@ -5104,7 +5119,8 @@ static void ufs_qcom_shutdown(struct platform_device *pdev)
 	 * reset, so deassert ufs device reset line after UFS device shutdown
 	 * to ensure the UFS_RESET TLMM register value is POR value
 	 */
-	ufs_qcom_device_reset_ctrl(hba, false);
+	if (!host->bypass_pbl_rst_wa)
+		ufs_qcom_device_reset_ctrl(hba, false);
 }
 
 static const struct of_device_id ufs_qcom_of_match[] = {
