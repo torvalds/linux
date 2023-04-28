@@ -365,9 +365,9 @@
 		compatible = "rockchip,rk3562-bus";
 		rockchip,busfreq-policy = "smc";
 		rockchip,soc-bus-table = <0 0x00a000a8 0x7001>,
-					 <1 0x00a000a8 0x7c31>,
-					 <2 0x00a000a8 0x7c31>,
-					 <3 0x00a000a8 0x7c31>,
+					 <1 0x00a000a8 0x7c39>,
+					 <2 0x00a000a8 0x7c39>,
+					 <3 0x00a000a8 0x7c39>,
 					 <4 0x00a000a5 0xb007>,
 					 <5 0x00a000a8 0x7034>,
 					 <6 0x00a000a8 0x7034>,
