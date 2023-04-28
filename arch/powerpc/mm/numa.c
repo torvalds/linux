@@ -16,6 +16,7 @@
 #include <linux/cpu.h>
 #include <linux/notifier.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/pfn.h>
 #include <linux/cpuset.h>
 #include <linux/node.h>
@@ -1289,23 +1290,15 @@ static int hot_add_node_scn_to_nid(unsigned long scn_addr)
 	int nid = NUMA_NO_NODE;
 
 	for_each_node_by_type(memory, "memory") {
-		unsigned long start, size;
-		int ranges;
-		const __be32 *memcell_buf;
-		unsigned int len;
+		int i = 0;
 
-		memcell_buf = of_get_property(memory, "reg", &len);
-		if (!memcell_buf || len <= 0)
-			continue;
+		while (1) {
+			struct resource res;
 
-		/* ranges in cell */
-		ranges = (len >> 2) / (n_mem_addr_cells + n_mem_size_cells);
+			if (of_address_to_resource(memory, i++, &res))
+				break;
 
-		while (ranges--) {
-			start = read_n_cells(n_mem_addr_cells, &memcell_buf);
-			size = read_n_cells(n_mem_size_cells, &memcell_buf);
-
-			if ((scn_addr < start) || (scn_addr >= (start + size)))
+			if ((scn_addr < res.start) || (scn_addr > res.end))
 				continue;
 
 			nid = of_node_to_nid_single(memory);

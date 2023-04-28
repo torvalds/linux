@@ -62,18 +62,10 @@ static struct ctl_table nmi_wd_lpm_factor_ctl_table[] = {
 	},
 	{}
 };
-static struct ctl_table nmi_wd_lpm_factor_sysctl_root[] = {
-	{
-		.procname       = "kernel",
-		.mode           = 0555,
-		.child          = nmi_wd_lpm_factor_ctl_table,
-	},
-	{}
-};
 
 static int __init register_nmi_wd_lpm_factor_sysctl(void)
 {
-	register_sysctl_table(nmi_wd_lpm_factor_sysctl_root);
+	register_sysctl("kernel", nmi_wd_lpm_factor_ctl_table);
 
 	return 0;
 }

@@ -190,19 +190,11 @@ static void ge_imp3a_show_cpuinfo(struct seq_file *m)
 		ge_imp3a_get_cpci_is_syscon() ? "yes" : "no");
 }
 
-/*
- * Called very early, device-tree isn't unflattened
- */
-static int __init ge_imp3a_probe(void)
-{
-	return of_machine_is_compatible("ge,IMP3A");
-}
-
 machine_arch_initcall(ge_imp3a, mpc85xx_common_publish_devices);
 
 define_machine(ge_imp3a) {
 	.name			= "GE_IMP3A",
-	.probe			= ge_imp3a_probe,
+	.compatible		= "ge,IMP3A",
 	.setup_arch		= ge_imp3a_setup_arch,
 	.init_IRQ		= ge_imp3a_pic_init,
 	.show_cpuinfo		= ge_imp3a_show_cpuinfo,
@@ -211,6 +203,5 @@ define_machine(ge_imp3a) {
 	.pcibios_fixup_phb      = fsl_pcibios_fixup_phb,
 #endif
 	.get_irq		= mpic_get_irq,
-	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
 };

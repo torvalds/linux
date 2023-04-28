@@ -9900,6 +9900,11 @@ F:	drivers/crypto/vmx/ghash*
 F:	drivers/crypto/vmx/ppc-xlate.pl
 F:	drivers/crypto/vmx/vmx.c
 
+IBM Power VFIO Support
+M:	Timothy Pearson <tpearson@raptorengineering.com>
+S:	Supported
+F:	drivers/vfio/vfio_iommu_spapr_tce.c
+
 IBM ServeRAID RAID DRIVER
 S:	Orphan
 F:	drivers/scsi/ips.*

@@ -4,6 +4,17 @@ source "arch/powerpc/platforms/Kconfig.cputype"
 config CC_HAS_ELFV2
 	def_bool PPC64 && $(cc-option, -mabi=elfv2)
 
+config CC_HAS_PREFIXED
+	def_bool PPC64 && $(cc-option, -mcpu=power10 -mprefixed)
+
+config CC_HAS_PCREL
+	# Clang has a bug (https://github.com/llvm/llvm-project/issues/62372)
+	# where pcrel code is not generated if -msoft-float, -mno-altivec, or
+	# -mno-vsx options are also given. Without these options, fp/vec
+	# instructions are generated from regular kernel code. So Clang can't
+	# do pcrel yet.
+	def_bool PPC64 && CC_IS_GCC && $(cc-option, -mcpu=power10 -mpcrel)
+
 config 32BIT
 	bool
 	default y if PPC32
@@ -158,6 +169,7 @@ config PPC
 	select ARCH_USE_CMPXCHG_LOCKREF		if PPC64
 	select ARCH_USE_MEMTEST
 	select ARCH_USE_QUEUED_RWLOCKS		if PPC_QUEUED_SPINLOCKS
+	select ARCH_WANT_DEFAULT_BPF_JIT
 	select ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select ARCH_WANT_IRQS_OFF_ACTIVATE_MM
@@ -201,6 +213,7 @@ config PPC
 	select HAVE_ARCH_KCSAN            	if PPC_BOOK3S_64
 	select HAVE_ARCH_KFENCE			if ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	select HAVE_ARCH_RANDOMIZE_KSTACK_OFFSET
+	select HAVE_ARCH_WITHIN_STACK_FRAMES
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_MMAP_RND_BITS
 	select HAVE_ARCH_MMAP_RND_COMPAT_BITS	if COMPAT
@@ -291,10 +304,6 @@ config PPC
 	#
 	# Please keep this list sorted alphabetically.
 	#
-
-config PPC_LONG_DOUBLE_128
-	depends on PPC64 && ALTIVEC
-	def_bool $(success,test "$(shell,echo __LONG_DOUBLE_128__ | $(CC) -E -P -)" = 1)
 
 config PPC_BARRIER_NOSPEC
 	bool
@@ -618,8 +627,7 @@ config PPC64_BIG_ENDIAN_ELF_ABI_V2
 	bool "Build big-endian kernel using ELF ABI V2 (EXPERIMENTAL)"
 	depends on PPC64 && CPU_BIG_ENDIAN
 	depends on CC_HAS_ELFV2
-	depends on LD_IS_BFD && LD_VERSION >= 22400
-	default n
+	depends on LD_VERSION >= 22400 || LLD_VERSION >= 150000
 	help
 	  This builds the kernel image using the "Power Architecture 64-Bit ELF
 	  V2 ABI Specification", which has a reduced stack overhead and faster

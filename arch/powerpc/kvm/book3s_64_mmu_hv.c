@@ -415,20 +415,25 @@ static int kvmppc_mmu_book3s_64_hv_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
  * embodied here.)  If the instruction isn't a load or store, then
  * this doesn't return anything useful.
  */
-static int instruction_is_store(unsigned int instr)
+static int instruction_is_store(ppc_inst_t instr)
 {
 	unsigned int mask;
+	unsigned int suffix;
 
 	mask = 0x10000000;
-	if ((instr & 0xfc000000) == 0x7c000000)
+	suffix = ppc_inst_val(instr);
+	if (ppc_inst_prefixed(instr))
+		suffix = ppc_inst_suffix(instr);
+	else if ((suffix & 0xfc000000) == 0x7c000000)
 		mask = 0x100;		/* major opcode 31 */
-	return (instr & mask) != 0;
+	return (suffix & mask) != 0;
 }
 
 int kvmppc_hv_emulate_mmio(struct kvm_vcpu *vcpu,
 			   unsigned long gpa, gva_t ea, int is_store)
 {
-	u32 last_inst;
+	ppc_inst_t last_inst;
+	bool is_prefixed = !!(kvmppc_get_msr(vcpu) & SRR1_PREFIXED);
 
 	/*
 	 * Fast path - check if the guest physical address corresponds to a
@@ -443,7 +448,7 @@ int kvmppc_hv_emulate_mmio(struct kvm_vcpu *vcpu,
 				       NULL);
 		srcu_read_unlock(&vcpu->kvm->srcu, idx);
 		if (!ret) {
-			kvmppc_set_pc(vcpu, kvmppc_get_pc(vcpu) + 4);
+			kvmppc_set_pc(vcpu, kvmppc_get_pc(vcpu) + (is_prefixed ? 8 : 4));
 			return RESUME_GUEST;
 		}
 	}
@@ -458,7 +463,16 @@ int kvmppc_hv_emulate_mmio(struct kvm_vcpu *vcpu,
 	/*
 	 * WARNING: We do not know for sure whether the instruction we just
 	 * read from memory is the same that caused the fault in the first
-	 * place.  If the instruction we read is neither an load or a store,
+	 * place.
+	 *
+	 * If the fault is prefixed but the instruction is not or vice
+	 * versa, try again so that we don't advance pc the wrong amount.
+	 */
+	if (ppc_inst_prefixed(last_inst) != is_prefixed)
+		return RESUME_GUEST;
+
+	/*
+	 * If the instruction we read is neither an load or a store,
 	 * then it can't access memory, so we don't need to worry about
 	 * enforcing access permissions.  So, assuming it is a load or
 	 * store, we just check that its direction (load or store) is

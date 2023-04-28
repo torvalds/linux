@@ -1381,7 +1381,7 @@ struct vio_dev *vio_register_device_node(struct device_node *of_node)
 	}
 
 	if (family == PFO) {
-		if (of_get_property(of_node, "interrupt-controller", NULL)) {
+		if (of_property_read_bool(of_node, "interrupt-controller")) {
 			pr_debug("%s: Skipping the interrupt controller %pOFn.\n",
 					__func__, of_node);
 			return NULL;
@@ -1440,7 +1440,7 @@ struct vio_dev *vio_register_device_node(struct device_node *of_node)
 	viodev->dev.bus = &vio_bus_type;
 	viodev->dev.release = vio_dev_release;
 
-	if (of_get_property(viodev->dev.of_node, "ibm,my-dma-window", NULL)) {
+	if (of_property_present(viodev->dev.of_node, "ibm,my-dma-window")) {
 		if (firmware_has_feature(FW_FEATURE_CMO))
 			vio_cmo_set_dma_ops(viodev);
 		else
