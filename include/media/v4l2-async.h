@@ -126,6 +126,18 @@ struct v4l2_async_notifier {
 };
 
 /**
+ * struct v4l2_async_subdev_endpoint - Entry in sub-device's fwnode list
+ *
+ * @async_subdev_endpoint_entry: An entry in async_subdev_endpoint_list of
+ *				 &struct v4l2_subdev
+ * @endpoint: Endpoint fwnode agains which to match the sub-device
+ */
+struct v4l2_async_subdev_endpoint {
+	struct list_head async_subdev_endpoint_entry;
+	struct fwnode_handle *endpoint;
+};
+
+/**
  * v4l2_async_debug_init - Initialize debugging tools.
  *
  * @debugfs_dir: pointer to the parent debugfs &struct dentry
@@ -214,6 +226,24 @@ __v4l2_async_nf_add_i2c(struct v4l2_async_notifier *notifier,
 #define v4l2_async_nf_add_i2c(notifier, adapter, address, type) \
 	((type *)__v4l2_async_nf_add_i2c(notifier, adapter, address, \
 					 sizeof(type)))
+
+/**
+ * v4l2_async_subdev_endpoint_add - Add an endpoint fwnode to async sub-device
+ *				    matching list
+ *
+ * @sd: the sub-device
+ * @fwnode: the endpoint fwnode to match
+ *
+ * Add a fwnode to the async sub-device's matching list. This allows registering
+ * multiple async sub-devices from a single device.
+ *
+ * Note that calling v4l2_subdev_cleanup() as part of the sub-device's cleanup
+ * if endpoints have been added to the sub-device's fwnode matching list.
+ *
+ * Returns an error on failure, 0 on success.
+ */
+int v4l2_async_subdev_endpoint_add(struct v4l2_subdev *sd,
+				   struct fwnode_handle *fwnode);
 
 /**
  * v4l2_async_connection_unique - return a unique &struct v4l2_async_connection
