@@ -1031,9 +1031,6 @@ static ssize_t smtcfb_read(struct fb_info *info, char __user *buf,
 	if (!info || !info->screen_base)
 		return -ENODEV;
 
-	if (info->state != FBINFO_STATE_RUNNING)
-		return -EPERM;
-
 	total_size = info->screen_size;
 
 	if (total_size == 0)
@@ -1096,9 +1093,6 @@ static ssize_t smtcfb_write(struct fb_info *info, const char __user *buf,
 
 	if (!info || !info->screen_base)
 		return -ENODEV;
-
-	if (info->state != FBINFO_STATE_RUNNING)
-		return -EPERM;
 
 	total_size = info->screen_size;
 
