@@ -33,6 +33,7 @@
  *
  * - klp_ftrace_handler()
  * - klp_update_patch_state()
+ * - __klp_sched_try_switch()
  */
 DEFINE_MUTEX(klp_mutex);
 
