@@ -131,7 +131,7 @@ static int rk_emmc_wait_busy(void)
 /*
  * Transfer a single sector of kernel addressable data
  */
-int rk_emmc_transfer(u8 *buffer, unsigned addr, unsigned blksz, int write)
+int rk_emmc_transfer(u8 *buffer, unsigned int addr, unsigned int datasz, int write)
 {
 	int ret = 0;
 	enum emmc_area_type areatype;
@@ -150,9 +150,9 @@ int rk_emmc_transfer(u8 *buffer, unsigned addr, unsigned blksz, int write)
 	mrq.data = &data;
 	mrq.stop = &stop;
 
-	sg_init_one(&sg, buffer, blksz);
+	sg_init_one(&sg, buffer, datasz);
 
-	rk_emmc_prepare_mrq(&mrq, &sg, 1, addr, 1, blksz, write);
+	rk_emmc_prepare_mrq(&mrq, &sg, 1, addr, datasz / BLKSZ, BLKSZ, write);
 
 	mmc_claim_host(this_card->host);
 

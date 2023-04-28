@@ -6,6 +6,6 @@
 #ifndef _RK_SDMMC_OPS_H_
 #define _RK_SDMMC_OPS_H_
 
-int rk_emmc_transfer(u8 *buffer, unsigned int addr, unsigned int blksz, int write);
+int rk_emmc_transfer(u8 *buffer, unsigned int addr, unsigned int datasz, int write);
 
 #endif
