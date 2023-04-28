@@ -49,12 +49,7 @@ static DEFINE_MUTEX(vendor_ops_mutex);
 
 static int emmc_vendor_ops(u8 *buffer, u32 addr, u32 n_sec, int write)
 {
-	u32 i, ret = 0;
-
-	for (i = 0; i < n_sec; i++)
-		ret = rk_emmc_transfer(buffer + i * 512, addr + i, 512, write);
-
-	return ret;
+	return rk_emmc_transfer(buffer, addr, n_sec << 9, write);
 }
 
 static int emmc_vendor_storage_init(void)
@@ -210,34 +205,20 @@ static int emmc_vendor_write(u32 id, void *pbuf, u32 size)
 #ifdef CONFIG_ROCKCHIP_VENDOR_STORAGE_UPDATE_LOADER
 static int id_blk_read_data(u32 index, u32 n_sec, u8 *buf)
 {
-	u32 i;
-	u32 ret = 0;
-
 	if (index + n_sec >= 1024 * 5)
 		return 0;
 	index = index + EMMC_IDB_PART_OFFSET;
-	for (i = 0; i < n_sec; i++) {
-		ret = rk_emmc_transfer(buf + i * 512, index + i, 512, 0);
-		if (ret)
-			return ret;
-	}
-	return ret;
+
+	return rk_emmc_transfer(buf, index, n_sec << 9, 0);
 }
 
 static int id_blk_write_data(u32 index, u32 n_sec, u8 *buf)
 {
-	u32 i;
-	u32 ret = 0;
-
 	if (index + n_sec >= 1024 * 5)
 		return 0;
 	index = index + EMMC_IDB_PART_OFFSET;
-	for (i = 0; i < n_sec; i++) {
-		ret = rk_emmc_transfer(buf + i * 512, index + i, 512, 1);
-		if (ret)
-			return ret;
-	}
-	return ret;
+
+	return rk_emmc_transfer(buf, index, n_sec << 9, 1);
 }
 
 static int emmc_write_idblock(u32 size, u8 *buf, u32 *id_blk_tbl)
