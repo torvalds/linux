@@ -3,6 +3,30 @@
 #include <linux/err.h>
 
 #ifdef CONFIG_RISCV_ISA_SVNAPOT
+pte_t huge_ptep_get(pte_t *ptep)
+{
+	unsigned long pte_num;
+	int i;
+	pte_t orig_pte = ptep_get(ptep);
+
+	if (!pte_present(orig_pte) || !pte_napot(orig_pte))
+		return orig_pte;
+
+	pte_num = napot_pte_num(napot_cont_order(orig_pte));
+
+	for (i = 0; i < pte_num; i++, ptep++) {
+		pte_t pte = ptep_get(ptep);
+
+		if (pte_dirty(pte))
+			orig_pte = pte_mkdirty(orig_pte);
+
+		if (pte_young(pte))
+			orig_pte = pte_mkyoung(orig_pte);
+	}
+
+	return orig_pte;
+}
+
 pte_t *huge_pte_alloc(struct mm_struct *mm,
 		      struct vm_area_struct *vma,
 		      unsigned long addr,
