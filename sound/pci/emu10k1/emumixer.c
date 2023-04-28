@@ -41,17 +41,14 @@ static int snd_emu10k1_spdif_get(struct snd_kcontrol *kcontrol,
 {
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
-	unsigned long flags;
 
 	/* Limit: emu->spdif_bits */
 	if (idx >= 3)
 		return -EINVAL;
-	spin_lock_irqsave(&emu->reg_lock, flags);
 	ucontrol->value.iec958.status[0] = (emu->spdif_bits[idx] >> 0) & 0xff;
 	ucontrol->value.iec958.status[1] = (emu->spdif_bits[idx] >> 8) & 0xff;
 	ucontrol->value.iec958.status[2] = (emu->spdif_bits[idx] >> 16) & 0xff;
 	ucontrol->value.iec958.status[3] = (emu->spdif_bits[idx] >> 24) & 0xff;
-	spin_unlock_irqrestore(&emu->reg_lock, flags);
 	return 0;
 }
 
@@ -1070,10 +1067,7 @@ static int snd_audigy_spdif_output_rate_get(struct snd_kcontrol *kcontrol,
 {
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int tmp;
-	unsigned long flags;
-	
 
-	spin_lock_irqsave(&emu->reg_lock, flags);
 	tmp = snd_emu10k1_ptr_read(emu, A_SPDIF_SAMPLERATE, 0);
 	switch (tmp & A_SPDIF_RATE_MASK) {
 	case A_SPDIF_44100:
@@ -1088,7 +1082,6 @@ static int snd_audigy_spdif_output_rate_get(struct snd_kcontrol *kcontrol,
 	default:
 		ucontrol->value.enumerated.item[0] = 1;
 	}
-	spin_unlock_irqrestore(&emu->reg_lock, flags);
 	return 0;
 }
 
@@ -1146,7 +1139,6 @@ static int snd_emu10k1_spdif_put(struct snd_kcontrol *kcontrol,
 	unsigned int idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
 	int change;
 	unsigned int val;
-	unsigned long flags;
 
 	/* Limit: emu->spdif_bits */
 	if (idx >= 3)
@@ -1155,13 +1147,11 @@ static int snd_emu10k1_spdif_put(struct snd_kcontrol *kcontrol,
 	      (ucontrol->value.iec958.status[1] << 8) |
 	      (ucontrol->value.iec958.status[2] << 16) |
 	      (ucontrol->value.iec958.status[3] << 24);
-	spin_lock_irqsave(&emu->reg_lock, flags);
 	change = val != emu->spdif_bits[idx];
 	if (change) {
 		snd_emu10k1_ptr_write(emu, SPCS0 + idx, 0, val);
 		emu->spdif_bits[idx] = val;
 	}
-	spin_unlock_irqrestore(&emu->reg_lock, flags);
 	return change;
 }
 
@@ -1229,7 +1219,6 @@ static int snd_emu10k1_send_routing_info(struct snd_kcontrol *kcontrol, struct s
 static int snd_emu10k1_send_routing_get(struct snd_kcontrol *kcontrol,
                                         struct snd_ctl_elem_value *ucontrol)
 {
-	unsigned long flags;
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 	struct snd_emu10k1_pcm_mixer *mix =
 		&emu->pcm_mixer[snd_ctl_get_ioffidx(kcontrol, &ucontrol->id)];
@@ -1237,12 +1226,10 @@ static int snd_emu10k1_send_routing_get(struct snd_kcontrol *kcontrol,
 	int num_efx = emu->audigy ? 8 : 4;
 	int mask = emu->audigy ? 0x3f : 0x0f;
 
-	spin_lock_irqsave(&emu->reg_lock, flags);
 	for (voice = 0; voice < 3; voice++)
 		for (idx = 0; idx < num_efx; idx++)
 			ucontrol->value.integer.value[(voice * num_efx) + idx] = 
 				mix->send_routing[voice][idx] & mask;
-	spin_unlock_irqrestore(&emu->reg_lock, flags);
 	return 0;
 }
 
@@ -1305,17 +1292,14 @@ static int snd_emu10k1_send_volume_info(struct snd_kcontrol *kcontrol, struct sn
 static int snd_emu10k1_send_volume_get(struct snd_kcontrol *kcontrol,
                                        struct snd_ctl_elem_value *ucontrol)
 {
-	unsigned long flags;
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 	struct snd_emu10k1_pcm_mixer *mix =
 		&emu->pcm_mixer[snd_ctl_get_ioffidx(kcontrol, &ucontrol->id)];
 	int idx;
 	int num_efx = emu->audigy ? 8 : 4;
 
-	spin_lock_irqsave(&emu->reg_lock, flags);
 	for (idx = 0; idx < 3*num_efx; idx++)
 		ucontrol->value.integer.value[idx] = mix->send_volume[idx/num_efx][idx%num_efx];
-	spin_unlock_irqrestore(&emu->reg_lock, flags);
 	return 0;
 }
 
@@ -1378,13 +1362,10 @@ static int snd_emu10k1_attn_get(struct snd_kcontrol *kcontrol,
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 	struct snd_emu10k1_pcm_mixer *mix =
 		&emu->pcm_mixer[snd_ctl_get_ioffidx(kcontrol, &ucontrol->id)];
-	unsigned long flags;
 	int idx;
 
-	spin_lock_irqsave(&emu->reg_lock, flags);
 	for (idx = 0; idx < 3; idx++)
 		ucontrol->value.integer.value[idx] = mix->attn[idx];
-	spin_unlock_irqrestore(&emu->reg_lock, flags);
 	return 0;
 }
 
@@ -1443,7 +1424,6 @@ static int snd_emu10k1_efx_send_routing_info(struct snd_kcontrol *kcontrol, stru
 static int snd_emu10k1_efx_send_routing_get(struct snd_kcontrol *kcontrol,
                                         struct snd_ctl_elem_value *ucontrol)
 {
-	unsigned long flags;
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 	struct snd_emu10k1_pcm_mixer *mix =
 		&emu->efx_pcm_mixer[snd_ctl_get_ioffidx(kcontrol, &ucontrol->id)];
@@ -1451,11 +1431,9 @@ static int snd_emu10k1_efx_send_routing_get(struct snd_kcontrol *kcontrol,
 	int num_efx = emu->audigy ? 8 : 4;
 	int mask = emu->audigy ? 0x3f : 0x0f;
 
-	spin_lock_irqsave(&emu->reg_lock, flags);
 	for (idx = 0; idx < num_efx; idx++)
 		ucontrol->value.integer.value[idx] = 
 			mix->send_routing[0][idx] & mask;
-	spin_unlock_irqrestore(&emu->reg_lock, flags);
 	return 0;
 }
 
@@ -1513,17 +1491,14 @@ static int snd_emu10k1_efx_send_volume_info(struct snd_kcontrol *kcontrol, struc
 static int snd_emu10k1_efx_send_volume_get(struct snd_kcontrol *kcontrol,
                                        struct snd_ctl_elem_value *ucontrol)
 {
-	unsigned long flags;
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 	struct snd_emu10k1_pcm_mixer *mix =
 		&emu->efx_pcm_mixer[snd_ctl_get_ioffidx(kcontrol, &ucontrol->id)];
 	int idx;
 	int num_efx = emu->audigy ? 8 : 4;
 
-	spin_lock_irqsave(&emu->reg_lock, flags);
 	for (idx = 0; idx < num_efx; idx++)
 		ucontrol->value.integer.value[idx] = mix->send_volume[0][idx];
-	spin_unlock_irqrestore(&emu->reg_lock, flags);
 	return 0;
 }
 
@@ -1582,11 +1557,8 @@ static int snd_emu10k1_efx_attn_get(struct snd_kcontrol *kcontrol,
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 	struct snd_emu10k1_pcm_mixer *mix =
 		&emu->efx_pcm_mixer[snd_ctl_get_ioffidx(kcontrol, &ucontrol->id)];
-	unsigned long flags;
 
-	spin_lock_irqsave(&emu->reg_lock, flags);
 	ucontrol->value.integer.value[0] = mix->attn[0];
-	spin_unlock_irqrestore(&emu->reg_lock, flags);
 	return 0;
 }
 
