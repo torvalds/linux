@@ -7718,8 +7718,8 @@ static int pqi_enable_firmware_features(struct pqi_ctrl_info *ctrl_info,
 			features_requested_iomem_addr +
 			(le16_to_cpu(firmware_features->num_elements) * 2) +
 			sizeof(__le16);
-		writew(PQI_FIRMWARE_FEATURE_MAXIMUM,
-			host_max_known_feature_iomem_addr);
+		writeb(PQI_FIRMWARE_FEATURE_MAXIMUM & 0xFF, host_max_known_feature_iomem_addr);
+		writeb((PQI_FIRMWARE_FEATURE_MAXIMUM & 0xFF00) >> 8, host_max_known_feature_iomem_addr + 1);
 	}
 
 	return pqi_config_table_update(ctrl_info,
