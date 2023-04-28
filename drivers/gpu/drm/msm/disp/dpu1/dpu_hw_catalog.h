@@ -127,13 +127,9 @@ enum {
 /**
  * DSPP sub-blocks
  * @DPU_DSPP_PCC             Panel color correction block
- * @DPU_DSPP_GC              Gamma correction block
- * @DPU_DSPP_IGC             Inverse gamma correction block
  */
 enum {
 	DPU_DSPP_PCC = 0x1,
-	DPU_DSPP_GC,
-	DPU_DSPP_IGC,
 	DPU_DSPP_MAX
 };
 
@@ -398,7 +394,6 @@ struct dpu_caps {
  * @hsic:
  * @memcolor:
  * @pcc_blk:
- * @igc_blk:
  * @format_list: Pointer to list of supported formats
  * @num_formats: Number of supported formats
  * @virt_format_list: Pointer to list of supported formats for virtual planes
@@ -419,7 +414,6 @@ struct dpu_sspp_sub_blks {
 	struct dpu_pp_blk hsic_blk;
 	struct dpu_pp_blk memcolor_blk;
 	struct dpu_pp_blk pcc_blk;
-	struct dpu_pp_blk igc_blk;
 
 	const u32 *format_list;
 	u32 num_formats;
@@ -433,22 +427,18 @@ struct dpu_sspp_sub_blks {
  * @maxwidth:               Max pixel width supported by this mixer
  * @maxblendstages:         Max number of blend-stages supported
  * @blendstage_base:        Blend-stage register base offset
- * @gc: gamma correction block
  */
 struct dpu_lm_sub_blks {
 	u32 maxwidth;
 	u32 maxblendstages;
 	u32 blendstage_base[MAX_BLOCKS];
-	struct dpu_pp_blk gc;
 };
 
 /**
  * struct dpu_dspp_sub_blks: Information of DSPP block
- * @gc : gamma correction block
  * @pcc: pixel color correction block
  */
 struct dpu_dspp_sub_blks {
-	struct dpu_pp_blk gc;
 	struct dpu_pp_blk pcc;
 };
 
