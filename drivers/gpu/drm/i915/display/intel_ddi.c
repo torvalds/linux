@@ -3853,10 +3853,13 @@ static void mtl_ddi_get_config(struct intel_encoder *encoder,
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	enum phy phy = intel_port_to_phy(i915, encoder->port);
 
-	drm_WARN_ON(&i915->drm, !intel_is_c10phy(i915, phy));
+	if (intel_is_c10phy(i915, phy)) {
+		intel_c10pll_readout_hw_state(encoder, &crtc_state->cx0pll_state.c10);
+		intel_c10pll_dump_hw_state(i915, &crtc_state->cx0pll_state.c10);
+	} else {
+		intel_c20pll_readout_hw_state(encoder, &crtc_state->cx0pll_state.c20);
+	}
 
-	intel_c10pll_readout_hw_state(encoder, &crtc_state->cx0pll_state.c10);
-	intel_c10pll_dump_hw_state(i915, &crtc_state->cx0pll_state.c10);
 	crtc_state->port_clock = intel_c10pll_calc_port_clock(encoder, &crtc_state->cx0pll_state.c10);
 
 	intel_ddi_get_config(encoder, crtc_state);
