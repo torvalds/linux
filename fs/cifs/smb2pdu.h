@@ -132,17 +132,6 @@ struct share_redirect_error_context_rsp {
 #define SMB2_LEASE_HANDLE_CACHING_HE	0x02
 #define SMB2_LEASE_WRITE_CACHING_HE	0x04
 
-struct create_durable {
-	struct create_context ccontext;
-	__u8   Name[8];
-	union {
-		__u8  Reserved[16];
-		struct {
-			__u64 PersistentFileId;
-			__u64 VolatileFileId;
-		} Fid;
-	} Data;
-} __packed;
 
 /* See MS-SMB2 2.2.13.2.11 */
 /* Flags */

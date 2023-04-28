@@ -1172,6 +1172,34 @@ struct create_posix {
 	__u32   Reserved;
 } __packed;
 
+/* See MS-SMB2 2.2.13.2.3 and MS-SMB2 2.2.13.2.4 */
+struct create_durable {
+	struct create_context ccontext;
+	__u8   Name[8];
+	union {
+		__u8  Reserved[16];
+		struct {
+			__u64 PersistentFileId;
+			__u64 VolatileFileId;
+		} Fid;
+	} Data;
+} __packed;
+
+/* See MS-SMB2 2.2.13.2.5 */
+struct create_mxac_req {
+	struct create_context ccontext;
+	__u8   Name[8];
+	__le64 Timestamp;
+} __packed;
+
+/* See MS-SMB2 2.2.14.2.5 */
+struct create_mxac_rsp {
+	struct create_context ccontext;
+	__u8   Name[8];
+	__le32 QueryStatus;
+	__le32 MaximalAccess;
+} __packed;
+
 #define SMB2_LEASE_NONE_LE			cpu_to_le32(0x00)
 #define SMB2_LEASE_READ_CACHING_LE		cpu_to_le32(0x01)
 #define SMB2_LEASE_HANDLE_CACHING_LE		cpu_to_le32(0x02)
