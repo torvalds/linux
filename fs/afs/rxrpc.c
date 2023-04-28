@@ -335,7 +335,9 @@ void afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call, gfp_t gfp)
 	/* create a call */
 	rxcall = rxrpc_kernel_begin_call(call->net->socket, srx, call->key,
 					 (unsigned long)call,
-					 tx_total_len, gfp,
+					 tx_total_len,
+					 call->max_lifespan,
+					 gfp,
 					 (call->async ?
 					  afs_wake_up_async_call :
 					  afs_wake_up_call_waiter),
@@ -350,10 +352,6 @@ void afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call, gfp_t gfp)
 	}
 
 	call->rxcall = rxcall;
-
-	if (call->max_lifespan)
-		rxrpc_kernel_set_max_life(call->net->socket, rxcall,
-					  call->max_lifespan);
 	call->issue_time = ktime_get_real();
 
 	/* send the request */

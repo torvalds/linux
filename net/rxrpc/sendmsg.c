@@ -651,6 +651,7 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 		if (IS_ERR(call))
 			return PTR_ERR(call);
 		/* ... and we have the call lock. */
+		p.call.nr_timeouts = 0;
 		ret = 0;
 		if (rxrpc_call_is_complete(call))
 			goto out_put_unlock;
