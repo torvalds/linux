@@ -19,9 +19,9 @@ struct intel_crtc_state;
 enum phy;
 
 bool intel_is_c10phy(struct drm_i915_private *dev_priv, enum phy phy);
-void intel_cx0pll_enable(struct intel_encoder *encoder,
-			 const struct intel_crtc_state *crtc_state);
-void intel_cx0pll_disable(struct intel_encoder *encoder);
+void intel_mtl_pll_enable(struct intel_encoder *encoder,
+			  const struct intel_crtc_state *crtc_state);
+void intel_mtl_pll_disable(struct intel_encoder *encoder);
 void intel_c10pll_readout_hw_state(struct intel_encoder *encoder, struct intel_c10pll_state *pll_state);
 int intel_cx0pll_calc_state(struct intel_crtc_state *crtc_state, struct intel_encoder *encoder);
 void intel_c10pll_dump_hw_state(struct drm_i915_private *dev_priv,
@@ -42,4 +42,5 @@ int intel_cx0_phy_check_hdmi_link_rate(struct intel_hdmi *hdmi, int clock);
 void intel_cx0_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
 				       const struct intel_crtc_state *crtc_state,
 				       u32 level);
+int intel_mtl_tbt_readout_hw_state(struct intel_encoder *encoder);
 #endif /* __INTEL_CX0_PHY_H__ */
