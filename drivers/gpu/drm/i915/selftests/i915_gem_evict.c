@@ -27,6 +27,7 @@
 #include "gem/selftests/igt_gem_utils.h"
 #include "gem/selftests/mock_context.h"
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_print.h"
 
 #include "i915_selftest.h"
 
@@ -507,7 +508,8 @@ static int igt_evict_contexts(void *arg)
 		}
 		err = intel_gt_wait_for_idle(engine->gt, HZ * 3);
 		if (err) {
-			pr_err("Failed to idle GT (on %s)", engine->name);
+			gt_err(engine->gt, "Failed to idle GT (on %s)",
+			       engine->name);
 			break;
 		}
 	}
