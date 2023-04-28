@@ -65,8 +65,8 @@ void amdgpu_virt_init_setting(struct amdgpu_device *adev)
 	adev->cg_flags = 0;
 	adev->pg_flags = 0;
 
-	/* enable mcbp for sriov asic_type before soc21 */
-	amdgpu_mcbp = (adev->asic_type < CHIP_IP_DISCOVERY) ? 1 : 0;
+	/* enable mcbp for sriov */
+	amdgpu_mcbp = 1;
 
 }
 
