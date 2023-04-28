@@ -22212,6 +22212,7 @@ F:	include/uapi/linux/virtio_console.h
 VIRTIO CORE AND NET DRIVERS
 M:	"Michael S. Tsirkin" <mst@redhat.com>
 M:	Jason Wang <jasowang@redhat.com>
+R:	Xuan Zhuo <xuanzhuo@linux.alibaba.com>
 L:	virtualization@lists.linux-foundation.org
 S:	Maintained
 F:	Documentation/ABI/testing/sysfs-bus-vdpa
@@ -22225,6 +22226,7 @@ F:	drivers/vdpa/
 F:	drivers/virtio/
 F:	include/linux/vdpa.h
 F:	include/linux/virtio*.h
+F:	include/linux/vringh.h
 F:	include/uapi/linux/virtio_*.h
 F:	tools/virtio/
 
