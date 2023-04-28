@@ -293,10 +293,12 @@ int pqi_add_sas_device(struct pqi_sas_node *pqi_sas_node,
 
 	rc = pqi_sas_port_add_rphy(pqi_sas_port, rphy);
 	if (rc)
-		goto free_sas_port;
+		goto free_sas_rphy;
 
 	return 0;
 
+free_sas_rphy:
+	sas_rphy_free(rphy);
 free_sas_port:
 	pqi_free_sas_port(pqi_sas_port);
 	device->sas_port = NULL;
