@@ -15,6 +15,8 @@ int bch2_snapshot_tree_invalid(const struct bch_fs *, struct bkey_s_c,
 	.min_val_size	= 8,					\
 })
 
+int bch2_snapshot_tree_lookup(struct btree_trans *, u32, struct bch_snapshot_tree *);
+
 void bch2_snapshot_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 int bch2_snapshot_invalid(const struct bch_fs *, struct bkey_s_c,
 			  unsigned, struct printbuf *);

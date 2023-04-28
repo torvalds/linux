@@ -333,6 +333,9 @@ static int bch2_quota_reservation_add(struct bch_fs *c,
 {
 	int ret;
 
+	if (test_bit(EI_INODE_SNAPSHOT, &inode->ei_flags))
+		return 0;
+
 	mutex_lock(&inode->ei_quota_lock);
 	ret = bch2_quota_acct(c, inode->ei_qid, Q_SPC, sectors,
 			      check_enospc ? KEY_TYPE_QUOTA_PREALLOC : KEY_TYPE_QUOTA_NOCHECK);
@@ -414,7 +417,9 @@ static void __i_sectors_acct(struct bch_fs *c, struct bch_inode_info *inode,
 	inode->v.i_blocks += sectors;
 
 #ifdef CONFIG_BCACHEFS_QUOTA
-	if (quota_res && sectors > 0) {
+	if (quota_res &&
+	    !test_bit(EI_INODE_SNAPSHOT, &inode->ei_flags) &&
+	    sectors > 0) {
 		BUG_ON(sectors > quota_res->sectors);
 		BUG_ON(sectors > inode->ei_quota_reserved);
 

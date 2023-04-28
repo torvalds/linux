@@ -34,8 +34,8 @@ int bch2_snapshot_tree_invalid(const struct bch_fs *c, struct bkey_s_c k,
 	return 0;
 }
 
-static int snapshot_tree_lookup(struct btree_trans *trans, u32 id,
-				struct bch_snapshot_tree *s)
+int bch2_snapshot_tree_lookup(struct btree_trans *trans, u32 id,
+			      struct bch_snapshot_tree *s)
 {
 	return bch2_bkey_get_val_typed(trans, BTREE_ID_snapshot_trees, POS(0, id),
 				       BTREE_ITER_WITH_UPDATES, snapshot_tree, s);
@@ -426,7 +426,7 @@ static int snapshot_tree_ptr_good(struct btree_trans *trans,
 				  u32 snap_id, u32 tree_id)
 {
 	struct bch_snapshot_tree s_t;
-	int ret = snapshot_tree_lookup(trans, tree_id, &s_t);
+	int ret = bch2_snapshot_tree_lookup(trans, tree_id, &s_t);
 
 	if (bch2_err_matches(ret, ENOENT))
 		return 0;
@@ -462,7 +462,7 @@ static int snapshot_tree_ptr_repair(struct btree_trans *trans,
 
 	tree_id = le32_to_cpu(root.v->tree);
 
-	ret = snapshot_tree_lookup(trans, tree_id, &s_t);
+	ret = bch2_snapshot_tree_lookup(trans, tree_id, &s_t);
 	if (ret && !bch2_err_matches(ret, ENOENT))
 		return ret;
 
@@ -659,7 +659,7 @@ static int check_subvol(struct btree_trans *trans,
 		u32 snapshot_tree = snapshot_t(c, snapshot_root)->tree;
 		struct bch_snapshot_tree st;
 
-		ret = snapshot_tree_lookup(trans, snapshot_tree, &st);
+		ret = bch2_snapshot_tree_lookup(trans, snapshot_tree, &st);
 
 		bch2_fs_inconsistent_on(bch2_err_matches(ret, ENOENT), c,
 				"%s: snapshot tree %u not found", __func__, snapshot_tree);
