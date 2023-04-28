@@ -260,9 +260,13 @@ struct __ext_steer_reg {
 	i915_mcr_reg_t reg;
 };
 
-static const struct __ext_steer_reg xe_extregs[] = {
+static const struct __ext_steer_reg gen8_extregs[] = {
 	{"GEN8_SAMPLER_INSTDONE", GEN8_SAMPLER_INSTDONE},
 	{"GEN8_ROW_INSTDONE", GEN8_ROW_INSTDONE}
+};
+
+static const struct __ext_steer_reg xehpg_extregs[] = {
+	{"XEHPG_INSTDONE_GEOM_SVG", XEHPG_INSTDONE_GEOM_SVG}
 };
 
 static void __fill_ext_reg(struct __guc_mmio_reg_descr *ext,
@@ -295,8 +299,8 @@ __alloc_ext_regs(struct __guc_mmio_reg_descr_group *newlist,
 }
 
 static void
-guc_capture_alloc_steered_lists_xe_lpd(struct intel_guc *guc,
-				       const struct __guc_mmio_reg_descr_group *lists)
+guc_capture_alloc_steered_lists(struct intel_guc *guc,
+				const struct __guc_mmio_reg_descr_group *lists)
 {
 	struct intel_gt *gt = guc_to_gt(guc);
 	int slice, subslice, iter, i, num_steer_regs, num_tot_regs = 0;
@@ -304,74 +308,19 @@ guc_capture_alloc_steered_lists_xe_lpd(struct intel_guc *guc,
 	struct __guc_mmio_reg_descr_group *extlists;
 	struct __guc_mmio_reg_descr *extarray;
 	struct sseu_dev_info *sseu;
+	bool has_xehpg_extregs;
 
-	/* In XE_LPD we only have steered registers for the render-class */
+	/* steered registers currently only exist for the render-class */
 	list = guc_capture_get_one_list(lists, GUC_CAPTURE_LIST_INDEX_PF,
 					GUC_CAPTURE_LIST_TYPE_ENGINE_CLASS, GUC_RENDER_CLASS);
 	/* skip if extlists was previously allocated */
 	if (!list || guc->capture->extlists)
 		return;
 
-	num_steer_regs = ARRAY_SIZE(xe_extregs);
+	has_xehpg_extregs = GRAPHICS_VER_FULL(gt->i915) >= IP_VER(12, 55);
 
-	sseu = &gt->info.sseu;
-	for_each_ss_steering(iter, gt, slice, subslice)
-		num_tot_regs += num_steer_regs;
-
-	if (!num_tot_regs)
-		return;
-
-	/* allocate an extra for an end marker */
-	extlists = kcalloc(2, sizeof(struct __guc_mmio_reg_descr_group), GFP_KERNEL);
-	if (!extlists)
-		return;
-
-	if (__alloc_ext_regs(&extlists[0], list, num_tot_regs)) {
-		kfree(extlists);
-		return;
-	}
-
-	extarray = extlists[0].extlist;
-	for_each_ss_steering(iter, gt, slice, subslice) {
-		for (i = 0; i < num_steer_regs; ++i) {
-			__fill_ext_reg(extarray, &xe_extregs[i], slice, subslice);
-			++extarray;
-		}
-	}
-
-	guc->capture->extlists = extlists;
-}
-
-static const struct __ext_steer_reg xehpg_extregs[] = {
-	{"XEHPG_INSTDONE_GEOM_SVG", XEHPG_INSTDONE_GEOM_SVG}
-};
-
-static bool __has_xehpg_extregs(u32 ipver)
-{
-	return (ipver >= IP_VER(12, 55));
-}
-
-static void
-guc_capture_alloc_steered_lists_xe_hpg(struct intel_guc *guc,
-				       const struct __guc_mmio_reg_descr_group *lists,
-				       u32 ipver)
-{
-	struct intel_gt *gt = guc_to_gt(guc);
-	struct sseu_dev_info *sseu;
-	int slice, subslice, i, iter, num_steer_regs, num_tot_regs = 0;
-	const struct __guc_mmio_reg_descr_group *list;
-	struct __guc_mmio_reg_descr_group *extlists;
-	struct __guc_mmio_reg_descr *extarray;
-
-	/* In XE_LP / HPG we only have render-class steering registers during error-capture */
-	list = guc_capture_get_one_list(lists, GUC_CAPTURE_LIST_INDEX_PF,
-					GUC_CAPTURE_LIST_TYPE_ENGINE_CLASS, GUC_RENDER_CLASS);
-	/* skip if extlists was previously allocated */
-	if (!list || guc->capture->extlists)
-		return;
-
-	num_steer_regs = ARRAY_SIZE(xe_extregs);
-	if (__has_xehpg_extregs(ipver))
+	num_steer_regs = ARRAY_SIZE(gen8_extregs);
+	if (has_xehpg_extregs)
 		num_steer_regs += ARRAY_SIZE(xehpg_extregs);
 
 	sseu = &gt->info.sseu;
@@ -393,11 +342,12 @@ guc_capture_alloc_steered_lists_xe_hpg(struct intel_guc *guc,
 
 	extarray = extlists[0].extlist;
 	for_each_ss_steering(iter, gt, slice, subslice) {
-		for (i = 0; i < ARRAY_SIZE(xe_extregs); ++i) {
-			__fill_ext_reg(extarray, &xe_extregs[i], slice, subslice);
+		for (i = 0; i < ARRAY_SIZE(gen8_extregs); ++i) {
+			__fill_ext_reg(extarray, &gen8_extregs[i], slice, subslice);
 			++extarray;
 		}
-		if (__has_xehpg_extregs(ipver)) {
+
+		if (has_xehpg_extregs) {
 			for (i = 0; i < ARRAY_SIZE(xehpg_extregs); ++i) {
 				__fill_ext_reg(extarray, &xehpg_extregs[i], slice, subslice);
 				++extarray;
@@ -413,26 +363,22 @@ static const struct __guc_mmio_reg_descr_group *
 guc_capture_get_device_reglist(struct intel_guc *guc)
 {
 	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
+	const struct __guc_mmio_reg_descr_group *lists;
 
-	if (GRAPHICS_VER(i915) > 11) {
-		/*
-		 * For certain engine classes, there are slice and subslice
-		 * level registers requiring steering. We allocate and populate
-		 * these at init time based on hw config add it as an extension
-		 * list at the end of the pre-populated render list.
-		 */
-		if (IS_DG2(i915))
-			guc_capture_alloc_steered_lists_xe_hpg(guc, xe_lpd_lists, IP_VER(12, 55));
-		else if (IS_XEHPSDV(i915))
-			guc_capture_alloc_steered_lists_xe_hpg(guc, xe_lpd_lists, IP_VER(12, 50));
-		else
-			guc_capture_alloc_steered_lists_xe_lpd(guc, xe_lpd_lists);
+	if (GRAPHICS_VER(i915) >= 12)
+		lists = xe_lpd_lists;
+	else
+		lists = default_lists;
 
-		return xe_lpd_lists;
-	}
+	/*
+	 * For certain engine classes, there are slice and subslice
+	 * level registers requiring steering. We allocate and populate
+	 * these at init time based on hw config add it as an extension
+	 * list at the end of the pre-populated render list.
+	 */
+	guc_capture_alloc_steered_lists(guc, lists);
 
-	/* if GuC submission is enabled on a non-POR platform, just use a common baseline */
-	return default_lists;
+	return lists;
 }
 
 static const char *
