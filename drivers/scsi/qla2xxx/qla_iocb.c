@@ -522,21 +522,25 @@ __qla2x00_marker(struct scsi_qla_host *vha, struct qla_qpair *qpair,
 		return (QLA_FUNCTION_FAILED);
 	}
 
+	mrk24 = (struct mrk_entry_24xx *)mrk;
+
 	mrk->entry_type = MARKER_TYPE;
 	mrk->modifier = type;
 	if (type != MK_SYNC_ALL) {
 		if (IS_FWI2_CAPABLE(ha)) {
-			mrk24 = (struct mrk_entry_24xx *) mrk;
 			mrk24->nport_handle = cpu_to_le16(loop_id);
 			int_to_scsilun(lun, (struct scsi_lun *)&mrk24->lun);
 			host_to_fcp_swap(mrk24->lun, sizeof(mrk24->lun));
 			mrk24->vp_index = vha->vp_idx;
-			mrk24->handle = make_handle(req->id, mrk24->handle);
 		} else {
 			SET_TARGET_ID(ha, mrk->target, loop_id);
 			mrk->lun = cpu_to_le16((uint16_t)lun);
 		}
 	}
+
+	if (IS_FWI2_CAPABLE(ha))
+		mrk24->handle = QLA_SKIP_HANDLE;
+
 	wmb();
 
 	qla2x00_start_iocbs(vha, req);
@@ -3859,9 +3863,9 @@ int qla_get_iocbs_resource(struct srb *sp)
 	case SRB_NACK_LOGO:
 	case SRB_LOGOUT_CMD:
 	case SRB_CTRL_VP:
-		push_it_through = true;
-		fallthrough;
+	case SRB_MARKER:
 	default:
+		push_it_through = true;
 		get_exch = false;
 	}
 
@@ -3875,6 +3879,19 @@ int qla_get_iocbs_resource(struct srb *sp)
 		sp->iores.res_type |= RESOURCE_FORCE;
 
 	return qla_get_fw_resources(sp->qpair, &sp->iores);
+}
+
+static void
+qla_marker_iocb(srb_t *sp, struct mrk_entry_24xx *mrk)
+{
+	mrk->entry_type = MARKER_TYPE;
+	mrk->modifier = sp->u.iocb_cmd.u.tmf.modifier;
+	if (sp->u.iocb_cmd.u.tmf.modifier != MK_SYNC_ALL) {
+		mrk->nport_handle = cpu_to_le16(sp->u.iocb_cmd.u.tmf.loop_id);
+		int_to_scsilun(sp->u.iocb_cmd.u.tmf.lun, (struct scsi_lun *)&mrk->lun);
+		host_to_fcp_swap(mrk->lun, sizeof(mrk->lun));
+		mrk->vp_index = sp->u.iocb_cmd.u.tmf.vp_index;
+	}
 }
 
 int
@@ -3979,6 +3996,9 @@ qla2x00_start_sp(srb_t *sp)
 		break;
 	case SRB_SA_REPLACE:
 		qla24xx_sa_replace_iocb(sp, pkt);
+		break;
+	case SRB_MARKER:
+		qla_marker_iocb(sp, pkt);
 		break;
 	default:
 		break;
