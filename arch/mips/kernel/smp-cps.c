@@ -361,6 +361,8 @@ out:
 
 static void cps_init_secondary(void)
 {
+	int core = cpu_core(&current_cpu_data);
+
 	/* Disable MT - we only want to run 1 TC per VPE */
 	if (cpu_has_mipsmt)
 		dmt();
@@ -375,6 +377,9 @@ static void cps_init_secondary(void)
 		 */
 		BUG_ON(ident != mips_cm_vp_id(smp_processor_id()));
 	}
+
+	if (core > 0 && !read_gcr_cl_coherence())
+		pr_warn("Core %u is not in coherent domain\n", core);
 
 	if (cpu_has_veic)
 		clear_c0_status(ST0_IM);

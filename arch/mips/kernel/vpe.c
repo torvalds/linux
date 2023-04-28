@@ -794,7 +794,7 @@ static int vpe_open(struct inode *inode, struct file *filp)
 
 static int vpe_release(struct inode *inode, struct file *filp)
 {
-#if defined(CONFIG_MIPS_VPE_LOADER_MT) || defined(CONFIG_MIPS_VPE_LOADER_CMP)
+#ifdef CONFIG_MIPS_VPE_LOADER_MT
 	struct vpe *v;
 	Elf_Ehdr *hdr;
 	int ret = 0;
