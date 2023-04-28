@@ -708,7 +708,8 @@ static inline struct pqi_io_request *pqi_alloc_io_request(struct pqi_ctrl_info *
 		}
 	}
 
-	pqi_reinit_io_request(io_request);
+	if (io_request)
+		pqi_reinit_io_request(io_request);
 
 	return io_request;
 }
