@@ -162,9 +162,4 @@ int pkvm_load_pvmfw_pages(struct pkvm_hyp_vm *vm, u64 ipa, phys_addr_t phys,
 			  u64 size);
 void pkvm_poison_pvmfw_pages(void);
 
-/*
- * Notify pKVM about events that can undermine pKVM security.
- */
-void pkvm_handle_system_misconfiguration(enum pkvm_system_misconfiguration event);
-
 #endif /* __ARM64_KVM_NVHE_PKVM_H__ */
