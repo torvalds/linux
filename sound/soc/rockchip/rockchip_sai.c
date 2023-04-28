@@ -27,6 +27,7 @@
 #define MAXBURST_PER_FIFO	8
 
 #define DEFAULT_FS		48000
+#define TIMEOUT_US		1000
 #define QUIRK_ALWAYS_ON		BIT(0)
 
 enum fpw_mode {
@@ -81,11 +82,26 @@ static int sai_runtime_suspend(struct device *dev)
 				   SAI_XFER_FSS_DIS);
 
 	ret = regmap_read_poll_timeout_atomic(sai->regmap, SAI_XFER, val,
-					      (val & SAI_XFER_FS_IDLE), 10, 100);
+					      (val & SAI_XFER_FS_IDLE), 10, TIMEOUT_US);
 	if (ret < 0)
 		dev_warn(sai->dev, "Failed to idle FS\n");
 
 	regcache_cache_only(sai->regmap, true);
+	/*
+	 * After FS idle, should wait at least 2 BCLK cycle to make sure
+	 * the CLK gate operation done, and then disable mclk.
+	 *
+	 * Otherwise, the BCLK is still ungated. once the mclk is enabled,
+	 * there maybe a risk that a few BCLK cycle leak. especially for
+	 * low speed situation, such as 8k samplerate.
+	 *
+	 * The best way is to use delay per samplerate, but, the max time
+	 * is quite a tiny value, so, let's make it simple to use the max
+	 * time.
+	 *
+	 * The max BCLK cycle time is: 31us @ 8K-8Bit (64K BCLK)
+	 */
+	udelay(40);
 	clk_disable_unprepare(sai->mclk);
 	clk_disable_unprepare(sai->hclk);
 
@@ -111,7 +127,7 @@ static int sai_runtime_resume(struct device *dev)
 	if (ret)
 		goto err_regmap;
 
-	if (sai->is_master_mode)
+	if (sai->quirks & QUIRK_ALWAYS_ON && sai->is_master_mode)
 		regmap_update_bits(sai->regmap, SAI_XFER,
 				   SAI_XFER_CLK_MASK |
 				   SAI_XFER_FSS_MASK,
@@ -204,7 +220,7 @@ static int rockchip_sai_clear(struct rk_sai_dev *sai, unsigned int clr)
 
 	regmap_update_bits(sai->regmap, SAI_CLR, clr, clr);
 	ret = regmap_read_poll_timeout_atomic(sai->regmap, SAI_CLR, val,
-					      !(val & clr), 10, 100);
+					      !(val & clr), 10, TIMEOUT_US);
 	if (ret < 0) {
 		dev_warn(sai->dev, "Failed to clear %u\n", clr);
 		goto reset;
@@ -250,7 +266,7 @@ static void rockchip_sai_xfer_stop(struct rk_sai_dev *sai, int stream)
 
 	regmap_update_bits(sai->regmap, SAI_XFER, msk, val);
 	ret = regmap_read_poll_timeout_atomic(sai->regmap, SAI_XFER, val,
-					      (val & idle), 10, 100);
+					      (val & idle), 10, TIMEOUT_US);
 	if (ret < 0)
 		dev_warn(sai->dev, "Failed to idle stream %d\n", stream);
 
@@ -488,6 +504,22 @@ static int rockchip_sai_hw_params(struct snd_pcm_substream *substream,
 
 		regmap_update_bits(sai->regmap, SAI_CKR, SAI_CKR_MDIV_MASK,
 				   SAI_CKR_MDIV(div_bclk));
+		/*
+		 * Should wait for one BCLK ready after DIV and then ungate
+		 * output clk to achieve the clean clk.
+		 *
+		 * The best way is to use delay per samplerate, but, the max time
+		 * is quite a tiny value, so, let's make it simple to use the max
+		 * time.
+		 *
+		 * The max BCLK cycle time is: 15.6us @ 8K-8Bit (64K BCLK)
+		 */
+		udelay(20);
+		regmap_update_bits(sai->regmap, SAI_XFER,
+				   SAI_XFER_CLK_MASK |
+				   SAI_XFER_FSS_MASK,
+				   SAI_XFER_CLK_EN |
+				   SAI_XFER_FSS_EN);
 	}
 
 	return 0;
