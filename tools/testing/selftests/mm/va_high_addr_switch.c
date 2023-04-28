@@ -17,18 +17,38 @@
  * This will work with 16M and 2M hugepage size
  */
 #define HUGETLB_SIZE	(16 << 20)
+#elif __aarch64__
+/*
+ * The default hugepage size for 64k base pagesize
+ * is 512MB.
+ */
+#define PAGE_SIZE	(64 << 10)
+#define HUGETLB_SIZE	(512 << 20)
 #else
 #define PAGE_SIZE	(4 << 10)
 #define HUGETLB_SIZE	(2 << 20)
 #endif
 
 /*
- * >= 128TB is the hint addr value we used to select
- * large address space.
+ * The hint addr value is used to allocate addresses
+ * beyond the high address switch boundary.
  */
-#define ADDR_SWITCH_HINT (1UL << 47)
+
+#define ADDR_MARK_128TB	(1UL << 47)
+#define ADDR_MARK_256TB	(1UL << 48)
+
+#define HIGH_ADDR_128TB	((void *) (1UL << 48))
+#define HIGH_ADDR_256TB	((void *) (1UL << 49))
+
 #define LOW_ADDR	((void *) (1UL << 30))
-#define HIGH_ADDR	((void *) (1UL << 48))
+
+#ifdef __aarch64__
+#define ADDR_SWITCH_HINT ADDR_MARK_256TB
+#define HIGH_ADDR	 HIGH_ADDR_256TB
+#else
+#define ADDR_SWITCH_HINT ADDR_MARK_128TB
+#define HIGH_ADDR	 HIGH_ADDR_128TB
+#endif
 
 struct testcase {
 	void *addr;
@@ -53,9 +73,10 @@ static struct testcase testcases[] = {
 	},
 	{
 		/*
-		 * We should never allocate at the requested address or above it
-		 * The len cross the 128TB boundary. Without MAP_FIXED
-		 * we will always search in the lower address space.
+		 * Unless MAP_FIXED is specified, allocation based on hint
+		 * addr is never at requested address or above it, which is
+		 * beyond high address switch boundary in this case. Instead,
+		 * a suitable allocation is found in lower address space.
 		 */
 		.addr = ((void *)(ADDR_SWITCH_HINT - PAGE_SIZE)),
 		.size = 2 * PAGE_SIZE,
@@ -65,8 +86,8 @@ static struct testcase testcases[] = {
 	},
 	{
 		/*
-		 * Exact mapping at 128TB, the area is free we should get that
-		 * even without MAP_FIXED.
+		 * Exact mapping at high address switch boundary, should
+		 * be obtained even without MAP_FIXED as area is free.
 		 */
 		.addr = ((void *)(ADDR_SWITCH_HINT)),
 		.size = PAGE_SIZE,
@@ -269,6 +290,8 @@ static int supported_arch(void)
 #if defined(__powerpc64__)
 	return 1;
 #elif defined(__x86_64__)
+	return 1;
+#elif defined(__aarch64__)
 	return 1;
 #else
 	return 0;

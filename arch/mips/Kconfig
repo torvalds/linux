@@ -2099,14 +2099,10 @@ endchoice
 
 config ARCH_FORCE_MAX_ORDER
 	int "Maximum zone order"
-	range 14 64 if MIPS_HUGE_TLB_SUPPORT && PAGE_SIZE_64KB
-	default "14" if MIPS_HUGE_TLB_SUPPORT && PAGE_SIZE_64KB
-	range 13 64 if MIPS_HUGE_TLB_SUPPORT && PAGE_SIZE_32KB
-	default "13" if MIPS_HUGE_TLB_SUPPORT && PAGE_SIZE_32KB
-	range 12 64 if MIPS_HUGE_TLB_SUPPORT && PAGE_SIZE_16KB
-	default "12" if MIPS_HUGE_TLB_SUPPORT && PAGE_SIZE_16KB
-	range 0 64
-	default "11"
+	default "13" if MIPS_HUGE_TLB_SUPPORT && PAGE_SIZE_64KB
+	default "12" if MIPS_HUGE_TLB_SUPPORT && PAGE_SIZE_32KB
+	default "11" if MIPS_HUGE_TLB_SUPPORT && PAGE_SIZE_16KB
+	default "10"
 	help
 	  The kernel memory allocator divides physically contiguous memory
 	  blocks into "zones", where each zone is a power of two number of
@@ -2114,9 +2110,6 @@ config ARCH_FORCE_MAX_ORDER
 	  keeps in the memory allocator.  If you need to allocate very large
 	  blocks of physically contiguous memory, then you may need to
 	  increase this value.
-
-	  This config option is actually maximum order plus one. For example,
-	  a value of 11 means that the largest free memory block is 2^10 pages.
 
 	  The page size is not necessarily 4KB.  Keep this in mind
 	  when choosing a value for this option.

@@ -996,6 +996,7 @@ Example output. You may not have all of these fields.
     VmallocUsed:       40444 kB
     VmallocChunk:          0 kB
     Percpu:            29312 kB
+    EarlyMemtestBad:       0 kB
     HardwareCorrupted:     0 kB
     AnonHugePages:   4149248 kB
     ShmemHugePages:        0 kB
@@ -1146,6 +1147,13 @@ VmallocChunk
 Percpu
               Memory allocated to the percpu allocator used to back percpu
               allocations. This stat excludes the cost of metadata.
+EarlyMemtestBad
+              The amount of RAM/memory in kB, that was identified as corrupted
+              by early memtest. If memtest was not run, this field will not
+              be displayed at all. Size is never rounded down to 0 kB.
+              That means if 0 kB is reported, you can safely assume
+              there was at least one pass of memtest and none of the passes
+              found a single faulty byte of RAM.
 HardwareCorrupted
               The amount of RAM/memory in KB, the kernel identifies as
               corrupted.

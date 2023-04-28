@@ -95,6 +95,7 @@ config ARM64
 	select ARCH_SUPPORTS_INT128 if CC_HAS_INT128
 	select ARCH_SUPPORTS_NUMA_BALANCING
 	select ARCH_SUPPORTS_PAGE_TABLE_CHECK
+	select ARCH_SUPPORTS_PER_VMA_LOCK
 	select ARCH_WANT_COMPAT_IPC_PARSE_VERSION if COMPAT
 	select ARCH_WANT_DEFAULT_BPF_JIT
 	select ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT
@@ -1505,39 +1506,34 @@ config XEN
 
 # include/linux/mmzone.h requires the following to be true:
 #
-#   MAX_ORDER - 1 + PAGE_SHIFT <= SECTION_SIZE_BITS
+#   MAX_ORDER + PAGE_SHIFT <= SECTION_SIZE_BITS
 #
-# so the maximum value of MAX_ORDER is SECTION_SIZE_BITS + 1 - PAGE_SHIFT:
+# so the maximum value of MAX_ORDER is SECTION_SIZE_BITS - PAGE_SHIFT:
 #
 #     | SECTION_SIZE_BITS |  PAGE_SHIFT  |  max MAX_ORDER  |  default MAX_ORDER |
 # ----+-------------------+--------------+-----------------+--------------------+
-# 4K  |       27          |      12      |       16        |         11         |
-# 16K |       27          |      14      |       14        |         12         |
-# 64K |       29          |      16      |       14        |         14         |
+# 4K  |       27          |      12      |       15        |         10         |
+# 16K |       27          |      14      |       13        |         11         |
+# 64K |       29          |      16      |       13        |         13         |
 config ARCH_FORCE_MAX_ORDER
-	int "Maximum zone order" if ARM64_4K_PAGES || ARM64_16K_PAGES
-	default "14" if ARM64_64K_PAGES
-	range 12 14 if ARM64_16K_PAGES
-	default "12" if ARM64_16K_PAGES
-	range 11 16 if ARM64_4K_PAGES
-	default "11"
+	int "Order of maximal physically contiguous allocations" if EXPERT && (ARM64_4K_PAGES || ARM64_16K_PAGES)
+	default "13" if ARM64_64K_PAGES
+	default "11" if ARM64_16K_PAGES
+	default "10"
 	help
-	  The kernel memory allocator divides physically contiguous memory
-	  blocks into "zones", where each zone is a power of two number of
-	  pages.  This option selects the largest power of two that the kernel
-	  keeps in the memory allocator.  If you need to allocate very large
-	  blocks of physically contiguous memory, then you may need to
-	  increase this value.
+	  The kernel page allocator limits the size of maximal physically
+	  contiguous allocations. The limit is called MAX_ORDER and it
+	  defines the maximal power of two of number of pages that can be
+	  allocated as a single contiguous block. This option allows
+	  overriding the default setting when ability to allocate very
+	  large blocks of physically contiguous memory is required.
 
-	  This config option is actually maximum order plus one. For example,
-	  a value of 11 means that the largest free memory block is 2^10 pages.
+	  The maximal size of allocation cannot exceed the size of the
+	  section, so the value of MAX_ORDER should satisfy
 
-	  We make sure that we can allocate up to a HugePage size for each configuration.
-	  Hence we have :
-		MAX_ORDER = (PMD_SHIFT - PAGE_SHIFT) + 1 => PAGE_SHIFT - 2
+	    MAX_ORDER + PAGE_SHIFT <= SECTION_SIZE_BITS
 
-	  However for 4K, we choose a higher default value, 11 as opposed to 10, giving us
-	  4M allocations matching the default size used by generic code.
+	  Don't change if unsure.
 
 config UNMAP_KERNEL_AT_EL0
 	bool "Unmap kernel when running in userspace (aka \"KAISER\")" if EXPERT

@@ -13,17 +13,29 @@ everything stored therein is lost.
 
 tmpfs puts everything into the kernel internal caches and grows and
 shrinks to accommodate the files it contains and is able to swap
-unneeded pages out to swap space. It has maximum size limits which can
-be adjusted on the fly via 'mount -o remount ...'
+unneeded pages out to swap space, if swap was enabled for the tmpfs
+mount. tmpfs also supports THP.
 
-If you compare it to ramfs (which was the template to create tmpfs)
-you gain swapping and limit checking. Another similar thing is the RAM
-disk (/dev/ram*), which simulates a fixed size hard disk in physical
-RAM, where you have to create an ordinary filesystem on top. Ramdisks
-cannot swap and you do not have the possibility to resize them.
+tmpfs extends ramfs with a few userspace configurable options listed and
+explained further below, some of which can be reconfigured dynamically on the
+fly using a remount ('mount -o remount ...') of the filesystem. A tmpfs
+filesystem can be resized but it cannot be resized to a size below its current
+usage. tmpfs also supports POSIX ACLs, and extended attributes for the
+trusted.* and security.* namespaces. ramfs does not use swap and you cannot
+modify any parameter for a ramfs filesystem. The size limit of a ramfs
+filesystem is how much memory you have available, and so care must be taken if
+used so to not run out of memory.
 
-Since tmpfs lives completely in the page cache and on swap, all tmpfs
-pages will be shown as "Shmem" in /proc/meminfo and "Shared" in
+An alternative to tmpfs and ramfs is to use brd to create RAM disks
+(/dev/ram*), which allows you to simulate a block device disk in physical RAM.
+To write data you would just then need to create an regular filesystem on top
+this ramdisk. As with ramfs, brd ramdisks cannot swap. brd ramdisks are also
+configured in size at initialization and you cannot dynamically resize them.
+Contrary to brd ramdisks, tmpfs has its own filesystem, it does not rely on the
+block layer at all.
+
+Since tmpfs lives completely in the page cache and optionally on swap,
+all tmpfs pages will be shown as "Shmem" in /proc/meminfo and "Shared" in
 free(1). Notice that these counters also include shared memory
 (shmem, see ipcs(1)). The most reliable way to get the count is
 using df(1) and du(1).
@@ -72,6 +84,8 @@ nr_inodes  The maximum number of inodes for this instance. The default
            is half of the number of your physical RAM pages, or (on a
            machine with highmem) the number of lowmem RAM pages,
            whichever is the lower.
+noswap     Disables swap. Remounts must respect the original settings.
+           By default swap is enabled.
 =========  ============================================================
 
 These parameters accept a suffix k, m or g for kilo, mega and giga and
@@ -85,6 +99,36 @@ mount with such options, since it allows any user with write access to
 use up all the memory on the machine; but enhances the scalability of
 that instance in a system with many CPUs making intensive use of it.
 
+tmpfs also supports Transparent Huge Pages which requires a kernel
+configured with CONFIG_TRANSPARENT_HUGEPAGE and with huge supported for
+your system (has_transparent_hugepage(), which is architecture specific).
+The mount options for this are:
+
+======  ============================================================
+huge=0  never: disables huge pages for the mount
+huge=1  always: enables huge pages for the mount
+huge=2  within_size: only allocate huge pages if the page will be
+        fully within i_size, also respect fadvise()/madvise() hints.
+huge=3  advise: only allocate huge pages if requested with
+        fadvise()/madvise()
+======  ============================================================
+
+There is a sysfs file which you can also use to control system wide THP
+configuration for all tmpfs mounts, the file is:
+
+/sys/kernel/mm/transparent_hugepage/shmem_enabled
+
+This sysfs file is placed on top of THP sysfs directory and so is registered
+by THP code. It is however only used to control all tmpfs mounts with one
+single knob. Since it controls all tmpfs mounts it should only be used either
+for emergency or testing purposes. The values you can set for shmem_enabled are:
+
+==  ============================================================
+-1  deny: disables huge on shm_mnt and all mounts, for
+    emergency use
+-2  force: enables huge on shm_mnt and all mounts, w/o needing
+    option, for testing
+==  ============================================================
 
 tmpfs has a mount option to set the NUMA memory allocation policy for
 all files in that instance (if CONFIG_NUMA is enabled) - which can be

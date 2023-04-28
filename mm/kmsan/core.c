@@ -73,7 +73,7 @@ depot_stack_handle_t kmsan_save_stack_with_flags(gfp_t flags,
 
 	nr_entries = stack_trace_save(entries, KMSAN_STACK_DEPTH, 0);
 
-	/* Don't sleep (see might_sleep_if() in __alloc_pages_nodemask()). */
+	/* Don't sleep. */
 	flags &= ~__GFP_DIRECT_RECLAIM;
 
 	handle = __stack_depot_save(entries, nr_entries, flags, true);

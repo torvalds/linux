@@ -51,4 +51,8 @@ check_test_requirements()
 }
 
 check_test_requirements
-./va_128TBswitch
+./va_high_addr_switch
+
+# In order to run hugetlb testcases, "--run-hugetlb" must be appended
+# to the binary.
+./va_high_addr_switch --run-hugetlb

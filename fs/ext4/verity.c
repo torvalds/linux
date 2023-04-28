@@ -366,14 +366,16 @@ static struct page *ext4_read_merkle_tree_page(struct inode *inode,
 	index += ext4_verity_metadata_pos(inode) >> PAGE_SHIFT;
 
 	folio = __filemap_get_folio(inode->i_mapping, index, FGP_ACCESSED, 0);
-	if (!folio || !folio_test_uptodate(folio)) {
+	if (IS_ERR(folio) || !folio_test_uptodate(folio)) {
 		DEFINE_READAHEAD(ractl, NULL, NULL, inode->i_mapping, index);
 
-		if (folio)
+		if (!IS_ERR(folio))
 			folio_put(folio);
 		else if (num_ra_pages > 1)
 			page_cache_ra_unbounded(&ractl, num_ra_pages, 0);
 		folio = read_mapping_folio(inode->i_mapping, index, NULL);
+		if (IS_ERR(folio))
+			return ERR_CAST(folio);
 	}
 	return folio_file_page(folio, index);
 }
