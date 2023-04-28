@@ -996,8 +996,21 @@ struct intel_c10pll_state {
 	u8 pll[20];
 };
 
+struct intel_c20pll_state {
+	u32 clock; /* in kHz */
+	u16 tx[3];
+	u16 cmn[4];
+	union {
+		u16 mplla[10];
+		u16 mpllb[11];
+	};
+};
+
 struct intel_cx0pll_state {
-	struct intel_c10pll_state c10;
+	union {
+		struct intel_c10pll_state c10;
+		struct intel_c20pll_state c20;
+	};
 	bool ssc_enabled;
 };
 

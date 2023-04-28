@@ -3359,7 +3359,8 @@ void intel_ddi_update_active_dpll(struct intel_atomic_state *state,
 	struct intel_crtc *slave_crtc;
 	enum phy phy = intel_port_to_phy(i915, encoder->port);
 
-	if (!intel_phy_is_tc(i915, phy))
+	/* FIXME: Add MTL pll_mgr */
+	if (DISPLAY_VER(i915) >= 14 || !intel_phy_is_tc(i915, phy))
 		return;
 
 	intel_update_active_dpll(state, crtc, encoder);
