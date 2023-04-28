@@ -59,8 +59,8 @@ int smp_call_function_single_async(int cpu, struct __call_single_data *csd);
  * Cpus stopping functions in panic. All have default weak definitions.
  * Architecture-dependent code may override them.
  */
-void panic_smp_self_stop(void);
-void nmi_panic_self_stop(struct pt_regs *regs);
+void __noreturn panic_smp_self_stop(void);
+void __noreturn nmi_panic_self_stop(struct pt_regs *regs);
 void crash_smp_send_stop(void);
 
 /*
