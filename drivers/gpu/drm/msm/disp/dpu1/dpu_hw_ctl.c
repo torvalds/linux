@@ -313,9 +313,6 @@ static void dpu_hw_ctl_update_pending_flush_dspp_sub_blocks(
 		return;
 
 	switch (dspp_sub_blk) {
-	case DPU_DSPP_IGC:
-		ctx->pending_dspp_flush_mask[dspp - DSPP_0] |= BIT(2);
-		break;
 	case DPU_DSPP_PCC:
 		ctx->pending_dspp_flush_mask[dspp - DSPP_0] |= BIT(4);
 		break;
