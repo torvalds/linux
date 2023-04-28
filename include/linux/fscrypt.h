@@ -182,6 +182,8 @@ struct fscrypt_operations {
 	ANDROID_KABI_RESERVE(2);
 	ANDROID_KABI_RESERVE(3);
 	ANDROID_KABI_RESERVE(4);
+
+	ANDROID_OEM_DATA_ARRAY(1, 4);
 };
 
 static inline struct fscrypt_info *fscrypt_get_info(const struct inode *inode)

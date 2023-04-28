@@ -17,6 +17,7 @@ struct dma_heap;
 /**
  * struct dma_heap_ops - ops to operate on a given heap
  * @allocate:		allocate dmabuf and return struct dma_buf ptr
+ * @get_pool_size:	if heap maintains memory pools, get pool size in bytes
  *
  * allocate returns dmabuf on success, ERR_PTR(-errno) on error.
  */
@@ -25,6 +26,7 @@ struct dma_heap_ops {
 				    unsigned long len,
 				    unsigned long fd_flags,
 				    unsigned long heap_flags);
+	long (*get_pool_size)(struct dma_heap *heap);
 };
 
 /**

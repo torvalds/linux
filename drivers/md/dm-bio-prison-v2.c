@@ -148,7 +148,7 @@ static bool __find_or_insert(struct dm_bio_prison_v2 *prison,
 
 static bool __get(struct dm_bio_prison_v2 *prison,
 		  struct dm_cell_key_v2 *key,
-		  unsigned lock_level,
+		  unsigned int lock_level,
 		  struct bio *inmate,
 		  struct dm_bio_prison_cell_v2 *cell_prealloc,
 		  struct dm_bio_prison_cell_v2 **cell)
@@ -171,7 +171,7 @@ static bool __get(struct dm_bio_prison_v2 *prison,
 
 bool dm_cell_get_v2(struct dm_bio_prison_v2 *prison,
 		    struct dm_cell_key_v2 *key,
-		    unsigned lock_level,
+		    unsigned int lock_level,
 		    struct bio *inmate,
 		    struct dm_bio_prison_cell_v2 *cell_prealloc,
 		    struct dm_bio_prison_cell_v2 **cell_result)
@@ -224,7 +224,7 @@ EXPORT_SYMBOL_GPL(dm_cell_put_v2);
 
 static int __lock(struct dm_bio_prison_v2 *prison,
 		  struct dm_cell_key_v2 *key,
-		  unsigned lock_level,
+		  unsigned int lock_level,
 		  struct dm_bio_prison_cell_v2 *cell_prealloc,
 		  struct dm_bio_prison_cell_v2 **cell_result)
 {
@@ -255,7 +255,7 @@ static int __lock(struct dm_bio_prison_v2 *prison,
 
 int dm_cell_lock_v2(struct dm_bio_prison_v2 *prison,
 		    struct dm_cell_key_v2 *key,
-		    unsigned lock_level,
+		    unsigned int lock_level,
 		    struct dm_bio_prison_cell_v2 *cell_prealloc,
 		    struct dm_bio_prison_cell_v2 **cell_result)
 {
@@ -291,7 +291,7 @@ EXPORT_SYMBOL_GPL(dm_cell_quiesce_v2);
 
 static int __promote(struct dm_bio_prison_v2 *prison,
 		     struct dm_bio_prison_cell_v2 *cell,
-		     unsigned new_lock_level)
+		     unsigned int new_lock_level)
 {
 	if (!cell->exclusive_lock)
 		return -EINVAL;
@@ -302,7 +302,7 @@ static int __promote(struct dm_bio_prison_v2 *prison,
 
 int dm_cell_lock_promote_v2(struct dm_bio_prison_v2 *prison,
 			    struct dm_bio_prison_cell_v2 *cell,
-			    unsigned new_lock_level)
+			    unsigned int new_lock_level)
 {
 	int r;
 

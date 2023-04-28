@@ -823,6 +823,28 @@ config USE_PERCPU_NUMA_NODE_ID
 config HAVE_SETUP_PER_CPU_AREA
 	bool
 
+config CLEANCACHE
+	bool "Enable cleancache driver to cache clean pages if tmem is present"
+	help
+	  Cleancache can be thought of as a page-granularity victim cache
+	  for clean pages that the kernel's pageframe replacement algorithm
+	  (PFRA) would like to keep around, but can't since there isn't enough
+	  memory.  So when the PFRA "evicts" a page, it first attempts to use
+	  cleancache code to put the data contained in that page into
+	  "transcendent memory", memory that is not directly accessible or
+	  addressable by the kernel and is of unknown and possibly
+	  time-varying size.  And when a cleancache-enabled
+	  filesystem wishes to access a page in a file on disk, it first
+	  checks cleancache to see if it already contains it; if it does,
+	  the page is copied into the kernel and a disk access is avoided.
+	  When a transcendent memory driver is available (such as zcache or
+	  Xen transcendent memory), a significant I/O reduction
+	  may be achieved.  When none is available, all cleancache calls
+	  are reduced to a single pointer-compare-against-NULL resulting
+	  in a negligible performance hit.
+
+	  If unsure, say Y to enable cleancache
+
 config FRONTSWAP
 	bool
 
