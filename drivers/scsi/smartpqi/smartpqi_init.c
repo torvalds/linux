@@ -6052,7 +6052,7 @@ static int pqi_scsi_queue_command(struct Scsi_Host *shost, struct scsi_cmnd *scm
 			rc = pqi_raid_bypass_submit_scsi_cmd(ctrl_info, device, scmd, queue_group);
 			if (rc == 0 || rc == SCSI_MLQUEUE_HOST_BUSY) {
 				raid_bypassed = true;
-				atomic_inc(&device->raid_bypass_cnt);
+				device->raid_bypass_cnt++;
 			}
 		}
 		if (!raid_bypassed)
@@ -7288,7 +7288,7 @@ static ssize_t pqi_raid_bypass_cnt_show(struct device *dev,
 	struct scsi_device *sdev;
 	struct pqi_scsi_dev *device;
 	unsigned long flags;
-	int raid_bypass_cnt;
+	unsigned int raid_bypass_cnt;
 
 	sdev = to_scsi_device(dev);
 	ctrl_info = shost_to_hba(sdev->host);
@@ -7304,7 +7304,7 @@ static ssize_t pqi_raid_bypass_cnt_show(struct device *dev,
 		return -ENODEV;
 	}
 
-	raid_bypass_cnt = atomic_read(&device->raid_bypass_cnt);
+	raid_bypass_cnt = device->raid_bypass_cnt;
 
 	spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
 
