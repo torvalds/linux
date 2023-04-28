@@ -1448,10 +1448,9 @@ static int bch2_trans_mark_stripe_ptr(struct btree_trans *trans,
 	struct bch_replicas_padded r;
 	int ret = 0;
 
-	bch2_trans_iter_init(trans, &iter, BTREE_ID_stripes, POS(0, p.ec.idx),
-			     BTREE_ITER_INTENT|
-			     BTREE_ITER_WITH_UPDATES);
-	s = bch2_bkey_get_mut_typed(trans, &iter, stripe);
+	s = bch2_bkey_get_mut_typed(trans, &iter,
+			BTREE_ID_stripes, POS(0, p.ec.idx),
+			BTREE_ITER_WITH_UPDATES, stripe);
 	ret = PTR_ERR_OR_ZERO(s);
 	if (unlikely(ret)) {
 		bch2_trans_inconsistent_on(ret == -ENOENT, trans,
@@ -1750,10 +1749,9 @@ static int __bch2_trans_mark_reflink_p(struct btree_trans *trans,
 	struct printbuf buf = PRINTBUF;
 	int ret;
 
-	bch2_trans_iter_init(trans, &iter, BTREE_ID_reflink, POS(0, *idx),
-			     BTREE_ITER_INTENT|
-			     BTREE_ITER_WITH_UPDATES);
-	k = bch2_bkey_get_mut(trans, &iter);
+	k = bch2_bkey_get_mut(trans, &iter,
+			BTREE_ID_reflink, POS(0, *idx),
+			BTREE_ITER_WITH_UPDATES);
 	ret = PTR_ERR_OR_ZERO(k);
 	if (ret)
 		goto err;

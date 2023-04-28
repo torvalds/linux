@@ -257,15 +257,14 @@ static inline int bch2_extent_update_i_size_sectors(struct btree_trans *trans,
 	unsigned inode_update_flags = BTREE_UPDATE_NOJOURNAL;
 	int ret;
 
-	bch2_trans_iter_init(trans, &iter, BTREE_ID_inodes,
-			     SPOS(0,
-				  extent_iter->pos.inode,
-				  extent_iter->snapshot),
-			     BTREE_ITER_INTENT|BTREE_ITER_CACHED);
-	k = bch2_bkey_get_mut(trans, &iter);
+	k = bch2_bkey_get_mut(trans, &iter, BTREE_ID_inodes,
+			      SPOS(0,
+				   extent_iter->pos.inode,
+				   extent_iter->snapshot),
+			      BTREE_ITER_CACHED);
 	ret = PTR_ERR_OR_ZERO(k);
 	if (unlikely(ret))
-		goto err;
+		return ret;
 
 	if (unlikely(k->k.type != KEY_TYPE_inode_v3)) {
 		k = bch2_inode_to_v3(trans, k);

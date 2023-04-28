@@ -511,18 +511,8 @@ static inline struct bkey_i_alloc_v4 *bch2_alloc_to_v4_mut_inlined(struct btree_
 
 	if (likely(k.k->type == KEY_TYPE_alloc_v4) &&
 	    ((a = bkey_s_c_to_alloc_v4(k), true) &&
-	     BCH_ALLOC_V4_BACKPOINTERS_START(a.v) == BCH_ALLOC_V4_U64s &&
-	     BCH_ALLOC_V4_NR_BACKPOINTERS(a.v) == 0)) {
-		/*
-		 * Reserve space for one more backpointer here:
-		 * Not sketchy at doing it this way, nope...
-		 */
-		struct bkey_i_alloc_v4 *ret =
-			bch2_trans_kmalloc_nomemzero(trans, bkey_bytes(k.k) + sizeof(struct bch_backpointer));
-		if (!IS_ERR(ret))
-			bkey_reassemble(&ret->k_i, k);
-		return ret;
-	}
+	     BCH_ALLOC_V4_NR_BACKPOINTERS(a.v) == 0))
+		return bch2_bkey_make_mut_typed(trans, k, alloc_v4);
 
 	return __bch2_alloc_to_v4_mut(trans, k);
 }
