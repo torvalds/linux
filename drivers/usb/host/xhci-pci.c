@@ -824,7 +824,7 @@ static int xhci_pci_suspend(struct usb_hcd *hcd, bool do_wakeup)
 	return ret;
 }
 
-static int xhci_pci_resume(struct usb_hcd *hcd, bool hibernated)
+static int xhci_pci_resume(struct usb_hcd *hcd, pm_message_t msg)
 {
 	struct xhci_hcd		*xhci = hcd_to_xhci(hcd);
 	struct pci_dev		*pdev = to_pci_dev(hcd->self.controller);
@@ -859,7 +859,7 @@ static int xhci_pci_resume(struct usb_hcd *hcd, bool hibernated)
 	if (xhci->quirks & XHCI_PME_STUCK_QUIRK)
 		xhci_pme_quirk(hcd);
 
-	retval = xhci_resume(xhci, hibernated);
+	retval = xhci_resume(xhci, msg);
 	return retval;
 }
 
