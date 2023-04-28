@@ -104,6 +104,12 @@ SECTIONS
 		*(.rel.dyn*)
 	}
 
+	.rela.dyn : ALIGN(8) {
+		__rela_dyn_start = .;
+		*(.rela .rela*)
+		__rela_dyn_end = .;
+	}
+
 	__init_data_end = .;
 
 	. = ALIGN(8);
@@ -128,12 +134,6 @@ SECTIONS
 	.sdata : {
 		__global_pointer$ = . + 0x800;
 		*(.sdata*)
-	}
-
-	.rela.dyn : ALIGN(8) {
-		__rela_dyn_start = .;
-		*(.rela .rela*)
-		__rela_dyn_end = .;
 	}
 
 	.got : { *(.got*) }
