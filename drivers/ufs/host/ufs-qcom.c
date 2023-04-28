@@ -79,6 +79,31 @@ static char android_boot_dev[ANDROID_BOOT_DEV_MAX];
 
 static DEFINE_PER_CPU(struct freq_qos_request, qos_min_req);
 
+int ufsqcom_dump_regs(struct ufs_hba *hba, size_t offset, size_t len,
+		     const char *prefix, enum ufshcd_res id)
+{
+	u32 *regs;
+	size_t pos;
+
+	if (offset % 4 != 0 || len % 4 != 0) /* keep readl happy */
+		return -EINVAL;
+
+	regs = kzalloc(len, GFP_ATOMIC);
+	if (!regs)
+		return -ENOMEM;
+
+	for (pos = 0; pos < len; pos += 4)
+		regs[pos / 4] = readl(hba->res[id].base + offset + pos);
+
+	print_hex_dump(KERN_ERR, prefix,
+		       len > 4 ? DUMP_PREFIX_OFFSET : DUMP_PREFIX_NONE,
+			   16, 4, regs, len, false);
+
+	kfree(regs);
+
+	return 0;
+}
+
 enum {
 	TSTBUS_UAWM,
 	TSTBUS_UARM,
@@ -4195,6 +4220,61 @@ static void ufs_qcom_print_utp_hci_testbus(struct ufs_hba *hba)
 			16, 4, testbus, testbus_len, false);
 	kfree(testbus);
 }
+static void ufs_qcom_dump_mcq_hci_regs(struct ufs_hba *hba)
+{
+	/* RES_MCQ_1 */
+	ufsqcom_dump_regs(hba, 0x0, 256 * 4,
+			"MCQ HCI 1da0000-1da03f0 ", RES_MCQ);
+	usleep_range(1000, 1100);
+	/* RES_MCQ_2 */
+	ufsqcom_dump_regs(hba, 0x400, 256 * 4,
+			"MCQ HCI 1da0400-1da07f0 ", RES_MCQ);
+	usleep_range(1000, 1100);
+
+	/*RES_MCQ_VS */
+	ufsqcom_dump_regs(hba, 0x0, 5 * 4,
+			"MCQ VS 1da4000-1da4010 ", RES_MCQ_VS);
+	usleep_range(1000, 1100);
+
+	/* RES_MCQ_SQD_1 */
+	ufsqcom_dump_regs(hba, 0x0, 256 * 4,
+			"MCQ SQD 1da5000-1da53f0 ", RES_MCQ_SQD);
+	usleep_range(1000, 1100);
+	/* RES_MCQ_SQD_2 */
+	ufsqcom_dump_regs(hba, 0x400, 256 * 4,
+			"MCQ SQD 1da5400-1da57f0 ", RES_MCQ_SQD);
+	usleep_range(1000, 1100);
+	/* RES_MCQ_SQD_3 */
+	ufsqcom_dump_regs(hba, 0x800, 256 * 4,
+			"MCQ SQD 1da5800-1da5bf0 ", RES_MCQ_SQD);
+	usleep_range(1000, 1100);
+	/* RES_MCQ_SQD_4 */
+	ufsqcom_dump_regs(hba, 0xc00, 256 * 4,
+			"MCQ SQD 1da5c00-1da5ff0 ", RES_MCQ_SQD);
+	usleep_range(1000, 1100);
+
+	/* RES_MCQ_SQD_5 */
+	ufsqcom_dump_regs(hba, 0x1000, 256 * 4,
+			"MCQ SQD 1da6000-1da63f0 ", RES_MCQ_SQD);
+	usleep_range(1000, 1100);
+	/* RES_MCQ_SQD_6 */
+	ufsqcom_dump_regs(hba, 0x1400, 256 * 4,
+			"MCQ SQD 1da6400-1da67f0 ", RES_MCQ_SQD);
+	usleep_range(1000, 1100);
+	/* RES_MCQ_SQD_7 */
+	ufsqcom_dump_regs(hba, 0x1800, 256 * 4,
+			"MCQ SQD 1da6800-1da6bf0 ", RES_MCQ_SQD);
+	usleep_range(1000, 1100);
+	/* RES_MCQ_SQD_8 */
+	ufsqcom_dump_regs(hba, 0x1c00, 256 * 4,
+			"MCQ SQD 1da6c00-1da6ff0 ", RES_MCQ_SQD);
+}
+
+static void ufs_qcom_dump_mcq_dbg_regs(struct ufs_hba *hba)
+{
+	ufshcd_dump_regs(hba, UFS_RD_REG_MCQ, 64 * 4,
+			 "HCI MCQ Debug Registers ");
+}
 
 static void ufs_qcom_dump_dbg_regs(struct ufs_hba *hba)
 {
@@ -4209,6 +4289,9 @@ static void ufs_qcom_dump_dbg_regs(struct ufs_hba *hba)
 	ufshcd_dump_regs(hba, UFS_MEM_ICE, 29 * 4,
 			 "HCI Shared ICE Registers ");
 
+	if (is_mcq_enabled(hba))
+		ufs_qcom_dump_mcq_dbg_regs(hba);
+
 	/* sleep a bit intermittently as we are dumping too much data */
 	ufs_qcom_print_hw_debug_reg_all(hba, NULL, ufs_qcom_dump_regs_wrapper);
 
@@ -4217,6 +4300,11 @@ static void ufs_qcom_dump_dbg_regs(struct ufs_hba *hba)
 
 	if (in_task()) {
 		usleep_range(1000, 1100);
+
+		if (is_mcq_enabled(hba)) {
+			ufs_qcom_dump_mcq_hci_regs(hba);
+			usleep_range(1000, 1100);
+		}
 		ufs_qcom_testbus_read(hba);
 		usleep_range(1000, 1100);
 		ufs_qcom_print_unipro_testbus(hba);
