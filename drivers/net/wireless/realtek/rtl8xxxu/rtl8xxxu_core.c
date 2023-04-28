@@ -5370,6 +5370,9 @@ rtl8xxxu_fill_txdesc_v2(struct ieee80211_hw *hw, struct ieee80211_hdr *hdr,
 		tx_desc40->txdw4 |= cpu_to_le32(TXDESC40_RETRY_LIMIT_ENABLE);
 	}
 
+	if (tx_info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ)
+		tx_desc40->txdw8 |= cpu_to_le32(TXDESC40_HW_SEQ_ENABLE);
+
 	if (short_preamble)
 		tx_desc40->txdw5 |= cpu_to_le32(TXDESC40_SHORT_PREAMBLE);
 
