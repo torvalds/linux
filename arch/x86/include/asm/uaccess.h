@@ -75,6 +75,34 @@ static inline unsigned long __untagged_addr_remote(struct mm_struct *mm,
 #define untagged_addr(addr)	(addr)
 #endif
 
+#ifdef CONFIG_X86_64
+/*
+ * On x86-64, we may have tag bits in the user pointer. Rather than
+ * mask them off, just change the rules for __access_ok().
+ *
+ * Make the rule be that 'ptr+size' must not overflow, and must not
+ * have the high bit set. Compilers generally understand about
+ * unsigned overflow and the CF bit and generate reasonable code for
+ * this. Although it looks like the combination confuses at least
+ * clang (and instead of just doing an "add" followed by a test of
+ * SF and CF, you'll see that unnecessary comparison).
+ *
+ * For the common case of small sizes that can be checked at compile
+ * time, don't even bother with the addition, and just check that the
+ * base pointer is ok.
+ */
+static inline bool __access_ok(const void __user *ptr, unsigned long size)
+{
+	if (__builtin_constant_p(size <= PAGE_SIZE) && size <= PAGE_SIZE) {
+		return (long)ptr >= 0;
+	} else {
+		unsigned long sum = size + (unsigned long)ptr;
+		return (long) sum >= 0 && sum >= (unsigned long)ptr;
+	}
+}
+#define __access_ok __access_ok
+#endif
+
 /**
  * access_ok - Checks if a user space pointer is valid
  * @addr: User space pointer to start of block to check
@@ -91,11 +119,14 @@ static inline unsigned long __untagged_addr_remote(struct mm_struct *mm,
  *
  * Return: true (nonzero) if the memory block may be valid, false (zero)
  * if it is definitely invalid.
+ *
+ * This should not be x86-specific. The only odd things out here is
+ * the WARN_ON_IN_IRQ(), which doesn't exist in the generic version.
  */
-#define access_ok(addr, size)						\
-({									\
-	WARN_ON_IN_IRQ();						\
-	likely(__access_ok(untagged_addr(addr), size));			\
+#define access_ok(addr, size)			\
+({						\
+	WARN_ON_IN_IRQ();			\
+	likely(__access_ok(addr, size));	\
 })
 
 #include <asm-generic/access_ok.h>

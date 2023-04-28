@@ -2970,6 +2970,8 @@ static int internal_get_user_pages_fast(unsigned long start,
 	len = nr_pages << PAGE_SHIFT;
 	if (check_add_overflow(start, len, &end))
 		return 0;
+	if (end > TASK_SIZE_MAX)
+		return -EFAULT;
 	if (unlikely(!access_ok((void __user *)start, len)))
 		return -EFAULT;
 
