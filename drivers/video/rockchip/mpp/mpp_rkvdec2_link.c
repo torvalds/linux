@@ -1301,6 +1301,25 @@ void rkvdec2_link_session_deinit(struct mpp_session *session)
 	mpp_debug_leave();
 }
 
+#define RKVDEC2_1080P_PIXELS	(1920*1080)
+#define RKVDEC2_4K_PIXELS	(4096*2304)
+#define RKVDEC2_8K_PIXELS	(7680*4320)
+#define RKVDEC2_CCU_TIMEOUT_20MS	(0xefffff)
+#define RKVDEC2_CCU_TIMEOUT_50MS	(0x2cfffff)
+#define RKVDEC2_CCU_TIMEOUT_100MS	(0x4ffffff)
+
+static u32 rkvdec2_ccu_get_timeout_threshold(struct rkvdec2_task *task)
+{
+	u32 pixels = task->pixels;
+
+	if (pixels < RKVDEC2_1080P_PIXELS)
+		return RKVDEC2_CCU_TIMEOUT_20MS;
+	else if (pixels < RKVDEC2_4K_PIXELS)
+		return RKVDEC2_CCU_TIMEOUT_50MS;
+	else
+		return RKVDEC2_CCU_TIMEOUT_100MS;
+}
+
 int rkvdec2_attach_ccu(struct device *dev, struct rkvdec2_dev *dec)
 {
 	int ret;
@@ -1732,6 +1751,9 @@ static int rkvdec2_soft_ccu_enqueue(struct mpp_dev *mpp, struct mpp_task *mpp_ta
 	mpp_write_relaxed(mpp, RKVDEC_REG_CLR_CACHE2_BASE, 1);
 
 	mpp_iommu_flush_tlb(mpp->iommu_info);
+	/* disable multicore pu/colmv offset req timeout reset */
+	task->reg[RKVDEC_REG_EN_MODE_SET] |= BIT(1);
+	task->reg[RKVDEC_REG_TIMEOUT_THRESHOLD] = rkvdec2_ccu_get_timeout_threshold(task);
 	/* set registers for hardware */
 	reg_en = mpp_task->hw_info->reg_en;
 	for (i = 0; i < task->w_req_cnt; i++) {
@@ -2175,25 +2197,6 @@ static int rkvdec2_hard_ccu_reset(struct mpp_taskqueue *queue, struct rkvdec2_cc
 	return 0;
 }
 
-#define RKVDEC2_1080P_PIXELS	(1920*1080)
-#define RKVDEC2_4K_PIXELS	(4096*2304)
-#define RKVDEC2_8K_PIXELS	(7680*4320)
-#define RKVDEC2_TIMEOUT_20MS	(0xefffff)
-#define RKVDEC2_TIMEOUT_50MS	(0x2cfffff)
-#define RKVDEC2_TIMEOUT_100MS	(0x4ffffff)
-
-static u32 rkvdec2_get_timeout_threshold(struct rkvdec2_task *task)
-{
-	u32 pixels = task->pixels;
-
-	if (pixels < RKVDEC2_1080P_PIXELS)
-		return RKVDEC2_TIMEOUT_20MS;
-	else if (pixels < RKVDEC2_4K_PIXELS)
-		return RKVDEC2_TIMEOUT_50MS;
-	else
-		return RKVDEC2_TIMEOUT_100MS;
-}
-
 static struct mpp_task *
 rkvdec2_hard_ccu_prepare(struct mpp_task *mpp_task,
 			 struct rkvdec2_ccu *ccu, struct rkvdec_link_info *hw)
@@ -2235,7 +2238,7 @@ rkvdec2_hard_ccu_prepare(struct mpp_task *mpp_task,
 
 	/* disable multicore pu/colmv offset req timeout reset */
 	task->reg[RKVDEC_REG_EN_MODE_SET] |= BIT(1);
-	task->reg[RKVDEC_REG_TIMEOUT_THRESHOLD] = rkvdec2_get_timeout_threshold(task);
+	task->reg[RKVDEC_REG_TIMEOUT_THRESHOLD] = rkvdec2_ccu_get_timeout_threshold(task);
 
 	for (i = 0; i < hw->part_w_num; i++) {
 		off = part[i].tb_reg_off;
