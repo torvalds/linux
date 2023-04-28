@@ -1490,6 +1490,15 @@ config CSD_LOCK_WAIT_DEBUG
 	  include the IPI handler function currently executing (if any)
 	  and relevant stack traces.
 
+config CSD_LOCK_WAIT_DEBUG_DEFAULT
+	bool "Default csd_lock_wait() debugging on at boot time"
+	depends on CSD_LOCK_WAIT_DEBUG
+	depends on 64BIT
+	default n
+	help
+	  This option causes the csdlock_debug= kernel boot parameter to
+	  default to 1 (basic debugging) instead of 0 (no debugging).
+
 endmenu # lock debugging
 
 config TRACE_IRQFLAGS

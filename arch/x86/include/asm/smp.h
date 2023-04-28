@@ -99,7 +99,7 @@ static inline void __noreturn play_dead(void)
 	BUG();
 }
 
-static inline void smp_send_reschedule(int cpu)
+static inline void arch_smp_send_reschedule(int cpu)
 {
 	smp_ops.smp_send_reschedule(cpu);
 }

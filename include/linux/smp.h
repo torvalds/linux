@@ -125,8 +125,15 @@ extern void smp_send_stop(void);
 /*
  * sends a 'reschedule' event to another CPU:
  */
-extern void smp_send_reschedule(int cpu);
-
+extern void arch_smp_send_reschedule(int cpu);
+/*
+ * scheduler_ipi() is inline so can't be passed as callback reason, but the
+ * callsite IP should be sufficient for root-causing IPIs sent from here.
+ */
+#define smp_send_reschedule(cpu) ({		  \
+	trace_ipi_send_cpu(cpu, _RET_IP_, NULL);  \
+	arch_smp_send_reschedule(cpu);		  \
+})
 
 /*
  * Prepare machine for booting other CPUs.
