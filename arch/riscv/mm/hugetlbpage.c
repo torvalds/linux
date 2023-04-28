@@ -218,6 +218,7 @@ void huge_ptep_set_wrprotect(struct mm_struct *mm,
 {
 	pte_t pte = ptep_get(ptep);
 	unsigned long order;
+	pte_t orig_pte;
 	int i, pte_num;
 
 	if (!pte_napot(pte)) {
@@ -228,9 +229,12 @@ void huge_ptep_set_wrprotect(struct mm_struct *mm,
 	order = napot_cont_order(pte);
 	pte_num = napot_pte_num(order);
 	ptep = huge_pte_offset(mm, addr, napot_cont_size(order));
+	orig_pte = get_clear_contig_flush(mm, addr, ptep, pte_num);
+
+	orig_pte = pte_wrprotect(orig_pte);
 
 	for (i = 0; i < pte_num; i++, addr += PAGE_SIZE, ptep++)
-		ptep_set_wrprotect(mm, addr, ptep);
+		set_pte_at(mm, addr, ptep, orig_pte);
 }
 
 pte_t huge_ptep_clear_flush(struct vm_area_struct *vma,
