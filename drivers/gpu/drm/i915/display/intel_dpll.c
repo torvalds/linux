@@ -1014,6 +1014,8 @@ static int mtl_crtc_compute_clock(struct intel_atomic_state *state,
 	/* TODO: Do the readback via intel_compute_shared_dplls() */
 	if (intel_is_c10phy(i915, phy))
 		crtc_state->port_clock = intel_c10pll_calc_port_clock(encoder, &crtc_state->cx0pll_state.c10);
+	else
+		crtc_state->port_clock = intel_c20pll_calc_port_clock(encoder, &crtc_state->cx0pll_state.c20);
 
 	crtc_state->hw.adjusted_mode.crtc_clock = intel_crtc_dotclock(crtc_state);
 
