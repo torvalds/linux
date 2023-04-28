@@ -95,8 +95,8 @@ unsigned int snd_emu10k1_ptr20_read(struct snd_emu10k1 * emu,
 	regptr = (reg << 16) | chn;
 
 	spin_lock_irqsave(&emu->emu_lock, flags);
-	outl(regptr, emu->port + 0x20 + PTR);
-	val = inl(emu->port + 0x20 + DATA);
+	outl(regptr, emu->port + PTR2);
+	val = inl(emu->port + DATA2);
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
 	return val;
 }
@@ -112,8 +112,8 @@ void snd_emu10k1_ptr20_write(struct snd_emu10k1 *emu,
 	regptr = (reg << 16) | chn;
 
 	spin_lock_irqsave(&emu->emu_lock, flags);
-	outl(regptr, emu->port + 0x20 + PTR);
-	outl(data, emu->port + 0x20 + DATA);
+	outl(regptr, emu->port + PTR2);
+	outl(data, emu->port + DATA2);
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
@@ -128,7 +128,7 @@ int snd_emu10k1_spi_write(struct snd_emu10k1 * emu,
 	/* This function is not re-entrant, so protect against it. */
 	spin_lock(&emu->spi_lock);
 	if (emu->card_capabilities->ca0108_chip)
-		reg = 0x3c; /* PTR20, reg 0x3c */
+		reg = P17V_SPI;
 	else {
 		/* For other chip types the SPI register
 		 * is currently unknown. */
@@ -280,10 +280,10 @@ void snd_emu1010_fpga_link_dst_src_write(struct snd_emu10k1 *emu, u32 dst, u32 s
 		return;
 	if (snd_BUG_ON(src & ~0x71f))
 		return;
-	snd_emu1010_fpga_write(emu, 0x00, dst >> 8);
-	snd_emu1010_fpga_write(emu, 0x01, dst & 0x1f);
-	snd_emu1010_fpga_write(emu, 0x02, src >> 8);
-	snd_emu1010_fpga_write(emu, 0x03, src & 0x1f);
+	snd_emu1010_fpga_write(emu, EMU_HANA_DESTHI, dst >> 8);
+	snd_emu1010_fpga_write(emu, EMU_HANA_DESTLO, dst & 0x1f);
+	snd_emu1010_fpga_write(emu, EMU_HANA_SRCHI, src >> 8);
+	snd_emu1010_fpga_write(emu, EMU_HANA_SRCLO, src & 0x1f);
 }
 
 void snd_emu10k1_intr_enable(struct snd_emu10k1 *emu, unsigned int intrenb)

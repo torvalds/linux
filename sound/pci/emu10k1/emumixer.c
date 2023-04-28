@@ -827,8 +827,8 @@ static int snd_emu1010_optical_out_put(struct snd_kcontrol *kcontrol,
 	change = (emu->emu1010.optical_out != val);
 	if (change) {
 		emu->emu1010.optical_out = val;
-		tmp = (emu->emu1010.optical_in ? EMU_HANA_OPTICAL_IN_ADAT : 0) |
-			(emu->emu1010.optical_out ? EMU_HANA_OPTICAL_OUT_ADAT : 0);
+		tmp = (emu->emu1010.optical_in ? EMU_HANA_OPTICAL_IN_ADAT : EMU_HANA_OPTICAL_IN_SPDIF) |
+			(emu->emu1010.optical_out ? EMU_HANA_OPTICAL_OUT_ADAT : EMU_HANA_OPTICAL_OUT_SPDIF);
 		snd_emu1010_fpga_write(emu, EMU_HANA_OPTICAL_TYPE, tmp);
 	}
 	return change;
@@ -878,8 +878,8 @@ static int snd_emu1010_optical_in_put(struct snd_kcontrol *kcontrol,
 	change = (emu->emu1010.optical_in != val);
 	if (change) {
 		emu->emu1010.optical_in = val;
-		tmp = (emu->emu1010.optical_in ? EMU_HANA_OPTICAL_IN_ADAT : 0) |
-			(emu->emu1010.optical_out ? EMU_HANA_OPTICAL_OUT_ADAT : 0);
+		tmp = (emu->emu1010.optical_in ? EMU_HANA_OPTICAL_IN_ADAT : EMU_HANA_OPTICAL_IN_SPDIF) |
+			(emu->emu1010.optical_out ? EMU_HANA_OPTICAL_OUT_ADAT : EMU_HANA_OPTICAL_OUT_SPDIF);
 		snd_emu1010_fpga_write(emu, EMU_HANA_OPTICAL_TYPE, tmp);
 	}
 	return change;
