@@ -1358,6 +1358,7 @@ struct pqi_ctrl_info {
 	u32		max_write_raid_5_6;
 	u32		max_write_raid_1_10_2drive;
 	u32		max_write_raid_1_10_3drive;
+	int		numa_node;
 
 	struct list_head scsi_device_list;
 	spinlock_t	scsi_device_list_lock;

@@ -7316,6 +7316,18 @@ static ssize_t pqi_sas_ncq_prio_enable_store(struct device *dev,
 	return  strlen(buf);
 }
 
+static ssize_t pqi_numa_node_show(struct device *dev,
+	struct device_attribute *attr, char *buffer)
+{
+	struct scsi_device *sdev;
+	struct pqi_ctrl_info *ctrl_info;
+
+	sdev = to_scsi_device(dev);
+	ctrl_info = shost_to_hba(sdev->host);
+
+	return scnprintf(buffer, PAGE_SIZE, "%d\n", ctrl_info->numa_node);
+}
+
 static DEVICE_ATTR(lunid, 0444, pqi_lunid_show, NULL);
 static DEVICE_ATTR(unique_id, 0444, pqi_unique_id_show, NULL);
 static DEVICE_ATTR(path_info, 0444, pqi_path_info_show, NULL);
@@ -7325,6 +7337,7 @@ static DEVICE_ATTR(raid_level, 0444, pqi_raid_level_show, NULL);
 static DEVICE_ATTR(raid_bypass_cnt, 0444, pqi_raid_bypass_cnt_show, NULL);
 static DEVICE_ATTR(sas_ncq_prio_enable, 0644,
 		pqi_sas_ncq_prio_enable_show, pqi_sas_ncq_prio_enable_store);
+static DEVICE_ATTR(numa_node, 0444, pqi_numa_node_show, NULL);
 
 static struct attribute *pqi_sdev_attrs[] = {
 	&dev_attr_lunid.attr,
@@ -7335,6 +7348,7 @@ static struct attribute *pqi_sdev_attrs[] = {
 	&dev_attr_raid_level.attr,
 	&dev_attr_raid_bypass_cnt.attr,
 	&dev_attr_sas_ncq_prio_enable.attr,
+	&dev_attr_numa_node.attr,
 	NULL
 };
 
@@ -8955,6 +8969,7 @@ static int pqi_pci_probe(struct pci_dev *pci_dev,
 			"failed to allocate controller info block\n");
 		return -ENOMEM;
 	}
+	ctrl_info->numa_node = node;
 
 	ctrl_info->pci_dev = pci_dev;
 
