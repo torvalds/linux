@@ -886,6 +886,34 @@ static const struct intel_tc_phy_ops adlp_tc_phy_ops = {
  * XELPDP TC PHY handlers
  * ----------------------
  */
+static u32 xelpdp_tc_phy_hpd_live_status(struct intel_tc_port *tc)
+{
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+	struct intel_digital_port *dig_port = tc->dig_port;
+	enum hpd_pin hpd_pin = dig_port->base.hpd_pin;
+	u32 pica_isr_bits = i915->display.hotplug.hpd[hpd_pin];
+	u32 pch_isr_bit = i915->display.hotplug.pch_hpd[hpd_pin];
+	intel_wakeref_t wakeref;
+	u32 pica_isr;
+	u32 pch_isr;
+	u32 mask = 0;
+
+	with_intel_display_power(i915, POWER_DOMAIN_DISPLAY_CORE, wakeref) {
+		pica_isr = intel_de_read(i915, PICAINTERRUPT_ISR);
+		pch_isr = intel_de_read(i915, SDEISR);
+	}
+
+	if (pica_isr & (pica_isr_bits & XELPDP_DP_ALT_HOTPLUG_MASK))
+		mask |= BIT(TC_PORT_DP_ALT);
+	if (pica_isr & (pica_isr_bits & XELPDP_TBT_HOTPLUG_MASK))
+		mask |= BIT(TC_PORT_TBT_ALT);
+
+	if (tc->legacy_port && (pch_isr & pch_isr_bit))
+		mask |= BIT(TC_PORT_LEGACY);
+
+	return mask;
+}
+
 static bool
 xelpdp_tc_phy_tcss_power_is_enabled(struct intel_tc_port *tc)
 {
@@ -1039,7 +1067,7 @@ static void xelpdp_tc_phy_disconnect(struct intel_tc_port *tc)
 
 static const struct intel_tc_phy_ops xelpdp_tc_phy_ops = {
 	.cold_off_domain = tgl_tc_phy_cold_off_domain,
-	.hpd_live_status = adlp_tc_phy_hpd_live_status,
+	.hpd_live_status = xelpdp_tc_phy_hpd_live_status,
 	.is_ready = adlp_tc_phy_is_ready,
 	.is_owned = xelpdp_tc_phy_is_owned,
 	.get_hw_state = xelpdp_tc_phy_get_hw_state,
