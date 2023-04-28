@@ -145,7 +145,7 @@ static int dcn314_smu_send_msg_with_param(struct clk_mgr_internal *clk_mgr,
 	if (result == VBIOSSMC_Result_Failed) {
 		if (msg_id == VBIOSSMC_MSG_TransferTableDram2Smu &&
 		    param == TABLE_WATERMARKS)
-			DC_LOG_WARNING("Watermarks table not configured properly by SMU");
+			DC_LOG_DEBUG("Watermarks table not configured properly by SMU");
 		else if (msg_id == VBIOSSMC_MSG_SetHardMinDcfclkByFreq ||
 			 msg_id == VBIOSSMC_MSG_SetMinDeepSleepDcfclk)
 			DC_LOG_WARNING("DCFCLK_DPM is not enabled by BIOS");
