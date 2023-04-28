@@ -66,12 +66,18 @@ properties:
       - riscv,sv32
       - riscv,sv39
       - riscv,sv48
+      - riscv,sv57
       - riscv,none
 
   riscv,cbom-block-size:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
       The blocksize in bytes for the Zicbom cache operations.
+
+  riscv,cboz-block-size:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      The blocksize in bytes for the Zicboz cache operations.
 
   riscv,isa:
     description:

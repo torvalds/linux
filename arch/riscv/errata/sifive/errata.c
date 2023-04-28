@@ -14,7 +14,7 @@
 #include <asm/errata_list.h>
 
 struct errata_info_t {
-	char name[ERRATA_STRING_LENGTH_MAX];
+	char name[32];
 	bool (*check_func)(unsigned long  arch_id, unsigned long impid);
 };
 
@@ -101,12 +101,12 @@ void __init_or_module sifive_errata_patch_func(struct alt_entry *begin,
 	for (alt = begin; alt < end; alt++) {
 		if (alt->vendor_id != SIFIVE_VENDOR_ID)
 			continue;
-		if (alt->errata_id >= ERRATA_SIFIVE_NUMBER) {
-			WARN(1, "This errata id:%d is not in kernel errata list", alt->errata_id);
+		if (alt->patch_id >= ERRATA_SIFIVE_NUMBER) {
+			WARN(1, "This errata id:%d is not in kernel errata list", alt->patch_id);
 			continue;
 		}
 
-		tmp = (1U << alt->errata_id);
+		tmp = (1U << alt->patch_id);
 		if (cpu_req_errata & tmp) {
 			mutex_lock(&text_mutex);
 			patch_text_nosync(ALT_OLD_PTR(alt), ALT_ALT_PTR(alt),

@@ -10,6 +10,8 @@ vdso-syms += vgettimeofday
 endif
 vdso-syms += getcpu
 vdso-syms += flush_icache
+vdso-syms += hwprobe
+vdso-syms += sys_hwprobe
 
 # Files to link into the vdso
 obj-vdso = $(patsubst %, %.o, $(vdso-syms)) note.o
@@ -20,6 +22,8 @@ ccflags-y += -DDISABLE_BRANCH_PROFILING
 ifneq ($(c-gettimeofday-y),)
   CFLAGS_vgettimeofday.o += -fPIC -include $(c-gettimeofday-y)
 endif
+
+CFLAGS_hwprobe.o += -fPIC
 
 # Build rules
 targets := $(obj-vdso) vdso.so vdso.so.dbg vdso.lds
