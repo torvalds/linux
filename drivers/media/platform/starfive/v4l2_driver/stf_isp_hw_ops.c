@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2021 StarFive Technology Co., Ltd.
+ * Copyright (C) 2021-2023 StarFive Technology Co., Ltd.
  *
- * linux/drivers/media/platform/starfive/stf_isp.c
- *
- * PURPOSE:	This files contains the driver of VPP.
  */
+
 #include "stfcamss.h"
 #include <linux/io.h>
 #include <linux/fb.h>

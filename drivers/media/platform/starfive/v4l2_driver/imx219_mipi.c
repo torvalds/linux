@@ -12,7 +12,6 @@
  * Flip handling taken from the Sony IMX319 driver.
  * Copyright (C) 2018 Intel Corporation
  *
- * Copyright (C) 2021 StarFive Technology Co., Ltd.
  */
 
 #include <linux/clk.h>
@@ -1578,6 +1577,6 @@ static struct i2c_driver imx219_i2c_driver = {
 
 module_i2c_driver(imx219_i2c_driver);
 
-MODULE_AUTHOR("David.li");
+MODULE_AUTHOR("Dave Stevenson <dave.stevenson@raspberrypi.com");
 MODULE_DESCRIPTION("Sony IMX219 sensor driver");
 MODULE_LICENSE("GPL v2");

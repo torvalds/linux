@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /*
- *  Copyright (C) 2021 samin <samin.guo@starfivetech.com>
+ * Copyright (C) 2021 StarFive Technology Co., Ltd.
+ * Author: Samin Guo <samin.guo@starfivetech.com>
  */
 
 #ifndef __DT_BINDINGS_RESET_STARFIVE_JH7110_H__
