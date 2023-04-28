@@ -766,7 +766,7 @@ fb_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	u8 *buffer, *dst;
 	u8 __iomem *src;
 	int c, cnt = 0, err = 0;
-	unsigned long total_size;
+	unsigned long total_size, trailing;
 
 	if (!info || ! info->screen_base)
 		return -ENODEV;
@@ -808,10 +808,13 @@ fb_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 		dst += c;
 		src += c;
 
-		if (copy_to_user(buf, buffer, c)) {
+		trailing = copy_to_user(buf, buffer, c);
+		if (trailing == c) {
 			err = -EFAULT;
 			break;
 		}
+		c -= trailing;
+
 		*ppos += c;
 		buf += c;
 		cnt += c;
@@ -820,7 +823,7 @@ fb_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 
 	kfree(buffer);
 
-	return (err) ? err : cnt;
+	return cnt ? cnt : err;
 }
 
 static ssize_t
@@ -831,7 +834,7 @@ fb_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 	u8 *buffer, *src;
 	u8 __iomem *dst;
 	int c, cnt = 0, err = 0;
-	unsigned long total_size;
+	unsigned long total_size, trailing;
 
 	if (!info || !info->screen_base)
 		return -ENODEV;
@@ -876,10 +879,12 @@ fb_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 		c = (count > PAGE_SIZE) ? PAGE_SIZE : count;
 		src = buffer;
 
-		if (copy_from_user(src, buf, c)) {
+		trailing = copy_from_user(src, buf, c);
+		if (trailing == c) {
 			err = -EFAULT;
 			break;
 		}
+		c -= trailing;
 
 		fb_memcpy_tofb(dst, src, c);
 		dst += c;
