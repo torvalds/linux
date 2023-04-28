@@ -236,7 +236,7 @@ static int __aa_path_perm(const char *op, const struct cred *subj_cred,
 
 	if (profile_unconfined(profile))
 		return 0;
-	aa_str_perms(&(rules->file), rules->file.start[AA_CLASS_FILE],
+	aa_str_perms(rules->file, rules->file->start[AA_CLASS_FILE],
 		     name, cond, perms);
 	if (request & ~perms->allow)
 		e = -EACCES;
@@ -353,16 +353,16 @@ static int profile_path_link(const struct cred *subj_cred,
 
 	error = -EACCES;
 	/* aa_str_perms - handles the case of the dfa being NULL */
-	state = aa_str_perms(&(rules->file),
-			     rules->file.start[AA_CLASS_FILE], lname,
+	state = aa_str_perms(rules->file,
+			     rules->file->start[AA_CLASS_FILE], lname,
 			     cond, &lperms);
 
 	if (!(lperms.allow & AA_MAY_LINK))
 		goto audit;
 
 	/* test to see if target can be paired with link */
-	state = aa_dfa_null_transition(rules->file.dfa, state);
-	aa_str_perms(&(rules->file), state, tname, cond, &perms);
+	state = aa_dfa_null_transition(rules->file->dfa, state);
+	aa_str_perms(rules->file, state, tname, cond, &perms);
 
 	/* force audit/quiet masks for link are stored in the second entry
 	 * in the link pair.
@@ -384,7 +384,7 @@ static int profile_path_link(const struct cred *subj_cred,
 	/* Do link perm subset test requiring allowed permission on link are
 	 * a subset of the allowed permissions on target.
 	 */
-	aa_str_perms(&(rules->file), rules->file.start[AA_CLASS_FILE],
+	aa_str_perms(rules->file, rules->file->start[AA_CLASS_FILE],
 		     tname, cond, &perms);
 
 	/* AA_MAY_LINK is not considered in the subset test */

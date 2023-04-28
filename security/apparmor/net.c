@@ -127,9 +127,9 @@ int aa_profile_af_perm(struct aa_profile *profile,
 
 	buffer[0] = cpu_to_be16(family);
 	buffer[1] = cpu_to_be16((u16) type);
-	state = aa_dfa_match_len(rules->policy.dfa, state, (char *) &buffer,
+	state = aa_dfa_match_len(rules->policy->dfa, state, (char *) &buffer,
 				 4);
-	perms = *aa_lookup_perms(&rules->policy, state);
+	perms = *aa_lookup_perms(rules->policy, state);
 	aa_apply_modes_to_perms(profile, &perms);
 
 	return aa_check_perms(profile, &perms, request, ad, audit_net_cb);

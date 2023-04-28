@@ -98,6 +98,41 @@ const char *const aa_profile_mode_names[] = {
 };
 
 
+static void aa_free_pdb(struct aa_policydb *policy)
+{
+	if (policy) {
+		aa_put_dfa(policy->dfa);
+		if (policy->perms)
+			kvfree(policy->perms);
+		aa_free_str_table(&policy->trans);
+	}
+}
+
+/**
+ * aa_pdb_free_kref - free aa_policydb by kref (called by aa_put_pdb)
+ * @kr: kref callback for freeing of a dfa  (NOT NULL)
+ */
+void aa_pdb_free_kref(struct kref *kref)
+{
+	struct aa_policydb *pdb = container_of(kref, struct aa_policydb, count);
+
+	aa_free_pdb(pdb);
+}
+
+
+struct aa_policydb *aa_alloc_pdb(gfp_t gfp)
+{
+	struct aa_policydb *pdb = kzalloc(sizeof(struct aa_policydb), gfp);
+
+	if (!pdb)
+		return NULL;
+
+	kref_init(&pdb->count);
+
+	return pdb;
+}
+
+
 /**
  * __add_profile - add a profiles to list and label tree
  * @list: list to add it to  (NOT NULL)
@@ -200,15 +235,15 @@ static void free_attachment(struct aa_attachment *attach)
 	for (i = 0; i < attach->xattr_count; i++)
 		kfree_sensitive(attach->xattrs[i]);
 	kfree_sensitive(attach->xattrs);
-	aa_destroy_policydb(&attach->xmatch);
+	aa_put_pdb(attach->xmatch);
 }
 
 static void free_ruleset(struct aa_ruleset *rules)
 {
 	int i;
 
-	aa_destroy_policydb(&rules->file);
-	aa_destroy_policydb(&rules->policy);
+	aa_put_pdb(rules->file);
+	aa_put_pdb(rules->policy);
 	aa_free_cap_rules(&rules->caps);
 	aa_free_rlimit_rules(&rules->rlimits);
 
@@ -590,16 +625,8 @@ struct aa_profile *aa_alloc_null(struct aa_profile *parent, const char *name,
 	/* TODO: ideally we should inherit abi from parent */
 	profile->label.flags |= FLAG_NULL;
 	rules = list_first_entry(&profile->rules, typeof(*rules), list);
-	rules->file.dfa = aa_get_dfa(nulldfa);
-	rules->file.perms = kcalloc(2, sizeof(struct aa_perms), gfp);
-	if (!rules->file.perms)
-		goto fail;
-	rules->file.size = 2;
-	rules->policy.dfa = aa_get_dfa(nulldfa);
-	rules->policy.perms = kcalloc(2, sizeof(struct aa_perms), gfp);
-	if (!rules->policy.perms)
-		goto fail;
-	rules->policy.size = 2;
+	rules->file = aa_get_pdb(nullpdb);
+	rules->policy = aa_get_pdb(nullpdb);
 
 	if (parent) {
 		profile->path_flags = parent->path_flags;
@@ -610,11 +637,6 @@ struct aa_profile *aa_alloc_null(struct aa_profile *parent, const char *name,
 	}
 
 	return profile;
-
-fail:
-	aa_free_profile(profile);
-
-	return NULL;
 }
 
 /**

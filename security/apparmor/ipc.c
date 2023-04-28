@@ -92,8 +92,8 @@ static int profile_signal_perm(const struct cred *cred,
 	ad->subj_cred = cred;
 	ad->peer = peer;
 	/* TODO: secondary cache check <profile, profile, perm> */
-	state = aa_dfa_next(rules->policy.dfa,
-			    rules->policy.start[AA_CLASS_SIGNAL],
+	state = aa_dfa_next(rules->policy->dfa,
+			    rules->policy->start[AA_CLASS_SIGNAL],
 			    ad->signal);
 	aa_label_match(profile, rules, peer, state, false, request, &perms);
 	aa_apply_modes_to_perms(profile, &perms);
