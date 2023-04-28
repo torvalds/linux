@@ -140,13 +140,4 @@ void __memcpy_flushcache(void *_dst, const void *_src, size_t size)
 	}
 }
 EXPORT_SYMBOL_GPL(__memcpy_flushcache);
-
-void memcpy_page_flushcache(char *to, struct page *page, size_t offset,
-		size_t len)
-{
-	char *from = kmap_atomic(page);
-
-	memcpy_flushcache(to, from + offset, len);
-	kunmap_atomic(from);
-}
 #endif

@@ -54,8 +54,6 @@ raw_copy_to_user(void __user *dst, const void *src, unsigned long size)
 
 extern long __copy_user_nocache(void *dst, const void __user *src, unsigned size);
 extern long __copy_user_flushcache(void *dst, const void __user *src, unsigned size);
-extern void memcpy_page_flushcache(char *to, struct page *page, size_t offset,
-			   size_t len);
 
 static inline int
 __copy_from_user_inatomic_nocache(void *dst, const void __user *src,
