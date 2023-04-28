@@ -411,7 +411,7 @@ static int psp_sw_init(void *handle)
 	if ((psp_get_runtime_db_entry(adev,
 				PSP_RUNTIME_ENTRY_TYPE_PPTABLE_ERR_STATUS,
 				&scpm_entry)) &&
-	    (SCPM_DISABLE != scpm_entry.scpm_status)) {
+	    (scpm_entry.scpm_status != SCPM_DISABLE)) {
 		adev->scpm_enabled = true;
 		adev->scpm_status = scpm_entry.scpm_status;
 	} else {
@@ -458,10 +458,9 @@ static int psp_sw_init(void *handle)
 
 	if (adev->ip_versions[MP0_HWIP][0] == IP_VERSION(11, 0, 0) ||
 	    adev->ip_versions[MP0_HWIP][0] == IP_VERSION(11, 0, 7)) {
-		ret= psp_sysfs_init(adev);
-		if (ret) {
+		ret = psp_sysfs_init(adev);
+		if (ret)
 			return ret;
-		}
 	}
 
 	ret = amdgpu_bo_create_kernel(adev, PSP_1_MEG, PSP_1_MEG,
@@ -645,7 +644,7 @@ psp_cmd_submit_buf(struct psp_context *psp,
 	skip_unsupport = (psp->cmd_buf_mem->resp.status == TEE_ERROR_NOT_SUPPORTED ||
 		psp->cmd_buf_mem->resp.status == PSP_ERR_UNKNOWN_COMMAND) && amdgpu_sriov_vf(psp->adev);
 
-	memcpy((void*)&cmd->resp, (void*)&psp->cmd_buf_mem->resp, sizeof(struct psp_gfx_resp));
+	memcpy(&cmd->resp, &psp->cmd_buf_mem->resp, sizeof(struct psp_gfx_resp));
 
 	/* In some cases, psp response status is not 0 even there is no
 	 * problem while the command is submitted. Some version of PSP FW
@@ -830,7 +829,7 @@ static int psp_tmr_load(struct psp_context *psp)
 }
 
 static void psp_prep_tmr_unload_cmd_buf(struct psp_context *psp,
-				        struct psp_gfx_cmd_resp *cmd)
+					struct psp_gfx_cmd_resp *cmd)
 {
 	if (amdgpu_sriov_vf(psp->adev))
 		cmd->cmd_id = GFX_CMD_ID_DESTROY_VMR;
@@ -1067,7 +1066,7 @@ static void psp_prep_ta_load_cmd_buf(struct psp_gfx_cmd_resp *cmd,
 				     struct ta_context *context)
 {
 	cmd->cmd_id				= context->ta_load_type;
-	cmd->cmd.cmd_load_ta.app_phy_addr_lo 	= lower_32_bits(ta_bin_mc);
+	cmd->cmd.cmd_load_ta.app_phy_addr_lo	= lower_32_bits(ta_bin_mc);
 	cmd->cmd.cmd_load_ta.app_phy_addr_hi	= upper_32_bits(ta_bin_mc);
 	cmd->cmd.cmd_load_ta.app_len		= context->bin_desc.size_bytes;
 
@@ -1138,9 +1137,8 @@ int psp_ta_load(struct psp_context *psp, struct ta_context *context)
 
 	context->resp_status = cmd->resp.status;
 
-	if (!ret) {
+	if (!ret)
 		context->session_id = cmd->resp.session_id;
-	}
 
 	release_psp_cmd_buf(psp);
 
@@ -1467,8 +1465,7 @@ int psp_ras_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 	if (amdgpu_ras_intr_triggered())
 		return ret;
 
-	if (ras_cmd->if_version > RAS_TA_HOST_IF_VER)
-	{
+	if (ras_cmd->if_version > RAS_TA_HOST_IF_VER) {
 		DRM_WARN("RAS: Unsupported Interface");
 		return -EINVAL;
 	}
@@ -1478,8 +1475,7 @@ int psp_ras_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 			dev_warn(psp->adev->dev, "ECC switch disabled\n");
 
 			ras_cmd->ras_status = TA_RAS_STATUS__ERROR_RAS_NOT_AVAILABLE;
-		}
-		else if (ras_cmd->ras_out_message.flags.reg_access_failure_flag)
+		} else if (ras_cmd->ras_out_message.flags.reg_access_failure_flag)
 			dev_warn(psp->adev->dev,
 				 "RAS internal register access blocked\n");
 
@@ -1575,11 +1571,10 @@ int psp_ras_initialize(struct psp_context *psp)
 				if (ret)
 					dev_warn(adev->dev, "PSP set boot config failed\n");
 				else
-					dev_warn(adev->dev, "GECC will be disabled in next boot cycle "
-						 "if set amdgpu_ras_enable and/or amdgpu_ras_mask to 0x0\n");
+					dev_warn(adev->dev, "GECC will be disabled in next boot cycle if set amdgpu_ras_enable and/or amdgpu_ras_mask to 0x0\n");
 			}
 		} else {
-			if (1 == boot_cfg) {
+			if (boot_cfg == 1) {
 				dev_info(adev->dev, "GECC is enabled\n");
 			} else {
 				/* enable GECC in next boot cycle if it is disabled
@@ -2365,7 +2360,7 @@ static int psp_prep_load_ip_fw_cmd_buf(struct amdgpu_firmware_info *ucode,
 }
 
 static int psp_execute_non_psp_fw_load(struct psp_context *psp,
-			          struct amdgpu_firmware_info *ucode)
+				  struct amdgpu_firmware_info *ucode)
 {
 	int ret = 0;
 	struct psp_gfx_cmd_resp *cmd = acquire_psp_cmd_buf(psp);
@@ -2404,9 +2399,8 @@ static int psp_load_smu_fw(struct psp_context *psp)
 	     (adev->ip_versions[MP0_HWIP][0] == IP_VERSION(11, 0, 4) ||
 	      adev->ip_versions[MP0_HWIP][0] == IP_VERSION(11, 0, 2)))) {
 		ret = amdgpu_dpm_set_mp1_state(adev, PP_MP1_STATE_UNLOAD);
-		if (ret) {
+		if (ret)
 			DRM_WARN("Failed to set MP1 state prepare for reload\n");
-		}
 	}
 
 	ret = psp_execute_non_psp_fw_load(psp, ucode);
@@ -2716,9 +2710,8 @@ static int psp_suspend(void *handle)
 	}
 
 	ret = psp_ring_stop(psp, PSP_RING_TYPE__KM);
-	if (ret) {
+	if (ret)
 		DRM_ERROR("PSP ring stop failed\n");
-	}
 
 out:
 	return ret;
@@ -2967,7 +2960,7 @@ static int parse_sos_bin_descriptor(struct psp_context *psp,
 		psp->sos.fw_version        = le32_to_cpu(desc->fw_version);
 		psp->sos.feature_version   = le32_to_cpu(desc->fw_version);
 		psp->sos.size_bytes        = le32_to_cpu(desc->size_bytes);
-		psp->sos.start_addr 	   = ucode_start_addr;
+		psp->sos.start_addr	   = ucode_start_addr;
 		break;
 	case PSP_FW_TYPE_PSP_SYS_DRV:
 		psp->sys.fw_version        = le32_to_cpu(desc->fw_version);
@@ -3491,7 +3484,7 @@ void psp_copy_fw(struct psp_context *psp, uint8_t *start_addr, uint32_t bin_size
 	drm_dev_exit(idx);
 }
 
-static DEVICE_ATTR(usbc_pd_fw, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(usbc_pd_fw, 0644,
 		   psp_usbc_pd_fw_sysfs_read,
 		   psp_usbc_pd_fw_sysfs_write);
 
@@ -3674,8 +3667,7 @@ static void psp_sysfs_fini(struct amdgpu_device *adev)
 	device_remove_file(adev->dev, &dev_attr_usbc_pd_fw);
 }
 
-const struct amdgpu_ip_block_version psp_v3_1_ip_block =
-{
+const struct amdgpu_ip_block_version psp_v3_1_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_PSP,
 	.major = 3,
 	.minor = 1,
@@ -3683,8 +3675,7 @@ const struct amdgpu_ip_block_version psp_v3_1_ip_block =
 	.funcs = &psp_ip_funcs,
 };
 
-const struct amdgpu_ip_block_version psp_v10_0_ip_block =
-{
+const struct amdgpu_ip_block_version psp_v10_0_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_PSP,
 	.major = 10,
 	.minor = 0,
@@ -3692,8 +3683,7 @@ const struct amdgpu_ip_block_version psp_v10_0_ip_block =
 	.funcs = &psp_ip_funcs,
 };
 
-const struct amdgpu_ip_block_version psp_v11_0_ip_block =
-{
+const struct amdgpu_ip_block_version psp_v11_0_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_PSP,
 	.major = 11,
 	.minor = 0,
@@ -3709,8 +3699,7 @@ const struct amdgpu_ip_block_version psp_v11_0_8_ip_block = {
 	.funcs = &psp_ip_funcs,
 };
 
-const struct amdgpu_ip_block_version psp_v12_0_ip_block =
-{
+const struct amdgpu_ip_block_version psp_v12_0_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_PSP,
 	.major = 12,
 	.minor = 0,
