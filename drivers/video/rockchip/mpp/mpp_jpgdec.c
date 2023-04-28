@@ -558,7 +558,7 @@ static struct mpp_dev_ops jpgdec_v1_dev_ops = {
 };
 
 static const struct mpp_dev_var jpgdec_v1_data = {
-	.device_type = MPP_DEVICE_JPGDEC,
+	.device_type = MPP_DEVICE_RKJPEGD,
 	.hw_info = &jpgdec_v1_hw_info,
 	.trans_info = jpgdec_v1_trans,
 	.hw_ops = &jpgdec_v1_hw_ops,
