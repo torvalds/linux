@@ -1185,6 +1185,20 @@ static void rtl8xxxu_stop_tx_beacon(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_write8(priv, REG_TBTT_PROHIBIT + 2, val8);
 }
 
+static void rtl8xxxu_start_tx_beacon(struct rtl8xxxu_priv *priv)
+{
+	u8 val8;
+
+	val8 = rtl8xxxu_read8(priv, REG_FWHW_TXQ_CTRL + 2);
+	val8 |= EN_BCNQ_DL >> 16;
+	rtl8xxxu_write8(priv, REG_FWHW_TXQ_CTRL + 2, val8);
+
+	rtl8xxxu_write8(priv, REG_TBTT_PROHIBIT + 1, 0x80);
+	val8 = rtl8xxxu_read8(priv, REG_TBTT_PROHIBIT + 2);
+	val8 &= 0xF0;
+	rtl8xxxu_write8(priv, REG_TBTT_PROHIBIT + 2, val8);
+}
+
 
 /*
  * The rtl8723a has 3 channel groups for it's efuse settings. It only
@@ -4964,6 +4978,17 @@ rtl8xxxu_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		dev_dbg(dev, "Changed BASIC_RATES!\n");
 		rtl8xxxu_set_basic_rates(priv, bss_conf->basic_rates);
 	}
+
+	if (changed & BSS_CHANGED_BEACON_ENABLED) {
+		if (bss_conf->enable_beacon)
+			rtl8xxxu_start_tx_beacon(priv);
+		else
+			rtl8xxxu_stop_tx_beacon(priv);
+	}
+
+	if (changed & BSS_CHANGED_BEACON)
+		schedule_work(&priv->update_beacon_work);
+
 error:
 	return;
 }
@@ -5543,6 +5568,55 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 	return;
 error:
 	dev_kfree_skb(skb);
+}
+
+static void rtl8xxxu_send_beacon_frame(struct ieee80211_hw *hw,
+				       struct ieee80211_vif *vif)
+{
+	struct rtl8xxxu_priv *priv = hw->priv;
+	struct sk_buff *skb = ieee80211_beacon_get(hw, vif, 0);
+	struct device *dev = &priv->udev->dev;
+	int retry;
+	u8 val8;
+
+	/* BCN_VALID, write 1 to clear, cleared by SW */
+	val8 = rtl8xxxu_read8(priv, REG_TDECTRL + 2);
+	val8 |= BIT_BCN_VALID >> 16;
+	rtl8xxxu_write8(priv, REG_TDECTRL + 2, val8);
+
+	/* SW_BCN_SEL - Port0 */
+	val8 = rtl8xxxu_read8(priv, REG_DWBCN1_CTRL_8723B + 2);
+	val8 &= ~(BIT_SW_BCN_SEL >> 16);
+	rtl8xxxu_write8(priv, REG_DWBCN1_CTRL_8723B + 2, val8);
+
+	if (skb)
+		rtl8xxxu_tx(hw, NULL, skb);
+
+	retry = 100;
+	do {
+		val8 = rtl8xxxu_read8(priv, REG_TDECTRL + 2);
+		if (val8 & (BIT_BCN_VALID >> 16))
+			break;
+		usleep_range(10, 20);
+	} while (--retry);
+
+	if (!retry)
+		dev_err(dev, "%s: Failed to read beacon valid bit\n", __func__);
+}
+
+static void rtl8xxxu_update_beacon_work_callback(struct work_struct *work)
+{
+	struct rtl8xxxu_priv *priv =
+		container_of(work, struct rtl8xxxu_priv, update_beacon_work);
+	struct ieee80211_hw *hw = priv->hw;
+	struct ieee80211_vif *vif = priv->vif;
+
+	if (!vif) {
+		WARN_ONCE(true, "no vif to update beacon\n");
+		return;
+	}
+
+	rtl8xxxu_send_beacon_frame(hw, vif);
 }
 
 void rtl8723au_rx_parse_phystats(struct rtl8xxxu_priv *priv,
@@ -7311,6 +7385,7 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 	spin_lock_init(&priv->rx_urb_lock);
 	INIT_WORK(&priv->rx_urb_wq, rtl8xxxu_rx_urb_work);
 	INIT_DELAYED_WORK(&priv->ra_watchdog, rtl8xxxu_watchdog_callback);
+	INIT_WORK(&priv->update_beacon_work, rtl8xxxu_update_beacon_work_callback);
 	skb_queue_head_init(&priv->c2hcmd_queue);
 
 	usb_set_intfdata(interface, hw);
