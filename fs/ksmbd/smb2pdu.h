@@ -144,14 +144,6 @@ struct create_mxac_rsp {
 	__le32 MaximalAccess;
 } __packed;
 
-struct create_disk_id_rsp {
-	struct create_context ccontext;
-	__u8   Name[8];
-	__le64 DiskFileId;
-	__le64 VolumeId;
-	__u8  Reserved[16];
-} __packed;
-
 /* equivalent of the contents of SMB3.1.1 POSIX open context response */
 struct create_posix_rsp {
 	struct create_context ccontext;

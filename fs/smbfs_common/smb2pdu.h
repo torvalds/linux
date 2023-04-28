@@ -1181,6 +1181,7 @@ struct create_posix {
 
 #define SMB2_LEASE_KEY_SIZE			16
 
+/* See MS-SMB2 2.2.13.2.8 */
 struct lease_context {
 	__u8 LeaseKey[SMB2_LEASE_KEY_SIZE];
 	__le32 LeaseState;
@@ -1188,6 +1189,7 @@ struct lease_context {
 	__le64 LeaseDuration;
 } __packed;
 
+/* See MS-SMB2 2.2.13.2.10 */
 struct lease_context_v2 {
 	__u8 LeaseKey[SMB2_LEASE_KEY_SIZE];
 	__le32 LeaseState;
@@ -1209,6 +1211,15 @@ struct create_lease_v2 {
 	__u8   Name[8];
 	struct lease_context_v2 lcontext;
 	__u8   Pad[4];
+} __packed;
+
+/* See MS-SMB2 2.2.14.2.9 */
+struct create_disk_id_rsp {
+	struct create_context ccontext;
+	__u8   Name[8];
+	__le64 DiskFileId;
+	__le64 VolumeId;
+	__u8  Reserved[16];
 } __packed;
 
 /* See MS-SMB2 2.2.31 and 2.2.32 */
