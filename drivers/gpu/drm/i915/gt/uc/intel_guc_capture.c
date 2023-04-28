@@ -1540,6 +1540,36 @@ void intel_guc_capture_free_node(struct intel_engine_coredump *ee)
 	ee->guc_capture_node = NULL;
 }
 
+bool intel_guc_capture_is_matching_engine(struct intel_gt *gt,
+					  struct intel_context *ce,
+					  struct intel_engine_cs *engine)
+{
+	struct __guc_capture_parsed_output *n;
+	struct intel_guc *guc;
+
+	if (!gt || !ce || !engine)
+		return false;
+
+	guc = &gt->uc.guc;
+	if (!guc->capture)
+		return false;
+
+	/*
+	 * Look for a matching GuC reported error capture node from
+	 * the internal output link-list based on lrca, guc-id and engine
+	 * identification.
+	 */
+	list_for_each_entry(n, &guc->capture->outlist, link) {
+		if (n->eng_inst == GUC_ID_TO_ENGINE_INSTANCE(engine->guc_id) &&
+		    n->eng_class == GUC_ID_TO_ENGINE_CLASS(engine->guc_id) &&
+		    n->guc_id == ce->guc_id.id &&
+		    (n->lrca & CTX_GTT_ADDRESS_MASK) == (ce->lrc.lrca & CTX_GTT_ADDRESS_MASK))
+			return true;
+	}
+
+	return false;
+}
+
 void intel_guc_capture_get_matching_node(struct intel_gt *gt,
 					 struct intel_engine_coredump *ee,
 					 struct intel_context *ce)
@@ -1555,6 +1585,7 @@ void intel_guc_capture_get_matching_node(struct intel_gt *gt,
 		return;
 
 	GEM_BUG_ON(ee->guc_capture_node);
+
 	/*
 	 * Look for a matching GuC reported error capture node from
 	 * the internal output link-list based on lrca, guc-id and engine
