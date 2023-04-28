@@ -2893,6 +2893,25 @@ void intel_mtl_pll_disable(struct intel_encoder *encoder)
 		intel_cx0pll_disable(encoder);
 }
 
+enum icl_port_dpll_id
+intel_mtl_port_pll_type(struct intel_encoder *encoder,
+			const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	/*
+	 * TODO: Determine the PLL type from the SW state, once MTL PLL
+	 * handling is done via the standard shared DPLL framework.
+	 */
+	u32 val = intel_de_read(i915, XELPDP_PORT_CLOCK_CTL(encoder->port));
+	u32 clock = REG_FIELD_GET(XELPDP_DDI_CLOCK_SELECT_MASK, val);
+
+	if (clock == XELPDP_DDI_CLOCK_SELECT_MAXPCLK ||
+	    clock == XELPDP_DDI_CLOCK_SELECT_DIV18CLK)
+		return ICL_PORT_DPLL_MG_PHY;
+	else
+		return ICL_PORT_DPLL_DEFAULT;
+}
+
 void intel_c10pll_state_verify(struct intel_atomic_state *state,
 			       struct intel_crtc_state *new_crtc_state)
 {
