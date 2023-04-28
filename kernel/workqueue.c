@@ -1539,6 +1539,8 @@ out:
  * We queue the work to a specific CPU, the caller must ensure it
  * can't go away.  Callers that fail to ensure that the specified
  * CPU cannot go away will execute on a randomly chosen CPU.
+ * But note well that callers specifying a CPU that never has been
+ * online will get a splat.
  *
  * Return: %false if @work was already on a queue, %true otherwise.
  */
