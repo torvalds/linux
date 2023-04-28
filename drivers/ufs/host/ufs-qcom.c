@@ -5009,12 +5009,26 @@ static void ufs_qcom_hook_send_command(void *param, struct ufs_hba *hba,
 	if (lrbp && lrbp->cmd && lrbp->cmd->cmnd[0]) {
 		struct request *rq = scsi_cmd_to_rq(lrbp->cmd);
 		int sz = rq ? blk_rq_sectors(rq) : 0;
-		ufs_qcom_log_str(host, "<,%x,%d,%x,%d\n",
-				lrbp->cmd->cmnd[0],
-				lrbp->task_tag,
-				ufshcd_readl(hba,
-					REG_UTP_TRANSFER_REQ_DOOR_BELL),
-				sz);
+
+		if (is_mcq_enabled(hba)) {
+			u32 utag = (rq->mq_hctx->queue_num << BLK_MQ_UNIQUE_TAG_BITS) |
+						(rq->tag & BLK_MQ_UNIQUE_TAG_MASK);
+			u32 idx = blk_mq_unique_tag_to_hwq(utag) + 1;
+			struct ufs_hw_queue *hwq = &hba->uhq[idx];
+
+			ufs_qcom_log_str(host, "<,%x,%d,%d,%d\n",
+							lrbp->cmd->cmnd[0],
+							lrbp->task_tag,
+							hwq->id,
+							sz);
+		} else {
+			ufs_qcom_log_str(host, "<,%x,%d,%x,%d\n",
+							lrbp->cmd->cmnd[0],
+							lrbp->task_tag,
+							ufshcd_readl(hba,
+								REG_UTP_TRANSFER_REQ_DOOR_BELL),
+							sz);
+		}
 	}
 }
 
@@ -5025,14 +5039,28 @@ static void ufs_qcom_hook_compl_command(void *param, struct ufs_hba *hba,
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
 
 	if (lrbp && lrbp->cmd) {
-		int sz = scsi_cmd_to_rq(lrbp->cmd) ?
-				blk_rq_sectors(scsi_cmd_to_rq(lrbp->cmd)) : 0;
-		ufs_qcom_log_str(host, ">,%x,%d,%x,%d\n",
-				lrbp->cmd->cmnd[0],
-				lrbp->task_tag,
-				ufshcd_readl(hba,
-					REG_UTP_TRANSFER_REQ_DOOR_BELL),
-				sz);
+		struct request *rq = scsi_cmd_to_rq(lrbp->cmd);
+		int sz = rq ? blk_rq_sectors(rq) : 0;
+
+		if (is_mcq_enabled(hba)) {
+			u32 utag = (rq->mq_hctx->queue_num << BLK_MQ_UNIQUE_TAG_BITS) |
+						(rq->tag & BLK_MQ_UNIQUE_TAG_MASK);
+			u32 idx = blk_mq_unique_tag_to_hwq(utag) + 1;
+			struct ufs_hw_queue *hwq = &hba->uhq[idx];
+
+			ufs_qcom_log_str(host, ">,%x,%d,%d,%d\n",
+							lrbp->cmd->cmnd[0],
+							lrbp->task_tag,
+							hwq->id,
+							sz);
+		} else {
+			ufs_qcom_log_str(host, ">,%x,%d,%x,%d\n",
+							lrbp->cmd->cmnd[0],
+							lrbp->task_tag,
+							ufshcd_readl(hba,
+								REG_UTP_TRANSFER_REQ_DOOR_BELL),
+							sz);
+		}
 	}
 }
 
