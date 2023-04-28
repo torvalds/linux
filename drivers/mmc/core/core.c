@@ -2072,7 +2072,7 @@ int mmc_set_blocklen(struct mmc_card *card, unsigned int blocklen)
 }
 EXPORT_SYMBOL(mmc_set_blocklen);
 
-#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT
+#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT_MMC
 static void mmc_hw_reset_for_init(struct mmc_host *host)
 {
 	mmc_pwrseq_reset(host);
@@ -2154,7 +2154,7 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 	 * Some eMMCs (with VCCQ always on) may not be reset after power up, so
 	 * do a hardware reset if possible.
 	 */
-#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT
+#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT_MMC
 	mmc_hw_reset_for_init(host);
 #endif
 
