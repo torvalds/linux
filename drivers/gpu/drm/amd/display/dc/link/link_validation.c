@@ -359,5 +359,8 @@ bool link_validate_dpia_bandwidth(const struct dc_stream_state *stream, const un
 		link[i] = stream[i].link;
 		bw_needed[i] = dc_bandwidth_in_kbps_from_timing(&stream[i].timing);
 	}
+
+	ret = dpia_validate_usb4_bw(link, bw_needed, num_streams);
+
 	return ret;
 }
