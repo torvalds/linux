@@ -512,6 +512,16 @@ config KEXEC_SIG
 	  verification for the corresponding kernel image type being
 	  loaded in order for this to work.
 
+config CERT_STORE
+	bool "Get user certificates via DIAG320"
+	depends on KEYS
+	help
+	  Enable this option if you want to access user-provided secure boot
+	  certificates via DIAG 0x320.
+
+	  These certificates will be made available via the keyring named
+	  'cert_store'.
+
 config KERNEL_NOBP
 	def_bool n
 	prompt "Enable modified branch prediction for the kernel by default"
