@@ -608,10 +608,6 @@ static int pqi_build_raid_path_request(struct pqi_ctrl_info *ctrl_info,
 	cdb = request->cdb;
 
 	switch (cmd) {
-	case TEST_UNIT_READY:
-		request->data_direction = SOP_READ_FLAG;
-		cdb[0] = TEST_UNIT_READY;
-		break;
 	case INQUIRY:
 		request->data_direction = SOP_READ_FLAG;
 		cdb[0] = INQUIRY;
@@ -1619,6 +1615,7 @@ no_buffer:
 
 #define PQI_DEVICE_NCQ_PRIO_SUPPORTED	0x01
 #define PQI_DEVICE_PHY_MAP_SUPPORTED	0x10
+#define PQI_DEVICE_ERASE_IN_PROGRESS	0x10
 
 static int pqi_get_physical_device_info(struct pqi_ctrl_info *ctrl_info,
 	struct pqi_scsi_dev *device,
@@ -1667,6 +1664,8 @@ static int pqi_get_physical_device_info(struct pqi_ctrl_info *ctrl_info,
 		((get_unaligned_le32(&id_phys->misc_drive_flags) >> 16) &
 		PQI_DEVICE_NCQ_PRIO_SUPPORTED);
 
+	device->erase_in_progress = !!(get_unaligned_le16(&id_phys->extra_physical_drive_flags) & PQI_DEVICE_ERASE_IN_PROGRESS);
+
 	return 0;
 }
 
@@ -1712,7 +1711,7 @@ out:
 
 /*
  * Prevent adding drive to OS for some corner cases such as a drive
- * undergoing a sanitize operation. Some OSes will continue to poll
+ * undergoing a sanitize (erase) operation. Some OSes will continue to poll
  * the drive until the sanitize completes, which can take hours,
  * resulting in long bootup delays. Commands such as TUR, READ_CAP
  * are allowed, but READ/WRITE cause check condition. So the OS
@@ -1720,73 +1719,9 @@ out:
  * Note: devices that have completed sanitize must be re-enabled
  *       using the management utility.
  */
-static bool pqi_keep_device_offline(struct pqi_ctrl_info *ctrl_info,
-	struct pqi_scsi_dev *device)
+static inline bool pqi_keep_device_offline(struct pqi_scsi_dev *device)
 {
-	u8 scsi_status;
-	int rc;
-	enum dma_data_direction dir;
-	char *buffer;
-	int buffer_length = 64;
-	size_t sense_data_length;
-	struct scsi_sense_hdr sshdr;
-	struct pqi_raid_path_request request;
-	struct pqi_raid_error_info error_info;
-	bool offline = false; /* Assume keep online */
-
-	/* Do not check controllers. */
-	if (pqi_is_hba_lunid(device->scsi3addr))
-		return false;
-
-	/* Do not check LVs. */
-	if (pqi_is_logical_device(device))
-		return false;
-
-	buffer = kmalloc(buffer_length, GFP_KERNEL);
-	if (!buffer)
-		return false; /* Assume not offline */
-
-	/* Check for SANITIZE in progress using TUR */
-	rc = pqi_build_raid_path_request(ctrl_info, &request,
-		TEST_UNIT_READY, RAID_CTLR_LUNID, buffer,
-		buffer_length, 0, &dir);
-	if (rc)
-		goto out; /* Assume not offline */
-
-	memcpy(request.lun_number, device->scsi3addr, sizeof(request.lun_number));
-
-	rc = pqi_submit_raid_request_synchronous(ctrl_info, &request.header, 0, &error_info);
-
-	if (rc)
-		goto out; /* Assume not offline */
-
-	scsi_status = error_info.status;
-	sense_data_length = get_unaligned_le16(&error_info.sense_data_length);
-	if (sense_data_length == 0)
-		sense_data_length =
-			get_unaligned_le16(&error_info.response_data_length);
-	if (sense_data_length) {
-		if (sense_data_length > sizeof(error_info.data))
-			sense_data_length = sizeof(error_info.data);
-
-		/*
-		 * Check for sanitize in progress: asc:0x04, ascq: 0x1b
-		 */
-		if (scsi_status == SAM_STAT_CHECK_CONDITION &&
-			scsi_normalize_sense(error_info.data,
-				sense_data_length, &sshdr) &&
-				sshdr.sense_key == NOT_READY &&
-				sshdr.asc == 0x04 &&
-				sshdr.ascq == 0x1b) {
-			device->device_offline = true;
-			offline = true;
-			goto out; /* Keep device offline */
-		}
-	}
-
-out:
-	kfree(buffer);
-	return offline;
+	return device->erase_in_progress;
 }
 
 static int pqi_get_device_info_phys_logical(struct pqi_ctrl_info *ctrl_info,
@@ -2530,10 +2465,6 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 		if (!pqi_is_supported_device(device))
 			continue;
 
-		/* Do not present disks that the OS cannot fully probe */
-		if (pqi_keep_device_offline(ctrl_info, device))
-			continue;
-
 		/* Gather information about the device. */
 		rc = pqi_get_device_info(ctrl_info, device, id_phys);
 		if (rc == -ENOMEM) {
@@ -2555,6 +2486,10 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 			rc = 0;
 			continue;
 		}
+
+		/* Do not present disks that the OS cannot fully probe. */
+		if (pqi_keep_device_offline(device))
+			continue;
 
 		pqi_assign_bus_target_lun(device);
 
