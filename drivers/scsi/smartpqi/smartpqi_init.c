@@ -8560,7 +8560,7 @@ static int pqi_pci_init(struct pqi_ctrl_info *ctrl_info)
 
 	ctrl_info->iomem_base = ioremap(pci_resource_start(
 		ctrl_info->pci_dev, 0),
-		sizeof(struct pqi_ctrl_registers));
+		pci_resource_len(ctrl_info->pci_dev, 0));
 	if (!ctrl_info->iomem_base) {
 		dev_err(&ctrl_info->pci_dev->dev,
 			"failed to map memory for controller registers\n");
