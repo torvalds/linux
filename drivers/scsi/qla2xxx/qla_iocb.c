@@ -2541,7 +2541,7 @@ qla24xx_tm_iocb(srb_t *sp, struct tsk_mgmt_entry *tsk)
 	scsi_qla_host_t *vha = fcport->vha;
 	struct qla_hw_data *ha = vha->hw;
 	struct srb_iocb *iocb = &sp->u.iocb_cmd;
-	struct req_que *req = vha->req;
+	struct req_que *req = sp->qpair->req;
 
 	flags = iocb->u.tmf.flags;
 	lun = iocb->u.tmf.lun;
@@ -2557,7 +2557,8 @@ qla24xx_tm_iocb(srb_t *sp, struct tsk_mgmt_entry *tsk)
 	tsk->port_id[2] = fcport->d_id.b.domain;
 	tsk->vp_index = fcport->vha->vp_idx;
 
-	if (flags == TCF_LUN_RESET) {
+	if (flags & (TCF_LUN_RESET | TCF_ABORT_TASK_SET|
+	    TCF_CLEAR_TASK_SET|TCF_CLEAR_ACA)) {
 		int_to_scsilun(lun, &tsk->lun);
 		host_to_fcp_swap((uint8_t *)&tsk->lun,
 			sizeof(tsk->lun));
