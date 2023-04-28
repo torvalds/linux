@@ -1885,7 +1885,12 @@ static int add_default_attributes(void)
 		 * Add TopdownL1 metrics if they exist. To minimize
 		 * multiplexing, don't request threshold computation.
 		 */
-		if (metricgroup__has_metric("TopdownL1") &&
+		/*
+		 * TODO: TopdownL1 is disabled on hybrid CPUs to avoid a crashes
+		 * caused by exposing latent bugs. This is fixed properly in:
+		 * https://lore.kernel.org/lkml/bff481ba-e60a-763f-0aa0-3ee53302c480@linux.intel.com/
+		 */
+		if (metricgroup__has_metric("TopdownL1") && !perf_pmu__has_hybrid() &&
 		    metricgroup__parse_groups(evsel_list, "TopdownL1",
 					    /*metric_no_group=*/false,
 					    /*metric_no_merge=*/false,
@@ -1894,6 +1899,7 @@ static int add_default_attributes(void)
 					    stat_config.system_wide,
 					    &stat_config.metric_events) < 0)
 			return -1;
+
 		/* Platform specific attrs */
 		if (evlist__add_default_attrs(evsel_list, default_null_attrs) < 0)
 			return -1;
