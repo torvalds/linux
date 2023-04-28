@@ -1398,7 +1398,6 @@ static int hdptx_ropll_tmds_mode_config(struct rockchip_hdptx_phy *hdptx, u32 ra
 	hdptx_write(hdptx, LANE_REG0312, 0x00);
 	hdptx_write(hdptx, LANE_REG0316, 0x02);
 	hdptx_write(hdptx, LANE_REG031B, 0x01);
-	hdptx_write(hdptx, LANE_REG031E, 0x00);
 	hdptx_write(hdptx, LANE_REG031F, 0x15);
 	hdptx_write(hdptx, LANE_REG0320, 0xa0);
 	hdptx_write(hdptx, LANE_REG0403, 0x0c);
@@ -1413,7 +1412,6 @@ static int hdptx_ropll_tmds_mode_config(struct rockchip_hdptx_phy *hdptx, u32 ra
 	hdptx_write(hdptx, LANE_REG0412, 0x00);
 	hdptx_write(hdptx, LANE_REG0416, 0x02);
 	hdptx_write(hdptx, LANE_REG041B, 0x01);
-	hdptx_write(hdptx, LANE_REG041E, 0x00);
 	hdptx_write(hdptx, LANE_REG041F, 0x15);
 	hdptx_write(hdptx, LANE_REG0420, 0xa0);
 	hdptx_write(hdptx, LANE_REG0503, 0x0c);
@@ -1428,7 +1426,6 @@ static int hdptx_ropll_tmds_mode_config(struct rockchip_hdptx_phy *hdptx, u32 ra
 	hdptx_write(hdptx, LANE_REG0512, 0x00);
 	hdptx_write(hdptx, LANE_REG0516, 0x02);
 	hdptx_write(hdptx, LANE_REG051B, 0x01);
-	hdptx_write(hdptx, LANE_REG051E, 0x00);
 	hdptx_write(hdptx, LANE_REG051F, 0x15);
 	hdptx_write(hdptx, LANE_REG0520, 0xa0);
 	hdptx_write(hdptx, LANE_REG0603, 0x0c);
@@ -1444,6 +1441,13 @@ static int hdptx_ropll_tmds_mode_config(struct rockchip_hdptx_phy *hdptx, u32 ra
 	hdptx_write(hdptx, LANE_REG0616, 0x02);
 	hdptx_write(hdptx, LANE_REG061B, 0x01);
 	hdptx_write(hdptx, LANE_REG061E, 0x08);
+
+	/* fix Inter-Pair Skew exceed the limits */
+	hdptx_write(hdptx, LANE_REG031E, 0x02);
+	hdptx_write(hdptx, LANE_REG041E, 0x02);
+	hdptx_write(hdptx, LANE_REG051E, 0x02);
+	hdptx_write(hdptx, LANE_REG061E, 0x0a);
+
 	hdptx_write(hdptx, LANE_REG061F, 0x15);
 	hdptx_write(hdptx, LANE_REG0620, 0xa0);
 
@@ -1853,6 +1857,11 @@ static int hdptx_lcpll_ropll_frl_mode_config(struct rockchip_hdptx_phy *hdptx)
 	hdptx_write(hdptx, LANE_REG061F, 0x15);
 	hdptx_write(hdptx, LANE_REG0620, 0xa0);
 
+	hdptx_write(hdptx, LANE_REG031E, 0x02);
+	hdptx_write(hdptx, LANE_REG041E, 0x02);
+	hdptx_write(hdptx, LANE_REG051E, 0x02);
+	hdptx_write(hdptx, LANE_REG061E, 0x02);
+
 	hdptx_write(hdptx, LANE_REG0303, 0x2f);
 	hdptx_write(hdptx, LANE_REG0403, 0x2f);
 	hdptx_write(hdptx, LANE_REG0503, 0x2f);
@@ -1950,6 +1959,11 @@ static int hdptx_lcpll_frl_mode_config(struct rockchip_hdptx_phy *hdptx, u32 rat
 	hdptx_write(hdptx, LANE_REG061B, 0x01);
 	hdptx_write(hdptx, LANE_REG061F, 0x15);
 	hdptx_write(hdptx, LANE_REG0620, 0xa0);
+
+	hdptx_write(hdptx, LANE_REG031E, 0x02);
+	hdptx_write(hdptx, LANE_REG041E, 0x02);
+	hdptx_write(hdptx, LANE_REG051E, 0x02);
+	hdptx_write(hdptx, LANE_REG061E, 0x02);
 
 	hdptx_write(hdptx, LANE_REG0303, 0x2f);
 	hdptx_write(hdptx, LANE_REG0403, 0x2f);
