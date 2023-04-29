@@ -377,7 +377,8 @@ static const struct it87_devices it87_devices[] = {
 		.model = "IT8732F",
 		.features = FEAT_NEWER_AUTOPWM | FEAT_16BIT_FANS
 		  | FEAT_TEMP_OFFSET | FEAT_TEMP_OLD_PECI | FEAT_TEMP_PECI
-		  | FEAT_10_9MV_ADC | FEAT_IN7_INTERNAL,
+		  | FEAT_10_9MV_ADC | FEAT_IN7_INTERNAL | FEAT_FOUR_FANS
+		  | FEAT_FOUR_PWM,
 		.peci_mask = 0x07,
 		.old_peci_mask = 0x02,	/* Actually reports PCH */
 	},
@@ -2931,6 +2932,34 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 		reg = superio_inb(sioaddr, IT87_SIO_PINX2_REG);
 		if (!(reg & BIT(0)))
 			sio_data->skip_in |= BIT(9);
+
+		sio_data->beep_pin = superio_inb(sioaddr,
+						 IT87_SIO_BEEP_PIN_REG) & 0x3f;
+	} else if (sio_data->type == it8732) {
+		int reg;
+
+		superio_select(sioaddr, GPIO);
+
+		/* Check for pwm2, fan2 */
+		reg = superio_inb(sioaddr, IT87_SIO_GPIO5_REG);
+		if (reg & BIT(1))
+			sio_data->skip_pwm |= BIT(1);
+		if (reg & BIT(2))
+			sio_data->skip_fan |= BIT(1);
+
+		/* Check for pwm3, fan3, fan4 */
+		reg = superio_inb(sioaddr, IT87_SIO_GPIO3_REG);
+		if (reg & BIT(6))
+			sio_data->skip_pwm |= BIT(2);
+		if (reg & BIT(7))
+			sio_data->skip_fan |= BIT(2);
+		if (reg & BIT(5))
+			sio_data->skip_fan |= BIT(3);
+
+		/* Check if AVCC is on VIN3 */
+		reg = superio_inb(sioaddr, IT87_SIO_PINX2_REG);
+		if (reg & BIT(0))
+			sio_data->internal |= BIT(0);
 
 		sio_data->beep_pin = superio_inb(sioaddr,
 						 IT87_SIO_BEEP_PIN_REG) & 0x3f;
