@@ -7,10 +7,17 @@
 
 struct btrfs_fs_info;
 
+/*
+ * We want to be able to override this in btrfs-progs.
+ */
+#ifdef __KERNEL__
+
 static inline __printf(2, 3) __cold
 void btrfs_no_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...)
 {
 }
+
+#endif
 
 #ifdef CONFIG_PRINTK
 
