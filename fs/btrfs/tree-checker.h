@@ -58,6 +58,7 @@ enum btrfs_tree_block_status {
  * btrfs_tree_block_status return codes.
  */
 enum btrfs_tree_block_status __btrfs_check_leaf(struct extent_buffer *leaf);
+enum btrfs_tree_block_status __btrfs_check_node(struct extent_buffer *node);
 
 int btrfs_check_leaf(struct extent_buffer *leaf);
 int btrfs_check_node(struct extent_buffer *node);

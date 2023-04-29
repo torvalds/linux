@@ -1845,7 +1845,7 @@ int btrfs_check_leaf(struct extent_buffer *leaf)
 }
 ALLOW_ERROR_INJECTION(btrfs_check_leaf, ERRNO);
 
-int btrfs_check_node(struct extent_buffer *node)
+enum btrfs_tree_block_status __btrfs_check_node(struct extent_buffer *node)
 {
 	struct btrfs_fs_info *fs_info = node->fs_info;
 	unsigned long nr = btrfs_header_nritems(node);
@@ -1853,13 +1853,12 @@ int btrfs_check_node(struct extent_buffer *node)
 	int slot;
 	int level = btrfs_header_level(node);
 	u64 bytenr;
-	int ret = 0;
 
 	if (unlikely(level <= 0 || level >= BTRFS_MAX_LEVEL)) {
 		generic_err(node, 0,
 			"invalid level for node, have %d expect [1, %d]",
 			level, BTRFS_MAX_LEVEL - 1);
-		return -EUCLEAN;
+		return BTRFS_TREE_BLOCK_INVALID_LEVEL;
 	}
 	if (unlikely(nr == 0 || nr > BTRFS_NODEPTRS_PER_BLOCK(fs_info))) {
 		btrfs_crit(fs_info,
@@ -1867,7 +1866,7 @@ int btrfs_check_node(struct extent_buffer *node)
 			   btrfs_header_owner(node), node->start,
 			   nr == 0 ? "small" : "large", nr,
 			   BTRFS_NODEPTRS_PER_BLOCK(fs_info));
-		return -EUCLEAN;
+		return BTRFS_TREE_BLOCK_INVALID_NRITEMS;
 	}
 
 	for (slot = 0; slot < nr - 1; slot++) {
@@ -1878,15 +1877,13 @@ int btrfs_check_node(struct extent_buffer *node)
 		if (unlikely(!bytenr)) {
 			generic_err(node, slot,
 				"invalid NULL node pointer");
-			ret = -EUCLEAN;
-			goto out;
+			return BTRFS_TREE_BLOCK_INVALID_BLOCKPTR;
 		}
 		if (unlikely(!IS_ALIGNED(bytenr, fs_info->sectorsize))) {
 			generic_err(node, slot,
 			"unaligned pointer, have %llu should be aligned to %u",
 				bytenr, fs_info->sectorsize);
-			ret = -EUCLEAN;
-			goto out;
+			return BTRFS_TREE_BLOCK_INVALID_BLOCKPTR;
 		}
 
 		if (unlikely(btrfs_comp_cpu_keys(&key, &next_key) >= 0)) {
@@ -1895,12 +1892,20 @@ int btrfs_check_node(struct extent_buffer *node)
 				key.objectid, key.type, key.offset,
 				next_key.objectid, next_key.type,
 				next_key.offset);
-			ret = -EUCLEAN;
-			goto out;
+			return BTRFS_TREE_BLOCK_BAD_KEY_ORDER;
 		}
 	}
-out:
-	return ret;
+	return BTRFS_TREE_BLOCK_CLEAN;
+}
+
+int btrfs_check_node(struct extent_buffer *node)
+{
+	enum btrfs_tree_block_status ret;
+
+	ret = __btrfs_check_node(node);
+	if (unlikely(ret != BTRFS_TREE_BLOCK_CLEAN))
+		return -EUCLEAN;
+	return 0;
 }
 ALLOW_ERROR_INJECTION(btrfs_check_node, ERRNO);
 
