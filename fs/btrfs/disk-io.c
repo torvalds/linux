@@ -326,7 +326,7 @@ static int csum_one_extent_buffer(struct extent_buffer *eb)
 	if (btrfs_header_level(eb))
 		ret = btrfs_check_node(eb);
 	else
-		ret = btrfs_check_leaf_full(eb);
+		ret = btrfs_check_leaf(eb);
 
 	if (ret < 0)
 		goto error;
@@ -583,7 +583,7 @@ static int validate_extent_buffer(struct extent_buffer *eb,
 	 * that we don't try and read the other copies of this block, just
 	 * return -EIO.
 	 */
-	if (found_level == 0 && btrfs_check_leaf_full(eb)) {
+	if (found_level == 0 && btrfs_check_leaf(eb)) {
 		set_bit(EXTENT_BUFFER_CORRUPT, &eb->bflags);
 		ret = -EIO;
 	}
@@ -4701,12 +4701,10 @@ void btrfs_mark_buffer_dirty(struct extent_buffer *buf)
 					 fs_info->dirty_metadata_batch);
 #ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
 	/*
-	 * Since btrfs_mark_buffer_dirty() can be called with item pointer set
-	 * but item data not updated.
-	 * So here we should only check item pointers, not item data.
+	 * btrfs_check_leaf() won't check item data if we don't have WRITTEN
+	 * set, so this will only validate the basic structure of the items.
 	 */
-	if (btrfs_header_level(buf) == 0 &&
-	    btrfs_check_leaf_relaxed(buf)) {
+	if (btrfs_header_level(buf) == 0 && btrfs_check_leaf(buf)) {
 		btrfs_print_leaf(buf);
 		ASSERT(0);
 	}
