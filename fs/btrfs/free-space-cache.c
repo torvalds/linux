@@ -292,25 +292,6 @@ out:
 	return ret;
 }
 
-int btrfs_check_trunc_cache_free_space(struct btrfs_fs_info *fs_info,
-				       struct btrfs_block_rsv *rsv)
-{
-	u64 needed_bytes;
-	int ret;
-
-	/* 1 for slack space, 1 for updating the inode */
-	needed_bytes = btrfs_calc_insert_metadata_size(fs_info, 1) +
-		btrfs_calc_metadata_size(fs_info, 1);
-
-	spin_lock(&rsv->lock);
-	if (rsv->reserved < needed_bytes)
-		ret = -ENOSPC;
-	else
-		ret = 0;
-	spin_unlock(&rsv->lock);
-	return ret;
-}
-
 int btrfs_truncate_free_space_cache(struct btrfs_trans_handle *trans,
 				    struct btrfs_block_group *block_group,
 				    struct inode *vfs_inode)
