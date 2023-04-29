@@ -160,6 +160,19 @@ static const struct x86_serdev_info lenovo_yb1_x90_serdevs[] __initconst = {
 	},
 };
 
+static struct x86_gpio_button lenovo_yb1_x90_lid = {
+	.button = {
+		.code = SW_LID,
+		.active_low = true,
+		.desc = "lid_sw",
+		.type = EV_SW,
+		.wakeup = true,
+		.debounce_interval = 50,
+	},
+	.chip = "INT33FF:02",
+	.pin = 19,
+};
+
 static struct gpiod_lookup_table lenovo_yb1_x90_goodix_gpios = {
 	.dev_id = "i2c-goodix_ts",
 	.table = {
@@ -218,6 +231,7 @@ const struct x86_dev_info lenovo_yogabook_x90_info __initconst = {
 	.pdev_count = ARRAY_SIZE(lenovo_yb1_x90_pdevs),
 	.serdev_info = lenovo_yb1_x90_serdevs,
 	.serdev_count = ARRAY_SIZE(lenovo_yb1_x90_serdevs),
+	.gpio_button = &lenovo_yb1_x90_lid,
 	.gpiod_lookup_tables = lenovo_yb1_x90_gpios,
 	.init = lenovo_yb1_x90_init,
 };
