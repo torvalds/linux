@@ -317,6 +317,7 @@ struct it87_devices {
  * chips to avoid the problem.
  */
 #define FEAT_CONF_NOEXIT	BIT(19)	/* Chip should not exit conf mode */
+#define FEAT_FOUR_FANS		BIT(20)	/* Supports four fans */
 
 static const struct it87_devices it87_devices[] = {
 	[it87] = {
@@ -508,11 +509,14 @@ static const struct it87_devices it87_devices[] = {
 				(((data)->features & FEAT_TEMP_OLD_PECI) && \
 				 ((data)->old_peci_mask & BIT(nr)))
 #define has_fan16_config(data)	((data)->features & FEAT_FAN16_CONFIG)
+#define has_four_fans(data)	((data)->features & (FEAT_FOUR_FANS | \
+						     FEAT_FIVE_FANS | \
+						     FEAT_SIX_FANS))
 #define has_five_fans(data)	((data)->features & (FEAT_FIVE_FANS | \
 						     FEAT_SIX_FANS))
+#define has_six_fans(data)	((data)->features & FEAT_SIX_FANS)
 #define has_vid(data)		((data)->features & FEAT_VID)
 #define has_in7_internal(data)	((data)->features & FEAT_IN7_INTERNAL)
-#define has_six_fans(data)	((data)->features & FEAT_SIX_FANS)
 #define has_avcc3(data)		((data)->features & FEAT_AVCC3)
 #define has_five_pwm(data)	((data)->features & (FEAT_FIVE_PWM \
 						     | FEAT_SIX_PWM))
@@ -3169,16 +3173,14 @@ static void it87_init_device(struct platform_device *pdev)
 	it87_check_tachometers_16bit_mode(pdev);
 
 	/* Check for additional fans */
-	if (has_five_fans(data)) {
-		tmp = it87_read_value(data, IT87_REG_FAN_16BIT);
+	tmp = it87_read_value(data, IT87_REG_FAN_16BIT);
 
-		if (tmp & BIT(4))
-			data->has_fan |= BIT(3); /* fan4 enabled */
-		if (tmp & BIT(5))
-			data->has_fan |= BIT(4); /* fan5 enabled */
-		if (has_six_fans(data) && (tmp & BIT(2)))
-			data->has_fan |= BIT(5); /* fan6 enabled */
-	}
+	if (has_four_fans(data) && (tmp & BIT(4)))
+		data->has_fan |= BIT(3); /* fan4 enabled */
+	if (has_five_fans(data) && (tmp & BIT(5)))
+		data->has_fan |= BIT(4); /* fan5 enabled */
+	if (has_six_fans(data) && (tmp & BIT(2)))
+		data->has_fan |= BIT(5); /* fan6 enabled */
 
 	/* Fan input pins may be used for alternative functions */
 	data->has_fan &= ~sio_data->skip_fan;
