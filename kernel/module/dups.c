@@ -32,6 +32,8 @@
 #include <linux/async.h>
 #include <linux/uaccess.h>
 
+#include "internal.h"
+
 #undef MODULE_PARAM_PREFIX
 #define MODULE_PARAM_PREFIX "module."
 static bool enable_dups_trace = IS_ENABLED(CONFIG_MODULE_DEBUG_AUTOLOAD_DUPS_TRACE);
