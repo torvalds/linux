@@ -268,6 +268,14 @@ static struct x86_i2c_client_info lenovo_yoga_tab2_830_1050_i2c_clients[] __init
 		},
 		.adapter_path = "\\_SB_.I2C5",
 	}, {
+		/* AL3320A ambient light sensor */
+		.board_info = {
+			.type = "al3320a",
+			.addr = 0x1c,
+			.dev_name = "al3320a",
+		},
+		.adapter_path = "\\_SB_.I2C5",
+	}, {
 		/* bq24292i battery charger */
 		.board_info = {
 			.type = "bq24190",
