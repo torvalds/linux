@@ -37,8 +37,6 @@ static int push_node_left(struct btrfs_trans_handle *trans,
 static int balance_node_right(struct btrfs_trans_handle *trans,
 			      struct extent_buffer *dst_buf,
 			      struct extent_buffer *src_buf);
-static void del_ptr(struct btrfs_root *root, struct btrfs_path *path,
-		    int level, int slot);
 
 static const struct btrfs_csums {
 	u16		size;
@@ -1122,7 +1120,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 		if (btrfs_header_nritems(right) == 0) {
 			btrfs_clear_buffer_dirty(trans, right);
 			btrfs_tree_unlock(right);
-			del_ptr(root, path, level + 1, pslot + 1);
+			btrfs_del_ptr(root, path, level + 1, pslot + 1);
 			root_sub_used(root, right->len);
 			btrfs_free_tree_block(trans, btrfs_root_id(root), right,
 					      0, 1);
@@ -1168,7 +1166,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 	if (btrfs_header_nritems(mid) == 0) {
 		btrfs_clear_buffer_dirty(trans, mid);
 		btrfs_tree_unlock(mid);
-		del_ptr(root, path, level + 1, pslot);
+		btrfs_del_ptr(root, path, level + 1, pslot);
 		root_sub_used(root, mid->len);
 		btrfs_free_tree_block(trans, btrfs_root_id(root), mid, 0, 1);
 		free_extent_buffer_stale(mid);
@@ -4357,9 +4355,11 @@ int btrfs_duplicate_item(struct btrfs_trans_handle *trans,
  *
  * the tree should have been previously balanced so the deletion does not
  * empty a node.
+ *
+ * This is exported for use inside btrfs-progs, don't un-export it.
  */
-static void del_ptr(struct btrfs_root *root, struct btrfs_path *path,
-		    int level, int slot)
+void btrfs_del_ptr(struct btrfs_root *root, struct btrfs_path *path, int level,
+		   int slot)
 {
 	struct extent_buffer *parent = path->nodes[level];
 	u32 nritems;
@@ -4414,7 +4414,7 @@ static noinline void btrfs_del_leaf(struct btrfs_trans_handle *trans,
 				    struct extent_buffer *leaf)
 {
 	WARN_ON(btrfs_header_generation(leaf) != trans->transid);
-	del_ptr(root, path, 1, path->slots[1]);
+	btrfs_del_ptr(root, path, 1, path->slots[1]);
 
 	/*
 	 * btrfs_free_extent is expensive, we want to make sure we
@@ -4500,7 +4500,7 @@ int btrfs_del_items(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 
 			/* push_leaf_left fixes the path.
 			 * make sure the path still points to our leaf
-			 * for possible call to del_ptr below
+			 * for possible call to btrfs_del_ptr below
 			 */
 			slot = path->slots[1];
 			atomic_inc(&leaf->refs);
