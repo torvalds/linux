@@ -422,12 +422,12 @@ static void guc_capture_list_init(struct xe_guc_ads *ads)
 
 static void guc_mmio_regset_write_one(struct xe_guc_ads *ads,
 				      struct iosys_map *regset_map,
-				      u32 reg, u32 flags,
+				      struct xe_reg reg,
 				      unsigned int n_entry)
 {
 	struct guc_mmio_reg entry = {
-		.offset = reg,
-		.flags = flags,
+		.offset = reg.reg,
+		.flags = reg.masked ? GUC_REGSET_MASKED : 0,
 		/* TODO: steering */
 	};
 
@@ -446,40 +446,33 @@ static unsigned int guc_mmio_regset_write(struct xe_guc_ads *ads,
 	unsigned long idx;
 	unsigned count = 0;
 	const struct {
-		u32 reg;
-		u32 flags;
+		struct xe_reg reg;
 		bool skip;
 	} *e, extra_regs[] = {
-		{ .reg = RING_MODE(hwe->mmio_base).reg,		},
-		{ .reg = RING_HWS_PGA(hwe->mmio_base).reg,		},
-		{ .reg = RING_IMR(hwe->mmio_base).reg,			},
-		{ .reg = RCU_MODE.reg, .flags = 0x3,
-		  .skip = hwe != hwe_rcs_reset_domain			},
+		{ .reg = RING_MODE(hwe->mmio_base),			},
+		{ .reg = RING_HWS_PGA(hwe->mmio_base),			},
+		{ .reg = RING_IMR(hwe->mmio_base),			},
+		{ .reg = RCU_MODE, .skip = hwe != hwe_rcs_reset_domain	},
 	};
 	u32 i;
 
 	BUILD_BUG_ON(ARRAY_SIZE(extra_regs) > ADS_REGSET_EXTRA_MAX);
 
-	xa_for_each(&hwe->reg_sr.xa, idx, entry) {
-		u32 flags = entry->reg.masked ? GUC_REGSET_MASKED : 0;
-
-		guc_mmio_regset_write_one(ads, regset_map, idx, flags, count++);
-	}
+	xa_for_each(&hwe->reg_sr.xa, idx, entry)
+		guc_mmio_regset_write_one(ads, regset_map, entry->reg, count++);
 
 	for (e = extra_regs; e < extra_regs + ARRAY_SIZE(extra_regs); e++) {
 		if (e->skip)
 			continue;
 
-		guc_mmio_regset_write_one(ads, regset_map,
-					  e->reg, e->flags, count++);
+		guc_mmio_regset_write_one(ads, regset_map, e->reg, count++);
 	}
 
 	/* Wa_1607983814 */
 	if (needs_wa_1607983814(xe) && hwe->class == XE_ENGINE_CLASS_RENDER) {
 		for (i = 0; i < LNCFCMOCS_REG_COUNT; i++) {
 			guc_mmio_regset_write_one(ads, regset_map,
-						  LNCFCMOCS(i).reg, 0,
-						  count++);
+						  LNCFCMOCS(i), count++);
 		}
 	}
 
