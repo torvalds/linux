@@ -827,10 +827,10 @@ static inline struct RESTART_TABLE *extend_rsttbl(struct RESTART_TABLE *tbl,
 
 	memcpy(rt + 1, tbl + 1, esize * used);
 
-	rt->free_goal = free_goal == ~0u
-				? cpu_to_le32(~0u)
-				: cpu_to_le32(sizeof(struct RESTART_TABLE) +
-					      free_goal * esize);
+	rt->free_goal = free_goal == ~0u ?
+				      cpu_to_le32(~0u) :
+				      cpu_to_le32(sizeof(struct RESTART_TABLE) +
+					    free_goal * esize);
 
 	if (tbl->first_free) {
 		rt->first_free = tbl->first_free;
@@ -1089,9 +1089,9 @@ static inline u64 base_lsn(struct ntfs_log *log,
 		    (lsn < (lsn_to_vbo(log, h_lsn) & ~log->page_mask) ? 1 : 0))
 		   << log->file_data_bits) +
 		  ((((is_log_record_end(hdr) &&
-		      h_lsn <= le64_to_cpu(hdr->record_hdr.last_end_lsn))
-			     ? le16_to_cpu(hdr->record_hdr.next_record_off)
-			     : log->page_size) +
+		      h_lsn <= le64_to_cpu(hdr->record_hdr.last_end_lsn)) ?
+				   le16_to_cpu(hdr->record_hdr.next_record_off) :
+				   log->page_size) +
 		    lsn) >>
 		   3);
 
@@ -1298,9 +1298,9 @@ static void log_init_pg_hdr(struct ntfs_log *log, u32 sys_page_size,
 	if (!log->clst_per_page)
 		log->clst_per_page = 1;
 
-	log->first_page = major_ver >= 2
-				  ? 0x22 * page_size
-				  : ((sys_page_size << 1) + (page_size << 1));
+	log->first_page = major_ver >= 2 ?
+					0x22 * page_size :
+					((sys_page_size << 1) + (page_size << 1));
 	log->major_ver = major_ver;
 	log->minor_ver = minor_ver;
 }
@@ -1512,20 +1512,19 @@ static u32 current_log_avail(struct ntfs_log *log)
 	 * have to compute the free range.
 	 * If there is no oldest lsn then start at the first page of the file.
 	 */
-	oldest_off = (log->l_flags & NTFSLOG_NO_OLDEST_LSN)
-			     ? log->first_page
-			     : (log->oldest_lsn_off & ~log->sys_page_mask);
+	oldest_off = (log->l_flags & NTFSLOG_NO_OLDEST_LSN) ?
+				   log->first_page :
+				   (log->oldest_lsn_off & ~log->sys_page_mask);
 
 	/*
 	 * We will use the next log page offset to compute the next free page.
 	 * If we are going to reuse this page go to the next page.
 	 * If we are at the first page then use the end of the file.
 	 */
-	next_free_off = (log->l_flags & NTFSLOG_REUSE_TAIL)
-				? log->next_page + log->page_size
-				: log->next_page == log->first_page
-					  ? log->l_size
-					  : log->next_page;
+	next_free_off = (log->l_flags & NTFSLOG_REUSE_TAIL) ?
+				      log->next_page + log->page_size :
+			log->next_page == log->first_page ? log->l_size :
+								  log->next_page;
 
 	/* If the two offsets are the same then there is no available space. */
 	if (oldest_off == next_free_off)
@@ -1535,9 +1534,9 @@ static u32 current_log_avail(struct ntfs_log *log)
 	 * this range from the total available pages.
 	 */
 	free_bytes =
-		oldest_off < next_free_off
-			? log->total_avail_pages - (next_free_off - oldest_off)
-			: oldest_off - next_free_off;
+		oldest_off < next_free_off ?
+			      log->total_avail_pages - (next_free_off - oldest_off) :
+			      oldest_off - next_free_off;
 
 	free_bytes >>= log->page_bits;
 	return free_bytes * log->reserved;
@@ -1671,8 +1670,8 @@ next_tail:
 	}
 
 	best_lsn1 = first_tail ? base_lsn(log, first_tail, first_file_off) : 0;
-	best_lsn2 =
-		second_tail ? base_lsn(log, second_tail, second_file_off) : 0;
+	best_lsn2 = second_tail ? base_lsn(log, second_tail, second_file_off) :
+					0;
 
 	if (first_tail && second_tail) {
 		if (best_lsn1 > best_lsn2) {
@@ -1767,8 +1766,8 @@ tail_read:
 
 	page_cnt = page_pos = 1;
 
-	curpage_off = seq_base == log->seq_num ? min(log->next_page, page_off)
-					       : log->next_page;
+	curpage_off = seq_base == log->seq_num ? min(log->next_page, page_off) :
+						       log->next_page;
 
 	wrapped_file =
 		curpage_off == log->first_page &&
@@ -1826,9 +1825,9 @@ use_cur_page:
 			    le64_to_cpu(cur_page->record_hdr.last_end_lsn) &&
 		    ((lsn_cur >> log->file_data_bits) +
 		     ((curpage_off <
-		       (lsn_to_vbo(log, lsn_cur) & ~log->page_mask))
-			      ? 1
-			      : 0)) != expected_seq) {
+		       (lsn_to_vbo(log, lsn_cur) & ~log->page_mask)) ?
+				    1 :
+				    0)) != expected_seq) {
 			goto check_tail;
 		}
 
@@ -2575,7 +2574,7 @@ static int read_next_log_rec(struct ntfs_log *log, struct lcb *lcb, u64 *lsn)
 	return find_log_rec(log, *lsn, lcb);
 }
 
-static inline bool check_index_header(const struct INDEX_HDR *hdr, size_t bytes)
+bool check_index_header(const struct INDEX_HDR *hdr, size_t bytes)
 {
 	__le16 mask;
 	u32 min_de, de_off, used, total;
@@ -2642,9 +2641,10 @@ static inline bool check_index_root(const struct ATTRIB *attr,
 {
 	bool ret;
 	const struct INDEX_ROOT *root = resident_data(attr);
-	u8 index_bits = le32_to_cpu(root->index_block_size) >= sbi->cluster_size
-				? sbi->cluster_bits
-				: SECTOR_SHIFT;
+	u8 index_bits = le32_to_cpu(root->index_block_size) >=
+					sbi->cluster_size ?
+				      sbi->cluster_bits :
+				      SECTOR_SHIFT;
 	u8 block_clst = root->index_block_clst;
 
 	if (le32_to_cpu(attr->res.data_size) < sizeof(struct INDEX_ROOT) ||
@@ -3683,7 +3683,8 @@ move_data:
 
 	if (a_dirty) {
 		attr = oa->attr;
-		err = ntfs_sb_write_run(sbi, oa->run1, vbo, buffer_le, bytes, 0);
+		err = ntfs_sb_write_run(sbi, oa->run1, vbo, buffer_le, bytes,
+					0);
 		if (err)
 			goto out;
 	}
@@ -3768,11 +3769,10 @@ int log_replay(struct ntfs_inode *ni, bool *initialized)
 	if (!log)
 		return -ENOMEM;
 
-	memset(&rst_info, 0, sizeof(struct restart_info));
-
 	log->ni = ni;
 	log->l_size = l_size;
 	log->one_page_buf = kmalloc(page_size, GFP_NOFS);
+
 	if (!log->one_page_buf) {
 		err = -ENOMEM;
 		goto out;
@@ -3783,6 +3783,7 @@ int log_replay(struct ntfs_inode *ni, bool *initialized)
 	log->page_bits = blksize_bits(page_size);
 
 	/* Look for a restart area on the disk. */
+	memset(&rst_info, 0, sizeof(struct restart_info));
 	err = log_read_rst(log, l_size, true, &rst_info);
 	if (err)
 		goto out;
@@ -3859,10 +3860,10 @@ check_restart_area:
 	log->init_ra = !!rst_info.vbo;
 
 	/* If we have a valid page then grab a pointer to the restart area. */
-	ra2 = rst_info.valid_page
-		      ? Add2Ptr(rst_info.r_page,
-				le16_to_cpu(rst_info.r_page->ra_off))
-		      : NULL;
+	ra2 = rst_info.valid_page ?
+			    Add2Ptr(rst_info.r_page,
+			      le16_to_cpu(rst_info.r_page->ra_off)) :
+			    NULL;
 
 	if (rst_info.chkdsk_was_run ||
 	    (ra2 && ra2->client_idx[1] == LFS_NO_CLIENT_LE)) {
@@ -4256,6 +4257,10 @@ check_attribute_names:
 	rec_len -= t32;
 
 	attr_names = kmemdup(Add2Ptr(lrh, t32), rec_len, GFP_NOFS);
+	if (!attr_names) {
+		err = -ENOMEM;
+		goto out;
+	}
 
 	lcb_put(lcb);
 	lcb = NULL;
