@@ -311,7 +311,7 @@ const struct x86_dev_info medion_lifetab_s10346_info __initconst = {
 	.gpiod_lookup_tables = medion_lifetab_s10346_gpios,
 };
 
-/* Nextbook Ares 8 tablets have an Android factory img with everything hardcoded */
+/* Nextbook Ares 8 (BYT) tablets have an Android factory img with everything hardcoded */
 static const char * const nextbook_ares8_accel_mount_matrix[] = {
 	"0", "-1", "0",
 	"-1", "0", "0",
@@ -377,6 +377,70 @@ const struct x86_dev_info nextbook_ares8_info __initconst = {
 	.pdev_info = int3496_pdevs,
 	.pdev_count = 1,
 	.gpiod_lookup_tables = nextbook_ares8_gpios,
+};
+
+/* Nextbook Ares 8A (CHT) tablets have an Android factory img with everything hardcoded */
+static const char * const nextbook_ares8a_accel_mount_matrix[] = {
+	"1", "0", "0",
+	"0", "-1", "0",
+	"0", "0", "1"
+};
+
+static const struct property_entry nextbook_ares8a_accel_props[] = {
+	PROPERTY_ENTRY_STRING_ARRAY("mount-matrix", nextbook_ares8a_accel_mount_matrix),
+	{ }
+};
+
+static const struct software_node nextbook_ares8a_accel_node = {
+	.properties = nextbook_ares8a_accel_props,
+};
+
+static const struct x86_i2c_client_info nextbook_ares8a_i2c_clients[] __initconst = {
+	{
+		/* Freescale MMA8653FC accel */
+		.board_info = {
+			.type = "mma8653",
+			.addr = 0x1d,
+			.dev_name = "mma8653",
+			.swnode = &nextbook_ares8a_accel_node,
+		},
+		.adapter_path = "\\_SB_.PCI0.I2C3",
+	}, {
+		/* FT5416DQ9 touchscreen controller */
+		.board_info = {
+			.type = "edt-ft5x06",
+			.addr = 0x38,
+			.dev_name = "ft5416",
+			.swnode = &nextbook_ares8_touchscreen_node,
+		},
+		.adapter_path = "\\_SB_.PCI0.I2C6",
+		.irq_data = {
+			.type = X86_ACPI_IRQ_TYPE_GPIOINT,
+			.chip = "INT33FF:01",
+			.index = 17,
+			.trigger = ACPI_EDGE_SENSITIVE,
+			.polarity = ACPI_ACTIVE_LOW,
+		},
+	},
+};
+
+static struct gpiod_lookup_table nextbook_ares8a_ft5416_gpios = {
+	.dev_id = "i2c-ft5416",
+	.table = {
+		GPIO_LOOKUP("INT33FF:01", 25, "reset", GPIO_ACTIVE_LOW),
+		{ }
+	},
+};
+
+static struct gpiod_lookup_table * const nextbook_ares8a_gpios[] = {
+	&nextbook_ares8a_ft5416_gpios,
+	NULL
+};
+
+const struct x86_dev_info nextbook_ares8a_info __initconst = {
+	.i2c_client_info = nextbook_ares8a_i2c_clients,
+	.i2c_client_count = ARRAY_SIZE(nextbook_ares8a_i2c_clients),
+	.gpiod_lookup_tables = nextbook_ares8a_gpios,
 };
 
 /*

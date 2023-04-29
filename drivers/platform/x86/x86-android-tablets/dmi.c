@@ -127,12 +127,21 @@ const struct dmi_system_id x86_android_tablet_ids[] __initconst = {
 		.driver_data = (void *)&medion_lifetab_s10346_info,
 	},
 	{
-		/* Nextbook Ares 8 */
+		/* Nextbook Ares 8 (BYT version) */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "M890BAP"),
 		},
 		.driver_data = (void *)&nextbook_ares8_info,
+	},
+	{
+		/* Nextbook Ares 8A (CHT version)*/
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "CherryTrail"),
+			DMI_MATCH(DMI_BIOS_VERSION, "M882"),
+		},
+		.driver_data = (void *)&nextbook_ares8a_info,
 	},
 	{
 		/* Peaq C1010 */
