@@ -55,7 +55,7 @@ config RISCV
 	select CLINT_TIMER if !MMU
 	select CLONE_BACKWARDS
 	select COMMON_CLK
-	select CPU_PM if CPU_IDLE
+	select CPU_PM if CPU_IDLE || HIBERNATION
 	select EDAC_SUPPORT
 	select GENERIC_ARCH_TOPOLOGY
 	select GENERIC_ATOMIC64 if !64BIT
@@ -798,6 +798,12 @@ config PORTABLE
 menu "Power management options"
 
 source "kernel/power/Kconfig"
+
+config ARCH_HIBERNATION_POSSIBLE
+	def_bool y
+
+config ARCH_HIBERNATION_HEADER
+	def_bool HIBERNATION
 
 endmenu # "Power management options"
 
