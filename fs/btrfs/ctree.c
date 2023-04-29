@@ -464,10 +464,7 @@ static noinline int update_ref_for_cow(struct btrfs_trans_handle *trans,
 				return ret;
 		}
 		if (new_flags != 0) {
-			int level = btrfs_header_level(buf);
-
-			ret = btrfs_set_disk_extent_flags(trans, buf,
-							  new_flags, level);
+			ret = btrfs_set_disk_extent_flags(trans, buf, new_flags);
 			if (ret)
 				return ret;
 		}
