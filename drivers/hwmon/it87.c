@@ -318,6 +318,7 @@ struct it87_devices {
  */
 #define FEAT_CONF_NOEXIT	BIT(19)	/* Chip should not exit conf mode */
 #define FEAT_FOUR_FANS		BIT(20)	/* Supports four fans */
+#define FEAT_FOUR_PWM		BIT(21)	/* Supports four fan controls */
 
 static const struct it87_devices it87_devices[] = {
 	[it87] = {
@@ -518,8 +519,11 @@ static const struct it87_devices it87_devices[] = {
 #define has_vid(data)		((data)->features & FEAT_VID)
 #define has_in7_internal(data)	((data)->features & FEAT_IN7_INTERNAL)
 #define has_avcc3(data)		((data)->features & FEAT_AVCC3)
-#define has_five_pwm(data)	((data)->features & (FEAT_FIVE_PWM \
-						     | FEAT_SIX_PWM))
+#define has_four_pwm(data)	((data)->features & (FEAT_FOUR_PWM | \
+						     FEAT_FIVE_PWM | \
+						     FEAT_SIX_PWM))
+#define has_five_pwm(data)	((data)->features & (FEAT_FIVE_PWM | \
+						     FEAT_SIX_PWM))
 #define has_six_pwm(data)	((data)->features & FEAT_SIX_PWM)
 #define has_pwm_freq2(data)	((data)->features & FEAT_PWM_FREQ2)
 #define has_six_temp(data)	((data)->features & FEAT_SIX_TEMP)
@@ -2734,8 +2738,10 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 	else
 		sio_data->skip_in |= BIT(9);
 
-	if (!has_five_pwm(config))
+	if (!has_four_pwm(config))
 		sio_data->skip_pwm |= BIT(3) | BIT(4) | BIT(5);
+	else if (!has_five_pwm(config))
+		sio_data->skip_pwm |= BIT(4) | BIT(5);
 	else if (!has_six_pwm(config))
 		sio_data->skip_pwm |= BIT(5);
 
