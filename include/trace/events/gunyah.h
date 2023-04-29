@@ -24,7 +24,7 @@ enum {
 	SHARE = 2
 };
 
-static const char *__print_acl_arr(struct trace_seq *p, u8 *acl_perms, u16 *acl_vmids,
+static inline const char *__print_acl_arr(struct trace_seq *p, u8 *acl_perms, u16 *acl_vmids,
 				int count)
 {
 	const char *ret;

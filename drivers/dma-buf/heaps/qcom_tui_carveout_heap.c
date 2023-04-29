@@ -316,6 +316,7 @@ int qcom_tui_carveout_heap_create(struct platform_heap *heap_data)
 	if (!heap)
 		return -ENOMEM;
 
+	init_rwsem(&heap->pool_sem);
 	exp_info.name = heap_data->name;
 	exp_info.ops = &tui_heap_ops;
 	exp_info.priv = heap;
