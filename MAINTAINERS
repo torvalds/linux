@@ -22743,6 +22743,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tj/wq.git
 F:	Documentation/core-api/workqueue.rst
 F:	include/linux/workqueue.h
 F:	kernel/workqueue.c
+F:	kernel/workqueue_internal.h
 
 WWAN DRIVERS
 M:	Loic Poulain <loic.poulain@linaro.org>
