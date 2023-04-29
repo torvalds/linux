@@ -83,9 +83,9 @@ static u32 thead_errata_probe(unsigned int stage,
 	return cpu_req_errata;
 }
 
-void __init_or_module thead_errata_patch_func(struct alt_entry *begin, struct alt_entry *end,
-					      unsigned long archid, unsigned long impid,
-					      unsigned int stage)
+void thead_errata_patch_func(struct alt_entry *begin, struct alt_entry *end,
+			     unsigned long archid, unsigned long impid,
+			     unsigned int stage)
 {
 	struct alt_entry *alt;
 	u32 cpu_req_errata = thead_errata_probe(stage, archid, impid);
