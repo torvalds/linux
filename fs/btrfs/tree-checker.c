@@ -1620,9 +1620,10 @@ static int check_inode_ref(struct extent_buffer *leaf,
 /*
  * Common point to switch the item-specific validation.
  */
-static int check_leaf_item(struct extent_buffer *leaf,
-			   struct btrfs_key *key, int slot,
-			   struct btrfs_key *prev_key)
+static enum btrfs_tree_block_status check_leaf_item(struct extent_buffer *leaf,
+						    struct btrfs_key *key,
+						    int slot,
+						    struct btrfs_key *prev_key)
 {
 	int ret = 0;
 	struct btrfs_chunk *chunk;
@@ -1671,7 +1672,10 @@ static int check_leaf_item(struct extent_buffer *leaf,
 		ret = check_extent_data_ref(leaf, key, slot);
 		break;
 	}
-	return ret;
+
+	if (ret)
+		return BTRFS_TREE_BLOCK_INVALID_ITEM;
+	return BTRFS_TREE_BLOCK_CLEAN;
 }
 
 int btrfs_check_leaf(struct extent_buffer *leaf)
@@ -1751,7 +1755,6 @@ int btrfs_check_leaf(struct extent_buffer *leaf)
 	for (slot = 0; slot < nritems; slot++) {
 		u32 item_end_expected;
 		u64 item_data_end;
-		int ret;
 
 		btrfs_item_key_to_cpu(leaf, &key, slot);
 
@@ -1812,13 +1815,15 @@ int btrfs_check_leaf(struct extent_buffer *leaf)
 		 * may be in some intermediate state and won't appear valid.
 		 */
 		if (btrfs_header_flag(leaf, BTRFS_HEADER_FLAG_WRITTEN)) {
+			enum btrfs_tree_block_status ret;
+
 			/*
 			 * Check if the item size and content meet other
 			 * criteria
 			 */
 			ret = check_leaf_item(leaf, &key, slot, &prev_key);
-			if (unlikely(ret < 0))
-				return ret;
+			if (unlikely(ret != BTRFS_TREE_BLOCK_CLEAN))
+				return -EUCLEAN;
 		}
 
 		prev_key.objectid = key.objectid;
