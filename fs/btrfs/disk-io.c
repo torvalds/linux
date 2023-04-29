@@ -180,64 +180,6 @@ int btrfs_check_super_csum(struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
-int btrfs_verify_level_key(struct extent_buffer *eb, int level,
-			   struct btrfs_key *first_key, u64 parent_transid)
-{
-	struct btrfs_fs_info *fs_info = eb->fs_info;
-	int found_level;
-	struct btrfs_key found_key;
-	int ret;
-
-	found_level = btrfs_header_level(eb);
-	if (found_level != level) {
-		WARN(IS_ENABLED(CONFIG_BTRFS_DEBUG),
-		     KERN_ERR "BTRFS: tree level check failed\n");
-		btrfs_err(fs_info,
-"tree level mismatch detected, bytenr=%llu level expected=%u has=%u",
-			  eb->start, level, found_level);
-		return -EIO;
-	}
-
-	if (!first_key)
-		return 0;
-
-	/*
-	 * For live tree block (new tree blocks in current transaction),
-	 * we need proper lock context to avoid race, which is impossible here.
-	 * So we only checks tree blocks which is read from disk, whose
-	 * generation <= fs_info->last_trans_committed.
-	 */
-	if (btrfs_header_generation(eb) > fs_info->last_trans_committed)
-		return 0;
-
-	/* We have @first_key, so this @eb must have at least one item */
-	if (btrfs_header_nritems(eb) == 0) {
-		btrfs_err(fs_info,
-		"invalid tree nritems, bytenr=%llu nritems=0 expect >0",
-			  eb->start);
-		WARN_ON(IS_ENABLED(CONFIG_BTRFS_DEBUG));
-		return -EUCLEAN;
-	}
-
-	if (found_level)
-		btrfs_node_key_to_cpu(eb, &found_key, 0);
-	else
-		btrfs_item_key_to_cpu(eb, &found_key, 0);
-	ret = btrfs_comp_cpu_keys(first_key, &found_key);
-
-	if (ret) {
-		WARN(IS_ENABLED(CONFIG_BTRFS_DEBUG),
-		     KERN_ERR "BTRFS: tree first key check failed\n");
-		btrfs_err(fs_info,
-"tree first key mismatch detected, bytenr=%llu parent_transid=%llu key expected=(%llu,%u,%llu) has=(%llu,%u,%llu)",
-			  eb->start, parent_transid, first_key->objectid,
-			  first_key->type, first_key->offset,
-			  found_key.objectid, found_key.type,
-			  found_key.offset);
-	}
-	return ret;
-}
-
 static int btrfs_repair_eb_io_failure(const struct extent_buffer *eb,
 				      int mirror_num)
 {
