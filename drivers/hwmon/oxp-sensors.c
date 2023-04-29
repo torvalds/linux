@@ -62,49 +62,49 @@ static const struct dmi_system_id dmi_table[] = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "AOKZOE"),
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "AOKZOE A1 AR07"),
 		},
-		.driver_data = (void *) &(enum oxp_board) {aok_zoe_a1},
+		.driver_data = (void *)aok_zoe_a1,
 	},
 	{
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "AYANEO"),
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "AYANEO 2"),
 		},
-		.driver_data = (void *) &(enum oxp_board) {aya_neo_2},
+		.driver_data = (void *)aya_neo_2,
 	},
 	{
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "AYANEO"),
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "AIR"),
 		},
-		.driver_data = (void *) &(enum oxp_board) {aya_neo_air},
+		.driver_data = (void *)aya_neo_air,
 	},
 	{
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "AYANEO"),
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "AIR Pro"),
 		},
-		.driver_data = (void *) &(enum oxp_board) {aya_neo_air_pro},
+		.driver_data = (void *)aya_neo_air_pro,
 	},
 	{
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "AYANEO"),
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "GEEK"),
 		},
-		.driver_data = (void *) &(enum oxp_board) {aya_neo_geek},
+		.driver_data = (void *)aya_neo_geek,
 	},
 	{
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "ONE-NETBOOK"),
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "ONE XPLAYER"),
 		},
-		.driver_data = (void *) &(enum oxp_board) {oxp_mini_amd},
+		.driver_data = (void *)oxp_mini_amd,
 	},
 	{
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "ONE-NETBOOK"),
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "ONEXPLAYER Mini Pro"),
 		},
-		.driver_data = (void *) &(enum oxp_board) {oxp_mini_amd_pro},
+		.driver_data = (void *)oxp_mini_amd_pro,
 	},
 	{},
 };
@@ -296,7 +296,7 @@ static int oxp_platform_probe(struct platform_device *pdev)
 	if (!dmi_entry || boot_cpu_data.x86_vendor != X86_VENDOR_AMD)
 		return -ENODEV;
 
-	board = *((enum oxp_board *) dmi_entry->driver_data);
+	board = (enum oxp_board)(unsigned long)dmi_entry->driver_data;
 
 	hwdev = devm_hwmon_device_register_with_info(dev, "oxpec", NULL,
 						     &oxp_ec_chip_info, NULL);
