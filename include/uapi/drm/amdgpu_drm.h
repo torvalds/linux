@@ -171,6 +171,8 @@ extern "C" {
  * may override the MTYPE selected in AMDGPU_VA_OP_MAP.
  */
 #define AMDGPU_GEM_CREATE_EXT_COHERENT		(1 << 15)
+/* Set PTE.D and recompress during GTT->VRAM moves according to TILING flags. */
+#define AMDGPU_GEM_CREATE_GFX12_DCC		(1 << 16)
 
 struct drm_amdgpu_gem_create_in  {
 	/** the requested memory size */
