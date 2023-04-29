@@ -15,6 +15,7 @@ int bch2_mark_snapshot(struct btree_trans *, enum btree_id, unsigned,
 	.key_invalid	= bch2_snapshot_invalid,		\
 	.val_to_text	= bch2_snapshot_to_text,		\
 	.atomic_trigger	= bch2_mark_snapshot,			\
+	.min_val_size	= 24,					\
 })
 
 static inline struct snapshot_t *snapshot_t(struct bch_fs *c, u32 id)
@@ -119,6 +120,7 @@ void bch2_subvolume_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c)
 #define bch2_bkey_ops_subvolume ((struct bkey_ops) {		\
 	.key_invalid	= bch2_subvolume_invalid,		\
 	.val_to_text	= bch2_subvolume_to_text,		\
+	.min_val_size	= 16,					\
 })
 
 int bch2_subvolume_get(struct btree_trans *, unsigned,

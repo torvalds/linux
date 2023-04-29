@@ -67,12 +67,6 @@ int bch2_quota_invalid(const struct bch_fs *c, struct bkey_s_c k,
 		return -BCH_ERR_invalid_bkey;
 	}
 
-	if (bkey_val_bytes(k.k) != sizeof(struct bch_quota)) {
-		prt_printf(err, "incorrect value size (%zu != %zu)",
-		       bkey_val_bytes(k.k), sizeof(struct bch_quota));
-		return -BCH_ERR_invalid_bkey;
-	}
-
 	return 0;
 }
 

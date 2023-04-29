@@ -75,12 +75,6 @@ int bch2_xattr_invalid(const struct bch_fs *c, struct bkey_s_c k,
 	const struct xattr_handler *handler;
 	struct bkey_s_c_xattr xattr = bkey_s_c_to_xattr(k);
 
-	if (bkey_val_bytes(k.k) < sizeof(struct bch_xattr)) {
-		prt_printf(err, "incorrect value size (%zu < %zu)",
-		       bkey_val_bytes(k.k), sizeof(*xattr.v));
-		return -BCH_ERR_invalid_bkey;
-	}
-
 	if (bkey_val_u64s(k.k) <
 	    xattr_val_u64s(xattr.v->x_name_len,
 			   le16_to_cpu(xattr.v->x_val_len))) {

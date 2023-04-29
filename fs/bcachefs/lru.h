@@ -51,6 +51,7 @@ void bch2_lru_pos_to_text(struct printbuf *, struct bpos);
 #define bch2_bkey_ops_lru ((struct bkey_ops) {	\
 	.key_invalid	= bch2_lru_invalid,	\
 	.val_to_text	= bch2_lru_to_text,	\
+	.min_val_size	= 8,			\
 })
 
 int bch2_lru_del(struct btree_trans *, u16, u64, u64);

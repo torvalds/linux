@@ -36,12 +36,6 @@ int bch2_snapshot_invalid(const struct bch_fs *c, struct bkey_s_c k,
 		return -BCH_ERR_invalid_bkey;
 	}
 
-	if (bkey_val_bytes(k.k) != sizeof(struct bch_snapshot)) {
-		prt_printf(err, "bad val size (%zu != %zu)",
-		       bkey_val_bytes(k.k), sizeof(struct bch_snapshot));
-		return -BCH_ERR_invalid_bkey;
-	}
-
 	s = bkey_s_c_to_snapshot(k);
 
 	id = le32_to_cpu(s.v->parent);
@@ -740,12 +734,6 @@ int bch2_subvolume_invalid(const struct bch_fs *c, struct bkey_s_c k,
 	if (bkey_lt(k.k->p, SUBVOL_POS_MIN) ||
 	    bkey_gt(k.k->p, SUBVOL_POS_MAX)) {
 		prt_printf(err, "invalid pos");
-		return -BCH_ERR_invalid_bkey;
-	}
-
-	if (bkey_val_bytes(k.k) != sizeof(struct bch_subvolume)) {
-		prt_printf(err, "incorrect value size (%zu != %zu)",
-		       bkey_val_bytes(k.k), sizeof(struct bch_subvolume));
 		return -BCH_ERR_invalid_bkey;
 	}
 

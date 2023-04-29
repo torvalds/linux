@@ -437,12 +437,6 @@ int bch2_inode_invalid(const struct bch_fs *c, struct bkey_s_c k,
 {
 	struct bkey_s_c_inode inode = bkey_s_c_to_inode(k);
 
-	if (bkey_val_bytes(k.k) < sizeof(*inode.v)) {
-		prt_printf(err, "incorrect value size (%zu < %zu)",
-		       bkey_val_bytes(k.k), sizeof(*inode.v));
-		return -BCH_ERR_invalid_bkey;
-	}
-
 	if (INODE_STR_HASH(inode.v) >= BCH_STR_HASH_NR) {
 		prt_printf(err, "invalid str hash type (%llu >= %u)",
 		       INODE_STR_HASH(inode.v), BCH_STR_HASH_NR);
@@ -457,12 +451,6 @@ int bch2_inode_v2_invalid(const struct bch_fs *c, struct bkey_s_c k,
 {
 	struct bkey_s_c_inode_v2 inode = bkey_s_c_to_inode_v2(k);
 
-	if (bkey_val_bytes(k.k) < sizeof(*inode.v)) {
-		prt_printf(err, "incorrect value size (%zu < %zu)",
-		       bkey_val_bytes(k.k), sizeof(*inode.v));
-		return -BCH_ERR_invalid_bkey;
-	}
-
 	if (INODEv2_STR_HASH(inode.v) >= BCH_STR_HASH_NR) {
 		prt_printf(err, "invalid str hash type (%llu >= %u)",
 		       INODEv2_STR_HASH(inode.v), BCH_STR_HASH_NR);
@@ -476,12 +464,6 @@ int bch2_inode_v3_invalid(const struct bch_fs *c, struct bkey_s_c k,
 			  unsigned flags, struct printbuf *err)
 {
 	struct bkey_s_c_inode_v3 inode = bkey_s_c_to_inode_v3(k);
-
-	if (bkey_val_bytes(k.k) < sizeof(*inode.v)) {
-		prt_printf(err, "incorrect value size (%zu < %zu)",
-		       bkey_val_bytes(k.k), sizeof(*inode.v));
-		return -BCH_ERR_invalid_bkey;
-	}
 
 	if (INODEv3_FIELDS_START(inode.v) < INODEv3_FIELDS_START_INITIAL ||
 	    INODEv3_FIELDS_START(inode.v) > bkey_val_u64s(inode.k)) {
@@ -540,12 +522,6 @@ int bch2_inode_generation_invalid(const struct bch_fs *c, struct bkey_s_c k,
 {
 	if (k.k->p.inode) {
 		prt_printf(err, "nonzero k.p.inode");
-		return -BCH_ERR_invalid_bkey;
-	}
-
-	if (bkey_val_bytes(k.k) != sizeof(struct bch_inode_generation)) {
-		prt_printf(err, "incorrect value size (%zu != %zu)",
-		       bkey_val_bytes(k.k), sizeof(struct bch_inode_generation));
 		return -BCH_ERR_invalid_bkey;
 	}
 

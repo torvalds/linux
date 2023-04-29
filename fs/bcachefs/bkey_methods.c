@@ -56,17 +56,12 @@ static int empty_val_key_invalid(const struct bch_fs *c, struct bkey_s_c k,
 static int key_type_cookie_invalid(const struct bch_fs *c, struct bkey_s_c k,
 				   unsigned flags, struct printbuf *err)
 {
-	if (bkey_val_bytes(k.k) != sizeof(struct bch_cookie)) {
-		prt_printf(err, "incorrect value size (%zu != %zu)",
-		       bkey_val_bytes(k.k), sizeof(struct bch_cookie));
-		return -BCH_ERR_invalid_bkey;
-	}
-
 	return 0;
 }
 
 #define bch2_bkey_ops_cookie ((struct bkey_ops) {	\
-	.key_invalid = key_type_cookie_invalid,		\
+	.key_invalid	= key_type_cookie_invalid,	\
+	.min_val_size	= 8,				\
 })
 
 #define bch2_bkey_ops_hash_whiteout ((struct bkey_ops) {\
@@ -126,12 +121,22 @@ const struct bkey_ops bch2_bkey_ops[] = {
 int bch2_bkey_val_invalid(struct bch_fs *c, struct bkey_s_c k,
 			  unsigned flags, struct printbuf *err)
 {
+	const struct bkey_ops *ops;
+
 	if (k.k->type >= KEY_TYPE_MAX) {
 		prt_printf(err, "invalid type (%u >= %u)", k.k->type, KEY_TYPE_MAX);
 		return -BCH_ERR_invalid_bkey;
 	}
 
-	return bch2_bkey_ops[k.k->type].key_invalid(c, k, flags, err);
+	ops = &bch2_bkey_ops[k.k->type];
+
+	if (bkey_val_bytes(k.k) < ops->min_val_size) {
+		prt_printf(err, "bad val size (%zu < %u)",
+			   bkey_val_bytes(k.k), ops->min_val_size);
+		return -BCH_ERR_invalid_bkey;
+	}
+
+	return ops->key_invalid(c, k, flags, err);
 }
 
 static unsigned bch2_key_types_allowed[] = {

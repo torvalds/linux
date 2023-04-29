@@ -14,6 +14,7 @@ bool bch2_reflink_p_merge(struct bch_fs *, struct bkey_s, struct bkey_s_c);
 	.key_merge	= bch2_reflink_p_merge,			\
 	.trans_trigger	= bch2_trans_mark_reflink_p,		\
 	.atomic_trigger	= bch2_mark_reflink_p,			\
+	.min_val_size	= 16,					\
 })
 
 int bch2_reflink_v_invalid(const struct bch_fs *, struct bkey_s_c,
@@ -29,6 +30,7 @@ int bch2_trans_mark_reflink_v(struct btree_trans *, enum btree_id, unsigned,
 	.swab		= bch2_ptr_swab,			\
 	.trans_trigger	= bch2_trans_mark_reflink_v,		\
 	.atomic_trigger	= bch2_mark_extent,			\
+	.min_val_size	= 8,					\
 })
 
 int bch2_indirect_inline_data_invalid(const struct bch_fs *, struct bkey_s_c,
@@ -44,6 +46,7 @@ int bch2_trans_mark_indirect_inline_data(struct btree_trans *,
 	.key_invalid	= bch2_indirect_inline_data_invalid,	\
 	.val_to_text	= bch2_indirect_inline_data_to_text,	\
 	.trans_trigger	= bch2_trans_mark_indirect_inline_data,	\
+	.min_val_size	= 8,					\
 })
 
 static inline const __le64 *bkey_refcount_c(struct bkey_s_c k)

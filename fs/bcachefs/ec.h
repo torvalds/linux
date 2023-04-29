@@ -17,6 +17,7 @@ void bch2_stripe_to_text(struct printbuf *, struct bch_fs *,
 	.swab		= bch2_ptr_swab,		\
 	.trans_trigger	= bch2_trans_mark_stripe,	\
 	.atomic_trigger	= bch2_mark_stripe,		\
+	.min_val_size	= 8,				\
 })
 
 static inline unsigned stripe_csums_per_device(const struct bch_stripe *s)

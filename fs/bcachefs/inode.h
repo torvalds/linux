@@ -17,6 +17,7 @@ void bch2_inode_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 	.val_to_text	= bch2_inode_to_text,		\
 	.trans_trigger	= bch2_trans_mark_inode,	\
 	.atomic_trigger	= bch2_mark_inode,		\
+	.min_val_size	= 16,				\
 })
 
 #define bch2_bkey_ops_inode_v2 ((struct bkey_ops) {	\
@@ -24,6 +25,7 @@ void bch2_inode_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 	.val_to_text	= bch2_inode_to_text,		\
 	.trans_trigger	= bch2_trans_mark_inode,	\
 	.atomic_trigger	= bch2_mark_inode,		\
+	.min_val_size	= 32,				\
 })
 
 #define bch2_bkey_ops_inode_v3 ((struct bkey_ops) {	\
@@ -31,6 +33,7 @@ void bch2_inode_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 	.val_to_text	= bch2_inode_to_text,		\
 	.trans_trigger	= bch2_trans_mark_inode,	\
 	.atomic_trigger	= bch2_mark_inode,		\
+	.min_val_size	= 48,				\
 })
 
 static inline bool bkey_is_inode(const struct bkey *k)
@@ -47,6 +50,7 @@ void bch2_inode_generation_to_text(struct printbuf *, struct bch_fs *, struct bk
 #define bch2_bkey_ops_inode_generation ((struct bkey_ops) {	\
 	.key_invalid	= bch2_inode_generation_invalid,	\
 	.val_to_text	= bch2_inode_generation_to_text,	\
+	.min_val_size	= 8,					\
 })
 
 #if 0

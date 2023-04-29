@@ -17,6 +17,7 @@ void bch2_backpointer_swab(struct bkey_s);
 	.key_invalid	= bch2_backpointer_invalid,	\
 	.val_to_text	= bch2_backpointer_k_to_text,	\
 	.swab		= bch2_backpointer_swab,	\
+	.min_val_size	= 32,				\
 })
 
 #define MAX_EXTENT_COMPRESS_RATIO_SHIFT		10

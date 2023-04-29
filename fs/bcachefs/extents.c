@@ -183,14 +183,6 @@ void bch2_btree_ptr_to_text(struct printbuf *out, struct bch_fs *c,
 int bch2_btree_ptr_v2_invalid(const struct bch_fs *c, struct bkey_s_c k,
 			      unsigned flags, struct printbuf *err)
 {
-	struct bkey_s_c_btree_ptr_v2 bp = bkey_s_c_to_btree_ptr_v2(k);
-
-	if (bkey_val_bytes(k.k) <= sizeof(*bp.v)) {
-		prt_printf(err, "value too small (%zu <= %zu)",
-		       bkey_val_bytes(k.k), sizeof(*bp.v));
-		return -BCH_ERR_invalid_bkey;
-	}
-
 	if (bkey_val_u64s(k.k) > BKEY_BTREE_PTR_VAL_U64s_MAX) {
 		prt_printf(err, "value too big (%zu > %zu)",
 		       bkey_val_u64s(k.k), BKEY_BTREE_PTR_VAL_U64s_MAX);
@@ -382,12 +374,6 @@ int bch2_reservation_invalid(const struct bch_fs *c, struct bkey_s_c k,
 			     unsigned flags, struct printbuf *err)
 {
 	struct bkey_s_c_reservation r = bkey_s_c_to_reservation(k);
-
-	if (bkey_val_bytes(k.k) != sizeof(struct bch_reservation)) {
-		prt_printf(err, "incorrect value size (%zu != %zu)",
-		       bkey_val_bytes(k.k), sizeof(*r.v));
-		return -BCH_ERR_invalid_bkey;
-	}
 
 	if (!r.v->nr_replicas || r.v->nr_replicas > BCH_REPLICAS_MAX) {
 		prt_printf(err, "invalid nr_replicas (%u)",

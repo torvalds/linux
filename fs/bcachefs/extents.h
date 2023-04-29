@@ -407,6 +407,7 @@ void bch2_btree_ptr_v2_compat(enum btree_id, unsigned, unsigned,
 	.compat		= bch2_btree_ptr_v2_compat,		\
 	.trans_trigger	= bch2_trans_mark_extent,		\
 	.atomic_trigger	= bch2_mark_extent,			\
+	.min_val_size	= 40,					\
 })
 
 /* KEY_TYPE_extent: */
@@ -436,6 +437,7 @@ bool bch2_reservation_merge(struct bch_fs *, struct bkey_s, struct bkey_s_c);
 	.key_merge	= bch2_reservation_merge,		\
 	.trans_trigger	= bch2_trans_mark_reservation,		\
 	.atomic_trigger	= bch2_mark_reservation,		\
+	.min_val_size	= 8,					\
 })
 
 /* Extent checksum entries: */

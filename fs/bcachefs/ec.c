@@ -119,12 +119,6 @@ int bch2_stripe_invalid(const struct bch_fs *c, struct bkey_s_c k,
 		return -BCH_ERR_invalid_bkey;
 	}
 
-	if (bkey_val_bytes(k.k) < sizeof(*s)) {
-		prt_printf(err, "incorrect value size (%zu < %zu)",
-		       bkey_val_bytes(k.k), sizeof(*s));
-		return -BCH_ERR_invalid_bkey;
-	}
-
 	if (bkey_val_u64s(k.k) < stripe_val_u64s(s)) {
 		prt_printf(err, "incorrect value size (%zu < %u)",
 		       bkey_val_u64s(k.k), stripe_val_u64s(s));

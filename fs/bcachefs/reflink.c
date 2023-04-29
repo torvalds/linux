@@ -30,12 +30,6 @@ int bch2_reflink_p_invalid(const struct bch_fs *c, struct bkey_s_c k,
 {
 	struct bkey_s_c_reflink_p p = bkey_s_c_to_reflink_p(k);
 
-	if (bkey_val_bytes(p.k) != sizeof(*p.v)) {
-		prt_printf(err, "incorrect value size (%zu != %zu)",
-		       bkey_val_bytes(p.k), sizeof(*p.v));
-		return -EINVAL;
-	}
-
 	if (c->sb.version >= bcachefs_metadata_version_reflink_p_fix &&
 	    le64_to_cpu(p.v->idx) < le32_to_cpu(p.v->front_pad)) {
 		prt_printf(err, "idx < front_pad (%llu < %u)",
@@ -80,14 +74,6 @@ bool bch2_reflink_p_merge(struct bch_fs *c, struct bkey_s _l, struct bkey_s_c _r
 int bch2_reflink_v_invalid(const struct bch_fs *c, struct bkey_s_c k,
 			   unsigned flags, struct printbuf *err)
 {
-	struct bkey_s_c_reflink_v r = bkey_s_c_to_reflink_v(k);
-
-	if (bkey_val_bytes(r.k) < sizeof(*r.v)) {
-		prt_printf(err, "incorrect value size (%zu < %zu)",
-		       bkey_val_bytes(r.k), sizeof(*r.v));
-		return -BCH_ERR_invalid_bkey;
-	}
-
 	return bch2_bkey_ptrs_invalid(c, k, flags, err);
 }
 
@@ -133,12 +119,6 @@ int bch2_trans_mark_reflink_v(struct btree_trans *trans,
 int bch2_indirect_inline_data_invalid(const struct bch_fs *c, struct bkey_s_c k,
 				      unsigned flags, struct printbuf *err)
 {
-	if (bkey_val_bytes(k.k) < sizeof(struct bch_indirect_inline_data)) {
-		prt_printf(err, "incorrect value size (%zu < %zu)",
-		       bkey_val_bytes(k.k), sizeof(struct bch_indirect_inline_data));
-		return -BCH_ERR_invalid_bkey;
-	}
-
 	return 0;
 }
 

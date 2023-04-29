@@ -89,12 +89,6 @@ int bch2_dirent_invalid(const struct bch_fs *c, struct bkey_s_c k,
 	struct bkey_s_c_dirent d = bkey_s_c_to_dirent(k);
 	unsigned len;
 
-	if (bkey_val_bytes(k.k) < sizeof(struct bch_dirent)) {
-		prt_printf(err, "incorrect value size (%zu < %zu)",
-		       bkey_val_bytes(k.k), sizeof(*d.v));
-		return -BCH_ERR_invalid_bkey;
-	}
-
 	len = bch2_dirent_name_bytes(d);
 	if (!len) {
 		prt_printf(err, "empty name");

@@ -13,14 +13,6 @@
 int bch2_lru_invalid(const struct bch_fs *c, struct bkey_s_c k,
 		     unsigned flags, struct printbuf *err)
 {
-	const struct bch_lru *lru = bkey_s_c_to_lru(k).v;
-
-	if (bkey_val_bytes(k.k) < sizeof(*lru)) {
-		prt_printf(err, "incorrect value size (%zu < %zu)",
-		       bkey_val_bytes(k.k), sizeof(*lru));
-		return -BCH_ERR_invalid_bkey;
-	}
-
 	if (!lru_pos_time(k.k->p)) {
 		prt_printf(err, "lru entry at time=0");
 		return -BCH_ERR_invalid_bkey;

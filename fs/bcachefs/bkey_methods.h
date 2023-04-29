@@ -34,6 +34,9 @@ struct bkey_ops {
 	void		(*compat)(enum btree_id id, unsigned version,
 				  unsigned big_endian, int write,
 				  struct bkey_s);
+
+	/* Size of value type when first created: */
+	unsigned	min_val_size;
 };
 
 extern const struct bkey_ops bch2_bkey_ops[];

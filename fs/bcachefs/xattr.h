@@ -12,6 +12,7 @@ void bch2_xattr_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 #define bch2_bkey_ops_xattr ((struct bkey_ops) {	\
 	.key_invalid	= bch2_xattr_invalid,		\
 	.val_to_text	= bch2_xattr_to_text,		\
+	.min_val_size	= 8,				\
 })
 
 static inline unsigned xattr_val_u64s(unsigned name_len, unsigned val_len)
