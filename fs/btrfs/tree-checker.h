@@ -40,6 +40,19 @@ struct btrfs_tree_parent_check {
 	u8 level;
 };
 
+enum btrfs_tree_block_status {
+	BTRFS_TREE_BLOCK_CLEAN,
+	BTRFS_TREE_BLOCK_INVALID_NRITEMS,
+	BTRFS_TREE_BLOCK_INVALID_PARENT_KEY,
+	BTRFS_TREE_BLOCK_BAD_KEY_ORDER,
+	BTRFS_TREE_BLOCK_INVALID_LEVEL,
+	BTRFS_TREE_BLOCK_INVALID_FREE_SPACE,
+	BTRFS_TREE_BLOCK_INVALID_OFFSETS,
+	BTRFS_TREE_BLOCK_INVALID_BLOCKPTR,
+	BTRFS_TREE_BLOCK_INVALID_ITEM,
+	BTRFS_TREE_BLOCK_INVALID_OWNER,
+};
+
 int btrfs_check_leaf(struct extent_buffer *leaf);
 int btrfs_check_node(struct extent_buffer *node);
 
