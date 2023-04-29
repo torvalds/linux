@@ -13,7 +13,7 @@ description:
   TI SoC Davinci/Keystone2 MDIO Controller
 
 allOf:
-  - $ref: "mdio.yaml#"
+  - $ref: mdio.yaml#
 
 properties:
   compatible:

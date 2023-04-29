@@ -1580,7 +1580,7 @@ int rdt_pseudo_lock_init(void)
 
 	pseudo_lock_major = ret;
 
-	pseudo_lock_class = class_create(THIS_MODULE, "pseudo_lock");
+	pseudo_lock_class = class_create("pseudo_lock");
 	if (IS_ERR(pseudo_lock_class)) {
 		ret = PTR_ERR(pseudo_lock_class);
 		unregister_chrdev(pseudo_lock_major, "pseudo_lock");

@@ -34,7 +34,6 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport_fc.h>
 #include <scsi/fc/fc_fs.h>
-#include <linux/aer.h>
 #include <linux/crash_dump.h>
 #ifdef CONFIG_X86
 #include <asm/set_memory.h>
@@ -5204,12 +5203,8 @@ lpfc_sli_brdrestart_s3(struct lpfc_hba *phba)
 	volatile struct MAILBOX_word0 mb;
 	struct lpfc_sli *psli;
 	void __iomem *to_slim;
-	uint32_t hba_aer_enabled;
 
 	spin_lock_irq(&phba->hbalock);
-
-	/* Take PCIe device Advanced Error Reporting (AER) state */
-	hba_aer_enabled = phba->hba_flag & HBA_AER_ENABLED;
 
 	psli = &phba->sli;
 
@@ -5251,10 +5246,6 @@ lpfc_sli_brdrestart_s3(struct lpfc_hba *phba)
 	/* Give the INITFF and Post time to settle. */
 	mdelay(100);
 
-	/* Reset HBA AER if it was enabled, note hba_flag was reset above */
-	if (hba_aer_enabled)
-		pci_disable_pcie_error_reporting(phba->pcidev);
-
 	lpfc_hba_down_post(phba);
 
 	return 0;
@@ -5273,16 +5264,12 @@ static int
 lpfc_sli_brdrestart_s4(struct lpfc_hba *phba)
 {
 	struct lpfc_sli *psli = &phba->sli;
-	uint32_t hba_aer_enabled;
 	int rc;
 
 	/* Restart HBA */
 	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
 			"0296 Restart HBA Data: x%x x%x\n",
 			phba->pport->port_state, psli->sli_flag);
-
-	/* Take PCIe device Advanced Error Reporting (AER) state */
-	hba_aer_enabled = phba->hba_flag & HBA_AER_ENABLED;
 
 	rc = lpfc_sli4_brdreset(phba);
 	if (rc) {
@@ -5300,10 +5287,6 @@ lpfc_sli_brdrestart_s4(struct lpfc_hba *phba)
 
 	memset(&psli->lnk_stat_offsets, 0, sizeof(psli->lnk_stat_offsets));
 	psli->stats_start = ktime_get_seconds();
-
-	/* Reset HBA AER if it was enabled, note hba_flag was reset above */
-	if (hba_aer_enabled)
-		pci_disable_pcie_error_reporting(phba->pcidev);
 
 hba_down_queue:
 	lpfc_hba_down_post(phba);
@@ -5724,25 +5707,6 @@ lpfc_sli_hba_setup(struct lpfc_hba *phba)
 		phba->hba_flag &= ~HBA_NEEDS_CFG_PORT;
 	}
 	phba->fcp_embed_io = 0;	/* SLI4 FC support only */
-
-	/* Enable PCIe device Advanced Error Reporting (AER) if configured */
-	if (phba->cfg_aer_support == 1 && !(phba->hba_flag & HBA_AER_ENABLED)) {
-		rc = pci_enable_pcie_error_reporting(phba->pcidev);
-		if (!rc) {
-			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-					"2709 This device supports "
-					"Advanced Error Reporting (AER)\n");
-			spin_lock_irq(&phba->hbalock);
-			phba->hba_flag |= HBA_AER_ENABLED;
-			spin_unlock_irq(&phba->hbalock);
-		} else {
-			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-					"2708 This device does not support "
-					"Advanced Error Reporting (AER): %d\n",
-					rc);
-			phba->cfg_aer_support = 0;
-		}
-	}
 
 	if (phba->sli_rev == 3) {
 		phba->iocb_cmd_size = SLI3_IOCB_CMD_SIZE;
@@ -8080,16 +8044,16 @@ int lpfc_rx_monitor_create_ring(struct lpfc_rx_info_monitor *rx_monitor,
 /**
  * lpfc_rx_monitor_destroy_ring - Free ring buffer for rx_monitor
  * @rx_monitor: Pointer to lpfc_rx_info_monitor object
+ *
+ * Called after cancellation of cmf_timer.
  **/
 void lpfc_rx_monitor_destroy_ring(struct lpfc_rx_info_monitor *rx_monitor)
 {
-	spin_lock(&rx_monitor->lock);
 	kfree(rx_monitor->ring);
 	rx_monitor->ring = NULL;
 	rx_monitor->entries = 0;
 	rx_monitor->head_idx = 0;
 	rx_monitor->tail_idx = 0;
-	spin_unlock(&rx_monitor->lock);
 }
 
 /**
@@ -9053,25 +9017,6 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	mod_timer(&phba->eratt_poll,
 		  jiffies + msecs_to_jiffies(1000 * phba->eratt_poll_interval));
 
-	/* Enable PCIe device Advanced Error Reporting (AER) if configured */
-	if (phba->cfg_aer_support == 1 && !(phba->hba_flag & HBA_AER_ENABLED)) {
-		rc = pci_enable_pcie_error_reporting(phba->pcidev);
-		if (!rc) {
-			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-					"2829 This device supports "
-					"Advanced Error Reporting (AER)\n");
-			spin_lock_irq(&phba->hbalock);
-			phba->hba_flag |= HBA_AER_ENABLED;
-			spin_unlock_irq(&phba->hbalock);
-		} else {
-			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-					"2830 This device does not support "
-					"Advanced Error Reporting (AER)\n");
-			phba->cfg_aer_support = 0;
-		}
-		rc = 0;
-	}
-
 	/*
 	 * The port is ready, set the host's link state to LINK_DOWN
 	 * in preparation for link interrupts.
@@ -9895,7 +9840,8 @@ lpfc_sli4_async_mbox_unblock(struct lpfc_hba *phba)
  * port for twice the regular mailbox command timeout value.
  *
  *      0 - no timeout on waiting for bootstrap mailbox register ready.
- *      MBXERR_ERROR - wait for bootstrap mailbox register timed out.
+ *      MBXERR_ERROR - wait for bootstrap mailbox register timed out or port
+ *                     is in an unrecoverable state.
  **/
 static int
 lpfc_sli4_wait_bmbx_ready(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
@@ -9903,6 +9849,23 @@ lpfc_sli4_wait_bmbx_ready(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	uint32_t db_ready;
 	unsigned long timeout;
 	struct lpfc_register bmbx_reg;
+	struct lpfc_register portstat_reg = {-1};
+
+	/* Sanity check - there is no point to wait if the port is in an
+	 * unrecoverable state.
+	 */
+	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) >=
+	    LPFC_SLI_INTF_IF_TYPE_2) {
+		if (lpfc_readl(phba->sli4_hba.u.if_type2.STATUSregaddr,
+			       &portstat_reg.word0) ||
+		    lpfc_sli4_unrecoverable_port(&portstat_reg)) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"3858 Skipping bmbx ready because "
+					"Port Status x%x\n",
+					portstat_reg.word0);
+			return MBXERR_ERROR;
+		}
+	}
 
 	timeout = msecs_to_jiffies(lpfc_mbox_tmo_val(phba, mboxq)
 				   * 1000) + jiffies;
@@ -22325,10 +22288,10 @@ lpfc_free_sgl_per_hdwq(struct lpfc_hba *phba,
 	/* Free sgl pool */
 	list_for_each_entry_safe(list_entry, tmp,
 				 buf_list, list_node) {
+		list_del(&list_entry->list_node);
 		dma_pool_free(phba->lpfc_sg_dma_buf_pool,
 			      list_entry->dma_sgl,
 			      list_entry->dma_phys_sgl);
-		list_del(&list_entry->list_node);
 		kfree(list_entry);
 	}
 
@@ -22475,10 +22438,10 @@ lpfc_free_cmd_rsp_buf_per_hdwq(struct lpfc_hba *phba,
 	list_for_each_entry_safe(list_entry, tmp,
 				 buf_list,
 				 list_node) {
+		list_del(&list_entry->list_node);
 		dma_pool_free(phba->lpfc_cmd_rsp_buf_pool,
 			      list_entry->fcp_cmnd,
 			      list_entry->fcp_cmd_rsp_dma_handle);
-		list_del(&list_entry->list_node);
 		kfree(list_entry);
 	}
 

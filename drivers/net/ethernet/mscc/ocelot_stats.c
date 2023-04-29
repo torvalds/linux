@@ -145,7 +145,7 @@ enum ocelot_stat {
 };
 
 struct ocelot_stat_layout {
-	u32 reg;
+	enum ocelot_reg reg;
 	char name[ETH_GSTRING_LEN];
 };
 
@@ -257,7 +257,7 @@ struct ocelot_stat_layout {
 
 struct ocelot_stats_region {
 	struct list_head node;
-	u32 base;
+	enum ocelot_reg base;
 	enum ocelot_stat first_stat;
 	int count;
 	u32 *buf;
@@ -395,7 +395,7 @@ static void ocelot_check_stats_work(struct work_struct *work)
 void ocelot_get_strings(struct ocelot *ocelot, int port, u32 sset, u8 *data)
 {
 	const struct ocelot_stat_layout *layout;
-	int i;
+	enum ocelot_stat i;
 
 	if (sset != ETH_SS_STATS)
 		return;
@@ -442,7 +442,8 @@ out_unlock:
 int ocelot_get_sset_count(struct ocelot *ocelot, int port, int sset)
 {
 	const struct ocelot_stat_layout *layout;
-	int i, num_stats = 0;
+	enum ocelot_stat i;
+	int num_stats = 0;
 
 	if (sset != ETH_SS_STATS)
 		return -EOPNOTSUPP;
@@ -461,8 +462,8 @@ static void ocelot_port_ethtool_stats_cb(struct ocelot *ocelot, int port,
 					 void *priv)
 {
 	const struct ocelot_stat_layout *layout;
+	enum ocelot_stat i;
 	u64 *data = priv;
-	int i;
 
 	layout = ocelot_get_stats_layout(ocelot);
 
@@ -889,8 +890,8 @@ static int ocelot_prepare_stats_regions(struct ocelot *ocelot)
 {
 	struct ocelot_stats_region *region = NULL;
 	const struct ocelot_stat_layout *layout;
-	unsigned int last = 0;
-	int i;
+	enum ocelot_reg last = 0;
+	enum ocelot_stat i;
 
 	INIT_LIST_HEAD(&ocelot->stats_regions);
 
@@ -900,6 +901,17 @@ static int ocelot_prepare_stats_regions(struct ocelot *ocelot)
 		if (!layout[i].reg)
 			continue;
 
+		/* enum ocelot_stat must be kept sorted in the same order
+		 * as the addresses behind layout[i].reg in order to have
+		 * efficient bulking
+		 */
+		if (last) {
+			WARN(ocelot->map[SYS][last & REG_MASK] >= ocelot->map[SYS][layout[i].reg & REG_MASK],
+			     "reg 0x%x had address 0x%x but reg 0x%x has address 0x%x, bulking broken!",
+			     last, ocelot->map[SYS][last & REG_MASK],
+			     layout[i].reg, ocelot->map[SYS][layout[i].reg & REG_MASK]);
+		}
+
 		if (region && ocelot->map[SYS][layout[i].reg & REG_MASK] ==
 		    ocelot->map[SYS][last & REG_MASK] + 4) {
 			region->count++;
@@ -908,12 +920,6 @@ static int ocelot_prepare_stats_regions(struct ocelot *ocelot)
 					      GFP_KERNEL);
 			if (!region)
 				return -ENOMEM;
-
-			/* enum ocelot_stat must be kept sorted in the same
-			 * order as layout[i].reg in order to have efficient
-			 * bulking
-			 */
-			WARN_ON(last >= layout[i].reg);
 
 			region->base = layout[i].reg;
 			region->first_stat = i;
@@ -925,6 +931,15 @@ static int ocelot_prepare_stats_regions(struct ocelot *ocelot)
 	}
 
 	list_for_each_entry(region, &ocelot->stats_regions, node) {
+		enum ocelot_target target;
+		u32 addr;
+
+		ocelot_reg_to_target_addr(ocelot, region->base, &target,
+					  &addr);
+
+		dev_dbg(ocelot->dev,
+			"region of %d contiguous counters starting with SYS:STAT:CNT[0x%03x]\n",
+			region->count, addr / 4);
 		region->buf = devm_kcalloc(ocelot->dev, region->count,
 					   sizeof(*region->buf), GFP_KERNEL);
 		if (!region->buf)
@@ -972,4 +987,3 @@ void ocelot_stats_deinit(struct ocelot *ocelot)
 	cancel_delayed_work(&ocelot->stats_work);
 	destroy_workqueue(ocelot->stats_queue);
 }
-

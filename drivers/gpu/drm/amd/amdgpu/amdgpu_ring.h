@@ -27,6 +27,7 @@
 #include <drm/amdgpu_drm.h>
 #include <drm/gpu_scheduler.h>
 #include <drm/drm_print.h>
+#include <drm/drm_suballoc.h>
 
 struct amdgpu_device;
 struct amdgpu_ring;
@@ -92,7 +93,7 @@ enum amdgpu_ib_pool_type {
 };
 
 struct amdgpu_ib {
-	struct amdgpu_sa_bo		*sa_bo;
+	struct drm_suballoc		*sa_bo;
 	uint32_t			length_dw;
 	uint64_t			gpu_addr;
 	uint32_t			*ptr;
@@ -164,7 +165,6 @@ struct amdgpu_ring_funcs {
 	bool			support_64bit_ptrs;
 	bool			no_user_fence;
 	bool			secure_submission_supported;
-	unsigned		vmhub;
 	unsigned		extra_dw;
 
 	/* ring read/write ptr handling */
@@ -249,6 +249,7 @@ struct amdgpu_ring {
 	uint64_t		ptr_mask;
 	uint32_t		buf_mask;
 	u32			idx;
+	u32			xcc_id;
 	u32			me;
 	u32			pipe;
 	u32			queue;
@@ -274,6 +275,7 @@ struct amdgpu_ring {
 	unsigned		cond_exe_offs;
 	u64			cond_exe_gpu_addr;
 	volatile u32		*cond_exe_cpu_addr;
+	unsigned		vm_hub;
 	unsigned		vm_inv_eng;
 	struct dma_fence	*vmid_wait;
 	bool			has_compute_vm_bug;

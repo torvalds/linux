@@ -276,15 +276,13 @@ static int hspi_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int hspi_remove(struct platform_device *pdev)
+static void hspi_remove(struct platform_device *pdev)
 {
 	struct hspi_priv *hspi = platform_get_drvdata(pdev);
 
 	pm_runtime_disable(&pdev->dev);
 
 	clk_put(hspi->clk);
-
-	return 0;
 }
 
 static const struct of_device_id hspi_of_match[] = {
@@ -295,7 +293,7 @@ MODULE_DEVICE_TABLE(of, hspi_of_match);
 
 static struct platform_driver hspi_driver = {
 	.probe = hspi_probe,
-	.remove = hspi_remove,
+	.remove_new = hspi_remove,
 	.driver = {
 		.name = "sh-hspi",
 		.of_match_table = hspi_of_match,

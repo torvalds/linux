@@ -1540,7 +1540,7 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 	fill_note(&auxv_note, "CORE", NT_AUXV, i * sizeof(elf_addr_t), auxv);
 	thread_status_size += notesize(&auxv_note);
 
-	offset = sizeof(*elf);				/* Elf header */
+	offset = sizeof(*elf);				/* ELF header */
 	offset += segs * sizeof(struct elf_phdr);	/* Program headers */
 
 	/* Write notes phdr entry */

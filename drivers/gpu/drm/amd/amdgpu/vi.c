@@ -1101,24 +1101,6 @@ static int vi_set_vce_clocks(struct amdgpu_device *adev, u32 evclk, u32 ecclk)
 	return 0;
 }
 
-static void vi_pcie_gen3_enable(struct amdgpu_device *adev)
-{
-	if (pci_is_root_bus(adev->pdev->bus))
-		return;
-
-	if (amdgpu_pcie_gen2 == 0)
-		return;
-
-	if (adev->flags & AMD_IS_APU)
-		return;
-
-	if (!(adev->pm.pcie_gen_mask & (CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2 |
-					CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3)))
-		return;
-
-	/* todo */
-}
-
 static void vi_enable_aspm(struct amdgpu_device *adev)
 {
 	u32 data, orig;
@@ -1728,8 +1710,6 @@ static int vi_common_hw_init(void *handle)
 
 	/* move the golden regs per IP block */
 	vi_init_golden_registers(adev);
-	/* enable pcie gen2/3 link */
-	vi_pcie_gen3_enable(adev);
 	/* enable aspm */
 	vi_program_aspm(adev);
 	/* enable the doorbell aperture */

@@ -38,7 +38,7 @@ user_backtrace(struct frame_tail __user *tail,
 	if (err)
 		return NULL;
 
-	lr = ptrauth_strip_insn_pac(buftail.lr);
+	lr = ptrauth_strip_user_insn_pac(buftail.lr);
 
 	perf_callchain_store(entry, lr);
 

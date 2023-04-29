@@ -530,4 +530,3 @@ module_exit(sh_mtu2_exit);
 
 MODULE_AUTHOR("Magnus Damm");
 MODULE_DESCRIPTION("SuperH MTU2 Timer Driver");
-MODULE_LICENSE("GPL v2");

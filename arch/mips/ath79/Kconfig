@@ -29,20 +29,4 @@ config SOC_QCA955X
 config PCI_AR724X
 	def_bool n
 
-config ATH79_DEV_GPIO_BUTTONS
-	def_bool n
-
-config ATH79_DEV_LEDS_GPIO
-	def_bool n
-
-config ATH79_DEV_SPI
-	def_bool n
-
-config ATH79_DEV_USB
-	def_bool n
-
-config ATH79_DEV_WMAC
-	depends on (SOC_AR913X || SOC_AR933X || SOC_AR934X || SOC_QCA955X)
-	def_bool n
-
 endif

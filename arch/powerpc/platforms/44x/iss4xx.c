@@ -52,7 +52,7 @@ static void __init iss4xx_init_irq(void)
 
 	/* Find top level interrupt controller */
 	for_each_node_with_property(np, "interrupt-controller") {
-		if (of_get_property(np, "interrupts", NULL) == NULL)
+		if (!of_property_present(np, "interrupts"))
 			break;
 	}
 	if (np == NULL)
@@ -140,23 +140,11 @@ static void __init iss4xx_setup_arch(void)
 	iss4xx_smp_init();
 }
 
-/*
- * Called very early, MMU is off, device-tree isn't unflattened
- */
-static int __init iss4xx_probe(void)
-{
-	if (!of_machine_is_compatible("ibm,iss-4xx"))
-		return 0;
-
-	return 1;
-}
-
 define_machine(iss4xx) {
 	.name			= "ISS-4xx",
-	.probe			= iss4xx_probe,
+	.compatible		= "ibm,iss-4xx",
 	.progress		= udbg_progress,
 	.init_IRQ		= iss4xx_init_irq,
 	.setup_arch		= iss4xx_setup_arch,
 	.restart		= ppc4xx_reset_system,
-	.calibrate_decr		= generic_calibrate_decr,
 };

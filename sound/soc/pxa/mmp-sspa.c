@@ -545,7 +545,7 @@ static int asoc_mmp_sspa_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int asoc_mmp_sspa_remove(struct platform_device *pdev)
+static void asoc_mmp_sspa_remove(struct platform_device *pdev)
 {
 	struct sspa_priv *sspa = platform_get_drvdata(pdev);
 
@@ -553,11 +553,10 @@ static int asoc_mmp_sspa_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	if (pdev->dev.of_node)
-		return 0;
+		return;
 
 	clk_put(sspa->audio_clk);
 	clk_put(sspa->sysclk);
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -575,7 +574,7 @@ static struct platform_driver asoc_mmp_sspa_driver = {
 		.of_match_table = of_match_ptr(mmp_sspa_of_match),
 	},
 	.probe = asoc_mmp_sspa_probe,
-	.remove = asoc_mmp_sspa_remove,
+	.remove_new = asoc_mmp_sspa_remove,
 };
 
 module_platform_driver(asoc_mmp_sspa_driver);

@@ -1376,7 +1376,7 @@ static void sata_fsl_host_stop(struct ata_host *host)
 /*
  * scsi mid-layer and libata interface structures
  */
-static struct scsi_host_template sata_fsl_sht = {
+static const struct scsi_host_template sata_fsl_sht = {
 	ATA_NCQ_SHT_QD("sata_fsl", SATA_FSL_QUEUE_DEPTH),
 	.sg_tablesize = SATA_FSL_MAX_PRD_USABLE,
 	.dma_boundary = ATA_DMA_BOUNDARY,

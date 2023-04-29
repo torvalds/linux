@@ -2024,7 +2024,7 @@ err_clk_disable:
 	return ret;
 }
 
-static int stm32_fmc2_nfc_remove(struct platform_device *pdev)
+static void stm32_fmc2_nfc_remove(struct platform_device *pdev)
 {
 	struct stm32_fmc2_nfc *nfc = platform_get_drvdata(pdev);
 	struct stm32_fmc2_nand *nand = &nfc->nand;
@@ -2048,8 +2048,6 @@ static int stm32_fmc2_nfc_remove(struct platform_device *pdev)
 	clk_disable_unprepare(nfc->clk);
 
 	stm32_fmc2_nfc_wp_enable(nand);
-
-	return 0;
 }
 
 static int __maybe_unused stm32_fmc2_nfc_suspend(struct device *dev)
@@ -2106,7 +2104,7 @@ MODULE_DEVICE_TABLE(of, stm32_fmc2_nfc_match);
 
 static struct platform_driver stm32_fmc2_nfc_driver = {
 	.probe	= stm32_fmc2_nfc_probe,
-	.remove	= stm32_fmc2_nfc_remove,
+	.remove_new = stm32_fmc2_nfc_remove,
 	.driver	= {
 		.name = "stm32_fmc2_nfc",
 		.of_match_table = stm32_fmc2_nfc_match,

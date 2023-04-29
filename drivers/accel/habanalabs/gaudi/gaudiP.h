@@ -28,19 +28,7 @@
 #define NUMBER_OF_COLLECTIVE_QUEUES	12
 #define NUMBER_OF_SOBS_IN_GRP		11
 
-/*
- * Number of MSI interrupts IDS:
- * Each completion queue has 1 ID
- * The event queue has 1 ID
- */
-#define NUMBER_OF_INTERRUPTS		(NUMBER_OF_CMPLT_QUEUES + \
-						NUMBER_OF_CPU_HW_QUEUES)
-
 #define GAUDI_STREAM_MASTER_ARR_SIZE	8
-
-#if (NUMBER_OF_INTERRUPTS > GAUDI_MSI_ENTRIES)
-#error "Number of MSI interrupts must be smaller or equal to GAUDI_MSI_ENTRIES"
-#endif
 
 #define CORESIGHT_TIMEOUT_USEC		100000		/* 100 ms */
 
@@ -324,8 +312,6 @@ struct gaudi_internal_qman_info {
  *                      signal we can use this engine in later code paths.
  *                      Each bit is cleared upon reset of its corresponding H/W
  *                      engine.
- * @multi_msi_mode: whether we are working in multi MSI single MSI mode.
- *                  Multi MSI is possible only with IOMMU enabled.
  * @mmu_cache_inv_pi: PI for MMU cache invalidation flow. The H/W expects an
  *                    8-bit value so use u8.
  */
@@ -345,7 +331,6 @@ struct gaudi_device {
 	u32				events_stat[GAUDI_EVENT_SIZE];
 	u32				events_stat_aggregate[GAUDI_EVENT_SIZE];
 	u32				hw_cap_initialized;
-	u8				multi_msi_mode;
 	u8				mmu_cache_inv_pi;
 };
 

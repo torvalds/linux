@@ -280,47 +280,6 @@ static int nv_query_video_codecs(struct amdgpu_device *adev, bool encode,
 	}
 }
 
-/*
- * Indirect registers accessor
- */
-static u32 nv_pcie_rreg(struct amdgpu_device *adev, u32 reg)
-{
-	unsigned long address, data;
-	address = adev->nbio.funcs->get_pcie_index_offset(adev);
-	data = adev->nbio.funcs->get_pcie_data_offset(adev);
-
-	return amdgpu_device_indirect_rreg(adev, address, data, reg);
-}
-
-static void nv_pcie_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
-{
-	unsigned long address, data;
-
-	address = adev->nbio.funcs->get_pcie_index_offset(adev);
-	data = adev->nbio.funcs->get_pcie_data_offset(adev);
-
-	amdgpu_device_indirect_wreg(adev, address, data, reg, v);
-}
-
-static u64 nv_pcie_rreg64(struct amdgpu_device *adev, u32 reg)
-{
-	unsigned long address, data;
-	address = adev->nbio.funcs->get_pcie_index_offset(adev);
-	data = adev->nbio.funcs->get_pcie_data_offset(adev);
-
-	return amdgpu_device_indirect_rreg64(adev, address, data, reg);
-}
-
-static void nv_pcie_wreg64(struct amdgpu_device *adev, u32 reg, u64 v)
-{
-	unsigned long address, data;
-
-	address = adev->nbio.funcs->get_pcie_index_offset(adev);
-	data = adev->nbio.funcs->get_pcie_data_offset(adev);
-
-	amdgpu_device_indirect_wreg64(adev, address, data, reg, v);
-}
-
 static u32 nv_didt_rreg(struct amdgpu_device *adev, u32 reg)
 {
 	unsigned long flags, address, data;
@@ -561,21 +520,6 @@ static int nv_set_vce_clocks(struct amdgpu_device *adev, u32 evclk, u32 ecclk)
 	return 0;
 }
 
-static void nv_pcie_gen3_enable(struct amdgpu_device *adev)
-{
-	if (pci_is_root_bus(adev->pdev->bus))
-		return;
-
-	if (amdgpu_pcie_gen2 == 0)
-		return;
-
-	if (!(adev->pm.pcie_gen_mask & (CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2 |
-					CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3)))
-		return;
-
-	/* todo */
-}
-
 static void nv_program_aspm(struct amdgpu_device *adev)
 {
 	if (!amdgpu_device_should_use_aspm(adev) || !amdgpu_device_aspm_support_quirk())
@@ -606,11 +550,6 @@ const struct amdgpu_ip_block_version nv_common_ip_block =
 void nv_set_virt_ops(struct amdgpu_device *adev)
 {
 	adev->virt.ops = &xgpu_nv_virt_ops;
-}
-
-static uint32_t nv_get_rev_id(struct amdgpu_device *adev)
-{
-	return adev->nbio.funcs->get_rev_id(adev);
 }
 
 static bool nv_need_full_reset(struct amdgpu_device *adev)
@@ -738,10 +677,10 @@ static int nv_common_early_init(void *handle)
 	}
 	adev->smc_rreg = NULL;
 	adev->smc_wreg = NULL;
-	adev->pcie_rreg = &nv_pcie_rreg;
-	adev->pcie_wreg = &nv_pcie_wreg;
-	adev->pcie_rreg64 = &nv_pcie_rreg64;
-	adev->pcie_wreg64 = &nv_pcie_wreg64;
+	adev->pcie_rreg = &amdgpu_device_indirect_rreg;
+	adev->pcie_wreg = &amdgpu_device_indirect_wreg;
+	adev->pcie_rreg64 = &amdgpu_device_indirect_rreg64;
+	adev->pcie_wreg64 = &amdgpu_device_indirect_wreg64;
 	adev->pciep_rreg = amdgpu_device_pcie_port_rreg;
 	adev->pciep_wreg = amdgpu_device_pcie_port_wreg;
 
@@ -754,7 +693,7 @@ static int nv_common_early_init(void *handle)
 
 	adev->asic_funcs = &nv_asic_funcs;
 
-	adev->rev_id = nv_get_rev_id(adev);
+	adev->rev_id = amdgpu_device_get_rev_id(adev);
 	adev->external_rev_id = 0xff;
 	/* TODO: split the GC and PG flags based on the relevant IP version for which
 	 * they are relevant.
@@ -1088,8 +1027,6 @@ static int nv_common_hw_init(void *handle)
 	if (adev->nbio.funcs->apply_l1_link_width_reconfig_wa)
 		adev->nbio.funcs->apply_l1_link_width_reconfig_wa(adev);
 
-	/* enable pcie gen2/3 link */
-	nv_pcie_gen3_enable(adev);
 	/* enable aspm */
 	nv_program_aspm(adev);
 	/* setup nbio registers */

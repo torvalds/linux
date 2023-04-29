@@ -421,7 +421,7 @@ static int mtk_spi_hw_init(struct spi_master *master,
 
 	/* pad select */
 	if (mdata->dev_comp->need_pad_sel)
-		writel(mdata->pad_sel[spi->chip_select],
+		writel(mdata->pad_sel[spi_get_chipselect(spi, 0)],
 		       mdata->base + SPI_PAD_SEL_REG);
 
 	/* tick delay */
@@ -735,9 +735,9 @@ static int mtk_spi_setup(struct spi_device *spi)
 	if (!spi->controller_data)
 		spi->controller_data = (void *)&mtk_default_chip_info;
 
-	if (mdata->dev_comp->need_pad_sel && spi->cs_gpiod)
+	if (mdata->dev_comp->need_pad_sel && spi_get_csgpiod(spi, 0))
 		/* CS de-asserted, gpiolib will handle inversion */
-		gpiod_direction_output(spi->cs_gpiod, 0);
+		gpiod_direction_output(spi_get_csgpiod(spi, 0), 0);
 
 	return 0;
 }

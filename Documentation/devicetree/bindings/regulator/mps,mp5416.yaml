@@ -28,11 +28,11 @@ properties:
 
     patternProperties:
       "^buck[1-4]$":
-        $ref: "regulator.yaml#"
+        $ref: regulator.yaml#
         type: object
 
       "^ldo[1-4]$":
-        $ref: "regulator.yaml#"
+        $ref: regulator.yaml#
         type: object
 
     additionalProperties: false

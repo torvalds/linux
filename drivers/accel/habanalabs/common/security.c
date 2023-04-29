@@ -502,7 +502,7 @@ free_glbl_sec:
 int hl_init_pb_ranges_single_dcore(struct hl_device *hdev, u32 dcore_offset,
 		u32 num_instances, u32 instance_offset,
 		const u32 pb_blocks[], u32 blocks_array_size,
-		const struct range *regs_range_array, u32 regs_range_array_size)
+		const struct range *user_regs_range_array, u32 user_regs_range_array_size)
 {
 	int i;
 	struct hl_block_glbl_sec *glbl_sec;
@@ -514,8 +514,8 @@ int hl_init_pb_ranges_single_dcore(struct hl_device *hdev, u32 dcore_offset,
 		return -ENOMEM;
 
 	hl_secure_block(hdev, glbl_sec, blocks_array_size);
-	hl_unsecure_registers_range(hdev, regs_range_array,
-			regs_range_array_size, 0, pb_blocks, glbl_sec,
+	hl_unsecure_registers_range(hdev, user_regs_range_array,
+			user_regs_range_array_size, 0, pb_blocks, glbl_sec,
 			blocks_array_size);
 
 	/* Fill all blocks with the same configuration */

@@ -202,7 +202,7 @@ static int mlx5_devlink_reload_up(struct devlink *devlink, enum devlink_reload_a
 			break;
 		/* On fw_activate action, also driver is reloaded and reinit performed */
 		*actions_performed |= BIT(DEVLINK_RELOAD_ACTION_DRIVER_REINIT);
-		ret = mlx5_load_one_devl_locked(dev, false);
+		ret = mlx5_load_one_devl_locked(dev, true);
 		break;
 	default:
 		/* Unsupported action should not get to this function */
@@ -494,6 +494,61 @@ static int mlx5_devlink_eq_depth_validate(struct devlink *devlink, u32 id,
 	return (val.vu32 >= 64 && val.vu32 <= 4096) ? 0 : -EINVAL;
 }
 
+static int
+mlx5_devlink_hairpin_num_queues_validate(struct devlink *devlink, u32 id,
+					 union devlink_param_value val,
+					 struct netlink_ext_ack *extack)
+{
+	return val.vu32 ? 0 : -EINVAL;
+}
+
+static int
+mlx5_devlink_hairpin_queue_size_validate(struct devlink *devlink, u32 id,
+					 union devlink_param_value val,
+					 struct netlink_ext_ack *extack)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	u32 val32 = val.vu32;
+
+	if (!is_power_of_2(val32)) {
+		NL_SET_ERR_MSG_MOD(extack, "Value is not power of two");
+		return -EINVAL;
+	}
+
+	if (val32 > BIT(MLX5_CAP_GEN(dev, log_max_hairpin_num_packets))) {
+		NL_SET_ERR_MSG_FMT_MOD(
+			extack, "Maximum hairpin queue size is %lu",
+			BIT(MLX5_CAP_GEN(dev, log_max_hairpin_num_packets)));
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static void mlx5_devlink_hairpin_params_init_values(struct devlink *devlink)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	union devlink_param_value value;
+	u32 link_speed = 0;
+	u64 link_speed64;
+
+	/* set hairpin pair per each 50Gbs share of the link */
+	mlx5_port_max_linkspeed(dev, &link_speed);
+	link_speed = max_t(u32, link_speed, 50000);
+	link_speed64 = link_speed;
+	do_div(link_speed64, 50000);
+
+	value.vu32 = link_speed64;
+	devl_param_driverinit_value_set(
+		devlink, MLX5_DEVLINK_PARAM_ID_HAIRPIN_NUM_QUEUES, value);
+
+	value.vu32 =
+		BIT(min_t(u32, 16 - MLX5_MPWRQ_MIN_LOG_STRIDE_SZ(dev),
+			  MLX5_CAP_GEN(dev, log_max_hairpin_num_packets)));
+	devl_param_driverinit_value_set(
+		devlink, MLX5_DEVLINK_PARAM_ID_HAIRPIN_QUEUE_SIZE, value);
+}
+
 static const struct devlink_param mlx5_devlink_params[] = {
 	DEVLINK_PARAM_GENERIC(ENABLE_ROCE, BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
 			      NULL, NULL, mlx5_devlink_enable_roce_validate),
@@ -547,6 +602,14 @@ static void mlx5_devlink_set_params_init_values(struct devlink *devlink)
 static const struct devlink_param mlx5_devlink_eth_params[] = {
 	DEVLINK_PARAM_GENERIC(ENABLE_ETH, BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
 			      NULL, NULL, NULL),
+	DEVLINK_PARAM_DRIVER(MLX5_DEVLINK_PARAM_ID_HAIRPIN_NUM_QUEUES,
+			     "hairpin_num_queues", DEVLINK_PARAM_TYPE_U32,
+			     BIT(DEVLINK_PARAM_CMODE_DRIVERINIT), NULL, NULL,
+			     mlx5_devlink_hairpin_num_queues_validate),
+	DEVLINK_PARAM_DRIVER(MLX5_DEVLINK_PARAM_ID_HAIRPIN_QUEUE_SIZE,
+			     "hairpin_queue_size", DEVLINK_PARAM_TYPE_U32,
+			     BIT(DEVLINK_PARAM_CMODE_DRIVERINIT), NULL, NULL,
+			     mlx5_devlink_hairpin_queue_size_validate),
 };
 
 static int mlx5_devlink_eth_params_register(struct devlink *devlink)
@@ -567,6 +630,9 @@ static int mlx5_devlink_eth_params_register(struct devlink *devlink)
 	devl_param_driverinit_value_set(devlink,
 					DEVLINK_PARAM_GENERIC_ID_ENABLE_ETH,
 					value);
+
+	mlx5_devlink_hairpin_params_init_values(devlink);
+
 	return 0;
 }
 
@@ -804,6 +870,11 @@ void mlx5_devlink_traps_unregister(struct devlink *devlink)
 int mlx5_devlink_params_register(struct devlink *devlink)
 {
 	int err;
+
+	/* Here only the driver init params should be registered.
+	 * Runtime params should be registered by the code which
+	 * behaviour they configure.
+	 */
 
 	err = devl_params_register(devlink, mlx5_devlink_params,
 				   ARRAY_SIZE(mlx5_devlink_params));

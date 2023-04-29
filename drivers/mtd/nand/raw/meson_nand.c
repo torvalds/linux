@@ -1440,20 +1440,18 @@ err_clk:
 	return ret;
 }
 
-static int meson_nfc_remove(struct platform_device *pdev)
+static void meson_nfc_remove(struct platform_device *pdev)
 {
 	struct meson_nfc *nfc = platform_get_drvdata(pdev);
 
 	meson_nfc_nand_chip_cleanup(nfc);
 
 	meson_nfc_disable_clk(nfc);
-
-	return 0;
 }
 
 static struct platform_driver meson_nfc_driver = {
 	.probe  = meson_nfc_probe,
-	.remove = meson_nfc_remove,
+	.remove_new = meson_nfc_remove,
 	.driver = {
 		.name  = "meson-nand",
 		.of_match_table = meson_nfc_id_table,

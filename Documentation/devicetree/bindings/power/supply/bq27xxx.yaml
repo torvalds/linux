@@ -75,15 +75,16 @@ additionalProperties: false
 
 examples:
   - |
-    i2c0 {
+    bat: battery {
+      compatible = "simple-battery";
+      voltage-min-design-microvolt = <3200000>;
+      energy-full-design-microwatt-hours = <5290000>;
+      charge-full-design-microamp-hours = <1430000>;
+    };
+
+    i2c {
       #address-cells = <1>;
       #size-cells = <0>;
-      bat: battery {
-        compatible = "simple-battery";
-        voltage-min-design-microvolt = <3200000>;
-        energy-full-design-microwatt-hours = <5290000>;
-        charge-full-design-microamp-hours = <1430000>;
-      };
 
       bq27510g3: fuel-gauge@55 {
         compatible = "ti,bq27510g3";

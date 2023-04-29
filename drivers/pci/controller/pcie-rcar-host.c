@@ -219,9 +219,9 @@ static int rcar_pcie_config_access(struct rcar_pcie_host *host,
 
 	/* Enable the configuration access */
 	if (pci_is_root_bus(bus->parent))
-		rcar_pci_write_reg(pcie, CONFIG_SEND_ENABLE | TYPE0, PCIECCTLR);
+		rcar_pci_write_reg(pcie, PCIECCTLR_CCIE | TYPE0, PCIECCTLR);
 	else
-		rcar_pci_write_reg(pcie, CONFIG_SEND_ENABLE | TYPE1, PCIECCTLR);
+		rcar_pci_write_reg(pcie, PCIECCTLR_CCIE | TYPE1, PCIECCTLR);
 
 	/* Check for errors */
 	if (rcar_pci_read_reg(pcie, PCIEERRFR) & UNSUPPORTED_REQUEST)

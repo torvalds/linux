@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/arm/tegra/nvidia,tegra194-cbb.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/arm/tegra/nvidia,tegra194-cbb.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: NVIDIA Tegra194 CBB 1.0
 
@@ -64,13 +64,13 @@ properties:
       - description: secure interrupt
 
   nvidia,axi2apb:
-    $ref: '/schemas/types.yaml#/definitions/phandle'
+    $ref: /schemas/types.yaml#/definitions/phandle
     description:
       Specifies the node having all axi2apb bridges which need to be checked
       for any error logged in their status register.
 
   nvidia,apbmisc:
-    $ref: '/schemas/types.yaml#/definitions/phandle'
+    $ref: /schemas/types.yaml#/definitions/phandle
     description:
       Specifies the apbmisc node which need to be used for reading the ERD
       register.

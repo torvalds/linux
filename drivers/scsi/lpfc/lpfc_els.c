@@ -1088,7 +1088,7 @@ stop_rr_fcf_flogi:
 			}
 
 			/* Do not register VFI if the driver aborted FLOGI */
-			if (!lpfc_error_lost_link(ulp_status, ulp_word4))
+			if (!lpfc_error_lost_link(vport, ulp_status, ulp_word4))
 				lpfc_issue_reg_vfi(vport);
 
 			lpfc_nlp_put(ndlp);
@@ -1207,7 +1207,7 @@ flogifail:
 	phba->fcf.fcf_flag &= ~FCF_DISCOVERY;
 	spin_unlock_irq(&phba->hbalock);
 
-	if (!lpfc_error_lost_link(ulp_status, ulp_word4)) {
+	if (!lpfc_error_lost_link(vport, ulp_status, ulp_word4)) {
 		/* FLOGI failed, so just use loop map to make discovery list */
 		lpfc_disc_list_loopmap(vport);
 
@@ -2087,7 +2087,7 @@ lpfc_cmpl_els_plogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 					 ulp_word4);
 
 		/* Do not call DSM for lpfc_els_abort'ed ELS cmds */
-		if (!lpfc_error_lost_link(ulp_status, ulp_word4))
+		if (!lpfc_error_lost_link(vport, ulp_status, ulp_word4))
 			lpfc_disc_state_machine(vport, ndlp, cmdiocb,
 						NLP_EVT_CMPL_PLOGI);
 
@@ -2208,14 +2208,15 @@ lpfc_issue_els_plogi(struct lpfc_vport *vport, uint32_t did, uint8_t retry)
 	 * outstanding UNREG_RPI mbox command completes, unless we
 	 * are going offline. This logic does not apply for Fabric DIDs
 	 */
-	if ((ndlp->nlp_flag & NLP_UNREG_INP) &&
+	if ((ndlp->nlp_flag & (NLP_IGNR_REG_CMPL | NLP_UNREG_INP)) &&
 	    ((ndlp->nlp_DID & Fabric_DID_MASK) != Fabric_DID_MASK) &&
 	    !(vport->fc_flag & FC_OFFLINE_MODE)) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 				 "4110 Issue PLOGI x%x deferred "
-				 "on NPort x%x rpi x%x Data: x%px\n",
+				 "on NPort x%x rpi x%x flg x%x Data:"
+				 " x%px\n",
 				 ndlp->nlp_defer_did, ndlp->nlp_DID,
-				 ndlp->nlp_rpi, ndlp);
+				 ndlp->nlp_rpi, ndlp->nlp_flag, ndlp);
 
 		/* We can only defer 1st PLOGI */
 		if (ndlp->nlp_defer_did == NLP_EVT_NOTHING_PENDING)
@@ -2382,7 +2383,7 @@ lpfc_cmpl_els_prli(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				 ndlp->fc4_prli_sent);
 
 		/* Do not call DSM for lpfc_els_abort'ed ELS cmds */
-		if (!lpfc_error_lost_link(ulp_status, ulp_word4))
+		if (!lpfc_error_lost_link(vport, ulp_status, ulp_word4))
 			lpfc_disc_state_machine(vport, ndlp, cmdiocb,
 						NLP_EVT_CMPL_PRLI);
 
@@ -3037,14 +3038,15 @@ lpfc_cmpl_els_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				 ndlp->nlp_DID, ulp_status,
 				 ulp_word4);
 
-		if (lpfc_error_lost_link(ulp_status, ulp_word4)) {
+		if (lpfc_error_lost_link(vport, ulp_status, ulp_word4))
 			skip_recovery = 1;
-			goto out;
-		}
 	}
 
 	/* Call state machine. This will unregister the rpi if needed. */
 	lpfc_disc_state_machine(vport, ndlp, cmdiocb, NLP_EVT_CMPL_LOGO);
+
+	if (skip_recovery)
+		goto out;
 
 	/* The driver sets this flag for an NPIV instance that doesn't want to
 	 * log into the remote port.
@@ -4928,7 +4930,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	if ((cmd == ELS_CMD_FLOGI) &&
 	    (phba->fc_topology != LPFC_TOPOLOGY_LOOP) &&
-	    !lpfc_error_lost_link(ulp_status, ulp_word4)) {
+	    !lpfc_error_lost_link(vport, ulp_status, ulp_word4)) {
 		/* FLOGI retry policy */
 		retry = 1;
 		/* retry FLOGI forever */
@@ -4942,7 +4944,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		else if (cmdiocb->retry >= 32)
 			delay = 1000;
 	} else if ((cmd == ELS_CMD_FDISC) &&
-	    !lpfc_error_lost_link(ulp_status, ulp_word4)) {
+	    !lpfc_error_lost_link(vport, ulp_status, ulp_word4)) {
 		/* retry FDISCs every second up to devloss */
 		retry = 1;
 		maxretry = vport->cfg_devloss_tmo;
@@ -5455,18 +5457,20 @@ out:
 	 * these conditions and release the RPI.
 	 */
 	if (phba->sli_rev == LPFC_SLI_REV4 &&
-	    (vport && vport->port_type == LPFC_NPIV_PORT) &&
-	    !(ndlp->fc4_xpt_flags & SCSI_XPT_REGD) &&
-	    ndlp->nlp_flag & NLP_RELEASE_RPI) {
-		if (ndlp->nlp_state !=  NLP_STE_PLOGI_ISSUE &&
-		    ndlp->nlp_state != NLP_STE_REG_LOGIN_ISSUE) {
-			lpfc_sli4_free_rpi(phba, ndlp->nlp_rpi);
-			spin_lock_irq(&ndlp->lock);
-			ndlp->nlp_rpi = LPFC_RPI_ALLOC_ERROR;
-			ndlp->nlp_flag &= ~NLP_RELEASE_RPI;
-			spin_unlock_irq(&ndlp->lock);
-			lpfc_drop_node(vport, ndlp);
+	    vport && vport->port_type == LPFC_NPIV_PORT &&
+	    !(ndlp->fc4_xpt_flags & SCSI_XPT_REGD)) {
+		if (ndlp->nlp_flag & NLP_RELEASE_RPI) {
+			if (ndlp->nlp_state != NLP_STE_PLOGI_ISSUE &&
+			    ndlp->nlp_state != NLP_STE_REG_LOGIN_ISSUE) {
+				lpfc_sli4_free_rpi(phba, ndlp->nlp_rpi);
+				spin_lock_irq(&ndlp->lock);
+				ndlp->nlp_rpi = LPFC_RPI_ALLOC_ERROR;
+				ndlp->nlp_flag &= ~NLP_RELEASE_RPI;
+				spin_unlock_irq(&ndlp->lock);
+			}
 		}
+
+		lpfc_drop_node(vport, ndlp);
 	}
 
 	/* Release the originating I/O reference. */

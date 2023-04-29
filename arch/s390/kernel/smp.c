@@ -553,7 +553,7 @@ void arch_send_call_function_single_ipi(int cpu)
  * it goes straight through and wastes no time serializing
  * anything. Worst case is that we lose a reschedule ...
  */
-void smp_send_reschedule(int cpu)
+void arch_smp_send_reschedule(int cpu)
 {
 	pcpu_ec_call(pcpu_devices + cpu, ec_schedule);
 }
@@ -1227,11 +1227,17 @@ static DEVICE_ATTR_WO(rescan);
 
 static int __init s390_smp_init(void)
 {
+	struct device *dev_root;
 	int cpu, rc = 0;
 
-	rc = device_create_file(cpu_subsys.dev_root, &dev_attr_rescan);
-	if (rc)
-		return rc;
+	dev_root = bus_get_dev_root(&cpu_subsys);
+	if (dev_root) {
+		rc = device_create_file(dev_root, &dev_attr_rescan);
+		put_device(dev_root);
+		if (rc)
+			return rc;
+	}
+
 	for_each_present_cpu(cpu) {
 		rc = smp_add_present_cpu(cpu);
 		if (rc)

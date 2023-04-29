@@ -1501,8 +1501,6 @@ const struct xattr_handler *gfs2_xattr_handlers_max[] = {
 	/* GFS2_FS_FORMAT_MIN */
 	&gfs2_xattr_user_handler,
 	&gfs2_xattr_security_handler,
-	&posix_acl_access_xattr_handler,
-	&posix_acl_default_xattr_handler,
 	NULL,
 };
 

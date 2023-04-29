@@ -470,7 +470,7 @@ static int iwl_mvm_wowlan_config_rsc_tsc(struct iwl_mvm *mvm,
 		for (i = 0; i < ARRAY_SIZE(data.rsc->mcast_key_id_map); i++)
 			data.rsc->mcast_key_id_map[i] =
 				IWL_MCAST_KEY_MAP_INVALID;
-		data.rsc->sta_id = cpu_to_le32(mvmvif->ap_sta_id);
+		data.rsc->sta_id = cpu_to_le32(mvmvif->deflink.ap_sta_id);
 
 		ieee80211_iter_keys(mvm->hw, vif,
 				    iwl_mvm_wowlan_get_rsc_v5_data,
@@ -493,7 +493,8 @@ static int iwl_mvm_wowlan_config_rsc_tsc(struct iwl_mvm *mvm,
 
 		if (ver == 4) {
 			size = sizeof(*data.rsc_tsc);
-			data.rsc_tsc->sta_id = cpu_to_le32(mvmvif->ap_sta_id);
+			data.rsc_tsc->sta_id =
+				cpu_to_le32(mvmvif->deflink.ap_sta_id);
 		} else {
 			/* ver == 2 || ver == IWL_FW_CMD_VER_UNKNOWN */
 			size = sizeof(data.rsc_tsc->params);
@@ -563,6 +564,7 @@ static void iwl_mvm_wowlan_get_tkip_data(struct ieee80211_hw *hw,
 		}
 
 		for (i = 0; i < IWL_NUM_RSC; i++) {
+			ieee80211_get_key_rx_seq(key, i, &seq);
 			/* wrapping isn't allowed, AP must rekey */
 			if (seq.tkip.iv32 > cur_rx_iv32)
 				cur_rx_iv32 = seq.tkip.iv32;
@@ -691,7 +693,7 @@ static int iwl_mvm_send_patterns(struct iwl_mvm *mvm,
 
 	pattern_cmd->n_patterns = wowlan->n_patterns;
 	if (ver >= 3)
-		pattern_cmd->sta_id = mvmvif->ap_sta_id;
+		pattern_cmd->sta_id = mvmvif->deflink.ap_sta_id;
 
 	for (i = 0; i < wowlan->n_patterns; i++) {
 		int mask_len = DIV_ROUND_UP(wowlan->patterns[i].pattern_len, 8);
@@ -732,7 +734,7 @@ static int iwl_mvm_d3_reprogram(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		return -EINVAL;
 
 	/* add back the PHY */
-	if (WARN_ON(!mvmvif->phy_ctxt))
+	if (WARN_ON(!mvmvif->deflink.phy_ctxt))
 		return -EINVAL;
 
 	rcu_read_lock();
@@ -746,7 +748,7 @@ static int iwl_mvm_d3_reprogram(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	chains_dynamic = ctx->rx_chains_dynamic;
 	rcu_read_unlock();
 
-	ret = iwl_mvm_phy_ctxt_add(mvm, mvmvif->phy_ctxt, &chandef,
+	ret = iwl_mvm_phy_ctxt_add(mvm, mvmvif->deflink.phy_ctxt, &chandef,
 				   chains_static, chains_dynamic);
 	if (ret)
 		return ret;
@@ -763,12 +765,12 @@ static int iwl_mvm_d3_reprogram(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	/* add back binding - XXX refactor? */
 	binding_cmd.id_and_color =
-		cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->phy_ctxt->id,
-						mvmvif->phy_ctxt->color));
+		cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->deflink.phy_ctxt->id,
+						mvmvif->deflink.phy_ctxt->color));
 	binding_cmd.action = cpu_to_le32(FW_CTXT_ACTION_ADD);
 	binding_cmd.phy =
-		cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->phy_ctxt->id,
-						mvmvif->phy_ctxt->color));
+		cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->deflink.phy_ctxt->id,
+						mvmvif->deflink.phy_ctxt->color));
 	binding_cmd.macs[0] = cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id,
 							      mvmvif->color));
 	for (i = 1; i < MAX_MACS_IN_BINDING; i++)
@@ -791,7 +793,8 @@ static int iwl_mvm_d3_reprogram(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	ret = iwl_mvm_sta_send_to_fw(mvm, ap_sta, false, 0);
 	if (ret)
 		return ret;
-	rcu_assign_pointer(mvm->fw_id_to_mac_id[mvmvif->ap_sta_id], ap_sta);
+	rcu_assign_pointer(mvm->fw_id_to_mac_id[mvmvif->deflink.ap_sta_id],
+			   ap_sta);
 
 	ret = iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
 	if (ret)
@@ -800,8 +803,8 @@ static int iwl_mvm_d3_reprogram(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	/* and some quota */
 	quota = iwl_mvm_quota_cmd_get_quota(mvm, &quota_cmd, 0);
 	quota->id_and_color =
-		cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->phy_ctxt->id,
-						mvmvif->phy_ctxt->color));
+		cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->deflink.phy_ctxt->id,
+						mvmvif->deflink.phy_ctxt->color));
 	quota->quota = cpu_to_le32(IWL_MVM_MAX_QUOTA);
 	quota->max_duration = cpu_to_le32(IWL_MVM_MAX_QUOTA);
 
@@ -1027,7 +1030,7 @@ static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 		if (ver == 2) {
 			size = sizeof(tkip_data.tkip);
 			tkip_data.tkip.sta_id =
-				cpu_to_le32(mvmvif->ap_sta_id);
+				cpu_to_le32(mvmvif->deflink.ap_sta_id);
 		} else if (ver == 1 || ver == IWL_FW_CMD_VER_UNKNOWN) {
 			size = sizeof(struct iwl_wowlan_tkip_params_cmd_ver_1);
 		} else {
@@ -1076,7 +1079,7 @@ static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 		kek_kck_cmd.kek_len = cpu_to_le16(mvmvif->rekey_data.kek_len);
 		kek_kck_cmd.replay_ctr = mvmvif->rekey_data.replay_ctr;
 		kek_kck_cmd.akm = cpu_to_le32(mvmvif->rekey_data.akm);
-		kek_kck_cmd.sta_id = cpu_to_le32(mvmvif->ap_sta_id);
+		kek_kck_cmd.sta_id = cpu_to_le32(mvmvif->deflink.ap_sta_id);
 
 		if (cmd_ver == 4) {
 			cmd_size = sizeof(struct iwl_wowlan_kek_kck_material_cmd_v4);
@@ -1269,7 +1272,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	if (mvmvif->ap_sta_id == IWL_MVM_INVALID_STA) {
+	if (mvmvif->deflink.ap_sta_id == IWL_MVM_INVALID_STA) {
 		/* if we're not associated, this must be netdetect */
 		if (!wowlan->nd_config) {
 			ret = 1;
@@ -1285,10 +1288,10 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	} else {
 		struct iwl_wowlan_config_cmd wowlan_config_cmd = {};
 
-		wowlan_config_cmd.sta_id = mvmvif->ap_sta_id;
+		wowlan_config_cmd.sta_id = mvmvif->deflink.ap_sta_id;
 
 		ap_sta = rcu_dereference_protected(
-			mvm->fw_id_to_mac_id[mvmvif->ap_sta_id],
+			mvm->fw_id_to_mac_id[mvmvif->deflink.ap_sta_id],
 			lockdep_is_held(&mvm->mutex));
 		if (IS_ERR_OR_NULL(ap_sta)) {
 			ret = -EINVAL;
@@ -2015,6 +2018,12 @@ static void iwl_mvm_parse_wowlan_info_notif(struct iwl_mvm *mvm,
 {
 	u32 i;
 
+	if (!data) {
+		IWL_ERR(mvm, "iwl_wowlan_info_notif data is NULL\n");
+		status = NULL;
+		return;
+	}
+
 	if (len < sizeof(*data)) {
 		IWL_ERR(mvm, "Invalid WoWLAN info notification!\n");
 		status = NULL;
@@ -2575,7 +2584,8 @@ iwl_mvm_choose_query_wakeup_reasons(struct iwl_mvm *mvm,
 	/* if FW uses status notification, status shouldn't be NULL here */
 	if (!d3_data->status) {
 		struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-		u8 sta_id = mvm->net_detect ? IWL_MVM_INVALID_STA : mvmvif->ap_sta_id;
+		u8 sta_id = mvm->net_detect ? IWL_MVM_INVALID_STA :
+					      mvmvif->deflink.ap_sta_id;
 
 		d3_data->status = iwl_mvm_send_wowlan_get_status(mvm, sta_id);
 	}
@@ -2702,10 +2712,15 @@ static bool iwl_mvm_wait_d3_notif(struct iwl_notif_wait_data *notif_wait,
 	struct iwl_d3_data *d3_data = data;
 	u32 len;
 	int ret;
+	int wowlan_info_ver = iwl_fw_lookup_notif_ver(mvm->fw,
+						      PROT_OFFLOAD_GROUP,
+						      WOWLAN_INFO_NOTIFICATION,
+						      IWL_FW_CMD_VER_UNKNOWN);
+
 
 	switch (WIDE_ID(pkt->hdr.group_id, pkt->hdr.cmd)) {
 	case WIDE_ID(PROT_OFFLOAD_GROUP, WOWLAN_INFO_NOTIFICATION): {
-		struct iwl_wowlan_info_notif *notif = (void *)pkt->data;
+		struct iwl_wowlan_info_notif *notif;
 
 		if (d3_data->notif_received & IWL_D3_NOTIF_WOWLAN_INFO) {
 			/* We might get two notifications due to dual bss */
@@ -2714,10 +2729,32 @@ static bool iwl_mvm_wait_d3_notif(struct iwl_notif_wait_data *notif_wait,
 			break;
 		}
 
+		if (wowlan_info_ver < 2) {
+			struct iwl_wowlan_info_notif_v1 *notif_v1 = (void *)pkt->data;
+
+			notif = kmemdup(notif_v1,
+					offsetofend(struct iwl_wowlan_info_notif,
+						    received_beacons),
+					GFP_ATOMIC);
+
+			if (!notif)
+				return false;
+
+			notif->tid_tear_down = notif_v1->tid_tear_down;
+			notif->station_id = notif_v1->station_id;
+
+		} else {
+			notif = (void *)pkt->data;
+		}
+
 		d3_data->notif_received |= IWL_D3_NOTIF_WOWLAN_INFO;
 		len = iwl_rx_packet_payload_len(pkt);
 		iwl_mvm_parse_wowlan_info_notif(mvm, notif, d3_data->status,
 						len);
+
+		if (wowlan_info_ver < 2)
+			kfree(notif);
+
 		if (d3_data->status &&
 		    d3_data->status->wakeup_reasons & IWL_WOWLAN_WAKEUP_REASON_HAS_WAKEUP_PKT)
 			/* We are supposed to get also wake packet notif */

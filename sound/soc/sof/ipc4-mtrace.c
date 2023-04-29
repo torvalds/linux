@@ -609,6 +609,16 @@ static void ipc4_mtrace_free(struct snd_sof_dev *sdev)
 	ipc4_mtrace_disable(sdev);
 }
 
+static int sof_ipc4_mtrace_update_pos_all_cores(struct snd_sof_dev *sdev)
+{
+	int i;
+
+	for (i = 0; i < sdev->num_cores; i++)
+		sof_ipc4_mtrace_update_pos(sdev, i);
+
+	return 0;
+}
+
 int sof_ipc4_mtrace_update_pos(struct snd_sof_dev *sdev, int core)
 {
 	struct sof_mtrace_priv *priv = sdev->fw_trace_data;
@@ -642,6 +652,16 @@ int sof_ipc4_mtrace_update_pos(struct snd_sof_dev *sdev, int core)
 	return 0;
 }
 
+static void ipc4_mtrace_fw_crashed(struct snd_sof_dev *sdev)
+{
+	/*
+	 * The DSP might not be able to send SOF_IPC4_NOTIFY_LOG_BUFFER_STATUS
+	 * messages anymore, so check the log buffer status on all
+	 * cores and process any pending messages.
+	 */
+	sof_ipc4_mtrace_update_pos_all_cores(sdev);
+}
+
 static int ipc4_mtrace_resume(struct snd_sof_dev *sdev)
 {
 	return ipc4_mtrace_enable(sdev);
@@ -655,6 +675,7 @@ static void ipc4_mtrace_suspend(struct snd_sof_dev *sdev, pm_message_t pm_state)
 const struct sof_ipc_fw_tracing_ops ipc4_mtrace_ops = {
 	.init = ipc4_mtrace_init,
 	.free = ipc4_mtrace_free,
+	.fw_crashed = ipc4_mtrace_fw_crashed,
 	.suspend = ipc4_mtrace_suspend,
 	.resume = ipc4_mtrace_resume,
 };

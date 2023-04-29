@@ -412,7 +412,7 @@ static int xfrm4_prepare_output(struct xfrm_state *x, struct sk_buff *skb)
 	IPCB(skb)->flags |= IPSKB_XFRM_TUNNEL_SIZE;
 	skb->protocol = htons(ETH_P_IP);
 
-	switch (x->outer_mode.encap) {
+	switch (x->props.mode) {
 	case XFRM_MODE_BEET:
 		return xfrm4_beet_encap_add(x, skb);
 	case XFRM_MODE_TUNNEL:
@@ -435,7 +435,7 @@ static int xfrm6_prepare_output(struct xfrm_state *x, struct sk_buff *skb)
 	skb->ignore_df = 1;
 	skb->protocol = htons(ETH_P_IPV6);
 
-	switch (x->outer_mode.encap) {
+	switch (x->props.mode) {
 	case XFRM_MODE_BEET:
 		return xfrm6_beet_encap_add(x, skb);
 	case XFRM_MODE_TUNNEL:
@@ -451,22 +451,22 @@ static int xfrm6_prepare_output(struct xfrm_state *x, struct sk_buff *skb)
 
 static int xfrm_outer_mode_output(struct xfrm_state *x, struct sk_buff *skb)
 {
-	switch (x->outer_mode.encap) {
+	switch (x->props.mode) {
 	case XFRM_MODE_BEET:
 	case XFRM_MODE_TUNNEL:
-		if (x->outer_mode.family == AF_INET)
+		if (x->props.family == AF_INET)
 			return xfrm4_prepare_output(x, skb);
-		if (x->outer_mode.family == AF_INET6)
+		if (x->props.family == AF_INET6)
 			return xfrm6_prepare_output(x, skb);
 		break;
 	case XFRM_MODE_TRANSPORT:
-		if (x->outer_mode.family == AF_INET)
+		if (x->props.family == AF_INET)
 			return xfrm4_transport_output(x, skb);
-		if (x->outer_mode.family == AF_INET6)
+		if (x->props.family == AF_INET6)
 			return xfrm6_transport_output(x, skb);
 		break;
 	case XFRM_MODE_ROUTEOPTIMIZATION:
-		if (x->outer_mode.family == AF_INET6)
+		if (x->props.family == AF_INET6)
 			return xfrm6_ro_output(x, skb);
 		WARN_ON_ONCE(1);
 		break;
@@ -875,21 +875,10 @@ static int xfrm6_extract_output(struct xfrm_state *x, struct sk_buff *skb)
 
 static int xfrm_inner_extract_output(struct xfrm_state *x, struct sk_buff *skb)
 {
-	const struct xfrm_mode *inner_mode;
-
-	if (x->sel.family == AF_UNSPEC)
-		inner_mode = xfrm_ip2inner_mode(x,
-				xfrm_af2proto(skb_dst(skb)->ops->family));
-	else
-		inner_mode = &x->inner_mode;
-
-	if (inner_mode == NULL)
-		return -EAFNOSUPPORT;
-
-	switch (inner_mode->family) {
-	case AF_INET:
+	switch (skb->protocol) {
+	case htons(ETH_P_IP):
 		return xfrm4_extract_output(x, skb);
-	case AF_INET6:
+	case htons(ETH_P_IPV6):
 		return xfrm6_extract_output(x, skb);
 	}
 

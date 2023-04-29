@@ -33,10 +33,12 @@
 #include "key.h"
 #include "sta_info.h"
 #include "debug.h"
+#include "drop.h"
 
 extern const struct cfg80211_ops mac80211_config_ops;
 
 struct ieee80211_local;
+struct ieee80211_mesh_fast_tx;
 
 /* Maximum number of broadcast/multicast frames to buffer when some of the
  * associated stations are using power saving. */
@@ -169,13 +171,6 @@ struct ieee80211_tx_data {
 	unsigned int flags;
 };
 
-
-typedef unsigned __bitwise ieee80211_rx_result;
-#define RX_CONTINUE		((__force ieee80211_rx_result) 0u)
-#define RX_DROP_UNUSABLE	((__force ieee80211_rx_result) 1u)
-#define RX_DROP_MONITOR		((__force ieee80211_rx_result) 2u)
-#define RX_QUEUED		((__force ieee80211_rx_result) 3u)
-
 /**
  * enum ieee80211_packet_rx_flags - packet RX flags
  * @IEEE80211_RX_AMSDU: a-MSDU packet
@@ -269,6 +264,7 @@ struct beacon_data {
 	u16 cntdwn_counter_offsets[IEEE80211_MAX_CNTDWN_COUNTERS_NUM];
 	u8 cntdwn_current_counter;
 	struct cfg80211_mbssid_elems *mbssid_ies;
+	struct cfg80211_rnr_elems *rnr_ies;
 	struct rcu_head rcu_head;
 };
 
@@ -656,6 +652,19 @@ struct mesh_table {
 	atomic_t entries;		/* Up to MAX_MESH_NEIGHBOURS */
 };
 
+/**
+ * struct mesh_tx_cache - mesh fast xmit header cache
+ *
+ * @rht: hash table containing struct ieee80211_mesh_fast_tx, using skb DA as key
+ * @walk_head: linked list containing all ieee80211_mesh_fast_tx objects
+ * @walk_lock: lock protecting walk_head and rht
+ */
+struct mesh_tx_cache {
+	struct rhashtable rht;
+	struct hlist_head walk_head;
+	spinlock_t walk_lock;
+};
+
 struct ieee80211_if_mesh {
 	struct timer_list housekeeping_timer;
 	struct timer_list mesh_path_timer;
@@ -696,7 +705,7 @@ struct ieee80211_if_mesh {
 	struct mesh_stats mshstats;
 	struct mesh_config mshcfg;
 	atomic_t estab_plinks;
-	u32 mesh_seqnum;
+	atomic_t mesh_seqnum;
 	bool accepting_plinks;
 	int num_gates;
 	struct beacon_data __rcu *beacon;
@@ -734,6 +743,7 @@ struct ieee80211_if_mesh {
 	struct mesh_table mpp_paths; /* Store paths for MPP&MAP */
 	int mesh_paths_generation;
 	int mpp_paths_generation;
+	struct mesh_tx_cache tx_cache;
 };
 
 #ifdef CONFIG_MAC80211_MESH
@@ -999,6 +1009,10 @@ struct ieee80211_link_data {
 	struct ieee80211_tx_queue_params tx_conf[IEEE80211_NUM_ACS];
 
 	struct ieee80211_bss_conf *conf;
+
+#ifdef CONFIG_MAC80211_DEBUGFS
+	struct dentry *debugfs_dir;
+#endif
 };
 
 struct ieee80211_sub_if_data {
@@ -1167,15 +1181,33 @@ ieee80211_vif_get_shift(struct ieee80211_vif *vif)
 }
 
 static inline int
-ieee80211_get_mbssid_beacon_len(struct cfg80211_mbssid_elems *elems)
+ieee80211_get_mbssid_beacon_len(struct cfg80211_mbssid_elems *elems,
+				struct cfg80211_rnr_elems *rnr_elems,
+				u8 i)
 {
-	int i, len = 0;
+	int len = 0;
 
-	if (!elems)
+	if (!elems || !elems->cnt || i > elems->cnt)
 		return 0;
 
+	if (i < elems->cnt) {
+		len = elems->elem[i].len;
+		if (rnr_elems) {
+			len += rnr_elems->elem[i].len;
+			for (i = elems->cnt; i < rnr_elems->cnt; i++)
+				len += rnr_elems->elem[i].len;
+		}
+		return len;
+	}
+
+	/* i == elems->cnt, calculate total length of all MBSSID elements */
 	for (i = 0; i < elems->cnt; i++)
 		len += elems->elem[i].len;
+
+	if (rnr_elems) {
+		for (i = 0; i < rnr_elems->cnt; i++)
+			len += rnr_elems->elem[i].len;
+	}
 
 	return len;
 }
@@ -1938,7 +1970,8 @@ void ieee80211_color_collision_detection_work(struct work_struct *work);
 /* interface handling */
 #define MAC80211_SUPPORTED_FEATURES_TX	(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | \
 					 NETIF_F_HW_CSUM | NETIF_F_SG | \
-					 NETIF_F_HIGHDMA | NETIF_F_GSO_SOFTWARE)
+					 NETIF_F_HIGHDMA | NETIF_F_GSO_SOFTWARE | \
+					 NETIF_F_HW_TC)
 #define MAC80211_SUPPORTED_FEATURES_RX	(NETIF_F_RXCSUM)
 #define MAC80211_SUPPORTED_FEATURES	(MAC80211_SUPPORTED_FEATURES_TX | \
 					 MAC80211_SUPPORTED_FEATURES_RX)
@@ -2016,6 +2049,13 @@ int ieee80211_tx_control_port(struct wiphy *wiphy, struct net_device *dev,
 			      int link_id, u64 *cookie);
 int ieee80211_probe_mesh_link(struct wiphy *wiphy, struct net_device *dev,
 			      const u8 *buf, size_t len);
+void __ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
+			   struct sta_info *sta,
+			   struct ieee80211_fast_tx *fast_tx,
+			   struct sk_buff *skb, bool ampdu,
+			   const u8 *da, const u8 *sa);
+void ieee80211_aggr_check(struct ieee80211_sub_if_data *sdata,
+			  struct sta_info *sta, struct sk_buff *skb);
 
 /* HT */
 void ieee80211_apply_htcap_overrides(struct ieee80211_sub_if_data *sdata,
@@ -2433,6 +2473,8 @@ void ieee80211_ie_build_he_6ghz_cap(struct ieee80211_sub_if_data *sdata,
 				    enum ieee80211_smps_mode smps_mode,
 				    struct sk_buff *skb);
 u8 *ieee80211_ie_build_he_oper(u8 *pos, struct cfg80211_chan_def *chandef);
+u8 *ieee80211_ie_build_eht_oper(u8 *pos, struct cfg80211_chan_def *chandef,
+				const struct ieee80211_sta_eht_cap *eht_cap);
 int ieee80211_parse_bitrates(enum nl80211_chan_width width,
 			     const struct ieee80211_supported_band *sband,
 			     const u8 *srates, int srates_len, u32 *rates);
@@ -2448,6 +2490,7 @@ void ieee80211_add_s1g_capab_ie(struct ieee80211_sub_if_data *sdata,
 				struct sk_buff *skb);
 void ieee80211_add_aid_request_ie(struct ieee80211_sub_if_data *sdata,
 				  struct sk_buff *skb);
+u8 *ieee80211_ie_build_s1g_cap(u8 *pos, struct ieee80211_sta_s1g_cap *s1g_cap);
 
 /* channel management */
 bool ieee80211_chandef_ht_oper(const struct ieee80211_ht_operation *ht_oper,

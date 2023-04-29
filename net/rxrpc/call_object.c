@@ -40,10 +40,8 @@ const char *const rxrpc_call_completions[NR__RXRPC_CALL_COMPLETIONS] = {
 
 struct kmem_cache *rxrpc_call_jar;
 
-static struct semaphore rxrpc_call_limiter =
-	__SEMAPHORE_INITIALIZER(rxrpc_call_limiter, 1000);
-static struct semaphore rxrpc_kernel_call_limiter =
-	__SEMAPHORE_INITIALIZER(rxrpc_kernel_call_limiter, 1000);
+static DEFINE_SEMAPHORE(rxrpc_call_limiter, 1000);
+static DEFINE_SEMAPHORE(rxrpc_kernel_call_limiter, 1000);
 
 void rxrpc_poke_call(struct rxrpc_call *call, enum rxrpc_call_poke_trace what)
 {

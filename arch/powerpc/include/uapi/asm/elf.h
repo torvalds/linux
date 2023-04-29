@@ -279,7 +279,11 @@ typedef elf_fpreg_t elf_vsrreghalf_t32[ELF_NVSRHALFREG];
 #define R_PPC64_TLSLD		108
 #define R_PPC64_TOCSAVE		109
 
+#define R_PPC64_REL24_NOTOC	116
 #define R_PPC64_ENTRY		118
+
+#define R_PPC64_PCREL34		132
+#define R_PPC64_GOT_PCREL34	133
 
 #define R_PPC64_REL16		249
 #define R_PPC64_REL16_LO	250

@@ -11,219 +11,430 @@
 
 */
 
-/*
-   This is Ken's linux wrapper for the PPC library
-   Version 1.0.0 is the backpack driver for which source is not available
-   Version 2.0.0 is the first to have source released 
-   Version 2.0.1 is the "Cox-ified" source code 
-   Version 2.0.2 - fixed version string usage, and made ppc functions static 
-*/
-
-
-#define BACKPACK_VERSION "2.0.2"
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/slab.h>
 #include <linux/types.h>
-#include <asm/io.h>
 #include <linux/parport.h>
+#include "pata_parport.h"
 
-#include "ppc6lnx.c"
-#include <linux/pata_parport.h>
+/* 60772 Commands */
+#define ACCESS_REG		0x00
+#define ACCESS_PORT		0x40
 
-/* PARAMETERS */
-static bool verbose; /* set this to 1 to see debugging messages and whatnot */
- 
+#define ACCESS_READ		0x00
+#define ACCESS_WRITE		0x20
 
-#define PPCSTRUCT(pi) ((Interface *)(pi->private))
+/* 60772 Command Prefix */
+#define CMD_PREFIX_SET		0xe0	// Special command that modifies next command's operation
+#define CMD_PREFIX_RESET	0xc0	// Resets current cmd modifier reg bits
+ #define PREFIX_IO16		0x01	// perform 16-bit wide I/O
+ #define PREFIX_FASTWR		0x04	// enable PPC mode fast-write
+ #define PREFIX_BLK		0x08	// enable block transfer mode
 
-/****************************************************************/
-/*
- ATAPI CDROM DRIVE REGISTERS
-*/
-#define ATAPI_DATA       0      /* data port                  */
-#define ATAPI_ERROR      1      /* error register (read)      */
-#define ATAPI_FEATURES   1      /* feature register (write)   */
-#define ATAPI_INT_REASON 2      /* interrupt reason register  */
-#define ATAPI_COUNT_LOW  4      /* byte count register (low)  */
-#define ATAPI_COUNT_HIGH 5      /* byte count register (high) */
-#define ATAPI_DRIVE_SEL  6      /* drive select register      */
-#define ATAPI_STATUS     7      /* status port (read)         */
-#define ATAPI_COMMAND    7      /* command port (write)       */
-#define ATAPI_ALT_STATUS 0x0e /* alternate status reg (read) */
-#define ATAPI_DEVICE_CONTROL 0x0e /* device control (write)   */
-/****************************************************************/
+/* 60772 Registers */
+#define REG_STATUS		0x00	// status register
+ #define STATUS_IRQA		0x01	// Peripheral IRQA line
+ #define STATUS_EEPROM_DO	0x40	// Serial EEPROM data bit
+#define REG_VERSION		0x01	// PPC version register (read)
+#define REG_HWCFG		0x02	// Hardware Config register
+#define REG_RAMSIZE		0x03	// Size of RAM Buffer
+ #define RAMSIZE_128K		0x02
+#define REG_EEPROM		0x06	// EEPROM control register
+ #define EEPROM_SK		0x01	// eeprom SK bit
+ #define EEPROM_DI		0x02	// eeprom DI bit
+ #define EEPROM_CS		0x04	// eeprom CS bit
+ #define EEPROM_EN		0x08	// eeprom output enable
+#define REG_BLKSIZE		0x08	// Block transfer len (24 bit)
 
-static int bpck6_read_regr(PIA *pi, int cont, int reg)
+/* flags */
+#define fifo_wait		0x10
+
+/* DONT CHANGE THESE LEST YOU BREAK EVERYTHING - BIT FIELD DEPENDENCIES */
+#define PPCMODE_UNI_SW		0
+#define PPCMODE_UNI_FW		1
+#define PPCMODE_BI_SW		2
+#define PPCMODE_BI_FW		3
+#define PPCMODE_EPP_BYTE	4
+#define PPCMODE_EPP_WORD	5
+#define PPCMODE_EPP_DWORD	6
+
+static int mode_map[] = { PPCMODE_UNI_FW, PPCMODE_BI_FW, PPCMODE_EPP_BYTE,
+			  PPCMODE_EPP_WORD, PPCMODE_EPP_DWORD };
+
+static void bpck6_send_cmd(struct pi_adapter *pi, u8 cmd)
 {
-	unsigned int out;
-
-	/* check for bad settings */
-	if (reg<0 || reg>7 || cont<0 || cont>2)
-	{
-		return(-1);
+	switch (mode_map[pi->mode]) {
+	case PPCMODE_UNI_SW:
+	case PPCMODE_UNI_FW:
+	case PPCMODE_BI_SW:
+	case PPCMODE_BI_FW:
+		parport_write_data(pi->pardev->port, cmd);
+		parport_frob_control(pi->pardev->port, 0, PARPORT_CONTROL_AUTOFD);
+		break;
+	case PPCMODE_EPP_BYTE:
+	case PPCMODE_EPP_WORD:
+	case PPCMODE_EPP_DWORD:
+		pi->pardev->port->ops->epp_write_addr(pi->pardev->port, &cmd, 1, 0);
+		break;
 	}
-	out=ppc6_rd_port(PPCSTRUCT(pi),cont?reg|8:reg);
-	return(out);
 }
 
-static void bpck6_write_regr(PIA *pi, int cont, int reg, int val)
+static u8 bpck6_rd_data_byte(struct pi_adapter *pi)
 {
-	/* check for bad settings */
-	if (reg>=0 && reg<=7 && cont>=0 && cont<=1)
-	{
-		ppc6_wr_port(PPCSTRUCT(pi),cont?reg|8:reg,(u8)val);
+	u8 data = 0;
+
+	switch (mode_map[pi->mode]) {
+	case PPCMODE_UNI_SW:
+	case PPCMODE_UNI_FW:
+		parport_frob_control(pi->pardev->port, PARPORT_CONTROL_STROBE,
+							PARPORT_CONTROL_INIT);
+		data = parport_read_status(pi->pardev->port);
+		data = ((data & 0x80) >> 1) | ((data & 0x38) >> 3);
+		parport_frob_control(pi->pardev->port, PARPORT_CONTROL_STROBE,
+							PARPORT_CONTROL_STROBE);
+		data |= parport_read_status(pi->pardev->port) & 0xB8;
+		break;
+	case PPCMODE_BI_SW:
+	case PPCMODE_BI_FW:
+		parport_data_reverse(pi->pardev->port);
+		parport_frob_control(pi->pardev->port, PARPORT_CONTROL_STROBE,
+				PARPORT_CONTROL_STROBE | PARPORT_CONTROL_INIT);
+		data = parport_read_data(pi->pardev->port);
+		parport_frob_control(pi->pardev->port, PARPORT_CONTROL_STROBE, 0);
+		parport_data_forward(pi->pardev->port);
+		break;
+	case PPCMODE_EPP_BYTE:
+	case PPCMODE_EPP_WORD:
+	case PPCMODE_EPP_DWORD:
+		pi->pardev->port->ops->epp_read_data(pi->pardev->port, &data, 1, 0);
+		break;
+	}
+
+	return data;
+}
+
+static void bpck6_wr_data_byte(struct pi_adapter *pi, u8 data)
+{
+	switch (mode_map[pi->mode]) {
+	case PPCMODE_UNI_SW:
+	case PPCMODE_UNI_FW:
+	case PPCMODE_BI_SW:
+	case PPCMODE_BI_FW:
+		parport_write_data(pi->pardev->port, data);
+		parport_frob_control(pi->pardev->port, 0, PARPORT_CONTROL_INIT);
+		break;
+	case PPCMODE_EPP_BYTE:
+	case PPCMODE_EPP_WORD:
+	case PPCMODE_EPP_DWORD:
+		pi->pardev->port->ops->epp_write_data(pi->pardev->port, &data, 1, 0);
+		break;
 	}
 }
 
-static void bpck6_write_block( PIA *pi, char * buf, int len )
+static int bpck6_read_regr(struct pi_adapter *pi, int cont, int reg)
 {
-	ppc6_wr_port16_blk(PPCSTRUCT(pi),ATAPI_DATA,buf,(u32)len>>1); 
+	u8 port = cont ? reg | 8 : reg;
+
+	bpck6_send_cmd(pi, port | ACCESS_PORT | ACCESS_READ);
+	return bpck6_rd_data_byte(pi);
 }
 
-static void bpck6_read_block( PIA *pi, char * buf, int len )
+static void bpck6_write_regr(struct pi_adapter *pi, int cont, int reg, int val)
 {
-	ppc6_rd_port16_blk(PPCSTRUCT(pi),ATAPI_DATA,buf,(u32)len>>1);
+	u8 port = cont ? reg | 8 : reg;
+
+	bpck6_send_cmd(pi, port | ACCESS_PORT | ACCESS_WRITE);
+	bpck6_wr_data_byte(pi, val);
 }
 
-static void bpck6_connect ( PIA *pi  )
+static void bpck6_wait_for_fifo(struct pi_adapter *pi)
 {
-	if(verbose)
-	{
-		printk(KERN_DEBUG "connect\n");
-	}
+	int i;
 
-	if(pi->mode >=2)
-  	{
-		PPCSTRUCT(pi)->mode=4+pi->mode-2;	
+	if (pi->private & fifo_wait) {
+		for (i = 0; i < 20; i++)
+			parport_read_status(pi->pardev->port);
 	}
-	else if(pi->mode==1)
-	{
-		PPCSTRUCT(pi)->mode=3;	
-	}
-	else
-	{
-		PPCSTRUCT(pi)->mode=1;		
-	}
-
-	ppc6_open(PPCSTRUCT(pi));  
-	ppc6_wr_extout(PPCSTRUCT(pi),0x3);
 }
 
-static void bpck6_disconnect ( PIA *pi )
+static void bpck6_write_block(struct pi_adapter *pi, char *buf, int len)
 {
-	if(verbose)
-	{
-		printk("disconnect\n");
+	u8 this, last;
+
+	bpck6_send_cmd(pi, REG_BLKSIZE | ACCESS_REG | ACCESS_WRITE);
+	bpck6_wr_data_byte(pi, (u8)len);
+	bpck6_wr_data_byte(pi, (u8)(len >> 8));
+	bpck6_wr_data_byte(pi, 0);
+
+	bpck6_send_cmd(pi, CMD_PREFIX_SET | PREFIX_IO16 | PREFIX_BLK);
+	bpck6_send_cmd(pi, ATA_REG_DATA | ACCESS_PORT | ACCESS_WRITE);
+
+	switch (mode_map[pi->mode]) {
+	case PPCMODE_UNI_SW:
+	case PPCMODE_BI_SW:
+		while (len--) {
+			parport_write_data(pi->pardev->port, *buf++);
+			parport_frob_control(pi->pardev->port, 0,
+							PARPORT_CONTROL_INIT);
+		}
+		break;
+	case PPCMODE_UNI_FW:
+	case PPCMODE_BI_FW:
+		bpck6_send_cmd(pi, CMD_PREFIX_SET | PREFIX_FASTWR);
+
+		parport_frob_control(pi->pardev->port, PARPORT_CONTROL_STROBE,
+							PARPORT_CONTROL_STROBE);
+
+		last = *buf;
+
+		parport_write_data(pi->pardev->port, last);
+
+		while (len) {
+			this = *buf++;
+			len--;
+
+			if (this == last) {
+				parport_frob_control(pi->pardev->port, 0,
+							PARPORT_CONTROL_INIT);
+			} else {
+				parport_write_data(pi->pardev->port, this);
+				last = this;
+			}
+		}
+
+		parport_frob_control(pi->pardev->port, PARPORT_CONTROL_STROBE,
+							0);
+		bpck6_send_cmd(pi, CMD_PREFIX_RESET | PREFIX_FASTWR);
+		break;
+	case PPCMODE_EPP_BYTE:
+		pi->pardev->port->ops->epp_write_data(pi->pardev->port, buf,
+						len, PARPORT_EPP_FAST_8);
+		bpck6_wait_for_fifo(pi);
+		break;
+	case PPCMODE_EPP_WORD:
+		pi->pardev->port->ops->epp_write_data(pi->pardev->port, buf,
+						len, PARPORT_EPP_FAST_16);
+		bpck6_wait_for_fifo(pi);
+		break;
+	case PPCMODE_EPP_DWORD:
+		pi->pardev->port->ops->epp_write_data(pi->pardev->port, buf,
+						len, PARPORT_EPP_FAST_32);
+		bpck6_wait_for_fifo(pi);
+		break;
 	}
-	ppc6_wr_extout(PPCSTRUCT(pi),0x0);
-	ppc6_close(PPCSTRUCT(pi));
+
+	bpck6_send_cmd(pi, CMD_PREFIX_RESET | PREFIX_IO16 | PREFIX_BLK);
 }
 
-static int bpck6_test_port ( PIA *pi )   /* check for 8-bit port */
+static void bpck6_read_block(struct pi_adapter *pi, char *buf, int len)
 {
-	if(verbose)
-	{
-		printk(KERN_DEBUG "PARPORT indicates modes=%x for lp=0x%lx\n",
-               		((struct pardevice*)(pi->pardev))->port->modes,
-			((struct pardevice *)(pi->pardev))->port->base); 
+	bpck6_send_cmd(pi, REG_BLKSIZE | ACCESS_REG | ACCESS_WRITE);
+	bpck6_wr_data_byte(pi, (u8)len);
+	bpck6_wr_data_byte(pi, (u8)(len >> 8));
+	bpck6_wr_data_byte(pi, 0);
+
+	bpck6_send_cmd(pi, CMD_PREFIX_SET | PREFIX_IO16 | PREFIX_BLK);
+	bpck6_send_cmd(pi, ATA_REG_DATA | ACCESS_PORT | ACCESS_READ);
+
+	switch (mode_map[pi->mode]) {
+	case PPCMODE_UNI_SW:
+	case PPCMODE_UNI_FW:
+		while (len) {
+			u8 d;
+
+			parport_frob_control(pi->pardev->port,
+					PARPORT_CONTROL_STROBE,
+					PARPORT_CONTROL_INIT); /* DATA STROBE */
+			d = parport_read_status(pi->pardev->port);
+			d = ((d & 0x80) >> 1) | ((d & 0x38) >> 3);
+			parport_frob_control(pi->pardev->port,
+					PARPORT_CONTROL_STROBE,
+					PARPORT_CONTROL_STROBE);
+			d |= parport_read_status(pi->pardev->port) & 0xB8;
+			*buf++ = d;
+			len--;
+		}
+		break;
+	case PPCMODE_BI_SW:
+	case PPCMODE_BI_FW:
+		parport_data_reverse(pi->pardev->port);
+		while (len) {
+			parport_frob_control(pi->pardev->port,
+				PARPORT_CONTROL_STROBE,
+				PARPORT_CONTROL_STROBE | PARPORT_CONTROL_INIT);
+			*buf++ = parport_read_data(pi->pardev->port);
+			len--;
+		}
+		parport_frob_control(pi->pardev->port, PARPORT_CONTROL_STROBE,
+					0);
+		parport_data_forward(pi->pardev->port);
+		break;
+	case PPCMODE_EPP_BYTE:
+		pi->pardev->port->ops->epp_read_data(pi->pardev->port, buf, len,
+						PARPORT_EPP_FAST_8);
+		break;
+	case PPCMODE_EPP_WORD:
+		pi->pardev->port->ops->epp_read_data(pi->pardev->port, buf, len,
+						PARPORT_EPP_FAST_16);
+		break;
+	case PPCMODE_EPP_DWORD:
+		pi->pardev->port->ops->epp_read_data(pi->pardev->port, buf, len,
+						PARPORT_EPP_FAST_32);
+		break;
 	}
 
-	/*copy over duplicate stuff.. initialize state info*/
-	PPCSTRUCT(pi)->ppc_id=pi->unit;
-	PPCSTRUCT(pi)->lpt_addr=pi->port;
+	bpck6_send_cmd(pi, CMD_PREFIX_RESET | PREFIX_IO16 | PREFIX_BLK);
+}
 
-	/* look at the parport device to see if what modes we can use */
-	if(((struct pardevice *)(pi->pardev))->port->modes & 
-		(PARPORT_MODE_EPP)
-          )
-	{
-		return 5; /* Can do EPP*/
-	}
-	else if(((struct pardevice *)(pi->pardev))->port->modes & 
-			(PARPORT_MODE_TRISTATE)
-               )
-	{
+static int bpck6_open(struct pi_adapter *pi)
+{
+	u8 i, j, k;
+
+	pi->saved_r0 = parport_read_data(pi->pardev->port);
+	pi->saved_r2 = parport_read_control(pi->pardev->port) & 0x5F;
+
+	parport_frob_control(pi->pardev->port, PARPORT_CONTROL_SELECT,
+						PARPORT_CONTROL_SELECT);
+	if (pi->saved_r0 == 'b')
+		parport_write_data(pi->pardev->port, 'x');
+	parport_write_data(pi->pardev->port, 'b');
+	parport_write_data(pi->pardev->port, 'p');
+	parport_write_data(pi->pardev->port, pi->unit);
+	parport_write_data(pi->pardev->port, ~pi->unit);
+
+	parport_frob_control(pi->pardev->port, PARPORT_CONTROL_SELECT, 0);
+	parport_write_control(pi->pardev->port, PARPORT_CONTROL_INIT);
+
+	i = mode_map[pi->mode] & 0x0C;
+	if (i == 0)
+		i = (mode_map[pi->mode] & 2) | 1;
+	parport_write_data(pi->pardev->port, i);
+
+	parport_frob_control(pi->pardev->port, PARPORT_CONTROL_SELECT,
+						PARPORT_CONTROL_SELECT);
+	parport_frob_control(pi->pardev->port, PARPORT_CONTROL_AUTOFD,
+						PARPORT_CONTROL_AUTOFD);
+
+	j = ((i & 0x08) << 4) | ((i & 0x07) << 3);
+	k = parport_read_status(pi->pardev->port) & 0xB8;
+	if (j != k)
+		goto fail;
+
+	parport_frob_control(pi->pardev->port, PARPORT_CONTROL_AUTOFD, 0);
+	k = (parport_read_status(pi->pardev->port) & 0xB8) ^ 0xB8;
+	if (j != k)
+		goto fail;
+
+	if (i & 4)	// EPP
+		parport_frob_control(pi->pardev->port,
+			PARPORT_CONTROL_SELECT | PARPORT_CONTROL_INIT, 0);
+	else				// PPC/ECP
+		parport_frob_control(pi->pardev->port, PARPORT_CONTROL_SELECT, 0);
+
+	pi->private = 0;
+
+	bpck6_send_cmd(pi, ACCESS_REG | ACCESS_WRITE | REG_RAMSIZE);
+	bpck6_wr_data_byte(pi, RAMSIZE_128K);
+
+	bpck6_send_cmd(pi, ACCESS_REG | ACCESS_READ | REG_VERSION);
+	if ((bpck6_rd_data_byte(pi) & 0x3F) == 0x0C)
+		pi->private |= fifo_wait;
+
+	return 1;
+
+fail:
+	parport_write_control(pi->pardev->port, pi->saved_r2);
+	parport_write_data(pi->pardev->port, pi->saved_r0);
+
+	return 0; // FAIL
+}
+
+static void bpck6_deselect(struct pi_adapter *pi)
+{
+	if (mode_map[pi->mode] & 4)	// EPP
+		parport_frob_control(pi->pardev->port, PARPORT_CONTROL_INIT,
+							PARPORT_CONTROL_INIT);
+	else								// PPC/ECP
+		parport_frob_control(pi->pardev->port, PARPORT_CONTROL_SELECT,
+							PARPORT_CONTROL_SELECT);
+
+	parport_write_data(pi->pardev->port, pi->saved_r0);
+	parport_write_control(pi->pardev->port,
+			pi->saved_r2 | PARPORT_CONTROL_SELECT);
+	parport_write_control(pi->pardev->port, pi->saved_r2);
+}
+
+static void bpck6_wr_extout(struct pi_adapter *pi, u8 regdata)
+{
+	bpck6_send_cmd(pi, REG_VERSION | ACCESS_REG | ACCESS_WRITE);
+	bpck6_wr_data_byte(pi, (u8)((regdata & 0x03) << 6));
+}
+
+static void bpck6_connect(struct pi_adapter *pi)
+{
+	dev_dbg(&pi->dev, "connect\n");
+
+	bpck6_open(pi);
+	bpck6_wr_extout(pi, 0x3);
+}
+
+static void bpck6_disconnect(struct pi_adapter *pi)
+{
+	dev_dbg(&pi->dev, "disconnect\n");
+	bpck6_wr_extout(pi, 0x0);
+	bpck6_deselect(pi);
+}
+
+static int bpck6_test_port(struct pi_adapter *pi)   /* check for 8-bit port */
+{
+	dev_dbg(&pi->dev, "PARPORT indicates modes=%x for lp=0x%lx\n",
+		pi->pardev->port->modes, pi->pardev->port->base);
+
+	/* look at the parport device to see what modes we can use */
+	if (pi->pardev->port->modes & PARPORT_MODE_EPP)
+		return 5; /* Can do EPP */
+	if (pi->pardev->port->modes & PARPORT_MODE_TRISTATE)
 		return 2;
-	}
-	else /*Just flat SPP*/
-	{
-		return 1;
-	}
+	return 1; /* Just flat SPP */
 }
 
-static int bpck6_probe_unit ( PIA *pi )
+static int bpck6_probe_unit(struct pi_adapter *pi)
 {
-	int out;
+	int out, saved_mode;
 
-	if(verbose)
-	{
-		printk(KERN_DEBUG "PROBE UNIT %x on port:%x\n",pi->unit,pi->port);
-	}
+	dev_dbg(&pi->dev, "PROBE UNIT %x on port:%x\n", pi->unit, pi->port);
 
-	/*SET PPC UNIT NUMBER*/
-	PPCSTRUCT(pi)->ppc_id=pi->unit;
-
+	saved_mode = pi->mode;
 	/*LOWER DOWN TO UNIDIRECTIONAL*/
-	PPCSTRUCT(pi)->mode=1;		
+	pi->mode = 0;
 
-	out=ppc6_open(PPCSTRUCT(pi));
+	out = bpck6_open(pi);
 
-	if(verbose)
-	{
-		printk(KERN_DEBUG "ppc_open returned %2x\n",out);
-	}
+	dev_dbg(&pi->dev, "ppc_open returned %2x\n", out);
 
   	if(out)
  	{
-		ppc6_close(PPCSTRUCT(pi));
-		if(verbose)
-		{
-			printk(KERN_DEBUG "leaving probe\n");
-		}
+		bpck6_deselect(pi);
+		dev_dbg(&pi->dev, "leaving probe\n");
+		pi->mode = saved_mode;
                return(1);
 	}
   	else
   	{
-		if(verbose)
-		{
-			printk(KERN_DEBUG "Failed open\n");
-		}
+		dev_dbg(&pi->dev, "Failed open\n");
+		pi->mode = saved_mode;
     		return(0);
   	}
 }
 
-static void bpck6_log_adapter( PIA *pi, char * scratch, int verbose )
+static void bpck6_log_adapter(struct pi_adapter *pi)
 {
 	char *mode_string[5]=
 		{"4-bit","8-bit","EPP-8","EPP-16","EPP-32"};
 
-	printk("%s: BACKPACK Protocol Driver V"BACKPACK_VERSION"\n",pi->device);
-	printk("%s: Copyright 2001 by Micro Solutions, Inc., DeKalb IL.\n",pi->device);
-	printk("%s: BACKPACK %s, Micro Solutions BACKPACK Drive at 0x%x\n",
-		pi->device,BACKPACK_VERSION,pi->port);
-	printk("%s: Unit: %d Mode:%d (%s) Delay %d\n",pi->device,
-		pi->unit,pi->mode,mode_string[pi->mode],pi->delay);
-}
-
-static int bpck6_init_proto(PIA *pi)
-{
-	Interface *p = kzalloc(sizeof(Interface), GFP_KERNEL);
-
-	if (p) {
-		pi->private = (unsigned long)p;
-		return 0;
-	}
-
-	printk(KERN_ERR "%s: ERROR COULDN'T ALLOCATE MEMORY\n", pi->device); 
-	return -1;
-}
-
-static void bpck6_release_proto(PIA *pi)
-{
-	kfree((void *)(pi->private)); 
+	dev_info(&pi->dev, "Micro Solutions BACKPACK Drive unit %d at 0x%x, mode:%d (%s), delay %d\n",
+		pi->unit, pi->port, pi->mode, mode_string[pi->mode], pi->delay);
 }
 
 static struct pi_protocol bpck6 = {
@@ -241,27 +452,9 @@ static struct pi_protocol bpck6 = {
 	.test_port	= bpck6_test_port,
 	.probe_unit	= bpck6_probe_unit,
 	.log_adapter	= bpck6_log_adapter,
-	.init_proto	= bpck6_init_proto,
-	.release_proto	= bpck6_release_proto,
 };
-
-static int __init bpck6_init(void)
-{
-	printk(KERN_INFO "bpck6: BACKPACK Protocol Driver V"BACKPACK_VERSION"\n");
-	printk(KERN_INFO "bpck6: Copyright 2001 by Micro Solutions, Inc., DeKalb IL. USA\n");
-	if(verbose)
-		printk(KERN_DEBUG "bpck6: verbose debug enabled.\n");
-	return paride_register(&bpck6);
-}
-
-static void __exit bpck6_exit(void)
-{
-	paride_unregister(&bpck6);
-}
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Micro Solutions Inc.");
 MODULE_DESCRIPTION("BACKPACK Protocol module, compatible with PARIDE");
-module_param(verbose, bool, 0644);
-module_init(bpck6_init)
-module_exit(bpck6_exit)
+module_pata_parport_driver(bpck6);

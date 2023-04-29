@@ -21,10 +21,10 @@
 #define DEFAULT_FREQ	99
 #define DEFAULT_SECS	5
 #define MAX_IPS		8192
-#define PAGE_OFFSET	0xffff880000000000
 
 static int map_fd;
 static int nr_cpus;
+static long _text_addr;
 
 static void usage(void)
 {
@@ -108,7 +108,7 @@ static void print_ip_map(int fd)
 	/* sort and print */
 	qsort(counts, max, sizeof(struct ipcount), count_cmp);
 	for (i = 0; i < max; i++) {
-		if (counts[i].ip > PAGE_OFFSET) {
+		if (counts[i].ip > _text_addr) {
 			sym = ksym_search(counts[i].ip);
 			if (!sym) {
 				printf("ksym not found. Is kallsyms loaded?\n");
@@ -167,6 +167,13 @@ int main(int argc, char **argv)
 	if (load_kallsyms()) {
 		fprintf(stderr, "ERROR: loading /proc/kallsyms\n");
 		return 2;
+	}
+
+	/* used to determine whether the address is kernel space */
+	_text_addr = ksym_get_addr("_text");
+	if (!_text_addr) {
+		fprintf(stderr, "ERROR: no '_text' in /proc/kallsyms\n");
+		return 3;
 	}
 
 	/* create perf FDs for each CPU */

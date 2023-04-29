@@ -426,6 +426,9 @@ int __must_check device_add_disk(struct device *parent, struct gendisk *disk,
 	 */
 	elevator_init_mq(disk->queue);
 
+	/* Mark bdev as having a submit_bio, if needed */
+	disk->part0->bd_has_submit_bio = disk->fops->submit_bio != NULL;
+
 	/*
 	 * If the driver provides an explicit major number it also must provide
 	 * the number of minors numbers supported, and those will be used to
@@ -472,12 +475,10 @@ int __must_check device_add_disk(struct device *parent, struct gendisk *disk,
 	if (ret)
 		goto out_device_del;
 
-	if (!sysfs_deprecated) {
-		ret = sysfs_create_link(block_depr, &ddev->kobj,
-					kobject_name(&ddev->kobj));
-		if (ret)
-			goto out_device_del;
-	}
+	ret = sysfs_create_link(block_depr, &ddev->kobj,
+				kobject_name(&ddev->kobj));
+	if (ret)
+		goto out_device_del;
 
 	/*
 	 * avoid probable deadlock caused by allocating memory with
@@ -560,8 +561,7 @@ out_put_holder_dir:
 out_del_integrity:
 	blk_integrity_del(disk);
 out_del_block_link:
-	if (!sysfs_deprecated)
-		sysfs_remove_link(block_depr, dev_name(ddev));
+	sysfs_remove_link(block_depr, dev_name(ddev));
 out_device_del:
 	device_del(ddev);
 out_free_ext_minor:
@@ -663,8 +663,7 @@ void del_gendisk(struct gendisk *disk)
 
 	part_stat_set_all(disk->part0, 0);
 	disk->part0->bd_stamp = 0;
-	if (!sysfs_deprecated)
-		sysfs_remove_link(block_depr, dev_name(disk_to_dev(disk)));
+	sysfs_remove_link(block_depr, dev_name(disk_to_dev(disk)));
 	pm_runtime_set_memalloc_noio(disk_to_dev(disk), false);
 	device_del(disk_to_dev(disk));
 
@@ -909,7 +908,6 @@ static int __init genhd_device_init(void)
 {
 	int error;
 
-	block_class.dev_kobj = sysfs_dev_block_kobj;
 	error = class_register(&block_class);
 	if (unlikely(error))
 		return error;
@@ -918,8 +916,7 @@ static int __init genhd_device_init(void)
 	register_blkdev(BLOCK_EXT_MAJOR, "blkext");
 
 	/* create top-level block dir */
-	if (!sysfs_deprecated)
-		block_depr = kobject_create_and_add("block", NULL);
+	block_depr = kobject_create_and_add("block", NULL);
 	return 0;
 }
 

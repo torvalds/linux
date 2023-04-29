@@ -147,23 +147,9 @@ struct mt7915_sta {
 	} twt;
 };
 
-struct mt7915_vif_cap {
-	bool ht_ldpc:1;
-	bool vht_ldpc:1;
-	bool he_ldpc:1;
-	bool vht_su_ebfer:1;
-	bool vht_su_ebfee:1;
-	bool vht_mu_ebfer:1;
-	bool vht_mu_ebfee:1;
-	bool he_su_ebfer:1;
-	bool he_su_ebfee:1;
-	bool he_mu_ebfer:1;
-};
-
 struct mt7915_vif {
 	struct mt76_vif mt76; /* must be first */
 
-	struct mt7915_vif_cap cap;
 	struct mt7915_sta sta;
 	struct mt7915_phy *phy;
 
@@ -308,7 +294,6 @@ struct mt7915_dev {
 	u32 wfdma_mask;
 
 	const struct mt76_bus_ops *bus_ops;
-	struct tasklet_struct irq_tasklet;
 	struct mt7915_phy phy;
 
 	/* monitor rx chain configured channel */
@@ -581,7 +566,7 @@ static inline void mt7915_irq_enable(struct mt7915_dev *dev, u32 mask)
 	else
 		mt76_set_irq_mask(&dev->mt76, 0, 0, mask);
 
-	tasklet_schedule(&dev->irq_tasklet);
+	tasklet_schedule(&dev->mt76.irq_tasklet);
 }
 
 static inline void mt7915_irq_disable(struct mt7915_dev *dev, u32 mask)
@@ -631,7 +616,6 @@ void mt7915_tx_token_put(struct mt7915_dev *dev);
 void mt7915_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			 struct sk_buff *skb, u32 *info);
 bool mt7915_rx_check(struct mt76_dev *mdev, void *data, int len);
-void mt7915_sta_ps(struct mt76_dev *mdev, struct ieee80211_sta *sta, bool ps);
 void mt7915_stats_work(struct work_struct *work);
 int mt76_dfs_start_rdd(struct mt7915_dev *dev, bool force);
 int mt7915_dfs_init_radar_detector(struct mt7915_phy *phy);

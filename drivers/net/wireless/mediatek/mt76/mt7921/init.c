@@ -4,9 +4,8 @@
 #include <linux/etherdevice.h>
 #include <linux/firmware.h>
 #include "mt7921.h"
-#include "mac.h"
+#include "../mt76_connac2_mac.h"
 #include "mcu.h"
-#include "eeprom.h"
 
 static const struct ieee80211_iface_limit if_limits[] = {
 	{
@@ -32,11 +31,13 @@ static const struct ieee80211_iface_combination if_comb[] = {
 static const struct ieee80211_iface_limit if_limits_chanctx[] = {
 	{
 		.max = 2,
-		.types = BIT(NL80211_IFTYPE_STATION),
+		.types = BIT(NL80211_IFTYPE_STATION) |
+			 BIT(NL80211_IFTYPE_P2P_CLIENT)
 	},
 	{
 		.max = 1,
-		.types = BIT(NL80211_IFTYPE_AP),
+		.types = BIT(NL80211_IFTYPE_AP) |
+			 BIT(NL80211_IFTYPE_P2P_GO)
 	}
 };
 
@@ -100,7 +101,9 @@ mt7921_init_wiphy(struct ieee80211_hw *hw)
 	wiphy->flags &= ~(WIPHY_FLAG_IBSS_RSN | WIPHY_FLAG_4ADDR_AP |
 			  WIPHY_FLAG_4ADDR_STATION);
 	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
-				 BIT(NL80211_IFTYPE_AP);
+				 BIT(NL80211_IFTYPE_AP) |
+				 BIT(NL80211_IFTYPE_P2P_CLIENT) |
+				 BIT(NL80211_IFTYPE_P2P_GO);
 	wiphy->max_remain_on_channel_duration = 5000;
 	wiphy->max_scan_ie_len = MT76_CONNAC_SCAN_IE_LEN;
 	wiphy->max_scan_ssids = 4;
@@ -121,6 +124,7 @@ mt7921_init_wiphy(struct ieee80211_hw *hw)
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_BEACON_RATE_VHT);
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_BEACON_RATE_HE);
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_ACK_SIGNAL_SUPPORT);
+	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_CAN_REPLACE_PTK0);
 
 	ieee80211_hw_set(hw, SINGLE_SCAN_ON_ALL_BANDS);
 	ieee80211_hw_set(hw, HAS_RATE_CONTROL);
@@ -169,7 +173,8 @@ mt7921_mac_init_band(struct mt7921_dev *dev, u8 band)
 	mt76_rmw(dev, MT_WTBLOFF_TOP_RSCR(band), mask, set);
 }
 
-u8 mt7921_check_offload_capability(struct device *dev, const char *fw_wm)
+static u8
+mt7921_get_offload_capability(struct device *dev, const char *fw_wm)
 {
 	const struct mt76_connac2_fw_trailer *hdr;
 	struct mt7921_realease_info *rel_info;
@@ -223,7 +228,31 @@ out:
 
 	return offload_caps;
 }
-EXPORT_SYMBOL_GPL(mt7921_check_offload_capability);
+
+struct ieee80211_ops *
+mt7921_get_mac80211_ops(struct device *dev, void *drv_data, u8 *fw_features)
+{
+	struct ieee80211_ops *ops;
+
+	ops = devm_kmemdup(dev, &mt7921_ops, sizeof(mt7921_ops), GFP_KERNEL);
+	if (!ops)
+		return NULL;
+
+	*fw_features = mt7921_get_offload_capability(dev, drv_data);
+	if (!(*fw_features & MT7921_FW_CAP_CNM)) {
+		ops->remain_on_channel = NULL;
+		ops->cancel_remain_on_channel = NULL;
+		ops->add_chanctx = NULL;
+		ops->remove_chanctx = NULL;
+		ops->change_chanctx = NULL;
+		ops->assign_vif_chanctx = NULL;
+		ops->unassign_vif_chanctx = NULL;
+		ops->mgd_prepare_tx = NULL;
+		ops->mgd_complete_tx = NULL;
+	}
+	return ops;
+}
+EXPORT_SYMBOL_GPL(mt7921_get_mac80211_ops);
 
 int mt7921_mac_init(struct mt7921_dev *dev)
 {

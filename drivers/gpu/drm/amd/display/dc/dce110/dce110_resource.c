@@ -401,8 +401,6 @@ static const struct resource_caps stoney_resource_cap = {
 
 static const struct dc_plane_cap plane_cap = {
 		.type = DC_PLANE_TYPE_DCE_RGB,
-		.blends_with_below = true,
-		.blends_with_above = true,
 		.per_pixel_alpha = 1,
 
 		.pixel_format_support = {
@@ -428,7 +426,6 @@ static const struct dc_plane_cap plane_cap = {
 
 static const struct dc_plane_cap underlay_plane_cap = {
 		.type = DC_PLANE_TYPE_DCE_UNDERLAY,
-		.blends_with_above = true,
 		.per_pixel_alpha = 1,
 
 		.pixel_format_support = {

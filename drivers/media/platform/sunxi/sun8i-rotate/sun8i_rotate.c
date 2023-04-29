@@ -833,7 +833,7 @@ err_v4l2:
 	return ret;
 }
 
-static int rotate_remove(struct platform_device *pdev)
+static void rotate_remove(struct platform_device *pdev)
 {
 	struct rotate_dev *dev = platform_get_drvdata(pdev);
 
@@ -842,8 +842,6 @@ static int rotate_remove(struct platform_device *pdev)
 	v4l2_device_unregister(&dev->v4l2_dev);
 
 	pm_runtime_force_suspend(&pdev->dev);
-
-	return 0;
 }
 
 static int rotate_runtime_resume(struct device *device)
@@ -907,7 +905,7 @@ static const struct dev_pm_ops rotate_pm_ops = {
 
 static struct platform_driver rotate_driver = {
 	.probe		= rotate_probe,
-	.remove		= rotate_remove,
+	.remove_new	= rotate_remove,
 	.driver		= {
 		.name		= ROTATE_NAME,
 		.of_match_table	= rotate_dt_match,

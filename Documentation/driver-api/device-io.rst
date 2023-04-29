@@ -410,7 +410,7 @@ ioremap_uc()
 
 ioremap_uc() behaves like ioremap() except that on the x86 architecture without
 'PAT' mode, it marks memory as uncached even when the MTRR has designated
-it as cacheable, see Documentation/x86/pat.rst.
+it as cacheable, see Documentation/arch/x86/pat.rst.
 
 Portable drivers should avoid the use of ioremap_uc().
 

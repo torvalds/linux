@@ -28,6 +28,7 @@ properties:
 patternProperties:
   '^(ac|usb)$':
     type: object
+    additionalProperties: false
     description: USB/AC charging parameters
     properties:
       charger-type:
@@ -61,7 +62,7 @@ additionalProperties: false
 examples:
   - |
     #include <dt-bindings/interrupt-controller/irq.h>
-    i2c0 {
+    i2c {
       #address-cells = <1>;
       #size-cells = <0>;
 

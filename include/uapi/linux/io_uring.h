@@ -250,6 +250,7 @@ enum io_uring_op {
 #define IORING_TIMEOUT_REALTIME		(1U << 3)
 #define IORING_LINK_TIMEOUT_UPDATE	(1U << 4)
 #define IORING_TIMEOUT_ETIME_SUCCESS	(1U << 5)
+#define IORING_TIMEOUT_MULTISHOT	(1U << 6)
 #define IORING_TIMEOUT_CLOCK_MASK	(IORING_TIMEOUT_BOOTTIME | IORING_TIMEOUT_REALTIME)
 #define IORING_TIMEOUT_UPDATE_MASK	(IORING_TIMEOUT_UPDATE | IORING_LINK_TIMEOUT_UPDATE)
 /*
@@ -389,6 +390,9 @@ enum {
 #define IORING_OFF_SQ_RING		0ULL
 #define IORING_OFF_CQ_RING		0x8000000ULL
 #define IORING_OFF_SQES			0x10000000ULL
+#define IORING_OFF_PBUF_RING		0x80000000ULL
+#define IORING_OFF_PBUF_SHIFT		16
+#define IORING_OFF_MMAP_MASK		0xf8000000ULL
 
 /*
  * Filled with the offset for mmap(2)
@@ -568,19 +572,6 @@ struct io_uring_rsrc_update2 {
 	__u32 resv2;
 };
 
-struct io_uring_notification_slot {
-	__u64 tag;
-	__u64 resv[3];
-};
-
-struct io_uring_notification_register {
-	__u32 nr_slots;
-	__u32 resv;
-	__u64 resv2;
-	__u64 data;
-	__u64 resv3;
-};
-
 /* Skip updating fd indexes set to this value in the fd table */
 #define IORING_REGISTER_FILES_SKIP	(-2)
 
@@ -635,12 +626,26 @@ struct io_uring_buf_ring {
 	};
 };
 
+/*
+ * Flags for IORING_REGISTER_PBUF_RING.
+ *
+ * IOU_PBUF_RING_MMAP:	If set, kernel will allocate the memory for the ring.
+ *			The application must not set a ring_addr in struct
+ *			io_uring_buf_reg, instead it must subsequently call
+ *			mmap(2) with the offset set as:
+ *			IORING_OFF_PBUF_RING | (bgid << IORING_OFF_PBUF_SHIFT)
+ *			to get a virtual mapping for the ring.
+ */
+enum {
+	IOU_PBUF_RING_MMAP	= 1,
+};
+
 /* argument for IORING_(UN)REGISTER_PBUF_RING */
 struct io_uring_buf_reg {
 	__u64	ring_addr;
 	__u32	ring_entries;
 	__u16	bgid;
-	__u16	pad;
+	__u16	flags;
 	__u64	resv[3];
 };
 

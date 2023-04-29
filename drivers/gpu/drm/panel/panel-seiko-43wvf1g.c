@@ -7,6 +7,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/media-bus-format.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -48,6 +49,7 @@ struct seiko_panel {
 	const struct seiko_panel_desc *desc;
 	struct regulator *dvdd;
 	struct regulator *avdd;
+	struct gpio_desc *enable_gpio;
 };
 
 static inline struct seiko_panel *to_seiko_panel(struct drm_panel *panel)
@@ -139,6 +141,8 @@ static int seiko_panel_unprepare(struct drm_panel *panel)
 	if (!p->prepared)
 		return 0;
 
+	gpiod_set_value_cansleep(p->enable_gpio, 0);
+
 	regulator_disable(p->avdd);
 
 	/* Add a 100ms delay as per the panel datasheet */
@@ -173,6 +177,8 @@ static int seiko_panel_prepare(struct drm_panel *panel)
 		dev_err(panel->dev, "failed to enable avdd: %d\n", err);
 		goto disable_dvdd;
 	}
+
+	gpiod_set_value_cansleep(p->enable_gpio, 1);
 
 	p->prepared = true;
 
@@ -251,6 +257,12 @@ static int seiko_panel_probe(struct device *dev,
 	panel->avdd = devm_regulator_get(dev, "avdd");
 	if (IS_ERR(panel->avdd))
 		return PTR_ERR(panel->avdd);
+
+	panel->enable_gpio = devm_gpiod_get_optional(dev, "enable",
+						     GPIOD_OUT_LOW);
+	if (IS_ERR(panel->enable_gpio))
+		return dev_err_probe(dev, PTR_ERR(panel->enable_gpio),
+				     "failed to request GPIO\n");
 
 	drm_panel_init(&panel->base, dev, &seiko_panel_funcs,
 		       DRM_MODE_CONNECTOR_DPI);

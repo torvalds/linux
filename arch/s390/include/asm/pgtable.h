@@ -1239,7 +1239,8 @@ static inline int pte_allow_rdp(pte_t old, pte_t new)
 }
 
 static inline void flush_tlb_fix_spurious_fault(struct vm_area_struct *vma,
-						unsigned long address)
+						unsigned long address,
+						pte_t *ptep)
 {
 	/*
 	 * RDP might not have propagated the PTE protection reset to all CPUs,
@@ -1247,11 +1248,12 @@ static inline void flush_tlb_fix_spurious_fault(struct vm_area_struct *vma,
 	 * NOTE: This will also be called when a racing pagetable update on
 	 * another thread already installed the correct PTE. Both cases cannot
 	 * really be distinguished.
-	 * Therefore, only do the local TLB flush when RDP can be used, to avoid
-	 * unnecessary overhead.
+	 * Therefore, only do the local TLB flush when RDP can be used, and the
+	 * PTE does not have _PAGE_PROTECT set, to avoid unnecessary overhead.
+	 * A local RDP can be used to do the flush.
 	 */
-	if (MACHINE_HAS_RDP)
-		asm volatile("ptlb" : : : "memory");
+	if (MACHINE_HAS_RDP && !(pte_val(*ptep) & _PAGE_PROTECT))
+		__ptep_rdp(address, ptep, 0, 0, 1);
 }
 #define flush_tlb_fix_spurious_fault flush_tlb_fix_spurious_fault
 

@@ -8,6 +8,7 @@ Compute Accelerators
    :maxdepth: 1
 
    introduction
+   qaic/index
 
 .. only::  subproject and html
 

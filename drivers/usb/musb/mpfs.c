@@ -235,15 +235,13 @@ err_phy_release:
 	return ret;
 }
 
-static int mpfs_remove(struct platform_device *pdev)
+static void mpfs_remove(struct platform_device *pdev)
 {
 	struct mpfs_glue *glue = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(glue->clk);
 	platform_device_unregister(glue->musb);
 	usb_phy_generic_unregister(pdev);
-
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -256,7 +254,7 @@ MODULE_DEVICE_TABLE(of, mpfs_id_table);
 
 static struct platform_driver mpfs_musb_driver = {
 	.probe = mpfs_probe,
-	.remove = mpfs_remove,
+	.remove_new = mpfs_remove,
 	.driver = {
 		.name = "mpfs-musb",
 		.of_match_table = of_match_ptr(mpfs_id_table)

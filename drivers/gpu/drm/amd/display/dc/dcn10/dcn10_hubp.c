@@ -755,8 +755,8 @@ bool hubp1_is_flip_pending(struct hubp *hubp)
 	return false;
 }
 
-uint32_t aperture_default_system = 1;
-uint32_t context0_default_system; /* = 0;*/
+static uint32_t aperture_default_system = 1;
+static uint32_t context0_default_system; /* = 0;*/
 
 static void hubp1_set_vm_system_aperture_settings(struct hubp *hubp,
 		struct vm_system_aperture_param *apt)

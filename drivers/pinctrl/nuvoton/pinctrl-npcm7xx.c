@@ -2046,7 +2046,6 @@ static int __init npcm7xx_pinctrl_register(void)
 }
 arch_initcall(npcm7xx_pinctrl_register);
 
-MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("jordan_hargrave@dell.com");
 MODULE_AUTHOR("tomer.maimon@nuvoton.com");
 MODULE_DESCRIPTION("Nuvoton NPCM7XX Pinctrl and GPIO driver");

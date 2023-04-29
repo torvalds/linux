@@ -7,41 +7,14 @@
 #include <linux/blkdev.h>
 #include <linux/debugfs.h>
 
-#include <linux/blk-mq.h>
 #include "blk.h"
 #include "blk-mq.h"
 #include "blk-mq-debugfs.h"
 #include "blk-mq-sched.h"
-#include "blk-mq-tag.h"
 #include "blk-rq-qos.h"
-
-static void print_stat(struct seq_file *m, struct blk_rq_stat *stat)
-{
-	if (stat->nr_samples) {
-		seq_printf(m, "samples=%d, mean=%llu, min=%llu, max=%llu",
-			   stat->nr_samples, stat->mean, stat->min, stat->max);
-	} else {
-		seq_puts(m, "samples=0");
-	}
-}
 
 static int queue_poll_stat_show(void *data, struct seq_file *m)
 {
-	struct request_queue *q = data;
-	int bucket;
-
-	if (!q->poll_stat)
-		return 0;
-
-	for (bucket = 0; bucket < (BLK_MQ_POLL_STATS_BKTS / 2); bucket++) {
-		seq_printf(m, "read  (%d Bytes): ", 1 << (9 + bucket));
-		print_stat(m, &q->poll_stat[2 * bucket]);
-		seq_puts(m, "\n");
-
-		seq_printf(m, "write (%d Bytes): ",  1 << (9 + bucket));
-		print_stat(m, &q->poll_stat[2 * bucket + 1]);
-		seq_puts(m, "\n");
-	}
 	return 0;
 }
 
@@ -282,7 +255,6 @@ static const char *const rqf_name[] = {
 	RQF_NAME(STATS),
 	RQF_NAME(SPECIAL_PAYLOAD),
 	RQF_NAME(ZONE_WRITE_LOCKED),
-	RQF_NAME(MQ_POLL_SLEPT),
 	RQF_NAME(TIMED_OUT),
 	RQF_NAME(ELV),
 	RQF_NAME(RESV),

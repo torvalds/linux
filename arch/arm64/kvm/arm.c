@@ -16,7 +16,6 @@
 #include <linux/fs.h>
 #include <linux/mman.h>
 #include <linux/sched.h>
-#include <linux/kmemleak.h>
 #include <linux/kvm.h>
 #include <linux/kvm_irqfd.h>
 #include <linux/irqbypass.h>
@@ -46,7 +45,6 @@
 #include <kvm/arm_psci.h>
 
 static enum kvm_mode kvm_mode = KVM_MODE_DEFAULT;
-DEFINE_STATIC_KEY_FALSE(kvm_protected_mode_initialized);
 
 DECLARE_KVM_HYP_PER_CPU(unsigned long, kvm_hyp_vector);
 
@@ -2130,41 +2128,6 @@ out_err:
 	return err;
 }
 
-static void __init _kvm_host_prot_finalize(void *arg)
-{
-	int *err = arg;
-
-	if (WARN_ON(kvm_call_hyp_nvhe(__pkvm_prot_finalize)))
-		WRITE_ONCE(*err, -EINVAL);
-}
-
-static int __init pkvm_drop_host_privileges(void)
-{
-	int ret = 0;
-
-	/*
-	 * Flip the static key upfront as that may no longer be possible
-	 * once the host stage 2 is installed.
-	 */
-	static_branch_enable(&kvm_protected_mode_initialized);
-	on_each_cpu(_kvm_host_prot_finalize, &ret, 1);
-	return ret;
-}
-
-static int __init finalize_hyp_mode(void)
-{
-	if (!is_protected_kvm_enabled())
-		return 0;
-
-	/*
-	 * Exclude HYP sections from kmemleak so that they don't get peeked
-	 * at, which would end badly once inaccessible.
-	 */
-	kmemleak_free_part(__hyp_bss_start, __hyp_bss_end - __hyp_bss_start);
-	kmemleak_free_part_phys(hyp_mem_base, hyp_mem_size);
-	return pkvm_drop_host_privileges();
-}
-
 struct kvm_vcpu *kvm_mpidr_to_vcpu(struct kvm *kvm, unsigned long mpidr)
 {
 	struct kvm_vcpu *vcpu;
@@ -2281,14 +2244,6 @@ static __init int kvm_arm_init(void)
 	err = init_subsystems();
 	if (err)
 		goto out_hyp;
-
-	if (!in_hyp_mode) {
-		err = finalize_hyp_mode();
-		if (err) {
-			kvm_err("Failed to finalize Hyp protection\n");
-			goto out_subs;
-		}
-	}
 
 	if (is_protected_kvm_enabled()) {
 		kvm_info("Protected nVHE mode initialized successfully\n");

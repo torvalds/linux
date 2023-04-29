@@ -141,8 +141,8 @@ static void *cgroup_storage_lookup_elem(struct bpf_map *_map, void *key)
 	return &READ_ONCE(storage->buf)->data[0];
 }
 
-static int cgroup_storage_update_elem(struct bpf_map *map, void *key,
-				      void *value, u64 flags)
+static long cgroup_storage_update_elem(struct bpf_map *map, void *key,
+				       void *value, u64 flags)
 {
 	struct bpf_cgroup_storage *storage;
 	struct bpf_storage_buffer *new;
@@ -348,7 +348,7 @@ static void cgroup_storage_map_free(struct bpf_map *_map)
 	bpf_map_area_free(map);
 }
 
-static int cgroup_storage_delete_elem(struct bpf_map *map, void *key)
+static long cgroup_storage_delete_elem(struct bpf_map *map, void *key)
 {
 	return -EINVAL;
 }
@@ -446,6 +446,12 @@ static void cgroup_storage_seq_show_elem(struct bpf_map *map, void *key,
 	rcu_read_unlock();
 }
 
+static u64 cgroup_storage_map_usage(const struct bpf_map *map)
+{
+	/* Currently the dynamically allocated elements are not counted. */
+	return sizeof(struct bpf_cgroup_storage_map);
+}
+
 BTF_ID_LIST_SINGLE(cgroup_storage_map_btf_ids, struct,
 		   bpf_cgroup_storage_map)
 const struct bpf_map_ops cgroup_storage_map_ops = {
@@ -457,6 +463,7 @@ const struct bpf_map_ops cgroup_storage_map_ops = {
 	.map_delete_elem = cgroup_storage_delete_elem,
 	.map_check_btf = cgroup_storage_check_btf,
 	.map_seq_show_elem = cgroup_storage_seq_show_elem,
+	.map_mem_usage = cgroup_storage_map_usage,
 	.map_btf_id = &cgroup_storage_map_btf_ids[0],
 };
 

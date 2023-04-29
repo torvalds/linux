@@ -2744,7 +2744,7 @@ static u32 ieee80211_handle_bss_capability(struct ieee80211_link_data *link,
 	return changed;
 }
 
-static u32 ieee80211_link_set_associated(struct ieee80211_link_data *link,
+static u64 ieee80211_link_set_associated(struct ieee80211_link_data *link,
 					 struct cfg80211_bss *cbss)
 {
 	struct ieee80211_sub_if_data *sdata = link->sdata;
@@ -3227,7 +3227,7 @@ static void ieee80211_mgd_probe_ap(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	bool already = false;
 
-	if (WARN_ON(sdata->vif.valid_links))
+	if (WARN_ON_ONCE(sdata->vif.valid_links))
 		return;
 
 	if (!ieee80211_sdata_running(sdata))
@@ -5893,7 +5893,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 		goto free;
 	}
 
-	if (sta && elems->opmode_notif)
+	if (elems->opmode_notif)
 		ieee80211_vht_handle_opmode(sdata, link_sta,
 					    *elems->opmode_notif,
 					    rx_status->band);

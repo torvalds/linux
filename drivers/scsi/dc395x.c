@@ -4541,7 +4541,7 @@ static int dc395x_show_info(struct seq_file *m, struct Scsi_Host *host)
 }
 
 
-static struct scsi_host_template dc395x_driver_template = {
+static const struct scsi_host_template dc395x_driver_template = {
 	.module                 = THIS_MODULE,
 	.proc_name              = DC395X_NAME,
 	.show_info              = dc395x_show_info,

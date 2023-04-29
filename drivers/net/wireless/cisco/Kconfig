@@ -14,7 +14,7 @@ if WLAN_VENDOR_CISCO
 
 config AIRO
 	tristate "Cisco/Aironet 34X/35X/4500/4800 ISA and PCI cards"
-	depends on CFG80211 && ISA_DMA_API && (PCI || BROKEN)
+	depends on CFG80211 && (PCI || BROKEN)
 	select WIRELESS_EXT
 	select CRYPTO
 	select CRYPTO_SKCIPHER

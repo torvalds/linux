@@ -26,6 +26,7 @@
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <50000000>;
+		clock-output-names = "enet1_ref_pad";
 	};
 
 	leds {
@@ -60,6 +61,13 @@
 	status = "okay";
 };
 
+&clks {
+	clocks = <&ckil>, <&osc>, <&ipp_di0>, <&ipp_di1>, <&clock_ksz8081_out>;
+	clock-names = "ckil", "osc", "ipp_di0", "ipp_di1", "enet1_ref_pad";
+	assigned-clocks = <&clks IMX6UL_CLK_ENET1_REF_SEL>;
+	assigned-clock-parents = <&clock_ksz8081_out>;
+};
+
 &ecspi1 {
 	cs-gpios = <&gpio4 26 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default";
@@ -85,12 +93,6 @@
 	pinctrl-0 = <&pinctrl_eth1>;
 	phy-mode = "rmii";
 	phy-handle = <&rmii_phy>;
-	clocks = <&clks IMX6UL_CLK_ENET>,
-		 <&clks IMX6UL_CLK_ENET_AHB>,
-		 <&clks IMX6UL_CLK_ENET_PTP>,
-		 <&clock_ksz8081_out>;
-	clock-names = "ipg", "ahb", "ptp",
-		      "enet_clk_ref";
 	status = "okay";
 
 	mdio {

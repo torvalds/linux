@@ -369,6 +369,8 @@ void *unwind_add_table(struct module *module, const void *table_start,
 		       unsigned long table_size)
 {
 	struct unwind_table *table;
+	struct module_memory *core_text;
+	struct module_memory *init_text;
 
 	if (table_size <= 0)
 		return NULL;
@@ -377,11 +379,11 @@ void *unwind_add_table(struct module *module, const void *table_start,
 	if (!table)
 		return NULL;
 
-	init_unwind_table(table, module->name,
-			  module->core_layout.base, module->core_layout.size,
-			  module->init_layout.base, module->init_layout.size,
-			  table_start, table_size,
-			  NULL, 0);
+	core_text = &module->mem[MOD_TEXT];
+	init_text = &module->mem[MOD_INIT_TEXT];
+
+	init_unwind_table(table, module->name, core_text->base, core_text->size,
+			  init_text->base, init_text->size, table_start, table_size, NULL, 0);
 
 	init_unwind_hdr(table, unw_hdr_alloc);
 

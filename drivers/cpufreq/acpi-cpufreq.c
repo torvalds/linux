@@ -20,6 +20,7 @@
 #include <linux/dmi.h>
 #include <linux/slab.h>
 #include <linux/string_helpers.h>
+#include <linux/platform_device.h>
 
 #include <linux/acpi.h>
 #include <linux/io.h>
@@ -965,7 +966,7 @@ static void __init acpi_cpufreq_boost_init(void)
 	acpi_cpufreq_driver.boost_enabled = boost_state(0);
 }
 
-static int __init acpi_cpufreq_init(void)
+static int __init acpi_cpufreq_probe(struct platform_device *pdev)
 {
 	int ret;
 
@@ -1010,13 +1011,32 @@ static int __init acpi_cpufreq_init(void)
 	return ret;
 }
 
-static void __exit acpi_cpufreq_exit(void)
+static int acpi_cpufreq_remove(struct platform_device *pdev)
 {
 	pr_debug("%s\n", __func__);
 
 	cpufreq_unregister_driver(&acpi_cpufreq_driver);
 
 	free_acpi_perf_data();
+
+	return 0;
+}
+
+static struct platform_driver acpi_cpufreq_platdrv = {
+	.driver = {
+		.name	= "acpi-cpufreq",
+	},
+	.remove		= acpi_cpufreq_remove,
+};
+
+static int __init acpi_cpufreq_init(void)
+{
+	return platform_driver_probe(&acpi_cpufreq_platdrv, acpi_cpufreq_probe);
+}
+
+static void __exit acpi_cpufreq_exit(void)
+{
+	platform_driver_unregister(&acpi_cpufreq_platdrv);
 }
 
 module_param(acpi_pstate_strict, uint, 0644);
@@ -1027,18 +1047,4 @@ MODULE_PARM_DESC(acpi_pstate_strict,
 late_initcall(acpi_cpufreq_init);
 module_exit(acpi_cpufreq_exit);
 
-static const struct x86_cpu_id __maybe_unused acpi_cpufreq_ids[] = {
-	X86_MATCH_FEATURE(X86_FEATURE_ACPI, NULL),
-	X86_MATCH_FEATURE(X86_FEATURE_HW_PSTATE, NULL),
-	{}
-};
-MODULE_DEVICE_TABLE(x86cpu, acpi_cpufreq_ids);
-
-static const struct acpi_device_id __maybe_unused processor_device_ids[] = {
-	{ACPI_PROCESSOR_OBJECT_HID, },
-	{ACPI_PROCESSOR_DEVICE_HID, },
-	{},
-};
-MODULE_DEVICE_TABLE(acpi, processor_device_ids);
-
-MODULE_ALIAS("acpi");
+MODULE_ALIAS("platform:acpi-cpufreq");

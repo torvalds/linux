@@ -23,7 +23,6 @@
 #include <linux/of_address.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
-#include <linux/version.h>
 #include <soc/tegra/fuse.h>
 #include <soc/tegra/tegra-cbb.h>
 
@@ -2191,7 +2190,6 @@ MODULE_DEVICE_TABLE(of, tegra194_cbb_match);
 static int tegra194_cbb_get_bridges(struct tegra194_cbb *cbb, struct device_node *np)
 {
 	struct tegra_cbb *entry;
-	struct resource res;
 	unsigned long flags;
 	unsigned int i;
 	int err;
@@ -2211,8 +2209,7 @@ static int tegra194_cbb_get_bridges(struct tegra194_cbb *cbb, struct device_node
 	spin_unlock_irqrestore(&cbb_lock, flags);
 
 	if (!cbb->bridges) {
-		while (of_address_to_resource(np, cbb->num_bridges, &res) == 0)
-			cbb->num_bridges++;
+		cbb->num_bridges = of_address_count(np);
 
 		cbb->bridges = devm_kcalloc(cbb->base.dev, cbb->num_bridges,
 					    sizeof(*cbb->bridges), GFP_KERNEL);
@@ -2359,4 +2356,3 @@ module_exit(tegra194_cbb_exit);
 
 MODULE_AUTHOR("Sumit Gupta <sumitg@nvidia.com>");
 MODULE_DESCRIPTION("Control Backbone error handling driver for Tegra194");
-MODULE_LICENSE("GPL");

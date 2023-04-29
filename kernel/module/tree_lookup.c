@@ -21,16 +21,16 @@
 
 static __always_inline unsigned long __mod_tree_val(struct latch_tree_node *n)
 {
-	struct module_layout *layout = container_of(n, struct module_layout, mtn.node);
+	struct module_memory *mod_mem = container_of(n, struct module_memory, mtn.node);
 
-	return (unsigned long)layout->base;
+	return (unsigned long)mod_mem->base;
 }
 
 static __always_inline unsigned long __mod_tree_size(struct latch_tree_node *n)
 {
-	struct module_layout *layout = container_of(n, struct module_layout, mtn.node);
+	struct module_memory *mod_mem = container_of(n, struct module_memory, mtn.node);
 
-	return (unsigned long)layout->size;
+	return (unsigned long)mod_mem->size;
 }
 
 static __always_inline bool
@@ -77,32 +77,27 @@ static void __mod_tree_remove(struct mod_tree_node *node, struct mod_tree_root *
  */
 void mod_tree_insert(struct module *mod)
 {
-	mod->core_layout.mtn.mod = mod;
-	mod->init_layout.mtn.mod = mod;
-
-	__mod_tree_insert(&mod->core_layout.mtn, &mod_tree);
-	if (mod->init_layout.size)
-		__mod_tree_insert(&mod->init_layout.mtn, &mod_tree);
-
-#ifdef CONFIG_ARCH_WANTS_MODULES_DATA_IN_VMALLOC
-	mod->data_layout.mtn.mod = mod;
-	__mod_tree_insert(&mod->data_layout.mtn, &mod_data_tree);
-#endif
+	for_each_mod_mem_type(type) {
+		mod->mem[type].mtn.mod = mod;
+		if (mod->mem[type].size)
+			__mod_tree_insert(&mod->mem[type].mtn, &mod_tree);
+	}
 }
 
 void mod_tree_remove_init(struct module *mod)
 {
-	if (mod->init_layout.size)
-		__mod_tree_remove(&mod->init_layout.mtn, &mod_tree);
+	for_class_mod_mem_type(type, init) {
+		if (mod->mem[type].size)
+			__mod_tree_remove(&mod->mem[type].mtn, &mod_tree);
+	}
 }
 
 void mod_tree_remove(struct module *mod)
 {
-	__mod_tree_remove(&mod->core_layout.mtn, &mod_tree);
-	mod_tree_remove_init(mod);
-#ifdef CONFIG_ARCH_WANTS_MODULES_DATA_IN_VMALLOC
-	__mod_tree_remove(&mod->data_layout.mtn, &mod_data_tree);
-#endif
+	for_each_mod_mem_type(type) {
+		if (mod->mem[type].size)
+			__mod_tree_remove(&mod->mem[type].mtn, &mod_tree);
+	}
 }
 
 struct module *mod_find(unsigned long addr, struct mod_tree_root *tree)

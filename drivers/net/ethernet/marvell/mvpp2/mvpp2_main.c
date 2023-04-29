@@ -6089,18 +6089,19 @@ static bool mvpp2_port_has_irqs(struct mvpp2 *priv,
 	return true;
 }
 
-static void mvpp2_port_copy_mac_addr(struct net_device *dev, struct mvpp2 *priv,
-				     struct fwnode_handle *fwnode,
-				     char **mac_from)
+static int mvpp2_port_copy_mac_addr(struct net_device *dev, struct mvpp2 *priv,
+				    struct fwnode_handle *fwnode,
+				    char **mac_from)
 {
 	struct mvpp2_port *port = netdev_priv(dev);
 	char hw_mac_addr[ETH_ALEN] = {0};
 	char fw_mac_addr[ETH_ALEN];
+	int ret;
 
 	if (!fwnode_get_mac_address(fwnode, fw_mac_addr)) {
 		*mac_from = "firmware node";
 		eth_hw_addr_set(dev, fw_mac_addr);
-		return;
+		return 0;
 	}
 
 	if (priv->hw_version == MVPP21) {
@@ -6108,19 +6109,24 @@ static void mvpp2_port_copy_mac_addr(struct net_device *dev, struct mvpp2 *priv,
 		if (is_valid_ether_addr(hw_mac_addr)) {
 			*mac_from = "hardware";
 			eth_hw_addr_set(dev, hw_mac_addr);
-			return;
+			return 0;
 		}
 	}
 
 	/* Only valid on OF enabled platforms */
-	if (!of_get_mac_address_nvmem(to_of_node(fwnode), fw_mac_addr)) {
+	ret = of_get_mac_address_nvmem(to_of_node(fwnode), fw_mac_addr);
+	if (ret == -EPROBE_DEFER)
+		return ret;
+	if (!ret) {
 		*mac_from = "nvmem cell";
 		eth_hw_addr_set(dev, fw_mac_addr);
-		return;
+		return 0;
 	}
 
 	*mac_from = "random";
 	eth_hw_addr_random(dev);
+
+	return 0;
 }
 
 static struct mvpp2_port *mvpp2_phylink_to_port(struct phylink_config *config)
@@ -6823,7 +6829,9 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	mutex_init(&port->gather_stats_lock);
 	INIT_DELAYED_WORK(&port->stats_work, mvpp2_gather_hw_statistics);
 
-	mvpp2_port_copy_mac_addr(dev, priv, port_fwnode, &mac_from);
+	err = mvpp2_port_copy_mac_addr(dev, priv, port_fwnode, &mac_from);
+	if (err < 0)
+		goto err_free_stats;
 
 	port->tx_ring_size = MVPP2_MAX_TXD_DFLT;
 	port->rx_ring_size = MVPP2_MAX_RXD_DFLT;

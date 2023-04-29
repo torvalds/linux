@@ -2,8 +2,8 @@
 # Copyright 2020 Broadcom
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/reset/brcm,bcm7216-pcie-sata-rescal.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/reset/brcm,bcm7216-pcie-sata-rescal.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: BCM7216 RESCAL reset controller
 

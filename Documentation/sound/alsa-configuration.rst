@@ -723,9 +723,10 @@ Module for EMU10K1/EMU10k2 based PCI sound cards.
 
 * Sound Blaster Live!
 * Sound Blaster PCI 512
-* Emu APS (partially supported)
 * Sound Blaster Audigy
-	
+* E-MU APS (partially supported)
+* E-MU DAS
+
 extin
     bitmap of available external inputs for FX8010 (see below)
 extout

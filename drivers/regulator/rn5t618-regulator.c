@@ -143,6 +143,7 @@ static struct platform_driver rn5t618_regulator_driver = {
 	.probe = rn5t618_regulator_probe,
 	.driver = {
 		.name	= "rn5t618-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
 

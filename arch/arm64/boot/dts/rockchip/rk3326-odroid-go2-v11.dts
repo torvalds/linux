@@ -83,6 +83,8 @@
 
 &internal_display {
 	compatible = "elida,kd35t133";
+	iovcc-supply = <&vcc_lcd>;
+	vdd-supply = <&vcc_lcd>;
 };
 
 &rk817 {

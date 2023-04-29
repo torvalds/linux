@@ -135,10 +135,9 @@ const struct consw *conswitchp;
 #define DEFAULT_CURSOR_BLINK_MS	200
 
 struct vc vc_cons [MAX_NR_CONSOLES];
+EXPORT_SYMBOL(vc_cons);
 
-#ifndef VT_SINGLE_DRIVER
 static const struct consw *con_driver_map[MAX_NR_CONSOLES];
-#endif
 
 static int con_open(struct tty_struct *, struct file *);
 static void vc_init(struct vc_data *vc, unsigned int rows,
@@ -162,6 +161,7 @@ int default_utf8 = true;
 module_param(default_utf8, int, S_IRUGO | S_IWUSR);
 int global_cursor_default = -1;
 module_param(global_cursor_default, int, S_IRUGO | S_IWUSR);
+EXPORT_SYMBOL(global_cursor_default);
 
 static int cur_default = CUR_UNDERLINE;
 module_param(cur_default, int, S_IRUGO | S_IWUSR);
@@ -174,6 +174,7 @@ static int ignore_poke;
 
 int do_poke_blanked_console;
 int console_blanked;
+EXPORT_SYMBOL(console_blanked);
 
 static int vesa_blank_mode; /* 0:none 1:suspendV 2:suspendH 3:powerdown */
 static int vesa_off_interval;
@@ -190,8 +191,10 @@ static DECLARE_WORK(con_driver_unregister_work, con_driver_unregister_callback);
  * saved_* variants are for save/restore around kernel debugger enter/leave
  */
 int fg_console;
+EXPORT_SYMBOL(fg_console);
 int last_console;
 int want_console = -1;
+
 static int saved_fg_console;
 static int saved_last_console;
 static int saved_want_console;
@@ -223,6 +226,7 @@ static int scrollback_delta;
  * the console on our behalf.
  */
 int (*console_blank_hook)(int);
+EXPORT_SYMBOL(console_blank_hook);
 
 static DEFINE_TIMER(console_timer, blank_screen_t);
 static int blank_state;
@@ -639,6 +643,7 @@ void update_region(struct vc_data *vc, unsigned long start, int count)
 		set_cursor(vc);
 	}
 }
+EXPORT_SYMBOL(update_region);
 
 /* Structure of attributes is hardware-dependent */
 
@@ -984,6 +989,7 @@ void redraw_screen(struct vc_data *vc, int is_switch)
 		notify_update(vc);
 	}
 }
+EXPORT_SYMBOL(redraw_screen);
 
 /*
  *	Allocation, freeing and resizing of VTs.
@@ -1000,10 +1006,10 @@ static void visual_init(struct vc_data *vc, int num, int init)
 	if (vc->vc_sw)
 		module_put(vc->vc_sw->owner);
 	vc->vc_sw = conswitchp;
-#ifndef VT_SINGLE_DRIVER
+
 	if (con_driver_map[num])
 		vc->vc_sw = con_driver_map[num];
-#endif
+
 	__module_get(vc->vc_sw->owner);
 	vc->vc_num = num;
 	vc->vc_display_fg = &master_display_fg;
@@ -1305,6 +1311,7 @@ int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int rows)
 {
 	return vc_do_resize(vc->port.tty, vc, cols, rows);
 }
+EXPORT_SYMBOL(vc_resize);
 
 /**
  *	vt_resize		-	resize a VT
@@ -1368,6 +1375,7 @@ enum { EPecma = 0, EPdec, EPeq, EPgt, EPlt};
 
 const unsigned char color_table[] = { 0, 4, 2, 6, 1, 5, 3, 7,
 				       8,12,10,14, 9,13,11,15 };
+EXPORT_SYMBOL(color_table);
 
 /* the default colour table, for VGA+ colour systems */
 unsigned char default_red[] = {
@@ -1375,18 +1383,21 @@ unsigned char default_red[] = {
 	0x55, 0xff, 0x55, 0xff, 0x55, 0xff, 0x55, 0xff
 };
 module_param_array(default_red, byte, NULL, S_IRUGO | S_IWUSR);
+EXPORT_SYMBOL(default_red);
 
 unsigned char default_grn[] = {
 	0x00, 0x00, 0xaa, 0x55, 0x00, 0x00, 0xaa, 0xaa,
 	0x55, 0x55, 0xff, 0xff, 0x55, 0x55, 0xff, 0xff
 };
 module_param_array(default_grn, byte, NULL, S_IRUGO | S_IWUSR);
+EXPORT_SYMBOL(default_grn);
 
 unsigned char default_blu[] = {
 	0x00, 0x00, 0x00, 0x00, 0xaa, 0xaa, 0xaa, 0xaa,
 	0x55, 0x55, 0x55, 0x55, 0xff, 0xff, 0xff, 0xff
 };
 module_param_array(default_blu, byte, NULL, S_IRUGO | S_IWUSR);
+EXPORT_SYMBOL(default_blu);
 
 /*
  * gotoxy() must verify all boundaries, because the arguments
@@ -3143,93 +3154,84 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 		return -EFAULT;
 	ret = 0;
 
-	switch (type)
-	{
-		case TIOCL_SETSEL:
-			ret = set_selection_user((struct tiocl_selection
-						 __user *)(p+1), tty);
-			break;
-		case TIOCL_PASTESEL:
-			ret = paste_selection(tty);
-			break;
-		case TIOCL_UNBLANKSCREEN:
-			console_lock();
-			unblank_screen();
-			console_unlock();
-			break;
-		case TIOCL_SELLOADLUT:
-			console_lock();
-			ret = sel_loadlut(p);
-			console_unlock();
-			break;
-		case TIOCL_GETSHIFTSTATE:
+	switch (type) {
+	case TIOCL_SETSEL:
+		return set_selection_user((struct tiocl_selection
+					 __user *)(p+1), tty);
+	case TIOCL_PASTESEL:
+		return paste_selection(tty);
+	case TIOCL_UNBLANKSCREEN:
+		console_lock();
+		unblank_screen();
+		console_unlock();
+		break;
+	case TIOCL_SELLOADLUT:
+		console_lock();
+		ret = sel_loadlut(p);
+		console_unlock();
+		break;
+	case TIOCL_GETSHIFTSTATE:
+		/*
+		 * Make it possible to react to Shift+Mousebutton. Note that
+		 * 'shift_state' is an undocumented kernel-internal variable;
+		 * programs not closely related to the kernel should not use
+		 * this.
+		 */
+		data = vt_get_shift_state();
+		return put_user(data, p);
+	case TIOCL_GETMOUSEREPORTING:
+		console_lock();	/* May be overkill */
+		data = mouse_reporting();
+		console_unlock();
+		return put_user(data, p);
+	case TIOCL_SETVESABLANK:
+		console_lock();
+		ret = set_vesa_blanking(p);
+		console_unlock();
+		break;
+	case TIOCL_GETKMSGREDIRECT:
+		data = vt_get_kmsg_redirect();
+		return put_user(data, p);
+	case TIOCL_SETKMSGREDIRECT:
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
 
-	/*
-	 * Make it possible to react to Shift+Mousebutton.
-	 * Note that 'shift_state' is an undocumented
-	 * kernel-internal variable; programs not closely
-	 * related to the kernel should not use this.
-	 */
-			data = vt_get_shift_state();
-			ret = put_user(data, p);
-			break;
-		case TIOCL_GETMOUSEREPORTING:
-			console_lock();	/* May be overkill */
-			data = mouse_reporting();
-			console_unlock();
-			ret = put_user(data, p);
-			break;
-		case TIOCL_SETVESABLANK:
-			console_lock();
-			ret = set_vesa_blanking(p);
-			console_unlock();
-			break;
-		case TIOCL_GETKMSGREDIRECT:
-			data = vt_get_kmsg_redirect();
-			ret = put_user(data, p);
-			break;
-		case TIOCL_SETKMSGREDIRECT:
-			if (!capable(CAP_SYS_ADMIN)) {
-				ret = -EPERM;
-			} else {
-				if (get_user(data, p+1))
-					ret = -EFAULT;
-				else
-					vt_kmsg_redirect(data);
-			}
-			break;
-		case TIOCL_GETFGCONSOLE:
-			/* No locking needed as this is a transiently
-			   correct return anyway if the caller hasn't
-			   disabled switching */
-			ret = fg_console;
-			break;
-		case TIOCL_SCROLLCONSOLE:
-			if (get_user(lines, (s32 __user *)(p+4))) {
-				ret = -EFAULT;
-			} else {
-				/* Need the console lock here. Note that lots
-				   of other calls need fixing before the lock
-				   is actually useful ! */
-				console_lock();
-				scrollfront(vc_cons[fg_console].d, lines);
-				console_unlock();
-				ret = 0;
-			}
-			break;
-		case TIOCL_BLANKSCREEN:	/* until explicitly unblanked, not only poked */
-			console_lock();
-			ignore_poke = 1;
-			do_blank_screen(0);
-			console_unlock();
-			break;
-		case TIOCL_BLANKEDSCREEN:
-			ret = console_blanked;
-			break;
-		default:
-			ret = -EINVAL;
-			break;
+		if (get_user(data, p+1))
+			return -EFAULT;
+
+		vt_kmsg_redirect(data);
+
+		break;
+	case TIOCL_GETFGCONSOLE:
+		/*
+		 * No locking needed as this is a transiently correct return
+		 * anyway if the caller hasn't disabled switching.
+		 */
+		return fg_console;
+	case TIOCL_SCROLLCONSOLE:
+		if (get_user(lines, (s32 __user *)(p+4)))
+			return -EFAULT;
+
+		/*
+		 * Needs the console lock here. Note that lots of other calls
+		 * need fixing before the lock is actually useful!
+		 */
+		console_lock();
+		scrollfront(vc_cons[fg_console].d, lines);
+		console_unlock();
+		break;
+	case TIOCL_BLANKSCREEN:	/* until explicitly unblanked, not only poked */
+		console_lock();
+		ignore_poke = 1;
+		do_blank_screen(0);
+		console_unlock();
+		break;
+	case TIOCL_BLANKEDSCREEN:
+		return console_blanked;
+	default:
+		return -EINVAL;
 	}
+
 	return ret;
 }
 
@@ -3539,7 +3541,7 @@ int __init vty_init(const struct file_operations *console_fops)
 	if (cdev_add(&vc0_cdev, MKDEV(TTY_MAJOR, 0), 1) ||
 	    register_chrdev_region(MKDEV(TTY_MAJOR, 0), 1, "/dev/vc/0") < 0)
 		panic("Couldn't register /dev/tty0 driver\n");
-	tty0dev = device_create_with_groups(tty_class, NULL,
+	tty0dev = device_create_with_groups(&tty_class, NULL,
 					    MKDEV(TTY_MAJOR, 0), NULL,
 					    vt_dev_groups, "tty0");
 	if (IS_ERR(tty0dev))
@@ -3570,8 +3572,6 @@ int __init vty_init(const struct file_operations *console_fops)
 #endif
 	return 0;
 }
-
-#ifndef VT_SINGLE_DRIVER
 
 static struct class *vtconsole_class;
 
@@ -4236,12 +4236,13 @@ void give_up_console(const struct consw *csw)
 	do_unregister_con_driver(csw);
 	console_unlock();
 }
+EXPORT_SYMBOL(give_up_console);
 
 static int __init vtconsole_class_init(void)
 {
 	int i;
 
-	vtconsole_class = class_create(THIS_MODULE, "vtconsole");
+	vtconsole_class = class_create("vtconsole");
 	if (IS_ERR(vtconsole_class)) {
 		pr_warn("Unable to create vt console class; errno = %ld\n",
 			PTR_ERR(vtconsole_class));
@@ -4272,8 +4273,6 @@ static int __init vtconsole_class_init(void)
 	return 0;
 }
 postcore_initcall(vtconsole_class_init);
-
-#endif
 
 /*
  *	Screen blanking
@@ -4792,23 +4791,3 @@ void vc_scrolldelta_helper(struct vc_data *c, int lines,
 	c->vc_visible_origin = ubase + (from + from_off) % wrap;
 }
 EXPORT_SYMBOL_GPL(vc_scrolldelta_helper);
-
-/*
- *	Visible symbols for modules
- */
-
-EXPORT_SYMBOL(color_table);
-EXPORT_SYMBOL(default_red);
-EXPORT_SYMBOL(default_grn);
-EXPORT_SYMBOL(default_blu);
-EXPORT_SYMBOL(update_region);
-EXPORT_SYMBOL(redraw_screen);
-EXPORT_SYMBOL(vc_resize);
-EXPORT_SYMBOL(fg_console);
-EXPORT_SYMBOL(console_blank_hook);
-EXPORT_SYMBOL(console_blanked);
-EXPORT_SYMBOL(vc_cons);
-EXPORT_SYMBOL(global_cursor_default);
-#ifndef VT_SINGLE_DRIVER
-EXPORT_SYMBOL(give_up_console);
-#endif

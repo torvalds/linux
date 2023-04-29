@@ -1057,7 +1057,7 @@ static void fl_set_key_pppoe(struct nlattr **tb,
 	 * because ETH_P_PPP_SES was stored in basic.n_proto
 	 * which might get overwritten by ppp_proto
 	 * or might be set to 0, the role of key_val::type
-	 * is simmilar to vlan_key::tpid
+	 * is similar to vlan_key::tpid
 	 */
 	key_val->type = htons(ETH_P_PPP_SES);
 	key_mask->type = cpu_to_be16(~0);

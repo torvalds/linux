@@ -189,7 +189,7 @@ static int uuids_show(struct seq_file *f, void *p)
 	}
 	hci_dev_unlock(hdev);
 
-       return 0;
+	return 0;
 }
 
 DEFINE_SHOW_ATTRIBUTE(uuids);

@@ -31,6 +31,7 @@ properties:
           - enum:
               - sifive,fu540-c000-clint
               - starfive,jh7100-clint
+              - starfive,jh7110-clint
               - canaan,k210-clint
           - const: sifive,clint0
       - items:

@@ -489,9 +489,15 @@ static int __einj_error_inject(u32 type, u32 flags, u64 param1, u64 param2,
 	if (rc)
 		return rc;
 	val = apei_exec_ctx_get_output(&ctx);
-	if (val != EINJ_STATUS_SUCCESS)
+	if (val == EINJ_STATUS_FAIL)
 		return -EBUSY;
+	else if (val == EINJ_STATUS_INVAL)
+		return -EINVAL;
 
+	/*
+	 * The error is injected into the platform successfully, then it needs
+	 * to trigger the error.
+	 */
 	rc = apei_exec_run(&ctx, ACPI_EINJ_GET_TRIGGER_TABLE);
 	if (rc)
 		return rc;
@@ -584,6 +590,12 @@ static const char * const einj_error_type_string[] = {
 	"0x00000200\tPlatform Correctable\n",
 	"0x00000400\tPlatform Uncorrectable non-fatal\n",
 	"0x00000800\tPlatform Uncorrectable fatal\n",
+	"0x00001000\tCXL.cache Protocol Correctable\n",
+	"0x00002000\tCXL.cache Protocol Uncorrectable non-fatal\n",
+	"0x00004000\tCXL.cache Protocol Uncorrectable fatal\n",
+	"0x00008000\tCXL.mem Protocol Correctable\n",
+	"0x00010000\tCXL.mem Protocol Uncorrectable non-fatal\n",
+	"0x00020000\tCXL.mem Protocol Uncorrectable fatal\n",
 };
 
 static int available_error_type_show(struct seq_file *m, void *v)

@@ -22,18 +22,7 @@
 @  IRQs enabled.
 @
 ENTRY(do_vfp)
-	local_bh_disable r10, r4
- 	ldr	r4, .LCvfp
-	ldr	r11, [r10, #TI_CPU]	@ CPU number
-	add	r10, r10, #TI_VFPSTATE	@ r10 = workspace
-	ldr	pc, [r4]		@ call VFP entry point
+	mov	r1, r10
+	mov	r3, r9
+	b	vfp_entry
 ENDPROC(do_vfp)
-
-ENTRY(vfp_null_entry)
-	local_bh_enable_ti r10, r4
-	ret	lr
-ENDPROC(vfp_null_entry)
-
-	.align	2
-.LCvfp:
-	.word	vfp_vector

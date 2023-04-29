@@ -10,7 +10,6 @@
 
 extern atomic_t hart_lottery;
 
-asmlinkage void do_page_fault(struct pt_regs *regs);
 asmlinkage void __init setup_vm(uintptr_t dtb_pa);
 #ifdef CONFIG_XIP_KERNEL
 asmlinkage void __init __copy_data(void);

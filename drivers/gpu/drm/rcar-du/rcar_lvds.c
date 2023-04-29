@@ -269,8 +269,8 @@ done:
 		pll->pll_m, pll->pll_n, pll->pll_e, pll->div);
 }
 
-static void __rcar_lvds_pll_setup_d3_e3(struct rcar_lvds *lvds,
-					unsigned int freq, bool dot_clock_only)
+static void rcar_lvds_pll_setup_d3_e3(struct rcar_lvds *lvds,
+				      unsigned int freq, bool dot_clock_only)
 {
 	struct pll_info pll = { .diff = (unsigned long)-1 };
 	u32 lvdpllcr;
@@ -305,52 +305,8 @@ static void __rcar_lvds_pll_setup_d3_e3(struct rcar_lvds *lvds,
 		rcar_lvds_write(lvds, LVDDIV, 0);
 }
 
-static void rcar_lvds_pll_setup_d3_e3(struct rcar_lvds *lvds, unsigned int freq)
-{
-	__rcar_lvds_pll_setup_d3_e3(lvds, freq, false);
-}
-
 /* -----------------------------------------------------------------------------
- * Clock - D3/E3 only
- */
-
-int rcar_lvds_pclk_enable(struct drm_bridge *bridge, unsigned long freq)
-{
-	struct rcar_lvds *lvds = bridge_to_rcar_lvds(bridge);
-	int ret;
-
-	if (WARN_ON(!(lvds->info->quirks & RCAR_LVDS_QUIRK_EXT_PLL)))
-		return -ENODEV;
-
-	dev_dbg(lvds->dev, "enabling LVDS PLL, freq=%luHz\n", freq);
-
-	ret = pm_runtime_resume_and_get(lvds->dev);
-	if (ret)
-		return ret;
-
-	__rcar_lvds_pll_setup_d3_e3(lvds, freq, true);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(rcar_lvds_pclk_enable);
-
-void rcar_lvds_pclk_disable(struct drm_bridge *bridge)
-{
-	struct rcar_lvds *lvds = bridge_to_rcar_lvds(bridge);
-
-	if (WARN_ON(!(lvds->info->quirks & RCAR_LVDS_QUIRK_EXT_PLL)))
-		return;
-
-	dev_dbg(lvds->dev, "disabling LVDS PLL\n");
-
-	rcar_lvds_write(lvds, LVDPLLCR, 0);
-
-	pm_runtime_put_sync(lvds->dev);
-}
-EXPORT_SYMBOL_GPL(rcar_lvds_pclk_disable);
-
-/* -----------------------------------------------------------------------------
- * Bridge
+ * Enable/disable
  */
 
 static enum rcar_lvds_mode rcar_lvds_get_lvds_mode(struct rcar_lvds *lvds,
@@ -394,10 +350,10 @@ static enum rcar_lvds_mode rcar_lvds_get_lvds_mode(struct rcar_lvds *lvds,
 	return mode;
 }
 
-static void __rcar_lvds_atomic_enable(struct drm_bridge *bridge,
-				      struct drm_atomic_state *state,
-				      struct drm_crtc *crtc,
-				      struct drm_connector *connector)
+static void rcar_lvds_enable(struct drm_bridge *bridge,
+			     struct drm_atomic_state *state,
+			     struct drm_crtc *crtc,
+			     struct drm_connector *connector)
 {
 	struct rcar_lvds *lvds = bridge_to_rcar_lvds(bridge);
 	u32 lvdhcr;
@@ -410,8 +366,7 @@ static void __rcar_lvds_atomic_enable(struct drm_bridge *bridge,
 
 	/* Enable the companion LVDS encoder in dual-link mode. */
 	if (lvds->link_type != RCAR_LVDS_SINGLE_LINK && lvds->companion)
-		__rcar_lvds_atomic_enable(lvds->companion, state, crtc,
-					  connector);
+		rcar_lvds_enable(lvds->companion, state, crtc, connector);
 
 	/*
 	 * Hardcode the channels and control signals routing for now.
@@ -465,8 +420,12 @@ static void __rcar_lvds_atomic_enable(struct drm_bridge *bridge,
 	/*
 	 * PLL clock configuration on all instances but the companion in
 	 * dual-link mode.
+	 *
+	 * The extended PLL has been turned on by an explicit call to
+	 * rcar_lvds_pclk_enable() from the DU driver.
 	 */
-	if (lvds->link_type == RCAR_LVDS_SINGLE_LINK || lvds->companion) {
+	if ((lvds->link_type == RCAR_LVDS_SINGLE_LINK || lvds->companion) &&
+	    !(lvds->info->quirks & RCAR_LVDS_QUIRK_EXT_PLL)) {
 		const struct drm_crtc_state *crtc_state =
 			drm_atomic_get_new_crtc_state(state, crtc);
 		const struct drm_display_mode *mode =
@@ -531,22 +490,7 @@ static void __rcar_lvds_atomic_enable(struct drm_bridge *bridge,
 	rcar_lvds_write(lvds, LVDCR0, lvdcr0);
 }
 
-static void rcar_lvds_atomic_enable(struct drm_bridge *bridge,
-				    struct drm_bridge_state *old_bridge_state)
-{
-	struct drm_atomic_state *state = old_bridge_state->base.state;
-	struct drm_connector *connector;
-	struct drm_crtc *crtc;
-
-	connector = drm_atomic_get_new_connector_for_encoder(state,
-							     bridge->encoder);
-	crtc = drm_atomic_get_new_connector_state(state, connector)->crtc;
-
-	__rcar_lvds_atomic_enable(bridge, state, crtc, connector);
-}
-
-static void rcar_lvds_atomic_disable(struct drm_bridge *bridge,
-				     struct drm_bridge_state *old_bridge_state)
+static void rcar_lvds_disable(struct drm_bridge *bridge)
 {
 	struct rcar_lvds *lvds = bridge_to_rcar_lvds(bridge);
 	u32 lvdcr0;
@@ -578,14 +522,98 @@ static void rcar_lvds_atomic_disable(struct drm_bridge *bridge,
 
 	rcar_lvds_write(lvds, LVDCR0, 0);
 	rcar_lvds_write(lvds, LVDCR1, 0);
-	rcar_lvds_write(lvds, LVDPLLCR, 0);
+
+	/* The extended PLL is turned off in rcar_lvds_pclk_disable(). */
+	if (!(lvds->info->quirks & RCAR_LVDS_QUIRK_EXT_PLL))
+		rcar_lvds_write(lvds, LVDPLLCR, 0);
 
 	/* Disable the companion LVDS encoder in dual-link mode. */
 	if (lvds->link_type != RCAR_LVDS_SINGLE_LINK && lvds->companion)
-		lvds->companion->funcs->atomic_disable(lvds->companion,
-						       old_bridge_state);
+		rcar_lvds_disable(lvds->companion);
 
 	pm_runtime_put_sync(lvds->dev);
+}
+
+/* -----------------------------------------------------------------------------
+ * Clock - D3/E3 only
+ */
+
+int rcar_lvds_pclk_enable(struct drm_bridge *bridge, unsigned long freq,
+			  bool dot_clk_only)
+{
+	struct rcar_lvds *lvds = bridge_to_rcar_lvds(bridge);
+	int ret;
+
+	if (WARN_ON(!(lvds->info->quirks & RCAR_LVDS_QUIRK_EXT_PLL)))
+		return -ENODEV;
+
+	dev_dbg(lvds->dev, "enabling LVDS PLL, freq=%luHz\n", freq);
+
+	ret = pm_runtime_resume_and_get(lvds->dev);
+	if (ret)
+		return ret;
+
+	rcar_lvds_pll_setup_d3_e3(lvds, freq, dot_clk_only);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rcar_lvds_pclk_enable);
+
+void rcar_lvds_pclk_disable(struct drm_bridge *bridge, bool dot_clk_only)
+{
+	struct rcar_lvds *lvds = bridge_to_rcar_lvds(bridge);
+
+	if (WARN_ON(!(lvds->info->quirks & RCAR_LVDS_QUIRK_EXT_PLL)))
+		return;
+
+	dev_dbg(lvds->dev, "disabling LVDS PLL\n");
+
+	if (!dot_clk_only)
+		rcar_lvds_disable(bridge);
+
+	rcar_lvds_write(lvds, LVDPLLCR, 0);
+
+	pm_runtime_put_sync(lvds->dev);
+}
+EXPORT_SYMBOL_GPL(rcar_lvds_pclk_disable);
+
+/* -----------------------------------------------------------------------------
+ * Bridge
+ */
+
+static void rcar_lvds_atomic_enable(struct drm_bridge *bridge,
+				    struct drm_bridge_state *old_bridge_state)
+{
+	struct drm_atomic_state *state = old_bridge_state->base.state;
+	struct drm_connector *connector;
+	struct drm_crtc *crtc;
+
+	connector = drm_atomic_get_new_connector_for_encoder(state,
+							     bridge->encoder);
+	crtc = drm_atomic_get_new_connector_state(state, connector)->crtc;
+
+	rcar_lvds_enable(bridge, state, crtc, connector);
+}
+
+static void rcar_lvds_atomic_disable(struct drm_bridge *bridge,
+				     struct drm_bridge_state *old_bridge_state)
+{
+	struct rcar_lvds *lvds = bridge_to_rcar_lvds(bridge);
+
+	/*
+	 * For D3 and E3, disabling the LVDS encoder before the DU would stall
+	 * the DU, causing a vblank wait timeout when stopping the DU. This has
+	 * been traced to clearing the LVEN bit, but the exact reason is
+	 * unknown. Keep the encoder enabled, it will be disabled by an explicit
+	 * call to rcar_lvds_pclk_disable() from the DU driver.
+	 *
+	 * We could clear the LVRES bit already to disable the LVDS output, but
+	 * that's likely pointless.
+	 */
+	if (lvds->info->quirks & RCAR_LVDS_QUIRK_EXT_PLL)
+		return;
+
+	rcar_lvds_disable(bridge);
 }
 
 static bool rcar_lvds_mode_fixup(struct drm_bridge *bridge,
@@ -922,14 +950,12 @@ static const struct rcar_lvds_device_info rcar_lvds_r8a77990_info = {
 	.gen = 3,
 	.quirks = RCAR_LVDS_QUIRK_GEN3_LVEN | RCAR_LVDS_QUIRK_EXT_PLL
 		| RCAR_LVDS_QUIRK_DUAL_LINK,
-	.pll_setup = rcar_lvds_pll_setup_d3_e3,
 };
 
 static const struct rcar_lvds_device_info rcar_lvds_r8a77995_info = {
 	.gen = 3,
 	.quirks = RCAR_LVDS_QUIRK_GEN3_LVEN | RCAR_LVDS_QUIRK_PWD
 		| RCAR_LVDS_QUIRK_EXT_PLL | RCAR_LVDS_QUIRK_DUAL_LINK,
-	.pll_setup = rcar_lvds_pll_setup_d3_e3,
 };
 
 static const struct of_device_id rcar_lvds_of_table[] = {

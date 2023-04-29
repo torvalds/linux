@@ -64,7 +64,6 @@ static int sof_debug_ipc_flood_test(struct sof_client_dev *cdev,
 	struct sof_ipc_flood_priv *priv = cdev->data;
 	struct device *dev = &cdev->auxdev.dev;
 	struct sof_ipc_cmd_hdr hdr;
-	struct sof_ipc_reply reply;
 	u64 min_response_time = U64_MAX;
 	ktime_t start, end, test_end;
 	u64 avg_response_time = 0;
@@ -84,7 +83,7 @@ static int sof_debug_ipc_flood_test(struct sof_client_dev *cdev,
 	/* send test IPC's */
 	while (1) {
 		start = ktime_get();
-		ret = sof_client_ipc_tx_message(cdev, &hdr, &reply, sizeof(reply));
+		ret = sof_client_ipc_tx_message_no_reply(cdev, &hdr);
 		end = ktime_get();
 
 		if (ret < 0)

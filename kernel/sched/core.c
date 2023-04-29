@@ -80,6 +80,7 @@
 #define CREATE_TRACE_POINTS
 #include <linux/sched/rseq_api.h>
 #include <trace/events/sched.h>
+#include <trace/events/ipi.h>
 #undef CREATE_TRACE_POINTS
 
 #include "sched.h"
@@ -94,6 +95,9 @@
 #include "../workqueue_internal.h"
 #include "../../io_uring/io-wq.h"
 #include "../smpboot.h"
+
+EXPORT_TRACEPOINT_SYMBOL_GPL(ipi_send_cpu);
+EXPORT_TRACEPOINT_SYMBOL_GPL(ipi_send_cpumask);
 
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
@@ -261,36 +265,51 @@ void sched_core_dequeue(struct rq *rq, struct task_struct *p, int flags)
 		resched_curr(rq);
 }
 
-/*
- * Find left-most (aka, highest priority) task matching @cookie.
- */
-static struct task_struct *sched_core_find(struct rq *rq, unsigned long cookie)
+static int sched_task_is_throttled(struct task_struct *p, int cpu)
 {
-	struct rb_node *node;
+	if (p->sched_class->task_is_throttled)
+		return p->sched_class->task_is_throttled(p, cpu);
 
-	node = rb_find_first((void *)cookie, &rq->core_tree, rb_sched_core_cmp);
-	/*
-	 * The idle task always matches any cookie!
-	 */
-	if (!node)
-		return idle_sched_class.pick_task(rq);
-
-	return __node_2_sc(node);
+	return 0;
 }
 
 static struct task_struct *sched_core_next(struct task_struct *p, unsigned long cookie)
 {
 	struct rb_node *node = &p->core_node;
+	int cpu = task_cpu(p);
 
-	node = rb_next(node);
+	do {
+		node = rb_next(node);
+		if (!node)
+			return NULL;
+
+		p = __node_2_sc(node);
+		if (p->core_cookie != cookie)
+			return NULL;
+
+	} while (sched_task_is_throttled(p, cpu));
+
+	return p;
+}
+
+/*
+ * Find left-most (aka, highest priority) and unthrottled task matching @cookie.
+ * If no suitable task is found, NULL will be returned.
+ */
+static struct task_struct *sched_core_find(struct rq *rq, unsigned long cookie)
+{
+	struct task_struct *p;
+	struct rb_node *node;
+
+	node = rb_find_first((void *)cookie, &rq->core_tree, rb_sched_core_cmp);
 	if (!node)
 		return NULL;
 
-	p = container_of(node, struct task_struct, core_node);
-	if (p->core_cookie != cookie)
-		return NULL;
+	p = __node_2_sc(node);
+	if (!sched_task_is_throttled(p, rq->cpu))
+		return p;
 
-	return p;
+	return sched_core_next(p, cookie);
 }
 
 /*
@@ -704,6 +723,7 @@ static void update_rq_clock_task(struct rq *rq, s64 delta)
 	rq->prev_irq_time += irq_delta;
 	delta -= irq_delta;
 	psi_account_irqtime(rq->curr, irq_delta);
+	delayacct_irq(rq->curr, irq_delta);
 #endif
 #ifdef CONFIG_PARAVIRT_TIME_ACCOUNTING
 	if (static_key_false((&paravirt_steal_rq_enabled))) {
@@ -2086,6 +2106,8 @@ void activate_task(struct rq *rq, struct task_struct *p, int flags)
 {
 	if (task_on_rq_migrating(p))
 		flags |= ENQUEUE_MIGRATED;
+	if (flags & ENQUEUE_MIGRATED)
+		sched_mm_cid_migrate_to(rq, p);
 
 	enqueue_task(rq, p, flags);
 
@@ -3195,6 +3217,7 @@ void set_task_cpu(struct task_struct *p, unsigned int new_cpu)
 			p->sched_class->migrate_task_rq(p, new_cpu);
 		p->se.nr_migrations++;
 		rseq_migrate(p);
+		sched_mm_cid_migrate_from(p);
 		perf_event_task_migrate(p);
 	}
 
@@ -3829,14 +3852,20 @@ void sched_ttwu_pending(void *arg)
 	rq_unlock_irqrestore(rq, &rf);
 }
 
-void send_call_function_single_ipi(int cpu)
+/*
+ * Prepare the scene for sending an IPI for a remote smp_call
+ *
+ * Returns true if the caller can proceed with sending the IPI.
+ * Returns false otherwise.
+ */
+bool call_function_single_prep_ipi(int cpu)
 {
-	struct rq *rq = cpu_rq(cpu);
-
-	if (!set_nr_if_polling(rq->idle))
-		arch_send_call_function_single_ipi(cpu);
-	else
+	if (set_nr_if_polling(cpu_rq(cpu)->idle)) {
 		trace_sched_wake_idle_without_ipi(cpu);
+		return false;
+	}
+
+	return true;
 }
 
 /*
@@ -4468,6 +4497,7 @@ static void __sched_fork(unsigned long clone_flags, struct task_struct *p)
 	p->wake_entry.u_flags = CSD_TYPE_TTWU;
 	p->migration_pending = NULL;
 #endif
+	init_sched_mm_cid(p);
 }
 
 DEFINE_STATIC_KEY_FALSE(sched_numa_balancing);
@@ -5114,7 +5144,6 @@ prepare_task_switch(struct rq *rq, struct task_struct *prev,
 	sched_info_switch(rq, prev, next);
 	perf_event_task_sched_out(prev, next);
 	rseq_preempt(prev);
-	switch_mm_cid(prev, next);
 	fire_sched_out_preempt_notifiers(prev, next);
 	kmap_local_sched_out();
 	prepare_task(next);
@@ -5203,13 +5232,14 @@ static struct rq *finish_task_switch(struct task_struct *prev)
 	 * rq->curr, before returning to userspace, so provide them here:
 	 *
 	 * - a full memory barrier for {PRIVATE,GLOBAL}_EXPEDITED, implicitly
-	 *   provided by mmdrop(),
+	 *   provided by mmdrop_lazy_tlb(),
 	 * - a sync_core for SYNC_CORE.
 	 */
 	if (mm) {
 		membarrier_mm_sync_core_before_usermode(mm);
-		mmdrop_sched(mm);
+		mmdrop_lazy_tlb_sched(mm);
 	}
+
 	if (unlikely(prev_state == TASK_DEAD)) {
 		if (prev->sched_class->task_dead)
 			prev->sched_class->task_dead(prev);
@@ -5266,17 +5296,20 @@ context_switch(struct rq *rq, struct task_struct *prev,
 
 	/*
 	 * kernel -> kernel   lazy + transfer active
-	 *   user -> kernel   lazy + mmgrab() active
+	 *   user -> kernel   lazy + mmgrab_lazy_tlb() active
 	 *
-	 * kernel ->   user   switch + mmdrop() active
+	 * kernel ->   user   switch + mmdrop_lazy_tlb() active
 	 *   user ->   user   switch
+	 *
+	 * switch_mm_cid() needs to be updated if the barriers provided
+	 * by context_switch() are modified.
 	 */
 	if (!next->mm) {                                // to kernel
 		enter_lazy_tlb(prev->active_mm, next);
 
 		next->active_mm = prev->active_mm;
 		if (prev->mm)                           // from user
-			mmgrab(prev->active_mm);
+			mmgrab_lazy_tlb(prev->active_mm);
 		else
 			prev->active_mm = NULL;
 	} else {                                        // to user
@@ -5293,11 +5326,14 @@ context_switch(struct rq *rq, struct task_struct *prev,
 		lru_gen_use_mm(next->mm);
 
 		if (!prev->mm) {                        // from kernel
-			/* will mmdrop() in finish_task_switch(). */
+			/* will mmdrop_lazy_tlb() in finish_task_switch(). */
 			rq->prev_mm = prev->active_mm;
 			prev->active_mm = NULL;
 		}
 	}
+
+	/* switch_mm_cid() requires the memory barriers above. */
+	switch_mm_cid(rq, prev, next);
 
 	rq->clock_update_flags &= ~(RQCF_ACT_SKIP|RQCF_REQ_SKIP);
 
@@ -5587,6 +5623,7 @@ void scheduler_tick(void)
 		resched_latency = cpu_resched_latency(rq);
 	calc_global_load_tick(rq);
 	sched_core_tick(rq);
+	task_tick_mm_cid(rq, curr);
 
 	rq_unlock(rq, &rf);
 
@@ -6239,7 +6276,7 @@ static bool try_steal_cookie(int this, int that)
 		goto unlock;
 
 	p = sched_core_find(src, cookie);
-	if (p == src->idle)
+	if (!p)
 		goto unlock;
 
 	do {
@@ -6250,6 +6287,13 @@ static bool try_steal_cookie(int this, int that)
 			goto next;
 
 		if (p->core_occupation > dst->idle->core_occupation)
+			goto next;
+		/*
+		 * sched_core_find() and sched_core_next() will ensure that task @p
+		 * is not throttled now, we also need to check whether the runqueue
+		 * of the destination CPU is being throttled.
+		 */
+		if (sched_task_is_throttled(p, this))
 			goto next;
 
 		deactivate_task(src, p, 0);
@@ -8506,6 +8550,7 @@ EXPORT_STATIC_CALL_TRAMP(might_resched);
 static DEFINE_STATIC_KEY_FALSE(sk_dynamic_cond_resched);
 int __sched dynamic_cond_resched(void)
 {
+	klp_sched_try_switch();
 	if (!static_branch_unlikely(&sk_dynamic_cond_resched))
 		return 0;
 	return __cond_resched();
@@ -8654,13 +8699,17 @@ int sched_dynamic_mode(const char *str)
 #error "Unsupported PREEMPT_DYNAMIC mechanism"
 #endif
 
-void sched_dynamic_update(int mode)
+static DEFINE_MUTEX(sched_dynamic_mutex);
+static bool klp_override;
+
+static void __sched_dynamic_update(int mode)
 {
 	/*
 	 * Avoid {NONE,VOLUNTARY} -> FULL transitions from ever ending up in
 	 * the ZERO state, which is invalid.
 	 */
-	preempt_dynamic_enable(cond_resched);
+	if (!klp_override)
+		preempt_dynamic_enable(cond_resched);
 	preempt_dynamic_enable(might_resched);
 	preempt_dynamic_enable(preempt_schedule);
 	preempt_dynamic_enable(preempt_schedule_notrace);
@@ -8668,35 +8717,78 @@ void sched_dynamic_update(int mode)
 
 	switch (mode) {
 	case preempt_dynamic_none:
-		preempt_dynamic_enable(cond_resched);
+		if (!klp_override)
+			preempt_dynamic_enable(cond_resched);
 		preempt_dynamic_disable(might_resched);
 		preempt_dynamic_disable(preempt_schedule);
 		preempt_dynamic_disable(preempt_schedule_notrace);
 		preempt_dynamic_disable(irqentry_exit_cond_resched);
-		pr_info("Dynamic Preempt: none\n");
+		if (mode != preempt_dynamic_mode)
+			pr_info("Dynamic Preempt: none\n");
 		break;
 
 	case preempt_dynamic_voluntary:
-		preempt_dynamic_enable(cond_resched);
+		if (!klp_override)
+			preempt_dynamic_enable(cond_resched);
 		preempt_dynamic_enable(might_resched);
 		preempt_dynamic_disable(preempt_schedule);
 		preempt_dynamic_disable(preempt_schedule_notrace);
 		preempt_dynamic_disable(irqentry_exit_cond_resched);
-		pr_info("Dynamic Preempt: voluntary\n");
+		if (mode != preempt_dynamic_mode)
+			pr_info("Dynamic Preempt: voluntary\n");
 		break;
 
 	case preempt_dynamic_full:
-		preempt_dynamic_disable(cond_resched);
+		if (!klp_override)
+			preempt_dynamic_disable(cond_resched);
 		preempt_dynamic_disable(might_resched);
 		preempt_dynamic_enable(preempt_schedule);
 		preempt_dynamic_enable(preempt_schedule_notrace);
 		preempt_dynamic_enable(irqentry_exit_cond_resched);
-		pr_info("Dynamic Preempt: full\n");
+		if (mode != preempt_dynamic_mode)
+			pr_info("Dynamic Preempt: full\n");
 		break;
 	}
 
 	preempt_dynamic_mode = mode;
 }
+
+void sched_dynamic_update(int mode)
+{
+	mutex_lock(&sched_dynamic_mutex);
+	__sched_dynamic_update(mode);
+	mutex_unlock(&sched_dynamic_mutex);
+}
+
+#ifdef CONFIG_HAVE_PREEMPT_DYNAMIC_CALL
+
+static int klp_cond_resched(void)
+{
+	__klp_sched_try_switch();
+	return __cond_resched();
+}
+
+void sched_dynamic_klp_enable(void)
+{
+	mutex_lock(&sched_dynamic_mutex);
+
+	klp_override = true;
+	static_call_update(cond_resched, klp_cond_resched);
+
+	mutex_unlock(&sched_dynamic_mutex);
+}
+
+void sched_dynamic_klp_disable(void)
+{
+	mutex_lock(&sched_dynamic_mutex);
+
+	klp_override = false;
+	__sched_dynamic_update(preempt_dynamic_mode);
+
+	mutex_unlock(&sched_dynamic_mutex);
+}
+
+#endif /* CONFIG_HAVE_PREEMPT_DYNAMIC_CALL */
 
 static int __init setup_preempt_mode(char *str)
 {
@@ -9935,7 +10027,7 @@ void __init sched_init(void)
 	/*
 	 * The boot idle thread does lazy MMU switching as well:
 	 */
-	mmgrab(&init_mm);
+	mmgrab_lazy_tlb(&init_mm);
 	enter_lazy_tlb(&init_mm, current);
 
 	/*
@@ -10332,7 +10424,7 @@ void sched_release_group(struct task_group *tg)
 	spin_unlock_irqrestore(&task_group_lock, flags);
 }
 
-static void sched_change_group(struct task_struct *tsk)
+static struct task_group *sched_get_task_group(struct task_struct *tsk)
 {
 	struct task_group *tg;
 
@@ -10344,7 +10436,13 @@ static void sched_change_group(struct task_struct *tsk)
 	tg = container_of(task_css_check(tsk, cpu_cgrp_id, true),
 			  struct task_group, css);
 	tg = autogroup_task_group(tsk, tg);
-	tsk->sched_task_group = tg;
+
+	return tg;
+}
+
+static void sched_change_group(struct task_struct *tsk, struct task_group *group)
+{
+	tsk->sched_task_group = group;
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	if (tsk->sched_class->task_change_group)
@@ -10365,10 +10463,19 @@ void sched_move_task(struct task_struct *tsk)
 {
 	int queued, running, queue_flags =
 		DEQUEUE_SAVE | DEQUEUE_MOVE | DEQUEUE_NOCLOCK;
+	struct task_group *group;
 	struct rq_flags rf;
 	struct rq *rq;
 
 	rq = task_rq_lock(tsk, &rf);
+	/*
+	 * Esp. with SCHED_AUTOGROUP enabled it is possible to get superfluous
+	 * group changes.
+	 */
+	group = sched_get_task_group(tsk);
+	if (group == tsk->sched_task_group)
+		goto unlock;
+
 	update_rq_clock(rq);
 
 	running = task_current(rq, tsk);
@@ -10379,7 +10486,7 @@ void sched_move_task(struct task_struct *tsk)
 	if (running)
 		put_prev_task(rq, tsk);
 
-	sched_change_group(tsk);
+	sched_change_group(tsk, group);
 
 	if (queued)
 		enqueue_task(rq, tsk, queue_flags);
@@ -10393,6 +10500,7 @@ void sched_move_task(struct task_struct *tsk)
 		resched_curr(rq);
 	}
 
+unlock:
 	task_rq_unlock(rq, tsk, &rf);
 }
 
@@ -11383,45 +11491,524 @@ void call_trace_sched_update_nr_running(struct rq *rq, int count)
 }
 
 #ifdef CONFIG_SCHED_MM_CID
-void sched_mm_cid_exit_signals(struct task_struct *t)
+
+/**
+ * @cid_lock: Guarantee forward-progress of cid allocation.
+ *
+ * Concurrency ID allocation within a bitmap is mostly lock-free. The cid_lock
+ * is only used when contention is detected by the lock-free allocation so
+ * forward progress can be guaranteed.
+ */
+DEFINE_RAW_SPINLOCK(cid_lock);
+
+/**
+ * @use_cid_lock: Select cid allocation behavior: lock-free vs spinlock.
+ *
+ * When @use_cid_lock is 0, the cid allocation is lock-free. When contention is
+ * detected, it is set to 1 to ensure that all newly coming allocations are
+ * serialized by @cid_lock until the allocation which detected contention
+ * completes and sets @use_cid_lock back to 0. This guarantees forward progress
+ * of a cid allocation.
+ */
+int use_cid_lock;
+
+/*
+ * mm_cid remote-clear implements a lock-free algorithm to clear per-mm/cpu cid
+ * concurrently with respect to the execution of the source runqueue context
+ * switch.
+ *
+ * There is one basic properties we want to guarantee here:
+ *
+ * (1) Remote-clear should _never_ mark a per-cpu cid UNSET when it is actively
+ * used by a task. That would lead to concurrent allocation of the cid and
+ * userspace corruption.
+ *
+ * Provide this guarantee by introducing a Dekker memory ordering to guarantee
+ * that a pair of loads observe at least one of a pair of stores, which can be
+ * shown as:
+ *
+ *      X = Y = 0
+ *
+ *      w[X]=1          w[Y]=1
+ *      MB              MB
+ *      r[Y]=y          r[X]=x
+ *
+ * Which guarantees that x==0 && y==0 is impossible. But rather than using
+ * values 0 and 1, this algorithm cares about specific state transitions of the
+ * runqueue current task (as updated by the scheduler context switch), and the
+ * per-mm/cpu cid value.
+ *
+ * Let's introduce task (Y) which has task->mm == mm and task (N) which has
+ * task->mm != mm for the rest of the discussion. There are two scheduler state
+ * transitions on context switch we care about:
+ *
+ * (TSA) Store to rq->curr with transition from (N) to (Y)
+ *
+ * (TSB) Store to rq->curr with transition from (Y) to (N)
+ *
+ * On the remote-clear side, there is one transition we care about:
+ *
+ * (TMA) cmpxchg to *pcpu_cid to set the LAZY flag
+ *
+ * There is also a transition to UNSET state which can be performed from all
+ * sides (scheduler, remote-clear). It is always performed with a cmpxchg which
+ * guarantees that only a single thread will succeed:
+ *
+ * (TMB) cmpxchg to *pcpu_cid to mark UNSET
+ *
+ * Just to be clear, what we do _not_ want to happen is a transition to UNSET
+ * when a thread is actively using the cid (property (1)).
+ *
+ * Let's looks at the relevant combinations of TSA/TSB, and TMA transitions.
+ *
+ * Scenario A) (TSA)+(TMA) (from next task perspective)
+ *
+ * CPU0                                      CPU1
+ *
+ * Context switch CS-1                       Remote-clear
+ *   - store to rq->curr: (N)->(Y) (TSA)     - cmpxchg to *pcpu_id to LAZY (TMA)
+ *                                             (implied barrier after cmpxchg)
+ *   - switch_mm_cid()
+ *     - memory barrier (see switch_mm_cid()
+ *       comment explaining how this barrier
+ *       is combined with other scheduler
+ *       barriers)
+ *     - mm_cid_get (next)
+ *       - READ_ONCE(*pcpu_cid)              - rcu_dereference(src_rq->curr)
+ *
+ * This Dekker ensures that either task (Y) is observed by the
+ * rcu_dereference() or the LAZY flag is observed by READ_ONCE(), or both are
+ * observed.
+ *
+ * If task (Y) store is observed by rcu_dereference(), it means that there is
+ * still an active task on the cpu. Remote-clear will therefore not transition
+ * to UNSET, which fulfills property (1).
+ *
+ * If task (Y) is not observed, but the lazy flag is observed by READ_ONCE(),
+ * it will move its state to UNSET, which clears the percpu cid perhaps
+ * uselessly (which is not an issue for correctness). Because task (Y) is not
+ * observed, CPU1 can move ahead to set the state to UNSET. Because moving
+ * state to UNSET is done with a cmpxchg expecting that the old state has the
+ * LAZY flag set, only one thread will successfully UNSET.
+ *
+ * If both states (LAZY flag and task (Y)) are observed, the thread on CPU0
+ * will observe the LAZY flag and transition to UNSET (perhaps uselessly), and
+ * CPU1 will observe task (Y) and do nothing more, which is fine.
+ *
+ * What we are effectively preventing with this Dekker is a scenario where
+ * neither LAZY flag nor store (Y) are observed, which would fail property (1)
+ * because this would UNSET a cid which is actively used.
+ */
+
+void sched_mm_cid_migrate_from(struct task_struct *t)
+{
+	t->migrate_from_cpu = task_cpu(t);
+}
+
+static
+int __sched_mm_cid_migrate_from_fetch_cid(struct rq *src_rq,
+					  struct task_struct *t,
+					  struct mm_cid *src_pcpu_cid)
 {
 	struct mm_struct *mm = t->mm;
-	unsigned long flags;
+	struct task_struct *src_task;
+	int src_cid, last_mm_cid;
+
+	if (!mm)
+		return -1;
+
+	last_mm_cid = t->last_mm_cid;
+	/*
+	 * If the migrated task has no last cid, or if the current
+	 * task on src rq uses the cid, it means the source cid does not need
+	 * to be moved to the destination cpu.
+	 */
+	if (last_mm_cid == -1)
+		return -1;
+	src_cid = READ_ONCE(src_pcpu_cid->cid);
+	if (!mm_cid_is_valid(src_cid) || last_mm_cid != src_cid)
+		return -1;
+
+	/*
+	 * If we observe an active task using the mm on this rq, it means we
+	 * are not the last task to be migrated from this cpu for this mm, so
+	 * there is no need to move src_cid to the destination cpu.
+	 */
+	rcu_read_lock();
+	src_task = rcu_dereference(src_rq->curr);
+	if (READ_ONCE(src_task->mm_cid_active) && src_task->mm == mm) {
+		rcu_read_unlock();
+		t->last_mm_cid = -1;
+		return -1;
+	}
+	rcu_read_unlock();
+
+	return src_cid;
+}
+
+static
+int __sched_mm_cid_migrate_from_try_steal_cid(struct rq *src_rq,
+					      struct task_struct *t,
+					      struct mm_cid *src_pcpu_cid,
+					      int src_cid)
+{
+	struct task_struct *src_task;
+	struct mm_struct *mm = t->mm;
+	int lazy_cid;
+
+	if (src_cid == -1)
+		return -1;
+
+	/*
+	 * Attempt to clear the source cpu cid to move it to the destination
+	 * cpu.
+	 */
+	lazy_cid = mm_cid_set_lazy_put(src_cid);
+	if (!try_cmpxchg(&src_pcpu_cid->cid, &src_cid, lazy_cid))
+		return -1;
+
+	/*
+	 * The implicit barrier after cmpxchg per-mm/cpu cid before loading
+	 * rq->curr->mm matches the scheduler barrier in context_switch()
+	 * between store to rq->curr and load of prev and next task's
+	 * per-mm/cpu cid.
+	 *
+	 * The implicit barrier after cmpxchg per-mm/cpu cid before loading
+	 * rq->curr->mm_cid_active matches the barrier in
+	 * sched_mm_cid_exit_signals(), sched_mm_cid_before_execve(), and
+	 * sched_mm_cid_after_execve() between store to t->mm_cid_active and
+	 * load of per-mm/cpu cid.
+	 */
+
+	/*
+	 * If we observe an active task using the mm on this rq after setting
+	 * the lazy-put flag, this task will be responsible for transitioning
+	 * from lazy-put flag set to MM_CID_UNSET.
+	 */
+	rcu_read_lock();
+	src_task = rcu_dereference(src_rq->curr);
+	if (READ_ONCE(src_task->mm_cid_active) && src_task->mm == mm) {
+		rcu_read_unlock();
+		/*
+		 * We observed an active task for this mm, there is therefore
+		 * no point in moving this cid to the destination cpu.
+		 */
+		t->last_mm_cid = -1;
+		return -1;
+	}
+	rcu_read_unlock();
+
+	/*
+	 * The src_cid is unused, so it can be unset.
+	 */
+	if (!try_cmpxchg(&src_pcpu_cid->cid, &lazy_cid, MM_CID_UNSET))
+		return -1;
+	return src_cid;
+}
+
+/*
+ * Migration to dst cpu. Called with dst_rq lock held.
+ * Interrupts are disabled, which keeps the window of cid ownership without the
+ * source rq lock held small.
+ */
+void sched_mm_cid_migrate_to(struct rq *dst_rq, struct task_struct *t)
+{
+	struct mm_cid *src_pcpu_cid, *dst_pcpu_cid;
+	struct mm_struct *mm = t->mm;
+	int src_cid, dst_cid, src_cpu;
+	struct rq *src_rq;
+
+	lockdep_assert_rq_held(dst_rq);
 
 	if (!mm)
 		return;
+	src_cpu = t->migrate_from_cpu;
+	if (src_cpu == -1) {
+		t->last_mm_cid = -1;
+		return;
+	}
+	/*
+	 * Move the src cid if the dst cid is unset. This keeps id
+	 * allocation closest to 0 in cases where few threads migrate around
+	 * many cpus.
+	 *
+	 * If destination cid is already set, we may have to just clear
+	 * the src cid to ensure compactness in frequent migrations
+	 * scenarios.
+	 *
+	 * It is not useful to clear the src cid when the number of threads is
+	 * greater or equal to the number of allowed cpus, because user-space
+	 * can expect that the number of allowed cids can reach the number of
+	 * allowed cpus.
+	 */
+	dst_pcpu_cid = per_cpu_ptr(mm->pcpu_cid, cpu_of(dst_rq));
+	dst_cid = READ_ONCE(dst_pcpu_cid->cid);
+	if (!mm_cid_is_unset(dst_cid) &&
+	    atomic_read(&mm->mm_users) >= t->nr_cpus_allowed)
+		return;
+	src_pcpu_cid = per_cpu_ptr(mm->pcpu_cid, src_cpu);
+	src_rq = cpu_rq(src_cpu);
+	src_cid = __sched_mm_cid_migrate_from_fetch_cid(src_rq, t, src_pcpu_cid);
+	if (src_cid == -1)
+		return;
+	src_cid = __sched_mm_cid_migrate_from_try_steal_cid(src_rq, t, src_pcpu_cid,
+							    src_cid);
+	if (src_cid == -1)
+		return;
+	if (!mm_cid_is_unset(dst_cid)) {
+		__mm_cid_put(mm, src_cid);
+		return;
+	}
+	/* Move src_cid to dst cpu. */
+	mm_cid_snapshot_time(dst_rq, mm);
+	WRITE_ONCE(dst_pcpu_cid->cid, src_cid);
+}
+
+static void sched_mm_cid_remote_clear(struct mm_struct *mm, struct mm_cid *pcpu_cid,
+				      int cpu)
+{
+	struct rq *rq = cpu_rq(cpu);
+	struct task_struct *t;
+	unsigned long flags;
+	int cid, lazy_cid;
+
+	cid = READ_ONCE(pcpu_cid->cid);
+	if (!mm_cid_is_valid(cid))
+		return;
+
+	/*
+	 * Clear the cpu cid if it is set to keep cid allocation compact.  If
+	 * there happens to be other tasks left on the source cpu using this
+	 * mm, the next task using this mm will reallocate its cid on context
+	 * switch.
+	 */
+	lazy_cid = mm_cid_set_lazy_put(cid);
+	if (!try_cmpxchg(&pcpu_cid->cid, &cid, lazy_cid))
+		return;
+
+	/*
+	 * The implicit barrier after cmpxchg per-mm/cpu cid before loading
+	 * rq->curr->mm matches the scheduler barrier in context_switch()
+	 * between store to rq->curr and load of prev and next task's
+	 * per-mm/cpu cid.
+	 *
+	 * The implicit barrier after cmpxchg per-mm/cpu cid before loading
+	 * rq->curr->mm_cid_active matches the barrier in
+	 * sched_mm_cid_exit_signals(), sched_mm_cid_before_execve(), and
+	 * sched_mm_cid_after_execve() between store to t->mm_cid_active and
+	 * load of per-mm/cpu cid.
+	 */
+
+	/*
+	 * If we observe an active task using the mm on this rq after setting
+	 * the lazy-put flag, that task will be responsible for transitioning
+	 * from lazy-put flag set to MM_CID_UNSET.
+	 */
+	rcu_read_lock();
+	t = rcu_dereference(rq->curr);
+	if (READ_ONCE(t->mm_cid_active) && t->mm == mm) {
+		rcu_read_unlock();
+		return;
+	}
+	rcu_read_unlock();
+
+	/*
+	 * The cid is unused, so it can be unset.
+	 * Disable interrupts to keep the window of cid ownership without rq
+	 * lock small.
+	 */
 	local_irq_save(flags);
-	mm_cid_put(mm, t->mm_cid);
-	t->mm_cid = -1;
-	t->mm_cid_active = 0;
+	if (try_cmpxchg(&pcpu_cid->cid, &lazy_cid, MM_CID_UNSET))
+		__mm_cid_put(mm, cid);
 	local_irq_restore(flags);
+}
+
+static void sched_mm_cid_remote_clear_old(struct mm_struct *mm, int cpu)
+{
+	struct rq *rq = cpu_rq(cpu);
+	struct mm_cid *pcpu_cid;
+	struct task_struct *curr;
+	u64 rq_clock;
+
+	/*
+	 * rq->clock load is racy on 32-bit but one spurious clear once in a
+	 * while is irrelevant.
+	 */
+	rq_clock = READ_ONCE(rq->clock);
+	pcpu_cid = per_cpu_ptr(mm->pcpu_cid, cpu);
+
+	/*
+	 * In order to take care of infrequently scheduled tasks, bump the time
+	 * snapshot associated with this cid if an active task using the mm is
+	 * observed on this rq.
+	 */
+	rcu_read_lock();
+	curr = rcu_dereference(rq->curr);
+	if (READ_ONCE(curr->mm_cid_active) && curr->mm == mm) {
+		WRITE_ONCE(pcpu_cid->time, rq_clock);
+		rcu_read_unlock();
+		return;
+	}
+	rcu_read_unlock();
+
+	if (rq_clock < pcpu_cid->time + SCHED_MM_CID_PERIOD_NS)
+		return;
+	sched_mm_cid_remote_clear(mm, pcpu_cid, cpu);
+}
+
+static void sched_mm_cid_remote_clear_weight(struct mm_struct *mm, int cpu,
+					     int weight)
+{
+	struct mm_cid *pcpu_cid;
+	int cid;
+
+	pcpu_cid = per_cpu_ptr(mm->pcpu_cid, cpu);
+	cid = READ_ONCE(pcpu_cid->cid);
+	if (!mm_cid_is_valid(cid) || cid < weight)
+		return;
+	sched_mm_cid_remote_clear(mm, pcpu_cid, cpu);
+}
+
+static void task_mm_cid_work(struct callback_head *work)
+{
+	unsigned long now = jiffies, old_scan, next_scan;
+	struct task_struct *t = current;
+	struct cpumask *cidmask;
+	struct mm_struct *mm;
+	int weight, cpu;
+
+	SCHED_WARN_ON(t != container_of(work, struct task_struct, cid_work));
+
+	work->next = work;	/* Prevent double-add */
+	if (t->flags & PF_EXITING)
+		return;
+	mm = t->mm;
+	if (!mm)
+		return;
+	old_scan = READ_ONCE(mm->mm_cid_next_scan);
+	next_scan = now + msecs_to_jiffies(MM_CID_SCAN_DELAY);
+	if (!old_scan) {
+		unsigned long res;
+
+		res = cmpxchg(&mm->mm_cid_next_scan, old_scan, next_scan);
+		if (res != old_scan)
+			old_scan = res;
+		else
+			old_scan = next_scan;
+	}
+	if (time_before(now, old_scan))
+		return;
+	if (!try_cmpxchg(&mm->mm_cid_next_scan, &old_scan, next_scan))
+		return;
+	cidmask = mm_cidmask(mm);
+	/* Clear cids that were not recently used. */
+	for_each_possible_cpu(cpu)
+		sched_mm_cid_remote_clear_old(mm, cpu);
+	weight = cpumask_weight(cidmask);
+	/*
+	 * Clear cids that are greater or equal to the cidmask weight to
+	 * recompact it.
+	 */
+	for_each_possible_cpu(cpu)
+		sched_mm_cid_remote_clear_weight(mm, cpu, weight);
+}
+
+void init_sched_mm_cid(struct task_struct *t)
+{
+	struct mm_struct *mm = t->mm;
+	int mm_users = 0;
+
+	if (mm) {
+		mm_users = atomic_read(&mm->mm_users);
+		if (mm_users == 1)
+			mm->mm_cid_next_scan = jiffies + msecs_to_jiffies(MM_CID_SCAN_DELAY);
+	}
+	t->cid_work.next = &t->cid_work;	/* Protect against double add */
+	init_task_work(&t->cid_work, task_mm_cid_work);
+}
+
+void task_tick_mm_cid(struct rq *rq, struct task_struct *curr)
+{
+	struct callback_head *work = &curr->cid_work;
+	unsigned long now = jiffies;
+
+	if (!curr->mm || (curr->flags & (PF_EXITING | PF_KTHREAD)) ||
+	    work->next != work)
+		return;
+	if (time_before(now, READ_ONCE(curr->mm->mm_cid_next_scan)))
+		return;
+	task_work_add(curr, work, TWA_RESUME);
+}
+
+void sched_mm_cid_exit_signals(struct task_struct *t)
+{
+	struct mm_struct *mm = t->mm;
+	struct rq_flags rf;
+	struct rq *rq;
+
+	if (!mm)
+		return;
+
+	preempt_disable();
+	rq = this_rq();
+	rq_lock_irqsave(rq, &rf);
+	preempt_enable_no_resched();	/* holding spinlock */
+	WRITE_ONCE(t->mm_cid_active, 0);
+	/*
+	 * Store t->mm_cid_active before loading per-mm/cpu cid.
+	 * Matches barrier in sched_mm_cid_remote_clear_old().
+	 */
+	smp_mb();
+	mm_cid_put(mm);
+	t->last_mm_cid = t->mm_cid = -1;
+	rq_unlock_irqrestore(rq, &rf);
 }
 
 void sched_mm_cid_before_execve(struct task_struct *t)
 {
 	struct mm_struct *mm = t->mm;
-	unsigned long flags;
+	struct rq_flags rf;
+	struct rq *rq;
 
 	if (!mm)
 		return;
-	local_irq_save(flags);
-	mm_cid_put(mm, t->mm_cid);
-	t->mm_cid = -1;
-	t->mm_cid_active = 0;
-	local_irq_restore(flags);
+
+	preempt_disable();
+	rq = this_rq();
+	rq_lock_irqsave(rq, &rf);
+	preempt_enable_no_resched();	/* holding spinlock */
+	WRITE_ONCE(t->mm_cid_active, 0);
+	/*
+	 * Store t->mm_cid_active before loading per-mm/cpu cid.
+	 * Matches barrier in sched_mm_cid_remote_clear_old().
+	 */
+	smp_mb();
+	mm_cid_put(mm);
+	t->last_mm_cid = t->mm_cid = -1;
+	rq_unlock_irqrestore(rq, &rf);
 }
 
 void sched_mm_cid_after_execve(struct task_struct *t)
 {
 	struct mm_struct *mm = t->mm;
-	unsigned long flags;
+	struct rq_flags rf;
+	struct rq *rq;
 
 	if (!mm)
 		return;
-	local_irq_save(flags);
-	t->mm_cid = mm_cid_get(mm);
-	t->mm_cid_active = 1;
-	local_irq_restore(flags);
+
+	preempt_disable();
+	rq = this_rq();
+	rq_lock_irqsave(rq, &rf);
+	preempt_enable_no_resched();	/* holding spinlock */
+	WRITE_ONCE(t->mm_cid_active, 1);
+	/*
+	 * Store t->mm_cid_active before loading per-mm/cpu cid.
+	 * Matches barrier in sched_mm_cid_remote_clear_old().
+	 */
+	smp_mb();
+	t->last_mm_cid = t->mm_cid = mm_cid_get(rq, mm);
+	rq_unlock_irqrestore(rq, &rf);
 	rseq_set_notify_resume(t);
 }
 

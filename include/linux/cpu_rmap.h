@@ -16,14 +16,13 @@
  * struct cpu_rmap - CPU affinity reverse-map
  * @refcount: kref for object
  * @size: Number of objects to be reverse-mapped
- * @used: Number of objects added
  * @obj: Pointer to array of object pointers
  * @near: For each CPU, the index and distance to the nearest object,
  *      based on affinity masks
  */
 struct cpu_rmap {
 	struct kref	refcount;
-	u16		size, used;
+	u16		size;
 	void		**obj;
 	struct {
 		u16	index;
@@ -61,6 +60,7 @@ static inline struct cpu_rmap *alloc_irq_cpu_rmap(unsigned int size)
 }
 extern void free_irq_cpu_rmap(struct cpu_rmap *rmap);
 
+int irq_cpu_rmap_remove(struct cpu_rmap *rmap, int irq);
 extern int irq_cpu_rmap_add(struct cpu_rmap *rmap, int irq);
 
 #endif /* __LINUX_CPU_RMAP_H */

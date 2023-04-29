@@ -26,33 +26,13 @@
 #define ACP3x_REG_START		0x1240000
 #define ACP3x_REG_END		0x125C000
 
-static struct platform_device *dmic_dev;
-static struct platform_device *pdev;
-
-static const struct resource renoir_res[] = {
-	{
-		.start = 0,
-		.end = ACP3x_REG_END - ACP3x_REG_START,
-		.name = "acp_mem",
-		.flags = IORESOURCE_MEM,
-	},
-	{
-		.start = 0,
-		.end = 0,
-		.name = "acp_dai_irq",
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
 static const struct sof_amd_acp_desc renoir_chip_info = {
 	.rev		= 3,
 	.host_bridge_id = HOST_BRIDGE_CZN,
-	.i2s_mode	= 0x04,
 	.pgfsm_base	= ACP3X_PGFSM_BASE,
 	.ext_intr_stat	= ACP3X_EXT_INTR_STAT,
 	.dsp_intr_base	= ACP3X_DSP_SW_INTR_BASE,
 	.sram_pte_offset = ACP3X_SRAM_PTE_OFFSET,
-	.i2s_pin_config_offset = ACP3X_I2S_PIN_CONFIG,
 	.hw_semaphore_offset = ACP3X_AXI2DAGB_SEM_0,
 	.acp_clkmux_sel	= ACP3X_CLKMUX_SEL,
 };
@@ -83,84 +63,17 @@ static const struct sof_dev_desc renoir_desc = {
 
 static int acp_pci_rn_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 {
-	struct platform_device_info pdevinfo;
-	struct device *dev = &pci->dev;
-	const struct resource *res_i2s;
-	struct resource *res;
-	unsigned int flag, i, addr;
-	int ret;
+	unsigned int flag;
 
 	flag = snd_amd_acp_find_config(pci);
 	if (flag != FLAG_AMD_SOF && flag != FLAG_AMD_SOF_ONLY_DMIC)
 		return -ENODEV;
 
-	ret = sof_pci_probe(pci, pci_id);
-	if (ret != 0)
-		return ret;
-
-	dmic_dev = platform_device_register_data(dev, "dmic-codec", PLATFORM_DEVID_NONE, NULL, 0);
-	if (IS_ERR(dmic_dev)) {
-		dev_err(dev, "failed to create DMIC device\n");
-		sof_pci_remove(pci);
-		return PTR_ERR(dmic_dev);
-	}
-
-	/* Register platform device only if flag set to FLAG_AMD_SOF_ONLY_DMIC */
-	if (flag != FLAG_AMD_SOF_ONLY_DMIC)
-		return 0;
-
-	addr = pci_resource_start(pci, 0);
-	res = devm_kzalloc(&pci->dev, sizeof(struct resource) * ARRAY_SIZE(renoir_res), GFP_KERNEL);
-	if (!res) {
-		sof_pci_remove(pci);
-		platform_device_unregister(dmic_dev);
-		return -ENOMEM;
-	}
-
-	res_i2s = renoir_res;
-	for (i = 0; i < ARRAY_SIZE(renoir_res); i++, res_i2s++) {
-		res[i].name = res_i2s->name;
-		res[i].flags = res_i2s->flags;
-		res[i].start = addr + res_i2s->start;
-		res[i].end = addr + res_i2s->end;
-		if (res_i2s->flags == IORESOURCE_IRQ) {
-			res[i].start = pci->irq;
-			res[i].end = res[i].start;
-		}
-	}
-
-	memset(&pdevinfo, 0, sizeof(pdevinfo));
-
-	/*
-	 * We have common PCI driver probe for ACP device but we have to support I2S without SOF
-	 * for some distributions. Register platform device that will be used to support non dsp
-	 * ACP's audio ends points on some machines.
-	 */
-
-	pdevinfo.name = "acp_asoc_renoir";
-	pdevinfo.id = 0;
-	pdevinfo.parent = &pci->dev;
-	pdevinfo.num_res = ARRAY_SIZE(renoir_res);
-	pdevinfo.res = &res[0];
-
-	pdev = platform_device_register_full(&pdevinfo);
-	if (IS_ERR(pdev)) {
-		dev_err(&pci->dev, "cannot register %s device\n", pdevinfo.name);
-		sof_pci_remove(pci);
-		platform_device_unregister(dmic_dev);
-		ret = PTR_ERR(pdev);
-	}
-
-	return ret;
+	return sof_pci_probe(pci, pci_id);
 };
 
 static void acp_pci_rn_remove(struct pci_dev *pci)
 {
-	if (dmic_dev)
-		platform_device_unregister(dmic_dev);
-	if (pdev)
-		platform_device_unregister(pdev);
-
 	return sof_pci_remove(pci);
 }
 

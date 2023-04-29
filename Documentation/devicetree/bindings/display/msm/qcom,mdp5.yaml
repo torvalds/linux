@@ -61,7 +61,7 @@ properties:
           - const: lut
           - const: tbu
           - const: tbu_rt
-        #MSM8996 has additional iommu clock
+        # MSM8996 has additional iommu clock
       - items:
           - const: iface
           - const: bus

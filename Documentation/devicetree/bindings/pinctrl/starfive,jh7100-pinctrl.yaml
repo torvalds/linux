@@ -293,7 +293,7 @@ examples:
             pinctrl-names = "default";
         };
 
-        i2c0 {
+        i2c {
             pinctrl-0 = <&i2c0_pins_default>;
             pinctrl-names = "default";
         };

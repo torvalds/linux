@@ -673,10 +673,6 @@ void debugfs_hw_add(struct ieee80211_local *local)
 
 	statsd = debugfs_create_dir("statistics", phyd);
 
-	/* if the dir failed, don't put all the other things into the root! */
-	if (!statsd)
-		return;
-
 #ifdef CONFIG_MAC80211_DEBUG_COUNTERS
 	DEBUGFS_STATS_ADD(dot11TransmittedFragmentCount);
 	DEBUGFS_STATS_ADD(dot11MulticastTransmittedFrameCount);

@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#include <linux/aer.h>
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/list.h>

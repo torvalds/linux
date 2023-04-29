@@ -806,7 +806,9 @@ static int s3c_camif_vidioc_s_fmt(struct file *file, void *priv,
 /* Only check pixel formats at the sensor and the camif subdev pads */
 static int camif_pipeline_validate(struct camif_dev *camif)
 {
-	struct v4l2_subdev_format src_fmt;
+	struct v4l2_subdev_format src_fmt = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 	struct media_pad *pad;
 	int ret;
 
@@ -816,7 +818,6 @@ static int camif_pipeline_validate(struct camif_dev *camif)
 		return -EPIPE;
 
 	src_fmt.pad = pad->index;
-	src_fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	ret = v4l2_subdev_call(camif->sensor.sd, pad, get_fmt, NULL, &src_fmt);
 	if (ret < 0 && ret != -ENOIOCTLCMD)
 		return -EPIPE;

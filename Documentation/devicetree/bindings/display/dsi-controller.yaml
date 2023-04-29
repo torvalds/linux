@@ -30,6 +30,15 @@ properties:
   $nodename:
     pattern: "^dsi(@.*)?$"
 
+  clock-master:
+    type: boolean
+    description:
+      Should be enabled if the host is being used in conjunction with
+      another DSI host to drive the same peripheral. Hardware supporting
+      such a configuration generally requires the data on both the busses
+      to be driven by the same clock. Only the DSI host instance
+      controlling this clock should contain this property.
+
   "#address-cells":
     const: 1
 
@@ -51,15 +60,6 @@ patternProperties:
           peripherals respond to more than a single virtual channel. In that
           case the reg property can take multiple entries, one for each virtual
           channel that the peripheral responds to.
-
-      clock-master:
-        type: boolean
-        description:
-          Should be enabled if the host is being used in conjunction with
-          another DSI host to drive the same peripheral. Hardware supporting
-          such a configuration generally requires the data on both the busses
-          to be driven by the same clock. Only the DSI host instance
-          controlling this clock should contain this property.
 
       enforce-video-mode:
         type: boolean

@@ -135,13 +135,13 @@ sifive_spi_prepare_message(struct spi_master *master, struct spi_message *msg)
 
 	/* Update the chip select polarity */
 	if (device->mode & SPI_CS_HIGH)
-		spi->cs_inactive &= ~BIT(device->chip_select);
+		spi->cs_inactive &= ~BIT(spi_get_chipselect(device, 0));
 	else
-		spi->cs_inactive |= BIT(device->chip_select);
+		spi->cs_inactive |= BIT(spi_get_chipselect(device, 0));
 	sifive_spi_write(spi, SIFIVE_SPI_REG_CSDEF, spi->cs_inactive);
 
 	/* Select the correct device */
-	sifive_spi_write(spi, SIFIVE_SPI_REG_CSID, device->chip_select);
+	sifive_spi_write(spi, SIFIVE_SPI_REG_CSID, spi_get_chipselect(device, 0));
 
 	/* Set clock mode */
 	sifive_spi_write(spi, SIFIVE_SPI_REG_SCKMODE,
@@ -415,7 +415,7 @@ put_master:
 	return ret;
 }
 
-static int sifive_spi_remove(struct platform_device *pdev)
+static void sifive_spi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct sifive_spi *spi = spi_master_get_devdata(master);
@@ -423,8 +423,6 @@ static int sifive_spi_remove(struct platform_device *pdev)
 	/* Disable all the interrupts just in case */
 	sifive_spi_write(spi, SIFIVE_SPI_REG_IE, 0);
 	clk_disable_unprepare(spi->clk);
-
-	return 0;
 }
 
 static int sifive_spi_suspend(struct device *dev)
@@ -473,7 +471,7 @@ MODULE_DEVICE_TABLE(of, sifive_spi_of_match);
 
 static struct platform_driver sifive_spi_driver = {
 	.probe = sifive_spi_probe,
-	.remove = sifive_spi_remove,
+	.remove_new = sifive_spi_remove,
 	.driver = {
 		.name = SIFIVE_SPI_DRIVER_NAME,
 		.pm = &sifive_spi_pm_ops,

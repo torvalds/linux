@@ -107,7 +107,7 @@ static int rb4xx_transfer_one(struct spi_master *master,
 	 * command set was designed to almost not clash with that of the
 	 * boot flash.
 	 */
-	if (spi->chip_select == 2)
+	if (spi_get_chipselect(spi, 0) == 2)
 		/* MMC */
 		spi_ioc = AR71XX_SPI_IOC_CS0;
 	else
@@ -181,13 +181,11 @@ static int rb4xx_spi_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rb4xx_spi_remove(struct platform_device *pdev)
+static void rb4xx_spi_remove(struct platform_device *pdev)
 {
 	struct rb4xx_spi *rbspi = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(rbspi->clk);
-
-	return 0;
 }
 
 static const struct of_device_id rb4xx_spi_dt_match[] = {
@@ -198,7 +196,7 @@ MODULE_DEVICE_TABLE(of, rb4xx_spi_dt_match);
 
 static struct platform_driver rb4xx_spi_drv = {
 	.probe = rb4xx_spi_probe,
-	.remove = rb4xx_spi_remove,
+	.remove_new = rb4xx_spi_remove,
 	.driver = {
 		.name = "rb4xx-spi",
 		.of_match_table = of_match_ptr(rb4xx_spi_dt_match),

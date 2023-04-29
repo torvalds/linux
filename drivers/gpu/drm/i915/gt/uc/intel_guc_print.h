@@ -30,6 +30,9 @@
 #define guc_err_ratelimited(_guc, _fmt, ...) \
 	guc_printk((_guc), err_ratelimited, _fmt, ##__VA_ARGS__)
 
+#define guc_notice_ratelimited(_guc, _fmt, ...) \
+	guc_printk((_guc), notice_ratelimited, _fmt, ##__VA_ARGS__)
+
 #define guc_probe_error(_guc, _fmt, ...) \
 	guc_printk((_guc), probe_error, _fmt, ##__VA_ARGS__)
 

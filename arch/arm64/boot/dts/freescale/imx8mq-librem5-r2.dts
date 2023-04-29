@@ -12,18 +12,16 @@
 	compatible = "purism,librem5r2", "purism,librem5", "fsl,imx8mq";
 };
 
-&bq25895 {
-	ti,battery-regulation-voltage = <4192000>; /* uV */
-	ti,charge-current = <1600000>; /* uA */
-	ti,termination-current = <66000>;  /* uA */
-};
-
 &accel_gyro {
 	mount-matrix =  "1",  "0",  "0",
 			"0", "-1",  "0",
 			"0",  "0",  "1";
 };
 
+&bq25895 {
+	ti,charge-current = <1600000>; /* uA */
+};
+
 &proximity {
-	proximity-near-level = <120>;
+	proximity-near-level = <50>;
 };

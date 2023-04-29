@@ -734,9 +734,6 @@ static int rtl8188fu_parse_efuse(struct rtl8xxxu_priv *priv)
 
 	priv->default_crystal_cap = efuse->xtal_k & 0x3f;
 
-	dev_info(&priv->udev->dev, "Vendor: %.7s\n", efuse->vendor_name);
-	dev_info(&priv->udev->dev, "Product: %.7s\n", efuse->device_name);
-
 	return 0;
 }
 
@@ -791,7 +788,7 @@ static int rtl8188fu_init_phy_rf(struct rtl8xxxu_priv *priv)
 	return ret;
 }
 
-static void rtl8188f_phy_lc_calibrate(struct rtl8xxxu_priv *priv)
+void rtl8188f_phy_lc_calibrate(struct rtl8xxxu_priv *priv)
 {
 	u32 val32;
 	u32 rf_amode, lstf;
@@ -1677,8 +1674,9 @@ void rtl8188f_set_crystal_cap(struct rtl8xxxu_priv *priv, u8 crystal_cap)
 	cfo->crystal_cap = crystal_cap;
 }
 
-static s8 rtl8188f_cck_rssi(struct rtl8xxxu_priv *priv, u8 cck_agc_rpt)
+static s8 rtl8188f_cck_rssi(struct rtl8xxxu_priv *priv, struct rtl8723au_phy_stats *phy_stats)
 {
+	u8 cck_agc_rpt = phy_stats->cck_agc_rpt_ofdm_cfosho_a;
 	s8 rx_pwr_all = 0x00;
 	u8 vga_idx, lna_idx;
 
@@ -1714,6 +1712,7 @@ struct rtl8xxxu_fileops rtl8188fu_fops = {
 	.load_firmware = rtl8188fu_load_firmware,
 	.power_on = rtl8188fu_power_on,
 	.power_off = rtl8188fu_power_off,
+	.read_efuse = rtl8xxxu_read_efuse,
 	.reset_8051 = rtl8xxxu_reset_8051,
 	.llt_init = rtl8xxxu_auto_llt_table,
 	.init_phy_bb = rtl8188fu_init_phy_bb,
@@ -1723,6 +1722,7 @@ struct rtl8xxxu_fileops rtl8188fu_fops = {
 	.phy_iq_calibrate = rtl8188fu_phy_iq_calibrate,
 	.config_channel = rtl8188fu_config_channel,
 	.parse_rx_desc = rtl8xxxu_parse_rxdesc24,
+	.parse_phystats = rtl8723au_rx_parse_phystats,
 	.init_aggregation = rtl8188fu_init_aggregation,
 	.init_statistics = rtl8188fu_init_statistics,
 	.init_burst = rtl8xxxu_init_burst,
@@ -1743,6 +1743,11 @@ struct rtl8xxxu_fileops rtl8188fu_fops = {
 	.has_tx_report = 1,
 	.gen2_thermal_meter = 1,
 	.needs_full_init = 1,
+	.init_reg_rxfltmap = 1,
+	.init_reg_pkt_life_time = 1,
+	.init_reg_hmtfr = 1,
+	.ampdu_max_time = 0x70,
+	.ustime_tsf_edca = 0x28,
 	.adda_1t_init = 0x03c00014,
 	.adda_1t_path_on = 0x03c00014,
 	.trxff_boundary = 0x3f7f,

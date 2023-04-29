@@ -1465,8 +1465,18 @@ static struct cgroup *current_cgns_cgroup_dfl(void)
 {
 	struct css_set *cset;
 
-	cset = current->nsproxy->cgroup_ns->root_cset;
-	return __cset_cgroup_from_root(cset, &cgrp_dfl_root);
+	if (current->nsproxy) {
+		cset = current->nsproxy->cgroup_ns->root_cset;
+		return __cset_cgroup_from_root(cset, &cgrp_dfl_root);
+	} else {
+		/*
+		 * NOTE: This function may be called from bpf_cgroup_from_id()
+		 * on a task which has already passed exit_task_namespaces() and
+		 * nsproxy == NULL. Fall back to cgrp_dfl_root which will make all
+		 * cgroups visible for lookups.
+		 */
+		return &cgrp_dfl_root.cgrp;
+	}
 }
 
 /* look up cgroup associated with given css_set on the specified hierarchy */
@@ -3761,7 +3771,7 @@ static ssize_t pressure_write(struct kernfs_open_file *of, char *buf,
 	}
 
 	psi = cgroup_psi(cgrp);
-	new = psi_trigger_create(psi, buf, res);
+	new = psi_trigger_create(psi, buf, res, of->file);
 	if (IS_ERR(new)) {
 		cgroup_put(cgrp);
 		return PTR_ERR(new);
@@ -6856,14 +6866,12 @@ EXPORT_SYMBOL_GPL(cgroup_get_from_path);
 struct cgroup *cgroup_v1v2_get_from_fd(int fd)
 {
 	struct cgroup *cgrp;
-	struct file *f;
-
-	f = fget_raw(fd);
-	if (!f)
+	struct fd f = fdget_raw(fd);
+	if (!f.file)
 		return ERR_PTR(-EBADF);
 
-	cgrp = cgroup_v1v2_get_from_file(f);
-	fput(f);
+	cgrp = cgroup_v1v2_get_from_file(f.file);
+	fdput(f);
 	return cgrp;
 }
 

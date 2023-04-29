@@ -6,7 +6,6 @@
  */
 #include <linux/kernel.h>
 #include <linux/rculist.h>
-#include <linux/blk-mq.h>
 
 #include "blk-stat.h"
 #include "blk-mq.h"
@@ -190,7 +189,7 @@ void blk_stat_disable_accounting(struct request_queue *q)
 	unsigned long flags;
 
 	spin_lock_irqsave(&q->stats->lock, flags);
-	if (!--q->stats->accounting)
+	if (!--q->stats->accounting && list_empty(&q->stats->callbacks))
 		blk_queue_flag_clear(QUEUE_FLAG_STATS, q);
 	spin_unlock_irqrestore(&q->stats->lock, flags);
 }
@@ -201,7 +200,7 @@ void blk_stat_enable_accounting(struct request_queue *q)
 	unsigned long flags;
 
 	spin_lock_irqsave(&q->stats->lock, flags);
-	if (!q->stats->accounting++)
+	if (!q->stats->accounting++ && list_empty(&q->stats->callbacks))
 		blk_queue_flag_set(QUEUE_FLAG_STATS, q);
 	spin_unlock_irqrestore(&q->stats->lock, flags);
 }
@@ -230,22 +229,4 @@ void blk_free_queue_stats(struct blk_queue_stats *stats)
 	WARN_ON(!list_empty(&stats->callbacks));
 
 	kfree(stats);
-}
-
-bool blk_stats_alloc_enable(struct request_queue *q)
-{
-	struct blk_rq_stat *poll_stat;
-
-	poll_stat = kcalloc(BLK_MQ_POLL_STATS_BKTS, sizeof(*poll_stat),
-				GFP_ATOMIC);
-	if (!poll_stat)
-		return false;
-
-	if (cmpxchg(&q->poll_stat, NULL, poll_stat) != NULL) {
-		kfree(poll_stat);
-		return true;
-	}
-
-	blk_stat_add_callback(q, q->poll_cb);
-	return false;
 }
