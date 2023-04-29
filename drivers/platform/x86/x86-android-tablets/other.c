@@ -377,7 +377,6 @@ const struct x86_dev_info nextbook_ares8_info __initconst = {
 	.pdev_info = int3496_pdevs,
 	.pdev_count = 1,
 	.gpiod_lookup_tables = nextbook_ares8_gpios,
-	.invalid_aei_gpiochip = "INT33FC:02",
 };
 
 /*

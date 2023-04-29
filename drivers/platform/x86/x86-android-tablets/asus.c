@@ -178,7 +178,6 @@ const struct x86_dev_info asus_me176c_info __initconst = {
 	.gpiod_lookup_tables = asus_me176c_gpios,
 	.bat_swnode = &generic_lipo_hv_4v35_battery_node,
 	.modules = bq24190_modules,
-	.invalid_aei_gpiochip = "INT33FC:02",
 };
 
 /* Asus TF103C tablets have an Android factory img with everything hardcoded */
@@ -321,5 +320,4 @@ const struct x86_dev_info asus_tf103c_info __initconst = {
 	.gpiod_lookup_tables = asus_tf103c_gpios,
 	.bat_swnode = &asus_tf103c_battery_node,
 	.modules = bq24190_modules,
-	.invalid_aei_gpiochip = "INT33FC:02",
 };
