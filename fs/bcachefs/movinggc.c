@@ -205,6 +205,7 @@ static int bch2_copygc_get_buckets(struct btree_trans *trans,
 	return ret < 0 ? ret : 0;
 }
 
+noinline
 static int bch2_copygc(struct btree_trans *trans,
 		       struct moving_context *ctxt,
 		       struct buckets_in_flight *buckets_in_flight)
