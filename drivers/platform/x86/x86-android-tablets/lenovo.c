@@ -147,6 +147,19 @@ static const struct platform_device_info lenovo_yb1_x90_pdevs[] __initconst = {
 	},
 };
 
+/*
+ * DSDT says UART path is "\\_SB.PCIO.URT1" with a letter 'O' instead of
+ * the number '0' add the link manually.
+ */
+static const struct x86_serdev_info lenovo_yb1_x90_serdevs[] __initconst = {
+	{
+		.ctrl_hid = "8086228A",
+		.ctrl_uid = "1",
+		.ctrl_devname = "serial0",
+		.serdev_hid = "BCM2E1A",
+	},
+};
+
 static struct gpiod_lookup_table lenovo_yb1_x90_goodix_gpios = {
 	.dev_id = "i2c-goodix_ts",
 	.table = {
@@ -203,6 +216,8 @@ const struct x86_dev_info lenovo_yogabook_x90_info __initconst = {
 	.i2c_client_count = ARRAY_SIZE(lenovo_yb1_x90_i2c_clients),
 	.pdev_info = lenovo_yb1_x90_pdevs,
 	.pdev_count = ARRAY_SIZE(lenovo_yb1_x90_pdevs),
+	.serdev_info = lenovo_yb1_x90_serdevs,
+	.serdev_count = ARRAY_SIZE(lenovo_yb1_x90_serdevs),
 	.gpiod_lookup_tables = lenovo_yb1_x90_gpios,
 	.init = lenovo_yb1_x90_init,
 };
