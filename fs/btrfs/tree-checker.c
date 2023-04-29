@@ -1678,7 +1678,7 @@ static enum btrfs_tree_block_status check_leaf_item(struct extent_buffer *leaf,
 	return BTRFS_TREE_BLOCK_CLEAN;
 }
 
-int btrfs_check_leaf(struct extent_buffer *leaf)
+enum btrfs_tree_block_status __btrfs_check_leaf(struct extent_buffer *leaf)
 {
 	struct btrfs_fs_info *fs_info = leaf->fs_info;
 	/* No valid key type is 0, so all key should be larger than this key */
@@ -1691,7 +1691,7 @@ int btrfs_check_leaf(struct extent_buffer *leaf)
 		generic_err(leaf, 0,
 			"invalid level for leaf, have %d expect 0",
 			btrfs_header_level(leaf));
-		return -EUCLEAN;
+		return BTRFS_TREE_BLOCK_INVALID_LEVEL;
 	}
 
 	/*
@@ -1714,32 +1714,32 @@ int btrfs_check_leaf(struct extent_buffer *leaf)
 			generic_err(leaf, 0,
 			"invalid root, root %llu must never be empty",
 				    owner);
-			return -EUCLEAN;
+			return BTRFS_TREE_BLOCK_INVALID_NRITEMS;
 		}
 
 		/* Unknown tree */
 		if (unlikely(owner == 0)) {
 			generic_err(leaf, 0,
 				"invalid owner, root 0 is not defined");
-			return -EUCLEAN;
+			return BTRFS_TREE_BLOCK_INVALID_OWNER;
 		}
 
 		/* EXTENT_TREE_V2 can have empty extent trees. */
 		if (btrfs_fs_incompat(fs_info, EXTENT_TREE_V2))
-			return 0;
+			return BTRFS_TREE_BLOCK_CLEAN;
 
 		if (unlikely(owner == BTRFS_EXTENT_TREE_OBJECTID)) {
 			generic_err(leaf, 0,
 			"invalid root, root %llu must never be empty",
 				    owner);
-			return -EUCLEAN;
+			return BTRFS_TREE_BLOCK_INVALID_NRITEMS;
 		}
 
-		return 0;
+		return BTRFS_TREE_BLOCK_CLEAN;
 	}
 
 	if (unlikely(nritems == 0))
-		return 0;
+		return BTRFS_TREE_BLOCK_CLEAN;
 
 	/*
 	 * Check the following things to make sure this is a good leaf, and
@@ -1765,7 +1765,7 @@ int btrfs_check_leaf(struct extent_buffer *leaf)
 				prev_key.objectid, prev_key.type,
 				prev_key.offset, key.objectid, key.type,
 				key.offset);
-			return -EUCLEAN;
+			return BTRFS_TREE_BLOCK_BAD_KEY_ORDER;
 		}
 
 		item_data_end = (u64)btrfs_item_offset(leaf, slot) +
@@ -1784,7 +1784,7 @@ int btrfs_check_leaf(struct extent_buffer *leaf)
 			generic_err(leaf, slot,
 				"unexpected item end, have %llu expect %u",
 				item_data_end, item_end_expected);
-			return -EUCLEAN;
+			return BTRFS_TREE_BLOCK_INVALID_OFFSETS;
 		}
 
 		/*
@@ -1796,7 +1796,7 @@ int btrfs_check_leaf(struct extent_buffer *leaf)
 			generic_err(leaf, slot,
 			"slot end outside of leaf, have %llu expect range [0, %u]",
 				item_data_end, BTRFS_LEAF_DATA_SIZE(fs_info));
-			return -EUCLEAN;
+			return BTRFS_TREE_BLOCK_INVALID_OFFSETS;
 		}
 
 		/* Also check if the item pointer overlaps with btrfs item. */
@@ -1807,7 +1807,7 @@ int btrfs_check_leaf(struct extent_buffer *leaf)
 				btrfs_item_nr_offset(leaf, slot) +
 				sizeof(struct btrfs_item),
 				btrfs_item_ptr_offset(leaf, slot));
-			return -EUCLEAN;
+			return BTRFS_TREE_BLOCK_INVALID_OFFSETS;
 		}
 
 		/*
@@ -1823,7 +1823,7 @@ int btrfs_check_leaf(struct extent_buffer *leaf)
 			 */
 			ret = check_leaf_item(leaf, &key, slot, &prev_key);
 			if (unlikely(ret != BTRFS_TREE_BLOCK_CLEAN))
-				return -EUCLEAN;
+				return ret;
 		}
 
 		prev_key.objectid = key.objectid;
@@ -1831,6 +1831,16 @@ int btrfs_check_leaf(struct extent_buffer *leaf)
 		prev_key.offset = key.offset;
 	}
 
+	return BTRFS_TREE_BLOCK_CLEAN;
+}
+
+int btrfs_check_leaf(struct extent_buffer *leaf)
+{
+	enum btrfs_tree_block_status ret;
+
+	ret = __btrfs_check_leaf(leaf);
+	if (unlikely(ret != BTRFS_TREE_BLOCK_CLEAN))
+		return -EUCLEAN;
 	return 0;
 }
 ALLOW_ERROR_INJECTION(btrfs_check_leaf, ERRNO);

@@ -53,6 +53,12 @@ enum btrfs_tree_block_status {
 	BTRFS_TREE_BLOCK_INVALID_OWNER,
 };
 
+/*
+ * Exported simply for btrfs-progs which wants to have the
+ * btrfs_tree_block_status return codes.
+ */
+enum btrfs_tree_block_status __btrfs_check_leaf(struct extent_buffer *leaf);
+
 int btrfs_check_leaf(struct extent_buffer *leaf);
 int btrfs_check_node(struct extent_buffer *node);
 
