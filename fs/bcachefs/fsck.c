@@ -72,26 +72,14 @@ static s64 bch2_count_subdirs(struct btree_trans *trans, u64 inum,
 static int __snapshot_lookup_subvol(struct btree_trans *trans, u32 snapshot,
 				    u32 *subvol)
 {
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	int ret;
-
-	bch2_trans_iter_init(trans, &iter, BTREE_ID_snapshots,
-			     POS(0, snapshot), 0);
-	k = bch2_btree_iter_peek_slot(&iter);
-	ret = bkey_err(k);
-	if (ret)
-		goto err;
-
-	if (k.k->type != KEY_TYPE_snapshot) {
+	struct bch_snapshot s;
+	int ret = bch2_bkey_get_val_typed(trans, BTREE_ID_snapshots,
+					  POS(0, snapshot), 0,
+					  snapshot, &s);
+	if (!ret)
+		*subvol = le32_to_cpu(s.subvol);
+	else if (ret == -ENOENT)
 		bch_err(trans->c, "snapshot %u not fonud", snapshot);
-		ret = -ENOENT;
-		goto err;
-	}
-
-	*subvol = le32_to_cpu(bkey_s_c_to_snapshot(k).v->subvol);
-err:
-	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 
 }
@@ -152,9 +140,8 @@ static int __lookup_inode(struct btree_trans *trans, u64 inode_nr,
 	struct bkey_s_c k;
 	int ret;
 
-	bch2_trans_iter_init(trans, &iter, BTREE_ID_inodes,
-			     SPOS(0, inode_nr, *snapshot), 0);
-	k = bch2_btree_iter_peek_slot(&iter);
+	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_inodes,
+			       SPOS(0, inode_nr, *snapshot), 0);
 	ret = bkey_err(k);
 	if (ret)
 		goto err;
@@ -259,10 +246,8 @@ static int fsck_inode_rm(struct btree_trans *trans, u64 inum, u32 snapshot)
 retry:
 	bch2_trans_begin(trans);
 
-	bch2_trans_iter_init(trans, &iter, BTREE_ID_inodes,
-			     SPOS(0, inum, snapshot), BTREE_ITER_INTENT);
-	k = bch2_btree_iter_peek_slot(&iter);
-
+	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_inodes,
+			       SPOS(0, inum, snapshot), BTREE_ITER_INTENT);
 	ret = bkey_err(k);
 	if (ret)
 		goto err;
@@ -453,22 +438,14 @@ static int remove_backpointer(struct btree_trans *trans,
 			      struct bch_inode_unpacked *inode)
 {
 	struct btree_iter iter;
-	struct bkey_s_c k;
+	struct bkey_s_c_dirent d;
 	int ret;
 
-	bch2_trans_iter_init(trans, &iter, BTREE_ID_dirents,
-			     POS(inode->bi_dir, inode->bi_dir_offset), 0);
-	k = bch2_btree_iter_peek_slot(&iter);
-	ret = bkey_err(k);
-	if (ret)
-		goto out;
-	if (k.k->type != KEY_TYPE_dirent) {
-		ret = -ENOENT;
-		goto out;
-	}
-
-	ret = __remove_dirent(trans, k.k->p);
-out:
+	d = bch2_bkey_get_iter_typed(trans, &iter, BTREE_ID_dirents,
+				     POS(inode->bi_dir, inode->bi_dir_offset), 0,
+				     dirent);
+	ret =   bkey_err(d) ?:
+		__remove_dirent(trans, d.k->p);
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
@@ -1081,20 +1058,7 @@ static struct bkey_s_c_dirent dirent_get_by_pos(struct btree_trans *trans,
 						struct btree_iter *iter,
 						struct bpos pos)
 {
-	struct bkey_s_c k;
-	int ret;
-
-	bch2_trans_iter_init(trans, iter, BTREE_ID_dirents, pos, 0);
-	k = bch2_btree_iter_peek_slot(iter);
-	ret = bkey_err(k);
-	if (!ret && k.k->type != KEY_TYPE_dirent)
-		ret = -ENOENT;
-	if (ret) {
-		bch2_trans_iter_exit(trans, iter);
-		return (struct bkey_s_c_dirent) { .k = ERR_PTR(ret) };
-	}
-
-	return bkey_s_c_to_dirent(k);
+	return bch2_bkey_get_iter_typed(trans, iter, BTREE_ID_dirents, pos, 0, dirent);
 }
 
 static bool inode_points_to_dirent(struct bch_inode_unpacked *inode,

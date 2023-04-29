@@ -2312,9 +2312,8 @@ static int __bch2_rbio_narrow_crcs(struct btree_trans *trans,
 	if (crc_is_compressed(rbio->pick.crc))
 		return 0;
 
-	bch2_trans_iter_init(trans, &iter, rbio->data_btree, rbio->data_pos,
-			     BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
-	k = bch2_btree_iter_peek_slot(&iter);
+	k = bch2_bkey_get_iter(trans, &iter, rbio->data_btree, rbio->data_pos,
+			       BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
 	if ((ret = bkey_err(k)))
 		goto out;
 
@@ -2550,10 +2549,8 @@ int __bch2_read_indirect_extent(struct btree_trans *trans,
 	reflink_offset = le64_to_cpu(bkey_i_to_reflink_p(orig_k->k)->v.idx) +
 		*offset_into_extent;
 
-	bch2_trans_iter_init(trans, &iter, BTREE_ID_reflink,
-			     POS(0, reflink_offset),
-			     BTREE_ITER_SLOTS);
-	k = bch2_btree_iter_peek_slot(&iter);
+	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_reflink,
+			       POS(0, reflink_offset), 0);
 	ret = bkey_err(k);
 	if (ret)
 		goto err;

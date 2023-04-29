@@ -158,12 +158,11 @@ int bch2_bucket_backpointer_mod_nowritebuffer(struct btree_trans *trans,
 		set_bkey_val_u64s(&bp_k->k, 0);
 	}
 
-	bch2_trans_iter_init(trans, &bp_iter, BTREE_ID_backpointers,
-			     bp_k->k.p,
-			     BTREE_ITER_INTENT|
-			     BTREE_ITER_SLOTS|
-			     BTREE_ITER_WITH_UPDATES);
-	k = bch2_btree_iter_peek_slot(&bp_iter);
+	k = bch2_bkey_get_iter(trans, &bp_iter, BTREE_ID_backpointers,
+			       bp_k->k.p,
+			       BTREE_ITER_INTENT|
+			       BTREE_ITER_SLOTS|
+			       BTREE_ITER_WITH_UPDATES);
 	ret = bkey_err(k);
 	if (ret)
 		goto err;
@@ -202,9 +201,8 @@ int bch2_get_next_backpointer(struct btree_trans *trans,
 		goto done;
 
 	if (gen >= 0) {
-		bch2_trans_iter_init(trans, &alloc_iter, BTREE_ID_alloc,
-				     bucket, BTREE_ITER_CACHED|iter_flags);
-		k = bch2_btree_iter_peek_slot(&alloc_iter);
+		k = bch2_bkey_get_iter(trans, &alloc_iter, BTREE_ID_alloc,
+				       bucket, BTREE_ITER_CACHED|iter_flags);
 		ret = bkey_err(k);
 		if (ret)
 			goto out;
@@ -381,10 +379,8 @@ static int bch2_check_btree_backpointer(struct btree_trans *trans, struct btree_
 
 	ca = bch_dev_bkey_exists(c, k.k->p.inode);
 
-	bch2_trans_iter_init(trans, &alloc_iter, BTREE_ID_alloc,
-			     bp_pos_to_bucket(c, k.k->p), 0);
-
-	alloc_k = bch2_btree_iter_peek_slot(&alloc_iter);
+	alloc_k = bch2_bkey_get_iter(trans, &alloc_iter, BTREE_ID_alloc,
+				     bp_pos_to_bucket(c, k.k->p), 0);
 	ret = bkey_err(alloc_k);
 	if (ret)
 		goto out;
@@ -442,10 +438,9 @@ static int check_bp_exists(struct btree_trans *trans,
 	if (!bch2_dev_bucket_exists(c, bucket))
 		goto missing;
 
-	bch2_trans_iter_init(trans, &bp_iter, BTREE_ID_backpointers,
-			     bucket_pos_to_bp(c, bucket, bp.bucket_offset),
-			     0);
-	bp_k = bch2_btree_iter_peek_slot(&bp_iter);
+	bp_k = bch2_bkey_get_iter(trans, &bp_iter, BTREE_ID_backpointers,
+				  bucket_pos_to_bp(c, bucket, bp.bucket_offset),
+				  0);
 	ret = bkey_err(bp_k);
 	if (ret)
 		goto err;

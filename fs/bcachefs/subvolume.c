@@ -103,20 +103,8 @@ int bch2_mark_snapshot(struct btree_trans *trans,
 static int snapshot_lookup(struct btree_trans *trans, u32 id,
 			   struct bch_snapshot *s)
 {
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	int ret;
-
-	bch2_trans_iter_init(trans, &iter, BTREE_ID_snapshots, POS(0, id),
-			     BTREE_ITER_WITH_UPDATES);
-	k = bch2_btree_iter_peek_slot(&iter);
-	ret = bkey_err(k) ?: k.k->type == KEY_TYPE_snapshot ? 0 : -ENOENT;
-
-	if (!ret)
-		*s = *bkey_s_c_to_snapshot(k).v;
-
-	bch2_trans_iter_exit(trans, &iter);
-	return ret;
+	return bch2_bkey_get_val_typed(trans, BTREE_ID_snapshots, POS(0, id),
+				       BTREE_ITER_WITH_UPDATES, snapshot, s);
 }
 
 static int snapshot_live(struct btree_trans *trans, u32 id)
@@ -402,27 +390,20 @@ err:
 
 static int bch2_snapshot_node_delete(struct btree_trans *trans, u32 id)
 {
+	struct bch_fs *c = trans->c;
 	struct btree_iter iter, p_iter = (struct btree_iter) { NULL };
-	struct bkey_s_c k;
 	struct bkey_s_c_snapshot s;
 	u32 parent_id;
 	unsigned i;
 	int ret = 0;
 
-	bch2_trans_iter_init(trans, &iter, BTREE_ID_snapshots, POS(0, id),
-			     BTREE_ITER_INTENT);
-	k = bch2_btree_iter_peek_slot(&iter);
-	ret = bkey_err(k);
+	s = bch2_bkey_get_iter_typed(trans, &iter, BTREE_ID_snapshots, POS(0, id),
+				     BTREE_ITER_INTENT, snapshot);
+	ret = bkey_err(s);
+	bch2_fs_inconsistent_on(ret == -ENOENT, c, "missing snapshot %u", id);
+
 	if (ret)
 		goto err;
-
-	if (k.k->type != KEY_TYPE_snapshot) {
-		bch2_fs_inconsistent(trans->c, "missing snapshot %u", id);
-		ret = -ENOENT;
-		goto err;
-	}
-
-	s = bkey_s_c_to_snapshot(k);
 
 	BUG_ON(!BCH_SNAPSHOT_DELETED(s.v));
 	parent_id = le32_to_cpu(s.v->parent);
@@ -436,7 +417,7 @@ static int bch2_snapshot_node_delete(struct btree_trans *trans, u32 id)
 		parent = bch2_bkey_get_mut_typed(trans, &p_iter, snapshot);
 		ret = PTR_ERR_OR_ZERO(parent);
 		if (unlikely(ret)) {
-			bch2_fs_inconsistent_on(ret == -ENOENT, trans->c, "missing snapshot %u", parent_id);
+			bch2_fs_inconsistent_on(ret == -ENOENT, c, "missing snapshot %u", parent_id);
 			goto err;
 		}
 
@@ -445,7 +426,7 @@ static int bch2_snapshot_node_delete(struct btree_trans *trans, u32 id)
 				break;
 
 		if (i == 2)
-			bch_err(trans->c, "snapshot %u missing child pointer to %u",
+			bch_err(c, "snapshot %u missing child pointer to %u",
 				parent_id, id);
 		else
 			parent->v.children[i] = 0;
@@ -756,21 +737,10 @@ bch2_subvolume_get_inlined(struct btree_trans *trans, unsigned subvol,
 			   int iter_flags,
 			   struct bch_subvolume *s)
 {
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	int ret;
-
-	bch2_trans_iter_init(trans, &iter, BTREE_ID_subvolumes, POS(0, subvol),
-			     iter_flags);
-	k = bch2_btree_iter_peek_slot(&iter);
-	ret = bkey_err(k) ?: k.k->type == KEY_TYPE_subvolume ? 0 : -ENOENT;
-
-	if (ret == -ENOENT && inconsistent_if_not_found)
-		bch2_fs_inconsistent(trans->c, "missing subvolume %u", subvol);
-	if (!ret)
-		*s = *bkey_s_c_to_subvolume(k).v;
-
-	bch2_trans_iter_exit(trans, &iter);
+	int ret = bch2_bkey_get_val_typed(trans, BTREE_ID_subvolumes, POS(0, subvol),
+					  iter_flags, subvolume, s);
+	bch2_fs_inconsistent_on(ret == -ENOENT && inconsistent_if_not_found,
+				trans->c, "missing subvolume %u", subvol);
 	return ret;
 }
 
@@ -813,28 +783,20 @@ int bch2_subvolume_get_snapshot(struct btree_trans *trans, u32 subvol,
 int bch2_subvolume_delete(struct btree_trans *trans, u32 subvolid)
 {
 	struct btree_iter iter;
-	struct bkey_s_c k;
 	struct bkey_s_c_subvolume subvol;
 	struct btree_trans_commit_hook *h;
 	u32 snapid;
 	int ret = 0;
 
-	bch2_trans_iter_init(trans, &iter, BTREE_ID_subvolumes,
-			     POS(0, subvolid),
-			     BTREE_ITER_CACHED|
-			     BTREE_ITER_INTENT);
-	k = bch2_btree_iter_peek_slot(&iter);
-	ret = bkey_err(k);
+	subvol = bch2_bkey_get_iter_typed(trans, &iter,
+				BTREE_ID_subvolumes, POS(0, subvolid),
+				BTREE_ITER_CACHED|BTREE_ITER_INTENT,
+				subvolume);
+	ret = bkey_err(subvol);
+	bch2_fs_inconsistent_on(ret == -ENOENT, trans->c, "missing subvolume %u", subvolid);
 	if (ret)
-		goto err;
+		return ret;
 
-	if (k.k->type != KEY_TYPE_subvolume) {
-		bch2_fs_inconsistent(trans->c, "missing subvolume %u", subvolid);
-		ret = -EIO;
-		goto err;
-	}
-
-	subvol = bkey_s_c_to_subvolume(k);
 	snapid = le32_to_cpu(subvol.v->snapshot);
 
 	ret = bch2_btree_delete_at(trans, &iter, 0);

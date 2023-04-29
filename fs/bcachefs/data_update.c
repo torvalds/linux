@@ -57,10 +57,9 @@ static int insert_snapshot_whiteouts(struct btree_trans *trans,
 
 			whiteout_pos.snapshot = k.k->p.snapshot;
 
-			bch2_trans_iter_init(trans, &iter2, id, whiteout_pos,
-					     BTREE_ITER_NOT_EXTENTS|
-					     BTREE_ITER_INTENT);
-			k2 = bch2_btree_iter_peek_slot(&iter2);
+			k2 = bch2_bkey_get_iter(trans, &iter2, id, whiteout_pos,
+						BTREE_ITER_NOT_EXTENTS|
+						BTREE_ITER_INTENT);
 			ret = bkey_err(k2);
 
 			if (!ret && k2.k->type == KEY_TYPE_deleted) {

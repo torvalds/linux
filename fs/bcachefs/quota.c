@@ -901,10 +901,8 @@ static int bch2_set_quota_trans(struct btree_trans *trans,
 	struct bkey_s_c k;
 	int ret;
 
-	bch2_trans_iter_init(trans, &iter, BTREE_ID_quotas, new_quota->k.p,
-			     BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
-	k = bch2_btree_iter_peek_slot(&iter);
-
+	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_quotas, new_quota->k.p,
+			       BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
 	ret = bkey_err(k);
 	if (unlikely(ret))
 		return ret;

@@ -329,13 +329,12 @@ int bch2_inode_peek(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	bch2_trans_iter_init(trans, iter, BTREE_ID_inodes,
-			     SPOS(0, inum.inum, snapshot),
-			     flags|BTREE_ITER_CACHED);
-	k = bch2_btree_iter_peek_slot(iter);
+	k = bch2_bkey_get_iter(trans, iter, BTREE_ID_inodes,
+			       SPOS(0, inum.inum, snapshot),
+			       flags|BTREE_ITER_CACHED);
 	ret = bkey_err(k);
 	if (ret)
-		goto err;
+		return ret;
 
 	ret = bkey_is_inode(k.k) ? 0 : -ENOENT;
 	if (ret)
@@ -760,11 +759,9 @@ retry:
 	if (ret)
 		goto err;
 
-	bch2_trans_iter_init(&trans, &iter, BTREE_ID_inodes,
-			     SPOS(0, inum.inum, snapshot),
-			     BTREE_ITER_INTENT|BTREE_ITER_CACHED);
-	k = bch2_btree_iter_peek_slot(&iter);
-
+	k = bch2_bkey_get_iter(&trans, &iter, BTREE_ID_inodes,
+			       SPOS(0, inum.inum, snapshot),
+			       BTREE_ITER_INTENT|BTREE_ITER_CACHED);
 	ret = bkey_err(k);
 	if (ret)
 		goto err;

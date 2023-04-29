@@ -91,12 +91,9 @@ static int bch2_bucket_is_movable(struct btree_trans *trans,
 				b->k.bucket.offset))
 		return 0;
 
-	bch2_trans_iter_init(trans, &iter, BTREE_ID_alloc,
-			     b->k.bucket, BTREE_ITER_CACHED);
-	k = bch2_btree_iter_peek_slot(&iter);
+	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_alloc,
+			       b->k.bucket, BTREE_ITER_CACHED);
 	ret = bkey_err(k);
-	bch2_trans_iter_exit(trans, &iter);
-
 	if (ret)
 		return ret;
 
@@ -108,14 +105,7 @@ static int bch2_bucket_is_movable(struct btree_trans *trans,
 		a->fragmentation_lru &&
 		a->fragmentation_lru <= time;
 
-	if (!ret) {
-		struct printbuf buf = PRINTBUF;
-
-		bch2_bkey_val_to_text(&buf, trans->c, k);
-		pr_debug("%s", buf.buf);
-		printbuf_exit(&buf);
-	}
-
+	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
 

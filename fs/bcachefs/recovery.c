@@ -1065,12 +1065,11 @@ static int bch2_fs_upgrade_for_subvolumes(struct btree_trans *trans)
 	struct bch_inode_unpacked inode;
 	int ret;
 
-	bch2_trans_iter_init(trans, &iter, BTREE_ID_inodes,
-			     SPOS(0, BCACHEFS_ROOT_INO, U32_MAX), 0);
-	k = bch2_btree_iter_peek_slot(&iter);
+	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_inodes,
+			       SPOS(0, BCACHEFS_ROOT_INO, U32_MAX), 0);
 	ret = bkey_err(k);
 	if (ret)
-		goto err;
+		return ret;
 
 	if (!bkey_is_inode(k.k)) {
 		bch_err(trans->c, "root inode not found");

@@ -114,8 +114,7 @@ static int bch2_check_lru_key(struct btree_trans *trans,
 			alloc_pos.inode, alloc_pos.offset))
 		return bch2_btree_delete_at(trans, lru_iter, 0);
 
-	bch2_trans_iter_init(trans, &iter, BTREE_ID_alloc, alloc_pos, 0);
-	k = bch2_btree_iter_peek_slot(&iter);
+	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_alloc, alloc_pos, 0);
 	ret = bkey_err(k);
 	if (ret)
 		goto err;
