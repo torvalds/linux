@@ -67,7 +67,6 @@ enum {
 
 /**
  * SSPP sub-blocks/features
- * @DPU_SSPP_SRC             Src and fetch part of the pipes,
  * @DPU_SSPP_SCALER_QSEED2,  QSEED2 algorithm support
  * @DPU_SSPP_SCALER_QSEED3,  QSEED3 alogorithm support
  * @DPU_SSPP_SCALER_QSEED3LITE,  QSEED3 Lite alogorithm support
@@ -88,8 +87,7 @@ enum {
  * @DPU_SSPP_MAX             maximum value
  */
 enum {
-	DPU_SSPP_SRC = 0x1,
-	DPU_SSPP_SCALER_QSEED2,
+	DPU_SSPP_SCALER_QSEED2 = 0x1,
 	DPU_SSPP_SCALER_QSEED3,
 	DPU_SSPP_SCALER_QSEED3LITE,
 	DPU_SSPP_SCALER_QSEED4,
@@ -278,14 +276,6 @@ enum {
 	u32 len
 
 /**
- * struct dpu_src_blk: SSPP part of the source pipes
- * @info:   HW register and features supported by this sub-blk
- */
-struct dpu_src_blk {
-	DPU_HW_SUBBLK_INFO;
-};
-
-/**
  * struct dpu_scaler_blk: Scaler information
  * @info:   HW register and features supported by this sub-blk
  * @version: qseed block revision
@@ -391,7 +381,6 @@ struct dpu_caps {
  * @smart_dma_priority: hw priority of rect1 of multirect pipe
  * @max_per_pipe_bw: maximum allowable bandwidth of this pipe in kBps
  * @qseed_ver: qseed version
- * @src_blk:
  * @scaler_blk:
  * @csc_blk:
  * @format_list: Pointer to list of supported formats
@@ -408,7 +397,6 @@ struct dpu_sspp_sub_blks {
 	u32 smart_dma_priority;
 	u32 max_per_pipe_bw;
 	u32 qseed_ver;
-	struct dpu_src_blk src_blk;
 	struct dpu_scaler_blk scaler_blk;
 	struct dpu_pp_blk csc_blk;
 

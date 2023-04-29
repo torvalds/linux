@@ -12,7 +12,7 @@
 
 #define DPU_FETCH_CONFIG_RESET_VALUE   0x00000087
 
-/* DPU_SSPP_SRC */
+/* SSPP registers */
 #define SSPP_SRC_SIZE                      0x00
 #define SSPP_SRC_XY                        0x08
 #define SSPP_OUT_SIZE                      0x0c
@@ -149,9 +149,6 @@ static int _sspp_subblk_offset(struct dpu_hw_sspp *ctx,
 	sblk = ctx->cap->sblk;
 
 	switch (s_id) {
-	case DPU_SSPP_SRC:
-		*idx = sblk->src_blk.base;
-		break;
 	case DPU_SSPP_SCALER_QSEED2:
 	case DPU_SSPP_SCALER_QSEED3:
 	case DPU_SSPP_SCALER_RGB:
@@ -172,9 +169,8 @@ static void dpu_hw_sspp_setup_multirect(struct dpu_sw_pipe *pipe)
 {
 	struct dpu_hw_sspp *ctx = pipe->sspp;
 	u32 mode_mask;
-	u32 idx;
 
-	if (_sspp_subblk_offset(ctx, DPU_SSPP_SRC, &idx))
+	if (!ctx)
 		return;
 
 	if (pipe->multirect_index == DPU_SSPP_RECT_SOLO) {
@@ -185,7 +181,7 @@ static void dpu_hw_sspp_setup_multirect(struct dpu_sw_pipe *pipe)
 		 */
 		mode_mask = 0;
 	} else {
-		mode_mask = DPU_REG_READ(&ctx->hw, SSPP_MULTIRECT_OPMODE + idx);
+		mode_mask = DPU_REG_READ(&ctx->hw, SSPP_MULTIRECT_OPMODE);
 		mode_mask |= pipe->multirect_index;
 		if (pipe->multirect_mode == DPU_SSPP_MULTIRECT_TIME_MX)
 			mode_mask |= BIT(2);
@@ -193,7 +189,7 @@ static void dpu_hw_sspp_setup_multirect(struct dpu_sw_pipe *pipe)
 			mode_mask &= ~BIT(2);
 	}
 
-	DPU_REG_WRITE(&ctx->hw, SSPP_MULTIRECT_OPMODE + idx, mode_mask);
+	DPU_REG_WRITE(&ctx->hw, SSPP_MULTIRECT_OPMODE, mode_mask);
 }
 
 static void _sspp_setup_opmode(struct dpu_hw_sspp *ctx,
@@ -247,9 +243,8 @@ static void dpu_hw_sspp_setup_format(struct dpu_sw_pipe *pipe,
 	u32 opmode = 0;
 	u32 fast_clear = 0;
 	u32 op_mode_off, unpack_pat_off, format_off;
-	u32 idx;
 
-	if (_sspp_subblk_offset(ctx, DPU_SSPP_SRC, &idx) || !fmt)
+	if (!ctx || !fmt)
 		return;
 
 	if (pipe->multirect_index == DPU_SSPP_RECT_SOLO ||
@@ -264,7 +259,7 @@ static void dpu_hw_sspp_setup_format(struct dpu_sw_pipe *pipe,
 	}
 
 	c = &ctx->hw;
-	opmode = DPU_REG_READ(c, op_mode_off + idx);
+	opmode = DPU_REG_READ(c, op_mode_off);
 	opmode &= ~(MDSS_MDP_OP_FLIP_LR | MDSS_MDP_OP_FLIP_UD |
 			MDSS_MDP_OP_BWC_EN | MDSS_MDP_OP_PE_OVERRIDE);
 
@@ -352,12 +347,12 @@ static void dpu_hw_sspp_setup_format(struct dpu_sw_pipe *pipe,
 			VIG_CSC_10_EN | VIG_CSC_10_SRC_DATAFMT,
 			DPU_FORMAT_IS_YUV(fmt));
 
-	DPU_REG_WRITE(c, format_off + idx, src_format);
-	DPU_REG_WRITE(c, unpack_pat_off + idx, unpack);
-	DPU_REG_WRITE(c, op_mode_off + idx, opmode);
+	DPU_REG_WRITE(c, format_off, src_format);
+	DPU_REG_WRITE(c, unpack_pat_off, unpack);
+	DPU_REG_WRITE(c, op_mode_off, opmode);
 
 	/* clear previous UBWC error */
-	DPU_REG_WRITE(c, SSPP_UBWC_ERROR_STATUS + idx, BIT(31));
+	DPU_REG_WRITE(c, SSPP_UBWC_ERROR_STATUS, BIT(31));
 }
 
 static void dpu_hw_sspp_setup_pe_config(struct dpu_hw_sspp *ctx,
@@ -368,9 +363,8 @@ static void dpu_hw_sspp_setup_pe_config(struct dpu_hw_sspp *ctx,
 	u32 lr_pe[4], tb_pe[4], tot_req_pixels[4];
 	const u32 bytemask = 0xff;
 	const u32 shortmask = 0xffff;
-	u32 idx;
 
-	if (_sspp_subblk_offset(ctx, DPU_SSPP_SRC, &idx) || !pe_ext)
+	if (!ctx || !pe_ext)
 		return;
 
 	c = &ctx->hw;
@@ -400,21 +394,21 @@ static void dpu_hw_sspp_setup_pe_config(struct dpu_hw_sspp *ctx,
 	}
 
 	/* color 0 */
-	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C0_LR + idx, lr_pe[0]);
-	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C0_TB + idx, tb_pe[0]);
-	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C0_REQ_PIXELS + idx,
+	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C0_LR, lr_pe[0]);
+	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C0_TB, tb_pe[0]);
+	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C0_REQ_PIXELS,
 			tot_req_pixels[0]);
 
 	/* color 1 and color 2 */
-	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C1C2_LR + idx, lr_pe[1]);
-	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C1C2_TB + idx, tb_pe[1]);
-	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C1C2_REQ_PIXELS + idx,
+	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C1C2_LR, lr_pe[1]);
+	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C1C2_TB, tb_pe[1]);
+	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C1C2_REQ_PIXELS,
 			tot_req_pixels[1]);
 
 	/* color 3 */
-	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C3_LR + idx, lr_pe[3]);
-	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C3_TB + idx, lr_pe[3]);
-	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C3_REQ_PIXELS + idx,
+	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C3_LR, lr_pe[3]);
+	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C3_TB, lr_pe[3]);
+	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C3_REQ_PIXELS,
 			tot_req_pixels[3]);
 }
 
@@ -453,9 +447,8 @@ static void dpu_hw_sspp_setup_rects(struct dpu_sw_pipe *pipe,
 	struct dpu_hw_blk_reg_map *c;
 	u32 src_size, src_xy, dst_size, dst_xy;
 	u32 src_size_off, src_xy_off, out_size_off, out_xy_off;
-	u32 idx;
 
-	if (_sspp_subblk_offset(ctx, DPU_SSPP_SRC, &idx) || !cfg)
+	if (!ctx || !cfg)
 		return;
 
 	c = &ctx->hw;
@@ -483,10 +476,10 @@ static void dpu_hw_sspp_setup_rects(struct dpu_sw_pipe *pipe,
 		drm_rect_width(&cfg->dst_rect);
 
 	/* rectangle register programming */
-	DPU_REG_WRITE(c, src_size_off + idx, src_size);
-	DPU_REG_WRITE(c, src_xy_off + idx, src_xy);
-	DPU_REG_WRITE(c, out_size_off + idx, dst_size);
-	DPU_REG_WRITE(c, out_xy_off + idx, dst_xy);
+	DPU_REG_WRITE(c, src_size_off, src_size);
+	DPU_REG_WRITE(c, src_xy_off, src_xy);
+	DPU_REG_WRITE(c, out_size_off, dst_size);
+	DPU_REG_WRITE(c, out_xy_off, dst_xy);
 }
 
 static void dpu_hw_sspp_setup_sourceaddress(struct dpu_sw_pipe *pipe,
@@ -495,24 +488,23 @@ static void dpu_hw_sspp_setup_sourceaddress(struct dpu_sw_pipe *pipe,
 	struct dpu_hw_sspp *ctx = pipe->sspp;
 	u32 ystride0, ystride1;
 	int i;
-	u32 idx;
 
-	if (_sspp_subblk_offset(ctx, DPU_SSPP_SRC, &idx))
+	if (!ctx)
 		return;
 
 	if (pipe->multirect_index == DPU_SSPP_RECT_SOLO) {
 		for (i = 0; i < ARRAY_SIZE(layout->plane_addr); i++)
-			DPU_REG_WRITE(&ctx->hw, SSPP_SRC0_ADDR + idx + i * 0x4,
+			DPU_REG_WRITE(&ctx->hw, SSPP_SRC0_ADDR + i * 0x4,
 					layout->plane_addr[i]);
 	} else if (pipe->multirect_index == DPU_SSPP_RECT_0) {
-		DPU_REG_WRITE(&ctx->hw, SSPP_SRC0_ADDR + idx,
+		DPU_REG_WRITE(&ctx->hw, SSPP_SRC0_ADDR,
 				layout->plane_addr[0]);
-		DPU_REG_WRITE(&ctx->hw, SSPP_SRC2_ADDR + idx,
+		DPU_REG_WRITE(&ctx->hw, SSPP_SRC2_ADDR,
 				layout->plane_addr[2]);
 	} else {
-		DPU_REG_WRITE(&ctx->hw, SSPP_SRC1_ADDR + idx,
+		DPU_REG_WRITE(&ctx->hw, SSPP_SRC1_ADDR,
 				layout->plane_addr[0]);
-		DPU_REG_WRITE(&ctx->hw, SSPP_SRC3_ADDR + idx,
+		DPU_REG_WRITE(&ctx->hw, SSPP_SRC3_ADDR,
 				layout->plane_addr[2]);
 	}
 
@@ -522,8 +514,8 @@ static void dpu_hw_sspp_setup_sourceaddress(struct dpu_sw_pipe *pipe,
 		ystride1 = (layout->plane_pitch[2]) |
 			(layout->plane_pitch[3] << 16);
 	} else {
-		ystride0 = DPU_REG_READ(&ctx->hw, SSPP_SRC_YSTRIDE0 + idx);
-		ystride1 = DPU_REG_READ(&ctx->hw, SSPP_SRC_YSTRIDE1 + idx);
+		ystride0 = DPU_REG_READ(&ctx->hw, SSPP_SRC_YSTRIDE0);
+		ystride1 = DPU_REG_READ(&ctx->hw, SSPP_SRC_YSTRIDE1);
 
 		if (pipe->multirect_index == DPU_SSPP_RECT_0) {
 			ystride0 = (ystride0 & 0xFFFF0000) |
@@ -540,8 +532,8 @@ static void dpu_hw_sspp_setup_sourceaddress(struct dpu_sw_pipe *pipe,
 		}
 	}
 
-	DPU_REG_WRITE(&ctx->hw, SSPP_SRC_YSTRIDE0 + idx, ystride0);
-	DPU_REG_WRITE(&ctx->hw, SSPP_SRC_YSTRIDE1 + idx, ystride1);
+	DPU_REG_WRITE(&ctx->hw, SSPP_SRC_YSTRIDE0, ystride0);
+	DPU_REG_WRITE(&ctx->hw, SSPP_SRC_YSTRIDE1, ystride1);
 }
 
 static void dpu_hw_sspp_setup_csc(struct dpu_hw_sspp *ctx,
@@ -565,9 +557,8 @@ static void dpu_hw_sspp_setup_solidfill(struct dpu_sw_pipe *pipe, u32 color)
 {
 	struct dpu_hw_sspp *ctx = pipe->sspp;
 	struct dpu_hw_fmt_layout cfg;
-	u32 idx;
 
-	if (_sspp_subblk_offset(ctx, DPU_SSPP_SRC, &idx))
+	if (!ctx)
 		return;
 
 	/* cleanup source addresses */
@@ -576,9 +567,9 @@ static void dpu_hw_sspp_setup_solidfill(struct dpu_sw_pipe *pipe, u32 color)
 
 	if (pipe->multirect_index == DPU_SSPP_RECT_SOLO ||
 	    pipe->multirect_index == DPU_SSPP_RECT_0)
-		DPU_REG_WRITE(&ctx->hw, SSPP_SRC_CONSTANT_COLOR + idx, color);
+		DPU_REG_WRITE(&ctx->hw, SSPP_SRC_CONSTANT_COLOR, color);
 	else
-		DPU_REG_WRITE(&ctx->hw, SSPP_SRC_CONSTANT_COLOR_REC1 + idx,
+		DPU_REG_WRITE(&ctx->hw, SSPP_SRC_CONSTANT_COLOR_REC1,
 				color);
 }
 
@@ -586,39 +577,34 @@ static void dpu_hw_sspp_setup_danger_safe_lut(struct dpu_hw_sspp *ctx,
 			u32 danger_lut,
 			u32 safe_lut)
 {
-	u32 idx;
-
-	if (_sspp_subblk_offset(ctx, DPU_SSPP_SRC, &idx))
+	if (!ctx)
 		return;
 
-	DPU_REG_WRITE(&ctx->hw, SSPP_DANGER_LUT + idx, danger_lut);
-	DPU_REG_WRITE(&ctx->hw, SSPP_SAFE_LUT + idx, safe_lut);
+	DPU_REG_WRITE(&ctx->hw, SSPP_DANGER_LUT, danger_lut);
+	DPU_REG_WRITE(&ctx->hw, SSPP_SAFE_LUT, safe_lut);
 }
 
 static void dpu_hw_sspp_setup_creq_lut(struct dpu_hw_sspp *ctx,
 			u64 creq_lut)
 {
-	u32 idx;
-
-	if (_sspp_subblk_offset(ctx, DPU_SSPP_SRC, &idx))
+	if (!ctx)
 		return;
 
 	if (ctx->cap && test_bit(DPU_SSPP_QOS_8LVL, &ctx->cap->features)) {
-		DPU_REG_WRITE(&ctx->hw, SSPP_CREQ_LUT_0 + idx, creq_lut);
-		DPU_REG_WRITE(&ctx->hw, SSPP_CREQ_LUT_1 + idx,
+		DPU_REG_WRITE(&ctx->hw, SSPP_CREQ_LUT_0, creq_lut);
+		DPU_REG_WRITE(&ctx->hw, SSPP_CREQ_LUT_1,
 				creq_lut >> 32);
 	} else {
-		DPU_REG_WRITE(&ctx->hw, SSPP_CREQ_LUT + idx, creq_lut);
+		DPU_REG_WRITE(&ctx->hw, SSPP_CREQ_LUT, creq_lut);
 	}
 }
 
 static void dpu_hw_sspp_setup_qos_ctrl(struct dpu_hw_sspp *ctx,
 		struct dpu_hw_pipe_qos_cfg *cfg)
 {
-	u32 idx;
 	u32 qos_ctrl = 0;
 
-	if (_sspp_subblk_offset(ctx, DPU_SSPP_SRC, &idx))
+	if (!ctx)
 		return;
 
 	if (cfg->vblank_en) {
@@ -634,21 +620,17 @@ static void dpu_hw_sspp_setup_qos_ctrl(struct dpu_hw_sspp *ctx,
 	if (cfg->danger_safe_en)
 		qos_ctrl |= SSPP_QOS_CTRL_DANGER_SAFE_EN;
 
-	DPU_REG_WRITE(&ctx->hw, SSPP_QOS_CTRL + idx, qos_ctrl);
+	DPU_REG_WRITE(&ctx->hw, SSPP_QOS_CTRL, qos_ctrl);
 }
 
 static void dpu_hw_sspp_setup_cdp(struct dpu_sw_pipe *pipe,
 		struct dpu_hw_cdp_cfg *cfg)
 {
 	struct dpu_hw_sspp *ctx = pipe->sspp;
-	u32 idx;
 	u32 cdp_cntl = 0;
 	u32 cdp_cntl_offset = 0;
 
 	if (!ctx || !cfg)
-		return;
-
-	if (_sspp_subblk_offset(ctx, DPU_SSPP_SRC, &idx))
 		return;
 
 	if (pipe->multirect_index == DPU_SSPP_RECT_SOLO ||
@@ -672,13 +654,11 @@ static void dpu_hw_sspp_setup_cdp(struct dpu_sw_pipe *pipe,
 static void _setup_layer_ops(struct dpu_hw_sspp *c,
 		unsigned long features)
 {
-	if (test_bit(DPU_SSPP_SRC, &features)) {
-		c->ops.setup_format = dpu_hw_sspp_setup_format;
-		c->ops.setup_rects = dpu_hw_sspp_setup_rects;
-		c->ops.setup_sourceaddress = dpu_hw_sspp_setup_sourceaddress;
-		c->ops.setup_solidfill = dpu_hw_sspp_setup_solidfill;
-		c->ops.setup_pe = dpu_hw_sspp_setup_pe_config;
-	}
+	c->ops.setup_format = dpu_hw_sspp_setup_format;
+	c->ops.setup_rects = dpu_hw_sspp_setup_rects;
+	c->ops.setup_sourceaddress = dpu_hw_sspp_setup_sourceaddress;
+	c->ops.setup_solidfill = dpu_hw_sspp_setup_solidfill;
+	c->ops.setup_pe = dpu_hw_sspp_setup_pe_config;
 
 	if (test_bit(DPU_SSPP_QOS, &features)) {
 		c->ops.setup_danger_safe_lut =
@@ -728,8 +708,8 @@ int _dpu_hw_sspp_init_debugfs(struct dpu_hw_sspp *hw_pipe, struct dpu_kms *kms,
 	/* add register dump support */
 	dpu_debugfs_create_regset32("src_blk", 0400,
 			debugfs_root,
-			sblk->src_blk.base + cfg->base,
-			sblk->src_blk.len,
+			cfg->base,
+			cfg->len,
 			kms);
 
 	if (cfg->features & BIT(DPU_SSPP_SCALER_QSEED3) ||
