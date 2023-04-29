@@ -25,10 +25,10 @@
 #include "compression.h"
 #include "volumes.h"
 #include "misc.h"
-#include "btrfs_inode.h"
 #include "fs.h"
 #include "accessors.h"
 #include "file-item.h"
+#include "inode-item.h"
 
 /*
  * Error message should follow the following format:
