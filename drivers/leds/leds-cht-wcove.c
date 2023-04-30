@@ -351,6 +351,22 @@ static int cht_wc_leds_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
+	/* Set LED1 default trigger based on machine model */
+	switch (pmic->cht_wc_model) {
+	case INTEL_CHT_WC_GPD_WIN_POCKET:
+		leds->leds[0].cdev.default_trigger = "max170xx_battery-charging-blink-full-solid";
+		break;
+	case INTEL_CHT_WC_XIAOMI_MIPAD2:
+		leds->leds[0].cdev.default_trigger = "bq27520-0-charging-blink-full-solid";
+		break;
+	case INTEL_CHT_WC_LENOVO_YOGABOOK1:
+		leds->leds[0].cdev.default_trigger = "bq27542-0-charging-blink-full-solid";
+		break;
+	default:
+		dev_warn(&pdev->dev, "Unknown model, no default charging trigger\n");
+		break;
+	}
+
 	for (i = 0; i < CHT_WC_LED_COUNT; i++) {
 		struct cht_wc_led *led = &leds->leds[i];
 
