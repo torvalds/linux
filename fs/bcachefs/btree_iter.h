@@ -6,6 +6,13 @@
 #include "btree_types.h"
 #include "trace.h"
 
+static inline int __bkey_err(const struct bkey *k)
+{
+	return PTR_ERR_OR_ZERO(k);
+}
+
+#define bkey_err(_k)	__bkey_err((_k).k)
+
 static inline void __btree_path_get(struct btree_path *path, bool intent)
 {
 	path->ref++;
@@ -538,11 +545,6 @@ u32 bch2_trans_begin(struct btree_trans *);
 			    _flags, _b, _ret)				\
 	__for_each_btree_node(_trans, _iter, _btree_id, _start,		\
 			      0, 0, _flags, _b, _ret)
-
-static inline int bkey_err(struct bkey_s_c k)
-{
-	return PTR_ERR_OR_ZERO(k.k);
-}
 
 static inline struct bkey_s_c bch2_btree_iter_peek_prev_type(struct btree_iter *iter,
 							     unsigned flags)

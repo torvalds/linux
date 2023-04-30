@@ -1122,7 +1122,7 @@ static int inode_backpointer_exists(struct btree_trans *trans,
 
 	d = dirent_get_by_pos(trans, &iter,
 			SPOS(inode->bi_dir, inode->bi_dir_offset, snapshot));
-	ret = bkey_err(d.s_c);
+	ret = bkey_err(d);
 	if (ret)
 		return ret == -ENOENT ? 0 : ret;
 
