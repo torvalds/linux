@@ -521,7 +521,6 @@ ForEachMacros:
   - 'of_property_for_each_u32'
   - 'pci_bus_for_each_resource'
   - 'pci_dev_for_each_resource'
-  - 'pci_doe_for_each_off'
   - 'pcl_for_each_chunk'
   - 'pcl_for_each_segment'
   - 'pcm_for_each_format'
