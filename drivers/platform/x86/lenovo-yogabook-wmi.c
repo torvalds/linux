@@ -12,7 +12,8 @@
 
 #define YB_MBTN_EVENT_GUID	"243FEC1D-1963-41C1-8100-06A9D82A94B4"
 
-#define YB_KBD_BL_DEFAULT 128
+#define YB_KBD_BL_DEFAULT	128
+#define YB_KBD_BL_MAX		255
 
 /* flags */
 enum {
@@ -139,7 +140,7 @@ static int kbd_brightness_set(struct led_classdev *cdev,
 {
 	struct yogabook_data *data = kbd_led_to_yogabook(cdev);
 
-	if ((value < 0) || (value > 255))
+	if ((value < 0) || (value > YB_KBD_BL_MAX))
 		return -EINVAL;
 
 	data->brightness = value;
@@ -210,7 +211,7 @@ static int yogabook_probe(struct device *dev, struct yogabook_data *data,
 	data->kbd_bl_led.name = kbd_bl_led_name;
 	data->kbd_bl_led.brightness_set_blocking = kbd_brightness_set;
 	data->kbd_bl_led.brightness_get = kbd_brightness_get;
-	data->kbd_bl_led.max_brightness = 255;
+	data->kbd_bl_led.max_brightness = YB_KBD_BL_MAX;
 
 	r = devm_led_classdev_register(dev, &data->kbd_bl_led);
 	if (r < 0) {
@@ -292,7 +293,7 @@ static int yogabook_wmi_set_kbd_backlight(struct yogabook_data *data,
 	input.pointer = &param;
 
 	param.type = ACPI_TYPE_INTEGER;
-	param.integer.value = 255 - level;
+	param.integer.value = YB_KBD_BL_MAX - level;
 
 	status = acpi_evaluate_object(acpi_device_handle(data->kbd_adev), "KBLC",
 				      &input, &output);
