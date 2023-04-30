@@ -19,6 +19,7 @@
 #include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pwm.h>
 #include <linux/wmi.h>
 #include <linux/workqueue.h>
 
@@ -26,6 +27,7 @@
 
 #define YB_KBD_BL_DEFAULT	128
 #define YB_KBD_BL_MAX		255
+#define YB_KBD_BL_PWM_PERIOD	13333
 
 #define YB_PDEV_NAME		"yogabook-touch-kbd-digitizer-switch"
 
@@ -48,6 +50,7 @@ struct yogabook_data {
 	struct gpio_desc *pen_touch_event;
 	struct gpio_desc *kbd_bl_led_enable;
 	struct gpio_desc *backside_hall_gpio;
+	struct pwm_device *kbd_bl_pwm;
 	int (*set_kbd_backlight)(struct yogabook_data *data, uint8_t level);
 	int pen_touch_irq;
 	int backside_hall_irq;
@@ -267,8 +270,11 @@ static int yogabook_suspend(struct device *dev)
 	struct yogabook_data *data = dev_get_drvdata(dev);
 
 	set_bit(YB_SUSPENDED, &data->flags);
-
 	flush_work(&data->work);
+
+	if (test_bit(YB_KBD_IS_ON, &data->flags))
+		data->set_kbd_backlight(data, 0);
+
 	return 0;
 }
 
@@ -423,6 +429,13 @@ static struct gpiod_lookup_table yogabook_pdev_gpios = {
 
 static int yogabook_pdev_set_kbd_backlight(struct yogabook_data *data, u8 level)
 {
+	struct pwm_state state = {
+		.period = YB_KBD_BL_PWM_PERIOD,
+		.duty_cycle = YB_KBD_BL_PWM_PERIOD * level / YB_KBD_BL_MAX,
+		.enabled = level,
+	};
+
+	pwm_apply_state(data->kbd_bl_pwm, &state);
 	gpiod_set_value(data->kbd_bl_led_enable, level ? 1 : 0);
 	return 0;
 }
@@ -469,6 +482,13 @@ static int yogabook_pdev_probe(struct platform_device *pdev)
 	if (IS_ERR(data->kbd_bl_led_enable)) {
 		r = dev_err_probe(dev, PTR_ERR(data->kbd_bl_led_enable),
 				  "Getting enable_keyboard_led GPIO\n");
+		goto error_put_devs;
+	}
+
+	data->kbd_bl_pwm = devm_pwm_get(dev, "pwm_soc_lpss_2");
+	if (IS_ERR(data->kbd_bl_pwm)) {
+		r = dev_err_probe(dev, PTR_ERR(data->kbd_bl_pwm),
+				  "Getting keyboard backlight PWM\n");
 		goto error_put_devs;
 	}
 
