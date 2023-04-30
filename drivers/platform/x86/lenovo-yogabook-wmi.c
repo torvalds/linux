@@ -128,10 +128,8 @@ static void yogabook_wmi_work(struct work_struct *work)
 	}
 }
 
-static void yogabook_wmi_notify(struct wmi_device *wdev, union acpi_object *dummy)
+static void yogabook_toggle_digitizer_mode(struct yogabook_wmi *data)
 {
-	struct yogabook_wmi *data = dev_get_drvdata(&wdev->dev);
-
 	if (test_bit(YB_SUSPENDED, &data->flags))
 		return;
 
@@ -145,6 +143,11 @@ static void yogabook_wmi_notify(struct wmi_device *wdev, union acpi_object *dumm
 	 * done also needs ACPI functions, use a workqueue to avoid deadlocking.
 	 */
 	schedule_work(&data->work);
+}
+
+static void yogabook_wmi_notify(struct wmi_device *wdev, union acpi_object *dummy)
+{
+	yogabook_toggle_digitizer_mode(dev_get_drvdata(&wdev->dev));
 }
 
 static irqreturn_t yogabook_backside_hall_irq(int irq, void *_data)
