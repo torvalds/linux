@@ -17,6 +17,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
+#include <linux/suspend.h>
 
 #define CHT_WC_LED1_CTRL		0x5e1f
 #define CHT_WC_LED1_FSM			0x5e20
@@ -69,6 +70,7 @@ struct cht_wc_led {
 	const struct cht_wc_led_regs *regs;
 	struct regmap *regmap;
 	struct mutex mutex;
+	struct cht_wc_led_saved_regs saved_regs;
 };
 
 struct cht_wc_leds {
@@ -364,12 +366,43 @@ static void cht_wc_leds_disable(struct platform_device *pdev)
 		cht_wc_led_restore_regs(&leds->leds[0], &leds->led1_initial_regs);
 }
 
+/* On suspend save current settings and turn LEDs off */
+static int cht_wc_leds_suspend(struct device *dev)
+{
+	struct cht_wc_leds *leds = dev_get_drvdata(dev);
+	int i, ret;
+
+	for (i = 0; i < CHT_WC_LED_COUNT; i++) {
+		ret = cht_wc_led_save_regs(&leds->leds[i], &leds->leds[i].saved_regs);
+		if (ret < 0)
+			return ret;
+	}
+
+	cht_wc_leds_disable(to_platform_device(dev));
+	return 0;
+}
+
+/* On resume restore the saved settings */
+static int cht_wc_leds_resume(struct device *dev)
+{
+	struct cht_wc_leds *leds = dev_get_drvdata(dev);
+	int i;
+
+	for (i = 0; i < CHT_WC_LED_COUNT; i++)
+		cht_wc_led_restore_regs(&leds->leds[i], &leds->leds[i].saved_regs);
+
+	return 0;
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(cht_wc_leds_pm, cht_wc_leds_suspend, cht_wc_leds_resume);
+
 static struct platform_driver cht_wc_leds_driver = {
 	.probe = cht_wc_leds_probe,
 	.remove_new = cht_wc_leds_remove,
 	.shutdown = cht_wc_leds_disable,
 	.driver = {
 		.name = "cht_wcove_leds",
+		.pm = pm_sleep_ptr(&cht_wc_leds_pm),
 	},
 };
 module_platform_driver(cht_wc_leds_driver);
