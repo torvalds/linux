@@ -227,11 +227,6 @@ static struct gpiod_lookup_table yogabook_wmi_gpios = {
 	},
 };
 
-static void yogabook_wmi_rm_gpio_lookup(void *unused)
-{
-	gpiod_remove_lookup_table(&yogabook_wmi_gpios);
-}
-
 static int yogabook_wmi_probe(struct wmi_device *wdev, const void *context)
 {
 	struct yogabook_wmi *data;
@@ -275,13 +270,9 @@ static int yogabook_wmi_probe(struct wmi_device *wdev, const void *context)
 	}
 
 	gpiod_add_lookup_table(&yogabook_wmi_gpios);
+	data->backside_hall_gpio = devm_gpiod_get(&wdev->dev, "backside_hall_sw", GPIOD_IN);
+	gpiod_remove_lookup_table(&yogabook_wmi_gpios);
 
-	r = devm_add_action_or_reset(&wdev->dev, yogabook_wmi_rm_gpio_lookup, NULL);
-	if (r)
-		goto error_put_devs;
-
-	data->backside_hall_gpio =
-		devm_gpiod_get(&wdev->dev, "backside_hall_sw", GPIOD_IN);
 	if (IS_ERR(data->backside_hall_gpio)) {
 		r = PTR_ERR(data->backside_hall_gpio);
 		dev_err_probe(&wdev->dev, r, "Getting backside_hall_sw GPIO\n");
