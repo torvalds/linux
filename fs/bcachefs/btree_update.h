@@ -251,22 +251,27 @@ static inline struct bkey_i *bch2_bkey_get_mut(struct btree_trans *trans,
 			KEY_TYPE_##_type, sizeof(struct bkey_i_##_type)))
 
 static inline struct bkey_i *__bch2_bkey_alloc(struct btree_trans *trans, struct btree_iter *iter,
-					       unsigned type, unsigned val_size)
+					       unsigned flags, unsigned type, unsigned val_size)
 {
 	struct bkey_i *k = bch2_trans_kmalloc(trans, sizeof(*k) + val_size);
+	int ret;
 
-	if (!IS_ERR(k)) {
-		bkey_init(&k->k);
-		k->k.p = iter->pos;
-		k->k.type = type;
-		set_bkey_val_bytes(&k->k, val_size);
-	}
+	if (IS_ERR(k))
+		return k;
 
+	bkey_init(&k->k);
+	k->k.p = iter->pos;
+	k->k.type = type;
+	set_bkey_val_bytes(&k->k, val_size);
+
+	ret = bch2_trans_update(trans, iter, k, flags);
+	if (unlikely(ret))
+		return ERR_PTR(ret);
 	return k;
 }
 
-#define bch2_bkey_alloc(_trans, _iter, _type)				\
-	bkey_i_to_##_type(__bch2_bkey_alloc(_trans, _iter,		\
+#define bch2_bkey_alloc(_trans, _iter, _flags, _type)			\
+	bkey_i_to_##_type(__bch2_bkey_alloc(_trans, _iter, _flags,	\
 				KEY_TYPE_##_type, sizeof(struct bch_##_type)))
 
 #endif /* _BCACHEFS_BTREE_UPDATE_H */

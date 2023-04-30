@@ -476,7 +476,7 @@ int bch2_snapshot_node_create(struct btree_trans *trans, u32 parent,
 			goto err;
 		}
 
-		n = bch2_bkey_alloc(trans, &iter, snapshot);
+		n = bch2_bkey_alloc(trans, &iter, 0, snapshot);
 		ret = PTR_ERR_OR_ZERO(n);
 		if (ret)
 			goto err;
@@ -487,9 +487,8 @@ int bch2_snapshot_node_create(struct btree_trans *trans, u32 parent,
 		n->v.pad	= 0;
 		SET_BCH_SNAPSHOT_SUBVOL(&n->v, true);
 
-		ret   = bch2_trans_update(trans, &iter, &n->k_i, 0) ?:
-			bch2_mark_snapshot(trans, BTREE_ID_snapshots, 0,
-					   bkey_s_c_null, bkey_i_to_s_c(&n->k_i), 0);
+		ret = bch2_mark_snapshot(trans, BTREE_ID_snapshots, 0,
+					 bkey_s_c_null, bkey_i_to_s_c(&n->k_i), 0);
 		if (ret)
 			goto err;
 
@@ -981,7 +980,7 @@ found_slot:
 			goto err;
 	}
 
-	new_subvol = bch2_bkey_alloc(trans, &dst_iter, subvolume);
+	new_subvol = bch2_bkey_alloc(trans, &dst_iter, 0, subvolume);
 	ret = PTR_ERR_OR_ZERO(new_subvol);
 	if (ret)
 		goto err;
@@ -991,9 +990,6 @@ found_slot:
 	new_subvol->v.inode	= cpu_to_le64(inode);
 	SET_BCH_SUBVOLUME_RO(&new_subvol->v, ro);
 	SET_BCH_SUBVOLUME_SNAP(&new_subvol->v, src_subvolid != 0);
-	ret = bch2_trans_update(trans, &dst_iter, &new_subvol->k_i, 0);
-	if (ret)
-		goto err;
 
 	*new_subvolid	= new_subvol->k.p.offset;
 	*new_snapshotid	= new_nodes[0];
