@@ -7,6 +7,7 @@
 
 #include "qcom-msm8226.dtsi"
 #include "qcom-pm8226.dtsi"
+#include <dt-bindings/input/ti-drv260x.h>
 
 /delete-node/ &adsp_region;
 
@@ -66,6 +67,26 @@
 
 &adsp {
 	status = "okay";
+};
+
+&blsp1_i2c2 {
+	clock-frequency = <384000>;
+
+	status = "okay";
+
+	vibrator@5a {
+		compatible = "ti,drv2605";
+		reg = <0x5a>;
+		enable-gpios = <&tlmm 60 GPIO_ACTIVE_HIGH>;
+
+		mode = <DRV260X_ERM_MODE>;
+		library-sel = <DRV260X_ERM_LIB_D>;
+		vib-rated-mv = <2765>;
+		vib-overdrive-mv = <3525>;
+
+		pinctrl-0 = <&vibrator_default_state>;
+		pinctrl-names = "default";
+	};
 };
 
 &blsp1_i2c5 {
@@ -345,6 +366,13 @@
 			drive-strength = <6>;
 			bias-pull-up;
 		};
+	};
+
+	vibrator_default_state: vibrator-default-state {
+		pins = "gpio59", "gpio60";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
 	};
 
 	wlan_hostwake_default_state: wlan-hostwake-default-state {
