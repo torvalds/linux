@@ -270,7 +270,21 @@ static int cht_wc_leds_blink_set(struct led_classdev *cdev,
 				 unsigned long *delay_on,
 				 unsigned long *delay_off)
 {
-	return cht_wc_leds_set_effect(cdev, delay_on, delay_off, CHT_WC_LED_EFF_BLINKING);
+	u8 effect = CHT_WC_LED_EFF_BLINKING;
+
+	/*
+	 * The desired default behavior of LED1 / the charge LED is breathing
+	 * while charging and on/solid when full. Since triggers cannot select
+	 * breathing, blink_set() gets called when charging. Use slow breathing
+	 * when the default "charging-blink-full-solid" trigger is used to
+	 * achieve the desired default behavior.
+	 */
+	if (cdev->flags & LED_INIT_DEFAULT_TRIGGER) {
+		*delay_on = *delay_off = 1000;
+		effect = CHT_WC_LED_EFF_BREATHING;
+	}
+
+	return cht_wc_leds_set_effect(cdev, delay_on, delay_off, effect);
 }
 
 static int cht_wc_leds_pattern_set(struct led_classdev *cdev,
