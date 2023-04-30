@@ -121,8 +121,8 @@ config GIGABYTE_WMI
 	  To compile this driver as a module, choose M here: the module will
 	  be called gigabyte-wmi.
 
-config YOGABOOK_WMI
-	tristate "Lenovo Yoga Book tablet WMI key driver"
+config YOGABOOK
+	tristate "Lenovo Yoga Book tablet key driver"
 	depends on ACPI_WMI
 	depends on INPUT
 	select LEDS_CLASS
@@ -132,7 +132,7 @@ config YOGABOOK_WMI
 	  control on the Lenovo Yoga Book tablets.
 
 	  To compile this driver as a module, choose M here: the module will
-	  be called lenovo-yogabook-wmi.
+	  be called lenovo-yogabook.
 
 config ACERHDF
 	tristate "Acer Aspire One temperature and fan driver"
