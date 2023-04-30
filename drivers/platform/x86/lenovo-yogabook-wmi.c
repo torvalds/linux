@@ -50,12 +50,10 @@ static int yogabook_wmi_set_kbd_backlight(struct yogabook_wmi *data,
 	union acpi_object param;
 	acpi_status status;
 
-	if (data->kbd_adev->power.state != ACPI_STATE_D0) {
-		dev_warn(data->dev, "keyboard touchscreen not in D0, cannot set brightness\n");
-		return -ENXIO;
-	}
-
 	dev_dbg(data->dev, "Set KBLC level to %u\n", level);
+
+	/* Ensure keyboard touchpad is on before we call KBLC() */
+	acpi_device_set_power(data->kbd_adev, ACPI_STATE_D0);
 
 	input.count = 1;
 	input.pointer = &param;
@@ -181,7 +179,7 @@ static int kbd_brightness_set(struct led_classdev *cdev,
 
 	data->brightness = value;
 
-	if (data->kbd_adev->power.state != ACPI_STATE_D0)
+	if (!test_bit(YB_KBD_IS_ON, &data->flags))
 		return 0;
 
 	return yogabook_wmi_set_kbd_backlight(data, data->brightness);
@@ -353,11 +351,8 @@ static int yogabook_resume(struct device *dev)
 {
 	struct yogabook_wmi *data = dev_get_drvdata(dev);
 
-	if (test_bit(YB_KBD_IS_ON, &data->flags)) {
-		/* Ensure keyboard touchpad is on before we call KBLC() */
-		acpi_device_set_power(data->kbd_adev, ACPI_STATE_D0);
+	if (test_bit(YB_KBD_IS_ON, &data->flags))
 		yogabook_wmi_set_kbd_backlight(data, data->brightness);
-	}
 
 	clear_bit(YB_SUSPENDED, &data->flags);
 
