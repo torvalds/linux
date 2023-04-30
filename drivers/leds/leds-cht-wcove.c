@@ -217,9 +217,10 @@ static int cht_wc_leds_find_freq(unsigned long period)
 		return -1;
 }
 
-static int cht_wc_leds_blink_set(struct led_classdev *cdev,
-				 unsigned long *delay_on,
-				 unsigned long *delay_off)
+static int cht_wc_leds_set_effect(struct led_classdev *cdev,
+				  unsigned long *delay_on,
+				  unsigned long *delay_off,
+				  u8 effect)
 {
 	struct cht_wc_led *led = container_of(cdev, struct cht_wc_led, cdev);
 	unsigned int ctrl;
@@ -246,7 +247,7 @@ static int cht_wc_leds_blink_set(struct led_classdev *cdev,
 	}
 
 	ret = regmap_update_bits(led->regmap, led->regs->fsm,
-				 CHT_WC_LED_EFF_MASK, CHT_WC_LED_EFF_BLINKING);
+				 CHT_WC_LED_EFF_MASK, effect);
 	if (ret < 0)
 		dev_err(cdev->dev, "Failed to update LED FSM reg: %d\n", ret);
 
@@ -263,6 +264,37 @@ done:
 	mutex_unlock(&led->mutex);
 
 	return ret;
+}
+
+static int cht_wc_leds_blink_set(struct led_classdev *cdev,
+				 unsigned long *delay_on,
+				 unsigned long *delay_off)
+{
+	return cht_wc_leds_set_effect(cdev, delay_on, delay_off, CHT_WC_LED_EFF_BLINKING);
+}
+
+static int cht_wc_leds_pattern_set(struct led_classdev *cdev,
+				   struct led_pattern *pattern,
+				   u32 len, int repeat)
+{
+	unsigned long delay_off, delay_on;
+
+	if (repeat > 0 || len != 2 ||
+	    pattern[0].brightness != 0 || pattern[1].brightness != 1 ||
+	    pattern[0].delta_t != pattern[1].delta_t ||
+	    (pattern[0].delta_t != 250 && pattern[0].delta_t != 500 &&
+	     pattern[0].delta_t != 1000 && pattern[0].delta_t != 2000))
+		return -EINVAL;
+
+	delay_off = pattern[0].delta_t;
+	delay_on  = pattern[1].delta_t;
+
+	return cht_wc_leds_set_effect(cdev, &delay_on, &delay_off, CHT_WC_LED_EFF_BREATHING);
+}
+
+static int cht_wc_leds_pattern_clear(struct led_classdev *cdev)
+{
+	return cht_wc_leds_brightness_set(cdev, 0);
 }
 
 static int cht_wc_led_save_regs(struct cht_wc_led *led,
@@ -329,6 +361,8 @@ static int cht_wc_leds_probe(struct platform_device *pdev)
 		led->cdev.brightness_set_blocking = cht_wc_leds_brightness_set;
 		led->cdev.brightness_get = cht_wc_leds_brightness_get;
 		led->cdev.blink_set = cht_wc_leds_blink_set;
+		led->cdev.pattern_set = cht_wc_leds_pattern_set;
+		led->cdev.pattern_clear = cht_wc_leds_pattern_clear;
 		led->cdev.max_brightness = 255;
 
 		ret = led_classdev_register(&pdev->dev, &led->cdev);
