@@ -1471,10 +1471,6 @@ static int bch2_trans_mark_stripe_ptr(struct btree_trans *trans,
 		stripe_blockcount_get(&s->v, p.ec.block) +
 		sectors);
 
-	ret = bch2_trans_update(trans, &iter, &s->k_i, 0);
-	if (ret)
-		goto err;
-
 	bch2_bkey_to_replicas(&r.e, bkey_i_to_s_c(&s->k_i));
 	r.e.data_type = data_type;
 	update_replicas_list(trans, &r.e, sectors);
@@ -1749,7 +1745,7 @@ static int __bch2_trans_mark_reflink_p(struct btree_trans *trans,
 	struct printbuf buf = PRINTBUF;
 	int ret;
 
-	k = bch2_bkey_get_mut(trans, &iter,
+	k = bch2_bkey_get_mut_noupdate(trans, &iter,
 			BTREE_ID_reflink, POS(0, *idx),
 			BTREE_ITER_WITH_UPDATES);
 	ret = PTR_ERR_OR_ZERO(k);

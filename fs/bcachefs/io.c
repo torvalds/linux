@@ -257,7 +257,7 @@ static inline int bch2_extent_update_i_size_sectors(struct btree_trans *trans,
 	unsigned inode_update_flags = BTREE_UPDATE_NOJOURNAL;
 	int ret;
 
-	k = bch2_bkey_get_mut(trans, &iter, BTREE_ID_inodes,
+	k = bch2_bkey_get_mut_noupdate(trans, &iter, BTREE_ID_inodes,
 			      SPOS(0,
 				   extent_iter->pos.inode,
 				   extent_iter->snapshot),

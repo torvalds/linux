@@ -369,7 +369,7 @@ static int bch2_snapshot_node_set_deleted(struct btree_trans *trans, u32 id)
 	ret = PTR_ERR_OR_ZERO(s);
 	if (unlikely(ret)) {
 		bch2_fs_inconsistent_on(ret == -ENOENT, trans->c, "missing snapshot %u", id);
-		goto err;
+		return ret;
 	}
 
 	/* already deleted? */
@@ -379,10 +379,6 @@ static int bch2_snapshot_node_set_deleted(struct btree_trans *trans, u32 id)
 	SET_BCH_SNAPSHOT_DELETED(&s->v, true);
 	SET_BCH_SNAPSHOT_SUBVOL(&s->v, false);
 	s->v.subvol = 0;
-
-	ret = bch2_trans_update(trans, &iter, &s->k_i, 0);
-	if (ret)
-		goto err;
 err:
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
@@ -434,10 +430,6 @@ static int bch2_snapshot_node_delete(struct btree_trans *trans, u32 id)
 		    le32_to_cpu(parent->v.children[1]))
 			swap(parent->v.children[0],
 			     parent->v.children[1]);
-
-		ret = bch2_trans_update(trans, &p_iter, &parent->k_i, 0);
-		if (ret)
-			goto err;
 	}
 
 	ret = bch2_btree_delete_at(trans, &iter, 0);
@@ -888,30 +880,25 @@ int bch2_subvolume_unlink(struct btree_trans *trans, u32 subvolid)
 	struct subvolume_unlink_hook *h;
 	int ret = 0;
 
+	h = bch2_trans_kmalloc(trans, sizeof(*h));
+	ret = PTR_ERR_OR_ZERO(h);
+	if (ret)
+		return ret;
+
+	h->h.fn		= bch2_subvolume_wait_for_pagecache_and_delete_hook;
+	h->subvol	= subvolid;
+	bch2_trans_commit_hook(trans, &h->h);
+
 	n = bch2_bkey_get_mut_typed(trans, &iter,
 			BTREE_ID_subvolumes, POS(0, subvolid),
 			BTREE_ITER_CACHED, subvolume);
 	ret = PTR_ERR_OR_ZERO(n);
 	if (unlikely(ret)) {
 		bch2_fs_inconsistent_on(ret == -ENOENT, trans->c, "missing subvolume %u", subvolid);
-		goto err;
+		return ret;
 	}
 
 	SET_BCH_SUBVOLUME_UNLINKED(&n->v, true);
-
-	ret = bch2_trans_update(trans, &iter, &n->k_i, 0);
-	if (ret)
-		goto err;
-
-	h = bch2_trans_kmalloc(trans, sizeof(*h));
-	ret = PTR_ERR_OR_ZERO(h);
-	if (ret)
-		goto err;
-
-	h->h.fn		= bch2_subvolume_wait_for_pagecache_and_delete_hook;
-	h->subvol	= subvolid;
-	bch2_trans_commit_hook(trans, &h->h);
-err:
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
