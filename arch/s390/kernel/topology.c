@@ -637,16 +637,6 @@ static struct ctl_table topology_ctl_table[] = {
 	{ },
 };
 
-static struct ctl_table topology_dir_table[] = {
-	{
-		.procname	= "s390",
-		.maxlen		= 0,
-		.mode		= 0555,
-		.child		= topology_ctl_table,
-	},
-	{ },
-};
-
 static int __init topology_init(void)
 {
 	struct device *dev_root;
@@ -657,7 +647,7 @@ static int __init topology_init(void)
 		set_topology_timer();
 	else
 		topology_update_polarization_simple();
-	register_sysctl_table(topology_dir_table);
+	register_sysctl("s390", topology_ctl_table);
 
 	dev_root = bus_get_dev_root(&cpu_subsys);
 	if (dev_root) {
