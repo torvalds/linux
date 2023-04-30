@@ -691,6 +691,9 @@ static int handle_hca_cap_roce(struct mlx5_core_dev *dev, void *set_ctx)
 	       MLX5_ST_SZ_BYTES(roce_cap));
 	MLX5_SET(roce_cap, set_hca_cap, sw_r_roce_src_udp_port, 1);
 
+	if (MLX5_CAP_ROCE_MAX(dev, qp_ooo_transmit_default))
+		MLX5_SET(roce_cap, set_hca_cap, qp_ooo_transmit_default, 1);
+
 	err = set_caps(dev, set_ctx, MLX5_SET_HCA_CAP_OP_MOD_ROCE);
 	return err;
 }

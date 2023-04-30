@@ -112,16 +112,11 @@ struct sdma_mmu_node {
 struct user_sdma_iovec {
 	struct list_head list;
 	struct iovec iov;
-	/* number of pages in this vector */
-	unsigned int npages;
-	/* array of pinned pages for this vector */
-	struct page **pages;
 	/*
 	 * offset into the virtual address space of the vector at
 	 * which we last left off.
 	 */
 	u64 offset;
-	struct sdma_mmu_node *node;
 };
 
 /* evict operation argument */
