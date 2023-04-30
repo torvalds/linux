@@ -35,6 +35,8 @@ extern acpi_status wmidev_evaluate_method(struct wmi_device *wdev,
 extern union acpi_object *wmidev_block_query(struct wmi_device *wdev,
 					     u8 instance);
 
+u8 wmidev_instance_count(struct wmi_device *wdev);
+
 extern int set_required_buffer_size(struct wmi_device *wdev, u64 length);
 
 /**

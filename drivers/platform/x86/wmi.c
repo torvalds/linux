@@ -264,6 +264,47 @@ int set_required_buffer_size(struct wmi_device *wdev, u64 length)
 EXPORT_SYMBOL_GPL(set_required_buffer_size);
 
 /**
+ * wmi_instance_count - Get number of WMI object instances
+ * @guid_string: 36 char string of the form fa50ff2b-f2e8-45de-83fa-65417f2f49ba
+ *
+ * Get the number of WMI object instances.
+ *
+ * Returns: Number of WMI object instances or negative error code.
+ */
+int wmi_instance_count(const char *guid_string)
+{
+	struct wmi_block *wblock;
+	acpi_status status;
+
+	status = find_guid(guid_string, &wblock);
+	if (ACPI_FAILURE(status)) {
+		if (status == AE_BAD_PARAMETER)
+			return -EINVAL;
+
+		return -ENODEV;
+	}
+
+	return wmidev_instance_count(&wblock->dev);
+}
+EXPORT_SYMBOL_GPL(wmi_instance_count);
+
+/**
+ * wmidev_instance_count - Get number of WMI object instances
+ * @wdev: A wmi bus device from a driver
+ *
+ * Get the number of WMI object instances.
+ *
+ * Returns: Number of WMI object instances.
+ */
+u8 wmidev_instance_count(struct wmi_device *wdev)
+{
+	struct wmi_block *wblock = container_of(wdev, struct wmi_block, dev);
+
+	return wblock->gblock.instance_count;
+}
+EXPORT_SYMBOL_GPL(wmidev_instance_count);
+
+/**
  * wmi_evaluate_method - Evaluate a WMI method (deprecated)
  * @guid_string: 36 char string of the form fa50ff2b-f2e8-45de-83fa-65417f2f49ba
  * @instance: Instance index
