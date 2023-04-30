@@ -29,7 +29,7 @@ enum {
 };
 
 struct yogabook_wmi {
-	struct wmi_device *wdev;
+	struct device *dev;
 	struct acpi_device *kbd_adev;
 	struct acpi_device *dig_adev;
 	struct device *kbd_dev;
@@ -42,14 +42,14 @@ struct yogabook_wmi {
 	uint8_t brightness;
 };
 
-static int yogabook_wmi_do_action(struct wmi_device *wdev, int action)
+static int yogabook_wmi_do_action(struct yogabook_wmi *data, int action)
 {
 	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
 	struct acpi_buffer input;
 	acpi_status status;
 	u32 dummy_arg = 0;
 
-	dev_dbg(&wdev->dev, "Do action: %d\n", action);
+	dev_dbg(data->dev, "Do action: %d\n", action);
 
 	input.pointer = &dummy_arg;
 	input.length = sizeof(dummy_arg);
@@ -57,7 +57,7 @@ static int yogabook_wmi_do_action(struct wmi_device *wdev, int action)
 	status = wmi_evaluate_method(YB_MBTN_METHOD_GUID, 0, action, &input,
 				     &output);
 	if (ACPI_FAILURE(status)) {
-		dev_err(&wdev->dev, "Calling WMI method failure: 0x%x\n",
+		dev_err(data->dev, "Calling WMI method failure: 0x%x\n",
 			status);
 		return status;
 	}
@@ -71,21 +71,20 @@ static int yogabook_wmi_do_action(struct wmi_device *wdev, int action)
  * To control keyboard backlight, call the method KBLC() of the TCS1 ACPI
  * device (Goodix touchpad acts as virtual sensor keyboard).
  */
-static int yogabook_wmi_set_kbd_backlight(struct wmi_device *wdev,
+static int yogabook_wmi_set_kbd_backlight(struct yogabook_wmi *data,
 					  uint8_t level)
 {
-	struct yogabook_wmi *data = dev_get_drvdata(&wdev->dev);
 	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
 	struct acpi_object_list input;
 	union acpi_object param;
 	acpi_status status;
 
 	if (data->kbd_adev->power.state != ACPI_STATE_D0) {
-		dev_warn(&wdev->dev, "keyboard touchscreen not in D0, cannot set brightness\n");
+		dev_warn(data->dev, "keyboard touchscreen not in D0, cannot set brightness\n");
 		return -ENXIO;
 	}
 
-	dev_dbg(&wdev->dev, "Set KBLC level to %u\n", level);
+	dev_dbg(data->dev, "Set KBLC level to %u\n", level);
 
 	input.count = 1;
 	input.pointer = &param;
@@ -96,7 +95,7 @@ static int yogabook_wmi_set_kbd_backlight(struct wmi_device *wdev,
 	status = acpi_evaluate_object(acpi_device_handle(data->kbd_adev), "KBLC",
 				      &input, &output);
 	if (ACPI_FAILURE(status)) {
-		dev_err(&wdev->dev, "Failed to call KBLC method: 0x%x\n", status);
+		dev_err(data->dev, "Failed to call KBLC method: 0x%x\n", status);
 		return status;
 	}
 
@@ -107,7 +106,6 @@ static int yogabook_wmi_set_kbd_backlight(struct wmi_device *wdev,
 static void yogabook_wmi_work(struct work_struct *work)
 {
 	struct yogabook_wmi *data = container_of(work, struct yogabook_wmi, work);
-	struct device *dev = &data->wdev->dev;
 	bool kbd_on, digitizer_on;
 	int r;
 
@@ -130,13 +128,13 @@ static void yogabook_wmi_work(struct work_struct *work)
 		 * Must be done before releasing the keyboard touchscreen driver,
 		 * so that the keyboard touchscreen dev is still in D0.
 		 */
-		yogabook_wmi_set_kbd_backlight(data->wdev, 0);
+		yogabook_wmi_set_kbd_backlight(data, 0);
 		device_release_driver(data->kbd_dev);
 		clear_bit(YB_KBD_IS_ON, &data->flags);
 	}
 
 	if (!digitizer_on && test_bit(YB_DIGITIZER_IS_ON, &data->flags)) {
-		yogabook_wmi_do_action(data->wdev, YB_PAD_DISABLE);
+		yogabook_wmi_do_action(data, YB_PAD_DISABLE);
 		device_release_driver(data->dig_dev);
 		clear_bit(YB_DIGITIZER_IS_ON, &data->flags);
 	}
@@ -144,18 +142,18 @@ static void yogabook_wmi_work(struct work_struct *work)
 	if (kbd_on && !test_bit(YB_KBD_IS_ON, &data->flags)) {
 		r = device_reprobe(data->kbd_dev);
 		if (r)
-			dev_warn(dev, "Reprobe of keyboard touchscreen failed: %d\n", r);
+			dev_warn(data->dev, "Reprobe of keyboard touchscreen failed: %d\n", r);
 
-		yogabook_wmi_set_kbd_backlight(data->wdev, data->brightness);
+		yogabook_wmi_set_kbd_backlight(data, data->brightness);
 		set_bit(YB_KBD_IS_ON, &data->flags);
 	}
 
 	if (digitizer_on && !test_bit(YB_DIGITIZER_IS_ON, &data->flags)) {
 		r = device_reprobe(data->dig_dev);
 		if (r)
-			dev_warn(dev, "Reprobe of digitizer failed: %d\n", r);
+			dev_warn(data->dev, "Reprobe of digitizer failed: %d\n", r);
 
-		yogabook_wmi_do_action(data->wdev, YB_PAD_ENABLE);
+		yogabook_wmi_do_action(data, YB_PAD_ENABLE);
 		set_bit(YB_DIGITIZER_IS_ON, &data->flags);
 	}
 }
@@ -206,7 +204,6 @@ static int kbd_brightness_set(struct led_classdev *cdev,
 {
 	struct yogabook_wmi *data =
 		container_of(cdev, struct yogabook_wmi, kbd_bl_led);
-	struct wmi_device *wdev = data->wdev;
 
 	if ((value < 0) || (value > 255))
 		return -EINVAL;
@@ -216,7 +213,7 @@ static int kbd_brightness_set(struct led_classdev *cdev,
 	if (data->kbd_adev->power.state != ACPI_STATE_D0)
 		return 0;
 
-	return yogabook_wmi_set_kbd_backlight(wdev, data->brightness);
+	return yogabook_wmi_set_kbd_backlight(data, data->brightness);
 }
 
 static struct gpiod_lookup_table yogabook_wmi_gpios = {
@@ -238,7 +235,7 @@ static int yogabook_wmi_probe(struct wmi_device *wdev, const void *context)
 
 	dev_set_drvdata(&wdev->dev, data);
 
-	data->wdev = wdev;
+	data->dev = &wdev->dev;
 	data->brightness = YB_KBD_BL_DEFAULT;
 	set_bit(YB_KBD_IS_ON, &data->flags);
 	set_bit(YB_DIGITIZER_IS_ON, &data->flags);
@@ -287,7 +284,7 @@ static int yogabook_wmi_probe(struct wmi_device *wdev, const void *context)
 	data->backside_hall_irq = r;
 
 	/* Set default brightness before enabling the IRQ */
-	yogabook_wmi_set_kbd_backlight(data->wdev, YB_KBD_BL_DEFAULT);
+	yogabook_wmi_set_kbd_backlight(data, YB_KBD_BL_DEFAULT);
 
 	r = request_irq(data->backside_hall_irq, yogabook_backside_hall_irq,
 			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
@@ -338,7 +335,7 @@ static void yogabook_wmi_remove(struct wmi_device *wdev)
 		r |= device_reprobe(data->dig_dev);
 
 	if (r)
-		dev_warn(&wdev->dev, "Reprobe of devices failed\n");
+		dev_warn(data->dev, "Reprobe of devices failed\n");
 
 	put_device(data->dig_dev);
 	put_device(data->kbd_dev);
@@ -348,7 +345,6 @@ static void yogabook_wmi_remove(struct wmi_device *wdev)
 
 static int yogabook_suspend(struct device *dev)
 {
-	struct wmi_device *wdev = container_of(dev, struct wmi_device, dev);
 	struct yogabook_wmi *data = dev_get_drvdata(dev);
 
 	set_bit(YB_SUSPENDED, &data->flags);
@@ -357,24 +353,23 @@ static int yogabook_suspend(struct device *dev)
 
 	/* Turn off the pen button at sleep */
 	if (test_bit(YB_DIGITIZER_IS_ON, &data->flags))
-		yogabook_wmi_do_action(wdev, YB_PAD_DISABLE);
+		yogabook_wmi_do_action(data, YB_PAD_DISABLE);
 
 	return 0;
 }
 
 static int yogabook_resume(struct device *dev)
 {
-	struct wmi_device *wdev = container_of(dev, struct wmi_device, dev);
 	struct yogabook_wmi *data = dev_get_drvdata(dev);
 
 	if (test_bit(YB_KBD_IS_ON, &data->flags)) {
 		/* Ensure keyboard touchpad is on before we call KBLC() */
 		acpi_device_set_power(data->kbd_adev, ACPI_STATE_D0);
-		yogabook_wmi_set_kbd_backlight(wdev, data->brightness);
+		yogabook_wmi_set_kbd_backlight(data, data->brightness);
 	}
 
 	if (test_bit(YB_DIGITIZER_IS_ON, &data->flags))
-		yogabook_wmi_do_action(wdev, YB_PAD_ENABLE);
+		yogabook_wmi_do_action(data, YB_PAD_ENABLE);
 
 	clear_bit(YB_SUSPENDED, &data->flags);
 
