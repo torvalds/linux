@@ -2,7 +2,6 @@
 /* WMI driver for Lenovo Yoga Book YB1-X90* / -X91* tablets */
 
 #include <linux/acpi.h>
-#include <linux/devm-helpers.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/machine.h>
 #include <linux/interrupt.h>
@@ -248,10 +247,7 @@ static int yogabook_wmi_probe(struct wmi_device *wdev, const void *context)
 	data->brightness = YB_KBD_BL_DEFAULT;
 	set_bit(YB_KBD_IS_ON, &data->flags);
 	set_bit(YB_DIGITIZER_IS_ON, &data->flags);
-
-	r = devm_work_autocancel(&wdev->dev, &data->work, yogabook_wmi_work);
-	if (r)
-		return r;
+	INIT_WORK(&data->work, yogabook_wmi_work);
 
 	data->kbd_adev = acpi_dev_get_first_match_dev("GDIX1001", NULL, -1);
 	if (!data->kbd_adev) {
@@ -299,10 +295,9 @@ static int yogabook_wmi_probe(struct wmi_device *wdev, const void *context)
 	}
 	data->backside_hall_irq = r;
 
-	r = devm_request_irq(&wdev->dev, data->backside_hall_irq,
-			     yogabook_backside_hall_irq,
-			     IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-			     "backside_hall_sw", data);
+	r = request_irq(data->backside_hall_irq, yogabook_backside_hall_irq,
+			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+			"backside_hall_sw", data);
 	if (r) {
 		dev_err_probe(&wdev->dev, r, "Requesting backside_hall_sw IRQ\n");
 		goto error_put_devs;
@@ -318,11 +313,14 @@ static int yogabook_wmi_probe(struct wmi_device *wdev, const void *context)
 	r = devm_led_classdev_register(&wdev->dev, &data->kbd_bl_led);
 	if (r < 0) {
 		dev_err_probe(&wdev->dev, r, "Registering backlight LED device\n");
-		goto error_put_devs;
+		goto error_free_irq;
 	}
 
 	return 0;
 
+error_free_irq:
+	free_irq(data->backside_hall_irq, data);
+	cancel_work_sync(&data->work);
 error_put_devs:
 	put_device(data->dig_dev);
 	put_device(data->kbd_dev);
@@ -335,6 +333,8 @@ static void yogabook_wmi_remove(struct wmi_device *wdev)
 {
 	struct yogabook_wmi *data = dev_get_drvdata(&wdev->dev);
 
+	free_irq(data->backside_hall_irq, data);
+	cancel_work_sync(&data->work);
 	put_device(data->dig_dev);
 	put_device(data->kbd_dev);
 	acpi_dev_put(data->dig_adev);
