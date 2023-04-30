@@ -11,11 +11,6 @@
 #include <linux/workqueue.h>
 
 #define YB_MBTN_EVENT_GUID	"243FEC1D-1963-41C1-8100-06A9D82A94B4"
-#define YB_MBTN_METHOD_GUID	"742B0CA1-0B20-404B-9CAA-AEFCABF30CE0"
-
-#define YB_PAD_ENABLE	1
-#define YB_PAD_DISABLE	2
-#define YB_LIGHTUP_BTN	3
 
 #define YB_KBD_BL_DEFAULT 128
 
@@ -34,6 +29,7 @@ struct yogabook_wmi {
 	struct acpi_device *dig_adev;
 	struct device *kbd_dev;
 	struct device *dig_dev;
+	struct led_classdev *pen_led;
 	struct gpio_desc *backside_hall_gpio;
 	int backside_hall_irq;
 	struct work_struct work;
@@ -41,31 +37,6 @@ struct yogabook_wmi {
 	unsigned long flags;
 	uint8_t brightness;
 };
-
-static int yogabook_wmi_do_action(struct yogabook_wmi *data, int action)
-{
-	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
-	struct acpi_buffer input;
-	acpi_status status;
-	u32 dummy_arg = 0;
-
-	dev_dbg(data->dev, "Do action: %d\n", action);
-
-	input.pointer = &dummy_arg;
-	input.length = sizeof(dummy_arg);
-
-	status = wmi_evaluate_method(YB_MBTN_METHOD_GUID, 0, action, &input,
-				     &output);
-	if (ACPI_FAILURE(status)) {
-		dev_err(data->dev, "Calling WMI method failure: 0x%x\n",
-			status);
-		return status;
-	}
-
-	kfree(output.pointer);
-
-	return 0;
-}
 
 /*
  * To control keyboard backlight, call the method KBLC() of the TCS1 ACPI
@@ -134,7 +105,7 @@ static void yogabook_wmi_work(struct work_struct *work)
 	}
 
 	if (!digitizer_on && test_bit(YB_DIGITIZER_IS_ON, &data->flags)) {
-		yogabook_wmi_do_action(data, YB_PAD_DISABLE);
+		led_set_brightness(data->pen_led, LED_OFF);
 		device_release_driver(data->dig_dev);
 		clear_bit(YB_DIGITIZER_IS_ON, &data->flags);
 	}
@@ -153,7 +124,7 @@ static void yogabook_wmi_work(struct work_struct *work)
 		if (r)
 			dev_warn(data->dev, "Reprobe of digitizer failed: %d\n", r);
 
-		yogabook_wmi_do_action(data, YB_PAD_ENABLE);
+		led_set_brightness(data->pen_led, LED_FULL);
 		set_bit(YB_DIGITIZER_IS_ON, &data->flags);
 	}
 }
@@ -217,11 +188,15 @@ static int kbd_brightness_set(struct led_classdev *cdev,
 }
 
 static struct gpiod_lookup_table yogabook_wmi_gpios = {
-	.dev_id		= "243FEC1D-1963-41C1-8100-06A9D82A94B4",
-	.table		= {
+	.table = {
 		GPIO_LOOKUP("INT33FF:02", 18, "backside_hall_sw", GPIO_ACTIVE_LOW),
 		{}
 	},
+};
+
+static struct led_lookup_data yogabook_pen_led = {
+	.provider = "platform::indicator",
+	.con_id = "pen-icon-led",
 };
 
 static int yogabook_wmi_probe(struct wmi_device *wdev, const void *context)
@@ -265,6 +240,18 @@ static int yogabook_wmi_probe(struct wmi_device *wdev, const void *context)
 		goto error_put_devs;
 	}
 
+	yogabook_pen_led.dev_id = dev_name(dev);
+	led_add_lookup(&yogabook_pen_led);
+	data->pen_led = devm_led_get(dev, "pen-icon-led");
+	led_remove_lookup(&yogabook_pen_led);
+
+	if (IS_ERR(data->pen_led)) {
+		r = PTR_ERR(data->pen_led);
+		dev_err_probe(dev, r, "Getting pen icon LED\n");
+		goto error_put_devs;
+	}
+
+	yogabook_wmi_gpios.dev_id = dev_name(dev);
 	gpiod_add_lookup_table(&yogabook_wmi_gpios);
 	data->backside_hall_gpio = devm_gpiod_get(dev, "backside_hall_sw", GPIOD_IN);
 	gpiod_remove_lookup_table(&yogabook_wmi_gpios);
@@ -350,11 +337,6 @@ static int yogabook_suspend(struct device *dev)
 	set_bit(YB_SUSPENDED, &data->flags);
 
 	flush_work(&data->work);
-
-	/* Turn off the pen button at sleep */
-	if (test_bit(YB_DIGITIZER_IS_ON, &data->flags))
-		yogabook_wmi_do_action(data, YB_PAD_DISABLE);
-
 	return 0;
 }
 
@@ -367,9 +349,6 @@ static int yogabook_resume(struct device *dev)
 		acpi_device_set_power(data->kbd_adev, ACPI_STATE_D0);
 		yogabook_wmi_set_kbd_backlight(data, data->brightness);
 	}
-
-	if (test_bit(YB_DIGITIZER_IS_ON, &data->flags))
-		yogabook_wmi_do_action(data, YB_PAD_ENABLE);
 
 	clear_bit(YB_SUSPENDED, &data->flags);
 
