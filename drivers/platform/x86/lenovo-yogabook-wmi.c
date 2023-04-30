@@ -346,7 +346,7 @@ static void yogabook_wmi_remove(struct wmi_device *wdev)
 	acpi_dev_put(data->kbd_adev);
 }
 
-static int __maybe_unused yogabook_wmi_suspend(struct device *dev)
+static int yogabook_suspend(struct device *dev)
 {
 	struct wmi_device *wdev = container_of(dev, struct wmi_device, dev);
 	struct yogabook_wmi *data = dev_get_drvdata(dev);
@@ -362,7 +362,7 @@ static int __maybe_unused yogabook_wmi_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused yogabook_wmi_resume(struct device *dev)
+static int yogabook_resume(struct device *dev)
 {
 	struct wmi_device *wdev = container_of(dev, struct wmi_device, dev);
 	struct yogabook_wmi *data = dev_get_drvdata(dev);
@@ -391,13 +391,12 @@ static const struct wmi_device_id yogabook_wmi_id_table[] = {
 	{ } /* Terminating entry */
 };
 
-static SIMPLE_DEV_PM_OPS(yogabook_wmi_pm_ops,
-			 yogabook_wmi_suspend, yogabook_wmi_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(yogabook_pm_ops, yogabook_suspend, yogabook_resume);
 
 static struct wmi_driver yogabook_wmi_driver = {
 	.driver = {
 		.name = "yogabook-wmi",
-		.pm = &yogabook_wmi_pm_ops,
+		.pm = pm_sleep_ptr(&yogabook_pm_ops),
 	},
 	.no_notify_data = true,
 	.id_table = yogabook_wmi_id_table,
