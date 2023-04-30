@@ -31,6 +31,7 @@ struct yogabook_wmi {
 	struct device *dig_dev;
 	struct led_classdev *pen_led;
 	struct gpio_desc *backside_hall_gpio;
+	int (*set_kbd_backlight)(struct yogabook_wmi *data, uint8_t level);
 	int backside_hall_irq;
 	struct work_struct work;
 	struct led_classdev kbd_bl_led;
@@ -97,7 +98,7 @@ static void yogabook_wmi_work(struct work_struct *work)
 		 * Must be done before releasing the keyboard touchscreen driver,
 		 * so that the keyboard touchscreen dev is still in D0.
 		 */
-		yogabook_wmi_set_kbd_backlight(data, 0);
+		data->set_kbd_backlight(data, 0);
 		device_release_driver(data->kbd_dev);
 		clear_bit(YB_KBD_IS_ON, &data->flags);
 	}
@@ -113,7 +114,7 @@ static void yogabook_wmi_work(struct work_struct *work)
 		if (r)
 			dev_warn(data->dev, "Reprobe of keyboard touchscreen failed: %d\n", r);
 
-		yogabook_wmi_set_kbd_backlight(data, data->brightness);
+		data->set_kbd_backlight(data, data->brightness);
 		set_bit(YB_KBD_IS_ON, &data->flags);
 	}
 
@@ -182,7 +183,7 @@ static int kbd_brightness_set(struct led_classdev *cdev,
 	if (!test_bit(YB_KBD_IS_ON, &data->flags))
 		return 0;
 
-	return yogabook_wmi_set_kbd_backlight(data, data->brightness);
+	return data->set_kbd_backlight(data, data->brightness);
 }
 
 static struct gpiod_lookup_table yogabook_wmi_gpios = {
@@ -232,7 +233,7 @@ static int yogabook_probe(struct device *dev, struct yogabook_wmi *data,
 	data->backside_hall_irq = r;
 
 	/* Set default brightness before enabling the IRQ */
-	yogabook_wmi_set_kbd_backlight(data, YB_KBD_BL_DEFAULT);
+	data->set_kbd_backlight(data, YB_KBD_BL_DEFAULT);
 
 	r = request_irq(data->backside_hall_irq, yogabook_backside_hall_irq,
 			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
@@ -294,6 +295,8 @@ static int yogabook_wmi_probe(struct wmi_device *wdev, const void *context)
 		goto error_put_devs;
 	}
 
+	data->set_kbd_backlight = yogabook_wmi_set_kbd_backlight;
+
 	r = yogabook_probe(dev, data, "ybwmi::kbd_backlight");
 	if (r)
 		goto error_put_devs;
@@ -352,7 +355,7 @@ static int yogabook_resume(struct device *dev)
 	struct yogabook_wmi *data = dev_get_drvdata(dev);
 
 	if (test_bit(YB_KBD_IS_ON, &data->flags))
-		yogabook_wmi_set_kbd_backlight(data, data->brightness);
+		data->set_kbd_backlight(data, data->brightness);
 
 	clear_bit(YB_SUSPENDED, &data->flags);
 
