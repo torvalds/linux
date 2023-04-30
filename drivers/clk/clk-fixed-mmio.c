@@ -71,14 +71,12 @@ static int of_fixed_mmio_clk_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int of_fixed_mmio_clk_remove(struct platform_device *pdev)
+static void of_fixed_mmio_clk_remove(struct platform_device *pdev)
 {
 	struct clk_hw *clk = platform_get_drvdata(pdev);
 
 	of_clk_del_provider(pdev->dev.of_node);
 	clk_hw_unregister_fixed_rate(clk);
-
-	return 0;
 }
 
 static const struct of_device_id of_fixed_mmio_clk_ids[] = {
@@ -93,7 +91,7 @@ static struct platform_driver of_fixed_mmio_clk_driver = {
 		.of_match_table = of_fixed_mmio_clk_ids,
 	},
 	.probe = of_fixed_mmio_clk_probe,
-	.remove = of_fixed_mmio_clk_remove,
+	.remove_new = of_fixed_mmio_clk_remove,
 };
 module_platform_driver(of_fixed_mmio_clk_driver);
 
