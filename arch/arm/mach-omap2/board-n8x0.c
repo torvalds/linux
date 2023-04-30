@@ -10,8 +10,8 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/gpio.h>
 #include <linux/gpio/machine.h>
+#include <linux/gpio/consumer.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/irq.h>
@@ -29,13 +29,12 @@
 
 #include "common.h"
 #include "mmc.h"
+#include "usb-tusb6010.h"
 #include "soc.h"
 #include "common-board-devices.h"
 
 #define TUSB6010_ASYNC_CS	1
 #define TUSB6010_SYNC_CS	4
-#define TUSB6010_GPIO_INT	58
-#define TUSB6010_GPIO_ENABLE	0
 #define TUSB6010_DMACHAN	0x3f
 
 #define NOKIA_N810_WIMAX	(1 << 2)
@@ -62,37 +61,6 @@ static void board_check_revision(void)
 }
 
 #if IS_ENABLED(CONFIG_USB_MUSB_TUSB6010)
-/*
- * Enable or disable power to TUSB6010. When enabling, turn on 3.3 V and
- * 1.5 V voltage regulators of PM companion chip. Companion chip will then
- * provide then PGOOD signal to TUSB6010 which will release it from reset.
- */
-static int tusb_set_power(int state)
-{
-	int i, retval = 0;
-
-	if (state) {
-		gpio_set_value(TUSB6010_GPIO_ENABLE, 1);
-		msleep(1);
-
-		/* Wait until TUSB6010 pulls INT pin down */
-		i = 100;
-		while (i && gpio_get_value(TUSB6010_GPIO_INT)) {
-			msleep(1);
-			i--;
-		}
-
-		if (!i) {
-			printk(KERN_ERR "tusb: powerup failed\n");
-			retval = -ENODEV;
-		}
-	} else {
-		gpio_set_value(TUSB6010_GPIO_ENABLE, 0);
-		msleep(10);
-	}
-
-	return retval;
-}
 
 static struct musb_hdrc_config musb_config = {
 	.multipoint	= 1,
@@ -103,39 +71,36 @@ static struct musb_hdrc_config musb_config = {
 
 static struct musb_hdrc_platform_data tusb_data = {
 	.mode		= MUSB_OTG,
-	.set_power	= tusb_set_power,
 	.min_power	= 25,	/* x2 = 50 mA drawn from VBUS as peripheral */
 	.power		= 100,	/* Max 100 mA VBUS for host mode */
 	.config		= &musb_config,
 };
 
+static struct gpiod_lookup_table tusb_gpio_table = {
+	.dev_id = "musb-tusb",
+	.table = {
+		GPIO_LOOKUP("gpio-0-15", 0, "enable",
+			    GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio-48-63", 10, "int",
+			    GPIO_ACTIVE_HIGH),
+		{ }
+	},
+};
+
 static void __init n8x0_usb_init(void)
 {
 	int ret = 0;
-	static const char announce[] __initconst = KERN_INFO "TUSB 6010\n";
 
-	/* PM companion chip power control pin */
-	ret = gpio_request_one(TUSB6010_GPIO_ENABLE, GPIOF_OUT_INIT_LOW,
-			       "TUSB6010 enable");
-	if (ret != 0) {
-		printk(KERN_ERR "Could not get TUSB power GPIO%i\n",
-		       TUSB6010_GPIO_ENABLE);
-		return;
-	}
-	tusb_set_power(0);
-
+	gpiod_add_lookup_table(&tusb_gpio_table);
 	ret = tusb6010_setup_interface(&tusb_data, TUSB6010_REFCLK_19, 2,
-					TUSB6010_ASYNC_CS, TUSB6010_SYNC_CS,
-					TUSB6010_GPIO_INT, TUSB6010_DMACHAN);
+				       TUSB6010_ASYNC_CS, TUSB6010_SYNC_CS,
+				       TUSB6010_DMACHAN);
 	if (ret != 0)
-		goto err;
+		return;
 
-	printk(announce);
+	pr_info("TUSB 6010\n");
 
 	return;
-
-err:
-	gpio_free(TUSB6010_GPIO_ENABLE);
 }
 #else
 
