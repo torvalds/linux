@@ -512,7 +512,7 @@ static inline struct bkey_i_alloc_v4 *bch2_alloc_to_v4_mut_inlined(struct btree_
 	if (likely(k.k->type == KEY_TYPE_alloc_v4) &&
 	    ((a = bkey_s_c_to_alloc_v4(k), true) &&
 	     BCH_ALLOC_V4_NR_BACKPOINTERS(a.v) == 0))
-		return bch2_bkey_make_mut_typed(trans, k, alloc_v4);
+		return bch2_bkey_make_mut_noupdate_typed(trans, k, alloc_v4);
 
 	return __bch2_alloc_to_v4_mut(trans, k);
 }

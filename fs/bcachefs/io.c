@@ -1393,7 +1393,7 @@ static int bch2_nocow_write_convert_one_unwritten(struct btree_trans *trans,
 		return 0;
 	}
 
-	new = bch2_bkey_make_mut(trans, k);
+	new = bch2_bkey_make_mut_noupdate(trans, k);
 	ret = PTR_ERR_OR_ZERO(new);
 	if (ret)
 		return ret;

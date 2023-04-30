@@ -765,7 +765,7 @@ static int hash_redo_key(struct btree_trans *trans,
 	if (IS_ERR(delete))
 		return PTR_ERR(delete);
 
-	tmp = bch2_bkey_make_mut(trans, k);
+	tmp = bch2_bkey_make_mut_noupdate(trans, k);
 	if (IS_ERR(tmp))
 		return PTR_ERR(tmp);
 

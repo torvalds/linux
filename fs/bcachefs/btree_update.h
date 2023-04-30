@@ -183,7 +183,7 @@ static inline void bch2_trans_reset_updates(struct btree_trans *trans)
 	}
 }
 
-static inline struct bkey_i *__bch2_bkey_make_mut(struct btree_trans *trans, struct bkey_s_c k,
+static inline struct bkey_i *__bch2_bkey_make_mut_noupdate(struct btree_trans *trans, struct bkey_s_c k,
 						  unsigned type, unsigned min_bytes)
 {
 	unsigned bytes = max_t(unsigned, min_bytes, bkey_bytes(k.k));
@@ -205,13 +205,39 @@ static inline struct bkey_i *__bch2_bkey_make_mut(struct btree_trans *trans, str
 	return mut;
 }
 
-static inline struct bkey_i *bch2_bkey_make_mut(struct btree_trans *trans, struct bkey_s_c k)
+static inline struct bkey_i *bch2_bkey_make_mut_noupdate(struct btree_trans *trans, struct bkey_s_c k)
 {
-	return __bch2_bkey_make_mut(trans, k, 0, 0);
+	return __bch2_bkey_make_mut_noupdate(trans, k, 0, 0);
 }
 
-#define bch2_bkey_make_mut_typed(_trans, _k, _type)			\
-	bkey_i_to_##_type(__bch2_bkey_make_mut(_trans, _k,		\
+#define bch2_bkey_make_mut_noupdate_typed(_trans, _k, _type)		\
+	bkey_i_to_##_type(__bch2_bkey_make_mut_noupdate(_trans, _k,	\
+				KEY_TYPE_##_type, sizeof(struct bkey_i_##_type)))
+
+static inline struct bkey_i *__bch2_bkey_make_mut(struct btree_trans *trans, struct btree_iter *iter,
+					struct bkey_s_c k, unsigned flags,
+					unsigned type, unsigned min_bytes)
+{
+	struct bkey_i *mut = __bch2_bkey_make_mut_noupdate(trans, k, type, min_bytes);
+	int ret;
+
+	if (IS_ERR(mut))
+		return mut;
+
+	ret = bch2_trans_update(trans, iter, mut, flags);
+	if (ret)
+		return ERR_PTR(ret);
+	return mut;
+}
+
+static inline struct bkey_i *bch2_bkey_make_mut(struct btree_trans *trans, struct btree_iter *iter,
+						struct bkey_s_c k, unsigned flags)
+{
+	return __bch2_bkey_make_mut(trans, iter, k, flags, 0, 0);
+}
+
+#define bch2_bkey_make_mut_typed(_trans, _iter, _k, _flags, _type)	\
+	bkey_i_to_##_type(__bch2_bkey_make_mut(_trans, _iter, _k, _flags,\
 				KEY_TYPE_##_type, sizeof(struct bkey_i_##_type)))
 
 static inline struct bkey_i *__bch2_bkey_get_mut_noupdate(struct btree_trans *trans,
@@ -223,7 +249,7 @@ static inline struct bkey_i *__bch2_bkey_get_mut_noupdate(struct btree_trans *tr
 				btree_id, pos, flags|BTREE_ITER_INTENT, type);
 	struct bkey_i *ret = unlikely(IS_ERR(k.k))
 		? ERR_CAST(k.k)
-		: __bch2_bkey_make_mut(trans, k, 0, min_bytes);
+		: __bch2_bkey_make_mut_noupdate(trans, k, 0, min_bytes);
 	if (unlikely(IS_ERR(ret)))
 		bch2_trans_iter_exit(trans, iter);
 	return ret;

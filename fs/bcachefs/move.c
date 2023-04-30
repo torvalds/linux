@@ -251,7 +251,7 @@ static int bch2_extent_drop_ptrs(struct btree_trans *trans,
 	struct bkey_i *n;
 	int ret;
 
-	n = bch2_bkey_make_mut(trans, k);
+	n = bch2_bkey_make_mut_noupdate(trans, k);
 	ret = PTR_ERR_OR_ZERO(n);
 	if (ret)
 		return ret;

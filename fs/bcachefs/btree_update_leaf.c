@@ -1268,7 +1268,7 @@ static noinline int extent_front_merge(struct btree_trans *trans,
 	struct bkey_i *update;
 	int ret;
 
-	update = bch2_bkey_make_mut(trans, k);
+	update = bch2_bkey_make_mut_noupdate(trans, k);
 	ret = PTR_ERR_OR_ZERO(update);
 	if (ret)
 		return ret;
@@ -1390,7 +1390,7 @@ int bch2_trans_update_extent(struct btree_trans *trans,
 			trans->extra_journal_res += compressed_sectors;
 
 		if (front_split) {
-			update = bch2_bkey_make_mut(trans, k);
+			update = bch2_bkey_make_mut_noupdate(trans, k);
 			if ((ret = PTR_ERR_OR_ZERO(update)))
 				goto err;
 
@@ -1404,7 +1404,7 @@ int bch2_trans_update_extent(struct btree_trans *trans,
 
 		if (k.k->p.snapshot != insert->k.p.snapshot &&
 		    (front_split || back_split)) {
-			update = bch2_bkey_make_mut(trans, k);
+			update = bch2_bkey_make_mut_noupdate(trans, k);
 			if ((ret = PTR_ERR_OR_ZERO(update)))
 				goto err;
 
@@ -1443,7 +1443,7 @@ int bch2_trans_update_extent(struct btree_trans *trans,
 		}
 
 		if (back_split) {
-			update = bch2_bkey_make_mut(trans, k);
+			update = bch2_bkey_make_mut_noupdate(trans, k);
 			if ((ret = PTR_ERR_OR_ZERO(update)))
 				goto err;
 
