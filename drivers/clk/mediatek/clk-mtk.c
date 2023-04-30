@@ -648,14 +648,12 @@ int mtk_clk_simple_probe(struct platform_device *pdev)
 }
 EXPORT_SYMBOL_GPL(mtk_clk_simple_probe);
 
-int mtk_clk_pdev_remove(struct platform_device *pdev)
+void mtk_clk_pdev_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->parent->of_node;
 
 	__mtk_clk_simple_remove(pdev, node);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(mtk_clk_pdev_remove);
 
