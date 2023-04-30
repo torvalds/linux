@@ -23,7 +23,7 @@ enum {
 	YB_SUSPENDED,
 };
 
-struct yogabook_wmi {
+struct yogabook_data {
 	struct device *dev;
 	struct acpi_device *kbd_adev;
 	struct acpi_device *dig_adev;
@@ -31,7 +31,7 @@ struct yogabook_wmi {
 	struct device *dig_dev;
 	struct led_classdev *pen_led;
 	struct gpio_desc *backside_hall_gpio;
-	int (*set_kbd_backlight)(struct yogabook_wmi *data, uint8_t level);
+	int (*set_kbd_backlight)(struct yogabook_data *data, uint8_t level);
 	int backside_hall_irq;
 	struct work_struct work;
 	struct led_classdev kbd_bl_led;
@@ -43,7 +43,7 @@ struct yogabook_wmi {
  * To control keyboard backlight, call the method KBLC() of the TCS1 ACPI
  * device (Goodix touchpad acts as virtual sensor keyboard).
  */
-static int yogabook_wmi_set_kbd_backlight(struct yogabook_wmi *data,
+static int yogabook_wmi_set_kbd_backlight(struct yogabook_data *data,
 					  uint8_t level)
 {
 	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
@@ -73,9 +73,9 @@ static int yogabook_wmi_set_kbd_backlight(struct yogabook_wmi *data,
 	return 0;
 }
 
-static void yogabook_wmi_work(struct work_struct *work)
+static void yogabook_work(struct work_struct *work)
 {
-	struct yogabook_wmi *data = container_of(work, struct yogabook_wmi, work);
+	struct yogabook_data *data = container_of(work, struct yogabook_data, work);
 	bool kbd_on, digitizer_on;
 	int r;
 
@@ -128,7 +128,7 @@ static void yogabook_wmi_work(struct work_struct *work)
 	}
 }
 
-static void yogabook_toggle_digitizer_mode(struct yogabook_wmi *data)
+static void yogabook_toggle_digitizer_mode(struct yogabook_data *data)
 {
 	if (test_bit(YB_SUSPENDED, &data->flags))
 		return;
@@ -152,7 +152,7 @@ static void yogabook_wmi_notify(struct wmi_device *wdev, union acpi_object *dumm
 
 static irqreturn_t yogabook_backside_hall_irq(int irq, void *_data)
 {
-	struct yogabook_wmi *data = _data;
+	struct yogabook_data *data = _data;
 
 	if (gpiod_get_value(data->backside_hall_gpio))
 		set_bit(YB_TABLET_MODE, &data->flags);
@@ -164,10 +164,11 @@ static irqreturn_t yogabook_backside_hall_irq(int irq, void *_data)
 	return IRQ_HANDLED;
 }
 
+#define kbd_led_to_yogabook(cdev) container_of(cdev, struct yogabook_data, kbd_bl_led)
+
 static enum led_brightness kbd_brightness_get(struct led_classdev *cdev)
 {
-	struct yogabook_wmi *data =
-		container_of(cdev, struct yogabook_wmi, kbd_bl_led);
+	struct yogabook_data *data = kbd_led_to_yogabook(cdev);
 
 	return data->brightness;
 }
@@ -175,8 +176,7 @@ static enum led_brightness kbd_brightness_get(struct led_classdev *cdev)
 static int kbd_brightness_set(struct led_classdev *cdev,
 			      enum led_brightness value)
 {
-	struct yogabook_wmi *data =
-		container_of(cdev, struct yogabook_wmi, kbd_bl_led);
+	struct yogabook_data *data = kbd_led_to_yogabook(cdev);
 
 	if ((value < 0) || (value > 255))
 		return -EINVAL;
@@ -189,7 +189,7 @@ static int kbd_brightness_set(struct led_classdev *cdev,
 	return data->set_kbd_backlight(data, data->brightness);
 }
 
-static struct gpiod_lookup_table yogabook_wmi_gpios = {
+static struct gpiod_lookup_table yogabook_gpios = {
 	.table = {
 		GPIO_LOOKUP("INT33FF:02", 18, "backside_hall_sw", GPIO_ACTIVE_LOW),
 		{}
@@ -201,7 +201,7 @@ static struct led_lookup_data yogabook_pen_led = {
 	.con_id = "pen-icon-led",
 };
 
-static int yogabook_probe(struct device *dev, struct yogabook_wmi *data,
+static int yogabook_probe(struct device *dev, struct yogabook_data *data,
 			  const char *kbd_bl_led_name)
 {
 	int r;
@@ -210,7 +210,7 @@ static int yogabook_probe(struct device *dev, struct yogabook_wmi *data,
 	data->brightness = YB_KBD_BL_DEFAULT;
 	set_bit(YB_KBD_IS_ON, &data->flags);
 	set_bit(YB_DIGITIZER_IS_ON, &data->flags);
-	INIT_WORK(&data->work, yogabook_wmi_work);
+	INIT_WORK(&data->work, yogabook_work);
 
 	yogabook_pen_led.dev_id = dev_name(dev);
 	led_add_lookup(&yogabook_pen_led);
@@ -220,10 +220,10 @@ static int yogabook_probe(struct device *dev, struct yogabook_wmi *data,
 	if (IS_ERR(data->pen_led))
 		return dev_err_probe(dev, PTR_ERR(data->pen_led), "Getting pen icon LED\n");
 
-	yogabook_wmi_gpios.dev_id = dev_name(dev);
-	gpiod_add_lookup_table(&yogabook_wmi_gpios);
+	yogabook_gpios.dev_id = dev_name(dev);
+	gpiod_add_lookup_table(&yogabook_gpios);
 	data->backside_hall_gpio = devm_gpiod_get(dev, "backside_hall_sw", GPIOD_IN);
-	gpiod_remove_lookup_table(&yogabook_wmi_gpios);
+	gpiod_remove_lookup_table(&yogabook_gpios);
 
 	if (IS_ERR(data->backside_hall_gpio))
 		return dev_err_probe(dev, PTR_ERR(data->backside_hall_gpio),
@@ -269,7 +269,7 @@ error_free_irq:
 static int yogabook_wmi_probe(struct wmi_device *wdev, const void *context)
 {
 	struct device *dev = &wdev->dev;
-	struct yogabook_wmi *data;
+	struct yogabook_data *data;
 	int r;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
@@ -314,7 +314,7 @@ error_put_devs:
 	return r;
 }
 
-static void yogabook_remove(struct yogabook_wmi *data)
+static void yogabook_remove(struct yogabook_data *data)
 {
 	int r = 0;
 
@@ -333,7 +333,7 @@ static void yogabook_remove(struct yogabook_wmi *data)
 
 static void yogabook_wmi_remove(struct wmi_device *wdev)
 {
-	struct yogabook_wmi *data = dev_get_drvdata(&wdev->dev);
+	struct yogabook_data *data = dev_get_drvdata(&wdev->dev);
 
 	yogabook_remove(data);
 
@@ -345,7 +345,7 @@ static void yogabook_wmi_remove(struct wmi_device *wdev)
 
 static int yogabook_suspend(struct device *dev)
 {
-	struct yogabook_wmi *data = dev_get_drvdata(dev);
+	struct yogabook_data *data = dev_get_drvdata(dev);
 
 	set_bit(YB_SUSPENDED, &data->flags);
 
@@ -355,7 +355,7 @@ static int yogabook_suspend(struct device *dev)
 
 static int yogabook_resume(struct device *dev)
 {
-	struct yogabook_wmi *data = dev_get_drvdata(dev);
+	struct yogabook_data *data = dev_get_drvdata(dev);
 
 	if (test_bit(YB_KBD_IS_ON, &data->flags))
 		data->set_kbd_backlight(data, data->brightness);
