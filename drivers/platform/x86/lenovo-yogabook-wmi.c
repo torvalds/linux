@@ -199,15 +199,10 @@ static struct led_lookup_data yogabook_pen_led = {
 	.con_id = "pen-icon-led",
 };
 
-static int yogabook_wmi_probe(struct wmi_device *wdev, const void *context)
+static int yogabook_probe(struct device *dev, struct yogabook_wmi *data,
+			  const char *kbd_bl_led_name)
 {
-	struct device *dev = &wdev->dev;
-	struct yogabook_wmi *data;
 	int r;
-
-	data = devm_kzalloc(dev, sizeof(struct yogabook_wmi), GFP_KERNEL);
-	if (data == NULL)
-		return -ENOMEM;
 
 	data->dev = dev;
 	data->brightness = YB_KBD_BL_DEFAULT;
@@ -215,58 +210,27 @@ static int yogabook_wmi_probe(struct wmi_device *wdev, const void *context)
 	set_bit(YB_DIGITIZER_IS_ON, &data->flags);
 	INIT_WORK(&data->work, yogabook_wmi_work);
 
-	data->kbd_adev = acpi_dev_get_first_match_dev("GDIX1001", NULL, -1);
-	if (!data->kbd_adev) {
-		dev_err(dev, "Cannot find the touchpad device in ACPI tables\n");
-		return -ENODEV;
-	}
-
-	data->dig_adev = acpi_dev_get_first_match_dev("WCOM0019", NULL, -1);
-	if (!data->dig_adev) {
-		dev_err(dev, "Cannot find the digitizer device in ACPI tables\n");
-		r = -ENODEV;
-		goto error_put_devs;
-	}
-
-	data->kbd_dev = get_device(acpi_get_first_physical_node(data->kbd_adev));
-	if (!data->kbd_dev || !data->kbd_dev->driver) {
-		r = -EPROBE_DEFER;
-		goto error_put_devs;
-	}
-
-	data->dig_dev = get_device(acpi_get_first_physical_node(data->dig_adev));
-	if (!data->dig_dev || !data->dig_dev->driver) {
-		r = -EPROBE_DEFER;
-		goto error_put_devs;
-	}
-
 	yogabook_pen_led.dev_id = dev_name(dev);
 	led_add_lookup(&yogabook_pen_led);
 	data->pen_led = devm_led_get(dev, "pen-icon-led");
 	led_remove_lookup(&yogabook_pen_led);
 
-	if (IS_ERR(data->pen_led)) {
-		r = PTR_ERR(data->pen_led);
-		dev_err_probe(dev, r, "Getting pen icon LED\n");
-		goto error_put_devs;
-	}
+	if (IS_ERR(data->pen_led))
+		return dev_err_probe(dev, PTR_ERR(data->pen_led), "Getting pen icon LED\n");
 
 	yogabook_wmi_gpios.dev_id = dev_name(dev);
 	gpiod_add_lookup_table(&yogabook_wmi_gpios);
 	data->backside_hall_gpio = devm_gpiod_get(dev, "backside_hall_sw", GPIOD_IN);
 	gpiod_remove_lookup_table(&yogabook_wmi_gpios);
 
-	if (IS_ERR(data->backside_hall_gpio)) {
-		r = PTR_ERR(data->backside_hall_gpio);
-		dev_err_probe(dev, r, "Getting backside_hall_sw GPIO\n");
-		goto error_put_devs;
-	}
+	if (IS_ERR(data->backside_hall_gpio))
+		return dev_err_probe(dev, PTR_ERR(data->backside_hall_gpio),
+				     "Getting backside_hall_sw GPIO\n");
 
 	r = gpiod_to_irq(data->backside_hall_gpio);
-	if (r < 0) {
-		dev_err_probe(dev, r, "Getting backside_hall_sw IRQ\n");
-		goto error_put_devs;
-	}
+	if (r < 0)
+		return dev_err_probe(dev, r, "Getting backside_hall_sw IRQ\n");
+
 	data->backside_hall_irq = r;
 
 	/* Set default brightness before enabling the IRQ */
@@ -275,14 +239,12 @@ static int yogabook_wmi_probe(struct wmi_device *wdev, const void *context)
 	r = request_irq(data->backside_hall_irq, yogabook_backside_hall_irq,
 			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 			"backside_hall_sw", data);
-	if (r) {
-		dev_err_probe(dev, r, "Requesting backside_hall_sw IRQ\n");
-		goto error_put_devs;
-	}
+	if (r)
+		return dev_err_probe(dev, r, "Requesting backside_hall_sw IRQ\n");
 
 	schedule_work(&data->work);
 
-	data->kbd_bl_led.name = "ybwmi::kbd_backlight";
+	data->kbd_bl_led.name = kbd_bl_led_name;
 	data->kbd_bl_led.brightness_set_blocking = kbd_brightness_set;
 	data->kbd_bl_led.brightness_get = kbd_brightness_get;
 	data->kbd_bl_led.max_brightness = 255;
@@ -299,6 +261,47 @@ static int yogabook_wmi_probe(struct wmi_device *wdev, const void *context)
 error_free_irq:
 	free_irq(data->backside_hall_irq, data);
 	cancel_work_sync(&data->work);
+	return r;
+}
+
+static int yogabook_wmi_probe(struct wmi_device *wdev, const void *context)
+{
+	struct device *dev = &wdev->dev;
+	struct yogabook_wmi *data;
+	int r;
+
+	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	if (data == NULL)
+		return -ENOMEM;
+
+	data->kbd_adev = acpi_dev_get_first_match_dev("GDIX1001", NULL, -1);
+	if (!data->kbd_adev)
+		return dev_err_probe(dev, -ENODEV, "Cannot find the touchpad device in ACPI tables\n");
+
+	data->dig_adev = acpi_dev_get_first_match_dev("WCOM0019", NULL, -1);
+	if (!data->dig_adev) {
+		r = dev_err_probe(dev, -ENODEV, "Cannot find the digitizer device in ACPI tables\n");
+		goto error_put_devs;
+	}
+
+	data->kbd_dev = get_device(acpi_get_first_physical_node(data->kbd_adev));
+	if (!data->kbd_dev || !data->kbd_dev->driver) {
+		r = -EPROBE_DEFER;
+		goto error_put_devs;
+	}
+
+	data->dig_dev = get_device(acpi_get_first_physical_node(data->dig_adev));
+	if (!data->dig_dev || !data->dig_dev->driver) {
+		r = -EPROBE_DEFER;
+		goto error_put_devs;
+	}
+
+	r = yogabook_probe(dev, data, "ybwmi::kbd_backlight");
+	if (r)
+		goto error_put_devs;
+
+	return 0;
+
 error_put_devs:
 	put_device(data->dig_dev);
 	put_device(data->kbd_dev);
@@ -307,9 +310,8 @@ error_put_devs:
 	return r;
 }
 
-static void yogabook_wmi_remove(struct wmi_device *wdev)
+static void yogabook_remove(struct yogabook_wmi *data)
 {
-	struct yogabook_wmi *data = dev_get_drvdata(&wdev->dev);
 	int r = 0;
 
 	free_irq(data->backside_hall_irq, data);
@@ -323,6 +325,13 @@ static void yogabook_wmi_remove(struct wmi_device *wdev)
 
 	if (r)
 		dev_warn(data->dev, "Reprobe of devices failed\n");
+}
+
+static void yogabook_wmi_remove(struct wmi_device *wdev)
+{
+	struct yogabook_wmi *data = dev_get_drvdata(&wdev->dev);
+
+	yogabook_remove(data);
 
 	put_device(data->dig_dev);
 	put_device(data->kbd_dev);
