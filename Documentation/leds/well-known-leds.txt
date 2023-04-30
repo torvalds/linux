@@ -65,7 +65,7 @@ Phones usually have multi-color status LED.
 
 * Power management
 
-Good: "platform:*:charging" (allwinner sun50i)
+Good: "platform:*:charging" (allwinner sun50i, leds-cht-wcove)
 
 * Screen
 
