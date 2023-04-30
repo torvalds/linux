@@ -39,40 +39,6 @@ struct yogabook_data {
 	uint8_t brightness;
 };
 
-/*
- * To control keyboard backlight, call the method KBLC() of the TCS1 ACPI
- * device (Goodix touchpad acts as virtual sensor keyboard).
- */
-static int yogabook_wmi_set_kbd_backlight(struct yogabook_data *data,
-					  uint8_t level)
-{
-	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
-	struct acpi_object_list input;
-	union acpi_object param;
-	acpi_status status;
-
-	dev_dbg(data->dev, "Set KBLC level to %u\n", level);
-
-	/* Ensure keyboard touchpad is on before we call KBLC() */
-	acpi_device_set_power(data->kbd_adev, ACPI_STATE_D0);
-
-	input.count = 1;
-	input.pointer = &param;
-
-	param.type = ACPI_TYPE_INTEGER;
-	param.integer.value = 255 - level;
-
-	status = acpi_evaluate_object(acpi_device_handle(data->kbd_adev), "KBLC",
-				      &input, &output);
-	if (ACPI_FAILURE(status)) {
-		dev_err(data->dev, "Failed to call KBLC method: 0x%x\n", status);
-		return status;
-	}
-
-	kfree(output.pointer);
-	return 0;
-}
-
 static void yogabook_work(struct work_struct *work)
 {
 	struct yogabook_data *data = container_of(work, struct yogabook_data, work);
@@ -143,11 +109,6 @@ static void yogabook_toggle_digitizer_mode(struct yogabook_data *data)
 	 * done also needs ACPI functions, use a workqueue to avoid deadlocking.
 	 */
 	schedule_work(&data->work);
-}
-
-static void yogabook_wmi_notify(struct wmi_device *wdev, union acpi_object *dummy)
-{
-	yogabook_toggle_digitizer_mode(dev_get_drvdata(&wdev->dev));
 }
 
 static irqreturn_t yogabook_backside_hall_irq(int irq, void *_data)
@@ -266,6 +227,84 @@ error_free_irq:
 	return r;
 }
 
+static void yogabook_remove(struct yogabook_data *data)
+{
+	int r = 0;
+
+	free_irq(data->backside_hall_irq, data);
+	cancel_work_sync(&data->work);
+
+	if (!test_bit(YB_KBD_IS_ON, &data->flags))
+		r |= device_reprobe(data->kbd_dev);
+
+	if (!test_bit(YB_DIGITIZER_IS_ON, &data->flags))
+		r |= device_reprobe(data->dig_dev);
+
+	if (r)
+		dev_warn(data->dev, "Reprobe of devices failed\n");
+}
+
+static int yogabook_suspend(struct device *dev)
+{
+	struct yogabook_data *data = dev_get_drvdata(dev);
+
+	set_bit(YB_SUSPENDED, &data->flags);
+
+	flush_work(&data->work);
+	return 0;
+}
+
+static int yogabook_resume(struct device *dev)
+{
+	struct yogabook_data *data = dev_get_drvdata(dev);
+
+	if (test_bit(YB_KBD_IS_ON, &data->flags))
+		data->set_kbd_backlight(data, data->brightness);
+
+	clear_bit(YB_SUSPENDED, &data->flags);
+
+	/* Check for YB_TABLET_MODE changes made during suspend */
+	schedule_work(&data->work);
+
+	return 0;
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(yogabook_pm_ops, yogabook_suspend, yogabook_resume);
+
+/*
+ * To control keyboard backlight, call the method KBLC() of the TCS1 ACPI
+ * device (Goodix touchpad acts as virtual sensor keyboard).
+ */
+static int yogabook_wmi_set_kbd_backlight(struct yogabook_data *data,
+					  uint8_t level)
+{
+	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
+	struct acpi_object_list input;
+	union acpi_object param;
+	acpi_status status;
+
+	dev_dbg(data->dev, "Set KBLC level to %u\n", level);
+
+	/* Ensure keyboard touchpad is on before we call KBLC() */
+	acpi_device_set_power(data->kbd_adev, ACPI_STATE_D0);
+
+	input.count = 1;
+	input.pointer = &param;
+
+	param.type = ACPI_TYPE_INTEGER;
+	param.integer.value = 255 - level;
+
+	status = acpi_evaluate_object(acpi_device_handle(data->kbd_adev), "KBLC",
+				      &input, &output);
+	if (ACPI_FAILURE(status)) {
+		dev_err(data->dev, "Failed to call KBLC method: 0x%x\n", status);
+		return status;
+	}
+
+	kfree(output.pointer);
+	return 0;
+}
+
 static int yogabook_wmi_probe(struct wmi_device *wdev, const void *context)
 {
 	struct device *dev = &wdev->dev;
@@ -314,23 +353,6 @@ error_put_devs:
 	return r;
 }
 
-static void yogabook_remove(struct yogabook_data *data)
-{
-	int r = 0;
-
-	free_irq(data->backside_hall_irq, data);
-	cancel_work_sync(&data->work);
-
-	if (!test_bit(YB_KBD_IS_ON, &data->flags))
-		r |= device_reprobe(data->kbd_dev);
-
-	if (!test_bit(YB_DIGITIZER_IS_ON, &data->flags))
-		r |= device_reprobe(data->dig_dev);
-
-	if (r)
-		dev_warn(data->dev, "Reprobe of devices failed\n");
-}
-
 static void yogabook_wmi_remove(struct wmi_device *wdev)
 {
 	struct yogabook_data *data = dev_get_drvdata(&wdev->dev);
@@ -343,29 +365,9 @@ static void yogabook_wmi_remove(struct wmi_device *wdev)
 	acpi_dev_put(data->kbd_adev);
 }
 
-static int yogabook_suspend(struct device *dev)
+static void yogabook_wmi_notify(struct wmi_device *wdev, union acpi_object *dummy)
 {
-	struct yogabook_data *data = dev_get_drvdata(dev);
-
-	set_bit(YB_SUSPENDED, &data->flags);
-
-	flush_work(&data->work);
-	return 0;
-}
-
-static int yogabook_resume(struct device *dev)
-{
-	struct yogabook_data *data = dev_get_drvdata(dev);
-
-	if (test_bit(YB_KBD_IS_ON, &data->flags))
-		data->set_kbd_backlight(data, data->brightness);
-
-	clear_bit(YB_SUSPENDED, &data->flags);
-
-	/* Check for YB_TABLET_MODE changes made during suspend */
-	schedule_work(&data->work);
-
-	return 0;
+	yogabook_toggle_digitizer_mode(dev_get_drvdata(&wdev->dev));
 }
 
 static const struct wmi_device_id yogabook_wmi_id_table[] = {
@@ -374,8 +376,7 @@ static const struct wmi_device_id yogabook_wmi_id_table[] = {
 	},
 	{ } /* Terminating entry */
 };
-
-static DEFINE_SIMPLE_DEV_PM_OPS(yogabook_pm_ops, yogabook_suspend, yogabook_resume);
+MODULE_DEVICE_TABLE(wmi, yogabook_wmi_id_table);
 
 static struct wmi_driver yogabook_wmi_driver = {
 	.driver = {
@@ -390,7 +391,6 @@ static struct wmi_driver yogabook_wmi_driver = {
 };
 module_wmi_driver(yogabook_wmi_driver);
 
-MODULE_DEVICE_TABLE(wmi, yogabook_wmi_id_table);
 MODULE_AUTHOR("Yauhen Kharuzhy");
 MODULE_DESCRIPTION("Lenovo Yoga Book WMI driver");
 MODULE_LICENSE("GPL v2");
