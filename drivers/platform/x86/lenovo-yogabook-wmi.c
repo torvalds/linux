@@ -1,12 +1,24 @@
 // SPDX-License-Identifier: GPL-2.0
-/* WMI driver for Lenovo Yoga Book YB1-X90* / -X91* tablets */
+/*
+ * Platform driver for Lenovo Yoga Book YB1-X90F/L tablets (Android model)
+ * WMI driver for Lenovo Yoga Book YB1-X91F/L tablets (Windows model)
+ *
+ * The keyboard half of the YB1 models can function as both a capacitive
+ * touch keyboard or as a Wacom digitizer, but not at the same time.
+ *
+ * This driver takes care of switching between the 2 functions.
+ *
+ * Copyright 2023 Hans de Goede <hansg@kernel.org>
+ */
 
 #include <linux/acpi.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/machine.h>
+#include <linux/i2c.h>
 #include <linux/interrupt.h>
-#include <linux/module.h>
 #include <linux/leds.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/wmi.h>
 #include <linux/workqueue.h>
 
@@ -14,6 +26,8 @@
 
 #define YB_KBD_BL_DEFAULT	128
 #define YB_KBD_BL_MAX		255
+
+#define YB_PDEV_NAME		"yogabook-touch-kbd-digitizer-switch"
 
 /* flags */
 enum {
@@ -31,8 +45,11 @@ struct yogabook_data {
 	struct device *kbd_dev;
 	struct device *dig_dev;
 	struct led_classdev *pen_led;
+	struct gpio_desc *pen_touch_event;
+	struct gpio_desc *kbd_bl_led_enable;
 	struct gpio_desc *backside_hall_gpio;
 	int (*set_kbd_backlight)(struct yogabook_data *data, uint8_t level);
+	int pen_touch_irq;
 	int backside_hall_irq;
 	struct work_struct work;
 	struct led_classdev kbd_bl_led;
@@ -272,6 +289,8 @@ static int yogabook_resume(struct device *dev)
 
 static DEFINE_SIMPLE_DEV_PM_OPS(yogabook_pm_ops, yogabook_suspend, yogabook_resume);
 
+/********** WMI driver code **********/
+
 /*
  * To control keyboard backlight, call the method KBLC() of the TCS1 ACPI
  * device (Goodix touchpad acts as virtual sensor keyboard).
@@ -390,8 +409,145 @@ static struct wmi_driver yogabook_wmi_driver = {
 	.remove = yogabook_wmi_remove,
 	.notify = yogabook_wmi_notify,
 };
-module_wmi_driver(yogabook_wmi_driver);
 
+/********** platform driver code **********/
+
+static struct gpiod_lookup_table yogabook_pdev_gpios = {
+	.dev_id = YB_PDEV_NAME,
+	.table = {
+		GPIO_LOOKUP("INT33FF:00", 95, "pen_touch_event", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("INT33FF:03", 52, "enable_keyboard_led", GPIO_ACTIVE_HIGH),
+		{}
+	},
+};
+
+static int yogabook_pdev_set_kbd_backlight(struct yogabook_data *data, u8 level)
+{
+	gpiod_set_value(data->kbd_bl_led_enable, level ? 1 : 0);
+	return 0;
+}
+
+static irqreturn_t yogabook_pen_touch_irq(int irq, void *data)
+{
+	yogabook_toggle_digitizer_mode(data);
+	return IRQ_HANDLED;
+}
+
+static int yogabook_pdev_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct yogabook_data *data;
+	int r;
+
+	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	if (data == NULL)
+		return -ENOMEM;
+
+	data->kbd_dev = bus_find_device_by_name(&i2c_bus_type, NULL, "i2c-goodix_ts");
+	if (!data->kbd_dev || !data->kbd_dev->driver) {
+		r = -EPROBE_DEFER;
+		goto error_put_devs;
+	}
+
+	data->dig_dev = bus_find_device_by_name(&i2c_bus_type, NULL, "i2c-wacom");
+	if (!data->dig_dev || !data->dig_dev->driver) {
+		r = -EPROBE_DEFER;
+		goto error_put_devs;
+	}
+
+	gpiod_add_lookup_table(&yogabook_pdev_gpios);
+	data->pen_touch_event = devm_gpiod_get(dev, "pen_touch_event", GPIOD_IN);
+	data->kbd_bl_led_enable = devm_gpiod_get(dev, "enable_keyboard_led", GPIOD_OUT_HIGH);
+	gpiod_remove_lookup_table(&yogabook_pdev_gpios);
+
+	if (IS_ERR(data->pen_touch_event)) {
+		r = dev_err_probe(dev, PTR_ERR(data->pen_touch_event),
+				  "Getting pen_touch_event GPIO\n");
+		goto error_put_devs;
+	}
+
+	if (IS_ERR(data->kbd_bl_led_enable)) {
+		r = dev_err_probe(dev, PTR_ERR(data->kbd_bl_led_enable),
+				  "Getting enable_keyboard_led GPIO\n");
+		goto error_put_devs;
+	}
+
+	r = gpiod_to_irq(data->pen_touch_event);
+	if (r < 0) {
+		dev_err_probe(dev, r, "Getting pen_touch_event IRQ\n");
+		goto error_put_devs;
+	}
+	data->pen_touch_irq = r;
+
+	r = request_irq(data->pen_touch_irq, yogabook_pen_touch_irq, IRQF_TRIGGER_FALLING,
+			"pen_touch_event", data);
+	if (r) {
+		dev_err_probe(dev, r, "Requesting pen_touch_event IRQ\n");
+		goto error_put_devs;
+	}
+
+	data->set_kbd_backlight = yogabook_pdev_set_kbd_backlight;
+
+	r = yogabook_probe(dev, data, "yogabook::kbd_backlight");
+	if (r)
+		goto error_free_irq;
+
+	return 0;
+
+error_free_irq:
+	free_irq(data->pen_touch_irq, data);
+	cancel_work_sync(&data->work);
+error_put_devs:
+	put_device(data->dig_dev);
+	put_device(data->kbd_dev);
+	return r;
+}
+
+static void yogabook_pdev_remove(struct platform_device *pdev)
+{
+	struct yogabook_data *data = platform_get_drvdata(pdev);
+
+	yogabook_remove(data);
+	free_irq(data->pen_touch_irq, data);
+	cancel_work_sync(&data->work);
+	put_device(data->dig_dev);
+	put_device(data->kbd_dev);
+}
+
+static struct platform_driver yogabook_pdev_driver = {
+	.probe = yogabook_pdev_probe,
+	.remove_new = yogabook_pdev_remove,
+	.driver = {
+		.name = YB_PDEV_NAME,
+		.pm = pm_sleep_ptr(&yogabook_pm_ops),
+	},
+};
+
+static int __init yogabook_module_init(void)
+{
+	int r;
+
+	r = wmi_driver_register(&yogabook_wmi_driver);
+	if (r)
+		return r;
+
+	r = platform_driver_register(&yogabook_pdev_driver);
+	if (r)
+		wmi_driver_unregister(&yogabook_wmi_driver);
+
+	return r;
+}
+
+static void __exit yogabook_module_exit(void)
+{
+	platform_driver_unregister(&yogabook_pdev_driver);
+	wmi_driver_unregister(&yogabook_wmi_driver);
+}
+
+module_init(yogabook_module_init);
+module_exit(yogabook_module_exit);
+
+MODULE_ALIAS("platform:" YB_PDEV_NAME);
 MODULE_AUTHOR("Yauhen Kharuzhy");
-MODULE_DESCRIPTION("Lenovo Yoga Book WMI driver");
+MODULE_DESCRIPTION("Lenovo Yoga Book driver");
 MODULE_LICENSE("GPL v2");
