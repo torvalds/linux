@@ -80,7 +80,7 @@ static inline int bch2_mark_key(struct btree_trans *trans,
 }
 
 enum btree_update_flags {
-	__BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE,
+	__BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE = __BTREE_ITER_FLAGS_END,
 	__BTREE_UPDATE_NOJOURNAL,
 	__BTREE_UPDATE_KEY_CACHE_RECLAIM,
 

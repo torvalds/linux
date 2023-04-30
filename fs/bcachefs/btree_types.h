@@ -211,6 +211,7 @@ static const u16 BTREE_ITER_FILTER_SNAPSHOTS	= 1 << 12;
 static const u16 BTREE_ITER_NOPRESERVE		= 1 << 13;
 static const u16 BTREE_ITER_CACHED_NOFILL	= 1 << 14;
 static const u16 BTREE_ITER_KEY_CACHE_FILL	= 1 << 15;
+#define __BTREE_ITER_FLAGS_END			       16
 
 enum btree_path_uptodate {
 	BTREE_ITER_UPTODATE		= 0,
