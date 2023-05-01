@@ -657,8 +657,7 @@ static int adc5_get_fw_channel_data(struct adc5_chip *adc,
 		chan = chan & ADC_CHANNEL_MASK;
 	}
 
-	if (chan > ADC5_PARALLEL_ISENSE_VBAT_IDATA ||
-	    !data->adc_chans[chan].datasheet_name) {
+	if (chan > ADC5_PARALLEL_ISENSE_VBAT_IDATA) {
 		dev_err(dev, "%s invalid channel number %d\n", name, chan);
 		return -EINVAL;
 	}
