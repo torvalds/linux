@@ -193,16 +193,12 @@ static void __show_regs(const struct pt_regs *regs)
 	}
 #undef GPR_FIELD
 
-	/*
-	 * Saved csr registers
-	 */
-	printk("CSR crmd: %08lx	", regs->csr_crmd);
-	printk("CSR prmd: %08lx	", regs->csr_prmd);
-	printk("CSR euen: %08lx	", regs->csr_euen);
-	printk("CSR ecfg: %08lx	", regs->csr_ecfg);
-	printk("CSR estat: %08lx	", regs->csr_estat);
-
-	pr_cont("\n");
+	/* Print saved important CSRs */
+	printk(" CRMD: %08lx\n", regs->csr_crmd);
+	printk(" PRMD: %08lx\n", regs->csr_prmd);
+	printk(" EUEN: %08lx\n", regs->csr_euen);
+	printk(" ECFG: %08lx\n", regs->csr_ecfg);
+	printk("ESTAT: %08lx\n", regs->csr_estat);
 
 	exccode = ((regs->csr_estat) & CSR_ESTAT_EXC) >> CSR_ESTAT_EXC_SHIFT;
 	excsubcode = ((regs->csr_estat) & CSR_ESTAT_ESUBCODE) >> CSR_ESTAT_ESUBCODE_SHIFT;
