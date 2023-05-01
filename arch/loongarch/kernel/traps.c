@@ -36,6 +36,7 @@
 #include <asm/break.h>
 #include <asm/cpu.h>
 #include <asm/fpu.h>
+#include <asm/inst.h>
 #include <asm/loongarch.h>
 #include <asm/mmu_context.h>
 #include <asm/pgtable.h>
@@ -51,6 +52,7 @@
 
 extern asmlinkage void handle_ade(void);
 extern asmlinkage void handle_ale(void);
+extern asmlinkage void handle_bce(void);
 extern asmlinkage void handle_sys(void);
 extern asmlinkage void handle_bp(void);
 extern asmlinkage void handle_ri(void);
@@ -588,6 +590,95 @@ static void bug_handler(struct pt_regs *regs)
 	}
 }
 
+asmlinkage void noinstr do_bce(struct pt_regs *regs)
+{
+	bool user = user_mode(regs);
+	unsigned long era = exception_era(regs);
+	u64 badv = 0, lower = 0, upper = ULONG_MAX;
+	union loongarch_instruction insn;
+	irqentry_state_t state = irqentry_enter(regs);
+
+	if (regs->csr_prmd & CSR_PRMD_PIE)
+		local_irq_enable();
+
+	current->thread.trap_nr = read_csr_excode();
+
+	die_if_kernel("Bounds check error in kernel code", regs);
+
+	/*
+	 * Pull out the address that failed bounds checking, and the lower /
+	 * upper bound, by minimally looking at the faulting instruction word
+	 * and reading from the correct register.
+	 */
+	if (__get_inst(&insn.word, (u32 *)era, user))
+		goto bad_era;
+
+	switch (insn.reg3_format.opcode) {
+	case asrtle_op:
+		if (insn.reg3_format.rd != 0)
+			break;	/* not asrtle */
+		badv = regs->regs[insn.reg3_format.rj];
+		upper = regs->regs[insn.reg3_format.rk];
+		break;
+
+	case asrtgt_op:
+		if (insn.reg3_format.rd != 0)
+			break;	/* not asrtgt */
+		badv = regs->regs[insn.reg3_format.rj];
+		lower = regs->regs[insn.reg3_format.rk];
+		break;
+
+	case ldleb_op:
+	case ldleh_op:
+	case ldlew_op:
+	case ldled_op:
+	case stleb_op:
+	case stleh_op:
+	case stlew_op:
+	case stled_op:
+	case fldles_op:
+	case fldled_op:
+	case fstles_op:
+	case fstled_op:
+		badv = regs->regs[insn.reg3_format.rj];
+		upper = regs->regs[insn.reg3_format.rk];
+		break;
+
+	case ldgtb_op:
+	case ldgth_op:
+	case ldgtw_op:
+	case ldgtd_op:
+	case stgtb_op:
+	case stgth_op:
+	case stgtw_op:
+	case stgtd_op:
+	case fldgts_op:
+	case fldgtd_op:
+	case fstgts_op:
+	case fstgtd_op:
+		badv = regs->regs[insn.reg3_format.rj];
+		lower = regs->regs[insn.reg3_format.rk];
+		break;
+	}
+
+	force_sig_bnderr((void __user *)badv, (void __user *)lower, (void __user *)upper);
+
+out:
+	if (regs->csr_prmd & CSR_PRMD_PIE)
+		local_irq_disable();
+
+	irqentry_exit(regs, state);
+	return;
+
+bad_era:
+	/*
+	 * Cannot pull out the instruction word, hence cannot provide more
+	 * info than a regular SIGSEGV in this case.
+	 */
+	force_sig(SIGSEGV);
+	goto out;
+}
+
 asmlinkage void noinstr do_bp(struct pt_regs *regs)
 {
 	bool user = user_mode(regs);
@@ -955,6 +1046,7 @@ void __init trap_init(void)
 
 	set_handler(EXCCODE_ADE * VECSIZE, handle_ade, VECSIZE);
 	set_handler(EXCCODE_ALE * VECSIZE, handle_ale, VECSIZE);
+	set_handler(EXCCODE_BCE * VECSIZE, handle_bce, VECSIZE);
 	set_handler(EXCCODE_SYS * VECSIZE, handle_sys, VECSIZE);
 	set_handler(EXCCODE_BP * VECSIZE, handle_bp, VECSIZE);
 	set_handler(EXCCODE_INE * VECSIZE, handle_ri, VECSIZE);
