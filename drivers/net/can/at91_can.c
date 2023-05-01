@@ -443,7 +443,7 @@ static void at91_chip_start(struct net_device *dev)
 	at91_read(priv, AT91_SR);
 
 	/* Enable interrupts */
-	reg_ier = get_irq_mb_rx(priv) | AT91_IRQ_ERRP | AT91_IRQ_ERR_FRAME;
+	reg_ier = get_irq_mb_rx(priv) | AT91_IRQ_ERR_LINE | AT91_IRQ_ERR_FRAME;
 	at91_write(priv, AT91_IER, reg_ier);
 }
 
@@ -451,6 +451,11 @@ static void at91_chip_stop(struct net_device *dev, enum can_state state)
 {
 	struct at91_priv *priv = netdev_priv(dev);
 	u32 reg_mr;
+
+	/* Abort any pending TX requests. However this doesn't seem to
+	 * work in case of bus-off on sama5d3.
+	 */
+	at91_write(priv, AT91_ACR, get_irq_mb_tx(priv));
 
 	/* disable interrupts */
 	at91_write(priv, AT91_IDR, AT91_IRQ_ALL);
@@ -832,111 +837,6 @@ static void at91_irq_tx(struct net_device *dev, u32 reg_sr)
 		netif_wake_queue(dev);
 }
 
-static void at91_irq_err_state(struct net_device *dev,
-			       struct can_frame *cf, enum can_state new_state)
-{
-	struct at91_priv *priv = netdev_priv(dev);
-	u32 reg_idr = 0, reg_ier = 0;
-	struct can_berr_counter bec;
-
-	at91_get_berr_counter(dev, &bec);
-
-	switch (priv->can.state) {
-	case CAN_STATE_ERROR_ACTIVE:
-		/* from: ERROR_ACTIVE
-		 * to  : ERROR_WARNING, ERROR_PASSIVE, BUS_OFF
-		 * =>  : there was a warning int
-		 */
-		if (new_state >= CAN_STATE_ERROR_WARNING &&
-		    new_state <= CAN_STATE_BUS_OFF) {
-			netdev_dbg(dev, "Error Warning IRQ\n");
-			priv->can.can_stats.error_warning++;
-
-			cf->can_id |= CAN_ERR_CRTL;
-			cf->data[1] = (bec.txerr > bec.rxerr) ?
-				CAN_ERR_CRTL_TX_WARNING :
-				CAN_ERR_CRTL_RX_WARNING;
-		}
-		fallthrough;
-	case CAN_STATE_ERROR_WARNING:
-		/* from: ERROR_ACTIVE, ERROR_WARNING
-		 * to  : ERROR_PASSIVE, BUS_OFF
-		 * =>  : error passive int
-		 */
-		if (new_state >= CAN_STATE_ERROR_PASSIVE &&
-		    new_state <= CAN_STATE_BUS_OFF) {
-			netdev_dbg(dev, "Error Passive IRQ\n");
-			priv->can.can_stats.error_passive++;
-
-			cf->can_id |= CAN_ERR_CRTL;
-			cf->data[1] = (bec.txerr > bec.rxerr) ?
-				CAN_ERR_CRTL_TX_PASSIVE :
-				CAN_ERR_CRTL_RX_PASSIVE;
-		}
-		break;
-	case CAN_STATE_BUS_OFF:
-		/* from: BUS_OFF
-		 * to  : ERROR_ACTIVE, ERROR_WARNING, ERROR_PASSIVE
-		 */
-		if (new_state <= CAN_STATE_ERROR_PASSIVE) {
-			cf->can_id |= CAN_ERR_RESTARTED;
-
-			netdev_dbg(dev, "restarted\n");
-			priv->can.can_stats.restarts++;
-
-			netif_carrier_on(dev);
-			netif_wake_queue(dev);
-		}
-		break;
-	default:
-		break;
-	}
-
-	/* process state changes depending on the new state */
-	switch (new_state) {
-	case CAN_STATE_ERROR_ACTIVE:
-		/* actually we want to enable AT91_IRQ_WARN here, but
-		 * it screws up the system under certain
-		 * circumstances. so just enable AT91_IRQ_ERRP, thus
-		 * the "fallthrough"
-		 */
-		netdev_dbg(dev, "Error Active\n");
-		cf->can_id |= CAN_ERR_PROT;
-		cf->data[2] = CAN_ERR_PROT_ACTIVE;
-		fallthrough;
-	case CAN_STATE_ERROR_WARNING:
-		reg_idr = AT91_IRQ_ERRA | AT91_IRQ_WARN | AT91_IRQ_BOFF;
-		reg_ier = AT91_IRQ_ERRP;
-		break;
-	case CAN_STATE_ERROR_PASSIVE:
-		reg_idr = AT91_IRQ_ERRA | AT91_IRQ_WARN | AT91_IRQ_ERRP;
-		reg_ier = AT91_IRQ_BOFF;
-		break;
-	case CAN_STATE_BUS_OFF:
-		reg_idr = AT91_IRQ_ERRA | AT91_IRQ_ERRP |
-			AT91_IRQ_WARN | AT91_IRQ_BOFF;
-		reg_ier = 0;
-
-		cf->can_id |= CAN_ERR_BUSOFF;
-
-		netdev_dbg(dev, "bus-off\n");
-		netif_carrier_off(dev);
-		priv->can.can_stats.bus_off++;
-
-		/* turn off chip, if restart is disabled */
-		if (!priv->can.restart_ms) {
-			at91_chip_stop(dev, CAN_STATE_BUS_OFF);
-			return;
-		}
-		break;
-	default:
-		break;
-	}
-
-	at91_write(priv, AT91_IDR, reg_idr);
-	at91_write(priv, AT91_IER, reg_ier);
-}
-
 static void at91_irq_err_line(struct net_device *dev, const u32 reg_sr)
 {
 	enum can_state new_state, rx_state, tx_state;
@@ -970,15 +870,22 @@ static void at91_irq_err_line(struct net_device *dev, const u32 reg_sr)
 	if (likely(new_state == priv->can.state))
 		return;
 
+	/* The skb allocation might fail, but can_change_state()
+	 * handles cf == NULL.
+	 */
 	skb = alloc_can_err_skb(dev, &cf);
+	can_change_state(dev, cf, tx_state, rx_state);
+
+	if (new_state == CAN_STATE_BUS_OFF) {
+		at91_chip_stop(dev, CAN_STATE_BUS_OFF);
+		can_bus_off(dev);
+	}
+
 	if (unlikely(!skb))
 		return;
 
-	at91_irq_err_state(dev, cf, new_state);
 
 	netif_rx(skb);
-
-	priv->can.state = new_state;
 }
 
 static void at91_irq_err_frame(struct net_device *dev, const u32 reg_sr)
@@ -1072,7 +979,11 @@ static irqreturn_t at91_irq(int irq, void *dev_id)
 	if (reg_sr & get_irq_mb_tx(priv))
 		at91_irq_tx(dev, reg_sr);
 
-	at91_irq_err_line(dev, reg_sr);
+	/* Line Error interrupt */
+	if (reg_sr & AT91_IRQ_ERR_LINE ||
+	    priv->can.state > CAN_STATE_ERROR_ACTIVE) {
+		at91_irq_err_line(dev, reg_sr);
+	}
 
 	/* Frame Error Interrupt */
 	if (reg_sr & AT91_IRQ_ERR_FRAME)
