@@ -1397,7 +1397,7 @@ __BUILD_CSR_OP(tlbidx)
 	#define EXSUBCODE_ADEF		0	/* Fetch Instruction */
 	#define EXSUBCODE_ADEM		1	/* Access Memory*/
 #define EXCCODE_ALE		9	/* Unalign Access */
-#define EXCCODE_OOB		10	/* Out of bounds */
+#define EXCCODE_BCE		10	/* Bounds Check Error */
 #define EXCCODE_SYS		11	/* System call */
 #define EXCCODE_BP		12	/* Breakpoint */
 #define EXCCODE_INE		13	/* Inst. Not Exist */
@@ -1408,11 +1408,13 @@ __BUILD_CSR_OP(tlbidx)
 #define EXCCODE_FPE		18	/* Floating Point Exception */
 	#define EXCSUBCODE_FPE		0	/* Floating Point Exception */
 	#define EXCSUBCODE_VFPE		1	/* Vector Exception */
-#define EXCCODE_WATCH		19	/* Watch address reference */
+#define EXCCODE_WATCH		19	/* WatchPoint Exception */
+	#define EXCSUBCODE_WPEF		0	/* ... on Instruction Fetch */
+	#define EXCSUBCODE_WPEM		1	/* ... on Memory Accesses */
 #define EXCCODE_BTDIS		20	/* Binary Trans. Disabled */
 #define EXCCODE_BTE		21	/* Binary Trans. Exception */
-#define EXCCODE_PSI		22	/* Guest Privileged Error */
-#define EXCCODE_HYP		23	/* Hypercall */
+#define EXCCODE_GSPR		22	/* Guest Privileged Error */
+#define EXCCODE_HVC		23	/* Hypercall */
 #define EXCCODE_GCM		24	/* Guest CSR modified */
 	#define EXCSUBCODE_GCSC		0	/* Software caused */
 	#define EXCSUBCODE_GCHC		1	/* Hardware caused */
