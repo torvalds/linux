@@ -66,6 +66,14 @@ static bool ftrace_find_callable_addr(struct dyn_ftrace *rec, struct module *mod
 	struct plt_entry *plt;
 
 	/*
+	 * If a custom trampoline is unreachable, rely on the ftrace_regs_caller
+	 * trampoline which knows how to indirectly reach that trampoline through
+	 * ops->direct_call.
+	 */
+	if (*addr != FTRACE_ADDR && *addr != FTRACE_REGS_ADDR && !reachable_by_bl(*addr, pc))
+		*addr = FTRACE_REGS_ADDR;
+
+	/*
 	 * When the target is within range of the 'bl' instruction, use 'addr'
 	 * as-is and branch to that directly.
 	 */
