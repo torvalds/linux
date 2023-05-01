@@ -98,31 +98,43 @@ static struct iommu_platform_data omap3_iommu_isp_pdata = {
 };
 #endif
 
-static void __init omap3_sbc_t3x_usb_hub_init(int gpio, char *hub_name)
+static void __init omap3_sbc_t3x_usb_hub_init(char *hub_name, int idx)
 {
-	int err = gpio_request_one(gpio, GPIOF_OUT_INIT_LOW, hub_name);
+	struct gpio_desc *d;
 
-	if (err) {
-		pr_err("SBC-T3x: %s reset gpio request failed: %d\n",
-			hub_name, err);
+	/* This asserts the RESET line (reverse polarity) */
+	d = gpiod_get_index(NULL, "reset", idx, GPIOD_OUT_HIGH);
+	if (IS_ERR(d)) {
+		pr_err("Unable to get T3x USB reset GPIO descriptor\n");
 		return;
 	}
-
-	gpiod_export(gpio_to_desc(gpio), 0);
-
+	gpiod_set_consumer_name(d, hub_name);
+	gpiod_export(d, 0);
 	udelay(10);
-	gpio_set_value(gpio, 1);
+	/* De-assert RESET */
+	gpiod_set_value(d, 0);
 	msleep(1);
 }
 
+static struct gpiod_lookup_table omap3_sbc_t3x_usb_gpio_table = {
+	.dev_id = NULL,
+	.table = {
+		GPIO_LOOKUP_IDX("gpio-160-175", 7, "reset", 0,
+				GPIO_ACTIVE_LOW),
+		{ }
+	},
+};
+
 static void __init omap3_sbc_t3730_legacy_init(void)
 {
-	omap3_sbc_t3x_usb_hub_init(167, "sb-t35 usb hub");
+	gpiod_add_lookup_table(&omap3_sbc_t3x_usb_gpio_table);
+	omap3_sbc_t3x_usb_hub_init("sb-t35 usb hub", 0);
 }
 
 static void __init omap3_sbc_t3530_legacy_init(void)
 {
-	omap3_sbc_t3x_usb_hub_init(167, "sb-t35 usb hub");
+	gpiod_add_lookup_table(&omap3_sbc_t3x_usb_gpio_table);
+	omap3_sbc_t3x_usb_hub_init("sb-t35 usb hub", 0);
 }
 
 static void __init omap3_evm_legacy_init(void)
@@ -187,10 +199,22 @@ static void __init omap3_sbc_t3517_wifi_init(void)
 	gpio_set_value(cm_t3517_wlan_gpios[1].gpio, 0);
 }
 
+static struct gpiod_lookup_table omap3_sbc_t3517_usb_gpio_table = {
+	.dev_id = NULL,
+	.table = {
+		GPIO_LOOKUP_IDX("gpio-144-159", 8, "reset", 0,
+				GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("gpio-96-111", 2, "reset", 1,
+				GPIO_ACTIVE_LOW),
+		{ }
+	},
+};
+
 static void __init omap3_sbc_t3517_legacy_init(void)
 {
-	omap3_sbc_t3x_usb_hub_init(152, "cm-t3517 usb hub");
-	omap3_sbc_t3x_usb_hub_init(98, "sb-t35 usb hub");
+	gpiod_add_lookup_table(&omap3_sbc_t3517_usb_gpio_table);
+	omap3_sbc_t3x_usb_hub_init("cm-t3517 usb hub", 0);
+	omap3_sbc_t3x_usb_hub_init("sb-t35 usb hub", 1);
 	am35xx_emac_reset();
 	hsmmc2_internal_input_clk();
 	omap3_sbc_t3517_wifi_init();
