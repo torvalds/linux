@@ -2,7 +2,7 @@
 Assignment 3 - Software RAID
 ===========================
 
-- Deadline: :command:`Tuesday, 10 May 2022, 23:00`
+- Deadline: :command:`Monday, 15 May 2023, 23:00`
 - This assignment can be made in teams (max 2). Only one of them must submit the assignment, and the names of the student should be listed in a README file.
 
 Implementing a software RAID module that uses a logical block device that will read and write data from two physical devices,
@@ -38,7 +38,7 @@ Important to know
 -----------------
 
 To ensure error recovery, a CRC code is associated with each sector. CRC codes are stored by LOGICAL_DISK_SIZE byte of the partition
-(macro defined in the assignment `header <http://elf.cs.pub.ro/so2/res/teme/ssr.h>`__). The disk structure will have the following layout:
+(macro defined in the assignment `header <https://gitlab.cs.pub.ro/so2/3-raid/-/blob/master/src/ssr.h>`__). The disk structure will have the following layout:
 
 
 .. code-block:: console
@@ -69,7 +69,7 @@ Implementation Details
 - to send a request to a block device and wait for it to end, you can use the :c:func:`submit_bio_wait` function
 - use :c:func:`bio_endio` to signal the completion of processing a ``bio`` structure
 - for the CRC32 calculation you can use the :c:func:`crc32` macro provided by the kernel
-- useful macro definitions can be found in the assignment support `header <http://elf.cs.pub.ro/so2/res/teme/ssr.h>`__
+- useful macro definitions can be found in the assignment support `header <https://gitlab.cs.pub.ro/so2/3-raid/-/blob/master/src/ssr.h>`__
 - a single request processing function for block devices can be active at one time in a call stack (more details `here <https://elixir.bootlin.com/linux/v5.10/source/block/blk-core.c#L1048>`__).
   You will need to submit requests for physical devices in a kernel thread; we recommend using ``workqueues``.
 - For a quick run, use a single bio to batch send the read/write request for CRC values for adjacent sectors. For example,
@@ -77,19 +77,10 @@ Implementation Details
 - our recommendations are not mandatory (any solution that meets the requirements of the assignment is accepted)
 Testing
 =======
-In order to simplify the assignment evaluation process, but also to reduce the mistakes of the
-submitted assignments, the assignment evaluation will be done automatically with with the help of
-public tests that are in the new infrastructure. For local testing, use the following commands:
-
-.. code-block:: console
-
-   $ git clone https://github.com/linux-kernel-labs/linux.git
-   $ cd linux/tools/labs
-   $ LABS=assignments/3-raid make skels
-   $ #the development of the assignment will be written in the 3-raid directory
-   $ make build
-   $ make copy
-   $ make boot
+In order to simplify the assignment evaluation process, but also to reduce the mistakes of the submitted assignments,
+the assignment evaluation will be done automatically with the help of a
+`test script <https://gitlab.cs.pub.ro/so2/3-raid/-/blob/master/checker/3-raid-checker/_checker>`__ called `_checker`.
+The test script assumes that the kernel module is called `ssr.ko`.
 
 If, as a result of the testing process, the sectors on both disks contain invalid data, resulting in
 read errors that make the module impossible to use, you will need to redo the two disks in the
@@ -104,7 +95,17 @@ You can also get the same result using the following command to start the virtua
 
 .. code-block:: console
 
-   $ rm disk{1,2}.img; make
+   $ rm disk{1,2}.img; make console # or rm disk{1,2}.img; make boot
+
+QuickStart
+==========
+
+It is mandatory to start the implementation of the assignment from the code skeleton found in the `src <https://gitlab.cs.pub.ro/so2/3-raid/-/tree/master/src>`__ directory.
+There is only one header in the skeleton called `ssr.h <https://gitlab.cs.pub.ro/so2/3-raid/-/blob/master/src/ssr.h>`__.
+You will provide the rest of the implementation. You can add as many `*.c`` sources and additional `*.h`` headers.
+You should also provide a Kbuild file that will compile the kernel module called `ssr.ko`.
+Follow the instructions in the `README.md file <https://gitlab.cs.pub.ro/so2/3-raid/-/blob/master/README.md>`__ of the `assignment's repo <https://gitlab.cs.pub.ro/so2/3-raid>`__.
+
 
 Tips
 ----
@@ -147,10 +148,10 @@ and if the assigment does not pass all the tests, the grade will may decrease mo
 Submitting the assigment
 ------------------------
 
-The assignment archive will be submitted to vmchecker, according to the rules on the
-`rules page <https://ocw.cs.pub.ro/courses/so2/reguli-notare#reguli_de_trimitere_a_temelor>`__.
+The assignment will be graded automatically using the `vmchecker-next <https://github.com/systems-cs-pub-ro/vmchecker-next/wiki/Student-Handbook>`__ infrastructure.
+The submission will be made on moodle on the `course's page <https://curs.upb.ro/2022/course/view.php?id=5121>`__ to the related assignment.
+You will find the submission details in the `README.md file <https://gitlab.cs.pub.ro/so2/3-raid/-/blob/master/README.md>`__ of the `repo <https://gitlab.cs.pub.ro/so2/3-raid>`__.
 
-From the vmchecker interface choose the `Driver RAID` option for this assigment.
 
 Resources
 =========
@@ -158,21 +159,14 @@ Resources
 - implementation of the `RAID <https://elixir.bootlin.com/linux/v5.10/source/drivers/md>`__ software in the Linux kernel
 
 We recommend that you use gitlab to store your homework. Follow the directions in
-`README <https://github.com/systems-cs-pub-ro/so2-assignments/blob/master/README.md>`__
-and on the dedicated `git wiki page <https://ocw.cs.pub.ro/courses/so2/teme/folosire-gitlab>`__.
+`README <https://gitlab.cs.pub.ro/so2/3-raid/-/blob/master/README.md>`__.
 
-The resources for the assignment can also be found in the `so2-assignments <https://github.com/systems-cs-pub-ro/so2-assignments>`__ repo on GitHub.
-The repo contains a `Bash script <https://github.com/systems-cs-pub-ro/so2-assignments/blob/master/so2-create-repo.sh>`__
-that helps you create a private repository on the faculty `GitLab <https://gitlab.cs.pub.ro/users/sign_in>`__ instance.
-Follow the tips from the `README <https://github.com/systems-cs-pub-ro/so2-assignments/blob/master/README.md>`__ and
-on the dedicated `Wiki page <https://ocw.cs.pub.ro/courses/so2/teme/folosire-gitlab>`__.
 
 Questions
 =========
 
-For questions about the assigment, you can consult the mailing `list archives <http://cursuri.cs.pub.ro/pipermail/so2/>`__
-or send an e-mail (you must be `registered <http://cursuri.cs.pub.ro/cgi-bin/mailman/listinfo/so2>`__).
-Please follow and follow `the tips for use of the list <https://ocw.cs.pub.ro/courses/so2/resurse/lista-discutii#mailing-list-guidelines>`__.
+For questions about the topic, you can consult the mailing `list archives <http://cursuri.cs.pub.ro/pipermail/so2/>`__
+or you can write a question on the dedicated Teams channel.
 
 Before you ask a question, make sure that:
 
