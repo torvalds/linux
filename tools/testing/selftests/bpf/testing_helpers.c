@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 /* Copyright (C) 2019 Netronome Systems, Inc. */
 /* Copyright (C) 2020 Facebook, Inc. */
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
@@ -70,92 +71,168 @@ int parse_num_list(const char *s, bool **num_set, int *num_set_len)
 	return 0;
 }
 
+static int do_insert_test(struct test_filter_set *set,
+			  char *test_str,
+			  char *subtest_str)
+{
+	struct test_filter *tmp, *test;
+	char **ctmp;
+	int i;
+
+	for (i = 0; i < set->cnt; i++) {
+		test = &set->tests[i];
+
+		if (strcmp(test_str, test->name) == 0) {
+			free(test_str);
+			goto subtest;
+		}
+	}
+
+	tmp = realloc(set->tests, sizeof(*test) * (set->cnt + 1));
+	if (!tmp)
+		return -ENOMEM;
+
+	set->tests = tmp;
+	test = &set->tests[set->cnt];
+
+	test->name = test_str;
+	test->subtests = NULL;
+	test->subtest_cnt = 0;
+
+	set->cnt++;
+
+subtest:
+	if (!subtest_str)
+		return 0;
+
+	for (i = 0; i < test->subtest_cnt; i++) {
+		if (strcmp(subtest_str, test->subtests[i]) == 0) {
+			free(subtest_str);
+			return 0;
+		}
+	}
+
+	ctmp = realloc(test->subtests,
+		       sizeof(*test->subtests) * (test->subtest_cnt + 1));
+	if (!ctmp)
+		return -ENOMEM;
+
+	test->subtests = ctmp;
+	test->subtests[test->subtest_cnt] = subtest_str;
+
+	test->subtest_cnt++;
+
+	return 0;
+}
+
+static int insert_test(struct test_filter_set *set,
+		       char *test_spec,
+		       bool is_glob_pattern)
+{
+	char *pattern, *subtest_str, *ext_test_str, *ext_subtest_str = NULL;
+	int glob_chars = 0;
+
+	if (is_glob_pattern) {
+		pattern = "%s";
+	} else {
+		pattern = "*%s*";
+		glob_chars = 2;
+	}
+
+	subtest_str = strchr(test_spec, '/');
+	if (subtest_str) {
+		*subtest_str = '\0';
+		subtest_str += 1;
+	}
+
+	ext_test_str = malloc(strlen(test_spec) + glob_chars + 1);
+	if (!ext_test_str)
+		goto err;
+
+	sprintf(ext_test_str, pattern, test_spec);
+
+	if (subtest_str) {
+		ext_subtest_str = malloc(strlen(subtest_str) + glob_chars + 1);
+		if (!ext_subtest_str)
+			goto err;
+
+		sprintf(ext_subtest_str, pattern, subtest_str);
+	}
+
+	return do_insert_test(set, ext_test_str, ext_subtest_str);
+
+err:
+	free(ext_test_str);
+	free(ext_subtest_str);
+
+	return -ENOMEM;
+}
+
+int parse_test_list_file(const char *path,
+			 struct test_filter_set *set,
+			 bool is_glob_pattern)
+{
+	char *buf = NULL, *capture_start, *capture_end, *scan_end;
+	size_t buflen = 0;
+	int err = 0;
+	FILE *f;
+
+	f = fopen(path, "r");
+	if (!f) {
+		err = -errno;
+		fprintf(stderr, "Failed to open '%s': %d\n", path, err);
+		return err;
+	}
+
+	while (getline(&buf, &buflen, f) != -1) {
+		capture_start = buf;
+
+		while (isspace(*capture_start))
+			++capture_start;
+
+		capture_end = capture_start;
+		scan_end = capture_start;
+
+		while (*scan_end && *scan_end != '#') {
+			if (!isspace(*scan_end))
+				capture_end = scan_end;
+
+			++scan_end;
+		}
+
+		if (capture_end == capture_start)
+			continue;
+
+		*(++capture_end) = '\0';
+
+		err = insert_test(set, capture_start, is_glob_pattern);
+		if (err)
+			break;
+	}
+
+	fclose(f);
+	return err;
+}
+
 int parse_test_list(const char *s,
 		    struct test_filter_set *set,
 		    bool is_glob_pattern)
 {
-	char *input, *state = NULL, *next;
-	struct test_filter *tmp, *tests = NULL;
-	int i, j, cnt = 0;
+	char *input, *state = NULL, *test_spec;
+	int err = 0;
 
 	input = strdup(s);
 	if (!input)
 		return -ENOMEM;
 
-	while ((next = strtok_r(state ? NULL : input, ",", &state))) {
-		char *subtest_str = strchr(next, '/');
-		char *pattern = NULL;
-		int glob_chars = 0;
-
-		tmp = realloc(tests, sizeof(*tests) * (cnt + 1));
-		if (!tmp)
-			goto err;
-		tests = tmp;
-
-		tests[cnt].subtest_cnt = 0;
-		tests[cnt].subtests = NULL;
-
-		if (is_glob_pattern) {
-			pattern = "%s";
-		} else {
-			pattern = "*%s*";
-			glob_chars = 2;
-		}
-
-		if (subtest_str) {
-			char **tmp_subtests = NULL;
-			int subtest_cnt = tests[cnt].subtest_cnt;
-
-			*subtest_str = '\0';
-			subtest_str += 1;
-			tmp_subtests = realloc(tests[cnt].subtests,
-					       sizeof(*tmp_subtests) *
-					       (subtest_cnt + 1));
-			if (!tmp_subtests)
-				goto err;
-			tests[cnt].subtests = tmp_subtests;
-
-			tests[cnt].subtests[subtest_cnt] =
-				malloc(strlen(subtest_str) + glob_chars + 1);
-			if (!tests[cnt].subtests[subtest_cnt])
-				goto err;
-			sprintf(tests[cnt].subtests[subtest_cnt],
-				pattern,
-				subtest_str);
-
-			tests[cnt].subtest_cnt++;
-		}
-
-		tests[cnt].name = malloc(strlen(next) + glob_chars + 1);
-		if (!tests[cnt].name)
-			goto err;
-		sprintf(tests[cnt].name, pattern, next);
-
-		cnt++;
+	while ((test_spec = strtok_r(state ? NULL : input, ",", &state))) {
+		err = insert_test(set, test_spec, is_glob_pattern);
+		if (err)
+			break;
 	}
 
-	tmp = realloc(set->tests, sizeof(*tests) * (cnt + set->cnt));
-	if (!tmp)
-		goto err;
-
-	memcpy(tmp +  set->cnt, tests, sizeof(*tests) * cnt);
-	set->tests = tmp;
-	set->cnt += cnt;
-
-	free(tests);
 	free(input);
-	return 0;
-
-err:
-	for (i = 0; i < cnt; i++) {
-		for (j = 0; j < tests[i].subtest_cnt; j++)
-			free(tests[i].subtests[j]);
-
-		free(tests[i].name);
-	}
-	free(tests);
-	free(input);
-	return -ENOMEM;
+	return err;
 }
 
 __u32 link_info_prog_id(const struct bpf_link *link, struct bpf_link_info *info)
