@@ -11,6 +11,7 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/wait.h>
+#include <signal.h>
 
 #include "uart16550.h"
 
@@ -42,40 +43,57 @@
 		exit(EXIT_FAILURE);			\
 	} while (0)
 
-#define test(d, v, e)			do_test((d), (v), (e), 0, 0)
-#define not_test(d, v, e)		do_test((d), (v), (e), 1, 0)
-#define fatal_test(d, v, e)		do_test((d), (v), (e), 0, 1)
 
-static int
-do_test(const char *description, int value, int expected, int negate, int fatal)
+#define test(d, v, e, p)		do_test((d), (v), (e), 0, 0, (p))
+#define not_test(d, v, e, p)		do_test((d), (v), (e), 1, 0, (p))
+#define fatal_test(d, v, e,p)		do_test((d), (v), (e), 0, 1, (p))
+
+#define GENERIC_TEST_TIMEOUT 3
+const int total = 92;
+
+void sig_handler(int signum) {
+	fprintf(stderr, "Child process pid=%d of checker (that issues read/write syscalls to the driver) got killed after TIMEOUT=%ds\n", getpid(), GENERIC_TEST_TIMEOUT);
+	fprintf(stderr, "\tThis might be because you didn't implement read/write or there is a bug in the implementation\n");
+	exit(EXIT_FAILURE);
+}
+
+/*
+ * if the test passes it will return 0
+ * if it fails it returns the number of points given as argument
+ */
+static float
+do_test(const char *description, int value, int expected, int negate, int fatal, float points)
 {
 	int num_chars;
 
 	num_chars = printf("%s", description);
 	for (; num_chars < PAD_CHARS - strlen("passed"); num_chars++)
 		putchar('.');
-
 	fflush(stdout);
 	if (!negate) {
 		if (value == expected) {
-			printf("passed\n");
+			printf("passed [%.1f/%d]\n", points, total);
+			fflush(stdout);
 			return 0;
 		} else {
-			printf("failed\n");
+			printf("failed [0/%d]\n", total);
+			fflush(stdout);
 			if (fatal)
 				exit(EXIT_FAILURE);
 		}
 	} else {
 		if (value != expected) {
-			printf("passed\n");
+			printf("passed [%.1f/%d]\n", points, total);
+			fflush(stdout);
 			return 0;
 		} else {
-			printf("failed\n");
+			printf("failed [0/%d]\n", total);
+			fflush(stdout);
 			if (fatal)
 				exit(EXIT_FAILURE);
 		}
 	}
-	return 1;
+	return points;
 }
 
 static void
@@ -112,100 +130,96 @@ remove_nodes(void)
 	unlink(UART10);
 }
 
-static int
+static float
 test1(void)
 {
-	int err = 0;
+	float total = 16;
 
 	test_title("Test 1. Module insertion and removal");
 
 	/* Insert module with default params and test. */
-	err |= fatal_test("insmod " MODULE_NAME ", default options",
-			system("insmod " MODULE_NAME ".ko"), 0);
-	err |= test("major",
+	total -= fatal_test("insmod " MODULE_NAME ", default options",
+			system("insmod " MODULE_NAME ".ko"), 0, 1);
+	total -= test("major",
 			system("cat /proc/devices | grep '" XSTR(COM1_MAJOR) " " MODULE_NAME "' >/dev/null 2>&1"),
-			0);
-	err |= test("ioports COM1",
+			0, 1);
+	total -= test("ioports COM1",
 			system("cat /proc/ioports | grep '03f8-03ff : " MODULE_NAME "' > /dev/null 2>&1"),
-			0);
-	err |= test("ioports COM2",
+			0, 1);
+	total -= test("ioports COM2",
 			system("cat /proc/ioports | grep '02f8-02ff : " MODULE_NAME "' > /dev/null 2>&1"),
-			0);
-	err |= test("interrupts COM1",
+			0, 1);
+	total -= test("interrupts COM1",
 			system("cat /proc/interrupts | grep '4:.*" MODULE_NAME "' > /dev/null 2>&1"),
-			0);
-	err |= test("interrupts COM2",
+			0, 1);
+	total -= test("interrupts COM2",
 			system("cat /proc/interrupts | grep '3:.*" MODULE_NAME "' > /dev/null 2>&1"),
-			0);
-	err |= test("rmmod", system("rmmod " MODULE_NAME), 0);
-	if (err)
-		return err;
+			0, 1);
+	total -= test("rmmod", system("rmmod " MODULE_NAME), 0, 0.5);
 
 	/* Insert module with different major. */
-	err |= fatal_test("insmod " MODULE_NAME ", major=" XSTR(COM2_MAJOR),
-			system("insmod " MODULE_NAME ".ko major=" XSTR(COM2_MAJOR)), 0);
-	err |= test("major",
+	total -= fatal_test("insmod " MODULE_NAME ", major=" XSTR(COM2_MAJOR),
+			system("insmod " MODULE_NAME ".ko major=" XSTR(COM2_MAJOR)), 0, 1);
+	total -= test("major",
 			system("cat /proc/devices | grep '" XSTR(COM2_MAJOR) " " MODULE_NAME "' >/dev/null 2>&1"),
-			0);
-	err |= test("rmmod", system("rmmod " MODULE_NAME), 0);
-	if (err)
-		return err;
+			0, 1);
+	total -= test("rmmod", system("rmmod " MODULE_NAME), 0, 0.5);
 
 	/* Insert module only for COM2, check that it works side by side
 	 * with solution.
 	 */
-	err |= fatal_test("insmod " MODULE_NAME ", COM2 only",
+	total -= fatal_test("insmod " MODULE_NAME ", COM2 only",
 			system("insmod " MODULE_NAME ".ko option=" XSTR(OPTION_COM2_ONLY)),
-			0);
-	err |= fatal_test("insmod " SOLUTION_NAME ", COM1 only",
+			0, 1);
+	total -= fatal_test("insmod " SOLUTION_NAME ", COM1 only",
 			system("insmod " SOLUTION_NAME ".ko option=" XSTR(OPTION_COM1_ONLY)),
-			0);
-	err |= test("ioports COM1",
+			0, 1);
+	total -= test("ioports COM1",
 			system("cat /proc/ioports | grep '03f8-03ff : " SOLUTION_NAME "' > /dev/null 2>&1"),
-			0);
-	err |= test("ioports COM2",
+			0, 1);
+	total -= test("ioports COM2",
 			system("cat /proc/ioports | grep '02f8-02ff : " MODULE_NAME "' > /dev/null 2>&1"),
-			0);
-	err |= test("interrupts COM1",
+			0, 1);
+	total -= test("interrupts COM1",
 			system("cat /proc/interrupts | grep '4:.*" SOLUTION_NAME "' > /dev/null 2>&1"),
-			0);
-	err |= test("interrupts COM2",
+			0, 1);
+	total -= test("interrupts COM2",
 			system("cat /proc/interrupts | grep '3:.*" MODULE_NAME "' > /dev/null 2>&1"),
-			0);
-	err |= test("rmmod " MODULE_NAME, system("rmmod " MODULE_NAME), 0);
-	err |= test("rmmod " SOLUTION_NAME, system("rmmod " SOLUTION_NAME), 0);
+			0, 1);
+	total -= test("rmmod " MODULE_NAME, system("rmmod " MODULE_NAME), 0, 0.5);
+	total -= test("rmmod " SOLUTION_NAME, system("rmmod " SOLUTION_NAME), 0, 0.5);
 
-	return err;
+	return total;
 }
 
-static int
+static float
 test2(void)
 {
-	int err = 0;
+	float total = 5.5;
 	int fd;
 
 	test_title("Test 2. Invalid parameters");
 
 	/* Check ioctl sanity. */
-	err |= fatal_test("insmod", system("insmod " MODULE_NAME ".ko"), 0);
+	total -= fatal_test("insmod", system("insmod " MODULE_NAME ".ko"), 0, 1);
 	fd = open(UART0, O_RDWR);
 	if (fd == -1)
 		fail("open " UART0);
 #define ioctl_test(n)	test("invalid ioctl " XSTR((n)), \
-		ioctl(fd, UART16550_IOCTL_SET_LINE, (n)), -1)
-	err |= ioctl_test(0xdeadbeef);
-	err |= ioctl_test(0x1337cafe);
+		ioctl(fd, UART16550_IOCTL_SET_LINE, (n)), -1, 1)
+	total -= ioctl_test(0xdeadbeef);
+	total -= ioctl_test(0x1337cafe);
 #undef ioctl_test
-	err |= test("invalid ioctl wrong operation", ioctl(fd, 0xffff), -1);
+	total -= test("invalid ioctl wrong operation", ioctl(fd, 0xffff), -1, 1);
 	close(fd);
-	err |= test("rmmod", system("rmmod " MODULE_NAME), 0);
+	total -= test("rmmod", system("rmmod " MODULE_NAME), 0, 0.5);
 
 	/* Check invalid module parameters. */
-	err |= not_test("insmod " MODULE_NAME ", option=0xdeadbabe",
+	total -= not_test("insmod " MODULE_NAME ", option=0xdeadbabe",
 			system("insmod " MODULE_NAME ".ko option=0xdeadbabe"),
-			0);
+			0, 1);
 
-	return err;
+	return total;
 }
 
 /* Speed sets:
@@ -328,8 +342,10 @@ copy_file(int fdr, int fdw, int len)
 static int
 copy_test(int fd0, int fd1, int speed_set)
 {
-	pid_t rpid, wpid;
-	int len, status, rc, fd;
+	pid_t rpid, wpid, kpid;
+	int len, status, fd;
+	int rc1, rc2, rc3, exit_status1, exit_status2, exit_status3;
+	int i;
 
 	len = gen_test_file(INFILE, speed_set);
 	rpid = fork();
@@ -360,26 +376,56 @@ copy_test(int fd0, int fd1, int speed_set)
 		break;
 	}
 
-	rc = waitpid(rpid, &status, 0);
-	if (rc < 0)
-		return rc;
-	if (WEXITSTATUS(status))
-		return WEXITSTATUS(status);
+	kpid = fork();
+	switch (kpid) {
+	case 0:
+		for (i = 0; i < GENERIC_TEST_TIMEOUT; i++) {
+			/*
+			 * check if procs still exist. kill with arg 0
+			 * will succed (ret 0) if the pid exists
+			 */
+			if (!kill(rpid, 0)) {
+				sleep(1);
+				continue;
+			} else if (!kill(wpid, 0)) {
+				sleep(1);
+				continue;
+			} else
+				break;
 
-	rc = waitpid(wpid, &status, 0);
-	if (rc < 0)
-		return rc;
-	if (WEXITSTATUS(status))
-		return WEXITSTATUS(status);
+		}
+		kill(rpid, SIGTERM);
+		kill(wpid, SIGTERM);
+		exit(EXIT_SUCCESS);
+		break;
+	default:
+		break;
+
+	}
+
+	rc1 = waitpid(rpid, &status, 0);
+	exit_status1 = WEXITSTATUS(status);
+		
+
+	rc2 = waitpid(wpid, &status, 0);
+	exit_status2 = WEXITSTATUS(status);
+
+	rc3 = waitpid(kpid, &status, 0);
+	exit_status3 = WEXITSTATUS(status);
+
+	if (rc1 < 0 || rc2 < 0 || rc3 < 0 || 
+		exit_status1 || exit_status2 || exit_status3)
+		return -1;
 
 	return system("diff " INFILE " " OUTFILE "> /dev/null 2> /dev/null");
 }
 
-static int
+static float
 generic_test(const char *reader, const char *writer, int speed_set,
 		int num_tests)
 {
-	int fd0, fd1, i, err = 0;
+	int fd0, fd1, i;
+	float total = num_tests * 1.5 + (reader != writer ? 6 : 4) * 0.5;
 	char dbuf[1024], cbuf[1024];
 	struct uart16550_line_info uli;
 
@@ -387,15 +433,15 @@ generic_test(const char *reader, const char *writer, int speed_set,
 		sprintf(dbuf, "insmod %s", reader);
 		sprintf(cbuf, "insmod %s.ko option=%d",
 				reader, OPTION_COM2_ONLY);
-		fatal_test(dbuf, system(cbuf), 0);
+		total -= fatal_test(dbuf, system(cbuf), 0, 0.5);
 		sprintf(dbuf, "insmod %s", writer);
 		sprintf(cbuf, "insmod %s.ko option=%d",
 				writer, OPTION_COM1_ONLY);
-		fatal_test(dbuf, system(cbuf), 0);
+		total -= fatal_test(dbuf, system(cbuf), 0, 0.5);
 	} else {
 		sprintf(dbuf, "insmod %s", reader);
 		sprintf(cbuf, "insmod %s.ko", reader);
-		fatal_test(dbuf, system(cbuf), 0);
+		total -= fatal_test(dbuf, system(cbuf), 0, 0.5);
 	}
 
 	gen_params(&uli, speed_set);
@@ -405,14 +451,14 @@ generic_test(const char *reader, const char *writer, int speed_set,
 	fd1 = open(UART1, O_RDONLY);
 	if (fd1 == -1)
 		fail("open " UART1);
-	err |= test("ioctl reader",
-			ioctl(fd1, UART16550_IOCTL_SET_LINE, &uli), 0);
-	err |= test("ioctl writer",
-			ioctl(fd0, UART16550_IOCTL_SET_LINE, &uli), 0);
+	total -= test("ioctl reader",
+			ioctl(fd1, UART16550_IOCTL_SET_LINE, &uli), 0, 0.5);
+	total -= test("ioctl writer",
+			ioctl(fd0, UART16550_IOCTL_SET_LINE, &uli), 0, 0.5);
 
 	for (i = 0; i < num_tests; i++) {
 		sprintf(dbuf, "test %02d", i + 1);
-		test(dbuf, copy_test(fd0, fd1, speed_set), 0);
+		total -= test(dbuf, copy_test(fd0, fd1, speed_set), 0, 1.5);
 	}
 
 	close(fd0);
@@ -421,17 +467,17 @@ generic_test(const char *reader, const char *writer, int speed_set,
 	if (reader != writer) {
 		sprintf(dbuf, "rmmod %s", reader);
 		sprintf(cbuf, "rmmod %s.ko", reader);
-		fatal_test(dbuf, system(cbuf), 0);
+		total -= fatal_test(dbuf, system(cbuf), 0, 0.5);
 		sprintf(dbuf, "rmmod %s", writer);
 		sprintf(cbuf, "rmmod %s.ko", writer);
-		fatal_test(dbuf, system(cbuf), 0);
+		total -= fatal_test(dbuf, system(cbuf), 0, 0.5);
 	} else {
 		sprintf(dbuf, "rmmod %s", reader);
 		sprintf(cbuf, "rmmod %s.ko", reader);
-		fatal_test(dbuf, system(cbuf), 0);
+		total -= fatal_test(dbuf, system(cbuf), 0, 0.5);
 	}
 
-	return err;
+	return total;
 }
 
 #define choose_one(rd, wr)		do {			\
@@ -445,7 +491,7 @@ generic_test(const char *reader, const char *writer, int speed_set,
 		}						\
 	} while (0)
 
-static int
+static float
 test3(void)
 {
 	const char *rd, *wr;
@@ -456,7 +502,7 @@ test3(void)
 	return generic_test(rd, wr, 0, 5);
 }
 
-static int
+static float
 test4(void)
 {
 	const char *rd, *wr;
@@ -467,7 +513,7 @@ test4(void)
 	return generic_test(rd, wr, 0, 5);
 }
 
-static int
+static float
 test5(void)
 {
 	const char *rd, *wr;
@@ -477,7 +523,7 @@ test5(void)
 	return generic_test(rd, wr, 0, 5);
 }
 
-static int
+static float
 test6(void)
 {
 	const char *rd, *wr;
@@ -487,7 +533,7 @@ test6(void)
 	return generic_test(rd, wr, 1, 5);
 }
 
-static int
+static float
 test7(void)
 {
 	const char *rd, *wr;
@@ -497,7 +543,7 @@ test7(void)
 	return generic_test(rd, wr, 1, 5);
 }
 
-static int
+static float
 test8(void)
 {
 	const char *rd, *wr;
@@ -507,7 +553,7 @@ test8(void)
 	return generic_test(rd, wr, 2, 5);
 }
 
-static int
+static float
 test9(void)
 {
 	const char *rd, *wr;
@@ -520,35 +566,26 @@ test9(void)
 int
 main(void)
 {
-	int num_passed = 0;
-	const int total = 9;
+	float num_passed = 0;
 
+	signal(SIGTERM, sig_handler);
 	srand(time(NULL));
 	make_nodes();
 
-	if (test1() == 0)
-		num_passed++;
-	if (test2() == 0)
-		num_passed++;
-	if (test3() == 0)
-		num_passed++;
-	if (test4() == 0)
-		num_passed++;
-	if (test5() == 0)
-		num_passed++;
-	if (test6() == 0)
-		num_passed++;
-	if (test7() == 0)
-		num_passed++;
-	if (test8() == 0)
-		num_passed++;
-	if (test9() == 0)
-		num_passed++;
+	num_passed += test1();
+	num_passed += test2();
+	num_passed += test3();
+	num_passed += test4();
+	num_passed += test5();
+	num_passed += test6();
+	num_passed += test7();
+	num_passed += test8();
+	num_passed += test9();
 
 	remove_nodes();
 	unlink(INFILE);
 	unlink(OUTFILE);
-	printf("\nFinal score: %d/%d\n", num_passed, total);
+	printf("\nTotal: [%.1f/%d]\n", num_passed, total);
 
 	return 0;
 }
