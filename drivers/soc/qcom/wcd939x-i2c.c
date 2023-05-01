@@ -390,6 +390,7 @@ static int wcd_usbss_usbc_analog_setup_switches(struct wcd_usbss_ctxt *priv)
 	int rc = 0;
 	int mode;
 	struct device *dev;
+	bool cable_status_cache = false;
 
 	if (!priv)
 		return -EINVAL;
@@ -402,15 +403,23 @@ static int wcd_usbss_usbc_analog_setup_switches(struct wcd_usbss_ctxt *priv)
 	/* get latest mode again within locked context */
 	mode = atomic_read(&(priv->usbc_mode));
 
-	dev_dbg(dev, "%s: setting GPIOs active = %d\n",
-		__func__, mode != TYPEC_ACCESSORY_NONE);
+	dev_dbg(dev, "%s: setting GPIOs active = %d cable_status = %d mode = %d\n",
+		__func__, mode != TYPEC_ACCESSORY_NONE, priv->cable_status, mode);
 
 	switch (mode) {
 	/* add all modes WCD USBSS should notify for in here */
 	case TYPEC_ACCESSORY_AUDIO:
+		/*
+		 * If cable_type is already decided, update the cable_status to
+		 * avoid reconfiguration of AATC switch settings again
+		 */
+		if (priv->cable_status & (BIT(WCD_USBSS_AATC) |
+					  BIT(WCD_USBSS_GND_MIC_SWAP_AATC) |
+					  BIT(WCD_USBSS_HSJ_CONNECT)))
+			cable_status_cache = true;
 		/* notify call chain on event */
 		blocking_notifier_call_chain(&priv->wcd_usbss_notifier,
-					     mode, NULL);
+					     mode, &cable_status_cache);
 		break;
 	case TYPEC_ACCESSORY_NONE:
 		/* notify call chain on event */
@@ -670,6 +679,12 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 			regmap_update_bits(wcd_usbss_ctxt_->regmap,
 					WCD_USBSS_SWITCH_SETTINGS_ENABLE,
 					AUXP_M_EN_MASK, 0x00);
+			break;
+		case WCD_USBSS_AATC:
+			wcd_usbss_ctxt_->cable_status &= ~BIT(WCD_USBSS_GND_MIC_SWAP_AATC);
+			break;
+		case WCD_USBSS_GND_MIC_SWAP_AATC:
+			wcd_usbss_ctxt_->cable_status &= ~BIT(WCD_USBSS_AATC);
 			break;
 		default:
 			break;
