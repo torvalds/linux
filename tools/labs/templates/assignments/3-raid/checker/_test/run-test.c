@@ -14,7 +14,7 @@ static size_t total_points = 0;
 
 static void test_do_fail(size_t points)
 {
-	printf("failed  [  0/%3zu]\n", points);
+	printf("failed  [  0/%3zu]\n", max_points);
 #ifdef EXIT_IF_FAIL
 	exit(EXIT_FAILURE);
 #endif
@@ -23,7 +23,7 @@ static void test_do_fail(size_t points)
 static void test_do_pass(size_t points)
 {
 	total_points += points;
-	printf("passed  [%3zu/%3zu]\n", points, points);
+	printf("passed  [%3zu/%3zu]\n", points, max_points);
 }
 
 void basic_test(int condition)
