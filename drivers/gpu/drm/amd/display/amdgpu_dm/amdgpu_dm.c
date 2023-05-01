@@ -6340,7 +6340,7 @@ amdgpu_dm_connector_late_register(struct drm_connector *connector)
 	return 0;
 }
 
-void amdgpu_dm_connector_funcs_force(struct drm_connector *connector)
+static void amdgpu_dm_connector_funcs_force(struct drm_connector *connector)
 {
 	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
 	struct dc_link *dc_link = aconnector->dc_link;
