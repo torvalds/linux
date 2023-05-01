@@ -182,7 +182,7 @@ static ssize_t perfmon_counter_dump_show(struct device *dev, struct device_attri
 {
 	struct llcc_perfmon_private *llcc_priv = dev_get_drvdata(dev);
 	struct llcc_perfmon_counter_map *counter_map;
-	unsigned int i, j;
+	unsigned int i, j, val, offset;
 	unsigned long long total;
 	ssize_t cnt = 0;
 
@@ -192,11 +192,9 @@ static ssize_t perfmon_counter_dump_show(struct device *dev, struct device_attri
 	}
 
 	perfmon_counter_dump(llcc_priv);
-	for (i = 0; i < llcc_priv->configured_cntrs - 1; i++) {
+	for (i = 0; i < llcc_priv->configured_cntrs; i++) {
 		total = 0;
 		counter_map = &llcc_priv->configured[i];
-		cnt += scnprintf(buf + cnt, PAGE_SIZE - cnt, "Port %02d,Event %03d,",
-				counter_map->port_sel, counter_map->event_sel);
 
 		if (counter_map->port_sel == EVENT_PORT_BEAC && llcc_priv->num_mc > 1) {
 			/* DBX uses 2 counters for BEAC 0 & 1 */
@@ -214,18 +212,21 @@ static ssize_t perfmon_counter_dump_show(struct device *dev, struct device_attri
 			}
 		}
 
+		/* Checking if the last counter is configured as clock cycle counter */
+		if (i == llcc_priv->configured_cntrs - 1) {
+			offset = PERFMON_COUNTER_n_CONFIG(llcc_priv->drv_ver, i);
+			llcc_bcast_read(llcc_priv, offset, &val);
+			if (val & COUNT_CLOCK_EVENT) {
+				cnt += scnprintf(buf + cnt, PAGE_SIZE - cnt, "CYCLE COUNT, ,");
+				cnt += scnprintf(buf + cnt, PAGE_SIZE - cnt, "0x%016llx\n", total);
+				break;
+			}
+		}
+
+		cnt += scnprintf(buf + cnt, PAGE_SIZE - cnt, "Port %02d,Event %03d,",
+				counter_map->port_sel, counter_map->event_sel);
 		cnt += scnprintf(buf + cnt, PAGE_SIZE - cnt, "0x%016llx\n", total);
 	}
-
-	cnt += scnprintf(buf + cnt, PAGE_SIZE - cnt, "CYCLE COUNT, ,");
-	total = 0;
-	counter_map = &llcc_priv->configured[i];
-	for (j = 0; j < llcc_priv->num_banks; j++) {
-		total += counter_map->counter_dump[j];
-		counter_map->counter_dump[j] = 0;
-	}
-
-	cnt += scnprintf(buf + cnt, PAGE_SIZE - cnt, "0x%016llx\n", total);
 
 	if (llcc_priv->expires)
 		hrtimer_forward_now(&llcc_priv->hrtimer, llcc_priv->expires);
@@ -289,7 +290,7 @@ static void remove_filters(struct llcc_perfmon_private *llcc_priv)
 
 static void remove_counters(struct llcc_perfmon_private *llcc_priv)
 {
-	u32 i, offset;
+	u32 i, offset, val;
 	struct event_port_ops *port_ops;
 	struct llcc_perfmon_counter_map *counter_map;
 
@@ -299,7 +300,17 @@ static void remove_counters(struct llcc_perfmon_private *llcc_priv)
 	}
 
 	/* Remove the counters configured for ports */
-	for (i = 0; i < llcc_priv->configured_cntrs - 1; i++) {
+	for (i = 0; i < llcc_priv->configured_cntrs; i++) {
+		/*Checking if the last counter is configured as cyclic counter. Removing if found*/
+		if (i == llcc_priv->configured_cntrs - 1) {
+			offset = PERFMON_COUNTER_n_CONFIG(llcc_priv->drv_ver, i);
+			llcc_bcast_read(llcc_priv, offset, &val);
+			if (val & COUNT_CLOCK_EVENT) {
+				llcc_bcast_write(llcc_priv, offset, 0);
+				break;
+			}
+		}
+
 		counter_map = &llcc_priv->configured[i];
 		/* In case the port configuration is already removed, skip */
 		if (counter_map->port_sel == MAX_NUMBER_OF_PORTS)
@@ -319,9 +330,6 @@ static void remove_counters(struct llcc_perfmon_private *llcc_priv)
 		counter_map->event_sel = UNKNOWN_EVENT;
 	}
 
-	/* remove clock event */
-	offset = PERFMON_COUNTER_n_CONFIG(llcc_priv->drv_ver, i);
-	llcc_bcast_write(llcc_priv, offset, 0);
 	llcc_priv->configured_cntrs = 0;
 	pr_info("Counters removed\n");
 
@@ -351,18 +359,24 @@ static ssize_t perfmon_configure_store(struct device *dev, struct device_attribu
 	struct llcc_perfmon_private *llcc_priv = dev_get_drvdata(dev);
 	struct event_port_ops *port_ops;
 	struct llcc_perfmon_counter_map *counter_map;
-	unsigned int j = 0, k, end_cntrs;
+	unsigned int j = 0, k;
 	unsigned long port_sel, event_sel;
 	uint32_t val, offset;
 	char *token, *delim = DELIM_CHAR;
-	u8 filter_idx = FILTER_0;
+	u8 filter_idx = FILTER_0, beac_res_cntrs = 0;
 	bool multi_fltr_flag = false;
 
 	mutex_lock(&llcc_priv->mutex);
-	if (llcc_priv->configured_cntrs == MAX_CNTR - 1) {
-		pr_err("Counters configured already, remove & try again\n");
-		mutex_unlock(&llcc_priv->mutex);
-		return -EINVAL;
+	if (llcc_priv->configured_cntrs == MAX_CNTR) {
+		offset = PERFMON_COUNTER_n_CONFIG(llcc_priv->drv_ver,
+				llcc_priv->configured_cntrs - 1);
+		llcc_bcast_read(llcc_priv, offset, &val);
+		/* Check if last counter is clock counter. If yes, let overwrite last counter */
+		if (!(val & COUNT_CLOCK_EVENT)) {
+			pr_err("Counters configured already, remove & try again\n");
+			mutex_unlock(&llcc_priv->mutex);
+			return -EINVAL;
+		}
 	}
 
 	/* Cheking whether an existing counter configuration is present, if present initializing
@@ -417,13 +431,17 @@ static ssize_t perfmon_configure_store(struct device *dev, struct device_attribu
 			continue;
 		}
 
-		/* Last perfmon counter for cycle counter */
-		end_cntrs = MAX_CLOCK_CNTR;
+		/* If BEAC is getting configured, then counters equal to number of Memory Controller
+		 * are needed for BEAC configuration. Hence, setting the same.
+		 */
+		beac_res_cntrs = 0;
 		if (port_sel == EVENT_PORT_BEAC)
-			end_cntrs = llcc_priv->num_mc;
+			beac_res_cntrs = llcc_priv->num_mc;
 
-		if (j == (MAX_CNTR - end_cntrs))
+		if (j == (MAX_CNTR - beac_res_cntrs)) {
+			pr_err("All counters already used\n");
 			break;
+		}
 
 		counter_map = &llcc_priv->configured[j];
 		counter_map->port_sel = port_sel;
@@ -457,10 +475,13 @@ static ssize_t perfmon_configure_store(struct device *dev, struct device_attribu
 		goto out_configure;
 	}
 
-	/* configure clock event */
-	val = COUNT_CLOCK_EVENT | CLEAR_ON_ENABLE | CLEAR_ON_DUMP;
-	offset = PERFMON_COUNTER_n_CONFIG(llcc_priv->drv_ver, j++);
-	llcc_bcast_write(llcc_priv, offset, val);
+	/* Configure cycle counter as last one if any counter available */
+	if (j < MAX_CNTR) {
+		val = COUNT_CLOCK_EVENT | CLEAR_ON_ENABLE | CLEAR_ON_DUMP;
+		offset = PERFMON_COUNTER_n_CONFIG(llcc_priv->drv_ver, j++);
+		llcc_bcast_write(llcc_priv, offset, val);
+	}
+
 	llcc_priv->configured_cntrs = j;
 
 out_configure:
@@ -474,11 +495,11 @@ static ssize_t perfmon_remove_store(struct device *dev, struct device_attribute 
 	struct llcc_perfmon_private *llcc_priv = dev_get_drvdata(dev);
 	struct event_port_ops *port_ops;
 	struct llcc_perfmon_counter_map *counter_map;
-	unsigned int j = 0, end_cntrs;
+	unsigned int j = 0, val;
 	unsigned long port_sel, event_sel;
 	char *token, *delim = DELIM_CHAR;
 	uint32_t offset;
-	u8 filter_idx = FILTER_0;
+	u8 filter_idx = FILTER_0, beac_res_cntrs = 0;
 	bool multi_fltr_flag = false, filter_en = false;
 
 	mutex_lock(&llcc_priv->mutex);
@@ -489,8 +510,7 @@ static ssize_t perfmon_remove_store(struct device *dev, struct device_attribute 
 	}
 
 	/* Checking if counters were removed earlier, setting the count value to next counter */
-	if (llcc_priv->removed_cntrs &&
-			llcc_priv->removed_cntrs < (llcc_priv->configured_cntrs - MAX_CLOCK_CNTR))
+	if (llcc_priv->removed_cntrs && llcc_priv->removed_cntrs < llcc_priv->configured_cntrs)
 		j  = llcc_priv->removed_cntrs;
 
 	token = strsep((char **)&buf, delim);
@@ -566,12 +586,11 @@ static ssize_t perfmon_remove_store(struct device *dev, struct device_attribute 
 			continue;
 		}
 
-		/* Last perfmon counter for cycle counter */
-		end_cntrs = MAX_CLOCK_CNTR;
+		beac_res_cntrs = 0;
 		if (port_sel == EVENT_PORT_BEAC)
-			end_cntrs = llcc_priv->num_mc;
+			beac_res_cntrs = llcc_priv->num_mc;
 
-		if (j == (llcc_priv->configured_cntrs - end_cntrs))
+		if (j == (llcc_priv->configured_cntrs - beac_res_cntrs))
 			break;
 
 		/* put dummy values */
@@ -589,13 +608,20 @@ static ssize_t perfmon_remove_store(struct device *dev, struct device_attribute 
 		llcc_priv->enables_port &= ~(1 << port_sel);
 	}
 
-	/* If count reached to configured counters then removing clock event, else updating the
-	 * removed counters list to support next removal configuraiton
+	/* If count reached to last counters then checking whether last counter is used as cycle
+	 * counter, remove the same.
 	 */
-	if (j == llcc_priv->configured_cntrs - 1) {
-		pr_info("All couters removed, removing last cyclic counter\n");
+	if (j == (llcc_priv->configured_cntrs - 1)) {
 		offset = PERFMON_COUNTER_n_CONFIG(llcc_priv->drv_ver, j);
-		llcc_bcast_write(llcc_priv, offset, 0);
+		llcc_bcast_read(llcc_priv, offset, &val);
+		if (val & COUNT_CLOCK_EVENT) {
+			llcc_bcast_write(llcc_priv, offset, 0);
+			j++;
+		}
+	}
+
+	if (j == llcc_priv->configured_cntrs) {
+		pr_info("All counters removed\n");
 		llcc_priv->configured_cntrs = 0;
 		llcc_priv->removed_cntrs = 0;
 	}
