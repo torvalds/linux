@@ -435,6 +435,8 @@ static const char *normalize_arch(char *arch)
 		return "mips";
 	if (!strncmp(arch, "sh", 2) && isdigit(arch[2]))
 		return "sh";
+	if (!strncmp(arch, "loongarch", 9))
+		return "loongarch";
 
 	return arch;
 }
