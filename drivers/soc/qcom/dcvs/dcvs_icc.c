@@ -16,6 +16,7 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/interconnect.h>
+#include <dt-bindings/interconnect/qcom,icc.h>
 #include <soc/qcom/dcvs.h>
 #include "dcvs_private.h"
 
@@ -44,8 +45,8 @@ static int commit_icc_freq(struct dcvs_path *path, struct dcvs_freq *freqs,
 	return ret;
 }
 
-#define ACTIVE_ONLY_TAG	0x3
-#define PERF_MODE_TAG	0x8
+#define ACTIVE_ONLY_TAG	QCOM_ICC_TAG_ACTIVE_ONLY
+#define PERF_MODE_TAG	QCOM_ICC_TAG_PERF_MODE
 int setup_icc_sp_device(struct device *dev, struct dcvs_hw *hw,
 					struct dcvs_path *path)
 {
