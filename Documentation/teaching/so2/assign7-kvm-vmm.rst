@@ -1,8 +1,8 @@
 =====================================================
-Assignment 4.b - SO2 Virtual Machine Manager with KVM
+Assignment 7 - SO2 Virtual Machine Manager with KVM
 =====================================================
 
-- Deadline: :command:`Tuesday, 26 May 2022, 23:00`
+- Deadline: :command:`Tuesday, 29 May 2023, 23:00`
 - This assignment can be made in teams (max 2). Only one of them must submit the assignment, and the names of the student should be listed in a README file.
 
 In this assignment we will work on a simple Virtual Machine Manager (VMM). We will be using the KVM API
