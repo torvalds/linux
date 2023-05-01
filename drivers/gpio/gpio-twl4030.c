@@ -17,7 +17,9 @@
 #include <linux/interrupt.h>
 #include <linux/kthread.h>
 #include <linux/irq.h>
+#include <linux/gpio/machine.h>
 #include <linux/gpio/driver.h>
+#include <linux/gpio/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/irqdomain.h>
@@ -465,17 +467,13 @@ static int gpio_twl4030_debounce(u32 debounce, u8 mmc_cd)
 				REG_GPIO_DEBEN1, 3);
 }
 
-static struct twl4030_gpio_platform_data *of_gpio_twl4030(struct device *dev,
-				struct twl4030_gpio_platform_data *pdata)
+static struct twl4030_gpio_platform_data *of_gpio_twl4030(struct device *dev)
 {
 	struct twl4030_gpio_platform_data *omap_twl_info;
 
 	omap_twl_info = devm_kzalloc(dev, sizeof(*omap_twl_info), GFP_KERNEL);
 	if (!omap_twl_info)
 		return NULL;
-
-	if (pdata)
-		*omap_twl_info = *pdata;
 
 	omap_twl_info->use_leds = of_property_read_bool(dev->of_node,
 			"ti,use-leds");
@@ -504,9 +502,18 @@ static int gpio_twl4030_remove(struct platform_device *pdev)
 	return 0;
 }
 
+/* Called from the registered devm action */
+static void gpio_twl4030_power_off_action(void *data)
+{
+	struct gpio_desc *d = data;
+
+	gpiod_unexport(d);
+	gpiochip_free_own_desc(d);
+}
+
 static int gpio_twl4030_probe(struct platform_device *pdev)
 {
-	struct twl4030_gpio_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct twl4030_gpio_platform_data *pdata;
 	struct device_node *node = pdev->dev.of_node;
 	struct gpio_twl4030_priv *priv;
 	int ret, irq_base;
@@ -546,9 +553,7 @@ no_irqs:
 
 	mutex_init(&priv->mutex);
 
-	if (node)
-		pdata = of_gpio_twl4030(&pdev->dev, pdata);
-
+	pdata = of_gpio_twl4030(&pdev->dev);
 	if (pdata == NULL) {
 		dev_err(&pdev->dev, "Platform data is missing\n");
 		return -ENXIO;
@@ -585,17 +590,32 @@ no_irqs:
 		goto out;
 	}
 
-	platform_set_drvdata(pdev, priv);
+	/*
+	 * Special quirk for the OMAP3 to hog and export a WLAN power
+	 * GPIO.
+	 */
+	if (IS_ENABLED(CONFIG_ARCH_OMAP3) &&
+	    of_machine_is_compatible("compulab,omap3-sbc-t3730")) {
+		struct gpio_desc *d;
 
-	if (pdata->setup) {
-		int status;
+		d = gpiochip_request_own_desc(&priv->gpio_chip,
+						 2, "wlan pwr",
+						 GPIO_ACTIVE_HIGH,
+						 GPIOD_OUT_HIGH);
+		if (IS_ERR(d))
+			return dev_err_probe(&pdev->dev, PTR_ERR(d),
+					     "unable to hog wlan pwr GPIO\n");
 
-		status = pdata->setup(&pdev->dev, priv->gpio_chip.base,
-				      TWL4030_GPIO_MAX);
-		if (status)
-			dev_dbg(&pdev->dev, "setup --> %d\n", status);
+		gpiod_export(d, 0);
+
+		ret = devm_add_action_or_reset(&pdev->dev, gpio_twl4030_power_off_action, d);
+		if (ret)
+			return dev_err_probe(&pdev->dev, ret,
+					     "failed to install power off handler\n");
+
 	}
 
+	platform_set_drvdata(pdev, priv);
 out:
 	return ret;
 }

@@ -6,6 +6,7 @@
  */
 #include <linux/clk.h>
 #include <linux/davinci_emac.h>
+#include <linux/gpio/machine.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio.h>
 #include <linux/init.h>
@@ -41,7 +42,6 @@ struct pdata_init {
 };
 
 static struct of_dev_auxdata omap_auxdata_lookup[];
-static struct twl4030_gpio_platform_data twl_gpio_auxdata;
 
 #ifdef CONFIG_MACH_NOKIA_N8X0
 static void __init omap2420_n8x0_legacy_init(void)
@@ -98,22 +98,6 @@ static struct iommu_platform_data omap3_iommu_isp_pdata = {
 };
 #endif
 
-static int omap3_sbc_t3730_twl_callback(struct device *dev,
-					   unsigned gpio,
-					   unsigned ngpio)
-{
-	int res;
-
-	res = gpio_request_one(gpio + 2, GPIOF_OUT_INIT_HIGH,
-			       "wlan pwr");
-	if (res)
-		return res;
-
-	gpiod_export(gpio_to_desc(gpio), 0);
-
-	return 0;
-}
-
 static void __init omap3_sbc_t3x_usb_hub_init(int gpio, char *hub_name)
 {
 	int err = gpio_request_one(gpio, GPIOF_OUT_INIT_LOW, hub_name);
@@ -129,11 +113,6 @@ static void __init omap3_sbc_t3x_usb_hub_init(int gpio, char *hub_name)
 	udelay(10);
 	gpio_set_value(gpio, 1);
 	msleep(1);
-}
-
-static void __init omap3_sbc_t3730_twl_init(void)
-{
-	twl_gpio_auxdata.setup = omap3_sbc_t3730_twl_callback;
 }
 
 static void __init omap3_sbc_t3730_legacy_init(void)
@@ -393,21 +372,6 @@ static struct ti_prm_platform_data ti_prm_pdata = {
 	.clkdm_lookup = clkdm_lookup,
 };
 
-/*
- * GPIOs for TWL are initialized by the I2C bus and need custom
- * handing until DSS has device tree bindings.
- */
-void omap_auxdata_legacy_init(struct device *dev)
-{
-	if (dev->platform_data)
-		return;
-
-	if (strcmp("twl4030-gpio", dev_name(dev)))
-		return;
-
-	dev->platform_data = &twl_gpio_auxdata;
-}
-
 #if defined(CONFIG_ARCH_OMAP3) && IS_ENABLED(CONFIG_SND_SOC_OMAP_MCBSP)
 static struct omap_mcbsp_platform_data mcbsp_pdata;
 static void __init omap3_mcbsp_init(void)
@@ -427,9 +391,6 @@ static struct pdata_init auxdata_quirks[] __initdata = {
 	{ "nokia,n800", omap2420_n8x0_legacy_init, },
 	{ "nokia,n810", omap2420_n8x0_legacy_init, },
 	{ "nokia,n810-wimax", omap2420_n8x0_legacy_init, },
-#endif
-#ifdef CONFIG_ARCH_OMAP3
-	{ "compulab,omap3-sbc-t3730", omap3_sbc_t3730_twl_init, },
 #endif
 	{ /* sentinel */ },
 };
