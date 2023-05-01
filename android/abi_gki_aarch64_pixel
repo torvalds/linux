@@ -31,6 +31,7 @@
   argv_split
   arm64_use_ng_mappings
   __arm_smccc_smc
+  __arm_smccc_sve_check
   async_schedule_node_domain
   async_synchronize_full_domain
   atomic_notifier_call_chain
@@ -1381,6 +1382,12 @@
   pin_user_pages_fast
   pin_user_pages_remote
   pktgen_xfrm_outer_mode_output
+  pkvm_iommu_driver_init
+  pkvm_iommu_finalize
+  pkvm_iommu_register
+  pkvm_iommu_resume
+  pkvm_iommu_suspend
+  __pkvm_load_el2_module
   platform_bus_type
   platform_device_add
   platform_device_add_data
