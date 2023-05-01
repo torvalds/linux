@@ -751,10 +751,18 @@ static int at91_poll_rx(struct net_device *dev, int quota)
 	return received;
 }
 
-static void at91_poll_err_frame(struct net_device *dev,
-				struct can_frame *cf, u32 reg_sr)
+static int at91_poll_err(struct net_device *dev, int quota, u32 reg_sr)
 {
 	struct at91_priv *priv = netdev_priv(dev);
+	struct sk_buff *skb;
+	struct can_frame *cf;
+
+	if (quota == 0)
+		return 0;
+
+	skb = alloc_can_err_skb(dev, &cf);
+	if (unlikely(!skb))
+		return 0;
 
 	/* CRC error */
 	if (reg_sr & AT91_IRQ_CERR) {
@@ -797,21 +805,6 @@ static void at91_poll_err_frame(struct net_device *dev,
 		cf->can_id |= CAN_ERR_PROT | CAN_ERR_BUSERROR;
 		cf->data[2] |= CAN_ERR_PROT_BIT;
 	}
-}
-
-static int at91_poll_err(struct net_device *dev, int quota, u32 reg_sr)
-{
-	struct sk_buff *skb;
-	struct can_frame *cf;
-
-	if (quota == 0)
-		return 0;
-
-	skb = alloc_can_err_skb(dev, &cf);
-	if (unlikely(!skb))
-		return 0;
-
-	at91_poll_err_frame(dev, cf, reg_sr);
 
 	netif_receive_skb(skb);
 
