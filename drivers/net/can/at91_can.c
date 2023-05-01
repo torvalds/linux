@@ -437,6 +437,11 @@ static void at91_chip_start(struct net_device *dev)
 
 	priv->can.state = CAN_STATE_ERROR_ACTIVE;
 
+	/* Dummy read to clear latched line error interrupts on
+	 * sam9x5 and newer SoCs.
+	 */
+	at91_read(priv, AT91_SR);
+
 	/* Enable interrupts */
 	reg_ier = get_irq_mb_rx(priv) | AT91_IRQ_ERRP | AT91_IRQ_ERR_FRAME;
 	at91_write(priv, AT91_IER, reg_ier);
@@ -932,7 +937,7 @@ static void at91_irq_err_state(struct net_device *dev,
 	at91_write(priv, AT91_IER, reg_ier);
 }
 
-static void at91_irq_err_line(struct net_device *dev)
+static void at91_irq_err_line(struct net_device *dev, const u32 reg_sr)
 {
 	enum can_state new_state, rx_state, tx_state;
 	struct at91_priv *priv = netdev_priv(dev);
@@ -942,6 +947,23 @@ static void at91_irq_err_line(struct net_device *dev)
 
 	at91_get_berr_counter(dev, &bec);
 	can_state_get_by_berr_counter(dev, &bec, &tx_state, &rx_state);
+
+	/* The chip automatically recovers from bus-off after 128
+	 * occurrences of 11 consecutive recessive bits.
+	 *
+	 * After an auto-recovered bus-off, the error counters no
+	 * longer reflect this fact. On the sam9263 the state bits in
+	 * the SR register show the current state (based on the
+	 * current error counters), while on sam9x5 and newer SoCs
+	 * these bits are latched.
+	 *
+	 * Take any latched bus-off information from the SR register
+	 * into account when calculating the CAN new state, to start
+	 * the standard CAN bus off handling.
+	 */
+	if (reg_sr & AT91_IRQ_BOFF)
+		rx_state = CAN_STATE_BUS_OFF;
+
 	new_state = max(tx_state, rx_state);
 
 	/* state hasn't changed */
@@ -1050,7 +1072,7 @@ static irqreturn_t at91_irq(int irq, void *dev_id)
 	if (reg_sr & get_irq_mb_tx(priv))
 		at91_irq_tx(dev, reg_sr);
 
-	at91_irq_err_line(dev);
+	at91_irq_err_line(dev, reg_sr);
 
 	/* Frame Error Interrupt */
 	if (reg_sr & AT91_IRQ_ERR_FRAME)
