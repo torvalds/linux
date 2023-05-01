@@ -1565,12 +1565,10 @@ static bool beac_event_config(struct llcc_perfmon_private *llcc_priv, unsigned i
 		event_type <= BEAC_MC_WR_BEAT_FIL1) && filter_sel == FILTER_0)) {
 		pr_err("Invalid configuration for BEAC, removing\n");
 		return false;
-	} else  if ((event_type >= BEAC_MC_RD_BEAT_FIL0 && event_type <= BEAC_MC_WR_BEAT_FIL0) ||
-			(event_type >= BEAC_MC_RD_BEAT_FIL1 &&
-			 event_type <= BEAC_MC_WR_BEAT_FIL1)) {
-		mask_val_cfg = PROF_CFG_BEAT_SCALING_MASK | WR_BEAT_FILTER_SEL_MASK |
-			WR_BEAT_FILTER_EN_MASK | RD_BEAT_FILTER_SEL_MASK | RD_BEAT_FILTER_EN_MASK;
 	}
+
+	mask_val_cfg = PROF_CFG_BEAT_SCALING_MASK | WR_BEAT_FILTER_SEL_MASK |
+		WR_BEAT_FILTER_EN_MASK | RD_BEAT_FILTER_SEL_MASK | RD_BEAT_FILTER_EN_MASK;
 
 	if (enable) {
 		val = (event_type << EVENT_SEL_SHIFT) & EVENT_SEL_MASK;
